@@ -468,12 +468,22 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
   }, [sessionId])
 
   // Start session on mount (guarded against StrictMode double-mount)
-  // Always create a fresh session — use /resume to manually restore a previous one
+  // If a saved sdkSessionId exists (from a previous /resume), auto-resume that session
   useEffect(() => {
     if (!sessionStartedRef.current && !startedSessions.has(sessionId)) {
       sessionStartedRef.current = true
       startedSessions.add(sessionId)
-      window.electronAPI.claude.startSession(sessionId, { cwd, permissionMode: 'bypassPermissions' })
+
+      const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
+      const savedSdkSessionId = terminal?.sdkSessionId
+
+      if (savedSdkSessionId) {
+        // Auto-resume the previously saved session
+        historyLoadedRef.current = true
+        window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd)
+      } else {
+        window.electronAPI.claude.startSession(sessionId, { cwd, permissionMode: 'bypassPermissions' })
+      }
     }
     return () => {
       // Don't remove from startedSessions on unmount — StrictMode will remount
