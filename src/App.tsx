@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { workspaceStore } from './stores/workspace-store'
 import { settingsStore } from './stores/settings-store'
 import { Sidebar } from './components/Sidebar'
-import { WorkspaceView } from './components/WorkspaceView'
+import { WorkspaceView, clearInitializedWorkspaces } from './components/WorkspaceView'
 import { SettingsPanel } from './components/SettingsPanel'
 import { AboutPanel } from './components/AboutPanel'
 import { SnippetSidebar } from './components/SnippetPanel'
@@ -143,54 +143,65 @@ export default function App() {
     // Load saved workspaces and settings on startup
     // If launched with --profile, use that profile instead of the stored active one
     const initProfile = async () => {
-      const launchProfileId = await window.electronAPI.app.getLaunchProfile()
-      const result = await window.electronAPI.profile.list()
-      // Use launch profile if provided (new window), otherwise use stored active profile
-      const active = launchProfileId
-        ? result.profiles.find(p => p.id === launchProfileId)
-        : result.profiles.find(p => p.id === result.activeProfileId)
+      try {
+        const launchProfileId = await window.electronAPI.app.getLaunchProfile()
+        const result = await window.electronAPI.profile.list()
+        // Use launch profile if provided (new window), otherwise use stored active profile
+        const active = launchProfileId
+          ? result.profiles.find(p => p.id === launchProfileId)
+          : result.profiles.find(p => p.id === result.activeProfileId)
 
-      if (active?.type === 'remote' && active.remoteHost && active.remoteToken) {
-        // Try connecting to remote
-        const connectResult = await window.electronAPI.remote.connect(
-          active.remoteHost,
-          active.remotePort || 9876,
-          active.remoteToken
-        )
-        if ('error' in connectResult) {
+        if (active?.type === 'remote' && active.remoteHost && active.remoteToken) {
+          // Try connecting to remote
+          const connectResult = await window.electronAPI.remote.connect(
+            active.remoteHost,
+            active.remotePort || 9876,
+            active.remoteToken
+          )
+          if ('error' in connectResult) {
+            if (launchProfileId) {
+              // New window launch failed — show error and close instead of corrupting shared state
+              setAppNotification(`Remote connection failed: ${connectResult.error}`)
+              setTimeout(() => window.close(), 3000)
+              return
+            }
+            // Main window: fall back to first local profile
+            const localProfile = result.profiles.find(p => p.type !== 'remote')
+            if (localProfile) {
+              await window.electronAPI.profile.load(localProfile.id)
+              setActiveProfileName(localProfile.name)
+            }
+          } else {
+            setActiveProfileName(active.name)
+            setIsRemoteConnected(true)
+          }
+        } else if (active?.type === 'remote') {
+          // Remote profile missing connection info — fall back
           if (launchProfileId) {
-            // New window launch failed — show error and close instead of corrupting shared state
-            setAppNotification(`Remote connection failed: ${connectResult.error}`)
+            setAppNotification('Remote profile is missing connection info.')
             setTimeout(() => window.close(), 3000)
             return
           }
-          // Main window: fall back to first local profile
           const localProfile = result.profiles.find(p => p.type !== 'remote')
           if (localProfile) {
             await window.electronAPI.profile.load(localProfile.id)
             setActiveProfileName(localProfile.name)
           }
-        } else {
+        } else if (active) {
           setActiveProfileName(active.name)
-          setIsRemoteConnected(true)
+        } else if (result.profiles.length > 0) {
+          // Fallback: activeProfileId didn't match any profile — use first local profile
+          const fallback = result.profiles.find(p => p.type !== 'remote') || result.profiles[0]
+          setActiveProfileName(fallback.name)
         }
-      } else if (active?.type === 'remote') {
-        // Remote profile missing connection info — fall back
-        if (launchProfileId) {
-          setAppNotification('Remote profile is missing connection info.')
-          setTimeout(() => window.close(), 3000)
-          return
-        }
-        const localProfile = result.profiles.find(p => p.type !== 'remote')
-        if (localProfile) {
-          await window.electronAPI.profile.load(localProfile.id)
-          setActiveProfileName(localProfile.name)
-        }
-      } else if (active) {
-        setActiveProfileName(active.name)
+        await workspaceStore.load()
+        settingsStore.load()
+      } catch (e) {
+        console.error('Failed to initialize profile:', e)
+        // Ensure workspaces still load even if profile init fails
+        await workspaceStore.load()
+        settingsStore.load()
       }
-      await workspaceStore.load()
-      settingsStore.load()
     }
     initProfile()
 
@@ -300,6 +311,9 @@ export default function App() {
       const result = await window.electronAPI.profile.load(profileId)
       if (!result) return
     }
+
+    // Clear workspace init tracking so terminals re-initialize after profile switch
+    clearInitializedWorkspaces()
 
     // Reload workspace store from the (possibly remote) workspaces.json
     await workspaceStore.load()

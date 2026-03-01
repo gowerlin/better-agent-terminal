@@ -23,7 +23,7 @@ const defaultSettings: AppSettings = {
   agentCommandType: 'claude',
   agentCustomCommand: '',
   defaultTerminalCount: 1,
-  createDefaultAgentTerminal: false,
+  createDefaultAgentTerminal: true,
   allowBypassPermissions: true,
   enable1MContext: false
 }

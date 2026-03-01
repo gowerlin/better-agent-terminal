@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import type { TerminalInstance } from '../types'
 import { TerminalThumbnail } from './TerminalThumbnail'
 import { getAgentPreset } from '../types/agent-presets'
@@ -9,6 +9,7 @@ interface ThumbnailBarProps {
   onFocus: (id: string) => void
   onAddTerminal?: () => void
   onAddClaudeAgent?: () => void
+  onReorder?: (orderedIds: string[]) => void
   showAddButton: boolean
   height?: number
   collapsed?: boolean
@@ -21,6 +22,7 @@ export function ThumbnailBar({
   onFocus,
   onAddTerminal,
   onAddClaudeAgent,
+  onReorder,
   showAddButton,
   height,
   collapsed = false,
@@ -32,6 +34,77 @@ export function ThumbnailBar({
   const label = isAgentList
     ? (getAgentPreset(firstTerminal.agentPreset!)?.name || 'Agent')
     : 'Terminals'
+
+  // Drag-and-drop state
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before')
+
+  const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
+    setDraggedId(id)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', id)
+    // Make the drag ghost semi-transparent
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.4'
+    }
+  }, [])
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1'
+    }
+    setDraggedId(null)
+    setDropTargetId(null)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent, id: string) => {
+    // Only handle drags that originated from a thumbnail (not resize handles etc.)
+    if (!draggedId || id === draggedId) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+
+    // Determine if dropping before or after based on mouse position
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    const pos = e.clientY < midY ? 'before' : 'after'
+
+    setDropTargetId(id)
+    setDropPosition(pos)
+  }, [draggedId])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only clear if leaving the element (not entering a child)
+    const related = e.relatedTarget as HTMLElement | null
+    if (!related || !(e.currentTarget as HTMLElement).contains(related)) {
+      setDropTargetId(null)
+    }
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    if (!draggedId || draggedId === targetId || !onReorder) return
+
+    const currentOrder = terminals.map(t => t.id)
+    const draggedIndex = currentOrder.indexOf(draggedId)
+    if (draggedIndex === -1) return
+
+    // Remove dragged item
+    currentOrder.splice(draggedIndex, 1)
+
+    // Calculate new index based on drop position
+    let newIndex = currentOrder.indexOf(targetId)
+    if (dropPosition === 'after') {
+      newIndex += 1
+    }
+
+    // Insert at new position
+    currentOrder.splice(newIndex, 0, draggedId)
+    onReorder(currentOrder)
+
+    setDraggedId(null)
+    setDropTargetId(null)
+  }, [draggedId, dropPosition, terminals, onReorder])
 
   // Collapsed state - show icon bar
   if (collapsed) {
@@ -109,12 +182,26 @@ export function ThumbnailBar({
       </div>
       <div className="thumbnail-list">
         {terminals.map(terminal => (
-          <TerminalThumbnail
+          <div
             key={terminal.id}
-            terminal={terminal}
-            isActive={terminal.id === focusedTerminalId}
-            onClick={() => onFocus(terminal.id)}
-          />
+            draggable={!!onReorder}
+            onDragStart={(e) => handleDragStart(e, terminal.id)}
+            onDragEnd={handleDragEnd}
+            onDragOver={(e) => handleDragOver(e, terminal.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, terminal.id)}
+            className={`thumbnail-drag-wrapper${
+              dropTargetId === terminal.id && draggedId !== terminal.id
+                ? ` drop-${dropPosition}`
+                : ''
+            }${draggedId === terminal.id ? ' dragging' : ''}`}
+          >
+            <TerminalThumbnail
+              terminal={terminal}
+              isActive={terminal.id === focusedTerminalId}
+              onClick={() => onFocus(terminal.id)}
+            />
+          </div>
         ))}
       </div>
     </div>

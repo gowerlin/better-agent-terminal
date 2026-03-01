@@ -87,7 +87,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
   const [permissionMode, setPermissionMode] = useState<string>('bypassPermissions')
   const [currentModel, setCurrentModel] = useState<string>('')
   const [effortLevel, setEffortLevel] = useState<string>('high')
-  const [enable1MContext, setEnable1MContext] = useState(() => settingsStore.getSettings().enable1MContext)
+  const [enable1MContext, setEnable1MContext] = useState(false)
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null)
   const [permissionFocus, setPermissionFocus] = useState(0) // 0=Yes, 1=Yes always, 2=No, 3=custom text
@@ -402,10 +402,6 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
         if (!initialModeAppliedRef.current) {
           initialModeAppliedRef.current = true
           window.electronAPI.claude.setPermissionMode(sessionId, 'bypassPermissions')
-          // Sync settings to session on first status
-          if (settingsStore.getSettings().enable1MContext) {
-            window.electronAPI.claude.set1MContext(sessionId, true)
-          }
         } else if (m.permissionMode) {
           setPermissionMode(m.permissionMode)
         }
@@ -758,6 +754,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
       handlePermissionModeCycle()
       return
     }
+    // Tab with empty input + prompt suggestion → auto-fill suggestion
+    if (e.key === 'Tab' && !e.shiftKey && promptSuggestion && !inputValueRef.current.trim()) {
+      e.preventDefault()
+      setInputValue(promptSuggestion)
+      setPromptSuggestion(null)
+      return
+    }
     if (e.key === 'ArrowUp' && !e.shiftKey) {
       const history = inputHistoryRef.current
       if (history.length === 0) return
@@ -788,7 +791,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
       e.preventDefault()
       handleSend()
     }
-  }, [handleSend, handlePermissionModeCycle, setInputValue, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect])
+  }, [handleSend, handlePermissionModeCycle, setInputValue, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect, promptSuggestion])
 
   const handleModelCycle = useCallback(async () => {
     if (availableModels.length === 0) return
@@ -2059,7 +2062,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
             setPromptSuggestion(null)
             textareaRef.current?.focus()
           }}>
-            <span className="claude-prompt-suggestion-label">Suggested:</span>
+            <span className="claude-prompt-suggestion-label">Suggested <kbd>Tab</kbd>:</span>
             <span className="claude-prompt-suggestion-text">{promptSuggestion}</span>
           </div>
         )}
@@ -2260,15 +2263,22 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
           )}
         </div>
         <div className="claude-statusline">
-          {sessionMeta?.sdkSessionId && (
-            <span
-              className="claude-statusline-item claude-statusline-clickable"
-              onClick={() => { navigator.clipboard.writeText(sessionMeta.sdkSessionId!) }}
-              title={`Session: ${sessionMeta.sdkSessionId}\nClick to copy`}
-            >
-              {sessionMeta.sdkSessionId.slice(0, 8)}
-            </span>
-          )}
+          <span
+            className="claude-statusline-item claude-statusline-clickable"
+            onClick={() => {
+              const id = sessionMeta?.sdkSessionId || sessionId
+              navigator.clipboard.writeText(id)
+            }}
+            title={sessionMeta?.sdkSessionId
+              ? `SDK Session: ${sessionMeta.sdkSessionId}\nPanel: ${sessionId}\nClick to copy SDK session ID`
+              : `Panel: ${sessionId}\nClick to copy`
+            }
+          >
+            {sessionMeta?.sdkSessionId
+              ? sessionMeta.sdkSessionId.slice(0, 8)
+              : sessionId.slice(0, 8)
+            }
+          </span>
           {sessionMeta && (
             <span className="claude-statusline-item" title={`in: ${sessionMeta.inputTokens.toLocaleString()} / out: ${sessionMeta.outputTokens.toLocaleString()}`}>
               {(sessionMeta.inputTokens + sessionMeta.outputTokens).toLocaleString()} tok

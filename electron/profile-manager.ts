@@ -25,6 +25,8 @@ export interface ProfileSnapshot {
   workspaces: unknown[]
   activeWorkspaceId: string | null
   activeGroup: string | null
+  terminals?: unknown[]
+  activeTerminalId?: string | null
 }
 
 function getProfilesDir(): string {
@@ -94,10 +96,12 @@ async function ensureInitialized(): Promise<ProfileIndex> {
   }
 
   // Read current workspaces.json to seed the default profile
-  let workspacesData: { workspaces: unknown[]; activeWorkspaceId: string | null; activeGroup: string | null } = {
+  let workspacesData: { workspaces: unknown[]; activeWorkspaceId: string | null; activeGroup: string | null; terminals?: unknown[]; activeTerminalId?: string | null } = {
     workspaces: [],
     activeWorkspaceId: null,
     activeGroup: null,
+    terminals: [],
+    activeTerminalId: null,
   }
   try {
     const raw = await fs.readFile(path.join(app.getPath('userData'), 'workspaces.json'), 'utf-8')
@@ -106,6 +110,8 @@ async function ensureInitialized(): Promise<ProfileIndex> {
       workspaces: parsed.workspaces || [],
       activeWorkspaceId: parsed.activeWorkspaceId || null,
       activeGroup: parsed.activeGroup || null,
+      terminals: parsed.terminals || [],
+      activeTerminalId: parsed.activeTerminalId || null,
     }
   } catch { /* no existing workspaces */ }
 
@@ -116,6 +122,8 @@ async function ensureInitialized(): Promise<ProfileIndex> {
     workspaces: workspacesData.workspaces,
     activeWorkspaceId: workspacesData.activeWorkspaceId,
     activeGroup: workspacesData.activeGroup,
+    terminals: workspacesData.terminals,
+    activeTerminalId: workspacesData.activeTerminalId,
   }
 
   const newIndex: ProfileIndex = {
@@ -178,8 +186,8 @@ export class ProfileManager {
     const entry = index.profiles.find(p => p.id === profileId)
     if (!entry) return false
 
-    // Read current workspaces.json
-    let workspacesData: { workspaces: unknown[]; activeWorkspaceId: string | null; activeGroup: string | null }
+    // Read current workspaces.json (includes terminals)
+    let workspacesData: { workspaces: unknown[]; activeWorkspaceId: string | null; activeGroup: string | null; terminals?: unknown[]; activeTerminalId?: string | null }
     try {
       const raw = await fs.readFile(path.join(app.getPath('userData'), 'workspaces.json'), 'utf-8')
       const parsed = JSON.parse(raw)
@@ -187,6 +195,8 @@ export class ProfileManager {
         workspaces: parsed.workspaces || [],
         activeWorkspaceId: parsed.activeWorkspaceId || null,
         activeGroup: parsed.activeGroup || null,
+        terminals: parsed.terminals || [],
+        activeTerminalId: parsed.activeTerminalId || null,
       }
     } catch {
       return false
@@ -199,6 +209,8 @@ export class ProfileManager {
       workspaces: workspacesData.workspaces,
       activeWorkspaceId: workspacesData.activeWorkspaceId,
       activeGroup: workspacesData.activeGroup,
+      terminals: workspacesData.terminals,
+      activeTerminalId: workspacesData.activeTerminalId,
     }
 
     await writeSnapshot(snapshot)
@@ -215,11 +227,13 @@ export class ProfileManager {
     const snapshot = await readSnapshot(profileId)
     if (!snapshot) return null
 
-    // Write to workspaces.json
+    // Write to workspaces.json (including terminals)
     const workspacesData = JSON.stringify({
       workspaces: snapshot.workspaces,
       activeWorkspaceId: snapshot.activeWorkspaceId,
       activeGroup: snapshot.activeGroup,
+      terminals: snapshot.terminals || [],
+      activeTerminalId: snapshot.activeTerminalId || null,
     })
     await fs.writeFile(path.join(app.getPath('userData'), 'workspaces.json'), workspacesData, 'utf-8')
 

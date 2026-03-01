@@ -6,6 +6,7 @@ const TEXT_EXTS = new Set([
   'ts', 'tsx', 'js', 'jsx', 'json', 'jsonl', 'css', 'scss', 'less', 'html', 'htm',
   'md', 'txt', 'yml', 'yaml', 'toml', 'xml', 'svg', 'sh', 'bash', 'zsh',
   'py', 'rb', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'gs',
+  'pine', 'lua', 'r', 'pl', 'php', 'swift', 'kt', 'scala', 'sql', 'graphql',
   'env', 'gitignore', 'editorconfig', 'prettierrc', 'eslintrc',
   'dockerfile', 'makefile', 'cfg', 'ini', 'conf', 'log', 'output',
 ])
@@ -20,6 +21,8 @@ const EXT_TO_LANG: Record<string, string> = {
   sh: 'bash', bash: 'bash', zsh: 'bash',
   py: 'python', rb: 'ruby', go: 'go', rs: 'rust',
   java: 'java', c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp', cs: 'csharp', gs: 'javascript',
+  pine: 'javascript', lua: 'lua', r: 'r', pl: 'perl', php: 'php',
+  swift: 'swift', kt: 'kotlin', scala: 'scala', sql: 'sql', graphql: 'graphql',
   dockerfile: 'dockerfile', makefile: 'makefile',
   ini: 'ini', conf: 'ini', cfg: 'ini',
 }
@@ -63,7 +66,6 @@ function tokenize(text: string): Token[] {
 
   PATH_RE.lastIndex = 0
   while ((m = PATH_RE.exec(text)) !== null) {
-    if (!canPreview(m[0])) continue
     const overlaps = specials.some(s => m!.index >= s.start && m!.index < s.end)
     if (overlaps) continue
     specials.push({ start: m.index, end: m.index + m[0].length, token: { type: 'path', text: m[0] } })
@@ -151,6 +153,7 @@ export function FilePreviewModal({ filePath, onClose }: FilePreviewModalProps) {
         if (!cancelled) { setError('Failed to load image'); setLoading(false) }
       })
     } else {
+      // Read as text — works for known and unknown text extensions
       window.electronAPI.fs.readFile(filePath).then(result => {
         if (cancelled) return
         if (result.error) {

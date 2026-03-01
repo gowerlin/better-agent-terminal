@@ -268,6 +268,28 @@ class WorkspaceStore {
     this.notify()
   }
 
+  reorderTerminals(terminalIds: string[]): void {
+    const terminalMap = new Map(this.state.terminals.map(t => [t.id, t]))
+    const reordered = terminalIds
+      .map(id => terminalMap.get(id))
+      .filter((t): t is TerminalInstance => t !== undefined)
+
+    // Append any terminals not in the provided list (e.g. from other workspaces)
+    for (const t of this.state.terminals) {
+      if (!terminalIds.includes(t.id)) {
+        reordered.push(t)
+      }
+    }
+
+    this.state = {
+      ...this.state,
+      terminals: reordered
+    }
+
+    this.notify()
+    this.save()
+  }
+
   // Get terminals for current workspace
   getWorkspaceTerminals(workspaceId: string): TerminalInstance[] {
     return this.state.terminals.filter(t => t.workspaceId === workspaceId)

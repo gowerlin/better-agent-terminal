@@ -89,6 +89,11 @@ function mergeEnvVars(global: EnvVariable[] = [], workspace: EnvVariable[] = [])
 // Track which workspaces have been initialized (outside component to persist across renders)
 const initializedWorkspaces = new Set<string>()
 
+// Allow clearing on profile switch so terminals re-initialize
+export function clearInitializedWorkspaces(): void {
+  initializedWorkspaces.clear()
+}
+
 export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive }: Readonly<WorkspaceViewProps>) {
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
@@ -209,6 +214,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             customEnv
           })
         }
+        // Persist newly created default terminals
+        workspaceStore.save()
       }
     }
     initTerminals()
@@ -239,12 +246,14 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     })
     // Focus the new terminal
     workspaceStore.setFocusedTerminal(terminal.id)
+    workspaceStore.save()
   }, [workspace.id, workspace.folderPath, workspace.envVars])
 
   const handleAddClaudeAgent = useCallback(() => {
     const agentTerminal = workspaceStore.addTerminal(workspace.id, 'claude-code' as AgentPresetId)
     // Claude Agent SDK session will be started by ClaudeAgentPanel on mount
     workspaceStore.setFocusedTerminal(agentTerminal.id)
+    workspaceStore.save()
   }, [workspace.id])
 
   const handleCloseTerminal = useCallback((id: string) => {
@@ -256,6 +265,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       // Regular terminals always use PTY
       window.electronAPI.pty.kill(id)
       workspaceStore.removeTerminal(id)
+      workspaceStore.save()
     }
   }, [terminals])
 
@@ -268,6 +278,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         window.electronAPI.pty.kill(showCloseConfirm)
       }
       workspaceStore.removeTerminal(showCloseConfirm)
+      workspaceStore.save()
       setShowCloseConfirm(null)
     }
   }, [showCloseConfirm, terminals])
@@ -290,6 +301,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   const handleFocus = useCallback((id: string) => {
     workspaceStore.setFocusedTerminal(id)
+  }, [])
+
+  const handleReorderTerminals = useCallback((orderedIds: string[]) => {
+    workspaceStore.reorderTerminals(orderedIds)
   }, [])
 
   // Determine what to show
@@ -368,6 +383,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         onFocus={handleFocus}
         onAddTerminal={handleAddTerminal}
         onAddClaudeAgent={handleAddClaudeAgent}
+        onReorder={handleReorderTerminals}
         showAddButton={true}
         height={thumbnailSettings.height}
         collapsed={thumbnailSettings.collapsed}
