@@ -152,6 +152,8 @@ export default function App() {
     // Load saved workspaces and settings on startup
     // If launched with --profile, use that profile instead of the stored active one
     const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
+    const htmlT0 = (window as unknown as { __t0?: number }).__t0 || Date.now()
+    dlog(`[startup] App useEffect fired: +${Date.now() - htmlT0}ms from HTML`)
     const initProfile = async () => {
       const t0 = performance.now()
       try {
@@ -228,6 +230,7 @@ export default function App() {
         await workspaceStore.load()
       }
       dlog(`[init] total initProfile: ${(performance.now() - t0).toFixed(0)}ms`)
+      dlog(`[startup] app ready (initProfile done): +${Date.now() - htmlT0}ms from HTML`)
     }
     initProfile()
 

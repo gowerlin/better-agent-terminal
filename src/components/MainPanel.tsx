@@ -1,11 +1,13 @@
-import { useState, memo } from 'react'
+import { useState, memo, lazy, Suspense } from 'react'
 import type { TerminalInstance } from '../types'
 import { TerminalPanel } from './TerminalPanel'
-import { ClaudeAgentPanel } from './ClaudeAgentPanel'
 import { ActivityIndicator } from './ActivityIndicator'
 import { PromptBox } from './PromptBox'
 import { getAgentPreset } from '../types/agent-presets'
 import { workspaceStore } from '../stores/workspace-store'
+
+// Lazy load Claude Agent SDK (~240KB chunk) — only needed for claude-code terminals
+const ClaudeAgentPanel = lazy(() => import('./ClaudeAgentPanel').then(m => ({ default: m.ClaudeAgentPanel })))
 
 interface MainPanelProps {
   terminal: TerminalInstance
@@ -99,12 +101,14 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
       </div>
       <div className="main-panel-content">
         {isClaudeCode ? (
-          <ClaudeAgentPanel
-            sessionId={terminal.id}
-            cwd={terminal.cwd}
-            isActive={isActive}
-            workspaceId={workspaceId}
-          />
+          <Suspense fallback={<div className="loading-panel" />}>
+            <ClaudeAgentPanel
+              sessionId={terminal.id}
+              cwd={terminal.cwd}
+              isActive={isActive}
+              workspaceId={workspaceId}
+            />
+          </Suspense>
         ) : (
           <TerminalPanel terminalId={terminal.id} isActive={isActive} />
         )}

@@ -1,6 +1,67 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
 import 'highlight.js/styles/vs2015.css'
+// Register only the languages we actually use (saves ~800KB vs full highlight.js)
+import typescript from 'highlight.js/lib/languages/typescript'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import css from 'highlight.js/lib/languages/css'
+import scss from 'highlight.js/lib/languages/scss'
+import less from 'highlight.js/lib/languages/less'
+import xml from 'highlight.js/lib/languages/xml'
+import markdown from 'highlight.js/lib/languages/markdown'
+import yaml from 'highlight.js/lib/languages/yaml'
+import ini from 'highlight.js/lib/languages/ini'
+import bash from 'highlight.js/lib/languages/bash'
+import python from 'highlight.js/lib/languages/python'
+import ruby from 'highlight.js/lib/languages/ruby'
+import go from 'highlight.js/lib/languages/go'
+import rust from 'highlight.js/lib/languages/rust'
+import java from 'highlight.js/lib/languages/java'
+import c from 'highlight.js/lib/languages/c'
+import cpp from 'highlight.js/lib/languages/cpp'
+import csharp from 'highlight.js/lib/languages/csharp'
+import lua from 'highlight.js/lib/languages/lua'
+import r from 'highlight.js/lib/languages/r'
+import perl from 'highlight.js/lib/languages/perl'
+import php from 'highlight.js/lib/languages/php'
+import swift from 'highlight.js/lib/languages/swift'
+import kotlin from 'highlight.js/lib/languages/kotlin'
+import scala from 'highlight.js/lib/languages/scala'
+import sql from 'highlight.js/lib/languages/sql'
+import graphql from 'highlight.js/lib/languages/graphql'
+import dockerfile from 'highlight.js/lib/languages/dockerfile'
+import makefile from 'highlight.js/lib/languages/makefile'
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('scss', scss)
+hljs.registerLanguage('less', less)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('markdown', markdown)
+hljs.registerLanguage('yaml', yaml)
+hljs.registerLanguage('ini', ini)
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('ruby', ruby)
+hljs.registerLanguage('go', go)
+hljs.registerLanguage('rust', rust)
+hljs.registerLanguage('java', java)
+hljs.registerLanguage('c', c)
+hljs.registerLanguage('cpp', cpp)
+hljs.registerLanguage('csharp', csharp)
+hljs.registerLanguage('lua', lua)
+hljs.registerLanguage('r', r)
+hljs.registerLanguage('perl', perl)
+hljs.registerLanguage('php', php)
+hljs.registerLanguage('swift', swift)
+hljs.registerLanguage('kotlin', kotlin)
+hljs.registerLanguage('scala', scala)
+hljs.registerLanguage('sql', sql)
+hljs.registerLanguage('graphql', graphql)
+hljs.registerLanguage('dockerfile', dockerfile)
+hljs.registerLanguage('makefile', makefile)
 
 const TEXT_EXTS = new Set([
   'ts', 'tsx', 'js', 'jsx', 'json', 'jsonl', 'css', 'scss', 'less', 'html', 'htm',

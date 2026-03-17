@@ -43,6 +43,10 @@ import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { logger } from './logger'
 
+// Startup timing — capture module load time before anything else
+const _processStart = Number(process.env._BAT_T0 || Date.now())
+console.log(`[startup] main.ts module loaded: +${Date.now() - _processStart}ms from process start`)
+
 // Global error handlers — prevent silent crashes in main process
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught exception:', error)
@@ -51,8 +55,8 @@ process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled rejection:', reason)
 })
 
-// GPU / DWM safety — reduce GPU compositing overhead to prevent DWM hangs during resize
-app.commandLine.appendSwitch('disable-gpu-compositing')
+// Note: GPU compositing is enabled (default). DWM resize hang was fixed by using
+// display:none for hidden terminals + will-resize throttle, not by disabling GPU.
 
 // Set AppUserModelId for Windows taskbar pinning (must be before app.whenReady)
 if (process.platform === 'win32') {
@@ -196,17 +200,24 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
+    show: false,
+    backgroundColor: '#1a1a1a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true
     },
     backgroundThrottling: true,
-    paintWhenInitiallyHidden: false,
     frame: true,
     titleBarStyle: 'default',
     title: 'Better Agent Terminal',
     icon: path.join(__dirname, '../assets/icon.ico')
+  })
+
+  // Show window as soon as DOM is ready (don't wait for all lazy chunks to load)
+  mainWindow.webContents.once('dom-ready', () => {
+    logger.log(`[startup] showing window (dom-ready)`)
+    mainWindow?.show()
   })
 
   ptyManager = new PtyManager(getAllWindows)
@@ -249,7 +260,8 @@ const launchProfileId = profileArg ? profileArg.split('=')[1] || null : null
 app.whenReady().then(async () => {
   const t0 = Date.now()
   logger.init(app.getPath('userData'))
-  logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from module load`)
+  logger.log(`[startup] ═══════════════════════════════════════`)
+  logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from IPC reg, +${t0 - _processStart}ms from process`)
   const t1 = Date.now()
   buildMenu()
   logger.log(`[startup] buildMenu: ${Date.now() - t1}ms`)
@@ -258,12 +270,21 @@ app.whenReady().then(async () => {
   createWindow()
   logger.log(`[startup] createWindow: ${Date.now() - t2}ms`)
   if (mainWindow) {
-    mainWindow.webContents.on('did-finish-load', () => {
-      logger.log(`[startup] did-finish-load: +${Date.now() - t0}ms from whenReady`)
+    mainWindow.webContents.on('did-start-loading', () => {
+      logger.log(`[startup] did-start-loading: +${Date.now() - t0}ms from whenReady`)
     })
     mainWindow.webContents.on('dom-ready', () => {
       logger.log(`[startup] dom-ready: +${Date.now() - t0}ms from whenReady`)
     })
+    mainWindow.webContents.on('did-finish-load', () => {
+      logger.log(`[startup] did-finish-load: +${Date.now() - t0}ms from whenReady`)
+    })
+    // Track when renderer sends its first IPC (= JS bundle has executed)
+    const ipcSub = () => {
+      logger.log(`[startup] first-renderer-ipc: +${Date.now() - t0}ms from whenReady`)
+      mainWindow?.webContents.removeListener('ipc-message', ipcSub)
+    }
+    mainWindow.webContents.on('ipc-message', ipcSub)
   }
 
   // Listen for system resume from sleep/hibernate

@@ -40,7 +40,14 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ['@lydell/node-pty']
+      external: ['@lydell/node-pty'],
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links', '@xterm/addon-unicode11'],
+          'hljs': ['highlight.js'],
+        }
+      }
     }
   }
 })

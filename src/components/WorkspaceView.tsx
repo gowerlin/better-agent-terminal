@@ -1,14 +1,16 @@
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, lazy, Suspense } from 'react'
 import type { Workspace, TerminalInstance, EnvVariable } from '../types'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { ThumbnailBar } from './ThumbnailBar'
 import { CloseConfirmDialog } from './CloseConfirmDialog'
-import { MainPanel } from './MainPanel'
 import { ResizeHandle } from './ResizeHandle'
-import { FileTree } from './FileTree'
-import { GitPanel } from './GitPanel'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
+
+// Lazy load heavy components (xterm.js, Claude SDK, etc.)
+const MainPanel = lazy(() => import('./MainPanel').then(m => ({ default: m.MainPanel })))
+const FileTree = lazy(() => import('./FileTree').then(m => ({ default: m.FileTree })))
+const GitPanel = lazy(() => import('./GitPanel').then(m => ({ default: m.GitPanel })))
 
 type WorkspaceTab = 'terminal' | 'files' | 'git'
 const TAB_KEY = 'better-terminal-workspace-tab'
@@ -152,6 +154,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
     const initTerminals = async () => {
       const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
+      const htmlT0 = (window as unknown as { __t0?: number }).__t0 || Date.now()
+      dlog(`[startup] initTerminals start: +${Date.now() - htmlT0}ms from HTML`)
       const t0 = performance.now()
       const settings = settingsStore.getSettings()
       const shell = await getShellFromSettings()
@@ -225,6 +229,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         workspaceStore.save()
       }
       dlog(`[init] initTerminals total: ${(performance.now() - t0).toFixed(0)}ms, terminals=${terminals.length}`)
+      dlog(`[startup] initTerminals done: +${Date.now() - htmlT0}ms from HTML`)
     }
     initTerminals()
   }, [isActive, workspace.id, terminals.length, workspace.defaultAgent, workspace.folderPath, workspace.envVars])
@@ -347,33 +352,39 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       </div>
 
       {/* Main content area - terminals always rendered (keep processes alive) */}
-      <div className={`terminals-container ${activeTab !== 'terminal' ? 'hidden' : ''}`}>
-        {terminals.map(terminal => (
-          <div
-            key={terminal.id}
-            className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
-          >
-            <MainPanel
-              terminal={terminal}
-              isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
-              onClose={handleCloseTerminal}
-              onRestart={handleRestart}
-              workspaceId={workspace.id}
-            />
-          </div>
-        ))}
-      </div>
+      <Suspense fallback={<div className="loading-panel" />}>
+        <div className={`terminals-container ${activeTab !== 'terminal' ? 'hidden' : ''}`}>
+          {terminals.map(terminal => (
+            <div
+              key={terminal.id}
+              className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
+            >
+              <MainPanel
+                terminal={terminal}
+                isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
+                onClose={handleCloseTerminal}
+                onRestart={handleRestart}
+                workspaceId={workspace.id}
+              />
+            </div>
+          ))}
+        </div>
+      </Suspense>
 
       {activeTab === 'files' && (
-        <div className="workspace-tab-content">
-          <FileTree rootPath={workspace.folderPath} />
-        </div>
+        <Suspense fallback={<div className="loading-panel" />}>
+          <div className="workspace-tab-content">
+            <FileTree rootPath={workspace.folderPath} />
+          </div>
+        </Suspense>
       )}
 
       {activeTab === 'git' && (
-        <div className="workspace-tab-content">
-          <GitPanel workspaceFolderPath={workspace.folderPath} />
-        </div>
+        <Suspense fallback={<div className="loading-panel" />}>
+          <div className="workspace-tab-content">
+            <GitPanel workspaceFolderPath={workspace.folderPath} />
+          </div>
+        </Suspense>
       )}
 
       {/* Resize handle for thumbnail bar */}
