@@ -90,7 +90,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
   const [currentModel, setCurrentModel] = useState<string>('')
   const [effortLevel, setEffortLevel] = useState<string>('high')
   const [enable1MContext, setEnable1MContext] = useState(false)
-  const [claudeUsage, setClaudeUsage] = useState<{ fiveHour: number | null; sevenDay: number | null; fiveHourReset: string | null; sevenDayReset: string | null } | null>(null)
+  const [claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null)
   const [permissionFocus, setPermissionFocus] = useState(0) // 0=Yes, 1=Yes always, 2=No, 3=custom text
@@ -568,14 +568,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
     window.electronAPI.git.getBranch(cwd).then(branch => setGitBranch(branch)).catch(() => setGitBranch(null))
   }, [cwd])
 
-  // Poll Claude usage (5h / 7d rate limits) every 60 seconds
+  // Subscribe to global Claude usage from workspace store
   useEffect(() => {
-    const fetchUsage = () => {
-      window.electronAPI.claude.getUsage().then(u => { if (u) setClaudeUsage(u) }).catch(() => {})
-    }
-    fetchUsage()
-    const timer = setInterval(fetchUsage, 60 * 1000)
-    return () => clearInterval(timer)
+    workspaceStore.startUsagePolling()
+    return workspaceStore.subscribe(() => {
+      setClaudeUsage(workspaceStore.claudeUsage)
+    })
   }, [])
 
   // File picker: debounced search

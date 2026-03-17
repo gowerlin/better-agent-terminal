@@ -17,6 +17,26 @@ class WorkspaceStore {
   private activeGroup: string | null = null
   private listeners: Set<Listener> = new Set()
 
+  // Global Claude usage (shared across all panels)
+  private _claudeUsage: { fiveHour: number | null; sevenDay: number | null; fiveHourReset: string | null; sevenDayReset: string | null } | null = null
+  private _usageTimer: ReturnType<typeof setInterval> | null = null
+
+  get claudeUsage() { return this._claudeUsage }
+
+  startUsagePolling() {
+    if (this._usageTimer) return
+    const fetch = () => {
+      window.electronAPI.claude.getUsage().then(u => {
+        if (u) {
+          this._claudeUsage = u
+          this.notify()
+        }
+      }).catch(() => {})
+    }
+    fetch()
+    this._usageTimer = setInterval(fetch, 5 * 60 * 1000)
+  }
+
   getState(): AppState {
     return this.state
   }
