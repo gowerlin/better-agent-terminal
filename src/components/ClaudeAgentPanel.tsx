@@ -111,6 +111,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
   const [accountInfo, setAccountInfo] = useState<{ email?: string; organization?: string; subscriptionType?: string } | null>(null)
   const [slashCommands, setSlashCommands] = useState<SlashCommandInfo[]>([])
   const [showSlashMenu, setShowSlashMenu] = useState(false)
+  const showSlashMenuRef = useRef(false)
   const [slashFilter, setSlashFilter] = useState('')
   const [slashMenuIndex, setSlashMenuIndex] = useState(0)
   // Ctrl+P file picker
@@ -773,6 +774,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
     await window.electronAPI.claude.setPermissionMode(sessionId, nextMode)
   }, [sessionId, permissionMode])
 
+  useEffect(() => { showSlashMenuRef.current = showSlashMenu }, [showSlashMenu])
+
   // Filtered slash commands based on current input
   const filteredSlashCommands = useMemo(() => {
     if (!showSlashMenu) return []
@@ -795,7 +798,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
       setShowSlashMenu(true)
       setSlashFilter(val.slice(1))
       setSlashMenuIndex(0)
-    } else {
+    } else if (showSlashMenuRef.current) {
       setShowSlashMenu(false)
     }
   }, [])
