@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment, cloneElement, isValidElement } from 'react'
 import type { ClaudeMessage, ClaudeToolCall } from '../types/claude-agent'
 import { isToolCall } from '../types/claude-agent'
 import { settingsStore } from '../stores/settings-store'
@@ -2742,14 +2742,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
           const items = statuslineConfig.filter(c => c.visible && (c.align || 'left') === align)
           const nodes: React.ReactNode[] = []
           for (const item of items) {
-            const node = renderers[item.id]?.()
+            let node = renderers[item.id]?.()
             if (!node) continue
-            // Wrap with color style if configured
-            if (item.color) {
-              nodes.push(<span key={`c-${item.id}`} style={{ color: item.color }}>{node}</span>)
-            } else {
-              nodes.push(node)
+            // Apply color directly on the element via cloneElement to override class-based colors
+            if (item.color && isValidElement(node)) {
+              node = cloneElement(node, { style: { ...(node.props.style || {}), color: item.color } })
             }
+            nodes.push(node)
             if (item.separatorAfter) nodes.push(<span key={`sep-${item.id}`} className="claude-statusline-sep">&middot;</span>)
           }
           return nodes
