@@ -35,6 +35,14 @@ export interface TerminalInstance {
   model?: string;                // Selected Claude model for this session
   pendingPrompt?: string;        // Prompt to auto-send after fork/resume
   pendingImages?: string[];      // Data URLs of images to send with pendingPrompt
+  sessionMeta?: {                // Persisted session metadata for status line
+    totalCost: number;
+    inputTokens: number;
+    outputTokens: number;
+    durationMs: number;
+    numTurns: number;
+    contextWindow: number;
+  };
 }
 
 export interface AppState {
@@ -168,7 +176,10 @@ export const AGENT_COMMAND_OPTIONS: { id: AgentCommandType; name: string; comman
   { id: 'custom', name: 'Custom', command: '' },
 ];
 
+export type LanguageCode = 'en' | 'zh-TW';
+
 export interface AppSettings {
+  language: LanguageCode;
   shell: ShellType;
   customShellPath: string;
   fontSize: number;
