@@ -316,7 +316,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   const handleFocus = useCallback((id: string) => {
     workspaceStore.setFocusedTerminal(id)
-  }, [])
+    // Switch back to terminal tab when clicking a terminal thumbnail
+    if (activeTab !== 'terminal') {
+      handleTabChange('terminal')
+    }
+  }, [activeTab, handleTabChange])
 
   const handleReorderTerminals = useCallback((orderedIds: string[]) => {
     workspaceStore.reorderTerminals(orderedIds)

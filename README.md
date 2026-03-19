@@ -19,10 +19,22 @@ Manage multiple project terminals in one window, with a built-in Claude Code age
 
 ---
 
-## Screenshot
+## Screenshots
 
 <div align="center">
-<img src="assets/screenshot.png" alt="Better Agent Terminal Screenshot" width="800">
+
+**Claude Code Agent Panel** — Built-in AI agent with permission controls, status line, and streaming output
+<img src="assets/screenshot-claude.png" alt="Claude Code Agent Panel" width="800">
+
+**Terminal** — Run persistent terminals alongside your agent for long-running commands and monitoring
+<img src="assets/screenshot-terminal.png" alt="Terminal" width="800">
+
+**File Browser** — Browse and preview project files without leaving the app
+<img src="assets/screenshot-files.png" alt="File Browser" width="800">
+
+**Git Viewer** — View commit history and diffs at a glance
+<img src="assets/screenshot-git.png" alt="Git Viewer" width="800">
+
 </div>
 
 ---
