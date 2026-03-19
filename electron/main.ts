@@ -213,8 +213,13 @@ function createWindow() {
     frame: true,
     titleBarStyle: 'default',
     title: 'Better Agent Terminal',
-    icon: path.join(__dirname, '../assets/icon.ico')
+    icon: path.join(__dirname, process.platform === 'win32' ? '../assets/icon.ico' : '../assets/icon.png')
   })
+
+  if (process.platform === 'darwin') {
+    const dockIcon = nativeImage.createFromPath(path.join(__dirname, '../assets/icon.png'))
+    app.dock.setIcon(dockIcon)
+  }
 
   ptyManager = new PtyManager(getAllWindows)
   claudeManager = new ClaudeAgentManager(getAllWindows)
