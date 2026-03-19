@@ -984,14 +984,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId }: Read
   }
 
   const handlePermissionModeCycle = useCallback(async () => {
-    const idx = permissionModes.indexOf(permissionMode as typeof permissionModes[number])
-    const nextMode = permissionModes[(idx + 1) % permissionModes.length]
-    if ((nextMode === 'bypassPermissions' || nextMode === 'planBypass') && !settingsStore.getSettings().allowBypassPermissions) {
-      const confirmed = await window.electronAPI.dialog.confirm('Warning: This mode allows tool calls without confirmation. Continue?')
-      if (!confirmed) {
-        return
-      }
-    }
+    const allowBypass = settingsStore.getSettings().allowBypassPermissions
+    const availableModes = allowBypass
+      ? permissionModes
+      : permissionModes.filter(m => m !== 'bypassPermissions' && m !== 'planBypass')
+    const idx = availableModes.indexOf(permissionMode as typeof availableModes[number])
+    const nextMode = availableModes[(idx + 1) % availableModes.length]
     setPermissionMode(nextMode)
     await window.electronAPI.claude.setPermissionMode(sessionId, nextMode)
   }, [sessionId, permissionMode])
