@@ -128,7 +128,7 @@ Download from [Releases](https://github.com/tony1223/better-agent-terminal/relea
 4. On first launch, macOS may block the app — go to **System Settings > Privacy & Security**, scroll down and click **Open Anyway**
 5. Make sure [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) is installed (`npm install -g @anthropic-ai/claude-code`)
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 
 **Prerequisites:**
 - [Node.js](https://nodejs.org/) 18+
@@ -149,6 +149,16 @@ npm run dev
 ```bash
 npm run build
 ```
+
+### Option 4: Quick Install (Script)
+
+Run the following command in your terminal (macOS, Linux, or Windows with Git Bash/MSYS2):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tony1223/better-agent-terminal/main/install.sh | bash
+```
+
+This script will detect your OS and install the application to the standard location.
 
 ### macOS Build Notes
 
