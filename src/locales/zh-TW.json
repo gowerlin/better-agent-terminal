@@ -106,6 +106,7 @@
     "dragToReorder": "拖曳以重新排序",
     "groupNamePlaceholder": "群組名稱（留空以移除）",
     "openInExplorer": "在檔案管理員中開啟",
+    "copyPath": "複製路徑",
     "openOnGithub": "在 GitHub 上開啟",
     "setGroup": "設定群組...",
     "setColor": "設定顏色",

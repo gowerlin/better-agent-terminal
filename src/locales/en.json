@@ -106,6 +106,7 @@
     "dragToReorder": "Drag to reorder",
     "groupNamePlaceholder": "Group name (empty to remove)",
     "openInExplorer": "Open in Explorer",
+    "copyPath": "Copy Path",
     "openOnGithub": "Open on GitHub",
     "setGroup": "Set Group...",
     "setColor": "Set Color",
