@@ -17,13 +17,15 @@ import DOMPurify from 'dompurify'
 function renderChatMarkdown(text: string): string {
   // Pre-process: convert bare file:// URLs to markdown links so marked renders them as <a>
   // marked only auto-links http/https by default
-  // Skip URLs already inside markdown links [text](url) by checking for preceding ](
+  // Skip URLs inside code blocks/inline code and existing markdown links
   const processed = text.replace(
-    /(file:\/\/\/[^\s<>)\]`'"]+)/g,
-    (match, _p1, offset, str) => {
+    /(`{1,3}[\s\S]*?`{1,3})|(file:\/\/\/[^\s<>)\]`'"]+)/g,
+    (match, codeBlock, fileUrl, offset, str) => {
+      if (codeBlock) return match  // preserve code blocks as-is
+      if (!fileUrl) return match
       const before = str.slice(Math.max(0, offset - 2), offset)
       if (before === '](' || before.endsWith('(')) return match
-      return `[${match}](${match})`
+      return `[${fileUrl}](${fileUrl})`
     }
   )
   const rawHtml = marked.parse(processed) as string

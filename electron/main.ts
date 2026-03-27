@@ -993,7 +993,18 @@ function registerLocalHandlers() {
     return result.response === 0
   })
 
-  ipcMain.handle('shell:open-external', async (_event, url: string) => { await shell.openExternal(url) })
+  ipcMain.handle('shell:open-external', async (_event, url: string) => {
+    if (url.startsWith('file:///')) {
+      const filePath = decodeURIComponent(new URL(url).pathname)
+      const { existsSync } = await import('fs')
+      if (!existsSync(filePath)) {
+        const { dialog } = await import('electron')
+        dialog.showMessageBox({ type: 'warning', title: 'File not found', message: `File does not exist:\n${filePath}` })
+        return
+      }
+    }
+    await shell.openExternal(url)
+  })
   ipcMain.handle('shell:open-path', async (_event, folderPath: string) => { await shell.openPath(folderPath) })
 
   ipcMain.handle('update:check', async () => {
