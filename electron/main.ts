@@ -636,8 +636,10 @@ function registerProxiedHandlers() {
   let _cachedCfClearance: string | null = null
   let _tokenCacheTime = 0
   let _sessionKeyCacheTime = 0
+  let _orgIdCacheTime = 0
   const TOKEN_CACHE_TTL = 10 * 60 * 1000     // 10 minutes
   const SESSION_KEY_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+  const ORG_ID_CACHE_TTL = 30 * 60 * 1000    // 30 minutes (re-detect after account switch)
 
   async function getOAuthToken(): Promise<string | null> {
     const now = Date.now()
@@ -765,7 +767,8 @@ function registerProxiedHandlers() {
 
   /** Auto-detect organization ID using session key */
   async function getOrgId(sessionKey: string, cfClearance: string | null): Promise<string | null> {
-    if (_cachedOrgId) return _cachedOrgId
+    const now = Date.now()
+    if (_cachedOrgId && now - _orgIdCacheTime < ORG_ID_CACHE_TTL) return _cachedOrgId
     try {
       const cookieParts = [`sessionKey=${sessionKey}`]
       if (cfClearance) cookieParts.push(`cf_clearance=${cfClearance}`)
@@ -787,6 +790,7 @@ function registerProxiedHandlers() {
         return null
       }
       _cachedOrgId = orgs[0].uuid
+      _orgIdCacheTime = Date.now()
       logger.log('[usage] Auto-detected org ID:', _cachedOrgId)
       return _cachedOrgId
     } catch (e) {
@@ -818,6 +822,7 @@ function registerProxiedHandlers() {
       _cachedOrgId = null
       _cachedCfClearance = null
       _sessionKeyCacheTime = 0
+      _orgIdCacheTime = 0
       logger.log('[usage] Session key expired or blocked, will re-extract')
       return null
     }
