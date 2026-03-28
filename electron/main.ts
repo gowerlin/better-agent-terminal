@@ -448,24 +448,16 @@ function registerProxiedHandlers() {
     return true
   })
   registerHandler('workspace:load', async () => {
-    if (!currentWindowId) {
-      // Fallback to old workspaces.json
-      const configPath = path.join(app.getPath('userData'), 'workspaces.json')
-      try { return await fs.readFile(configPath, 'utf-8') } catch { return null }
-    }
+    if (!currentWindowId) return null
     const entry = await windowRegistry.getEntry(currentWindowId)
-    if (entry && (entry.workspaces.length > 0 || entry.terminals.length > 0)) {
-      return JSON.stringify({
-        workspaces: entry.workspaces,
-        activeWorkspaceId: entry.activeWorkspaceId,
-        activeGroup: entry.activeGroup,
-        terminals: entry.terminals,
-        activeTerminalId: entry.activeTerminalId,
-      })
-    }
-    // Fallback to workspaces.json for migration/compat
-    const configPath = path.join(app.getPath('userData'), 'workspaces.json')
-    try { return await fs.readFile(configPath, 'utf-8') } catch { return null }
+    if (!entry) return null
+    return JSON.stringify({
+      workspaces: entry.workspaces,
+      activeWorkspaceId: entry.activeWorkspaceId,
+      activeGroup: entry.activeGroup,
+      terminals: entry.terminals,
+      activeTerminalId: entry.activeTerminalId,
+    })
   })
 
   // Settings persistence
