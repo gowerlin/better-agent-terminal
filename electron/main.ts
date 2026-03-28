@@ -100,6 +100,7 @@ const profileManager = new ProfileManager()
 const remoteServer = new RemoteServer()
 let remoteClient: RemoteClient | null = null
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
+let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
 
 /** Attach a will-resize throttle to a BrowserWindow to reduce DWM pressure on Windows. */
 function setupResizeThrottle(win: BrowserWindow, label: string) {
@@ -290,12 +291,63 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   win.on('moved', saveBounds)
   win.on('resized', saveBounds)
 
-  win.on('close', () => {
-    // Auto-save profile snapshot before window closes
-    windowRegistry.getEntry(windowId).then(entry => {
-      if (entry?.profileId) {
-        profileManager.save(entry.profileId).catch(() => { /* ignore */ })
+  win.on('close', (e) => {
+    if (isAppQuitting) {
+      // App quitting (Cmd+Q): save all windows into profile snapshot, keep entries
+      windowRegistry.getEntry(windowId).then(async (entry) => {
+        if (entry?.profileId) {
+          await profileManager.save(entry.profileId).catch(() => { /* ignore */ })
+        }
+      }).catch(() => { /* ignore */ })
+      return
+    }
+
+    // Manual close (Cmd+W / click X)
+    e.preventDefault()
+    windowRegistry.getEntry(windowId).then(async (entry) => {
+      if (!entry?.profileId) {
+        // No profile — just close and remove entry
+        await windowRegistry.removeEntry(windowId)
+        win.destroy()
+        return
       }
+
+      // Count how many windows this profile currently has open
+      const allEntries = await windowRegistry.readAll()
+      const profileWindowCount = allEntries.filter(e =>
+        e.profileId === entry.profileId && windowMap.has(e.id)
+      ).length
+
+      if (profileWindowCount <= 1) {
+        // Only window in profile — preserve and just close
+        win.destroy()
+        return
+      }
+
+      // Multiple windows — ask user
+      const { response } = await dialog.showMessageBox(win, {
+        type: 'question',
+        buttons: ['Remove from profile', 'Close only', 'Cancel'],
+        defaultId: 1,
+        cancelId: 2,
+        title: 'Close Window',
+        message: 'How do you want to close this window?',
+        detail: 'Remove from profile: this window won\'t be restored next time.\nClose only: preserve it in the profile for next launch.',
+      })
+
+      if (response === 2) return // Cancel
+
+      if (response === 0) {
+        // Remove from profile: delete entry, then save remaining windows
+        const profileId = entry.profileId
+        await windowRegistry.removeEntry(windowId)
+        if (profileId) {
+          await profileManager.save(profileId).catch(() => { /* ignore */ })
+        }
+      }
+      // response === 1: Close only — keep entry in registry, no snapshot update
+
+      win.destroy()
     }).catch(() => { /* ignore */ })
   })
 
@@ -457,6 +509,7 @@ function runCleanupOnce() {
 }
 
 app.on('before-quit', () => {
+  isAppQuitting = true
   runCleanupOnce()
 })
 
