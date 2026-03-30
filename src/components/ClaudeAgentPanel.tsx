@@ -824,6 +824,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           window.dispatchEvent(new CustomEvent('claude-skills-updated', { detail: { sessionId, commands: cmds } }))
         }
       }).catch(() => {})
+      window.electronAPI.claude.getSupportedAgents(sessionId).then((agentList) => {
+        if (agentList && agentList.length > 0) {
+          // Broadcast for AgentsPanel (in case it mounted before agents were fetched)
+          window.dispatchEvent(new CustomEvent('claude-agents-updated', { detail: { sessionId, agents: agentList } }))
+        }
+      }).catch(() => {})
     }
   }, [sessionId, sessionMeta?.sdkSessionId, availableModels.length])
 
