@@ -1161,12 +1161,17 @@ function registerProxiedHandlers() {
     const data = await res.json()
     logger.log('[usage] [session-key] 5h=', data.five_hour?.utilization, 'reset=', data.five_hour?.resets_at, '7d=', data.seven_day?.utilization, 'reset=', data.seven_day?.resets_at)
 
-    // If both reset times are null the session belongs to a different account
-    // (wrong org) — clear caches so next poll re-extracts fresh from Chrome,
-    // then return null to fall back to OAuth which has correct data
-    if (data.five_hour?.resets_at == null && data.seven_day?.resets_at == null) {
+    // Stale/wrong-account detection: session key belongs to a different org when:
+    // 1. Both reset times are null (original case), OR
+    // 2. 5h reset is null AND 7d utilization is 0 (org exists but has never been used —
+    //    happens when Chrome session belongs to an old/wrong account that has a 7d window
+    //    but zero actual usage, while the correct account shows non-zero via OAuth)
+    const isStale =
+      (data.five_hour?.resets_at == null && data.seven_day?.resets_at == null) ||
+      (data.five_hour?.resets_at == null && (data.seven_day?.utilization ?? 0) === 0)
+    if (isStale) {
       clearSessionKeyCache()
-      logger.log('[usage] [session-key] Stale/wrong-account session detected, clearing cache')
+      logger.log('[usage] [session-key] Stale/wrong-account session detected (5h_reset=', data.five_hour?.resets_at, '7d_util=', data.seven_day?.utilization, '), clearing cache')
       return null
     }
 
