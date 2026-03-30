@@ -83,7 +83,11 @@ Manage multiple project terminals in one window, with a built-in Claude Code age
 
 | Shortcut | Action |
 |---|---|
+| `Ctrl+`` ` `` / `Cmd+`` ` `` | Toggle between Agent terminal and first regular terminal |
+| `Ctrl+←/→` / `Cmd+←/→` | Cycle workspace tabs (Terminal / Files / Git) |
+| `Ctrl+↑/↓` / `Cmd+↑/↓` | Switch to previous / next workspace |
 | `Ctrl+P` / `Cmd+P` | File picker (search & attach files to agent context) |
+| `Ctrl+N` / `Cmd+N` | Open new window |
 | `Shift+Tab` | Switch between Terminal and Agent mode |
 | `Enter` | Send message |
 | `Shift+Enter` | Insert newline (multiline input) |

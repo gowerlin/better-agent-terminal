@@ -194,6 +194,71 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
+  // Track previous terminal for Cmd+` toggle
+  const prevTerminalIdRef = useRef<string | null>(null)
+
+  // Keyboard shortcuts: Cmd+` (toggle terminal), Cmd+Left/Right (cycle tabs), Cmd+Up/Down (switch workspace)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return
+
+      // Cmd+` / Ctrl+`: Toggle between first regular terminal and Claude Code terminal
+      if (e.key === '`' && !e.shiftKey) {
+        e.preventDefault()
+        const currentState = workspaceStore.getState()
+        if (!currentState.activeWorkspaceId) return
+        const terminals = workspaceStore.getWorkspaceTerminals(currentState.activeWorkspaceId)
+        if (terminals.length === 0) return
+
+        const firstRegular = terminals.find(t => !t.agentPreset || t.agentPreset === 'none')
+        const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
+        const focusedId = currentState.focusedTerminalId
+
+        // If focused on agent terminal → switch to first regular terminal
+        // If focused on regular terminal → switch back to agent terminal (or previous)
+        const focusedTerminal = terminals.find(t => t.id === focusedId)
+        const isOnAgent = focusedTerminal?.agentPreset && focusedTerminal.agentPreset !== 'none'
+
+        if (isOnAgent && firstRegular) {
+          prevTerminalIdRef.current = focusedId
+          workspaceStore.setFocusedTerminal(firstRegular.id)
+        } else if (!isOnAgent && agentTerminal) {
+          prevTerminalIdRef.current = focusedId
+          workspaceStore.setFocusedTerminal(agentTerminal.id)
+        } else if (!isOnAgent && prevTerminalIdRef.current) {
+          const prev = prevTerminalIdRef.current
+          prevTerminalIdRef.current = focusedId
+          workspaceStore.setFocusedTerminal(prev)
+        }
+        // Also ensure we're on the terminal tab
+        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'terminal' } }))
+        return
+      }
+
+      // Cmd+Left / Cmd+Right: Cycle workspace tabs (terminal/files/git)
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.shiftKey) {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('workspace-cycle-tab', { detail: { direction: e.key === 'ArrowRight' ? 1 : -1 } }))
+        return
+      }
+
+      // Cmd+Up / Cmd+Down: Switch workspaces
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.shiftKey) {
+        e.preventDefault()
+        const currentState = workspaceStore.getState()
+        const workspaces = currentState.workspaces
+        if (workspaces.length <= 1) return
+        const currentIndex = workspaces.findIndex(w => w.id === currentState.activeWorkspaceId)
+        const direction = e.key === 'ArrowDown' ? 1 : -1
+        const nextIndex = (currentIndex + direction + workspaces.length) % workspaces.length
+        workspaceStore.setActiveWorkspace(workspaces[nextIndex].id)
+        return
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   useEffect(() => {
     const unsubscribe = workspaceStore.subscribe(() => {
       setState(workspaceStore.getState())

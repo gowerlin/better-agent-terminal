@@ -1,5 +1,16 @@
 # Release Notes — v2.1.x
 
+## v2.1.6
+
+### New Features
+
+#### Keyboard Shortcuts (#68)
+- `Ctrl+`` ` `` / `Cmd+`` ` ``: Toggle between Agent terminal and first regular terminal (press again to switch back)
+- `Ctrl+←/→` / `Cmd+←/→`: Cycle workspace tabs (Terminal → Files → Git)
+- `Ctrl+↑/↓` / `Cmd+↑/↓`: Switch to previous / next workspace (wraps around)
+
+---
+
 ## v2.1.5
 
 ### Bug Fixes

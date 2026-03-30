@@ -108,6 +108,36 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     try { localStorage.setItem(TAB_KEY, tab) } catch { /* ignore */ }
   }, [])
 
+  // Listen for keyboard shortcut events to cycle/switch tabs
+  useEffect(() => {
+    if (!isActive) return
+
+    const TABS: WorkspaceTab[] = ['terminal', 'files', 'git']
+
+    const handleCycleTab = (e: Event) => {
+      const { direction } = (e as CustomEvent).detail as { direction: number }
+      setActiveTab(prev => {
+        const idx = TABS.indexOf(prev)
+        const next = TABS[(idx + direction + TABS.length) % TABS.length]
+        try { localStorage.setItem(TAB_KEY, next) } catch { /* ignore */ }
+        return next
+      })
+    }
+
+    const handleSwitchTab = (e: Event) => {
+      const { tab } = (e as CustomEvent).detail as { tab: WorkspaceTab }
+      setActiveTab(tab)
+      try { localStorage.setItem(TAB_KEY, tab) } catch { /* ignore */ }
+    }
+
+    window.addEventListener('workspace-cycle-tab', handleCycleTab)
+    window.addEventListener('workspace-switch-tab', handleSwitchTab)
+    return () => {
+      window.removeEventListener('workspace-cycle-tab', handleCycleTab)
+      window.removeEventListener('workspace-switch-tab', handleSwitchTab)
+    }
+  }, [isActive])
+
   // Handle thumbnail bar resize
   const handleThumbnailResize = useCallback((delta: number) => {
     setThumbnailSettings(prev => {
