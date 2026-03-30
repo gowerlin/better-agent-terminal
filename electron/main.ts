@@ -1449,9 +1449,9 @@ function registerLocalHandlers() {
     const parentWin = BrowserWindow.fromWebContents(event.sender)
     const result = await dialog.showOpenDialog(parentWin!, {
       defaultPath: app.getPath('home'),
-      properties: ['openDirectory', 'createDirectory'],
+      properties: ['openDirectory', 'createDirectory', 'multiSelections'],
     })
-    return result.canceled ? null : result.filePaths[0]
+    return result.canceled ? null : result.filePaths
   })
 
   ipcMain.handle('dialog:select-images', async (event) => {

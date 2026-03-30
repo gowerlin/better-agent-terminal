@@ -413,10 +413,12 @@ export default function App() {
   }, [])
 
   const handleAddWorkspace = useCallback(async () => {
-    const folderPath = await window.electronAPI.dialog.selectFolder()
-    if (folderPath) {
-      const name = folderPath.split(/[/\\]/).pop() || 'Workspace'
-      workspaceStore.addWorkspace(name, folderPath)
+    const folderPaths = await window.electronAPI.dialog.selectFolder()
+    if (folderPaths && folderPaths.length > 0) {
+      for (const folderPath of folderPaths) {
+        const name = folderPath.split(/[/\\]/).pop() || 'Workspace'
+        workspaceStore.addWorkspace(name, folderPath)
+      }
       workspaceStore.save()
     }
   }, [])

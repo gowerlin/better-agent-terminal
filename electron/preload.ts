@@ -51,7 +51,7 @@ const electronAPI = {
     getShellPath: (shell: string) => ipcRenderer.invoke('settings:get-shell-path', shell)
   },
   dialog: {
-    selectFolder: () => ipcRenderer.invoke('dialog:select-folder'),
+    selectFolder: () => ipcRenderer.invoke('dialog:select-folder') as Promise<string[] | null>,
     selectImages: () => ipcRenderer.invoke('dialog:select-images') as Promise<string[]>,
     selectFiles: () => ipcRenderer.invoke('dialog:select-files') as Promise<string[]>,
     confirm: (message: string, title?: string) => ipcRenderer.invoke('dialog:confirm', message, title) as Promise<boolean>,

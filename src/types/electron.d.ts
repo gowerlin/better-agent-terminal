@@ -24,7 +24,7 @@ interface ElectronAPI {
     getShellPath: (shell: string) => Promise<string>
   }
   dialog: {
-    selectFolder: () => Promise<string | null>
+    selectFolder: () => Promise<string[] | null>
   }
   clipboard: {
     saveImage: () => Promise<string | null>
