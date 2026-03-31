@@ -1255,6 +1255,10 @@ export class ClaudeAgentManager {
           }
         }
         this.send('claude:streaming', sessionId, false)
+        // Send completion notification for V2 (V1 handles this in processMessage)
+        if (!session.messageQueue.length) {
+          this.sendCompletionNotification(session)
+        }
         const next = session.messageQueue.shift()
         if (next) {
           this.runQueryV2(sessionId, next.prompt, next.images)
