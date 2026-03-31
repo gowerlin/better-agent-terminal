@@ -1293,6 +1293,34 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       }
       return
     }
+    // Cmd/Ctrl+PageUp: scroll messages up by 85% viewport height
+    if ((e.metaKey || e.ctrlKey) && e.key === 'PageUp') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop -= container.clientHeight * 0.85
+      return
+    }
+    // Cmd/Ctrl+PageDown: scroll messages down by 85% viewport height
+    if ((e.metaKey || e.ctrlKey) && e.key === 'PageDown') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop += container.clientHeight * 0.85
+      return
+    }
+    // Cmd/Ctrl+Home: scroll to top of messages
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Home') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop = 0
+      return
+    }
+    // Cmd/Ctrl+End: scroll to bottom of messages
+    if ((e.metaKey || e.ctrlKey) && e.key === 'End') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop = container.scrollHeight
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       handleSend()
