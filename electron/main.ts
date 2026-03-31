@@ -87,15 +87,33 @@ app.commandLine.appendSwitch('disable-features', 'ServiceWorker')
 // Set app name (shown in dock/taskbar instead of "Electron" during dev)
 app.setName('BetterAgentTerminal')
 
+// --runtime=N or BAT_RUNTIME=N: allow multiple independent instances with separate data directories
+// Each runtime gets its own user data path and single-instance lock
+// CLI arg takes precedence over env var; env var works reliably in dev mode (vite-plugin-electron)
+const runtimeArg = process.argv.find(a => a.startsWith('--runtime='))
+const runtimeId = runtimeArg ? runtimeArg.split('=')[1] : (process.env.BAT_RUNTIME || undefined)
+if (runtimeId) {
+  const basePath = app.getPath('userData')
+  const runtimePath = path.join(path.dirname(basePath), `${path.basename(basePath)}-runtime-${runtimeId}`)
+  app.setPath('userData', runtimePath)
+  console.log(`[runtime] BAT_RUNTIME=${runtimeId}, userData=${runtimePath}`)
+} else {
+  console.log(`[runtime] default instance, userData=${app.getPath('userData')}`)
+}
+
 // Set AppUserModelId for Windows taskbar pinning (must be before app.whenReady)
 if (process.platform === 'win32') {
-  app.setAppUserModelId('org.tonyq.better-agent-terminal')
+  const appModelId = runtimeId
+    ? `org.tonyq.better-agent-terminal.runtime-${runtimeId}`
+    : 'org.tonyq.better-agent-terminal'
+  app.setAppUserModelId(appModelId)
 }
 
 // Single instance lock — if a second instance is launched, focus existing and open new window
+// Each --runtime=N has its own lock (via separate userData path)
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
-  // Another instance is already running — it will handle second-instance event
+  // Another instance with the same runtime is already running
   app.quit()
 }
 
@@ -300,12 +318,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
 
   win.on('close', (e) => {
     if (isAppQuitting) {
-      // App quitting (Cmd+Q): save all windows into profile snapshot, keep entries
-      windowRegistry.getEntry(windowId).then(async (entry) => {
-        if (entry?.profileId) {
-          await profileManager.save(entry.profileId).catch(() => { /* ignore */ })
-        }
-      }).catch(() => { /* ignore */ })
+      // App quitting (Cmd+Q): save handled by before-quit, just let it close
       return
     }
 
@@ -373,7 +386,10 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
           await profileManager.deactivateProfile(profileId)
         }
       }
-      // response === 1: Close only — keep entry in registry, no snapshot update
+      // response === 1: Close only — keep entry in registry, save snapshot so it persists
+      if (response === 1 && entry.profileId) {
+        await profileManager.save(entry.profileId).catch(() => { /* ignore */ })
+      }
 
       win.destroy()
     }).catch(() => { /* ignore */ })
@@ -419,7 +435,17 @@ app.whenReady().then(async () => {
   logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from IPC reg, +${t0 - _processStart}ms from process`)
 
   // Ensure profile system is initialized (migrates from workspaces.json on first run)
-  await windowRegistry.ensureInitialized()
+  const migratedEntries = await windowRegistry.ensureInitialized()
+
+  // If migration just happened (first run after upgrade), save migrated data as profile snapshot
+  // BEFORE clearing windows.json, so workspaces aren't lost
+  if (migratedEntries.length > 0) {
+    const profileIds = [...new Set(migratedEntries.filter(e => e.profileId).map(e => e.profileId!))]
+    for (const pid of profileIds) {
+      const saved = await profileManager.save(pid).catch(() => false)
+      logger.log(`[startup] saved migration snapshot for profile ${pid}: ${saved}`)
+    }
+  }
 
   // Collect window IDs to create
   const windowsToCreate: { id: string; bounds?: { x: number; y: number; width: number; height: number } }[] = []
@@ -591,9 +617,24 @@ function runCleanupOnce() {
   cleanupAllProcesses()
 }
 
-app.on('before-quit', () => {
-  isAppQuitting = true
-  runCleanupOnce()
+app.on('before-quit', async (e) => {
+  if (!isAppQuitting) {
+    e.preventDefault()
+    isAppQuitting = true
+
+    // Save all open windows' profiles before quitting
+    try {
+      const allEntries = await windowRegistry.readAll()
+      const profileIds = [...new Set(allEntries.filter(e => e.profileId).map(e => e.profileId!))]
+      await Promise.all(profileIds.map(pid => profileManager.save(pid).catch(() => { /* ignore */ })))
+      logger.log(`[quit] saved ${profileIds.length} profile snapshot(s)`)
+    } catch (err) {
+      logger.error(`[quit] failed to save profiles: ${err}`)
+    }
+
+    runCleanupOnce()
+    app.quit()
+  }
 })
 
 app.on('window-all-closed', () => {
@@ -712,17 +753,17 @@ function registerProxiedHandlers() {
   })
 
   // Claude Agent SDK
-  registerHandler('claude:start-session', (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string }) => claudeManager?.startSession(sessionId, options))
+  registerHandler('claude:start-session', (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2' }) => claudeManager?.startSession(sessionId, options))
   registerHandler('claude:send-message', (_ctx, sessionId: string, prompt: string, images?: string[]) => claudeManager?.sendMessage(sessionId, prompt, images))
   registerHandler('claude:stop-session', (_ctx, sessionId: string) => claudeManager?.stopSession(sessionId))
   registerHandler('claude:set-permission-mode', (_ctx, sessionId: string, mode: string) => claudeManager?.setPermissionMode(sessionId, mode as import('@anthropic-ai/claude-agent-sdk').PermissionMode))
   registerHandler('claude:set-model', (_ctx, sessionId: string, model: string) => claudeManager?.setModel(sessionId, model))
   registerHandler('claude:set-effort', (_ctx, sessionId: string, effort: string) => claudeManager?.setEffort(sessionId, effort as 'low' | 'medium' | 'high' | 'max'))
-  registerHandler('claude:set-1m-context', (_ctx, sessionId: string, enable: boolean) => claudeManager?.set1MContext(sessionId, enable))
   registerHandler('claude:reset-session', (_ctx, sessionId: string) => claudeManager?.resetSession(sessionId))
   registerHandler('claude:get-supported-models', (_ctx, sessionId: string) => claudeManager?.getSupportedModels(sessionId))
   registerHandler('claude:get-account-info', (_ctx, sessionId: string) => claudeManager?.getAccountInfo(sessionId))
   registerHandler('claude:get-supported-commands', (_ctx, sessionId: string) => claudeManager?.getSupportedCommands(sessionId))
+  registerHandler('claude:get-supported-agents', (_ctx, sessionId: string) => claudeManager?.getSupportedAgents(sessionId))
 
   // Scan .claude/commands/ directories for skill files
   registerHandler('claude:scan-skills', async (_ctx, cwd: string) => {
@@ -757,7 +798,7 @@ function registerProxiedHandlers() {
   registerHandler('claude:resolve-permission', (_ctx, sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) => claudeManager?.resolvePermission(sessionId, toolUseId, result))
   registerHandler('claude:resolve-ask-user', (_ctx, sessionId: string, toolUseId: string, answers: Record<string, string>) => claudeManager?.resolveAskUser(sessionId, toolUseId, answers))
   registerHandler('claude:list-sessions', (_ctx, cwd: string) => claudeManager?.listSessions(cwd))
-  registerHandler('claude:resume-session', (_ctx, sessionId: string, sdkSessionId: string, cwd: string, model?: string) => claudeManager?.resumeSession(sessionId, sdkSessionId, cwd, model))
+  registerHandler('claude:resume-session', (_ctx, sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2') => claudeManager?.resumeSession(sessionId, sdkSessionId, cwd, model, apiVersion))
   registerHandler('claude:fork-session', (_ctx, sessionId: string) => claudeManager?.forkSession(sessionId))
   registerHandler('claude:stop-task', (_ctx, sessionId: string, taskId: string) => claudeManager?.stopTask(sessionId, taskId))
   registerHandler('claude:rest-session', (_ctx, sessionId: string) => claudeManager?.restSession(sessionId))
@@ -804,6 +845,13 @@ function registerProxiedHandlers() {
   const TOKEN_CACHE_TTL = 10 * 60 * 1000     // 10 minutes
   const SESSION_KEY_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
   const ORG_ID_CACHE_TTL = 30 * 60 * 1000    // 30 minutes (re-detect after account switch)
+  // OAuth account info — sourced from /api/oauth/account (authoritative org ID + plan tier)
+  let _cachedOAuthOrgId: string | null = null
+  let _cachedOAuthOrgName: string | null = null
+  let _cachedOAuthRateLimitTier: string | null = null
+  let _cachedOAuthEmail: string | null = null
+  let _oauthOrgIdCacheTime = 0
+  const OAUTH_ORG_ID_CACHE_TTL = 60 * 60 * 1000 // 1 hour (org membership rarely changes)
   // Firefox-specific: cached cookie path + EBUSY stale-cache state
   let _firefoxCookiePath: string | null = null
   let _firefoxCookiePathCacheTime = 0
@@ -848,6 +896,35 @@ function registerProxiedHandlers() {
       }
       return null
     } catch { return null }
+  }
+
+  /** Fetch account info via OAuth — authoritative source for org ID and plan tier */
+  async function getOAuthAccountInfo(): Promise<{ orgId: string; orgName: string; rateLimitTier: string; email: string } | null> {
+    const now = Date.now()
+    if (_cachedOAuthOrgId && now - _oauthOrgIdCacheTime < OAUTH_ORG_ID_CACHE_TTL) {
+      return { orgId: _cachedOAuthOrgId, orgName: _cachedOAuthOrgName ?? '', rateLimitTier: _cachedOAuthRateLimitTier ?? '', email: _cachedOAuthEmail ?? '' }
+    }
+    const token = await getOAuthToken()
+    if (!token) return null
+    try {
+      const res = await fetch('https://api.anthropic.com/api/oauth/account', {
+        headers: { 'Authorization': `Bearer ${token}`, 'anthropic-beta': 'oauth-2025-04-20', 'Accept': 'application/json' },
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      const membership = data.memberships?.[0]
+      if (!membership) return null
+      _cachedOAuthOrgId = membership.organization.uuid
+      _cachedOAuthOrgName = membership.organization.name ?? ''
+      _cachedOAuthRateLimitTier = membership.organization.rate_limit_tier ?? ''
+      _cachedOAuthEmail = data.email_address ?? ''
+      _oauthOrgIdCacheTime = now
+      logger.log('[usage] OAuth account info: org=', _cachedOAuthOrgId, 'tier=', _cachedOAuthRateLimitTier)
+      return { orgId: _cachedOAuthOrgId!, orgName: _cachedOAuthOrgName, rateLimitTier: _cachedOAuthRateLimitTier, email: _cachedOAuthEmail }
+    } catch (e) {
+      logger.error('[usage] getOAuthAccountInfo failed:', e)
+      return null
+    }
   }
 
   /** Decrypt a Chrome v10 encrypted cookie value on macOS */
@@ -1137,7 +1214,9 @@ function registerProxiedHandlers() {
   async function fetchUsageViaSessionKey(): Promise<{ fiveHour: number | null; sevenDay: number | null; fiveHourReset: string | null; sevenDayReset: string | null } | null> {
     const creds = (await getSessionKeyFromChrome()) ?? (await getSessionKeyFromFirefox())
     if (!creds) return null
-    const orgId = await getOrgId(creds.sessionKey, creds.cfClearance)
+    // Use OAuth org ID as the authoritative source — avoids wrong-org data when session key belongs to a different account
+    const accountInfo = await getOAuthAccountInfo()
+    const orgId = accountInfo?.orgId ?? (await getOrgId(creds.sessionKey, creds.cfClearance))
     if (!orgId) return null
 
     const cookieParts = [`sessionKey=${creds.sessionKey}`]
@@ -1160,15 +1239,6 @@ function registerProxiedHandlers() {
 
     const data = await res.json()
     logger.log('[usage] [session-key] 5h=', data.five_hour?.utilization, 'reset=', data.five_hour?.resets_at, '7d=', data.seven_day?.utilization, 'reset=', data.seven_day?.resets_at)
-
-    // If both reset times are null the session belongs to a different account
-    // (wrong org) — clear caches so next poll re-extracts fresh from Chrome,
-    // then return null to fall back to OAuth which has correct data
-    if (data.five_hour?.resets_at == null && data.seven_day?.resets_at == null) {
-      clearSessionKeyCache()
-      logger.log('[usage] [session-key] Stale/wrong-account session detected, clearing cache')
-      return null
-    }
 
     return {
       fiveHour: data.five_hour?.utilization ?? null,
@@ -1221,6 +1291,20 @@ function registerProxiedHandlers() {
       logger.error('[usage] get-usage failed:', e)
       return null
     }
+  })
+
+  registerHandler('claude:get-usage-account', async (_ctx) => {
+    try {
+      const info = await getOAuthAccountInfo()
+      if (!info) return null
+      // Format rate_limit_tier for display: "default_claude_max_20x" → "Claude Max 20x"
+      const tier = info.rateLimitTier
+        .replace(/^default_/, '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .replace(/(\d+[Xx])$/, m => m.toUpperCase())
+      return { email: info.email, orgName: info.orgName, tier }
+    } catch { return null }
   })
 
   // Git
@@ -1370,6 +1454,7 @@ function registerProxiedHandlers() {
   registerHandler('snippet:search', (_ctx, query: string) => snippetDb.search(query))
   registerHandler('snippet:getCategories', (_ctx) => snippetDb.getCategories())
   registerHandler('snippet:getFavorites', (_ctx) => snippetDb.getFavorites())
+  registerHandler('snippet:getByWorkspace', (_ctx, workspaceId?: string) => snippetDb.getByWorkspace(workspaceId))
 
   // Profile (subset exposed to remote clients)
   registerHandler('profile:list', (_ctx) => profileManager.list())
@@ -1406,9 +1491,9 @@ function registerLocalHandlers() {
     const parentWin = BrowserWindow.fromWebContents(event.sender)
     const result = await dialog.showOpenDialog(parentWin!, {
       defaultPath: app.getPath('home'),
-      properties: ['openDirectory', 'createDirectory'],
+      properties: ['openDirectory', 'createDirectory', 'multiSelections'],
     })
-    return result.canceled ? null : result.filePaths[0]
+    return result.canceled ? null : result.filePaths
   })
 
   ipcMain.handle('dialog:select-images', async (event) => {

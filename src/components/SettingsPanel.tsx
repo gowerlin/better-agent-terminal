@@ -317,12 +317,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <label>
                 <input
                   type="checkbox"
-                  checked={settings.enable1MContext !== false}
-                  onChange={e => settingsStore.setEnable1MContext(e.target.checked)}
+                  checked={settings.collapseToolOutputs === true}
+                  onChange={e => settingsStore.setCollapseToolOutputs(e.target.checked)}
                 />
-                {t('settings.enable1MContext')}
+                {t('settings.collapseToolOutputs')}
               </label>
-              <p className="settings-hint">{t('settings.enable1MContextHint')}</p>
+              <p className="settings-hint">{t('settings.collapseToolOutputsHint')}</p>
             </div>
 
             <div className="settings-group">

@@ -108,6 +108,36 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     try { localStorage.setItem(TAB_KEY, tab) } catch { /* ignore */ }
   }, [])
 
+  // Listen for keyboard shortcut events to cycle/switch tabs
+  useEffect(() => {
+    if (!isActive) return
+
+    const TABS: WorkspaceTab[] = ['terminal', 'files', 'git']
+
+    const handleCycleTab = (e: Event) => {
+      const { direction } = (e as CustomEvent).detail as { direction: number }
+      setActiveTab(prev => {
+        const idx = TABS.indexOf(prev)
+        const next = TABS[(idx + direction + TABS.length) % TABS.length]
+        try { localStorage.setItem(TAB_KEY, next) } catch { /* ignore */ }
+        return next
+      })
+    }
+
+    const handleSwitchTab = (e: Event) => {
+      const { tab } = (e as CustomEvent).detail as { tab: WorkspaceTab }
+      setActiveTab(tab)
+      try { localStorage.setItem(TAB_KEY, tab) } catch { /* ignore */ }
+    }
+
+    window.addEventListener('workspace-cycle-tab', handleCycleTab)
+    window.addEventListener('workspace-switch-tab', handleSwitchTab)
+    return () => {
+      window.removeEventListener('workspace-cycle-tab', handleCycleTab)
+      window.removeEventListener('workspace-switch-tab', handleSwitchTab)
+    }
+  }, [isActive])
+
   // Handle thumbnail bar resize
   const handleThumbnailResize = useCallback((delta: number) => {
     setThumbnailSettings(prev => {
@@ -168,7 +198,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         // Restored terminals: start PTY processes for non-Claude terminals
         // Claude agent terminals will be started by ClaudeAgentPanel on mount
         for (const terminal of terminals) {
-          if (terminal.agentPreset === 'claude-code') continue
+          if (terminal.agentPreset === 'claude-code' || terminal.agentPreset === 'claude-code-v2') continue
           window.electronAPI.pty.create({
             id: terminal.id,
             cwd: terminal.cwd || workspace.folderPath,
@@ -197,7 +227,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
         if (createAgentTerminal) {
           const agentTerminal = workspaceStore.addTerminal(workspace.id, defaultAgent as AgentPresetId)
-          if (defaultAgent !== 'claude-code') {
+          if (defaultAgent !== 'claude-code' && defaultAgent !== 'claude-code-v2') {
             window.electronAPI.pty.create({
               id: agentTerminal.id,
               cwd: workspace.folderPath,
@@ -271,6 +301,12 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     workspaceStore.save()
   }, [workspace.id])
 
+  const handleAddClaudeAgentV2 = useCallback(() => {
+    const agentTerminal = workspaceStore.addTerminal(workspace.id, 'claude-code-v2' as AgentPresetId)
+    workspaceStore.setFocusedTerminal(agentTerminal.id)
+    workspaceStore.save()
+  }, [workspace.id])
+
   const handleCloseTerminal = useCallback((id: string) => {
     const terminal = terminals.find(t => t.id === id)
     // Show confirm for agent terminals
@@ -287,7 +323,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const handleConfirmClose = useCallback(() => {
     if (showCloseConfirm) {
       const terminal = terminals.find(t => t.id === showCloseConfirm)
-      if (terminal?.agentPreset === 'claude-code') {
+      if (terminal?.agentPreset === 'claude-code' || terminal?.agentPreset === 'claude-code-v2') {
         window.electronAPI.claude.stopSession(showCloseConfirm)
       } else {
         window.electronAPI.pty.kill(showCloseConfirm)
@@ -301,7 +337,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const handleRestart = useCallback(async (id: string) => {
     const terminal = terminals.find(t => t.id === id)
     if (terminal) {
-      if (terminal.agentPreset === 'claude-code') {
+      if (terminal.agentPreset === 'claude-code' || terminal.agentPreset === 'claude-code-v2') {
         // Stop and restart Claude session
         await window.electronAPI.claude.stopSession(id)
         await window.electronAPI.claude.startSession(id, { cwd: terminal.cwd })
@@ -312,6 +348,25 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         workspaceStore.updateTerminalCwd(id, cwd)
       }
     }
+  }, [terminals])
+
+  const handleSwitchApiVersion = useCallback(async (id: string) => {
+    const terminal = terminals.find(t => t.id === id)
+    if (!terminal || (terminal.agentPreset !== 'claude-code' && terminal.agentPreset !== 'claude-code-v2')) return
+    // Stop current session
+    await window.electronAPI.claude.stopSession(id)
+    // Switch agentPreset in store
+    const newPreset = workspaceStore.switchTerminalApiVersion(id)
+    if (!newPreset) return
+    const newApiVersion = newPreset === 'claude-code-v2' ? 'v2' as const : 'v1' as const
+    // Resume with the same sdkSessionId but new API version
+    const sdkSessionId = terminal.sdkSessionId
+    if (sdkSessionId) {
+      await window.electronAPI.claude.resumeSession(id, sdkSessionId, terminal.cwd, terminal.model, newApiVersion)
+    } else {
+      await window.electronAPI.claude.startSession(id, { cwd: terminal.cwd, apiVersion: newApiVersion })
+    }
+    workspaceStore.save()
   }, [terminals])
 
   const handleFocus = useCallback((id: string) => {
@@ -370,6 +425,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
                 onClose={handleCloseTerminal}
                 onRestart={handleRestart}
+                onSwitchApiVersion={handleSwitchApiVersion}
                 workspaceId={workspace.id}
               />
             </div>
@@ -408,6 +464,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         onFocus={handleFocus}
         onAddTerminal={handleAddTerminal}
         onAddClaudeAgent={handleAddClaudeAgent}
+        onAddClaudeAgentV2={handleAddClaudeAgentV2}
         onReorder={handleReorderTerminals}
         showAddButton={true}
         height={thumbnailSettings.height}

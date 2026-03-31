@@ -50,6 +50,8 @@ interface SessionMeta {
   contextWindow: number
   maxOutputTokens: number
   contextTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
   permissionMode?: string
 }
 
@@ -57,6 +59,7 @@ interface ModelInfo {
   value: string
   displayName: string
   description: string
+  source?: 'builtin' | 'sdk'
 }
 
 interface PendingPermission {
@@ -125,6 +128,9 @@ const startedSessions = new Set<string>()
 
 export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<ClaudeAgentPanelProps>) {
   const { t } = useTranslation()
+  // Determine if this is a V2 session based on agentPreset
+  const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
+  const isV2Session = terminal?.agentPreset === 'claude-code-v2'
   const [messages, setMessages] = useState<MessageItem[]>([])
   const inputValueRef = useRef('')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -152,10 +158,15 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     return !!t?.sdkSessionId
   })
   const [permissionMode, setPermissionMode] = useState<string>('bypassPermissions')
-  const [currentModel, setCurrentModel] = useState<string>('')
-  const [effortLevel, setEffortLevel] = useState<string>('medium')
-  const [enable1MContext, setEnable1MContext] = useState(false)
+  const [currentModel, setCurrentModel] = useState<string>(() => {
+    const t = workspaceStore.getState().terminals.find(t => t.id === sessionId)
+    return t?.model || settingsStore.getSettings().defaultModel || ''
+  })
+  const [effortLevel, setEffortLevel] = useState<string>(() => {
+    return settingsStore.getSettings().defaultEffort || 'medium'
+  })
   const [claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
+  const [usageAccount, setUsageAccount] = useState(workspaceStore.usageAccount)
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null)
   const [planFileContent, setPlanFileContent] = useState<string | null>(null)
@@ -759,8 +770,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
       const savedSdkSessionId = terminal?.sdkSessionId
       const savedModel = terminal?.model
+      const apiVersion = terminal?.agentPreset === 'claude-code-v2' ? 'v2' as const : 'v1' as const
       const globalSettings = settingsStore.getSettings()
-      dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}"`)
+      dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}" apiVersion=${apiVersion}`)
 
       // Restore saved model to UI, or use global default
       const effectiveModel = savedModel || globalSettings.defaultModel
@@ -776,7 +788,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd, savedModel)
       } else {
         dlog(`${stag} FRESH startSession`)
-        window.electronAPI.claude.startSession(sessionId, { cwd, permissionMode, model: effectiveModel, effort: effectiveEffort as 'low' | 'medium' | 'high' | 'max' })
+        window.electronAPI.claude.startSession(sessionId, { cwd, permissionMode, model: effectiveModel, effort: effectiveEffort as 'low' | 'medium' | 'high' | 'max', apiVersion })
       }
     }
     return () => {
@@ -796,11 +808,19 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     }
   }, [isActive, sessionId])
 
-  // Fetch supported models, account info, and slash commands once session metadata arrives
+  // Fetch supported models on demand when model list is opened (no session required)
+  useEffect(() => {
+    if (showModelList && availableModels.length === 0) {
+      window.electronAPI.claude.getSupportedModels(sessionId).then((models: ModelInfo[]) => {
+        if (models && models.length > 0) setAvailableModels(models)
+      }).catch(() => {})
+    }
+  }, [showModelList])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch account info and slash commands once session metadata arrives
   useEffect(() => {
     if (sessionMeta?.sdkSessionId && availableModels.length === 0) {
       window.electronAPI.claude.getSupportedModels(sessionId).then((models: ModelInfo[]) => {
-        console.log('[getSupportedModels] raw response:', JSON.stringify(models, null, 2))
         if (models && models.length > 0) {
           setAvailableModels(models)
         }
@@ -813,6 +833,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           setSlashCommands(cmds)
           // Broadcast for SkillsPanel (in case it mounted before commands were fetched)
           window.dispatchEvent(new CustomEvent('claude-skills-updated', { detail: { sessionId, commands: cmds } }))
+        }
+      }).catch(() => {})
+      window.electronAPI.claude.getSupportedAgents(sessionId).then((agentList) => {
+        if (agentList && agentList.length > 0) {
+          // Broadcast for AgentsPanel (in case it mounted before agents were fetched)
+          window.dispatchEvent(new CustomEvent('claude-agents-updated', { detail: { sessionId, agents: agentList } }))
         }
       }).catch(() => {})
     }
@@ -837,6 +863,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     return workspaceStore.subscribe(() => {
       const u = workspaceStore.claudeUsage
       if (u) setClaudeUsage(u)
+      const a = workspaceStore.usageAccount
+      if (a) setUsageAccount(a)
     })
   }, [])
 
@@ -867,11 +895,21 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   }, [isActive])
 
   const handleModelSelect = useCallback(async (modelValue: string) => {
+    // V2: warn that model change will recreate session and re-apply context
+    if (isV2Session && modelValue !== currentModel) {
+      const ok = window.confirm(t('claude.v2ModelChangeWarning'))
+      if (!ok) return
+    }
+    // V1: warn about 1M model cache inefficiency
+    if (!isV2Session && modelValue.includes('[1m]') && modelValue !== currentModel) {
+      const ok = window.confirm(t('claude.v1Model1mWarning'))
+      if (!ok) return
+    }
     setShowModelList(false)
     setCurrentModel(modelValue)
     await window.electronAPI.claude.setModel(sessionId, modelValue)
     workspaceStore.updateTerminalModel(sessionId, modelValue)
-  }, [sessionId])
+  }, [sessionId, isV2Session, currentModel, t])
 
   const handleResumeSelect = useCallback(async (sdkSessionId: string) => {
     console.log(`[Claude:${sessionId.slice(0, 8)}] handleResumeSelect sdkSessionId=${sdkSessionId.slice(0, 8)}`)
@@ -1007,13 +1045,63 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       return
     }
 
-    // Intercept /new command — reset session (clear conversation, fresh start)
-    if (!isStreaming && trimmed === '/new') {
+    // Intercept /new or /clear command — reset session (clear conversation, fresh start)
+    if (!isStreaming && (trimmed === '/new' || trimmed === '/clear')) {
       clearInput()
       setMessages([])
       setStreamingText('')
       setStreamingThinking('')
       await window.electronAPI.claude.resetSession(sessionId)
+      return
+    }
+
+    // Intercept /snippet command — inject snippet context into Claude session
+    if (trimmed === '/snippet' || trimmed.startsWith('/snippet ')) {
+      const query = trimmed.slice('/snippet'.length).trim()
+      clearInput()
+      try {
+        const snippets = query
+          ? await window.electronAPI.snippet.search(query)
+          : await window.electronAPI.snippet.getByWorkspace(workspaceId)
+        const snippetsJsonPath = '~/Library/Application Support/better-agent-terminal/snippets.json'
+        const snippetList = snippets.length === 0
+          ? 'No snippets exist yet.'
+          : snippets.map((s: { id: number; title: string; workspaceId?: string }) => `- [${s.id}] ${s.title}${s.workspaceId ? ' (workspace)' : ''}`).join('\n')
+        const contextPrompt = [
+          `[BAT Snippets Context]`,
+          `Snippets file: ${snippetsJsonPath}`,
+          `JSON structure: { "snippets": [{ id, title, content, format ("plaintext"|"markdown"), category?, tags?, workspaceId?, isFavorite, createdAt, updatedAt }], "nextId": N }`,
+          workspaceId ? `Current workspaceId: "${workspaceId}"` : '',
+          ``,
+          `${snippets.length} snippet(s)${query ? ` matching "${query}"` : ''}:`,
+          snippetList,
+          ``,
+          `Use Read tool to see full content. Use Write/Edit tool to create/update/delete snippets in the JSON file.`,
+          `Set workspaceId on a snippet to scope it to a specific workspace, or omit for global visibility.`,
+          query ? '' : `How would you like to work with your snippets?`,
+        ].filter(Boolean).join('\n')
+        // Show clean user message
+        setMessages(prev => [...prev, {
+          id: `user-${Date.now()}`,
+          sessionId,
+          role: 'user' as const,
+          content: trimmed,
+          timestamp: Date.now(),
+        }])
+        setIsStreaming(true)
+        setIsInterrupted(false)
+        setStreamingText('')
+        setStreamingThinking('')
+        await window.electronAPI.claude.sendMessage(sessionId, contextPrompt)
+      } catch {
+        setMessages(prev => [...prev, {
+          id: `error-${Date.now()}`,
+          sessionId,
+          role: 'system' as const,
+          content: 'Failed to load snippets.',
+          timestamp: Date.now(),
+        }])
+      }
       return
     }
 
@@ -1127,6 +1215,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     // Include our custom commands plus SDK commands
     const builtIn: SlashCommandInfo[] = [
       { name: 'new', description: 'Reset session (clear conversation)', argumentHint: '' },
+      { name: 'clear', description: 'Reset session (same as /new)', argumentHint: '' },
+      { name: 'snippet', description: 'Show snippets to Claude for management', argumentHint: '' },
       { name: 'resume', description: 'Resume a previous session', argumentHint: '' },
       { name: 'model', description: 'Select model', argumentHint: '' },
     ]
@@ -1224,6 +1314,34 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       }
       return
     }
+    // Cmd/Ctrl+PageUp: scroll messages up by 85% viewport height
+    if ((e.metaKey || e.ctrlKey) && e.key === 'PageUp') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop -= container.clientHeight * 0.85
+      return
+    }
+    // Cmd/Ctrl+PageDown: scroll messages down by 85% viewport height
+    if ((e.metaKey || e.ctrlKey) && e.key === 'PageDown') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop += container.clientHeight * 0.85
+      return
+    }
+    // Cmd/Ctrl+Home: scroll to top of messages
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Home') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop = 0
+      return
+    }
+    // Cmd/Ctrl+End: scroll to bottom of messages
+    if ((e.metaKey || e.ctrlKey) && e.key === 'End') {
+      e.preventDefault()
+      const container = messagesContainerRef.current
+      if (container) container.scrollTop = container.scrollHeight
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       handleSend()
@@ -1244,13 +1362,6 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     setEffortLevel(next)
     await window.electronAPI.claude.setEffort(sessionId, next)
   }, [sessionId])
-
-  const handle1MContextToggle = useCallback(async () => {
-    const next = !enable1MContext
-    setEnable1MContext(next)
-    settingsStore.setEnable1MContext(next)
-    await window.electronAPI.claude.set1MContext(sessionId, next)
-  }, [sessionId, enable1MContext])
 
   const showDontAskAgain = (pendingPermission?.suggestions?.length ?? 0) > 0
     || pendingPermission?.toolName === 'ExitPlanMode'
@@ -2130,8 +2241,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
               {item.result && (() => {
                 const raw = typeof item.result === 'string' ? item.result : String(item.result)
                 const { content: outText, reminders, errors } = splitSystemReminders(raw)
-                // Hide output by default for read-only tools (Read, Glob, Grep, LS, NotebookRead)
+                // Collapse by default for read-only tools; collapse all if setting enabled
                 const isReadOnlyTool = ['Read', 'Glob', 'Grep', 'LS', 'NotebookRead'].includes(item.toolName)
+                const shouldCollapse = isReadOnlyTool || settingsStore.getSettings().collapseToolOutputs
                 const isOutExpanded = expandedTools.has(outBlockId)
                 return (
                   <>
@@ -2141,7 +2253,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
                         <span className="claude-tool-row-content">{err}</span>
                       </div>
                     ))}
-                    {outText && isReadOnlyTool && (
+                    {outText && shouldCollapse && (
                       <div
                         className="claude-tool-row"
                         onClick={() => toggleTool(outBlockId)}
@@ -2156,7 +2268,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
                         <span className={`claude-tool-chevron ${isOutExpanded ? 'expanded' : ''}`}>&#9654;</span>
                       </div>
                     )}
-                    {outText && !isReadOnlyTool && (
+                    {outText && !shouldCollapse && (
                       <div
                         className="claude-tool-row"
                         onClick={() => handleCopyBlock(outText, outBlockId)}
@@ -2399,7 +2511,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         )}
       </div>
 
-      {/* Permission Request Card — VS Code style vertical list */}
+      {/* Permission Request Card — vertical list */}
       {pendingPermission && (() => {
         const planContent = planFileContent
         return (
@@ -2577,19 +2689,45 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             <div className="claude-resume-empty">No models available</div>
           ) : (
             <div className="claude-resume-list">
-              {availableModels.map(m => (
-                <div
-                  key={m.value}
-                  className={`claude-resume-item${m.value === currentModel ? ' active' : ''}`}
-                  onClick={() => handleModelSelect(m.value)}
-                >
-                  <div className="claude-resume-item-header">
-                    <span className="claude-resume-item-id">{m.displayName}</span>
+              {(() => {
+                const builtins = availableModels.filter(m => m.source !== 'sdk')
+                const sdkModels = availableModels.filter(m => m.source === 'sdk')
+                const renderItem = (m: ModelInfo) => (
+                  <div
+                    key={m.value}
+                    className={`claude-resume-item${m.value === currentModel ? ' active' : ''}`}
+                    onClick={() => handleModelSelect(m.value)}
+                  >
+                    <div className="claude-resume-item-header">
+                      <span className="claude-resume-item-id">{m.displayName}</span>
+                    </div>
+                    <div className="claude-resume-item-preview">{m.description}</div>
                   </div>
-                  <div className="claude-resume-item-preview">{m.description}</div>
-                </div>
-              ))}
+                )
+                return (
+                  <>
+                    {builtins.length > 0 && (
+                      <>
+                        <div className="claude-model-group-label">Better Agent Terminal</div>
+                        {builtins.map(renderItem)}
+                      </>
+                    )}
+                    {sdkModels.length > 0 && (
+                      <>
+                        <div className="claude-model-group-label">Claude Code</div>
+                        {sdkModels.map(renderItem)}
+                      </>
+                    )}
+                  </>
+                )
+              })()}
             </div>
+          )}
+          {isV2Session && (
+            <div className="claude-model-1m-hint">{t('claude.v2ModelListHint')}</div>
+          )}
+          {!isV2Session && (
+            <div className="claude-model-1m-hint">{t('claude.v1Model1mHint')}</div>
           )}
           <div className="claude-permission-hint">{t('claude.escToCancel')}</div>
         </div>
@@ -2668,8 +2806,10 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       )}
 
       {/* Input area — hidden when permission card, ask-user card, or resume/model list is visible */}
-      {!pendingPermission && !pendingQuestion && !showResumeList && !showModelList && (
-      <div className={`claude-input-area${isDragOver ? ' drag-over' : ''}`}>
+      <div
+        className={`claude-input-area${isDragOver ? ' drag-over' : ''}`}
+        style={pendingPermission || pendingQuestion || showResumeList || showModelList ? { display: 'none' } : undefined}
+      >
         {/* Prompt suggestion chip */}
         {promptSuggestion && !isStreaming && (
           <div className="claude-prompt-suggestion" onClick={() => {
@@ -2762,19 +2902,21 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
                 onClick={() => setShowModelList(true)}
                 title={`Model: ${currentModel} (click to select)`}
               >
-                {'</>'} {currentModel}
+                {'</>'} {currentModel}{sessionMeta && sessionMeta.contextWindow > 0 ? ` (${sessionMeta.contextWindow >= 1000000 ? `${Math.round(sessionMeta.contextWindow / 1000000)}M` : `${Math.round(sessionMeta.contextWindow / 1000)}k`})` : ''}
               </span>
             )}
-            <select
-              className="claude-effort-select"
-              value={effortLevel}
-              onChange={handleEffortChange}
-              title={t('claude.effortLevel')}
-            >
-              <option value="low">low</option>
-              <option value="medium">medium</option>
-              <option value="high">high</option>
-            </select>
+            {!isV2Session && (
+              <select
+                className="claude-effort-select"
+                value={effortLevel}
+                onChange={handleEffortChange}
+                title={t('claude.effortLevel')}
+              >
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+            )}
             {accountInfo?.organization && (
               <span className="claude-status-btn claude-account-info" title={`${accountInfo.email || ''} (${accountInfo.subscriptionType || 'unknown'})`}>
                 {accountInfo.organization}
@@ -2820,7 +2962,6 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           </div>
         </div>
       </div>
-      )}
 
       {/* Plan Modal */}
       {contentModal && (
@@ -2974,7 +3115,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             <span key="gitBranch" className="claude-statusline-item">[{gitBranch}]</span>
           ),
           tokens: () => !sessionMeta ? null : (
-            <span key="tokens" className="claude-statusline-item" title={`in: ${sessionMeta.inputTokens.toLocaleString()} / out: ${sessionMeta.outputTokens.toLocaleString()}`}>
+            <span key="tokens" className="claude-statusline-item claude-statusline-clickable" title={`in: ${sessionMeta.inputTokens.toLocaleString()} / out: ${sessionMeta.outputTokens.toLocaleString()}\nclick to show /context`}
+              onClick={() => { if (!inputValueRef.current.trim()) { setInputValue('/context'); setTimeout(() => handleSend(), 0) } }}>
               {(sessionMeta.inputTokens + sessionMeta.outputTokens).toLocaleString()} tok
             </span>
           ),
@@ -2990,7 +3132,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             const pct = Math.round((ctxTokens / sessionMeta.contextWindow) * 100)
             const ctxColor = pct >= 80 ? '#e05252' : pct >= 50 ? '#e6a700' : '#89ca78'
             return (
-              <span key="contextPct" className="claude-statusline-item" style={{ color: ctxColor }} title={`context: ${ctxTokens.toLocaleString()} / ${sessionMeta.contextWindow.toLocaleString()} tokens\ntotal: ${(sessionMeta.inputTokens + sessionMeta.outputTokens).toLocaleString()} tok`}>
+              <span key="contextPct" className="claude-statusline-item claude-statusline-clickable" style={{ color: ctxColor }} title={`context: ${ctxTokens.toLocaleString()} / ${sessionMeta.contextWindow.toLocaleString()} tokens\ntotal: ${(sessionMeta.inputTokens + sessionMeta.outputTokens).toLocaleString()} tok\nclick to show /context`}
+                onClick={() => { if (!inputValueRef.current.trim()) { setInputValue('/context'); setTimeout(() => handleSend(), 0) } }}>
                 ctx {pct}%
               </span>
             )
@@ -3006,14 +3149,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             if (claudeUsage?.fiveHour == null) return null
             const pacing = workspaceStore.getUsagePacing()
             const pacingIcon = pacing ? (pacing.onPace ? ' ▼' : ' ▲') : ''
-            const pacingTitle = pacing
-              ? `Time elapsed: ${Math.round(pacing.timeElapsedPct)}%${pacing.estimatedMinutesToLimit != null ? `\nETA to limit: ~${pacing.estimatedMinutesToLimit}min` : ''}`
-              : ''
             const stale = (claudeUsage as any).fiveHourStale
+            const accountLine = usageAccount ? `${usageAccount.email} · ${usageAccount.orgName} · ${usageAccount.tier}` : ''
+            const pacingLine = pacing ? `Time elapsed: ${Math.round(pacing.timeElapsedPct)}%${pacing.estimatedMinutesToLimit != null ? ` · ETA: ~${pacing.estimatedMinutesToLimit}min` : ''}` : ''
+            const titleParts = [accountLine, pacingLine].filter(Boolean)
             return (
               <span key="usage5h"
                 className={`claude-statusline-item${claudeUsage.fiveHour > 80 ? ' claude-usage-high' : claudeUsage.fiveHour > 50 ? ' claude-usage-mid' : ''}${stale ? ' claude-usage-stale' : ''}`}
-                title={pacingTitle || undefined}
+                title={titleParts.join('\n') || undefined}
                 style={!pacing?.onPace && pacing ? { fontWeight: 600 } : undefined}>
                 5h:{Math.round(claudeUsage.fiveHour)}%{pacingIcon}
               </span>
@@ -3023,11 +3166,17 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             if (!claudeUsage?.fiveHourReset) return null
             return <span key="usage5hReset" className="claude-statusline-item">↻{fmtRemaining(new Date(claudeUsage.fiveHourReset))}</span>
           },
-          usage7d: () => claudeUsage?.sevenDay == null ? null : (
-            <span key="usage7d" className={`claude-statusline-item${(claudeUsage.sevenDay ?? 0) > 80 ? ' claude-usage-high' : (claudeUsage.sevenDay ?? 0) > 50 ? ' claude-usage-mid' : ''}`}>
-              7d:{Math.round(claudeUsage.sevenDay ?? 0)}%
-            </span>
-          ),
+          usage7d: () => {
+            if (claudeUsage?.sevenDay == null) return null
+            const accountLine = usageAccount ? `${usageAccount.email} · ${usageAccount.orgName} · ${usageAccount.tier}` : ''
+            return (
+              <span key="usage7d"
+                className={`claude-statusline-item${(claudeUsage.sevenDay ?? 0) > 80 ? ' claude-usage-high' : (claudeUsage.sevenDay ?? 0) > 50 ? ' claude-usage-mid' : ''}`}
+                title={accountLine || undefined}>
+                7d:{Math.round(claudeUsage.sevenDay ?? 0)}%
+              </span>
+            )
+          },
           usage7dReset: () => {
             if (!claudeUsage?.sevenDayReset) return null
             return <span key="usage7dReset" className="claude-statusline-item">↻{fmtRemaining(new Date(claudeUsage.sevenDayReset))}</span>
@@ -3037,6 +3186,20 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
               maxOut:{(sessionMeta.maxOutputTokens / 1000).toFixed(0)}k
             </span>
           ),
+          cacheEff: () => {
+            if (!sessionMeta || sessionMeta.inputTokens <= 0) return null
+            const cacheRead = sessionMeta.cacheReadTokens || 0
+            const cacheCreate = sessionMeta.cacheCreationTokens || 0
+            const totalInput = sessionMeta.inputTokens
+            const pct = Math.round((cacheRead / totalInput) * 100)
+            const color = pct >= 70 ? '#89ca78' : pct >= 40 ? '#e6a700' : '#e05252'
+            return (
+              <span key="cacheEff" className="claude-statusline-item" style={{ color }}
+                title={`cache_read: ${cacheRead.toLocaleString()}\ncache_creation: ${cacheCreate.toLocaleString()}\ntotal_input: ${totalInput.toLocaleString()}\ncache_read / total_input = ${pct}%`}>
+                cache:{pct}%
+              </span>
+            )
+          },
           prompts: () => (
             <span key="prompts" className="claude-statusline-item claude-statusline-clickable"
               onClick={() => setShowPromptHistory(true)} title={t('claude.viewPromptHistory')}>{t('claude.prompts')}</span>

@@ -6,6 +6,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "cross-env BAT_DEBUG=1 vite",
+    "dev-runtime": "cross-env BAT_DEBUG=1 BAT_RUNTIME=1 vite",
     "compile": "vite build",
     "start": "electron .",
     "build": "vite build && electron-builder",
@@ -43,6 +44,10 @@
     "ws": "^8.19.0"
   },
   "optionalDependencies": {
+    "@img/sharp-darwin-arm64": "^0.34.5",
+    "@img/sharp-darwin-x64": "^0.34.5",
+    "@img/sharp-libvips-darwin-arm64": "^1.2.4",
+    "@img/sharp-libvips-darwin-x64": "^1.2.4",
     "@lydell/node-pty": "^1.1.0"
   },
   "devDependencies": {

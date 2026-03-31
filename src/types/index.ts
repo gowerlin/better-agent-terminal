@@ -54,6 +54,8 @@ export interface TerminalInstance {
     durationMs: number;
     numTurns: number;
     contextWindow: number;
+    cacheReadTokens?: number;
+    cacheCreationTokens?: number;
   };
 }
 
@@ -210,7 +212,6 @@ export interface AppSettings {
   defaultTerminalCount: number;   // 每個 workspace 預設的 terminal 數量
   createDefaultAgentTerminal: boolean;  // 是否預設建立 Agent Terminal
   allowBypassPermissions: boolean;  // 允許切換 bypassPermissions 模式時不再確認
-  enable1MContext: boolean;  // 啟用 1M token context (僅 Sonnet 4/4.5)
   defaultModel?: string;     // 預設模型（空 = 使用 SDK 預設）
   defaultEffort?: 'low' | 'medium' | 'high' | 'max';  // 預設 effort level
   showDockBadge?: boolean;               // Dock 圖示顯示待處理數量
@@ -218,6 +219,7 @@ export interface AppSettings {
   notifySound?: boolean;               // 通知時播放聲音
   notifyOnlyBackground?: boolean;      // 僅在視窗不在前景時通知
   statuslineItems?: StatuslineItemConfig[];  // 自訂 statusline 項目排序和顯示
+  collapseToolOutputs?: boolean;  // 預設折疊所有工具輸出（預設 false = 展開）
 }
 
 // ============================================
@@ -240,7 +242,7 @@ export type StatuslineItemId =
   | 'sessionId' | 'tokens' | 'turns' | 'duration'
   | 'contextPct' | 'cost' | 'workspace' | 'gitBranch'
   | 'usage5h' | 'usage5hReset' | 'usage7d' | 'usage7dReset'
-  | 'maxOut' | 'prompts'
+  | 'maxOut' | 'cacheEff' | 'prompts'
 
 export interface StatuslineItemConfig {
   id: StatuslineItemId
@@ -272,5 +274,6 @@ export const STATUSLINE_ITEMS: StatuslineItemDef[] = [
   { id: 'usage7d',      label: '7d Usage',     description: '7-day usage percentage',                             defaultVisible: true,  group: 'limits' },
   { id: 'usage7dReset', label: '7d Reset',     description: '7-day usage reset countdown',                        defaultVisible: true,  group: 'limits' },
   { id: 'maxOut',        label: 'Max Output',   description: 'Maximum output tokens for current model',            defaultVisible: false, group: 'context' },
+  { id: 'cacheEff',     label: 'Cache Eff.',   description: 'Cache read efficiency (cache_read / total_input)',   defaultVisible: false, group: 'context' },
   { id: 'prompts',      label: 'Prompts',      description: 'Link to view prompt history',                        defaultVisible: true,  group: 'actions' },
 ]

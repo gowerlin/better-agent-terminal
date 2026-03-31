@@ -19,14 +19,14 @@ const defaultSettings: AppSettings = {
   customForegroundColor: '#dfdbc3',
   customCursorColor: '#dfdbc3',
   globalEnvVars: [],
-  defaultAgent: 'claude-code' as AgentPresetId,
+  defaultAgent: 'claude-code-v2' as AgentPresetId,
   agentAutoCommand: true,
   agentCommandType: 'claude',
   agentCustomCommand: '',
   defaultTerminalCount: 1,
   createDefaultAgentTerminal: true,
   allowBypassPermissions: true,
-  enable1MContext: true
+  defaultModel: 'claude-opus-4-6',
 }
 
 class SettingsStore {
@@ -186,8 +186,9 @@ class SettingsStore {
     this.save()
   }
 
-  setEnable1MContext(enable: boolean): void {
-    this.settings = { ...this.settings, enable1MContext: enable }
+
+  setCollapseToolOutputs(collapse: boolean): void {
+    this.settings = { ...this.settings, collapseToolOutputs: collapse }
     this.notify()
     this.save()
   }

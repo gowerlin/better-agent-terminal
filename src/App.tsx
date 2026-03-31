@@ -8,6 +8,7 @@ import { WorkspaceView, clearInitializedWorkspaces } from './components/Workspac
 import { SettingsPanel } from './components/SettingsPanel'
 import { SnippetSidebar } from './components/SnippetPanel'
 import { SkillsPanel } from './components/SkillsPanel'
+import { AgentsPanel } from './components/AgentsPanel'
 import { MarkdownPreviewPanel } from './components/MarkdownPreviewPanel'
 import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
@@ -72,8 +73,8 @@ export default function App() {
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
   // Right sidebar tabs
   const [showSnippetSidebar] = useState(true)
-  const [rightPanelTab, setRightPanelTab] = useState<'snippets' | 'skills'>(() => {
-    return (localStorage.getItem('bat-right-panel-tab') as 'snippets' | 'skills') || 'snippets'
+  const [rightPanelTab, setRightPanelTab] = useState<'snippets' | 'skills' | 'agents'>(() => {
+    return (localStorage.getItem('bat-right-panel-tab') as 'snippets' | 'skills' | 'agents') || 'snippets'
   })
   // Markdown preview in right panel
   const [previewMarkdownPath, setPreviewMarkdownPath] = useState<string | null>(null)
@@ -130,7 +131,7 @@ export default function App() {
     })
   }, [])
 
-  const handleRightPanelTabChange = useCallback((tab: 'snippets' | 'skills') => {
+  const handleRightPanelTabChange = useCallback((tab: 'snippets' | 'skills' | 'agents') => {
     setRightPanelTab(tab)
     localStorage.setItem('bat-right-panel-tab', tab)
     // If collapsed, expand when switching tabs
@@ -188,6 +189,64 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'n' && !e.shiftKey && !e.altKey) {
         e.preventDefault()
         window.electronAPI.app.newWindow()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // Track previous terminal for Cmd+` toggle
+  const prevTerminalIdRef = useRef<string | null>(null)
+
+  // Keyboard shortcuts: Cmd+` (toggle terminal), Cmd+Left/Right (cycle tabs), Cmd+Up/Down (switch workspace)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return
+
+      // Cmd+` / Ctrl+`: Toggle between first regular terminal and Claude Code terminal
+      if (e.key === '`' && !e.shiftKey) {
+        e.preventDefault()
+        const currentState = workspaceStore.getState()
+        if (!currentState.activeWorkspaceId) return
+        const terminals = workspaceStore.getWorkspaceTerminals(currentState.activeWorkspaceId)
+        if (terminals.length === 0) return
+
+        const firstRegular = terminals.find(t => !t.agentPreset || t.agentPreset === 'none')
+        const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
+        const focusedId = currentState.focusedTerminalId
+
+        // If focused on agent terminal → switch to first regular terminal
+        // If focused on regular terminal → switch back to agent terminal (or previous)
+        const focusedTerminal = terminals.find(t => t.id === focusedId)
+        const isOnAgent = focusedTerminal?.agentPreset && focusedTerminal.agentPreset !== 'none'
+
+        if (isOnAgent && firstRegular) {
+          prevTerminalIdRef.current = focusedId
+          workspaceStore.setFocusedTerminal(firstRegular.id)
+        } else if (!isOnAgent && agentTerminal) {
+          prevTerminalIdRef.current = focusedId
+          workspaceStore.setFocusedTerminal(agentTerminal.id)
+        } else if (!isOnAgent && prevTerminalIdRef.current) {
+          const prev = prevTerminalIdRef.current
+          prevTerminalIdRef.current = focusedId
+          workspaceStore.setFocusedTerminal(prev)
+        }
+        // Also ensure we're on the terminal tab
+        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'terminal' } }))
+        return
+      }
+
+      // Cmd+Up / Cmd+Down: Switch workspaces
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.shiftKey) {
+        e.preventDefault()
+        const currentState = workspaceStore.getState()
+        const workspaces = currentState.workspaces
+        if (workspaces.length <= 1) return
+        const currentIndex = workspaces.findIndex(w => w.id === currentState.activeWorkspaceId)
+        const direction = e.key === 'ArrowDown' ? 1 : -1
+        const nextIndex = (currentIndex + direction + workspaces.length) % workspaces.length
+        workspaceStore.setActiveWorkspace(workspaces[nextIndex].id)
+        return
       }
     }
     window.addEventListener('keydown', handler)
@@ -354,10 +413,12 @@ export default function App() {
   }, [])
 
   const handleAddWorkspace = useCallback(async () => {
-    const folderPath = await window.electronAPI.dialog.selectFolder()
-    if (folderPath) {
-      const name = folderPath.split(/[/\\]/).pop() || 'Workspace'
-      workspaceStore.addWorkspace(name, folderPath)
+    const folderPaths = await window.electronAPI.dialog.selectFolder()
+    if (folderPaths && folderPaths.length > 0) {
+      for (const folderPath of folderPaths) {
+        const name = folderPath.split(/[/\\]/).pop() || 'Workspace'
+        workspaceStore.addWorkspace(name, folderPath)
+      }
       workspaceStore.save()
     }
   }, [])
@@ -505,7 +566,7 @@ export default function App() {
       {/* Right sidebar: tabbed Snippets / Skills (Skills only for Claude Code terminals) */}
       {(() => {
         const focusedTerminal = state.focusedTerminalId ? state.terminals.find(t2 => t2.id === state.focusedTerminalId) : null
-        const isClaudeCode = focusedTerminal?.agentPreset === 'claude-code'
+        const isClaudeCode = focusedTerminal?.agentPreset === 'claude-code' || focusedTerminal?.agentPreset === 'claude-code-v2'
         const effectiveTab = isClaudeCode ? rightPanelTab : 'snippets'
 
         if (!showSnippetSidebar) return null
@@ -558,9 +619,14 @@ export default function App() {
                 {t('snippets.title')}
               </button>
               {isClaudeCode && (
-                <button className={`right-sidebar-tab${effectiveTab === 'skills' ? ' active' : ''}`} onClick={() => handleRightPanelTabChange('skills')}>
-                  {t('skills.title')}
-                </button>
+                <>
+                  <button className={`right-sidebar-tab${effectiveTab === 'skills' ? ' active' : ''}`} onClick={() => handleRightPanelTabChange('skills')}>
+                    {t('skills.title')}
+                  </button>
+                  <button className={`right-sidebar-tab${effectiveTab === 'agents' ? ' active' : ''}`} onClick={() => handleRightPanelTabChange('agents')}>
+                    {t('agents.title')}
+                  </button>
+                </>
               )}
               <button className="right-sidebar-collapse" onClick={handleSnippetCollapse} title={t('snippets.collapsePanel')}>&raquo;</button>
             </div>
@@ -574,11 +640,17 @@ export default function App() {
                   activeCwd={state.activeWorkspaceId ? state.workspaces.find(w => w.id === state.activeWorkspaceId)?.folderPath ?? null : null}
                   activeSessionId={state.focusedTerminalId ?? null}
                 />
+              ) : effectiveTab === 'agents' ? (
+                <AgentsPanel
+                  isVisible={true}
+                  activeSessionId={state.focusedTerminalId ?? null}
+                />
               ) : (
                 <SnippetSidebar
                   isVisible={true}
                   width={panelSettings.snippetSidebar.width}
                   collapsed={false}
+                  workspaceId={state.activeWorkspaceId ?? undefined}
                   onCollapse={handleSnippetCollapse}
                   onPasteToTerminal={handlePasteToTerminal}
                 />
@@ -591,7 +663,17 @@ export default function App() {
         <SettingsPanel onClose={() => setShowSettings(false)} />
       )}
       {showProfiles && (
-        <ProfilePanel onClose={() => setShowProfiles(false)} onSwitchNewWindow={handleProfileNewWindow} />
+        <ProfilePanel
+          onClose={() => setShowProfiles(false)}
+          onSwitchNewWindow={handleProfileNewWindow}
+          onProfileRenamed={async (profileId, newName) => {
+            const wpId = await window.electronAPI.app.getWindowProfile()
+            if (wpId === profileId) {
+              const winIdx = await window.electronAPI.app.getWindowIndex()
+              setActiveProfileName(`${newName}:${winIdx}`)
+            }
+          }}
+        />
       )}
       {envDialogWorkspace && (
         <WorkspaceEnvDialog

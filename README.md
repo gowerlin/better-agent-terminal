@@ -52,7 +52,7 @@ Manage multiple project terminals in one window, with a built-in Claude Code age
 - **Double-click to rename**, right-click context menu for all workspace actions
 
 ### Terminal
-- **Google Meet-style layout** — 70% main panel + 30% scrollable thumbnail bar showing all terminals
+- **Split-panel layout** — 70% main panel + 30% scrollable thumbnail bar showing all terminals
 - **Multiple terminals per workspace** — Powered by xterm.js with full Unicode/CJK support
 - **Agent presets** — Pre-configured terminal roles: Claude Code, Gemini CLI, Codex, GitHub Copilot, or plain terminal
 - **Tab navigation** — Switch between Terminal, Files, and Git views per workspace
@@ -83,7 +83,11 @@ Manage multiple project terminals in one window, with a built-in Claude Code age
 
 | Shortcut | Action |
 |---|---|
+| `Ctrl+`` ` `` / `Cmd+`` ` `` | Toggle between Agent terminal and first regular terminal |
+| `Ctrl+←/→` / `Cmd+←/→` | Cycle workspace tabs (Terminal / Files / Git) |
+| `Ctrl+↑/↓` / `Cmd+↑/↓` | Switch to previous / next workspace |
 | `Ctrl+P` / `Cmd+P` | File picker (search & attach files to agent context) |
+| `Ctrl+N` / `Cmd+N` | Open new window |
 | `Shift+Tab` | Switch between Terminal and Agent mode |
 | `Enter` | Send message |
 | `Shift+Enter` | Insert newline (multiline input) |
@@ -363,6 +367,18 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Owen** - [@Owen0857](https://github.com/Owen0857) - Windows zombie process fix, terminal resize black screen fix, debug log cleanup
 - **MikeThai** - [@mikethai](https://github.com/mikethai) - macOS .dmg spawn ENOENT fix
 - **Luke Chang** - [@lukeme117](https://github.com/lukeme117) - Snippet sidebar and UI improvements
+
+---
+
+## Star History
+
+<a href="https://star-history.com/#tony1223/better-agent-terminal&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tony1223/better-agent-terminal&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=tony1223/better-agent-terminal&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=tony1223/better-agent-terminal&type=Date" />
+ </picture>
+</a>
 
 ---
 

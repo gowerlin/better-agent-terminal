@@ -15,12 +15,13 @@ interface MainPanelProps {
   isActive: boolean
   onClose: (id: string) => void
   onRestart: (id: string) => void
+  onSwitchApiVersion?: (id: string) => void
   workspaceId?: string
 }
 
-export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, workspaceId }: Readonly<MainPanelProps>) {
+export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, workspaceId }: Readonly<MainPanelProps>) {
   const isAgent = terminal.agentPreset && terminal.agentPreset !== 'none'
-  const isClaudeCode = terminal.agentPreset === 'claude-code'
+  const isClaudeCode = terminal.agentPreset === 'claude-code' || terminal.agentPreset === 'claude-code-v2'
   const agentConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
   const { t } = useTranslation()
   const [isEditing, setIsEditing] = useState(false)
@@ -124,6 +125,25 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
             >
               💬
             </button>
+          )}
+          {isClaudeCode && onSwitchApiVersion && (
+            <>
+              <button
+                className="action-btn"
+                onClick={() => onSwitchApiVersion(terminal.id)}
+                title={terminal.agentPreset === 'claude-code' ? t('claude.switchToV2') : t('claude.switchToV1')}
+              >
+                {terminal.agentPreset === 'claude-code' ? t('claude.switchToV2') : t('claude.switchToV1')}
+              </button>
+              <button
+                className="action-btn"
+                onClick={() => window.alert(t('claude.v1v2Help'))}
+                title="V1 vs V2"
+                style={{ padding: '0 4px', minWidth: 'auto' }}
+              >
+                ?
+              </button>
+            </>
           )}
           <button
             className="action-btn"

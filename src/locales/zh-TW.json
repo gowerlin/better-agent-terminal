@@ -37,8 +37,8 @@
     "autoRunAgentCommandHint": "建立 Agent 終端時自動執行 Agent 指令（例如 `claude`）。",
     "allowBypassPermissions": "允許跳過權限確認",
     "allowBypassPermissionsHint": "啟用後，在 Claude Agent 面板中切換至 bypassPermissions 模式時不會顯示確認對話框。請謹慎使用。",
-    "enable1MContext": "啟用 1M token 上下文視窗",
-    "enable1MContextHint": "對支援的模型（Opus 4.6、Sonnet 4.6）使用擴展的 1M token 上下文視窗。停用則使用預設的 200K 上下文。",
+    "collapseToolOutputs": "預設折疊所有工具輸出",
+    "collapseToolOutputsHint": "啟用後，所有工具輸出預設為折疊狀態，點擊可展開。唯讀工具（Read、Glob、Grep）不受此設定影響，一律折疊。",
     "defaultModel": "預設模型",
     "defaultModelPlaceholder": "例如 claude-sonnet-4-5-20250514",
     "defaultModelHint": "新 Agent 對話使用的模型 ID。留空則使用 SDK 預設。",
@@ -194,7 +194,11 @@
     "deleteConfirm": "確定要刪除此片段嗎？",
     "md": "MD",
     "text": "文字",
-    "edit": "編輯"
+    "edit": "編輯",
+    "scopeAll": "全部",
+    "scopeGlobal": "全域",
+    "scopeWorkspace": "工作區",
+    "scopeToWorkspace": "限定此工作區"
   },
 
   "skills": {
@@ -208,6 +212,14 @@
     "noSession": "啟動 Agent 對話後即可查看可用 skills。",
     "noMatchingSkills": "沒有符合的 skills",
     "expandSkills": "展開 Skills"
+  },
+
+  "agents": {
+    "title": "Agents",
+    "searchAgents": "搜尋 agents...",
+    "waitingForUpdate": "等待 session 更新... 在 Agent 聊天中傳送任何訊息以載入 agents。",
+    "noSession": "啟動 Agent session 以查看可用的 agents。",
+    "noMatchingAgents": "沒有符合的 agents"
   },
 
   "about": {
@@ -267,6 +279,11 @@
     "no": "否",
     "tellClaudeInstead": "告訴 Claude 該做什麼",
     "escToCancel": "按 Esc 取消",
+    "model1mHint": "1M context 透過 SDK 的 cache 效率較低。對成本敏感的工作，建議直接使用 Claude Code CLI。",
+    "v2ModelChangeWarning": "在 V2 中切換模型將會重建 session 並重新套用 context，可能會產生額外的 token 成本。是否繼續？",
+    "v1Model1mWarning": "在 Claude Code (V1) 中使用 1M context 模型，cache 效率僅約 25%，可能導致大量無意義的 token 耗損。建議改用 CLI 或 Claude Code V2 視窗以獲得更好的 cache 效率。是否繼續？",
+    "v2ModelListHint": "在 V2 中切換模型將會重建 session 並重新讀取 context，可能會耗損額外的 token，請謹慎使用。",
+    "v1Model1mHint": "1M context 模型在 V1 中 cache 效率僅約 25%，可能造成大量無意義的 token 耗損。建議改用 CLI 或 Claude Code V2 視窗。",
     "submit": "送出",
     "other": "其他...",
     "optionPreview": "選項預覽",
@@ -285,6 +302,9 @@
     "addFile": "附加檔案",
     "attachFiles": "附加檔案（最多 10 個）",
     "effortLevel": "投入程度",
+    "switchToV2": "升級至 V2",
+    "switchToV1": "降級至 V1",
+    "v1v2Help": "V1 與 V2 差異：\n\n【V1 - Query 模式】\n• 每次訊息啟動新 CLI 程序，從 JSONL 重建對話\n• Cache 效率約 25%（大量 token 浪費）\n• 支援：effort、plugins、systemPrompt\n• 穩定，功能完整\n\n【V2 - Session 模式】\n• 持久化 session，訊息間不重啟程序\n• Cache 效率約 84%（顯著節省 token）\n• 尚不支援：effort、plugins、systemPrompt\n• 實驗性，可能有限制\n\nV2 適合在意成本或長對話的場景。",
     "forkSession": "分支：從目前對話建立新分頁",
     "forkButton": "用目前進度分支",
     "attachImages": "附加圖片（最多 5 張）",

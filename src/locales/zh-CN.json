@@ -35,8 +35,8 @@
     "autoRunAgentCommandHint": "创建 Agent 终端时自动执行 Agent 命令（例如 `claude`）。",
     "allowBypassPermissions": "允许跳过权限确认",
     "allowBypassPermissionsHint": "启用后，在 Claude Agent 面板中切换至 bypassPermissions 模式时不会显示确认对话框。请谨慎使用。",
-    "enable1MContext": "启用 1M token 上下文窗口",
-    "enable1MContextHint": "对支持的模型（Opus 4.6、Sonnet 4.6）使用扩展的 1M token 上下文窗口。停用则使用默认的 200K 上下文。",
+    "collapseToolOutputs": "默认折叠所有工具输出",
+    "collapseToolOutputsHint": "启用后，所有工具输出默认为折叠状态，点击可展开。只读工具（Read、Glob、Grep）不受此设置影响，始终折叠。",
     "defaultModel": "默认模型",
     "defaultModelPlaceholder": "例如 claude-sonnet-4-5-20250514",
     "defaultModelHint": "新 Agent 对话使用的模型 ID。留空则使用 SDK 默认。",
@@ -186,7 +186,11 @@
     "deleteConfirm": "确定要删除此代码片段吗？",
     "md": "MD",
     "text": "文本",
-    "edit": "编辑"
+    "edit": "编辑",
+    "scopeAll": "全部",
+    "scopeGlobal": "全局",
+    "scopeWorkspace": "工作区",
+    "scopeToWorkspace": "限定此工作区"
   },
   "skills": {
     "title": "Skills",
@@ -200,6 +204,15 @@
     "noMatchingSkills": "没有匹配的 skills",
     "expandSkills": "展开 Skills"
   },
+
+  "agents": {
+    "title": "Agents",
+    "searchAgents": "搜索 agents...",
+    "waitingForUpdate": "等待 session 更新... 在 Agent 聊天中发送任何消息以加载 agents。",
+    "noSession": "启动 Agent session 以查看可用的 agents。",
+    "noMatchingAgents": "没有匹配的 agents"
+  },
+
   "about": {
     "title": "关于",
     "appName": "Better Agent Terminal",
@@ -253,6 +266,11 @@
     "no": "否",
     "tellClaudeInstead": "告诉 Claude 该做什么",
     "escToCancel": "按 Esc 取消",
+    "model1mHint": "1M context 通过 SDK 的 cache 效率较低。对成本敏感的工作，建议直接使用 Claude Code CLI。",
+    "v2ModelChangeWarning": "在 V2 中切换模型将会重建 session 并重新应用 context，可能会产生额外的 token 成本。是否继续？",
+    "v1Model1mWarning": "在 Claude Code (V1) 中使用 1M context 模型，cache 效率仅约 25%，可能导致大量无意义的 token 消耗。建议改用 CLI 或 Claude Code V2 窗口以获得更好的 cache 效率。是否继续？",
+    "v2ModelListHint": "在 V2 中切换模型将会重建 session 并重新读取 context，可能会消耗额外的 token，请谨慎使用。",
+    "v1Model1mHint": "1M context 模型在 V1 中 cache 效率仅约 25%，可能造成大量无意义的 token 消耗。建议改用 CLI 或 Claude Code V2 窗口。",
     "submit": "发送",
     "other": "其他...",
     "optionPreview": "选项预览",
@@ -271,6 +289,9 @@
     "addFile": "附加文件",
     "attachFiles": "附加文件（最多 10 个）",
     "effortLevel": "投入程度",
+    "switchToV2": "升级至 V2",
+    "switchToV1": "降级至 V1",
+    "v1v2Help": "V1 与 V2 差异：\n\n【V1 - Query 模式】\n• 每次消息启动新 CLI 进程，从 JSONL 重建对话\n• Cache 效率约 25%（大量 token 浪费）\n• 支持：effort、plugins、systemPrompt\n• 稳定，功能完整\n\n【V2 - Session 模式】\n• 持久化 session，消息间不重启进程\n• Cache 效率约 84%（显著节省 token）\n• 尚不支持：effort、plugins、systemPrompt\n• 实验性，可能有限制\n\nV2 适合在意成本或长对话的场景。",
     "forkSession": "分支：从当前对话创建新标签页",
     "forkButton": "用当前进度分支",
     "attachImages": "附加图片（最多 5 张）",

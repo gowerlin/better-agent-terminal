@@ -51,7 +51,7 @@ const electronAPI = {
     getShellPath: (shell: string) => ipcRenderer.invoke('settings:get-shell-path', shell)
   },
   dialog: {
-    selectFolder: () => ipcRenderer.invoke('dialog:select-folder'),
+    selectFolder: () => ipcRenderer.invoke('dialog:select-folder') as Promise<string[] | null>,
     selectImages: () => ipcRenderer.invoke('dialog:select-images') as Promise<string[]>,
     selectFiles: () => ipcRenderer.invoke('dialog:select-files') as Promise<string[]>,
     confirm: (message: string, title?: string) => ipcRenderer.invoke('dialog:confirm', message, title) as Promise<boolean>,
@@ -81,7 +81,7 @@ const electronAPI = {
     writeImage: (filePath: string) => ipcRenderer.invoke('clipboard:writeImage', filePath),
   },
   claude: {
-    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string }) =>
+    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2' }) =>
       ipcRenderer.invoke('claude:start-session', sessionId, options),
     sendMessage: (sessionId: string, prompt: string, images?: string[]) =>
       ipcRenderer.invoke('claude:send-message', sessionId, prompt, images),
@@ -133,8 +133,6 @@ const electronAPI = {
       ipcRenderer.invoke('claude:set-model', sessionId, model),
     setEffort: (sessionId: string, effort: string) =>
       ipcRenderer.invoke('claude:set-effort', sessionId, effort),
-    set1MContext: (sessionId: string, enable: boolean) =>
-      ipcRenderer.invoke('claude:set-1m-context', sessionId, enable),
     resetSession: (sessionId: string) =>
       ipcRenderer.invoke('claude:reset-session', sessionId),
     getSupportedModels: (sessionId: string) =>
@@ -143,20 +141,24 @@ const electronAPI = {
       ipcRenderer.invoke('claude:get-account-info', sessionId) as Promise<{ email?: string; organization?: string; subscriptionType?: string } | null>,
     getSupportedCommands: (sessionId: string) =>
       ipcRenderer.invoke('claude:get-supported-commands', sessionId) as Promise<{ name: string; description: string; argumentHint: string }[]>,
+    getSupportedAgents: (sessionId: string) =>
+      ipcRenderer.invoke('claude:get-supported-agents', sessionId) as Promise<{ name: string; description: string; model?: string }[]>,
     scanSkills: (cwd: string) =>
       ipcRenderer.invoke('claude:scan-skills', cwd) as Promise<{ name: string; description: string; scope: 'project' | 'global' }[]>,
     getSessionMeta: (sessionId: string) =>
       ipcRenderer.invoke('claude:get-session-meta', sessionId) as Promise<Record<string, unknown> | null>,
     getUsage: () =>
       ipcRenderer.invoke('claude:get-usage') as Promise<{ fiveHour: number | null; sevenDay: number | null; fiveHourReset: string | null; sevenDayReset: string | null } | null>,
+    getUsageAccount: () =>
+      ipcRenderer.invoke('claude:get-usage-account') as Promise<{ email: string; orgName: string; tier: string } | null>,
     resolvePermission: (sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) =>
       ipcRenderer.invoke('claude:resolve-permission', sessionId, toolUseId, result),
     resolveAskUser: (sessionId: string, toolUseId: string, answers: Record<string, string>) =>
       ipcRenderer.invoke('claude:resolve-ask-user', sessionId, toolUseId, answers),
     listSessions: (cwd: string) =>
       ipcRenderer.invoke('claude:list-sessions', cwd),
-    resumeSession: (sessionId: string, sdkSessionId: string, cwd: string, model?: string) =>
-      ipcRenderer.invoke('claude:resume-session', sessionId, sdkSessionId, cwd, model),
+    resumeSession: (sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2') =>
+      ipcRenderer.invoke('claude:resume-session', sessionId, sdkSessionId, cwd, model, apiVersion),
     forkSession: (sessionId: string) =>
       ipcRenderer.invoke('claude:fork-session', sessionId) as Promise<{ newSdkSessionId: string } | null>,
     stopTask: (sessionId: string, taskId: string) =>
@@ -278,15 +280,16 @@ const electronAPI = {
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),
     getById: (id: number) => ipcRenderer.invoke('snippet:getById', id),
-    create: (input: { title: string; content: string; format?: string; category?: string; tags?: string; isFavorite?: boolean }) =>
+    create: (input: { title: string; content: string; format?: string; category?: string; tags?: string; isFavorite?: boolean; workspaceId?: string }) =>
       ipcRenderer.invoke('snippet:create', input),
-    update: (id: number, updates: { title?: string; content?: string; format?: string; category?: string; tags?: string; isFavorite?: boolean }) =>
+    update: (id: number, updates: { title?: string; content?: string; format?: string; category?: string; tags?: string; isFavorite?: boolean; workspaceId?: string }) =>
       ipcRenderer.invoke('snippet:update', id, updates),
     delete: (id: number) => ipcRenderer.invoke('snippet:delete', id),
     toggleFavorite: (id: number) => ipcRenderer.invoke('snippet:toggleFavorite', id),
     search: (query: string) => ipcRenderer.invoke('snippet:search', query),
     getCategories: () => ipcRenderer.invoke('snippet:getCategories'),
-    getFavorites: () => ipcRenderer.invoke('snippet:getFavorites')
+    getFavorites: () => ipcRenderer.invoke('snippet:getFavorites'),
+    getByWorkspace: (workspaceId?: string) => ipcRenderer.invoke('snippet:getByWorkspace', workspaceId)
   }
 }
 

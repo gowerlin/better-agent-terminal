@@ -37,8 +37,8 @@
     "autoRunAgentCommandHint": "Automatically execute the agent command (e.g., `claude`) when creating an Agent Terminal.",
     "allowBypassPermissions": "Allow bypass permissions without confirmation",
     "allowBypassPermissionsHint": "When enabled, switching to bypassPermissions mode in Claude Agent Panel will not show a confirmation dialog. Use with caution.",
-    "enable1MContext": "Enable 1M token context window",
-    "enable1MContextHint": "Use the extended 1M token context window for supported models (Opus 4.6, Sonnet 4.6). Disable to use the default 200K context.",
+    "collapseToolOutputs": "Collapse all tool outputs by default",
+    "collapseToolOutputsHint": "When enabled, all tool outputs are collapsed by default. Click to expand. Read-only tools (Read, Glob, Grep) are always collapsed regardless of this setting.",
     "defaultModel": "Default Model",
     "defaultModelPlaceholder": "e.g., claude-sonnet-4-5-20250514",
     "defaultModelHint": "Model ID used for new Agent sessions. Leave empty to use SDK default.",
@@ -194,7 +194,11 @@
     "deleteConfirm": "Are you sure you want to delete this snippet?",
     "md": "MD",
     "text": "Text",
-    "edit": "Edit"
+    "edit": "Edit",
+    "scopeAll": "All",
+    "scopeGlobal": "Global",
+    "scopeWorkspace": "Workspace",
+    "scopeToWorkspace": "Scope to this workspace"
   },
 
   "skills": {
@@ -208,6 +212,14 @@
     "noSession": "Start an Agent session to see available skills.",
     "noMatchingSkills": "No matching skills",
     "expandSkills": "Expand Skills"
+  },
+
+  "agents": {
+    "title": "Agents",
+    "searchAgents": "Search agents...",
+    "waitingForUpdate": "Waiting for session update... Send any message in the Agent chat to load agents.",
+    "noSession": "Start an Agent session to see available agents.",
+    "noMatchingAgents": "No matching agents"
   },
 
   "about": {
@@ -267,6 +279,11 @@
     "no": "No",
     "tellClaudeInstead": "Tell Claude what to do instead",
     "escToCancel": "Esc to cancel",
+    "model1mHint": "1M context has lower cache efficiency via SDK. For cost-sensitive workloads, consider using Claude Code CLI directly.",
+    "v2ModelChangeWarning": "Switching models in V2 will recreate the session and re-apply context, which may incur additional token costs. Continue?",
+    "v1Model1mWarning": "1M context models in Claude Code (V1) may cause significant unnecessary token consumption due to low cache efficiency (~25%). Consider using CLI or Claude Code V2 for better cache performance. Continue?",
+    "v2ModelListHint": "Switching model in V2 will recreate the session and re-apply context, which may consume additional tokens. Please switch with caution.",
+    "v1Model1mHint": "1M context models may cause significant unnecessary token consumption in V1 due to low cache efficiency (~25%). Consider using CLI or Claude Code V2 window instead.",
     "submit": "Submit",
     "other": "Other...",
     "optionPreview": "Option preview",
@@ -285,6 +302,9 @@
     "addFile": "Attach file",
     "attachFiles": "Attach files (max 10)",
     "effortLevel": "Effort level",
+    "switchToV2": "Upgrade to V2",
+    "switchToV1": "Downgrade to V1",
+    "v1v2Help": "V1 vs V2 Differences:\n\n[V1 - Query Mode]\n• Each message spawns a new CLI process and rebuilds from JSONL\n• Cache efficiency ~25% (high token waste)\n• Supports: effort, plugins, systemPrompt\n• Stable, fully featured\n\n[V2 - Session Mode]\n• Persistent session, no process restart between messages\n• Cache efficiency ~84% (significant token savings)\n• Does NOT yet support: effort, plugins, systemPrompt\n• Experimental, may have limitations\n\nV2 is recommended for cost-sensitive or long conversations.",
     "forkSession": "Fork: create a new tab from current conversation",
     "forkButton": "Fork from current progress",
     "attachImages": "Attach images (max 5)",
