@@ -156,8 +156,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     return !!t?.sdkSessionId
   })
   const [permissionMode, setPermissionMode] = useState<string>('bypassPermissions')
-  const [currentModel, setCurrentModel] = useState<string>('')
-  const [effortLevel, setEffortLevel] = useState<string>('medium')
+  const [currentModel, setCurrentModel] = useState<string>(() => {
+    const t = workspaceStore.getState().terminals.find(t => t.id === sessionId)
+    return t?.model || settingsStore.getSettings().defaultModel || ''
+  })
+  const [effortLevel, setEffortLevel] = useState<string>(() => {
+    return settingsStore.getSettings().defaultEffort || 'medium'
+  })
   const [claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
   const [usageAccount, setUsageAccount] = useState(workspaceStore.usageAccount)
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
@@ -888,11 +893,21 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   }, [isActive])
 
   const handleModelSelect = useCallback(async (modelValue: string) => {
+    // V2: warn that model change will recreate session and re-apply context
+    if (isV2Session && modelValue !== currentModel) {
+      const ok = window.confirm(t('claude.v2ModelChangeWarning'))
+      if (!ok) return
+    }
+    // V1: warn about 1M model cache inefficiency
+    if (!isV2Session && modelValue.includes('[1m]') && modelValue !== currentModel) {
+      const ok = window.confirm(t('claude.v1Model1mWarning'))
+      if (!ok) return
+    }
     setShowModelList(false)
     setCurrentModel(modelValue)
     await window.electronAPI.claude.setModel(sessionId, modelValue)
     workspaceStore.updateTerminalModel(sessionId, modelValue)
-  }, [sessionId])
+  }, [sessionId, isV2Session, currentModel, t])
 
   const handleResumeSelect = useCallback(async (sdkSessionId: string) => {
     console.log(`[Claude:${sessionId.slice(0, 8)}] handleResumeSelect sdkSessionId=${sdkSessionId.slice(0, 8)}`)
@@ -2706,8 +2721,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
               })()}
             </div>
           )}
-          {currentModel?.includes('[1m]') && (
-            <div className="claude-model-1m-hint">{t('claude.model1mHint')}</div>
+          {isV2Session && (
+            <div className="claude-model-1m-hint">{t('claude.v2ModelListHint')}</div>
+          )}
+          {!isV2Session && (
+            <div className="claude-model-1m-hint">{t('claude.v1Model1mHint')}</div>
           )}
           <div className="claude-permission-hint">{t('claude.escToCancel')}</div>
         </div>
