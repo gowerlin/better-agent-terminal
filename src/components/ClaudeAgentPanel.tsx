@@ -916,6 +916,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     }
     setShowModelList(false)
     setCurrentModel(modelValue)
+    // Restore focus to textarea after model list is dismissed (especially after window.confirm())
+    setTimeout(() => textareaRef.current?.focus(), 0)
     await window.electronAPI.claude.setModel(sessionId, modelValue)
     workspaceStore.updateTerminalModel(sessionId, modelValue)
   }, [sessionId, isV2Session, currentModel, t])
@@ -1524,6 +1526,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         if (showModelList) {
           e.preventDefault()
           setShowModelList(false)
+          setTimeout(() => textareaRef.current?.focus(), 0)
           return
         }
         if (showResumeList) {
