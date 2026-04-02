@@ -1187,19 +1187,27 @@ export class ClaudeAgentManager {
           model: effectiveModel,
           permissionMode: sdkMode,
           canUseTool,
-          cwd: session.cwd,
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
           ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable } : {}),
         }
 
         // Only resume if the sdkSessionId was created by a V2 session
         const v2ResumeId = session.v2SessionModel ? session.sdkSessionId : undefined
-        logger.log(`[Claude V2] Creating session: model=${v2Options.model}, permissionMode=${v2Options.permissionMode}, cwd=${v2Options.cwd}, resumeId=${v2ResumeId || 'none'}`)
+        logger.log(`[Claude V2] Creating session: model=${v2Options.model}, permissionMode=${v2Options.permissionMode}, cwd=${session.cwd}, resumeId=${v2ResumeId || 'none'}`)
 
-        if (v2ResumeId) {
-          session.v2Session = resumeSession(v2ResumeId, v2Options)
-        } else {
-          session.v2Session = createSession(v2Options)
+        // WORKAROUND: V2 SDK's SDKSessionOptions does not support a `cwd` parameter.
+        // The subprocess inherits process.cwd() which in Electron defaults to "/".
+        // Temporarily chdir so the spawned subprocess uses the correct working directory.
+        const previousCwd = process.cwd()
+        try {
+          process.chdir(session.cwd)
+          if (v2ResumeId) {
+            session.v2Session = resumeSession(v2ResumeId, v2Options)
+          } else {
+            session.v2Session = createSession(v2Options)
+          }
+        } finally {
+          process.chdir(previousCwd)
         }
         session.v2SessionModel = effectiveModel
       }
