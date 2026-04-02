@@ -699,23 +699,33 @@ class WorkspaceStore {
       try {
         const parsed = JSON.parse(data)
         // Restore terminals with empty runtime fields
-        const terminals: TerminalInstance[] = (parsed.terminals || []).map((t: Partial<TerminalInstance>) => ({
-          id: t.id || '',
-          workspaceId: t.workspaceId || '',
-          type: 'terminal' as const,
-          agentPreset: t.agentPreset,
-          title: t.title || 'Terminal',
-          alias: t.alias,
-          cwd: t.cwd || '',
-          sdkSessionId: t.sdkSessionId,
-          model: t.model,
-          sessionMeta: t.sessionMeta,
-          scrollbackBuffer: [],
-          pid: undefined,
-        }))
+        const workspaces: Workspace[] = parsed.workspaces || []
+        const workspaceMap = new Map(workspaces.map((w: Workspace) => [w.id, w]))
+        const terminals = (parsed.terminals || []).map((t: Partial<TerminalInstance>): TerminalInstance | null => {
+          const ws = t.workspaceId ? workspaceMap.get(t.workspaceId) : undefined
+          if (!ws?.folderPath) {
+            window.electronAPI?.debug?.log?.(`[workspace-store] Warning: terminal ${t.id} has no valid workspace, skipping`)
+            return null
+          }
+          const cwd = ws.folderPath
+          return {
+            id: t.id || '',
+            workspaceId: t.workspaceId || '',
+            type: 'terminal' as const,
+            agentPreset: t.agentPreset,
+            title: t.title || 'Terminal',
+            alias: t.alias,
+            cwd,
+            sdkSessionId: t.sdkSessionId,
+            model: t.model,
+            sessionMeta: t.sessionMeta,
+            scrollbackBuffer: [],
+            pid: undefined,
+          }
+        }).filter((t: TerminalInstance | null): t is TerminalInstance => t !== null)
         this.state = {
           ...this.state,
-          workspaces: parsed.workspaces || [],
+          workspaces,
           activeWorkspaceId: parsed.activeWorkspaceId || null,
           terminals,
           activeTerminalId: parsed.activeTerminalId || null,

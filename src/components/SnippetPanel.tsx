@@ -376,12 +376,12 @@ export function SnippetSidebar({
                     snippet={editingSnippet}
                     isNew={isCreating}
                     workspaceId={workspaceId}
-                    onSave={(data) => {
+                    onSave={async (data) => {
                         if (isCreating) {
-                            handleCreate(data)
+                            await handleCreate(data)
                             setIsCreating(false)
                         } else if (editingSnippet) {
-                            handleUpdate(editingSnippet.id, data)
+                            await handleUpdate(editingSnippet.id, data)
                             setEditingSnippet(null)
                         }
                     }}

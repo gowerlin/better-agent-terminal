@@ -295,6 +295,13 @@ export class ClaudeAgentManager {
     }
 
     try {
+      // Validate cwd — must be a non-empty absolute path to prevent sessions running in wrong directory
+      if (!options.cwd || !options.cwd.startsWith('/')) {
+        const errMsg = `[Claude] Cannot start session: invalid cwd "${options.cwd || '(empty)'}". A valid workspace path is required.`
+        logger.log(errMsg)
+        throw new Error(errMsg)
+      }
+
       const abortController = new AbortController()
       const state: ClaudeSessionState = {
         sessionId,
@@ -926,11 +933,13 @@ export class ClaudeAgentManager {
 
     if (message.type === 'system' && (message as { subtype?: string }).subtype === 'api_retry') {
       const retry = message as { attempt?: number; maxAttempts?: number; delay?: number; status?: number; error?: string }
+      logger.warn(`[api_retry] session=${sessionId.slice(0, 8)} raw=`, JSON.stringify(message))
       const parts = [`API retrying`]
       if (retry.attempt) parts.push(`(attempt ${retry.attempt}${retry.maxAttempts ? `/${retry.maxAttempts}` : ''})`)
       if (retry.delay) parts.push(`${retry.delay}ms`)
       if (retry.status) parts.push(`HTTP ${retry.status}`)
       if (retry.error) parts.push(`- ${retry.error}`)
+      logger.warn(`[api_retry] ${parts.join(' ')}`)
       this.addMessage(sessionId, {
         id: `sys-retry-${Date.now()}`,
         sessionId,
@@ -1180,19 +1189,27 @@ export class ClaudeAgentManager {
           model: effectiveModel,
           permissionMode: sdkMode,
           canUseTool,
-          cwd: session.cwd,
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
           ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable } : {}),
         }
 
         // Only resume if the sdkSessionId was created by a V2 session
         const v2ResumeId = session.v2SessionModel ? session.sdkSessionId : undefined
-        logger.log(`[Claude V2] Creating session: model=${v2Options.model}, permissionMode=${v2Options.permissionMode}, resumeId=${v2ResumeId || 'none'}`)
+        logger.log(`[Claude V2] Creating session: model=${v2Options.model}, permissionMode=${v2Options.permissionMode}, cwd=${session.cwd}, resumeId=${v2ResumeId || 'none'}`)
 
-        if (v2ResumeId) {
-          session.v2Session = resumeSession(v2ResumeId, v2Options)
-        } else {
-          session.v2Session = createSession(v2Options)
+        // WORKAROUND: V2 SDK's SDKSessionOptions does not support a `cwd` parameter.
+        // The subprocess inherits process.cwd() which in Electron defaults to "/".
+        // Temporarily chdir so the spawned subprocess uses the correct working directory.
+        const previousCwd = process.cwd()
+        try {
+          process.chdir(session.cwd)
+          if (v2ResumeId) {
+            session.v2Session = resumeSession(v2ResumeId, v2Options)
+          } else {
+            session.v2Session = createSession(v2Options)
+          }
+        } finally {
+          process.chdir(previousCwd)
         }
         session.v2SessionModel = effectiveModel
       }
@@ -1206,6 +1223,10 @@ export class ClaudeAgentManager {
           session.v2Session.close()
           session.v2Session = undefined
           break
+        }
+        const msgType = (message as { type?: string; subtype?: string })
+        if (msgType.type === 'system') {
+          logger.log(`[Claude V2] system event: subtype=${msgType.subtype ?? 'none'} raw=`, JSON.stringify(message))
         }
         this.processMessage(sessionId, session, message)
       }
