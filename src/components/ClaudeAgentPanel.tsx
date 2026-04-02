@@ -1139,17 +1139,29 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       return
     }
 
-    // Intercept /whoami command — show current auth status
+    // Intercept /whoami command — show current auth status + usage
     if (trimmed === '/whoami') {
       clearInput()
-      const status = await window.electronAPI.claude.authStatus()
+      const [status, usage] = await Promise.all([
+        window.electronAPI.claude.authStatus(),
+        window.electronAPI.claude.getUsage(),
+      ])
+      let content: string
+      if (!status?.loggedIn) {
+        content = 'Not logged in.'
+      } else {
+        const lines = [`${status.email || 'unknown'} (${status.authMethod || ''}, ${status.subscriptionType || ''})`]
+        if (usage) {
+          const fmt = (v: number | null) => v != null ? `${v.toFixed(1)}%` : '—'
+          lines.push(`Usage: 5h ${fmt(usage.fiveHour)} · 7d ${fmt(usage.sevenDay)}`)
+        }
+        content = lines.join('\n')
+      }
       setMessages(prev => [...prev, {
         id: `sys-whoami-${Date.now()}`, sessionId, role: 'system' as const,
-        content: status?.loggedIn
-          ? `${status.email || 'unknown'} (${status.authMethod || ''}, ${status.subscriptionType || ''})`
-          : 'Not logged in.',
-        timestamp: Date.now(),
+        content, timestamp: Date.now(),
       }])
+      workspaceStore.refreshUsageNow()
       return
     }
 
