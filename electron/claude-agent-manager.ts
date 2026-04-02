@@ -296,7 +296,8 @@ export class ClaudeAgentManager {
 
     try {
       // Validate cwd — must be a non-empty absolute path to prevent sessions running in wrong directory
-      if (!options.cwd || !options.cwd.startsWith('/')) {
+      // Reject bare "/" to avoid running in filesystem root
+      if (!options.cwd || !pathModule.isAbsolute(options.cwd) || options.cwd === '/') {
         const errMsg = `[Claude] Cannot start session: invalid cwd "${options.cwd || '(empty)'}". A valid workspace path is required.`
         logger.log(errMsg)
         throw new Error(errMsg)
