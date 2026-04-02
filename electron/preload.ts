@@ -167,6 +167,12 @@ const electronAPI = {
       ipcRenderer.invoke('claude:get-usage') as Promise<{ fiveHour: number | null; sevenDay: number | null; fiveHourReset: string | null; sevenDayReset: string | null } | null>,
     getUsageAccount: () =>
       ipcRenderer.invoke('claude:get-usage-account') as Promise<{ email: string; orgName: string; tier: string } | null>,
+    authLogin: () =>
+      ipcRenderer.invoke('claude:auth-login') as Promise<{ success: boolean; error?: string }>,
+    authStatus: () =>
+      ipcRenderer.invoke('claude:auth-status') as Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>,
+    authLogout: () =>
+      ipcRenderer.invoke('claude:auth-logout') as Promise<{ success: boolean; error?: string }>,
     resolvePermission: (sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) =>
       ipcRenderer.invoke('claude:resolve-permission', sessionId, toolUseId, result),
     resolveAskUser: (sessionId: string, toolUseId: string, answers: Record<string, string>) =>

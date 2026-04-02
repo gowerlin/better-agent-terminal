@@ -1103,6 +1103,56 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       return
     }
 
+    // Intercept /login command — open Claude auth login flow
+    if (trimmed === '/login') {
+      clearInput()
+      setMessages(prev => [...prev, {
+        id: `sys-login-${Date.now()}`, sessionId, role: 'system' as const,
+        content: 'Opening Claude login...', timestamp: Date.now(),
+      }])
+      const result = await window.electronAPI.claude.authLogin()
+      if (result.success) {
+        const status = await window.electronAPI.claude.authStatus()
+        setMessages(prev => [...prev, {
+          id: `sys-login-ok-${Date.now()}`, sessionId, role: 'system' as const,
+          content: status?.email ? `Logged in as ${status.email} (${status.subscriptionType || 'unknown'})` : 'Login successful.',
+          timestamp: Date.now(),
+        }])
+      } else {
+        setMessages(prev => [...prev, {
+          id: `sys-login-err-${Date.now()}`, sessionId, role: 'system' as const,
+          content: `Login failed: ${result.error || 'unknown error'}`, timestamp: Date.now(),
+        }])
+      }
+      return
+    }
+
+    // Intercept /logout command
+    if (trimmed === '/logout') {
+      clearInput()
+      const result = await window.electronAPI.claude.authLogout()
+      setMessages(prev => [...prev, {
+        id: `sys-logout-${Date.now()}`, sessionId, role: 'system' as const,
+        content: result.success ? 'Logged out.' : `Logout failed: ${result.error || 'unknown error'}`,
+        timestamp: Date.now(),
+      }])
+      return
+    }
+
+    // Intercept /whoami command — show current auth status
+    if (trimmed === '/whoami') {
+      clearInput()
+      const status = await window.electronAPI.claude.authStatus()
+      setMessages(prev => [...prev, {
+        id: `sys-whoami-${Date.now()}`, sessionId, role: 'system' as const,
+        content: status?.loggedIn
+          ? `${status.email || 'unknown'} (${status.authMethod || ''}, ${status.subscriptionType || ''})`
+          : 'Not logged in.',
+        timestamp: Date.now(),
+      }])
+      return
+    }
+
     // Intercept /snippet command — inject snippet context into Claude session
     if (trimmed === '/snippet' || trimmed.startsWith('/snippet ')) {
       const query = trimmed.slice('/snippet'.length).trim()
@@ -1267,6 +1317,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       { name: 'snippet', description: 'Show snippets to Claude for management', argumentHint: '' },
       { name: 'resume', description: 'Resume a previous session', argumentHint: '' },
       { name: 'model', description: 'Select model', argumentHint: '' },
+      { name: 'login', description: 'Sign in to Claude (switch account)', argumentHint: '' },
+      { name: 'logout', description: 'Sign out of Claude', argumentHint: '' },
+      { name: 'whoami', description: 'Show current account info', argumentHint: '' },
     ]
     const all = [...builtIn, ...slashCommands]
     return q ? all.filter(c => c.name.toLowerCase().includes(q)) : all

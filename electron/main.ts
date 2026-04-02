@@ -771,6 +771,55 @@ function registerProxiedHandlers() {
   registerHandler('claude:cleanup-worktree', (_ctx, sessionId: string, deleteBranch: boolean) => claudeManager?.cleanupWorktree(sessionId, deleteBranch))
   registerHandler('claude:merge-worktree', (_ctx, sessionId: string, strategy: 'merge' | 'cherry-pick') => claudeManager?.mergeWorktree(sessionId, strategy))
 
+  // claude auth login — open browser-based login flow
+  registerHandler('claude:auth-login', async () => {
+    const { execFile } = await import('child_process')
+    return new Promise<{ success: boolean; error?: string }>((resolve) => {
+      execFile('claude', ['auth', 'login'], { timeout: 60000 }, (err) => {
+        if (err) {
+          logger.error('[auth-login]', err)
+          resolve({ success: false, error: err.message })
+        } else {
+          resolve({ success: true })
+        }
+      })
+    })
+  })
+
+  // claude auth status — get current auth info
+  registerHandler('claude:auth-status', async () => {
+    const { execFile } = await import('child_process')
+    return new Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>((resolve) => {
+      execFile('claude', ['auth', 'status'], { timeout: 10000 }, (err, stdout) => {
+        if (err) {
+          logger.error('[auth-status]', err)
+          resolve(null)
+        } else {
+          try {
+            resolve(JSON.parse(stdout))
+          } catch {
+            resolve(null)
+          }
+        }
+      })
+    })
+  })
+
+  // claude auth logout
+  registerHandler('claude:auth-logout', async () => {
+    const { execFile } = await import('child_process')
+    return new Promise<{ success: boolean; error?: string }>((resolve) => {
+      execFile('claude', ['auth', 'logout'], { timeout: 10000 }, (err) => {
+        if (err) {
+          logger.error('[auth-logout]', err)
+          resolve({ success: false, error: err.message })
+        } else {
+          resolve({ success: true })
+        }
+      })
+    })
+  })
+
   // Scan .claude/commands/ directories for skill files
   registerHandler('claude:scan-skills', async (_ctx, cwd: string) => {
     const fs = await import('fs')
