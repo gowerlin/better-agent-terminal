@@ -2855,11 +2855,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         />
       )}
 
-      {/* Worktree action bar — shown when session has worktree and is not streaming */}
-      {isWorktreeSession && worktreeInfo && !isStreaming && (
+      {/* Worktree action bar — always visible when worktree is active, buttons hidden during streaming */}
+      {isWorktreeSession && worktreeInfo && (
         <div className="claude-worktree-bar">
           <span className="claude-worktree-label">🌳 {worktreeInfo.branchName}</span>
-          <div className="claude-worktree-actions">
+          {!isStreaming && <div className="claude-worktree-actions">
             <button
               className="claude-worktree-btn"
               onClick={async () => {
@@ -2924,7 +2924,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
               }}
               title="Discard worktree and delete branch"
             >Discard</button>
-          </div>
+          </div>}
         </div>
       )}
 

@@ -486,7 +486,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       {activeTab === 'git' && (
         <Suspense fallback={<div className="loading-panel" />}>
           <div className="workspace-tab-content">
-            <GitPanel workspaceFolderPath={workspace.folderPath} />
+            <GitPanel
+              workspaceFolderPath={workspace.folderPath}
+              worktreePaths={terminals
+                .filter(t => t.agentPreset === 'claude-code-worktree' && t.worktreePath)
+                .map(t => ({ path: t.worktreePath!, branch: t.worktreeBranch || 'worktree' }))
+              }
+            />
           </div>
         </Suspense>
       )}

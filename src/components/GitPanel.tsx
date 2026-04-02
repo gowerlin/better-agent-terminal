@@ -14,8 +14,14 @@ interface GitStatusEntry {
   file: string
 }
 
+interface WorktreeEntry {
+  path: string
+  branch: string
+}
+
 interface GitPanelProps {
   workspaceFolderPath: string
+  worktreePaths?: WorktreeEntry[]
 }
 
 const TEXT_EXTS = new Set([
@@ -86,7 +92,7 @@ function DiffView({ diff }: { diff: string }) {
   )
 }
 
-export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
+export function GitPanel({ workspaceFolderPath, worktreePaths = [] }: Readonly<GitPanelProps>) {
   const { t } = useTranslation()
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [status, setStatus] = useState<GitStatusEntry[]>([])
@@ -101,6 +107,14 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
   const [diffLoading, setDiffLoading] = useState(false)
   const [isGitRepo, setIsGitRepo] = useState(true)
   const [gitRoot, setGitRoot] = useState<string | null>(null)
+  const [activePath, setActivePath] = useState(workspaceFolderPath)
+
+  // Build path options: main + worktrees
+  const pathOptions = [
+    { path: workspaceFolderPath, label: 'Main' },
+    ...worktreePaths.map(w => ({ path: w.path, label: `🌳 ${w.branch}` })),
+  ]
+  const hasWorktrees = worktreePaths.length > 0
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -110,10 +124,10 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
     setDiff('')
     try {
       const [logResult, statusResult, branch, root] = await Promise.all([
-        window.electronAPI.git.getLog(workspaceFolderPath),
-        window.electronAPI.git.getStatus(workspaceFolderPath),
-        window.electronAPI.git.getBranch(workspaceFolderPath),
-        window.electronAPI.git.getRoot(workspaceFolderPath),
+        window.electronAPI.git.getLog(activePath),
+        window.electronAPI.git.getStatus(activePath),
+        window.electronAPI.git.getBranch(activePath),
+        window.electronAPI.git.getRoot(activePath),
       ])
       setIsGitRepo(branch !== null)
       setGitRoot(root)
@@ -123,7 +137,7 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
       setIsGitRepo(false)
     }
     setLoading(false)
-  }, [workspaceFolderPath])
+  }, [activePath])
 
   useEffect(() => {
     loadData()
@@ -138,14 +152,14 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
       if (hash === 'working') {
         setChangedFiles(status)
       } else {
-        const files = await window.electronAPI.git.getDiffFiles(workspaceFolderPath, hash)
+        const files = await window.electronAPI.git.getDiffFiles(activePath, hash)
         setChangedFiles(files)
       }
     } catch {
       setChangedFiles([])
     }
     setFilesLoading(false)
-  }, [workspaceFolderPath, status])
+  }, [activePath, status])
 
   const handleSelectFile = useCallback(async (filePath: string) => {
     setSelectedFile(filePath)
@@ -153,14 +167,14 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
     setFileContent(null)
     setDiffLoading(true)
     try {
-      const d = await window.electronAPI.git.getDiff(workspaceFolderPath, selectedCommit || undefined, filePath)
+      const d = await window.electronAPI.git.getDiff(activePath, selectedCommit || undefined, filePath)
       if (d.trim()) {
         setDiff(d)
       } else {
         // For untracked/new files, git diff returns empty - read file content directly
         const fileEntry = changedFiles.find(f => f.file === filePath)
         if (fileEntry && (fileEntry.status === '??' || fileEntry.status === 'A')) {
-          const base = gitRoot || workspaceFolderPath
+          const base = gitRoot || activePath
           const sep = window.electronAPI.platform === 'win32' ? '\\' : '/'
           const fullPath = base + sep + filePath.replace(/[/\\]/g, sep)
           const result = await window.electronAPI.fs.readFile(fullPath)
@@ -178,18 +192,18 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
       setDiff('')
     }
     setDiffLoading(false)
-  }, [workspaceFolderPath, selectedCommit, changedFiles, gitRoot])
+  }, [activePath, selectedCommit, changedFiles, gitRoot])
 
   const handleViewFile = useCallback(async () => {
     if (!selectedFile) return
     setViewMode('file')
     if (fileContent !== null) return // already loaded
-    const base = gitRoot || workspaceFolderPath
+    const base = gitRoot || activePath
     const sep = window.electronAPI.platform === 'win32' ? '\\' : '/'
     const fullPath = base + sep + selectedFile.replace(/[/\\]/g, sep)
     const result = await window.electronAPI.fs.readFile(fullPath)
     setFileContent(result.content || result.error || 'Unable to read file')
-  }, [selectedFile, fileContent, workspaceFolderPath, gitRoot])
+  }, [selectedFile, fileContent, activePath, gitRoot])
 
   if (loading) {
     return <div className="git-panel-empty">{t('common.loading')}</div>
@@ -201,6 +215,20 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
 
   return (
     <div className="git-panel">
+      {/* Worktree path selector */}
+      {hasWorktrees && (
+        <div className="git-path-selector">
+          {pathOptions.map(opt => (
+            <button
+              key={opt.path}
+              className={`git-path-btn${activePath === opt.path ? ' active' : ''}`}
+              onClick={() => { setActivePath(opt.path); }}
+              title={opt.path}
+            >{opt.label}</button>
+          ))}
+        </div>
+      )}
+      <div className="git-panel-columns">
       {/* Column 1: Commit log */}
       <div className="git-commit-list">
         <div className="git-col-header">
@@ -305,6 +333,7 @@ export function GitPanel({ workspaceFolderPath }: Readonly<GitPanelProps>) {
         ) : (
           <DiffView diff={diff} />
         )}
+      </div>
       </div>
     </div>
   )
