@@ -703,7 +703,7 @@ class WorkspaceStore {
         const workspaceMap = new Map(workspaces.map((w: Workspace) => [w.id, w]))
         const terminals: TerminalInstance[] = (parsed.terminals || []).map((t: Partial<TerminalInstance>) => {
           const ws = t.workspaceId ? workspaceMap.get(t.workspaceId) : undefined
-          const cwd = t.cwd || ws?.folderPath || ''
+          const cwd = ws?.folderPath || t.cwd || ''
           if (!cwd) {
             window.electronAPI?.debug?.log?.(`[workspace-store] Warning: terminal ${t.id} has no cwd and no workspace folderPath`)
           }
