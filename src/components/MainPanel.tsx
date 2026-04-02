@@ -21,7 +21,7 @@ interface MainPanelProps {
 
 export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, workspaceId }: Readonly<MainPanelProps>) {
   const isAgent = terminal.agentPreset && terminal.agentPreset !== 'none'
-  const isClaudeCode = terminal.agentPreset === 'claude-code' || terminal.agentPreset === 'claude-code-v2'
+  const isClaudeCode = terminal.agentPreset === 'claude-code' || terminal.agentPreset === 'claude-code-v2' || terminal.agentPreset === 'claude-code-worktree'
   const agentConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
   const { t } = useTranslation()
   const [isEditing, setIsEditing] = useState(false)

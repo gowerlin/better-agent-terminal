@@ -6,7 +6,7 @@ import type { AppSettings, ShellType, FontType, ColorPresetId, StatuslineItemCon
 import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS } from '../types'
 import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
-import { AGENT_PRESETS, AgentPresetId } from '../types/agent-presets'
+import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
 
 interface SettingsPanelProps {
   onClose: () => void
@@ -279,7 +279,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     value={settings.defaultAgent || 'claude-code'}
                     onChange={e => settingsStore.setDefaultAgent(e.target.value as AgentPresetId)}
                   >
-                    {AGENT_PRESETS.filter(p => p.id !== 'none').map(preset => (
+                    {getVisiblePresets().filter(p => p.id !== 'none').map(preset => (
                       <option key={preset.id} value={preset.id}>
                         {preset.icon} {preset.name}
                       </option>

@@ -327,6 +327,17 @@ class WorkspaceStore {
     this.save()
   }
 
+  setTerminalWorktreeInfo(terminalId: string, worktreePath: string | undefined, worktreeBranch: string | undefined): void {
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t =>
+        t.id === terminalId ? { ...t, worktreePath, worktreeBranch } : t
+      )
+    }
+    this.notify()
+    this.save()
+  }
+
   setTerminalSessionMeta(terminalId: string, meta: { totalCost: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; contextWindow: number; cacheReadTokens?: number; cacheCreationTokens?: number }): void {
     this.state = {
       ...this.state,

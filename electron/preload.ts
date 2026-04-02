@@ -81,7 +81,7 @@ const electronAPI = {
     writeImage: (filePath: string) => ipcRenderer.invoke('clipboard:writeImage', filePath),
   },
   claude: {
-    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2' }) =>
+    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) =>
       ipcRenderer.invoke('claude:start-session', sessionId, options),
     sendMessage: (sessionId: string, prompt: string, images?: string[]) =>
       ipcRenderer.invoke('claude:send-message', sessionId, prompt, images),
@@ -143,6 +143,12 @@ const electronAPI = {
       ipcRenderer.invoke('claude:get-supported-commands', sessionId) as Promise<{ name: string; description: string; argumentHint: string }[]>,
     getSupportedAgents: (sessionId: string) =>
       ipcRenderer.invoke('claude:get-supported-agents', sessionId) as Promise<{ name: string; description: string; model?: string }[]>,
+    getWorktreeStatus: (sessionId: string) =>
+      ipcRenderer.invoke('claude:get-worktree-status', sessionId) as Promise<{ diff: string; branchName: string; worktreePath: string; sourceBranch: string } | null>,
+    cleanupWorktree: (sessionId: string, deleteBranch: boolean) =>
+      ipcRenderer.invoke('claude:cleanup-worktree', sessionId, deleteBranch) as Promise<boolean>,
+    mergeWorktree: (sessionId: string, strategy: 'merge' | 'cherry-pick') =>
+      ipcRenderer.invoke('claude:merge-worktree', sessionId, strategy) as Promise<{ success: boolean; error?: string }>,
     scanSkills: (cwd: string) =>
       ipcRenderer.invoke('claude:scan-skills', cwd) as Promise<{ name: string; description: string; scope: 'project' | 'global' }[]>,
     getSessionMeta: (sessionId: string) =>
@@ -216,6 +222,11 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, sessionId: string) => callback(sessionId)
       ipcRenderer.on('claude:session-reset', handler)
       return () => ipcRenderer.removeListener('claude:session-reset', handler)
+    },
+    onWorktreeInfo: (callback: (sessionId: string, info: { branchName: string; worktreePath: string; sourceBranch: string } | null) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, sessionId: string, info: { branchName: string; worktreePath: string; sourceBranch: string } | null) => callback(sessionId, info)
+      ipcRenderer.on('claude:worktree-info', handler)
+      return () => ipcRenderer.removeListener('claude:worktree-info', handler)
     },
     onPromptSuggestion: (callback: (sessionId: string, suggestion: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, sessionId: string, suggestion: string) => callback(sessionId, suggestion)
@@ -297,6 +308,7 @@ const electronAPI = {
   },
   debug: {
     log: (...args: unknown[]) => ipcRenderer.send('debug:log', ...args),
+    isDebugMode: !!process.env.BAT_DEBUG,
   },
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),

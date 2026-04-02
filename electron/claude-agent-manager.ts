@@ -7,6 +7,8 @@ import type { ClaudeMessage, ClaudeToolCall, ClaudeSessionState } from '../src/t
 import type { Query, PermissionMode, CanUseTool, SlashCommand, SDKSession } from '@anthropic-ai/claude-agent-sdk'
 import { logger } from './logger'
 import { getNodeExecutable, isElectronFallback } from './node-resolver'
+import { worktreeManager } from './worktree-manager'
+import type { WorktreeInfo } from './worktree-manager'
 
 // App-level permission mode extends SDK's PermissionMode with bypassPlan
 // bypassPlan = plan mode (read-only exploration) + auto-approve all tool permissions
@@ -161,6 +163,8 @@ interface SessionInstance {
   apiVersion: 'v1' | 'v2'
   v2Session?: SDKSession  // V2 persistent session object
   v2SessionModel?: string // Model the V2 session was created with (to detect changes)
+  worktreeInfo?: WorktreeInfo  // Set when running in worktree isolation
+  originalCwd?: string         // Original workspace cwd before worktree redirect
 }
 
 // Persists SDK session IDs across stop/restart so we can resume conversations
@@ -292,7 +296,7 @@ export class ClaudeAgentManager {
     this.send('claude:tool-result', sessionId, { id: toolId, ...updates })
   }
 
-  async startSession(sessionId: string, options: { cwd: string; prompt?: string; sdkSessionId?: string; permissionMode?: AppPermissionMode; model?: string; effort?: 'low' | 'medium' | 'high' | 'max'; apiVersion?: 'v1' | 'v2' }): Promise<boolean> {
+  async startSession(sessionId: string, options: { cwd: string; prompt?: string; sdkSessionId?: string; permissionMode?: AppPermissionMode; model?: string; effort?: 'low' | 'medium' | 'high' | 'max'; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }): Promise<boolean> {
     // Prevent duplicate session creation
     if (this.sessions.has(sessionId)) {
       return true
@@ -305,6 +309,29 @@ export class ClaudeAgentManager {
         const errMsg = `[Claude] Cannot start session: invalid cwd "${options.cwd || '(empty)'}". A valid workspace path is required.`
         logger.log(errMsg)
         throw new Error(errMsg)
+      }
+
+      // Worktree isolation: reuse existing worktree or create a new one
+      let worktreeInfo: WorktreeInfo | undefined
+      let effectiveCwd = options.cwd
+      if (options.useWorktree) {
+        // Check if a persisted worktree path exists and is still valid
+        if (options.worktreePath && fsSync.existsSync(options.worktreePath)) {
+          // Reuse existing worktree (e.g. after app restart)
+          worktreeInfo = worktreeManager.rehydrate(sessionId, options.cwd, options.worktreePath, options.worktreeBranch || '')
+          effectiveCwd = options.worktreePath
+          logger.log(`[Claude] Session ${sessionId.slice(0, 8)} reusing existing worktree at ${effectiveCwd}`)
+        } else {
+          try {
+            worktreeInfo = await worktreeManager.createWorktree(sessionId, options.cwd)
+            effectiveCwd = worktreeInfo.worktreePath
+            logger.log(`[Claude] Session ${sessionId.slice(0, 8)} using worktree at ${effectiveCwd}`)
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err)
+            logger.warn(`[Claude] Failed to create worktree, falling back to normal mode: ${errMsg}`)
+            // Will send a warning message after session is created
+          }
+        }
       }
 
       const abortController = new AbortController()
@@ -325,7 +352,7 @@ export class ClaudeAgentManager {
         abortController,
         state,
         sdkSessionId: previousSdkSessionId,
-        cwd: options.cwd,
+        cwd: effectiveCwd,
         metadata: {
           totalCost: 0,
           inputTokens: 0,
@@ -346,16 +373,42 @@ export class ClaudeAgentManager {
         messageQueue: [],
         activeTasks: new Map(),
         apiVersion: options.apiVersion || 'v1',
+        ...(worktreeInfo ? { worktreeInfo, originalCwd: options.cwd } : {}),
       })
+
+      // Send worktree info/warning after session is created
+      if (options.useWorktree && worktreeInfo) {
+        this.send('claude:message', sessionId, {
+          id: `sys-worktree-${sessionId}`,
+          sessionId,
+          role: 'system',
+          content: `🌳 Running in worktree isolation: \`${worktreeInfo.branchName}\`\nPath: ${worktreeInfo.worktreePath}`,
+          timestamp: Date.now(),
+        } satisfies ClaudeMessage)
+        this.send('claude:worktree-info', sessionId, {
+          branchName: worktreeInfo.branchName,
+          worktreePath: worktreeInfo.worktreePath,
+          sourceBranch: worktreeInfo.sourceBranch,
+        })
+      } else if (options.useWorktree && !worktreeInfo) {
+        this.send('claude:message', sessionId, {
+          id: `sys-worktree-warn-${sessionId}`,
+          sessionId,
+          role: 'system',
+          content: '⚠️ Failed to create worktree. Running in normal mode.',
+          timestamp: Date.now(),
+        } satisfies ClaudeMessage)
+      }
 
       // If no initial prompt, just set up session and wait
       if (!options.prompt) {
         const resumeNote = previousSdkSessionId ? ' (resumed)' : ''
+        const worktreeNote = worktreeInfo ? ` [worktree: ${worktreeInfo.branchName}]` : ''
         this.send('claude:message', sessionId, {
           id: `sys-init-${sessionId}`,
           sessionId,
           role: 'system',
-          content: `Claude Code session ready${resumeNote}. Type a message to start.`,
+          content: `Claude Code session ready${resumeNote}${worktreeNote}. Type a message to start.`,
           timestamp: Date.now(),
         } satisfies ClaudeMessage)
         // Load history from previous session if resuming
@@ -1890,11 +1943,13 @@ export class ClaudeAgentManager {
   async resetSession(sessionId: string): Promise<boolean> {
     const session = this.sessions.get(sessionId)
     if (!session) return false
-    const cwd = session.cwd
+    const originalCwd = session.originalCwd || session.cwd
     const permissionMode = session.permissionMode
     const effort = session.effort
     const model = session.model
     const apiVersion = session.apiVersion
+    // Preserve worktree — never auto-delete. Reuse it on the fresh session.
+    const existingWorktreeInfo = session.worktreeInfo
 
     // Tear down old session completely
     session.abortController.abort()
@@ -1903,8 +1958,15 @@ export class ClaudeAgentManager {
     this.sessions.delete(sessionId)
     sdkSessionIds.delete(sessionId)
 
-    // Start a fresh session preserving settings
-    const ok = await this.startSession(sessionId, { cwd, permissionMode, apiVersion })
+    // Start a fresh session preserving settings and reusing existing worktree
+    const ok = await this.startSession(sessionId, {
+      cwd: originalCwd,
+      permissionMode,
+      apiVersion,
+      useWorktree: !!existingWorktreeInfo,
+      worktreePath: existingWorktreeInfo?.worktreePath,
+      worktreeBranch: existingWorktreeInfo?.branchName,
+    })
     if (ok) {
       const newSession = this.sessions.get(sessionId)
       if (newSession) {
@@ -2079,7 +2141,39 @@ export class ClaudeAgentManager {
         // Ignore errors during shutdown
       }
     }
+    // Do NOT clean up worktrees on dispose — they should persist across app restarts.
+    // Users explicitly discard worktrees via the UI.
     this.sessions.clear()
     sdkSessionIds.clear()
+  }
+
+  // --- Worktree operations ---
+
+  async getWorktreeStatus(sessionId: string): Promise<{ diff: string; branchName: string; worktreePath: string; sourceBranch: string } | null> {
+    return worktreeManager.getWorktreeStatus(sessionId)
+  }
+
+  async cleanupWorktree(sessionId: string, deleteBranch = true): Promise<boolean> {
+    const session = this.sessions.get(sessionId)
+    try {
+      await worktreeManager.removeWorktree(sessionId, deleteBranch)
+      if (session) {
+        // Restore original cwd
+        if (session.originalCwd) {
+          session.cwd = session.originalCwd
+        }
+        session.worktreeInfo = undefined
+        session.originalCwd = undefined
+        this.send('claude:worktree-info', sessionId, null)
+      }
+      return true
+    } catch (err) {
+      logger.error(`[Claude] Failed to cleanup worktree: ${err}`)
+      return false
+    }
+  }
+
+  async mergeWorktree(sessionId: string, strategy: 'merge' | 'cherry-pick' = 'merge'): Promise<{ success: boolean; error?: string }> {
+    return worktreeManager.mergeWorktree(sessionId, strategy)
   }
 }

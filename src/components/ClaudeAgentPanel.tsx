@@ -131,6 +131,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   // Determine if this is a V2 session based on agentPreset
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isV2Session = terminal?.agentPreset === 'claude-code-v2'
+  const isWorktreeSession = terminal?.agentPreset === 'claude-code-worktree'
   const [messages, setMessages] = useState<MessageItem[]>([])
   const inputValueRef = useRef('')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -191,6 +192,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   const [taskModal, setTaskModal] = useState<{ taskId: string; label: string; subagentType?: string } | null>(null)
   const [taskModalTick, setTaskModalTick] = useState(0)
   const [showPromptHistory, setShowPromptHistory] = useState(false)
+  const [worktreeInfo, setWorktreeInfo] = useState<{ branchName: string; worktreePath: string; sourceBranch: string } | null>(() => {
+    // Restore from persisted terminal state
+    if (terminal?.worktreePath && terminal?.worktreeBranch) {
+      return { branchName: terminal.worktreeBranch, worktreePath: terminal.worktreePath, sourceBranch: '' }
+    }
+    return null
+  })
   const [promptSuggestion, setPromptSuggestion] = useState<string | null>(null)
   const [statuslineConfig, setStatuslineConfig] = useState(settingsStore.getStatuslineItems())
   const [contextUsagePopup, setContextUsagePopup] = useState<{
@@ -691,6 +699,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         setAskOtherText({})
         setSessionMeta(null)
         setHasSdkSession(false)
+        setWorktreeInfo(null)
         workspaceStore.setTerminalSdkSessionId(sessionId, undefined)
       }),
 
@@ -758,6 +767,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         if (sid !== sessionId) return
         setPromptSuggestion(suggestion)
       }),
+
+      api.onWorktreeInfo((sid: string, info: { branchName: string; worktreePath: string; sourceBranch: string } | null) => {
+        if (sid !== sessionId) return
+        setWorktreeInfo(info)
+        // Persist to terminal state for workspace save/load
+        workspaceStore.setTerminalWorktreeInfo(sessionId, info?.worktreePath, info?.branchName)
+      }),
     ]
 
     return () => {
@@ -780,6 +796,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       const savedSdkSessionId = terminal?.sdkSessionId
       const savedModel = terminal?.model
       const apiVersion = terminal?.agentPreset === 'claude-code-v2' ? 'v2' as const : 'v1' as const
+      const useWorktree = terminal?.agentPreset === 'claude-code-worktree'
       const globalSettings = settingsStore.getSettings()
       dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}" apiVersion=${apiVersion}`)
 
@@ -797,7 +814,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd, savedModel, apiVersion)
       } else {
         dlog(`${stag} FRESH startSession`)
-        window.electronAPI.claude.startSession(sessionId, { cwd, permissionMode, model: effectiveModel, effort: effectiveEffort as 'low' | 'medium' | 'high' | 'max', apiVersion })
+        window.electronAPI.claude.startSession(sessionId, {
+          cwd, permissionMode, model: effectiveModel,
+          effort: effectiveEffort as 'low' | 'medium' | 'high' | 'max', apiVersion,
+          ...(useWorktree ? { useWorktree: true, worktreePath: terminal?.worktreePath, worktreeBranch: terminal?.worktreeBranch } : {}),
+        })
       }
     }
     return () => {
@@ -2832,6 +2853,79 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           filePath={filePickerPreview}
           onClose={() => setFilePickerPreview(null)}
         />
+      )}
+
+      {/* Worktree action bar — shown when session has worktree and is not streaming */}
+      {isWorktreeSession && worktreeInfo && !isStreaming && (
+        <div className="claude-worktree-bar">
+          <span className="claude-worktree-label">🌳 {worktreeInfo.branchName}</span>
+          <div className="claude-worktree-actions">
+            <button
+              className="claude-worktree-btn"
+              onClick={async () => {
+                const status = await window.electronAPI.claude.getWorktreeStatus(sessionId)
+                if (status?.diff) {
+                  // Show diff as a system message
+                  setMessages(prev => [...prev, {
+                    id: `sys-diff-${Date.now()}`,
+                    sessionId,
+                    role: 'system' as const,
+                    content: `\`\`\`diff\n${status.diff}\n\`\`\``,
+                    timestamp: Date.now(),
+                  }])
+                } else {
+                  setMessages(prev => [...prev, {
+                    id: `sys-diff-${Date.now()}`,
+                    sessionId,
+                    role: 'system' as const,
+                    content: 'No changes detected in worktree.',
+                    timestamp: Date.now(),
+                  }])
+                }
+              }}
+              title="View diff between worktree and source branch"
+            >Diff</button>
+            <button
+              className="claude-worktree-btn"
+              onClick={async () => {
+                if (!confirm(`Merge ${worktreeInfo.branchName} into ${worktreeInfo.sourceBranch}?`)) return
+                const result = await window.electronAPI.claude.mergeWorktree(sessionId, 'merge')
+                setMessages(prev => [...prev, {
+                  id: `sys-merge-${Date.now()}`,
+                  sessionId,
+                  role: 'system' as const,
+                  content: result.success
+                    ? `✅ Merged \`${worktreeInfo.branchName}\` into \`${worktreeInfo.sourceBranch}\``
+                    : `❌ Merge failed: ${result.error}`,
+                  timestamp: Date.now(),
+                }])
+                if (result.success) {
+                  await window.electronAPI.claude.cleanupWorktree(sessionId, true)
+                  setWorktreeInfo(null)
+                  workspaceStore.setTerminalWorktreeInfo(sessionId, undefined, undefined)
+                }
+              }}
+              title="Merge worktree changes back to source branch"
+            >Merge</button>
+            <button
+              className="claude-worktree-btn claude-worktree-btn-danger"
+              onClick={async () => {
+                if (!confirm('Discard worktree and all its changes?')) return
+                await window.electronAPI.claude.cleanupWorktree(sessionId, true)
+                setWorktreeInfo(null)
+                workspaceStore.setTerminalWorktreeInfo(sessionId, undefined, undefined)
+                setMessages(prev => [...prev, {
+                  id: `sys-discard-${Date.now()}`,
+                  sessionId,
+                  role: 'system' as const,
+                  content: '🗑️ Worktree discarded.',
+                  timestamp: Date.now(),
+                }])
+              }}
+              title="Discard worktree and delete branch"
+            >Discard</button>
+          </div>
+        </div>
       )}
 
       {/* Input area — hidden when permission card, ask-user card, or resume/model list is visible */}

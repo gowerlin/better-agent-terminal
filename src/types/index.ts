@@ -57,6 +57,8 @@ export interface TerminalInstance {
     cacheReadTokens?: number;
     cacheCreationTokens?: number;
   };
+  worktreePath?: string;          // Path to the worktree if running in worktree isolation
+  worktreeBranch?: string;        // Branch name in the worktree
 }
 
 export interface AppState {

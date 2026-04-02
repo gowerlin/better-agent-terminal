@@ -753,7 +753,7 @@ function registerProxiedHandlers() {
   })
 
   // Claude Agent SDK
-  registerHandler('claude:start-session', (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2' }) => claudeManager?.startSession(sessionId, options))
+  registerHandler('claude:start-session', (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) => claudeManager?.startSession(sessionId, options))
   registerHandler('claude:send-message', (_ctx, sessionId: string, prompt: string, images?: string[]) => claudeManager?.sendMessage(sessionId, prompt, images))
   registerHandler('claude:stop-session', (_ctx, sessionId: string) => claudeManager?.stopSession(sessionId))
   registerHandler('claude:set-permission-mode', (_ctx, sessionId: string, mode: string) => claudeManager?.setPermissionMode(sessionId, mode as import('@anthropic-ai/claude-agent-sdk').PermissionMode))
@@ -764,6 +764,9 @@ function registerProxiedHandlers() {
   registerHandler('claude:get-account-info', (_ctx, sessionId: string) => claudeManager?.getAccountInfo(sessionId))
   registerHandler('claude:get-supported-commands', (_ctx, sessionId: string) => claudeManager?.getSupportedCommands(sessionId))
   registerHandler('claude:get-supported-agents', (_ctx, sessionId: string) => claudeManager?.getSupportedAgents(sessionId))
+  registerHandler('claude:get-worktree-status', (_ctx, sessionId: string) => claudeManager?.getWorktreeStatus(sessionId))
+  registerHandler('claude:cleanup-worktree', (_ctx, sessionId: string, deleteBranch: boolean) => claudeManager?.cleanupWorktree(sessionId, deleteBranch))
+  registerHandler('claude:merge-worktree', (_ctx, sessionId: string, strategy: 'merge' | 'cherry-pick') => claudeManager?.mergeWorktree(sessionId, strategy))
 
   // Scan .claude/commands/ directories for skill files
   registerHandler('claude:scan-skills', async (_ctx, cwd: string) => {

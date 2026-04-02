@@ -11,6 +11,7 @@ interface ThumbnailBarProps {
   onAddTerminal?: () => void
   onAddClaudeAgent?: () => void
   onAddClaudeAgentV2?: () => void
+  onAddClaudeWorktree?: () => void
   onReorder?: (orderedIds: string[]) => void
   showAddButton: boolean
   height?: number
@@ -25,6 +26,7 @@ export function ThumbnailBar({
   onAddTerminal,
   onAddClaudeAgent,
   onAddClaudeAgentV2,
+  onAddClaudeWorktree,
   onReorder,
   showAddButton,
   height,
@@ -179,6 +181,15 @@ export function ThumbnailBar({
                     >
                       <span className="thumbnail-add-menu-icon" style={{ color: '#eab308' }}>✦</span>
                       Claude Code V2
+                    </div>
+                  )}
+                  {onAddClaudeWorktree && (
+                    <div
+                      className="thumbnail-add-menu-item"
+                      onClick={() => { onAddClaudeWorktree(); setShowAddMenu(false) }}
+                    >
+                      <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>🌳</span>
+                      Claude Code (Worktree)
                     </div>
                   )}
                 </div>
