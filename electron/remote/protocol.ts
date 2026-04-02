@@ -22,22 +22,24 @@ export const PROXIED_CHANNELS = new Set([
   'claude:resolve-permission', 'claude:resolve-ask-user',
   'claude:list-sessions', 'claude:resume-session', 'claude:fork-session', 'claude:stop-task', 'claude:rest-session',
   'claude:wake-session', 'claude:is-resting',
-  'claude:archive-messages', 'claude:load-archived', 'claude:clear-archive',
-  'claude:get-usage',
+  'claude:archive-messages', 'claude:load-archived', 'claude:clear-archive', 'claude:fetch-subagent-messages',
+  'claude:get-usage', 'claude:get-usage-account',
+  'claude:scan-skills', 'claude:get-context-usage',
   // Workspace
   'workspace:save', 'workspace:load',
   // Settings
   'settings:save', 'settings:load', 'settings:get-shell-path',
   // GitHub
   'github:check-cli', 'github:pr-list', 'github:issue-list', 'github:pr-view', 'github:issue-view',
+  'github:pr-comment', 'github:issue-comment',
   // Git
   'git:branch', 'git:log', 'git:diff', 'git:diff-files', 'git:status', 'git:get-github-url', 'git:getRoot',
   // FS
-  'fs:readdir', 'fs:readFile', 'fs:search',
+  'fs:readdir', 'fs:readFile', 'fs:search', 'fs:watch', 'fs:unwatch',
   // Snippet
   'snippet:getAll', 'snippet:getById', 'snippet:create', 'snippet:update',
   'snippet:delete', 'snippet:toggleFavorite', 'snippet:search',
-  'snippet:getCategories', 'snippet:getFavorites',
+  'snippet:getCategories', 'snippet:getFavorites', 'snippet:getByWorkspace',
   // Profile
   'profile:list', 'profile:load', 'profile:get-active-ids', 'profile:activate', 'profile:deactivate',
 ])

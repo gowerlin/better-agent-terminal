@@ -67,7 +67,10 @@ const _processStart = Number(process.env._BAT_T0 || Date.now())
 console.log(`[startup] main.ts module loaded: +${Date.now() - _processStart}ms from process start`)
 
 // Global error handlers — prevent silent crashes in main process
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
+  // EPIPE errors are expected when writing to pipes of killed subprocesses (e.g. Claude agent)
+  // They are harmless and should not pollute logs.
+  if (error.code === 'EPIPE') return
   logger.error('Uncaught exception:', error)
 })
 process.on('unhandledRejection', (reason) => {
