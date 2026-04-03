@@ -144,10 +144,11 @@
 }
 
 .thumbnail {
+  width: 200px;
   min-width: 200px;
-  max-width: 300px;
+  max-width: 200px;
   min-height: 40px;
-  flex: 1;
+  flex: none;
   align-self: stretch;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
