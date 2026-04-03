@@ -5,12 +5,14 @@ import { logger } from './logger'
 
 // Snippet interface
 export type SnippetFormat = 'plaintext' | 'markdown'
+export type SnippetAction = 'clipboard' | 'terminal' | 'agent' | 'edit'
 
 export interface Snippet {
     id: number
     title: string
     content: string
     format: SnippetFormat
+    action: SnippetAction   // what double-click does for this snippet
     category?: string
     tags?: string
     workspaceId?: string  // if set, only visible in this workspace
@@ -23,6 +25,7 @@ export interface CreateSnippetInput {
     title: string
     content: string
     format?: SnippetFormat
+    action?: SnippetAction
     category?: string
     tags?: string
     workspaceId?: string
@@ -49,6 +52,15 @@ class SnippetDatabase {
             if (fs.existsSync(this.dataPath)) {
                 const raw = fs.readFileSync(this.dataPath, 'utf-8')
                 this.data = JSON.parse(raw)
+                // Migrate: backfill action field for old snippets
+                let migrated = false
+                for (const s of this.data.snippets) {
+                    if (!s.action) {
+                        s.action = 'terminal'
+                        migrated = true
+                    }
+                }
+                if (migrated) this.save()
             }
         } catch (error) {
             logger.error('Failed to load snippets:', error)
@@ -75,6 +87,7 @@ class SnippetDatabase {
             title: input.title,
             content: input.content,
             format: input.format || 'plaintext',
+            action: input.action || 'terminal',
             category: input.category,
             tags: input.tags,
             workspaceId: input.workspaceId,
@@ -128,6 +141,7 @@ class SnippetDatabase {
             title: updates.title ?? existing.title,
             content: updates.content ?? existing.content,
             format: updates.format ?? existing.format,
+            action: updates.action ?? existing.action,
             category: updates.category ?? existing.category,
             tags: updates.tags ?? existing.tags,
             workspaceId: updates.workspaceId !== undefined ? updates.workspaceId : existing.workspaceId,

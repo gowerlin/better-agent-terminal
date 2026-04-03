@@ -213,6 +213,7 @@
     "searchSnippets": "Search snippets...",
     "doubleClick": "Double-click:",
     "pasteToTerminal": "Paste to Terminal",
+    "sendToAgent": "Send to Agent",
     "copyToClipboard": "Copy to Clipboard",
     "openEditor": "Open Editor",
     "autoExecute": "Auto-execute:",

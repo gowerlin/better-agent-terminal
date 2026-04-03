@@ -213,6 +213,7 @@
     "searchSnippets": "搜尋片段...",
     "doubleClick": "雙擊：",
     "pasteToTerminal": "貼上至終端",
+    "sendToAgent": "傳送至 Agent",
     "copyToClipboard": "複製到剪貼簿",
     "openEditor": "開啟編輯器",
     "autoExecute": "自動執行：",

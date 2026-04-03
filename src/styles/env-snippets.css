@@ -378,6 +378,15 @@
   color: #a78bfa;
 }
 
+.snippet-item-action-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #22c55e20;
+  color: #4ade80;
+  cursor: default;
+}
+
 .snippet-item-preview {
   font-size: 11px;
   color: var(--text-secondary);

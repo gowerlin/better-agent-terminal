@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next'
 
 // Snippet interface (matches backend)
 type SnippetFormat = 'plaintext' | 'markdown'
+type SnippetAction = 'clipboard' | 'terminal' | 'agent' | 'edit'
 
 interface Snippet {
     id: number
     title: string
     content: string
     format: SnippetFormat
+    action: SnippetAction
     category?: string
     tags?: string
     workspaceId?: string
@@ -25,13 +27,14 @@ interface SnippetSidebarProps {
     onCollapse?: () => void
     onPasteToClipboard?: (content: string) => void
     onPasteToTerminal?: (content: string) => void
+    onSendToAgent?: (content: string) => void
 }
 
 interface EditDialogProps {
     snippet: Snippet | null
     isNew: boolean
     workspaceId?: string
-    onSave: (snippet: Partial<Snippet> & { title: string; content: string; format: SnippetFormat; workspaceId?: string }) => void
+    onSave: (snippet: Partial<Snippet> & { title: string; content: string; format: SnippetFormat; action: SnippetAction; workspaceId?: string }) => void
     onClose: () => void
 }
 
@@ -41,6 +44,7 @@ function EditDialog({ snippet, isNew, workspaceId, onSave, onClose }: Readonly<E
     const [title, setTitle] = useState(snippet?.title || '')
     const [content, setContent] = useState(snippet?.content || '')
     const [format, setFormat] = useState<SnippetFormat>(snippet?.format || 'plaintext')
+    const [action, setAction] = useState<SnippetAction>(snippet?.action || 'terminal')
     const [scopeToWorkspace, setScopeToWorkspace] = useState(!!snippet?.workspaceId)
 
     const handleSave = () => {
@@ -49,6 +53,7 @@ function EditDialog({ snippet, isNew, workspaceId, onSave, onClose }: Readonly<E
             title: title.trim(),
             content: content.trim(),
             format,
+            action,
             workspaceId: scopeToWorkspace && workspaceId ? workspaceId : undefined,
         })
         onClose()
@@ -77,6 +82,15 @@ function EditDialog({ snippet, isNew, workspaceId, onSave, onClose }: Readonly<E
                         <select value={format} onChange={e => setFormat(e.target.value as SnippetFormat)}>
                             <option value="plaintext">{t('snippets.plaintext')}</option>
                             <option value="markdown">{t('snippets.markdown')}</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>{t('snippets.doubleClick')}</label>
+                        <select value={action} onChange={e => setAction(e.target.value as SnippetAction)}>
+                            <option value="terminal">{t('snippets.pasteToTerminal')}</option>
+                            <option value="agent">{t('snippets.sendToAgent')}</option>
+                            <option value="clipboard">{t('snippets.copyToClipboard')}</option>
+                            <option value="edit">{t('snippets.openEditor')}</option>
                         </select>
                     </div>
                     {workspaceId && (
@@ -124,15 +138,14 @@ export function SnippetSidebar({
     workspaceId,
     onCollapse,
     onPasteToClipboard,
-    onPasteToTerminal
+    onPasteToTerminal,
+    onSendToAgent
 }: Readonly<SnippetSidebarProps>) {
     const { t } = useTranslation()
     const [snippets, setSnippets] = useState<Snippet[]>([])
     const [searchQuery, setSearchQuery] = useState('')
     const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null)
     const [isCreating, setIsCreating] = useState(false)
-    // Double-click behavior: 'clipboard', 'terminal', or 'edit'
-    const [doubleClickAction, setDoubleClickAction] = useState<'clipboard' | 'terminal' | 'edit'>('terminal')
     // Auto-execute: automatically press Enter after pasting to terminal
     const [autoExecute, setAutoExecute] = useState(true)
     // Scope filter
@@ -208,11 +221,20 @@ export function SnippetSidebar({
         }
     }
 
+    const handleSendToAgent = (content: string) => {
+        if (onSendToAgent) {
+            onSendToAgent(content)
+        }
+    }
+
     const handleDoubleClick = (snippet: Snippet) => {
-        if (doubleClickAction === 'clipboard') {
+        const action = snippet.action || 'terminal'
+        if (action === 'clipboard') {
             handleCopyToClipboard(snippet.content)
-        } else if (doubleClickAction === 'terminal') {
+        } else if (action === 'terminal') {
             handlePasteToTerminal(snippet.content)
+        } else if (action === 'agent') {
+            handleSendToAgent(snippet.content)
         } else {
             setEditingSnippet(snippet)
         }
@@ -283,18 +305,6 @@ export function SnippetSidebar({
                 )}
 
                 <div className="snippet-sidebar-options">
-                    <label>{t('snippets.doubleClick')}</label>
-                    <select
-                        value={doubleClickAction}
-                        onChange={e => setDoubleClickAction(e.target.value as 'clipboard' | 'terminal' | 'edit')}
-                    >
-                        <option value="terminal">{t('snippets.pasteToTerminal')}</option>
-                        <option value="clipboard">{t('snippets.copyToClipboard')}</option>
-                        <option value="edit">{t('snippets.openEditor')}</option>
-                    </select>
-                </div>
-
-                <div className="snippet-sidebar-options">
                     <label>{t('snippets.autoExecute')}</label>
                     <input
                         type="checkbox"
@@ -327,6 +337,19 @@ export function SnippetSidebar({
                                         )}
                                         <span className={`snippet-item-format ${snippet.format}`}>
                                             {snippet.format === 'markdown' ? t('snippets.md') : t('snippets.text')}
+                                        </span>
+                                        <span
+                                            className="snippet-item-action-badge"
+                                            title={t('snippets.doubleClick') + ': ' + (
+                                                (snippet.action || 'terminal') === 'terminal' ? t('snippets.pasteToTerminal')
+                                                : (snippet.action || 'terminal') === 'agent' ? t('snippets.sendToAgent')
+                                                : (snippet.action || 'terminal') === 'clipboard' ? t('snippets.copyToClipboard')
+                                                : t('snippets.openEditor')
+                                            )}
+                                        >
+                                            {(snippet.action || 'terminal') === 'terminal' ? '▶'
+                                              : (snippet.action || 'terminal') === 'agent' ? '✦'
+                                              : (snippet.action || 'terminal') === 'clipboard' ? '📋' : '✏'}
                                         </span>
                                     </div>
                                 </div>

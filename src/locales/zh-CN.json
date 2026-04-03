@@ -200,6 +200,7 @@
     "searchSnippets": "搜索代码片段...",
     "doubleClick": "双击：",
     "pasteToTerminal": "粘贴至终端",
+    "sendToAgent": "发送至 Agent",
     "copyToClipboard": "复制到剪贴板",
     "openEditor": "打开编辑器",
     "autoExecute": "自动执行：",

@@ -13,7 +13,7 @@ import { MarkdownPreviewPanel } from './components/MarkdownPreviewPanel'
 import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
-import type { AppState, EnvVariable } from './types'
+import type { AppState, EnvVariable, TerminalInstance } from './types'
 
 // Panel settings interface
 interface PanelSettings {
@@ -428,10 +428,9 @@ export default function App() {
     await window.electronAPI.workspace.detach(workspaceId)
   }, [])
 
-  // Paste content to focused terminal
+  // Paste content to focused PTY terminal
   const handlePasteToTerminal = useCallback((content: string) => {
     const currentState = workspaceStore.getState()
-    // Try focused terminal first, then fall back to active terminal or first terminal in active workspace
     let terminalId = currentState.focusedTerminalId
 
     if (!terminalId && currentState.activeWorkspaceId) {
@@ -445,6 +444,35 @@ export default function App() {
       window.electronAPI.pty.write(terminalId, content)
     } else {
       console.warn('No terminal available to paste to')
+    }
+  }, [])
+
+  // Send content to active Claude agent session
+  const handleSendToAgent = useCallback((content: string) => {
+    const currentState = workspaceStore.getState()
+    // Find focused agent terminal, or first agent in active workspace
+    let terminalId = currentState.focusedTerminalId
+    let terminal: TerminalInstance | undefined
+
+    if (terminalId) {
+      terminal = currentState.terminals.find(t => t.id === terminalId)
+      // If focused terminal is not an agent, find the first agent
+      if (!terminal?.agentPreset || terminal.agentPreset === 'none') {
+        terminal = undefined
+        terminalId = null
+      }
+    }
+
+    if (!terminalId && currentState.activeWorkspaceId) {
+      const workspaceTerminals = workspaceStore.getWorkspaceTerminals(currentState.activeWorkspaceId)
+      terminal = workspaceTerminals.find(t => t.agentPreset && t.agentPreset !== 'none')
+      terminalId = terminal?.id ?? null
+    }
+
+    if (terminalId) {
+      window.electronAPI.claude.sendMessage(terminalId, content)
+    } else {
+      console.warn('No Claude agent session available')
     }
   }, [])
 
@@ -653,6 +681,7 @@ export default function App() {
                   workspaceId={state.activeWorkspaceId ?? undefined}
                   onCollapse={handleSnippetCollapse}
                   onPasteToTerminal={handlePasteToTerminal}
+                  onSendToAgent={handleSendToAgent}
                 />
               )}
             </div>
