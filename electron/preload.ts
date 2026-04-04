@@ -161,10 +161,6 @@ const electronAPI = {
         memoryFiles?: { path: string; type: string; tokens: number }[]
         mcpTools?: { name: string; serverName: string; tokens: number; isLoaded?: boolean }[]
       } | null>,
-    getUsage: () =>
-      ipcRenderer.invoke('claude:get-usage') as Promise<{ fiveHour: number | null; sevenDay: number | null; fiveHourReset: string | null; sevenDayReset: string | null } | null>,
-    getUsageAccount: () =>
-      ipcRenderer.invoke('claude:get-usage-account') as Promise<{ email: string; orgName: string; tier: string } | null>,
     getCliPath: () =>
       ipcRenderer.invoke('claude:get-cli-path') as Promise<string>,
     authLogin: () =>

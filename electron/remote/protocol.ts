@@ -23,7 +23,6 @@ export const PROXIED_CHANNELS = new Set([
   'claude:list-sessions', 'claude:resume-session', 'claude:fork-session', 'claude:stop-task', 'claude:rest-session',
   'claude:wake-session', 'claude:is-resting',
   'claude:archive-messages', 'claude:load-archived', 'claude:clear-archive', 'claude:fetch-subagent-messages',
-  'claude:get-usage', 'claude:get-usage-account',
   'claude:scan-skills', 'claude:get-context-usage',
   'claude:auth-login', 'claude:auth-status', 'claude:auth-logout',
   'claude:get-cli-path',
