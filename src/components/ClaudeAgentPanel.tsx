@@ -168,7 +168,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   })
   const [claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
   const [usageAccount, setUsageAccount] = useState(workspaceStore.usageAccount)
-  const [rateLimitResetsAt, setRateLimitResetsAt] = useState<number | null>(null)
+  const [rateLimits, setRateLimits] = useState<Record<string, { resetsAt: number; utilization: number | null; isUsingOverage: boolean }>>({})
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null)
   const [planFileContent, setPlanFileContent] = useState<string | null>(null)
@@ -776,9 +776,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         workspaceStore.setTerminalWorktreeInfo(sessionId, info?.worktreePath, info?.branchName)
       }),
 
-      api.onRateLimit((sid: string, info: { resetsAt: number; isUsingOverage: boolean }) => {
+      api.onRateLimit((sid: string, info: { rateLimitType: string; resetsAt: number; utilization: number | null; isUsingOverage: boolean }) => {
         if (sid !== sessionId) return
-        setRateLimitResetsAt(info.resetsAt)
+        setRateLimits(prev => ({ ...prev, [info.rateLimitType]: { resetsAt: info.resetsAt, utilization: info.utilization, isUsingOverage: info.isUsingOverage } }))
       }),
     ]
 
@@ -3372,13 +3372,30 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             const ws = workspaceId ? workspaceStore.getState().workspaces.find(w => w.id === workspaceId) : null
             return ws ? <span key="workspace" className="claude-statusline-item">{ws.alias || ws.name}</span> : null
           },
-          usage5h: () => null,
-          usage5hReset: () => {
-            if (!rateLimitResetsAt) return null
-            return <span key="usage5hReset" className="claude-statusline-item" title="5h rate limit resets at">↻{fmtRemaining(new Date(rateLimitResetsAt))}</span>
+          usage5h: () => {
+            const rl = rateLimits['five_hour']
+            if (!rl || rl.utilization == null) return null
+            const pct = Math.round(rl.utilization * 100)
+            const color = pct >= 80 ? '#e05252' : pct >= 50 ? '#e6a700' : '#89ca78'
+            return <span key="usage5h" className="claude-statusline-item" style={{ color }} title={`5h usage: ${pct}%`}>5h:{pct}%</span>
           },
-          usage7d: () => null,
-          usage7dReset: () => null,
+          usage5hReset: () => {
+            const rl = rateLimits['five_hour']
+            if (!rl) return null
+            return <span key="usage5hReset" className="claude-statusline-item" title="5h rate limit resets at">↻{fmtRemaining(new Date(rl.resetsAt))}</span>
+          },
+          usage7d: () => {
+            const rl = rateLimits['seven_day']
+            if (!rl || rl.utilization == null) return null
+            const pct = Math.round(rl.utilization * 100)
+            const color = pct >= 80 ? '#e05252' : pct >= 50 ? '#e6a700' : '#89ca78'
+            return <span key="usage7d" className="claude-statusline-item" style={{ color }} title={`7d usage: ${pct}%`}>7d:{pct}%</span>
+          },
+          usage7dReset: () => {
+            const rl = rateLimits['seven_day']
+            if (!rl) return null
+            return <span key="usage7dReset" className="claude-statusline-item" title="7d rate limit resets at">↻{fmtRemaining(new Date(rl.resetsAt))}</span>
+          },
           maxOut: () => !sessionMeta || !sessionMeta.maxOutputTokens ? null : (
             <span key="maxOut" className="claude-statusline-item" title={`Max output: ${sessionMeta.maxOutputTokens.toLocaleString()} tokens`}>
               maxOut:{(sessionMeta.maxOutputTokens / 1000).toFixed(0)}k

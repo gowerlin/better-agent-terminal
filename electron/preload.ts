@@ -225,8 +225,8 @@ const electronAPI = {
       ipcRenderer.on('claude:session-reset', handler)
       return () => ipcRenderer.removeListener('claude:session-reset', handler)
     },
-    onRateLimit: (callback: (sessionId: string, info: { resetsAt: number; isUsingOverage: boolean }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, sessionId: string, info: { resetsAt: number; isUsingOverage: boolean }) => callback(sessionId, info)
+    onRateLimit: (callback: (sessionId: string, info: { rateLimitType: string; resetsAt: number; utilization: number | null; isUsingOverage: boolean }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, sessionId: string, info: { rateLimitType: string; resetsAt: number; utilization: number | null; isUsingOverage: boolean }) => callback(sessionId, info)
       ipcRenderer.on('claude:rate-limit', handler)
       return () => ipcRenderer.removeListener('claude:rate-limit', handler)
     },
