@@ -251,7 +251,7 @@ function buildMenu() {
                 type: 'info',
                 title: 'About Better Agent Terminal',
                 message: 'Better Agent Terminal',
-                detail: `Version: ${app.getVersion()}\n\nA terminal aggregator with multi-workspace support and Claude Code integration.\n\nAuthor: TonyQ`
+                detail: `Version: ${app.getVersion()}\n\nA terminal aggregator with multi-workspace support and Claude Agent integration.\n\nAuthor: TonyQ`
               })
             }
           }

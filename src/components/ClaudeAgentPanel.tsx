@@ -2823,7 +2823,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
                     )}
                     {sdkModels.length > 0 && (
                       <>
-                        <div className="claude-model-group-label">Claude Code</div>
+                        <div className="claude-model-group-label">Claude Agent</div>
                         {sdkModels.map(renderItem)}
                       </>
                     )}

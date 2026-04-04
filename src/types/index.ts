@@ -186,7 +186,7 @@ export type ColorPresetId = typeof COLOR_PRESETS[number]['id'];
 export type AgentCommandType = 'claude' | 'gemini' | 'codex' | 'custom';
 
 export const AGENT_COMMAND_OPTIONS: { id: AgentCommandType; name: string; command: string }[] = [
-  { id: 'claude', name: 'Claude Code', command: 'claude' },
+  { id: 'claude', name: 'Claude Agent', command: 'claude' },
   { id: 'gemini', name: 'Gemini CLI', command: 'gemini' },
   { id: 'codex', name: 'Codex CLI', command: 'codex' },
   { id: 'custom', name: 'Custom', command: '' },
