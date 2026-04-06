@@ -182,7 +182,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     if (isActive && terminalReady && terminalRef.current) {
       const terminal = terminalRef.current
 
-      // Single RAF — resize + focus, no clearTextureAtlas (causes blank frame flicker)
+      // Single RAF — resize + focus; nested RAF handles clearTextureAtlas (Win11 text overlap fix)
       const rafId = requestAnimationFrame(() => {
         if (!terminal) return
 
@@ -190,20 +190,27 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         doResizeRef.current?.()
         terminal.focus()
 
-        // Execute agent command on first focus for code-agent terminals
-        if (!hasBeenFocusedRef.current && terminalType === 'code-agent') {
-          hasBeenFocusedRef.current = true
-          const terminalInstance = workspaceStore.getState().terminals.find(t => t.id === terminalId)
-          if (terminalInstance && !terminalInstance.agentCommandSent && !terminalInstance.hasUserInput) {
-            const agentCommand = settingsStore.getAgentCommand()
-            if (agentCommand) {
-              setTimeout(() => {
-                const currentTerminal = workspaceStore.getState().terminals.find(t => t.id === terminalId)
-                if (isActiveRef.current && currentTerminal && !currentTerminal.hasUserInput && !currentTerminal.agentCommandSent) {
-                  window.electronAPI.pty.write(terminalId, agentCommand + '\r')
-                  workspaceStore.markAgentCommandSent(terminalId)
-                }
-              }, 3000)
+        // Force refresh terminal content to fix black screen / text overlap after visibility change (Win11 fix)
+        requestAnimationFrame(() => {
+          terminal.clearTextureAtlas()
+          terminal.refresh(0, terminal.rows - 1)
+          terminal.focus()
+
+          // Execute agent command on first focus for code-agent terminals
+          if (!hasBeenFocusedRef.current && terminalType === 'code-agent') {
+            hasBeenFocusedRef.current = true
+            const terminalInstance = workspaceStore.getState().terminals.find(t => t.id === terminalId)
+            if (terminalInstance && !terminalInstance.agentCommandSent && !terminalInstance.hasUserInput) {
+              const agentCommand = settingsStore.getAgentCommand()
+              if (agentCommand) {
+                setTimeout(() => {
+                  const currentTerminal = workspaceStore.getState().terminals.find(t => t.id === terminalId)
+                  if (isActiveRef.current && currentTerminal && !currentTerminal.hasUserInput && !currentTerminal.agentCommandSent) {
+                    window.electronAPI.pty.write(terminalId, agentCommand + '\r')
+                    workspaceStore.markAgentCommandSent(terminalId)
+                  }
+                }, 3000)
+              }
             }
           }
         }
