@@ -331,6 +331,24 @@ const electronAPI = {
     log: (...args: unknown[]) => ipcRenderer.send('debug:log', ...args),
     isDebugMode: !!process.env.BAT_DEBUG,
   },
+  agent: {
+    listDefinitions: () =>
+      ipcRenderer.invoke('agent:list-definitions') as Promise<unknown[]>,
+    getDefinition: (id: string) =>
+      ipcRenderer.invoke('agent:get-definition', id) as Promise<unknown | null>,
+    buildLaunchCommand: (definitionId: string, options?: Record<string, string | boolean>) =>
+      ipcRenderer.invoke('agent:build-launch-command', definitionId, options) as Promise<string | null>,
+    registerCustomCli: (def: { id: string; name: string; icon: string; color: string; command: string; args?: string[]; supportsWorktree?: boolean; sandboxFlag?: string; yoloFlag?: string }) =>
+      ipcRenderer.invoke('agent:register-custom-cli', def) as Promise<unknown>,
+    removeCustomCli: (id: string) =>
+      ipcRenderer.invoke('agent:remove-custom-cli', id) as Promise<boolean>,
+    listCustomClis: () =>
+      ipcRenderer.invoke('agent:list-custom-clis') as Promise<unknown[]>,
+    saveCustomClis: () =>
+      ipcRenderer.invoke('agent:save-custom-clis') as Promise<boolean>,
+    loadCustomClis: () =>
+      ipcRenderer.invoke('agent:load-custom-clis') as Promise<boolean>,
+  },
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),
     getById: (id: number) => ipcRenderer.invoke('snippet:getById', id),

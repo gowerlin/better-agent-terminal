@@ -62,6 +62,8 @@ import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { logger } from './logger'
+import { agentRegistry } from './agent-runtime/agent-registry'
+import type { CustomCliDefinition } from './agent-runtime/types'
 
 // Startup timing — capture module load time before anything else
 const _processStart = Number(process.env._BAT_T0 || Date.now())
@@ -455,6 +457,19 @@ app.whenReady().then(async () => {
   logger.init(app.getPath('userData'))
   logger.log(`[startup] ═══════════════════════════════════════`)
   logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from IPC reg, +${t0 - _processStart}ms from process`)
+
+  // Load user-defined custom CLIs from disk
+  try {
+    const dataPath = path.join(app.getPath('userData'), 'custom-clis.json')
+    const data = await fs.promises.readFile(dataPath, 'utf-8')
+    const clis = JSON.parse(data) as CustomCliDefinition[]
+    for (const cli of clis) {
+      agentRegistry.registerCustomCli(cli)
+    }
+    logger.log(`[startup] loaded ${clis.length} custom CLIs`)
+  } catch {
+    // No custom CLIs file yet — normal on first run
+  }
 
   // Ensure profile system is initialized (migrates from workspaces.json on first run)
   const migratedEntries = await windowRegistry.ensureInitialized()
@@ -1592,6 +1607,58 @@ function registerLocalHandlers() {
     if (win && !win.isDestroyed()) win.close()
     detachedWindows.delete(workspaceId)
     return true
+  })
+
+  // ── Agent Runtime IPC ──
+
+  ipcMain.handle('agent:list-definitions', () => {
+    return agentRegistry.listAll()
+  })
+
+  ipcMain.handle('agent:get-definition', (_event, id: string) => {
+    return agentRegistry.get(id) ?? null
+  })
+
+  ipcMain.handle('agent:build-launch-command', (_event, definitionId: string, options?: Record<string, string | boolean>) => {
+    return agentRegistry.buildLaunchCommand(definitionId, options)
+  })
+
+  ipcMain.handle('agent:register-custom-cli', (_event, def: CustomCliDefinition) => {
+    return agentRegistry.registerCustomCli(def)
+  })
+
+  ipcMain.handle('agent:remove-custom-cli', (_event, id: string) => {
+    return agentRegistry.removeCustomCli(id)
+  })
+
+  ipcMain.handle('agent:list-custom-clis', () => {
+    return agentRegistry.listCustomClis()
+  })
+
+  ipcMain.handle('agent:save-custom-clis', async () => {
+    try {
+      const customClis = agentRegistry.listCustomClis()
+      const dataPath = path.join(app.getPath('userData'), 'custom-clis.json')
+      await fs.promises.writeFile(dataPath, JSON.stringify(customClis, null, 2), 'utf-8')
+      return true
+    } catch (err) {
+      console.error('[agent] Failed to save custom CLIs:', err)
+      return false
+    }
+  })
+
+  ipcMain.handle('agent:load-custom-clis', async () => {
+    try {
+      const dataPath = path.join(app.getPath('userData'), 'custom-clis.json')
+      const data = await fs.promises.readFile(dataPath, 'utf-8')
+      const clis = JSON.parse(data) as CustomCliDefinition[]
+      for (const cli of clis) {
+        agentRegistry.registerCustomCli(cli)
+      }
+      return true
+    } catch {
+      return false
+    }
   })
 }
 

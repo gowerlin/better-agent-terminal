@@ -1,10 +1,12 @@
-import { useState, memo, lazy, Suspense } from 'react'
+import { useState, useEffect, memo, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TerminalInstance } from '../types'
 import { TerminalPanel } from './TerminalPanel'
 import { ActivityIndicator } from './ActivityIndicator'
 import { PromptBox } from './PromptBox'
 import { getAgentPreset } from '../types/agent-presets'
+import { isIntegrated, isAgent as isAgentCheck } from '../types/agent-runtime'
+import type { AgentDefinition } from '../types/agent-runtime'
 import { workspaceStore } from '../stores/workspace-store'
 
 // Lazy load Claude Agent SDK (~240KB chunk) — only needed for claude-code terminals
@@ -20,9 +22,21 @@ interface MainPanelProps {
 }
 
 export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, workspaceId }: Readonly<MainPanelProps>) {
-  const isAgent = terminal.agentPreset && terminal.agentPreset !== 'none'
-  const isClaudeCode = terminal.agentPreset === 'claude-code' || terminal.agentPreset === 'claude-code-v2' || terminal.agentPreset === 'claude-code-worktree'
-  const agentConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
+  const isAgent = isAgentCheck(terminal.agentPreset)
+  const isClaudeCode = isIntegrated(terminal.agentPreset || '')
+  const presetConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
+  const [registryDef, setRegistryDef] = useState<AgentDefinition | null>(null)
+
+  // Fetch agent definition from registry for custom CLIs not in preset list
+  useEffect(() => {
+    if (isAgent && !presetConfig && terminal.agentPreset) {
+      window.electronAPI.agent?.getDefinition(terminal.agentPreset).then((def: AgentDefinition | null) => {
+        setRegistryDef(def)
+      }).catch(() => {})
+    }
+  }, [isAgent, presetConfig, terminal.agentPreset])
+
+  const agentConfig = presetConfig || (registryDef ? { id: registryDef.id, name: registryDef.name, icon: registryDef.icon, color: registryDef.color } : null)
   const { t } = useTranslation()
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(terminal.title)

@@ -7,6 +7,7 @@ import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS } from '..
 import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
 import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
+import type { CustomCliDefinition } from '../types/agent-runtime'
 
 interface SettingsPanelProps {
   onClose: () => void
@@ -64,6 +65,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [slImporting, setSlImporting] = useState(false)
   const [slImportText, setSlImportText] = useState('')
 
+  // Custom CLI state
+  const [customClis, setCustomClis] = useState<CustomCliDefinition[]>([])
+  const [showAddCustomCli, setShowAddCustomCli] = useState(false)
+  const [newCli, setNewCli] = useState<CustomCliDefinition>({
+    id: '', name: '', icon: '▸', color: '#888888', command: ''
+  })
+
   // Get current platform for filtering shell options
   const platform = window.electronAPI?.platform || 'darwin'
   const platformShellOptions = SHELL_OPTIONS.filter(opt => opt.platforms.includes(platform))
@@ -72,6 +80,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     return settingsStore.subscribe(() => {
       setSettings(settingsStore.getSettings())
     })
+  }, [])
+
+  // Load custom CLIs on mount
+  useEffect(() => {
+    window.electronAPI.agent?.listCustomClis().then((clis: CustomCliDefinition[]) => {
+      setCustomClis(clis)
+    }).catch(() => {})
   }, [])
 
   // Check font availability on mount
@@ -347,6 +362,65 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <option value="high">High</option>
               </select>
               <p className="settings-hint">{t('settings.defaultEffortHint')}</p>
+            </div>
+
+            {/* Custom CLI Agents */}
+            <div className="settings-group">
+              <label>Custom CLI Agents</label>
+              <p className="settings-hint">Add your own CLI agents. They will appear in the add-agent menu alongside built-in agents.</p>
+              {customClis.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                  {customClis.map(cli => (
+                    <div key={cli.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
+                      <span style={{ color: cli.color, fontSize: '14px' }}>{cli.icon}</span>
+                      <span style={{ flex: 1 }}>{cli.name}</span>
+                      <code style={{ fontSize: '11px', opacity: 0.7 }}>{cli.command}{cli.args ? ' ' + cli.args.join(' ') : ''}</code>
+                      <button
+                        className="action-btn danger"
+                        style={{ padding: '2px 6px', fontSize: '11px' }}
+                        onClick={async () => {
+                          await window.electronAPI.agent.removeCustomCli(cli.id)
+                          await window.electronAPI.agent.saveCustomClis()
+                          setCustomClis(prev => prev.filter(c => c.id !== cli.id))
+                        }}
+                        title="Remove"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showAddCustomCli ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input type="text" placeholder="Name" value={newCli.name} onChange={e => setNewCli(p => ({ ...p, name: e.target.value, id: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-cli' }))} style={{ flex: 1 }} />
+                    <input type="text" placeholder="Icon" value={newCli.icon} onChange={e => setNewCli(p => ({ ...p, icon: e.target.value }))} style={{ width: '40px', textAlign: 'center' }} />
+                    <input type="color" value={newCli.color} onChange={e => setNewCli(p => ({ ...p, color: e.target.value }))} style={{ width: '36px', padding: '2px' }} />
+                  </div>
+                  <input type="text" placeholder="Command (e.g. aider, cursor, cline)" value={newCli.command} onChange={e => setNewCli(p => ({ ...p, command: e.target.value }))} />
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input type="text" placeholder="Sandbox flag (optional, e.g. --sandbox)" value={newCli.sandboxFlag || ''} onChange={e => setNewCli(p => ({ ...p, sandboxFlag: e.target.value || undefined }))} style={{ flex: 1 }} />
+                    <input type="text" placeholder="YOLO flag (optional, e.g. --yolo)" value={newCli.yoloFlag || ''} onChange={e => setNewCli(p => ({ ...p, yoloFlag: e.target.value || undefined }))} style={{ flex: 1 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    <button className="action-btn" onClick={() => { setShowAddCustomCli(false); setNewCli({ id: '', name: '', icon: '▸', color: '#888888', command: '' }) }}>Cancel</button>
+                    <button
+                      className="action-btn"
+                      disabled={!newCli.name || !newCli.command}
+                      onClick={async () => {
+                        if (!newCli.name || !newCli.command) return
+                        const def: CustomCliDefinition = { ...newCli, id: newCli.id || newCli.name.toLowerCase().replace(/\s+/g, '-') + '-cli' }
+                        await window.electronAPI.agent.registerCustomCli(def)
+                        await window.electronAPI.agent.saveCustomClis()
+                        setCustomClis(prev => [...prev, def])
+                        setNewCli({ id: '', name: '', icon: '▸', color: '#888888', command: '' })
+                        setShowAddCustomCli(false)
+                      }}
+                    >Add</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="action-btn" onClick={() => setShowAddCustomCli(true)} style={{ alignSelf: 'flex-start' }}>+ Add Custom CLI</button>
+              )}
             </div>
           </div>
 

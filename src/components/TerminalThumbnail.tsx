@@ -3,6 +3,7 @@ import type { TerminalInstance } from '../types'
 import { ActivityIndicator } from './ActivityIndicator'
 import { settingsStore } from '../stores/settings-store'
 import { getAgentPreset } from '../types/agent-presets'
+import type { AgentDefinition } from '../types/agent-runtime'
 
 // Global preview cache - persists across component unmounts
 const MAX_PREVIEW_CACHE = 100
@@ -121,7 +122,18 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
 
   // Check if this is an agent terminal
   const isAgent = terminal.agentPreset && terminal.agentPreset !== 'none'
-  const agentConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
+  const presetConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
+  const [registryDef, setRegistryDef] = useState<AgentDefinition | null>(null)
+
+  useEffect(() => {
+    if (isAgent && !presetConfig && terminal.agentPreset) {
+      window.electronAPI.agent?.getDefinition(terminal.agentPreset).then((def: AgentDefinition | null) => {
+        setRegistryDef(def)
+      }).catch(() => {})
+    }
+  }, [isAgent, presetConfig, terminal.agentPreset])
+
+  const agentConfig = presetConfig || (registryDef ? { id: registryDef.id, name: registryDef.name, icon: registryDef.icon, color: registryDef.color } : null)
 
   useEffect(() => {
     setupGlobalListener()

@@ -4,12 +4,17 @@ import { useTranslation } from 'react-i18next'
 import type { TerminalInstance } from '../types'
 import { TerminalThumbnail } from './TerminalThumbnail'
 import { getAgentPreset } from '../types/agent-presets'
+import type { AgentDefinition } from '../types/agent-runtime'
 
 interface ThumbnailBarProps {
   terminals: TerminalInstance[]
   focusedTerminalId: string | null
   onFocus: (id: string) => void
   onAddTerminal?: () => void
+  onAddAgent?: (definitionId: string) => void
+  /** Agent definitions to show in the add menu (fetched from registry) */
+  agentDefinitions?: AgentDefinition[]
+  // Legacy callbacks — kept for backward compat, remove when fully migrated
   onAddClaudeAgent?: () => void
   onAddClaudeAgentV2?: () => void
   onAddClaudeWorktree?: () => void
@@ -27,6 +32,8 @@ export function ThumbnailBar({
   focusedTerminalId,
   onFocus,
   onAddTerminal,
+  onAddAgent,
+  agentDefinitions = [],
   onAddClaudeAgent,
   onAddClaudeAgentV2,
   onAddClaudeWorktree,
@@ -192,52 +199,70 @@ export function ThumbnailBar({
                     <span className="thumbnail-add-menu-icon">⌘</span>
                     {t('terminal.terminalLabel')}
                   </div>
-                  {onAddClaudeAgent && (
-                    <div
-                      className="thumbnail-add-menu-item"
-                      onClick={() => { onAddClaudeAgent(); setShowAddMenu(false) }}
-                    >
-                      <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>✦</span>
-                      Claude Agent V1
-                      <span className="thumbnail-add-menu-suggested">suggested</span>
-                    </div>
-                  )}
-                  {onAddClaudeAgentV2 && (
-                    <div
-                      className="thumbnail-add-menu-item"
-                      onClick={() => { onAddClaudeAgentV2(); setShowAddMenu(false) }}
-                    >
-                      <span className="thumbnail-add-menu-icon" style={{ color: '#eab308' }}>✦</span>
-                      Claude Agent V2
-                    </div>
-                  )}
-                  {onAddClaudeWorktree && (
-                    <div
-                      className="thumbnail-add-menu-item"
-                      onClick={() => { onAddClaudeWorktree(); setShowAddMenu(false) }}
-                    >
-                      <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>🌳</span>
-                      Claude Agent V1 (Worktree)
-                    </div>
-                  )}
-                  {onAddClaudeCli && (
-                    <div
-                      className="thumbnail-add-menu-item"
-                      onClick={() => { onAddClaudeCli(); setShowAddMenu(false) }}
-                    >
-                      <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>▶</span>
-                      Claude CLI
-                      <span className="thumbnail-add-menu-suggested">suggested</span>
-                    </div>
-                  )}
-                  {onAddClaudeCliWorktree && (
-                    <div
-                      className="thumbnail-add-menu-item"
-                      onClick={() => { onAddClaudeCliWorktree(); setShowAddMenu(false) }}
-                    >
-                      <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>▶🌳</span>
-                      Claude CLI (Worktree)
-                    </div>
+                  {/* Dynamic agent definitions from registry */}
+                  {onAddAgent && agentDefinitions.length > 0 ? (
+                    agentDefinitions.map(def => (
+                      <div
+                        key={def.id}
+                        className="thumbnail-add-menu-item"
+                        onClick={() => { onAddAgent(def.id); setShowAddMenu(false) }}
+                      >
+                        <span className="thumbnail-add-menu-icon" style={{ color: def.color }}>{def.icon}</span>
+                        {def.name}
+                        {def.suggested && <span className="thumbnail-add-menu-suggested">suggested</span>}
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      {/* Legacy fallback — remove when fully migrated */}
+                      {onAddClaudeAgent && (
+                        <div
+                          className="thumbnail-add-menu-item"
+                          onClick={() => { onAddClaudeAgent(); setShowAddMenu(false) }}
+                        >
+                          <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>✦</span>
+                          Claude Agent V1
+                          <span className="thumbnail-add-menu-suggested">suggested</span>
+                        </div>
+                      )}
+                      {onAddClaudeAgentV2 && (
+                        <div
+                          className="thumbnail-add-menu-item"
+                          onClick={() => { onAddClaudeAgentV2(); setShowAddMenu(false) }}
+                        >
+                          <span className="thumbnail-add-menu-icon" style={{ color: '#eab308' }}>✦</span>
+                          Claude Agent V2
+                        </div>
+                      )}
+                      {onAddClaudeWorktree && (
+                        <div
+                          className="thumbnail-add-menu-item"
+                          onClick={() => { onAddClaudeWorktree(); setShowAddMenu(false) }}
+                        >
+                          <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>🌳</span>
+                          Claude Agent V1 (Worktree)
+                        </div>
+                      )}
+                      {onAddClaudeCli && (
+                        <div
+                          className="thumbnail-add-menu-item"
+                          onClick={() => { onAddClaudeCli(); setShowAddMenu(false) }}
+                        >
+                          <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>▶</span>
+                          Claude CLI
+                          <span className="thumbnail-add-menu-suggested">suggested</span>
+                        </div>
+                      )}
+                      {onAddClaudeCliWorktree && (
+                        <div
+                          className="thumbnail-add-menu-item"
+                          onClick={() => { onAddClaudeCliWorktree(); setShowAddMenu(false) }}
+                        >
+                          <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>▶🌳</span>
+                          Claude CLI (Worktree)
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>,
                 document.body
