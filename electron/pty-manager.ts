@@ -31,6 +31,11 @@ export class PtyManager {
   private instances: Map<string, PtyInstance> = new Map()
   private getWindows: () => BrowserWindow[]
 
+  // PTY output batching: accumulate data over 16ms windows to reduce IPC overhead
+  private outputBuffers: Map<string, string> = new Map()
+  private outputFlushTimer: ReturnType<typeof setTimeout> | null = null
+  private static readonly BATCH_INTERVAL_MS = 16
+
   constructor(getWindows: () => BrowserWindow[]) {
     this.getWindows = getWindows
   }
@@ -46,6 +51,25 @@ export class PtyManager {
       }
     }
     broadcastHub.broadcast(channel, ...args)
+  }
+
+  /** Enqueue PTY output and flush in batched intervals */
+  private enqueuePtyOutput(id: string, data: string) {
+    const prev = this.outputBuffers.get(id) || ''
+    this.outputBuffers.set(id, prev + data)
+    if (!this.outputFlushTimer) {
+      this.outputFlushTimer = setTimeout(() => {
+        this.flushPtyOutputs()
+      }, PtyManager.BATCH_INTERVAL_MS)
+    }
+  }
+
+  private flushPtyOutputs() {
+    this.outputFlushTimer = null
+    for (const [id, data] of this.outputBuffers) {
+      this.broadcast('pty:output', id, data)
+    }
+    this.outputBuffers.clear()
   }
 
   private getDefaultShell(): string {
@@ -128,7 +152,7 @@ export class PtyManager {
         })
 
         ptyProcess.onData((data: string) => {
-          this.broadcast('pty:output', id, data)
+          this.enqueuePtyOutput(id, data)
         })
 
         ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
@@ -184,11 +208,11 @@ export class PtyManager {
         })
 
         childProcess.stdout?.on('data', (data: Buffer) => {
-          this.broadcast('pty:output', id, data.toString())
+          this.enqueuePtyOutput(id, data.toString())
         })
 
         childProcess.stderr?.on('data', (data: Buffer) => {
-          this.broadcast('pty:output', id, data.toString())
+          this.enqueuePtyOutput(id, data.toString())
         })
 
         childProcess.on('exit', (exitCode: number | null) => {

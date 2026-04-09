@@ -58,29 +58,40 @@ const stripAnsi = (str: string): string => {
     .replace(/[\u2500-\u257F]/g, '')
 }
 
+// Batched preview update — accumulate and flush via RAF to avoid per-chunk processing
+const pendingPreviews = new Map<string, string>()
+let previewRafId = 0
+
+function scheduleBatchedPreviewUpdate(id: string, data: string) {
+  const prev = pendingPreviews.get(id) || previewCache.get(id) || ''
+  pendingPreviews.set(id, prev + data)
+  if (!previewRafId) {
+    previewRafId = requestAnimationFrame(() => {
+      previewRafId = 0
+      for (const [tid, raw] of pendingPreviews) {
+        const cleaned = stripAnsi(raw)
+        const lines = cleaned.split('\n').slice(-8)
+        updatePreviewCache(tid, lines.join('\n'))
+      }
+      pendingPreviews.clear()
+      // Evict oldest entries if cache is too large
+      if (previewCache.size > MAX_PREVIEW_CACHE) {
+        const firstKey = previewCache.keys().next().value
+        if (firstKey) previewCache.delete(firstKey)
+      }
+    })
+  }
+}
+
 // Global listener setup - only once
 let globalListenerSetup = false
 const setupGlobalListener = () => {
   if (globalListenerSetup) return
   globalListenerSetup = true
 
-  // Evict oldest entries if cache is too large
-  const evictIfNeeded = () => {
-    if (previewCache.size > MAX_PREVIEW_CACHE) {
-      const firstKey = previewCache.keys().next().value
-      if (firstKey) previewCache.delete(firstKey)
-    }
-  }
-
-  // PTY output for regular terminals
+  // PTY output for regular terminals — batched via RAF
   window.electronAPI.pty.onOutput((id, data) => {
-    const prev = previewCache.get(id) || ''
-    const combined = prev + data
-    // Keep last 8 lines, clean all ANSI escape sequences for readability
-    const cleaned = stripAnsi(combined)
-    const lines = cleaned.split('\n').slice(-8)
-    updatePreviewCache(id, lines.join('\n'))
-    evictIfNeeded()
+    scheduleBatchedPreviewUpdate(id, data)
   })
 
   // Claude agent messages for agent terminal previews

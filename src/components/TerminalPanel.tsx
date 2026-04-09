@@ -130,65 +130,38 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     if (isActive && terminalReady && terminalRef.current) {
       const terminal = terminalRef.current
 
-      // Use requestAnimationFrame to ensure DOM is fully rendered
+      // Single RAF — resize + focus, no clearTextureAtlas (causes blank frame flicker)
       const rafId = requestAnimationFrame(() => {
         if (!terminal) return
 
         dlog(`[resize] isActive effect → doResize terminal=${terminalId}`)
         doResizeRef.current?.()
+        terminal.focus()
 
-        // Force refresh terminal content to fix black screen / text overlap after visibility change
-        requestAnimationFrame(() => {
-          terminal.clearTextureAtlas()
-          terminal.refresh(0, terminal.rows - 1)
-          terminal.focus()
-
-          // Execute agent command on first focus for code-agent terminals
-          if (!hasBeenFocusedRef.current && terminalType === 'code-agent') {
-            hasBeenFocusedRef.current = true
-            const terminalInstance = workspaceStore.getState().terminals.find(t => t.id === terminalId)
-            if (terminalInstance && !terminalInstance.agentCommandSent && !terminalInstance.hasUserInput) {
-              const agentCommand = settingsStore.getAgentCommand()
-              if (agentCommand) {
-                setTimeout(() => {
-                  const currentTerminal = workspaceStore.getState().terminals.find(t => t.id === terminalId)
-                  if (isActiveRef.current && currentTerminal && !currentTerminal.hasUserInput && !currentTerminal.agentCommandSent) {
-                    window.electronAPI.pty.write(terminalId, agentCommand + '\r')
-                    workspaceStore.markAgentCommandSent(terminalId)
-                  }
-                }, 3000)
-              }
+        // Execute agent command on first focus for code-agent terminals
+        if (!hasBeenFocusedRef.current && terminalType === 'code-agent') {
+          hasBeenFocusedRef.current = true
+          const terminalInstance = workspaceStore.getState().terminals.find(t => t.id === terminalId)
+          if (terminalInstance && !terminalInstance.agentCommandSent && !terminalInstance.hasUserInput) {
+            const agentCommand = settingsStore.getAgentCommand()
+            if (agentCommand) {
+              setTimeout(() => {
+                const currentTerminal = workspaceStore.getState().terminals.find(t => t.id === terminalId)
+                if (isActiveRef.current && currentTerminal && !currentTerminal.hasUserInput && !currentTerminal.agentCommandSent) {
+                  window.electronAPI.pty.write(terminalId, agentCommand + '\r')
+                  workspaceStore.markAgentCommandSent(terminalId)
+                }
+              }, 3000)
             }
           }
-        })
+        }
       })
 
       return () => cancelAnimationFrame(rafId)
     }
   }, [isActive, terminalReady, terminalId, terminalType])
 
-  // Add intersection observer to detect when terminal becomes visible
-  useEffect(() => {
-    if (!containerRef.current || !terminalRef.current) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && isActive && doResizeRef.current) {
-            dlog(`[resize] IntersectionObserver → visible, doResize terminal=${terminalId}`)
-            setTimeout(() => {
-              doResizeRef.current?.()
-            }, 50)
-          }
-        })
-      },
-      { threshold: 0.1 }
-    )
-
-    observer.observe(containerRef.current)
-
-    return () => observer.disconnect()
-  }, [isActive, terminalId])
+  // IntersectionObserver removed — isActive effect already handles resize on visibility change
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -302,13 +275,20 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     }
 
     // Use MutationObserver to keep fixing position when xterm.js changes it
+    // Debounced with RAF to avoid layout thrashing
     let mutationCount = 0
+    let imePendingRaf = 0
     const observer = new MutationObserver(() => {
       mutationCount++
       if (mutationCount <= 20 || mutationCount % 100 === 0) {
         dlog(`[render] MutationObserver #${mutationCount} terminal=${terminalId}`)
       }
-      fixImePosition()
+      if (!imePendingRaf) {
+        imePendingRaf = requestAnimationFrame(() => {
+          imePendingRaf = 0
+          fixImePosition()
+        })
+      }
     })
 
     const textarea = containerRef.current?.querySelector('.xterm-helper-textarea')
@@ -450,7 +430,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       }
     })
 
-    // Handle resize — debounce with 500ms to avoid expensive xterm reflows during window drag
+    // Handle resize — debounce to avoid expensive xterm reflows during window drag
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
     let resizeObserverCount = 0
     const resizeObserver = new ResizeObserver((entries) => {
@@ -464,12 +444,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         resizeTimer = null
         if (!isActiveRef.current) return
         dlog(`[render] ResizeObserver debounce → doResize terminal=${terminalId}`)
-        const t0 = performance.now()
         doResize()
-        const t1 = performance.now()
-        terminal.refresh(0, terminal.rows - 1)
-        const t2 = performance.now()
-        dlog(`[render] doResize=${(t1-t0).toFixed(1)}ms refresh=${(t2-t1).toFixed(1)}ms terminal=${terminalId}`)
+        // fitAddon.fit() already triggers xterm re-render; no extra refresh needed
       }, 200)
     })
     resizeObserver.observe(containerRef.current)
@@ -506,6 +482,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       unsubscribeExit()
       unsubscribeSettings()
       if (resizeTimer) clearTimeout(resizeTimer)
+      if (imePendingRaf) cancelAnimationFrame(imePendingRaf)
       resizeObserver.disconnect()
       observer.disconnect()
       doResizeRef.current = null
