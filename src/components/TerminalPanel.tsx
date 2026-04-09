@@ -271,6 +271,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         textarea.style.height = '20px'
         textarea.style.opacity = '0'
         textarea.style.zIndex = '10'
+        textarea.style.caretColor = 'transparent'
+        textarea.style.color = 'transparent'
       }
     }
 
