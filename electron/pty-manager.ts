@@ -248,7 +248,8 @@ export class PtyManager {
           cwd,
           env: envWithUtf8 as NodeJS.ProcessEnv,
           stdio: ['pipe', 'pipe', 'pipe'],
-          shell: false
+          shell: false,
+          windowsHide: true
         })
 
         childProcess.stdout?.on('data', (data: Buffer) => {
@@ -317,7 +318,7 @@ export class PtyManager {
       if (process.platform === 'win32' && pid) {
         try {
           const { execFileSync } = require('child_process')
-          execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore', timeout: 3000 })
+          execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore', timeout: 3000, windowsHide: true })
         } catch { /* process may already be gone */ }
       }
       this.instances.delete(id)

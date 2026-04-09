@@ -18,6 +18,7 @@ if (process.platform === 'darwin') {
     const rawPath = execFileSync(shell, ['-l', '-c', cmd], {
       timeout: 3000,
       encoding: 'utf8',
+      windowsHide: true,
     }).trim()
     if (rawPath) {
       process.env.PATH = rawPath
@@ -887,7 +888,7 @@ function registerProxiedHandlers() {
   registerHandler('claude:auth-login', async () => {
     const { execFile } = await import('child_process')
     return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      execFile('claude', ['auth', 'login'], { timeout: 60000 }, (err) => {
+      execFile('claude', ['auth', 'login'], { timeout: 60000, windowsHide: true }, (err) => {
         if (err) {
           logger.error('[auth-login]', err)
           resolve({ success: false, error: err.message })
@@ -902,7 +903,7 @@ function registerProxiedHandlers() {
   registerHandler('claude:auth-status', async () => {
     const { execFile } = await import('child_process')
     return new Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>((resolve) => {
-      execFile('claude', ['auth', 'status'], { timeout: 10000 }, (err, stdout) => {
+      execFile('claude', ['auth', 'status'], { timeout: 10000, windowsHide: true }, (err, stdout) => {
         if (err) {
           logger.error('[auth-status]', err)
           resolve(null)
@@ -921,7 +922,7 @@ function registerProxiedHandlers() {
   registerHandler('claude:auth-logout', async () => {
     const { execFile } = await import('child_process')
     return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      execFile('claude', ['auth', 'logout'], { timeout: 10000 }, (err) => {
+      execFile('claude', ['auth', 'logout'], { timeout: 10000, windowsHide: true }, (err) => {
         if (err) {
           logger.error('[auth-logout]', err)
           resolve({ success: false, error: err.message })
@@ -1006,7 +1007,7 @@ function registerProxiedHandlers() {
   registerHandler('git:get-github-url', async (_ctx, folderPath: string) => {
     try {
       const { execSync } = await import('child_process')
-      const remote = execSync('git remote get-url origin', { cwd: folderPath, encoding: 'utf-8', timeout: 3000 }).trim()
+      const remote = execSync('git remote get-url origin', { cwd: folderPath, encoding: 'utf-8', timeout: 3000, windowsHide: true }).trim()
       const sshMatch = remote.match(/^git@github\.com:(.+?)(?:\.git)?$/)
       if (sshMatch) return `https://github.com/${sshMatch[1]}`
       const httpsMatch = remote.match(/^https?:\/\/github\.com\/(.+?)(?:\.git)?$/)
@@ -1017,14 +1018,14 @@ function registerProxiedHandlers() {
   registerHandler('git:branch', async (_ctx, cwd: string) => {
     try {
       const { execSync } = await import('child_process')
-      return execSync('git rev-parse --abbrev-ref HEAD', { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'ignore'] }).trim() || null
+      return execSync('git rev-parse --abbrev-ref HEAD', { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true }).trim() || null
     } catch { return null }
   })
   registerHandler('git:log', async (_ctx, cwd: string, count: number = 50) => {
     try {
       const { execFileSync } = await import('child_process')
       const safeCount = Math.max(1, Math.min(Math.floor(Number(count)) || 50, 500))
-      const raw = execFileSync('git', ['log', `--pretty=format:%H||%an||%ai||%s`, '-n', String(safeCount)], { cwd, encoding: 'utf-8', timeout: 5000 }).trim()
+      const raw = execFileSync('git', ['log', `--pretty=format:%H||%an||%ai||%s`, '-n', String(safeCount)], { cwd, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
       if (!raw) return []
       return raw.split('\n').map(line => {
         const parts = line.split('||')
@@ -1039,7 +1040,7 @@ function registerProxiedHandlers() {
         ? ['diff', `${commitHash}~1..${commitHash}`]
         : ['diff', 'HEAD']
       if (filePath) args.push('--', filePath)
-      return execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 10000, maxBuffer: 1024 * 1024 * 5 })
+      return execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 10000, maxBuffer: 1024 * 1024 * 5, windowsHide: true })
     } catch { return '' }
   })
   registerHandler('git:diff-files', async (_ctx, cwd: string, commitHash?: string) => {
@@ -1048,7 +1049,7 @@ function registerProxiedHandlers() {
       const args = commitHash && commitHash !== 'working'
         ? ['diff', '--name-status', `${commitHash}~1..${commitHash}`]
         : ['diff', '--name-status', 'HEAD']
-      const raw = execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 5000 })
+      const raw = execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 5000, windowsHide: true })
       if (!raw.trim()) return []
       return raw.trim().split('\n').map(line => {
         const tab = line.indexOf('\t')
@@ -1059,13 +1060,13 @@ function registerProxiedHandlers() {
   registerHandler('git:getRoot', async (_ctx, cwd: string) => {
     try {
       const { execSync } = await import('child_process')
-      return execSync('git rev-parse --show-toplevel', { cwd, encoding: 'utf-8', timeout: 5000 }).trim()
+      return execSync('git rev-parse --show-toplevel', { cwd, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
     } catch { return null }
   })
   registerHandler('git:status', async (_ctx, cwd: string) => {
     try {
       const { execSync } = await import('child_process')
-      const raw = execSync('git status --porcelain -uall', { cwd, encoding: 'utf-8', timeout: 5000 })
+      const raw = execSync('git status --porcelain -uall', { cwd, encoding: 'utf-8', timeout: 5000, windowsHide: true })
       if (!raw.trim()) return []
       return raw.split('\n').filter(line => line.trim()).map(line => ({ status: line.substring(0, 2).trim(), file: line.substring(3) }))
     } catch { return [] }
@@ -1075,11 +1076,11 @@ function registerProxiedHandlers() {
   registerHandler('github:check-cli', async (_ctx) => {
     try {
       const { execSync } = await import('child_process')
-      execSync('gh --version', { encoding: 'utf-8', timeout: 5000, shell: true })
+      execSync('gh --version', { encoding: 'utf-8', timeout: 5000, shell: true, windowsHide: true })
       try {
         // gh auth status exits non-zero if ANY account has issues, even if the active account is fine.
         // Use gh auth token which only checks the active account and returns 0 if authenticated.
-        execSync('gh auth token', { encoding: 'utf-8', timeout: 5000, shell: true, stdio: 'pipe' })
+        execSync('gh auth token', { encoding: 'utf-8', timeout: 5000, shell: true, stdio: 'pipe', windowsHide: true })
         return { installed: true, authenticated: true }
       } catch {
         return { installed: true, authenticated: false }
@@ -1091,7 +1092,7 @@ function registerProxiedHandlers() {
   registerHandler('github:pr-list', async (_ctx, cwd: string) => {
     try {
       const { execSync } = await import('child_process')
-      const raw = execSync('gh pr list --json number,title,state,author,createdAt,updatedAt,labels,headRefName,isDraft --limit 50', { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024 })
+      const raw = execSync('gh pr list --json number,title,state,author,createdAt,updatedAt,labels,headRefName,isDraft --limit 50', { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1100,7 +1101,7 @@ function registerProxiedHandlers() {
   registerHandler('github:issue-list', async (_ctx, cwd: string) => {
     try {
       const { execSync } = await import('child_process')
-      const raw = execSync('gh issue list --json number,title,state,author,createdAt,updatedAt,labels --limit 50', { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024 })
+      const raw = execSync('gh issue list --json number,title,state,author,createdAt,updatedAt,labels --limit 50', { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1109,7 +1110,7 @@ function registerProxiedHandlers() {
   registerHandler('github:pr-view', async (_ctx, cwd: string, number: number) => {
     try {
       const { execSync } = await import('child_process')
-      const raw = execSync(`gh pr view ${number} --json number,title,state,author,body,comments,reviews,createdAt,headRefName,baseRefName,additions,deletions,files`, { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024 })
+      const raw = execSync(`gh pr view ${number} --json number,title,state,author,body,comments,reviews,createdAt,headRefName,baseRefName,additions,deletions,files`, { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1118,7 +1119,7 @@ function registerProxiedHandlers() {
   registerHandler('github:issue-view', async (_ctx, cwd: string, number: number) => {
     try {
       const { execSync } = await import('child_process')
-      const raw = execSync(`gh issue view ${number} --json number,title,state,author,body,comments,createdAt,labels`, { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024 })
+      const raw = execSync(`gh issue view ${number} --json number,title,state,author,body,comments,createdAt,labels`, { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1127,7 +1128,7 @@ function registerProxiedHandlers() {
   registerHandler('github:pr-comment', async (_ctx, cwd: string, number: number, body: string) => {
     try {
       const { execFileSync } = await import('child_process')
-      execFileSync('gh', ['pr', 'comment', String(number), '--body', body], { cwd, encoding: 'utf-8', timeout: 15000 })
+      execFileSync('gh', ['pr', 'comment', String(number), '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
       return { success: true }
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1136,7 +1137,7 @@ function registerProxiedHandlers() {
   registerHandler('github:issue-comment', async (_ctx, cwd: string, number: number, body: string) => {
     try {
       const { execFileSync } = await import('child_process')
-      execFileSync('gh', ['issue', 'comment', String(number), '--body', body], { cwd, encoding: 'utf-8', timeout: 15000 })
+      execFileSync('gh', ['issue', 'comment', String(number), '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
       return { success: true }
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }

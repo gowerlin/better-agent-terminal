@@ -10,7 +10,13 @@ import * as fsPromises from 'fs/promises'
 import * as path from 'path'
 import { logger } from './logger'
 
-const execFileAsync = promisify(execFile)
+const _execFileAsync = promisify(execFile)
+const execFileAsync: typeof _execFileAsync = (file, args?, options?) => {
+  const opts = typeof args === 'object' && !Array.isArray(args) ? args : (options || {})
+  return Array.isArray(args)
+    ? _execFileAsync(file, args, { ...opts, windowsHide: true } as any)
+    : _execFileAsync(file, { ...opts, windowsHide: true } as any)
+}
 
 export interface WorktreeInfo {
   sessionId: string
