@@ -395,12 +395,12 @@
 .supervisor-badge {
   font-size: 10px;
   margin-left: 2px;
-  filter: drop-shadow(0 0 3px rgba(255, 200, 0, 0.6));
+  filter: drop-shadow(0 0 3px rgba(99, 179, 237, 0.6));
 }
 
 .thumbnail.supervisor {
-  border-color: rgba(255, 200, 0, 0.5);
-  box-shadow: 0 0 6px rgba(255, 200, 0, 0.3);
+  border-color: rgba(99, 179, 237, 0.5);
+  box-shadow: 0 0 6px rgba(99, 179, 237, 0.3);
 }
 
 /* Supervisor context menu */
