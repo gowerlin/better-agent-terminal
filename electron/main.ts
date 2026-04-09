@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, shell, Menu, powerMonitor, clipboa
 import path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
-import { execFileSync } from 'child_process'
+import { execFileSync, spawnSync } from 'child_process'
 import { WindowRegistry } from './window-registry'
 
 // Fix PATH for GUI-launched apps on macOS.
@@ -50,6 +50,21 @@ if (process.platform === 'darwin') {
     process.env.PATH = `${extraPaths.join(':')}:${process.env.PATH || ''}`
   }
 }
+
+// Hide the console window on Windows.
+// electron.exe is a console-subsystem app, so Windows allocates a visible
+// console window. We call ShowWindow(GetConsoleWindow(), SW_HIDE) via
+// PowerShell P/Invoke to hide it. This only affects dev mode — the packaged
+// app uses the GUI subsystem and has no console.
+if (process.platform === 'win32') {
+  try {
+    spawnSync('powershell', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      "Add-Type -N W -M '[DllImport(\"user32.dll\")]public static extern bool ShowWindow(IntPtr h,int s);[DllImport(\"kernel32.dll\")]public static extern IntPtr GetConsoleWindow();' -Pa;[W]::ShowWindow([W]::GetConsoleWindow(),0)"
+    ], { windowsHide: true, timeout: 5000, stdio: 'ignore' })
+  } catch { /* ignore — console stays visible */ }
+}
+
 import { PtyManager } from './pty-manager'
 import { ClaudeAgentManager } from './claude-agent-manager'
 import { worktreeManager } from './worktree-manager'
