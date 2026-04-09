@@ -36,6 +36,10 @@ export class PtyManager {
   private outputFlushTimer: ReturnType<typeof setTimeout> | null = null
   private static readonly BATCH_INTERVAL_MS = 16
 
+  // Output ring buffer for supervisor queries (last N lines per terminal)
+  private static readonly RING_BUFFER_LINES = 50
+  private outputRingBuffers: Map<string, string[]> = new Map()
+
   constructor(getWindows: () => BrowserWindow[]) {
     this.getWindows = getWindows
   }
@@ -68,8 +72,48 @@ export class PtyManager {
     this.outputFlushTimer = null
     for (const [id, data] of this.outputBuffers) {
       this.broadcast('pty:output', id, data)
+      this.appendToRingBuffer(id, data)
     }
     this.outputBuffers.clear()
+  }
+
+  /** Append raw data to the ring buffer (last N lines) for supervisor queries */
+  private appendToRingBuffer(id: string, data: string) {
+    let lines = this.outputRingBuffers.get(id) || []
+    const newLines = data.split('\n')
+    // Merge last existing line with first new chunk (they may be partial)
+    if (lines.length > 0 && newLines.length > 0) {
+      lines[lines.length - 1] += newLines.shift()!
+    }
+    lines = lines.concat(newLines)
+    // Keep only last N lines
+    if (lines.length > PtyManager.RING_BUFFER_LINES) {
+      lines = lines.slice(-PtyManager.RING_BUFFER_LINES)
+    }
+    this.outputRingBuffers.set(id, lines)
+  }
+
+  /** Get last N lines of output for a terminal (supervisor query) */
+  getLastOutput(id: string, lineCount: number = 30): string[] {
+    const lines = this.outputRingBuffers.get(id) || []
+    return lines.slice(-lineCount)
+  }
+
+  /** Write data to a specific terminal's PTY (cross-terminal send) */
+  writeToTerminal(id: string, data: string): boolean {
+    const instance = this.instances.get(id)
+    if (!instance) return false
+    if (instance.usePty) {
+      instance.process.write(data)
+    } else {
+      instance.process.stdin?.write(data)
+    }
+    return true
+  }
+
+  /** Check if a PTY instance is alive */
+  isAlive(id: string): boolean {
+    return this.instances.has(id)
   }
 
   private getDefaultShell(): string {

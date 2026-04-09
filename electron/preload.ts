@@ -349,6 +349,14 @@ const electronAPI = {
     loadCustomClis: () =>
       ipcRenderer.invoke('agent:load-custom-clis') as Promise<boolean>,
   },
+  supervisor: {
+    listWorkers: (terminalIds: string[]) =>
+      ipcRenderer.invoke('supervisor:list-workers', terminalIds) as Promise<{ id: string; lastOutput: string; alive: boolean }[]>,
+    sendToWorker: (targetId: string, text: string) =>
+      ipcRenderer.invoke('supervisor:send-to-worker', targetId, text) as Promise<boolean>,
+    getWorkerOutput: (targetId: string, lines: number) =>
+      ipcRenderer.invoke('supervisor:get-worker-output', targetId, lines) as Promise<string[]>,
+  },
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),
     getById: (id: number) => ipcRenderer.invoke('snippet:getById', id),

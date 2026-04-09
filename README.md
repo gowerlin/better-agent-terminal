@@ -11,7 +11,7 @@
 
 **A cross-platform terminal aggregator with multi-workspace support and built-in AI agent integration**
 
-Manage multiple project terminals in one window, with a built-in Claude Code agent panel, file browser, git viewer, snippet manager, and remote access — all in a single Electron app.
+Manage multiple project terminals in one window, with built-in support for **Claude Code, Gemini CLI, GitHub Copilot CLI, Codex CLI**, and any custom CLI agent — all in a single Electron app. Includes a file browser, git viewer, snippet manager, remote access, and a **supervisor mode** for orchestrating multiple AI agents on the same project.
 
 [Download Latest Release](https://github.com/tony1223/better-agent-terminal/releases/latest)
 
@@ -55,6 +55,8 @@ Manage multiple project terminals in one window, with a built-in Claude Code age
 - **Split-panel layout** — 70% main panel + 30% scrollable thumbnail bar showing all terminals
 - **Multiple terminals per workspace** — Powered by xterm.js with full Unicode/CJK support
 - **Agent presets** — Pre-configured terminal roles: Claude Code, Gemini CLI, Codex, GitHub Copilot, or plain terminal
+- **Custom CLI agents** — Register any CLI tool as an agent from Settings (name, command, icon, color, sandbox/yolo mode)
+- **Supervisor mode** — Designate one terminal as the project supervisor to monitor and send commands to other worker terminals (right-click → Set as Supervisor)
 - **Git worktree isolation** — Spawn Claude agents in an isolated worktree to prevent destructive changes to your main working tree
 - **Tab navigation** — Switch between Terminal, Files, and Git views per workspace
 - **File browser** — Search, navigate, and preview files with syntax highlighting (highlight.js)
@@ -205,9 +207,13 @@ better-agent-terminal/
 ├── electron/                          # Main process (Node.js)
 │   ├── main.ts                        # App entry, IPC handlers, window management
 │   ├── preload.ts                     # Context bridge (window.electronAPI)
-│   ├── pty-manager.ts                 # PTY process lifecycle, multi-window broadcast
+│   ├── pty-manager.ts                 # PTY process lifecycle, output batching, ring buffer
 │   ├── claude-agent-manager.ts        # Claude SDK session management
 │   ├── worktree-manager.ts            # Git worktree lifecycle (create, remove, rehydrate)
+│   ├── agent-runtime/                 # Universal agent runtime layer
+│   │   ├── types.ts                   # AgentDefinition, AgentProvider, AgentCapabilities
+│   │   ├── agent-registry.ts          # Singleton registry with 9 built-in + custom CLI definitions
+│   │   └── index.ts                   # Module barrel export
 │   ├── logger.ts                      # Disk-based logger (enable with BAT_DEBUG=1)
 │   ├── snippet-db.ts                  # SQLite snippet storage
 │   ├── profile-manager.ts            # Profile CRUD and persistence
@@ -223,25 +229,28 @@ better-agent-terminal/
 │   ├── App.tsx                        # Root component, layout, profile orchestration
 │   ├── components/
 │   │   ├── Sidebar.tsx                # Workspace list, groups, drag-drop, context menu
-│   │   ├── WorkspaceView.tsx          # Per-workspace container
+│   │   ├── WorkspaceView.tsx          # Per-workspace container with supervisor wiring
+│   │   ├── WorkerPanel.tsx            # Supervisor worker list with send-to-worker UI
 │   │   ├── ClaudeAgentPanel.tsx       # Claude agent chat UI and streaming
-│   │   ├── TerminalPanel.tsx          # xterm.js terminal wrapper
+│   │   ├── TerminalPanel.tsx          # xterm.js terminal wrapper (optimized rendering)
 │   │   ├── ThumbnailBar.tsx           # Scrollable terminal thumbnail strip
 │   │   ├── MainPanel.tsx              # Tab container (Terminal / Files / Git)
+│   │   ├── TerminalThumbnail.tsx      # Terminal thumbnail with supervisor badge + context menu
 │   │   ├── GitPanel.tsx               # Git log, diff, status viewer
 │   │   ├── FileTree.tsx               # In-app file browser
 │   │   ├── PathLinker.tsx             # Clickable file paths & URLs, preview modal
 │   │   ├── SnippetPanel.tsx           # Snippet manager sidebar
 │   │   ├── PromptBox.tsx              # Agent message input with image attach
-│   │   ├── SettingsPanel.tsx          # App settings UI
+│   │   ├── SettingsPanel.tsx          # App settings UI + Custom CLI management
 │   │   ├── ProfilePanel.tsx           # Profile switcher
 │   │   ├── EnvVarEditor.tsx           # Per-workspace env var editor
 │   │   └── UpdateNotification.tsx     # Update banner
 │   ├── stores/
-│   │   ├── workspace-store.ts         # Workspace + terminal state (pub/sub)
+│   │   ├── workspace-store.ts         # Workspace + terminal state + supervisor methods
 │   │   └── settings-store.ts          # App settings persistence
 │   ├── types/
-│   │   ├── index.ts                   # Core types (Workspace, AppSettings, etc.)
+│   │   ├── index.ts                   # Core types (Workspace, TerminalInstance w/ role, etc.)
+│   │   ├── agent-runtime.ts           # Frontend-side agent types + helpers
 │   │   ├── claude-agent.ts            # Claude message and tool call types
 │   │   ├── agent-presets.ts           # Agent preset definitions
 │   │   └── electron.d.ts             # window.electronAPI type declarations
@@ -267,7 +276,75 @@ better-agent-terminal/
 
 ---
 
-## Remote Access & Mobile Connect
+## Multi-Agent Architecture
+
+BAT supports running multiple AI CLI agents simultaneously within the same workspace. Instead of being locked to a single agent, you can mix and match different AI tools for different tasks.
+
+### Built-in Agents
+
+| Agent | Command | Capabilities |
+|---|---|---|
+| Claude Code (SDK) | Built-in SDK integration | Structured events, permission controls, session resume |
+| Claude Code (CLI) | `claude` | Full CLI experience in terminal |
+| Gemini CLI | `gemini` | Google's AI assistant, sandbox mode |
+| GitHub Copilot CLI | `github-copilot-cli` | GitHub's AI coding assistant |
+| Codex CLI | `codex` | OpenAI's coding agent, sandbox/yolo modes |
+
+### Custom CLI Agents
+
+Add any CLI tool as an agent from **Settings → Custom CLIs**:
+
+1. Open Settings (gear icon in sidebar)
+2. Scroll to **Custom CLI Management**
+3. Fill in: Name, Command, Icon (emoji), Color (hex), and optional Sandbox/Yolo flags
+4. Click **Add** — the new agent appears in the "+" menu immediately
+
+Custom CLIs are persisted to `{userData}/custom-clis.json` and survive app restarts.
+
+### Agent Registry API
+
+The agent runtime layer exposes IPC methods for querying and managing agents:
+
+| IPC Channel | Description |
+|---|---|
+| `agent:list-definitions` | List all registered agent definitions |
+| `agent:get-definition` | Get a specific agent definition by ID |
+| `agent:build-launch-command` | Build the CLI launch command with flags |
+| `agent:register-custom-cli` | Register a new custom CLI agent |
+| `agent:remove-custom-cli` | Remove a custom CLI agent |
+
+---
+
+## Supervisor Mode
+
+Supervisor mode lets you designate one terminal as a **project supervisor** that can monitor and send commands to other **worker** terminals. This enables orchestration patterns where one AI agent oversees the work of others.
+
+### How It Works
+
+1. Open multiple terminals with different agents (e.g., Claude as supervisor, Codex + Gemini as workers)
+2. Right-click any terminal thumbnail → **"👁 Set as Supervisor"**
+3. The supervisor terminal gets a golden border and 👁 badge
+4. A **Worker Panel** appears on the right side showing all other terminals with:
+   - Worker name, agent type, and alive/dead status
+   - Last few lines of each worker's output
+   - Quick-send input field to type commands into any worker
+5. Only one supervisor per workspace; setting a new one auto-demotes the previous
+
+### Supervisor IPC
+
+| IPC Channel | Description |
+|---|---|
+| `supervisor:list-workers` | List worker terminals with status and last output |
+| `supervisor:send-to-worker` | Write text to a worker terminal's PTY input |
+| `supervisor:get-worker-output` | Read last N lines from a worker's output buffer |
+
+### Use Cases
+
+- **Test-driven development**: Claude monitors test results, tells Codex to fix failing tests
+- **Code review pipeline**: Supervisor reviews changes, dispatches fixes to workers
+- **Parallel task execution**: Assign different features to different agents, monitor progress from one place
+
+---
 
 BAT includes a built-in WebSocket server that allows other BAT instances or mobile devices to connect and control it remotely. This feature is currently **experimental**.
 

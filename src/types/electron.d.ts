@@ -69,6 +69,11 @@ interface ElectronAPI {
     saveCustomClis: () => Promise<boolean>
     loadCustomClis: () => Promise<boolean>
   }
+  supervisor: {
+    listWorkers: (terminalIds: string[]) => Promise<{ id: string; lastOutput: string; alive: boolean }[]>
+    sendToWorker: (targetId: string, text: string) => Promise<boolean>
+    getWorkerOutput: (targetId: string, lines: number) => Promise<string[]>
+  }
 }
 
 declare global {

@@ -494,6 +494,41 @@ class WorkspaceStore {
   setWindowId(id: string): void { this.windowId = id }
   getWindowId(): string | null { return this.windowId }
 
+  // Supervisor / Worker role management
+  setSupervisor(terminalId: string, workspaceId: string): void {
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t => {
+        if (t.workspaceId !== workspaceId) return t
+        if (t.id === terminalId) return { ...t, role: 'supervisor' as const }
+        if (t.role === 'supervisor') return { ...t, role: 'worker' as const }
+        return t
+      })
+    }
+    this.notify()
+    this.save()
+  }
+
+  clearSupervisor(workspaceId: string): void {
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t => {
+        if (t.workspaceId !== workspaceId && t.role === 'supervisor') return { ...t, role: undefined }
+        return t
+      })
+    }
+    this.notify()
+    this.save()
+  }
+
+  getSupervisor(workspaceId: string): TerminalInstance | undefined {
+    return this.state.terminals.find(t => t.workspaceId === workspaceId && t.role === 'supervisor')
+  }
+
+  getWorkers(workspaceId: string): TerminalInstance[] {
+    return this.state.terminals.filter(t => t.workspaceId === workspaceId && t.role !== 'supervisor')
+  }
+
   listenForReload(): () => void {
     return window.electronAPI.workspace.onReload(() => {
       this.load()

@@ -390,3 +390,171 @@
   flex: 1;
   margin-top: 0;
 }
+
+/* Supervisor badge */
+.supervisor-badge {
+  font-size: 10px;
+  margin-left: 2px;
+  filter: drop-shadow(0 0 3px rgba(255, 200, 0, 0.6));
+}
+
+.thumbnail.supervisor {
+  border-color: rgba(255, 200, 0, 0.5);
+  box-shadow: 0 0 6px rgba(255, 200, 0, 0.3);
+}
+
+/* Supervisor context menu */
+.supervisor-context-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 160px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 4px 0;
+}
+
+.supervisor-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.supervisor-context-menu button:hover {
+  background: var(--bg-hover);
+}
+
+/* Worker panel */
+.worker-panel {
+  position: absolute;
+  right: 0;
+  top: 38px;
+  bottom: 0;
+  width: 260px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.worker-panel-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.worker-panel-header:hover {
+  color: var(--text-primary);
+}
+
+.worker-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.worker-item {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.worker-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.worker-icon {
+  font-size: 14px;
+}
+
+.worker-name {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worker-name:hover {
+  text-decoration: underline;
+}
+
+.worker-status {
+  font-size: 10px;
+}
+
+.worker-status.alive {
+  color: #4caf50;
+}
+
+.worker-status.dead {
+  color: var(--text-secondary);
+}
+
+.worker-output {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin: 4px 0;
+  max-height: 60px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.worker-send {
+  display: flex;
+  gap: 4px;
+}
+
+.worker-send input {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.worker-send input:focus {
+  border-color: var(--accent-color);
+}
+
+.worker-send button {
+  padding: 4px 8px;
+  background: var(--accent-color);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.worker-send button:hover {
+  opacity: 0.8;
+}

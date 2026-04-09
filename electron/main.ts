@@ -1660,6 +1660,26 @@ function registerLocalHandlers() {
       return false
     }
   })
+
+  // ── Supervisor / cross-terminal IPC ──
+  ipcMain.handle('supervisor:list-workers', (_event, workspaceTerminalIds: string[]) => {
+    if (!ptyManager) return []
+    return workspaceTerminalIds.map(id => ({
+      id,
+      lastOutput: ptyManager!.getLastOutput(id, 10).join('\n'),
+      alive: ptyManager!.isAlive(id)
+    }))
+  })
+
+  ipcMain.handle('supervisor:send-to-worker', (_event, targetId: string, text: string) => {
+    if (!ptyManager) return false
+    return ptyManager.writeToTerminal(targetId, text)
+  })
+
+  ipcMain.handle('supervisor:get-worker-output', (_event, targetId: string, lines: number) => {
+    if (!ptyManager) return []
+    return ptyManager.getLastOutput(targetId, lines)
+  })
 }
 
 // ── Initialize all IPC ──

@@ -6,6 +6,7 @@ import { settingsStore } from '../stores/settings-store'
 import { ThumbnailBar } from './ThumbnailBar'
 import { CloseConfirmDialog } from './CloseConfirmDialog'
 import { ResizeHandle } from './ResizeHandle'
+import { WorkerPanel } from './WorkerPanel'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { isClaudeSdk, isClaudeCli, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
@@ -609,6 +610,19 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     workspaceStore.reorderTerminals(orderedIds)
   }, [])
 
+  // Supervisor role management
+  const handleSetSupervisor = useCallback((terminalId: string) => {
+    workspaceStore.setSupervisor(terminalId, workspace.id)
+  }, [workspace.id])
+
+  const handleClearSupervisor = useCallback(() => {
+    workspaceStore.clearSupervisor(workspace.id)
+  }, [workspace.id])
+
+  const handleSendToWorker = useCallback((targetId: string, text: string) => {
+    window.electronAPI.supervisor.sendToWorker(targetId, text + '\r')
+  }, [])
+
   // Determine what to show
   // mainTerminal: the currently focused or first available terminal
   const mainTerminal = focusedTerminal || agentTerminal || terminals[0]
@@ -675,6 +689,14 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               />
             </div>
           ))}
+          {/* Worker panel — visible when active terminal is supervisor */}
+          {mainTerminal?.role === 'supervisor' && activeTab === 'terminal' && (
+            <WorkerPanel
+              workers={terminals.filter(t => t.id !== mainTerminal.id)}
+              onSendToWorker={handleSendToWorker}
+              onFocusWorker={handleFocus}
+            />
+          )}
         </div>
       </Suspense>
 
@@ -734,6 +756,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         height={thumbnailSettings.height}
         collapsed={thumbnailSettings.collapsed}
         onCollapse={handleThumbnailCollapse}
+        onSetSupervisor={handleSetSupervisor}
+        onClearSupervisor={handleClearSupervisor}
       />
 
       {showCloseConfirm && (

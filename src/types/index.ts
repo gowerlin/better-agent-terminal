@@ -36,6 +36,7 @@ export interface TerminalInstance {
   workspaceId: string;
   type: 'terminal';              // 統一為 terminal
   agentPreset?: AgentPresetId;   // 可選的 Agent 預設
+  role?: 'worker' | 'supervisor'; // Terminal role for cross-terminal orchestration
   title: string;
   alias?: string;
   pid?: number;

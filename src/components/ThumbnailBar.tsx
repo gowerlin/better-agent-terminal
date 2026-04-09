@@ -25,6 +25,8 @@ interface ThumbnailBarProps {
   height?: number
   collapsed?: boolean
   onCollapse?: () => void
+  onSetSupervisor?: (id: string) => void
+  onClearSupervisor?: () => void
 }
 
 export function ThumbnailBar({
@@ -43,7 +45,9 @@ export function ThumbnailBar({
   showAddButton,
   height,
   collapsed = false,
-  onCollapse
+  onCollapse,
+  onSetSupervisor,
+  onClearSupervisor
 }: ThumbnailBarProps) {
   const { t } = useTranslation()
   // Check if these are agent terminals or regular terminals
@@ -296,6 +300,8 @@ export function ThumbnailBar({
               terminal={terminal}
               isActive={terminal.id === focusedTerminalId}
               onClick={() => onFocus(terminal.id)}
+              onSetSupervisor={onSetSupervisor}
+              onClearSupervisor={onClearSupervisor}
             />
           </div>
         ))}

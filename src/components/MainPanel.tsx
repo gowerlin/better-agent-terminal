@@ -76,6 +76,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
           title={t('terminal.doubleClickToRename')}
         >
           {isAgent && <span>{agentConfig?.icon}</span>}
+          {terminal.role === 'supervisor' && <span className="supervisor-badge" title="Supervisor">👁</span>}
           {isEditing ? (
             <input
               type="text"

@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import type { TerminalInstance } from '../types'
 import { ActivityIndicator } from './ActivityIndicator'
 import { settingsStore } from '../stores/settings-store'
@@ -119,11 +119,13 @@ interface TerminalThumbnailProps {
   terminal: TerminalInstance
   isActive: boolean
   onClick: () => void
+  onSetSupervisor?: (id: string) => void
+  onClearSupervisor?: () => void
 }
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
 let thumbRenderCount = 0
-export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isActive, onClick }: TerminalThumbnailProps) {
+export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isActive, onClick, onSetSupervisor, onClearSupervisor }: TerminalThumbnailProps) {
   thumbRenderCount++
   if (thumbRenderCount <= 30 || thumbRenderCount % 50 === 0) {
     dlog(`[render] Thumbnail render #${thumbRenderCount} id=${terminal.id.slice(0,8)} active=${isActive}`)
@@ -165,14 +167,33 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
     }
   }, [terminal.id])
 
+  const isSupervisor = terminal.role === 'supervisor'
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return
+    const close = () => setCtxMenu(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [ctxMenu])
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCtxMenu({ x: e.clientX, y: e.clientY })
+  }, [])
+
   return (
     <div
-      className={`thumbnail ${isActive ? 'active' : ''} ${isAgent ? 'agent-terminal' : ''}`}
+      className={`thumbnail ${isActive ? 'active' : ''} ${isAgent ? 'agent-terminal' : ''} ${isSupervisor ? 'supervisor' : ''}`}
       onClick={onClick}
+      onContextMenu={handleContextMenu}
       style={agentConfig ? { '--agent-color': agentConfig.color } as React.CSSProperties : undefined}
     >
       <div className="thumbnail-header">
         <div className={`thumbnail-title ${isAgent ? 'agent-terminal' : ''}`}>
+          {isSupervisor && <span title="Supervisor" className="supervisor-badge">👁</span>}
           {isAgent && <span>{agentConfig?.icon}</span>}
           <span>{terminal.title}</span>
         </div>
@@ -181,6 +202,23 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
       <div className="thumbnail-preview" style={{ fontFamily }}>
         {preview || (isAgent ? '' : '$ _')}
       </div>
+      {ctxMenu && (
+        <div
+          className="context-menu"
+          style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}
+          onClick={e => e.stopPropagation()}
+        >
+          {isSupervisor ? (
+            <button className="context-menu-item" onClick={() => { onClearSupervisor?.(); setCtxMenu(null) }}>
+              ✕ Remove Supervisor
+            </button>
+          ) : (
+            <button className="context-menu-item" onClick={() => { onSetSupervisor?.(terminal.id); setCtxMenu(null) }}>
+              👁 Set as Supervisor
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 })
