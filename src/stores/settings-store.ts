@@ -6,6 +6,11 @@ type Listener = () => void
 
 const isWindows = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
 
+// Terminal font zoom constraints (matches SettingsPanel range input)
+export const FONT_SIZE_MIN = 8
+export const FONT_SIZE_MAX = 32
+export const FONT_SIZE_STEP = 1
+
 const defaultSettings: AppSettings = {
   language: 'en',
   shell: 'auto',
@@ -65,9 +70,23 @@ class SettingsStore {
   }
 
   setFontSize(size: number): void {
-    this.settings = { ...this.settings, fontSize: size }
+    const clamped = Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, Math.round(size)))
+    if (clamped === this.settings.fontSize) return
+    this.settings = { ...this.settings, fontSize: clamped }
     this.notify()
     this.save()
+  }
+
+  zoomIn(): void {
+    this.setFontSize(this.settings.fontSize + FONT_SIZE_STEP)
+  }
+
+  zoomOut(): void {
+    this.setFontSize(this.settings.fontSize - FONT_SIZE_STEP)
+  }
+
+  resetZoom(): void {
+    this.setFontSize(defaultSettings.fontSize)
   }
 
   setTheme(theme: 'dark' | 'light'): void {

@@ -402,6 +402,24 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         // If no selection, let Ctrl+C pass through for interrupt signal
         return true
       }
+      // Ctrl+= / Ctrl+NumpadAdd for zoom in
+      if (event.ctrlKey && !event.shiftKey && !event.altKey && (event.key === '=' || event.key === '+' || event.key === 'Add')) {
+        event.preventDefault()
+        settingsStore.zoomIn()
+        return false
+      }
+      // Ctrl+- / Ctrl+NumpadSubtract for zoom out
+      if (event.ctrlKey && !event.shiftKey && !event.altKey && (event.key === '-' || event.key === 'Subtract')) {
+        event.preventDefault()
+        settingsStore.zoomOut()
+        return false
+      }
+      // Ctrl+0 / Ctrl+Numpad0 for reset zoom
+      if (event.ctrlKey && !event.shiftKey && !event.altKey && event.key === '0') {
+        event.preventDefault()
+        settingsStore.resetZoom()
+        return false
+      }
       return true
     })
 
@@ -415,6 +433,20 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         hasSelection: !!selection
       })
     })
+
+    // Ctrl+Mouse Wheel zoom (font size)
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.deltaY < 0) {
+          settingsStore.zoomIn()
+        } else if (e.deltaY > 0) {
+          settingsStore.zoomOut()
+        }
+      }
+    }
+    containerRef.current.addEventListener('wheel', handleWheel, { passive: false })
 
     // Handle terminal output
     const unsubscribeOutput = window.electronAPI.pty.onOutput((id, data) => {
@@ -487,6 +519,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (imePendingRaf) cancelAnimationFrame(imePendingRaf)
       resizeObserver.disconnect()
       observer.disconnect()
+      containerRef.current?.removeEventListener('wheel', handleWheel)
       doResizeRef.current = null
       terminal.dispose()
     }

@@ -4,7 +4,7 @@ import i18next from 'i18next'
 import QRCode from 'qrcode'
 import type { AppSettings, ShellType, FontType, ColorPresetId, StatuslineItemConfig, LanguageCode } from '../types'
 import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS } from '../types'
-import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate } from '../stores/settings-store'
+import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate, FONT_SIZE_MIN, FONT_SIZE_MAX } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
 import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
 import type { CustomCliDefinition } from '../types/agent-runtime'
@@ -475,13 +475,23 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <h3>{t('settings.appearance')}</h3>
             <div className="settings-group">
               <label>{t('settings.fontSize', { size: settings.fontSize })}</label>
-              <input
-                type="range"
-                min="10"
-                max="24"
-                value={settings.fontSize}
-                onChange={e => handleFontSizeChange(Number(e.target.value))}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="range"
+                  min={FONT_SIZE_MIN}
+                  max={FONT_SIZE_MAX}
+                  value={settings.fontSize}
+                  onChange={e => handleFontSizeChange(Number(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className="action-btn"
+                  style={{ padding: '2px 8px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                  onClick={() => settingsStore.resetZoom()}
+                  title="Ctrl+0"
+                >Reset</button>
+              </div>
+              <p className="settings-hint">Ctrl+Scroll / Ctrl+[+][-] / Ctrl+0</p>
             </div>
 
             <div className="settings-group">
