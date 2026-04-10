@@ -7,6 +7,7 @@ import type { KanbanLane } from '../types/sprint-status'
 interface KanbanViewProps {
   workOrders: WorkOrder[]
   onExecWorkOrder?: (workOrderId: string) => void
+  onDoneWorkOrder?: (workOrderId: string) => void
 }
 
 /** 工單 → 看板 lane 映射 */
@@ -34,7 +35,10 @@ const LANE_ICONS: Record<KanbanLane, string> = {
   BLOCKED: '❌',
 }
 
-export function KanbanView({ workOrders, onExecWorkOrder }: KanbanViewProps) {
+/** Statuses eligible for ct-done remedial close */
+const DONE_ELIGIBLE = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PARTIAL', 'BLOCKED', 'FAILED'])
+
+export function KanbanView({ workOrders, onExecWorkOrder, onDoneWorkOrder }: KanbanViewProps) {
   const { t } = useTranslation()
 
   const lanes = useMemo(() => {
@@ -80,6 +84,15 @@ export function KanbanView({ workOrders, onExecWorkOrder }: KanbanViewProps) {
                         title={t('controlTower.execute')}
                       >
                         ▶
+                      </button>
+                    )}
+                    {onDoneWorkOrder && DONE_ELIGIBLE.has(wo.status) && (
+                      <button
+                        className="ct-kanban-done-btn"
+                        onClick={() => onDoneWorkOrder(wo.id)}
+                        title={t('controlTower.done')}
+                      >
+                        🔧
                       </button>
                     )}
                   </div>

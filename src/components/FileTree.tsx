@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { HighlightedCode } from './PathLinker'
+import { ResizeHandle } from './ResizeHandle'
 import hljs from 'highlight.js/lib/core'
 
 interface FileEntry {
@@ -347,6 +348,28 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // Resizable split: tree width in pixels (persisted)
+  const TREE_WIDTH_KEY = 'file-tree-split-width'
+  const splitRef = useRef<HTMLDivElement>(null)
+  const [treeWidth, setTreeWidth] = useState<number | null>(() => {
+    try {
+      const saved = localStorage.getItem(TREE_WIDTH_KEY)
+      return saved ? Number(saved) : null
+    } catch { return null }
+  })
+
+  const handleSplitResize = useCallback((delta: number) => {
+    setTreeWidth(prev => {
+      const container = splitRef.current
+      if (!container) return prev
+      const total = container.clientWidth
+      const current = prev ?? Math.round(total * 0.35)
+      const next = Math.max(120, Math.min(total - 120, current + delta))
+      try { localStorage.setItem(TREE_WIDTH_KEY, String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }, [])
+
   const loadRoot = useCallback(async () => {
     setLoading(true)
     try {
@@ -443,6 +466,22 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
     localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: entry.path, name: entry.name }))
   }, [rootPath])
 
+  // Listen for external file-tree-reveal events (e.g. from Control Tower)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { path: filePath } = (e as CustomEvent).detail as { path: string }
+      // Normalize for comparison
+      const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase()
+      if (!norm(filePath).startsWith(norm(rootPath))) return
+      const name = filePath.replace(/\\/g, '/').split('/').pop() || ''
+      const entry: FileEntry = { path: filePath, name, isDirectory: false }
+      setSelectedFile(entry)
+      localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: filePath, name }))
+    }
+    window.addEventListener('file-tree-reveal', handler)
+    return () => window.removeEventListener('file-tree-reveal', handler)
+  }, [rootPath])
+
   const handleContextMenu = useCallback((e: React.MouseEvent, entry: FileEntry) => {
     e.preventDefault()
     e.stopPropagation()
@@ -488,8 +527,8 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const displayEntries = searchResults !== null ? searchResults : entries
 
   return (
-    <div className="file-tree-split">
-      <div className="file-tree">
+    <div className="file-tree-split" ref={splitRef}>
+      <div className="file-tree" style={treeWidth != null ? { flex: `0 0 ${treeWidth}px`, maxWidth: `${treeWidth}px` } : undefined}>
         <div className="file-tree-header">
           <input
             className="file-tree-search"
@@ -535,6 +574,7 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
           )}
         </div>
       </div>
+      <ResizeHandle direction="horizontal" onResize={handleSplitResize} />
       <div className="file-preview">
         {selectedFile ? (
           <>

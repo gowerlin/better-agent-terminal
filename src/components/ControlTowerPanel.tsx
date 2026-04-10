@@ -23,9 +23,14 @@ interface ControlTowerPanelProps {
   isVisible: boolean
   workspaceFolderPath: string | null
   onExecWorkOrder?: (workOrderId: string) => void
+  onDoneWorkOrder?: (workOrderId: string) => void
+  onSyncWorkOrders?: () => void
 }
 
-export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOrder }: ControlTowerPanelProps) {
+/** Statuses eligible for ct-done remedial close */
+const DONE_ELIGIBLE: ReadonlySet<WorkOrderStatus> = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PARTIAL', 'BLOCKED', 'FAILED'])
+
+export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOrder, onDoneWorkOrder, onSyncWorkOrders }: ControlTowerPanelProps) {
   const { t } = useTranslation()
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(false)
@@ -204,6 +209,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       <div className="ct-panel-header">
         <h3>{t('controlTower.title')}</h3>
         <div className="ct-header-actions">
+          {onSyncWorkOrders && (
+            <button className="ct-sync-btn" onClick={onSyncWorkOrders} title={t('controlTower.sync')}>
+              ⇄
+            </button>
+          )}
           <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus() }} title={t('controlTower.refresh')}>
             ↻
           </button>
@@ -310,14 +320,36 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
                         <span>{order.targetSubproject}</span>
                       </div>
                     )}
-                    {onExecWorkOrder && (order.status === 'PENDING' || order.status === 'URGENT') && (
+                    <div className="ct-order-actions">
+                      {onExecWorkOrder && (order.status === 'PENDING' || order.status === 'URGENT') && (
+                        <button
+                          className="ct-exec-btn"
+                          onClick={e => { e.stopPropagation(); onExecWorkOrder(order.id) }}
+                        >
+                          ▶ {t('controlTower.execute')}
+                        </button>
+                      )}
+                      {onDoneWorkOrder && DONE_ELIGIBLE.has(order.status) && (
+                        <button
+                          className="ct-done-btn"
+                          onClick={e => { e.stopPropagation(); onDoneWorkOrder(order.id) }}
+                        >
+                          🔧 {t('controlTower.done')}
+                        </button>
+                      )}
                       <button
-                        className="ct-exec-btn"
-                        onClick={e => { e.stopPropagation(); onExecWorkOrder(order.id) }}
+                        className="ct-view-file-btn"
+                        onClick={e => {
+                          e.stopPropagation()
+                          if (!ctDirPath) return
+                          const filePath = `${ctDirPath}/${order.filename}`
+                          window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
+                          window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
+                        }}
                       >
-                        ▶ {t('controlTower.execute')}
+                        📄 {t('controlTower.viewFile')}
                       </button>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -328,7 +360,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
       {activeTab === 'kanban' && (
         <div className="ct-tab-content">
-          <KanbanView workOrders={workOrders} onExecWorkOrder={onExecWorkOrder} />
+          <KanbanView workOrders={workOrders} onExecWorkOrder={onExecWorkOrder} onDoneWorkOrder={onDoneWorkOrder} />
         </div>
       )}
 

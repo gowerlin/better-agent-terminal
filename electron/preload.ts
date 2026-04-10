@@ -151,6 +151,12 @@ const electronAPI = {
       ipcRenderer.invoke('claude:cleanup-worktree', sessionId, deleteBranch) as Promise<boolean>,
     scanSkills: (cwd: string) =>
       ipcRenderer.invoke('claude:scan-skills', cwd) as Promise<{ name: string; description: string; scope: 'project' | 'global' }[]>,
+    getStatuslineExtras: () =>
+      ipcRenderer.invoke('claude:get-statusline-extras') as Promise<{
+        accountLabel?: string; planLabel?: string
+        memsync?: { status: string; queueSize: number; age: string }
+        rateLimits?: { five_hour?: { used_percentage: number; resets_at: number }; seven_day?: { used_percentage: number; resets_at: number } }
+      }>,
     getSessionMeta: (sessionId: string) =>
       ipcRenderer.invoke('claude:get-session-meta', sessionId) as Promise<Record<string, unknown> | null>,
     getContextUsage: (sessionId: string) =>

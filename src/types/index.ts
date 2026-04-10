@@ -249,6 +249,9 @@ export type StatuslineItemId =
   | 'contextPct' | 'cost' | 'workspace' | 'gitBranch'
   | 'usage5h' | 'usage5hReset' | 'usage7d' | 'usage7dReset'
   | 'maxOut' | 'cacheEff' | 'prompts'
+  | 'lastReqDuration'
+  | 'lastReqDuration'
+  | 'accountLabel' | 'memsync'
 
 export interface StatuslineItemConfig {
   id: StatuslineItemId
@@ -281,7 +284,11 @@ export const STATUSLINE_ITEMS: StatuslineItemDef[] = [
   { id: 'usage7dReset', label: '7d Reset',     description: '7-day usage reset countdown',                        defaultVisible: true,  group: 'limits' },
   { id: 'maxOut',        label: 'Max Output',   description: 'Maximum output tokens for current model',            defaultVisible: false, group: 'context' },
   { id: 'cacheEff',     label: 'Cache Eff.',   description: 'Cache read efficiency (cache_read / total_input)',   defaultVisible: false, group: 'context' },
+  { id: 'lastReqDuration', label: 'Last Req',   description: 'Duration of the last request/response round-trip',   defaultVisible: true,  group: 'timing' },
   { id: 'prompts',      label: 'Prompts',      description: 'Link to view prompt history',                        defaultVisible: true,  group: 'actions' },
+  { id: 'lastReqDuration', label: 'Last Req',   description: 'Duration of the last request/response round-trip',   defaultVisible: true,  group: 'timing' },
+  { id: 'accountLabel',  label: 'Account',      description: 'Account label and plan (from ~/.claude/cache)',       defaultVisible: true,  group: 'session' },
+  { id: 'memsync',       label: 'Memsync',      description: 'Memory sync queue status',                           defaultVisible: true,  group: 'session' },
 ]
 
 // Docking system types

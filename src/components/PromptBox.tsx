@@ -64,14 +64,31 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && e.ctrlKey && !e.nativeEvent.isComposing) {
+    if (e.key === 'Enter' && e.altKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
-      handleSend()
+      const textarea = textareaRef.current
+      if (textarea) {
+        const { selectionStart, selectionEnd } = textarea
+        const newText = text.slice(0, selectionStart) + '\n' + text.slice(selectionEnd)
+        setText(newText)
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = selectionStart + 1
+        })
+      }
       return
     }
     if (e.key === 'Escape') {
       e.preventDefault()
-      textareaRef.current?.blur()
+      setText('')
+      setImagePath(null)
+      setHistoryIndex(-1)
+      draftRef.current = ''
+      return
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      handleSend()
       return
     }
 

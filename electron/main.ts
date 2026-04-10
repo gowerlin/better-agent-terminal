@@ -1054,16 +1054,21 @@ function registerProxiedHandlers() {
     const pathMod = await import('path')
     const results: { name: string; description: string; scope: 'project' | 'global' }[] = []
     const homePath = app.getPath('home')
-    const dirs: { dir: string; scope: 'project' | 'global' }[] = [
+    const seen = new Set<string>()
+
+    // 1. Scan .claude/commands/ (flat .md files)
+    const commandDirs: { dir: string; scope: 'project' | 'global' }[] = [
       { dir: pathMod.join(cwd, '.claude', 'commands'), scope: 'project' },
       { dir: pathMod.join(homePath, '.claude', 'commands'), scope: 'global' },
     ]
-    for (const { dir, scope } of dirs) {
+    for (const { dir, scope } of commandDirs) {
       try {
         if (!fs.existsSync(dir)) continue
         const files = fs.readdirSync(dir).filter((f: string) => f.endsWith('.md'))
         for (const file of files) {
           const name = file.replace(/\.md$/, '')
+          if (seen.has(name)) continue
+          seen.add(name)
           try {
             const content = fs.readFileSync(pathMod.join(dir, file), 'utf-8')
             const firstLine = content.split('\n').find((l: string) => l.trim()) || ''
@@ -1075,7 +1080,114 @@ function registerProxiedHandlers() {
         }
       } catch { /* directory doesn't exist or not readable */ }
     }
+
+    // 2. Scan skill directories (subdirs with SKILL.md)
+    const skillDirs: { dir: string; scope: 'project' | 'global' }[] = [
+      { dir: pathMod.join(cwd, '.claude', 'skills'), scope: 'project' },
+      { dir: pathMod.join(cwd, '.copilot', 'skills'), scope: 'project' },
+      { dir: pathMod.join(cwd, '.agents', 'skills'), scope: 'project' },
+      { dir: pathMod.join(homePath, '.claude', 'skills'), scope: 'global' },
+      { dir: pathMod.join(homePath, '.copilot', 'skills'), scope: 'global' },
+      { dir: pathMod.join(homePath, '.agents', 'skills'), scope: 'global' },
+    ]
+    for (const { dir, scope } of skillDirs) {
+      try {
+        if (!fs.existsSync(dir)) continue
+        const entries = fs.readdirSync(dir, { withFileTypes: true })
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue
+          const name = entry.name
+          if (seen.has(name)) continue
+          const skillFile = pathMod.join(dir, name, 'SKILL.md')
+          if (!fs.existsSync(skillFile)) continue
+          seen.add(name)
+          try {
+            const content = fs.readFileSync(skillFile, 'utf-8')
+            // Extract description from YAML frontmatter or first heading
+            let description = ''
+            const lines = content.split('\n')
+            const hasFrontmatter = lines[0]?.trim() === '---'
+            if (hasFrontmatter) {
+              // Parse YAML frontmatter for description field
+              for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '---') break
+                const match = lines[i].match(/^description:\s*"?(.+?)"?\s*$/)
+                if (match) { description = match[1]; break }
+              }
+            }
+            if (!description) {
+              // Fallback: first non-empty, non-frontmatter line
+              let inFrontmatter = hasFrontmatter
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (inFrontmatter) { if (trimmed === '---' && line !== lines[0]) inFrontmatter = false; continue }
+                if (!trimmed) continue
+                description = trimmed.replace(/^#\s*/, '').trim()
+                break
+              }
+            }
+            results.push({ name, description, scope })
+          } catch {
+            results.push({ name, description: '', scope })
+          }
+        }
+      } catch { /* directory doesn't exist or not readable */ }
+    }
+
     return results
+  })
+
+  // Read statusline extras: account label + plan, memsync status, cached rate limits
+  registerHandler('claude:get-statusline-extras', async (_ctx) => {
+    const homePath = app.getPath('home')
+    const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(homePath, '.claude')
+    const result: {
+      accountLabel?: string
+      planLabel?: string
+      memsync?: { status: string; queueSize: number; age: string }
+      rateLimits?: { five_hour?: { used_percentage: number; resets_at: number }; seven_day?: { used_percentage: number; resets_at: number } }
+    } = {}
+
+    // Account label + plan
+    try {
+      const labelFile = path.join(claudeDir, 'account-label.txt')
+      if (fsSync.existsSync(labelFile)) {
+        result.accountLabel = fsSync.readFileSync(labelFile, 'utf-8').trim()
+      }
+    } catch { /* silent */ }
+    try {
+      const cacheFile = path.join(claudeDir, 'cache', 'account-label.json')
+      if (fsSync.existsSync(cacheFile)) {
+        const cached = JSON.parse(fsSync.readFileSync(cacheFile, 'utf-8'))
+        if (!result.accountLabel) result.accountLabel = cached.label || cached.email || ''
+        result.planLabel = cached.planLabel || ''
+      }
+    } catch { /* silent */ }
+
+    // Memsync status
+    try {
+      const statusFile = path.join(claudeDir, 'cache', 'memsync', 'status.json')
+      if (fsSync.existsSync(statusFile)) {
+        const ms = JSON.parse(fsSync.readFileSync(statusFile, 'utf-8'))
+        const queueSize = Number(ms.queue_size || 0)
+        const resultStr = String(ms.result || '')
+        const updatedAt = ms.updated_at ? new Date(ms.updated_at).getTime() : 0
+        const ageSec = updatedAt > 0 ? Math.max(0, Math.floor((Date.now() - updatedAt) / 1000)) : 0
+        const ageLabel = ageSec > 0 ? (ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec / 60)}m`) : ''
+        result.memsync = { status: resultStr, queueSize, age: ageLabel }
+      }
+    } catch { /* silent */ }
+
+    // Cached rate limits (written by gsd-statusline hook)
+    try {
+      const rlFile = path.join(claudeDir, 'cache', 'rate-limits.json')
+      if (fsSync.existsSync(rlFile)) {
+        const rl = JSON.parse(fsSync.readFileSync(rlFile, 'utf-8'))
+        result.rateLimits = rl
+      }
+    } catch { /* silent */ }
+
+    return result
   })
   registerHandler('claude:get-session-meta', (_ctx, sessionId: string) => claudeManager?.getSessionMeta(sessionId))
   registerHandler('claude:get-context-usage', (_ctx, sessionId: string) => claudeManager?.getContextUsage(sessionId))

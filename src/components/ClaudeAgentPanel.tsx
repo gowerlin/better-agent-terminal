@@ -212,7 +212,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     mcpTools?: { name: string; serverName: string; tokens: number; isLoaded?: boolean }[]
   } | null>(null)
   const [accountInfo, setAccountInfo] = useState<{ email?: string; organization?: string; subscriptionType?: string } | null>(null)
+  const [statuslineExtras, setStatuslineExtras] = useState<{ accountLabel?: string; planLabel?: string; memsync?: { status: string; queueSize: number; age: string }; rateLimits?: { five_hour?: { used_percentage: number; resets_at: number }; seven_day?: { used_percentage: number; resets_at: number } } }>({})
   const [slashCommands, setSlashCommands] = useState<SlashCommandInfo[]>([])
+  const [fsSkills, setFsSkills] = useState<SlashCommandInfo[]>([])
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const showSlashMenuRef = useRef(false)
   const [slashFilter, setSlashFilter] = useState('')
@@ -886,6 +888,25 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     window.electronAPI.git.getBranch(cwd).then(branch => setGitBranch(branch)).catch(() => setGitBranch(null))
   }, [cwd])
 
+  // Scan filesystem skills (.claude/commands/) for slash command menu
+  useEffect(() => {
+    if (!cwd) return
+    window.electronAPI.claude.scanSkills(cwd).then(results => {
+      setFsSkills(results.map(r => ({ name: r.name, description: r.description, argumentHint: '' })))
+    }).catch(() => setFsSkills([]))
+  }, [cwd])
+
+  // Poll statusline extras (account label, memsync) every 30s
+  useEffect(() => {
+    const fetch = () => window.electronAPI.claude.getStatuslineExtras().then(d => {
+      window.electronAPI?.debug?.log?.(`[statusline-extras] ${JSON.stringify(d)}`)
+      setStatuslineExtras(d)
+    }).catch(() => {})
+    fetch()
+    const timer = setInterval(fetch, 30000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Fetch subagent messages from SDK when task modal opens (for completed tasks with no streamed messages)
   useEffect(() => {
     if (!taskModal) return
@@ -1316,7 +1337,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   const filteredSlashCommands = useMemo(() => {
     if (!showSlashMenu) return []
     const q = slashFilter.toLowerCase()
-    // Include our custom commands plus SDK commands
+    // Include our custom commands plus SDK commands plus filesystem skills
     const builtIn: SlashCommandInfo[] = [
       { name: 'new', description: 'Reset session (clear conversation)', argumentHint: '' },
       { name: 'clear', description: 'Reset session (same as /new)', argumentHint: '' },
@@ -1327,9 +1348,22 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       { name: 'logout', description: 'Sign out of Claude', argumentHint: '' },
       { name: 'whoami', description: 'Show current account info', argumentHint: '' },
     ]
-    const all = [...builtIn, ...slashCommands]
-    return q ? all.filter(c => c.name.toLowerCase().includes(q)) : all
-  }, [showSlashMenu, slashFilter, slashCommands])
+    // Deduplicate: builtIn → fsSkills (SKILL.md has real descriptions) → SDK fallback
+    const seen = new Set(builtIn.map(c => c.name))
+    const fsFiltered = fsSkills.filter(c => { if (seen.has(c.name)) return false; seen.add(c.name); return true })
+    const sdkFiltered = slashCommands.filter(c => { if (seen.has(c.name)) return false; seen.add(c.name); return true })
+    const all = [...builtIn, ...fsFiltered, ...sdkFiltered]
+    if (!q) return all
+    // Partition: prefix matches first, then fuzzy (contains but not prefix)
+    const prefix: SlashCommandInfo[] = []
+    const fuzzy: SlashCommandInfo[] = []
+    for (const c of all) {
+      const lower = c.name.toLowerCase()
+      if (lower.startsWith(q)) prefix.push(c)
+      else if (lower.includes(q)) fuzzy.push(c)
+    }
+    return [...prefix, ...fuzzy]
+  }, [showSlashMenu, slashFilter, slashCommands, fsSkills])
 
   // Auto-resize textarea to fit content
   const autoResizeTextarea = useCallback(() => {
@@ -1386,6 +1420,30 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     if (e.key === 'Tab' && e.shiftKey) {
       e.preventDefault()
       handlePermissionModeCycle()
+      return
+    }
+    // Alt+Enter: insert newline
+    if (e.key === 'Enter' && e.altKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      const ta = textareaRef.current
+      if (ta) {
+        const { selectionStart, selectionEnd } = ta
+        const cur = inputValueRef.current
+        const newVal = cur.slice(0, selectionStart) + '\n' + cur.slice(selectionEnd)
+        setInputValue(newVal)
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = selectionStart + 1
+        })
+      }
+      return
+    }
+    // Esc: clear input (when not streaming / not interrupted)
+    if (e.key === 'Escape' && !isStreaming && !isInterrupted) {
+      e.preventDefault()
+      clearInput()
+      setAttachedImages([])
+      inputHistoryIndexRef.current = -1
+      inputDraftRef.current = ''
       return
     }
     // Tab with empty input + prompt suggestion → auto-fill suggestion
@@ -1453,7 +1511,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       e.preventDefault()
       handleSend()
     }
-  }, [handleSend, handlePermissionModeCycle, setInputValue, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect, promptSuggestion])
+  }, [handleSend, handlePermissionModeCycle, setInputValue, clearInput, setAttachedImages, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect, promptSuggestion, isStreaming, isInterrupted])
 
   const handleModelCycle = useCallback(async () => {
     if (availableModels.length === 0) return
@@ -1582,6 +1640,24 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   useEffect(() => {
     if (!isActive) return
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+= / Ctrl+NumpadAdd for zoom in
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === '=' || e.key === '+' || e.key === 'Add')) {
+        e.preventDefault()
+        settingsStore.zoomIn()
+        return
+      }
+      // Ctrl+- / Ctrl+NumpadSubtract for zoom out
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === '-' || e.key === 'Subtract')) {
+        e.preventDefault()
+        settingsStore.zoomOut()
+        return
+      }
+      // Ctrl+0 / Ctrl+Numpad0 for reset zoom
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === '0') {
+        e.preventDefault()
+        settingsStore.resetZoom()
+        return
+      }
       // Ctrl+P: open file picker
       if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
         e.preventDefault()
@@ -1689,8 +1765,23 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); handlePermissionSelect(2); return }
       }
     }
+    // Ctrl+Mouse Wheel zoom (font size)
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        if (e.deltaY < 0) {
+          settingsStore.zoomIn()
+        } else if (e.deltaY > 0) {
+          settingsStore.zoomOut()
+        }
+      }
+    }
     window.addEventListener('keydown', handleGlobalKeyDown)
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown)
+      window.removeEventListener('wheel', handleWheel)
+    }
   }, [isActive, isStreaming, handleStop, pendingPermission, permissionFocus, handlePermissionSelect, showResumeList, showModelList, taskModal, contentModal, showFilePicker, filePickerPreview])
 
   const handleAskUserSubmit = useCallback(() => {
@@ -3013,7 +3104,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           onInput={handleInputChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={isInterrupted ? 'Type to continue, Esc to stop...' : isStreaming ? 'Press Esc to pause, double-Esc to stop...' : 'Type a message... (Enter to send, Shift+Tab to switch mode)'}
+          placeholder={isInterrupted ? 'Type to continue, Esc to stop...' : isStreaming ? 'Press Esc to pause, double-Esc to stop...' : 'Type a message... (Enter to send, Alt+Enter newline, Esc clear)'}
           disabled={false}
           rows={1}
         />
@@ -3351,17 +3442,23 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             <span key="turns" className="claude-statusline-item">{sessionMeta.numTurns} turns</span>
           ),
           duration: () => !sessionMeta || sessionMeta.durationMs <= 0 ? null : (
-            <span key="duration" className="claude-statusline-item">{(sessionMeta.durationMs / 1000).toFixed(1)}s</span>
+            <span key="duration" className="claude-statusline-item" title="Total session duration (sum of all requests)">{(sessionMeta.durationMs / 1000).toFixed(1)}s</span>
           ),
+          lastReqDuration: () => {
+            if (!sessionMeta || !sessionMeta.lastRequestDurationMs) return null
+            const sec = sessionMeta.lastRequestDurationMs / 1000
+            return <span key="lastReqDuration" className="claude-statusline-item" title="Last request/response duration">last {sec >= 60 ? `${Math.floor(sec / 60)}m${Math.round(sec % 60)}s` : `${sec.toFixed(1)}s`}</span>
+          },
           contextPct: () => {
             if (!sessionMeta || sessionMeta.contextWindow <= 0) return null
             const ctxTokens = sessionMeta.contextTokens || (sessionMeta.inputTokens + sessionMeta.outputTokens)
             const pct = Math.round((ctxTokens / sessionMeta.contextWindow) * 100)
             const ctxColor = pct >= 80 ? '#e05252' : pct >= 50 ? '#e6a700' : '#89ca78'
+            const capLabel = sessionMeta.contextWindow >= 1_000_000 ? `(${(sessionMeta.contextWindow / 1_000_000).toFixed(sessionMeta.contextWindow % 1_000_000 === 0 ? 0 : 1)}M)` : `(${Math.round(sessionMeta.contextWindow / 1000)}k)`
             return (
               <span key="contextPct" className="claude-statusline-item claude-statusline-clickable" style={{ color: ctxColor }} title={`context: ${ctxTokens.toLocaleString()} / ${sessionMeta.contextWindow.toLocaleString()} tokens\ntotal: ${(sessionMeta.inputTokens + sessionMeta.outputTokens).toLocaleString()} tok\nclick to show context breakdown`}
                 onClick={() => { window.electronAPI.claude.getContextUsage(sessionId).then(u => { if (u) setContextUsagePopup(u) }).catch(() => {}) }}>
-                ctx {pct}%
+                ctx {pct}%{capLabel}
               </span>
             )
           },
@@ -3374,27 +3471,33 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           },
           usage5h: () => {
             const rl = rateLimits['five_hour']
-            if (!rl || rl.utilization == null) return null
-            const pct = Math.round(rl.utilization * 100)
+            const cached = statuslineExtras.rateLimits?.five_hour
+            const pct = rl?.utilization != null ? Math.round(rl.utilization * 100) : cached ? Math.round(cached.used_percentage) : null
+            if (pct == null) return null
             const color = pct >= 80 ? '#e05252' : pct >= 50 ? '#e6a700' : '#89ca78'
             return <span key="usage5h" className="claude-statusline-item" style={{ color }} title={`5h usage: ${pct}%`}>5h:{pct}%</span>
           },
           usage5hReset: () => {
             const rl = rateLimits['five_hour']
-            if (!rl) return null
-            return <span key="usage5hReset" className="claude-statusline-item" title="5h rate limit resets at">↻{fmtRemaining(new Date(rl.resetsAt))}</span>
+            const cached = statuslineExtras.rateLimits?.five_hour
+            const resetsAt = rl?.resetsAt ?? (cached ? cached.resets_at * 1000 : null)
+            if (resetsAt == null) return null
+            return <span key="usage5hReset" className="claude-statusline-item" title="5h rate limit resets at">↻{fmtRemaining(new Date(resetsAt))}</span>
           },
           usage7d: () => {
             const rl = rateLimits['seven_day']
-            if (!rl || rl.utilization == null) return null
-            const pct = Math.round(rl.utilization * 100)
+            const cached = statuslineExtras.rateLimits?.seven_day
+            const pct = rl?.utilization != null ? Math.round(rl.utilization * 100) : cached ? Math.round(cached.used_percentage) : null
+            if (pct == null) return null
             const color = pct >= 80 ? '#e05252' : pct >= 50 ? '#e6a700' : '#89ca78'
             return <span key="usage7d" className="claude-statusline-item" style={{ color }} title={`7d usage: ${pct}%`}>7d:{pct}%</span>
           },
           usage7dReset: () => {
             const rl = rateLimits['seven_day']
-            if (!rl) return null
-            return <span key="usage7dReset" className="claude-statusline-item" title="7d rate limit resets at">↻{fmtRemaining(new Date(rl.resetsAt))}</span>
+            const cached = statuslineExtras.rateLimits?.seven_day
+            const resetsAt = rl?.resetsAt ?? (cached ? cached.resets_at * 1000 : null)
+            if (resetsAt == null) return null
+            return <span key="usage7dReset" className="claude-statusline-item" title="7d rate limit resets at">↻{fmtRemaining(new Date(resetsAt))}</span>
           },
           maxOut: () => !sessionMeta || !sessionMeta.maxOutputTokens ? null : (
             <span key="maxOut" className="claude-statusline-item" title={`Max output: ${sessionMeta.maxOutputTokens.toLocaleString()} tokens`}>
@@ -3419,6 +3522,26 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             <span key="prompts" className="claude-statusline-item claude-statusline-clickable"
               onClick={() => setShowPromptHistory(true)} title={t('claude.viewPromptHistory')}>{t('claude.prompts')}</span>
           ),
+          accountLabel: () => {
+            const label = statuslineExtras.accountLabel
+            window.electronAPI?.debug?.log?.(`[statusline-render] accountLabel="${label}" planLabel="${statuslineExtras.planLabel}"`)
+            if (!label) return null
+            const plan = statuslineExtras.planLabel
+            return <span key="accountLabel" className="claude-statusline-item" title={accountInfo?.email || ''}>{label}{plan ? ` - ${plan}` : ''}</span>
+          },
+          memsync: () => {
+            const ms = statuslineExtras.memsync
+            if (!ms || (!ms.status && ms.queueSize === 0)) return null
+            const ageStr = ms.age ? ` ${ms.age}` : ''
+            if (ms.status === 'ok' && ms.queueSize === 0) {
+              return <span key="memsync" className="claude-statusline-item" style={{ color: '#89ca78' }}>[sync✓{ageStr}]</span>
+            } else if (ms.status === 'offline') {
+              return <span key="memsync" className="claude-statusline-item" style={{ color: '#e6a700' }}>[offline q:{ms.queueSize}{ageStr}]</span>
+            } else if (ms.queueSize > 0) {
+              return <span key="memsync" className="claude-statusline-item" style={{ color: '#e6a700' }}>[queue:{ms.queueSize}{ageStr}]</span>
+            }
+            return <span key="memsync" className="claude-statusline-item" style={{ opacity: 0.6 }}>[{ms.status}{ageStr}]</span>
+          },
         }
 
         const renderZone = (align: 'left' | 'center' | 'right') => {
