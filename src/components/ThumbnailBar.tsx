@@ -71,13 +71,43 @@ export function ThumbnailBar({
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const [shellSubmenu, setShellSubmenu] = useState(false)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const addMenuPopupRef = useRef<HTMLDivElement>(null)
   const addBtnRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   // Platform-filtered shell options (exclude 'auto' — clicking the parent item does that)
   const platform = (window as any).electronAPI?.platform || 'darwin'
   const shellOptions = SHELL_OPTIONS.filter(opt => opt.id !== 'auto' && opt.id !== 'custom' && opt.platforms.includes(platform))
+
+  // Track horizontal scroll overflow
+  const updateScrollState = useCallback(() => {
+    const el = listRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 0)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }, [])
+
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState, { passive: true })
+    const ro = new ResizeObserver(updateScrollState)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateScrollState)
+      ro.disconnect()
+    }
+  }, [updateScrollState, terminals.length])
+
+  const scrollList = useCallback((direction: 'left' | 'right') => {
+    const el = listRef.current
+    if (!el) return
+    el.scrollBy({ left: direction === 'left' ? -220 : 220, behavior: 'smooth' })
+  }, [])
 
   // Close menu on outside click
   useEffect(() => {
@@ -309,9 +339,14 @@ export function ThumbnailBar({
           )}
         </div>
       </div>
-      <div
-        className="thumbnail-list"
-        onContextMenu={(e) => {
+      <div className="thumbnail-list-wrapper">
+        {canScrollLeft && (
+          <button className="thumbnail-scroll-btn thumbnail-scroll-left" onClick={() => scrollList('left')} title="Scroll left">‹</button>
+        )}
+        <div
+          ref={listRef}
+          className="thumbnail-list"
+          onContextMenu={(e) => {
           // Only trigger on the list background, not on individual thumbnails
           if ((e.target as HTMLElement).closest('.thumbnail')) return
           e.preventDefault()
@@ -347,6 +382,10 @@ export function ThumbnailBar({
             />
           </div>
         ))}
+        </div>
+        {canScrollRight && (
+          <button className="thumbnail-scroll-btn thumbnail-scroll-right" onClick={() => scrollList('right')} title="Scroll right">›</button>
+        )}
       </div>
     </div>
   )
