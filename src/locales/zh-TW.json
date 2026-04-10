@@ -422,6 +422,28 @@
     "started": "開始",
     "size": "規模",
     "risk": "風險",
-    "subproject": "子專案"
+    "subproject": "子專案",
+    "tab": {
+      "orders": "工單",
+      "kanban": "看板",
+      "sprint": "Sprint"
+    },
+    "lane": {
+      "TODO": "待辦",
+      "IN_PROGRESS": "進行中",
+      "REVIEW": "審查中",
+      "DONE": "已完成",
+      "BLOCKED": "已阻塞"
+    },
+    "toast": {
+      "completed": "已完成",
+      "started": "已啟動",
+      "newOrder": "新工單"
+    },
+    "validation": {
+      "title": "交叉比對",
+      "allMatch": "一致",
+      "mismatch": "項不一致"
+    }
   }
 }

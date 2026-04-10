@@ -403,6 +403,28 @@
     "started": "开始",
     "size": "规模",
     "risk": "风险",
-    "subproject": "子项目"
+    "subproject": "子项目",
+    "tab": {
+      "orders": "工单",
+      "kanban": "看板",
+      "sprint": "Sprint"
+    },
+    "lane": {
+      "TODO": "待办",
+      "IN_PROGRESS": "进行中",
+      "REVIEW": "审查中",
+      "DONE": "已完成",
+      "BLOCKED": "已阻塞"
+    },
+    "toast": {
+      "completed": "已完成",
+      "started": "已启动",
+      "newOrder": "新工单"
+    },
+    "validation": {
+      "title": "交叉比对",
+      "allMatch": "一致",
+      "mismatch": "项不一致"
+    }
   }
 }

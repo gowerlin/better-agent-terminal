@@ -8,6 +8,16 @@ import {
   statusColor,
   statusLabel,
 } from '../types/control-tower'
+import {
+  type SprintStatus,
+  parseSprintStatus,
+  getSprintYamlPaths,
+} from '../types/sprint-status'
+import { KanbanView } from './KanbanView'
+import { SprintProgress } from './SprintProgress'
+import { CtToast, useCtToast } from './CtToast'
+
+type CtTab = 'orders' | 'kanban' | 'sprint'
 
 interface ControlTowerPanelProps {
   isVisible: boolean
@@ -22,10 +32,69 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [hasCtDir, setHasCtDir] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<WorkOrderStatus | 'all'>('all')
+  const [activeTab, setActiveTab] = useState<CtTab>('orders')
+  const [sprintStatus, setSprintStatus] = useState<SprintStatus | null>(null)
   const ctDirRef = useRef<string | null>(null)
+  const prevOrdersRef = useRef<Map<string, WorkOrderStatus>>(new Map())
+  const { messages: toastMessages, addToast, dismissToast } = useCtToast()
 
   // Build _ct-workorders path
   const ctDirPath = workspaceFolderPath ? `${workspaceFolderPath}/_ct-workorders` : null
+
+  // Load sprint-status.yaml from multiple possible locations
+  const loadSprintStatus = useCallback(async () => {
+    if (!workspaceFolderPath) return
+    const paths = getSprintYamlPaths(workspaceFolderPath)
+
+    for (const yamlPath of paths) {
+      try {
+        const result = await window.electronAPI.fs.readFile(yamlPath)
+        if (result.content) {
+          const parsed = parseSprintStatus(result.content)
+          if (parsed) {
+            setSprintStatus(parsed)
+            return
+          }
+        }
+      } catch {
+        // Try next path
+      }
+    }
+    setSprintStatus(null)
+  }, [workspaceFolderPath])
+
+  // Detect work order status changes → toast notification
+  const detectStatusChanges = useCallback((newOrders: WorkOrder[]) => {
+    const prevMap = prevOrdersRef.current
+    if (prevMap.size === 0) {
+      // First load, just populate the map
+      const newMap = new Map<string, WorkOrderStatus>()
+      for (const wo of newOrders) newMap.set(wo.id, wo.status)
+      prevOrdersRef.current = newMap
+      return
+    }
+
+    for (const wo of newOrders) {
+      const prevStatus = prevMap.get(wo.id)
+      if (prevStatus && prevStatus !== wo.status) {
+        // Status changed
+        if (wo.status === 'DONE') {
+          addToast(`✅ ${wo.id} ${t('controlTower.toast.completed')}`, 'success', 6000)
+        } else if (wo.status === 'IN_PROGRESS' && prevStatus === 'PENDING') {
+          addToast(`🔄 ${wo.id} ${t('controlTower.toast.started')}`, 'info')
+        } else if (wo.status === 'BLOCKED' || wo.status === 'FAILED') {
+          addToast(`⚠️ ${wo.id} → ${statusLabel(wo.status)}`, 'warning')
+        }
+      } else if (!prevStatus) {
+        // New work order
+        addToast(`📋 ${t('controlTower.toast.newOrder')}: ${wo.id}`, 'info')
+      }
+    }
+
+    const newMap = new Map<string, WorkOrderStatus>()
+    for (const wo of newOrders) newMap.set(wo.id, wo.status)
+    prevOrdersRef.current = newMap
+  }, [addToast, t])
 
   // Load work orders from _ct-workorders/
   const loadWorkOrders = useCallback(async () => {
@@ -50,6 +119,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       }
       orders.sort((a, b) => (priority[a.status] ?? 99) - (priority[b.status] ?? 99))
 
+      detectStatusChanges(orders)
       setWorkOrders(orders)
       setHasCtDir(true)
     } catch {
@@ -58,13 +128,14 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     } finally {
       setLoading(false)
     }
-  }, [ctDirPath])
+  }, [ctDirPath, detectStatusChanges])
 
   // Initial load
   useEffect(() => {
     if (!isVisible || !ctDirPath) return
     loadWorkOrders()
-  }, [isVisible, ctDirPath, loadWorkOrders])
+    loadSprintStatus()
+  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus])
 
   // Watch _ct-workorders/ for changes
   useEffect(() => {
@@ -76,6 +147,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     const unsubscribe = window.electronAPI.fs.onChanged((changedPath: string) => {
       if (changedPath === ctDirRef.current) {
         loadWorkOrders()
+        loadSprintStatus()
       }
     })
 
@@ -85,7 +157,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         window.electronAPI.fs.unwatch(ctDirRef.current)
       }
     }
-  }, [isVisible, ctDirPath, loadWorkOrders])
+  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus])
 
   const filteredOrders = filterStatus === 'all'
     ? workOrders
@@ -127,13 +199,39 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
   return (
     <div className="ct-panel">
+      <CtToast messages={toastMessages} onDismiss={dismissToast} />
+
       <div className="ct-panel-header">
         <h3>{t('controlTower.title')}</h3>
         <div className="ct-header-actions">
-          <button className="ct-refresh-btn" onClick={loadWorkOrders} title={t('controlTower.refresh')}>
+          <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus() }} title={t('controlTower.refresh')}>
             ↻
           </button>
         </div>
+      </div>
+
+      {/* Sub-tabs: Orders | Kanban | Sprint */}
+      <div className="ct-tabs">
+        <button
+          className={`ct-tab${activeTab === 'orders' ? ' active' : ''}`}
+          onClick={() => setActiveTab('orders')}
+        >
+          {t('controlTower.tab.orders')}
+        </button>
+        <button
+          className={`ct-tab${activeTab === 'kanban' ? ' active' : ''}`}
+          onClick={() => setActiveTab('kanban')}
+        >
+          {t('controlTower.tab.kanban')}
+        </button>
+        {sprintStatus && (
+          <button
+            className={`ct-tab${activeTab === 'sprint' ? ' active' : ''}`}
+            onClick={() => setActiveTab('sprint')}
+          >
+            {t('controlTower.tab.sprint')}
+          </button>
+        )}
       </div>
 
       {/* Summary bar */}
@@ -144,84 +242,101 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         <span className="ct-badge ct-total">{workOrders.length} total</span>
       </div>
 
-      {/* Filter bar */}
-      <div className="ct-filter-bar">
-        {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'DONE'] as const).map(s => (
-          <button
-            key={s}
-            className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}
-            onClick={() => setFilterStatus(s)}
-          >
-            {s === 'all' ? t('controlTower.all') : s.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
+      {/* Tab content */}
+      {activeTab === 'orders' && (
+        <>
+          {/* Filter bar */}
+          <div className="ct-filter-bar">
+            {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'DONE'] as const).map(s => (
+              <button
+                key={s}
+                className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}
+                onClick={() => setFilterStatus(s)}
+              >
+                {s === 'all' ? t('controlTower.all') : s.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
 
-      {/* Work order list */}
-      <div className="ct-order-list">
-        {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
-        {!loading && filteredOrders.length === 0 && (
-          <div className="ct-empty-list">{t('controlTower.noOrders')}</div>
-        )}
-        {filteredOrders.map(order => (
-          <div
-            key={order.id}
-            className={`ct-order-card ${statusColor(order.status)}${expandedId === order.id ? ' expanded' : ''}`}
-            onClick={() => setExpandedId(prev => prev === order.id ? null : order.id)}
-          >
-            <div className="ct-order-header">
-              <span className="ct-order-id">{order.id}</span>
-              <span className="ct-order-title">{order.title}</span>
-              <span className={`ct-status-badge ${statusColor(order.status)}`}>
-                {statusLabel(order.status)}
-              </span>
-            </div>
+          {/* Work order list */}
+          <div className="ct-order-list">
+            {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
+            {!loading && filteredOrders.length === 0 && (
+              <div className="ct-empty-list">{t('controlTower.noOrders')}</div>
+            )}
+            {filteredOrders.map(order => (
+              <div
+                key={order.id}
+                className={`ct-order-card ${statusColor(order.status)}${expandedId === order.id ? ' expanded' : ''}`}
+                onClick={() => setExpandedId(prev => prev === order.id ? null : order.id)}
+              >
+                <div className="ct-order-header">
+                  <span className="ct-order-id">{order.id}</span>
+                  <span className="ct-order-title">{order.title}</span>
+                  <span className={`ct-status-badge ${statusColor(order.status)}`}>
+                    {statusLabel(order.status)}
+                  </span>
+                </div>
 
-            {expandedId === order.id && (
-              <div className="ct-order-detail">
-                {order.createdAt && (
-                  <div className="ct-detail-row">
-                    <span className="ct-detail-label">{t('controlTower.created')}</span>
-                    <span>{order.createdAt}</span>
+                {expandedId === order.id && (
+                  <div className="ct-order-detail">
+                    {order.createdAt && (
+                      <div className="ct-detail-row">
+                        <span className="ct-detail-label">{t('controlTower.created')}</span>
+                        <span>{order.createdAt}</span>
+                      </div>
+                    )}
+                    {order.startedAt && (
+                      <div className="ct-detail-row">
+                        <span className="ct-detail-label">{t('controlTower.started')}</span>
+                        <span>{order.startedAt}</span>
+                      </div>
+                    )}
+                    {order.estimatedSize && (
+                      <div className="ct-detail-row">
+                        <span className="ct-detail-label">{t('controlTower.size')}</span>
+                        <span>{order.estimatedSize}</span>
+                      </div>
+                    )}
+                    {order.contextRisk && (
+                      <div className="ct-detail-row">
+                        <span className="ct-detail-label">{t('controlTower.risk')}</span>
+                        <span>{order.contextRisk}</span>
+                      </div>
+                    )}
+                    {order.targetSubproject && (
+                      <div className="ct-detail-row">
+                        <span className="ct-detail-label">{t('controlTower.subproject')}</span>
+                        <span>{order.targetSubproject}</span>
+                      </div>
+                    )}
+                    {onExecWorkOrder && (order.status === 'PENDING' || order.status === 'URGENT') && (
+                      <button
+                        className="ct-exec-btn"
+                        onClick={e => { e.stopPropagation(); onExecWorkOrder(order.id) }}
+                      >
+                        ▶ {t('controlTower.execute')}
+                      </button>
+                    )}
                   </div>
-                )}
-                {order.startedAt && (
-                  <div className="ct-detail-row">
-                    <span className="ct-detail-label">{t('controlTower.started')}</span>
-                    <span>{order.startedAt}</span>
-                  </div>
-                )}
-                {order.estimatedSize && (
-                  <div className="ct-detail-row">
-                    <span className="ct-detail-label">{t('controlTower.size')}</span>
-                    <span>{order.estimatedSize}</span>
-                  </div>
-                )}
-                {order.contextRisk && (
-                  <div className="ct-detail-row">
-                    <span className="ct-detail-label">{t('controlTower.risk')}</span>
-                    <span>{order.contextRisk}</span>
-                  </div>
-                )}
-                {order.targetSubproject && (
-                  <div className="ct-detail-row">
-                    <span className="ct-detail-label">{t('controlTower.subproject')}</span>
-                    <span>{order.targetSubproject}</span>
-                  </div>
-                )}
-                {onExecWorkOrder && (order.status === 'PENDING' || order.status === 'URGENT') && (
-                  <button
-                    className="ct-exec-btn"
-                    onClick={e => { e.stopPropagation(); onExecWorkOrder(order.id) }}
-                  >
-                    ▶ {t('controlTower.execute')}
-                  </button>
                 )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
+
+      {activeTab === 'kanban' && (
+        <div className="ct-tab-content">
+          <KanbanView workOrders={workOrders} onExecWorkOrder={onExecWorkOrder} />
+        </div>
+      )}
+
+      {activeTab === 'sprint' && sprintStatus && (
+        <div className="ct-tab-content">
+          <SprintProgress sprint={sprintStatus} workOrders={workOrders} />
+        </div>
+      )}
     </div>
   )
 }

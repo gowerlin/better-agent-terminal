@@ -422,6 +422,28 @@
     "started": "Started",
     "size": "Size",
     "risk": "Risk",
-    "subproject": "Subproject"
+    "subproject": "Subproject",
+    "tab": {
+      "orders": "Orders",
+      "kanban": "Kanban",
+      "sprint": "Sprint"
+    },
+    "lane": {
+      "TODO": "To Do",
+      "IN_PROGRESS": "In Progress",
+      "REVIEW": "Review",
+      "DONE": "Done",
+      "BLOCKED": "Blocked"
+    },
+    "toast": {
+      "completed": "completed",
+      "started": "started",
+      "newOrder": "New work order"
+    },
+    "validation": {
+      "title": "Cross Validation",
+      "allMatch": "match",
+      "mismatch": "mismatch(es)"
+    }
   }
 }
