@@ -48,6 +48,8 @@
     "minimizeToTrayHint": "启用后，关闭窗口会最小化到系统托盘而非退出程序。右键点击托盘图标可完全退出。",
     "showDockBadge": "Dock 图标显示待处理数量",
     "showDockBadgeHint": "有待处理的操作（权限请求、用户问题）时，在 Dock 图标上显示数字徽章。",
+    "checkForUpdates": "自动检查版本更新",
+    "checkForUpdatesHint": "定期检查 GitHub 是否有新版本，有更新时显示通知。",
     "notifyOnComplete": "Agent 完成时发送系统通知",
     "notifyOnCompleteHint": "Agent 完成任务时发送系统通知。",
     "notifySound": "播放通知音效",
@@ -115,7 +117,9 @@
     "detachToWindow": "分离至新窗口",
     "wakeAgent": "唤醒 Agent",
     "restAgent": "休眠 Agent",
-    "closeWorkspace": "关闭工作区"
+    "closeWorkspace": "关闭工作区",
+    "collapseSidebar": "收起侧边栏",
+    "expandSidebar": "展开侧边栏"
   },
   "profiles": {
     "title": "配置文件",
@@ -150,7 +154,22 @@
     "terminal": "终端",
     "files": "文件",
     "git": "Git",
-    "github": "GitHub"
+    "github": "GitHub",
+    "snippets": "代码片段",
+    "skills": "Skills",
+    "agents": "Agents",
+    "maximizePanel": "最大化面板",
+    "restoreLayout": "还原版面布局",
+    "splitRight": "向右拆分",
+    "splitLeft": "向左拆分",
+    "unsplit": "取消拆分",
+    "pinLeft": "固定到左侧",
+    "pinRight": "固定到右侧",
+    "unpin": "取消固定",
+    "workspaces": "工作区",
+    "moveToLeft": "移至左侧面板",
+    "moveToMain": "移至主区域",
+    "moveToRight": "移至右侧面板"
   },
 
   "github": {

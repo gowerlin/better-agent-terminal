@@ -50,6 +50,8 @@
     "minimizeToTrayHint": "啟用後，關閉視窗會最小化到系統匣而非結束程式。右鍵點擊系統匣圖示可完全退出。",
     "showDockBadge": "Dock 圖示顯示待處理數量",
     "showDockBadgeHint": "有待處理的動作（權限請求、使用者問題）時，在 Dock 圖示上顯示數字徽章。",
+    "checkForUpdates": "自動檢查版本更新",
+    "checkForUpdatesHint": "定期檢查 GitHub 是否有新版本，有更新時顯示通知。",
     "notifyOnComplete": "Agent 完成時發送系統通知",
     "notifyOnCompleteHint": "Agent 完成任務時發送系統通知。",
     "notifySound": "播放通知音效",
@@ -118,7 +120,9 @@
     "detachToWindow": "分離至新視窗",
     "wakeAgent": "喚醒 Agent",
     "restAgent": "休眠 Agent",
-    "closeWorkspace": "關閉工作區"
+    "closeWorkspace": "關閉工作區",
+    "collapseSidebar": "收合側邊欄",
+    "expandSidebar": "展開側邊欄"
   },
 
   "profiles": {
@@ -155,7 +159,22 @@
     "terminal": "終端",
     "files": "檔案",
     "git": "Git",
-    "github": "GitHub"
+    "github": "GitHub",
+    "snippets": "程式碼片段",
+    "skills": "Skills",
+    "agents": "Agents",
+    "maximizePanel": "最大化面板",
+    "restoreLayout": "還原版面配置",
+    "splitRight": "向右分割",
+    "splitLeft": "向左分割",
+    "unsplit": "取消分割",
+    "pinLeft": "釘選至左側",
+    "pinRight": "釘選至右側",
+    "unpin": "取消釘選",
+    "workspaces": "工作區",
+    "moveToLeft": "移至左側面板",
+    "moveToMain": "移至主區域",
+    "moveToRight": "移至右側面板"
   },
 
   "github": {

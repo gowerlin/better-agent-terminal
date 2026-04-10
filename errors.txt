@@ -1,0 +1,239 @@
+src/App.tsx(8,25): error TS6133: 'clearInitializedWorkspaces' is declared but its value is never read.
+src/App.tsx(121,10): error TS6133: 'showSnippetSidebar' is declared but its value is never read.
+src/App.tsx(134,77): error TS2339: Property 'getDetachedId' does not exist on type '{ save: (data: string) => Promise<boolean>; load: () => Promise<string | null>; moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) => Promise<...>; onReload: (callback: () => void) => () => void; }'.
+src/App.tsx(344,32): error TS2339: Property 'newWindow' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(422,62): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/App.tsx(432,49): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/App.tsx(439,62): error TS2339: Property 'getWindowProfile' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(441,45): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/App.tsx(446,58): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/App.tsx(460,55): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/App.tsx(462,40): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/App.tsx(463,59): error TS2339: Property 'getWindowIndex' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(467,57): error TS2339: Property 'getWindowIndex' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(478,53): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/App.tsx(480,38): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/App.tsx(481,57): error TS2339: Property 'getWindowIndex' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(488,38): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/App.tsx(490,55): error TS2339: Property 'getWindowIndex' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(494,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/App.tsx(495,55): error TS2339: Property 'getWindowIndex' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(500,52): error TS2339: Property 'getWindowId' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(529,50): error TS2339: Property 'system' does not exist on type 'ElectronAPI'.
+src/App.tsx(530,26): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/App.tsx(530,53): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/App.tsx(537,54): error TS2339: Property 'onDetached' does not exist on type '{ save: (data: string) => Promise<boolean>; load: () => Promise<string | null>; moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) => Promise<...>; onReload: (callback: () => void) => () => void; }'.
+src/App.tsx(537,66): error TS7006: Parameter 'wsId' implicitly has an 'any' type.
+src/App.tsx(540,56): error TS2339: Property 'onReattached' does not exist on type '{ save: (data: string) => Promise<boolean>; load: () => Promise<string | null>; moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) => Promise<...>; onReload: (callback: () => void) => () => void; }'.
+src/App.tsx(540,70): error TS7006: Parameter 'wsId' implicitly has an 'any' type.
+src/App.tsx(561,26): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/App.tsx(561,53): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/App.tsx(581,40): error TS2339: Property 'detach' does not exist on type '{ save: (data: string) => Promise<boolean>; load: () => Promise<string | null>; moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) => Promise<...>; onReload: (callback: () => void) => () => void; }'.
+src/App.tsx(626,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/App.tsx(996,55): error TS2339: Property 'getWindowProfile' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/App.tsx(998,59): error TS2339: Property 'getWindowIndex' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/components/AgentsPanel.tsx(30,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/AgentsPanel.tsx(30,74): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/components/ClaudeAgentPanel.tsx(145,70): error TS2345: Argument of type '() => { model: string | undefined; sdkSessionId: string | undefined; totalCost: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; contextWindow: number; cacheReadTokens?: number; cacheCreationTokens?: number; } | null' is not assignable to parameter of type 'SessionMeta | (() => SessionMeta | null) | null'.
+  Type '() => { model: string | undefined; sdkSessionId: string | undefined; totalCost: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; contextWindow: number; cacheReadTokens?: number; cacheCreationTokens?: number; } | null' is not assignable to type '() => SessionMeta | null'.
+    Type '{ model: string | undefined; sdkSessionId: string | undefined; totalCost: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; contextWindow: number; cacheReadTokens?: number | undefined; cacheCreationTokens?: number | undefined; } | null' is not assignable to type 'SessionMeta | null'.
+      Type '{ model: string | undefined; sdkSessionId: string | undefined; totalCost: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; contextWindow: number; cacheReadTokens?: number | undefined; cacheCreationTokens?: number | undefined; }' is missing the following properties from type 'SessionMeta': maxOutputTokens, contextTokens
+src/components/ClaudeAgentPanel.tsx(169,10): error TS6133: 'claudeUsage' is declared but its value is never read.
+src/components/ClaudeAgentPanel.tsx(170,10): error TS6133: 'usageAccount' is declared but its value is never read.
+src/components/ClaudeAgentPanel.tsx(299,26): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(377,24): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(392,47): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(431,36): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(433,25): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(447,31): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(455,32): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(463,28): error TS2345: Argument of type '{ model: string | undefined; sdkSessionId: string | undefined; totalCost: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; contextWindow: number; cacheReadTokens?: number; cacheCreationTokens?: number; }' is not assignable to parameter of type 'SetStateAction<SessionMeta | null>'.
+  Type '{ model: string | undefined; sdkSessionId: string | undefined; totalCost: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; contextWindow: number; cacheReadTokens?: number | undefined; cacheCreationTokens?: number | undefined; }' is missing the following properties from type 'SessionMeta': maxOutputTokens, contextTokens
+src/components/ClaudeAgentPanel.tsx(510,28): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(535,30): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(635,66): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(712,67): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(734,28): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(745,31): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(755,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(795,62): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(820,28): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(824,28): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(839,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(839,64): error TS7006: Parameter 'meta' implicitly has an 'any' type.
+src/components/ClaudeAgentPanel.tsx(851,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(860,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(865,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(865,64): error TS7006: Parameter 'info' implicitly has an 'any' type.
+src/components/ClaudeAgentPanel.tsx(868,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(875,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(875,69): error TS7006: Parameter 'agentList' implicitly has an 'any' type.
+src/components/ClaudeAgentPanel.tsx(896,24): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(932,26): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(952,50): error TS2339: Property 'confirm' does not exist on type '{ selectFolder: () => Promise<string[] | null>; }'.
+src/components/ClaudeAgentPanel.tsx(957,50): error TS2339: Property 'confirm' does not exist on type '{ selectFolder: () => Promise<string[] | null>; }'.
+src/components/ClaudeAgentPanel.tsx(963,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(987,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(992,62): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(998,41): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1085,51): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1108,32): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1119,47): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1121,49): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1139,47): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1151,47): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1168,38): error TS2339: Property 'snippet' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1169,38): error TS2339: Property 'snippet' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1199,34): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1250,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1255,24): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1266,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1307,40): error TS2345: Argument of type '"default" | "bypassPermissions" | "acceptEdits" | "bypassPlan" | "plan"' is not assignable to parameter of type '"default" | "acceptEdits" | "plan"'.
+  Type '"bypassPermissions"' is not assignable to type '"default" | "acceptEdits" | "plan"'.
+src/components/ClaudeAgentPanel.tsx(1310,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1458,9): error TS6133: 'handleModelCycle' is declared but its value is never read.
+src/components/ClaudeAgentPanel.tsx(1463,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1470,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1502,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1509,28): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1515,28): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1530,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1545,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1557,26): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1557,89): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/components/ClaudeAgentPanel.tsx(1705,24): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1724,48): error TS2339: Property 'image' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1773,17): error TS2339: Property 'path' does not exist on type 'File'.
+src/components/ClaudeAgentPanel.tsx(1775,35): error TS2339: Property 'path' does not exist on type 'File'.
+src/components/ClaudeAgentPanel.tsx(1777,28): error TS2339: Property 'path' does not exist on type 'File'.
+src/components/ClaudeAgentPanel.tsx(1785,51): error TS2339: Property 'selectFiles' does not exist on type '{ selectFolder: () => Promise<string[] | null>; }'.
+src/components/ClaudeAgentPanel.tsx(1959,40): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(1959,67): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/components/ClaudeAgentPanel.tsx(2021,17): error TS2322: Type 'unknown' is not assignable to type 'string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined'.
+src/components/ClaudeAgentPanel.tsx(2045,40): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(2256,17): error TS2322: Type 'unknown' is not assignable to type 'string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined'.
+src/components/ClaudeAgentPanel.tsx(2551,17): error TS2322: Type 'unknown' is not assignable to type 'string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined'.
+src/components/ClaudeAgentPanel.tsx(2554,38): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(2653,11): error TS2322: Type 'unknown' is not assignable to type 'string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined'.
+src/components/ClaudeAgentPanel.tsx(2925,57): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(2950,54): error TS2339: Property 'confirm' does not exist on type '{ selectFolder: () => Promise<string[] | null>; }'.
+src/components/ClaudeAgentPanel.tsx(2952,42): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(2959,54): error TS2339: Property 'confirm' does not exist on type '{ selectFolder: () => Promise<string[] | null>; }'.
+src/components/ClaudeAgentPanel.tsx(2960,42): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(3330,66): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(3346,51): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(3346,90): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/components/ClaudeAgentPanel.tsx(3363,53): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/ClaudeAgentPanel.tsx(3363,92): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/components/FileTree.tsx(61,52): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(260,26): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(260,53): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/components/FileTree.tsx(270,26): error TS2339: Property 'image' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(270,61): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/components/FileTree.tsx(353,47): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(372,24): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(373,44): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(381,26): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(409,50): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(429,26): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/FileTree.tsx(429,49): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/components/GitHubPanel.tsx(113,34): error TS2638: Type '{}' may represent a primitive value, which is not permitted as the right operand of the 'in' operator.
+src/components/GitHubPanel.tsx(118,37): error TS2638: Type '{}' may represent a primitive value, which is not permitted as the right operand of the 'in' operator.
+src/components/GitHubPanel.tsx(150,32): error TS2638: Type '{}' may represent a primitive value, which is not permitted as the right operand of the 'in' operator.
+src/components/GitPanel.tsx(135,17): error TS2345: Argument of type '{ path: string; status: string; }[]' is not assignable to parameter of type 'SetStateAction<GitStatusEntry[]>'.
+  Type '{ path: string; status: string; }[]' is not assignable to type 'GitStatusEntry[]'.
+    Property 'file' is missing in type '{ path: string; status: string; }' but required in type 'GitStatusEntry'.
+src/components/GitPanel.tsx(156,25): error TS2345: Argument of type '{ path: string; status: string; }[]' is not assignable to parameter of type 'SetStateAction<GitStatusEntry[]>'.
+  Type '{ path: string; status: string; }[]' is not assignable to type 'GitStatusEntry[]'.
+    Property 'file' is missing in type '{ path: string; status: string; }' but required in type 'GitStatusEntry'.
+src/components/GitPanel.tsx(180,51): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/GitPanel.tsx(182,58): error TS7006: Parameter 'l' implicitly has an 'any' type.
+src/components/GitPanel.tsx(204,45): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/MarkdownPreviewPanel.tsx(19,24): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/MarkdownPreviewPanel.tsx(19,51): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/components/MarkdownPreviewPanel.tsx(27,14): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/components/MarkdownPreviewPanel.tsx(44,24): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/MarkdownPreviewPanel.tsx(47,38): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/MarkdownPreviewPanel.tsx(55,28): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/PathLinker.tsx(95,10): error TS6133: 'canPreview' is declared but its value is never read.
+src/components/PathLinker.tsx(218,26): error TS2339: Property 'image' does not exist on type 'ElectronAPI'.
+src/components/PathLinker.tsx(218,61): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/components/PathLinker.tsx(225,26): error TS2339: Property 'fs' does not exist on type 'ElectronAPI'.
+src/components/PathLinker.tsx(225,53): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/components/ProfilePanel.tsx(60,45): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(63,47): error TS2339: Property 'getWindowProfile' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/components/ProfilePanel.tsx(100,45): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(129,32): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(137,32): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(152,30): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(190,30): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(202,30): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(210,30): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(219,47): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/ProfilePanel.tsx(234,32): error TS2339: Property 'profile' does not exist on type 'ElectronAPI'.
+src/components/SettingsPanel.tsx(148,43): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/SettingsPanel.tsx(150,43): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/SettingsPanel.tsx(159,45): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/SettingsPanel.tsx(166,41): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/SettingsPanel.tsx(171,30): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/SettingsPanel.tsx(173,41): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/SettingsPanel.tsx(200,43): error TS2339: Property 'remote' does not exist on type 'ElectronAPI'.
+src/components/Sidebar.tsx(111,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/Sidebar.tsx(111,58): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/components/Sidebar.tsx(610,46): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/Sidebar.tsx(612,46): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/SkillsPanel.tsx(47,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/SkillsPanel.tsx(47,76): error TS7006: Parameter 'cmds' implicitly has an 'any' type.
+src/components/SkillsPanel.tsx(49,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/SkillsPanel.tsx(90,24): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/SkillsPanel.tsx(90,58): error TS7006: Parameter 'results' implicitly has an 'any' type.
+src/components/SnippetPanel.tsx(158,49): error TS2339: Property 'snippet' does not exist on type 'ElectronAPI'.
+src/components/SnippetPanel.tsx(160,49): error TS2339: Property 'snippet' does not exist on type 'ElectronAPI'.
+src/components/SnippetPanel.tsx(182,38): error TS2339: Property 'snippet' does not exist on type 'ElectronAPI'.
+src/components/SnippetPanel.tsx(191,38): error TS2339: Property 'snippet' does not exist on type 'ElectronAPI'.
+src/components/SnippetPanel.tsx(201,38): error TS2339: Property 'snippet' does not exist on type 'ElectronAPI'.
+src/components/TerminalPanel.tsx(10,58): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/TerminalPanel.tsx(84,57): error TS2339: Property 'confirm' does not exist on type '{ selectFolder: () => Promise<string[] | null>; }'.
+src/components/TerminalPanel.tsx(145,53): error TS2339: Property 'agentCommandSent' does not exist on type 'TerminalInstance'.
+src/components/TerminalPanel.tsx(145,91): error TS2339: Property 'hasUserInput' does not exist on type 'TerminalInstance'.
+src/components/TerminalPanel.tsx(150,80): error TS2339: Property 'hasUserInput' does not exist on type 'TerminalInstance'.
+src/components/TerminalPanel.tsx(150,113): error TS2339: Property 'agentCommandSent' does not exist on type 'TerminalInstance'.
+src/components/TerminalPanel.tsx(152,34): error TS2339: Property 'markAgentCommandSent' does not exist on type 'WorkspaceStore'.
+src/components/TerminalPanel.tsx(204,7): error TS2353: Object literal may only specify known properties, and 'scrollOnOutput' does not exist in type 'ITerminalOptions & ITerminalInitOnlyOptions'.
+src/components/TerminalPanel.tsx(209,46): error TS6133: 'event' is declared but its value is never read.
+src/components/TerminalPanel.tsx(311,24): error TS2339: Property 'markHasUserInput' does not exist on type 'WorkspaceStore'.
+src/components/TerminalThumbnail.tsx(100,22): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/TerminalThumbnail.tsx(100,40): error TS7006: Parameter 'sessionId' implicitly has an 'any' type.
+src/components/TerminalThumbnail.tsx(100,51): error TS7006: Parameter 'message' implicitly has an 'any' type.
+src/components/TerminalThumbnail.tsx(109,22): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/TerminalThumbnail.tsx(109,39): error TS7006: Parameter 'sessionId' implicitly has an 'any' type.
+src/components/TerminalThumbnail.tsx(109,50): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/components/TerminalThumbnail.tsx(130,58): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/ThumbnailBar.tsx(49,3): error TS6133: 'showAddButton' is declared but its value is never read.
+src/components/UpdateNotification.tsx(28,49): error TS2339: Property 'update' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(169,43): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(393,9): error TS6133: 'regularTerminals' is declared but its value is never read.
+src/components/WorkspaceView.tsx(395,9): error TS6133: 'isAgentFocused' is declared but its value is never read.
+src/components/WorkspaceView.tsx(405,64): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(577,46): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(582,49): error TS2339: Property 'worktree' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(692,43): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(711,28): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(713,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(718,30): error TS2339: Property 'worktree' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(732,34): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(733,34): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(766,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(774,32): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(776,32): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(813,9): error TS6133: 'pinnedTerminal' is declared but its value is never read.
+src/components/WorkspaceView.tsx(821,30): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/components/WorkspaceView.tsx(837,26): error TS2339: Property 'claude' does not exist on type 'ElectronAPI'.
+src/main.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/main.tsx(19,58): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/stores/settings-store.ts(238,41): error TS2339: Property 'setDockBadge' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/stores/settings-store.ts(364,25): error TS2345: Argument of type 'string' is not assignable to parameter of type 'StatuslineItemId'.
+src/stores/workspace-store.ts(212,11): error TS6133: 'existingTerminals' is declared but its value is never read.
+src/stores/workspace-store.ts(482,30): error TS2339: Property 'setDockBadge' does not exist on type '{ openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string | undefined; windowIds?: string[] | undefined; }>; getLaunchProfile: () => Promise<string | null>; }'.
+src/stores/workspace-store.ts(586,33): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.
+src/stores/workspace-store.ts(615,29): error TS2339: Property 'debug' does not exist on type 'ElectronAPI'.

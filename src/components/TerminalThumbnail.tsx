@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, memo } from 'react'
+import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import type { TerminalInstance } from '../types'
 import { ActivityIndicator } from './ActivityIndicator'
 import { settingsStore } from '../stores/settings-store'
@@ -118,14 +120,17 @@ const setupGlobalListener = () => {
 interface TerminalThumbnailProps {
   terminal: TerminalInstance
   isActive: boolean
+  isSplit?: boolean
   onClick: () => void
+  onSplitTerminal?: (id: string, side?: 'left' | 'right') => void
   onSetSupervisor?: (id: string) => void
   onClearSupervisor?: () => void
 }
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
 let thumbRenderCount = 0
-export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isActive, onClick, onSetSupervisor, onClearSupervisor }: TerminalThumbnailProps) {
+export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isActive, isSplit, onClick, onSplitTerminal, onSetSupervisor, onClearSupervisor }: TerminalThumbnailProps) {
+  const { t } = useTranslation()
   thumbRenderCount++
   if (thumbRenderCount <= 30 || thumbRenderCount % 50 === 0) {
     dlog(`[render] Thumbnail render #${thumbRenderCount} id=${terminal.id.slice(0,8)} active=${isActive}`)
@@ -186,7 +191,7 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
 
   return (
     <div
-      className={`thumbnail ${isActive ? 'active' : ''} ${isAgent ? 'agent-terminal' : ''} ${isSupervisor ? 'supervisor' : ''}`}
+      className={`thumbnail ${isActive ? 'active' : ''} ${isSplit ? 'split' : ''} ${isAgent ? 'agent-terminal' : ''} ${isSupervisor ? 'supervisor' : ''}`}
       onClick={onClick}
       onContextMenu={handleContextMenu}
       style={agentConfig ? { '--agent-color': agentConfig.color } as React.CSSProperties : undefined}
@@ -194,6 +199,7 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
       <div className="thumbnail-header">
         <div className={`thumbnail-title ${isAgent ? 'agent-terminal' : ''}`}>
           {isSupervisor && <span title="Supervisor" className="supervisor-badge">👁</span>}
+          {isSplit && <span title="Split" className="split-badge">⫿</span>}
           {isAgent && <span>{agentConfig?.icon}</span>}
           <span>{terminal.title}</span>
         </div>
@@ -202,12 +208,28 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
       <div className="thumbnail-preview" style={{ fontFamily }}>
         {preview || (isAgent ? '' : '$ _')}
       </div>
-      {ctxMenu && (
+      {ctxMenu && createPortal(
         <div
           className="context-menu"
           style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}
           onClick={e => e.stopPropagation()}
         >
+          {onSplitTerminal && (
+            isSplit ? (
+              <button className="context-menu-item" onClick={() => { onSplitTerminal(terminal.id); setCtxMenu(null) }}>
+                ✕ {t('workspace.unsplit')}
+              </button>
+            ) : (
+              <>
+                <button className="context-menu-item" onClick={() => { onSplitTerminal(terminal.id, 'left'); setCtxMenu(null) }}>
+                  ◧ {t('workspace.splitLeft')}
+                </button>
+                <button className="context-menu-item" onClick={() => { onSplitTerminal(terminal.id, 'right'); setCtxMenu(null) }}>
+                  ◨ {t('workspace.splitRight')}
+                </button>
+              </>
+            )
+          )}
           {isSupervisor ? (
             <button className="context-menu-item" onClick={() => { onClearSupervisor?.(); setCtxMenu(null) }}>
               ✕ Remove Supervisor
@@ -217,7 +239,8 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               👁 Set as Supervisor
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

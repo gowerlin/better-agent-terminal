@@ -25,6 +25,12 @@ export function UpdateNotification() {
   useEffect(() => {
     const checkUpdate = async () => {
       try {
+        // Respect user setting to disable update checks
+        const settings = await window.electronAPI.settings.load()
+        if (settings?.checkForUpdates === false) {
+          setChecking(false)
+          return
+        }
         const result = await window.electronAPI.update.check()
         setUpdateInfo(result)
       } catch (error) {

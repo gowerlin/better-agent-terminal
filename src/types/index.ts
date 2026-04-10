@@ -225,6 +225,7 @@ export interface AppSettings {
   statuslineItems?: StatuslineItemConfig[];  // 自訂 statusline 項目排序和顯示
   collapseToolOutputs?: boolean;  // 預設折疊所有工具輸出（預設 false = 展開）
   minimizeToTray?: boolean;  // 關閉視窗時最小化到系統匣（預設 false = 直接關閉）
+  checkForUpdates?: boolean;  // 是否自動檢查版本更新（預設 true）
 }
 
 // ============================================
@@ -282,3 +283,19 @@ export const STATUSLINE_ITEMS: StatuslineItemDef[] = [
   { id: 'cacheEff',     label: 'Cache Eff.',   description: 'Cache read efficiency (cache_read / total_input)',   defaultVisible: false, group: 'context' },
   { id: 'prompts',      label: 'Prompts',      description: 'Link to view prompt history',                        defaultVisible: true,  group: 'actions' },
 ]
+
+// Docking system types
+export type DockZone = 'left' | 'main' | 'right'
+export type DockablePanel = 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents'
+export type DockingConfig = Record<DockablePanel, DockZone>
+
+export const DOCKABLE_PANELS: DockablePanel[] = ['files', 'git', 'github', 'snippets', 'skills', 'agents']
+
+export const DEFAULT_DOCKING_CONFIG: DockingConfig = {
+  files: 'main',
+  git: 'main',
+  github: 'main',
+  snippets: 'right',
+  skills: 'right',
+  agents: 'right',
+}

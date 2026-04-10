@@ -44,6 +44,8 @@
     "defaultModelHint": "Model ID used for new Agent sessions. Leave empty to use SDK default.",
     "defaultEffort": "Default Effort Level",
     "defaultEffortHint": "Effort level used for new Agent sessions. Higher effort = more thorough but slower.",
+    "checkForUpdates": "Check for updates automatically",
+    "checkForUpdatesHint": "Periodically check GitHub for new releases and show a notification when an update is available.",
     "notifications": "Notifications",
     "windowBehavior": "Window Behavior",
     "minimizeToTray": "Minimize to system tray on close",
@@ -118,7 +120,9 @@
     "detachToWindow": "Detach to Window",
     "wakeAgent": "Wake Agent",
     "restAgent": "Rest Agent",
-    "closeWorkspace": "Close Workspace"
+    "closeWorkspace": "Close Workspace",
+    "collapseSidebar": "Collapse Sidebar",
+    "expandSidebar": "Expand Sidebar"
   },
 
   "profiles": {
@@ -155,7 +159,22 @@
     "terminal": "Terminal",
     "files": "Files",
     "git": "Git",
-    "github": "GitHub"
+    "github": "GitHub",
+    "snippets": "Snippets",
+    "skills": "Skills",
+    "agents": "Agents",
+    "maximizePanel": "Maximize Panel",
+    "restoreLayout": "Restore Layout",
+    "splitRight": "Split Right",
+    "splitLeft": "Split Left",
+    "unsplit": "Unsplit",
+    "pinLeft": "Pin Left",
+    "pinRight": "Pin Right",
+    "unpin": "Unpin",
+    "workspaces": "Workspaces",
+    "moveToLeft": "Move to Left Panel",
+    "moveToMain": "Move to Main Area",
+    "moveToRight": "Move to Right Panel"
   },
 
   "github": {

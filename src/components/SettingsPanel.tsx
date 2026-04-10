@@ -445,6 +445,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <label>
                 <input
                   type="checkbox"
+                  checked={settings.checkForUpdates !== false}
+                  onChange={e => settingsStore.setCheckForUpdates(e.target.checked)}
+                />
+                {t('settings.checkForUpdates')}
+              </label>
+              <p className="settings-hint">{t('settings.checkForUpdatesHint')}</p>
+            </div>
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
                   checked={settings.showDockBadge !== false}
                   onChange={e => settingsStore.setShowDockBadge(e.target.checked)}
                 />

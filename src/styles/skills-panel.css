@@ -83,6 +83,75 @@
   color: var(--text-primary, #ccc);
 }
 
+/* Left sidebar tab bar (docking) */
+.left-sidebar-wrapper {
+  background: var(--bg-secondary, #1e1e1e);
+  border-right: 1px solid var(--border-color, #333);
+  flex-shrink: 0;
+}
+
+.left-sidebar-tabs {
+  display: flex;
+  align-items: center;
+  padding: 4px 4px 0;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-color, #333);
+  background: var(--bg-secondary, #1e1e1e);
+  flex-shrink: 0;
+}
+
+.left-sidebar-tab {
+  flex: 1;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #888);
+  font-size: 11px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.left-sidebar-tab:hover {
+  color: var(--text-primary, #ccc);
+}
+
+.left-sidebar-tab.active {
+  color: var(--text-primary, #ccc);
+  border-bottom-color: var(--accent-color, #58a6ff);
+}
+
+.left-sidebar-collapse {
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #888);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.left-sidebar-collapse:hover {
+  color: var(--text-primary, #ccc);
+}
+
+/* Docked panel content in sidebars */
+.left-sidebar-wrapper .workspace-tab-content,
+.right-sidebar-wrapper .workspace-tab-content {
+  height: 100%;
+  overflow: auto;
+}
+
+/* Context menu separator for dock options */
+.context-menu-separator {
+  height: 1px;
+  background: var(--border-color, #333);
+  margin: 4px 0;
+}
+
 /* Skills panel */
 .skills-sidebar {
   display: flex;
