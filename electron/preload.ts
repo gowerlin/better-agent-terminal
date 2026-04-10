@@ -151,6 +151,8 @@ const electronAPI = {
       ipcRenderer.invoke('claude:cleanup-worktree', sessionId, deleteBranch) as Promise<boolean>,
     scanSkills: (cwd: string) =>
       ipcRenderer.invoke('claude:scan-skills', cwd) as Promise<{ name: string; description: string; scope: 'project' | 'global' }[]>,
+    scanStarCommands: () =>
+      ipcRenderer.invoke('claude:scan-star-commands') as Promise<{ name: string; description: string; prefix: 'ct' | 'gsd' }[]>,
     getStatuslineExtras: () =>
       ipcRenderer.invoke('claude:get-statusline-extras') as Promise<{
         accountLabel?: string; planLabel?: string

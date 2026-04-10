@@ -219,6 +219,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   const showSlashMenuRef = useRef(false)
   const [slashFilter, setSlashFilter] = useState('')
   const [slashMenuIndex, setSlashMenuIndex] = useState(0)
+  // Star (*) command menu state
+  const [starCommands, setStarCommands] = useState<{ name: string; description: string; prefix: 'ct' | 'gsd' }[]>([])
+  const [showStarMenu, setShowStarMenu] = useState(false)
+  const showStarMenuRef = useRef(false)
+  const [starFilter, setStarFilter] = useState('')
+  const [starMenuIndex, setStarMenuIndex] = useState(0)
   // Ctrl+P file picker
   const [showFilePicker, setShowFilePicker] = useState(false)
   const [filePickerQuery, setFilePickerQuery] = useState('')
@@ -896,6 +902,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     }).catch(() => setFsSkills([]))
   }, [cwd])
 
+  // Scan star commands (ct-*, gsd-*) once on mount
+  useEffect(() => {
+    window.electronAPI.claude.scanStarCommands().then(results => {
+      setStarCommands(results)
+    }).catch(() => setStarCommands([]))
+  }, [])
+
   // Poll statusline extras (account label, memsync) every 30s
   useEffect(() => {
     const fetch = () => window.electronAPI.claude.getStatuslineExtras().then(d => {
@@ -1365,6 +1378,18 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     return [...prefix, ...fuzzy]
   }, [showSlashMenu, slashFilter, slashCommands, fsSkills])
 
+  useEffect(() => { showStarMenuRef.current = showStarMenu }, [showStarMenu])
+
+  // Filtered star commands based on current input
+  const filteredStarCommands = useMemo(() => {
+    if (!showStarMenu) return []
+    const q = starFilter.toLowerCase()
+    if (!q) return starCommands
+    const prefix = starCommands.filter(c => c.name.toLowerCase().startsWith(q))
+    const fuzzy = starCommands.filter(c => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q))
+    return [...prefix, ...fuzzy]
+  }, [showStarMenu, starFilter, starCommands])
+
   // Auto-resize textarea to fit content
   const autoResizeTextarea = useCallback(() => {
     const ta = textareaRef.current
@@ -1382,14 +1407,30 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       setShowSlashMenu(true)
       setSlashFilter(val.slice(1))
       setSlashMenuIndex(0)
+      if (showStarMenuRef.current) setShowStarMenu(false)
     } else if (showSlashMenuRef.current) {
       setShowSlashMenu(false)
+    }
+    // Show star command menu when typing * at the start
+    if (val.startsWith('*') && !val.includes(' ')) {
+      setShowStarMenu(true)
+      setStarFilter(val.slice(1))
+      setStarMenuIndex(0)
+      if (showSlashMenuRef.current) setShowSlashMenu(false)
+    } else if (showStarMenuRef.current) {
+      setShowStarMenu(false)
     }
   }, [])
 
   const handleSlashSelect = useCallback((cmd: SlashCommandInfo) => {
     setInputValue('/' + cmd.name)
     setShowSlashMenu(false)
+    textareaRef.current?.focus()
+  }, [setInputValue])
+
+  const handleStarSelect = useCallback((cmd: { name: string; prefix: 'ct' | 'gsd' }) => {
+    setInputValue('*' + cmd.name)
+    setShowStarMenu(false)
     textareaRef.current?.focus()
   }, [setInputValue])
 
@@ -1414,6 +1455,29 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       if (e.key === 'Escape') {
         e.preventDefault()
         setShowSlashMenu(false)
+        return
+      }
+    }
+    // Star command menu navigation
+    if (showStarMenu && filteredStarCommands.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setStarMenuIndex(prev => Math.min(prev + 1, filteredStarCommands.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setStarMenuIndex(prev => Math.max(prev - 1, 0))
+        return
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault()
+        handleStarSelect(filteredStarCommands[starMenuIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowStarMenu(false)
         return
       }
     }
@@ -1511,7 +1575,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       e.preventDefault()
       handleSend()
     }
-  }, [handleSend, handlePermissionModeCycle, setInputValue, clearInput, setAttachedImages, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect, promptSuggestion, isStreaming, isInterrupted])
+  }, [handleSend, handlePermissionModeCycle, setInputValue, clearInput, setAttachedImages, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect, showStarMenu, filteredStarCommands, starMenuIndex, handleStarSelect, promptSuggestion, isStreaming, isInterrupted])
 
   const handleModelCycle = useCallback(async () => {
     if (availableModels.length === 0) return
@@ -3092,6 +3156,23 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
                 onMouseEnter={() => setSlashMenuIndex(i)}
               >
                 <span className="claude-slash-name">/{cmd.name}</span>
+                <span className="claude-slash-desc">{cmd.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Star command autocomplete menu */}
+        {showStarMenu && filteredStarCommands.length > 0 && (
+          <div className="claude-slash-menu claude-star-menu">
+            {filteredStarCommands.slice(0, 10).map((cmd, i) => (
+              <div
+                key={`${cmd.prefix}-${cmd.name}`}
+                className={`claude-slash-item${i === starMenuIndex ? ' selected' : ''}`}
+                onClick={() => handleStarSelect(cmd)}
+                onMouseEnter={() => setStarMenuIndex(i)}
+              >
+                <span className="claude-slash-name">*{cmd.name}</span>
+                <span className="claude-slash-prefix">{cmd.prefix}</span>
                 <span className="claude-slash-desc">{cmd.description}</span>
               </div>
             ))}

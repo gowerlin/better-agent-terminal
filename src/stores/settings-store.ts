@@ -12,7 +12,7 @@ export const FONT_SIZE_MAX = 32
 export const FONT_SIZE_STEP = 1
 
 const defaultSettings: AppSettings = {
-  language: 'en',
+  language: 'zh-TW',
   shell: 'auto',
   customShellPath: '',
   fontSize: 14,
@@ -32,7 +32,8 @@ const defaultSettings: AppSettings = {
   createDefaultAgentTerminal: true,
   allowBypassPermissions: true,
   defaultModel: 'claude-opus-4-6',
-  minimizeToTray: false,
+  minimizeToTray: true,
+  checkForUpdates: false,
 }
 
 class SettingsStore {

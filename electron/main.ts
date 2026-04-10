@@ -1137,6 +1137,69 @@ function registerProxiedHandlers() {
     return results
   })
 
+  // Scan star commands (ct-*, gsd-*) from skill directories — used for * command autocomplete
+  registerHandler('claude:scan-star-commands', async (_ctx) => {
+    const fs = await import('fs')
+    const pathMod = await import('path')
+    const homePath = app.getPath('home')
+    const results: { name: string; description: string; prefix: 'ct' | 'gsd' }[] = []
+    const seen = new Set<string>()
+
+    const skillDirs = [
+      pathMod.join(homePath, '.claude', 'skills'),
+      pathMod.join(homePath, '.copilot', 'skills'),
+      pathMod.join(homePath, '.agents', 'skills'),
+    ]
+
+    for (const dir of skillDirs) {
+      try {
+        if (!fs.existsSync(dir)) continue
+        const entries = fs.readdirSync(dir, { withFileTypes: true })
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue
+          const dirName = entry.name
+          // Only ct-* and gsd-* prefixed skills
+          const ctMatch = dirName.match(/^(ct|gsd)-(.+)$/)
+          if (!ctMatch) continue
+          const prefix = ctMatch[1] as 'ct' | 'gsd'
+          const shortName = ctMatch[2] // e.g. "exec", "do", "help"
+          if (seen.has(dirName)) continue
+          const skillFile = pathMod.join(dir, dirName, 'SKILL.md')
+          if (!fs.existsSync(skillFile)) continue
+          seen.add(dirName)
+          try {
+            const content = fs.readFileSync(skillFile, 'utf-8')
+            let description = ''
+            const lines = content.split('\n')
+            const hasFrontmatter = lines[0]?.trim() === '---'
+            if (hasFrontmatter) {
+              for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '---') break
+                const match = lines[i].match(/^description:\s*"?(.+?)"?\s*$/)
+                if (match) { description = match[1]; break }
+              }
+            }
+            if (!description) {
+              let inFrontmatter = hasFrontmatter
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (inFrontmatter) { if (trimmed === '---' && line !== lines[0]) inFrontmatter = false; continue }
+                if (!trimmed) continue
+                description = trimmed.replace(/^#\s*/, '').trim()
+                break
+              }
+            }
+            results.push({ name: shortName, description, prefix })
+          } catch {
+            results.push({ name: shortName, description: '', prefix })
+          }
+        }
+      } catch { /* directory doesn't exist or not readable */ }
+    }
+
+    return results
+  })
+
   // Read statusline extras: account label + plan, memsync status, cached rate limits
   registerHandler('claude:get-statusline-extras', async (_ctx) => {
     const homePath = app.getPath('home')
