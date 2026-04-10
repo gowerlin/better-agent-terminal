@@ -32,6 +32,7 @@ const defaultSettings: AppSettings = {
   createDefaultAgentTerminal: true,
   allowBypassPermissions: true,
   defaultModel: 'claude-opus-4-6',
+  minimizeToTray: false,
 }
 
 class SettingsStore {
@@ -208,6 +209,12 @@ class SettingsStore {
 
   setCollapseToolOutputs(collapse: boolean): void {
     this.settings = { ...this.settings, collapseToolOutputs: collapse }
+    this.notify()
+    this.save()
+  }
+
+  setMinimizeToTray(minimize: boolean): void {
+    this.settings = { ...this.settings, minimizeToTray: minimize }
     this.notify()
     this.save()
   }

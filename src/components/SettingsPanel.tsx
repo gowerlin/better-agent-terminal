@@ -425,6 +425,21 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </div>
 
           <div className="settings-section">
+            <h3>{t('settings.windowBehavior')}</h3>
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.minimizeToTray === true}
+                  onChange={e => settingsStore.setMinimizeToTray(e.target.checked)}
+                />
+                {t('settings.minimizeToTray')}
+              </label>
+              <p className="settings-hint">{t('settings.minimizeToTrayHint')}</p>
+            </div>
+          </div>
+
+          <div className="settings-section">
             <h3>{t('settings.notifications')}</h3>
             <div className="settings-group checkbox-group">
               <label>

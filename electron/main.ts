@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu, powerMonitor, clipboard, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage } from 'electron'
 import path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
@@ -166,6 +166,19 @@ const remoteServer = new RemoteServer()
 let remoteClient: RemoteClient | null = null
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
+let tray: Tray | null = null
+
+/** Read minimizeToTray from persisted settings file (sync, for use in close handler) */
+function isMinimizeToTrayEnabled(): boolean {
+  try {
+    const configPath = path.join(app.getPath('userData'), 'settings.json')
+    const data = fsSync.readFileSync(configPath, 'utf-8')
+    const parsed = JSON.parse(data)
+    return parsed.minimizeToTray === true
+  } catch {
+    return false
+  }
+}
 
 /** Attach a will-resize throttle to a BrowserWindow to reduce DWM pressure on Windows. */
 function setupResizeThrottle(win: BrowserWindow, label: string) {
@@ -362,6 +375,13 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
       return
     }
 
+    // Minimize to tray instead of closing (if enabled in settings)
+    if (isMinimizeToTrayEnabled()) {
+      e.preventDefault()
+      win.hide()
+      return
+    }
+
     // Manual close (Cmd+W / click X)
     e.preventDefault()
     windowRegistry.getEntry(windowId).then(async (entry) => {
@@ -473,6 +493,48 @@ app.whenReady().then(async () => {
   logger.init(app.getPath('userData'))
   logger.log(`[startup] ═══════════════════════════════════════`)
   logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from IPC reg, +${t0 - _processStart}ms from process`)
+
+  // Create system tray icon
+  try {
+    const trayIconName = process.platform === 'win32' ? 'icon.ico' : 'icon.png'
+    // In dev: assets/ is relative to electron/ output dir
+    // In packaged app: assets/ is at app root (included in files[])
+    const devPath = path.join(__dirname, '..', 'assets', trayIconName)
+    const packagedPath = path.join(app.getAppPath(), 'assets', trayIconName)
+    const iconFile = fsSync.existsSync(devPath) ? devPath : packagedPath
+    const trayIcon = nativeImage.createFromPath(iconFile).resize({ width: 16, height: 16 })
+    tray = new Tray(trayIcon)
+    tray.setToolTip('Better Agent Terminal')
+    const trayMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show Window',
+        click: () => {
+          const wins = BrowserWindow.getAllWindows()
+          if (wins.length > 0) {
+            wins.forEach(w => { w.show(); w.focus() })
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          isAppQuitting = true
+          app.quit()
+        }
+      }
+    ])
+    tray.setContextMenu(trayMenu)
+    tray.on('double-click', () => {
+      const wins = BrowserWindow.getAllWindows()
+      if (wins.length > 0) {
+        wins.forEach(w => { w.show(); w.focus() })
+      }
+    })
+    logger.log('[startup] system tray created')
+  } catch (err) {
+    logger.error('[startup] failed to create system tray:', err)
+  }
 
   // Load user-defined custom CLIs from disk
   try {
@@ -725,6 +787,9 @@ app.on('before-quit', async (e) => {
 })
 
 app.on('window-all-closed', () => {
+  // If minimizeToTray is active and windows are just hidden, don't quit
+  if (isMinimizeToTrayEnabled() && !isAppQuitting) return
+
   runCleanupOnce()
   app.quit()
   // Force exit — child processes (PTY shells, Claude CLI) may keep the event loop alive.
