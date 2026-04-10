@@ -155,6 +155,9 @@ export class PtyManager {
     // For PowerShell (pwsh or powershell), bypass execution policy to allow unsigned scripts
     if (shell.includes('powershell') || shell.includes('pwsh')) {
       args = ['-ExecutionPolicy', 'Bypass', '-NoLogo']
+    } else if (process.platform === 'win32' && shell.includes('bash')) {
+      // Git Bash on Windows — use login interactive shell
+      args = ['--login', '-i']
     } else if (process.platform === 'darwin' || process.platform === 'linux') {
       // Use login interactive shell to source profile files (.zshrc, .bashrc, .profile, etc.)
       // This ensures PATH and other environment variables are properly set

@@ -832,6 +832,16 @@ function registerProxiedHandlers() {
       }
       else if (shellType === 'powershell') result = 'powershell.exe'
       else if (shellType === 'cmd') result = 'cmd.exe'
+      else if (shellType === 'git-bash') {
+        const gitBashPaths = [
+          'C:\\Program Files\\Git\\bin\\bash.exe',
+          'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+          process.env.LOCALAPPDATA + '\\Programs\\Git\\bin\\bash.exe'
+        ]
+        let found = ''
+        for (const p of gitBashPaths) { if (fsSync.existsSync(p)) { found = p; break } }
+        result = found || 'C:\\Program Files\\Git\\bin\\bash.exe'
+      }
       else result = shellType
     }
 

@@ -92,7 +92,7 @@ export interface PtyExit {
 // Shell types: platform-specific options
 // Windows: pwsh, powershell, cmd
 // macOS/Linux: zsh, bash, sh
-export type ShellType = 'auto' | 'pwsh' | 'powershell' | 'cmd' | 'zsh' | 'bash' | 'sh' | 'custom';
+export type ShellType = 'auto' | 'pwsh' | 'powershell' | 'cmd' | 'git-bash' | 'zsh' | 'bash' | 'sh' | 'custom';
 
 // Shell options grouped by platform
 export const SHELL_OPTIONS: { id: ShellType; name: string; platforms: ('win32' | 'darwin' | 'linux')[] }[] = [
@@ -101,6 +101,7 @@ export const SHELL_OPTIONS: { id: ShellType; name: string; platforms: ('win32' |
   { id: 'pwsh', name: 'PowerShell 7 (pwsh)', platforms: ['win32'] },
   { id: 'powershell', name: 'Windows PowerShell', platforms: ['win32'] },
   { id: 'cmd', name: 'Command Prompt (cmd)', platforms: ['win32'] },
+  { id: 'git-bash', name: 'Git Bash', platforms: ['win32'] },
   // macOS/Linux shells
   { id: 'zsh', name: 'Zsh', platforms: ['darwin', 'linux'] },
   { id: 'bash', name: 'Bash', platforms: ['darwin', 'linux'] },
