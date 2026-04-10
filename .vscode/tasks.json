@@ -1,0 +1,229 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // ═══════════════ 初始化 ═══════════════
+    {
+      "label": "初始化: 安裝套件 (npm install)",
+      "type": "process",
+      "command": "npm",
+      "args": ["install"],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "初始化"
+      }
+    },
+    {
+      "label": "初始化: 清除並重裝套件",
+      "type": "shell",
+      "command": "if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }; npm install",
+      "args": [],
+      "group": "none",
+      "options": {
+        "shell": { "executable": "pwsh", "args": ["-NoProfile", "-Command"] }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "初始化"
+      }
+    },
+    // ═══════════════ 開發 ═══════════════
+    {
+      "label": "開發: 啟動 Dev Server",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "isBackground": true,
+      "group": "build",
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*VITE",
+          "endsPattern": "Local:\\s+http"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "開發"
+      }
+    },
+    {
+      "label": "開發: 啟動 Dev Server (Runtime)",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "dev-runtime"],
+      "isBackground": true,
+      "group": "build",
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*VITE",
+          "endsPattern": "Local:\\s+http"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "開發"
+      }
+    },
+    {
+      "label": "開發: 終止所有 Dev 進程",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/.vscode/scripts/kill-dev.ps1"
+      ],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "工具"
+      }
+    },
+    // ═══════════════ 建置 ═══════════════
+    {
+      "label": "建置: 編譯檢查",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "compile"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$tsc",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "建置"
+      }
+    },
+    {
+      "label": "建置: 完整建置 (compile + package)",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "build"],
+      "group": "build",
+      "problemMatcher": "$tsc",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "建置"
+      }
+    },
+    {
+      "label": "建置: 目錄輸出 (免安裝測試用)",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "build:dir"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "建置"
+      }
+    },
+    // ═══════════════ 發行 ═══════════════
+    {
+      "label": "發行: 打包發行版",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/.vscode/scripts/release.ps1"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "發行"
+      }
+    },
+    {
+      "label": "發行: 打包發行版 (指定版本)",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/.vscode/scripts/release.ps1",
+        "-Version", "${input:releaseVersion}"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "發行"
+      }
+    },
+    {
+      "label": "發行: DryRun 預覽",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/.vscode/scripts/release.ps1",
+        "-DryRun"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "發行"
+      }
+    },
+    {
+      "label": "發行: Chocolatey 打包",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/.vscode/scripts/release.ps1",
+        "-ChocoPackOnly"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "發行"
+      }
+    },
+    // ═══════════════ 測試 ═══════════════
+    {
+      "label": "測試: Console Test",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "test:console"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "測試"
+      }
+    },
+    {
+      "label": "測試: Node Resolver",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "test:node-resolver"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "測試"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "releaseVersion",
+      "type": "promptString",
+      "description": "輸入發行版本號 (e.g. 2.1.4)"
+    }
+  ]
+}
