@@ -61,6 +61,8 @@ jobs:
         include:
           - os: windows-latest
             platform: win
+          - os: macos-latest
+            platform: mac
           - os: ubuntu-latest
             platform: linux
     runs-on: ${{ matrix.os }}
@@ -90,6 +92,10 @@ jobs:
         if: matrix.platform == 'win'
         run: npx electron-builder --win --publish never
 
+      - name: Package for macOS
+        if: matrix.platform == 'mac'
+        run: npx electron-builder --mac --publish never
+
       - name: Package for Linux
         if: matrix.platform == 'linux'
         run: npx electron-builder --linux --publish never
@@ -102,6 +108,13 @@ jobs:
           path: |
             release/*.zip
             release/*.exe
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'mac'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-mac
+          path: release/*.dmg
 
       - name: Upload Linux artifacts
         if: matrix.platform == 'linux'
@@ -142,6 +155,7 @@ jobs:
           name: ${{ needs.prepare.outputs.tag }} (Pre-Release)
           files: |
             artifacts/release-win/*
+            artifacts/release-mac/*
             artifacts/release-linux/*
           generate_release_notes: true
           draft: false
