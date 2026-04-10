@@ -221,7 +221,7 @@ function getWindowIdByWebContents(wc: Electron.WebContents): string | null {
 }
 
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-const GITHUB_REPO_URL = 'https://github.com/tony1223/better-agent-terminal'
+const GITHUB_REPO_URL = 'https://github.com/gowerlin/better-agent-terminal'
 
 function buildMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [

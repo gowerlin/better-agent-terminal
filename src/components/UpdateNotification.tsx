@@ -52,7 +52,7 @@ export function UpdateNotification() {
   const { latestRelease, currentVersion } = updateInfo
 
   const handleViewRelease = () => {
-    window.electronAPI.shell.openExternal('https://github.com/tony1223/better-agent-terminal/releases')
+    window.electronAPI.shell.openExternal('https://github.com/gowerlin/better-agent-terminal/releases')
   }
 
   // Parse changelog - extract first few lines

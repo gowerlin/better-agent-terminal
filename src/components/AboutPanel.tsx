@@ -40,10 +40,10 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
                 className="about-link"
                 onClick={(e) => {
                   e.preventDefault()
-                  handleLinkClick('https://github.com/tony1223/better-agent-terminal')
+                  handleLinkClick('https://github.com/gowerlin/better-agent-terminal')
                 }}
               >
-                github.com/tony1223/better-agent-terminal
+                github.com/gowerlin/better-agent-terminal
               </a>
             </div>
           </div>

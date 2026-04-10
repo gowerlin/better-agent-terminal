@@ -786,7 +786,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <h3>{t('settings.remoteAccess')}</h3>
             <p className="settings-hint" style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
               {t('settings.remoteAccessHint')}{' '}
-              <a href="https://github.com/tony1223/better-agent-terminal#remote-access--mobile-connect"
+              <a href="https://github.com/gowerlin/better-agent-terminal#remote-access--mobile-connect"
                 style={{ color: '#58a6ff' }}
                 onClick={e => { e.preventDefault(); window.electronAPI?.shell?.openExternal?.(e.currentTarget.href) || window.open(e.currentTarget.href) }}>
                 {t('settings.remoteAccessReadme')}
@@ -870,7 +870,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   Tailscale
                 </a>{' '}
                 {t('settings.mobileConnectSeeReadme')}{' '}
-                <a href="https://github.com/tony1223/better-agent-terminal#remote-access--mobile-connect"
+                <a href="https://github.com/gowerlin/better-agent-terminal#remote-access--mobile-connect"
                   style={{ color: '#58a6ff' }}
                   onClick={e => { e.preventDefault(); window.electronAPI?.shell?.openExternal?.(e.currentTarget.href) || window.open(e.currentTarget.href) }}>
                   {t('settings.remoteAccessReadme')}

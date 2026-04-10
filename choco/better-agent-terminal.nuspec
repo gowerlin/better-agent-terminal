@@ -6,16 +6,16 @@
     <title>Better Agent Terminal</title>
     <authors>TonyQ CO., LTD.</authors>
     <owners>tonyq</owners>
-    <projectUrl>https://github.com/tony1223/better-agent-terminal</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/tony1223/better-agent-terminal/main/assets/icon-128.png</iconUrl>
-    <licenseUrl>https://github.com/tony1223/better-agent-terminal/blob/main/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/gowerlin/better-agent-terminal</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/gowerlin/better-agent-terminal/main/assets/icon-128.png</iconUrl>
+    <licenseUrl>https://github.com/gowerlin/better-agent-terminal/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Terminal aggregator with multi-workspace support and Claude Code integration. Features include multi-tab terminal management, Claude Code agent mode with streaming UI, detachable windows, snippet manager, and API usage monitoring.</description>
     <summary>Terminal aggregator with Claude Code integration</summary>
     <tags>terminal electron claude ai developer-tools agent</tags>
-    <packageSourceUrl>https://github.com/tony1223/better-agent-terminal</packageSourceUrl>
-    <bugTrackerUrl>https://github.com/tony1223/better-agent-terminal/issues</bugTrackerUrl>
-    <releaseNotes>https://github.com/tony1223/better-agent-terminal/releases</releaseNotes>
+    <packageSourceUrl>https://github.com/gowerlin/better-agent-terminal</packageSourceUrl>
+    <bugTrackerUrl>https://github.com/gowerlin/better-agent-terminal/issues</bugTrackerUrl>
+    <releaseNotes>https://github.com/gowerlin/better-agent-terminal/releases</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />

@@ -193,6 +193,38 @@
         "group": "發行"
       }
     },
+    // ═══════════════ CI/CD ═══════════════
+    {
+      "label": "CI/CD: 觸發 Pre-Release (GitHub Actions)",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/.vscode/scripts/trigger-prerelease.ps1"
+      ],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "CI/CD"
+      }
+    },
+    {
+      "label": "CI/CD: 觸發 Pre-Release (指定版本)",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/.vscode/scripts/trigger-prerelease.ps1",
+        "-Version", "${input:prereleaseVersion}"
+      ],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "CI/CD"
+      }
+    },
     // ═══════════════ 測試 ═══════════════
     {
       "label": "測試: Console Test",
@@ -224,6 +256,11 @@
       "id": "releaseVersion",
       "type": "promptString",
       "description": "輸入發行版本號 (e.g. 2.1.4)"
+    },
+    {
+      "id": "prereleaseVersion",
+      "type": "promptString",
+      "description": "輸入 Pre-Release 版本號 (e.g. 2.1.4-pre.1)"
     }
   ]
 }

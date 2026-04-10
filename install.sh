@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-REPO="tony1223/better-agent-terminal"
+REPO="gowerlin/better-agent-terminal"
 APP_NAME="BetterAgentTerminal"
 
 echo "Installing $APP_NAME..."
