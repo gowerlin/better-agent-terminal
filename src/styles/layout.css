@@ -219,6 +219,73 @@
   margin-bottom: -2px;
 }
 
+/* Archived workspaces section */
+.archived-section {
+  border-top: 1px solid var(--border-color);
+  padding: 0 8px 4px;
+}
+
+.archived-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.archived-header:hover {
+  color: var(--text-primary);
+}
+
+.archived-toggle {
+  font-size: 9px;
+  width: 12px;
+  text-align: center;
+}
+
+.archived-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace-item.archived {
+  opacity: 0.6;
+}
+
+.workspace-item.archived:hover {
+  opacity: 0.85;
+}
+
+.workspace-item.archived .workspace-item-actions {
+  gap: 4px;
+}
+
+.unarchive-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.workspace-item.archived:hover .unarchive-btn,
+.workspace-item.archived:hover .remove-btn {
+  opacity: 0.7;
+}
+
+.unarchive-btn:hover {
+  opacity: 1 !important;
+  color: var(--accent-color);
+}
+
 .sidebar-footer {
   padding: 12px;
   border-top: 1px solid var(--border-color);

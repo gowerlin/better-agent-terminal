@@ -436,6 +436,42 @@ class WorkspaceStore {
     this.save()
   }
 
+  archiveWorkspace(id: string): void {
+    // If archiving the active workspace, switch to the first non-archived one
+    const nextActive = this.state.activeWorkspaceId === id
+      ? this.state.workspaces.find(w => w.id !== id && !w.archived)?.id ?? null
+      : this.state.activeWorkspaceId
+
+    this.state = {
+      ...this.state,
+      workspaces: this.state.workspaces.map(w =>
+        w.id === id ? { ...w, archived: true } : w
+      ),
+      activeWorkspaceId: nextActive,
+    }
+    this.notify()
+    this.save()
+  }
+
+  unarchiveWorkspace(id: string): void {
+    this.state = {
+      ...this.state,
+      workspaces: this.state.workspaces.map(w =>
+        w.id === id ? { ...w, archived: undefined } : w
+      )
+    }
+    this.notify()
+    this.save()
+  }
+
+  getActiveWorkspaces(): Workspace[] {
+    return this.state.workspaces.filter(w => !w.archived)
+  }
+
+  getArchivedWorkspaces(): Workspace[] {
+    return this.state.workspaces.filter(w => w.archived)
+  }
+
   getGroups(): string[] {
     const groups = new Set<string>()
     for (const w of this.state.workspaces) {

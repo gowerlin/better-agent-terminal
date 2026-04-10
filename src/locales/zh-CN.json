@@ -118,6 +118,9 @@
     "wakeAgent": "唤醒 Agent",
     "restAgent": "休眠 Agent",
     "closeWorkspace": "关闭工作区",
+    "archiveWorkspace": "归档工作区",
+    "unarchiveWorkspace": "恢复工作区",
+    "archived": "已归档",
     "collapseSidebar": "收起侧边栏",
     "expandSidebar": "展开侧边栏"
   },

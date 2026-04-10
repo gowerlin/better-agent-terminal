@@ -720,7 +720,9 @@ export default function App() {
   }
 
   // Filter out detached workspaces from main window
-  const visibleWorkspaces = state.workspaces.filter(w => !detachedIds.has(w.id))
+  const nonDetachedWorkspaces = state.workspaces.filter(w => !detachedIds.has(w.id))
+  const visibleWorkspaces = nonDetachedWorkspaces.filter(w => !w.archived)
+  const archivedWorkspaces = nonDetachedWorkspaces.filter(w => w.archived)
 
   return (
     <div className="app">
@@ -773,6 +775,7 @@ export default function App() {
                   windowId={workspaceStore.getWindowId()}
                   groups={workspaceStore.getGroups()}
                   activeGroup={workspaceStore.getActiveGroup()}
+                  archivedWorkspaces={archivedWorkspaces}
                   onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
                   onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
                   onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
@@ -788,6 +791,8 @@ export default function App() {
                   onReorderWorkspaces={(workspaceIds) => {
                     workspaceStore.reorderWorkspaces(workspaceIds)
                   }}
+                  onArchiveWorkspace={(id) => workspaceStore.archiveWorkspace(id)}
+                  onUnarchiveWorkspace={(id) => workspaceStore.unarchiveWorkspace(id)}
                   onOpenEnvVars={(workspaceId) => setEnvDialogWorkspaceId(workspaceId)}
                   onDetachWorkspace={handleDetachWorkspace}
                   activeProfileName={activeProfileName}
@@ -820,6 +825,7 @@ export default function App() {
             windowId={workspaceStore.getWindowId()}
             groups={workspaceStore.getGroups()}
             activeGroup={workspaceStore.getActiveGroup()}
+            archivedWorkspaces={archivedWorkspaces}
             onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
             onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
             onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
@@ -835,6 +841,8 @@ export default function App() {
             onReorderWorkspaces={(workspaceIds) => {
               workspaceStore.reorderWorkspaces(workspaceIds)
             }}
+            onArchiveWorkspace={(id) => workspaceStore.archiveWorkspace(id)}
+            onUnarchiveWorkspace={(id) => workspaceStore.unarchiveWorkspace(id)}
             onOpenEnvVars={(workspaceId) => setEnvDialogWorkspaceId(workspaceId)}
             onDetachWorkspace={handleDetachWorkspace}
             activeProfileName={activeProfileName}

@@ -14,6 +14,7 @@ interface SidebarProps {
   activeGroup: string | null
   activeProfileName?: string
   isRemoteConnected?: boolean
+  archivedWorkspaces: Workspace[]
   onSetActiveGroup: (group: string | null) => void
   onSetWorkspaceGroup: (id: string, group: string | undefined) => void
   onSelectWorkspace: (id: string) => void
@@ -21,6 +22,8 @@ interface SidebarProps {
   onRemoveWorkspace: (id: string) => void
   onRenameWorkspace: (id: string, alias: string) => void
   onReorderWorkspaces: (workspaceIds: string[]) => void
+  onArchiveWorkspace: (id: string) => void
+  onUnarchiveWorkspace: (id: string) => void
   onOpenEnvVars: (workspaceId: string) => void
   onDetachWorkspace: (workspaceId: string) => void
   onOpenProfiles: () => void
@@ -37,6 +40,7 @@ export function Sidebar({
   activeGroup,
   activeProfileName,
   isRemoteConnected,
+  archivedWorkspaces,
   onSetActiveGroup,
   onSetWorkspaceGroup,
   onSelectWorkspace,
@@ -44,6 +48,8 @@ export function Sidebar({
   onRemoveWorkspace,
   onRenameWorkspace,
   onReorderWorkspaces,
+  onArchiveWorkspace,
+  onUnarchiveWorkspace,
   onOpenEnvVars,
   onDetachWorkspace,
   onOpenProfiles,
@@ -98,6 +104,7 @@ export function Sidebar({
   }, [contextMenu])
 
   const [agentResting, setAgentResting] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
 
   // Fetch GitHub URL and agent resting state when context menu opens
   useEffect(() => {
@@ -456,6 +463,64 @@ export function Sidebar({
         )
         )}
       </div>
+      {/* Archived Workspaces */}
+      {archivedWorkspaces.length > 0 && (
+        <div className="archived-section">
+          <div
+            className="archived-header"
+            onClick={() => setShowArchived(prev => !prev)}
+          >
+            <span className="archived-toggle">{showArchived ? '▼' : '▶'}</span>
+            <span>{t('sidebar.archived')} ({archivedWorkspaces.length})</span>
+          </div>
+          {showArchived && (
+            <div className="archived-list">
+              {archivedWorkspaces.map(workspace => (
+                <div
+                  key={workspace.id}
+                  className="workspace-item archived"
+                  onClick={() => {
+                    onUnarchiveWorkspace(workspace.id)
+                    onSelectWorkspace(workspace.id)
+                  }}
+                >
+                  {workspace.color && (
+                    <div className="workspace-color-bar" style={{ backgroundColor: workspace.color }} />
+                  )}
+                  <div className="workspace-item-content">
+                    <div className="workspace-item-info">
+                      <span className="workspace-alias">{workspace.alias || workspace.name}</span>
+                      <span className="workspace-folder">{workspace.name}</span>
+                    </div>
+                    <div className="workspace-item-actions">
+                      <button
+                        className="unarchive-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onUnarchiveWorkspace(workspace.id)
+                        }}
+                        title={t('sidebar.unarchiveWorkspace')}
+                      >
+                        ↩
+                      </button>
+                      <button
+                        className="remove-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRemoveWorkspace(workspace.id)
+                        }}
+                        title={t('sidebar.closeWorkspace')}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div className="sidebar-footer">
         <button className="add-workspace-btn" onClick={onAddWorkspace}>
           {t('sidebar.addWorkspace')}
@@ -630,6 +695,20 @@ export function Sidebar({
               </div>
             )
           })()}
+          <div
+            className="context-menu-item"
+            onClick={() => {
+              onArchiveWorkspace(contextMenu.workspaceId)
+              setContextMenu(null)
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="21 8 21 21 3 21 3 8" />
+              <rect x="1" y="3" width="22" height="5" />
+              <line x1="10" y1="12" x2="14" y2="12" />
+            </svg>
+            {t('sidebar.archiveWorkspace')}
+          </div>
           <div className="context-menu-divider" />
           <div
             className="context-menu-item danger"
