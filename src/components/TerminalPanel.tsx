@@ -88,10 +88,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (!confirmed) return
     }
 
-    if (text.length > 4000) {
+    if (text.length > 64000) {
       writeChunked(text)
     } else {
-      window.electronAPI.pty.write(terminalId, text)
+      terminalRef.current?.paste(text)
     }
   }
 

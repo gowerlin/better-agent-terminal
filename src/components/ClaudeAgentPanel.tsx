@@ -1143,30 +1143,6 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       return
     }
 
-    // Intercept /login command — open Claude auth login flow
-    if (trimmed === '/login') {
-      clearInput()
-      setMessages(prev => [...prev, {
-        id: `sys-login-${Date.now()}`, sessionId, role: 'system' as const,
-        content: 'Opening Claude login...', timestamp: Date.now(),
-      }])
-      const result = await window.electronAPI.claude.authLogin()
-      if (result.success) {
-        const status = await window.electronAPI.claude.authStatus()
-        setMessages(prev => [...prev, {
-          id: `sys-login-ok-${Date.now()}`, sessionId, role: 'system' as const,
-          content: status?.email ? `Logged in as ${status.email} (${status.subscriptionType || 'unknown'})` : 'Login successful.',
-          timestamp: Date.now(),
-        }])
-      } else {
-        setMessages(prev => [...prev, {
-          id: `sys-login-err-${Date.now()}`, sessionId, role: 'system' as const,
-          content: `Login failed: ${result.error || 'unknown error'}`, timestamp: Date.now(),
-        }])
-      }
-      return
-    }
-
     // Intercept /logout command
     if (trimmed === '/logout') {
       clearInput()

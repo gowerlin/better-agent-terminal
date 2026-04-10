@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { CreatePtyOptions } from '../src/types'
+import type {
+  VoiceModelInfo,
+  VoicePreferences,
+  VoiceTranscribeOptions,
+  VoiceTranscribeResult,
+  VoiceModelDownloadProgress,
+  WhisperModelSize,
+} from '../src/types/voice'
 
 const electronAPI = {
   platform: process.platform as 'win32' | 'darwin' | 'linux',
@@ -173,8 +181,6 @@ const electronAPI = {
       } | null>,
     getCliPath: () =>
       ipcRenderer.invoke('claude:get-cli-path') as Promise<string>,
-    authLogin: () =>
-      ipcRenderer.invoke('claude:auth-login') as Promise<{ success: boolean; error?: string }>,
     authStatus: () =>
       ipcRenderer.invoke('claude:auth-status') as Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>,
     authLogout: () =>
@@ -366,6 +372,31 @@ const electronAPI = {
       ipcRenderer.invoke('supervisor:send-to-worker', targetId, text) as Promise<boolean>,
     getWorkerOutput: (targetId: string, lines: number) =>
       ipcRenderer.invoke('supervisor:get-worker-output', targetId, lines) as Promise<string[]>,
+  },
+  voice: {
+    listModels: () => ipcRenderer.invoke('voice:listModels') as Promise<VoiceModelInfo[]>,
+    isModelDownloaded: (size: WhisperModelSize) =>
+      ipcRenderer.invoke('voice:isModelDownloaded', size) as Promise<boolean>,
+    downloadModel: (size: WhisperModelSize) =>
+      ipcRenderer.invoke('voice:downloadModel', size) as Promise<void>,
+    deleteModel: (size: WhisperModelSize) =>
+      ipcRenderer.invoke('voice:deleteModel', size) as Promise<void>,
+    cancelDownload: (size: WhisperModelSize) =>
+      ipcRenderer.invoke('voice:cancelDownload', size) as Promise<void>,
+    getPreferences: () => ipcRenderer.invoke('voice:getPreferences') as Promise<VoicePreferences>,
+    setPreferences: (prefs: Partial<VoicePreferences>) =>
+      ipcRenderer.invoke('voice:setPreferences', prefs) as Promise<VoicePreferences>,
+    transcribe: (
+      audioBuffer: ArrayBuffer,
+      sampleRate: number,
+      options?: VoiceTranscribeOptions
+    ) => ipcRenderer.invoke('voice:transcribe', audioBuffer, sampleRate, options) as Promise<VoiceTranscribeResult>,
+    getModelsDirectory: () => ipcRenderer.invoke('voice:getModelsDirectory') as Promise<string>,
+    onModelDownloadProgress: (callback: (progress: VoiceModelDownloadProgress) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: VoiceModelDownloadProgress) => callback(progress)
+      ipcRenderer.on('voice:modelDownloadProgress', handler)
+      return () => ipcRenderer.removeListener('voice:modelDownloadProgress', handler)
+    },
   },
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),

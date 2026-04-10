@@ -80,6 +80,7 @@ import { getConnectionInfo } from './remote/tunnel-manager'
 import { logger } from './logger'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
+import { registerVoiceHandlers } from './voice-handler'
 
 // Startup timing — capture module load time before anything else
 const _processStart = Number(process.env._BAT_T0 || Date.now())
@@ -1071,22 +1072,7 @@ function registerProxiedHandlers() {
     return { success: true }
   })
 
-  // claude auth login — open browser-based login flow
-  registerHandler('claude:auth-login', async () => {
-    const { execFile } = await import('child_process')
-    return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      execFile('claude', ['auth', 'login'], { timeout: 60000, windowsHide: true }, (err) => {
-        if (err) {
-          logger.error('[auth-login]', err)
-          resolve({ success: false, error: err.message })
-        } else {
-          resolve({ success: true })
-        }
-      })
-    })
-  })
-
-  // claude auth status — get current auth info
+  // claude auth status— get current auth info
   registerHandler('claude:auth-status', async () => {
     const { execFile } = await import('child_process')
     return new Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>((resolve) => {
@@ -2043,6 +2029,9 @@ function registerLocalHandlers() {
     if (!ptyManager) return []
     return ptyManager.getLastOutput(targetId, lines)
   })
+
+  // Voice input IPC handlers (T0003 — mock foundation, see electron/voice-handler.ts)
+  registerVoiceHandlers(getAllWindows)
 }
 
 // ── Initialize all IPC ──
