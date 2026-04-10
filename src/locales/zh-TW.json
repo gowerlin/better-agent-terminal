@@ -163,6 +163,7 @@
     "snippets": "程式碼片段",
     "skills": "Skills",
     "agents": "Agents",
+    "control-tower": "塔台",
     "maximizePanel": "最大化面板",
     "restoreLayout": "還原版面配置",
     "splitRight": "向右分割",
@@ -406,5 +407,21 @@
     "imageAttached": "已附加圖片",
     "removeImage": "移除圖片",
     "hint": "Ctrl+Enter 傳送 · Ctrl+V 貼上圖片 · ↑↓ 瀏覽歷史"
+  },
+
+  "controlTower": {
+    "title": "指揮塔",
+    "refresh": "重新整理",
+    "all": "全部",
+    "loading": "載入工單中...",
+    "noOrders": "沒有找到工單",
+    "noWorkspace": "沒有工作區資料夾",
+    "notDetected": "此工作區未偵測到 Control Tower",
+    "execute": "執行",
+    "created": "建立",
+    "started": "開始",
+    "size": "規模",
+    "risk": "風險",
+    "subproject": "子專案"
   }
 }

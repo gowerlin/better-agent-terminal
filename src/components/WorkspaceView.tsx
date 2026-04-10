@@ -20,14 +20,15 @@ const GitHubPanel = lazy(() => import('./GitHubPanel').then(m => ({ default: m.G
 const SnippetSidebar = lazy(() => import('./SnippetPanel').then(m => ({ default: m.SnippetSidebar })))
 const SkillsPanel = lazy(() => import('./SkillsPanel').then(m => ({ default: m.SkillsPanel })))
 const AgentsPanel = lazy(() => import('./AgentsPanel').then(m => ({ default: m.AgentsPanel })))
+const ControlTowerPanel = lazy(() => import('./ControlTowerPanel').then(m => ({ default: m.ControlTowerPanel })))
 
-type WorkspaceTab = 'terminal' | 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents'
+type WorkspaceTab = 'terminal' | 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
 const TAB_KEY = 'better-terminal-workspace-tab'
 
 function loadWorkspaceTab(): WorkspaceTab {
   try {
     const saved = localStorage.getItem(TAB_KEY)
-    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'github' || saved === 'snippets' || saved === 'skills' || saved === 'agents') return saved
+    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'github' || saved === 'snippets' || saved === 'skills' || saved === 'agents' || saved === 'control-tower') return saved
   } catch { /* ignore */ }
   return 'terminal'
 }
@@ -213,8 +214,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const TABS: WorkspaceTab[] = dockedPanels
       ? ['terminal', ...dockedPanels.filter(p => p !== 'github' || hasGithubRemote)] as WorkspaceTab[]
       : hasGithubRemote
-        ? ['terminal', 'files', 'git', 'github', 'snippets', 'skills', 'agents']
-        : ['terminal', 'files', 'git', 'snippets', 'skills', 'agents']
+        ? ['terminal', 'files', 'git', 'github', 'snippets', 'skills', 'agents', 'control-tower']
+        : ['terminal', 'files', 'git', 'snippets', 'skills', 'agents', 'control-tower']
 
     const handleCycleTab = (e: Event) => {
       const { direction } = (e as CustomEvent).detail as { direction: number }
@@ -563,6 +564,24 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       customEnv
     })
     workspaceStore.setFocusedTerminal(terminal.id)
+    workspaceStore.save()
+  }, [workspace.id, workspace.folderPath, workspace.envVars])
+
+  // Execute a Control Tower work order in a new terminal
+  const handleExecWorkOrder = useCallback(async (workOrderId: string) => {
+    const terminal = workspaceStore.addTerminal(workspace.id)
+    const command = `/ct-exec ${workOrderId}`
+    const settings = settingsStore.getSettings()
+    const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
+    await window.electronAPI.pty.createWithCommand({
+      id: terminal.id,
+      cwd: workspace.folderPath,
+      command,
+      customEnv,
+    })
+    workspaceStore.setFocusedTerminal(terminal.id)
+    setActiveTab('terminal')
+    try { localStorage.setItem(TAB_KEY, 'terminal') } catch { /* ignore */ }
     workspaceStore.save()
   }, [workspace.id, workspace.folderPath, workspace.envVars])
 
@@ -963,12 +982,22 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             />
           </div>
         )
+      case 'control-tower':
+        return (
+          <div className="workspace-tab-content">
+            <ControlTowerPanel
+              isVisible={true}
+              workspaceFolderPath={workspace.folderPath}
+              onExecWorkOrder={handleExecWorkOrder}
+            />
+          </div>
+        )
       default:
         return null
     }
   }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote,
       handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude,
-      handleSnippetPasteToTerminal, handleSnippetSendToAgent, focusedTerminalId])
+      handleSnippetPasteToTerminal, handleSnippetSendToAgent, handleExecWorkOrder, focusedTerminalId])
 
   // Render the active tab content for the main pane
   const renderPaneContent = useCallback((tab: WorkspaceTab) => {
@@ -987,7 +1016,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       <div className="workspace-tab-bar">
         {(dockedPanels
           ? ['terminal', ...dockedPanels.filter(p => p !== 'github' || hasGithubRemote)] as PinnedContentType[]
-          : ['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets', 'skills', 'agents'] as PinnedContentType[]
+          : ['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets', 'skills', 'agents', 'control-tower'] as PinnedContentType[]
         ).map(tab => (
           <button
             key={tab}

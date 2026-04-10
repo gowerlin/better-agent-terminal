@@ -286,10 +286,10 @@ export const STATUSLINE_ITEMS: StatuslineItemDef[] = [
 
 // Docking system types
 export type DockZone = 'left' | 'main' | 'right'
-export type DockablePanel = 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents'
+export type DockablePanel = 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
 export type DockingConfig = Record<DockablePanel, DockZone>
 
-export const DOCKABLE_PANELS: DockablePanel[] = ['files', 'git', 'github', 'snippets', 'skills', 'agents']
+export const DOCKABLE_PANELS: DockablePanel[] = ['files', 'git', 'github', 'snippets', 'skills', 'agents', 'control-tower']
 
 export const DEFAULT_DOCKING_CONFIG: DockingConfig = {
   files: 'main',
@@ -298,4 +298,5 @@ export const DEFAULT_DOCKING_CONFIG: DockingConfig = {
   snippets: 'right',
   skills: 'right',
   agents: 'right',
+  'control-tower': 'right',
 }

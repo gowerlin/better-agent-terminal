@@ -158,6 +158,7 @@
     "snippets": "代码片段",
     "skills": "Skills",
     "agents": "Agents",
+    "control-tower": "塔台",
     "maximizePanel": "最大化面板",
     "restoreLayout": "还原版面布局",
     "splitRight": "向右拆分",
@@ -387,5 +388,21 @@
     "imageAttached": "已附加图片",
     "removeImage": "移除图片",
     "hint": "Ctrl+Enter 发送 · Ctrl+V 粘贴图片 · ↑↓ 浏览历史"
+  },
+
+  "controlTower": {
+    "title": "指挥塔",
+    "refresh": "刷新",
+    "all": "全部",
+    "loading": "加载工单中...",
+    "noOrders": "没有找到工单",
+    "noWorkspace": "没有工作区文件夹",
+    "notDetected": "此工作区未检测到 Control Tower",
+    "execute": "执行",
+    "created": "创建",
+    "started": "开始",
+    "size": "规模",
+    "risk": "风险",
+    "subproject": "子项目"
   }
 }

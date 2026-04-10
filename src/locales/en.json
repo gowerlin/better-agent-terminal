@@ -163,6 +163,7 @@
     "snippets": "Snippets",
     "skills": "Skills",
     "agents": "Agents",
+    "control-tower": "Tower",
     "maximizePanel": "Maximize Panel",
     "restoreLayout": "Restore Layout",
     "splitRight": "Split Right",
@@ -406,5 +407,21 @@
     "imageAttached": "Image attached",
     "removeImage": "Remove image",
     "hint": "Ctrl+Enter to send \u00b7 Paste images with Ctrl+V \u00b7 \u2191\u2193 history"
+  },
+
+  "controlTower": {
+    "title": "Control Tower",
+    "refresh": "Refresh",
+    "all": "All",
+    "loading": "Loading work orders...",
+    "noOrders": "No work orders found",
+    "noWorkspace": "No workspace folder",
+    "notDetected": "No Control Tower detected in this workspace",
+    "execute": "Execute",
+    "created": "Created",
+    "started": "Started",
+    "size": "Size",
+    "risk": "Risk",
+    "subproject": "Subproject"
   }
 }
