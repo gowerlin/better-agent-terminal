@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, memo } from 'react'
+import { createPortal } from 'react-dom'
 import type { TerminalInstance } from '../types'
 import { ActivityIndicator } from './ActivityIndicator'
 import { settingsStore } from '../stores/settings-store'
@@ -205,7 +206,7 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
       <div className="thumbnail-preview" style={{ fontFamily }}>
         {preview || (isAgent ? '' : '$ _')}
       </div>
-      {ctxMenu && (
+      {ctxMenu && createPortal(
         <div
           className="context-menu"
           style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}
@@ -225,7 +226,8 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               👁 Set as Supervisor
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
