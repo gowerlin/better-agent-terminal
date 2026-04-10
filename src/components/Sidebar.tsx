@@ -25,6 +25,7 @@ interface SidebarProps {
   onDetachWorkspace: (workspaceId: string) => void
   onOpenProfiles: () => void
   onOpenSettings: () => void
+  onCollapse: () => void
 }
 
 export function Sidebar({
@@ -47,6 +48,7 @@ export function Sidebar({
   onDetachWorkspace,
   onOpenProfiles,
   onOpenSettings,
+  onCollapse,
 }: Readonly<SidebarProps>) {
   const { t } = useTranslation()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -308,6 +310,9 @@ export function Sidebar({
               {activeProfileName}
             </span>
           )}
+          <button className="sidebar-collapse-btn" onClick={onCollapse} title={t('sidebar.collapseSidebar')}>
+            &laquo;
+          </button>
         </div>
       </div>
       {/* Group Filter */}

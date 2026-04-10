@@ -303,6 +303,34 @@
   border-bottom-color: var(--accent-color, #d97706);
 }
 
+/* Spacer pushes action buttons to the right */
+.workspace-tab-spacer {
+  flex: 1;
+}
+
+/* Action button in tab bar (maximize, etc.) */
+.workspace-tab-action {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  height: 100%;
+}
+
+.workspace-tab-action:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.workspace-tab-action.active {
+  color: var(--accent-color, #d97706);
+}
+
 /* Workspace Tab Content (Files / Git) */
 .workspace-tab-content {
   flex: 1;

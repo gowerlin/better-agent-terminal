@@ -19,11 +19,13 @@ import type { AppState, EnvVariable, TerminalInstance } from './types'
 interface PanelSettings {
   sidebar: {
     width: number
+    collapsed: boolean
   }
   snippetSidebar: {
     width: number
     collapsed: boolean
   }
+  maximized: boolean
 }
 
 const PANEL_SETTINGS_KEY = 'better-terminal-panel-settings'
@@ -41,16 +43,18 @@ function loadPanelSettings(): PanelSettings {
       const parsed = JSON.parse(saved)
       // Ensure sidebar settings exist (migration from old format)
       return {
-        sidebar: parsed.sidebar || { width: DEFAULT_SIDEBAR_WIDTH },
-        snippetSidebar: parsed.snippetSidebar || { width: DEFAULT_SNIPPET_WIDTH, collapsed: true }
+        sidebar: { width: parsed.sidebar?.width ?? DEFAULT_SIDEBAR_WIDTH, collapsed: parsed.sidebar?.collapsed ?? false },
+        snippetSidebar: parsed.snippetSidebar || { width: DEFAULT_SNIPPET_WIDTH, collapsed: true },
+        maximized: parsed.maximized ?? false
       }
     }
   } catch (e) {
     console.error('Failed to load panel settings:', e)
   }
   return {
-    sidebar: { width: DEFAULT_SIDEBAR_WIDTH },
-    snippetSidebar: { width: DEFAULT_SNIPPET_WIDTH, collapsed: true }
+    sidebar: { width: DEFAULT_SIDEBAR_WIDTH, collapsed: false },
+    snippetSidebar: { width: DEFAULT_SNIPPET_WIDTH, collapsed: true },
+    maximized: false
   }
 }
 
@@ -154,6 +158,31 @@ export default function App() {
     })
   }, [])
 
+  // Toggle sidebar collapse
+  const handleSidebarCollapse = useCallback(() => {
+    setPanelSettings(prev => {
+      const updated = { ...prev, sidebar: { ...prev.sidebar, collapsed: !prev.sidebar.collapsed } }
+      savePanelSettings(updated)
+      return updated
+    })
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+  }, [])
+
+  // Toggle maximize mode: collapse/restore all surrounding panels
+  const handleMaximizeToggle = useCallback(() => {
+    setPanelSettings(prev => {
+      const nextMaximized = !prev.maximized
+      const updated: PanelSettings = nextMaximized
+        ? { ...prev, maximized: true, sidebar: { ...prev.sidebar, collapsed: true }, snippetSidebar: { ...prev.snippetSidebar, collapsed: true } }
+        : { ...prev, maximized: false, sidebar: { ...prev.sidebar, collapsed: false }, snippetSidebar: { ...prev.snippetSidebar, collapsed: false } }
+      savePanelSettings(updated)
+      return updated
+    })
+    // Dispatch collapse-thumbnail event so WorkspaceView can collapse ThumbnailBar
+    window.dispatchEvent(new CustomEvent('maximize-toggle'))
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+  }, [])
+
   // Reset snippet sidebar to default width
   const handleSnippetResetWidth = useCallback(() => {
     setPanelSettings(prev => {
@@ -162,6 +191,27 @@ export default function App() {
       return updated
     })
   }, [])
+
+  // Keyboard shortcuts: Ctrl+B (toggle sidebar), Ctrl+Shift+M (maximize toggle)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      // Ctrl+B: toggle sidebar
+      if (e.key === 'b' && !e.shiftKey && !e.altKey) {
+        e.preventDefault()
+        handleSidebarCollapse()
+        return
+      }
+      // Ctrl+Shift+M: maximize toggle
+      if ((e.key === 'M' || e.key === 'm') && e.shiftKey && !e.altKey) {
+        e.preventDefault()
+        handleMaximizeToggle()
+        return
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleSidebarCollapse, handleMaximizeToggle])
 
   // Listen for markdown preview requests from PathLinker
   useEffect(() => {
@@ -526,40 +576,51 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar
-        width={panelSettings.sidebar.width}
-        workspaces={visibleWorkspaces}
-        activeWorkspaceId={state.activeWorkspaceId}
-        windowId={workspaceStore.getWindowId()}
-        groups={workspaceStore.getGroups()}
-        activeGroup={workspaceStore.getActiveGroup()}
-        onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
-        onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
-        onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
-        onAddWorkspace={handleAddWorkspace}
-        onRemoveWorkspace={(id) => {
-          workspaceStore.removeWorkspace(id)
-          workspaceStore.save()
-        }}
-        onRenameWorkspace={(id, alias) => {
-          workspaceStore.renameWorkspace(id, alias)
-          workspaceStore.save()
-        }}
-        onReorderWorkspaces={(workspaceIds) => {
-          workspaceStore.reorderWorkspaces(workspaceIds)
-        }}
-        onOpenEnvVars={(workspaceId) => setEnvDialogWorkspaceId(workspaceId)}
-        onDetachWorkspace={handleDetachWorkspace}
-        activeProfileName={activeProfileName}
-        isRemoteConnected={isRemoteConnected}
-        onOpenProfiles={() => setShowProfiles(true)}
-        onOpenSettings={() => setShowSettings(true)}
-      />
-      <ResizeHandle
-        direction="horizontal"
-        onResize={handleSidebarResize}
-        onDoubleClick={handleSidebarResetWidth}
-      />
+      {panelSettings.sidebar.collapsed ? (
+        <div className="left-sidebar-collapsed">
+          <button className="left-sidebar-collapsed-btn" onClick={handleSidebarCollapse} title={t('sidebar.expandSidebar')}>
+            {'\u{1F4C2}'}
+          </button>
+        </div>
+      ) : (
+        <>
+          <Sidebar
+            width={panelSettings.sidebar.width}
+            workspaces={visibleWorkspaces}
+            activeWorkspaceId={state.activeWorkspaceId}
+            windowId={workspaceStore.getWindowId()}
+            groups={workspaceStore.getGroups()}
+            activeGroup={workspaceStore.getActiveGroup()}
+            onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
+            onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
+            onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
+            onAddWorkspace={handleAddWorkspace}
+            onRemoveWorkspace={(id) => {
+              workspaceStore.removeWorkspace(id)
+              workspaceStore.save()
+            }}
+            onRenameWorkspace={(id, alias) => {
+              workspaceStore.renameWorkspace(id, alias)
+              workspaceStore.save()
+            }}
+            onReorderWorkspaces={(workspaceIds) => {
+              workspaceStore.reorderWorkspaces(workspaceIds)
+            }}
+            onOpenEnvVars={(workspaceId) => setEnvDialogWorkspaceId(workspaceId)}
+            onDetachWorkspace={handleDetachWorkspace}
+            activeProfileName={activeProfileName}
+            isRemoteConnected={isRemoteConnected}
+            onOpenProfiles={() => setShowProfiles(true)}
+            onOpenSettings={() => setShowSettings(true)}
+            onCollapse={handleSidebarCollapse}
+          />
+          <ResizeHandle
+            direction="horizontal"
+            onResize={handleSidebarResize}
+            onDoubleClick={handleSidebarResetWidth}
+          />
+        </>
+      )}
       <main className="main-content">
         {visibleWorkspaces.length > 0 ? (
           // Only mount workspaces that have been visited (lazy mount)
@@ -573,6 +634,8 @@ export default function App() {
                 terminals={workspaceStore.getWorkspaceTerminals(workspace.id)}
                 focusedTerminalId={workspace.id === state.activeWorkspaceId ? state.focusedTerminalId : null}
                 isActive={workspace.id === state.activeWorkspaceId}
+                isMaximized={panelSettings.maximized}
+                onMaximizeToggle={handleMaximizeToggle}
               />
             </div>
           ))

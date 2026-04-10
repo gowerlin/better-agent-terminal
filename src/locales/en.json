@@ -118,7 +118,9 @@
     "detachToWindow": "Detach to Window",
     "wakeAgent": "Wake Agent",
     "restAgent": "Rest Agent",
-    "closeWorkspace": "Close Workspace"
+    "closeWorkspace": "Close Workspace",
+    "collapseSidebar": "Collapse Sidebar",
+    "expandSidebar": "Expand Sidebar"
   },
 
   "profiles": {
@@ -155,7 +157,9 @@
     "terminal": "Terminal",
     "files": "Files",
     "git": "Git",
-    "github": "GitHub"
+    "github": "GitHub",
+    "maximizePanel": "Maximize Panel",
+    "restoreLayout": "Restore Layout"
   },
 
   "github": {

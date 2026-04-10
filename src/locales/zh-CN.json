@@ -115,7 +115,9 @@
     "detachToWindow": "分离至新窗口",
     "wakeAgent": "唤醒 Agent",
     "restAgent": "休眠 Agent",
-    "closeWorkspace": "关闭工作区"
+    "closeWorkspace": "关闭工作区",
+    "collapseSidebar": "收起侧边栏",
+    "expandSidebar": "展开侧边栏"
   },
   "profiles": {
     "title": "配置文件",
@@ -150,7 +152,9 @@
     "terminal": "终端",
     "files": "文件",
     "git": "Git",
-    "github": "GitHub"
+    "github": "GitHub",
+    "maximizePanel": "最大化面板",
+    "restoreLayout": "还原版面布局"
   },
 
   "github": {

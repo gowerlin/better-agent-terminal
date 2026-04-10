@@ -64,6 +64,8 @@ interface WorkspaceViewProps {
   terminals: TerminalInstance[]
   focusedTerminalId: string | null
   isActive: boolean
+  isMaximized?: boolean
+  onMaximizeToggle?: () => void
 }
 
 // Helper to get shell path from settings
@@ -101,7 +103,7 @@ export function clearInitializedWorkspaces(): void {
   initializedWorkspaces.clear()
 }
 
-export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive }: Readonly<WorkspaceViewProps>) {
+export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isMaximized, onMaximizeToggle }: Readonly<WorkspaceViewProps>) {
   const { t } = useTranslation()
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
@@ -207,6 +209,20 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       return updated
     })
   }, [])
+
+  // Listen for maximize-toggle to collapse/restore thumbnail bar
+  useEffect(() => {
+    if (!isActive) return
+    const handler = () => {
+      setThumbnailSettings(prev => {
+        const updated = { ...prev, collapsed: !prev.collapsed }
+        saveThumbnailSettings(updated)
+        return updated
+      })
+    }
+    window.addEventListener('maximize-toggle', handler)
+    return () => window.removeEventListener('maximize-toggle', handler)
+  }, [isActive])
 
   // Categorize terminals
   const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
@@ -667,6 +683,25 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             onClick={() => handleTabChange('github')}
           >
             {t('workspace.github')}
+          </button>
+        )}
+        <div className="workspace-tab-spacer" />
+        {onMaximizeToggle && (
+          <button
+            className={`workspace-tab-action${isMaximized ? ' active' : ''}`}
+            onClick={onMaximizeToggle}
+            title={isMaximized ? t('workspace.restoreLayout') : t('workspace.maximizePanel')}
+          >
+            {isMaximized ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="5" y="5" width="14" height="14" rx="1" />
+                <path d="M9 3h6M3 9v6" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+              </svg>
+            )}
           </button>
         )}
       </div>
