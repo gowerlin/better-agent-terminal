@@ -9,7 +9,9 @@ import type { AgentDefinition } from '../types/agent-runtime'
 interface ThumbnailBarProps {
   terminals: TerminalInstance[]
   focusedTerminalId: string | null
+  splitTerminalId?: string | null
   onFocus: (id: string) => void
+  onSplitTerminal?: (id: string) => void
   onAddTerminal?: () => void
   onAddAgent?: (definitionId: string) => void
   /** Agent definitions to show in the add menu (fetched from registry) */
@@ -32,7 +34,9 @@ interface ThumbnailBarProps {
 export function ThumbnailBar({
   terminals,
   focusedTerminalId,
+  splitTerminalId,
   onFocus,
+  onSplitTerminal,
   onAddTerminal,
   onAddAgent,
   agentDefinitions = [],
@@ -299,7 +303,9 @@ export function ThumbnailBar({
             <TerminalThumbnail
               terminal={terminal}
               isActive={terminal.id === focusedTerminalId}
+              isSplit={terminal.id === splitTerminalId}
               onClick={() => onFocus(terminal.id)}
+              onSplitTerminal={onSplitTerminal}
               onSetSupervisor={onSetSupervisor}
               onClearSupervisor={onClearSupervisor}
             />

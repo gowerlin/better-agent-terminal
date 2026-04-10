@@ -59,6 +59,34 @@ function saveThumbnailSettings(settings: ThumbnailSettings): void {
   }
 }
 
+// Split view settings
+const SPLIT_SETTINGS_KEY = 'better-terminal-split-settings'
+const DEFAULT_SPLIT_RATIO = 0.5
+const MIN_SPLIT_RATIO = 0.2
+const MAX_SPLIT_RATIO = 0.8
+
+interface SplitSettings {
+  terminalId: string | null
+  ratio: number
+}
+
+function loadSplitSettings(): SplitSettings {
+  try {
+    const saved = localStorage.getItem(SPLIT_SETTINGS_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return { terminalId: parsed.terminalId ?? null, ratio: parsed.ratio ?? DEFAULT_SPLIT_RATIO }
+    }
+  } catch { /* ignore */ }
+  return { terminalId: null, ratio: DEFAULT_SPLIT_RATIO }
+}
+
+function saveSplitSettings(settings: SplitSettings): void {
+  try {
+    localStorage.setItem(SPLIT_SETTINGS_KEY, JSON.stringify(settings))
+  } catch { /* ignore */ }
+}
+
 interface WorkspaceViewProps {
   workspace: Workspace
   terminals: TerminalInstance[]
@@ -111,6 +139,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const [hasGithubRemote, setHasGithubRemote] = useState(false)
   const [isGitRepo, setIsGitRepo] = useState(false)
   const [agentDefinitions, setAgentDefinitions] = useState<AgentDefinition[]>([])
+  const [splitSettings, setSplitSettings] = useState<SplitSettings>(loadSplitSettings)
 
   // Fetch agent definitions from the registry
   useEffect(() => {
@@ -223,6 +252,60 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     window.addEventListener('maximize-toggle', handler)
     return () => window.removeEventListener('maximize-toggle', handler)
   }, [isActive])
+
+  // Split view handlers
+  const handleSplitTerminal = useCallback((terminalId: string) => {
+    setSplitSettings(prev => {
+      // If already split with this terminal, unsplit
+      const updated: SplitSettings = prev.terminalId === terminalId
+        ? { ...prev, terminalId: null }
+        : { ...prev, terminalId: terminalId }
+      saveSplitSettings(updated)
+      return updated
+    })
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+  }, [])
+
+  const handleUnsplit = useCallback(() => {
+    setSplitSettings(prev => {
+      const updated: SplitSettings = { ...prev, terminalId: null }
+      saveSplitSettings(updated)
+      return updated
+    })
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+  }, [])
+
+  const handleSplitResize = useCallback((delta: number) => {
+    setSplitSettings(prev => {
+      // delta is positive when dragging right (left pane gets bigger)
+      // Convert pixel delta to ratio delta based on container width
+      const container = document.querySelector('.terminals-container')
+      if (!container) return prev
+      const containerWidth = container.clientWidth
+      const ratioDelta = delta / containerWidth
+      const newRatio = Math.min(MAX_SPLIT_RATIO, Math.max(MIN_SPLIT_RATIO, prev.ratio + ratioDelta))
+      const updated: SplitSettings = { ...prev, ratio: newRatio }
+      saveSplitSettings(updated)
+      return updated
+    })
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+  }, [])
+
+  const handleSplitResetRatio = useCallback(() => {
+    setSplitSettings(prev => {
+      const updated: SplitSettings = { ...prev, ratio: DEFAULT_SPLIT_RATIO }
+      saveSplitSettings(updated)
+      return updated
+    })
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+  }, [])
+
+  // Clear split if the split terminal was removed
+  useEffect(() => {
+    if (splitSettings.terminalId && !terminals.find(t => t.id === splitSettings.terminalId)) {
+      handleUnsplit()
+    }
+  }, [terminals, splitSettings.terminalId, handleUnsplit])
 
   // Categorize terminals
   const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
@@ -643,6 +726,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // mainTerminal: the currently focused or first available terminal
   const mainTerminal = focusedTerminal || agentTerminal || terminals[0]
 
+  // Split view: secondary terminal shown alongside mainTerminal
+  const splitTerminal = splitSettings.terminalId ? terminals.find(t => t.id === splitSettings.terminalId) : null
+  // Don't split with itself
+  const isSplit = splitTerminal && splitTerminal.id !== mainTerminal?.id
+
   // Send content to the active Claude agent session
   const handleSendToClaude = useCallback(async (content: string) => {
     if (!agentTerminal) return false
@@ -686,6 +774,18 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           </button>
         )}
         <div className="workspace-tab-spacer" />
+        {isSplit && (
+          <button
+            className="workspace-tab-action active"
+            onClick={handleUnsplit}
+            title={t('workspace.unsplit')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="12" y1="3" x2="12" y2="21" />
+            </svg>
+          </button>
+        )}
         {onMaximizeToggle && (
           <button
             className={`workspace-tab-action${isMaximized ? ' active' : ''}`}
@@ -708,22 +808,65 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
       {/* Main content area - terminals always rendered (keep processes alive) */}
       <Suspense fallback={<div className="loading-panel" />}>
-        <div className={`terminals-container ${activeTab !== 'terminal' ? 'hidden' : ''}`}>
-          {terminals.map(terminal => (
-            <div
-              key={terminal.id}
-              className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
-            >
-              <MainPanel
-                terminal={terminal}
-                isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
-                onClose={handleCloseTerminal}
-                onRestart={handleRestart}
-                onSwitchApiVersion={handleSwitchApiVersion}
-                workspaceId={workspace.id}
+        <div className={`terminals-container${isSplit ? ' split-view' : ''} ${activeTab !== 'terminal' ? 'hidden' : ''}`}>
+          {isSplit ? (
+            <>
+              {/* Left pane — focused terminal */}
+              <div className="split-pane split-pane-left" style={{ flex: `0 0 ${splitSettings.ratio * 100}%` }}>
+                {terminals.map(terminal => (
+                  <div
+                    key={terminal.id}
+                    className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
+                  >
+                    <MainPanel
+                      terminal={terminal}
+                      isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
+                      onClose={handleCloseTerminal}
+                      onRestart={handleRestart}
+                      onSwitchApiVersion={handleSwitchApiVersion}
+                      workspaceId={workspace.id}
+                    />
+                  </div>
+                ))}
+              </div>
+              <ResizeHandle
+                direction="horizontal"
+                onResize={handleSplitResize}
+                onDoubleClick={handleSplitResetRatio}
               />
-            </div>
-          ))}
+              {/* Right pane — split terminal */}
+              <div className="split-pane split-pane-right" style={{ flex: 1 }}>
+                <div className="terminal-wrapper active">
+                  <MainPanel
+                    terminal={splitTerminal}
+                    isActive={isActive && activeTab === 'terminal'}
+                    onClose={handleCloseTerminal}
+                    onRestart={handleRestart}
+                    onSwitchApiVersion={handleSwitchApiVersion}
+                    workspaceId={workspace.id}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {terminals.map(terminal => (
+                <div
+                  key={terminal.id}
+                  className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
+                >
+                  <MainPanel
+                    terminal={terminal}
+                    isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
+                    onClose={handleCloseTerminal}
+                    onRestart={handleRestart}
+                    onSwitchApiVersion={handleSwitchApiVersion}
+                    workspaceId={workspace.id}
+                  />
+                </div>
+              ))}
+            </>
+          )}
           {/* Worker panel — visible when active terminal is supervisor */}
           {mainTerminal?.role === 'supervisor' && activeTab === 'terminal' && (
             <WorkerPanel
@@ -777,7 +920,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       <ThumbnailBar
         terminals={thumbnailTerminals}
         focusedTerminalId={focusedTerminalId}
+        splitTerminalId={splitSettings.terminalId}
         onFocus={handleFocus}
+        onSplitTerminal={handleSplitTerminal}
         onAddTerminal={handleAddTerminal}
         onAddAgent={handleAddAgent}
         agentDefinitions={agentDefinitions.filter(d => d.id !== 'none').filter(d => !d.debug || isDebugMode).filter(d => !isWorktreeAgent(d.id) || (isDebugMode && isGitRepo))}

@@ -159,7 +159,9 @@
     "git": "Git",
     "github": "GitHub",
     "maximizePanel": "Maximize Panel",
-    "restoreLayout": "Restore Layout"
+    "restoreLayout": "Restore Layout",
+    "splitRight": "Split Right",
+    "unsplit": "Unsplit"
   },
 
   "github": {

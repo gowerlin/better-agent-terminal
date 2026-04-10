@@ -154,7 +154,9 @@
     "git": "Git",
     "github": "GitHub",
     "maximizePanel": "最大化面板",
-    "restoreLayout": "还原版面布局"
+    "restoreLayout": "还原版面布局",
+    "splitRight": "向右拆分",
+    "unsplit": "取消拆分"
   },
 
   "github": {

@@ -159,7 +159,9 @@
     "git": "Git",
     "github": "GitHub",
     "maximizePanel": "最大化面板",
-    "restoreLayout": "還原版面配置"
+    "restoreLayout": "還原版面配置",
+    "splitRight": "向右分割",
+    "unsplit": "取消分割"
   },
 
   "github": {
