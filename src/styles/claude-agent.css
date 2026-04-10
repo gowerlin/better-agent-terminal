@@ -2066,6 +2066,15 @@
   text-overflow: ellipsis;
 }
 
+.claude-slash-prefix {
+  font-size: calc(var(--claude-font-size) - 2px);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
 /* ============================================
    Permission Decision Reason
    ============================================ */

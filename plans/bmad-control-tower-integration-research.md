@@ -213,17 +213,142 @@ control-tower/references/auto-session.md:
 
 ---
 
-## 6. 待確認事項
+## 6. 待確認事項 — 驗證計畫
 
-1. **Tower 的 auto-session 白名單擴展**：BAT 屬於 Electron 應用，Tower Bash 白名單是否允許透過 Electron IPC 開新分頁？或需要另一種機制（如 BAT 提供 CLI 入口 `bat --exec "command"`）？
+### Q1: Tower auto-session 白名單能否透過 Electron IPC 開新分頁？
 
-2. **工單格式穩定性**：Tower v3 的工單格式若有 breaking changes，Phase 2 解析會受影響。是否可在 Tower 側約定 frontmatter 契約？
+**結論**：**可行，但需 BAT 提供 CLI 入口作為橋接**
 
-3. **多 Workspace 映射**：BAT 的 Workspace ↔ Tower 的 project-context 如何對應？一個 BAT Workspace = 一個 Tower 專案？
+**驗證步驟**：
+1. 在 `pty-manager.ts` 的 `create()` 中，把 `TERM_PROGRAM` 從 `better-terminal` 改為 `better-agent-terminal`，並新增 `BAT_SESSION=1`
+2. 在 BAT 終端中開 `claude` session，執行 `echo $BAT_SESSION` 和 `echo $TERM_PROGRAM` 確認子進程能拿到
+3. Tower auto-session 機制是 **Bash 白名單**（直接 spawn 指令），不走 Electron IPC
+4. 因此需提供 CLI 入口：`bat-cli --exec "command" --workspace <id>` 或透過 **deep link** (`bat://exec?cmd=...`)
+5. 最簡方案：BAT 監聽 local socket/named pipe，Tower 用 `curl` 或 `nc` 送指令
 
-4. **cc-launcher 整合**：cc-launcher 管理 Claude Code skill vault，BAT 的 SkillsPanel 已有類似功能。是否需要與 cc-launcher 對接？
+**測試腳本**：
+```bash
+# 驗證 env 在 PTY 子進程中可見
+# 在 BAT 終端內執行：
+echo "BAT_SESSION=$BAT_SESSION"
+echo "TERM_PROGRAM=$TERM_PROGRAM"
+# 預期：BAT_SESSION=1, TERM_PROGRAM=better-agent-terminal
+```
 
-5. **Remote Mode**：BAT 支援 Remote 連線，Tower + Worker 可能在不同機器。Remote 場景下 `_ct-workorders/` 的 fs:watch 是否可行？
+---
+
+### Q2: Tower v3 工單格式是否穩定？
+
+**結論**：**格式半穩定，建議容錯解析**
+
+**驗證步驟**：
+1. 從 `D:\ForgejoGit\BMad-Guide\BMad-Control-Tower\control-tower\references\work-order-template.md` 取得工單模板
+2. 寫解析函式，用正則提取 metadata（工單編號、狀態、建立時間）
+3. 對 BMad-Guide repo 的 git log 檢查 `work-order-template.md` 的變更頻率
+4. 若 frontmatter (YAML) 存在則優先用：結構化解析；否則 fallback 正則
+
+**測試腳本**：
+```typescript
+// tests/workorder-parser.test.ts
+const sampleWorkOrder = `
+- **工單編號**：T0001
+- **標題**：建立專案上下文
+- **狀態**：IN_PROGRESS
+- **建立時間**：2026-04-10 15:30:00 (UTC+8)
+- **預估複雜度**：M
+`
+// 驗證解析出 { id: 'T0001', status: 'IN_PROGRESS', ... }
+```
+
+```bash
+# 檢查 BMad-Guide 工單模板歷史變更次數
+cd "D:\ForgejoGit\BMad-Guide"
+git log --oneline -- "BMad-Control-Tower/control-tower/references/work-order-template.md" | wc -l
+```
+
+---
+
+### Q3: BAT Workspace ↔ Tower project-context 如何映射？
+
+**結論**：**1:1 最自然 — 一個 BAT Workspace 對應一個 `_ct-workorders/` 目錄**
+
+**驗證步驟**：
+1. 確認 Tower 的 `_ct-workorders/` 位於專案根目錄
+2. BAT 的 `workspace.folderPath` 即為專案根 → `path.join(folderPath, '_ct-workorders')` 就是工單目錄
+3. 驗證：建一個測試 workspace，手動建 `_ct-workorders/` 目錄 + 放一個假工單 .md
+4. 確認 `fs.existsSync(path.join(workspace.folderPath, '_ct-workorders'))` 可偵測
+
+**測試腳本**：
+```bash
+# 在任一專案目錄建立模擬工單
+mkdir -p _ct-workorders
+cat > _ct-workorders/T0001-test.md << 'EOF'
+- **工單編號**：T0001
+- **標題**：測試工單
+- **狀態**：PENDING
+EOF
+# 在 BAT 中開此目錄為 Workspace → 驗證 ControlTowerPanel 能偵測到
+```
+
+---
+
+### Q4: cc-launcher 與 BAT SkillsPanel 是否需要對接？
+
+**結論**：**Phase 1-2 不需要，可列為 Phase 3+ 考慮**
+
+**驗證步驟**：
+1. 比較功能重疊度：
+   - BAT SkillsPanel：顯示 `~/.claude/skills/` 目錄內容、skill YAML 預覽
+   - cc-launcher：skill vault 管理（安裝/移除/更新/版本控制）
+2. 確認 cc-launcher 是否有 REST API 可供 BAT 呼叫
+3. 若 cc-launcher-desktop (Tauri) 已啟動，BAT 不應重複此功能
+
+**測試腳本**：
+```bash
+# 檢查 cc-launcher 是否提供 API
+cd "D:\ForgejoGit\BMad-Guide\cc-launcher"
+grep -r "app.get\|app.post\|router\." src/ --include="*.ts" | head -20
+# 確認有哪些 endpoint 可用
+```
+
+---
+
+### Q5: Remote 場景下 `fs:watch` 對 `_ct-workorders/` 是否可行？
+
+**結論**：**已有建設，可行**
+
+**驗證步驟**：
+1. BAT Remote Protocol 已有 `fs:watch`、`fs:unwatch`、`fs:changed` channel（見 `protocol.ts`）
+2. Remote Server 端執行 `fs.watch()`，透過 broadcast 推送 `fs:changed` 事件
+3. 驗證：連線至 Remote BAT instance → watch 一個目錄 → 在 remote 端新增檔案 → 確認 client 收到 event
+
+**測試腳本**：
+```typescript
+// 在 renderer 中測試
+const watchId = await window.electronAPI.fs.watch(
+  path.join(workspace.folderPath, '_ct-workorders')
+)
+window.electronAPI.fs.onChanged((event) => {
+  console.log('Work order changed:', event)
+})
+// 手動在 _ct-workorders/ 新增檔案 → 確認 console 有輸出
+```
+
+---
+
+## 6.1 驗證優先級與排程
+
+| # | 問題 | 阻塞階段 | 驗證難度 | 優先級 |
+|---|------|----------|----------|--------|
+| Q1 | Auto-session 偵測 | Phase 1 | 低（改 env 即可） | **P0** |
+| Q3 | Workspace 映射 | Phase 2 | 低（目錄偵測） | **P0** |
+| Q2 | 工單格式穩定性 | Phase 2 | 中（需寫 parser） | **P1** |
+| Q5 | Remote fs:watch | Phase 2+ | 中（需 remote env） | **P2** |
+| Q4 | cc-launcher 對接 | Phase 3+ | 低（功能比較） | **P3** |
+
+> **建議執行順序**：Q1 → Q3 → Q2 → Q5 → Q4
+> Q1 + Q3 在 Phase 1 分支就可驗證（只改 env + 偵測目錄）
+> Q2 在 Phase 2 開始時驗證（寫 parser 前先確認格式）
 
 ---
 

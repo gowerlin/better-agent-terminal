@@ -9,7 +9,11 @@
 .file-tree-split > .file-tree {
   flex: 0 0 35%;
   max-width: 35%;
-  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.file-tree-split > .resize-handle-horizontal {
+  flex-shrink: 0;
 }
 
 .file-tree-split > .file-preview {

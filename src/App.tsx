@@ -21,6 +21,7 @@ import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 const LazyFileTree = lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })))
 const LazyGitPanel = lazy(() => import('./components/GitPanel').then(m => ({ default: m.GitPanel })))
 const LazyGitHubPanel = lazy(() => import('./components/GitHubPanel').then(m => ({ default: m.GitHubPanel })))
+const LazyControlTowerPanel = lazy(() => import('./components/ControlTowerPanel').then(m => ({ default: m.ControlTowerPanel })))
 
 // Docking configuration persistence
 const DOCKING_CONFIG_KEY = 'better-terminal-docking-config'
@@ -668,6 +669,62 @@ export default function App() {
         return <AgentsPanel
           isVisible={true}
           activeSessionId={state.focusedTerminalId ?? null}
+        />
+      case 'control-tower':
+        return <LazyControlTowerPanel
+          isVisible={true}
+          workspaceFolderPath={activeWorkspace.folderPath}
+          onExecWorkOrder={async (workOrderId: string) => {
+            const terminal = workspaceStore.addTerminal(activeWorkspace.id)
+            const command = `/ct-exec ${workOrderId}`
+            const settings = settingsStore.getSettings()
+            const mergedEnv: Record<string, string> = {}
+            for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
+              if (v.enabled) mergedEnv[v.key] = v.value
+            }
+            await window.electronAPI.pty.createWithCommand({
+              id: terminal.id,
+              cwd: activeWorkspace.folderPath,
+              command,
+              customEnv: mergedEnv,
+            })
+            workspaceStore.setFocusedTerminal(terminal.id)
+            workspaceStore.save()
+          }}
+          onDoneWorkOrder={async (workOrderId: string) => {
+            const terminal = workspaceStore.addTerminal(activeWorkspace.id)
+            const command = `/ct-done ${workOrderId}`
+            const settings = settingsStore.getSettings()
+            const mergedEnv: Record<string, string> = {}
+            for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
+              if (v.enabled) mergedEnv[v.key] = v.value
+            }
+            await window.electronAPI.pty.createWithCommand({
+              id: terminal.id,
+              cwd: activeWorkspace.folderPath,
+              command,
+              customEnv: mergedEnv,
+            })
+            workspaceStore.setFocusedTerminal(terminal.id)
+            workspaceStore.save()
+          }}
+          onSyncWorkOrders={async () => {
+            const terminal = workspaceStore.addTerminal(activeWorkspace.id)
+            const command = '/ct-status sync'
+            const settings = settingsStore.getSettings()
+            const mergedEnv: Record<string, string> = {}
+            for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
+              if (v.enabled) mergedEnv[v.key] = v.value
+            }
+            await window.electronAPI.pty.createWithCommand({
+              id: terminal.id,
+              cwd: activeWorkspace.folderPath,
+              command,
+              customEnv: mergedEnv,
+            })
+            workspaceStore.setFocusedTerminal(terminal.id)
+            workspaceStore.save()
+          }}
         />
       default:
         return null

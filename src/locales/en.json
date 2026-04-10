@@ -166,6 +166,7 @@
     "snippets": "Snippets",
     "skills": "Skills",
     "agents": "Agents",
+    "control-tower": "Tower",
     "maximizePanel": "Maximize Panel",
     "restoreLayout": "Restore Layout",
     "splitRight": "Split Right",
@@ -404,10 +405,51 @@
 
   "promptBox": {
     "placeholder": "Type your prompt here...",
-    "placeholderWithImage": "Add text (optional), Ctrl+Enter to send",
-    "sendToTerminal": "Send to terminal (Ctrl+Enter)",
+    "placeholderWithImage": "Add text (optional), Enter to send",
+    "sendToTerminal": "Send to terminal (Enter)",
     "imageAttached": "Image attached",
     "removeImage": "Remove image",
-    "hint": "Ctrl+Enter to send \u00b7 Paste images with Ctrl+V \u00b7 \u2191\u2193 history"
+    "hint": "Enter send \u00b7 Alt+Enter newline \u00b7 Esc clear \u00b7 Ctrl+V paste image \u00b7 \u2191\u2193 history"
+  },
+
+  "controlTower": {
+    "title": "Control Tower",
+    "refresh": "Refresh",
+    "all": "All",
+    "loading": "Loading work orders...",
+    "noOrders": "No work orders found",
+    "noWorkspace": "No workspace folder",
+    "notDetected": "No Control Tower detected in this workspace",
+    "execute": "Execute",
+    "done": "Close",
+    "sync": "Sync Check",
+    "viewFile": "View File",
+    "created": "Created",
+    "started": "Started",
+    "size": "Size",
+    "risk": "Risk",
+    "subproject": "Subproject",
+    "tab": {
+      "orders": "Orders",
+      "kanban": "Kanban",
+      "sprint": "Sprint"
+    },
+    "lane": {
+      "TODO": "To Do",
+      "IN_PROGRESS": "In Progress",
+      "REVIEW": "Review",
+      "DONE": "Done",
+      "BLOCKED": "Blocked"
+    },
+    "toast": {
+      "completed": "completed",
+      "started": "started",
+      "newOrder": "New work order"
+    },
+    "validation": {
+      "title": "Cross Validation",
+      "allMatch": "match",
+      "mismatch": "mismatch(es)"
+    }
   }
 }

@@ -20,8 +20,8 @@
     "welcome": "歡迎使用 Better Agent Terminal",
     "welcomeHint": "點擊「+ 新增工作區」開始使用",
     "remoteConnectionFailed": "遠端連線失敗：{{error}}",
-    "remoteConnectionFailedFallback": "遠端連線失敗：{{error}}\n正在切換回本機設定檔。",
-    "remoteMissingInfo": "遠端設定檔缺少連線資訊。"
+    "remoteConnectionFailedFallback": "遠端連線失敗：{{error}}\n正在切換回本機配置。",
+    "remoteMissingInfo": "遠端配置缺少連線資訊。"
   },
 
   "settings": {
@@ -104,10 +104,10 @@
     "workspaces": "工作區",
     "all": "全部",
     "addWorkspace": "+ 新增工作區",
-    "profiles": "設定檔",
+    "profiles": "配置",
     "settings": "設定",
     "connectedToRemote": "已連線至遠端主機",
-    "clickToManageProfiles": "點擊管理設定檔",
+    "clickToManageProfiles": "點擊管理配置",
     "dragToReorder": "拖曳以重新排序",
     "groupNamePlaceholder": "群組名稱（留空以移除）",
     "openInExplorer": "在檔案管理員中開啟",
@@ -129,11 +129,11 @@
   },
 
   "profiles": {
-    "title": "設定檔",
+    "title": "配置",
     "saveCurrent": "儲存目前狀態",
     "addLocal": "+ 本機",
     "addRemote": "+ 遠端",
-    "profileNamePlaceholder": "設定檔名稱...",
+    "profileNamePlaceholder": "配置名稱...",
     "hostPlaceholder": "主機（例如 192.168.1.100）",
     "portPlaceholder": "連接埠",
     "tokenPlaceholder": "Token",
@@ -145,15 +145,15 @@
     "editConnection": "編輯連線",
     "rename": "重新命名",
     "duplicate": "複製",
-    "deleteProfile": "刪除設定檔",
+    "deleteProfile": "刪除配置",
     "deleteConfirm": "確定要刪除「{{name}}」嗎？此操作無法復原。",
-    "switchProfile": "開啟設定檔",
-    "openInNewWindow": "在新視窗中開啟此設定檔？",
+    "switchProfile": "開啟配置",
+    "openInNewWindow": "在新視窗中開啟此配置？",
     "saveAndOpen": "儲存當前並開啟",
     "newWindow": "開啟",
-    "alreadyOpen": "此設定檔已在另一個視窗中開啟。",
+    "alreadyOpen": "此配置已在另一個視窗中開啟。",
     "host": "主機",
-    "fetchProfiles": "取得設定檔",
+    "fetchProfiles": "取得配置",
     "fetchingProfiles": "取得中...",
     "currentTarget": "目前目標"
   },
@@ -166,6 +166,7 @@
     "snippets": "程式碼片段",
     "skills": "Skills",
     "agents": "Agents",
+    "control-tower": "塔台",
     "maximizePanel": "最大化面板",
     "restoreLayout": "還原版面配置",
     "splitRight": "向右分割",
@@ -404,10 +405,51 @@
 
   "promptBox": {
     "placeholder": "在此輸入您的提示...",
-    "placeholderWithImage": "新增文字（選填），Ctrl+Enter 傳送",
-    "sendToTerminal": "傳送至終端（Ctrl+Enter）",
+    "placeholderWithImage": "新增文字（選填），Enter 傳送",
+    "sendToTerminal": "傳送至終端（Enter）",
     "imageAttached": "已附加圖片",
     "removeImage": "移除圖片",
-    "hint": "Ctrl+Enter 傳送 · Ctrl+V 貼上圖片 · ↑↓ 瀏覽歷史"
+    "hint": "Enter 傳送 · Alt+Enter 換行 · Esc 清空 · Ctrl+V 貼上圖片 · ↑↓ 瀏覽歷史"
+  },
+
+  "controlTower": {
+    "title": "指揮塔",
+    "refresh": "重新整理",
+    "all": "全部",
+    "loading": "載入工單中...",
+    "noOrders": "沒有找到工單",
+    "noWorkspace": "沒有工作區資料夾",
+    "notDetected": "此工作區未偵測到 Control Tower",
+    "execute": "執行",
+    "done": "補救收尾",
+    "sync": "同步檢查",
+    "viewFile": "瀏覽檔案",
+    "created": "建立",
+    "started": "開始",
+    "size": "規模",
+    "risk": "風險",
+    "subproject": "子專案",
+    "tab": {
+      "orders": "工單",
+      "kanban": "看板",
+      "sprint": "Sprint"
+    },
+    "lane": {
+      "TODO": "待辦",
+      "IN_PROGRESS": "進行中",
+      "REVIEW": "審查中",
+      "DONE": "已完成",
+      "BLOCKED": "已阻塞"
+    },
+    "toast": {
+      "completed": "已完成",
+      "started": "已啟動",
+      "newOrder": "新工單"
+    },
+    "validation": {
+      "title": "交叉比對",
+      "allMatch": "一致",
+      "mismatch": "項不一致"
+    }
   }
 }

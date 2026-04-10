@@ -1,9 +1,20 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { settingsStore } from '../stores/settings-store'
 
 interface PromptBoxProps {
   terminalId: string
+}
+
+interface CmdInfo {
+  name: string
+  description: string
+}
+
+interface StarCmdInfo {
+  name: string
+  description: string
+  prefix: 'ct' | 'gsd'
 }
 
 // Per-terminal history stored in memory
@@ -18,11 +29,73 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
   const draftRef = useRef('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Command menu state
+  const [slashCommands, setSlashCommands] = useState<CmdInfo[]>([])
+  const [starCommands, setStarCommands] = useState<StarCmdInfo[]>([])
+  const [showSlashMenu, setShowSlashMenu] = useState(false)
+  const showSlashMenuRef = useRef(false)
+  const [slashFilter, setSlashFilter] = useState('')
+  const [slashMenuIndex, setSlashMenuIndex] = useState(0)
+  const [showStarMenu, setShowStarMenu] = useState(false)
+  const showStarMenuRef = useRef(false)
+  const [starFilter, setStarFilter] = useState('')
+  const [starMenuIndex, setStarMenuIndex] = useState(0)
+
+  useEffect(() => { showSlashMenuRef.current = showSlashMenu }, [showSlashMenu])
+  useEffect(() => { showStarMenuRef.current = showStarMenu }, [showStarMenu])
+
   useEffect(() => {
     const unsubscribe = settingsStore.subscribe(() => {
       setFontFamily(settingsStore.getFontFamilyString())
     })
     return unsubscribe
+  }, [])
+
+  // Scan slash commands (skills) once on mount using terminal cwd
+  useEffect(() => {
+    window.electronAPI.pty.getCwd(terminalId).then((cwd: string) => {
+      if (!cwd) return
+      return window.electronAPI.claude.scanSkills(cwd)
+    }).then((results: { name: string; description: string }[] | undefined) => {
+      if (results) setSlashCommands(results.map(r => ({ name: r.name, description: r.description })))
+    }).catch(() => {})
+  }, [terminalId])
+
+  // Scan star commands once on mount
+  useEffect(() => {
+    window.electronAPI.claude.scanStarCommands().then((results: StarCmdInfo[]) => {
+      setStarCommands(results)
+    }).catch(() => {})
+  }, [])
+
+  const filteredSlashCommands = useMemo(() => {
+    if (!showSlashMenu) return []
+    const q = slashFilter.toLowerCase()
+    if (!q) return slashCommands
+    const prefix = slashCommands.filter(c => c.name.toLowerCase().startsWith(q))
+    const fuzzy = slashCommands.filter(c => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q))
+    return [...prefix, ...fuzzy]
+  }, [showSlashMenu, slashFilter, slashCommands])
+
+  const filteredStarCommands = useMemo(() => {
+    if (!showStarMenu) return []
+    const q = starFilter.toLowerCase()
+    if (!q) return starCommands
+    const prefix = starCommands.filter(c => c.name.toLowerCase().startsWith(q))
+    const fuzzy = starCommands.filter(c => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q))
+    return [...prefix, ...fuzzy]
+  }, [showStarMenu, starFilter, starCommands])
+
+  const handleSlashSelect = useCallback((cmd: CmdInfo) => {
+    setText('/' + cmd.name)
+    setShowSlashMenu(false)
+    textareaRef.current?.focus()
+  }, [])
+
+  const handleStarSelect = useCallback((cmd: StarCmdInfo) => {
+    setText('*' + cmd.name)
+    setShowStarMenu(false)
+    textareaRef.current?.focus()
   }, [])
 
   const getHistory = () => historyMap.get(terminalId) || []
@@ -64,14 +137,45 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && e.ctrlKey && !e.nativeEvent.isComposing) {
+    // Slash command menu navigation
+    if (showSlashMenu && filteredSlashCommands.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSlashMenuIndex(prev => Math.min(prev + 1, filteredSlashCommands.length - 1)); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setSlashMenuIndex(prev => Math.max(prev - 1, 0)); return }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); handleSlashSelect(filteredSlashCommands[slashMenuIndex]); return }
+      if (e.key === 'Escape') { e.preventDefault(); setShowSlashMenu(false); return }
+    }
+    // Star command menu navigation
+    if (showStarMenu && filteredStarCommands.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setStarMenuIndex(prev => Math.min(prev + 1, filteredStarCommands.length - 1)); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setStarMenuIndex(prev => Math.max(prev - 1, 0)); return }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); handleStarSelect(filteredStarCommands[starMenuIndex]); return }
+      if (e.key === 'Escape') { e.preventDefault(); setShowStarMenu(false); return }
+    }
+    if (e.key === 'Enter' && e.altKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
-      handleSend()
+      const textarea = textareaRef.current
+      if (textarea) {
+        const { selectionStart, selectionEnd } = textarea
+        const newText = text.slice(0, selectionStart) + '\n' + text.slice(selectionEnd)
+        setText(newText)
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = selectionStart + 1
+        })
+      }
       return
     }
     if (e.key === 'Escape') {
       e.preventDefault()
-      textareaRef.current?.blur()
+      setText('')
+      setImagePath(null)
+      setHistoryIndex(-1)
+      draftRef.current = ''
+      return
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      handleSend()
       return
     }
 
@@ -115,11 +219,30 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value)
+    const val = e.target.value
+    setText(val)
     // Reset history navigation when user types
     if (historyIndex !== -1) {
       setHistoryIndex(-1)
       draftRef.current = ''
+    }
+    // Slash command detection
+    if (val.startsWith('/') && !val.includes(' ')) {
+      setShowSlashMenu(true)
+      setSlashFilter(val.slice(1))
+      setSlashMenuIndex(0)
+      if (showStarMenuRef.current) setShowStarMenu(false)
+    } else if (showSlashMenuRef.current) {
+      setShowSlashMenu(false)
+    }
+    // Star command detection
+    if (val.startsWith('*') && !val.includes(' ')) {
+      setShowStarMenu(true)
+      setStarFilter(val.slice(1))
+      setStarMenuIndex(0)
+      if (showSlashMenuRef.current) setShowSlashMenu(false)
+    } else if (showStarMenuRef.current) {
+      setShowStarMenu(false)
     }
   }
 
@@ -144,6 +267,39 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
   return (
     <div className="prompt-box">
       <div className="prompt-box-inner">
+        {/* Slash command autocomplete menu */}
+        {showSlashMenu && filteredSlashCommands.length > 0 && (
+          <div className="prompt-box-cmd-menu">
+            {filteredSlashCommands.slice(0, 10).map((cmd, i) => (
+              <div
+                key={cmd.name}
+                className={`prompt-box-cmd-item${i === slashMenuIndex ? ' selected' : ''}`}
+                onClick={() => handleSlashSelect(cmd)}
+                onMouseEnter={() => setSlashMenuIndex(i)}
+              >
+                <span className="prompt-box-cmd-name">/{cmd.name}</span>
+                <span className="prompt-box-cmd-desc">{cmd.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Star command autocomplete menu */}
+        {showStarMenu && filteredStarCommands.length > 0 && (
+          <div className="prompt-box-cmd-menu prompt-box-star-menu">
+            {filteredStarCommands.slice(0, 10).map((cmd, i) => (
+              <div
+                key={`${cmd.prefix}-${cmd.name}`}
+                className={`prompt-box-cmd-item${i === starMenuIndex ? ' selected' : ''}`}
+                onClick={() => handleStarSelect(cmd)}
+                onMouseEnter={() => setStarMenuIndex(i)}
+              >
+                <span className="prompt-box-cmd-name">*{cmd.name}</span>
+                <span className="prompt-box-cmd-prefix">{cmd.prefix}</span>
+                <span className="prompt-box-cmd-desc">{cmd.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <textarea
           ref={textareaRef}
           className="prompt-box-textarea"

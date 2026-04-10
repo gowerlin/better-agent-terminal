@@ -9,6 +9,7 @@ interface ElectronAPI {
     kill: (id: string) => Promise<boolean>
     restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
     getCwd: (id: string) => Promise<string | null>
+    createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string> }) => Promise<boolean>
     onOutput: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }

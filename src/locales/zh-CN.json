@@ -19,8 +19,8 @@
     "welcome": "欢迎使用 Better Agent Terminal",
     "welcomeHint": "点击「+ 新增工作区」开始使用",
     "remoteConnectionFailed": "远程连接失败：{{error}}",
-    "remoteConnectionFailedFallback": "远程连接失败：{{error}}\n正在切换回本地配置文件。",
-    "remoteMissingInfo": "远程配置文件缺少连接信息。"
+    "remoteConnectionFailedFallback": "远程连接失败：{{error}}\n正在切换回本地配置。",
+    "remoteMissingInfo": "远程配置缺少连接信息。"
   },
   "settings": {
     "title": "设置",
@@ -101,10 +101,10 @@
     "workspaces": "工作区",
     "all": "全部",
     "addWorkspace": "+ 新增工作区",
-    "profiles": "配置文件",
+    "profiles": "配置",
     "settings": "设置",
     "connectedToRemote": "已连接至远程主机",
-    "clickToManageProfiles": "点击管理配置文件",
+    "clickToManageProfiles": "点击管理配置",
     "dragToReorder": "拖拽以重新排序",
     "groupNamePlaceholder": "分组名称（留空以移除）",
     "openInExplorer": "在文件管理器中打开",
@@ -125,11 +125,11 @@
     "expandSidebar": "展开侧边栏"
   },
   "profiles": {
-    "title": "配置文件",
+    "title": "配置",
     "saveCurrent": "保存当前状态",
     "addLocal": "+ 本地",
     "addRemote": "+ 远程",
-    "profileNamePlaceholder": "配置文件名称...",
+    "profileNamePlaceholder": "配置名称...",
     "hostPlaceholder": "主机（例如 192.168.1.100）",
     "portPlaceholder": "端口",
     "tokenPlaceholder": "Token",
@@ -141,13 +141,13 @@
     "editConnection": "编辑连接",
     "rename": "重命名",
     "duplicate": "复制",
-    "deleteProfile": "删除配置文件",
+    "deleteProfile": "删除配置",
     "deleteConfirm": "确定要删除「{{name}}」吗？此操作无法撤销。",
-    "switchProfile": "打开配置文件",
-    "openInNewWindow": "在新窗口中打开此配置文件？",
+    "switchProfile": "打开配置",
+    "openInNewWindow": "在新窗口中打开此配置？",
     "saveAndOpen": "保存当前并打开",
     "newWindow": "打开",
-    "alreadyOpen": "此配置文件已在另一个窗口中打开。",
+    "alreadyOpen": "此配置已在另一个窗口中打开。",
     "host": "主机",
     "fetchProfiles": "获取配置",
     "fetchingProfiles": "获取中...",
@@ -161,6 +161,7 @@
     "snippets": "代码片段",
     "skills": "Skills",
     "agents": "Agents",
+    "control-tower": "塔台",
     "maximizePanel": "最大化面板",
     "restoreLayout": "还原版面布局",
     "splitRight": "向右拆分",
@@ -385,10 +386,51 @@
   },
   "promptBox": {
     "placeholder": "在此输入您的提示...",
-    "placeholderWithImage": "添加文本（选填），Ctrl+Enter 发送",
-    "sendToTerminal": "发送至终端（Ctrl+Enter）",
+    "placeholderWithImage": "添加文本（选填），Enter 发送",
+    "sendToTerminal": "发送至终端（Enter）",
     "imageAttached": "已附加图片",
     "removeImage": "移除图片",
-    "hint": "Ctrl+Enter 发送 · Ctrl+V 粘贴图片 · ↑↓ 浏览历史"
+    "hint": "Enter 发送 · Alt+Enter 换行 · Esc 清空 · Ctrl+V 粘贴图片 · ↑↓ 浏览历史"
+  },
+
+  "controlTower": {
+    "title": "指挥塔",
+    "refresh": "刷新",
+    "all": "全部",
+    "loading": "加载工单中...",
+    "noOrders": "没有找到工单",
+    "noWorkspace": "没有工作区文件夹",
+    "notDetected": "此工作区未检测到 Control Tower",
+    "execute": "执行",
+    "done": "补救收尾",
+    "sync": "同步检查",
+    "viewFile": "浏览文件",
+    "created": "创建",
+    "started": "开始",
+    "size": "规模",
+    "risk": "风险",
+    "subproject": "子项目",
+    "tab": {
+      "orders": "工单",
+      "kanban": "看板",
+      "sprint": "Sprint"
+    },
+    "lane": {
+      "TODO": "待办",
+      "IN_PROGRESS": "进行中",
+      "REVIEW": "审查中",
+      "DONE": "已完成",
+      "BLOCKED": "已阻塞"
+    },
+    "toast": {
+      "completed": "已完成",
+      "started": "已启动",
+      "newOrder": "新工单"
+    },
+    "validation": {
+      "title": "交叉比对",
+      "allMatch": "一致",
+      "mismatch": "项不一致"
+    }
   }
 }

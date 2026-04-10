@@ -124,6 +124,7 @@ interface SessionMetadata {
   contextTokens: number
   cacheReadTokens: number
   cacheCreationTokens: number
+  lastRequestDurationMs: number
 }
 
 interface PendingRequest {
@@ -364,6 +365,7 @@ export class ClaudeAgentManager {
           contextTokens: 0,
           cacheReadTokens: 0,
           cacheCreationTokens: 0,
+          lastRequestDurationMs: 0,
         },
         pendingPermissions: new Map(),
         pendingAskUser: new Map(),
@@ -1098,6 +1100,7 @@ export class ClaudeAgentManager {
 
       session.metadata.totalCost = resultMsg.total_cost_usd ?? session.metadata.totalCost
       session.metadata.durationMs += resultMsg.duration_ms || 0
+      session.metadata.lastRequestDurationMs = resultMsg.duration_ms || 0
       session.metadata.numTurns += resultMsg.num_turns || 0
 
       if (resultMsg.modelUsage) {

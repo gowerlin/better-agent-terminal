@@ -10,6 +10,8 @@ const electronAPI = {
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
     restart: (id: string, cwd: string, shell?: string) => ipcRenderer.invoke('pty:restart', id, cwd, shell),
     getCwd: (id: string) => ipcRenderer.invoke('pty:get-cwd', id),
+    createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string> }) =>
+      ipcRenderer.invoke('terminal:create-with-command', opts),
     onOutput: (callback: (id: string, data: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, id: string, data: string) => callback(id, data)
       ipcRenderer.on('pty:output', handler)
@@ -149,6 +151,14 @@ const electronAPI = {
       ipcRenderer.invoke('claude:cleanup-worktree', sessionId, deleteBranch) as Promise<boolean>,
     scanSkills: (cwd: string) =>
       ipcRenderer.invoke('claude:scan-skills', cwd) as Promise<{ name: string; description: string; scope: 'project' | 'global' }[]>,
+    scanStarCommands: () =>
+      ipcRenderer.invoke('claude:scan-star-commands') as Promise<{ name: string; description: string; prefix: 'ct' | 'gsd' }[]>,
+    getStatuslineExtras: () =>
+      ipcRenderer.invoke('claude:get-statusline-extras') as Promise<{
+        accountLabel?: string; planLabel?: string
+        memsync?: { status: string; queueSize: number; age: string }
+        rateLimits?: { five_hour?: { used_percentage: number; resets_at: number }; seven_day?: { used_percentage: number; resets_at: number } }
+      }>,
     getSessionMeta: (sessionId: string) =>
       ipcRenderer.invoke('claude:get-session-meta', sessionId) as Promise<Record<string, unknown> | null>,
     getContextUsage: (sessionId: string) =>
