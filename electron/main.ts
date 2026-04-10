@@ -742,9 +742,20 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Check for updates after startup
+  // Check for updates after startup (if enabled in settings)
   setTimeout(async () => {
     try {
+      // Read settings to check if update checking is enabled (default: true)
+      let updateEnabled = true
+      try {
+        const configPath = path.join(app.getPath('userData'), 'settings.json')
+        const data = fsSync.readFileSync(configPath, 'utf-8')
+        const parsed = JSON.parse(data)
+        if (parsed.checkForUpdates === false) updateEnabled = false
+      } catch { /* settings file doesn't exist or is invalid */ }
+
+      if (!updateEnabled) return
+
       updateCheckResult = await checkForUpdates()
       if (updateCheckResult.hasUpdate) {
         // Rebuild menu to show update option

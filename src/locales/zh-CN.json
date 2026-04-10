@@ -48,6 +48,8 @@
     "minimizeToTrayHint": "启用后，关闭窗口会最小化到系统托盘而非退出程序。右键点击托盘图标可完全退出。",
     "showDockBadge": "Dock 图标显示待处理数量",
     "showDockBadgeHint": "有待处理的操作（权限请求、用户问题）时，在 Dock 图标上显示数字徽章。",
+    "checkForUpdates": "自动检查版本更新",
+    "checkForUpdatesHint": "定期检查 GitHub 是否有新版本，有更新时显示通知。",
     "notifyOnComplete": "Agent 完成时发送系统通知",
     "notifyOnCompleteHint": "Agent 完成任务时发送系统通知。",
     "notifySound": "播放通知音效",

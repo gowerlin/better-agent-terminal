@@ -50,6 +50,8 @@
     "minimizeToTrayHint": "啟用後，關閉視窗會最小化到系統匣而非結束程式。右鍵點擊系統匣圖示可完全退出。",
     "showDockBadge": "Dock 圖示顯示待處理數量",
     "showDockBadgeHint": "有待處理的動作（權限請求、使用者問題）時，在 Dock 圖示上顯示數字徽章。",
+    "checkForUpdates": "自動檢查版本更新",
+    "checkForUpdatesHint": "定期檢查 GitHub 是否有新版本，有更新時顯示通知。",
     "notifyOnComplete": "Agent 完成時發送系統通知",
     "notifyOnCompleteHint": "Agent 完成任務時發送系統通知。",
     "notifySound": "播放通知音效",

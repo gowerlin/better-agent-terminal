@@ -44,6 +44,8 @@
     "defaultModelHint": "Model ID used for new Agent sessions. Leave empty to use SDK default.",
     "defaultEffort": "Default Effort Level",
     "defaultEffortHint": "Effort level used for new Agent sessions. Higher effort = more thorough but slower.",
+    "checkForUpdates": "Check for updates automatically",
+    "checkForUpdatesHint": "Periodically check GitHub for new releases and show a notification when an update is available.",
     "notifications": "Notifications",
     "windowBehavior": "Window Behavior",
     "minimizeToTray": "Minimize to system tray on close",

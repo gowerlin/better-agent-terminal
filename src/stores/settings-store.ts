@@ -256,6 +256,12 @@ class SettingsStore {
     this.save()
   }
 
+  setCheckForUpdates(enabled: boolean): void {
+    this.settings = { ...this.settings, checkForUpdates: enabled }
+    this.notify()
+    this.save()
+  }
+
   // Get the agent command to execute
   getAgentCommand(): string | null {
     if (!this.settings.agentAutoCommand) return null
