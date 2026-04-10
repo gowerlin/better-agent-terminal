@@ -121,6 +121,9 @@
     "wakeAgent": "Wake Agent",
     "restAgent": "Rest Agent",
     "closeWorkspace": "Close Workspace",
+    "archiveWorkspace": "Archive Workspace",
+    "unarchiveWorkspace": "Restore Workspace",
+    "archived": "Archived",
     "collapseSidebar": "Collapse Sidebar",
     "expandSidebar": "Expand Sidebar"
   },

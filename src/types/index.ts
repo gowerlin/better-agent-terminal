@@ -17,6 +17,7 @@ export interface Workspace {
   envVars?: EnvVariable[];       // Workspace 專屬環境變數
   group?: string;                // Workspace 分組
   color?: string;                // Workspace 顏色標籤
+  archived?: boolean;            // 是否已歸檔（隱藏但不停止終端）
   lastSdkSessionId?: string;     // 上次使用的 SDK session ID，下次自動 resume
 }
 
