@@ -11,7 +11,7 @@ interface ThumbnailBarProps {
   focusedTerminalId: string | null
   splitTerminalId?: string | null
   onFocus: (id: string) => void
-  onSplitTerminal?: (id: string) => void
+  onSplitTerminal?: (id: string, side?: 'left' | 'right') => void
   onAddTerminal?: () => void
   onAddAgent?: (definitionId: string) => void
   /** Agent definitions to show in the add menu (fetched from registry) */

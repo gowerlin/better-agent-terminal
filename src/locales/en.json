@@ -161,7 +161,11 @@
     "maximizePanel": "Maximize Panel",
     "restoreLayout": "Restore Layout",
     "splitRight": "Split Right",
-    "unsplit": "Unsplit"
+    "splitLeft": "Split Left",
+    "unsplit": "Unsplit",
+    "pinLeft": "Pin Left",
+    "pinRight": "Pin Right",
+    "unpin": "Unpin"
   },
 
   "github": {

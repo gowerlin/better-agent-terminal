@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import type { TerminalInstance } from '../types'
 import { ActivityIndicator } from './ActivityIndicator'
 import { settingsStore } from '../stores/settings-store'
@@ -121,7 +122,7 @@ interface TerminalThumbnailProps {
   isActive: boolean
   isSplit?: boolean
   onClick: () => void
-  onSplitTerminal?: (id: string) => void
+  onSplitTerminal?: (id: string, side?: 'left' | 'right') => void
   onSetSupervisor?: (id: string) => void
   onClearSupervisor?: () => void
 }
@@ -129,6 +130,7 @@ interface TerminalThumbnailProps {
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
 let thumbRenderCount = 0
 export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isActive, isSplit, onClick, onSplitTerminal, onSetSupervisor, onClearSupervisor }: TerminalThumbnailProps) {
+  const { t } = useTranslation()
   thumbRenderCount++
   if (thumbRenderCount <= 30 || thumbRenderCount % 50 === 0) {
     dlog(`[render] Thumbnail render #${thumbRenderCount} id=${terminal.id.slice(0,8)} active=${isActive}`)
@@ -213,9 +215,20 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           onClick={e => e.stopPropagation()}
         >
           {onSplitTerminal && (
-            <button className="context-menu-item" onClick={() => { onSplitTerminal(terminal.id); setCtxMenu(null) }}>
-              {isSplit ? '✕ Unsplit' : '⫿ Split Right'}
-            </button>
+            isSplit ? (
+              <button className="context-menu-item" onClick={() => { onSplitTerminal(terminal.id); setCtxMenu(null) }}>
+                ✕ {t('workspace.unsplit')}
+              </button>
+            ) : (
+              <>
+                <button className="context-menu-item" onClick={() => { onSplitTerminal(terminal.id, 'left'); setCtxMenu(null) }}>
+                  ◧ {t('workspace.splitLeft')}
+                </button>
+                <button className="context-menu-item" onClick={() => { onSplitTerminal(terminal.id, 'right'); setCtxMenu(null) }}>
+                  ◨ {t('workspace.splitRight')}
+                </button>
+              </>
+            )
           )}
           {isSupervisor ? (
             <button className="context-menu-item" onClick={() => { onClearSupervisor?.(); setCtxMenu(null) }}>

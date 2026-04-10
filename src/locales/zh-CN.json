@@ -156,7 +156,11 @@
     "maximizePanel": "最大化面板",
     "restoreLayout": "还原版面布局",
     "splitRight": "向右拆分",
-    "unsplit": "取消拆分"
+    "splitLeft": "向左拆分",
+    "unsplit": "取消拆分",
+    "pinLeft": "固定到左侧",
+    "pinRight": "固定到右侧",
+    "unpin": "取消固定"
   },
 
   "github": {

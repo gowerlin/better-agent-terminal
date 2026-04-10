@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { Workspace, TerminalInstance, EnvVariable } from '../types'
 import { workspaceStore } from '../stores/workspace-store'
@@ -65,8 +66,16 @@ const DEFAULT_SPLIT_RATIO = 0.5
 const MIN_SPLIT_RATIO = 0.2
 const MAX_SPLIT_RATIO = 0.8
 
+type PinnedContentType = 'terminal' | 'files' | 'git' | 'github'
+
+interface PinnedPane {
+  type: PinnedContentType
+  terminalId?: string  // only when type === 'terminal'
+  side: 'left' | 'right'
+}
+
 interface SplitSettings {
-  terminalId: string | null
+  pinned: PinnedPane | null
   ratio: number
 }
 
@@ -75,10 +84,17 @@ function loadSplitSettings(): SplitSettings {
     const saved = localStorage.getItem(SPLIT_SETTINGS_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
-      return { terminalId: parsed.terminalId ?? null, ratio: parsed.ratio ?? DEFAULT_SPLIT_RATIO }
+      // Migration from old format (terminalId-based)
+      if ('terminalId' in parsed && !('pinned' in parsed)) {
+        const pinned: PinnedPane | null = parsed.terminalId
+          ? { type: 'terminal', terminalId: parsed.terminalId, side: 'right' }
+          : null
+        return { pinned, ratio: parsed.ratio ?? DEFAULT_SPLIT_RATIO }
+      }
+      return { pinned: parsed.pinned ?? null, ratio: parsed.ratio ?? DEFAULT_SPLIT_RATIO }
     }
   } catch { /* ignore */ }
-  return { terminalId: null, ratio: DEFAULT_SPLIT_RATIO }
+  return { pinned: null, ratio: DEFAULT_SPLIT_RATIO }
 }
 
 function saveSplitSettings(settings: SplitSettings): void {
@@ -140,6 +156,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const [isGitRepo, setIsGitRepo] = useState(false)
   const [agentDefinitions, setAgentDefinitions] = useState<AgentDefinition[]>([])
   const [splitSettings, setSplitSettings] = useState<SplitSettings>(loadSplitSettings)
+  const [tabCtxMenu, setTabCtxMenu] = useState<{ x: number; y: number; tab: PinnedContentType } | null>(null)
 
   // Fetch agent definitions from the registry
   useEffect(() => {
@@ -267,13 +284,39 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     return () => window.removeEventListener('maximize-toggle', handler)
   }, [isActive])
 
+  // Tab context menu (for pin left/right)
+  useEffect(() => {
+    if (!tabCtxMenu) return
+    const close = () => setTabCtxMenu(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [tabCtxMenu])
+
+  const handleTabContextMenu = useCallback((e: React.MouseEvent, tab: PinnedContentType) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setTabCtxMenu({ x: e.clientX, y: e.clientY, tab })
+  }, [])
+
   // Split view handlers
-  const handleSplitTerminal = useCallback((terminalId: string) => {
+  const handleSplitTerminal = useCallback((terminalId: string, side: 'left' | 'right' = 'right') => {
     setSplitSettings(prev => {
-      // If already split with this terminal, unsplit
-      const updated: SplitSettings = prev.terminalId === terminalId
-        ? { ...prev, terminalId: null }
-        : { ...prev, terminalId: terminalId }
+      // If already pinned with this terminal on same side, unsplit
+      const updated: SplitSettings = (prev.pinned?.type === 'terminal' && prev.pinned?.terminalId === terminalId)
+        ? { ...prev, pinned: null }
+        : { ...prev, pinned: { type: 'terminal', terminalId, side } }
+      saveSplitSettings(updated)
+      return updated
+    })
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+  }, [])
+
+  const handlePinTab = useCallback((tab: PinnedContentType, side: 'left' | 'right') => {
+    setSplitSettings(prev => {
+      // If already pinned with same tab, unsplit
+      const updated: SplitSettings = (prev.pinned?.type === tab && prev.pinned?.side === side)
+        ? { ...prev, pinned: null }
+        : { ...prev, pinned: { type: tab, side } }
       saveSplitSettings(updated)
       return updated
     })
@@ -282,7 +325,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   const handleUnsplit = useCallback(() => {
     setSplitSettings(prev => {
-      const updated: SplitSettings = { ...prev, terminalId: null }
+      const updated: SplitSettings = { ...prev, pinned: null }
       saveSplitSettings(updated)
       return updated
     })
@@ -291,9 +334,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   const handleSplitResize = useCallback((delta: number) => {
     setSplitSettings(prev => {
-      // delta is positive when dragging right (left pane gets bigger)
-      // Convert pixel delta to ratio delta based on container width
-      const container = document.querySelector('.terminals-container')
+      const container = document.querySelector('.split-container')
       if (!container) return prev
       const containerWidth = container.clientWidth
       const ratioDelta = delta / containerWidth
@@ -314,12 +355,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
   }, [])
 
-  // Clear split if the split terminal was removed
+  // Clear split if the pinned terminal was removed
   useEffect(() => {
-    if (splitSettings.terminalId && !terminals.find(t => t.id === splitSettings.terminalId)) {
+    if (splitSettings.pinned?.type === 'terminal' && splitSettings.pinned.terminalId
+        && !terminals.find(t => t.id === splitSettings.pinned!.terminalId)) {
       handleUnsplit()
     }
-  }, [terminals, splitSettings.terminalId, handleUnsplit])
+  }, [terminals, splitSettings.pinned, handleUnsplit])
 
   // Categorize terminals
   const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
@@ -740,10 +782,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // mainTerminal: the currently focused or first available terminal
   const mainTerminal = focusedTerminal || agentTerminal || terminals[0]
 
-  // Split view: secondary terminal shown alongside mainTerminal
-  const splitTerminal = splitSettings.terminalId ? terminals.find(t => t.id === splitSettings.terminalId) : null
-  // Don't split with itself
-  const isSplit = splitTerminal && splitTerminal.id !== mainTerminal?.id
+  // Split view computed state
+  const pinned = splitSettings.pinned
+  const isSplit = pinned !== null
+  const pinnedTerminal = (pinned?.type === 'terminal' && pinned.terminalId)
+    ? terminals.find(t => t.id === pinned.terminalId)
+    : null
+  // If pinned is a terminal that no longer exists or is the same as focused, the cleanup effect handles it
 
   // Send content to the active Claude agent session
   const handleSendToClaude = useCallback(async (content: string) => {
@@ -757,36 +802,113 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Show all terminals in thumbnail bar (clicking switches focus)
   const thumbnailTerminals = terminals
 
+  // Render content for a given tab type (used by both main and pinned panes)
+  const renderTabContent = useCallback((tab: PinnedContentType, specificTerminalId?: string) => {
+    switch (tab) {
+      case 'terminal': {
+        if (specificTerminalId) {
+          // Render a specific terminal (for pinned terminal)
+          const term = terminals.find(t => t.id === specificTerminalId)
+          if (!term) return null
+          return (
+            <div className="terminals-container">
+              <div className="terminal-wrapper active">
+                <MainPanel
+                  terminal={term}
+                  isActive={isActive && activeTab === 'terminal'}
+                  onClose={handleCloseTerminal}
+                  onRestart={handleRestart}
+                  onSwitchApiVersion={handleSwitchApiVersion}
+                  workspaceId={workspace.id}
+                />
+              </div>
+            </div>
+          )
+        }
+        // Render all terminals with focused one visible
+        return (
+          <div className="terminals-container">
+            {terminals.map(terminal => (
+              <div
+                key={terminal.id}
+                className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
+              >
+                <MainPanel
+                  terminal={terminal}
+                  isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
+                  onClose={handleCloseTerminal}
+                  onRestart={handleRestart}
+                  onSwitchApiVersion={handleSwitchApiVersion}
+                  workspaceId={workspace.id}
+                />
+              </div>
+            ))}
+            {mainTerminal?.role === 'supervisor' && activeTab === 'terminal' && (
+              <WorkerPanel
+                workers={terminals.filter(t => t.id !== mainTerminal.id)}
+                onSendToWorker={handleSendToWorker}
+                onFocusWorker={handleFocus}
+              />
+            )}
+          </div>
+        )
+      }
+      case 'files':
+        return (
+          <div className="workspace-tab-content">
+            <FileTree rootPath={workspace.folderPath} />
+          </div>
+        )
+      case 'git':
+        return (
+          <div className="workspace-tab-content">
+            <GitPanel
+              workspaceFolderPath={workspace.folderPath}
+              worktreePaths={terminals
+                .filter(t => t.agentPreset === 'claude-code-worktree' && t.worktreePath)
+                .map(t => ({ path: t.worktreePath!, branch: t.worktreeBranch || 'worktree' }))
+              }
+            />
+          </div>
+        )
+      case 'github':
+        return hasGithubRemote ? (
+          <div className="workspace-tab-content">
+            <GitHubPanel workspaceFolderPath={workspace.folderPath} onSendToClaude={handleSendToClaude} />
+          </div>
+        ) : null
+      default:
+        return null
+    }
+  }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote,
+      handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude])
+
+  // Render the active tab content for the main pane
+  const renderPaneContent = useCallback((tab: WorkspaceTab) => {
+    return renderTabContent(tab)
+  }, [renderTabContent])
+
+  // Render the pinned pane content
+  const renderPinnedContent = useCallback(() => {
+    if (!pinned) return null
+    return renderTabContent(pinned.type, pinned.type === 'terminal' ? pinned.terminalId : undefined)
+  }, [pinned, renderTabContent])
+
   return (
     <div className="workspace-view">
-      {/* Top tab bar: Terminal | Files | Git | GitHub */}
+      {/* Top tab bar: Terminal | Files | Git | GitHub — right-click to pin */}
       <div className="workspace-tab-bar">
-        <button
-          className={`workspace-tab-btn ${activeTab === 'terminal' ? 'active' : ''}`}
-          onClick={() => handleTabChange('terminal')}
-        >
-          {t('workspace.terminal')}
-        </button>
-        <button
-          className={`workspace-tab-btn ${activeTab === 'files' ? 'active' : ''}`}
-          onClick={() => handleTabChange('files')}
-        >
-          {t('workspace.files')}
-        </button>
-        <button
-          className={`workspace-tab-btn ${activeTab === 'git' ? 'active' : ''}`}
-          onClick={() => handleTabChange('git')}
-        >
-          {t('workspace.git')}
-        </button>
-        {hasGithubRemote && (
+        {(['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : [])] as PinnedContentType[]).map(tab => (
           <button
-            className={`workspace-tab-btn ${activeTab === 'github' ? 'active' : ''}`}
-            onClick={() => handleTabChange('github')}
+            key={tab}
+            className={`workspace-tab-btn ${activeTab === tab ? 'active' : ''}${pinned?.type === tab ? ' pinned' : ''}`}
+            onClick={() => handleTabChange(tab)}
+            onContextMenu={(e) => handleTabContextMenu(e, tab)}
           >
-            {t('workspace.github')}
+            {pinned?.type === tab && <span className="pin-indicator">{pinned.side === 'left' ? '◧' : '◨'}</span>}
+            {t(`workspace.${tab === 'github' ? 'github' : tab}`)}
           </button>
-        )}
+        ))}
         <div className="workspace-tab-spacer" />
         {isSplit && (
           <button
@@ -820,107 +942,69 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         )}
       </div>
 
-      {/* Main content area - terminals always rendered (keep processes alive) */}
-      <Suspense fallback={<div className="loading-panel" />}>
-        <div className={`terminals-container${isSplit ? ' split-view' : ''} ${activeTab !== 'terminal' ? 'hidden' : ''}`}>
-          {isSplit ? (
-            <>
-              {/* Left pane — focused terminal */}
-              <div className="split-pane split-pane-left" style={{ flex: `0 0 ${splitSettings.ratio * 100}%` }}>
-                {terminals.map(terminal => (
-                  <div
-                    key={terminal.id}
-                    className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
-                  >
-                    <MainPanel
-                      terminal={terminal}
-                      isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
-                      onClose={handleCloseTerminal}
-                      onRestart={handleRestart}
-                      onSwitchApiVersion={handleSwitchApiVersion}
-                      workspaceId={workspace.id}
-                    />
-                  </div>
-                ))}
-              </div>
-              <ResizeHandle
-                direction="horizontal"
-                onResize={handleSplitResize}
-                onDoubleClick={handleSplitResetRatio}
-              />
-              {/* Right pane — split terminal */}
-              <div className="split-pane split-pane-right" style={{ flex: 1 }}>
-                <div className="terminal-wrapper active">
-                  <MainPanel
-                    terminal={splitTerminal}
-                    isActive={isActive && activeTab === 'terminal'}
-                    onClose={handleCloseTerminal}
-                    onRestart={handleRestart}
-                    onSwitchApiVersion={handleSwitchApiVersion}
-                    workspaceId={workspace.id}
-                  />
-                </div>
-              </div>
-            </>
+      {/* Tab context menu (pin left/right) */}
+      {tabCtxMenu && createPortal(
+        <div
+          className="context-menu"
+          style={{ position: 'fixed', left: tabCtxMenu.x, top: tabCtxMenu.y, zIndex: 1000 }}
+          onClick={e => e.stopPropagation()}
+        >
+          {pinned?.type === tabCtxMenu.tab ? (
+            <button className="context-menu-item" onClick={() => { handleUnsplit(); setTabCtxMenu(null) }}>
+              ✕ {t('workspace.unpin')}
+            </button>
           ) : (
             <>
-              {terminals.map(terminal => (
-                <div
-                  key={terminal.id}
-                  className={`terminal-wrapper ${terminal.id === mainTerminal?.id ? 'active' : 'hidden'}`}
-                >
-                  <MainPanel
-                    terminal={terminal}
-                    isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
-                    onClose={handleCloseTerminal}
-                    onRestart={handleRestart}
-                    onSwitchApiVersion={handleSwitchApiVersion}
-                    workspaceId={workspace.id}
-                  />
-                </div>
-              ))}
+              <button className="context-menu-item" onClick={() => { handlePinTab(tabCtxMenu.tab, 'left'); setTabCtxMenu(null) }}>
+                ◧ {t('workspace.pinLeft')}
+              </button>
+              <button className="context-menu-item" onClick={() => { handlePinTab(tabCtxMenu.tab, 'right'); setTabCtxMenu(null) }}>
+                ◨ {t('workspace.pinRight')}
+              </button>
             </>
           )}
-          {/* Worker panel — visible when active terminal is supervisor */}
-          {mainTerminal?.role === 'supervisor' && activeTab === 'terminal' && (
-            <WorkerPanel
-              workers={terminals.filter(t => t.id !== mainTerminal.id)}
-              onSendToWorker={handleSendToWorker}
-              onFocusWorker={handleFocus}
+        </div>,
+        document.body
+      )}
+
+      {/* Main content area */}
+      <Suspense fallback={<div className="loading-panel" />}>
+        {isSplit ? (
+          <div className="split-container">
+            {/* Primary pane (opposite side of pinned) */}
+            {pinned!.side === 'right' && (
+              <div className="split-pane" style={{ flex: `0 0 ${splitSettings.ratio * 100}%` }}>
+                {renderPaneContent(activeTab)}
+              </div>
+            )}
+            {pinned!.side === 'left' && (
+              <div className="split-pane" style={{ flex: `0 0 ${(1 - splitSettings.ratio) * 100}%` }}>
+                {renderPinnedContent()}
+              </div>
+            )}
+            <ResizeHandle
+              direction="horizontal"
+              onResize={handleSplitResize}
+              onDoubleClick={handleSplitResetRatio}
             />
-          )}
-        </div>
+            {pinned!.side === 'right' && (
+              <div className="split-pane" style={{ flex: 1 }}>
+                {renderPinnedContent()}
+              </div>
+            )}
+            {pinned!.side === 'left' && (
+              <div className="split-pane" style={{ flex: 1 }}>
+                {renderPaneContent(activeTab)}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Non-split: show active tab content */}
+            {renderPaneContent(activeTab)}
+          </>
+        )}
       </Suspense>
-
-      {activeTab === 'files' && (
-        <Suspense fallback={<div className="loading-panel" />}>
-          <div className="workspace-tab-content">
-            <FileTree rootPath={workspace.folderPath} />
-          </div>
-        </Suspense>
-      )}
-
-      {activeTab === 'git' && (
-        <Suspense fallback={<div className="loading-panel" />}>
-          <div className="workspace-tab-content">
-            <GitPanel
-              workspaceFolderPath={workspace.folderPath}
-              worktreePaths={terminals
-                .filter(t => t.agentPreset === 'claude-code-worktree' && t.worktreePath)
-                .map(t => ({ path: t.worktreePath!, branch: t.worktreeBranch || 'worktree' }))
-              }
-            />
-          </div>
-        </Suspense>
-      )}
-
-      {activeTab === 'github' && hasGithubRemote && (
-        <Suspense fallback={<div className="loading-panel" />}>
-          <div className="workspace-tab-content">
-            <GitHubPanel workspaceFolderPath={workspace.folderPath} onSendToClaude={handleSendToClaude} />
-          </div>
-        </Suspense>
-      )}
 
       {/* Resize handle for thumbnail bar */}
       {!thumbnailSettings.collapsed && (
@@ -934,7 +1018,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       <ThumbnailBar
         terminals={thumbnailTerminals}
         focusedTerminalId={focusedTerminalId}
-        splitTerminalId={splitSettings.terminalId}
+        splitTerminalId={pinned?.type === 'terminal' ? pinned.terminalId ?? null : null}
         onFocus={handleFocus}
         onSplitTerminal={handleSplitTerminal}
         onAddTerminal={handleAddTerminal}

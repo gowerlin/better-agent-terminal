@@ -303,6 +303,16 @@
   border-bottom-color: var(--accent-color, #d97706);
 }
 
+.workspace-tab-btn.pinned {
+  color: var(--accent-color, #d97706);
+}
+
+.pin-indicator {
+  font-size: 10px;
+  margin-right: 3px;
+  opacity: 0.8;
+}
+
 /* Spacer pushes action buttons to the right */
 .workspace-tab-spacer {
   flex: 1;
@@ -392,7 +402,16 @@
   display: flex;
 }
 
-/* Split View - side-by-side terminals */
+/* Split View - side-by-side panes (terminals, files, git, github) */
+.split-container {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Legacy: kept for backward compat */
 .terminals-container.split-view {
   display: flex;
   flex-direction: row;
@@ -406,6 +425,16 @@
 }
 
 .split-pane .terminal-wrapper {
+  position: absolute;
+  inset: 0;
+}
+
+.split-pane .workspace-tab-content {
+  position: absolute;
+  inset: 0;
+}
+
+.split-pane .terminals-container {
   position: absolute;
   inset: 0;
 }
