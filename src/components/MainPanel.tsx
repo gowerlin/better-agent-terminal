@@ -195,7 +195,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
         )}
       </div>
       {!isClaudeCode && showPromptBox && (
-        <PromptBox terminalId={terminal.id} />
+        <PromptBox terminalId={terminal.id} isActive={isActive} />
       )}
     </div>
   )

@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { settingsStore } from '../stores/settings-store'
+import { useVoiceRecording } from '../hooks/useVoiceRecording'
+import { MicButton } from './voice/MicButton'
 
 interface PromptBoxProps {
   terminalId: string
+  isActive?: boolean
 }
 
 interface CmdInfo {
@@ -20,7 +23,7 @@ interface StarCmdInfo {
 // Per-terminal history stored in memory
 const historyMap = new Map<string, string[]>()
 
-export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
+export function PromptBox({ terminalId, isActive = true }: Readonly<PromptBoxProps>) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const [fontFamily, setFontFamily] = useState(settingsStore.getFontFamilyString())
@@ -43,6 +46,29 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
 
   useEffect(() => { showSlashMenuRef.current = showSlashMenu }, [showSlashMenu])
   useEffect(() => { showStarMenuRef.current = showStarMenu }, [showStarMenu])
+
+  // Voice recording hook
+  // TODO(T0006): onTranscribed should show a preview popover for user confirmation before inserting
+  const voice = useVoiceRecording({
+    onTranscribed: (transcribedText) => {
+      // Phase 1 temporary: directly append to textarea (no preview confirmation)
+      setText((prev) => prev + transcribedText)
+      textareaRef.current?.focus()
+    },
+  })
+
+  // Alt+M global shortcut — only active on the current active PromptBox
+  useEffect(() => {
+    if (!isActive) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+        e.preventDefault()
+        voice.toggle()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isActive, voice.toggle])
 
   useEffect(() => {
     const unsubscribe = settingsStore.subscribe(() => {
@@ -311,6 +337,12 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
           style={{ fontFamily }}
           rows={3}
         />
+        <MicButton
+          state={voice.state}
+          onClick={voice.toggle}
+          disabled={voice.state === 'disabled'}
+          disabledTooltip={voice.error || '請先在 Settings 下載語音模型'}
+        />
         <button
           className="prompt-box-send"
           onClick={handleSend}
@@ -321,6 +353,14 @@ export function PromptBox({ terminalId }: Readonly<PromptBoxProps>) {
         </button>
       </div>
       <div className="prompt-box-hint">
+        {voice.error && (
+          <>
+            <span className="prompt-box-voice-error" onClick={voice.reset} title="點擊清除">
+              ⚠ {voice.error}
+            </span>
+            {' · '}
+          </>
+        )}
         {imagePath ? (
           <>
             <span className="prompt-box-image-badge">
