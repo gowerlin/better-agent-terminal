@@ -368,7 +368,7 @@ export class ClaudeAgentManager {
         pendingPermissions: new Map(),
         pendingAskUser: new Map(),
         permissionMode: options.permissionMode || 'default',
-        effort: options.effort || 'medium',
+        effort: options.effort || 'high',
         model: options.model,
         messageQueue: [],
         activeTasks: new Map(),
@@ -389,6 +389,7 @@ export class ClaudeAgentManager {
           branchName: worktreeInfo.branchName,
           worktreePath: worktreeInfo.worktreePath,
           sourceBranch: worktreeInfo.sourceBranch,
+          gitRoot: worktreeInfo.gitRoot,
         })
       } else if (options.useWorktree && !worktreeInfo) {
         this.send('claude:message', sessionId, {
@@ -617,7 +618,7 @@ export class ClaudeAgentManager {
         includePartialMessages: true,
         promptSuggestions: true,
         settingSources: ['user', 'project', 'local'],
-        thinking: { type: 'adaptive' },
+        thinking: { type: 'enabled' },
         effort: session.effort,
         toolConfig: { askUserQuestion: { previewFormat: 'html' } },
         agentProgressSummaries: true,

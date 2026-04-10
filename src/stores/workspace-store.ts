@@ -451,10 +451,11 @@ class WorkspaceStore {
 
   updateTerminalActivity(id: string): void {
     const now = Date.now()
-    // Only update the specific terminal's timestamp in-place to avoid full array recreation
-    const terminal = this.state.terminals.find(t => t.id === id)
-    if (terminal) {
-      terminal.lastActivityTime = now
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t =>
+        t.id === id ? { ...t, lastActivityTime: now } : t
+      )
     }
     // Throttle notifications to avoid excessive re-renders (max once per 2s for activity)
     if (now - this.lastActivityNotify > 2000) {
