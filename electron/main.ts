@@ -180,6 +180,76 @@ function isMinimizeToTrayEnabled(): boolean {
   }
 }
 
+/** Build (or rebuild) the system tray context menu with per-window entries. */
+function rebuildTrayMenu() {
+  if (!tray) return
+  const entries: Electron.MenuItemConstructorOptions[] = []
+
+  // "Show All Windows"
+  entries.push({
+    label: 'Show All Windows',
+    click: () => {
+      for (const win of windowMap.values()) {
+        if (!win.isDestroyed()) { win.show(); win.focus() }
+      }
+    }
+  })
+
+  // Per-window entries
+  if (windowMap.size > 0) {
+    entries.push({ type: 'separator' })
+    for (const [wId, win] of windowMap) {
+      if (win.isDestroyed()) continue
+      // Build a short label from window title or workspace names
+      const label = win.getTitle() || `Window ${wId.slice(0, 8)}`
+      entries.push({
+        label,
+        submenu: [
+          {
+            label: 'Show',
+            click: () => { if (!win.isDestroyed()) { win.show(); win.focus() } }
+          },
+          {
+            label: 'Remove from profile',
+            click: () => {
+              windowRegistry.getEntry(wId).then(async (entry) => {
+                if (!entry?.profileId) {
+                  await windowRegistry.removeEntry(wId)
+                  if (!win.isDestroyed()) win.destroy()
+                  rebuildTrayMenu()
+                  return
+                }
+                const profileId = entry.profileId!
+                await windowRegistry.removeEntry(wId)
+                await profileManager.save(profileId).catch(() => { /* ignore */ })
+                const remaining = (await windowRegistry.readAll()).filter(e =>
+                  e.profileId === profileId && windowMap.has(e.id) && e.id !== wId
+                )
+                if (remaining.length === 0) {
+                  await profileManager.deactivateProfile(profileId)
+                }
+                if (!win.isDestroyed()) win.destroy()
+                rebuildTrayMenu()
+              }).catch(() => { /* ignore */ })
+            }
+          }
+        ]
+      })
+    }
+  }
+
+  entries.push({ type: 'separator' })
+  entries.push({
+    label: 'Quit',
+    click: () => {
+      isAppQuitting = true
+      app.quit()
+    }
+  })
+
+  tray.setContextMenu(Menu.buildFromTemplate(entries))
+}
+
 /** Attach a will-resize throttle to a BrowserWindow to reduce DWM pressure on Windows. */
 function setupResizeThrottle(win: BrowserWindow, label: string) {
   let lastResizeTime = 0
@@ -375,20 +445,13 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
       return
     }
 
-    // Minimize to tray instead of closing (if enabled in settings)
-    if (isMinimizeToTrayEnabled()) {
-      e.preventDefault()
-      win.hide()
-      return
-    }
-
-    // Manual close (Cmd+W / click X)
     e.preventDefault()
     windowRegistry.getEntry(windowId).then(async (entry) => {
       if (!entry?.profileId) {
         // No profile — just close and remove entry
         await windowRegistry.removeEntry(windowId)
         win.destroy()
+        rebuildTrayMenu()
         return
       }
 
@@ -398,10 +461,18 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
         e.profileId === entry.profileId && windowMap.has(e.id)
       ).length
 
+      const minimizeToTray = isMinimizeToTrayEnabled()
+
       if (profileWindowCount <= 1) {
+        if (minimizeToTray) {
+          // Last window — minimize to tray instead of closing
+          win.hide()
+          return
+        }
         // Last window in profile — preserve snapshot but mark profile inactive
         await profileManager.deactivateProfile(entry.profileId!)
         win.destroy()
+        rebuildTrayMenu()
         return
       }
 
@@ -417,18 +488,26 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
           await profileManager.deactivateProfile(profileId)
         }
         win.destroy()
+        rebuildTrayMenu()
         return
       }
 
-      // Multiple windows — ask user
+      // Multiple windows — ask user (even when minimizeToTray is enabled)
+      const buttons = minimizeToTray
+        ? ['Remove from profile', 'Minimize to tray', 'Cancel']
+        : ['Remove from profile', 'Close only', 'Cancel']
+      const detail = minimizeToTray
+        ? 'Remove from profile: this window won\'t be restored next time.\nMinimize to tray: hide this window but keep it in the profile.'
+        : 'Remove from profile: this window won\'t be restored next time.\nClose only: preserve it in the profile for next launch.'
+
       const { response } = await dialog.showMessageBox(win, {
         type: 'question',
-        buttons: ['Remove from profile', 'Close only', 'Cancel'],
+        buttons,
         defaultId: 1,
         cancelId: 2,
         title: 'Close Window',
         message: 'How do you want to close this window?',
-        detail: 'Remove from profile: this window won\'t be restored next time.\nClose only: preserve it in the profile for next launch.',
+        detail,
       })
 
       if (response === 2) return // Cancel
@@ -445,18 +524,27 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
         if (remaining.length === 0) {
           await profileManager.deactivateProfile(profileId)
         }
-      }
-      // response === 1: Close only — keep entry in registry, save snapshot so it persists
-      if (response === 1 && entry.profileId) {
-        await profileManager.save(entry.profileId).catch(() => { /* ignore */ })
+        win.destroy()
+        rebuildTrayMenu()
+        return
       }
 
-      win.destroy()
+      // response === 1: Close only / Minimize to tray
+      if (entry.profileId) {
+        await profileManager.save(entry.profileId).catch(() => { /* ignore */ })
+      }
+      if (minimizeToTray) {
+        win.hide()
+      } else {
+        win.destroy()
+        rebuildTrayMenu()
+      }
     }).catch(() => { /* ignore */ })
   })
 
   win.on('closed', () => {
     windowMap.delete(windowId)
+    rebuildTrayMenu()
     // Close detached windows that were opened from this window
     // (for now close all detached — same as before)
     if (windowMap.size === 0) {
@@ -466,6 +554,9 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
       detachedWindows.clear()
     }
   })
+
+  // Rebuild tray menu after window title is available
+  win.webContents.on('page-title-updated', () => rebuildTrayMenu())
 
   return win
 }
@@ -505,26 +596,7 @@ app.whenReady().then(async () => {
     const trayIcon = nativeImage.createFromPath(iconFile).resize({ width: 16, height: 16 })
     tray = new Tray(trayIcon)
     tray.setToolTip('Better Agent Terminal')
-    const trayMenu = Menu.buildFromTemplate([
-      {
-        label: 'Show Window',
-        click: () => {
-          const wins = BrowserWindow.getAllWindows()
-          if (wins.length > 0) {
-            wins.forEach(w => { w.show(); w.focus() })
-          }
-        }
-      },
-      { type: 'separator' },
-      {
-        label: 'Quit',
-        click: () => {
-          isAppQuitting = true
-          app.quit()
-        }
-      }
-    ])
-    tray.setContextMenu(trayMenu)
+    rebuildTrayMenu()
     tray.on('double-click', () => {
       const wins = BrowserWindow.getAllWindows()
       if (wins.length > 0) {
