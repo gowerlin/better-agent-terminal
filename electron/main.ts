@@ -832,6 +832,25 @@ function registerProxiedHandlers() {
   registerHandler('pty:restart', (_ctx, id: string, cwd: string, shellPath?: string) => ptyManager?.restart(id, cwd, shellPath))
   registerHandler('pty:get-cwd', (_ctx, id: string) => ptyManager?.getCwd(id))
 
+  // Terminal: create + immediately send a command (for Control Tower auto-session)
+  registerHandler('terminal:create-with-command', (_ctx, opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string> }) => {
+    if (!ptyManager) return false
+    const created = ptyManager.create({
+      id: opts.id,
+      cwd: opts.cwd,
+      type: 'terminal',
+      shell: opts.shell,
+      customEnv: opts.customEnv,
+    })
+    if (created && opts.command) {
+      // Delay to let shell initialize before writing command
+      setTimeout(() => {
+        ptyManager!.write(opts.id, opts.command + '\r')
+      }, 500)
+    }
+    return created
+  })
+
   // Workspace persistence — save/load from window registry entry
   registerHandler('workspace:save', async (ctx, data: string) => {
     if (!ctx.windowId) return false

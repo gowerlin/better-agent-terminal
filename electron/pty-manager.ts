@@ -182,8 +182,10 @@ export class PtyManager {
           // Terminal capabilities - let apps know we are a real PTY
           TERM: 'xterm-256color',
           COLORTERM: 'truecolor',
-          TERM_PROGRAM: 'better-terminal',
+          TERM_PROGRAM: 'better-agent-terminal',
           TERM_PROGRAM_VERSION: '1.0',
+          // BAT session identification (for Control Tower auto-session detection)
+          BAT_SESSION: '1',
           // Force color output
           FORCE_COLOR: '3',
           // Ensure not detected as CI environment
@@ -241,8 +243,10 @@ export class PtyManager {
           // Terminal capabilities (limited in child_process mode)
           TERM: 'xterm-256color',
           COLORTERM: 'truecolor',
-          TERM_PROGRAM: 'better-terminal',
+          TERM_PROGRAM: 'better-agent-terminal',
           TERM_PROGRAM_VERSION: '1.0',
+          // BAT session identification (for Control Tower auto-session detection)
+          BAT_SESSION: '1',
           FORCE_COLOR: '3',
           CI: ''
         }
