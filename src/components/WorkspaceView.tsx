@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, lazy, Suspense } from 'react'
+import { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Workspace, TerminalInstance, EnvVariable } from '../types'
 import { workspaceStore } from '../stores/workspace-store'
@@ -239,12 +239,26 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     })
   }, [])
 
+  // Track pre-maximize thumbnail collapsed state for restore
+  const preMaximizeThumbnailCollapsed = useRef<boolean | null>(null)
+
   // Listen for maximize-toggle to collapse/restore thumbnail bar
   useEffect(() => {
     if (!isActive) return
-    const handler = () => {
+    const handler = (e: Event) => {
+      const maximized = (e as CustomEvent).detail?.maximized
       setThumbnailSettings(prev => {
-        const updated = { ...prev, collapsed: !prev.collapsed }
+        let updated: ThumbnailSettings
+        if (maximized) {
+          // Save current state before collapsing
+          preMaximizeThumbnailCollapsed.current = prev.collapsed
+          updated = { ...prev, collapsed: true }
+        } else {
+          // Restore pre-maximize state
+          const wasCollapsed = preMaximizeThumbnailCollapsed.current
+          preMaximizeThumbnailCollapsed.current = null
+          updated = { ...prev, collapsed: wasCollapsed ?? false }
+        }
         saveThumbnailSettings(updated)
         return updated
       })

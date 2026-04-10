@@ -26,6 +26,11 @@ interface PanelSettings {
     collapsed: boolean
   }
   maximized: boolean
+  /** Snapshot of collapsed states before maximize, used to restore on un-maximize */
+  preMaximize?: {
+    sidebarCollapsed: boolean
+    snippetSidebarCollapsed: boolean
+  }
 }
 
 const PANEL_SETTINGS_KEY = 'better-terminal-panel-settings'
@@ -172,14 +177,35 @@ export default function App() {
   const handleMaximizeToggle = useCallback(() => {
     setPanelSettings(prev => {
       const nextMaximized = !prev.maximized
-      const updated: PanelSettings = nextMaximized
-        ? { ...prev, maximized: true, sidebar: { ...prev.sidebar, collapsed: true }, snippetSidebar: { ...prev.snippetSidebar, collapsed: true } }
-        : { ...prev, maximized: false, sidebar: { ...prev.sidebar, collapsed: false }, snippetSidebar: { ...prev.snippetSidebar, collapsed: false } }
+      let updated: PanelSettings
+      if (nextMaximized) {
+        // Save current collapsed states before maximizing
+        updated = {
+          ...prev,
+          maximized: true,
+          preMaximize: {
+            sidebarCollapsed: prev.sidebar.collapsed,
+            snippetSidebarCollapsed: prev.snippetSidebar.collapsed
+          },
+          sidebar: { ...prev.sidebar, collapsed: true },
+          snippetSidebar: { ...prev.snippetSidebar, collapsed: true }
+        }
+      } else {
+        // Restore pre-maximize states (default to not-collapsed if no snapshot)
+        const restore = prev.preMaximize
+        updated = {
+          ...prev,
+          maximized: false,
+          preMaximize: undefined,
+          sidebar: { ...prev.sidebar, collapsed: restore?.sidebarCollapsed ?? false },
+          snippetSidebar: { ...prev.snippetSidebar, collapsed: restore?.snippetSidebarCollapsed ?? true }
+        }
+      }
       savePanelSettings(updated)
+      // Dispatch event so WorkspaceView can collapse/restore ThumbnailBar
+      window.dispatchEvent(new CustomEvent('maximize-toggle', { detail: { maximized: nextMaximized } }))
       return updated
     })
-    // Dispatch collapse-thumbnail event so WorkspaceView can collapse ThumbnailBar
-    window.dispatchEvent(new CustomEvent('maximize-toggle'))
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
   }, [])
 
