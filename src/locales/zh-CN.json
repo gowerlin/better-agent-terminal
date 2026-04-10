@@ -163,7 +163,11 @@
     "unsplit": "取消拆分",
     "pinLeft": "固定到左侧",
     "pinRight": "固定到右侧",
-    "unpin": "取消固定"
+    "unpin": "取消固定",
+    "workspaces": "工作区",
+    "moveToLeft": "移至左侧面板",
+    "moveToMain": "移至主区域",
+    "moveToRight": "移至右侧面板"
   },
 
   "github": {

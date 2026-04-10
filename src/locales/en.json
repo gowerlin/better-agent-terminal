@@ -168,7 +168,11 @@
     "unsplit": "Unsplit",
     "pinLeft": "Pin Left",
     "pinRight": "Pin Right",
-    "unpin": "Unpin"
+    "unpin": "Unpin",
+    "workspaces": "Workspaces",
+    "moveToLeft": "Move to Left Panel",
+    "moveToMain": "Move to Main Area",
+    "moveToRight": "Move to Right Panel"
   },
 
   "github": {

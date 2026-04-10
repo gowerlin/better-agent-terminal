@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import type { Workspace, TerminalInstance, EnvVariable } from '../types'
+import type { Workspace, TerminalInstance, EnvVariable, DockablePanel, DockZone } from '../types'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { ThumbnailBar } from './ThumbnailBar'
@@ -113,6 +113,8 @@ interface WorkspaceViewProps {
   isActive: boolean
   isMaximized?: boolean
   onMaximizeToggle?: () => void
+  dockedPanels?: DockablePanel[]
+  onDockPanel?: (panel: DockablePanel, zone: DockZone) => void
 }
 
 // Helper to get shell path from settings
@@ -150,7 +152,7 @@ export function clearInitializedWorkspaces(): void {
   initializedWorkspaces.clear()
 }
 
-export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isMaximized, onMaximizeToggle }: Readonly<WorkspaceViewProps>) {
+export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel }: Readonly<WorkspaceViewProps>) {
   const { t } = useTranslation()
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
@@ -191,6 +193,14 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     }
   }, [hasGithubRemote, activeTab])
 
+  // Auto-correct active tab if docked panel is moved away from main zone
+  useEffect(() => {
+    if (activeTab !== 'terminal' && dockedPanels && !dockedPanels.includes(activeTab as DockablePanel)) {
+      setActiveTab('terminal')
+      try { localStorage.setItem(TAB_KEY, 'terminal') } catch { /* ignore */ }
+    }
+  }, [dockedPanels, activeTab])
+
   const handleTabChange = useCallback((tab: WorkspaceTab) => {
     setActiveTab(tab)
     try { localStorage.setItem(TAB_KEY, tab) } catch { /* ignore */ }
@@ -200,9 +210,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   useEffect(() => {
     if (!isActive) return
 
-    const TABS: WorkspaceTab[] = hasGithubRemote
-      ? ['terminal', 'files', 'git', 'github', 'snippets', 'skills', 'agents']
-      : ['terminal', 'files', 'git', 'snippets', 'skills', 'agents']
+    const TABS: WorkspaceTab[] = dockedPanels
+      ? ['terminal', ...dockedPanels.filter(p => p !== 'github' || hasGithubRemote)] as WorkspaceTab[]
+      : hasGithubRemote
+        ? ['terminal', 'files', 'git', 'github', 'snippets', 'skills', 'agents']
+        : ['terminal', 'files', 'git', 'snippets', 'skills', 'agents']
 
     const handleCycleTab = (e: Event) => {
       const { direction } = (e as CustomEvent).detail as { direction: number }
@@ -367,6 +379,14 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       handleUnsplit()
     }
   }, [terminals, splitSettings.pinned, handleUnsplit])
+
+  // Clear split if pinned tab is no longer docked to main zone
+  useEffect(() => {
+    if (splitSettings.pinned && splitSettings.pinned.type !== 'terminal' && dockedPanels
+        && !dockedPanels.includes(splitSettings.pinned.type as DockablePanel)) {
+      handleUnsplit()
+    }
+  }, [dockedPanels, splitSettings.pinned, handleUnsplit])
 
   // Categorize terminals
   const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
@@ -947,9 +967,12 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   return (
     <div className="workspace-view">
-      {/* Top tab bar: Terminal | Files | Git | GitHub | Snippets — right-click to pin */}
+      {/* Top tab bar: Terminal + docked-to-main panels — right-click to pin or move */}
       <div className="workspace-tab-bar">
-        {(['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets', 'skills', 'agents'] as PinnedContentType[]).map(tab => (
+        {(dockedPanels
+          ? ['terminal', ...dockedPanels.filter(p => p !== 'github' || hasGithubRemote)] as PinnedContentType[]
+          : ['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets', 'skills', 'agents'] as PinnedContentType[]
+        ).map(tab => (
           <button
             key={tab}
             className={`workspace-tab-btn ${activeTab === tab ? 'active' : ''}${pinned?.type === tab ? ' pinned' : ''}`}
@@ -993,7 +1016,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         )}
       </div>
 
-      {/* Tab context menu (pin left/right) */}
+      {/* Tab context menu (pin left/right + dock to zone) */}
       {tabCtxMenu && createPortal(
         <div
           className="context-menu"
@@ -1011,6 +1034,17 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               </button>
               <button className="context-menu-item" onClick={() => { handlePinTab(tabCtxMenu.tab, 'right'); setTabCtxMenu(null) }}>
                 ◨ {t('workspace.pinRight')}
+              </button>
+            </>
+          )}
+          {tabCtxMenu.tab !== 'terminal' && onDockPanel && (
+            <>
+              <div className="context-menu-separator" />
+              <button className="context-menu-item" onClick={() => { onDockPanel(tabCtxMenu.tab as DockablePanel, 'left'); setTabCtxMenu(null) }}>
+                ← {t('workspace.moveToLeft')}
+              </button>
+              <button className="context-menu-item" onClick={() => { onDockPanel(tabCtxMenu.tab as DockablePanel, 'right'); setTabCtxMenu(null) }}>
+                → {t('workspace.moveToRight')}
               </button>
             </>
           )}

@@ -282,3 +282,19 @@ export const STATUSLINE_ITEMS: StatuslineItemDef[] = [
   { id: 'cacheEff',     label: 'Cache Eff.',   description: 'Cache read efficiency (cache_read / total_input)',   defaultVisible: false, group: 'context' },
   { id: 'prompts',      label: 'Prompts',      description: 'Link to view prompt history',                        defaultVisible: true,  group: 'actions' },
 ]
+
+// Docking system types
+export type DockZone = 'left' | 'main' | 'right'
+export type DockablePanel = 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents'
+export type DockingConfig = Record<DockablePanel, DockZone>
+
+export const DOCKABLE_PANELS: DockablePanel[] = ['files', 'git', 'github', 'snippets', 'skills', 'agents']
+
+export const DEFAULT_DOCKING_CONFIG: DockingConfig = {
+  files: 'main',
+  git: 'main',
+  github: 'main',
+  snippets: 'right',
+  skills: 'right',
+  agents: 'right',
+}

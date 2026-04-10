@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import { workspaceStore } from './stores/workspace-store'
@@ -13,7 +14,39 @@ import { MarkdownPreviewPanel } from './components/MarkdownPreviewPanel'
 import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
-import type { AppState, EnvVariable, TerminalInstance } from './types'
+import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
+import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
+
+// Lazy-loaded panel components for sidebar docking
+const LazyFileTree = lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })))
+const LazyGitPanel = lazy(() => import('./components/GitPanel').then(m => ({ default: m.GitPanel })))
+const LazyGitHubPanel = lazy(() => import('./components/GitHubPanel').then(m => ({ default: m.GitHubPanel })))
+
+// Docking configuration persistence
+const DOCKING_CONFIG_KEY = 'better-terminal-docking-config'
+
+function loadDockingConfig(): DockingConfig {
+  try {
+    const saved = localStorage.getItem(DOCKING_CONFIG_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      const config = { ...DEFAULT_DOCKING_CONFIG }
+      for (const panel of DOCKABLE_PANELS) {
+        if (parsed[panel] === 'left' || parsed[panel] === 'main' || parsed[panel] === 'right') {
+          config[panel] = parsed[panel]
+        }
+      }
+      return config
+    }
+  } catch { /* ignore */ }
+  return { ...DEFAULT_DOCKING_CONFIG }
+}
+
+function saveDockingConfig(config: DockingConfig): void {
+  try {
+    localStorage.setItem(DOCKING_CONFIG_KEY, JSON.stringify(config))
+  } catch { /* ignore */ }
+}
 
 // Panel settings interface
 interface PanelSettings {
@@ -80,10 +113,15 @@ export default function App() {
   const [isRemoteConnected, setIsRemoteConnected] = useState(false)
   const [appNotification, setAppNotification] = useState<string | null>(null)
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
+  // Docking system
+  const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
+  const [leftPanelTab, setLeftPanelTab] = useState<'workspaces' | DockablePanel>('workspaces')
+  const [sidebarTabCtxMenu, setSidebarTabCtxMenu] = useState<{ x: number; y: number; panel: DockablePanel; zone: 'left' | 'right' } | null>(null)
   // Right sidebar tabs
-  const [showSnippetSidebar] = useState(true)
-  const [rightPanelTab, setRightPanelTab] = useState<'snippets' | 'skills' | 'agents'>(() => {
-    return (localStorage.getItem('bat-right-panel-tab') as 'snippets' | 'skills' | 'agents') || 'snippets'
+  const [rightPanelTab, setRightPanelTab] = useState<DockablePanel>(() => {
+    const saved = localStorage.getItem('bat-right-panel-tab')
+    if (saved && DOCKABLE_PANELS.includes(saved as DockablePanel)) return saved as DockablePanel
+    return 'snippets'
   })
   // Markdown preview in right panel
   const [previewMarkdownPath, setPreviewMarkdownPath] = useState<string | null>(null)
@@ -108,6 +146,44 @@ export default function App() {
       setMountedWorkspaces(prev => new Set(prev).add(state.activeWorkspaceId!))
     }
   }, [state.activeWorkspaceId, mountedWorkspaces])
+
+  // Docking system: computed panel lists per zone
+  const leftDockedPanels = useMemo(() =>
+    DOCKABLE_PANELS.filter(p => dockingConfig[p] === 'left'), [dockingConfig])
+  const mainDockedPanels = useMemo(() =>
+    DOCKABLE_PANELS.filter(p => dockingConfig[p] === 'main'), [dockingConfig])
+  const rightDockedPanels = useMemo(() =>
+    DOCKABLE_PANELS.filter(p => dockingConfig[p] === 'right'), [dockingConfig])
+
+  // Docking: move a panel to a different zone
+  const handleDockPanel = useCallback((panel: DockablePanel, zone: DockZone) => {
+    setDockingConfig(prev => {
+      const updated = { ...prev, [panel]: zone }
+      saveDockingConfig(updated)
+      return updated
+    })
+  }, [])
+
+  // Auto-correct active tabs when panels are moved between zones
+  useEffect(() => {
+    if (leftPanelTab !== 'workspaces' && dockingConfig[leftPanelTab] !== 'left') {
+      setLeftPanelTab('workspaces')
+    }
+    const rightPanels = DOCKABLE_PANELS.filter(p => dockingConfig[p] === 'right')
+    if (rightPanels.length > 0 && !rightPanels.includes(rightPanelTab as DockablePanel)) {
+      const first = rightPanels[0]
+      setRightPanelTab(first)
+      localStorage.setItem('bat-right-panel-tab', first)
+    }
+  }, [dockingConfig, leftPanelTab, rightPanelTab])
+
+  // Close sidebar tab context menu on click
+  useEffect(() => {
+    if (!sidebarTabCtxMenu) return
+    const close = () => setSidebarTabCtxMenu(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [sidebarTabCtxMenu])
 
   // Handle sidebar resize
   const handleSidebarResize = useCallback((delta: number) => {
@@ -140,7 +216,7 @@ export default function App() {
     })
   }, [])
 
-  const handleRightPanelTabChange = useCallback((tab: 'snippets' | 'skills' | 'agents') => {
+  const handleRightPanelTabChange = useCallback((tab: DockablePanel) => {
     setRightPanelTab(tab)
     localStorage.setItem('bat-right-panel-tab', tab)
     // If collapsed, expand when switching tabs
@@ -552,6 +628,52 @@ export default function App() {
     }
   }, [])
 
+  // Render a dockable panel by ID (for sidebar zones)
+  const renderDockablePanel = useCallback((panel: DockablePanel) => {
+    const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId)
+    if (!activeWorkspace) return <div className="empty-state"><p>{t('app.welcomeHint')}</p></div>
+
+    switch (panel) {
+      case 'files':
+        return <LazyFileTree rootPath={activeWorkspace.folderPath} />
+      case 'git': {
+        const wsTerminals = workspaceStore.getWorkspaceTerminals(activeWorkspace.id)
+        return <LazyGitPanel
+          workspaceFolderPath={activeWorkspace.folderPath}
+          worktreePaths={wsTerminals
+            .filter(t2 => t2.agentPreset === 'claude-code-worktree' && t2.worktreePath)
+            .map(t2 => ({ path: t2.worktreePath!, branch: t2.worktreeBranch || 'worktree' }))}
+        />
+      }
+      case 'github':
+        return <LazyGitHubPanel
+          workspaceFolderPath={activeWorkspace.folderPath}
+          onSendToClaude={async (content: string) => { handleSendToAgent(content); return true }}
+        />
+      case 'snippets':
+        return <SnippetSidebar
+          isVisible={true}
+          collapsed={false}
+          workspaceId={activeWorkspace.id}
+          onPasteToTerminal={handlePasteToTerminal}
+          onSendToAgent={handleSendToAgent}
+        />
+      case 'skills':
+        return <SkillsPanel
+          isVisible={true}
+          activeCwd={activeWorkspace.folderPath}
+          activeSessionId={state.focusedTerminalId ?? null}
+        />
+      case 'agents':
+        return <AgentsPanel
+          isVisible={true}
+          activeSessionId={state.focusedTerminalId ?? null}
+        />
+      default:
+        return null
+    }
+  }, [state.workspaces, state.activeWorkspaceId, state.focusedTerminalId, handlePasteToTerminal, handleSendToAgent, t])
+
   // Open profile in a new app instance (or focus if already open)
   const handleProfileNewWindow = useCallback(async (profileId: string) => {
     const result = await window.electronAPI.app.openNewInstance(profileId)
@@ -607,7 +729,88 @@ export default function App() {
           <button className="left-sidebar-collapsed-btn" onClick={handleSidebarCollapse} title={t('sidebar.expandSidebar')}>
             {'\u{1F4C2}'}
           </button>
+          {leftDockedPanels.map(panel => (
+            <button key={panel} className="left-sidebar-collapsed-btn" onClick={() => {
+              setLeftPanelTab(panel)
+              handleSidebarCollapse()
+            }} title={t(`workspace.${panel}`)}>
+              {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : '\u{1F916}'}
+            </button>
+          ))}
         </div>
+      ) : leftDockedPanels.length > 0 ? (
+        <>
+          <div className="left-sidebar-wrapper" style={{ width: `${panelSettings.sidebar.width}px`, minWidth: `${panelSettings.sidebar.width}px`, display: 'flex', flexDirection: 'column' }}>
+            <div className="left-sidebar-tabs">
+              <button
+                className={`left-sidebar-tab${leftPanelTab === 'workspaces' ? ' active' : ''}`}
+                onClick={() => setLeftPanelTab('workspaces')}
+              >
+                {t('workspace.workspaces')}
+              </button>
+              {leftDockedPanels.map(panel => (
+                <button
+                  key={panel}
+                  className={`left-sidebar-tab${leftPanelTab === panel ? ' active' : ''}`}
+                  onClick={() => setLeftPanelTab(panel)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSidebarTabCtxMenu({ x: e.clientX, y: e.clientY, panel, zone: 'left' })
+                  }}
+                >
+                  {t(`workspace.${panel}`)}
+                </button>
+              ))}
+              <button className="left-sidebar-collapse" onClick={handleSidebarCollapse} title={t('sidebar.collapseSidebar')}>&laquo;</button>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              {leftPanelTab === 'workspaces' ? (
+                <Sidebar
+                  width={panelSettings.sidebar.width}
+                  workspaces={visibleWorkspaces}
+                  activeWorkspaceId={state.activeWorkspaceId}
+                  windowId={workspaceStore.getWindowId()}
+                  groups={workspaceStore.getGroups()}
+                  activeGroup={workspaceStore.getActiveGroup()}
+                  onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
+                  onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
+                  onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
+                  onAddWorkspace={handleAddWorkspace}
+                  onRemoveWorkspace={(id) => {
+                    workspaceStore.removeWorkspace(id)
+                    workspaceStore.save()
+                  }}
+                  onRenameWorkspace={(id, alias) => {
+                    workspaceStore.renameWorkspace(id, alias)
+                    workspaceStore.save()
+                  }}
+                  onReorderWorkspaces={(workspaceIds) => {
+                    workspaceStore.reorderWorkspaces(workspaceIds)
+                  }}
+                  onOpenEnvVars={(workspaceId) => setEnvDialogWorkspaceId(workspaceId)}
+                  onDetachWorkspace={handleDetachWorkspace}
+                  activeProfileName={activeProfileName}
+                  isRemoteConnected={isRemoteConnected}
+                  onOpenProfiles={() => setShowProfiles(true)}
+                  onOpenSettings={() => setShowSettings(true)}
+                  onCollapse={handleSidebarCollapse}
+                />
+              ) : (
+                <Suspense fallback={<div className="loading-panel" />}>
+                  <div className="workspace-tab-content">
+                    {renderDockablePanel(leftPanelTab as DockablePanel)}
+                  </div>
+                </Suspense>
+              )}
+            </div>
+          </div>
+          <ResizeHandle
+            direction="horizontal"
+            onResize={handleSidebarResize}
+            onDoubleClick={handleSidebarResetWidth}
+          />
+        </>
       ) : (
         <>
           <Sidebar
@@ -662,6 +865,8 @@ export default function App() {
                 isActive={workspace.id === state.activeWorkspaceId}
                 isMaximized={panelSettings.maximized}
                 onMaximizeToggle={handleMaximizeToggle}
+                dockedPanels={mainDockedPanels}
+                onDockPanel={handleDockPanel}
               />
             </div>
           ))
@@ -672,33 +877,26 @@ export default function App() {
           </div>
         )}
       </main>
-      {/* Resize handle for snippet sidebar */}
-      {showSnippetSidebar && !panelSettings.snippetSidebar.collapsed && (
+      {/* Resize handle for right sidebar */}
+      {rightDockedPanels.length > 0 && !panelSettings.snippetSidebar.collapsed && (
         <ResizeHandle
           direction="horizontal"
           onResize={handleSnippetResize}
           onDoubleClick={handleSnippetResetWidth}
         />
       )}
-      {/* Right sidebar: tabbed Snippets / Skills (Skills only for Claude Code terminals) */}
+      {/* Right sidebar: docking-config-driven panels */}
       {(() => {
-        const focusedTerminal = state.focusedTerminalId ? state.terminals.find(t2 => t2.id === state.focusedTerminalId) : null
-        const isClaudeCode = focusedTerminal?.agentPreset === 'claude-code' || focusedTerminal?.agentPreset === 'claude-code-v2'
-        const effectiveTab = isClaudeCode ? rightPanelTab : 'snippets'
+        if (rightDockedPanels.length === 0 && !previewMarkdownPath) return null
 
-        if (!showSnippetSidebar) return null
-
-        if (panelSettings.snippetSidebar.collapsed) {
+        if (panelSettings.snippetSidebar.collapsed && !previewMarkdownPath) {
           return (
             <div className="right-sidebar-collapsed">
-              <button className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange('snippets')} title={t('snippets.expandSnippets')}>
-                {'\u{1F4DD}'}
-              </button>
-              {isClaudeCode && (
-                <button className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange('skills')} title={t('skills.expandSkills')}>
-                  {'\u{26A1}'}
+              {rightDockedPanels.map(panel => (
+                <button key={panel} className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange(panel)} title={t(`workspace.${panel}`)}>
+                  {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : '\u{1F310}'}
                 </button>
-              )}
+              ))}
             </div>
           )
         }
@@ -711,7 +909,6 @@ export default function App() {
                 filePath={previewMarkdownPath}
                 onClose={() => {
                   setPreviewMarkdownPath(null)
-                  // Restore panel collapsed state from before the preview opened
                   if (previewPrevCollapsed.current !== null) {
                     const wasCollapsed = previewPrevCollapsed.current
                     previewPrevCollapsed.current = null
@@ -729,54 +926,64 @@ export default function App() {
           )
         }
 
+        const effectiveTab = rightDockedPanels.includes(rightPanelTab) ? rightPanelTab : rightDockedPanels[0]
+
         return (
           <div className="right-sidebar-wrapper" style={{ width: `${panelSettings.snippetSidebar.width}px`, minWidth: `${panelSettings.snippetSidebar.width}px`, display: 'flex', flexDirection: 'column' }}>
             <div className="right-sidebar-tabs">
-              <button className={`right-sidebar-tab${effectiveTab === 'snippets' ? ' active' : ''}`} onClick={() => handleRightPanelTabChange('snippets')}>
-                {t('snippets.title')}
-              </button>
-              {isClaudeCode && (
-                <>
-                  <button className={`right-sidebar-tab${effectiveTab === 'skills' ? ' active' : ''}`} onClick={() => handleRightPanelTabChange('skills')}>
-                    {t('skills.title')}
-                  </button>
-                  <button className={`right-sidebar-tab${effectiveTab === 'agents' ? ' active' : ''}`} onClick={() => handleRightPanelTabChange('agents')}>
-                    {t('agents.title')}
-                  </button>
-                </>
-              )}
+              {rightDockedPanels.map(panel => (
+                <button
+                  key={panel}
+                  className={`right-sidebar-tab${effectiveTab === panel ? ' active' : ''}`}
+                  onClick={() => handleRightPanelTabChange(panel)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSidebarTabCtxMenu({ x: e.clientX, y: e.clientY, panel, zone: 'right' })
+                  }}
+                >
+                  {t(`workspace.${panel}`)}
+                </button>
+              ))}
               <button className="right-sidebar-collapse" onClick={handleSnippetCollapse} title={t('snippets.collapsePanel')}>&raquo;</button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              {effectiveTab === 'skills' ? (
-                <SkillsPanel
-                  isVisible={true}
-                  width={panelSettings.snippetSidebar.width}
-                  collapsed={false}
-                  onCollapse={handleSnippetCollapse}
-                  activeCwd={state.activeWorkspaceId ? state.workspaces.find(w => w.id === state.activeWorkspaceId)?.folderPath ?? null : null}
-                  activeSessionId={state.focusedTerminalId ?? null}
-                />
-              ) : effectiveTab === 'agents' ? (
-                <AgentsPanel
-                  isVisible={true}
-                  activeSessionId={state.focusedTerminalId ?? null}
-                />
-              ) : (
-                <SnippetSidebar
-                  isVisible={true}
-                  width={panelSettings.snippetSidebar.width}
-                  collapsed={false}
-                  workspaceId={state.activeWorkspaceId ?? undefined}
-                  onCollapse={handleSnippetCollapse}
-                  onPasteToTerminal={handlePasteToTerminal}
-                  onSendToAgent={handleSendToAgent}
-                />
-              )}
+              <Suspense fallback={<div className="loading-panel" />}>
+                {renderDockablePanel(effectiveTab)}
+              </Suspense>
             </div>
           </div>
         )
       })()}
+      {/* Sidebar tab context menu (move between zones) */}
+      {sidebarTabCtxMenu && createPortal(
+        <div
+          className="context-menu"
+          style={{ position: 'fixed', left: sidebarTabCtxMenu.x, top: sidebarTabCtxMenu.y, zIndex: 1000 }}
+          onClick={e => e.stopPropagation()}
+        >
+          {sidebarTabCtxMenu.zone === 'left' ? (
+            <>
+              <button className="context-menu-item" onClick={() => { handleDockPanel(sidebarTabCtxMenu.panel, 'main'); setSidebarTabCtxMenu(null) }}>
+                ↗ {t('workspace.moveToMain')}
+              </button>
+              <button className="context-menu-item" onClick={() => { handleDockPanel(sidebarTabCtxMenu.panel, 'right'); setSidebarTabCtxMenu(null) }}>
+                → {t('workspace.moveToRight')}
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="context-menu-item" onClick={() => { handleDockPanel(sidebarTabCtxMenu.panel, 'left'); setSidebarTabCtxMenu(null) }}>
+                ← {t('workspace.moveToLeft')}
+              </button>
+              <button className="context-menu-item" onClick={() => { handleDockPanel(sidebarTabCtxMenu.panel, 'main'); setSidebarTabCtxMenu(null) }}>
+                ↗ {t('workspace.moveToMain')}
+              </button>
+            </>
+          )}
+        </div>,
+        document.body
+      )}
       {showSettings && (
         <SettingsPanel onClose={() => setShowSettings(false)} />
       )}
