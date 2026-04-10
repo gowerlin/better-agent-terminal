@@ -284,7 +284,18 @@ export function ThumbnailBar({
           )}
         </div>
       </div>
-      <div className="thumbnail-list">
+      <div
+        className="thumbnail-list"
+        onContextMenu={(e) => {
+          // Only trigger on the list background, not on individual thumbnails
+          if ((e.target as HTMLElement).closest('.thumbnail')) return
+          e.preventDefault()
+          if (onAddTerminal) {
+            setMenuStyle({ top: e.clientY, left: e.clientX })
+            setShowAddMenu(true)
+          }
+        }}
+      >
         {terminals.map(terminal => (
           <div
             key={terminal.id}
