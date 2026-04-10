@@ -154,6 +154,8 @@
     "git": "Git",
     "github": "GitHub",
     "snippets": "代码片段",
+    "skills": "Skills",
+    "agents": "Agents",
     "maximizePanel": "最大化面板",
     "restoreLayout": "还原版面布局",
     "splitRight": "向右拆分",

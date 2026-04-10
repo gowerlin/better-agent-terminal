@@ -18,14 +18,16 @@ const FileTree = lazy(() => import('./FileTree').then(m => ({ default: m.FileTre
 const GitPanel = lazy(() => import('./GitPanel').then(m => ({ default: m.GitPanel })))
 const GitHubPanel = lazy(() => import('./GitHubPanel').then(m => ({ default: m.GitHubPanel })))
 const SnippetSidebar = lazy(() => import('./SnippetPanel').then(m => ({ default: m.SnippetSidebar })))
+const SkillsPanel = lazy(() => import('./SkillsPanel').then(m => ({ default: m.SkillsPanel })))
+const AgentsPanel = lazy(() => import('./AgentsPanel').then(m => ({ default: m.AgentsPanel })))
 
-type WorkspaceTab = 'terminal' | 'files' | 'git' | 'github' | 'snippets'
+type WorkspaceTab = 'terminal' | 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents'
 const TAB_KEY = 'better-terminal-workspace-tab'
 
 function loadWorkspaceTab(): WorkspaceTab {
   try {
     const saved = localStorage.getItem(TAB_KEY)
-    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'github' || saved === 'snippets') return saved
+    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'github' || saved === 'snippets' || saved === 'skills' || saved === 'agents') return saved
   } catch { /* ignore */ }
   return 'terminal'
 }
@@ -67,7 +69,7 @@ const DEFAULT_SPLIT_RATIO = 0.5
 const MIN_SPLIT_RATIO = 0.2
 const MAX_SPLIT_RATIO = 0.8
 
-type PinnedContentType = 'terminal' | 'files' | 'git' | 'github' | 'snippets'
+type PinnedContentType = 'terminal' | 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents'
 
 interface PinnedPane {
   type: PinnedContentType
@@ -199,8 +201,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (!isActive) return
 
     const TABS: WorkspaceTab[] = hasGithubRemote
-      ? ['terminal', 'files', 'git', 'github', 'snippets']
-      : ['terminal', 'files', 'git', 'snippets']
+      ? ['terminal', 'files', 'git', 'github', 'snippets', 'skills', 'agents']
+      : ['terminal', 'files', 'git', 'snippets', 'skills', 'agents']
 
     const handleCycleTab = (e: Event) => {
       const { direction } = (e as CustomEvent).detail as { direction: number }
@@ -906,12 +908,31 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             />
           </div>
         )
+      case 'skills':
+        return (
+          <div className="workspace-tab-content">
+            <SkillsPanel
+              isVisible={true}
+              activeCwd={workspace.folderPath}
+              activeSessionId={focusedTerminalId}
+            />
+          </div>
+        )
+      case 'agents':
+        return (
+          <div className="workspace-tab-content">
+            <AgentsPanel
+              isVisible={true}
+              activeSessionId={focusedTerminalId}
+            />
+          </div>
+        )
       default:
         return null
     }
   }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote,
       handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude,
-      handleSnippetPasteToTerminal, handleSnippetSendToAgent])
+      handleSnippetPasteToTerminal, handleSnippetSendToAgent, focusedTerminalId])
 
   // Render the active tab content for the main pane
   const renderPaneContent = useCallback((tab: WorkspaceTab) => {
@@ -928,7 +949,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     <div className="workspace-view">
       {/* Top tab bar: Terminal | Files | Git | GitHub | Snippets — right-click to pin */}
       <div className="workspace-tab-bar">
-        {(['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets'] as PinnedContentType[]).map(tab => (
+        {(['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets', 'skills', 'agents'] as PinnedContentType[]).map(tab => (
           <button
             key={tab}
             className={`workspace-tab-btn ${activeTab === tab ? 'active' : ''}${pinned?.type === tab ? ' pinned' : ''}`}
