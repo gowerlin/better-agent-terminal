@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import type { Workspace, TerminalInstance, EnvVariable, DockablePanel, DockZone } from '../types'
+import type { Workspace, TerminalInstance, EnvVariable, DockablePanel, DockZone, ShellType } from '../types'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { ThumbnailBar } from './ThumbnailBar'
@@ -546,6 +546,22 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       customEnv
     })
     // Focus the new terminal
+    workspaceStore.setFocusedTerminal(terminal.id)
+    workspaceStore.save()
+  }, [workspace.id, workspace.folderPath, workspace.envVars])
+
+  const handleAddTerminalWithShell = useCallback(async (shellType: ShellType) => {
+    const terminal = workspaceStore.addTerminal(workspace.id)
+    const settings = settingsStore.getSettings()
+    const shell = await window.electronAPI.settings.getShellPath(shellType)
+    const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
+    window.electronAPI.pty.create({
+      id: terminal.id,
+      cwd: workspace.folderPath,
+      type: 'terminal',
+      shell,
+      customEnv
+    })
     workspaceStore.setFocusedTerminal(terminal.id)
     workspaceStore.save()
   }, [workspace.id, workspace.folderPath, workspace.envVars])
@@ -1107,6 +1123,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         onFocus={handleFocus}
         onSplitTerminal={handleSplitTerminal}
         onAddTerminal={handleAddTerminal}
+        onAddTerminalWithShell={handleAddTerminalWithShell}
         onAddAgent={handleAddAgent}
         agentDefinitions={agentDefinitions.filter(d => d.id !== 'none').filter(d => !d.debug || isDebugMode).filter(d => !isWorktreeAgent(d.id) || (isDebugMode && isGitRepo))}
         onAddClaudeAgent={handleAddClaudeAgent}

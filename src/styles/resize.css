@@ -154,6 +154,30 @@
   background: var(--bg-hover);
 }
 
+.thumbnail-add-menu-item.has-submenu {
+  position: relative;
+}
+
+.thumbnail-submenu-arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-secondary);
+  padding-left: 8px;
+}
+
+.thumbnail-add-submenu {
+  position: absolute;
+  left: 100%;
+  top: -4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  min-width: 180px;
+  z-index: 10000;
+  padding: 4px 0;
+}
+
 .thumbnail-add-menu-icon {
   font-size: 14px;
   width: 18px;

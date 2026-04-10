@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import type { TerminalInstance } from '../types'
+import type { TerminalInstance, ShellType } from '../types'
+import { SHELL_OPTIONS } from '../types'
 import { TerminalThumbnail } from './TerminalThumbnail'
 import { getAgentPreset } from '../types/agent-presets'
 import type { AgentDefinition } from '../types/agent-runtime'
@@ -13,6 +14,7 @@ interface ThumbnailBarProps {
   onFocus: (id: string) => void
   onSplitTerminal?: (id: string, side?: 'left' | 'right') => void
   onAddTerminal?: () => void
+  onAddTerminalWithShell?: (shell: ShellType) => void
   onAddAgent?: (definitionId: string) => void
   /** Agent definitions to show in the add menu (fetched from registry) */
   agentDefinitions?: AgentDefinition[]
@@ -38,6 +40,7 @@ export function ThumbnailBar({
   onFocus,
   onSplitTerminal,
   onAddTerminal,
+  onAddTerminalWithShell,
   onAddAgent,
   agentDefinitions = [],
   onAddClaudeAgent,
@@ -67,9 +70,14 @@ export function ThumbnailBar({
   const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before')
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
+  const [shellSubmenu, setShellSubmenu] = useState(false)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const addMenuPopupRef = useRef<HTMLDivElement>(null)
   const addBtnRef = useRef<HTMLButtonElement>(null)
+
+  // Platform-filtered shell options (exclude 'auto' — clicking the parent item does that)
+  const platform = (window as any).electronAPI?.platform || 'darwin'
+  const shellOptions = SHELL_OPTIONS.filter(opt => opt.id !== 'auto' && opt.id !== 'custom' && opt.platforms.includes(platform))
 
   // Close menu on outside click
   useEffect(() => {
@@ -201,11 +209,28 @@ export function ThumbnailBar({
               {showAddMenu && createPortal(
                 <div className="thumbnail-add-menu" ref={addMenuPopupRef} style={menuStyle}>
                   <div
-                    className="thumbnail-add-menu-item"
-                    onClick={() => { onAddTerminal(); setShowAddMenu(false) }}
+                    className="thumbnail-add-menu-item has-submenu"
+                    onClick={() => { onAddTerminal(); setShowAddMenu(false); setShellSubmenu(false) }}
+                    onMouseEnter={() => setShellSubmenu(true)}
+                    onMouseLeave={() => setShellSubmenu(false)}
                   >
                     <span className="thumbnail-add-menu-icon">⌘</span>
                     {t('terminal.terminalLabel')}
+                    <span className="thumbnail-submenu-arrow">▸</span>
+                    {shellSubmenu && onAddTerminalWithShell && shellOptions.length > 0 && (
+                      <div className="thumbnail-add-submenu">
+                        {shellOptions.map(opt => (
+                          <div
+                            key={opt.id}
+                            className="thumbnail-add-menu-item"
+                            onClick={(e) => { e.stopPropagation(); onAddTerminalWithShell(opt.id); setShowAddMenu(false); setShellSubmenu(false) }}
+                          >
+                            <span className="thumbnail-add-menu-icon">⌘</span>
+                            {opt.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {/* Dynamic agent definitions from registry */}
                   {onAddAgent && agentDefinitions.length > 0 ? (
