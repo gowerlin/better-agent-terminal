@@ -17,14 +17,15 @@ const MainPanel = lazy(() => import('./MainPanel').then(m => ({ default: m.MainP
 const FileTree = lazy(() => import('./FileTree').then(m => ({ default: m.FileTree })))
 const GitPanel = lazy(() => import('./GitPanel').then(m => ({ default: m.GitPanel })))
 const GitHubPanel = lazy(() => import('./GitHubPanel').then(m => ({ default: m.GitHubPanel })))
+const SnippetSidebar = lazy(() => import('./SnippetPanel').then(m => ({ default: m.SnippetSidebar })))
 
-type WorkspaceTab = 'terminal' | 'files' | 'git' | 'github'
+type WorkspaceTab = 'terminal' | 'files' | 'git' | 'github' | 'snippets'
 const TAB_KEY = 'better-terminal-workspace-tab'
 
 function loadWorkspaceTab(): WorkspaceTab {
   try {
     const saved = localStorage.getItem(TAB_KEY)
-    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'github') return saved
+    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'github' || saved === 'snippets') return saved
   } catch { /* ignore */ }
   return 'terminal'
 }
@@ -66,7 +67,7 @@ const DEFAULT_SPLIT_RATIO = 0.5
 const MIN_SPLIT_RATIO = 0.2
 const MAX_SPLIT_RATIO = 0.8
 
-type PinnedContentType = 'terminal' | 'files' | 'git' | 'github'
+type PinnedContentType = 'terminal' | 'files' | 'git' | 'github' | 'snippets'
 
 interface PinnedPane {
   type: PinnedContentType
@@ -197,7 +198,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   useEffect(() => {
     if (!isActive) return
 
-    const TABS: WorkspaceTab[] = hasGithubRemote ? ['terminal', 'files', 'git', 'github'] : ['terminal', 'files', 'git']
+    const TABS: WorkspaceTab[] = hasGithubRemote
+      ? ['terminal', 'files', 'git', 'github', 'snippets']
+      : ['terminal', 'files', 'git', 'snippets']
 
     const handleCycleTab = (e: Event) => {
       const { direction } = (e as CustomEvent).detail as { direction: number }
@@ -799,6 +802,20 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     return true
   }, [agentTerminal, handleTabChange])
 
+  // Snippet panel handlers — paste to focused terminal / send to agent
+  const handleSnippetPasteToTerminal = useCallback((content: string) => {
+    const termId = focusedTerminalId || terminals[0]?.id
+    if (termId) {
+      window.electronAPI.pty.write(termId, content)
+    }
+  }, [focusedTerminalId, terminals])
+
+  const handleSnippetSendToAgent = useCallback((content: string) => {
+    if (agentTerminal) {
+      window.electronAPI.claude.sendMessage(agentTerminal.id, content)
+    }
+  }, [agentTerminal])
+
   // Show all terminals in thumbnail bar (clicking switches focus)
   const thumbnailTerminals = terminals
 
@@ -877,11 +894,24 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             <GitHubPanel workspaceFolderPath={workspace.folderPath} onSendToClaude={handleSendToClaude} />
           </div>
         ) : null
+      case 'snippets':
+        return (
+          <div className="workspace-tab-content">
+            <SnippetSidebar
+              isVisible={true}
+              collapsed={false}
+              workspaceId={workspace.id}
+              onPasteToTerminal={handleSnippetPasteToTerminal}
+              onSendToAgent={handleSnippetSendToAgent}
+            />
+          </div>
+        )
       default:
         return null
     }
   }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote,
-      handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude])
+      handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude,
+      handleSnippetPasteToTerminal, handleSnippetSendToAgent])
 
   // Render the active tab content for the main pane
   const renderPaneContent = useCallback((tab: WorkspaceTab) => {
@@ -896,9 +926,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   return (
     <div className="workspace-view">
-      {/* Top tab bar: Terminal | Files | Git | GitHub — right-click to pin */}
+      {/* Top tab bar: Terminal | Files | Git | GitHub | Snippets — right-click to pin */}
       <div className="workspace-tab-bar">
-        {(['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : [])] as PinnedContentType[]).map(tab => (
+        {(['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets'] as PinnedContentType[]).map(tab => (
           <button
             key={tab}
             className={`workspace-tab-btn ${activeTab === tab ? 'active' : ''}${pinned?.type === tab ? ' pinned' : ''}`}
@@ -906,7 +936,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             onContextMenu={(e) => handleTabContextMenu(e, tab)}
           >
             {pinned?.type === tab && <span className="pin-indicator">{pinned.side === 'left' ? '◧' : '◨'}</span>}
-            {t(`workspace.${tab === 'github' ? 'github' : tab}`)}
+            {t(`workspace.${tab}`)}
           </button>
         ))}
         <div className="workspace-tab-spacer" />

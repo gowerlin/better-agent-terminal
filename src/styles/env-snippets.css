@@ -173,6 +173,13 @@
   height: 100%;
 }
 
+/* When docked inside workspace tab, fill the pane */
+.workspace-tab-content .snippet-sidebar {
+  width: 100% !important;
+  min-width: 0 !important;
+  border-left: none;
+}
+
 .snippet-sidebar-header {
   display: flex;
   align-items: center;

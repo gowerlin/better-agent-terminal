@@ -158,6 +158,7 @@
     "files": "Files",
     "git": "Git",
     "github": "GitHub",
+    "snippets": "Snippets",
     "maximizePanel": "Maximize Panel",
     "restoreLayout": "Restore Layout",
     "splitRight": "Split Right",
