@@ -7,14 +7,17 @@
 //     Instead we tap the raw PCM stream via `AudioContext` and encode WAV
 //     ourselves (see wav-encoder.ts). This gives us exact control over the
 //     sample rate + bit depth that whisper expects (16 kHz mono 16-bit).
-//   - `ScriptProcessorNode` is technically deprecated but remains supported
-//     in Electron/Chromium and is far simpler than `AudioWorkletNode` for a
-//     single consumer. If the deprecation actually lands in a future Chromium
-//     release, swap this out — the surface exposed to callers is stable.
+//   - We capture PCM through `AudioWorkletNode` so audio processing runs on the
+//     audio thread and sends chunks back via `MessagePort`.
 //   - All user-visible state transitions go through `window.electronAPI.debug.log`
 //     (never `console.log`) per project logging rules.
 
 import { encodeChunksToWhisperWav } from './wav-encoder'
+
+const recordingWorkletUrl = new URL(
+  './recording-worklet-processor.ts',
+  import.meta.url,
+).href
 
 type RecordingState = 'idle' | 'recording' | 'stopping'
 
@@ -39,8 +42,7 @@ export class RecordingService {
   private stream: MediaStream | null = null
   private audioContext: AudioContext | null = null
   private source: MediaStreamAudioSourceNode | null = null
-  private processor: ScriptProcessorNode | null = null
-  private recordingSink: MediaStreamAudioDestinationNode | null = null
+  private workletNode: AudioWorkletNode | null = null
   private audioprocessTickCount = 0
   private chunks: Float32Array[] = []
   private sourceSampleRate = 0
@@ -101,32 +103,55 @@ export class RecordingService {
     this.source = this.audioContext.createMediaStreamSource(this.stream)
     debugLog('[voice:checkpoint] source node created')
 
-    // Buffer size 4096 is a good balance between latency and CPU — roughly
-    // 93 ms per chunk at 44.1 kHz. Whisper batches things internally so this
-    // has no impact on recognition quality.
-    this.processor = this.audioContext.createScriptProcessor(4096, 1, 1)
-    debugLog('[voice:checkpoint] processor created (4096,1,1)')
-    this.processor.onaudioprocess = (event) => {
-      this.audioprocessTickCount++
-      if (this.audioprocessTickCount <= 10 || this.audioprocessTickCount % 50 === 0) {
-        debugLog(`[voice:checkpoint] audioprocess tick #${this.audioprocessTickCount}`)
-      }
-      if (this._state !== 'recording') return
-      // Clone the channel data — the underlying buffer is reused by the
-      // audio engine on the next tick, so we MUST copy to own the memory.
-      const input = event.inputBuffer.getChannelData(0)
-      const copy = new Float32Array(input.length)
-      copy.set(input)
-      this.chunks.push(copy)
+    try {
+      await this.audioContext.audioWorklet.addModule(recordingWorkletUrl)
+    } catch (err: unknown) {
+      const message = (err as Error)?.message ?? String(err)
+      debugLog(`[voice] audioWorklet.addModule failed: ${message}`)
+      await this.cleanup()
+      this._state = 'idle'
+      throw new RecordingError(`Failed to load recording worklet: ${message}`, 'internal')
     }
-    this.source.connect(this.processor)
-    debugLog('[voice:checkpoint] source→processor connected')
+    debugLog('[voice:checkpoint] worklet module loaded')
 
-    // BUG-004 hotfix: connect ScriptProcessorNode to a virtual sink to avoid
-    // triggering physical output device (WASAPI) initialization on Windows.
-    this.recordingSink = this.audioContext.createMediaStreamDestination()
-    this.processor.connect(this.recordingSink)
-    debugLog('[voice:checkpoint] processor→sink connected')
+    this.workletNode = new AudioWorkletNode(
+      this.audioContext,
+      'recording-worklet-processor',
+      {
+        numberOfInputs: 1,
+        numberOfOutputs: 0,
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        channelInterpretation: 'speakers',
+      },
+    )
+    debugLog('[voice:checkpoint] worklet node created')
+
+    this.workletNode.port.onmessage = (event: MessageEvent<unknown>) => {
+      const message = event.data as {
+        type?: unknown
+        sampleRate?: unknown
+        data?: unknown
+        count?: unknown
+      }
+      if (message?.type === 'ready') {
+        debugLog(`[voice:checkpoint] worklet ready sampleRate=${String(message.sampleRate)}`)
+        return
+      }
+      if (message?.type === 'pcm' && message.data instanceof Float32Array) {
+        const count = typeof message.count === 'number'
+          ? message.count
+          : this.audioprocessTickCount + 1
+        this.audioprocessTickCount = count
+        if (count <= 10 || count % 50 === 0) {
+          debugLog(`[voice:checkpoint] worklet message #${count}`)
+        }
+        if (this._state !== 'recording') return
+        this.chunks.push(message.data)
+      }
+    }
+    this.source.connect(this.workletNode)
+    debugLog('[voice:checkpoint] source→worklet connected')
 
     debugLog(`[voice] RecordingService started (sampleRate=${this.sourceSampleRate})`)
   }
@@ -158,11 +183,11 @@ export class RecordingService {
 
   private async cleanup(): Promise<void> {
     try {
-      if (this.processor) {
-        this.processor.disconnect()
-        this.processor.onaudioprocess = null
+      if (this.workletNode) {
+        this.workletNode.port.onmessage = null
+        this.workletNode.port.close()
+        this.workletNode.disconnect()
       }
-      if (this.recordingSink) this.recordingSink.disconnect()
     } catch { /* ignore */ }
     try {
       if (this.source) this.source.disconnect()
@@ -177,8 +202,7 @@ export class RecordingService {
         for (const track of this.stream.getTracks()) track.stop()
       }
     } catch { /* ignore */ }
-    this.processor = null
-    this.recordingSink = null
+    this.workletNode = null
     this.source = null
     this.audioContext = null
     this.stream = null
