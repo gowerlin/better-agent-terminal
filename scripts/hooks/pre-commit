@@ -1,0 +1,40 @@
+#!/bin/bash
+# Tower directory pre-commit WARN hook
+# Scan staged _ct-workorders files for potentially sensitive content.
+# WARN only; never blocks commit.
+
+staged=$(
+  git diff --cached --name-only \
+  | grep '^_ct-workorders/' \
+  | grep -v '^_ct-workorders/reports/' \
+  | grep -v '^_ct-workorders/\.private/' \
+  || true
+)
+
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+warnings=0
+pattern='(password[ =:]|api[_-]?key[ =:]|bearer[[:space:]]+[a-zA-Z0-9]{10,}|-----BEGIN (RSA |OPENSSH )?PRIVATE KEY)'
+
+for f in $staged; do
+  if [ ! -f "$f" ]; then
+    continue
+  fi
+
+  hits=$(grep -nEi "$pattern" "$f" || true)
+  if [ -n "$hits" ]; then
+    echo "[tower-hook][WARN] potential sensitive content in $f:"
+    echo "$hits"
+    warnings=$((warnings + 1))
+  fi
+done
+
+if [ "$warnings" -gt 0 ]; then
+  echo ""
+  echo "[tower-hook][WARN] found $warnings file(s) with potential sensitive content"
+  echo "[tower-hook][WARN] this hook does NOT block commit; please review manually"
+fi
+
+exit 0

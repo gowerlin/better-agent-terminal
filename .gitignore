@@ -18,7 +18,11 @@ tests/*.json
 # BMad Method / Control Tower / POC
 _bmad/
 _bmad-output/
-_ct-workorders/
+# Tower directory: default-public engineering log + explicit private exclusions
+_ct-workorders/reports/
+!_ct-workorders/reports/.README.md
+_ct-workorders/.private/
+_ct-workorders/*.draft.md
 _poc/
 
 # AI agent configs
