@@ -14,3 +14,14 @@ nul
 
 # Diagnosis reports
 tests/*.json
+
+# BMad Method / Control Tower / POC
+_bmad/
+_bmad-output/
+_ct-workorders/
+_poc/
+
+# AI agent configs
+.claude/
+.gemini/
+.github/
