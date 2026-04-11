@@ -32,6 +32,14 @@ interface ElectronAPI {
     save: (data: string) => Promise<boolean>
     load: () => Promise<string | null>
     getShellPath: (shell: string) => Promise<string>
+    getLoggingInfo: () => Promise<{
+      logsDir: string
+      currentLogFilePath: string | null
+      loggingEnabled: boolean
+      logLevel: 'error' | 'warn' | 'info' | 'log' | 'debug'
+      crashesDir: string
+    }>
+    cleanupLogs: () => Promise<{ deletedCount: number }>
   }
   dialog: {
     selectFolder: () => Promise<string[] | null>
@@ -46,6 +54,11 @@ interface ElectronAPI {
   }
   tunnel: {
     getConnection: () => Promise<{ url: string; token: string; mode: string; addresses: { ip: string; mode: string; label: string }[] } | { error: string }>
+  }
+  debug: {
+    log: (...args: unknown[]) => void
+    writeRenderer: (level: 'error' | 'warn' | 'info' | 'log' | 'debug', args: unknown[]) => void
+    isDebugMode: boolean
   }
   shell: {
     openExternal: (url: string) => Promise<void>

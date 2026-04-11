@@ -8,6 +8,9 @@ import type {
   VoiceModelDownloadProgress,
   WhisperModelSize,
 } from '../src/types/voice'
+import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
+
+type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
 const electronAPI = {
   platform: process.platform as 'win32' | 'darwin' | 'linux',
@@ -58,7 +61,17 @@ const electronAPI = {
   settings: {
     save: (data: string) => ipcRenderer.invoke('settings:save', data),
     load: () => ipcRenderer.invoke('settings:load'),
-    getShellPath: (shell: string) => ipcRenderer.invoke('settings:get-shell-path', shell)
+    getShellPath: (shell: string) => ipcRenderer.invoke('settings:get-shell-path', shell),
+    getLoggingInfo: () =>
+      ipcRenderer.invoke('settings:get-logging-info') as Promise<{
+        logsDir: string
+        currentLogFilePath: string | null
+        loggingEnabled: boolean
+        logLevel: RendererLogLevel
+        crashesDir: string
+      }>,
+    cleanupLogs: () =>
+      ipcRenderer.invoke('settings:cleanup-logs') as Promise<{ deletedCount: number }>
   },
   dialog: {
     selectFolder: () => ipcRenderer.invoke('dialog:select-folder') as Promise<string[] | null>,
@@ -345,6 +358,7 @@ const electronAPI = {
   },
   debug: {
     log: (...args: unknown[]) => ipcRenderer.send('debug:log', ...args),
+    writeRenderer: (level: RendererLogLevel, args: unknown[]) => ipcRenderer.send('log:renderer-write', level, args),
     isDebugMode: !!process.env.BAT_DEBUG,
   },
   agent: {
@@ -374,28 +388,28 @@ const electronAPI = {
       ipcRenderer.invoke('supervisor:get-worker-output', targetId, lines) as Promise<string[]>,
   },
   voice: {
-    listModels: () => ipcRenderer.invoke('voice:listModels') as Promise<VoiceModelInfo[]>,
+    listModels: () => ipcRenderer.invoke(VOICE_IPC_CHANNELS.listModels) as Promise<VoiceModelInfo[]>,
     isModelDownloaded: (size: WhisperModelSize) =>
-      ipcRenderer.invoke('voice:isModelDownloaded', size) as Promise<boolean>,
+      ipcRenderer.invoke(VOICE_IPC_CHANNELS.isModelDownloaded, size) as Promise<boolean>,
     downloadModel: (size: WhisperModelSize) =>
-      ipcRenderer.invoke('voice:downloadModel', size) as Promise<void>,
+      ipcRenderer.invoke(VOICE_IPC_CHANNELS.downloadModel, size) as Promise<void>,
     deleteModel: (size: WhisperModelSize) =>
-      ipcRenderer.invoke('voice:deleteModel', size) as Promise<void>,
+      ipcRenderer.invoke(VOICE_IPC_CHANNELS.deleteModel, size) as Promise<void>,
     cancelDownload: (size: WhisperModelSize) =>
-      ipcRenderer.invoke('voice:cancelDownload', size) as Promise<void>,
-    getPreferences: () => ipcRenderer.invoke('voice:getPreferences') as Promise<VoicePreferences>,
+      ipcRenderer.invoke(VOICE_IPC_CHANNELS.cancelDownload, size) as Promise<void>,
+    getPreferences: () => ipcRenderer.invoke(VOICE_IPC_CHANNELS.getPreferences) as Promise<VoicePreferences>,
     setPreferences: (prefs: Partial<VoicePreferences>) =>
-      ipcRenderer.invoke('voice:setPreferences', prefs) as Promise<VoicePreferences>,
+      ipcRenderer.invoke(VOICE_IPC_CHANNELS.setPreferences, prefs) as Promise<VoicePreferences>,
     transcribe: (
       audioBuffer: ArrayBuffer,
       sampleRate: number,
       options?: VoiceTranscribeOptions
-    ) => ipcRenderer.invoke('voice:transcribe', audioBuffer, sampleRate, options) as Promise<VoiceTranscribeResult>,
-    getModelsDirectory: () => ipcRenderer.invoke('voice:getModelsDirectory') as Promise<string>,
+    ) => ipcRenderer.invoke(VOICE_IPC_CHANNELS.transcribe, audioBuffer, sampleRate, options) as Promise<VoiceTranscribeResult>,
+    getModelsDirectory: () => ipcRenderer.invoke(VOICE_IPC_CHANNELS.getModelsDirectory) as Promise<string>,
     onModelDownloadProgress: (callback: (progress: VoiceModelDownloadProgress) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, progress: VoiceModelDownloadProgress) => callback(progress)
-      ipcRenderer.on('voice:modelDownloadProgress', handler)
-      return () => ipcRenderer.removeListener('voice:modelDownloadProgress', handler)
+      ipcRenderer.on(VOICE_IPC_CHANNELS.modelDownloadProgress, handler)
+      return () => ipcRenderer.removeListener(VOICE_IPC_CHANNELS.modelDownloadProgress, handler)
     },
   },
   snippet: {
@@ -414,10 +428,64 @@ const electronAPI = {
   }
 }
 
+function injectRendererLogHook(): boolean {
+  const root = document.documentElement || document.head || document.body
+  if (!root) return false
+
+  const script = document.createElement('script')
+  script.textContent = `
+;(() => {
+  const debugApi = window.electronAPI && window.electronAPI.debug
+  if (!debugApi || typeof debugApi.writeRenderer !== 'function') return
+  if (window.__BAT_RENDERER_LOG_HOOKED__) return
+  window.__BAT_RENDERER_LOG_HOOKED__ = true
+
+  const forward = (level, args) => {
+    try { debugApi.writeRenderer(level, args) } catch {}
+  }
+
+  const methods = ['log', 'info', 'warn', 'error', 'debug']
+  for (const level of methods) {
+    const original = typeof console[level] === 'function' ? console[level].bind(console) : console.log.bind(console)
+    console[level] = (...args) => {
+      original(...args)
+      forward(level, args)
+    }
+  }
+
+  window.addEventListener('error', (event) => {
+    if (event.error) {
+      forward('error', [event.error])
+      return
+    }
+    const location = event.filename ? event.filename + ':' + event.lineno + ':' + event.colno : ''
+    const message = location ? 'Uncaught ' + event.message + ' at ' + location : 'Uncaught ' + event.message
+    forward('error', [message])
+  })
+
+  window.addEventListener('unhandledrejection', (event) => {
+    forward('error', ['Unhandled promise rejection', event.reason])
+  })
+})()
+`
+  root.appendChild(script)
+  script.remove()
+  return true
+}
+
+function installRendererLogHook(): void {
+  if (injectRendererLogHook()) return
+  window.addEventListener('DOMContentLoaded', () => {
+    injectRendererLogHook()
+  }, { once: true })
+}
+
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+installRendererLogHook()
 
 declare global {
   interface Window {
+    __BAT_RENDERER_LOG_HOOKED__?: boolean
     electronAPI: typeof electronAPI
   }
 }

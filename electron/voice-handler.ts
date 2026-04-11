@@ -25,6 +25,7 @@ import type {
   WhisperModelSize,
 } from '../src/types/voice'
 import { DEFAULT_VOICE_PREFERENCES } from '../src/types/voice'
+import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
 
 // whisper-node-addon has its own .d.ts
 import { transcribe as whisperTranscribe } from 'whisper-node-addon'
@@ -220,7 +221,7 @@ function downloadModelFile(
           try {
             for (const win of getAllWindows()) {
               if (!win.isDestroyed()) {
-                win.webContents.send('voice:modelDownloadProgress', progressData)
+                win.webContents.send(VOICE_IPC_CHANNELS.modelDownloadProgress, progressData)
               }
             }
           } catch { /* window may close mid-download */ }
@@ -239,7 +240,7 @@ function downloadModelFile(
           try {
             for (const win of getAllWindows()) {
               if (!win.isDestroyed()) {
-                win.webContents.send('voice:modelDownloadProgress', progressData)
+                win.webContents.send(VOICE_IPC_CHANNELS.modelDownloadProgress, progressData)
               }
             }
           } catch { /* ok */ }
@@ -284,12 +285,12 @@ type GetAllWindows = () => BrowserWindow[]
 export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
   ensureMicrophonePermission()
 
-  ipcMain.handle('voice:listModels', async () => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.listModels, async () => {
     logger.log('[voice] listModels invoked')
     return scanDownloadedModels()
   })
 
-  ipcMain.handle('voice:isModelDownloaded', async (_event, size: WhisperModelSize) => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.isModelDownloaded, async (_event, size: WhisperModelSize) => {
     logger.log(`[voice] isModelDownloaded size=${size}`)
     try {
       const stat = await fs.stat(getVoiceModelFilePath(size))
@@ -299,7 +300,7 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
     }
   })
 
-  ipcMain.handle('voice:downloadModel', async (_event, size: WhisperModelSize) => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.downloadModel, async (_event, size: WhisperModelSize) => {
     logger.log(`[voice] downloadModel size=${size}`)
 
     // Prevent duplicate parallel downloads for the same size.
@@ -335,7 +336,7 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
     }
   })
 
-  ipcMain.handle('voice:deleteModel', async (_event, size: WhisperModelSize) => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.deleteModel, async (_event, size: WhisperModelSize) => {
     logger.log(`[voice] deleteModel size=${size}`)
     try {
       await fs.unlink(getVoiceModelFilePath(size))
@@ -346,7 +347,7 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
     }
   })
 
-  ipcMain.handle('voice:cancelDownload', async (_event, size: WhisperModelSize) => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.cancelDownload, async (_event, size: WhisperModelSize) => {
     logger.log(`[voice] cancelDownload size=${size}`)
     const controller = activeDownloads.get(size)
     if (controller) {
@@ -359,13 +360,13 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
     // If no active download for this size, treat as no-op.
   })
 
-  ipcMain.handle('voice:getPreferences', async () => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.getPreferences, async () => {
     const prefs = await readPreferences()
     logger.log(`[voice] getPreferences →`, prefs)
     return prefs
   })
 
-  ipcMain.handle('voice:setPreferences', async (_event, updates: Partial<VoicePreferences>) => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.setPreferences, async (_event, updates: Partial<VoicePreferences>) => {
     const current = await readPreferences()
     const merged: VoicePreferences = {
       modelSize: updates.modelSize ?? current.modelSize,
@@ -379,7 +380,7 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
   })
 
   ipcMain.handle(
-    'voice:transcribe',
+    VOICE_IPC_CHANNELS.transcribe,
     async (
       _event,
       audioBuffer: ArrayBuffer,
@@ -476,7 +477,7 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
     }
   )
 
-  ipcMain.handle('voice:getModelsDirectory', async () => {
+  ipcMain.handle(VOICE_IPC_CHANNELS.getModelsDirectory, async () => {
     return getVoiceModelsDir()
   })
 
