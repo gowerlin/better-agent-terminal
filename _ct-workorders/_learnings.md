@@ -465,3 +465,30 @@ _ct-workorders/_tower-config.yaml (新增 project-level config)
 **套用時機**：未來什麼情況下應該想起這條學習
 **候選晉升**：global / project / 無
 ```
+
+---
+
+## L018 — Playwright + Electron 測試與 single-instance lock
+
+**首次記錄**：2026-04-11（T0022 Playwright E2E infra bootstrap）
+
+**觸發條件**：使用 Playwright `electron.launch()` 啟動 Electron app 做 E2E 測試時
+
+**現象**：`electron.launch: Target page, context or browser has been closed` 錯誤，測試一開始就 fail
+
+**根因**：專案 main 程式有 `app.requestSingleInstanceLock()`，Playwright 啟動的測試實例被現有實例踢掉
+
+**解法**：啟動參數加入 `--runtime=<unique-id>` 隔離 userData 與 lock：
+```ts
+const app = await electron.launch({
+  args: ['.', `--runtime=e2e-smoke-${Date.now()}`],
+});
+```
+
+**通用性評估**：**跨專案通用**。所有使用 `requestSingleInstanceLock()` 的 Electron 專案，在導入 Playwright E2E 測試時都會遇到同樣問題。
+
+**候選晉升**：**candidate: global**（下次其他專案導入 Playwright + Electron 時驗證，第 2 次成功可升 GA007）
+
+**相關工單**：T0022-playwright-e2e-infra-bootstrap（首次實戰）
+
+**發現者**：sub-session（T0022 執行時自行依 L013 GOLDEN 原則選此解法）

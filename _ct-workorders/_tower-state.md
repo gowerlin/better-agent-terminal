@@ -1250,3 +1250,35 @@ L013 再次證明：**已知最佳方案時跳過分步驗證**的原則，在 T
 4. **L017 升級 Global 決策**（累積 2-3 次 hook false positive 實戰後）
 5. **Dogfood bug 清單回顧**（BUG-007/008/009、UX-001 等）
 
+## 2026-04-11 19:31 Checkpoint — T0025 DONE · BUG-007/009 dogfood hotfix + L018 記錄
+
+### T0025 狀態
+- 🔄 IN_PROGRESS → ✅ DONE
+- 時間：19:23 → 19:31
+
+### 修復摘要
+- **BUG-007**：`src/components/TerminalPanel.tsx:12-31,476-481` 在 terminal output 入口過濾 OSC52 debug 單行訊息，避免污染使用者可見輸出
+- **BUG-009**：`src/components/TerminalPanel.tsx:130-143` 右鍵貼上 handler 於 menu close 後 `setTimeout(() => terminalRef.current?.focus(), 0)` 還原輸入焦點
+
+### Bug Tracker 更新
+- BUG-007: 📋 待分派 → ✅ 已修復（code-level；runtime 待使用者手動驗證）
+- BUG-009: 📋 待分派 → ✅ 已修復（code-level；runtime 待使用者手動驗證）
+
+### 學習紀錄
+- **L018**：Playwright + Electron single-instance lock → `--runtime=<id>` 解法
+- 已寫入 `_ct-workorders/_learnings.md`（candidate: global）
+
+### Git 進度
+- Commit 1: `fd20da1 fix(ui): remove OSC 52 debug output on text selection (BUG-007)`
+- Commit 2: `dfc46e4 fix(ui): restore terminal focus after context menu paste (BUG-009)`
+- Commit 3: `(this commit) chore(tower): T0025 hotfix closure + L018 record`
+
+### NEXT SESSION TODO（更新）
+1. **T0023**（Phase 1 Voice Download 4 項 runtime 驗證 E2E）派發
+2. **BUG-008** overlay 錯位（獨立調研+修復工單）
+3. **UX-001** scrollbar 加粗 + 永遠佔位（獨立工單，全域 CSS）
+4. **4 張 PARTIAL 漂移**（T0005, T0013, T0014, T0017-beta）回報區補填
+5. **GA006 第 2 次驗證**（T0022 本身已算第 2 次實戰）
+6. **L017 升級 Global**（累積 3 次 hook false positive 後）
+7. **L018 升級 Global**（等第 2 次 Playwright + Electron 專案驗證）
+
