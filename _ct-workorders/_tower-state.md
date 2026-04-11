@@ -1308,3 +1308,29 @@ L013 再次證明：**已知最佳方案時跳過分步驗證**的原則，在 T
 3. **T0023**（Phase 1 Voice Download 4 項 E2E）
 4. **4 張 PARTIAL 漂移補填**
 5. GA006 / L017 / L018 全域化決策
+
+## 2026-04-11 20:22 Checkpoint — T0027 DONE · BAT 右鍵互動 Part A investigation
+
+### T0027 狀態
+- 🔄 IN_PROGRESS → ✅ DONE
+- 時間：20:10 → 20:22
+
+### 調研結果（TL;DR）
+- H1 (alt buffer)   : 不成立（BAT 層無 1049/alt-buffer 判斷）
+- H2 (mouse track)  : 不成立（BAT 層無 mouse mode 分支；xterm 內部有）
+- H3 (bracketed)    : 不成立（僅影響 paste payload 包裝）
+- H4 (React state)  : 不成立（右鍵選單非條件 mount）
+- **綜合判讀**：差異更可能在 xterm mode routing + 第三方 CLI 輸出切換時機，不在 BAT 自家 escape sequence 判斷
+
+### 產出
+- 技術報告：`_ct-workorders/reports/bat-right-click-behavior-part-a-investigation.md`
+
+### Git 進度
+- Commit 1: `1e02e25 docs(reports): BAT right-click behavior Part A investigation (T0027)`
+- Commit 2: `(this commit) chore(tower): T0027 investigation closure`
+
+### NEXT SESSION TODO（更新）
+1. **T0028** Part B — 第三方 CLI filter 策略 ADR（等使用者 review Part A 後派）
+2. **BUG-008** overlay 錯位（獨立調研工單）
+3. **T0023** Phase 1 Voice Download E2E
+4. **4 張 PARTIAL 漂移補填**
