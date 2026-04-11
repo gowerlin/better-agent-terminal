@@ -14,10 +14,14 @@
 
 import { encodeChunksToWhisperWav } from './wav-encoder'
 
-const recordingWorkletUrl = new URL(
-  './recording-worklet-processor.ts',
-  import.meta.url,
-).href
+const recordingWorkletRelativePath = './voice-worklet/recording-worklet-processor.js'
+
+function resolveRecordingWorkletUrl(): string {
+  if (typeof window !== 'undefined' && typeof window.location?.href === 'string') {
+    return new URL(recordingWorkletRelativePath, window.location.href).href
+  }
+  return recordingWorkletRelativePath
+}
 
 type RecordingState = 'idle' | 'recording' | 'stopping'
 
@@ -103,6 +107,8 @@ export class RecordingService {
     this.source = this.audioContext.createMediaStreamSource(this.stream)
     debugLog('[voice:checkpoint] source node created')
 
+    const recordingWorkletUrl = resolveRecordingWorkletUrl()
+    debugLog(`[voice:checkpoint] worklet module url=${recordingWorkletUrl}`)
     try {
       await this.audioContext.audioWorklet.addModule(recordingWorkletUrl)
     } catch (err: unknown) {
