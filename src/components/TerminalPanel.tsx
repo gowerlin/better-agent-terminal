@@ -213,7 +213,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
               }
             }
           }
-        }
+        })
       })
 
       return () => cancelAnimationFrame(rafId)
