@@ -41,6 +41,7 @@ export class RecordingService {
   private source: MediaStreamAudioSourceNode | null = null
   private processor: ScriptProcessorNode | null = null
   private recordingSink: MediaStreamAudioDestinationNode | null = null
+  private audioprocessTickCount = 0
   private chunks: Float32Array[] = []
   private sourceSampleRate = 0
 
@@ -58,6 +59,7 @@ export class RecordingService {
     }
 
     this._state = 'recording'
+    this.audioprocessTickCount = 0
     this.chunks = []
 
     try {
@@ -105,6 +107,10 @@ export class RecordingService {
     this.processor = this.audioContext.createScriptProcessor(4096, 1, 1)
     debugLog('[voice:checkpoint] processor created (4096,1,1)')
     this.processor.onaudioprocess = (event) => {
+      this.audioprocessTickCount++
+      if (this.audioprocessTickCount <= 10 || this.audioprocessTickCount % 50 === 0) {
+        debugLog(`[voice:checkpoint] audioprocess tick #${this.audioprocessTickCount}`)
+      }
       if (this._state !== 'recording') return
       // Clone the channel data — the underlying buffer is reused by the
       // audio engine on the next tick, so we MUST copy to own the memory.
