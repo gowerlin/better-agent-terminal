@@ -1282,3 +1282,29 @@ L013 再次證明：**已知最佳方案時跳過分步驗證**的原則，在 T
 6. **L017 升級 Global**（累積 3 次 hook false positive 後）
 7. **L018 升級 Global**（等第 2 次 Playwright + Electron 專案驗證）
 
+## 2026-04-11 20:01 Checkpoint — T0026 DONE · UX-001 scrollbar styling
+
+### T0026 狀態
+- 🔄 IN_PROGRESS → ✅ DONE
+- 時間：19:56 → 20:01
+
+### 修復/增強摘要
+- **UX-001**：`src/styles/base.css:1-74` 全域 scrollbar 加粗至 `16px` 並套用 `scrollbar-gutter: stable`；`src/styles/panels.css:145-153` 將 `scrollbar-width` 由 `thin` 調整為 `auto`
+- **xterm 保護**：`src/styles/base.css:66-74` 對 `.xterm-viewport` 設定 `scrollbar-gutter: auto`，並維持 `8px` scrollbar 規則
+
+### Bug Tracker 更新
+- UX-001: 📋 待分派 → ✅ 已實作（code-level；runtime 待使用者 dogfood 驗證）
+
+### 意外觀察（若有）
+- BUG-008 是否仍然觸發：未驗證（本次未啟動 runtime dogfood）
+
+### Git 進度
+- Commit 1: `fd3e7af feat(ui): widen scrollbar and stabilize gutter (UX-001)`
+- Commit 2: `(this commit) chore(tower): T0026 UX-001 closure`
+
+### NEXT SESSION TODO（更新）
+1. **T0027** BAT 右鍵互動系統 investigation（Part A 精簡版）— **塔台已決議，等本工單後派**
+2. **BUG-008** overlay 錯位（獨立調研工單）
+3. **T0023**（Phase 1 Voice Download 4 項 E2E）
+4. **4 張 PARTIAL 漂移補填**
+5. GA006 / L017 / L018 全域化決策
