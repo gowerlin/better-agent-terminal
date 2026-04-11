@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import '../styles/github-panel.css'
@@ -267,7 +268,8 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
 
   return (
     <div className="github-panel">
-      {contextMenu && (
+      {/* Fix BUG-002: portal to body to avoid position:fixed offset from parent transforms */}
+      {contextMenu && createPortal(
         <>
           <div className="context-menu-backdrop" onClick={() => setContextMenu(null)} />
           <div
@@ -283,7 +285,8 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
               setContextMenu(null)
             }}>{t('github.copyGitHubLink')}</div>
           </div>
-        </>
+        </>,
+        document.body
       )}
       {/* Left column: list */}
       <div className="github-list-col">

@@ -239,6 +239,24 @@ git push origin v2.1.4
 
 設定環境變數 `BAT_DEBUG=1` 啟用磁碟日誌。日誌寫入設定目錄下的 `debug.log`。
 
+### 語音輸入 — 跨平台麥克風權限
+
+#### macOS
+- 首次使用語音輸入時會彈出系統權限對話框
+- 拒絕後可至「系統設定 > 隱私與安全性 > 麥克風」重新授權
+- 要求 macOS 10.14 (Mojave) 以上
+- App 的 Info.plist 已包含 `NSMicrophoneUsageDescription`，打包後可正常觸發系統權限提示
+
+#### Windows
+- 首次使用時 Chromium 觸發權限對話框
+- 若系統層全域麥克風存取關閉，請至「設定 > 隱私 > 麥克風」開啟
+- Windows 10/11 原生支援
+
+#### Linux
+- 依 PulseAudio / PipeWire 設定
+- 首次使用時通常無需額外操作
+- 若無法存取，請確認 `pactl` / `pipewire` 服務運作正常
+
 ---
 
 ## 授權

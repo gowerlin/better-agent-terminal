@@ -17,7 +17,7 @@ export interface UseVoiceRecordingResult {
 }
 
 interface UseVoiceRecordingOptions {
-  onTranscribed?: (text: string) => void
+  onTranscribed?: (text: string, result?: { detectedLanguage?: string; inferenceTimeMs?: number }) => void
 }
 
 function debugLog(...args: unknown[]): void {
@@ -108,7 +108,10 @@ export function useVoiceRecording(opts?: UseVoiceRecordingOptions): UseVoiceReco
       const text = result.text?.trim()
       if (text) {
         setLastTranscription(text)
-        onTranscribedRef.current?.(text)
+        onTranscribedRef.current?.(text, {
+          detectedLanguage: result.detectedLanguage,
+          inferenceTimeMs: result.inferenceTimeMs,
+        })
         debugLog(`[voice] useVoiceRecording: transcribed "${text.slice(0, 50)}..."`)
       } else {
         debugLog('[voice] useVoiceRecording: empty transcription result')

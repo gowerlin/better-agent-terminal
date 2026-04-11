@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { settingsStore } from '../stores/settings-store'
 import { useVoiceRecording } from '../hooks/useVoiceRecording'
 import { MicButton } from './voice/MicButton'
+import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
+import type { VoicePreviewState } from './voice/VoicePreviewPopover'
 
 interface PromptBoxProps {
   terminalId: string
@@ -47,15 +49,37 @@ export function PromptBox({ terminalId, isActive = true }: Readonly<PromptBoxPro
   useEffect(() => { showSlashMenuRef.current = showSlashMenu }, [showSlashMenu])
   useEffect(() => { showStarMenuRef.current = showStarMenu }, [showStarMenu])
 
+  // Voice preview popover state
+  const [voicePreviewState, setVoicePreviewState] = useState<VoicePreviewState>('hidden')
+  const [voiceTranscriptionMeta, setVoiceTranscriptionMeta] = useState<{
+    detectedLanguage?: string
+    inferenceTimeMs?: number
+  }>({})
+
   // Voice recording hook
-  // TODO(T0006): onTranscribed should show a preview popover for user confirmation before inserting
   const voice = useVoiceRecording({
-    onTranscribed: (transcribedText) => {
-      // Phase 1 temporary: directly append to textarea (no preview confirmation)
-      setText((prev) => prev + transcribedText)
-      textareaRef.current?.focus()
+    onTranscribed: (_text, result) => {
+      setVoiceTranscriptionMeta({
+        detectedLanguage: result?.detectedLanguage,
+        inferenceTimeMs: result?.inferenceTimeMs,
+      })
+      setVoicePreviewState('result')
     },
   })
+
+  // Sync voice hook state → popover state
+  useEffect(() => {
+    if (voice.state === 'transcribing' && voicePreviewState === 'hidden') {
+      setVoicePreviewState('transcribing')
+    }
+  }, [voice.state, voicePreviewState])
+
+  // Sync voice error → popover error
+  useEffect(() => {
+    if (voice.error && voicePreviewState !== 'hidden') {
+      setVoicePreviewState('error')
+    }
+  }, [voice.error, voicePreviewState])
 
   // Alt+M global shortcut — only active on the current active PromptBox
   useEffect(() => {
@@ -342,6 +366,26 @@ export function PromptBox({ terminalId, isActive = true }: Readonly<PromptBoxPro
           onClick={voice.toggle}
           disabled={voice.state === 'disabled'}
           disabledTooltip={voice.error || '請先在 Settings 下載語音模型'}
+        />
+        <VoicePreviewPopover
+          state={voicePreviewState}
+          text={voice.lastTranscription ?? undefined}
+          errorMessage={voice.error ?? undefined}
+          detectedLanguage={voiceTranscriptionMeta.detectedLanguage}
+          inferenceTimeMs={voiceTranscriptionMeta.inferenceTimeMs}
+          onConfirm={(finalText) => {
+            setText((prev) => prev ? prev + ' ' + finalText : finalText)
+            setVoicePreviewState('hidden')
+            setVoiceTranscriptionMeta({})
+            voice.reset()
+            textareaRef.current?.focus()
+          }}
+          onCancel={() => {
+            setVoicePreviewState('hidden')
+            setVoiceTranscriptionMeta({})
+            voice.reset()
+            textareaRef.current?.focus()
+          }}
         />
         <button
           className="prompt-box-send"

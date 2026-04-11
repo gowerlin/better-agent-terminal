@@ -6,6 +6,7 @@ import type { AppSettings, ShellType, FontType, ColorPresetId, StatuslineItemCon
 import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS } from '../types'
 import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate, FONT_SIZE_MIN, FONT_SIZE_MAX } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
+import { VoiceSettingsSection } from './voice/VoiceSettingsSection'
 import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
 import type { CustomCliDefinition } from '../types/agent-runtime'
 
@@ -769,6 +770,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               )}
             </div>
           </div>
+
+          <VoiceSettingsSection />
 
           <div className="settings-section">
             <h3>{t('settings.environmentVariables')}</h3>

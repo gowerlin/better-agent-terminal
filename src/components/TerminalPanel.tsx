@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -527,7 +528,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
   return (
     <div ref={containerRef} className="terminal-panel">
-      {contextMenu && (
+      {/* Context Menu — Fix BUG-002: portal to body to avoid position:fixed offset from parent transforms */}
+      {contextMenu && createPortal(
         <div
           className="context-menu"
           style={{
@@ -545,7 +547,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
           <button onClick={handlePaste} className="context-menu-item">
             貼上
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

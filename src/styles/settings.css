@@ -603,3 +603,171 @@
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
+/* Voice Settings */
+.voice-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-model-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.voice-model-info {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.voice-model-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-model-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--accent-color);
+  color: #fff;
+  font-weight: 500;
+}
+
+.voice-model-badge.default {
+  background: #3fb950;
+}
+
+.voice-model-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.voice-model-status {
+  flex-shrink: 0;
+}
+
+.voice-status-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.voice-status-tag.downloaded {
+  color: #3fb950;
+}
+
+.voice-status-tag.not-downloaded {
+  color: var(--text-secondary);
+}
+
+.voice-status-tag.downloading {
+  color: #d29922;
+}
+
+.voice-download-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 140px;
+}
+
+.voice-progress-bar {
+  height: 6px;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.voice-progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.voice-progress-text {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.voice-model-actions {
+  flex-shrink: 0;
+}
+
+.voice-model-error {
+  width: 100%;
+  font-size: 11px;
+  color: #f85149;
+  margin-top: 2px;
+}
+
+.voice-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.voice-radio-option {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.voice-radio-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-radio-option input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-color);
+  cursor: pointer;
+}
+
+.voice-radio-option.disabled input[type="radio"] {
+  cursor: not-allowed;
+}
+
+.voice-radio-hint {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.voice-models-dir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-dir-path {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}

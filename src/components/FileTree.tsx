@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { HighlightedCode } from './PathLinker'
 import { ResizeHandle } from './ResizeHandle'
 import hljs from 'highlight.js/lib/core'
@@ -591,8 +592,8 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {/* Context Menu — Fix BUG-002: portal to body to avoid position:fixed offset from parent transforms */}
+      {contextMenu && createPortal(
         <div
           ref={contextMenuRef}
           className="workspace-context-menu"
@@ -621,7 +622,8 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
             </svg>
             Open in Explorer
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

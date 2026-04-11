@@ -37,11 +37,13 @@
     "js-yaml": "^4.1.1",
     "marked": "^17.0.5",
     "mermaid": "^11.13.0",
+    "opencc-js": "^1.0.5",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^16.5.8",
     "uuid": "^9.0.0",
+    "whisper-node-addon": "^1.0.2",
     "ws": "^8.19.0"
   },
   "optionalDependencies": {
@@ -118,7 +120,8 @@
       "extendInfo": {
         "NSDocumentsFolderUsageDescription": "BetterAgentTerminal needs access to your Documents folder to open terminals and manage files in your projects.",
         "NSDesktopFolderUsageDescription": "BetterAgentTerminal needs access to your Desktop folder to open terminals and manage files in your projects.",
-        "NSDownloadsFolderUsageDescription": "BetterAgentTerminal needs access to your Downloads folder to open terminals and manage files in your projects."
+        "NSDownloadsFolderUsageDescription": "BetterAgentTerminal needs access to your Downloads folder to open terminals and manage files in your projects.",
+        "NSMicrophoneUsageDescription": "better-agent-terminal 需要存取麥克風以提供語音輸入功能，將語音辨識後填入輸入框。/ better-agent-terminal needs microphone access for voice input feature, transcribing speech into the input textarea."
       }
     },
     "linux": {

@@ -1,4 +1,13 @@
 import type { CreatePtyOptions } from './index'
+import type {
+  WhisperModelSize,
+  VoiceLanguage,
+  VoiceModelInfo,
+  VoicePreferences,
+  VoiceTranscribeOptions,
+  VoiceTranscribeResult,
+  VoiceModelDownloadProgress,
+} from './voice'
 
 interface ElectronAPI {
   platform: 'win32' | 'darwin' | 'linux'
@@ -74,6 +83,29 @@ interface ElectronAPI {
     listWorkers: (terminalIds: string[]) => Promise<{ id: string; lastOutput: string; alive: boolean }[]>
     sendToWorker: (targetId: string, text: string) => Promise<boolean>
     getWorkerOutput: (targetId: string, lines: number) => Promise<string[]>
+  }
+  voice: {
+    // model management
+    listModels: () => Promise<VoiceModelInfo[]>
+    isModelDownloaded: (size: WhisperModelSize) => Promise<boolean>
+    downloadModel: (size: WhisperModelSize) => Promise<void>
+    deleteModel: (size: WhisperModelSize) => Promise<void>
+    cancelDownload: (size: WhisperModelSize) => Promise<void>
+    // preferences (persisted to userData/voice-preferences.json)
+    getPreferences: () => Promise<VoicePreferences>
+    setPreferences: (prefs: Partial<VoicePreferences>) => Promise<VoicePreferences>
+    // transcription (file-based, request/response — no streaming)
+    transcribe: (
+      audioBuffer: ArrayBuffer,
+      sampleRate: number,
+      options?: VoiceTranscribeOptions
+    ) => Promise<VoiceTranscribeResult>
+    // download progress event — returns an unsubscribe function
+    onModelDownloadProgress: (
+      callback: (progress: VoiceModelDownloadProgress) => void
+    ) => () => void
+    // expose the userData-relative path where models live (shared with T0004)
+    getModelsDirectory: () => Promise<string>
   }
 }
 

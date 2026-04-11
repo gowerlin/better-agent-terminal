@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { Workspace } from '../types'
 import { WORKSPACE_COLORS } from '../types'
@@ -535,8 +536,8 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {/* Context Menu — Fix BUG-002: portal to body to avoid position:fixed offset from parent transforms */}
+      {contextMenu && createPortal(
         <div
           ref={contextMenuRef}
           className="workspace-context-menu"
@@ -724,7 +725,8 @@ export function Sidebar({
             </svg>
             {t('sidebar.closeWorkspace')}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </aside>
   )

@@ -1,0 +1,6 @@
+node_modules/
+models/*.bin
+models/*.ggml
+audio-samples/*.wav
+audio-samples/*.mp3
+electron-test/node_modules/
