@@ -142,6 +142,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     }
   }
 
+  const dismissContextMenu = () => {
+    setContextMenu(prev => (prev ? null : prev))
+  }
+
   // Close context menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null)
@@ -458,8 +462,17 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       })
     })
 
+    const disposeScrollDismiss = terminal.onScroll(() => {
+      dismissContextMenu()
+    })
+
+    const viewportElement = containerRef.current.querySelector('.xterm-viewport')
+    const handleViewportScroll = () => dismissContextMenu()
+    viewportElement?.addEventListener('scroll', handleViewportScroll, { passive: true })
+
     // Ctrl+Mouse Wheel zoom (font size)
     const handleWheel = (e: WheelEvent) => {
+      dismissContextMenu()
       if (e.ctrlKey) {
         e.preventDefault()
         e.stopPropagation()
@@ -547,6 +560,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       resizeObserver.disconnect()
       observer.disconnect()
       containerRef.current?.removeEventListener('wheel', handleWheel)
+      viewportElement?.removeEventListener('scroll', handleViewportScroll)
+      disposeScrollDismiss.dispose()
       doResizeRef.current = null
       terminal.dispose()
     }
