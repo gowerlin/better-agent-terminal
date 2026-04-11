@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import QRCode from 'qrcode'
-import type { AppSettings, ShellType, FontType, ColorPresetId, StatuslineItemConfig, LanguageCode } from '../types'
+import type { AppSettings, ShellType, FontType, ColorPresetId, StatuslineItemConfig, LanguageCode, LogLevel } from '../types'
 import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS } from '../types'
 import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate, FONT_SIZE_MIN, FONT_SIZE_MAX } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
@@ -38,10 +38,20 @@ interface RemoteClientStatus {
   info: { host: string; port: number } | null
 }
 
+interface LoggingInfo {
+  logsDir: string
+  currentLogFilePath: string | null
+  loggingEnabled: boolean
+  logLevel: LogLevel
+  crashesDir: string
+}
+
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { t } = useTranslation()
   const [settings, setSettings] = useState<AppSettings>(settingsStore.getSettings())
   const [availableFonts, setAvailableFonts] = useState<Set<FontType>>(new Set())
+  const [loggingInfo, setLoggingInfo] = useState<LoggingInfo | null>(null)
+  const [isCleaningLogs, setIsCleaningLogs] = useState(false)
 
   // Remote server state
   const [serverStatus, setServerStatus] = useState<RemoteServerStatus>({ running: false, port: null, clients: [] })
@@ -156,6 +166,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     return () => clearInterval(interval)
   }, [])
 
+  const refreshLoggingInfo = useCallback(async () => {
+    const info = await window.electronAPI.settings.getLoggingInfo()
+    setLoggingInfo(info)
+  }, [])
+
+  useEffect(() => {
+    refreshLoggingInfo().catch((err) => {
+      window.electronAPI.debug?.log?.(`[SettingsPanel] Failed to load logging info: ${err}`)
+    })
+  }, [refreshLoggingInfo])
+
   const handleStartServer = async () => {
     const result = await window.electronAPI.remote.startServer(parseInt(serverPort) || 9876)
     if ('error' in result) {
@@ -174,6 +195,29 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     const ss = await window.electronAPI.remote.serverStatus()
     setServerStatus(ss)
   }
+
+  const handleOpenLogsDir = useCallback(async () => {
+    if (!loggingInfo?.logsDir) return
+    try {
+      await window.electronAPI.shell.openPath(loggingInfo.logsDir)
+    } catch (err) {
+      window.electronAPI.debug?.log?.(`[SettingsPanel] Failed to open logs dir: ${err}`)
+    }
+  }, [loggingInfo?.logsDir])
+
+  const handleCleanupLogs = useCallback(async () => {
+    try {
+      setIsCleaningLogs(true)
+      const result = await window.electronAPI.settings.cleanupLogs()
+      await refreshLoggingInfo()
+      alert(t('settings.loggingCleanupResult', { count: result.deletedCount }))
+    } catch (err) {
+      alert(t('settings.loggingCleanupFailed', { error: String(err) }))
+      window.electronAPI.debug?.log?.(`[SettingsPanel] Failed to cleanup logs: ${err}`)
+    } finally {
+      setIsCleaningLogs(false)
+    }
+  }, [refreshLoggingInfo, t])
 
   const generateQrForIp = useCallback(async (ip: string, mode: string, token: string, port: number) => {
     const url = `ws://${ip}:${port}`
@@ -437,6 +481,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 {t('settings.minimizeToTray')}
               </label>
               <p className="settings-hint">{t('settings.minimizeToTrayHint')}</p>
+            </div>
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.enableDevTools === true}
+                  onChange={e => settingsStore.setEnableDevTools(e.target.checked)}
+                />
+                {t('settings.enableDevTools')}
+              </label>
+              <p className="settings-hint">{t('settings.enableDevToolsHint')}</p>
             </div>
           </div>
 
@@ -772,6 +827,61 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </div>
 
           <VoiceSettingsSection />
+
+          <div className="settings-section">
+            <h3>{t('settings.debugLogging')}</h3>
+
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.loggingEnabled !== false}
+                  onChange={e => settingsStore.setLoggingEnabled(e.target.checked)}
+                />
+                {t('settings.loggingEnabled')}
+              </label>
+            </div>
+
+            <div className="settings-group">
+              <label>{t('settings.loggingLevel')}</label>
+              <select
+                value={settings.logLevel || 'debug'}
+                onChange={e => settingsStore.setLogLevel(e.target.value as LogLevel)}
+              >
+                <option value="error">error</option>
+                <option value="warn">warn</option>
+                <option value="info">info</option>
+                <option value="log">log</option>
+                <option value="debug">debug</option>
+              </select>
+            </div>
+
+            <div className="settings-group">
+              <label>{t('settings.loggingPath')}</label>
+              <code className="voice-dir-path">{loggingInfo?.logsDir || t('settings.loggingPathLoading')}</code>
+            </div>
+
+            <div className="settings-group" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                className="profile-action-btn"
+                onClick={handleOpenLogsDir}
+                disabled={!loggingInfo?.logsDir}
+                type="button"
+              >
+                {t('settings.openLogsFolder')}
+              </button>
+              <button
+                className="profile-action-btn danger"
+                onClick={handleCleanupLogs}
+                disabled={isCleaningLogs}
+                type="button"
+              >
+                {isCleaningLogs ? t('settings.loggingCleaning') : t('settings.cleanupOldLogs')}
+              </button>
+            </div>
+
+            <p className="settings-hint">{t('settings.loggingHint')}</p>
+          </div>
 
           <div className="settings-section">
             <h3>{t('settings.environmentVariables')}</h3>

@@ -32,7 +32,7 @@ export const PROXIED_CHANNELS = new Set([
   // Workspace
   'workspace:save', 'workspace:load',
   // Settings
-  'settings:save', 'settings:load', 'settings:get-shell-path',
+  'settings:save', 'settings:load', 'settings:get-shell-path', 'settings:get-logging-info', 'settings:cleanup-logs',
   // GitHub
   'github:check-cli', 'github:pr-list', 'github:issue-list', 'github:pr-view', 'github:issue-view',
   'github:pr-comment', 'github:issue-comment',

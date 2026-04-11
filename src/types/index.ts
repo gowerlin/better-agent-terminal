@@ -196,6 +196,7 @@ export const AGENT_COMMAND_OPTIONS: { id: AgentCommandType; name: string; comman
 ];
 
 export type LanguageCode = 'en' | 'zh-TW' | 'zh-CN';
+export type LogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug';
 
 export interface AppSettings {
   language: LanguageCode;
@@ -223,9 +224,12 @@ export interface AppSettings {
   notifyOnComplete?: boolean;           // Agent 完成時發送系統通知
   notifySound?: boolean;               // 通知時播放聲音
   notifyOnlyBackground?: boolean;      // 僅在視窗不在前景時通知
+  loggingEnabled?: boolean;            // 是否寫入除錯日誌到磁碟（預設 true）
+  logLevel?: LogLevel;                 // 除錯日誌等級（預設 debug）
   statuslineItems?: StatuslineItemConfig[];  // 自訂 statusline 項目排序和顯示
   collapseToolOutputs?: boolean;  // 預設折疊所有工具輸出（預設 false = 展開）
   minimizeToTray?: boolean;  // 關閉視窗時最小化到系統匣（預設 false = 直接關閉）
+  enableDevTools?: boolean;  // 允許在正式版中按 F12 開啟 DevTools（預設 false）
   checkForUpdates?: boolean;  // 是否自動檢查版本更新（預設 true）
 }
 

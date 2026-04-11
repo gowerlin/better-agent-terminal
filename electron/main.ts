@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage, crashReporter } from 'electron'
 import path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
@@ -77,7 +77,7 @@ import { PROXIED_CHANNELS } from './remote/protocol'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
-import { logger } from './logger'
+import { logger, type LogLevel } from './logger'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
@@ -91,10 +91,10 @@ process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
   // EPIPE errors are expected when writing to pipes of killed subprocesses (e.g. Claude agent)
   // They are harmless and should not pollute logs.
   if (error.code === 'EPIPE') return
-  logger.error('Uncaught exception:', error)
+  logger.error(`[CRASH] uncaughtException: ${error.stack || error.message}`)
 })
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled rejection:', reason)
+  logger.error(`[CRASH] unhandledRejection: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`)
 })
 
 // GPU disk cache: set dedicated path to avoid "Unable to move the cache" errors on Windows.
@@ -169,16 +169,65 @@ const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → Brow
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
 let tray: Tray | null = null
 
-/** Read minimizeToTray from persisted settings file (sync, for use in close handler) */
-function isMinimizeToTrayEnabled(): boolean {
+interface PersistedSettings {
+  minimizeToTray?: boolean
+  enableDevTools?: boolean
+  loggingEnabled?: boolean
+  logLevel?: LogLevel
+}
+
+function normalizeLogLevel(level: unknown): LogLevel {
+  if (level === 'error' || level === 'warn' || level === 'info' || level === 'log' || level === 'debug') {
+    return level
+  }
+  return 'debug'
+}
+
+function readPersistedSettingsSync(): PersistedSettings | null {
   try {
     const configPath = path.join(app.getPath('userData'), 'settings.json')
     const data = fsSync.readFileSync(configPath, 'utf-8')
-    const parsed = JSON.parse(data)
-    return parsed.minimizeToTray === true
+    const parsed = JSON.parse(data) as PersistedSettings
+    return parsed
   } catch {
-    return false
+    return null
   }
+}
+
+function readLoggingConfigSync(): { loggingEnabled: boolean; logLevel: LogLevel } {
+  const parsed = readPersistedSettingsSync()
+  return {
+    loggingEnabled: parsed?.loggingEnabled !== false,
+    logLevel: normalizeLogLevel(parsed?.logLevel),
+  }
+}
+
+/** Read minimizeToTray from persisted settings file (sync, for use in close handler) */
+function isMinimizeToTrayEnabled(): boolean {
+  return readPersistedSettingsSync()?.minimizeToTray === true
+}
+
+/** Read enableDevTools from persisted settings file (sync, for menu building) */
+function isDevToolsEnabled(): boolean {
+  // Always allow in dev mode
+  if (VITE_DEV_SERVER_URL) return true
+  return readPersistedSettingsSync()?.enableDevTools === true
+}
+
+function getCrashesDir(): string {
+  return path.join(app.getPath('userData'), 'Crashes')
+}
+
+function openFolder(folderPath: string, label: string): void {
+  if (!folderPath) {
+    logger.error(`[menu] missing path for ${label}`)
+    return
+  }
+  shell.openPath(folderPath).then((result) => {
+    if (result) logger.error(`[menu] failed to open ${label}: ${result}`)
+  }).catch((error) => {
+    logger.error(`[menu] failed to open ${label}:`, error)
+  })
 }
 
 /** Build (or rebuild) the system tray context menu with per-window entries. */
@@ -299,6 +348,19 @@ function buildMenu() {
     {
       label: 'File',
       submenu: [
+        {
+          label: '📂 Open Application Data Folder',
+          click: () => openFolder(app.getPath('userData'), 'app data folder'),
+        },
+        {
+          label: '📋 Open Logs Folder',
+          click: () => openFolder(logger.getLogsDir(), 'logs folder'),
+        },
+        {
+          label: '💥 Open Crash Reports Folder',
+          click: () => openFolder(getCrashesDir(), 'crash reports folder'),
+        },
+        { type: 'separator' },
         { role: 'quit' }
       ]
     },
@@ -319,7 +381,7 @@ function buildMenu() {
       submenu: [
         { role: 'reload' },
         { role: 'forceReload' },
-        { role: 'toggleDevTools' },
+        ...(isDevToolsEnabled() ? [{ role: 'toggleDevTools' as const }] : []),
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
@@ -582,9 +644,28 @@ profileManager.setWindowRegistry(windowRegistry)
 
 app.whenReady().then(async () => {
   const t0 = Date.now()
-  logger.init(app.getPath('userData'))
+  logger.init(app.getPath('userData'), readLoggingConfigSync())
   logger.log(`[startup] ═══════════════════════════════════════`)
   logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from IPC reg, +${t0 - _processStart}ms from process`)
+  app.setPath('crashDumps', getCrashesDir())
+  crashReporter.start({
+    submitURL: '',
+    uploadToServer: false,
+    compress: false,
+  })
+  logger.log(`[startup] crashDumps path: ${app.getPath('crashDumps')}`)
+
+  app.on('render-process-gone', (_event, _webContents, details) => {
+    logger.error(`[CRASH] render-process-gone reason=${details.reason} exitCode=${details.exitCode}`)
+  })
+
+  app.on('child-process-gone', (_event, details) => {
+    logger.error(`[CRASH] child-process-gone type=${details.type} reason=${details.reason} exitCode=${details.exitCode}`)
+  })
+
+  // Register voice handlers only after app is ready because it installs
+  // permission handling on session.defaultSession.
+  registerVoiceHandlers(getAllWindows)
 
   // Create system tray icon
   try {
@@ -960,11 +1041,31 @@ function registerProxiedHandlers() {
   registerHandler('settings:save', async (_ctx, data: string) => {
     const configPath = path.join(app.getPath('userData'), 'settings.json')
     await fs.writeFile(configPath, data, 'utf-8')
+    try {
+      const parsed = JSON.parse(data) as PersistedSettings
+      logger.setConfig({
+        loggingEnabled: parsed.loggingEnabled !== false,
+        logLevel: normalizeLogLevel(parsed.logLevel),
+      })
+    } catch (error) {
+      logger.error('[settings] Failed to parse settings payload for logging config:', error)
+    }
+    // Rebuild menu to reflect devtools toggle change
+    buildMenu()
     return true
   })
   registerHandler('settings:load', async (_ctx) => {
     const configPath = path.join(app.getPath('userData'), 'settings.json')
     try { return await fs.readFile(configPath, 'utf-8') } catch { return null }
+  })
+  registerHandler('settings:get-logging-info', async () => {
+    return {
+      ...logger.getInfo(),
+      crashesDir: getCrashesDir(),
+    }
+  })
+  registerHandler('settings:cleanup-logs', async () => {
+    return { deletedCount: logger.cleanupOldLogs(10) }
   })
   const shellPathCache = new Map<string, string>()
   registerHandler('settings:get-shell-path', (_ctx, shellType: string) => {
@@ -1598,7 +1699,12 @@ function bindProxiedHandlersToIpc() {
 
 // ── Renderer debug log (fire-and-forget, no blocking) ──
 ipcMain.on('debug:log', (_event, ...args: unknown[]) => {
-  logger.log('[renderer]', ...args)
+  logger.log('[RENDERER]', ...args)
+})
+
+ipcMain.on('log:renderer-write', (_event, level: unknown, args: unknown[]) => {
+  const payload = Array.isArray(args) ? args : [args]
+  logger.writeRenderer(level, payload)
 })
 
 // ── Local-only IPC handlers (not proxied) ──
@@ -2030,8 +2136,6 @@ function registerLocalHandlers() {
     return ptyManager.getLastOutput(targetId, lines)
   })
 
-  // Voice input IPC handlers (T0003 — mock foundation, see electron/voice-handler.ts)
-  registerVoiceHandlers(getAllWindows)
 }
 
 // ── Initialize all IPC ──

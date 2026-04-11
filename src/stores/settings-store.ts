@@ -1,4 +1,4 @@
-import type { AppSettings, ShellType, FontType, ColorPresetId, EnvVariable, AgentCommandType, StatuslineItemConfig, StatuslineItemId, LanguageCode } from '../types'
+import type { AppSettings, ShellType, FontType, ColorPresetId, EnvVariable, AgentCommandType, StatuslineItemConfig, StatuslineItemId, LanguageCode, LogLevel } from '../types'
 import type { AgentPresetId } from '../types/agent-presets'
 import { FONT_OPTIONS, COLOR_PRESETS, AGENT_COMMAND_OPTIONS, STATUSLINE_ITEMS } from '../types'
 
@@ -34,6 +34,8 @@ const defaultSettings: AppSettings = {
   defaultModel: 'claude-opus-4-6',
   minimizeToTray: true,
   checkForUpdates: false,
+  loggingEnabled: true,
+  logLevel: 'debug',
 }
 
 class SettingsStore {
@@ -253,6 +255,24 @@ class SettingsStore {
 
   setNotifyOnlyBackground(enabled: boolean): void {
     this.settings = { ...this.settings, notifyOnlyBackground: enabled }
+    this.notify()
+    this.save()
+  }
+
+  setLoggingEnabled(enabled: boolean): void {
+    this.settings = { ...this.settings, loggingEnabled: enabled }
+    this.notify()
+    this.save()
+  }
+
+  setLogLevel(level: LogLevel): void {
+    this.settings = { ...this.settings, logLevel: level }
+    this.notify()
+    this.save()
+  }
+
+  setEnableDevTools(enabled: boolean): void {
+    this.settings = { ...this.settings, enableDevTools: enabled }
     this.notify()
     this.save()
   }
