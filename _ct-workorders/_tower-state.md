@@ -1444,3 +1444,135 @@ L013 再次證明：**已知最佳方案時跳過分步驗證**的原則，在 T
 2. **派發 Phase 1 E2E 新工單**（T0029） — 驗 BUG-003 + Phase 1 的 runtime 驗收，大工單 60-120 min，建議用乾淨 session
 3. **派發 T0029-overlay-arch / T0029-Part-B / T0029-FS 等 Research 工單** — 戰略方向工作
 4. **使用者自己 commit + push，塔台結束 session** — 最簡單
+
+---
+
+## 2026-04-11 23:05 Checkpoint — T0029/T0030 連鎖 debug · padding 凶手確認 · BUG-008/010 戰略升級
+
+### Session 總覽（21:44 → 23:05 ≈ 1h20min）
+
+本段延續 21:26 checkpoint，原本是想派 T0024-style session closure，但使用者一打開塔台就回報「T0028 問題沒解還更嚴重」，整段被轉為**緊急 dogfood debug session**。
+
+### 工單完成狀態
+
+| 工單 | 類型 | 結果 |
+|------|------|------|
+| **T0029** | Revert T0028 (Pattern C) | ✅ DONE / worker-executed · commit `80d13ef` · 驗證 T0028 零價值 |
+| **T0030** | Revert T0026 (UX-001) 驗證 padding 假設 | ✅ DONE / tower-override · commit `92ba15f` · 假設確認 |
+
+### Debug 主線時間軸
+
+| 時間 | 事件 |
+|------|------|
+| 21:44 | 使用者回報 T0028 問題沒解，padding 更嚴重，附四張 dogfood 截圖 |
+| 21:50 | 塔台對齊 → 產出 T0029 (revert T0028) |
+| 22:07 | Worker 完成 T0029 revert，環境無 GUI 驗證能力，狀態 BLOCKED |
+| 22:15 | 使用者手動驗證：**padding 未復原**，推翻「T0028 是凶手」假設 |
+| 22:15 | 塔台重新對齊 → 新假設 **T0026 (fd3e7af)** 的 gutter 策略是凶手 → 產出 T0030 |
+| 22:26 | Worker 執行 T0030 revert，成功產出 `92ba15f`，`vite build` 通過 |
+| 22:44 | Worker 的 `npm run dev` 因處理程序錯誤結束，Worker 填 UNKNOWN，status=BLOCKED 回報塔台 |
+| 22:45 | 使用者接手，初次觀察**padding 仍在**（差點讓塔台以為假設推翻）|
+| 22:55 | 使用者發現**舊 dev server 未終止**，終止後重啟乾淨 dev server → padding 消失 |
+| 22:58 | 塔台警覺 HMR 幻影風險，建議 disambiguation test → 使用者確認已實測 |
+| 23:00 | 使用者自省「沒每張工單實測」→ 塔台反問並升級為結構性問題 L023 |
+| 23:00 | BUG-008/010 策略升級：使用者重新排序 → BUG-008 調查優先，scrollbar 重做延後 |
+| 23:05 | Phase A 啟動：T0030 closure + tower checkpoint + L023-L026 learnings |
+
+### 🏆 重大發現（本 session）
+
+#### 1. T0028 是零價值 commit
+Pattern C 的「scroll dismiss overlay」策略沒觸及 BUG-008 的真正根因，且**從來沒觸發過**（見 L026 中 alt buffer hypothesis）。已被 T0029 revert。
+
+#### 2. T0026 引入 padding regression
+`fd3e7af` 的「gutter 永遠佔位（所有使用處）」CSS 選擇器範圍過廣，滲透到非 scrollable container。已被 T0030 revert。
+
+#### 3. BUG-008 真正的根因候選：BAT alt buffer event pipeline 失靈
+**關鍵證據鏈**（使用者提供）：
+- Claude Code CLI 有 ghost，Copilot CLI 無 ghost（差分證據 1）
+- BAT 中 Claude Code streaming 時 ESC/鍵盤 freeze，Windows Terminal 中正常（差分證據 2）
+- BAT 中 Claude Code「滿內容但無 scrollbar，wheel 可捲」（alt buffer smoking gun）
+
+**推論**：BAT 的 xterm.js 包裝層 event subscription 只接 normal buffer 的事件，在 Claude Code CLI（Ink TUI）啟用 alt buffer 後，overlay / keyboard event routing 完全失靈。詳見 **L026**。
+
+#### 4. 新 bug 發現：BUG-010（Critical for dogfood）
+Claude Code CLI streaming 期間，BAT 鍵盤輸入（含 ESC）完全 freeze。**無法中斷失控生成**，對 AI 友善終端來說是產品定位硬傷。嚴重度 🔴🔴 Critical。
+
+#### 5. BUG-008 + BUG-010 可能同根（重大策略意義）
+兩者都疑似 BAT alt buffer event family 問題。若確認，**一條修復路徑可解兩個 bug**。T0032 第一個驗證目標就是證實/推翻這個共同根因假設。
+
+### 🐛 Bug Tracker 更新
+
+| ID | 標題 | 嚴重度 | 狀態 | 備註 |
+|----|------|-------|------|------|
+| BUG-001 | Claude OAuth paste 截斷 | 🔴 High | ✅ Fixed / runtime 待驗 | T0006 |
+| BUG-002 | Context menu 位移 | 🟡 Medium | ✅ Fixed / runtime 待驗 | T0008 + T0012 |
+| BUG-003 | voice:downloadModel IPC | 🔴 High | ⚠️ PARTIAL / Phase 1 E2E 待派 | T0013 |
+| BUG-004 | AudioContext 崩潰 | 🔴 High | ✅ Fixed / runtime 通過 | T0017-β |
+| BUG-005 | Whisper addon require | 🔴 High | ✅ Fixed / runtime 通過 | T0018 |
+| BUG-006 | AudioWorklet 打包 | 🔴 High | ✅ Fixed / runtime 通過 | T0020 |
+| BUG-007 | OSC 52 debug output | 🟢 Low | ✅ Fixed / runtime 待驗 | T0025 |
+| **BUG-008** | Overlay scroll ghost | 🟡 Medium | ⚠️ **重開（T0028 未修到真正根因）** | 待 T0032 investigation |
+| BUG-009 | Context menu paste focus | 🟡 Medium | ✅ Fixed / runtime 待驗 | T0025 |
+| **BUG-010** | **Claude Code streaming 期間鍵盤 freeze** | 🔴🔴 **Critical** | 📋 **待登記**，推測與 BUG-008 同根 | 待 T0032 investigation |
+| UX-001 | Scrollbar UX 改善 | 🟡 Medium | ⚠️ **Reverted（padding regression），待 T0033 重做** | fd3e7af → 92ba15f revert |
+
+### 🚨 L021 教訓延伸：T0028 失敗的深層原因
+
+L021 教會「塔台私域檔案由塔台寫」，但 **T0028 的失敗揭露更深層問題**：
+
+> 塔台寫工單時，若**對 bug 根因的 mental model 就是錯的**，Worker 執行得再正確，成果也是零。
+>
+> T0028 的 Pattern C「scroll dismiss overlay」假設了「有 scroll event 可以監聽」，但實際上 Claude Code CLI（alt buffer）根本不產生那個 event。**塔台在派發工單時沒有挑戰這個假設**，直接拿了最表面的修法。
+
+**衍生新反模式（候選 L027，暫不記錄）**：Tower 在產出 UI debug 工單時，**必須先驗證「問題發生的事件流源頭」**，再決定修法。否則工單從設計上就注定失敗。
+
+### 📚 新學習記錄（本 session，已寫入 _learnings.md）
+
+- **L023** UI 工單驗收能力落差 + dogfood gate 協議（candidate: global）
+- **L024** Hypothesis verification requires controlled baseline（candidate: global）
+- **L025** Differential observation as debug tool（candidate: global）
+- **L026** BAT Alt Buffer Event Family Hypothesis（project-specific，H1-refined）
+
+這四個 learning 中，**L023 / L024 / L025 屬於同一家族**（debug methodology），未來晉升 Global 時可考慮**組合成一個 meta-learning**「Controlled Debug Verification Protocol」。
+
+### 🚦 Git 狀態（Phase A commit 前）
+
+未 push 的 local commits：
+```
+HEAD:    [尚未 commit] _tower-state.md + _learnings.md + T0030.md closure
+         ↑
+92ba15f: Revert "feat(ui): widen scrollbar and stabilize gutter (UX-001)"  (T0030)
+         ↑
+80d13ef: Revert "fix(ui): restore overlay position on terminal scroll (BUG-008)"  (T0029)
+         ↑
+d434ce9: fix(workorder): 更新工單狀態為 DONE，新增塔台追認紀錄  (pushed)
+```
+
+Phase A 完成後的使用者動作：
+
+```bash
+git add _ct-workorders/T0030-revert-t0026-padding-hypothesis.md \
+        _ct-workorders/_tower-state.md \
+        _ct-workorders/_learnings.md
+git commit -m "chore(tower): T0030 closure + baseline checkpoint + L023-L026"
+git push origin main
+```
+
+完成後 remote `main` 會有三個新 commits：T0029 revert + T0030 revert + tower closure。**padding regression 徹底清除，成為乾淨 baseline**。
+
+### ❓ Phase B 預告（等使用者休息後再派）
+
+**T0032 — BUG-008 + BUG-010 深度 investigation**（pure investigation，無 code 修改）
+
+- 實驗 1：vim/less/htop 在 BAT 中是否同樣 ghost + 鍵盤 freeze（驗證 alt buffer 共通假設）
+- 實驗 2：Chrome DevTools Performance 錄 Claude Code streaming
+- 實驗 3：Claude vs Copilot 的 raw ANSI stream 對照
+- 實驗 4：讀 BAT 源碼的 event subscription / PTY IPC / buffer.active.type 使用
+- 產出：`reports/T0032-bug008-bug010-investigation.md`
+- 下一步：T0033 修法由 T0032 findings 決定
+
+### 🛑 塔台現在 idle，等使用者：
+
+1. 跑 Phase A 的 git commands（commit + push 三檔）
+2. 休息 / 吃飯 / 確認狀態
+3. 準備好後說「派 T0032」 / 「明天再派」 / 「先做別的」
