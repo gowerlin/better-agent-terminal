@@ -149,7 +149,7 @@
   padding: 8px 12px;
   overflow-x: auto;
   min-height: 0;
-  scrollbar-width: auto;
+  scrollbar-width: thin;
 }
 
 .thumbnail-scroll-btn {

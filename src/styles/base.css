@@ -2,7 +2,6 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  scrollbar-gutter: stable;
 }
 
 :root {
@@ -44,8 +43,8 @@ body {
 
 /* Custom Scrollbar - Dark Theme */
 ::-webkit-scrollbar {
-  width: 16px;
-  height: 16px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -66,11 +65,6 @@ body {
 /* Terminal specific scrollbar */
 .xterm-viewport::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
-}
-
-.xterm-viewport {
-  scrollbar-gutter: auto;
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
