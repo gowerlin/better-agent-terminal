@@ -40,6 +40,7 @@ export class RecordingService {
   private audioContext: AudioContext | null = null
   private source: MediaStreamAudioSourceNode | null = null
   private processor: ScriptProcessorNode | null = null
+  private recordingSink: MediaStreamAudioDestinationNode | null = null
   private chunks: Float32Array[] = []
   private sourceSampleRate = 0
 
@@ -80,6 +81,7 @@ export class RecordingService {
       }
       throw new RecordingError(`Microphone access failed: ${(err as Error)?.message ?? String(err)}`, 'internal')
     }
+    debugLog('[voice:checkpoint] getUserMedia ok')
 
     // Lazy-typed WebKit fallback — Electron on Chromium always has AudioContext.
     const Ctor = (globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
@@ -89,15 +91,19 @@ export class RecordingService {
       this._state = 'idle'
       throw new RecordingError('AudioContext not supported in this environment', 'unsupported')
     }
+    debugLog('[voice:checkpoint] AudioContext ctor resolved')
 
     this.audioContext = new Ctor()
     this.sourceSampleRate = this.audioContext.sampleRate
+    debugLog(`[voice:checkpoint] AudioContext created sampleRate=${this.sourceSampleRate}`)
     this.source = this.audioContext.createMediaStreamSource(this.stream)
+    debugLog('[voice:checkpoint] source node created')
 
     // Buffer size 4096 is a good balance between latency and CPU — roughly
     // 93 ms per chunk at 44.1 kHz. Whisper batches things internally so this
     // has no impact on recognition quality.
     this.processor = this.audioContext.createScriptProcessor(4096, 1, 1)
+    debugLog('[voice:checkpoint] processor created (4096,1,1)')
     this.processor.onaudioprocess = (event) => {
       if (this._state !== 'recording') return
       // Clone the channel data — the underlying buffer is reused by the
@@ -108,10 +114,13 @@ export class RecordingService {
       this.chunks.push(copy)
     }
     this.source.connect(this.processor)
-    // ScriptProcessorNode only fires audioprocess events while connected to
-    // a destination — connect to the context destination but don't add gain,
-    // so nothing is actually audible.
-    this.processor.connect(this.audioContext.destination)
+    debugLog('[voice:checkpoint] source→processor connected')
+
+    // BUG-004 hotfix: connect ScriptProcessorNode to a virtual sink to avoid
+    // triggering physical output device (WASAPI) initialization on Windows.
+    this.recordingSink = this.audioContext.createMediaStreamDestination()
+    this.processor.connect(this.recordingSink)
+    debugLog('[voice:checkpoint] processor→sink connected')
 
     debugLog(`[voice] RecordingService started (sampleRate=${this.sourceSampleRate})`)
   }
@@ -147,6 +156,7 @@ export class RecordingService {
         this.processor.disconnect()
         this.processor.onaudioprocess = null
       }
+      if (this.recordingSink) this.recordingSink.disconnect()
     } catch { /* ignore */ }
     try {
       if (this.source) this.source.disconnect()
@@ -162,6 +172,7 @@ export class RecordingService {
       }
     } catch { /* ignore */ }
     this.processor = null
+    this.recordingSink = null
     this.source = null
     this.audioContext = null
     this.stream = null
