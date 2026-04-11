@@ -14,7 +14,14 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: ['@lydell/node-pty', 'ws', 'bufferutil', 'utf-8-validate']
+              external: [
+                '@lydell/node-pty',
+                'ws',
+                'bufferutil',
+                'utf-8-validate',
+                'whisper-node-addon',
+                /\.node$/,
+              ]
             }
           }
         }
