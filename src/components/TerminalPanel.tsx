@@ -9,6 +9,26 @@ import { settingsStore } from '../stores/settings-store'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
+const osc52DebugNoticeLine = /^sent \d+ chars via OSC 52 .*paste fails$/u
+
+const filterTerminalOutputNoise = (data: string): string => {
+  if (!data.includes('paste fails')) return data
+
+  const usesCRLF = data.includes('\r\n')
+  const trailingNewline = /\r?\n$/.test(data)
+  const normalized = data.replace(/\r\n/g, '\n')
+  const filtered = normalized
+    .split('\n')
+    .filter(line => !osc52DebugNoticeLine.test(line.trim()))
+    .join('\n')
+
+  const restored = usesCRLF ? filtered.replace(/\n/g, '\r\n') : filtered
+  if (!restored) return ''
+  if (!trailingNewline) return restored
+
+  const newline = usesCRLF ? '\r\n' : '\n'
+  return restored.endsWith(newline) ? restored : `${restored}${newline}`
+}
 
 interface TerminalPanelProps {
   terminalId: string
@@ -452,7 +472,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     // Handle terminal output
     const unsubscribeOutput = window.electronAPI.pty.onOutput((id, data) => {
       if (id === terminalId) {
-        terminal.write(data)
+        const filteredData = filterTerminalOutputNoise(data)
+        if (filteredData) {
+          terminal.write(filteredData)
+        }
         // Update activity time when there's output
         workspaceStore.updateTerminalActivity(terminalId)
       }
