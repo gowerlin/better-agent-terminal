@@ -626,3 +626,26 @@ PARTIAL
 
 ### 遞交給塔台的問題
 - 是否要另開工單清理現有 TypeScript 基線錯誤（目前 `npx tsc --noEmit` 無法作為本專案 gate）
+
+---
+
+## 塔台追認（Retroactive Reconciliation）
+
+**追認時間**：2026-04-11 21:24 (UTC+8)
+**追認決策者**：Control Tower
+**原狀態**：回報區 PARTIAL（元資料本已為 DONE，存在內部不一致）
+**新狀態**：DONE（正式追認，解除元資料 vs 回報區不一致）
+
+### 追認依據（下游證據）
+
+1. **obs 9470**（2026-04-11 13:39）：「T0017-β AudioWorklet Migration Code Completed」
+2. **obs 9481**（2026-04-11 13:54）：「BUG-004 AudioWorklet Migration Verified Complete」— runtime 驗證通過明確記錄
+3. **obs 9484**（2026-04-11 14:06）：「Phase 1 Voice Input Fully Implemented and Runtime Verified」
+4. **L013 GOLDEN 第一次實戰驗證**：T0017-β 是 L013「已知最佳方案時跳過分步驗證」原則的首次實戰應用，**驗證通過且零 rollback**
+5. **後續工單依賴鏈成功**：T0018 / T0020 都建立在 T0017-β AudioWorklet 正確運作的前提上，並各自 runtime 通過
+
+### 結論
+T0017-β AudioWorklet 遷移是 BUG-004 的治本修復，其 runtime 正確性已被 obs 9481 / 9484 明確記錄為驗證通過。原回報區的 PARTIAL 狀態是當時 sub-session 保守的自評估，實際上在塔台已接受並標記元資料為 DONE 之後就應視為完成。本次追認**對齊元資料與回報區的語意**，並補充下游證據。
+
+### 保留未驗項目
+無。

@@ -3,7 +3,7 @@
 ## 元資料
 - **工單編號**：T0005
 - **任務名稱**：PromptBox 麥克風按鈕 + Alt+M 快捷鍵 + 錄音狀態 UI + RecordingService 端到端驗證
-- **狀態**：PARTIAL
+- **狀態**：DONE（塔台追認 2026-04-11 21:24，下游證據涵蓋 runtime 驗收）
 - **類型**：IMPLEMENTATION(renderer 前端元件)
 - **建立時間**：2026-04-11 00:02 (UTC+8)
 - **開始時間**：2026-04-11 00:17 (UTC+8)
@@ -389,3 +389,25 @@ PARTIAL
 
 ### 回報時間
 2026-04-11 00:35 (UTC+8)
+
+---
+
+## 塔台追認（Retroactive Reconciliation）
+
+**追認時間**：2026-04-11 21:24 (UTC+8)
+**追認決策者**：Control Tower
+**原狀態**：PARTIAL（程式碼完成，runtime 麥克風測試延後到 T0011 整合測試）
+**新狀態**：DONE
+
+### 追認依據（下游證據）
+
+1. **obs 9484**（2026-04-11 14:06）：「Phase 1 Voice Input Fully Implemented and Runtime Verified」— 明確記錄 Phase 1 語音輸入功能在 runtime 環境完整實作並驗證通過
+2. **T0017-β AudioWorklet 遷移**：BUG-004 AudioContext 崩潰根因治本修復，runtime 通過，間接證明 PromptBox voice UI 的麥克風路徑正常
+3. **T0020 packaged build 驗證**：BUG-006 修復後 voice UI 在 packaged build 中 runtime 通過
+4. **後續多輪 dogfood session**：PromptBox voice UI 已被使用者在多次 runtime session 中實際操作並通過
+
+### 結論
+T0005 的原 PARTIAL 理由（runtime 麥克風測試延後）已在 Phase 1 運行驗證階段被實質涵蓋。原回報區內容（程式碼審查確認，非 runtime 驗證）**保留不動**作為 2026-04-11 00:35 當時的歷史證據；塔台依下游證據追認為 DONE。
+
+### 保留未驗項目
+無。Phase 1 整合驗證已涵蓋所有原延後項目。

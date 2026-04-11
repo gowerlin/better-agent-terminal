@@ -635,3 +635,104 @@ Worker 不該「知道」 _tower-state.md 的內容結構，
 - 塔台在本 session 連續 4 張工單違反此分界，根源是**追求 atomic commit 便利性**而犧牲角色分界
 - 這是**塔台設計錯誤**，不是 Worker 執行錯誤
 - 從 T0028 開始套用新架構，L021 作為結構性更正的起點
+
+**L021 首次完整測試結果（2026-04-11 21:01 T0028）**：
+- ✅ Worker 未寫入 `_tower-state.md`（Commit 2 不含此檔）
+- ✅ `_learnings.md` 原樣 stage L019/L020/L021，無新增內容
+- ✅ Worker 回報語氣過去式客觀（L020 遵守）
+- ✅ Commit 2 恰好 2 檔（T0028.md + _learnings.md）
+- **結論**：L021 新架構於 T0028 驗證成功，可繼續沿用
+
+**L021 隱藏約束發現（2026-04-11 對話中）**：
+塔台對 tower 私域檔案的 Edit **只能發生在「工單間隔窗口」**，不能在工單執行期間寫，否則會與 Worker 的 diff 驗證產生 race condition。此為 L021 架構特徵，非 bug；命名為 **Tower Edit Synchronization Window**。
+
+
+## L022 — Computational Feedback Sensor 作為 CT/BAT 下一階段架構方向
+
+**首次記錄**：2026-04-11（使用者分享 Harness Engineering Birgitta Böckeler 的 Feedback Sensor 概念 + Claude Code v2.1.100+ 新 feature）
+
+**來源**：使用者 dogfood 期間分享的外部技術文章摘要
+
+**核心概念**：
+Feedback Sensor — 系統自動偵測狀態變化、收集相關 context、餵給 agent 完成後續動作的機制。分為兩種類型：
+- **Computational**：程式化、確定性、**不消耗 LLM tokens**（grep / 檔案監聽 / git hook / regex pattern match）
+- **Inferential**：LLM 推理、主觀判斷（每次都消耗 context 和 tokens，可能幻覺）
+
+**對 CT 的架構啟發**：
+
+CT 已經具備的 computational sensors（驗證現有方向正確）：
+- `*sync` 指令（grep 工單比對狀態）
+- 工單元資料解析（`狀態` / `開始時間` / `完成時間` 欄位）
+- Git status 前置條件驗證
+- Pre-commit hook 關鍵字掃描
+- Tower config 三層載入（session / project / global）
+
+CT 缺少的 computational sensors（演化方向）：
+1. **Workorder 狀態主動監聽**（FS watch `_ct-workorders/T*.md`，自動通知塔台）
+2. **Drift auto-detection**（Git post-commit hook 偵測元資料 vs 回報區不一致）
+3. **Stale heartbeat 偵測**（工單執行期間 heartbeat 檔，塔台啟動時檢查 stale）
+4. **跨 session 塔台協調**（檔案鎖 + 活動 timestamp，computational 解衝突）
+5. **L021 同步窗口偵測**（避免 tower edit 與 worker 執行撞期，對應 Tower Edit Synchronization Window 約束）
+
+**CT Inbox 架構草案**：
+
+```
+~/.claude/control-tower-data/
+├── ct-inbox/                       ← Computational sensor 輸出
+│   ├── {project-hash}/
+│   │   ├── workorder-done.jsonl
+│   │   ├── drift-alerts.jsonl
+│   │   ├── heartbeat/
+│   │   └── last-sync.timestamp
+│   └── global-alerts.jsonl
+└── learnings/
+```
+
+塔台啟動 Step 0 流程更新提案：
+1. 環境偵測（既有）
+2. 讀 `_tower-state.md`（既有）
+3. 🆕 讀 `ct-inbox`（新增，computational input）
+4. 合併呈現「使用者不在時發生了什麼」摘要
+
+**這不違反塔台 protocol**：
+- Inbox 是程式寫入，不是 LLM 推理
+- 塔台讀取並呈現，不直接執行（人仍是決策者）
+- 所有操作仍透過工單派發（保留現有執行層）
+
+**對 BAT 的架構啟發**：
+
+BAT 目前的 backlog 研究（`_ct-workorders/reports/bat-agent-orchestration-research.md`）本質上就是跨 agent 的 Computational Feedback Sensor 平台。新聞驗證了這個方向的正確性。
+
+可新增的 BAT-level computational sensors：
+1. Per-tab output 掃描器（regex error pattern，不用 LLM）
+2. 跨 tab context 橋接（Tab A 的 error 自動餵給 Tab B 的 Claude Code）
+3. Test failure auto-ingest（npm test 失敗 → 自動彈出「開新 session 修嗎？」）
+4. Build watch relay（tsc --watch 錯誤自動寫 shared context）
+
+**戰略意義**：
+
+```
+傳統 agent 互動: 使用者 → 貼 log → agent 推理 → 回答
+                         ↑ 高 context,高成本,可能漏細節
+
+Feedback Sensor: 系統 → 偵測 → 結構化 input → agent 聚焦推理 → 精準回答
+                          ↑ 便宜,可靠,零幻覺
+```
+
+這對應塔台既有原則「不直接讀 log / 源碼」— computational sensor 是這個原則的**演化實作**：不是放棄讀取，而是把讀取從 inferential 移到 computational 層。
+
+**具體的下一步候選**（等使用者 review 後決定）：
+- [選項 1] 寫 ADR 文件深度評估，不立即實作
+- [選項 2] 派 Research 工單做 spike PoC（CT inbox + 1-2 個 sensor）
+- [選項 3] 跟 BAT agent orchestration research 整合，統一規劃
+- [選項 4] 暫時留為 backlog seed，等 Phase 1 完全收官後再啟動
+
+**通用性評估**：**跨專案通用 + 戰略級**。不只影響本專案，影響整個 control-tower plugin 的設計演化。
+
+**候選晉升**：**candidate: global + strategic**（建議作為 control-tower v3.7 的設計方向討論點）
+
+**相關文件**：
+- `_ct-workorders/reports/bat-agent-orchestration-research.md`（既有 BAT 研究）
+- 未來可能的 ADR：`reports/ADR-CT-computational-feedback-sensor.md`
+
+**發現者**：使用者（分享外部新聞）+ 塔台（映射到 CT/BAT 既有架構 + 發現 L021 同步窗口約束）

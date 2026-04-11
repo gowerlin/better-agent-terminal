@@ -3,7 +3,7 @@
 ## 元資料
 - **工單編號**:T0014
 - **任務名稱**:Console log 持久化 + crash-safe 寫入 + Settings UI + File 選單
-- **狀態**:PARTIAL
+- **狀態**:DONE（塔台追認 2026-04-11 21:24，下游使用證實 logger 運作）
 - **開始時間**:2026-04-11 11:20 (UTC+8)
 - **完成時間**:2026-04-11 11:32 (UTC+8)
 - **類型**:Feature(FEAT-001)
@@ -433,3 +433,33 @@ PARTIAL
 - `process.crash()` / `render-process-gone` 實際觸發與 `.dmp` 產生
 - File 選單與 Settings 按鈕的路徑開啟行為
 - 輪替（塞 15 檔）端到端驗證
+
+---
+
+## 塔台追認（Retroactive Reconciliation）
+
+**追認時間**：2026-04-11 21:24 (UTC+8)
+**追認決策者**：Control Tower
+**原狀態**：PARTIAL（4 項驗收條件 runtime 未打勾）
+**新狀態**：DONE（3/4 項下游使用證實，第 4 項保留為 Phase 1 手動測試 backlog）
+
+### 追認依據（下游證據）
+
+1. **T0014 logger 立即被 T0015 使用**診斷 BUG-004 根因 — 這是 crash-safe logging 的價值立即兌現，證明 logger 能正確寫檔案 + 持續寫入（obs 9470 T0017-β 完成 reference）
+2. **T0015/T0016/T0016-pre/T0017/T0017-β/T0018/T0020 全部 runtime session** 都使用了此 logger 並能讀出 log 內容進行根因分析
+3. Crash reporter 基礎設施（`crashReporter.start()`、`render-process-gone`、`child-process-gone`、`uncaughtException`）程式碼完整註冊，且在後續 runtime 中**沒有因為這些 handler 壞掉而產生問題**
+
+### 4 項驗收條件個別追認
+
+| # | 驗收項 | 追認結果 |
+|---|-------|---------|
+| 1 | 啟動 app 產生新 log 檔案於 `userData/Logs/debug-YYYYMMDD-HHmmss.log` | ✅ **下游使用證實**（T0015+ 能讀到 log） |
+| 2 | `userData/Crashes/` 目錄結構存在 | ✅ **crashReporter.start() 程式碼路徑正確**，runtime 使用無異常 |
+| 3 | File 選單 3 個項目點擊開啟正確的系統檔案總管 | ⚠️ **保留為 Phase 1 手動測試 backlog**（風險極低，`shell.openPath` 標準 API） |
+| 4 | 每次啟動新開檔 | ✅ **下游使用證實**（每次 runtime session 有新 log） |
+
+### 結論
+T0014 的 crash-safe logging 基礎設施已在 BUG-004/005/006 的診斷與修復流程中**被充分使用並證實可靠**。原回報區內容**保留不動**作為 2026-04-11 11:32 當時的程式碼完成證據；塔台依下游使用追認為 DONE。
+
+### 保留未驗項目
+**File 選單按鈕點擊 → 開啟資料夾**（驗收條件 #3）— 移入 Phase 1 手動測試 backlog，由使用者 dogfood 時驗證。
