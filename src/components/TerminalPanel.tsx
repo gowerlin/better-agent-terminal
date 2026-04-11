@@ -131,12 +131,15 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     try {
       const text = await navigator.clipboard.readText()
       if (text) {
-        handlePasteText(text)
+        await handlePasteText(text)
       }
     } catch (err) {
-      console.error('Failed to read clipboard:', err)
+      dlog('Failed to read clipboard for context-menu paste', err)
+    } finally {
+      setContextMenu(null)
+      // Restore focus after menu unmount so keyboard input keeps working.
+      setTimeout(() => terminalRef.current?.focus(), 0)
     }
-    setContextMenu(null)
   }
 
   // Close context menu when clicking outside
