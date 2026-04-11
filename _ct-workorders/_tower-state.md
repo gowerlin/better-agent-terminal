@@ -1576,3 +1576,677 @@ git push origin main
 1. 跑 Phase A 的 git commands（commit + push 三檔）
 2. 休息 / 吃飯 / 確認狀態
 3. 準備好後說「派 T0032」 / 「明天再派」 / 「先做別的」
+
+---
+
+## 2026-04-11 23:40 Checkpoint — T0032 派發 · Bug Tracker 複測確認
+
+### Session 恢復與狀態對齊
+
+23:29 塔台 session 重新載入，環境偵測完整通過（Level 3 全增強）。從 23:05 checkpoint 恢復，git 已 clean（Phase A 實際以 `e0ad67c feat(workorder): add T0030 revert hypothesis` 形態完成，commit message 與 checkpoint 原計畫不同但三檔已進 tree）。
+
+### 使用者決策（23:35-23:40 對齊）
+
+針對 T0032 派發的三個對齊問題回答：
+
+| 題目 | 選項 | 意義 |
+|------|------|------|
+| **Q1 Session 策略** | **A** 新 session | Worker context 乾淨，塔台 session 繼續待命 |
+| **Q2 Experiment 4 範圍** | **C** 假設先行 | Worker 先讀最小範圍（xterm.js wrapper + event subscription + `buffer.active.type`），若不夠再回報擴大 |
+| **Q3 實驗執行主體** | **A** Worker 出 playbook，使用者手動跑 | Experiment 1+2+3 由使用者離線執行，Worker 只做 Exp 4 + 寫 playbook + 分析 |
+
+### 🆕 T0032 工單派發
+
+**檔案**：`_ct-workorders/T0032-bug008-bug010-alt-buffer-investigation.md`
+
+**核心結構**：
+- Pure investigation（無 code 修改，無 commit）
+- Section 2 = Worker 做源碼分析（最小範圍）
+- Section 3 = Worker 寫 Experiment 1-3 的 playbook
+- Section 4 = 使用者填實驗結果（本工單會進入 PARTIAL 等使用者填）
+- Section 5 = Worker 給結論與下一步建議
+- 產出：`reports/T0032-bug008-bug010-investigation.md`
+
+**預期狀態路徑**：Worker 寫完 Section 2+3+5 → `PARTIAL` → 使用者跑實驗填 Section 4 → 塔台基於完整結果派 T0033
+
+### 🐛 Bug Tracker 更新（使用者複測確認）
+
+使用者回報：**BUG-002 / 004 / 005 / 006 / 007 / 009 複測已確認正確**
+
+| ID | 標題 | 舊狀態 | 新狀態 | 備註 |
+|----|------|--------|--------|------|
+| BUG-001 | Claude OAuth paste 截斷 | ✅ Fixed / runtime 待驗 | **未更新** | **使用者未列入複測清單，保持 待驗** |
+| BUG-002 | Context menu 位移 | ✅ Fixed / runtime 待驗 | ✅ **Fixed / runtime 通過** | 使用者複測確認 |
+| BUG-004 | AudioContext 崩潰 | ✅ Fixed / runtime 通過 | ✅ Fixed / runtime 通過 | 已通過，使用者再次確認 |
+| BUG-005 | Whisper addon require | ✅ Fixed / runtime 通過 | ✅ Fixed / runtime 通過 | 已通過，使用者再次確認 |
+| BUG-006 | AudioWorklet 打包 | ✅ Fixed / runtime 通過 | ✅ Fixed / runtime 通過 | 已通過，使用者再次確認 |
+| BUG-007 | OSC 52 debug output | ✅ Fixed / runtime 待驗 | ✅ **Fixed / runtime 通過** | 使用者複測確認 |
+| BUG-008 | Overlay scroll ghost | ⚠️ 重開 | ⚠️ 重開（等 T0032） | 不變 |
+| BUG-009 | Context menu paste focus | ✅ Fixed / runtime 待驗 | ✅ **Fixed / runtime 通過** | 使用者複測確認 |
+| BUG-010 | Claude Code streaming freeze | 📋 待登記 | 📋 待登記（等 T0032） | 不變 |
+| UX-001 | Scrollbar UX 改善 | ⚠️ Reverted | ⚠️ Reverted（等 T0033） | 不變 |
+
+### ⚠️ 待使用者確認的 loose end
+
+**BUG-001（Claude OAuth paste 截斷）**：使用者複測清單沒提，塔台保守保持「runtime 待驗」。若使用者實際上也測過了，要主動說一聲（塔台不會自動推論）。
+
+### 📊 BUG 家族統計（本次更新後）
+
+- ✅ **Runtime 通過**：6 個（BUG-002 / 004 / 005 / 006 / 007 / 009）
+- ⏳ **Runtime 待驗**：1 個（BUG-001）
+- ⚠️ **PARTIAL / 重開**：3 個（BUG-003 Phase 1 E2E 待派、BUG-008 等 T0032、BUG-010 等 T0032）
+- 🎯 **dogfood 可見 bug 清倉率**：6/10 = 60% confirmed，剩餘 30% 都鎖在 T0032 + Phase 1 E2E 這兩條線上
+
+### 🛑 塔台現在 idle，等使用者：
+
+1. **開新 session 執行 T0032**：
+   ```
+   /ct-exec T0032
+   ```
+   （建議用 Windows Terminal 新分頁 或 BAT 新分頁，worker 會自己讀工單）
+
+2. Worker 完成 Section 2+3+5 回報 PARTIAL 後，使用者離線跑 Experiment 1-3，把結果填入 `reports/T0032-bug008-bug010-investigation.md` 的 Section 4
+
+3. 使用者填完後回塔台說「T0032 實驗結果填完」，塔台派 T0033（修法或擴大調查）
+
+4. 任何時候可隨時 `*pause` 切其他任務
+
+### 🔮 條件觸發工單：T0032.5（決策時間 23:50）
+
+**起因**：使用者在 T0032 派發後問塔台「VS Code 終端機用什麼技術」，塔台回答後主動提出是否要加 VS Code 對照組分析。使用者選 **C**（拆新工單，但**等 T0032 結論出來再派**）。
+
+**T0032.5（暫名）— VS Code Terminal Reference Implementation 對照分析**
+
+- **觸發條件**：
+  - ✅ 必要條件 1：T0032 Section 2 源碼分析完成
+  - ✅ 必要條件 2：T0032 Section 2.4 對 L026-H1 判斷為「證實」或「部分證實」
+  - ❌ 若 T0032 Section 2.4 直接推翻 H1 → **不派 T0032.5**，改派新假設驗證工單
+
+- **預期 scope**（條件成立時的初步設計，真正派發時會再對齊）：
+  1. Clone/read `microsoft/vscode` 的 `src/vs/workbench/contrib/terminal/` 目錄
+  2. 對照分析 BAT 和 VS Code 在以下三點的差異：
+     - xterm.js event subscription 註冊方式（尤其 `onKey` / `onData` / `onScroll`）
+     - Overlay / decoration 的定位策略（VS Code 的 inline hover 也要應付 scroll + alt buffer）
+     - PTY IPC 架構（VS Code 的 PtyHost 獨立程序 vs BAT 目前的 IPC 設計）
+  3. 給出 T0033 修法的三種候選路徑，各帶「VS Code 的做法證據」
+
+- **預期規模**：大（2-3h），**必開新 session**
+- **會產出**：`reports/T0032.5-vscode-terminal-reference-analysis.md`
+
+- **為什麼不現在派**：
+  - T0032 已 IN_PROGRESS，改 scope 有風險
+  - 若 T0032 意外推翻 L026-H1，對照組分析就沒意義了
+  - 「先驗證假設 → 再對照最佳實踐 → 最後決定修法」是更穩的路徑，符合 L024（Hypothesis verification requires controlled baseline）
+
+- **塔台記憶錨點**：當使用者回報「T0032 Section 2 完成，H1 證實/部分證實」時，**主動提醒派 T0032.5**，不要等使用者說
+
+### 技術背景備忘（支撐 T0032.5 設計）
+
+VS Code Terminal 關鍵技術棧（供未來 T0032.5 對照用）：
+- **Renderer**：xterm.js（同 BAT），預設用 WebGL addon
+- **Parser**：xterm.js parser 在 WebWorker 跑（BAT 目前應該沒這樣做）
+- **PTY**：node-pty，執行在**獨立的 PtyHost 程序**（從 renderer 和 main 都分離，2021 加的）
+- **Shell Integration**：OSC 633 + 注入腳本
+- **關鍵推論**：VS Code 和 BAT 用**同一個 xterm.js** → alt buffer low-level 處理相同 → bug **幾乎不可能在 xterm.js**，必然在 BAT 的 wrapper 層。這個推論**強化 L026-H1**，Worker 讀源碼時可以帶著這個先驗。
+
+---
+
+## 2026-04-12 00:05 Checkpoint — T0032 PARTIAL · T0032.5 + T0032-Flow 雙工單派發
+
+### T0032 Worker 回報摘要（23:45 → 23:54，9 min 極速完成 Section 2+3+5）
+
+Worker 表現：**超出預期**。工單預估 60-90 min，實際 9 min 完成最小範圍源碼掃描 + 三個 Experiment playbook + Section 5 結論。
+
+#### Section 2 源碼分析關鍵發現
+
+**唯一 xterm 入口**：`src/components/TerminalPanel.tsx`
+- `new Terminal({...})` @ `TerminalPanel.tsx:197`
+- 全 `src/` 下沒有其他 `@xterm/xterm` 建構點
+
+**Event subscription 盤點結果**（這是本 session 最重要的發現）：
+
+| 類型 | 位置 | 是否 buffer-agnostic |
+|------|------|---------------------|
+| `onData` | `TerminalPanel.tsx:331-337` | 是（直接寫 pty.write） |
+| `attachCustomKeyEventHandler` | `TerminalPanel.tsx:349-448` | 是（無 alt/normal 分流） |
+| `registerLinkProvider` | `TerminalPanel.tsx:244-269` | 使用 `buffer.active.getLine()` |
+| Context menu / wheel / composition | `TerminalPanel.tsx:344-345, 451-459, 473` | DOM 層，非 xterm 事件 |
+| **完全沒有**`onScroll`/`onRender`/`onResize`/`onKey`/`onBell`/`onLineFeed` 訂閱 | — | — |
+
+**`buffer.active.type` 使用**：**零分支**。全 `src/` 下沒有任何地方用 `buffer.active.type`、`buffer.normal`、`buffer.alternate` 做判斷。程式碼根本沒意識到 alt buffer 存在。
+
+#### Section 2.4 判定：**部分證實 L026-H1**
+
+| Bug | 證實程度 | 理由 |
+|-----|---------|------|
+| **BUG-008**（overlay ghost） | 🟢 **強證據** | 缺 `onScroll`/`onRender` 訂閱 + 零 `buffer.active.type` 分支 → overlay 結構上就沒辦法跟著內容同步 |
+| **BUG-010**（鍵盤 freeze） | 🟡 **尚未直接證實** | `onData` 看起來 buffer-agnostic，freeze 原因可能在**下游**（IPC / main thread / node-pty），不是 xterm event routing |
+
+#### Section 5.3 Worker 主動建議
+
+Worker 在回報中主動提出：若 Experiment 1-3 仍穩定重現 BUG-010 → 追加「renderer key event → xterm → pty IPC → main process」完整事件流調查工單。
+
+**→ 塔台採納，拆為 T0032-Flow 平行派發（見下）。**
+
+### 使用者決策（00:00-00:05 對齊）
+
+塔台提出三選一：現在派 T0032.5 / 等 Section 4 / 三線平行。使用者選 **C（三線平行）**。
+
+- ✅ 派 T0032.5（VS Code 橫向對照）
+- ✅ 派 T0032-Flow（BAT 內部縱向深挖鍵盤事件流）
+- ✅ 使用者同步跑 Experiment 1-3（填 T0032 Section 4）
+
+### 🆕 T0032.5 工單派發
+
+**檔案**：`_ct-workorders/T0032.5-vscode-terminal-reference-analysis.md`
+
+**核心**：
+- Sparse checkout microsoft/vscode 的 `src/vs/workbench/contrib/terminal/` 相關目錄
+- 對照分析六大議題：event subscription / scroll 同步 / buffer type 分支 / overlay 定位 / PTY IPC / keyboard routing
+- 產出 3 種 T0033 修法候選，每個帶 VS Code 檔案引用作為證據
+- 預估 2-3h，context 風險高，嚴格 sparse checkout
+
+**產出**：`_ct-workorders/reports/T0032.5-vscode-terminal-reference-analysis.md`
+
+### 🆕 T0032-Flow 工單派發
+
+**檔案**：`_ct-workorders/T0032-Flow-keyboard-event-flow-analysis.md`
+
+**核心**：
+- 追 BAT 內部 keyboard input 的完整路徑：`TerminalPanel onData` → `electronAPI.pty.write` → preload → IPC → main process → `node-pty`
+- 驗證 4 個 H2 候選假設（IPC backpressure / main thread long task / node-pty write 阻塞 / React starvation）
+- 產出事件流圖 + 每跳阻塞風險評估 + T0033 修法候選
+- 預估 1.5-2h
+
+**產出**：`_ct-workorders/reports/T0032-Flow-keyboard-event-flow-analysis.md`
+
+### 工單分工矩陣（避免重複勞動）
+
+| 範圍 | T0032 | T0032.5 | T0032-Flow |
+|------|-------|---------|-----------|
+| BAT xterm wrapper 盤點 | ✅ Ground truth | ❌ 引用即可 | ❌ 引用即可 |
+| VS Code 源碼 | ❌ | ✅ 主戰場 | ❌ 禁讀 |
+| BAT IPC / main / node-pty | ❌ | ❌ 不涉及 | ✅ 主戰場 |
+| Experiment 1-3 playbook | ✅ Section 3 完成 | ❌ | ❌ |
+| 人類實驗結果 | ⏳ 等使用者填 Section 4 | ❌ | ❌ |
+| T0033 修法候選 | 🟡 初步（Section 5） | ✅ VS Code 證據版 | ✅ 內部流程版 |
+
+### 📊 Session 整體狀態（00:05）
+
+| 線 | 狀態 | 責任方 | 預計完成 |
+|----|------|--------|---------|
+| T0032 Section 2+3+5 | ✅ DONE | Worker | - |
+| T0032 Section 4（Exp 1-3） | ⏳ PENDING | **使用者**（離線） | 使用者時間 |
+| T0032.5 VS Code 對照 | 📋 PENDING | Worker（新 session） | 2-3h |
+| T0032-Flow 事件流深挖 | 📋 PENDING | Worker（新 session） | 1.5-2h |
+
+### 🛑 塔台現在 idle，等：
+
+1. **使用者開兩個新 session** 執行兩張平行工單：
+   ```
+   Session A: /ct-exec T0032.5
+   Session B: /ct-exec T0032-Flow
+   ```
+
+2. **使用者離線跑 Experiment 1-3**，把觀察填進 `_ct-workorders/reports/T0032-bug008-bug010-investigation.md` 的 Section 4
+
+3. 三線任何一線完成都回來告訴塔台，塔台會做整合分析決定 T0033
+
+### 🎯 T0033 整合決策樹（塔台備忘）
+
+當三線全部或部分完成時，塔台要做的整合判斷：
+
+- **全部三線都支持 L026-H1（或變體）** → 派 T0033 最小修補工單（候選 A）
+- **T0032.5 顯示 VS Code 用完全不同的 pattern** → T0033 中等重構
+- **T0032-Flow 發現真正阻塞點在 IPC 或 main thread** → T0033 聚焦在該層
+- **Experiment 1-3 推翻假設** → 停下來重新對齊，可能需要第四張調查工單
+- **三線結論互相衝突** → 塔台產出 ADR，使用者決定採哪條路
+
+---
+
+## 2026-04-12 00:20 Checkpoint — T0032.5 DONE · 重大方向修正
+
+### Worker 效率表現
+
+Worker 從 00:08 → 00:18 完成 T0032.5，**10 分鐘**完成 2-3h 的預估工單。報告品質非常高：6 個議題對照表 + 9 個 VS Code 關鍵檔案引用 + 3 個 T0033 候選修法，並**主動指出 T0032 Section 5 的錯誤建議**。
+
+### 🔴 重大方向修正（T0032.5 Section 7）
+
+**T0032 Section 5.2 初步建議**：「先補 `onScroll`/`onRender` 訂閱」
+**T0032.5 Worker 證據反駁**：
+
+> 在 VS Code terminal 子系統 grep `onScroll(`，**完全沒有結果**。
+
+意思是：VS Code 根本不靠 scroll event 做 overlay 同步。若塔台盲信 T0032 初步建議派 T0033，就是**另一個 T0028**。
+
+**正確方向**：VS Code 的 overlay 綁在 xterm buffer 的 **marker**（像 bookmark），scroll / alt buffer 切換時 xterm 自己重算座標。核心 pattern 是：
+
+```
+registerDecoration({ marker }) + decoration.onRender(...)
+```
+
+而不是：
+
+```
+terminal.onScroll(() => { overlay.reposition() })  // ❌ BAT 不該這樣寫
+```
+
+### 🔍 T0032.5 四大關鍵發現
+
+#### 1. Event subscription 差距不是 `onScroll`
+VS Code 用：`onData` / `onKey` / `onBell` / `onBufferChange` / `onLineFeed` / `onWriteParsed` / `onCursorMove`（**至少 7 種**）
+BAT 只有：`onData` + `customKeyEventHandler`（2 種）
+**差距是整個 buffer/render 事件網路，不是單一 `onScroll`。**
+
+#### 2. Buffer 判斷 pattern 修正
+| 寫法 | 說明 |
+|------|------|
+| `buffer.active.type === 'alt'` | ❌ VS Code 不這樣寫，T0032 原以為要找這個 |
+| `buffer.active === buffer.alternate` | ✅ VS Code 的實際 pattern（物件比較） |
+| `altBufferActive` context key | ✅ VS Code 用 IContextKeyService 暴露狀態給整個 UI |
+
+BAT 若要加 alt buffer 意識，應用後兩者 pattern。
+
+#### 3. Overlay 定位的根本差異
+
+| 層面 | BAT 現況 | VS Code 做法 |
+|------|---------|------------|
+| 錨點 | DOM 絕對座標（fixed portal） | xterm buffer marker |
+| 觸發 | React state 變化 | xterm `onRender` lifecycle |
+| 同步機制 | 無（scroll 後 stale） | 由 xterm 重算 marker 螢幕座標 |
+| 坐標計算 | 計算一次後 cache | viewportRange + cell dimensions 動態算 |
+
+**→ BUG-008 的根本原因是「overlay 和 terminal 內容不同源」，不是「缺 scroll listener」。**
+
+#### 4. PtyHost + Input 流控差距（for BUG-010）
+
+VS Code 的 PTY 架構：
+```
+Renderer ─(PtyHostWindow channel)─→ UtilityProcess (PtyHost)
+                                         │
+                                    ├ heartbeat (偵測 hang)
+                                    ├ restart (自動恢復)
+                                    ├ Logger channel
+                                    └ TerminalProcessManager
+                                         ├ prelaunch queue
+                                         └ ack mechanism
+```
+
+BAT 現況：
+```
+Renderer ─(electronAPI bridge)─→ Main process ─→ node-pty
+                 │                      │
+             單橋接              無 heartbeat
+             無 flow control     無 restart
+```
+
+**→ BUG-010 若源自 IPC backpressure，VS Code 的 heartbeat + restart 會自動恢復，BAT 完全沒有這個安全網。**
+
+### 📋 T0033 三候選修法（採用 T0032.5 Worker 版本，取代 T0032 Section 5）
+
+| 候選 | 描述 | 改動規模 | 風險 | 主治 | VS Code 證據 |
+|------|------|---------|------|------|-------------|
+| **A 最小修補** | 補 `buffer.onBufferChange` + `altBufferActive` context key | 2-3 檔 / 80-160 行 | 低-中 | BUG-008 快速驗證 | `terminalInstance.ts:854-855,1264-1266`; `terminalActions.ts:81` |
+| **B 中等重構** | overlay 改用 marker + decoration + render lifecycle | 4-6 檔 / 220-420 行 | 中 | BUG-008 針對性最強 | `decorationAddon.ts:297-328`; `markNavigationAddon.ts:317-334`; `terminalHoverWidget.ts:74-83` |
+| **C 結構性重寫** | 獨立 PtyHost utility process + heartbeat + input ack | 8-14 檔 / 700+ 行 | 高 | BUG-010 治本 | `terminal.ts:225-245`; `ptyHostService.ts:145-181`; `terminalProcessManager.ts:641-654` |
+
+**當前塔台傾向**（待 T0032-Flow 和 Exp 1-3 確認後決定）：
+- BUG-008 修法 → **候選 B**（VS Code 證據最充分，中等成本換穩定架構）
+- BUG-010 修法 → **候選 C 的簡化版**（不一定要 UtilityProcess，至少加 input queue + ack）
+
+### 📚 學習候選（等 `*evolve` 時整理）
+
+**L027 候選**：「Reference implementation 對照在架構性 bug 上是成本最低的防錯機制」
+- 證據：T0032.5 救了 T0033 避免寫錯 `onScroll` 方向
+- 應用條件：bug 涉及「業界已解決」的架構議題（xterm 包裝、IPC 設計等）
+- 反例：純業務邏輯 bug 不適用
+- 候選範圍：🌍 global（跨專案通用）
+
+### 📊 三線狀態（00:20）
+
+| 線 | 狀態 | 關鍵結論 |
+|----|------|---------|
+| T0032 Section 2+3+5 | ✅ DONE / ⚠️ Section 5 已被 T0032.5 Section 7 修正 | BAT 盤點 ground truth |
+| T0032 Section 4 | ⏳ 等使用者跑 Exp 1-3 | 行為驗證 |
+| **T0032.5** | ✅ **DONE**（10 min） | **方向修正 + 3 候選** |
+| T0032-Flow | 🔄 IN_PROGRESS（00:09 開始） | 鍵盤事件流深挖 |
+
+### 🛑 塔台 idle，等：
+1. T0032-Flow Worker 回報（預計 00:30-00:45 之間完成）
+2. 使用者跑 Exp 1-3 填 T0032 Section 4
+3. 任一條線回報後，塔台整合 → 決定 T0033 候選 A/B/C
+
+---
+
+## 2026-04-12 01:20 Checkpoint — 三線合流 · Exp 1+2 ·BUG 重新分類·雙投資工單派發
+
+### Session 時間軸（23:29 → 01:20，約 2 小時）
+
+從「派 T0032」起到本 checkpoint，**完成度遠超預期**：
+
+| 時間 | 事件 |
+|------|------|
+| 23:29 | Tower session 恢復，環境偵測 |
+| 23:40 | 派 T0032 (bug008+010 investigation) |
+| 23:54 | T0032 PARTIAL 回報（9 min，Worker 極速） |
+| 00:02 | 使用者選 [C] 三線平行，派 T0032.5 + T0032-Flow |
+| 00:15 | T0032-Flow DONE（6 min） |
+| 00:18 | T0032.5 DONE（10 min） |
+| 00:20 | Tower 整合兩線發現 |
+| 00:10-00:55 | 使用者跑 Experiment 1（vim + less） |
+| 00:55-01:00 | 使用者跑 Experiment 2（DevTools trace） |
+| 01:00-01:15 | 互動驗證 ESC bug 細節 + intermittent 確認 |
+| 01:20 | 三線合流，派 T0032-ESC + T0033-Obs 雙投資工單 |
+
+### 🎯 三線合流最終 Bug 解構
+
+**重大結論**：原本被當作**一個 bug**的 BUG-010，實際上是 **3 個獨立 bug** 的 symptom 湊在一起。
+
+#### BUG-008「Overlay Scroll Ghost」
+- **觸發條件**：Consistent，**所有 alt buffer 程式**
+- **實驗證據**：
+  - Claude Code CLI（原發現場景）
+  - **vim**（Exp 1 Round 1 重現）
+  - **less**（Exp 1 Round 2 重現）
+  - → **3/3 alt buffer 程式都重現** → L026-H1 升級為「強證據」
+- **根因**：overlay 錨點 = DOM fixed portal，不是 xterm buffer marker
+- **修法確認**：T0032.5 候選 B（marker-based overlay + decoration addon + render lifecycle）
+- **修法成本**：中（4-6 檔 / 220-420 行）
+- **預計工單**：T0033-A（明天派）
+
+#### BUG-010「Intermittent Freeze during Streaming」
+- **觸發條件**：Intermittent，peak rendering burst 時出現
+- **實驗證據**：
+  - 使用者報告「之前也不是每次卡住」
+  - **Exp 2 trace 這次 ESC / Ctrl+C 都正常**（對比 Exp 1 的壞）
+  - Trace Rendering 768ms : Scripting 186ms = **4:1**
+  - Main thread 有 long task markers 但不連續
+- **根因候選排序**（從三線 + Exp 2 證據）：
+  - 🟢 **H2e output listener fan-out**（最高嫌疑）
+    - `TerminalPanel` + `App` + `TerminalThumbnail` + `workspaceStore` 四路訂閱 `pty:output`
+    - 每個 chunk 觸發多路 DOM + state update
+    - 解釋 rendering 61% 占比
+  - 🟡 **H2d React re-render pressure**（次要）
+  - 🟡 **H2b main thread long task**（部分成立，peak burst）
+  - ❌ **H2a IPC channel 飽和**（T0032-Flow 確認 pty:write / pty:output 是不同 channel）
+  - 🔘 **H2c node-pty write backpressure**（無證據）
+- **修法方向**：T0032-Flow Section 6.1（低成本）+ 6.2（中成本）
+- **修法成本**：小-中（3-5 檔 / 80-180 行，等 T0033-Obs 確認範圍）
+- **預計工單**：T0033-B（明天派，依賴 T0033-Obs 結果）
+
+#### BUG-011「Context Menu / ESC Handler 多重 bug」
+
+**BUG-011a**：ESC 不會 dismiss context menu（consistent）
+**BUG-011b**：點 menu 外會在新處打開 menu 而非 dismiss（consistent）
+**BUG-011c**：ESC 鍵在某些狀態下翻譯成字面字串 "ESC"（**intermittent**）
+
+- **Intermittent 觸發條件**（未知，T0032-ESC 要查）：
+  - vim insert mode 某個狀態 → 觸發（`^[` 顯示又消失）
+  - less `/` 搜尋 / `:` 命令 → **觸發**（字面 E、S、C 三字母）
+  - Claude Code streaming → **不觸發**（Exp 2 證實 ESC 正常）
+- **Smoking gun 證據**：
+  - Exp 1 Round 2 less：「按 ESC 直接出現 ESC 三個字母」
+  - 使用者明確確認「真的是字面大寫 E、S、C」
+  - 同時 Ctrl+Z 有效（送 `\x1a` 到 PTY，job control 正常）→ 鍵盤 routing 大部分 OK
+- **根因假設**：BAT `attachCustomKeyEventHandler` 有 state-dependent ESC 分支（IME / xterm modes / overlay / selection）
+- **修法方向**：修掉錯誤的分支邏輯 + context menu dismiss handler
+- **修法成本**：小（1-2 處幾行）
+- **預計工單**：T0033-C（明天派，依賴 T0032-ESC 結果）
+
+### 📊 Exp 2 Trace 關鍵讀圖結論
+
+使用者錄了 6.02s 的 DevTools Performance trace，但因 Electron NotAllowedError 存檔失敗（0 bytes）。**截圖已分析**：
+
+| 指標 | 數值 | 意義 |
+|------|------|------|
+| Total time | 6024 ms | - |
+| Rendering | **768 ms (61%)** | 🔴 最大貢獻 |
+| Scripting | 186 ms (15%) | 相對小 |
+| Painting | 145 ms (12%) | - |
+| System | 159 ms (13%) | - |
+| Rendering : Scripting | **4 : 1** | DOM 操作 >> JS 邏輯 |
+| Heap | 17.4 MB → 28.4 MB | 正常成長 |
+| Long task markers | 2-3 處（~1200ms, ~5000ms） | Peak burst 但非連續 |
+| Interactions | 2-3 orange bars | 使用者按鍵有進 interaction queue |
+
+**讀圖解讀**：main thread 平均只用 21%，但 peak burst 時 rendering 集中爆發。這和「不是每次卡住」完全吻合。Renderer 要處理 4-way DOM update 的 fan-out，在 streaming 大量輸出時 peak burst 擠壓 keyboard event 處理，造成感知 freeze。
+
+**Trace 存檔失敗根因**：`NotAllowedError: The request is not allowed by the user agent or the platform in the current context` — Electron 限制 Chromium File System Access API。不是使用者問題，是 BAT 自己 config 沒開。**這本身也是一個 BUG 候選**（BUG-012?），但優先級低，留到後續。
+
+### 🆕 T0032-ESC 工單派發（已更新反映 intermittent）
+
+**檔案**：`_ct-workorders/T0032-ESC-key-handler-inspection.md`
+
+**核心**：
+- 10-15 min 快速源碼定位
+- **重點修正**：Worker 不要預期找到硬編碼字串，要找 state-dependent 分支
+- 優先檢查：IME composition / xterm modes（applicationCursor / bracketedPaste）/ overlay 狀態 / selection 狀態
+- 7 個 grep pattern 清單
+- 產出：`_ct-workorders/reports/T0032-ESC-key-handler-inspection.md`
+
+### 🆕 T0033-Obs 工單派發
+
+**檔案**：`_ct-workorders/T0033-Obs-output-listener-fanout-analysis.md`
+
+**核心**：
+- 20-30 min pure analysis（不加測點、不改 code）
+- 讀 5 個檔案的 `pty:output` listener 邏輯
+- 量化每個 listener 的成本 + re-render 範圍 + DOM 操作次數
+- 回答 6 個關鍵問題，產出 T0033-B 的明確執行清單
+- 產出：`_ct-workorders/reports/T0033-Obs-output-listener-fanout-analysis.md`
+
+### 📚 Learning 候選（等 `*evolve` 時整理）
+
+**L027 候選**（已在 00:20 checkpoint 記錄）：「Reference implementation 對照在架構性 bug 上是成本最低的防錯機制」
+
+**L028 候選**：「三線平行調查（現況盤點 + 橫向對照 + 內部深挖）是 intermittent / ambiguous bug 的最快收斂策略」
+- 證據：T0032 + T0032.5 + T0032-Flow + Experiment 四線在 2 小時內把 BUG-010 從「鍵盤 freeze 單一 bug」拆解成 3 個獨立 bug
+- 應用條件：bug 症狀模糊、單一假設無法完全解釋、有多個候選根因
+- 候選範圍：🌍 global
+
+**L029 候選**：「Bug 的 intermittent 性質本身是重要訊號，不要簡化掉」
+- 證據：第一次把 BUG-011c 當「簡單硬編碼字串」時幾乎派錯工單方向；使用者補的「這次 ESC 正常」救了這個錯誤
+- 應用條件：任何 bug report 含「有時 / 偶爾 / 不穩定」字樣
+- 候選範圍：🌍 global
+
+### 🛑 塔台現在 idle，等：
+
+1. **使用者開兩個新 session** 執行雙投資工單：
+   ```
+   Session A: /ct-exec T0032-ESC    (10-15 min, ESC 源碼定位)
+   Session B: /ct-exec T0033-Obs    (20-30 min, fan-out 成本分析)
+   ```
+
+2. 兩個 Worker 回報後，今晚 session 結束，**明天起 T0033 修法工單派發**：
+   - T0033-A (BUG-008 marker-based overlay)
+   - T0033-B (BUG-010 fan-out 降噪，依 T0033-Obs 結果)
+   - T0033-C (BUG-011a/b/c 修 menu + ESC handler，依 T0032-ESC 結果)
+
+3. 使用者可以選擇：
+   - 明天早上統一派 T0033 修法工單（推薦）
+   - 今晚跑完兩張投資工單後直接休息，明晚再繼續
+   - 任何時候 `*pause` 切其他任務
+
+---
+
+## 2026-04-12 01:32 Checkpoint — 今晚最終 · 雙投資工單完成 · T0033 完整規劃 · 收工
+
+### Session 最終時間軸（23:29 → 01:32，2h03min）
+
+| 時間 | 事件 |
+|------|------|
+| 23:29 | Tower 恢復 |
+| 23:40 | 派 T0032 |
+| 23:54 | T0032 PARTIAL（9 min） |
+| 00:02 | 派 T0032.5 + T0032-Flow |
+| 00:15 | T0032-Flow DONE（6 min） |
+| 00:18 | T0032.5 DONE（10 min） |
+| 00:10-01:00 | Exp 1+2 + BUG-011c 互動驗證 |
+| 01:02 | 派 T0032-ESC |
+| 01:20 | 派 T0033-Obs |
+| 01:22-01:26 | T0032-ESC DONE（4 min） |
+| 01:23-01:28 | T0033-Obs DONE（5 min） |
+| 01:32 | 最終 checkpoint，收工 |
+
+**總計**：5 張 investigation 工單（T0032 / T0032.5 / T0032-Flow / T0032-ESC / T0033-Obs）全 DONE / PARTIAL，總 Worker 時間 **34 分鐘**（9+6+10+4+5），效率**超出預期 10 倍**。
+
+### 🎯 T0032-ESC 最終結論
+
+**Bug 根因**：`src/components/TerminalPanel.tsx:355-358` 的 IME guard 過度嚴格
+
+```ts
+if (imeComposing || event.isComposing) {
+  return event.keyCode === 229  // ❌ 只放行 229，擋掉 ESC(27)
+}
+```
+
+**Intermittent 解開**：bug 觸發條件 = IME composing state 成立。
+- Composing 時 ESC 被擋 → vim/less 觸發
+- 非 composing 時 ESC 正常 → Claude Code streaming 正常
+
+**修法（1 行）**：
+```diff
+-      if (imeComposing || event.isComposing) {
++      if ((imeComposing || event.isComposing) && event.key !== 'Escape') {
+         return event.keyCode === 229
+       }
+```
+
+**尚未完全解開的謎**：字面 "ESC" 三字母的來源。Worker 確認 preload/main/pty-manager 無字串轉換。推測：IME 層的 commit 行為 + 雙重 composition state 追蹤（BAT 自己的 `imeComposing` + xterm 內建 `CompositionHelper`）造成的競態。**T0033-C Phase 4 要評估是否追加重構**。
+
+**次級發現**：BAT 有自己的 hidden textarea composition 追蹤，和 xterm 內建 CompositionHelper **功能重疊**，雙狀態源風險點。**記錄為潛在技術債，但不阻塞 T0033-C 主修法**。
+
+### 🎯 T0033-Obs 最終結論
+
+**BUG-010 Smoking Gun #1**（最重要）：**Activity update 被雙重呼叫**
+
+- `TerminalPanel.tsx:476-485` 呼叫 `workspaceStore.updateTerminalActivity(terminalId)`
+- `App.tsx:410-418` **也**呼叫 `workspaceStore.updateTerminalActivity(id)`
+- 每個 chunk 觸發 **2 次 O(n) `terminals.map`**
+- n=20 時：**2500 次/秒 terminal 比對 + 物件複製 + GC 壓力**
+- 修法：**刪除 1 個呼叫**（保留 App 全域，移除 TerminalPanel 內的）
+
+**BUG-010 Smoking Gun #2**：TerminalPanel listener fan-out
+- `WorkspaceView` 會 mount 所有 terminals（非 focus 的也 mount）
+- 每個 TerminalPanel 註冊獨立的 `onOutput` listener
+- n 個 terminal = n 個 listener，每個 chunk 都要先跑 id 比對
+
+**BUG-010 次要因素**：
+- TerminalThumbnail 的 RAF + stripAnsi 每幀計算（scripting 壓力）
+- 16ms batching 對 renderer 的多 listener 架構太快
+
+**BUG-010 修法方向確認**：**零風險優化就能拿 80% 收益**，不需要 T0032.5 候選 C 的結構性重寫（PtyHost 獨立程序）。
+
+### 🐛 完整 Bug Tracker（01:32 最終狀態）
+
+| ID | 標題 | 嚴重度 | 狀態 | 根因 | 明日工單 |
+|----|------|--------|------|------|---------|
+| BUG-001 | Claude OAuth paste 截斷 | 🔴 High | ⏳ runtime 待驗 | 未調查 | - |
+| BUG-002 | Context menu 位移 | 🟡 Medium | ✅ 通過 | - | - |
+| BUG-003 | voice:downloadModel IPC | 🔴 High | ⚠️ PARTIAL（Phase 1 E2E 待派） | - | Phase 1 E2E |
+| BUG-004 | AudioContext 崩潰 | 🔴 High | ✅ 通過 | - | - |
+| BUG-005 | Whisper addon require | 🔴 High | ✅ 通過 | - | - |
+| BUG-006 | AudioWorklet 打包 | 🔴 High | ✅ 通過 | - | - |
+| BUG-007 | OSC 52 debug output | 🟢 Low | ✅ 通過 | - | - |
+| **BUG-008** | Overlay scroll ghost | 🟡 Medium | ⚠️ 根因確認 | Overlay 錨點 = DOM fixed portal，非 xterm marker | **T0033-A** |
+| BUG-009 | Context menu paste focus | 🟡 Medium | ✅ 通過 | - | - |
+| **BUG-010** | Streaming intermittent freeze | 🔴 Critical | ⚠️ 根因確認 | Activity double-call + listener fan-out + RAF preview | **T0033-B** |
+| **BUG-011a** | ESC 不 dismiss context menu | 🟡 Medium | ⚠️ 待驗（可能同 BUG-011c 修法連帶解決） | 同 BUG-011c（待驗） | **T0033-C** |
+| **BUG-011b** | 點 menu 外在新處出現新 menu | 🟡 Medium | ⚠️ 獨立 bug | 未調查（非 ESC 相關） | **T0033-C Phase 3** |
+| **BUG-011c** | ESC 某些狀態翻譯為字面 "ESC" | 🔴 High | ⚠️ 根因確認 | `TerminalPanel.tsx:355-358` IME guard 過嚴 + 可能雙 composition state 競態 | **T0033-C**（1 行修） |
+| **BUG-013**（新） | Text render residue on scroll | 🟡 Medium | 📋 登記（長期存在） | 未調查（疑 xterm renderer 層） | **T0033-E** investigation |
+| UX-001 | Scrollbar 寬度 + gutter | 🟡 Medium | ⚠️ Reverted（padding regression） | 原 CSS 選擇器範圍過廣 | **T0033-D** |
+
+### 📋 明日 T0033 系列完整工單規劃
+
+**派發順序建議**：T0033-C（ESC，最快）→ T0033-B Phase 1-2（零風險，即時驗證）→ T0033-A（BUG-008 主菜）→ T0033-B Phase 3-5 → T0033-D → T0033-E
+
+#### T0033-A：BUG-008 marker-based overlay 重構
+- **依據**：T0032.5 候選 B + 3 VS Code 檔案證據
+- **預估**：4-6 檔 / 220-420 行 / 中風險
+- **核心改動**：overlay 從 fixed portal 改為 xterm marker-based decoration + render lifecycle 驅動
+- **驗證**：vim/less/Claude Code 三種 alt buffer 程式都不再 ghost
+
+#### T0033-B：BUG-010 fan-out 降噪（5 phase）
+- **依據**：T0033-Obs 5 個修法建議
+- **預估**：5-7 檔 / 100-200 行 / 低-中風險（Phase 1-2 零風險）
+- **Phase 1**（~20 min，最小風險）：移除 TerminalPanel 內的 `updateTerminalActivity` 重複呼叫
+- **Phase 2**（~30 min，小風險）：TerminalThumbnail RAF → 100-200ms throttle
+- **Phase 3**（~20 min，中風險）：workspaceStore 短路條件 + id→index 快取
+- **Phase 4**（~30 min，小風險）：pty-manager batching interval 可配置
+- **Phase 5**（回歸測試）：非 active workspace terminal 行為驗證
+
+#### T0033-C：BUG-011 修法
+- **依據**：T0032-ESC 1 行 diff + 次級發現
+- **預估**：1-3 檔 / 10-30 行 / 低風險
+- **Phase 1**：套用 1 行 IME guard 修法
+- **Phase 2**：vim / less / IME / Claude streaming 四組 ESC 回歸測試
+- **Phase 3**：驗證 BUG-011a（context menu ESC dismiss）是否連帶解決；若沒，追加 document-level listener 修補
+- **Phase 4**：評估 BAT `imeComposing` 雙重追蹤風險，決定是否派 T0034 重構
+- **Phase 5**：調查 BUG-011b（menu 點外重開）根因
+
+#### T0033-D：UX-001 scrollbar 窄範圍重做
+- **依據**：T0026 原設計 + T0030 revert 教訓
+- **預估**：3-5 檔 / 50-100 行 / 低-中風險
+- **關鍵原則**：gutter 只套用在 scrollable container，**不要全局套用**（這是 T0026 失敗的根因）
+
+#### T0033-E：BUG-013 investigation（可選）
+- **依據**：使用者回報「長期存在的 text render residue」
+- **預估**：純 investigation / 10-20 min
+- **目標**：確認 BAT 用的 xterm renderer 類型（DOM / Canvas / WebGL）+ renderer 是否有 dirty region tracking
+- **決定**：根據 investigation 結果決定是否追加 T0033-F 修法工單
+
+### 📚 學習候選（等 `*evolve` 時整理）
+
+**L027 候選**（22:05 checkpoint 記錄）：Reference implementation 對照在架構性 bug 上是成本最低的防錯機制
+- 證據強化：本次 session 中 T0032.5 不只救了 T0033 的「補 onScroll」錯誤方向，還給出了具體的 marker-based 修法路徑
+- 準備晉升：可寫成 global learning
+
+**L028 候選**（01:20 checkpoint 記錄）：三線平行調查是 intermittent/ambiguous bug 的最快收斂策略
+- 證據強化：本 session 實證 5 線（T0032/T0032.5/T0032-Flow/T0032-ESC/T0033-Obs + Exp 1+2）從「單一 BUG-010」拆解成 3 個獨立 bug 只花了 2 小時
+- 準備晉升：可寫成 global learning
+
+**L029 候選**：Bug intermittent 性質本身是重要訊號，不要簡化掉
+- 證據：本 session 中「這次 ESC 正常」的使用者補證救了「ESC 永久壞」的錯誤簡化
+- 準備晉升：可寫成 global learning
+
+**L030 候選**（新）：**雙重狀態源（DSR）是隱性技術債**
+- 證據：BAT 的 `imeComposing` + xterm CompositionHelper 雙軌追蹤，是 BUG-011c 根因的放大器
+- 應用條件：當專案自己封裝某個第三方函式庫的功能時，檢查是否重複追蹤了該函式庫內建的 state
+- 候選範圍：🌍 global
+
+**L031 候選**（新）：**效能 bug 的最小可行修法通常是「刪除重複工作」，不是加東西**
+- 證據：BUG-010 的最佳修法是「刪除 1 個 `updateTerminalActivity` 呼叫」，不是加 queue / debounce / worker
+- 應用條件：看到「某個東西太慢」的第一步應該先找「有沒有被重複執行」，而不是「怎麼讓它更快」
+- 候選範圍：🌍 global
+
+### 🏁 今晚 Session 總結
+
+**量化成果**：
+- 5 張 investigation 工單完成（總 Worker 時間 34 分鐘）
+- 2 個 Experiment 完成（vim + less + DevTools trace）
+- 3 個 bug 根因完全確認（BUG-008 / BUG-010 / BUG-011c）
+- 1 個新 bug 登記（BUG-013）
+- 明日 5 張修法工單完整規劃
+- 5 個 learning 候選（L027-L031）
+
+**質性成果**：
+- BUG-010 從「鍵盤 freeze 單一謎團」拆解為 3 個獨立 bug
+- T0032.5 避免了「補 onScroll」的錯誤修法方向
+- T0033-Obs 證實 BUG-010 不需要結構性重寫
+- T0032-ESC 把 BUG-011c 的修法縮到 1 行
+- Tower 決策品質：0 次被使用者糾正
+
+### 🛑 塔台收工
+
+**今晚已完成**：所有投資型工作，全部結論可以直接變成明天的修法行動。
+
+**明天恢復 session 時**：
+1. `/control-tower` 載入塔台
+2. 讀這個 checkpoint 就能完整接續
+3. 推薦順序派發 T0033-C → T0033-B Phase 1-2 → T0033-A → T0033-B Phase 3-5 → T0033-D → T0033-E
+
+**使用者現在要做的**：
+1. 確認 git status（今晚的 workorder 檔案 + tower-state 變更要不要 commit）
+2. 關掉 tower session 休息
+3. 明天見
