@@ -1227,3 +1227,26 @@ L013 再次證明：**已知最佳方案時跳過分步驗證**的原則，在 T
 4. **L017 升級 Global 決策**（累積 2-3 次 hook false positive 實戰後）
 5. **Dogfood bug 清單回顧**（BUG-007/008/009、UX-001 等從前次 session 登記的 backlog）
 
+## 2026-04-11 19:01 Checkpoint — T0022 DONE · Playwright E2E infra 就緒
+
+### T0022 狀態更新
+- **T0022** 🔄 IN_PROGRESS → ✅ **DONE**（18:56 → 19:01）
+- 已完成 infra bootstrap：`@playwright/test`、`playwright.config.ts`、`e2e/smoke.spec.ts`、`e2e/fixtures/.gitkeep`
+- `npm run test:e2e` 通過（1 passed），`npx vite build` 正常
+
+### Git 進度
+- ✅ Commit 1 已完成：`da31b9f feat(e2e): bootstrap playwright electron test infra`
+- ✅ Commit 2：塔台收尾打包（T0022 回報 + _tower-state + T0024 尾巴）
+
+### BAT dogfood 觀察（精簡）
+- `npm install` 與 `npm run test:e2e` 皆可執行完成
+- Electron + Playwright 首次失敗源於 single-instance lock；加入 `--runtime=<id>` 後穩定
+- 終端 spinner/游標渲染有輕微雜訊，但不影響任務完成
+
+### NEXT SESSION TODO（更新）
+1. **T0023**（Phase 1 Voice Download 4 項 runtime 驗證 E2E）派發
+2. **4 張 PARTIAL 漂移**（T0005, T0013, T0014, T0017-beta）回報區補填
+3. **GA006 第 2 次驗證**（等其他專案出現同類情境時確認升 🟢）
+4. **L017 升級 Global 決策**（累積 2-3 次 hook false positive 實戰後）
+5. **Dogfood bug 清單回顧**（BUG-007/008/009、UX-001 等）
+

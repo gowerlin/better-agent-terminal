@@ -3,10 +3,11 @@
 ## 元資料
 - **編號**：T0024
 - **類型**：Chore (session closure — tower state + learnings + workorder archival)
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **優先級**：🟡 中（本 session 正式收尾，非阻塞但應在本輪完成）
 - **建立時間**：2026-04-11 18:22 (UTC+8)
 - **開始時間**：2026-04-11 18:25 (UTC+8)
+- **完成時間**：2026-04-11 18:27 (UTC+8)
 - **派發者**：Control Tower（D029 決策，B1 選項）
 - **前置工單**：T0023-archive-orphan-workorder-t0022-prep-closure（已 DONE，commit `dc76077`）
 - **後續工單**：無（本工單收尾後 tower session 正式 closed）
@@ -330,34 +331,67 @@ git log --oneline -4
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-<DONE / PARTIAL / FAILED / BLOCKED>
+DONE
 
 ### 產出摘要
 
-**新 Commit hash + message**：
-**Push 結果**：
-**分支狀態**：
+**新 Commit hash + message**：`e6b552d chore(tower): session closure checkpoint (T0023 + L017 + GA006 + state)`
+**Push 結果**：`dc76077..e6b552d  main -> main`
+**分支狀態**：`main`（`HEAD == origin/main`，`git status --porcelain` 為空）
+**本次變更檔案**：
+- `_ct-workorders/T0023-archive-orphan-workorder-t0022-prep-closure.md`
+- `_ct-workorders/_tower-state.md`
+- `_ct-workorders/_learnings.md`
+- `_ct-workorders/T0024-session-closure.md`
+**sprint-status.yaml**：不適用（根目錄、`_bmad-output/`、`docs/` 皆未找到）
 
 ### git log 輸出（最後 4 筆）
 
 ```
-<貼 git log --oneline -4 的輸出>
+e6b552d (HEAD -> main, origin/main, origin/HEAD) chore(tower): session closure checkpoint (T0023 + L017 + GA006 + state)
+dc76077 chore(tower): archive orphan sync workorders (T0022-prep-closure + T0023)
+ccce0f7 chore(tower): close T0022-prep + register dogfood bugs + session checkpoint
+aedba6c chore(tower): record L016 + close T0021 handover + dispatch T0022-prep
 ```
 
 ### Pre-commit hook 觸發結果
 
-<依 L017 規範記錄：完整輸出 + 人工判讀結論（真/假陽性）+ 判讀依據>
+完整輸出：
+```
+[tower-hook][WARN] potential sensitive content in _ct-workorders/T0023-archive-orphan-workorder-t0022-prep-closure.md:
+329:235:  - `1030:- \`password=test123\` 測試檔 commit 驗證 WARN 可觸發，且不阻擋 commit（驗證後已 reset 並刪除測試檔）`
+330:246:- chore(tower) 對 `_tower-state.md` 提交時，hook 容易因描述字串（如 `password=test123`）觸發 WARN；需人工判定 false positive，但不會阻擋 commit。
+347:- pre-commit 關鍵字檢查對歷史描述字串（如 `password=test123`）會產生 false positive WARN；目前「警告不阻擋」策略可接受，但回報區應固定記錄人工判讀結果。
+[tower-hook][WARN] potential sensitive content in _ct-workorders/T0024-session-closure.md:
+170:   - Pre-commit hook: WARN false positive on password=test123 (T0022:235)
+183:   Triggered by: dc76077 hook WARN on password=test123 description
+323:- Pre-commit hook 是否對新追加的 L017 內容再次觸發 false positive（L017 本身引用 `password=test123` 做數據點）
+[tower-hook][WARN] potential sensitive content in _ct-workorders/_learnings.md:
+433:**觸發條件**：專案 pre-commit hook 對 commit 內容做關鍵字掃描（`password=`, `api_key`, `secret` 等），檔案中出現這類**歷史描述字串**或 **markdown 引述**時
+435:- Hook 掃描到字串如 `password=test123`，無法區分「真實 credential」與「引述說明」
+439:- 2026-04-11 18:08 T0023 commit：pre-commit hook 對 `T0022-prep-closure-and-push.md:235` 的字串 `password=test123`  觸發 WARN
+440:- 該字串出處：前次 session 記錄「曾用 password=test123 測試 hook 行為」的說明性引述
+451:**候選晉升**：candidate: global（pre-commit hook false positive 是跨專案通用現象；本條目引用的具體字串 `password=test123` 是本專案歷史，但策略普適）
+[tower-hook][WARN] potential sensitive content in _ct-workorders/_tower-state.md:
+1030:- `password=test123` 測試檔 commit 驗證 WARN 可觸發，且不阻擋 commit（驗證後已 reset 並刪除測試檔）
+1182:- ⚠️ Pre-commit hook 觸發 WARN：`T0022-prep-closure-and-push.md:235` 的 `password=test123` 歷史描述字串觸發假陽性
+[tower-hook][WARN] found 4 file(s) with potential sensitive content
+[tower-hook][WARN] this hook does NOT block commit; please review manually
+```
+人工判讀結論：**假陽性（false positive）**。  
+判讀依據：命中內容皆為工單/學習紀錄中的歷史描述字串與 markdown 引述，未新增可用憑證；且 hook 明確為 WARN 非 BLOCK，commit 已正常完成。
 
 ### 互動紀錄
 
-<若有任何決策點、使用者對話或 STOP 回報，在此記錄>
+無
 
 ### 遭遇問題
 
-<若無則寫「無」>
+無
 
 ### 學習鉤子候選
 
-<列出觀察到的模式、反模式或建議，或寫「無」>
+4 檔原子打包（T0023 + state + learnings + self-containing T0024）可穩定完成 commit/push；pre-commit 仍會對歷史字串 `password=test123` 觸發 WARN，但在 L017 流程下可一致判定為假陽性並保留審計軌跡。
 
 ### 回報時間
+2026-04-11 18:27 (UTC+8)
