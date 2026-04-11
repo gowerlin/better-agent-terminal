@@ -492,3 +492,146 @@ const app = await electron.launch({
 **相關工單**：T0022-playwright-e2e-infra-bootstrap（首次實戰）
 
 **發現者**：sub-session（T0022 執行時自行依 L013 GOLDEN 原則選此解法）
+
+
+## L019 — Investigation 假設集必須包含「第三方 lib 內部」選項
+
+**首次記錄**：2026-04-11（T0027 BAT 右鍵互動 Part A investigation）
+
+**觸發條件**：塔台對「某個行為差異」提出多個假設並派發 investigation 工單驗證時
+
+**反模式**：塔台假設集建立在「本家程式碼有主動邏輯」的前提上，全部候選都在自家 `src/` 範圍內，忽略第三方 lib 可能才是真正決策點。
+
+**具體案例**：
+- 使用者觀察到 BAT 裡 Copilot CLI 右鍵直接 paste / Claude Code CLI 不會
+- 塔台提出 4 個假設（H1 alt buffer / H2 mouse tracking / H3 bracketed paste / H4 React component state）
+- **4 個假設全部指向 BAT 本家程式碼的主動邏輯**
+- T0027 grep 結果：`src/` 全部 no match，實際決策點在 `node_modules/@xterm/xterm/src/common/*`
+
+**根因偏見名稱**：**Self-code-centric bias**（自家 code 中心偏見）
+
+**解法 / 原則**：
+1. Investigation 工單的假設集**必須明確包含一條「第三方 lib 內部才是決策點」**
+2. Grep 策略先 `src/`，若無匹配則主動擴展到 `node_modules/<核心 lib>/`
+3. 假設驗證結論要能接受「全部不成立」並自動 pivot 到新的假設方向（如 T0027 sub-session 正確做的）
+
+**通用性評估**：**跨專案通用**。所有依賴第三方核心 lib（xterm.js / monaco / React / Vue 等）的專案都會遇到。
+
+**候選晉升**：**candidate: global**（下次類似 investigation 情境驗證後可升為 GA007 或 meta-learning）
+
+**相關工單**：T0027-bat-rightclick-investigation-part-a
+
+**發現者**：使用者（dogfood 觀察提出研究問題）+ Sub-session（執行時自然 pivot 到 xterm 內部）+ 塔台（事後檢討自己的假設集偏見）
+
+
+## L020 — Sub-session 語氣邊界：執行者 vs 規劃者
+
+**首次記錄**：2026-04-11（T0027 回報被使用者點出「越權」現象）
+
+**觸發條件**：任何工單執行後，sub-session 產出回報或 commit message 時
+
+**反模式**：Sub-session 使用**塔台視角的敘事語氣**，例如：
+- 「接下來我會收尾更新工單回報區與 _tower-state.md」（未來式 + 主觀宣告 + 塔台私域檔案）
+- 「我決定採用方案 A」（「決定」是塔台的動詞）
+- 「下一步建議派發 Txxxx」（規劃是塔台職責）
+
+**正解 / 語氣規範**：
+- ✅ **過去式 + 客觀描述**：「Step 8 已執行：_tower-state.md checkpoint 已追加」
+- ✅ **事實回報**：「Commit 1 建立於 HH:MM，hash: xxxxxxx」
+- ✅ **遇阻 STOP**：「Step 5 驗證失敗，grep 無匹配結果，STOP 回報」
+- ❌ 不用「接下來我會」、「我決定」、「我建議下一步」等塔台語氣
+- ❌ 不在回報中宣告未來行動（未來行動是塔台決策）
+
+**核心原則**：
+```
+Sub-session = 執行者（Executor），不是規劃者（Planner）
+規劃 / 敘事 / 下一步的宣告是塔台的專屬語氣
+Sub-session 只做：驗證 → 執行 → 回報事實
+```
+
+**工單模板改進**：未來工單的「Sub-session 執行指示」段應明確加入一句：
+> 回報時使用過去式客觀描述（「已執行 / 已完成 / 遭遇問題」），避免塔台敘事語氣（「接下來我會 / 我決定 / 下一步建議」）。
+
+**通用性評估**：**跨專案通用**。所有使用 control-tower 架構的專案都該有此邊界。
+
+**候選晉升**：**candidate: global**
+
+**相關工單**：T0027（首次觀察到的實例）
+
+**發現者**：使用者觀察 sub-session 回報語氣問題
+
+
+## L021 — Tower state 維護職責分界（**結構性 meta**）
+
+**首次記錄**：2026-04-11（使用者觀察 Worker 為何會知道 `_tower-state.md` 存在）
+
+**觸發條件**：工單需要更新塔台私域檔案（`_tower-state.md` / `_learnings.md` / `_tower-config.yaml` / 其他 `_ct-workorders/_*.md`）
+
+**反模式（塔台 structural bug）**：
+塔台為了 atomic commit 便利性，在工單「Sub-session 執行指示」中給 Worker 模板，讓 Worker 填寫塔台私域檔案的內容。
+
+**具體案例**（本 session 連續 4 張工單都犯）：
+- T0022：Worker 被要求更新 `_tower-state.md` 和 `_learnings.md`（T0024 尾巴連動）
+- T0025：Worker 寫入 L018 到 `_learnings.md` + checkpoint 到 `_tower-state.md`
+- T0026：Worker 寫入 UX-001 checkpoint 到 `_tower-state.md`
+- T0027：Worker 依模板填寫 checkpoint（含 H1/H2/H3/H4 結論、NEXT SESSION TODO 等**塔台決策內容**）
+
+**為什麼這是錯的**：
+1. `_tower-state.md` = 塔台**私人記憶 + 決策日誌**，內容是塔台的視角和措辭
+2. `_learnings.md` = 塔台**學習記錄**，何時升級、如何分類是塔台決定
+3. Worker 在填寫這些內容時，實際上是**替塔台做決策**
+4. 這違反「Worker 是執行者，塔台是規劃者」的角色分界
+5. 也是 L020（sub-session 語氣）的**結構根源** — Worker 會寫塔台語氣，是因為被要求寫塔台內容
+
+**正解架構**：
+
+```
+Tower Session 會寫：
+  ├ _tower-state.md     ← 塔台決策 / checkpoint / 記憶
+  ├ _learnings.md       ← 塔台學習記錄
+  ├ _tower-config.yaml
+  └ 工單 .md（新增 / 修訂，不含回報區）
+
+Sub-session 會寫：
+  ├ 產品程式碼
+  ├ 產品 reports / docs
+  └ 工單 .md 的回報區
+
+Sub-session 絕對不碰：
+  └ _ct-workorders/_*.md（所有塔台私域 meta 檔）
+```
+
+**Commit 策略（Option A — 推薦）**：
+1. Worker 完成工單 → 只 commit 產品程式碼 + 工單回報區
+2. Worker 呼叫 `/ct-done` 回報塔台
+3. **塔台在 tower session 內直接 Edit 塔台私域檔案**
+4. 此時 working tree 有塔台寫的 M 檔
+5. 塔台派下一張工單，**前置條件明確列出**：
+   > 恰好 N 個 M：`_ct-workorders/_tower-state.md`、`_ct-workorders/_learnings.md`（塔台記憶更新，**請勿修改內容**，只需原樣 stage 到 Commit N）
+6. Worker 在 Commit N 中**原樣 stage** 這些 M，不改內容
+
+**工單模板改進**：
+1. 刪除所有「Step X 塔台 meta 更新」段落（含模板）
+2. 在「前置條件」中明確列出「預期的塔台 meta M 檔案清單」
+3. 在「執行步驟」中明確說明 Worker 的責任：「原樣 stage `_ct-workorders/_*.md` 的 M，不修改內容」
+4. 在「不動範圍」中加上：「不新增內容到 `_ct-workorders/_*.md`；塔台 meta 檔由塔台負責」
+
+**核心原則**：
+```
+Worker 的筆寫產品，塔台的筆寫塔台記憶
+Worker 不該「知道」 _tower-state.md 的內容結構，
+更不該「決定」要寫什麼進去
+```
+
+**通用性評估**：**跨專案通用 + 結構性**。所有使用 control-tower 架構的專案都該遵守此分界。
+
+**候選晉升**：**candidate: global**（應該直接升為 GA007 或 core protocol；為保守起見先記為 Project 層 candidate，等其他專案驗證後升級）
+
+**相關工單**：T0022 / T0025 / T0026 / T0027（全部 4 張都違反此分界，history 已 committed，作為歷史教訓保留）
+
+**發現者**：使用者（觀察到「Worker 怎麼會知道 `_tower-state.md` 存在」這個結構性問題，直接點出塔台的 protocol 盲區）
+
+**塔台檢討**：
+- 塔台在本 session 連續 4 張工單違反此分界，根源是**追求 atomic commit 便利性**而犧牲角色分界
+- 這是**塔台設計錯誤**，不是 Worker 執行錯誤
+- 從 T0028 開始套用新架構，L021 作為結構性更正的起點
