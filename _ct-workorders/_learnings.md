@@ -367,6 +367,42 @@ _ct-workorders/_tower-config.yaml (新增 project-level config)
 
 ---
 
+## L016 - 2026-04-11 — 塔台目錄 git 管理:「預設公開、明確保密」細化策略
+
+**觸發條件**：新專案啟動塔台時，決定 `_ct-workorders/` 是否進 git repo。
+
+**反模式 A**：`_ct-workorders/` 整個進 `.gitignore`
+- 問題：L014 失效、跨機器同步失效、`chore(tower)` commit 要 `git add -f`
+
+**反模式 B**：整個目錄直接進 repo，無任何過濾
+- 問題：研究草稿 / 個人思考 / 敏感資料外洩風險
+
+**推薦模式**：「預設公開、明確保密」細化規則
+1. 塔台目錄整體進 repo（類別 1：工程日誌，對 open source 有價值）
+2. 排除 `_ct-workorders/reports/`（類別 2：研究草稿）
+3. 排除 `_ct-workorders/.private/`（類別 2：敏感內容專用）
+4. 排除 `_ct-workorders/*.draft.md`（類別 2：草稿後綴）
+5. 簡單 pre-commit hook WARN 檢查密碼 / API key / SSH key（不 block）
+
+**為什麼**：
+- 類別 1（`_tower-state`、`_learnings`、`T*.md`）是工程資產，對未來維護者和社群有價值
+- 類別 2 有專門目錄/後綴/hook 保護
+- L014 自然運作，不需 `-f` workaround
+- 跨機器同步透過 git pull 自然接手
+
+**套用時機**：
+1. 每個新專案啟動塔台，第一個工單就建立細化的 `.gitignore`
+2. 若發現專案已啟動塔台但 `.gitignore` 排除整個塔台目錄，立即開 prep 工單修正
+
+**數據點**：
+- 本專案 T0021 暴露 `.gitignore:21` 排除 `_ct-workorders/` 的陷阱
+- T0022-prep 實作細化規則，解決 L014 衝突
+- 跨機器 continuity 是 global 晉升機制的核心設計意圖
+
+**候選晉升**：🔴 candidate: global（跨專案強烈推薦）
+
+---
+
 ## L015 → 已晉升 Global (TG008) · 2026-04-11
 
 **標題**:Electron 應用 dev 與 packaged build 的 runtime 行為分歧是頭號陷阱

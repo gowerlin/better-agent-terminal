@@ -3,10 +3,11 @@
 ## 元資料
 - **編號**：T0021
 - **類型**：Chore (git operation)
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **優先級**：🔴 高（手邊有未提交變更，阻塞下一張工單）
 - **建立時間**：2026-04-11 15:57 (UTC+8)
 - **開始時間**：2026-04-11 16:31 (UTC+8)
+- **完成時間**：2026-04-11 16:37 (UTC+8)
 - **派發者**：Control Tower
 - **前置工單**：T0020（已 DONE）
 - **目標子專案**：（單一專案）
@@ -231,27 +232,38 @@ git log --oneline -3  # 應該看到 Commit 2, Commit 1, 然後是先前的 6a9b
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-<DONE / PARTIAL / FAILED / BLOCKED>
+DONE
 
 ### 產出摘要
-<兩個 commit 的 hash + message 標題 + file list>
+- `7bc856e` `fix(voice): use static worklet asset for packaged build (BUG-006)`
+  - `src/lib/voice/recording-service.ts`
+  - `public/voice-worklet/recording-worklet-processor.js`
+- `f75b1c8` `chore(tower): close BUG-006 / mark T0020 DONE / elevate L015 to global`
+  - `_ct-workorders/_tower-state.md`
+  - `_ct-workorders/_learnings.md`
+  - `_ct-workorders/T0020-bug006-worklet-load-in-packaged-build.md`
+  - `_ct-workorders/T0021-commit-bug006-hotfix-and-tower-state.md`
+- `git status`：clean working tree（commit 後）
 
 ### git log 輸出
 ```
-<git log --oneline -3 的輸出>
+f75b1c8 (HEAD -> main) chore(tower): close BUG-006 / mark T0020 DONE / elevate L015 to global
+7bc856e fix(voice): use static worklet asset for packaged build (BUG-006)
+6a9b5b5 (origin/main, origin/HEAD) fix: remove manual tag push, let release action create tag via API
 ```
 
 ### 互動紀錄
-<若有任何對塔台的問題或 escalation>
+無
 
 ### 遭遇問題
-<若有 hook 阻擋、順序錯亂、檔案遺漏等狀況>
+- `_ct-workorders/` 受 `.gitignore` 規則影響，`git add` 初次執行被忽略；改用 `git add -f` 精準加入 4 個塔台檔案後完成 Commit 2。
+- `_ct-workorders/_learnings.md` 與 `_ct-workorders/_tower-state.md` 出現 LF→CRLF 警告（未阻擋 commit）。
 
 ### 學習鉤子候選
-<若本次 chore 工單揭露值得記錄的 git / hook / workflow 陷阱>
+- 若 chore 需要提交 `_ct-workorders/` 檔案，需先確認 `.gitignore` 規則；在該目錄被忽略時，應使用 `git add -f <file>` 精準加入，避免誤操作。
 
 ### sprint-status.yaml 已更新
 不適用（專案無 sprint-status.yaml）
 
 ### 回報時間
-<YYYY-MM-DD HH:MM (UTC+8)>
+2026-04-11 16:37 (UTC+8)
