@@ -428,6 +428,32 @@ _ct-workorders/_tower-config.yaml (新增 project-level config)
 
 ---
 
+## L017 - 2026-04-11 — pre-commit hook 關鍵字掃描的 false positive 策略
+
+**觸發條件**：專案 pre-commit hook 對 commit 內容做關鍵字掃描（`password=`, `api_key`, `secret` 等），檔案中出現這類**歷史描述字串**或 **markdown 引述**時
+**模式**：
+- Hook 掃描到字串如 `password=test123`，無法區分「真實 credential」與「引述說明」
+- 若 hook 設計為 **strict block**，會誤擋合法 commit，sub-session 陷入無法自行解決的困境
+- 若 hook 設計為 **warn but not block**，sub-session 可繼續但需人工判讀
+**數據點**：
+- 2026-04-11 18:08 T0023 commit：pre-commit hook 對 `T0022-prep-closure-and-push.md:235` 的字串 `password=test123` 觸發 WARN
+- 該字串出處：前次 session 記錄「曾用 password=test123 測試 hook 行為」的說明性引述
+- Hook 實際設計：`[tower-hook][WARN] this hook does NOT block commit; please review manually`
+- 結果：commit 成功產生（`dc76077`），push 通過
+**套用時機**：
+1. 設計 pre-commit hook 時，**預設採「警告但不阻擋」策略**，避免 false positive 形成 CI/CD 死鎖
+2. Sub-session 遇到 hook WARN 時，在工單回報區的 **「Pre-commit hook 觸發結果」** 欄位固定記錄：
+   - WARN 的完整輸出
+   - 人工判讀結論（真 / 假陽性）
+   - 判讀依據（為何判為假陽性）
+3. 塔台審閱回報時，若連續 N 次同類 false positive，可評估升級 hook 邏輯（排除 markdown code fence、排除引述塊）
+4. 本條目適用於所有會接觸 pre-commit hook 的專案 → 候選晉升 global
+**候選晉升**：candidate: global（pre-commit hook false positive 是跨專案通用現象；本條目引用的具體字串 `password=test123` 是本專案歷史，但策略普適）
+**相關條目**：L016（塔台目錄 git 治理細化策略，hook 屬於治理層）、GA006（self-containing workorder，Commit dc76077 同批驗證）
+**狀態**：🟢（1 次實戰驗證：T0023 commit dc76077 成功通過 WARN）
+
+---
+
 ## 記錄格式模板
 
 ```

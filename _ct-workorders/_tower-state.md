@@ -1114,3 +1114,116 @@ modified:  _ct-workorders/T0021-commit-bug006-hotfix-and-tower-state.md   (sub-s
 2. 是否要先跑 `*evolve` 升級 L017/L018?(可在本 session 做,也可留給新 session)
 3. 是否要把本 session 的 commits **push 到 origin**?(ahead by 4 commits,手邊是否有未解決問題阻礙 push?)
 
+---
+
+## 2026-04-11 17:43 Checkpoint — 新塔台 session · *sync 偵測孤兒 · T0023 v1→v2 saga · GA006 升級 Global
+
+### Session 啟動
+- 2026-04-11 17:41 塔台 session 重啟（繼前一輪 17:29 `ccce0f7` 之後）
+- Dogfood 環境：`TERM_PROGRAM=better-agent-terminal`（使用者正在 dogfood 自己的產品 — 本 session 也是 dogfood session）
+- 工單目錄：26 張 `.md`
+- Global 資料：已載入 `~/.claude/control-tower-data/learnings/patterns.md` + `fieldguide/` 種子
+- Auto-session: `on`（工單派發後自動剪貼簿派發）
+
+### 使用者執行 `*sync`（17:42）
+
+**工單統計**（26 張）：
+- ✅ DONE: 20
+- 🟡 PARTIAL: 4 （T0005, T0013, T0014, T0017-beta — 回報區漂移，不在本次收尾範圍）
+- 📋 TODO: 1 （T0022-playwright-e2e-infra-bootstrap — Phase 2 規劃）
+- ⚠️ AMBIGUOUS: 1 （T0022-prep-closure-and-push，見下方孤兒發現）
+
+**🚨 孤兒發現**：`?? _ct-workorders/T0022-prep-closure-and-push.md`
+- 工單頭部 `狀態: DONE` + 回報區 `完成狀態: DONE`（commit hash + push 結果都填了）
+- 但檔案**從未進入 git 歷史**
+- **時序重建**：
+  - 17:27 前輪塔台寫出工單檔案到磁碟
+  - 17:28 塔台自己執行 commit（`ccce0f7`）
+  - 17:29 commit 只 stage `_tower-state.md`（212 insertions），**忘記 `git add` 工單檔案本身**
+  - 17:29 push 成功（`6a9b5b5..ccce0f7 main -> main`）
+  - 17:29 塔台在工單回報區填入 commit hash + push 結果（§218-220）
+  - 檔案遺留在 working tree 中作為 `??`
+- **根因**：前輪塔台 session **自行執行原本要派發 sub-session 的工作**（違反「塔台不直接做 chore」原則，GA001 的變體）+ 遺漏 `git add` 工單檔案本身（GA006 新發現）
+- **推送狀態核實**：`HEAD == origin/main == ccce0f7`（實際已 push，工單檔案中第 36 行的「ahead by 4 commits」是寫工單當時的快照，已過期）
+
+**PARTIAL 漂移分析**（留給下次塔台處理）：
+| 工單 | 證據推測實際已完成 | 需要 |
+|------|---------------------|------|
+| T0005-promptbox-voice-ui | Phase 1 voice 觀察 9484 「完全實作並運行驗證」 | 補記為 DONE |
+| T0013-fix-voice-download-ipc-drift | 觀察 9417 根因鎖定，後續未知 | 追蹤後續工單 |
+| T0014-crash-safe-logging | BUG-004 經 T0017-β + T0015 解決 | 確認是否仍需獨立完成 |
+| T0017-beta-audioworklet-migration | 觀察 9470 程式完成、L013 驗證 | 僅回報區沒補齊 |
+
+### D027 決策：[A] 產生 T0023 歸檔孤兒工單
+使用者選項 [A] — 派發 T0023-archive-orphan-workorder-t0022-prep-closure 歸檔孤兒工單。
+
+### T0023 v1 執行（17:53）→ BLOCKED
+
+Sub-session 在 Step 1.3 偵測到工作樹有**兩個**未追蹤檔案（T0022 + T0023 自己），違反工單前置條件「僅 T0022 為唯一變更」，依指示 STOP。
+
+- ✅ **Sub-session 判斷完全正確** — 嚴格遵守「驗證失敗即 STOP」規則，未嘗試繞過
+- ❌ **塔台工單設計錯誤** — 忽略「T0023 檔案本身是本 session 新產出的未追蹤檔案」這個事實，形成雞生蛋蛋生雞的悖論
+- 🆕 **反模式名稱**：Self-containing workorder without accounting for self
+- **Sub-session 提出的學習鉤子候選**（已採納）：
+  > 工單流程層級衝突：`ct-exec` 要求「開工即更新工單狀態/開始時間」，但本工單 Step 1 又要求「僅允許 T0022 為唯一變更」。建議在前置條件明確排除「當前執行工單檔案」，或將狀態寫入延後到 Step 1 後。
+
+### T0023 v2 修訂（17:56 塔台 → 18:08 sub-session 完成）
+
+**塔台修訂策略**：改為「單一 atomic commit **納入兩張**孤兒工單」
+- Step 1.3 預期改為「恰好兩個 `??`」精準比對（T0022 + T0023）
+- Step 2 兩個獨立 `git add`（精準逐一）
+- Commit message 說明 T0022 + T0023 + v1 BLOCK 故事 + L014 依據
+- Step 4/6 驗證改為「恰好 2 個檔案」
+- v1 BLOCK 歷史保留在工單的「v1 BLOCK 歷史」子段供未來學習
+
+**T0023 v2 執行結果**（18:05 → 18:08，3 分鐘零 rollback）：
+- ✅ Commit: `dc76077 chore(tower): archive orphan sync workorders (T0022-prep-closure + T0023)`
+- ✅ Push: `ccce0f7..dc76077  main -> main`
+- ⚠️ Pre-commit hook 觸發 WARN：`T0022-prep-closure-and-push.md:235` 的 `password=test123` 歷史描述字串觸發假陽性
+  - Hook 設計為 warn-not-block → commit 正常通過
+  - Sub-session 正確地在回報區記錄並升級為學習鉤子候選 → L017
+
+### D028 決策：學習鉤子處理（A3）
+- **候選 1**（self-containing workorder）→ **Global GA006**（跨專案通用反模式）✅ 已寫入 `~/.claude/control-tower-data/learnings/patterns.md`
+- **候選 2**（pre-commit false positive 策略）→ **Project L017 + candidate: global 標記** ✅ 已寫入 `_ct-workorders/_learnings.md`
+
+**分流依據**：
+- GA006 是塔台 meta 層設計反模式，完全與具體專案無關 → 直接 Global
+- L017 的策略通用但數據點引用本專案特有字串 → Project 先寫，等其他專案驗證再升級
+
+### D029 決策：本 session 正式收尾（B1）
+
+**由 T0024-session-closure 工單完成**：
+
+| 檔案 | 動作 | Git 狀態 |
+|------|------|---------|
+| `_ct-workorders/T0023-archive-orphan-workorder-t0022-prep-closure.md` | ct-exec 填寫回報區 | `M`（本 session 已存在） |
+| `_ct-workorders/_tower-state.md` | 本 checkpoint 追加 | `M`（本次修改） |
+| `_ct-workorders/_learnings.md` | L017 追加 | `M`（本次修改） |
+| `_ct-workorders/T0024-session-closure.md` | 塔台建立 | `??`（新檔） |
+| `~/.claude/control-tower-data/learnings/patterns.md` | GA006 追加 | 不影響 repo（Layer 2，獨立 git 無關） |
+
+**Sub-session T0024 任務**：
+1. 驗證工作樹恰好 3 `M` + 1 `??`（精準比對）
+2. 四檔原子 commit：`chore(tower): session closure checkpoint (T0023 + L017 + GA006 + state)`
+3. Push `dc76077..<new-sha> main -> main`
+4. Working tree clean
+5. 不動 Global patterns.md（獨立管理）
+
+### 本 session 產出 summary
+- **派發工單**：1 張（T0023 v1 BLOCK → v2 成功）+ 1 張 closure（T0024）
+- **新 git commit**：2 個（`dc76077` + 本 closure commit）
+- **新學習**：Global GA006（1 條） + Project L017（1 條，含 candidate: global）
+- ***sync 發現 4 張 PARTIAL 漂移** → 留給下次塔台 session 處理
+- **Dogfood 成果**：本 session 全程在 better-agent-terminal 裡執行，驗證 `*sync` 命令、auto-session 剪貼簿降級、工單 v1→v2 修訂循環可行
+
+### 🏆 L013 GOLDEN Rule 第 N 次連續驗證
+L013 再次證明：**已知最佳方案時跳過分步驗證**的原則，在 T0023 v2 修訂時被應用 —— 塔台直接從 v1 的失敗訊號反推正解（原子打包），不做「先試小範圍修正」的中間步驟。
+
+### 待下次塔台處理（NEXT SESSION TODO）
+1. **T0022-playwright-e2e-infra-bootstrap**（Phase 2 infra 工單）派發
+2. **4 張 PARTIAL 漂移**（T0005, T0013, T0014, T0017-beta）回報區補填
+3. **GA006 第 2 次驗證**（等其他專案出現同類情境時確認升 🟢）
+4. **L017 升級 Global 決策**（累積 2-3 次 hook false positive 實戰後）
+5. **Dogfood bug 清單回顧**（BUG-007/008/009、UX-001 等從前次 session 登記的 backlog）
+

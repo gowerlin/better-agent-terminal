@@ -3,11 +3,12 @@
 ## 元資料
 - **編號**：T0023
 - **類型**：Chore (git archival — 補交孤兒工單檔案)
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **優先級**：🟡 中（本 session 同步衛生收尾，非阻塞但應盡快歸檔）
 - **建立時間**：2026-04-11 17:43 (UTC+8)
 - **開始時間**：2026-04-11 18:05 (UTC+8)
-- **修訂時間**：2026-04-11 17:56 (UTC+8)（v2 — 納入 T0023 檔案本身進 commit，見下方修訂記錄）
+- **完成時間**：2026-04-11 18:08 (UTC+8)
+- **修訂時間**：2026-04-11 18:08 (UTC+8)（v3 — sub-session 收尾更新）
 - **派發者**：Control Tower（本次 *sync 檢查後補派）
 - **前置工單**：T0022-prep-closure-and-push（內容已執行完畢、回報區已填，但檔案未入 git）
 - **後續工單**：無（本工單收尾後 session 可正式進入下一階段）
@@ -305,35 +306,45 @@ git log --oneline -3
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-<DONE / PARTIAL / FAILED / BLOCKED>
+DONE
 
 ### 產出摘要
 
-**新 Commit hash + message**：
-**Push 結果**：
-**分支狀態**：
+**新 Commit hash + message**：`dc76077 chore(tower): archive orphan sync workorders (T0022-prep-closure + T0023)`
+**Push 結果**：`ccce0f7..dc76077  main -> main`
+**分支狀態**：`main`，`HEAD == origin/main`，`git status --porcelain` 為空
 
 ### git log 輸出（最後 3 筆）
 
 ```
-<貼 git log --oneline -3 的輸出>
+dc76077 (HEAD -> main, origin/main, origin/HEAD) chore(tower): archive orphan sync workorders (T0022-prep-closure + T0023)
+ccce0f7 chore(tower): close T0022-prep + register dogfood bugs + session checkpoint
+aedba6c chore(tower): record L016 + close T0021 handover + dispatch T0022-prep
 ```
 
 ### Pre-commit hook 觸發結果
 
-<貼 hook 的完整輸出，或寫「未觸發任何警告」>
+```
+[tower-hook][WARN] potential sensitive content in _ct-workorders/T0022-prep-closure-and-push.md:
+235:  - `1030:- \`password=test123\` 測試檔 commit 驗證 WARN 可觸發，且不阻擋 commit（驗證後已 reset 並刪除測試檔）`
+246:- chore(tower) 對 `_tower-state.md` 提交時，hook 容易因描述字串（如 `password=test123`）觸發 WARN；需人工判定 false positive，但不會阻擋 commit。
+
+[tower-hook][WARN] found 1 file(s) with potential sensitive content
+[tower-hook][WARN] this hook does NOT block commit; please review manually
+```
 
 ### 互動紀錄
 
-<若有任何決策點、使用者對話或 STOP 回報，在此記錄>
+無
 
 ### 遭遇問題
 
-<若無則寫「無」>
+無
 
 ### 學習鉤子候選
 
-<列出觀察到的模式、反模式或建議，或寫「無」>
+- `ct-exec` 的「開工即寫狀態」若遇到「未追蹤檔案必須精準比對」型工單，容易形成流程層衝突；應在工單前置條件明確排除當前工單檔案或採 v2 這種原子打包策略。
+- pre-commit 關鍵字檢查對歷史描述字串（如 `password=test123`）會產生 false positive WARN；目前「警告不阻擋」策略可接受，但回報區應固定記錄人工判讀結果。
 
 ### v1 BLOCK 歷史（由塔台保留，供學習用途，不要刪除）
 
@@ -347,3 +358,4 @@ git log --oneline -3
 **v2 修正**：2026-04-11 17:56 由塔台修訂，改為納入兩張孤兒工單於單一 atomic commit，徹底避開雞生蛋蛋生雞悖論。
 
 ### 回報時間
+2026-04-11 18:08 (UTC+8)
