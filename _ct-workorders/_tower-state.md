@@ -3,9 +3,9 @@
 ## 基本資訊
 - 專案：better-agent-terminal
 - 建立時間：2026-04-10
-- 上次同步:2026-04-11 09:55 (UTC+8) — Phase 1 驗收第一個 bug,派發 T0013 hotfix
-- **Session 狀態**:🔥 **Phase 1 驗收中 — BUG-003 hotfix 派發**(T0013 等 sub-session 執行)
-- 最大工單編號:T0013
+- 上次同步：2026-04-12 12:25 (UTC+8) — T0035~T0039 全部完成，暫停進行 build 驗收
+- **Session 狀態**：⏸ **PAUSED — build 驗收中**（使用者執行 build，結果回來再繼續）
+- 最大工單編號：T0039
 - **🏁 Phase 1 狀態**:⚠️ **驗收受阻** — `voice:downloadModel` IPC handler 未註冊,T0013 修復中
 
 ---
@@ -14,54 +14,51 @@
 
 > 給明天新塔台 session 啟動後的 Step 0 讀的快速恢復區
 
-### 🎯 當前狀態一句話
-Phase 1 語音輸入功能 12 張工單全部程式碼完成,等使用者執行手動測試(`_ct-workorders/reports/T0011-user-testing-guide.md` 的 32 項)。
+### 🎯 當前狀態一句話（2026-04-12 12:25 更新）
+本輪 5 張工單全部完成（T0035~T0039）。使用者正在執行 build 驗收，結果回來再繼續。
 
-### 📍 使用者的下一步(最重要)
-1. 跑 `npm run dev` 啟動 Electron app
-2. 打開 `_ct-workorders/reports/T0011-user-testing-guide.md`
-3. 依 Part 1 → Part 7 順序執行 32 項手動測試
-4. 發現 bug 回塔台開修正工單
-5. 全部通過 → 告訴塔台「Phase 1 驗收通過」
+### 📍 本輪完成工單摘要
+| 工單 | 任務 | commit |
+|------|------|--------|
+| T0035 | BUG-012 Alt Buffer 捲動重影修復 | `cdd5553` |
+| T0036 | UX-002 重繪按鈕＋重啟確認框 | `c374d32` |
+| T0037 | UX-003 狀態燈號 Tooltip | `82717d3` |
+| T0038 | UX-004 關閉終端警告一致性修正 | `6b0855f` |
+| T0039 | UX-005 Restart 按鈕圖示＋危險樣式（Worker 追加，已追認） | `9053cfc` |
 
-### 🚦 明天開工時可能的情境分歧
-- **情境 A**:使用者說「Phase 1 驗收通過」
-  → 塔台記錄 D015 最終驗收,建議下一步方向(Phase 1.5 / 技術債 / Phase 2)
-- **情境 B**:使用者說「Part X 測試 Y 失敗」
-  → 塔台讀取對應的 user-testing-guide 項目,分類 bug,派發修正工單
-- **情境 C**:使用者想直接跳到 Backlog 項目(例:256 tsc 錯誤清償 / Phase 1.5 Route B PoC)
-  → 塔台先詢問 Phase 1 手動測試是否已完成,若未完成建議先驗收再進下一個里程碑
+### 📍 使用者的下一步（最重要）
+1. 執行 build：`npx vite build`
+2. 確認 5 個 commit 整合無誤
+3. 結果回塔台（✅ 通過 / ❌ 失敗描述）
+4. **待辦**：T0034 工單 commit（`_ct-workorders/T0034-dependency-audit.md` 仍未追蹤）
 
-### 📂 重要文件位置(明天快速存取用)
-- **使用者測試指引**:`_ct-workorders/reports/T0011-user-testing-guide.md`(32 項 / 7 Parts)
-- **整合測試 checklist**:`_ct-workorders/reports/T0011-integration-test-checklist.md`(51 項 / 7 類別)
-- **最終交付報告**:`_ct-workorders/reports/T0011-final-delivery-report.md`(Phase 1 總結)
-- **T0001 技術評估**:`_ct-workorders/reports/T0001-voice-input-tech-research.md`(876 行)
-- **T0002 PoC 報告**:`_ct-workorders/reports/T0002-whisper-node-addon-poc.md`
-- **BUG-001 原始報修**:`_ct-workorders/BUG-001-claude-oauth-paste-truncated.md`
-- **BUG-002 原始報修**:`_ct-workorders/BUG-002-context-menu-offset.md`
+### 🚦 Build 後可能的情境分歧
+- **情境 A**：build 成功 → 討論下一步（依賴升級計劃？T0034 commit？其他 Backlog？）
+- **情境 B**：build 失敗 → 塔台讀 error，分診，派修正工單
+
+### 📂 重要文件位置
+- **T0034 依賴審計報告**：`_ct-workorders/reports/T0034-dependency-audit.md`（5 個 🔴，14 個 🟡）
+- **架構關鍵檔案**：`src/stores/workspace-store.ts`（T0038 新增 `setTerminalAltBuffer`）
+- **架構關鍵檔案**：`src/components/WorkspaceView.tsx`（T0038 修正關閉警告邏輯）
 
 ### ⚠️ 絕對不要忘記的事
-1. **T0005 的 runtime 驗證延後了** — 雖然 T0011 有涵蓋,但若明天 Phase 1 驗收通過,記得 T0005 狀態可從 PARTIAL 升為 DONE
-2. **BUG-001 / BUG-002 runtime 未驗證** — 兩個 bug 的修復目前只有 code-level 驗證,使用者實測才是真正的閘門
-3. **`writeChunked >64KB` 極端情境**已記錄在 Backlog,不要再「發現」一次
-4. **L001~L011 學習紀錄**未執行 /ct-evolve 晉升到 Global,明天適合時機可執行
+1. **T0034 工單未 commit** — `_ct-workorders/T0034-dependency-audit.md` 需要追加 commit
+2. **T0039 是 Worker 自主追加** — 已追認，記錄為學習案例（worker 越權）
+3. **依賴升級是獨立議題** — 5 個 🔴（electron 28 的 17 個 CVE），需要另開工單決策
 
 ### 🗣 塔台語氣校準
-使用者偏好:
-- **決策速度快**:常用「塔台你決定」,不喜歡被反覆問同一問題
-- **務實路線**:選過 Option B 降級,偏好「先求有再求好」
-- **接受延後**:T0005 PARTIAL、T0011 手動測試延後都接受
-- **重視細節**:會主動回報 bug(BUG-001 自己做完根因分析)
-- **不愛管多 session**:選過純序列路線(選項 1)
-- **使用繁體中文**:所有回應都用繁中
+使用者偏好：
+- **決策速度快**：常用選項式回答，不喜歡被反覆問同一問題
+- **務實路線**：偏好「先求有再求好」，接受分階段交付
+- **重視細節**：會主動回報 bug 並帶截圖
+- **補充需求習慣**：會在確認選項後補充條件
+- **使用繁體中文**：所有回應都用繁中
 
-### 📊 明天開工檢查清單(Step 0 之後執行)
+### 📊 恢復檢查清單
 - [ ] 讀取本段「明日起手式」
-- [ ] 讀取 Sprint 進度表(最下方)確認 12 張工單狀態
-- [ ] 讀取「待處理事項」的 T0011 runtime 驗證聚合清單
-- [ ] 問使用者:「Phase 1 手動測試進度如何?有遇到問題嗎?」
-- [ ] 依使用者回答進入情境 A / B / C
+- [ ] 確認 build 結果
+- [ ] 確認 T0034 工單是否已 commit
+- [ ] 視情況討論下一步
 
 ---
 
@@ -2250,3 +2247,157 @@ if (imeComposing || event.isComposing) {
 1. 確認 git status（今晚的 workorder 檔案 + tower-state 變更要不要 commit）
 2. 關掉 tower session 休息
 3. 明天見
+
+---
+
+## 2026-04-12 09:50 Checkpoint — Tower 恢復 · 派 T0033-C
+
+### 恢復摘要
+- Tower session 恢復自 2026-04-12 01:32 checkpoint
+- Git status: clean, HEAD = `e4b70b4`
+- 昨晚規劃完整，直接進入 T0033 修法階段
+- 使用者選擇 **[A]**：先派 T0033-C（BUG-011c 1 行修）
+
+### 派工決定：T0033-C
+
+**工單檔案**：`_ct-workorders/T0033-C-bug011-ime-guard-fix.md`（5 Phase，預估 30-60 min）
+**類型**：🔧 Code Fix + Regression Test
+**核心修法**：`src/components/TerminalPanel.tsx:355` IME guard 放行 Escape（1 行 diff）
+**涵蓋 Bug**：BUG-011c（主）、BUG-011a（驗證）、BUG-011b（Phase 5 調查）
+
+**Phase 設計**：
+- Phase 1：1 行修法（~5 min）
+- Phase 2：vim / less / IME / Claude streaming / IME CAPS 五組回歸測試（~15 min）
+- Phase 3：BUG-011a 驗證 + 必要時補 document-level ESC listener（~10 min）
+- Phase 4：BAT imeComposing 雙重追蹤技術債評估，決定是否派 T0034（~10 min）
+- Phase 5：BUG-011b 根因調查（~20 min，可 PARTIAL）
+
+**降級**：Phase 5 超時或卡關可標 PARTIAL，建議獨立 T0035
+
+### Tower 狀態
+- 進行中工單：T0033-C（🔄 DISPATCHED）
+- 待派工單：T0033-B P1-2、T0033-A、T0033-B P3-5、T0033-D、T0033-E（等 T0033-C 回報後決定下一張）
+- auto-session: on，但 Git Bash 環境無法直呼 Windows Terminal 分頁 → 降級為 pwsh 剪貼簿派工
+
+---
+
+## 2026-04-12 10:00 — T0033-C DONE 結案
+
+**Phase 全 DONE**（Worker 8 min + 使用者 Phase 2 手動測試 PASS）：
+- BUG-011c ✅ FIXED（e4ab638）— IME guard 放行 ESC
+- BUG-011a ✅ FIXED（9d552ce）— ESC dismiss context menu（Phase 3 補修）
+- BUG-011b 📋 分析完成（873a9be）→ 推薦 T0035（右鍵不觸發 click）
+- Phase 4 技術債：Low risk，不急派 T0034
+- Sc1 vim `^[^M` 為 pre-existing（非 BUG-011c 範圍）
+
+**使用者補充觀察（10:00）**：
+- 殘影（BUG-008）在 Mouse Wheel **向上捲** 時觸發，正常向下輸出不會
+- Screen Buffer 有內容、Mouse Wheel 能捲，但 **Scrollbar 不顯示**
+→ 影響 T0033-A（觸發條件精確化）和 T0033-D（需先查 scrollbar 消失原因）
+
+---
+
+## 2026-04-12 10:05 — 派 T0033-B P1-2
+
+**工單檔案**：`_ct-workorders/T0033-B-bug010-perf-phase1-2.md`
+**類型**：🔧 Performance Fix
+**核心**：
+- Phase 1：刪 TerminalPanel.tsx:493 重複 `updateTerminalActivity` 呼叫（1 行刪除）
+- Phase 2：TerminalThumbnail.tsx RAF(16ms) → setTimeout(150ms)（降頻 9 倍）
+- 回歸測試：5 個場景（基本輸出 / 高頻輸出 / 多 terminal / Claude Agent / Thumbnail preview）
+
+---
+
+## 2026-04-12 10:36 — T0033-B P1-2 DONE 結案
+
+**3 分鐘完成**：5412e69（Activity 去重）+ 2ac9d56（Thumbnail throttle）+ 1004ecf（closure）
+BUG-010 Phase 1-2 零風險修法已入 code，等 dev runtime 驗證效果。
+Phase 3-5（store 短路 + batching 配置 + 非 active terminal）待後續。
+
+**Grep 清潔確認**：
+- TerminalPanel.tsx 無殘留 updateTerminalActivity ✅
+- TerminalThumbnail.tsx 無殘留 RAF ✅
+- ClaudeAgentPanel.tsx 有自己的 updateTerminalActivity 呼叫（正確，不在本次刪除範圍）
+
+**10:45 使用者驗證**：seq 1 10000 + 多 terminal 打字 → 不卡 ✅
+BUG-010 Phase 1-2 體感確認通過。Phase 3-5 降為低優先。
+
+---
+
+## 2026-04-12 10:50 — 派 T0033-D
+
+**工單檔案**：`_ct-workorders/T0033-D-ux001-scrollbar-fix.md`
+**類型**：🔧 CSS Fix
+**核心**：
+- Phase 1：xterm-viewport scrollbar 可見度修法（thumb 0.15→0.3, track transparent→0.05, width 8→10）
+- Phase 2：scrollbar-gutter 窄範圍評估（DevTools 驗證，opt-in）
+- Phase 3：回歸驗證 6 場景
+**T0026 教訓防線**：只改 .xterm-viewport CSS，禁碰全域 * 和 scrollbar-gutter on *
+
+---
+
+## 2026-04-12 11:00 — T0033-D DONE 結案
+
+**1 分鐘完成**：c057f85（width 8→10px）+ e696cf4（closure）
+Phase 2 gutter DEFERRED（保守）。使用者 dev server 驗證 OK。
+UX-001 ✅ DONE。
+
+**今日 4 張工單全 DONE**：T0033-C(8min) + T0033-B(3min) + T0033-D(1min) = 12 min Worker 時間
+修掉：BUG-011a/c + BUG-010 P1-2 + UX-001
+
+---
+
+## 2026-04-12 11:10 — 派 T0033-A（主菜）
+
+**工單檔案**：`_ct-workorders/T0033-A-bug008-marker-overlay-refactor.md`
+**類型**：🔧 Fix + Infrastructure（完整版 marker-based refactor）
+**預估**：1.5-2.5 小時，3-4 檔，200-300 行
+**核心**：
+- Phase 1：BUG-008 修法 — scroll dismiss（零風險）
+- Phase 2：alt buffer detection（buffer.onBufferChange）
+- Phase 3：TerminalDecorationManager 新檔案（xterm marker/decoration lifecycle 封裝）
+- Phase 4：整合進 TerminalPanel + prompt detection demo
+- Phase 5：10 場景驗證
+
+**xterm API 約束（已寫入工單）**：
+- registerDecoration 在 alt buffer 返回 undefined
+- registerMarker 只加到 normal buffer
+→ decoration 基礎建設限 normal buffer，alt buffer 靠 DOM 層處理
+
+**附帶任務**：使用者要求盤點 package.json 套件版本是否過舊（等 T0033-A 回報後或平行處理）
+
+---
+
+## 2026-04-12 11:18 — T0034 DONE 結案（依賴盤點）
+
+5 分鐘完成。48 套件盤點：🔴5 / 🟡14 / 🟢8 / ⚪21。
+27 npm audit 漏洞（16 high，主要 electron 28）。
+建議：safe batch 立即可做 + electron 28→34 分步升級計劃。
+
+---
+
+## 2026-04-12 11:19 — T0033-A DONE 結案（主菜）
+
+**8 分鐘完成**：4 commits（9d5deaa → 7a351ef → abf4640 → 115c2df → a199019）
+- BUG-008 ✅ FIXED（scroll dismiss）
+- Alt buffer detection ✅（onBufferChange + state + ref）
+- DecorationManager ✅（新檔 136 行）
+- TerminalPanel integration ✅（+50 行，含 prompt marker demo）
+- 技術：altBufferActive 閉包 stale 用 ref 同步解決
+
+**今日 5 張工單全 DONE**（T0033-C/B/D/A + T0034），Worker 總時間 ~25 分鐘。
+修掉：BUG-008 + BUG-011a/c + BUG-010 P1-2 + UX-001
+新增：alt buffer detection、decoration manager、依賴盤點報告
+
+---
+
+## 2026-04-12 11:25 — 塔台暫停，使用者 build 實測
+
+**狀態保存**：
+- 5 張工單全 DONE，15 commits in tree
+- 待辦：T0033-B P3-5（BUG-010 進階優化）、safe batch upgrade、T0035（BUG-011b）
+- 使用者要 build 正式版實際使用，累積實測觀察
+- 待討論：terminal process lifecycle（關 BAT 後 pty 是否存活 / 重連可行性）
+- **議題登記**：「Terminal Session 持久化」— 關 BAT 時 pty 背景存活 + 重開重連。方案候選：tmux 整合 / 獨立 pty daemon / 不做。需考慮孤兒 process 清理。待 dogfood 實測後決定是否開 Epic。
+
+**恢復時**：從這裡接續，使用者帶回實測結果 + 決定下一步
