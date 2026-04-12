@@ -664,3 +664,8 @@
   right: 0;
   max-width: min(360px, 80vw);
 }
+
+/* Allow VoicePreviewPopover to escape overflow:hidden when active */
+.claude-input-area.voice-popover-active {
+  overflow: visible;
+}

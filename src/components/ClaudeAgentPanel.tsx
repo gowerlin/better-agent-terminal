@@ -3118,7 +3118,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
 
       {/* Input area — hidden when permission card, ask-user card, or resume/model list is visible */}
       <div
-        className={`claude-input-area${isDragOver ? ' drag-over' : ''}`}
+        className={`claude-input-area${isDragOver ? ' drag-over' : ''}${popoverState !== 'hidden' ? ' voice-popover-active' : ''}`}
         style={pendingPermission || pendingQuestion || showResumeList || showModelList ? { display: 'none' } : undefined}
       >
         {/* Prompt suggestion chip */}
