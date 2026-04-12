@@ -107,6 +107,12 @@
     "viaTailscale": "通过 Tailscale",
     "lanOnly": "仅限局域网 — 手机需在同一网段",
     "language": "语言",
+    "tab": {
+      "general": "常规",
+      "appearance": "外观",
+      "voice": "语音",
+      "advanced": "高级"
+    },
     "footerNote": "所有变更会自动保存。字体变更会立即应用至所有终端。",
     "failedToStartServer": "启动服务器失败：{{error}}"
   },

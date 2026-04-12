@@ -109,6 +109,12 @@
     "viaTailscale": "透過 Tailscale",
     "lanOnly": "僅限區域網路 — 手機需在同一網段",
     "language": "語言",
+    "tab": {
+      "general": "一般",
+      "appearance": "外觀",
+      "voice": "語音",
+      "advanced": "進階"
+    },
     "footerNote": "所有變更會自動儲存。字型變更會立即套用至所有終端。",
     "failedToStartServer": "啟動伺服器失敗：{{error}}"
   },

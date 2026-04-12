@@ -109,6 +109,12 @@
     "viaTailscale": "via Tailscale",
     "lanOnly": "LAN only \u2014 phone must be on the same network",
     "language": "Language",
+    "tab": {
+      "general": "General",
+      "appearance": "Appearance",
+      "voice": "Voice",
+      "advanced": "Advanced"
+    },
     "footerNote": "Changes are saved automatically. Font changes apply immediately to all terminals.",
     "failedToStartServer": "Failed to start server: {{error}}"
   },

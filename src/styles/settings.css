@@ -55,6 +55,34 @@
   padding: 20px;
 }
 
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 20px;
+  margin-top: -4px;
+}
+
+.settings-tabs button {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: color 0.15s, border-bottom-color 0.15s;
+}
+
+.settings-tabs button:hover {
+  color: var(--text-primary);
+}
+
+.settings-tabs button.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-color, #58a6ff);
+}
+
 .settings-section {
   margin-bottom: 24px;
 }

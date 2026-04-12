@@ -75,6 +75,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [slDropPos, setSlDropPos] = useState<'before' | 'after'>('before')
   const [slImporting, setSlImporting] = useState(false)
   const [slImportText, setSlImportText] = useState('')
+  const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'voice' | 'advanced'>('general')
 
   // Custom CLI state
   const [customClis, setCustomClis] = useState<CustomCliDefinition[]>([])
@@ -263,6 +264,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         </div>
 
         <div className="settings-content">
+          <div className="settings-tabs" role="tablist">
+            <button role="tab" aria-selected={activeTab === 'general'} className={activeTab === 'general' ? 'active' : ''} onClick={() => setActiveTab('general')}>{t('settings.tab.general')}</button>
+            <button role="tab" aria-selected={activeTab === 'appearance'} className={activeTab === 'appearance' ? 'active' : ''} onClick={() => setActiveTab('appearance')}>{t('settings.tab.appearance')}</button>
+            <button role="tab" aria-selected={activeTab === 'voice'} className={activeTab === 'voice' ? 'active' : ''} onClick={() => setActiveTab('voice')}>{t('settings.tab.voice')}</button>
+            <button role="tab" aria-selected={activeTab === 'advanced'} className={activeTab === 'advanced' ? 'active' : ''} onClick={() => setActiveTab('advanced')}>{t('settings.tab.advanced')}</button>
+          </div>
+          {activeTab === 'general' && (<>
           <div className="settings-section">
             <h3>{t('settings.language')}</h3>
             <div className="settings-group">
@@ -552,7 +560,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <p className="settings-hint">{t('settings.notifyOnlyBackgroundHint')}</p>
             </div>
           </div>
-
+          </>)}
+          {activeTab === 'appearance' && (<>
           <div className="settings-section">
             <h3>{t('settings.appearance')}</h3>
             <div className="settings-group">
@@ -826,8 +835,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             </div>
           </div>
 
+          </>)}
+          {activeTab === 'voice' && (
           <VoiceSettingsSection />
-
+          )}
+          {activeTab === 'advanced' && (<>
           <div className="settings-section">
             <h3>{t('settings.debugLogging')}</h3>
 
@@ -1046,6 +1058,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               )}
             </div>
           </div>
+          </>)}
         </div>
 
         <div className="settings-footer">
