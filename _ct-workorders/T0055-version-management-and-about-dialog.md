@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0055
 - **任務名稱**：版號管理重構 + About Dialog 更新 + version.json 建立
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-12 18:26 (UTC+8)
 - **開始時間**：2026-04-12 18:31 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-12 18:37 (UTC+8)
 
 ## 工作量預估
 - **預估規模**：中（版號抽離 + About dialog + version.json）
@@ -149,13 +149,17 @@ feat(version): establish fork version management with upstream tracking
 > 以下由 sub-session 填寫
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED / PARTIAL）
+DONE
 
 ### 產出摘要
-（修改檔案、version.json 內容、lastSyncCommit、commit hash）
+- 新增 `version.json`（upstream: TonyQ 2.1.3, lastSyncCommit: 079810025）
+- 修改 `package.json`: version 2.1.3 → 1.0.0, author TonyQ CO., LTD. → Gower
+- 修改 `electron/main.ts`: About dialog 改為顯示 fork 資訊
+- `electron/update-checker.ts`: 已指向 gowerlin fork，無需修改
+- Commit: `12b7e35 feat(version): establish fork version management with upstream tracking`
 
 ### 遭遇問題
-（若有）
+無
 
 ### 回報時間
-（填入當前時間）
+2026-04-12 18:37 (UTC+8)
