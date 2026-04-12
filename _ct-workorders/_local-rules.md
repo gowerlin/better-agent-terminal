@@ -99,3 +99,54 @@
 建立新單據時使用以下格式：
 - BUG 格式：參考 `BUG-001-claude-oauth-paste-truncated.md` 或 T0061 回報區模板
 - PLAN 格式：參考 T0061 回報區模板
+
+---
+
+## 歸檔原則
+
+> 建立時間：2026-04-12（T0064 產出）
+> 執行工具：`git mv`（保留版本歷史）
+
+### 歸檔資格（所有單據類型通用）
+
+**觸發條件**（同時滿足以下三點）：
+1. **狀態為最終態**：DONE / CLOSED / WONTFIX / DROPPED / FIXED
+2. **超過 N 天未變更**：建議 N=7（一週），可在 `_tower-config.yaml` 中調整 `archive_days`
+3. **不再需要即時回顧或參考**：
+   - 無 active 工單依賴此單
+   - 非當前 sprint 的關鍵決策依據
+
+**豁免條件**（不歸檔，即使符合觸發條件）：
+- 被 active 工單的「相關單據」欄位引用
+- 塔台明確標記「保留」的單據
+- `_tower-state.md` 起手式提及的單據
+
+### 歸檔目錄結構
+
+```
+_ct-workorders/
+├── _archive/
+│   ├── checkpoint-2026-04.md     ← 歷史 checkpoint（特殊文件，平放）
+│   ├── workorders/               ← 已結案工單（T####）
+│   │   ├── T0001-xxx.md
+│   │   └── T0002-xxx.md
+│   ├── bugs/                     ← 已結案 BUG 單
+│   │   ├── BUG-001-xxx.md
+│   │   └── BUG-002-xxx.md
+│   └── plans/                    ← 已結案 PLAN 單
+│       └── PLAN-001-xxx.md
+```
+
+### 歸檔流程
+
+1. 塔台（或 `*sync`）掃描所有單據
+2. 篩選符合歸檔資格的單據
+3. 使用 `git mv` 搬移到 `_archive/<type>/` 對應子目錄
+4. 更新索引（`_bug-tracker.md`、`_backlog.md`、`_workorder-index.md`）：
+   - 已歸檔單據的連結路徑改為 `_archive/<type>/FILENAME.md`
+5. **不刪除任何檔案，只搬移**
+
+### 回溯查詢
+
+- 歸檔單據仍可透過 Glob 搜尋：`_ct-workorders/_archive/**/*.md`
+- 所有 `git mv` 操作保留完整版本歷史

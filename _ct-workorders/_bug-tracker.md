@@ -1,6 +1,6 @@
 # Bug Tracker — better-agent-terminal
 
-> 最後更新：2026-04-12 (UTC+8)（T0062 遷移建立）
+> 最後更新：2026-04-12 (UTC+8)（T0064 歸檔更新）
 >
 > 統計：🔴 Open: 1 | ✅ Fixed: 13 | 🚫 Closed: 1 | 總計: 15
 
@@ -20,17 +20,17 @@
 |----|------|--------|------|---------|------|
 | BUG-001 | Claude OAuth 登入 paste 被截斷 | 🔴 High | ✅ FIXED (T0006) / runtime 待驗 | T0006 | [詳細](BUG-001-claude-oauth-paste-truncated.md) |
 | BUG-002 | 右鍵功能表位置嚴重位移 | 🟡 Medium | ✅ FIXED (T0008+T0012) / runtime 待驗 | T0012 | [詳細](BUG-002-context-menu-offset.md) |
-| BUG-003 | `voice:downloadModel` IPC handler 未註冊 | 🔴 High | ✅ FIXED (T0013) | T0013 | [詳細](BUG-003-voice-download-model-ipc-not-registered.md) |
-| BUG-004 | AudioContext 崩潰（語音錄音啟動時 BAT 閃退） | 🔴 High | ✅ FIXED (T0017-β) | T0017-β | [詳細](BUG-004-audiocontext-crash-on-voice-start.md) |
-| BUG-005 | whisper addon `require` 回傳 undefined（packaged） | 🔴 High | ✅ FIXED (T0018) | T0018 | [詳細](BUG-005-whisper-addon-require-undefined-packaged.md) |
-| BUG-006 | AudioWorklet 在 packaged build 無法載入 | 🔴 High | ✅ FIXED (T0020) | T0020 | [詳細](BUG-006-audioworklet-cannot-load-packaged.md) |
-| BUG-008 | 終端捲動造成 overlay UI 錯位 | 🟡 Medium | ✅ FIXED (T0028) / runtime 待驗 | T0028 | [詳細](BUG-008-terminal-scroll-overlay-misposition.md) |
-| BUG-009 | 右鍵「貼上」後 focus 未還給 CLI | 🟡 Medium | ✅ FIXED (T0044) | T0044 | [詳細](BUG-009-context-menu-paste-focus-lost.md) |
-| BUG-010 | Alt buffer 鍵盤事件被 xterm 攔截 | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](BUG-010-alt-buffer-keyboard-events-intercepted.md) |
-| BUG-011 | IME 輸入法 guard | 🟡 Medium | ✅ FIXED (T0033-C) | T0033-C | [詳細](BUG-011-ime-input-method-guard.md) |
-| BUG-013 | Tab 切換離開終端 → 畫面全黑 | 🔴 High | ✅ FIXED (T0047) | T0047 | [詳細](BUG-013-tab-switch-black-screen.md) |
-| BUG-014 | Ctrl+滾輪縮放終端字體失效 | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](BUG-014-ctrl-scroll-font-zoom-broken.md) |
-| BUG-015 | 終端字體從黑體變細明體（CJK fallback） | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](BUG-015-terminal-font-cjk-fallback.md) |
+| BUG-003 | `voice:downloadModel` IPC handler 未註冊 | 🔴 High | ✅ FIXED (T0013) | T0013 | [詳細](_archive/bugs/BUG-003-voice-download-model-ipc-not-registered.md) |
+| BUG-004 | AudioContext 崩潰（語音錄音啟動時 BAT 閃退） | 🔴 High | ✅ FIXED (T0017-β) | T0017-β | [詳細](_archive/bugs/BUG-004-audiocontext-crash-on-voice-start.md) |
+| BUG-005 | whisper addon `require` 回傳 undefined（packaged） | 🔴 High | ✅ FIXED (T0018) | T0018 | [詳細](_archive/bugs/BUG-005-whisper-addon-require-undefined-packaged.md) |
+| BUG-006 | AudioWorklet 在 packaged build 無法載入 | 🔴 High | ✅ FIXED (T0020) | T0020 | [詳細](_archive/bugs/BUG-006-audioworklet-cannot-load-packaged.md) |
+| BUG-008 | 終端捲動造成 overlay UI 錯位 | 🟡 Medium | ✅ FIXED (T0028) / runtime 待驗 | T0028 | [詳細](_archive/bugs/BUG-008-terminal-scroll-overlay-misposition.md) |
+| BUG-009 | 右鍵「貼上」後 focus 未還給 CLI | 🟡 Medium | ✅ FIXED (T0044) | T0044 | [詳細](_archive/bugs/BUG-009-context-menu-paste-focus-lost.md) |
+| BUG-010 | Alt buffer 鍵盤事件被 xterm 攔截 | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](_archive/bugs/BUG-010-alt-buffer-keyboard-events-intercepted.md) |
+| BUG-011 | IME 輸入法 guard | 🟡 Medium | ✅ FIXED (T0033-C) | T0033-C | [詳細](_archive/bugs/BUG-011-ime-input-method-guard.md) |
+| BUG-013 | Tab 切換離開終端 → 畫面全黑 | 🔴 High | ✅ FIXED (T0047) | T0047 | [詳細](_archive/bugs/BUG-013-tab-switch-black-screen.md) |
+| BUG-014 | Ctrl+滾輪縮放終端字體失效 | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](_archive/bugs/BUG-014-ctrl-scroll-font-zoom-broken.md) |
+| BUG-015 | 終端字體從黑體變細明體（CJK fallback） | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](_archive/bugs/BUG-015-terminal-font-cjk-fallback.md) |
 
 ---
 
@@ -38,7 +38,7 @@
 
 | ID | 標題 | 嚴重度 | 關閉原因 | 關閉時間 | 連結 |
 |----|------|--------|---------|---------|------|
-| BUG-007 | 右鍵標記時顯示 OSC 52 調試訊息 | 🟢 Low | 🚫 上游行為（Claude Code CLI），無法修復 | 2026-04-12 | [詳細](BUG-007-osc52-debug-message-pollutes-terminal.md) |
+| BUG-007 | 右鍵標記時顯示 OSC 52 調試訊息 | 🟢 Low | 🚫 上游行為（Claude Code CLI），無法修復 | 2026-04-12 | [詳細](_archive/bugs/BUG-007-osc52-debug-message-pollutes-terminal.md) |
 
 ---
 
