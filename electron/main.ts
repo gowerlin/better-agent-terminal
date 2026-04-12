@@ -413,11 +413,27 @@ function buildMenu() {
           click: () => {
             const focusedWin = BrowserWindow.getFocusedWindow() || [...windowMap.values()][0]
             if (focusedWin) {
+              let upstreamVersion = 'unknown'
+              let upstreamAuthor = 'TonyQ'
+              let upstreamRepo = 'https://github.com/tony1223/better-agent-terminal'
+              try {
+                const versionJsonPath = path.join(app.getAppPath(), 'version.json')
+                const versionData = JSON.parse(fsSync.readFileSync(versionJsonPath, 'utf-8'))
+                upstreamVersion = versionData.upstream?.version ?? upstreamVersion
+                upstreamAuthor = versionData.upstream?.author ?? upstreamAuthor
+                upstreamRepo = versionData.upstream?.repo ?? upstreamRepo
+              } catch {}
               dialog.showMessageBox(focusedWin, {
                 type: 'info',
                 title: 'About Better Agent Terminal',
                 message: 'Better Agent Terminal',
-                detail: `Version: ${app.getVersion()}\n\nA terminal aggregator with multi-workspace support and Claude Agent integration.\n\nAuthor: TonyQ`
+                detail: `Version: ${app.getVersion()}
+
+Author: Gower
+Fork from: ${upstreamAuthor} — ${upstreamRepo}
+Upstream version: ${upstreamVersion}
+
+A terminal aggregator with multi-workspace support and Claude Agent integration.`
               })
             }
           }
