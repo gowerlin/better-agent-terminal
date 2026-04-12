@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react'
+import { ErrorBoundary } from './ErrorBoundary'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { Workspace, TerminalInstance, EnvVariable, DockablePanel, DockZone, ShellType } from '../types'
@@ -1139,6 +1140,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       )}
 
       {/* Main content area */}
+      <ErrorBoundary>
       <Suspense fallback={<div className="loading-panel" />}>
         {isSplit ? (
           <div className="split-container">
@@ -1176,6 +1178,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           </>
         )}
       </Suspense>
+      </ErrorBoundary>
 
       {/* Resize handle for thumbnail bar */}
       {!thumbnailSettings.collapsed && (
