@@ -11,7 +11,7 @@ import { settingsStore } from '../stores/settings-store'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
-const osc52DebugNoticeLine = /^sent \d+ chars via OSC 52 .*paste fails$/u
+const osc52DebugNoticeLine = /sent \d+ chars via OSC 52 .*paste fails/u
 
 const filterTerminalOutputNoise = (data: string): string => {
   if (!data.includes('paste fails')) return data
