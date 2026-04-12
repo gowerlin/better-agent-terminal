@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { workspaceStore } from '../stores/workspace-store'
 
 interface ActivityIndicatorProps {
@@ -36,6 +37,7 @@ export function ActivityIndicator({
   terminalId,
   size = 'small'
 }: ActivityIndicatorProps) {
+  const { t } = useTranslation()
   const [activityData, setActivityData] = useState(() =>
     getActivityData(propActivityTime, workspaceId, terminalId)
   )
@@ -68,10 +70,16 @@ export function ActivityIndicator({
     return () => clearTimeout(timeout)
   }, [activityData.lastActivityTime])
 
+  const tooltipText = activityData.hasPending
+    ? t('terminal.statusPending')
+    : isActive
+      ? t('terminal.statusActive')
+      : t('terminal.statusIdle')
+
   const className = `activity-indicator ${size} ${isActive ? 'active' : 'inactive'}${activityData.hasPending ? ' pending' : ''}`
 
   return (
-    <div className={className}>
+    <div className={className} title={tooltipText}>
       {activityData.hasPending && <span className="activity-indicator-badge">?</span>}
     </div>
   )

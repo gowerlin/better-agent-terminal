@@ -234,7 +234,10 @@
     "addTerminalOrAgent": "Add Terminal or Agent",
     "terminalLabel": "Terminal",
     "expandThumbnails": "Expand Thumbnails",
-    "collapsePanel": "Collapse Panel"
+    "collapsePanel": "Collapse Panel",
+    "statusActive": "Terminal active",
+    "statusIdle": "Terminal idle",
+    "statusPending": "Waiting for action"
   },
 
   "dialogs": {

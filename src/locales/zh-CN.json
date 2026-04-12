@@ -223,7 +223,10 @@
     "addTerminalOrAgent": "新增终端或 Agent",
     "terminalLabel": "终端",
     "expandThumbnails": "展开缩略图",
-    "collapsePanel": "收起面板"
+    "collapsePanel": "收起面板",
+    "statusActive": "终端活跃中",
+    "statusIdle": "终端空闲",
+    "statusPending": "等待操作"
   },
   "dialogs": {
     "closeCodeAgent": "关闭 Code Agent？",

@@ -234,7 +234,10 @@
     "addTerminalOrAgent": "新增終端或 Agent",
     "terminalLabel": "終端",
     "expandThumbnails": "展開縮圖",
-    "collapsePanel": "收合面板"
+    "collapsePanel": "收合面板",
+    "statusActive": "終端活躍中",
+    "statusIdle": "終端閒置",
+    "statusPending": "等待操作"
   },
 
   "dialogs": {
