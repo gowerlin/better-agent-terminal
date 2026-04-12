@@ -1,5 +1,31 @@
 # Tower State
 
+## 當前進度（2026-04-12 12:36）
+
+### 已完成（今日）
+| 工單 | 任務 | 驗收 |
+|------|------|------|
+| T0034 | npm 依賴審計 | ✅ |
+| T0035 | BUG-012 Alt buffer 捲動殘影 v1 | ❌ 驗收否決 — 殘影未改善 |
+| T0036 | UX-002 按鈕樣式 | ✅（Redraw 功能 ❌ → T0040） |
+| T0037 | UX-003 狀態指示器 tooltip | ✅ |
+| T0038 | UX-004 終端關閉警告一致性 | ✅ |
+| T0039 | UX-005 重啟按鈕圖示 + danger 樣式 | ✅ |
+
+### 進行中
+| 工單 | 任務 | 狀態 | 備註 |
+|------|------|------|------|
+| T0040 | 修復 Redraw 按鈕未觸發重繪 | ✅ DONE 驗收通過 | cd46b27 |
+| T0041 | BUG-012 v2 alt buffer 殘影深度調查 | ✅ PARTIAL 驗收通過 | 根因確認：上游 TUI 問題，非 emulator |
+| T0042 | 提交 upstream issue | ⏸ 暫緩 | 等 T0043 結果補充版本對比資訊 |
+| T0043 | 全套件升級 + xterm v6 測試 BUG-012 | 📋 PENDING | 分支保留，結果更新 T0042 issue 內容 |
+
+### 決策日誌
+- D001: 先修 Redraw 再調查 BUG-012（Redraw 為測試工具 + 可能暴露根因）
+- D002: T0035 v1 修復（禁用 viewport scroll）無效，需更深層調查
+- D003: BUG-012 根因確認 — ghost 文字在 xterm.js buffer 中，TUI 用 cursor positioning 跳過行首未清除。屬上游問題，Redraw 按鈕為 workaround
+- D004: T0041 附帶改進保留 — canvas addon 提升渲染性能、CLAUDE_CODE_NO_FLICKER=1、清理 -51 行無效代碼
+
 ## 基本資訊
 - 專案：better-agent-terminal
 - 建立時間：2026-04-10
