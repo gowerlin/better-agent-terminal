@@ -653,3 +653,14 @@
   right: 0;
   max-width: min(360px, 80vw);
 }
+
+.claude-agent-voice-wrap {
+  position: relative;
+}
+
+/* VoicePreviewPopover for Claude Agent chat box — appears above input area */
+.claude-agent-voice-wrap .voice-preview-popover {
+  bottom: calc(100% + 4px);
+  right: 0;
+  max-width: min(360px, 80vw);
+}

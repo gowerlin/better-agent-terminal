@@ -9,6 +9,9 @@ import type { AgentPresetId } from '../types/agent-presets'
 import { LinkedText, FilePreviewModal } from './PathLinker'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { useVoicePopover } from '../hooks/useVoicePopover'
+import { MicButton } from './voice/MicButton'
+import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 
 // Markdown rendering for completed assistant messages
 // Note: marked.use() modifies the global marked instance (shared with FileTree).
@@ -1086,6 +1089,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px'
     }
   }, [])
+
+  const { voice, popoverState, transcriptionMeta, handleConfirm: handleVoiceConfirm, handleCancel: handleVoiceCancel } = useVoicePopover({
+    onConfirm: (text) => {
+      const cur = inputValueRef.current
+      setInputValue(cur ? cur + ' ' + text : text)
+      textareaRef.current?.focus()
+    },
+  })
 
   // Listen for skill insertion from SkillsPanel
   useEffect(() => {
@@ -3258,6 +3269,23 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             >
               &#128206;
             </span>
+            <div className="claude-agent-voice-wrap">
+              <MicButton
+                state={voice.state}
+                onClick={voice.toggle}
+                disabled={voice.state === 'disabled'}
+                disabledTooltip={voice.error ?? '請先在 Settings 下載語音模型'}
+              />
+              <VoicePreviewPopover
+                state={popoverState}
+                text={voice.lastTranscription ?? undefined}
+                errorMessage={voice.error ?? undefined}
+                detectedLanguage={transcriptionMeta.detectedLanguage}
+                inferenceTimeMs={transcriptionMeta.inferenceTimeMs}
+                onConfirm={handleVoiceConfirm}
+                onCancel={handleVoiceCancel}
+              />
+            </div>
             {isStreaming ? (
               <button
                 className="claude-send-btn claude-stop-btn"
