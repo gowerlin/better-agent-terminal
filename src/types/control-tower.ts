@@ -24,6 +24,7 @@ export interface WorkOrder {
   estimatedSize?: string // 大 / 中 / 小
   contextRisk?: string   // 高 / 中 / 低
   targetSubproject?: string
+  isArchived?: boolean   // true for orders loaded from _archive/workorders/
 }
 
 const STATUS_VALUES = new Set<WorkOrderStatus>([

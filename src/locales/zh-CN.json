@@ -194,7 +194,6 @@
     "moveToMain": "移至主区域",
     "moveToRight": "移至右侧面板"
   },
-
   "github": {
     "pullRequests": "Pull Requests",
     "issues": "Issues",
@@ -217,7 +216,6 @@
     "reviews": "审查",
     "fetchError": "从 GitHub 获取数据失败"
   },
-
   "terminal": {
     "doubleClickToRename": "双击以重命名",
     "hidePromptBox": "隐藏提示输入框",
@@ -285,7 +283,6 @@
     "noMatchingSkills": "没有匹配的 skills",
     "expandSkills": "展开 Skills"
   },
-
   "agents": {
     "title": "Agents",
     "searchAgents": "搜索 agents...",
@@ -293,7 +290,6 @@
     "noSession": "启动 Agent session 以查看可用的 agents。",
     "noMatchingAgents": "没有匹配的 agents"
   },
-
   "about": {
     "title": "关于",
     "appName": "Better Agent Terminal",
@@ -418,7 +414,6 @@
     "removeImage": "移除图片",
     "hint": "Enter 发送 · Alt+Enter 换行 · Esc 清空 · Ctrl+V 粘贴图片 · ↑↓ 浏览历史"
   },
-
   "controlTower": {
     "title": "指挥塔",
     "refresh": "刷新",
@@ -438,7 +433,29 @@
     "tab": {
       "orders": "工单",
       "kanban": "看板",
-      "sprint": "Sprint"
+      "sprint": "Sprint",
+      "bugs": "漏洞",
+      "backlog": "待办池",
+      "decisions": "决策"
+    },
+    "bugs": {
+      "total": "条",
+      "noBugs": "没有找到 BUG",
+      "archived": "已归档",
+      "relatedWO": "修复工单",
+      "loadError": "（文件读取失败）"
+    },
+    "backlog": {
+      "total": "条",
+      "noEntries": "没有找到待办项目",
+      "archived": "已归档",
+      "loadError": "（文件读取失败）"
+    },
+    "decisions": {
+      "total": "条",
+      "noDecisions": "没有找到决策",
+      "noDetail": "（无详细记录区块）",
+      "searchPlaceholder": "搜索决策..."
     },
     "lane": {
       "TODO": "待办",
@@ -456,6 +473,7 @@
       "title": "交叉比对",
       "allMatch": "一致",
       "mismatch": "项不一致"
-    }
+    },
+    "includeArchived": "包含归档"
   }
 }

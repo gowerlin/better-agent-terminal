@@ -13,7 +13,6 @@
     "loading": "載入中...",
     "preview": "預覽"
   },
-
   "app": {
     "workspaceNotFound": "找不到工作區",
     "workspaceNotFoundDesc": "此分離的工作區可能已被移除。",
@@ -23,7 +22,6 @@
     "remoteConnectionFailedFallback": "遠端連線失敗：{{error}}\n正在切換回本機配置。",
     "remoteMissingInfo": "遠端配置缺少連線資訊。"
   },
-
   "settings": {
     "title": "設定",
     "shell": "Shell",
@@ -118,7 +116,6 @@
     "footerNote": "所有變更會自動儲存。字型變更會立即套用至所有終端。",
     "failedToStartServer": "啟動伺服器失敗：{{error}}"
   },
-
   "sidebar": {
     "workspaces": "工作區",
     "all": "全部",
@@ -146,7 +143,6 @@
     "collapseSidebar": "收合側邊欄",
     "expandSidebar": "展開側邊欄"
   },
-
   "profiles": {
     "title": "配置",
     "saveCurrent": "儲存目前狀態",
@@ -176,7 +172,6 @@
     "fetchingProfiles": "取得中...",
     "currentTarget": "目前目標"
   },
-
   "workspace": {
     "terminal": "終端",
     "files": "檔案",
@@ -199,7 +194,6 @@
     "moveToMain": "移至主區域",
     "moveToRight": "移至右側面板"
   },
-
   "github": {
     "pullRequests": "Pull Requests",
     "issues": "Issues",
@@ -228,7 +222,6 @@
     "commentPosted": "已發佈留言",
     "commentError": "發佈留言失敗"
   },
-
   "terminal": {
     "doubleClickToRename": "雙擊以重新命名",
     "hidePromptBox": "隱藏提示輸入框",
@@ -245,7 +238,6 @@
     "statusIdle": "終端閒置",
     "statusPending": "等待操作"
   },
-
   "dialogs": {
     "closeCodeAgent": "關閉 Code Agent？",
     "closeCodeAgentConfirm": "確定要關閉 Code Agent 終端嗎？任何正在執行的程序將被終止。",
@@ -253,7 +245,6 @@
     "restartTerminalConfirm": "這將終止目前所有執行中的程序。",
     "confirmRestart": "確認重新啟動"
   },
-
   "snippets": {
     "title": "程式碼片段",
     "newSnippet": "新增片段",
@@ -286,7 +277,6 @@
     "scopeWorkspace": "工作區",
     "scopeToWorkspace": "限定此工作區"
   },
-
   "skills": {
     "title": "Skills",
     "searchSkills": "搜尋 skills...",
@@ -299,7 +289,6 @@
     "noMatchingSkills": "沒有符合的 skills",
     "expandSkills": "展開 Skills"
   },
-
   "agents": {
     "title": "Agents",
     "searchAgents": "搜尋 agents...",
@@ -307,7 +296,6 @@
     "noSession": "啟動 Agent session 以查看可用的 agents。",
     "noMatchingAgents": "沒有符合的 agents"
   },
-
   "about": {
     "title": "關於",
     "appName": "Better Agent Terminal",
@@ -317,7 +305,6 @@
     "github": "GitHub",
     "builtWith": "使用 Electron、React 和 xterm.js 建置"
   },
-
   "update": {
     "newVersionAvailable": "有新版本可用！",
     "currentVersion": "目前版本：v{{version}}",
@@ -325,7 +312,6 @@
     "whatsNew": "更新內容：",
     "viewOnGithub": "在 GitHub 上查看"
   },
-
   "envVars": {
     "title": "環境變數",
     "workspaceHint": "設定此工作區的環境變數。這些變數將套用至此工作區中的所有終端。",
@@ -334,7 +320,6 @@
     "variableName": "變數名稱",
     "value": "值"
   },
-
   "git": {
     "commits": "提交紀錄",
     "refresh": "重新整理",
@@ -354,7 +339,6 @@
     "hoursAgo": "{{count}} 小時前",
     "daysAgo": "{{count}} 天前"
   },
-
   "claude": {
     "thinking": "思考中",
     "loadOlderMessages": "載入較舊的訊息（{{count}} 則已封存）",
@@ -428,7 +412,6 @@
     "modelClickToSelect": "模型：{{model}}（點擊選擇）",
     "clickToCopy": "點擊複製"
   },
-
   "promptBox": {
     "placeholder": "在此輸入您的提示...",
     "placeholderWithImage": "新增文字（選填），Enter 傳送",
@@ -437,7 +420,6 @@
     "removeImage": "移除圖片",
     "hint": "Enter 傳送 · Alt+Enter 換行 · Esc 清空 · Ctrl+V 貼上圖片 · ↑↓ 瀏覽歷史"
   },
-
   "controlTower": {
     "title": "指揮塔",
     "refresh": "重新整理",
@@ -457,7 +439,29 @@
     "tab": {
       "orders": "工單",
       "kanban": "看板",
-      "sprint": "Sprint"
+      "sprint": "Sprint",
+      "bugs": "臭蟲",
+      "backlog": "待辦池",
+      "decisions": "決策"
+    },
+    "bugs": {
+      "total": "筆",
+      "noBugs": "沒有找到 BUG",
+      "archived": "已歸檔",
+      "relatedWO": "修復工單",
+      "loadError": "（檔案讀取失敗）"
+    },
+    "backlog": {
+      "total": "筆",
+      "noEntries": "沒有找到待辦項目",
+      "archived": "已歸檔",
+      "loadError": "（檔案讀取失敗）"
+    },
+    "decisions": {
+      "total": "條",
+      "noDecisions": "沒有找到決策",
+      "noDetail": "（無詳細紀錄區塊）",
+      "searchPlaceholder": "搜尋決策..."
     },
     "lane": {
       "TODO": "待辦",
@@ -475,6 +479,7 @@
       "title": "交叉比對",
       "allMatch": "一致",
       "mismatch": "項不一致"
-    }
+    },
+    "includeArchived": "包含封存"
   }
 }

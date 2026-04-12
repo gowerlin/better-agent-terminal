@@ -16,8 +16,14 @@ import {
 import { KanbanView } from './KanbanView'
 import { SprintProgress } from './SprintProgress'
 import { CtToast, useCtToast } from './CtToast'
+import { BugTrackerView } from './BugTrackerView'
+import { BacklogView } from './BacklogView'
+import { DecisionsView } from './DecisionsView'
+import { type BugEntry, parseBugTracker } from '../types/bug-tracker'
+import { type BacklogEntry, parseBacklog } from '../types/backlog'
+import { type DecisionEntry, parseDecisionLog } from '../types/decision-log'
 
-type CtTab = 'orders' | 'kanban' | 'sprint'
+type CtTab = 'orders' | 'kanban' | 'sprint' | 'bugs' | 'backlog' | 'decisions'
 
 interface ControlTowerPanelProps {
   isVisible: boolean
@@ -38,6 +44,12 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [filterStatus, setFilterStatus] = useState<WorkOrderStatus | 'all'>('all')
   const [activeTab, setActiveTab] = useState<CtTab>('orders')
   const [sprintStatus, setSprintStatus] = useState<SprintStatus | null>(null)
+  const [bugEntries, setBugEntries] = useState<BugEntry[]>([])
+  const [backlogEntries, setBacklogEntries] = useState<BacklogEntry[]>([])
+  const [decisions, setDecisions] = useState<DecisionEntry[]>([])
+  const [decisionRawContent, setDecisionRawContent] = useState<string>('')
+  const [showArchivedOrders, setShowArchivedOrders] = useState(false)
+  const [archivedOrders, setArchivedOrders] = useState<WorkOrder[]>([])
   const ctDirRef = useRef<string | null>(null)
   const prevOrdersRef = useRef<Map<string, WorkOrderStatus>>(new Map())
   const { messages: toastMessages, addToast, dismissToast } = useCtToast()
@@ -65,6 +77,70 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       }
     }
     setSprintStatus(null)
+  }, [workspaceFolderPath])
+
+  // Load bug entries from _bug-tracker.md
+  const loadBugs = useCallback(async () => {
+    if (!ctDirPath) return
+    try {
+      const bugTrackerPath = `${ctDirPath}/_bug-tracker.md`
+      const result = await window.electronAPI.fs.readFile(bugTrackerPath)
+      if (result.content) {
+        setBugEntries(parseBugTracker(result.content))
+      }
+    } catch {
+      // _bug-tracker.md not present — silently skip
+    }
+  }, [ctDirPath])
+
+  // Load backlog entries from _backlog.md
+  const loadBacklog = useCallback(async () => {
+    if (!ctDirPath) return
+    try {
+      const backlogPath = `${ctDirPath}/_backlog.md`
+      const result = await window.electronAPI.fs.readFile(backlogPath)
+      if (result.content) {
+        setBacklogEntries(parseBacklog(result.content))
+      }
+    } catch {
+      // _backlog.md not present — silently skip
+    }
+  }, [ctDirPath])
+
+  // Load decision log from _decision-log.md
+  const loadDecisions = useCallback(async () => {
+    if (!ctDirPath) return
+    try {
+      const decisionPath = `${ctDirPath}/_decision-log.md`
+      const result = await window.electronAPI.fs.readFile(decisionPath)
+      if (result.content) {
+        setDecisions(parseDecisionLog(result.content))
+        setDecisionRawContent(result.content)
+      }
+    } catch {
+      // _decision-log.md not present — silently skip
+    }
+  }, [ctDirPath])
+
+  // Load archived work orders from _archive/workorders/
+  const loadArchivedOrders = useCallback(async () => {
+    if (!workspaceFolderPath) return
+    const archivePath = `${workspaceFolderPath}/_ct-workorders/_archive/workorders`
+    try {
+      const entries = await window.electronAPI.fs.readdir(archivePath)
+      const orderFiles = entries.filter(e => !e.isDirectory && isWorkOrderFile(e.name))
+      const orders: WorkOrder[] = []
+      for (const file of orderFiles) {
+        const result = await window.electronAPI.fs.readFile(file.path)
+        if (result.content) {
+          orders.push({ ...parseWorkOrder(file.name, result.content), isArchived: true })
+        }
+      }
+      orders.sort((a, b) => b.id.localeCompare(a.id)) // newest first
+      setArchivedOrders(orders)
+    } catch {
+      setArchivedOrders([])
+    }
   }, [workspaceFolderPath])
 
   // Detect work order status changes → toast notification
@@ -139,7 +215,10 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     if (!isVisible || !ctDirPath) return
     loadWorkOrders()
     loadSprintStatus()
-  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus])
+    loadBugs()
+    loadBacklog()
+    loadDecisions()
+  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions])
 
   // Watch _ct-workorders/ for changes
   useEffect(() => {
@@ -152,6 +231,9 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       if (changedPath === ctDirRef.current) {
         loadWorkOrders()
         loadSprintStatus()
+        loadBugs()
+        loadBacklog()
+        loadDecisions()
       }
     })
 
@@ -161,11 +243,25 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         window.electronAPI.fs.unwatch(ctDirRef.current)
       }
     }
-  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus])
+  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions])
+
+  // Load/clear archived orders when toggle changes
+  useEffect(() => {
+    if (showArchivedOrders) {
+      loadArchivedOrders()
+    } else {
+      setArchivedOrders([])
+    }
+  }, [showArchivedOrders, loadArchivedOrders])
 
   const filteredOrders = filterStatus === 'all'
     ? workOrders
     : workOrders.filter(o => o.status === filterStatus)
+
+  // Combined active + archived orders for rendering (archived always appended at end)
+  const displayOrders = showArchivedOrders
+    ? [...filteredOrders, ...archivedOrders]
+    : filteredOrders
 
   const activeCount = workOrders.filter(o => o.status === 'IN_PROGRESS' || o.status === 'URGENT').length
   const pendingCount = workOrders.filter(o => o.status === 'PENDING').length
@@ -236,6 +332,30 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
             {t('controlTower.tab.sprint')}
           </button>
         )}
+        {bugEntries.length > 0 && (
+          <button
+            className={`ct-tab${activeTab === 'bugs' ? ' active' : ''}`}
+            onClick={() => setActiveTab('bugs')}
+          >
+            {t('controlTower.tab.bugs')}
+          </button>
+        )}
+        {backlogEntries.length > 0 && (
+          <button
+            className={`ct-tab${activeTab === 'backlog' ? ' active' : ''}`}
+            onClick={() => setActiveTab('backlog')}
+          >
+            {t('controlTower.tab.backlog')}
+          </button>
+        )}
+        {decisions.length > 0 && (
+          <button
+            className={`ct-tab${activeTab === 'decisions' ? ' active' : ''}`}
+            onClick={() => setActiveTab('decisions')}
+          >
+            {t('controlTower.tab.decisions')}
+          </button>
+        )}
       </div>
 
       {/* Summary bar */}
@@ -257,21 +377,29 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
                 className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}
                 onClick={() => setFilterStatus(s)}
               >
-                {s === 'all' ? t('controlTower.all') : s.replace('_', ' ')}
+                {s === 'all' ? t('controlTower.all') : statusLabel(s)}
               </button>
             ))}
+            <label className="ct-archive-toggle">
+              <input
+                type="checkbox"
+                checked={showArchivedOrders}
+                onChange={e => setShowArchivedOrders(e.target.checked)}
+              />
+              📦 {t('controlTower.includeArchived')}
+            </label>
           </div>
 
           {/* Work order list */}
           <div className="ct-order-list">
             {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
-            {!loading && filteredOrders.length === 0 && (
+            {!loading && displayOrders.length === 0 && (
               <div className="ct-empty-list">{t('controlTower.noOrders')}</div>
             )}
-            {filteredOrders.map(order => (
+            {displayOrders.map(order => (
               <div
-                key={order.id}
-                className={`ct-order-card ${statusColor(order.status)}${expandedId === order.id ? ' expanded' : ''}`}
+                key={order.isArchived ? `arch-${order.id}` : order.id}
+                className={`ct-order-card ${statusColor(order.status)}${expandedId === order.id ? ' expanded' : ''}${order.isArchived ? ' ct-archived-item' : ''}`}
                 onClick={() => setExpandedId(prev => prev === order.id ? null : order.id)}
               >
                 <div className="ct-order-header">
@@ -361,6 +489,24 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       {activeTab === 'sprint' && sprintStatus && (
         <div className="ct-tab-content">
           <SprintProgress sprint={sprintStatus} workOrders={workOrders} />
+        </div>
+      )}
+
+      {activeTab === 'bugs' && (
+        <div className="ct-tab-content">
+          <BugTrackerView bugs={bugEntries} loading={loading} ctDirPath={ctDirPath} />
+        </div>
+      )}
+
+      {activeTab === 'backlog' && (
+        <div className="ct-tab-content">
+          <BacklogView entries={backlogEntries} loading={loading} ctDirPath={ctDirPath} />
+        </div>
+      )}
+
+      {activeTab === 'decisions' && (
+        <div className="ct-tab-content">
+          <DecisionsView decisions={decisions} loading={loading} rawContent={decisionRawContent} ctDirPath={ctDirPath} />
         </div>
       )}
     </div>

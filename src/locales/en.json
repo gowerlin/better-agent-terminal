@@ -13,7 +13,6 @@
     "loading": "Loading...",
     "preview": "Preview"
   },
-
   "app": {
     "workspaceNotFound": "Workspace not found",
     "workspaceNotFoundDesc": "This detached workspace may have been removed.",
@@ -23,7 +22,6 @@
     "remoteConnectionFailedFallback": "Remote connection failed: {{error}}\nSwitching back to local profile.",
     "remoteMissingInfo": "Remote profile is missing connection info."
   },
-
   "settings": {
     "title": "Settings",
     "shell": "Shell",
@@ -86,7 +84,7 @@
     "statuslineCustomColor": "Custom color",
     "statuslineCurrentTemplate": "Current template string",
     "environmentVariables": "Environment Variables",
-    "globalEnvVarsHint": "Global environment variables applied to ALL workspaces. Workspace-specific variables (\u2699 button) will override these.",
+    "globalEnvVarsHint": "Global environment variables applied to ALL workspaces. Workspace-specific variables (⚙ button) will override these.",
     "remoteAccess": "Remote Access",
     "remoteAccessHint": "Allow other BAT instances or mobile devices to remotely connect and control this host. See",
     "remoteAccessReadme": "README",
@@ -97,7 +95,7 @@
     "connectedAt": "connected {{time}}",
     "port": "Port",
     "startServer": "Start Server",
-    "serverWarning": "\u26a0 After starting, any device with the Token can fully control BAT on this host. Make sure your network environment is secure.",
+    "serverWarning": "⚠ After starting, any device with the Token can fully control BAT on this host. Make sure your network environment is secure.",
     "connectedToRemote": "Connected to remote: {{host}}:{{port}}",
     "mobileConnect": "Mobile Connect",
     "mobileConnectExperimental": "(Experimental)",
@@ -105,9 +103,9 @@
     "mobileConnectSeeReadme": "See",
     "generateQrCode": "Generate QR Code",
     "generating": "Generating...",
-    "qrWarning": "\u26a0 This will start a WebSocket Server allowing external connections. Make sure your network environment is secure before using.",
+    "qrWarning": "⚠ This will start a WebSocket Server allowing external connections. Make sure your network environment is secure before using.",
     "viaTailscale": "via Tailscale",
-    "lanOnly": "LAN only \u2014 phone must be on the same network",
+    "lanOnly": "LAN only — phone must be on the same network",
     "language": "Language",
     "tab": {
       "general": "General",
@@ -118,7 +116,6 @@
     "footerNote": "Changes are saved automatically. Font changes apply immediately to all terminals.",
     "failedToStartServer": "Failed to start server: {{error}}"
   },
-
   "sidebar": {
     "workspaces": "Workspaces",
     "all": "All",
@@ -146,7 +143,6 @@
     "collapseSidebar": "Collapse Sidebar",
     "expandSidebar": "Expand Sidebar"
   },
-
   "profiles": {
     "title": "Profiles",
     "saveCurrent": "Save Current",
@@ -176,7 +172,6 @@
     "fetchingProfiles": "Fetching...",
     "currentTarget": "Current target"
   },
-
   "workspace": {
     "terminal": "Terminal",
     "files": "Files",
@@ -199,7 +194,6 @@
     "moveToMain": "Move to Main Area",
     "moveToRight": "Move to Right Panel"
   },
-
   "github": {
     "pullRequests": "Pull Requests",
     "issues": "Issues",
@@ -228,7 +222,6 @@
     "commentPosted": "Comment posted",
     "commentError": "Failed to post comment"
   },
-
   "terminal": {
     "doubleClickToRename": "Double-click to rename",
     "hidePromptBox": "Hide prompt box",
@@ -245,7 +238,6 @@
     "statusIdle": "Terminal idle",
     "statusPending": "Waiting for action"
   },
-
   "dialogs": {
     "closeCodeAgent": "Close Code Agent?",
     "closeCodeAgentConfirm": "Are you sure you want to close the Code Agent terminal? Any running process will be terminated.",
@@ -253,7 +245,6 @@
     "restartTerminalConfirm": "This will terminate all currently running processes.",
     "confirmRestart": "Confirm Restart"
   },
-
   "snippets": {
     "title": "Snippets",
     "newSnippet": "New Snippet",
@@ -286,7 +277,6 @@
     "scopeWorkspace": "Workspace",
     "scopeToWorkspace": "Scope to this workspace"
   },
-
   "skills": {
     "title": "Skills",
     "searchSkills": "Search skills...",
@@ -299,7 +289,6 @@
     "noMatchingSkills": "No matching skills",
     "expandSkills": "Expand Skills"
   },
-
   "agents": {
     "title": "Agents",
     "searchAgents": "Search agents...",
@@ -307,7 +296,6 @@
     "noSession": "Start an Agent session to see available agents.",
     "noMatchingAgents": "No matching agents"
   },
-
   "about": {
     "title": "About",
     "appName": "Better Agent Terminal",
@@ -317,7 +305,6 @@
     "github": "GitHub",
     "builtWith": "Built with Electron, React, and xterm.js"
   },
-
   "update": {
     "newVersionAvailable": "New Version Available!",
     "currentVersion": "Current: v{{version}}",
@@ -325,7 +312,6 @@
     "whatsNew": "What's New:",
     "viewOnGithub": "View on GitHub"
   },
-
   "envVars": {
     "title": "Environment Variables",
     "workspaceHint": "Configure environment variables for this workspace. These will be applied to all terminals in this workspace.",
@@ -334,7 +320,6 @@
     "variableName": "Variable name",
     "value": "Value"
   },
-
   "git": {
     "commits": "Commits",
     "refresh": "Refresh",
@@ -354,7 +339,6 @@
     "hoursAgo": "{{count}}h ago",
     "daysAgo": "{{count}}d ago"
   },
-
   "claude": {
     "thinking": "Thinking",
     "loadOlderMessages": "Load older messages ({{count}} archived)",
@@ -428,16 +412,14 @@
     "modelClickToSelect": "Model: {{model}} (click to select)",
     "clickToCopy": "Click to copy"
   },
-
   "promptBox": {
     "placeholder": "Type your prompt here...",
     "placeholderWithImage": "Add text (optional), Enter to send",
     "sendToTerminal": "Send to terminal (Enter)",
     "imageAttached": "Image attached",
     "removeImage": "Remove image",
-    "hint": "Enter send \u00b7 Alt+Enter newline \u00b7 Esc clear \u00b7 Ctrl+V paste image \u00b7 \u2191\u2193 history"
+    "hint": "Enter send · Alt+Enter newline · Esc clear · Ctrl+V paste image · ↑↓ history"
   },
-
   "controlTower": {
     "title": "Control Tower",
     "refresh": "Refresh",
@@ -457,7 +439,29 @@
     "tab": {
       "orders": "Orders",
       "kanban": "Kanban",
-      "sprint": "Sprint"
+      "sprint": "Sprint",
+      "bugs": "Bugs",
+      "backlog": "Backlog",
+      "decisions": "Decisions"
+    },
+    "bugs": {
+      "total": "total",
+      "noBugs": "No bugs found",
+      "archived": "Archived",
+      "relatedWO": "Work Order",
+      "loadError": "(Failed to load file)"
+    },
+    "backlog": {
+      "total": "total",
+      "noEntries": "No backlog entries found",
+      "archived": "Archived",
+      "loadError": "(Failed to load file)"
+    },
+    "decisions": {
+      "total": "total",
+      "noDecisions": "No decisions found",
+      "noDetail": "(No detail section available)",
+      "searchPlaceholder": "Search decisions..."
     },
     "lane": {
       "TODO": "To Do",
@@ -475,6 +479,7 @@
       "title": "Cross Validation",
       "allMatch": "match",
       "mismatch": "mismatch(es)"
-    }
+    },
+    "includeArchived": "Include Archived"
   }
 }
