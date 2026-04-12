@@ -464,7 +464,9 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
                         onClick={e => {
                           e.stopPropagation()
                           if (!ctDirPath) return
-                          const filePath = `${ctDirPath}/${order.filename}`
+                          const filePath = order.isArchived
+                            ? `${ctDirPath}/_archive/workorders/${order.filename}`
+                            : `${ctDirPath}/${order.filename}`
                           window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
                           window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
                         }}
