@@ -244,10 +244,16 @@
 | **BUG-004** | AudioContext 崩潰(語音錄音啟動時整個 BAT 閃退) | 🔴 High | ✅ 已修復(T0017-β AudioWorklet 治本)/ runtime 通過 | 2026-04-11 10:15 | 無獨立檔,見 tower state 11:15 checkpoint |
 | **BUG-005** | whisper native addon `require` 回傳 undefined(packaged build) | 🔴 High | ✅ 已修復(T0018 Vite external + asar unpack)/ runtime 通過 | 2026-04-11 13:49 | 無獨立檔,見 tower state 13:49 checkpoint |
 | **BUG-006** | AudioWorklet 在 packaged Electron build 無法載入 | 🔴 High | ✅ 已修復(T0020 改 static worklet asset)/ runtime 通過 | 2026-04-11 15:15 | 無獨立檔,見 T0020 工單 |
-| **BUG-007** | 滑鼠右鍵標記時終端機顯示 OSC 52 調試訊息污染輸出 | 🟢 Low(UX) | 📋 待分派(使用者 dogfood 回報,非阻塞) | 2026-04-11 17:xx | 無獨立檔,見本 checkpoint 內段落 |
-| **BUG-008** | 終端捲動有時造成 render 錯位(overlay UI 殘留在錯誤位置) | 🟡 Medium | ✅ 已修復(T0028 Pattern C — scroll dismiss overlay,commit `37bccdf`)/ runtime 待驗 | 2026-04-11 17:xx | T0028 工單 + 附圖路徑 |
-| **UX-001** | Scrollbar UX 改善:加粗 60% + 永遠佔位(所有使用處) | 🟡 Medium | 📋 待分派(enhancement 類,非阻塞) | 2026-04-11 17:xx | 無獨立檔,見本 checkpoint 內段落 |
-| **BUG-009** | 右鍵功能表「貼上」後 focus 未還給 CLI,需再點一次才能打字 | 🟡 Medium | 📋 待分派(使用者 dogfood 回報,非阻塞) | 2026-04-11 17:xx | 無獨立檔,見本 checkpoint 內段落 |
+| **BUG-007** | 滑鼠右鍵標記時終端機顯示 OSC 52 調試訊息污染輸出 | 🟢 Low | 🚫 關閉（上游行為 D005，Claude Code CLI 輸出，所有終端都有） | 2026-04-12 | — |
+| **BUG-008** | 終端捲動有時造成 render 錯位(overlay UI 殘留在錯誤位置) | 🟡 Medium | ✅ 已修復(T0028 scroll dismiss overlay) / runtime 待驗 | 2026-04-11 17:xx | T0028 工單 |
+| **BUG-009** | 右鍵功能表「貼上」後 focus 未還給 CLI | 🟡 Medium | ✅ 已修復（T0044 c78ab22）/ runtime 驗收通過 | 2026-04-12 | T0044 工單 |
+| **BUG-010** | Alt buffer 鍵盤事件被 xterm 攔截 | 🟡 Medium | ✅ 已修復（T0047 wheel capture 45e6435） | 2026-04-12 | T0047 工單 |
+| **BUG-011** | IME 輸入法 guard | 🟡 Medium | ✅ 已修復（T0033-C） | 2026-04-11 | T0033-C 工單 |
+| **BUG-012** | Alt buffer 捲動殘影（ghost text） | 🟡 Medium | 📋 上游追蹤（#46898，TUI 層問題非 emulator） | 2026-04-11 | T0041 工單 |
+| **BUG-013** | Tab 切換離開終端 → 畫面全黑 | 🔴 High | ✅ 已修復（T0047 revert xterm v6 + ErrorBoundary） | 2026-04-12 | T0047 工單 |
+| **BUG-014** | Ctrl+滾輪縮放終端字體失效 | 🟡 Medium | ✅ 已修復（T0047 revert v6 + wheel capture） | 2026-04-12 | T0047 工單 |
+| **BUG-015** | 終端字體從黑體變細明體（CJK fallback） | 🟡 Medium | ✅ 已修復（T0047 JhengHei fallback 9cc66d3） | 2026-04-12 | T0047 工單 |
+| **UX-001** | Scrollbar UX 改善:加粗 60% + 永遠佔位 | 🟢 Low | 📋 待分派（enhancement，非阻塞） | 2026-04-11 | — |
 
 **BUG-007 摘要**(2026-04-11 17:xx 由使用者 dogfood 回報):
 - **現象**:在 BAT(本專案自家產品)終端內滑鼠右鍵標記(選取文字)時,終端輸出出現調試訊息
