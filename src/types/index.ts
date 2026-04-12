@@ -119,15 +119,15 @@ const isWindows = typeof navigator !== 'undefined' && navigator.userAgent.includ
 // Cross-platform fallback chains for reliable xterm.js rendering
 export const FONT_OPTIONS: { id: FontType; name: string; fontFamily: string }[] = [
   { id: 'system', name: 'System Default', fontFamily: isWindows
-    ? 'Consolas, "Courier New", monospace'
+    ? 'Consolas, "Courier New", "Microsoft JhengHei", monospace'
     : '"SF Mono", Menlo, Monaco, monospace' },
-  { id: 'cascadia-code', name: 'Cascadia Code', fontFamily: '"Cascadia Code", "Cascadia Mono", Consolas, monospace' },
-  { id: 'consolas', name: 'Consolas', fontFamily: 'Consolas, "Courier New", monospace' },
-  { id: 'sf-mono', name: 'SF Mono', fontFamily: '"SF Mono", Menlo, Consolas, monospace' },
-  { id: 'menlo', name: 'Menlo', fontFamily: 'Menlo, Consolas, monospace' },
-  { id: 'monaco', name: 'Monaco', fontFamily: 'Monaco, Consolas, monospace' },
-  { id: 'fira-code', name: 'Fira Code', fontFamily: '"Fira Code", Consolas, monospace' },
-  { id: 'jetbrains-mono', name: 'JetBrains Mono', fontFamily: '"JetBrains Mono", Consolas, monospace' },
+  { id: 'cascadia-code', name: 'Cascadia Code', fontFamily: '"Cascadia Code", "Cascadia Mono", Consolas, "Microsoft JhengHei", monospace' },
+  { id: 'consolas', name: 'Consolas', fontFamily: 'Consolas, "Courier New", "Microsoft JhengHei", monospace' },
+  { id: 'sf-mono', name: 'SF Mono', fontFamily: '"SF Mono", Menlo, Consolas, "Microsoft JhengHei", monospace' },
+  { id: 'menlo', name: 'Menlo', fontFamily: 'Menlo, Consolas, "Microsoft JhengHei", monospace' },
+  { id: 'monaco', name: 'Monaco', fontFamily: 'Monaco, Consolas, "Microsoft JhengHei", monospace' },
+  { id: 'fira-code', name: 'Fira Code', fontFamily: '"Fira Code", Consolas, "Microsoft JhengHei", monospace' },
+  { id: 'jetbrains-mono', name: 'JetBrains Mono', fontFamily: '"JetBrains Mono", Consolas, "Microsoft JhengHei", monospace' },
   { id: 'custom', name: 'Custom', fontFamily: 'monospace' },
 ];
 
