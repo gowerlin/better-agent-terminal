@@ -1,8 +1,8 @@
 # Bug Tracker — better-agent-terminal
 
-> 最後更新：2026-04-12 (UTC+8)（T0064 歸檔更新）
+> 最後更新：2026-04-12 22:13 (UTC+8)（T0065：BUG-001/002 狀態 → 🧪 VERIFY）
 >
-> 統計：🔴 Open: 1 | ✅ Fixed: 13 | 🚫 Closed: 1 | 總計: 15
+> 統計：🔴 Open: 1 | 🧪 Verify: 2 | ✅ Fixed: 11 | 🚫 Closed: 1 | 總計: 15
 
 ---
 
@@ -14,12 +14,19 @@
 
 ---
 
+## 🧪 驗收中 (VERIFY)
+
+| ID | 標題 | 嚴重度 | 狀態 | 修復工單 | 連結 |
+|----|------|--------|------|---------|------|
+| BUG-001 | Claude OAuth 登入 paste 被截斷 | 🔴 High | 🧪 VERIFY (T0006) / awaiting runtime verification | T0006 | [詳細](BUG-001-claude-oauth-paste-truncated.md) |
+| BUG-002 | 右鍵功能表位置嚴重位移 | 🟡 Medium | 🧪 VERIFY (T0008+T0012) / awaiting runtime verification | T0012 | [詳細](BUG-002-context-menu-offset.md) |
+
+---
+
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 狀態 | 修復工單 | 連結 |
 |----|------|--------|------|---------|------|
-| BUG-001 | Claude OAuth 登入 paste 被截斷 | 🔴 High | ✅ FIXED (T0006) / runtime 待驗 | T0006 | [詳細](BUG-001-claude-oauth-paste-truncated.md) |
-| BUG-002 | 右鍵功能表位置嚴重位移 | 🟡 Medium | ✅ FIXED (T0008+T0012) / runtime 待驗 | T0012 | [詳細](BUG-002-context-menu-offset.md) |
 | BUG-003 | `voice:downloadModel` IPC handler 未註冊 | 🔴 High | ✅ FIXED (T0013) | T0013 | [詳細](_archive/bugs/BUG-003-voice-download-model-ipc-not-registered.md) |
 | BUG-004 | AudioContext 崩潰（語音錄音啟動時 BAT 閃退） | 🔴 High | ✅ FIXED (T0017-β) | T0017-β | [詳細](_archive/bugs/BUG-004-audiocontext-crash-on-voice-start.md) |
 | BUG-005 | whisper addon `require` 回傳 undefined（packaged） | 🔴 High | ✅ FIXED (T0018) | T0018 | [詳細](_archive/bugs/BUG-005-whisper-addon-require-undefined-packaged.md) |
@@ -44,7 +51,6 @@
 
 ## 📝 備註
 
-- BUG-001/002：runtime 驗證尚未完成，code fix 已確認
-- BUG-008：runtime 驗證待使用者確認
+- BUG-001/002：狀態 🧪 VERIFY，code fix 已確認，awaiting runtime verification
 - BUG-012：上游 issue anthropics/claude-code#46898，等 upstream 修復
 - 下一個 BUG 編號：**BUG-016**

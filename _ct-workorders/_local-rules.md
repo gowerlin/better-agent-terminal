@@ -12,7 +12,7 @@
 
 | 前綴 | 用途 | 狀態流 |
 |------|------|--------|
-| `BUG-###-xxx.md` | 獨立 Bug 報修單 | 📋 REPORTED → 🔍 INVESTIGATING → 🔧 FIXING → ✅ FIXED → 🚫 CLOSED/WONTFIX |
+| `BUG-###-xxx.md` | 獨立 Bug 報修單 | 📋 REPORTED → 🔍 INVESTIGATING → 🔧 FIXING → 🧪 VERIFY → ✅ FIXED → 🚫 CLOSED/WONTFIX |
 | `PLAN-###-xxx.md` | 計劃 / Idea 記錄單 | 💡 IDEA → 📋 PLANNED → 🔄 IN_PROGRESS → ✅ DONE → 🚫 DROPPED |
 
 ---
@@ -47,6 +47,32 @@
 - 標題
 - 嚴重度
 - 現象描述（預期 vs 實際）
+
+### VERIFY（驗收待確認）狀態說明
+
+**觸發**：code fix 已完成，進入 🧪 VERIFY 等待真人或 AI 執行 runtime 驗收
+
+**步驟**：
+1. 修復工單完成後，塔台將 BUG 狀態從 🔧 FIXING 改為 🧪 VERIFY
+2. 同步更新 `_bug-tracker.md` 狀態欄
+3. 進行 runtime 驗收（見下方「驗收者」說明）
+4. 驗收通過 → 狀態改為 ✅ FIXED
+5. 驗收未通過 → 見「驗收失敗處理」
+
+### 驗收者
+
+| 驗收類型 | 適用情境 | 備註 |
+|---------|---------|------|
+| 使用者 / QA（真人） | 所有情境 | 最終決定者 |
+| AI sub-session | 可自動化判斷的場景（unit test、純邏輯驗證） | 需有明確判準 |
+| 需真人複驗 | E2E 流程、視覺化呈現、UX 感受 | AI 難以可靠判斷 |
+
+### 驗收失敗處理
+
+| 失敗情境 | 處理方式 |
+|---------|---------|
+| 原問題未解（fix 無效） | 狀態退回 🔧 FIXING，附上驗收失敗說明，重新派修復工單 |
+| 衍生問題（fix 正確但帶來新 bug） | 原 BUG 狀態升為 ✅ FIXED（原問題已解），另開新 BUG 單報修衍生問題 |
 
 ---
 
