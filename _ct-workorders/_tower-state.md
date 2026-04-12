@@ -9,12 +9,34 @@
 | T0045 | 回滾 T0044 Bug A commit | ✅ DONE | revert f327d78 驗收通過 |
 | T0046 | BUG-013 Tab 切換全黑調查 | ✅ DONE | 根因：xterm v6 dispose TypeError |
 | T0047 | Revert xterm v6 + ErrorBoundary | ✅ DONE | BUG-013/014/015 全部驗收通過 |
+| T0048 | Merge T0044 → main | ✅ DONE | merge commit f1308e5 |
 
 ### 決策更新
 - D005: BUG-007 關閉為「上游行為 / by design」— OSC 52 訊息是 Claude Code CLI 本身輸出，所有終端都有
 - D006: BUG-013 新增 — Tab 切換離開終端時畫面全黑，100% 重現，High 嚴重度。根因確認為 xterm v6（推翻先前排除假設）
 - D007: BUG-014/015 新增 — Ctrl+滾輪縮放失效 + 字體從黑體變細明體，疑似 xterm v6 副作用
 - D008: 修復策略 B+C — revert xterm v5 + 加 ErrorBoundary 保護網
+- D009: 版號管理 — fork 獨立版號從 1.0.0 開始，package.json 管我們版號，version.json 管 upstream 元資料
+- D010: 上游追蹤 — upstream: tony1223/better-agent-terminal, fork: gowerlin/better-agent-terminal, 上游版號 2.1.3，lastSyncCommit: 079810025
+
+### 設定 + 語音輸入擴展（高優先）
+| 工單 | 任務 | 狀態 | 備註 |
+|------|------|------|------|
+| T0049 | 語音模組架構分析 | ✅ DONE | 耦合度極低，可直接複用 |
+| T0052 | 設定 dialog Tabs 分群 | ✅ DONE | 290696b 驗收通過 |
+| T0053 | DevTools menu 與 Settings 同步 | ✅ DONE | dev mode 強制覆蓋修正 |
+| T0054 | 塔台圖示換 🗼 | ✅ DONE | b00631a |
+| T0050 | 一般終端語音觸發（popover + stdin） | ✅ DONE | 4cccd21 useVoicePopover hook + MainPanel |
+| T0055 | 版號管理 + About dialog | ✅ DONE | 12b7e35 version 1.0.0, upstream 2.1.3 |
+| T0051 | Claude Agent Chat Box 🎤 按鈕 | ✅ DONE | ee67bbb + 8966729 popover overflow 修正 |
+
+### Backlog
+- Vite v5→v6 升級（CJS 警告，Low，排 Milestone 開頭 + GP009 安全掃描）
+- Dynamic import 衝突修正（SnippetPanel/SkillsPanel/AgentsPanel/FileTree 在 App.tsx 靜態 + WorkspaceView 動態 import，Low，順手修）
+- 14 個 npm audit 漏洞（tar/cmake-js/electron-builder 鏈，需 breaking change）
+- anthropics/claude-code#46898 追蹤回覆
+- GPU/MLX 加速 Whisper 推理調查（whisper-node prebuilt 是否支援 CUDA/Metal）
+- T0010 macOS 麥克風權限（NSMicrophoneUsageDescription + askForMediaAccess）
 
 ## 當前進度（2026-04-12 15:05 — Session 結束）
 
@@ -218,7 +240,7 @@
 |----|------|--------|------|---------|------|
 | **BUG-001** | Claude OAuth 登入 paste 被截斷(應用終端內無法完成授權) | 🔴 High | ✅ 已修復(T0006)/ runtime 未驗 | 2026-04-11 00:25 | `_ct-workorders/BUG-001-claude-oauth-paste-truncated.md` |
 | **BUG-002** | 右鍵功能表位置嚴重位移(除終端縮圖區外全部 UI) | 🟡 Medium | ✅ 已修復(T0008+T0012)/ runtime 未驗 | 2026-04-11 00:40 | `_ct-workorders/BUG-002-context-menu-offset.md` |
-| **BUG-003** | `voice:downloadModel` IPC handler 未註冊(4 模型下載全失效) | 🔴 High | ⚠️ PARTIAL(T0013 code 修 / runtime 待 Phase 1 E2E 新工單 — T0023 編號已重分配給 archive orphan,見 2026-04-11 21:26 checkpoint) | 2026-04-11 09:53 | T0013 工單內含現象描述 |
+| **BUG-003** | `voice:downloadModel` IPC handler 未註冊(4 模型下載全失效) | 🔴 High | ✅ 已修復 / runtime 驗收通過 (2026-04-12) | 2026-04-11 09:53 | T0013 工單內含現象描述 |
 | **BUG-004** | AudioContext 崩潰(語音錄音啟動時整個 BAT 閃退) | 🔴 High | ✅ 已修復(T0017-β AudioWorklet 治本)/ runtime 通過 | 2026-04-11 10:15 | 無獨立檔,見 tower state 11:15 checkpoint |
 | **BUG-005** | whisper native addon `require` 回傳 undefined(packaged build) | 🔴 High | ✅ 已修復(T0018 Vite external + asar unpack)/ runtime 通過 | 2026-04-11 13:49 | 無獨立檔,見 tower state 13:49 checkpoint |
 | **BUG-006** | AudioWorklet 在 packaged Electron build 無法載入 | 🔴 High | ✅ 已修復(T0020 改 static worklet asset)/ runtime 通過 | 2026-04-11 15:15 | 無獨立檔,見 T0020 工單 |
