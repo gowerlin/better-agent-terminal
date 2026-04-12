@@ -188,6 +188,9 @@ export class PtyManager {
           BAT_SESSION: '1',
           // Force color output
           FORCE_COLOR: '3',
+          // Suppress ED2-induced viewport flicker in Claude Code streaming
+          // (xterm.js issue #5801: ED2 inside DEC 2026 sync blocks resets viewportY)
+          CLAUDE_CODE_NO_FLICKER: '1',
           // Ensure not detected as CI environment
           CI: ''
         }
