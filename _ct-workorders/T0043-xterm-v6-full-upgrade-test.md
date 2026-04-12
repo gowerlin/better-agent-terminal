@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0043
 - **任務名稱**：全套件升級 + xterm.js v6 測試 BUG-012 殘影問題
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-12 14:25 (UTC+8)
 - **開始時間**：2026-04-12 14:25 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-12 14:44 (UTC+8)
 - **關聯**：T0041（BUG-012 根因分析），T0042（upstream issue，依賴本工單結果）
 
 ## 工作量預估
@@ -110,19 +110,44 @@
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED / PARTIAL）
+DONE
 
 ### 產出摘要
-（升級前/後版本對比、BUG-012 測試結果、breaking changes）
+
+**升級前/後版本對比**：
+
+| 套件 | 升級前 | 升級後 | 變化 |
+|------|--------|--------|------|
+| @xterm/xterm | ^5.5.0 | ^6.0.0 | Major ↑ |
+| @xterm/addon-canvas | ^0.7.0 | ^0.7.0 | 不變（peer dep 衝突，使用 --legacy-peer-deps） |
+| @xterm/addon-fit | ^0.10.0 | ^0.11.0 | Minor ↑ |
+| @xterm/addon-unicode11 | ^0.8.0 | ^0.9.0 | Minor ↑ |
+| @xterm/addon-web-links | ^0.11.0 | ^0.12.0 | Minor ↑ |
+| 其他套件 | — | — | npm update 更新 75 個套件 |
+
+**Breaking changes**：無。xterm v6.0.0 與現有程式碼完全相容，零 TypeScript 錯誤，build 一次通過。
+
+**BUG-012 測試結果**：❌ **未修復**。
+- 測試方式：啟動 dev 版 BAT → 開啟終端機 → 啟動 Claude TUI → 在 alt buffer 中用滑鼠滾輪捲動
+- 結果：殘影行為與升級前相同，xterm v6 未改變 alt buffer 捲動時的殘影問題
+- 結論：進一步確認 BUG-012 根因在 Claude Code TUI 的 cursor positioning 行為，非 xterm.js renderer 問題
+
+**是否建議 merge 回 main**：✅ 建議。xterm v6 升級本身有價值（更新的 API、效能改善、安全修補），且零 breaking changes。
+
+**Git 產出**：
+- 分支 `T0043-xterm-v6-test` 已建立並推送到遠端
+- Commit: `b5b3d1a` chore(deps): upgrade xterm.js v5→v6
+- Commit: `5e7ceb5` docs(workorders): add T0040-T0043
 
 ### 互動紀錄
-（記錄執行過程中與使用者的重要互動）
+[14:42] Q: BUG-012 殘影測試結果？ → A: 殘影仍然存在 → Action: 記錄為「未修復」，確認根因在 TUI 端
 
 ### 遭遇問題
-（若有問題或需要指揮塔介入的事項，在此描述）
+- `@xterm/addon-canvas@0.7.0` 的 peer dependency 仍要求 `@xterm/xterm@^5.0.0`，與 v6 衝突。使用 `--legacy-peer-deps` 繞過。canvas addon 尚未發布相容 xterm v6 的穩定版（beta 0.8.0 也仍是 ^5.0.0 peer dep）。
+- 14 個 npm audit vulnerability 仍存在（來源：tar→cmake-js→whisper-node-addon、electron-builder），需 breaking change 升級才能修復，本次未處理。
 
 ### sprint-status.yaml 已更新
 不適用
 
 ### 回報時間
-（填入當前時間）
+2026-04-12 14:44 (UTC+8)

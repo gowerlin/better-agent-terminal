@@ -1,6 +1,6 @@
 # Tower State
 
-## 當前進度（2026-04-12 12:36）
+## 當前進度（2026-04-12 15:05 — Session 結束）
 
 ### 已完成（今日）
 | 工單 | 任務 | 驗收 |
@@ -17,8 +17,19 @@
 |------|------|------|------|
 | T0040 | 修復 Redraw 按鈕未觸發重繪 | ✅ DONE 驗收通過 | cd46b27 |
 | T0041 | BUG-012 v2 alt buffer 殘影深度調查 | ✅ PARTIAL 驗收通過 | 根因確認：上游 TUI 問題，非 emulator |
-| T0042 | 提交 upstream issue | ⏸ 暫緩 | 等 T0043 結果補充版本對比資訊 |
-| T0043 | 全套件升級 + xterm v6 測試 BUG-012 | 📋 PENDING | 分支保留，結果更新 T0042 issue 內容 |
+| T0042 | 提交 upstream issue | ✅ DONE | anthropics/claude-code#46898 |
+| T0043 | 全套件升級 + xterm v6 測試 BUG-012 | ✅ DONE | v6 殘影未修復，分支保留不 merge，等 canvas addon v6 相容 |
+
+### 待處理（下次 session）
+- T0043 分支 `T0043-xterm-v6-test` 待 merge（等 `@xterm/addon-canvas` v6 相容版發布）
+- 14 個 npm audit 漏洞（tar/cmake-js/electron-builder 鏈，需 breaking change）
+- anthropics/claude-code#46898 追蹤回覆
+
+### 學習萃取（*evolve 2026-04-12 15:03）
+- GP020 (Global): UI/互動工單驗收條件必含使用者操作驗證
+- GA007 (Global): 未確認根因就實作修復（反模式）
+- L027 (Project): 先修 debug 工具再做根因調查
+- L028 (Project): 跨版本驗證強化 upstream issue 說服力
 
 ### 決策日誌
 - D001: 先修 Redraw 再調查 BUG-012（Redraw 為測試工具 + 可能暴露根因）

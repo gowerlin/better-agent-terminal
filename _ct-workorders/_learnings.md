@@ -984,3 +984,47 @@ BAT 在 **alt screen buffer**（`\e[?1049h`）情境下，**多個 event pipelin
 ### 發現者
 
 塔台（H1-refined 假設建構）+ 使用者（提供三組差分證據 + alt buffer smoking gun 觀察）
+
+## L027 - 2026-04-12 — 先修 Debug 工具再做根因調查
+
+### 模式
+當 debug 輔助工具（如 Redraw 按鈕）本身有缺陷時，先修好工具再進行根因調查。
+
+### 規則
+- **觸發**：調查類工單的測試/驗證工具本身不可用
+- **做法**：拆為兩張工單，先修工具（T0040），再做調查（T0041）
+- **效益**：調查過程中可即時驗證假設（如用 Redraw 區分「渲染問題」vs「buffer 問題」）
+
+### 數據點
+- T0040（Redraw 修復，8 min）→ T0041（BUG-012 調查，73 min）
+- T0041 調查中多次使用 Redraw 按鈕驗證：resize 清除殘影 = buffer 問題而非 renderer 問題
+- 若沒有 T0040，T0041 需要更長時間才能排除 renderer 假設
+
+### 適用範圍
+- Terminal emulator 開發（Redraw / fit / resize 工具）
+- 任何有「診斷工具」的 debug 場景
+
+### 狀態
+🟡（1 次驗證，terminal 特定）
+
+## L028 - 2026-04-12 — 跨版本驗證強化 Upstream Issue 說服力
+
+### 模式
+提交 upstream issue 前，先在多個版本/配置下重現問題，排除「升級可解」的反駁。
+
+### 規則
+- **觸發**：準備向上游提交 bug report
+- **做法**：在獨立分支升級相關依賴到最新版，重現問題，將對比結果納入 issue
+- **效益**：issue 附帶「v5 + v6 + DOM + canvas 四組合皆重現」→ 直接排除版本/renderer 因素
+
+### 數據點
+- T0043：xterm v5.5.0 → v6.0.0 升級，BUG-012 殘影行為完全相同
+- T0042 issue（anthropics/claude-code#46898）因此包含 Cross-version verification 段落
+- 分支策略：`T0043-xterm-v6-test` 保留不 merge，升級本身也有獨立價值
+
+### 適用範圍
+- 向開源專案提交 issue
+- 依賴版本敏感的 bug 調查
+
+### 狀態
+🟡（1 次驗證）
