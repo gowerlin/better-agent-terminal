@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0054
 - **任務名稱**：側邊欄塔台圖示與 Agents 區分
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-12 17:54 (UTC+8)
 - **開始時間**：2026-04-12 17:56 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-12 17:59 (UTC+8)
 
 ## 工作量預估
 - **預估規模**：極小（換一個 icon）
@@ -55,13 +55,18 @@ fix(ui): differentiate sidebar tower icon from agents icon
 > 以下由 sub-session 填寫
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED / PARTIAL）
+DONE
 
 ### 產出摘要
-（修改檔案、最終選用的圖示、commit hash）
+- 修改檔案：`src/App.tsx`（2 處）
+- 選用圖示：🗼（\u{1F5FC}，塔台語意最符）
+- 修改位置：
+  - L796：左側 sidebar collapsed 狀態 — 加入 `panel === 'control-tower'` 明確判斷
+  - L962：右側 sidebar collapsed 狀態 — 加入 `panel === 'control-tower'` 明確判斷
+- Commit：`b00631a` — fix(ui): differentiate sidebar tower icon from agents icon
 
 ### 遭遇問題
-（若有）
+無
 
 ### 回報時間
-（填入當前時間）
+2026-04-12 17:59 (UTC+8)
