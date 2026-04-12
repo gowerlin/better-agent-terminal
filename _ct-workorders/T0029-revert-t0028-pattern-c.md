@@ -2,7 +2,7 @@
 id: T0029
 title: Revert T0028 (Pattern C) — 零收益 + padding regression
 type: hotfix-revert
-status: BLOCKED
+status: DONE
 priority: high
 created: 2026-04-11 21:50 (Asia/Taipei)
 started: 2026-04-11 22:02 (Asia/Taipei)
