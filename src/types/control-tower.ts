@@ -33,6 +33,10 @@ const STATUS_VALUES = new Set<WorkOrderStatus>([
 /**
  * 從工單 .md 內容解析 metadata
  * 容錯設計：欄位缺失不報錯，返回 partial data
+ * 支援：
+ *   - Markdown 格式：**狀態**：DONE / **狀態**:DONE（全形/半形冒號）
+ *   - YAML frontmatter 格式：status: DONE
+ *   - 狀態值後帶括號附加文字：DONE（塔台追認...） → DONE
  */
 export function parseWorkOrder(filename: string, content: string): WorkOrder {
   const extractField = (label: string): string | undefined => {
@@ -41,10 +45,23 @@ export function parseWorkOrder(filename: string, content: string): WorkOrder {
     return match?.[1]?.trim()
   }
 
+  /** 從 raw 字串中提取第一個有效狀態關鍵字，忽略括號附加文字 */
+  const extractStatusKeyword = (raw: string | undefined): WorkOrderStatus | undefined => {
+    if (!raw) return undefined
+    const keyword = raw.toUpperCase().match(/^(DONE|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
+    return keyword && STATUS_VALUES.has(keyword as WorkOrderStatus) ? keyword as WorkOrderStatus : undefined
+  }
+
   const id = extractField('工單編號') ?? filenameToId(filename)
   const title = extractField('任務名稱') ?? extractField('標題') ?? filenameToTitle(filename)
-  const rawStatus = extractField('狀態')?.toUpperCase() as WorkOrderStatus | undefined
-  const status: WorkOrderStatus = rawStatus && STATUS_VALUES.has(rawStatus) ? rawStatus : 'PENDING'
+
+  // 優先 Markdown 格式，找不到再試 YAML frontmatter
+  const rawMarkdownStatus = extractField('狀態')
+  const yamlMatch = !rawMarkdownStatus ? content.match(/^status:\s*(\S+)/im) : null
+  const status: WorkOrderStatus =
+    extractStatusKeyword(rawMarkdownStatus) ??
+    extractStatusKeyword(yamlMatch?.[1]) ??
+    'PENDING'
 
   return {
     id,
