@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0037
 - **任務名稱**：UX-003 終端工具列狀態燈號：調查狀態規則 + 加 Tooltip
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-12 11:52 (UTC+8)
 - **開始時間**：2026-04-12 11:57 (UTC+8)
-- **完成時間**：—
+- **完成時間**：2026-04-12 12:05 (UTC+8)
 - **目標子專案**：（單一專案）
 - **工單類型**：🔍 **Investigation + Feature**
 
@@ -108,16 +108,36 @@ grep -n "bg-green\|bg-red\|bg-yellow\|#00\|rgba\|status.*color\|color.*status" s
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-（待填）
+DONE
 
 ### 燈號狀態調查結果
-（待填——填入狀態表）
+
+燈號元件：`ActivityIndicator`（`src/components/ActivityIndicator.tsx`）
+使用位置：`TerminalThumbnail.tsx` 第 206 行
+
+| 狀態名稱 | 顏色 | 觸發條件 | CSS Class | Tooltip 文字 |
+|---------|------|---------|-----------|-------------|
+| 活躍中  | 綠色 `#10b981`，呼吸動畫 | 10 秒內有終端輸出（`lastActivityTime`） | `active` | 終端活躍中 |
+| 閒置    | 灰白半透明，dim | 超過 10 秒無輸出 | `inactive` | 終端閒置 |
+| 等待操作 | 紅色 `#ef4444`，`?` 角標，快速呼吸 | `terminal.hasPendingAction === true` | `pending`（疊加在 active/inactive 上） | 等待操作 |
+
+狀態優先級：`pending` > `active` > `inactive`
 
 ### Git 摘要
-（待填）
+commit `82717d3`
+`feat(terminal): add tooltip to terminal status indicator (UX-003)`
+
+修改檔案：
+- `src/components/ActivityIndicator.tsx`：新增 `useTranslation`、計算 `tooltipText`、`div` 加 `title` attribute
+- `src/locales/en.json`：新增 `terminal.statusActive/statusIdle/statusPending`
+- `src/locales/zh-TW.json`：新增繁體中文對應 key
+- `src/locales/zh-CN.json`：新增簡體中文對應 key
 
 ### 遭遇問題
-（待填）
+無
+
+### 互動紀錄
+無
 
 ### 回報時間
-（待填）
+2026-04-12 12:05 (UTC+8)
