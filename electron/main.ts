@@ -209,9 +209,11 @@ function isMinimizeToTrayEnabled(): boolean {
 
 /** Read enableDevTools from persisted settings file (sync, for menu building) */
 function isDevToolsEnabled(): boolean {
-  // Always allow in dev mode
-  if (VITE_DEV_SERVER_URL) return true
-  return readPersistedSettingsSync()?.enableDevTools === true
+  const persisted = readPersistedSettingsSync()
+  // Dev mode: enabled by default, but can be explicitly disabled via settings
+  if (VITE_DEV_SERVER_URL) return persisted?.enableDevTools !== false
+  // Production: disabled by default, must be explicitly enabled via settings
+  return persisted?.enableDevTools === true
 }
 
 function getCrashesDir(): string {
