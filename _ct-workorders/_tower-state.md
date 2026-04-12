@@ -1,5 +1,21 @@
 # Tower State
 
+## 當前進度（2026-04-12 16:09 更新）
+
+### 進行中
+| 工單 | 任務 | 狀態 | 備註 |
+|------|------|------|------|
+| T0044 | BUG-009 focus 修復 | ✅ DONE | Bug B ✅ c78ab22, Bug A 關閉為上游行為 |
+| T0045 | 回滾 T0044 Bug A commit | ✅ DONE | revert f327d78 驗收通過 |
+| T0046 | BUG-013 Tab 切換全黑調查 | ✅ DONE | 根因：xterm v6 dispose TypeError |
+| T0047 | Revert xterm v6 + ErrorBoundary | ✅ DONE | BUG-013/014/015 全部驗收通過 |
+
+### 決策更新
+- D005: BUG-007 關閉為「上游行為 / by design」— OSC 52 訊息是 Claude Code CLI 本身輸出，所有終端都有
+- D006: BUG-013 新增 — Tab 切換離開終端時畫面全黑，100% 重現，High 嚴重度。根因確認為 xterm v6（推翻先前排除假設）
+- D007: BUG-014/015 新增 — Ctrl+滾輪縮放失效 + 字體從黑體變細明體，疑似 xterm v6 副作用
+- D008: 修復策略 B+C — revert xterm v5 + 加 ErrorBoundary 保護網
+
 ## 當前進度（2026-04-12 15:05 — Session 結束）
 
 ### 已完成（今日）
@@ -18,10 +34,9 @@
 | T0040 | 修復 Redraw 按鈕未觸發重繪 | ✅ DONE 驗收通過 | cd46b27 |
 | T0041 | BUG-012 v2 alt buffer 殘影深度調查 | ✅ PARTIAL 驗收通過 | 根因確認：上游 TUI 問題，非 emulator |
 | T0042 | 提交 upstream issue | ✅ DONE | anthropics/claude-code#46898 |
-| T0043 | 全套件升級 + xterm v6 測試 BUG-012 | ✅ DONE | v6 殘影未修復，分支保留不 merge，等 canvas addon v6 相容 |
+| T0043 | 全套件升級 + xterm v6 測試 BUG-012 | ✅ DONE | v6 殘影未修復，已手動 merge to main (2026-04-12) |
 
 ### 待處理（下次 session）
-- T0043 分支 `T0043-xterm-v6-test` 待 merge（等 `@xterm/addon-canvas` v6 相容版發布）
 - 14 個 npm audit 漏洞（tar/cmake-js/electron-builder 鏈，需 breaking change）
 - anthropics/claude-code#46898 追蹤回覆
 
