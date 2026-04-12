@@ -52,6 +52,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
+  const [altBufferActive, setAltBufferActive] = useState(false)
   const [terminalReady, setTerminalReady] = useState(false)
   const hasBeenFocusedRef = useRef(false)
   const isActiveRef = useRef(isActive)
@@ -347,6 +348,13 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     fitAddonRef.current = fitAddon
     setTerminalReady(true)
 
+    // Track alt buffer state (BUG-008 infrastructure)
+    const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
+      const isAlt = activeBuffer === terminal.buffer.alternate
+      setAltBufferActive(isAlt)
+      dlog(`[terminal] buffer changed: ${isAlt ? 'alt' : 'normal'}`, terminalId)
+    })
+
     // Handle terminal input
     terminal.onData((data) => {
       window.electronAPI.pty.write(terminalId, data)
@@ -560,6 +568,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       unsubscribeOutput()
       unsubscribeExit()
       unsubscribeSettings()
+      bufferChangeDisposable.dispose()
       if (resizeTimer) clearTimeout(resizeTimer)
       if (imePendingRaf) cancelAnimationFrame(imePendingRaf)
       resizeObserver.disconnect()
