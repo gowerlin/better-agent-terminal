@@ -45,6 +45,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
   const [showAssistantMsg, setShowAssistantMsg] = useState(true)
   const [showToolMsg, setShowToolMsg] = useState(true)
   const [showThinkingMsg, setShowThinkingMsg] = useState(true)
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false)
 
   const handleDoubleClick = () => {
     setEditValue(terminal.title)
@@ -64,6 +65,15 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
     } else if (e.key === 'Escape') {
       setIsEditing(false)
     }
+  }
+
+  const handleRedraw = () => {
+    window.dispatchEvent(new CustomEvent('terminal-redraw', { detail: { terminalId: terminal.id } }))
+  }
+
+  const handleRestartConfirmed = () => {
+    setShowRestartConfirm(false)
+    onRestart(terminal.id)
   }
 
   return (
@@ -162,7 +172,14 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
           )}
           <button
             className="action-btn"
-            onClick={() => onRestart(terminal.id)}
+            onClick={handleRedraw}
+            title={t('terminal.redrawTerminal')}
+          >
+            ↺
+          </button>
+          <button
+            className="action-btn"
+            onClick={() => setShowRestartConfirm(true)}
             title={t('terminal.restartTerminal')}
           >
             ⟳
@@ -196,6 +213,22 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
       </div>
       {!isClaudeCode && showPromptBox && (
         <PromptBox terminalId={terminal.id} isActive={isActive} />
+      )}
+      {showRestartConfirm && (
+        <div className="dialog-overlay" onClick={() => setShowRestartConfirm(false)}>
+          <div className="dialog" onClick={e => e.stopPropagation()}>
+            <h3>{t('dialogs.restartTerminalTitle')}</h3>
+            <p>{t('dialogs.restartTerminalConfirm')}</p>
+            <div className="dialog-actions">
+              <button className="dialog-btn cancel" onClick={() => setShowRestartConfirm(false)}>
+                {t('common.cancel')}
+              </button>
+              <button className="dialog-btn confirm danger" onClick={handleRestartConfirmed}>
+                {t('dialogs.confirmRestart')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

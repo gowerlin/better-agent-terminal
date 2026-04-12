@@ -530,6 +530,16 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     }
     containerRef.current.addEventListener('wheel', handleWheel, { passive: false })
 
+    // Handle manual redraw request (from toolbar redraw button)
+    const handleRedrawEvent = (e: Event) => {
+      const detail = (e as CustomEvent<{ terminalId: string }>).detail
+      if (detail.terminalId !== terminalId) return
+      fitAddon.fit()
+      terminal.refresh(0, terminal.rows - 1)
+      dlog(`[redraw] manual redraw terminal=${terminalId}`)
+    }
+    window.addEventListener('terminal-redraw', handleRedrawEvent)
+
     // Handle terminal output
     const PROMPT_MARKER_LIMIT = 100
     const unsubscribeOutput = window.electronAPI.pty.onOutput((id, data) => {
@@ -617,6 +627,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     })
 
     return () => {
+      window.removeEventListener('terminal-redraw', handleRedrawEvent)
       unsubscribeOutput()
       unsubscribeExit()
       unsubscribeSettings()

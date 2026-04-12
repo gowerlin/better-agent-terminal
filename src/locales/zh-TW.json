@@ -227,6 +227,7 @@
     "doubleClickToRename": "雙擊以重新命名",
     "hidePromptBox": "隱藏提示輸入框",
     "showPromptBox": "顯示提示輸入框",
+    "redrawTerminal": "重新繪製終端",
     "restartTerminal": "重新啟動終端",
     "closeTerminal": "關閉終端",
     "terminals": "終端",
@@ -238,7 +239,10 @@
 
   "dialogs": {
     "closeCodeAgent": "關閉 Code Agent？",
-    "closeCodeAgentConfirm": "確定要關閉 Code Agent 終端嗎？任何正在執行的程序將被終止。"
+    "closeCodeAgentConfirm": "確定要關閉 Code Agent 終端嗎？任何正在執行的程序將被終止。",
+    "restartTerminalTitle": "確認重新啟動終端？",
+    "restartTerminalConfirm": "這將終止目前所有執行中的程序。",
+    "confirmRestart": "確認重新啟動"
   },
 
   "snippets": {

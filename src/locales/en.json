@@ -227,6 +227,7 @@
     "doubleClickToRename": "Double-click to rename",
     "hidePromptBox": "Hide prompt box",
     "showPromptBox": "Show prompt box",
+    "redrawTerminal": "Redraw terminal",
     "restartTerminal": "Restart terminal",
     "closeTerminal": "Close terminal",
     "terminals": "Terminals",
@@ -238,7 +239,10 @@
 
   "dialogs": {
     "closeCodeAgent": "Close Code Agent?",
-    "closeCodeAgentConfirm": "Are you sure you want to close the Code Agent terminal? Any running process will be terminated."
+    "closeCodeAgentConfirm": "Are you sure you want to close the Code Agent terminal? Any running process will be terminated.",
+    "restartTerminalTitle": "Restart Terminal?",
+    "restartTerminalConfirm": "This will terminate all currently running processes.",
+    "confirmRestart": "Confirm Restart"
   },
 
   "snippets": {

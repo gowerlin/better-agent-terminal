@@ -216,6 +216,7 @@
     "doubleClickToRename": "双击以重命名",
     "hidePromptBox": "隐藏提示输入框",
     "showPromptBox": "显示提示输入框",
+    "redrawTerminal": "重新绘制终端",
     "restartTerminal": "重新启动终端",
     "closeTerminal": "关闭终端",
     "terminals": "终端",
@@ -226,7 +227,10 @@
   },
   "dialogs": {
     "closeCodeAgent": "关闭 Code Agent？",
-    "closeCodeAgentConfirm": "确定要关闭 Code Agent 终端吗？任何正在执行的程序将被终止。"
+    "closeCodeAgentConfirm": "确定要关闭 Code Agent 终端吗？任何正在执行的程序将被终止。",
+    "restartTerminalTitle": "确认重新启动终端？",
+    "restartTerminalConfirm": "这将终止当前所有正在执行的程序。",
+    "confirmRestart": "确认重新启动"
   },
   "snippets": {
     "title": "代码片段",
