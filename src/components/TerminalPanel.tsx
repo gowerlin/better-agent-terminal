@@ -130,6 +130,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       }
     }
     setContextMenu(null)
+    setTimeout(() => terminalRef.current?.focus(), 0)
   }
 
   const handlePaste = async () => {
