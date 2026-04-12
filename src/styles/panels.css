@@ -638,3 +638,18 @@
 .worker-send button:hover {
   opacity: 0.8;
 }
+
+/* ============================================
+   Voice input in main-panel-header (T0050)
+   ============================================ */
+.main-panel-voice-wrap {
+  position: relative;
+}
+
+/* Reposition VoicePreviewPopover: below header instead of above (PromptBox default) */
+.main-panel-voice-wrap .voice-preview-popover {
+  bottom: auto;
+  top: calc(100% + 4px);
+  right: 0;
+  max-width: min(360px, 80vw);
+}

@@ -8,6 +8,9 @@ import { getAgentPreset } from '../types/agent-presets'
 import { isIntegrated, isAgent as isAgentCheck } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { workspaceStore } from '../stores/workspace-store'
+import { useVoicePopover } from '../hooks/useVoicePopover'
+import { MicButton } from './voice/MicButton'
+import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 
 // Lazy load Claude Agent SDK (~240KB chunk) — only needed for claude-code terminals
 const ClaudeAgentPanel = lazy(() => import('./ClaudeAgentPanel').then(m => ({ default: m.ClaudeAgentPanel })))
@@ -46,6 +49,13 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
   const [showToolMsg, setShowToolMsg] = useState(true)
   const [showThinkingMsg, setShowThinkingMsg] = useState(true)
   const [showRestartConfirm, setShowRestartConfirm] = useState(false)
+
+  const { voice, popoverState, transcriptionMeta, handleConfirm: handleVoiceConfirm, handleCancel: handleVoiceCancel } = useVoicePopover({
+    onConfirm: (text) => {
+      // 寫入 terminal stdin，不加 \r（讓使用者自行按 Enter）
+      window.electronAPI.pty.write(terminal.id, text)
+    },
+  })
 
   const handleDoubleClick = () => {
     setEditValue(terminal.title)
@@ -142,6 +152,25 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
             terminalId={terminal.id}
             size="small"
           />
+          {!isAgent && !isClaudeCode && !showPromptBox && (
+            <div className="main-panel-voice-wrap">
+              <MicButton
+                state={voice.state}
+                onClick={voice.toggle}
+                disabled={voice.state === 'disabled'}
+                disabledTooltip={voice.error ?? '請先在 Settings 下載語音模型'}
+              />
+              <VoicePreviewPopover
+                state={popoverState}
+                text={voice.lastTranscription ?? undefined}
+                errorMessage={voice.error ?? undefined}
+                detectedLanguage={transcriptionMeta.detectedLanguage}
+                inferenceTimeMs={transcriptionMeta.inferenceTimeMs}
+                onConfirm={handleVoiceConfirm}
+                onCancel={handleVoiceCancel}
+              />
+            </div>
+          )}
           {isAgent && !isClaudeCode && (
             <button
               className={`action-btn ${showPromptBox ? 'active' : ''}`}
