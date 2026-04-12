@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { Terminal } from '@xterm/xterm'
+import { TerminalDecorationManager } from '../utils/terminal-decoration-manager'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
@@ -51,8 +52,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const decorationManagerRef = useRef<TerminalDecorationManager | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const [altBufferActive, setAltBufferActive] = useState(false)
+  const altBufferRef = useRef(false)
   const [terminalReady, setTerminalReady] = useState(false)
   const hasBeenFocusedRef = useRef(false)
   const isActiveRef = useRef(isActive)
@@ -348,10 +351,16 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     fitAddonRef.current = fitAddon
     setTerminalReady(true)
 
+    // Initialize decoration manager
+    const decorationManager = new TerminalDecorationManager()
+    decorationManager.attach(terminal)
+    decorationManagerRef.current = decorationManager
+
     // Track alt buffer state (BUG-008 infrastructure)
     const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
       const isAlt = activeBuffer === terminal.buffer.alternate
       setAltBufferActive(isAlt)
+      altBufferRef.current = isAlt
       dlog(`[terminal] buffer changed: ${isAlt ? 'alt' : 'normal'}`, terminalId)
     })
 
@@ -501,11 +510,33 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     containerRef.current.addEventListener('wheel', handleWheel, { passive: false })
 
     // Handle terminal output
+    const PROMPT_MARKER_LIMIT = 100
     const unsubscribeOutput = window.electronAPI.pty.onOutput((id, data) => {
       if (id === terminalId) {
         const filteredData = filterTerminalOutputNoise(data)
         if (filteredData) {
           terminal.write(filteredData)
+          // Optional: register marker on prompt detection (decoration pipeline demo)
+          // Only in normal buffer — alt buffer returns null gracefully
+          if (!altBufferRef.current && decorationManager.count < PROMPT_MARKER_LIMIT) {
+            const lines = filteredData.split('\n')
+            const lastLine = lines[lines.length - 1]?.trim()
+            if (lastLine && /[$>#]\s*$/.test(lastLine)) {
+              const markerId = `prompt-${Date.now()}`
+              const marker = decorationManager.addMarker(markerId)
+              if (marker) {
+                decorationManager.addDecoration(markerId, {
+                  anchor: 'left',
+                  width: 1,
+                  height: 1
+                }, (element) => {
+                  element.style.background = 'rgba(255, 255, 255, 0.08)'
+                  element.style.width = '3px'
+                  element.style.borderRadius = '1px'
+                })
+              }
+            }
+          }
         }
       }
     })
@@ -569,6 +600,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       unsubscribeExit()
       unsubscribeSettings()
       bufferChangeDisposable.dispose()
+      decorationManagerRef.current?.dispose()
+      decorationManagerRef.current = null
       if (resizeTimer) clearTimeout(resizeTimer)
       if (imePendingRaf) cancelAnimationFrame(imePendingRaf)
       resizeObserver.disconnect()
