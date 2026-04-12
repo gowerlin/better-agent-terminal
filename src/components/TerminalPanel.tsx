@@ -513,7 +513,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         }
       }
     }
-    containerRef.current.addEventListener('wheel', handleWheel, { passive: false })
+    containerRef.current.addEventListener('wheel', handleWheel, { passive: false, capture: true })
 
     // Handle manual redraw request (from toolbar redraw button)
     const handleRedrawEvent = (e: Event) => {
@@ -629,7 +629,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (imePendingRaf) cancelAnimationFrame(imePendingRaf)
       resizeObserver.disconnect()
       observer.disconnect()
-      containerRef.current?.removeEventListener('wheel', handleWheel)
+      containerRef.current?.removeEventListener('wheel', handleWheel, { capture: true })
       doResizeRef.current = null
       terminal.dispose()
     }
