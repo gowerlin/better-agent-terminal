@@ -178,11 +178,11 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
             ↺
           </button>
           <button
-            className="action-btn"
+            className="action-btn danger"
             onClick={() => setShowRestartConfirm(true)}
             title={t('terminal.restartTerminal')}
           >
-            ⟳
+            ⏻
           </button>
           <button
             className="action-btn danger"
