@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0064
 - **任務名稱**：制定歸檔原則 + 依原則執行首次歸檔清理
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-12 21:28 (UTC+8)
 - **開始時間**：2026-04-12 21:30 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-12 21:38 (UTC+8)
 
 ## 工作量預估
 - **預估規模**：中（制定原則 + 大量檔案搬移）
@@ -124,23 +124,49 @@ into _archive/ subdirectories. Add archive policy to _local-rules.md.
 > 以下由 sub-session 填寫
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED / PARTIAL）
+DONE
 
 ### 產出摘要
-（歸檔數量、目錄結構、commit hash）
+- `_local-rules.md` 新增「歸檔原則」章節（觸發條件、豁免條件、目錄結構、歸檔流程）
+- `_archive/workorders/`：72 張工單（T0001-T0062 + 所有 sub-files）
+- `_archive/bugs/`：12 張 BUG（BUG-003 ~ BUG-015，排除 BUG-012）
+- `_archive/plans/`：空（所有 PLAN 均為 IDEA/PLANNED，保留根目錄）
+- `_bug-tracker.md` 已歸檔 BUG 連結更新為 `_archive/bugs/` 路徑
+- `_workorder-index.md` Glob hint 更新 + T0064 加入 active 列表
+- Commit: `12199df`（88 files changed，全部 rename，版本歷史完整保留）
 
 ### 歸檔統計
 | 類型 | 歸檔數 | 保留數 | 說明 |
 |------|--------|--------|------|
-| 工單 T#### | | | |
-| BUG 單 | | | |
-| PLAN 單 | | | |
+| 工單 T#### | 72 | 2 | 保留 T0063（剛完成）、T0064（本工單） |
+| BUG 單 | 12 | 3 | 保留 BUG-001/002（非最終態）、BUG-012（上游追蹤） |
+| PLAN 單 | 0 | 6 | 全部 IDEA/PLANNED 狀態，不歸檔 |
 
 ### 歸檔後根目錄檔案清單
-（列出 _ct-workorders/ 根目錄剩餘檔案）
+```
+_ct-workorders/
+├── _archive/
+│   ├── checkpoint-2026-04.md
+│   ├── workorders/（72 個）
+│   └── bugs/（12 個）
+├── _backlog.md
+├── _bug-tracker.md
+├── _decision-log.md
+├── _learnings.md
+├── _local-rules.md
+├── _tower-config.yaml
+├── _tower-state.md
+├── _workorder-index.md
+├── BUG-001-claude-oauth-paste-truncated.md
+├── BUG-002-context-menu-offset.md
+├── BUG-012-alt-buffer-scroll-ghost-text.md
+├── PLAN-001 ~ PLAN-006（6 個）
+├── T0063-workorder-active-index.md
+└── T0064-archive-policy-and-cleanup.md（本工單）
+```
 
 ### 遭遇問題
-（若有）
+pre-commit hook 對 5 個已歸檔工單中的歷史描述字串 `password=test123` 觸發 WARN（已知 false positive，均為舊工單 T0022-T0024 記錄的測試描述，hook 不阻擋 commit，已正常完成）。
 
 ### 回報時間
-（填入當前時間）
+2026-04-12 21:38 (UTC+8)
