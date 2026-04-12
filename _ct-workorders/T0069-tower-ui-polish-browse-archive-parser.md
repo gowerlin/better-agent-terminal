@@ -6,7 +6,7 @@
 - **狀態**：DONE
 - **建立時間**：2026-04-12 23:15 (UTC+8)
 - **開始時間**：2026-04-12 23:19 (UTC+8)
-- **完成時間**：2026-04-12 23:29 (UTC+8)
+- **完成時間**：2026-04-12 23:50 (UTC+8)
 
 ## 工作量預估
 - **預估規模**：中
@@ -146,6 +146,12 @@ DONE
 - 所有新頁籤均可從展開詳情中點擊 [瀏覽檔案] 跳至檔案樹
 - 工單/BUG/Backlog 三個頁籤均有 [包含封存] toggle，歸檔項目以 55% 透明度顯示
 
+**事後補修（使用者驗收回饋）：**
+- Bug/Backlog item 改為工單卡片風格（左側彩色狀態條）；filter button 改 pill 樣式（border-radius: 12px）
+- 修正 Bug/Backlog item 套用 badge class 導致整張卡片出現毛玻璃底色（加 `background: none; color: inherit` 覆寫）
+- [包含封存] 標籤加 `white-space: nowrap; flex-shrink: 0` 防止垂直換行撐高 filter 區
+- 修正歸檔工單 [瀏覽檔案] 路徑錯誤：`order.filename` → `_archive/workorders/${order.filename}`（Bug/Backlog 的 linkPath 已含 _archive/ 前綴，無此問題）
+
 ### 互動紀錄
 無
 
@@ -156,4 +162,4 @@ DONE
 不適用
 
 ### 回報時間
-2026-04-12 23:29 (UTC+8)
+2026-04-12 23:50 (UTC+8)（含事後補修）
