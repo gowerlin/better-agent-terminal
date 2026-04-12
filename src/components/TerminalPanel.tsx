@@ -535,8 +535,14 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     const handleRedrawEvent = (e: Event) => {
       const detail = (e as CustomEvent<{ terminalId: string }>).detail
       if (detail.terminalId !== terminalId) return
-      fitAddon.fit()
-      terminal.refresh(0, terminal.rows - 1)
+      // Force xterm re-render by temporarily changing dimensions,
+      // then fitAddon.fit() restores the correct size.
+      // Reset dedup counters so PTY resize always fires (triggers SIGWINCH
+      // for alt-buffer apps like vim, htop).
+      terminal.resize(terminal.cols + 1, terminal.rows)
+      lastSentCols = 0
+      lastSentRows = 0
+      doResize()
       dlog(`[redraw] manual redraw terminal=${terminalId}`)
     }
     window.addEventListener('terminal-redraw', handleRedrawEvent)
