@@ -3,7 +3,7 @@
 ## 元資料
 - **工單編號**：T0033-C
 - **任務名稱**：BUG-011c IME guard 1 行修 + BUG-011a/b 驗證 + 雙重追蹤技術債評估
-- **狀態**：PARTIAL
+- **狀態**：DONE
 - **建立時間**：2026-04-12 09:50 (UTC+8)
 - **開始時間**：2026-04-12 09:51 (UTC+8)
 - **完成時間**：2026-04-12 09:59 (UTC+8)
@@ -253,14 +253,14 @@ fix(terminal): dismiss context menu on Escape key (BUG-011a)
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-PARTIAL（Phase 1/3/4/5 DONE；Phase 2 需要使用者手動在 dev build 上執行回歸測試）
+DONE（Phase 2 使用者回歸測試確認通過；vim ^[^M artifact 為 pre-existing 非 BUG-011c 範圍）
 
 ### Phase 執行結果
 
 | Phase | 狀態 | 說明 |
 |-------|------|------|
 | Phase 1（IME guard 修法）| ✅ DONE | 1 行修，build 通過，commit e4ab638 |
-| Phase 2（四組 ESC 回歸測試）| ⏳ 待使用者測試 | 測試清單已提供，需 dev build 實測 |
+| Phase 2（四組 ESC 回歸測試）| ✅ DONE | Sc1 vim非IME=pre-existing; Sc2-5 全 PASS；BUG-011c 由 Sc3 驗證 |
 | Phase 3（BUG-011a 驗證）| ✅ DONE | Phase 1 未連帶解決；已補修 ESC listener，commit 9d552ce |
 | Phase 4（雙重追蹤評估）| ✅ DONE | 詳見下方 |
 | Phase 5（BUG-011b 調查）| ✅ DONE | 產出 T0033-C-bug011b-analysis.md，commit 873a9be |
