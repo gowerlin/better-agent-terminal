@@ -24,13 +24,12 @@ interface ControlTowerPanelProps {
   workspaceFolderPath: string | null
   onExecWorkOrder?: (workOrderId: string) => void
   onDoneWorkOrder?: (workOrderId: string) => void
-  onSyncWorkOrders?: () => void
 }
 
 /** Statuses eligible for ct-done remedial close */
 const DONE_ELIGIBLE: ReadonlySet<WorkOrderStatus> = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PARTIAL', 'BLOCKED', 'FAILED'])
 
-export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOrder, onDoneWorkOrder, onSyncWorkOrders }: ControlTowerPanelProps) {
+export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOrder, onDoneWorkOrder }: ControlTowerPanelProps) {
   const { t } = useTranslation()
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(false)
@@ -209,11 +208,6 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       <div className="ct-panel-header">
         <h3>{t('controlTower.title')}</h3>
         <div className="ct-header-actions">
-          {onSyncWorkOrders && (
-            <button className="ct-sync-btn" onClick={onSyncWorkOrders} title={t('controlTower.sync')}>
-              ⇄
-            </button>
-          )}
           <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus() }} title={t('controlTower.refresh')}>
             ↻
           </button>

@@ -448,7 +448,6 @@
     "notDetected": "此工作區未偵測到 Control Tower",
     "execute": "執行",
     "done": "補救收尾",
-    "sync": "同步檢查",
     "viewFile": "瀏覽檔案",
     "created": "建立",
     "started": "開始",

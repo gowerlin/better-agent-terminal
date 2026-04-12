@@ -708,23 +708,6 @@ export default function App() {
             workspaceStore.setFocusedTerminal(terminal.id)
             workspaceStore.save()
           }}
-          onSyncWorkOrders={async () => {
-            const terminal = workspaceStore.addTerminal(activeWorkspace.id)
-            const command = '/ct-status sync'
-            const settings = settingsStore.getSettings()
-            const mergedEnv: Record<string, string> = {}
-            for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
-              if (v.enabled) mergedEnv[v.key] = v.value
-            }
-            await window.electronAPI.pty.createWithCommand({
-              id: terminal.id,
-              cwd: activeWorkspace.folderPath,
-              command,
-              customEnv: mergedEnv,
-            })
-            workspaceStore.setFocusedTerminal(terminal.id)
-            workspaceStore.save()
-          }}
         />
       default:
         return null

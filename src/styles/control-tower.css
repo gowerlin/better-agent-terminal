@@ -41,22 +41,6 @@
   color: var(--text-primary);
 }
 
-/* Sync check button */
-.ct-sync-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 15px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.ct-sync-btn:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
 /* Summary bar */
 .ct-summary {
   display: flex;

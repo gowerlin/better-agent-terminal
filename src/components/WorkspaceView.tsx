@@ -604,24 +604,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     workspaceStore.save()
   }, [workspace.id, workspace.folderPath, workspace.envVars])
 
-  // Run ct-status sync to check tower consistency
-  const handleSyncWorkOrders = useCallback(async () => {
-    const terminal = workspaceStore.addTerminal(workspace.id)
-    const command = '/ct-status sync'
-    const settings = settingsStore.getSettings()
-    const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
-    await window.electronAPI.pty.createWithCommand({
-      id: terminal.id,
-      cwd: workspace.folderPath,
-      command,
-      customEnv,
-    })
-    workspaceStore.setFocusedTerminal(terminal.id)
-    setActiveTab('terminal')
-    try { localStorage.setItem(TAB_KEY, 'terminal') } catch { /* ignore */ }
-    workspaceStore.save()
-  }, [workspace.id, workspace.folderPath, workspace.envVars])
-
   const handleAddClaudeAgent = useCallback(() => {
     const agentTerminal = workspaceStore.addTerminal(workspace.id, 'claude-code' as AgentPresetId)
     // Claude Agent SDK session will be started by ClaudeAgentPanel on mount
@@ -1030,7 +1012,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               workspaceFolderPath={workspace.folderPath}
               onExecWorkOrder={handleExecWorkOrder}
               onDoneWorkOrder={handleDoneWorkOrder}
-              onSyncWorkOrders={handleSyncWorkOrders}
             />
           </div>
         )
@@ -1039,7 +1020,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     }
   }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote,
       handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude,
-      handleSnippetPasteToTerminal, handleSnippetSendToAgent, handleExecWorkOrder, handleDoneWorkOrder, handleSyncWorkOrders, focusedTerminalId])
+      handleSnippetPasteToTerminal, handleSnippetSendToAgent, handleExecWorkOrder, handleDoneWorkOrder, focusedTerminalId])
 
   // Render the active tab content for the main pane
   const renderPaneContent = useCallback((tab: WorkspaceTab) => {
