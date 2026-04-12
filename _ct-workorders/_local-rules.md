@@ -27,6 +27,7 @@
 | `PLAN-###-*.md` | 計劃單目前狀態（IDEA / DONE 等） |
 | `_bug-tracker.md` | Open Bug 數量摘要 |
 | `_backlog.md` | Active Idea / Plan 數量摘要 |
+| `_workorder-index.md` | Active 工單數量摘要 |
 | `_decision-log.md` | 最新決策條目 |
 
 ---
@@ -74,6 +75,8 @@
 |-----------|------------|
 | BUG-###.md 狀態變更 | `_bug-tracker.md` 對應列 |
 | PLAN-###.md 狀態變更 | `_backlog.md` 對應列 |
+| T####.md 狀態 → DONE | `_workorder-index.md`（從 Active 列表移除） |
+| 新建工單 T####.md | `_workorder-index.md`（加入 Active 列表） |
 | 任何上述變更 | `_tower-state.md` 基本資訊中的統計數字 |
 
 ---

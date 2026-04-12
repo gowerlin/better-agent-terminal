@@ -19,6 +19,7 @@
 **快速連結**：
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 1，BUG-012 上游追蹤）
 - Backlog → [_backlog.md](_backlog.md)（Active: 6）
+- 工單索引 → [_workorder-index.md](_workorder-index.md)（Active only）
 - 決策日誌 → [_decision-log.md](_decision-log.md)（最新：D028）
 - 學習紀錄 → [_learnings.md](_learnings.md)
 - 歷史 Checkpoint → [_archive/checkpoint-2026-04.md](_archive/checkpoint-2026-04.md)
@@ -33,7 +34,7 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0062 |
+| **工單最大編號** | T0063 |
 | **BUG 最大編號** | BUG-015 |
 | **PLAN 最大編號** | PLAN-006 |
 | **決策最大編號** | D028 |
