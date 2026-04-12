@@ -159,6 +159,16 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     return () => document.removeEventListener('keydown', handleEsc)
   }, [contextMenu])
 
+  // Close context menu on terminal scroll (BUG-008)
+  useEffect(() => {
+    if (!contextMenu) return
+    const viewport = containerRef.current?.querySelector('.xterm-viewport')
+    if (!viewport) return
+    const handleScroll = () => setContextMenu(null)
+    viewport.addEventListener('scroll', handleScroll, { passive: true })
+    return () => viewport.removeEventListener('scroll', handleScroll)
+  }, [contextMenu])
+
   // Handle terminal resize and focus when becoming active
   useEffect(() => {
     if (isActive && terminalReady && terminalRef.current) {
