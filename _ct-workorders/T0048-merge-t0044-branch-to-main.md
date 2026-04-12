@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0048
 - **任務名稱**：Merge T0044 分支到 main（收尾工單 GP006）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-12 16:56 (UTC+8)
 - **開始時間**：2026-04-12 16:57 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-12 16:59 (UTC+8)
 
 ## 工作量預估
 - **預估規模**：極小（git merge）
@@ -61,13 +61,15 @@
 > 以下由 sub-session 填寫
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED）
+DONE
 
 ### 產出摘要
-（merge commit hash）
+- merge commit: f1308e5 (merge(T0044): terminal interaction polish — BUG-009/013/014/015 fixes + ErrorBoundary)
+- 共 13 個檔案變更，包含 6 個 source code commit 全部合入 main
+- build 驗證：renderer ✅ electron main ✅ preload ✅
 
 ### 遭遇問題
-（若有）
+分支有 6 個未追蹤工單檔案 + 1 個修改的 _tower-state.md，先 commit CT 文件到 T0044 分支清理後再執行 merge。非阻礙性問題，已處理。
 
 ### 回報時間
-（填入當前時間）
+2026-04-12 16:59 (UTC+8)
