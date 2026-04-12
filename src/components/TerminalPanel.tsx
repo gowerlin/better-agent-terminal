@@ -356,6 +356,9 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     decorationManager.attach(terminal)
     decorationManagerRef.current = decorationManager
 
+    // BUG-012 v2: cleanup handle for alt-buffer scroll lock listener
+    let altScrollLockCleanup: (() => void) | null = null
+
     // Track alt buffer state (BUG-008 infrastructure)
     const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
       const isAlt = activeBuffer === terminal.buffer.alternate
@@ -364,20 +367,39 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       workspaceStore.setTerminalAltBuffer(terminalId, isAlt)
       dlog(`[terminal] buffer changed: ${isAlt ? 'alt' : 'normal'}`, terminalId)
 
-      // BUG-012: Prevent viewport scroll ghosting on alt buffer entry/exit.
-      // When the viewport has a non-zero scrollTop (user was scrolled up in normal
-      // buffer) and the app switches to alt buffer, that offset causes alt buffer
-      // rows to appear at the wrong position. Mouse scroll then makes xterm try to
-      // scroll a viewport that shouldn't scroll, producing content duplication.
-      // Fix: lock overflow-y in alt buffer so the viewport cannot scroll, and reset
-      // scrollTop so the alt buffer renders flush to the top.
+      // BUG-012 v2: Prevent viewport scroll ghosting in alt buffer.
+      // Root cause: xterm.js Viewport.handleWheel() programmatically sets
+      // viewportElement.scrollTop via JavaScript, bypassing CSS overflow:hidden.
+      // As long as .xterm-scroll-area is taller than .xterm-viewport (leftover
+      // from normal buffer's scrollback), scrollTop can be set to non-zero values,
+      // shifting the viewport and revealing stale normal-buffer content underneath.
+      //
+      // Three-layer defense:
+      //   1. Force scroll-area height = viewport height (eliminates scrollable range)
+      //   2. Reset scrollTop to 0
+      //   3. Attach a scroll listener that enforces scrollTop=0 during alt buffer
+      //      (catches any programmatic scrollTop changes from xterm.js)
       const viewport = containerRef.current?.querySelector('.xterm-viewport') as HTMLElement | null
+      const scrollArea = containerRef.current?.querySelector('.xterm-scroll-area') as HTMLElement | null
       if (viewport) {
         if (isAlt) {
-          viewport.style.overflowY = 'hidden'
           viewport.scrollTop = 0
+          if (scrollArea) {
+            scrollArea.style.height = viewport.offsetHeight + 'px'
+          }
+          const lockScroll = () => {
+            if (viewport.scrollTop !== 0) viewport.scrollTop = 0
+          }
+          viewport.addEventListener('scroll', lockScroll, { passive: true })
+          altScrollLockCleanup = () => {
+            viewport.removeEventListener('scroll', lockScroll)
+            if (scrollArea) scrollArea.style.height = ''
+          }
         } else {
-          viewport.style.overflowY = ''
+          if (altScrollLockCleanup) {
+            altScrollLockCleanup()
+            altScrollLockCleanup = null
+          }
         }
       }
       // Force full row re-render after buffer switch to clear any residual artifacts
@@ -517,8 +539,9 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       })
     })
 
-    // Ctrl+Mouse Wheel zoom (font size)
+    // Mouse wheel handler (capture phase to fire before xterm.js)
     const handleWheel = (e: WheelEvent) => {
+      // Ctrl+Wheel: zoom (font size)
       if (e.ctrlKey) {
         e.preventDefault()
         e.stopPropagation()
@@ -527,9 +550,18 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         } else if (e.deltaY > 0) {
           settingsStore.zoomOut()
         }
+        return
+      }
+      // BUG-012 v2: In alt buffer, prevent browser-native scroll.
+      // We do NOT stopPropagation so xterm.js can still send scroll
+      // input to the pty for mouse-tracking apps (vim, htop, etc.).
+      // Our scroll listener on the viewport catches any programmatic
+      // scrollTop changes from xterm.js's handleWheel.
+      if (altBufferRef.current) {
+        e.preventDefault()
       }
     }
-    containerRef.current.addEventListener('wheel', handleWheel, { passive: false })
+    containerRef.current.addEventListener('wheel', handleWheel, { passive: false, capture: true })
 
     // Handle manual redraw request (from toolbar redraw button)
     const handleRedrawEvent = (e: Event) => {
@@ -645,7 +677,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (imePendingRaf) cancelAnimationFrame(imePendingRaf)
       resizeObserver.disconnect()
       observer.disconnect()
-      containerRef.current?.removeEventListener('wheel', handleWheel)
+      if (altScrollLockCleanup) altScrollLockCleanup()
+      containerRef.current?.removeEventListener('wheel', handleWheel, { capture: true })
       doResizeRef.current = null
       terminal.dispose()
     }
