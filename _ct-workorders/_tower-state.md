@@ -36,7 +36,7 @@
 - 14 個 npm audit 漏洞（tar/cmake-js/electron-builder 鏈，需 breaking change）
 - anthropics/claude-code#46898 追蹤回覆
 - GPU/MLX 加速 Whisper 推理調查（whisper-node prebuilt 是否支援 CUDA/Metal）
-- T0010 macOS 麥克風權限（NSMicrophoneUsageDescription + askForMediaAccess）
+- T0010 macOS 麥克風權限 — ✅ 已完成（2026-04-11），待 macOS 實機驗證（T0011）
 
 ## 當前進度（2026-04-12 15:05 — Session 結束）
 
@@ -2475,3 +2475,34 @@ UX-001 ✅ DONE。
 - **議題登記**：「Terminal Session 持久化」— 關 BAT 時 pty 背景存活 + 重開重連。方案候選：tmux 整合 / 獨立 pty daemon / 不做。需考慮孤兒 process 清理。待 dogfood 實測後決定是否開 Epic。
 
 **恢復時**：從這裡接續，使用者帶回實測結果 + 決定下一步
+
+---
+
+## 2026-04-12 20:05 — T0059 DONE 結案（npm audit 漏洞調查）
+
+**8 分鐘完成**（19:57 → 20:05）。研究類工單，無程式碼修改。
+
+**結果摘要**：27 漏洞（0 Critical / 16 High / 7 Moderate / 4 Low）
+
+**分類**：
+- Production Runtime：10 個（electron 28 + claude-agent-sdk/sdk + hono + mermaid鏈）
+- Build/Dev Only：17 個（electron-builder + tar + cmake-js + vite/esbuild 等）
+
+**核心發現**：
+1. **npm audit fix 完全無效**（dry-run 0 changes）— lockfile 已鎖定，破壞性修復需 --force
+2. **whisper cmake-js/tar 鏈**：已是最新版（1.0.2），"fix" = 降版至 0.0.1（不可接受），接受 BUILD TIME 風險
+3. **electron 28→41**：17 個 High CVE，但需跨越 13 major 版本，需專用工單
+
+**推薦行動**（3 步低風險）：
+```bash
+# Step 1：修 2 moderate
+npm install @anthropic-ai/claude-agent-sdk@0.2.104
+
+# Step 2：加 overrides（修 ~6 high/moderate transitive）
+# 在 package.json overrides 添加：hono, @hono/node-server, lodash-es, langium
+
+# Step 3：升 mermaid（可能修 chevrotain 鏈）
+npm install mermaid@11.14.0
+```
+
+**中長期**：electron-builder 24→26（medium risk），electron 28→41（high risk，需獨立工單）
