@@ -793,7 +793,7 @@ export default function App() {
               setLeftPanelTab(panel)
               handleSidebarCollapse()
             }} title={t(`workspace.${panel}`)}>
-              {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : '\u{1F916}'}
+              {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F916}'}
             </button>
           ))}
         </div>
@@ -959,7 +959,7 @@ export default function App() {
             <div className="right-sidebar-collapsed">
               {rightDockedPanels.map(panel => (
                 <button key={panel} className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange(panel)} title={t(`workspace.${panel}`)}>
-                  {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : '\u{1F310}'}
+                  {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F310}'}
                 </button>
               ))}
             </div>
