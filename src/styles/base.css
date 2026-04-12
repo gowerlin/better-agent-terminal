@@ -64,7 +64,7 @@ body {
 
 /* Terminal specific scrollbar */
 .xterm-viewport::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
