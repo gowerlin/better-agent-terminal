@@ -60,16 +60,16 @@ const stripAnsi = (str: string): string => {
     .replace(/[\u2500-\u257F]/g, '')
 }
 
-// Batched preview update — accumulate and flush via RAF to avoid per-chunk processing
+// Batched preview update — accumulate and flush via setTimeout to avoid per-chunk processing
 const pendingPreviews = new Map<string, string>()
-let previewRafId = 0
+let previewTimerId = 0
 
 function scheduleBatchedPreviewUpdate(id: string, data: string) {
   const prev = pendingPreviews.get(id) || previewCache.get(id) || ''
   pendingPreviews.set(id, prev + data)
-  if (!previewRafId) {
-    previewRafId = requestAnimationFrame(() => {
-      previewRafId = 0
+  if (!previewTimerId) {
+    previewTimerId = window.setTimeout(() => {
+      previewTimerId = 0
       for (const [tid, raw] of pendingPreviews) {
         const cleaned = stripAnsi(raw)
         const lines = cleaned.split('\n').slice(-8)
@@ -81,7 +81,7 @@ function scheduleBatchedPreviewUpdate(id: string, data: string) {
         const firstKey = previewCache.keys().next().value
         if (firstKey) previewCache.delete(firstKey)
       }
-    })
+    }, 150)
   }
 }
 
