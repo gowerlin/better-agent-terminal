@@ -362,6 +362,27 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       setAltBufferActive(isAlt)
       altBufferRef.current = isAlt
       dlog(`[terminal] buffer changed: ${isAlt ? 'alt' : 'normal'}`, terminalId)
+
+      // BUG-012: Prevent viewport scroll ghosting on alt buffer entry/exit.
+      // When the viewport has a non-zero scrollTop (user was scrolled up in normal
+      // buffer) and the app switches to alt buffer, that offset causes alt buffer
+      // rows to appear at the wrong position. Mouse scroll then makes xterm try to
+      // scroll a viewport that shouldn't scroll, producing content duplication.
+      // Fix: lock overflow-y in alt buffer so the viewport cannot scroll, and reset
+      // scrollTop so the alt buffer renders flush to the top.
+      const viewport = containerRef.current?.querySelector('.xterm-viewport') as HTMLElement | null
+      if (viewport) {
+        if (isAlt) {
+          viewport.style.overflowY = 'hidden'
+          viewport.scrollTop = 0
+        } else {
+          viewport.style.overflowY = ''
+        }
+      }
+      // Force full row re-render after buffer switch to clear any residual artifacts
+      requestAnimationFrame(() => {
+        terminal.refresh(0, terminal.rows - 1)
+      })
     })
 
     // Handle terminal input
