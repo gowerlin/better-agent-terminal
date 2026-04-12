@@ -489,8 +489,6 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         if (filteredData) {
           terminal.write(filteredData)
         }
-        // Update activity time when there's output
-        workspaceStore.updateTerminalActivity(terminalId)
       }
     })
 
