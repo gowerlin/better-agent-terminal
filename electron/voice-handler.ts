@@ -431,7 +431,7 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
         const whisperOpts: Parameters<typeof whisperTranscribe>[0] = {
           model: modelPath,
           fname_inp: tmpWav,
-          use_gpu: false,
+          use_gpu: process.platform === 'darwin',  // macOS prebuilt 已含 Metal；Win/Linux 無 GPU lib 會自動 fallback CPU
           no_prints: true,
         }
         // Only pass language if explicitly specified (omit for auto-detect)
