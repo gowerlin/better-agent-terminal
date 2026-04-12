@@ -511,6 +511,16 @@ class WorkspaceStore {
     this.updateDockBadge()
   }
 
+  setTerminalAltBuffer(id: string, isAlt: boolean): void {
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t =>
+        t.id === id ? { ...t, isAltBuffer: isAlt } : t
+      )
+    }
+    this.notify()
+  }
+
   private updateDockBadge(): void {
     const settings = settingsStore.getSettings()
     if (settings.showDockBadge === false) return

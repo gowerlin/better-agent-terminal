@@ -45,6 +45,7 @@ export interface TerminalInstance {
   scrollbackBuffer: string[];
   lastActivityTime?: number;
   hasPendingAction?: boolean;
+  isAltBuffer?: boolean;         // Alt buffer mode active (vim, TUI apps, etc.)
   sdkSessionId?: string;         // Claude SDK session ID for auto-resume
   model?: string;                // Selected Claude model for this session
   pendingPrompt?: string;        // Prompt to auto-send after fork/resume

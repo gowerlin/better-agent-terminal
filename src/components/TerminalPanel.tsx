@@ -361,6 +361,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       const isAlt = activeBuffer === terminal.buffer.alternate
       setAltBufferActive(isAlt)
       altBufferRef.current = isAlt
+      workspaceStore.setTerminalAltBuffer(terminalId, isAlt)
       dlog(`[terminal] buffer changed: ${isAlt ? 'alt' : 'normal'}`, terminalId)
 
       // BUG-012: Prevent viewport scroll ghosting on alt buffer entry/exit.

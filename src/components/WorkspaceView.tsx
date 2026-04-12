@@ -764,11 +764,14 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   const handleCloseTerminal = useCallback((id: string) => {
     const terminal = terminals.find(t => t.id === id)
-    // Show confirm for agent terminals
-    if (terminal?.agentPreset && terminal.agentPreset !== 'none') {
+    // Show confirm if: agent terminal, alt buffer active (TUI/vim/etc.), or pending action.
+    // Rationale: any running process warrants a warning; alt buffer is the most reliable signal.
+    const isAgentTerminal = !!(terminal?.agentPreset && terminal.agentPreset !== 'none')
+    const shouldWarn = isAgentTerminal || !!terminal?.isAltBuffer || !!terminal?.hasPendingAction
+    if (shouldWarn) {
       setShowCloseConfirm(id)
     } else {
-      // Regular terminals always use PTY
+      // Shell idle (no process, no alt buffer): close directly
       window.electronAPI.pty.kill(id)
       workspaceStore.removeTerminal(id)
       workspaceStore.save()
