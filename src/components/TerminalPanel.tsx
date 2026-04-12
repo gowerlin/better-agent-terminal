@@ -352,7 +352,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
       // During IME composition, block non-composition key events
       // to prevent CAPS LOCK etc. from committing partial input
-      if (imeComposing || event.isComposing) {
+      if ((imeComposing || event.isComposing) && event.key !== 'Escape') {
         // keyCode 229 = IME composition event, let it through
         // Everything else (CAPS LOCK, modifiers, etc.) should be blocked
         return event.keyCode === 229
