@@ -149,6 +149,16 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     return () => document.removeEventListener('click', handleClickOutside)
   }, [])
 
+  // Close context menu on Escape key (BUG-011a)
+  useEffect(() => {
+    if (!contextMenu) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null)
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [contextMenu])
+
   // Handle terminal resize and focus when becoming active
   useEffect(() => {
     if (isActive && terminalReady && terminalRef.current) {
