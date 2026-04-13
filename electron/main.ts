@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, c
 import path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
-import { execFileSync, spawnSync } from 'child_process'
+import { execFileSync, spawnSync, fork } from 'child_process'
 import { WindowRegistry } from './window-registry'
 
 // Fix PATH for GUI-launched apps on macOS.
@@ -78,6 +78,7 @@ import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { logger, type LogLevel } from './logger'
+import { isServerRunning } from './terminal-server/pid-manager'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
@@ -159,6 +160,59 @@ if (!gotTheLock) {
 }
 
 const windowMap = new Map<string, BrowserWindow>() // windowId → BrowserWindow
+
+// Terminal Server (PLAN-008 Phase 2) — independent process managing PTYs
+// Started once at app launch; intentionally outlives the BAT main process.
+// The reference is cleared after unref() — we do not need to track it further.
+let _terminalServerStarted = false
+
+/**
+ * Fork the Terminal Server as a detached child process.
+ * The server manages PTY instances independently and survives BAT restarts.
+ * It shuts itself down after 30 minutes of idle (no parent connection).
+ *
+ * NOTE (packaging): dist-electron/terminal-server.js must NOT be inside the
+ * ASAR archive for fork() to work in the packaged app. Add it to asarUnpack
+ * in electron-builder config before releasing.
+ */
+function startTerminalServer(): void {
+  if (_terminalServerStarted) return
+  _terminalServerStarted = true
+
+  const userDataPath = app.getPath('userData')
+
+  if (isServerRunning(userDataPath)) {
+    logger.log('[terminal-server] existing server detected via PID file — skipping fork')
+    return
+  }
+
+  const serverScript = path.join(__dirname, 'terminal-server.js')
+
+  if (!fsSync.existsSync(serverScript)) {
+    logger.warn(`[terminal-server] server script not found: ${serverScript} — skipping (expected in prod build)`)
+    return
+  }
+
+  try {
+    const child = fork(serverScript, [], {
+      detached: true,
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      env: { ...process.env, BAT_USER_DATA: userDataPath },
+    })
+
+    child.on('error', (err) => {
+      logger.error(`[terminal-server] fork error: ${err}`)
+    })
+
+    logger.log(`[terminal-server] started with pid ${child.pid}`)
+
+    // Allow BAT main process to exit while server keeps running
+    child.unref()
+  } catch (err) {
+    logger.error(`[terminal-server] failed to fork: ${err}`)
+  }
+}
+
 let ptyManager: PtyManager | null = null
 let claudeManager: ClaudeAgentManager | null = null
 let updateCheckResult: UpdateCheckResult | null = null
@@ -707,6 +761,9 @@ app.whenReady().then(async () => {
   } catch (err) {
     logger.error('[startup] failed to create system tray:', err)
   }
+
+  // Start Terminal Server (PLAN-008 Phase 2) as independent background process
+  startTerminalServer()
 
   // Load user-defined custom CLIs from disk
   try {

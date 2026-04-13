@@ -36,6 +36,28 @@ export default defineConfig({
             outDir: 'dist-electron'
           }
         }
+      },
+      // Terminal Server — independent Node.js process forked by main.ts (PLAN-008)
+      // Outputs to dist-electron/terminal-server.js
+      // NOTE: This file must be excluded from ASAR in electron-builder config
+      //       (asarUnpack: ["dist-electron/terminal-server.js"]) for fork() to work
+      //       in the packaged app.
+      {
+        entry: 'electron/terminal-server.ts',
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: [
+                '@lydell/node-pty',
+                'ws',
+                'bufferutil',
+                'utf-8-validate',
+                /\.node$/,
+              ]
+            }
+          }
+        }
       }
     ]),
     renderer()
