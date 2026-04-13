@@ -9,7 +9,7 @@
  *   - Clean up PID file on SIGTERM / shutdown
  */
 import { TerminalServer } from './terminal-server/server'
-import { writePidFile, removePidFile } from './terminal-server/pid-manager'
+import { writePidFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import type { ServerRequest } from './terminal-server/protocol'
 
 const userDataPath = process.env.BAT_USER_DATA ?? ''
@@ -25,9 +25,14 @@ if (userDataPath) {
 
 const server = new TerminalServer()
 
+// Start TCP server for reconnection after BAT restart (T0108)
+if (userDataPath) {
+  server.startTcpServer(userDataPath)
+}
+
 // Route IPC messages from the parent (BAT main process) to the server
 process.on('message', (msg: ServerRequest) => {
-  server.handleMessage(msg)
+  server.handleMessage(msg, 'ipc')
 })
 
 // Parent process disconnected — begin idle-timeout countdown
@@ -39,6 +44,7 @@ process.on('disconnect', () => {
 process.on('SIGTERM', () => {
   if (userDataPath) {
     try { removePidFile(userDataPath) } catch { /* ignore */ }
+    try { removePortFile(userDataPath) } catch { /* ignore */ }
   }
   server.shutdown()
 })

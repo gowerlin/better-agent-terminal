@@ -1,3 +1,4 @@
+import * as net from 'net'
 import { BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import type { CreatePtyOptions } from '../src/types'
@@ -44,6 +45,9 @@ export class PtyManager {
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
 
+  // TCP reconnect channel (T0108)
+  private tcpSocket: net.Socket | null = null
+
   constructor(getWindows: () => BrowserWindow[]) {
     this.getWindows = getWindows
   }
@@ -55,22 +59,136 @@ export class PtyManager {
     logger.log('[PtyManager] Terminal Server connected via IPC — proxy mode active')
   }
 
-  /** True when we have a live IPC connection to the Terminal Server. */
-  private get useServer(): boolean {
-    return this.serverProcess !== null && this.serverProcess.connected
+  /**
+   * Connect to an already-running Terminal Server via TCP (T0108 reconnect path).
+   * Returns true if the connection succeeds within 3 seconds.
+   */
+  public connectToServer(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = new net.Socket()
+
+      socket.setTimeout(3000)
+
+      socket.connect(port, '127.0.0.1', () => {
+        socket.setTimeout(0)
+        this.tcpSocket = socket
+        this.setupTcpListener()
+        logger.log(`[PtyManager] TCP connected to Terminal Server on port ${port}`)
+        resolve(true)
+      })
+
+      socket.on('error', () => {
+        socket.destroy()
+        resolve(false)
+      })
+
+      socket.on('timeout', () => {
+        socket.destroy()
+        resolve(false)
+      })
+
+      socket.on('close', () => {
+        if (this.tcpSocket === socket) {
+          this.tcpSocket = null
+          logger.log('[PtyManager] TCP connection to Terminal Server closed')
+        }
+      })
+    })
   }
 
-  /** Route responses from Terminal Server back into the existing broadcast pipeline. */
+  /** Set up JSON-line framing on the TCP socket and route messages through handleServerMessage. */
+  private setupTcpListener(): void {
+    if (!this.tcpSocket) return
+    let lineBuffer = ''
+    this.tcpSocket.on('data', (chunk: Buffer) => {
+      lineBuffer += chunk.toString()
+      const lines = lineBuffer.split('\n')
+      lineBuffer = lines.pop()!
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            this.handleServerMessage(JSON.parse(line) as ServerResponse)
+          } catch {
+            logger.error('[PtyManager] TCP: failed to parse server message')
+          }
+        }
+      }
+    })
+  }
+
+  /** True when there is an active connection to the Terminal Server (IPC or TCP). */
+  private get useServer(): boolean {
+    return (this.serverProcess !== null && this.serverProcess.connected) ||
+           (this.tcpSocket !== null && !this.tcpSocket.destroyed)
+  }
+
+  /**
+   * Send a request to the Terminal Server via whichever channel is available.
+   * Prefers IPC (fork) over TCP when both are connected.
+   */
+  public sendToServer(msg: ServerRequest): void {
+    if (this.serverProcess?.connected) {
+      this.serverProcess.send(msg)
+    } else if (this.tcpSocket && !this.tcpSocket.destroyed) {
+      this.tcpSocket.write(JSON.stringify(msg) + '\n')
+    } else {
+      logger.warn('[PtyManager] sendToServer: no active server connection')
+    }
+  }
+
+  /** Route responses from the Terminal Server into the broadcast pipeline. */
+  private handleServerMessage(msg: ServerResponse): void {
+    switch (msg.type) {
+      case 'pty:data':
+        this.handlePtyData(msg.id, msg.data); break
+      case 'pty:exit':
+        this.handlePtyExit(msg.id, msg.exitCode); break
+      case 'pty:created':
+        logger.log(`[PtyManager] server spawned PTY ${msg.id} (pid ${msg.pid})`); break
+      case 'pty:list':
+        this.handleReplayList(msg.ptys); break
+      case 'pty:buffer':
+        this.handleReplayBuffer(msg.id, msg.lines); break
+      case 'error':
+        logger.error('[PtyManager] server error:', msg); break
+    }
+  }
+
+  /** Route IPC messages from the Terminal Server through handleServerMessage. */
   private setupServerListener(): void {
     if (!this.serverProcess) return
     this.serverProcess.on('message', (msg: ServerResponse) => {
-      switch (msg.type) {
-        case 'pty:data':    this.handlePtyData(msg.id, msg.data); break
-        case 'pty:exit':    this.handlePtyExit(msg.id, msg.exitCode); break
-        case 'pty:created': logger.log(`[PtyManager] server spawned PTY ${msg.id} (pid ${msg.pid})`); break
-        case 'error':       logger.error('[PtyManager] server error:', msg); break
-      }
+      this.handleServerMessage(msg)
     })
+  }
+
+  /**
+   * Called when a pty:list response arrives during buffer replay (T0108).
+   * Registers active PTY instances and requests their ring buffers.
+   */
+  private handleReplayList(ptys: Array<{ id: string; pid: number; cwd: string }>): void {
+    logger.log(`[PtyManager] replay: ${ptys.length} active PTY(s) found on reconnect`)
+    for (const { id, cwd } of ptys) {
+      // Register the instance so write/resize/kill work after reconnect
+      if (!this.instances.has(id)) {
+        this.instances.set(id, { process: null, type: 'terminal', cwd, usePty: true })
+      }
+      // Request the ring buffer for this PTY
+      this.sendToServer({ type: 'pty:getBuffer', id })
+    }
+  }
+
+  /**
+   * Called when a pty:buffer response arrives during buffer replay (T0108).
+   * Broadcasts the buffered output to the renderer so xterm.js renders it.
+   */
+  private handleReplayBuffer(id: string, lines: string[]): void {
+    if (lines.length > 0) {
+      // Re-join lines with \n to reconstruct the original output stream
+      const data = lines.join('\n')
+      this.broadcast('pty:output', id, data)
+      logger.log(`[PtyManager] replayed buffer for PTY ${id}: ${lines.length} lines`)
+    }
   }
 
   private handlePtyData(id: string, data: string): void {
@@ -143,7 +261,7 @@ export class PtyManager {
     const instance = this.instances.get(id)
     if (!instance) return false
     if (this.useServer) {
-      this.serverProcess!.send({ type: 'pty:write', id, data } as ServerRequest)
+      this.sendToServer({ type: 'pty:write', id, data })
       return true
     }
     if (instance.usePty) {
@@ -226,7 +344,7 @@ export class PtyManager {
         CLAUDE_CODE_NO_FLICKER: '1',
         CI: '',
       }
-      this.serverProcess!.send({
+      this.sendToServer({
         type: 'pty:create',
         id,
         shell,
@@ -235,7 +353,7 @@ export class PtyManager {
         cols: 120,
         rows: 30,
         env: envWithUtf8,
-      } as ServerRequest)
+      })
       this.instances.set(id, { process: null, type, cwd, usePty: true })
       logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
       return true
@@ -372,7 +490,7 @@ export class PtyManager {
 
   write(id: string, data: string): void {
     if (this.useServer && this.instances.has(id)) {
-      this.serverProcess!.send({ type: 'pty:write', id, data } as ServerRequest)
+      this.sendToServer({ type: 'pty:write', id, data })
       return
     }
     const instance = this.instances.get(id)
@@ -389,7 +507,7 @@ export class PtyManager {
 
   resize(id: string, cols: number, rows: number): void {
     if (this.useServer && this.instances.has(id)) {
-      this.serverProcess!.send({ type: 'pty:resize', id, cols, rows } as ServerRequest)
+      this.sendToServer({ type: 'pty:resize', id, cols, rows })
       return
     }
     const instance = this.instances.get(id)
@@ -400,7 +518,7 @@ export class PtyManager {
 
   kill(id: string): boolean {
     if (this.useServer && this.instances.has(id)) {
-      this.serverProcess!.send({ type: 'pty:kill', id } as ServerRequest)
+      this.sendToServer({ type: 'pty:kill', id })
       this.instances.delete(id)
       return true
     }

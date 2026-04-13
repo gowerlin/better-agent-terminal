@@ -78,7 +78,7 @@ import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { logger, type LogLevel } from './logger'
-import { isServerRunning } from './terminal-server/pid-manager'
+import { isServerRunning, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
@@ -176,15 +176,33 @@ let _terminalServerProcess: import('child_process').ChildProcess | null = null
  * ASAR archive for fork() to work in the packaged app. Add it to asarUnpack
  * in electron-builder config before releasing.
  */
-function startTerminalServer(): void {
+async function startTerminalServer(): Promise<void> {
   if (_terminalServerStarted) return
   _terminalServerStarted = true
 
   const userDataPath = app.getPath('userData')
 
   if (isServerRunning(userDataPath)) {
-    logger.log('[terminal-server] existing server detected via PID file — skipping fork')
-    return
+    // T0108: Try TCP reconnect before deciding to fork a new server
+    const port = readPortFile(userDataPath)
+    if (port && ptyManager) {
+      const connected = await ptyManager.connectToServer(port)
+      if (connected) {
+        logger.log(`[terminal-server] reconnected to existing server on port ${port}`)
+        // Request PTY list — handleReplayList will fetch and replay buffers
+        ptyManager.sendToServer({ type: 'pty:list' })
+        return
+      }
+      logger.warn('[terminal-server] PID alive but TCP connect failed — stale server, restarting')
+    } else if (!port) {
+      logger.warn('[terminal-server] existing server has no port file — skipping reconnect, restarting')
+    } else {
+      logger.log('[terminal-server] existing server detected but ptyManager not ready — skipping fork')
+      return
+    }
+    // Stale server: clean up files and fall through to fork a fresh one
+    removePidFile(userDataPath)
+    removePortFile(userDataPath)
   }
 
   const serverScript = path.join(__dirname, 'terminal-server.js')
@@ -209,6 +227,11 @@ function startTerminalServer(): void {
 
     // Keep IPC reference so PtyManager can proxy PTY operations
     _terminalServerProcess = child
+
+    // Connect PtyManager IPC immediately (ptyManager is guaranteed created before this call)
+    if (ptyManager) {
+      ptyManager.setServerProcess(child)
+    }
 
     // Allow BAT main process to exit while server keeps running
     child.unref()
@@ -546,12 +569,10 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   }
 
   // Create managers once (shared across all windows)
+  // Note: ptyManager is created in app.whenReady before startTerminalServer (T0108).
+  // The guard below handles edge-case window creation before ready (should not occur normally).
   if (!ptyManager) {
     ptyManager = new PtyManager(getAllWindows)
-    // Connect Terminal Server IPC for proxy mode (T0107)
-    if (_terminalServerProcess?.connected) {
-      ptyManager.setServerProcess(_terminalServerProcess)
-    }
   }
   if (!claudeManager) claudeManager = new ClaudeAgentManager(getAllWindows)
 
@@ -772,8 +793,13 @@ app.whenReady().then(async () => {
     logger.error('[startup] failed to create system tray:', err)
   }
 
+  // Initialize PtyManager before starting Terminal Server so TCP reconnect can use it (T0108)
+  if (!ptyManager) {
+    ptyManager = new PtyManager(getAllWindows)
+  }
+
   // Start Terminal Server (PLAN-008 Phase 2) as independent background process
-  startTerminalServer()
+  await startTerminalServer()
 
   // Load user-defined custom CLIs from disk
   try {

@@ -48,3 +48,36 @@ export function isServerRunning(userDataPath: string): boolean {
     return false
   }
 }
+
+// ── Port file (TCP reconnect — T0108) ────────────────────────────────────────
+
+const PORT_FILENAME = 'bat-pty-server.port'
+
+function getPortFilePath(userDataPath: string): string {
+  return path.join(userDataPath, PORT_FILENAME)
+}
+
+export function writePortFile(port: number, userDataPath: string): void {
+  const portPath = getPortFilePath(userDataPath)
+  fs.writeFileSync(portPath, String(port), 'utf8')
+}
+
+export function readPortFile(userDataPath: string): number | null {
+  const portPath = getPortFilePath(userDataPath)
+  try {
+    const content = fs.readFileSync(portPath, 'utf8').trim()
+    const port = parseInt(content, 10)
+    return isNaN(port) ? null : port
+  } catch {
+    return null
+  }
+}
+
+export function removePortFile(userDataPath: string): void {
+  const portPath = getPortFilePath(userDataPath)
+  try {
+    fs.unlinkSync(portPath)
+  } catch {
+    // File may not exist — ignore
+  }
+}

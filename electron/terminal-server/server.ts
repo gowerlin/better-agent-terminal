@@ -1,4 +1,6 @@
+import * as net from 'net'
 import { RingBuffer } from './ring-buffer'
+import { writePortFile, removePortFile } from './pid-manager'
 import type { ServerRequest, ServerResponse } from './protocol'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
@@ -26,8 +28,15 @@ const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes (D031 default)
 const DEFAULT_BUFFER_LINES = 1000               // D031 default
 
 /**
- * Core Terminal Server logic. Manages PTY instances, routes IPC messages,
- * and handles idle-timeout shutdown after the parent process disconnects.
+ * Core Terminal Server logic. Manages PTY instances, routes IPC/TCP messages,
+ * and handles idle-timeout shutdown after all clients disconnect.
+ *
+ * Supports two transport channels (T0108):
+ *   1. fork IPC — used by the initial BAT process
+ *   2. TCP localhost — used when BAT restarts and reconnects
+ *
+ * PTY data/exit events are broadcast to ALL connected clients.
+ * Other responses are sent back to the requesting client only.
  */
 export class TerminalServer {
   private readonly ptys: Map<string, PtyEntry> = new Map()
@@ -35,41 +44,130 @@ export class TerminalServer {
   private readonly idleTimeoutMs: number
   private readonly bufferLines: number
 
+  // TCP transport (T0108)
+  private tcpServer: net.Server | null = null
+  private readonly tcpClients: Set<net.Socket> = new Set()
+  private _userDataPath = ''
+
   constructor(idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS, bufferLines = DEFAULT_BUFFER_LINES) {
     this.idleTimeoutMs = idleTimeoutMs
     this.bufferLines = bufferLines
   }
 
-  private send(msg: ServerResponse): void {
-    if (process.send) {
+  // ── Transport layer ─────────────────────────────────────────────────────────
+
+  /** Send a response back to the specific client that made the request. */
+  private sendToClient(msg: ServerResponse, via: 'ipc' | 'tcp', socket?: net.Socket): void {
+    if (via === 'tcp' && socket && !socket.destroyed) {
+      socket.write(JSON.stringify(msg) + '\n')
+    } else if (via === 'ipc' && process.send) {
       process.send(msg)
     }
   }
 
-  /** Dispatch an incoming IPC message to the appropriate handler. */
-  handleMessage(msg: ServerRequest): void {
+  /** Broadcast to ALL connected clients: fork IPC parent + every TCP client. */
+  private broadcastToAll(msg: ServerResponse): void {
+    if (process.connected && process.send) {
+      process.send(msg)
+    }
+    for (const client of this.tcpClients) {
+      if (!client.destroyed) {
+        client.write(JSON.stringify(msg) + '\n')
+      }
+    }
+  }
+
+  // ── TCP server (T0108) ───────────────────────────────────────────────────────
+
+  /**
+   * Start a TCP server on a random localhost port and write the port to a file
+   * so BAT can reconnect after restarting.
+   */
+  startTcpServer(userDataPath: string): void {
+    this._userDataPath = userDataPath
+    this.tcpServer = net.createServer((socket) => {
+      this.tcpClients.add(socket)
+      this.resetIdleTimer()  // New connection resets idle countdown
+
+      let lineBuffer = ''
+      socket.on('data', (chunk) => {
+        lineBuffer += chunk.toString()
+        // JSON-line protocol: one JSON object per newline
+        const lines = lineBuffer.split('\n')
+        lineBuffer = lines.pop()!  // Keep incomplete trailing fragment
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const msg = JSON.parse(line) as ServerRequest
+              this.handleMessage(msg, 'tcp', socket)
+            } catch {
+              // Ignore malformed JSON
+            }
+          }
+        }
+      })
+
+      socket.on('close', () => {
+        this.tcpClients.delete(socket)
+        // Start idle timer only if there are no remaining connections
+        if (this.shouldStartIdle()) {
+          this.startIdleTimer()
+        }
+      })
+
+      socket.on('error', () => {
+        this.tcpClients.delete(socket)
+      })
+    })
+
+    this.tcpServer.listen(0, '127.0.0.1', () => {
+      const port = (this.tcpServer!.address() as net.AddressInfo).port
+      if (userDataPath) {
+        writePortFile(port, userDataPath)
+      }
+    })
+  }
+
+  /** True when there are no active connections (IPC parent gone + no TCP clients). */
+  private shouldStartIdle(): boolean {
+    return !process.connected && this.tcpClients.size === 0
+  }
+
+  // ── Message dispatch ─────────────────────────────────────────────────────────
+
+  /** Dispatch an incoming message to the appropriate handler. */
+  handleMessage(msg: ServerRequest, via: 'ipc' | 'tcp' = 'ipc', socket?: net.Socket): void {
     this.resetIdleTimer()
 
     switch (msg.type) {
-      case 'pty:create':    this.createPty(msg); break
+      case 'pty:create':    this.createPty(msg, via, socket); break
       case 'pty:write':     this.writePty(msg); break
       case 'pty:resize':    this.resizePty(msg); break
       case 'pty:kill':      this.killPty(msg); break
-      case 'pty:list':      this.listPtys(); break
-      case 'pty:getBuffer': this.getBuffer(msg); break
-      case 'server:ping':   this.send({ type: 'server:pong' }); break
+      case 'pty:list':      this.listPtys(via, socket); break
+      case 'pty:getBuffer': this.getBuffer(msg, via, socket); break
+      case 'server:ping':
+        this.sendToClient({ type: 'server:pong' }, via, socket); break
       case 'server:getConfig':
-        this.send({ type: 'server:config', scrollBufferLines: this.bufferLines, idleTimeoutMs: this.idleTimeoutMs })
-        break
+        this.sendToClient(
+          { type: 'server:config', scrollBufferLines: this.bufferLines, idleTimeoutMs: this.idleTimeoutMs },
+          via, socket,
+        ); break
       case 'server:shutdown':
         this.shutdown()
         break
     }
   }
 
-  private createPty(req: Extract<ServerRequest, { type: 'pty:create' }>): void {
+  // ── PTY handlers ─────────────────────────────────────────────────────────────
+
+  private createPty(
+    req: Extract<ServerRequest, { type: 'pty:create' }>,
+    via: 'ipc' | 'tcp',
+    socket?: net.Socket,
+  ): void {
     if (!ptyAvailable || !pty) {
-      this.send({ type: 'error', requestType: 'pty:create', message: 'node-pty not available' })
+      this.sendToClient({ type: 'error', requestType: 'pty:create', message: 'node-pty not available' }, via, socket)
       return
     }
 
@@ -95,12 +193,14 @@ export class TerminalServer {
 
       ptyProcess.onData((data: string) => {
         buffer.push(data)
-        this.send({ type: 'pty:data', id: req.id, data })
+        // Broadcast PTY output to all connected clients
+        this.broadcastToAll({ type: 'pty:data', id: req.id, data })
       })
 
       ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
         this.ptys.delete(req.id)
-        this.send({ type: 'pty:exit', id: req.id, exitCode })
+        // Broadcast PTY exit to all connected clients
+        this.broadcastToAll({ type: 'pty:exit', id: req.id, exitCode })
       })
 
       this.ptys.set(req.id, {
@@ -110,18 +210,20 @@ export class TerminalServer {
         pid: ptyProcess.pid as number,
       })
 
-      this.send({ type: 'pty:created', id: req.id, pid: ptyProcess.pid as number })
+      // pty:created only goes back to the requester
+      this.sendToClient({ type: 'pty:created', id: req.id, pid: ptyProcess.pid as number }, via, socket)
     } catch (e) {
-      this.send({ type: 'error', requestType: 'pty:create', message: String(e) })
+      this.sendToClient({ type: 'error', requestType: 'pty:create', message: String(e) }, via, socket)
     }
   }
 
   private writePty(req: Extract<ServerRequest, { type: 'pty:write' }>): void {
     const entry = this.ptys.get(req.id)
-    if (entry) {
-      entry.pty.write(req.data)
+    if (!entry) {
+      // No client context for write — broadcast error (caller may be any client)
+      this.broadcastToAll({ type: 'error', requestType: 'pty:write', message: `PTY ${req.id} not found` })
     } else {
-      this.send({ type: 'error', requestType: 'pty:write', message: `PTY ${req.id} not found` })
+      entry.pty.write(req.data)
     }
   }
 
@@ -140,28 +242,35 @@ export class TerminalServer {
     }
   }
 
-  private listPtys(): void {
+  private listPtys(via: 'ipc' | 'tcp', socket?: net.Socket): void {
     const ptys = Array.from(this.ptys.entries()).map(([id, entry]) => ({
       id,
       pid: entry.pid,
       cwd: entry.cwd,
     }))
-    this.send({ type: 'pty:list', ptys })
+    this.sendToClient({ type: 'pty:list', ptys }, via, socket)
   }
 
-  private getBuffer(req: Extract<ServerRequest, { type: 'pty:getBuffer' }>): void {
+  private getBuffer(
+    req: Extract<ServerRequest, { type: 'pty:getBuffer' }>,
+    via: 'ipc' | 'tcp',
+    socket?: net.Socket,
+  ): void {
     const entry = this.ptys.get(req.id)
     if (entry) {
-      this.send({ type: 'pty:buffer', id: req.id, lines: entry.buffer.getLines() })
+      this.sendToClient({ type: 'pty:buffer', id: req.id, lines: entry.buffer.getLines() }, via, socket)
     } else {
-      this.send({ type: 'error', requestType: 'pty:getBuffer', message: `PTY ${req.id} not found` })
+      this.sendToClient({ type: 'error', requestType: 'pty:getBuffer', message: `PTY ${req.id} not found` }, via, socket)
     }
   }
 
-  /** Start countdown to auto-shutdown. Call when parent process disconnects. */
+  // ── Idle management ──────────────────────────────────────────────────────────
+
+  /** Start countdown to auto-shutdown. Called when the parent process disconnects. */
   startIdleTimer(): void {
     if (this.idleTimeoutMs === 0) return // idleTimeoutMs=0 means never auto-shutdown
     if (this.idleTimer) return           // Already running
+    if (!this.shouldStartIdle()) return  // Still have active connections
 
     this.idleTimer = setTimeout(() => {
       this.shutdown()
@@ -176,13 +285,32 @@ export class TerminalServer {
     }
   }
 
-  /** Gracefully kill all PTYs and exit the process. */
+  // ── Shutdown ─────────────────────────────────────────────────────────────────
+
+  /** Gracefully kill all PTYs, close TCP connections, and exit the process. */
   shutdown(): void {
     this.resetIdleTimer()
+
     for (const [, entry] of this.ptys) {
       try { entry.pty.kill() } catch { /* ignore */ }
     }
     this.ptys.clear()
+
+    // Close all TCP clients and the TCP server
+    for (const client of this.tcpClients) {
+      try { client.destroy() } catch { /* ignore */ }
+    }
+    this.tcpClients.clear()
+    if (this.tcpServer) {
+      this.tcpServer.close()
+      this.tcpServer = null
+    }
+
+    // Clean up port file
+    if (this._userDataPath) {
+      try { removePortFile(this._userDataPath) } catch { /* ignore */ }
+    }
+
     process.exit(0)
   }
 }
