@@ -1,6 +1,7 @@
 import * as net from 'net'
 import { RingBuffer } from './ring-buffer'
 import { writePortFile, removePortFile, removePidFile } from './pid-manager'
+import { addPtyEntry, removePtyEntry, clearRegistry, writeRegistry } from './pty-registry'
 import type { ServerRequest, ServerResponse } from './protocol'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
@@ -85,6 +86,10 @@ export class TerminalServer {
    */
   startTcpServer(userDataPath: string): void {
     this._userDataPath = userDataPath
+
+    // T0113: Initialize PTY registry with server PID
+    writeRegistry({ serverPid: process.pid, ptys: [], updatedAt: new Date().toISOString() }, userDataPath)
+
     this.tcpServer = net.createServer((socket) => {
       this.tcpClients.add(socket)
       this.resetIdleTimer()  // New connection resets idle countdown
@@ -171,6 +176,15 @@ export class TerminalServer {
       return
     }
 
+    // T0111: Idempotent create — if PTY already exists (e.g. View→Reload), keep it alive.
+    // initTerminals re-sends pty:create with the same IDs after renderer reload;
+    // overwriting would destroy the running session and empty the ring buffer.
+    const existing = this.ptys.get(req.id)
+    if (existing) {
+      this.sendToClient({ type: 'pty:created', id: req.id, pid: existing.pid }, via, socket)
+      return
+    }
+
     try {
       const ptyProcess = pty.spawn(req.shell, req.args, {
         name: 'xterm-256color',
@@ -199,6 +213,8 @@ export class TerminalServer {
 
       ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
         this.ptys.delete(req.id)
+        // T0113: Remove from registry
+        if (this._userDataPath) removePtyEntry(req.id, this._userDataPath)
         // Broadcast PTY exit to all connected clients
         this.broadcastToAll({ type: 'pty:exit', id: req.id, exitCode })
       })
@@ -209,6 +225,15 @@ export class TerminalServer {
         cwd: req.cwd,
         pid: ptyProcess.pid as number,
       })
+
+      // T0113: Track PTY PID in registry for orphan cleanup on crash
+      if (this._userDataPath) {
+        addPtyEntry(
+          { id: req.id, pid: ptyProcess.pid as number, cwd: req.cwd, createdAt: new Date().toISOString() },
+          process.pid,
+          this._userDataPath,
+        )
+      }
 
       // pty:created only goes back to the requester
       this.sendToClient({ type: 'pty:created', id: req.id, pid: ptyProcess.pid as number }, via, socket)
@@ -239,6 +264,8 @@ export class TerminalServer {
     if (entry) {
       try { entry.pty.kill() } catch { /* already dead */ }
       this.ptys.delete(req.id)
+      // T0113: Remove from registry
+      if (this._userDataPath) removePtyEntry(req.id, this._userDataPath)
     }
   }
 
@@ -306,8 +333,9 @@ export class TerminalServer {
       this.tcpServer = null
     }
 
-    // Clean up PID file + port file
+    // Clean up PID file + port file + PTY registry
     if (this._userDataPath) {
+      try { clearRegistry(this._userDataPath) } catch { /* ignore */ }
       try { removePidFile(this._userDataPath) } catch { /* ignore */ }
       try { removePortFile(this._userDataPath) } catch { /* ignore */ }
     }

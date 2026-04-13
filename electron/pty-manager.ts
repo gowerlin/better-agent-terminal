@@ -1,10 +1,11 @@
 import * as net from 'net'
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import type { CreatePtyOptions } from '../src/types'
 import { broadcastHub } from './remote/broadcast-hub'
 import { logger } from './logger'
 import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
+import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -649,6 +650,28 @@ export class PtyManager {
       if (this.tcpSocket && !this.tcpSocket.destroyed) {
         this.tcpSocket.destroy()
         this.tcpSocket = null
+      }
+
+      // T0113: Kill orphan PTY processes from registry before re-forking
+      try {
+        const userDataPath = app.getPath('userData')
+        const registry = readRegistry(userDataPath)
+        if (registry?.ptys.length) {
+          for (const entry of registry.ptys) {
+            try { process.kill(entry.pid, 'SIGTERM') } catch { /* already dead */ }
+          }
+          // Windows: force-kill process trees to ensure child shells die
+          if (process.platform === 'win32') {
+            const { execFile } = require('child_process')
+            for (const entry of registry.ptys) {
+              try { execFile('taskkill', ['/F', '/T', '/PID', String(entry.pid)]) } catch { /* ignore */ }
+            }
+          }
+          logger.log(`[PtyManager] Killed ${registry.ptys.length} orphan PTY(s) from registry`)
+        }
+        clearRegistry(userDataPath)
+      } catch (e) {
+        logger.warn('[PtyManager] Failed to clean orphan PTYs from registry:', e)
       }
 
       // Request main.ts to re-fork a new server

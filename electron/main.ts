@@ -79,6 +79,7 @@ import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
+import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
@@ -253,6 +254,22 @@ async function startTerminalServer(): Promise<void> {
   if (orphanPid !== null && !isServerRunning(userDataPath)) {
     logger.log(`[terminal-server] orphan PID ${orphanPid} detected — cleaning up stale files`)
     try { process.kill(orphanPid, 'SIGTERM') } catch { /* process already gone */ }
+
+    // T0113: Kill orphan PTY processes tracked in registry
+    const registry = readRegistry(userDataPath)
+    if (registry?.ptys.length) {
+      for (const entry of registry.ptys) {
+        try { process.kill(entry.pid, 'SIGTERM') } catch { /* already dead */ }
+        if (process.platform === 'win32') {
+          try {
+            require('child_process').execFileSync('taskkill', ['/F', '/T', '/PID', String(entry.pid)], { stdio: 'ignore' })
+          } catch { /* ignore */ }
+        }
+      }
+      logger.log(`[terminal-server] Cleaned ${registry.ptys.length} orphan PTY process(es) from registry`)
+    }
+    clearRegistry(userDataPath)
+
     removePidFile(userDataPath)
     removePortFile(userDataPath)
   }
