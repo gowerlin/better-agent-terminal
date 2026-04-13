@@ -877,6 +877,35 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           )}
           {activeTab === 'advanced' && (<>
           <div className="settings-section">
+            <h3>Terminal Server</h3>
+            <div className="settings-group">
+              <label>Scroll Buffer Lines</label>
+              <input
+                type="number"
+                min={100}
+                max={5000}
+                step={100}
+                value={settings.terminalServerScrollBufferLines ?? 1000}
+                onChange={e => settingsStore.setTerminalServerScrollBufferLines(Number(e.target.value))}
+                style={{ width: '100px' }}
+              />
+              <p className="settings-hint">重連後可恢復的終端輸出行數（100–5000），設定後重啟 Terminal Server 生效</p>
+            </div>
+            <div className="settings-group">
+              <label>Idle Timeout</label>
+              <select
+                value={settings.terminalServerIdleTimeoutMinutes ?? 30}
+                onChange={e => settingsStore.setTerminalServerIdleTimeoutMinutes(Number(e.target.value))}
+              >
+                <option value={15}>15 分鐘</option>
+                <option value={30}>30 分鐘</option>
+                <option value={60}>60 分鐘</option>
+                <option value={0}>永不關閉</option>
+              </select>
+              <p className="settings-hint">BAT 關閉後 Terminal Server 保持存活的時間，設定後重啟 Terminal Server 生效</p>
+            </div>
+          </div>
+          <div className="settings-section">
             <h3>{t('settings.debugLogging')}</h3>
 
             <div className="settings-group checkbox-group">

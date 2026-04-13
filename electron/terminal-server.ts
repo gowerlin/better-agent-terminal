@@ -23,7 +23,14 @@ if (userDataPath) {
   }
 }
 
-const server = new TerminalServer()
+// Config from env vars (set by main.ts from settings.json — T0109)
+const scrollBufferLines = process.env.BAT_SCROLL_BUFFER_LINES
+  ? parseInt(process.env.BAT_SCROLL_BUFFER_LINES, 10)
+  : undefined
+const idleTimeoutMs = process.env.BAT_IDLE_TIMEOUT_MS
+  ? parseInt(process.env.BAT_IDLE_TIMEOUT_MS, 10)
+  : undefined
+const server = new TerminalServer(idleTimeoutMs, scrollBufferLines)
 
 // Start TCP server for reconnection after BAT restart (T0108)
 if (userDataPath) {

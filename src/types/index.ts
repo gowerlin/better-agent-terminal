@@ -235,6 +235,8 @@ export interface AppSettings {
   vscodeEditorType?: 'code' | 'code-insiders';  // VS Code 執行檔類型（預設 code）
   vscodePath?: string;           // VS Code 自訂完整路徑（空白 = 用 'code'）
   vscodeInsidersPath?: string;   // VS Code Insiders 自訂完整路徑（空白 = 用 'code-insiders'）
+  terminalServerScrollBufferLines?: number;  // Terminal Server 滾動緩衝行數（預設 1000，範圍 100-5000）
+  terminalServerIdleTimeoutMinutes?: number; // Terminal Server 閒置關閉時間（分鐘，0 = 永不關閉，預設 30）
 }
 
 // ============================================

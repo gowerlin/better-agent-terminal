@@ -36,6 +36,8 @@ const defaultSettings: AppSettings = {
   checkForUpdates: false,
   loggingEnabled: true,
   logLevel: 'debug',
+  terminalServerScrollBufferLines: 1000,
+  terminalServerIdleTimeoutMinutes: 30,
 }
 
 class SettingsStore {
@@ -297,6 +299,19 @@ class SettingsStore {
 
   setVscodeInsidersPath(path: string): void {
     this.settings = { ...this.settings, vscodeInsidersPath: path }
+    this.notify()
+    this.save()
+  }
+
+  setTerminalServerScrollBufferLines(lines: number): void {
+    const clamped = Math.max(100, Math.min(5000, Math.round(lines)))
+    this.settings = { ...this.settings, terminalServerScrollBufferLines: clamped }
+    this.notify()
+    this.save()
+  }
+
+  setTerminalServerIdleTimeoutMinutes(minutes: number): void {
+    this.settings = { ...this.settings, terminalServerIdleTimeoutMinutes: minutes }
     this.notify()
     this.save()
   }

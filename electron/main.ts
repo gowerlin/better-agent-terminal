@@ -78,7 +78,7 @@ import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { logger, type LogLevel } from './logger'
-import { isServerRunning, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
+import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
@@ -182,6 +182,15 @@ async function startTerminalServer(): Promise<void> {
 
   const userDataPath = app.getPath('userData')
 
+  // Orphan cleanup: PID file exists but process is already dead — clean up stale files
+  const orphanPid = readPidFile(userDataPath)
+  if (orphanPid !== null && !isServerRunning(userDataPath)) {
+    logger.log(`[terminal-server] orphan PID ${orphanPid} detected — cleaning up stale files`)
+    try { process.kill(orphanPid, 'SIGTERM') } catch { /* process already gone */ }
+    removePidFile(userDataPath)
+    removePortFile(userDataPath)
+  }
+
   if (isServerRunning(userDataPath)) {
     // T0108: Try TCP reconnect before deciding to fork a new server
     const port = readPortFile(userDataPath)
@@ -213,10 +222,20 @@ async function startTerminalServer(): Promise<void> {
   }
 
   try {
+    // Read Terminal Server config from settings.json (T0109)
+    const tsSettings = readPersistedSettingsSync()
+    const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
+    const idleTimeoutMinutes = tsSettings?.terminalServerIdleTimeoutMinutes ?? 30
+
     const child = fork(serverScript, [], {
       detached: true,
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-      env: { ...process.env, BAT_USER_DATA: userDataPath },
+      env: {
+        ...process.env,
+        BAT_USER_DATA: userDataPath,
+        BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
+        BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
+      },
     })
 
     child.on('error', (err) => {
@@ -255,6 +274,8 @@ interface PersistedSettings {
   enableDevTools?: boolean
   loggingEnabled?: boolean
   logLevel?: LogLevel
+  terminalServerScrollBufferLines?: number
+  terminalServerIdleTimeoutMinutes?: number
 }
 
 function normalizeLogLevel(level: unknown): LogLevel {

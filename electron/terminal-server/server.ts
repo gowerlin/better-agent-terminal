@@ -1,6 +1,6 @@
 import * as net from 'net'
 import { RingBuffer } from './ring-buffer'
-import { writePortFile, removePortFile } from './pid-manager'
+import { writePortFile, removePortFile, removePidFile } from './pid-manager'
 import type { ServerRequest, ServerResponse } from './protocol'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
@@ -306,8 +306,9 @@ export class TerminalServer {
       this.tcpServer = null
     }
 
-    // Clean up port file
+    // Clean up PID file + port file
     if (this._userDataPath) {
+      try { removePidFile(this._userDataPath) } catch { /* ignore */ }
       try { removePortFile(this._userDataPath) } catch { /* ignore */ }
     }
 
