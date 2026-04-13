@@ -430,6 +430,14 @@ const electronAPI = {
     },
     recover: () => ipcRenderer.send('terminal-server:recover'),
     freshStart: () => ipcRenderer.send('terminal-server:fresh-start'),
+    // T0111: pull-model — renderer queries after mount to catch events sent before listener was ready
+    queryPendingRecovery: () => ipcRenderer.invoke('terminal-server:query-pending-recovery') as Promise<{ ptyCount: number } | null>,
+    // T0112: heartbeat watchdog status (recovering | recovered | failed)
+    onStatusChange: (callback: (status: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: string) => callback(status)
+      ipcRenderer.on('terminal-server:status', handler)
+      return () => ipcRenderer.removeListener('terminal-server:status', handler)
+    },
   },
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),

@@ -334,6 +334,57 @@ async function startTerminalServer(): Promise<void> {
   }
 }
 
+/**
+ * Re-fork a Terminal Server after a crash (T0112 heartbeat recovery).
+ * Resets the startup guard so startTerminalServer() can run again, then
+ * forks a fresh server and returns its ChildProcess.
+ */
+async function reforkTerminalServer(): Promise<import('child_process').ChildProcess | null> {
+  logger.log('[terminal-server] re-forking after heartbeat-detected crash...')
+  _terminalServerStarted = false
+  _terminalServerProcess = null
+
+  const userDataPath = app.getPath('userData')
+  removePidFile(userDataPath)
+  removePortFile(userDataPath)
+
+  const serverScript = path.join(__dirname, 'terminal-server.js')
+  if (!fsSync.existsSync(serverScript)) {
+    logger.error('[terminal-server] re-fork: server script not found — cannot recover')
+    return null
+  }
+
+  try {
+    const tsSettings = readPersistedSettingsSync()
+    const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
+    const idleTimeoutMinutes = tsSettings?.terminalServerIdleTimeoutMinutes ?? 30
+
+    const child = fork(serverScript, [], {
+      detached: true,
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      env: {
+        ...process.env,
+        BAT_USER_DATA: userDataPath,
+        BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
+        BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
+      },
+    })
+
+    child.on('error', (err) => {
+      logger.error(`[terminal-server] re-fork error: ${err}`)
+    })
+
+    _terminalServerStarted = true
+    _terminalServerProcess = child
+    logger.log(`[terminal-server] re-forked with pid ${child.pid}`)
+    child.unref()
+    return child
+  } catch (err) {
+    logger.error(`[terminal-server] re-fork failed: ${err}`)
+    return null
+  }
+}
+
 let ptyManager: PtyManager | null = null
 let claudeManager: ClaudeAgentManager | null = null
 let updateCheckResult: UpdateCheckResult | null = null
@@ -892,6 +943,8 @@ app.whenReady().then(async () => {
   // Initialize PtyManager before starting Terminal Server so TCP reconnect can use it (T0108)
   if (!ptyManager) {
     ptyManager = new PtyManager(getAllWindows)
+    // T0112: Provide re-fork callback so PtyManager can restart the server after a crash
+    ptyManager.onRequestNewServer = reforkTerminalServer
   }
 
   // Start Terminal Server (PLAN-008 Phase 2) as independent background process
@@ -1037,9 +1090,23 @@ app.whenReady().then(async () => {
       win.webContents.on('dom-ready', () => {
         logger.log(`[startup] dom-ready: +${Date.now() - t0}ms from whenReady`)
       })
-      win.webContents.on('did-finish-load', () => {
+      win.webContents.on('did-finish-load', async () => {
         logger.log(`[startup] did-finish-load: +${Date.now() - t0}ms from whenReady`)
-        // T0110: Notify renderer if there are live PTYs to recover
+        // T0110/T0111: Notify renderer if there are live PTYs to recover.
+        // pendingRecovery is set by startTerminalServer() on initial startup.
+        // On View→Reload the main process stays alive but pendingRecovery is null,
+        // so we re-probe the server to catch PTYs created before the reload.
+        if (!pendingRecovery) {
+          const userDataPath = app.getPath('userData')
+          const port = readPortFile(userDataPath)
+          if (port !== null && isServerRunning(userDataPath)) {
+            const ptyCount = await probeServerPtyCount(port)
+            if (ptyCount > 0) {
+              pendingRecovery = { port, ptyCount }
+              logger.log(`[terminal-server] reload detected ${ptyCount} live PTYs — offering recovery`)
+            }
+          }
+        }
         if (pendingRecovery) {
           win.webContents.send('terminal-server:recovery-available', { ptyCount: pendingRecovery.ptyCount })
         }
@@ -2397,12 +2464,25 @@ function registerLocalHandlers() {
     return ptyManager.getLastOutput(targetId, lines)
   })
 
+  // T0111: Pull-model query — renderer calls this after mounting to catch events sent before listener was ready
+  ipcMain.handle('terminal-server:query-pending-recovery', () => {
+    return pendingRecovery ? { ptyCount: pendingRecovery.ptyCount } : null
+  })
+
   // T0110: Recovery prompt IPC handlers
   ipcMain.on('terminal-server:recover', async () => {
     if (!pendingRecovery) return
     const { port } = pendingRecovery
     pendingRecovery = null
     if (!ptyManager) return
+
+    // T0111: If IPC is still connected (View→Reload case), skip TCP connect to avoid
+    // dual-channel output duplication (broadcastToAll would send via IPC + TCP both).
+    if (ptyManager.isIpcConnected()) {
+      logger.log(`[terminal-server] user chose recovery — IPC already active, sending pty:list directly`)
+      ptyManager.sendToServer({ type: 'pty:list' })
+      return
+    }
 
     const connected = await ptyManager.connectToServer(port)
     if (connected) {

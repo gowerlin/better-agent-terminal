@@ -194,6 +194,10 @@ interface ElectronAPI {
     recover: () => void
     /** User chose fresh start (shutdown old server, fork new one). */
     freshStart: () => void
+    /** T0111: Pull-model — query if there is a pending recovery prompt. */
+    queryPendingRecovery: () => Promise<{ ptyCount: number } | null>
+    /** T0112: Heartbeat watchdog status changes (recovering | recovered | failed). Returns unsubscribe fn. */
+    onStatusChange: (callback: (status: string) => void) => () => void
   }
 }
 

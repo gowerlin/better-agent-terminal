@@ -116,6 +116,7 @@ export default function App() {
   const [isRemoteConnected, setIsRemoteConnected] = useState(false)
   const [appNotification, setAppNotification] = useState<string | null>(null)
   const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
+  const [serverStatusToast, setServerStatusToast] = useState<string | null>(null)
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
   // Docking system
   const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
@@ -550,6 +551,23 @@ export default function App() {
     const unsubRecovery = window.electronAPI.terminalServer.onRecoveryAvailable((info) => {
       setRecoveryInfo(info)
     })
+    // T0111: pull-model — check if main process already has pending recovery
+    // (handles case where push event arrived before this listener was registered)
+    window.electronAPI.terminalServer.queryPendingRecovery().then((info) => {
+      if (info) setRecoveryInfo(info)
+    })
+
+    // T0112: heartbeat watchdog status toast notifications
+    const unsubServerStatus = window.electronAPI.terminalServer.onStatusChange((status) => {
+      if (status === 'recovering') {
+        setServerStatusToast('Terminal Server 異常，正在自動恢復...')
+      } else if (status === 'recovered') {
+        setServerStatusToast('終端已恢復（歷史輸出已重置）')
+        setTimeout(() => setServerStatusToast(null), 3000)
+      } else if (status === 'failed') {
+        setServerStatusToast('Terminal Server 恢復失敗，請重新啟動應用程式')
+      }
+    })
 
     const unsubReattach = window.electronAPI.workspace.onReattached((wsId) => {
       setDetachedIds(prev => {
@@ -568,6 +586,7 @@ export default function App() {
       unsubDetach()
       unsubReattach()
       unsubRecovery()
+      unsubServerStatus()
     }
   }, [])
 
@@ -1097,6 +1116,11 @@ export default function App() {
             setRecoveryInfo(null)
           }}
         />
+      )}
+      {serverStatusToast && (
+        <div className="server-status-toast" onClick={() => setServerStatusToast(null)}>
+          {serverStatusToast}
+        </div>
       )}
     </div>
   )

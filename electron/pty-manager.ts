@@ -27,6 +27,8 @@ interface PtyInstance {
   type: 'terminal'  // Unified to 'terminal' - agent types handled by agentPreset
   cwd: string
   usePty: boolean
+  shell?: string       // Stored for heartbeat recovery rebuild (T0112)
+  shellArgs?: string[] // Stored for heartbeat recovery rebuild (T0112)
 }
 
 export class PtyManager {
@@ -48,6 +50,16 @@ export class PtyManager {
   // TCP reconnect channel (T0108)
   private tcpSocket: net.Socket | null = null
 
+  // Heartbeat watchdog (T0112)
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  private lastPong: number = Date.now()
+  private isRecovering = false
+  private static readonly HEARTBEAT_INTERVAL_MS = 10_000  // 10 seconds
+  private static readonly HEARTBEAT_TIMEOUT_MS = 3_000    // 3 seconds no pong → dead
+
+  /** Callback provided by main.ts to re-fork a new Terminal Server process. */
+  onRequestNewServer: (() => Promise<ChildProcess | null>) | null = null
+
   constructor(getWindows: () => BrowserWindow[]) {
     this.getWindows = getWindows
   }
@@ -56,7 +68,21 @@ export class PtyManager {
   setServerProcess(server: ChildProcess): void {
     this.serverProcess = server
     this.setupServerListener()
+    // T0112: Fast-path death detection via IPC exit event
+    server.once('exit', () => {
+      if (!this.isRecovering) {
+        logger.log('[PtyManager] Terminal Server IPC process exited — triggering recovery')
+        this.handleServerDeath()
+      }
+    })
+    this.lastPong = Date.now()
+    this.startHeartbeat()
     logger.log('[PtyManager] Terminal Server connected via IPC — proxy mode active')
+  }
+
+  /** True when the fork IPC channel to the Terminal Server is still open. */
+  isIpcConnected(): boolean {
+    return this.serverProcess !== null && this.serverProcess.connected
   }
 
   /**
@@ -65,6 +91,13 @@ export class PtyManager {
    */
   public connectToServer(port: number): Promise<boolean> {
     return new Promise((resolve) => {
+      // T0111: Close existing TCP socket before opening a new one to avoid
+      // duplicate message delivery (Terminal Server broadcasts to ALL clients).
+      if (this.tcpSocket && !this.tcpSocket.destroyed) {
+        this.tcpSocket.destroy()
+        this.tcpSocket = null
+      }
+
       const socket = new net.Socket()
 
       socket.setTimeout(3000)
@@ -91,6 +124,10 @@ export class PtyManager {
         if (this.tcpSocket === socket) {
           this.tcpSocket = null
           logger.log('[PtyManager] TCP connection to Terminal Server closed')
+          // T0112: Fast-path death detection via TCP close (more immediate than heartbeat)
+          if (!this.isRecovering) {
+            this.handleServerDeath()
+          }
         }
       })
     })
@@ -149,6 +186,8 @@ export class PtyManager {
         this.handleReplayList(msg.ptys); break
       case 'pty:buffer':
         this.handleReplayBuffer(msg.id, msg.lines); break
+      case 'server:pong':
+        this.lastPong = Date.now(); break  // T0112: heartbeat ACK
       case 'error':
         logger.error('[PtyManager] server error:', msg); break
     }
@@ -328,6 +367,13 @@ export class PtyManager {
 
     // Proxy to Terminal Server if IPC connection is live
     if (this.useServer) {
+      // T0111: Skip if PTY already exists on server (idempotent — handles View→Reload).
+      // initTerminals re-sends pty:create with the same IDs after renderer reload;
+      // sending to server would overwrite the running PTY and clear its ring buffer.
+      if (this.instances.has(id)) {
+        logger.log(`[PtyManager] pty:create SKIP (idempotent) id=${id} — already registered`)
+        return true
+      }
       const envWithUtf8 = {
         ...process.env as Record<string, string>,
         ...customEnv,
@@ -354,7 +400,8 @@ export class PtyManager {
         rows: 30,
         env: envWithUtf8,
       })
-      this.instances.set(id, { process: null, type, cwd, usePty: true })
+      // T0112: Store shell/args so handleServerDeath() can rebuild after crash
+      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args })
       logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
       return true
     }
@@ -562,7 +609,87 @@ export class PtyManager {
     return null
   }
 
+  /** Start sending periodic ping messages to the Terminal Server (T0112). */
+  private startHeartbeat(): void {
+    this.stopHeartbeat()
+    this.lastPong = Date.now()
+    this.heartbeatTimer = setInterval(() => {
+      const elapsed = Date.now() - this.lastPong
+      if (elapsed > PtyManager.HEARTBEAT_INTERVAL_MS + PtyManager.HEARTBEAT_TIMEOUT_MS) {
+        logger.error(`[PtyManager] heartbeat timeout (${elapsed}ms since last pong) — server dead`)
+        if (!this.isRecovering) {
+          this.handleServerDeath()
+        }
+        return
+      }
+      this.sendToServer({ type: 'server:ping' })
+    }, PtyManager.HEARTBEAT_INTERVAL_MS)
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = null
+    }
+  }
+
+  /** Attempt to recover from Terminal Server death: re-fork + rebuild all PTYs (T0112). */
+  private async handleServerDeath(): Promise<void> {
+    if (this.isRecovering) return
+    this.isRecovering = true
+    try {
+      logger.error('[PtyManager] Terminal Server died — attempting recovery...')
+      this.stopHeartbeat()
+
+      // Notify renderer: server is recovering
+      this.broadcast('terminal-server:status', 'recovering')
+
+      // Clean up dead connection state
+      this.serverProcess = null
+      if (this.tcpSocket && !this.tcpSocket.destroyed) {
+        this.tcpSocket.destroy()
+        this.tcpSocket = null
+      }
+
+      // Request main.ts to re-fork a new server
+      const newServer = this.onRequestNewServer ? await this.onRequestNewServer() : null
+      if (!newServer) {
+        logger.error('[PtyManager] re-fork failed or no callback — Terminal Server unavailable')
+        this.broadcast('terminal-server:status', 'failed')
+        return
+      }
+
+      // setServerProcess also starts a new heartbeat
+      this.setServerProcess(newServer)
+
+      // Rebuild all PTYs that were running before the crash
+      const oldInstances = new Map(this.instances)
+      this.instances.clear()
+      for (const [id, inst] of oldInstances) {
+        const shell = inst.shell || this.getDefaultShell()
+        const args = inst.shellArgs || []
+        this.sendToServer({
+          type: 'pty:create',
+          id,
+          shell,
+          args,
+          cwd: inst.cwd,
+          cols: 120,
+          rows: 30,
+        })
+        this.instances.set(id, { ...inst, process: null })
+      }
+
+      // Notify renderer: recovery complete
+      this.broadcast('terminal-server:status', 'recovered')
+      logger.log('[PtyManager] Terminal Server recovery complete')
+    } finally {
+      this.isRecovering = false
+    }
+  }
+
   dispose(): void {
+    this.stopHeartbeat()  // T0112: stop heartbeat before cleanup
     if (this.useServer) {
       // Don't kill server PTYs — Terminal Server survives BAT restarts (T0108 reconnection).
       // Only clean up any direct (non-proxy) fallback instances that have a live process.
