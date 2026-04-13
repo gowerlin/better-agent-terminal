@@ -35,6 +35,17 @@
 
 ---
 
+### D031 2026-04-13 — PLAN-008 Phase 2 可配置參數
+
+- **背景**：Terminal Server 架構需要兩個關鍵參數，使用者要求可在 Settings UI 調整
+- **決定**：
+  - Scroll buffer：預設 1000 行，Settings UI 可調，安全上限 5000 行（~500KB/terminal）
+  - Server idle timeout：預設 30 分鐘，Settings UI 可調，含「永不關閉」選項
+  - 兩者均透過 Settings 面板操作，存入 settings.json
+- **相關工單**：T0109（Config 實作 + Settings UI）
+
+---
+
 ### D030 2026-04-13 — 索引架構改革
 
 - **背景**：CT 工單系統維護多個 index（_workorder-index.md / _bug-tracker.md / _backlog.md），與源文件雙重維護導致持續偏差

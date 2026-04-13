@@ -2,13 +2,14 @@
 
 > 最後更新：2026-04-13 18:55 (UTC+8)（T0103 重建：從 BUG-###.md 源文件掃描確認）
 >
-> 統計：🔴 Open: 1 | 🧪 Verify: 0 | ✅ Fixed: 0 | 🚫 Closed: 24 | ⛔ Won't Fix: 1 | 總計: 26
+> 統計：🔴 Open: 0 | 🧪 Verify: 0 | ✅ Fixed: 1 | 🚫 Closed: 24 | ⛔ Won't Fix: 1 | 總計: 26
 
 ---
 
 ## 🔴 Open / 處理中
 
-| BUG-026 | _bmad-output/ 目錄未被 file watch 監聽（Workflow/Epics 頁籤不自動刷新） | 🟡 Medium | 📂 OPEN | 2026-04-13 | [詳細](BUG-026-bmad-output-not-file-watched.md) |
+（目前無 Open bug）
+
 
 ---
 
@@ -20,7 +21,7 @@
 
 ## ✅ 已修復
 
-（目前無 FIXED bug — 全數已結案）
+| BUG-026 | _bmad-output/ 目錄未被 file watch 監聽（Workflow/Epics 頁籤不自動刷新） | 🟡 Medium | ✅ FIXED (T0105)，待 runtime 驗收 | 2026-04-13 | [詳細](BUG-026-bmad-output-not-file-watched.md) |
 
 ---
 

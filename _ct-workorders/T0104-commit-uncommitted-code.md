@@ -7,7 +7,7 @@
 | **工單編號** | T0104 |
 | **標題** | 批次提交 T0091/T0092/T0096 未 commit 程式碼 |
 | **類型** | Git 整理 |
-| **狀態** | 🔄 IN_PROGRESS |
+| **狀態** | ✅ DONE |
 | **開始時間** | 2026-04-13 18:54 UTC+8 |
 | **優先級** | 高 |
 | **建立時間** | 2026-04-13 18:20 UTC+8 |
@@ -113,13 +113,27 @@ npx vite build
 ## 回報區（Worker 填寫）
 
 ### 實際 Commit 列表
-（完成後填寫，含 commit hash）
+
+| Hash | 功能 | 說明 |
+|------|------|------|
+| `394bede` | T0091 BugWorkflowIndicator | feat(ct-panel): BUG Detail 工作流 UI 指示器 |
+| `3d80fd1` | T0092 右鍵選單 | fix(terminal): 右鍵選單智慧定位，避免超出螢幕邊界 |
+| `1ecb6b9` | T0096 PLAN-008-P1 | feat(layout): 30s auto-save + 佈局持久化 |
+| `62399e4` | 塔台文件批次更新 | chore(tower): T0091~T0096 完成 + 全部塔台文件 |
 
 ### Build 結果
-（完成後填寫）
+
+✅ `npx vite build` 通過，無 TypeScript 錯誤。只有既有的 chunk size 警告（與本工單無關）。
 
 ### 問題 / 卡點
-（如有）
+
+- `_workorder-index.md` 的重命名（→ `_archive/`）意外進入了 staging area，需先 unstage 再分配到正確的 Commit 4。
+- 工單文件原本有 14 個未提交檔案，最終按語義正確分配完畢。
+
+### 互動紀錄
+
+無
 
 ### 完成時間
-（完成後填寫）
+
+2026-04-13 18:59 UTC+8

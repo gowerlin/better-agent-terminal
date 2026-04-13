@@ -1,7 +1,7 @@
 # BUG-026 — _bmad-output/ 目錄未被 file watch 監聽
 
 ## 狀態
-**📂 OPEN**
+**✅ FIXED** (T0105，commit 3cf1e60，待 runtime 驗收)
 
 ## 發現時間
 2026-04-13 18:17 UTC+8（T0102 靜態分析附帶發現）

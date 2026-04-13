@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-13 18:22 (UTC+8)（BUG-025 CLOSED，BUG-026 開立，T0103/T0104 工單就緒）
+> 最後更新：2026-04-13 22:40 (UTC+8)（T0113 DONE：PTY PID Registry，PLAN-008 Phase 2 完整收官）
 
 ---
 
@@ -8,11 +8,17 @@
 > 最後更新：2026-04-13 17:51 UTC+8（session context 耗盡，正常切換）
 
 ### 立即待辦
-1. **T0103** 📋 TODO：索引架構改革實作（移除 _workorder-index.md、改 bug-tracker/backlog 為 sync 重建）
-2. **T0104** 📋 TODO：批次提交 T0091/T0092/T0096 未 commit 程式碼
-3. **BUG-026** 📂 OPEN：`_bmad-output/` 未被 file watch 監聽（修復工單 T0105+）
-4. **BUG-025** 🚫 CLOSED（人工驗收通過 2026-04-13）
-5. **考慮發 v0.0.9 正式版**：T0103/T0104 完成後評估
+1. **T0103** ✅ DONE：索引架構改革（_workorder-index 移除，bug-tracker/backlog sync 重建）
+2. **T0104** ✅ DONE：4 commits 入庫（394bede / 3d80fd1 / 1ecb6b9 / 62399e4）
+3. **BUG-025** ✅ CLOSED
+4. **T0105** ✅ DONE：BUG-026 修復
+5. **BUG-026** ✅ FIXED（待 runtime 驗收 → CLOSED）
+6. **PLAN-008 Phase 2 工單排程**：
+   - T0106 ✅ DONE：Terminal Server 骨架（c1d238a）
+   - T0107 ✅ DONE：PtyManager proxy（55d33d8）**← Milestone: Terminal Server 可用**
+   - T0108 ✅ DONE：TCP 重連 + buffer 重播（c65fb6e）
+   - T0109 ✅ DONE：孤兒回收 + Settings UI + ASAR（ab98120）
+   - T0110 ✅ DONE：復原提示 UI（5b8d99a）**← PLAN-008 Phase 2 全部完成**
 
 ### 本 session 完成摘要（T0097~T0101）
 - **配置補齊**：project-context.md + sprint-status.yaml（T0097/T0098）
@@ -22,8 +28,8 @@
 - **架構決策**：sprint-status.yaml 放根目錄（不放 _bmad-output/），BMad 層次補 User Story 討論
 
 ### 工單統計
-- Done: 102 | Active: 2 | 總計: 104
-- 最高編號：T0104 / BUG-026 / PLAN-009 / D030
+- Done: 113 | Active: 0 | 總計: 113
+- 最高編號：T0111 / BUG-026 / PLAN-009 / D031
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 
