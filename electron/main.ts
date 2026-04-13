@@ -1782,6 +1782,26 @@ function registerLocalHandlers() {
     await shell.openExternal(url)
   })
   ipcMain.handle('shell:open-path', async (_event, folderPath: string) => { await shell.openPath(folderPath) })
+  ipcMain.handle('shell:open-in-editor', async (_event, folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => {
+    const { execFile } = await import('child_process')
+    const defaultCmd = editorType === 'code-insiders' ? 'code-insiders' : 'code'
+    const raw = customPath?.trim().replace(/^["']+|["']+$/g, '').trim()
+    const executable = raw || defaultCmd
+    return new Promise<{ success: boolean; error?: { type: string; executable: string; message: string } }>((resolve) => {
+      execFile(executable, ['--new-window', folderPath], { timeout: 10000, windowsHide: true }, (err) => {
+        if (err) {
+          logger.error(`Failed to open ${folderPath} in ${executable}:`, err)
+          if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+            resolve({ success: false, error: { type: 'ENOENT', executable, message: `Executable not found: ${executable}` } })
+            return
+          }
+          resolve({ success: false, error: { type: 'EXEC_ERROR', executable, message: err.message } })
+          return
+        }
+        resolve({ success: true })
+      })
+    })
+  })
 
   ipcMain.handle('update:check', async () => {
     try { return await checkForUpdates() }

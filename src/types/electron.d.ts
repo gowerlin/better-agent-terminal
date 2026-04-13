@@ -63,6 +63,7 @@ interface ElectronAPI {
   shell: {
     openExternal: (url: string) => Promise<void>
     openPath: (folderPath: string) => Promise<void>
+    openInEditor: (folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => Promise<{ success: boolean; error?: { type: string; executable: string; message: string } }>
   }
   git: {
     getGithubUrl: (folderPath: string) => Promise<string | null>
@@ -96,6 +97,71 @@ interface ElectronAPI {
     listWorkers: (terminalIds: string[]) => Promise<{ id: string; lastOutput: string; alive: boolean }[]>
     sendToWorker: (targetId: string, text: string) => Promise<boolean>
     getWorkerOutput: (targetId: string, lines: number) => Promise<string[]>
+  }
+  claude: {
+    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) => Promise<void>
+    sendMessage: (sessionId: string, prompt: string, images?: string[]) => Promise<void>
+    stopSession: (sessionId: string) => Promise<void>
+    onMessage: (callback: (sessionId: string, message: unknown) => void) => () => void
+    onToolUse: (callback: (sessionId: string, toolCall: unknown) => void) => () => void
+    onToolResult: (callback: (sessionId: string, result: unknown) => void) => () => void
+    onResult: (callback: (sessionId: string, result: unknown) => void) => () => void
+    onError: (callback: (sessionId: string, error: string) => void) => () => void
+    onStream: (callback: (sessionId: string, data: unknown) => void) => () => void
+    onStatus: (callback: (sessionId: string, meta: unknown) => void) => () => void
+    onModeChange: (callback: (sessionId: string, mode: string) => void) => () => void
+    setPermissionMode: (sessionId: string, mode: string) => Promise<void>
+    setModel: (sessionId: string, model: string) => Promise<void>
+    setEffort: (sessionId: string, effort: string) => Promise<void>
+    resetSession: (sessionId: string) => Promise<void>
+    getSupportedModels: (sessionId: string) => Promise<unknown>
+    getAccountInfo: (sessionId: string) => Promise<{ email?: string; organization?: string; subscriptionType?: string } | null>
+    getSupportedCommands: (sessionId: string) => Promise<{ name: string; description: string; argumentHint: string }[]>
+    getSupportedAgents: (sessionId: string) => Promise<{ name: string; description: string; model?: string }[]>
+    getWorktreeStatus: (sessionId: string) => Promise<{ diff: string; branchName: string; worktreePath: string; sourceBranch: string } | null>
+    cleanupWorktree: (sessionId: string, deleteBranch: boolean) => Promise<boolean>
+    scanSkills: (cwd: string) => Promise<{ name: string; description: string; scope: 'project' | 'global' }[]>
+    scanStarCommands: () => Promise<{ name: string; description: string; prefix: 'ct' | 'gsd' }[]>
+    getStatuslineExtras: () => Promise<{
+      accountLabel?: string; planLabel?: string
+      memsync?: { status: string; queueSize: number; age: string }
+      rateLimits?: { five_hour?: { used_percentage: number; resets_at: number }; seven_day?: { used_percentage: number; resets_at: number } }
+    }>
+    getSessionMeta: (sessionId: string) => Promise<Record<string, unknown> | null>
+    getContextUsage: (sessionId: string) => Promise<{
+      categories: { name: string; tokens: number; color: string; isDeferred?: boolean }[]
+      totalTokens: number
+      maxTokens: number
+      percentage: number
+      model: string
+      memoryFiles?: { path: string; type: string; tokens: number }[]
+      mcpTools?: { name: string; serverName: string; tokens: number; isLoaded?: boolean }[]
+    } | null>
+    getCliPath: () => Promise<string>
+    authStatus: () => Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>
+    authLogout: () => Promise<{ success: boolean; error?: string }>
+    resolvePermission: (sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) => Promise<void>
+    resolveAskUser: (sessionId: string, toolUseId: string, answers: Record<string, string>) => Promise<void>
+    listSessions: (cwd: string) => Promise<unknown>
+    resumeSession: (sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string) => Promise<void>
+    forkSession: (sessionId: string) => Promise<{ newSdkSessionId: string } | null>
+    stopTask: (sessionId: string, taskId: string) => Promise<boolean>
+    restSession: (sessionId: string) => Promise<boolean>
+    wakeSession: (sessionId: string) => Promise<boolean>
+    isResting: (sessionId: string) => Promise<boolean>
+    fetchSubagentMessages: (sessionId: string, agentToolUseId: string) => Promise<unknown[]>
+    archiveMessages: (sessionId: string, messages: unknown[]) => Promise<boolean>
+    loadArchived: (sessionId: string, offset: number, limit: number) => Promise<{ messages: unknown[]; total: number; hasMore: boolean }>
+    clearArchive: (sessionId: string) => Promise<boolean>
+    onHistory: (callback: (sessionId: string, items: unknown[]) => void) => () => void
+    onPermissionRequest: (callback: (sessionId: string, data: unknown) => void) => () => void
+    onAskUser: (callback: (sessionId: string, data: unknown) => void) => () => void
+    onAskUserResolved: (callback: (sessionId: string, toolUseId: string) => void) => () => void
+    onPermissionResolved: (callback: (sessionId: string, toolUseId: string) => void) => () => void
+    onSessionReset: (callback: (sessionId: string) => void) => () => void
+    onRateLimit: (callback: (sessionId: string, info: { rateLimitType: string; resetsAt: number; utilization: number | null; isUsingOverage: boolean }) => void) => () => void
+    onWorktreeInfo: (callback: (sessionId: string, info: { branchName: string; worktreePath: string; sourceBranch: string; gitRoot?: string } | null) => void) => () => void
+    onPromptSuggestion: (callback: (sessionId: string, suggestion: string) => void) => () => void
   }
   voice: {
     // model management

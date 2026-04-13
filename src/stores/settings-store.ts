@@ -283,6 +283,24 @@ class SettingsStore {
     this.save()
   }
 
+  setVscodeEditorType(type: 'code' | 'code-insiders'): void {
+    this.settings = { ...this.settings, vscodeEditorType: type }
+    this.notify()
+    this.save()
+  }
+
+  setVscodePath(path: string): void {
+    this.settings = { ...this.settings, vscodePath: path }
+    this.notify()
+    this.save()
+  }
+
+  setVscodeInsidersPath(path: string): void {
+    this.settings = { ...this.settings, vscodeInsidersPath: path }
+    this.notify()
+    this.save()
+  }
+
   // Get the agent command to execute
   getAgentCommand(): string | null {
     if (!this.settings.agentAutoCommand) return null

@@ -85,6 +85,7 @@ const electronAPI = {
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
     openPath: (folderPath: string) => ipcRenderer.invoke('shell:open-path', folderPath),
+    openInEditor: (folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => ipcRenderer.invoke('shell:open-in-editor', folderPath, editorType, customPath),
   },
   app: {
     openNewInstance: (profileId: string) => ipcRenderer.invoke('app:open-new-instance', profileId),

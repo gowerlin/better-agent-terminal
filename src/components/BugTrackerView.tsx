@@ -74,6 +74,14 @@ export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps
         <span className="ct-badge ct-bug-badge-fixed">✅ {fixedCount}</span>
         <span className="ct-badge ct-bug-badge-closed">🚫 {closedCount}</span>
         <span className="ct-badge ct-total">{bugs.length} {t('controlTower.bugs.total')}</span>
+        <label className="ct-archive-toggle">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={e => setShowArchived(e.target.checked)}
+          />
+          📦 {t('controlTower.includeArchived')}
+        </label>
       </div>
 
       {/* Status filter */}
@@ -100,14 +108,6 @@ export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps
             {sev === 'all' ? t('controlTower.all') : sev}
           </button>
         ))}
-        <label className="ct-archive-toggle">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={e => setShowArchived(e.target.checked)}
-          />
-          📦 {t('controlTower.includeArchived')}
-        </label>
       </div>
 
       {/* Bug list */}

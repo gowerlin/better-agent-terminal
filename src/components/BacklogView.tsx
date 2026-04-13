@@ -82,6 +82,14 @@ export function BacklogView({ entries, loading, ctDirPath }: BacklogViewProps) {
         <span className="ct-badge ct-total">
           {entries.length} {t('controlTower.backlog.total')}
         </span>
+        <label className="ct-archive-toggle">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={e => setShowArchived(e.target.checked)}
+          />
+          📦 {t('controlTower.includeArchived')}
+        </label>
       </div>
 
       {/* Status filter */}
@@ -108,14 +116,6 @@ export function BacklogView({ entries, loading, ctDirPath }: BacklogViewProps) {
             {p === 'all' ? t('controlTower.all') : p}
           </button>
         ))}
-        <label className="ct-archive-toggle">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={e => setShowArchived(e.target.checked)}
-          />
-          📦 {t('controlTower.includeArchived')}
-        </label>
       </div>
 
       {/* Backlog list */}

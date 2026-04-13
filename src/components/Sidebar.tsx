@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { Workspace } from '../types'
 import { WORKSPACE_COLORS } from '../types'
 import { workspaceStore } from '../stores/workspace-store'
+import { settingsStore } from '../stores/settings-store'
 import { ActivityIndicator } from './ActivityIndicator'
 
 interface SidebarProps {
@@ -559,6 +560,28 @@ export function Sidebar({
               <polyline points="10 13 14 9 10 5" />
             </svg>
             {t('sidebar.openInExplorer')}
+          </div>
+          <div
+            className="context-menu-item"
+            onClick={async () => {
+              const ws = workspaces.find(w => w.id === contextMenu.workspaceId)
+              if (ws) {
+                const s = settingsStore.getSettings()
+                const editorType = s.vscodeEditorType || 'code'
+                const customPath = editorType === 'code-insiders' ? s.vscodeInsidersPath : s.vscodePath
+                const result = await window.electronAPI.shell.openInEditor(ws.folderPath, editorType, customPath)
+                if (result && !result.success && result.error?.type === 'ENOENT') {
+                  alert(t('sidebar.vscodeNotFound', { executable: result.error.executable }))
+                }
+              }
+              setContextMenu(null)
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M16 18l6-6-6-6" />
+              <path d="M8 6l-6 6 6 6" />
+            </svg>
+            {t('sidebar.openInVscode')}
           </div>
           <div
             className="context-menu-item"

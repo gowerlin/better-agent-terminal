@@ -1081,6 +1081,11 @@
   flex-shrink: 0;
 }
 
+/* Push archive toggle to right end when inside summary bar */
+.ct-summary .ct-archive-toggle {
+  margin-left: auto;
+}
+
 .ct-archive-toggle:hover {
   background: var(--hover-bg);
   color: var(--text-primary);

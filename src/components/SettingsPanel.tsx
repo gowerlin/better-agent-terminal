@@ -317,6 +317,42 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             )}
 
             <div className="settings-group">
+              <label>{t('settings.vscodeEditorType')}</label>
+              <select
+                value={settings.vscodeEditorType || 'code'}
+                onChange={e => settingsStore.setVscodeEditorType(e.target.value as 'code' | 'code-insiders')}
+              >
+                <option value="code">VS Code</option>
+                <option value="code-insiders">VS Code Insiders</option>
+              </select>
+              <p className="settings-hint">{t('settings.vscodeEditorTypeHint')}</p>
+            </div>
+
+            <div className="settings-group">
+              <label>{t('settings.vscodePath')}</label>
+              <input
+                type="text"
+                value={settings.vscodePath || ''}
+                onChange={e => settingsStore.setVscodePath(e.target.value)}
+                onBlur={e => { const v = e.target.value.trim().replace(/^["']+|["']+$/g, ''); if (v !== e.target.value) settingsStore.setVscodePath(v) }}
+                placeholder={platform === 'win32' ? 'C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd' : '/usr/local/bin/code'}
+              />
+              <p className="settings-hint">{t('settings.vscodePathHint')}</p>
+            </div>
+
+            <div className="settings-group">
+              <label>{t('settings.vscodeInsidersPath')}</label>
+              <input
+                type="text"
+                value={settings.vscodeInsidersPath || ''}
+                onChange={e => settingsStore.setVscodeInsidersPath(e.target.value)}
+                onBlur={e => { const v = e.target.value.trim().replace(/^["']+|["']+$/g, ''); if (v !== e.target.value) settingsStore.setVscodeInsidersPath(v) }}
+                placeholder={platform === 'win32' ? 'C:\\Users\\{User}\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd' : '/usr/local/bin/code-insiders'}
+              />
+              <p className="settings-hint">{t('settings.vscodeInsidersPathHint')}</p>
+            </div>
+
+            <div className="settings-group">
               <label>{t('settings.defaultTerminalCount', { count: settings.defaultTerminalCount || 1 })}</label>
               <input
                 type="range"
