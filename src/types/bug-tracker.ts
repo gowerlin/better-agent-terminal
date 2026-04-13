@@ -11,10 +11,12 @@ import { parseMdTable } from '../utils/md-table-parser'
 export type BugSeverity = 'High' | 'Medium' | 'Low' | 'Unknown'
 
 export type BugStatus =
-  | 'OPEN'    // 🔴 Open / 處理中 section
-  | 'VERIFY'  // 🧪 驗收中 section
+  | 'OPEN'    // 🔴 Open / 待處理 section
+  | 'FIXING'  // ⏳ 修復中 section
   | 'FIXED'   // ✅ 已修復 section
-  | 'CLOSED'  // 🚫 已關閉 / WONTFIX section
+  | 'VERIFY'  // 🧪 驗收中 section
+  | 'CLOSED'  // 🚫 已關閉 section
+  | 'WONTFIX' // 🚫 不修復
 
 export interface BugEntry {
   /** BUG identifier, e.g. 'BUG-001' */
@@ -56,12 +58,34 @@ function extractSeverity(cell: string): BugSeverity {
 
 /**
  * Determine BugStatus from section heading text.
- * Headings like '🔴 Open / 處理中', '🧪 驗收中 (VERIFY)', '✅ 已修復', '🚫 已關閉 / WONTFIX'
+ *
+ * Matching strategy: check for compound headings first (e.g. heading
+ * contains both '已關閉' and 'WONTFIX') to avoid misclassification,
+ * then fall back to single-keyword matching.
+ *
+ * Expected headings:
+ *   '🔴 Open / 處理中'
+ *   '⏳ 修復中 (FIXING)'
+ *   '✅ 已修復'  or  '✅ 已修復 (FIXED)'
+ *   '🧪 驗收中 (VERIFY)'
+ *   '🚫 已關閉'  or  '🚫 已關閉 (CLOSED)'
+ *   '⛔ 不修復 (WONTFIX)'
+ *
+ * Tolerant: also handles legacy combined heading '🚫 已關閉 / WONTFIX'
+ * by treating it as CLOSED (the more common case).
  */
 function sectionToStatus(heading: string): BugStatus {
-  if (heading.includes('VERIFY') || heading.includes('驗收')) return 'VERIFY'
-  if (heading.includes('FIXED') || heading.includes('已修復')) return 'FIXED'
-  if (heading.includes('CLOSED') || heading.includes('已關閉') || heading.includes('WONTFIX')) return 'CLOSED'
+  const hasWontfix = heading.includes('WONTFIX') || heading.includes('不修復')
+  const hasClosed  = heading.includes('CLOSED')  || heading.includes('已關閉')
+
+  // Compound heading (legacy): '已關閉 / WONTFIX' → prefer CLOSED
+  // Standalone WONTFIX section: '不修復 (WONTFIX)' without '已關閉' → WONTFIX
+  if (hasWontfix && !hasClosed) return 'WONTFIX'
+  if (hasClosed)  return 'CLOSED'
+
+  if (heading.includes('VERIFY')  || heading.includes('驗收'))  return 'VERIFY'
+  if (heading.includes('FIXED')   || heading.includes('已修復')) return 'FIXED'
+  if (heading.includes('FIXING')  || heading.includes('修復中')) return 'FIXING'
   return 'OPEN'
 }
 
@@ -141,19 +165,23 @@ export function bugSeverityColor(severity: BugSeverity): string {
 /** CSS class name for status badge */
 export function bugStatusColor(status: BugStatus): string {
   switch (status) {
-    case 'OPEN':   return 'ct-bug-status-open'
-    case 'VERIFY': return 'ct-bug-status-verify'
-    case 'FIXED':  return 'ct-bug-status-fixed'
-    case 'CLOSED': return 'ct-bug-status-closed'
+    case 'OPEN':    return 'ct-bug-status-open'
+    case 'FIXING':  return 'ct-bug-status-fixing'
+    case 'FIXED':   return 'ct-bug-status-fixed'
+    case 'VERIFY':  return 'ct-bug-status-verify'
+    case 'CLOSED':  return 'ct-bug-status-closed'
+    case 'WONTFIX': return 'ct-bug-status-wontfix'
   }
 }
 
 /** Status badge display label */
 export function bugStatusLabel(status: BugStatus): string {
   switch (status) {
-    case 'OPEN':   return '🔴 Open'
-    case 'VERIFY': return '🧪 Verify'
-    case 'FIXED':  return '✅ Fixed'
-    case 'CLOSED': return '🚫 Closed'
+    case 'OPEN':    return '🔴 Open'
+    case 'FIXING':  return '⏳ Fixing'
+    case 'FIXED':   return '✅ Fixed'
+    case 'VERIFY':  return '🧪 Verify'
+    case 'CLOSED':  return '🚫 Closed'
+    case 'WONTFIX': return '🚫 Won\'t Fix'
   }
 }

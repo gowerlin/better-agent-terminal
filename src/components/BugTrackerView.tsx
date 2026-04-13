@@ -8,6 +8,7 @@ import {
   bugStatusLabel,
   bugSeverityColor,
 } from '../types/bug-tracker'
+import { BugWorkflowIndicator } from './BugWorkflowIndicator'
 
 interface BugTrackerViewProps {
   bugs: BugEntry[]
@@ -34,10 +35,11 @@ export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps
   })
 
   // Summary counts (from full list, not filtered)
-  const openCount   = bugs.filter(b => b.status === 'OPEN').length
-  const verifyCount = bugs.filter(b => b.status === 'VERIFY').length
-  const fixedCount  = bugs.filter(b => b.status === 'FIXED').length
-  const closedCount = bugs.filter(b => b.status === 'CLOSED').length
+  const openCount    = bugs.filter(b => b.status === 'OPEN' || b.status === 'FIXING').length
+  const verifyCount  = bugs.filter(b => b.status === 'VERIFY').length
+  const fixedCount   = bugs.filter(b => b.status === 'FIXED').length
+  const closedCount  = bugs.filter(b => b.status === 'CLOSED').length
+  const wontfixCount = bugs.filter(b => b.status === 'WONTFIX').length
 
   // Toggle expand: load individual BUG file on demand
   const handleToggle = useCallback(async (bug: BugEntry) => {
@@ -73,6 +75,9 @@ export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps
         <span className="ct-badge ct-bug-badge-verify">🧪 {verifyCount}</span>
         <span className="ct-badge ct-bug-badge-fixed">✅ {fixedCount}</span>
         <span className="ct-badge ct-bug-badge-closed">🚫 {closedCount}</span>
+        {wontfixCount > 0 && (
+          <span className="ct-badge ct-bug-badge-wontfix">⛔ {wontfixCount}</span>
+        )}
         <span className="ct-badge ct-total">{bugs.length} {t('controlTower.bugs.total')}</span>
         <label className="ct-archive-toggle">
           <input
@@ -86,7 +91,7 @@ export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps
 
       {/* Status filter */}
       <div className="ct-filter-bar">
-        {(['all', 'OPEN', 'VERIFY', 'FIXED', 'CLOSED'] as const).map(s => (
+        {(['all', 'OPEN', 'FIXING', 'FIXED', 'VERIFY', 'CLOSED', 'WONTFIX'] as const).map(s => (
           <button
             key={s}
             className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}
@@ -158,6 +163,11 @@ export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps
                     </span>
                   )}
                 </div>
+
+                <BugWorkflowIndicator
+                  status={bug.status}
+                  relatedWorkOrder={bug.relatedWorkOrder}
+                />
 
                 <div className="ct-bug-content">
                   {loadingDetailId === bug.id ? (
