@@ -1,8 +1,8 @@
 # Bug Tracker — better-agent-terminal
 
-> 最後更新：2026-04-13 11:52 (UTC+8)（T0076~T0082 全批複測通過：BUG-017~022 → ✅ FIXED）
+> 最後更新：2026-04-13 13:08 (UTC+8)（T0084 完成：BUG-012 → 🧪 VERIFY）
 >
-> 統計：🔴 Open: 1 | 🧪 Verify: 2 | ✅ Fixed: 18 | 🚫 Closed: 1 | 總計: 22
+> 統計：🔴 Open: 0 | 🧪 Verify: 3 | ✅ Fixed: 18 | 🚫 Closed: 1 | 總計: 22
 
 ---
 
@@ -10,7 +10,7 @@
 
 | ID | 標題 | 嚴重度 | 狀態 | 報修時間 | 連結 |
 |----|------|--------|------|---------|------|
-| BUG-012 | Alt buffer 捲動殘影（ghost text） | 🟡 Medium | 🔍 上游追蹤（#46898） | 2026-04-11 | [詳細](BUG-012-alt-buffer-scroll-ghost-text.md) |
+| BUG-012 | Alt buffer 捲動殘影（ghost text） | 🟡 Medium | 🧪 VERIFY (T0084) | 2026-04-11 | [詳細](BUG-012-alt-buffer-scroll-ghost-text.md) |
 
 ---
 

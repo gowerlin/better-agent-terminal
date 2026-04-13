@@ -5,7 +5,7 @@
 | 欄位 | 內容 |
 |------|------|
 | **報修編號** | BUG-012 |
-| **狀態** | 🔍 INVESTIGATING（上游追蹤中） |
+| **狀態** | 🔧 FIXING (T0084) |
 | **嚴重度** | 🟡 Medium |
 | **報修時間** | 2026-04-11 (UTC+8) |
 | **報修人** | 使用者 |
@@ -19,9 +19,23 @@
 - **預期行為**：離開 alt buffer（vim、less 等）後，終端恢復正常顯示
 - **實際行為**：離開後仍有 ghost text（殘影）顯示在終端中，影響閱讀
 
-## 根因分析（已調查，D020）
+## 根因分析（最終確認，EXP-BUG012-001）
 
-**根因**：ghost 文字在 **xterm.js buffer** 中，TUI 用 cursor positioning 跳過行首未清除。
+> **2026-04-13 更新**：EXP-BUG012-001 實驗（5 輪排除法）確認真正根因。
+
+**根因（修正）**：BAT 的 `convertEol: true` 設定。
+- pty 環境已處理 EOL 轉換，xterm.js 重複轉換干擾 alt buffer 渲染 → 殘影
+- VS Code terminal 不設此選項，因此不出現
+
+**非根因（已排除）**：
+- scrollOnOutput（可移除以對齊 VS Code，但非殘影根因）
+- xterm.js 版本（v5/v6 皆受影響）
+- Claude Code CLI 上游 TUI buffer 行為（原先假設，已推翻）
+
+**修復**：移除 `convertEol: true` + 移除 `scrollOnOutput: true`（共 2 行）
+
+**結案路徑**：T0084（cherry-pick 到主線）→ 🧪 VERIFY → 🚫 CLOSED
+**上游 issue #46898**：BAT 端自行修復，與上游無關，可留言關閉
 
 這是 **上游 TUI 層問題**（Claude Code CLI 的 Ink TUI），不是 terminal emulator（xterm.js）的問題：
 - TUI 在切換回 normal buffer 時，沒有清除 alt buffer 中殘留的行
@@ -37,7 +51,7 @@
 ## 相關連結
 
 - **upstream issue**：https://github.com/anthropics/claude-code/issues/46898
-- **修復工單**：無（上游問題，等 upstream 修復）
+- **修復工單**：T0084（cherry-pick convertEol fix 到主線）
 
 ## 時間線
 
@@ -50,7 +64,9 @@
 ## 塔台處理區
 
 - [x] 已確認症狀
-- [x] 根因分析完成（上游 TUI 問題）
-- [x] upstream issue 已提交（#46898）
-- [ ] 等待 upstream 修復
+- [x] 根因分析完成（BAT 端 convertEol: true，非上游問題）
+- [x] EXP-BUG012-001 實驗驗證根因
+- [x] upstream issue 已提交（#46898，將留言說明 BAT 端已修復）
+- [ ] T0084 cherry-pick 到主線
+- [ ] 主線 runtime 驗收 → CLOSED
 - **備註**：Redraw 按鈕作為 workaround，使用者可手動清除
