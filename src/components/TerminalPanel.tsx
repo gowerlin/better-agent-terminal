@@ -248,10 +248,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       fontFamily: settingsStore.getFontFamilyString(),
       cursorBlink: true,
       scrollback: 10000,
-      convertEol: true,
       allowProposedApi: true,
-      allowTransparency: true,
-      scrollOnOutput: true
+      allowTransparency: true
     })
 
     const fitAddon = new FitAddon()
