@@ -7,8 +7,9 @@
 | **工單編號** | T0107 |
 | **標題** | PLAN-008 Phase 2b+3：PtyManager 代理到 Terminal Server |
 | **類型** | 功能開發 / 重構 |
-| **狀態** | 🔄 IN_PROGRESS |
+| **狀態** | ✅ DONE |
 | **開始時間** | 2026-04-13 19:52 UTC+8 |
+| **完成時間** | 2026-04-13 19:59 UTC+8 |
 | **優先級** | 高 |
 | **建立時間** | 2026-04-13 19:48 UTC+8 |
 | **相關** | PLAN-008 / T0106（Server 骨架） |
@@ -266,19 +267,24 @@ npx vite build
 ## 回報區（Worker 填寫）
 
 ### 執行摘要
-（完成後填寫）
+按工單設計完整實作：
+- `pty-manager.ts`：新增 `setServerProcess()` / `setupServerListener()` / `handlePtyData()` / `handlePtyExit()`；改寫 `create()` / `write()` / `resize()` / `kill()` / `writeToTerminal()` / `dispose()` 支援 proxy + fallback 雙模式
+- `main.ts`：`_terminalServerProcess` 全局變數儲存 fork 引用；首次建立 window 時注入 `ptyManager.setServerProcess()`
+- Build 通過，無 TypeScript 錯誤
 
 ### Fallback 處理方式
-（保留 / 刪除 / 條件降級）
+條件降級：`useServer` getter 即時判斷 `serverProcess?.connected`；server 不可用時每個操作自動降級走現有直接 spawn 路徑，邏輯完全保留。
 
 ### 與工單設計的差異
-（如有）
+- `dispose()` 未呼叫 `pty:kill` IPC（工單設計亦如此）；直接 nullify serverProcess 讓 Server idle timeout 自行關閉
+- `restart()` 不需特殊處理：kill → create 已自動走 proxy 路徑
+- `getCwd()` 不需 Server 查詢：create 時已記錄 cwd 到 instances map
 
 ### Commit Hash
-（完成後填寫）
+`55d33d8`
 
 ### 問題 / 卡點
-（如有）
+無
 
 ### 完成時間
-（完成後填寫）
+2026-04-13 19:59 UTC+8
