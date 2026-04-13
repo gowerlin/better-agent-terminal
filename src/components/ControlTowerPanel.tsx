@@ -55,6 +55,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [showArchivedOrders, setShowArchivedOrders] = useState(false)
   const [archivedOrders, setArchivedOrders] = useState<WorkOrder[]>([])
   const ctDirRef = useRef<string | null>(null)
+  const bmadOutputRef = useRef<string | null>(null)
   const prevOrdersRef = useRef<Map<string, WorkOrderStatus>>(new Map())
   const sprintStatusRef = useRef<SprintStatus | null>(null)
   const { messages: toastMessages, addToast, dismissToast } = useCtToast()
@@ -304,12 +305,19 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     loadEpics()
   }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
 
-  // Watch _ct-workorders/ for changes
+  // Watch _ct-workorders/ and _bmad-output/ for changes
   useEffect(() => {
     if (!isVisible || !ctDirPath) return
 
     ctDirRef.current = ctDirPath
     window.electronAPI.fs.watch(ctDirPath)
+
+    // Also watch _bmad-output/ if present (for Workflow/Epics auto-refresh)
+    if (bmadOutputPath) {
+      window.electronAPI.fs.watch(bmadOutputPath).then((ok: boolean) => {
+        if (ok) bmadOutputRef.current = bmadOutputPath
+      })
+    }
 
     const unsubscribe = window.electronAPI.fs.onChanged((changedPath: string) => {
       if (changedPath === ctDirRef.current) {
@@ -320,6 +328,9 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         loadDecisions()
         loadBmadWorkflow()
         loadEpics()
+      } else if (changedPath === bmadOutputRef.current) {
+        loadBmadWorkflow()
+        loadEpics()
       }
     })
 
@@ -328,8 +339,12 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       if (ctDirRef.current) {
         window.electronAPI.fs.unwatch(ctDirRef.current)
       }
+      if (bmadOutputRef.current) {
+        window.electronAPI.fs.unwatch(bmadOutputRef.current)
+        bmadOutputRef.current = null
+      }
     }
-  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
+  }, [isVisible, ctDirPath, bmadOutputPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
 
   // Load/clear archived orders when toggle changes
   useEffect(() => {
