@@ -7,7 +7,7 @@
 | **工單編號** | T0108 |
 | **標題** | PLAN-008 Phase 4：BAT 重啟後重連 Terminal Server + 重播輸出 |
 | **類型** | 功能開發 |
-| **狀態** | 🔄 IN_PROGRESS |
+| **狀態** | ✅ DONE |
 | **優先級** | 高 |
 | **建立時間** | 2026-04-13 20:01 UTC+8 |
 | **相關** | PLAN-008 / T0106 / T0107 |
@@ -304,19 +304,28 @@ npx vite build
 ## 回報區（Worker 填寫）
 
 ### 執行摘要
-（完成後填寫）
+完整實作 PLAN-008 Phase 4 重連邏輯。Terminal Server 現在同時監聽 fork IPC 和 TCP localhost 兩個通道。BAT 重啟後會先偵測存活的 Server，透過 TCP 重連並觸發 buffer 重播，讓終端歷史輸出恢復到 renderer。殭屍進程偵測（PID 存在但 TCP 連不上）會自動清理後重新 fork。Build 驗證通過。
 
 ### TCP 協議實際實作
-（JSON-line / 其他 / 與設計差異）
+**JSON-line protocol**（與設計一致）：每條訊息為一個 JSON 物件 + `\n` 換行符。
+- Server 端：`net.createServer()` 監聽隨機 port，`127.0.0.1` 限本機；port 寫入 `bat-pty-server.port` 檔案
+- Client 端（PtyManager）：`net.Socket` 連線，buffer + split('\n') 逐行解析
+- Port file 位置：`userData/bat-pty-server.port`（與 PID file 並排）
 
 ### 重播機制
-（同步 / 異步 / 與設計差異）
+**異步 fire-and-forget 設計**（與設計一致，略有簡化）：
+1. `startTerminalServer()` 呼叫 `ptyManager.connectToServer(port)` — Promise-based，3 秒 timeout
+2. 連線成功後送出 `{ type: 'pty:list' }`
+3. `handleServerMessage` 收到 `pty:list` → `handleReplayList()` → 為每個 PTY 送 `pty:getBuffer`，並將 PTY 實例加入 `instances` map（確保後續 write/resize/kill 正常運作）
+4. `handleServerMessage` 收到 `pty:buffer` → `handleReplayBuffer()` → `broadcast('pty:output', id, data)` → xterm.js 渲染
+
+設計差異：`replayBuffers()` 未獨立為 main.ts 函數，而是合併進 `PtyManager` 的 listener 鏈（更簡潔，避免在 main.ts 暴露過多細節）。
 
 ### Commit Hash
-（完成後填寫）
+`c65fb6e`
 
 ### 問題 / 卡點
-（如有）
+一個時序問題：原本 `ptyManager` 在 `createWindow()` 中初始化，但 `startTerminalServer()` 在此之前呼叫，導致 TCP 重連時 `ptyManager` 為 null。解法：在 `app.whenReady()` 裡把 `ptyManager` 建立移到 `await startTerminalServer()` 之前，`createWindow()` 保留 null guard 作為防禦性後備。
 
 ### 完成時間
-（完成後填寫）
+2026-04-13 20:18
