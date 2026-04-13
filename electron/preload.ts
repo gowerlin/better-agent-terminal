@@ -57,6 +57,15 @@ const electronAPI = {
       ipcRenderer.on('workspace:reload', handler)
       return () => ipcRenderer.removeListener('workspace:reload', handler)
     },
+    /** Listen for before-quit flush-save request from main process */
+    onFlushSave: (callback: () => Promise<void>) => {
+      const handler = async () => {
+        await callback()
+        ipcRenderer.send('workspace:flush-save-done')
+      }
+      ipcRenderer.on('workspace:flush-save', handler)
+      return () => ipcRenderer.removeListener('workspace:flush-save', handler)
+    },
   },
   settings: {
     save: (data: string) => ipcRenderer.invoke('settings:save', data),

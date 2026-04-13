@@ -4,6 +4,17 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { logger } from './logger'
 
+/** Persisted UI layout snapshot — collected from renderer localStorage */
+export interface WindowLayout {
+  sidebar?: { width: number; collapsed: boolean }
+  rightPanel?: { width: number; collapsed: boolean; activeTab?: string }
+  split?: { pinned: unknown; ratio: number }
+  thumbnailBar?: { height: number; collapsed: boolean }
+  docking?: Record<string, string>
+  workspaceTab?: string
+  maximized?: boolean
+}
+
 export interface WindowEntry {
   id: string
   profileId?: string
@@ -14,6 +25,8 @@ export interface WindowEntry {
   activeTerminalId: string | null
   bounds?: { x: number; y: number; width: number; height: number }
   lastActiveAt: number
+  /** Phase 1: UI layout persistence — split/sidebar/thumbnail state */
+  layout?: WindowLayout
 }
 
 function getRegistryPath(): string {

@@ -954,6 +954,29 @@ app.on('before-quit', async (e) => {
     e.preventDefault()
     isAppQuitting = true
 
+    // Notify all renderer windows to flush their latest state (workspace + layout)
+    try {
+      const savePromises: Promise<void>[] = []
+      for (const [, win] of windowMap) {
+        if (!win.isDestroyed() && win.webContents) {
+          const p = new Promise<void>((resolve) => {
+            // Give renderer 2s max to save, then proceed anyway
+            const timeout = setTimeout(resolve, 2000)
+            win.webContents.send('workspace:flush-save')
+            ipcMain.once('workspace:flush-save-done', () => {
+              clearTimeout(timeout)
+              resolve()
+            })
+          })
+          savePromises.push(p)
+        }
+      }
+      await Promise.all(savePromises)
+      logger.log(`[quit] flushed ${savePromises.length} renderer(s)`)
+    } catch (err) {
+      logger.error(`[quit] failed to flush renderers: ${err}`)
+    }
+
     // Save all open windows' profiles before quitting
     try {
       const allEntries = await windowRegistry.readAll()
@@ -1034,6 +1057,7 @@ function registerProxiedHandlers() {
     entry.activeGroup = parsed.activeGroup || null
     entry.terminals = parsed.terminals || []
     entry.activeTerminalId = parsed.activeTerminalId || null
+    entry.layout = parsed.layout || undefined
     entry.lastActiveAt = Date.now()
     await windowRegistry.saveEntry(entry)
     // Also persist to profile snapshot so force-quit doesn't lose state
@@ -1052,6 +1076,7 @@ function registerProxiedHandlers() {
       activeGroup: entry.activeGroup,
       terminals: entry.terminals,
       activeTerminalId: entry.activeTerminalId,
+      layout: entry.layout,
     })
   })
 
@@ -1621,6 +1646,11 @@ function registerProxiedHandlers() {
       const watcher = fsSync.watch(_dirPath, { recursive: true }, () => {
         if (debounceTimer) clearTimeout(debounceTimer)
         debounceTimer = setTimeout(() => {
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) {
+              try { win.webContents.send('fs:changed', _dirPath) } catch { /* window closing */ }
+            }
+          }
           broadcastHub.broadcast('fs:changed', _dirPath)
         }, 500)
       })

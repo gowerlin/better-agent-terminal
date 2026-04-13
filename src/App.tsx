@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
+import { useMenuPosition } from './hooks/useMenuPosition'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import { workspaceStore } from './stores/workspace-store'
@@ -118,6 +119,7 @@ export default function App() {
   const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
   const [leftPanelTab, setLeftPanelTab] = useState<'workspaces' | DockablePanel>('workspaces')
   const [sidebarTabCtxMenu, setSidebarTabCtxMenu] = useState<{ x: number; y: number; panel: DockablePanel; zone: 'left' | 'right' } | null>(null)
+  const { pos: sidebarCtxPos, menuRef: sidebarCtxRef } = useMenuPosition(sidebarTabCtxMenu)
   // Right sidebar tabs
   const [rightPanelTab, setRightPanelTab] = useState<DockablePanel>(() => {
     const saved = localStorage.getItem('bat-right-panel-tab')
@@ -533,6 +535,12 @@ export default function App() {
     // Listen for cross-window workspace reload
     const unsubReload = workspaceStore.listenForReload()
 
+    // Listen for before-quit flush-save: stop auto-save and do one final save
+    const unsubFlushSave = window.electronAPI.workspace.onFlushSave(async () => {
+      workspaceStore.stopAutoSave()
+      await workspaceStore.save()
+    })
+
     // Listen for workspace detach/reattach events (main window only)
     const unsubDetach = window.electronAPI.workspace.onDetached((wsId) => {
       setDetachedIds(prev => new Set(prev).add(wsId))
@@ -550,6 +558,7 @@ export default function App() {
       unsubscribeOutput()
       unsubSystemResume()
       unsubReload()
+      unsubFlushSave()
       unsubDetach()
       unsubReattach()
     }
@@ -1006,8 +1015,12 @@ export default function App() {
       {/* Sidebar tab context menu (move between zones) */}
       {sidebarTabCtxMenu && createPortal(
         <div
+          ref={sidebarCtxRef}
           className="context-menu"
-          style={{ position: 'fixed', left: sidebarTabCtxMenu.x, top: sidebarTabCtxMenu.y, zIndex: 1000 }}
+          style={sidebarCtxPos
+            ? { position: 'fixed', left: sidebarCtxPos.x, top: sidebarCtxPos.y, zIndex: 1000 }
+            : { position: 'fixed', left: sidebarTabCtxMenu.x, top: sidebarTabCtxMenu.y, zIndex: 1000, visibility: 'hidden' as const }
+          }
           onClick={e => e.stopPropagation()}
         >
           {sidebarTabCtxMenu.zone === 'left' ? (

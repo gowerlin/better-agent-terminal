@@ -4,6 +4,83 @@ import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { settingsStore } from './settings-store'
 
+// ── Layout snapshot: collect/restore UI layout from localStorage ──
+const LAYOUT_KEYS = {
+  panel: 'better-terminal-panel-settings',
+  split: 'better-terminal-split-settings',
+  thumbnail: 'better-terminal-thumbnail-settings',
+  docking: 'better-terminal-docking-config',
+  workspaceTab: 'better-terminal-workspace-tab',
+  rightPanelTab: 'bat-right-panel-tab',
+} as const
+
+interface LayoutSnapshot {
+  sidebar?: { width: number; collapsed: boolean }
+  rightPanel?: { width: number; collapsed: boolean; activeTab?: string }
+  split?: { pinned: unknown; ratio: number }
+  thumbnailBar?: { height: number; collapsed: boolean }
+  docking?: Record<string, string>
+  workspaceTab?: string
+  maximized?: boolean
+}
+
+function collectLayoutSnapshot(): LayoutSnapshot {
+  const layout: LayoutSnapshot = {}
+  try {
+    const panel = localStorage.getItem(LAYOUT_KEYS.panel)
+    if (panel) {
+      const p = JSON.parse(panel)
+      layout.sidebar = p.sidebar
+      layout.rightPanel = p.snippetSidebar
+      layout.maximized = p.maximized
+    }
+    const split = localStorage.getItem(LAYOUT_KEYS.split)
+    if (split) layout.split = JSON.parse(split)
+    const thumb = localStorage.getItem(LAYOUT_KEYS.thumbnail)
+    if (thumb) layout.thumbnailBar = JSON.parse(thumb)
+    const dock = localStorage.getItem(LAYOUT_KEYS.docking)
+    if (dock) layout.docking = JSON.parse(dock)
+    const wsTab = localStorage.getItem(LAYOUT_KEYS.workspaceTab)
+    if (wsTab) layout.workspaceTab = wsTab
+    const rpTab = localStorage.getItem(LAYOUT_KEYS.rightPanelTab)
+    if (rpTab && layout.rightPanel) layout.rightPanel.activeTab = rpTab
+  } catch { /* ignore partial failures */ }
+  return layout
+}
+
+function restoreLayoutSnapshot(layout: LayoutSnapshot): void {
+  try {
+    // Restore panel settings
+    if (layout.sidebar || layout.rightPanel || layout.maximized !== undefined) {
+      const panel = {
+        sidebar: layout.sidebar ?? { width: 220, collapsed: false },
+        snippetSidebar: layout.rightPanel
+          ? { width: layout.rightPanel.width, collapsed: layout.rightPanel.collapsed }
+          : { width: 280, collapsed: true },
+        maximized: layout.maximized ?? false,
+      }
+      localStorage.setItem(LAYOUT_KEYS.panel, JSON.stringify(panel))
+    }
+    if (layout.split) {
+      localStorage.setItem(LAYOUT_KEYS.split, JSON.stringify(layout.split))
+    }
+    if (layout.thumbnailBar) {
+      localStorage.setItem(LAYOUT_KEYS.thumbnail, JSON.stringify(layout.thumbnailBar))
+    }
+    if (layout.docking) {
+      localStorage.setItem(LAYOUT_KEYS.docking, JSON.stringify(layout.docking))
+    }
+    if (layout.workspaceTab) {
+      localStorage.setItem(LAYOUT_KEYS.workspaceTab, layout.workspaceTab)
+    }
+    if (layout.rightPanel?.activeTab) {
+      localStorage.setItem(LAYOUT_KEYS.rightPanelTab, layout.rightPanel.activeTab)
+    }
+  } catch { /* ignore */ }
+}
+
+const AUTO_SAVE_INTERVAL_MS = 30_000
+
 type Listener = () => void
 
 class WorkspaceStore {
@@ -18,6 +95,7 @@ class WorkspaceStore {
   private activeGroup: string | null = null
   private windowId: string | null = null
   private listeners: Set<Listener> = new Set()
+  private autoSaveTimer: ReturnType<typeof setInterval> | null = null
 
   // Usage polling removed — OAuth API calls to Anthropic have been removed.
   // Stubs kept so consumers don't break.
@@ -609,6 +687,7 @@ class WorkspaceStore {
         activeGroup: this.activeGroup,
         terminals: savedTerminals,
         activeTerminalId: this.state.activeTerminalId,
+        layout: collectLayoutSnapshot(),
       })
       await window.electronAPI.workspace.save(data)
     }).catch(e => {
@@ -656,11 +735,38 @@ class WorkspaceStore {
           activeTerminalId: parsed.activeTerminalId || null,
         }
         this.activeGroup = parsed.activeGroup || null
+
+        // Restore UI layout from saved snapshot (if available)
+        if (parsed.layout) {
+          restoreLayoutSnapshot(parsed.layout)
+        }
+
         this.notify()
       } catch (e) {
         window.electronAPI?.debug?.log?.(`Failed to parse workspace data: ${e}`)
         console.error('Failed to parse workspace data:', e)
       }
+    }
+
+    // Start periodic auto-save (30s) after initial load
+    this.startAutoSave()
+  }
+
+  /** Start periodic auto-save to protect against crash data loss */
+  startAutoSave(): void {
+    if (this.autoSaveTimer) return
+    this.autoSaveTimer = setInterval(() => {
+      this.save().catch(e => {
+        window.electronAPI?.debug?.log?.(`[workspace-store] Auto-save failed: ${e}`)
+      })
+    }, AUTO_SAVE_INTERVAL_MS)
+  }
+
+  /** Stop periodic auto-save (called on quit) */
+  stopAutoSave(): void {
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer)
+      this.autoSaveTimer = null
     }
   }
 }
