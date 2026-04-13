@@ -13,8 +13,6 @@ import {
   parseSprintStatus,
   getSprintYamlPaths,
 } from '../types/sprint-status'
-import { KanbanView } from './KanbanView'
-import { SprintProgress } from './SprintProgress'
 import { BmadWorkflowView } from './BmadWorkflowView'
 import { CtToast, useCtToast } from './CtToast'
 import { BugTrackerView } from './BugTrackerView'
@@ -162,7 +160,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         setBugEntries(parseBugTracker(result.content))
       }
     } catch {
-      // _bug-tracker.md not present — silently skip
+      setBugEntries([])
     }
   }, [ctDirPath])
 
@@ -176,7 +174,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         setBacklogEntries(parseBacklog(result.content))
       }
     } catch {
-      // _backlog.md not present — silently skip
+      setBacklogEntries([])
     }
   }, [ctDirPath])
 
@@ -191,7 +189,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         setDecisionRawContent(result.content)
       }
     } catch {
-      // _decision-log.md not present — silently skip
+      setDecisions([])
+      setDecisionRawContent('')
     }
   }, [ctDirPath])
 
@@ -391,7 +390,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       <div className="ct-panel-header">
         <h3>{t('controlTower.title')}</h3>
         <div className="ct-header-actions">
-          <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus(); loadBmadWorkflow(); loadEpics() }} title={t('controlTower.refresh')}>
+          <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus(); loadBugs(); loadBacklog(); loadDecisions(); loadBmadWorkflow(); loadEpics() }} title={t('controlTower.refresh')}>
             ↻
           </button>
         </div>
@@ -417,30 +416,24 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         >
           {t('controlTower.tab.workflow')}
         </button>
-        {bugEntries.length > 0 && (
-          <button
-            className={`ct-tab${activeTab === 'bugs' ? ' active' : ''}`}
-            onClick={() => setActiveTab('bugs')}
-          >
-            {t('controlTower.tab.bugs')}
-          </button>
-        )}
-        {backlogEntries.length > 0 && (
-          <button
-            className={`ct-tab${activeTab === 'backlog' ? ' active' : ''}`}
-            onClick={() => setActiveTab('backlog')}
-          >
-            {t('controlTower.tab.backlog')}
-          </button>
-        )}
-        {decisions.length > 0 && (
-          <button
-            className={`ct-tab${activeTab === 'decisions' ? ' active' : ''}`}
-            onClick={() => setActiveTab('decisions')}
-          >
-            {t('controlTower.tab.decisions')}
-          </button>
-        )}
+        <button
+          className={`ct-tab${activeTab === 'bugs' ? ' active' : ''}`}
+          onClick={() => setActiveTab('bugs')}
+        >
+          {t('controlTower.tab.bugs')}
+        </button>
+        <button
+          className={`ct-tab${activeTab === 'backlog' ? ' active' : ''}`}
+          onClick={() => setActiveTab('backlog')}
+        >
+          {t('controlTower.tab.backlog')}
+        </button>
+        <button
+          className={`ct-tab${activeTab === 'decisions' ? ' active' : ''}`}
+          onClick={() => setActiveTab('decisions')}
+        >
+          {t('controlTower.tab.decisions')}
+        </button>
       </div>
 
       {/* Summary bar */}
@@ -449,6 +442,16 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         {pendingCount > 0 && <span className="ct-badge ct-status-pending">{pendingCount} pending</span>}
         {doneCount > 0 && <span className="ct-badge ct-status-done">{doneCount} done</span>}
         <span className="ct-badge ct-total">{workOrders.length} total</span>
+        {activeTab === 'orders' && (
+          <label className="ct-archive-toggle">
+            <input
+              type="checkbox"
+              checked={showArchivedOrders}
+              onChange={e => setShowArchivedOrders(e.target.checked)}
+            />
+            📦 {t('controlTower.includeArchived')}
+          </label>
+        )}
       </div>
 
       {/* Tab content */}
@@ -465,14 +468,6 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
                 {s === 'all' ? t('controlTower.all') : statusLabel(s)}
               </button>
             ))}
-            <label className="ct-archive-toggle">
-              <input
-                type="checkbox"
-                checked={showArchivedOrders}
-                onChange={e => setShowArchivedOrders(e.target.checked)}
-              />
-              📦 {t('controlTower.includeArchived')}
-            </label>
           </div>
 
           {/* Work order list */}
@@ -569,10 +564,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
       {activeTab === 'kanban' && (
         <div className="ct-tab-content">
-          {bmadEpics.length > 0
-            ? <BmadEpicsView epics={bmadEpics} loading={loading} ctDirPath={ctDirPath} />
-            : <KanbanView workOrders={workOrders} onExecWorkOrder={onExecWorkOrder} onDoneWorkOrder={onDoneWorkOrder} />
-          }
+          <BmadEpicsView epics={bmadEpics} loading={loading} ctDirPath={ctDirPath} />
         </div>
       )}
 
@@ -583,11 +575,6 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
             loading={loading}
             bmadOutputPath={bmadOutputPath ?? ''}
           />
-          {sprintStatus && (
-            <div className="ct-workflow-sprint-section">
-              <SprintProgress sprint={sprintStatus} workOrders={workOrders} />
-            </div>
-          )}
         </div>
       )}
 
