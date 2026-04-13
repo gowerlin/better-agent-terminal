@@ -433,10 +433,24 @@
     "tab": {
       "orders": "工单",
       "kanban": "看板",
-      "sprint": "Sprint",
+      "epics": "史诗",
+      "workflow": "工作流程",
       "bugs": "漏洞",
       "backlog": "待办池",
       "decisions": "决策"
+    },
+    "workflow": {
+      "empty": "尚未启动 BMad 流程。使用 bmad-guide 了解如何开始。",
+      "phasesComplete": "个阶段完成",
+      "optional": "可选"
+    },
+    "epics": {
+      "empty": "尚未找到 Epic 数据。执行 BMad create-epics-and-stories 生成 Epic。",
+      "epicCount": "个 Epic",
+      "storyCount": "个 Story",
+      "doneCount": "已完成",
+      "stories": "Story 列表",
+      "noStories": "尚未定义 Story"
     },
     "bugs": {
       "total": "条",

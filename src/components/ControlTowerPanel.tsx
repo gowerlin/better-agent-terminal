@@ -15,6 +15,7 @@ import {
 } from '../types/sprint-status'
 import { KanbanView } from './KanbanView'
 import { SprintProgress } from './SprintProgress'
+import { BmadWorkflowView } from './BmadWorkflowView'
 import { CtToast, useCtToast } from './CtToast'
 import { BugTrackerView } from './BugTrackerView'
 import { BacklogView } from './BacklogView'
@@ -22,8 +23,11 @@ import { DecisionsView } from './DecisionsView'
 import { type BugEntry, parseBugTracker } from '../types/bug-tracker'
 import { type BacklogEntry, parseBacklog } from '../types/backlog'
 import { type DecisionEntry, parseDecisionLog } from '../types/decision-log'
+import { type BmadWorkflow, buildBmadWorkflow, PHASE_DEFINITIONS } from '../types/bmad-workflow'
+import { type BmadEpic, parseEpicsFile, buildSprintStoryMap } from '../types/bmad-epic'
+import { BmadEpicsView } from './BmadEpicsView'
 
-type CtTab = 'orders' | 'kanban' | 'sprint' | 'bugs' | 'backlog' | 'decisions'
+type CtTab = 'orders' | 'kanban' | 'workflow' | 'bugs' | 'backlog' | 'decisions'
 
 interface ControlTowerPanelProps {
   isVisible: boolean
@@ -48,14 +52,75 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [backlogEntries, setBacklogEntries] = useState<BacklogEntry[]>([])
   const [decisions, setDecisions] = useState<DecisionEntry[]>([])
   const [decisionRawContent, setDecisionRawContent] = useState<string>('')
+  const [bmadWorkflow, setBmadWorkflow] = useState<BmadWorkflow | null>(null)
+  const [bmadEpics, setBmadEpics] = useState<BmadEpic[]>([])
   const [showArchivedOrders, setShowArchivedOrders] = useState(false)
   const [archivedOrders, setArchivedOrders] = useState<WorkOrder[]>([])
   const ctDirRef = useRef<string | null>(null)
   const prevOrdersRef = useRef<Map<string, WorkOrderStatus>>(new Map())
+  const sprintStatusRef = useRef<SprintStatus | null>(null)
   const { messages: toastMessages, addToast, dismissToast } = useCtToast()
 
-  // Build _ct-workorders path
+  // Build paths
   const ctDirPath = workspaceFolderPath ? `${workspaceFolderPath}/_ct-workorders` : null
+  const bmadOutputPath = workspaceFolderPath ? `${workspaceFolderPath}/_bmad-output` : null
+
+  // Load BMad workflow by checking artifact file existence
+  const loadBmadWorkflow = useCallback(async () => {
+    if (!bmadOutputPath) return
+    const fileExistsMap: Record<string, boolean> = {}
+
+    const dirs = ['planning-artifacts', 'implementation-artifacts'] as const
+    for (const dir of dirs) {
+      try {
+        const entries = await window.electronAPI.fs.readdir(`${bmadOutputPath}/${dir}`)
+        const fileNames = new Set(entries.filter(e => !e.isDirectory).map(e => e.name))
+        for (const phaseDef of PHASE_DEFINITIONS) {
+          for (const artifact of phaseDef.artifacts) {
+            if (artifact.dir === dir) {
+              fileExistsMap[`${dir}/${artifact.name}`] = fileNames.has(artifact.name)
+            }
+          }
+        }
+      } catch {
+        for (const phaseDef of PHASE_DEFINITIONS) {
+          for (const artifact of phaseDef.artifacts) {
+            if (artifact.dir === dir) {
+              fileExistsMap[`${dir}/${artifact.name}`] = false
+            }
+          }
+        }
+      }
+    }
+
+    setBmadWorkflow(buildBmadWorkflow(fileExistsMap))
+  }, [bmadOutputPath])
+
+  // Load Epic/Story data from _bmad-output/planning-artifacts/epics.md
+  // Uses ref for sprintStatus to keep callback reference stable and avoid infinite loop
+  const loadEpics = useCallback(async () => {
+    if (!bmadOutputPath) return
+    const epicsPath = `${bmadOutputPath}/planning-artifacts/epics.md`
+
+    try {
+      const result = await window.electronAPI.fs.readFile(epicsPath)
+      if (!result.content) { setBmadEpics([]); return }
+
+      // Build sprint story map for status cross-reference (read from ref)
+      let storyMap: Map<string, { status: import('../types/bmad-epic').StoryStatus; workOrderId?: string }> | undefined
+      const currentSprintStatus = sprintStatusRef.current
+      if (currentSprintStatus) {
+        storyMap = buildSprintStoryMap(
+          currentSprintStatus.stories.map(s => ({ id: s.id, status: s.status, workOrderId: s.workOrderId }))
+        )
+      }
+
+      const parsed = parseEpicsFile(result.content, storyMap)
+      setBmadEpics(parsed)
+    } catch {
+      setBmadEpics([])
+    }
+  }, [bmadOutputPath])
 
   // Load sprint-status.yaml from multiple possible locations
   const loadSprintStatus = useCallback(async () => {
@@ -78,6 +143,14 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     }
     setSprintStatus(null)
   }, [workspaceFolderPath])
+
+  // Keep sprintStatus ref in sync and reload epics when sprint data changes
+  useEffect(() => {
+    sprintStatusRef.current = sprintStatus
+    if (sprintStatus && isVisible) {
+      loadEpics()
+    }
+  }, [sprintStatus, isVisible, loadEpics])
 
   // Load bug entries from _bug-tracker.md
   const loadBugs = useCallback(async () => {
@@ -192,15 +265,25 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         }
       }
 
+      // Deduplicate by order ID (defensive — prevents React key collisions)
+      const seen = new Set<string>()
+      const uniqueOrders: WorkOrder[] = []
+      for (const o of orders) {
+        if (!seen.has(o.id)) {
+          seen.add(o.id)
+          uniqueOrders.push(o)
+        }
+      }
+
       // Sort: URGENT first, then IN_PROGRESS, PENDING, others, DONE last
       const priority: Record<string, number> = {
         URGENT: 0, IN_PROGRESS: 1, PENDING: 2, BLOCKED: 3,
         PARTIAL: 4, INTERRUPTED: 5, FAILED: 6, DONE: 7,
       }
-      orders.sort((a, b) => (priority[a.status] ?? 99) - (priority[b.status] ?? 99))
+      uniqueOrders.sort((a, b) => (priority[a.status] ?? 99) - (priority[b.status] ?? 99))
 
-      detectStatusChanges(orders)
-      setWorkOrders(orders)
+      detectStatusChanges(uniqueOrders)
+      setWorkOrders(uniqueOrders)
       setHasCtDir(true)
     } catch {
       setWorkOrders([])
@@ -218,7 +301,9 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     loadBugs()
     loadBacklog()
     loadDecisions()
-  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions])
+    loadBmadWorkflow()
+    loadEpics()
+  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
 
   // Watch _ct-workorders/ for changes
   useEffect(() => {
@@ -234,6 +319,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         loadBugs()
         loadBacklog()
         loadDecisions()
+        loadBmadWorkflow()
+        loadEpics()
       }
     })
 
@@ -243,7 +330,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         window.electronAPI.fs.unwatch(ctDirRef.current)
       }
     }
-  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions])
+  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
 
   // Load/clear archived orders when toggle changes
   useEffect(() => {
@@ -304,7 +391,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       <div className="ct-panel-header">
         <h3>{t('controlTower.title')}</h3>
         <div className="ct-header-actions">
-          <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus() }} title={t('controlTower.refresh')}>
+          <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus(); loadBmadWorkflow(); loadEpics() }} title={t('controlTower.refresh')}>
             ↻
           </button>
         </div>
@@ -322,16 +409,14 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
           className={`ct-tab${activeTab === 'kanban' ? ' active' : ''}`}
           onClick={() => setActiveTab('kanban')}
         >
-          {t('controlTower.tab.kanban')}
+          {t('controlTower.tab.epics')}
         </button>
-        {sprintStatus && (
-          <button
-            className={`ct-tab${activeTab === 'sprint' ? ' active' : ''}`}
-            onClick={() => setActiveTab('sprint')}
-          >
-            {t('controlTower.tab.sprint')}
-          </button>
-        )}
+        <button
+          className={`ct-tab${activeTab === 'workflow' ? ' active' : ''}`}
+          onClick={() => setActiveTab('workflow')}
+        >
+          {t('controlTower.tab.workflow')}
+        </button>
         {bugEntries.length > 0 && (
           <button
             className={`ct-tab${activeTab === 'bugs' ? ' active' : ''}`}
@@ -484,13 +569,25 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
       {activeTab === 'kanban' && (
         <div className="ct-tab-content">
-          <KanbanView workOrders={workOrders} onExecWorkOrder={onExecWorkOrder} onDoneWorkOrder={onDoneWorkOrder} />
+          {bmadEpics.length > 0
+            ? <BmadEpicsView epics={bmadEpics} loading={loading} ctDirPath={ctDirPath} />
+            : <KanbanView workOrders={workOrders} onExecWorkOrder={onExecWorkOrder} onDoneWorkOrder={onDoneWorkOrder} />
+          }
         </div>
       )}
 
-      {activeTab === 'sprint' && sprintStatus && (
+      {activeTab === 'workflow' && (
         <div className="ct-tab-content">
-          <SprintProgress sprint={sprintStatus} workOrders={workOrders} />
+          <BmadWorkflowView
+            workflow={bmadWorkflow}
+            loading={loading}
+            bmadOutputPath={bmadOutputPath ?? ''}
+          />
+          {sprintStatus && (
+            <div className="ct-workflow-sprint-section">
+              <SprintProgress sprint={sprintStatus} workOrders={workOrders} />
+            </div>
+          )}
         </div>
       )}
 

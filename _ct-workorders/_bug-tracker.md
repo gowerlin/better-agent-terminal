@@ -1,8 +1,8 @@
 # Bug Tracker — better-agent-terminal
 
-> 最後更新：2026-04-12 22:13 (UTC+8)（T0065：BUG-001/002 狀態 → 🧪 VERIFY）
+> 最後更新：2026-04-13 10:05 (UTC+8)（BUG-016 FIXED；BUG-017/018 新增）
 >
-> 統計：🔴 Open: 1 | 🧪 Verify: 2 | ✅ Fixed: 11 | 🚫 Closed: 1 | 總計: 15
+> 統計：🔴 Open: 3 | 🧪 Verify: 2 | ✅ Fixed: 12 | 🚫 Closed: 1 | 總計: 18
 
 ---
 
@@ -11,6 +11,8 @@
 | ID | 標題 | 嚴重度 | 狀態 | 報修時間 | 連結 |
 |----|------|--------|------|---------|------|
 | BUG-012 | Alt buffer 捲動殘影（ghost text） | 🟡 Medium | 🔍 上游追蹤（#46898） | 2026-04-11 | [詳細](BUG-012-alt-buffer-scroll-ghost-text.md) |
+| BUG-017 | BMad Workflow/Epics 無法偵測非當前工作區的 _bmad-output | 🟡 Medium | 📋 REPORTED | 2026-04-13 | [詳細](BUG-017-bmad-output-not-detected-in-workspace.md) |
+| BUG-018 | 切換工作區後其他頁籤未更新（停留在舊專案） | 🔴 High | 📋 REPORTED | 2026-04-13 | [詳細](BUG-018-workspace-switch-tabs-not-refreshed.md) |
 
 ---
 
@@ -38,6 +40,7 @@
 | BUG-013 | Tab 切換離開終端 → 畫面全黑 | 🔴 High | ✅ FIXED (T0047) | T0047 | [詳細](_archive/bugs/BUG-013-tab-switch-black-screen.md) |
 | BUG-014 | Ctrl+滾輪縮放終端字體失效 | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](_archive/bugs/BUG-014-ctrl-scroll-font-zoom-broken.md) |
 | BUG-015 | 終端字體從黑體變細明體（CJK fallback） | 🟡 Medium | ✅ FIXED (T0047) | T0047 | [詳細](_archive/bugs/BUG-015-terminal-font-cjk-fallback.md) |
+| BUG-016 | ControlTowerPanel 無限循環 + 重複 key（T0072/T0073 regression） | 🔴 High | ✅ FIXED (T0074) | T0074 | [詳細](BUG-016-control-tower-panel-infinite-loop-and-duplicate-key.md) |
 
 ---
 

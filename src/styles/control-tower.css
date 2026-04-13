@@ -1098,3 +1098,519 @@
   margin-top: 8px;
   flex-wrap: wrap;
 }
+
+/* ─── BMad Workflow ──────────────────────────────────────────────────────── */
+
+.ct-workflow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Overall progress */
+.ct-workflow-overview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
+  border-radius: 6px;
+}
+
+.ct-workflow-progress-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ct-workflow-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ct-workflow-progress-fill {
+  height: 100%;
+  background: var(--accent-fg, #22c55e);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Phase list */
+.ct-workflow-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Phase card */
+.ct-workflow-phase {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.ct-workflow-phase.expanded {
+  border-color: var(--accent-fg, #3b82f6);
+}
+
+.ct-phase-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.ct-phase-header:hover {
+  background: var(--hover-bg);
+}
+
+.ct-phase-expand {
+  font-size: 10px;
+  color: var(--text-secondary);
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.ct-phase-id {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.06));
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ct-phase-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.ct-phase-optional {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.ct-phase-artifact-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* Phase status badges */
+.ct-phase-status-done {
+  border-left: 3px solid #22c55e;
+}
+
+.ct-phase-status-partial {
+  border-left: 3px solid #f59e0b;
+}
+
+.ct-phase-status-not-started {
+  border-left: 3px solid var(--border-color);
+}
+
+.ct-status-badge.ct-phase-status-done {
+  border-left: none;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.ct-status-badge.ct-phase-status-partial {
+  border-left: none;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.ct-status-badge.ct-phase-status-not-started {
+  border-left: none;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.06));
+  color: var(--text-secondary);
+}
+
+/* Artifact list inside expanded phase */
+.ct-phase-artifacts {
+  padding: 4px 12px 8px 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ct-artifact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.ct-artifact-item:hover {
+  background: var(--hover-bg);
+}
+
+.ct-artifact-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ct-artifact-name {
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.ct-artifact-file {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  opacity: 0.7;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-artifact-exists {
+  opacity: 1;
+}
+
+.ct-artifact-missing {
+  opacity: 0.6;
+}
+
+.ct-artifact-item .ct-view-file-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Empty state */
+.ct-workflow-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.ct-workflow-empty .ct-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.ct-workflow-empty p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Sprint section within workflow tab */
+.ct-workflow-sprint-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* ─── Epic/Story View ──────────────────────────────────────────────────── */
+
+.ct-epics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ct-epics-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  flex-wrap: wrap;
+}
+
+.ct-epics-progress-bar {
+  flex: 1;
+  min-width: 60px;
+  height: 6px;
+  background: var(--bg-tertiary, #333);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ct-epics-progress-fill {
+  height: 100%;
+  background: #4caf50;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.ct-epic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ct-epic-card {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.ct-epic-card:hover {
+  border-color: var(--text-secondary);
+}
+
+.ct-epic-card.expanded {
+  border-color: var(--accent-color, #007acc);
+}
+
+.ct-epic-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ct-epic-header:hover {
+  background: var(--bg-secondary);
+}
+
+.ct-epic-expand {
+  font-size: 10px;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.ct-epic-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-color, #007acc);
+  flex-shrink: 0;
+  min-width: 28px;
+}
+
+.ct-epic-title {
+  flex: 1;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-epic-story-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.ct-epic-progress-bar {
+  height: 3px;
+  background: var(--bg-tertiary, #333);
+  overflow: hidden;
+}
+
+.ct-epic-progress-fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.ct-epic-detail {
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ct-epic-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.ct-epic-frs {
+  font-size: 11px;
+  color: var(--text-tertiary, var(--text-secondary));
+  margin-bottom: 8px;
+}
+
+/* Epic status colors */
+.ct-epic-status-done {
+  border-left: 3px solid #4caf50;
+}
+
+.ct-epic-status-in-progress {
+  border-left: 3px solid #2196f3;
+}
+
+.ct-epic-status-not-started {
+  border-left: 3px solid var(--text-tertiary, #666);
+}
+
+.ct-status-badge.ct-epic-status-done {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+  border: none;
+}
+
+.ct-status-badge.ct-epic-status-in-progress {
+  background: rgba(33, 150, 243, 0.15);
+  color: #2196f3;
+  border: none;
+}
+
+.ct-status-badge.ct-epic-status-not-started {
+  background: rgba(158, 158, 158, 0.15);
+  color: var(--text-secondary);
+  border: none;
+}
+
+/* ─── Story List ─────────────────────────────────────────────────────── */
+
+.ct-story-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ct-story-list-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ct-story-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.ct-story-item:hover {
+  background: var(--bg-secondary);
+}
+
+.ct-story-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
+.ct-story-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-story-wo-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(33, 150, 243, 0.15);
+  color: #2196f3;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ct-story-wo-badge:hover {
+  background: rgba(33, 150, 243, 0.25);
+}
+
+/* Story status colors */
+.ct-story-status-done { }
+.ct-story-status-in-progress { }
+.ct-story-status-review { }
+.ct-story-status-blocked { }
+.ct-story-status-todo { }
+
+.ct-status-badge.ct-story-status-done {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+  border: none;
+}
+
+.ct-status-badge.ct-story-status-in-progress {
+  background: rgba(33, 150, 243, 0.15);
+  color: #2196f3;
+  border: none;
+}
+
+.ct-status-badge.ct-story-status-review {
+  background: rgba(156, 39, 176, 0.15);
+  color: #ce93d8;
+  border: none;
+}
+
+.ct-status-badge.ct-story-status-blocked {
+  background: rgba(244, 67, 54, 0.15);
+  color: #f44336;
+  border: none;
+}
+
+.ct-status-badge.ct-story-status-todo {
+  background: rgba(158, 158, 158, 0.15);
+  color: var(--text-secondary);
+  border: none;
+}
+
+.ct-story-empty {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* Epics empty state */
+.ct-epics-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.ct-epics-empty .ct-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.ct-epics-empty p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}

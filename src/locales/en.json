@@ -439,10 +439,24 @@
     "tab": {
       "orders": "Orders",
       "kanban": "Kanban",
-      "sprint": "Sprint",
+      "epics": "Epics",
+      "workflow": "Workflow",
       "bugs": "Bugs",
       "backlog": "Backlog",
       "decisions": "Decisions"
+    },
+    "workflow": {
+      "empty": "BMad workflow not started yet. Use bmad-guide to get started.",
+      "phasesComplete": "phases complete",
+      "optional": "Optional"
+    },
+    "epics": {
+      "empty": "No Epic data found. Run BMad create-epics-and-stories to generate epics.",
+      "epicCount": "Epics",
+      "storyCount": "Stories",
+      "doneCount": "Done",
+      "stories": "Stories",
+      "noStories": "No stories defined"
     },
     "bugs": {
       "total": "total",
