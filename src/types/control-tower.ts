@@ -35,21 +35,33 @@ const STATUS_VALUES = new Set<WorkOrderStatus>([
  * 從工單 .md 內容解析 metadata
  * 容錯設計：欄位缺失不報錯，返回 partial data
  * 支援：
- *   - Markdown 格式：**狀態**：DONE / **狀態**:DONE（全形/半形冒號）
+ *   - 列表格式：- **狀態**：DONE / - 狀態：DONE（bold 選用，全形/半形冒號）
+ *   - 表格格式：| **狀態** | DONE | / | 狀態 | DONE |（bold 選用）
  *   - YAML frontmatter 格式：status: DONE
- *   - 狀態值後帶括號附加文字：DONE（塔台追認...） → DONE
+ *   - 狀態值後帶註解仍可正確萃取：DONE <!-- 備注 --> / DONE（附加說明）
  */
 export function parseWorkOrder(filename: string, content: string): WorkOrder {
   const extractField = (label: string): string | undefined => {
-    const regex = new RegExp(`\\*\\*${label}\\*\\*[：:]\\s*(.+)`, 'm')
-    const match = content.match(regex)
-    return match?.[1]?.trim()
+    // 格式 A：列表格式（bold 選用）— - **欄位**：值 / - 欄位：值
+    const listRegex = new RegExp(`^-\\s+\\*{0,2}${label}\\*{0,2}[：:]\\s*(.+)`, 'm')
+    const listMatch = content.match(listRegex)
+    if (listMatch) return listMatch[1]?.trim()
+
+    // 格式 B：Markdown 表格格式（bold 選用）— | **欄位** | 值 |
+    const tableRegex = new RegExp(`\\|\\s*\\*{0,2}${label}\\*{0,2}\\s*\\|\\s*(.+?)\\s*\\|`, 'm')
+    const tableMatch = content.match(tableRegex)
+    if (tableMatch) return tableMatch[1]?.trim()
+
+    // 格式 C：原始 bold-only 格式（向後相容，無列表前綴）
+    const boldRegex = new RegExp(`\\*\\*${label}\\*\\*[：:]\\s*(.+)`, 'm')
+    const boldMatch = content.match(boldRegex)
+    return boldMatch?.[1]?.trim()
   }
 
   /** 從 raw 字串中提取第一個有效狀態關鍵字，忽略括號附加文字 */
   const extractStatusKeyword = (raw: string | undefined): WorkOrderStatus | undefined => {
     if (!raw) return undefined
-    const keyword = raw.toUpperCase().match(/^(DONE|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
+    const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
     return keyword && STATUS_VALUES.has(keyword as WorkOrderStatus) ? keyword as WorkOrderStatus : undefined
   }
 
