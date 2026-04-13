@@ -1,0 +1,142 @@
+# sprint-status.yaml — better-agent-terminal 進度追蹤
+# 簡潔版：僅列進行中（IN_PROGRESS）+ 待做（TODO）工單，不列已完成
+# 更新時機：每張工單完成後由塔台更新
+
+project: better-agent-terminal
+version: "1.0.0"
+last_updated: "2026-04-13 17:11"
+
+# ─────────────────────────────────────────
+# 里程碑概覽
+# ─────────────────────────────────────────
+milestones:
+  - name: "Phase 1 — Voice Input & Tooling"
+    status: "✅ DONE"
+    completed_range: "T0001~T0096"
+    highlights:
+      - "語音辨識（Whisper CPU + macOS Metal GPU）"
+      - "BMad UI 整合（Workflow / Epics / Bug Tracker 頁籤）"
+      - "Control Tower 工單系統（BUG/PLAN/Decision 單據）"
+      - "PLAN-008 Phase 1：30s auto-save + 佈局持久化（T0096）"
+      - "Bug Tracker 全清（24 筆 CLOSED）"
+
+  - name: "Phase 2 — Terminal Architecture"
+    status: "📋 PLANNING"
+    reference: "PLAN-008 Phase 2（PTY 脫鉤、Terminal Server 獨立進程）"
+    next_workorder: "T0099+"
+
+  - name: "Phase 3+ — 功能延伸"
+    status: "📋 BACKLOG"
+    reference: "_backlog.md (PLAN-001~007)"
+
+# ─────────────────────────────────────────
+# 進行中 / 待做工單（按 Epic 分組）
+# ─────────────────────────────────────────
+epics:
+  - name: "塔台配置補齊"
+    status: "🔄 ACTIVE"
+    description: "Control Tower 缺少必要配置文件（project-context.md / sprint-status.yaml）"
+    workorders:
+      - id: "T0097"
+        title: "產生 project-context.md"
+        status: "✅ DONE"
+        priority: "高"
+        completed: "2026-04-13"
+        note: "project-context.md 已建立（135 行），涵蓋願景/技術棧/決策/邊界/里程碑"
+
+      - id: "T0098"
+        title: "產生 sprint-status.yaml（本檔）"
+        status: "🔄 IN_PROGRESS"
+        priority: "高"
+
+  - name: "Phase 2 — Terminal Architecture"
+    status: "📋 PLANNING"
+    description: "Terminal Server 獨立進程、PTY 生命週期管理、通訊協議標準化"
+    workorders:
+      - id: "T0099+"
+        title: "[待規劃 — PLAN-008 Phase 2 設計]"
+        status: "📋 BACKLOG"
+        note: "基於 T0093 架構調查 + PLAN-008 願景，評估後開單"
+
+# ─────────────────────────────────────────
+# Backlog 計畫項目（PLAN 系列）
+# ─────────────────────────────────────────
+plans:
+  - id: "PLAN-008"
+    title: "持久化狀態 + PTY 進程脫鉤架構"
+    priority: "🔴 High"
+    status: "📋 PLANNED"
+    phase1: "✅ DONE (T0096) — 30s auto-save + 佈局持久化"
+    phase2: "📋 TODO — Terminal Server 獨立進程（T0099+）"
+    file: "_ct-workorders/PLAN-008-persistent-state-and-detached-pty.md"
+
+  - id: "PLAN-007"
+    title: "遠端 / 容器開發支援（SSH / WSL / Docker）"
+    priority: "🟡 Medium"
+    status: "💡 IDEA"
+    file: "_ct-workorders/PLAN-007-remote-container-dev-support.md"
+
+  - id: "PLAN-004"
+    title: "GPU/MLX Whisper 加速（Windows / Linux）"
+    priority: "🟡 Medium"
+    status: "📋 PLANNED"
+    note: "依賴 T0058 研究報告（已完成）"
+    file: "_ct-workorders/PLAN-004-gpu-whisper-acceleration-win-linux.md"
+
+  - id: "PLAN-003"
+    title: "npm audit 殘餘漏洞（Electron 核心依賴鏈）"
+    priority: "🟡 Medium"
+    status: "💡 IDEA"
+    note: "建議與 PLAN-005 合併執行（Electron + electron-builder 版本升級）"
+    file: "_ct-workorders/PLAN-003-npm-audit-remaining-vulnerabilities.md"
+
+  - id: "PLAN-005"
+    title: "electron-builder 24 → 26 升級"
+    priority: "🟢 Low"
+    status: "💡 IDEA"
+    note: "建議與 PLAN-003 合併執行"
+    file: "_ct-workorders/PLAN-005-electron-builder-upgrade.md"
+
+  - id: "PLAN-001"
+    title: "Vite v5 → v6 升級"
+    priority: "🟢 Low"
+    status: "💡 IDEA"
+    note: "建議與 PLAN-002 合併執行（都是 Vite 相關）"
+    file: "_ct-workorders/PLAN-001-vite-v5-to-v6-upgrade.md"
+
+  - id: "PLAN-002"
+    title: "Dynamic Import 衝突修正"
+    priority: "🟢 Low"
+    status: "💡 IDEA"
+    note: "建議與 PLAN-001 合併執行"
+    file: "_ct-workorders/PLAN-002-dynamic-import-conflict-fix.md"
+
+# ─────────────────────────────────────────
+# Bug Tracker 狀態
+# ─────────────────────────────────────────
+bugs:
+  overall_status: "✅ 全清"
+  open: 0
+  fixing: 0
+  fixed: 0
+  verify: 0
+  closed: 24
+  wontfix: 0
+  last_cleared: "2026-04-13"
+  note: "BUG-001~024 全數 CLOSED，無待處理 bug"
+
+# ─────────────────────────────────────────
+# 統計
+# ─────────────────────────────────────────
+summary:
+  total_workorders: 99       # T0001~T0098（含本張）
+  completed: 98              # T0001~T0097（含 T0097 project-context.md）
+  in_progress: 1             # T0098（本張）
+  todo: 0
+  blocked: 0
+  active_bugs: 0
+  backlog_plans: 7           # PLAN-001~008（PLAN-006 DROPPED 不計）
+  next_workorder: "T0099"
+  next_plan: "PLAN-009"
+  next_bug: "BUG-025"
+  next_decision: "D029"
