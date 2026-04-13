@@ -1106,6 +1106,14 @@
   color: var(--text-secondary);
 }
 
+.claude-cli-warning {
+  color: #d97706;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 4px 8px;
+  white-space: pre-line;
+}
+
 /* Footer row inside the input box */
 .claude-input-footer {
   display: flex;

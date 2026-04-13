@@ -1,8 +1,8 @@
 # Bug Tracker — better-agent-terminal
 
-> 最後更新：2026-04-13 13:43 (UTC+8)（T0086：BUG-002 + BUG-012 → 🚫 CLOSED）
+> 最後更新：2026-04-13 14:02 (UTC+8)（T0087：BUG-001 → 🚫 CLOSED）
 >
-> 統計：🔴 Open: 0 | 🧪 Verify: 1 | ✅ Fixed: 18 | 🚫 Closed: 3 | 總計: 22
+> 統計：🔴 Open: 0 | 🧪 Verify: 0 | ✅ Fixed: 18 | 🚫 Closed: 4 | 總計: 22
 
 ---
 
@@ -14,9 +14,7 @@
 
 ## 🧪 驗收中 (VERIFY)
 
-| ID | 標題 | 嚴重度 | 狀態 | 修復工單 | 連結 |
-|----|------|--------|------|---------|------|
-| BUG-001 | Claude OAuth 登入 paste 被截斷 | 🔴 High | 🧪 VERIFY (T0006) / awaiting runtime verification | T0006 | [詳細](BUG-001-claude-oauth-paste-truncated.md) |
+（目前無 VERIFY bug）
 
 ---
 
@@ -52,12 +50,13 @@
 | BUG-002 | 右鍵功能表位置嚴重位移 | 🟡 Medium | 🚫 人工驗收通過 | 2026-04-13 | [詳細](BUG-002-context-menu-offset.md) |
 | BUG-007 | 右鍵標記時顯示 OSC 52 調試訊息 | 🟢 Low | 🚫 上游行為（Claude Code CLI），無法修復 | 2026-04-12 | [詳細](_archive/bugs/BUG-007-osc52-debug-message-pollutes-terminal.md) |
 | BUG-012 | Alt buffer 捲動殘影（ghost text） | 🟡 Medium | 🚫 人工驗收通過，v0.0.9-pre.1 確認 | 2026-04-13 | [詳細](BUG-012-alt-buffer-scroll-ghost-text.md) |
+| BUG-001 | Claude OAuth 登入 paste 被截斷 | 🔴 High | 🚫 根因釐清為使用情境誤用，以 UX 改善取代（T0087） | 2026-04-13 | [詳細](BUG-001-claude-oauth-paste-truncated.md) |
 
 ---
 
 ## 📝 備註
 
-- BUG-001：狀態 🧪 VERIFY，code fix 已確認，awaiting runtime verification
+- BUG-001：🚫 CLOSED（2026-04-13 根因釐清為使用情境誤用，T0087 UX 改善）
 - BUG-002：🚫 CLOSED（2026-04-13 人工驗收通過）
 - BUG-012：🚫 CLOSED（2026-04-13 人工驗收通過，v0.0.9-pre.1 確認修復）
 - 下一個 BUG 編號：**BUG-023**

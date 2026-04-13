@@ -239,6 +239,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   const [loadedArchive, setLoadedArchive] = useState<MessageItem[]>([])
   const [hasMoreArchived, setHasMoreArchived] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [cliCommandWarning, setCliCommandWarning] = useState<string | null>(null)
   const archivedCountRef = useRef(0)
   const loadedFromArchiveRef = useRef(0)
   const archivingRef = useRef(false)
@@ -1121,6 +1122,15 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     inputHistoryIndexRef.current = -1
     inputDraftRef.current = ''
 
+    // Intercept CLI-only commands — these must be run in the terminal, not in Agent prompt
+    const CLI_ONLY_COMMANDS = ['/login']
+    if (CLI_ONLY_COMMANDS.some(cmd => trimmed.toLowerCase() === cmd)) {
+      setCliCommandWarning(
+        `${trimmed} 需在 Claude Code CLI 模式下執行。\n請關閉 Agent 模式後，在終端直接輸入 ${trimmed}。`
+      )
+      return
+    }
+
     // Intercept /resume command (only when not streaming)
     if (!isStreaming && trimmed === '/resume') {
       clearInput()
@@ -1389,6 +1399,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     const val = (e.target as HTMLTextAreaElement).value
     inputValueRef.current = val
     autoResizeTextarea()
+    // Clear CLI command warning when user modifies input
+    setCliCommandWarning(null)
     // Show slash command menu when typing / at the start
     if (val.startsWith('/') && !val.includes(' ')) {
       setShowSlashMenu(true)
@@ -3176,6 +3188,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           disabled={false}
           rows={1}
         />
+        {cliCommandWarning && (
+          <div className="claude-cli-warning">
+            {cliCommandWarning}
+          </div>
+        )}
         {(attachedImages.length > 0 || attachedFiles.length > 0) && (
           <div className="claude-attachments">
             {attachedImages.map(img => (
