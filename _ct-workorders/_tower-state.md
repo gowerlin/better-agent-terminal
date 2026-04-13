@@ -1,10 +1,30 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-13 13:43 (UTC+8)（T0086 BUG-002/012 結案 + 清理）
+> 最後更新：2026-04-13 17:10 (UTC+8)（T0098 sprint-status.yaml 產生完成）
 
 ---
 
 ## 🌅 明日起手式（Quick Recovery）
+> 最後更新：2026-04-13 17:10 UTC+8（T0098 sprint-status.yaml 完成）
+
+### 立即待辦
+1. **T0097 project-context.md**：待開工，塔台最後一個配置補齊工單
+2. **批次 commit 未提交工單**：T0088/T0091/T0092/T0095/T0096/T0097/T0098 + sprint-status.yaml 需 commit
+3. **考慮發 v0.0.9 正式版**（現有 v0.0.9-pre.1，多項修復已完成）
+4. **PLAN-008 Phase 2**：Terminal Server 獨立進程（大工單，評估後開單）
+
+### 本 session 完成摘要（T0086~T0096）
+- BUG-001/002/012 + 所有 FIXED bugs → **全數 CLOSED**（Bug Tracker 清零）
+- PLAN-006 DROPPED（alt buffer 無 scrollbar 為正常行為）
+- 新功能：/login 攔截、右鍵選單智慧定位、BUG Detail 工作流 UI
+- 修復：file watch 斷裂（BUG-024）、workorder parser 容錯（BUG→現改為純格式問題）
+- PLAN-008 Phase 1 完成：30s auto-save + 佈局持久化
+
+### 工單統計
+- Done: 98 | Active: 1 (T0097 TODO) | 總計: 99
+- 最高編號：T0096 / BUG-024 / PLAN-008 / D028
+
+## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 
 **目前進度**：單據系統遷移 + 歸檔完成。20 張工單全部 DONE。目錄已清理。
 
@@ -16,7 +36,7 @@
 2. BUG-001 待 runtime 驗收（最後一張 VERIFY bug）
 
 **快速連結**：
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 1，Verify: 0）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 0，Closed: 24）
 - Backlog → [_backlog.md](_backlog.md)（Active: 6）
 - 工單索引 → [_workorder-index.md](_workorder-index.md)（Active only）
 - 決策日誌 → [_decision-log.md](_decision-log.md)（最新：D028）
@@ -33,8 +53,8 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0086 |
-| **BUG 最大編號** | BUG-023 |
+| **工單最大編號** | T0096 |
+| **BUG 最大編號** | BUG-024 |
 | **PLAN 最大編號** | PLAN-007 |
 | **決策最大編號** | D028 |
 | **塔台版本** | Control Tower v3.x |
@@ -63,6 +83,15 @@
 ---
 
 ## 📝 管理筆記
+
+**2026-04-13 16:20 T0094 批次結案**：
+- 所有 FIXED 狀態 BUG 人工驗收通過，批次更新為 CLOSED
+- 共 20 筆：BUG-003~006, 008~011, 013~022, 023, 024
+- BUG-023（右鍵選單智慧定位，T0092）驗收通過
+- BUG-024（CT 面板不監聽索引文件，T0095）驗收通過
+- T0091（BUG Detail 工作流 UI）驗收通過
+- T0092（右鍵選單智慧定位實作）驗收通過
+- Bug Tracker 統計：Open 0 / Fixed 0 / Closed 24
 
 **2026-04-13 13:43 T0086 結案**：
 - BUG-002 CLOSED（人工驗收通過）

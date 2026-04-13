@@ -3,7 +3,7 @@
 ## 元資料
 - **工單編號**：T0090
 - **任務名稱**：更新 BUG 狀態流定義
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **開始時間**：2026-04-13 14:44 UTC+8
 - **建立時間**：2026-04-13 14:50 UTC+8
 - **相關票號**：BUG-023
@@ -110,12 +110,20 @@ git commit -m "chore(tower): 更新 BUG 狀態流為 OPEN→FIXING→FIXED→VER
 
 ## 📝 回報區（Sub-session 填寫）
 
-**完成時間**：___
+**完成時間**：2026-04-13 14:47 UTC+8
 
-**修改檔案清單**：___
+**修改檔案清單**：
+- `_ct-workorders/_local-rules.md` — 新增 BUG 狀態流段落、更新表格摘要、VERIFY 語意修正、歸檔最終態移除 FIXED
+- `_ct-workorders/_bug-tracker.md` — BUG-023 加入 Open 區、統計更新、下一編號更新
+- `_ct-workorders/BUG-023-context-menu-viewport-overflow.md` — 狀態 REPORTED → OPEN、狀態流轉紀錄
+- `_ct-workorders/_tower-state.md` — BUG 最大編號 → BUG-023、Bug Tracker 摘要更新
+- `_ct-workorders/T0090-update-bug-status-flow.md` — 工單狀態更新
 
-**BUG-023 目前狀態確認**：___
+**BUG-023 目前狀態確認**：OPEN
 
-**Commit hash**：___
+**Commit hash**：5a1d35e
 
-**異常或決策**：___
+**異常或決策**：
+- 歸檔最終態從 `DONE / CLOSED / WONTFIX / DROPPED / FIXED` 移除 FIXED（新流程中 FIXED 非最終態，需經 VERIFY/CLOSED 才結案）
+- 衍生問題處理從「升為 FIXED」改為「改為 CLOSED」，與新流程一致
+- `_tower-state.md` BUG 最大編號原為 BUG-022，一併修正為 BUG-023（BUG-023 建立時漏更新）

@@ -46,6 +46,27 @@ OPEN → FIXING → FIXED → VERIFY → CLOSED
 | CLOSED | 使用者 → Tower | 驗收通過，正式結案 |
 | WONTFIX | Tower 決策 | 確認不修復，銷單 |
 
+### `_bug-tracker.md` Section 標題格式（Parser 必讀）
+
+> **重要**：Bug Tracker UI 的 parser (`src/types/bug-tracker.ts: sectionToStatus`) 靠 section
+> 標題判斷 BUG 狀態。每個狀態**必須獨立一個 section**，**禁止合併**。
+
+| 狀態 | 必須使用的 Section 標題 | 禁止寫法 |
+|------|------------------------|---------|
+| OPEN | `## 🔴 Open / 處理中` | — |
+| FIXING | `## ⏳ 修復中 (FIXING)` | — |
+| FIXED | `## ✅ 已修復` | — |
+| VERIFY | `## 🧪 驗收中 (VERIFY)` | — |
+| CLOSED | `## 🚫 已關閉 (CLOSED)` | ❌ `## 🚫 已關閉 / WONTFIX`（會被誤判為 WONTFIX） |
+| WONTFIX | `## ⛔ 不修復 (WONTFIX)` | ❌ 與 CLOSED 合併在同一 section |
+
+**容錯**：Parser 已加入容錯邏輯，混合標題（如 `已關閉 / WONTFIX`）會 fallback 為 CLOSED。
+但為避免歧義，**一律使用上表的標準格式**。
+
+**BUG 文件內的狀態欄位**也應與 tracker section 一致：
+- 表格格式：`| **狀態** | 🚫 CLOSED |`
+- 列表格式：`- **狀態**：CLOSED`
+
 ---
 
 ## Bug 報修流程
