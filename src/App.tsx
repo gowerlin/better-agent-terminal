@@ -129,6 +129,13 @@ export default function App() {
     if (saved && DOCKABLE_PANELS.includes(saved as DockablePanel)) return saved as DockablePanel
     return 'snippets'
   })
+  // Track which sidebar panels have been visited — lazy mount to preserve state
+  const [mountedLeftPanels, setMountedLeftPanels] = useState<Set<string>>(() => new Set(['workspaces']))
+  const [mountedRightPanels, setMountedRightPanels] = useState<Set<DockablePanel>>(() => {
+    const saved = localStorage.getItem('bat-right-panel-tab')
+    const initial = (saved && DOCKABLE_PANELS.includes(saved as DockablePanel)) ? saved as DockablePanel : 'snippets'
+    return new Set([initial])
+  })
   // Markdown preview in right panel
   const [previewMarkdownPath, setPreviewMarkdownPath] = useState<string | null>(null)
   // Track collapsed state before markdown preview opened, to restore on close
@@ -224,6 +231,7 @@ export default function App() {
 
   const handleRightPanelTabChange = useCallback((tab: DockablePanel) => {
     setRightPanelTab(tab)
+    setMountedRightPanels(prev => prev.has(tab) ? prev : new Set([...prev, tab]))
     localStorage.setItem('bat-right-panel-tab', tab)
     // If collapsed, expand when switching tabs
     setPanelSettings(prev => {
@@ -801,23 +809,25 @@ export default function App() {
 
   return (
     <div className="app">
-      {panelSettings.sidebar.collapsed ? (
-        <div className="left-sidebar-collapsed">
-          <button className="left-sidebar-collapsed-btn" onClick={handleSidebarCollapse} title={t('sidebar.expandSidebar')}>
-            {'\u{1F4C2}'}
+      {/* Left sidebar collapsed bar — always rendered, hidden when expanded */}
+      <div className="left-sidebar-collapsed" style={{ display: panelSettings.sidebar.collapsed ? undefined : 'none' }}>
+        <button className="left-sidebar-collapsed-btn" onClick={handleSidebarCollapse} title={t('sidebar.expandSidebar')}>
+          {'\u{1F4C2}'}
+        </button>
+        {leftDockedPanels.map(panel => (
+          <button key={panel} className="left-sidebar-collapsed-btn" onClick={() => {
+            setLeftPanelTab(panel)
+            setMountedLeftPanels(prev => prev.has(panel) ? prev : new Set([...prev, panel]))
+            handleSidebarCollapse()
+          }} title={t(`workspace.${panel}`)}>
+            {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F916}'}
           </button>
-          {leftDockedPanels.map(panel => (
-            <button key={panel} className="left-sidebar-collapsed-btn" onClick={() => {
-              setLeftPanelTab(panel)
-              handleSidebarCollapse()
-            }} title={t(`workspace.${panel}`)}>
-              {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F916}'}
-            </button>
-          ))}
-        </div>
-      ) : leftDockedPanels.length > 0 ? (
+        ))}
+      </div>
+      {/* Left sidebar expanded content — always rendered, hidden when collapsed to preserve state */}
+      {leftDockedPanels.length > 0 ? (
         <>
-          <div className="left-sidebar-wrapper" style={{ width: `${panelSettings.sidebar.width}px`, minWidth: `${panelSettings.sidebar.width}px`, display: 'flex', flexDirection: 'column' }}>
+          <div className="left-sidebar-wrapper" style={{ width: `${panelSettings.sidebar.width}px`, minWidth: `${panelSettings.sidebar.width}px`, display: panelSettings.sidebar.collapsed ? 'none' : 'flex', flexDirection: 'column' as const }}>
             <div className="left-sidebar-tabs">
               <button
                 className={`left-sidebar-tab${leftPanelTab === 'workspaces' ? ' active' : ''}`}
@@ -829,7 +839,7 @@ export default function App() {
                 <button
                   key={panel}
                   className={`left-sidebar-tab${leftPanelTab === panel ? ' active' : ''}`}
-                  onClick={() => setLeftPanelTab(panel)}
+                  onClick={() => { setLeftPanelTab(panel); setMountedLeftPanels(prev => prev.has(panel) ? prev : new Set([...prev, panel])) }}
                   onContextMenu={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -842,7 +852,8 @@ export default function App() {
               <button className="left-sidebar-collapse" onClick={handleSidebarCollapse} title={t('sidebar.collapseSidebar')}>&laquo;</button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              {leftPanelTab === 'workspaces' ? (
+              {/* Sidebar — always mounted, hidden when not active */}
+              <div style={{ display: leftPanelTab === 'workspaces' ? undefined : 'none', height: '100%' }}>
                 <Sidebar
                   width={panelSettings.sidebar.width}
                   workspaces={visibleWorkspaces}
@@ -876,61 +887,69 @@ export default function App() {
                   onOpenSettings={() => setShowSettings(true)}
                   onCollapse={handleSidebarCollapse}
                 />
-              ) : (
-                <Suspense fallback={<div className="loading-panel" />}>
-                  <div className="workspace-tab-content">
-                    {renderDockablePanel(leftPanelTab as DockablePanel)}
+              </div>
+              {/* Docked panels — lazy mounted, hidden when not active */}
+              <Suspense fallback={<div className="loading-panel" />}>
+                {leftDockedPanels.filter(p => mountedLeftPanels.has(p)).map(panel => (
+                  <div key={panel} className="workspace-tab-content" style={{ display: leftPanelTab === panel ? undefined : 'none' }}>
+                    {renderDockablePanel(panel)}
                   </div>
-                </Suspense>
-              )}
+                ))}
+              </Suspense>
             </div>
           </div>
-          <ResizeHandle
-            direction="horizontal"
-            onResize={handleSidebarResize}
-            onDoubleClick={handleSidebarResetWidth}
-          />
+          {!panelSettings.sidebar.collapsed && (
+            <ResizeHandle
+              direction="horizontal"
+              onResize={handleSidebarResize}
+              onDoubleClick={handleSidebarResetWidth}
+            />
+          )}
         </>
       ) : (
         <>
-          <Sidebar
-            width={panelSettings.sidebar.width}
-            workspaces={visibleWorkspaces}
-            activeWorkspaceId={state.activeWorkspaceId}
-            windowId={workspaceStore.getWindowId()}
-            groups={workspaceStore.getGroups()}
-            activeGroup={workspaceStore.getActiveGroup()}
-            archivedWorkspaces={archivedWorkspaces}
-            onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
-            onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
-            onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
-            onAddWorkspace={handleAddWorkspace}
-            onRemoveWorkspace={(id) => {
-              workspaceStore.removeWorkspace(id)
-              workspaceStore.save()
-            }}
-            onRenameWorkspace={(id, alias) => {
-              workspaceStore.renameWorkspace(id, alias)
-              workspaceStore.save()
-            }}
-            onReorderWorkspaces={(workspaceIds) => {
-              workspaceStore.reorderWorkspaces(workspaceIds)
-            }}
-            onArchiveWorkspace={(id) => workspaceStore.archiveWorkspace(id)}
-            onUnarchiveWorkspace={(id) => workspaceStore.unarchiveWorkspace(id)}
-            onOpenEnvVars={(workspaceId) => setEnvDialogWorkspaceId(workspaceId)}
-            onDetachWorkspace={handleDetachWorkspace}
-            activeProfileName={activeProfileName}
-            isRemoteConnected={isRemoteConnected}
-            onOpenProfiles={() => setShowProfiles(true)}
-            onOpenSettings={() => setShowSettings(true)}
-            onCollapse={handleSidebarCollapse}
-          />
-          <ResizeHandle
-            direction="horizontal"
-            onResize={handleSidebarResize}
-            onDoubleClick={handleSidebarResetWidth}
-          />
+          <div style={{ display: panelSettings.sidebar.collapsed ? 'none' : undefined }}>
+            <Sidebar
+              width={panelSettings.sidebar.width}
+              workspaces={visibleWorkspaces}
+              activeWorkspaceId={state.activeWorkspaceId}
+              windowId={workspaceStore.getWindowId()}
+              groups={workspaceStore.getGroups()}
+              activeGroup={workspaceStore.getActiveGroup()}
+              archivedWorkspaces={archivedWorkspaces}
+              onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
+              onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
+              onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
+              onAddWorkspace={handleAddWorkspace}
+              onRemoveWorkspace={(id) => {
+                workspaceStore.removeWorkspace(id)
+                workspaceStore.save()
+              }}
+              onRenameWorkspace={(id, alias) => {
+                workspaceStore.renameWorkspace(id, alias)
+                workspaceStore.save()
+              }}
+              onReorderWorkspaces={(workspaceIds) => {
+                workspaceStore.reorderWorkspaces(workspaceIds)
+              }}
+              onArchiveWorkspace={(id) => workspaceStore.archiveWorkspace(id)}
+              onUnarchiveWorkspace={(id) => workspaceStore.unarchiveWorkspace(id)}
+              onOpenEnvVars={(workspaceId) => setEnvDialogWorkspaceId(workspaceId)}
+              onDetachWorkspace={handleDetachWorkspace}
+              activeProfileName={activeProfileName}
+              isRemoteConnected={isRemoteConnected}
+              onOpenProfiles={() => setShowProfiles(true)}
+              onOpenSettings={() => setShowSettings(true)}
+              onCollapse={handleSidebarCollapse}
+            />
+          </div>
+          {!panelSettings.sidebar.collapsed && (
+            <ResizeHandle
+              direction="horizontal"
+              onResize={handleSidebarResize}
+              onDoubleClick={handleSidebarResetWidth}
+            />
+          )}
         </>
       )}
       <main className="main-content">
@@ -968,76 +987,75 @@ export default function App() {
           onDoubleClick={handleSnippetResetWidth}
         />
       )}
-      {/* Right sidebar: docking-config-driven panels */}
-      {(() => {
-        if (rightDockedPanels.length === 0 && !previewMarkdownPath) return null
-
-        if (panelSettings.snippetSidebar.collapsed && !previewMarkdownPath) {
-          return (
-            <div className="right-sidebar-collapsed">
-              {rightDockedPanels.map(panel => (
-                <button key={panel} className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange(panel)} title={t(`workspace.${panel}`)}>
-                  {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F310}'}
-                </button>
-              ))}
-            </div>
-          )
-        }
-
-        // Markdown preview mode: takes over the entire right panel
-        if (previewMarkdownPath) {
-          return (
-            <div className="right-sidebar-wrapper" style={{ width: `${panelSettings.snippetSidebar.width}px`, minWidth: `${panelSettings.snippetSidebar.width}px`, display: 'flex', flexDirection: 'column' }}>
-              <MarkdownPreviewPanel
-                filePath={previewMarkdownPath}
-                onClose={() => {
-                  setPreviewMarkdownPath(null)
-                  if (previewPrevCollapsed.current !== null) {
-                    const wasCollapsed = previewPrevCollapsed.current
-                    previewPrevCollapsed.current = null
-                    if (wasCollapsed) {
-                      setPanelSettings(prev => {
-                        const updated = { ...prev, snippetSidebar: { ...prev.snippetSidebar, collapsed: true } }
-                        savePanelSettings(updated)
-                        return updated
-                      })
-                    }
-                  }
-                }}
-              />
-            </div>
-          )
-        }
-
-        const effectiveTab = rightDockedPanels.includes(rightPanelTab) ? rightPanelTab : rightDockedPanels[0]
-
-        return (
-          <div className="right-sidebar-wrapper" style={{ width: `${panelSettings.snippetSidebar.width}px`, minWidth: `${panelSettings.snippetSidebar.width}px`, display: 'flex', flexDirection: 'column' }}>
-            <div className="right-sidebar-tabs">
-              {rightDockedPanels.map(panel => (
-                <button
-                  key={panel}
-                  className={`right-sidebar-tab${effectiveTab === panel ? ' active' : ''}`}
-                  onClick={() => handleRightPanelTabChange(panel)}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setSidebarTabCtxMenu({ x: e.clientX, y: e.clientY, panel, zone: 'right' })
-                  }}
-                >
-                  {t(`workspace.${panel}`)}
-                </button>
-              ))}
-              <button className="right-sidebar-collapse" onClick={handleSnippetCollapse} title={t('snippets.collapsePanel')}>&raquo;</button>
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <Suspense fallback={<div className="loading-panel" />}>
-                {renderDockablePanel(effectiveTab)}
-              </Suspense>
-            </div>
+      {/* Right sidebar: docking-config-driven panels — always rendered to preserve state */}
+      {rightDockedPanels.length > 0 && (
+        <>
+          {/* Right sidebar collapsed bar — always rendered, hidden when expanded */}
+          <div className="right-sidebar-collapsed" style={{ display: panelSettings.snippetSidebar.collapsed && !previewMarkdownPath ? undefined : 'none' }}>
+            {rightDockedPanels.map(panel => (
+              <button key={panel} className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange(panel)} title={t(`workspace.${panel}`)}>
+                {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F310}'}
+              </button>
+            ))}
           </div>
-        )
-      })()}
+          {/* Right sidebar expanded content — hidden when collapsed to preserve state */}
+          {!previewMarkdownPath && (() => {
+            const effectiveTab = rightDockedPanels.includes(rightPanelTab) ? rightPanelTab : rightDockedPanels[0]
+            return (
+              <div className="right-sidebar-wrapper" style={{ width: `${panelSettings.snippetSidebar.width}px`, minWidth: `${panelSettings.snippetSidebar.width}px`, display: panelSettings.snippetSidebar.collapsed ? 'none' : 'flex', flexDirection: 'column' as const }}>
+                <div className="right-sidebar-tabs">
+                  {rightDockedPanels.map(panel => (
+                    <button
+                      key={panel}
+                      className={`right-sidebar-tab${effectiveTab === panel ? ' active' : ''}`}
+                      onClick={() => handleRightPanelTabChange(panel)}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setSidebarTabCtxMenu({ x: e.clientX, y: e.clientY, panel, zone: 'right' })
+                      }}
+                    >
+                      {t(`workspace.${panel}`)}
+                    </button>
+                  ))}
+                  <button className="right-sidebar-collapse" onClick={handleSnippetCollapse} title={t('snippets.collapsePanel')}>&raquo;</button>
+                </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <Suspense fallback={<div className="loading-panel" />}>
+                    {rightDockedPanels.filter(p => mountedRightPanels.has(p)).map(panel => (
+                      <div key={panel} style={{ display: effectiveTab === panel ? undefined : 'none', height: '100%' }}>
+                        {renderDockablePanel(panel)}
+                      </div>
+                    ))}
+                  </Suspense>
+                </div>
+              </div>
+            )
+          })()}
+        </>
+      )}
+      {/* Markdown preview mode: takes over the entire right panel */}
+      {previewMarkdownPath && (
+        <div className="right-sidebar-wrapper" style={{ width: `${panelSettings.snippetSidebar.width}px`, minWidth: `${panelSettings.snippetSidebar.width}px`, display: 'flex', flexDirection: 'column' as const }}>
+          <MarkdownPreviewPanel
+            filePath={previewMarkdownPath}
+            onClose={() => {
+              setPreviewMarkdownPath(null)
+              if (previewPrevCollapsed.current !== null) {
+                const wasCollapsed = previewPrevCollapsed.current
+                previewPrevCollapsed.current = null
+                if (wasCollapsed) {
+                  setPanelSettings(prev => {
+                    const updated = { ...prev, snippetSidebar: { ...prev.snippetSidebar, collapsed: true } }
+                    savePanelSettings(updated)
+                    return updated
+                  })
+                }
+              }
+            }}
+          />
+        </div>
+      )}
       {/* Sidebar tab context menu (move between zones) */}
       {sidebarTabCtxMenu && createPortal(
         <div

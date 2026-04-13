@@ -408,6 +408,29 @@
   color: var(--accent-color, #d97706);
 }
 
+/* Tab panel container — stacks all visited tabs, shows only active via visibility */
+.workspace-tab-panels {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.workspace-tab-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workspace-tab-panel.active {
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
 /* Workspace Tab Content (Files / Git) */
 .workspace-tab-content {
   flex: 1;

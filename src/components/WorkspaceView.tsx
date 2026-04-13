@@ -167,6 +167,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const [tabCtxMenu, setTabCtxMenu] = useState<{ x: number; y: number; tab: PinnedContentType } | null>(null)
   const { pos: tabCtxPos, menuRef: tabCtxRef } = useMenuPosition(tabCtxMenu)
 
+  // Track which tabs have been visited — lazy mount to preserve state via CSS hidden
+  const [mountedTabs, setMountedTabs] = useState<Set<WorkspaceTab>>(() => new Set([loadWorkspaceTab()]))
+
   // Fetch agent definitions from the registry
   useEffect(() => {
     window.electronAPI.agent?.listDefinitions().then((defs: AgentDefinition[]) => {
@@ -207,6 +210,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   const handleTabChange = useCallback((tab: WorkspaceTab) => {
     setActiveTab(tab)
+    setMountedTabs(prev => prev.has(tab) ? prev : new Set([...prev, tab]))
     try { localStorage.setItem(TAB_KEY, tab) } catch { /* ignore */ }
   }, [])
 
@@ -225,6 +229,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       setActiveTab(prev => {
         const idx = TABS.indexOf(prev)
         const next = TABS[(idx + direction + TABS.length) % TABS.length]
+        setMountedTabs(mt => mt.has(next) ? mt : new Set([...mt, next]))
         try { localStorage.setItem(TAB_KEY, next) } catch { /* ignore */ }
         return next
       })
@@ -233,6 +238,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const handleSwitchTab = (e: Event) => {
       const { tab } = (e as CustomEvent).detail as { tab: WorkspaceTab }
       setActiveTab(tab)
+      setMountedTabs(mt => mt.has(tab) ? mt : new Set([...mt, tab]))
       try { localStorage.setItem(TAB_KEY, tab) } catch { /* ignore */ }
     }
 
@@ -1131,10 +1137,14 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       <Suspense fallback={<div className="loading-panel" />}>
         {isSplit ? (
           <div className="split-container">
-            {/* Primary pane (opposite side of pinned) */}
+            {/* Primary pane (opposite side of pinned) — lazy mount + CSS hidden */}
             {pinned!.side === 'right' && (
               <div className="split-pane" style={{ flex: `0 0 ${splitSettings.ratio * 100}%` }}>
-                {renderPaneContent(activeTab)}
+                {Array.from(mountedTabs).map(tab => (
+                  <div key={tab} className={`workspace-tab-panel${activeTab === tab ? ' active' : ''}`}>
+                    {renderPaneContent(tab)}
+                  </div>
+                ))}
               </div>
             )}
             {pinned!.side === 'left' && (
@@ -1154,15 +1164,23 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             )}
             {pinned!.side === 'left' && (
               <div className="split-pane" style={{ flex: 1 }}>
-                {renderPaneContent(activeTab)}
+                {Array.from(mountedTabs).map(tab => (
+                  <div key={tab} className={`workspace-tab-panel${activeTab === tab ? ' active' : ''}`}>
+                    {renderPaneContent(tab)}
+                  </div>
+                ))}
               </div>
             )}
           </div>
         ) : (
-          <>
-            {/* Non-split: show active tab content */}
-            {renderPaneContent(activeTab)}
-          </>
+          <div className="workspace-tab-panels">
+            {/* Non-split: keep visited tabs mounted, show only active via visibility */}
+            {Array.from(mountedTabs).map(tab => (
+              <div key={tab} className={`workspace-tab-panel${activeTab === tab ? ' active' : ''}`}>
+                {renderPaneContent(tab)}
+              </div>
+            ))}
+          </div>
         )}
       </Suspense>
       </ErrorBoundary>
