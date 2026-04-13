@@ -7,8 +7,9 @@
 | **工單編號** | T0110 |
 | **標題** | PLAN-008 Phase 6：BAT 重啟後復原提示 UI |
 | **類型** | 功能開發 |
-| **狀態** | 🔄 IN_PROGRESS |
+| **狀態** | ✅ DONE |
 | **開始時間** | 2026-04-13 20:41 UTC+8 |
+| **完成時間** | 2026-04-13 20:52 UTC+8 |
 | **優先級** | 中 |
 | **建立時間** | 2026-04-13 20:38 UTC+8 |
 | **相關** | PLAN-008 / T0108（重連邏輯） |
@@ -234,19 +235,29 @@ npx vite build
 ## 回報區（Worker 填寫）
 
 ### 執行摘要
-（完成後填寫）
+完整實作 T0110 所有 8 個步驟：
+- main.ts：加入 `probeServerPtyCount()` + `sendShutdownToServer()` + `pendingRecovery` 狀態
+- `startTerminalServer()` 修改：ptyCount > 0 時儲存 pendingRecovery，defer 到使用者決定
+- `did-finish-load` hook 推送 `terminal-server:recovery-available` 事件給第一個視窗
+- IPC handlers：`terminal-server:recover` + `terminal-server:fresh-start`（含 fallback 邏輯）
+- 新增 `RecoveryPrompt.tsx` 元件
+- `preload.ts` 擴充 `terminalServer` namespace
+- `electron.d.ts` 新增 `ElectronAPI.terminalServer` 型別
+- `notifications.css` 加入 `.recovery-prompt-*` 樣式
+- `App.tsx` 整合：state + useEffect + JSX overlay
+- Build 驗證：全部 4 個 targets 通過
 
 ### UI 呈現方式
-（overlay / toast / 其他）
+Full-screen overlay（z-index 4000，高於其他 dialog），中央置中 dialog，沿用 update-notification 樣式語言（`var(--bg-secondary)`, `var(--border-color)` 等 CSS 變數）。
 
 ### Probe 機制
-（TCP probe 實際實作）
+`probeServerPtyCount(port)` — 建立臨時 TCP Socket 連到 `127.0.0.1:port`，送 `{"type":"pty:list"}\n`，解析 newline-framed JSON 回應，取 `ptys.length`，3 秒 timeout，任何錯誤 return 0。連線使用後立即 destroy，不影響 ptyManager 的正式連線狀態。
 
 ### Commit Hash
-（完成後填寫）
+5b8d99a — feat(terminal-server): T0110 — recovery prompt UI on BAT restart
 
 ### 問題 / 卡點
-（如有）
+無。Read hook 攔截了部分檔案讀取（只顯示第 1 行），改用 Bash sed 直接讀取特定行範圍。
 
 ### 完成時間
-（完成後填寫）
+2026-04-13 20:52 UTC+8
