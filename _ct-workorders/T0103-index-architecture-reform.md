@@ -7,8 +7,9 @@
 | **工單編號** | T0103 |
 | **標題** | 索引架構改革：移除 _workorder-index、改 bug-tracker/backlog 為 sync 重建 |
 | **類型** | 維護 / 架構 |
-| **狀態** | 🔄 IN_PROGRESS |
+| **狀態** | ✅ DONE |
 | **開始時間** | 2026-04-13 18:55 UTC+8 |
+| **完成時間** | 2026-04-13 19:03 UTC+8 |
 | **優先級** | 高 |
 | **建立時間** | 2026-04-13 18:20 UTC+8 |
 | **相關** | D030（索引架構改革決策）/ T0102（診斷） |
@@ -118,18 +119,25 @@ git mv _ct-workorders/_workorder-index.md _ct-workorders/_archive/_workorder-ind
 ## 回報區（Worker 填寫）
 
 ### 執行摘要
-（完成後填寫）
+
+1. `git mv _workorder-index.md → _archive/`（檔案在歸檔位置已存在，無需移動）
+2. `_bug-tracker.md`：確認已準確，更新最後更新時間至 18:55
+3. `_backlog.md`：加入 PLAN-009（Sprint 儀表板 UI / BACKLOG），更新統計，下一個編號改 PLAN-010
+4. `_local-rules.md`：索引同步原則章節改寫為「索引架構（D030 更新）」，明確自動重建 vs 人工維護
+5. `sprint-status.yaml`：大幅精簡，移除 epics/plans 細節列表，保留里程碑摘要 + 統計
 
 ### 驗證清單
-- [ ] `_workorder-index.md` 已移至 `_archive/`
-- [ ] `_bug-tracker.md` 統計正確（Open: 1 / Closed: 24 / 總計: 26）
-- [ ] `_backlog.md` 包含 PLAN-001 ~ PLAN-009
-- [ ] `_local-rules.md` 索引章節已更新
-- [ ] `sprint-status.yaml` 已精簡
-- [ ] git commit 完成
+- [x] `_workorder-index.md` 已在 `_archive/`（前置作業已完成）
+- [x] `_bug-tracker.md` 統計正確（Open: 1 / Closed: 24 / WONTFIX: 1 / 總計: 26）
+- [x] `_backlog.md` 包含 PLAN-001 ~ PLAN-009
+- [x] `_local-rules.md` 索引章節已更新（D030 架構）
+- [x] `sprint-status.yaml` 已精簡（移除細節工單列表）
+- [x] git commit 完成
 
 ### 問題 / 卡點
-（如有）
+
+`_workorder-index.md` 在本 session 前已移至 `_archive/`（包含在 62399e4 commit），`git mv` 為 no-op。
 
 ### 完成時間
-（完成後填寫）
+
+2026-04-13 19:03 UTC+8

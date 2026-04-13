@@ -25,9 +25,8 @@
 |------|---------|
 | `BUG-###-*.md` | Bug 單目前狀態（REPORTED / FIXED 等） |
 | `PLAN-###-*.md` | 計劃單目前狀態（IDEA / DONE 等） |
-| `_bug-tracker.md` | Open Bug 數量摘要 |
-| `_backlog.md` | Active Idea / Plan 數量摘要 |
-| `_workorder-index.md` | Active 工單數量摘要 |
+| `_bug-tracker.md` | Open Bug 數量摘要（自動重建） |
+| `_backlog.md` | Active Idea / Plan 數量摘要（自動重建） |
 | `_decision-log.md` | 最新決策條目 |
 
 ---
@@ -132,16 +131,34 @@ OPEN → FIXING → FIXED → VERIFY → CLOSED
 
 ---
 
-## 索引同步原則
+## 索引架構（D030 更新）
 
-**規則**：凡修改任何 BUG / PLAN 單據的狀態，**必須同步更新對應索引**。
+> 建立時間：2026-04-13（T0103 實作）
+
+### 自動重建索引（由 `*sync` 負責）
+
+- `_bug-tracker.md`：從 BUG-###.md 掃描重建，**人工不直接編輯**
+- `_backlog.md`：從 PLAN-###.md 掃描重建，**人工不直接編輯**
+
+### 人工維護索引
+
+- `_decision-log.md`：直接 append 新決策，無對應源文件群
+- `sprint-status.yaml`：里程碑摘要，由 Tower 在重要節點更新
+
+### 已移除
+
+- `_workorder-index.md`：已歸檔至 `_archive/_workorder-index.md`。Tower 直接掃描 T####.md 源文件。
+
+### Tower 啟動行為
+
+- 每次 Tower session 啟動，自動執行 `*sync` 確保 bug-tracker 和 backlog 準確
+
+### 手動同步規則（仍適用）
 
 | 修改的文件 | 必須同步更新 |
 |-----------|------------|
-| BUG-###.md 狀態變更 | `_bug-tracker.md` 對應列 |
-| PLAN-###.md 狀態變更 | `_backlog.md` 對應列 |
-| T####.md 狀態 → DONE | `_workorder-index.md`（從 Active 列表移除） |
-| 新建工單 T####.md | `_workorder-index.md`（加入 Active 列表） |
+| BUG-###.md 狀態變更 | 下次 `*sync` 自動重建 `_bug-tracker.md` |
+| PLAN-###.md 狀態變更 | 下次 `*sync` 自動重建 `_backlog.md` |
 | 任何上述變更 | `_tower-state.md` 基本資訊中的統計數字 |
 
 ---
