@@ -4,7 +4,7 @@
 
 project: better-agent-terminal
 version: "1.0.0"
-last_updated: "2026-04-13 18:55"
+last_updated: "2026-04-13 23:10"
 
 # ─────────────────────────────────────────
 # 里程碑概覽
@@ -33,25 +33,25 @@ milestones:
 # Bug Tracker 狀態（詳見 _bug-tracker.md）
 # ─────────────────────────────────────────
 bugs:
-  open: 1
-  closed: 24
+  open: 0
+  closed: 25
   wontfix: 1
   total: 26
-  active_bug: "BUG-026（_bmad-output/ 未被 file watch 監聽）"
+  active_bug: null
   last_updated: "2026-04-13"
 
 # ─────────────────────────────────────────
 # 統計
 # ─────────────────────────────────────────
 summary:
-  total_workorders: 103      # T0001~T0103
-  completed: 102             # T0001~T0102
-  in_progress: 1             # T0103
+  total_workorders: 118      # T0001~T0118
+  completed: 118             # T0001~T0118 全部完成
+  in_progress: 0
   todo: 0
   blocked: 0
-  active_bugs: 1             # BUG-026
-  backlog_plans: 8           # PLAN-001~009（PLAN-006 DROPPED 不計）
-  next_workorder: "T0104"
+  active_bugs: 0             # 全清
+  backlog_plans: 7           # PLAN-001~009（PLAN-006 DROPPED 不計）
+  next_workorder: "T0119"
   next_plan: "PLAN-010"
   next_bug: "BUG-027"
   next_decision: "D031"

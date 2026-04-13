@@ -2,7 +2,7 @@
 
 > 最後更新：2026-04-13 18:55 (UTC+8)（T0103 重建：從 BUG-###.md 源文件掃描確認）
 >
-> 統計：🔴 Open: 0 | 🧪 Verify: 0 | ✅ Fixed: 1 | 🚫 Closed: 24 | ⛔ Won't Fix: 1 | 總計: 26
+> 統計：🔴 Open: 0 | 🧪 Verify: 0 | ✅ Fixed: 0 | 🚫 Closed: 25 | ⛔ Won't Fix: 1 | 總計: 26
 
 ---
 
@@ -21,7 +21,7 @@
 
 ## ✅ 已修復
 
-| BUG-026 | _bmad-output/ 目錄未被 file watch 監聽（Workflow/Epics 頁籤不自動刷新） | 🟡 Medium | ✅ FIXED (T0105)，待 runtime 驗收 | 2026-04-13 | [詳細](BUG-026-bmad-output-not-file-watched.md) |
+（目前無 FIXED bug）
 
 ---
 
@@ -53,6 +53,7 @@
 | BUG-023 | 右鍵功能表超出螢幕範圍 | 🟡 Medium | 🚫 FIXED (T0092)，人工驗收通過 | 2026-04-13 | [詳細](BUG-023-context-menu-viewport-overflow.md) |
 | BUG-024 | Control Tower 面板不監聽索引文件變更 | 🟡 Medium | 🚫 FIXED (T0095)，人工驗收通過 | 2026-04-13 | [詳細](BUG-024-ct-panel-no-file-watch-on-index-files.md) |
 | BUG-025 | CT 面板：新建工單持續 Pending，file watch 不感知 | 🟡 Medium | 🚫 FIXED (T0101)，人工驗收通過 | 2026-04-13 | [詳細](BUG-025-workorder-ui-pending-new-files.md) |
+| BUG-026 | _bmad-output/ 目錄未被 file watch 監聽 | 🟡 Medium | 🚫 FIXED (T0105)，人工驗收通過 | 2026-04-13 | [詳細](BUG-026-bmad-output-not-file-watched.md) |
 
 ---
 
@@ -72,3 +73,4 @@
 - BUG-007：🚫 CLOSED（上游行為，無法修復）
 - BUG-012：🚫 CLOSED（人工驗收通過，v0.0.9-pre.1 確認修復）
 - 下一個 BUG 編號：**BUG-027**
+- BUG-026：🚫 CLOSED（人工驗收通過）

@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-13 22:40 (UTC+8)（T0113 DONE：PTY PID Registry，PLAN-008 Phase 2 完整收官）
+> 最後更新：2026-04-14 00:24 (UTC+8)（T0118 DONE：T0117 regression 修復，BUG-027 全部解決）
 
 ---
 
@@ -12,7 +12,7 @@
 2. **T0104** ✅ DONE：4 commits 入庫（394bede / 3d80fd1 / 1ecb6b9 / 62399e4）
 3. **BUG-025** ✅ CLOSED
 4. **T0105** ✅ DONE：BUG-026 修復
-5. **BUG-026** ✅ FIXED（待 runtime 驗收 → CLOSED）
+5. **BUG-026** 🚫 CLOSED（人工驗收通過 2026-04-13）
 6. **PLAN-008 Phase 2 工單排程**：
    - T0106 ✅ DONE：Terminal Server 骨架（c1d238a）
    - T0107 ✅ DONE：PtyManager proxy（55d33d8）**← Milestone: Terminal Server 可用**
@@ -28,7 +28,7 @@
 - **架構決策**：sprint-status.yaml 放根目錄（不放 _bmad-output/），BMad 層次補 User Story 討論
 
 ### 工單統計
-- Done: 113 | Active: 0 | 總計: 113
+- Done: 118 | Active: 0 | 總計: 118
 - 最高編號：T0111 / BUG-026 / PLAN-009 / D031
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
