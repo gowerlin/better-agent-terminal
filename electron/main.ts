@@ -1965,6 +1965,12 @@ function registerProxiedHandlers() {
       return { content }
     } catch { return { error: 'Failed to read file' } }
   })
+  registerHandler('fs:stat', async (_ctx, filePath: string) => {
+    try {
+      const stat = await fs.stat(filePath)
+      return { mtimeMs: stat.mtimeMs, size: stat.size }
+    } catch { return null }
+  })
   registerHandler('fs:search', async (_ctx, dirPath: string, query: string) => {
     const IGNORED = new Set(['.git', 'node_modules', '.next', 'dist', 'dist-electron', '.cache', '__pycache__', '.DS_Store', 'release'])
     const results: { name: string; path: string; isDirectory: boolean }[] = []
