@@ -7,8 +7,9 @@
 | **工單編號** | T0106 |
 | **標題** | PLAN-008 Phase 2a：Terminal Server 獨立進程骨架 |
 | **類型** | 功能開發 |
-| **狀態** | 🔄 IN_PROGRESS |
+| **狀態** | ✅ DONE |
 | **開始時間** | 2026-04-13 19:36 UTC+8 |
+| **完成時間** | 2026-04-13 19:46 UTC+8 |
 | **優先級** | 高 |
 | **建立時間** | 2026-04-13 19:30 UTC+8 |
 | **相關** | PLAN-008 / T0093（架構調查）/ D031（參數決策） |
@@ -233,19 +234,45 @@ npx vite build
 ## 回報區（Worker 填寫）
 
 ### 執行摘要
-（完成後填寫）
+
+所有 7 個步驟完成。建立了 5 個新檔案 + 修改 2 個現有檔案：
+
+- `electron/terminal-server/protocol.ts` — 完整 ServerRequest / ServerResponse 型別定義
+- `electron/terminal-server/ring-buffer.ts` — 支援 partial line merge 的 RingBuffer（預設 1000 行）
+- `electron/terminal-server/pid-manager.ts` — writePidFile / readPidFile / removePidFile / isServerRunning
+- `electron/terminal-server/server.ts` — TerminalServer 類別，含 PTY 管理、IPC dispatch、Idle Timeout
+- `electron/terminal-server.ts` — 進程入口，處理 SIGTERM / disconnect / uncaughtException
+- `electron/main.ts` — 加入 `startTerminalServer()` 函數，在 `whenReady` 呼叫
+- `vite.config.ts` — 新增 terminal-server.ts 為獨立 electron entry
+
+Build 驗證：`npx vite build` 通過，`dist-electron/terminal-server.js` 正確輸出（3.92 kB）。
 
 ### 打包/Build 備註
-（Vite 打包 terminal-server.js 的處理方式）
+
+`vite-plugin-electron` 把 `electron/terminal-server.ts` 打包為獨立的 `dist-electron/terminal-server.js`。
+原生模組（`@lydell/node-pty`）已標記為 external，不會被 bundle 進去，runtime 仍從 node_modules 載入。
+
+**ASAR 注意**：生產封裝時，`dist-electron/terminal-server.js` 會被 electron-builder 打入 ASAR 封存。
+`child_process.fork()` 無法讀取 ASAR 內的檔案，因此需在 `package.json` 的 `build.asarUnpack` 加入：
+```
+"dist-electron/terminal-server.js"
+```
+此問題留待 T0109 前處理，不阻擋本工單交付。
 
 ### 與工單設計的差異
-（若實作時發現需要調整設計，記錄在此）
+
+1. `pid-manager.ts` 函數改為接受 `userDataPath` 參數（工單未指定參數），Server 端從 `process.env.BAT_USER_DATA` 取得，Main 端直接傳 `app.getPath('userData')`。
+2. `startTerminalServer()` 加入 `fsSync.existsSync(serverScript)` 檢查，開發模式下未 build 時不會報錯（防護性設計）。
+3. 使用 `_terminalServerStarted` flag 防止重複啟動（多次 `whenReady` 或測試時）。
 
 ### Commit Hash
-（完成後填寫）
+
+`c1d238a`
 
 ### 問題 / 卡點
-（如有）
+
+無。
 
 ### 完成時間
-（完成後填寫）
+
+2026-04-13 19:46 UTC+8（執行時間 ~10 分鐘）
