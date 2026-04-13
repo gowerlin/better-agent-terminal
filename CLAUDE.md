@@ -32,6 +32,12 @@
 - 13 configurable items with custom colors, zone alignment, and template-based config.
 - Usage polling: Chrome session key (primary, lenient rate limits) → OAuth fallback (strict rate limits).
 
+## Control Tower 本專案規則
+
+- 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範
+- 該檔案定義了本專案的擴充單據類型（BUG/PLAN）、索引同步原則、歸檔策略等
+- 此為 Layer 3 附加規則，優先級高於 skill 預設行為
+
 ## Release
 
 - **正式版**: `release new tag version` → 基於最新 tag 遞增 patch 版號，建立 tag 並 push

@@ -1028,3 +1028,31 @@ BAT 在 **alt screen buffer**（`\e[?1049h`）情境下，**多個 event pipelin
 
 ### 狀態
 🟡（1 次驗證）
+
+## L029 - 2026-04-12 — _local-rules.md 啟動時未被自動讀取
+
+### 問題
+Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer 3 應載入 `_local-rules.md`，但「Step 0: 環境偵測」的 11 項檢查清單中**沒有明確的讀取步驟**。導致新 session 啟動時可能跳過 `_local-rules.md`，不遵循專案附加規則。
+
+### 根因
+架構描述 ≠ 執行清單。skill 定義中 Layer 3 載入是描述性文字，不是環境偵測的強制步驟。AI 啟動時按 Step 0 清單逐項執行，但清單上沒有「讀取 _local-rules.md」這一項。
+
+### 本專案暫時解法
+在專案 CLAUDE.md 加入強制提醒，確保每次對話都載入此規則。
+
+### 建議回報 Control Tower skill 專案
+- **議題**：Step 0 環境偵測應新增一項：偵測並讀取 `_local-rules.md`（若存在）
+- **建議位置**：放在 #3（塔台狀態）之後、#4（ECC 學習）之前
+- **偵測邏輯**：`test -f _ct-workorders/_local-rules.md` → 若存在則完整讀取並套用
+- **面板顯示**：新增一行 `Local Rules  ✅ 已載入 / 📋 無`
+- **嚴重度**：中高 — 不讀取會導致專案自訂規則（單據類型、索引同步、歸檔策略）全部失效
+
+### 標記
+🔴 **UPSTREAM-FEEDBACK**: 需回報 BMad-Control-Tower skill 專案
+📋 **狀態**：待回報
+
+### 適用範圍
+- 所有使用 `_local-rules.md` 的 Control Tower 專案
+
+### 狀態
+🟢（已驗證：本 session 確實遺漏，加入 CLAUDE.md 後可防止）
