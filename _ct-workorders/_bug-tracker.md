@@ -1,14 +1,14 @@
 # Bug Tracker — better-agent-terminal
 
-> 最後更新：2026-04-13 16:20 (UTC+8)（T0094：批次結案所有 FIXED BUG）
+> 最後更新：2026-04-13 18:55 (UTC+8)（T0103 重建：從 BUG-###.md 源文件掃描確認）
 >
-> 統計：🔴 Open: 0 | 🧪 Verify: 0 | ✅ Fixed: 0 | 🚫 Closed: 23 | ⛔ Won't Fix: 1 | 總計: 24
+> 統計：🔴 Open: 1 | 🧪 Verify: 0 | ✅ Fixed: 0 | 🚫 Closed: 24 | ⛔ Won't Fix: 1 | 總計: 26
 
 ---
 
 ## 🔴 Open / 處理中
 
-（目前無 Open bug）
+| BUG-026 | _bmad-output/ 目錄未被 file watch 監聽（Workflow/Epics 頁籤不自動刷新） | 🟡 Medium | 📂 OPEN | 2026-04-13 | [詳細](BUG-026-bmad-output-not-file-watched.md) |
 
 ---
 
@@ -51,6 +51,7 @@
 | BUG-022 | Settings 設定 VS Code Insiders 完整路徑後仍報「找不到執行檔」（引號問題） | 🔴 High | 🚫 FIXED (T0082)，人工驗收通過 | 2026-04-13 | [詳細](BUG-022-vscode-custom-path-not-used.md) |
 | BUG-023 | 右鍵功能表超出螢幕範圍 | 🟡 Medium | 🚫 FIXED (T0092)，人工驗收通過 | 2026-04-13 | [詳細](BUG-023-context-menu-viewport-overflow.md) |
 | BUG-024 | Control Tower 面板不監聽索引文件變更 | 🟡 Medium | 🚫 FIXED (T0095)，人工驗收通過 | 2026-04-13 | [詳細](BUG-024-ct-panel-no-file-watch-on-index-files.md) |
+| BUG-025 | CT 面板：新建工單持續 Pending，file watch 不感知 | 🟡 Medium | 🚫 FIXED (T0101)，人工驗收通過 | 2026-04-13 | [詳細](BUG-025-workorder-ui-pending-new-files.md) |
 
 ---
 
@@ -69,4 +70,4 @@
 - BUG-002：🚫 CLOSED（人工驗收通過）
 - BUG-007：🚫 CLOSED（上游行為，無法修復）
 - BUG-012：🚫 CLOSED（人工驗收通過，v0.0.9-pre.1 確認修復）
-- 下一個 BUG 編號：**BUG-025**
+- 下一個 BUG 編號：**BUG-027**

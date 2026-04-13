@@ -6,7 +6,7 @@
 - **關聯 BUG**：BUG-025
 - **優先級**：高（影響日常使用 CT 面板）
 - **估時**：30~45 分鐘
-- **狀態**：📋 TODO
+- **狀態**：✅ DONE
 
 ---
 
@@ -94,22 +94,63 @@ grep -r "parser\|parse\|pending\|Pending" src/ --include="*.ts" --include="*.tsx
 
 ## 工單回報區
 
-**執行人**：  
-**開始時間**：  
-**完成時間**：  
+**執行人**：Claude  
+**開始時間**：2026-04-13 17:31  
+**完成時間**：2026-04-13 17:36  
 
 ### 完成成果
-- [ ] 確認 BUG-024 修復方式（一次性 vs. 動態 watch）
-- [ ] 確認 file watch 的監聽範圍（目錄 vs. 文件列表）
-- [ ] 確認 Pending 的具體含義（loading / 解析失敗 / 未發現）
-- [ ] 確認 T0093/T0097/T0098 是否在 workorder index 中
-- [ ] 根因初步確認
+- [x] 確認 BUG-024 修復方式（一次性 vs. 動態 watch）
+- [x] 確認 file watch 的監聽範圍（目錄 vs. 文件列表）
+- [x] 確認 Pending 的具體含義（loading / 解析失敗 / 未發現）
+- [x] 確認 T0093/T0097/T0098 是否在 workorder index 中
+- [x] 根因初步確認
 
 ### 根因結論
-[填寫診斷結果]
+
+**BUG-025 根因：`extractStatusKeyword` regex 無法解析 emoji 前綴的狀態值**
+
+**位置**：`src/types/control-tower.ts` → `parseWorkOrder()` → `extractStatusKeyword()`
+
+**問題程式碼**（第 64 行）：
+```typescript
+const keyword = raw.toUpperCase().match(/^(DONE|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
+```
+
+**根因**：regex 使用 `^` 錨點要求狀態關鍵字在字串**最開頭**。但工單模板使用 emoji 前綴格式（如 `✅ DONE`、`🔄 IN_PROGRESS`），emoji 在最開頭導致 regex 無法匹配，fallback 到 `'PENDING'`。
+
+**受影響工單**：
+- `T0097`：`✅ DONE` → 解析為 PENDING ❌
+- `T0098`：`✅ DONE` → 解析為 PENDING ❌
+- T0100 本身（診斷過程中）：`🔄 IN_PROGRESS` → 解析為 PENDING ❌
+
+**T0093 不受影響**（狀態格式為 `DONE`，無 emoji 前綴）✅
+
+**附：BUG-024 / file watch 診斷**
+- BUG-024 修復方式：在 IPC handler `fs:watch` 中加入 `BrowserWindow.getAllWindows()` 廣播，解決 `broadcastHub` 只送遠端的問題
+- File watch 是**目錄級 recursive watch**（`fsSync.watch(_dirPath, { recursive: true })`），**不是**文件列表 watch，新建文件 **會**被感知
+- 所以 BUG-025 的根因不是 file watch，而是 **parser 無法處理 emoji 前綴狀態**
 
 ### 建議修復方向
-[填寫具體修復方案，塔台收到後開修復工單]
+
+**一行修復**（`src/types/control-tower.ts:64`）：
+
+將：
+```typescript
+const keyword = raw.toUpperCase().match(/^(DONE|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
+```
+
+改為：
+```typescript
+const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
+```
+
+**說明**：`^[^A-Z]*` 允許字串開頭有任意數量的非大寫英文字元（包含 emoji、空格、符號），再匹配狀態關鍵字。
+
+**已驗證**：
+- `✅ DONE` → `DONE` ✅
+- `🔄 IN_PROGRESS` → `IN_PROGRESS` ✅
+- `📋 TODO` → `PENDING` (正確 fallback，TODO 不是有效狀態) ✅
+- `DONE` → `DONE` ✅（向後相容）
 
 ### 遇到的問題
-[無 / 具體描述]
+無。根因定位比假設更簡單（parser 而非 file watch），5 分鐘內確認。

@@ -1,7 +1,7 @@
 # BUG-025 — Control Tower 面板：新建工單持續 Pending，file watch 不感知
 
 ## 狀態
-**🔴 OPEN**
+**🚫 CLOSED** (T0101 修復完成，人工驗收通過 2026-04-13)
 
 ## 發現時間
 2026-04-13 17:xx UTC+8

@@ -35,6 +35,16 @@
 
 ---
 
+### D030 2026-04-13 — 索引架構改革
+
+- **背景**：CT 工單系統維護多個 index（_workorder-index.md / _bug-tracker.md / _backlog.md），與源文件雙重維護導致持續偏差
+- **診斷**：T0102 靜態分析確認各頁籤資料來源
+- **決定**：(1) _workorder-index.md 直接移除（BAT UI 不讀）(2) _bug-tracker.md 改為 *sync 自動重建 (3) _backlog.md 改為 *sync 自動重建 (4) _decision-log.md 保留人工維護 (5) sprint-status.yaml 精簡保留
+- **額外發現**：_bmad-output/ 未被 file watch 監聽 → BUG-026
+- **相關工單**：T0102 / T0103
+
+---
+
 ### D029 2026-04-12 — BUG 狀態流新增 🧪 VERIFY 中間態
 
 - **背景**：BUG 報修流程原先缺少「code fix 完成但尚未真人驗收」的中間狀態，導致 FIXED 語義模糊（無法區分「code 修了」和「真人確認修好了」）

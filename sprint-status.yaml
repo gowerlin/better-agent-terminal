@@ -129,14 +129,14 @@ bugs:
 # 統計
 # ─────────────────────────────────────────
 summary:
-  total_workorders: 101      # T0001~T0101（含本張）
-  completed: 101             # T0001~T0101（T0101 BUG-025 修復完成）
+  total_workorders: 102      # T0001~T0102（含本張）
+  completed: 102             # T0001~T0102（T0102 CT 面板資料來源診斷完成）
   in_progress: 0
   todo: 0
   blocked: 0
   active_bugs: 0
   backlog_plans: 7           # PLAN-001~008（PLAN-006 DROPPED 不計）
-  next_workorder: "T0102"
+  next_workorder: "T0103"
   next_plan: "PLAN-009"
   next_bug: "BUG-026"  # BUG-025 已修復（T0101）
   next_decision: "D029"

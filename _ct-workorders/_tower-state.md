@@ -1,28 +1,29 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-13 17:10 (UTC+8)（T0098 sprint-status.yaml 產生完成）
+> 最後更新：2026-04-13 18:22 (UTC+8)（BUG-025 CLOSED，BUG-026 開立，T0103/T0104 工單就緒）
 
 ---
 
 ## 🌅 明日起手式（Quick Recovery）
-> 最後更新：2026-04-13 17:10 UTC+8（T0098 sprint-status.yaml 完成）
+> 最後更新：2026-04-13 17:51 UTC+8（session context 耗盡，正常切換）
 
 ### 立即待辦
-1. **T0097 project-context.md**：待開工，塔台最後一個配置補齊工單
-2. **批次 commit 未提交工單**：T0088/T0091/T0092/T0095/T0096/T0097/T0098 + sprint-status.yaml 需 commit
-3. **考慮發 v0.0.9 正式版**（現有 v0.0.9-pre.1，多項修復已完成）
-4. **PLAN-008 Phase 2**：Terminal Server 獨立進程（大工單，評估後開單）
+1. **T0103** 📋 TODO：索引架構改革實作（移除 _workorder-index.md、改 bug-tracker/backlog 為 sync 重建）
+2. **T0104** 📋 TODO：批次提交 T0091/T0092/T0096 未 commit 程式碼
+3. **BUG-026** 📂 OPEN：`_bmad-output/` 未被 file watch 監聽（修復工單 T0105+）
+4. **BUG-025** 🚫 CLOSED（人工驗收通過 2026-04-13）
+5. **考慮發 v0.0.9 正式版**：T0103/T0104 完成後評估
 
-### 本 session 完成摘要（T0086~T0096）
-- BUG-001/002/012 + 所有 FIXED bugs → **全數 CLOSED**（Bug Tracker 清零）
-- PLAN-006 DROPPED（alt buffer 無 scrollbar 為正常行為）
-- 新功能：/login 攔截、右鍵選單智慧定位、BUG Detail 工作流 UI
-- 修復：file watch 斷裂（BUG-024）、workorder parser 容錯（BUG→現改為純格式問題）
-- PLAN-008 Phase 1 完成：30s auto-save + 佈局持久化
+### 本 session 完成摘要（T0097~T0101）
+- **配置補齊**：project-context.md + sprint-status.yaml（T0097/T0098）
+- **技術債清理**：批次 commit 43 個文件，git history 整齊（T0099）
+- **BUG-025 診斷 + 修復**：CT 面板 emoji 前綴狀態解析問題，1 行 regex 修復（T0100/T0101）
+- **PLAN-009 登記**：Sprint 儀表板 UI，待技術債清完後實作
+- **架構決策**：sprint-status.yaml 放根目錄（不放 _bmad-output/），BMad 層次補 User Story 討論
 
 ### 工單統計
-- Done: 98 | Active: 1 (T0097 TODO) | 總計: 99
-- 最高編號：T0096 / BUG-024 / PLAN-008 / D028
+- Done: 102 | Active: 2 | 總計: 104
+- 最高編號：T0104 / BUG-026 / PLAN-009 / D030
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 
