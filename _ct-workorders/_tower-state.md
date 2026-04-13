@@ -8,13 +8,14 @@
 
 **目前進度**：單據系統遷移 + 歸檔完成。20 張工單全部 DONE。目錄已清理。
 
-**最後完成工單**：T0064（歸檔原則 + 首次清理）
-**本輪完成**：T0044-T0064（20 張），涵蓋 bug 修復、語音擴展、版號管理、設定 Tabs、單據系統重構
+**最後完成工單**：T0085（Commit all + v0.0.9-pre.1 pre-release）
+**本輪完成**：T0065-T0085（21 張），涵蓋 BMad UI 整合、workspace 切換修復、VS Code 開啟功能、BUG-012 根因確認與修復
 
 **下一步建議**：
-1. 驗證新塔台規則（`_local-rules.md`）能否被新 session 正確讀取
-2. 參考 `_backlog.md` 的 6 個 PLAN 決定下一批工作
-3. BAT UI 渲染 BUG/PLAN 單（待格式穩定後）
+1. 安裝 v0.0.9-pre.1，確認 BUG-012 殘影消失 → BUG-012 CLOSED
+2. 在 anthropics/claude-code#46898 貼留言（草稿已備妥）
+3. 清理 worktree：`git worktree remove ../better-agent-terminal-bug012`
+4. 參考 `_backlog.md` 的 PLAN-001~007 決定下一批工作
 
 **快速連結**：
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 1，BUG-012 上游追蹤）
@@ -34,9 +35,9 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0063 |
-| **BUG 最大編號** | BUG-015 |
-| **PLAN 最大編號** | PLAN-006 |
+| **工單最大編號** | T0085 |
+| **BUG 最大編號** | BUG-022 |
+| **PLAN 最大編號** | PLAN-007 |
 | **決策最大編號** | D028 |
 | **塔台版本** | Control Tower v3.x |
 
@@ -64,6 +65,14 @@
 ---
 
 ## 📝 管理筆記
+
+**2026-04-13 13:14 Session 結束筆記**：
+- 本輪 21 張工單（T0065~T0085），生產力高
+- **BUG-012 重大突破**：EXP-BUG012-001 實驗確認根因為 `convertEol: true`，5 輪排除法，2 行修復
+- 新功能：VS Code 開啟工作區（T0078~T0082）、BMad Workflow/Epics 頁籤（T0072~T0073）
+- 新規範：`_local-rules.md` 加入 EXP-/跨專案工單前綴規範
+- v0.0.9-pre.1 pre-release 已推出，BUG-012 待 runtime 驗收後 CLOSED
+- worktree `../better-agent-terminal-bug012` 待清理
 
 **2026-04-12 21:43 Session 結束筆記**：
 - 本輪 20 張工單，生產力極高

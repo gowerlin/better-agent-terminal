@@ -1,8 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>better-agent-terminal</id>
-    <version>2.1.3</version>
+    <version>1.0.0</version>
     <title>Better Agent Terminal</title>
     <authors>TonyQ CO., LTD.</authors>
     <owners>tonyq</owners>
