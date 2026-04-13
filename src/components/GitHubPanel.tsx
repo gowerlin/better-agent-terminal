@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useMenuPosition } from '../hooks/useMenuPosition'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
@@ -99,6 +100,7 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
   const [error, setError] = useState<string | null>(null)
   const [sentMessage, setSentMessage] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: GitHubPR | GitHubIssue } | null>(null)
+  const { pos: ctxMenuPos, menuRef: ctxMenuRef } = useMenuPosition(contextMenu)
   const [commentBody, setCommentBody] = useState('')
   const [commentPosting, setCommentPosting] = useState(false)
   const [commentStatus, setCommentStatus] = useState<string | null>(null)
@@ -273,8 +275,12 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
         <>
           <div className="context-menu-backdrop" onClick={() => setContextMenu(null)} />
           <div
+            ref={ctxMenuRef}
             className="workspace-context-menu"
-            style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 1000 }}
+            style={ctxMenuPos
+              ? { position: 'fixed', left: ctxMenuPos.x, top: ctxMenuPos.y, zIndex: 1000 }
+              : { position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 1000, visibility: 'hidden' as const }
+            }
           >
             <div className="context-menu-item" onClick={() => {
               getItemUrl(contextMenu.item).then(url => { if (url) window.electronAPI.shell.openExternal(url) })

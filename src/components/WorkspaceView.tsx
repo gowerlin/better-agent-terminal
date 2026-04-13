@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react'
+import { useMenuPosition } from '../hooks/useMenuPosition'
 import { ErrorBoundary } from './ErrorBoundary'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -164,6 +165,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const [agentDefinitions, setAgentDefinitions] = useState<AgentDefinition[]>([])
   const [splitSettings, setSplitSettings] = useState<SplitSettings>(loadSplitSettings)
   const [tabCtxMenu, setTabCtxMenu] = useState<{ x: number; y: number; tab: PinnedContentType } | null>(null)
+  const { pos: tabCtxPos, menuRef: tabCtxRef } = useMenuPosition(tabCtxMenu)
 
   // Fetch agent definitions from the registry
   useEffect(() => {
@@ -1087,8 +1089,12 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       {/* Tab context menu (pin left/right + dock to zone) */}
       {tabCtxMenu && createPortal(
         <div
+          ref={tabCtxRef}
           className="context-menu"
-          style={{ position: 'fixed', left: tabCtxMenu.x, top: tabCtxMenu.y, zIndex: 1000 }}
+          style={tabCtxPos
+            ? { position: 'fixed', left: tabCtxPos.x, top: tabCtxPos.y, zIndex: 1000 }
+            : { position: 'fixed', left: tabCtxMenu.x, top: tabCtxMenu.y, zIndex: 1000, visibility: 'hidden' as const }
+          }
           onClick={e => e.stopPropagation()}
         >
           {pinned?.type === tabCtxMenu.tab ? (

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
+import { useMenuPosition } from '../hooks/useMenuPosition'
 import { useTranslation } from 'react-i18next'
 import type { TerminalInstance } from '../types'
 import { ActivityIndicator } from './ActivityIndicator'
@@ -174,6 +175,7 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
 
   const isSupervisor = terminal.role === 'supervisor'
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
+  const { pos: ctxPos, menuRef: ctxRef } = useMenuPosition(ctxMenu)
 
   // Close context menu on outside click
   useEffect(() => {
@@ -210,8 +212,12 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
       </div>
       {ctxMenu && createPortal(
         <div
+          ref={ctxRef}
           className="context-menu"
-          style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}
+          style={ctxPos
+            ? { position: 'fixed', left: ctxPos.x, top: ctxPos.y, zIndex: 1000 }
+            : { position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000, visibility: 'hidden' as const }
+          }
           onClick={e => e.stopPropagation()}
         >
           {onSplitTerminal && (

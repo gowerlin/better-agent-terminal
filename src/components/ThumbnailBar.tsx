@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { getSubmenuDirection } from '../hooks/useMenuPosition'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { TerminalInstance, ShellType } from '../types'
@@ -71,6 +72,8 @@ export function ThumbnailBar({
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const [shellSubmenu, setShellSubmenu] = useState(false)
+  const shellItemRef = useRef<HTMLDivElement>(null)
+  const [submenuDir, setSubmenuDir] = useState<'right' | 'left'>('right')
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const addMenuRef = useRef<HTMLDivElement>(null)
@@ -239,16 +242,17 @@ export function ThumbnailBar({
               {showAddMenu && createPortal(
                 <div className="thumbnail-add-menu" ref={addMenuPopupRef} style={menuStyle}>
                   <div
+                    ref={shellItemRef}
                     className="thumbnail-add-menu-item has-submenu"
                     onClick={() => { onAddTerminal(); setShowAddMenu(false); setShellSubmenu(false) }}
-                    onMouseEnter={() => setShellSubmenu(true)}
+                    onMouseEnter={() => { setShellSubmenu(true); setSubmenuDir(getSubmenuDirection(shellItemRef.current)) }}
                     onMouseLeave={() => setShellSubmenu(false)}
                   >
                     <span className="thumbnail-add-menu-icon">⌘</span>
                     {t('terminal.terminalLabel')}
-                    <span className="thumbnail-submenu-arrow">▸</span>
+                    <span className="thumbnail-submenu-arrow">{submenuDir === 'left' ? '◂' : '▸'}</span>
                     {shellSubmenu && onAddTerminalWithShell && shellOptions.length > 0 && (
-                      <div className="thumbnail-add-submenu">
+                      <div className="thumbnail-add-submenu" style={submenuDir === 'left' ? { left: 'auto', right: '100%' } : undefined}>
                         {shellOptions.map(opt => (
                           <div
                             key={opt.id}

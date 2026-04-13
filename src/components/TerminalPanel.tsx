@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, memo } from 'react'
 import { createPortal } from 'react-dom'
+import { useMenuPosition } from '../hooks/useMenuPosition'
 import { Terminal } from '@xterm/xterm'
 import { TerminalDecorationManager } from '../utils/terminal-decoration-manager'
 import { FitAddon } from '@xterm/addon-fit'
@@ -55,6 +56,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const fitAddonRef = useRef<FitAddon | null>(null)
   const decorationManagerRef = useRef<TerminalDecorationManager | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
+  const { pos: menuPos, menuRef: ctxMenuRef } = useMenuPosition(contextMenu)
   const [altBufferActive, setAltBufferActive] = useState(false)
   const altBufferRef = useRef(false)
   const [terminalReady, setTerminalReady] = useState(false)
@@ -638,13 +640,12 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       {/* Context Menu — Fix BUG-002: portal to body to avoid position:fixed offset from parent transforms */}
       {contextMenu && createPortal(
         <div
+          ref={ctxMenuRef}
           className="context-menu"
-          style={{
-            position: 'fixed',
-            left: contextMenu.x,
-            top: contextMenu.y,
-            zIndex: 1000
-          }}
+          style={menuPos
+            ? { position: 'fixed', left: menuPos.x, top: menuPos.y, zIndex: 1000 }
+            : { position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 1000, visibility: 'hidden' as const }
+          }
         >
           {contextMenu.hasSelection && (
             <button onClick={handleCopy} className="context-menu-item">

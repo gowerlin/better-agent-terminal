@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useMenuPosition } from '../hooks/useMenuPosition'
 import { useTranslation } from 'react-i18next'
 import type { Workspace } from '../types'
 import { WORKSPACE_COLORS } from '../types'
@@ -71,7 +72,7 @@ export function Sidebar({
   const [groupEditValue, setGroupEditValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const groupInputRef = useRef<HTMLInputElement>(null)
-  const contextMenuRef = useRef<HTMLDivElement>(null)
+  const { pos: menuPos, menuRef: contextMenuRef } = useMenuPosition(contextMenu)
 
   // Filter workspaces by active group
   const filteredWorkspaces = activeGroup
@@ -121,18 +122,7 @@ export function Sidebar({
     }
   }, [contextMenu, workspaces])
 
-  // Adjust context menu position to stay within viewport
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
-  useLayoutEffect(() => {
-    if (!contextMenu || !contextMenuRef.current) { setMenuPos(null); return }
-    const rect = contextMenuRef.current.getBoundingClientRect()
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-    let { x, y } = contextMenu
-    if (y + rect.height > vh) y = Math.max(0, vh - rect.height - 4)
-    if (x + rect.width > vw) x = Math.max(0, vw - rect.width - 4)
-    setMenuPos({ x, y })
-  }, [contextMenu])
+  // Viewport boundary adjustment via shared hook (useMenuPosition)
 
   // Context menu handler
   const handleContextMenu = useCallback((e: React.MouseEvent, workspaceId: string) => {

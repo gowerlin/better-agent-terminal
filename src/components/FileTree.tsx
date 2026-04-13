@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useMenuPosition } from '../hooks/useMenuPosition'
 import { HighlightedCode } from './PathLinker'
 import { ResizeHandle } from './ResizeHandle'
 import hljs from 'highlight.js/lib/core'
@@ -342,7 +343,7 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null)
   const restoredRef = useRef(false)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null)
-  const contextMenuRef = useRef<HTMLDivElement>(null)
+  const { pos: ctxMenuPos, menuRef: contextMenuRef } = useMenuPosition(contextMenu)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<FileEntry[] | null>(null)
   const [searching, setSearching] = useState(false)
@@ -597,7 +598,10 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
         <div
           ref={contextMenuRef}
           className="workspace-context-menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={ctxMenuPos
+            ? { left: ctxMenuPos.x, top: ctxMenuPos.y }
+            : { left: contextMenu.x, top: contextMenu.y, visibility: 'hidden' as const }
+          }
         >
           <div className="context-menu-item" onClick={handleCopyRelativePath}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
