@@ -24,10 +24,47 @@ export interface SprintStory {
   epic?: string
 }
 
+export interface SprintMilestone {
+  name: string
+  status: string
+  completedRange?: string
+  highlights?: string[]
+  reference?: string
+}
+
+export interface SprintBugSummary {
+  open: number
+  closed: number
+  wontfix: number
+  total: number
+  activeBug?: string
+}
+
+export interface SprintSummaryData {
+  totalWorkorders: number
+  completed: number
+  inProgress: number
+  todo: number
+  blocked: number
+  activeBugs: number
+  backlogPlans: number
+}
+
+export interface SprintPlanEntry {
+  id: string
+  title: string
+  status: string
+}
+
 export interface SprintStatus {
   sprintName: string
   status?: string
   stories: SprintStory[]
+  milestones: SprintMilestone[]
+  bugs: SprintBugSummary | null
+  summary: SprintSummaryData | null
+  plans: SprintPlanEntry[]
+  lastUpdated: string | null
   raw: Record<string, unknown>  // 保留原始解析結果供 debug
 }
 
@@ -120,7 +157,96 @@ export function parseSprintStatus(yamlContent: string): SprintStatus | null {
   // 嘗試多種 stories 結構
   extractStories(obj, stories)
 
-  return { sprintName, status, stories, raw: obj }
+  // 提取里程碑
+  const milestones = extractMilestones(obj)
+
+  // 提取 Bug 摘要
+  const bugs = extractBugSummary(obj)
+
+  // 提取統計摘要
+  const summary = extractSummaryData(obj)
+
+  // 提取 Plans（若存在）
+  const plans = extractPlans(obj)
+
+  // 提取最後更新時間
+  const lastUpdated = extractString(obj, ['last_updated', 'lastUpdated', 'updated_at'])
+
+  return { sprintName, status, stories, milestones, bugs, summary, plans, lastUpdated, raw: obj }
+}
+
+// ─── Milestone / Bug / Summary / Plan Extraction ────────────────────────────
+
+function extractMilestones(obj: Record<string, unknown>): SprintMilestone[] {
+  const raw = obj['milestones']
+  if (!Array.isArray(raw)) return []
+
+  const result: SprintMilestone[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const m = item as Record<string, unknown>
+    const name = extractString(m, ['name', 'title'])
+    if (!name) continue
+    result.push({
+      name,
+      status: extractString(m, ['status']) ?? '',
+      completedRange: extractString(m, ['completed_range', 'completedRange']) ?? undefined,
+      highlights: Array.isArray(m['highlights'])
+        ? (m['highlights'] as unknown[]).filter(h => typeof h === 'string') as string[]
+        : undefined,
+      reference: extractString(m, ['reference']) ?? undefined,
+    })
+  }
+  return result
+}
+
+function extractBugSummary(obj: Record<string, unknown>): SprintBugSummary | null {
+  const raw = obj['bugs']
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const b = raw as Record<string, unknown>
+  return {
+    open: typeof b['open'] === 'number' ? b['open'] : 0,
+    closed: typeof b['closed'] === 'number' ? b['closed'] : 0,
+    wontfix: typeof b['wontfix'] === 'number' ? b['wontfix'] : 0,
+    total: typeof b['total'] === 'number' ? b['total'] : 0,
+    activeBug: extractString(b, ['active_bug', 'activeBug']) ?? undefined,
+  }
+}
+
+function extractSummaryData(obj: Record<string, unknown>): SprintSummaryData | null {
+  const raw = obj['summary']
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const s = raw as Record<string, unknown>
+  const num = (key: string): number => typeof s[key] === 'number' ? s[key] as number : 0
+  return {
+    totalWorkorders: num('total_workorders') || num('totalWorkorders'),
+    completed: num('completed'),
+    inProgress: num('in_progress') || num('inProgress'),
+    todo: num('todo'),
+    blocked: num('blocked'),
+    activeBugs: num('active_bugs') || num('activeBugs'),
+    backlogPlans: num('backlog_plans') || num('backlogPlans'),
+  }
+}
+
+function extractPlans(obj: Record<string, unknown>): SprintPlanEntry[] {
+  const raw = obj['plans'] ?? obj['backlog_plans_detail'] ?? obj['backlog']
+  if (!Array.isArray(raw)) return []
+
+  const result: SprintPlanEntry[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const p = item as Record<string, unknown>
+    const id = extractString(p, ['id', 'plan_id'])
+    const title = extractString(p, ['title', 'name'])
+    if (!id && !title) continue
+    result.push({
+      id: id ?? '',
+      title: title ?? id ?? '',
+      status: extractString(p, ['status']) ?? '',
+    })
+  }
+  return result
 }
 
 // ─── Story Extraction ────────────────────────────────────────────────────────

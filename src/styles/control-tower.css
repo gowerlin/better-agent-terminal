@@ -1781,3 +1781,181 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* ─── Sprint Dashboard ─────────────────────────────────────────────────── */
+
+.sprint-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+
+.sprint-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+  gap: 8px;
+}
+
+.sprint-empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Section */
+.sprint-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sprint-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding-bottom: 2px;
+}
+
+/* Milestones */
+.sprint-milestone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sprint-milestone-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.sprint-milestone-badge {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.sprint-milestone-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sprint-milestone-status {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Stats cards */
+.sprint-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.sprint-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.sprint-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.sprint-stat-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* Bug status bar */
+.sprint-bug-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.sprint-bug-item strong {
+  color: var(--text-primary);
+}
+
+.sprint-bug-sep {
+  color: var(--border-color);
+}
+
+.sprint-bug-active {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 2px 8px;
+}
+
+/* Backlog summary */
+.sprint-backlog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sprint-backlog-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.sprint-backlog-id {
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.sprint-backlog-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sprint-backlog-status {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* Last updated */
+.sprint-last-updated {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-color);
+}

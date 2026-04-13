@@ -445,6 +445,7 @@
     "risk": "風險",
     "subproject": "子專案",
     "tab": {
+      "sprint": "總覽",
       "orders": "工單",
       "kanban": "看板",
       "epics": "史詩",

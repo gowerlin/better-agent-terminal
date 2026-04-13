@@ -445,6 +445,7 @@
     "risk": "Risk",
     "subproject": "Subproject",
     "tab": {
+      "sprint": "Sprint",
       "orders": "Orders",
       "kanban": "Kanban",
       "epics": "Epics",

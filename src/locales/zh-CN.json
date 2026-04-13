@@ -439,6 +439,7 @@
     "risk": "风险",
     "subproject": "子项目",
     "tab": {
+      "sprint": "总览",
       "orders": "工单",
       "kanban": "看板",
       "epics": "史诗",

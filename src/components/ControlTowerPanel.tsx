@@ -24,8 +24,9 @@ import { type DecisionEntry, parseDecisionLog } from '../types/decision-log'
 import { type BmadWorkflow, buildBmadWorkflow, PHASE_DEFINITIONS } from '../types/bmad-workflow'
 import { type BmadEpic, parseEpicsFile, buildSprintStoryMap } from '../types/bmad-epic'
 import { BmadEpicsView } from './BmadEpicsView'
+import { SprintDashboard } from './SprintDashboard'
 
-type CtTab = 'orders' | 'kanban' | 'workflow' | 'bugs' | 'backlog' | 'decisions'
+type CtTab = 'sprint' | 'orders' | 'kanban' | 'workflow' | 'bugs' | 'backlog' | 'decisions'
 
 interface ControlTowerPanelProps {
   isVisible: boolean
@@ -36,6 +37,13 @@ interface ControlTowerPanelProps {
 
 /** Statuses eligible for ct-done remedial close */
 const DONE_ELIGIBLE: ReadonlySet<WorkOrderStatus> = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PARTIAL', 'BLOCKED', 'FAILED'])
+
+/** Format file mtime to YYYY-MM-DD HH:mm */
+function formatMtime(mtimeMs: number): string {
+  const d = new Date(mtimeMs)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOrder, onDoneWorkOrder }: ControlTowerPanelProps) {
   const { t } = useTranslation()
@@ -132,7 +140,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         if (result.content) {
           const parsed = parseSprintStatus(result.content)
           if (parsed) {
-            setSprintStatus(parsed)
+            const stat = await window.electronAPI.fs.stat(yamlPath)
+            const withMtime = stat?.mtimeMs
+              ? { ...parsed, lastUpdated: formatMtime(stat.mtimeMs) }
+              : parsed
+            setSprintStatus(withMtime)
             return
           }
         }
@@ -280,7 +292,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         URGENT: 0, IN_PROGRESS: 1, PENDING: 2, BLOCKED: 3,
         PARTIAL: 4, INTERRUPTED: 5, FAILED: 6, DONE: 7,
       }
-      uniqueOrders.sort((a, b) => (priority[a.status] ?? 99) - (priority[b.status] ?? 99))
+      uniqueOrders.sort((a, b) => {
+        const statusOrder = (priority[a.status] ?? 99) - (priority[b.status] ?? 99)
+        if (statusOrder !== 0) return statusOrder
+        return b.id.localeCompare(a.id, undefined, { numeric: true })
+      })
 
       detectStatusChanges(uniqueOrders)
       setWorkOrders(uniqueOrders)
@@ -411,8 +427,14 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         </div>
       </div>
 
-      {/* Sub-tabs: Orders | Kanban | Sprint */}
+      {/* Sub-tabs: Sprint | Orders | Epics | ... */}
       <div className="ct-tabs">
+        <button
+          className={`ct-tab${activeTab === 'sprint' ? ' active' : ''}`}
+          onClick={() => setActiveTab('sprint')}
+        >
+          {t('controlTower.tab.sprint')}
+        </button>
         <button
           className={`ct-tab${activeTab === 'orders' ? ' active' : ''}`}
           onClick={() => setActiveTab('orders')}
@@ -470,146 +492,138 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       </div>
 
       {/* Tab content */}
-      {activeTab === 'orders' && (
-        <>
-          {/* Filter bar */}
-          <div className="ct-filter-bar">
-            {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'DONE'] as const).map(s => (
-              <button
-                key={s}
-                className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}
-                onClick={() => setFilterStatus(s)}
-              >
-                {s === 'all' ? t('controlTower.all') : statusLabel(s)}
-              </button>
-            ))}
-          </div>
+      <div className="ct-tab-content" style={{ display: activeTab === 'sprint' ? undefined : 'none' }}>
+        <SprintDashboard sprintStatus={sprintStatus} />
+      </div>
 
-          {/* Work order list */}
-          <div className="ct-order-list">
-            {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
-            {!loading && displayOrders.length === 0 && (
-              <div className="ct-empty-list">{t('controlTower.noOrders')}</div>
-            )}
-            {displayOrders.map(order => (
-              <div
-                key={order.isArchived ? `arch-${order.id}` : order.id}
-                className={`ct-order-card ${statusColor(order.status)}${expandedId === order.id ? ' expanded' : ''}${order.isArchived ? ' ct-archived-item' : ''}`}
-                onClick={() => setExpandedId(prev => prev === order.id ? null : order.id)}
-              >
-                <div className="ct-order-header">
-                  <span className="ct-order-id">{order.id}</span>
-                  <span className="ct-order-title">{order.title}</span>
-                  <span className={`ct-status-badge ${statusColor(order.status)}`}>
-                    {statusLabel(order.status)}
-                  </span>
-                </div>
+      <div style={{ display: activeTab === 'orders' ? undefined : 'none' }}>
+        {/* Filter bar */}
+        <div className="ct-filter-bar">
+          {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'DONE'] as const).map(s => (
+            <button
+              key={s}
+              className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}
+              onClick={() => setFilterStatus(s)}
+            >
+              {s === 'all' ? t('controlTower.all') : statusLabel(s)}
+            </button>
+          ))}
+        </div>
 
-                {expandedId === order.id && (
-                  <div className="ct-order-detail">
-                    {order.createdAt && (
-                      <div className="ct-detail-row">
-                        <span className="ct-detail-label">{t('controlTower.created')}</span>
-                        <span>{order.createdAt}</span>
-                      </div>
-                    )}
-                    {order.startedAt && (
-                      <div className="ct-detail-row">
-                        <span className="ct-detail-label">{t('controlTower.started')}</span>
-                        <span>{order.startedAt}</span>
-                      </div>
-                    )}
-                    {order.estimatedSize && (
-                      <div className="ct-detail-row">
-                        <span className="ct-detail-label">{t('controlTower.size')}</span>
-                        <span>{order.estimatedSize}</span>
-                      </div>
-                    )}
-                    {order.contextRisk && (
-                      <div className="ct-detail-row">
-                        <span className="ct-detail-label">{t('controlTower.risk')}</span>
-                        <span>{order.contextRisk}</span>
-                      </div>
-                    )}
-                    {order.targetSubproject && (
-                      <div className="ct-detail-row">
-                        <span className="ct-detail-label">{t('controlTower.subproject')}</span>
-                        <span>{order.targetSubproject}</span>
-                      </div>
-                    )}
-                    <div className="ct-order-actions">
-                      {onExecWorkOrder && (order.status === 'PENDING' || order.status === 'URGENT') && (
-                        <button
-                          className="ct-exec-btn"
-                          onClick={e => { e.stopPropagation(); onExecWorkOrder(order.id) }}
-                        >
-                          ▶ {t('controlTower.execute')}
-                        </button>
-                      )}
-                      {onDoneWorkOrder && DONE_ELIGIBLE.has(order.status) && (
-                        <button
-                          className="ct-done-btn"
-                          onClick={e => { e.stopPropagation(); onDoneWorkOrder(order.id) }}
-                        >
-                          🔧 {t('controlTower.done')}
-                        </button>
-                      )}
-                      <button
-                        className="ct-view-file-btn"
-                        onClick={e => {
-                          e.stopPropagation()
-                          if (!ctDirPath) return
-                          const filePath = order.isArchived
-                            ? `${ctDirPath}/_archive/workorders/${order.filename}`
-                            : `${ctDirPath}/${order.filename}`
-                          window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
-                          window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
-                        }}
-                      >
-                        📄 {t('controlTower.viewFile')}
-                      </button>
-                    </div>
-                  </div>
-                )}
+        {/* Work order list */}
+        <div className="ct-order-list">
+          {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
+          {!loading && displayOrders.length === 0 && (
+            <div className="ct-empty-list">{t('controlTower.noOrders')}</div>
+          )}
+          {displayOrders.map(order => (
+            <div
+              key={order.isArchived ? `arch-${order.id}` : order.id}
+              className={`ct-order-card ${statusColor(order.status)}${expandedId === order.id ? ' expanded' : ''}${order.isArchived ? ' ct-archived-item' : ''}`}
+              onClick={() => setExpandedId(prev => prev === order.id ? null : order.id)}
+            >
+              <div className="ct-order-header">
+                <span className="ct-order-id">{order.id}</span>
+                <span className="ct-order-title">{order.title}</span>
+                <span className={`ct-status-badge ${statusColor(order.status)}`}>
+                  {statusLabel(order.status)}
+                </span>
               </div>
-            ))}
-          </div>
-        </>
-      )}
 
-      {activeTab === 'kanban' && (
-        <div className="ct-tab-content">
-          <BmadEpicsView epics={bmadEpics} loading={loading} ctDirPath={ctDirPath} />
+              {expandedId === order.id && (
+                <div className="ct-order-detail">
+                  {order.createdAt && (
+                    <div className="ct-detail-row">
+                      <span className="ct-detail-label">{t('controlTower.created')}</span>
+                      <span>{order.createdAt}</span>
+                    </div>
+                  )}
+                  {order.startedAt && (
+                    <div className="ct-detail-row">
+                      <span className="ct-detail-label">{t('controlTower.started')}</span>
+                      <span>{order.startedAt}</span>
+                    </div>
+                  )}
+                  {order.estimatedSize && (
+                    <div className="ct-detail-row">
+                      <span className="ct-detail-label">{t('controlTower.size')}</span>
+                      <span>{order.estimatedSize}</span>
+                    </div>
+                  )}
+                  {order.contextRisk && (
+                    <div className="ct-detail-row">
+                      <span className="ct-detail-label">{t('controlTower.risk')}</span>
+                      <span>{order.contextRisk}</span>
+                    </div>
+                  )}
+                  {order.targetSubproject && (
+                    <div className="ct-detail-row">
+                      <span className="ct-detail-label">{t('controlTower.subproject')}</span>
+                      <span>{order.targetSubproject}</span>
+                    </div>
+                  )}
+                  <div className="ct-order-actions">
+                    {onExecWorkOrder && (order.status === 'PENDING' || order.status === 'URGENT') && (
+                      <button
+                        className="ct-exec-btn"
+                        onClick={e => { e.stopPropagation(); onExecWorkOrder(order.id) }}
+                      >
+                        ▶ {t('controlTower.execute')}
+                      </button>
+                    )}
+                    {onDoneWorkOrder && DONE_ELIGIBLE.has(order.status) && (
+                      <button
+                        className="ct-done-btn"
+                        onClick={e => { e.stopPropagation(); onDoneWorkOrder(order.id) }}
+                      >
+                        🔧 {t('controlTower.done')}
+                      </button>
+                    )}
+                    <button
+                      className="ct-view-file-btn"
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (!ctDirPath) return
+                        const filePath = order.isArchived
+                          ? `${ctDirPath}/_archive/workorders/${order.filename}`
+                          : `${ctDirPath}/${order.filename}`
+                        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
+                        window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
+                      }}
+                    >
+                      📄 {t('controlTower.viewFile')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
-      {activeTab === 'workflow' && (
-        <div className="ct-tab-content">
-          <BmadWorkflowView
-            workflow={bmadWorkflow}
-            loading={loading}
-            bmadOutputPath={bmadOutputPath ?? ''}
-          />
-        </div>
-      )}
+      <div className="ct-tab-content" style={{ display: activeTab === 'kanban' ? undefined : 'none' }}>
+        <BmadEpicsView epics={bmadEpics} loading={loading} ctDirPath={ctDirPath} />
+      </div>
 
-      {activeTab === 'bugs' && (
-        <div className="ct-tab-content">
-          <BugTrackerView bugs={bugEntries} loading={loading} ctDirPath={ctDirPath} />
-        </div>
-      )}
+      <div className="ct-tab-content" style={{ display: activeTab === 'workflow' ? undefined : 'none' }}>
+        <BmadWorkflowView
+          workflow={bmadWorkflow}
+          loading={loading}
+          bmadOutputPath={bmadOutputPath ?? ''}
+        />
+      </div>
 
-      {activeTab === 'backlog' && (
-        <div className="ct-tab-content">
-          <BacklogView entries={backlogEntries} loading={loading} ctDirPath={ctDirPath} />
-        </div>
-      )}
+      <div className="ct-tab-content" style={{ display: activeTab === 'bugs' ? undefined : 'none' }}>
+        <BugTrackerView bugs={bugEntries} loading={loading} ctDirPath={ctDirPath} />
+      </div>
 
-      {activeTab === 'decisions' && (
-        <div className="ct-tab-content">
-          <DecisionsView decisions={decisions} loading={loading} rawContent={decisionRawContent} ctDirPath={ctDirPath} />
-        </div>
-      )}
+      <div className="ct-tab-content" style={{ display: activeTab === 'backlog' ? undefined : 'none' }}>
+        <BacklogView entries={backlogEntries} loading={loading} ctDirPath={ctDirPath} />
+      </div>
+
+      <div className="ct-tab-content" style={{ display: activeTab === 'decisions' ? undefined : 'none' }}>
+        <DecisionsView decisions={decisions} loading={loading} rawContent={decisionRawContent} ctDirPath={ctDirPath} />
+      </div>
     </div>
   )
 }
