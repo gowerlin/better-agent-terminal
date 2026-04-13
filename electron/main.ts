@@ -82,6 +82,7 @@ import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFi
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
+import * as net from 'net'
 
 // Startup timing — capture module load time before anything else
 const _processStart = Number(process.env._BAT_T0 || Date.now())
@@ -166,6 +167,71 @@ const windowMap = new Map<string, BrowserWindow>() // windowId → BrowserWindow
 // IPC reference is kept so PtyManager can proxy PTY operations to the server.
 let _terminalServerStarted = false
 let _terminalServerProcess: import('child_process').ChildProcess | null = null
+// T0110: Stores pending recovery state when BAT restarts and finds live PTYs
+let pendingRecovery: { port: number; ptyCount: number } | null = null
+
+/**
+ * Probe a running Terminal Server to count how many PTY processes are alive.
+ * Opens a temporary TCP connection, sends pty:list, and returns the count.
+ * Times out after 3 seconds and returns 0 on failure.
+ */
+async function probeServerPtyCount(port: number): Promise<number> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket()
+    let lineBuffer = ''
+    let resolved = false
+
+    const done = (count: number) => {
+      if (resolved) return
+      resolved = true
+      clearTimeout(timer)
+      socket.destroy()
+      resolve(count)
+    }
+
+    const timer = setTimeout(() => done(0), 3000)
+
+    socket.connect(port, '127.0.0.1', () => {
+      socket.write(JSON.stringify({ type: 'pty:list' }) + '\n')
+    })
+
+    socket.on('data', (chunk: Buffer) => {
+      lineBuffer += chunk.toString()
+      const lines = lineBuffer.split('\n')
+      lineBuffer = lines.pop()!
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const msg = JSON.parse(line) as { type: string; ptys?: unknown[] }
+          if (msg.type === 'pty:list' && Array.isArray(msg.ptys)) {
+            done(msg.ptys.length)
+          }
+        } catch { /* ignore malformed JSON */ }
+      }
+    })
+
+    socket.on('error', () => done(0))
+    socket.on('close', () => done(0))
+  })
+}
+
+/**
+ * Send a server:shutdown command to a running Terminal Server via TCP.
+ * Used when the user chooses "fresh start" in the recovery prompt.
+ */
+async function sendShutdownToServer(port: number): Promise<void> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket()
+    socket.setTimeout(2000)
+    socket.connect(port, '127.0.0.1', () => {
+      socket.write(JSON.stringify({ type: 'server:shutdown' }) + '\n')
+      socket.setTimeout(500)
+    })
+    socket.on('close', resolve)
+    socket.on('error', resolve)
+    socket.on('timeout', () => { socket.destroy(); resolve() })
+  })
+}
 
 /**
  * Fork the Terminal Server as a detached child process.
@@ -192,22 +258,31 @@ async function startTerminalServer(): Promise<void> {
   }
 
   if (isServerRunning(userDataPath)) {
-    // T0108: Try TCP reconnect before deciding to fork a new server
     const port = readPortFile(userDataPath)
-    if (port && ptyManager) {
-      const connected = await ptyManager.connectToServer(port)
-      if (connected) {
-        logger.log(`[terminal-server] reconnected to existing server on port ${port}`)
-        // Request PTY list — handleReplayList will fetch and replay buffers
-        ptyManager.sendToServer({ type: 'pty:list' })
+    if (port) {
+      // T0110: Probe PTY count first — if there are live terminals, defer to user
+      const ptyCount = await probeServerPtyCount(port)
+      if (ptyCount > 0) {
+        pendingRecovery = { port, ptyCount }
+        logger.log(`[terminal-server] ${ptyCount} live PTYs detected — deferring to user recovery decision`)
+        return  // Recovery prompt will handle reconnect or fresh-start
+      }
+      // Server alive but no PTYs — T0108: try silent reconnect
+      if (ptyManager) {
+        const connected = await ptyManager.connectToServer(port)
+        if (connected) {
+          logger.log(`[terminal-server] reconnected to existing server on port ${port}`)
+          // Request PTY list — handleReplayList will fetch and replay buffers
+          ptyManager.sendToServer({ type: 'pty:list' })
+          return
+        }
+        logger.warn('[terminal-server] PID alive but TCP connect failed — stale server, restarting')
+      } else {
+        logger.log('[terminal-server] existing server detected but ptyManager not ready — skipping fork')
         return
       }
-      logger.warn('[terminal-server] PID alive but TCP connect failed — stale server, restarting')
-    } else if (!port) {
-      logger.warn('[terminal-server] existing server has no port file — skipping reconnect, restarting')
     } else {
-      logger.log('[terminal-server] existing server detected but ptyManager not ready — skipping fork')
-      return
+      logger.warn('[terminal-server] existing server has no port file — skipping reconnect, restarting')
     }
     // Stale server: clean up files and fall through to fork a fresh one
     removePidFile(userDataPath)
@@ -964,6 +1039,10 @@ app.whenReady().then(async () => {
       })
       win.webContents.on('did-finish-load', () => {
         logger.log(`[startup] did-finish-load: +${Date.now() - t0}ms from whenReady`)
+        // T0110: Notify renderer if there are live PTYs to recover
+        if (pendingRecovery) {
+          win.webContents.send('terminal-server:recovery-available', { ptyCount: pendingRecovery.ptyCount })
+        }
       })
       const ipcSub = () => {
         logger.log(`[startup] first-renderer-ipc: +${Date.now() - t0}ms from whenReady`)
@@ -2316,6 +2395,44 @@ function registerLocalHandlers() {
   ipcMain.handle('supervisor:get-worker-output', (_event, targetId: string, lines: number) => {
     if (!ptyManager) return []
     return ptyManager.getLastOutput(targetId, lines)
+  })
+
+  // T0110: Recovery prompt IPC handlers
+  ipcMain.on('terminal-server:recover', async () => {
+    if (!pendingRecovery) return
+    const { port } = pendingRecovery
+    pendingRecovery = null
+    if (!ptyManager) return
+
+    const connected = await ptyManager.connectToServer(port)
+    if (connected) {
+      logger.log(`[terminal-server] user chose recovery — connected to port ${port}`)
+      ptyManager.sendToServer({ type: 'pty:list' })
+    } else {
+      // Server died while prompt was showing — fall back to new server
+      logger.warn('[terminal-server] recovery failed (server died) — falling back to new server')
+      const userDataPath = app.getPath('userData')
+      removePidFile(userDataPath)
+      removePortFile(userDataPath)
+      _terminalServerStarted = false
+      await startTerminalServer()
+    }
+  })
+
+  ipcMain.on('terminal-server:fresh-start', async () => {
+    if (!pendingRecovery) return
+    const { port } = pendingRecovery
+    pendingRecovery = null
+
+    // Shutdown old server gracefully
+    try { await sendShutdownToServer(port) } catch { /* server may already be dead */ }
+
+    const userDataPath = app.getPath('userData')
+    removePidFile(userDataPath)
+    removePortFile(userDataPath)
+
+    _terminalServerStarted = false
+    await startTerminalServer()
   })
 
 }

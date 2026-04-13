@@ -15,6 +15,7 @@ import { MarkdownPreviewPanel } from './components/MarkdownPreviewPanel'
 import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
+import { RecoveryPrompt } from './components/RecoveryPrompt'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 
@@ -114,6 +115,7 @@ export default function App() {
   const [activeProfileName, setActiveProfileName] = useState<string>('Default')
   const [isRemoteConnected, setIsRemoteConnected] = useState(false)
   const [appNotification, setAppNotification] = useState<string | null>(null)
+  const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
   // Docking system
   const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
@@ -545,6 +547,10 @@ export default function App() {
     const unsubDetach = window.electronAPI.workspace.onDetached((wsId) => {
       setDetachedIds(prev => new Set(prev).add(wsId))
     })
+    const unsubRecovery = window.electronAPI.terminalServer.onRecoveryAvailable((info) => {
+      setRecoveryInfo(info)
+    })
+
     const unsubReattach = window.electronAPI.workspace.onReattached((wsId) => {
       setDetachedIds(prev => {
         const next = new Set(prev)
@@ -561,6 +567,7 @@ export default function App() {
       unsubFlushSave()
       unsubDetach()
       unsubReattach()
+      unsubRecovery()
     }
   }, [])
 
@@ -1077,6 +1084,19 @@ export default function App() {
             <button className="app-notification-close" onClick={() => setAppNotification(null)}>{t('common.ok')}</button>
           </div>
         </div>
+      )}
+      {recoveryInfo && (
+        <RecoveryPrompt
+          ptyCount={recoveryInfo.ptyCount}
+          onRecover={() => {
+            window.electronAPI.terminalServer.recover()
+            setRecoveryInfo(null)
+          }}
+          onFreshStart={() => {
+            window.electronAPI.terminalServer.freshStart()
+            setRecoveryInfo(null)
+          }}
+        />
       )}
     </div>
   )

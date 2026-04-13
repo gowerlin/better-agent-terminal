@@ -313,3 +313,67 @@
 .app-notification-close:hover {
   opacity: 0.9;
 }
+
+/* Recovery Prompt (T0110) */
+.recovery-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+  animation: fadeIn 0.2s ease;
+}
+
+.recovery-prompt-dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideIn 0.2s ease;
+  overflow: hidden;
+}
+
+.recovery-prompt-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.recovery-prompt-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.recovery-prompt-content {
+  padding: 20px;
+}
+
+.recovery-prompt-content p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.recovery-prompt-hint {
+  color: var(--text-secondary) !important;
+  font-size: 12px !important;
+}
+
+.recovery-prompt-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}

@@ -187,6 +187,14 @@ interface ElectronAPI {
     // expose the userData-relative path where models live (shared with T0004)
     getModelsDirectory: () => Promise<string>
   }
+  terminalServer: {
+    /** Listen for recovery-available event from main process. Returns unsubscribe fn. */
+    onRecoveryAvailable: (callback: (info: { ptyCount: number }) => void) => () => void
+    /** User chose to recover live PTY session (TCP reconnect + buffer replay). */
+    recover: () => void
+    /** User chose fresh start (shutdown old server, fork new one). */
+    freshStart: () => void
+  }
 }
 
 declare global {

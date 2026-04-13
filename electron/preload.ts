@@ -422,6 +422,15 @@ const electronAPI = {
       return () => ipcRenderer.removeListener(VOICE_IPC_CHANNELS.modelDownloadProgress, handler)
     },
   },
+  terminalServer: {
+    onRecoveryAvailable: (callback: (info: { ptyCount: number }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { ptyCount: number }) => callback(info)
+      ipcRenderer.on('terminal-server:recovery-available', handler)
+      return () => ipcRenderer.removeListener('terminal-server:recovery-available', handler)
+    },
+    recover: () => ipcRenderer.send('terminal-server:recover'),
+    freshStart: () => ipcRenderer.send('terminal-server:fresh-start'),
+  },
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),
     getById: (id: number) => ipcRenderer.invoke('snippet:getById', id),
