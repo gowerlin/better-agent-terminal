@@ -163,8 +163,9 @@ const windowMap = new Map<string, BrowserWindow>() // windowId → BrowserWindow
 
 // Terminal Server (PLAN-008 Phase 2) — independent process managing PTYs
 // Started once at app launch; intentionally outlives the BAT main process.
-// The reference is cleared after unref() — we do not need to track it further.
+// IPC reference is kept so PtyManager can proxy PTY operations to the server.
 let _terminalServerStarted = false
+let _terminalServerProcess: import('child_process').ChildProcess | null = null
 
 /**
  * Fork the Terminal Server as a detached child process.
@@ -205,6 +206,9 @@ function startTerminalServer(): void {
     })
 
     logger.log(`[terminal-server] started with pid ${child.pid}`)
+
+    // Keep IPC reference so PtyManager can proxy PTY operations
+    _terminalServerProcess = child
 
     // Allow BAT main process to exit while server keeps running
     child.unref()
@@ -542,7 +546,13 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   }
 
   // Create managers once (shared across all windows)
-  if (!ptyManager) ptyManager = new PtyManager(getAllWindows)
+  if (!ptyManager) {
+    ptyManager = new PtyManager(getAllWindows)
+    // Connect Terminal Server IPC for proxy mode (T0107)
+    if (_terminalServerProcess?.connected) {
+      ptyManager.setServerProcess(_terminalServerProcess)
+    }
+  }
   if (!claudeManager) claudeManager = new ClaudeAgentManager(getAllWindows)
 
   const urlParam = `?windowId=${encodeURIComponent(windowId)}`

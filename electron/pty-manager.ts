@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process'
 import type { CreatePtyOptions } from '../src/types'
 import { broadcastHub } from './remote/broadcast-hub'
 import { logger } from './logger'
+import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -21,7 +22,7 @@ try {
 }
 
 interface PtyInstance {
-  process: any // IPty or ChildProcess
+  process: any // IPty or ChildProcess, or null when Terminal Server manages the PTY
   type: 'terminal'  // Unified to 'terminal' - agent types handled by agentPreset
   cwd: string
   usePty: boolean
@@ -40,8 +41,46 @@ export class PtyManager {
   private static readonly RING_BUFFER_LINES = 50
   private outputRingBuffers: Map<string, string[]> = new Map()
 
+  // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
+  private serverProcess: ChildProcess | null = null
+
   constructor(getWindows: () => BrowserWindow[]) {
     this.getWindows = getWindows
+  }
+
+  /** Inject Terminal Server IPC reference; enables proxy mode for all future PTY operations. */
+  setServerProcess(server: ChildProcess): void {
+    this.serverProcess = server
+    this.setupServerListener()
+    logger.log('[PtyManager] Terminal Server connected via IPC — proxy mode active')
+  }
+
+  /** True when we have a live IPC connection to the Terminal Server. */
+  private get useServer(): boolean {
+    return this.serverProcess !== null && this.serverProcess.connected
+  }
+
+  /** Route responses from Terminal Server back into the existing broadcast pipeline. */
+  private setupServerListener(): void {
+    if (!this.serverProcess) return
+    this.serverProcess.on('message', (msg: ServerResponse) => {
+      switch (msg.type) {
+        case 'pty:data':    this.handlePtyData(msg.id, msg.data); break
+        case 'pty:exit':    this.handlePtyExit(msg.id, msg.exitCode); break
+        case 'pty:created': logger.log(`[PtyManager] server spawned PTY ${msg.id} (pid ${msg.pid})`); break
+        case 'error':       logger.error('[PtyManager] server error:', msg); break
+      }
+    })
+  }
+
+  private handlePtyData(id: string, data: string): void {
+    // Reuse the same output batching + ring buffer path as direct PTY mode
+    this.enqueuePtyOutput(id, data)
+  }
+
+  private handlePtyExit(id: string, exitCode: number): void {
+    this.instances.delete(id)
+    this.broadcast('pty:exit', id, exitCode)
   }
 
   private broadcast(channel: string, ...args: unknown[]) {
@@ -103,6 +142,10 @@ export class PtyManager {
   writeToTerminal(id: string, data: string): boolean {
     const instance = this.instances.get(id)
     if (!instance) return false
+    if (this.useServer) {
+      this.serverProcess!.send({ type: 'pty:write', id, data } as ServerRequest)
+      return true
+    }
     if (instance.usePty) {
       instance.process.write(data)
     } else {
@@ -165,7 +208,40 @@ export class PtyManager {
       args = ['-l', '-i']
     }
 
-    // Try node-pty first, fallback to child_process if it fails
+    // Proxy to Terminal Server if IPC connection is live
+    if (this.useServer) {
+      const envWithUtf8 = {
+        ...process.env as Record<string, string>,
+        ...customEnv,
+        LANG: 'en_US.UTF-8',
+        LC_ALL: 'en_US.UTF-8',
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+        TERM: 'xterm-256color',
+        COLORTERM: 'truecolor',
+        TERM_PROGRAM: 'better-agent-terminal',
+        TERM_PROGRAM_VERSION: '1.0',
+        BAT_SESSION: '1',
+        FORCE_COLOR: '3',
+        CLAUDE_CODE_NO_FLICKER: '1',
+        CI: '',
+      }
+      this.serverProcess!.send({
+        type: 'pty:create',
+        id,
+        shell,
+        args,
+        cwd,
+        cols: 120,
+        rows: 30,
+        env: envWithUtf8,
+      } as ServerRequest)
+      this.instances.set(id, { process: null, type, cwd, usePty: true })
+      logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
+      return true
+    }
+
+    // Fallback: direct PTY spawn (node-pty or child_process)
     let usedPty = false
 
     if (ptyAvailable && pty) {
@@ -295,6 +371,10 @@ export class PtyManager {
   }
 
   write(id: string, data: string): void {
+    if (this.useServer && this.instances.has(id)) {
+      this.serverProcess!.send({ type: 'pty:write', id, data } as ServerRequest)
+      return
+    }
     const instance = this.instances.get(id)
     if (instance) {
       if (instance.usePty) {
@@ -308,6 +388,10 @@ export class PtyManager {
   }
 
   resize(id: string, cols: number, rows: number): void {
+    if (this.useServer && this.instances.has(id)) {
+      this.serverProcess!.send({ type: 'pty:resize', id, cols, rows } as ServerRequest)
+      return
+    }
     const instance = this.instances.get(id)
     if (instance && instance.usePty) {
       instance.process.resize(cols, rows)
@@ -315,6 +399,11 @@ export class PtyManager {
   }
 
   kill(id: string): boolean {
+    if (this.useServer && this.instances.has(id)) {
+      this.serverProcess!.send({ type: 'pty:kill', id } as ServerRequest)
+      this.instances.delete(id)
+      return true
+    }
     const instance = this.instances.get(id)
     if (instance) {
       const pid: number | undefined = instance.process.pid
@@ -356,6 +445,21 @@ export class PtyManager {
   }
 
   dispose(): void {
+    if (this.useServer) {
+      // Don't kill server PTYs — Terminal Server survives BAT restarts (T0108 reconnection).
+      // Only clean up any direct (non-proxy) fallback instances that have a live process.
+      for (const [, inst] of this.instances) {
+        if (inst.process) {
+          try {
+            if (inst.usePty) inst.process.kill()
+            else (inst.process as ChildProcess).kill()
+          } catch { /* already gone */ }
+        }
+      }
+      this.serverProcess = null
+      this.instances.clear()
+      return
+    }
     for (const [id] of this.instances) {
       this.kill(id)
     }
