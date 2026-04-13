@@ -16,7 +16,7 @@
 2. BUG-001 待 runtime 驗收（最後一張 VERIFY bug）
 
 **快速連結**：
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 0，Verify: 1）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 1，Verify: 0）
 - Backlog → [_backlog.md](_backlog.md)（Active: 6）
 - 工單索引 → [_workorder-index.md](_workorder-index.md)（Active only）
 - 決策日誌 → [_decision-log.md](_decision-log.md)（最新：D028）
@@ -34,7 +34,7 @@
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
 | **工單最大編號** | T0086 |
-| **BUG 最大編號** | BUG-022 |
+| **BUG 最大編號** | BUG-023 |
 | **PLAN 最大編號** | PLAN-007 |
 | **決策最大編號** | D028 |
 | **塔台版本** | Control Tower v3.x |

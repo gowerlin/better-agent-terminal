@@ -12,7 +12,7 @@
 
 | 前綴 | 用途 | 狀態流 |
 |------|------|--------|
-| `BUG-###-xxx.md` | 獨立 Bug 報修單 | 📋 REPORTED → 🔍 INVESTIGATING → 🔧 FIXING → 🧪 VERIFY → ✅ FIXED → 🚫 CLOSED/WONTFIX |
+| `BUG-###-xxx.md` | 獨立 Bug 報修單 | 📂 OPEN → 🔧 FIXING → ✅ FIXED → 🧪 VERIFY（選用）→ 🚫 CLOSED / WONTFIX |
 | `PLAN-###-xxx.md` | 計劃 / Idea 記錄單 | 💡 IDEA → 📋 PLANNED → 🔄 IN_PROGRESS → ✅ DONE → 🚫 DROPPED |
 
 ---
@@ -29,6 +29,22 @@
 | `_backlog.md` | Active Idea / Plan 數量摘要 |
 | `_workorder-index.md` | Active 工單數量摘要 |
 | `_decision-log.md` | 最新決策條目 |
+
+---
+
+## BUG 狀態流
+
+OPEN → FIXING → FIXED → VERIFY → CLOSED
+                               ↘ WONTFIX
+
+| 狀態 | 觸發者 | 說明 |
+|------|--------|------|
+| OPEN | Tower | Bug 確認，開始追蹤 |
+| FIXING | Tower 開工單 | Worker 實作修復中 |
+| FIXED | Worker 回報 | 修復 commit 完成，等人工驗收 |
+| VERIFY | Tower（選用）| 驗收進行中 |
+| CLOSED | 使用者 → Tower | 驗收通過，正式結案 |
+| WONTFIX | Tower 決策 | 確認不修復，銷單 |
 
 ---
 
@@ -50,13 +66,15 @@
 
 ### VERIFY（驗收待確認）狀態說明
 
-**觸發**：code fix 已完成，進入 🧪 VERIFY 等待真人或 AI 執行 runtime 驗收
+**觸發**：Worker 回報修復完成（✅ FIXED），進入 🧪 VERIFY 等待真人或 AI 執行 runtime 驗收
+
+> VERIFY 為選用狀態：若使用者直接回報「驗收通過」，可直接 FIXED → CLOSED。
 
 **步驟**：
-1. 修復工單完成後，塔台將 BUG 狀態從 🔧 FIXING 改為 🧪 VERIFY
-2. 同步更新 `_bug-tracker.md` 狀態欄
+1. Worker 回報修復完成 → 狀態從 🔧 FIXING 改為 ✅ FIXED
+2. （選用）Tower 標記進入 🧪 VERIFY，同步更新 `_bug-tracker.md` 狀態欄
 3. 進行 runtime 驗收（見下方「驗收者」說明）
-4. 驗收通過 → 狀態改為 ✅ FIXED
+4. 驗收通過 → 狀態改為 🚫 CLOSED
 5. 驗收未通過 → 見「驗收失敗處理」
 
 ### 驗收者
@@ -72,7 +90,7 @@
 | 失敗情境 | 處理方式 |
 |---------|---------|
 | 原問題未解（fix 無效） | 狀態退回 🔧 FIXING，附上驗收失敗說明，重新派修復工單 |
-| 衍生問題（fix 正確但帶來新 bug） | 原 BUG 狀態升為 ✅ FIXED（原問題已解），另開新 BUG 單報修衍生問題 |
+| 衍生問題（fix 正確但帶來新 bug） | 原 BUG 狀態改為 🚫 CLOSED（原問題已解），另開新 BUG 單報修衍生問題 |
 
 ---
 
@@ -136,7 +154,7 @@
 ### 歸檔資格（所有單據類型通用）
 
 **觸發條件**（同時滿足以下三點）：
-1. **狀態為最終態**：DONE / CLOSED / WONTFIX / DROPPED / FIXED
+1. **狀態為最終態**：DONE / CLOSED / WONTFIX / DROPPED
 2. **超過 N 天未變更**：建議 N=7（一週），可在 `_tower-config.yaml` 中調整 `archive_days`
 3. **不再需要即時回顧或參考**：
    - 無 active 工單依賴此單
