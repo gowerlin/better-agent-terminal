@@ -5,7 +5,10 @@
 | 欄位 | 內容 |
 |------|------|
 | **報修編號** | BUG-012 |
-| **狀態** | 🔧 FIXING (T0084) |
+| **狀態** | 🚫 CLOSED |
+| **結案日期** | 2026-04-13 |
+| **結案說明** | 人工驗收通過，v0.0.9-pre.1 確認修復 |
+| **GitHub** | 已回覆 anthropics/claude-code#46898 |
 | **嚴重度** | 🟡 Medium |
 | **報修時間** | 2026-04-11 (UTC+8) |
 | **報修人** | 使用者 |
@@ -60,6 +63,8 @@
 | 2026-04-11 | 📋 REPORTED | 發現 alt buffer 殘影 |
 | 2026-04-12 | 🔍 INVESTIGATING | T0041 深度調查 |
 | 2026-04-12 | 📋 上游追蹤 | anthropics/claude-code#46898 已提交，等 upstream 修復 |
+| 2026-04-13 | 🔧 FIXING | T0084 cherry-pick convertEol fix 到主線 |
+| 2026-04-13 | 🚫 CLOSED | 人工驗收通過，v0.0.9-pre.1 確認修復 |
 
 ## 塔台處理區
 
@@ -67,6 +72,6 @@
 - [x] 根因分析完成（BAT 端 convertEol: true，非上游問題）
 - [x] EXP-BUG012-001 實驗驗證根因
 - [x] upstream issue 已提交（#46898，將留言說明 BAT 端已修復）
-- [ ] T0084 cherry-pick 到主線
-- [ ] 主線 runtime 驗收 → CLOSED
+- [x] T0084 cherry-pick 到主線
+- [x] 主線 runtime 驗收 → CLOSED（2026-04-13 人工驗收通過）
 - **備註**：Redraw 按鈕作為 workaround，使用者可手動清除

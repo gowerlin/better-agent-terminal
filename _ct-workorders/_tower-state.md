@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-12 21:xx (UTC+8)（T0062 文件系統遷移後瘦身）
+> 最後更新：2026-04-13 13:43 (UTC+8)（T0086 BUG-002/012 結案 + 清理）
 
 ---
 
@@ -12,13 +12,11 @@
 **本輪完成**：T0065-T0085（21 張），涵蓋 BMad UI 整合、workspace 切換修復、VS Code 開啟功能、BUG-012 根因確認與修復
 
 **下一步建議**：
-1. 安裝 v0.0.9-pre.1，確認 BUG-012 殘影消失 → BUG-012 CLOSED
-2. 在 anthropics/claude-code#46898 貼留言（草稿已備妥）
-3. 清理 worktree：`git worktree remove ../better-agent-terminal-bug012`
-4. 參考 `_backlog.md` 的 PLAN-001~007 決定下一批工作
+1. 參考 `_backlog.md` 的 PLAN-001~007 決定下一批工作
+2. BUG-001 待 runtime 驗收（最後一張 VERIFY bug）
 
 **快速連結**：
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 1，BUG-012 上游追蹤）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 0，Verify: 1）
 - Backlog → [_backlog.md](_backlog.md)（Active: 6）
 - 工單索引 → [_workorder-index.md](_workorder-index.md)（Active only）
 - 決策日誌 → [_decision-log.md](_decision-log.md)（最新：D028）
@@ -35,7 +33,7 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0085 |
+| **工單最大編號** | T0086 |
 | **BUG 最大編號** | BUG-022 |
 | **PLAN 最大編號** | PLAN-007 |
 | **決策最大編號** | D028 |
@@ -65,6 +63,12 @@
 ---
 
 ## 📝 管理筆記
+
+**2026-04-13 13:43 T0086 結案**：
+- BUG-002 CLOSED（人工驗收通過）
+- BUG-012 CLOSED（人工驗收通過，v0.0.9-pre.1 確認修復）
+- Worktree 檢查：無 bug012 worktree 存在（已自行清理或未建立）
+- Bug Tracker 統計：Open 0 / Verify 1 / Fixed 18 / Closed 3
 
 **2026-04-13 13:14 Session 結束筆記**：
 - 本輪 21 張工單（T0065~T0085），生產力高
