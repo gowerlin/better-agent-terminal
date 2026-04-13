@@ -3,13 +3,11 @@
 > 已完成工單不列入本索引。查詢歷史：Glob `_ct-workorders/_archive/workorders/T*.md`
 > 最後更新：2026-04-13 10:05 (UTC+8)（T0075/T0076 開單）
 >
-> 統計：🔄 Active: 1 | ✅ Done: 84 | 總計: 85
+> 統計：🔄 Active: 0 | ✅ Done: 85 | 總計: 85
 
 ## 🔄 進行中 / 待處理
 
-| 工單 | 任務 | 狀態 | 說明 |
-|------|------|------|------|
-| T0085 | Commit all + 出內部測試 Pre-release tag | 📋 TODO | ← 下一張 |
+（目前無 active 工單）
 
 ## ⏰ 塔台待辦
 

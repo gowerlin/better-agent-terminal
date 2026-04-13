@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0085
 - **任務名稱**：Commit all + 出內部測試 Pre-release tag
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-13 13:05 (UTC+8)
 - **開始時間**：2026-04-13 13:05 (UTC+8)
-- **完成時間**：（待填）
+- **完成時間**：2026-04-13 13:07 (UTC+8)
 - **相關單據**：T0084（前置，需先完成）
 
 ---
@@ -92,10 +92,19 @@ Tag 含 `-pre` → GitHub Release 自動標為 **Pre-release**，不更新 Homeb
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-（待填）
+DONE
 
 ### Tag 版號
-（待填：vX.X.X-pre.X）
+v0.0.9-pre.1
 
 ### 產出摘要
-（待填）
+- Commit 1（T0084 已完成）：`96cec8a` fix(terminal): BUG-012 — 移除 convertEol 修復 alt buffer 殘影
+- Commit 2：`8cfc772` chore(tower): T0084/T0085 工單文件 + BUG-012 根因更新（7 files, +412/-12）
+- Tag：`v0.0.9-pre.1` 已建立並 push 到 origin
+- Working tree clean，branch up to date with origin/main
+
+### 遭遇問題
+無
+
+### 互動紀錄
+無
