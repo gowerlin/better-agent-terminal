@@ -1858,10 +1858,26 @@ function registerProxiedHandlers() {
       return { installed: false, authenticated: false }
     }
   })
+  // Helper: extract "owner/repo" from the git origin remote URL for the given cwd.
+  // This ensures gh CLI always operates against the user's own fork/remote rather than
+  // any upstream remote that gh might auto-detect.
+  const getGithubRepoFromOrigin = (cwd: string): string | null => {
+    try {
+      const { execSync } = require('child_process')
+      const remote = execSync('git remote get-url origin', { cwd, encoding: 'utf-8', timeout: 3000, windowsHide: true }).trim()
+      const sshMatch = remote.match(/^git@github\.com:(.+?)(?:\.git)?$/)
+      if (sshMatch) return sshMatch[1]
+      const httpsMatch = remote.match(/^https?:\/\/github\.com\/(.+?)(?:\.git)?$/)
+      if (httpsMatch) return httpsMatch[1]
+      return null
+    } catch { return null }
+  }
   registerHandler('github:pr-list', async (_ctx, cwd: string) => {
     try {
-      const { execSync } = await import('child_process')
-      const raw = execSync('gh pr list --json number,title,state,author,createdAt,updatedAt,labels,headRefName,isDraft --limit 50', { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const { execFileSync } = await import('child_process')
+      const repo = getGithubRepoFromOrigin(cwd)
+      const repoArgs = repo ? ['--repo', repo] : []
+      const raw = execFileSync('gh', ['pr', 'list', ...repoArgs, '--json', 'number,title,state,author,createdAt,updatedAt,labels,headRefName,isDraft', '--limit', '50'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1869,8 +1885,10 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:issue-list', async (_ctx, cwd: string) => {
     try {
-      const { execSync } = await import('child_process')
-      const raw = execSync('gh issue list --json number,title,state,author,createdAt,updatedAt,labels --limit 50', { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const { execFileSync } = await import('child_process')
+      const repo = getGithubRepoFromOrigin(cwd)
+      const repoArgs = repo ? ['--repo', repo] : []
+      const raw = execFileSync('gh', ['issue', 'list', ...repoArgs, '--json', 'number,title,state,author,createdAt,updatedAt,labels', '--limit', '50'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1878,8 +1896,10 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:pr-view', async (_ctx, cwd: string, number: number) => {
     try {
-      const { execSync } = await import('child_process')
-      const raw = execSync(`gh pr view ${number} --json number,title,state,author,body,comments,reviews,createdAt,headRefName,baseRefName,additions,deletions,files`, { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const { execFileSync } = await import('child_process')
+      const repo = getGithubRepoFromOrigin(cwd)
+      const repoArgs = repo ? ['--repo', repo] : []
+      const raw = execFileSync('gh', ['pr', 'view', String(number), ...repoArgs, '--json', 'number,title,state,author,body,comments,reviews,createdAt,headRefName,baseRefName,additions,deletions,files'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1887,8 +1907,10 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:issue-view', async (_ctx, cwd: string, number: number) => {
     try {
-      const { execSync } = await import('child_process')
-      const raw = execSync(`gh issue view ${number} --json number,title,state,author,body,comments,createdAt,labels`, { cwd, encoding: 'utf-8', timeout: 15000, shell: true, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const { execFileSync } = await import('child_process')
+      const repo = getGithubRepoFromOrigin(cwd)
+      const repoArgs = repo ? ['--repo', repo] : []
+      const raw = execFileSync('gh', ['issue', 'view', String(number), ...repoArgs, '--json', 'number,title,state,author,body,comments,createdAt,labels'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1897,7 +1919,9 @@ function registerProxiedHandlers() {
   registerHandler('github:pr-comment', async (_ctx, cwd: string, number: number, body: string) => {
     try {
       const { execFileSync } = await import('child_process')
-      execFileSync('gh', ['pr', 'comment', String(number), '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
+      const repo = getGithubRepoFromOrigin(cwd)
+      const repoArgs = repo ? ['--repo', repo] : []
+      execFileSync('gh', ['pr', 'comment', String(number), ...repoArgs, '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
       return { success: true }
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -1906,7 +1930,9 @@ function registerProxiedHandlers() {
   registerHandler('github:issue-comment', async (_ctx, cwd: string, number: number, body: string) => {
     try {
       const { execFileSync } = await import('child_process')
-      execFileSync('gh', ['issue', 'comment', String(number), '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
+      const repo = getGithubRepoFromOrigin(cwd)
+      const repoArgs = repo ? ['--repo', repo] : []
+      execFileSync('gh', ['issue', 'comment', String(number), ...repoArgs, '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
       return { success: true }
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
