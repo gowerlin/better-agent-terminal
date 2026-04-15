@@ -316,7 +316,10 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
           {loading ? (
             <div className="github-empty">{t('github.loading')}</div>
           ) : error ? (
-            <div className="github-empty github-error-text">{t('github.fetchError')}</div>
+            <div className="github-empty github-error-text">
+              <div>{t('github.fetchError')}</div>
+              <div className="github-error-detail">{error}</div>
+            </div>
           ) : items.length === 0 ? (
             <div className="github-empty">{emptyMessage}</div>
           ) : (
