@@ -60,11 +60,11 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0096 |
-| **BUG 最大編號** | BUG-024 |
-| **PLAN 最大編號** | PLAN-007 |
-| **決策最大編號** | D028 |
-| **塔台版本** | Control Tower v3.x |
+| **工單最大編號** | T0119 |
+| **BUG 最大編號** | BUG-028 |
+| **PLAN 最大編號** | PLAN-009 |
+| **決策最大編號** | D031 |
+| **塔台版本** | Control Tower v4.0 |
 
 ---
 
@@ -126,3 +126,32 @@
 
 歷史 Checkpoint（2026-04-11 至 2026-04-12）：
 → [_archive/checkpoint-2026-04.md](_archive/checkpoint-2026-04.md)（2016 行，完整保留）
+
+---
+
+## 🔍 環境快照
+> 最後掃描：2026-04-15 20:59 (UTC+8)
+
+| 偵測項 | 狀態 | 備註 |
+|--------|------|------|
+| BMad-Method | ✅ | _bmad/ 已偵測到 |
+| ECC 學習 | ✅ Level 1 | ~/.claude/homunculus/ |
+| bmad-guide skill | ✅ | 可用 |
+| mem0 REST | ✅ | memsync healthy, queue:2 |
+| 終端環境 | better-agent-terminal | TERM_PROGRAM 偵測 |
+| ct-exec | ✅ | |
+| ct-done | ✅ | |
+| ct-status | ✅ | |
+| ct-evolve | ✅ | |
+| ct-insights | ✅ | |
+| ct-fieldguide | ✅ | |
+| ct-help | ✅ | |
+| _archive/ | ✅ | ~80 張歸檔 |
+| _playbooks/ | ✅ | 🆕 本次建立 |
+| _decision-log | ✅ | D031 (18+ 條) |
+| 跨專案參照 | 📋 | 無關聯 |
+| Global 學習 | ✅ | 2 learnings, 4 fieldguide |
+| BUG/PLAN 追蹤 | ✅ | BUG:15熱+13冷 PLAN:9 |
+| 實驗追蹤 | ✅ | EXP:1 |
+| 設定來源 | project | _tower-config.yaml (v4 已補齊) |
+| 能力等級 | Level 2 | ECC + mem0 |

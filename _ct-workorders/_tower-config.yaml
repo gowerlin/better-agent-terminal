@@ -22,3 +22,32 @@ verbose: on
 
 # 跨專案協調工單前綴(空=不啟用)
 project-prefix: ""
+
+# === v4.0 新增選項 ===
+
+# BUG 單據追蹤（*bug 命令）
+enable_bug_tracking: true
+
+# PLAN 單據追蹤（*plan 命令）
+enable_plan_tracking: true
+
+# EXP 實驗追蹤（*exp 命令）
+enable_experiments: true
+
+# 歸檔天數門檻（*archive 判定用）
+archive_days: 1
+
+# *sync 後提示歸檔候選
+auto_archive_prompt: off
+
+# 研究型工單是否允許 Worker 互動
+research_interaction: true
+
+# 研究型工單 Worker 每次提問上限
+research_max_questions: 3
+
+# 小變動自主 commit 行為（on/ask/off）
+auto_commit: ask
+
+# 自主 commit 訊息格式模板
+auto_commit_format: "chore: {description} ({scope})"

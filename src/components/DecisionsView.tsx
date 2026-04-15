@@ -9,19 +9,28 @@ interface DecisionsViewProps {
   ctDirPath?: string | null
 }
 
-/** Extract the ### D### block from rawContent for the given decisionId. */
+/**
+ * Extract the decision detail block from rawContent for the given decisionId.
+ * Supports both v3 (### D### date — title) and v4 (## D###：title) heading formats.
+ */
 function extractDecisionDetail(rawContent: string, decisionId: string): string {
   // Range entries like "D001-D012" do not have dedicated detail sections
   if (!decisionId.match(/^D\d+$/)) return ''
 
-  const startPattern = new RegExp(`###\\s+${decisionId}\\b`)
+  // Match v3 (### D###) and v4 (## D###) headings
+  const startPattern = new RegExp(`^#{2,3}\\s+${decisionId}\\b`, 'm')
   const startMatch = startPattern.exec(rawContent)
   if (!startMatch) return ''
 
   const afterStart = rawContent.slice(startMatch.index)
 
-  // Stop at next horizontal rule or next D### heading
-  const stopPattern = /\n---\n|\n#{1,3}\s+D\d+/
+  // Detect the heading level used so we stop at the same or higher level
+  const headingLevel = afterStart.startsWith('###') ? 3 : 2
+
+  // Stop at next heading of same or higher level, or horizontal rule
+  const stopPattern = headingLevel === 3
+    ? /\n---\n|\n#{1,3}\s+D\d+/
+    : /\n---\n|\n#{1,2}\s+D\d+/
   const stopMatch = stopPattern.exec(afterStart.slice(1))
 
   const block = stopMatch
