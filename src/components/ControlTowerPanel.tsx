@@ -371,14 +371,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     }
   }, [showArchivedOrders, loadArchivedOrders])
 
-  const filteredOrders = filterStatus === 'all'
-    ? workOrders
-    : workOrders.filter(o => o.status === filterStatus)
-
-  // Combined active + archived orders for rendering (archived always appended at end)
-  const displayOrders = showArchivedOrders
-    ? [...filteredOrders, ...archivedOrders]
-    : filteredOrders
+  // Combined active + archived orders, then apply status filter (consistent with BugTrackerView/BacklogView)
+  const allOrders = showArchivedOrders ? [...workOrders, ...archivedOrders] : workOrders
+  const displayOrders = filterStatus === 'all'
+    ? allOrders
+    : allOrders.filter(o => o.status === filterStatus)
 
   const activeCount = workOrders.filter(o => o.status === 'IN_PROGRESS' || o.status === 'URGENT').length
   const pendingCount = workOrders.filter(o => o.status === 'PENDING').length
