@@ -496,7 +496,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         <SprintDashboard sprintStatus={sprintStatus} />
       </div>
 
-      <div style={{ display: activeTab === 'orders' ? undefined : 'none' }}>
+      <div className="ct-orders-tab" style={{ display: activeTab === 'orders' ? undefined : 'none' }}>
         {/* Filter bar */}
         <div className="ct-filter-bar">
           {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'DONE'] as const).map(s => (
