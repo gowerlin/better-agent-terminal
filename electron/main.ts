@@ -1938,6 +1938,36 @@ function registerProxiedHandlers() {
       return true
     } catch { return false }
   })
+  // Force-destroy and re-create the watcher — used by CT panel refresh button
+  // to recover from broken watcher state (e.g. after git mv buffer overflow).
+  registerHandler('fs:reset-watch', (_ctx, _dirPath: string) => {
+    const existing = fileWatchers.get(_dirPath)
+    if (existing) {
+      existing.close()
+      fileWatchers.delete(_dirPath)
+    }
+    // Re-create watcher (same logic as fs:watch)
+    try {
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null
+      const watcher = fsSync.watch(_dirPath, { recursive: true }, () => {
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) {
+              try { win.webContents.send('fs:changed', _dirPath) } catch { /* window closing */ }
+            }
+          }
+          broadcastHub.broadcast('fs:changed', _dirPath)
+        }, 500)
+      })
+      watcher.on('error', () => {
+        fileWatchers.delete(_dirPath)
+      })
+      fileWatchers.set(_dirPath, watcher)
+      return true
+    } catch { return false }
+  })
+
   registerHandler('fs:unwatch', (_ctx, _dirPath: string) => {
     const watcher = fileWatchers.get(_dirPath)
     if (watcher) {

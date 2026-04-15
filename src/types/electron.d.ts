@@ -187,6 +187,16 @@ interface ElectronAPI {
     // expose the userData-relative path where models live (shared with T0004)
     getModelsDirectory: () => Promise<string>
   }
+  fs: {
+    readdir: (dirPath: string) => Promise<{ name: string; path: string; isDirectory: boolean }[]>
+    readFile: (filePath: string) => Promise<{ content?: string; error?: string; size?: number }>
+    stat: (filePath: string) => Promise<{ mtimeMs: number; size: number } | null>
+    search: (dirPath: string, query: string) => Promise<{ name: string; path: string; isDirectory: boolean }[]>
+    watch: (dirPath: string) => Promise<boolean>
+    unwatch: (dirPath: string) => Promise<boolean>
+    resetWatch: (dirPath: string) => Promise<boolean>
+    onChanged: (callback: (dirPath: string) => void) => () => void
+  }
   terminalServer: {
     /** Listen for recovery-available event from main process. Returns unsubscribe fn. */
     onRecoveryAvailable: (callback: (info: { ptyCount: number }) => void) => () => void

@@ -309,9 +309,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     }
   }, [ctDirPath, detectStatusChanges])
 
-  // Initial load
-  useEffect(() => {
-    if (!isVisible || !ctDirPath) return
+  // Reload all CT data (used by auto-refresh and initial load)
+  const reloadAll = useCallback(() => {
     loadWorkOrders()
     loadSprintStatus()
     loadBugs()
@@ -319,11 +318,31 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     loadDecisions()
     loadBmadWorkflow()
     loadEpics()
-  }, [isVisible, ctDirPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
+  }, [loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
 
-  // Watch _ct-workorders/ and _bmad-output/ for changes
+  // Force-refresh: destroy + recreate watcher, then re-read all data from disk.
+  // This recovers from broken watcher state (e.g. after git mv buffer overflow on Windows).
+  const forceRefresh = useCallback(async () => {
+    if (!ctDirPath) return
+    // Reset watchers to recover from broken state
+    await window.electronAPI.fs.resetWatch(ctDirPath)
+    if (bmadOutputPath) {
+      window.electronAPI.fs.resetWatch(bmadOutputPath)
+    }
+    // Re-read all data fresh from disk
+    reloadAll()
+    if (showArchivedOrders) loadArchivedOrders()
+  }, [ctDirPath, bmadOutputPath, reloadAll, showArchivedOrders, loadArchivedOrders])
+
+  // Initial load
   useEffect(() => {
     if (!isVisible || !ctDirPath) return
+    reloadAll()
+  }, [isVisible, ctDirPath, reloadAll])
+
+  // Watch _ct-workorders/, _bmad-output/, and .git/index for changes
+  useEffect(() => {
+    if (!isVisible || !ctDirPath || !workspaceFolderPath) return
 
     ctDirRef.current = ctDirPath
     window.electronAPI.fs.watch(ctDirPath)
@@ -335,18 +354,23 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       })
     }
 
+    // P1: Watch .git/ directory for git operations (merge, pull, mv, checkout)
+    const gitDirPath = `${workspaceFolderPath}/.git`
+    let gitWatchActive = false
+    window.electronAPI.fs.watch(gitDirPath).then((ok: boolean) => {
+      gitWatchActive = ok
+    })
+
     const unsubscribe = window.electronAPI.fs.onChanged((changedPath: string) => {
       if (changedPath === ctDirRef.current) {
-        loadWorkOrders()
-        loadSprintStatus()
-        loadBugs()
-        loadBacklog()
-        loadDecisions()
-        loadBmadWorkflow()
-        loadEpics()
+        reloadAll()
       } else if (changedPath === bmadOutputRef.current) {
         loadBmadWorkflow()
         loadEpics()
+      } else if (changedPath === gitDirPath) {
+        // Git operation detected (commit, merge, pull, checkout, mv)
+        // Trigger a full refresh to catch any file changes
+        reloadAll()
       }
     })
 
@@ -359,8 +383,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         window.electronAPI.fs.unwatch(bmadOutputRef.current)
         bmadOutputRef.current = null
       }
+      if (gitWatchActive) {
+        window.electronAPI.fs.unwatch(gitDirPath)
+      }
     }
-  }, [isVisible, ctDirPath, bmadOutputPath, loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
+  }, [isVisible, ctDirPath, bmadOutputPath, workspaceFolderPath, reloadAll, loadBmadWorkflow, loadEpics])
 
   // Load/clear archived orders when toggle changes
   useEffect(() => {
@@ -418,7 +445,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       <div className="ct-panel-header">
         <h3>{t('controlTower.title')}</h3>
         <div className="ct-header-actions">
-          <button className="ct-refresh-btn" onClick={() => { loadWorkOrders(); loadSprintStatus(); loadBugs(); loadBacklog(); loadDecisions(); loadBmadWorkflow(); loadEpics() }} title={t('controlTower.refresh')}>
+          <button className="ct-refresh-btn" onClick={forceRefresh} title={t('controlTower.refresh')}>
             ↻
           </button>
         </div>

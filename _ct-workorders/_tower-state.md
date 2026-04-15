@@ -60,8 +60,8 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0119 |
-| **BUG 最大編號** | BUG-028 |
+| **工單最大編號** | T0120 |
+| **BUG 最大編號** | BUG-029 |
 | **PLAN 最大編號** | PLAN-009 |
 | **決策最大編號** | D031 |
 | **塔台版本** | Control Tower v4.0 |
