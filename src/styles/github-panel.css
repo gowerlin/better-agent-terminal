@@ -363,6 +363,15 @@
   color: #f44336;
 }
 
+.github-error-detail {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #f44336;
+  opacity: 0.75;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
 /* Consent screen */
 .github-consent {
   align-items: center;
