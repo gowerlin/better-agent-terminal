@@ -811,7 +811,7 @@ export default function App() {
     <div className="app">
       {/* Left sidebar collapsed bar — always rendered, hidden when expanded */}
       <div className="left-sidebar-collapsed" style={{ display: panelSettings.sidebar.collapsed ? undefined : 'none' }}>
-        <button className="left-sidebar-collapsed-btn" onClick={handleSidebarCollapse} title={t('sidebar.expandSidebar')}>
+        <button className="left-sidebar-collapsed-btn" onClick={() => { setLeftPanelTab('workspaces'); handleSidebarCollapse(); }} title={t('sidebar.expandSidebar')}>
           {'\u{1F4C2}'}
         </button>
         {leftDockedPanels.map(panel => (
