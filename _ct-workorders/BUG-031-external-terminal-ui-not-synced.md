@@ -3,9 +3,13 @@
 ## 元資料
 - **BUG 編號**：BUG-031
 - **標題**：外部 (`bat-terminal.mjs`) 建立的 PTY 沒有跟著 active workspace，被加到其他 workspace 的 tab 列表，導致使用者看不到（在當前 active workspace）但 Worker 確實有執行
-- **狀態**：⏳ FIXING
+- **狀態**：✅ FIXED
 - **嚴重度**：🟡 Medium（功能可用但 UX 嚴重受損 — 使用者得切 workspace 才能找到 Worker；非 critical fault）
 - **修復工單**：T0137（派發於 2026-04-17 02:48）
+- **修復完成**：2026-04-17 03:02 (UTC+8) commit f325d1d
+- **真實根因**：`workspace-store.ts:326` 用 `cwd.startsWith(folderPath)` first-match，當 parent folder workspace + 子專案 workspace 同時存在且 cwd 屬於子專案時，會 match 到較早建立的 parent
+- **修復方式**：`addExternalTerminal` 加 `workspaceId` 參數，移除 cwd-match，改為 explicit workspaceId → active workspace fallback；CLI 加 `--workspace <id>` 旗標
+- **runtime 驗證**：⏳ 待 rebuild + 重裝 BAT 後做（BUG 屬 main+preload+renderer，無法 hot-reload）
 
 ## 根因修正紀錄
 - 02:23 初版：誤判為「UI 完全沒新增 tab」+「孤兒 PTY」

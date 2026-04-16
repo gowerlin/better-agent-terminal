@@ -34,9 +34,9 @@
 - `_local-rules.md` 更新：BAT auto-session 路由規則 + Bash 白名單
 
 ### 工單統計
-- Done: 136 + CT-T001 | Active: 1 (T0137 派發中) | 總計: 138
+- Done: 137 + CT-T001 | Active: 0 | 總計: 138
 - 最高編號：T0137 / BUG-031 / PLAN-011 / D031
-- FIXING BUG: BUG-031（Medium，由 T0137 修復）
+- FIXED BUG（待 rebuild 驗證）: BUG-031（Medium，T0137 commit f325d1d）
 - Closed BUG（本輪）: BUG-030（High → CLOSED, 02:42）
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
