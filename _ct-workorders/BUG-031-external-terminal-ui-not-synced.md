@@ -3,8 +3,9 @@
 ## 元資料
 - **BUG 編號**：BUG-031
 - **標題**：外部 (`bat-terminal.mjs`) 建立的 PTY 沒有跟著 active workspace，被加到其他 workspace 的 tab 列表，導致使用者看不到（在當前 active workspace）但 Worker 確實有執行
-- **狀態**：🔴 OPEN
+- **狀態**：⏳ FIXING
 - **嚴重度**：🟡 Medium（功能可用但 UX 嚴重受損 — 使用者得切 workspace 才能找到 Worker；非 critical fault）
+- **修復工單**：T0137（派發於 2026-04-17 02:48）
 
 ## 根因修正紀錄
 - 02:23 初版：誤判為「UI 完全沒新增 tab」+「孤兒 PTY」

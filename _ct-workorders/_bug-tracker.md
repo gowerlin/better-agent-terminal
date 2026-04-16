@@ -3,19 +3,19 @@
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
 > 最後更新：2026-04-17 02:14 (UTC+8)
 >
-> 統計:🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 1 | ⛔ Won't Fix: 0 | **Total: 2**
+> 統計:🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 1 | ⛔ Won't Fix: 0 | **Total: 2**
 >
 > 📦 已歸檔：29 張（_archive/bugs/）
 
 ## 🔴 Open / 處理中
 
-| ID | 標題 | 嚴重度 | 建立時間 | 連結 |
-|----|------|--------|---------|------|
-| BUG-031 | 外部 PTY 被分配到錯的 workspace（非 active） | 🟡 Medium | 2026-04-17 02:23 | [BUG-031](BUG-031-external-terminal-ui-not-synced.md) |
+（目前無 Open bug）
 
 ## ⏳ 修復中 (FIXING)
 
-（目前無 FIXING bug）
+| ID | 標題 | 嚴重度 | 建立時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-031 | 外部 PTY 被分配到錯的 workspace（非 active） | 🟡 Medium | 2026-04-17 02:23 | [BUG-031](BUG-031-external-terminal-ui-not-synced.md) |
 
 ## ✅ 已修復
 
