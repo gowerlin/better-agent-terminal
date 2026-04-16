@@ -15,6 +15,20 @@
 import { createConnection } from 'net'
 import { randomBytes } from 'crypto'
 
+// ── MSYS2 path-conversion workaround (BUG-030) ──
+// Git Bash (MSYS2) on Windows auto-converts `/`-prefixed arguments to Windows
+// paths by prepending the Git install directory (e.g. `/ct-exec T0136` becomes
+// `C:/Program Files/Git/ct-exec T0136`). This corrupts slash-commands passed
+// to this script. Detect the pollution pattern and restore the original `/`-
+// prefixed argument. No-op on non-Windows and for arguments that don't match.
+if (process.platform === 'win32') {
+  const MSYS_GIT_PREFIX_RE = /^[A-Za-z]:[\/\\](Program Files[\/\\]Git|msys64|git)[\/\\](.*)$/
+  process.argv = process.argv.map((arg) => {
+    const m = arg.match(MSYS_GIT_PREFIX_RE)
+    return m ? '/' + m[2].replace(/\\/g, '/') : arg
+  })
+}
+
 // ── Environment ──
 
 const PORT = process.env.BAT_REMOTE_PORT

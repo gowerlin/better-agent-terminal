@@ -24,6 +24,18 @@
 import { createConnection } from 'net'
 import { randomBytes } from 'crypto'
 
+// ── MSYS2 path-conversion workaround (BUG-030) ──
+// Git Bash (MSYS2) on Windows auto-converts `/`-prefixed arguments to Windows
+// paths by prepending the Git install directory. Detect and restore. No-op on
+// non-Windows and for arguments that don't match the pollution pattern.
+if (process.platform === 'win32') {
+  const MSYS_GIT_PREFIX_RE = /^[A-Za-z]:[\/\\](Program Files[\/\\]Git|msys64|git)[\/\\](.*)$/
+  process.argv = process.argv.map((arg) => {
+    const m = arg.match(MSYS_GIT_PREFIX_RE)
+    return m ? '/' + m[2].replace(/\\/g, '/') : arg
+  })
+}
+
 // ── Environment ──
 
 const PORT = process.env.BAT_REMOTE_PORT
