@@ -6,7 +6,7 @@
 - **狀態**：FIXED
 - **建立時間**：2026-04-16 00:40 (UTC+8)
 - **開始時間**：2026-04-16 02:41 (UTC+8)
-- **完成時間**：2026-04-16 05:20 (UTC+8)
+- **完成時間**：2026-04-16 11:55 (UTC+8)
 - **關聯 BUG**：BUG-029
 
 ## 工作量預估
@@ -126,14 +126,21 @@ FIXED
 **P1 完成**：監聯 `.git/` 目錄，git 操作後自動觸發刷新
 **P2 未實作**：防禦性 polling（目前 P0+P1 應足夠）
 
-**Parser 容錯修復**（追加）：
+**Parser 容錯修復**（追加 commit `f3e4960`）：
 - `if (result.content)` → `result.content != null`：修正空字串 falsy 導致 readFile 失敗時舊 state 殘留
 - 新增 `FIXED` 到 `WorkOrderStatus`：BUG 修復工單的狀態不再 fallback 成 PENDING
 - 排序 priority map、篩選按鈕列、Toast 通知、看板 lane 全部補上 `FIXED`
 - `loadBugs/loadBacklog/loadDecisions`：readFile 失敗時正確清空 state（非保留舊資料）
 
+**FIXED 獨立 CSS 樣式**（追加 commit `ebb3001`）：
+- `statusColor('FIXED')` 改回傳 `ct-status-fixed`（不再複用 `ct-status-done`）
+- 新增 CSS 規則：`ct-order-card` / `ct-status-badge` / `ct-kanban-card` 的 `.ct-status-fixed`
+- 色碼 `#059669`（比 DONE 的 `#10b981` 略深綠，視覺可區分）
+- 修正 KanbanView 用 `ct-status-${status.toLowerCase()}` 但無對應 CSS → 無樣式的問題
+
 ### 互動紀錄
-無
+- [05:20] Q: 使用者回報「還是一樣」→ A: 檢查 Parser 容錯性 → Action: 修正 `result.content` falsy 問題 + 新增 FIXED 狀態支援
+- [11:50] Q: 使用者回報「沒顯示 FIXED」→ A: 發現 `statusColor` 複用 `ct-status-done` 但 KanbanView 用 `ct-status-fixed` 無 CSS → Action: 新增獨立 CSS 規則
 
 ### Renew 歷程
 無
@@ -145,4 +152,4 @@ FIXED
 不適用
 
 ### 回報時間
-2026-04-16 05:20 (UTC+8)
+2026-04-16 11:55 (UTC+8)
