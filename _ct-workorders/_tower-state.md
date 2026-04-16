@@ -22,12 +22,14 @@
 - **T0131** DONE：CLI helper bat-terminal.mjs（零依賴 WebSocket invoke）
 - **T0132** DONE：研究 Worker→Tower 自動通知 → 推薦方案 A（雙管道）
 - **T0133** DONE：Worker→Tower 自動通知實作（雙管道 + 三層 badge 冒泡）
-- **PLAN-011** 建立：CT 上游 PR 候選（BAT 路由標準化）
+- **T0134** DONE：【統籌】CT 上游整合（COORDINATED → CT-T001 DONE）
+- **CT-T001** DONE：CT v4.0.1 → v4.1.0（BAT 路由 + Worker 通知整合）
+- **PLAN-011** DONE：CT 上游 PR 完成（v4.1.0 發布）
 - `_local-rules.md` 更新：BAT auto-session 路由規則 + Bash 白名單
 
 ### 工單統計
-- Done: 133 | Active: 0 | 總計: 133
-- 最高編號：T0133 / BUG-029 / PLAN-011 / D031
+- Done: 134 + CT-T001 | Active: 0 | 總計: 135
+- 最高編號：T0134 / BUG-029 / PLAN-011 / D031
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 

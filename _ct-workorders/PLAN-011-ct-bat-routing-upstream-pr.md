@@ -3,10 +3,10 @@
 ## 元資料
 - **編號**：PLAN-011
 - **標題**：Control Tower 上游 PR — BAT 內部終端路由標準化
-- **狀態**：IDEA
+- **狀態**：DONE
 - **優先級**：🟡 Medium
 - **建立時間**：2026-04-16 23:10 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-17 01:25 (UTC+8)
 
 ## 描述
 
@@ -35,5 +35,20 @@
 - T0130：外部建立終端 UI 同步
 - T0131：CLI helper script
 
+## 相關工單（跨專案）
+- T0134：COORDINATED 統籌工單（BAT 端）
+- CT-T001：DELEGATE 受派工單（BAT 端存檔）
+- CP-T0091：研究 BAT 整合結構（BMad-Guide 端）
+- CP-T0092：Source 端 4 檔修改（BMad-Guide 端）
+- CP-T0093：v4.1.0 snapshot + CHANGELOG + ZIP（BMad-Guide 端）
+
+## 完成紀錄
+- CT v4.0.1 → **v4.1.0**（minor bump）
+- Source 端（`~/.claude/skills/`）4 檔修改完成
+- Snapshot `BMad-Control-Tower-v4.1.0/` 已建立
+- ZIP `BMad-Control-Tower-v4.1.0.zip`（299 KB）已產生
+- CHANGELOG + 安裝指南已更新
+- 向下相容驗證全通過（非 BAT 環境不受影響）
+
 ## 備註
-待 runtime 驗收通過 + 穩定運行後再評估 PR 時機。
+CT v4.1.0 已發布。BAT 端待 runtime 整合驗證（啟動 Tower 觀察 BAT_SESSION 偵測行為）。
