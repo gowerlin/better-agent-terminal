@@ -3,9 +3,9 @@
 ## 元資料
 - **工單編號**：T0123
 - **任務名稱**：上游同步 Phase 1 — Quick Wins cherry-pick
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **建立時間**：2026-04-16 14:15 (UTC+8)
-- **開始時間**：（sub-session 開始時填入）
+- **開始時間**：2026-04-16 14:47 (UTC+8)
 - **完成時間**：（完成時填入）
 - **關聯 PLAN**：PLAN-010
 
@@ -128,48 +128,60 @@ git cherry-pick 03babf7    # fix: task result modal displays raw JSON by removin
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED / PARTIAL）
+DONE
 
 ### 產出摘要
-（列出產生的檔案、修改的檔案、關鍵變更）
+修改檔案：
+- `electron/claude-agent-manager.ts` — task result modal 2000-char truncation 移除
+- `package.json` — 移除 signAndEditExecutable:false（Windows icon 修復）
+- `src/components/TerminalPanel.tsx` — Win11 文字重疊修復（nested RAF + clearTextureAtlas）
+- `src/stores/workspace-store.ts` — suggested badge CSS（auto-merged）
+- `src/styles/resize.css` — suggested badge 樣式（auto-merged）
+- `src/types/agent-presets.ts` — preset rename（auto-merged）
+
+新增 cherry-pick commits 5 個，其中 3 個為上游原始 commit，2 個為我們的修正 commit。
 
 ### Cherry-pick 結果清單
 
 | Group | Commit | 描述 | 結果 | 備註 |
 |-------|--------|------|------|------|
-| 1 | `60fbc2f` | default effort high | | |
-| 1 | `347175b` | default thinking enabled | | |
-| 2 | `54e675d` | CPU idle reduction | | |
-| 2 | `74f3bbe` | Win11 text overlap | | |
-| 2 | `91ae9ff` | Windows exe icon | | |
-| 2 | `43aba52` | 512x512 icon | | |
-| 3 | `66de764` | PageUp/Down scroll | | |
-| 3 | `c2452b3` | Collapse tool outputs | | |
-| 3 | `5b3138a` | Message type filter | | |
-| 3 | `50558c9` | Keyboard shortcuts | | |
-| 4 | `9c043aa` | file:// in terminal | | |
-| 4 | `1710f2b` | file:// in markdown | | |
-| 4 | `a2356c0` | prevent black screen | | |
-| 4 | `7801cad` | regex fix | | |
-| 4 | `330eabd` | closure bug fix | | |
-| 4 | `20c832e` | skip code blocks | | |
-| 5 | `af5f025` | Claude Code→Agent | | |
-| 5 | `4ae0b85` | rename presets | | |
-| 5 | `14da627` | remove brand refs | | |
-| 6 | `348a4fc` | PDF preview | | |
-| 6 | `03babf7` | task result modal | | |
+| 1 | `60fbc2f` | default effort high | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 1 | `347175b` | default thinking enabled | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 2 | `54e675d` | CPU idle reduction | ⏭️ SKIP | 核心優化已存在；衝突在我們的 i18n/batched 增強功能 |
+| 2 | `74f3bbe` | Win11 text overlap | ✅ 成功 | 手動解衝突：取上游 nested RAF + clearTextureAtlas，保留我們的 agent command 邏輯 |
+| 2 | `91ae9ff` | Windows exe icon | ✅ 成功 | 自動合併 |
+| 2 | `43aba52` | 512x512 icon | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 3 | `66de764` | PageUp/Down scroll | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 3 | `c2452b3` | Collapse tool outputs | ⏭️ SKIP | 已存在；衝突僅在我們額外的設定欄位 |
+| 3 | `5b3138a` | Message type filter | ⏭️ SKIP | 已存在；衝突僅在 voice/restart 功能 |
+| 3 | `50558c9` | Keyboard shortcuts | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 4 | `9c043aa` | file:// in terminal | ⏭️ SKIP | 已存在；衝突在 addon 加載順序 |
+| 4 | `1710f2b` | file:// in markdown | ⏭️ SKIP | 衝突（ClaudeAgentPanel.tsx 大改） |
+| 4 | `a2356c0` | prevent black screen | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 4 | `7801cad` | regex fix | ⏭️ SKIP | 衝突（ClaudeAgentPanel.tsx 大改） |
+| 4 | `330eabd` | closure bug fix | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 4 | `20c832e` | skip code blocks | ⏭️ SKIP | 已存在（cherry-pick empty） |
+| 5 | `af5f025` | Claude Code→Agent | ⏭️ SKIP | 已存在；衝突在 About 對話框文字 |
+| 5 | `4ae0b85` | rename presets | ✅ 成功 | 手動解衝突：保留我們的 dynamic registry，取 suggested badge + resize CSS |
+| 5 | `14da627` | remove brand refs | ⏭️ SKIP | 已存在；衝突在 README 中英文差異 |
+| 6 | `348a4fc` | PDF preview | ⏭️ SKIP | 已存在；衝突僅在 CSS comment |
+| 6 | `03babf7` | task result modal | ✅ 成功 | 自動合併 |
+
+**統計**：21 commits 中 4 個成功 cherry-pick，17 個 skip（絕大多數功能已在我們的 fork 中存在）
 
 ### 互動紀錄
-（記錄執行過程中與使用者的重要互動）
+無
 
 ### Renew 歷程
 無
 
 ### 遭遇問題
-（若有問題或需要指揮塔介入的事項，在此描述）
+1. 我們的 fork 已大幅領先上游，大部分 Phase 1 的 "Quick Wins" 功能已經存在於我們的代碼中
+2. `74f3bbe` Win11 修復需手動解衝突，初次遺漏括號導致 build 失敗，二次修正後通過
+3. `4ae0b85` preset rename 的 ThumbnailBar.tsx 衝突解決後殘留 conflict marker，額外 commit 清理
 
 ### sprint-status.yaml 已更新
-（是 / 否 / 不適用）
+不適用
 
 ### 回報時間
-（填入當前時間）
+2026-04-16 15:13 (UTC+8)
