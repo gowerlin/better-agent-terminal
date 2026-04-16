@@ -455,6 +455,30 @@
   filter: drop-shadow(0 0 3px rgba(229, 192, 123, 0.6));
 }
 
+/* T0133: Worker→Tower notification badge (on terminal thumbnail) */
+.notification-badge {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #ff6b6b;
+  filter: drop-shadow(0 0 3px rgba(255, 107, 107, 0.7));
+  animation: bat-notify-pulse 1.2s ease-in-out infinite;
+}
+
+/* T0133 Renew#1: Workspace-level notification bubble (on sidebar workspace-item) */
+.workspace-notification-badge {
+  font-size: 10px;
+  margin-left: 6px;
+  color: #ff6b6b;
+  filter: drop-shadow(0 0 3px rgba(255, 107, 107, 0.7));
+  animation: bat-notify-pulse 1.2s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes bat-notify-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .thumbnail.split {
   border-color: rgba(229, 192, 123, 0.5);
   box-shadow: 0 0 6px rgba(229, 192, 123, 0.3);

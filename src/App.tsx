@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import { workspaceStore } from './stores/workspace-store'
 import { settingsStore } from './stores/settings-store'
+import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView, clearInitializedWorkspaces } from './components/WorkspaceView'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -118,6 +119,8 @@ export default function App() {
   const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
   const [serverStatusToast, setServerStatusToast] = useState<string | null>(null)
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
+  // T0133: Worker→Tower notification toasts (queue of transient toasts)
+  const [notifyToasts, setNotifyToasts] = useState<{ id: string; text: string }[]>([])
   // Docking system
   const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
   const [leftPanelTab, setLeftPanelTab] = useState<'workspaces' | DockablePanel>('workspaces')
@@ -159,6 +162,14 @@ export default function App() {
       setMountedWorkspaces(prev => new Set(prev).add(state.activeWorkspaceId!))
     }
   }, [state.activeWorkspaceId, mountedWorkspaces])
+
+  // T0133 Renew#1: Clear workspace notification badge when user switches to that workspace.
+  // Terminal-level badges are preserved until the user actually focuses the target terminal.
+  useEffect(() => {
+    if (state.activeWorkspaceId) {
+      clearWorkspaceNotification(state.activeWorkspaceId)
+    }
+  }, [state.activeWorkspaceId])
 
   // Docking system: computed panel lists per zone
   const leftDockedPanels = useMemo(() =>
@@ -440,6 +451,28 @@ export default function App() {
       }
     })
 
+    // T0133: Listen for Worker→Tower auto-notify broadcasts.
+    // Shows a transient toast AND marks the target terminal's thumbnail badge.
+    // If the target terminal is not in the active workspace, also bubble a badge to that workspace.
+    const unsubTerminalNotified = window.electronAPI.pty.onTerminalNotified((info) => {
+      window.electronAPI.debug.log(`[T0133] Notified target=${info.targetId.slice(0, 8)} source=${info.source ?? '?'} msg="${info.message}"`)
+      markNotified(info.targetId)
+      // Layer 2: workspace-level bubble — only if target is not in active workspace
+      const targetTerminal = workspaceStore.getState().terminals.find(tm => tm.id === info.targetId)
+      const targetWorkspaceId = targetTerminal?.workspaceId
+      const activeWsId = workspaceStore.getState().activeWorkspaceId
+      if (targetWorkspaceId && targetWorkspaceId !== activeWsId) {
+        markWorkspaceNotified(targetWorkspaceId)
+      }
+      const toastId = `notify-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      const text = info.source ? `📨 ${info.source}: ${info.message}` : `📨 ${info.message}`
+      setNotifyToasts(prev => [...prev, { id: toastId, text }])
+      // Auto-dismiss after 6s
+      setTimeout(() => {
+        setNotifyToasts(prev => prev.filter(t => t.id !== toastId))
+      }, 6000)
+    })
+
     // Load saved workspaces and settings on startup
     // If launched with --profile, use that profile instead of the stored active one
     const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -599,6 +632,7 @@ export default function App() {
       unsubscribe()
       unsubscribeOutput()
       unsubExternalTerminal()
+      unsubTerminalNotified()
       unsubSystemResume()
       unsubReload()
       unsubFlushSave()
@@ -1151,6 +1185,19 @@ export default function App() {
       {serverStatusToast && (
         <div className="server-status-toast" onClick={() => setServerStatusToast(null)}>
           {serverStatusToast}
+        </div>
+      )}
+      {notifyToasts.length > 0 && (
+        <div className="bat-notify-toast-stack">
+          {notifyToasts.map(toast => (
+            <div
+              key={toast.id}
+              className="bat-notify-toast"
+              onClick={() => setNotifyToasts(prev => prev.filter(t => t.id !== toast.id))}
+            >
+              {toast.text}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ import { ActivityIndicator } from './ActivityIndicator'
 import { settingsStore } from '../stores/settings-store'
 import { getAgentPreset } from '../types/agent-presets'
 import type { AgentDefinition } from '../types/agent-runtime'
+import { hasNotification, subscribeNotification, clearNotification } from '../stores/terminal-notifications'
 
 // Global preview cache - persists across component unmounts
 const MAX_PREVIEW_CACHE = 100
@@ -138,6 +139,8 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   }
   const [preview, setPreview] = useState<string>(previewCache.get(terminal.id) || '')
   const [fontFamily, setFontFamily] = useState<string>(settingsStore.getFontFamilyString())
+  // T0133: Notification badge — subscribes to cross-terminal auto-notify events
+  const [notified, setNotified] = useState<boolean>(hasNotification(terminal.id))
 
   // Check if this is an agent terminal
   const isAgent = terminal.agentPreset && terminal.agentPreset !== 'none'
@@ -167,11 +170,24 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
       setFontFamily(settingsStore.getFontFamilyString())
     })
 
+    // T0133: Subscribe to notification badge changes for this terminal
+    const unsubscribeNotify = subscribeNotification(terminal.id, () => {
+      setNotified(hasNotification(terminal.id))
+    })
+
     return () => {
       unsubscribePreview()
       unsubscribeSettings()
+      unsubscribeNotify()
     }
   }, [terminal.id])
+
+  // T0133: Clear notification badge when user switches to this terminal
+  useEffect(() => {
+    if (isActive && hasNotification(terminal.id)) {
+      clearNotification(terminal.id)
+    }
+  }, [isActive, terminal.id])
 
   const isSupervisor = terminal.role === 'supervisor'
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
@@ -204,6 +220,7 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           {isSplit && <span title="Split" className="split-badge">⫿</span>}
           {isAgent && <span>{agentConfig?.icon}</span>}
           <span>{terminal.title}</span>
+          {notified && <span title="New notification" className="notification-badge">●</span>}
         </div>
         <ActivityIndicator terminalId={terminal.id} size="small" />
       </div>

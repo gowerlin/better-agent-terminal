@@ -392,6 +392,8 @@ export class PtyManager {
         TERM_PROGRAM: 'better-agent-terminal',
         TERM_PROGRAM_VERSION: '1.0',
         BAT_SESSION: '1',
+        // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
+        BAT_TERMINAL_ID: id,
         FORCE_COLOR: '3',
         CLAUDE_CODE_NO_FLICKER: '1',
         CI: '',
@@ -436,6 +438,8 @@ export class PtyManager {
           TERM_PROGRAM_VERSION: '1.0',
           // BAT session identification (for Control Tower auto-session detection)
           BAT_SESSION: '1',
+          // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
+          BAT_TERMINAL_ID: id,
           // Force color output
           FORCE_COLOR: '3',
           // Suppress ED2-induced viewport flicker in Claude Code streaming
@@ -504,6 +508,8 @@ export class PtyManager {
           TERM_PROGRAM_VERSION: '1.0',
           // BAT session identification (for Control Tower auto-session detection)
           BAT_SESSION: '1',
+          // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
+          BAT_TERMINAL_ID: id,
           FORCE_COLOR: '3',
           CI: '',
           // T0129: RemoteServer connection info for CLI tools

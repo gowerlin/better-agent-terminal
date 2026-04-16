@@ -7,6 +7,7 @@ import { WORKSPACE_COLORS } from '../types'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { ActivityIndicator } from './ActivityIndicator'
+import { hasWorkspaceNotification, subscribeWorkspaceNotification } from '../stores/terminal-notifications'
 
 interface SidebarProps {
   width: number
@@ -422,7 +423,10 @@ export function Sidebar({
                   />
                 ) : (
                   <>
-                    <span className="workspace-alias">{workspace.alias || workspace.name}</span>
+                    <span className="workspace-alias">
+                      {workspace.alias || workspace.name}
+                      <WorkspaceNotifyBadge workspaceId={workspace.id} />
+                    </span>
                     {groupEditTarget === workspace.id ? (
                       <input
                         ref={groupInputRef}
@@ -743,4 +747,18 @@ export function Sidebar({
       )}
     </aside>
   )
+}
+
+// T0133 Renew#1: Badge shown on workspace-item when a terminal in that workspace
+// received a Worker→Tower notification and the workspace is not currently active.
+function WorkspaceNotifyBadge({ workspaceId }: { workspaceId: string }) {
+  const [notified, setNotified] = useState<boolean>(hasWorkspaceNotification(workspaceId))
+  useEffect(() => {
+    const unsub = subscribeWorkspaceNotification(workspaceId, () => {
+      setNotified(hasWorkspaceNotification(workspaceId))
+    })
+    return unsub
+  }, [workspaceId])
+  if (!notified) return null
+  return <span className="workspace-notification-badge" title="New notification">●</span>
 }

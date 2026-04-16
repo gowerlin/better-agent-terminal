@@ -46,6 +46,8 @@ export const PROXIED_CHANNELS = new Set([
   'snippet:getCategories', 'snippet:getFavorites', 'snippet:getByWorkspace',
   // Profile
   'profile:list', 'profile:load', 'profile:load-snapshot', 'profile:get-active-ids', 'profile:activate', 'profile:deactivate',
+  // Terminal (T0133: Worker→Tower auto-notify)
+  'terminal:notify',
 ])
 
 // Events pushed from host to remote clients
@@ -58,4 +60,6 @@ export const PROXIED_EVENTS = new Set([
   'fs:changed',
   'workspace:detached', 'workspace:reattached',
   'system:resume',
+  // T0133: Worker→Tower auto-notify event
+  'terminal:notified',
 ])

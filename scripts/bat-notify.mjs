@@ -1,16 +1,25 @@
 #!/usr/bin/env node
-// scripts/bat-terminal.mjs
-// BAT internal terminal creation via WebSocket RemoteServer
-// Zero external dependencies — Node.js 18+ built-in modules only
+// scripts/bat-notify.mjs
+// Notify another BAT terminal (e.g. Worker → Tower) with a message.
+// Zero external dependencies — Node.js 18+ built-in modules only.
+//
+// Dual-channel notification:
+//   1. invoke `terminal:notify` → UI Toast + Tab badge in renderer
+//   2. invoke `pty:write`       → Pre-fill text into target PTY stdin (without \r)
 //
 // Usage:
-//   node scripts/bat-terminal.mjs claude "/ct-exec T0131"
-//   node scripts/bat-terminal.mjs echo hello
-//   node scripts/bat-terminal.mjs                          # empty shell
-//   node scripts/bat-terminal.mjs --cwd /tmp echo hello
-//   node scripts/bat-terminal.mjs --notify-id <tower-id> claude "/ct-exec T0133"
-//     └─ Injects BAT_TOWER_TERMINAL_ID=<tower-id> into the new PTY's env,
-//        allowing Worker to notify Tower on completion via bat-notify.mjs.
+//   BAT_REMOTE_PORT=... BAT_REMOTE_TOKEN=... \
+//   BAT_TOWER_TERMINAL_ID=<tower-id> \
+//   node scripts/bat-notify.mjs "T0133 完成"
+//
+//   # Or explicitly:
+//   node scripts/bat-notify.mjs --target <tower-id> "T0133 完成"
+//
+//   # Skip PTY write (UI-only):
+//   node scripts/bat-notify.mjs --no-pty-write "T0133 完成"
+//
+//   # With custom source label:
+//   node scripts/bat-notify.mjs --source "T0133" "T0133 完成"
 
 import { createConnection } from 'net'
 import { randomBytes } from 'crypto'
@@ -19,6 +28,7 @@ import { randomBytes } from 'crypto'
 
 const PORT = process.env.BAT_REMOTE_PORT
 const TOKEN = process.env.BAT_REMOTE_TOKEN
+const SELF_ID = process.env.BAT_TERMINAL_ID || null
 
 if (!PORT) {
   console.error('Error: Not running inside BAT terminal (BAT_REMOTE_PORT not set)')
@@ -32,43 +42,52 @@ if (!TOKEN) {
 // ── Argument parsing ──
 
 const rawArgs = process.argv.slice(2)
-let cwd = process.cwd()
-let notifyId = null
+let target = process.env.BAT_TOWER_TERMINAL_ID || null
+let source = SELF_ID
+let ptyWrite = true
 
-// Extract --cwd option
-const cwdIdx = rawArgs.indexOf('--cwd')
-if (cwdIdx !== -1) {
-  if (!rawArgs[cwdIdx + 1]) {
-    console.error('Error: --cwd requires a path argument')
+// Extract --target option
+const targetIdx = rawArgs.indexOf('--target')
+if (targetIdx !== -1) {
+  if (!rawArgs[targetIdx + 1]) {
+    console.error('Error: --target requires a terminal ID argument')
     process.exit(1)
   }
-  cwd = rawArgs[cwdIdx + 1]
-  rawArgs.splice(cwdIdx, 2)
+  target = rawArgs[targetIdx + 1]
+  rawArgs.splice(targetIdx, 2)
 }
 
-// Extract --notify-id option (T0133: Worker→Tower auto-notify)
-const notifyIdx = rawArgs.indexOf('--notify-id')
-if (notifyIdx !== -1) {
-  if (!rawArgs[notifyIdx + 1]) {
-    console.error('Error: --notify-id requires a terminal ID argument')
+// Extract --source option
+const srcIdx = rawArgs.indexOf('--source')
+if (srcIdx !== -1) {
+  if (!rawArgs[srcIdx + 1]) {
+    console.error('Error: --source requires a label argument')
     process.exit(1)
   }
-  notifyId = rawArgs[notifyIdx + 1]
-  rawArgs.splice(notifyIdx, 2)
+  source = rawArgs[srcIdx + 1]
+  rawArgs.splice(srcIdx, 2)
 }
 
-// Shell-quote arguments containing special characters so the command
-// survives re-parsing by the shell inside the new PTY.
-function shellQuote(s) {
-  if (/^[a-zA-Z0-9._\-\/=:@]+$/.test(s)) return s
-  return "'" + s.replace(/'/g, "'\\''") + "'"
+// Extract --no-pty-write flag
+const noWriteIdx = rawArgs.indexOf('--no-pty-write')
+if (noWriteIdx !== -1) {
+  ptyWrite = false
+  rawArgs.splice(noWriteIdx, 1)
 }
 
-const command = rawArgs.length > 0 ? rawArgs.map(shellQuote).join(' ') : undefined
-const terminalId = randomBytes(16).toString('hex')
+if (!target) {
+  console.error('Error: No target terminal ID (set BAT_TOWER_TERMINAL_ID or use --target)')
+  process.exit(1)
+}
 
-// ── Minimal WebSocket client (raw net + HTTP upgrade) ──
-// Implements just enough of RFC 6455 for our auth→invoke→close flow.
+const message = rawArgs.join(' ').trim()
+if (!message) {
+  console.error('Error: Message is required')
+  console.error('Usage: bat-notify.mjs [--target <id>] [--source <label>] [--no-pty-write] <message>')
+  process.exit(1)
+}
+
+// ── Minimal WebSocket client (duplicated from bat-terminal.mjs — zero deps principle) ──
 
 class MinimalWS {
   #socket = null
@@ -131,7 +150,7 @@ class MinimalWS {
 
     if (payload.length < 126) {
       header = Buffer.alloc(6)
-      header[0] = 0x81 // FIN + text opcode
+      header[0] = 0x81
       header[1] = 0x80 | payload.length
       mask.copy(header, 2)
     } else if (payload.length < 65536) {
@@ -148,7 +167,6 @@ class MinimalWS {
       mask.copy(header, 10)
     }
 
-    // Mask payload (client→server frames MUST be masked per RFC 6455)
     const masked = Buffer.alloc(payload.length)
     for (let i = 0; i < payload.length; i++) {
       masked[i] = payload[i] ^ mask[i & 3]
@@ -161,7 +179,6 @@ class MinimalWS {
 
   close() {
     if (!this.#socket) return
-    // Send close frame (opcode 0x08, masked, zero payload)
     const frame = Buffer.alloc(6)
     frame[0] = 0x88
     frame[1] = 0x80
@@ -170,7 +187,6 @@ class MinimalWS {
     this.#socket.end()
   }
 
-  // Parse zero or more complete WebSocket frames from #buffer
   #drain() {
     while (this.#buffer.length >= 2) {
       const opcode = this.#buffer[0] & 0x0f
@@ -188,7 +204,7 @@ class MinimalWS {
         off = 10
       }
 
-      if (isMasked) off += 4 // server shouldn't mask, but be safe
+      if (isMasked) off += 4
       if (this.#buffer.length < off + len) return
 
       const payload = this.#buffer.subarray(off, off + len)
@@ -200,20 +216,22 @@ class MinimalWS {
         this.close()
         return
       }
-      // Ignore ping/pong/continuation for this simple use-case
     }
   }
 }
 
 // ── Helpers ──
 
-function waitForMessage(ws, timeoutMs = 3000) {
+function waitForMessageById(ws, expectedId, timeoutMs = 3000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Response timeout')), timeoutMs)
     ws.onMessage((raw) => {
+      let frame
+      try { frame = JSON.parse(raw) }
+      catch { return } // Ignore non-JSON frames
+      if (frame.id !== expectedId) return // Ignore unrelated frames
       clearTimeout(timer)
-      try { resolve(JSON.parse(raw)) }
-      catch { reject(new Error('Invalid JSON response')) }
+      resolve(frame)
     })
   })
 }
@@ -235,41 +253,53 @@ async function main() {
   }
 
   // Auth
+  const authId = makeId()
   ws.send(JSON.stringify({
     type: 'auth',
-    id: makeId(),
+    id: authId,
     token: TOKEN,
-    args: ['bat-terminal-cli'],
+    args: ['bat-notify-cli'],
   }))
 
-  const authResp = await waitForMessage(ws)
+  const authResp = await waitForMessageById(ws, authId)
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
     ws.close()
     process.exit(1)
   }
 
-  // Invoke terminal:create-with-command
-  const invokePayload = { id: terminalId, cwd }
-  if (command) invokePayload.command = command
-  // T0133: Inject BAT_TOWER_TERMINAL_ID so Worker knows who to notify on completion
-  if (notifyId) invokePayload.customEnv = { BAT_TOWER_TERMINAL_ID: notifyId }
-
+  // Step 1: UI notification (toast + tab badge)
+  const notifyId = makeId()
   ws.send(JSON.stringify({
     type: 'invoke',
-    id: makeId(),
-    channel: 'terminal:create-with-command',
-    args: [invokePayload],
+    id: notifyId,
+    channel: 'terminal:notify',
+    args: [{ targetId: target, message, source }],
   }))
 
-  const invokeResp = await waitForMessage(ws)
-  if (invokeResp.error) {
-    console.error(`Error: Failed to create terminal: ${invokeResp.error}`)
-    ws.close()
-    process.exit(1)
+  const notifyResp = await waitForMessageById(ws, notifyId)
+  if (notifyResp.error) {
+    console.error(`Warning: UI notify failed: ${notifyResp.error}`)
+    // Continue to PTY write — not fatal
   }
 
-  console.log(`✓ Terminal created${command ? `: ${command}` : ' (empty shell)'}`)
+  // Step 2: PTY write (pre-fill text in target terminal, no \r)
+  if (ptyWrite) {
+    const writeId = makeId()
+    ws.send(JSON.stringify({
+      type: 'invoke',
+      id: writeId,
+      channel: 'pty:write',
+      args: [target, message],
+    }))
+
+    const writeResp = await waitForMessageById(ws, writeId)
+    if (writeResp.error) {
+      console.error(`Warning: PTY write failed: ${writeResp.error}`)
+    }
+  }
+
+  console.log(`✓ Notified ${target.slice(0, 8)}…: ${message}`)
   ws.close()
   process.exit(0)
 }

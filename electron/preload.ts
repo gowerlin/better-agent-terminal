@@ -38,6 +38,12 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string }) => callback(info)
       ipcRenderer.on('terminal:created-externally', handler)
       return () => ipcRenderer.removeListener('terminal:created-externally', handler)
+    },
+    // T0133: Worker→Tower auto-notify — listen for broadcast notifications from bat-notify.mjs
+    onTerminalNotified: (callback: (info: { targetId: string; message: string; source?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; message: string; source?: string }) => callback(info)
+      ipcRenderer.on('terminal:notified', handler)
+      return () => ipcRenderer.removeListener('terminal:notified', handler)
     }
   },
   workspace: {

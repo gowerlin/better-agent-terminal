@@ -1353,6 +1353,22 @@ function registerProxiedHandlers() {
     return created
   })
 
+  // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.
+  // Invoked by bat-notify.mjs over WebSocket; renderer(s) show UI cues for targetId.
+  registerHandler('terminal:notify', (_ctx, opts: { targetId: string; message: string; source?: string }) => {
+    if (!opts || !opts.targetId || !opts.message) return false
+    for (const win of BrowserWindow.getAllWindows()) {
+      try {
+        win.webContents.send('terminal:notified', {
+          targetId: opts.targetId,
+          message: opts.message,
+          source: opts.source,
+        })
+      } catch { /* window closing */ }
+    }
+    return true
+  })
+
   // Workspace persistence — save/load from window registry entry
   registerHandler('workspace:save', async (ctx, data: string) => {
     if (!ctx.windowId) return false
