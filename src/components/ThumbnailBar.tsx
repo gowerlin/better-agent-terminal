@@ -266,7 +266,6 @@ export function ThumbnailBar({
                       </div>
                     )}
                   </div>
-<<<<<<< HEAD
                   {/* Dynamic agent definitions from registry */}
                   {onAddAgent && agentDefinitions.length > 0 ? (
                     agentDefinitions.map(def => (
