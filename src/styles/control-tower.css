@@ -133,6 +133,7 @@
 .ct-order-card.ct-status-pending { border-left-color: #f59e0b; }
 .ct-order-card.ct-status-in-progress { border-left-color: #3b82f6; }
 .ct-order-card.ct-status-done { border-left-color: #10b981; }
+.ct-order-card.ct-status-fixed { border-left-color: #059669; }
 .ct-order-card.ct-status-failed { border-left-color: #ef4444; }
 .ct-order-card.ct-status-blocked { border-left-color: #6b7280; }
 .ct-order-card.ct-status-partial { border-left-color: #f97316; }
@@ -174,6 +175,7 @@
 .ct-status-badge.ct-status-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .ct-status-badge.ct-status-in-progress { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .ct-status-badge.ct-status-done { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.ct-status-badge.ct-status-fixed { background: rgba(5, 150, 105, 0.18); color: #059669; }
 .ct-status-badge.ct-status-failed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 .ct-status-badge.ct-status-blocked { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
 .ct-status-badge.ct-status-partial { background: rgba(249, 115, 22, 0.15); color: #f97316; }
@@ -389,6 +391,7 @@
 .ct-kanban-card.ct-status-pending { border-left-color: #f59e0b; }
 .ct-kanban-card.ct-status-in-progress { border-left-color: #3b82f6; }
 .ct-kanban-card.ct-status-done { border-left-color: #10b981; }
+.ct-kanban-card.ct-status-fixed { border-left-color: #059669; }
 .ct-kanban-card.ct-status-failed,
 .ct-kanban-card.ct-status-blocked { border-left-color: #6b7280; }
 .ct-kanban-card.ct-status-urgent { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }

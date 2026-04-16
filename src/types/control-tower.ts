@@ -116,7 +116,7 @@ export function statusColor(status: WorkOrderStatus): string {
     case 'PENDING': return 'ct-status-pending'
     case 'IN_PROGRESS': return 'ct-status-in-progress'
     case 'DONE': return 'ct-status-done'
-    case 'FIXED': return 'ct-status-done'
+    case 'FIXED': return 'ct-status-fixed'
     case 'FAILED': return 'ct-status-failed'
     case 'BLOCKED': return 'ct-status-blocked'
     case 'PARTIAL': return 'ct-status-partial'
