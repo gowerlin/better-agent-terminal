@@ -5,24 +5,25 @@
 ---
 
 ## 🌅 起手式（Quick Recovery）
-> 最後更新：2026-04-16 12:55 UTC+8
+> 最後更新：2026-04-16 17:40 UTC+8
 
 ### 立即待辦
-1. Backlog 7 張 PLAN 待排優先級（PLAN-001~005, 007, 009 已 DONE）
+1. Backlog 6 張 PLAN 待排優先級（PLAN-001~005, 007）
 2. 無進行中工單，無 Open BUG
+3. T0125 Cache History UI + /abort 待 runtime 測試驗收
 
 ### 近期完成摘要（本 session）
-- **v4 遷移**：_playbooks/ 建立 + config 9 項補齊 + 環境快照區段
-- **大規模歸檔**：78 張（71+7）→ 熱區清零（僅剩 PLAN backlog）
-- **BUG-027** CLOSED：狀態同步修正
-- **BUG-028** CLOSED：決策 Parser v3+v4 雙格式容錯（T0119）
-- **BUG-029** CLOSED：CT 面板 resetWatch + .git 監聽（T0120）
-- **PLAN-009** DONE：Sprint 儀表板原始範圍完成 + 跨專案驗證
-- **T0121** DONE：workspace switch 全頁籤合規（多實例架構，無需修復）
+- **PLAN-010** DONE：上游同步 v2.1.3→v2.1.42 結案
+  - T0122：188 commits 研究分析
+  - T0123：Phase 1 cherry-pick（4/21，大多數已存在）
+  - T0124：Phase 2-3 差異盤點（僅 Cache History 缺少）
+  - T0125：Cache History UI + /abort command 移植完成
+- version.json 更新至 v2.1.42-pre.2
+- upstream remote 修正：scandnavik → tony1223
 
 ### 工單統計
-- Done: 121 | Active: 0 | 總計: 121
-- 最高編號：T0121 / BUG-029 / PLAN-009 / D031
+- Done: 125 | Active: 0 | 總計: 125
+- 最高編號：T0125 / BUG-029 / PLAN-010 / D031
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 
@@ -56,6 +57,7 @@
 | **工單最大編號** | T0125 |
 | **BUG 最大編號** | BUG-029 |
 | **PLAN 最大編號** | PLAN-010 |
+| **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
 | **決策最大編號** | D031 |
 | **塔台版本** | Control Tower v4.0 |
 
