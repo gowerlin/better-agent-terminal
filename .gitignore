@@ -24,6 +24,7 @@ _bmad-output/
 # Tower directory: default-public engineering log + explicit private exclusions
 _ct-workorders/reports/*
 !_ct-workorders/reports/.README.md
+!_ct-workorders/reports/_report-upstream-*.md
 _ct-workorders/.private/
 _ct-workorders/*.draft.md
 _poc/
