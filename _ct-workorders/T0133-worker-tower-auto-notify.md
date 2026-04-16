@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0133
 - **任務名稱**：Worker→Tower 自動通知（雙管道：PTY write + Toast/Badge）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-16 23:35 (UTC+8)
 - **開始時間**：2026-04-16 23:36 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-16 23:52 (UTC+8)
 - **前置研究**：T0132（研究結論：方案 A 推薦）
 
 ## 工作量預估
@@ -280,6 +280,9 @@ Renew#1 追加驗收：
 - [x] 通知目標在非當前 workspace 時，workspace 頁籤顯示 badge（`WorkspaceNotifyBadge` 在 Sidebar workspace-alias 旁）
 - [x] 切換到該 workspace 後，workspace badge 清除，終端 badge 仍在（`activeWorkspaceId` useEffect 只清 workspace，不清 terminal）
 - [x] 切換到目標終端後，終端 badge 清除（TerminalThumbnail `isActive` useEffect）
+
+### Commit
+`0150f5b` feat(notify): Worker→Tower auto-notify (T0133)
 
 ### 回報時間
 2026-04-16 23:52 (UTC+8)
