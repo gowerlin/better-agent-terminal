@@ -1,23 +1,49 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-14 00:24 (UTC+8)（T0118 DONE：T0117 regression 修復，BUG-027 全部解決）
+> 最後更新：2026-04-17 03:05 (UTC+8)（T0135-T0137 + BUG-030/031 + 跨 BAT/CT 整合驗收）
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
-> 最後更新：2026-04-16 17:40 UTC+8
+> 最後更新：2026-04-17 03:05 UTC+8（session 結束 — 使用者準備重開 BAT + Tower）
 
-### 立即待辦
-1. **BUG-031 待修**（🟡 Medium）— 外部 PTY 被分配到錯的 workspace（非 active）。建議開 Worker 修復工單調查 `addExternalTerminal` 的 workspace 分配邏輯
-2. **T0135 9 項 MANUAL 待驗**（使用者手動）：1.3/1.4 Cache History/abort UI、2.3 CT 按鈕 PTY write、3.3 Settings UI、5.3 外部 PTY UI 同步、7.5/7.6 Toast/Badge、8.5 端到端
-3. **T0135 1 項 PARTIAL**（6.2 `--help` 沒實作）— 可開小 PLAN 收尾
-4. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
+### 🔴 重開 BAT 後第一件事
+**rebuild + 重裝 BAT**（讓 T0136 + T0137 兩條 fix 生效）：
+```bash
+cd D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal
+npm run build       # 或專案 build 指令
+# → 安裝新版覆蓋當前 BAT → 重啟 BAT
+```
+重啟 BAT 後 RemoteServer 也會重啟，所有現有 PTY（含 BMad-Guide 的孤兒 Worker）會自動清乾淨。
 
-### 本 session 新增工單
-- T0135 BAT v2.x + CT v4.1.0 全鏈路驗收 ✅ DONE（c98a04c, 8ec97ad）
-- T0136 BUG-030 修復 ✅ FIXED (f77d2d0)
-- BUG-030 MSYS 路徑轉換 🚫 CLOSED
-- BUG-031 PTY 分配到錯 workspace 🔴 OPEN
+### 立即待辦（按順序）
+1. **rebuild 完成後 → 開 T0138 runtime acceptance**，內容：
+   - **BUG-031 修復驗證**：派 `bat-terminal.mjs claude "/ct-status"` → 確認 PTY 落在 active workspace（不是 cwd-match 較早建立的那個）
+   - **BUG-031 副作用檢查**：`bat-notify.mjs` 通知鏈路是否 workspace 一致（Toast 顯示位置 + PTY 預填仍正確）
+   - **T0135 9 項 MANUAL 一併跑**（1.3/1.4 Cache History+abort、2.3 CT 按鈕 PTY write、3.3 Settings UI、5.3 外部 PTY UI 同步、7.5/7.6 Toast/Badge、8.5 端到端）
+   - 全部通過後 BUG-031 → CLOSED
+2. **T0135 PARTIAL（6.2 `--help` 未實作）** — 可開小工單或掛 Backlog
+3. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
+
+### 本 session 新增工單（2026-04-17 02:00-03:05）
+| ID | 標題 | 狀態 | Commit |
+|----|------|------|--------|
+| T0135 | BAT v2.x + CT v4.1.0 全鏈路驗收（統籌） | ✅ DONE | c98a04c, 8ec97ad |
+| T0136 | BUG-030 修復 — MSYS 路徑轉換 | ✅ FIXED | f77d2d0 |
+| T0137 | BUG-031 修復 — PTY workspace 分配 | ✅ FIXED | f325d1d |
+| BUG-030 | bat-terminal.mjs Git Bash MSYS 路徑污染 | 🚫 CLOSED | c23bae2 |
+| BUG-031 | 外部 PTY 被分配到錯 workspace（cwd first-match） | ✅ FIXED（待驗） | 7fdd76a |
+
+### 本 session 關鍵發現
+1. **BUG-030**：Git Bash MSYS2 把 `/ct-exec` 誤轉成 `C:/Program Files/Git/ct-exec`，T0136 加 regex 還原
+2. **BUG-031 真根因**：不是「default workspace」，是 `cwd.startsWith(folderPath)` first-match，當 parent + 子專案 workspace 都打開時 match 到較早建立的
+3. **PARTIAL**：`bat-terminal.mjs --help` 未實作（會被當命令執行）
+4. **Worker→Tower 通知鏈路** 不受 BUG-031 影響（PTY 預填用 targetId 全域唯一；Toast 廣播到所有 BrowserWindows）— 仍需 T0138 runtime 確認
+
+### 快速連結
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open: 0 / Fixed: 1 / Closed: 1）
+- Backlog → [_backlog.md](_backlog.md)
+- 工單列表 → 熱區 14 + EXP/CP 雜項 — 全部 ✅ DONE 或 ✅ FIXED
 
 ### 近期完成摘要（本 session）
 - **T0126** DONE：修復 CT 面板工單按鈕命令格式（`/ct-exec` → `claude "/ct-exec"`）

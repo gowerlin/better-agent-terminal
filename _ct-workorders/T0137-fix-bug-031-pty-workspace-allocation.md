@@ -3,10 +3,12 @@
 ## 元資料
 - **工單編號**：T0137
 - **任務名稱**：BUG-031 修復 — 外部 PTY workspace 分配（active 預設 + `--workspace` 旗標）
-- **狀態**：🔄 IN_PROGRESS
+- **狀態**：✅ FIXED
 - **類型**：修復（bug fix）+ 小幅功能擴充（CLI 旗標）
 - **建立時間**：2026-04-17 02:48 (UTC+8)
 - **開始時間**：2026-04-17 02:57 (UTC+8)
+- **完成時間**：2026-04-17 03:02 (UTC+8)
+- **Commit**：f325d1d
 - **關聯 BUG**：BUG-031（OPEN → 工單啟動時 FIXING）
 - **修復策略**：Q1.B 強化方案 — 預設改為 active workspace + 新增 `--workspace <id>` 旗標供進階場景
 
