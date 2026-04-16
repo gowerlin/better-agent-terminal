@@ -443,10 +443,12 @@ export default function App() {
 
     // T0130: Listen for terminals created externally (via RemoteServer WebSocket).
     // Adds the terminal to workspace state so xterm binds automatically via TerminalPanel.
+    // T0137/BUG-031: `info.workspaceId` (optional, from `bat-terminal.mjs --workspace <id>`)
+    // selects the target workspace; otherwise falls back to active workspace.
     const unsubExternalTerminal = window.electronAPI.pty.onCreatedExternally((info) => {
       const added = workspaceStore.addExternalTerminal(info)
       if (added) {
-        window.electronAPI.debug.log(`[T0130] External terminal added: id=${info.id} cwd=${info.cwd}`)
+        window.electronAPI.debug.log(`[T0130] External terminal added: id=${info.id} cwd=${info.cwd} workspaceId=${info.workspaceId ?? '(active)'}`)
         workspaceStore.save()
       }
     })

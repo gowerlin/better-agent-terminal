@@ -3,9 +3,10 @@
 ## 元資料
 - **工單編號**：T0137
 - **任務名稱**：BUG-031 修復 — 外部 PTY workspace 分配（active 預設 + `--workspace` 旗標）
-- **狀態**：📋 TODO
+- **狀態**：🔄 IN_PROGRESS
 - **類型**：修復（bug fix）+ 小幅功能擴充（CLI 旗標）
 - **建立時間**：2026-04-17 02:48 (UTC+8)
+- **開始時間**：2026-04-17 02:57 (UTC+8)
 - **關聯 BUG**：BUG-031（OPEN → 工單啟動時 FIXING）
 - **修復策略**：Q1.B 強化方案 — 預設改為 active workspace + 新增 `--workspace <id>` 旗標供進階場景
 
@@ -155,6 +156,79 @@ Closes BUG-031 pending runtime verification after BAT rebuild + reinstall."
 
 ## 工單回報區（Worker 填寫）
 
-> Worker 完成後在此填寫修復細節 + 根因定位 + 測試結果
+### 根因定位
 
-(待 Worker 填寫)
+`src/stores/workspace-store.ts:326-335`（修改前）：
+
+```typescript
+addExternalTerminal(info: { id: string; cwd: string; command?: string }): TerminalInstance | null {
+  if (this.state.terminals.some(t => t.id === info.id)) return null
+  // Find workspace by matching cwd, fallback to active workspace
+  let workspace = this.state.workspaces.find(w => info.cwd.startsWith(w.folderPath))
+  if (!workspace) {
+    workspace = this.state.workspaces.find(w => w.id === this.state.activeWorkspaceId)
+  }
+  if (!workspace) return null
+```
+
+**BUG-031 root cause**：`cwd.startsWith(folderPath)` 以 **第一個 prefix match** 為準，不是 longest match。當使用者同時打開 parent folder workspace（如 `D:/ForgejoGit/BMad-Guide`）和子專案 workspace（如 `D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal`）時，Tower 派發 Worker 的 cwd 會同時 match 兩者，`find()` 回傳工作區陣列中較早出現的那個（通常是 parent），導致 PTY 跑錯 workspace。即使 active workspace 是子專案，cwd-match 優先於 active-fallback，所以 BUG-031 表現為「PTY 總是跑到 default / 較早建立的 workspace」。
+
+### 修改位置
+
+| 檔案 | 行號 | 變更 |
+|------|------|------|
+| `src/stores/workspace-store.ts` | 324-340 | `addExternalTerminal(info)` 加 `workspaceId?: string` 參數；新分配邏輯：**explicit workspaceId → active workspace**，移除 cwd-match |
+| `electron/main.ts` | 1323-1354 | `terminal:create-with-command` handler 接受 `workspaceId?: string`；廣播 `terminal:created-externally` payload 帶上 workspaceId |
+| `electron/preload.ts` | 24-25, 37-41 | `createWithCommand` / `onCreatedExternally` 型別簽章加 `workspaceId?` |
+| `src/types/electron.d.ts` | 21-25 | `ElectronAPI.pty.createWithCommand` 型別加 workspaceId；補上原本缺的 `onCreatedExternally` / `onTerminalNotified` 宣告 |
+| `src/App.tsx` | 444-452 | `onCreatedExternally` handler 把 `info`（含 workspaceId）直接轉給 `addExternalTerminal`；debug log 包含 workspaceId |
+| `scripts/bat-terminal.mjs` | 14-16, 49-51, 83-91, 277-278 | 新增 `--workspace <id>` 旗標；解析後寫入 invoke payload 的 workspaceId 欄位 |
+
+### 新行為規格
+
+- **Goal 1（預設）**：`bat-terminal.mjs` 建立的 PTY 永遠落在 **currently active workspace**，與 cwd 無關。
+- **Goal 2（顯式）**：`bat-terminal.mjs --workspace <id>` → PTY 落在指定 workspace；若 id 在 UI 中不存在則 fallback 回 active workspace（避免 payload 壞導致 PTY 完全消失）。
+- 向後相容：所有現有 caller（未帶 workspaceId）行為等同 Goal 1，比原本 cwd-match 更可預期。
+
+### 驗證
+
+- ✅ `npx vite build`（T0137 關聯區段的 type-check 無新增錯誤；既有 legacy type-errors 與本修復無關，詳下方）
+- ⚠️ **Runtime 驗證無法在本 session 做**：修改涉及 main process + preload + renderer，必須 rebuild + 重裝 BAT 才生效。當前 BAT 仍是舊版（BUG-031 還在），測試只能證明「程式碼會編譯」，不能證明「行為已修正」。
+
+#### Legacy type-errors 說明
+`npx tsc --noEmit` 顯示 ~60 個既有錯誤（例如 `ElectronAPI.profile` / `ElectronAPI.snippet` 未宣告、`SessionMeta` 欄位缺失等），**全部與 T0137 scope 無關**，為 `src/types/electron.d.ts` 長期失同步造成。僅針對本工單修改的 `electron.d.ts:21` 周邊無錯誤。Vite build 通過（esbuild 不做 strict 型別檢查）。
+
+### 遭遇問題
+
+無。實作路徑與工單設計完全吻合，pipeline 每一環（CLI → protocol → main → preload → d.ts → renderer → store）都只加一個 optional 欄位即可。
+
+### 互動紀錄
+
+無（整個 session 按工單直接執行，沒有需要向使用者確認的決策）。
+
+### Renew 歷程
+
+無。
+
+### 回報時間
+
+2026-04-17 03:02 (UTC+8)
+
+### 給塔台的交接訊息
+
+⚠️ **此修復屬 main process + renderer IPC 邏輯，當前執行中的 BAT 不會 hot-reload**。建議流程：
+
+1. 提醒使用者：
+   ```bash
+   cd D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal
+   npm run build          # vite + electron-builder
+   # 或直接：npm run build:dir 做 unpacked 版本快速驗證
+   ```
+2. 安裝新版（覆蓋當前 BAT 安裝）
+3. 重啟 BAT（會清掉所有 PTY，包含先前 BUG-031 留下的「跑到 BMad-Guide 孤兒 Worker」）
+4. 開新工單做 runtime acceptance：
+   - **Test 1（Goal 1）**：active workspace = better-agent-terminal → Tower 派工 → 新 Worker PTY **應該出現在 better-agent-terminal 的 tab 列，不是 BMad-Guide**
+   - **Test 2（Goal 2）**：`node scripts/bat-terminal.mjs --workspace <bmad-guide-ws-id> claude "/ct-status"` → PTY 應落在指定 workspace（即使 active 是其他）
+   - **Test 3（fallback）**：`--workspace <不存在的 id>` → 應 fallback 到 active workspace（不應消失）
+
+BUG-031 狀態：⏳ FIXING → ✅ FIXED（等 runtime 驗收後由使用者決定 → CLOSED）。

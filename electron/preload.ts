@@ -21,7 +21,7 @@ const electronAPI = {
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
     restart: (id: string, cwd: string, shell?: string) => ipcRenderer.invoke('pty:restart', id, cwd, shell),
     getCwd: (id: string) => ipcRenderer.invoke('pty:get-cwd', id),
-    createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string> }) =>
+    createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) =>
       ipcRenderer.invoke('terminal:create-with-command', opts),
     onOutput: (callback: (id: string, data: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, id: string, data: string) => callback(id, data)
@@ -34,8 +34,9 @@ const electronAPI = {
       return () => ipcRenderer.removeListener('pty:exit', handler)
     },
     // T0130: Listen for terminals created externally (e.g. via RemoteServer WebSocket)
-    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string }) => callback(info)
+    // T0137: `workspaceId` propagates from `bat-terminal.mjs --workspace <id>` for explicit allocation
+    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; workspaceId?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string; workspaceId?: string }) => callback(info)
       ipcRenderer.on('terminal:created-externally', handler)
       return () => ipcRenderer.removeListener('terminal:created-externally', handler)
     },

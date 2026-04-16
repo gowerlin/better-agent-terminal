@@ -11,6 +11,9 @@
 //   node scripts/bat-terminal.mjs --notify-id <tower-id> claude "/ct-exec T0133"
 //     └─ Injects BAT_TOWER_TERMINAL_ID=<tower-id> into the new PTY's env,
 //        allowing Worker to notify Tower on completion via bat-notify.mjs.
+//   node scripts/bat-terminal.mjs --workspace <workspace-id> claude "/ct-exec T0137"
+//     └─ Explicitly allocate the new PTY to the given workspace tab list.
+//        Omitted → PTY lands in the currently active workspace (T0137/BUG-031).
 
 import { createConnection } from 'net'
 import { randomBytes } from 'crypto'
@@ -48,6 +51,7 @@ if (!TOKEN) {
 const rawArgs = process.argv.slice(2)
 let cwd = process.cwd()
 let notifyId = null
+let workspaceId = null
 
 // Extract --cwd option
 const cwdIdx = rawArgs.indexOf('--cwd')
@@ -69,6 +73,17 @@ if (notifyIdx !== -1) {
   }
   notifyId = rawArgs[notifyIdx + 1]
   rawArgs.splice(notifyIdx, 2)
+}
+
+// Extract --workspace option (T0137/BUG-031: explicit workspace allocation)
+const wsIdx = rawArgs.indexOf('--workspace')
+if (wsIdx !== -1) {
+  if (!rawArgs[wsIdx + 1]) {
+    console.error('Error: --workspace requires a workspace ID argument')
+    process.exit(1)
+  }
+  workspaceId = rawArgs[wsIdx + 1]
+  rawArgs.splice(wsIdx, 2)
 }
 
 // Shell-quote arguments containing special characters so the command
@@ -268,6 +283,8 @@ async function main() {
   if (command) invokePayload.command = command
   // T0133: Inject BAT_TOWER_TERMINAL_ID so Worker knows who to notify on completion
   if (notifyId) invokePayload.customEnv = { BAT_TOWER_TERMINAL_ID: notifyId }
+  // T0137/BUG-031: Forward explicit workspace allocation target
+  if (workspaceId) invokePayload.workspaceId = workspaceId
 
   ws.send(JSON.stringify({
     type: 'invoke',

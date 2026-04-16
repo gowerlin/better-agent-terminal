@@ -322,13 +322,20 @@ class WorkspaceStore {
   }
 
   /** T0130: Add a terminal that was created externally (e.g. via RemoteServer WebSocket).
-   *  The PTY already exists in main process with the given id — no pty.create() needed. */
-  addExternalTerminal(info: { id: string; cwd: string; command?: string }): TerminalInstance | null {
+   *  The PTY already exists in main process with the given id — no pty.create() needed.
+   *  T0137/BUG-031: Workspace allocation priority:
+   *    1. explicit `workspaceId` (from `--workspace` CLI flag) if it matches a known workspace
+   *    2. fallback to current active workspace
+   *  cwd-based matching was removed because it caused PTYs to land in a parent-folder
+   *  workspace rather than the user's currently-focused one. */
+  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string }): TerminalInstance | null {
     // Avoid duplicates — PTY already tracked
     if (this.state.terminals.some(t => t.id === info.id)) return null
 
-    // Find workspace by matching cwd, fallback to active workspace
-    let workspace = this.state.workspaces.find(w => info.cwd.startsWith(w.folderPath))
+    let workspace: Workspace | undefined
+    if (info.workspaceId) {
+      workspace = this.state.workspaces.find(w => w.id === info.workspaceId)
+    }
     if (!workspace) {
       workspace = this.state.workspaces.find(w => w.id === this.state.activeWorkspaceId)
     }

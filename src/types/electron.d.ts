@@ -18,9 +18,11 @@ interface ElectronAPI {
     kill: (id: string) => Promise<boolean>
     restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
     getCwd: (id: string) => Promise<string | null>
-    createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string> }) => Promise<boolean>
+    createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => Promise<boolean>
     onOutput: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
+    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; workspaceId?: string }) => void) => () => void
+    onTerminalNotified: (callback: (info: { targetId: string; message: string; source?: string }) => void) => () => void
   }
   workspace: {
     save: (data: string) => Promise<boolean>

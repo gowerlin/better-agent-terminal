@@ -1321,7 +1321,9 @@ function registerProxiedHandlers() {
   registerHandler('pty:get-cwd', (_ctx, id: string) => ptyManager?.getCwd(id))
 
   // Terminal: create + immediately send a command (for Control Tower auto-session)
-  registerHandler('terminal:create-with-command', (_ctx, opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string> }) => {
+  // T0137: `workspaceId` (optional) propagates from `bat-terminal.mjs --workspace <id>`
+  // through to the renderer so the PTY lands in the requested workspace.
+  registerHandler('terminal:create-with-command', (_ctx, opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => {
     if (!ptyManager) return false
     const created = ptyManager.create({
       id: opts.id,
@@ -1346,6 +1348,7 @@ function registerProxiedHandlers() {
             id: opts.id,
             cwd: opts.cwd,
             command: opts.command,
+            workspaceId: opts.workspaceId,
           })
         } catch { /* window closing */ }
       }
