@@ -1094,6 +1094,22 @@ app.whenReady().then(async () => {
   logger.log(`[startup] buildMenu: ${Date.now() - t1}ms`)
   remoteServer.configDir = app.getPath('userData')
 
+  // T0129: Auto-start RemoteServer so PTY terminals get BAT_REMOTE_PORT/TOKEN env vars
+  try {
+    remoteServer.start()
+    logger.log(`[startup] RemoteServer auto-started on port ${remoteServer.port}`)
+  } catch (err) {
+    logger.warn('[startup] RemoteServer auto-start failed (non-blocking):', err)
+  }
+
+  // T0129: Wire up PtyManager → RemoteServer info callback for env var injection
+  if (ptyManager) {
+    ptyManager.getRemoteServerInfo = () => {
+      if (!remoteServer.isRunning || !remoteServer.port) return null
+      return { port: remoteServer.port, token: remoteServer.currentToken }
+    }
+  }
+
   // Create all windows in this process
   for (const w of windowsToCreate) {
     const t2 = Date.now()

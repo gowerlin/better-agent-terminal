@@ -61,6 +61,9 @@ export class PtyManager {
   /** Callback provided by main.ts to re-fork a new Terminal Server process. */
   onRequestNewServer: (() => Promise<ChildProcess | null>) | null = null
 
+  /** Callback provided by main.ts to get RemoteServer port/token for env injection (T0129). */
+  getRemoteServerInfo: (() => { port: number; token: string } | null) | null = null
+
   constructor(getWindows: () => BrowserWindow[]) {
     this.getWindows = getWindows
   }
@@ -375,6 +378,8 @@ export class PtyManager {
         logger.log(`[PtyManager] pty:create SKIP (idempotent) id=${id} — already registered`)
         return true
       }
+      // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
+      const remoteInfo = this.getRemoteServerInfo?.() ?? null
       const envWithUtf8 = {
         ...process.env as Record<string, string>,
         ...customEnv,
@@ -390,6 +395,7 @@ export class PtyManager {
         FORCE_COLOR: '3',
         CLAUDE_CODE_NO_FLICKER: '1',
         CI: '',
+        ...(remoteInfo ? { BAT_REMOTE_PORT: String(remoteInfo.port), BAT_REMOTE_TOKEN: remoteInfo.token } : {}),
       }
       this.sendToServer({
         type: 'pty:create',
@@ -413,6 +419,8 @@ export class PtyManager {
     if (ptyAvailable && pty) {
       try {
         // Set UTF-8 and terminal environment variables, merge custom env
+        // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
+        const remoteInfoLocal = this.getRemoteServerInfo?.() ?? null
         const envWithUtf8 = {
           ...process.env,
           ...customEnv,  // Merge custom environment variables
@@ -434,7 +442,9 @@ export class PtyManager {
           // (xterm.js issue #5801: ED2 inside DEC 2026 sync blocks resets viewportY)
           CLAUDE_CODE_NO_FLICKER: '1',
           // Ensure not detected as CI environment
-          CI: ''
+          CI: '',
+          // T0129: RemoteServer connection info for CLI tools
+          ...(remoteInfoLocal ? { BAT_REMOTE_PORT: String(remoteInfoLocal.port), BAT_REMOTE_TOKEN: remoteInfoLocal.token } : {}),
         }
 
         const ptyProcess = pty.spawn(shell, args, {
@@ -477,6 +487,8 @@ export class PtyManager {
         }
 
         // Set UTF-8 and terminal environment variables, merge custom env (child_process fallback)
+        // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
+        const remoteInfoFallback = this.getRemoteServerInfo?.() ?? null
         const envWithUtf8 = {
           ...process.env,
           ...customEnv,  // Merge custom environment variables
@@ -493,7 +505,9 @@ export class PtyManager {
           // BAT session identification (for Control Tower auto-session detection)
           BAT_SESSION: '1',
           FORCE_COLOR: '3',
-          CI: ''
+          CI: '',
+          // T0129: RemoteServer connection info for CLI tools
+          ...(remoteInfoFallback ? { BAT_REMOTE_PORT: String(remoteInfoFallback.port), BAT_REMOTE_TOKEN: remoteInfoFallback.token } : {}),
         }
 
         const childProcess = spawn(shell, shellArgs, {

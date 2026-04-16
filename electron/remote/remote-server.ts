@@ -31,6 +31,10 @@ export class RemoteServer {
     return this.wss !== null
   }
 
+  get currentToken(): string {
+    return this.token
+  }
+
   get connectedClients(): { label: string; connectedAt: number }[] {
     return Array.from(this.clients.values()).map(c => ({
       label: c.label,
@@ -49,12 +53,14 @@ export class RemoteServer {
     }
   }
 
-  private persistToken(token: string): void {
+  private persistToken(token: string, port?: number): void {
     if (!this.configDir) return
     try {
+      const data: { token: string; port?: number } = { token }
+      if (port != null) data.port = port
       fs.writeFileSync(
         path.join(this.configDir, 'server-token.json'),
-        JSON.stringify({ token }, null, 2)
+        JSON.stringify(data, null, 2)
       )
     } catch (e) {
       logger.warn('[RemoteServer] Failed to persist token:', e)
@@ -66,7 +72,6 @@ export class RemoteServer {
 
     // Priority: explicit token > persisted token > new random token
     this.token = token || this.loadPersistedToken() || randomBytes(16).toString('hex')
-    this.persistToken(this.token)
 
     this.wss = new WebSocketServer({ host: '0.0.0.0', port })
 
@@ -182,6 +187,9 @@ export class RemoteServer {
         client.ws.ping()
       }
     }, 30000)
+
+    // Persist token + port after server is listening
+    this.persistToken(this.token, port)
 
     logger.log(`[RemoteServer] Started on port ${port}, token: ${this.token.substring(0, 8)}...`)
     return { port, token: this.token }
