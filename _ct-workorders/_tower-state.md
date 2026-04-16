@@ -8,22 +8,26 @@
 > 最後更新：2026-04-16 17:40 UTC+8
 
 ### 立即待辦
-1. Backlog 6 張 PLAN 待排優先級（PLAN-001~005, 007）
-2. 無進行中工單，無 Open BUG
-3. T0125 Cache History UI + /abort 待 runtime 測試驗收
+1. CLI helper script（讓塔台在 BAT 終端內呼叫 WebSocket 建終端）— 可開工單或手動
+2. 全鏈路 runtime 驗收：T0126 按鈕 + T0128 自訂參數 + T0129/T0130 內部終端
+3. T0125 Cache History UI + /abort 待 runtime 驗收
+4. Backlog 6 張 PLAN 待排優先級（PLAN-001~005, 007）
 
 ### 近期完成摘要（本 session）
-- **PLAN-010** DONE：上游同步 v2.1.3→v2.1.42 結案
-  - T0122：188 commits 研究分析
-  - T0123：Phase 1 cherry-pick（4/21，大多數已存在）
-  - T0124：Phase 2-3 差異盤點（僅 Cache History 缺少）
-  - T0125：Cache History UI + /abort command 移植完成
-- version.json 更新至 v2.1.42-pre.2
-- upstream remote 修正：scandnavik → tony1223
+- **T0126** DONE：修復 CT 面板工單按鈕命令格式（`/ct-exec` → `claude "/ct-exec"`）
+- **T0127** DONE：研究 BAT 內部終端建立機制 → 推薦方案 A
+- **T0128** DONE：Agent 自訂參數 Settings UI + 7 處啟動路徑套用
+- **T0129** DONE：RemoteServer 自動啟動 + BAT_REMOTE_PORT/TOKEN env vars 注入
+- **T0130** DONE：外部建立終端 UI 同步（縮圖 + xterm + 自動聚焦）
+- **T0131** DONE：CLI helper bat-terminal.mjs（零依賴 WebSocket invoke）
+- **T0132** DONE：研究 Worker→Tower 自動通知 → 推薦方案 A（雙管道）
+- **T0133** DONE：Worker→Tower 自動通知實作（雙管道 + 三層 badge 冒泡）
+- **PLAN-011** 建立：CT 上游 PR 候選（BAT 路由標準化）
+- `_local-rules.md` 更新：BAT auto-session 路由規則 + Bash 白名單
 
 ### 工單統計
-- Done: 125 | Active: 0 | 總計: 125
-- 最高編號：T0125 / BUG-029 / PLAN-010 / D031
+- Done: 133 | Active: 0 | 總計: 133
+- 最高編號：T0133 / BUG-029 / PLAN-011 / D031
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 

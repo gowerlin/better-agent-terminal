@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0128
 - **任務名稱**：Agent 預設自訂參數（Settings UI + ct-exec/ct-done 自動套用）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-16 22:22 (UTC+8)
 - **開始時間**：2026-04-16 22:25 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-16 22:35 (UTC+8)
 
 ## 工作量預估
 - **預估規模**：中
@@ -119,22 +119,37 @@ agentCustomArgs: Record<string, string>
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED / PARTIAL）
+DONE
 
 ### 產出摘要
-（列出產生的檔案、修改的檔案、關鍵變更）
+修改檔案：
+- `src/types/index.ts` — AppSettings 新增 `agentCustomArgs?: Record<string, string>`
+- `src/stores/settings-store.ts` — 新增 `setAgentCustomArg()`、`getAgentCustomArgs()` 方法，預設 `agentCustomArgs: {}`
+- `src/components/SettingsPanel.tsx` — 新增 Agent 自訂參數 UI 區塊（每個 preset 一個文字輸入框）
+- `src/components/WorkspaceView.tsx` — 7 處啟動路徑全部套用自訂參數：
+  - `startClaudeCliPty`（Claude CLI 啟動）
+  - 既有終端恢復（`buildLaunchCommand` + fallback preset.command）
+  - 預設終端建立（同上）
+  - `handleAddAgentTerminal`（工具列新增 agent）
+  - 終端重啟（restart）
+  - `handleExecWorkOrder`（ct-exec 按鈕）
+  - `handleDoneWorkOrder`（ct-done 按鈕）
+- `src/App.tsx` — App 層級的 ct-exec/ct-done 同步套用
+- `src/locales/en.json`、`zh-TW.json`、`zh-CN.json` — 新增 i18n 翻譯
+
+commit: 375d739
 
 ### 互動紀錄
-（記錄執行過程中與使用者的重要互動）
+無
 
 ### Renew 歷程
 無
 
 ### 遭遇問題
-（若有問題或需要指揮塔介入的事項，在此描述）
+無
 
 ### sprint-status.yaml 已更新
 不適用
 
 ### 回報時間
-（填入當前時間）
+2026-04-16 22:35 (UTC+8)

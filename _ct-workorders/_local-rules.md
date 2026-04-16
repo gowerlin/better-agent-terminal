@@ -267,3 +267,57 @@ _ct-workorders/
 - `###`：3 位數，從 `001` 開始，**每個 TOPIC 獨立計數**
 - 工單檔名：`EXP-BUG012-001-<title>.md`
 - 所有 `git mv` 操作保留完整版本歷史
+
+---
+
+## Auto-Session 路由規則（BAT 內部終端）
+
+> 建立時間：2026-04-16（T0126-T0131 實作產出）
+> 上游 PR 候選：PLAN-011
+
+### 路由決策樹
+
+塔台派發工單後，依以下順序偵測環境決定執行方式：
+
+```
+偵測 BAT_SESSION 環境變數？
+├─ BAT_SESSION=1（在 BAT 內部終端）
+│  └─ 使用 BAT 內部終端：
+│     node scripts/bat-terminal.mjs claude "/ct-exec T####"
+│     → WebSocket → RemoteServer → BAT 內建新終端分頁
+│     → 縮圖自動出現 + xterm 綁定 + 自動聚焦
+├─ $WT_SESSION 存在（Windows Terminal）
+│  └─ wt -w 0 nt claude "/ct-exec T####"
+└─ 其他
+   └─ 剪貼簿 / 文字提示降級鏈
+```
+
+### Bash 白名單擴充
+
+以下指令加入塔台 auto-session 白名單：
+
+| 用途 | 指令 | 條件 |
+|------|------|------|
+| BAT 內部終端 | `node scripts/bat-terminal.mjs claude "/ct-exec T####"` | `BAT_SESSION=1` |
+| BAT 內部終端 | `node scripts/bat-terminal.mjs claude "/ct-done T####"` | `BAT_SESSION=1` |
+
+### Agent 自訂參數自動套用
+
+T0128 實作了 Settings 中的 Agent 自訂參數（`agentCustomArgs`）。塔台派發時需套用：
+
+```
+# 假設 claude-code preset 設定了 --dangerously-skip-permissions
+node scripts/bat-terminal.mjs claude "/ct-exec T####" --dangerously-skip-permissions
+```
+
+塔台不需手動拼接參數 — BAT UI 的按鈕已自動套用。但若塔台直接呼叫 `bat-terminal.mjs`，需自行從 Settings 讀取（目前暫不支援，依賴 UI 按鈕觸發）。
+
+### 依賴的基礎設施
+
+| 組件 | 工單 | 狀態 |
+|------|------|------|
+| ct-exec/ct-done 按鈕修復 | T0126 | ✅ |
+| RemoteServer 自動啟動 + env vars | T0129 | ✅ |
+| 外部終端 UI 同步 | T0130 | ✅ |
+| CLI helper (bat-terminal.mjs) | T0131 | ✅ |
+| Agent 自訂參數 | T0128 | ✅ |
