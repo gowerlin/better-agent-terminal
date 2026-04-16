@@ -169,9 +169,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     try {
       const bugTrackerPath = `${ctDirPath}/_bug-tracker.md`
       const result = await window.electronAPI.fs.readFile(bugTrackerPath)
-      if (result.content) {
-        setBugEntries(parseBugTracker(result.content))
-      }
+      // Always update state: parse content if available, clear if error/empty
+      setBugEntries(result.content != null ? parseBugTracker(result.content) : [])
     } catch {
       setBugEntries([])
     }
@@ -183,9 +182,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     try {
       const backlogPath = `${ctDirPath}/_backlog.md`
       const result = await window.electronAPI.fs.readFile(backlogPath)
-      if (result.content) {
-        setBacklogEntries(parseBacklog(result.content))
-      }
+      setBacklogEntries(result.content != null ? parseBacklog(result.content) : [])
     } catch {
       setBacklogEntries([])
     }
@@ -197,10 +194,9 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     try {
       const decisionPath = `${ctDirPath}/_decision-log.md`
       const result = await window.electronAPI.fs.readFile(decisionPath)
-      if (result.content) {
-        setDecisions(parseDecisionLog(result.content))
-        setDecisionRawContent(result.content)
-      }
+      const content = result.content ?? ''
+      setDecisions(result.content != null ? parseDecisionLog(content) : [])
+      setDecisionRawContent(content)
     } catch {
       setDecisions([])
       setDecisionRawContent('')
@@ -217,7 +213,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const orders: WorkOrder[] = []
       for (const file of orderFiles) {
         const result = await window.electronAPI.fs.readFile(file.path)
-        if (result.content) {
+        if (result.content != null) {
           orders.push({ ...parseWorkOrder(file.name, result.content), isArchived: true })
         }
       }
@@ -243,7 +239,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const prevStatus = prevMap.get(wo.id)
       if (prevStatus && prevStatus !== wo.status) {
         // Status changed
-        if (wo.status === 'DONE') {
+        if (wo.status === 'DONE' || wo.status === 'FIXED') {
           addToast(`✅ ${wo.id} ${t('controlTower.toast.completed')}`, 'success', 6000)
         } else if (wo.status === 'IN_PROGRESS' && prevStatus === 'PENDING') {
           addToast(`🔄 ${wo.id} ${t('controlTower.toast.started')}`, 'info')
@@ -272,7 +268,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const orders: WorkOrder[] = []
       for (const file of orderFiles) {
         const result = await window.electronAPI.fs.readFile(file.path)
-        if (result.content) {
+        if (result.content != null) {
           orders.push(parseWorkOrder(file.name, result.content))
         }
       }
@@ -290,7 +286,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       // Sort: URGENT first, then IN_PROGRESS, PENDING, others, DONE last
       const priority: Record<string, number> = {
         URGENT: 0, IN_PROGRESS: 1, PENDING: 2, BLOCKED: 3,
-        PARTIAL: 4, INTERRUPTED: 5, FAILED: 6, DONE: 7,
+        PARTIAL: 4, INTERRUPTED: 5, FAILED: 6, FIXED: 7, DONE: 7,
       }
       uniqueOrders.sort((a, b) => {
         const statusOrder = (priority[a.status] ?? 99) - (priority[b.status] ?? 99)
@@ -523,7 +519,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       <div className="ct-orders-tab" style={{ display: activeTab === 'orders' ? undefined : 'none' }}>
         {/* Filter bar */}
         <div className="ct-filter-bar">
-          {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'DONE'] as const).map(s => (
+          {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'FIXED', 'DONE'] as const).map(s => (
             <button
               key={s}
               className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}

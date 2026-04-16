@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**：T0120
 - **任務名稱**：BUG-029 修復：CT 面板刷新按鈕強制重讀 + git 操作後自動刷新
-- **狀態**：IN_PROGRESS
+- **狀態**：FIXED
 - **建立時間**：2026-04-16 00:40 (UTC+8)
 - **開始時間**：2026-04-16 02:41 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-16 05:20 (UTC+8)
 - **關聯 BUG**：BUG-029
 
 ## 工作量預估
@@ -125,6 +125,12 @@ FIXED
 **P0 完成**：刷新按鈕 = resetWatch + 完整重掃（100% 可靠）
 **P1 完成**：監聯 `.git/` 目錄，git 操作後自動觸發刷新
 **P2 未實作**：防禦性 polling（目前 P0+P1 應足夠）
+
+**Parser 容錯修復**（追加）：
+- `if (result.content)` → `result.content != null`：修正空字串 falsy 導致 readFile 失敗時舊 state 殘留
+- 新增 `FIXED` 到 `WorkOrderStatus`：BUG 修復工單的狀態不再 fallback 成 PENDING
+- 排序 priority map、篩選按鈕列、Toast 通知、看板 lane 全部補上 `FIXED`
+- `loadBugs/loadBacklog/loadDecisions`：readFile 失敗時正確清空 state（非保留舊資料）
 
 ### 互動紀錄
 無

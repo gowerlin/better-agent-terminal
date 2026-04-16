@@ -7,6 +7,7 @@ export type WorkOrderStatus =
   | 'PENDING'
   | 'IN_PROGRESS'
   | 'DONE'
+  | 'FIXED'
   | 'FAILED'
   | 'BLOCKED'
   | 'PARTIAL'
@@ -28,7 +29,7 @@ export interface WorkOrder {
 }
 
 const STATUS_VALUES = new Set<WorkOrderStatus>([
-  'PENDING', 'IN_PROGRESS', 'DONE', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT',
+  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT',
 ])
 
 /**
@@ -61,7 +62,7 @@ export function parseWorkOrder(filename: string, content: string): WorkOrder {
   /** 從 raw 字串中提取第一個有效狀態關鍵字，忽略括號附加文字 */
   const extractStatusKeyword = (raw: string | undefined): WorkOrderStatus | undefined => {
     if (!raw) return undefined
-    const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
+    const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|FIXED|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
     return keyword && STATUS_VALUES.has(keyword as WorkOrderStatus) ? keyword as WorkOrderStatus : undefined
   }
 
@@ -115,6 +116,7 @@ export function statusColor(status: WorkOrderStatus): string {
     case 'PENDING': return 'ct-status-pending'
     case 'IN_PROGRESS': return 'ct-status-in-progress'
     case 'DONE': return 'ct-status-done'
+    case 'FIXED': return 'ct-status-done'
     case 'FAILED': return 'ct-status-failed'
     case 'BLOCKED': return 'ct-status-blocked'
     case 'PARTIAL': return 'ct-status-partial'
@@ -130,6 +132,7 @@ export function statusLabel(status: WorkOrderStatus): string {
     case 'PENDING': return '⏳ Pending'
     case 'IN_PROGRESS': return '🔄 In Progress'
     case 'DONE': return '✅ Done'
+    case 'FIXED': return '✅ Fixed'
     case 'FAILED': return '❌ Failed'
     case 'BLOCKED': return '🚫 Blocked'
     case 'PARTIAL': return '⚠️ Partial'
