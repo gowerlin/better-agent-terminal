@@ -1336,6 +1336,20 @@ function registerProxiedHandlers() {
         ptyManager!.write(opts.id, opts.command + '\r')
       }, 500)
     }
+    // T0130: Notify renderer(s) when a terminal is created externally (e.g. via RemoteServer WebSocket)
+    // so the UI can add it to the terminal list, bind xterm, and show the thumbnail.
+    // Only notify when ctx has no windowId (i.e. not initiated from the renderer itself).
+    if (created && !_ctx.windowId) {
+      for (const win of BrowserWindow.getAllWindows()) {
+        try {
+          win.webContents.send('terminal:created-externally', {
+            id: opts.id,
+            cwd: opts.cwd,
+            command: opts.command,
+          })
+        } catch { /* window closing */ }
+      }
+    }
     return created
   })
 

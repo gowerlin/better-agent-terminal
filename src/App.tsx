@@ -430,6 +430,16 @@ export default function App() {
       workspaceStore.updateTerminalActivity(id)
     })
 
+    // T0130: Listen for terminals created externally (via RemoteServer WebSocket).
+    // Adds the terminal to workspace state so xterm binds automatically via TerminalPanel.
+    const unsubExternalTerminal = window.electronAPI.pty.onCreatedExternally((info) => {
+      const added = workspaceStore.addExternalTerminal(info)
+      if (added) {
+        window.electronAPI.debug.log(`[T0130] External terminal added: id=${info.id} cwd=${info.cwd}`)
+        workspaceStore.save()
+      }
+    })
+
     // Load saved workspaces and settings on startup
     // If launched with --profile, use that profile instead of the stored active one
     const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -588,6 +598,7 @@ export default function App() {
     return () => {
       unsubscribe()
       unsubscribeOutput()
+      unsubExternalTerminal()
       unsubSystemResume()
       unsubReload()
       unsubFlushSave()

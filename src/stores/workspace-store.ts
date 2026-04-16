@@ -321,6 +321,39 @@ class WorkspaceStore {
     return terminal
   }
 
+  /** T0130: Add a terminal that was created externally (e.g. via RemoteServer WebSocket).
+   *  The PTY already exists in main process with the given id — no pty.create() needed. */
+  addExternalTerminal(info: { id: string; cwd: string; command?: string }): TerminalInstance | null {
+    // Avoid duplicates — PTY already tracked
+    if (this.state.terminals.some(t => t.id === info.id)) return null
+
+    // Find workspace by matching cwd, fallback to active workspace
+    let workspace = this.state.workspaces.find(w => info.cwd.startsWith(w.folderPath))
+    if (!workspace) {
+      workspace = this.state.workspaces.find(w => w.id === this.state.activeWorkspaceId)
+    }
+    if (!workspace) return null
+
+    const terminal: TerminalInstance = {
+      id: info.id,
+      workspaceId: workspace.id,
+      type: 'terminal',
+      title: info.command ? `Remote: ${info.command.split(' ')[0]}` : 'Remote Terminal',
+      cwd: info.cwd,
+      scrollbackBuffer: [],
+      lastActivityTime: Date.now()
+    }
+
+    this.state = {
+      ...this.state,
+      terminals: [...this.state.terminals, terminal],
+      focusedTerminalId: terminal.id
+    }
+
+    this.notify()
+    return terminal
+  }
+
   removeTerminal(id: string): void {
     clearPreviewCache(id)
     const terminals = this.state.terminals.filter(t => t.id !== id)

@@ -32,6 +32,12 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, id: string, exitCode: number) => callback(id, exitCode)
       ipcRenderer.on('pty:exit', handler)
       return () => ipcRenderer.removeListener('pty:exit', handler)
+    },
+    // T0130: Listen for terminals created externally (e.g. via RemoteServer WebSocket)
+    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string }) => callback(info)
+      ipcRenderer.on('terminal:created-externally', handler)
+      return () => ipcRenderer.removeListener('terminal:created-externally', handler)
     }
   },
   workspace: {
