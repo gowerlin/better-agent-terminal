@@ -4,32 +4,25 @@
 
 ---
 
-## 🌅 明日起手式（Quick Recovery）
-> 最後更新：2026-04-13 17:51 UTC+8（session context 耗盡，正常切換）
+## 🌅 起手式（Quick Recovery）
+> 最後更新：2026-04-16 12:55 UTC+8
 
 ### 立即待辦
-1. **T0103** ✅ DONE：索引架構改革（_workorder-index 移除，bug-tracker/backlog sync 重建）
-2. **T0104** ✅ DONE：4 commits 入庫（394bede / 3d80fd1 / 1ecb6b9 / 62399e4）
-3. **BUG-025** ✅ CLOSED
-4. **T0105** ✅ DONE：BUG-026 修復
-5. **BUG-026** 🚫 CLOSED（人工驗收通過 2026-04-13）
-6. **PLAN-008 Phase 2 工單排程**：
-   - T0106 ✅ DONE：Terminal Server 骨架（c1d238a）
-   - T0107 ✅ DONE：PtyManager proxy（55d33d8）**← Milestone: Terminal Server 可用**
-   - T0108 ✅ DONE：TCP 重連 + buffer 重播（c65fb6e）
-   - T0109 ✅ DONE：孤兒回收 + Settings UI + ASAR（ab98120）
-   - T0110 ✅ DONE：復原提示 UI（5b8d99a）**← PLAN-008 Phase 2 全部完成**
+1. Backlog 7 張 PLAN 待排優先級（PLAN-001~005, 007, 009 已 DONE）
+2. 無進行中工單，無 Open BUG
 
-### 本 session 完成摘要（T0097~T0101）
-- **配置補齊**：project-context.md + sprint-status.yaml（T0097/T0098）
-- **技術債清理**：批次 commit 43 個文件，git history 整齊（T0099）
-- **BUG-025 診斷 + 修復**：CT 面板 emoji 前綴狀態解析問題，1 行 regex 修復（T0100/T0101）
-- **PLAN-009 登記**：Sprint 儀表板 UI，待技術債清完後實作
-- **架構決策**：sprint-status.yaml 放根目錄（不放 _bmad-output/），BMad 層次補 User Story 討論
+### 近期完成摘要（本 session）
+- **v4 遷移**：_playbooks/ 建立 + config 9 項補齊 + 環境快照區段
+- **大規模歸檔**：78 張（71+7）→ 熱區清零（僅剩 PLAN backlog）
+- **BUG-027** CLOSED：狀態同步修正
+- **BUG-028** CLOSED：決策 Parser v3+v4 雙格式容錯（T0119）
+- **BUG-029** CLOSED：CT 面板 resetWatch + .git 監聽（T0120）
+- **PLAN-009** DONE：Sprint 儀表板原始範圍完成 + 跨專案驗證
+- **T0121** DONE：workspace switch 全頁籤合規（多實例架構，無需修復）
 
 ### 工單統計
-- Done: 118 | Active: 0 | 總計: 118
-- 最高編號：T0111 / BUG-026 / PLAN-009 / D031
+- Done: 121 | Active: 0 | 總計: 121
+- 最高編號：T0121 / BUG-029 / PLAN-009 / D031
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 
