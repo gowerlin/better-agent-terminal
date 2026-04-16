@@ -1,7 +1,7 @@
 # PLAN-009 — Sprint 儀表板 UI（讀取 sprint-status.yaml）
 
 ## 狀態
-**📋 BACKLOG**（技術債清完後再實作）
+**✅ DONE**（T0114~T0116 完成原始範圍，2026-04-16）
 
 ## 背景
 
