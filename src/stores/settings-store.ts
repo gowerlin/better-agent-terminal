@@ -38,6 +38,7 @@ const defaultSettings: AppSettings = {
   logLevel: 'debug',
   terminalServerScrollBufferLines: 1000,
   terminalServerIdleTimeoutMinutes: 30,
+  agentCustomArgs: {},
 }
 
 class SettingsStore {
@@ -211,6 +212,24 @@ class SettingsStore {
     this.save()
   }
 
+
+  // Agent Custom Args
+  setAgentCustomArg(presetId: string, args: string): void {
+    const current = this.settings.agentCustomArgs || {}
+    const updated = { ...current }
+    if (args.trim()) {
+      updated[presetId] = args.trim()
+    } else {
+      delete updated[presetId]
+    }
+    this.settings = { ...this.settings, agentCustomArgs: updated }
+    this.notify()
+    this.save()
+  }
+
+  getAgentCustomArgs(presetId: string): string {
+    return this.settings.agentCustomArgs?.[presetId] || ''
+  }
 
   setCollapseToolOutputs(collapse: boolean): void {
     this.settings = { ...this.settings, collapseToolOutputs: collapse }

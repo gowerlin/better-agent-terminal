@@ -41,6 +41,8 @@
     "autoRunAgentCommandHint": "Automatically execute the agent command (e.g., `claude`) when creating an Agent Terminal.",
     "allowBypassPermissions": "Allow bypass permissions without confirmation",
     "allowBypassPermissionsHint": "When enabled, switching to bypassPermissions mode in Claude Agent Panel will not show a confirmation dialog. Use with caution.",
+    "agentCustomArgs": "Agent Custom Arguments",
+    "agentCustomArgsHint": "Add custom CLI arguments for each agent. These are appended to the agent command when launching terminals or executing work orders.",
     "collapseToolOutputs": "Collapse all tool outputs by default",
     "collapseToolOutputsHint": "When enabled, all tool outputs are collapsed by default. Click to expand. Read-only tools (Read, Glob, Grep) are always collapsed regardless of this setting.",
     "defaultModel": "Default Model",

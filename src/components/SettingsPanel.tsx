@@ -417,6 +417,27 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <p className="settings-hint">{t('settings.allowBypassPermissionsHint')}</p>
             </div>
 
+            <div className="settings-group">
+              <label>{t('settings.agentCustomArgs')}</label>
+              <p className="settings-hint">{t('settings.agentCustomArgsHint')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                {getVisiblePresets().filter(p => p.id !== 'none').map(preset => (
+                  <div key={preset.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ minWidth: '140px', fontSize: '12px', color: preset.color, whiteSpace: 'nowrap' }}>
+                      {preset.icon} {preset.name}
+                    </span>
+                    <input
+                      type="text"
+                      value={settings.agentCustomArgs?.[preset.id] || ''}
+                      onChange={e => settingsStore.setAgentCustomArg(preset.id, e.target.value)}
+                      placeholder="e.g. --dangerously-skip-permissions"
+                      style={{ flex: 1, fontSize: '12px' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="settings-group checkbox-group">
               <label>
                 <input

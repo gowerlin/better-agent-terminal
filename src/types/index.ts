@@ -239,6 +239,7 @@ export interface AppSettings {
   terminalServerIdleTimeoutMinutes?: number; // Terminal Server 閒置關閉時間（分鐘，0 = 永不關閉，預設 30）
   cacheAlarmTimer?: boolean;       // 顯示 cache TTL 倒數計時（預設 false）
   cacheExpiryWarning?: boolean;    // Cache 過期時警告（預設 false）
+  agentCustomArgs?: Record<string, string>;  // 每個 agent preset 的自訂參數（key = preset id, value = 參數字串）
 }
 
 // ============================================

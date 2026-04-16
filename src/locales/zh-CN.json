@@ -41,6 +41,8 @@
     "autoRunAgentCommandHint": "创建 Agent 终端时自动执行 Agent 命令（例如 `claude`）。",
     "allowBypassPermissions": "允许跳过权限确认",
     "allowBypassPermissionsHint": "启用后，在 Claude Agent 面板中切换至 bypassPermissions 模式时不会显示确认对话框。请谨慎使用。",
+    "agentCustomArgs": "Agent 自定义参数",
+    "agentCustomArgsHint": "为每个 Agent 添加自定义 CLI 参数。这些参数会在启动终端或执行工单时自动附加到 Agent 命令后方。",
     "collapseToolOutputs": "默认折叠所有工具输出",
     "collapseToolOutputsHint": "启用后，所有工具输出默认为折叠状态，点击可展开。只读工具（Read、Glob、Grep）不受此设置影响，始终折叠。",
     "defaultModel": "默认模型",

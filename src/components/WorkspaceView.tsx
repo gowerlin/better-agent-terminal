@@ -441,16 +441,18 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           })
           // Auto-run agent command for non-Claude terminal-driven agents
           if (terminal.agentPreset && terminal.agentPreset !== 'none') {
+            const extraArgs = settingsStore.getAgentCustomArgs(terminal.agentPreset)
+            const appendArgs = (base: string) => extraArgs ? `${base} ${extraArgs}` : base
             window.electronAPI.agent?.buildLaunchCommand(terminal.agentPreset).then((cmd: string | null) => {
               if (cmd) {
                 setTimeout(() => {
-                  window.electronAPI.pty.write(terminal.id, cmd + '\r')
+                  window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
                 }, 500)
               } else if (settings.agentAutoCommand) {
                 const preset = getAgentPreset(terminal.agentPreset!)
                 if (preset?.command) {
                   setTimeout(() => {
-                    window.electronAPI.pty.write(terminal.id, preset.command + '\r')
+                    window.electronAPI.pty.write(terminal.id, appendArgs(preset.command) + '\r')
                   }, 500)
                 }
               }
@@ -459,7 +461,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 const preset = getAgentPreset(terminal.agentPreset!)
                 if (preset?.command) {
                   setTimeout(() => {
-                    window.electronAPI.pty.write(terminal.id, preset.command + '\r')
+                    window.electronAPI.pty.write(terminal.id, appendArgs(preset.command) + '\r')
                   }, 500)
                 }
               }
@@ -488,16 +490,18 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               customEnv
             })
             if (settings.agentAutoCommand) {
+              const defExtraArgs = settingsStore.getAgentCustomArgs(defaultAgent)
+              const defAppendArgs = (base: string) => defExtraArgs ? `${base} ${defExtraArgs}` : base
               window.electronAPI.agent?.buildLaunchCommand(defaultAgent).then((cmd: string | null) => {
                 if (cmd) {
                   setTimeout(() => {
-                    window.electronAPI.pty.write(agentTerminal.id, cmd + '\r')
+                    window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(cmd) + '\r')
                   }, 500)
                 } else {
                   const preset = getAgentPreset(defaultAgent)
                   if (preset?.command) {
                     setTimeout(() => {
-                      window.electronAPI.pty.write(agentTerminal.id, preset.command + '\r')
+                      window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(preset.command) + '\r')
                     }, 500)
                   }
                 }
@@ -505,7 +509,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 const preset = getAgentPreset(defaultAgent)
                 if (preset?.command) {
                   setTimeout(() => {
-                    window.electronAPI.pty.write(agentTerminal.id, preset.command + '\r')
+                    window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(preset.command) + '\r')
                   }, 500)
                 }
               })
@@ -579,7 +583,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Execute a Control Tower work order in a new terminal
   const handleExecWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
-    const command = `claude "/ct-exec ${workOrderId}"`
+    const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
+    const command = `claude "/ct-exec ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
     const settings = settingsStore.getSettings()
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
@@ -597,7 +602,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Remedial close a Control Tower work order (ct-done) in a new terminal
   const handleDoneWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
-    const command = `claude "/ct-done ${workOrderId}"`
+    const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
+    const command = `claude "/ct-done ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
     const settings = settingsStore.getSettings()
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
@@ -669,6 +675,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (settings.allowBypassPermissions) {
       cmdParts.push('--dangerously-skip-permissions')
     }
+    const presetId = isWorktree ? 'claude-cli-worktree' : 'claude-cli'
+    const customArgs = settingsStore.getAgentCustomArgs(presetId)
+    if (customArgs) {
+      cmdParts.push(customArgs)
+    }
     const cmd = cmdParts.join(' ')
 
     setTimeout(() => {
@@ -730,11 +741,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     })
 
     // Auto-run agent command
+    const addExtraArgs = settingsStore.getAgentCustomArgs(definitionId)
+    const addAppendArgs = (base: string) => addExtraArgs ? `${base} ${addExtraArgs}` : base
     try {
       const launchCmd = await window.electronAPI.agent.buildLaunchCommand(definitionId)
       if (launchCmd) {
         setTimeout(() => {
-          window.electronAPI.pty.write(terminal.id, launchCmd + '\r')
+          window.electronAPI.pty.write(terminal.id, addAppendArgs(launchCmd) + '\r')
         }, 500)
         return
       }
@@ -745,7 +758,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       const agentPreset = getAgentPreset(definitionId)
       if (agentPreset?.command) {
         setTimeout(() => {
-          window.electronAPI.pty.write(terminal.id, agentPreset.command + '\r')
+          window.electronAPI.pty.write(terminal.id, addAppendArgs(agentPreset.command) + '\r')
         }, 500)
       }
     }
@@ -811,11 +824,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
         // Re-run agent command on restart for terminal-driven agents
         if (terminal.agentPreset && terminal.agentPreset !== 'none') {
+          const restartExtraArgs = settingsStore.getAgentCustomArgs(terminal.agentPreset)
+          const restartAppendArgs = (base: string) => restartExtraArgs ? `${base} ${restartExtraArgs}` : base
           try {
             const launchCmd = await window.electronAPI.agent.buildLaunchCommand(terminal.agentPreset)
             if (launchCmd) {
               setTimeout(() => {
-                window.electronAPI.pty.write(id, launchCmd + '\r')
+                window.electronAPI.pty.write(id, restartAppendArgs(launchCmd) + '\r')
               }, 500)
             }
           } catch { /* ignore */ }

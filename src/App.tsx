@@ -719,7 +719,8 @@ export default function App() {
           workspaceFolderPath={activeWorkspace.folderPath}
           onExecWorkOrder={async (workOrderId: string) => {
             const terminal = workspaceStore.addTerminal(activeWorkspace.id)
-            const command = `claude "/ct-exec ${workOrderId}"`
+            const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
+            const command = `claude "/ct-exec ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
             const settings = settingsStore.getSettings()
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
@@ -736,7 +737,8 @@ export default function App() {
           }}
           onDoneWorkOrder={async (workOrderId: string) => {
             const terminal = workspaceStore.addTerminal(activeWorkspace.id)
-            const command = `claude "/ct-done ${workOrderId}"`
+            const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
+            const command = `claude "/ct-done ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
             const settings = settingsStore.getSettings()
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
