@@ -8,14 +8,16 @@
 > 最後更新：2026-04-16 17:40 UTC+8
 
 ### 立即待辦
-1. **全鏈路 runtime 驗收**（rebuild + BAT 內啟動 Tower 測試）：
-   - T0126 ct-exec/ct-done 按鈕
-   - T0128 Agent 自訂參數 Settings UI
-   - T0129-T0131 BAT 內部終端建立
-   - T0133 Worker→Tower 自動通知（Toast + Badge + PTY write）
-   - CT v4.1.0 auto-session BAT 路由偵測
-2. T0125 Cache History UI + /abort 待 runtime 驗收
-3. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
+1. **BUG-031 待修**（🟡 Medium）— 外部 PTY 被分配到錯的 workspace（非 active）。建議開 Worker 修復工單調查 `addExternalTerminal` 的 workspace 分配邏輯
+2. **T0135 9 項 MANUAL 待驗**（使用者手動）：1.3/1.4 Cache History/abort UI、2.3 CT 按鈕 PTY write、3.3 Settings UI、5.3 外部 PTY UI 同步、7.5/7.6 Toast/Badge、8.5 端到端
+3. **T0135 1 項 PARTIAL**（6.2 `--help` 沒實作）— 可開小 PLAN 收尾
+4. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
+
+### 本 session 新增工單
+- T0135 BAT v2.x + CT v4.1.0 全鏈路驗收 ✅ DONE（c98a04c, 8ec97ad）
+- T0136 BUG-030 修復 ✅ FIXED (f77d2d0)
+- BUG-030 MSYS 路徑轉換 🚫 CLOSED
+- BUG-031 PTY 分配到錯 workspace 🔴 OPEN
 
 ### 近期完成摘要（本 session）
 - **T0126** DONE：修復 CT 面板工單按鈕命令格式（`/ct-exec` → `claude "/ct-exec"`）
@@ -32,8 +34,10 @@
 - `_local-rules.md` 更新：BAT auto-session 路由規則 + Bash 白名單
 
 ### 工單統計
-- Done: 134 + CT-T001 | Active: 0 | 總計: 135
-- 最高編號：T0134 / BUG-029 / PLAN-011 / D031
+- Done: 136 + CT-T001 | Active: 0 | 總計: 137
+- 最高編號：T0136 / BUG-031 / PLAN-011 / D031
+- Open BUG: BUG-031（Medium，外部 PTY workspace 分配錯誤）
+- Closed BUG（本輪）: BUG-030（High → CLOSED, 02:42）
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 

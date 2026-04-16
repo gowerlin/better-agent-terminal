@@ -3,11 +3,12 @@
 ## 元資料
 - **工單編號**：T0136
 - **任務名稱**：BUG-030 修復 — bat-terminal.mjs MSYS 路徑轉換 workaround
-- **狀態**：🔄 IN_PROGRESS
+- **狀態**：✅ FIXED
 - **類型**：修復（bug fix）
 - **建立時間**：2026-04-17 02:14 (UTC+8)
 - **開始時間**：2026-04-17 02:15 (UTC+8)
-- **關聯 BUG**：BUG-030（FIXING）
+- **完成時間**：2026-04-17 02:18 (UTC+8)
+- **關聯 BUG**：BUG-030（FIXED — 等待塔台驗收）
 - **阻擋**：T0135 (PAUSED) — 修復後恢復
 
 ## 工作量預估
@@ -229,7 +230,7 @@ $ node scripts/bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" claude "/ct-help"
 無。
 
 ### commit
-- `ec3fd82` — fix(scripts): BUG-030 — handle MSYS2 path conversion in bat-terminal/notify
+- `f77d2d0` — fix(scripts): BUG-030 — handle MSYS2 path conversion in bat-terminal/notify
 
 ### 完成時間
 2026-04-17 02:18 (UTC+8)

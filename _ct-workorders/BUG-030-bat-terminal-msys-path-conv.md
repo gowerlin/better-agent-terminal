@@ -3,13 +3,16 @@
 ## 元資料
 - **BUG 編號**：BUG-030
 - **標題**：bat-terminal.mjs 在 Git Bash (MSYS2) 環境，slash-command 參數被誤判為 Unix 路徑
-- **狀態**：⏳ FIXING
+- **狀態**：🚫 CLOSED
 - **嚴重度**：🔴 High
 - **可重現**：100%（Git Bash + 任何 `/` 開頭參數）
 - **建立時間**：2026-04-17 02:13 (UTC+8)
 - **修復工單派發**：2026-04-17 02:15 (UTC+8) — T0136
+- **修復完成**：2026-04-17 02:18 (UTC+8) — Worker 自我測試 3/3 PASS, commit f77d2d0
+- **驗證通過**：2026-04-17 02:19 (UTC+8) — 端到端 `bat-terminal.mjs` 命令字串無污染（`claude '/ct-exec T0135'` ✅）
+- **關閉時間**：2026-04-17 02:42 (UTC+8) — T0135 Item 5.2 / 8.2-8.4 PASS（程式碼鏈路 + 命令字串 + 白名單匹配全 PASS）
 - **發現於**：T0135 派發過程（auto-session BAT 路由首次端到端測試）
-- **關聯工單**：T0135（PAUSED，等本 BUG 修復後 resume）/ T0136（FIXING — 修復實作）
+- **關聯工單**：T0135（DONE 8ec97ad）/ T0136（FIXED f77d2d0）
 - **修復歸屬**：先修 BAT (`scripts/bat-terminal.mjs`) 治標 + workaround；視效果決定是否修 CT 上游 skill
 
 ---
