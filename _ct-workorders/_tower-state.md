@@ -8,10 +8,14 @@
 > 最後更新：2026-04-16 17:40 UTC+8
 
 ### 立即待辦
-1. CLI helper script（讓塔台在 BAT 終端內呼叫 WebSocket 建終端）— 可開工單或手動
-2. 全鏈路 runtime 驗收：T0126 按鈕 + T0128 自訂參數 + T0129/T0130 內部終端
-3. T0125 Cache History UI + /abort 待 runtime 驗收
-4. Backlog 6 張 PLAN 待排優先級（PLAN-001~005, 007）
+1. **全鏈路 runtime 驗收**（rebuild + BAT 內啟動 Tower 測試）：
+   - T0126 ct-exec/ct-done 按鈕
+   - T0128 Agent 自訂參數 Settings UI
+   - T0129-T0131 BAT 內部終端建立
+   - T0133 Worker→Tower 自動通知（Toast + Badge + PTY write）
+   - CT v4.1.0 auto-session BAT 路由偵測
+2. T0125 Cache History UI + /abort 待 runtime 驗收
+3. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
 
 ### 近期完成摘要（本 session）
 - **T0126** DONE：修復 CT 面板工單按鈕命令格式（`/ct-exec` → `claude "/ct-exec"`）
