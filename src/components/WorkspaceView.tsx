@@ -579,7 +579,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Execute a Control Tower work order in a new terminal
   const handleExecWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
-    const command = `/ct-exec ${workOrderId}`
+    const command = `claude "/ct-exec ${workOrderId}"`
     const settings = settingsStore.getSettings()
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
@@ -597,7 +597,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Remedial close a Control Tower work order (ct-done) in a new terminal
   const handleDoneWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
-    const command = `/ct-done ${workOrderId}`
+    const command = `claude "/ct-done ${workOrderId}"`
     const settings = settingsStore.getSettings()
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
