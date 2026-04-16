@@ -237,6 +237,8 @@ export interface AppSettings {
   vscodeInsidersPath?: string;   // VS Code Insiders 自訂完整路徑（空白 = 用 'code-insiders'）
   terminalServerScrollBufferLines?: number;  // Terminal Server 滾動緩衝行數（預設 1000，範圍 100-5000）
   terminalServerIdleTimeoutMinutes?: number; // Terminal Server 閒置關閉時間（分鐘，0 = 永不關閉，預設 30）
+  cacheAlarmTimer?: boolean;       // 顯示 cache TTL 倒數計時（預設 false）
+  cacheExpiryWarning?: boolean;    // Cache 過期時警告（預設 false）
 }
 
 // ============================================

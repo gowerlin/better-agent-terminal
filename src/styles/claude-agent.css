@@ -2168,3 +2168,19 @@
 .claude-subagent-log-btn:hover {
   background: #e5a82e;
 }
+
+.claude-cache-alarm {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  z-index: 20;
+  display: flex;
+  gap: 10px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(30, 30, 30, 0.75);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  opacity: 0.85;
+}

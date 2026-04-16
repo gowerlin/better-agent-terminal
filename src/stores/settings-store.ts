@@ -243,6 +243,18 @@ class SettingsStore {
     if (!show) window.electronAPI?.app?.setDockBadge?.(0)
   }
 
+  setCacheAlarmTimer(enabled: boolean): void {
+    this.settings = { ...this.settings, cacheAlarmTimer: enabled }
+    this.notify()
+    this.save()
+  }
+
+  setCacheExpiryWarning(enabled: boolean): void {
+    this.settings = { ...this.settings, cacheExpiryWarning: enabled }
+    this.notify()
+    this.save()
+  }
+
   setNotifyOnComplete(enabled: boolean): void {
     this.settings = { ...this.settings, notifyOnComplete: enabled }
     this.notify()

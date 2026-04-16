@@ -124,7 +124,15 @@ interface SessionMetadata {
   contextTokens: number
   cacheReadTokens: number
   cacheCreationTokens: number
-  lastRequestDurationMs: number
+  // Per-API-call cache breakdown (from latest streaming event)
+  callCacheRead: number
+  callCacheWrite: number
+  lastQueryCalls: number  // Number of API calls in the last query/turn
+  // Per-model usage breakdown (from SDK modelUsage)
+  modelUsage?: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }>
+  // Ephemeral cache write breakdown (aggregate, not per-model)
+  cacheWrite5mTokens?: number
+  cacheWrite1hTokens?: number
 }
 
 interface PendingRequest {
@@ -365,7 +373,9 @@ export class ClaudeAgentManager {
           contextTokens: 0,
           cacheReadTokens: 0,
           cacheCreationTokens: 0,
-          lastRequestDurationMs: 0,
+          callCacheRead: 0,
+          callCacheWrite: 0,
+          lastQueryCalls: 0,
         },
         pendingPermissions: new Map(),
         pendingAskUser: new Map(),
@@ -671,6 +681,11 @@ export class ClaudeAgentManager {
         }
       }
 
+      // Clear per-query fields so renderer can distinguish streaming vs result
+      session.metadata.modelUsage = undefined
+      session.metadata.cacheWrite5mTokens = undefined
+      session.metadata.cacheWrite1hTokens = undefined
+
       const generator = query({
         prompt: promptArg as Parameters<typeof query>[0]['prompt'],
         options: queryOptions as Parameters<typeof query>[0]['options'],
@@ -949,6 +964,12 @@ export class ClaudeAgentManager {
         const contextTokens = (eventUsage.input_tokens || 0)
           + (eventUsage.cache_creation_input_tokens || 0)
           + (eventUsage.cache_read_input_tokens || 0)
+        // Update current context size (latest API call's input = actual context window usage)
+        if (contextTokens > 0) {
+          session.metadata.contextTokens = contextTokens
+          session.metadata.callCacheRead = eventUsage.cache_read_input_tokens || 0
+          session.metadata.callCacheWrite = eventUsage.cache_creation_input_tokens || 0
+        }
         if (contextTokens > session.metadata.inputTokens) {
           session.metadata.inputTokens = contextTokens
           session.metadata.cacheReadTokens = eventUsage.cache_read_input_tokens || 0
@@ -1082,13 +1103,13 @@ export class ClaudeAgentManager {
       const resultMsg = message as {
         subtype: string
         total_cost_usd?: number
-        usage?: { input_tokens?: number; output_tokens?: number }
+        usage?: { input_tokens?: number; output_tokens?: number; cache_creation?: { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number } }
         duration_ms?: number
         num_turns?: number
         result?: string
         errors?: string[]
         deferred_tool_use?: { id: string; name: string; input: Record<string, unknown> }
-        modelUsage?: Record<string, { contextWindow?: number; inputTokens?: number; outputTokens?: number; cacheReadInputTokens?: number; cacheCreationInputTokens?: number; maxOutputTokens?: number }>
+        modelUsage?: Record<string, { contextWindow?: number; inputTokens?: number; outputTokens?: number; cacheReadInputTokens?: number; cacheCreationInputTokens?: number; maxOutputTokens?: number; costUSD?: number }>
       }
 
       logger.log(`[Claude result] raw: subtype=${resultMsg.subtype}, cost=${resultMsg.total_cost_usd}, turns=${resultMsg.num_turns}, duration=${resultMsg.duration_ms}, result=${resultMsg.result ? JSON.stringify(resultMsg.result.slice(0, 300)) : 'null'}`)
@@ -1100,7 +1121,7 @@ export class ClaudeAgentManager {
 
       session.metadata.totalCost = resultMsg.total_cost_usd ?? session.metadata.totalCost
       session.metadata.durationMs += resultMsg.duration_ms || 0
-      session.metadata.lastRequestDurationMs = resultMsg.duration_ms || 0
+      session.metadata.lastQueryCalls = resultMsg.num_turns || 0
       session.metadata.numTurns += resultMsg.num_turns || 0
 
       if (resultMsg.modelUsage) {
@@ -1131,6 +1152,23 @@ export class ClaudeAgentManager {
         session.metadata.outputTokens = totalOutput
         session.metadata.cacheReadTokens = totalCacheRead
         session.metadata.cacheCreationTokens = totalCacheCreate
+        // Pass per-model breakdown to renderer for cost calculation
+        const mu: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }> = {}
+        for (const [model, stats] of Object.entries(resultMsg.modelUsage)) {
+          mu[model] = {
+            inputTokens: (stats as { inputTokens?: number }).inputTokens || 0,
+            outputTokens: (stats as { outputTokens?: number }).outputTokens || 0,
+            cacheReadInputTokens: (stats as { cacheReadInputTokens?: number }).cacheReadInputTokens || 0,
+            cacheCreationInputTokens: (stats as { cacheCreationInputTokens?: number }).cacheCreationInputTokens || 0,
+            costUSD: (stats as { costUSD?: number }).costUSD || 0,
+          }
+        }
+        session.metadata.modelUsage = mu
+        // Ephemeral cache write breakdown (aggregate)
+        if (resultMsg.usage?.cache_creation) {
+          session.metadata.cacheWrite5mTokens = resultMsg.usage.cache_creation.ephemeral_5m_input_tokens ?? 0
+          session.metadata.cacheWrite1hTokens = resultMsg.usage.cache_creation.ephemeral_1h_input_tokens ?? 0
+        }
       } else if (resultMsg.usage) {
         const usageFull = resultMsg.usage as { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number }
         const cacheRead = usageFull.cache_read_input_tokens || 0
@@ -1423,6 +1461,22 @@ export class ClaudeAgentManager {
       }
       session.state.isStreaming = false
       // Keep the session alive so the user can continue the conversation
+      return true
+    }
+    return false
+  }
+
+  /** Hard abort — immediately kill the query loop, no graceful interrupt */
+  abortSession(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId)
+    if (session) {
+      session.messageQueue.length = 0
+      if (session.apiVersion === 'v2' && session.v2Session) {
+        try { session.v2Session.close() } catch { /* ignore */ }
+        session.v2Session = undefined
+      }
+      session.abortController.abort()
+      session.state.isStreaming = false
       return true
     }
     return false

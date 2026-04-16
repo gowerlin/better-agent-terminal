@@ -55,7 +55,13 @@ interface SessionMeta {
   contextTokens: number
   cacheReadTokens: number
   cacheCreationTokens: number
+  callCacheRead: number
+  callCacheWrite: number
+  lastQueryCalls: number
   permissionMode?: string
+  modelUsage?: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }>
+  cacheWrite5mTokens?: number
+  cacheWrite1hTokens?: number
 }
 
 interface ModelInfo {
@@ -204,6 +210,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     return null
   })
   const [promptSuggestion, setPromptSuggestion] = useState<string | null>(null)
+  // Cache efficiency history — last 20 readings for smoothed display
+  const cacheHistoryRef = useRef<{ pct: number; cacheRead: number; cacheCreate: number; totalInput: number; contextSize: number; callCacheRead: number; callCacheWrite: number; calls: number; isResult?: boolean; modelUsage?: SessionMeta['modelUsage']; model?: string; outputTokens?: number; cacheWrite5mTokens?: number; cacheWrite1hTokens?: number; timestamp?: number; messageCount?: number; turnStartMsgId?: string | null; apiTotalCost?: number }[]>([])
+  // Track last result for cache expiry warning (timestamp + total input tokens)
+  const lastResultRef = useRef<{ timestamp: number; totalInput: number } | null>(null)
+  const [showCacheHistory, setShowCacheHistory] = useState(false)
+  const [cacheEntryModal, setCacheEntryModal] = useState<number | null>(null)
+  const [cacheCountdown, setCacheCountdown] = useState<{ m5: number; h1: number } | null>(null)
+  const [cacheAlarmEnabled, setCacheAlarmEnabled] = useState(settingsStore.getSettings().cacheAlarmTimer === true)
   const [statuslineConfig, setStatuslineConfig] = useState(settingsStore.getStatuslineItems())
   const [contextUsagePopup, setContextUsagePopup] = useState<{
     categories: { name: string; tokens: number; color: string; isDeferred?: boolean }[]
@@ -302,6 +316,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
 
   // Combine archived + live messages for rendering and scanning
   const allMessages = useMemo(() => [...loadedArchive, ...messages], [loadedArchive, messages])
+  const messageCountRef = useRef(0)
+  const currentTurnMsgIdRef = useRef<string | null>(null)
+  messageCountRef.current = allMessages.length
 
   // Active tasks (running Task/Agent tool calls) for the indicator bar
   const activeTasks = useMemo(() => {
@@ -652,6 +669,27 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         dlog(`${tag} onStatus sdkSessionId=${((meta as SessionMeta).sdkSessionId || '').slice(0, 8)}`)
         const m = meta as SessionMeta
         setSessionMeta(m)
+        // Track cache efficiency history (only push when values change)
+        if (m.inputTokens > 0 && m.cacheReadTokens !== undefined) {
+          const hist = cacheHistoryRef.current
+          const lastEntry = hist[hist.length - 1]
+          const hasModelUsage = m.modelUsage && Object.keys(m.modelUsage).length > 0
+          const isResult = !!hasModelUsage
+          if (!lastEntry || lastEntry.cacheRead !== m.cacheReadTokens || lastEntry.totalInput !== m.inputTokens || (isResult !== lastEntry.isResult)) {
+            const pct = Math.round((m.cacheReadTokens / m.inputTokens) * 100)
+            const entry = { pct, cacheRead: m.cacheReadTokens, cacheCreate: m.cacheCreationTokens || 0, totalInput: m.inputTokens, contextSize: m.contextTokens || 0, callCacheRead: m.callCacheRead || 0, callCacheWrite: m.callCacheWrite || 0, calls: isResult ? (m.lastQueryCalls || 0) : 1, isResult, modelUsage: m.modelUsage ? { ...m.modelUsage } : undefined, model: m.model, outputTokens: m.outputTokens || 0, cacheWrite5mTokens: m.cacheWrite5mTokens, cacheWrite1hTokens: m.cacheWrite1hTokens, timestamp: Date.now(), messageCount: messageCountRef.current, turnStartMsgId: currentTurnMsgIdRef.current, apiTotalCost: m.totalCost || 0 }
+            hist.push(entry)
+            // Update last result ref for cache expiry warning
+            if (isResult) {
+              lastResultRef.current = { timestamp: Date.now(), totalInput: m.inputTokens }
+            }
+            // Trim: keep max 20 non-result entries; result entries are extra
+            while (hist.filter(h => !h.isResult).length > 20) {
+              const idx = hist.findIndex(h => !h.isResult)
+              if (idx >= 0) hist.splice(idx, 1); else break
+            }
+          }
+        }
         if (m.model) setCurrentModel(prev => prev || m.model!)
         // Persist session metadata for status line restoration on next app launch
         if (m.contextWindow > 0 || m.totalCost > 0 || m.inputTokens > 0) {
@@ -939,13 +977,34 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     }).catch(() => {})
   }, [taskModal?.taskId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Subscribe to settings changes (font size, statusline config)
+  // Subscribe to settings changes (font size, statusline config, cache alarm)
   useEffect(() => {
     return settingsStore.subscribe(() => {
       setClaudeFontSize(settingsStore.getSettings().fontSize)
       setStatuslineConfig(settingsStore.getStatuslineItems())
+      setCacheAlarmEnabled(settingsStore.getSettings().cacheAlarmTimer === true)
     })
   }, [])
+
+  // Cache alarm timer — update every 30s, only show after 1min idle
+  useEffect(() => {
+    if (!cacheAlarmEnabled) {
+      setCacheCountdown(null)
+      return
+    }
+    const tick = () => {
+      if (!lastResultRef.current) { setCacheCountdown(null); return }
+      const elapsed = Date.now() - lastResultRef.current.timestamp
+      if (elapsed < 60_000) { setCacheCountdown(null); return } // hide until 1min idle
+      const h1 = 60 * 60 * 1000 - elapsed
+      if (h1 <= 0) { setCacheCountdown(null); return }
+      const m5 = 5 * 60 * 1000 - elapsed
+      setCacheCountdown({ m5: Math.max(0, m5), h1 })
+    }
+    tick()
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [cacheAlarmEnabled])
 
   // Subscribe to global Claude usage from workspace store
   useEffect(() => {
@@ -1154,12 +1213,42 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       return
     }
 
+    // Intercept /abort command — force stop current operation
+    if (trimmed === '/abort') {
+      clearInput()
+      window.electronAPI.claude.abortSession(sessionId)
+      setIsStreaming(false)
+      setIsInterrupted(false)
+      setStreamingText('')
+      setStreamingThinking('')
+      setPendingPermission(null)
+      setMessages(prev => {
+        const updated = prev.map(m => {
+          if ('toolName' in m && (m as ClaudeToolCall).status === 'running') {
+            return { ...m, status: 'error', denied: true } as ClaudeToolCall
+          }
+          return m
+        })
+        return [...updated, {
+          id: `sys-abort-${Date.now()}`,
+          sessionId,
+          role: 'system' as const,
+          content: 'Session aborted.',
+          timestamp: Date.now(),
+        }]
+      })
+      return
+    }
+
     // Intercept /new or /clear command — reset session (clear conversation, fresh start)
     if (!isStreaming && (trimmed === '/new' || trimmed === '/clear')) {
       clearInput()
       setMessages([])
       setStreamingText('')
       setStreamingThinking('')
+      cacheHistoryRef.current = []
+      lastResultRef.current = null
+      setCacheCountdown(null)
       await window.electronAPI.claude.resetSession(sessionId)
       return
     }
@@ -1270,8 +1359,10 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       ? `\n[${filePaths.length} file${filePaths.length > 1 ? 's' : ''} attached: ${fileNames}]`
       : ''
     const displayContent = (trimmed + imageNote + fileNote).replace(/^\n/, '')
+    const userMsgId = `user-${Date.now()}`
+    currentTurnMsgIdRef.current = userMsgId
     setMessages(prev => [...prev, {
-      id: `user-${Date.now()}`,
+      id: userMsgId,
       sessionId,
       role: 'user' as const,
       content: displayContent,
@@ -1293,9 +1384,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
 
   const handleStop = useCallback(() => {
     if (!isStreaming && !isInterrupted) return
-    if (!isInterrupted) {
-      window.electronAPI.claude.stopSession(sessionId)
-    }
+    // Hard abort — immediately kill the query loop
+    window.electronAPI.claude.abortSession(sessionId)
     setIsStreaming(false)
     setIsInterrupted(false)
     setStreamingText('')
@@ -1355,6 +1445,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       { name: 'resume', description: 'Resume a previous session', argumentHint: '' },
       { name: 'model', description: 'Select model', argumentHint: '' },
       { name: 'login', description: 'Sign in to Claude (switch account)', argumentHint: '' },
+      { name: 'abort', description: 'Force stop current operation immediately', argumentHint: '' },
       { name: 'logout', description: 'Sign out of Claude', argumentHint: '' },
       { name: 'whoami', description: 'Show current account info', argumentHint: '' },
     ]
@@ -2671,6 +2762,21 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {cacheCountdown && (() => {
+        const fmtMin = (ms: number) => {
+          if (ms <= 0) return t('settings.cacheAlarmExpired') || 'expired'
+          const m = Math.ceil(ms / 60_000)
+          return m >= 60 ? `${Math.floor(m / 60)}h${m % 60}m` : `${m}m`
+        }
+        const m5Color = cacheCountdown.m5 <= 0 ? '#e05252' : cacheCountdown.m5 <= 60_000 ? '#e6a700' : '#89ca78'
+        const h1Color = cacheCountdown.h1 <= 5 * 60_000 ? '#e05252' : cacheCountdown.h1 <= 20 * 60_000 ? '#e6a700' : '#89ca78'
+        return (
+          <div className="claude-cache-alarm">
+            <span style={{ color: m5Color }}>5m: {fmtMin(cacheCountdown.m5)}</span>
+            <span style={{ color: h1Color }}>1h: {fmtMin(cacheCountdown.h1)}</span>
+          </div>
+        )
+      })()}
       {pinnedMessages.length > 0 && (
         <div className="claude-pinned-messages">
           {pinnedMessages.map(msg => (
@@ -3395,6 +3501,250 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
         </div>
       )}
 
+      {/* Cache History Modal */}
+      {showCacheHistory && (() => {
+        const hist = cacheHistoryRef.current
+        const significant = hist.filter(h => h.totalInput >= 50000)
+        const belowCount = significant.filter(h => h.pct < 50).length
+        // Per-MTok pricing — exact model match only, no fallback
+        const P = (input: number, output: number) => ({ input, output, cacheRead: input * 0.1, cacheWrite5m: input * 1.25, cacheWrite1h: input * 2 })
+        const MODEL_PRICING: Record<string, ReturnType<typeof P>> = {
+          'opus-4-6':  P(5, 25),    'opus-4-5':  P(5, 25),
+          'opus-4-1':  P(15, 75),   'opus-4':    P(15, 75),   'opus-3': P(15, 75),
+          'sonnet-4-6': P(3, 15),   'sonnet-4-5': P(3, 15),   'sonnet-4': P(3, 15),
+          'sonnet-3-7': P(3, 15),   'sonnet-3-5': P(3, 15),
+          'haiku-4-5': P(1, 5),     'haiku-3-5': P(0.80, 4),  'haiku-3': P(0.25, 1.25),
+        }
+        const getModelPricing = (model: string) => {
+          if (model.includes('opus-4-6')) return MODEL_PRICING['opus-4-6']
+          if (model.includes('opus-4-5')) return MODEL_PRICING['opus-4-5']
+          if (model.includes('opus-4-1')) return MODEL_PRICING['opus-4-1']
+          if (model.includes('opus-4-0') || model.match(/opus-4(?!-)\b/) || model.match(/opus-4-2\d{7}/)) return MODEL_PRICING['opus-4']
+          if (model.includes('opus-3') || model.includes('3-opus')) return MODEL_PRICING['opus-3']
+          if (model.includes('sonnet-4-6')) return MODEL_PRICING['sonnet-4-6']
+          if (model.includes('sonnet-4-5')) return MODEL_PRICING['sonnet-4-5']
+          if (model.includes('sonnet-4-0') || model.match(/sonnet-4(?!-)\b/) || model.match(/sonnet-4-2\d{7}/)) return MODEL_PRICING['sonnet-4']
+          if (model.includes('sonnet-3-7') || model.includes('3-7-sonnet')) return MODEL_PRICING['sonnet-3-7']
+          if (model.includes('sonnet-3-5') || model.includes('3-5-sonnet')) return MODEL_PRICING['sonnet-3-5']
+          if (model.includes('haiku-4') || model.includes('4-5-haiku')) return MODEL_PRICING['haiku-4-5']
+          if (model.includes('haiku-3-5') || model.includes('3-5-haiku')) return MODEL_PRICING['haiku-3-5']
+          if (model.includes('haiku-3') || model.includes('3-haiku')) return MODEL_PRICING['haiku-3']
+          return null
+        }
+        const fmtCost = (v: number | null) => v === null ? '—' : `$${v.toFixed(4)}`
+        const calcModelCosts = (h: typeof hist[0]) => {
+          const hasModelUsage = h.modelUsage && Object.keys(h.modelUsage).length > 0
+          if (hasModelUsage) {
+            const models: { model: string; cacheRead: number; cacheWrite: number; input: number; output: number; readCost: number | null; writeCost: number | null; totalCost: number | null }[] = []
+            for (const [model, stats] of Object.entries(h.modelUsage!)) {
+              const p = getModelPricing(model)
+              const totalIn = stats.inputTokens + stats.cacheReadInputTokens + stats.cacheCreationInputTokens
+              if (!p) { models.push({ model, cacheRead: stats.cacheReadInputTokens, cacheWrite: stats.cacheCreationInputTokens, input: totalIn, output: stats.outputTokens, readCost: null, writeCost: null, totalCost: null }); continue }
+              let writePrice = p.cacheWrite5m
+              if (h.cacheWrite5mTokens !== undefined && h.cacheWrite1hTokens !== undefined) {
+                const total5m1h = h.cacheWrite5mTokens + h.cacheWrite1hTokens
+                if (total5m1h > 0) writePrice = (h.cacheWrite5mTokens * p.cacheWrite5m + h.cacheWrite1hTokens * p.cacheWrite1h) / total5m1h
+              }
+              const readCost = (stats.cacheReadInputTokens / 1_000_000) * p.cacheRead
+              const writeCost = (stats.cacheCreationInputTokens / 1_000_000) * writePrice
+              const inputCost = (stats.inputTokens / 1_000_000) * p.input
+              const outputCost = (stats.outputTokens / 1_000_000) * p.output
+              models.push({ model, cacheRead: stats.cacheReadInputTokens, cacheWrite: stats.cacheCreationInputTokens, input: totalIn, output: stats.outputTokens, readCost, writeCost, totalCost: readCost + writeCost + inputCost + outputCost })
+            }
+            return models
+          }
+          if (h.model) {
+            const p = getModelPricing(h.model)
+            const output = h.outputTokens || 0
+            if (!p) return [{ model: h.model, cacheRead: h.cacheRead, cacheWrite: h.cacheCreate, input: h.totalInput, output, readCost: null, writeCost: null, totalCost: null }]
+            let writePrice = p.cacheWrite5m
+            if (h.cacheWrite5mTokens !== undefined && h.cacheWrite1hTokens !== undefined) {
+              const total5m1h = h.cacheWrite5mTokens + h.cacheWrite1hTokens
+              if (total5m1h > 0) writePrice = (h.cacheWrite5mTokens * p.cacheWrite5m + h.cacheWrite1hTokens * p.cacheWrite1h) / total5m1h
+            }
+            const readCost = (h.cacheRead / 1_000_000) * p.cacheRead
+            const writeCost = (h.cacheCreate / 1_000_000) * writePrice
+            const uncachedInput = Math.max(0, h.totalInput - h.cacheRead - h.cacheCreate)
+            const inputCost = (uncachedInput / 1_000_000) * p.input
+            const outputCost = (output / 1_000_000) * p.output
+            return [{ model: h.model, cacheRead: h.cacheRead, cacheWrite: h.cacheCreate, input: h.totalInput, output, readCost, writeCost, totalCost: readCost + writeCost + inputCost + outputCost }]
+          }
+          return null
+        }
+        let grandTotal = 0
+        let hasAnyCost = false
+        for (let i = 0; i < hist.length; i++) {
+          if (!hist[i].isResult && i + 1 < hist.length && hist[i + 1].isResult) continue
+          const models = calcModelCosts(hist[i])
+          if (models) { for (const m of models) { if (m.totalCost !== null) { grandTotal += m.totalCost; hasAnyCost = true } } }
+        }
+        return (
+          <div className="claude-plan-overlay" onClick={() => setShowCacheHistory(false)}>
+            <div className="claude-plan-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 1060 }}>
+              <div className="claude-plan-modal-header">
+                <span className="claude-plan-modal-title">Cache Efficiency History (last {hist.length})</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button className="claude-plan-modal-close" title="Clear history" style={{ fontSize: 14, opacity: 0.6 }} onClick={() => { cacheHistoryRef.current = []; setShowCacheHistory(false) }}>Clear</button>
+                  <button className="claude-plan-modal-close" onClick={() => setShowCacheHistory(false)}>&times;</button>
+                </div>
+              </div>
+              <div className="claude-plan-modal-body" style={{ padding: '12px 16px', fontFamily: 'inherit' }}>
+                {significant.length > 0 && (
+                  <div style={{ fontSize: 12, marginBottom: 10, color: '#999' }}>
+                    &lt;50%: {belowCount}/{significant.length} significant readings ({'>='}50k input)
+                  </div>
+                )}
+                <div style={{ fontSize: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #333', fontWeight: 600, color: '#bbb' }}>
+                    <span style={{ width: 24 }}>#</span>
+                    <span style={{ width: 36, textAlign: 'right' }} title="Turn cache efficiency: turn c.read / turn total">%</span>
+                    <span style={{ width: 36, textAlign: 'right' }} title="Number of API calls in this turn">calls</span>
+                    <span style={{ width: 76, textAlign: 'right' }} title="Last API call's cache read tokens">call c.read</span>
+                    <span style={{ width: 76, textAlign: 'right' }} title="Last API call's cache write tokens">call c.write</span>
+                    <span style={{ width: 76, textAlign: 'right' }} title="Sum of cache read tokens across all API calls in this turn">turn c.read</span>
+                    <span style={{ width: 76, textAlign: 'right' }} title="Sum of cache write tokens across all API calls in this turn">turn c.write</span>
+                    <span style={{ width: 76, textAlign: 'right' }} title="Total input tokens consumed in this turn">turn total</span>
+                    <span style={{ width: 56, textAlign: 'right' }} title="Output tokens (result rows only)">output</span>
+                    <span style={{ width: 64, textAlign: 'right' }} title="Estimated cache read cost">c.read $</span>
+                    <span style={{ width: 64, textAlign: 'right' }} title="Estimated cache write cost (weighted 5m/1h)">c.write $</span>
+                    <span style={{ width: 64, textAlign: 'right' }} title="Estimated total cost (cache read + write + uncached input + output)">est. $</span>
+                    <span style={{ width: 64, textAlign: 'right' }} title="Actual turn cost from API (result rows only)">real $</span>
+                    <span style={{ width: 110, textAlign: 'right' }}>time</span>
+                  </div>
+                  {(() => { let callNum = 0; return hist.map((h, i) => {
+                    if (!h.isResult) callNum++
+                    const isSkip = h.totalInput < 50000
+                    const pctColor = h.pct >= 70 ? '#89ca78' : h.pct >= 40 ? '#e6a700' : '#e05252'
+                    const realTurnCost = h.isResult && h.modelUsage ? Object.values(h.modelUsage).reduce((s, m) => s + (m.costUSD || 0), 0) : null
+                    const models = calcModelCosts(h)
+                    const turnReadCost = models?.reduce((s, m) => m.readCost !== null ? s + m.readCost : s, 0) ?? null
+                    const turnWriteCost = models?.reduce((s, m) => m.writeCost !== null ? s + m.writeCost : s, 0) ?? null
+                    const turnTotalCost = models?.reduce((s, m) => m.totalCost !== null ? s + m.totalCost : s, 0) ?? null
+                    const hasMultiModel = models && models.length > 1
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: hasMultiModel ? 'none' : '1px solid #222', ...(h.isResult ? { borderTop: '1px solid #444', background: '#1a1a2e' } : {}) }}>
+                          <span style={{ width: 24, color: h.isResult ? '#c678dd' : isSkip ? '#666' : '#eee', cursor: h.isResult ? 'pointer' : 'default', textDecoration: h.isResult ? 'underline' : 'none' }} onClick={() => h.isResult && setCacheEntryModal(i)} title={h.isResult ? 'View turn conversation' : undefined}>{h.isResult ? 'R' : callNum}</span>
+                          <span style={{ width: 36, textAlign: 'right', color: isSkip ? '#eee' : pctColor }}>{h.pct}%</span>
+                          <span style={{ width: 36, textAlign: 'right', color: isSkip ? '#666' : '#d19a66' }}>{h.isResult ? h.calls : 1}</span>
+                          <span style={{ width: 76, textAlign: 'right', color: isSkip ? '#666' : '#8be9fd' }}>{h.callCacheRead ? h.callCacheRead.toLocaleString() : '—'}</span>
+                          <span style={{ width: 76, textAlign: 'right', color: isSkip ? '#666' : '#8be9fd' }}>{h.callCacheWrite ? h.callCacheWrite.toLocaleString() : '—'}</span>
+                          <span style={{ width: 76, textAlign: 'right', color: isSkip ? '#666' : '#eee' }}>{h.cacheRead.toLocaleString()}</span>
+                          <span style={{ width: 76, textAlign: 'right', color: isSkip ? '#666' : '#eee' }}>{h.cacheCreate.toLocaleString()}</span>
+                          <span style={{ width: 76, textAlign: 'right', color: isSkip ? '#666' : '#888' }}>{h.totalInput.toLocaleString()}</span>
+                          <span style={{ width: 56, textAlign: 'right', color: isSkip ? '#666' : '#d19a66' }}>{h.isResult && h.outputTokens ? h.outputTokens.toLocaleString() : ''}</span>
+                          <span style={{ width: 64, textAlign: 'right', color: isSkip ? '#666' : '#89ca78' }}>{fmtCost(turnReadCost)}</span>
+                          <span style={{ width: 64, textAlign: 'right', color: isSkip ? '#666' : '#e6a700' }}>{fmtCost(turnWriteCost)}</span>
+                          <span style={{ width: 64, textAlign: 'right', color: isSkip ? '#666' : '#eee' }}>{fmtCost(turnTotalCost)}</span>
+                          <span style={{ width: 64, textAlign: 'right', color: realTurnCost !== null ? '#50fa7b' : '#333' }}>{realTurnCost !== null ? fmtCost(realTurnCost) : ''}</span>
+                          <span style={{ width: 110, textAlign: 'right', color: '#555', fontSize: 11 }}>{h.timestamp ? new Date(h.timestamp).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}</span>
+                        </div>
+                        {models && models.map(m => (
+                          <div key={m.model} style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', fontSize: 11, borderBottom: '1px solid #1a1a1a' }}>
+                            <span style={{ width: 24 }} />
+                            <span style={{ width: 36 }} />
+                            <span style={{ width: 36 }} />
+                            <span style={{ width: 76, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>{m.model}</span>
+                            <span style={{ width: 76 }} />
+                            <span style={{ width: 76, textAlign: 'right', color: '#555' }}>{m.cacheRead.toLocaleString()}</span>
+                            <span style={{ width: 76, textAlign: 'right', color: '#555' }}>{m.cacheWrite.toLocaleString()}</span>
+                            <span style={{ width: 76 }} />
+                            <span style={{ width: 56, textAlign: 'right', color: '#555' }}>{m.output.toLocaleString()}</span>
+                            <span style={{ width: 64, textAlign: 'right', color: m.readCost !== null ? '#557a56' : '#555' }}>{fmtCost(m.readCost)}</span>
+                            <span style={{ width: 64, textAlign: 'right', color: m.writeCost !== null ? '#8a7030' : '#555' }}>{fmtCost(m.writeCost)}</span>
+                            <span style={{ width: 64, textAlign: 'right', color: m.totalCost !== null ? '#999' : '#555' }}>{fmtCost(m.totalCost)}</span>
+                            <span style={{ width: 64 }} />
+                            <span style={{ width: 110 }} />
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }) })()}
+                  {hist.length > 0 && (() => {
+                    let apiTotal = 0
+                    let hasApiCost = false
+                    for (const h of hist) {
+                      if (h.isResult && h.modelUsage) {
+                        for (const m of Object.values(h.modelUsage)) { if (m.costUSD) { apiTotal += m.costUSD; hasApiCost = true } }
+                      }
+                    }
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderTop: '1px solid #444', fontWeight: 600 }}>
+                        <span style={{ flex: 1, color: '#bbb' }}>Total</span>
+                        <span style={{ width: 64, textAlign: 'right', color: hasAnyCost ? '#eee' : '#666' }}>{hasAnyCost ? `$${grandTotal.toFixed(4)}` : '—'}</span>
+                        <span style={{ width: 64, textAlign: 'right', color: hasApiCost ? '#50fa7b' : '#666' }}>{hasApiCost ? `$${apiTotal.toFixed(4)}` : '—'}</span>
+                        <span style={{ width: 110 }} />
+                      </div>
+                    )
+                  })()}
+                  {hist.length === 0 && <div style={{ color: '#666', padding: '8px 0' }}>No readings yet.</div>}
+                </div>
+                <div style={{ fontSize: 12, color: '#e05252', marginTop: 8, lineHeight: 1.5 }}>
+                  ⚠ Experimental: cost is estimated from built-in pricing table. Result (R) rows include sub-agent costs and per-model token breakdown — use these as more accurate estimates. The real $ column shows exact API billing (costUSD). Verify independently.
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Cache Entry Turn Detail Modal */}
+      {cacheEntryModal !== null && (() => {
+        const hist = cacheHistoryRef.current
+        const entry = hist[cacheEntryModal]
+        if (!entry) return null
+        let startIdx = 0
+        let endIdx = allMessages.length
+        if (entry.turnStartMsgId) {
+          const turnStart = allMessages.findIndex(m => m.id === entry.turnStartMsgId)
+          if (turnStart >= 0) {
+            startIdx = turnStart
+            for (let k = turnStart + 1; k < allMessages.length; k++) {
+              const msg = allMessages[k]
+              if (!isToolCall(msg) && msg.role === 'user') { endIdx = k; break }
+            }
+          }
+        } else if (entry.messageCount !== undefined) {
+          endIdx = entry.messageCount
+          for (let j = cacheEntryModal - 1; j >= 0; j--) {
+            if (hist[j].isResult && hist[j].messageCount !== undefined) {
+              startIdx = hist[j].messageCount!
+              break
+            }
+          }
+        }
+        const turnMsgs = allMessages.slice(startIdx, endIdx).filter(m => !('parentToolUseId' in m && m.parentToolUseId))
+        const callNum = hist.slice(0, cacheEntryModal + 1).filter(h => !h.isResult).length
+        const fmtTokens = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
+        return (
+          <div className="claude-plan-overlay" onClick={() => setCacheEntryModal(null)}>
+            <div className="claude-plan-modal claude-subagent-modal" onClick={e => e.stopPropagation()}>
+              <div className="claude-plan-modal-header">
+                <span className="claude-tool-name" style={{ marginRight: 4 }}>Turn {callNum}</span>
+                <span className="claude-tool-badge" style={{ marginRight: 6 }}>{entry.calls} calls</span>
+                <span className="claude-plan-modal-title" style={{ fontSize: 12, color: '#999' }}>
+                  {entry.pct}% cache · {fmtTokens(entry.totalInput)} input · {fmtTokens(entry.outputTokens || 0)} output
+                </span>
+                <span className="claude-subagent-meta">
+                  {turnMsgs.length} messages
+                  {entry.timestamp ? ` · ${new Date(entry.timestamp).toLocaleTimeString()}` : ''}
+                </span>
+                <button className="claude-plan-modal-close" onClick={() => setCacheEntryModal(null)}>&times;</button>
+              </div>
+              <div className="claude-subagent-body">
+                <div className="claude-messages claude-timeline">
+                  {turnMsgs.length === 0 ? (
+                    <div style={{ color: '#666', padding: '16px', textAlign: 'center' }}>
+                      No messages captured for this turn (messages may have been archived).
+                    </div>
+                  ) : turnMsgs.map((item, i) => renderMessage(item, i))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Subagent Modal */}
       {taskModal && (() => {
         const existingMsgs = subagentMessagesRef.current.get(taskModal.taskId) || []
@@ -3609,14 +3959,24 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           cacheEff: () => {
             if (!sessionMeta || sessionMeta.inputTokens <= 0) return null
             const cacheRead = sessionMeta.cacheReadTokens || 0
-            const cacheCreate = sessionMeta.cacheCreationTokens || 0
             const totalInput = sessionMeta.inputTokens
-            const pct = Math.round((cacheRead / totalInput) * 100)
-            const color = pct >= 70 ? '#89ca78' : pct >= 40 ? '#e6a700' : '#e05252'
+            const currentPct = Math.round((cacheRead / totalInput) * 100)
+            // Color is determined by the lowest reading >= 50k in last 20
+            const hist = cacheHistoryRef.current
+            const significant = hist.filter(h => h.totalInput >= 50000)
+            const lowest = significant.length > 0
+              ? significant.reduce((min, h) => h.pct < min.pct ? h : min, significant[0])
+              : null
+            const colorPct = lowest ? lowest.pct : currentPct
+            const color = colorPct >= 70 ? '#89ca78' : colorPct >= 40 ? '#e6a700' : '#e05252'
+            const belowCount = significant.filter(h => h.pct < 50).length
+            const lowestTip = lowest ? `\nlowest: ${lowest.pct}% (read:${lowest.cacheRead.toLocaleString()} write:${lowest.cacheCreate.toLocaleString()})` : ''
+            const belowTip = significant.length > 0 ? `\n<50%: ${belowCount}/${significant.length}` : ''
             return (
-              <span key="cacheEff" className="claude-statusline-item" style={{ color }}
-                title={`cache_read: ${cacheRead.toLocaleString()}\ncache_creation: ${cacheCreate.toLocaleString()}\ntotal_input: ${totalInput.toLocaleString()}\ncache_read / total_input = ${pct}%`}>
-                cache:{pct}%
+              <span key="cacheEff" className="claude-statusline-item claude-statusline-clickable" style={{ color }}
+                title={`current: ${currentPct}% (read:${cacheRead.toLocaleString()} write:${(sessionMeta.cacheCreationTokens || 0).toLocaleString()})${lowestTip}${belowTip}\nclick for history`}
+                onClick={() => setShowCacheHistory(true)}>
+                cache:{currentPct}%
               </span>
             )
           },
