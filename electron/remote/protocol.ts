@@ -38,6 +38,8 @@ export const PROXIED_CHANNELS = new Set([
   'github:pr-comment', 'github:issue-comment',
   // Git
   'git:branch', 'git:log', 'git:diff', 'git:diff-files', 'git:status', 'git:get-github-url', 'git:getRoot',
+  // Git scaffold (simple-git backed, T0155) — bridged alongside legacy git:* channels
+  'git-scaffold:healthCheck', 'git-scaffold:getRepoInfo', 'git-scaffold:listCommits',
   // FS
   'fs:readdir', 'fs:readFile', 'fs:stat', 'fs:search', 'fs:watch', 'fs:unwatch', 'fs:reset-watch',
   // Snippet

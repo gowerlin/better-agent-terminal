@@ -18,19 +18,20 @@ import type { AgentDefinition } from '../types/agent-runtime'
 const MainPanel = lazy(() => import('./MainPanel').then(m => ({ default: m.MainPanel })))
 const FileTree = lazy(() => import('./FileTree').then(m => ({ default: m.FileTree })))
 const GitPanel = lazy(() => import('./GitPanel').then(m => ({ default: m.GitPanel })))
+const GitGraphPanel = lazy(() => import('./git-panel/GitGraphPanel').then(m => ({ default: m.GitGraphPanel })))
 const GitHubPanel = lazy(() => import('./GitHubPanel').then(m => ({ default: m.GitHubPanel })))
 const SnippetSidebar = lazy(() => import('./SnippetPanel').then(m => ({ default: m.SnippetSidebar })))
 const SkillsPanel = lazy(() => import('./SkillsPanel').then(m => ({ default: m.SkillsPanel })))
 const AgentsPanel = lazy(() => import('./AgentsPanel').then(m => ({ default: m.AgentsPanel })))
 const ControlTowerPanel = lazy(() => import('./ControlTowerPanel').then(m => ({ default: m.ControlTowerPanel })))
 
-type WorkspaceTab = 'terminal' | 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
+type WorkspaceTab = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
 const TAB_KEY = 'better-terminal-workspace-tab'
 
 function loadWorkspaceTab(): WorkspaceTab {
   try {
     const saved = localStorage.getItem(TAB_KEY)
-    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'github' || saved === 'snippets' || saved === 'skills' || saved === 'agents' || saved === 'control-tower') return saved
+    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'git-graph' || saved === 'github' || saved === 'snippets' || saved === 'skills' || saved === 'agents' || saved === 'control-tower') return saved
   } catch { /* ignore */ }
   return 'terminal'
 }
@@ -72,7 +73,7 @@ const DEFAULT_SPLIT_RATIO = 0.5
 const MIN_SPLIT_RATIO = 0.2
 const MAX_SPLIT_RATIO = 0.8
 
-type PinnedContentType = 'terminal' | 'files' | 'git' | 'github' | 'snippets' | 'skills' | 'agents'
+type PinnedContentType = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents'
 
 interface PinnedPane {
   type: PinnedContentType
@@ -988,6 +989,12 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 .map(t => ({ path: t.worktreePath!, branch: t.worktreeBranch || 'worktree' }))
               }
             />
+          </div>
+        )
+      case 'git-graph':
+        return (
+          <div className="workspace-tab-content">
+            <GitGraphPanel workspaceFolderPath={workspace.folderPath} />
           </div>
         )
       case 'github':
