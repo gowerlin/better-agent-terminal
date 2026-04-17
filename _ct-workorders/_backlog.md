@@ -1,11 +1,14 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-18 05:30 (UTC+8)
+> 最後更新：2026-04-18 05:45 (UTC+8)
 >
 > 統計：💡 Ideas: 4 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 4 | 🚫 Dropped: 1
 >
 > 📦 已歸檔：4 張（PLAN-006 DROPPED, PLAN-008 DONE, PLAN-010 DONE, PLAN-011 DONE → _archive/plans/）
+> 本輪（2026-04-18 05:45）新歸檔：PLAN-010（upstream sync v2.1.3→v2.1.42 DONE）、PLAN-011（CT/BAT routing upstream PR DONE）
+>
+> Completed 熱區保留：PLAN-003 / PLAN-005 / PLAN-016（2026-04-18 當日 DONE，未滿 archive_days）+ PLAN-012（被 PLAN-014 🟡 PLANNED 引用，豁免）
 
 ## Active
 

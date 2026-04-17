@@ -30,8 +30,9 @@
 
 ### 待處理事項
 1. ⏸ Worktree 清理：`git worktree remove --force ../better-agent-terminal-builder26 && git branch -d exp/builder26`（等 file lock 釋放後執行）
-2. 🟡 **5 commits 待 push**（由使用者決定時機）
-3. 💡 **強烈建議下輪 `/ct-evolve`** — 本輪累積 15 條 learning 值得系統性萃取，L054/L055 有跨專案價值
+2. 🟡 **6+ commits 待 push**（由使用者決定時機）
+3. 📦 **本輪歸檔完成**（2026-04-18 05:45）：37 張搬入冷區（29 T 工單 + 6 BUG + 2 PLAN），豁免 T0149/T0150/T0154/BUG-034/PLAN-012 共 5 張（Active 引用）
+4. 💡 **正在進行 `*evolve`** — 萃取本輪 18 條 learning
 4. 📋 **下一輪工作候選**（優先級待定）：
    - PLAN-004 🟡 GPU Whisper 加速（Win/Linux）
    - PLAN-009 🟡 Sprint 儀表板 UI
