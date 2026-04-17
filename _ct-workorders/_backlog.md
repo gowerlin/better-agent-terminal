@@ -1,9 +1,9 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新:2026-04-18 07:10 (UTC+8)
+> 最後更新:2026-04-18 07:35 (UTC+8)
 >
-> 統計:💡 Ideas: 4 | 📋 Planned: 4 | 🔄 In Progress: 0 | ✅ Done: 4 | 🚫 Dropped: 1
+> 統計:💡 Ideas: 5 | 📋 Planned: 4 | 🔄 In Progress: 0 | ✅ Done: 4 | 🚫 Dropped: 1
 >
 > 📦 已歸檔：4 張（PLAN-006 DROPPED, PLAN-008 DONE, PLAN-010 DONE, PLAN-011 DONE → _archive/plans/）
 > 本輪（2026-04-18 05:45）新歸檔：PLAN-010（upstream sync v2.1.3→v2.1.42 DONE）、PLAN-011（CT/BAT routing upstream PR DONE）
@@ -22,6 +22,7 @@
 | PLAN-007 | 遠端容器開發支援 | 🟢 Low | 💡 IDEA | [詳細](PLAN-007-remote-container-dev-support.md) |
 | PLAN-013 | NSIS Installer 偵測檔案鎖定時詢問 kill Terminal Server | 🟢 Low | 💡 IDEA | [詳細](PLAN-013-installer-force-kill-on-file-lock.md) |
 | PLAN-015 | Refactor：抽 renderPanelContent shared helper 消除雙 render 路徑 | 🟢 Low | 💡 IDEA | [詳細](PLAN-015-refactor-dual-render-path-shared-helper.md) |
+| PLAN-019 | 清理 fork 既有 TypeScript 技術債（`tsc --noEmit` ~20 errors，T0165 發現） | 🟢 Low | 💡 IDEA | [詳細](PLAN-019-typescript-debt-cleanup.md) |
 
 ## Completed
 

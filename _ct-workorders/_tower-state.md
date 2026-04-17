@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-18 07:10 (UTC+8)（T0164 研究 DONE，D058 — upstream v2.1.42+ 採方案 [A]，T0165 + PLAN-018 登場）
+> 最後更新:2026-04-18 07:40 (UTC+8)（T0165 Phase 1 DONE，upstream v2.1.42+ 同步 Phase 1 閉環，Opus 4.7 可用）
 
 ---
 
@@ -14,14 +14,22 @@
 - **關鍵補充**：使用者指示 C1.1 必須先升 SDK/CLI 再加 Opus 4.7 builtin（否則 `model-not-supported`）
 - **D058 決策**：採方案 [A] — T0165 Phase 1 cherry-pick（~2h，本輪執行）+ PLAN-018 Phase 2 remote 資安加固（6-10h，下週）
 
-### 衍生工單
-- **T0165** 📋 PENDING — Phase 1 cherry-pick（C1.1 Opus 4.7 + SDK/CLI 2.1.111 + xhigh / C1.2 remote workspace:load + profile fix）
-- **PLAN-018** 📋 PLANNED 🔴 High — Remote TLS + fingerprint pinning + path sandbox + brute-force 防護
+### 衍生工單狀態
+- **T0165** ✅ DONE（07:40 使用者驗收通過）— Phase 1 cherry-pick 閉環
+  - C1.1 = `84c2930` Opus 4.7 + SDK/CLI 2.1.111 + EFFORT_LEVELS + xhigh
+  - C1.2 = `59a26f8` remote workspace:load + profile fix (upstream `0bc3bc1` cherry-pick)
+  - prep = `47bce0c` CT bookkeeping
+  - `version.json` 推進 `8d23e6e → 0bc3bc1`，version 改為 `2.1.45`
+  - `CLAUDE.md` 新增 Claude Agent SDK / CLI 小節
+- **PLAN-018** 📋 PLANNED 🔴 High — Remote 資安加固（TLS + fingerprint + sandbox + anti-bruteforce），排下週
+- **PLAN-019** 💡 IDEA 🟢 Low — TypeScript 技術債清理（T0165 順帶發現 ~20 tsc errors）
 
 ### 下一步
-1. 派發 T0165（auto-session：`/ct-exec T0165`）
-2. T0165 完成後回塔台，更新 `version.json.lastSyncCommit`
-3. PLAN-018 排下週，實作階段再拆 T####
+1. ~~派發 T0165~~（✅ 已完成）
+2. ~~T0165 runtime 驗收~~（✅ 已完成）
+3. 本輪 CT bookkeeping meta commit（`_decision-log` / `_backlog` / `_tower-state` / PLAN-018/019）
+4. PLAN-018 排下週，實作階段再拆 T####
+5. PLAN-019 等有空檔再議
 
 ### 待處理事項（沿用上輪）
 1. ⏸ Worktree 清理：`git worktree remove --force ../better-agent-terminal-builder26 && git branch -d exp/builder26`
