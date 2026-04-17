@@ -115,7 +115,7 @@
         "target": "dmg",
         "arch": "universal"
       },
-      "x64ArchFiles": "**/node_modules/@anthropic-ai/claude-agent-sdk/vendor/audio-capture/**",
+      "x64ArchFiles": "**/node_modules/@anthropic-ai/claude-agent-sdk/vendor/**",
       "icon": "assets/icon-512.png",
       "category": "public.app-category.developer-tools",
       "identity": "TonyQ CO., LTD. (8JVDJGLLYR)",
