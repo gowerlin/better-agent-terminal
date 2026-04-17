@@ -11,53 +11,66 @@
 
 ## 動機
 
-Terminal Server 目前在 Quit 後仍於背景執行，導致：
-1. **版本更新安裝時檔案鎖定**：electron-builder NSIS installer 無法覆寫正在執行的 server 檔案
-2. **使用者意圖不明確**：目前 Quit 行為固定，使用者無法選擇「完整關閉」或「保留 server」
+Terminal Server 目前在 Quit 後仍於背景執行（設計如此：fork + detached + unref，idle 30 分鐘後才自關），導致：
+1. **版本更新安裝時檔案鎖定**：electron-builder NSIS installer 無法覆寫正在執行的 server 檔案（`@lydell/node-pty.node` 句柄持有）
+2. **使用者意圖不明確**：目前 Quit 行為固定、零互動（Cmd+Q → `before-quit` → cleanup → exit）
+
+## T0143 研究結論修正（2026-04-17 13:56）
+
+**翻盤發現**：BAT **沒有** Quit Confirmation Dialog，Quit 流程直接進 `before-quit`，零使用者互動。本 PLAN 從「擴充現有 Dialog」調整為「**新增 Quit Dialog 含 CheckBox**」。
+
+**好消息**：Electron 原生 `dialog.showMessageBox` 內建 `checkboxLabel` + `checkboxChecked`，規模仍極小（main.ts +~50 行 + i18n 6 行，零 React 改動）。
 
 ## 解決方案（本 PLAN 範圍）
 
-Quit Dialog 新增 CheckBox：
+在 Electron main 端 `before-quit` hook 內新增原生確認 Dialog：
 
 ```
-[ ] 一併結束 Terminal Server
+[Message Box]
+  Title: Better Agent Terminal
+  Message: 離開 Better Agent Terminal？
+  [ ] 一併結束 Terminal Server（版本更新前建議勾選）
+  [ Cancel ]  [ OK ]
 ```
 
-### 關鍵設計
-- **預設值**：**不勾選**（Terminal Server 留在背景）
-  - 理由：避免使用者誤按關掉背景 server，導致重啟後 session 狀態遺失
-  - 需要更新版本時，使用者應**主動勾選**，或由**安裝程式**詢問強制 kill
-- **位置**：現有 Quit Dialog 新增一列（不新增獨立按鈕）
-- **記憶**：不記憶上次選擇（每次都預設不勾）
-- **勾選後行為**：Electron main 關閉流程中，先關 Terminal Server process 再 `app.quit()`
+### 關鍵設計（D035 定調）
+- **UI 路線**：**Electron 原生 `dialog.showMessageBox`**（內建 `checkboxLabel` / `checkboxChecked`）
+  - 放棄 Custom React Modal（改動大、邊際效益低）
+- **CheckBox 預設值**：**不勾選**（Terminal Server 留背景）
+  - 避免誤按關掉背景 server 導致 session 狀態遺失
+- **記憶**：不記憶上次選擇（每次預設不勾）
+- **勾選後關閉路徑**：
+  1. 優先 IPC：`_terminalServerProcess?.kill('SIGTERM')`（server 端 SIGTERM handler 已有 graceful shutdown）
+  2. 等待 `exit` event 或 1500ms timeout
+  3. timeout → `kill('SIGKILL')` + Windows `taskkill /F /T /PID`（orphan path 已 production-tested）
+- **Cancel 機制**：Dialog 提供 Cancel 按鈕，按下 `e.preventDefault()` 取消 quit
 
 ## 範圍
 
 ### In-Scope（本 PLAN）
-- [ ] Quit Dialog UI 新增 CheckBox（renderer 層）
-- [ ] CheckBox 狀態傳遞到 Electron main（IPC）
-- [ ] main 層根據 CheckBox 決定是否結束 Terminal Server process
-- [ ] Terminal Server 正確關閉（graceful shutdown，避免殭屍 process）
+- [ ] Electron main `before-quit` hook 內加 `dialog.showMessageBox` + CheckBox
+- [ ] 依 CheckBox 勾選狀態決定是否 `_terminalServerProcess.kill('SIGTERM')`
+- [ ] 勾選路徑的 graceful shutdown + timeout fallback（1500ms → SIGKILL + taskkill）
+- [ ] i18n 文案（en / zh-TW）
+- [ ] 手動驗收 6 情境 + 版本更新流程
 
 ### Out-of-Scope（另開 PLAN）
 - ❌ **Installer 強制 kill 執行中程式**：另開 PLAN-###（安裝時詢問是否 kill BAT + Terminal Server）
 - ❌ Terminal Server 獨立生命週期管理（systemd / launchd 之類）
 - ❌ Quit Dialog 整體重構
 
-## 拆單初步規劃（待對齊）
+## 拆單規劃（D037 定調，2 張工單）
 
-| 工單 | 預估範圍 |
-|------|---------|
-| T####-A | Quit Dialog UI 加 CheckBox + IPC 訊息型別 |
-| T####-B | Electron main 關閉流程處理 Terminal Server shutdown |
-| T####-C | 測試 + 驗收（Quit 兩種模式、安裝更新場景） |
-
-（實際拆幾張 T 工單，對齊階段再決定。也可能併成一張。）
+| 工單 | 範圍 | 預估 |
+|------|------|------|
+| **T0144** | 實作 — `before-quit` 原生 Dialog + CheckBox + 勾選關閉邏輯（SIGTERM + 1500ms timeout fallback）+ i18n | ~60-80 行 |
+| **T0145** | 手動驗收 — 6 情境 + 版本更新安裝整體驗證 | 驗收工單 |
 
 ## 前置條件
 
-- BUG-032 修復鏈完成（T0138-T0141 ✅ DONE，T0142 END-TO-END 驗收 📋 TODO）
-- T0142 全綠後才派第一張 T 工單
+- ✅ BUG-032 CLOSED（T0143 Task B 驗收通過，2026-04-17 13:58）
+- ✅ T0143 研究完成（Worker 推薦原生 dialog 方案）
+- ➡️ 可派 T0144 實作
 
 ## 時程
 

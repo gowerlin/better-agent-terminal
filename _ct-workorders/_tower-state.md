@@ -1,33 +1,79 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-17 12:20 (UTC+8)（D032 — BUG-032 helper scripts 三層問題 + T0138 研究工單派發）
+> 最後更新：2026-04-17 14:22 (UTC+8)（🛏 使用者退出前快照 — T0144 DONE，等換版後派 T0145）
+
+---
+
+## 🛏 本 Session 退出快照（2026-04-17 14:22）
+
+**退出原因**：使用者手動 rebuild + 換版 BAT（塔台當前在 BAT 裡跑，重裝會斷 session）
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+1. Fast Path 載入此快照（快照 <24h）
+2. 檢查 `git status` 確認 meta 變更狀態（可能已由使用者自行 commit，或仍 uncommitted）
+3. 檢查 `git log -1` 確認最新 commit（應為 `412d52c` 或之後使用者的 meta commit）
+4. 若 BAT 已換新版 → 新 session 在 BAT 內（`BAT_SESSION=1`）→ 派 T0145 驗收
+5. 若尚未換版 → 提醒使用者 `npm run build:win` + 重裝
+
+**當前狀態凍結**：
+- T0144 ✅ DONE (commit 412d52c by Worker，14:18)
+- PLAN-012 實作完成，等 T0145 驗收
+- BUG-032 🚫 CLOSED（T0143 Task B 驗證通過）
+- **9 檔塔台 meta uncommitted**（見下方清單）
+
+**未 commit 清單**（塔台建立/修改，尚未進入 git history）：
+```
+modified:  _ct-workorders/_backlog.md              (PLAN-012 加入)
+modified:  _ct-workorders/_bug-tracker.md          (BUG-032 移至 CLOSED)
+modified:  _ct-workorders/_tower-state.md          (本檔，decisions/起手式)
+modified:  _ct-workorders/BUG-032-...md            (CLOSED + D036)
+modified:  _ct-workorders/PLAN-012-...md           (翻盤描述)
+modified:  _ct-workorders/T0142-...md              (MERGED → DONE)
+modified:  _ct-workorders/T0143-...md              (Worker 已 commit 為 215e8757，塔台這端可能還有微調)
+new:       _ct-workorders/T0144-...md              (塔台建立 + Worker 補回報)
+new:       _ct-workorders/T0145-...md              (塔台建立，驗收工單)
+```
+
+**建議 commit 訊息**（下次恢復後提供給使用者）：
+```
+chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
+
+- BUG-032 → CLOSED (T0143 Task B all-green)
+- T0142 → DONE (merged into T0143)
+- PLAN-012 strategy: native Electron dialog (D035)
+- T0143 DONE (research, Worker commit 215e8757)
+- T0144 DONE (impl, Worker commit 412d52c)
+- New: T0145 acceptance workorder pending
+```
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
-> 最後更新：2026-04-17 12:20 UTC+8（使用者於 2026_Taipower 實戰測試發現 BUG-032）
+> 最後更新：2026-04-17 14:22 UTC+8
 
-### 🔴 當前焦點：BUG-032 — Helper Scripts 打包與路徑解析
-使用者在 `D:\ForgejoGit\2026_Taipower` 實戰測試 BAT v2.x + CT v4.1，發現：
-1. **問題 1**（看似 OK 實則巧合）：塔台呼叫 `node scripts/bat-terminal.mjs ...` 在使用者環境會壞，開發機剛好能跑因為 cwd 落在 source root
-2. **問題 2**：Worker 完成工單沒走 `bat-notify.mjs` 主動通知，降級到剪貼簿
-3. **問題 3**：helper scripts 沒打包進安裝程式（electron-builder 缺 `extraResources`）
+### 🟢 BUG-032 已 CLOSED（2026-04-17 13:58）
+T0143 Task B 全綠：`BAT_HELPER_DIR` 正確、helper 可執行、notify exit 0、UUID 路由無 cwd first-match 誤判。Helper packaging + path resolution 修復鏈（T0139/T0140/T0141）驗收通過。
 
-→ **三層同根因**：A 文件層（_local-rules.md 寫死 cwd-relative）+ B 打包層（沒 extraResources）+ C 運行層（沒注入 `BAT_HELPER_DIR` env var）
+### 🔴 當前焦點：PLAN-012 — Quit Dialog + Terminal Server CheckBox
+T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 checkboxLabel），main.ts +~50 行 + i18n 6 行，零 React 改動。拆 2 張工單：T0144 實作 + T0145 驗收。
 
 ### 立即待辦（按順序）
-1. **派發 T0138 研究工單**（auto-session = on）→ 摸清三層現況，提方案
-2. **T0138 結論回來 → 拆派修復工單**（預期 1-3 張）
-3. **修復完成 → rebuild + 重裝 → 在 2026_Taipower 實戰驗收**
-4. **BUG-031 副作用檢查 + T0135 9 項 MANUAL 順延到 BUG-032 修好後一起跑**（baseline 變動，原驗收結果作廢）
-5. T0135 PARTIAL（6.2 `--help` 未實作）— 等 BUG-032 修好後一併處理
-6. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
+1. ~~派發 T0144 實作工單~~ ✅ DONE（commit 412d52c，12 分鐘）
+2. **塔台 meta commit**（9 檔：BUG-032 CLOSED / PLAN-012 翻盤 / T0142 DONE / T0143 DONE / T0144 DONE / 2 張新工單 + 索引）
+3. **使用者 rebuild + 重裝 → 派 T0145 驗收**（注意：重裝 BAT = 重啟此塔台 session）
+4. **T0145 7 情境全綠 → PLAN-012 DONE**（納入 next release）
+5. BUG-031 runtime 驗證（🟡 Medium，FIXED → CLOSED）— 低優先，可順便
+6. T0135 PARTIAL（6.2 `--help` 未實作）— 獨立處理
+7. Backlog 剩餘 PLAN 待排優先級（PLAN-001~007）
 
 ### 本 session 決策
 - **D032**：BUG-032 拆單方案 [A]（一張統籌 BUG + 一張研究 + N 張修復）；`_local-rules.md` 暫不動 [A]（避免破壞 baseline，等 BUG-032 整體方案敲定一起改）
 - **追加**：BUG-031 維持 FIXED 狀態（PTY allocation 邏輯本身已透過使用者實測驗證），副作用檢查併入 BUG-032 範圍
 - **D033**（2026-04-17 13:15）：建立 PLAN-012 — Quit Dialog 加「一併結束 Terminal Server」CheckBox，預設**不勾選**（避免誤按關掉背景 server）；Installer 強制 kill 另開 PLAN；時程緊急，排 T0142 驗收後
-- **D034**（2026-04-17 13:25）：PLAN-012 拆單策略 Q1.D + Q2.A — 先派研究工單 T0143 摸清 Quit Dialog + Terminal Server 現狀；T0142 驗收 checklist Phase 2-5 內嵌到 T0143「Task B」觀察表，T0142 狀態改 🔀 MERGED；dogfood 驗收（派 T0143 行為本身即為 BUG-032 鏈路驗證）；CT 上游回 PR 編號順延為 T0144
+- **D034**（2026-04-17 13:25）：PLAN-012 拆單策略 Q1.D + Q2.A — 先派研究工單 T0143 摸清 Quit Dialog + Terminal Server 現狀；T0142 驗收 checklist Phase 2-5 內嵌到 T0143「Task B」觀察表，T0142 狀態改 🔀 MERGED；dogfood 驗收（派 T0143 行為本身即為 BUG-032 鏈路驗證）；CT 上游回 PR 編號順延
+- **D035**（2026-04-17 13:58）：PLAN-012 UI 路線定調 — 採 **Electron 原生 `dialog.showMessageBox`**（內建 checkboxLabel），放棄 Custom React Modal；main.ts +~50 行 + i18n 6 行，零 React 改動，零 IPC 擴充
+- **D036**（2026-04-17 13:58）：**BUG-032 → CLOSED** — T0143 Task B B1/B3/B4/B5 全綠（BAT_HELPER_DIR 正確、helper 可執行、notify exit 0、UUID 路由無 cwd 誤判），BUG-032 原範圍（helper packaging + path resolution）完全驗收通過；**版本更新檔案鎖定**問題屬 PLAN-012 範圍，獨立追蹤不混為一談
+- **D037**（2026-04-17 14:00）：PLAN-012 拆單定案 — 採 T0143 Worker 推薦方案 B（2 張）：**T0144 實作**（`before-quit` 原生 Dialog + CheckBox + SIGTERM+timeout fallback + i18n，~60-80 行）+ **T0145 驗收**（6 情境 + 版本更新安裝場景）；T0142 合併完成後狀態改 ✅ DONE
 
 ### 本 session 新增工單
 | ID | 標題 | 狀態 |
@@ -35,7 +81,9 @@
 | BUG-032 | Helper scripts 打包與路徑解析設計缺漏 | 🔴 OPEN |
 | T0138 | 研究：BAT Helper Scripts 打包與路徑解析設計 | 📋 TODO |
 | PLAN-012 | Quit Dialog 新增「一併結束 Terminal Server」CheckBox | 📋 PLANNED |
-| T0143 | 研究：Quit Dialog + Terminal Server 現狀（PLAN-012 起手 + T0142 驗收內嵌） | 📋 TODO |
+| T0143 | 研究：Quit Dialog + Terminal Server 現狀（PLAN-012 起手 + T0142 驗收內嵌） | ✅ DONE (commit 215e8757) |
+| T0144 | PLAN-012 實作：Quit Dialog + CheckBox（原生 dialog + SIGTERM fallback + i18n） | ✅ DONE (commit 412d52c, 12 min) |
+| T0145 | PLAN-012 驗收：6 情境 + 版本更新安裝場景 | 📋 TODO |
 
 ### 本 session 新增工單（2026-04-17 02:00-03:05）
 | ID | 標題 | 狀態 | Commit |
@@ -106,11 +154,11 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0143 |
+| **工單最大編號** | T0145 |
 | **BUG 最大編號** | BUG-029 |
 | **PLAN 最大編號** | PLAN-012 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D034 |
+| **決策最大編號** | D037 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---

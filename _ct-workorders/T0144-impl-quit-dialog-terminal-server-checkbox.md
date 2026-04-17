@@ -6,6 +6,9 @@
 - **狀態**：✅ DONE
 - **優先級**：🔴 High
 - **派發時間**：2026-04-17 14:00 (UTC+8)
+- **完成時間**：2026-04-17 14:18 (UTC+8)
+- **Commit**：`412d52c` — feat(quit): add confirmation dialog with Terminal Server checkbox (PLAN-012)
+- **實際耗時**：12 分鐘（低於預估 30-60）
 - **關聯 PLAN**：PLAN-012
 - **前置工單**：T0143（研究 ✅ DONE）
 - **後續工單**：T0145（手動驗收）

@@ -3,8 +3,9 @@
 ## 元資料
 - **BUG 編號**：BUG-032
 - **標題**：BAT helper scripts（`bat-terminal.mjs` + `bat-notify.mjs`）未打包進安裝程式 + 塔台引用方式假設 cwd 在 source root，使用者環境無法可靠執行
-- **狀態**：🔴 OPEN
+- **狀態**：🚫 CLOSED（2026-04-17 13:58 UTC+8；T0143 Task B 端到端驗收全綠）
 - **嚴重度**：🔴 High（阻擋 v2.x 發布；使用者環境完全不可用 auto-session 通知鏈路）
+- **關閉決策**：D036 — T0143 Task B 驗收 B1/B3/B4/B5 全綠（`BAT_HELPER_DIR` 正確注入、helper 可執行、notify exit 0、UUID 路由無 cwd first-match），BUG-032 原範圍 helper packaging + path resolution 已完全驗收通過。**注意**：版本更新檔案鎖定問題屬 PLAN-012 範圍（獨立動機），不延伸本 BUG。
 - **建立時間**：2026-04-17 12:15 (UTC+8)
 - **發現於**：2026-04-17 在 `D:\ForgejoGit\2026_Taipower` 實戰測試，使用者觀察到 helper scripts 沒打包但塔台仍能執行（巧合 — 因為 Claude Code session cwd 落在 BAT 原始碼目錄）
 - **關聯 BUG**：BUG-031（FIXED — PTY workspace allocation；本 BUG 的 C 層症狀「通知鏈路 workspace 一致性」原計畫於 BUG-031 副作用檢查驗證，現併入 BUG-032 範圍）
