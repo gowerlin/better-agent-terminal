@@ -3,7 +3,8 @@
 ## 元資料
 - **BUG 編號**：BUG-034
 - **標題**：Dialog 出現且使用者勾選「一併結束 Terminal Server」後，terminal-server.js 子進程仍殘留，且主進程（crashpad-handler）一併卡住
-- **狀態**：✅ FIXED（等 T0145 情境 8 打包驗收）
+- **狀態**：🚫 CLOSED（T0145 情境 9.1-9.3 打包驗收通過）
+- **CLOSED 時間**：2026-04-17 17:12 (UTC+8)（D044）
 - **嚴重度**：🟡 Medium（Dialog 會問 ✅、使用者選擇有生效感知 ✅，但 server kill 邏輯未生效，主進程也跟著退不乾淨；workaround：工作管理員手動結束）
 - **建立時間**：2026-04-17 15:38 (UTC+8)
 - **FIXING 時間**：2026-04-17 16:04 (UTC+8)

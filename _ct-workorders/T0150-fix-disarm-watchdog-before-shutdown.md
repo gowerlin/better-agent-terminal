@@ -4,7 +4,7 @@
 - **工單編號**：T0150
 - **任務名稱**：在 `stopTerminalServerGracefully()` 執行任何 kill 動作前，先通知 PtyManager 進入「意圖 shutdown 模式」，讓 heartbeat watchdog 跳過 re-fork，避免產生孤兒 terminal-server
 - **類型**：fix
-- **狀態**：🟢 FIXED
+- **狀態**：✅ DONE（T0145 情境 9.1 打包驗收通過，BUG-035 CLOSED — D044）
 - **建立時間**：2026-04-17 16:49 (UTC+8)
 - **開始時間**：2026-04-17 16:53 (UTC+8)
 - **完成時間**：2026-04-17 16:57 (UTC+8)

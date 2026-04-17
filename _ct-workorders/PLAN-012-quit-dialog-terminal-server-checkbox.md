@@ -3,7 +3,9 @@
 ## 元資料
 - **編號**：PLAN-012
 - **標題**：Quit Dialog 新增「一併結束 Terminal Server」CheckBox
-- **狀態**：📋 PLANNED
+- **狀態**：✅ DONE
+- **DONE 時間**：2026-04-17 17:12 (UTC+8)（D044 — T0145 情境 1-5/8/9 全綠；情境 7 installer 強制 kill 依 D033 劃出範圍，另開 PLAN-013 追蹤）
+- **最終實作 commits**：`412d52c`（T0144）+ `ef867a2`（T0147）+ `cd460d2`（T0149）+ `31b4ec2`（T0150）
 - **優先級**：🔴 High
 - **類型**：功能改善（現有 Quit Dialog 擴充）
 - **建立時間**：2026-04-17 13:15 (UTC+8)

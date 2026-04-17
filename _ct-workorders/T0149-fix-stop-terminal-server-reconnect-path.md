@@ -4,7 +4,7 @@
 - **工單編號**：T0149
 - **任務名稱**：實作 T0148 方案 C：TCP shutdown 優先 → PID-based SIGTERM fallback → Windows taskkill 兜底；補修 tcpSocket leak + 修正誤報 log
 - **類型**：fix
-- **狀態**：🔧 FIXED（本機 dev serve 冒煙 + 打包驗收 → T0145 情境 8）
+- **狀態**：✅ DONE（T0145 情境 9.1-9.3 打包驗收通過，BUG-034 CLOSED — D044）
 - **建立時間**：2026-04-17 16:04 (UTC+8)
 - **開始時間**：2026-04-17 16:12 (UTC+8)
 - **完成時間**：2026-04-17 16:20 (UTC+8)

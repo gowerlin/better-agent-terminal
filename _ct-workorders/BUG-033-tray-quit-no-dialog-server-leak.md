@@ -3,10 +3,11 @@
 ## 元資料
 - **BUG 編號**：BUG-033
 - **標題**：PLAN-012 實作後 regression — 從系統托盤 Quit 時，沒有出現 Dialog（原版會問），直接退出；Terminal Server 仍殘留在背景
-- **狀態**：🔍 VERIFY
+- **狀態**：🚫 CLOSED
 - **修復 commit**：`ef867a2`（T0147）
 - **FIXED 時間**：2026-04-17 15:14 (UTC+8)
-- **驗證狀態**：dev serve 四路徑通過（托盤 / File / Ctrl+Q / 視窗X），build:win 打包驗收併入 T0145
+- **CLOSED 時間**：2026-04-17 17:12 (UTC+8)（使用者驗收通過 — D044）
+- **驗證狀態**：dev serve 四路徑通過 + 打包 T0145 情境 8.1-8.4 全綠
 - **嚴重度**：🔴 High（regression — 破壞原有 Quit Dialog 行為，且 Server leak 無從選擇是否結束）
 - **建立時間**：2026-04-17 14:35 (UTC+8)
 - **發現於**：PLAN-012 T0144 實作後使用者實測（新版 BAT 已 rebuild + 重裝確認）

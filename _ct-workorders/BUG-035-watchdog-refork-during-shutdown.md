@@ -3,7 +3,9 @@
 ## 元資料
 - **BUG 編號**：BUG-035
 - **標題**：T0149 的 `sendShutdownToServer()` 關閉 TCP 後，PtyManager heartbeat watchdog 把 graceful shutdown 誤判為 crash，自動 re-fork 新 terminal-server；新 server 成孤兒，持著 refed TCP socket 卡住 main event loop → `crashpad-handler` 殘留
-- **狀態**：🔴 OPEN
+- **狀態**：🚫 CLOSED
+- **修復 commit**：`31b4ec2`（T0150）
+- **CLOSED 時間**：2026-04-17 17:12 (UTC+8)（使用者打包驗收通過 — D044）
 - **嚴重度**：🟡 Medium（PLAN-012 第二目標仍無法真正達成，但 BUG-034 原始 early-return 根因已修好；workaround：工作管理員手動結束新孤兒 server）
 - **建立時間**：2026-04-17 16:49 (UTC+8)
 - **發現於**：T0149 commit `cd460d2` 打包驗收中，使用者實測勾選 checkbox 退出後 `terminal-server.js` (Q1.A) + `crashpad-handler` (Q1.C) 仍殘留
