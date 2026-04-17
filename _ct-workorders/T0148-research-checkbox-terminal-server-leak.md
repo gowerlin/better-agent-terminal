@@ -6,9 +6,11 @@
 - **類型**：**research**（研究工單，允許 Worker 與使用者互動）
 - **互動模式**：enabled
 - **Renew 次數**：0
-- **狀態**：🔄 IN_PROGRESS
+- **狀態**：✅ DONE
 - **建立時間**：2026-04-17 15:38 (UTC+8)
 - **開始時間**：2026-04-17 15:44 (UTC+8)
+- **完成時間**：2026-04-17 15:58 (UTC+8)
+- **Commit**：`98be02d`（僅工單文件；research 工單不改 code）
 - **優先級**：🟡 Medium（不阻擋 release，但 PLAN-012 第二目標失效 + UX 損壞）
 - **關聯 BUG**：BUG-034（Checkbox 勾選後 Terminal Server 未結束）
 - **關聯 PLAN**：PLAN-012（Quit Dialog + Terminal Server CheckBox 第二目標）
