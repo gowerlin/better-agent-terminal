@@ -29,6 +29,11 @@ _ct-workorders/.private/
 _ct-workorders/*.draft.md
 _poc/
 
+# T0154 benchmark artifacts (trace 219MB too large for git)
+src/components/git-poc/benchmark/_bench-trace-*.json
+src/components/git-poc/benchmark/_bench-index-result.json
+dist-benchmark/
+
 # AI agent configs
 .claude/
 .gemini/
