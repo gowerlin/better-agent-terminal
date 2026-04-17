@@ -84,10 +84,12 @@ chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
 
 ### 立即待辦（本輪結束，下一輪從這裡接）
 - ✅ **T0159 完成**（commit `4e5af2f`，01:32）— 三合一研究結論
-- ✅ **EXP-ELECTRON41-001 CONCLUDED**（commit `ef3624f` on `exp/electron41`，02:16，27 分鐘）— 所有悲觀假設被證偽
-- 🔄 **T0160 派發中**（PLAN-016 Phase 2：合併 `exp/electron41` → main + better-sqlite3 postinstall + CLAUDE.md note + worktree 清理）
-- 🔄 **T0161 派發中**（修復 BUG-038：`ELECTRON_RUN_AS_NODE` 洩漏）
-- 🐛 **BUG-038 OPEN**（🟡 Medium，EXP-ELECTRON41-001 發現，既有 bug，T0161 修復中）
+- ✅ **EXP-ELECTRON41-001 CONCLUDED**（commit `ef3624f` on `exp/electron41`，02:16，27 分鐘）
+- ✅ **T0160 DONE**（commit `e7eab33`，02:30）— PLAN-016 Phase 2 完成：FF merge + postinstall rebuild + CLAUDE.md + worktree 清理
+- ✅ **T0161 FIXED**（commit `9d734a8`，02:33）— 方案 B：pty-manager.ts + terminal-server.ts 在 spawn 前刪除 `ELECTRON_RUN_AS_NODE`
+- 🔍 **BUG-038 FIXED → VERIFY**（等使用者 rebuild + 重裝驗收）
+- 🔍 **Electron 41 升級 VERIFY**（同一次 rebuild + 重裝可一起驗）
+- ⚠️ **關鍵動作**：使用者需執行 `npm install`（觸發 postinstall rebuild）+ `npm run build:win`（產 installer）+ 重裝才能讓 Electron 41 + BUG-038 修復生效
 - 💡 **Learning candidates**（下次 `*evolve` 寫入）：
   - **L037**：一次性大批 deps 升級失敗率高（證據 `b5b3d1a` → `d8ee82a` revert +7557/-813）
   - **L038**：大型升級假設常過度悲觀（EXP 預估 4-8h / 實際 27 分鐘），研究階段應採「先 EXP 驗證再定優先級」

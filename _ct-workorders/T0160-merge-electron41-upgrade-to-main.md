@@ -4,10 +4,11 @@
 - **工單編號**:T0160
 - **類型**:implementation(實作工單)
 - **互動模式**:✅ 允許
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **優先級**:🔴 High(PLAN-016 主線)
 - **派發時間**:2026-04-18 (UTC+8)
 - **開始時間**:2026-04-18 02:25
+- **完成時間**:2026-04-18 02:30
 - **關聯 PLAN**:PLAN-016(Electron 28→41)
 - **關聯 EXP**:EXP-ELECTRON41-001 CONCLUDED(commit `ef3624f` on `exp/electron41`)
 - **關聯決策**:D049
@@ -139,7 +140,8 @@ Fast-forward merge(使用者選項 A)
 - ✅ `git worktree list` 確認只剩主 worktree
 
 ### Commit
-- Commit hash:(稍後填入)
+- Commit hash:`e7eab33`(含工單本身、CLAUDE.md、package.json、PLAN-016/EXP/T0160 工單檔、塔台元資料;7 files, +607 -8)
+- Merge commit(帶入):`ef3624f fix(deps): upgrade electron 28.3.3 → 41.2.1`
 - 訊息:`chore(deps): merge EXP-ELECTRON41-001 — Electron 28→41 upgrade (T0160)`
 
 ### 互動紀錄
