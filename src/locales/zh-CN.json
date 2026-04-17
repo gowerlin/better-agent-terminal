@@ -362,6 +362,10 @@
       "ok": "Git 仓库就绪（{{root}}）",
       "notARepo": "当前工作区不是 Git 仓库。",
       "error": "Health check 失败：{{message}}"
+    },
+    "status": {
+      "loading": "加载 commits…",
+      "empty": "Git 仓库中尚无 commits。"
     }
   },
   "claude": {

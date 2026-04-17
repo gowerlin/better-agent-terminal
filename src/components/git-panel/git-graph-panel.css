@@ -1,0 +1,125 @@
+/* Phase 3 Tα2 — Git Graph panel styles (T0156). */
+
+.git-graph-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.git-graph-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color, #333);
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.git-graph-panel-title {
+  letter-spacing: 0.5px;
+}
+
+.git-graph-panel-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.git-graph-panel-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+}
+
+.git-graph-panel-refresh {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.git-graph-panel-refresh:hover:not(:disabled) {
+  background: var(--hover-bg, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+}
+
+.git-graph-panel-refresh:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.git-graph-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.git-graph-status {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-secondary);
+}
+
+.git-graph-status-error {
+  color: #f44336;
+}
+
+.git-graph-status-warn {
+  color: #d97706;
+}
+
+/* Virtualized SVG commit graph (T0154 architecture). */
+.git-graph-scroll {
+  overflow-y: auto;
+  overflow-x: auto;
+  background: var(--bg-secondary, #0f172a);
+  color: var(--text-primary, #e2e8f0);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.git-graph-inner {
+  position: relative;
+}
+
+.git-graph-svg {
+  position: absolute;
+  left: 0;
+  display: block;
+}
+
+.git-graph-subject {
+  fill: var(--text-primary, #cbd5e1);
+  font-size: 11px;
+  user-select: none;
+}
+
+.git-graph-subject-highlight {
+  fill: #fde68a;
+}
+
+.git-graph-commit {
+  stroke: var(--bg-secondary, #0f172a);
+  stroke-width: 1;
+}
+
+.git-graph-commit-highlight {
+  stroke: #fef3c7;
+  stroke-width: 2;
+}

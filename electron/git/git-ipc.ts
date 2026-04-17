@@ -134,7 +134,9 @@ export function registerGitScaffoldHandlers(): void {
   })
 
   registerHandler('git-scaffold:listCommits', async (_ctx, cwd: string, options?: { limit?: number; offset?: number }) => {
-    const limit = Math.max(1, Math.min(Math.floor(Number(options?.limit)) || 100, 2000))
+    // limit cap 於 T0156 自 2000 提升到 10000,以支援 Git Graph panel 單次載入 10k
+    // commits 的初始策略。Tα3 後若需更大範圍,會改為真正的增量分頁。
+    const limit = Math.max(1, Math.min(Math.floor(Number(options?.limit)) || 100, 10000))
     const offset = Math.max(0, Math.floor(Number(options?.offset)) || 0)
     try {
       const { isRepo, git } = await resolveRepoRoot(cwd)

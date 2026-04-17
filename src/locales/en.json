@@ -368,6 +368,10 @@
       "ok": "Git repository ready ({{root}})",
       "notARepo": "Current workspace is not a git repository.",
       "error": "Health check failed: {{message}}"
+    },
+    "status": {
+      "loading": "Loading commits…",
+      "empty": "Git repository has no commits yet."
     }
   },
   "claude": {

@@ -368,6 +368,10 @@
       "ok": "Git 倉庫就緒（{{root}}）",
       "notARepo": "目前工作區不是 Git 倉庫。",
       "error": "Health check 失敗：{{message}}"
+    },
+    "status": {
+      "loading": "載入 commits…",
+      "empty": "Git 倉庫中尚無 commits。"
     }
   },
   "claude": {
