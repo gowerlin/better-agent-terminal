@@ -164,6 +164,8 @@ Fast-forward merge(使用者選項 A)
 ### 後續 follow-up(不在本工單範圍)
 - BUG-038 / T0161:`ELECTRON_RUN_AS_NODE` 環境變數污染問題(獨立工單)
 - PLAN-016 Phase 3:electron-builder 24 → 26 升級(延後,獨立工單)
+- ⚠️ **Runtime 驗收一度受阻**(2026-04-18 02:55,見 D050):`npm run build` 打包產物仍為 `electron=28.3.3`。根因為 `npm install` 從未成功執行(EBUSY:VSCode 鎖住 `node_modules/electron/dist/icudtl.dat`)。使用者關閉 VSCode 在外部 Windows Terminal 重跑 `npm install` 後解鎖。
+- ✅ **Runtime 驗收通過**(2026-04-18 03:01,見 D051):使用者完成 npm install → build 版本正確(electron=41.2.1) → Windows NSIS Setup 封裝正確 → 手動重裝測試通過。Electron 41 升級閉環完成,BUG-038 一併 CLOSED。
 
 ### sprint-status.yaml
 不適用(本專案未採用 sprint-status.yaml 檔案)

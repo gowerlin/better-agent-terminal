@@ -5,8 +5,10 @@
 | 欄位 | 內容 |
 |------|------|
 | **BUG 編號** | BUG-038 |
-| **狀態** | ✅ FIXED（等使用者驗收 → CLOSED） |
+| **狀態** | 🚫 CLOSED |
 | **修復時間** | 2026-04-18 02:33 (UTC+8) |
+| **關閉時間** | 2026-04-18 03:01 (UTC+8) |
+| **驗收結果** | ✅ runtime 驗收通過（npm install 成功 → build 版本正確 → Setup 封裝正確 → 安裝測試通過，D051） |
 | **修復方案** | 方案 B — PTY spawn 時刪除 `ELECTRON_RUN_AS_NODE` |
 | **嚴重度** | 🟡 Medium |
 | **可重現** | ✅ 100%(在 BAT 內執行 `npm run dev` 任何 Electron app) |

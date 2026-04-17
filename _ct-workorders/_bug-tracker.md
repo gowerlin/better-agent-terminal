@@ -1,9 +1,9 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-18 00:50 (UTC+8)
+> 最後更新：2026-04-18 03:01 (UTC+8)
 >
-> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 8 | ⛔ Won't Fix: 0 | **Total: 8**
+> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 9**
 >
 > 📦 已歸檔：29 張（_archive/bugs/）
 
@@ -27,6 +27,7 @@
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-038 | ELECTRON_RUN_AS_NODE=1 洩漏至 terminal 子 shell（BAT 內跑 Electron app 失敗） | 🟡 Medium | 2026-04-18 03:01 | [BUG-038](BUG-038-electron-run-as-node-env-leak.md) |
 | BUG-037 | Git 圖譜 panel 內容全黑（T0156 regression，WorkspaceView 缺 case + PROXIED_CHANNELS 未 bridge） | 🟡 Medium | 2026-04-18 00:43 | [BUG-037](BUG-037-git-graph-panel-blank-content.md) |
 | BUG-036 | CT Panel Backlog 列表對 DONE 狀態的 PLAN 顯示 Unknown（而非 Done） | 🟢 Low | 2026-04-17 17:30 | [BUG-036](BUG-036-backlog-ui-unknown-status-for-done-plan.md) |
 | BUG-035 | PtyManager watchdog 在 shutdown 期間誤觸發 re-fork，產生孤兒 terminal-server | 🟡 Medium | 2026-04-17 17:12 | [BUG-035](BUG-035-watchdog-refork-during-shutdown.md) |
@@ -37,6 +38,7 @@
 | BUG-030 | bat-terminal.mjs Git Bash MSYS 路徑轉換污染 | 🔴 High | 2026-04-17 02:42 | [BUG-030](BUG-030-bat-terminal-msys-path-conv.md) |
 
 > 本輪 CLOSED 依據：
+> - BUG-038：T0161 runtime 驗收通過（commit `9d734a8`，方案 B strip ELECTRON_RUN_AS_NODE from PTY children，D051）
 > - BUG-037：T0158 runtime UAT 通過（commit `fbcf2d2`，方案 A + Layer 2 PROXIED_CHANNELS bridge）
 > - BUG-031：runtime 驗證通過（T0137 commit `f325d1d`）
 > - BUG-033：T0145 情境 8.1-8.4 四條 Quit 路徑全綠（T0147 commit `ef867a2`）

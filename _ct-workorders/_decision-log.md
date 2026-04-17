@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-12 22:14 (UTC+8)（T0065：新增 D029）
+> 最後更新：2026-04-18 03:01 (UTC+8)（新增 D051 — Electron 41 + BUG-038 runtime 驗收閉環）
 
 ---
 
@@ -31,10 +31,54 @@
 | D047 | 2026-04-18 | PLAN-001/005 升級可行性研究派發（統籌研究 + 禁互動） | T0159 |
 | D048 | 2026-04-18 | T0159 結論採行：新開 PLAN-016 + EXP-ELECTRON41-001 立即試做 | PLAN-016/EXP-ELECTRON41-001 |
 | D049 | 2026-04-18 | EXP-ELECTRON41-001 CONCLUDED → 派 T0160 合併 + BUG-038 + T0161 修復 + Phase 3 暫緩 | T0160/T0161/BUG-038 |
+| D050 | 2026-04-18 | Electron 41 升級未生效到 runtime + VSCode self-lock 發現 | T0160/T0161/BUG-038 |
+| D051 | 2026-04-18 | Electron 41 升級 + BUG-038 runtime 驗收全通過，閉環完成 | T0160/T0161/BUG-038 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D051 2026-04-18 — Electron 41 升級 + BUG-038 runtime 驗收全通過，閉環完成
+
+- **觸發事件**：使用者關閉 VSCode 在 Windows Terminal 外部終端重跑 `npm install` + `npm run build` + 手動重裝成功
+- **驗收結果**：
+  - `node_modules/electron/package.json` version = **41.2.1**（D050 EBUSY 解除，rename 成功）
+  - `npm run build` 產物 = Windows NSIS installer，封裝 electron 41.2.1
+  - 使用者手動重裝測試通過，BAT 內 terminal 可正常啟動 Electron app（BUG-038 修復生效）
+  - `postinstall` 的 `npm rebuild better-sqlite3`（T0160 新增）自動為 ABI 145 重 build，啟動無 NODE_MODULE_VERSION mismatch
+- **狀態轉移**：
+  - **T0160** DONE（repo 層） + runtime 驗收通過 → 閉環完成
+  - **T0161** FIXED → **DONE**（runtime 驗收通過，回報區補執行期驗證結果）
+  - **BUG-038** FIXED → **CLOSED**（元資料補關閉時間 + 驗收結果）
+  - **PLAN-016 Phase 2** 正式完結，Phase 3（electron-builder 24→26）依 D049 暫緩
+- **D050 教訓確認有效**：L040（Electron IDE self-lock）+ L041（repo+runtime 雙軌驗證）獲得實戰驗證，待 `*evolve` 寫入時 candidate 升 🟢 reliable
+- **塔台 meta 批次 commit**：本輪同步修正 tower-state 上輪誤寫的 `npm run build:win`（正確為 `npm run build`，Windows NSIS 由 electron-builder 預設處理）
+- **關聯工單**：T0160 / T0161 / BUG-038 / PLAN-016
+
+---
+
+### D050 2026-04-18 — Electron 41 升級未生效到 runtime + VSCode self-lock 發現
+
+- **觸發事件**：使用者 `npm run build` 產物仍為 `electron=28.3.3`，與 T0160 宣告的 41.2.1 不符
+- **診斷過程**：
+  1. 排查 process → 無 `electron.exe` / `crashpad-handler.exe` / `BetterAgentTerminal.exe` 殘留
+  2. `npm install` 顯示 `EBUSY: resource busy or locked, rename 'node_modules/electron/dist/icudtl.dat' -> '.electron-lcQ2wttq/...'`
+  3. 確認鎖定源為 VSCode 本身（VSCode 是 Electron 應用，file watcher / language server / 檔案總管展開 node_modules 時會 touch `icudtl.dat`，Windows file locking 比 Unix 嚴格，read handle 就擋 rename）
+- **結論**：
+  - T0160 Worker 交付正確（repo 層 electron=41.2.1 已 merge 到 main）→ 維持 DONE
+  - 但 runtime/build 層從未更新，因為 `npm install` 在 T0160 合併後**從未成功執行過**（本次 EBUSY 為實證）
+  - BUG-038 的 FIXED 宣告雖屬實（code 層 `pty-manager.ts` + `terminal-server/server.ts` 修對了），但未經 runtime 驗證，需等 install 成功後再驗收
+- **行動**：
+  - 使用者關閉 VSCode，改用 Windows Terminal 重跑 `rm -rf node_modules/electron node_modules/.electron-*` + `npm install` + `npm run build`
+  - 本次塔台 session 在使用者執行前先完成 meta 更新後退出
+  - 下一輪 Fast Path 恢復，先驗證 `node_modules/electron/package.json` version 欄位，決定走 VERIFY 或重排查
+- **learning 候選**：
+  - **L040**（🟢 global 候選，跨專案通用）：開發 Electron 應用時，Electron-based IDE（VSCode / Cursor / Windsurf）會鎖住 `node_modules/electron/dist/icudtl.dat`，升級 Electron 必須關 IDE 在外部終端做。這是 self-bootstrap 陷阱 — IDE 用的是它自己安裝的 Electron（不是專案 node_modules 的），但 file watcher 仍會 read-lock node_modules 下的 Electron binary
+  - **L041**（🟡 本專案 playbook 候選）：宣告 deps 升級 DONE 前應雙軌驗證 —「repo 層通過」（merge commit + package-lock 正確）+「runtime 層通過」（`cat node_modules/<pkg>/package.json | grep version` 確認 + build 產物版號確認）。單看 merge commit 不夠
+- **未完成事項**：D049 定義的「升級與 BUG-038 修復生效」仍待 install 成功後完整驗收
+- **關聯工單**：T0160 / T0161 / BUG-038
 
 ---
 

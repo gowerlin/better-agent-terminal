@@ -4,7 +4,7 @@
 - **工單編號**:T0161
 - **類型**:bugfix(修復工單)
 - **互動模式**:✅ 允許
-- **狀態**:✅ FIXED（等使用者驗收 → CLOSED）
+- **狀態**:✅ DONE（runtime 驗收通過 2026-04-18 03:01，BUG-038 CLOSED，D051）
 - **優先級**:🟡 Medium
 - **派發時間**:2026-04-18 (UTC+8)
 - **開始時間**:2026-04-18 02:25:44 (UTC+8)
@@ -96,7 +96,7 @@ Worker **先閱讀**這些檔案:
 
 ## 執行回報
 
-- **完成狀態**：FIXED（等使用者驗收 → CLOSED）
+- **完成狀態**：DONE（runtime 驗收通過，BUG-038 CLOSED，D051）
 - **開始時間**：2026-04-18 02:25:44 (UTC+8)
 - **完成時間**:2026-04-18 02:33 (UTC+8)
 - **Commit**：`9d734a8` — `fix(electron): strip ELECTRON_RUN_AS_NODE from PTY children`
@@ -125,7 +125,7 @@ Worker **先閱讀**這些檔案:
 - [x] `npx tsc --noEmit`：我修改的三個檔案無新型別錯誤（src/ 側既有錯誤與本工單無關）
 - [x] `npx vite build`：4 個 bundle（main/preload/sdk/terminal-server）全部編譯成功
 - [x] Bundle 檢查：`dist-electron/main.js` 與 `dist-electron/terminal-server.js` 皆保留 `ELECTRON_RUN_AS_NODE` 參照（包含新加的 delete）
-- [ ] 執行期驗證（需使用者手動）：重啟 BAT 後在 BAT 內 terminal 執行 `echo $ELECTRON_RUN_AS_NODE` 應為空、`npx electron --version` 應正常、Claude session 仍可開
+- [x] 執行期驗證（使用者 2026-04-18 03:01 完成）：`npm install` 成功、`npm run build` 產物版本 = 41.2.1、Windows NSIS installer 封裝正確、手動重裝測試通過，BAT 內 terminal 可正常啟動 Electron app
 
 ### 互動紀錄
 

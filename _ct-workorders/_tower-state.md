@@ -1,10 +1,36 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 00:55 (UTC+8)（🎯 BUG-037 CLOSED + PLAN-015 入 backlog，本輪收工）
+> 最後更新：2026-04-18 03:01 (UTC+8)（🎉 Electron 41 + BUG-038 runtime 驗收閉環，D051）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-18 00:55）
+## 🎉 本 Session 驗收閉環（2026-04-18 03:01）
+
+**成果摘要**：
+使用者關閉 VSCode 在外部 Windows Terminal 重跑 `npm install` 解除 EBUSY 鎖定 → `npm run build` 產出 Windows NSIS installer（electron=41.2.1）→ 手動重裝測試通過。PLAN-016 Phase 2 + BUG-038 閉環完成。
+
+**狀態轉移**：
+- **T0160** ✅ DONE（runtime 驗收通過，原 follow-up 註記更新）
+- **T0161** FIXED → **✅ DONE**（執行期驗證勾選）
+- **BUG-038** FIXED → **🚫 CLOSED**（元資料補關閉時間 + 驗收結果）
+- **PLAN-016 Phase 2** 完結，Phase 3（electron-builder 24→26）依 D049 暫緩
+- 新決策 **D051** 記錄閉環
+
+**塔台 meta 批次 commit 範圍**（本次收工）：
+- `_tower-state.md`：02:55 退出快照更新 + tooltip typo 修正（build:win → build，5 處）
+- `_decision-log.md`：D050 body typo 修正（2 處）+ 新增 D051
+- `_bug-tracker.md`：BUG-038 移入 CLOSED section + 統計更新 (8 → 9)
+- `BUG-038-*.md`：狀態 FIXED → CLOSED + 關閉時間 + 驗收結果
+- `T0161-*.md`：狀態 FIXED → DONE + 執行期驗證結果
+- `T0160-*.md`：follow-up 註記更新（阻擋 → 通過）
+
+**Learning 候選升級**（待 `*evolve` 寫入）：
+- **L040**（🟢 global 候選，跨專案通用）：Electron-based IDE self-lock 陷阱 — D051 實戰驗證 candidate 升 🟢 reliable
+- **L041**（🟡 本專案 playbook 候選）：repo 層 + runtime 層雙軌驗證 — D051 實戰驗證，候選升 🟢
+
+---
+
+## 🗄️ 前次 Session 退出快照（2026-04-18 00:55）
 
 **退出原因**：BUG-037 全鏈路閉環完成，塔台推薦等 PLAN-014 Phase 3 Tα3+ 再動 PLAN-015 refactor（避免架構 churn）
 
@@ -32,7 +58,7 @@
 2. 檢查 `git status` 確認 meta 變更狀態（可能已由使用者自行 commit，或仍 uncommitted）
 3. 檢查 `git log -1` 確認最新 commit（應為 `412d52c` 或之後使用者的 meta commit）
 4. 若 BAT 已換新版 → 新 session 在 BAT 內（`BAT_SESSION=1`）→ 派 T0145 驗收
-5. 若尚未換版 → 提醒使用者 `npm run build:win` + 重裝
+5. 若尚未換版 → 提醒使用者 `npm run build` + 重裝
 
 **當前狀態凍結**：
 - T0144 ✅ DONE (commit 412d52c by Worker，14:18)
@@ -86,10 +112,9 @@ chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
 - ✅ **T0159 完成**（commit `4e5af2f`，01:32）— 三合一研究結論
 - ✅ **EXP-ELECTRON41-001 CONCLUDED**（commit `ef3624f` on `exp/electron41`，02:16，27 分鐘）
 - ✅ **T0160 DONE**（commit `e7eab33`，02:30）— PLAN-016 Phase 2 完成：FF merge + postinstall rebuild + CLAUDE.md + worktree 清理
-- ✅ **T0161 FIXED**（commit `9d734a8`，02:33）— 方案 B：pty-manager.ts + terminal-server.ts 在 spawn 前刪除 `ELECTRON_RUN_AS_NODE`
-- 🔍 **BUG-038 FIXED → VERIFY**（等使用者 rebuild + 重裝驗收）
-- 🔍 **Electron 41 升級 VERIFY**（同一次 rebuild + 重裝可一起驗）
-- ⚠️ **關鍵動作**：使用者需執行 `npm install`（觸發 postinstall rebuild）+ `npm run build:win`（產 installer）+ 重裝才能讓 Electron 41 + BUG-038 修復生效
+- ✅ **T0161 DONE**（commit `9d734a8`，02:33 FIXED → 03:01 DONE）— 方案 B：pty-manager.ts + terminal-server.ts 在 spawn 前刪除 `ELECTRON_RUN_AS_NODE`；runtime 驗收通過
+- ✅ **BUG-038 CLOSED**（03:01）— runtime 驗收通過
+- ✅ **Electron 41 升級 CLOSED**（03:01，D051）— runtime 閉環完成
 - 💡 **Learning candidates**（下次 `*evolve` 寫入）：
   - **L037**：一次性大批 deps 升級失敗率高（證據 `b5b3d1a` → `d8ee82a` revert +7557/-813）
   - **L038**：大型升級假設常過度悲觀（EXP 預估 4-8h / 實際 27 分鐘），研究階段應採「先 EXP 驗證再定優先級」
@@ -190,7 +215,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | PLAN-012 | Quit Dialog 新增「一併結束 Terminal Server」CheckBox | 🔄 IN_PROGRESS |
 | T0143 | 研究：Quit Dialog + Terminal Server 現狀（PLAN-012 起手 + T0142 驗收內嵌） | ✅ DONE (commit 215e8757) |
 | T0144 | PLAN-012 實作：Quit Dialog + CheckBox（原生 dialog + SIGTERM fallback + i18n） | ⚠️ DONE but regression 顯現化（commit 412d52c） |
-| T0145 | PLAN-012 驗收：6 情境 + 版本更新安裝場景 + BUG-033 四路徑打包覆蓋 | 📋 READY（等 build:win） |
+| T0145 | PLAN-012 驗收：6 情境 + 版本更新安裝場景 + BUG-033 四路徑打包覆蓋 | 📋 READY（等 build） |
 | BUG-033 | 托盤 Quit 無 Dialog 直接退出，Terminal Server 殘留背景 | 🔍 VERIFY（dev serve 四路徑通過，等打包驗收） |
 | T0146 | 研究：托盤 Quit 為何 bypass Dialog（BUG-033 根因調查） | ✅ DONE（推薦方案 A） |
 | T0147 | 修復：刪除 Tray handler 的 `isAppQuitting = true`（方案 A，1 行） | ✅ DONE（commit `ef867a2`） |
