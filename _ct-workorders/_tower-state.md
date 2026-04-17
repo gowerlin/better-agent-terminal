@@ -62,7 +62,7 @@ chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
 
 **PLAN-013** 💡 IDEA（🟢 Low）：Installer 檔案鎖定詢問 kill（依 D033 劃出 PLAN-012 範圍，入 backlog）
 
-**🆕 BUG-036** 🔴 OPEN 🟢 Low（17:22）：CT panel Backlog 列表 PLAN-012 顯示 Unknown 而非 Done；T0151 已派發（Worker 自行定位 parser）
+**🟢 BUG-036** 🚫 CLOSED 🟢 Low（17:30）：T0151 三連修復 `cb0d535`+`feb84df`+`4d9fba4`（status + priority + meta），使用者驗證通過。
 
 **本輪最大收穫**：T0144 實作引爆連環 bug（BUG-033 → BUG-034 → BUG-035），每層靠 log 鐵證定位根因，堅守「塔台不改 code」邊界；研究工單（T0146/T0148）+ 修復工單（T0147/T0149/T0150）節奏穩定。
 
@@ -120,6 +120,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 - **D036**（2026-04-17 13:58）：**BUG-032 → CLOSED** — T0143 Task B B1/B3/B4/B5 全綠（BAT_HELPER_DIR 正確、helper 可執行、notify exit 0、UUID 路由無 cwd 誤判），BUG-032 原範圍（helper packaging + path resolution）完全驗收通過；**版本更新檔案鎖定**問題屬 PLAN-012 範圍，獨立追蹤不混為一談
 - **D037**（2026-04-17 14:00）：PLAN-012 拆單定案 — 採 T0143 Worker 推薦方案 B（2 張）：**T0144 實作**（`before-quit` 原生 Dialog + CheckBox + SIGTERM+timeout fallback + i18n，~60-80 行）+ **T0145 驗收**（6 情境 + 版本更新安裝場景）；T0142 合併完成後狀態改 ✅ DONE
 - **D038**（2026-04-17 14:35）：**BUG-033 建立 + T0146 派發** — 使用者實測 rebuild + 重裝後托盤 Quit 無 Dialog 直接退出（Q1.A/Q2.D 確認），Terminal Server 殘留；屬 T0144 regression。策略：開研究工單（非直接修復）— 根因不明（可能 Tray handler bypass `before-quit` / Dialog async race / packaging 未涵蓋 / i18n init 失敗）；研究允許 Worker 加 trace log 請使用者重測（使用者已主動授權）。不直接派修復因為風險：盲修可能再 regression，也無從驗證其他 Quit 路徑（File/Ctrl+Q/視窗X）是否同病
+- **D046**（2026-04-17 17:30）：**BUG-036 CLOSED + T0151 DONE（含 priority follow-up）** — Worker 實際根因比塔台假設精確：`src/types/backlog.ts:55` `sectionToStatus` 只認 `DONE`/`已完成`，不認 `COMPLETED`（而 skill 模板 `_backlog.md` 用的是 `## Completed`）→ fallback 'IDEA'；外加 Completed 表 schema 無「狀態」欄 → `rowStatusToStatus` 無法 override。雙因合力。修復三連：`cb0d535`（加 COMPLETED match 主修）+ `feb84df`（meta）+ `4d9fba4`（使用者追加反映 priority 也 Unknown，Worker 新增 `extractPriorityFromPlanContent` 從 PLAN metadata 補讀）。使用者驗證通過 → BUG-036 OPEN→CLOSED + T0151 DONE。**潛在上游 PR 候選**：本修復對所有使用 CT Panel 框架的專案都有用，類似 PLAN-011 模式可推回 CT 上游（留待後續評估）。
 - **D045**（2026-04-17 17:22）：**BUG-036 建立 + T0151 派發（UI parser 缺 DONE 支援）** — D044 批次結案後使用者在 CT panel Backlog tab 發現 PLAN-012 顯示 Unknown 而非 Done，右側詳細頁正確顯示 ✅ DONE → UI 列表 parser 問題（列表 parser 可能只讀 `_backlog.md` Active 表找不到 Completed 區塊的 PLAN / 或 status enum mapping 缺 DONE case / 或 regex 未覆蓋）。非緊急純 UI 顯示缺陷，嚴重度 🟢 Low，不影響資料正確性。使用者選項 [B]：直接派修復工單（T0151），Worker 自行 grep 定位 parser，不另派研究工單。預期修完後類似 PLAN-008/010/011 歸檔前的 DONE 顯示邏輯將補齊。
 - **D044**（2026-04-17 17:12）：**PLAN-012 全案結案 + 5 BUG 批次 CLOSED + PLAN-013 開立（IDEA）** — 使用者完成 rebuild + 重裝後實測：BUG-031 / BUG-033 / BUG-034 / BUG-035 **全部通過驗收**（T0145 情境 1-5/8/9 全綠）。一次結案：BUG-031 FIXED→CLOSED（T0137 runtime 驗證通過）、BUG-033 VERIFY→CLOSED（T0147 四路徑通過）、BUG-034 FIXED→CLOSED（T0149 方案 C 通過）、BUG-035 OPEN→CLOSED（T0150 watchdog guard 通過）、PLAN-012 PLANNED→DONE（四個實作 commits `412d52c`+`ef867a2`+`cd460d2`+`31b4ec2`）、T0145 READY→DONE、T0149/T0150 FIXED→DONE。**情境 7（installer 強制 kill 檔案鎖定場景）依 D033 劃出範圍**，使用者選項 [B] 另開 PLAN-013 IDEA 🟢 Low 入 backlog，不排入本輪結案。本輪最大收穫：T0144 實作引爆連環 bug（BUG-033 regression + BUG-034 reconnect early-return + BUG-035 watchdog race），每一層都靠 log 鐵證快速定位根因，堅守「塔台不直接改 code」邊界讓所有決策透明可追。
 - **D043**（2026-04-17 16:49）：**BUG-035 建立 + T0150 派發（不退回 BUG-034）** — 使用者實測 T0149 打包版勾 checkbox 退出，觀察到 `terminal-server.js` + `crashpad-handler` 仍殘留。Log 鐵證（08:42:48 時間序）：`.814 TCP closed` → `.814 Terminal Server died — attempting recovery` → `.815 re-forking` → `.833 re-forked with pid 26412` → `.839 [quit] terminal server stopped (via TCP shutdown)`。性質明確：**BUG-034 根因已修好**（原 server graceful close，log `via TCP shutdown` 為證），但 PtyManager heartbeat watchdog（pre-existing T0108 期間的 crash recovery 邏輯）把 T0149 觸發的 graceful TCP close 誤判為 crash → 20ms 內 re-fork 孤兒 server PID 26412 → 孤兒持 refed TCP socket 卡住 main event loop → crashpad-handler 殘留。不是 T0149 引入，是 T0149 才讓它顯現化（之前 SIGTERM 根本沒送，watchdog 自然不觸發）。**BUG-034 保持 FIXED**（避免假退回汙染追蹤），開 BUG-035 另案追蹤。修復方向明確（`PtyManager.beginShutdown()` + `attemptRecovery` guard）→ 不需研究工單直接派 T0150。
@@ -146,8 +147,8 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | BUG-035 | PtyManager watchdog 在 shutdown 期間誤觸發 re-fork，孤兒 server 卡住 main event loop | 🚫 CLOSED（D044） |
 | T0150 | 修復：PtyManager.beginShutdown() + attemptRecovery guard 避免 graceful shutdown 被誤判 crash | ✅ DONE（commit `31b4ec2`，T0145 情境 9.1 驗收通過） |
 | PLAN-013 | NSIS Installer 偵測檔案鎖定時詢問 kill Terminal Server | 💡 IDEA 🟢 Low（D044 依 D033 剝離，入 backlog） |
-| BUG-036 | CT Panel Backlog 列表對 DONE 狀態的 PLAN 顯示 Unknown | 🔴 OPEN 🟢 Low |
-| T0151 | 修復：CT Panel Backlog 列表讓 DONE PLAN 正確顯示 Done（BUG-036） | 📋 READY |
+| BUG-036 | CT Panel Backlog 列表對 DONE 狀態的 PLAN 顯示 Unknown | 🚫 CLOSED（D046） |
+| T0151 | 修復：CT Panel Backlog 列表讓 DONE PLAN 正確顯示 Done（BUG-036） | ✅ DONE（commits `cb0d535`+`4d9fba4`，使用者驗證通過） |
 
 ### 本 session 新增工單（2026-04-17 02:00-03:05）
 | ID | 標題 | 狀態 | Commit |
@@ -222,7 +223,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **BUG 最大編號** | BUG-036 |
 | **PLAN 最大編號** | PLAN-013 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D045 |
+| **決策最大編號** | D046 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---

@@ -3,7 +3,9 @@
 ## 元資料
 - **BUG 編號**：BUG-036
 - **標題**：PLAN-012 狀態更新為 `✅ DONE` 後，CT panel Backlog tab 列表顯示為「Unknown」+ 💡 Idea 標籤，與右側詳細頁的 `✅ DONE` 不一致
-- **狀態**：🔴 OPEN
+- **狀態**：🚫 CLOSED
+- **修復 commits**：`cb0d535`（status 主修）+ `4d9fba4`（priority follow-up）
+- **CLOSED 時間**：2026-04-17 17:30 (UTC+8)（使用者驗證通過 — D046）
 - **嚴重度**：🟢 Low（純 UI 顯示不一致，不影響資料正確性和功能；檔案內容 + 右側詳細頁皆正確）
 - **建立時間**：2026-04-17 17:22 (UTC+8)
 - **發現於**：D044 批次結案後，使用者在 CT panel Backlog tab 看到 PLAN-012 顯示 Unknown；PLAN-012 檔案 `狀態: ✅ DONE`，`_backlog.md` 已將 PLAN-012 移至 Completed 區塊
