@@ -761,6 +761,15 @@ export class PtyManager {
           } catch { /* already gone */ }
         }
       }
+      // T0149 (BUG-034 bonus): destroy the TCP socket so the event loop can exit.
+      // A refed TCP socket keeps main's event loop alive, which on Windows leaves
+      // the crashpad-handler and main process lingering after quit.
+      try {
+        if (this.tcpSocket && !this.tcpSocket.destroyed) {
+          this.tcpSocket.destroy()
+        }
+      } catch { /* best-effort */ }
+      this.tcpSocket = null
       this.serverProcess = null
       this.instances.clear()
       return

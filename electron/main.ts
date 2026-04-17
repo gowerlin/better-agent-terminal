@@ -1280,54 +1280,124 @@ function getQuitDialogStrings(lang: string | undefined) {
 }
 
 /**
- * PLAN-012 / T0144: Stop the Terminal Server gracefully.
+ * PLAN-012 / T0149 (BUG-034 fix): Stop the Terminal Server gracefully.
  *
- * Strategy (matches T0143 research A5):
- *   1) Send SIGTERM (server has a SIGTERM handler that triggers graceful shutdown)
- *   2) Wait for `exit` event
- *   3) If not exited within 1500ms, escalate to SIGKILL
- *   4) On Windows, additionally run `taskkill /F /T /PID <pid>` to sweep the process tree
+ * Strategy — tries A → B → C → D in order, stops at first success:
+ *   A) Fork path: if _terminalServerProcess is a live child, SIGTERM + wait for exit
+ *   B) TCP shutdown: read portfile, send `server:shutdown` (covers BAT reconnect path
+ *      where _terminalServerProcess is null because server was already running)
+ *   C) Wait for pidfile removal — server's shutdown hook calls removePidFile()
+ *   D) Force-kill fallback: read pidfile → SIGKILL (Unix) or taskkill /F /T (Windows)
  *
- * Resolves once the child exits or the force-kill path is taken. Does not throw.
+ * Why Step C matters: TCP shutdown is async; the server needs ~100-500ms to run
+ * its graceful shutdown hook. Polling pidfile is the signal that shutdown completed.
+ *
+ * Root cause of previous implementation (T0144): only handled fork path (A). BAT's
+ * reconnect path left _terminalServerProcess=null, so the function early-returned
+ * and SIGTERM was never fired. See T0148 research for full investigation.
+ *
+ * Resolves once the server has stopped or every path has been exhausted. Does not throw.
  */
 async function stopTerminalServerGracefully(): Promise<void> {
-  const child = _terminalServerProcess
-  if (!child) return
+  const TIMEOUT_MS = 1500
+  const userDataPath = app.getPath('userData')
+  const pidPath = path.join(userDataPath, 'bat-pty-server.pid')
 
-  return new Promise<void>((resolve) => {
-    const pid = child.pid
-    let resolved = false
-
-    const finish = () => {
-      if (resolved) return
-      resolved = true
-      resolve()
-    }
-
-    try {
-      child.once('exit', finish)
-    } catch { /* listener failure is non-fatal */ }
-
-    try {
-      child.kill('SIGTERM')
-    } catch (err) {
-      logger.warn(`[quit] SIGTERM to terminal server failed: ${err}`)
-    }
-
-    setTimeout(async () => {
-      if (resolved) return
-      logger.warn(`[quit] terminal server did not exit within 1500ms, escalating to SIGKILL`)
-      try { child.kill('SIGKILL') } catch { /* already dead */ }
-
-      if (process.platform === 'win32' && pid) {
-        try {
-          const { spawn } = await import('child_process')
-          spawn('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' })
-        } catch { /* best-effort */ }
+  const waitForPidFileRemoval = async (timeoutMs: number): Promise<boolean> => {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      try {
+        await fs.access(pidPath)
+        // File still exists — keep polling
+      } catch {
+        return true // ENOENT = removed
       }
-      finish()
-    }, 1500)
-  })
+      await new Promise<void>((r) => setTimeout(r, 50))
+    }
+    return false
+  }
+
+  // Step A: Fork path (original behavior — preserved for dev serve)
+  const child = _terminalServerProcess
+  if (child && child.connected) {
+    const sigtermStopped = await new Promise<boolean>((resolve) => {
+      let resolved = false
+      const finish = (ok: boolean) => {
+        if (resolved) return
+        resolved = true
+        resolve(ok)
+      }
+
+      try { child.once('exit', () => finish(true)) } catch { /* listener failure non-fatal */ }
+
+      try {
+        child.kill('SIGTERM')
+      } catch (err) {
+        logger.warn(`[quit] SIGTERM to terminal server failed: ${err}`)
+      }
+
+      setTimeout(() => finish(false), TIMEOUT_MS)
+    })
+
+    if (sigtermStopped) {
+      logger.log('[quit] terminal server stopped (via SIGTERM)')
+      return
+    }
+    logger.warn('[quit] SIGTERM did not exit within timeout, falling back to TCP shutdown')
+  }
+
+  // Step B: TCP shutdown (reconnect path + Step A timeout fallback)
+  try {
+    const port = readPortFile(userDataPath)
+    if (port) {
+      await sendShutdownToServer(port)
+
+      // Step C: Wait for pidfile removal (signals graceful shutdown completion)
+      const gone = await waitForPidFileRemoval(TIMEOUT_MS)
+      if (gone) {
+        logger.log('[quit] terminal server stopped (via TCP shutdown)')
+        return
+      }
+      logger.warn('[quit] TCP shutdown sent but pidfile still present, falling back to force kill')
+    }
+  } catch (err) {
+    logger.warn(`[quit] TCP shutdown failed: ${err}`)
+  }
+
+  // Step D: Force-kill fallback
+  try {
+    const pid = readPidFile(userDataPath)
+    if (pid) {
+      if (process.platform === 'win32') {
+        const { execFile } = await import('child_process')
+        const ok = await new Promise<boolean>((resolve) => {
+          execFile(
+            'taskkill',
+            ['/F', '/T', '/PID', String(pid)],
+            { timeout: 3000, windowsHide: true },
+            (err) => resolve(!err)
+          )
+        })
+        if (ok) {
+          logger.log('[quit] terminal server stopped (via taskkill /F /T)')
+          return
+        }
+        logger.error(`[quit] taskkill for PID ${pid} failed`)
+      } else {
+        try {
+          process.kill(pid, 'SIGKILL')
+          logger.log('[quit] terminal server stopped (via SIGKILL)')
+          return
+        } catch (err) {
+          logger.error(`[quit] SIGKILL for PID ${pid} failed: ${err}`)
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(`[quit] force kill failed: ${err}`)
+  }
+
+  logger.error('[quit] terminal server stop failed — no handle / port / pid available')
 }
 
 app.on('before-quit', async (e) => {
@@ -1420,8 +1490,11 @@ app.on('before-quit', async (e) => {
     // Runs *after* renderer flushes so PTYs can persist their state first.
     if (shouldStopServer) {
       try {
+        // T0149 (BUG-034): stopTerminalServerGracefully now logs internally
+        // with the actual method used (SIGTERM / TCP shutdown / taskkill / SIGKILL)
+        // or an error if every path failed — removed the unconditional success log
+        // here because it fired even on early-returns and masked the real outcome.
         await stopTerminalServerGracefully()
-        logger.log('[quit] terminal server stopped')
       } catch (err) {
         logger.error(`[quit] stopTerminalServerGracefully failed: ${err}`)
       }
