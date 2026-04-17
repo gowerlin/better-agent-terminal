@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-18 05:30 (UTC+8)（新增 D056 — PLAN-016 全案閉環）
+> 最後更新：2026-04-18 06:35 (UTC+8)（新增 D057 — mac 打包採雙 arch dmg，放棄 universal）
 
 ---
 
@@ -38,10 +38,47 @@
 | D054 | 2026-04-18 | T0163 DONE 閉環 + PLAN-005 啟動（EXP worktree 模式，承接 Group A） | T0163/EXP-BUILDER26-001/PLAN-005/PLAN-003 |
 | D055 | 2026-04-18 | PLAN-005 / PLAN-003 全案閉環（electron-builder 26 升級 CONCLUDED + Group A 關閉） | EXP-BUILDER26-001/PLAN-005/PLAN-003 |
 | D056 | 2026-04-18 | PLAN-016 全案閉環（Electron 28.3.3 → 41.2.1，三 Phase 全部完成） | PLAN-016/EXP-ELECTRON41-001/T0160/T0161/PLAN-005 |
+| D057 | 2026-04-18 | mac 打包採雙 arch dmg，放棄 universal（CI Pre-Release 5 次 run 後修正） | EXP-BUILDER26-001 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D057 2026-04-18 — mac 打包採雙 arch dmg，放棄 universal
+
+- **觸發事件**：EXP-BUILDER26-001 CONCLUDED 後首次觸發 GitHub Actions Pre-Release workflow，CI 環境暴露本地 Windows dry-run 沒抓到的多層失敗（schema → universal merge 地獄）。共 5 次 run 修正，最後改雙 arch dmg 才全綠。
+
+- **失敗序列**（run ID / 層次 / 關鍵錯誤）：
+  1. `24588171923` — Linux schema：`configuration.mac.x64ArchFiles should be: null | string`
+  2. `24588953832` — mac universal merge：`claude-agent-sdk/vendor/ripgrep/arm64-darwin/rg ... not covered`
+  3. `24589124101` — mac universal merge：`claude-code/vendor/audio-capture/arm64-darwin/audio-capture.node`
+  4. `24589233714` — mac universal merge：`@img/sharp-darwin-arm64/lib/sharp-darwin-arm64.node`
+  5. `24589344537` — mac universal merge：`@lydell/node-pty-darwin-arm64/pty.node`
+  6. `24589510949` — **全綠**（改雙 arch dmg 後），tag `v0.0.16-pre.1`
+
+- **根因**：
+  - electron-builder 26 在 Linux host 下 normalize `mac.target.arch: "universal"` 會填入 `x64ArchFiles` 預設值並觸發 schema 驗證（與 Windows host `--dir` 路徑行為不同，EXP 工單 Step 5.5 沒暴露）。
+  - `@electron/universal` 合併 x64 / arm64 ASAR 時，對所有 `asarUnpack` 內 bit-identical 的檔案都要求 `x64ArchFiles` / `arm64ArchFiles` 規則覆蓋。
+  - 本專案 `asarUnpack` 帶了 `@anthropic-ai/claude-code/**`、`@anthropic-ai/claude-agent-sdk/**`、`@img/**`，加上 `optionalDependencies` 的 `@lydell/node-pty-*`，每個 package 都 ship 全平台 binary（arm64-darwin / x64-darwin 各一份），x64 / arm64 build 都會帶入全部。每加一條 pattern 就跳下一個 package，典型 whack-a-mole。
+
+- **決策**：`mac.target.arch` 從 `"universal"` 改為 `["x64", "arm64"]`，產出 `BetterAgentTerminal-*-x64.dmg` + `-arm64.dmg` 兩個 dmg，繞過整個 universal merge 檢查路徑。
+
+- **Commit**：`28fc637`（此輪 CI 修復期間另含 `d0822b1`、`368e0ca`、`3aa3ac5` 過渡嘗試，保留於歷史作為教訓，不 squash）。
+
+- **Side effect**：
+  - ✅ 解除 universal merge 地獄 — 新增 optionalDependency 不會再 break mac 打包。
+  - ✅ mac 打包時間略縮（2m14s vs universal 預估 3m+，實測沒到 universal 完成過）。
+  - ⚠️ macOS 下載頁變成兩個檔案（x64 / arm64），使用者需自行選對 CPU（Apple Silicon 選 arm64）。
+  - ⚠️ 檔案大小各自比原 universal 小（不含另一 arch 拷貝），總下載頻寬不變。
+
+- **後續**：
+  - CLAUDE.md「electron-builder 26 migration notes」已更新，明確標注不要改回 universal（本輪一併 commit）。
+  - EXP-BUILDER26-001 工單補記「CI 實戰後續（2026-04-18）」完整記錄（本輪一併 commit）。
+  - Homebrew tap（若有）未來需要同步支援雙 arch dmg，下個正式 tag 釋出時處理（backlog 候選）。
+
+- **關聯**：EXP-BUILDER26-001 / PLAN-005（delivery）；不改動 D055（EXP 工單依然 CONCLUDED，只是多一層 CI 實戰補記）。
 
 ---
 

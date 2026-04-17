@@ -555,6 +555,51 @@ Backfill commit：`d146c9a`
 
 ---
 
+## CI 實戰後續（2026-04-18）
+
+**背景**：本工單 CONCLUDED 後首次觸發 GitHub Actions Pre-Release workflow (`24588171923`)，CI 環境（ubuntu-latest / macos-latest）暴露出本地 Windows dry-run 沒抓到的五個層次問題。
+
+**症狀層次與修復順序**：
+
+| # | Run ID | 失敗層 | 錯誤訊息（節錄） | 修復 |
+|---|--------|--------|------------------|------|
+| 1 | 24588171923 | Linux schema | `configuration.mac.x64ArchFiles should be: null \| string` | 設 `mac.x64ArchFiles`（先 `null`，使用者另一 session 已改為 `@anthropic-ai/claude-agent-sdk/vendor/audio-capture/**`） |
+| 2 | 24588953832 | mac universal merge | `claude-agent-sdk/vendor/ripgrep/arm64-darwin/rg ... not covered` | 擴 pattern 為 `@anthropic-ai/claude-agent-sdk/vendor/**` |
+| 3 | 24589124101 | mac universal merge | `claude-code/vendor/audio-capture/arm64-darwin/audio-capture.node ... not covered` | 再擴 `@anthropic-ai/*/vendor/**`（含 claude-code） |
+| 4 | 24589233714 | mac universal merge | `@img/sharp-darwin-arm64/lib/sharp-darwin-arm64.node ... not covered` | brace: `{@anthropic-ai/*/vendor,@img}/**` |
+| 5 | 24589344537 | mac universal merge | `@lydell/node-pty-darwin-arm64/pty.node ... not covered` | **放棄 universal，改雙 arch dmg** |
+
+**根因**：
+- Linux host 的 electron-builder 26 對 `mac.target.arch: "universal"` config 會 normalize 出 `x64ArchFiles` 欄位並觸發 schema 驗證，本地 Windows dry-run 未必走同一路徑（工單 Step 5.5 line 429 Linux `--dir` 意外通過的現象解釋）。
+- `@electron/universal` 合併 x64 / arm64 ASAR 時，對任何 bit-identical 的檔案都要求 `x64ArchFiles` 或 `arm64ArchFiles` 明確覆蓋。本專案 `asarUnpack` 有 `@anthropic-ai/claude-code/**`、`@anthropic-ai/claude-agent-sdk/**`、`@img/**`，加上 `optionalDependencies` 的 `@lydell/node-pty-*`，這些套件都 ship 全平台 binary（不是跨 arch 合併成 fat binary，而是每個 arch 目錄各一份檔案）。x64 / arm64 兩個 build 各自都會把全部平台 binary 塞進去，於是所有檔案都是「兩邊同檔」狀態，一個沒 cover 就爆。
+
+**最終解法**（commit `28fc637`）：
+```diff
+     "mac": {
+-      "target": {
+-        "target": "dmg",
+-        "arch": "universal"
+-      },
+-      "x64ArchFiles": "**/node_modules/{@anthropic-ai/*/vendor,@img}/**",
++      "target": [
++        {
++          "target": "dmg",
++          "arch": ["x64", "arm64"]
++        }
++      ],
+```
+
+**驗收 Run**：`24589510949` — prepare ✅ / mac 2m14s ✅ / linux 1m20s ✅ / win 5m4s ✅ / release 19s ✅，產出 tag `v0.0.16-pre.1`。
+
+**後續建議**：
+- CLAUDE.md 「electron-builder 26.x」段落目前記錄 mac 用 universal dmg，應更新為雙 arch dmg + 記錄本節 root cause（避免日後誤改回 universal 又重走一次地獄）。
+- 若未來真的要改回 universal，必須先把所有 `asarUnpack` 裡會被 universal merge 檢查到的 native module 統一搬到單一路徑，或改用精確的 x64ArchFiles 規則清單；務實上不建議。
+- 雙 arch dmg 的 side effect：macOS 下載頁會有兩個檔案（arm64 / x64），使用者需自行選對 CPU。檔案大小各自比原 universal 小（不含另一 arch 的 binary 拷貝）。
+
+**衍生決策候選（給塔台評估）**：是否新增 D057「mac 打包採雙 arch dmg，放棄 universal」並於 `_decision-log.md` 記錄。
+
+---
+
 ## 上游資訊
 
 - electron-builder 26 release notes: https://github.com/electron-userland/electron-builder/releases
