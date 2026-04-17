@@ -194,6 +194,7 @@
     "terminal": "终端",
     "files": "文件",
     "git": "Git",
+    "git-graph": "Git 图谱",
     "github": "GitHub",
     "snippets": "代码片段",
     "skills": "Skills",
@@ -350,6 +351,18 @@
     "minutesAgo": "{{count}} 分钟前",
     "hoursAgo": "{{count}} 小时前",
     "daysAgo": "{{count}} 天前"
+  },
+  "gitGraph": {
+    "title": "Git 图谱",
+    "refresh": "重新加载",
+    "graphComingSoon": "Commit graph 渲染将于 Tα2 提供。",
+    "health": {
+      "idle": "等待工作区…",
+      "loading": "检查 Git 仓库中…",
+      "ok": "Git 仓库就绪（{{root}}）",
+      "notARepo": "当前工作区不是 Git 仓库。",
+      "error": "Health check 失败：{{message}}"
+    }
   },
   "claude": {
     "thinking": "思考中",

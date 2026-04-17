@@ -194,6 +194,7 @@
     "terminal": "Terminal",
     "files": "Files",
     "git": "Git",
+    "git-graph": "Git Graph",
     "github": "GitHub",
     "snippets": "Snippets",
     "skills": "Skills",
@@ -356,6 +357,18 @@
     "minutesAgo": "{{count}}m ago",
     "hoursAgo": "{{count}}h ago",
     "daysAgo": "{{count}}d ago"
+  },
+  "gitGraph": {
+    "title": "Git Graph",
+    "refresh": "Refresh",
+    "graphComingSoon": "Commit graph rendering is coming in Tα2.",
+    "health": {
+      "idle": "Waiting for workspace…",
+      "loading": "Checking git repository…",
+      "ok": "Git repository ready ({{root}})",
+      "notARepo": "Current workspace is not a git repository.",
+      "error": "Health check failed: {{message}}"
+    }
   },
   "claude": {
     "thinking": "Thinking",

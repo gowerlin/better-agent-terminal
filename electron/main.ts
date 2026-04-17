@@ -83,6 +83,7 @@ import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
+import { registerGitScaffoldHandlers } from './git/git-ipc'
 import * as net from 'net'
 
 // Startup timing — capture module load time before anything else
@@ -2053,7 +2054,10 @@ function registerProxiedHandlers() {
   })
 
 
-  // Git
+  // Git — legacy child_process handlers (retained for existing GitPanel)
+  // Phase 3 Tα1 scaffold (T0155) — simple-git backed channels live under `git-scaffold:*`
+  registerGitScaffoldHandlers()
+
   registerHandler('git:get-github-url', async (_ctx, folderPath: string) => {
     try {
       const { execSync } = await import('child_process')

@@ -325,6 +325,40 @@ const electronAPI = {
     getStatus: (cwd: string) => ipcRenderer.invoke('git:status', cwd) as Promise<{ status: string; file: string }[]>,
     getRoot: (cwd: string) => ipcRenderer.invoke('git:getRoot', cwd) as Promise<string | null>,
   },
+  // Phase 3 Tα1 scaffold (T0155) — simple-git backed channels for the new Git Graph panel
+  gitScaffold: {
+    healthCheck: (cwd: string) =>
+      ipcRenderer.invoke('git-scaffold:healthCheck', cwd) as Promise<{
+        ok: boolean
+        isRepo: boolean
+        gitRoot: string | null
+        error?: string
+      }>,
+    getRepoInfo: (cwd: string) =>
+      ipcRenderer.invoke('git-scaffold:getRepoInfo', cwd) as Promise<{
+        ok: boolean
+        head: string | null
+        branch: string | null
+        detached: boolean
+        remotes: Array<{ name: string; url: string }>
+        gitRoot: string | null
+        error?: string
+      }>,
+    listCommits: (cwd: string, options?: { limit?: number; offset?: number }) =>
+      ipcRenderer.invoke('git-scaffold:listCommits', cwd, options) as Promise<{
+        ok: boolean
+        commits: Array<{
+          hash: string
+          abbrevHash: string
+          parents: string[]
+          authorName: string
+          authorEmail: string
+          date: string
+          subject: string
+        }>
+        error?: string
+      }>,
+  },
   fs: {
     readdir: (dirPath: string) => ipcRenderer.invoke('fs:readdir', dirPath) as Promise<{ name: string; path: string; isDirectory: boolean }[]>,
     readFile: (filePath: string) => ipcRenderer.invoke('fs:readFile', filePath) as Promise<{ content?: string; error?: string; size?: number }>,

@@ -23,6 +23,7 @@ import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 // Lazy-loaded panel components for sidebar docking
 const LazyFileTree = lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })))
 const LazyGitPanel = lazy(() => import('./components/GitPanel').then(m => ({ default: m.GitPanel })))
+const LazyGitGraphPanel = lazy(() => import('./components/git-panel').then(m => ({ default: m.GitGraphPanel })))
 const LazyGitHubPanel = lazy(() => import('./components/GitHubPanel').then(m => ({ default: m.GitHubPanel })))
 const LazyControlTowerPanel = lazy(() => import('./components/ControlTowerPanel').then(m => ({ default: m.ControlTowerPanel })))
 
@@ -736,6 +737,8 @@ export default function App() {
             .map(t2 => ({ path: t2.worktreePath!, branch: t2.worktreeBranch || 'worktree' }))}
         />
       }
+      case 'git-graph':
+        return <LazyGitGraphPanel workspaceFolderPath={activeWorkspace.folderPath} />
       case 'github':
         return <LazyGitHubPanel
           workspaceFolderPath={activeWorkspace.folderPath}
@@ -869,7 +872,7 @@ export default function App() {
             setMountedLeftPanels(prev => prev.has(panel) ? prev : new Set([...prev, panel]))
             handleSidebarCollapse()
           }} title={t(`workspace.${panel}`)}>
-            {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F916}'}
+            {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'git-graph' ? '\u{1F4C8}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F916}'}
           </button>
         ))}
       </div>
@@ -1043,7 +1046,7 @@ export default function App() {
           <div className="right-sidebar-collapsed" style={{ display: panelSettings.snippetSidebar.collapsed && !previewMarkdownPath ? undefined : 'none' }}>
             {rightDockedPanels.map(panel => (
               <button key={panel} className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange(panel)} title={t(`workspace.${panel}`)}>
-                {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F310}'}
+                {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'git-graph' ? '\u{1F4C8}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F310}'}
               </button>
             ))}
           </div>

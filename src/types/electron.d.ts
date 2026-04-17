@@ -77,6 +77,37 @@ interface ElectronAPI {
     getStatus: (cwd: string) => Promise<{ path: string; status: string }[]>
     getRoot: (cwd: string) => Promise<string | null>
   }
+  // Phase 3 Tα1 scaffold (T0155) — simple-git backed channels
+  gitScaffold: {
+    healthCheck: (cwd: string) => Promise<{
+      ok: boolean
+      isRepo: boolean
+      gitRoot: string | null
+      error?: string
+    }>
+    getRepoInfo: (cwd: string) => Promise<{
+      ok: boolean
+      head: string | null
+      branch: string | null
+      detached: boolean
+      remotes: Array<{ name: string; url: string }>
+      gitRoot: string | null
+      error?: string
+    }>
+    listCommits: (cwd: string, options?: { limit?: number; offset?: number }) => Promise<{
+      ok: boolean
+      commits: Array<{
+        hash: string
+        abbrevHash: string
+        parents: string[]
+        authorName: string
+        authorEmail: string
+        date: string
+        subject: string
+      }>
+      error?: string
+    }>
+  }
   github: {
     checkCli: () => Promise<{ installed: boolean; authenticated: boolean }>
     listPRs: (cwd: string) => Promise<unknown>

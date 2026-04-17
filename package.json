@@ -45,6 +45,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^16.5.8",
+    "simple-git": "^3.36.0",
     "uuid": "^9.0.0",
     "whisper-node-addon": "^1.0.2",
     "ws": "^8.19.0"
