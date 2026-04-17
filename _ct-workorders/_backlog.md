@@ -1,9 +1,9 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-17 22:30 (UTC+8)
+> 最後更新：2026-04-18 00:50 (UTC+8)
 >
-> 統計：💡 Ideas: 6 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 1 | 🚫 Dropped: 0
+> 統計：💡 Ideas: 7 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 1 | 🚫 Dropped: 0
 >
 > 📦 已歸檔：4 張（PLAN-006 DROPPED, PLAN-008 DONE, PLAN-010 DONE, PLAN-011 DONE → _archive/plans/）
 
@@ -20,6 +20,7 @@
 | PLAN-005 | Electron Builder 升級 | 🟢 Low | 💡 IDEA | [詳細](PLAN-005-electron-builder-upgrade.md) |
 | PLAN-007 | 遠端容器開發支援 | 🟢 Low | 💡 IDEA | [詳細](PLAN-007-remote-container-dev-support.md) |
 | PLAN-013 | NSIS Installer 偵測檔案鎖定時詢問 kill Terminal Server | 🟢 Low | 💡 IDEA | [詳細](PLAN-013-installer-force-kill-on-file-lock.md) |
+| PLAN-015 | Refactor：抽 renderPanelContent shared helper 消除雙 render 路徑 | 🟢 Low | 💡 IDEA | [詳細](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 
 ## Completed
 

@@ -1171,3 +1171,68 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **候選晉升**：🟡 Project 層（UI 架構特定，但診斷思路可普及）
 
 ---
+
+## L035 - 2026-04-18 — Dockable panel 新增時雙 render 路徑同步檢查
+
+**觸發條件**：新增 `DockablePanel` 成員（本專案的 `'git-graph'` / `'git'` / `'github'` / `'files'` / 等），Panel 可能 docking 至 main zone 或 left/right sidebar。
+
+**架構事實**（2026-04-18 確認）：
+- `src/App.tsx::renderDockablePanel` 處理 **left/right sidebar** 的 panel render（可用 lazy + Suspense）
+- `src/components/WorkspaceView.tsx::renderTabContent` 處理 **main zone** 的 tab render（其他 case 皆直接 import，非 lazy）
+- 同一 `DockablePanel` 成員在不同 docking zone 走**不同 render path**
+
+**反面教訓**（BUG-037, T0155~T0158）：
+- T0155 建立 `'git-graph'` panel，只補了 `App.tsx::renderDockablePanel`
+- T0156 實作 SVG graph，假設 panel 已能掛載
+- 使用者 dev UAT → panel 全黑（main zone 預設 docking）
+- T0157 靜態分析定位：WorkspaceView switch 漏 `case 'git-graph'` → `default: return null`
+- T0158 方案 A 修復（補 case），方案 C（抽 shared helper）標記為後續 refactor
+
+**Checklist**（新增 DockablePanel 成員時）：
+1. `src/types/`（或 panel type 宣告處）新增成員字面量
+2. `src/App.tsx::renderDockablePanel` 加分支（sidebar path）
+3. `src/components/WorkspaceView.tsx::renderTabContent` 加 case（main zone path）
+4. `WorkspaceTab` / `PinnedContentType` / `loadWorkspaceTab` 字串 union 同步擴展（localStorage 持久化需要）
+5. `renderDockablePanel` 若用 `LazyXxx`，WorkspaceView 對應 case 可維持直接 import 以保持 case 一致性（目前 convention）
+6. 驗收必跑 `npm run dev` 切到 main zone 的 tab 肉眼確認非空白
+
+**結構性修復候選**（未來 refactor）：
+- 抽 `renderPanelContent(panel, ctx)` shared helper，消除雙路徑
+- 或改為 panel 成員自帶 render function 的註冊表模式
+
+**候選晉升**：🟡 Project 層（架構特定，但「多 render path 漏 case」反模式通用，value-proven 後可考慮 global 抽象為「dispatch table 應單一真實來源」）
+
+---
+
+## L036 - 2026-04-18 — Electron IPC 雙層 bridge 的 PROXIED_CHANNELS scaffold checklist
+
+**觸發條件**：新增 `electron/` 下的 IPC handler，**特別是**走自訂 `handler-registry`（`registerXxxHandlers()` 模式）而非直接 `ipcMain.handle()` 的情境。
+
+**架構事實**（2026-04-18 確認）：
+- 本專案 Electron IPC 走**雙層註冊**：
+  1. 業務層：`registerGitScaffoldHandlers()` 等把 handler 塞進自訂 `handler-registry` Map
+  2. Bridge 層：`electron/remote/protocol.ts::PROXIED_CHANNELS` Set 列出允許的 channel 名稱
+  3. `bindProxiedHandlersToIpc()`（`electron/main.ts:2359`）讀 `PROXIED_CHANNELS` → 從 registry 取 handler → 註冊到 `ipcMain.handle`
+- 若 `PROXIED_CHANNELS` 沒列，handler 註冊了但 **ipcMain 從未 bridge**，runtime renderer 會收到 `No handler registered for 'xxx:yyy'`
+
+**反面教訓**（BUG-037 Layer 2, T0155 scaffold 缺口）：
+- T0155 加了 `git-scaffold:healthCheck` / `getRepoInfo` / `listCommits` 到 `registerGitScaffoldHandlers()`
+- **忘記更新** `PROXIED_CHANNELS`
+- T0156/T0157 未捕獲（靜態 build + 研究階段都沒觸發 IPC call）
+- T0158 UAT 才炸（renderer 打 `git-scaffold:healthCheck` → handler missing）
+- Worker 依 F-11 問 [A/B/C]，使用者選 [B] 擴展修復 → `electron/remote/protocol.ts` 追加 3 channels
+
+**Checklist**（新增 `registerXxxHandlers()` 風格 IPC 時）：
+1. 在 `registerXxxHandlers()` 內 `registerHandler('namespace:action', ...)` 登記業務邏輯
+2. **同步**在 `electron/remote/protocol.ts::PROXIED_CHANNELS` Set 加入相同 channel 字串
+3. 若有 `preload.ts` / `electronAPI` 暴露：同步加 typed wrapper
+4. Runtime 驗證：renderer 呼叫對應 API 一次（最穩的是 `healthCheck` 類冪等 call）確認不噴 `No handler registered`
+5. Build-only 驗證**不足**，因為 bridge 是 runtime 行為
+
+**結構性修復候選**（未來 refactor）：
+- 讓 `registerHandler` 自動把 channel 名稱加入 `PROXIED_CHANNELS`（或合併為單一註冊函式）
+- 或 lint rule：scan `register*Handlers` 的字串字面量，diff against `PROXIED_CHANNELS`
+
+**候選晉升**：🟢 Project 層（Electron 特定 + 本專案 bridge 架構特定，global 價值低；但「scaffold 完成後的 runtime 最小 smoke test」概念可普及）
+
+---
