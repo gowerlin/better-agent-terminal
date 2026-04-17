@@ -1,9 +1,9 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-18 05:25 (UTC+8)
+> 最後更新：2026-04-18 05:30 (UTC+8)
 >
-> 統計：💡 Ideas: 4 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 3 | 🚫 Dropped: 1
+> 統計：💡 Ideas: 4 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 4 | 🚫 Dropped: 1
 >
 > 📦 已歸檔：4 張（PLAN-006 DROPPED, PLAN-008 DONE, PLAN-010 DONE, PLAN-011 DONE → _archive/plans/）
 
@@ -23,6 +23,7 @@
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-016 | Electron runtime 28.3.3 → 41.2.1 升級（三 Phase 全閉環，D047-D051/D055/D056） | 2026-04-18 05:30 | [詳細](PLAN-016-electron-runtime-upgrade-28-to-41.md) |
 | PLAN-003 | npm audit 殘餘漏洞（Group A + B + C 三組全結案，D052/D053/D054/D055） | 2026-04-18 05:25 | [詳細](PLAN-003-npm-audit-remaining-vulnerabilities.md) |
 | PLAN-005 | Electron Builder 升級（24.13.3 → 26.8.1，EXP worktree 模式，D054/D055） | 2026-04-18 05:25 | [詳細](PLAN-005-electron-builder-upgrade.md) |
 | PLAN-012 | Quit Dialog 新增「一併結束 Terminal Server」CheckBox | 2026-04-17 17:12 | [詳細](PLAN-012-quit-dialog-terminal-server-checkbox.md) |

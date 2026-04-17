@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-18 05:25 (UTC+8)（新增 D055 — PLAN-005 / PLAN-003 全案閉環）
+> 最後更新：2026-04-18 05:30 (UTC+8)（新增 D056 — PLAN-016 全案閉環）
 
 ---
 
@@ -37,10 +37,58 @@
 | D053 | 2026-04-18 | T0162 Phase 2 結論採路徑 A（vite 7 stable），派 T0163 實作 | T0162/T0163/PLAN-003 |
 | D054 | 2026-04-18 | T0163 DONE 閉環 + PLAN-005 啟動（EXP worktree 模式，承接 Group A） | T0163/EXP-BUILDER26-001/PLAN-005/PLAN-003 |
 | D055 | 2026-04-18 | PLAN-005 / PLAN-003 全案閉環（electron-builder 26 升級 CONCLUDED + Group A 關閉） | EXP-BUILDER26-001/PLAN-005/PLAN-003 |
+| D056 | 2026-04-18 | PLAN-016 全案閉環（Electron 28.3.3 → 41.2.1，三 Phase 全部完成） | PLAN-016/EXP-ELECTRON41-001/T0160/T0161/PLAN-005 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D056 2026-04-18 — PLAN-016 全案閉環（Electron 28.3.3 → 41.2.1，三 Phase 全部完成）
+
+- **觸發事件**：使用者主動詢問「PLAN-016 可以做了嗎」，塔台盤點後發現**三個 Phase 全部已達成 Success Criteria**，PLAN-016 狀態應直接升為 DONE
+- **Phase 對照表**：
+
+| Phase | 原定目標 | 實際執行 | 完成時間 | 關聯決策 |
+|-------|---------|---------|---------|---------|
+| Phase 1 | EXP worktree 試做 | EXP-ELECTRON41-001（27 分鐘 CONCLUDED，遠低於 4-8h 預估） | 2026-04-18 02:16 | D049 |
+| Phase 2 | EXP 合併 main + runtime VERIFY | T0160 + T0161 + BUG-038 閉環（含 VSCode self-lock 繞道 D050） | 2026-04-18 03:01 | D050 / D051 |
+| Phase 3 | 順便帶 PLAN-005 electron-builder 26 | EXP-BUILDER26-001 CONCLUDED + merge `75bb77f` | 2026-04-18 05:25 | D055 |
+
+- **Success Criteria 6/6 全綠驗收**：
+  1. ✅ `npm install` 無錯 — T0160 + EXP-BUILDER26-001 Step 3
+  2. ✅ Native modules rebuild 成功 — ABI 145 better-sqlite3 + @lydell/node-pty 驗證
+  3. ✅ `npm run dev` 啟動主視窗 — T0161 修復 ELECTRON_RUN_AS_NODE pollution 後通過
+  4. ✅ `npm run build:dir` 可打包 — EXP-BUILDER26-001 Step 5.2
+  5. ✅ BAT core flows smoke test — D051 runtime UAT + EXP-BUILDER26-001 Step 5.4（使用者實機驗收）
+  6. ✅ 無 regression — 使用者 05:25 確認 CT panel / 終端 / Sidebar / IPC 全綠
+- **塔台決策**：
+  1. PLAN-016 🔄 IN_PROGRESS → ✅ DONE（不需派新工單，三 Phase 產出已滿足全部 Success Criteria）
+  2. 執行期資料版本鎖定：**Electron 41.2.1** + **electron-builder 26.8.1** + **Node 24** + **Chromium M146**
+  3. EoL 窗口紀錄：Electron 41 EoL 2026-08-25（約 4 個月保護期），下次主升級窗口在 Q3 2026 考慮 Electron 43+
+  4. 備案方案 Electron 43 **不執行**（門檻已過，無迫切性；保守策略 N-2 已達成）
+- **累積成果彙整**（本輪「安全升級日」）：
+  - Electron 28.3.3 → 41.2.1（Chromium M120 → M146，兩年 CVE 一次清理）
+  - electron-builder 24.13.3 → 26.8.1（Group A 9 CVE 清除）
+  - Vite 5.4.21 → 7.3.2（Group B 2 CVE 清除）
+  - **npm audit**：27 → 3（減少 88.9%；剩 Group C whisper-node-addon 鏈 WONTFIX）
+  - **CLAUDE.md**：Electron Runtime 段（PLAN-016）+ Build Toolchain 段（T0163 + EXP-BUILDER26-001）完整記錄
+  - **相關 commits（2026-04-18 單日）**：`ef3624f`、`e7eab33`、`ae6063c`、`9d734a8`、`ea10b8a`、`ead9166`、`edf913a`、`8be4e5a`、`51201d1`、`58ca621`、`83ae7cf`、`ca8057b`、`f79f735`、`d146c9a`、`f105eb9`、`75bb77f`、`31612d5`（+本輪 D056 meta commit）
+- **重大發現 / 修正歷程**：
+  - **D050 VSCode self-lock**：npm install 期間 VSCode 鎖定 node_modules，本次全 session 都在外部終端跑（新規範 L040）
+  - **BUG-038 ELECTRON_RUN_AS_NODE**：BAT 環境變數 pollution 導致 renderer 起不來，T0161 修復後寫入 CLAUDE.md Electron Runtime 段（L039）
+  - **D054 EXP worktree 策略實證**：相較 T0160 直接 merge，EXP 模式在不確定性高的 major 升級情境下風險對沖效果顯著，本次 Worker time 34 分鐘（vs 原估 4-6h）
+- **learning 候選**（本輪總共累積 L039-L053 共 15 條，待 `*evolve` 系統性晉升）：
+  - **L054**（🟢 global 候選）：「安全升級日」集中作業模式 — 單日連續 3 條 major 升級鏈（Electron + builder + vite）全綠，相較分散到多個 sprint 的優點：工具鏈記憶熱、測試驗收可疊加、CLAUDE.md 同時段寫入一致；風險：單日 context load 高，需嚴格用 EXP 隔離避免混淆
+  - **L055**（🟢 global 候選）：Success Criteria 寫得具體（如 PLAN-016 的 6 條可驗收項目）時，PLAN 結案判定可在塔台 session 內 5 分鐘完成；相較模糊的「升級完成」更容易追蹤真實完結狀態
+  - **L056**（🟡 本專案）：跨 PLAN 的依賴關係（PLAN-016 Phase 3 ← PLAN-005）要在 PLAN 元資料中明寫（如「Phase 3 綁定 PLAN-005」），否則結案時易漏判
+- **副作用**：
+  - 主線目前有 5 commits unpushed（本輪累積），Git 狀態乾淨
+  - `_backlog.md` 需補 PLAN-016 到 Completed 區塊（首次加入，因原本優先級 High 跳過 backlog 直接走工單）
+  - 下一輪候選更加明確：PLAN-004 / PLAN-009 / PLAN-014
+- **相關 PLAN**：PLAN-016（DONE）、PLAN-005（DONE，作為 Phase 3 載體）、PLAN-003（DONE）
+- **相關工單**：EXP-ELECTRON41-001（CONCLUDED）、T0159 / T0160 / T0161 / T0162 / T0163（全部 DONE）、EXP-BUILDER26-001（CONCLUDED）
 
 ---
 

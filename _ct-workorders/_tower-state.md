@@ -1,10 +1,47 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 05:25 (UTC+8)（PLAN-005 / PLAN-003 全案閉環，EXP-BUILDER26-001 CONCLUDED，D055）
+> 最後更新：2026-04-18 05:30 (UTC+8)（PLAN-016 全案閉環，D056 — 安全升級日完結）
 
 ---
 
-## 🔄 本 Session 焦點（2026-04-18 05:25）
+## 🔄 本 Session 焦點（2026-04-18 05:30）— 安全升級日完結
+
+**本日集中升級三部曲 + PLAN-016 全案閉環**：
+
+| PLAN | 內容 | 閉環時間 | 關聯 |
+|------|------|---------|------|
+| **PLAN-016** ✅ | Electron 28.3.3 → 41.2.1 | 05:30 | 三 Phase 全綠（D047→D056） |
+| **PLAN-005** ✅ | electron-builder 24.13.3 → 26.8.1 | 05:25 | PLAN-016 Phase 3 載體（D054/D055） |
+| **PLAN-003** ✅ | npm audit 殘餘漏洞（三 Group） | 05:25 | Group A=PLAN-005 / B=T0163 / C=WONTFIX |
+
+### 本日累積成果
+- **npm audit**：27 → 3（減少 88.9%，剩 Group C WONTFIX）
+- **依賴版本**：Electron 41.2.1 + electron-builder 26.8.1 + vite 7.3.2 + Node 24 + Chromium M146
+- **EoL 窗口**：Electron 41 EoL 2026-08-25（約 4 個月保護期），下次主升級 Q3 2026 評估 Electron 43+
+- **CLAUDE.md**：Electron Runtime + Build Toolchain 段完整記錄
+- **相關 commits（2026-04-18 單日）**：17 個 + 本輪 D056 meta commit
+- **本輪 unpushed**：5 commits（含本輪 D056 meta）
+
+### Learning 候選（本日累積 15 條，L039-L056）
+- **L039-L041**（Phase 2 期間）：Electron IDE self-lock 陷阱 + 雙軌驗證
+- **L044-L048**（T0162/T0163/EXP-BUILDER26-001）：研究分階段 + Worker 續接 + EXP worktree 實證
+- **L049-L053**（PLAN-005 閉環）：wall-clock vs Worker time + CONCLUDED-PENDING 中間狀態
+- **L054-L056**（PLAN-016 閉環）：安全升級日模式 + Success Criteria 具體化 + 跨 PLAN 依賴元資料
+
+### 待處理事項
+1. ⏸ Worktree 清理：`git worktree remove --force ../better-agent-terminal-builder26 && git branch -d exp/builder26`（等 file lock 釋放後執行）
+2. 🟡 **5 commits 待 push**（由使用者決定時機）
+3. 💡 **強烈建議下輪 `/ct-evolve`** — 本輪累積 15 條 learning 值得系統性萃取，L054/L055 有跨專案價值
+4. 📋 **下一輪工作候選**（優先級待定）：
+   - PLAN-004 🟡 GPU Whisper 加速（Win/Linux）
+   - PLAN-009 🟡 Sprint 儀表板 UI
+   - PLAN-014 🟡 BAT 內建 Git 圖形介面（方向 B）
+   - 剩餘 🟢 Low：PLAN-002 / PLAN-007 / PLAN-013 / PLAN-015
+5. 🟢 **無 High/Critical 待處理項**（升級相關 High 全結案）
+
+---
+
+## 🔄 上輪 Session 焦點（2026-04-18 05:25，歷史追溯）
 
 **PLAN-005 / PLAN-003 全案閉環**（~3 小時集中升級 session）：
 
@@ -454,7 +491,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **PLAN 最大編號** | PLAN-016 |
 | **EXP 最大編號** | EXP-BUILDER26-001 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D055 |
+| **決策最大編號** | D056 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---
