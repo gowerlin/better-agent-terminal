@@ -1,10 +1,29 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-17 15:15 (UTC+8)（🎯 T0147 DONE — BUG-033 → VERIFY，等 T0145 打包驗收合併覆蓋）
+> 最後更新：2026-04-18 00:55 (UTC+8)（🎯 BUG-037 CLOSED + PLAN-015 入 backlog，本輪收工）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-17 14:22）
+## 🛏 本 Session 退出快照（2026-04-18 00:55）
+
+**退出原因**：BUG-037 全鏈路閉環完成，塔台推薦等 PLAN-014 Phase 3 Tα3+ 再動 PLAN-015 refactor（避免架構 churn）
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+1. Fast Path 載入此快照（<24h 有效）
+2. `git log -1` 應為 `2def77a`（chore(ct) BUG-037 follow-up）— 未 push，等使用者決定推送時機
+3. 本 session 4 個 commit（`378a124` / `fbcf2d2` / `ad6f9e8` / `2def77a`）尚未 push
+4. 下一輪起點候選：PLAN-014 Phase 3 Tα3（若 roadmap 已定義）/ PLAN-004 🟡 / PLAN-009 🟡 / PLAN-015 🟢（暫緩）
+
+**當前狀態凍結**：
+- BUG-037 🚫 CLOSED（T0158 commit `fbcf2d2`，方案 A + Layer 2 PROXIED_CHANNELS bridge）
+- PLAN-014 Phase 3 Tα1 (T0155) + Tα2 (T0156) ✅ DONE，Tα3+ 尚未規劃
+- PLAN-015 💡 IDEA 🟢 Low（塔台推薦 Phase 3 完整收官後再動）
+- 2 條新 learning（L035 / L036）寫入，candidate 標記待晉升評估
+- 工作樹乾淨，4 commits unpushed
+
+---
+
+## 🗄️ 舊 Session 退出快照（2026-04-17 14:22，歷史追溯用）
 
 **退出原因**：使用者手動 rebuild + 換版 BAT（塔台當前在 BAT 裡跑，重裝會斷 session）
 
@@ -49,7 +68,30 @@ chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
 ---
 
 ## 🌅 起手式（Quick Recovery）
-> 最後更新：2026-04-17 17:12 UTC+8
+> 最後更新：2026-04-18 00:55 UTC+8
+
+### 🎉 BUG-037 全鏈路閉環（2026-04-18 00:23~00:43）
+
+**本 session 成果**（~1.5h，4 commits unpushed）：
+- **T0157** 研究 DONE（commit `378a124`）— 靜態 + 1 輪使用者互動定位根因：`WorkspaceView::renderTabContent` 缺 `case 'git-graph'`（T0155 commit 只補了 App.tsx，漏 WorkspaceView 的 main zone render path）
+- **T0158** 修復 DONE（commit `fbcf2d2`）— 方案 A（最小修改）+ **Layer 2 範圍擴展**（UAT 發現 `electron/remote/protocol.ts::PROXIED_CHANNELS` 漏 `git-scaffold:*` 3 channels，Worker 依 F-11 問 [A/B/C]，使用者選 [B] 合併修復）
+- **BUG-037** OPEN → CLOSED（使用者 runtime UAT 通過，VERIFY 決策流選項 [1] 直接 CLOSED）
+- **2 條 learning 寫入**：
+  - L035: Dockable panel 雙 render 路徑同步 checklist（App.tsx + WorkspaceView.tsx）
+  - L036: Electron IPC PROXIED_CHANNELS scaffold checklist
+- **PLAN-015** 入 backlog（🟢 Low IDEA — 抽 shared helper 消除雙 render path，塔台推薦 Phase 3 Tα3+ 完整收官後再動）
+- **塔台 meta** 2 commit 批次收尾（`ad6f9e8` + `2def77a`）
+
+### 立即待辦（本輪結束，下一輪從這裡接）
+- 🟡 **待 push**：4 個本 session commit（`378a124` / `fbcf2d2` / `ad6f9e8` / `2def77a`）尚未 push，等使用者決定
+- 📋 **下一輪起點候選**：
+  1. **PLAN-014 Phase 3 Tα3**（若已定義）— 繼續 Git GUI 實作主線
+  2. **PLAN-004** 🟡 Medium — GPU Whisper 加速（Win/Linux）
+  3. **PLAN-009** 🟡 Medium — Sprint 儀表板 UI
+  4. **PLAN-015** 🟢 Low — 建議延後（Phase 3 收官後）
+- 💡 **可選 learning 晉升**：L003/L004/L005 等 `candidate: global` 標記已累積多時，下次 `/ct-evolve --playbook` 可評估晉升
+
+### 🟠 上一輪起手式（2026-04-17 17:12 存檔，歷史追溯用）
 
 ### 🎉 PLAN-012 全案結案（2026-04-17 17:12）— 5 BUG 批次 CLOSED
 **收官**：使用者 rebuild + 重裝後實測 T0145 情境 1-5 + 8 + 9 全綠，D044 批次結案：
@@ -219,9 +261,9 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0151 |
-| **BUG 最大編號** | BUG-036 |
-| **PLAN 最大編號** | PLAN-013 |
+| **工單最大編號** | T0158 |
+| **BUG 最大編號** | BUG-037 |
+| **PLAN 最大編號** | PLAN-015 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
 | **決策最大編號** | D046 |
 | **塔台版本** | Control Tower v4.0 |
