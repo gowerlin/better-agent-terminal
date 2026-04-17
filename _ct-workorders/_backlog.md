@@ -1,9 +1,9 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-18 00:50 (UTC+8)
+> 最後更新：2026-04-18 03:58 (UTC+8)
 >
-> 統計：💡 Ideas: 7 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 1 | 🚫 Dropped: 0
+> 統計：💡 Ideas: 5 | 📋 Planned: 3 | 🔄 In Progress: 1 | ✅ Done: 1 | 🚫 Dropped: 1
 >
 > 📦 已歸檔：4 張（PLAN-006 DROPPED, PLAN-008 DONE, PLAN-010 DONE, PLAN-011 DONE → _archive/plans/）
 
@@ -14,9 +14,8 @@
 | PLAN-004 | GPU Whisper 加速（Win/Linux） | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
 | PLAN-009 | Sprint 儀表板 UI | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-009-sprint-dashboard-ui.md) |
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B，T0152 紙上否決方向 A） | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
-| PLAN-001 | Vite v5→v6 升級 | 🟢 Low | 💡 IDEA | [詳細](PLAN-001-vite-v5-to-v6-upgrade.md) |
+| PLAN-003 | npm audit 殘餘漏洞（Group B 升 vite 5→7，T0163 實作中，D053 路徑 A） | 🟢 Low | 🔄 IN_PROGRESS | [詳細](PLAN-003-npm-audit-remaining-vulnerabilities.md) |
 | PLAN-002 | Dynamic Import 衝突修復 | 🟢 Low | 💡 IDEA | [詳細](PLAN-002-dynamic-import-conflict-fix.md) |
-| PLAN-003 | npm audit 剩餘漏洞 | 🟢 Low | 💡 IDEA | [詳細](PLAN-003-npm-audit-remaining-vulnerabilities.md) |
 | PLAN-005 | Electron Builder 升級 | 🟢 Low | 💡 IDEA | [詳細](PLAN-005-electron-builder-upgrade.md) |
 | PLAN-007 | 遠端容器開發支援 | 🟢 Low | 💡 IDEA | [詳細](PLAN-007-remote-container-dev-support.md) |
 | PLAN-013 | NSIS Installer 偵測檔案鎖定時詢問 kill Terminal Server | 🟢 Low | 💡 IDEA | [詳細](PLAN-013-installer-force-kill-on-file-lock.md) |
@@ -32,4 +31,8 @@
 
 ## Dropped
 
-（已歸檔至 _archive/plans/）
+| ~~ID~~ | ~~標題~~ | 原因 | 連結 |
+|--------|---------|------|------|
+| ~~PLAN-001~~ | ~~Vite v5→v6 升級~~ | 被 PLAN-003 Group B 吸收（D052）— 將直接跨 major 升至 vite 8 | [PLAN-001](PLAN-001-vite-v5-to-v6-upgrade.md) |
+
+> 已歸檔至 _archive/plans/：PLAN-006 / PLAN-008 / PLAN-010 / PLAN-011

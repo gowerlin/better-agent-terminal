@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-18 03:01 (UTC+8)（新增 D051 — Electron 41 + BUG-038 runtime 驗收閉環）
+> 最後更新：2026-04-18 03:58 (UTC+8)（新增 D053 — T0162 結論採路徑 A）
 
 ---
 
@@ -33,10 +33,80 @@
 | D049 | 2026-04-18 | EXP-ELECTRON41-001 CONCLUDED → 派 T0160 合併 + BUG-038 + T0161 修復 + Phase 3 暫緩 | T0160/T0161/BUG-038 |
 | D050 | 2026-04-18 | Electron 41 升級未生效到 runtime + VSCode self-lock 發現 | T0160/T0161/BUG-038 |
 | D051 | 2026-04-18 | Electron 41 升級 + BUG-038 runtime 驗收全通過，閉環完成 | T0160/T0161/BUG-038 |
+| D052 | 2026-04-18 | PLAN-003 混合分組策略：Group A 暫緩 + Group B 升 vite + Group C WONTFIX | T0162/PLAN-003/PLAN-005 |
+| D053 | 2026-04-18 | T0162 Phase 2 結論採路徑 A（vite 7 stable），派 T0163 實作 | T0162/T0163/PLAN-003 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D053 2026-04-18 — T0162 Phase 2 結論採路徑 A（vite 7 stable），派 T0163 實作
+
+- **觸發事件**：T0162 Phase 2（Renew #1）完成（commits `8be4e5a` + `51201d1`，實耗 7 分鐘 vs 預算 15-30 分鐘），三個 OQ 全部解決
+- **Phase 2 關鍵結論**：
+  - **OQ1**：`vite-plugin-electron@0.29.1` stable **明確支援 vite 7/8**（上游 README 宣告 "stable and production-ready"）；`vite-plugin-electron-renderer@0.14.6` **無 peerDependencies 限制**（透過 dynamic import 載入 vite）
+  - **Phase 1 peer 判斷修正**：Phase 1 誤將 `vite-plugin-electron@0.28.8` 的上游 devDependencies 當 peerDependencies，實際兩個 plugin 皆無對 vite major 的硬限制 → D052 當初「升 vite 8 會破壞 3 個 plugin」的憂慮被證偽
+  - **OQ2（electron-vite）** 跳過但紙上評估：遷移成本過高（`vite.config.ts` 完全改寫 + scripts 重配），**不建議切換**，僅保留為最壞情境備案
+  - **OQ3（vite 6/7/8 breaking changes）**：
+    - 5→7 改動小：僅 `splitVendorChunkPlugin`（移除）、`transformIndexHtml` hook API（若有）、`resolve.conditions`（若有 custom）
+    - 5→8 改動重：Oxc 替換 esbuild、Rolldown 替換 Rollup、CJS interop 行為變更（**Electron main 重度依賴 CJS**，有 regression 風險）
+- **兩條路徑摘要**：
+  - **路徑 A（保守）**：vite 7 stable + 全 stable plugin channel，3-5h，清除 2 個 moderate CVE
+  - **路徑 B（激進）**：vite 8 + `vite-plugin-electron@1.0.0-beta.3`，6-10h，相同漏洞清除但吃 plugin beta + Oxc/Rolldown migration + CJS 風險
+- **塔台決策**：**採路徑 A（vite 7）**
+  - **使用者選擇**：A（路徑 A，Worker 推薦同意）
+  - **理由**：
+    1. 兩路徑清除的漏洞完全相同（都是 esbuild SSRF + vite path traversal 2 個 moderate），路徑 B 無額外安全收益
+    2. 路徑 B 需吃 `vite-plugin-electron` beta channel，production app 不適合
+    3. 路徑 B 核心引擎剛換（Oxc/Rolldown），社群磨合期尚短，回歸風險未充分 battle-tested
+    4. Electron main process 密集使用 CJS `require`，vite 8 CJS interop 變更若踩中需重度 debug，投資報酬低
+  - **未來升級目標**：vite 8 等 `vite-plugin-electron@1.0.0` 脫離 beta（正式 GA），預估 6-12 個月後排新 PLAN 處理
+- **T0163 工單範圍**（使用者對齊 1B / 2B / 3A）：
+  - 1B：vite 5→7 + 3 plugin 連動 + smoke test + npm audit 驗證 + **CLAUDE.md 更新（新增 Build Toolchain 段）**
+  - 2B：主要功能逐項 smoke test（CT panel / 終端機 / Sidebar / IPC 通道）+ 基本 smoke（dev/HMR/compile）
+  - 3A：塔台先批次 commit 凍結的 meta 檔（T0162 結案 + PLAN-003 狀態 + D052 + D053 + T0163 派發），Worker T0163 實作後另外獨立 commit
+- **狀態轉移**：
+  - **T0162** → ✅ DONE（Worker 已自行 commit `51201d1`）
+  - **PLAN-003** 📋 PLANNED → 🔄 IN_PROGRESS（Group B 實作中）
+  - **T0163** 新建 → 📋 PENDING（等使用者派 sub-session）
+- **learning 候選**（累積給下次 `*evolve` 評估）：
+  - **L044**（🟡 本專案）：Phase 1 靜態查 `node_modules/vite-plugin-electron/package.json` 的 devDependencies 當 peerDependencies 判斷升級限制 → 不精確；應查 npm registry 官方宣告 peer + 讀上游 README；靜態 node_modules 只反映本地當時安裝決策，不代表上游對外相容性承諾
+  - **L045**（🟡 本專案）：跨 major 升級研究需分階段（Phase 1 盤點 + Phase 2 解 OQ），Phase 1 的「保守擔憂」常在 Phase 2 被證偽，塔台應允許 Renew 機制而非直接派實作
+- **副作用**：無（路徑 A 維持 plugin stable channel，無引入 beta 風險）
+- **相關工單**：T0162（DONE）→ T0163（PENDING）
+- **相關 PLAN**：PLAN-003（IN_PROGRESS）
+
+---
+
+### D052 2026-04-18 — PLAN-003 npm audit 殘餘漏洞：混合分組策略
+
+- **觸發事件**：Electron 41 升級完成（D051）觸發 PLAN-003 重新盤點，T0162 研究完成（commit `edf913a`，11 分鐘，含 1 輪使用者互動釐清）
+- **T0162 關鍵發現**：
+  - `npm audit` 當前 **13 個**（0 critical / 7 high / 2 moderate / 4 low），比 T0060 時期 17 個減少 4 個
+  - **13 個全部無 runtime 攻擊面**（dev-time / build-time / postinstall only，不進 bundle）
+  - 殘餘漏洞集中在三群：electron-builder 鏈（9）+ vite/esbuild（2）+ whisper/tar（2）
+- **使用者決策（Worker 互動中確認）**：
+  - **Q1-A**（Group A 9 個 electron-builder 鏈漏洞）：**暫緩**，等 PLAN-005 一併處理。理由：electron-builder 24→26 升級需重測 NSIS / DMG / auto-update / ASAR 壓縮，風險成本遠高於 dev-only 漏洞的實質影響；D049 暫緩決策維持有效
+  - **Q2-B**（Group B 2 個 vite/esbuild 漏洞）：**升 vite 5→8**（使用者主動指定，Worker 原推薦 Q2-A 保守）。理由：vite 5 線已無 patch（5.4.21 為最終版本），dev server SSRF + path traversal 需處理
+  - **Q3-B**（Group C 2 個 whisper/tar 漏洞）：**WONTFIX**。理由：tar 僅 postinstall 階段下載 whisper 模型時使用，runtime 無暴露；whisper-node-addon 上游無乾淨升級路徑（audit 建議的 0.0.1 是降級，強拉 tar 7 破壞 cmake-js peer）
+- **Group B 實作前置條件（T0162 Renew #1）**：
+  - **關鍵風險識別**：vite-plugin-electron@0.28 + vite-plugin-electron-renderer@0.14 peer 僅宣告 vite 5 → 升 vite 8 會破壞 3 個 plugin
+  - Renew 範圍：
+    1. npm registry 查 vite-plugin-electron / vite-plugin-electron-renderer 最新版本 peer 支援
+    2. 評估 `electron-vite`（替代方案）是否合理
+    3. vite 6/7/8 各 major breaking changes 摘要
+  - Renew 結論後再派實作工單（預估 4-8h，若改用 electron-vite 加 2-4h）
+- **重新評估的副產品**：
+  - **PLAN-003 優先級 🟡 Medium → 🟢 Low**（實際 runtime 風險為零，非帳面的 Medium）
+  - **PLAN-003 狀態 💡 IDEA → 📐 PLANNED**（有明確 action plan 等待實作）
+  - **PLAN-003 預估規模 大→中**（不再需要 Electron major bump，剩 vite stack 升級）
+- **learning 候選**（下次 `*evolve` 評估）：
+  - **L042**（🟡 本專案）：npm audit 漏洞數字 ≠ 實際風險；dev-only / build-only / postinstall-only 的漏洞 runtime 無攻擊面，應另列評估
+  - **L043**（🟡 本專案）：大 framework stack 跨 major 升級前，先查所有依賴 plugin 的 peer 支援版本（本次識別 vite-plugin-electron peer 鎖 vite 5 為關鍵風險）
+- **關聯工單**：T0162（研究）/ PLAN-003 / PLAN-005（Group A 寄存）
+- **副作用**：**PLAN-001（Vite v5→v6）標記 🚫 DROPPED**（2026-04-18 03:44）— 被 PLAN-003 Group B 吸收，避免重複做兩次 plugin stack 升級。PLAN-001 檔案保留作為歷史紀錄
 
 ---
 

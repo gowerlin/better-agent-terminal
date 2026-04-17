@@ -1,10 +1,96 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 03:01 (UTC+8)（🎉 Electron 41 + BUG-038 runtime 驗收閉環，D051）
+> 最後更新：2026-04-18 03:58 (UTC+8)（T0162 全 phase DONE，D053 採路徑 A，T0163 派發等使用者執行）
 
 ---
 
-## 🎉 本 Session 驗收閉環（2026-04-18 03:01）
+## 🔄 本 Session 焦點（2026-04-18 03:58）
+
+**T0162 全 phase 完成**：
+- Phase 1 DONE（commit `edf913a`，11 分鐘）— 漏洞盤點 13 個全 dev-only，D052 混合策略
+- Phase 2 DONE（commits `8be4e5a` + `51201d1`，實耗 7 分鐘）— 3 個 OQ 全解：
+  1. ✅ vite-plugin-electron 0.29.1 stable 支援 vite 7/8（Phase 1 peer 判斷不精確已修正）
+  2. ⏭ electron-vite 遷移成本過高，不採用
+  3. ✅ vite 5→7 改動小；5→8 重磅（Oxc/Rolldown + CJS）
+
+**塔台 D053 決策：路徑 A（vite 7 stable）**
+- 使用者選擇：A，對齊 1B/2B/3A
+- 理由：漏洞清除相同，路徑 B 吃 beta + CJS interop + Oxc/Rolldown 新引擎風險，production app 保守為上
+- 下次升 vite 8 等 `vite-plugin-electron@1.0.0` GA 脫離 beta（6-12 個月後）
+
+**T0163 派發**（📋 PENDING，3-5h）：
+- vite 5→7 + 3 plugin 連動 + vite.config migration + CLAUDE.md Build Toolchain 段 + 主要功能 smoke test + 獨立 commit（3A）
+
+**使用者執行計畫**：塔台 meta commit 後，開 sub-session `/ct-exec T0163` 執行實作。
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-18 03:43，歷史追溯）
+
+**退出原因**：使用者移回 BAT 內 sub-session 繼續 T0162 Phase 2（Worker 已於 03:43 領取 Renew #1 指示，狀態 IN_PROGRESS）。塔台 session 先結束避免 context 膨脹，等 Worker 完成 Phase 2 後再恢復決策。
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+1. Fast Path 載入此快照（快照 <24h，無需 `*rescan`）
+2. 檢查 T0162 狀態：
+   - 若 Worker Phase 2 回報完成 → 讀「Phase 2 回報（Renew #1）」區段 → 塔台決策派實作工單 or 再 Renew
+   - 若仍在 IN_PROGRESS → 使用者應已完成 Phase 2，提示「T0162 Phase 2 完成了嗎？」
+3. 若需派實作工單 → 下一張是 **T0163**（vite 5→8 升級 + plugin 連動）
+4. 若需要，處理尚未 commit 的 6 個 meta 檔（見下方清單）
+
+**當前狀態凍結**：
+- **T0162** 🔄 IN_PROGRESS（Phase 1 DONE commit `edf913a` / Phase 2 Worker 起動 03:43）
+- **PLAN-003** 📋 PLANNED（3-group 策略 D052，Group B 等 Phase 2 結論）
+- **PLAN-001** 🚫 DROPPED（被 PLAN-003 Group B 吸收）
+- **D052** 已寫入（混合策略 + PLAN-001 DROPPED 副作用）
+- **最大編號**：T0162 / BUG-038 / PLAN-016 / D052 / EXP-ELECTRON41-001
+
+**未 commit 清單**（6 檔，等 T0162 完全結案一起 commit）：
+```
+ M _ct-workorders/PLAN-001-vite-v5-to-v6-upgrade.md         (DROPPED 註記)
+ M _ct-workorders/PLAN-003-npm-audit-remaining-vulnerabilities.md (3-group 策略)
+ M _ct-workorders/T0162-research-npm-audit-post-electron41-remediation.md (Renew #1 指示)
+ M _ct-workorders/_backlog.md                               (PLAN-001 → Dropped)
+ M _ct-workorders/_decision-log.md                          (D052)
+ M _ct-workorders/_tower-state.md                           (本檔)
+```
+
+**建議 commit 訊息**（T0162 完全結案時，含 Phase 2 產出 + 實作工單派發）：
+```
+chore(ct): T0162 renew + PLAN-003 3-group strategy (D052)
+
+- T0162 Phase 1 DONE (13 vulns all dev-only), Renew #1 resolves
+  vite plugin peer compatibility OQs
+- PLAN-003: IDEA -> PLANNED with 3-group strategy
+  - Group A (9 electron-builder chain): defer to PLAN-005
+  - Group B (vite/esbuild): upgrade vite 5->8 (impl workorder)
+  - Group C (whisper/tar): WONTFIX (postinstall-only, no runtime)
+- PLAN-001 (vite v5->v6): DROPPED, absorbed by PLAN-003 Group B
+- D052: mixed strategy decision + PLAN-001 drop side-effect
+```
+
+**使用者執行計畫**（本 session 結束後）：
+1. 回 BAT 內 sub-session（Worker 已在跑 T0162 Phase 2，狀態 IN_PROGRESS 03:43）
+2. 等 Worker 完成 Phase 2（~15-30 分鐘），查看「Phase 2 回報（Renew #1）」
+3. Phase 2 完成後，回塔台說「T0162 Phase 2 完成」→ 塔台決策派 T0163 實作工單
+
+---
+
+## 🔄 本 Session 焦點（2026-04-18 03:40，退出前凍結）
+
+**T0162 Renew #1 已派**（PLAN-003 Group B 實作前置探測）：
+- Phase 1 DONE（commit `edf913a`，11 分鐘）— 漏洞盤點 + D052 混合策略
+- Phase 2（Renew #1）待 Worker 接續 — 解 3 個 Open Questions：
+  1. vite-plugin-electron / vite-plugin-electron-renderer 的 npm registry peer 支援版本
+  2. electron-vite 替代評估（僅在 OQ1 顯示無 plugin 支援時觸發）
+  3. vite 6/7/8 migration breaking changes 摘要
+- 預估 15-30 分鐘
+- Renew 後塔台依結論派**實作工單**（vite 5→8 升級 + plugin 連動 + smoke test，4-8h，若改 electron-vite 加 2-4h）
+
+**告知 sub-session Worker**：回 BAT 內 terminal 的 sub-session，告訴 Worker「**T0162 重讀工單**」以載入 Renew #1 補充指示。
+
+---
+
+## 🎉 前置閉環（2026-04-18 03:01）
 
 **成果摘要**：
 使用者關閉 VSCode 在外部 Windows Terminal 重跑 `npm install` 解除 EBUSY 鎖定 → `npm run build` 產出 Windows NSIS installer（electron=41.2.1）→ 手動重裝測試通過。PLAN-016 Phase 2 + BUG-038 閉環完成。
@@ -297,12 +383,12 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0161 |
+| **工單最大編號** | T0163 |
 | **BUG 最大編號** | BUG-038 |
 | **PLAN 最大編號** | PLAN-016 |
 | **EXP 最大編號** | EXP-ELECTRON41-001 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D049 |
+| **決策最大編號** | D053 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---
