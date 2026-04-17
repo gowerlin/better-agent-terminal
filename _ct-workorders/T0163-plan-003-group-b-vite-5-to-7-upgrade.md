@@ -4,9 +4,10 @@
 - **工單編號**：T0163
 - **類型**：implementation（實作工單）
 - **互動模式**：✅ 允許（遇版本細節、config API 判斷可問使用者）
-- **狀態**：📋 PENDING
+- **狀態**：🔄 IN_PROGRESS
 - **優先級**:🟢 Low（技術債清除，無阻塞）
 - **派發時間**：2026-04-18 03:58 (UTC+8)
+- **開始時間**：2026-04-18 04:05 (UTC+8)
 - **關聯 PLAN**：PLAN-003（Group B 實作）
 - **關聯研究**：T0162（commit `edf913a` + Phase 2 結論 03:50）
 - **關聯決策**：D052（混合策略）、**D053**（選路徑 A：vite 7 stable）
@@ -184,37 +185,120 @@ Refs: T0162 (research), D052 (strategy), D053 (path A decision)
 
 ## 執行紀錄
 
-（Worker 填寫）
+### 前置盤點結果（Step 1）
 
-### 前置盤點結果
-_（Step 1 grep 結果）_
+跨 `**/*.{ts,tsx,js,mjs,cjs,json,css}` 全域 grep：
 
-### package.json diff
-_（Step 2）_
+| 項目 | 命中 | 結論 |
+|------|------|------|
+| `splitVendorChunkPlugin` | 0 | 本專案已用 `build.rollupOptions.output.manualChunks` 手動切 vendor chunk |
+| `transformIndexHtml`（舊 hook `enforce` / `transform`） | 0 | 無自定 plugin 使用此 hook |
+| `resolve.conditions`（custom） | 0 | 沿用預設 |
+| `.sass` / `.scss` / `sass-loader` / `@import.*scss` | 0 | 專案純 CSS |
 
-### npm install 結果
-_（Step 3，含 VSCode 狀態、耗時、warning）_
+→ **vite 7 breaking changes 零命中，`vite.config.ts` 無需修改**。
 
-### vite.config.ts diff
-_（Step 4）_
+備份 `vite.config.ts` 結構：`react()` + `electron([main, preload, terminal-server])` + `renderer()`，`resolve.alias` = `@ → ./src`，`build.rollupOptions.output.manualChunks` 切 react-vendor/xterm/hljs 三個 vendor bundle。
 
-### Smoke test 結果
-_（Step 5 Checklist 勾選）_
+### package.json diff（Step 2）
 
-### npm audit 結果
-_（Step 6 輸出）_
+```diff
+-    "@vitejs/plugin-react": "^4.2.0",
++    "@vitejs/plugin-react": "^5.0.0",
+...
+-    "vite": "^5.0.0",
+-    "vite-plugin-electron": "^0.28.0",
+-    "vite-plugin-electron-renderer": "^0.14.5"
++    "vite": "^7.0.0",
++    "vite-plugin-electron": "^0.29.1",
++    "vite-plugin-electron-renderer": "^0.14.6"
+```
 
-### CLAUDE.md 更新 diff
-_（Step 7）_
+### npm install 結果（Step 3）
 
-### Commit hash
-_（Step 8 填 git rev-parse HEAD）_
+- VSCode 狀態：由外部終端執行（前任 Worker session 已完成）
+- 實裝版本：
+  - `vite` 7.3.2
+  - `@vitejs/plugin-react` 5.2.0
+  - `vite-plugin-electron` 0.29.1
+  - `vite-plugin-electron-renderer` 0.14.6
+- `postinstall` → `npm rebuild better-sqlite3` 無異常
+- 本輪 sub-session 只做驗證（node_modules 已存在且版本對齊），未重跑 install
+
+### vite.config.ts diff（Step 4）
+
+**無變更**（Step 1 盤點確認本專案未用任何 vite 7 移除的 API）。
+
+### Smoke test 結果（Step 5）
+
+**Step 5.1 Dev server 驗收**：✅ 使用者外部終端實測通過
+**Step 5.2 主要功能**：✅ 使用者 A 路徑驗收通過
+**Step 5.3 Build 驗收**：✅ `npm run compile` 全綠
+- vite 7.3.2 build 成功，renderer 52 modules 轉譯，9.17s
+- `dist/assets/`：react-vendor 141.44 kB、xterm 305.67 kB、mermaid.core 576.72 kB（既有 large chunk warning 與本升級無關）
+- `dist-electron/main.js` 230.89 kB / `preload.js` 16.32 kB / `terminal-server.js` 6.72 kB 全部產出
+
+**Checklist**：
+- [x] `npm run dev` 啟動無 error
+- [x] Electron app 成功啟動
+- [x] Renderer 正常載入
+- [x] React HMR 運作
+- [x] CT panel 三頁籤正常
+- [x] 終端機 PTY 正常
+- [x] Sidebar 切換正常
+- [x] IPC 通道正常
+- [x] `npm run compile` 成功
+- [x] `dist/` + `dist-electron/` 產物存在
+
+### npm audit 結果（Step 6）
+
+升級後 `npm audit`：**13 → 11 vulnerabilities（4 low, 7 high）**
+
+| 原漏洞 | 嚴重度 | 狀態 |
+|--------|--------|------|
+| `esbuild` SSRF（GHSA-67mh-4wv8-2f99） | moderate | ✅ 已清除 |
+| `vite` path traversal（GHSA-4w7w-66w2-5vf9） | moderate | ✅ 已清除 |
+
+剩餘 11 個全部在 electron-builder 鏈（`@tootallnate/once` → `http-proxy-agent` → `builder-util` → `app-builder-lib` / `dmg-builder` / `electron-builder` / `electron-publish` / `electron-builder-squirrel-windows`）與 `tar` + `cmake-js` + `whisper-node-addon`，與本工單目標範圍無關（PLAN-003 Group C 處理）。
+
+### CLAUDE.md 更新 diff（Step 7）
+
+於 `## Electron Runtime` 之後、`## Control Tower 本專案規則` 之前新增：
+
+```markdown
+## Build Toolchain
+
+- Vite 7.x（2026-04-18 PLAN-003 Group B / T0163 升級，原 vite 5.4.21 → 7.3.2，清除 esbuild SSRF 與 vite path traversal 2 個 moderate CVE）。
+- Plugin 組合：
+  - `@vitejs/plugin-react` ^5.0.0（實裝 5.2.0）
+  - `vite-plugin-electron` ^0.29.1（stable，官方宣告支援 vite 7/8）
+  - `vite-plugin-electron-renderer` ^0.14.6（無 peer 限制）
+- `vite.config.ts` 目前未用 vite 7 移除的 API（`splitVendorChunkPlugin`、`transformIndexHtml` 舊 hook 格式、`resolve.conditions` custom、Sass）；若日後新增構建設定請留意這些被移除的 API。
+- 下次升級目標：vite 8（等 `vite-plugin-electron@1.0.0` GA 脫離 beta，預估 6-12 個月後）。相關研究見 T0162、決策見 D052/D053。
+```
+
+### Commit hash（Step 8）
+
+_（見元資料「commit hash」，收尾時填入）_
+
+---
+
+## 互動紀錄
+
+- [04:13] 使用者觸發 `ct-exec T0163 - Worker 把自己 Kill 了` → Action: Worker 續接，發現 package.json + package-lock + node_modules 已更新至目標版本，判斷前任 Worker 中斷點在 Step 5 驗收前
+- [04:17] Q: Step 5.1/5.2 dev server 驗收策略 A/B/C → A: 使用者選 A 並已實測通過 → Action: 勾選 Checklist 所有 10 項、進入 Step 7/8 收尾
 
 ---
 
 ## 遭遇問題
 
-（Worker 填寫）
+無。前任 Worker session 已完成到 Step 3（package.json + npm install），本 sub-session 續接 Step 1 盤點驗證、Step 4（無需修改）、Step 5/6/7/8。
+
+---
+
+## Renew 歷程
+
+無。
 
 ---
 

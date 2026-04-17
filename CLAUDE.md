@@ -39,6 +39,16 @@
 - BAT 內執行 `npm run dev` 需確認 `ELECTRON_RUN_AS_NODE` 未被污染（見 BUG-038 / T0161）。若 renderer 無法啟動且 log 出現 `ELECTRON_RUN_AS_NODE=1`，清除該環境變數後重試。
 - electron-builder 目前仍為 24.x（PLAN-016 Phase 3 延後處理，不影響本地 `npm run dev`）。
 
+## Build Toolchain
+
+- Vite 7.x（2026-04-18 PLAN-003 Group B / T0163 升級，原 vite 5.4.21 → 7.3.2，清除 esbuild SSRF 與 vite path traversal 2 個 moderate CVE）。
+- Plugin 組合：
+  - `@vitejs/plugin-react` ^5.0.0（實裝 5.2.0）
+  - `vite-plugin-electron` ^0.29.1（stable，官方宣告支援 vite 7/8）
+  - `vite-plugin-electron-renderer` ^0.14.6（無 peer 限制）
+- `vite.config.ts` 目前未用 vite 7 移除的 API（`splitVendorChunkPlugin`、`transformIndexHtml` 舊 hook 格式、`resolve.conditions` custom、Sass）；若日後新增構建設定請留意這些被移除的 API。
+- 下次升級目標：vite 8（等 `vite-plugin-electron@1.0.0` GA 脫離 beta，預估 6-12 個月後）。相關研究見 T0162、決策見 D052/D053。
+
 ## Control Tower 本專案規則
 
 - 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範
