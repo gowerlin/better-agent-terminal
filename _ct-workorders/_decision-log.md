@@ -28,10 +28,63 @@
 | D027 | 2026-04-12 | 上游追蹤：upstream tony1223，fork gowerlin，lastSyncCommit 079810025 | T0055 |
 | D028 | 2026-04-12 | 採用 T0061 文件拆分架構（BUG/PLAN/Decision 獨立單據） | T0061/T0062 |
 | D029 | 2026-04-12 | BUG 狀態流新增 🧪 VERIFY 中間態（code fix 完成但 runtime 尚未驗收） | T0065 |
+| D047 | 2026-04-18 | PLAN-001/005 升級可行性研究派發（統籌研究 + 禁互動） | T0159 |
+| D048 | 2026-04-18 | T0159 結論採行：新開 PLAN-016 + EXP-ELECTRON41-001 立即試做 | PLAN-016/EXP-ELECTRON41-001 |
+| D049 | 2026-04-18 | EXP-ELECTRON41-001 CONCLUDED → 派 T0160 合併 + BUG-038 + T0161 修復 + Phase 3 暫緩 | T0160/T0161/BUG-038 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D049 2026-04-18 — EXP-ELECTRON41-001 CONCLUDED → 合併派發 + BUG-038 同步處理
+
+- **背景**：EXP-ELECTRON41-001 耗時 27 分鐘 CONCLUDED（遠低於 4-8h 預估），所有悲觀假設被證偽
+- **實驗結果**：
+  - Electron 28.3.3 → 41.2.1（ABI 119→145，Chromium M146，Node 24）
+  - 4 個 native modules 全數相容（better-sqlite3 rebuild、@lydell/node-pty / whisper-node-addon / sharp 直接載入）
+  - TypeScript error diff = 0
+  - Build + dev + smoke test 全通過
+  - 變動極簡：僅 `package.json` + `package-lock.json`
+  - commit `ef3624f` on `exp/electron41`
+- **發現衍生 BUG**：`ELECTRON_RUN_AS_NODE=1` 洩漏至 BAT 內 terminal 子 shell（既有問題，Electron 28 時代就存在），EXP 中顯現化
+- **使用者選項 [A/A/A]**：立即派 T0160 合併 + 立即建 BUG-038+T0161 修復 + 收 L037/L038/L039
+- **決定**：
+  1. **T0160**（🔴 High）：merge `exp/electron41` → main + `npm rebuild better-sqlite3` postinstall + CLAUDE.md Electron Runtime 區塊 + worktree 清理
+  2. **BUG-038**（🟡 Medium）+ **T0161** 修復：方案 A/B/C 由 Worker 評估後選，推薦 A（源頭不污染）或 C（雙管齊下）
+  3. **PLAN-016 Phase 3（PLAN-005 builder 26）暫緩**：等 T0160 merged + 主線穩定 1-2 輪後再啟動 EXP-BUILDER26-001
+  4. **Learning 候選收納**（L037/L038/L039）：下次 `*evolve` 寫入
+- **T0160 / T0161 可並行**（不相依）
+
+---
+
+### D048 2026-04-18 — T0159 結論採行：PLAN-016 + EXP-ELECTRON41-001 即刻試做
+
+- **背景**：T0159 研究（commit `4e5af2f`）完成，結論清晰
+- **關鍵發現**：
+  1. **Electron 28.3.3 已 EOL 2024-06-11**（近 2 年無安全更新），當前 latest 43，建議目標 41（N-2）
+  2. **PLAN-001（Vite 5→6）延後**：`vite-plugin-electron` 生態無穩定 v6 路徑
+  3. **PLAN-005（builder 24→26）綁 Electron**：本專案改動面窄（僅 Mac notarize 1 欄位），需 Node 22
+  4. **鐵律**：git log `b5b3d1a` 一次性大批升級 → `d8ee82a` revert(+7557/-813)證明「三合一升級 = 失敗」，EXP 必須逐項獨立 worktree
+- **使用者選項 [A]**：立即派 EXP worktree 試做（不阻擋 PLAN-014 主線）
+- **決定**：
+  1. 新開 **PLAN-016**（🔴 High）：Electron 28→41 runtime 升級
+  2. Phase 1 = **EXP-ELECTRON41-001**（worktree `exp/electron41`，已建檔）
+  3. PLAN-005 降級綁定 PLAN-016 Phase 3 尾聲（native module 重建後順便升 builder）
+  4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
+- **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
+- **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D047 2026-04-18 — PLAN-001/005 升級可行性研究派發（T0159）
+
+- **背景**：使用者提問「PLAN-001 + PLAN-005 若風險不高是否開分支試做」。塔台初評 PLAN-001 中低風險適合 EXP、PLAN-005 綁 PLAN-003 才有意義但 PLAN-003 實際是 npm audit（PLAN-005 內備註誤記），專案無獨立 Electron runtime 升級 PLAN
+- **對齊結果**：Q1.C'（Vite + builder 聯動 + 評估新開 Electron PLAN）/ Q2.A（僅文件分析不試 build）/ Q3.A（一張統籌）/ Q4.B（禁用 Worker 互動）/ Q5.A（研究完塔台直接決策）/ Q6.A（需引用 source URL）
+- **決定**：派發 T0159 統籌研究工單，5 個 Block 盤點（Vite v5→v6 / electron-builder 24→26 / Electron runtime 28→latest / 三者相依順序 / 風險總評），硬限制禁止執行 `npm install` 和試 build
+- **當前版本鎖定**：electron@28.3.3 / electron-builder@24.0.0 / vite@5.0.0 / vite-plugin-electron@0.28.0
+- **決策依據**：本專案目前處 PLAN-014 Phase 3 Git GUI 主線收官階段，技術債升級屬低優先級；透過研究工單先盤清面積再決策排入時機，比盲試 EXP 更保守
 
 ---
 

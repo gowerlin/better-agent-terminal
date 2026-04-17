@@ -83,12 +83,21 @@ chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
 - **塔台 meta** 2 commit 批次收尾（`ad6f9e8` + `2def77a`）
 
 ### 立即待辦（本輪結束，下一輪從這裡接）
-- 🟡 **待 push**：4 個本 session commit（`378a124` / `fbcf2d2` / `ad6f9e8` / `2def77a`）尚未 push，等使用者決定
-- 📋 **下一輪起點候選**：
+- ✅ **T0159 完成**（commit `4e5af2f`，01:32）— 三合一研究結論
+- ✅ **EXP-ELECTRON41-001 CONCLUDED**（commit `ef3624f` on `exp/electron41`，02:16，27 分鐘）— 所有悲觀假設被證偽
+- 🔄 **T0160 派發中**（PLAN-016 Phase 2：合併 `exp/electron41` → main + better-sqlite3 postinstall + CLAUDE.md note + worktree 清理）
+- 🔄 **T0161 派發中**（修復 BUG-038：`ELECTRON_RUN_AS_NODE` 洩漏）
+- 🐛 **BUG-038 OPEN**（🟡 Medium，EXP-ELECTRON41-001 發現，既有 bug，T0161 修復中）
+- 💡 **Learning candidates**（下次 `*evolve` 寫入）：
+  - **L037**：一次性大批 deps 升級失敗率高（證據 `b5b3d1a` → `d8ee82a` revert +7557/-813）
+  - **L038**：大型升級假設常過度悲觀（EXP 預估 4-8h / 實際 27 分鐘），研究階段應採「先 EXP 驗證再定優先級」
+  - **L039**：BAT 內跑 Electron dev 需清 `ELECTRON_RUN_AS_NODE`（跨專案通用）
+- 🟡 **待 push**：本 session ~8 個 commit 累計
+- 📋 **PLAN-016 Phase 3（PLAN-005 builder 26）暫緩**：等 T0160 merged + 主線穩定 1-2 輪
+- 📋 **其他下一輪候選**：
   1. **PLAN-014 Phase 3 Tα3**（若已定義）— 繼續 Git GUI 實作主線
   2. **PLAN-004** 🟡 Medium — GPU Whisper 加速（Win/Linux）
   3. **PLAN-009** 🟡 Medium — Sprint 儀表板 UI
-  4. **PLAN-015** 🟢 Low — 建議延後（Phase 3 收官後）
 - 💡 **可選 learning 晉升**：L003/L004/L005 等 `candidate: global` 標記已累積多時，下次 `/ct-evolve --playbook` 可評估晉升
 
 ### 🟠 上一輪起手式（2026-04-17 17:12 存檔，歷史追溯用）
@@ -261,11 +270,12 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0158 |
-| **BUG 最大編號** | BUG-037 |
-| **PLAN 最大編號** | PLAN-015 |
+| **工單最大編號** | T0161 |
+| **BUG 最大編號** | BUG-038 |
+| **PLAN 最大編號** | PLAN-016 |
+| **EXP 最大編號** | EXP-ELECTRON41-001 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D046 |
+| **決策最大編號** | D049 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---

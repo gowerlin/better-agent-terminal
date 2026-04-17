@@ -32,6 +32,13 @@
 - 13 configurable items with custom colors, zone alignment, and template-based config.
 - Usage polling: Chrome session key (primary, lenient rate limits) → OAuth fallback (strict rate limits).
 
+## Electron Runtime
+
+- 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。
+- native modules 依 ABI 145 建置；`package.json` 的 `postinstall` 已自動跑 `npm rebuild better-sqlite3`。若手動安裝後 app 啟動異常（例如 `NODE_MODULE_VERSION mismatch`），先執行 `npm rebuild better-sqlite3`。
+- BAT 內執行 `npm run dev` 需確認 `ELECTRON_RUN_AS_NODE` 未被污染（見 BUG-038 / T0161）。若 renderer 無法啟動且 log 出現 `ELECTRON_RUN_AS_NODE=1`，清除該環境變數後重試。
+- electron-builder 目前仍為 24.x（PLAN-016 Phase 3 延後處理，不影響本地 `npm run dev`）。
+
 ## Control Tower 本專案規則
 
 - 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範
