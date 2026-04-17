@@ -1,29 +1,37 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-17 03:05 (UTC+8)（T0135-T0137 + BUG-030/031 + 跨 BAT/CT 整合驗收）
+> 最後更新：2026-04-17 12:20 (UTC+8)（D032 — BUG-032 helper scripts 三層問題 + T0138 研究工單派發）
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
-> 最後更新：2026-04-17 03:05 UTC+8（session 結束 — 使用者準備重開 BAT + Tower）
+> 最後更新：2026-04-17 12:20 UTC+8（使用者於 2026_Taipower 實戰測試發現 BUG-032）
 
-### 🔴 重開 BAT 後第一件事
-**rebuild + 重裝 BAT**（讓 T0136 + T0137 兩條 fix 生效）：
-```bash
-cd D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal
-npm run build       # 或專案 build 指令
-# → 安裝新版覆蓋當前 BAT → 重啟 BAT
-```
-重啟 BAT 後 RemoteServer 也會重啟，所有現有 PTY（含 BMad-Guide 的孤兒 Worker）會自動清乾淨。
+### 🔴 當前焦點：BUG-032 — Helper Scripts 打包與路徑解析
+使用者在 `D:\ForgejoGit\2026_Taipower` 實戰測試 BAT v2.x + CT v4.1，發現：
+1. **問題 1**（看似 OK 實則巧合）：塔台呼叫 `node scripts/bat-terminal.mjs ...` 在使用者環境會壞，開發機剛好能跑因為 cwd 落在 source root
+2. **問題 2**：Worker 完成工單沒走 `bat-notify.mjs` 主動通知，降級到剪貼簿
+3. **問題 3**：helper scripts 沒打包進安裝程式（electron-builder 缺 `extraResources`）
+
+→ **三層同根因**：A 文件層（_local-rules.md 寫死 cwd-relative）+ B 打包層（沒 extraResources）+ C 運行層（沒注入 `BAT_HELPER_DIR` env var）
 
 ### 立即待辦（按順序）
-1. **rebuild 完成後 → 開 T0138 runtime acceptance**，內容：
-   - **BUG-031 修復驗證**：派 `bat-terminal.mjs claude "/ct-status"` → 確認 PTY 落在 active workspace（不是 cwd-match 較早建立的那個）
-   - **BUG-031 副作用檢查**：`bat-notify.mjs` 通知鏈路是否 workspace 一致（Toast 顯示位置 + PTY 預填仍正確）
-   - **T0135 9 項 MANUAL 一併跑**（1.3/1.4 Cache History+abort、2.3 CT 按鈕 PTY write、3.3 Settings UI、5.3 外部 PTY UI 同步、7.5/7.6 Toast/Badge、8.5 端到端）
-   - 全部通過後 BUG-031 → CLOSED
-2. **T0135 PARTIAL（6.2 `--help` 未實作）** — 可開小工單或掛 Backlog
-3. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
+1. **派發 T0138 研究工單**（auto-session = on）→ 摸清三層現況，提方案
+2. **T0138 結論回來 → 拆派修復工單**（預期 1-3 張）
+3. **修復完成 → rebuild + 重裝 → 在 2026_Taipower 實戰驗收**
+4. **BUG-031 副作用檢查 + T0135 9 項 MANUAL 順延到 BUG-032 修好後一起跑**（baseline 變動，原驗收結果作廢）
+5. T0135 PARTIAL（6.2 `--help` 未實作）— 等 BUG-032 修好後一併處理
+6. Backlog 5 張 PLAN 待排優先級（PLAN-001~005, 007）
+
+### 本 session 決策
+- **D032**：BUG-032 拆單方案 [A]（一張統籌 BUG + 一張研究 + N 張修復）；`_local-rules.md` 暫不動 [A]（避免破壞 baseline，等 BUG-032 整體方案敲定一起改）
+- **追加**：BUG-031 維持 FIXED 狀態（PTY allocation 邏輯本身已透過使用者實測驗證），副作用檢查併入 BUG-032 範圍
+
+### 本 session 新增工單
+| ID | 標題 | 狀態 |
+|----|------|------|
+| BUG-032 | Helper scripts 打包與路徑解析設計缺漏 | 🔴 OPEN |
+| T0138 | 研究：BAT Helper Scripts 打包與路徑解析設計 | 📋 TODO |
 
 ### 本 session 新增工單（2026-04-17 02:00-03:05）
 | ID | 標題 | 狀態 | Commit |
