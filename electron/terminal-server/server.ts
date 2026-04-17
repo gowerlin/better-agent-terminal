@@ -186,21 +186,26 @@ export class TerminalServer {
     }
 
     try {
+      // BUG-038: strip ELECTRON_RUN_AS_NODE so PTY children (npm run dev, npx electron .) don't
+      // inherit Node-only mode from the Claude SDK fallback (claude-agent-manager.ts:511,1233).
+      const ptyEnv: Record<string, string | undefined> = {
+        ...process.env,
+        ...(req.env ?? {}),
+        TERM: 'xterm-256color',
+        COLORTERM: 'truecolor',
+        TERM_PROGRAM: 'better-agent-terminal',
+        BAT_SESSION: '1',
+        FORCE_COLOR: '3',
+        CI: '',
+      }
+      delete ptyEnv.ELECTRON_RUN_AS_NODE
+
       const ptyProcess = pty.spawn(req.shell, req.args, {
         name: 'xterm-256color',
         cols: req.cols,
         rows: req.rows,
         cwd: req.cwd,
-        env: {
-          ...process.env,
-          ...(req.env ?? {}),
-          TERM: 'xterm-256color',
-          COLORTERM: 'truecolor',
-          TERM_PROGRAM: 'better-agent-terminal',
-          BAT_SESSION: '1',
-          FORCE_COLOR: '3',
-          CI: '',
-        } as Record<string, string>,
+        env: ptyEnv as Record<string, string>,
       })
 
       const buffer = new RingBuffer(this.bufferLines)

@@ -481,6 +481,10 @@ export class PtyManager {
           ...(remoteInfoLocal ? { BAT_REMOTE_PORT: String(remoteInfoLocal.port), BAT_REMOTE_TOKEN: remoteInfoLocal.token } : {}),
         }
 
+        // BUG-038: strip ELECTRON_RUN_AS_NODE so `npm run dev` / `npx electron .` inside BAT
+        // terminals don't inherit Node-only mode from the Claude SDK fallback (claude-agent-manager.ts:511,1233).
+        delete (envWithUtf8 as Record<string, string | undefined>).ELECTRON_RUN_AS_NODE
+
         const ptyProcess = pty.spawn(shell, args, {
           name: 'xterm-256color',
           cols: 120,
@@ -547,6 +551,9 @@ export class PtyManager {
           // T0129: RemoteServer connection info for CLI tools
           ...(remoteInfoFallback ? { BAT_REMOTE_PORT: String(remoteInfoFallback.port), BAT_REMOTE_TOKEN: remoteInfoFallback.token } : {}),
         }
+
+        // BUG-038: strip ELECTRON_RUN_AS_NODE (same rationale as node-pty branch above).
+        delete (envWithUtf8 as Record<string, string | undefined>).ELECTRON_RUN_AS_NODE
 
         const childProcess = spawn(shell, shellArgs, {
           cwd,
