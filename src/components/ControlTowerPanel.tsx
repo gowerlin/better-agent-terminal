@@ -19,7 +19,7 @@ import { BugTrackerView } from './BugTrackerView'
 import { BacklogView } from './BacklogView'
 import { DecisionsView } from './DecisionsView'
 import { type BugEntry, parseBugTracker } from '../types/bug-tracker'
-import { type BacklogEntry, parseBacklog } from '../types/backlog'
+import { type BacklogEntry, parseBacklog, extractPriorityFromPlanContent } from '../types/backlog'
 import { type DecisionEntry, parseDecisionLog } from '../types/decision-log'
 import { type BmadWorkflow, buildBmadWorkflow, PHASE_DEFINITIONS } from '../types/bmad-workflow'
 import { type BmadEpic, parseEpicsFile, buildSprintStoryMap } from '../types/bmad-epic'
@@ -182,7 +182,26 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     try {
       const backlogPath = `${ctDirPath}/_backlog.md`
       const result = await window.electronAPI.fs.readFile(backlogPath)
-      setBacklogEntries(result.content != null ? parseBacklog(result.content) : [])
+      const entries = result.content != null ? parseBacklog(result.content) : []
+
+      // Enrich entries whose 優先級 is missing in _backlog.md (e.g. Completed table)
+      // by reading the PLAN file and parsing its metadata block.
+      const enriched = await Promise.all(
+        entries.map(async entry => {
+          if (entry.priority !== 'Unknown' || !entry.linkPath) return entry
+          try {
+            const planPath = `${ctDirPath}/${entry.linkPath}`
+            const planResult = await window.electronAPI.fs.readFile(planPath)
+            if (planResult.content == null) return entry
+            const realPriority = extractPriorityFromPlanContent(planResult.content)
+            return realPriority !== 'Unknown' ? { ...entry, priority: realPriority } : entry
+          } catch {
+            return entry
+          }
+        }),
+      )
+
+      setBacklogEntries(enriched)
     } catch {
       setBacklogEntries([])
     }

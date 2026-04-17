@@ -50,6 +50,17 @@ function extractPriority(cell: string): PlanPriority {
   return 'Unknown'
 }
 
+/**
+ * Extract priority from a PLAN file's metadata block.
+ * Looks for lines like "- **優先級**：🔴 High" or "- **Priority**: High".
+ * Used as fallback when _backlog.md row lacks 優先級 column (e.g. Completed table).
+ */
+export function extractPriorityFromPlanContent(content: string): PlanPriority {
+  const match = content.match(/(?:優先級|Priority)[^\n]*?[:：]\s*([^\n]+)/i)
+  if (!match) return 'Unknown'
+  return extractPriority(match[1])
+}
+
 function sectionToStatus(heading: string): PlanStatus {
   const h = heading.toUpperCase()
   if (h.includes('DONE') || h.includes('COMPLETED') || h.includes('已完成')) return 'DONE'
