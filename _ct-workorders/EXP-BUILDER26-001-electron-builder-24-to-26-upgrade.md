@@ -481,11 +481,15 @@ tar  <=7.5.10 (high, 6 GHSAs merged)
 
 ### Commit hash（Step 8）
 
-Primary commit：`<pending — 下方 git commit 後回填>`
-- Message 依工單 Step 8 模板（chore(deps) scope）
-- 包含：CLAUDE.md、package.json、package-lock.json、工單檔案
+Primary commit：`f79f735`
+- 訊息：`chore(deps): upgrade electron-builder 24->26 (EXP-BUILDER26-001, PLAN-005)`
+- 變更：4 files，+1984 / -622
+  - `package.json`（electron-builder ^24 → ^26.8.1，mac.notarize 物件 → boolean）
+  - `package-lock.json`（electron-builder 鏈全升 26.8.1 + http-proxy-agent 7.0.2）
+  - `CLAUDE.md`（Build Toolchain 段加 migration notes）
+  - `_ct-workorders/EXP-BUILDER26-001-*.md`（本工單回報區）
 
-Backfill commit：`<pending — hash 回填後補 chore(ct) commit>`
+Backfill commit：`<pending — 本節填入後隨即 commit>`
 
 分支：`exp/builder26`（本地，未 push；依工單 Step 9 走 CONCLUDED 路徑由塔台決定 PR/merge）
 
