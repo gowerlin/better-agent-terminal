@@ -1,4 +1,5 @@
 import * as net from 'net'
+import * as path from 'path'
 import { app, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import type { CreatePtyOptions } from '../src/types'
@@ -30,6 +31,15 @@ interface PtyInstance {
   usePty: boolean
   shell?: string       // Stored for heartbeat recovery rebuild (T0112)
   shellArgs?: string[] // Stored for heartbeat recovery rebuild (T0112)
+}
+
+// T0140: Absolute path to helper scripts directory (bat-terminal.mjs, bat-notify.mjs).
+// Resolves to dev mode <project-root>/scripts or packaged <install-root>/resources/scripts
+// (aligned with T0139 extraResources config in package.json).
+function resolveHelperDir(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'scripts')
+    : path.join(__dirname, '..', 'scripts')
 }
 
 export class PtyManager {
@@ -394,6 +404,9 @@ export class PtyManager {
         BAT_SESSION: '1',
         // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
         BAT_TERMINAL_ID: id,
+        // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
+        // Dev: <project-root>/scripts, packaged: <install-root>/resources/scripts.
+        BAT_HELPER_DIR: resolveHelperDir(),
         FORCE_COLOR: '3',
         CLAUDE_CODE_NO_FLICKER: '1',
         CI: '',
@@ -440,6 +453,8 @@ export class PtyManager {
           BAT_SESSION: '1',
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
+          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
+          BAT_HELPER_DIR: resolveHelperDir(),
           // Force color output
           FORCE_COLOR: '3',
           // Suppress ED2-induced viewport flicker in Claude Code streaming
@@ -510,6 +525,8 @@ export class PtyManager {
           BAT_SESSION: '1',
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
+          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
+          BAT_HELPER_DIR: resolveHelperDir(),
           FORCE_COLOR: '3',
           CI: '',
           // T0129: RemoteServer connection info for CLI tools
