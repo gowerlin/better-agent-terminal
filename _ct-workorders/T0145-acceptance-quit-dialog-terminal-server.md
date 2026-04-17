@@ -3,14 +3,16 @@
 ## 元資料
 - **工單編號**：T0145
 - **類型**：acceptance（驗收工單，使用者主導）
-- **狀態**：📋 READY（T0144/T0147 DONE，等使用者 `npm run build:win` + 重裝）
+- **狀態**：📋 READY（T0144/T0147/T0149 DONE，等使用者 `npm run build:win` + 重裝）
 - **優先級**：🔴 High
 - **派發時間**：2026-04-17 14:00 (UTC+8)
-- **擴增時間**：2026-04-17 15:15 (UTC+8)（新增情境 8 覆蓋 BUG-033 四路徑）
+- **擴增時間**：
+  - 2026-04-17 15:15 (UTC+8)（新增情境 8 覆蓋 BUG-033 四路徑）
+  - 2026-04-17 16:25 (UTC+8)（新增情境 9 覆蓋 BUG-034 reconnect 路徑 × checkbox）
 - **關聯 PLAN**：PLAN-012
-- **關聯 BUG**：BUG-033（🔍 VERIFY，需打包驗收確認 CLOSED）
-- **前置工單**：T0144（實作，commit `412d52c`）、T0147（BUG-033 修復，commit `ef867a2`）
-- **後續**：PLAN-012 → DONE + BUG-033 → CLOSED；releases 納入 v2.x
+- **關聯 BUG**：BUG-033（🔍 VERIFY，需打包驗收確認 CLOSED）、BUG-034（✅ FIXED，需打包驗收確認 CLOSED）
+- **前置工單**：T0144（實作，commit `412d52c`）、T0147（BUG-033 修復，commit `ef867a2`）、T0149（BUG-034 修復，commit `cd460d2`）
+- **後續**：PLAN-012 → DONE + BUG-033 CLOSED + BUG-034 CLOSED；releases 納入 v2.x
 - **預估難度**：⭐⭐⭐（涉及真實版本更新安裝情境，需重 build + 重裝）
 - **預估耗時**：30-60 分鐘
 - **執行方式**：使用者手動操作，塔台引導
@@ -106,6 +108,35 @@
 
 **通過標準**：4 條路徑都能觸發 Dialog（視窗 X 依設定行為一致），**不得有任一路徑 bypass Dialog 直接退出**。
 
+### 情境 9（BUG-034 修復驗證）：勾選 checkbox 後 Terminal Server 真的被結束
+
+**背景**：T0149（commit `cd460d2`）修復了 T0144 原實作只處理 fork 路徑、漏掉 BAT reconnect 路徑的問題。方案 C 嘗試順序：
+- **Step A**：`_terminalServerProcess.connected` → `child.kill('SIGTERM')` → log `via SIGTERM`
+- **Step B**：否則 `readPortFile` → `sendShutdownToServer(port)` TCP shutdown → log `via TCP shutdown`
+- **Step C**：等待 pidfile 消失 1500ms
+- **Step D**：Timeout 後 Unix `SIGKILL` / Windows `execFile('taskkill', ['/F','/T','/PID', pid])` → log `via SIGKILL` / `via taskkill /F /T`
+
+同時修了 `pty-manager.dispose()` 漏 destroy tcpSocket（疑似 crashpad-handler 主進程殘留根因）+ 移除 `main.ts:1491` 誤報 log。
+
+**Log 檢查點**：`%APPDATA%\BetterAgentTerminal\Logs\debug-*.log`，搜尋 `[quit]` prefix 看 kill method。
+
+**操作 / 預期**：
+
+| # | 場景 | 啟動路徑 | Quit 方式 | 預期 log | 預期工作管理員 |
+|---|------|---------|----------|---------|----------------|
+| 9.1（**核心**） | Packaged reconnect | 啟動 BAT（server 已在背景或重啟 reconnect）| 任一 Quit 路徑 + **勾 checkbox** | `[quit] terminal server stopped (via TCP shutdown)` | **無任何 BetterAgentTerminal.exe 殘留** |
+| 9.2（選做） | Packaged fork | 先關閉 server（Task Mgr 殺 terminal-server）→ 重啟 BAT（首次 fork 路徑）| 任一 Quit 路徑 + **勾 checkbox** | `[quit] terminal server stopped (via SIGTERM)` | **無任何 BetterAgentTerminal.exe 殘留** |
+| 9.3 | 不勾保留 | Packaged 任一 | 任一 Quit 路徑 + **不勾 checkbox** | **不應有** `[quit] terminal server stopped` log（已移除誤報） | terminal-server.js 保留（僅 main + crashpad 消失）|
+| 9.4（選做） | Fallback | 人為 block TCP port（firewall / iptables）| 任一 Quit 路徑 + **勾 checkbox** | `[quit] terminal server stopped (via taskkill /F /T)`（1500ms 後）| **無任何 BetterAgentTerminal.exe 殘留** |
+
+**通過標準**：
+- **9.1 必通過**（使用者原始重現場景 — 打包版 + reconnect + checkbox 勾選）
+- **9.2 通過**（T0144 原本就能處理的 fork 路徑不得 regression）
+- **9.3 通過**（確認誤報 log 已移除 + 不勾選時 server 正確保留）
+- **9.4 可選**（Fallback 機制驗證，若難以人為模擬可略過，以情境 9.1/9.2 為主）
+
+**核心判定**：工作管理員只要看到 `terminal-server.js` 或 `--type=crashpad-handler` 殘留 → 9.1/9.2 失敗 → BUG-034 未修好。
+
 ---
 
 ## 驗收結果記錄
@@ -123,14 +154,20 @@
 | 8.2 File Quit | ⏳ | |
 | 8.3 Ctrl+Q | ⏳ | |
 | 8.4 視窗 X | ⏳ | |
+| 9.1 Packaged reconnect + 勾 | ⏳ | **BUG-034 核心場景** |
+| 9.2 Packaged fork + 勾 | ⏳ | T0144 原邏輯無 regression 檢查 |
+| 9.3 不勾選 + 誤報 log 移除 | ⏳ | |
+| 9.4 Fallback taskkill | ⏳ | 可選 |
 
 ---
 
 ## 整體判定
 
-- 🟢 情境 1-5 + 7 + 8 全綠 → PLAN-012 DONE + BUG-033 CLOSED，T0144/T0147 commit 可納入 next release
+- 🟢 情境 1-5 + 7 + 8 + 9.1/9.2/9.3 全綠 → PLAN-012 DONE + BUG-033 CLOSED + BUG-034 CLOSED，T0144/T0147/T0149 commit 可納入 next release
 - 🟡 情境 7 失敗（檔案鎖仍在）→ 分析根因，可能 SIGTERM 沒徹底 unload `.node` 模組，需加強 shutdown 邏輯或加 delay
-- 🔴 情境 1-5 或 情境 8 任一失敗 → 退回加派修復工單（情境 8 失敗 → BUG-033 重開）
+- 🔴 情境 1-5 / 情境 8 任一失敗 → 退回加派修復工單（情境 8 失敗 → BUG-033 重開）
+- 🔴 情境 9.1 失敗（reconnect 路徑仍殘留 terminal-server）→ BUG-034 重開，加派修復工單（參考 T0148 bonus finding：檢查 pty-manager.dispose 是否被呼叫、`net.Socket` refcount、`unref()` 策略）
+- 🔴 情境 9.2 失敗（fork 路徑 regression）→ T0149 實作破壞 Step A 原邏輯，rollback `cd460d2` 或加派修復工單
 
 ---
 
