@@ -1,10 +1,37 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 03:58 (UTC+8)（T0162 全 phase DONE，D053 採路徑 A，T0163 派發等使用者執行）
+> 最後更新：2026-04-18 04:25 (UTC+8)（T0163 DONE，PLAN-005 啟動派 EXP-BUILDER26-001，D054 寫入）
 
 ---
 
-## 🔄 本 Session 焦點（2026-04-18 03:58）
+## 🔄 本 Session 焦點（2026-04-18 04:25）
+
+**T0163 DONE 閉環**：
+- vite 5.4.21 → 7.3.2 + 3 plugin 連動（commit `83ae7cf`，13 分鐘完成）
+- npm audit 13 → 11（esbuild SSRF + vite path traversal 2 moderate 清除）
+- CLAUDE.md Build Toolchain 段寫入
+- Smoke test 10/10 checklist 全綠（dev/HMR/CT panel/terminal/IPC/build）
+- **執行過程特殊事件**：前任 Worker 在 Step 5 前中斷（自 kill），續接 Worker 從 Step 1 盤點驗證接手到 Step 8 收尾，無資料損失
+- **PLAN-003 Group B ✅ DONE**
+
+**PLAN-005 啟動（D054）**：
+- **執行方案**：使用者對齊 A/C/C/A
+  - Q1-A：立刻動，趁 vite 升級工具鏈熱度
+  - Q2-C：**EXP worktree 模式**（`exp/builder26`），主線零污染
+  - Q3-C：Windows 完整打包 + macOS/Linux YAML dry-run（無 macOS 機器）
+  - Q4-A：`electron-builder: ^24.0.0 → ^26.8.1`（npm audit 指向版本）
+- **派發 EXP-BUILDER26-001**（🧪 EXPLORING，4-6h）
+- **完結路徑**：CONCLUDED → merge 回主線 → PLAN-005 DONE → PLAN-003 Group A 關閉 → PLAN-003 整體 DONE
+
+**使用者執行計畫**（本 session 結束後）：
+1. 塔台批次 commit 本輪 meta（T0163 meta + PLAN-005 / PLAN-003 更新 + D054 + tower-state + EXP-BUILDER26-001）
+2. 使用者執行 `git worktree add ../better-agent-terminal-builder26 -b exp/builder26`
+3. 進入 worktree 目錄，開新 sub-session 輸入 `/ct-exec EXP-BUILDER26-001`
+4. Worker 完成後回塔台說「EXP-BUILDER26-001 CONCLUDED」或「ABANDONED」或「卡關：<原因>」
+
+---
+
+## 🔄 舊 Session 焦點（2026-04-18 03:58，歷史追溯）
 
 **T0162 全 phase 完成**：
 - Phase 1 DONE（commit `edf913a`，11 分鐘）— 漏洞盤點 13 個全 dev-only，D052 混合策略
@@ -386,9 +413,9 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **工單最大編號** | T0163 |
 | **BUG 最大編號** | BUG-038 |
 | **PLAN 最大編號** | PLAN-016 |
-| **EXP 最大編號** | EXP-ELECTRON41-001 |
+| **EXP 最大編號** | EXP-BUILDER26-001 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D053 |
+| **決策最大編號** | D054 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---

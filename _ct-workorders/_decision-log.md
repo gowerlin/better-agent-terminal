@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-18 03:58 (UTC+8)（新增 D053 — T0162 結論採路徑 A）
+> 最後更新：2026-04-18 04:25 (UTC+8)（新增 D054 — PLAN-005 啟動，採 EXP worktree 模式）
 
 ---
 
@@ -35,10 +35,52 @@
 | D051 | 2026-04-18 | Electron 41 升級 + BUG-038 runtime 驗收全通過，閉環完成 | T0160/T0161/BUG-038 |
 | D052 | 2026-04-18 | PLAN-003 混合分組策略：Group A 暫緩 + Group B 升 vite + Group C WONTFIX | T0162/PLAN-003/PLAN-005 |
 | D053 | 2026-04-18 | T0162 Phase 2 結論採路徑 A（vite 7 stable），派 T0163 實作 | T0162/T0163/PLAN-003 |
+| D054 | 2026-04-18 | T0163 DONE 閉環 + PLAN-005 啟動（EXP worktree 模式，承接 Group A） | T0163/EXP-BUILDER26-001/PLAN-005/PLAN-003 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D054 2026-04-18 — T0163 DONE 閉環 + PLAN-005 啟動（EXP worktree 模式，承接 Group A）
+
+- **觸發事件**：
+  1. T0163 Worker 回報完成（commit `83ae7cf`，04:18）— vite 5.4.21 → 7.3.2 + 3 plugin 連動 + CLAUDE.md Build Toolchain 段，10/10 smoke test checklist 全綠
+  2. T0163 執行過程特殊狀況：前任 Worker 在 Step 5 驗收前中斷（「把自己 kill 了」，package.json + node_modules 已達目標版本），續接 Worker 從 Step 1 盤點驗證接手、Step 4（無需修改）→ Step 5-8 收尾，13 分鐘完成
+  3. PLAN-003 Group B 實證結果：npm audit 13 → 11（esbuild SSRF + vite path traversal 2 moderate 清除），vite.config.ts 零 breaking changes 命中
+  4. 使用者決定延續升級慣性，啟動 PLAN-005（Group A）
+- **PLAN-005 執行方案**（使用者對齊 A/C/C/A）：
+  - **Q1-A 時機**：立刻動（趁 vite 升級工具鏈熱度）。接受「Electron 41 穩定 0 輪」的風險，用 EXP worktree 隔離作為風險對沖
+  - **Q2-C 形式**：EXP worktree 模式（`exp/builder26`），成功則 merge 回主線，失敗則 `git worktree remove` 主線零污染
+  - **Q3-C 驗收範圍**：Windows 完整打包（`npm run compile` + NSIS installer + 手動重裝 smoke test）+ macOS/Linux YAML dry-run（`electron-builder --dir`）
+  - **Q4-A 版本策略**：`electron-builder: ^24.0.0 → ^26.8.1`（npm audit 指向的精確 fix 版本）
+- **塔台決策**：**採 EXP worktree 模式，派發 EXP-BUILDER26-001**
+  - **為何用 EXP 而非 T#### 直接實作**：
+    1. Electron 41 主線穩定 0 輪（剛 D051 閉環 1 小時前），失敗風險對沖需求高
+    2. electron-builder 24→26 semVerMajor，config 格式不確定性（未研究即實作）
+    3. 當前主線 commit `83ae7cf` 乾淨，不容污染
+  - **為何不先派研究工單（B 選項）**：
+    1. 升級範圍已收斂（npm audit 指向 26.8.1，不需研究找目標版本）
+    2. 研究工單的成本（1-2h）可直接進 EXP worktree 的 Step 1 盤點內，邊做邊查
+    3. EXP 模式本身就是「邊實作邊學」的保守結構
+  - **為何驗收不含 macOS 打包**：本機為 Windows，無 macOS 機器；notarization / universal binary 即使成功也無法驗收，僅做 YAML config parse 確認格式合法
+- **狀態轉移**：
+  - **T0163** → ✅ DONE（commit `83ae7cf`）
+  - **PLAN-003 Group B** → ✅ DONE
+  - **PLAN-003** 維持 🔄 IN_PROGRESS（等 Group A EXP 完結）
+  - **PLAN-005** 💡 IDEA → 🔄 IN_PROGRESS
+  - **EXP-BUILDER26-001** 新建 → 🧪 EXPLORING（等使用者建 worktree）
+- **PLAN-003 完結路徑**：EXP-BUILDER26-001 CONCLUDED → PLAN-005 DONE → PLAN-003 Group A 關閉 → PLAN-003 整體 ✅ DONE
+- **learning 候選**（累積給下次 `*evolve` 評估）：
+  - **L046**（🟢 global 候選）：Worker 中斷續接的成本極低前提 — 工單「執行紀錄」結構完整、Step 分界明確時，續接 Worker 可從中斷點無縫接棒（T0163 前任 Worker kill 後 13 分鐘即收尾）；反之若工單結構鬆散，續接成本會變高
+  - **L047**（🟡 本專案）：npm audit 指向具體 fix 版本（如 `electron-builder@26.8.1`）時，可跳過研究工單直接進實作 EXP；研究工單適用於「目標版本不明」或「多路徑選擇」
+  - **L048**（🟢 global 候選）：EXP worktree 模式適合「semVerMajor + config 格式不明 + 主線乾淨」三條件同時滿足時，作為風險對沖機制；若研究成本明確 < EXP 實作成本，才該派研究工單
+- **副作用**：
+  - 主線將出現未 commit 的 meta 檔（PLAN-005 / PLAN-003 / tower-state / decision-log / EXP-BUILDER26-001），塔台將批次 commit
+  - 使用者需自行執行 `git worktree add ../better-agent-terminal-builder26 -b exp/builder26` 建立 worktree
+- **相關工單**：T0163（DONE）→ EXP-BUILDER26-001（EXPLORING）
+- **相關 PLAN**：PLAN-003（IN_PROGRESS，Group A 承接中）、PLAN-005（IN_PROGRESS）
 
 ---
 

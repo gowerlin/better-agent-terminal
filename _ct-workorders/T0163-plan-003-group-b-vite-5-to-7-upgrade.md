@@ -4,10 +4,12 @@
 - **工單編號**：T0163
 - **類型**：implementation（實作工單）
 - **互動模式**：✅ 允許（遇版本細節、config API 判斷可問使用者）
-- **狀態**：🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **優先級**:🟢 Low（技術債清除，無阻塞）
 - **派發時間**：2026-04-18 03:58 (UTC+8)
 - **開始時間**：2026-04-18 04:05 (UTC+8)
+- **完成時間**：2026-04-18 04:18 (UTC+8)
+- **Commit**：`83ae7cf`
 - **關聯 PLAN**：PLAN-003（Group B 實作）
 - **關聯研究**：T0162（commit `edf913a` + Phase 2 結論 03:50）
 - **關聯決策**：D052（混合策略）、**D053**（選路徑 A：vite 7 stable）
@@ -279,7 +281,7 @@ Refs: T0162 (research), D052 (strategy), D053 (path A decision)
 
 ### Commit hash（Step 8）
 
-_（見元資料「commit hash」，收尾時填入）_
+`83ae7cf` — `chore(deps): upgrade vite 5->7 and plugins (PLAN-003 Group B, T0163)`
 
 ---
 

@@ -5,7 +5,7 @@
 | 欄位 | 內容 |
 |------|------|
 | **計劃編號** | PLAN-003 |
-| **狀態** | 🔄 IN_PROGRESS（Group B 實作中，T0163 派發） |
+| **狀態** | 🔄 IN_PROGRESS（Group A 實作中 EXP-BUILDER26-001 / Group B ✅ DONE T0163 `83ae7cf` / Group C 🚫 WONTFIX） |
 | **優先級** | 🟢 Low（13 漏洞全部 dev-only，無 runtime 攻擊面） |
 | **提出時間** | 2026-04-12 (UTC+8) |
 | **重新評估** | 2026-04-18 (UTC+8)（T0162 研究 + D052 決策後） |
@@ -13,8 +13,8 @@
 | **預估規模** | 中（vite 5→8 多 major 跳躍 + 3 個 plugin 連動升級） |
 | **類型** | 安全 / 技術債 |
 | **研究工單** | T0162（DONE，commits `edf913a` + `8be4e5a` + `51201d1`，含 Phase 2 Renew #1） |
-| **實作工單** | **T0163**（Group B — vite 5→7 路徑 A，PENDING） |
-| **關聯決策** | D052（混合策略：Q1-A 暫緩 + Q2-B vite 升級 + Q3-B WONTFIX） / **D053（路徑選擇：A 保守 stable vite 7）** |
+| **實作工單** | **T0163**（Group B — vite 5→7 ✅ DONE `83ae7cf`） / **EXP-BUILDER26-001**（Group A — electron-builder 24→26 IN_PROGRESS） |
+| **關聯決策** | D052（混合策略：Q1-A 暫緩 + Q2-B vite 升級 + Q3-B WONTFIX） / D053（Group B 路徑選擇：A 保守 stable vite 7） / **D054（Group A 啟動：EXP worktree 模式 + Windows 完整驗收 + 跨平台 YAML dry-run）** |
 
 ---
 
@@ -35,8 +35,8 @@ T0060（2026-04-12）透過 claude-agent-sdk 升級 + npm overrides 將漏洞從
 
 | 群組 | 數量 | 涉及套件 | 決策 | 理由 |
 |------|------|---------|------|------|
-| **A** | 9 | electron-builder 鏈（@tootallnate/once、http-proxy-agent、builder-util、electron-publish、app-builder-lib、dmg-builder、electron-builder-squirrel-windows、electron-builder、tar 子集） | **⏸ 暫緩（等 PLAN-005）** | electron-builder 26 升級屬 PLAN-005 範圍，D049 暫緩維持有效；盲升可能影響 NSIS / DMG / auto-update |
-| **B** | 2 | vite 5.4.21、esbuild 0.21.5 | **🔄 升 vite 5→7**（T0163 實作中，D053 路徑 A） | vite 5 線已無 patch；dev server path traversal + SSRF 需處理 |
+| **A** | 9 | electron-builder 鏈（@tootallnate/once、http-proxy-agent、builder-util、electron-publish、app-builder-lib、dmg-builder、electron-builder-squirrel-windows、electron-builder、tar 子集） | **🔄 升 electron-builder 24→26**（EXP-BUILDER26-001 實作中，D054 EXP worktree 模式） | PLAN-005 啟動承接；Windows 完整打包驗收 + 跨平台 YAML dry-run，主線 EXP 隔離 |
+| **B** | 2 | vite 5.4.21、esbuild 0.21.5 | **✅ 升 vite 5→7 DONE**（T0163，commit `83ae7cf`） | vite 5 線已無 patch；dev server path traversal + SSRF 已清除 |
 | **C** | 2 | whisper-node-addon → cmake-js → tar | **🚫 WONTFIX** | tar 僅 postinstall/模型下載用，runtime 無暴露；上游 whisper-node-addon 無乾淨升級路徑（0.0.1 指向為反向建議，強拉 tar 7 會破壞 native build） |
 
 ### Group B 實作計畫（T0163，路徑 A）
@@ -60,9 +60,11 @@ T0060（2026-04-12）透過 claude-agent-sdk 升級 + npm overrides 將漏洞從
 
 **未來升級目標**：vite 8（等 `vite-plugin-electron@1.0.0` GA 脫離 beta，預估 6-12 個月後排新 PLAN）
 
-### Group A 文件化
+### Group A 啟動（2026-04-18 D054）
 
-依 D052，Group A 的 9 個漏洞在 PLAN-005（electron-builder 24→26）實作時一併解決。PLAN-005 目前維持 💡 IDEA（等 Electron 41 主線穩定 1-2 輪）。
+PLAN-005 於 2026-04-18 04:25 啟動，採 **EXP worktree 模式**（D054）：EXP-BUILDER26-001 在 `exp/builder26` 分支驗證 `electron-builder 24→26.8.1`。原「等 Electron 41 主線穩定 1-2 輪」改為「趁 vite 升級工具鏈熱度一起處理」，風險對沖機制改為 worktree 隔離。
+
+**Group A 完結條件**：EXP-BUILDER26-001 CONCLUDED + merge 回主線 + `npm audit` 9 個 CVE 清除。
 
 ### Group C WONTFIX 文件化
 
