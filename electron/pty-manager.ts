@@ -65,6 +65,10 @@ export class PtyManager {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
   private lastPong: number = Date.now()
   private isRecovering = false
+  // T0150 (BUG-035): set by main.ts before graceful shutdown so the watchdog
+  // does not mistake the intentional TCP close / IPC exit for a crash and
+  // re-fork an orphan Terminal Server.
+  private isShuttingDown = false
   private static readonly HEARTBEAT_INTERVAL_MS = 10_000  // 10 seconds
   private static readonly HEARTBEAT_TIMEOUT_MS = 3_000    // 3 seconds no pong → dead
 
@@ -84,6 +88,11 @@ export class PtyManager {
     this.setupServerListener()
     // T0112: Fast-path death detection via IPC exit event
     server.once('exit', () => {
+      if (this.isShuttingDown) {
+        // T0150 (BUG-035): intentional shutdown, skip re-fork
+        logger.log('[PtyManager] Terminal Server IPC exit during shutdown — skip re-fork')
+        return
+      }
       if (!this.isRecovering) {
         logger.log('[PtyManager] Terminal Server IPC process exited — triggering recovery')
         this.handleServerDeath()
@@ -138,6 +147,12 @@ export class PtyManager {
         if (this.tcpSocket === socket) {
           this.tcpSocket = null
           logger.log('[PtyManager] TCP connection to Terminal Server closed')
+          if (this.isShuttingDown) {
+            // T0150 (BUG-035): intentional shutdown via sendShutdownToServer,
+            // do not mistake for a crash and re-fork an orphan server.
+            logger.log('[PtyManager] TCP close during shutdown — skip re-fork')
+            return
+          }
           // T0112: Fast-path death detection via TCP close (more immediate than heartbeat)
           if (!this.isRecovering) {
             this.handleServerDeath()
@@ -652,6 +667,9 @@ export class PtyManager {
     this.stopHeartbeat()
     this.lastPong = Date.now()
     this.heartbeatTimer = setInterval(() => {
+      // T0150 (BUG-035): defense-in-depth — beginShutdown() already clears the
+      // timer, but if a tick races with shutdown, swallow it here too.
+      if (this.isShuttingDown) return
       const elapsed = Date.now() - this.lastPong
       if (elapsed > PtyManager.HEARTBEAT_INTERVAL_MS + PtyManager.HEARTBEAT_TIMEOUT_MS) {
         logger.error(`[PtyManager] heartbeat timeout (${elapsed}ms since last pong) — server dead`)
@@ -671,8 +689,30 @@ export class PtyManager {
     }
   }
 
+  /**
+   * T0150 (BUG-035): mark PtyManager as intentionally shutting down so the
+   * heartbeat watchdog skips re-fork on the upcoming TCP close / IPC exit.
+   *
+   * Called by main.ts `stopTerminalServerGracefully()` BEFORE any kill action.
+   * Idempotent. The flag is never reset because the process is about to exit.
+   */
+  beginShutdown(): void {
+    if (this.isShuttingDown) return
+    this.isShuttingDown = true
+    // Also stop the heartbeat timer so the next tick cannot race with shutdown.
+    this.stopHeartbeat()
+    logger.log('[PtyManager] beginShutdown() — watchdog disarmed')
+  }
+
   /** Attempt to recover from Terminal Server death: re-fork + rebuild all PTYs (T0112). */
   private async handleServerDeath(): Promise<void> {
+    // T0150 (BUG-035): defense-in-depth guard at the recovery entry. All four
+    // call sites already check isShuttingDown, but if a future caller forgets,
+    // this prevents the orphan re-fork regression from coming back.
+    if (this.isShuttingDown) {
+      logger.log('[PtyManager] handleServerDeath called during shutdown — skip re-fork')
+      return
+    }
     if (this.isRecovering) return
     this.isRecovering = true
     try {

@@ -1299,6 +1299,16 @@ function getQuitDialogStrings(lang: string | undefined) {
  * Resolves once the server has stopped or every path has been exhausted. Does not throw.
  */
 async function stopTerminalServerGracefully(): Promise<void> {
+  // T0150 (BUG-035): disarm PtyManager heartbeat watchdog BEFORE any kill action.
+  // Otherwise the watchdog mistakes the intentional TCP close / IPC exit for a
+  // crash and re-forks an orphan Terminal Server, which then refs the event
+  // loop and prevents main from exiting cleanly.
+  try {
+    ptyManager?.beginShutdown()
+  } catch (err) {
+    logger.error(`[quit] failed to disarm PtyManager watchdog: ${err}`)
+  }
+
   const TIMEOUT_MS = 1500
   const userDataPath = app.getPath('userData')
   const pidPath = path.join(userDataPath, 'bat-pty-server.pid')
