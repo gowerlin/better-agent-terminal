@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-18 06:35 (UTC+8)（新增 D057 — mac 打包採雙 arch dmg，放棄 universal）
+> 最後更新:2026-04-18 07:10 (UTC+8)（新增 D058 — upstream v2.1.42+ 同步採方案 [A]：Phase 1 cherry-pick + Phase 2 獨立 PLAN）
 
 ---
 
@@ -39,10 +39,36 @@
 | D055 | 2026-04-18 | PLAN-005 / PLAN-003 全案閉環（electron-builder 26 升級 CONCLUDED + Group A 關閉） | EXP-BUILDER26-001/PLAN-005/PLAN-003 |
 | D056 | 2026-04-18 | PLAN-016 全案閉環（Electron 28.3.3 → 41.2.1，三 Phase 全部完成） | PLAN-016/EXP-ELECTRON41-001/T0160/T0161/PLAN-005 |
 | D057 | 2026-04-18 | mac 打包採雙 arch dmg，放棄 universal（CI Pre-Release 5 次 run 後修正） | EXP-BUILDER26-001 |
+| D058 | 2026-04-18 | Upstream v2.1.42+ 同步採方案 [A]：T0165 Phase 1 cherry-pick + PLAN-018 Phase 2 獨立 | T0164/T0165/PLAN-018 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D058 2026-04-18 — Upstream v2.1.42+ 同步採方案 [A]：T0165 Phase 1 cherry-pick + PLAN-018 Phase 2 獨立
+
+- **背景**：T0164 研究工單（2026-04-18 06:49-07:08）評估 upstream `tony1223/better-agent-terminal` 自 `8d23e6e` (lastSync 2026-04-16) 後的 13 個新 commit（v2.1.42 → v2.1.46-pre.1）。產出詳細報告 `_report-upstream-sync-v2.1.42-plus.md`。
+- **分類結果**（扣除 2 個 merge 後實質 11 包）：
+  - cherry-pick 2 包（Phase 1）：C1.1 = Opus 4.7 + SDK/CLI 2.1.111 + EFFORT_LEVELS + xhigh（`357b868` + `9c3daf8`）/ C1.2 = remote workspace:load + profile:list-local（`0bc3bc1`）
+  - 移植 1 包（Phase 2）：P2.1 = remote TLS + fingerprint pinning + path sandbox + brute-force 防護（`3a0af80` + `5d9f486`，16 檔 +1288/-285）
+  - skip 4 包：WorkerPanel TDZ（架構不同）/ account-manager keychain（fork 無此檔）/ perf 優化（BAT 客製化環境有 regression 風險，使用者明確指示）/ PowerShell launch（同 WorkerPanel 架構）
+- **選項**：
+  - [A] Phase 1 + Phase 2 獨立 PLAN（Worker 推薦）
+  - [B] 只 C1.1（Opus 4.7）
+  - [C] 全部延後
+  - [D] 先 Phase 2 再 Phase 1
+- **決定**：**[A]** — 立即派 T0165（Phase 1 ~2h）+ 開 PLAN-018 規劃 Phase 2（6-10h，排下週）
+- **理由**：
+  1. **T0165 當天可完成**：2h 範圍明確，Opus 4.7 可立即在 BAT 內使用
+  2. **PLAN-018 獨立推進不阻塞**：remote 資安加固是 P0，但 6-10h 工時本週負荷已滿（PLAN-016/005/003 剛全閉環）
+  3. **使用者關鍵補充已納入**：C1.1 必須按 ①-⑨ 順序執行（SDK/CLI 先於 Opus 4.7 builtin），否則 `model-not-supported`
+  4. **Phase 3 skip 理由已留存報告**：日後 upstream 若再改動可回看，不重複分析
+- **關鍵對應**：v2.1.46-pre.1（`5d9f486`）的 selfsigned fix 屬於 Phase 2 範圍，C1.1 的 SDK/CLI 目標版本（`^0.2.111` / `^2.1.111`）來自 v2.1.45（`9c3daf8`）
+- **衍生工單**：T0165（Phase 1 cherry-pick）/ PLAN-018（Phase 2 remote 資安加固）
+- **相關工單**：T0164/T0165/PLAN-018
+- **相關報告**：`_report-upstream-sync-v2.1.42-plus.md`
 
 ---
 

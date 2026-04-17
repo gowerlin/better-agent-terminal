@@ -1,9 +1,9 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-18 05:45 (UTC+8)
+> 最後更新:2026-04-18 07:10 (UTC+8)
 >
-> 統計：💡 Ideas: 4 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 4 | 🚫 Dropped: 1
+> 統計:💡 Ideas: 4 | 📋 Planned: 4 | 🔄 In Progress: 0 | ✅ Done: 4 | 🚫 Dropped: 1
 >
 > 📦 已歸檔：4 張（PLAN-006 DROPPED, PLAN-008 DONE, PLAN-010 DONE, PLAN-011 DONE → _archive/plans/）
 > 本輪（2026-04-18 05:45）新歸檔：PLAN-010（upstream sync v2.1.3→v2.1.42 DONE）、PLAN-011（CT/BAT routing upstream PR DONE）
@@ -14,6 +14,7 @@
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
+| PLAN-018 | Remote 連線資安加固（TLS + fingerprint + sandbox + anti-bruteforce，T0164 Phase 2） | 🔴 High | 📋 PLANNED | [詳細](PLAN-018-remote-security-hardening.md) |
 | PLAN-004 | GPU Whisper 加速（Win/Linux） | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
 | PLAN-009 | Sprint 儀表板 UI | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-009-sprint-dashboard-ui.md) |
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B，T0152 紙上否決方向 A） | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |

@@ -1,10 +1,36 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 05:30 (UTC+8)（PLAN-016 全案閉環，D056 — 安全升級日完結）
+> 最後更新:2026-04-18 07:10 (UTC+8)（T0164 研究 DONE，D058 — upstream v2.1.42+ 採方案 [A]，T0165 + PLAN-018 登場）
 
 ---
 
-## 🔄 本 Session 焦點（2026-04-18 05:30）— 安全升級日完結
+## 🔄 本 Session 焦點（2026-04-18 07:10）— Upstream v2.1.42+ 同步決策（D058）
+
+**研究工單 T0164 閉環**（2026-04-18 06:49 → 07:08，19 分鐘）：
+
+- **範圍**：upstream `tony1223/better-agent-terminal` 自 `8d23e6e` 後 13 commits（v2.1.42 → v2.1.46-pre.1）
+- **分類結果**（實質 11 包）：cherry-pick 2 包 / 移植 1 包 / skip 4 包
+- **產出報告**：`_report-upstream-sync-v2.1.42-plus.md`
+- **關鍵補充**：使用者指示 C1.1 必須先升 SDK/CLI 再加 Opus 4.7 builtin（否則 `model-not-supported`）
+- **D058 決策**：採方案 [A] — T0165 Phase 1 cherry-pick（~2h，本輪執行）+ PLAN-018 Phase 2 remote 資安加固（6-10h，下週）
+
+### 衍生工單
+- **T0165** 📋 PENDING — Phase 1 cherry-pick（C1.1 Opus 4.7 + SDK/CLI 2.1.111 + xhigh / C1.2 remote workspace:load + profile fix）
+- **PLAN-018** 📋 PLANNED 🔴 High — Remote TLS + fingerprint pinning + path sandbox + brute-force 防護
+
+### 下一步
+1. 派發 T0165（auto-session：`/ct-exec T0165`）
+2. T0165 完成後回塔台，更新 `version.json.lastSyncCommit`
+3. PLAN-018 排下週，實作階段再拆 T####
+
+### 待處理事項（沿用上輪）
+1. ⏸ Worktree 清理：`git worktree remove --force ../better-agent-terminal-builder26 && git branch -d exp/builder26`
+2. 🟡 6+ commits 待 push（加上 T0164/T0165/PLAN-018/D058 commit，可能 8+）
+3. 💡 `*evolve` 萃取仍在進行中（L039-L056 共 18 條候選）
+
+---
+
+## 🔄 上輪 Session 焦點（2026-04-18 05:30）— 安全升級日完結
 
 **本日集中升級三部曲 + PLAN-016 全案閉環**：
 
