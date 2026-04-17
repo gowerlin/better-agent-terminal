@@ -114,6 +114,11 @@ export const SHELL_OPTIONS: { id: ShellType; name: string; platforms: ('win32' |
 
 export type FontType = 'system' | 'sf-mono' | 'menlo' | 'consolas' | 'monaco' | 'fira-code' | 'jetbrains-mono' | 'cascadia-code' | 'custom';
 
+// Effort levels supported by Claude Code CLI (>= 2.1.111 adds xhigh).
+// `max` maps to Opus-only extended thinking budget; `xhigh` is the newest tier.
+export const EFFORT_LEVELS = ['low', 'medium', 'high', 'max', 'xhigh'] as const;
+export type EffortLevel = typeof EFFORT_LEVELS[number];
+
 const isWindows = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
 
 // Cross-platform fallback chains for reliable xterm.js rendering
@@ -220,7 +225,7 @@ export interface AppSettings {
   createDefaultAgentTerminal: boolean;  // 是否預設建立 Agent Terminal
   allowBypassPermissions: boolean;  // 允許切換 bypassPermissions 模式時不再確認
   defaultModel?: string;     // 預設模型（空 = 使用 SDK 預設）
-  defaultEffort?: 'low' | 'medium' | 'high' | 'max';  // 預設 effort level
+  defaultEffort?: EffortLevel;  // 預設 effort level
   showDockBadge?: boolean;               // Dock 圖示顯示待處理數量
   notifyOnComplete?: boolean;           // Agent 完成時發送系統通知
   notifySound?: boolean;               // 通知時播放聲音

@@ -4,6 +4,7 @@ import * as fsSync from 'fs'
 import * as fsPromises from 'fs/promises'
 import * as pathModule from 'path'
 import type { ClaudeMessage, ClaudeToolCall, ClaudeSessionState } from '../src/types/claude-agent'
+import type { EffortLevel } from '../src/types'
 import type { Query, PermissionMode, CanUseTool, SlashCommand, SDKSession } from '@anthropic-ai/claude-agent-sdk'
 import { logger } from './logger'
 import { getNodeExecutable, isElectronFallback } from './node-resolver'
@@ -17,6 +18,8 @@ import { broadcastHub } from './remote/broadcast-hub'
 
 // BAT built-in curated model list (always available, shown first)
 const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; description: string }> = [
+  { value: 'claude-opus-4-7',     displayName: 'Opus 4.7 (200k)',  description: 'claude-opus-4-7 · 200k context' },
+  { value: 'claude-opus-4-7[1m]', displayName: 'Opus 4.7 (1M)',   description: 'claude-opus-4-7 · 1M context · CLI recommended for better cache efficiency' },
   { value: 'claude-opus-4-6',     displayName: 'Opus 4.6 (200k)',  description: 'claude-opus-4-6 · 200k context' },
   { value: 'claude-opus-4-6[1m]', displayName: 'Opus 4.6 (1M)',   description: 'claude-opus-4-6 · 1M context · CLI recommended for better cache efficiency' },
   { value: 'claude-sonnet-4-6',     displayName: 'Sonnet 4.6 (200k)',  description: 'claude-sonnet-4-6 · 200k context' },
@@ -163,7 +166,7 @@ interface SessionInstance {
   pendingPermissions: Map<string, PendingRequest>
   pendingAskUser: Map<string, PendingRequest>
   permissionMode: AppPermissionMode
-  effort: 'low' | 'medium' | 'high' | 'max'
+  effort: EffortLevel
   model?: string
   messageQueue: QueuedMessage[]
   currentPrompt?: string  // Track the currently running prompt for abort context
@@ -305,7 +308,7 @@ export class ClaudeAgentManager {
     this.send('claude:tool-result', sessionId, { id: toolId, ...updates })
   }
 
-  async startSession(sessionId: string, options: { cwd: string; prompt?: string; sdkSessionId?: string; permissionMode?: AppPermissionMode; model?: string; effort?: 'low' | 'medium' | 'high' | 'max'; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }): Promise<boolean> {
+  async startSession(sessionId: string, options: { cwd: string; prompt?: string; sdkSessionId?: string; permissionMode?: AppPermissionMode; model?: string; effort?: EffortLevel; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }): Promise<boolean> {
     // Prevent duplicate session creation
     if (this.sessions.has(sessionId)) {
       return true
@@ -1597,7 +1600,7 @@ export class ClaudeAgentManager {
     }
   }
 
-  setEffort(sessionId: string, effort: 'low' | 'medium' | 'high' | 'max'): boolean {
+  setEffort(sessionId: string, effort: EffortLevel): boolean {
     const session = this.sessions.get(sessionId)
     if (!session) return false
     session.effort = effort
