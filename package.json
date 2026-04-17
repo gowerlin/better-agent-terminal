@@ -115,7 +115,7 @@
         "target": "dmg",
         "arch": "universal"
       },
-      "x64ArchFiles": "**/node_modules/@anthropic-ai/*/vendor/**",
+      "x64ArchFiles": "**/node_modules/{@anthropic-ai/*/vendor,@img}/**",
       "icon": "assets/icon-512.png",
       "category": "public.app-category.developer-tools",
       "identity": "TonyQ CO., LTD. (8JVDJGLLYR)",
