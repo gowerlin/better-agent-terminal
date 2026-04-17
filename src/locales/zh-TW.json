@@ -13,6 +13,14 @@
     "loading": "載入中...",
     "preview": "預覽"
   },
+  "quit": {
+    "dialog": {
+      "message": "離開 Better Agent Terminal？",
+      "checkbox": "一併結束 Terminal Server（版本更新前建議勾選）",
+      "ok": "離開",
+      "cancel": "取消"
+    }
+  },
   "app": {
     "workspaceNotFound": "找不到工作區",
     "workspaceNotFoundDesc": "此分離的工作區可能已被移除。",

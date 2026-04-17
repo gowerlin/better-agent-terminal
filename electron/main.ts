@@ -419,6 +419,7 @@ interface PersistedSettings {
   logLevel?: LogLevel
   terminalServerScrollBufferLines?: number
   terminalServerIdleTimeoutMinutes?: number
+  language?: string
 }
 
 function normalizeLogLevel(level: unknown): LogLevel {
@@ -1242,10 +1243,146 @@ function runCleanupOnce() {
   cleanupAllProcesses()
 }
 
+// PLAN-012 / T0144: Quit confirmation dialog state.
+// Prevents recursion when user confirms quit and app.quit() re-triggers before-quit.
+let _quitConfirmed = false
+
+/**
+ * PLAN-012 / T0144: Quit dialog i18n strings (hardcoded in main for now).
+ *
+ * TODO(i18n-main): Electron main process has no i18next instance (i18next lives in
+ * renderer only). Keeping strings inline here until a shared main-side i18n helper
+ * is introduced. Keep these in sync with src/locales/{en,zh-TW,zh-CN}.json `quit.dialog.*`.
+ */
+function getQuitDialogStrings(lang: string | undefined) {
+  const code = (lang || '').toLowerCase()
+  if (code.startsWith('zh-tw') || code === 'zh' || code.startsWith('zh-hant')) {
+    return {
+      message: '離開 Better Agent Terminal？',
+      checkbox: '一併結束 Terminal Server（版本更新前建議勾選）',
+      ok: '離開',
+      cancel: '取消',
+    }
+  }
+  if (code.startsWith('zh-cn') || code.startsWith('zh-hans')) {
+    return {
+      message: '退出 Better Agent Terminal？',
+      checkbox: '同时结束 Terminal Server（版本更新前建议勾选）',
+      ok: '退出',
+      cancel: '取消',
+    }
+  }
+  return {
+    message: 'Quit Better Agent Terminal?',
+    checkbox: 'Also stop Terminal Server (recommended before version upgrade)',
+    ok: 'Quit',
+    cancel: 'Cancel',
+  }
+}
+
+/**
+ * PLAN-012 / T0144: Stop the Terminal Server gracefully.
+ *
+ * Strategy (matches T0143 research A5):
+ *   1) Send SIGTERM (server has a SIGTERM handler that triggers graceful shutdown)
+ *   2) Wait for `exit` event
+ *   3) If not exited within 1500ms, escalate to SIGKILL
+ *   4) On Windows, additionally run `taskkill /F /T /PID <pid>` to sweep the process tree
+ *
+ * Resolves once the child exits or the force-kill path is taken. Does not throw.
+ */
+async function stopTerminalServerGracefully(): Promise<void> {
+  const child = _terminalServerProcess
+  if (!child) return
+
+  return new Promise<void>((resolve) => {
+    const pid = child.pid
+    let resolved = false
+
+    const finish = () => {
+      if (resolved) return
+      resolved = true
+      resolve()
+    }
+
+    try {
+      child.once('exit', finish)
+    } catch { /* listener failure is non-fatal */ }
+
+    try {
+      child.kill('SIGTERM')
+    } catch (err) {
+      logger.warn(`[quit] SIGTERM to terminal server failed: ${err}`)
+    }
+
+    setTimeout(async () => {
+      if (resolved) return
+      logger.warn(`[quit] terminal server did not exit within 1500ms, escalating to SIGKILL`)
+      try { child.kill('SIGKILL') } catch { /* already dead */ }
+
+      if (process.platform === 'win32' && pid) {
+        try {
+          const { spawn } = await import('child_process')
+          spawn('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' })
+        } catch { /* best-effort */ }
+      }
+      finish()
+    }, 1500)
+  })
+}
+
 app.on('before-quit', async (e) => {
+  // PLAN-012 / T0144: Second pass after confirmation — skip all prompts/cleanup
+  // so the real shutdown can proceed (the heavy lifting already ran on the first pass).
+  if (_quitConfirmed) return
+
   if (!isAppQuitting) {
     e.preventDefault()
     isAppQuitting = true
+
+    // PLAN-012 / T0144: Ask the user whether to quit and whether to also stop
+    // the Terminal Server. Defaults: button=Quit, checkbox=unchecked (server
+    // stays alive in the background, matching pre-T0144 behavior).
+    let shouldStopServer = false
+    try {
+      const lang = readPersistedSettingsSync()?.language
+      const s = getQuitDialogStrings(lang)
+      const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+      const result = parent
+        ? await dialog.showMessageBox(parent, {
+            type: 'question',
+            buttons: [s.cancel, s.ok],
+            defaultId: 1,
+            cancelId: 0,
+            title: 'Better Agent Terminal',
+            message: s.message,
+            checkboxLabel: s.checkbox,
+            checkboxChecked: false,
+          })
+        : await dialog.showMessageBox({
+            type: 'question',
+            buttons: [s.cancel, s.ok],
+            defaultId: 1,
+            cancelId: 0,
+            title: 'Better Agent Terminal',
+            message: s.message,
+            checkboxLabel: s.checkbox,
+            checkboxChecked: false,
+          })
+
+      if (result.response !== 1) {
+        // User clicked Cancel (or closed the dialog) — abort the quit.
+        isAppQuitting = false
+        logger.log('[quit] user cancelled quit dialog')
+        return
+      }
+      shouldStopServer = result.checkboxChecked === true
+      logger.log(`[quit] user confirmed quit (stopTerminalServer=${shouldStopServer})`)
+    } catch (err) {
+      // If the dialog itself blows up, fall back to the previous behavior:
+      // proceed with quit, leave the server alive.
+      logger.error(`[quit] confirmation dialog failed, proceeding with quit: ${err}`)
+    }
 
     // Notify all renderer windows to flush their latest state (workspace + layout)
     try {
@@ -1280,7 +1417,19 @@ app.on('before-quit', async (e) => {
       logger.error(`[quit] failed to save profiles: ${err}`)
     }
 
+    // PLAN-012 / T0144: Optionally stop the Terminal Server before quitting.
+    // Runs *after* renderer flushes so PTYs can persist their state first.
+    if (shouldStopServer) {
+      try {
+        await stopTerminalServerGracefully()
+        logger.log('[quit] terminal server stopped')
+      } catch (err) {
+        logger.error(`[quit] stopTerminalServerGracefully failed: ${err}`)
+      }
+    }
+
     runCleanupOnce()
+    _quitConfirmed = true
     app.quit()
   }
 })

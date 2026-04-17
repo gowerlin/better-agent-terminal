@@ -13,6 +13,14 @@
     "loading": "Loading...",
     "preview": "Preview"
   },
+  "quit": {
+    "dialog": {
+      "message": "Quit Better Agent Terminal?",
+      "checkbox": "Also stop Terminal Server (recommended before version upgrade)",
+      "ok": "Quit",
+      "cancel": "Cancel"
+    }
+  },
   "app": {
     "workspaceNotFound": "Workspace not found",
     "workspaceNotFoundDesc": "This detached workspace may have been removed.",
