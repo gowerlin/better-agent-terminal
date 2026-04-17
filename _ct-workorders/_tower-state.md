@@ -26,12 +26,16 @@
 ### 本 session 決策
 - **D032**：BUG-032 拆單方案 [A]（一張統籌 BUG + 一張研究 + N 張修復）；`_local-rules.md` 暫不動 [A]（避免破壞 baseline，等 BUG-032 整體方案敲定一起改）
 - **追加**：BUG-031 維持 FIXED 狀態（PTY allocation 邏輯本身已透過使用者實測驗證），副作用檢查併入 BUG-032 範圍
+- **D033**（2026-04-17 13:15）：建立 PLAN-012 — Quit Dialog 加「一併結束 Terminal Server」CheckBox，預設**不勾選**（避免誤按關掉背景 server）；Installer 強制 kill 另開 PLAN；時程緊急，排 T0142 驗收後
+- **D034**（2026-04-17 13:25）：PLAN-012 拆單策略 Q1.D + Q2.A — 先派研究工單 T0143 摸清 Quit Dialog + Terminal Server 現狀；T0142 驗收 checklist Phase 2-5 內嵌到 T0143「Task B」觀察表，T0142 狀態改 🔀 MERGED；dogfood 驗收（派 T0143 行為本身即為 BUG-032 鏈路驗證）；CT 上游回 PR 編號順延為 T0144
 
 ### 本 session 新增工單
 | ID | 標題 | 狀態 |
 |----|------|------|
 | BUG-032 | Helper scripts 打包與路徑解析設計缺漏 | 🔴 OPEN |
 | T0138 | 研究：BAT Helper Scripts 打包與路徑解析設計 | 📋 TODO |
+| PLAN-012 | Quit Dialog 新增「一併結束 Terminal Server」CheckBox | 📋 PLANNED |
+| T0143 | 研究：Quit Dialog + Terminal Server 現狀（PLAN-012 起手 + T0142 驗收內嵌） | 📋 TODO |
 
 ### 本 session 新增工單（2026-04-17 02:00-03:05）
 | ID | 標題 | 狀態 | Commit |
@@ -102,11 +106,11 @@
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0125 |
+| **工單最大編號** | T0143 |
 | **BUG 最大編號** | BUG-029 |
-| **PLAN 最大編號** | PLAN-010 |
+| **PLAN 最大編號** | PLAN-012 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D031 |
+| **決策最大編號** | D034 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---
