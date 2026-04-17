@@ -7,6 +7,9 @@
 - **狀態**：🧪 EXPLORING
 - **優先級**：🟢 Low（技術債清除，無阻塞）
 - **派發時間**：2026-04-18 04:25 (UTC+8)
+- **開始時間**：2026-04-18 04:36 (UTC+8)
+- **Worker 完成時間**：2026-04-18 04:59 (UTC+8)
+- **Worker 結論**：✅ 所有 Worker 可做項目通過（Step 1–8、5.5）；僅 Step 5.4（使用者手動安裝 smoke test）待驗收，建議塔台標示 **CONCLUDED-PENDING-5.4**
 - **TOPIC**：BUILDER26（electron-builder 升級）
 - **關聯 PLAN**：PLAN-005（Electron Builder 升級）、PLAN-003（Group A — 9 個 electron-builder 鏈漏洞）
 - **關聯決策**：D054（PLAN-005 採 EXP worktree 模式，Windows 完整驗收 + 跨平台 YAML dry-run）
@@ -268,47 +271,257 @@ Worker 完成 Step 1-8 後，回塔台說 "EXP-BUILDER26-001 CONCLUDED"：
 
 ### 前置盤點結果（Step 1）
 
-（Worker 填寫）
+**環境狀態**
+- Worktree 位置：`D:\ForgejoGit\BMad-Guide\better-agent-terminal\better-agent-terminal-builder26`
+- 分支：`exp/builder26`
+- `node_modules/` 尚未存在（worktree 首次設定，需在 Step 3 一併 install）
+
+**`package.json` 關鍵欄位**
+- `devDependencies.electron-builder`：`^24.0.0`（基線 lockfile 鎖 `24.13.3`）
+- `build.appId`：`org.tonyq.better-agent-terminal`
+- `build.productName`：`BetterAgentTerminal`
+- `build.win.target`：`nsis` + `zip`（無 signing 欄位，`forceCodeSigning: false`）
+- `build.nsis`：oneClick=false、allowToChangeInstallationDirectory=true、三張 icon
+- `build.mac`：dmg universal、identity `TonyQ CO., LTD. (8JVDJGLLYR)`、hardenedRuntime、entitlements `build/entitlements.mac.plist`、`notarize: { teamId: "8JVDJGLLYR" }`
+- `build.linux.target`：`AppImage`
+- `build.npmRebuild`：false
+- `build.asarUnpack`：Claude Code/SDK、`@img/**`、terminal-server.js
+- `build.extraResources`：`scripts/{bat-terminal.mjs, bat-notify.mjs}`
+- 無獨立 `electron-builder.yml` / `electron-builder.json`
+
+**package.json `scripts` 相關**
+- `compile` → `vite build`
+- `build` → `vite build && electron-builder`
+- `build:dir` → `vite build && electron-builder --dir`
+- `postinstall` → mac Info.plist 處理 + `npm rebuild better-sqlite3`
+
+**打包資源盤點**
+- `build/entitlements.mac.plist` 存在
+- 無 `installer/` 目錄
+- 無 `afterSignHook.js` / `afterPackHook.js`
+
+**grep 自訂 hook / 簽章設定**（`afterSign|afterAllArtifactBuild|afterPack|signingHashAlgorithms|electron-notarize|@electron/notarize`）
+- 專案原始碼：0 命中
+- `node_modules`（transitive）：`@electron/notarize@2.2.1`（electron-builder 24 的間接依賴，本專案未直接 require）
+- 本工單檔案：18 命中（屬工單文字，非程式碼）
+
+**盤點表**
+| 項目 | 命中 | 影響評估 |
+|------|------|---------|
+| `electron-builder.yml` 存在 | ❌ | 無影響（config 全在 package.json `build`） |
+| `build` 在 package.json | ✅ | **主要 migration 目標** |
+| 自訂 `afterSign` / `afterPack` | ❌ | 無 hook 需要遷移 |
+| `electron-notarize` 套件使用 | ❌（僅 transitive） | v26 內建 notarization，無需本專案變更 |
+| `signingHashAlgorithms` 用法 | ❌ | 無需 migrate 到 `signtoolOptions` |
+
+**electron-builder 版本確認**
+- 當前 lockfile：`24.13.3`
+- npm registry 最新：`26.8.1`（dist-tag `latest`）+ `26.9.0`（`next` tag，為 beta 不採用）
+- 決策：目標 **26.8.1**（符合工單規格）
+
+**v25 / v26 breaking changes 摘要（WebFetch `github.com/electron-userland/electron-builder/releases/tag/v26.0.0`）**
+| 變更 | 對本專案影響 |
+|------|------------|
+| Windows signing → `win.signtoolOptions` 結構 | ✅ 無影響（本專案無 signing，`forceCodeSigning: false`） |
+| macOS notarize 鼓勵用環境變數 | ⚠️ 本專案有 `notarize: { teamId }`，需驗證 v26 仍支援此格式；Windows 本機不跑 mac 打包，先 dry-run |
+| `.desktop` 欄位改物件結構 | ✅ 無影響（未使用） |
+| HFS+ DMG 在非 arm64 Mac 下架 | ⚠️ 本專案 mac 用 universal dmg（含 arm64），dry-run 若失敗屬預期 |
+| 支援 subdirectory node_modules / NPM workspaces | ✅ 非本專案需求 |
+| ASAR 改用 `electron/asar` | 透明 |
+| 新增 `@electron/fuses` 整合 | 選用功能，不啟用 |
+| Node.js 要求 ≥ 20 | ✅ Electron 41 自帶 Node 24 |
+
+**結論**：本專案組態簡單，預期 migration 工作量極低；Step 4 預期僅驗證 `mac.notarize` 在 v26 parse 是否仍通過，若 parse 失敗再看 schema 變更。
 
 ### package.json diff（Step 2）
 
-（Worker 填寫）
+```diff
+-    "electron-builder": "^24.0.0",
++    "electron-builder": "^26.8.1",
+```
+
+（僅此一行，`build` 欄位與 scripts 皆未變動）
 
 ### npm install 結果（Step 3）
 
-（Worker 填寫）
+- 執行時間：約 29 秒
+- 新增套件：789 個；audit 基數：790 個
+- postinstall：
+  - mac Info.plist 處理（非 darwin 略過）
+  - `npm rebuild better-sqlite3` → `rebuilt dependencies successfully`
+  - `postinstall done`
+- 警告（皆為 deprecated transitive，無 blocker）：
+  - `inflight@1.0.6`、`npmlog@6.0.2`、`rimraf@2.6.3`、`glob@7.2.3`、`are-we-there-yet@3.0.1`、`prebuild-install@7.1.3`、`boolean@3.2.0`、`gauge@4.0.4`、`tar@6.2.1`、`glob@10.5.0`
+  - 其中 `tar@6.2.1` 即 Group C（whisper-node-addon 鏈）的已知殘留
+- 升級後 electron-builder 鏈版本：
+  - `electron-builder@26.8.1`
+  - `app-builder-lib@26.8.1`
+  - `builder-util@26.8.1`
+  - `dmg-builder@26.8.1`
+  - `electron-builder-squirrel-windows@26.8.1`
+  - `electron-publish@26.8.1`
+  - `http-proxy-agent@7.0.2`（從 4.x/5.x 升到 7.x，**已不再透過 `@tootallnate/once`**，原漏洞鏈斷開）
+  - `@tootallnate/once` 已從 dep tree 完全消失
 
 ### Config migration diff（Step 4）
 
-（Worker 填寫）
+**唯一 breaking**：v26 將 `mac.notarize` 從物件格式 `{ teamId }` 改為 boolean，認證資訊統一從環境變數讀取。
+
+```diff
+       "hardenedRuntime": true,
+       "gatekeeperAssess": false,
+       "entitlements": "build/entitlements.mac.plist",
+       "entitlementsInherit": "build/entitlements.mac.plist",
+-      "notarize": {
+-        "teamId": "8JVDJGLLYR"
+-      },
++      "notarize": true,
+```
+
+**後續影響**：日後 CI/本地執行 mac 打包時須改以環境變數提供認證（三種任一組合）：
+1. `APPLE_API_KEY` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER`（官方推薦）
+2. `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID=8JVDJGLLYR`
+3. `APPLE_KEYCHAIN` + `APPLE_KEYCHAIN_PROFILE`
+
+此變更不影響 Windows 本機打包（本工單驗收範圍）；`notarize: true` 在 Windows 上僅用於 schema 通過，實際不觸發 notarization 流程。
+
+其他可能變更（均無需調整）：
+- `win.signtoolOptions`：本專案無 signing
+- `.desktop` 改物件：本專案未使用
+- HFS+ DMG 下架：本專案用 universal DMG（含 arm64），理論上不受影響
 
 ### Windows 打包驗收（Step 5）
 
-（Worker 填寫）
+**Step 5.1 `npm run compile`** ✅
+- Vite 7.3.2 四階段 build 全綠：dist/（9.2s、52 modules）、main.js+sdk（1.3s）、preload.js（25ms）、terminal-server.js（24ms）
+- 無 error，僅 chunk size >500KB 的預期警告（mermaid.core、index）
+
+**Step 5.2 `npm run build:dir`（dry-run）** ✅（首次因 `mac.notarize` 格式失敗，Step 4 修正後通過）
+- `electron-builder 26.8.1` 啟動
+- `loaded configuration file=package.json ("build" field)` → schema parse 通過
+- `platform=win32 arch=x64 electron=41.2.1 appOutDir=release\win-unpacked`
+- 產出：`release/win-unpacked/BetterAgentTerminal.exe` + Electron 41 runtime
+- 警告（非 blocker）：
+  - Node DEP0190（child_process shell=true，electron-builder 內部實作）
+  - `duplicate dependency references`（package tree 內 transitive 重複，升級前後一致）
+
+**Step 5.3 `npm run build`（NSIS installer + zip）** ✅
+- 完整打包成功，產出：
+  - `release/BetterAgentTerminal Setup 1.0.0.exe`（171.98 MB NSIS installer）
+  - `release/BetterAgentTerminal Setup 1.0.0.exe.blockmap`（168 KB block map，用於增量更新）
+  - `release/BetterAgentTerminal-1.0.0-win.zip`（230.10 MB portable zip）
+- `signing with signtool.exe` 訊息出現但屬 best-effort（`forceCodeSigning: false`），執行完成無 fatal error
+
+**Step 5.4 installer 安裝 smoke test**：⏳ **待使用者手動驗收**
+- Installer 已產出：`release/BetterAgentTerminal Setup 1.0.0.exe`
+- 驗收項目（待使用者執行）：
+  - [ ] 雙擊 installer → UI 顯示 NSIS 安裝精靈（oneClick=false）
+  - [ ] 選安裝目錄 → 安裝完成
+  - [ ] 啟動 app → 主視窗開啟
+  - [ ] CT panel / 終端機 / Sidebar 功能正常
+  - [ ] IPC 通道（T0163 smoke test 項目）無 regression
+
+**Step 5.5 跨平台 YAML dry-run**
+- **macOS（`npx electron-builder --mac --dir --config.mac.identity=null`）**：✅ config schema parse 通過後，被 v26 以 `Build for macOS is supported only on macOS` 擋下；這是 v26 新加的 host-platform 限制（v24 在 Windows 下可跑 mac `--dir`）。Schema 無錯誤，達成工單驗收目標。
+- **Linux（`npx electron-builder --linux --dir`）**：✅ 完整跑完，超出預期。自動下載 `electron-v41.2.1-linux-x64.zip`（117 MB）後產出 `release/linux-unpacked/`（含 BetterAgentTerminal binary、chrome_crashpad_handler、libvk_swiftshader.so 等完整 Linux runtime）。
+
+**驗收 Checklist**
+- [x] `npm run compile` 通過
+- [x] `npm run build:dir`（dry-run）通過
+- [x] `npm run build` NSIS installer 產出
+- [ ] installer 安裝後 app 啟動正常（待 Step 5.4 使用者驗收）
+- [ ] CT panel / 終端機 / Sidebar / IPC 功能性正常（待 Step 5.4 使用者驗收）
+- [x] macOS YAML config parse 通過
+- [x] Linux YAML config parse 通過（實際連打包都成功）
+- [x] npm audit Group A 9 個漏洞清除（見 Step 6）
 
 ### npm audit 結果（Step 6）
 
-（Worker 填寫）
+**升級前基線（主線 commit `83ae7cf`）**：11 個 vulnerabilities
+- Group A（electron-builder 鏈，本工單目標）：9 條
+- Group C（whisper-node-addon → cmake-js → tar，WONTFIX 見 D052）：2 條（tar 鏈在基線計為 2）
+
+**升級後**：3 個 high severity
+```
+# npm audit report
+tar  <=7.5.10 (high, 6 GHSAs merged)
+├── cmake-js  <=7.4.0 (high)
+└── whisper-node-addon  >=0.0.4 (high)
+
+3 high severity vulnerabilities
+```
+
+**Group A 清除驗證**（逐項）：
+| 套件 | 清除狀態 | 說明 |
+|------|---------|------|
+| @tootallnate/once | ✅ 從 dep tree 完全消失 | `http-proxy-agent` 升 7.x 後斷鏈 |
+| app-builder-lib | ✅ → 26.8.1 | |
+| builder-util | ✅ → 26.8.1 | |
+| dmg-builder | ✅ → 26.8.1 | |
+| electron-builder | ✅ → 26.8.1 | 直接依賴升級 |
+| electron-builder-squirrel-windows | ✅ → 26.8.1 | |
+| electron-publish | ✅ → 26.8.1 | |
+| http-proxy-agent | ✅ → 7.0.2 | 從 4.x/5.x 升到 7.x |
+| tar（electron-builder 子鏈） | ✅ 26.x 內部已換用新 tar | 剩餘 tar@6.2.1 僅在 whisper-node-addon → cmake-js 鏈內 |
+
+**結果解讀**：
+- 工單預期「11 → 2」；實際「11 → 3」，差異僅在 `tar/cmake-js/whisper-node-addon` 是否合併為 1 條計數
+- 實質效果：剩餘 3 個高危全部屬同一個 Group C 鏈，符合 D052 WONTFIX 決策；**Group A 100% 清除**
 
 ### CLAUDE.md 更新 diff（Step 7）
 
-（Worker 填寫）
+```diff
+-- electron-builder 目前仍為 24.x（PLAN-016 Phase 3 延後處理，不影響本地 `npm run dev`）。
++- electron-builder 26.x（2026-04-18 PLAN-005 / EXP-BUILDER26-001 CONCLUDED，原 24.13.3 → 26.8.1，清除 9 個 Group A CVE，見 PLAN-003 Group A）。
+```
+
+新增 `### electron-builder 26 migration notes` 小節（在 `## Build Toolchain` 之內），涵蓋：
+- `mac.notarize` 格式變更（物件 → boolean）
+- 啟用 mac notarization 需設的環境變數（3 種組合）
+- `.github/workflows/pre-release.yml` 目前無 `APPLE_*` secrets 的 soft warning
+- Windows 打包產物 size 參考、v26 禁止 host-cross-platform mac build
 
 ### Commit hash（Step 8）
 
-（Worker 填寫）
+Primary commit：`f79f735`
+- 訊息：`chore(deps): upgrade electron-builder 24->26 (EXP-BUILDER26-001, PLAN-005)`
+- 變更：4 files，+1984 / -622
+  - `package.json`（electron-builder ^24 → ^26.8.1，mac.notarize 物件 → boolean）
+  - `package-lock.json`（electron-builder 鏈全升 26.8.1 + http-proxy-agent 7.0.2）
+  - `CLAUDE.md`（Build Toolchain 段加 migration notes）
+  - `_ct-workorders/EXP-BUILDER26-001-*.md`（本工單回報區）
+
+Backfill commit：`d146c9a`
+- 訊息：`chore(ct): EXP-BUILDER26-001 backfill primary commit hash (f79f735)`
+- 變更：1 file（工單 Commit hash 欄位回填）
+
+分支：`exp/builder26`（本地 2 commits，未 push；依工單 Step 9 走 CONCLUDED 路徑由塔台決定 PR/merge）
 
 ---
 
 ## 互動紀錄
 
-（Worker 遇到 config 格式、yml 遷移、打包異常時填寫，塔台對齊後回填）
+- `[04:39]` Q: Worker 詢問 `npm install` 執行環境（A/B/C/D 選項）→ A: 使用者回「繼續」→ Action: Worker 判定為「D: 授權在本 session 執行」，直接跑 `npm install`，結果 29 秒成功、postinstall OK。
+- `[04:55]` Q: 使用者追問「`.github/workflows/*.yml` 需不需要配合修改」→ A: Worker 檢查 `pre-release.yml` 後回報「無需修改」，並識別出 soft warning（若未來啟用 mac notarization 需補 `APPLE_*` env vars）→ Action: 將 soft warning 寫入 CLAUDE.md 的 migration notes，不納入本工單變更範圍。
 
 ---
 
 ## 遭遇問題
 
-（Worker 填寫）
+**P1（已解決）**：Step 5.2 首次 `npm run build:dir` 時 electron-builder 26 schema 驗證失敗
+- 錯誤：`configuration.mac.notarize should be a boolean.`
+- 根因：v26 breaking change — `mac.notarize` 從物件 `{ teamId }` 改為 boolean
+- 解法：`notarize: { teamId: "8JVDJGLLYR" }` → `notarize: true`，TeamID 改走環境變數
+- 後續：在 CLAUDE.md migration notes 記錄環境變數需求供未來 CI 啟用 mac notarization 參考
+
+**P2（預期內，非 blocker）**：Step 5.5 macOS dry-run 在 Windows 被 v26 阻擋
+- 錯誤：`Build for macOS is supported only on macOS`
+- 根因：v26 新加的 host-platform 限制（v24 允許 Windows 下跑 mac `--dir`）
+- 處理：schema parse 已在 error 前通過，達成工單驗收目標（「YAML 結構在各平台 config schema 下合法」），不影響結論
+
+**P3（非本工單範圍）**：npm audit 剩 3 個 high 全部是 Group C 鏈（tar / cmake-js / whisper-node-addon）
+- 狀態：WONTFIX 依 D052
+- 工單預期「11 → 2」vs 實際「11 → 3」：純計數差（同一鏈每個 package 獨立計數 vs 合併計數），實質效果一致
 
 ---
 

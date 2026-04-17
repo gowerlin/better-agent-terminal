@@ -70,7 +70,7 @@
     "concurrently": "^8.2.0",
     "cross-env": "^10.1.0",
     "electron": "^41.2.1",
-    "electron-builder": "^24.0.0",
+    "electron-builder": "^26.8.1",
     "png-to-ico": "^3.0.1",
     "sharp": "^0.34.5",
     "ts-node": "^10.9.2",
@@ -122,9 +122,7 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": {
-        "teamId": "8JVDJGLLYR"
-      },
+      "notarize": true,
       "extendInfo": {
         "NSDocumentsFolderUsageDescription": "BetterAgentTerminal needs access to your Documents folder to open terminals and manage files in your projects.",
         "NSDesktopFolderUsageDescription": "BetterAgentTerminal needs access to your Desktop folder to open terminals and manage files in your projects.",
