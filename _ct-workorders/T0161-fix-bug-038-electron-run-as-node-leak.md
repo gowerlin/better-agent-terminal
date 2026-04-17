@@ -4,10 +4,11 @@
 - **工單編號**:T0161
 - **類型**:bugfix(修復工單)
 - **互動模式**:✅ 允許
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ FIXED（等使用者驗收 → CLOSED）
 - **優先級**:🟡 Medium
 - **派發時間**:2026-04-18 (UTC+8)
 - **開始時間**:2026-04-18 02:25:44 (UTC+8)
+- **完成時間**:2026-04-18 02:33 (UTC+8)
 - **關聯 BUG**:BUG-038
 - **關聯決策**:D049
 - **預計 context 用量**:小(讀 2-3 個檔案、改 pty 流程或 env 管理)
@@ -98,7 +99,7 @@ Worker **先閱讀**這些檔案:
 - **完成狀態**：FIXED（等使用者驗收 → CLOSED）
 - **開始時間**：2026-04-18 02:25:44 (UTC+8)
 - **完成時間**:2026-04-18 02:33 (UTC+8)
-- **Commit**：(填入後補)
+- **Commit**：`9d734a8` — `fix(electron): strip ELECTRON_RUN_AS_NODE from PTY children`
 
 ### 選定方案
 **方案 B：PTY spawn 時刻意清除 `ELECTRON_RUN_AS_NODE`**
