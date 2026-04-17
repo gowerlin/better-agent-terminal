@@ -3,13 +3,13 @@
 ## 元資料
 - **工單編號**:T0153
 - **任務名稱**:POC:方向 B(Git GUI)三個高風險假設驗證 Spike
-- **狀態**:IN_PROGRESS
+- **狀態**:PARTIAL
 - **類型**:research(POC — 允許實作代碼)
 - **互動模式**:disabled(延續 Q3.A:Worker 獨立研究 + POC)
 - **Renew 次數**:0
 - **建立時間**:2026-04-17 22:30 (UTC+8)
 - **開始時間**:2026-04-17 22:29 (UTC+8)
-- **完成時間**:(完成時填入)
+- **完成時間**:2026-04-17 22:36 (UTC+8)
 - **關聯 PLAN**:PLAN-014
 - **前置工單**:T0152(Phase 1 紙上調研,commit `ef29bb2`)
 - **預計工時**:2-3 週(Worker 自行評估每個假設投入時間)
@@ -271,7 +271,7 @@
 `src/components/git-poc/`(非工單原寫的 `src/renderer/components/git-poc/`,見「遭遇問題 1」)
 
 ### Commit(s)
-(收尾 commit 後補入)
+- `9c86263` poc(git-gui): T0153 POC complete — 紙上分析 + 骨架
 
 ### 回報時間
 2026-04-17 22:36 (UTC+8)
