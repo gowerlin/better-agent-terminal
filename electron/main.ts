@@ -540,7 +540,6 @@ function rebuildTrayMenu() {
   entries.push({
     label: 'Quit',
     click: () => {
-      isAppQuitting = true
       app.quit()
     }
   })
