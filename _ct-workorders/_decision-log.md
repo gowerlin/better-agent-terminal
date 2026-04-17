@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-18 04:25 (UTC+8)（新增 D054 — PLAN-005 啟動，採 EXP worktree 模式）
+> 最後更新：2026-04-18 05:25 (UTC+8)（新增 D055 — PLAN-005 / PLAN-003 全案閉環）
 
 ---
 
@@ -36,10 +36,59 @@
 | D052 | 2026-04-18 | PLAN-003 混合分組策略：Group A 暫緩 + Group B 升 vite + Group C WONTFIX | T0162/PLAN-003/PLAN-005 |
 | D053 | 2026-04-18 | T0162 Phase 2 結論採路徑 A（vite 7 stable），派 T0163 實作 | T0162/T0163/PLAN-003 |
 | D054 | 2026-04-18 | T0163 DONE 閉環 + PLAN-005 啟動（EXP worktree 模式，承接 Group A） | T0163/EXP-BUILDER26-001/PLAN-005/PLAN-003 |
+| D055 | 2026-04-18 | PLAN-005 / PLAN-003 全案閉環（electron-builder 26 升級 CONCLUDED + Group A 關閉） | EXP-BUILDER26-001/PLAN-005/PLAN-003 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D055 2026-04-18 — PLAN-005 / PLAN-003 全案閉環（electron-builder 26 升級 CONCLUDED + Group A 關閉）
+
+- **觸發事件**：EXP-BUILDER26-001 Step 5.4 使用者手動 installer 安裝 + app smoke test **驗收通過**（05:25），Worker 可控範圍（Step 1-8、5.5）於 04:59 已完成
+- **實際執行耗時**：
+  - Worker 實作 + 自測：34 分鐘（04:25 派發 → 04:59 完成）
+  - 使用者驗收間隔：26 分鐘（04:59 → 05:25）
+  - **總 wall-clock**：60 分鐘，遠低於 4-6h 預估（超過一個量級的偏差）
+- **Worker 表現亮點**：
+  - P1 自排：`mac.notarize` 物件 → boolean schema 衝突，自行定位 breaking change 並修復，將 migration notes 寫入 CLAUDE.md
+  - P2 邊界守護：識別 `.github/workflows/pre-release.yml` 缺 `APPLE_*` secrets 的 soft warning，但**不越權修改 CI 工作流**，只在 CLAUDE.md 記錄（塔台授權範圍內）
+  - Linux dry-run 意外完整打包成功（v26 允許 Windows → Linux cross-build），超出工單驗收範圍但無副作用
+  - 工單互動紀錄、執行紀錄、遭遇問題三區完整填寫
+- **閉環成果**：
+  - **PLAN-005** 🔄 → ✅ DONE（主 commit `f79f735`，merge commit `75bb77f`）
+  - **PLAN-003 Group A** 🔄 → ✅ 關閉（9 個 CVE 100% 清除）
+  - **PLAN-003 整體** 🔄 → ✅ DONE（Group A 本 PLAN + Group B T0163 + Group C WONTFIX）
+  - **EXP-BUILDER26-001** 🧪 → 📊 CONCLUDED
+  - **CLAUDE.md**：新增「electron-builder 26 migration notes」段（`mac.notarize` 格式、環境變數、CI soft warning、Windows host-platform 限制）
+  - **npm audit**：11 → 3（全部 Group C WONTFIX 鏈，符合 D052）
+- **塔台決策**：
+  1. `git merge --no-ff exp/builder26` → main（`75bb77f`），保留分支拓撲供日後追溯
+  2. 本輪 meta commit 統一批次處理（EXP 工單 + PLAN-003 / PLAN-005 + tower-state + backlog + 本 D055）
+  3. Worktree 清理：`git worktree remove ../better-agent-terminal-builder26 && git branch -d exp/builder26`
+  4. **不 push**（依規範；Git 狀態乾淨後由使用者決定推送時機）
+- **安全邊界觀察**：
+  - 本次是 **D051 Electron 41 閉環後 2.5 小時內**的第二次主線依賴升級閉環
+  - Electron 41 + builder 26 組合首次驗收通過（runtime 無 regression、installer 可用）
+  - 工具鏈「趁熱打鐵」策略（D054 時機決策）實證有效
+- **learning 候選**（累積給下次 `*evolve` 評估）：
+  - **L049**（🟢 global 候選）：EXP worktree 模式的 Worker 完成率實證 — 當前置條件滿足（semVerMajor + config 不明 + 主線乾淨）時，EXP 實作成本 ≤ 研究工單成本；本次 Worker 34 分鐘結束，比研究工單通常 1-2h 更快，且直接產出可驗證成果
+  - **L050**（🟢 global 候選）：`auto-session: on` + `auto_commit: ask` 組合在深度依賴升級鏈（vite 7 + builder 26）中的實戰 — 兩個 EXP/實作工單連續執行，使用者僅需決策不需手動操作終端
+  - **L051**（🟡 本專案）：升級鏈估時應分開 Worker time 和 wall-clock time — Worker 可控 time 常大幅優於預估（P95 偏樂觀），真正變數是使用者驗收間隔
+  - **L052**（🟢 global 候選）：Worker 遇 schema breaking 時應優先查 release notes 定位精確 migration path（如 `mac.notarize` v26 變更），而非盲目 rollback 或 bypass
+  - **L053**（🟡 本專案）：Step 5.4 這類需使用者實機驗收的 checkpoint，工單應明確標示 **CONCLUDED-PENDING-X** 中間狀態的回報格式；本次使用者創「CONCLUDED-PENDING-5.4」精準表達，塔台應將此模式納入 EXP / 實作工單模板
+- **副作用**：
+  - Worktree `../better-agent-terminal-builder26` 需清理（塔台執行）
+  - 分支 `exp/builder26` 需刪除（塔台執行，因為 merge 完已整合）
+  - 主線多 4 commits unpushed（`83ae7cf`、`ca8057b`、`75bb77f` merge、本輪 meta commit）
+- **相關工單**：EXP-BUILDER26-001（CONCLUDED）
+- **相關 PLAN**：PLAN-003（DONE）、PLAN-005（DONE）
+- **下一輪候選**（backlog 剩餘 Active）：
+  - PLAN-004 📋 GPU Whisper 加速（Win/Linux）🟡 Medium
+  - PLAN-009 📋 Sprint 儀表板 UI 🟡 Medium
+  - PLAN-014 📋 BAT 內建 Git 圖形介面（方向 B）🟡 Medium
+  - PLAN-016 🔄 Electron runtime 升級（Phase 3 暫緩）🔴 High
 
 ---
 

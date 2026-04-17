@@ -1,10 +1,49 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 04:25 (UTC+8)（T0163 DONE，PLAN-005 啟動派 EXP-BUILDER26-001，D054 寫入）
+> 最後更新：2026-04-18 05:25 (UTC+8)（PLAN-005 / PLAN-003 全案閉環，EXP-BUILDER26-001 CONCLUDED，D055）
 
 ---
 
-## 🔄 本 Session 焦點（2026-04-18 04:25）
+## 🔄 本 Session 焦點（2026-04-18 05:25）
+
+**PLAN-005 / PLAN-003 全案閉環**（~3 小時集中升級 session）：
+
+### 依賴升級三部曲（連續閉環）
+1. **T0163** ✅ DONE（04:18，commit `83ae7cf`）— vite 5.4.21 → 7.3.2 + 3 plugin 連動，PLAN-003 Group B 閉環
+2. **EXP-BUILDER26-001** 📊 CONCLUDED（05:25，merge commit `75bb77f`）— electron-builder 24.13.3 → 26.8.1，PLAN-003 Group A 閉環
+3. **PLAN-003 整體** ✅ DONE — Group A + Group B + Group C WONTFIX 全數完結
+
+### 閉環成果
+- **npm audit**：13 → 3（僅剩 Group C whisper-node-addon → cmake-js → tar WONTFIX 鏈）
+- **電子依賴現狀**：vite 7.3.2 + electron 41.2.1 + electron-builder 26.8.1（全部最新 stable）
+- **CLAUDE.md Build Toolchain 段**：完整記錄 vite 7 + electron-builder 26 migration notes
+- **使用者 Step 5.4 Installer 手動驗收通過**：CT panel / 終端機 / Sidebar / IPC 全綠
+
+### 本輪 commits（4 個 unpushed）
+- `83ae7cf` chore(deps): vite 5→7（T0163）
+- `ca8057b` chore(ct): T0163 DONE + PLAN-005 launch（D054）
+- `75bb77f` Merge EXP-BUILDER26-001（no-ff）
+  - `f79f735` chore(deps): electron-builder 24→26
+  - `d146c9a` chore(ct): commit hash 回填
+  - `f105eb9` chore(ct): Worker 收尾
+- **本輪 meta commit 待建立**（EXP + PLAN × 2 + tower-state + backlog + D055）
+
+### Learning 候選（下次 `*evolve` 評估晉升）
+- **L046-L053** 累積 8 條，涵蓋：續接中斷 Worker / EXP worktree 實證 / auto-session 組合 / Worker time vs wall-clock 估時 / schema breaking 處理 / CONCLUDED-PENDING-X 中間狀態
+
+### 待處理事項
+1. ⏸ Worktree 清理：`git worktree remove ../better-agent-terminal-builder26 && git branch -d exp/builder26`（塔台可執行）
+2. 📋 下一輪候選（使用者決定）：
+   - PLAN-004 🟡 GPU Whisper 加速
+   - PLAN-009 🟡 Sprint 儀表板 UI
+   - PLAN-014 🟡 BAT 內建 Git 圖形介面（方向 B）
+   - PLAN-016 🔴 Electron Phase 3（暫緩中）
+3. 🟡 4 commits 待 push（由使用者決定時機）
+4. 💡 下次 `/ct-evolve --playbook` 可評估 L049/L050/L052 晉升為 global playbook
+
+---
+
+## 🔄 上輪 Session 焦點（2026-04-18 04:25，歷史追溯）
 
 **T0163 DONE 閉環**：
 - vite 5.4.21 → 7.3.2 + 3 plugin 連動（commit `83ae7cf`，13 分鐘完成）
@@ -415,7 +454,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **PLAN 最大編號** | PLAN-016 |
 | **EXP 最大編號** | EXP-BUILDER26-001 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D054 |
+| **決策最大編號** | D055 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---

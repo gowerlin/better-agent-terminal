@@ -1,11 +1,11 @@
-# 💡 PLAN-003：npm audit 殘餘漏洞（Electron 核心依賴鏈）
+# ✅ PLAN-003：npm audit 殘餘漏洞（Electron 核心依賴鏈）— DONE
 
 ## 元資料
 
 | 欄位 | 內容 |
 |------|------|
 | **計劃編號** | PLAN-003 |
-| **狀態** | 🔄 IN_PROGRESS（Group A 實作中 EXP-BUILDER26-001 / Group B ✅ DONE T0163 `83ae7cf` / Group C 🚫 WONTFIX） |
+| **狀態** | ✅ DONE（Group A ✅ EXP-BUILDER26-001 CONCLUDED `75bb77f` / Group B ✅ DONE T0163 `83ae7cf` / Group C 🚫 WONTFIX） |
 | **優先級** | 🟢 Low（13 漏洞全部 dev-only，無 runtime 攻擊面） |
 | **提出時間** | 2026-04-12 (UTC+8) |
 | **重新評估** | 2026-04-18 (UTC+8)（T0162 研究 + D052 決策後） |
@@ -60,11 +60,16 @@ T0060（2026-04-12）透過 claude-agent-sdk 升級 + npm overrides 將漏洞從
 
 **未來升級目標**：vite 8（等 `vite-plugin-electron@1.0.0` GA 脫離 beta，預估 6-12 個月後排新 PLAN）
 
-### Group A 啟動（2026-04-18 D054）
+### Group A 閉環（2026-04-18 D055）
 
-PLAN-005 於 2026-04-18 04:25 啟動，採 **EXP worktree 模式**（D054）：EXP-BUILDER26-001 在 `exp/builder26` 分支驗證 `electron-builder 24→26.8.1`。原「等 Electron 41 主線穩定 1-2 輪」改為「趁 vite 升級工具鏈熱度一起處理」，風險對沖機制改為 worktree 隔離。
+PLAN-005 於 2026-04-18 04:25 啟動，採 **EXP worktree 模式**（D054）：EXP-BUILDER26-001 在 `exp/builder26` 分支驗證 `electron-builder 24→26.8.1`。
 
-**Group A 完結條件**：EXP-BUILDER26-001 CONCLUDED + merge 回主線 + `npm audit` 9 個 CVE 清除。
+**Group A 結果**（2026-04-18 05:25 CONCLUDED）：
+- Worker 時間：34 分鐘（遠低於 4-6h 預估）
+- 主 commit `f79f735` → Merge commit `75bb77f`
+- 漏洞清除：9 個 Group A CVE 100% 清除（11 → 3，剩 3 全 Group C WONTFIX）
+- 唯一 breaking：`mac.notarize` 物件 → boolean（詳見 CLAUDE.md migration notes）
+- 使用者 Step 5.4 installer 安裝 smoke test 通過
 
 ### Group C WONTFIX 文件化
 

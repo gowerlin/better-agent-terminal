@@ -4,12 +4,15 @@
 - **實驗編號**：EXP-BUILDER26-001
 - **類型**：experiment（EXP worktree 隔離實作）
 - **互動模式**：✅ 允許（config 格式、yml 遷移、打包異常可問使用者）
-- **狀態**：🧪 EXPLORING
+- **狀態**：📊 CONCLUDED
 - **優先級**：🟢 Low（技術債清除，無阻塞）
 - **派發時間**：2026-04-18 04:25 (UTC+8)
 - **開始時間**：2026-04-18 04:36 (UTC+8)
 - **Worker 完成時間**：2026-04-18 04:59 (UTC+8)
-- **Worker 結論**：✅ 所有 Worker 可做項目通過（Step 1–8、5.5）；僅 Step 5.4（使用者手動安裝 smoke test）待驗收，建議塔台標示 **CONCLUDED-PENDING-5.4**
+- **使用者驗收時間**：2026-04-18 05:25 (UTC+8)（Step 5.4 installer 安裝 + app smoke test 通過）
+- **CONCLUDED 時間**：2026-04-18 05:25 (UTC+8)
+- **Merge commit**：`75bb77f`（merge --no-ff `exp/builder26` → main）
+- **Worker 結論**：✅ 所有 Worker 可做項目通過（Step 1–8、5.5）；Step 5.4（使用者手動安裝 smoke test）✅ 使用者驗收通過 → 正式 CONCLUDED
 - **TOPIC**：BUILDER26（electron-builder 升級）
 - **關聯 PLAN**：PLAN-005（Electron Builder 升級）、PLAN-003（Group A — 9 個 electron-builder 鏈漏洞）
 - **關聯決策**：D054（PLAN-005 採 EXP worktree 模式，Windows 完整驗收 + 跨平台 YAML dry-run）

@@ -1,11 +1,11 @@
-# 🔄 PLAN-005：electron-builder 24 → 26 升級
+# ✅ PLAN-005：electron-builder 24 → 26 升級（DONE）
 
 ## 元資料
 
 | 欄位 | 內容 |
 |------|------|
 | **計劃編號** | PLAN-005 |
-| **狀態** | 🔄 IN_PROGRESS（EXP-BUILDER26-001 實作中，2026-04-18 派發） |
+| **狀態** | ✅ DONE（EXP-BUILDER26-001 CONCLUDED 2026-04-18 05:25，merge commit `75bb77f`） |
 | **優先級** | 🟢 Low |
 | **提出時間** | 2026-04-12 (UTC+8) |
 | **啟動時間** | 2026-04-18 04:25 (UTC+8)（D054 決策後） |
@@ -43,3 +43,14 @@
 - **驗收範圍**：Windows 完整打包 + macOS/Linux YAML dry-run（本機無 macOS，notarization/universal binary 暫不驗收）
 - **成功路徑**：EXP merge 回主線 → PLAN-005 DONE → PLAN-003 Group A 關閉 → PLAN-003 整體 DONE
 - **失敗路徑**：EXP worktree 丟棄，PLAN-005 退回 IDEA，主線零污染
+
+## 執行結果（2026-04-18 閉環）
+
+- **Worker 時間**：派發 04:25 → Worker 完成 04:59（~34 分鐘，遠低於 4-6h 預估）
+- **使用者驗收**：05:25 Step 5.4 installer 安裝 + app smoke test 通過
+- **主 commit**：`f79f735`（electron-builder 24→26 實作）
+- **Merge commit**：`75bb77f`（no-ff merge 回 main，保留 EXP 分支拓撲）
+- **Breaking change 處理**：僅 `mac.notarize` 物件 → boolean（詳見 CLAUDE.md migration notes）
+- **漏洞清除**：Group A 9 個 CVE 100% 清除（11 → 3，剩 3 全 Group C WONTFIX）
+- **PLAN-003 整體**：✅ DONE（Group A 本 PLAN 解決 + Group B T0163 解決 + Group C WONTFIX）
+- **相關決策**：D054（啟動決策）、D055（閉環決策）
