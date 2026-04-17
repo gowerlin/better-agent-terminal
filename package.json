@@ -150,6 +150,16 @@
       "node_modules/@anthropic-ai/claude-agent-sdk/**/*",
       "node_modules/@img/**/*",
       "dist-electron/terminal-server.js"
+    ],
+    "extraResources": [
+      {
+        "from": "scripts",
+        "to": "scripts",
+        "filter": [
+          "bat-terminal.mjs",
+          "bat-notify.mjs"
+        ]
+      }
     ]
   }
 }
