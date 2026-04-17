@@ -1236,3 +1236,422 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **候選晉升**：🟢 Project 層（Electron 特定 + 本專案 bridge 架構特定，global 價值低；但「scaffold 完成後的 runtime 最小 smoke test」概念可普及）
 
 ---
+
+## L037 - 2026-04-18 — 一次性大批 deps 升級的失敗率極高
+
+**觸發條件**：單次 PR / commit 一口氣升級超過 3 個 major / 10+ 個 minor 依賴。
+
+**反面教訓**（T0159 考古發現）：
+- `b5b3d1a`（2026-04-12）一次性大批 npm 升級，覆蓋 +7557 / -813 行
+- 後續 `d8ee82a` 直接 revert 整批，損失 3 小時測試 + 混亂 git history
+- 根因：多個升級同時進行時，regression 來源無法歸因，只能整批回滾
+
+**規則**：
+1. 單次 PR 最多升級 **1 個 major + 數個相關 plugin**（如 vite 7 + 3 plugin）
+2. 跨 major 依賴之間不混用（不要同時升 vite 7 + electron 41 + electron-builder 26）
+3. 升級鏈用「原子 commit + EXP worktree 隔離」策略驗證，成功才 merge
+
+**正面驗證**（2026-04-18 本輪）：
+- vite 5→7（T0163 獨立 commit `83ae7cf`）
+- electron 28→41（EXP-ELECTRON41-001 worktree）
+- electron-builder 24→26（EXP-BUILDER26-001 worktree）
+- 三條獨立鏈全綠，無 regression，無 revert
+
+**候選晉升**：🌐 **candidate: global**（跨專案通用，多 repo 已踩過此坑）
+
+---
+
+## L038 - 2026-04-18 — 大型升級的 Worker time 估算常過度悲觀
+
+**觸發條件**：塔台派發 semVerMajor 升級 EXP / 實作工單，預估 Worker 耗時 > 2 小時。
+
+**觀察數據**（本輪 3 條實證）：
+| 工單 | 原估 Worker time | 實際 Worker time | 偏差 |
+|------|------------------|------------------|------|
+| EXP-ELECTRON41-001 | 4-8h | 27 分鐘 | **-90%** |
+| T0163（vite 5→7） | 3-5h | 13 分鐘（續接 Worker） | **-95%** |
+| EXP-BUILDER26-001 | 4-6h | 34 分鐘 | **-90%** |
+
+**根因**：
+- 估時基於「最壞情境」（config breaking + rebuild 失敗 + 依賴衝突）
+- 實際路徑上述風險多半不觸發，Worker 跑直線路徑
+- 研究階段若已收斂目標版本 / breaking changes，實作其實很快
+
+**修正規則**：
+1. 工單預估拆成兩層：**Worker time**（可控）+ **wall-clock time**（含使用者驗收間隔）
+2. EXP 工單估時應基於 P50 情境而非 P95，避免低估急迫性
+3. 使用者驗收間隔通常是 wall-clock 的主要變數（本輪 EXP-BUILDER26-001 wall-clock 60 分鐘 = Worker 34min + 驗收 26min）
+
+**候選晉升**：🌐 **candidate: global**（估時原則跨專案通用）
+
+---
+
+## L039 - 2026-04-18 — BAT 內跑 Electron dev 需清 ELECTRON_RUN_AS_NODE
+
+**觸發條件**：在 BAT（better-agent-terminal）內部終端執行 `npm run dev` 或 Electron 相關子進程。
+
+**反面教訓**（BUG-038 / T0161）：
+- BAT 用 Electron-as-Node 模式 fork PTY helper，傳 `ELECTRON_RUN_AS_NODE=1` env var
+- 此 env var **洩漏到子 shell**，導致子 shell 跑 `npm run dev` 時 Electron 以 Node 模式啟動 → renderer 無法載入
+- 現象：主視窗黑屏，log 顯示 `ELECTRON_RUN_AS_NODE=1` 在 child env 中
+
+**修復**（T0161 commit `9d734a8`）：
+- `pty-manager.ts` + `terminal-server.ts` 在 spawn 子進程前 `delete process.env.ELECTRON_RUN_AS_NODE`
+- 已寫入 CLAUDE.md Electron Runtime 段
+
+**候選晉升**：🟡 Project（BAT 架構特定，但「Electron-as-Node env 洩漏」模式對任何 Electron IDE 類產品通用；value-proven 後可考慮 global）
+
+---
+
+## L040 - 2026-04-18 — Electron-based IDE self-lock 陷阱
+
+**觸發條件**：在 Electron-based IDE（VSCode / Cursor / Claude Code / BAT 等）內跑 `npm install` 或 `npm rebuild` 時。
+
+**反面教訓**（D050 / T0160 期間實戰）：
+- VSCode 鎖定 `node_modules/` 內的 `.node` 檔案（sharp、better-sqlite3 等 native modules）
+- 同一 VSCode 內的 integrated terminal 跑 `npm install` 會 EBUSY 失敗
+- 現象隱蔽：錯誤訊息常是 `EPERM` / `EBUSY` / `ENOTEMPTY`，使用者以為 npm 壞掉
+- **循環依賴**：若這個 Electron IDE 本身就是要升級的專案，更糟（self-lock）
+
+**修復規則**：
+1. 所有 `npm install` / `npm rebuild` / `electron-builder` 動作**強制在外部終端執行**（Windows Terminal / PowerShell / iTerm 等）
+2. 工單「執行步驟」中明確警示：「⚠️ L040：關閉 VSCode 或用外部終端」
+3. 寫入 CLAUDE.md 類慢記憶（讓 Worker 自己 onboarding 時讀到）
+
+**正面驗證**（2026-04-18 本輪）：
+- T0163 + EXP-BUILDER26-001 均在外部終端執行，零 EBUSY 問題
+
+**候選晉升**：🌐 **candidate: global**（D051 實戰驗證升 reliable，跨所有 Electron-based IDE 專案通用）
+
+---
+
+## L041 - 2026-04-18 — Repo 層 + Runtime 層雙軌驗證
+
+**觸發條件**：PLAN 實作完成，判定「驗收通過」前。
+
+**原則**：
+- **Repo 層**：`npm install` / `npm run compile` / `npm run build` 綠色、lockfile 變動合理、commit 乾淨
+- **Runtime 層**：手動啟動 app、執行核心 flow、觀察 runtime log、確認無 regression
+- **兩層都需過才算 DONE**
+
+**反面教訓**（D050 Electron 41 事件鏈）：
+- T0160 repo 層全綠 → commit merge main → 宣告 DONE
+- 但使用者 runtime 啟動失敗（BUG-038：ELECTRON_RUN_AS_NODE 洩漏）
+- 需要 T0161 二次修復才能 runtime 通過
+
+**規則**：
+1. 工單 DONE 定義：repo build 綠 + 使用者或 AI runtime smoke test 通過
+2. 特別是 semVerMajor 升級，**runtime VERIFY 不可省略**
+3. 若無法立即 runtime 驗收（如需外部機器），標記為 FIXED / CONCLUDED-PENDING-VERIFY，不直接 CLOSED / DONE
+
+**正面驗證**（2026-04-18 本輪）：
+- EXP-BUILDER26-001 採用 Step 5.4 使用者手動驗收的設計，CONCLUDED 前等使用者實機測試通過
+- PLAN-016 Phase 2 最終 D051 閉環靠使用者手動 installer + app smoke test
+
+**候選晉升**：🌐 **candidate: global**（軟體工程通用原則）
+
+---
+
+## L044 - 2026-04-18 — Phase 1 靜態查 devDependencies 判斷升級限制不精確
+
+**觸發條件**：研究工單評估套件 A 升級會不會破壞套件 B，透過讀 `node_modules/B/package.json` 的 `devDependencies` 判斷。
+
+**反面教訓**（T0162 Phase 1 vs Phase 2）：
+- Phase 1 讀 `node_modules/vite-plugin-electron/package.json` 的 `devDependencies` 發現 vite 5.x，誤判「plugin 依賴 vite 5，不支援 vite 7/8」
+- Phase 2 查 npm registry + 上游 README 發現：該 plugin 明確宣告「supports vite 5/6/7/8」，且本身用 dynamic import 載入 vite，**無任何 peerDependencies 硬限制**
+- Phase 1 的「plugin 鎖 vite 5」判斷完全證偽
+
+**根因**：
+- `devDependencies` 反映的是上游**本地開發時**使用的版本，不是對外**相容性承諾**
+- 對外相容性應看 `peerDependencies` + 上游 README / changelog
+- 靜態 `node_modules` 只反映本地當時安裝決策
+
+**修正規則**：
+1. 評估套件升級相容性：先查 npm registry 的 `peerDependencies` 欄位
+2. 若 `peerDependencies` 為空或寬鬆，查上游 README / release notes 的相容性宣告
+3. `devDependencies` 只作為「上游開發者最近測試過的組合」參考，不作為相容性判定
+
+**候選晉升**：🌐 **candidate: global**（套件評估原則通用）
+
+---
+
+## L045 - 2026-04-18 — 跨 major 升級研究需分階段（Phase 1 盤點 + Phase 2 解 OQ）
+
+**觸發條件**：研究工單評估 semVerMajor 依賴升級（如 vite 5→8、electron-builder 24→26）。
+
+**觀察**（T0162 雙階段運作）：
+- **Phase 1**：靜態盤點（讀 package.json / node_modules / grep 用法），產出「保守擔憂清單」（Open Questions）
+- **Phase 2**（Renew）：針對 OQ 查權威來源（npm registry / 上游 README / release notes），多半能證偽 Phase 1 的擔憂
+- T0162 案例：Phase 1 列 3 個 OQ，Phase 2 證偽 2 個 + 實證 1 個
+
+**規則**：
+1. 研究工單預期至少會 Renew 一次（Phase 2 解 OQ），塔台不應期待一次研究就給確定方案
+2. Phase 1 產出的「保守擔憂」列為 OQ 而非結論，留給 Phase 2 驗證
+3. Worker 跑 Phase 2 時應主動查 registry / 上游 docs 而非沿用 Phase 1 的 node_modules 靜態資料（L044 的應用）
+
+**正面驗證**（T0162）：Phase 1 預估「升 vite 8 需研究 plugin beta」，Phase 2 證偽「plugin stable 已支援 vite 7/8」，直接跳過 beta 風險。
+
+**候選晉升**：🌐 **candidate: global**（研究工單分階段原則）
+
+---
+
+## L046 - 2026-04-18 — Worker 中斷續接的成本取決於工單結構完整性
+
+**觸發條件**：Worker 在工單執行中途異常中止（crash / context 耗盡 / 使用者打斷），續接 Worker 從同一工單續跑。
+
+**正面數據點**（T0163）：
+- 前任 Worker 在 Step 5 驗收前中斷（自 kill）
+- 續接 Worker 從 Step 1 盤點驗證接手到 Step 8 收尾，**13 分鐘完成**
+- 續接成本遠低於重派工單（重派需重跑 Step 1-4，至少 30 分鐘）
+
+**成本低的前提**（缺一則高）：
+1. 工單「執行紀錄」區段結構完整（Step 1 / 2 / 3... 分界明確）
+2. Step 之間有可驗證的 checkpoint（如 git commit hash、package.json diff）
+3. 中斷前 Worker 已回填至少一個 Step 的結果（前任 Worker 至少 package.json 已 commit）
+
+**反模式**：
+- 工單無分 Step 的連續大段文字
+- Worker 從未回填執行紀錄就中斷
+- 中斷原因不明，續接 Worker 不敢判斷進度
+
+**規則**：
+1. 工單模板強制「執行紀錄」分 Step 結構（當前塔台模板已符合）
+2. Worker 每完成一個 Step 就該回填一小段紀錄（不要憋到 Step 9 才一次填）
+3. 續接 Worker 先掃描「執行紀錄」判斷中斷點，再從下一個 Step 接手
+
+**候選晉升**：🌐 **candidate: global**（工單/任務系統通用模式）
+
+---
+
+## L047 - 2026-04-18 — npm audit 指向具體 fix 版本時可跳過研究工單
+
+**觸發條件**：npm audit 報告某套件有 CVE，且 `fixAvailable.version` 明確指向一個可用版本。
+
+**觀察**（EXP-BUILDER26-001）：
+- npm audit 指向 `electron-builder@26.8.1` 為 fix 版本
+- 無需研究「該升 26 / 27 / 哪個 patch」
+- 直接進實作（EXP worktree 模式）即可，Step 1 邊實作邊查 breaking changes
+
+**適用條件**：
+1. audit 指向具體版本（非「unknown」或「no fix available」）
+2. 目標版本同 major 或僅跨 1 個 major（風險可控）
+3. 專案 config 結構不複雜（本專案無 electron-builder.yml，僅 package.json `build` 欄位）
+
+**不適用情境**：
+- audit 建議「降級」（如 whisper-node-addon 建議 1.0.2 → 0.0.1，是錯誤反向建議）
+- 跨 2+ major（如 vite 5→8）
+- 配置複雜（多 yml + 自訂 hooks）
+
+**候選晉升**：🟡 Project（本專案實踐紀律，非跨專案通用原則）
+
+---
+
+## L048 - 2026-04-18 — EXP worktree 模式適合的三條件
+
+**觸發條件**：塔台評估是否用 EXP worktree 隔離實作 vs 直接派 T#### 實作工單。
+
+**EXP worktree 適合條件**（全部滿足才用）：
+1. **semVerMajor 升級**（依賴或架構改動大）
+2. **Config 格式不明**（是否有 breaking changes 不確定）
+3. **主線 commit 乾淨**（主線有其他風險容忍度低的工作進行中）
+
+**反條件**（不該用 EXP）：
+- 已研究清楚目標版本 + 無 breaking changes → 直接 T#### 實作（如 T0163 vite 7 升級時，T0162 研究已確認零 breaking 命中）
+- 小 patch 升級 → 過度工程
+- 研究成本 < EXP 成本 → 先研究更划算
+
+**正面驗證**（本輪）：
+- EXP-ELECTRON41-001（Electron 28→41，三條件全中）：27 分鐘 CONCLUDED，主線零污染
+- EXP-BUILDER26-001（electron-builder 24→26，三條件全中）：34 分鐘 CONCLUDED，失敗成本 = `git worktree remove`
+
+**候選晉升**：🌐 **candidate: global**（多專案通用的風險對沖策略）
+
+---
+
+## L049 - 2026-04-18 — EXP worktree 的 Worker 完成率實證
+
+**觸發條件**：評估 EXP worktree 成本 vs 研究工單成本。
+
+**數據點**（本輪兩條 EXP）：
+- EXP-ELECTRON41-001：27 分鐘 CONCLUDED
+- EXP-BUILDER26-001：34 分鐘 CONCLUDED
+- **平均 Worker time：30 分鐘，比典型研究工單（1-2h）更快**
+
+**隱含規則**：
+- 當升級目標明確但細節未知時，EXP 實作 = 邊做邊研究，資料密度高於純研究
+- EXP 產出的「執行紀錄 + 互動紀錄 + 遭遇問題」三區結構可作為日後回溯參考
+- 失敗成本僅 worktree 清理
+
+**限制**：
+- 本觀察只涵蓋 2 條 EXP，樣本小
+- 專案 config 複雜度影響大（本專案簡單）
+- 使用者需 available 執行 worktree 建立 + runtime 驗收
+
+**候選晉升**：🟡 Project（樣本不足支持 global 普及，需更多實證）
+
+---
+
+## L050 - 2026-04-18 — auto-session + auto_commit 組合在升級鏈中的實戰
+
+**觸發條件**：Config 設 `auto-session: on` + `auto_commit: ask`，連續執行多個升級工單。
+
+**正面觀察**（本輪）：
+- `auto-session: on`：BAT 環境內工單派發後塔台嘗試開新 session（未實測是否成功觸發，本輪主要靠使用者手動開 sub-session）
+- `auto_commit: ask`：每次 commit 前塔台先給使用者過目訊息，使用者僅需回「A/OK」即可執行
+- 兩者組合降低使用者打字負擔，但保留關鍵決策權
+
+**適用情境**：
+- 使用者深度參與 session（隨時可回答）
+- 任務類型對 commit 精確性要求高（如依賴升級）
+- 本輪 session 實測可用
+
+**不適用情境**：
+- 使用者長時間離開（auto_commit: ask 會卡住流程）
+- 這時 `auto_commit: on` 更合適但風險高
+
+**候選晉升**：🟡 Project（CT 功能特定，跨專案僅在用 Control Tower 系列的情境適用）
+
+---
+
+## L051 - 2026-04-18 — Worker time 和 wall-clock time 應分開估算
+
+**觸發條件**：工單預估耗時。
+
+**觀察**（EXP-BUILDER26-001）：
+- Worker 可控 time：34 分鐘（Step 1-3 + 5.1-5.3 + 5.5 + 6-8）
+- 使用者驗收間隔（Step 5.4）：26 分鐘（4:59 → 5:25）
+- Wall-clock total：60 分鐘
+
+**規則**：
+1. 工單預估欄位分兩層：**Worker time**（AI 可控）+ **Acceptance interval**（人工可控）
+2. Worker time 可基於 P50 情境估（多半樂觀）
+3. Acceptance interval 取決於使用者 availability + 手動驗收複雜度
+4. 催促使用者驗收 = 壓縮 acceptance interval，不影響 Worker time 估算準確性
+
+**反模式**：
+- 單一「預估 4-6h」欄位混淆兩者 → 使用者看到會誤以為 Worker 會花 4-6h
+- 實際 Worker 30 分鐘就完成，剩 3-5h 是使用者驗收間隔的期望值
+
+**候選晉升**：🌐 **candidate: global**（任務估時通用原則，不限 AI Worker）
+
+---
+
+## L052 - 2026-04-18 — Worker 遇 schema breaking 應查 release notes 定位精確 migration path
+
+**觸發條件**：Worker 執行升級工單，`npm install` 後跑 build / test 遇到 schema / config 驗證錯誤。
+
+**正面數據點**（EXP-BUILDER26-001 P1）：
+- Worker 跑 `npm run build:dir` 遇 `configuration.mac.notarize should be a boolean`
+- Worker 不 rollback、不 bypass，而是**讀 electron-builder v26.0.0 release notes**
+- 定位到「`mac.notarize` 物件格式 → boolean，teamId 改走環境變數」
+- 修改 1 行 `notarize: { teamId: X }` → `notarize: true`，並在 CLAUDE.md 寫下 migration notes
+
+**規則**：
+1. 遇 schema validation error：第一步查上游 release notes（不是 stack overflow）
+2. 目標：找到**精確的 migration path**（官方推薦寫法）而非 workaround
+3. 修復後必須在 CLAUDE.md / migration notes 文件化，避免日後復發
+
+**反模式**：
+- 遇 error → 改 config 讓 error 消失（可能偏離官方推薦）
+- 遇 error → 降級到未報 error 的版本（技術債疊加）
+- 遇 error → rollback 整個升級
+
+**候選晉升**：🌐 **candidate: global**（升級工作通用原則）
+
+---
+
+## L053 - 2026-04-18 — CONCLUDED-PENDING-X 中間狀態回報格式
+
+**觸發條件**：EXP / 實作工單的 Worker 可控部分完成，但需使用者手動驗收（如 installer 安裝 smoke test）。
+
+**觀察**：
+- EXP-BUILDER26-001 Worker 完成 Step 1-8 + 5.5 後，Step 5.4 需使用者手動執行
+- 使用者自創回報格式「CONCLUDED-PENDING-5.4」精準表達：
+  - `CONCLUDED`：Worker 判定工單結論成立
+  - `PENDING-5.4`：但有特定 Step 待使用者驗收
+- 塔台識別此格式為中間態，不 merge 不 abandon，等使用者驗收結果
+
+**規則**：
+1. EXP / 實作工單模板應明確標示哪些 Step 需使用者手動驗收（類似本次 Step 5.4）
+2. Worker 完成可控部分時的回報格式為 **CONCLUDED-PENDING-<Step#>**
+3. 使用者驗收完後回報 **<Step#> 通過 / 失敗**
+4. 塔台閉環時才正式升狀態為 CONCLUDED / ABANDONED
+
+**候選晉升**：🟡 Project（Control Tower 工作流 pattern，需併入 EXP / 實作工單模板）
+
+---
+
+## L054 - 2026-04-18 — 「安全升級日」集中作業模式
+
+**觸發條件**：專案累積多條依賴升級需求（本輪 Electron + electron-builder + vite 三條）。
+
+**正面實證**（2026-04-18 本輪）：
+- 單日連續 3 條 major 升級鏈（Electron 28→41 / electron-builder 24→26 / vite 5→7）
+- 全綠，無 regression，無 revert
+- 總耗時 ~3-4 小時（含研究 + EXP + 使用者驗收）
+
+**優點**：
+- 工具鏈記憶熱：同一 session 內 package.json、npm install、打包流程反覆操作
+- 測試驗收可疊加：一次 runtime smoke test 驗證三條鏈的組合效果
+- CLAUDE.md 同時段寫入：三段 Build Toolchain / Electron Runtime 筆記語氣一致
+
+**風險 / 限制**：
+- 單日 context load 高（本 session ~3h，大量工單穿插）
+- 需嚴格用 EXP worktree 隔離，避免多條升級在主線混淆
+- 使用者需 available 連續處理多個驗收 checkpoint
+
+**適用條件**（建議同時滿足）：
+1. 累積 2+ 條獨立升級需求
+2. 有 4-6h 連續作業窗口
+3. 使用者可隨時回應驗收請求
+4. 每條升級都用獨立 EXP 或 commit 隔離
+
+**不適用**：
+- 單條升級（直接跑，不需「日」規模）
+- 無連續作業窗口（分次做即可）
+
+**候選晉升**：🌐 **candidate: global**（多專案通用的 sprint 組織模式）
+
+---
+
+## L055 - 2026-04-18 — Success Criteria 具體化加速 PLAN 結案判定
+
+**觸發條件**：PLAN 建立時撰寫 Success Criteria（完結條件）。
+
+**正面數據點**（PLAN-016）：
+- 6 條具體可驗證的 Success Criteria（`npm install` 無錯 / native module rebuild / `npm run dev` 啟動 / `npm run build:dir` / smoke test / 無 regression）
+- 使用者詢問「可以做了嗎」時，塔台 5 分鐘內完成 6/6 驗收對照 → 直接宣告 DONE
+- 無需派新工單，無需 runtime 二驗
+
+**反模式**：
+- 模糊條件：「升級完成」「工作結束」「驗收通過」→ 判定時需要重新對齊
+- 缺乏量化指標：「性能提升」「無 regression」→ 無法回溯驗證
+- 條件綁特定 commit：「T0160 通過後」→ T0160 內容改了就脫鉤
+
+**規則**：
+1. 每條 Success Criteria 必須包含**具體可執行的驗證指令或觀察項**（`npm run X` / 使用者確認 Y / audit 減到 Z）
+2. 驗證來源引用具體工單或 commit hash（如本次 PLAN-016 引用 D051 + EXP-BUILDER26-001 Step 5.4）
+3. 6 條以內為佳，過多會稀釋每條的權重
+
+**候選晉升**：🌐 **candidate: global**（專案管理通用原則）
+
+---
+
+## L056 - 2026-04-18 — 跨 PLAN 依賴關係應在 PLAN 元資料明寫
+
+**觸發條件**：一個 PLAN（如 PLAN-016）的某個 Phase 依賴另一個 PLAN（如 PLAN-005）完成。
+
+**反面教訓**（PLAN-016 vs PLAN-005）：
+- PLAN-016 Phase 3 原文：「順便帶 PLAN-005（electron-builder 26）— native module 重建已完成，builder 升級走同 EXP 尾聲」
+- 實際執行：Phase 3 並未「順便」，PLAN-005 獨立走了自己的 EXP-BUILDER26-001
+- 結案時塔台差點沒注意到 Phase 3 = PLAN-005 已完成 → 使用者主動問「PLAN-016 可以做了嗎」才觸發對齊
+
+**規則**：
+1. PLAN 元資料表新增「**依賴 PLAN**」欄位，列出所有綁定的其他 PLAN 編號
+2. Phase 分解時，每個 Phase 若綁其他 PLAN，**在 Phase 名稱中明寫**（如「Phase 3 ≡ PLAN-005」）
+3. 當綁定的 PLAN 完成時，**自動觸發** parent PLAN 的 Phase 狀態更新（人工或 `*sync`）
+4. PLAN 閉環判定時，先確認所有 Phase / 依賴 PLAN 狀態，再宣告 DONE
+
+**候選晉升**：🟡 Project（Control Tower 工作流專用，需在 PLAN 模板和 `*sync` 邏輯整合）
+
+---
