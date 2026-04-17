@@ -1257,7 +1257,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 - electron-builder 24→26（EXP-BUILDER26-001 worktree）
 - 三條獨立鏈全綠，無 regression，無 revert
 
-**候選晉升**：🌐 **candidate: global**（跨專案通用，多 repo 已踩過此坑）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP023）
 
 ---
 
@@ -1282,7 +1282,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 2. EXP 工單估時應基於 P50 情境而非 P95，避免低估急迫性
 3. 使用者驗收間隔通常是 wall-clock 的主要變數（本輪 EXP-BUILDER26-001 wall-clock 60 分鐘 = Worker 34min + 驗收 26min）
 
-**候選晉升**：🌐 **candidate: global**（估時原則跨專案通用）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP024）
 
 ---
 
@@ -1321,7 +1321,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **正面驗證**（2026-04-18 本輪）：
 - T0163 + EXP-BUILDER26-001 均在外部終端執行，零 EBUSY 問題
 
-**候選晉升**：🌐 **candidate: global**（D051 實戰驗證升 reliable，跨所有 Electron-based IDE 專案通用）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/tech-gotchas.md` TG011，🟢 reliable）
 
 ---
 
@@ -1348,7 +1348,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 - EXP-BUILDER26-001 採用 Step 5.4 使用者手動驗收的設計，CONCLUDED 前等使用者實機測試通過
 - PLAN-016 Phase 2 最終 D051 閉環靠使用者手動 installer + app smoke test
 
-**候選晉升**：🌐 **candidate: global**（軟體工程通用原則）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP025）
 
 ---
 
@@ -1391,7 +1391,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 
 **正面驗證**（T0162）：Phase 1 預估「升 vite 8 需研究 plugin beta」，Phase 2 證偽「plugin stable 已支援 vite 7/8」，直接跳過 beta 風險。
 
-**候選晉升**：🌐 **candidate: global**（研究工單分階段原則）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP026）
 
 ---
 
@@ -1419,7 +1419,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 2. Worker 每完成一個 Step 就該回填一小段紀錄（不要憋到 Step 9 才一次填）
 3. 續接 Worker 先掃描「執行紀錄」判斷中斷點，再從下一個 Step 接手
 
-**候選晉升**：🌐 **candidate: global**（工單/任務系統通用模式）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP027）
 
 ---
 
@@ -1464,7 +1464,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 - EXP-ELECTRON41-001（Electron 28→41，三條件全中）：27 分鐘 CONCLUDED，主線零污染
 - EXP-BUILDER26-001（electron-builder 24→26，三條件全中）：34 分鐘 CONCLUDED，失敗成本 = `git worktree remove`
 
-**候選晉升**：🌐 **candidate: global**（多專案通用的風險對沖策略）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP028）
 
 ---
 
@@ -1532,7 +1532,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 - 單一「預估 4-6h」欄位混淆兩者 → 使用者看到會誤以為 Worker 會花 4-6h
 - 實際 Worker 30 分鐘就完成，剩 3-5h 是使用者驗收間隔的期望值
 
-**候選晉升**：🌐 **candidate: global**（任務估時通用原則，不限 AI Worker）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP029）
 
 ---
 
@@ -1556,7 +1556,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 - 遇 error → 降級到未報 error 的版本（技術債疊加）
 - 遇 error → rollback 整個升級
 
-**候選晉升**：🌐 **candidate: global**（升級工作通用原則）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP030）
 
 ---
 
@@ -1610,7 +1610,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 - 單條升級（直接跑，不需「日」規模）
 - 無連續作業窗口（分次做即可）
 
-**候選晉升**：🌐 **candidate: global**（多專案通用的 sprint 組織模式）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP031）
 
 ---
 
@@ -1633,7 +1633,7 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 2. 驗證來源引用具體工單或 commit hash（如本次 PLAN-016 引用 D051 + EXP-BUILDER26-001 Step 5.4）
 3. 6 條以內為佳，過多會稀釋每條的權重
 
-**候選晉升**：🌐 **candidate: global**（專案管理通用原則）
+**候選晉升**：✅ **promoted to global 2026-04-18**（→ `~/.claude/control-tower-data/learnings/patterns.md` GP032）
 
 ---
 
