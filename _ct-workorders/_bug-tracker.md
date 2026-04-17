@@ -1,9 +1,9 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-17 15:15 (UTC+8)
+> 最後更新：2026-04-17 16:20 (UTC+8)
 >
-> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 1 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 4**
+> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 2 | 🧪 Verify: 1 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 5**
 >
 > 📦 已歸檔：29 張（_archive/bugs/）
 
@@ -19,7 +19,10 @@
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-034 | Quit Dialog checkbox 勾選後 Terminal Server 未結束（托盤 + File 皆中） | 🟡 Medium | 2026-04-17 16:20 | [BUG-034](BUG-034-checkbox-terminal-server-leak.md) |
 | BUG-031 | 外部 PTY 被分配到錯的 workspace（非 active） | 🟡 Medium | 2026-04-17 03:02 | [BUG-031](BUG-031-external-terminal-ui-not-synced.md) |
+
+> BUG-034：T0149 commit `cd460d2`，方案 C 實作完成（SIGTERM → TCP shutdown → pidfile wait → taskkill/SIGKILL）+ tcpSocket leak 修復 + 誤報 log 移除；等 T0145 情境 8 打包驗收 → CLOSED
 
 > ⏳ 待 rebuild + 重裝 BAT 後做 runtime 驗證 → CLOSED
 
