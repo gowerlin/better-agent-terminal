@@ -8,6 +8,8 @@
 - **優先級**：🟢 Low（技術債清除，無阻塞）
 - **派發時間**：2026-04-18 04:25 (UTC+8)
 - **開始時間**：2026-04-18 04:36 (UTC+8)
+- **Worker 完成時間**：2026-04-18 04:59 (UTC+8)
+- **Worker 結論**：✅ 所有 Worker 可做項目通過（Step 1–8、5.5）；僅 Step 5.4（使用者手動安裝 smoke test）待驗收，建議塔台標示 **CONCLUDED-PENDING-5.4**
 - **TOPIC**：BUILDER26（electron-builder 升級）
 - **關聯 PLAN**：PLAN-005（Electron Builder 升級）、PLAN-003（Group A — 9 個 electron-builder 鏈漏洞）
 - **關聯決策**：D054（PLAN-005 採 EXP worktree 模式，Windows 完整驗收 + 跨平台 YAML dry-run）
@@ -489,9 +491,11 @@ Primary commit：`f79f735`
   - `CLAUDE.md`（Build Toolchain 段加 migration notes）
   - `_ct-workorders/EXP-BUILDER26-001-*.md`（本工單回報區）
 
-Backfill commit：`<pending — 本節填入後隨即 commit>`
+Backfill commit：`d146c9a`
+- 訊息：`chore(ct): EXP-BUILDER26-001 backfill primary commit hash (f79f735)`
+- 變更：1 file（工單 Commit hash 欄位回填）
 
-分支：`exp/builder26`（本地，未 push；依工單 Step 9 走 CONCLUDED 路徑由塔台決定 PR/merge）
+分支：`exp/builder26`（本地 2 commits，未 push；依工單 Step 9 走 CONCLUDED 路徑由塔台決定 PR/merge）
 
 ---
 
