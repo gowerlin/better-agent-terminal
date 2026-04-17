@@ -1,15 +1,19 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-17 16:20 (UTC+8)
+> 最後更新：2026-04-17 16:49 (UTC+8)
 >
-> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 2 | 🧪 Verify: 1 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 5**
+> 統計:🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 2 | 🧪 Verify: 1 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 6**
 >
 > 📦 已歸檔：29 張（_archive/bugs/）
 
 ## 🔴 Open / 處理中
 
-（目前無 Open bug）
+| ID | 標題 | 嚴重度 | 建立時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-035 | PtyManager watchdog 在 shutdown 期間誤觸發 re-fork，產生孤兒 terminal-server | 🟡 Medium | 2026-04-17 16:49 | [BUG-035](BUG-035-watchdog-refork-during-shutdown.md) |
+
+> BUG-035：T0149 修 BUG-034 early-return 後才顯現化的 pre-existing race（watchdog 把 graceful TCP close 誤判為 crash）；T0150 修復工單已派發（加 `beginShutdown()` + guard，無需研究）
 
 ## ⏳ 修復中 (FIXING)
 
