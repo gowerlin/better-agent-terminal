@@ -32,6 +32,13 @@
 - 13 configurable items with custom colors, zone alignment, and template-based config.
 - Usage polling: Chrome session key (primary, lenient rate limits) → OAuth fallback (strict rate limits).
 
+## Claude Agent SDK / CLI
+
+- `@anthropic-ai/claude-agent-sdk` `^0.2.111`、`@anthropic-ai/claude-code` `^2.1.111`（2026-04-18 T0165 C1.1 升級，原 `^0.2.104` / `^2.1.97`；npm 實際安裝 `0.2.113` / `2.1.113`）。此版本提供 **Opus 4.7 model 支援**與 **`xhigh` effort level**。
+- `BAT_BUILTIN_MODELS`（`electron/claude-agent-manager.ts`）已前插 `claude-opus-4-7` / `claude-opus-4-7[1m]`；`MODEL_PRICING` 以 `opus-4-7: P(5, 25)` 與 Opus 4.6 同級。
+- `EFFORT_LEVELS = ['low','medium','high','max','xhigh']` + `EffortLevel` type 集中宣告於 `src/types/index.ts`。新增 effort 成員時只改 const，其他檔案自動套用。
+- Settings 的 effort dropdown 現包含完整 5 級，`max` 標示「(Opus only)」（Sonnet/Haiku 不支援）；`xhigh` 需 CLI `>= 2.1.111` 才可用。
+
 ## Electron Runtime
 
 - 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。

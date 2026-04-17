@@ -3,10 +3,10 @@
     "name": "better-agent-terminal",
     "author": "TonyQ",
     "repo": "https://github.com/tony1223/better-agent-terminal",
-    "version": "2.1.42-pre.2",
-    "lastSyncCommit": "8d23e6e7632d665383d965ca6fb5bc08b7dbb6d8",
-    "lastSyncDate": "2026-04-16",
-    "syncNote": "PLAN-010: 188 commits 分析完成。Phase 1 cherry-pick 4/21（大多數已存在）。Phase 2 移植 Cache History UI + /abort。Phase 3-4 skip（全部已有或架構衝突）。"
+    "version": "2.1.45",
+    "lastSyncCommit": "0bc3bc1dc1fd7f1724069284a46a3ccb486380d5",
+    "lastSyncDate": "2026-04-18",
+    "syncNote": "T0165 Phase 1: C1.1 Opus 4.7 + SDK/CLI 2.1.111 + EFFORT_LEVELS + xhigh（357b868/9c3daf8 合併套）+ C1.2 remote workspace:load + profile:list-local（0bc3bc1/PR #88）。PLAN-018 Phase 2（remote 資安加固 3a0af80/5d9f486）獨立排程。Phase 3 skip 4 包理由見 _report-upstream-sync-v2.1.42-plus.md。"
   },
   "fork": {
     "author": "Gower",

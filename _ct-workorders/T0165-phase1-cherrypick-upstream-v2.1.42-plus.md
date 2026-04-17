@@ -118,19 +118,69 @@
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-（DONE / FAILED / BLOCKED / PARTIAL）
+**PARTIAL** — 所有程式碼變更已完成並 commit，build 通過；但步驟 ③ / ⑨ 的 **runtime smoke test 需使用者重啟 BAT 驗證**（sub-session 無法執行 GUI 操作）。若 smoke test 通過，Tower 可直接將本單改為 **DONE**；若發現 regression，Worker 準備好回退指引（見下方「遭遇問題」）。
 
 ### 產出摘要
-（列出 commit SHA、修改的檔案、關鍵變更）
+
+**commit 列表**（全部於 `main` 分支，未 push）：
+1. `47bce0c` — `docs(ct): plan T0165 Phase 1 + PLAN-018 Phase 2, record D058`（CT bookkeeping，prep commit）
+2. `84c2930` — `feat(models): add Opus 4.7 + SDK/CLI 2.1.111 + EFFORT_LEVELS + xhigh`（**C1.1**）
+3. `59a26f8` — `fix(remote): make workspace:load + window identity work when connected to remote host (#88)`（**C1.2**，純 cherry-pick upstream `0bc3bc1`，作者保留 `lmanchu`）
+4. （wrap-up commit，見步驟執行最後）
+
+**C1.1 檔案變更**（8 檔，+275/-48）：
+- `package.json` / `package-lock.json` — SDK `^0.2.104 → ^0.2.111`、CLI `^2.1.97 → ^2.1.111`（npm 實裝 `0.2.113` / `2.1.113`）
+- `src/types/index.ts` — 新增 `EFFORT_LEVELS` const + `EffortLevel` type（放於 `FontType` 附近）；`defaultEffort` 改用 `EffortLevel`
+- `src/stores/settings-store.ts` — import `EffortLevel`，`setDefaultEffort` 型別換用
+- `src/components/SettingsPanel.tsx` — import `EFFORT_LEVELS` + `EffortLevel`；select 改 `EFFORT_LEVELS.map()`，`max` 加「(Opus only)」標記（原僅 low/medium/high，升級後含 max + xhigh）
+- `src/components/ClaudeAgentPanel.tsx` — import 同上；effort select 改 map；`effectiveEffort as EffortLevel`；`MODEL_PRICING` 加 `opus-4-7: P(5, 25)`；`getModelPricing` 加 `opus-4-7` 前置 if
+- `electron/main.ts` — `claude:set-effort` handler cast 改 `import('../src/types').EffortLevel`
+- `electron/claude-agent-manager.ts` — import `EffortLevel`；`BAT_BUILTIN_MODELS` 首插 `claude-opus-4-7` / `claude-opus-4-7[1m]`；`SessionInstance.effort`、`startSession`、`setEffort` 型別全換
+
+**C1.2 檔案變更**（3 檔，+36/-3，upstream 直接 cherry-pick，auto-merge 乾淨）：
+- `electron/main.ts` — 新增 `profile:list-local` IPC handler + `ALWAYS_LOCAL_CHANNELS = Set(['workspace:save','workspace:load'])`，`bindProxiedHandlersToIpc` 加繞過 remote proxy 判斷
+- `electron/preload.ts` — `profile.listLocal()` API 曝光
+- `src/App.tsx` — profile 解析失敗時 fallback 呼叫 `listLocal()`，解決 remote 連線時 window title / remote.connect 分支錯亂
+
+**關鍵執行順序遵守**：SDK/CLI 升級（①②）→ 啟動驗證（③，僅 build）→ 型別系統（④⑤）→ model + pricing（⑥⑦）→ build（⑧）→ commit。Opus 4.7 builtin model 僅在 SDK/CLI 升級後才加入，避免 `model-not-supported` error。
+
+**`version.json` 已更新**：
+- `lastSyncCommit` `8d23e6e...` → `0bc3bc1...`
+- `lastSyncDate` `2026-04-16` → `2026-04-18`
+- `version` `2.1.42-pre.2` → `2.1.45`（對齊實際同步到的 upstream 最新 release tag）
+- `syncNote` 改寫為 T0165 Phase 1 + PLAN-018 Phase 2 獨立 + Phase 3 skip 記錄
+
+**`CLAUDE.md` 已更新**：新增「Claude Agent SDK / CLI」小節，說明 SDK `^0.2.111` / CLI `^2.1.111` 升級、Opus 4.7 builtin、`EFFORT_LEVELS` 集中宣告、`xhigh` 需 CLI >= 2.1.111、settings `max` 的 Opus only 標記。
+
+**build 狀態**：`npx vite build` 在 C1.1 完成後、C1.2 完成後皆全綠（vite 7.3.2，dist + dist-electron 全產出，僅有 bundle size warning，非 error）。
 
 ### 互動紀錄
-（記錄執行過程中與使用者的重要互動）
+無 — 本 sub-session 全程無需向使用者提問，研究報告 `_report-upstream-sync-v2.1.42-plus.md` §4 Phase 1 已提供完整執行計畫（含步驟順序），依計畫直推。
 
 ### 遭遇問題
-（若有問題或需要指揮塔介入的事項，在此描述）
+
+1. **fork 既有 `tsc --noEmit` errors 不相關**：執行 `tsc --noEmit` 發現約 20 個 TS 錯誤（ThumbnailBar、UpdateNotification、WorkspaceView、main.tsx 等），但這些全數存在於 fork 升級前，與本輪 effort level / SDK 變更**無關**。fork 的正式 build 流程是 `npx vite build`（不跑 tsc strict），此流程全綠可通過。建議：Tower 評估是否開單清理既有 TS 債（非本輪範圍）。
+
+2. **Runtime smoke test 尚未執行（本單狀態設為 PARTIAL 的唯一原因）**：
+   - **步驟 ③ 未驗證**：SDK/CLI 升到 `2.1.113` 後，既有 Opus 4.6 / Sonnet 4.6 session 是否仍正常（無 model-not-supported、無 API signature 破壞）
+   - **步驟 ⑨ 未驗證**：切到 `claude-opus-4-7` 能否發訊息、effort 切到 `xhigh` 是否被 CLI 接受
+   - **建議驗證步驟**（請使用者於 BAT 內跑）：
+     1. 關閉 BAT 並重啟（確保載入新的 `node_modules/@anthropic-ai/claude-agent-sdk@0.2.113`）
+     2. 開啟任一既有 Claude Agent session（Opus 4.6），發一則訊息 → 應正常回應
+     3. 切到 `claude-opus-4-7` 或 `claude-opus-4-7[1m]`，開新 session 發訊息 → 應正常
+     4. 切 effort 到 `xhigh` → 應可選且 CLI 不報錯
+   - **若 smoke test 通過**：Tower 直接把本單改為 DONE，不需再動程式碼
+   - **若發現 regression**：快速回退方式 — `git revert 84c2930 59a26f8`（保留 CT bookkeeping），或只 revert 84c2930（保留 C1.2 remote fix）後重新執行 `npm install` 降級 SDK/CLI。此情況請 Tower 開衍生工單調查根因。
+
+3. **SDK 實裝版本比宣告高**：`package.json` 宣告 `^0.2.111` / `^2.1.111` 但 npm 實裝 `0.2.113` / `2.1.113`（semver `^` 允許）。理論上 upstream `9c3daf8` 鎖的是 `0.2.111`，但 upstream 本身已讓 fork-side 去 resolve semver 範圍。**不是問題**，僅記錄觀察。
+
+4. **npm audit warning（3 high severity）**：`npm install` 報告存在，但不屬本輪升級引入（原本就在），PLAN-003 Group C 已規劃處理。
 
 ### sprint-status.yaml 已更新
-（是 / 否 / 不適用）
+**不適用** — 專案根目錄與 `_bmad-output/`、`docs/` 均無 `sprint-status.yaml`。
 
 ### 回報時間
-（填入當前時間）
+2026-04-18 07:32 (UTC+8)
+
+### Renew 歷程
+無
