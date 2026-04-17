@@ -1,15 +1,19 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-17 17:12 (UTC+8)
+> 最後更新：2026-04-17 17:22 (UTC+8)
 >
-> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 6**
+> 統計:🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 7**
 >
 > 📦 已歸檔：29 張（_archive/bugs/）
 
 ## 🔴 Open / 處理中
 
-（目前無 Open bug）
+| ID | 標題 | 嚴重度 | 建立時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-036 | CT Panel Backlog 列表對 DONE 狀態的 PLAN 顯示 Unknown（而非 Done） | 🟢 Low | 2026-04-17 17:22 | [BUG-036](BUG-036-backlog-ui-unknown-status-for-done-plan.md) |
+
+> BUG-036：D044 PLAN-012 結案後發現 UI parser 未識別 DONE 狀態；T0151 修復工單已派發（Worker 自行定位 parser）
 
 ## ⏳ 修復中 (FIXING)
 
