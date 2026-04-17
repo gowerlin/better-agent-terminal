@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-17 14:22 (UTC+8)（🛏 使用者退出前快照 — T0144 DONE，等換版後派 T0145）
+> 最後更新：2026-04-17 15:15 (UTC+8)（🎯 T0147 DONE — BUG-033 → VERIFY，等 T0145 打包驗收合併覆蓋）
 
 ---
 
@@ -49,22 +49,30 @@ chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
 ---
 
 ## 🌅 起手式（Quick Recovery）
-> 最後更新：2026-04-17 14:22 UTC+8
+> 最後更新：2026-04-17 14:38 UTC+8
+
+### 🔴 BUG-033 發現（2026-04-17 14:35）— PLAN-012 T0144 regression
+**現象**：使用者 rebuild + 重裝新版 BAT 實測 → **從系統托盤 Quit 時完全沒出現 Dialog**，直接退出，Terminal Server 殘留背景（使用者 Q1.A / Q2.D 確認）。
+**影響**：T0145 驗收無法進行（Dialog 是所有情境前提），PLAN-012 設計失效，且破壞原版 Quit 行為（regression）。
+**行動**：BUG-033 OPEN + T0146 研究工單已派發（允許 Worker 加 trace log 請使用者重測）。
 
 ### 🟢 BUG-032 已 CLOSED（2026-04-17 13:58）
 T0143 Task B 全綠：`BAT_HELPER_DIR` 正確、helper 可執行、notify exit 0、UUID 路由無 cwd first-match 誤判。Helper packaging + path resolution 修復鏈（T0139/T0140/T0141）驗收通過。
 
-### 🔴 當前焦點：PLAN-012 — Quit Dialog + Terminal Server CheckBox
-T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 checkboxLabel），main.ts +~50 行 + i18n 6 行，零 React 改動。拆 2 張工單：T0144 實作 + T0145 驗收。
+### 🔴 當前焦點：BUG-033 → T0146 研究 → 修復 → T0145 驗收 → PLAN-012 DONE
+T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 checkboxLabel）。T0144 實作完成（commit 412d52c）但使用者實測托盤路徑 Dialog 未觸發。
 
 ### 立即待辦（按順序）
 1. ~~派發 T0144 實作工單~~ ✅ DONE（commit 412d52c，12 分鐘）
-2. **塔台 meta commit**（9 檔：BUG-032 CLOSED / PLAN-012 翻盤 / T0142 DONE / T0143 DONE / T0144 DONE / 2 張新工單 + 索引）
-3. **使用者 rebuild + 重裝 → 派 T0145 驗收**（注意：重裝 BAT = 重啟此塔台 session）
-4. **T0145 7 情境全綠 → PLAN-012 DONE**（納入 next release）
-5. BUG-031 runtime 驗證（🟡 Medium，FIXED → CLOSED）— 低優先，可順便
-6. T0135 PARTIAL（6.2 `--help` 未實作）— 獨立處理
-7. Backlog 剩餘 PLAN 待排優先級（PLAN-001~007）
+2. ~~塔台 meta commit~~ ✅ DONE（commit 11ab113 by 使用者）
+3. ~~派 T0146 研究工單~~ ✅ DONE（14:49-14:55，6 分鐘）— 根因 100% 確定
+4. ~~派 T0147 修復工單~~ ✅ DONE（commit `ef867a2`，15:14）— dev serve 四路徑全通
+5. **塔台 meta commit**（T0146/T0147/BUG-033/_tower-state/_bug-tracker）
+6. `npm run build:win` + 重裝 → 派 T0145 驗收（PLAN-012 六情境 + BUG-033 四路徑打包覆蓋）
+7. T0145 全綠 → PLAN-012 DONE + BUG-033 CLOSED（併入 next release）
+8. BUG-031 runtime 驗證（🟡 Medium，FIXED → CLOSED）— 低優先
+9. T0135 PARTIAL（6.2 `--help` 未實作）— 獨立處理
+10. Backlog 剩餘 PLAN 待排優先級（PLAN-001~007）
 
 ### 本 session 決策
 - **D032**：BUG-032 拆單方案 [A]（一張統籌 BUG + 一張研究 + N 張修復）；`_local-rules.md` 暫不動 [A]（避免破壞 baseline，等 BUG-032 整體方案敲定一起改）
@@ -74,16 +82,21 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 - **D035**（2026-04-17 13:58）：PLAN-012 UI 路線定調 — 採 **Electron 原生 `dialog.showMessageBox`**（內建 checkboxLabel），放棄 Custom React Modal；main.ts +~50 行 + i18n 6 行，零 React 改動，零 IPC 擴充
 - **D036**（2026-04-17 13:58）：**BUG-032 → CLOSED** — T0143 Task B B1/B3/B4/B5 全綠（BAT_HELPER_DIR 正確、helper 可執行、notify exit 0、UUID 路由無 cwd 誤判），BUG-032 原範圍（helper packaging + path resolution）完全驗收通過；**版本更新檔案鎖定**問題屬 PLAN-012 範圍，獨立追蹤不混為一談
 - **D037**（2026-04-17 14:00）：PLAN-012 拆單定案 — 採 T0143 Worker 推薦方案 B（2 張）：**T0144 實作**（`before-quit` 原生 Dialog + CheckBox + SIGTERM+timeout fallback + i18n，~60-80 行）+ **T0145 驗收**（6 情境 + 版本更新安裝場景）；T0142 合併完成後狀態改 ✅ DONE
+- **D038**（2026-04-17 14:35）：**BUG-033 建立 + T0146 派發** — 使用者實測 rebuild + 重裝後托盤 Quit 無 Dialog 直接退出（Q1.A/Q2.D 確認），Terminal Server 殘留；屬 T0144 regression。策略：開研究工單（非直接修復）— 根因不明（可能 Tray handler bypass `before-quit` / Dialog async race / packaging 未涵蓋 / i18n init 失敗）；研究允許 Worker 加 trace log 請使用者重測（使用者已主動授權）。不直接派修復因為風險：盲修可能再 regression，也無從驗證其他 Quit 路徑（File/Ctrl+Q/視窗X）是否同病
+- **D039**（2026-04-17 14:58）：**T0146 結論採方案 A + 派發 T0147** — Worker 靜態分析 + log 交叉驗證 100% 確定根因（電子證據鏈：main.ts:540-546 Tray handler / main.ts:1334-1339 before-quit 守護條件 / log 完全無 `[quit]` prefix），未使用 trace log。**性質確認**：pre-existing bug，非 T0144 引入（Tray handler 的 `isAppQuitting = true` 在 commit `d09c45e` 就存在），但 T0144 才顯現化（T0144 前沒 Dialog 感知不到）。採方案 A（刪除 1 行）而非 B（改守護條件，跨路徑驗證面積大）或 C（重構 ~80 行 overkill）。雖僅 1 行改動仍派工單而非塔台自主 commit — 理由：屬邏輯變更 + regression 修復 + 需 4 路徑冒煙測試，超出 `auto_commit` 小變動範圍
 
 ### 本 session 新增工單
 | ID | 標題 | 狀態 |
 |----|------|------|
-| BUG-032 | Helper scripts 打包與路徑解析設計缺漏 | 🔴 OPEN |
-| T0138 | 研究：BAT Helper Scripts 打包與路徑解析設計 | 📋 TODO |
-| PLAN-012 | Quit Dialog 新增「一併結束 Terminal Server」CheckBox | 📋 PLANNED |
+| BUG-032 | Helper scripts 打包與路徑解析設計缺漏 | 🚫 CLOSED |
+| T0138 | 研究：BAT Helper Scripts 打包與路徑解析設計 | ✅ DONE |
+| PLAN-012 | Quit Dialog 新增「一併結束 Terminal Server」CheckBox | 🔄 IN_PROGRESS |
 | T0143 | 研究：Quit Dialog + Terminal Server 現狀（PLAN-012 起手 + T0142 驗收內嵌） | ✅ DONE (commit 215e8757) |
-| T0144 | PLAN-012 實作：Quit Dialog + CheckBox（原生 dialog + SIGTERM fallback + i18n） | ✅ DONE (commit 412d52c, 12 min) |
-| T0145 | PLAN-012 驗收：6 情境 + 版本更新安裝場景 | 📋 TODO |
+| T0144 | PLAN-012 實作：Quit Dialog + CheckBox（原生 dialog + SIGTERM fallback + i18n） | ⚠️ DONE but regression 顯現化（commit 412d52c） |
+| T0145 | PLAN-012 驗收：6 情境 + 版本更新安裝場景 + BUG-033 四路徑打包覆蓋 | 📋 READY（等 build:win） |
+| BUG-033 | 托盤 Quit 無 Dialog 直接退出，Terminal Server 殘留背景 | 🔍 VERIFY（dev serve 四路徑通過，等打包驗收） |
+| T0146 | 研究：托盤 Quit 為何 bypass Dialog（BUG-033 根因調查） | ✅ DONE（推薦方案 A） |
+| T0147 | 修復：刪除 Tray handler 的 `isAppQuitting = true`（方案 A，1 行） | ✅ DONE（commit `ef867a2`） |
 
 ### 本 session 新增工單（2026-04-17 02:00-03:05）
 | ID | 標題 | 狀態 | Commit |
@@ -154,11 +167,11 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0145 |
-| **BUG 最大編號** | BUG-029 |
+| **工單最大編號** | T0147 |
+| **BUG 最大編號** | BUG-033 |
 | **PLAN 最大編號** | PLAN-012 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D037 |
+| **決策最大編號** | D039 |
 | **塔台版本** | Control Tower v4.0 |
 
 ---

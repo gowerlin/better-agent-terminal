@@ -6,10 +6,10 @@
 - **類型**：**research**（研究工單，允許 Worker 與使用者互動）
 - **互動模式**：enabled
 - **Renew 次數**：0
-- **狀態**：🔄 IN_PROGRESS
+- **狀態**：✅ DONE
 - **建立時間**：2026-04-17 14:35 (UTC+8)
 - **開始時間**:2026-04-17 14:49 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-17 14:55 (UTC+8)
 - **優先級**：🔴 High（阻擋 PLAN-012 驗收 + next release）
 - **關聯 BUG**：BUG-033（托盤 Quit 無 Dialog）
 - **關聯 PLAN**：PLAN-012（Quit Dialog + Terminal Server CheckBox）
@@ -238,3 +238,6 @@ DONE
 
 ### 回報時間
 2026-04-17 14:55 (UTC+8)
+
+### Commit
+4bc8d26

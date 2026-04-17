@@ -1,9 +1,9 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-17 14:05 (UTC+8)
+> 最後更新：2026-04-17 15:15 (UTC+8)
 >
-> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 0 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 3**
+> 統計:🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 1 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 4**
 >
 > 📦 已歸檔：29 張（_archive/bugs/）
 
@@ -25,7 +25,11 @@
 
 ## 🧪 驗收中 (VERIFY)
 
-（目前無 VERIFY bug）
+| ID | 標題 | 嚴重度 | 驗證時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-033 | 托盤 Quit 無 Dialog 直接退出，Terminal Server 殘留背景 | 🔴 High | 2026-04-17 15:14 | [BUG-033](BUG-033-tray-quit-no-dialog-server-leak.md) |
+
+> BUG-033：T0147 修復完成（commit `ef867a2`），dev serve 四路徑已通過；等 T0145 打包驗收覆蓋後 → CLOSED
 
 ## 🚫 已關閉 (CLOSED)
 
