@@ -3,12 +3,13 @@
 ## 元資料
 - **工單編號**:T0154
 - **任務名稱**:Spike:Git GUI 假設 1/2 實測驗證(取代 T0153 的估算)
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **類型**:research(Spike — 允許實作代碼做實測)
 - **互動模式**:disabled(延續 Q3.A)
 - **Renew 次數**:0
 - **建立時間**:2026-04-17 22:40 (UTC+8)
 - **開始時間**:2026-04-17 22:44 (UTC+8)
+- **完成時間**:2026-04-17 23:03 (UTC+8)
 - **關聯 PLAN**:PLAN-014
 - **前置工單**:
   - T0152(Phase 1 紙上調研,commit `ef29bb2`)
@@ -306,7 +307,12 @@ npx vite --config vite.config.benchmark.ts              # Browser FPS benchmark 
 ```
 
 ### Commit(s)
-(commit hash 於收尾 commit 後填入)
+- `7844e89` — poc(git-gui): T0154 empirical measurement (T0154)
+  - 新增 `src/components/git-poc/benchmark/*` (9 個 TS/TSX + HTML + 2 截圖)
+  - 新增 `vite.config.benchmark.ts`
+  - 新增 `_ct-workorders/_report-git-gui-phase2-measurement.md`
+  - 新增 `_ct-workorders/PLAN-014-...md`、更新 `_backlog.md`
+  - 更新 `.gitignore`(trace JSON 太大)
 
 ### 回報時間
 2026-04-17 23:03 (UTC+8)
