@@ -4,8 +4,9 @@
 - **工單編號**：T0151
 - **任務名稱**：定位 CT panel Backlog tab 的列表 parser，修復 DONE 狀態的 PLAN 顯示為 Unknown 的問題
 - **類型**：fix（Worker 自行定位 parser，無需獨立研究工單）
-- **狀態**：📋 READY
+- **狀態**：🔄 IN_PROGRESS
 - **建立時間**：2026-04-17 17:22 (UTC+8)
+- **開始時間**：2026-04-17 17:25 (UTC+8)
 - **優先級**：🟢 Low（純 UI 顯示，不影響功能；可排低優先 backlog）
 - **關聯 BUG**：BUG-036（CT panel Backlog UI parser 缺 DONE 映射）
 - **預估難度**：⭐⭐（Worker 需先 grep 找 parser，修改面可能很小但 locality 要先定位）
@@ -145,6 +146,66 @@ Closes BUG-036
 
 ## 回報區
 
-> Worker 請在此填寫：定位結果（檔案 / 函式 / 現狀邏輯）、修復策略選擇、commit SHA、dev serve 冒煙結果、遭遇問題、完成時間。
+### 完成狀態
+✅ FIXED（修復已完成，等待驗收）
 
-<!-- Worker 回報內容 -->
+### 開始 / 完成時間
+- 開始：2026-04-17 17:25 (UTC+8)
+- 完成：2026-04-17 17:28 (UTC+8)
+
+### 定位結果
+- **Parser 檔案**：`src/types/backlog.ts`
+- **關鍵函式**：`sectionToStatus(heading)`（line 53-60）
+- **UI 元件**：`src/components/BacklogView.tsx`（直接呼叫 `planStatusLabel(entry.status)`，無自定 mapping）
+
+### 根因
+`_backlog.md` 的 Completed 區段 heading 為 **`Completed`**，但 `sectionToStatus` 只匹配 `DONE` / `已完成`，沒有匹配 `COMPLETED`：
+
+```typescript
+// 修改前
+if (h.includes('DONE') || h.includes('已完成')) return 'DONE'
+// 'COMPLETED' 不含 'DONE' → fallback 走到 'IDEA'
+```
+
+複合條件造成顯示異常：
+1. Section heading `Completed` → uppercase `COMPLETED` → 三條件全 false → fallback `'IDEA'`
+2. Completed 表 schema 為 `| ID | 標題 | 完成時間 | 連結 |`，**無「狀態」欄位** → `rowStatusToStatus` 無法 override
+3. 結果 PLAN-012 status 解析為 `'IDEA'`（不是 'DONE'）
+
+### 修復策略
+**策略 A 變體**：擴充 `sectionToStatus` 識別 `COMPLETED` heading（最小修改、低風險）。
+
+### 修改內容
+**`src/types/backlog.ts:55`**：
+```diff
+- if (h.includes('DONE') || h.includes('已完成')) return 'DONE'
++ if (h.includes('DONE') || h.includes('COMPLETED') || h.includes('已完成')) return 'DONE'
+```
+
+### 邏輯驗證（替代 dev serve 互動測試）
+- ✓ `npx vite build` 成功，無 TypeScript 錯誤
+- ✓ 路徑追蹤：`'Completed'` → `sectionToStatus` → `'DONE'` → `planStatusLabel` → `'✅ Done'`
+- ✓ Regression 檢查：
+  - Active section（`ACTIVE` 不匹配，但有 row-level「狀態」欄位 override）→ 維持原行為
+  - Dropped section（`DROPPED` 已匹配）→ 維持原行為
+  - 已歸檔 PLAN（不在 `_backlog.md` 中）→ 不影響
+- ✓ doneCount 統計：`entries.filter(e => e.status === 'DONE')` 將正確計入 PLAN-012
+
+### 已知 side-effect（不在工單範圍）
+PLAN-012 的 **priority** 仍為 `'Unknown'`，原因：Completed 表無「優先級」欄位，`extractPriority('')` fallback 為 `'Unknown'`。
+此問題會在 row header 顯示一個 `Unknown` priority badge。
+- 工單範圍嚴格限定 status，本次未處理
+- 若塔台希望一併修，可開新工單考慮：(a) BacklogView 對 `priority='Unknown'` 顯示 `'—'`；(b) parser 從 PLAN 檔案讀取真實 priority（需非同步 IO）
+
+### 互動紀錄
+無
+
+### 遭遇問題
+無
+
+### Renew 歷程
+無
+
+### Commit
+- SHA：見下方收尾步驟（commit 後填入）
+- 訊息：`fix: recognize "Completed" section heading in CT panel backlog parser (BUG-036)`

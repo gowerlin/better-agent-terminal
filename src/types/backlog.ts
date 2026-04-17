@@ -52,7 +52,7 @@ function extractPriority(cell: string): PlanPriority {
 
 function sectionToStatus(heading: string): PlanStatus {
   const h = heading.toUpperCase()
-  if (h.includes('DONE') || h.includes('已完成')) return 'DONE'
+  if (h.includes('DONE') || h.includes('COMPLETED') || h.includes('已完成')) return 'DONE'
   if (h.includes('DROPPED') || h.includes('已放棄')) return 'DROPPED'
   if (h.includes('IN_PROGRESS') || h.includes('進行中')) return 'IN_PROGRESS'
   if (h.includes('PLANNED') || h.includes('已規劃')) return 'PLANNED'
