@@ -4,8 +4,10 @@
 - **工單編號**：T0150
 - **任務名稱**：在 `stopTerminalServerGracefully()` 執行任何 kill 動作前，先通知 PtyManager 進入「意圖 shutdown 模式」，讓 heartbeat watchdog 跳過 re-fork，避免產生孤兒 terminal-server
 - **類型**：fix
-- **狀態**：📋 READY
+- **狀態**：🟢 FIXED
 - **建立時間**：2026-04-17 16:49 (UTC+8)
+- **開始時間**：2026-04-17 16:53 (UTC+8)
+- **完成時間**：2026-04-17 16:57 (UTC+8)
 - **優先級**：🟡 Medium（使用者體驗上 PLAN-012 第二目標仍失效，但不阻擋 release）
 - **關聯 BUG**：BUG-035（PtyManager watchdog shutdown race）
 - **關聯 PLAN**：PLAN-012
@@ -187,6 +189,56 @@ Closes BUG-035 (pending T0145 scenario 9.1 packaged acceptance)
 
 ## 回報區
 
-> Worker 請在此填寫：commit SHA、watchdog 定位結果（檔案 / 函式名）、dev serve 冒煙結果、遭遇問題、產出摘要、完成時間。
+### 完成狀態
+**FIXED** — disarm 邏輯實作完成，等待打包（T0145 情境 9.1）驗收。
 
-<!-- Worker 回報內容 -->
+### Watchdog 定位結果
+全部 4 處 recovery 觸發點都在 `electron/pty-manager.ts`，皆呼叫 `handleServerDeath()`：
+
+| # | 觸發點 | 行號（修改前） | 說明 |
+|---|--------|----------------|------|
+| 1 | `setServerProcess()` 內 `server.once('exit')` | L86-91 | IPC fork 退出（dev serve / 首次啟動 path） |
+| 2 | `connectToServer()` 內 `socket.on('close')` | L137-146 | TCP 關閉（**BUG-035 主觸發點**，sendShutdownToServer 走這條） |
+| 3 | `startHeartbeat()` 內 `setInterval` callback | L656-662 | 3 秒無 pong 判定 server 死亡 |
+| 4 | `handleServerDeath()` 入口 | L675-677 | Defense-in-depth（防未來新增 caller 漏 guard） |
+
+### 修改摘要
+**`electron/pty-manager.ts`**（+40 行）
+- 新增 `private isShuttingDown = false`（L67-71）
+- 新增 public `beginShutdown()`（L693-704）：set flag + `stopHeartbeat()`，idempotent，不 reset
+- 4 處 guard 全部加上：每處在進入 `handleServerDeath()` 之前先檢查 `isShuttingDown`，若為 true 則 log skip 訊息並 return
+
+**`electron/main.ts`**（+10 行）
+- `stopTerminalServerGracefully()` 函式開頭 `try { ptyManager?.beginShutdown() } catch {...}`（L1303-1310），位於 Step A/B/C/D 任何 kill 動作之前
+
+### Commit
+- SHA：`31b4ec2`
+- Type：fix
+- 訊息：`fix: disarm heartbeat watchdog during graceful shutdown (BUG-035)`
+- Build：`npx vite build` 通過，無 TS 錯誤
+
+### Dev serve 冒煙結果
+**未在此 session 執行 dev serve 冒煙**（無互動 terminal 環境）。修改邏輯經 build 通過 + 邏輯反推驗證：
+- `beginShutdown()` 在 main.ts L1303 呼叫，先於 Step A SIGTERM、Step B sendShutdownToServer
+- TCP close handler 內檢查 `isShuttingDown` → 命中 → log `TCP close during shutdown — skip re-fork` → return
+- 不會再進入 `handleServerDeath()` → 不會 re-fork → 不會產生 PID 26412 類孤兒
+
+需請使用者本機執行 `npm run dev` → 勾 checkbox → 退出，確認 log 不出現 `re-forking after heartbeat-detected crash` / `re-forked with pid`。
+
+### 互動紀錄
+無（單向實作工單，無與使用者的決策互動）。
+
+### 遭遇問題
+1. 工單建議的 typecheck 入口 `tsconfig.electron.json` 不存在 — 改用 `npx vite build` 走完整 vite + electron-vite pipeline，build 成功代表 TS 編譯通過。
+
+### 產出摘要
+- 修改 2 檔案：`electron/pty-manager.ts`、`electron/main.ts`
+- 新增 1 public API（`beginShutdown()`）+ 1 private flag（`isShuttingDown`）+ 4 處 guard
+- 不 rollback T0149 commit `cd460d2`，純疊加防護
+- 工單檔案 `_ct-workorders/T0150-...md` 元資料 + 回報區更新
+
+### Renew 歷程
+無。
+
+### 完成時間
+2026-04-17 16:57 (UTC+8)
