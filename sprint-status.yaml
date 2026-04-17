@@ -4,7 +4,7 @@
 
 project: better-agent-terminal
 version: "1.0.0"
-last_updated: "2026-04-13 23:10"
+last_updated: "2026-04-17 23:51"
 
 # ─────────────────────────────────────────
 # 里程碑概覽
@@ -51,7 +51,7 @@ summary:
   blocked: 0
   active_bugs: 0             # 全清
   backlog_plans: 7           # PLAN-001~009（PLAN-006 DROPPED 不計）
-  next_workorder: "T0119"
+  next_workorder: "T0157"
   next_plan: "PLAN-010"
   next_bug: "BUG-027"
   next_decision: "D031"

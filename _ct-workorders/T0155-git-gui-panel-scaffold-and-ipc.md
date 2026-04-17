@@ -3,11 +3,13 @@
 ## 元資料
 - **工單編號**:T0155
 - **任務名稱**:Phase 3 Tα1 — Git GUI panel 骨架 + simple-git IPC
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **類型**:implementation
 - **互動模式**:disabled
 - **建立時間**:2026-04-17 23:10 (UTC+8)
 - **開始時間**:2026-04-17 23:11 (UTC+8)
+- **完成時間**:2026-04-17 23:32 (UTC+8)
+- **Commit**:881aba2
 - **關聯 PLAN**:PLAN-014(Phase 3 第一張)
 - **前置工單**:T0152 / T0153 / T0154
 - **預計工時**:0.8 人週(Worker 自行判斷,單 sub-session 完成為佳)
@@ -177,7 +179,7 @@ DONE
   - 建議塔台在 Phase 3 roadmap 中明確舊 `GitPanel.tsx` 的去留(見「遭遇問題 1」);Tα5(基礎操作)是統整舊 panel 能力或獨立實作的決策點
 
 ### Commit(s)
-- `<待 commit 後回填>`
+- `881aba2` — feat(git-panel): add Git panel scaffold and simple-git IPC (T0155)
 
 ### 回報時間
 2026-04-17 23:32 (UTC+8)
