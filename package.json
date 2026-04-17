@@ -111,11 +111,12 @@
       "installerHeaderIcon": "assets/icon.ico"
     },
     "mac": {
-      "target": {
-        "target": "dmg",
-        "arch": "universal"
-      },
-      "x64ArchFiles": "**/node_modules/{@anthropic-ai/*/vendor,@img}/**",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
       "icon": "assets/icon-512.png",
       "category": "public.app-category.developer-tools",
       "identity": "TonyQ CO., LTD. (8JVDJGLLYR)",
