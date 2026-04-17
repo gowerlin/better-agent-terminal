@@ -3,7 +3,7 @@
 ## 元資料
 - **工單編號**：T0144
 - **類型**：implementation
-- **狀態**：🔧 IN_PROGRESS
+- **狀態**：✅ DONE
 - **優先級**：🔴 High
 - **派發時間**：2026-04-17 14:00 (UTC+8)
 - **關聯 PLAN**：PLAN-012
@@ -233,12 +233,12 @@ Cancel 路徑、CheckBox 不勾選、CheckBox 勾選三條分支均覆蓋；dial
 - `npm run build` / `npx vite build`：✅ 通過（main.js 152.15 kB、preload 16.11 kB、terminal-server 6.68 kB、renderer bundle ok）
 
 ### Commit hash
-<!-- 由 Worker 在 commit 後填入 -->
+`412d52c` — feat(quit): add confirmation dialog with Terminal Server checkbox (PLAN-012)
 
 ### 執行時間
 - 開始：2026-04-17 14:06 (UTC+8)
-- 結束：<!-- Worker 填 -->
-- 實際耗時：<!-- Worker 填 -->
+- 結束：2026-04-17 14:18 (UTC+8)
+- 實際耗時：約 12 分鐘（預估 30-60 分鐘，低於預估）
 
 ### 移交給 T0145 的驗收要點
 
