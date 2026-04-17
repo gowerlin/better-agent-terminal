@@ -28,10 +28,15 @@
 
 ## L003 - 2026-04-10 — 工單前置條件檔案路徑必須可驗證
 
-**觸發條件**：塔台產生工單時在「前置條件」列出具體檔案路徑
-**問題**:T0001 寫 `electron/electron.d.ts`,實際在 `src/types/electron.d.ts`
-**修正**:關鍵檔案先 Glob 驗證;慣例位置改寫為「可能位於 A/B/C」
-**候選晉升**:Project 層
+**觸發條件**：塔台產生工單時在「前置條件」/「修改範圍」/「使用 util」列出具體檔案路徑
+**問題**:
+- T0001（2026-04-10）寫 `electron/electron.d.ts`,實際在 `src/types/electron.d.ts`
+- T0149（2026-04-17）指示 Worker 用 `src/utils/execFileNoThrow.ts`，但該檔案**不存在於本專案**（塔台把 Claude Code 主 codebase 的 util 誤以為專案內建）
+**修正**:
+- 塔台寫工單引用具體檔案路徑 / util 名稱前，**先執行 Glob 或 Read 驗證存在**
+- 若無法確認，改寫為「慣例位置可能位於 A/B/C」或「Worker 自行 grep 定位」
+- T0149 案 Worker 採等價 pattern 合理化（專案既有 `execFile` + Promise wrapper），塔台事後認可 — 說明 Worker 判斷力可補塔台疏漏，但不應依賴
+**候選晉升**：🌐 **candidate: global**（2026-04-17 T0149 證據升級 — 同一 pattern 跨 7 天再現，value proven）
 
 ---
 
@@ -1056,3 +1061,113 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 
 ### 狀態
 🟢（已驗證：本 session 確實遺漏，加入 CLAUDE.md 後可防止）
+
+---
+
+## L030 - 2026-04-17 — 連環 bug 的 log 時間序毫秒級定位法
+
+**觸發條件**：一次實作 / PR 後出現多個症狀，疑似 regression、edge case、race condition 交織
+**模式**：
+1. 優先讀 log，尋找 **毫秒級時間序**（不只秒級）
+2. 把事件按時間排列，觀察因果先後
+3. 若兩事件間隔 <100ms → 可能是 race / watchdog 誤觸發（不是正常 sequential flow）
+4. 分辨：同一根因 vs 新 bug 的判據 = log 證據鏈是否連貫
+
+**本 session 數據（2026-04-17）**：T0144 一次實作引爆 3 隻 bug，每層都靠 log 時間序秒殺根因：
+- **BUG-033**（Tray bypass Dialog）：對比 Tray click log 與 before-quit trigger log，5 分鐘定位 `isAppQuitting=true` 被手動設
+- **BUG-034**（reconnect early-return）：log `saved profile` → `terminal server stopped` 間隔 1ms（遠低於 SIGTERM → exit 的必要延遲），鐵證 early-return 成立
+- **BUG-035**（watchdog re-fork race）：`.814 TCP closed` → `.814 died — attempting recovery` → `.815 re-forking` → `.833 re-forked pid 26412`，4 行 log 在 20ms 內跑完，race 現場可見
+
+**反面**：若只看 console 秒級 timestamp，看不出 race condition；若只讀 code，猜根因可能耗時數小時
+
+**候選晉升**：🌐 **candidate: global**（Electron、Node.js 後端、任何有結構化 log 的系統都適用）
+
+---
+
+## L031 - 2026-04-17 — BUG 追蹤紀律：已 FIXED 不退回，新症狀開新 BUG
+
+**觸發條件**：FIXED 狀態的 BUG 驗收後發現「症狀還在」/「還是有問題」
+**規則**：
+1. **先看證據**：log / metric 是否證實原根因已修？
+   - ✅ 原根因已修 → **BUG 保持 FIXED**，新症狀開**新 BUG** 追蹤（不同根因）
+   - ❌ 原根因未修 → 退回 FIXING，附失敗說明
+2. 判斷關鍵：原 BUG 的「根因」欄位描述的問題是否仍存在？還是產生了衍生問題？
+
+**本 session 範例（2026-04-17）**：
+- T0149 commit `cd460d2` 修 BUG-034 early-return
+- 打包實測：`via TCP shutdown` log 出現 ✅（原根因已修）但 server 仍殘留 ❌（新症狀）
+- 決策：**BUG-034 保持 FIXED**（證據為 log），開 **BUG-035**（pre-existing watchdog race）
+- 結果：兩 BUG 根因完全不同，各自修法也不同；若強行退回 BUG-034 會汙染追蹤（無法分辨是 `cd460d2` 還是後續修補起作用）
+
+**反面**：假退回 FIXING 會造成
+- 追蹤數據錯亂（修過的 bug 看起來沒修）
+- 原本的 commit 證據被稀釋
+- 後續修補無法歸屬正確的根因
+
+**候選晉升**：🌐 **candidate: global**（所有有 BUG 生命週期管理的專案都適用）
+
+---
+
+## L032 - 2026-04-17 — Skill 模板與 parser 必須雙向對齊
+
+**觸發條件**：Skill 定義了檔案產出模板（如 section headers、表格 schema），同時有 parser 讀取產物
+**問題**：兩端不同步 → 資料正確但顯示錯誤 / 統計對但單項 fallback Unknown
+
+**本 session 範例（BUG-036，2026-04-17）**：
+- Skill 模板 `_backlog.md` 定義 section：`## Completed`
+- Parser `src/types/backlog.ts:55` 的 `sectionToStatus`：只認 `DONE` / `已完成`
+- 結果：PLAN-012 在 Completed section 被 fallback 到 'IDEA' → UI 顯示 Unknown
+- 雙因合力：Completed section schema 也沒「狀態」欄 → `rowStatusToStatus` 無法 override
+
+**規則**：
+1. Skill 模板變更時（如改 section heading 或 table schema）必須 grep 所有 parser 同步
+2. Parser 測試 case 應涵蓋模板的**所有可能產物值**（DONE / Completed / 已完成 都要對應）
+3. Parser 設計優先「寬鬆匹配」+ 明確 fallback log，勝於「嚴格匹配」+ 靜默 fallback
+4. Schema 設計若有「row 狀態」欄位 override，section 仍需有正確 default（雙重保險）
+
+**候選晉升**：🌐 **candidate: global**（修復對所有使用 CT Panel 的專案適用，類似 PLAN-011 upstream PR 模式 — 建議後續評估推回 CT 上游）
+
+---
+
+## L033 - 2026-04-17 — Worker 主動追加 follow-up 的處理紀律
+
+**觸發條件**：Worker 在原工單範圍外發現相關問題並主動修復（scope creep 的正面形式）
+**本 session 範例（T0151，2026-04-17）**：
+- 原工單：修 BUG-036（status 顯示 Unknown）
+- 使用者在 Worker 執行中追加：「priority 也顯示 Unknown」
+- Worker 自行判斷：兩者屬同一 UI parser 缺陷 → 擴範圍補修
+- 產出：主修 `cb0d535` + meta `feb84df` + follow-up `4d9fba4`
+- 塔台事後認可（D046）
+
+**規則**：
+1. 若 Worker 的擴充修復在原工單語境內（相同 bug、相同 UI、相同 parser）→ **允許並認可**
+2. 塔台事後在工單回報區明確記載「追加 follow-up」及其 commit，避免追蹤混亂
+3. 若 Worker 擴充修復超出原工單語境（跨模組、跨功能）→ 要求 Worker 停下回報，由塔台開新工單
+4. 原則：**塔台寬鬆認可同 scope 內的 follow-up，嚴格拒絕跨 scope 的 creep**
+
+**反面**：若塔台每次都堅持「一單一修」，Worker 會為了合規停下手上的小修，UX 變差，對使用者額外提出的小問題反應遲鈍
+
+**候選晉升**：🟡 Project 層（流程文化相關，通用性取決於團隊風格）
+
+---
+
+## L034 - 2026-04-17 — UI bug 的「雙因合力」診斷習慣
+
+**觸發條件**：UI 顯示異常（Unknown / 空白 / 錯誤 label），已修某個 parser 或條件後仍異常
+**模式**：UI 顯示 = parser 輸出 + schema mapping + enum fallback，**任一失效都會 Unknown**
+
+**本 session 範例（BUG-036，2026-04-17）**：
+- 主因：section parser `sectionToStatus` 不認 `COMPLETED`（返回 undefined → fallback IDEA）
+- 從動因：Completed table schema 無「狀態」欄（`rowStatusToStatus` 無法 override）
+- 單修主因不夠：因為若有 row override 就會蓋掉 section 判斷，這條路徑也是壞的
+- 雙修才穩：section 層 + row 層各自獨立都要能正確回傳
+
+**診斷 checklist**（UI Unknown 時）：
+1. Parser 能否識別這筆資料？（regex / switch case）
+2. 若識別到，enum / mapping 有對應的 UI label？
+3. 有沒有 row-level override 路徑？是否同步覆蓋？
+4. fallback 路徑顯示什麼？預設是否合理？
+
+**候選晉升**：🟡 Project 層（UI 架構特定，但診斷思路可普及）
+
+---
