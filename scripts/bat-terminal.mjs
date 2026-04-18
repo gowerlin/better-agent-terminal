@@ -18,7 +18,7 @@
 //   --help, -h     Show help
 //   --version      Show version
 
-import { createConnection } from 'net'
+import { connect as tlsConnect } from 'tls'
 import { randomBytes } from 'crypto'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
@@ -279,7 +279,20 @@ class MinimalWS {
         reject(err)
       }
 
-      this.#socket = createConnection({ host, port }, () => {
+      // T0202b/BUG-046: Server is https.createServer + wss:// since PLAN-018 T0182.
+      // Dispatcher must TLS-handshake before sending HTTP upgrade. Self-signed cert,
+      // so trust chain is disabled; fingerprint pinning is deferred to T0202c.
+      // SNI (servername) may not be an IP literal per RFC 6066; only set when host
+      // looks like a hostname.
+      const isIpLiteral = /^(\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(':')
+      this.#socket = tlsConnect({
+        host,
+        port,
+        rejectUnauthorized: false,
+        ...(isIpLiteral ? {} : { servername: host }),
+      })
+
+      this.#socket.once('secureConnect', () => {
         const key = randomBytes(16).toString('base64')
         this.#socket.write(
           `GET / HTTP/1.1\r\nHost: ${host}:${port}\r\nUpgrade: websocket\r\n` +
