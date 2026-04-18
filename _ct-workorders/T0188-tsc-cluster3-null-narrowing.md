@@ -3,7 +3,7 @@
 ## 元資料
 - **編號**:T0188
 - **類型**:implementation
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **優先級**:🟢 Low
 - **關聯**:PLAN-019 · T0185 Cluster 3 · T0187 後續 · BUG-042(殘留 2 errors 已移出)
 - **派發時間**:2026-04-18 22:44 (UTC+8)
@@ -117,7 +117,7 @@ npx tsc --noEmit 2>&1 | tee /tmp/tsc-after-t0188.log
 - [x] 未動 BUG-042 殘留 2 errors(TerminalPanel.tsx line 210/385 仍在)
 - [x] 未跑 vite build
 
-**commit hash**:(見下方 commit)
+**commit hash**:`766135c`
 
 ---
 
