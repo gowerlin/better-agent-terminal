@@ -52,13 +52,28 @@ function extractPriority(cell: string): PlanPriority {
 
 /**
  * Extract priority from a PLAN file's metadata block.
- * Looks for lines like "- **優先級**：🔴 High" or "- **Priority**: High".
+ * Supports two layouts used across historical PLAN files:
+ *   1. Bullet list:    `- **優先級**：🔴 High` / `**Priority**: Medium`
+ *   2. Markdown table: `| **優先級** | 🟢 Low |` / `| **Priority** | Medium |`
  * Used as fallback when _backlog.md row lacks 優先級 column (e.g. Completed table).
+ * BUG-045 (parser face): table format silently returned 'Unknown' before T0195.
  */
 export function extractPriorityFromPlanContent(content: string): PlanPriority {
-  const match = content.match(/(?:優先級|Priority)[^\n]*?[:：]\s*([^\n]+)/i)
-  if (!match) return 'Unknown'
-  return extractPriority(match[1])
+  // Bullet list form: exclude `|` from capture to avoid swallowing table rows.
+  const bulletMatch = content.match(/(?:優先級|Priority)[^\n|]*?[:：]\s*([^\n|]+)/i)
+  if (bulletMatch) {
+    const p = extractPriority(bulletMatch[1])
+    if (p !== 'Unknown') return p
+  }
+
+  // Markdown table cell form: `| (**)?優先級(**)? | <value> |`.
+  const tableMatch = content.match(/\|\s*\*?\*?\s*(?:優先級|Priority)\s*\*?\*?\s*\|\s*([^|\n]+?)\s*\|/i)
+  if (tableMatch) {
+    const p = extractPriority(tableMatch[1])
+    if (p !== 'Unknown') return p
+  }
+
+  return 'Unknown'
 }
 
 function sectionToStatus(heading: string): PlanStatus {
