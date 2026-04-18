@@ -1655,3 +1655,33 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **候選晉升**：🟡 Project（Control Tower 工作流專用，需在 PLAN 模板和 `*sync` 邏輯整合）
 
 ---
+
+## L064 - 2026-04-18 — yolo 「斷點 C」概念在 SKILL.md vs yolo-mode.md 規格 drift
+
+**觸發條件**：T0174 Phase 5 dogfood — 使用者輸入「停」嘗試觸發「斷點 C」，塔台執行時發現規格不一致。
+
+**規格不一致**：
+
+| 文件 | 「斷點 C」定義 |
+|------|---------------|
+| `references/yolo-mode.md:212-241` | Worker 回報區建議跨出當前 PLAN 範圍（regex 偵測 `(?:另開\|新開\|建議.*派\|建議.*開)`） |
+| `SKILL.md` 啟動警語段落（YOLO MODE ACTIVE） | 「隨時輸入『停』可觸發斷點 C 暫停」（暗示使用者主動暫停） |
+
+**實戰觀察（本 session）**：
+- **Phase 4** 真正符合 `yolo-mode.md` 斷點 C 定義 — T0173 回報「建議實作工單列表 T-NEXT-1/2/3」跨出 PLAN-020，塔台正確 PAUSE。但塔台當下稱「無下一張」，未識別為斷點 C。
+- **Phase 5** 使用者輸入「停」— 規格未定義此事件類型，塔台沿用 SKILL.md 警語語意稱「斷點 C」。
+- 結果：同一 session 兩次「斷點 C」實際是兩個不同事件，記錄會混淆。
+
+**根因**：
+- yolo 規格演進中產生 drift — `yolo-mode.md` 是技術規格（Worker 觸發），`SKILL.md` 啟動警語是 UX 提示（使用者觸發），兩者用同一名詞但語意不同。
+- 缺少「使用者手動暫停」的正式事件類型。
+
+**修法建議**：
+1. **保留 `yolo-mode.md` 斷點 C 定義**（Worker 跨 PLAN 建議，技術判準明確）
+2. **SKILL.md 警語改稱「使用者中斷」或「斷點 U（User）」**，避免與斷點 C 衝突
+3. **`_tower-state.md` YOLO 歷程新增事件類型**：`[使用者中斷]` / `[斷點 U]`，獨立於 A/B/C
+4. 上游 skill 修正：CP-T#### 跨專案工單到 `claude-control-tower`（與 L057-L063 同批處理）
+
+**候選晉升**：🟡 Project（先在本專案 dogfood 確認，後續評估是否上游）
+
+---
