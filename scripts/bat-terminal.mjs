@@ -59,6 +59,9 @@ Options:
   --cwd <path>           Working directory for the new terminal
   --notify-id <id>       Target terminal ID for Worker→Tower notification binding
   --workspace <id>       Explicit workspace allocation target
+  --mode <value>         CT mode for Worker (yolo|ask|off|on); injects CT_MODE env
+  --interactive          Force interactive mode; injects CT_INTERACTIVE=1 env
+  --no-interactive       Force non-interactive mode; injects CT_INTERACTIVE=0 env
   --help, -h             Show this help message
   --version              Show version
 
@@ -66,9 +69,10 @@ Examples:
   node scripts/bat-terminal.mjs claude "/ct-exec T0001"
   node scripts/bat-terminal.mjs --notify-id abc123 claude "/ct-exec T0001"
   node scripts/bat-terminal.mjs --cwd /tmp echo hello
+  node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive claude "/ct-exec T0001"
 `
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--mode', '--interactive', '--no-interactive', '--help', '-h', '--version']
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -120,6 +124,8 @@ const rawArgs = process.argv.slice(2)
 let cwd = process.cwd()
 let notifyId = null
 let workspaceId = null
+let mode = null
+let interactive = null  // null = unspecified / true = --interactive / false = --no-interactive
 const positional = []
 
 let i = 0
@@ -158,6 +164,30 @@ while (i < rawArgs.length) {
     if (!rawArgs[i + 1]) { printUsageError('--workspace requires a workspace ID argument'); process.exit(1) }
     workspaceId = rawArgs[i + 1]
     i += 2
+    continue
+  }
+
+  if (arg === '--mode') {
+    if (!rawArgs[i + 1]) { printUsageError('--mode requires a value argument (yolo|ask|off|on)'); process.exit(1) }
+    const value = rawArgs[i + 1]
+    if (!/^(yolo|ask|off|on)$/.test(value)) {
+      console.error(`Error: Invalid --mode value: '${value}' (expected one of: yolo, ask, off, on)`)
+      process.exit(1)
+    }
+    mode = value
+    i += 2
+    continue
+  }
+
+  if (arg === '--interactive') {
+    interactive = true
+    i += 1
+    continue
+  }
+
+  if (arg === '--no-interactive') {
+    interactive = false
+    i += 1
     continue
   }
 
@@ -391,6 +421,17 @@ async function main() {
   if (notifyId) invokePayload.customEnv = { BAT_TOWER_TERMINAL_ID: notifyId }
   // T0137/BUG-031: Forward explicit workspace allocation target
   if (workspaceId) invokePayload.workspaceId = workspaceId
+  // T0180/BUG-041 Phase 2.2: Inject CT_MODE / CT_INTERACTIVE env when explicitly specified.
+  // Unset values are NOT injected (strict stateless — Worker falls back to workorder rules).
+  if (mode) {
+    invokePayload.customEnv = { ...invokePayload.customEnv, CT_MODE: mode }
+  }
+  if (interactive === true) {
+    invokePayload.customEnv = { ...invokePayload.customEnv, CT_INTERACTIVE: '1' }
+  }
+  if (interactive === false) {
+    invokePayload.customEnv = { ...invokePayload.customEnv, CT_INTERACTIVE: '0' }
+  }
 
   ws.send(JSON.stringify({
     type: 'invoke',
