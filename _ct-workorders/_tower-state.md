@@ -1,10 +1,80 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-19 01:30（第八 session,BUG-044 閉環 + 4 新 BUG + Worker time 21 hit 新高 15-19x）
+> 最後更新：2026-04-19 03:21（第九 session,BUG-046 CLOSED + BUG-047 VERIFY + yolo 派發鏈解鎖 + Worker time 連 27 hit）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-19 第八 session,UI 封存 toggle 修復 + 用戶 Rico 回報 BUG-047）
+## 🛏 本 Session 退出快照（2026-04-19 第九 session,雙重翻案閉環 BUG-046 + packaging 雙修 BUG-047）
+
+**退出原因**：C 計畫收尾全數完成（BUG-046 CLOSED + PLAN-022 建檔 + `*evolve` + commit + push + `_tower-state.md` 快照）
+
+**本 session 成果**（~1h 37min,7 工單 + 2 PLAN + 2 BUG 閉環/VERIFY + 10 commits push）：
+
+**BUG-047 修復鏈（Rico 回報 packaged app 裝機即壞）**：
+- `e619b81` T0198 @anthropic-ai 子包 asarUnpack(4min/est 25-40,6-10x)— `claude.exe` ~246MB 進 `.unpacked/`
+- `5de178e` T0199 預防性 @lydell/node-pty asarUnpack(4min/est 15-25,4-6x)— `conpty.node` 進 `.unpacked/`
+- BUG-047 狀態:OPEN → VERIFY（等 Rico 裝 pre.2 實機驗收）
+- 翻案發現:Rico 診斷「code 側 path rewrite」錯,真因在 packaging `asarUnpack` pattern 漏列 platform subpackage
+
+**BUG-046 修復鏈（雙重翻案,TLS protocol mismatch）**：
+- `29cd124` T0200 dispatcher defense PARTIAL(14min)— try/catch + timeout log + unhandledRejection handler,**發現 MinimalWS.close bug**
+- `b37297c` T0201 research TLS 假設(3min/est 15-25,5-8x)— 三重交叉驗證確立
+- `380fa3c` T0202a close reject 獨立防禦(8min/est 5-10,正常)— silent hang → `connect-closed-before-upgrade` clear error
+- `831234b` T0202b MinimalWS 升 wss:// TLS(4min/est 15-25,4-6x)— **yolo 派發鏈解鎖**
+- BUG-046 狀態:OPEN → CLOSED
+- 真根因:PLAN-018 T0182 升 https.createServer,dispatcher 留 net.createConnection → TLS FIN close → MinimalWS 不 reject → silent exit 0
+
+**新 PLAN（2 張）**：
+- PLAN-021 Settings UI 自訂 RemoteServer port（IDEA,🟢 Low）— 從 BUG-046 討論衍生
+- PLAN-022 Dispatcher fingerprint pinning（PLANNED,🟡 Medium,T0202c 候選）— PLAN-018 安全對齊延伸
+
+**`*evolve` 批次寫入（3 Global + 1 update + 1 Project candidate）**：
+
+🌐 Global `~/.claude/control-tower-data/learnings/patterns.md`：
+- **GP053** 雙重翻案方法論 — 時序→反例證偽→grep→再反例→真因
+- **GP054** TLS protocol mismatch silent hang 三要素(協議不對稱 + server fail-close + client close-without-reject)
+- **GP055** Dispatcher trust chain 4 層分層防禦(close reject + error handler + timeout wrapper + unhandledRejection global)
+- **GP042 UPDATE** Worker time 連 27 hit(本 session 6 連發,T0202b 含實機 smoke 仍 4-6x)
+
+🏠 Project `_ct-workorders/_learnings.md`：
+- **L075** SNI RFC 6066 不接受 IP literal(Node.js tls.connect edge case,candidate:global)
+
+**重大方法論突破**：
+1. **雙重翻案停手原則**:翻案 ≥2 次強制 research 工單,避免 assumption stacking
+2. **Worker time 含 runtime 驗證仍高壓縮**:T0202b 含實機 terminal smoke 仍 4-6x,顛覆「runtime 驗證無法壓縮」假設
+3. **Dispatcher trust chain 4 層設計**:任何 Promise-based 連線客戶端都該具備,缺一則產生 silent fail
+
+**YOLO 歷程追加**（本 session 關鍵事件）：
+- `[01:44] 啟動` Fast Path 快速恢復(快照 14min)
+- `[01:48-01:52] T0197` Rico 精準診斷但真因翻案(code 側無責,packaging 側)
+- `[01:59-02:03] T0198` packaging 主修,`.exe` 246MB 進 `.unpacked/`
+- `[02:14-02:18] T0199` 預防性 @lydell,兩行 glob 對稱
+- `[02:28-02:42] T0200` dispatcher defense,意外發現 MinimalWS.close bug(翻案 token 假設)
+- `[02:47-02:50] T0201` research 3min 確立 TLS 假設(三重證據)
+- `[02:54-03:02] T0202a` close reject,silent hang 時代結束
+- `[03:08-03:12] T0202b` TLS 升級 + SNI edge case(isIpLiteral 偵測)— **yolo 派發鏈解鎖**
+- `[03:15-03:21] 收尾` PLAN-022 建檔 + `*evolve` 5 條 + commit + push 10 commits + `_tower-state.md` 快照
+
+**未執行項（下次接)**：
+- 🟡 BUG-047 打 pre.2 tag → Rico 驗收(packaging 鏈 T0198+T0199 + BUG-046 修復鏈 T0202a+T0202b 皆待實機驗)— 使用者授權後執行 `release new pre tag version`
+- 🟡 PLAN-022 T0202c fingerprint pinning(非緊急,PLAN-018 安全對齊,~1-2h)
+- 🟢 BUG-042 TerminalPanel dead call 調查
+- 🟢 BUG-045 archive 面(CT skill v4.4 演進,非本 repo 範圍)
+- 🟢 PLAN-008 中文「高」優先級 polish
+- 🔵 `e498e3a fix(locales)` commit 來源待確認(非本鏈派發,使用者可能自己改)
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status`（本 session 已 push 10 commits,L071 警告解除,無需立即 push）
+3. 下一輪優先級:
+   - 🟡 BUG-047 pre.2 tag(使用者授權 → 執行 `release new pre tag version`)
+   - 🟡 PLAN-022 fingerprint pinning(安全對齊,可 dogfood yolo 派發)
+   - 🟢 其他零星 bug 或 polish
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-19 第八 session,UI 封存 toggle 修復 + 用戶 Rico 回報 BUG-047）
 
 **退出原因**：A 計畫收尾完成（`*evolve` + `_tower-state.md` 快照 + push 待執行）
 
