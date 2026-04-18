@@ -178,8 +178,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   const [effortLevel, setEffortLevel] = useState<string>(() => {
     return settingsStore.getSettings().defaultEffort || 'medium'
   })
-  const [claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
-  const [usageAccount, setUsageAccount] = useState(workspaceStore.usageAccount)
+  const [_claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
+  const [_usageAccount, setUsageAccount] = useState(workspaceStore.usageAccount)
   const [rateLimits, setRateLimits] = useState<Record<string, { resetsAt: number; utilization: number | null; isUsingOverage: boolean }>>({})
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null)
@@ -1670,15 +1670,6 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       handleSend()
     }
   }, [handleSend, handlePermissionModeCycle, setInputValue, clearInput, setAttachedImages, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect, showStarMenu, filteredStarCommands, starMenuIndex, handleStarSelect, promptSuggestion, isStreaming, isInterrupted])
-
-  const handleModelCycle = useCallback(async () => {
-    if (availableModels.length === 0) return
-    const idx = availableModels.findIndex(m => m.value === currentModel)
-    const next = availableModels[(idx + 1) % availableModels.length]
-    setCurrentModel(next.value)
-    await window.electronAPI.claude.setModel(sessionId, next.value)
-    workspaceStore.updateTerminalModel(sessionId, next.value)
-  }, [sessionId, currentModel, availableModels])
 
   const handleEffortChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const next = e.target.value

@@ -401,9 +401,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   // Categorize terminals
   const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
-  const regularTerminals = terminals.filter(t => !t.agentPreset || t.agentPreset === 'none')
   const focusedTerminal = terminals.find(t => t.id === focusedTerminalId)
-  const isAgentFocused = focusedTerminal?.agentPreset && focusedTerminal.agentPreset !== 'none'
 
   // Initialize terminals when workspace becomes active
   // If terminals were restored from a saved profile, start their PTY/agent processes
@@ -905,9 +903,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Split view computed state
   const pinned = splitSettings.pinned
   const isSplit = pinned !== null
-  const pinnedTerminal = (pinned?.type === 'terminal' && pinned.terminalId)
-    ? terminals.find(t => t.id === pinned.terminalId)
-    : null
   // If pinned is a terminal that no longer exists or is the same as focused, the cleanup effect handles it
 
   // Send content to the active Claude agent session

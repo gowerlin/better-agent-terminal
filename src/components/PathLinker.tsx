@@ -63,15 +63,6 @@ hljs.registerLanguage('graphql', graphql)
 hljs.registerLanguage('dockerfile', dockerfile)
 hljs.registerLanguage('makefile', makefile)
 
-const TEXT_EXTS = new Set([
-  'ts', 'tsx', 'js', 'jsx', 'json', 'jsonl', 'css', 'scss', 'less', 'html', 'htm',
-  'md', 'txt', 'yml', 'yaml', 'toml', 'xml', 'svg', 'sh', 'bash', 'zsh',
-  'py', 'rb', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'gs',
-  'pine', 'lua', 'r', 'pl', 'php', 'swift', 'kt', 'scala', 'sql', 'graphql',
-  'env', 'gitignore', 'editorconfig', 'prettierrc', 'eslintrc',
-  'dockerfile', 'makefile', 'cfg', 'ini', 'conf', 'log', 'output',
-])
-
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico'])
 
 const EXT_TO_LANG: Record<string, string> = {
@@ -90,11 +81,6 @@ const EXT_TO_LANG: Record<string, string> = {
 
 function getExt(p: string): string {
   return p.split('.').pop()?.toLowerCase() || ''
-}
-
-function canPreview(p: string): boolean {
-  const ext = getExt(p)
-  return TEXT_EXTS.has(ext) || IMAGE_EXTS.has(ext)
 }
 
 // Regex: absolute file paths — Windows (C:\...) and Unix (/Users/..., /home/..., /tmp/...)

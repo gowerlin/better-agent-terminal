@@ -287,10 +287,6 @@ class WorkspaceStore {
     const workspace = this.state.workspaces.find(w => w.id === workspaceId)
     if (!workspace) throw new Error('Workspace not found')
 
-    const existingTerminals = this.state.terminals.filter(
-      t => t.workspaceId === workspaceId && !t.agentPreset
-    )
-
     // Get agent preset info for title
     const preset = agentPreset ? getAgentPreset(agentPreset) : null
     const title = preset && preset.id !== 'none'

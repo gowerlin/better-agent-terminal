@@ -57,7 +57,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const decorationManagerRef = useRef<TerminalDecorationManager | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const { pos: menuPos, menuRef: ctxMenuRef } = useMenuPosition(contextMenu)
-  const [altBufferActive, setAltBufferActive] = useState(false)
+  const [_altBufferActive, setAltBufferActive] = useState(false)
   const altBufferRef = useRef(false)
   const [terminalReady, setTerminalReady] = useState(false)
   const hasBeenFocusedRef = useRef(false)
@@ -263,7 +263,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
     const fitAddon = new FitAddon()
     const unicode11Addon = new Unicode11Addon()
-    const webLinksAddon = new WebLinksAddon((event, uri) => {
+    const webLinksAddon = new WebLinksAddon((_event, uri) => {
       // Open URL in default browser
       window.electronAPI.shell.openExternal(uri)
     })

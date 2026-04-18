@@ -50,7 +50,6 @@ export function ThumbnailBar({
   onAddClaudeCli,
   onAddClaudeCliWorktree,
   onReorder,
-  showAddButton,
   height,
   collapsed = false,
   onCollapse,
