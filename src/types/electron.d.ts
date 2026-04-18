@@ -1,13 +1,28 @@
 import type { CreatePtyOptions } from './index'
 import type {
   WhisperModelSize,
-  VoiceLanguage,
   VoiceModelInfo,
   VoicePreferences,
   VoiceTranscribeOptions,
   VoiceTranscribeResult,
   VoiceModelDownloadProgress,
 } from './voice'
+
+// Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
+interface ProfileRecord {
+  id: string
+  name: string
+  type: 'local' | 'remote'
+  remoteHost?: string
+  remotePort?: number
+  remoteToken?: string
+  remoteProfileId?: string
+  remoteFingerprint?: string
+  createdAt: number
+  updatedAt: number
+}
+
+type RemoteBindInterface = 'localhost' | 'tailscale' | 'all'
 
 interface ElectronAPI {
   platform: 'win32' | 'darwin' | 'linux'
@@ -27,6 +42,11 @@ interface ElectronAPI {
   workspace: {
     save: (data: string) => Promise<boolean>
     load: () => Promise<string | null>
+    detach: (workspaceId: string) => Promise<unknown>
+    reattach: (workspaceId: string) => Promise<unknown>
+    getDetachedId: () => string | null
+    onDetached: (callback: (workspaceId: string) => void) => () => void
+    onReattached: (callback: (workspaceId: string) => void) => () => void
     moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) => Promise<boolean>
     onReload: (callback: () => void) => () => void
     onFlushSave: (callback: () => Promise<void>) => () => void
@@ -46,6 +66,12 @@ interface ElectronAPI {
   }
   dialog: {
     selectFolder: () => Promise<string[] | null>
+    selectImages: () => Promise<string[]>
+    selectFiles: () => Promise<string[]>
+    confirm: (message: string, title?: string) => Promise<boolean>
+  }
+  image: {
+    readAsDataUrl: (filePath: string) => Promise<string>
   }
   clipboard: {
     saveImage: () => Promise<string | null>
@@ -54,9 +80,21 @@ interface ElectronAPI {
   app: {
     openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string; windowIds?: string[] }>
     getLaunchProfile: () => Promise<string | null>
+    getWindowId: () => Promise<string | null>
+    getWindowProfile: () => Promise<string | null>
+    getWindowIndex: () => Promise<number>
+    newWindow: () => Promise<string>
+    setDockBadge: (count: number) => Promise<void>
+  }
+  update: {
+    check: () => Promise<unknown>
+    getVersion: () => Promise<string>
   }
   tunnel: {
     getConnection: () => Promise<{ url: string; token: string; fingerprint: string; mode: string; addresses: { ip: string; mode: string; label: string }[] } | { error: string }>
+  }
+  system: {
+    onResume: (callback: () => void) => () => void
   }
   debug: {
     log: (...args: unknown[]) => void
@@ -73,8 +111,8 @@ interface ElectronAPI {
     getBranch: (cwd: string) => Promise<string | null>
     getLog: (cwd: string, count?: number) => Promise<{ hash: string; author: string; date: string; message: string }[]>
     getDiff: (cwd: string, commitHash?: string, filePath?: string) => Promise<string>
-    getDiffFiles: (cwd: string, commitHash?: string) => Promise<{ path: string; status: string }[]>
-    getStatus: (cwd: string) => Promise<{ path: string; status: string }[]>
+    getDiffFiles: (cwd: string, commitHash?: string) => Promise<{ status: string; file: string }[]>
+    getStatus: (cwd: string) => Promise<{ status: string; file: string }[]>
     getRoot: (cwd: string) => Promise<string | null>
   }
   // Phase 3 Tα1 scaffold (T0155) — simple-git backed channels
@@ -136,6 +174,7 @@ interface ElectronAPI {
     startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) => Promise<void>
     sendMessage: (sessionId: string, prompt: string, images?: string[]) => Promise<void>
     stopSession: (sessionId: string) => Promise<void>
+    abortSession: (sessionId: string) => Promise<void>
     onMessage: (callback: (sessionId: string, message: unknown) => void) => () => void
     onToolUse: (callback: (sessionId: string, toolCall: unknown) => void) => () => void
     onToolResult: (callback: (sessionId: string, result: unknown) => void) => () => void
@@ -196,6 +235,50 @@ interface ElectronAPI {
     onRateLimit: (callback: (sessionId: string, info: { rateLimitType: string; resetsAt: number; utilization: number | null; isUsingOverage: boolean }) => void) => () => void
     onWorktreeInfo: (callback: (sessionId: string, info: { branchName: string; worktreePath: string; sourceBranch: string; gitRoot?: string } | null) => void) => () => void
     onPromptSuggestion: (callback: (sessionId: string, suggestion: string) => void) => () => void
+  }
+  worktree: {
+    create: (sessionId: string, cwd: string) => Promise<{ success: boolean; worktreePath?: string; branchName?: string; gitRoot?: string; sourceBranch?: string; error?: string }>
+    remove: (sessionId: string, deleteBranch: boolean) => Promise<{ success: boolean; error?: string }>
+    status: (sessionId: string) => Promise<{ diff: string; branchName: string; worktreePath: string; sourceBranch: string } | null>
+    merge: (sessionId: string, strategy: 'merge' | 'cherry-pick') => Promise<{ success: boolean; error?: string }>
+    rehydrate: (sessionId: string, cwd: string, worktreePath: string, branchName: string) => Promise<{ success: boolean }>
+  }
+  profile: {
+    list: () => Promise<{ profiles: ProfileRecord[]; activeProfileIds: string[] }>
+    listLocal: () => Promise<{ profiles: ProfileRecord[]; activeProfileIds: string[] }>
+    create: (name: string, options?: { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => Promise<{ id: string; name: string; type: 'local' | 'remote'; createdAt: number; updatedAt: number }>
+    save: (profileId: string) => Promise<boolean>
+    load: (profileId: string) => Promise<unknown>
+    delete: (profileId: string) => Promise<boolean>
+    rename: (profileId: string, newName: string) => Promise<boolean>
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => Promise<boolean>
+    duplicate: (profileId: string, newName: string) => Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>
+    get: (profileId: string) => Promise<ProfileRecord | null>
+    getActiveIds: () => Promise<string[]>
+    activate: (profileId: string) => Promise<void>
+    deactivate: (profileId: string) => Promise<void>
+  }
+  remote: {
+    startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>
+    stopServer: () => Promise<boolean>
+    serverStatus: () => Promise<{ running: boolean; port: number | null; bindInterface: RemoteBindInterface; host: string; fingerprint: string; clients: { label: string; connectedAt: number }[] }>
+    connect: (host: string, port: number, token: string, label?: string, fingerprint?: string) => Promise<{ connected: boolean; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
+    disconnect: () => Promise<boolean>
+    clientStatus: () => Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>
+    testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string }>
+    listProfiles: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ profiles: { id: string; name: string; type: string }[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
+  }
+  snippet: {
+    getAll: () => Promise<unknown>
+    getById: (id: number) => Promise<unknown>
+    create: (input: { title: string; content: string; format?: string; category?: string; tags?: string; isFavorite?: boolean; workspaceId?: string }) => Promise<unknown>
+    update: (id: number, updates: { title?: string; content?: string; format?: string; category?: string; tags?: string; isFavorite?: boolean; workspaceId?: string }) => Promise<unknown>
+    delete: (id: number) => Promise<unknown>
+    toggleFavorite: (id: number) => Promise<unknown>
+    search: (query: string) => Promise<unknown>
+    getCategories: () => Promise<unknown>
+    getFavorites: () => Promise<unknown>
+    getByWorkspace: (workspaceId?: string) => Promise<unknown>
   }
   voice: {
     // model management
