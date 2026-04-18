@@ -1,6 +1,67 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-18 12:18 (UTC+8)（PLAN-020 yolo 插隊啟動，PLAN-018 冷凍）
+> 最後更新:2026-04-18 15:15 (UTC+8)（PLAN-020 skill 側 + 跨專案全閉環，只剩 T0174 dogfood）
+
+---
+
+## 🛏 本 Session 退出快照（2026-04-18 15:15）
+
+**退出原因**：context 壓力已高，使用者要求快照退出，下 session 繼續 PLAN-020 T0174 dogfood。
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+
+1. Fast Path 載入本快照（<24h 有效）
+2. 讀「PLAN-020 進度」段 — 5 張工單 + CT-T002 已全綠，只剩 T0174
+3. 若 user 說「繼續 T0174」或「派 yolo dogfood」→ 直接派 T0174（規格見下方）
+4. 若 user 說「resume PLAN-018」→ 先確認 T0174 已跑（PLAN-018 剩 4 張是 T0174 驗證場景）
+5. BUG-040（workspace 錯派）研究 T0173 可低優先隨時派
+
+**當前待 commit 清單**（塔台 meta，~15 個檔案）：
+```
+ M BUG-039-*.md (CLOSED)
+ M CT-T002-*.md (DONE + Renew #2 收尾)
+ M T0167-T0172 狀態更新
+ M _tower-state.md
+ M _decision-log.md (D059/D060/D061)
+ N BUG-040-*.md (OPEN)
+ N PLAN-020-*.md (PLANNED)
+ N T0166~T0172 (新增 7 張)
+ N _report-plan-020-yolo-feasibility.md
+ N _draft-ct-yolo-{worker,tower}-skill-patch.md
+```
+
+**下 session 優先動作**：
+1. commit meta 批次（PLAN-020 閉環前段 + D059-D061）
+2. 派 T0174（PLAN-018 dogfood，yolo 真實驗）
+3. T0174 完成後 PLAN-020 整體 DONE → `*resume` PLAN-018
+
+**T0174 規格預擬**：
+- 類型：verification / integration test
+- 範圍：`*config auto-session yolo` + `yolo_max_retries: 1` → 派 PLAN-018 剩 4 張工單（brute-force → TLS → sandbox → 整測）
+- 觀察：正常派發 / 斷點 A/B/C 觸發 / 啟動面板警語 / `_tower-state.md` YOLO 歷程區段
+- 對齊已確認：Q1.B 最小驗證 / Q2.B `yolo_max_retries=1` / Q3.A BUG-040 邊觀察
+- 預估：1-2h（觀察用）
+
+**Learning 候選累積**（下次 `*evolve` 處理）：
+- **L057**：跨專案 DELEGATE 長時差異 + Renew 前置驗證（F-11 守衛價值）— D061 實戰
+- **L058**：對方塔台自行吸收 pattern（CP-T0094/95 = CT-T001 先例複製）
+- **L059**：BUG 觀察對照表證據法（BUG-040 兩次事件對照推根因方向）
+- **L060**：條件式拆單策略（T0167 Q2 未決時「三分支平行」讓工單 1 不阻塞）
+- **L061**：Worker 實際工時遠低於估時（T0168=7min/T0169=4min/T0170=6min/T0172=2min 連續）
+- **L062**：對方塔台實作比 Worker 草稿更嚴謹（yolo 硬鉤子失敗不跑 Step 11，狀態重複避免）
+
+---
+
+## 🎉 本 Session 成就（2026-04-18 下半場）
+
+**PLAN-020 yolo autonomous mode**：插隊 + 閉環 ~3.5h（原估 7-11h，含 CT 跨專案整合 + 對方塔台自行吸收加速）
+
+**產出**：
+- 7 張本專案工單 DONE（T0166-T0172）
+- 1 張跨專案 DELEGATE DONE（CT-T002，v4.2.0 tag 落地）
+- 2 張本地草稿檔 + 1 份研究報告
+- 1 PLAN + 3 決策 + 2 BUG（039 CLOSED / 040 OPEN）
+- 對方塔台 v4.2.0 發布（`~/.claude/skills/` 已同步）
 
 ---
 
@@ -35,18 +96,41 @@
 - Q2.A：資訊來源採研究工單 D 區段（D060）
 - Q3.B：先 commit meta 批次，再派工單 1
 
-### 下一步
-1. 🔄 **現在**：commit meta 批次（PLAN-020 + T0167 + tower-state + decision-log + 其他待 commit）
-2. 派工單 1（BAT code `--submit` flag，~1-1.5h）
-3. Worker 完成 → 派工單 2（Worker skill 草稿）
-4. 工單 2 完成 → 派工單 3（塔台 skill 草稿，Q2.A 分支）
-5. 工單 3 完成 → 派工單 4（CT-T### 上游 COORDINATED）
-6. 上游更新後 → 派工單 5（PLAN-018 驗證場景 = dogfood）
+### PLAN-020 進度
+- ✅ **T0168** DONE（12:53-13:00，7 分鐘，commit `c4b2a19`）— `bat-notify.mjs --submit`
+- ✅ **T0169** DONE（13:01-13:05，4 分鐘，commit `488ad93`）— Worker skill 草稿
+- ✅ **T0170** DONE（13:15-13:21，6 分鐘，commit `ff678cc`）— Tower skill 草稿
+- ✅ **CT-T002** DONE（13:27-15:08，跨 3 session）— 技術實作 `bfc4ba5` + 對方塔台已吸收（CP-T0094/95）+ Renew #2 補 v4.2.0 tag
+- ✅ **T0171** DONE（13:50-14:41，51 分鐘，commits `2abcd0f`/`b00012d`/`604e154`）— BUG-039 修完
+- ✅ **CT-T002 Renew #2** DONE（14:55-15:08）— v4.2.0 tag 已打於 `d65f451` 並 push 成功
+- 🔄 **T0172** 派發中（14:55）— 驗證 yolo skill sync（並行 CT-T002）
+- 📋 **T0173**（待派，優先級低）— BUG-040 研究（PLAN-020 閉環後）
+- 📋 **T0174**（待派）— PLAN-018 dogfood（等 CT-T002 DONE + T0172 結論 OK）
+
+### CT-T002 Renew 歷程
+- #1（13:55）push Forgejo + snapshot → Worker F-11 守衛觸發（前提失真，對方塔台已吸收）
+- #2（14:55）補打 v4.2.0 tag → 單一動作收尾
+
+### 插隊 BUG
+- 🚫 **BUG-039** 🟡 Medium CLOSED（14:45，Q1.A 直接關閉）— `bat-terminal.mjs --help` silent passthrough 已修
+- 🐛 **BUG-040** 🟡 Medium OPEN — `bat-terminal.mjs` workspace 錯派（疑似 BUG-031 regression，Q2.B 不阻塞）
+
+### T0169 關鍵產出
+- Worker 4 分鐘完結，遠低於 1-1.5h 估時
+- 4 種狀態字串鎖定：`T#### 完成` / `部分完成` / `失敗` / `需要協助`
+- FIXED → 完成；BLOCKED → 需要協助（併入三類簡化塔台 regex）
+- 硬鉤子 yolo 下失敗**阻斷工單 DONE**，避免塔台死鎖
+- 相容性：舊版 BAT（無 --submit）自動降級為 on + 警告
+
+### T0168 驗收摘要
+- A1/A3/A4/A5 全綠（程式碼驗證 + 互斥檢查實測）
+- **A2 待使用者實機互測**（雙終端 A/B 送 `echo ok` 驗證 `\r` 生效）— 子 session 自測會污染自己 stdin，Worker 合理跳過
+- B1 空字串由既有檢查擋下，B2 用 `/[\r\n]$/` 防雙重結尾
 
 ### 最大編號更新
-- 工單：T0167（+1，下一張實作 = T0168）
-- PLAN：PLAN-020（+1）
-- 決策：D060（+2，D059 + D060）
+- 工單：T0169（+2，T0168 + T0169）
+- PLAN：PLAN-020
+- 決策：D060
 
 ---
 

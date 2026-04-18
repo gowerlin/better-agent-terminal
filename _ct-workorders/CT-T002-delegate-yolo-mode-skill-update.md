@@ -3,16 +3,103 @@
 ## 元資料
 - **工單編號**：CT-T002
 - **任務名稱**：【受派】CT skill 修改 — yolo 自主模式（Worker 自動回報 + 塔台自主決策 + 3 斷點）
-- **狀態**：PARTIAL
+- **狀態**：DONE
 - **建立時間**：2026-04-18 13:25 (UTC+8)
 - **開始時間**：2026-04-18 13:27 (UTC+8)
-- **完成時間**：2026-04-18 13:39 (UTC+8)
+- **完成時間**：2026-04-18 15:08 (UTC+8)
 
 ## 跨專案協調
 - **協調類型**：DELEGATE
 - **來源統籌工單**：PLAN-020-yolo-autonomous-mode（工單 4/5）
 - **來源專案**：better-agent-terminal
 - **對應子任務**：CT skill 三件套修改（ct-exec + ct-done + control-tower）
+- **Renew 次數**：2（#1: 2026-04-18 13:55 / #2: 2026-04-18 14:55 — 收尾於 15:08）
+
+---
+
+## 塔台補充（Renew #1）
+
+**時間**：2026-04-18 13:55 (UTC+8)
+**補充原因**：Worker 回報 PARTIAL（技術實作 100% 完成 commit `bfc4ba5`，但 remote 為 Forgejo 非 GitHub → `gh pr create` 失敗）。塔台決策採 Q1.A 沿用 CT-T001 先例。
+
+**新指示**（收尾步驟）：
+
+沿用 **CT-T001 先例**（CP-T0091/92/93 pattern）：**push 到 Forgejo origin + snapshot + CHANGELOG + 通知對方塔台**。
+
+### Step 1: push 分支到 Forgejo origin
+
+```bash
+cd D:\ForgejoGit\BMad-Guide\BMad-Control-Tower\BMad-Control-Tower-v4.1.0\
+git push -u origin feat/yolo-autonomous-mode
+```
+
+驗證：`git branch -vv` 應顯示 `feat/yolo-autonomous-mode` 有 `origin/...` tracking。
+
+### Step 2: 建立 CHANGELOG 條目
+
+在目標專案的 `CHANGELOG.md`（若無則新增）加入：
+
+```markdown
+## [v4.2.0] - 2026-04-18
+
+### Added
+- `auto-session: yolo` mode — Worker auto-submit + Tower autonomous dispatch
+- 3 breakpoint mechanism (A: unexpected state / B: Renew≥3 or 3 FAILED / C: cross-PLAN)
+- New config `yolo_max_retries` (default 3, range 0-10)
+- References: `control-tower/references/yolo-mode.md`
+
+### Changed
+- `ct-exec/SKILL.md`: Step 8.5 upgraded from optional to mandatory hook
+- `ct-done/SKILL.md`: Step 6.5 upgraded symmetrically
+- `control-tower/SKILL.md`: `auto-session` enum extended to 4 values
+
+### Compatibility
+- Fully backward compatible (off/ask/on behavior unchanged)
+- Older BAT without `--submit` flag: yolo auto-degrades to `on` + warning
+- Non-BAT environments: Step 8.5 skipped entirely
+
+### Source
+- Downstream PLAN: better-agent-terminal/_ct-workorders/PLAN-020
+- Research: T0167, T0168, T0169, T0170
+```
+
+commit: `docs(changelog): v4.2.0 yolo autonomous mode`
+
+### Step 3: 打 tag
+
+```bash
+git tag -a v4.2.0 -m "feat: yolo autonomous mode (PLAN-020)"
+git push origin v4.2.0
+```
+
+### Step 4: 建 ZIP snapshot（可選，但 CT-T001 先例有做）
+
+```bash
+cd ..
+git -C BMad-Control-Tower-v4.1.0 archive --format=zip --prefix=BMad-Control-Tower-v4.2.0/ v4.2.0 -o BMad-Control-Tower-v4.2.0.zip
+```
+
+### Step 5: 回本工單填寫收尾資訊
+
+在本工單回報區下方新增「Renew #1 收尾」段落，填寫：
+- push 分支成功 commit hash
+- CHANGELOG commit hash
+- tag 名稱
+- ZIP 檔案路徑
+- 狀態改 **PARTIAL → DONE**
+
+### Step 6: 通知對方塔台（非本工單範圍，由本塔台日後開 CP-T00XX）
+
+本工單完成後，本塔台會另開 **CP-T0097 或後續編號** 通知 BMad-Guide 對方塔台「有新分支 `feat/yolo-autonomous-mode` + tag `v4.2.0` 待 merge」。對方塔台會決定 merge 方式（fast-forward / squash / merge commit）。
+
+**本工單不需處理對方塔台 merge 流程**，只要 push + snapshot 完成即可。
+
+---
+
+**關鍵提醒**：
+- 不走 GitHub PR，只做 Forgejo push + tag + snapshot
+- 版號建議 **v4.2.0**（major 功能加入，依 CT-T001 先例的版號規則）
+- 回本工單時不呼叫 `bat-notify.mjs --submit`（yolo 尚未啟用；此外 BUG-039 可能影響，T0171 未修完前保守）
 
 ## 工作量預估
 - **預估規模**：中（3 個 skill，~60-100 行改動）
@@ -251,7 +338,7 @@ T#### 需要協助
 
 ### Renew 歷程
 
-無。
+- **Renew #1（2026-04-18 13:55 → 執行於 14:50）**：塔台指示「沿用 CT-T001 先例 push 到 Forgejo origin + CHANGELOG + tag + snapshot」。Worker 勘查目標 repo 後發現指示前提已全部改變（對方塔台已自行接手吸收 yolo 功能），停下等塔台裁示，未執行任何 push/tag/ZIP 動作。詳情見下方「Renew #1 收尾」。
 
 ### 互動紀錄
 
@@ -260,3 +347,156 @@ T#### 需要協助
 ### 回報時間
 
 2026-04-18 13:39 (UTC+8)
+Renew #1 回報：2026-04-18 14:52 (UTC+8)
+
+---
+
+## Renew #1 收尾（2026-04-18 14:52）
+
+### 執行結果：**未執行 Renew 指示**（範圍守衛 F-11 觸發）
+
+### 勘查結果
+
+執行 Renew #1 指示前先驗證目標 repo 狀態，發現指示前提**已全部改變**：
+
+| 項目 | Renew #1 預期 | 實際狀態 | 證據 |
+|------|---------------|---------|------|
+| `feat/yolo-autonomous-mode` 分支 | 存在，待 push | ❌ 本地與 remote 都不存在 | `git branch -a` / `git ls-remote origin` |
+| Worker 的 `bfc4ba5` commit | 在分支上 | ❌ 不在 `git log` 範圍 | `git log --oneline -20` |
+| CHANGELOG.md | 待建立 | ✅ 已存在 | 對方塔台 commit `d65f451` |
+| v4.2.0 tag | 待打 | ❌ local 與 remote 都沒有 | `git tag -l "v4*"` 空 |
+| ZIP snapshot | 待產出 | ✅ `BMad-Control-Tower-v4.2.0.zip` 已存在 | `ls ../*.zip` |
+
+### 對方塔台已自行接手（不經本 Worker）
+
+目標 repo `dev-main` 分支領先本 Worker 先前認知的狀態。關鍵 commits：
+
+```
+d65f451 docs(ct): v4.2.0 release — CHANGELOG + 安裝指南 + ZIP
+3a544c2 feat(ct-help): v4.2.0 — 加入 yolo 自主模式章節
+3a93952 chore(ct): CP-T0095 DONE — source sync + v4.2.0 snapshot 回報
+def3053 feat(ct): v4.2.0 snapshot — yolo autonomous mode
+d77fde0 chore(ct): CP-T0094 DONE — dev-main 同步 + feat 分支保留
+```
+
+**關鍵發現**：
+- 對方塔台的 `def3053 feat(ct): v4.2.0 snapshot` **不是** cherry-pick / merge 本 Worker 的 `bfc4ba5`（hash 完全不同），而是**重做**。
+- `d77fde0` 訊息含「feat 分支保留」語意，暗示當時 feat 分支仍在；但現在本地/remote 都已刪除（推測 CP-T0095 後清理）。
+- 對方塔台透過 CP-T0094（dev-main 同步）/ CP-T0095（source sync + snapshot）把整條流程自己跑完了。
+
+### 為何停下而非盲執行
+
+F-11 範圍守衛觸發條件符合：
+- 指示的前置條件（feat 分支存在）已不成立 → 盲目 `git push -u origin feat/yolo-autonomous-mode` 會失敗
+- 指示的 Step 2（CHANGELOG）會與對方塔台 `d65f451` 衝突或重複
+- 指示的 Step 4（ZIP）會覆蓋已存在的 `BMad-Control-Tower-v4.2.0.zip`
+- 本工單原本 scope 是「代改 CT skill」，現在塔台指示延伸到「發布流程」，且指示前提失真 → 應回報而非續做
+
+### 唯一剩餘可動作項
+
+對方塔台雖然做了 CHANGELOG / snapshot / source sync，但**未打 v4.2.0 tag**（`git tag -l "v4*"` 空）。若塔台認為仍需 tag，可直接打在 dev-main HEAD `d65f451`：
+
+```bash
+cd "D:/ForgejoGit/BMad-Guide/BMad-Control-Tower/BMad-Control-Tower-v4.1.0"
+git tag -a v4.2.0 -m "feat: yolo autonomous mode (PLAN-020)" d65f451
+git push origin v4.2.0
+```
+
+### 給塔台的裁示選項
+
+```
+[A] 工單改 DONE — 接受對方塔台已自行吸收的事實,
+    僅本回報區記錄「Renew #1 指示過時 + 對方塔台重做」,
+    不再補動作。
+
+[B] 工單改 DONE + 補打 tag — 本 Worker 在 dev-main HEAD d65f451
+    打 v4.2.0 tag 並 push,其他步驟跳過。
+
+[C] 深入調查等價性 — 比對對方塔台 def3053 的 yolo 實作與
+    本 Worker bfc4ba5 的差異,確認功能一致性再決定。
+
+[D] 保持 PARTIAL + 開新工單 — 本工單的 Renew #1 指示已過時,
+    另開 CP-T00XX 專門處理「打 v4.2.0 tag」這個單一動作。
+```
+
+### 工單狀態
+
+**保持 PARTIAL**（依使用者指示)，等塔台選擇 A/B/C/D 再決定後續。
+
+---
+
+## 塔台補充（Renew #2）
+
+**時間**：2026-04-18 14:55 (UTC+8)
+**塔台裁示**：採 **[B] 工單改 DONE + 補打 v4.2.0 tag**
+
+**理由**：
+1. 對方塔台已透過 CP-T0094/CP-T0095 吸收 yolo 功能（`def3053` / `d65f451` / `3a93952` 等），CHANGELOG + snapshot + source sync 全數完成
+2. Worker F-11 範圍守衛判斷正確，避免了衝突操作 — 紀錄學習候選
+3. 唯一缺口是 v4.2.0 tag，補上可精準回溯，價值高成本低
+
+**新指示**（唯一動作）：
+
+```bash
+cd "D:/ForgejoGit/BMad-Guide/BMad-Control-Tower/BMad-Control-Tower-v4.1.0"
+git tag -a v4.2.0 -m "feat: yolo autonomous mode (PLAN-020)" d65f451
+git push origin v4.2.0
+```
+
+**tag 對應 commit**：`d65f451`（對方塔台 CHANGELOG release commit，本次 v4.2.0 發布的 HEAD 錨點）
+
+**tag 訊息**：`feat: yolo autonomous mode (PLAN-020)`（與 Worker 建議一致）
+
+**完成後**：
+1. 本工單狀態 **PARTIAL → DONE**
+2. 在本回報區下方新增「Renew #2 收尾」段落，填 tag 成功的驗證（`git tag -l "v4.2.0"` 應有輸出）
+3. 回塔台 session 回報「CT-T002 完成」
+
+**不做**：
+- ❌ 不 push Worker 原 `bfc4ba5`（已無分支，對方塔台用 `def3053` 重做等價功能）
+- ❌ 不再建 CHANGELOG / ZIP（對方塔台已做）
+- ❌ 不做等價性比對（信任對方塔台品質，若 T0172 驗證發現 skill 少東西再回補)
+
+---
+
+## Renew #2 收尾（2026-04-18 15:08）
+
+### 執行結果：**v4.2.0 tag 已補打並 push 成功**
+
+### 執行指令
+
+```bash
+cd "D:/ForgejoGit/BMad-Guide/BMad-Control-Tower/BMad-Control-Tower-v4.1.0"
+git tag -a v4.2.0 -m "feat: yolo autonomous mode (PLAN-020)" d65f451
+git push origin v4.2.0
+```
+
+### 驗證結果
+
+| 項目 | 命令 | 輸出 |
+|------|------|------|
+| local tag 建立 | `git tag -l "v4.2.0"` | `v4.2.0` ✅ |
+| remote tag 同步 | `git ls-remote --tags origin \| grep v4.2.0` | `73fcf8c... refs/tags/v4.2.0`（annotated tag）+ `d65f451... refs/tags/v4.2.0^{}`（peeled 指向 CHANGELOG commit）✅ |
+| push 輸出 | `git push origin v4.2.0` | `* [new tag] v4.2.0 -> v4.2.0` ✅ |
+
+### tag 錨點
+
+- **對應 commit**：`d65f451 docs(ct): v4.2.0 release — CHANGELOG + 安裝指南 + ZIP`
+- **訊息**：`feat: yolo autonomous mode (PLAN-020)`
+- **類型**：annotated tag（`-a -m`，非 lightweight），可攜 release notes
+
+### 與 Renew #2 指示對照
+
+| 塔台指示 | 執行狀態 |
+|----------|---------|
+| 打 v4.2.0 tag 錨 `d65f451` | ✅ |
+| tag 訊息 `feat: yolo autonomous mode (PLAN-020)` | ✅ |
+| `git push origin v4.2.0` | ✅ |
+| 工單狀態 PARTIAL → DONE | ✅（見本次 Step 8 更新） |
+| 不 push 原 `bfc4ba5` | ✅（未執行任何額外 push） |
+| 不再建 CHANGELOG / ZIP | ✅（對方塔台已有） |
+| 不做等價性比對 | ✅（留給 T0172） |
+
+### 總耗時
+
+Renew #2 收尾：約 1 分鐘（tag 打 + push + 驗證）。

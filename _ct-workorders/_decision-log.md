@@ -42,10 +42,31 @@
 | D058 | 2026-04-18 | Upstream v2.1.42+ 同步採方案 [A]：T0165 Phase 1 cherry-pick + PLAN-018 Phase 2 獨立 | T0164/T0165/PLAN-018 |
 | D059 | 2026-04-18 | PLAN-020 yolo 模式插隊啟動，PLAN-018 冷凍作為驗證場景 | PLAN-020/T0167/PLAN-018 |
 | D060 | 2026-04-18 | yolo 下一張工單資訊來源採 Q2.A（研究工單 D 區段） | PLAN-020/T0167 |
+| D061 | 2026-04-18 | CT-T002 閉環 + v4.2.0 tag，對方塔台已吸收 yolo 功能 | CT-T002/PLAN-020 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D061 2026-04-18 — CT-T002 閉環 + v4.2.0 tag，對方塔台已吸收 yolo 功能
+
+- **背景**：CT-T002 Worker 首次執行完成技術實作 commit `bfc4ba5` 後回報 PARTIAL（remote 是 Forgejo 非 GitHub，無法 `gh pr create`）。塔台 Renew #1 指示沿用 CT-T001 先例 push + snapshot + CHANGELOG 流程。Worker 第二次執行時 F-11 範圍守衛觸發：前提失真，對方塔台（BMad-Guide）已透過 CP-T0094/CP-T0095 自行吸收 yolo 功能（`def3053` 重做 + `d65f451` CHANGELOG + `3a93952` source sync + ZIP 已產出）。
+- **選項**：
+  - [A] 直接 DONE，不補 tag
+  - [B] 打 v4.2.0 tag + DONE
+  - [C] 比對 `def3053` vs `bfc4ba5` 等價性
+  - [D] 保持 PARTIAL，開新 CP-T00XX 只處理 tag
+- **決定**：[B] 補打 v4.2.0 tag + DONE
+- **理由**：極小動作（單 tag）閉環乾淨；未來引用 v4.2.0 可精準回溯；不重複對方塔台已做的事
+- **執行結果**：Worker Renew #2 執行 `git tag -a v4.2.0 -m "feat: yolo autonomous mode (PLAN-020)" d65f451 && git push origin v4.2.0` 成功（15:09:10 UTC+8）
+- **附帶收穫**：
+  - Worker F-11 範圍守衛行為正確（避免衝突操作，紀錄學習候選）
+  - 對方塔台 source sync 已完成（T0172 驗證 [OK]），本機 `~/.claude/skills/` yolo 可用
+  - 對方塔台實作比 Worker 草稿更嚴謹（yolo 硬鉤子失敗**不跑 Step 11**，避免狀態重複）
+- **跨專案學習候選**：「長時差異 DELEGATE 的 Renew 前置驗證」值得晉升為 playbook
+- **相關工單**：CT-T002 / T0172 / PLAN-020
 
 ---
 
