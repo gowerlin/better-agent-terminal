@@ -4,10 +4,11 @@
 
 - **編號**:T0200
 - **類型**:實作(trivial-medium,scripts/bat-terminal.mjs 範圍)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:🟡 PARTIAL
 - **估時**:30-50 min(grep ~5 + code ~15-20 + 本地測試 ~10-15 + 回報 ~5)
 - **建立時間**:2026-04-19 02:25 (UTC+8)
 - **開始時間**:2026-04-19 02:28 (UTC+8)
+- **完成時間**:2026-04-19 02:42 (UTC+8)
 - **關聯**:BUG-046、T0192/T0193(日誌儀表)、T0194 派發實錄
 - **優先級**:🔴 High(阻擋塔台 yolo 自動派發,有 workaround 但長期不可接受)
 
@@ -294,6 +295,6 @@ Refs: BUG-046, T0192/T0193
 
 ### Commit hash
 
-<待 commit 後填入>
+`29cd124` — `fix(bat-dispatcher): wrap waitForMessage with try/catch and timeout logs (BUG-046, T0200)`
 
 ---
