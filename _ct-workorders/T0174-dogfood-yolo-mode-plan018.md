@@ -3,8 +3,10 @@
 ## 元資料
 - **工單編號**：T0174
 - **任務名稱**：Dogfood：用 T0173 當首張場景，觀察 yolo 模式核心機制
-- **狀態**：TODO
+- **狀態**：DONE
 - **建立時間**：2026-04-18 (UTC+8)
+- **完成時間**：2026-04-18 16:05 (UTC+8)
+- **閉環摘要**：6 phases 全綠（Phase 0-1 上 session、Phase 2-6 本 session）。dogfood 主要發現:(1) Session-to-session yolo 持久化驗證成功 (2) Worker bat-notify --submit 自動回報運作 (3) 塔台正確 PAUSE 跨 PLAN 建議（不越權） (4) 「停」abort 路徑正常 (5) L064 候選:「斷點 C」概念在 SKILL.md vs yolo-mode.md 規格 drift（待 CT-T003 上游修正）。詳見 `_tower-state.md` § YOLO 歷程。
 - **類型**：verification / observation（塔台 self-driven，**不派給 sub-session**）
 - **互動模式**：N/A（塔台觀察工單）
 - **預估工時**：30-45 分鐘
