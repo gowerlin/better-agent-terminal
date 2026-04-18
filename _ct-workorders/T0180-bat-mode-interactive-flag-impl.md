@@ -4,8 +4,9 @@
 - **工單編號**：T0180
 - **任務名稱**：BAT 端 `--mode` / `--interactive` flag 接收 + env 注入（BUG-041 Phase 2.2）
 - **類型**：implementation
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **開始時間**：2026-04-18 18:56 (UTC+8)
+- **完成時間**：2026-04-18 19:01 (UTC+8)
 - **建立時間**：2026-04-18 18:55 (UTC+8)
 - **預估工時**：30 分鐘（依 T0179 報告 E.1 建議）
 - **優先級**：🔴 High（BUG-041 修復路徑第 2 步；先改 BAT 再改 skill，保護漸進升級）
@@ -222,7 +223,9 @@ Pattern 與 T0176 BAT_WORKSPACE_ID 注入完全一致，不觸碰 `pty-manager.t
 
 ### Commit
 
-（待 commit 後補 hash）
+`8558b73` — `feat(bat): inject CT_MODE / CT_INTERACTIVE env on PTY creation (BUG-041 Phase 2.2)`
+
+範圍：`scripts/bat-terminal.mjs` + `_ct-workorders/T0180-bat-mode-interactive-flag-impl.md`（未混入 BUG-040/T0179 既有 M 修改）
 
 ### Renew 歷程
 
