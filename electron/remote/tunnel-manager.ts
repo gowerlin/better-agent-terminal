@@ -12,6 +12,7 @@ export interface NetworkAddress {
 export interface TunnelResult {
   url: string
   token: string
+  fingerprint: string
   mode: TunnelMode
   addresses: NetworkAddress[]
 }
@@ -20,7 +21,11 @@ export interface TunnelResult {
  * List all available IPv4 addresses and build a connection URL.
  * Tailscale IPs (100.x.x.x) are listed first.
  */
-export function getConnectionInfo(port: number, token: string): TunnelResult | { error: string } {
+export function getConnectionInfo(
+  port: number,
+  token: string,
+  fingerprint: string
+): TunnelResult | { error: string } {
   const addresses = getAllAddresses()
   if (addresses.length === 0) {
     return { error: 'No network interface found' }
@@ -28,9 +33,12 @@ export function getConnectionInfo(port: number, token: string): TunnelResult | {
 
   // Default to first address (Tailscale first, then LAN)
   const primary = addresses[0]
-  const url = `ws://${primary.ip}:${port}`
-  logger.log(`[TunnelManager] Primary: ${url} (${primary.label}), ${addresses.length} addresses available`)
-  return { url, token, mode: primary.mode, addresses }
+  const url = `wss://${primary.ip}:${port}`
+  logger.log(
+    `[TunnelManager] Primary: ${url} (${primary.label}), ${addresses.length} addresses available, ` +
+      `fingerprint=${fingerprint.substring(0, 23)}...`
+  )
+  return { url, token, fingerprint, mode: primary.mode, addresses }
 }
 
 function getAllAddresses(): NetworkAddress[] {

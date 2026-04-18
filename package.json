@@ -45,6 +45,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^16.5.8",
+    "selfsigned": "^5.5.0",
     "simple-git": "^3.36.0",
     "uuid": "^9.0.0",
     "whisper-node-addon": "^1.0.2",
@@ -114,7 +115,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "assets/icon-512.png",

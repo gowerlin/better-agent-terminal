@@ -1,4 +1,5 @@
 import WebSocket from 'ws'
+import type { TLSSocket, PeerCertificate } from 'tls'
 import { randomBytes } from 'crypto'
 import { BrowserWindow } from 'electron'
 import { PROXIED_EVENTS, type RemoteFrame } from './protocol'
@@ -10,16 +11,36 @@ interface PendingInvoke {
   timer: ReturnType<typeof setTimeout>
 }
 
+export interface ConnectResult {
+  ok: boolean
+  fingerprint?: string
+  error?: string
+  errorCode?:
+    | 'auth-failed'
+    | 'fingerprint-mismatch'
+    | 'timeout'
+    | 'network'
+    | 'unknown'
+}
+
+function normalizeFingerprint(fp: string): string {
+  // Accept both lower/upper case, with or without colons, and render as
+  // upper-case colon-separated hex — matches certificate.ts.
+  return fp.replace(/[^0-9a-fA-F]/g, '').toUpperCase().match(/.{2}/g)?.join(':') || ''
+}
+
 export class RemoteClient {
   private ws: WebSocket | null = null
   private pending: Map<string, PendingInvoke> = new Map()
   private getWindows: () => BrowserWindow[]
   private _connected = false
+  private _connectedFingerprint = ''
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private host = ''
   private port = 0
   private token = ''
   private label = ''
+  private expectedFingerprint = ''
   private shouldReconnect = false
 
   constructor(getWindows: () => BrowserWindow[]) {
@@ -30,41 +51,90 @@ export class RemoteClient {
     return this._connected && this.ws?.readyState === WebSocket.OPEN
   }
 
-  get connectionInfo(): { host: string; port: number } | null {
+  get connectionInfo(): { host: string; port: number; fingerprint: string } | null {
     if (!this._connected) return null
-    return { host: this.host, port: this.port }
+    return { host: this.host, port: this.port, fingerprint: this._connectedFingerprint }
   }
 
-  connect(host: string, port: number, token: string, label?: string): Promise<boolean> {
+  /**
+   * Connect to a remote server.
+   *
+   * @param expectedFingerprint Optional — when empty the first successful
+   * connection performs TOFU (trust on first use) and returns the server's
+   * fingerprint so the caller can pin it for subsequent connects.
+   */
+  connect(
+    host: string,
+    port: number,
+    token: string,
+    label?: string,
+    expectedFingerprint?: string
+  ): Promise<ConnectResult> {
     if (this.ws) this.disconnect()
 
     this.host = host
     this.port = port
     this.token = token
     this.label = label || `Client-${randomBytes(3).toString('hex')}`
+    this.expectedFingerprint = expectedFingerprint
+      ? normalizeFingerprint(expectedFingerprint)
+      : ''
     this.shouldReconnect = true
 
     return this.doConnect()
   }
 
-  private doConnect(): Promise<boolean> {
+  private doConnect(): Promise<ConnectResult> {
     return new Promise((resolve) => {
-      const url = `ws://${this.host}:${this.port}`
-      this.ws = new WebSocket(url)
+      const url = `wss://${this.host}:${this.port}`
+      // We verify the self-signed cert ourselves via fingerprint pinning below,
+      // so the normal trust chain check is disabled.
+      this.ws = new WebSocket(url, { rejectUnauthorized: false })
 
-      let authResolved = false
+      let settled = false
+      let observedFingerprint = ''
+      const settle = (result: ConnectResult) => {
+        if (settled) return
+        settled = true
+        clearTimeout(authTimeout)
+        resolve(result)
+      }
 
       const authTimeout = setTimeout(() => {
-        if (!authResolved) {
-          authResolved = true
-          this._connected = false
-          this.ws?.close()
-          resolve(false)
-        }
+        this._connected = false
+        this.ws?.close()
+        settle({ ok: false, error: 'Connection timeout', errorCode: 'timeout' })
       }, 10000)
 
+      // Fingerprint verification on upgrade — access the underlying TLS socket.
+      this.ws.on('upgrade', (res) => {
+        const sock = res.socket as TLSSocket | undefined
+        const peer: PeerCertificate | undefined = sock?.getPeerCertificate
+          ? sock.getPeerCertificate(false)
+          : undefined
+        const fp = peer?.fingerprint256
+          ? normalizeFingerprint(peer.fingerprint256)
+          : ''
+        observedFingerprint = fp
+
+        if (this.expectedFingerprint && fp && fp !== this.expectedFingerprint) {
+          logger.error(
+            `[RemoteClient] Fingerprint mismatch: expected ${this.expectedFingerprint.substring(0, 23)}... ` +
+              `got ${fp.substring(0, 23)}...`
+          )
+          this._connected = false
+          this.ws?.close()
+          settle({
+            ok: false,
+            error: 'Server fingerprint does not match the pinned value',
+            errorCode: 'fingerprint-mismatch',
+            fingerprint: fp
+          })
+        }
+      })
+
       this.ws.on('open', () => {
-        // Send auth frame
+        // Send auth frame (fingerprint already validated during upgrade)
         const authFrame: RemoteFrame = {
           type: 'auth',
           id: this.nextId(),
@@ -84,18 +154,18 @@ export class RemoteClient {
 
         // Auth result
         if (frame.type === 'auth-result') {
-          clearTimeout(authTimeout)
-          if (!authResolved) {
-            authResolved = true
-            if (frame.error) {
-              this._connected = false
-              logger.error(`[RemoteClient] Auth failed: ${frame.error}`)
-              resolve(false)
-            } else {
-              this._connected = true
-              logger.log(`[RemoteClient] Connected to ${this.host}:${this.port}`)
-              resolve(true)
-            }
+          if (frame.error) {
+            this._connected = false
+            logger.error(`[RemoteClient] Auth failed: ${frame.error}`)
+            settle({ ok: false, error: frame.error, errorCode: 'auth-failed' })
+          } else {
+            this._connected = true
+            this._connectedFingerprint = observedFingerprint
+            logger.log(
+              `[RemoteClient] Connected to ${this.host}:${this.port} ` +
+                `(fingerprint=${observedFingerprint.substring(0, 23)}...)`
+            )
+            settle({ ok: true, fingerprint: observedFingerprint })
           }
           return
         }
@@ -130,7 +200,6 @@ export class RemoteClient {
       })
 
       this.ws.on('close', () => {
-        clearTimeout(authTimeout)
         const wasConnected = this._connected
         this._connected = false
 
@@ -145,6 +214,10 @@ export class RemoteClient {
           logger.log('[RemoteClient] Disconnected')
         }
 
+        if (!settled) {
+          settle({ ok: false, error: 'Connection closed before auth', errorCode: 'network' })
+        }
+
         // Auto-reconnect if we should
         if (this.shouldReconnect && wasConnected) {
           this.scheduleReconnect()
@@ -153,11 +226,9 @@ export class RemoteClient {
 
       this.ws.on('error', (err) => {
         logger.error('[RemoteClient] WebSocket error:', err.message)
-        if (!authResolved) {
-          clearTimeout(authTimeout)
-          authResolved = true
+        if (!settled) {
           this._connected = false
-          resolve(false)
+          settle({ ok: false, error: err.message, errorCode: 'network' })
         }
       })
     })
@@ -170,8 +241,8 @@ export class RemoteClient {
       this.reconnectTimer = null
       if (!this.shouldReconnect) return
       try {
-        const ok = await this.doConnect()
-        if (!ok && this.shouldReconnect) {
+        const res = await this.doConnect()
+        if (!res.ok && this.shouldReconnect) {
           this.scheduleReconnect()
         }
       } catch {

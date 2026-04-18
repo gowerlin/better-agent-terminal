@@ -27,15 +27,20 @@ const checkFontAvailable = (fontFamily: string): boolean => {
   }
 }
 
+type BindInterface = 'localhost' | 'tailscale' | 'all'
+
 interface RemoteServerStatus {
   running: boolean
   port: number | null
+  bindInterface?: BindInterface
+  host?: string
+  fingerprint?: string
   clients: { label: string; connectedAt: number }[]
 }
 
 interface RemoteClientStatus {
   connected: boolean
-  info: { host: string; port: number } | null
+  info: { host: string; port: number; fingerprint?: string } | null
 }
 
 interface LoggingInfo {
@@ -56,6 +61,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   // Remote server state
   const [serverStatus, setServerStatus] = useState<RemoteServerStatus>({ running: false, port: null, clients: [] })
   const [serverPort, setServerPort] = useState('9876')
+  const [bindInterface, setBindInterface] = useState<BindInterface>('localhost')
+  const [startServerError, setStartServerError] = useState<string>('')
   const [serverToken, setServerToken] = useState<string | null>(null)
   const [clientStatus, setClientStatus] = useState<RemoteClientStatus>({ connected: false, info: null })
 
@@ -67,6 +74,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [qrAddresses, setQrAddresses] = useState<{ ip: string; mode: string; label: string }[]>([])
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrPort, setQrPort] = useState<number>(9876)
+  const [qrFingerprint, setQrFingerprint] = useState<string>('')
 
   // Statusline config state
   const [slItems, setSlItems] = useState<StatuslineItemConfig[]>(settingsStore.getStatuslineItems())
@@ -179,8 +187,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   }, [refreshLoggingInfo])
 
   const handleStartServer = async () => {
-    const result = await window.electronAPI.remote.startServer(parseInt(serverPort) || 9876)
+    setStartServerError('')
+    const result = await window.electronAPI.remote.startServer(parseInt(serverPort) || 9876, undefined, bindInterface)
     if ('error' in result) {
+      setStartServerError(result.error)
       alert(t('settings.failedToStartServer', { error: result.error }))
     } else {
       setServerToken(result.token)
@@ -220,9 +230,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
   }, [refreshLoggingInfo, t])
 
-  const generateQrForIp = useCallback(async (ip: string, mode: string, token: string, port: number) => {
-    const url = `ws://${ip}:${port}`
-    const payload = JSON.stringify({ url, token, mode })
+  const generateQrForIp = useCallback(async (ip: string, mode: string, token: string, port: number, fingerprint: string) => {
+    const url = `wss://${ip}:${port}`
+    const payload = JSON.stringify({ url, token, mode, fingerprint })
     const dataUrl = await QRCode.toDataURL(payload, { width: 256, margin: 2 })
     setQrDataUrl(dataUrl)
     setQrInfo({ url, mode })
@@ -239,9 +249,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       }
       setQrAddresses(result.addresses)
       setQrToken(result.token)
+      setQrFingerprint(result.fingerprint)
       const port = parseInt(result.url.split(':').pop() || '9876')
       setQrPort(port)
-      await generateQrForIp(result.addresses[0].ip, result.addresses[0].mode, result.token, port)
+      await generateQrForIp(result.addresses[0].ip, result.addresses[0].mode, result.token, port, result.fingerprint)
       // Refresh server status since we may have started it
       const ss = await window.electronAPI.remote.serverStatus()
       setServerStatus(ss)
@@ -1010,10 +1021,36 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <>
                 <div className="settings-group" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ color: '#3fb950', fontSize: 12 }}>{t('settings.serverRunningOnPort', { port: serverStatus.port })}</span>
+                  {serverStatus.bindInterface && (
+                    <span style={{ fontSize: 11, color: '#8b949e' }}>
+                      (bind: {serverStatus.bindInterface}{serverStatus.host ? ` / ${serverStatus.host}` : ''})
+                    </span>
+                  )}
                   <button className="profile-action-btn danger" onClick={handleStopServer} style={{ marginLeft: 'auto' }}>
                     {t('settings.stopServer')}
                   </button>
                 </div>
+                {serverStatus.fingerprint && (
+                  <div className="settings-group">
+                    <label>Server fingerprint (SHA-256)</label>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        readOnly
+                        value={serverStatus.fingerprint}
+                        style={{ fontFamily: 'monospace', fontSize: 11, flex: 1 }}
+                        onClick={e => (e.target as HTMLInputElement).select()}
+                      />
+                      <button
+                        className="profile-action-btn"
+                        onClick={() => navigator.clipboard.writeText(serverStatus.fingerprint || '')}
+                        title="Copy fingerprint"
+                      >
+                        {t('common.copy')}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {serverToken && (
                   <div className="settings-group">
                     <label>{t('settings.connectionToken')}</label>
@@ -1048,7 +1085,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               </>
             ) : (
               <div className="settings-group">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <input
                     type="number"
                     value={serverPort}
@@ -1056,10 +1093,25 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     placeholder={t('settings.port')}
                     style={{ width: 80 }}
                   />
+                  <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Bind:</label>
+                  <select
+                    value={bindInterface}
+                    onChange={e => setBindInterface(e.target.value as BindInterface)}
+                    style={{ fontSize: 12, padding: '4px 6px' }}
+                  >
+                    <option value="localhost">localhost (127.0.0.1)</option>
+                    <option value="tailscale">tailscale (100.x.x.x)</option>
+                    <option value="all">all interfaces (0.0.0.0)</option>
+                  </select>
                   <button className="profile-action-btn primary" onClick={handleStartServer}>
                     {t('settings.startServer')}
                   </button>
                 </div>
+                {startServerError && (
+                  <p style={{ fontSize: 12, color: '#e5534b', marginTop: 6 }}>
+                    {startServerError}
+                  </p>
+                )}
                 <p style={{ fontSize: 11, color: '#d29922', marginTop: 6, lineHeight: 1.4 }}>
                   {t('settings.serverWarning')}
                 </p>
@@ -1115,7 +1167,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       onChange={async (e) => {
                         const addr = qrAddresses.find(a => a.ip === e.target.value)
                         if (addr && qrToken) {
-                          await generateQrForIp(addr.ip, addr.mode, qrToken, qrPort)
+                          await generateQrForIp(addr.ip, addr.mode, qrToken, qrPort, qrFingerprint)
                         }
                       }}
                     >

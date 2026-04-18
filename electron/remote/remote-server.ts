@@ -1,11 +1,16 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import { randomBytes } from 'crypto'
-import * as fs from 'fs'
+import { networkInterfaces } from 'os'
+import * as https from 'https'
 import * as path from 'path'
 import { invokeHandler } from './handler-registry'
 import { logger } from '../logger'
 import { broadcastHub } from './broadcast-hub'
 import { PROXIED_EVENTS, type RemoteFrame } from './protocol'
+import { loadOrCreateServerCertificate } from './certificate'
+import { readSecretFile, writeSecretFile } from './secrets'
+
+export type BindInterface = 'localhost' | 'tailscale' | 'all'
 
 interface AuthenticatedClient {
   ws: WebSocket
@@ -13,9 +18,45 @@ interface AuthenticatedClient {
   connectedAt: number
 }
 
+export interface StartServerResult {
+  port: number
+  token: string
+  fingerprint: string
+  bindInterface: BindInterface
+  host: string
+}
+
+const TOKEN_FILENAME = 'server-token.json'
+
+function resolveBindHost(
+  bindInterface: BindInterface
+): { host: string; error?: string } {
+  if (bindInterface === 'localhost') return { host: '127.0.0.1' }
+  if (bindInterface === 'all') return { host: '0.0.0.0' }
+  // tailscale — find first 100.x.y.z interface; fail-closed if absent.
+  const nets = networkInterfaces()
+  for (const iface of Object.values(nets)) {
+    if (!iface) continue
+    for (const net of iface) {
+      if (net.family === 'IPv4' && !net.internal && net.address.startsWith('100.')) {
+        return { host: net.address }
+      }
+    }
+  }
+  return {
+    host: '',
+    error:
+      'bind-interface=tailscale selected but no Tailscale (100.x.y.z) IPv4 interface was found'
+  }
+}
+
 export class RemoteServer {
   private wss: WebSocketServer | null = null
+  private httpsServer: https.Server | null = null
   private token: string = ''
+  private fingerprint: string = ''
+  private currentBindInterface: BindInterface = 'localhost'
+  private currentHost: string = '127.0.0.1'
   private clients: Map<WebSocket, AuthenticatedClient> = new Map()
   private broadcastListener: ((...args: unknown[]) => void) | null = null
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
@@ -35,6 +76,18 @@ export class RemoteServer {
     return this.token
   }
 
+  get currentFingerprint(): string {
+    return this.fingerprint
+  }
+
+  get bindInterface(): BindInterface {
+    return this.currentBindInterface
+  }
+
+  get host(): string {
+    return this.currentHost
+  }
+
   get connectedClients(): { label: string; connectedAt: number }[] {
     return Array.from(this.clients.values()).map(c => ({
       label: c.label,
@@ -42,38 +95,69 @@ export class RemoteServer {
     }))
   }
 
-  private loadPersistedToken(): string | null {
-    if (!this.configDir) return null
-    try {
-      const tokenPath = path.join(this.configDir, 'server-token.json')
-      const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8'))
-      return data.token || null
-    } catch {
-      return null
-    }
+  private tokenPath(): string {
+    return path.join(this.configDir, TOKEN_FILENAME)
   }
 
-  private persistToken(token: string, port?: number): void {
+  private loadPersistedToken(): string | null {
+    if (!this.configDir) return null
+    return readSecretFile(this.tokenPath())
+  }
+
+  private persistToken(token: string): void {
     if (!this.configDir) return
     try {
-      const data: { token: string; port?: number } = { token }
-      if (port != null) data.port = port
-      fs.writeFileSync(
-        path.join(this.configDir, 'server-token.json'),
-        JSON.stringify(data, null, 2)
-      )
+      writeSecretFile(this.tokenPath(), token)
     } catch (e) {
       logger.warn('[RemoteServer] Failed to persist token:', e)
     }
   }
 
-  start(port: number = 9876, token?: string): { port: number; token: string } {
+  async start(
+    port: number = 9876,
+    token?: string,
+    bindInterface: BindInterface = 'localhost'
+  ): Promise<StartServerResult> {
     if (this.wss) throw new Error('Server already running')
+
+    if (!this.configDir) {
+      throw new Error('RemoteServer: configDir not set — cannot load certificate')
+    }
+
+    const bindResolution = resolveBindHost(bindInterface)
+    if (bindResolution.error) {
+      // fail-closed per PLAN-018 Q2.A
+      throw new Error(bindResolution.error)
+    }
 
     // Priority: explicit token > persisted token > new random token
     this.token = token || this.loadPersistedToken() || randomBytes(16).toString('hex')
+    this.currentBindInterface = bindInterface
+    this.currentHost = bindResolution.host
 
-    this.wss = new WebSocketServer({ host: '0.0.0.0', port })
+    const { cert, key, fingerprint } = await loadOrCreateServerCertificate(
+      this.configDir
+    )
+    this.fingerprint = fingerprint
+
+    // Build an HTTPS server so the WebSocket upgrade runs over TLS.
+    this.httpsServer = https.createServer({ cert, key })
+
+    await new Promise<void>((resolve, reject) => {
+      const onError = (err: Error) => {
+        this.httpsServer?.off('listening', onListening)
+        reject(err)
+      }
+      const onListening = () => {
+        this.httpsServer?.off('error', onError)
+        resolve()
+      }
+      this.httpsServer!.once('error', onError)
+      this.httpsServer!.once('listening', onListening)
+      this.httpsServer!.listen(port, bindResolution.host)
+    })
+
+    this.wss = new WebSocketServer({ server: this.httpsServer })
 
     this.wss.on('connection', (ws) => {
       let authenticated = false
@@ -188,11 +272,20 @@ export class RemoteServer {
       }
     }, 30000)
 
-    // Persist token + port after server is listening
-    this.persistToken(this.token, port)
+    // Persist token after server is listening (encrypted via safeStorage)
+    this.persistToken(this.token)
 
-    logger.log(`[RemoteServer] Started on port ${port}, token: ${this.token.substring(0, 8)}...`)
-    return { port, token: this.token }
+    logger.log(
+      `[RemoteServer] Started on ${this.currentHost}:${port} (bind=${bindInterface}), ` +
+        `fingerprint=${fingerprint.substring(0, 23)}..., token=${this.token.substring(0, 8)}...`
+    )
+    return {
+      port,
+      token: this.token,
+      fingerprint,
+      bindInterface,
+      host: this.currentHost
+    }
   }
 
   stop(): void {
@@ -215,6 +308,11 @@ export class RemoteServer {
     if (this.wss) {
       this.wss.close()
       this.wss = null
+    }
+
+    if (this.httpsServer) {
+      this.httpsServer.close()
+      this.httpsServer = null
     }
 
     logger.log('[RemoteServer] Stopped')

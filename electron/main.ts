@@ -1023,14 +1023,21 @@ app.whenReady().then(async () => {
     if (profileEntry?.type === 'remote' && profileEntry.remoteHost && profileEntry.remoteToken) {
       try {
         const client = new RemoteClient(getAllWindows)
-        const ok = await client.connect(
+        const result = await client.connect(
           profileEntry.remoteHost,
           profileEntry.remotePort || 9876,
           profileEntry.remoteToken,
+          undefined,
+          profileEntry.remoteFingerprint,
         )
-        if (!ok) {
-          logger.error(`[profile] remote connect failed for profile ${profileId} (${profileEntry.remoteHost}:${profileEntry.remotePort})`)
+        if (!result.ok) {
+          logger.error(`[profile] remote connect failed for profile ${profileId} (${profileEntry.remoteHost}:${profileEntry.remotePort}): ${result.error ?? 'unknown'}`)
           return null
+        }
+        // TOFU: first-time success without pinned fingerprint → store the observed one
+        if (!profileEntry.remoteFingerprint && result.fingerprint) {
+          await profileManager.update(profileId, { remoteFingerprint: result.fingerprint })
+          logger.log(`[profile] TOFU: pinned fingerprint for profile ${profileId}`)
         }
         remoteClient = client
         const targetProfileId = profileEntry.remoteProfileId || 'default'
@@ -1097,7 +1104,7 @@ app.whenReady().then(async () => {
 
   // T0129: Auto-start RemoteServer so PTY terminals get BAT_REMOTE_PORT/TOKEN env vars
   try {
-    remoteServer.start()
+    await remoteServer.start()
     logger.log(`[startup] RemoteServer auto-started on port ${remoteServer.port}`)
   } catch (err) {
     logger.warn('[startup] RemoteServer auto-start failed (non-blocking):', err)
@@ -2503,8 +2510,8 @@ function registerLocalHandlers() {
   })
 
   // Remote server handlers (always local)
-  ipcMain.handle('remote:start-server', async (_event, port?: number, token?: string) => {
-    try { return remoteServer.start(port, token) }
+  ipcMain.handle('remote:start-server', async (_event, port?: number, token?: string, bindInterface?: 'localhost' | 'tailscale' | 'all') => {
+    try { return await remoteServer.start(port, token, bindInterface) }
     catch (err: unknown) { return { error: err instanceof Error ? err.message : String(err) } }
   })
   ipcMain.handle('remote:stop-server', async () => {
@@ -2514,39 +2521,37 @@ function registerLocalHandlers() {
   ipcMain.handle('remote:server-status', async () => ({
     running: remoteServer.isRunning,
     port: remoteServer.port,
+    bindInterface: remoteServer.bindInterface,
+    host: remoteServer.host,
+    fingerprint: remoteServer.currentFingerprint,
     clients: remoteServer.connectedClients
   }))
 
   // Mobile QR code connection: ensure server is running, return connection URL
   ipcMain.handle('tunnel:get-connection', async () => {
     try {
-      let port: number
-      let token: string
       if (!remoteServer.isRunning) {
-        const result = remoteServer.start()
-        port = result.port
-        token = result.token
-      } else {
-        port = remoteServer.port!
-        const tokenPath = path.join(app.getPath('userData'), 'server-token.json')
-        token = JSON.parse(fsSync.readFileSync(tokenPath, 'utf-8')).token
+        await remoteServer.start()
       }
-      return getConnectionInfo(port, token)
+      const port = remoteServer.port!
+      const token = remoteServer.currentToken
+      const fingerprint = remoteServer.currentFingerprint
+      return getConnectionInfo(port, token, fingerprint)
     } catch (err: unknown) {
       return { error: err instanceof Error ? err.message : String(err) }
     }
   })
 
   // Remote client handlers
-  ipcMain.handle('remote:connect', async (_event, host: string, port: number, token: string, label?: string) => {
+  ipcMain.handle('remote:connect', async (_event, host: string, port: number, token: string, label?: string, fingerprint?: string) => {
     try {
       remoteClient = new RemoteClient(getAllWindows)
-      const ok = await remoteClient.connect(host, port, token, label)
-      if (!ok) {
+      const result = await remoteClient.connect(host, port, token, label, fingerprint)
+      if (!result.ok) {
         remoteClient = null
-        return { error: 'Connection failed (auth rejected or unreachable)' }
+        return { error: result.error || 'Connection failed (auth rejected or unreachable)', errorCode: result.errorCode, fingerprint: result.fingerprint }
       }
-      return { connected: true }
+      return { connected: true, fingerprint: result.fingerprint }
     } catch (err: unknown) {
       remoteClient = null
       return { error: err instanceof Error ? err.message : String(err) }
@@ -2561,24 +2566,24 @@ function registerLocalHandlers() {
     connected: remoteClient?.isConnected ?? false,
     info: remoteClient?.connectionInfo ?? null
   }))
-  ipcMain.handle('remote:test-connection', async (_event, host: string, port: number, token: string) => {
+  ipcMain.handle('remote:test-connection', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const testClient = new RemoteClient(getAllWindows)
     try {
-      const ok = await testClient.connect(host, port, token)
+      const result = await testClient.connect(host, port, token, undefined, fingerprint)
       testClient.disconnect()
-      return { ok }
-    } catch {
-      return { ok: false }
+      return { ok: result.ok, fingerprint: result.fingerprint, errorCode: result.errorCode, error: result.error }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
-  ipcMain.handle('remote:list-profiles', async (_event, host: string, port: number, token: string) => {
+  ipcMain.handle('remote:list-profiles', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const tempClient = new RemoteClient(getAllWindows)
     try {
-      const ok = await tempClient.connect(host, port, token)
-      if (!ok) return { error: 'Connection failed' }
-      const result = await tempClient.invoke('profile:list', []) as { profiles: { id: string; name: string; type: string }[] }
+      const result = await tempClient.connect(host, port, token, undefined, fingerprint)
+      if (!result.ok) return { error: result.error || 'Connection failed', errorCode: result.errorCode, fingerprint: result.fingerprint }
+      const listed = await tempClient.invoke('profile:list', []) as { profiles: { id: string; name: string; type: string }[] }
       tempClient.disconnect()
-      return { profiles: result.profiles.map(p => ({ id: p.id, name: p.name, type: p.type })) }
+      return { profiles: listed.profiles.map(p => ({ id: p.id, name: p.name, type: p.type })), fingerprint: result.fingerprint }
     } catch (err) {
       tempClient.disconnect()
       return { error: err instanceof Error ? err.message : String(err) }
@@ -2586,12 +2591,12 @@ function registerLocalHandlers() {
   })
 
   // Profile handlers (local-only — list/load/activate/deactivate/get-active-ids are proxied)
-  ipcMain.handle('profile:create', async (_event, name: string, options?: { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string }) => profileManager.create(name, options))
+  ipcMain.handle('profile:create', async (_event, name: string, options?: { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => profileManager.create(name, options))
   ipcMain.handle('profile:save', async (_event, profileId: string) => profileManager.save(profileId))
   ipcMain.handle('profile:delete', async (_event, profileId: string) => profileManager.delete(profileId))
   ipcMain.handle('profile:rename', async (_event, profileId: string, newName: string) => profileManager.rename(profileId, newName))
   ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => profileManager.duplicate(profileId, newName))
-  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string }) => profileManager.update(profileId, updates))
+  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => profileManager.update(profileId, updates))
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
 
   // Get the profile ID this instance was launched with (--profile= argument)

@@ -67,6 +67,20 @@
 - **Windows 打包驗收**：NSIS installer 產出約 172 MB、zip 約 230 MB；electron-builder 26 在 Windows 禁止跑 `--mac --dir`（v24 曾允許），但 schema parse 仍可通過。
 - **mac 打包採雙 arch dmg**（2026-04-18 D057，v0.0.16-pre.1 起）：`mac.target.arch = ["x64", "arm64"]`，產出 `BetterAgentTerminal-*-x64.dmg` + `-arm64.dmg`。**不要改回 `"universal"`** — `@electron/universal` 合併 ASAR 時對 `asarUnpack` 內所有 bit-identical 檔案都要求 `x64ArchFiles` 規則覆蓋，本專案 `@anthropic-ai/claude-code`、`@anthropic-ai/claude-agent-sdk`、`@img/**`、`@lydell/node-pty-*` 都 ship 全平台 binary，維護 pattern 是 whack-a-mole。完整 root cause 與 5 次 CI run 失敗記錄見 `_ct-workorders/EXP-BUILDER26-001` 的「CI 實戰後續」段落。
 
+## Remote 資安（PLAN-018 T0182）
+
+- **TLS + fingerprint pinning**：Remote server 自 T0182 起以 `wss://` + 自簽憑證運行（`electron/remote/certificate.ts`），client 以 SHA-256 fingerprint (TOFU) 驗證。首次連線會自動寫入 `remoteFingerprint` 到 profile；後續不符即拒絕。
+- **憑證儲存位置**：`app.getPath('userData')/server-cert.json`（10 年 expiry；90 天內自動重生）。**不要手動刪除**——會觸發 fingerprint mismatch 讓既有 client 全部失效。
+- **Bind-interface 三選項**：
+  - `localhost`（預設，`127.0.0.1`）—— 最安全，僅本機連入
+  - `tailscale`（`100.x.x.x`）—— fail-closed：找不到 Tailscale 介面時直接報錯，**不會** fallback
+  - `all`（`0.0.0.0`）—— 完全裸露，僅在受信 LAN 使用
+- **Token 儲存**：`server-token.json` 以 Electron `safeStorage` 加密（Windows DPAPI / macOS Keychain）。Linux 無 keychain 時 fallback 到 plaintext + warn log（fork 現行行為，見 D Q1.A）。
+- **QR payload 格式**（tunnel-manager）：`{ url: wss://..., token, fingerprint, mode, addresses }`——client 掃描後必須把 fingerprint 寫入 profile 才能建立 TLS 信任鏈。
+- **ProfilePanel UI**：remote profile 有 read-only fingerprint 欄位 + 「Pin expected fingerprint」按鈕（手動刷新）。首次建立 profile 時欄位空白，`Fetch profiles` 成功後自動填入（TOFU）。
+- **依賴套件**：`selfsigned@^5.x`（v5 是 async API；`await selfsigned.generate(...)`，v4 同步呼叫會回 Promise 導致 `.cert.replace` undefined）。
+- **降級情境**：若 `safeStorage.isEncryptionAvailable() === false`，`[Secrets]` warn log 會顯示一次；工單決策是「fallback 不阻擋啟動」，使用者可觀察 log 判斷是否需要切離 Linux 環境。
+
 ## Control Tower 本專案規則
 
 - 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範
