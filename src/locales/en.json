@@ -16,7 +16,7 @@
   "quit": {
     "dialog": {
       "message": "Quit Better Agent Terminal?",
-      "checkbox": "Also stop Terminal Server (recommended before version upgrade)",
+      "checkbox": "Stop Terminal Server",
       "ok": "Quit",
       "cancel": "Cancel"
     }

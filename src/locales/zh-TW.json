@@ -16,7 +16,7 @@
   "quit": {
     "dialog": {
       "message": "離開 Better Agent Terminal？",
-      "checkbox": "一併結束 Terminal Server（版本更新前建議勾選）",
+      "checkbox": "結束 Terminal Server",
       "ok": "離開",
       "cancel": "取消"
     }
