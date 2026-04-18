@@ -1,10 +1,83 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-19 00:02（第七 session,PLAN-019 DONE + BUG-042/043 + BAT 診斷儀表就緒）
+> 最後更新：2026-04-19 01:30（第八 session,BUG-044 閉環 + 4 新 BUG + Worker time 21 hit 新高 15-19x）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-19 第七 session,PLAN-019 收尾 + BAT 診斷儀表）
+## 🛏 本 Session 退出快照（2026-04-19 第八 session,UI 封存 toggle 修復 + 用戶 Rico 回報 BUG-047）
+
+**退出原因**：A 計畫收尾完成（`*evolve` + `_tower-state.md` 快照 + push 待執行）
+
+**本 session 成果**（~2.5h,3 工單 + 4 BUG 新建 + 2 BUG 閉環）：
+
+**T0194-T0196 鏈完整閉環**（PLAN-未編號 — UI 封存 + parser 容錯）：
+- `de40ecf` T0194 研究（10min/est 30-45min,3-4.5x）— BUG-044/045 根因精準定位 + D 區段拆單建議 [B]
+- `b6469ba` T0195 parser table 容錯（5min/est 20-30min,4-6x）— BUG-045 parser 面 closed,13/13 unit tests 全綠
+- `bc37c71` T0196 UI archive toggle（**8min/est 2-2.5h,15-19x 創歷史新高**）— parseBugFile/parsePlanFile + 兩 loader + useEffect lazy load,smoke test 35/35 BUG + 4/4 PLAN 全解析
+
+**4 張新 BUG 建立**：
+- 🟢 BUG-044 CLOSED — CT Panel 封存 toggle no-op（T0196 修復,使用者複測通過）
+- 🟢 BUG-045 半閉環 — parser 面 closed（T0195）,archive 面 OPEN（skill 層演進）
+- 🔴 BUG-046 OPEN — BAT dispatcher silent fail（翻案：原假設「T0193 regression」,真因疑 token mismatch + waitForMessage 缺 try/catch + bat-scripts.log 被 truncate）
+- 🟡 BUG-047 OPEN — Claude SDK path 未處理 app.asar.unpacked（用戶 Rico 標竿級回報,V1 裝機即壞）
+
+**2 張 BUG 閉環**：
+- ✅ BUG-043 CLOSED — 複測通過,疑前期觀察為 BUG-046 副作用誤判（dispatcher 阻擋 + 手動派發不注入 CT_MODE → banner 缺失）
+- ✅ BUG-044 CLOSED — T0196 修復通過
+
+**`*sync` × 2**:
+- 第 1 次（00:55）— 重建 _bug-tracker.md（5 OPEN）+ _backlog.md（PLAN-019 ✅ DONE 上索引）
+- 第 2 次（01:25）— BUG-043/044 閉環 + BUG-047 上 OPEN section,共 12 張（4 OPEN / 8 CLOSED）
+
+**`*evolve` 批次寫入（5 條 + 1 update）**：
+
+🌐 Global `~/.claude/control-tower-data/learnings/patterns.md`：
+- **GP050** 工單元資料格式漂移會讓 parser silent fail（多格式容錯規則）
+- **GP051** BUG 翻案方法論 — 時序 ≠ 因果,grep 證據優先（zero-evidence 翻案）
+- **GP052** 用戶 reverse-engineer 式高品質 BUG report 模式（Rico 標竿）
+- **GP042 UPDATE** Worker time 連 21 hit,T0196 創 15-19x 新高 → 升 ⭐ proven
+
+🏠 Project `_ct-workorders/_learnings.md`：
+- **L070** 研究工單規模爆擊暫停門檻（前後 session 對照實證）
+- **L071** 本 repo 多次 session 累積 commits 未 push 風險（連兩 session 觸發）
+- **L074** Diagnostic logging 自身要驗證寫入路徑（log 被 truncate 是症狀）
+
+**重大方法論發現**：
+1. **BUG 翻案三段式**：時序假設 → 反例證偽 → grep 翻案（BUG-046 走完整鏈）
+2. **Worker time 高壓縮普及性**：UI 修復也能 15-19x（T0196 顛覆「UI 不可預測」假設）,條件:範本明確 + 範圍對稱 + 不涉及架構決策
+3. **用戶 reverse-engineer report 跳過研究階段**：Rico 對照式診斷直接給根因 → 塔台寫修復方向工單,省 30-60 min 研究
+
+**未執行項（下次接）**：
+- 🟡 **本 repo push 未執行**（L071 觸發,連兩 session 警告)→ 本 session 結束**必須**push
+- 🟢 BUG-046 修復（dispatcher silent fail,需專門 session）
+- 🟢 BUG-047 修復（asar.unpacked path,trivial,Rico 配合驗 pre.2）
+- 🟢 BUG-045 archive 面（CT skill v4.4 演進,非本 repo 範圍）
+- 🟢 BUG-042 TerminalPanel dead call 調查
+- 🟢 PLAN-008 中文「高」優先級 polish（T0195 衍生發現,非阻擋）
+
+**YOLO 歷程追加**（本 session）：
+- `[~00:11] 啟動` Fast Path 快速恢復（快照 <2h）
+- `[00:14-00:32] *bug` 連發 BUG-044/045（使用者截圖回報）+ T0194 yolo 派發失敗 → BUG-046 翻案三段式
+- `[00:33-00:52] T0194` 手動派發成功（BUG-046 阻擋 yolo,fallback 手動）— 研究 10min,3-4.5x
+- `[00:55] *sync` 第 1 次（PLAN-019 上 DONE）
+- `[00:55-01:00] T0195` 手動派發 → 完成 5min,4-6x
+- `[01:02-01:23] T0196` 手動派發 → 完成 8min,**15-19x 新高**
+- `[~01:22] *bug` BUG-047 用戶 Rico 標竿回報（建檔不修）
+- `[01:25] *sync` 第 2 次 + BUG-043/044 CLOSED
+- `[~01:30] *evolve` 5 + 1 update 批次寫入
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+
+1. Fast Path 載入本快照（v4.3.0）
+2. **第一動作 push 確認**:`git log origin/main..HEAD`,若有領先 → 立即 push（L071）
+3. 下一輪優先級:
+   - 🔴 BUG-046 dispatcher 修復（影響 yolo 派發鏈,手動 fallback 已驗證但長期不可接受）
+   - 🟡 BUG-047 asar.unpacked path 修復（Rico 等驗 pre.2,範圍明確 trivial）
+   - 🟢 BUG-042 / PLAN-008 polish
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-19 第七 session,PLAN-019 收尾 + BAT 診斷儀表）
 
 **退出原因**：使用者「收工」。PLAN-019 技術目標達成(tsc 133 → 2),剩 `*evolve` 和 push 下次接。
 

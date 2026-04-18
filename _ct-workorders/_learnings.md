@@ -1843,3 +1843,95 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **相關**：T0183（修正實作）、T0181 §D（權威規格）
 
 ---
+
+
+## L070 - 2026-04-19 — 研究工單規模爆擊暫停門檻
+
+**觸發條件**：研究型工單執行中,grep / 盤點結果遠超預期規模
+
+**前 session 觸發**：T0185 PLAN-019 TS debt 預估 ~20 errors,實際 133 → 範圍 6.5x 爆擊
+
+**本 session 對照**：T0194 BUG-044/045 預先框架 4 個子問題（Q1-Q4）+ 限定 5 張 PLAN 樣本 + 明確盤點目標 → 規模可控,Worker 10 min 完成（est 30-45 min）
+
+**規則**：
+1. 研究工單 framing 階段先**設定範圍 hard limit**:
+   - 子問題列表（必須全部回答）
+   - 樣本上限（如「Read 不超過 N 個檔案」）
+   - 盤點動作上限（grep N 個關鍵字,read N 個目錄）
+2. 執行中發現實際規模 > 預估 3x → **立即 `*pause` 回報**,不要硬吃
+3. 回報時提供 (a) 實際規模 (b) 已處理的部分 (c) 剩餘範圍評估 (d) 建議拆單方案
+4. 塔台收到 pause → 評估 Renew（補方向）vs 拆新工單
+
+**反模式**：
+- ❌ Worker 硬吃 200+ files 不回報,context 被打爆
+- ❌ 沒框架的「找出所有 X」（用詞模糊 → 範圍無界）
+
+**正模式**：
+- ✅ T0194 預設 4 個 Q + 5 張 PLAN 樣本 + 步驟時間箱（<10/<10/<15/<10 min）
+- ✅ Worker 在框架內自由發揮,但有 hard stop
+
+**狀態**：🟢 reliable（前後 session 對照實證）
+
+**相關**：GP044（研究報告品質）、L061/GP042（Worker time 估時）
+
+---
+
+## L071 - 2026-04-19 — 本 repo 多次 session 累積 commits 未 push 風險
+
+**觸發條件**：dogfood / 高頻 session 期間,專注完成工單但忘記 push
+
+**現象**：
+- 本 session 結束時：T0194/T0195/T0196 + BUG 元資料更新 + tracker 更新 = ~6+ commits 未 push
+- 前 session 結束時:PLAN-018 三張 + meta 改動未 push（snapshot 明確記錄）
+- 連兩 session 累積 → 若機器壞 / repo 損毀 → 工作整批遺失
+
+**規則**：
+1. session 收尾流程必含 `git push origin <branch>`
+2. 收尾 SOP:`*evolve` → 更新 `_tower-state.md` → **push** → 退出
+3. 若中途長時間（>1h）穩定態,可考慮 mid-session push（保險）
+4. push 失敗（衝突 / 權限）必須當場解決,不要丟給下 session
+
+**反模式**：
+- ❌ 「下次再 push」（忘掉的機率隨時間指數上升）
+- ❌ commit 後不檢查 `git status`（漏掉 untracked 工單）
+
+**正模式**：
+- ✅ session 結束 checklist 含 push
+- ✅ 退出前 `git log origin/main..HEAD` 確認本地領先狀態 = 0
+
+**狀態**：🟡 reliable（連兩 session 觸發,需建立 checklist）
+
+**相關**：L068（塔台 ops 邊界）
+
+---
+
+## L074 - 2026-04-19 — Diagnostic logging 自身要驗證寫入路徑
+
+**觸發條件**：BUG-046 期間發現 `bat-scripts.log` 從 6486 bytes → 1570 bytes,先前 entries 全消失
+
+**根因**：BAT app 啟動時某機制清空了診斷 log 檔（推測,未確認）
+
+**影響**：
+- 失去歷史對照樣本,需重新累積
+- 翻案推論被「日誌看起來沒記錄」誤導（實際是被 truncate）
+- T0192/T0193 的儀表設計目標（「BUG-043 再現分析」）被部分削弱
+
+**規則**：
+1. Append-only NDJSON log **必須測試 BAT app restart 後是否被 truncate**
+2. 寫入失敗 / 檔案被清的情況**必須有 warn 留訊**（至少 stderr）
+3. Diagnostic log 的「失敗政策」（never throw / never block）不應掩蓋「日誌本身遺失」的次要問題
+4. 累積樣本期間,定期備份 log 檔（如 `bat-scripts.log.YYYY-MM-DD.bak`）
+
+**反模式**：
+- ❌ 假設 `appendFileSync` 永遠 append（檔案可能被外部清空）
+- ❌ 沒驗證日誌 retention 行為就上儀表
+
+**正模式**：
+- ✅ 設計時驗證:啟動 → 寫入 → restart → 寫入 → 確認舊 entries 仍在
+- ✅ 加 startup log entry (`{"event":"startup","logFileSize":<bytes>}`),可偵測截斷
+
+**狀態**：🟢 reliable（BUG-046 翻案期間實證）
+
+**相關**：BUG-046（dispatcher silent fail）、T0192/T0193（儀表設計）
+
+---

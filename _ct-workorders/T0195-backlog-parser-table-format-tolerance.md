@@ -3,12 +3,13 @@
 ## 元資料
 - **編號**:T0195
 - **類型**:implementation（實作工單）
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **優先級**:🟢 Low
 - **關聯**:BUG-045（parser 面，半閉環 — archive 面交 skill 演進）· T0194（研究工單,根因報告）
 - **前置工單**:T0194 ✅ DONE
 - **派發時間**:2026-04-19 00:55 (UTC+8)
 - **開始時間**:2026-04-19 00:55 (UTC+8)
+- **完成時間**:2026-04-19 01:00 (UTC+8)
 - **預估工時**:20-30 min（純 regex + 單測）
 - **派發方式**:⚠️ **BUG-046 阻擋 yolo dispatcher** → **使用者手動開新終端派發**
 - **YOLO mode**:on（Worker 端自動送出完成訊息;BAT 派發失效不影響 Worker 行為）
@@ -143,7 +144,7 @@ BUG-045 parser face: closed. Archive face (PLAN scanning in *archive skill): rem
 - 修改檔案清單：
   - `src/types/backlog.ts`（`extractPriorityFromPlanContent` 雙 regex：bullet + table）
   - `tests/backlog-priority-parser.test.ts`（新增，13 張測資）
-- commit hash：<填入>
+- commit hash：b6469ba
 - 單測通過數 / 總數：13 / 13（8 inline case + 5 真實 PLAN 檔）
 - 真實 PLAN 驗收結果（5 張）：PLAN-003 Low ✅、PLAN-005 Low ✅、PLAN-012 High ✅、PLAN-016 High ✅、PLAN-019 Low ✅
 

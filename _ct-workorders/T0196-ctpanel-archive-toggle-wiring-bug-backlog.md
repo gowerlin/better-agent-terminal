@@ -3,8 +3,9 @@
 ## 元資料
 - **編號**:T0196
 - **類型**:implementation（實作工單）
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **開始時間**:2026-04-19 01:15 (UTC+8)
+- **完成時間**:2026-04-19 01:23 (UTC+8)
 - **優先級**:🟢 Low
 - **關聯**:BUG-044（UI 封存 toggle）· T0194（研究工單,根因報告）· T0195（姊妹實作,parser 面已閉環）
 - **前置工單**:T0194 ✅ DONE · T0195 ✅ DONE
@@ -201,7 +202,7 @@ BUG-044: closed.
   - `src/components/BugTrackerView.tsx`（`showArchived` 改受控，新增 `onShowArchivedChange` prop）
   - `src/components/BacklogView.tsx`（同上對稱）
   - `src/components/ControlTowerPanel.tsx`（新增 2 組 state + 2 loaders + 2 useEffects + forceRefresh 擴充 + render props）
-- commit hash（單一 commit）：待 Step 8 填入
+- commit hash（單一 commit）：`bc37c71` — `feat(ctpanel): wire includeArchived toggle for bug/backlog tabs (T0196, BUG-044 closed)`
 - 實際 Bug Tracker 勾選後顯示張數:**預期 46 張**（活躍 11 + 歸檔 35）— parser smoke test 已驗證 35/35 解析成功
 - 實際 Backlog 勾選後顯示張數:**預期 19 張**（活躍 15 + 歸檔 4）— parser smoke test 已驗證 4/4 解析成功
 - 與預期差異解釋：無 GUI 驗收（Worker 環境無法跑 Electron app），改以 Node smoke test 驗證 parser 對真實歸檔檔案的正確性；build + tsc 雙綠，loader 對稱 `loadArchivedOrders` 既有模式。實機數字需使用者驗收填入。
