@@ -3,7 +3,7 @@
 ## 元資料
 - **編號**:T0187
 - **類型**:implementation
-- **狀態**:IN_PROGRESS
+- **狀態**:PARTIAL
 - **優先級**:🟢 Low
 - **關聯**:PLAN-019 · T0185 Cluster 2 · T0186 後續
 - **派發時間**:2026-04-18 22:34 (UTC+8)
@@ -82,7 +82,7 @@ npx tsc --noEmit 2>&1 | tail -30
 
 ### 狀態轉換
 - DISPATCHED → IN_PROGRESS → REVIEW → DONE
-- 當前:IN_PROGRESS
+- 當前:PARTIAL(commit `708af69`;WorkspaceStore mark* 暫停回塔台)
 
 ### Worker 回報
 
@@ -122,7 +122,7 @@ npx tsc --noEmit 2>&1 | tail -30
 - [x] 無 `@ts-expect-error`
 - [x] 未跑 vite build
 
-**commit hash**:待填
+**commit hash**:`708af69`
 
 ---
 
