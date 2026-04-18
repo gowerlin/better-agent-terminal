@@ -4,10 +4,12 @@
 - **工單編號**：T0183
 - **任務名稱**：Remote path sandbox + image cap（PLAN-018 第二張）
 - **類型**：implementation
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-18 20:00 (UTC+8)
 - **開始時間**：2026-04-18 20:36 (UTC+8)
+- **完成時間**：2026-04-18 20:48 (UTC+8)
 - **預估工時**：1-2h
+- **實際工時**：約 0.2h
 - **優先級**：🔴 High（P0 資安）
 - **Renew 次數**：0
 
@@ -108,7 +110,7 @@ npx tsx tests/path-guard.test.ts
 
 ### Commit
 
-（commit hash 於提交後回填）
+`b12690f` — `feat(remote): path sandbox + image cap (PLAN-018 T0183)`
 
 ### Renew 歷程
 

@@ -3,10 +3,10 @@
 ## 元資料
 - **編號**：PLAN-018
 - **標題**：Remote 連線資安加固（Phase 2 移植）— TLS + fingerprint pinning + path sandbox + brute-force 防護
-- **狀態**：PLANNED
+- **狀態**：DONE
 - **優先級**：🔴 High（P0 資安）
 - **建立時間**：2026-04-18 06:55 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-18 21:00 (UTC+8)
 - **關聯研究**：T0164（研究報告 `_report-upstream-sync-v2.1.42-plus.md` §3.2 #7+#8 / §4 Phase 2）
 - **決策依據**：D058（基於 T0164 結論採方案 [A]，Phase 2 獨立 PLAN）
 

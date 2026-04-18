@@ -1,9 +1,11 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新:2026-04-18 07:35 (UTC+8)
+> 最後更新:2026-04-18 21:50 (UTC+8)
 >
-> 統計:💡 Ideas: 5 | 📋 Planned: 4 | 🔄 In Progress: 0 | ✅ Done: 4 | 🚫 Dropped: 1
+> 統計:💡 Ideas: 5 | 📋 Planned: 4 | 🔄 In Progress: 0 | ✅ Done: 5 | 🚫 Dropped: 1
+>
+> 本 session 閉環：PLAN-018 DONE（Remote 資安加固，T0182/T0183/T0184 三張全綠）
 >
 > 📦 已歸檔：4 張（PLAN-006 DROPPED, PLAN-008 DONE, PLAN-010 DONE, PLAN-011 DONE → _archive/plans/）
 > 本輪（2026-04-18 05:45）新歸檔：PLAN-010（upstream sync v2.1.3→v2.1.42 DONE）、PLAN-011（CT/BAT routing upstream PR DONE）

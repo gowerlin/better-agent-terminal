@@ -1,10 +1,87 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 下半場第五 session（BUG-040 + BUG-041 雙 CLOSED + PLAN-018 拆分完成 + v4.3.0 dogfood PASS）
+> 最後更新：2026-04-18 下半場第六 session（PLAN-018 全綠 + v4.3.x skill 治理 + 目錄 rename + *evolve 5 條 learning）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-18 下半場第五 session，雙 BUG 閉環 + PLAN-018 拆分）
+## 🛏 本 Session 退出快照（2026-04-18 下半場第六 session，PLAN-018 + v4.3.x 收尾）
+
+**退出原因**：主線任務全部完成（PLAN-018 資安加固三張 + CT-T005/T007 skill 治理 + 跨 repo rename + skill sync）。本 session 壓縮執行 16x（估 ~13h、實際 ~80min）。
+
+**本 session 成果**（~80min，5 工單 + 2 ops）：
+
+**PLAN-018（資安加固，DONE）**：
+- `6b9de1f` T0182 — TLS + fingerprint pinning + safeStorage（12min/估 5.5h，27x）
+- `b12690f` T0183 — path sandbox + image cap（12min/估 1-2h，5-10x，12 unit tests）
+- `c7c7fb3` T0184 — brute-force + reconnect backoff + mutex（8min/估 1-1.5h，7-11x，15 unit tests）
+- version.json → `5d9f486`（upstream 追平）
+
+**Skill 治理（v4.3.x，DONE）**：
+- `3d851a2` CT-T005 — 塔台 skill `--mode` flag + Worker YOLO banner（11min/估 35min）
+- `0c2b938` CT-T005 fix — Step 0 YOLO banner 只在 BAT 環境顯示
+- `23719c0` CT-T005 docs — CHANGELOG 補 Step 0 BAT gating 說明
+- `3de0840` CT-T007 — 版號治理（frontmatter + 面板 + *sync 一致性檢查）
+- `cc7e689` chore — 目錄 rename BMad-Control-Tower-v4.2.0 → v4.3.0
+- Tag **v4.3.1** 打在 cc7e689（additive，保留既有 v4.3.0）
+- Push dev-main + tag 完成
+- 8 skill sync 到 `~/.claude/skills/` 完成，所有 frontmatter `version: "4.3.0"`
+
+**閉環事件**：
+- ✅ BUG-041 CLOSED（Phase 2.4 實作完成，v4.3.0 dogfood 通過）
+- ✅ PLAN-018 DONE（資安三張全綠）
+- ✅ v4.3.0/v4.3.1 正式發布（monorepo `BMad-Control-Tower-v4.3.0/`）
+
+**L061/GP042 Worker time 連 14 hit（升 ⭐ proven）**：
+- 本 session 新增 5 次全部 3-27x 壓縮
+- 累計 14 次（全部 3-27x）
+- Playbook 候選：研究報告先行 → 實作壓縮率 0.1-0.2x 常態
+
+**`*evolve` 批次寫入**（5 條）：
+- 🌐 Global `~/.claude/control-tower-data/learnings/patterns.md`：
+  - **GP042 UPDATE**（Worker time 連 14 次實證，升 ⭐ proven）
+  - **GP048** 版號治理 SSOT（frontmatter + 面板 + *sync 一致性檢查）
+  - **GP049** 跨 repo rename 安全模式（pre-flight + additive tag + lock retry）
+- 🏠 Project `_ct-workorders/_learnings.md`：
+  - **L068** 塔台自主 ops 執行邊界
+  - **L069** Upstream sync 設計分歧以權威規格為準
+
+**`*sync` 結果**：
+- T/CT-T：40 張（28 DONE）
+- BUG：6 張（全 CLOSED）
+- PLAN：15 張（1 DONE 新增：PLAN-018）
+- EXP：2 張（1 CONCLUDED）
+- ⚠️ 部分工單元資料格式不一致（狀態欄位解析失敗）→ L070 候選：metadata 格式自動化正規化（延後，不阻擋）
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+
+1. Fast Path 載入本快照（面板預期顯示 **v4.3.0**，不再 v4.1）
+2. 塔台派發預期帶 `--mode yolo` flag
+3. Worker `/ct-exec` 啟動顯示 🚨 YOLO MODE ACTIVE banner（不再降級提示）
+4. 下一輪可選：
+   - 實機驗收 PLAN-018（TOFU / QR / brute-force wscat / path sandbox 跨機）
+   - 處理既有 tsc --noEmit 技術債（PLAN-019 IDEA）
+   - 實機驗收 v4.3.0/v4.3.1 新 skill（檢查 `*sync` 版號一致性輸出）
+
+**待處理事項**：
+- 🟡 本 repo（better-agent-terminal）本 session 多 commits 未 push（PLAN-018 三張 + 可能的 meta 改動）
+- 🟡 Monorepo 已 push（包含 CT-T005/T007 + rename + v4.3.1 tag）
+- 🟡 L070 候選：工單 metadata 格式正規化（不同工單狀態欄位格式不一，*sync 解析失敗）
+
+**YOLO 歷程追加**（本 session）：
+- `[~20:05] 啟動` 塔台 Fast Path 恢復，*rescan 更新快照
+- `[20:12-20:24] 派發+完成` T0182 — TLS 大張，yolo 閉環首次 5.5h 估時完成
+- `[20:36-20:48] 派發+完成` T0183 — path sandbox 並行
+- `[20:52-21:00] 派發+完成` T0184 — PLAN-018 收官
+- `[21:05] Renew #1` CT-T005 加 YOLO banner 需求
+- `[21:16] 建立` CT-T007 版號治理工單（Q&A 觸發）
+- `[21:19-21:30] 派發+完成` CT-T005（跨 repo DELEGATE）
+- `[21:34-21:40] 派發+完成` CT-T007（跨 repo DELEGATE）
+- `[~21:45] ops 執行` 使用者授權塔台自主 rename + tag + push + sync
+- `[~21:50] *evolve+*sync` 5 條 learning 寫入 + 索引摘要更新
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-18 下半場第五 session，雙 BUG 閉環 + PLAN-018 拆分）
 
 **退出原因**：*resume 實例驗證目標達成（v4.3.0 Worker skill dogfood PASS），T0182-T0184 工單已備妥但不派發（避免 context 溢出），下 session 接著派 T0182。
 
@@ -947,7 +1024,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 ---
 
 ## 🔍 環境快照
-> 最後掃描：2026-04-15 20:59 (UTC+8)
+> 最後掃描：2026-04-18 20:07 (UTC+8) — *rescan
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
@@ -955,7 +1032,8 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | ECC 學習 | ✅ Level 1 | ~/.claude/homunculus/ |
 | bmad-guide skill | ✅ | 可用 |
 | mem0 REST | ✅ | memsync healthy, queue:2 |
-| 終端環境 | better-agent-terminal | TERM_PROGRAM 偵測 |
+| 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal |
+| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-... |
 | ct-exec | ✅ | |
 | ct-done | ✅ | |
 | ct-status | ✅ | |
@@ -963,14 +1041,14 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | ct-insights | ✅ | |
 | ct-fieldguide | ✅ | |
 | ct-help | ✅ | |
-| _archive/ | ✅ | ~80 張歸檔 |
-| _playbooks/ | ✅ | 🆕 本次建立 |
-| _decision-log | ✅ | D031 (18+ 條) |
-| 跨專案參照 | 📋 | 無關聯 |
-| Global 學習 | ✅ | 2 learnings, 4 fieldguide |
-| BUG/PLAN 追蹤 | ✅ | BUG:15熱+13冷 PLAN:9 |
-| 實驗追蹤 | ✅ | EXP:1 |
-| 設定來源 | project | _tower-config.yaml (v4 已補齊) |
+| _archive/ | ✅ | 201 張歸檔（workorders/bugs/plans/ + checkpoint + 舊 index） |
+| _playbooks/ | ✅ | 空目錄（0 張） |
+| _decision-log | ✅ | D### (34 條) |
+| 跨專案參照 | 📋 | 無關聯（_cross-references.md 不存在） |
+| Global 學習 | ✅ | 48 patterns, 0 playbooks, 3 fieldguide |
+| BUG/PLAN 追蹤 | ✅ | BUG:6 熱區 / PLAN:15 熱區 |
+| 實驗追蹤 | ✅ | EXP:2 熱區 |
+| 設定來源 | project | _tower-config.yaml (yolo + retries:1 + commit:on) |
 | 能力等級 | Level 2 | ECC + mem0 |
 
 ---

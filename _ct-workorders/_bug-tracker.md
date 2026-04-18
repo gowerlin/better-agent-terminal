@@ -1,11 +1,13 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-18 05:45 (UTC+8)
+> 最後更新：2026-04-18 21:50 (UTC+8)
 >
-> 統計：🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 3 | ⛔ Won't Fix: 0 | **Total: 3**
+> 統計：🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 6**
 >
 > 📦 已歸檔：35 張（_archive/bugs/）
+>
+> 本 session 閉環：BUG-040 + BUG-041 CLOSED（Phase 2 v4.3.0 完結）
 
 ## 🔴 Open / 處理中
 

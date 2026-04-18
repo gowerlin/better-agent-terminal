@@ -1785,3 +1785,61 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **相關**：BUG-040（主觸發）、BUG-031（前債未盡）、T0176（修法實證）
 
 ---
+
+## L068 - 2026-04-18 — 塔台自主 ops 執行邊界
+
+**觸發條件**：使用者明確授權塔台執行跨 repo ops（rename / tag / push / sync）
+
+**允許清單**（ops 領域，非程式碼修改）：
+- `git mv`（目錄改名）
+- `git commit`（ops chore，非 code change）
+- `git tag` + `git push tag`
+- `git push origin <branch>`
+- `cp -r / rm -rf`（skill sync 等檔案操作）
+- `*archive` 的 `git mv`（原本就在 SKILL 允許範圍）
+
+**禁止清單**（Worker 領域，需派工單）：
+- 任何 source code 修改
+- debug、讀 log、讀原始碼分析
+- 複雜 refactor 或新功能
+
+**本 session 實證**：
+- Session 1：`*archive --dry-run` + 批次 `git mv` 歸檔 ops（2026-04-15）
+- Session 5：跨 repo directory rename + tag + push + 8 skill sync（2026-04-18）
+- 2 次使用者明確授權「塔台自己執行」→ 0 失誤
+
+**邊界判定原則**：
+- 動到 source code / 需讀檔 → Worker
+- 動到 repo 結構 / 發布 / 同步 → 塔台可執行（需授權）
+- 邊界灰色時 → 問使用者
+
+**候選晉升**：🟡 candidate: global（ops 邊界原則跨專案有效，但需跨 3+ 專案驗證再升 GP）
+
+**相關**：D062（Worker 無狀態）、SKILL.md § 嚴格禁止
+
+---
+
+## L069 - 2026-04-18 — Upstream sync 遇設計分歧以權威規格為準
+
+**觸發條件**：fork 從 upstream sync 新功能時，發現實作方向不一致
+
+**T0183 實例**：
+- Upstream `3a0af80` `path-guard.ts` 採 **deny-list**（拒敏感路徑如 `~/.ssh`）
+- T0181 研究報告 §D 權威規格要求 **workspace allowlist**
+- Worker 按 §D 實作 allowlist，於工單回報「遭遇問題」明確記錄差異
+
+**規則**：
+1. Upstream 提供實作參考，**非**強制採用
+2. 若研究報告 §權威規格與 upstream 衝突 → 以權威規格為準
+3. Worker 回報區必須明示「規格 vs upstream 分歧」+ 採用理由
+4. 影響評估：allowlist 比 deny-list 嚴格（block 任何 workspace 外的讀取），若破壞 workflow 塔台可考慮後續放寬為混合模式
+
+**反例預防**：
+- ❌ 盲目套 upstream patch（繞過權威規格）
+- ❌ 發現分歧不回報（使用者無法判斷合理性）
+
+**候選晉升**：🟡 candidate: global（fork 管理通用）
+
+**相關**：T0183（修正實作）、T0181 §D（權威規格）
+
+---
