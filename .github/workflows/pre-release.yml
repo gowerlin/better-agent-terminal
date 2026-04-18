@@ -77,8 +77,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
+
+      - name: Windows cleanup (avoid EPERM locks)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          if (Test-Path node_modules) { Remove-Item node_modules -Recurse -Force }
+          npm cache verify
 
       - name: Install dependencies
         run: npm ci
