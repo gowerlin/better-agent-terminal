@@ -891,8 +891,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     if (isActive) {
       window.electronAPI.claude.getSessionMeta(sessionId).then(meta => {
         if (meta) {
-          setSessionMeta(meta as SessionMeta)
-          if ((meta as SessionMeta).model) setCurrentModel(prev => prev || (meta as SessionMeta).model!)
+          const m = meta as unknown as SessionMeta
+          setSessionMeta(m)
+          if (m.model) setCurrentModel(prev => prev || m.model!)
         }
       }).catch(() => {})
     }
@@ -901,7 +902,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   // Fetch supported models on demand when model list is opened (no session required)
   useEffect(() => {
     if (showModelList && availableModels.length === 0) {
-      window.electronAPI.claude.getSupportedModels(sessionId).then((models: ModelInfo[]) => {
+      window.electronAPI.claude.getSupportedModels(sessionId).then((raw) => {
+        const models = raw as ModelInfo[] | null | undefined
         if (models && models.length > 0) setAvailableModels(models)
       }).catch(() => {})
     }
@@ -910,7 +912,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   // Fetch account info and slash commands once session metadata arrives
   useEffect(() => {
     if (sessionMeta?.sdkSessionId && availableModels.length === 0) {
-      window.electronAPI.claude.getSupportedModels(sessionId).then((models: ModelInfo[]) => {
+      window.electronAPI.claude.getSupportedModels(sessionId).then((raw) => {
+        const models = raw as ModelInfo[] | null | undefined
         if (models && models.length > 0) {
           setAvailableModels(models)
         }
@@ -1199,7 +1202,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       setResumeLoading(true)
       setShowResumeList(true)
       try {
-        const sessions = await window.electronAPI.claude.listSessions(cwd)
+        const sessions = await window.electronAPI.claude.listSessions(cwd) as SessionSummary[] | null
         setResumeSessions(sessions || [])
       } catch {
         setResumeSessions([])
@@ -1287,13 +1290,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       const query = trimmed.slice('/snippet'.length).trim()
       clearInput()
       try {
-        const snippets = query
+        const snippets = (query
           ? await window.electronAPI.snippet.search(query)
-          : await window.electronAPI.snippet.getByWorkspace(workspaceId)
+          : await window.electronAPI.snippet.getByWorkspace(workspaceId)) as Array<{ id: number; title: string; workspaceId?: string }>
         const snippetsJsonPath = '~/Library/Application Support/better-agent-terminal/snippets.json'
         const snippetList = snippets.length === 0
           ? 'No snippets exist yet.'
-          : snippets.map((s: { id: number; title: string; workspaceId?: string }) => `- [${s.id}] ${s.title}${s.workspaceId ? ' (workspace)' : ''}`).join('\n')
+          : snippets.map((s) => `- [${s.id}] ${s.title}${s.workspaceId ? ' (workspace)' : ''}`).join('\n')
         const contextPrompt = [
           `[BAT Snippets Context]`,
           `Snippets file: ${snippetsJsonPath}`,
@@ -2010,11 +2013,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     e.preventDefault()
     setIsDragOver(false)
     for (const file of e.dataTransfer.files) {
-      if (!file.path) continue
+      // Electron augments DOM File with `path`; DOM lib does not declare it.
+      const filePath = (file as File & { path?: string }).path
+      if (!filePath) continue
       if (file.type.startsWith('image/')) {
-        await addImageByPath(file.path)
+        await addImageByPath(filePath)
       } else {
-        addFileByPath(file.path)
+        addFileByPath(filePath)
       }
     }
   }, [addImageByPath, addFileByPath])
@@ -2258,7 +2263,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             <div className="tl-content">
               <div className="claude-tool-header" onClick={() => toggleTool(item.id)}>
                 <span className="claude-tool-name">{item.toolName === 'Agent' ? 'Agent' : 'Task'}</span>
-                {item.input.subagent_type && <span className="claude-tool-badge">{String(item.input.subagent_type)}</span>}
+                {!!item.input.subagent_type && <span className="claude-tool-badge">{String(item.input.subagent_type)}</span>}
                 {desc && <span className="claude-tool-desc">{desc}</span>}
                 {item.status === 'running' && item.timestamp > 0 && (
                   <span className="claude-task-tag claude-task-elapsed">{formatElapsed(item.timestamp)}</span>
@@ -2493,7 +2498,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             <div className="tl-content">
               <div className="claude-tool-header" onClick={() => toggleTool(item.id)}>
                 <span className="claude-tool-name">TaskOutput</span>
-                {parentTask?.input.subagent_type && (
+                {!!parentTask?.input.subagent_type && (
                   <span className="claude-tool-badge">{String(parentTask.input.subagent_type)}</span>
                 )}
                 {parentTask && (
@@ -2803,7 +2808,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
                 {progressDesc && !isStalled && <span className="claude-active-task-progress">{progressDesc}</span>}
                 {isStalled && <span className="claude-active-task-stalled">{t('claude.stalled')}</span>}
                 <span className="claude-active-task-time">{formatElapsed(task.timestamp)}</span>
-                {task.input.run_in_background && <span className="claude-task-tag">{t('claude.bg')}</span>}
+                {!!task.input.run_in_background && <span className="claude-task-tag">{t('claude.bg')}</span>}
                 <button className="claude-task-stop-btn" onClick={(e) => {
                   e.stopPropagation()
                   window.electronAPI.claude.stopTask(sessionId, task.id)
@@ -2905,7 +2910,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
               {pendingPermission.decisionReason}
             </div>
           )}
-          {pendingPermission.input.description && (
+          {!!pendingPermission.input.description && (
             <div className="claude-permission-desc">
               {String(pendingPermission.input.description)}
             </div>
@@ -3866,7 +3871,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             <span key="sessionId" className="claude-statusline-item claude-statusline-clickable"
               onClick={async () => {
                 setResumeLoading(true); setShowResumeList(true)
-                try { setResumeSessions(await window.electronAPI.claude.listSessions(cwd) || []) }
+                try { setResumeSessions((await window.electronAPI.claude.listSessions(cwd) as SessionSummary[] | null) || []) }
                 catch { setResumeSessions([]) }
                 finally { setResumeLoading(false) }
               }}

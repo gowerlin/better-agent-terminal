@@ -61,6 +61,10 @@ interface IssueDetail {
 
 type SubTab = 'prs' | 'issues'
 
+function hasError(x: unknown): x is { error: string } {
+  return typeof x === 'object' && x !== null && 'error' in x
+}
+
 function formatTimeAgo(dateStr: string): string {
   const d = new Date(dateStr)
   const now = new Date()
@@ -113,13 +117,13 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
         window.electronAPI.github.listPRs(workspaceFolderPath),
         window.electronAPI.github.listIssues(workspaceFolderPath),
       ])
-      if (prResult && 'error' in prResult) {
-        setError(prResult.error as string)
+      if (hasError(prResult)) {
+        setError(prResult.error)
       } else {
         setPrs(prResult as GitHubPR[])
       }
-      if (issueResult && 'error' in issueResult) {
-        if (!error) setError(issueResult.error as string)
+      if (hasError(issueResult)) {
+        if (!error) setError(issueResult.error)
       } else {
         setIssues(issueResult as GitHubIssue[])
       }
@@ -150,9 +154,9 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
       ? window.electronAPI.github.viewPR(workspaceFolderPath, selectedItem.number)
       : window.electronAPI.github.viewIssue(workspaceFolderPath, selectedItem.number)
     promise.then(result => {
-      if (result && 'error' in result) {
+      if (hasError(result)) {
         setDetail(null)
-        setError(result.error as string)
+        setError(result.error)
       } else {
         setDetail(result as PRDetail | IssueDetail)
       }

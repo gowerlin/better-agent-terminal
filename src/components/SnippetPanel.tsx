@@ -155,9 +155,9 @@ export function SnippetSidebar({
         try {
             let data: Snippet[]
             if (searchQuery) {
-                data = await window.electronAPI.snippet.search(searchQuery)
+                data = (await window.electronAPI.snippet.search(searchQuery)) as Snippet[]
             } else {
-                data = await window.electronAPI.snippet.getByWorkspace(workspaceId)
+                data = (await window.electronAPI.snippet.getByWorkspace(workspaceId)) as Snippet[]
             }
             // Apply scope filter
             if (scopeFilter === 'global') {
