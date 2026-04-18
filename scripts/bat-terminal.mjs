@@ -6,7 +6,6 @@
 // Usage:
 //   node scripts/bat-terminal.mjs claude "/ct-exec T0131"
 //   node scripts/bat-terminal.mjs echo hello
-//   node scripts/bat-terminal.mjs                          # empty shell
 //   node scripts/bat-terminal.mjs --cwd /tmp echo hello
 //   node scripts/bat-terminal.mjs --notify-id <tower-id> claude "/ct-exec T0133"
 //     └─ Injects BAT_TOWER_TERMINAL_ID=<tower-id> into the new PTY's env,
@@ -14,9 +13,27 @@
 //   node scripts/bat-terminal.mjs --workspace <workspace-id> claude "/ct-exec T0137"
 //     └─ Explicitly allocate the new PTY to the given workspace tab list.
 //        Omitted → PTY lands in the currently active workspace (T0137/BUG-031).
+//
+// Options:
+//   --help, -h     Show help
+//   --version      Show version
 
 import { createConnection } from 'net'
 import { randomBytes } from 'crypto'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+
+// ── Version (read from package.json, fallback on failure) ──
+
+const VERSION = (() => {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url))
+    return JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf-8')).version || '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+})()
 
 // ── MSYS2 path-conversion workaround (BUG-030) ──
 // Git Bash (MSYS2) on Windows auto-converts `/`-prefixed arguments to Windows
@@ -32,7 +49,137 @@ if (process.platform === 'win32') {
   })
 }
 
-// ── Environment ──
+// ── Help / version (handled before env check so they work universally) ──
+
+const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
+
+Open a new BAT terminal and run <command> in it.
+
+Options:
+  --cwd <path>           Working directory for the new terminal
+  --notify-id <id>       Target terminal ID for Worker→Tower notification binding
+  --workspace <id>       Explicit workspace allocation target
+  --help, -h             Show this help message
+  --version              Show version
+
+Examples:
+  node scripts/bat-terminal.mjs claude "/ct-exec T0001"
+  node scripts/bat-terminal.mjs --notify-id abc123 claude "/ct-exec T0001"
+  node scripts/bat-terminal.mjs --cwd /tmp echo hello
+`
+
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--help', '-h', '--version']
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length
+  if (!m) return n
+  if (!n) return m
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  for (let i = 0; i <= m; i++) dp[i][0] = i
+  for (let j = 0; j <= n; j++) dp[0][j] = j
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
+    }
+  }
+  return dp[m][n]
+}
+
+function suggest(unknown, known) {
+  let best = null, bestD = Infinity
+  for (const k of known) {
+    const d = levenshtein(unknown, k)
+    if (d < bestD) { bestD = d; best = k }
+  }
+  return bestD <= 2 ? best : null
+}
+
+function printUsageError(msg) {
+  console.error(`Error: ${msg}`)
+  console.error('Usage: bat-terminal.mjs [options] <command> [args...]')
+  console.error("Run with --help for details.")
+}
+
+// Fast-path help / version: scan args before any parsing, so these work even
+// without BAT_REMOTE_PORT / BAT_REMOTE_TOKEN set.
+for (const arg of process.argv.slice(2)) {
+  if (arg === '--help' || arg === '-h') {
+    process.stdout.write(HELP_TEXT)
+    process.exit(0)
+  }
+  if (arg === '--version') {
+    console.log(`bat-terminal.mjs v${VERSION}`)
+    process.exit(0)
+  }
+}
+
+// ── Argument parsing (state machine: flags first, then positionals) ──
+
+const rawArgs = process.argv.slice(2)
+let cwd = process.cwd()
+let notifyId = null
+let workspaceId = null
+const positional = []
+
+let i = 0
+while (i < rawArgs.length) {
+  const arg = rawArgs[i]
+
+  // Once we hit the first positional, everything after is part of the command
+  // (even if it starts with `-`, e.g. `claude --dangerously-skip-permissions`).
+  if (positional.length > 0) {
+    positional.push(arg)
+    i++
+    continue
+  }
+
+  // `--` terminator: rest is positional
+  if (arg === '--') {
+    positional.push(...rawArgs.slice(i + 1))
+    break
+  }
+
+  if (arg === '--cwd') {
+    if (!rawArgs[i + 1]) { printUsageError('--cwd requires a path argument'); process.exit(1) }
+    cwd = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  if (arg === '--notify-id') {
+    if (!rawArgs[i + 1]) { printUsageError('--notify-id requires a terminal ID argument'); process.exit(1) }
+    notifyId = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  if (arg === '--workspace') {
+    if (!rawArgs[i + 1]) { printUsageError('--workspace requires a workspace ID argument'); process.exit(1) }
+    workspaceId = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  // If it starts with `-` at this point, it's an unknown option (help/version
+  // already handled in the fast-path above).
+  if (arg.startsWith('-')) {
+    const hint = suggest(arg, KNOWN_FLAGS)
+    printUsageError(`Unknown option '${arg}'${hint ? ` (did you mean '${hint}'?)` : ''}`)
+    process.exit(1)
+  }
+
+  // First non-flag → start of command
+  positional.push(arg)
+  i++
+}
+
+if (positional.length === 0) {
+  printUsageError('No command specified')
+  process.exit(1)
+}
+
+// ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
 
 const PORT = process.env.BAT_REMOTE_PORT
 const TOKEN = process.env.BAT_REMOTE_TOKEN
@@ -46,46 +193,6 @@ if (!TOKEN) {
   process.exit(1)
 }
 
-// ── Argument parsing ──
-
-const rawArgs = process.argv.slice(2)
-let cwd = process.cwd()
-let notifyId = null
-let workspaceId = null
-
-// Extract --cwd option
-const cwdIdx = rawArgs.indexOf('--cwd')
-if (cwdIdx !== -1) {
-  if (!rawArgs[cwdIdx + 1]) {
-    console.error('Error: --cwd requires a path argument')
-    process.exit(1)
-  }
-  cwd = rawArgs[cwdIdx + 1]
-  rawArgs.splice(cwdIdx, 2)
-}
-
-// Extract --notify-id option (T0133: Worker→Tower auto-notify)
-const notifyIdx = rawArgs.indexOf('--notify-id')
-if (notifyIdx !== -1) {
-  if (!rawArgs[notifyIdx + 1]) {
-    console.error('Error: --notify-id requires a terminal ID argument')
-    process.exit(1)
-  }
-  notifyId = rawArgs[notifyIdx + 1]
-  rawArgs.splice(notifyIdx, 2)
-}
-
-// Extract --workspace option (T0137/BUG-031: explicit workspace allocation)
-const wsIdx = rawArgs.indexOf('--workspace')
-if (wsIdx !== -1) {
-  if (!rawArgs[wsIdx + 1]) {
-    console.error('Error: --workspace requires a workspace ID argument')
-    process.exit(1)
-  }
-  workspaceId = rawArgs[wsIdx + 1]
-  rawArgs.splice(wsIdx, 2)
-}
-
 // Shell-quote arguments containing special characters so the command
 // survives re-parsing by the shell inside the new PTY.
 function shellQuote(s) {
@@ -93,7 +200,7 @@ function shellQuote(s) {
   return "'" + s.replace(/'/g, "'\\''") + "'"
 }
 
-const command = rawArgs.length > 0 ? rawArgs.map(shellQuote).join(' ') : undefined
+const command = positional.map(shellQuote).join(' ')
 const terminalId = randomBytes(16).toString('hex')
 
 // ── Minimal WebSocket client (raw net + HTTP upgrade) ──
@@ -279,8 +386,7 @@ async function main() {
   }
 
   // Invoke terminal:create-with-command
-  const invokePayload = { id: terminalId, cwd }
-  if (command) invokePayload.command = command
+  const invokePayload = { id: terminalId, cwd, command }
   // T0133: Inject BAT_TOWER_TERMINAL_ID so Worker knows who to notify on completion
   if (notifyId) invokePayload.customEnv = { BAT_TOWER_TERMINAL_ID: notifyId }
   // T0137/BUG-031: Forward explicit workspace allocation target
@@ -300,7 +406,7 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`✓ Terminal created${command ? `: ${command}` : ' (empty shell)'}`)
+  console.log(`✓ Terminal created: ${command}`)
   ws.close()
   process.exit(0)
 }
