@@ -24,9 +24,27 @@
 //   # Pre-fill AND auto-submit (PLAN-020 yolo mode):
 //   node scripts/bat-notify.mjs --submit "T0133 完成"
 //   # (appends \r to trigger PTY read; mutually exclusive with --no-pty-write)
+//
+// Options:
+//   --help, -h     Show help
+//   --version      Show version
 
 import { createConnection } from 'net'
 import { randomBytes } from 'crypto'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+
+// ── Version (read from package.json, fallback on failure) ──
+
+const VERSION = (() => {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url))
+    return JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf-8')).version || '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+})()
 
 // ── MSYS2 path-conversion workaround (BUG-030) ──
 // Git Bash (MSYS2) on Windows auto-converts `/`-prefixed arguments to Windows
@@ -40,11 +58,152 @@ if (process.platform === 'win32') {
   })
 }
 
-// ── Environment ──
+// ── Help / version (handled before env check so they work universally) ──
+
+const HELP_TEXT = `Usage: bat-notify.mjs [options] <message>
+
+Notify another BAT terminal with a message (UI toast + PTY pre-fill).
+
+Options:
+  --target <id>      Target terminal ID (default: $BAT_TOWER_TERMINAL_ID)
+  --source <label>   Source label shown in UI toast (default: $BAT_TERMINAL_ID)
+  --no-pty-write     Skip PTY pre-fill (UI notification only)
+  --submit           Pre-fill PTY and append \\r to auto-submit (mutually
+                     exclusive with --no-pty-write)
+  --help, -h         Show this help message
+  --version          Show version
+
+Examples:
+  node scripts/bat-notify.mjs "T0133 完成"
+  node scripts/bat-notify.mjs --target abc123 --source T0133 "T0133 完成"
+  node scripts/bat-notify.mjs --submit "T0133 完成"
+`
+
+const KNOWN_FLAGS = [
+  '--target', '--source', '--no-pty-write', '--submit',
+  '--help', '-h', '--version',
+]
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length
+  if (!m) return n
+  if (!n) return m
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  for (let i = 0; i <= m; i++) dp[i][0] = i
+  for (let j = 0; j <= n; j++) dp[0][j] = j
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
+    }
+  }
+  return dp[m][n]
+}
+
+function suggest(unknown, known) {
+  let best = null, bestD = Infinity
+  for (const k of known) {
+    const d = levenshtein(unknown, k)
+    if (d < bestD) { bestD = d; best = k }
+  }
+  return bestD <= 2 ? best : null
+}
+
+function printUsageError(msg) {
+  console.error(`Error: ${msg}`)
+  console.error('Usage: bat-notify.mjs [options] <message>')
+  console.error("Run with --help for details.")
+}
+
+// Fast-path help / version (works even without BAT env vars).
+for (const arg of process.argv.slice(2)) {
+  if (arg === '--help' || arg === '-h') {
+    process.stdout.write(HELP_TEXT)
+    process.exit(0)
+  }
+  if (arg === '--version') {
+    console.log(`bat-notify.mjs v${VERSION}`)
+    process.exit(0)
+  }
+}
+
+// ── Argument parsing (state machine: flags first, then message) ──
+
+const rawArgs = process.argv.slice(2)
+let target = process.env.BAT_TOWER_TERMINAL_ID || null
+let source = process.env.BAT_TERMINAL_ID || null
+let ptyWrite = true
+let submit = false
+const messageParts = []
+
+let i = 0
+while (i < rawArgs.length) {
+  const arg = rawArgs[i]
+
+  // Once first positional seen, rest are message parts (preserves user intent
+  // if message itself contains `--foo`-looking tokens).
+  if (messageParts.length > 0) {
+    messageParts.push(arg)
+    i++
+    continue
+  }
+
+  // `--` terminator: everything after is message
+  if (arg === '--') {
+    messageParts.push(...rawArgs.slice(i + 1))
+    break
+  }
+
+  if (arg === '--target') {
+    if (!rawArgs[i + 1]) { printUsageError('--target requires a terminal ID argument'); process.exit(1) }
+    target = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  if (arg === '--source') {
+    if (!rawArgs[i + 1]) { printUsageError('--source requires a label argument'); process.exit(1) }
+    source = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  if (arg === '--no-pty-write') { ptyWrite = false; i++; continue }
+  if (arg === '--submit')       { submit = true;   i++; continue }
+
+  // Unknown flag (help/version already consumed by fast-path)
+  if (arg.startsWith('-')) {
+    const hint = suggest(arg, KNOWN_FLAGS)
+    printUsageError(`Unknown option '${arg}'${hint ? ` (did you mean '${hint}'?)` : ''}`)
+    process.exit(1)
+  }
+
+  // First non-flag → start of message
+  messageParts.push(arg)
+  i++
+}
+
+// Mutual exclusion: --submit requires PTY write path
+if (submit && !ptyWrite) {
+  printUsageError('--submit and --no-pty-write are mutually exclusive')
+  process.exit(1)
+}
+
+if (!target) {
+  printUsageError('No target terminal ID (set BAT_TOWER_TERMINAL_ID or use --target)')
+  process.exit(1)
+}
+
+const message = messageParts.join(' ').trim()
+if (!message) {
+  printUsageError('Message is required')
+  process.exit(1)
+}
+
+// ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
 
 const PORT = process.env.BAT_REMOTE_PORT
 const TOKEN = process.env.BAT_REMOTE_TOKEN
-const SELF_ID = process.env.BAT_TERMINAL_ID || null
 
 if (!PORT) {
   console.error('Error: Not running inside BAT terminal (BAT_REMOTE_PORT not set)')
@@ -52,68 +211,6 @@ if (!PORT) {
 }
 if (!TOKEN) {
   console.error('Error: BAT_REMOTE_TOKEN not set')
-  process.exit(1)
-}
-
-// ── Argument parsing ──
-
-const rawArgs = process.argv.slice(2)
-let target = process.env.BAT_TOWER_TERMINAL_ID || null
-let source = SELF_ID
-let ptyWrite = true
-let submit = false
-
-// Extract --target option
-const targetIdx = rawArgs.indexOf('--target')
-if (targetIdx !== -1) {
-  if (!rawArgs[targetIdx + 1]) {
-    console.error('Error: --target requires a terminal ID argument')
-    process.exit(1)
-  }
-  target = rawArgs[targetIdx + 1]
-  rawArgs.splice(targetIdx, 2)
-}
-
-// Extract --source option
-const srcIdx = rawArgs.indexOf('--source')
-if (srcIdx !== -1) {
-  if (!rawArgs[srcIdx + 1]) {
-    console.error('Error: --source requires a label argument')
-    process.exit(1)
-  }
-  source = rawArgs[srcIdx + 1]
-  rawArgs.splice(srcIdx, 2)
-}
-
-// Extract --no-pty-write flag
-const noWriteIdx = rawArgs.indexOf('--no-pty-write')
-if (noWriteIdx !== -1) {
-  ptyWrite = false
-  rawArgs.splice(noWriteIdx, 1)
-}
-
-// Extract --submit flag (append \r to auto-submit in target PTY)
-const submitIdx = rawArgs.indexOf('--submit')
-if (submitIdx !== -1) {
-  submit = true
-  rawArgs.splice(submitIdx, 1)
-}
-
-// Mutual exclusion: --submit requires PTY write path
-if (submit && !ptyWrite) {
-  console.error('Error: --submit and --no-pty-write are mutually exclusive')
-  process.exit(1)
-}
-
-if (!target) {
-  console.error('Error: No target terminal ID (set BAT_TOWER_TERMINAL_ID or use --target)')
-  process.exit(1)
-}
-
-const message = rawArgs.join(' ').trim()
-if (!message) {
-  console.error('Error: Message is required')
-  console.error('Usage: bat-notify.mjs [--target <id>] [--source <label>] [--no-pty-write|--submit] <message>')
   process.exit(1)
 }
 
