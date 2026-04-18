@@ -3,9 +3,11 @@
 ## 元資料
 - **工單編號**：T0170
 - **任務名稱**：本地草稿：control-tower skill 自主決策 + 3 斷點規格（Q2.A 分支）
-- **狀態**：IN_PROGRESS
-- **類型**：draft（規格文件，非 code 改動）
+- **狀態**：DONE
+- **類型**：draft（規格文件,非 code 改動）
 - **開始時間**：2026-04-18 13:15 (UTC+8)
+- **完成時間**：2026-04-18 13:21 (UTC+8)
+- **Commit**：ff678cc
 - **互動模式**：disabled
 - **建立時間**：2026-04-18 13:10 (UTC+8)
 - **預估工時**：1.5-2.5h（比原 2-3h 估時少，因 D060 收斂 Q2 為單一分支）
@@ -277,7 +279,7 @@ DONE
 - 實際工時：~6 min（讀現狀 + 撰寫草稿；遠低於預估 1.5-2.5h，因 D060 收斂 + T0169 已鎖字串規格）
 
 ### Commit
-（待寫入：`docs(ct): draft Tower skill yolo patch (PLAN-020 W3)`）
+`ff678cc` — `docs(ct): draft Tower skill yolo patch (PLAN-020 W3)`
 
 ### 驗收結果
 
