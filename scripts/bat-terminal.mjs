@@ -23,6 +23,15 @@ import { randomBytes } from 'crypto'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { logEvent, snapshotBatEnv } from './_bat-logger.mjs'
+
+// T0192: Log the entry point before any parsing, so even fast-path help/version
+// invocations show up in diagnostics. argv is recorded verbatim (contains no
+// secrets; BAT_REMOTE_TOKEN is in env not argv).
+logEvent('bat-terminal', 'invoke', {
+  argv: process.argv.slice(2),
+  env: snapshotBatEnv(),
+})
 
 // ── Version (read from package.json, fallback on failure) ──
 
@@ -206,8 +215,21 @@ while (i < rawArgs.length) {
 
 if (positional.length === 0) {
   printUsageError('No command specified')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
   process.exit(1)
 }
+
+// T0192: Record parsed flags so diagnostics can distinguish "flag missing" vs
+// "flag parsed but not propagated" when reconstructing a broken yolo chain.
+logEvent('bat-terminal', 'parsed', {
+  cwd,
+  notifyId,
+  workspaceId,
+  mode,
+  interactive,
+  cmd: positional[0],
+  cmdArgs: positional.slice(1),
+})
 
 // ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
 
@@ -216,10 +238,12 @@ const TOKEN = process.env.BAT_REMOTE_TOKEN
 
 if (!PORT) {
   console.error('Error: Not running inside BAT terminal (BAT_REMOTE_PORT not set)')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-BAT_REMOTE_PORT' })
   process.exit(1)
 }
 if (!TOKEN) {
   console.error('Error: BAT_REMOTE_TOKEN not set')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-BAT_REMOTE_TOKEN' })
   process.exit(1)
 }
 
@@ -397,6 +421,7 @@ async function main() {
     await ws.connect('127.0.0.1', Number(PORT), 3000)
   } catch (err) {
     console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${err.message}`)
+    logEvent('bat-terminal', 'exit', { code: 1, reason: 'connect-failed', error: err.message })
     process.exit(1)
   }
 
@@ -411,6 +436,7 @@ async function main() {
   const authResp = await waitForMessage(ws)
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
+    logEvent('bat-terminal', 'exit', { code: 1, reason: 'auth-failed', error: authResp.error })
     ws.close()
     process.exit(1)
   }
@@ -433,6 +459,17 @@ async function main() {
     invokePayload.customEnv = { ...invokePayload.customEnv, CT_INTERACTIVE: '0' }
   }
 
+  // T0192: The customEnv object is the terminus of the yolo propagation chain —
+  // whatever ends up here is what the new Worker PTY will inherit. Logging it
+  // verbatim lets BUG-043 re-reproduction compare expected vs actual env.
+  logEvent('bat-terminal', 'invoke-create-with-command', {
+    terminalId,
+    cwd,
+    workspaceId,
+    command,
+    customEnv: invokePayload.customEnv ?? null,
+  })
+
   ws.send(JSON.stringify({
     type: 'invoke',
     id: makeId(),
@@ -443,16 +480,21 @@ async function main() {
   const invokeResp = await waitForMessage(ws)
   if (invokeResp.error) {
     console.error(`Error: Failed to create terminal: ${invokeResp.error}`)
+    logEvent('bat-terminal', 'terminal-created', { result: 'error', error: invokeResp.error })
+    logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-create-failed' })
     ws.close()
     process.exit(1)
   }
 
   console.log(`✓ Terminal created: ${command}`)
+  logEvent('bat-terminal', 'terminal-created', { result: 'ok', terminalId })
+  logEvent('bat-terminal', 'exit', { code: 0 })
   ws.close()
   process.exit(0)
 }
 
 main().catch((err) => {
   console.error(`Error: ${err.message}`)
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'unhandled', error: err.message })
   process.exit(1)
 })

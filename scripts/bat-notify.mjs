@@ -34,6 +34,15 @@ import { randomBytes } from 'crypto'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { logEvent, snapshotBatEnv } from './_bat-logger.mjs'
+
+// T0192: Log entry point before parsing, so every invocation is recorded even
+// when args are malformed. Paired with bat-terminal.mjs's same event for
+// end-to-end chain tracing (terminal dispatch → worker → notify).
+logEvent('bat-notify', 'invoke', {
+  argv: process.argv.slice(2),
+  env: snapshotBatEnv(),
+})
 
 // ── Version (read from package.json, fallback on failure) ──
 
@@ -186,19 +195,36 @@ while (i < rawArgs.length) {
 // Mutual exclusion: --submit requires PTY write path
 if (submit && !ptyWrite) {
   printUsageError('--submit and --no-pty-write are mutually exclusive')
+  logEvent('bat-notify', 'exit', { code: 1, reason: 'submit-vs-no-pty-write' })
   process.exit(1)
 }
 
 if (!target) {
   printUsageError('No target terminal ID (set BAT_TOWER_TERMINAL_ID or use --target)')
+  logEvent('bat-notify', 'exit', { code: 1, reason: 'no-target' })
   process.exit(1)
 }
 
 const message = messageParts.join(' ').trim()
 if (!message) {
   printUsageError('Message is required')
+  logEvent('bat-notify', 'exit', { code: 1, reason: 'no-message' })
   process.exit(1)
 }
+
+// T0192: Record the resolved notification target and submit mode. For
+// BUG-043 diagnostics this pins down whether the notify-id env propagated
+// correctly from the spawning bat-terminal.mjs call.
+logEvent('bat-notify', 'parsed', {
+  target,
+  source,
+  ptyWrite,
+  submit,
+  messageLength: message.length,
+  // Preview keeps the leading portion of the message in clear text — these
+  // are CT status strings like "T0192 完成", not secrets.
+  messagePreview: message.slice(0, 80),
+})
 
 // ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
 
@@ -207,10 +233,12 @@ const TOKEN = process.env.BAT_REMOTE_TOKEN
 
 if (!PORT) {
   console.error('Error: Not running inside BAT terminal (BAT_REMOTE_PORT not set)')
+  logEvent('bat-notify', 'exit', { code: 1, reason: 'no-BAT_REMOTE_PORT' })
   process.exit(1)
 }
 if (!TOKEN) {
   console.error('Error: BAT_REMOTE_TOKEN not set')
+  logEvent('bat-notify', 'exit', { code: 1, reason: 'no-BAT_REMOTE_TOKEN' })
   process.exit(1)
 }
 
@@ -376,6 +404,7 @@ async function main() {
     await ws.connect('127.0.0.1', Number(PORT), 3000)
   } catch (err) {
     console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${err.message}`)
+    logEvent('bat-notify', 'exit', { code: 1, reason: 'connect-failed', error: err.message })
     process.exit(1)
   }
 
@@ -391,6 +420,7 @@ async function main() {
   const authResp = await waitForMessageById(ws, authId)
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
+    logEvent('bat-notify', 'exit', { code: 1, reason: 'auth-failed', error: authResp.error })
     ws.close()
     process.exit(1)
   }
@@ -409,6 +439,11 @@ async function main() {
     console.error(`Warning: UI notify failed: ${notifyResp.error}`)
     // Continue to PTY write — not fatal
   }
+  logEvent('bat-notify', 'send', {
+    channel: 'terminal:notify',
+    result: notifyResp.error ? 'error' : 'ok',
+    error: notifyResp.error ?? null,
+  })
 
   // Step 2: PTY write (pre-fill text in target terminal).
   // With --submit, append \r to trigger PTY read (auto-submit).
@@ -428,14 +463,23 @@ async function main() {
     if (writeResp.error) {
       console.error(`Warning: PTY write failed: ${writeResp.error}`)
     }
+    logEvent('bat-notify', 'send', {
+      channel: 'pty:write',
+      result: writeResp.error ? 'error' : 'ok',
+      submit,
+      appendedCR: submit && !endsWithNewline,
+      error: writeResp.error ?? null,
+    })
   }
 
   console.log(`✓ Notified ${target.slice(0, 8)}…: ${message}`)
+  logEvent('bat-notify', 'exit', { code: 0 })
   ws.close()
   process.exit(0)
 }
 
 main().catch((err) => {
   console.error(`Error: ${err.message}`)
+  logEvent('bat-notify', 'exit', { code: 1, reason: 'unhandled', error: err.message })
   process.exit(1)
 })
