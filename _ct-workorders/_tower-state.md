@@ -1,10 +1,70 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 下半場第六 session（PLAN-018 全綠 + v4.3.x skill 治理 + 目錄 rename + *evolve 5 條 learning）
+> 最後更新：2026-04-19 00:02（第七 session,PLAN-019 DONE + BUG-042/043 + BAT 診斷儀表就緒）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-18 下半場第六 session，PLAN-018 + v4.3.x 收尾）
+## 🛏 本 Session 退出快照（2026-04-19 第七 session,PLAN-019 收尾 + BAT 診斷儀表）
+
+**退出原因**：使用者「收工」。PLAN-019 技術目標達成(tsc 133 → 2),剩 `*evolve` 和 push 下次接。
+
+**本 session 成果**（~2h,9 工單 + 2 BUG + 1 PLAN DONE）：
+
+**PLAN-019 — TypeScript 技術債 DONE**：
+- `987137b` T0186 Cluster 1 ElectronAPI types(8min,133→60)
+- `708af69` T0187 Cluster 2 Domain types PARTIAL(7min,60→46)
+- `766135c` T0188 Cluster 3 null narrowing(9min,46→39)
+- `012a583` T0189 Cluster 5 implicit any NO-OP(2min,被 Cluster 1/2 連帶清)
+- `0ab85d3` T0190 Cluster 4 unused symbols(9min,39→26)
+- `2956192` T0191 Cluster 6/7/8 收尾(10min,26→2;順帶修 UpdateNotification 真實 bug)
+- `53c050b` PLAN-019 DONE 文件收尾
+
+**BAT 診斷儀表（BUG-043 支柱）**：
+- `c32a2e9` T0192 scripts 端 log(`_bat-logger.mjs` + bat-terminal/notify NDJSON)
+- `2950800` T0193 Electron 端 log(`remote-logger.ts` + terminal IPC 雙軌鏡像)
+- log 位置:`%APPDATA%/BetterAgentTerminal/Logs/bat-scripts.log`
+- 核心訊號:`reusedExisting`(ptyManager.isAlive 在 create 前取樣)+ customEnv 白名單
+
+**新 BUG**：
+- 🐛 **BUG-042 OPEN** — TerminalPanel 呼叫不存在的 WorkspaceStore action(PLAN-019 Cluster 2 邊界發現)
+- 🐛 **BUG-043 OPEN** — Worker YOLO 偶發失效(T0189/T0191/T0192 3 次再現,儀表已裝等樣本)
+
+**L061/GP042 Worker time 第 15-18 hit**(本 session 新增 6 次,累計 20+):
+- 文件/型別/診斷類實證 0.2-0.3x 壓縮係數
+- **Playbook 候選強化**:工單預估 × 0.3(覆蓋文件/型別/診斷類)
+
+**未執行項（下次接）**：
+- 🟡 **`*evolve` 未跑**:L070(研究工單規模爆擊暫停門檻)/ L071(盤點路徑/欄位誤標)/ L072(技術假設需驗證)/ GP cluster 順序(定義層先、使用層後)— 需答分流(通用/本專案/不確定)
+- 🟡 **本 repo 未 push**:本 session 多 commits + 前 session PLAN-018 的 commits 皆未 push
+- 🟢 BUG-042 調查 TerminalPanel dead call 是 planned 未完成還是遺忘
+- 🟢 BUG-043 等自然樣本,撈 log `reusedExisting` 值指向根因
+
+**YOLO 歷程追加**（本 session 關鍵事件）:
+- `[~22:00] 啟動` Fast Path 快速恢復(快照 <2h)
+- `[22:02] 派發` T0185 研究(yolo OK,規模爆擊 flag 133 vs ~20)
+- `[22:14-22:32] T0186` yolo OK
+- `[22:34-22:41] T0187` PARTIAL + WorkspaceStore 邊界 pause → BUG-042
+- `[22:43-22:57] T0188` yolo OK
+- `[22:59-23:03] T0189` **無 banner(BUG-043 第 1 次再現)**
+- `[23:05-23:16] T0190` yolo OK(翻案觀察)
+- `[23:18-23:30] T0191` yolo OK,PLAN-019 技術目標達成(26→2)
+- `[23:32-23:44] T0192` **無 banner(第 2 次再現)** — scripts log 儀表建立
+- `[23:48-23:57] T0193` yolo OK — Electron log 儀表建立
+- `[~00:00-00:02] 收尾` PLAN-019 DONE + BUG-042/043 建檔 + commit 53c050b
+- **規律結論**:互動與失效無相關性,疑 race / terminal 生命週期狀態
+
+**恢復指引**（下次 `/control-tower` 啟動時）:
+
+1. Fast Path 載入本快照(v4.3.0)
+2. 下一輪優先級:
+   - 🟡 `*evolve` 先答分流,寫入 L070-L072 + GP cluster 順序
+   - 🟡 push 本 repo(git push origin main)+ 驗證 monorepo skill 同步
+   - 🟢 BUG-042 調查或 BUG-043 等樣本
+3. 若「BAT yolo 又失效」→ 立刻 `grep reusedExisting %APPDATA%/BetterAgentTerminal/Logs/bat-scripts.log`,撈 customEnv 鏈
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-18 下半場第六 session，PLAN-018 + v4.3.x 收尾）
 
 **退出原因**：主線任務全部完成（PLAN-018 資安加固三張 + CT-T005/T007 skill 治理 + 跨 repo rename + skill sync）。本 session 壓縮執行 16x（估 ~13h、實際 ~80min）。
 
