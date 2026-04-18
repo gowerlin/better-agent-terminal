@@ -3,8 +3,9 @@
 ## 元資料
 - **工單編號**：T0168
 - **任務名稱**：實作：`scripts/bat-notify.mjs` 新增 `--submit` flag（append `\r` 自動送出）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **開始時間**：2026-04-18 12:53 (UTC+8)
+- **完成時間**：2026-04-18 13:00 (UTC+8)
 - **類型**：implementation
 - **互動模式**：disabled（規格明確，不需互動）
 - **建立時間**：2026-04-18 12:50 (UTC+8)
@@ -137,7 +138,7 @@ DONE
 - 完成：2026-04-18 13:00 (UTC+8)
 
 ### Commit
-`<pending>`（見下方 commit hash）
+`c4b2a19` — feat(scripts): add --submit flag to bat-notify.mjs (PLAN-020 W1)
 
 ### 驗收結果
 - ✅ **A1** 無 flag 行為不變：靜態程式碼驗證 — `payload = message`（與現狀相同），新增程式碼僅在 `submit=true` 分支生效
