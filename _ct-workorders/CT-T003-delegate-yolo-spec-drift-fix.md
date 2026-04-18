@@ -3,8 +3,10 @@
 ## 元資料
 - **工單編號**：CT-T003
 - **任務名稱**：【受派】CT skill 修正 — yolo 「斷點 C」概念 SKILL.md vs yolo-mode.md 規格 drift（含使用者中斷事件正式化）
-- **狀態**：TODO
+- **狀態**：IN_PROGRESS
+- **開始時間**：2026-04-18 16:12 (UTC+8)
 - **建立時間**：2026-04-18 16:05 (UTC+8)
+- **派發時間**：2026-04-18 ~16:12 (UTC+8) — 使用者手動切換至 `BMad-Control-Tower-v4.x.x/` 對方塔台處理
 - **預估工時**：30-45 分鐘（純文檔 + 規格梳理）
 - **優先級**：🟡 Medium（不阻塞功能，但會混淆塔台事件分類）
 
@@ -155,21 +157,44 @@ git push origin v4.2.1
 > 由 Worker 在收尾時填寫。
 
 ### 完成狀態
-（待填）
+PARTIAL（規格修改 + CHANGELOG 完成；push / tag / 對方塔台同步待使用者決策）
 
 ### 修改檔案
-- (待填)
+1. `BMad-Control-Tower-v4.2.0/control-tower/references/yolo-mode.md`
+   - 警語段落（§ 啟動面板警語）新增「使用者中斷快捷」說明（line 30 後）
+   - 斷點 C 小節後新增「使用者中斷（非斷點）」獨立小節（含判準 / 觸發訊息 / A-B-C 差異）
+   - `_tower-state.md` 寫入時機表格新增「使用者中斷」條目
+   - 計數器格式範例新增「使用者中斷×N」欄位
+   - 斷點訊息表新增 `🛑 YOLO PAUSED — 使用者中斷` 條目
+2. `BMad-Control-Tower-v4.2.0/CHANGELOG.md`
+   - 新增 `## [4.2.1] — 2026-04-18` 條目（Fixed / Source 段落）
+3. `better-agent-terminal/_ct-workorders/CT-T003-delegate-yolo-spec-drift-fix.md`
+   - 狀態 DISPATCHED → IN_PROGRESS → PARTIAL，填寫回報區
+
+### 互動紀錄
+`[16:14] 發現` 工單 Step 2 描述的字串「隨時輸入『停』可觸發斷點 C 暫停」在 v4.2.0 `control-tower/SKILL.md` 與 `references/yolo-mode.md` 中**皆不存在**。grep 結果僅 yolo-mode.md:24 的現行警語（「塔台將自主決策 / A 非預期狀態 / B Renew≥N / C 跨 PLAN」）沒有「停」字串。
+`→ Action`：依工單精神（警語應明示使用者中斷概念、避免誤解為斷點 C）調整 Step 2 — 不 rename 不存在的字串，改為在警語段後新增一段「使用者中斷快捷」說明，指向新增的獨立小節。此 adjustment 符合工單互動規則第 1 條「措辭與既有 SKILL.md 上下文衝突」，但在 yolo auto mode 下採合理 inference 推進，未發問阻斷。
 
 ### 驗收結果
-- (待填)
+1. ✅ SKILL.md / yolo-mode.md 警語不將使用者輸入「停」定性為斷點 C — 警語後補「使用者中斷快捷」段落明示獨立於 A/B/C
+2. ✅ yolo-mode.md 新增「使用者中斷（非斷點）」小節（位置：斷點 C 後、`_tower-state.md` 章節前），寫入時機表格 + 計數器格式 + 斷點訊息表三處同步更新
+3. ✅ `grep 斷點 C` 只在 Worker 跨 PLAN 建議脈絡出現（line 214 定義 / line 233 觸發訊息 / line 347 訊息表 / line 460 測試場景）
+4. ⚠️ CHANGELOG v4.2.1 條目已建立；tag 未打（Step D irreversible，待使用者決策）
+5. ⚠️ 對方塔台 sync 未驗證（Step C 跨專案通知流程，非本 session 可自主完成）
+
+### 剩餘待辦（交給使用者決策）
+- **Step A**（push 分支到 Forgejo origin）：目標目錄 `BMad-Control-Tower-v4.2.0/` 是 `BMad-Guide` monorepo 下的子目錄，非獨立 repo；工單寫的 `checkout -b fix/yolo-spec-drift-user-interrupt` 需調整為 monorepo 策略。且 monorepo 當前 `dev-main` 有其他未 commit 變更（`_learnings.md`、`_tower-state.md`），切 branch 會干擾。建議使用者確認是否走獨立 branch + push，或直接在 `dev-main` 提交。
+- **Step C**（通知對方塔台）：跨專案同步非本 session 自主範圍
+- **Step D**（打 tag v4.2.1 + push origin v4.2.1）：irreversible 操作，需使用者明確授權
 
 ### Renew 歷程
 無
 
 ### 回報時間
-（待填）
+2026-04-18 16:18 (UTC+8)
 
 ### commit
-（commit hash 待填）
+- `BMad-Guide` monorepo：`（收尾流程後更新）`
+- `better-agent-terminal`：`（收尾流程後更新）`
 
 ---
