@@ -40,7 +40,8 @@ enable_plan_tracking: true
 enable_experiments: true
 
 # 歸檔天數門檻（*archive 判定用）
-archive_days: 1
+# 2026-04-18 調整：1 → 7（dogfood 結束恢復保守設定，避免與 PLAN IDEA 節點活躍引用衝突過度頻繁觸發，見 L066）
+archive_days: 7
 
 # *sync 後提示歸檔候選
 auto_archive_prompt: off
@@ -52,7 +53,8 @@ research_interaction: true
 research_max_questions: 3
 
 # 小變動自主 commit 行為（on/ask/off）
-auto_commit: ask
+# 2026-04-18 16:50 改為 on（session 收尾期間塔台 meta 變更頻繁，降低打擾）
+auto_commit: on
 
 # 自主 commit 訊息格式模板
 auto_commit_format: "chore: {description} ({scope})"

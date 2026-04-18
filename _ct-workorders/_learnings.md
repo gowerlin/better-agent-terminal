@@ -1684,4 +1684,78 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 
 **候選晉升**：🟡 Project（先在本專案 dogfood 確認，後續評估是否上游）
 
+**2026-04-18 16:25 更新**：CT-T003 已閉環 — SKILL.md + yolo-mode.md 改為「使用者中斷」獨立事件類型（v4.2.1 tag），drift 修正生效。本 learning 轉歷史價值（根因已解）。
+
+---
+
+## L062 - 2026-04-18 — 對方塔台實作比 Worker 草稿更嚴謹
+
+**觸發條件**：CT-T002 yolo skill patch 由 Worker 在本塔台起草為「yolo 硬鉤子」初版，CP-T0094 對方塔台實作時識別出「鉤子失敗不應執行 Step 11」避免狀態重複。
+
+**觀察**：對方塔台在「吸收 DELEGATE 工單」時，多了一層對自己 skill 架構的理解，能補 Worker 草稿未察的狀態邊界。
+
+**意義**：跨專案草稿 + 對方塔台審核 = 自然的多重審視機制，比單一塔台/Worker pipeline 更嚴謹。
+
+**修法建議**：跨專案 DELEGATE 在「規格修改」類任務時，優先走「本塔台草稿 → 對方塔台審核 + 吸收」而非「本塔台 Worker 直接改對方 skill」。
+
+**候選晉升**：🟡 Project（需 2-3 次實證，考慮晉升 Global GP）
+
+---
+
+## L063 - 2026-04-18 — yolo 警語缺 session-only vs persisted 區別
+
+**觸發條件**：T0174 Phase 1 dogfood — 塔台啟動警語面板未區分「本次 session 暫啟動 yolo」vs「yolo 已持久化至 `_tower-config.yaml`」。
+
+**影響**：使用者無法從警語判斷 yolo 是一次性還是永久生效，造成 UX 困惑（特別是跨 session 恢復時）。
+
+**修法建議**：
+1. 塔台偵測 yolo 啟用來源（session / project config / global config）
+2. 警語面板加區別標記：
+   - 「⚠️ YOLO MODE ACTIVE（session-only，本次啟動生效）」
+   - 「⚠️ YOLO MODE ACTIVE（已持久化於 `_tower-config.yaml`）」
+   - 「⚠️ YOLO MODE ACTIVE（全域配置 `~/.claude/control-tower-data/config.yaml`）」
+3. 持久化來源下，追加「輸入 `*config auto-session off --save project` 可關閉」提示
+
+**候選晉升**：🟡 Project（yolo-mode.md 警語規格強化，成熟後可送上游 CT skill）
+
+---
+
+## L065 - 2026-04-18 — 跨專案 DELEGATE 工單 repo 結構假設缺口
+
+**觸發條件**：CT-T003 派發時，工單模板預設「獨立 repo + `git checkout -b + push`」流程，實際目標 `BMad-Control-Tower-v4.2.0/` 是 `BMad-Guide` monorepo 子目錄，Worker 需臨時調整為「直接 commit 到 dev-main」。
+
+**影響**：Worker 動手前才發現結構不符，臨時 inference 調整（符合互動規則第 1 條但回報需額外說明）；monorepo 其他未 commit 變更可能被無意干擾。
+
+**修法建議**：
+1. DELEGATE 工單派發前，塔台或 Worker 先 `git rev-parse --show-toplevel` 偵測
+2. 工單 Step A 改為條件式（獨立 repo / monorepo 二擇一分支）
+3. 模板中加「前置檢查」段落，Worker 不符時明示採用哪種
+4. 已晉升 Global GP043（patterns.md），本條為 project-layer 補充記錄（含 CT-T003 完整時序）
+
+**候選晉升**：🔵 已晉升 Global（GP043, 2026-04-18）
+
+---
+
+## L066 - 2026-04-18 — PLAN 🟢 IDEA 節點作為「歷史知識索引」會鎖住歸檔
+
+**觸發條件**：`*archive --dry-run` with `archive_days: 1` 偵測到 3 張候選（T0149 / T0150 / BUG-034），執行後全數觸發「活躍引用豁免」還原。
+
+**根因**：PLAN-013 🟢 IDEA（Installer 檔案鎖定詢問 kill）作為**未實作的設計參考節點**，在內文引用了整串 PLAN-012 已完成的閉環單據作為「日後實作時的設計依據」：
+- `_bug-tracker.md` L40：`BUG-034：被 Active PLAN-013 🟢 IDEA 引用`
+- `PLAN-013.md` L63：`T0149 commit / T0150 commit：PLAN-012 最終實作`
+
+**影響**：10+ 張閉環單據（BUG-031/033/034/035/036 + T0144/T0145/T0147/T0149/T0150）因被 IDEA 節點引用，**無限期保留在熱區**，無法歸檔。
+
+**現況**：SKILL.md `archive-system` 規格明示「被其他活躍單據引用的已完成單據（活躍引用豁免）」— 嚴格執行的話，只要 IDEA 節點不被實作或刪除，引用鏈上所有閉環永不能歸檔。
+
+**提案修法**（待塔台規格演進決定，記錄為 learning）：
+1. **引用快照策略**：歸檔工單時，把被引用的關鍵段落（commit hash、現象描述、根因摘要）inline 複製到 IDEA 節點，解除原檔依賴後再歸檔
+2. **archive_days 調高 + 容忍**：保守設定（如 7-30 天），讓熱區能容納歷史知識節點，不過度激進
+3. **IDEA 狀態歸檔例外規則**：若引用來源是「PLAN IDEA」且為「設計參考」而非「依賴關係」，允許歸檔（需塔台偵測引用語意，複雜度高）
+4. **定期 IDEA 清理**：IDEA 超過 N 個 session 未進展 → 提醒使用者「評估實作 or DROPPED」，解鎖引用鏈
+
+**本輪處置**：採方法 2 — 將 `archive_days` 從 `1` 改回 `7`（保守預設），等引用鏈自然隨 PLAN-013 演進解鎖，或塔台規格升級支援快照策略。
+
+**候選晉升**：🔵 Global 候選（CT 通用 — 歸檔策略與 IDEA 節點語意，非本專案特定）
+
 ---
