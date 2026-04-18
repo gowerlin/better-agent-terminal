@@ -3,7 +3,8 @@
 ## 元資料
 - **工單編號**：T0169
 - **任務名稱**：本地草稿：ct-exec / ct-done skill 自動回報規格（Worker→Tower 硬鉤子）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
+- **完成時間**：2026-04-18 13:05 (UTC+8)
 - **類型**：draft（規格文件，非 code 改動）
 - **互動模式**：disabled（規格明確）
 - **建立時間**：2026-04-18 13:05 (UTC+8)
@@ -182,7 +183,7 @@ DONE
 - 完成：2026-04-18 13:05 (UTC+8)
 
 ### Commit
-（將於收尾寫入）
+`488ad93` — docs(ct): draft Worker skill yolo patch (PLAN-020 W2)
 
 ### 驗收結果
 
