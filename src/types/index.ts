@@ -79,6 +79,7 @@ export interface CreatePtyOptions {
   agentPreset?: AgentPresetId;   // 可選的 Agent 預設
   shell?: string;
   customEnv?: Record<string, string>;  // 自定義環境變數
+  workspaceId?: string;          // T0176: for BAT_WORKSPACE_ID env injection
 }
 
 export interface PtyOutput {

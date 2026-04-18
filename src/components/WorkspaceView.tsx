@@ -438,7 +438,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             type: 'terminal',
             agentPreset: terminal.agentPreset,
             shell,
-            customEnv
+            customEnv,
+            workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
           })
           // Auto-run agent command for non-Claude terminal-driven agents
           if (terminal.agentPreset && terminal.agentPreset !== 'none') {
@@ -488,7 +489,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               type: 'terminal',
               agentPreset: defaultAgent as AgentPresetId,
               shell,
-              customEnv
+              customEnv,
+              workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
             })
             if (settings.agentAutoCommand) {
               const defExtraArgs = settingsStore.getAgentCustomArgs(defaultAgent)
@@ -525,7 +527,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             cwd: workspace.folderPath,
             type: 'terminal',
             shell,
-            customEnv
+            customEnv,
+            workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
           })
         }
         // Persist newly created default terminals
@@ -558,7 +561,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       cwd: workspace.folderPath,
       type: 'terminal',
       shell,
-      customEnv
+      customEnv,
+      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
     })
     // Focus the new terminal
     workspaceStore.setFocusedTerminal(terminal.id)
@@ -575,7 +579,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       cwd: workspace.folderPath,
       type: 'terminal',
       shell,
-      customEnv
+      customEnv,
+      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
     })
     workspaceStore.setFocusedTerminal(terminal.id)
     workspaceStore.save()
@@ -593,6 +598,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       cwd: workspace.folderPath,
       command,
       customEnv,
+      workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
     })
     workspaceStore.setFocusedTerminal(terminal.id)
     setActiveTab('terminal')
@@ -612,6 +618,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       cwd: workspace.folderPath,
       command,
       customEnv,
+      workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
     })
     workspaceStore.setFocusedTerminal(terminal.id)
     setActiveTab('terminal')
@@ -664,7 +671,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       customEnv: {
         ...customEnv,
         CLAUDE_CODE_NO_FLICKER: '1',
-      }
+      },
+      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
     })
 
     // Build CLI command using bundled CLI
@@ -738,7 +746,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       type: 'terminal',
       agentPreset: preset,
       shell,
-      customEnv
+      customEnv,
+      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
     })
 
     // Auto-run agent command

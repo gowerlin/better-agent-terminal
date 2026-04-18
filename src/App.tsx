@@ -795,6 +795,7 @@ export default function App() {
               cwd: activeWorkspace.folderPath,
               command,
               customEnv: mergedEnv,
+              workspaceId: activeWorkspace.id,  // T0176: BAT_WORKSPACE_ID env injection
             })
             workspaceStore.setFocusedTerminal(terminal.id)
             workspaceStore.save()
@@ -813,6 +814,7 @@ export default function App() {
               cwd: activeWorkspace.folderPath,
               command,
               customEnv: mergedEnv,
+              workspaceId: activeWorkspace.id,  // T0176: BAT_WORKSPACE_ID env injection
             })
             workspaceStore.setFocusedTerminal(terminal.id)
             workspaceStore.save()

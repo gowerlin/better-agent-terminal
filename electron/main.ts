@@ -1563,6 +1563,7 @@ function registerProxiedHandlers() {
       type: 'terminal',
       shell: opts.shell,
       customEnv: opts.customEnv,
+      workspaceId: opts.workspaceId,  // T0176: forward workspaceId for BAT_WORKSPACE_ID env injection
     })
     if (created && opts.command) {
       // Delay to let shell initialize before writing command

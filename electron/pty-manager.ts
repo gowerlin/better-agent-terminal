@@ -376,7 +376,7 @@ export class PtyManager {
   }
 
   create(options: CreatePtyOptions): boolean {
-    const { id, cwd, type, shell: shellOverride, customEnv = {} } = options
+    const { id, cwd, type, shell: shellOverride, customEnv = {}, workspaceId } = options
 
     const shell = shellOverride || this.getDefaultShell()
     let args: string[] = []
@@ -419,6 +419,8 @@ export class PtyManager {
         BAT_SESSION: '1',
         // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
         BAT_TERMINAL_ID: id,
+        // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
+        BAT_WORKSPACE_ID: workspaceId ?? '',
         // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
         // Dev: <project-root>/scripts, packaged: <install-root>/resources/scripts.
         BAT_HELPER_DIR: resolveHelperDir(),
@@ -468,6 +470,8 @@ export class PtyManager {
           BAT_SESSION: '1',
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
+          // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
+          BAT_WORKSPACE_ID: workspaceId ?? '',
           // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
           BAT_HELPER_DIR: resolveHelperDir(),
           // Force color output
@@ -544,6 +548,8 @@ export class PtyManager {
           BAT_SESSION: '1',
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
+          // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
+          BAT_WORKSPACE_ID: workspaceId ?? '',
           // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
           BAT_HELPER_DIR: resolveHelperDir(),
           FORCE_COLOR: '3',
