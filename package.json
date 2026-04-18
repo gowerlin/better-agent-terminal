@@ -155,6 +155,8 @@
       "node_modules/@anthropic-ai/claude-code-*/**/*",
       "node_modules/@anthropic-ai/claude-agent-sdk/**/*",
       "node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",
+      "node_modules/@lydell/node-pty/**/*",
+      "node_modules/@lydell/node-pty-*/**/*",
       "node_modules/@img/**/*",
       "dist-electron/terminal-server.js"
     ],

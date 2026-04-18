@@ -4,10 +4,11 @@
 
 - **編號**:T0198
 - **類型**:實作(trivial,設定兩行 + 驗證)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ FIXED
 - **估時**:25-40 min(改設定 ~2 + build 驗 `.unpacked/` ~10 + 同類型 grep ~8 + 回報 ~10)
 - **建立時間**:2026-04-19 01:54 (UTC+8)
 - **開始時間**:2026-04-19 01:59 (UTC+8)
+- **完成時間**:2026-04-19 02:03 (UTC+8)
 - **關聯**:BUG-047、T0197(翻案發現)、D057、PLAN-005
 - **優先級**:🔴 High(V1 packaged app 對 Rico 100% 阻擋,已確認根因)
 
@@ -185,7 +186,7 @@ $ ls -la .../claude-code-win32-x64/claude.exe
 
 ### Commit hash
 
-待填入(下一步執行 git commit)
+`e619b81` — `fix(packaging): unpack @anthropic-ai platform subpackages (BUG-047, T0198)`
 
 ### 驗證結果
 
