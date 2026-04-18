@@ -1,9 +1,9 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-19 00:55 (UTC+8)
+> 最後更新：2026-04-19 03:18 (UTC+8)
 >
-> 統計：💡 Ideas: 4 | 📋 Planned: 3 | 🔄 In Progress: 0 | ✅ Done: 7 | 🚫 Dropped: 1
+> 統計：💡 Ideas: 5 | 📋 Planned: 4 | 🔄 In Progress: 0 | ✅ Done: 7 | 🚫 Dropped: 1
 >
 > 本 session 閉環：PLAN-019 DONE（TypeScript 技術債清理，tsc 133→2）
 >
@@ -18,10 +18,12 @@
 | PLAN-004 | GPU Whisper 加速（Win/Linux） | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
 | PLAN-009 | Sprint 儀表板 UI | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-009-sprint-dashboard-ui.md) |
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B） | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
+| PLAN-022 | Dispatcher fingerprint pinning（PLAN-018 安全對齊，T0202c 候選） | 🟡 Medium | 📋 PLANNED | [詳細](PLAN-022-dispatcher-fingerprint-pinning.md) |
 | PLAN-002 | Dynamic Import 衝突修復 | 🟢 Low | 💡 IDEA | [詳細](PLAN-002-dynamic-import-conflict-fix.md) |
 | PLAN-007 | 遠端容器開發支援 | 🟢 Low | 💡 IDEA | [詳細](PLAN-007-remote-container-dev-support.md) |
 | PLAN-013 | NSIS Installer 偵測檔案鎖定時詢問 kill Terminal Server | 🟢 Low | 💡 IDEA | [詳細](PLAN-013-installer-force-kill-on-file-lock.md) |
 | PLAN-015 | Refactor：抽 renderPanelContent shared helper 消除雙 render 路徑 | 🟢 Low | 💡 IDEA | [詳細](PLAN-015-refactor-dual-render-path-shared-helper.md) |
+| PLAN-021 | Settings UI 支援自訂 RemoteServer port（預設 9876，衝突時可改 + 測試按鈕） | 🟢 Low | 💡 IDEA | [詳細](PLAN-021-remote-server-port-settings-ui.md) |
 
 ## Completed
 

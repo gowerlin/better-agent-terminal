@@ -2,13 +2,17 @@
 
 ## 元資料
 - **編號**:BUG-046
-- **狀態**:OPEN
+- **狀態**:CLOSED(T0202b 實證本 session 派發成功,yolo 派發鏈解鎖)
 - **嚴重度**:🔴 High（完全阻擋 dispatcher → terminal 啟動,塔台 yolo 派發失效）
-- **建立時間**:2026-04-19 00:32 (UTC+8) | **更新**:00:40 翻案
-- **發現來源**:T0194 派發實錄（4 次連續失敗,降級 `--no-interactive` 也失敗）
-- **關聯**:T0192/T0193（日誌儀表本身可能被 BUG-046 影響,但非 root cause）· BUG-043（不同根因,本張排除）
-- **可重現**:100%（4 次派發完全相同症狀）
-- **workaround**:**手動開新終端** + 直接執行 `claude "/ct-exec T####"`（新終端 fork 自 BAT 主進程,token 會 fresh）
+- **建立時間**:2026-04-19 00:32 (UTC+8) | **更新**:00:40 第一次翻案,02:42 第二次翻案,03:12 CLOSED
+- **關閉時間**:2026-04-19 03:12 (UTC+8)
+- **發現來源**:T0194 派發實錄(4 次連續失敗,降級 `--no-interactive` 也失敗)
+- **關聯**:T0200(dispatcher defense + 發現 MinimalWS.close bug)、T0201(TLS 假設確認)、T0202a(close reject 獨立防禦)、T0202b(TLS 升級 + yolo 解鎖)、PLAN-018 T0182(server 端 TLS 基建)
+- **修復 commits**:`380fa3c` T0202a(close reject)+ `831234b` T0202b(TLS 升級)
+- **可重現**:100%(4 次派發完全相同症狀)
+- **workaround**:**手動開新終端** + 直接執行 `claude "/ct-exec T####"`(新終端 fork 自 BAT 主進程,token 會 fresh)
+- **真根因**(雙重翻案後確認):PLAN-018 T0182 將 server 升級到 `https.createServer` + wss://,但 dispatcher `MinimalWS.connect` 仍用 `net.createConnection` + plain HTTP upgrade。TLS handshake 失敗 server FIN close → MinimalWS close handler 不 reject → Promise pending → silent exit 0。
+- **延伸議題**:T0202c fingerprint pinning 對齊 PLAN-018 安全 — 另開 PLAN-022 追蹤
 
 ## 翻案說明（2026-04-19 00:40）
 

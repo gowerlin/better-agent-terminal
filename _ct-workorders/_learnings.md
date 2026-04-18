@@ -1935,3 +1935,37 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **相關**：BUG-046（dispatcher silent fail）、T0192/T0193（儀表設計）
 
 ---
+
+## L075 - 2026-04-19 — SNI RFC 6066 不接受 IP literal(Node.js tls.connect edge case)
+
+**候選 global**:candidate:global(Node.js 通用行為,但本次在本專案發生)
+
+**情境**:T0202b 將 `MinimalWS.connect` 從 `net.createConnection` 改為 `tls.connect`,依 Electron remote-client.ts 寫法加上 `servername: host`,直接踩 `ERR_INVALID_ARG_VALUE: Setting the TLS ServerName to an IP address is not permitted`。
+
+**根因**:RFC 6066(SNI 規範)明定 servername 必須是 hostname,**不可是 IP literal**(IPv4 / IPv6)。Node.js `tls.connect` 嚴格遵守,傳 IP 會 throw。
+
+**為何 remote-client.ts 沒踩**:用 `new WebSocket(url, ...)` 高階 API,URL parser 會自動偵測 IP hostname 並省略 SNI。直接 `tls.connect` 無此保護。
+
+**修法**:
+```javascript
+const isIpLiteral = /^[0-9.]+$/.test(host) || host.includes(':')  // IPv4 / IPv6
+tls.connect({
+  host,
+  port,
+  rejectUnauthorized: false,
+  ...(isIpLiteral ? {} : { servername: host })
+})
+```
+
+**適用情境**:
+- 本專案 dispatcher(localhost `127.0.0.1`)永遠踩 IP literal case
+- Tailscale IP `100.x.x.x` 也是 IP literal
+- 任何 self-hosted / LAN 用 IP 直連的 client 都會遇到
+
+**搜尋關鍵字**:`ERR_INVALID_ARG_VALUE`、`TLS ServerName`、`SNI IP literal`、`RFC 6066`
+
+**相關**:T0202b(首次踩坑)、GP054(TLS mismatch family)、remote-client.ts 反例(高階 API 免疫)
+
+**晉升條件**:若在另一專案也遇到同錯(Node.js `tls.connect` + IP),升 Global GP
+
+---

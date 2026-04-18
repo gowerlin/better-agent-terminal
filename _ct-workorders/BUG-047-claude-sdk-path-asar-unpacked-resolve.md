@@ -2,16 +2,19 @@
 
 ## 元資料
 - **編號**:BUG-047
-- **狀態**:OPEN
+- **狀態**:VERIFY(build 已驗 `.unpacked/` 實體檔,等 Rico 裝 pre.2 實機驗收)
 - **嚴重度**:🟡 Medium（Rico 單人回報,待更多樣本升級。但對該用戶是 100% 阻擋）
 - **建立時間**:2026-04-19 01:22 (UTC+8)
+- **修復時間**:2026-04-19 02:03 (UTC+8,T0198 + T0199 packaging fix)
 - **發現來源**:用戶 Rico 回報 + 精準診斷（路徑對照）
 - **回報版本**:v0.0.16-pre.1
 - **安裝來源**:NSIS installer + GitHub Release 皆可重現
 - **環境**:Windows 10/11 x64
-- **關聯**:PLAN-005（Electron Builder 26 升級,EXP-BUILDER26-001）
+- **關聯**:PLAN-005（Electron Builder 26 升級,EXP-BUILDER26-001）、T0197(翻案根因分析)、T0198(packaging 主修)、T0199(預防性 @lydell)
 - **可重現**:100%（packaged app）/ 0%（dev env,用戶 Gower dev 正常）
 - **workaround**:無(V1 完全動不了)
+- **修復 commits**:`e619b81` T0198 (@anthropic-ai 子包)+ `5de178e` T0199 (@lydell/node-pty 預防)
+- **真根因**(翻案):不在 code 側,在 `package.json` asarUnpack 漏列 npm optional platform 子包(獨立 node_modules entry,不是主包子目錄)
 
 ## 現象
 

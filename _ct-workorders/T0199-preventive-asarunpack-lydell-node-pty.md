@@ -4,10 +4,12 @@
 
 - **編號**:T0199
 - **類型**:預防性實作(trivial,設定一行 + 驗證)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **估時**:15-25 min(改設定 ~1 + build 驗 `.unpacked/` ~10 + 回報 ~5)
+- **實際耗時**:~4 min
 - **建立時間**:2026-04-19 02:05 (UTC+8)
 - **開始時間**:2026-04-19 02:14 (UTC+8)
+- **完成時間**:2026-04-19 02:18 (UTC+8)
 - **關聯**:T0198(同類型發現)、BUG-047(觸發本張的背景)、D057
 - **優先級**:🟢 Medium(無 user report,預防性修復。既然 packaging 本 session 已動,順手修補降低未來驚喜)
 
@@ -191,7 +193,9 @@ package.json
 
 ### Commit hash
 
-(填於 commit 後)
+`5de178e` — chore(packaging): unpack @lydell/node-pty platform subpackages (T0199)
+
+附註:本 commit 連帶 stage 了 T0198 工單檔的 5 行小幅修改(session 開始前已 staged 狀態,非本工單範圍變更),不影響 T0199 內容。
 
 ### 驗證結果
 
