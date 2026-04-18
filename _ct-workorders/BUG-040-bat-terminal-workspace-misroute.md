@@ -3,7 +3,10 @@
 ## 元資料
 - **編號**：BUG-040
 - **標題**：`bat-terminal.mjs` 開新終端時 workspace 錯派（疑似 BUG-031 regression 或新 first-match 邊界）
-- **狀態**：OPEN
+- **狀態**：FIXED
+- **狀態變更**：
+  - 2026-04-18 17:52 — OPEN → FIXING（Phase 1.1 AC 全過，CT-T004 派發）
+  - 2026-04-18 18:11 — FIXING → FIXED（CT-T004 DONE `367b30d`，Phase 1.2 完結）
 - **嚴重度**：🟡 Medium
 - **建立時間**：2026-04-18 14:46 (UTC+8)
 - **回報者**：使用者（T0171 派發後觀察）
