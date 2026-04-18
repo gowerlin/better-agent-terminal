@@ -3,9 +3,10 @@
 ## 元資料
 - **編號**:T0192
 - **類型**:implementation
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **派發時間**:2026-04-18 23:32 (UTC+8)
 - **開始時間**:2026-04-18 23:36 (UTC+8)
+- **完成時間**:2026-04-18 23:44 (UTC+8)
 - **優先級**:🟡 Medium(診斷用儀表,不阻塞 PLAN-019 但為 BUG-043 再現服務)
 - **關聯**:BUG-043(T0189 YOLO banner 未顯示,偶發)
 - **建立時間**:2026-04-18 23:18 (UTC+8)
@@ -221,7 +222,7 @@ grep -rn "app.getPath.*userData\|APPDATA.*better-agent-terminal" electron/
 
 **Renew 歷程**:無
 
-**commit hash**:d4b3ca0(待填,見下方 commit 步驟)
+**commit hash**:c32a2e9
 
 ---
 

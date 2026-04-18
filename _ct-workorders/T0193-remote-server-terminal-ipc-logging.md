@@ -3,11 +3,12 @@
 ## 元資料
 - **編號**:T0193
 - **類型**:implementation
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **優先級**:🟡 Medium(診斷儀表延伸,BUG-043 根因定位支柱)
 - **關聯**:T0192(scripts 端 log 已完成)· BUG-043
 - **派發時間**:2026-04-18 23:48 (UTC+8)
 - **開始時間**:2026-04-18 23:50 (UTC+8)
+- **完成時間**:2026-04-18 23:57 (UTC+8)
 - **預估工時**:30-45 min
 - **Renew 次數**:0
 
@@ -196,7 +197,7 @@ DONE — Electron terminal 家族 IPC handler 已加上雙軌 log(main.log + bat
 無 Renew。
 
 #### Commit
-(填入 commit hash 後)
+`2950800` — feat(remote): mirror terminal family IPC events to bat-scripts.log (T0193)
 
 #### 回報時間
 2026-04-18 23:57 (UTC+8)

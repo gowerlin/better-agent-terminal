@@ -3,13 +3,54 @@
 ## 元資料
 - **編號**：PLAN-019
 - **標題**：清理 fork 既有 TypeScript 技術債（`tsc --noEmit` ~20 errors）
-- **狀態**：PLANNED
-- **派發工單**：T0185(research,精確盤點)— 2026-04-18 22:02
+- **狀態**：DONE
+- **派發工單**：T0185(研究盤點)· T0186-T0191(6 張實作)
 - **優先級**：🟢 Low
 - **建立時間**：2026-04-18 07:35 (UTC+8)
-- **完成時間**：（完成時填入）
+- **完成時間**：2026-04-18 23:30 (UTC+8)
 - **發現來源**：T0165 PARTIAL 回報區「遭遇問題 #1」
-- **關聯**：T0165（升級時順帶發現，非本輪範圍）
+- **關聯**：T0165(升級時順帶發現)· BUG-042(移出範圍殘留 2 errors)· BUG-043(dogfood 連帶發現)
+
+## 完成摘要
+
+**實質成果**:`tsc --noEmit` 從 **133 → 2 errors**(減 131,僅保留 BUG-042 範圍 2 錯誤),**超原估 20 的 6.6 倍**但仍在 ~3h 內完成(實際 ~1.5h,0.5x 壓縮)。
+
+### 工單拆解與成果
+
+| 工單 | Cluster | 錯誤數 | 耗時 | commit |
+|------|---------|-------|------|--------|
+| T0185 | 研究盤點 | 133 → (分類) | 5 min | — |
+| T0186 | Cluster 1 ElectronAPI types | 133 → 60 (-73) | 8 min | `987137b` |
+| T0187 | Cluster 2 Domain types | 60 → 46 (-14, PARTIAL) | 7 min | `708af69` |
+| T0188 | Cluster 3 null narrowing | 46 → 39 (-7) | 9 min | `766135c` |
+| T0189 | Cluster 5 implicit any | 39 → 39 (no-op,Cluster 1/2 順帶清) | 2 min | `012a583` |
+| T0190 | Cluster 4 unused symbols | 39 → 26 (-13) | 9 min | `0ab85d3` |
+| T0191 | Cluster 6/7/8 收尾 | 26 → 2 (-24) | 10 min | `2956192` |
+
+### 殘留 2 errors(已移出 PLAN-019 範圍)
+
+- TerminalPanel.tsx:210, 385 呼叫不存在的 `markAgentCommandSent` / `markHasUserInput` store action
+- 屬功能邏輯問題,非純型別債 → 另案 **BUG-042** 追蹤
+
+### 順帶修真實 bug(超出原範圍)
+
+- **UpdateNotification.tsx** line 30-35:`settings.load()` 回傳 JSON 字串但 component 當物件讀,推測是「檢查更新 toggle 似乎沒效果」的根因(T0191 commit `2956192`)
+- **electron.d.ts** GitStatusEntry `path` → `file` key 修正(T0186 順帶修,對齊 handler 實際輸出)
+- **claude.abortSession** 補齊 type 宣告(T0186 順帶修)
+
+### *evolve 萃取
+
+- **L070** 研究工單 Worker 規模爆擊暫停門檻未自主觸發(盤點 133 vs 估 ~20,超 6× 未 pause)
+- **L071** 研究工單盤點路徑/欄位誤標(~5% 準確率缺口,如 `stores/sprint-status.ts` 應為 `types/sprint-status.ts`,namespace `.window` 應為 `.app`,Cluster 6 誤標 Zustand 實為 Promise<unknown>)
+- **L072** 技術假設需驗證再寫入工單(如「Zustand store」推測,實際專案用自製輕量 observable)
+- **GP 候選**:型別債清理的 cluster 順序應優先補「定義層」(ElectronAPI types / Domain types),後修「使用層」(implicit any / null narrowing)— T0189 no-op 實證 ~11 個 TS7006 零成本消失
+- **GP042 Worker time 第 16 hit**:0.3-0.5x 壓縮係數累積實證
+
+### 拆單路線圖實證
+
+塔台建議「Cluster 優先 + 投報比排序」替代「按模組順序」成功:
+- 先打 Cluster 1(49%)→ 一口氣消半壁江山
+- Cluster 順序 1→2→3→5→4→6/7/8,實測**下游 cluster 隨上游修補自動收斂**(T0189 no-op)
 
 ## 描述
 
