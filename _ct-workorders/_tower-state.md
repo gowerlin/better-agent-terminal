@@ -1,46 +1,51 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-18 15:15 (UTC+8)（PLAN-020 skill 側 + 跨專案全閉環，只剩 T0174 dogfood）
+> 最後更新:2026-04-18 下半場第二 session（T0174 Phase 0-1 跑完，yolo config 已持久化）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-18 15:15）
+## 🛏 本 Session 退出快照（2026-04-18 下半場第二 session，Phase 0-1 完結）
 
-**退出原因**：context 壓力已高，使用者要求快照退出，下 session 繼續 PLAN-020 T0174 dogfood。
+**退出原因**：T0174 Phase 0-1 跑完，Phase 2-6 context 空間不足，下 session 繼續。
+
+**本 session 成果**（4 個 commit）：
+- `f7672f6` PLAN-020 yolo mode 閉環 meta (5/6)
+- `37e421c` BUG-040 OPEN
+- `746b4a6` T0173 新建 + T0174 改寫為三步方案 Step 1-2
+- `4ec9056` yolo config 持久化（auto-session: on → yolo, yolo_max_retries: 1）
+
+**T0174 進度**：
+- ✅ Phase 0 前置自檢（6/6 全綠，含「`BAT_TOWER_TERMINAL_ID` 空是正常」判定修正）
+- ✅ Phase 1 啟用觀察（警語面板完整 + 持久化）
+- 📋 Phase 2-6 待下 session
+
+**Learning 候選新增**：
+- **L063**：`yolo-mode.md` 啟動警語規格未涵蓋 session-only vs persisted 差異提示（UX 缺口）
 
 **恢復指引**（下次 `/control-tower` 啟動時）：
 
-1. Fast Path 載入本快照（<24h 有效）
-2. 讀「PLAN-020 進度」段 — 5 張工單 + CT-T002 已全綠，只剩 T0174
-3. 若 user 說「繼續 T0174」或「派 yolo dogfood」→ 直接派 T0174（規格見下方）
-4. 若 user 說「resume PLAN-018」→ 先確認 T0174 已跑（PLAN-018 剩 4 張是 T0174 驗證場景）
-5. BUG-040（workspace 錯派）研究 T0173 可低優先隨時派
+1. Fast Path 載入本快照
+2. 塔台讀 `_tower-config.yaml` 發現 `auto-session: yolo` → **自動顯示 YOLO MODE ACTIVE 警語面板**（這是 Phase 1 的 session-to-session 延續驗證）
+3. 若 user 說「繼續 T0174」或「跑 Phase 2」→ 直接派 T0173（BUG-040 研究）為首張 dogfood 場景
+4. 派發命令（yolo 模式，BAT 內部終端）：
+   ```
+   node scripts/bat-terminal.mjs --notify-id $BAT_TERMINAL_ID claude "/ct-exec T0173"
+   ```
+5. 觀察點：派發面板完整、1-2s 緩衝、BAT 新分頁開啟、`bat-notify.mjs --submit` 送 Enter（Worker 不用手按）
 
-**當前待 commit 清單**（塔台 meta，~15 個檔案）：
-```
- M BUG-039-*.md (CLOSED)
- M CT-T002-*.md (DONE + Renew #2 收尾)
- M T0167-T0172 狀態更新
- M _tower-state.md
- M _decision-log.md (D059/D060/D061)
- N BUG-040-*.md (OPEN)
- N PLAN-020-*.md (PLANNED)
- N T0166~T0172 (新增 7 張)
- N _report-plan-020-yolo-feasibility.md
- N _draft-ct-yolo-{worker,tower}-skill-patch.md
-```
+**下 session 執行計畫**：
+1. 觀察塔台啟動時 yolo 警語是否自動顯示（Phase 1 延續驗證）
+2. 派 T0173 → Phase 2-3（派發面板 / BAT 整合 / Worker 自動回報）
+3. T0173 DONE → Phase 4 下一張判定觀察（預期：無明確下一張，塔台應報「yolo 工作隊列清空」）
+4. Phase 5 斷點 C 實測（使用者打字「停」）
+5. Phase 6 驗證 `_tower-state.md` 新增 YOLO 歷程區段
 
-**下 session 優先動作**：
-1. commit meta 批次（PLAN-020 閉環前段 + D059-D061）
-2. 派 T0174（PLAN-018 dogfood，yolo 真實驗）
-3. T0174 完成後 PLAN-020 整體 DONE → `*resume` PLAN-018
+**T0174 剩餘 Phase 規格**：見 `T0174-dogfood-yolo-mode-plan018.md`（Phase 0-1 回報已填）。
 
-**T0174 規格預擬**：
-- 類型：verification / integration test
-- 範圍：`*config auto-session yolo` + `yolo_max_retries: 1` → 派 PLAN-018 剩 4 張工單（brute-force → TLS → sandbox → 整測）
-- 觀察：正常派發 / 斷點 A/B/C 觸發 / 啟動面板警語 / `_tower-state.md` YOLO 歷程區段
-- 對齊已確認：Q1.B 最小驗證 / Q2.B `yolo_max_retries=1` / Q3.A BUG-040 邊觀察
-- 預估：1-2h（觀察用）
+**dogfood 結束後收尾**：
+- 評估是否回滾 `auto-session: yolo → on` + 移除 `yolo_max_retries`（視實測結果）
+- T0174 DONE → PLAN-020 整體 DONE
+- `*evolve` 萃取 L057-L063
 
 **Learning 候選累積**（下次 `*evolve` 處理）：
 - **L057**：跨專案 DELEGATE 長時差異 + Renew 前置驗證（F-11 守衛價值）— D061 實戰
