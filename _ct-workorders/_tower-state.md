@@ -104,8 +104,8 @@
 - ✅ **T0171** DONE（13:50-14:41，51 分鐘，commits `2abcd0f`/`b00012d`/`604e154`）— BUG-039 修完
 - ✅ **CT-T002 Renew #2** DONE（14:55-15:08）— v4.2.0 tag 已打於 `d65f451` 並 push 成功
 - 🔄 **T0172** 派發中（14:55）— 驗證 yolo skill sync（並行 CT-T002）
-- 📋 **T0173**（待派，優先級低）— BUG-040 研究（PLAN-020 閉環後）
-- 📋 **T0174**（待派）— PLAN-018 dogfood（等 CT-T002 DONE + T0172 結論 OK）
+- 📋 **T0173** TODO（已建單）— BUG-040 研究（純讀碼 research，1-1.5h）→ T0174 dogfood 首張場景
+- 📋 **T0174** TODO（已改寫為三步方案 Step 1-2，30-45min 觀察）— yolo 機制 dogfood（Step 3 併入 PLAN-018 `*resume`）
 
 ### CT-T002 Renew 歷程
 - #1（13:55）push Forgejo + snapshot → Worker F-11 守衛觸發（前提失真，對方塔台已吸收）
