@@ -6,7 +6,12 @@
 # on    = 靜默自動執行(偵測不到分頁能力時降級到剪貼簿)
 # ask   = 互動式提問 [A/B/C]
 # off   = 只顯示文字提示
-auto-session: on
+# yolo  = on 超集,Worker 自動送出 + 塔台自主決策下一張(PLAN-020 dogfood)
+auto-session: yolo
+
+# YOLO 斷點 B 閾值(Renew ≥N 或連續 N FAILED 觸發暫停)
+# 0 = 停用斷點 B / 預設 3 / dogfood 期間用 1 盡早觸發觀察
+yolo_max_retries: 1
 
 # 需求對齊最少提問輪數(0 關閉)
 alignment-rounds: 3
