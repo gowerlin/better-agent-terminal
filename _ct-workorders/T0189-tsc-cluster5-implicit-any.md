@@ -126,7 +126,7 @@ grep -c "TS7006" /tmp/tsc-after-t0189.log   # 應為 0
 - [x] 未動 BUG-042 殘留(無動任何 runtime code)
 - [x] 未跑 vite build
 
-**commit hash**:待填(僅收尾文件 commit)
+**commit hash**:012a583(僅收尾文件 commit,無 runtime 碼變動)
 
 ---
 

@@ -3,7 +3,7 @@
 ## 元資料
 - **編號**:T0190
 - **類型**:implementation
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **優先級**:🟢 Low
 - **關聯**:PLAN-019 · T0185 Cluster 4 · T0189 後續
 - **派發時間**:2026-04-18 23:05 (UTC+8)
@@ -83,7 +83,7 @@ grep -c "TS6133" /tmp/tsc-after-t0190.log   # 應為 0
 
 ### 狀態轉換
 - DISPATCHED → IN_PROGRESS → REVIEW → DONE
-- 當前:DISPATCHED
+- 當前:DONE
 
 ### Worker 回報
 
@@ -132,7 +132,7 @@ grep -c "TS6133" /tmp/tsc-after-t0190.log   # 應為 0
 - [x] 未動 BUG-042 / 其他 cluster
 - [x] 未跑 vite build
 
-**commit hash**:________
+**commit hash**:`0ab85d3`
 
 ---
 
