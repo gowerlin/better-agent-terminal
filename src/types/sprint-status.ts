@@ -152,7 +152,7 @@ export function parseSprintStatus(yamlContent: string): SprintStatus | null {
     ?? 'Sprint'
 
   // 提取 sprint 狀態
-  const status = extractString(obj, ['status', 'sprint_status'])
+  const status = extractString(obj, ['status', 'sprint_status']) ?? undefined
 
   // 嘗試多種 stories 結構
   extractStories(obj, stories)

@@ -453,8 +453,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               } else if (settings.agentAutoCommand) {
                 const preset = getAgentPreset(terminal.agentPreset!)
                 if (preset?.command) {
+                  const cmd = preset.command
                   setTimeout(() => {
-                    window.electronAPI.pty.write(terminal.id, appendArgs(preset.command) + '\r')
+                    window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
                   }, 500)
                 }
               }
@@ -462,8 +463,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               if (settings.agentAutoCommand) {
                 const preset = getAgentPreset(terminal.agentPreset!)
                 if (preset?.command) {
+                  const cmd = preset.command
                   setTimeout(() => {
-                    window.electronAPI.pty.write(terminal.id, appendArgs(preset.command) + '\r')
+                    window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
                   }, 500)
                 }
               }
@@ -503,16 +505,18 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 } else {
                   const preset = getAgentPreset(defaultAgent)
                   if (preset?.command) {
+                    const cmd = preset.command
                     setTimeout(() => {
-                      window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(preset.command) + '\r')
+                      window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(cmd) + '\r')
                     }, 500)
                   }
                 }
               }).catch(() => {
                 const preset = getAgentPreset(defaultAgent)
                 if (preset?.command) {
+                  const cmd = preset.command
                   setTimeout(() => {
-                    window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(preset.command) + '\r')
+                    window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(cmd) + '\r')
                   }, 500)
                 }
               })
@@ -767,8 +771,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (settings.agentAutoCommand) {
       const agentPreset = getAgentPreset(definitionId)
       if (agentPreset?.command) {
+        const cmd = agentPreset.command
         setTimeout(() => {
-          window.electronAPI.pty.write(terminal.id, addAppendArgs(agentPreset.command) + '\r')
+          window.electronAPI.pty.write(terminal.id, addAppendArgs(cmd) + '\r')
         }, 500)
       }
     }

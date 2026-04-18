@@ -103,7 +103,7 @@ export function PromptBox({ terminalId, isActive = true }: Readonly<PromptBoxPro
 
   // Scan slash commands (skills) once on mount using terminal cwd
   useEffect(() => {
-    window.electronAPI.pty.getCwd(terminalId).then((cwd: string) => {
+    window.electronAPI.pty.getCwd(terminalId).then((cwd: string | null) => {
       if (!cwd) return
       return window.electronAPI.claude.scanSkills(cwd)
     }).then((results: { name: string; description: string }[] | undefined) => {
