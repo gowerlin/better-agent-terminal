@@ -451,11 +451,12 @@ export function parseStatuslineTemplate(template: string): StatuslineItemConfig[
     for (let si = 0; si < sections.length; si++) {
       const tokens = sections[si].split(',').map(s => s.trim()).filter(Boolean)
       for (let ii = 0; ii < tokens.length; ii++) {
-        const { id, color } = parseToken(tokens[ii])
-        if (!allIds.has(id) || seenIds.has(id)) continue
-        seenIds.add(id)
+        const { id: rawId, color } = parseToken(tokens[ii])
+        if (!allIds.has(rawId as StatuslineItemId) || seenIds.has(rawId)) continue
+        seenIds.add(rawId)
+        const id = rawId as StatuslineItemId
         result.push({
-          id: id as StatuslineItemId,
+          id,
           visible: true,
           align,
           color,

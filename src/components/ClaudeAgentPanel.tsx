@@ -53,13 +53,14 @@ interface SessionMeta {
   durationMs: number
   numTurns: number
   contextWindow: number
-  maxOutputTokens: number
-  contextTokens: number
-  cacheReadTokens: number
-  cacheCreationTokens: number
-  callCacheRead: number
-  callCacheWrite: number
-  lastQueryCalls: number
+  maxOutputTokens?: number
+  contextTokens?: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
+  callCacheRead?: number
+  callCacheWrite?: number
+  lastQueryCalls?: number
+  lastRequestDurationMs?: number
   permissionMode?: string
   modelUsage?: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }>
   cacheWrite5mTokens?: number
@@ -1424,10 +1425,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
 
   const handlePermissionModeCycle = useCallback(async () => {
     const allowBypass = settingsStore.getSettings().allowBypassPermissions
-    const availableModes = allowBypass
+    type AgentPermissionMode = typeof permissionModes[number]
+    const availableModes: ReadonlyArray<AgentPermissionMode> = allowBypass
       ? permissionModes
       : permissionModes.filter(m => m !== 'bypassPermissions' && m !== 'bypassPlan')
-    const idx = availableModes.indexOf(permissionMode as typeof availableModes[number])
+    const idx = availableModes.indexOf(permissionMode as AgentPermissionMode)
     const nextMode = availableModes[(idx + 1) % availableModes.length]
     setPermissionMode(nextMode)
     await window.electronAPI.claude.setPermissionMode(sessionId, nextMode)

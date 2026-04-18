@@ -50,6 +50,8 @@ export interface TerminalInstance {
   model?: string;                // Selected Claude model for this session
   pendingPrompt?: string;        // Prompt to auto-send after fork/resume
   pendingImages?: string[];      // Data URLs of images to send with pendingPrompt
+  agentCommandSent?: boolean;    // TerminalPanel: whether auto-start agent command has been dispatched
+  hasUserInput?: boolean;        // TerminalPanel: whether user has typed anything in this terminal
   sessionMeta?: {                // Persisted session metadata for status line
     totalCost: number;
     inputTokens: number;
@@ -286,7 +288,7 @@ export interface StatuslineItemDef {
   label: string
   description: string
   defaultVisible: boolean
-  group: 'session' | 'context' | 'limits' | 'actions'
+  group: 'session' | 'context' | 'limits' | 'actions' | 'timing'
 }
 
 export const STATUSLINE_ITEMS: StatuslineItemDef[] = [

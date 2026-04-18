@@ -73,7 +73,7 @@ const DEFAULT_SPLIT_RATIO = 0.5
 const MIN_SPLIT_RATIO = 0.2
 const MAX_SPLIT_RATIO = 0.8
 
-type PinnedContentType = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents'
+type PinnedContentType = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
 
 interface PinnedPane {
   type: PinnedContentType
