@@ -3,7 +3,8 @@
 ## 元資料
 - **工單編號**：T0173
 - **任務名稱**：研究：`bat-terminal.mjs` workspace 錯派根因（BUG-040）
-- **狀態**：TODO
+- **狀態**：IN_PROGRESS
+- **開始時間**：2026-04-18 15:45 (UTC+8)
 - **類型**：research（純讀碼 + 靜態分析，不改任何檔案）
 - **互動模式**：enabled（研究型工單，Worker 可在對齊方向時發問，上限 3 題）
 - **建立時間**：2026-04-18 (UTC+8)
@@ -99,16 +100,62 @@
 
 > 由 Worker 在 research 結束時填寫。
 
+### 完成狀態
+DONE
+
+### 產出摘要
+- 建立 `_ct-workorders/_report-bug-040-workspace-misroute.md`（完整研究報告）
+- 未修改任何執行檔案（純靜態分析）
+
 ### 根因結論
-- ...
+**非 cwd 黏著，是 `activeWorkspaceId`（UI 焦點）黏著**。
+
+證據鏈：
+- `scripts/bat-terminal.mjs:120` 預設 `cwd = process.cwd()`（已正確傳）
+- `scripts/bat-terminal.mjs:157-162` `--workspace` flag 已存在，但塔台 skill 未使用
+- `electron/main.ts:1558-1589` handler 把 cwd 正確傳給 PTY，workspaceId 直接 forward 給 renderer
+- **`src/stores/workspace-store.ts:340` — `info.workspaceId` 未傳時 fallback 到 `activeWorkspaceId`（★ 黏著源）**
+- `~/.claude/skills/control-tower/SKILL.md:40-41` 預載指令無 `--workspace` 參數
+
+BUG-040 原推論「最近活躍終端 cwd 黏著」不準確。實際是 T0137（BUG-031 修復）刻意移除 cwd-matching 後，呼叫端（塔台 skill）未跟進使用新的 `--workspace` explicit 介面，落入 activeWorkspaceId fallback。
+
+### BUG-031 對照
+T0137 `f325d1d` 修復穩定，**非 regression**。BUG-040 是 T0137 設計後果：explicit 介面缺呼叫端採用。
 
 ### 修復方案推薦
-- ...
+**方案 A：塔台 skill 派發指令帶 `--workspace $BAT_WORKSPACE_ID`**
+- 零 BAT 程式碼改動
+- 符合 T0137 explicit 設計
+- 跨 repo DELEGATE 也能正確派發
+- 前提：需確認 BAT sub-session 是否已注入 `BAT_WORKSPACE_ID` 環境變數
+
+方案 B（cwd 隱式匹配）/ 方案 C（main 中間層匹配）不推薦，違背 T0137 設計。
 
 ### 衍生問題 / 風險
-- ...
+1. BAT 是否暴露 workspace id 到 sub-session env（未確認，T0-NEXT-1 要查）
+2. Workspace id 是否持久 UUID 還是 app 重啟變動（影響 skill 文件樣例寫法）
+3. 跨專案 DELEGATE 工單目標 workspace 可能尚未開啟（獨立議題）
 
 ### 建議實作工單列表
-- ...
+- **T0-NEXT-1**（研究，~30 分鐘，🟢）：查 BAT 是否已注入 `BAT_WORKSPACE_ID` env
+- **T0-NEXT-2**（實作，~20 分鐘，🟡）：塔台 skill 派發指令加 `--workspace $BAT_WORKSPACE_ID`（依賴 T0-NEXT-1）
+- **T0-NEXT-3**（實作，~30 分鐘，🟡，可選）：若 T0-NEXT-1 結論為「未注入」，補 env 注入邏輯
+
+派發順序：T0-NEXT-1 → 視結果（T0-NEXT-3 若需）→ T0-NEXT-2
+
+### 互動紀錄
+無（觀察表與程式碼證據完全吻合，無需發問）
+
+### 遭遇問題
+無
+
+### Renew 歷程
+無
+
+### 回報時間
+2026-04-18 15:48 (UTC+8)
+
+### commit
+（commit hash 待填，收尾流程後更新）
 
 ---
