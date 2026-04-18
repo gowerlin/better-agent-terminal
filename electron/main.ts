@@ -415,6 +415,9 @@ let updateCheckResult: UpdateCheckResult | null = null
 const profileManager = new ProfileManager()
 const remoteServer = new RemoteServer()
 let remoteClient: RemoteClient | null = null
+// Serialise remote connect/disconnect handlers — rapid profile switching can
+// otherwise interleave handshake state with teardown (PLAN-018 T0184).
+let remoteOpMutex: Promise<unknown> = Promise.resolve()
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
 let tray: Tray | null = null
@@ -2596,23 +2599,32 @@ function registerLocalHandlers() {
 
   // Remote client handlers
   ipcMain.handle('remote:connect', async (_event, host: string, port: number, token: string, label?: string, fingerprint?: string) => {
-    try {
-      remoteClient = new RemoteClient(getAllWindows)
-      const result = await remoteClient.connect(host, port, token, label, fingerprint)
-      if (!result.ok) {
+    const task = remoteOpMutex.then(async () => {
+      try {
+        remoteClient = new RemoteClient(getAllWindows)
+        const result = await remoteClient.connect(host, port, token, label, fingerprint)
+        if (!result.ok) {
+          remoteClient = null
+          return { error: result.error || 'Connection failed (auth rejected or unreachable)', errorCode: result.errorCode, fingerprint: result.fingerprint }
+        }
+        return { connected: true, fingerprint: result.fingerprint }
+      } catch (err: unknown) {
         remoteClient = null
-        return { error: result.error || 'Connection failed (auth rejected or unreachable)', errorCode: result.errorCode, fingerprint: result.fingerprint }
+        return { error: err instanceof Error ? err.message : String(err) }
       }
-      return { connected: true, fingerprint: result.fingerprint }
-    } catch (err: unknown) {
-      remoteClient = null
-      return { error: err instanceof Error ? err.message : String(err) }
-    }
+    })
+    // Keep chain alive even if a prior op rejected.
+    remoteOpMutex = task.catch(() => {})
+    return task
   })
   ipcMain.handle('remote:disconnect', async () => {
-    remoteClient?.disconnect()
-    remoteClient = null
-    return true
+    const task = remoteOpMutex.then(async () => {
+      remoteClient?.disconnect()
+      remoteClient = null
+      return true
+    })
+    remoteOpMutex = task.catch(() => {})
+    return task
   })
   ipcMain.handle('remote:client-status', async () => ({
     connected: remoteClient?.isConnected ?? false,

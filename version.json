@@ -4,9 +4,9 @@
     "author": "TonyQ",
     "repo": "https://github.com/tony1223/better-agent-terminal",
     "version": "2.1.45",
-    "lastSyncCommit": "0bc3bc1dc1fd7f1724069284a46a3ccb486380d5",
+    "lastSyncCommit": "5d9f486",
     "lastSyncDate": "2026-04-18",
-    "syncNote": "T0165 Phase 1: C1.1 Opus 4.7 + SDK/CLI 2.1.111 + EFFORT_LEVELS + xhigh（357b868/9c3daf8 合併套）+ C1.2 remote workspace:load + profile:list-local（0bc3bc1/PR #88）。PLAN-018 Phase 2（remote 資安加固 3a0af80/5d9f486）獨立排程。Phase 3 skip 4 包理由見 _report-upstream-sync-v2.1.42-plus.md。"
+    "syncNote": "T0165 Phase 1: C1.1 Opus 4.7 + SDK/CLI 2.1.111 + EFFORT_LEVELS + xhigh（357b868/9c3daf8 合併套）+ C1.2 remote workspace:load + profile:list-local（0bc3bc1/PR #88）。PLAN-018 Phase 2（remote 資安加固 3a0af80→5d9f486）完成：T0182 TLS+fingerprint+safeStorage、T0183 path sandbox + image cap、T0184 brute-force throttle + 連線穩定性。Phase 3 skip 4 包理由見 _report-upstream-sync-v2.1.42-plus.md。"
   },
   "fork": {
     "author": "Gower",

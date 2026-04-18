@@ -29,6 +29,22 @@ function normalizeFingerprint(fp: string): string {
   return fp.replace(/[^0-9a-fA-F]/g, '').toUpperCase().match(/.{2}/g)?.join(':') || ''
 }
 
+// Exponential backoff constants (PLAN-018 T0184).
+// Delay = min(30s, 1s * 2^attempt) + random(0, 1s) jitter.
+export const RECONNECT_BASE_MS = 1_000
+export const RECONNECT_MAX_MS = 30_000
+export const RECONNECT_JITTER_MS = 1_000
+
+/**
+ * Compute the next reconnect delay using exponential backoff with jitter.
+ * Exported for unit tests. `rand` is injectable for deterministic assertions.
+ */
+export function computeReconnectDelay(attempt: number, rand: () => number = Math.random): number {
+  const exp = RECONNECT_BASE_MS * Math.pow(2, Math.max(0, attempt))
+  const base = Math.min(RECONNECT_MAX_MS, exp)
+  return base + rand() * RECONNECT_JITTER_MS
+}
+
 export class RemoteClient {
   private ws: WebSocket | null = null
   private pending: Map<string, PendingInvoke> = new Map()
@@ -36,6 +52,7 @@ export class RemoteClient {
   private _connected = false
   private _connectedFingerprint = ''
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private reconnectAttempts = 0
   private host = ''
   private port = 0
   private token = ''
@@ -161,6 +178,7 @@ export class RemoteClient {
           } else {
             this._connected = true
             this._connectedFingerprint = observedFingerprint
+            this.reconnectAttempts = 0
             logger.log(
               `[RemoteClient] Connected to ${this.host}:${this.port} ` +
                 `(fingerprint=${observedFingerprint.substring(0, 23)}...)`
@@ -236,7 +254,12 @@ export class RemoteClient {
 
   private scheduleReconnect() {
     if (this.reconnectTimer) return
-    logger.log('[RemoteClient] Reconnecting in 3 seconds...')
+    const delay = computeReconnectDelay(this.reconnectAttempts)
+    this.reconnectAttempts += 1
+    logger.log(
+      `[RemoteClient] Reconnecting in ${Math.round(delay)}ms ` +
+        `(attempt ${this.reconnectAttempts})`
+    )
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null
       if (!this.shouldReconnect) return
@@ -250,12 +273,13 @@ export class RemoteClient {
           this.scheduleReconnect()
         }
       }
-    }, 3000)
+    }, delay)
   }
 
   disconnect(): void {
     this.shouldReconnect = false
     this._connected = false
+    this.reconnectAttempts = 0
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)

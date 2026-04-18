@@ -26,7 +26,76 @@ export interface StartServerResult {
   host: string
 }
 
+export interface AuthFailureEntry {
+  count: number
+  firstFailAt: number
+  bannedUntil?: number
+}
+
 const TOKEN_FILENAME = 'server-token.json'
+
+// Brute-force throttle constants (PLAN-018 T0184).
+// 5 failed auth attempts within 60s → 10min ban for that IP.
+export const AUTH_FAIL_WINDOW_MS = 60_000
+export const AUTH_FAIL_THRESHOLD = 5
+export const AUTH_BAN_DURATION_MS = 10 * 60_000
+// WebSocket maxPayload cap — rejects single frames larger than 32 MB to
+// protect against OOM from a misbehaving/malicious peer.
+const WS_MAX_PAYLOAD_BYTES = 32 * 1024 * 1024
+
+/**
+ * Normalise an IPv4-mapped IPv6 address (e.g. `::ffff:192.0.2.1`) to its
+ * plain IPv4 form so per-IP throttle state stays keyed consistently.
+ * Exported for unit tests.
+ */
+export function normalizeIp(raw: string): string {
+  if (!raw) return ''
+  const lower = raw.toLowerCase()
+  if (lower.startsWith('::ffff:')) return raw.slice(7)
+  return raw
+}
+
+/**
+ * Check whether an IP is currently within its brute-force ban window.
+ * Expired entries are garbage-collected in place.
+ * Exported for unit tests.
+ */
+export function isIpBanned(
+  store: Map<string, AuthFailureEntry>,
+  ip: string,
+  now: number
+): boolean {
+  const entry = store.get(ip)
+  if (!entry?.bannedUntil) return false
+  if (now < entry.bannedUntil) return true
+  // Ban expired — clear entry so a fresh 60s window starts next failure.
+  store.delete(ip)
+  return false
+}
+
+/**
+ * Record a failed auth attempt. Returns true iff this attempt tripped the
+ * brute-force threshold and the IP is now banned.
+ * Exported for unit tests.
+ */
+export function recordAuthFailure(
+  store: Map<string, AuthFailureEntry>,
+  ip: string,
+  now: number
+): boolean {
+  const existing = store.get(ip)
+  // No entry, or the prior window has fully lapsed → start a fresh window.
+  if (!existing || now - existing.firstFailAt > AUTH_FAIL_WINDOW_MS) {
+    store.set(ip, { count: 1, firstFailAt: now })
+    return false
+  }
+  existing.count += 1
+  if (existing.count >= AUTH_FAIL_THRESHOLD) {
+    existing.bannedUntil = now + AUTH_BAN_DURATION_MS
+    return true
+  }
+  return false
+}
 
 function resolveBindHost(
   bindInterface: BindInterface
@@ -58,6 +127,9 @@ export class RemoteServer {
   private currentBindInterface: BindInterface = 'localhost'
   private currentHost: string = '127.0.0.1'
   private clients: Map<WebSocket, AuthenticatedClient> = new Map()
+  // Brute-force throttle state — per-IP auth failure tracking (PLAN-018 T0184).
+  // Cleared on server restart; acceptable per report §I.1 R5.
+  private authFailures: Map<string, AuthFailureEntry> = new Map()
   private broadcastListener: ((...args: unknown[]) => void) | null = null
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
   configDir: string = '' // Set by main.ts to app.getPath('userData')
@@ -157,9 +229,24 @@ export class RemoteServer {
       this.httpsServer!.listen(port, bindResolution.host)
     })
 
-    this.wss = new WebSocketServer({ server: this.httpsServer })
+    this.wss = new WebSocketServer({
+      server: this.httpsServer,
+      maxPayload: WS_MAX_PAYLOAD_BYTES
+    })
 
-    this.wss.on('connection', (ws) => {
+    this.wss.on('connection', (ws, req) => {
+      const clientIp = normalizeIp(req.socket?.remoteAddress || '')
+
+      // Per-IP brute-force gate — reject during active ban window (PLAN-018 T0184).
+      if (clientIp && isIpBanned(this.authFailures, clientIp, Date.now())) {
+        logger.warn(
+          `[RemoteServer] Rejected banned IP ${clientIp} (brute-force throttle active)`
+        )
+        this.sendFrame(ws, { type: 'auth-result', id: '0', error: 'Too many failed attempts' })
+        ws.close()
+        return
+      }
+
       let authenticated = false
 
       // Auth timeout — must authenticate within 5 seconds
@@ -183,6 +270,7 @@ export class RemoteServer {
           if (frame.token === this.token) {
             authenticated = true
             clearTimeout(authTimeout)
+            if (clientIp) this.authFailures.delete(clientIp)
             this.clients.set(ws, {
               ws,
               label: (frame.args?.[0] as string) || 'Remote Client',
@@ -191,14 +279,26 @@ export class RemoteServer {
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: true })
             logger.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
           } else {
+            if (clientIp) {
+              const banned = recordAuthFailure(this.authFailures, clientIp, Date.now())
+              if (banned) {
+                logger.warn(
+                  `[RemoteServer] IP ${clientIp} banned for ${AUTH_BAN_DURATION_MS / 60000}min ` +
+                    `after ${AUTH_FAIL_THRESHOLD} failed auth attempts`
+                )
+              }
+            }
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, error: 'Invalid token' })
             ws.close()
           }
           return
         }
 
+        // Non-auth frame before authentication → close immediately.
+        // Prevents pre-auth clients from probing the invoke surface.
         if (!authenticated) {
           this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: 'Not authenticated' })
+          ws.close()
           return
         }
 
