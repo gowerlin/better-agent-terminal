@@ -20,6 +20,10 @@
 //
 //   # With custom source label:
 //   node scripts/bat-notify.mjs --source "T0133" "T0133 完成"
+//
+//   # Pre-fill AND auto-submit (PLAN-020 yolo mode):
+//   node scripts/bat-notify.mjs --submit "T0133 完成"
+//   # (appends \r to trigger PTY read; mutually exclusive with --no-pty-write)
 
 import { createConnection } from 'net'
 import { randomBytes } from 'crypto'
@@ -57,6 +61,7 @@ const rawArgs = process.argv.slice(2)
 let target = process.env.BAT_TOWER_TERMINAL_ID || null
 let source = SELF_ID
 let ptyWrite = true
+let submit = false
 
 // Extract --target option
 const targetIdx = rawArgs.indexOf('--target')
@@ -87,6 +92,19 @@ if (noWriteIdx !== -1) {
   rawArgs.splice(noWriteIdx, 1)
 }
 
+// Extract --submit flag (append \r to auto-submit in target PTY)
+const submitIdx = rawArgs.indexOf('--submit')
+if (submitIdx !== -1) {
+  submit = true
+  rawArgs.splice(submitIdx, 1)
+}
+
+// Mutual exclusion: --submit requires PTY write path
+if (submit && !ptyWrite) {
+  console.error('Error: --submit and --no-pty-write are mutually exclusive')
+  process.exit(1)
+}
+
 if (!target) {
   console.error('Error: No target terminal ID (set BAT_TOWER_TERMINAL_ID or use --target)')
   process.exit(1)
@@ -95,7 +113,7 @@ if (!target) {
 const message = rawArgs.join(' ').trim()
 if (!message) {
   console.error('Error: Message is required')
-  console.error('Usage: bat-notify.mjs [--target <id>] [--source <label>] [--no-pty-write] <message>')
+  console.error('Usage: bat-notify.mjs [--target <id>] [--source <label>] [--no-pty-write|--submit] <message>')
   process.exit(1)
 }
 
@@ -295,14 +313,18 @@ async function main() {
     // Continue to PTY write — not fatal
   }
 
-  // Step 2: PTY write (pre-fill text in target terminal, no \r)
+  // Step 2: PTY write (pre-fill text in target terminal).
+  // With --submit, append \r to trigger PTY read (auto-submit).
+  // If message already ends with \r or \n, do not double-append.
   if (ptyWrite) {
     const writeId = makeId()
+    const endsWithNewline = submit && /[\r\n]$/.test(message)
+    const payload = submit && !endsWithNewline ? message + '\r' : message
     ws.send(JSON.stringify({
       type: 'invoke',
       id: writeId,
       channel: 'pty:write',
-      args: [target, message],
+      args: [target, payload],
     }))
 
     const writeResp = await waitForMessageById(ws, writeId)
