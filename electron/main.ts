@@ -3173,9 +3173,13 @@ function registerLocalHandlers() {
     try {
       const result = await tempClient.connect(host, port, token, undefined, fingerprint)
       if (!result.ok) return { error: result.error || 'Connection failed', errorCode: result.errorCode, fingerprint: result.fingerprint }
-      const listed = await tempClient.invoke('profile:list', []) as { profiles: { id: string; name: string; type: string }[] }
+      const listed = await tempClient.invoke('profile:list', []) as { profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[] }
       tempClient.disconnect()
-      return { profiles: listed.profiles.map(p => ({ id: p.id, name: p.name, type: p.type })), fingerprint: result.fingerprint }
+      return {
+        profiles: listed.profiles.map(p => ({ id: p.id, name: p.name, type: p.type })),
+        activeProfileIds: listed.activeProfileIds ?? [],
+        fingerprint: result.fingerprint,
+      }
     } catch (err) {
       tempClient.disconnect()
       return { error: err instanceof Error ? err.message : String(err) }

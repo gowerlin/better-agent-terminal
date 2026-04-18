@@ -223,7 +223,9 @@
     "host": "Host",
     "fetchProfiles": "Fetch Profiles",
     "fetchingProfiles": "Fetching...",
-    "currentTarget": "Current target"
+    "currentTarget": "Current target",
+    "localSection": "Local",
+    "remoteSection": "Remote"
   },
   "workspace": {
     "terminal": "Terminal",
