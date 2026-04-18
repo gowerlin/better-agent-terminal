@@ -3,11 +3,12 @@
 ## 元資料
 - **編號**:T0185
 - **類型**:research(研究型工單)
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **優先級**:🟢 Low
 - **關聯**:PLAN-019(IDEA → PLANNED via 本張派發)
 - **派發時間**:2026-04-18 22:02 (UTC+8)
 - **開始時間**:2026-04-18 22:06 (UTC+8)
+- **完成時間**:2026-04-18 22:11 (UTC+8)
 - **預估工時**:30-60 min(純盤點,不改 code)
 - **Renew 次數**:0
 - **互動規則**:允許(`research_interaction: true`,每次最多 3 問;詳見 [research-workorder.md](../../../../C:/Users/Gower/.claude/skills/control-tower/references/research-workorder.md))
@@ -89,8 +90,8 @@ npx tsc --noEmit 2>&1 | tee /tmp/tsc-baseline.log
 ## 回報區
 
 ### 狀態轉換
-- DISPATCHED → IN_PROGRESS → REVIEW → DONE
-- 當前:DISPATCHED
+- DISPATCHED → IN_PROGRESS → DONE
+- 當前:DONE
 
 ### 塔台補充(Renew)
 
@@ -274,7 +275,7 @@ ClaudeAgentPanel.tsx:`Record<string, unknown> → SessionMeta` 轉換 TS2352 / `
 - 建議塔台決策事項:見上方「建議塔台決策事項」4 點。
 - 執行產出全部留在回報區,**原始碼零修改**(`git status` 只顯示本工單本身,已驗證)。
 
-**完成 commit**:____(待提交)
+**完成 commit**:a058ae8
 
 ---
 
