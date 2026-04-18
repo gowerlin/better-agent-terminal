@@ -1,10 +1,53 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-18 下半場第二 session（T0174 Phase 0-1 跑完，yolo config 已持久化）
+> 最後更新：2026-04-18 下半場第三 session 收工（CT-T003 閉環 + PLAN-020 完結 + *evolve L057-L066 + auto_commit:on 首次實戰）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-18 下半場第二 session，Phase 0-1 完結）
+## 🛏 本 Session 退出快照（2026-04-18 下半場第三 session，收工）
+
+**退出原因**：使用者主動收工（本 session 成果豐厚，到達自然結束點）。
+
+**本 session 成果**（~1h，2 個 commit）：
+- `c73a23b` CT-T003 PARTIAL（Worker 完成規格修改 + CHANGELOG）
+- `49444ed` 塔台自主 commit（session 收尾批次：CT-T003 DONE + *evolve + *archive + config）
+- **2 commits 未 push**（使用者自行決定）
+
+**完整閉環事件**：
+- ✅ CT-T003 DONE（yolo spec drift 閉環，v4.2.1 tag 發布在 `1d02727`，生產塔台 sync 驗證通過）
+- ✅ `*evolve` 批次萃取 L057-L066（9 條 → Global GP038-043 六條 + Project L062/L063/L065/L066 + L064 閉環註記）
+- ✅ `*archive --dry-run` 測試（L066 發現 IDEA 節點活躍引用鎖現象）
+- ✅ Config 收尾（`archive_days: 1→7`, `auto_commit: ask→on`）
+- ✅ YOLO 歷程追加 5 條事件（[派發]/[部分完成]/[完成]/[evolve]/[archive-test]）
+
+**Learning 管線升級**：
+- Global: +6 GP（GP038-043）— GP039/GP042 直接升 🟢（2+ 次實證）
+- Project: +3 L（L062/L063/L066）+ L064/L065 補充
+- 新發現：L066 歸檔引用鎖現象（CT 通用 learning 候選）
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+
+1. Fast Path 載入本快照
+2. 塔台讀 `_tower-config.yaml` → `auto-session: yolo` + `auto_commit: on` 皆啟用，警語面板應自動顯示
+3. 熱區仍有 50 張單據（`archive_days: 7` 預設下，下次歸檔需 2026-04-25 後才有新候選）
+4. BUG-040 OPEN 仍待處理（workspace 錯派，T0173 研究結論已在）
+5. PLAN-018 PAUSED（Remote 資安加固，可 `*resume` 接回）
+
+**下一輪候選**（優先級待定）：
+- 🔴 **BUG-040** — bat-terminal workspace 錯派（T0173 研究已完成，可直接派實作工單）
+- 🟡 **PLAN-018** — Remote 資安加固（PAUSED 中，yolo mode 實戰驗證完畢可接回）
+- 🟢 **PLAN-004** — GPU Whisper 加速（Win/Linux）
+- 🟢 **PLAN-009** — Sprint 儀表板 UI
+- 🟢 **PLAN-019** — TypeScript 債務清理
+
+**待處理事項**：
+- 🟡 本地 2 commits 未 push（`c73a23b`, `49444ed`）— 使用者決定何時 push
+- 🟡 global `~/.claude/control-tower-data/patterns.md` 已追加 GP038-043（非 git repo，無需 commit，但跨機器同步機制未知）
+- 🟡 CT v4.2.1 tag 已 push 到 Forgejo `sxnas:gower/BMad-Guide.git`
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-18 下半場第二 session，Phase 0-1 完結）
 
 **退出原因**：T0174 Phase 0-1 跑完，Phase 2-6 context 空間不足，下 session 繼續。
 
