@@ -159,7 +159,7 @@ npx tsc --noEmit 2>&1 | tee /tmp/tsc-t0191-after.log
 - [x] 無改 store runtime(僅改 consumer)/ 無 signature 外溢(僅動 body)
 - [x] 未跑 vite build
 
-**commit hash**:(待填)
+**commit hash**:`2956192`(實作);`711c12d`(前兩張工單收尾補漏,非本工單)
 
 ---
 
