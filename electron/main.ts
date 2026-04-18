@@ -84,6 +84,12 @@ import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
+import {
+  assertPathAllowed,
+  isPathAllowed,
+  rebuildWorkspaceAllowlist,
+  MAX_IMAGE_SIZE,
+} from './path-guard'
 import * as net from 'net'
 
 // Startup timing — capture module load time before anything else
@@ -910,6 +916,24 @@ const launchProfileId = profileArg ? profileArg.split('=')[1] || null : null
 const windowRegistry = new WindowRegistry()
 profileManager.setWindowRegistry(windowRegistry)
 
+// PLAN-018 T0183 — path sandbox: rebuild the workspace allowlist from every
+// registered window entry. Called at startup and on every workspace:save.
+async function syncPathGuardFromRegistry(): Promise<void> {
+  try {
+    const entries = await windowRegistry.readAll()
+    const paths: string[] = []
+    for (const entry of entries) {
+      const workspaces = (entry.workspaces as Array<{ folderPath?: string }> | undefined) || []
+      for (const ws of workspaces) {
+        if (ws?.folderPath) paths.push(ws.folderPath)
+      }
+    }
+    rebuildWorkspaceAllowlist(paths)
+  } catch (err) {
+    logger.warn('[path-guard] syncFromRegistry failed:', err)
+  }
+}
+
 app.whenReady().then(async () => {
   const t0 = Date.now()
   logger.init(app.getPath('userData'), readLoggingConfigSync())
@@ -1096,6 +1120,11 @@ app.whenReady().then(async () => {
       logger.log(`[startup] created empty window for profile ${activeProfileIds[0]}`)
     }
   }
+
+  // PLAN-018 T0183 — seed path-guard before any renderer loads so FileTree /
+  // workspace-open flows can read folderPath immediately.
+  await syncPathGuardFromRegistry()
+  logger.log(`[startup] path-guard seeded with ${(await windowRegistry.readAll()).reduce((n, e) => n + ((e.workspaces as any[])?.length || 0), 0)} workspace(s)`)
 
   const t1 = Date.now()
   buildMenu()
@@ -1626,6 +1655,9 @@ function registerProxiedHandlers() {
     entry.layout = parsed.layout || undefined
     entry.lastActiveAt = Date.now()
     await windowRegistry.saveEntry(entry)
+    // PLAN-018 T0183 — refresh path-guard allowlist after every save, so
+    // add/remove/rename workspace propagates to the sandbox immediately.
+    await syncPathGuardFromRegistry()
     // Also persist to profile snapshot so force-quit doesn't lose state
     if (entry.profileId) {
       profileManager.save(entry.profileId).catch(() => { /* ignore */ })
@@ -2236,6 +2268,7 @@ function registerProxiedHandlers() {
   // File watcher for auto-refresh
   const fileWatchers = new Map<string, ReturnType<typeof fsSync.watch>>()
   registerHandler('fs:watch', (_ctx, _dirPath: string) => {
+    if (!isPathAllowed(_dirPath)) return false
     if (fileWatchers.has(_dirPath)) return true
     try {
       let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -2260,6 +2293,7 @@ function registerProxiedHandlers() {
   // Force-destroy and re-create the watcher — used by CT panel refresh button
   // to recover from broken watcher state (e.g. after git mv buffer overflow).
   registerHandler('fs:reset-watch', (_ctx, _dirPath: string) => {
+    if (!isPathAllowed(_dirPath)) return false
     const existing = fileWatchers.get(_dirPath)
     if (existing) {
       existing.close()
@@ -2288,6 +2322,7 @@ function registerProxiedHandlers() {
   })
 
   registerHandler('fs:unwatch', (_ctx, _dirPath: string) => {
+    if (!isPathAllowed(_dirPath)) return false
     const watcher = fileWatchers.get(_dirPath)
     if (watcher) {
       watcher.close()
@@ -2297,6 +2332,7 @@ function registerProxiedHandlers() {
   })
 
   registerHandler('fs:readdir', async (_ctx, dirPath: string) => {
+    if (!isPathAllowed(dirPath)) return []
     const IGNORED = new Set(['.git', 'node_modules', '.next', 'dist', 'dist-electron', '.cache', '__pycache__', '.DS_Store'])
     try {
       const entries = await fs.readdir(dirPath, { withFileTypes: true })
@@ -2307,6 +2343,7 @@ function registerProxiedHandlers() {
     } catch { return [] }
   })
   registerHandler('fs:readFile', async (_ctx, filePath: string) => {
+    if (!isPathAllowed(filePath)) return { error: 'Path access denied' }
     try {
       const stat = await fs.stat(filePath)
       if (stat.size > 512 * 1024) return { error: 'File too large', size: stat.size }
@@ -2315,12 +2352,16 @@ function registerProxiedHandlers() {
     } catch { return { error: 'Failed to read file' } }
   })
   registerHandler('fs:stat', async (_ctx, filePath: string) => {
+    if (!isPathAllowed(filePath)) return null
     try {
       const stat = await fs.stat(filePath)
       return { mtimeMs: stat.mtimeMs, size: stat.size }
     } catch { return null }
   })
   registerHandler('fs:search', async (_ctx, dirPath: string, query: string) => {
+    // AC-7: starting point must be inside a workspace; recursive walk silently
+    // skips entries that fall outside (symlinks, `..` → never throw).
+    if (!isPathAllowed(dirPath)) return []
     const IGNORED = new Set(['.git', 'node_modules', '.next', 'dist', 'dist-electron', '.cache', '__pycache__', '.DS_Store', 'release'])
     const results: { name: string; path: string; isDirectory: boolean }[] = []
     const lowerQuery = query.toLowerCase()
@@ -2332,6 +2373,7 @@ function registerProxiedHandlers() {
           if (results.length >= 100) return
           if (IGNORED.has(e.name)) continue
           const fullPath = path.join(dir, e.name)
+          if (!isPathAllowed(fullPath)) continue  // AC-7: symlink jumps out → skip, don't throw
           if (e.name.toLowerCase().includes(lowerQuery)) results.push({ name: e.name, path: fullPath, isDirectory: e.isDirectory() })
           if (e.isDirectory()) await walk(fullPath, depth + 1)
         }
@@ -2502,11 +2544,21 @@ function registerLocalHandlers() {
   })
 
   ipcMain.handle('image:read-as-data-url', async (_event, filePath: string) => {
-    const ext = path.extname(filePath).toLowerCase()
-    const mimeMap: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }
-    const mime = mimeMap[ext] || 'image/png'
-    const data = await fs.readFile(filePath)
-    return `data:${mime};base64,${data.toString('base64')}`
+    try {
+      assertPathAllowed(filePath)
+      const stat = await fs.stat(filePath)
+      if (stat.size > MAX_IMAGE_SIZE) {
+        throw new Error(`Image too large (${stat.size} > ${MAX_IMAGE_SIZE} bytes)`)
+      }
+      const ext = path.extname(filePath).toLowerCase()
+      const mimeMap: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }
+      const mime = mimeMap[ext] || 'image/png'
+      const data = await fs.readFile(filePath)
+      return `data:${mime};base64,${data.toString('base64')}`
+    } catch (err) {
+      logger.warn('[image:read-as-data-url] failed:', err instanceof Error ? err.message : String(err))
+      throw err instanceof Error ? err : new Error(String(err))
+    }
   })
 
   // Remote server handlers (always local)
