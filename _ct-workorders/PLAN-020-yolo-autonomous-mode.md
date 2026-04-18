@@ -49,18 +49,19 @@ yolo 模式**必須停下問人**的情境：
 | B | 流程受阻 / 死迴圈 | 同一工單 Renew ≥3 次或連續 3 次 Worker 回報 FAILED，自動進入斷點 |
 | C | 跨出 PLAN 範圍 | Worker 建議的下一步超出當前 PLAN 範圍（如需改 schema、影響其他模組） |
 
-## 預估拆單
+## 預估拆單（T0167 研究定稿）
 
-（待 T0167 研究後確定，以下為初稿）
+| # | 標題 | 專案 | 依賴 | 工時 | 🚦 |
+|---|------|------|------|------|-----|
+| **1** | BAT code: `bat-notify.mjs --submit` flag（加 `\r` 發送） | 本專案 T#### | — | 1-1.5h | 🟢 |
+| **2** | 本地草稿: Worker skill 自動回報規格（ct-exec/ct-done Step 8.5 強化） | 本專案 T#### | 1 | 1-1.5h | 🟢 |
+| **3** | 本地草稿: 塔台 skill 自主決策 + 3 斷點規格（Q2.A 分支，D060） | 本專案 T#### | 2 | 2-3h | 🟡 |
+| **4** | 上游 COORDINATED: skill 三件套推 Control-Tower-Skill | **CT-T###** | 3 | 2-3h | 🟡 |
+| **5** | 本專案驗收: PLAN-018 剩 4 張工單 yolo 實跑 | 本專案 T#### | 4 | 1-2h | 🟢 |
 
-| 工單 | 內容 | 工時 |
-|------|------|------|
-| T####-01 | BAT 側：`bat-notify.mjs` 加 `--submit` flag；`terminal-server` 加 submit capability；塔台派工單時注入 `BAT_TOWER_TERMINAL_ID` env | 2-3h |
-| T####-02 | ct-exec/ct-done 側：Worker 完成時自動呼叫 `bat-notify.mjs --submit "T#### 完成"` | 1h |
-| T####-03 | control-tower skill 側：新增 `yolo` 模式 + 自主決策段落 + 3 斷點條件 | 2-3h |
-| T####-04 | 驗證：用 PLAN-018 剩下 4 張工單跑完整 yolo 流程 | 1-2h（觀察用） |
+**合計 7-11h**，建議分 2 天完成。
 
-合計 **6-9h**，視研究結論可能增減。
+**Q2 決策鎖定（D060）**：採研究工單 D 區段作為下一張工單的資訊來源。工單 3 規格收斂為單一分支（A 分支），不再保留 B/C 條件式。
 
 ## 預估工時
 

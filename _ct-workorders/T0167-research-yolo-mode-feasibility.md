@@ -3,12 +3,13 @@
 ## 元資料
 - **工單編號**：T0167
 - **任務名稱**：研究：PLAN-020 yolo 模式技術可行性 + bat-notify 觸發機制調查
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **類型**：research
 - **互動模式**：enabled
 - **Renew 次數**：0
 - **建立時間**：2026-04-18 12:15 (UTC+8)
 - **開始時間**：2026-04-18 12:25 (UTC+8)
+- **完成時間**：2026-04-18 12:39 (UTC+8)
 - **預估工時**：1.5-2h（純靜態分析 + 現況調查）
 - **預估 context cost**：中（~15-20% window）
 - **關聯**：PLAN-020（本研究為其前置）
@@ -255,7 +256,7 @@ DONE
 - 新增：`_ct-workorders/_report-plan-020-yolo-feasibility.md`（研究報告主產出）
 - 修改：`_ct-workorders/T0167-research-yolo-mode-feasibility.md`（狀態更新 + 回報區）
 
-commit：待填（收尾時 commit）
+commit：`de2e711` — docs(ct): T0167 research report — PLAN-020 yolo mode feasibility
 
 ### Worker 筆記
 

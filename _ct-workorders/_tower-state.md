@@ -1,6 +1,91 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-18 07:40 (UTC+8)（T0165 Phase 1 DONE，upstream v2.1.42+ 同步 Phase 1 閉環，Opus 4.7 可用）
+> 最後更新:2026-04-18 12:18 (UTC+8)（PLAN-020 yolo 插隊啟動，PLAN-018 冷凍）
+
+---
+
+## 🔄 本 Session 焦點（2026-04-18 12:18）— PLAN-020 yolo 模式插隊（D059）
+
+**插隊原因**：使用者觀察 `auto_session: on` 反向通道（Worker→塔台）未觸發，提出 `yolo` 模式提案 — Worker 自動送出 + 塔台自主決策多工單。
+
+**關鍵技術發現**：
+- ✅ `scripts/bat-notify.mjs` 已存在（雙管道：UI toast + pty:write 預填）
+- ✅ `scripts/bat-terminal.mjs` 已存在（開新 Worker terminal）
+- ❌ 當前塔台 session `BAT_TOWER_TERMINAL_ID=`（空字串）— 推測是 on 反向不觸發的根因
+- ❌ `pty:write` 不送 `\r`（只預填，使用者仍要手按 Enter）
+
+**對齊結果（Q1-Q3）**：
+- Q1.B：開 PLAN-020 + 立刻派研究工單
+- Q2.B：skill + BAT 同時改（整合 bat-notify 基礎設施）
+- Q3.C：PLAN-018 冷凍，yolo 完成後用 PLAN-018 剩下 4 張工單作驗證
+
+**已建立**：
+- 📋 PLAN-020 🔴 High — yolo autonomous mode
+- ✅ T0167 research DONE（2026-04-18 12:25-12:39，14 分鐘，含 1 輪互動）
+- 📊 `_report-plan-020-yolo-feasibility.md`（Worker 研究報告）
+- 📝 D059 + D060 決策已記錄
+
+**T0167 關鍵結論**（糾正假設）：
+- env 注入鏈路**完整**（`BAT_TOWER_TERMINAL_ID` 實測有值）
+- 真正根因：ct-exec Step 8.5 標「可選/靜默跳過」+ `pty:write` 不加 `\r` + Step 11 剪貼簿蓋過 Step 8.5
+- 5 張條件式拆單，已收斂為單一分支（D060 採 Q2.A）
+
+**對齊結果（Q1-Q3）**：
+- Q1.A：接受 Worker 5 張拆單建議
+- Q2.A：資訊來源採研究工單 D 區段（D060）
+- Q3.B：先 commit meta 批次，再派工單 1
+
+### 下一步
+1. 🔄 **現在**：commit meta 批次（PLAN-020 + T0167 + tower-state + decision-log + 其他待 commit）
+2. 派工單 1（BAT code `--submit` flag，~1-1.5h）
+3. Worker 完成 → 派工單 2（Worker skill 草稿）
+4. 工單 2 完成 → 派工單 3（塔台 skill 草稿，Q2.A 分支）
+5. 工單 3 完成 → 派工單 4（CT-T### 上游 COORDINATED）
+6. 上游更新後 → 派工單 5（PLAN-018 驗證場景 = dogfood）
+
+### 最大編號更新
+- 工單：T0167（+1，下一張實作 = T0168）
+- PLAN：PLAN-020（+1）
+- 決策：D060（+2，D059 + D060）
+
+---
+
+## ⏸ PAUSED — PLAN-018 Remote 資安加固（2026-04-18 07:52 冷凍）
+
+**冷凍點**：T0166 研究 DONE，12 項衝突盤點完成，正對齊 Q1（派發順序）/ Q2（C1/C2/C3 決策時機）
+**恢復條件**：PLAN-020 yolo 完成驗收後，`*resume` 回復 PLAN-018
+**資料完整性**：`_report-plan-018-remote-security-port.md` 已產出，可直接接續
+
+---
+
+## 🔄 上輪 Session 焦點（2026-04-18 07:52）— PLAN-018 啟動（D059 對齊）
+
+**對齊結果**（Q1-Q6）：
+- **Q1.A**：先派研究工單（T0166，~2h）
+- **Q2.B**：拆 4 張實作工單（TLS+fingerprint / sandbox / brute-force / 整合測試）
+- **Q3.A**：實作用 EXP worktree（`exp/remote-security`，TOPIC=RMTSEC）
+- **Q4.C**：整天範圍（6-10h 整包）
+- **Q5.B**：研究純靜態分析，不實測打包
+- **Q6.A**：每張工單完成回塔台對齊再派下一張
+
+**T0166 已派發**（auto-session: on，已透過 BAT 內部終端開新 session）：
+- 產出：`_report-plan-018-remote-security-port.md`
+- 內容：4 大面向分析 + 衝突清單 + 4 張實作工單拆單建議 + 依賴順序圖
+- 執行位置：主線（純讀碼）
+
+### 下一步（使用者回塔台時）
+1. Worker 完成 T0166 → 回報「T0166 完成」
+2. 塔台審 `_report-plan-018-remote-security-port.md` → 決策拆單方案
+3. 指導 `git worktree add ../better-agent-terminal-remote-security -b exp/remote-security`
+4. 建立 EXP-RMTSEC-001（🧪 EXPLORING 統籌）+ 派第 1 張實作工單
+
+### 最大編號更新
+- 工單：T0166（+1）
+- 待決策：EXP-RMTSEC-001 尚未正式建立
+
+---
+
+## 🔄 上輪 Session 焦點（2026-04-18 07:10）— Upstream v2.1.42+ 同步決策（D058）
 
 ---
 
