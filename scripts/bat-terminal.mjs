@@ -433,7 +433,27 @@ async function main() {
     args: ['bat-terminal-cli'],
   }))
 
-  const authResp = await waitForMessage(ws)
+  // T0200/BUG-046: Defensive wrap — waitForMessage timeouts previously escaped
+  // as rejections that main().catch() logged only as reason=unhandled, giving
+  // no hint whether auth or invoke was the culprit. Explicit await-* + timeout
+  // events let operators diagnose stale token vs. dead server from the log alone.
+  logEvent('bat-terminal', 'await-auth-response', { timeoutMs: 3000 })
+  let authResp
+  try {
+    authResp = await waitForMessage(ws)
+  } catch (err) {
+    const msg = err?.message || String(err)
+    console.error(`Error: Auth response timeout: ${msg}`)
+    console.error('Hint: BAT_REMOTE_TOKEN may be stale. Try restart this terminal or re-export token from BAT app.')
+    logEvent('bat-terminal', 'exit', {
+      code: 1,
+      reason: 'auth-timeout',
+      error: msg,
+      hint: 'BAT_REMOTE_TOKEN may be stale. Try restart this terminal or re-export token from BAT app.',
+    })
+    ws.close()
+    process.exit(1)
+  }
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'auth-failed', error: authResp.error })
@@ -477,7 +497,28 @@ async function main() {
     args: [invokePayload],
   }))
 
-  const invokeResp = await waitForMessage(ws)
+  // T0200/BUG-046: See matching defensive wrap on auth await above.
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000 })
+  let invokeResp
+  try {
+    invokeResp = await waitForMessage(ws)
+  } catch (err) {
+    const msg = err?.message || String(err)
+    const logPath = process.platform === 'win32'
+      ? '%APPDATA%/BetterAgentTerminal/Logs/bat-scripts.log'
+      : '~/Library/Application Support/BetterAgentTerminal/Logs/bat-scripts.log'
+    const hint = `Invoke response not received in 3000ms. Check BAT app is running and log at ${logPath}`
+    console.error(`Error: Invoke response timeout: ${msg}`)
+    console.error(`Hint: ${hint}`)
+    logEvent('bat-terminal', 'exit', {
+      code: 1,
+      reason: 'invoke-timeout',
+      error: msg,
+      hint,
+    })
+    ws.close()
+    process.exit(1)
+  }
   if (invokeResp.error) {
     console.error(`Error: Failed to create terminal: ${invokeResp.error}`)
     logEvent('bat-terminal', 'terminal-created', { result: 'error', error: invokeResp.error })
@@ -492,6 +533,21 @@ async function main() {
   ws.close()
   process.exit(0)
 }
+
+// T0200/BUG-046: Safety net for rejections that escape main()'s await chain
+// (e.g., event-loop-scheduled promises inside MinimalWS or waitForMessage
+// after main resolved). main().catch() alone can't see those.
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason))
+  console.error(`Error: Unhandled rejection: ${err.message}`)
+  logEvent('bat-terminal', 'exit', {
+    code: 1,
+    reason: 'unhandled-rejection',
+    error: err.message,
+    stack: err.stack,
+  })
+  process.exit(1)
+})
 
 main().catch((err) => {
   console.error(`Error: ${err.message}`)
