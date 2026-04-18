@@ -4,9 +4,10 @@
 - **工單編號**：T0184
 - **任務名稱**：Remote brute-force 防護 + 連線穩定性（PLAN-018 第三張，收官）
 - **類型**：implementation
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-18 20:00 (UTC+8)
 - **開始時間**：2026-04-18 20:52 (UTC+8)
+- **完成時間**：2026-04-18 21:00 (UTC+8)
 - **預估工時**：1-1.5h
 - **優先級**：🔴 High（P0 資安）
 - **Renew 次數**：0
@@ -128,7 +129,7 @@ DONE
 
 ### Commit
 
-`7317ad4 feat(remote): brute-force throttle + stability (PLAN-018 T0184 + version sync)`
+`c7c7fb3 feat(remote): brute-force throttle + stability (PLAN-018 T0184 + version sync)`
 
 ### Renew 歷程
 
