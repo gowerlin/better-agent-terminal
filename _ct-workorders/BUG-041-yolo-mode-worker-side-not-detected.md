@@ -34,6 +34,33 @@
 | 3 | Worker 依賴環境變數（例：`CT_AUTO_SESSION`）但塔台派發未注入 |
 | 4 | Worker 讀 config 但欄位名解析錯誤（`auto_session` underscore vs `auto-session` dash） |
 
+## 實測根因（T0179 結論）
+
+**時序性規格落差** — Worker skill v4.2.0（2026-04-18 tag）設計時寫「Config 讀取順序：`_tower-config.yaml` → `~/.claude/control-tower-data/config.yaml` → 預設 `ask`」（`ct-exec/SKILL.md` 行 287 + 行 371）作為 mode 判斷機制。同日釋出的 D062 決策改為「Worker 無狀態」原則，skill 尚未同步更新，Worker 依現行規格忠實讀 config，但該行為本身違反 D062。
+
+**四項推測驗證**：
+
+| 推測 | 結論 |
+|------|------|
+| 1. 未讀 project config | ❌ 錯誤 — skill 明寫要讀，且本專案 `_tower-config.yaml` 存在（`auto-session: yolo`） |
+| 2. 讀 global fallback | ⚠️ 部分正確 — global 為 fallback 但 project 應先讀到 |
+| 3. 依賴 env 但塔台未注入 | ❌ 錯誤 — 現行 skill **沒要求讀 env**，這是**應然方向**而非**實然 bug** |
+| 4. 欄位名解析錯誤 | ❌ 錯誤 — project config 與 skill 規格命名一致（`auto-session` dash） |
+
+**修復方向**：不是「讓 Worker 讀對檔」而是「改 skill 規格：不讀 config，改讀塔台注入的 `CT_MODE` env」。
+
+**採納協定**（依 T0179 Q1.A + Q2.C + Q3.C 決策）：
+- Flag：`--mode <yolo|ask|off|on>` + `--interactive` / `--no-interactive`
+- Env：`CT_MODE` + `CT_INTERACTIVE`（獨立）
+- Fallback：Worker 讀不到 env → `ask` 模式 + 升級提示
+
+**完整規格**：見 `_report-t0179-worker-yolo-flag-protocol.md` § B-E。
+
+**Phase 2 下游工單**（依報告 § E）：
+- **T0180** — BAT 端 `--mode` / `--interactive` flag 接收 + customEnv 注入（改 `scripts/bat-terminal.mjs` 單檔，~30 min）
+- **CT-T005** DELEGATE — 塔台 skill 派發指令加 `--mode` + 啟動詢問 G3 互動旗標（~20 min）
+- **CT-T006** DELEGATE — Worker skill（`ct-exec` / `ct-done`）移除 config 讀取、改讀 env（~30 min）
+
 ## 設計原則決策（D062）
 
 使用者決定：**Worker 應為無狀態，所有 runtime context 由塔台派單當下 explicit 傳遞**。
