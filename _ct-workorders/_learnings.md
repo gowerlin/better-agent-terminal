@@ -1759,3 +1759,29 @@ Control Tower skill 的「三層載入合併邏輯」架構描述中提到 Layer
 **候選晉升**：🔵 Global 候選（CT 通用 — 歸檔策略與 IDEA 節點語意，非本專案特定）
 
 ---
+
+## L067 - 2026-04-18 — payload-pty-env 管線半成品為 BUG-040 技術債根源
+
+**觸發條件**：BUG-040 根因追溯 — `bat-terminal.mjs` 透過 `invokePayload.customEnv` 傳環境變數到 `terminal-server.ts` 再到 `pty-manager.ts`，最終 spawn PTY 時用 `{ ...process.env, ...customEnv }` 注入。
+
+**根因層級**：
+1. BUG-031 修復時只解決 renderer → main 的 workspace 傳遞（第 1 層）
+2. main → pty-manager 的 workspace 傳遞留在原本的 `activeWorkspaceId` fallback（第 2 層半成品）
+3. pty-manager 建 PTY 時若 customEnv 沒帶 workspace id，fallback `activeWorkspaceId` 會黏著前一張 Worker 結尾的 cwd → BUG-040 顯現
+
+**關鍵原則**：**跨層欄位應一次貫通全部 N 層，中間 fallback = 半成品 = 未來 BUG 溫床**。
+
+**修法範例**（T0176 實證）：
+- BAT 端 `bat-terminal.mjs` 接收 `--workspace` flag → `invokePayload.customEnv.BAT_WORKSPACE_ID = <uuid>` → PTY spawn 時穿透全程 → Worker 讀 `process.env.BAT_WORKSPACE_ID`
+- 全鏈路 5 個定位，一次改到位，無中間 fallback
+
+**專案內類似技術債風險位置**：
+- `main.ts` terminal:create-with-command handler（行 1556-1590 附近）
+- 其他 IPC 訊息類似「前 2 層傳，第 3 層 fallback」的設計
+- 建議開 audit 工單用 grep 找出所有 `fallback\|activeXXX\|defaultXXX` 模式驗證
+
+**候選晉升**：🏠 Project-specific（本專案 BAT + customEnv spread 架構特定）
+
+**相關**：BUG-040（主觸發）、BUG-031（前債未盡）、T0176（修法實證）
+
+---

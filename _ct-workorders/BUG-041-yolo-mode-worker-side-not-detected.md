@@ -3,7 +3,13 @@
 ## 元資料
 - **編號**：BUG-041
 - **標題**：yolo mode Worker 側未偵測，自動化鏈路斷半
-- **狀態**：OPEN
+- **狀態**：CLOSED
+- **狀態變更**：
+  - 2026-04-18 17:20 — OPEN（T0175 dogfood 觀察）
+  - 2026-04-18 18:52 — Phase 2.1 T0179 研究完成（`fb1b095`）
+  - 2026-04-18 19:01 — Phase 2.2 T0180 BAT env 注入完成（`8558b73`）
+  - 2026-04-18 19:22 — Phase 2.3 CT-T006 Worker skill 讀 env 完成（`4dbed7d`，v4.3.0 tag，生產塔台已 sync）
+  - 2026-04-18 19:35 — OPEN → **CLOSED**（使用者決定：Worker 無狀態核心完工即結案；CT-T005 塔台 skill 派發升級 DISPATCHED 但不阻塞 CLOSED；實測若有問題另開 BUG 單）
 - **嚴重度**：🟡 Medium
 - **建立時間**：2026-04-18 17:20 (UTC+8)
 - **回報者**：使用者（T0175 dogfood 後觀察 Worker 回報訊息）

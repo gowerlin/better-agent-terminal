@@ -4,9 +4,10 @@
 - **工單編號**：T0179
 - **任務名稱**：Worker yolo flag 傳遞協定研究（BUG-041 Phase 2.1）
 - **類型**：research（研究型工單，允許 Worker 互動）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-18 18:30 (UTC+8)
 - **開始時間**：2026-04-18 18:37 (UTC+8)
+- **完成時間**：2026-04-18 18:52 (UTC+8)
 - **預估工時**：60-90 分鐘（深研究 + 替代方案比較 + 規格文件）
 - **優先級**：🔴 High（BUG-041 修復路徑必經步驟）
 - **Renew 次數**：0
@@ -254,7 +255,7 @@ docs(ct): T0179 — Worker yolo flag 傳遞協定研究報告 (BUG-041 Phase 2.1
 
 **commit**：
 - `docs(ct): T0179 — Worker yolo flag 傳遞協定研究報告 (BUG-041 Phase 2.1)`
-- hash：待 commit 後填入
+- hash：`fb1b095`（3 files changed, 852 insertions）
 
 ### 遇到的問題與決策
 

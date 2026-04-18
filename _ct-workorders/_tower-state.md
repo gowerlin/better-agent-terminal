@@ -1,10 +1,89 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 下半場第四 session（BUG-040 Phase 1.1 完成，等 AC-1~AC-6 使用者驗收）
+> 最後更新：2026-04-18 下半場第五 session（BUG-040 + BUG-041 雙 CLOSED + PLAN-018 拆分完成 + v4.3.0 dogfood PASS）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-18 下半場第四 session，Phase 1.1 完成）
+## 🛏 本 Session 退出快照（2026-04-18 下半場第五 session，雙 BUG 閉環 + PLAN-018 拆分）
+
+**退出原因**：*resume 實例驗證目標達成（v4.3.0 Worker skill dogfood PASS），T0182-T0184 工單已備妥但不派發（避免 context 溢出），下 session 接著派 T0182。
+
+**本 session 成果**（~1.5h，8 個 commits）：
+- `23d75f3` T0175 DONE（研究報告）
+- `6282ea0` T0176 DONE（BAT env 注入）
+- `7e1af84` BUG-041 OPEN
+- `149153c` CT-T004 DONE
+- `51a4a71` BUG-040 FIXED 狀態更新
+- （`fb1b095` T0179 DONE — Phase 2.1 研究）
+- （`8558b73` T0180 DONE — Phase 2.2 BAT CT_MODE/CT_INTERACTIVE 注入）
+- （`83e5986` T0180 回報補 commit hash）
+- （`4dbed7d` CT-T006 DONE — Phase 2.3 v4.3.0 Worker skill，monorepo）
+- （`4822dbd` T0181 DONE — PLAN-018 拆分研究報告）
+- **待 commit**：BUG-040/041 CLOSED 狀態、T0182/T0183/T0184 工單、本快照、L067 project learning、GP044-047 global patterns
+
+**閉環事件**（本 session 主線）：
+- ✅ **BUG-040 CLOSED**（Phase 1 完結，workspace 錯派修復，CT-T004 v4.2.2）
+- ✅ **BUG-041 CLOSED**（Phase 2.1-2.3 完結，Worker 無狀態化 v4.3.0；Phase 2.4 CT-T005 DISPATCHED 但不阻塞 CLOSED）
+- ✅ **PLAN-018 拆分研究** — T0181 產出 T0182/T0183/T0184 完整規格（GP044 標竿）
+- ✅ **v4.3.0 Worker skill dogfood PASS** — T0181 派發時升級提示正確顯示，fallback ask 模式運作
+
+**L061/GP042 Worker 估時係數連六 hit**：
+- T0175: 6 min / 30 est (5x)
+- T0176: 6 min / 30-45 est (6-7.5x)
+- T0179: 15 min / 60-90 est (4-6x)
+- T0180: 5 min / 30 est (6x)
+- CT-T006: 6 min / 30 est (5x)
+- T0181: 9 min / 60-120 est (7-13x)
+- **累計 9 次實證**（加 T0168/T0169/T0170/T0172），GP042 強化升 🟢
+- Playbook 候選：工單預估工時 × 0.2 係數（文檔/規格類）
+
+**塔台決策（PLAN-018 Q1/Q2/Q3，使用者採 Worker 推薦）**：
+- **Q1.A**：`safeStorage` Linux fallback plaintext + warn
+- **Q2.A**：bind-interface tailscale 無介面 fail-closed error
+- **Q3.是**：ProfilePanel fingerprint 首次連線允許空白 + TOFU
+
+**`*evolve` 批次寫入**（6 條）：
+- 🌐 Global `~/.claude/control-tower-data/learnings/patterns.md`：
+  - **GP042 UPDATE**（Worker time 連 9 次實證，升 🟢）
+  - **GP044** 研究型工單品質標竿（精確行號 + 三欄 AC + diff 片段）
+  - **GP045** 研究報告 grep 覆蓋率缺口與 Worker 自補現象
+  - **GP046** 技術債 Phase 分階段插隊 pipeline
+  - **GP047** 「禁止 X」設計約束的 grep 命中空驗證
+- 🏠 Project `_ct-workorders/_learnings.md`：
+  - **L067** payload-pty-env 管線半成品為 BUG-040 技術債根源
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+
+1. Fast Path 載入本快照
+2. 確認 `auto-session: yolo` + `yolo_max_retries: 1` + `auto_commit: on` 仍生效
+3. 下一輪優先級：
+   - 🔴 **T0182** TLS + fingerprint pinning + safeStorage（5.5h，PLAN-018 第一張，派發即開工）
+   - 🟡 **CT-T005** DISPATCHED 待執行（跨 repo，補完 yolo 閉環最後一片拼圖，完工後 v4.3.0 Worker 不再顯示升級提示）
+   - 🟢 T0183 + T0184（PLAN-018 剩餘 2 張，依賴 T0182 完成）
+4. PLAN-018 完成路徑：
+   - Day 1：T0182（5.5h，序列）
+   - Day 2：T0183（1-2h 並行）+ T0184（1-1.5h，等 T0182）+ version.json sync 到 `5d9f486`
+   - T0184 DONE → PLAN-018 IN_PROGRESS → DONE
+5. CT-T005 若使用者決定派發：切到 `BMad-Control-Tower/BMad-Control-Tower-v4.2.0/` repo，開新 session `/ct-exec CT-T005`
+
+**待處理事項**：
+- 🟡 本地多 commits 未 push（塔台這端 4 個 + monorepo `4dbed7d`/`4822dbd` 已 push 到 Forgejo dev-main）
+- 🟡 下 session 派 T0182 前，建議先 review 研究報告 §C（5.5h 工時大 + 雙端測試）
+- 🟡 `_tower-state.md` YOLO 歷程區段本 session 未即時追加事件（整批於本快照總結）
+
+**YOLO 歷程追加**（本 session 摘要，詳見各事件）：
+- `[19:43-19:52] 派發+完成` T0181 research — v4.3.0 dogfood 首例，升級提示正確顯示（斷點 A regex 通過）
+- `[19:43] dogfood 觀察 #1` Worker 啟動訊息：「⚠️ 塔台未傳 `--mode` flag，降級為 ask」
+- `[19:35] BUG-041 CLOSED` 使用者決定核心完工即結案（CT-T005 DISPATCHED 不阻塞）
+- `[19:22] 完成` CT-T006 DONE `4dbed7d` — v4.3.0 Worker skill 無狀態化，10/10 AC，D062 grep 命中空驗證
+- `[19:01] 完成` T0180 DONE `8558b73` — BAT `--mode` / `--interactive` env 注入
+- `[18:52] 完成` T0179 DONE `fb1b095` — yolo flag 傳遞協定研究（620 行報告）
+- `[18:22] BUG-040 CLOSED` 使用者確認跨 workspace 實測通過
+- `[*evolve+*resume 後]` 6 條 learning 寫入、T0182-T0184 工單建立、本快照更新
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-18 下半場第四 session，Phase 1.1 完成）
 
 **退出原因**：使用者重新 build + 部署新版，驗收 T0176 的 AC-1~AC-6（需 app 重啟才能驗）。
 
