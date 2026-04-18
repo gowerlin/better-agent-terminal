@@ -4,10 +4,11 @@
 - **編號**：T0175
 - **類型**：research
 - **標題**：BAT sub-session `BAT_WORKSPACE_ID` 環境變數注入研究與設計
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **優先級**：🟡 Medium
 - **預估工時**：~30 分鐘
 - **開始時間**：2026-04-18 17:08:34
+- **完成時間**：2026-04-18 17:14:39
 - **關聯**：BUG-040（OPEN）、T0173 研究報告（`_report-bug-040-workspace-misroute.md`）、T0-NEXT-1（研究報告拆單建議）
 - **前置**：無
 - **Renew 次數**：0
@@ -180,3 +181,7 @@ BAT_TOWER_TERMINAL_ID=                                  ❌ 空字串
 ### DONE 時間
 
 2026-04-18 17:14:39
+
+### Commit
+
+- 23d75f3 `docs(ct): T0175 — BAT_WORKSPACE_ID env injection research report`

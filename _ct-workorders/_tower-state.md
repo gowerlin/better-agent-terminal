@@ -1,10 +1,68 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-18 下半場第三 session 收工（CT-T003 閉環 + PLAN-020 完結 + *evolve L057-L066 + auto_commit:on 首次實戰）
+> 最後更新：2026-04-18 下半場第四 session（BUG-040 Phase 1.1 完成，等 AC-1~AC-6 使用者驗收）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-18 下半場第三 session，收工）
+## 🛏 本 Session 退出快照（2026-04-18 下半場第四 session，Phase 1.1 完成）
+
+**退出原因**：使用者重新 build + 部署新版，驗收 T0176 的 AC-1~AC-6（需 app 重啟才能驗）。
+
+**本 session 成果**（~30 min，2 commits 未 push）：
+- `23d75f3` T0175 DONE（BAT_WORKSPACE_ID 注入研究報告，6 min 完成／預估 30）
+- `6282ea0` T0176 DONE（BAT 端 env 注入實作，6 min 完成／預估 30-45）
+- D062 寫入決策日誌（**Worker 無狀態原則** — BUG-040/041 修復的共同設計依據）
+- BUG-041 建立（yolo gap 現狀記錄，Phase 2 前保持 OPEN）
+
+**Phase 1（BUG-040 修復）進度**：
+- ✅ **Phase 1.1** — T0176（BAT 端 env 注入）Worker 自測 AC-7 編譯通過，12 處改動、5 files
+- ⏸ **AC-1~AC-6 使用者驗收**（本輪暫停點）：需重新 build + 重啟 BAT + 開新塔台 session 跑 `echo $BAT_WORKSPACE_ID`
+- 📋 **Phase 1.2** — CT-T004 DELEGATE（塔台 skill 加 `--workspace`）：等 AC 通過才派
+
+**dogfood 實證結果**：
+- ✅ BUG-041（yolo gap）**已確證** — T0176 完成後 Worker 走 Step 11 剪貼簿，使用者手動打「T0176 完成」通知塔台
+- 🔍 BUG-040（workspace 錯派）— Worker commits 落在正確 repo，未觀察到顯性錯派（待 AC-3 跨 workspace 測試驗證）
+- 📊 L061 連續再實證 — T0175/T0176 都是 6 min 完成（研究報告細緻度 × Worker 熟悉度）
+
+**Learning 候選累積**（Phase 1 CLOSED 後 `*evolve` 批次）：
+- **L067**：研究型工單品質標竿（T0175 模板化：精確行號 + diff + AC 對照）— Global 候選
+- **L068**：研究報告 grep 覆蓋率缺口（應 full grep 而非選擇性摘要，T0175 漏列 WorkspaceView.tsx 2 處）— Global 候選
+- **L069**：payload-pty-env 管線半成品為 BUG-040 技術債根源（跨層欄位應一次貫通）— Project 候選
+
+**恢復指引**（下次 `/control-tower` 啟動時）：
+
+1. Fast Path 載入本快照
+2. 塔台啟動時自動檢查 `echo $BAT_WORKSPACE_ID`：
+   - **非空**（uuidv4 格式）→ 部署成功，提醒使用者完成 AC-2~AC-6 驗收
+   - **空字串** → 部署失敗或未生效（檢查：使用者是否 build 完重啟？是否開新 session？）
+3. 依使用者 AC 驗收結果決策：
+   - **AC-1~AC-6 通過** → 派 **CT-T004** DELEGATE（塔台 skill 加 `--workspace "$BAT_WORKSPACE_ID"`）→ Phase 1.2 啟動
+   - **AC 失敗** → T0176 退回 FIXING，重派修復工單
+4. CT-T004 閉環 → BUG-040 FIXED → VERIFY（使用者實測跨 workspace）→ CLOSED
+5. BUG-040 CLOSED 後啟動 Phase 2：派 T0179 研究 BUG-041 yolo gap
+
+**待處理事項**：
+- 🟡 本地 2 commits 未 push（`23d75f3` T0175 + `6282ea0` T0176）— 使用者決定 push 時機
+- 🟡 `*sync` 重建 `_bug-tracker.md` 納入 BUG-041（本 session 未做，下 session 可一起處理）
+- 🟡 上 session 遺留 2 commits（`c73a23b` + `49444ed`）仍未 push
+
+**下一輪優先級**：
+- 🔴 **AC-1~AC-6 驗收**（使用者操作 → 回報結果）
+- 🔴 **CT-T004 DELEGATE**（AC 通過後立即派）
+- 🟡 Phase 2 BUG-041 啟動（Phase 1 CLOSED 後）
+- 🟢 BUG-040 與 BUG-041 均遵循 D062 原則
+
+**YOLO 歷程追加**（本 session）：
+- `[17:08] 派發` T0175 research（BAT env 注入設計）— yolo 自動派發成功
+- `[17:14] 完成` T0175 DONE — Worker 自填回報區，system-reminder 偵測檔案修改
+- `[17:20] Phase 0` D062 決策記錄 + BUG-041 開單 + Plan C 精細化
+- `[17:31] 派發` T0176 implementation（BAT env 注入實作）
+- `[17:37] 完成` T0176 DONE — **BUG-041 確證**（Worker 走 Step 11 剪貼簿，使用者手動通知）
+- `[17:40] 暫停` 等 AC-1~AC-6 使用者驗收（本 session 自然同步點，非斷點觸發）
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-18 下半場第三 session，收工）
 
 **退出原因**：使用者主動收工（本 session 成果豐厚，到達自然結束點）。
 
@@ -47,7 +105,7 @@
 
 ---
 
-## 🛏 前次 Session 退出快照（2026-04-18 下半場第二 session，Phase 0-1 完結）
+## 🛏 前前次 Session 退出快照（2026-04-18 下半場第二 session，Phase 0-1 完結）
 
 **退出原因**：T0174 Phase 0-1 跑完，Phase 2-6 context 空間不足，下 session 繼續。
 

@@ -43,10 +43,42 @@
 | D059 | 2026-04-18 | PLAN-020 yolo 模式插隊啟動，PLAN-018 冷凍作為驗證場景 | PLAN-020/T0167/PLAN-018 |
 | D060 | 2026-04-18 | yolo 下一張工單資訊來源採 Q2.A（研究工單 D 區段） | PLAN-020/T0167 |
 | D061 | 2026-04-18 | CT-T002 閉環 + v4.2.0 tag，對方塔台已吸收 yolo 功能 | CT-T002/PLAN-020 |
+| D062 | 2026-04-18 | Worker 無狀態原則：所有 runtime context 由塔台派單 explicit 傳遞 | BUG-040/BUG-041/T0176+ |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D062 2026-04-18 — Worker 無狀態原則：runtime context 由塔台派單 explicit 傳遞
+
+- **背景**：T0175 研究 DONE 後，使用者觀察 Worker 回報「auto-session 未設 → 預設 ask → 跳過 Step 8.5」，但塔台 project config 明明是 `auto-session: yolo`。實證 Worker 側沒讀到或讀錯 config 檔，yolo 自動化鏈路斷半（Worker 走 Step 11 剪貼簿而非 Step 8.5 自動 submit）。
+- **問題**：BUG-040（workspace 錯派）和 yolo gap 是**同一設計缺失的兩個症狀** — Worker 依賴「共享狀態」（config 檔 / activeWorkspaceId UI 焦點）推斷 runtime context。
+- **選項**：
+  - [A] Worker 讀 config 檔（現狀延續）
+  - [B] Worker 讀環境變數，由塔台派發時注入
+  - [C] Worker 讀 flag，由塔台派發時傳遞
+  - [D] 混合：flag + env
+- **決定**：[D] Worker 無狀態，所有 runtime context（`workspaceId`、`yolo` 旗標、其他 mode flags）由塔台派單當下透過 flag/env **explicit** 傳遞
+- **理由**：
+  1. **防止中途設定異動**：工單派發後使用者改 config 不應影響執行中 Worker
+  2. **單因子除錯**：失敗時只需檢查「派單當下傳了什麼」，不用追跨 session 共享狀態
+  3. **與 T0173 方案 A 同哲學**：`--workspace` flag 就是此原則的第一個應用實例
+  4. **race condition 防護**：多塔台/多 Worker 平行時不會互相污染 config
+  5. **跨環境一致**：本機 vs Remote Desktop vs BAT 內部終端皆同行為
+- **落地規則**：
+  - Worker skill（`/ct-exec`）**不應讀** `_tower-config.yaml` 或 `~/.claude/control-tower-config.yaml`
+  - Worker 判斷 mode 一律走「塔台派單時注入的 env 或 flag」
+  - 塔台派發指令模板（`SKILL.md` + `auto-session.md`）需補上所有 mode flags
+  - BAT 端（`bat-terminal.mjs`）負責接收 flag → 注入 env 給 Worker PTY
+- **影響範圍**：
+  - 現有：BUG-040 `--workspace` flag（Phase 1 修復中）
+  - 新增：BUG-041 yolo flag 傳遞（Phase 2）
+  - 未來：任何新 mode / 新 runtime context 都遵循此原則
+- **反模式警告**：Worker 絕不讀 `_tower-config.yaml`。若未來發現 Worker 需要「全局偏好」（非 runtime context），另開 PLAN 討論是否該提升為 explicit 傳遞。
+- **相關工單**：BUG-040 / BUG-041（待開）/ T0175 / T0176（Phase 1）/ CT-T004（Phase 1 DELEGATE）/ T0179+（Phase 2）
+- **衍生學習候選**（L068）：「Worker 無狀態」為 CT 通用設計原則，值得晉升 Global playbook
 
 ---
 
