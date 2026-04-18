@@ -155,6 +155,99 @@ export function parseBacklog(content: string): BacklogEntry[] {
   return entries
 }
 
+// ─── Single-file parser (for archived entries) ─────────────────────────────
+
+/** Map raw status text (cell / bullet value) to PlanStatus. */
+function mapPlanStatusText(raw: string): PlanStatus | null {
+  const u = raw.toUpperCase()
+  if (u.includes('IN_PROGRESS') || u.includes('進行中') || u.includes('🔄')) return 'IN_PROGRESS'
+  if (u.includes('PLANNED') || u.includes('已規劃') || u.includes('📋')) return 'PLANNED'
+  if (u.includes('DROPPED') || u.includes('已放棄') || u.includes('🚫')) return 'DROPPED'
+  if (u.includes('DONE') || u.includes('COMPLETED') || u.includes('已完成') || u.includes('✅')) return 'DONE'
+  if (u.includes('IDEA') || u.includes('💡')) return 'IDEA'
+  return null
+}
+
+/**
+ * Extract a metadata field from a PLAN file's content.
+ * Supports both bullet and markdown table layouts.
+ */
+function extractPlanField(content: string, labels: string[]): string | null {
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const bulletRe = new RegExp(`[-*]\\s*\\*?\\*?\\s*${escaped}\\s*\\*?\\*?\\s*[:：]\\s*([^\\n|]+)`, 'i')
+    const bulletMatch = content.match(bulletRe)
+    if (bulletMatch) {
+      const v = bulletMatch[1].trim()
+      if (v) return v
+    }
+    const tableRe = new RegExp(`\\|\\s*\\*?\\*?\\s*${escaped}\\s*\\*?\\*?\\s*\\|\\s*([^|\\n]+?)\\s*\\|`, 'i')
+    const tableMatch = content.match(tableRe)
+    if (tableMatch) {
+      const v = tableMatch[1].trim()
+      if (v) return v
+    }
+  }
+  return null
+}
+
+/**
+ * Parse a single archived PLAN-*.md file into a BacklogEntry.
+ *
+ * Handles header formats:
+ *   # PLAN-### — Title
+ *   # 📋 PLAN-###：Title
+ *   # 💡 PLAN-###：Title
+ *   # PLAN-###-kebab-case-title
+ *
+ * Priority via `extractPriorityFromPlanContent` (bullet + table tolerant).
+ * Always sets `isArchived: true`. Returns null on parse failure.
+ */
+export function parsePlanFile(content: string, linkPath: string): BacklogEntry | null {
+  try {
+    // Match first line starting with '# ... PLAN-\d+'
+    const headerRe = /^#\s*(?:[^\w\s]+\s*)?(PLAN-\d+)\s*(?:[—\-:：]\s*)?(.*)$/m
+    const headerMatch = content.match(headerRe)
+    if (!headerMatch) return null
+
+    const id = headerMatch[1]
+    let title = headerMatch[2].trim()
+
+    // Fall back to 標題 metadata field when header is kebab-case (e.g. PLAN-010-upstream-sync-...)
+    const titleField = extractPlanField(content, ['標題', 'Title'])
+    if (titleField) {
+      title = titleField
+    } else if (!title || /^[a-z0-9-]+$/.test(title)) {
+      // Header was kebab slug with no separator — humanize it
+      title = title.replace(/-/g, ' ')
+    }
+
+    const priority = extractPriorityFromPlanContent(content)
+
+    const statusRaw = extractPlanField(content, ['狀態', 'Status']) ?? ''
+    const status: PlanStatus = mapPlanStatusText(statusRaw) ?? 'DONE' // archived defaults to DONE
+
+    const createdAt =
+      extractPlanField(content, ['完成時間', '取消日期', '建立時間', '提出時間', '登記時間', '時間']) ?? ''
+
+    const filename = linkPath.split('/').pop() ?? linkPath
+
+    return {
+      id,
+      filename,
+      title,
+      priority,
+      status,
+      createdAt,
+      isArchived: true,
+      linkPath,
+    }
+  } catch (err) {
+    console.warn('[parsePlanFile] failed for', linkPath, err)
+    return null
+  }
+}
+
 // ─── Display helpers ─────────────────────────────────────────────────────────
 
 export function planStatusColor(status: PlanStatus): string {

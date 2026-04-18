@@ -150,6 +150,106 @@ export function parseBugTracker(content: string): BugEntry[] {
   return entries
 }
 
+// ─── Single-file parser (for archived entries) ─────────────────────────────
+
+/** Extract status keyword from raw cell/value and map to BugStatus. */
+function mapStatusText(raw: string): BugStatus | null {
+  const u = raw.toUpperCase()
+  // Compound check first
+  const hasWontfix = u.includes('WONTFIX') || u.includes('不修復')
+  const hasClosed = u.includes('CLOSED') || u.includes('已關閉')
+  if (hasWontfix && !hasClosed) return 'WONTFIX'
+  if (hasClosed) return 'CLOSED'
+  if (u.includes('VERIFY') || u.includes('驗收')) return 'VERIFY'
+  if (u.includes('FIXED') || u.includes('已修復')) return 'FIXED'
+  if (u.includes('FIXING') || u.includes('修復中')) return 'FIXING'
+  if (u.includes('OPEN') || u.includes('待處理') || u.includes('處理中')) return 'OPEN'
+  return null
+}
+
+/**
+ * Extract a metadata field from an archived BUG file's content.
+ * Supports both bullet (`- **欄位**：值` / `- **欄位**: 值`) and
+ * markdown table (`| **欄位** | 值 |`) layouts.
+ */
+function extractField(content: string, labels: string[]): string | null {
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // Bullet form (supports both : and ：, with/without bold)
+    const bulletRe = new RegExp(`[-*]\\s*\\*?\\*?\\s*${escaped}\\s*\\*?\\*?\\s*[:：]\\s*([^\\n|]+)`, 'i')
+    const bulletMatch = content.match(bulletRe)
+    if (bulletMatch) {
+      const v = bulletMatch[1].trim()
+      if (v) return v
+    }
+    // Table form
+    const tableRe = new RegExp(`\\|\\s*\\*?\\*?\\s*${escaped}\\s*\\*?\\*?\\s*\\|\\s*([^|\\n]+?)\\s*\\|`, 'i')
+    const tableMatch = content.match(tableRe)
+    if (tableMatch) {
+      const v = tableMatch[1].trim()
+      if (v) return v
+    }
+  }
+  return null
+}
+
+/**
+ * Parse a single archived BUG-*.md file into a BugEntry.
+ *
+ * Handles header formats:
+ *   # BUG-### — Title
+ *   # 🐛 BUG-###：Title    (full-width colon)
+ *   # 🐛 BUG-###:Title     (half-width colon)
+ *
+ * Handles metadata formats:
+ *   - Bullet: `- **狀態**：value` / `- **狀態**: value`
+ *   - Table:  `| **狀態** | value |`
+ *
+ * Always sets `isArchived: true` since this parser targets `_archive/bugs/`.
+ * Returns null on unrecoverable parse failure.
+ */
+export function parseBugFile(content: string, linkPath: string): BugEntry | null {
+  try {
+    // Match first line starting with '# ... BUG-\d+'
+    const headerRe = /^#\s*(?:[^\w\s]+\s*)?(BUG-\d+)\s*(?:[—\-:：]\s*)?(.*)$/m
+    const headerMatch = content.match(headerRe)
+    if (!headerMatch) return null
+
+    const id = headerMatch[1]
+    const title = headerMatch[2].trim()
+
+    const statusRaw = extractField(content, ['狀態', 'Status']) ?? ''
+    const status: BugStatus = mapStatusText(statusRaw) ?? 'CLOSED' // archived defaults to CLOSED
+
+    const severityRaw = extractField(content, ['嚴重度', 'Severity']) ?? ''
+    const severity = extractSeverity(severityRaw)
+
+    // Prefer closure/fix dates for archived items, fall back to report time
+    const reportedAt =
+      extractField(content, ['結案日期', '關閉時間', '完成時間', '修復時間', '取消日期', '報修時間']) ?? ''
+
+    const relatedWorkOrder =
+      extractField(content, ['修復工單', '相關工單']) ?? undefined
+
+    const filename = linkPath.split('/').pop() ?? linkPath
+
+    return {
+      id,
+      filename,
+      title,
+      severity,
+      status,
+      reportedAt,
+      relatedWorkOrder,
+      isArchived: true,
+      linkPath,
+    }
+  } catch (err) {
+    console.warn('[parseBugFile] failed for', linkPath, err)
+    return null
+  }
+}
+
 // ─── Display helpers ─────────────────────────────────────────────────────────
 
 /** CSS class name for severity badge */

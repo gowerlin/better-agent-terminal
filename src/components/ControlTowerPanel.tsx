@@ -18,8 +18,8 @@ import { CtToast, useCtToast } from './CtToast'
 import { BugTrackerView } from './BugTrackerView'
 import { BacklogView } from './BacklogView'
 import { DecisionsView } from './DecisionsView'
-import { type BugEntry, parseBugTracker } from '../types/bug-tracker'
-import { type BacklogEntry, parseBacklog, extractPriorityFromPlanContent } from '../types/backlog'
+import { type BugEntry, parseBugTracker, parseBugFile } from '../types/bug-tracker'
+import { type BacklogEntry, parseBacklog, parsePlanFile, extractPriorityFromPlanContent } from '../types/backlog'
 import { type DecisionEntry, parseDecisionLog } from '../types/decision-log'
 import { type BmadWorkflow, buildBmadWorkflow, PHASE_DEFINITIONS } from '../types/bmad-workflow'
 import { type BmadEpic, parseEpicsFile, buildSprintStoryMap } from '../types/bmad-epic'
@@ -62,6 +62,10 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [bmadEpics, setBmadEpics] = useState<BmadEpic[]>([])
   const [showArchivedOrders, setShowArchivedOrders] = useState(false)
   const [archivedOrders, setArchivedOrders] = useState<WorkOrder[]>([])
+  const [showArchivedBugs, setShowArchivedBugs] = useState(false)
+  const [archivedBugs, setArchivedBugs] = useState<BugEntry[]>([])
+  const [showArchivedBacklog, setShowArchivedBacklog] = useState(false)
+  const [archivedBacklog, setArchivedBacklog] = useState<BacklogEntry[]>([])
   const ctDirRef = useRef<string | null>(null)
   const bmadOutputRef = useRef<string | null>(null)
   const prevOrdersRef = useRef<Map<string, WorkOrderStatus>>(new Map())
@@ -243,6 +247,50 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     }
   }, [workspaceFolderPath])
 
+  // Load archived bugs from _archive/bugs/ — lazy on toggle flip
+  const loadArchivedBugs = useCallback(async () => {
+    if (!workspaceFolderPath) return
+    const archivePath = `${workspaceFolderPath}/_ct-workorders/_archive/bugs`
+    try {
+      const entries = await window.electronAPI.fs.readdir(archivePath)
+      const bugFiles = entries.filter(e => !e.isDirectory && e.name.startsWith('BUG-') && e.name.endsWith('.md'))
+      const bugs: BugEntry[] = []
+      for (const file of bugFiles) {
+        const result = await window.electronAPI.fs.readFile(file.path)
+        if (result.content != null) {
+          const entry = parseBugFile(result.content, `_archive/bugs/${file.name}`)
+          if (entry) bugs.push(entry)
+        }
+      }
+      bugs.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
+      setArchivedBugs(bugs)
+    } catch {
+      setArchivedBugs([])
+    }
+  }, [workspaceFolderPath])
+
+  // Load archived plans from _archive/plans/ — lazy on toggle flip
+  const loadArchivedBacklog = useCallback(async () => {
+    if (!workspaceFolderPath) return
+    const archivePath = `${workspaceFolderPath}/_ct-workorders/_archive/plans`
+    try {
+      const entries = await window.electronAPI.fs.readdir(archivePath)
+      const planFiles = entries.filter(e => !e.isDirectory && e.name.startsWith('PLAN-') && e.name.endsWith('.md'))
+      const plans: BacklogEntry[] = []
+      for (const file of planFiles) {
+        const result = await window.electronAPI.fs.readFile(file.path)
+        if (result.content != null) {
+          const entry = parsePlanFile(result.content, `_archive/plans/${file.name}`)
+          if (entry) plans.push(entry)
+        }
+      }
+      plans.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
+      setArchivedBacklog(plans)
+    } catch {
+      setArchivedBacklog([])
+    }
+  }, [workspaceFolderPath])
+
   // Detect work order status changes → toast notification
   const detectStatusChanges = useCallback((newOrders: WorkOrder[]) => {
     const prevMap = prevOrdersRef.current
@@ -347,7 +395,9 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     // Re-read all data fresh from disk
     reloadAll()
     if (showArchivedOrders) loadArchivedOrders()
-  }, [ctDirPath, bmadOutputPath, reloadAll, showArchivedOrders, loadArchivedOrders])
+    if (showArchivedBugs) loadArchivedBugs()
+    if (showArchivedBacklog) loadArchivedBacklog()
+  }, [ctDirPath, bmadOutputPath, reloadAll, showArchivedOrders, loadArchivedOrders, showArchivedBugs, loadArchivedBugs, showArchivedBacklog, loadArchivedBacklog])
 
   // Initial load
   useEffect(() => {
@@ -412,6 +462,22 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       setArchivedOrders([])
     }
   }, [showArchivedOrders, loadArchivedOrders])
+
+  useEffect(() => {
+    if (showArchivedBugs) {
+      loadArchivedBugs()
+    } else {
+      setArchivedBugs([])
+    }
+  }, [showArchivedBugs, loadArchivedBugs])
+
+  useEffect(() => {
+    if (showArchivedBacklog) {
+      loadArchivedBacklog()
+    } else {
+      setArchivedBacklog([])
+    }
+  }, [showArchivedBacklog, loadArchivedBacklog])
 
   // Combined active + archived orders, then apply status filter (consistent with BugTrackerView/BacklogView)
   const allOrders = showArchivedOrders ? [...workOrders, ...archivedOrders] : workOrders
@@ -653,11 +719,23 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       </div>
 
       <div className="ct-tab-content" style={{ display: activeTab === 'bugs' ? undefined : 'none' }}>
-        <BugTrackerView bugs={bugEntries} loading={loading} ctDirPath={ctDirPath} />
+        <BugTrackerView
+          bugs={showArchivedBugs ? [...bugEntries, ...archivedBugs] : bugEntries}
+          loading={loading}
+          ctDirPath={ctDirPath}
+          showArchived={showArchivedBugs}
+          onShowArchivedChange={setShowArchivedBugs}
+        />
       </div>
 
       <div className="ct-tab-content" style={{ display: activeTab === 'backlog' ? undefined : 'none' }}>
-        <BacklogView entries={backlogEntries} loading={loading} ctDirPath={ctDirPath} />
+        <BacklogView
+          entries={showArchivedBacklog ? [...backlogEntries, ...archivedBacklog] : backlogEntries}
+          loading={loading}
+          ctDirPath={ctDirPath}
+          showArchived={showArchivedBacklog}
+          onShowArchivedChange={setShowArchivedBacklog}
+        />
       </div>
 
       <div className="ct-tab-content" style={{ display: activeTab === 'decisions' ? undefined : 'none' }}>

@@ -12,14 +12,17 @@ interface BacklogViewProps {
   entries: BacklogEntry[]
   loading: boolean
   ctDirPath: string | null
+  /** Controlled: whether archived plans are included in `entries` */
+  showArchived: boolean
+  /** Toggle callback — parent lazy-loads archived plans on flip */
+  onShowArchivedChange: (v: boolean) => void
 }
 
-export function BacklogView({ entries, loading, ctDirPath }: BacklogViewProps) {
+export function BacklogView({ entries, loading, ctDirPath, showArchived, onShowArchivedChange }: BacklogViewProps) {
   const { t } = useTranslation()
   const [filterStatus, setFilterStatus] = useState<PlanStatus | 'all'>('all')
   const [filterPriority, setFilterPriority] = useState<PlanPriority | 'all'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showArchived, setShowArchived] = useState(false)
   const [detailCache, setDetailCache] = useState<Record<string, string>>({})
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null)
 
@@ -86,7 +89,7 @@ export function BacklogView({ entries, loading, ctDirPath }: BacklogViewProps) {
           <input
             type="checkbox"
             checked={showArchived}
-            onChange={e => setShowArchived(e.target.checked)}
+            onChange={e => onShowArchivedChange(e.target.checked)}
           />
           📦 {t('controlTower.includeArchived')}
         </label>

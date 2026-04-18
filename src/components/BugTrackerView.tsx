@@ -14,14 +14,17 @@ interface BugTrackerViewProps {
   bugs: BugEntry[]
   loading: boolean
   ctDirPath: string | null
+  /** Controlled: whether archived bugs are included in `bugs` */
+  showArchived: boolean
+  /** Toggle callback — parent lazy-loads archived bugs on flip */
+  onShowArchivedChange: (v: boolean) => void
 }
 
-export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps) {
+export function BugTrackerView({ bugs, loading, ctDirPath, showArchived, onShowArchivedChange }: BugTrackerViewProps) {
   const { t } = useTranslation()
   const [filterStatus, setFilterStatus] = useState<BugStatus | 'all'>('all')
   const [filterSeverity, setFilterSeverity] = useState<BugSeverity | 'all'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showArchived, setShowArchived] = useState(false)
   // Cache for loaded detail content: bugId → markdown string
   const [detailCache, setDetailCache] = useState<Record<string, string>>({})
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null)
@@ -83,7 +86,7 @@ export function BugTrackerView({ bugs, loading, ctDirPath }: BugTrackerViewProps
           <input
             type="checkbox"
             checked={showArchived}
-            onChange={e => setShowArchived(e.target.checked)}
+            onChange={e => onShowArchivedChange(e.target.checked)}
           />
           📦 {t('controlTower.includeArchived')}
         </label>
