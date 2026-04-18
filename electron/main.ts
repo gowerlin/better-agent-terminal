@@ -77,6 +77,7 @@ import { PROXIED_CHANNELS } from './remote/protocol'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
+import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
@@ -1595,7 +1596,36 @@ function registerProxiedHandlers() {
   // T0137: `workspaceId` (optional) propagates from `bat-terminal.mjs --workspace <id>`
   // through to the renderer so the PTY lands in the requested workspace.
   registerHandler('terminal:create-with-command', (_ctx, opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => {
-    if (!ptyManager) return false
+    // T0193: Diagnostic logging — record ipc-invoke with key BAT_*/CT_* signals.
+    // Detect reusedExisting BEFORE calling ptyManager.create() to capture the true state.
+    const reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
+    const customEnv = pickWhitelistedEnv(opts.customEnv)
+    const sourceTerminalId = opts.customEnv?.BAT_TERMINAL_ID
+    const workspaceId = opts.workspaceId ?? opts.customEnv?.BAT_WORKSPACE_ID
+    const invokerWindowId = _ctx.windowId ?? null
+
+    logger.log(`[remote][terminal] ipc-invoke channel=terminal:create-with-command id=${opts.id} reused=${reusedExisting} source=${sourceTerminalId ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
+    mirrorToBatScripts('ipc-invoke', {
+      channel: 'terminal:create-with-command',
+      terminalId: opts.id,
+      reusedExisting,
+      customEnv,
+      sourceTerminalId,
+      workspaceId,
+      windowId: invokerWindowId,
+      hasCommand: Boolean(opts.command),
+    })
+
+    if (!ptyManager) {
+      logger.log('[remote][terminal] ipc-result channel=terminal:create-with-command result=false reason=no-pty-manager')
+      mirrorToBatScripts('ipc-result', {
+        channel: 'terminal:create-with-command',
+        terminalId: opts.id,
+        result: false,
+        reason: 'no-pty-manager',
+      })
+      return false
+    }
     const created = ptyManager.create({
       id: opts.id,
       cwd: opts.cwd,
@@ -1625,13 +1655,49 @@ function registerProxiedHandlers() {
         } catch { /* window closing */ }
       }
     }
+    // T0193: Record final outcome — created vs reused. `created === true` covers both
+    // spawned-anew and idempotent-skip paths (pty-manager.ts:402). `reusedExisting`
+    // disambiguates which branch ran.
+    const outcomeEvent = reusedExisting ? 'terminal-reused' : 'terminal-created'
+    logger.log(`[remote][terminal] ${outcomeEvent} id=${opts.id} result=${created} workspaceId=${workspaceId ?? 'n/a'}`)
+    mirrorToBatScripts(outcomeEvent, {
+      channel: 'terminal:create-with-command',
+      terminalId: opts.id,
+      reusedExisting,
+      result: created,
+      customEnv,
+      sourceTerminalId,
+      workspaceId,
+      windowId: invokerWindowId,
+    })
     return created
   })
 
   // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.
   // Invoked by bat-notify.mjs over WebSocket; renderer(s) show UI cues for targetId.
   registerHandler('terminal:notify', (_ctx, opts: { targetId: string; message: string; source?: string }) => {
-    if (!opts || !opts.targetId || !opts.message) return false
+    // T0193: Diagnostic logging — capture notify routing so we can correlate with
+    // bat-notify.mjs entries in the same NDJSON timeline.
+    const invokerWindowId = _ctx.windowId ?? null
+    logger.log(`[remote][terminal] ipc-invoke channel=terminal:notify target=${opts?.targetId ?? 'n/a'} source=${opts?.source ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
+    mirrorToBatScripts('ipc-invoke', {
+      channel: 'terminal:notify',
+      targetTerminalId: opts?.targetId,
+      sourceTerminalId: opts?.source,
+      messageLength: opts?.message ? opts.message.length : 0,
+      windowId: invokerWindowId,
+    })
+
+    if (!opts || !opts.targetId || !opts.message) {
+      logger.log('[remote][terminal] ipc-result channel=terminal:notify result=false reason=invalid-payload')
+      mirrorToBatScripts('ipc-result', {
+        channel: 'terminal:notify',
+        result: false,
+        reason: 'invalid-payload',
+      })
+      return false
+    }
+    let windowCount = 0
     for (const win of BrowserWindow.getAllWindows()) {
       try {
         win.webContents.send('terminal:notified', {
@@ -1639,8 +1705,18 @@ function registerProxiedHandlers() {
           message: opts.message,
           source: opts.source,
         })
+        windowCount += 1
       } catch { /* window closing */ }
     }
+    logger.log(`[remote][terminal] ipc-result channel=terminal:notify result=true target=${opts.targetId} broadcastWindows=${windowCount}`)
+    mirrorToBatScripts('ipc-result', {
+      channel: 'terminal:notify',
+      targetTerminalId: opts.targetId,
+      sourceTerminalId: opts.source,
+      result: true,
+      broadcastWindows: windowCount,
+      windowId: invokerWindowId,
+    })
     return true
   })
 
