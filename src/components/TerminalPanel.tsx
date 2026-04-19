@@ -36,7 +36,6 @@ const filterTerminalOutputNoise = (data: string): string => {
 interface TerminalPanelProps {
   terminalId: string
   isActive?: boolean
-  terminalType?: 'terminal' | 'code-agent'
 }
 
 interface ContextMenu {
@@ -46,7 +45,7 @@ interface ContextMenu {
 }
 
 let renderCount = 0
-export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive = true, terminalType }: TerminalPanelProps) {
+export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive = true }: TerminalPanelProps) {
   renderCount++
   if (renderCount <= 50 || renderCount % 50 === 0) {
     dlog(`[render] TerminalPanel render #${renderCount} terminal=${terminalId} active=${isActive}`)
@@ -60,7 +59,6 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const [_altBufferActive, setAltBufferActive] = useState(false)
   const altBufferRef = useRef(false)
   const [terminalReady, setTerminalReady] = useState(false)
-  const hasBeenFocusedRef = useRef(false)
   const isActiveRef = useRef(isActive)
   const doResizeRef = useRef<(() => void) | null>(null)
 
@@ -195,30 +193,12 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
           terminal.clearTextureAtlas()
           terminal.refresh(0, terminal.rows - 1)
           terminal.focus()
-
-          // Execute agent command on first focus for code-agent terminals
-          if (!hasBeenFocusedRef.current && terminalType === 'code-agent') {
-            hasBeenFocusedRef.current = true
-            const terminalInstance = workspaceStore.getState().terminals.find(t => t.id === terminalId)
-            if (terminalInstance && !terminalInstance.agentCommandSent && !terminalInstance.hasUserInput) {
-              const agentCommand = settingsStore.getAgentCommand()
-              if (agentCommand) {
-                setTimeout(() => {
-                  const currentTerminal = workspaceStore.getState().terminals.find(t => t.id === terminalId)
-                  if (isActiveRef.current && currentTerminal && !currentTerminal.hasUserInput && !currentTerminal.agentCommandSent) {
-                    window.electronAPI.pty.write(terminalId, agentCommand + '\r')
-                    workspaceStore.markAgentCommandSent(terminalId)
-                  }
-                }, 3000)
-              }
-            }
-          }
         })
       })
 
       return () => cancelAnimationFrame(rafId)
     }
-  }, [isActive, terminalReady, terminalId, terminalType])
+  }, [isActive, terminalReady, terminalId])
 
   // IntersectionObserver removed — isActive effect already handles resize on visibility change
 
@@ -380,10 +360,6 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     // Handle terminal input
     terminal.onData((data) => {
       window.electronAPI.pty.write(terminalId, data)
-      // Mark terminal as having user input (for agent command tracking)
-      if (terminalType === 'code-agent') {
-        workspaceStore.markHasUserInput(terminalId)
-      }
     })
 
     // Track IME composition state on xterm's hidden textarea
