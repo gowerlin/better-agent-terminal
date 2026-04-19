@@ -1,10 +1,91 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-19 20:30(第十三 session,3 工單 YOLO 連擊 + BUG-050 樣本 5 張 clean + UX 原則 GP064 萃取 + T0218 DONE + T0219 UX 簡化待派)
+> 最後更新:2026-04-19 21:10(第十四 session,T0219 UX 簡化 code DONE + BUG-050 樣本 #6 clean + GP042 連 38+ hit + dev smoke T0218+T0219 合併待執行)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-19 第十三 session,T0216/T0217/T0218 三連擊 + 使用者 smoke UX 見解識別 D065 + GP064)
+## 🛏 本 Session 退出快照(2026-04-19 第十四 session,T0219 code DONE + dev smoke 交棒)
+
+**退出原因**:T0219 code 7 min YOLO 完成(~5x 壓縮),dev smoke T0218+T0219 合併 7+7 情境留給使用者手動執行(免切 context 一次驗收兩張)。
+
+**本 session 成果**(~15 min wall,1 工單 + 2 commits):
+
+**工單鏈(1 張)**:
+- `f395225` + `cb2c350` T0219 PLAN-021 UX 簡化(**7 min / est 30-45 min,~5x**)— 移除 Test 按鈕 + state + IPC + port-test.ts(234 行刪除)+ 9 i18n keys × 3 locales;新增 stop server confirm dialog(用既有 `dialog.confirm` bridge,優於工單建議的 `window.confirm`)+ 2 i18n keys × 3 locales(省略 NoConnections key,YAGNI)
+  - 9 files changed, +25 / -284
+  - Image #4 Port editor render 盤點結論:條件渲染邏輯無 bug,判定 dev HMR 暫時性問題
+
+**BUG/PLAN 狀態變更**:
+- **BUG-050** 樣本 **5 → 6** clean(門檻 10,過半)— 樣本 #6(T0219,~22 tool calls)auto-submit / writeResp / CT_MODE 全部 clean
+- **PLAN-021** IN_PROGRESS(T0219 code 交付,dev smoke 待跑才能 DONE)
+- **T0219 DONE**(Worker YOLO-safe 驗收全通過)
+
+**Worker 品質亮點(T0219)**:
+- 主動發現專案既有 `dialog.confirm` bridge(`electron/main.ts:2595`,被 ClaudeAgentPanel/TerminalPanel 共用),選用而非工單預設建議的 `window.confirm()`,風格一致性優先
+- YAGNI 原則省略 `stopServerConfirmNoConnections` key(無連線時 return,該 key 無使用場景)
+- Commit 策略主動合併單一 atomic(D065 整體 UX 調整不宜切割,而非工單預設 1-2 commit 的保守建議)
+- Image #4 盤點精準:Remote section ternary 分流(running vs stopped)完整掃描,確認 Port editor 無額外條件包裹
+
+**GP042 累積**:Worker time 連 **38+ hit**,T0219 5x 壓縮(30-45 min → 7 min)再次驗證。`*evolve --skill worker-time-estimation` 升級條件愈發穩固。
+
+**未執行項(下 session 接)**:
+
+### 🔴 首選:使用者手動 dev smoke(T0218 + T0219 合併驗收)
+
+**T0218 原 7 情境**:
+1. 啟動 dev → Settings 改 port 54321 → 重啟 dev → 54321 生效
+2. Test 按鈕(**已移除,驗收此情境改為確認 Test 按鈕不存在**)
+3. QR 對照:改 port 前後 url 反映新 port
+4. 熱切換:改 port Save(不重啟 dev)→ 舊關新開立即可用
+5. Active conn 警告:改 port 時顯示連線數
+6. BAT 內部終端 `BAT_REMOTE_PORT` env 傳遞 + bat-notify 連新 port
+7. port 設回 9876 + 重啟 → 回歸 T0215/T0217 smoke
+
+**T0219 新 7 情境**(含與 T0218 重疊項):
+1. Stop 按鈕無連線:Server running + 0 clients → 按 Stop → 無 dialog 直接停止
+2. Stop 按鈕有連線:N>0 clients → 按 Stop → 跳 dialog 顯示 count → Cancel 不停止 / Confirm 才停止
+3. Test 按鈕不存在(與 T0218 #2 合併)
+4. Port editor running 狀態下顯示正常(Image #4 回歸驗收)
+5. Hot-switch 不受影響(與 T0218 #4 合併)
+6. i18n:en / zh-TW / zh-CN 新 confirm dialog 文案正確
+7. 回歸 T0218 全情境照常通過
+
+**合併後核心情境**(去重後):
+- [ ] dev server 啟動 + Port editor 顯示(Image #4 回歸)
+- [ ] 改 port 熱切換生效 + URL 預覽同步
+- [ ] Active conn warning 正確 count(改 port 時)
+- [ ] Stop server 無連線 → 無 dialog
+- [ ] Stop server 有連線 → dialog 跳出 + Cancel/Confirm 行為正確
+- [ ] Test 按鈕完全不存在(移除驗收)
+- [ ] BAT 內部終端 + `BAT_REMOTE_PORT` env 傳遞
+- [ ] i18n 三語言切換 confirm 文案
+- [ ] T0215/T0217 回歸 smoke(bat-notify/bat-terminal 功能)
+
+### 🟢 其他候選(優先級依序)
+
+- 🟡 **BUG-047 pre.2 tag**(Rico 驗收,第九 session 殘留,使用者授權後可打)— 極小
+- 🟢 **GP042 升 Skill** `/ct-evolve --skill worker-time-estimation`(⭐ proven 38+ hit,T0219 5x 再驗證)
+- 🟢 **BUG-050 自然累積樣本** — 下次 YOLO 派發即自然 +1(門檻 10 → 還差 4 張)
+- 🟢 **GP063 / GP064 跨專案驗證** — 下次在其他 repo 遇到類似場景留意
+
+### 📊 下 session 決策點
+
+- 若 dev smoke 全通過 → PLAN-021 DONE(整個 Remote server port settings UI 功能閉環)
+- 若 smoke 發現 Image #4 回歸 → 轉 BUG 單追究 HMR vs 條件渲染
+- 若 smoke 累積 4+ 張 YOLO 樣本 clean → BUG-050 可 CLOSED(清理 `[T0215-DEBUG-REMOVE]` 3 處)
+
+**恢復指引**(下次 `/control-tower` 啟動時):
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status` + `git log`(本 session 所有 commit 待使用者授權 push)
+3. 下一輪優先級建議:
+   - 🔴 **dev smoke T0218+T0219 合併**(首選,關鍵 blocker,驗收後 PLAN-021 DONE)
+   - 🟡 **BUG-047 pre.2 tag**(使用者授權後可打,極小)
+   - 🟢 **GP042 升 Skill**(38+ hit 穩固後可執行)
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-19 第十三 session,T0216/T0217/T0218 三連擊 + 使用者 smoke UX 見解識別 D065 + GP064)
 
 **退出原因**:完成 T0218 DONE + D065 UX 簡化決策 + GP064 Global 學習萃取;T0219(UX 簡化實作)留下 session 以新 context 開工(~30-45 min 估時)
 
