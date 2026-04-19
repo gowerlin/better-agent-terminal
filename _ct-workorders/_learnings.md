@@ -2140,3 +2140,32 @@ useEffect(() => {
 **相關**:GP061(塔台主動性)、本 session 修正紀錄
 
 ---
+
+## L081 - 2026-04-19 — BUG-047 三 session 連環解 → 萃取 GP065/GP066/GP042 UPDATE
+
+**觸發**:第十六 session BUG-047 smoke pass + BUG-051/052 雙 CLOSED 後執行 `*evolve`,三連環全綠觸發學習萃取。
+
+**萃取來源**:
+- 第十四 session:T0219(PLAN-021 UX,非 BUG-047 直接相關但鋪路)
+- 第十五 session:T0220 research(3 min)→ T0221 fix(5 min)
+- 第十六 session:T0222 research(3 min,破紀錄)→ T0223 fix(4 min)
+
+**萃取三條 pattern(均分流到 Layer 2 global)**:
+
+1. **GP065** — Worker 從套件源碼挖跨環境 ground truth(擴展 GP054)
+   - 實例:T0222 讀 `install.cjs:174-178` 證實 `claude.exe` 跨平台檔名,省 macOS/Linux 實機驗
+   - 價值:research 壓縮下限破 ~7-13x
+
+2. **GP066** — T 修復連擊(分層拆解 vs 單張大工單)
+   - 實例:BUG-047 root → T0221 修 A 面 → T0222 挖 B 面(BUG-052) → T0223 合併修
+   - 價值:分層比單張大工單快 6-8x,單張失敗可 Renew 不影響其他層
+
+3. **GP042 UPDATE** — Worker time 連 42+ hit,升 Skill 條件全達
+   - 覆蓋:13+ 工單類型 / 5+ session / research + code fix 雙面穩固
+   - 下一步:`/ct-evolve --skill worker-time-estimation` 建議下 session 執行
+
+**候選晉升**:✅ 三條均已晉升 Layer 2(`~/.claude/control-tower-data/learnings/patterns.md`),本條為紀錄 pointer。
+
+**相關**:GP065 / GP066 / GP042 UPDATE(Layer 2)、BUG-047/051/052(本專案 tracker)、T0220-T0223(本專案工單)
+
+---
