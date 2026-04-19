@@ -1,10 +1,92 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-19 13:35（第十一 session,BUG-048 7 工單修復鏈閉環 CLOSED + BUG-050 雙根因鎖定 + PLAN-023 階段 1+2 完成 + GP060/061/062 + Worker time 35+ hit）
+> 最後更新:2026-04-19 18:42(第十二 session,BUG-050 階段 1 交付 + PLAN-024 建檔 + T0214/T0215 雙工單 6 min 極速 + tracker 同步)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-19 第十一 session,BUG-048 全閉環 + BUG-050 研究完成 + 架構 PLAN-023 + 5 GP/L 批次)
+## 🛏 本 Session 退出快照(2026-04-19 第十二 session,BUG-050 Option C 階段 1 方案 A 完成)
+
+**退出原因**:使用者指示「請塔台快照,我佈新板」— 新 server 需重啟 BAT 才能載入,下 session 跑場景 1/2 手動 smoke
+
+**本 session 成果**(~30 min wall,2 工單 + 1 PLAN + 1 commit):
+
+**工單鏈(2 張)**:
+- `(待 commit)` T0214 research pty:write silent drop 定位(~8 min / est 20-40 min,**3-5x**)— 6 層 code path + 9 個 silent drop 點盤點 + T0210 錯覺機制(bat-notify 只看 `writeResp.error`)釐清
+- `38725e9` T0215 fix 方案 A + 暫時 debug log(~6 min / est 90-120 min,**15-20x**)— `writeWithResult` 新 API + `bat-notify.mjs` 嚴格 `ok === false` 阻斷 + 3 處 `[T0215-DEBUG-REMOVE]` log
+
+**PLAN 新增**:
+- **PLAN-024** PLANNED — BUG-050 Option C 雙階段包裹(階段 1 方案 A ✅ 階段 1 代碼交付 / 階段 2 方案 B correlation id 待啟動)
+
+**BUG 狀態**:
+- BUG-050:FIXING(階段 1 代碼閘道通過,待 BAT 重啟後場景 1/2 smoke → 決策升 VERIFY)
+
+**Tracker 同步**(解決使用者觀察到「BUG-048 UI 顯示 Open 不同步」):
+- `_bug-tracker.md` 重建:BUG-048 從 Open 區正確移到 CLOSED 區,統計 15 張(🔴0 ⏳1 🧪1 🚫13 ⛔0)
+- `_backlog.md` 重建:PLAN-024 納入(19 張,💡4 📋3 🔄2 ✅9 🚫1)
+
+**Worker time 極速觀察**(本 session 2 張全壓縮):
+- T0214:8 min / est 20-40 min(3-5x,熟區 + Worker 高執行力)
+- T0215:6 min / est 90-120 min(**15-20x 壓縮**,T0214 改動清單已定稿 + 照做 + 1 處變數命名衝突主動修)
+- GP042「Worker time 連 37+ hit」持續累積,⭐ Skill 升級候選愈發穩固
+
+**Worker 品質亮點**(T0215):
+- 主動識別 catch-22(重啟會殺自己的 session → 無法在 session 內跑場景 1/2)
+- 正確理解「必須暫停回塔台」條款定義(跑了失敗 ≠ 跑不了)— 未違規未強推
+- 變數命名衝突(`payload` 已佔用)主動發現並改名 `writeResult`,不影響語意
+- 場景 4 live 跑 3 個 Test(包含反面驗證 T0210 錯覺在舊 server 仍存)
+
+**關鍵技術洞察**(T0214 → T0215 雙工單萃取):
+
+1. **T0210 錯覺機制**:`bat-notify.mjs` 只檢 `writeResp.error`,handler 回 void → client log `result=ok`。silent drop 真正根源 = client 檢查邏輯不完整 + server 回傳協議無結構
+2. **6 層 code path 全盤**:bat-notify → remote-server → handler-registry → main.ts registerHandler → pty-manager → terminal-server
+3. **9 silent drop 點**:方案 A 涵蓋 #1/#3/#4/#5/#8/#9(~60 行 diff),方案 B 涵蓋 #2/#6/#7(refork race,~80-120 行,階段 2)
+4. **useServer 分支的根本限制**:fire-and-forget IPC 無 ack → 樂觀回 `ok: true, reason: 'queued'`,真正覆蓋 refork race 需 correlation id(方案 B)
+
+**未執行項(下 session 接)**:
+
+### 🔴 首選:BAT 重啟 + BUG-050 階段 1 驗收
+
+1. 使用者佈新板(BAT 重啟載入 38725e9 server)
+2. 在新 BAT terminal 跑 smoke 場景 1:
+   ```bash
+   node scripts/bat-notify.mjs --target $BAT_TERMINAL_ID "smoke-1"
+   ```
+   預期:exit 0 + `writeResp payload={ok:true}` + 塔台 terminal 收到 "smoke-1"
+3. 跑 smoke 場景 2:
+   ```bash
+   node scripts/bat-notify.mjs --target deadbeefdeadbeefdeadbeefdeadbeef "smoke-2"
+   ```
+   預期:exit 1 + stderr `Error: PTY write failed: pty-not-found`
+4. 通過 → BUG-050 FIXING → VERIFY,連續觀察 3-5 張 YOLO 派發的 debug log
+5. `[T0215-DEBUG-REMOVE]` 3 處標記供未來 grep 清理
+
+### 🟡 候選待辦
+
+- 🟡 T0214 元資料 commit(派發 / 完成時間與 38725e9 合 push)
+- 🟡 **本 session 收尾 commit**:T0214 + T0215 工單元資料 + `_bug-tracker.md` 重建 + `_backlog.md` 重建 + PLAN-024 建檔 + `_tower-state.md` 第十二 session 快照(等使用者授權 push)
+- 🟡 BUG-047 pre.2 tag(使用者授權後打)
+- 🟢 PLAN-023 階段 3 T0216(FileTree 拆分,~1-2h)
+- 🟢 PLAN-022 T0202c fingerprint pinning
+
+### 📊 潛在 `*evolve` 候選(下 session 可萃取)
+
+- **GP 候選**:「client-side silent drop 偵測不完整模式」(bat-notify 只看 error frame,T0210 錯覺機制通用化)
+- **GP 候選**:「Worker catch-22 識別」(T0215 session 限制主動暴露,品質優先的展現)
+- **GP042 UPDATE**:Worker time 連 37+ hit(T0215 15-20x 為本 session 新高,階段 2 前可考慮升 Skill)
+- **L 候選**:「pty:write useServer 分支 fire-and-forget 限制」(本專案特有,correlation id 階段 2 必做)
+
+**恢復指引**(下次 `/control-tower` 啟動時):
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status`(本 session commit 待使用者授權 push 後 clean)
+3. 下一輪優先級建議:
+   - 🔴 **BUG-050 階段 1 BAT 重啟 + smoke 1/2 驗收**(首選,驗收通過後 FIXING → VERIFY)
+   - 🟡 觀察 3-5 張 YOLO `[T0215-DEBUG-REMOVE]` log 樣本,判斷方案 B 必要性
+   - 🟡 BUG-047 pre.2 tag(使用者授權後)
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-19 第十一 session,BUG-048 全閉環 + BUG-050 研究完成 + 架構 PLAN-023 + 5 GP/L 批次)
 
 **退出原因**:B 計畫收尾(BUG-048 CLOSED + `*evolve` 6 條 + `_tower-state` 快照 + commit/push)
 
