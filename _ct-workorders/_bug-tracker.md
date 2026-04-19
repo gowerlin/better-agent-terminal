@@ -2,17 +2,15 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-19 23:36 (UTC+8)
+> 最後同步:2026-04-19 23:56 (UTC+8)
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 17**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 16 | ⛔ Won't Fix: 0 | **Total: 17**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-051 | claude-cli preset 終端 `node <claude.exe>` 啟動失敗(Node v25 ERR_UNKNOWN_FILE_EXTENSION) | 🟠 High | 2026-04-19 | [BUG-051](BUG-051-claude-cli-preset-node-prefix-on-native-binary.md) |
-| BUG-052 | `resolveClaudeCodePath` / `get-cli-path` 平台命名假設錯誤(POSIX 也叫 claude.exe) | 🟡 Medium | 2026-04-19 | [BUG-052](BUG-052-claude-code-binary-name-posix-wrong-assumption.md) |
 
 ## ⏳ 修復中 (FIXING)
 
@@ -34,6 +32,8 @@
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-051 | claude-cli preset 終端 `node <claude.exe>` 啟動失敗(Node v25 ERR_UNKNOWN_FILE_EXTENSION) | 🟠 High | 2026-04-19 | [BUG-051](BUG-051-claude-cli-preset-node-prefix-on-native-binary.md) |
+| BUG-052 | `resolveClaudeCodePath` / `get-cli-path` 平台命名假設錯誤(POSIX 也叫 claude.exe) | 🟡 Medium | 2026-04-19 | [BUG-052](BUG-052-claude-code-binary-name-posix-wrong-assumption.md) |
 | BUG-047 | Claude SDK 路徑解析未處理 app.asar.unpacked | 🟠 High | 2026-04-19 | [BUG-047](BUG-047-claude-sdk-path-asar-unpacked-resolve.md) |
 | BUG-049 | bat-notify.mjs TLS migration missed | 🔴 High | 2026-04-19 | [BUG-049](BUG-049-bat-notify-tls-migration-missed.md) |
 | BUG-048 | CT Panel 瀏覽檔案首次點擊 Preview 空白 + 目錄樹未同步 | 🟡 Medium | 2026-04-19 | [BUG-048](BUG-048-ct-panel-browse-file-first-click-preview-empty-and-tree-not-synced.md) |

@@ -1,6 +1,27 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-19 23:48(第十六 session,BUG-047 smoke pass CLOSED + BUG-051/BUG-052 新 bug 雙修連擊 T0222→T0223 + T0223 PARTIAL 斷點 A 暫停等 packaged smoke)
+> 最後更新:2026-04-19 23:56(第十六 session 延伸收尾,T0223 packaged smoke pass → BUG-051/BUG-052 雙 CLOSED)
+
+---
+
+## 🎉 第十六 Session 延伸收尾(2026-04-19 23:56,smoke pass)
+
+**使用者換版後回報**:T0223 packaged smoke「測試通過」→ 本 session 所有工單全綠收尾。
+
+**收尾動作**(23:56 執行):
+1. ✅ T0223 PARTIAL → **DONE**
+2. ✅ BUG-051 OPEN → **CLOSED**(Gower Windows 親驗即收,不走 VERIFY)
+3. ✅ BUG-052 OPEN → **CLOSED**(Windows 驗對代表修對,macOS/Linux 樣本等自然)
+4. ✅ `_bug-tracker.md` 重建(Open:2→0, Closed:14→16, Total:17)
+5. ⏳ BUG-050 樣本 6 → **7**(T0223 `--mode yolo --no-interactive` 全程 clean,無 banner missing / clipboard fallback 觀察),門檻 10 還差 3
+6. ⏳ `*evolve` 三條 pattern 候選(等使用者授權)
+7. ⏳ 可選 pre.2 tag(一次清 Rico+Gower 三 BUG)
+
+**全 session 總結(BUG-047 翻案連環解完)**:
+- 🗓️ 第十四(T0219)→ 第十五(T0220/T0221)→ 第十六(T0222/T0223) **三 session 連環解**
+- 🔴 BUG-047(原 root)+ 🟠 BUG-051(consumer)+ 🟡 BUG-052(跨平台命名)**三 BUG 全 CLOSED**
+- ⚡ Worker 時間:T0220 3x + T0221 5-8x + T0222 7-13x + T0223 4-7x,**平均 ~6x 壓縮**
+- 📊 GP042 累積 **42+ hit**,跨類型(research + code fix)雙面穩固,`/ct-evolve --skill worker-time-estimation` 升級條件達成
 
 ---
 

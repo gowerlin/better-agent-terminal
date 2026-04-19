@@ -4,7 +4,7 @@
 
 - **編號**:T0223
 - **類型**:code
-- **狀態**:⏸️ PARTIAL(code + unit test + build 完成,等使用者 packaged smoke 驗收)
+- **狀態**:✅ DONE(2026-04-19 23:56 Gower packaged smoke pass,BUG-051/BUG-052 雙 CLOSED)
 - **建立時間**:2026-04-19 23:35 (UTC+8)
 - **開始時間**:2026-04-19 23:41 (UTC+8)
 - **完成時間**:2026-04-19 23:45 (UTC+8)
