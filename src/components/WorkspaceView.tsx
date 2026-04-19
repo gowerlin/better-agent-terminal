@@ -13,6 +13,8 @@ import { WorkerPanel } from './WorkerPanel'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { isClaudeSdk, isClaudeCli, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
+// BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
+import '../state/fileTreeRevealBus'
 
 // Lazy load heavy components (xterm.js, Claude SDK, etc.)
 const MainPanel = lazy(() => import('./MainPanel').then(m => ({ default: m.MainPanel })))

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useMenuPosition } from '../hooks/useMenuPosition'
 import { HighlightedCode } from './PathLinker'
 import { ResizeHandle } from './ResizeHandle'
+import { consumePendingReveal } from '../state/fileTreeRevealBus'
 import hljs from 'highlight.js/lib/core'
 
 interface FileEntry {
@@ -43,46 +44,67 @@ function canPreview(name: string): 'text' | 'image' | 'pdf' | null {
 }
 
 function FileTreeNode({
-  entry, depth, selectedPath, onSelect, onContextMenu,
+  entry, depth, selectedPath, expandedPaths, onToggle, onSelect, onContextMenu,
 }: {
-  entry: FileEntry; depth: number; selectedPath: string | null; onSelect: (entry: FileEntry) => void
+  entry: FileEntry
+  depth: number
+  selectedPath: string | null
+  expandedPaths: Set<string>
+  onToggle: (path: string, nextExpanded: boolean) => void
+  onSelect: (entry: FileEntry) => void
   onContextMenu: (e: React.MouseEvent, entry: FileEntry) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  // BUG-048 fix: `expanded` is now controlled by parent via expandedPaths set.
+  // Children cache stays local (per-node lazy readdir).
+  const expanded = entry.isDirectory && expandedPaths.has(entry.path)
   const [children, setChildren] = useState<FileEntry[] | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleClick = useCallback(async () => {
+  // Auto-load children when expanded turns true and cache is empty.
+  // This enables expandToPath() to cascade top-down: parent adds its path to expandedPaths,
+  // effect loads children, children matching deeper segments trigger their own effects.
+  useEffect(() => {
+    if (!entry.isDirectory || !expanded || children !== null || loading) return
+    let cancelled = false
+    setLoading(true)
+    window.electronAPI.fs.readdir(entry.path).then(entries => {
+      if (cancelled) return
+      setChildren(entries)
+      setLoading(false)
+    }).catch(() => {
+      if (cancelled) return
+      setChildren([])
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [expanded, entry.isDirectory, entry.path, children, loading])
+
+  const handleClick = useCallback(() => {
     if (entry.isDirectory) {
-      if (expanded) {
-        setExpanded(false)
-        return
-      }
-      if (children === null) {
-        setLoading(true)
-        try {
-          const entries = await window.electronAPI.fs.readdir(entry.path)
-          setChildren(entries)
-        } catch {
-          setChildren([])
-        }
-        setLoading(false)
-      }
-      setExpanded(true)
+      onToggle(entry.path, !expanded)
     } else {
       onSelect(entry)
     }
-  }, [entry, expanded, children, onSelect])
+  }, [entry, expanded, onToggle, onSelect])
 
   const icon = entry.isDirectory
     ? (expanded ? '📂' : '📁')
     : getFileIcon(entry.name)
 
   const isSelected = !entry.isDirectory && entry.path === selectedPath
+  const rowRef = useRef<HTMLDivElement>(null)
+
+  // Scroll selected row into view (useful after expandToPath reveal).
+  useEffect(() => {
+    if (isSelected && rowRef.current) {
+      rowRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+  }, [isSelected])
 
   return (
     <>
       <div
+        ref={rowRef}
         className={`file-tree-item ${entry.isDirectory ? 'file-tree-folder' : 'file-tree-file'} ${isSelected ? 'selected' : ''}`}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         onClick={handleClick}
@@ -98,6 +120,8 @@ function FileTreeNode({
           entry={child}
           depth={depth + 1}
           selectedPath={selectedPath}
+          expandedPaths={expandedPaths}
+          onToggle={onToggle}
           onSelect={onSelect}
           onContextMenu={onContextMenu}
         />
@@ -341,6 +365,7 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const [entries, setEntries] = useState<FileEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null)
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set())
   const restoredRef = useRef(false)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null)
   const { pos: ctxMenuPos, menuRef: contextMenuRef } = useMenuPosition(contextMenu)
@@ -349,6 +374,15 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const [searching, setSearching] = useState(false)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleToggle = useCallback((path: string, nextExpanded: boolean) => {
+    setExpandedPaths(prev => {
+      const next = new Set(prev)
+      if (nextExpanded) next.add(path)
+      else next.delete(path)
+      return next
+    })
+  }, [])
 
   // Resizable split: tree width in pixels (persisted)
   const TREE_WIDTH_KEY = 'file-tree-split-width'
@@ -468,21 +502,60 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
     localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: entry.path, name: entry.name }))
   }, [rootPath])
 
+  // BUG-048 fix: programmatically expand every directory along a path and select the file.
+  // Intermediate directories' children get loaded via FileTreeNode's useEffect as expansion cascades.
+  const expandToPath = useCallback((filePath: string) => {
+    const norm = (p: string) => p.replace(/\\/g, '/')
+    const lowerNorm = (p: string) => norm(p).toLowerCase()
+    if (!lowerNorm(filePath).startsWith(lowerNorm(rootPath))) return
+
+    const normRoot = norm(rootPath).replace(/\/+$/, '')
+    const normTarget = norm(filePath)
+    const rel = normTarget.slice(normRoot.length).replace(/^\/+/, '')
+    const segments = rel.split('/').filter(Boolean)
+    if (segments.length === 0) return
+
+    // Ancestor directory paths to expand (exclude the file itself).
+    // Rebuild using the original file path's separators to stay consistent with entries from readdir.
+    const usesBackslash = filePath.includes('\\') && !filePath.includes('/')
+    const sep = usesBackslash ? '\\' : '/'
+    const ancestorPaths: string[] = []
+    let acc = rootPath.replace(/[\\/]+$/, '')
+    for (let i = 0; i < segments.length - 1; i++) {
+      acc = acc + sep + segments[i]
+      ancestorPaths.push(acc)
+    }
+
+    setExpandedPaths(prev => {
+      if (ancestorPaths.every(p => prev.has(p))) return prev
+      const next = new Set(prev)
+      for (const p of ancestorPaths) next.add(p)
+      return next
+    })
+
+    const name = segments[segments.length - 1]
+    const entry: FileEntry = { path: filePath, name, isDirectory: false }
+    setSelectedFile(entry)
+    localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: filePath, name }))
+  }, [rootPath])
+
   // Listen for external file-tree-reveal events (e.g. from Control Tower)
   useEffect(() => {
     const handler = (e: Event) => {
       const { path: filePath } = (e as CustomEvent).detail as { path: string }
-      // Normalize for comparison
-      const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase()
-      if (!norm(filePath).startsWith(norm(rootPath))) return
-      const name = filePath.replace(/\\/g, '/').split('/').pop() || ''
-      const entry: FileEntry = { path: filePath, name, isDirectory: false }
-      setSelectedFile(entry)
-      localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: filePath, name }))
+      expandToPath(filePath)
     }
     window.addEventListener('file-tree-reveal', handler)
     return () => window.removeEventListener('file-tree-reveal', handler)
-  }, [rootPath])
+  }, [expandToPath])
+
+  // BUG-048 现象 1 fix: replay pending reveal that was buffered before FileTree mounted.
+  useEffect(() => {
+    const pending = consumePendingReveal()
+    if (pending) expandToPath(pending)
+    // Intentionally run once per FileTree instance (rootPath change remounts via key upstream).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleContextMenu = useCallback((e: React.MouseEvent, entry: FileEntry) => {
     e.preventDefault()
@@ -566,6 +639,8 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
                 entry={entry}
                 depth={0}
                 selectedPath={selectedFile?.path || null}
+                expandedPaths={expandedPaths}
+                onToggle={handleToggle}
                 onSelect={handleSelect}
                 onContextMenu={handleContextMenu}
               />
