@@ -3,10 +3,10 @@
 ## 元資料
 - **工單編號**:T0216
 - **任務名稱**:PLAN-023 階段 3 架構重整(FileTree.tsx 拆 4 檔 + FileEntry pathKey 分離全面切換)
-- **狀態**:IN_PROGRESS
+- **狀態**:DONE
 - **建立時間**:2026-04-19 18:58 (UTC+8)
 - **開始時間**:2026-04-19 19:07 (UTC+8)
-- **完成時間**:(完成時填入)
+- **完成時間**:2026-04-19 19:16 (UTC+8)
 - **目標子專案**:(本專案根,non mono-repo)
 
 ## 工作量預估
@@ -121,6 +121,7 @@
 
 ### 完成狀態
 DONE(待使用者手動 smoke 驗收;tsc 0 錯誤、vite build 0 錯誤)
+**commit**:`f079979` — refactor(file-tree): T0216 PLAN-023 phase 3 — split FileTree + FileEntry.pathKey
 
 ### 產出摘要
 
@@ -158,7 +159,21 @@ DONE(待使用者手動 smoke 驗收;tsc 0 錯誤、vite build 0 錯誤)
 無 tsc 報錯。`FileEntry` 原本是 FileTree.tsx 的 local 型別,grep `interface FileEntry` 全專案只 1 處,promote 到 `src/types/file.ts` 過程順利。其他 consumer(ControlTowerPanel / ClaudeAgentPanel)沒有顯式 import `FileEntry` 型別,而是用 inline anonymous type,結構性子型別自動相容,完全沒有 consumer 端要改的地方(IPC boundary 注入策略的最大紅利)。
 
 ### 階段 1 YOLO log 觀察(BUG-050 驗證附帶)
-本張派發當下無在 Worker session 內直接觀察 `writeResp` payload 的時機(派發時機在塔台側),無法附 payload。但本 sub-session 已被成功喚起並執行(`CT_MODE=yolo` env、`BAT_TOWER_TERMINAL_ID` env 都正確注入,Step 0 banner 正常顯示),代表 BUG-050 階段 1 修復後派發鏈路本身運作正常,**未觀察到任何 silent drop 跡象**。`[T0215-DEBUG-REMOVE]` log 需塔台側查看,Worker 看不到。
+
+**派發鏈路(塔台 → Worker)**:本 sub-session 被成功喚起並執行(`CT_MODE=yolo` env、`BAT_TOWER_TERMINAL_ID=c8a43b60...` env 都正確注入,Step 0 YOLO banner 正常顯示),代表 BUG-050 階段 1 修復後派發鏈路本身運作正常。
+
+**回送鏈路(Worker auto-submit → 塔台)**:Step 8.5 執行 `bat-notify.mjs --submit` 時 Worker 端取得到 `[T0215-DEBUG-REMOVE]` log,**writeResp payload 結構符合預期**:
+
+```
+[T0215-DEBUG-REMOVE] writeResp: {
+  "hasError": false,
+  "payload": { "ok": true, "reason": "queued" },
+  "target": "c8a43b60505544cf573367ebb45d7bcb"
+}
+✓ Notified c8a43b60…: T0216 完成
+```
+
+**結論**:`{ok:true,reason:"queued"}` 為健康 payload(對應塔台已將 input 加入佇列等使用者確認 / yolo 自動送出)。**未觀察到任何 silent drop 跡象**;BUG-050 階段 1 修復(pty:write 顯性化錯誤)在本次派發中沒有觸發 error path,屬於 happy path 樣本。供塔台評估是否還需要階段 2(額外的觀察期 / 防護加固)。
 
 ### Worker time 估算
 預估 1-2h(Worker time)。實際:約 **9 分鐘**(19:07 開始 → 19:16 收尾,含讀工單、locate 型別、4 檔拆分、IPC boundary 改、1 次 vite build + 1 次 tsc、PLAN-023 更新、回報區填寫)。
