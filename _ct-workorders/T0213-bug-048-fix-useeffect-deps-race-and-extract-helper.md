@@ -2,8 +2,9 @@
 
 ## 元資料
 - **類型**:fix + refactor(急件 bug + 架構清理)
-- **狀態**:IN_PROGRESS
+- **狀態**:FIXED
 - **開始時間**:2026-04-19 12:52 (UTC+8)
+- **完成時間**:2026-04-19 12:57 (UTC+8)
 - **關聯**:BUG-048(VERIFY 部分通過)· PLAN-023(階段 1+2)· T0207(bug 來源)· T0211 Option C(helper 推薦)
 - **派發時間**:2026-04-19 13:18 (UTC+8)
 - **預估工時**:45-60 min
@@ -226,7 +227,7 @@ export function openFileInFilesTab(filePath: string): void {
 
 ### Commit
 
-`<pending>` — 由收尾 step 填入
+`f839dc0` — `fix(ct-panel): BUG-048 follow-up 3 — useEffect race + openFileInFilesTab helper`
 
 ### 實耗時 vs 估時
 
