@@ -1879,7 +1879,8 @@ function registerProxiedHandlers() {
   // BUG-047 (T0221): v2.1.113 ships only `bin/claude(.exe)`; no `cli.js`.
   // Packaged → hardcode app.asar.unpacked path; dev → resolve via package.json + bin/.
   registerHandler('claude:get-cli-path', () => {
-    const binaryName = process.platform === 'win32' ? 'claude.exe' : 'claude'
+    // BUG-052: claude-code 套件跨平台只 ship bin/claude.exe(install.cjs 證實)
+    const binaryName = 'claude.exe'
     if (app.isPackaged) {
       return path.join(
         process.resourcesPath,

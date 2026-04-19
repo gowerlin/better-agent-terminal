@@ -84,7 +84,9 @@ function dataUrlToContentBlock(dataUrl: string): { type: 'image'; source: { type
 //   - packaged: hardcode `resources/app.asar.unpacked/node_modules/.../bin/<binary>`
 //   - dev:      resolve via `package.json` (stable) then join `bin/<binary>`
 function resolveClaudeCodePath(): string {
-  const binaryName = process.platform === 'win32' ? 'claude.exe' : 'claude'
+  // BUG-052: install.cjs 證實 @anthropic-ai/claude-code 在所有平台都 ship bin/claude.exe
+  // (Unix 忽略副檔名),跨平台檔名永遠是 claude.exe,不需 platform 分支。
+  const binaryName = 'claude.exe'
   if (app.isPackaged) {
     return pathModule.join(
       process.resourcesPath,

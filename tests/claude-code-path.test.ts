@@ -35,7 +35,8 @@ function test(name: string, fn: () => void) {
 }
 
 function resolveClaudeCodePathDev(): string {
-  const binaryName = process.platform === 'win32' ? 'claude.exe' : 'claude'
+  // BUG-052: install.cjs 證實跨平台檔名永遠是 claude.exe(Unix 忽略副檔名)
+  const binaryName = 'claude.exe'
   try {
     const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
     return path.join(path.dirname(pkgPath), 'bin', binaryName)
@@ -65,9 +66,9 @@ test('resolved bin path exists on disk (guards SDK silently dropping file)', () 
   )
 })
 
-test('resolved bin path matches platform binary name', () => {
+test('resolved bin path ends with claude.exe (BUG-052: unified across platforms)', () => {
   const p = resolveClaudeCodePathDev()
-  const expected = process.platform === 'win32' ? 'claude.exe' : 'claude'
+  const expected = 'claude.exe'
   assert.ok(p.endsWith(path.sep + expected), `expected path to end with ${expected}, got: ${p}`)
 })
 

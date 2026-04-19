@@ -681,7 +681,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
     // Build CLI command using bundled CLI
     // Worktree sessions start fresh (--continue would resume a session in git root)
-    const cmdParts = ['node', `"${cliPath}"`]
+    // BUG-051: cliPath 已為 native binary(bin/claude.exe),直接執行即可。
+    // 加 'node' prefix 會讓 Node.js v25 拋 ERR_UNKNOWN_FILE_EXTENSION(.exe 非 .js/.mjs)。
+    const cmdParts = [`"${cliPath}"`]
     if (!isWorktree) {
       cmdParts.push('--continue')
     }
