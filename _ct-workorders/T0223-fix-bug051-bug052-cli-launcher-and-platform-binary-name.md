@@ -4,9 +4,11 @@
 
 - **編號**:T0223
 - **類型**:code
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:⏸️ PARTIAL(code + unit test + build 完成,等使用者 packaged smoke 驗收)
 - **建立時間**:2026-04-19 23:35 (UTC+8)
 - **開始時間**:2026-04-19 23:41 (UTC+8)
+- **完成時間**:2026-04-19 23:45 (UTC+8)
+- **Commit**:`42b45b0`
 - **派發模式**:`--mode yolo --no-interactive` + 斷點 A(packaged smoke 由使用者親驗)
 - **優先級**:🟠 High(BUG-051 100% 阻擋 packaged Windows claude-cli preset)
 - **前置條件**:BUG-051(OPEN)、BUG-052(OPEN)、T0222(research DONE, commit `4ce1d60`)

@@ -1,10 +1,126 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-19 22:47(第十五 session,BUG-047 翻案 research→fix 雙工單連擊 + T0220 3x + T0221 5-8x + GP042 連 40+ hit + packaged smoke 斷點 A 暫停中)
+> 最後更新:2026-04-19 23:48(第十六 session,BUG-047 smoke pass CLOSED + BUG-051/BUG-052 新 bug 雙修連擊 T0222→T0223 + T0223 PARTIAL 斷點 A 暫停等 packaged smoke)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-19 第十五 session,BUG-047 翻案 + T0220/T0221 連擊 + 斷點 A 暫停)
+## 🛏 本 Session 退出快照(2026-04-19 第十六 session,BUG-047 收尾 + BUG-051/BUG-052 雙修連擊 + 斷點 A 暫停)
+
+**退出原因**:T0223 Worker 4 min YOLO code fix 完成(~4-7x 壓縮),回報「部分完成」觸發斷點 A 暫停。Packaged smoke 需使用者實機操作(local build → install → BAT Claude CLI 按鈕實機驗),使用者離線換版,跨界工作完成。
+
+**Session 起手**:2026-04-19 23:20(使用者回報 BUG-047 驗收通過,同時提新 bug 截圖)
+
+**本 session 成果**(~28 min wall,2 工單 + 3 commits + 1 session 快照 commit 待建):
+
+**工單鏈(2 張,research → fix 連擊,沿用第十五 session 模板)**:
+
+- `4ce1d60` + `fc9530a` **T0222 research**(**3 min / est 20-40 min,~7-13x**)— BUG-051 CLI consumer 假設 + dev/packaged 跨平台相容性調查
+  - A 面:grep 盤點 6 類 pattern,確認 `WorkspaceView.tsx:684` 為**唯一** BUG-051 launcher 命中點
+  - B 面:Windows dev 機實證 `./bin/claude.exe --version` 直接回 `2.1.113`;從 `@anthropic-ai/claude-code/install.cjs` 挖出 `// Always write to bin/claude.exe...no-shebang stub...same pattern as Bun's npm package`,證實**跨平台檔名永遠叫 `claude.exe`**(POSIX 由 `chmodSync 0o755` 賦權,Unix 忽略副檔名)
+  - C 面:推薦 α min-diff(1 行),駁回 β(無實質差異)和 γ(單 consumer 過度設計)
+  - **附加發現**:`main.ts:1882` + `tests/claude-code-path.test.ts:38,70` 有**第二層 bug**,POSIX 誤假設檔名為 `claude`(實際也是 `claude.exe`),影響 packaged macOS/Linux,**T0221 修復在非 Windows 平台實際沒修好**
+  - 必答 7 題 CHECK-LIST 全回答,互動 0 次(額度 3)
+  - Mode: `--mode on --interactive`(研究型,允許互動但 Worker 從 install.cjs 強證據直接收斂)
+
+- `42b45b0` **T0223 code fix**(**4 min / est 15-30 min,~4-7x**)— BUG-051 + BUG-052 合併修
+  - `WorkspaceView.tsx:684` 移除 `'node'` prefix(BUG-051 主場)
+  - `electron/claude-agent-manager.ts:87` 和 `electron/main.ts:1882` 的 `binaryName` 統一為 `'claude.exe'`,拿掉 `process.platform === 'win32' ? ... : ...` 三元(BUG-052)
+  - `tests/claude-code-path.test.ts:38,70` POSIX assertion 同步改為 `'claude.exe'`(BUG-052)
+  - **驗證**:`npx tsx tests/claude-code-path.test.ts` **4 pass / 0 fail**、`npx vite build` 4 bundle 全綠(main/renderer/preload/terminal-server)、grep 三處 code 修改行內容確認
+  - Dev smoke 未跑(按工單降級條款以 unit test + grep 替代)
+  - Mode: `--mode yolo --no-interactive` + 斷點 A
+  - **單 atomic commit**(對齊 T0221 風格,4 檔合併)
+
+**BUG/PLAN 狀態變更**:
+- **BUG-047** VERIFY → 🚫 **CLOSED**(Gower v0.0.16-pre.1 實機 smoke pass,T0221 修復生效)
+- **BUG-051** 🆕 建立(🟠 High, OPEN)→ 合併入 T0223 修復,等 packaged smoke
+- **BUG-052** 🆕 建立(🟡 Medium, OPEN)→ T0222 附加發現,合併入 T0223 修復,等 packaged smoke
+- **T0221** PARTIAL → ✅ **DONE**
+- **T0222** ✅ DONE
+- **T0223** ⏸️ **PARTIAL**(等 packaged smoke)
+- **BUG-050** 樣本仍 6(T0222 `--mode on` 非 yolo;T0223 `--mode yolo` 待使用者確認 clean 後才算 +1,門檻 10 還差 3)
+
+**決策日誌**:
+- **D068**:BUG-051 範圍判定 — 使用者選 Q2.C + 「相容 dev server」→ 不走 min-diff 直修,先派研究工單深查所有 consumer 假設 + dev/packaged 跨平台驗證(避免 BUG-047 重演「只驗某面沒驗另一面」)
+- **D069**:BUG-051 與 BUG-047 關係 — **不算翻案**(BUG-047 SDK 側 resolve path 已由 T0221 修正,此為 downstream consumer 端 bug),獨立編號追蹤
+- **D070**:T0222 Worker 附加發現處理 — 開 BUG-052 獨立追蹤 + T0223 一次修兩處(同族 root cause,min-diff 仍成立 ~2 行 + 2 行 test,避免兩張 T 工單 overhead,沿用 T0221「同 pattern 一併修」品質亮點)
+
+**Worker 品質亮點(T0222 + T0223)**:
+- **T0222 Worker**:3 min 完成三面交付,壓縮比 **~7-13x**(研究工單破紀錄;跨類型驗證 GP042,打破先前「research 下限」假設)
+- **T0222 Worker**:B 面 Q2/Q4「無 macOS/Linux 機可詢問使用者」— Worker 從 install.cjs 直接讀出「跨平台檔名永遠叫 claude.exe」的**強證據**,省實機驗證;對齊 GP054「三重證據」精神
+- **T0222 Worker**:**主動挖出 T0221 遺留的預防性 bug**(BUG-052)— code 看到條件式 ≠ 驗證條件式正確,連 T0221 unit test 也沿用錯誤假設
+- **T0222 Worker**:拒絕過度設計,明確推薦 α min-diff,駁回 β/γ,交付分析表直接 driver T0223
+- **T0223 Worker**:4 檔一次到位,單 atomic commit,vite build 全綠 + unit test 4/4 pass,完全按工單指令執行(互動 0 次)
+- **T0223 Worker**:dev smoke 降級策略使用得當(grep + unit test + build 三重證據替代 BAT UI 互動)
+
+**GP042 累積**:Worker time 連 **40+ hit 再 +2**(T0222 ~7-13x + T0223 ~4-7x),跨類型驗證(research + code fix)雙面穩固。`/ct-evolve --skill worker-time-estimation` 升級條件持續累積。
+
+**未執行項(下 session 接)**:
+
+### 🔴 最高優先(BUG-051/052 收尾前置)
+
+**T0223 packaged smoke**(使用者親驗):
+
+```bash
+# 1. local package(不 push tag 避免觸發 CI)
+npm run build:dir   # 或 npm run build 產 NSIS
+
+# 2. 啟動 release/win-unpacked/BetterAgentTerminal.exe(或裝 installer)
+
+# 3. 驗 3 點:
+#    ✅ Claude SDK Integrated Agent(Opus/Sonnet panel)→ 送「hi」→ 正常回應(BUG-047 regression guard)
+#    ✅ workspace → 點「+ Claude CLI」按鈕 → 終端進入 Claude CLI 交互模式(BUG-051 主場)
+#    ✅ debug.log 不含 "ERR_UNKNOWN_FILE_EXTENSION" / "Unknown file extension"
+```
+
+**Smoke pass 後塔台收尾動作**:
+1. T0223 PARTIAL → DONE
+2. BUG-051 OPEN → CLOSED(Windows 親驗即收)
+3. BUG-052 OPEN → CLOSED(Windows 驗對代表修對,macOS/Linux 樣本等自然)
+4. BUG-050 樣本 6 → 7(T0223 YOLO 樣本 clean,門檻 10 還差 3)
+5. `*evolve` 收斂本 session 三條 pattern 候選:
+   - 「GP054 三重證據擴展」— Worker 主動從套件源碼(`install.cjs`)挖檔而非詢問使用者,跨 T0220/T0222 兩張研究工單驗證
+   - 「T 修復連擊 pattern」— T0221 修 A 面 → T0222 挖出 A 面裡的 B 面 → T0223 合併修 B 面(分層拆解,每張工單 <5 min,快於單張大工單)
+   - 「Research 工單壓縮下限再探」— T0222 破 ~7-13x,跨類型驗證 GP042 穩固;條件:Worker 能從源碼挖到強證據 → 省實機驗證
+
+**Smoke fail 處理**:
+- 貼錯誤 + log → 塔台判 Renew T0223 或翻案重查
+- 若「+ Claude CLI」按鈕依然 `ERR_UNKNOWN_FILE_EXTENSION` → 檢查 `WorkspaceView.tsx:684` 在 build 產物中是否真的 rebuild(可能 cache)
+- 若 Claude SDK panel 失效(BUG-047 regression)→ 檢查 `claude-agent-manager.ts:87` 的 binaryName 統一是否破壞原本 Windows 路徑(應該不會,因 Windows 原本就是 claude.exe,但需 log 佐證)
+
+### 🟡 中等優先(第十四/十五 session 殘留)
+
+- **dev smoke T0218+T0219 合併驗收**(PLAN-021 閉環前置)— 9 情境核心(見第十四 session 快照)
+- **BUG-047/051/052 pre.2 tag**(Rico 同步驗收)— 建議 T0223 smoke pass 後打 v0.2.2-pre.2,一次清三個 BUG 對兩人
+
+### 🟢 低優先
+
+- **GP042 升 Skill** `/ct-evolve --skill worker-time-estimation`(40+2 hit,跨類型驗證更穩固)
+- **BUG-050 自然累積**(T0223 YOLO 若 clean 即 +1,門檻 10 → 還差 3)
+- **GP063 / GP064 跨專案驗證**
+
+### 📊 下 session 決策點
+
+- Smoke pass → BUG-051/052 雙 CLOSED + `*evolve` 三條 pattern + 可選 BUG-050 CLOSE 評估 + 可選 pre.2 tag
+- Smoke fail → T0223 Renew 或翻案(視錯誤類型)
+- 若使用者選擇「先做 dev smoke T0218+T0219」→ 優先 PLAN-021 閉環,BUG-051/052 次優先(雖然 BUG-051 High,但 claude-cli preset 有 workaround = 改用 Claude SDK panel)
+- 若 smoke pass 且 BUG-050 樣本累積接近門檻 → 下 session 可大膽推 GP042 升 Skill
+
+**恢復指引**(下次 `/control-tower` 啟動時):
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status` + `git log`(本 session commit 待使用者授權 push — `4ce1d60`/`fc9530a`/`42b45b0` + 本 session 快照 commit)
+3. 下一輪優先級建議:
+   - 🔴 **T0223 packaged smoke**(首選,BUG-051/052 收尾前置)
+   - 🟡 **dev smoke T0218+T0219**(PLAN-021 閉環,第十四 session 殘留)
+   - 🟡 **pre.2 tag**(smoke pass 後一次清 Rico + Gower 的 BUG-047/051/052 三面)
+   - 🟢 **GP042 升 Skill**(42+ hit 穩固後可執行)
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-19 第十五 session,BUG-047 翻案 + T0220/T0221 連擊 + 斷點 A 暫停)
+
+---
 
 **退出原因**:T0221 Worker 5 min YOLO code fix 完成(~5-8x 壓縮),回報「部分完成」觸發斷點 A 暫停。Packaged smoke 需使用者實機操作(local build → install → 實機啟動 SDK prompt),本 session 跨界工作完成,使用者換版後續驗。
 
