@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-19 23:56(第十六 session 延伸收尾,T0223 packaged smoke pass → BUG-051/BUG-052 雙 CLOSED)
+> 最後更新:2026-04-20 00:05(第十六 session 延伸收尾 + *evolve 三條 pattern 晉升 Layer 2 + PLAN-021 驗收暫緩 UX 另案)
 
 ---
 
@@ -8,14 +8,18 @@
 
 **使用者換版後回報**:T0223 packaged smoke「測試通過」→ 本 session 所有工單全綠收尾。
 
-**收尾動作**(23:56 執行):
+**收尾動作**(23:56-00:05 執行):
 1. ✅ T0223 PARTIAL → **DONE**
 2. ✅ BUG-051 OPEN → **CLOSED**(Gower Windows 親驗即收,不走 VERIFY)
 3. ✅ BUG-052 OPEN → **CLOSED**(Windows 驗對代表修對,macOS/Linux 樣本等自然)
 4. ✅ `_bug-tracker.md` 重建(Open:2→0, Closed:14→16, Total:17)
-5. ⏳ BUG-050 樣本 6 → **7**(T0223 `--mode yolo --no-interactive` 全程 clean,無 banner missing / clipboard fallback 觀察),門檻 10 還差 3
-6. ⏳ `*evolve` 三條 pattern 候選(等使用者授權)
-7. ⏳ 可選 pre.2 tag(一次清 Rico+Gower 三 BUG)
+5. ✅ BUG-050 樣本 6 → **7**(T0223 `--mode yolo --no-interactive` 全程 clean,無 banner missing / clipboard fallback 觀察),門檻 10 還差 3
+6. ✅ `*evolve` 三條 pattern 晉升 Layer 2(global):**GP065**(Worker 從套件源碼挖跨環境 ground truth)、**GP066**(T 修復連擊)、**GP042 UPDATE**(連 42+ hit,升 Skill 條件全達) → commit `773d34d`(L081 本專案 pointer)
+7. ⏸️ PLAN-021 dev smoke 驗收暫緩(**D071**)— 使用者識別 UX 體驗設計不佳,另案討論
+8. ⏳ 可選 pre.2 tag(一次清 Rico+Gower 三 BUG,使用者未授權,下 session 再議)
+
+**決策日誌**(第十六 session 延伸):
+- **D071**:PLAN-021 dev smoke 驗收暫緩 — 使用者在 smoke 清單審視階段識別 UX 體驗設計不佳(T0219 移除 Test 按鈕 + 新增 stopServerConfirm 雖 code 對,但整體 Settings Remote 區塊 UX 仍有改進空間),另案討論後再決定是否再派工單 refactor。PLAN-021 T0218/T0219 code 本身保留(已 commit),不退版
 
 **全 session 總結(BUG-047 翻案連環解完)**:
 - 🗓️ 第十四(T0219)→ 第十五(T0220/T0221)→ 第十六(T0222/T0223) **三 session 連環解**
