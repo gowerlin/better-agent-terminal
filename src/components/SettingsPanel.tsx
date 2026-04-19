@@ -66,17 +66,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [serverToken, setServerToken] = useState<string | null>(null)
   const [clientStatus, setClientStatus] = useState<RemoteClientStatus>({ connected: false, info: null })
 
-  // T0218 (PLAN-021): Port management — desired port (editable), test result, save state.
+  // T0219 (PLAN-021): Port management — desired port (editable) and save state.
+  // Test button removed per D065 (error path already surfaces port conflicts on save).
   const [desiredPort, setDesiredPort] = useState<string>(String(settings.remotePort ?? REMOTE_PORT_DEFAULT))
-  const [portTestResult, setPortTestResult] = useState<{
-    port: number
-    available: boolean
-    reason?: string
-    processName?: string
-    pid?: number
-    detail?: string
-  } | null>(null)
-  const [portTesting, setPortTesting] = useState(false)
   const [portSaving, setPortSaving] = useState(false)
   const [portSaveError, setPortSaveError] = useState<string>('')
   const [portSaveNotice, setPortSaveNotice] = useState<string>('')
@@ -122,7 +114,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   // reflects reality rather than stale defaultSettings.
   useEffect(() => {
     const port = serverStatus.port ?? settings.remotePort
-    if (port && String(port) !== desiredPort && portTestResult === null && !portSaving) {
+    if (port && String(port) !== desiredPort && !portSaving) {
       setDesiredPort(String(port))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -226,7 +218,18 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setServerStatus(ss)
   }
 
+  // T0219 (PLAN-021): Stopping the server kills all active connections, so
+  // prompt the user for confirmation when clients are connected. No prompt when
+  // zero clients (don't nag the user for routine operations).
   const handleStopServer = async () => {
+    const activeCount = serverStatus?.clients?.length ?? 0
+    if (activeCount > 0) {
+      const confirmed = await window.electronAPI.dialog.confirm(
+        t('settings.stopServerConfirmMessage', { count: activeCount }),
+        t('settings.stopServerConfirmTitle')
+      )
+      if (!confirmed) return
+    }
     await window.electronAPI.remote.stopServer()
     setServerToken(null)
     const ss = await window.electronAPI.remote.serverStatus()
@@ -239,34 +242,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     if (!Number.isInteger(n) || n < REMOTE_PORT_MIN || n > REMOTE_PORT_MAX) return null
     return n
   }, [desiredPort])
-
-  const handleTestPort = useCallback(async () => {
-    const port = parseDesiredPort()
-    if (port === null) {
-      setPortTestResult({
-        port: parseInt(desiredPort, 10) || 0,
-        available: false,
-        reason: 'invalid',
-        detail: t('settings.remotePortRange', { min: REMOTE_PORT_MIN, max: REMOTE_PORT_MAX }),
-      })
-      return
-    }
-    setPortTesting(true)
-    setPortTestResult(null)
-    try {
-      const result = await window.electronAPI.settings.testPort(port)
-      setPortTestResult({ port, ...result })
-    } catch (err) {
-      setPortTestResult({
-        port,
-        available: false,
-        reason: 'unknown',
-        detail: err instanceof Error ? err.message : String(err),
-      })
-    } finally {
-      setPortTesting(false)
-    }
-  }, [desiredPort, parseDesiredPort, t])
 
   const handleSaveRemotePort = useCallback(async () => {
     setPortSaveError('')
@@ -313,7 +288,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   const handleResetRemotePort = useCallback(() => {
     setDesiredPort(String(REMOTE_PORT_DEFAULT))
-    setPortTestResult(null)
     setPortSaveError('')
     setPortSaveNotice('')
   }, [])
@@ -1151,19 +1125,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       min={REMOTE_PORT_MIN}
                       max={REMOTE_PORT_MAX}
                       value={desiredPort}
-                      onChange={e => { setDesiredPort(e.target.value); setPortTestResult(null); setPortSaveError(''); setPortSaveNotice('') }}
+                      onChange={e => { setDesiredPort(e.target.value); setPortSaveError(''); setPortSaveNotice('') }}
                       placeholder={String(REMOTE_PORT_DEFAULT)}
                       style={{ width: 100 }}
                       disabled={portSaving}
                     />
-                    <button
-                      className="profile-action-btn"
-                      onClick={handleTestPort}
-                      disabled={portTesting || portSaving}
-                      title={t('settings.remotePortTestHint')}
-                    >
-                      {portTesting ? t('settings.remotePortTesting') : t('settings.remotePortTest')}
-                    </button>
                     <button
                       className="profile-action-btn primary"
                       onClick={handleSaveRemotePort}
@@ -1185,23 +1151,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   <p style={{ fontSize: 11, color: '#8b949e', marginTop: 6, fontFamily: 'monospace', wordBreak: 'break-all' }}>
                     {t('settings.remotePortUrlPreview')}: wss://{serverStatus.host || '127.0.0.1'}:{parseDesiredPort() ?? serverStatus.port ?? REMOTE_PORT_DEFAULT}
                   </p>
-
-                  {/* Test result */}
-                  {portTestResult && (
-                    <p style={{ fontSize: 11, marginTop: 4, color: portTestResult.available ? '#3fb950' : '#d29922' }}>
-                      {portTestResult.available
-                        ? t('settings.remotePortAvailable', { port: portTestResult.port })
-                        : portTestResult.reason === 'invalid'
-                          ? t('settings.remotePortInvalid', { detail: portTestResult.detail })
-                          : portTestResult.reason === 'permission-denied'
-                            ? t('settings.remotePortPermissionDenied', { port: portTestResult.port })
-                            : portTestResult.reason === 'in-use' && portTestResult.processName
-                              ? t('settings.remotePortInUseBy', { port: portTestResult.port, processName: portTestResult.processName, pid: portTestResult.pid ?? '?' })
-                              : portTestResult.reason === 'in-use'
-                                ? t('settings.remotePortInUse', { port: portTestResult.port })
-                                : t('settings.remotePortUnknown', { detail: portTestResult.detail ?? '' })}
-                    </p>
-                  )}
 
                   {/* Active connections warning — shown when changing port while connections exist */}
                   {serverStatus.clients.length > 0 && parseDesiredPort() !== null && parseDesiredPort() !== serverStatus.port && (

@@ -96,14 +96,6 @@ const electronAPI = {
       }>,
     cleanupLogs: () =>
       ipcRenderer.invoke('settings:cleanup-logs') as Promise<{ deletedCount: number }>,
-    testPort: (port: number) =>
-      ipcRenderer.invoke('settings:test-port', port) as Promise<{
-        available: boolean
-        reason?: 'in-use' | 'invalid' | 'permission-denied' | 'unknown'
-        processName?: string
-        pid?: number
-        detail?: string
-      }>,
   },
   dialog: {
     selectFolder: () => ipcRenderer.invoke('dialog:select-folder') as Promise<string[] | null>,

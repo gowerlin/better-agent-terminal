@@ -63,13 +63,6 @@ interface ElectronAPI {
       crashesDir: string
     }>
     cleanupLogs: () => Promise<{ deletedCount: number }>
-    testPort: (port: number) => Promise<{
-      available: boolean
-      reason?: 'in-use' | 'invalid' | 'permission-denied' | 'unknown'
-      processName?: string
-      pid?: number
-      detail?: string
-    }>
   }
   dialog: {
     selectFolder: () => Promise<string[] | null>

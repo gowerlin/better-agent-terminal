@@ -77,7 +77,6 @@ import { PROXIED_CHANNELS } from './remote/protocol'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
-import { testPort as testPortImpl } from './remote/port-test'
 import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
@@ -2695,19 +2694,6 @@ function registerLocalHandlers() {
     fingerprint: remoteServer.currentFingerprint,
     clients: remoteServer.connectedClients
   }))
-
-  // T0218 (PLAN-021): Test whether a port is free for RemoteServer to bind.
-  ipcMain.handle('settings:test-port', async (_event, port: number) => {
-    try {
-      return await testPortImpl(port)
-    } catch (err: unknown) {
-      return {
-        available: false,
-        reason: 'unknown' as const,
-        detail: err instanceof Error ? err.message : String(err),
-      }
-    }
-  })
 
   // T0218 (PLAN-021): Hot-switch RemoteServer to a new port, retaining token.
   // On failure, attempts rollback to the old port so existing PTYs with
