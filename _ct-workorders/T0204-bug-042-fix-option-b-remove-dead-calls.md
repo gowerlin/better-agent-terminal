@@ -2,10 +2,12 @@
 
 ## 元資料
 - **類型**:fix(修復型,非互動)
-- **狀態**:IN_PROGRESS
+- **狀態**:FIXED
 - **關聯**:BUG-042 · T0203(研究結論,commit `5fe3f6a`) · PLAN-019(清尾 2 個 tsc error)
 - **派發時間**:2026-04-19 10:48 (UTC+8)
 - **開始時間**:2026-04-19 10:45 (UTC+8)
+- **完成時間**:2026-04-19 10:48 (UTC+8)
+- **Commit**:`85f5743`
 - **預估工時**:10-20 min
 - **Renew 次數**:0
 - **互動**:不啟用(範圍明確,Worker 自主完成)
@@ -231,7 +233,9 @@ src/components/TerminalPanel.tsx(385,24): error TS2339: Property 'markHasUserInp
 
 ### Commit
 
-- hash:待 Step 8 填入
+- hash:`85f5743`
+- 範圍:`src/components/TerminalPanel.tsx` + `src/types/index.ts` + 本工單檔
+- 訊息:`fix(terminal-panel): remove dead agent auto-command calls (BUG-042 Option B)`
 
 ### 互動紀錄
 
