@@ -618,6 +618,56 @@ export class PtyManager {
     }
   }
 
+  /**
+   * T0215 (BUG-050 階段 1) — pty:write 顯性化錯誤回傳路徑。
+   * 與舊 `write()` 併存:舊 write 供內部 caller(fire-and-forget、void return),
+   * 本方法供 RemoteServer invoke 鏈回傳 `{ ok, reason }`,讓 bat-notify 可據以 exit 1。
+   *
+   * 覆蓋 T0214 silent drop 條件 #1/#3/#4/#5/#8/#9。useServer 分支樂觀回 ok(reason=queued),
+   * refork race(條件 #2/#6/#7)留給 PLAN-024 階段 2 的 correlation id 方案。
+   */
+  writeWithResult(id: string, data: string): { ok: boolean; reason?: string } {
+    // [T0215-DEBUG-REMOVE] writeWithResult entry — 供 refork race 假設產出真實資料
+    logger.log('[T0215-DEBUG-REMOVE] writeWithResult entry:', {
+      id,
+      hasInstance: this.instances.has(id),
+      useServer: this.useServer,
+      serverConnected: this.serverProcess?.connected ?? null,
+      dataLen: data.length,
+    })
+
+    // Manager-level check
+    if (!this.instances.has(id)) {
+      return { ok: false, reason: 'pty-not-found' }
+    }
+
+    // useServer 分支:fire-and-forget,樂觀回 ok。
+    // 本分支無法真正保證 terminal-server 寫入成功(refork race),為階段 2 技術債。
+    if (this.useServer) {
+      this.sendToServer({ type: 'pty:write', id, data })
+      return { ok: true, reason: 'queued' }
+    }
+
+    const instance = this.instances.get(id)!
+    if (instance.usePty) {
+      try {
+        instance.process.write(data)
+        return { ok: true }
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        return { ok: false, reason: `pty-write-threw:${msg}` }
+      }
+    }
+
+    // 非 usePty(child_process)分支
+    const cp = instance.process as ChildProcess
+    if (!cp?.stdin) {
+      return { ok: false, reason: 'stdin-missing' }
+    }
+    cp.stdin.write(data)
+    return { ok: true }
+  }
+
   resize(id: string, cols: number, rows: number): void {
     if (this.useServer && this.instances.has(id)) {
       this.sendToServer({ type: 'pty:resize', id, cols, rows })

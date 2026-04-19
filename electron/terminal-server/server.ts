@@ -248,6 +248,13 @@ export class TerminalServer {
   }
 
   private writePty(req: Extract<ServerRequest, { type: 'pty:write' }>): void {
+    // [T0215-DEBUG-REMOVE] writePty entry — 供 refork race 假設產出真實資料
+    process.stderr.write(`[T0215-DEBUG-REMOVE] writePty entry: ${JSON.stringify({
+      id: req.id,
+      hasPty: this.ptys.has(req.id),
+      ts: Date.now(),
+    })}\n`)
+
     const entry = this.ptys.get(req.id)
     if (!entry) {
       // No client context for write — broadcast error (caller may be any client)

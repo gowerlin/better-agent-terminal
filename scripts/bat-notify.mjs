@@ -497,15 +497,35 @@ async function main() {
     }))
 
     const writeResp = await waitForMessageById(ws, writeId)
-    if (writeResp.error) {
-      console.error(`Warning: PTY write failed: ${writeResp.error}`)
+    const writeResult = writeResp.result
+    // [T0215-DEBUG-REMOVE] writeResp dump — 供 refork race 分析
+    console.error(`[T0215-DEBUG-REMOVE] writeResp: ${JSON.stringify({
+      hasError: !!writeResp.error,
+      payload: writeResult,
+      target,
+    })}`)
+    // T0215 (BUG-050 階段 1):嚴格 === false 避免舊 server undefined payload 誤觸發
+    const failed = writeResp.error || (writeResult && writeResult.ok === false)
+    if (failed) {
+      const reason = writeResp.error || writeResult?.reason || 'unknown'
+      console.error(`Error: PTY write failed: ${reason}`)
+      logEvent('bat-notify', 'send', {
+        channel: 'pty:write',
+        result: 'error',
+        reason,
+        submit,
+        appendedCR: submit && !endsWithNewline,
+      })
+      logEvent('bat-notify', 'exit', { code: 1, reason: `pty-write-${reason}` })
+      ws.close()
+      process.exit(1)
     }
     logEvent('bat-notify', 'send', {
       channel: 'pty:write',
-      result: writeResp.error ? 'error' : 'ok',
+      result: 'ok',
       submit,
       appendedCR: submit && !endsWithNewline,
-      error: writeResp.error ?? null,
+      error: null,
     })
   }
 

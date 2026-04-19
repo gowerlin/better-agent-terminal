@@ -1583,7 +1583,10 @@ function registerProxiedHandlers() {
 
   // PTY
   registerHandler('pty:create', (_ctx, options: unknown) => ptyManager?.create(options as import('../src/types').CreatePtyOptions))
-  registerHandler('pty:write', (_ctx, id: string, data: string) => ptyManager?.write(id, data))
+  // T0215 (BUG-050 階段 1):改用 writeWithResult 回 `{ok, reason}`,讓 bat-notify 可據以 exit 1
+  registerHandler('pty:write', (_ctx, id: string, data: string) =>
+    ptyManager?.writeWithResult(id, data) ?? { ok: false, reason: 'manager-not-ready' }
+  )
   registerHandler('pty:resize', (_ctx, id: string, cols: number, rows: number) => {
     logger.log(`[resize] pty:resize id=${id} cols=${cols} rows=${rows}`)
     return ptyManager?.resize(id, cols, rows)
