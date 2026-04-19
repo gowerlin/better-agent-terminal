@@ -3,9 +3,9 @@
 ## 元資料
 - **工單編號**:T0216
 - **任務名稱**:PLAN-023 階段 3 架構重整(FileTree.tsx 拆 4 檔 + FileEntry pathKey 分離全面切換)
-- **狀態**:PENDING
+- **狀態**:IN_PROGRESS
 - **建立時間**:2026-04-19 18:58 (UTC+8)
-- **開始時間**:(sub-session 開始時填入)
+- **開始時間**:2026-04-19 19:07 (UTC+8)
 - **完成時間**:(完成時填入)
 - **目標子專案**:(本專案根,non mono-repo)
 
@@ -120,28 +120,52 @@
 > 以下由 sub-session 填寫,請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-(DONE / FAILED / BLOCKED / PARTIAL)
+DONE(待使用者手動 smoke 驗收;tsc 0 錯誤、vite build 0 錯誤)
 
 ### 產出摘要
-(列出新建檔案、修改檔案、關鍵變更、FileTree.tsx 最終行數、consumer 改動處數)
+
+**新建檔案(4 個)**:
+- `src/types/file.ts`(13 行)— `FileEntry`(含 `pathKey: string` 必填欄位)+ `RawFileEntry` 型別
+- `src/utils/filePathKey.ts`(72 行)— `toPathKey` + `withPathKey/withPathKeys` + 既有檔案類型 helpers(`getFileExt` / `canPreview` / `getFileIcon` / `TEXT_EXTS` / `IMAGE_EXTS`)集中
+- `src/components/FileTreeNode.tsx`(96 行)— FileTreeNode 元件,改用 `selectedKey` / `expandedKeys`(pathKey 集合)
+- `src/components/FileTreeMarkdown.tsx`(121 行)— MarkdownPreview + marked + DOMPurify + mermaid 配置與 lazy import
+
+**修改檔案**:
+- `src/components/FileTree.tsx`:749 → **460 行**(縮減 39%),只保留 FileTree 主元件 + FilePreview(內聚緊耦合,不宜再拆)
+- `electron/preload.ts`:`fs.readdir` / `fs.search` 在 IPC boundary 包 `withPathKeys()`,renderer 端拿到的 entries 都已含 `pathKey`(consumer audit 自動為 free)
+- `src/types/electron.d.ts`:回傳型別 `{name,path,isDirectory}[]` → `import('./file').FileEntry[]`
+- `_ct-workorders/PLAN-023-filetree-architecture-cleanup.md`:狀態 IN_PROGRESS → DONE
+
+**關鍵設計決策**:
+1. **pathKey 注入點選擇 = preload.ts(IPC boundary)**:單一注入點 + 所有 consumer 自動取得,避免每個 readdir/search caller 各自手動 `withPathKey()` 散落、易漏。原方案考慮過「在 renderer 各個 caller 包」,但 audit 風險高(將來新加 readdir consumer 容易忘)。
+2. **FileEntry 改為共享型別(`src/types/file.ts`)**:原 local 定義在 FileTree.tsx 內,promote 到 types 層讓 preload + electron.d.ts + 任意 renderer consumer 都能 import。
+3. **比對點全切換**:`FileTreeNode` 用 `selectedKey: string | null` 與 `expandedKeys: Set<string>`(原為 `selectedPath` / `expandedPaths` + 比對時 inline `toPathKey()`),語意更純。
+4. **Consumer audit 結果**:`tsc --noEmit` 0 錯誤。`ControlTowerPanel` 與 `ClaudeAgentPanel` 雖然用 `fs.readdir`,但只取 `.name` / `.path` / `.isDirectory`,新欄位 `.pathKey` 是無害 superset,結構性子型別自動相容。`ClaudeAgentPanel.fs.search` callback 用 inline anonymous type,`FileEntry` 結構性 assignable 通過。
+5. **同源 dedup 不變**:`ClaudeAgentPanel` 圖片/檔案附件 dedup 用 `.path === filePath`(行 1960/1965/1970/1981),這些路徑同源(electron picker / drag-drop),不需 normalize,維持原樣。
+
+**`.path === ` / `.path.toLowerCase` grep 清零**:除上述 4 處同源 dedup 與 1 處 `typeof detail.path === 'string'` type narrowing 外,FileTree 相關所有跨源比對皆改 `.pathKey === .pathKey`。
+
+**FileTree.tsx 460 行 vs 目標 250 行說明**:
+主檔案剩 FileTree(~360 行)+ FilePreview(~99 行)。FilePreview 與 FileTree 緊耦合(只在此使用、依賴 `canPreview` / `getFileExt`),再拆收益低。460 < 800(專案 file size 標準上限),且結構清晰。若日後 FilePreview 邏輯獨立成長,可再拆 `FilePreview.tsx`。
 
 ### 互動紀錄
-(yolo 模式通常無互動,若有請記錄)
+無(YOLO 模式,全程無使用者互動)
 
 ### Renew 歷程
-(無 Renew 填「無」)
+無
 
 ### 遭遇問題
-(若 tsc 報錯超出預期、發現型別定義位置與預期不同、FileEntry consumer 超出 FileTree 範圍遠超預估等,在此描述)
+無 tsc 報錯。`FileEntry` 原本是 FileTree.tsx 的 local 型別,grep `interface FileEntry` 全專案只 1 處,promote 到 `src/types/file.ts` 過程順利。其他 consumer(ControlTowerPanel / ClaudeAgentPanel)沒有顯式 import `FileEntry` 型別,而是用 inline anonymous type,結構性子型別自動相容,完全沒有 consumer 端要改的地方(IPC boundary 注入策略的最大紅利)。
 
 ### 階段 1 YOLO log 觀察(BUG-050 驗證附帶)
-(本張派發當下的 `writeResp` payload 結構 / 是否出現 `[T0215-DEBUG-REMOVE]` log / 任何 silent drop 跡象)
+本張派發當下無在 Worker session 內直接觀察 `writeResp` payload 的時機(派發時機在塔台側),無法附 payload。但本 sub-session 已被成功喚起並執行(`CT_MODE=yolo` env、`BAT_TOWER_TERMINAL_ID` env 都正確注入,Step 0 banner 正常顯示),代表 BUG-050 階段 1 修復後派發鏈路本身運作正常,**未觀察到任何 silent drop 跡象**。`[T0215-DEBUG-REMOVE]` log 需塔台側查看,Worker 看不到。
 
 ### Worker time 估算
-(預估 vs 實際,供 GP042 累積樣本)
+預估 1-2h(Worker time)。實際:約 **9 分鐘**(19:07 開始 → 19:16 收尾,含讀工單、locate 型別、4 檔拆分、IPC boundary 改、1 次 vite build + 1 次 tsc、PLAN-023 更新、回報區填寫)。
+壓縮比 ~6.7-13x,符合 Worker time 1-2h 的 BAT 預期(2-5x 壓縮)上緣甚至更佳。GP042 樣本:架構重整類工單,tsc-driven 策略 + IPC boundary 注入(避開 consumer audit)能顯著降低執行時間。
 
 ### sprint-status.yaml 已更新
-(不適用,本專案未用 sprint-status)
+不適用(本專案未用 sprint-status)
 
 ### 回報時間
-(填入當前時間)
+2026-04-19 19:16 (UTC+8)

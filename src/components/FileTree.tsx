@@ -4,289 +4,16 @@ import { useMenuPosition } from '../hooks/useMenuPosition'
 import { HighlightedCode } from './PathLinker'
 import { ResizeHandle } from './ResizeHandle'
 import { consumePendingReveal } from '../state/fileTreeRevealBus'
-import hljs from 'highlight.js/lib/core'
-
-interface FileEntry {
-  name: string
-  path: string
-  isDirectory: boolean
-}
+import { FileTreeNode } from './FileTreeNode'
+import { MarkdownPreview } from './FileTreeMarkdown'
+import type { FileEntry } from '../types/file'
+import { toPathKey, getFileExt, canPreview, getFileIcon } from '../utils/filePathKey'
 
 interface FileTreeProps {
   rootPath: string
 }
 
-const TEXT_EXTS = new Set([
-  'ts', 'tsx', 'js', 'jsx', 'json', 'css', 'scss', 'less', 'html', 'htm',
-  'md', 'txt', 'yml', 'yaml', 'toml', 'xml', 'svg', 'sh', 'bash', 'zsh',
-  'py', 'rb', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'hpp', 'cs',
-  'env', 'gitignore', 'editorconfig', 'prettierrc', 'eslintrc',
-  'dockerfile', 'makefile', 'cfg', 'ini', 'conf', 'log',
-])
-
-const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico'])
-
-function getFileExt(name: string): string {
-  const lower = name.toLowerCase()
-  // Handle dotfiles like .gitignore, .env
-  if (lower.startsWith('.') && !lower.includes('.', 1)) {
-    return lower.substring(1)
-  }
-  return lower.split('.').pop() || ''
-}
-
-function canPreview(name: string): 'text' | 'image' | 'pdf' | null {
-  const ext = getFileExt(name)
-  if (TEXT_EXTS.has(ext)) return 'text'
-  if (IMAGE_EXTS.has(ext)) return 'image'
-  if (ext === 'pdf') return 'pdf'
-  return null
-}
-
-// T0209 fix (BUG-048 CONCERN-1/2): Normalize path to a canonical lookup key.
-// - Collapses mixed separators (\ vs /) — fixes Windows rootPath uses /, readdir returns \.
-// - Lowercases — fixes Windows/macOS case-insensitive fs where rootPath and readdir differ in case.
-// - Strips trailing slashes — keeps `C:/foo` and `C:/foo/` identical.
-// Linux is technically case-sensitive, but treating workspace paths as case-insensitive is accepted
-// per T0209 (workspaces rarely contain same-name case-variant siblings).
-function toPathKey(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
-}
-
-function FileTreeNode({
-  entry, depth, selectedPath, expandedPaths, onToggle, onSelect, onContextMenu,
-}: {
-  entry: FileEntry
-  depth: number
-  selectedPath: string | null
-  expandedPaths: Set<string>
-  onToggle: (path: string, nextExpanded: boolean) => void
-  onSelect: (entry: FileEntry) => void
-  onContextMenu: (e: React.MouseEvent, entry: FileEntry) => void
-}) {
-  // BUG-048 fix: `expanded` is now controlled by parent via expandedPaths set.
-  // Children cache stays local (per-node lazy readdir).
-  // T0209 (CONCERN-1/2): look up via normalized key so mixed separators and case mismatch still hit.
-  const expanded = entry.isDirectory && expandedPaths.has(toPathKey(entry.path))
-  const [children, setChildren] = useState<FileEntry[] | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  // Auto-load children when expanded turns true and cache is empty.
-  // This enables expandToPath() to cascade top-down: parent adds its path to expandedPaths,
-  // effect loads children, children matching deeper segments trigger their own effects.
-  //
-  // T0213 fix (BUG-048 follow-up 3): `loading` must NOT be in deps AND must NOT be in the
-  // guard — otherwise setLoading(true) self-triggers the effect, cleanup marks cancelled=true,
-  // and when readdir resolves the setState is skipped, leaving `loading` stuck true forever.
-  // Duplicate dispatch is prevented by `children !== null` after the first success; collapse
-  // → re-expand races are handled by cleanup's cancelled=true + fresh effect run.
-  useEffect(() => {
-    if (!entry.isDirectory || !expanded || children !== null) return
-    let cancelled = false
-    setLoading(true)
-    window.electronAPI.fs.readdir(entry.path).then(entries => {
-      if (cancelled) return
-      setChildren(entries)
-      setLoading(false)
-    }).catch(() => {
-      if (cancelled) return
-      setChildren([])
-      setLoading(false)
-    })
-    return () => { cancelled = true }
-  }, [expanded, entry.isDirectory, entry.path, children])
-
-  const handleClick = useCallback(() => {
-    if (entry.isDirectory) {
-      onToggle(entry.path, !expanded)
-    } else {
-      onSelect(entry)
-    }
-  }, [entry, expanded, onToggle, onSelect])
-
-  const icon = entry.isDirectory
-    ? (expanded ? '📂' : '📁')
-    : getFileIcon(entry.name)
-
-  const isSelected = !entry.isDirectory
-    && selectedPath !== null
-    && toPathKey(entry.path) === toPathKey(selectedPath)
-  const rowRef = useRef<HTMLDivElement>(null)
-
-  // Scroll selected row into view (useful after expandToPath reveal).
-  useEffect(() => {
-    if (isSelected && rowRef.current) {
-      rowRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-    }
-  }, [isSelected])
-
-  return (
-    <>
-      <div
-        ref={rowRef}
-        className={`file-tree-item ${entry.isDirectory ? 'file-tree-folder' : 'file-tree-file'} ${isSelected ? 'selected' : ''}`}
-        style={{ paddingLeft: `${12 + depth * 16}px` }}
-        onClick={handleClick}
-        onContextMenu={(e) => onContextMenu(e, entry)}
-      >
-        <span className="file-tree-icon">{icon}</span>
-        <span className="file-tree-name">{entry.name}</span>
-        {loading && <span className="file-tree-loading">...</span>}
-      </div>
-      {expanded && children && children.map(child => (
-        <FileTreeNode
-          key={child.path}
-          entry={child}
-          depth={depth + 1}
-          selectedPath={selectedPath}
-          expandedPaths={expandedPaths}
-          onToggle={onToggle}
-          onSelect={onSelect}
-          onContextMenu={onContextMenu}
-        />
-      ))}
-    </>
-  )
-}
-
-function getFileIcon(name: string): string {
-  const ext = getFileExt(name)
-  switch (ext) {
-    case 'ts': case 'tsx': return '🔷'
-    case 'js': case 'jsx': return '🟡'
-    case 'json': return '📋'
-    case 'css': case 'scss': case 'less': return '🎨'
-    case 'html': case 'htm': return '🌐'
-    case 'md': return '📝'
-    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'webp': return '🖼️'
-    case 'sh': case 'bash': case 'zsh': return '⚙️'
-    case 'yml': case 'yaml': case 'toml': return '⚙️'
-    case 'lock': return '🔒'
-    case 'py': return '🐍'
-    case 'go': return '🔵'
-    case 'rs': return '🦀'
-    default: return '📄'
-  }
-}
-
-// Markdown rendering using marked + DOMPurify + highlight.js
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
-
-// Configure marked with GFM (tables, task lists, strikethrough) + highlight.js
-marked.setOptions({
-  gfm: true,
-  breaks: false,
-})
-
-// Custom renderer for code blocks (syntax highlighting) and links (open in browser)
-const renderer = new marked.Renderer()
-
-renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
-  // Mermaid blocks: render as div with class "mermaid" for post-render processing
-  if (lang === 'mermaid') {
-    return `<div class="mermaid">${text}</div>`
-  }
-  let highlighted: string
-  try {
-    highlighted = lang
-      ? hljs.highlight(text, { language: lang }).value
-      : hljs.highlightAuto(text).value
-  } catch {
-    highlighted = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  }
-  return `<pre><code class="hljs${lang ? ` language-${lang}` : ''}">${highlighted}</code></pre>`
-}
-
-renderer.link = function ({ href, text }: { href: string; text: string }) {
-  // Links open in external browser, not inside Electron
-  return `<a href="${href}" data-external-link="true">${text}</a>`
-}
-
-renderer.image = function ({ href, text }: { href: string; text: string }) {
-  // Support local file paths
-  const src = href.startsWith('/') ? `file://${href}` : href
-  return `<img alt="${text || ''}" src="${src}" style="max-width:100%"/>`
-}
-
-marked.use({ renderer })
-
-function renderMarkdown(text: string): string {
-  const rawHtml = marked.parse(text) as string
-  return DOMPurify.sanitize(rawHtml, {
-    ADD_TAGS: ['input'],  // Allow checkboxes for task lists
-    ADD_ATTR: ['checked', 'disabled', 'type', 'data-external-link'],
-  })
-}
-
-// Mermaid rendering: dynamically import mermaid only when needed
-let mermaidInstance: typeof import('mermaid')['default'] | null = null
-
-async function getMermaid() {
-  if (!mermaidInstance) {
-    mermaidInstance = (await import('mermaid')).default
-    mermaidInstance.initialize({
-      startOnLoad: false,
-      theme: 'dark',
-      themeVariables: {
-        darkMode: true,
-        background: '#1e1e1e',
-        primaryColor: '#3498db',
-        primaryTextColor: '#e0e0e0',
-        lineColor: '#666',
-      },
-    })
-  }
-  return mermaidInstance
-}
-
-async function renderMermaidBlocks(container: HTMLElement) {
-  const mermaidDivs = container.querySelectorAll('.mermaid')
-  if (mermaidDivs.length === 0) return
-
-  const mermaid = await getMermaid()
-  mermaidDivs.forEach((div, i) => {
-    div.id = `mermaid-${Date.now()}-${i}`
-  })
-  try {
-    await mermaid.run({ nodes: mermaidDivs as unknown as ArrayLike<HTMLElement> })
-  } catch {
-    mermaidDivs.forEach(div => {
-      if (!div.querySelector('svg')) {
-        div.classList.add('mermaid-error')
-      }
-    })
-  }
-}
-
-export function MarkdownPreview({ content }: { content: string }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const html = renderMarkdown(content)
-
-  useEffect(() => {
-    if (containerRef.current) {
-      renderMermaidBlocks(containerRef.current)
-    }
-  }, [html])
-
-  return (
-    <div
-      ref={containerRef}
-      className="file-preview-markdown"
-      dangerouslySetInnerHTML={{ __html: html }}
-      onClick={(e) => {
-        const target = e.target as HTMLElement
-        const link = target.closest('a[data-external-link]') as HTMLAnchorElement | null
-        if (link) {
-          e.preventDefault()
-          window.electronAPI.shell.openExternal(link.href)
-        }
-      }}
-    />
-  )
-}
-
-function FilePreview({ filePath, fileName, refreshKey }: { filePath: string; fileName: string; refreshKey: number }) {
+function FilePreview({ filePath, fileName, refreshKey }: Readonly<{ filePath: string; fileName: string; refreshKey: number }>) {
   const [content, setContent] = useState<string | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -332,13 +59,8 @@ function FilePreview({ filePath, fileName, refreshKey }: { filePath: string; fil
     return () => { cancelled = true }
   }, [filePath, fileName, refreshKey])
 
-  if (loading) {
-    return <div className="file-preview-status">Loading...</div>
-  }
-
-  if (error) {
-    return <div className="file-preview-status">{error}</div>
-  }
+  if (loading) return <div className="file-preview-status">Loading...</div>
+  if (error) return <div className="file-preview-status">{error}</div>
 
   if (imageUrl) {
     return (
@@ -380,11 +102,13 @@ function FilePreview({ filePath, fileName, refreshKey }: { filePath: string; fil
   return null
 }
 
+export { MarkdownPreview }
+
 export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const [entries, setEntries] = useState<FileEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null)
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set())
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
   const restoredRef = useRef(false)
   // T0209 (CONCERN-3): tracks whether an explicit source (bus reveal or user click) has
   // already set selectedFile. Late-arriving localStorage restore callback must skip
@@ -399,9 +123,8 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleToggle = useCallback((path: string, nextExpanded: boolean) => {
-    // T0209 (CONCERN-1/2): store normalized key so lookups match regardless of separator/case.
     const key = toPathKey(path)
-    setExpandedPaths(prev => {
+    setExpandedKeys(prev => {
       const next = new Set(prev)
       if (nextExpanded) next.add(key)
       else next.delete(key)
@@ -447,9 +170,7 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
     loadRoot()
   }, [loadRoot])
 
-  useEffect(() => {
-    loadRoot()
-  }, [loadRoot])
+  useEffect(() => { loadRoot() }, [loadRoot])
 
   // Watch for file system changes and auto-refresh
   useEffect(() => {
@@ -517,9 +238,8 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
         }
         // T0209 (CONCERN-3): if a bus reveal (or user click) already set selectedFile
         // while this async readFile was in flight, do NOT overwrite — bus intent wins.
-        // We still let localStorage cleanup happen above when the file is gone.
         if (bootstrapConsumedRef.current) return
-        setSelectedFile({ path, name, isDirectory: false })
+        setSelectedFile({ path, name, pathKey: toPathKey(path), isDirectory: false })
       })
     } catch {
       localStorage.removeItem(storageKey)
@@ -528,16 +248,13 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
 
   const handleSelect = useCallback((entry: FileEntry) => {
     setSelectedFile(entry)
-    // T0209 (CONCERN-3): user clicks also count as an explicit selection source,
-    // so late localStorage restore must not clobber them.
     bootstrapConsumedRef.current = true
     localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: entry.path, name: entry.name }))
   }, [rootPath])
 
   // BUG-048 fix: programmatically expand every directory along a path and select the file.
   // Intermediate directories' children get loaded via FileTreeNode's useEffect as expansion cascades.
-  // T0209 (CONCERN-1/2): ancestorKeys are normalized (toPathKey) so they match FileTreeNode
-  // lookups whether filePath/rootPath use `/` or `\` and regardless of case.
+  // pathKey-normalized comparisons (PLAN-023) ensure expansion lookups match regardless of separator/case.
   const expandToPath = useCallback((filePath: string) => {
     const rootKey = toPathKey(rootPath)
     const targetKey = toPathKey(filePath)
@@ -547,8 +264,6 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
     const segments = rel.split('/').filter(Boolean)
     if (segments.length === 0) return
 
-    // Ancestor keys to expand (exclude the file itself). All keys are normalized lower-case
-    // with forward slashes, matching toPathKey(entry.path) lookups in FileTreeNode.
     const ancestorKeys: string[] = []
     let acc = rootKey
     for (let i = 0; i < segments.length - 1; i++) {
@@ -556,7 +271,7 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
       ancestorKeys.push(acc)
     }
 
-    setExpandedPaths(prev => {
+    setExpandedKeys(prev => {
       if (ancestorKeys.every(k => prev.has(k))) return prev
       const next = new Set(prev)
       for (const k of ancestorKeys) next.add(k)
@@ -567,10 +282,8 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
     // not the normalized key.
     const nameMatch = filePath.split(/[\\/]/).filter(Boolean)
     const name = nameMatch[nameMatch.length - 1] ?? segments[segments.length - 1]
-    const entry: FileEntry = { path: filePath, name, isDirectory: false }
+    const entry: FileEntry = { path: filePath, name, pathKey: targetKey, isDirectory: false }
     setSelectedFile(entry)
-    // T0209 (CONCERN-3): mark bootstrap consumed so a late localStorage restore callback
-    // does not overwrite this explicit reveal.
     bootstrapConsumedRef.current = true
     localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: filePath, name }))
   }, [rootPath])
@@ -589,7 +302,7 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   useEffect(() => {
     const pending = consumePendingReveal()
     if (pending) expandToPath(pending)
-    // Intentionally run once per FileTree instance (rootPath change remounts via key upstream).
+    // Intentionally run once per FileTree instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -600,7 +313,6 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   }, [])
 
   const getRelativePath = useCallback((filePath: string) => {
-    // Normalize separators and compute relative path
     const norm = (p: string) => p.replace(/\\/g, '/')
     const rel = norm(filePath).replace(norm(rootPath), '').replace(/^\//, '')
     return rel
@@ -636,6 +348,7 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   }
 
   const displayEntries = searchResults !== null ? searchResults : entries
+  const selectedKey = selectedFile?.pathKey ?? null
 
   return (
     <div className="file-tree-split" ref={splitRef}>
@@ -656,11 +369,9 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
             // Search results: flat list with relative paths
             displayEntries.map(entry => (
               <div
-                key={entry.path}
+                key={entry.pathKey}
                 className={`file-tree-item file-tree-file ${
-                  selectedFile && toPathKey(entry.path) === toPathKey(selectedFile.path)
-                    ? 'selected'
-                    : ''
+                  selectedKey !== null && entry.pathKey === selectedKey ? 'selected' : ''
                 }`}
                 style={{ paddingLeft: '12px' }}
                 onClick={() => {
@@ -675,11 +386,11 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
           ) : (
             entries.map(entry => (
               <FileTreeNode
-                key={`${entry.path}:${refreshKey}`}
+                key={`${entry.pathKey}:${refreshKey}`}
                 entry={entry}
                 depth={0}
-                selectedPath={selectedFile?.path || null}
-                expandedPaths={expandedPaths}
+                selectedKey={selectedKey}
+                expandedKeys={expandedKeys}
                 onToggle={handleToggle}
                 onSelect={handleSelect}
                 onContextMenu={handleContextMenu}

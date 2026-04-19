@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { CreatePtyOptions } from '../src/types'
+import type { FileEntry, RawFileEntry } from '../src/types/file'
+import { withPathKeys } from '../src/utils/filePathKey'
 import type {
   VoiceModelInfo,
   VoicePreferences,
@@ -360,10 +362,18 @@ const electronAPI = {
       }>,
   },
   fs: {
-    readdir: (dirPath: string) => ipcRenderer.invoke('fs:readdir', dirPath) as Promise<{ name: string; path: string; isDirectory: boolean }[]>,
+    // PLAN-023 階段 3: promote raw IPC entries to FileEntry (with pathKey) at the boundary
+    // so all renderer consumers can compare via `a.pathKey === b.pathKey` without re-normalizing.
+    readdir: async (dirPath: string): Promise<FileEntry[]> => {
+      const raw = (await ipcRenderer.invoke('fs:readdir', dirPath)) as RawFileEntry[]
+      return withPathKeys(raw)
+    },
     readFile: (filePath: string) => ipcRenderer.invoke('fs:readFile', filePath) as Promise<{ content?: string; error?: string; size?: number }>,
     stat: (filePath: string) => ipcRenderer.invoke('fs:stat', filePath) as Promise<{ mtimeMs: number; size: number } | null>,
-    search: (dirPath: string, query: string) => ipcRenderer.invoke('fs:search', dirPath, query) as Promise<{ name: string; path: string; isDirectory: boolean }[]>,
+    search: async (dirPath: string, query: string): Promise<FileEntry[]> => {
+      const raw = (await ipcRenderer.invoke('fs:search', dirPath, query)) as RawFileEntry[]
+      return withPathKeys(raw)
+    },
     watch: (dirPath: string) => ipcRenderer.invoke('fs:watch', dirPath) as Promise<boolean>,
     unwatch: (dirPath: string) => ipcRenderer.invoke('fs:unwatch', dirPath) as Promise<boolean>,
     resetWatch: (dirPath: string) => ipcRenderer.invoke('fs:reset-watch', dirPath) as Promise<boolean>,

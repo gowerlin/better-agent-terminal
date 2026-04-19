@@ -304,10 +304,10 @@ interface ElectronAPI {
     getModelsDirectory: () => Promise<string>
   }
   fs: {
-    readdir: (dirPath: string) => Promise<{ name: string; path: string; isDirectory: boolean }[]>
+    readdir: (dirPath: string) => Promise<import('./file').FileEntry[]>
     readFile: (filePath: string) => Promise<{ content?: string; error?: string; size?: number }>
     stat: (filePath: string) => Promise<{ mtimeMs: number; size: number } | null>
-    search: (dirPath: string, query: string) => Promise<{ name: string; path: string; isDirectory: boolean }[]>
+    search: (dirPath: string, query: string) => Promise<import('./file').FileEntry[]>
     watch: (dirPath: string) => Promise<boolean>
     unwatch: (dirPath: string) => Promise<boolean>
     resetWatch: (dirPath: string) => Promise<boolean>
