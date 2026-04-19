@@ -2059,3 +2059,84 @@ tls.connect({
 **相關**:GP058(偶發症狀不等於根因消除)、BUG-043(已 CLOSED 誤判案例)、BUG-049(真根因)、第八 session 紀錄
 
 ---
+
+## L079 - 2026-04-19 — FileTree useEffect deps race 模式(本專案易再出現)
+
+**模式**(`src/components/FileTree.tsx:77-91` 修復前狀態):
+```ts
+useEffect(() => {
+  if (!entry.isDirectory || !expanded || children !== null || loading) return  // ← guard 含 loading
+  let cancelled = false
+  setLoading(true)              // ← effect 內部 setState 自身 dep
+  asyncWork().then(...).catch(...)
+  return () => { cancelled = true }
+}, [..., loading])               // ← loading 在 deps
+```
+
+**race window**:
+1. `setLoading(true)` → state 變 → deps 變 → effect 重跑
+2. 重跑時 cleanup 執行 → `cancelled = true`
+3. guard `loading===true` early return,真正 work 不再執行
+4. async resolve 時 cancelled 為 true → skip 所有 setState
+5. 結果:loading 永遠卡 true,UI 顯示 `...` 永久 stuck
+
+**修復**(T0213 Option A,commit `f839dc0`):
+- 從 deps 移除 `loading`
+- 從 guard 移除 `loading`
+- `children !== null` 已負責「成功後不重抓」
+- collapse → re-expand 由 cleanup `cancelled=true` 處理 stale promise
+- duplicate dispatch 不會發生(因 expanded 才會進)
+
+**本專案易再出現的場景**:
+- 任何 controlled async load 元件(autocomplete / 樹狀結構 / 無限滾動 / 圖片預載)
+- 任何 `setLoading(true)` + deps 含 `loading` 的組合
+
+**檢查清單**(寫此類 hook 時必過):
+- [ ] `loading`(或同類 self-set state)是否在 deps?
+- [ ] guard 條件是否依賴 self-set state?
+- [ ] 二者其一存在 → 改用 ref 或從 deps/guard 移除
+
+**AI 驗收限制**:此類 race 純 code walk 看不出來,需 runtime smoke test 或 React Testing Library 跑 effect cycle。
+
+**相關**:T0207(引入 race 的 commit)、T0208(AI 驗收漏抓,觸發 GP060)、T0213(修復 commit)、GP060(AI 驗收 runtime 限制)
+
+---
+
+## L080 - 2026-04-19 — 塔台 YOLO 模式派發確認債
+
+**問題**:
+塔台 `auto-session: yolo` 配置下,使用者明確選擇 A/B/C 後(例如「派研究工單」、「修 Option A」),塔台仍習慣性顯示派發 panel + 問「派發?[A/B/C]」,造成**重複確認債**。
+
+**違反 YOLO 語意**:
+- yolo = 「Worker 自動送出 + 塔台自主決策下一張」
+- 使用者已給方向 = 決策已成立,塔台應直接執行
+- 重複確認 = 塔台退回 ask 模式行為,變相變回非 yolo 工作流
+
+**正確邏輯**:
+| 節點 | YOLO 行為 |
+|------|---------|
+| 需求對齊 | 問(必要,YOLO 不跳過對齊) |
+| Q1/Q2/Q3/Q4 設計選擇 | 問(待決策節點) |
+| 風險決策(刪檔、force push) | 問(safety) |
+| 已決策後的執行(派發、commit、sync) | **直接做,不問** |
+
+**錯誤示例**(本 session 觸發):
+```
+使用者:「C(派研究工單)」
+塔台:「派發?[A] 執行 / [B] 只顯示 / [C] 微調」  ← 多餘
+```
+
+**正確示例**:
+```
+使用者:「C」
+塔台:[直接執行 dispatch,顯示結果]
+```
+
+**檢查時機**:
+- 每次塔台準備出 [A/B/C] 選項時,自問:「使用者剛剛是否已給方向?」
+- 是 → 跳過確認,直接執行
+- 否 → 才出選項
+
+**相關**:GP061(塔台主動性)、本 session 修正紀錄
+
+---

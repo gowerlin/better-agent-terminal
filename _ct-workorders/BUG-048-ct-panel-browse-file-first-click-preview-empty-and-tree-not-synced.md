@@ -2,11 +2,11 @@
 
 ## 元資料
 - **編號**:BUG-048
-- **狀態**:FIXING(T0207 派發中)
+- **狀態**:CLOSED(2026-04-19,使用者 VERIFY 通過,T0207 → T0213 修復鏈閉環)
 - **嚴重度**:🟡 Medium
 - **建立時間**:2026-04-19 10:42 (UTC+8)
 - **發現來源**:使用者回報(第十 session)
-- **關聯**:T0206(研究,`c6d3d97`,DONE)· T0207(Option B 修復,FIXING)
+- **關聯**:T0206(研究,`c6d3d97`,DONE)· T0207(Option B 修復,`40207a3`,FIXED)· T0208(AI 驗收,DONE,14/18 PASS + 4 CONCERN)· T0209(3 MEDIUM CONCERN 修復,PENDING)
 - **可重現**:100%(特定條件下)
 - **workaround**:現象 1 再按一次按鈕;現象 2 無 workaround
 

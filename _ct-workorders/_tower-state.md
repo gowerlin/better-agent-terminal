@@ -1,10 +1,77 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-19 11:36（第十 session,BUG-042/045/049 CLOSED + BUG-048 研究完成 + YOLO end-to-end 首次跑通 + PTY race 研究報告 + Worker time 30+ hit ⭐ proven）
+> 最後更新：2026-04-19 13:35（第十一 session,BUG-048 7 工單修復鏈閉環 CLOSED + BUG-050 雙根因鎖定 + PLAN-023 階段 1+2 完成 + GP060/061/062 + Worker time 35+ hit）
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-19 第十 session,BUG 三連 CLOSED + BUG-049 YOLO 解鎖閉環 + PTY race 分析存檔)
+## 🛏 本 Session 退出快照(2026-04-19 第十一 session,BUG-048 全閉環 + BUG-050 研究完成 + 架構 PLAN-023 + 5 GP/L 批次)
+
+**退出原因**:B 計畫收尾(BUG-048 CLOSED + `*evolve` 6 條 + `_tower-state` 快照 + commit/push)
+
+**本 session 成果**(~2h,7 工單 + 1 BUG 新建 + 1 BUG CLOSED + 1 PLAN 新建):
+
+**BUG-048 修復鏈(7 工單,1.5h 閉環)**:
+- `40207a3` T0207 fix Option B(15 min/est 90-120,**6-8x**)— pending bus + expandToPath + FileTreeNode 受控
+- T0208 AI 驗收 DONE(15 min)— 14/18 PASS,4 CONCERN(2 MEDIUM + 2 LOW),0 FAIL
+- `39c55a3` T0209 fix 3 MEDIUM CONCERN(20-25 min/est 45-60,**2-3x**)— toPathKey + bootstrapConsumedRef
+- T0211 research focus 根因(7 min/est 20-40,**3-5x**)— T0209 漏修 selected 比對精準定位
+- `5d8812b` T0212 fix selected normalize(2 min/est 10-20,**5-10x**)— 僅 2 處比對
+- `f839dc0` T0213 fix deps race + helper(8 min/est 45-60,**5-8x**)— Option A 移除 loading + openFileInFilesTab() 抽離 + 5 處 dispatch 統一
+- BUG-048 → CLOSED(使用者 VERIFY 通過)
+
+**BUG-050 雙根因(T0210 研究 DONE,35 min/est 30-60)**:
+- 根因 A:Worker LLM skill 一致性 regression(SKILL.md 470+ 行,LLM 省略 Step 0 banner + Step 8.5 bat-notify)
+- 根因 B:RemoteServer pty:write silent drop(send=ok 但未真寫 PTY,Q1 使用者證詞)
+- 三症狀:banner missing + clipboard fallback + bat-terminal create silent failure
+- 推薦 Option C 兩階段修復(階段 1 ~1-2h pty:write 顯性化 + 階段 2 ~4-6h skill 拆分 + enforcement)
+- BUG-050 OPEN(待開 PLAN-024 + 派 fix 工單)
+
+**PLAN 新增**:
+- PLAN-023 FileTree 架構重整 IN_PROGRESS(階段 1+2 ✅ T0213 完成 / 階段 3 T0215 待決策)
+
+**`*evolve` 批次寫入(3 GP + 1 GP UPDATE + 2 L)**:
+
+🌐 Global `~/.claude/control-tower-data/learnings/patterns.md`:
+- **GP060** AI 驗收漏 runtime race(純 code walk 看不出 React useEffect/setState 時序)
+- **GP061** 修復鏈累積技術債識別(使用者一句話即升 PLAN)
+- **GP062** PARTIAL VERIFY 連環推進原則(BUG-048 7 工單實證)
+- **GP042 UPDATE** Worker time 連 35+ hit(本 session 5 連發 + 1 within range,⭐ proven 升 Skill 候選穩固)
+
+🏠 Project `_ct-workorders/_learnings.md`:
+- **L079** FileTree useEffect deps race 模式(本專案易再出現,含檢查清單)
+- **L080** 塔台 YOLO 模式派發確認債(明確列出問 vs 不問節點)
+
+**重大方法論突破(3 條)**:
+1. **AI 驗收的 runtime 限制**(GP060)— React hook 時序問題純 code walk 無法 catch,需明確標記限制 + 補 smoke test
+2. **修復鏈技術債主動盤點**(GP061)— 連續 ≥3 張同模組 fix 工單時,塔台應主動列出累積 pattern 並建議 PLAN 升級
+3. **PARTIAL VERIFY 連環推進**(GP062)— 不一次包死,每張 diff 集中、Worker time 普遍壓縮 3-10x、commit 全 atomic 可 revert
+
+**YOLO 觀察(本 session)**:
+- session 11 連續 T0207/T0208/T0209/T0212/T0213 全部使用者手動貼回報(YOLO auto-submit 失效)
+- T0210 揭露雙根因(Worker skill 省略 + server silent drop)
+- BUG-050 三症狀(banner missing + clipboard fallback + terminal create silent failure)全鎖定
+- bat-terminal.mjs script 層 `result:ok` ≠ 後端真創建,trust chain 完全破口
+
+**未執行項(下 session 接)**:
+- 🟡 **BUG-050 Option C 階段 1**(pty:write 顯性化,~1-2h)— PLAN-024 待開
+- 🟢 PLAN-023 階段 3 T0215(FileEntry pathKey 分離 + 拆 FileTree.tsx,~1-2h)
+- 🟡 BUG-047 pre.2 tag(Rico 驗收,session 9 殘留,使用者授權後可打)
+- 🟢 PLAN-022 T0202c fingerprint pinning
+- 🟢 PLAN-008 中文「高」優先級 polish
+- 🟢 GP042 升 Skill `worker-time-estimation` 候選
+
+**恢復指引**(下次 `/control-tower` 啟動時):
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status`(本 session 已 push,無需立即 push)
+3. 下一輪優先級建議:
+   - 🟡 **BUG-050 Option C 階段 1**(YOLO pipeline 體驗修復,首選)
+   - 🟡 BUG-047 pre.2 tag(使用者授權後可打)
+   - 🟢 其他零星 polish
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-19 第十 session,BUG 三連 CLOSED + BUG-049 YOLO 解鎖閉環 + PTY race 分析存檔)
 
 **退出原因**:C 計畫正常收尾(使用者指示 C,下 session 派 T0207 Option B 修復 BUG-048)
 
