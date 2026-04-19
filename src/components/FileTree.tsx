@@ -43,6 +43,16 @@ function canPreview(name: string): 'text' | 'image' | 'pdf' | null {
   return null
 }
 
+// T0209 fix (BUG-048 CONCERN-1/2): Normalize path to a canonical lookup key.
+// - Collapses mixed separators (\ vs /) — fixes Windows rootPath uses /, readdir returns \.
+// - Lowercases — fixes Windows/macOS case-insensitive fs where rootPath and readdir differ in case.
+// - Strips trailing slashes — keeps `C:/foo` and `C:/foo/` identical.
+// Linux is technically case-sensitive, but treating workspace paths as case-insensitive is accepted
+// per T0209 (workspaces rarely contain same-name case-variant siblings).
+function toPathKey(p: string): string {
+  return p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+}
+
 function FileTreeNode({
   entry, depth, selectedPath, expandedPaths, onToggle, onSelect, onContextMenu,
 }: {
@@ -56,7 +66,8 @@ function FileTreeNode({
 }) {
   // BUG-048 fix: `expanded` is now controlled by parent via expandedPaths set.
   // Children cache stays local (per-node lazy readdir).
-  const expanded = entry.isDirectory && expandedPaths.has(entry.path)
+  // T0209 (CONCERN-1/2): look up via normalized key so mixed separators and case mismatch still hit.
+  const expanded = entry.isDirectory && expandedPaths.has(toPathKey(entry.path))
   const [children, setChildren] = useState<FileEntry[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -367,6 +378,10 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null)
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set())
   const restoredRef = useRef(false)
+  // T0209 (CONCERN-3): tracks whether an explicit source (bus reveal or user click) has
+  // already set selectedFile. Late-arriving localStorage restore callback must skip
+  // setSelectedFile when this is true, so bus reveals are not clobbered.
+  const bootstrapConsumedRef = useRef(false)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null)
   const { pos: ctxMenuPos, menuRef: contextMenuRef } = useMenuPosition(contextMenu)
   const [searchQuery, setSearchQuery] = useState('')
@@ -376,10 +391,12 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleToggle = useCallback((path: string, nextExpanded: boolean) => {
+    // T0209 (CONCERN-1/2): store normalized key so lookups match regardless of separator/case.
+    const key = toPathKey(path)
     setExpandedPaths(prev => {
       const next = new Set(prev)
-      if (nextExpanded) next.add(path)
-      else next.delete(path)
+      if (nextExpanded) next.add(key)
+      else next.delete(key)
       return next
     })
   }, [])
@@ -486,11 +503,15 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
       const { path, name } = JSON.parse(saved)
       // Check if file still exists
       window.electronAPI.fs.readFile(path).then(result => {
-        if (!result.error) {
-          setSelectedFile({ path, name, isDirectory: false })
-        } else {
+        if (result.error) {
           localStorage.removeItem(storageKey)
+          return
         }
+        // T0209 (CONCERN-3): if a bus reveal (or user click) already set selectedFile
+        // while this async readFile was in flight, do NOT overwrite — bus intent wins.
+        // We still let localStorage cleanup happen above when the file is gone.
+        if (bootstrapConsumedRef.current) return
+        setSelectedFile({ path, name, isDirectory: false })
       })
     } catch {
       localStorage.removeItem(storageKey)
@@ -499,43 +520,50 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
 
   const handleSelect = useCallback((entry: FileEntry) => {
     setSelectedFile(entry)
+    // T0209 (CONCERN-3): user clicks also count as an explicit selection source,
+    // so late localStorage restore must not clobber them.
+    bootstrapConsumedRef.current = true
     localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: entry.path, name: entry.name }))
   }, [rootPath])
 
   // BUG-048 fix: programmatically expand every directory along a path and select the file.
   // Intermediate directories' children get loaded via FileTreeNode's useEffect as expansion cascades.
+  // T0209 (CONCERN-1/2): ancestorKeys are normalized (toPathKey) so they match FileTreeNode
+  // lookups whether filePath/rootPath use `/` or `\` and regardless of case.
   const expandToPath = useCallback((filePath: string) => {
-    const norm = (p: string) => p.replace(/\\/g, '/')
-    const lowerNorm = (p: string) => norm(p).toLowerCase()
-    if (!lowerNorm(filePath).startsWith(lowerNorm(rootPath))) return
+    const rootKey = toPathKey(rootPath)
+    const targetKey = toPathKey(filePath)
+    if (!targetKey.startsWith(rootKey)) return
 
-    const normRoot = norm(rootPath).replace(/\/+$/, '')
-    const normTarget = norm(filePath)
-    const rel = normTarget.slice(normRoot.length).replace(/^\/+/, '')
+    const rel = targetKey.slice(rootKey.length).replace(/^\/+/, '')
     const segments = rel.split('/').filter(Boolean)
     if (segments.length === 0) return
 
-    // Ancestor directory paths to expand (exclude the file itself).
-    // Rebuild using the original file path's separators to stay consistent with entries from readdir.
-    const usesBackslash = filePath.includes('\\') && !filePath.includes('/')
-    const sep = usesBackslash ? '\\' : '/'
-    const ancestorPaths: string[] = []
-    let acc = rootPath.replace(/[\\/]+$/, '')
+    // Ancestor keys to expand (exclude the file itself). All keys are normalized lower-case
+    // with forward slashes, matching toPathKey(entry.path) lookups in FileTreeNode.
+    const ancestorKeys: string[] = []
+    let acc = rootKey
     for (let i = 0; i < segments.length - 1; i++) {
-      acc = acc + sep + segments[i]
-      ancestorPaths.push(acc)
+      acc = acc + '/' + segments[i]
+      ancestorKeys.push(acc)
     }
 
     setExpandedPaths(prev => {
-      if (ancestorPaths.every(p => prev.has(p))) return prev
+      if (ancestorKeys.every(k => prev.has(k))) return prev
       const next = new Set(prev)
-      for (const p of ancestorPaths) next.add(p)
+      for (const k of ancestorKeys) next.add(k)
       return next
     })
 
-    const name = segments[segments.length - 1]
+    // Derive display name from the ORIGINAL filePath (preserves case/separator for UI),
+    // not the normalized key.
+    const nameMatch = filePath.split(/[\\/]/).filter(Boolean)
+    const name = nameMatch[nameMatch.length - 1] ?? segments[segments.length - 1]
     const entry: FileEntry = { path: filePath, name, isDirectory: false }
     setSelectedFile(entry)
+    // T0209 (CONCERN-3): mark bootstrap consumed so a late localStorage restore callback
+    // does not overwrite this explicit reveal.
+    bootstrapConsumedRef.current = true
     localStorage.setItem(`file-tree-selected:${rootPath}`, JSON.stringify({ path: filePath, name }))
   }, [rootPath])
 
