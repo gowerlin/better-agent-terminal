@@ -44,10 +44,38 @@
 | D060 | 2026-04-18 | yolo 下一張工單資訊來源採 Q2.A（研究工單 D 區段） | PLAN-020/T0167 |
 | D061 | 2026-04-18 | CT-T002 閉環 + v4.2.0 tag，對方塔台已吸收 yolo 功能 | CT-T002/PLAN-020 |
 | D062 | 2026-04-18 | Worker 無狀態原則：所有 runtime context 由塔台派單 explicit 傳遞 | BUG-040/BUG-041/T0176+ |
+| D063 | 2026-04-19 | BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log 再決策階段 2 | BUG-050/T0215/PLAN-024 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D063 2026-04-19 — BUG-050 階段 1 smoke 通過,FIXING → VERIFY,觀察 YOLO log 再決策階段 2
+
+- **背景**:T0215 交付 BUG-050 Option C 階段 1 方案 A(`38725e9`)— `writeWithResult` 新 API + `bat-notify.mjs` 嚴格 `ok === false` 阻斷,覆蓋 9 個 silent drop 點中的 6 個(#1/#3/#4/#5/#8/#9)。第十三 session 啟動後使用者重啟 BAT 載入新 server,跑 smoke 場景 1(正常 target,預期 ok:true)+ 場景 2(不存在 target,預期 ok:false + 顯性錯誤)。
+- **smoke 結果**:場景 1 `exit=0` + `{ok:true,reason:"queued"}` + 訊息到達;場景 2 `exit=1` + `{ok:false,reason:"pty-not-found"}` + stderr `Error: PTY write failed: pty-not-found`。兩場景 100% 符合 T0215 預期。
+- **F-13 三選項**:
+  - [A] VERIFY + 觀察 YOLO log(3-5 張樣本)
+  - [B] 直接 CLOSED
+  - [C] 派 AI 驗收工單
+- **決定**:[A] VERIFY + 觀察 YOLO log
+- **理由**:
+  1. 階段 1 方案 A 僅覆蓋 6/9 silent drop 點,refork race(#2/#6/#7)要階段 2 correlation id
+  2. smoke 只驗 happy path + 1 error path,不等於真實 YOLO 工作流全覆蓋
+  3. 第十二 session 快照明確指引「連續觀察 3-5 張 YOLO log 樣本」— 這是評估階段 2 必要性的關鍵資料
+  4. PLAN-024 雙階段包裹已 PLANNED,VERIFY 期間累積的 log 樣本直接餵給階段 2 決策
+- **觀察目標**(3-5 張 YOLO log):
+  - `[T0215-DEBUG-REMOVE]` 出現頻率與 payload 結構穩定性
+  - 是否有 `ok:false` 以外的非預期 reason
+  - refork race(#2/#6/#7)是否在真實 YOLO 流程中觸發
+  - 若階段 1 已足夠 → CLOSED + 清理 debug log;若 refork race 出現 → 啟動階段 2
+- **下一步**:
+  - 階段 1 留 VERIFY,累積 YOLO 派發樣本
+  - `[T0215-DEBUG-REMOVE]` 3 處標記供未來 grep 清理(CLOSED 或 階段 2 完成時)
+  - PLAN-024 階段 2(correlation id)等觀察期結論
+- **相關工單**:BUG-050 / T0214(research)/ T0215(fix 方案 A)/ PLAN-024
 
 ---
 

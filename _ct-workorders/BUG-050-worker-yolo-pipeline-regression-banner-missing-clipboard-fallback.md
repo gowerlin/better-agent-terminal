@@ -2,7 +2,7 @@
 
 ## 元資料
 - **編號**:BUG-050
-- **狀態**:FIXING(研究 T0210 派發中)
+- **狀態**:🧪 VERIFY(階段 1 方案 A 代碼交付 `38725e9`,smoke 場景 1/2 通過,觀察 3-5 張 YOLO log 樣本後決策 CLOSED 或階段 2)
 - **嚴重度**:🟡 Medium
 - **建立時間**:2026-04-19 12:30 (UTC+8)
 - **發現來源**:本 session(第十一)T0209 banner 消失觀察延伸
@@ -73,3 +73,33 @@ BAT_REMOTE_TOKEN=3545c...                                 ✅
 - **不阻擋 BUG-048 VERIFY**:T0209 已完成,BUG-048 仍可手動驗收,本 BUG 只影響 YOLO 流暢度不影響修復品質
 - **影響範圍**:所有 yolo 派發的工單需使用者手動回報,壓縮 YOLO pipeline 效益
 - **歷史對照**:session 10 BUG-049 closed 後連續 2 張成功 auto-submit(T0205/T0206),本 session 連續 3 張失敗 → 100% regression
+
+## 階段 1 驗收紀錄(2026-04-19 18:54,第十三 session)
+
+**前置**:使用者重啟 BAT 載入 `38725e9` server(T0215 交付)
+
+**場景 1 — 正常 target**
+```bash
+$ node scripts/bat-notify.mjs --target $BAT_TERMINAL_ID "smoke-1"
+[T0215-DEBUG-REMOVE] writeResp: {"hasError":false,"payload":{"ok":true,"reason":"queued"},"target":"117fa79d-3e1c-4460-ae78-9cfd7a3f2754"}
+✓ Notified 117fa79d…: smoke-1
+exit=0
+```
+判定:PASS(exit 0 + structured ok:true)
+
+**場景 2 — 不存在 target**
+```bash
+$ node scripts/bat-notify.mjs --target deadbeefdeadbeefdeadbeefdeadbeef "smoke-2"
+[T0215-DEBUG-REMOVE] writeResp: {"hasError":false,"payload":{"ok":false,"reason":"pty-not-found"},"target":"deadbeefdeadbeefdeadbeefdeadbeef"}
+Error: PTY write failed: pty-not-found
+exit=1
+```
+判定:PASS(exit 1 + stderr 顯性錯誤 + T0210 錯覺機制消除)
+
+**核心驗證**:
+- `writeWithResult` 新 API 結構化回覆 ✅
+- `bat-notify.mjs` 嚴格 `ok === false` 阻斷 ✅
+- 3 處 `[T0215-DEBUG-REMOVE]` log 如預期出現
+
+**FIXING → VERIFY 決策**(F-13 選項 A):觀察 3-5 張 YOLO 派發的 debug log 樣本後決策 CLOSED 或啟動階段 2(correlation id,覆蓋 refork race #2/#6/#7)
+
