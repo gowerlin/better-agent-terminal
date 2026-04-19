@@ -2,11 +2,13 @@
 
 ## 元資料
 - **類型**:fix(BUG 修復)
-- **狀態**:IN_PROGRESS
-- **關聯**:BUG-048(OPEN)· 研究 T0206(DONE, `c6d3d97`)
+- **狀態**:FIXED
+- **關聯**:BUG-048(FIXING)· 研究 T0206(DONE, `c6d3d97`)· 修復 commit `40207a3`
 - **派發時間**:2026-04-19 11:42 (UTC+8)
 - **開始時間**:2026-04-19 11:47 (UTC+8)
+- **完成時間**:2026-04-19 11:54 (UTC+8)
 - **預估工時**:1.5-2 h
+- **實耗工時**:~15 min
 - **Renew 次數**:0
 - **互動**:不允許(範圍明確,設計自由度已授權)
 
@@ -160,8 +162,7 @@ FIXED(修復已完成,等待 AI 驗收 + 使用者 VERIFY)
 PASS(vite 7.3.2,254 modules transformed,no TS errors,no new warnings)。只剩 pre-existing chunk size warning(不在本工單範圍)。
 
 ### Commit
-即將 commit:`fix(ct-panel): BUG-048 Option B — pending queue + expandToPath()`
-(SHA 於 commit 後回填本區)
+`40207a3` — fix(ct-panel): BUG-048 Option B — pending reveal bus + expandToPath()
 
 ### 實耗時 vs 估時
 Worker 實耗約 15 min / 估 90-120 min,壓縮比 ~6-8x。
