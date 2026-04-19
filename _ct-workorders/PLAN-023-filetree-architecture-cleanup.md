@@ -2,7 +2,7 @@
 
 ## 元資料
 - **編號**:PLAN-023
-- **狀態**:IN_PROGRESS(階段 1+2 完成 ✅,階段 3 T0215 待使用者決策是否啟動)
+- **狀態**:IN_PROGRESS(階段 1+2 完成 ✅,階段 3 T0216 2026-04-19 派發 YOLO)
 - **優先級**:🟡 Medium
 - **類型**:技術改善(架構重整)
 - **建立時間**:2026-04-19 13:15 (UTC+8)
@@ -28,7 +28,7 @@ BUG-048 修復鏈(T0207 → T0212)暴露 FileTree 相關元件的累積技術債
 
 ### 階段 3(獨立後續,非本 session)
 
-- **T0215(待開)**:`FileEntry.pathKey` 分離 + 拆 FileTree.tsx
+- **T0216(待開)**:`FileEntry.pathKey` 分離 + 拆 FileTree.tsx
   - 新增 `pathKey` 欄位(normalized,僅比對用)
   - `path` 保留原字串(display / IPC / read)
   - 拆檔:FileTreeNode / FileTree / markdown 配置各自獨立
@@ -39,7 +39,7 @@ BUG-048 修復鏈(T0207 → T0212)暴露 FileTree 相關元件的累積技術債
 ## 驗收標準
 
 - 階段 1+2:T0213 完成 + BUG-048 VERIFY 通過(含 TreeNode highlight + 手動 click 不 stuck)
-- 階段 3:T0215 完成 + 型別 audit 不破壞現有 consumer
+- 階段 3:T0216 完成 + 型別 audit 不破壞現有 consumer
 
 ## 關聯
 
