@@ -3,9 +3,9 @@
 ## 元資料
 - **工單編號**:T0217
 - **任務名稱**:PLAN-022 dispatcher 與 notify 共通 fingerprint pinning(對齊 PLAN-018 T0182 安全基建)
-- **狀態**:PENDING
+- **狀態**:IN_PROGRESS
 - **建立時間**:2026-04-19 19:30 (UTC+8)
-- **開始時間**:(sub-session 開始時填入)
+- **開始時間**:2026-04-19 19:32 (UTC+8)
 - **完成時間**:(完成時填入)
 - **目標子專案**:(本專案根,non mono-repo)
 
@@ -118,33 +118,62 @@
 > 以下由 sub-session 填寫,請勿在指揮塔 session 中編輯
 
 ### 完成狀態
-(DONE / FAILED / BLOCKED / PARTIAL)
+DONE
 
 ### 產出摘要
-(列出修改檔案、關鍵實作決策、是否抽共用 helper、fingerprint 欄位確認結果)
+**新增檔案**:
+- `scripts/_bat-cert.mjs` — 共用 helper,export `loadTrustedFingerprint()`,內含跨平台 userData 路徑解析 + JSON parse + fingerprint 欄位驗證,支援 `BAT_SERVER_CERT_PATH` env override(供 smoke 測試 mismatch 情境而不動真實 cert)
+
+**修改檔案**:
+- `scripts/bat-terminal.mjs`:
+  - 新增 `import { loadTrustedFingerprint } from './_bat-cert.mjs'`
+  - `MinimalWS.connect` 的 `secureConnect` callback 加入三步驗證(load trust → 讀 peer fingerprint256 → 比對),三條 fail-close 路徑都 destroy socket + reject with prefixed error
+  - main() catch 區塊改成 if/else 階梯,新增 `fingerprint-mismatch` / `server-cert-unreadable` reason 對應的 hint
+- `scripts/bat-notify.mjs`:同 pattern 套用(GP056 sibling fix,程式碼幾乎逐字相同,僅 logEvent scope 不同)
+- `_ct-workorders/PLAN-022-dispatcher-fingerprint-pinning.md`:Step 1+2 標 DONE,新增 T0217 實作備註(fail-close 決策、helper 抽出、欄位名修正紀錄)
+
+**關鍵實作決策**:
+1. **抽共用 helper**:`_bat-cert.mjs` 只 export 一個 function,~70 行含註解,維護成本遠低於兩 script 內聯重複
+2. **欄位名修正**:PLAN-022 骨架假設 `fingerprint256`,實際讀 `electron/remote/certificate.ts` 確認是 `fingerprint`(server-side persisted 用此名)。`fingerprint256` 是 Node TLS `getPeerCertificate()` 回傳欄位名,兩者 format 一致(大寫 hex + `:` 分隔)可直接 `===` 比對
+3. **Fail-close 兩種 reason**:`fingerprint-mismatch`(MITM 警示)vs `server-cert-unreadable`(BAT app 未啟動或路徑錯)— 用前綴 `xxx:` pattern 在 main() 區分,讓 log 與 stderr hint 都能精準歸因
+4. **不動 timer/onFail 結構**:reject 後 `clearTimeout(timer)` + `socket.destroy()`,保留既有 close 事件 fallback(Promise reject 後重複 reject 是 no-op)
+5. **smoke 測試用 env override**:`BAT_SERVER_CERT_PATH` 讓測試指向假檔,完全不動真實 `server-cert.json`(避免 BAT app 失聯風險,也免除「測完務必還原」的人工步驟)
 
 ### 互動紀錄
-(YOLO 模式通常無互動,若有請記錄)
+無(YOLO 模式自動執行)
 
 ### Renew 歷程
-(無 Renew 填「無」)
+無
 
 ### 遭遇問題
-(若 certificate.ts fingerprint 欄位名與 PLAN-022 骨架不符 / bat-notify 結構差異大需調整 / cross-platform 路徑疑慮等,在此描述)
+- **欄位名不符**:PLAN-022 骨架的 `fingerprint256` 假設與 `certificate.ts` 真實欄位 `fingerprint` 不同。讀 source 後確認:Persisted 用 `fingerprint`(certificate.ts:10/16/89),Node TLS API 對端讀取用 `fingerprint256`,兩者 format 完全相同(`computeFingerprint()` 在 certificate.ts:25-36 用 `:` 分隔大寫 hex,與 Node 的 `fingerprint256` 一致),可直接 `===` 比對。已在 PLAN-022 備註註明
+- **MSYS2 路徑改寫副作用**:smoke 2b 用 `/nonexistent/path/...` 觸發 unreadable 時,Git Bash 會把它改寫成 `C:/Program Files/Git/nonexistent/...`(屬本專案已知 BUG-030 同源行為),但 readFileSync 仍正確 ENOENT、reason 仍正確分類為 `server-cert-unreadable`,fail-close 行為不受影響
 
 ### Smoke 實測結果
-- 情境 1(match):exit=? / 訊息到達=?
-- 情境 2(mismatch):exit=? / stderr=?
-- BUG-050 階段 1 回跑(場景 1/2):通過=?
+- **情境 1(match)**:exit=0 / 訊息到達=✅(`✓ Notified c8a43b60…: smoke-t0217-match`)/ writeResp `{ok: true, reason: "queued"}`
+- **情境 2(mismatch)**:exit=1 / stderr=`fingerprint-mismatch: expected DE:AD:BE:EF:... actual DA:CC:0D:59:6D:99:5A:24:77:51:4E:00:BD:B0:3C:68:68:F8:04:AC:F7:EB:B8:82:B4:A0:A6:62:93:50:54:65. Possible MITM or BAT app cert regenerated. Restart this terminal to pick up the new fingerprint.` ✅
+- **情境 2b(server-cert-unreadable)**:exit=1 / stderr=`server-cert-unreadable: ENOENT: no such file or directory, open ...` ✅
+- **BUG-050 階段 1 回跑(場景 3)**:`bat-terminal.mjs --notify-id ... echo` exit=0,新終端正常派發 ✅(fingerprint pinning 不破壞既有派發路徑)
 
 ### BUG-050 階段 1 YOLO log 觀察(樣本 #2)
-(改 bat-notify 過程中觀察到的 `writeResp` payload 結構 / 異常跡象;若一切正常也明確標示)
+**`writeResp` payload 結構正常**:smoke 1(match)時 `[T0215-DEBUG-REMOVE]` log 顯示 `writeResp: {"hasError":false,"payload":{"ok":true,"reason":"queued"},"target":"c8a43b60..."}`。
+- `hasError: false` ✅
+- `payload.ok: true` ✅(非 undefined,非 false)
+- `payload.reason: "queued"` ✅(預期值,符合 RemoteServer 的 ack 結構)
+
+未觀察到 BUG-050 描述的 writeResp 異常(沒有 `ok: false` / `payload: undefined` 跡象)。本樣本為 fingerprint pinning 啟用後的首次驗證,可作為塔台評估「BUG-050 階段 1 fix 是否穩定 / 階段 2 是否必要」的支持證據(YOLO log 樣本 #2,前一筆樣本 #1 在 T0215)。
 
 ### Worker time 估算
-(預估 vs 實際,供 GP042 累積樣本)
+- **預估**:~50-65 min(PLAN-022 Step 1+2 35-50 min + bat-notify sibling fix 15 min)
+- **實際**:~6 min(19:32 → 19:38)
+- **差距**:預估高估 ~10x。原因:
+  1. PLAN-022 骨架已給出明確實作藍圖,實際只需「修欄位名 + 補 helper + 套兩處」
+  2. Sibling fix 的兩 script 結構幾乎相同,直接 mirror 即可
+  3. Smoke 測試 env override 設計避免真實 cert 動土,省下還原步驟與風險
+- **GP042 樣本**:估時對「結構清晰、骨架現成、有 sibling reference」的安全改善任務似乎容易高估,可作為未來估時校正樣本
 
 ### sprint-status.yaml 已更新
-(不適用,本專案未用 sprint-status)
+不適用(本專案未用 sprint-status)
 
 ### 回報時間
-(填入當前時間)
+2026-04-19 19:38 (UTC+8)

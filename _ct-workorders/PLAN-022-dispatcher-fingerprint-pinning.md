@@ -3,11 +3,11 @@
 ## 元資料
 - **編號**:PLAN-022
 - **標題**:Dispatcher fingerprint pinning(對齊 PLAN-018 T0182 安全要求)
-- **狀態**:PLANNED
+- **狀態**:Step 1+2 DONE / Step 3 PLANNED
 - **優先級**:🟡 Medium(非功能 blocker,但 `rejectUnauthorized: false` 長期是安全缺口)
 - **類型**:技術改善(安全對齊)
 - **建立時間**:2026-04-19 03:15 (UTC+8)
-- **關聯**:T0201(D 段 T0202c 列)、T0202b(TLS 升級但未加 pinning)、PLAN-018 T0182(server 端 fingerprint pinning 基建)、BUG-046(延伸議題)
+- **關聯**:T0201(D 段 T0202c 列)、T0202b(TLS 升級但未加 pinning)、PLAN-018 T0182(server 端 fingerprint pinning 基建)、BUG-046(延伸議題)、T0217(Step 1+2 實作工單)
 
 ## 動機 / 背景
 
@@ -39,11 +39,16 @@ Dispatcher(`scripts/bat-terminal.mjs` 的 `MinimalWS.connect`)驗證 server cert
 
 ## 拆單建議(實作時)
 
-| 工單 | 範圍 | 估時 |
-|-----|------|------|
-| T#### Step 1 | 從 `server-cert.json`(user-data dir)讀 fingerprint(最簡方案,信任來源為 BAT app 本身) | 15-20 min |
-| T#### Step 2 | 加 fingerprint 比對邏輯 + 失敗錯誤訊息 + T0200 log event(`exit:fingerprint-mismatch`) | 20-30 min |
-| T#### Step 3(選用) | TOFU fallback:若無 `server-cert.json` → 第一次連線後寫 `~/.bat-dispatcher/trust.json` 記錄;後續比對 | 20-30 min |
+| 工單 | 範圍 | 估時 | 狀態 |
+|-----|------|------|------|
+| T0217 Step 1+2 | 從 `server-cert.json`(user-data dir)讀 fingerprint + 加比對邏輯 + 失敗錯誤訊息 + log event(`exit:fingerprint-mismatch` / `exit:server-cert-unreadable`)。Sibling fix 同步修 bat-notify.mjs(GP056)。 | 35-50 min | ✅ DONE(2026-04-19) |
+| T#### Step 3(選用) | TOFU fallback:若無 `server-cert.json` → 第一次連線後寫 `~/.bat-dispatcher/trust.json` 記錄;後續比對 | 20-30 min | PLANNED |
+
+**T0217 實作備註**:
+- Step 1+2 實際採 fail-close(無 TOFU fallback),原因是「BAT app 已啟動」是 dispatcher 連線的隱含前提;cert 讀失敗 = BAT app 未準備好 = 應拒絕連線
+- 抽出共用 helper `scripts/_bat-cert.mjs`(`loadTrustedFingerprint()`),bat-terminal 與 bat-notify 共用
+- 欄位名以 `electron/remote/certificate.ts` 為準:`fingerprint`(本骨架原假設 `fingerprint256` 是錯誤的;`fingerprint256` 是 Node TLS API 的對端讀取欄位名)
+- Smoke 三情境通過(match / mismatch / unreadable)
 
 ## 技術考量
 

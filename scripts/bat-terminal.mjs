@@ -24,6 +24,7 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { logEvent, snapshotBatEnv } from './_bat-logger.mjs'
+import { loadTrustedFingerprint } from './_bat-cert.mjs'
 
 // T0192: Log the entry point before any parsing, so even fast-path help/version
 // invocations show up in diagnostics. argv is recorded verbatim (contains no
@@ -281,7 +282,7 @@ class MinimalWS {
 
       // T0202b/BUG-046: Server is https.createServer + wss:// since PLAN-018 T0182.
       // Dispatcher must TLS-handshake before sending HTTP upgrade. Self-signed cert,
-      // so trust chain is disabled; fingerprint pinning is deferred to T0202c.
+      // so chain validation is disabled; we pin the fingerprint instead (T0217/PLAN-022).
       // SNI (servername) may not be an IP literal per RFC 6066; only set when host
       // looks like a hostname.
       const isIpLiteral = /^(\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(':')
@@ -293,6 +294,39 @@ class MinimalWS {
       })
 
       this.#socket.once('secureConnect', () => {
+        // T0217/PLAN-022 Step 1+2: Verify peer cert against BAT app's
+        // server-cert.json fingerprint (fail-close on read failure or mismatch).
+        // Aborting before sending the HTTP upgrade ensures we never leak the
+        // auth token to a server we don't trust.
+        const trust = loadTrustedFingerprint()
+        if (!trust.ok) {
+          clearTimeout(timer)
+          this.#socket.destroy()
+          reject(new Error(
+            `server-cert-unreadable: ${trust.error} ` +
+            `(path: ${trust.certPath || 'unresolved'})`
+          ))
+          return
+        }
+        const peer = this.#socket.getPeerCertificate()
+        const actual = peer?.fingerprint256
+        if (!actual) {
+          clearTimeout(timer)
+          this.#socket.destroy()
+          reject(new Error('server-cert-unreadable: peer certificate has no fingerprint256'))
+          return
+        }
+        if (actual !== trust.fingerprint) {
+          clearTimeout(timer)
+          this.#socket.destroy()
+          reject(new Error(
+            `fingerprint-mismatch: expected ${trust.fingerprint}, actual ${actual}. ` +
+            `Possible MITM or BAT app cert regenerated. ` +
+            `Restart this terminal to pick up the new fingerprint.`
+          ))
+          return
+        }
+
         const key = randomBytes(16).toString('base64')
         this.#socket.write(
           `GET / HTTP/1.1\r\nHost: ${host}:${port}\r\nUpgrade: websocket\r\n` +
@@ -448,11 +482,26 @@ async function main() {
     // T0202a/BUG-046: distinguish "TCP up but upgrade rejected" from generic
     // connect failure (ECONNREFUSED etc.) so operators can tell protocol/auth
     // mismatch from server-down at a glance.
-    const preUpgradeClose = msg.startsWith('connection closed before upgrade')
-    const reason = preUpgradeClose ? 'connect-closed-before-upgrade' : 'connect-failed'
+    // T0217/PLAN-022 Step 1+2: Distinguish fingerprint-pinning rejections from
+    // pre-upgrade close so operators can tell MITM/cert-regenerated from a
+    // generic transport failure at a glance.
+    let reason
+    if (msg.startsWith('fingerprint-mismatch')) {
+      reason = 'fingerprint-mismatch'
+    } else if (msg.startsWith('server-cert-unreadable')) {
+      reason = 'server-cert-unreadable'
+    } else if (msg.startsWith('connection closed before upgrade')) {
+      reason = 'connect-closed-before-upgrade'
+    } else {
+      reason = 'connect-failed'
+    }
     const exitPayload = { code: 1, reason, error: msg }
-    if (preUpgradeClose) {
+    if (reason === 'connect-closed-before-upgrade') {
       exitPayload.hint = 'Server accepted TCP but rejected WS upgrade. Check BAT app is up-to-date or TLS/auth state.'
+    } else if (reason === 'fingerprint-mismatch') {
+      exitPayload.hint = 'Server cert fingerprint does not match BAT app server-cert.json. Restart terminal after BAT app upgrades cert, or investigate possible MITM.'
+    } else if (reason === 'server-cert-unreadable') {
+      exitPayload.hint = 'Cannot read BAT app server-cert.json. Ensure BAT app is running and has initialized its remote server.'
     }
     console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${msg}`)
     logEvent('bat-terminal', 'exit', exitPayload)
