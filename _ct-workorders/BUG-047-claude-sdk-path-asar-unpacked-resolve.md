@@ -2,19 +2,55 @@
 
 ## 元資料
 - **編號**:BUG-047
-- **狀態**:VERIFY(build 已驗 `.unpacked/` 實體檔,等 Rico 裝 pre.2 實機驗收)
-- **嚴重度**:🟡 Medium（Rico 單人回報,待更多樣本升級。但對該用戶是 100% 阻擋）
+- **狀態**:🔧 FIXING(**2026-04-19 22:20 退回**,v0.2.2-pre.1 Gower 實機複現,T0198/T0199 修復未生效 → T0220 研究工單調查)
+- **嚴重度**:🟠 High(**升級**,樣本 2 人:Rico + Gower,跨 pre 版本仍 100% 阻擋)
 - **建立時間**:2026-04-19 01:22 (UTC+8)
-- **修復時間**:2026-04-19 02:03 (UTC+8,T0198 + T0199 packaging fix)
-- **發現來源**:用戶 Rico 回報 + 精準診斷（路徑對照）
-- **回報版本**:v0.0.16-pre.1
+- **修復時間**:2026-04-19 02:03 (UTC+8,T0198 + T0199 packaging fix) — **失效**
+- **退回時間**:2026-04-19 22:20 (UTC+8,v0.2.2-pre.1 複現)
+- **發現來源**:用戶 Rico 回報 → Gower dev env Release 安裝包複現
+- **回報版本**:v0.0.16-pre.1(Rico)+ **v0.2.2-pre.1(Gower,T0198/T0199 修復後版本仍複現)**
 - **安裝來源**:NSIS installer + GitHub Release 皆可重現
 - **環境**:Windows 10/11 x64
-- **關聯**:PLAN-005（Electron Builder 26 升級,EXP-BUILDER26-001）、T0197(翻案根因分析)、T0198(packaging 主修)、T0199(預防性 @lydell)
-- **可重現**:100%（packaged app）/ 0%（dev env,用戶 Gower dev 正常）
+- **關聯**:PLAN-005(Electron Builder 26 升級,EXP-BUILDER26-001)、T0197(翻案根因分析)、T0198(packaging 主修)、T0199(預防性 @lydell)、**T0220(研究工單,驗收失敗根因調查)**
+- **可重現**:100%(packaged app,跨 pre.1/pre.2/v0.2.2-pre.1)/ 0%(dev env)
 - **workaround**:無(V1 完全動不了)
-- **修復 commits**:`e619b81` T0198 (@anthropic-ai 子包)+ `5de178e` T0199 (@lydell/node-pty 預防)
-- **真根因**(翻案):不在 code 側,在 `package.json` asarUnpack 漏列 npm optional platform 子包(獨立 node_modules entry,不是主包子目錄)
+- **修復 commits**:`e619b81` T0198 + `5de178e` T0199 — **未生效**
+- **真根因**(翻案後再翻案):T0198/T0199 的 packaging fix 假設 asarUnpack pattern 補齊即可,但 v0.2.2-pre.1 仍複現同路徑錯誤 → 待 T0220 調查(installer 實體內容 + code 側 resolve 邏輯)
+
+## 📋 Gower 樣本(2026-04-19 22:20,v0.2.2-pre.1)
+
+**錯誤訊息**:
+```
+Error: Claude Code native binary not found at
+  C:\Program Files\BetterAgentTerminal\resources\app.asar\node_modules\
+  @anthropic-ai\claude-agent-sdk-win32-x64\claude.exe.
+Please ensure Claude Code is installed via native installer or
+specify a valid path with options.pathToClaudeCodeExecutable.
+```
+
+**比對 Rico 樣本**:路徑結構完全一致(`app.asar\...\claude.exe`),未 rewrite 為 `app.asar.unpacked\`。
+
+**package.json 現況**(line 153-162):
+```json
+"asarUnpack": [
+  "node_modules/@anthropic-ai/claude-code/**/*",
+  "node_modules/@anthropic-ai/claude-code-*/**/*",
+  "node_modules/@anthropic-ai/claude-agent-sdk/**/*",
+  "node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",  ← 應 cover win32-x64
+  ...
+]
+```
+
+pattern 看起來正確,但路徑仍指向 `app.asar\` → 矛盾點待 T0220 查證。
+
+## 📋 Rico 樣本更新(2026-04-19 22:19)
+
+Rico 貼出同錯誤訊息末句:
+> `specify a valid path with options.pathToClaudeCodeExecutable.`
+
+表示 Rico 也還沒解決(同 Gower),且 SDK 錯誤訊息本身提示了 **`options.pathToClaudeCodeExecutable` 官方 override API** — 這是 Claude Agent SDK 設計上預期 Electron / packaged 環境需由呼叫端主動傳路徑。
+
+**對 T0220 的意義**:B 面 grep `pathToClaudeCodeExecutable` 即可一擊定位根因。若本專案從未呼叫此 API → 修復路線極明確(main process 判斷 `app.isPackaged` 拼 `.unpacked/` 路徑傳給 SDK)。
 
 ## 現象
 

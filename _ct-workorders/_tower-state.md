@@ -1,10 +1,116 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-19 21:10(第十四 session,T0219 UX 簡化 code DONE + BUG-050 樣本 #6 clean + GP042 連 38+ hit + dev smoke T0218+T0219 合併待執行)
+> 最後更新:2026-04-19 22:47(第十五 session,BUG-047 翻案 research→fix 雙工單連擊 + T0220 3x + T0221 5-8x + GP042 連 40+ hit + packaged smoke 斷點 A 暫停中)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-19 第十四 session,T0219 code DONE + dev smoke 交棒)
+## 🛏 本 Session 退出快照(2026-04-19 第十五 session,BUG-047 翻案 + T0220/T0221 連擊 + 斷點 A 暫停)
+
+**退出原因**:T0221 Worker 5 min YOLO code fix 完成(~5-8x 壓縮),回報「部分完成」觸發斷點 A 暫停。Packaged smoke 需使用者實機操作(local build → install → 實機啟動 SDK prompt),本 session 跨界工作完成,使用者換版後續驗。
+
+**本 session 成果**(~50 min wall,2 工單 + 2 commits + 1 meta commit):
+
+**工單鏈(2 張,research → fix 連擊)**:
+
+- `c9ec6c1` **T0220 research**(**6 min / est 15-30 min,~3x**)— BUG-047 驗收失敗根因調查
+  - A 面:實機 `C:\Program Files\BetterAgentTerminal\resources\app.asar.unpacked\` 抽查 — 4 子包 × claude.exe 245 MB 全存在 → T0198/T0199 asarUnpack 完全正確
+  - B 面定位根因:`claude-agent-manager.ts:83-102` `resolveClaudeCodePath()` `require.resolve('@anthropic-ai/claude-code/cli.js')` — 該檔案在 `@anthropic-ai/claude-code@2.1.113` **根本不存在**(只有 `bin/claude.exe`,無 `main`/`exports`/`cli.js`)→ 兩層 try/catch 都拋 `MODULE_NOT_FOUND` → 回空字串 → `pathToClaudeCodeExecutable` falsy 未傳給 SDK → SDK 自己 resolve 到 `app.asar\` 失敗
+  - C 面:T0198 驗證缺口(只驗檔案位置,沒跑 packaged runtime smoke)
+  - 產出 3 條 *evolve 學習 pattern 候選
+  - Mode: `--mode on --interactive`(非 yolo,允許互動)
+  - Worker 互動 1 次:使用者糾正「要找安裝目錄不是 source repo」 → Worker 轉向 A 面實機抽查
+
+- `ada53b7` + `018749b` **T0221 code fix**(**5 min / est 20-40 min,~5-8x**)— BUG-047 Code 層修復
+  - `claude-agent-manager.ts` `resolveClaudeCodePath()` 改候選 B(`app.isPackaged` 分支,packaged 走 `process.resourcesPath/app.asar.unpacked/.../bin/claude.exe`,dev 走 `package.json` resolve + `bin/`)+34/-12
+  - `main.ts:1882` `claude:get-cli-path` handler 同 bug pattern **一併修**(+14/-4)
+  - `tests/claude-code-path.test.ts` 新檔,4 題 assertion 全通過(核心 regression guard:`fs.existsSync(resolvedPath)`)
+  - Constructor 加 `assertClaudeCodePathOnce()` warn-only log(SDK 未來升級悄悄刪檔時立即曝光)
+  - `package.json` 新增 `test:claude-code-path` script
+  - Mode: `--mode yolo --no-interactive`
+  - **YOLO 回報約定**:Worker 必回「部分完成」觸發斷點 A(packaged smoke 需使用者實機驗證,code-only 工單不能判 DONE)
+
+**BUG/PLAN 狀態變更**:
+- **BUG-047** VERIFY → 🔧 **FIXING**(Gower v0.2.2-pre.1 實機複現) → 等 smoke pass 可升 FIXED
+  - 嚴重度升級 🟡 Medium → 🟠 High(樣本 2 人跨版本 Rico pre.1 + Gower pre.2/v0.2.2-pre.1 皆 100% 阻擋)
+  - Rico 22:19 貼同錯誤(仍未解)+ SDK 錯誤訊息明示 `options.pathToClaudeCodeExecutable` override API → 直指根因方向
+- **T0220 DONE**、**T0221 PARTIAL**(等 smoke)
+- **BUG-050** 樣本仍 6(T0220 是 `--mode on` 非 yolo;T0221 `--mode yolo` 待使用者確認 clean 後才算 +1)
+
+**決策日誌**:
+- **D066**:BUG-047 驗收失敗處理策略 — 使用者選 Q2-A,退 FIXING + 派研究工單 T0220,**而非直接開修復工單**(根因不明時先研究,避免重蹈 T0198 驗證缺口)
+- **D067**:T0221 YOLO 回報策略 — Worker 完成 code + local build + unit test 後必回「部分完成」觸發斷點 A,smoke 必須使用者實機操作。Auto-submit YOLO 適用 code-only 工單,驗收階段必斷點(原則:「可自動化 → YOLO / 需人介入 → 斷點」)
+
+**Worker 品質亮點(T0220 + T0221)**:
+- **T0220 Worker**:主動發現 `main.ts:1882` 同 bug pattern(工單只列為「同步檢視」,Worker 判斷屬同根因並在 T0221 範疇內一併修)
+- **T0220 Worker**:研究邏輯清晰到產出兩個修復候選 + 三條 *evolve 學習 pattern 建議
+- **T0221 Worker**:dev smoke 未跑但**用 unit test `fs.existsSync` 取代**(等效 regression guard,理由充分)
+- **T0221 Worker**:Commit 策略主動合併單一 atomic(claude-agent-manager + main.ts + tests + package.json,邏輯屬同一 fix,不宜切割)
+
+**GP042 累積**:Worker time 連 **40+ hit**(T0220 3x + T0221 5-8x),跨類型驗證穩固 — research 工單壓縮比略低(調查有下限),code fix 壓縮比一貫 5x+。`/ct-evolve --skill worker-time-estimation` 升級條件再次累積。
+
+**未執行項(下 session 接)**:
+
+### 🔴 最高優先(BUG-047 收尾前置)
+
+**T0221 packaged smoke**(使用者親驗):
+
+```bash
+# 1. local package(不 push tag 避免觸發 CI)
+npm run build:dir   # 或 npm run build 產 NSIS
+
+# 2. 啟動 release/win-unpacked/BetterAgentTerminal.exe(或裝 installer)
+
+# 3. 開 Claude Agent V1 panel → 選 Opus/Sonnet → 送「hi」
+
+# 4. 預期:
+#    ✅ SDK 正常回應
+#    ✅ debug.log 不含 "[ClaudeAgent] resolveClaudeCodePath returned invalid path"
+```
+
+**Smoke pass 後塔台收尾動作**:
+1. T0221 PARTIAL → DONE
+2. BUG-047 FIXING → FIXED → CLOSED(直接 CLOSED,Gower 親驗即收,不需 VERIFY 階段)
+3. BUG-050 樣本 6 → 7(T0221 YOLO 樣本 clean,門檻 10 還差 3)
+4. `*evolve` 收斂 T0220 C 面三條學習 pattern:
+   - 「檔案存在 ≠ 功能驗證」(打包類 fix 標配實機 smoke)
+   - 「`require.resolve` 目標檔案需在 test 斷言 `fs.existsSync`」(擋外部 package 升級刪檔)
+   - 「dev-only 通過不代表修好」(packaged 環境有 asar/isPackaged 等 dev 看不到的行為)
+5. 可選:BUG-050 CLOSED 評估(樣本 7,門檻 10 還差 3;若使用者授權提前 CLOSE 即可)
+
+**Smoke fail 處理**:
+- 貼錯誤 + log → 塔台判 Renew T0221 或翻案重查(若 `.unpacked/claude.exe` 不存在則 T0220 A 面結論錯誤,需重新調查 asarUnpack 是否真生效)
+
+### 🟡 中等優先(第十四 session 殘留)
+
+- **dev smoke T0218+T0219 合併驗收**(PLAN-021 閉環前置)— 9 情境核心(見第十四 session 快照)
+- **BUG-047 pre.2 tag**(Rico 同步驗收)— 建議 T0221 smoke pass 後打 v0.2.2-pre.2,一次清 Rico + Gower
+
+### 🟢 低優先
+
+- **GP042 升 Skill** `/ct-evolve --skill worker-time-estimation`(40+ hit,跨類型驗證更穩)
+- **BUG-050 自然累積**(T0221 YOLO 若 clean 即 +1,門檻 10 → 還差 3)
+- **GP063 / GP064 跨專案驗證**
+
+### 📊 下 session 決策點
+
+- Smoke pass → BUG-047 收尾 + `*evolve` 三條 pattern + 可選 BUG-050 CLOSE 評估
+- Smoke fail → T0221 Renew 或翻案 T0220(視錯誤類型)
+- 若使用者選擇「先做 dev smoke T0218+T0219」→ 優先 PLAN-021 閉環,BUG-047 次優先(雖然 High,但對個人開發者為單機問題)
+- 若連 BUG-047 都修好後,下 session 可大膽推 GP042 升 Skill
+
+**恢復指引**(下次 `/control-tower` 啟動時):
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status` + `git log`(本 session 所有 commit 待使用者授權 push — `c9ec6c1`/`ada53b7`/`018749b` + 本 session 快照 commit)
+3. 下一輪優先級建議:
+   - 🔴 **T0221 packaged smoke**(首選,BUG-047 收尾前置)
+   - 🟡 **dev smoke T0218+T0219**(PLAN-021 閉環,第十四 session 殘留)
+   - 🟡 **BUG-047 pre.2 tag**(smoke pass 後一次清 Rico + Gower)
+   - 🟢 **GP042 升 Skill**(40+ hit 穩固後可執行)
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-19 第十四 session,T0219 code DONE + dev smoke 交棒)
 
 **退出原因**:T0219 code 7 min YOLO 完成(~5x 壓縮),dev smoke T0218+T0219 合併 7+7 情境留給使用者手動執行(免切 context 一次驗收兩張)。
 
@@ -1556,13 +1662,13 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0163 |
-| **BUG 最大編號** | BUG-038 |
-| **PLAN 最大編號** | PLAN-016 |
-| **EXP 最大編號** | EXP-BUILDER26-001 |
+| **工單最大編號** | T0221 |
+| **BUG 最大編號** | BUG-050 |
+| **PLAN 最大編號** | PLAN-023 |
+| **EXP 最大編號** | EXP-RMTSEC-001 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D056 |
-| **塔台版本** | Control Tower v4.0 |
+| **決策最大編號** | D067 |
+| **塔台版本** | Control Tower v4.3.0 |
 
 ---
 
