@@ -41,7 +41,8 @@ enable_experiments: true
 
 # 歸檔天數門檻（*archive 判定用）
 # 2026-04-18 調整：1 → 7（dogfood 結束恢復保守設定，避免與 PLAN IDEA 節點活躍引用衝突過度頻繁觸發，見 L066）
-archive_days: 7
+# 2026-04-20 調整：7 → 2（第十六 session *sync 發現 7 天門檻下 0 候選，熱區累積 73+17+19；對齊第十五 session 歷史 + 本專案 session 密度高，見 D072）
+archive_days: 2
 
 # *sync 後提示歸檔候選
 auto_archive_prompt: off

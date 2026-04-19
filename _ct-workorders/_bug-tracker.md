@@ -2,7 +2,7 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-19 23:56 (UTC+8)
+> 最後同步:2026-04-20 (*archive 歸檔 BUG-034 到冷區)
 
 ## 統計
 - 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 16 | ⛔ Won't Fix: 0 | **Total: 17**
@@ -47,7 +47,7 @@
 | BUG-039 | bat-terminal unknown arg passthrough | 🟢 Low | 2026-04-18 | [BUG-039](BUG-039-bat-terminal-unknown-arg-passthrough.md) |
 | BUG-038 | electron ELECTRON_RUN_AS_NODE env leak | 🟡 Medium | 2026-04-18 | [BUG-038](BUG-038-electron-run-as-node-env-leak.md) |
 | BUG-037 | git-graph-panel blank content | 🟢 Low | 2026-04-17 | [BUG-037](BUG-037-git-graph-panel-blank-content.md) |
-| BUG-034 | checkbox terminal-server leak | 🔴 High | 2026-04-15 | [BUG-034](BUG-034-checkbox-terminal-server-leak.md) |
+| BUG-034 | checkbox terminal-server leak | 🔴 High | 2026-04-15 | [BUG-034](_archive/bugs/BUG-034-checkbox-terminal-server-leak.md) |
 
 ## ⛔ 不修復 (WONTFIX)
 
