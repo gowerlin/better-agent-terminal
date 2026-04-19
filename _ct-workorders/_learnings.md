@@ -2169,3 +2169,41 @@ useEffect(() => {
 **相關**:GP065 / GP066 / GP042 UPDATE(Layer 2)、BUG-047/051/052(本專案 tracker)、T0220-T0223(本專案工單)
 
 ---
+
+## L082 - 2026-04-20 — 塔台狀態欄位必須嚴格遵守 state machine,不自創語意詞彙
+
+**觸發情境**:
+第十六 session *rescan 時,塔台標 T0197 狀態為「🗑️ SUPERSEDED」以表達「被後續工單鏈取代」。使用者立即回報:**CT panel UI 顯示為 Pending**,非預期。
+
+**根因**:
+CT panel(`src/types/workorder*`、parser)只認 state machine 中的 standard states:
+- 工單:📋 TODO / 🔄 IN_PROGRESS / 👀 REVIEW / ✅ DONE / ⚠️ PARTIAL / ❌ FAILED / ❌ BLOCKED / ⏸ PAUSED / 🔥 URGENT
+- BUG:📂 OPEN / 🔧 FIXING / ✅ FIXED / 🧪 VERIFY / 🚫 CLOSED / ⛔ WONTFIX
+- PLAN:💡 IDEA / 📋 PLANNED / 🔄 IN_PROGRESS / ✅ DONE / 🚫 DROPPED
+- EXP:🧪 EXPLORING / 📊 CONCLUDED / 🚫 ABANDONED
+
+未知狀態(如 SUPERSEDED / DEPRECATED / OBSOLETE / MERGED)→ parser fallback → UI 顯示錯誤(Pending/Unknown),**tracker 同步也會出錯**。
+
+**反模式**:
+塔台為表達更精確的情境(「被取代」「合併到其他工單」「過期作廢」),自創新 state 值
+
+**正確做法**:
+- 用 standard state(工單→ DONE / FAILED;BUG → CLOSED / WONTFIX)
+- 在狀態欄的**備註括號**內說明特殊情境
+- 範例:`✅ DONE(純研究交付,無 commit;被 T0198-T0223 鏈取代)` ← T0197 修正後格式
+
+**檢查清單**(修改任何 T / BUG / PLAN / EXP 狀態前):
+1. ❓ 這個 state 值在 `_local-rules.md` 或 SKILL.md state machine 裡嗎?
+2. ❓ 若不在 → 改用最接近的 standard state + 備註
+3. ❓ 若真有需求新增 state → 先更新 state machine + CT panel parser(不只改工單)
+
+**相關**:
+- CT panel state machine 規格:`src/types/*-tracker.ts` 的 `sectionToStatus` / state mapping
+- 本專案 local-rules.md「擴充單據類型」段落(state 流)
+- Core skill SKILL.md「狀態符號與流轉」段落
+
+**候選晉升**:✅ candidate: global(所有專案的 CT panel parser 都可能有同問題,pattern 通用)
+
+**來源**:第十六 session T0197 rescan 升級操作,使用者即時回報 UI 不符預期(2026-04-20)
+
+---
