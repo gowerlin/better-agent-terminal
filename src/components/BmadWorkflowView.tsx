@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { BmadWorkflow, BmadPhase, BmadPhaseArtifact } from '../types/bmad-workflow'
 import { phaseStatusColor, phaseStatusLabel } from '../types/bmad-workflow'
+import { openFileInFilesTab } from '../state/openFileInFilesTab'
 
 interface BmadWorkflowViewProps {
   workflow: BmadWorkflow | null
@@ -135,10 +136,7 @@ function ArtifactItem({
       {artifact.exists && (
         <button
           className="ct-view-file-btn"
-          onClick={() => {
-            window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
-            window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
-          }}
+          onClick={() => openFileInFilesTab(filePath)}
         >
           📄 {t('controlTower.viewFile')}
         </button>

@@ -18,6 +18,7 @@ import { CtToast, useCtToast } from './CtToast'
 import { BugTrackerView } from './BugTrackerView'
 import { BacklogView } from './BacklogView'
 import { DecisionsView } from './DecisionsView'
+import { openFileInFilesTab } from '../state/openFileInFilesTab'
 import { type BugEntry, parseBugTracker, parseBugFile } from '../types/bug-tracker'
 import { type BacklogEntry, parseBacklog, parsePlanFile, extractPriorityFromPlanContent } from '../types/backlog'
 import { type DecisionEntry, parseDecisionLog } from '../types/decision-log'
@@ -692,8 +693,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
                         const filePath = order.isArchived
                           ? `${ctDirPath}/_archive/workorders/${order.filename}`
                           : `${ctDirPath}/${order.filename}`
-                        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
-                        window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
+                        openFileInFilesTab(filePath)
                       }}
                     >
                       📄 {t('controlTower.viewFile')}

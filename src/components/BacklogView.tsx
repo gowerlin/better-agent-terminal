@@ -7,6 +7,7 @@ import {
   planStatusColor,
   planStatusLabel,
 } from '../types/backlog'
+import { openFileInFilesTab } from '../state/openFileInFilesTab'
 
 interface BacklogViewProps {
   entries: BacklogEntry[]
@@ -177,8 +178,7 @@ export function BacklogView({ entries, loading, ctDirPath, showArchived, onShowA
                       onClick={e => {
                         e.stopPropagation()
                         const filePath = `${ctDirPath}/${entry.linkPath}`
-                        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
-                        window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
+                        openFileInFilesTab(filePath)
                       }}
                     >
                       📄 {t('controlTower.viewFile')}

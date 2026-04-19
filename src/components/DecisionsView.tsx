@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type DecisionEntry } from '../types/decision-log'
+import { openFileInFilesTab } from '../state/openFileInFilesTab'
 
 interface DecisionsViewProps {
   decisions: DecisionEntry[]
@@ -79,8 +80,7 @@ export function DecisionsView({ decisions, loading, rawContent = '', ctDirPath }
             className="ct-view-file-btn"
             onClick={() => {
               const filePath = `${ctDirPath}/_decision-log.md`
-              window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
-              window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
+              openFileInFilesTab(filePath)
             }}
           >
             📄 {t('controlTower.viewFile')}

@@ -9,6 +9,7 @@ import {
   bugSeverityColor,
 } from '../types/bug-tracker'
 import { BugWorkflowIndicator } from './BugWorkflowIndicator'
+import { openFileInFilesTab } from '../state/openFileInFilesTab'
 
 interface BugTrackerViewProps {
   bugs: BugEntry[]
@@ -186,8 +187,7 @@ export function BugTrackerView({ bugs, loading, ctDirPath, showArchived, onShowA
                       onClick={e => {
                         e.stopPropagation()
                         const filePath = `${ctDirPath}/${bug.linkPath}`
-                        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'files' } }))
-                        window.dispatchEvent(new CustomEvent('file-tree-reveal', { detail: { path: filePath } }))
+                        openFileInFilesTab(filePath)
                       }}
                     >
                       📄 {t('controlTower.viewFile')}

@@ -74,8 +74,14 @@ function FileTreeNode({
   // Auto-load children when expanded turns true and cache is empty.
   // This enables expandToPath() to cascade top-down: parent adds its path to expandedPaths,
   // effect loads children, children matching deeper segments trigger their own effects.
+  //
+  // T0213 fix (BUG-048 follow-up 3): `loading` must NOT be in deps AND must NOT be in the
+  // guard — otherwise setLoading(true) self-triggers the effect, cleanup marks cancelled=true,
+  // and when readdir resolves the setState is skipped, leaving `loading` stuck true forever.
+  // Duplicate dispatch is prevented by `children !== null` after the first success; collapse
+  // → re-expand races are handled by cleanup's cancelled=true + fresh effect run.
   useEffect(() => {
-    if (!entry.isDirectory || !expanded || children !== null || loading) return
+    if (!entry.isDirectory || !expanded || children !== null) return
     let cancelled = false
     setLoading(true)
     window.electronAPI.fs.readdir(entry.path).then(entries => {
@@ -88,7 +94,7 @@ function FileTreeNode({
       setLoading(false)
     })
     return () => { cancelled = true }
-  }, [expanded, entry.isDirectory, entry.path, children, loading])
+  }, [expanded, entry.isDirectory, entry.path, children])
 
   const handleClick = useCallback(() => {
     if (entry.isDirectory) {
