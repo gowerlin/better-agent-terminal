@@ -2,13 +2,43 @@
 
 ## 元資料
 - **編號**:BUG-048
-- **狀態**:OPEN
+- **狀態**:OPEN(研究完成,等下 session 派修復工單)
 - **嚴重度**:🟡 Medium
 - **建立時間**:2026-04-19 10:42 (UTC+8)
 - **發現來源**:使用者回報(第十 session)
-- **關聯**:(待補)
+- **關聯**:T0206(研究,`c6d3d97`,DONE)· 下一張候選 T0207(Option B 修復)
 - **可重現**:100%(特定條件下)
 - **workaround**:現象 1 再按一次按鈕;現象 2 無 workaround
+
+## T0206 研究結論(2026-04-19 11:32)
+
+**觸發點全盤點**(5 處,行為同構):
+| 位置 | 觸發 |
+|------|------|
+| BacklogView.tsx:180-181 | 瀏覽檔案按鈕 |
+| BmadWorkflowView.tsx:139-140 | 同 |
+| BugTrackerView.tsx:189-190 | 同 |
+| ControlTowerPanel.tsx:695-696 | 同 |
+| DecisionsView.tsx:82-83 | 同 |
+
+**現象 1 根因**(100% 證據):React.lazy FileTree mount race
+- Handler 同步 dispatch `workspace-switch-tab` + `file-tree-reveal`
+- React.lazy + Suspense FileTree 首次需動態 import → 尚未 mount 時 listener 未註冊 → event 被丟棄
+- 第二次點擊時 FileTree 已 mount → 正常
+- 「彩蛋」:FileTree mount 會從 localStorage 還原上次選擇 → 解釋為何有時「空白」有時「錯誤檔」
+
+**現象 2 根因**:`expandToPath` API **從未實作過**(git log `-S` 0 筆)
+- FileTreeNode.expanded 是 local useState,外部無法驅動
+- children 採 lazy readdir,程式化展開深層需遞迴實作
+- 非 self-inflicted drift,純設計缺口(Q1.A 判定正確)
+
+**推薦處理方向**:**Option B**(信心 High,est ~1.5-2h)
+1. 解現象 1:pending queue 或 `requestAnimationFrame` 等 Suspense 解析
+2. 解現象 2:FileTree 新增 `expandToPath()` 遞迴 API + FileTreeNode 改受控 expand
+
+**Follow-up 建議**:Option C(5 處 dispatch 抽 `openFileInFilesTab()` helper)另開獨立工單,不綁在 BUG-048 主 PR。
+
+**下 session 接手**:派 T0207(Option B 修復)。
 
 ## 現象
 

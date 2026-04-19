@@ -2,10 +2,11 @@
 
 ## 元資料
 - **類型**:research(研究型 + 互動)
-- **狀態**:IN_PROGRESS
-- **關聯**:BUG-048 · 可能關聯(待 Worker grep 後補):MainPanel / FileTree / CT Panel 各區塊
+- **狀態**:DONE
+- **關聯**:BUG-048 · 實際關聯:BacklogView / BmadWorkflowView / BugTrackerView / ControlTowerPanel / DecisionsView(5 處觸發點)+ FileTree + WorkspaceView
 - **派發時間**:2026-04-19 11:16 (UTC+8)
 - **開始時間**:2026-04-19 11:27 (UTC+8)
+- **完成時間**:2026-04-19 11:32 (UTC+8)
 - **預估工時**:45-90 min(範圍大,可能觸發互動)
 - **Renew 次數**:0
 - **互動**:允許(每次 ≤3 題,config `research_max_questions: 3`)
@@ -148,6 +149,9 @@ git log --all -p -S "expandPath\|focusNode\|revealInTree" -- src/ | head -100
 
 ### 完成狀態
 DONE — 研究型工單,未改程式碼
+
+### Commit
+c6d3d97 `docs(ct): T0206 研究完成 — BUG-048 root cause + Option A/B/C`
 
 ### 實耗時 vs 估時
 實耗 ~35 min / 估 45-90 min(範圍收斂因觸發點只有 5 處且行為同構)

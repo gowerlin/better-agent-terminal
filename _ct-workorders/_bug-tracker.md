@@ -1,18 +1,19 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-19 11:05 (UTC+8)
+> 最後更新：2026-04-19 11:36 (UTC+8)
 >
 > 統計：🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 1 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 14**
 >
 > 📦 已歸檔：35 張（_archive/bugs/）
 >
-> 本 session 事件：
-> - BUG-045 OPEN → CLOSED（使用者驗收通過,原截圖回報問題已解;archive 面屬塔台推測延伸,不列入本 BUG 範圍）
-> - BUG-048 新增(CT Panel 瀏覽檔案首次點擊 Preview 空白 + 目錄樹未同步,使用者選 C 先記錄稍後處理)
-> - T0203 完成(research,5fe3f6a,7 min vs est 30-60 min,4-8x 壓縮)→ 推薦 Option B
+> 本 session 事件:
+> - BUG-045 OPEN → CLOSED(使用者驗收通過,原截圖回報問題已解;archive 面屬塔台推測延伸,不列入本 BUG 範圍)
+> - BUG-048 新增 → 研究完成待修(T0206 `c6d3d97` 研究 DONE,推薦 Option B,下 session 派 T0207 修復)
+> - T0203 完成(research,`5fe3f6a`,7 min,4-8x)→ 推薦 Option B
 > - BUG-042 OPEN → FIXING → CLOSED(T0204 `85f5743`,純刪死碼 -28 行,tsc 0 errors,PLAN-019 型別債清零)
-> - BUG-049 新增 → FIXING → CLOSED(T0205 `5f10e7e`,bat-notify.mjs TLS port,**使用者確認 YOLO end-to-end 首次跑通**)
+> - BUG-049 新增 → FIXING → CLOSED(T0205 `5f10e7e`,bat-notify.mjs TLS port,**使用者兩次確認 YOLO end-to-end 跑通**)
+> - T0206 研究完成(5 觸發點全盤點 + 現象 1/2 根因 100% 證據 + FileTree API 缺口)
 
 ## 🔴 Open / 處理中
 

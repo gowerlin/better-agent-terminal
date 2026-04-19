@@ -1,10 +1,91 @@
 # Tower State — better-agent-terminal
 
-> 最後更新：2026-04-19 03:21（第九 session,BUG-046 CLOSED + BUG-047 VERIFY + yolo 派發鏈解鎖 + Worker time 連 27 hit）
+> 最後更新：2026-04-19 11:36（第十 session,BUG-042/045/049 CLOSED + BUG-048 研究完成 + YOLO end-to-end 首次跑通 + PTY race 研究報告 + Worker time 30+ hit ⭐ proven）
 
 ---
 
-## 🛏 本 Session 退出快照（2026-04-19 第九 session,雙重翻案閉環 BUG-046 + packaging 雙修 BUG-047）
+## 🛏 本 Session 退出快照(2026-04-19 第十 session,BUG 三連 CLOSED + BUG-049 YOLO 解鎖閉環 + PTY race 分析存檔)
+
+**退出原因**:C 計畫正常收尾(使用者指示 C,下 session 派 T0207 Option B 修復 BUG-048)
+
+**本 session 成果**(~2h,4 工單 + 3 BUG CLOSED + 1 BUG 新建 + 1 研究報告 + `*evolve` 大批次):
+
+**工單鏈(4 張)**:
+- `5fe3f6a` T0203 research BUG-042(7 min/est 30-60,**4-8x**)— 四假設突破 Self-inflicted drift
+- `85f5743` T0204 fix BUG-042 Option B(3 min/est 10-20,**3-7x**)— 純刪死碼 -28 行,PLAN-019 型別債清零
+- `5f10e7e` T0205 fix BUG-049 bat-notify TLS port(6 min/est 5-15,1-2.5x 下緣)— **YOLO pipeline 解鎖**
+- `c6d3d97` T0206 research BUG-048(35 min/est 45-90,1.3-2.5x)— 5 觸發點 + 兩現象 100% 證據根因
+
+**BUG 狀態變更(4 張)**:
+- 🟢 **BUG-045 CLOSED** — 使用者驗收通過(T0195 + T0196 修復,原截圖回報問題已解,archive 面屬塔台推測延伸)
+- 🟢 **BUG-042 CLOSED** — T0204 Option B 純刪死碼(guard 永不觸發 4 個月,runtime 行為不變)
+- 🟢 **BUG-049 CLOSED** — T0205 bat-notify MinimalWS TLS port(兩次獨立驗證 end-to-end 跑通)
+- 🔴 **BUG-048 OPEN**(研究完成)— T0206 推薦 Option B,下 session 派 T0207 修復
+
+**BUG-049 YOLO end-to-end 首次跑通(里程碑)**:
+- 第一次驗證:T0205 完成 Worker auto-submit「T0205 完成」→ 塔台 UI 自動顯示並送出(使用者確認未手動打字)
+- 第二次驗證:T0206 完成 Worker auto-submit「T0206 完成」→ 塔台再次無人工干預收到
+- PLAN-020 dogfood 以來第一次 YOLO Pipeline 100% 工作
+- 真根因:bat-notify.mjs MinimalWS 未隨 T0202a/T0202b 升級(BUG-046 姊妹 script),silent hang
+- 歷史追溯:BUG-043「Worker YOLO 偶發失效」CLOSED 決策誤判,真因很可能就是 BUG-049
+
+**研究報告存檔(非工單)**:
+- `_report-yolo-pty-race-condition-analysis.md` — Claude CLI 7 項機制盤點 + 4 方案評估(A/B/C/D)+ 塔台階段建議 + 使用者洞察「PTY buffer 不可分辨人類 vs Worker」
+
+**`*evolve` 批次寫入(4 GP + 1 UPDATE + 3 L)**:
+
+🌐 Global `~/.claude/control-tower-data/learnings/patterns.md`:
+- **GP056** Duplicated 程式碼的 sibling fix 漏修(BUG-046 → BUG-049 模式)
+- **GP057** Self-inflicted drift — 第四根因假設(BUG-042 四假設突破)
+- **GP058** 偶發症狀複測正常不等於根因消除(BUG-043 追溯實證)
+- **GP059** Dogfood-driven bug discovery(PLAN-020 實證)
+- **GP042 UPDATE** Worker time 30+ hit(⭐ proven,建議升 Skill 候選)
+
+🏠 Project `_ct-workorders/_learnings.md`:
+- **L076** bat-notify.mjs / bat-terminal.mjs MinimalWS duplication(PLAN-023 候選)
+- **L077** PTY input buffer 無法分辨人類 vs Worker(BAT YOLO trade-off)
+- **L078** BUG-043 真根因追溯(CLOSED 誤判,呼應 GP058)
+
+**重大方法論突破(3 條)**:
+1. **第四根因假設**(Self-inflicted drift)— 同 fork 內 commit A 實作 + commit B refactor 漏清 call site,與前三假設(Dead code / Upstream drift / Planned 未完成)明確區隔
+2. **偶發症狀不等於根因消除** — CLOSED 決策需附根因證據,複測「正常」可能只是觸發另一條隱藏成功路徑
+3. **Dogfood 催 bug 原理** — 機械化執行把「偶爾會動」的 bug 逼成「100% 失敗」,強迫優先級提升
+
+**YOLO 歷程追加**(本 session):
+- `[~10:14] 啟動` Fast Path 快速恢復(快照 ~14h)
+- `[~10:26-10:33] T0203` research 派發(使用者手動貼「T0203 完成」= BUG-049 未修前症狀最後一次)
+- `[~10:36] BUG-045 CLOSED` 使用者驗收
+- `[~10:42] *bug` BUG-048 建立(暫不修)
+- `[~10:45-10:48] T0204` fix BUG-042 Option B 完成
+- `[~10:50] BUG-042 CLOSED`
+- `[~10:52-11:02] T0205` fix BUG-049(使用者問「T0203 notify 沒到」→ 塔台翻 log 定位)
+- `[~11:05] BUG-049 CLOSED` 第一次 YOLO pipeline 跑通(使用者確認)
+- `[~11:08] _report-yolo-pty-race-condition-analysis.md` 存檔(非 PLAN)
+- `[~11:12] *evolve` 4 GP + 1 UPDATE + 3 L 批次
+- `[~11:14] git push` 6 commits(L071 解除)
+- `[~11:27-11:32] T0206` research BUG-048 完成(Worker auto-notify 第二次驗證 ✅)
+- `[~11:36] 收尾` session 10 snapshot + 本次 commit + push
+
+**未執行項(下 session 接)**:
+- 🟡 **BUG-048 修復(T0207 Option B)** — Worker 推薦,est 1.5-2h,範圍明確:pending queue + 新增 FileTree `expandToPath()` API
+- 🟢 Option C follow-up 工單(5 處 CT Panel dispatch 抽 `openFileInFilesTab()` helper,獨立另開)
+- 🟡 BUG-047 pre.2 tag(使用者授權 → `release new pre tag version`→ Rico 驗收)
+- 🟡 PLAN-022 T0202c fingerprint pinning(非緊急)
+- 🟢 PLAN-008 中文「高」優先級 polish
+
+**恢復指引**(下次 `/control-tower` 啟動時):
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status`(本 session 已 push,無需立即 push)
+3. 下一輪優先級建議:
+   - 🟡 **BUG-048 派 T0207 Option B 修復**(首選,研究已完成,範圍明確)
+   - 🟡 BUG-047 pre.2 tag(使用者授權後可打)
+   - 🟡 PLAN-022 fingerprint pinning(安全對齊,可 dogfood YOLO)
+   - 🟢 其他零星 polish
+
+---
+
+## 🛏 前次 Session 退出快照（2026-04-19 第九 session,雙重翻案閉環 BUG-046 + packaging 雙修 BUG-047）
 
 **退出原因**：C 計畫收尾全數完成（BUG-046 CLOSED + PLAN-022 建檔 + `*evolve` + commit + push + `_tower-state.md` 快照）
 
