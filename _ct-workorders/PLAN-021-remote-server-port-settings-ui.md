@@ -3,7 +3,7 @@
 ## 元資料
 - **編號**:PLAN-021
 - **標題**:Settings UI 支援自訂 RemoteServer port(預設 9876,衝突時可改 + 測試按鈕)
-- **狀態**:IN_PROGRESS(T0218 Step 1+2+3+4 code DONE 2026-04-19 ~20:10,等待使用者手動 dev smoke 驗收)
+- **狀態**:IN_PROGRESS(T0218 Step 1+2+4 backend DONE `f3d862c` + core smoke 6/7 PASS;Step 3 UI 首版交付 `98b9ce0`,使用者 smoke 揭露 UX 簡化需求 D065 → T0219 接手)
 - **優先級**:🟢 Low(無 user report,預防性,port 衝突目前靠「換 port」workaround 即可)
 - **類型**:功能想法(UX 改善,降低新使用者 port 衝突時的排障成本)
 - **建立時間**:2026-04-19 03:00 (UTC+8)

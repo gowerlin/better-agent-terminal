@@ -46,10 +46,51 @@
 | D062 | 2026-04-18 | Worker 無狀態原則：所有 runtime context 由塔台派單 explicit 傳遞 | BUG-040/BUG-041/T0176+ |
 | D063 | 2026-04-19 | BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log 再決策階段 2 | BUG-050/T0215/PLAN-024 |
 | D064 | 2026-04-19 | BUG-050 階段 2 暫緩:2 樣本 + 真實 YOLO 工作流驗證零異常,保持 VERIFY 待真實問題觸發 | BUG-050/PLAN-024/T0216/T0217 |
+| D065 | 2026-04-19 | PLAN-021 UX 簡化:移除 Test 按鈕(error path 已提供回饋),新增停止伺服器前連線數警告 | PLAN-021/T0218/T0219 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D065 2026-04-19 — PLAN-021 UX 簡化:移除 Test 按鈕(error path 已提供回饋),新增停止前連線數警告
+
+- **背景**:T0218 Worker 忠實照 PLAN-021 原始設計實作 Step 1+2+3+4(含 Test 按鈕 + OS-specific 佔用查詢)。使用者跑 7 情境 smoke 中,提出 UX 觀察:
+  1. **啟動伺服器時若 port 衝突會直接 EACCES 報錯**(Image #5:port 80 `listen EACCES: permission denied`)→ 使用者已獲清楚回饋
+  2. **熱切換失敗時 Worker 實作有 rollback + 錯誤訊息** → 同樣提供清楚回饋
+  3. **兩個 error path 加總 = Test 按鈕功能** → Test 按鈕成為**多餘的中介步驟**,增加使用者心智負擔(要先 Test 再 Save,雙重操作)
+  4. **真正 UX 缺口**:停止伺服器時無警告,可能誤斷他人活躍連線(現況一點就停)
+- **選項**:
+  - [A] 保留 Test 按鈕 + 現有 UI,不改
+  - [B] 移除 Test 按鈕 + 相關邏輯,改加停止前警告 dialog
+  - [C] 兩者都做:保留 Test 但加停止警告(UI 越來越複雜)
+- **決定**:[B] 簡化設計
+- **理由**:
+  1. **KISS**:error path 已存在時,獨立「測試 helper」反增摩擦
+  2. **使用者真實痛點**:未警告的停止比未預驗的 port 更有風險(前者可能影響他人,後者只會在 local 報錯)
+  3. **減少維護**:移除 IPC handler `settings:test-port` + OS-specific 查詢(Windows netstat / Unix lsof)+ 相關 22 i18n key 的一部分
+  4. **對齊 error UX**:使用者習慣「試了再說」而非「先 simulate」(PLAN-021 原設計受 Nmap 等網路工具習慣影響,但 app settings 不是網工場景)
+- **落地範圍**(T0219 執行):
+  - **移除**:
+    - UI Test 按鈕 + 相關 state(`portTestResult`, `portTesting`)
+    - IPC handler `settings:test-port`
+    - `electron/remote/port-test.ts` 的 OS-specific 查詢邏輯(保留 `testPort` helper 供未來他用,或整個刪除)
+    - preload `window.electronAPI.settings.testPort` bridge
+    - i18n:`remotePortTest`, `remotePortTesting`, `remotePortTestHint`, `remotePortAvailable`, `remotePortInUse`, `remotePortInUseBy`, `remotePortPermissionDenied`, `remotePortInvalid`, `remotePortUnknown`(9 key × 3 locales = 27 行)
+  - **新增**:
+    - 停止伺服器 confirm dialog:「即將停止伺服器,將中斷 N 個活躍連線。確定?」(N = `serverStatus.clients.length`)
+    - N=0 時可選:不彈 dialog 直接停(UX 順)或仍彈 dialog 統一行為(安全)
+  - **保留**:
+    - Port editor + Save & hot-switch + Reset + URL preview
+    - 改 port 時的 active conn 警告(已在)
+    - hot-switch rollback + restartError 回傳
+- **UX 原則衍生**:「error path 已提供回饋時,勿另加『測試 helper』中介步驟」— 候選 Global GP,待 T0219 完成後 `*evolve` 評估
+- **影響**:
+  - PLAN-021 狀態:IDEA → IN_PROGRESS(Step 1+2+4 DONE T0218,Step 3 UI 簡化由 T0219 接手)
+  - T0218 狀態:PARTIAL → DONE(技術實作 + backend + 核心 smoke 6/7 通過,UX 改動為後續迭代)
+  - T0219 待開:UX 簡化工單
+- **相關工單**:PLAN-021 / T0218 / T0219(待開)/ T0215(T0217 smoke 回歸驗證 backend 不破壞)
 
 ---
 
