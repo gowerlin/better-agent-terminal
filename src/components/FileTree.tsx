@@ -102,7 +102,9 @@ function FileTreeNode({
     ? (expanded ? '📂' : '📁')
     : getFileIcon(entry.name)
 
-  const isSelected = !entry.isDirectory && entry.path === selectedPath
+  const isSelected = !entry.isDirectory
+    && selectedPath !== null
+    && toPathKey(entry.path) === toPathKey(selectedPath)
   const rowRef = useRef<HTMLDivElement>(null)
 
   // Scroll selected row into view (useful after expandToPath reveal).
@@ -649,7 +651,11 @@ export function FileTree({ rootPath }: Readonly<FileTreeProps>) {
             displayEntries.map(entry => (
               <div
                 key={entry.path}
-                className={`file-tree-item file-tree-file ${entry.path === selectedFile?.path ? 'selected' : ''}`}
+                className={`file-tree-item file-tree-file ${
+                  selectedFile && toPathKey(entry.path) === toPathKey(selectedFile.path)
+                    ? 'selected'
+                    : ''
+                }`}
                 style={{ paddingLeft: '12px' }}
                 onClick={() => {
                   if (!entry.isDirectory) handleSelect(entry)
