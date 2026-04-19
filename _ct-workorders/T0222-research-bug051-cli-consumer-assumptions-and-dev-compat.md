@@ -4,9 +4,11 @@
 
 - **編號**:T0222
 - **類型**:research(研究型工單,允許 Worker 互動)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **建立時間**:2026-04-19 23:24 (UTC+8)
 - **開始時間**:2026-04-19 23:30 (UTC+8)
+- **完成時間**:2026-04-19 23:33 (UTC+8)
+- **commit**:4ce1d60
 - **派發模式**:`--mode on --interactive`(允許 Worker 與使用者互動釐清範圍)
 - **優先級**:🟠 High(BUG-051 100% 阻擋 packaged 環境 claude-cli preset)
 - **前置條件**:BUG-051(OPEN)
