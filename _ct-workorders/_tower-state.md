@@ -1,41 +1,51 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-19 19:45(第十三 session,BUG-050 VERIFY 階段 2 暫緩 + T0216/T0217 雙工單 + GP042/GP063 Global + D063/D064)
+> 最後更新:2026-04-19 20:30(第十三 session,3 工單 YOLO 連擊 + BUG-050 樣本 5 張 clean + UX 原則 GP064 萃取 + T0218 DONE + T0219 UX 簡化待派)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-19 第十三 session,BUG-050 階段 1 驗收 + 階段 2 暫緩 + 2 工單極速)
+## 🛏 本 Session 退出快照(2026-04-19 第十三 session,T0216/T0217/T0218 三連擊 + 使用者 smoke UX 見解識別 D065 + GP064)
 
-**退出原因**:使用者選擇 [B] 階段 2 暫緩,BUG-050 保持 VERIFY 自然累積樣本 → session 收尾
+**退出原因**:完成 T0218 DONE + D065 UX 簡化決策 + GP064 Global 學習萃取;T0219(UX 簡化實作)留下 session 以新 context 開工(~30-45 min 估時)
 
-**本 session 成果**(~52 min wall,2 工單 + 2 Global GP + 2 決策 + 6 commits):
+**本 session 成果**(~2h wall,3 工單 YOLO 連擊 + 3 Global 學習 + 3 決策 + 15+ commits):
 
-**工單鏈(2 張,雙極速)**:
+**工單鏈(3 張,三連擊極速)**:
 - `f079979` + `279def5` T0216 PLAN-023 階段 3(**9 min / est 60-120 min,~7-13x**)— FileTree 拆 4 檔(749→460 行,-39%) + FileEntry.pathKey 全面切換 + IPC boundary 注入(preload.ts)
 - `c514512` + `f651bf3` T0217 PLAN-022 Step 1+2(**6 min / est 50-65 min,~8-11x**)— bat-terminal + bat-notify fingerprint pinning + 抽共用 `_bat-cert.mjs` helper + 主動修正 PLAN-022 骨架欄位名錯誤 + BAT_SERVER_CERT_PATH env override 測試巧思
+- `f3d862c` + `98b9ce0` + `289114f` + `0d651a3` T0218 PLAN-021 Step 1+2+3+4(**11 min / est 150-215 min,~14-20x 本 session 新高**)— Settings UI 自訂 RemoteServer port + IPC + hot-switch + OS-specific 佔用查詢 + 22 i18n keys × 3 locales + smart PARTIAL exit(catch-22 邊界嚴守)
 
 **BUG/PLAN 狀態變更**:
-- **BUG-050** FIXING → 🧪 **VERIFY**(階段 1 smoke 場景 1/2 通過 + 2 YOLO 樣本 clean)
-- **PLAN-023** IN_PROGRESS → **DONE**(階段 1+2+3 全閉環,手動 smoke 4 情境驗收通過)
-- **PLAN-024** 階段 2 **暫緩**(D064,保持 PLANNED)
+- **BUG-050** FIXING → 🧪 **VERIFY**(階段 1 smoke 場景 1/2 通過 + 5 張 YOLO 樣本 clean)
+- **PLAN-023** IN_PROGRESS → **DONE**(階段 1+2+3 全閉環)
+- **PLAN-024** 階段 2 **暫緩**(D064)
+- **PLAN-021** IDEA → **IN_PROGRESS**(T0218 backend DONE + smoke 6/7 PASS,UI 簡化 D065 交棒 T0219)
+- **T0218 DONE**(技術交付 + 核心 smoke 通過)
 
-**決策日誌(2 條)**:
+**決策日誌(3 條)**:
 - **D063** BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log
-- **D064** BUG-050 階段 2 暫緩:2 樣本 + 真實工作流驗證零異常,保持 VERIFY 待真實問題觸發
+- **D064** BUG-050 階段 2 暫緩:2+ 樣本零異常,保持 VERIFY 待真實問題觸發
+- **D065** PLAN-021 UX 簡化:使用者 smoke 揭露 Test 按鈕冗餘,移除 + 停止警告新增 → T0219
 
-**Global 學習萃取(GP042 UPDATE + GP063 新建)**:
-- **GP042 UPDATE**:Worker time 連 37+ hit,T0216 中規模架構重整 7-13x **新場景擴展**(破除「只有小 fix 才能高倍壓縮」),T0217 又加一樣本 8-11x
-- **GP063 新建**(🟡 待跨專案驗證):**IPC boundary 注入 + 結構性子型別 = 重構豁免 consumer audit**
-  - 機制 1:單點邊界注入(preload.ts / API gateway / ORM hook)
-  - 機制 2:TypeScript 結構性子型別作為 audit 豁免
-  - 通用化:Web API / ORM / MQ / GraphQL / RPC 皆適用
-  - 來源:T0216 FileEntry.pathKey 注入實例
+**Global 學習萃取(GP042 UPDATE + GP063 + GP064 新建)**:
+- **GP042 UPDATE**:Worker time 連 37+ hit,**中規模架構重整 7-13x + 大工單 14-20x 新高**(T0218 11 min / est 150-215 min)
+- **GP063**(🟡):IPC boundary 注入 + 結構性子型別 = 重構豁免 consumer audit(T0216 源頭)
+- **GP064**(🟡)**新**:UX 反模式 — Error path 已提供回饋時勿加 Test/Preview/Dry-run helper 按鈕
+  - 源頭:使用者 T0218 smoke 時主動識別 Test 按鈕冗餘
+  - 通用化:Form Submit / Connect / Save / Deploy / Port bind 皆適用
+  - 合理情境:`git diff` / `terraform plan` / SQL migration dry-run(提供不同資訊)
+  - 反模式情境:Test 只回答「通過/失敗」而動作本身 error path 也回答同樣資訊時
+  - 設計自問清單(5 題)+ 多例子 + 保留/移除對照
 
-**BUG-050 YOLO 觀察樣本(2 張,全 clean)**:
-- 樣本 #1 T0216:writeResp `{hasError:false, payload:{ok:true, reason:"queued"}}` ✅
-- 樣本 #2 T0217:**真實 YOLO 工作流 end-to-end 驗證**(Worker smoke 1 訊息 + auto-submit 都直接到塔台,非剪貼簿 fallback)✅
-- 異常跡象:**0**
-- 下個觸發點:異常 payload 觸發階段 2 啟動 / 連續 10+ clean 樣本觸發 CLOSED
+**BUG-050 YOLO 觀察樣本(5 張,全 clean,質量壓倒數量)**:
+- 樣本 #1 T0216:writeResp 結構 100% 正常
+- 樣本 #2 T0217:真實 YOLO 工作流 end-to-end 驗證
+- 樣本 #3 T0218 PARTIAL auto-submit:大工單壓力測試(~40-50 tool calls)clean
+- 樣本 #4 6b 手動 smoke:**熱切換後新終端 bat-notify 跨 port 連線成功**(最強真實場景)
+- 樣本 #5 情境 7 回歸 smoke:port 設回 9876 + 重啟 → T0215/T0217 smoke 仍 PASS
+- 異常跡象:**0**(5/5 clean)
+- 距離 CLOSED 門檻:連續 10+ clean → 已累積 5 張,過半
+- 觸發階段 2 啟動條件:異常 payload(未出現)
 
 **Worker 品質亮點(T0217)**:
 - 主動修正 PLAN-022 骨架錯誤(`fingerprint256` 假設 → 實際 `fingerprint` persisted;兩欄位 format 同可 `===` 比對)
@@ -45,12 +55,21 @@
 
 **未執行項(下 session 接)**:
 
-### 🟢 候選(優先級依序)
+### 🔴 首選:T0219 PLAN-021 UX 簡化(對齊 D065)
+
+- **範圍**:
+  - **移除**:Test 按鈕 + state(`portTestResult`, `portTesting`)+ IPC handler `settings:test-port` + `electron/remote/port-test.ts` OS-specific 查詢(可全刪或只保留 `testPort` helper)+ preload bridge + 9 i18n keys × 3 locales
+  - **新增**:停止伺服器前 confirm dialog 顯示「即將中斷 N 個活躍連線」(N = `serverStatus.clients.length`)
+  - **保留**:Port editor + Save & hot-switch + rollback + URL preview + 改 port 時的 active conn 警告
+  - **附帶驗收**:確認 Image #4 server running 下 Port editor 區塊實際有 render(若 dev HMR 有 gap 需排查)
+- **估時**:~30-45 min / 預期 Worker time 5-10 min
+
+### 🟢 其他候選(優先級依序)
 
 - 🟡 **BUG-047 pre.2 tag**(Rico 驗收,第九 session 殘留,使用者授權後可打)— 極小
-- 🟢 **GP042 升 Skill** `/ct-evolve --skill worker-time-estimation`(⭐ proven 穩固至極,37+ hit,場景完整)
-- 🟢 **GP063 等跨專案驗證** — 下次在其他 repo 遇到「新增跨多 consumer 型別欄位」場景時留意
-- 🟢 **BUG-050 自然累積樣本** — 每張 YOLO 派發都是觀察機會,不需專門派測試工單
+- 🟢 **GP042 升 Skill** `/ct-evolve --skill worker-time-estimation`(⭐ proven 穩固,37+ hit,T0218 14-20x 新高後場景完整)
+- 🟢 **GP063 / GP064 等跨專案驗證** — 下次在其他 repo 遇到類似場景(IPC boundary / 考慮加 Test 按鈕)留意
+- 🟢 **BUG-050 自然累積樣本** — 任何 YOLO 派發都是觀察機會;T0219 派發即自然 +1 樣本
 
 ### 📊 下 session 決策點
 
@@ -62,8 +81,9 @@
 1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
 2. **第一動作**:確認 `git status`(本 session 已全部 commit,尚待 push 授權)
 3. 下一輪優先級建議:
+   - 🔴 **T0219 UX 簡化**(首選,對齊 D065,~30-45 min 估時 / 5-10 min Worker time)
    - 🟡 **BUG-047 pre.2 tag**(使用者授權後可打,極小)
-   - 🟢 若要累積更多 BUG-050 樣本 → 任選一張 YOLO 派發即可自動採樣
+   - 🟢 若要累積更多 BUG-050 樣本 → T0219 派發即自然 +1 樣本
 
 ### ⚠️ 記憶污染修正紀錄
 
