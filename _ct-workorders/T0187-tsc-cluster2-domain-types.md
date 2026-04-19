@@ -3,7 +3,7 @@
 ## 元資料
 - **編號**:T0187
 - **類型**:implementation
-- **狀態**:PARTIAL
+- **狀態**:✅ DONE(2026-04-20 第十六 session rescan 升級 — Cluster 2 主體工作已閉環(60→46 errors,消 14),PLAN-019 DONE;`WorkspaceStore mark*` 邊界發現歸入 PLAN-019 殘留 note,未影響閉環)
 - **優先級**:🟢 Low
 - **關聯**:PLAN-019 · T0185 Cluster 2 · T0186 後續
 - **派發時間**:2026-04-18 22:34 (UTC+8)

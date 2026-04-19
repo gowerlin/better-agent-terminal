@@ -47,10 +47,136 @@
 | D063 | 2026-04-19 | BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log 再決策階段 2 | BUG-050/T0215/PLAN-024 |
 | D064 | 2026-04-19 | BUG-050 階段 2 暫緩:2 樣本 + 真實 YOLO 工作流驗證零異常,保持 VERIFY 待真實問題觸發 | BUG-050/PLAN-024/T0216/T0217 |
 | D065 | 2026-04-19 | PLAN-021 UX 簡化:移除 Test 按鈕(error path 已提供回饋),新增停止伺服器前連線數警告 | PLAN-021/T0218/T0219 |
+| D066 | 2026-04-19 | BUG-047 驗收失敗處理:派研究工單 T0220 而非直接修復 | BUG-047/T0220 |
+| D067 | 2026-04-19 | T0221 YOLO 回報策略:code-only 必回 PARTIAL 觸發斷點 A | T0221/T0223 |
+| D068 | 2026-04-19 | BUG-051 範圍判定:派研究工單深查 consumer + 跨平台 | BUG-051/T0222 |
+| D069 | 2026-04-19 | BUG-051 與 BUG-047 關係:不算翻案,獨立編號 | BUG-047/BUG-051 |
+| D070 | 2026-04-19 | T0222 附加發現處理:BUG-052 獨立 + T0223 合併修 | BUG-052/T0222/T0223 |
+| D071 | 2026-04-20 | PLAN-021 dev smoke 驗收暫緩,UX 另案 | PLAN-021/T0218/T0219 |
+| D072 | 2026-04-20 | archive_days 7 → 2 歸檔門檻調整 | _tower-config.yaml / *archive |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D072 2026-04-20 — archive_days 7 → 2(歸檔門檻)
+
+- **背景**:第十六 session `*sync` 後熱區累積 73 T + 17 BUG + 19 PLAN。`*archive` 在 7 天門檻下 0 候選(所有 T 工單都在 7 天內被後續 session meta commit 動到,計時重置)。
+- **選項**:
+  - A. `archive_days: 3` — 嚴格 `>3` 邏輯下仍 0 候選(最老 T 工單剛好 3 天)
+  - B. `archive_days: 2` — `>2` 邏輯抓到 ≥3 天前,實測 4 張候選
+  - C. 維持 7 天,熱區自然成長
+- **決定**:B(`archive_days: 2`)
+- **理由**:
+  1. 對齊第十五 session 歷史決策「歸檔閾值降為 2 日」
+  2. 本專案 session 密度高(3 天 ≈ 3-4 sessions),2 天冷卻足夠
+  3. 比先前 dogfood `archive_days: 1` 保守,避免 L066「過度頻繁觸發」
+  4. 歸檔只是 `git mv`,可用 `*archive --restore` 取回
+- **執行結果**:歸檔 T0149/T0150/T0154/BUG-034 共 4 張(commit `cd3b0d8`)
+- **相關**:`_tower-config.yaml`、L066、`*archive`、`*sync`
+
+---
+
+### D071 2026-04-20 — PLAN-021 dev smoke 驗收暫緩,UX 另案
+
+- **背景**:第十六 session 收尾後,塔台列出 T0218+T0219 合併 dev smoke 9 情境清單,使用者審視後識別「UX 體驗設計不佳」。
+- **選項**:
+  - A. 硬著跑 9 情境,驗收通過閉環 PLAN-021
+  - B. 暫緩 smoke,另開議題討論 UX refactor
+  - C. 直接 drop PLAN-021
+- **決定**:B(暫緩 + UX 另案)
+- **理由**:
+  1. T0218/T0219 code 本身正確(已 commit),功能無錯
+  2. 使用者識別整體 Settings Remote 區塊 UX 有改進空間(非單一按鈕問題)
+  3. smoke 通過不等於 UX 好,硬驗反而掩蓋問題
+- **後續**:PLAN-021 保留 code 不退版,UX 另案待使用者開議題時討論
+- **相關**:PLAN-021、T0218、T0219
+
+---
+
+### D070 2026-04-19 — T0222 附加發現處理:BUG-052 獨立 + T0223 合併修
+
+- **背景**:T0222(BUG-051 研究工單)完成時,Worker 從 `install.cjs` 挖出額外發現:`main.ts:1882` + `tests/claude-code-path.test.ts` 假設 POSIX 檔名為 `claude`(實際跨平台永遠叫 `claude.exe`),影響非 Windows 平台。
+- **選項**:
+  - A. 併入 BUG-051/T0223,不獨立編號
+  - B. 開 BUG-052 獨立追蹤 + T0223 一次修兩處
+  - C. 開 BUG-052 + 獨立 T0224 修
+- **決定**:B(獨立編號 + 合併修)
+- **理由**:
+  1. 同族 root cause(對 CLI binary 的錯誤假設)→ 適合同工單修
+  2. Min-diff 仍成立(~2 行 code + 2 行 test),不需拆工單
+  3. 獨立編號便於追蹤(macOS/Linux 樣本出現時好找)
+  4. 沿用 T0221 Worker 品質亮點「同 pattern 一併修」
+- **執行結果**:T0223 4 min 完成,commit `42b45b0`,BUG-051 + BUG-052 雙 CLOSED(smoke pass)
+- **相關**:BUG-052、T0222、T0223
+
+---
+
+### D069 2026-04-19 — BUG-051 與 BUG-047 關係:不算翻案,獨立編號
+
+- **背景**:BUG-047 驗收通過後,使用者立即回報新 bug(claude-cli preset 終端 `node <claude.exe>` 失敗)。需判定是翻案還是新 bug。
+- **選項**:
+  - A. 翻案 BUG-047 → FIXING(認定 T0221 修復不完整)
+  - B. 獨立開 BUG-051(BUG-047 root 已修,此為 downstream consumer bug)
+- **決定**:B(獨立追蹤)
+- **理由**:
+  1. BUG-047 的 SDK 側 resolve path 已由 T0221 完全修正(smoke pass 驗證)
+  2. 新 bug 是 T0221 修改回傳值後,consumer(`WorkspaceView.tsx:684`)未跟著調整的 downstream 影響
+  3. 兩個 bug 現象、影響範圍、修復位置不同
+  4. 獨立編號便於後續樣本追蹤和歸檔
+- **相關**:BUG-047、BUG-051
+
+---
+
+### D068 2026-04-19 — BUG-051 範圍判定:派研究工單深查
+
+- **背景**:BUG-051 根因看似明確(`WorkspaceView.tsx:684` 無條件 prefix `node`),但使用者補充「要考慮相容 dev server 執行」,牽動 dev/packaged × Windows/POSIX 4 象限驗證。
+- **選項**(需求對齊 Q2):
+  - A. Min-diff 直修(去 `'node'` prefix 1 行)
+  - B. 加 unit test regression guard
+  - C. 深查 — 派研究工單調查所有 consumer 假設 + dev/packaged 相容性
+- **決定**:C(派研究工單 T0222)
+- **理由**:
+  1. 使用者特別提「相容 dev server」→ 不只是 packaged 問題
+  2. 避免 BUG-047 重演「只驗某面沒驗另一面」
+  3. 研究成本低(Worker 壓縮比通常 5-10x),翻車風險高於直修
+- **執行結果**:T0222 3 min 完成,壓縮 ~7-13x(研究工單破紀錄),交付 4 象限驗證結論 + α 方案推薦
+- **相關**:BUG-051、T0222
+
+---
+
+### D067 2026-04-19 — T0221 YOLO 回報策略:code-only 必回 PARTIAL 觸發斷點 A
+
+- **背景**:T0221(BUG-047 code 修復)在 YOLO 模式派發,Worker 完成 code + build + unit test 後,需決定是否直接回報 DONE 或 PARTIAL。
+- **選項**:
+  - A. DONE(Worker 完成所有可做的事)
+  - B. PARTIAL(code-only 不含 packaged smoke,需使用者驗機)
+- **決定**:B(PARTIAL 觸發斷點 A)
+- **理由**:
+  1. Packaged smoke 屬於「需人介入」類型,YOLO 無法自動化
+  2. 若直接 DONE,使用者必須手動翻 PARTIAL,多一步
+  3. 原則明確化:「可自動化 → YOLO / 需人介入 → 斷點」
+- **通用化**:此決策作為本專案 YOLO + 驗收類工單的回報約定,後續 T0223 沿用
+- **相關**:T0221、T0223
+
+---
+
+### D066 2026-04-19 — BUG-047 驗收失敗處理策略:派研究工單而非直接修復
+
+- **背景**:BUG-047 T0198/T0199 修復後 Rico 驗證仍失敗(v0.2.2-pre.1),後 Gower 裝 v0.2.2-pre.1 也複現同路徑錯誤,樣本 2 人跨版本 100% 阻擋。嚴重度升 High。
+- **選項**(需求對齊 Q2):
+  - A. 退 FIXING + 派研究工單 T0220 調查根因
+  - B. 直接派修復工單(根據 Rico 錯誤訊息推測 asar resolve 問題)
+  - C. 翻案 T0197 + T0198/T0199,重新評估
+- **決定**:A(先研究)
+- **理由**:
+  1. T0197/T0198/T0199 已嘗試多種修復都未生效,直接再修風險高
+  2. 根因不明時先研究,避免重蹈 T0198「驗證缺口」覆轍(當時只驗檔案位置沒跑 packaged smoke)
+  3. 研究成本低(Worker 壓縮 5-10x),收斂後再派修復工單風險更低
+- **執行結果**:T0220 6 min 完成(壓縮 ~3x),定位根因為 `resolveClaudeCodePath()` `require.resolve('cli.js')` 在 v2.1.113 拋 MODULE_NOT_FOUND → 回空字串
+- **相關**:BUG-047、T0220、T0221
 
 ---
 

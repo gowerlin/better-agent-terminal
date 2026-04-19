@@ -1909,16 +1909,16 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 ---
 
 ## 🔍 環境快照
-> 最後掃描：2026-04-18 20:07 (UTC+8) — *rescan
+> 最後掃描：2026-04-20 00:36 (UTC+8) — *rescan（第十六 session 收尾後完整重掃）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| BMad-Method | ✅ | _bmad/ 已偵測到 |
-| ECC 學習 | ✅ Level 1 | ~/.claude/homunculus/ |
+| BMad-Method | ✅ | _bmad/ 已偵測到（_config/ + bmm/ + core/） |
+| ECC 學習 | ✅ Level 1 | ~/.claude/homunculus/ (projects/ + projects.json) |
 | bmad-guide skill | ✅ | 可用 |
-| mem0 REST | ✅ | memsync healthy, queue:2 |
+| mem0 REST | ✅ | memsync healthy, updated 2026-04-20 00:33 |
 | 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal |
-| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-... |
+| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-..., terminal:718b291a-... |
 | ct-exec | ✅ | |
 | ct-done | ✅ | |
 | ct-status | ✅ | |
@@ -1926,14 +1926,18 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | ct-insights | ✅ | |
 | ct-fieldguide | ✅ | |
 | ct-help | ✅ | |
-| _archive/ | ✅ | 201 張歸檔（workorders/bugs/plans/ + checkpoint + 舊 index） |
+| worker-time-estimation | ✅ 🆕 Skill | GP042 升 Skill 完成（本 session 新偵測到） |
+| _archive/ | ✅ | 203 張歸檔（workorders:163, bugs:36, plans:4，+4 本 session） |
 | _playbooks/ | ✅ | 空目錄（0 張） |
-| _decision-log | ✅ | D### (34 條) |
+| _decision-log | ⚠️ drift | 檔案 D065 為最新（39 條），實際已到 D072（tower-state 記） |
 | 跨專案參照 | 📋 | 無關聯（_cross-references.md 不存在） |
-| Global 學習 | ✅ | 48 patterns, 0 playbooks, 3 fieldguide |
-| BUG/PLAN 追蹤 | ✅ | BUG:6 熱區 / PLAN:15 熱區 |
+| Global 學習 | ✅ ⭐ | 74 patterns(+3 本 session: GP065/GP066/GP042 UPDATE), ?? playbooks, 3 fieldguide |
+| BUG/PLAN 追蹤 | ✅ | BUG:16 熱區 / PLAN:19 熱區 |
 | 實驗追蹤 | ✅ | EXP:2 熱區 |
-| 設定來源 | project | _tower-config.yaml (yolo + retries:1 + commit:on) |
+| 熱區工單 | T:70 / CT-T:7 / BUG:16 / PLAN:19 / EXP:2 | 本 session 歸檔 4 張(T0149/T0150/T0154/BUG-034) |
+| 最大編號 | T0223 / BUG-052 / PLAN-024 / D071+72 | BUG-047/051/052 全 CLOSED |
+| 設定來源 | project | _tower-config.yaml (yolo + retries:1 + commit:on + archive_days:2) |
+| 塔台版本 | v4.3.0 | SKILL.md frontmatter |
 | 能力等級 | Level 2 | ECC + mem0 |
 
 ---

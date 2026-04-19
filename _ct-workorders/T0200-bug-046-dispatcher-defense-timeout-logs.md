@@ -4,7 +4,7 @@
 
 - **編號**:T0200
 - **類型**:實作(trivial-medium,scripts/bat-terminal.mjs 範圍)
-- **狀態**:🟡 PARTIAL
+- **狀態**:✅ DONE(2026-04-20 第十六 session rescan 升級 — 防禦性修復 code 已 commit,階段目標達成;BUG-046 由 T0202b 實證派發成功後於 2026-04-19 CLOSED)
 - **估時**:30-50 min(grep ~5 + code ~15-20 + 本地測試 ~10-15 + 回報 ~5)
 - **建立時間**:2026-04-19 02:25 (UTC+8)
 - **開始時間**:2026-04-19 02:28 (UTC+8)
