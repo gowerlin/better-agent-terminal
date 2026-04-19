@@ -21,6 +21,7 @@
     "diagnose:ctrl-o:verbose": "npx electron tests/diagnose-ctrl-o.js --verbose",
     "test:node-resolver": "npx tsx tests/node-resolver.test.ts",
     "test:file-drag": "npx tsx tests/file-drag-to-chat.test.ts",
+    "test:claude-code-path": "npx tsx tests/claude-code-path.test.ts",
     "bat-terminal": "node scripts/bat-terminal.mjs"
   },
   "dependencies": {

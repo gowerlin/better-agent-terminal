@@ -1876,13 +1876,24 @@ function registerProxiedHandlers() {
   })
 
   // Get bundled Claude CLI path for claude-cli preset
+  // BUG-047 (T0221): v2.1.113 ships only `bin/claude(.exe)`; no `cli.js`.
+  // Packaged → hardcode app.asar.unpacked path; dev → resolve via package.json + bin/.
   registerHandler('claude:get-cli-path', () => {
+    const binaryName = process.platform === 'win32' ? 'claude.exe' : 'claude'
+    if (app.isPackaged) {
+      return path.join(
+        process.resourcesPath,
+        'app.asar.unpacked',
+        'node_modules',
+        '@anthropic-ai',
+        'claude-code',
+        'bin',
+        binaryName,
+      )
+    }
     try {
-      let resolved = require.resolve('@anthropic-ai/claude-code/cli.js')
-      if (resolved.includes('app.asar') && !resolved.includes('app.asar.unpacked')) {
-        resolved = resolved.replace('app.asar', 'app.asar.unpacked')
-      }
-      return resolved
+      const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
+      return path.join(path.dirname(pkgPath), 'bin', binaryName)
     } catch {
       return ''
     }

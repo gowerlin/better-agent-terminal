@@ -77,28 +77,50 @@ function dataUrlToContentBlock(dataUrl: string): { type: 'image'; source: { type
   }
 }
 
-// Resolve the Claude Code CLI path at module level
-// In packaged Electron apps, asarUnpack puts files under app.asar.unpacked
-// but require.resolve returns the app.asar path — we need to fix that.
+// Resolve the Claude Code CLI path at module level.
+// v2.1.113 ships only `bin/claude.exe` (no `cli.js`, no `main`/`exports`),
+// so we cannot `require.resolve('@anthropic-ai/claude-code/cli.js')` — it throws.
+// Strategy (BUG-047 fix, T0221):
+//   - packaged: hardcode `resources/app.asar.unpacked/node_modules/.../bin/<binary>`
+//   - dev:      resolve via `package.json` (stable) then join `bin/<binary>`
 function resolveClaudeCodePath(): string {
-  let resolved = ''
+  const binaryName = process.platform === 'win32' ? 'claude.exe' : 'claude'
+  if (app.isPackaged) {
+    return pathModule.join(
+      process.resourcesPath,
+      'app.asar.unpacked',
+      'node_modules',
+      '@anthropic-ai',
+      'claude-code',
+      'bin',
+      binaryName,
+    )
+  }
   try {
     const req = createRequire(import.meta.url ?? __filename)
-    resolved = req.resolve('@anthropic-ai/claude-code/cli.js')
+    const pkgPath = req.resolve('@anthropic-ai/claude-code/package.json')
+    return pathModule.join(pathModule.dirname(pkgPath), 'bin', binaryName)
   } catch {
-    // Fallback: try require.resolve directly (works in CommonJS context)
     try {
-      resolved = require.resolve('@anthropic-ai/claude-code/cli.js')
+      const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
+      return pathModule.join(pathModule.dirname(pkgPath), 'bin', binaryName)
     } catch {
       return ''
     }
   }
-  // In packaged apps, the file is in app.asar.unpacked but resolve returns app.asar
-  // child_process.spawn cannot access files inside app.asar, so point to the unpacked copy
-  if (resolved.includes('app.asar') && !resolved.includes('app.asar.unpacked')) {
-    resolved = resolved.replace('app.asar', 'app.asar.unpacked')
+}
+
+// BUG-047 startup assertion: if the resolved CLI path is missing on disk,
+// log a warning. This doesn't block startup (SDK will raise its own error
+// downstream) but surfaces "SDK silently removed the file" regressions early.
+let _claudeCodePathAsserted = false
+function assertClaudeCodePathOnce(): void {
+  if (_claudeCodePathAsserted) return
+  _claudeCodePathAsserted = true
+  const resolvedPath = resolveClaudeCodePath()
+  if (!resolvedPath || !fsSync.existsSync(resolvedPath)) {
+    logger.error('[ClaudeAgent] resolveClaudeCodePath returned invalid path:', resolvedPath || '(empty)')
   }
-  return resolved
 }
 
 export interface SessionSummary {
@@ -191,6 +213,8 @@ export class ClaudeAgentManager {
     this.getWindows = getWindows
     // Health check: detect stalled subagents every 45s
     this.healthCheckTimer = setInterval(() => this.checkStalledTasks(), 45_000)
+    // BUG-047: assert Claude CLI path is valid on disk; warn-only
+    assertClaudeCodePathOnce()
   }
 
   private checkStalledTasks() {
