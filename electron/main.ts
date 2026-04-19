@@ -77,6 +77,7 @@ import { PROXIED_CHANNELS } from './remote/protocol'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
+import { testPort as testPortImpl } from './remote/port-test'
 import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
@@ -431,6 +432,35 @@ interface PersistedSettings {
   terminalServerScrollBufferLines?: number
   terminalServerIdleTimeoutMinutes?: number
   language?: string
+  remotePort?: number
+}
+
+const REMOTE_PORT_MIN = 1024
+const REMOTE_PORT_MAX = 65535
+const REMOTE_PORT_DEFAULT = 9876
+
+/**
+ * Resolve effective RemoteServer port at startup.
+ * Priority: BAT_REMOTE_PORT env > settings.remotePort > default 9876.
+ * Invalid values silently fall back to the next priority.
+ */
+function readRemotePortSync(): number {
+  const envRaw = process.env.BAT_REMOTE_PORT
+  if (envRaw) {
+    const envPort = Number(envRaw)
+    if (Number.isInteger(envPort) && envPort >= REMOTE_PORT_MIN && envPort <= REMOTE_PORT_MAX) {
+      return envPort
+    }
+    logger.warn(`[settings] BAT_REMOTE_PORT="${envRaw}" out of range, ignoring`)
+  }
+  const persisted = readPersistedSettingsSync()?.remotePort
+  if (persisted !== undefined) {
+    if (Number.isInteger(persisted) && persisted >= REMOTE_PORT_MIN && persisted <= REMOTE_PORT_MAX) {
+      return persisted
+    }
+    logger.warn(`[settings] settings.remotePort=${persisted} out of range, ignoring`)
+  }
+  return REMOTE_PORT_DEFAULT
 }
 
 function normalizeLogLevel(level: unknown): LogLevel {
@@ -1136,11 +1166,16 @@ app.whenReady().then(async () => {
   remoteServer.configDir = app.getPath('userData')
 
   // T0129: Auto-start RemoteServer so PTY terminals get BAT_REMOTE_PORT/TOKEN env vars
+  // T0218 (PLAN-021): Resolve port from env > settings.json > default.
+  const startupPort = readRemotePortSync()
   try {
-    await remoteServer.start()
+    await remoteServer.start(startupPort)
     logger.log(`[startup] RemoteServer auto-started on port ${remoteServer.port}`)
   } catch (err) {
-    logger.warn('[startup] RemoteServer auto-start failed (non-blocking):', err)
+    logger.warn(
+      `[startup] RemoteServer auto-start failed on port ${startupPort} (non-blocking):`,
+      err
+    )
   }
 
   // T0129: Wire up PtyManager → RemoteServer info callback for env var injection
@@ -2660,6 +2695,33 @@ function registerLocalHandlers() {
     fingerprint: remoteServer.currentFingerprint,
     clients: remoteServer.connectedClients
   }))
+
+  // T0218 (PLAN-021): Test whether a port is free for RemoteServer to bind.
+  ipcMain.handle('settings:test-port', async (_event, port: number) => {
+    try {
+      return await testPortImpl(port)
+    } catch (err: unknown) {
+      return {
+        available: false,
+        reason: 'unknown' as const,
+        detail: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  // T0218 (PLAN-021): Hot-switch RemoteServer to a new port, retaining token.
+  // On failure, attempts rollback to the old port so existing PTYs with
+  // BAT_REMOTE_PORT env var don't break.
+  ipcMain.handle('remote:restart-server', async (_event, newPort: number) => {
+    try {
+      if (!Number.isInteger(newPort) || newPort < REMOTE_PORT_MIN || newPort > REMOTE_PORT_MAX) {
+        return { error: `Port ${newPort} out of range [${REMOTE_PORT_MIN}, ${REMOTE_PORT_MAX}]` }
+      }
+      return await remoteServer.restart(newPort)
+    } catch (err: unknown) {
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 
   // Mobile QR code connection: ensure server is running, return connection URL
   ipcMain.handle('tunnel:get-connection', async () => {

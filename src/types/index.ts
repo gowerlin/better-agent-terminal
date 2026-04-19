@@ -246,6 +246,7 @@ export interface AppSettings {
   cacheAlarmTimer?: boolean;       // 顯示 cache TTL 倒數計時（預設 false）
   cacheExpiryWarning?: boolean;    // Cache 過期時警告（預設 false）
   agentCustomArgs?: Record<string, string>;  // 每個 agent preset 的自訂參數（key = preset id, value = 參數字串）
+  remotePort?: number;             // RemoteServer port（PLAN-021，範圍 1024-65535，預設 9876，可被 BAT_REMOTE_PORT env 覆寫）
 }
 
 // ============================================

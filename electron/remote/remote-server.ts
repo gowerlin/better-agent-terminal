@@ -418,6 +418,60 @@ export class RemoteServer {
     logger.log('[RemoteServer] Stopped')
   }
 
+  /**
+   * Hot-switch the server to a new port. Retains token + bindInterface.
+   * On failure to bind the new port, attempts to recover the old port so
+   * existing env-injected PTYs (BAT_REMOTE_PORT) stay usable.
+   *
+   * Returns the new StartServerResult on success; on fallback success, returns
+   * the old-port result with `restartError` set so UI can surface the failure.
+   * Throws only if both new bind and recovery fail.
+   */
+  async restart(newPort: number): Promise<StartServerResult & { restartError?: string }> {
+    const oldPort = this.port
+    const oldToken = this.token
+    const oldBind = this.currentBindInterface
+
+    if (!this.wss) {
+      // Not currently running — just start on the new port.
+      return this.start(newPort, oldToken || undefined, oldBind)
+    }
+
+    if (oldPort === newPort) {
+      // No-op; return current state as a StartServerResult shape.
+      return {
+        port: oldPort,
+        token: oldToken,
+        fingerprint: this.fingerprint,
+        bindInterface: oldBind,
+        host: this.currentHost,
+      }
+    }
+
+    logger.log(`[RemoteServer] Hot-switching port ${oldPort} → ${newPort} (bind=${oldBind})`)
+
+    this.stop()
+
+    try {
+      const result = await this.start(newPort, oldToken, oldBind)
+      logger.log(`[RemoteServer] Hot-switch to ${newPort} succeeded`)
+      return result
+    } catch (err) {
+      const newErr = err instanceof Error ? err.message : String(err)
+      logger.warn(`[RemoteServer] Hot-switch to ${newPort} failed: ${newErr} — attempting rollback to ${oldPort}`)
+      try {
+        if (oldPort === null) throw new Error('No previous port to recover')
+        const recovered = await this.start(oldPort, oldToken, oldBind)
+        return { ...recovered, restartError: newErr }
+      } catch (recoverErr) {
+        const recoverMsg = recoverErr instanceof Error ? recoverErr.message : String(recoverErr)
+        throw new Error(
+          `Failed to bind new port ${newPort} (${newErr}); rollback to old port ${oldPort} also failed (${recoverMsg})`
+        )
+      }
+    }
+  }
+
   private sendFrame(ws: WebSocket, frame: RemoteFrame): void {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(frame))

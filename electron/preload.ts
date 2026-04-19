@@ -95,7 +95,15 @@ const electronAPI = {
         crashesDir: string
       }>,
     cleanupLogs: () =>
-      ipcRenderer.invoke('settings:cleanup-logs') as Promise<{ deletedCount: number }>
+      ipcRenderer.invoke('settings:cleanup-logs') as Promise<{ deletedCount: number }>,
+    testPort: (port: number) =>
+      ipcRenderer.invoke('settings:test-port', port) as Promise<{
+        available: boolean
+        reason?: 'in-use' | 'invalid' | 'permission-denied' | 'unknown'
+        processName?: string
+        pid?: number
+        detail?: string
+      }>,
   },
   dialog: {
     selectFolder: () => ipcRenderer.invoke('dialog:select-folder') as Promise<string[] | null>,
@@ -419,6 +427,11 @@ const electronAPI = {
       ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string }>,
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) =>
       ipcRenderer.invoke('remote:list-profiles', host, port, token, fingerprint) as Promise<{ profiles: { id: string; name: string; type: string }[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>,
+    restartServer: (newPort: number) =>
+      ipcRenderer.invoke('remote:restart-server', newPort) as Promise<
+        | { port: number; token: string; fingerprint: string; bindInterface: 'localhost' | 'tailscale' | 'all'; host: string; restartError?: string }
+        | { error: string }
+      >,
   },
   tunnel: {
     getConnection: () =>

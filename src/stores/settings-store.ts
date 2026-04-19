@@ -39,7 +39,12 @@ const defaultSettings: AppSettings = {
   terminalServerScrollBufferLines: 1000,
   terminalServerIdleTimeoutMinutes: 30,
   agentCustomArgs: {},
+  remotePort: 9876,
 }
+
+export const REMOTE_PORT_MIN = 1024
+export const REMOTE_PORT_MAX = 65535
+export const REMOTE_PORT_DEFAULT = 9876
 
 class SettingsStore {
   private settings: AppSettings = { ...defaultSettings }
@@ -343,6 +348,14 @@ class SettingsStore {
 
   setTerminalServerIdleTimeoutMinutes(minutes: number): void {
     this.settings = { ...this.settings, terminalServerIdleTimeoutMinutes: minutes }
+    this.notify()
+    this.save()
+  }
+
+  setRemotePort(port: number): void {
+    const clamped = Math.max(REMOTE_PORT_MIN, Math.min(REMOTE_PORT_MAX, Math.round(port)))
+    if (clamped === this.settings.remotePort) return
+    this.settings = { ...this.settings, remotePort: clamped }
     this.notify()
     this.save()
   }

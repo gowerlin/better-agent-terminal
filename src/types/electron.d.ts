@@ -63,6 +63,13 @@ interface ElectronAPI {
       crashesDir: string
     }>
     cleanupLogs: () => Promise<{ deletedCount: number }>
+    testPort: (port: number) => Promise<{
+      available: boolean
+      reason?: 'in-use' | 'invalid' | 'permission-denied' | 'unknown'
+      processName?: string
+      pid?: number
+      detail?: string
+    }>
   }
   dialog: {
     selectFolder: () => Promise<string[] | null>
@@ -267,6 +274,10 @@ interface ElectronAPI {
     clientStatus: () => Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>
     testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string }>
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ profiles: { id: string; name: string; type: string }[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
+    restartServer: (newPort: number) => Promise<
+      | { port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string; restartError?: string }
+      | { error: string }
+    >
   }
   snippet: {
     getAll: () => Promise<unknown>
