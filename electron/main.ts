@@ -422,6 +422,10 @@ let remoteClient: RemoteClient | null = null
 // Serialise remote connect/disconnect handlers — rapid profile switching can
 // otherwise interleave handshake state with teardown (PLAN-018 T0184).
 let remoteOpMutex: Promise<unknown> = Promise.resolve()
+// profileId currently bound to the active remoteClient. Used to filter
+// remote-event broadcasts so only windows on this remote profile receive
+// them — local-profile windows must not see foreign session traffic.
+let remoteClientProfileId: string | null = null
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
 let tray: Tray | null = null
@@ -702,6 +706,22 @@ function broadcastRuntimeEvent(
     }
   }
   broadcastHub.broadcast(channel, payload)
+}
+
+/** Sync filter: windows whose registry entry's profileId matches `profileId`.
+ *  Used to scope remote event broadcasts to the correct profile's windows. */
+function getWindowsForProfile(profileId: string | null): BrowserWindow[] {
+  if (!profileId) return []
+  const entries = windowRegistry.getCachedEntries()
+  const matchIds = new Set(entries.filter(e => e.profileId === profileId).map(e => e.id))
+  const wins: BrowserWindow[] = []
+  for (const [id, win] of windowMap) {
+    if (matchIds.has(id) && !win.isDestroyed()) wins.push(win)
+  }
+  for (const [id, win] of detachedWindows) {
+    if (matchIds.has(id) && !win.isDestroyed()) wins.push(win)
+  }
+  return wins
 }
 
 /** Reverse lookup: find windowId from a WebContents (for IPC sender context) */
@@ -1026,6 +1046,7 @@ function cleanupAllProcesses() {
   try { codexManager?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   remoteClient = null
+  remoteClientProfileId = null
   claudeManager = null
   codexManager = null
   sessionManagerMap.clear()
@@ -1168,33 +1189,38 @@ app.whenReady().then(async () => {
   const loadProfileSnapshot = async (profileId: string): Promise<ProfileSnapshot | null> => {
     const profileEntry = await profileManager.getProfile(profileId)
     if (profileEntry?.type === 'remote' && profileEntry.remoteHost && profileEntry.remoteToken) {
-      try {
-        const client = new RemoteClient(getAllWindows)
-        const result = await client.connect(
-          profileEntry.remoteHost,
-          profileEntry.remotePort || 9876,
-          profileEntry.remoteToken,
-          undefined,
-          profileEntry.remoteFingerprint,
-        )
-        if (!result.ok) {
-          logger.error(`[profile] remote connect failed for profile ${profileId} (${profileEntry.remoteHost}:${profileEntry.remotePort}): ${result.error ?? 'unknown'}`)
+      const task = remoteOpMutex.then(async () => {
+        try {
+          const client = new RemoteClient(() => getWindowsForProfile(profileId))
+          const result = await client.connect(
+            profileEntry.remoteHost,
+            profileEntry.remotePort || 9876,
+            profileEntry.remoteToken,
+            undefined,
+            profileEntry.remoteFingerprint,
+          )
+          if (!result.ok) {
+            logger.error(`[profile] remote connect failed for profile ${profileId} (${profileEntry.remoteHost}:${profileEntry.remotePort}): ${result.error ?? 'unknown'}`)
+            return null
+          }
+          if (!profileEntry.remoteFingerprint && result.fingerprint) {
+            await profileManager.update(profileId, { remoteFingerprint: result.fingerprint })
+            logger.log(`[profile] TOFU: pinned fingerprint for profile ${profileId}`)
+          }
+          try { remoteClient?.disconnect() } catch { /* ignore */ }
+          remoteClient = client
+          remoteClientProfileId = profileId
+          const targetProfileId = profileEntry.remoteProfileId || 'default'
+          const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
+          logger.log(`[profile] remote profile ${profileId} → got ${snapshot?.windows?.length ?? 0} window(s) from remote (target: ${targetProfileId})`)
+          return snapshot
+        } catch (err) {
+          logger.error(`[profile] remote profile ${profileId} snapshot fetch failed:`, err instanceof Error ? err.message : String(err))
           return null
         }
-        // TOFU: first-time success without pinned fingerprint → store the observed one
-        if (!profileEntry.remoteFingerprint && result.fingerprint) {
-          await profileManager.update(profileId, { remoteFingerprint: result.fingerprint })
-          logger.log(`[profile] TOFU: pinned fingerprint for profile ${profileId}`)
-        }
-        remoteClient = client
-        const targetProfileId = profileEntry.remoteProfileId || 'default'
-        const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
-        logger.log(`[profile] remote profile ${profileId} → got ${snapshot?.windows?.length ?? 0} window(s) from remote (target: ${targetProfileId})`)
-        return snapshot
-      } catch (err) {
-        logger.error(`[profile] remote profile ${profileId} snapshot fetch failed:`, err instanceof Error ? err.message : String(err))
-        return null
-      }
+      })
+      remoteOpMutex = task.catch(() => {})
+      return task
     }
     return await profileManager.loadSnapshot(profileId)
   }
@@ -2814,12 +2840,30 @@ const ALWAYS_LOCAL_CHANNELS = new Set([
 function bindProxiedHandlersToIpc() {
   for (const channel of PROXIED_CHANNELS) {
     ipcMain.handle(channel, async (event, ...args: unknown[]) => {
-      // If remote client is connected, route to remote server — unless this
-      // channel is pinned to local execution.
-      if (remoteClient?.isConnected && !ALWAYS_LOCAL_CHANNELS.has(channel)) {
+      const windowId = getWindowIdByWebContents(event.sender)
+
+      // ALWAYS_LOCAL channels never proxy.
+      if (ALWAYS_LOCAL_CHANNELS.has(channel)) {
+        return invokeHandler(channel, args, windowId)
+      }
+
+      // Route per sender window's profile type. A remote profile window
+      // proxies to the remote server; a local profile window stays local
+      // even if another window has an active remote connection.
+      let senderIsRemote = false
+      let senderProfileId: string | null = null
+      if (windowId) {
+        const entry = await windowRegistry.getEntry(windowId)
+        if (entry?.profileId) {
+          senderProfileId = entry.profileId
+          const profile = await profileManager.getProfile(entry.profileId)
+          senderIsRemote = profile?.type === 'remote'
+        }
+      }
+
+      if (senderIsRemote && senderProfileId === remoteClientProfileId && remoteClient?.isConnected) {
         return remoteClient.invoke(channel, args)
       }
-      const windowId = getWindowIdByWebContents(event.sender)
       return invokeHandler(channel, args, windowId)
     })
   }
@@ -2982,18 +3026,26 @@ function registerLocalHandlers() {
   })
 
   // Remote client handlers
-  ipcMain.handle('remote:connect', async (_event, host: string, port: number, token: string, label?: string, fingerprint?: string) => {
+  ipcMain.handle('remote:connect', async (event, host: string, port: number, token: string, label?: string, fingerprint?: string) => {
     const task = remoteOpMutex.then(async () => {
       try {
-        remoteClient = new RemoteClient(getAllWindows)
-        const result = await remoteClient.connect(host, port, token, label, fingerprint)
+        const senderWindowId = getWindowIdByWebContents(event.sender)
+        const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
+        const boundProfileId = senderEntry?.profileId ?? null
+        const client = new RemoteClient(() => getWindowsForProfile(remoteClientProfileId))
+        const result = await client.connect(host, port, token, label, fingerprint)
         if (!result.ok) {
           remoteClient = null
+          remoteClientProfileId = null
           return { error: result.error || 'Connection failed (auth rejected or unreachable)', errorCode: result.errorCode, fingerprint: result.fingerprint }
         }
+        try { remoteClient?.disconnect() } catch { /* ignore */ }
+        remoteClient = client
+        remoteClientProfileId = boundProfileId
         return { connected: true, fingerprint: result.fingerprint }
       } catch (err: unknown) {
         remoteClient = null
+        remoteClientProfileId = null
         return { error: err instanceof Error ? err.message : String(err) }
       }
     })
@@ -3005,6 +3057,7 @@ function registerLocalHandlers() {
     const task = remoteOpMutex.then(async () => {
       remoteClient?.disconnect()
       remoteClient = null
+      remoteClientProfileId = null
       return true
     })
     remoteOpMutex = task.catch(() => {})
@@ -3015,7 +3068,7 @@ function registerLocalHandlers() {
     info: remoteClient?.connectionInfo ?? null
   }))
   ipcMain.handle('remote:test-connection', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
-    const testClient = new RemoteClient(getAllWindows)
+    const testClient = new RemoteClient(() => [])
     try {
       const result = await testClient.connect(host, port, token, undefined, fingerprint)
       testClient.disconnect()
@@ -3025,7 +3078,7 @@ function registerLocalHandlers() {
     }
   })
   ipcMain.handle('remote:list-profiles', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
-    const tempClient = new RemoteClient(getAllWindows)
+    const tempClient = new RemoteClient(() => [])
     try {
       const result = await tempClient.connect(host, port, token, undefined, fingerprint)
       if (!result.ok) return { error: result.error || 'Connection failed', errorCode: result.errorCode, fingerprint: result.fingerprint }

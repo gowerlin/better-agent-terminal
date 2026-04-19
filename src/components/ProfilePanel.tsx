@@ -457,6 +457,22 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                     <input
                       type="text"
                       className="profile-name-input"
+                      placeholder={t('profiles.connectionUrlPlaceholder', 'Paste connection URL (wss://host:port?token=…&fp=…)')}
+                      onChange={e => {
+                        const parsed = parseConnectionUrl(e.target.value)
+                        if (!parsed) return
+                        setEditRemoteHost(parsed.host)
+                        setEditRemotePort(String(parsed.port))
+                        setEditRemoteToken(parsed.token)
+                        setEditRemoteFingerprint(parsed.fingerprint)
+                        setEditRemoteProfiles([])
+                        e.target.value = ''
+                      }}
+                      style={{ flex: '1 1 100%', fontFamily: 'monospace', fontSize: 11 }}
+                    />
+                    <input
+                      type="text"
+                      className="profile-name-input"
                       placeholder={t('profiles.host')}
                       value={editRemoteHost}
                       onChange={e => { setEditRemoteHost(e.target.value); setEditRemoteProfiles([]) }}
@@ -485,7 +501,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                       value={editRemoteFingerprint}
                       readOnly
                       title="Read-only. Use 'Pin expected fingerprint' below to refresh from the server."
-                      style={{ width: '100%', fontFamily: 'monospace', fontSize: 11, opacity: 0.8 }}
+                      style={{ flex: '1 1 100%', fontFamily: 'monospace', fontSize: 11 }}
                     />
                     <div style={{ display: 'flex', gap: 6, width: '100%', alignItems: 'center' }}>
                       <button
