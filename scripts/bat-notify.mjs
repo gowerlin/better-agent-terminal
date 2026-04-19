@@ -29,7 +29,7 @@
 //   --help, -h     Show help
 //   --version      Show version
 
-import { createConnection } from 'net'
+import { connect as tlsConnect } from 'tls'
 import { randomBytes } from 'crypto'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
@@ -263,7 +263,23 @@ class MinimalWS {
         reject(err)
       }
 
-      this.#socket = createConnection({ host, port }, () => {
+      // T0202b/BUG-046: Server is https.createServer + wss:// since PLAN-018 T0182.
+      // Dispatcher must TLS-handshake before sending HTTP upgrade. Self-signed cert,
+      // so trust chain is disabled; fingerprint pinning is deferred to T0202c.
+      // SNI (servername) may not be an IP literal per RFC 6066; only set when host
+      // looks like a hostname.
+      // T0205/BUG-049: Mirrored from bat-terminal.mjs (T0202a + T0202b); previously
+      // bat-notify.mjs used plain net.createConnection which silent-hung against
+      // the TLS server (FIN close without data, Promise never resolved).
+      const isIpLiteral = /^(\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(':')
+      this.#socket = tlsConnect({
+        host,
+        port,
+        rejectUnauthorized: false,
+        ...(isIpLiteral ? {} : { servername: host }),
+      })
+
+      this.#socket.once('secureConnect', () => {
         const key = randomBytes(16).toString('base64')
         this.#socket.write(
           `GET / HTTP/1.1\r\nHost: ${host}:${port}\r\nUpgrade: websocket\r\n` +
@@ -294,7 +310,18 @@ class MinimalWS {
       })
 
       this.#socket.on('error', onFail)
-      this.#socket.once('close', () => { clearTimeout(timer) })
+      // T0202a/BUG-046: If server performs a clean FIN during upgrade (TLS
+      // handshake rejected, auth failed, brute-force ban, listener replacement),
+      // net.Socket fires 'close' without 'error'. Without this reject, the
+      // connect Promise stays pending forever → node silent-exits with code 0.
+      // Promise reject after resolve/reject is a no-op, so this is safe even
+      // when upgrade succeeds and close fires later during normal teardown.
+      this.#socket.once('close', () => {
+        clearTimeout(timer)
+        if (!this.#upgraded) {
+          reject(new Error('connection closed before upgrade (server rejected upgrade request; possible TLS/auth/listener mismatch)'))
+        }
+      })
     })
   }
 
@@ -403,8 +430,18 @@ async function main() {
   try {
     await ws.connect('127.0.0.1', Number(PORT), 3000)
   } catch (err) {
-    console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${err.message}`)
-    logEvent('bat-notify', 'exit', { code: 1, reason: 'connect-failed', error: err.message })
+    const msg = err?.message || String(err)
+    // T0202a/BUG-046: distinguish "TCP up but upgrade rejected" from generic
+    // connect failure (ECONNREFUSED etc.) so operators can tell protocol/auth
+    // mismatch from server-down at a glance.
+    const preUpgradeClose = msg.startsWith('connection closed before upgrade')
+    const reason = preUpgradeClose ? 'connect-closed-before-upgrade' : 'connect-failed'
+    const exitPayload = { code: 1, reason, error: msg }
+    if (preUpgradeClose) {
+      exitPayload.hint = 'Server accepted TCP but rejected WS upgrade. Check BAT app is up-to-date or TLS/auth state.'
+    }
+    console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${msg}`)
+    logEvent('bat-notify', 'exit', exitPayload)
     process.exit(1)
   }
 
