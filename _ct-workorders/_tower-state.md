@@ -1,6 +1,40 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-20 00:05(第十六 session 延伸收尾 + *evolve 三條 pattern 晉升 Layer 2 + PLAN-021 驗收暫緩 UX 另案)
+> 最後更新:2026-04-20(**🎉 BUG-047 root 三連環完全結案**,v0.2.4-pre.1 外發,Gower + Rico 雙人皆驗通過;第十六 session 延伸收尾 + *evolve 三條 pattern 晉升 Layer 2 + PLAN-021 驗收暫緩 UX 另案)
+
+---
+
+## 🏁 BUG-047 Root 三連環完全結案(2026-04-20,v0.2.4-pre.1 雙人皆驗)
+
+**使用者手動動作**(session 外完成):
+- Push `origin main` 至 `be0061b`(第十六 session 快照 commit)
+- 打 tag **`v0.2.4-pre.1`** + push → 觸發 GitHub pre-release
+- Gower 本機驗 pre.2 同等物(pre.1 前已在第十六 session smoke pass)
+- **Rico 回報 v0.2.4-pre.1 驗證正確** → 樣本 2 人跨版本皆閉環
+
+**結案狀態升級**:
+| BUG | 第十六 session 結束時 | 2026-04-20 結案後 |
+|-----|--------------------|------------------|
+| BUG-047 | Gower 單方 CLOSED | **雙人皆驗 CLOSED** |
+| BUG-051 | Gower 單方 CLOSED | **雙人皆驗 CLOSED** |
+| BUG-052 | Gower Windows CLOSED | **雙人 Windows 皆驗 CLOSED**(macOS/Linux 樣本等自然) |
+
+**版號軌跡**:
+- `v0.2.2-pre.1` — BUG-047 原始暴露版本(Gower 實機複現)
+- `v0.2.3-pre.1` — T0220/T0221 修復版(Rico 驗仍失敗,觸發第十六 session 翻案)
+- **`v0.2.4-pre.1`** — T0222/T0223 修復版(BUG-051/052 合併修)→ **雙人皆驗通過**
+
+**本輪完整戰役總結**(第十四 → 十六 session,~1-2 日跨度):
+- 🔴 **3 BUG 全 CLOSED**:BUG-047(root)+ BUG-051(downstream consumer)+ BUG-052(跨平台命名)
+- ⚡ **5 張工單**:T0219(PLAN-021)+ T0220 + T0221 + T0222 + T0223,平均 ~6x 壓縮
+- 📚 **3 條 Global Pattern 晉升**:GP065(Worker 從套件源碼挖證據)+ GP066(T 修復連擊)+ GP042 UPDATE(42+ hit 升 Skill 條件全達)
+- 🏷️ **版號跳 3 版**:v0.2.2 → v0.2.3 → v0.2.4(pre-release 連發)
+- 👥 **2 人樣本閉環**:Gower(dev + packaged)+ Rico(packaged 外部驗)
+
+**塔台後續動作**:
+- 本 session 剩餘 meta commits(`c33443e` / `773d34d` / `6ea175c`)+ 本結案追加 commit 需 push
+- v0.2.4-pre.1 已外發不動
+- 下 session 可清 `/ct-evolve --skill worker-time-estimation`(42+ hit 升 Skill 條件全達)
 
 ---
 

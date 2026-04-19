@@ -3,7 +3,7 @@
 ## 元資料
 
 - **編號**:BUG-052
-- **狀態**:🚫 CLOSED(2026-04-19 23:56 Gower packaged smoke pass Windows 面,macOS/Linux 樣本等自然;T0223 `42b45b0` 修復生效)
+- **狀態**:🚫 CLOSED(**雙人皆驗 Windows 面**:2026-04-19 Gower packaged smoke pass + 2026-04-20 Rico v0.2.4-pre.1 回報驗證正確;macOS/Linux 樣本等自然;T0223 `42b45b0` 修復生效)
 - **嚴重度**:🟡 Medium(code inspection 證據明確,但無實機樣本 — macOS/Linux 使用者尚未驗過)
 - **建立時間**:2026-04-19 23:35 (UTC+8)
 - **發現來源**:T0222 Worker A 面盤點 + B 面 install.cjs 實證(follow-up 建議)

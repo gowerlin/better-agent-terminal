@@ -2,7 +2,7 @@
 
 ## 元資料
 - **編號**:BUG-047
-- **狀態**:🚫 CLOSED(2026-04-19 23:20 Gower 實機 packaged smoke pass,T0221 `resolveClaudeCodePath()` 修復生效,SDK 正常回應)
+- **狀態**:🚫 CLOSED(**雙人皆驗**:2026-04-19 Gower 本機 smoke pass + 2026-04-20 Rico v0.2.4-pre.1 回報驗證正確,T0221 `resolveClaudeCodePath()` 修復生效)
 - **嚴重度**:🟠 High(**升級**,樣本 2 人:Rico + Gower,跨 pre 版本仍 100% 阻擋)
 - **建立時間**:2026-04-19 01:22 (UTC+8)
 - **修復時間**:2026-04-19 02:03 (UTC+8,T0198 + T0199 packaging fix) — **失效**

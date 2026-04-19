@@ -3,7 +3,7 @@
 ## 元資料
 
 - **編號**:BUG-051
-- **狀態**:🚫 CLOSED(2026-04-19 23:56 Gower packaged smoke pass,T0223 `42b45b0` 修復生效)
+- **狀態**:🚫 CLOSED(**雙人皆驗**:2026-04-19 Gower packaged smoke pass + 2026-04-20 Rico v0.2.4-pre.1 回報驗證正確,T0223 `42b45b0` 修復生效)
 - **嚴重度**:🟠 High(packaged 環境 claude-cli preset 按鈕完全無法用,100% 阻擋)
 - **建立時間**:2026-04-19 23:24 (UTC+8)
 - **發現來源**:第十六 session 起手,BUG-047 驗收通過後使用者補報
