@@ -4,7 +4,7 @@ import i18next from 'i18next'
 import QRCode from 'qrcode'
 import type { AppSettings, ShellType, FontType, ColorPresetId, StatuslineItemConfig, LanguageCode, LogLevel, EffortLevel } from '../types'
 import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS, EFFORT_LEVELS } from '../types'
-import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate, FONT_SIZE_MIN, FONT_SIZE_MAX } from '../stores/settings-store'
+import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate, FONT_SIZE_MIN, FONT_SIZE_MAX, REMOTE_PORT_MIN, REMOTE_PORT_MAX, REMOTE_PORT_DEFAULT } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
 import { VoiceSettingsSection } from './voice/VoiceSettingsSection'
 import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
@@ -66,6 +66,21 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [serverToken, setServerToken] = useState<string | null>(null)
   const [clientStatus, setClientStatus] = useState<RemoteClientStatus>({ connected: false, info: null })
 
+  // T0218 (PLAN-021): Port management — desired port (editable), test result, save state.
+  const [desiredPort, setDesiredPort] = useState<string>(String(settings.remotePort ?? REMOTE_PORT_DEFAULT))
+  const [portTestResult, setPortTestResult] = useState<{
+    port: number
+    available: boolean
+    reason?: string
+    processName?: string
+    pid?: number
+    detail?: string
+  } | null>(null)
+  const [portTesting, setPortTesting] = useState(false)
+  const [portSaving, setPortSaving] = useState(false)
+  const [portSaveError, setPortSaveError] = useState<string>('')
+  const [portSaveNotice, setPortSaveNotice] = useState<string>('')
+
   // QR code state
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [qrInfo, setQrInfo] = useState<{ url: string; mode: string } | null>(null)
@@ -101,6 +116,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       setSettings(settingsStore.getSettings())
     })
   }, [])
+
+  // T0218 (PLAN-021): When the effective server port changes (e.g. startup load
+  // finishes, or user switches port), sync the edit buffer so the input
+  // reflects reality rather than stale defaultSettings.
+  useEffect(() => {
+    const port = serverStatus.port ?? settings.remotePort
+    if (port && String(port) !== desiredPort && portTestResult === null && !portSaving) {
+      setDesiredPort(String(port))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverStatus.port, settings.remotePort])
 
   // Load custom CLIs on mount
   useEffect(() => {
@@ -206,6 +232,91 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     const ss = await window.electronAPI.remote.serverStatus()
     setServerStatus(ss)
   }
+
+  // T0218 (PLAN-021): Port management handlers.
+  const parseDesiredPort = useCallback((): number | null => {
+    const n = parseInt(desiredPort, 10)
+    if (!Number.isInteger(n) || n < REMOTE_PORT_MIN || n > REMOTE_PORT_MAX) return null
+    return n
+  }, [desiredPort])
+
+  const handleTestPort = useCallback(async () => {
+    const port = parseDesiredPort()
+    if (port === null) {
+      setPortTestResult({
+        port: parseInt(desiredPort, 10) || 0,
+        available: false,
+        reason: 'invalid',
+        detail: t('settings.remotePortRange', { min: REMOTE_PORT_MIN, max: REMOTE_PORT_MAX }),
+      })
+      return
+    }
+    setPortTesting(true)
+    setPortTestResult(null)
+    try {
+      const result = await window.electronAPI.settings.testPort(port)
+      setPortTestResult({ port, ...result })
+    } catch (err) {
+      setPortTestResult({
+        port,
+        available: false,
+        reason: 'unknown',
+        detail: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setPortTesting(false)
+    }
+  }, [desiredPort, parseDesiredPort, t])
+
+  const handleSaveRemotePort = useCallback(async () => {
+    setPortSaveError('')
+    setPortSaveNotice('')
+    const newPort = parseDesiredPort()
+    if (newPort === null) {
+      setPortSaveError(t('settings.remotePortRange', { min: REMOTE_PORT_MIN, max: REMOTE_PORT_MAX }))
+      return
+    }
+    // Persist to settings first so restart on next app launch also picks it up.
+    settingsStore.setRemotePort(newPort)
+
+    const currentPort = serverStatus.port
+    if (currentPort === newPort) {
+      setPortSaveNotice(t('settings.remotePortAlreadyRunning', { port: newPort }))
+      return
+    }
+
+    setPortSaving(true)
+    try {
+      const result = await window.electronAPI.remote.restartServer(newPort)
+      if ('error' in result) {
+        setPortSaveError(result.error)
+      } else {
+        setServerToken(result.token)
+        if (result.restartError) {
+          setPortSaveError(
+            t('settings.remotePortRolledBack', { oldPort: result.port, reason: result.restartError })
+          )
+        } else {
+          setPortSaveNotice(t('settings.remotePortSwitched', { port: result.port }))
+          // Persist the actual bound port (may equal newPort or, on rollback, the old one).
+          settingsStore.setRemotePort(result.port)
+        }
+      }
+      const ss = await window.electronAPI.remote.serverStatus()
+      setServerStatus(ss)
+    } catch (err) {
+      setPortSaveError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setPortSaving(false)
+    }
+  }, [parseDesiredPort, serverStatus.port, t])
+
+  const handleResetRemotePort = useCallback(() => {
+    setDesiredPort(String(REMOTE_PORT_DEFAULT))
+    setPortTestResult(null)
+    setPortSaveError('')
+    setPortSaveNotice('')
+  }, [])
 
   const handleOpenLogsDir = useCallback(async () => {
     if (!loggingInfo?.logsDir) return
@@ -1029,6 +1140,82 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   <button className="profile-action-btn danger" onClick={handleStopServer} style={{ marginLeft: 'auto' }}>
                     {t('settings.stopServer')}
                   </button>
+                </div>
+
+                {/* T0218 (PLAN-021): Port management — change port while server is running. */}
+                <div className="settings-group" style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                  <label>{t('settings.remotePortLabel')}</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      type="number"
+                      min={REMOTE_PORT_MIN}
+                      max={REMOTE_PORT_MAX}
+                      value={desiredPort}
+                      onChange={e => { setDesiredPort(e.target.value); setPortTestResult(null); setPortSaveError(''); setPortSaveNotice('') }}
+                      placeholder={String(REMOTE_PORT_DEFAULT)}
+                      style={{ width: 100 }}
+                      disabled={portSaving}
+                    />
+                    <button
+                      className="profile-action-btn"
+                      onClick={handleTestPort}
+                      disabled={portTesting || portSaving}
+                      title={t('settings.remotePortTestHint')}
+                    >
+                      {portTesting ? t('settings.remotePortTesting') : t('settings.remotePortTest')}
+                    </button>
+                    <button
+                      className="profile-action-btn primary"
+                      onClick={handleSaveRemotePort}
+                      disabled={portSaving || parseDesiredPort() === null}
+                      title={t('settings.remotePortSaveHint')}
+                    >
+                      {portSaving ? t('settings.remotePortSaving') : t('settings.remotePortSave')}
+                    </button>
+                    <button
+                      className="profile-action-btn"
+                      onClick={handleResetRemotePort}
+                      disabled={portSaving}
+                    >
+                      {t('settings.remotePortReset')}
+                    </button>
+                  </div>
+
+                  {/* URL preview */}
+                  <p style={{ fontSize: 11, color: '#8b949e', marginTop: 6, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                    {t('settings.remotePortUrlPreview')}: wss://{serverStatus.host || '127.0.0.1'}:{parseDesiredPort() ?? serverStatus.port ?? REMOTE_PORT_DEFAULT}
+                  </p>
+
+                  {/* Test result */}
+                  {portTestResult && (
+                    <p style={{ fontSize: 11, marginTop: 4, color: portTestResult.available ? '#3fb950' : '#d29922' }}>
+                      {portTestResult.available
+                        ? t('settings.remotePortAvailable', { port: portTestResult.port })
+                        : portTestResult.reason === 'invalid'
+                          ? t('settings.remotePortInvalid', { detail: portTestResult.detail })
+                          : portTestResult.reason === 'permission-denied'
+                            ? t('settings.remotePortPermissionDenied', { port: portTestResult.port })
+                            : portTestResult.reason === 'in-use' && portTestResult.processName
+                              ? t('settings.remotePortInUseBy', { port: portTestResult.port, processName: portTestResult.processName, pid: portTestResult.pid ?? '?' })
+                              : portTestResult.reason === 'in-use'
+                                ? t('settings.remotePortInUse', { port: portTestResult.port })
+                                : t('settings.remotePortUnknown', { detail: portTestResult.detail ?? '' })}
+                    </p>
+                  )}
+
+                  {/* Active connections warning — shown when changing port while connections exist */}
+                  {serverStatus.clients.length > 0 && parseDesiredPort() !== null && parseDesiredPort() !== serverStatus.port && (
+                    <p style={{ fontSize: 11, marginTop: 4, color: '#d29922' }}>
+                      ⚠️ {t('settings.remotePortActiveConnWarning', { count: serverStatus.clients.length })}
+                    </p>
+                  )}
+
+                  {portSaveError && (
+                    <p style={{ fontSize: 11, color: '#e5534b', marginTop: 4 }}>{portSaveError}</p>
+                  )}
+                  {portSaveNotice && (
+                    <p style={{ fontSize: 11, color: '#3fb950', marginTop: 4 }}>{portSaveNotice}</p>
+                  )}
                 </div>
                 {serverStatus.fingerprint && (
                   <div className="settings-group">

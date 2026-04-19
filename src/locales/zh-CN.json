@@ -130,7 +130,27 @@
       "advanced": "高级"
     },
     "footerNote": "所有变更会自动保存。字体变更会立即应用至所有终端。",
-    "failedToStartServer": "启动服务器失败：{{error}}"
+    "failedToStartServer": "启动服务器失败：{{error}}",
+    "remotePortLabel": "服务器 Port",
+    "remotePortTest": "测试",
+    "remotePortTesting": "测试中...",
+    "remotePortSave": "保存并切换",
+    "remotePortSaving": "切换中...",
+    "remotePortReset": "还原默认",
+    "remotePortTestHint": "检查此 port 是否可绑定。",
+    "remotePortSaveHint": "保存并热切换运行中的服务器到新 port（保留 token）。",
+    "remotePortUrlPreview": "连接网址",
+    "remotePortAvailable": "✅ Port {{port}} 可用",
+    "remotePortInUse": "❌ Port {{port}} 已被占用",
+    "remotePortInUseBy": "❌ Port {{port}} 被 {{processName}} (PID {{pid}}) 占用",
+    "remotePortPermissionDenied": "❌ 没有权限使用 port {{port}}（请改用 ≥ 1024 的 port）",
+    "remotePortInvalid": "❌ 无效的 port:{{detail}}",
+    "remotePortUnknown": "❌ Port 测试失败:{{detail}}",
+    "remotePortRange": "Port 必须是 {{min}} 到 {{max}} 之间的整数",
+    "remotePortAlreadyRunning": "服务器已在 port {{port}} 运行",
+    "remotePortSwitched": "服务器已切换到 port {{port}}",
+    "remotePortRolledBack": "绑定新 port 失败,已退回 {{oldPort}}（{{reason}}）",
+    "remotePortActiveConnWarning": "保存会中断 {{count}} 个活跃连接"
   },
   "sidebar": {
     "workspaces": "工作区",
