@@ -2732,6 +2732,23 @@ function registerProxiedHandlers() {
       return { mtimeMs: stat.mtimeMs, size: stat.size }
     } catch { return null }
   })
+  registerHandler('image:read-as-data-url', async (_ctx, filePath: string) => {
+    if (!isPathAllowed(filePath)) throw new Error('Path access denied')
+    try {
+      const stat = await fs.stat(filePath)
+      if (stat.size > MAX_IMAGE_SIZE) {
+        throw new Error(`Image too large (${stat.size} > ${MAX_IMAGE_SIZE} bytes)`)
+      }
+      const ext = path.extname(filePath).toLowerCase()
+      const mimeMap: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }
+      const mime = mimeMap[ext] || 'image/png'
+      const data = await fs.readFile(filePath)
+      return `data:${mime};base64,${data.toString('base64')}`
+    } catch (err) {
+      logger.warn('[image:read-as-data-url] failed:', err instanceof Error ? err.message : String(err))
+      throw err instanceof Error ? err : new Error(String(err))
+    }
+  })
   registerHandler('fs:search', async (_ctx, dirPath: string, query: string) => {
     // AC-7: starting point must be inside a workspace; recursive walk silently
     // skips entries that fall outside (symlinks, `..` → never throw).
@@ -2915,24 +2932,6 @@ function registerLocalHandlers() {
     if (image.isEmpty()) return false
     clipboard.writeImage(image)
     return true
-  })
-
-  ipcMain.handle('image:read-as-data-url', async (_event, filePath: string) => {
-    try {
-      assertPathAllowed(filePath)
-      const stat = await fs.stat(filePath)
-      if (stat.size > MAX_IMAGE_SIZE) {
-        throw new Error(`Image too large (${stat.size} > ${MAX_IMAGE_SIZE} bytes)`)
-      }
-      const ext = path.extname(filePath).toLowerCase()
-      const mimeMap: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }
-      const mime = mimeMap[ext] || 'image/png'
-      const data = await fs.readFile(filePath)
-      return `data:${mime};base64,${data.toString('base64')}`
-    } catch (err) {
-      logger.warn('[image:read-as-data-url] failed:', err instanceof Error ? err.message : String(err))
-      throw err instanceof Error ? err : new Error(String(err))
-    }
   })
 
   // Remote server handlers (always local)

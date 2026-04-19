@@ -43,6 +43,7 @@ export const PROXIED_CHANNELS = new Set([
   'git-scaffold:healthCheck', 'git-scaffold:getRepoInfo', 'git-scaffold:listCommits',
   // FS
   'fs:readdir', 'fs:readFile', 'fs:stat', 'fs:search', 'fs:watch', 'fs:unwatch', 'fs:reset-watch',
+  'image:read-as-data-url',
   // Snippet
   'snippet:getAll', 'snippet:getById', 'snippet:create', 'snippet:update',
   'snippet:delete', 'snippet:toggleFavorite', 'snippet:search',
