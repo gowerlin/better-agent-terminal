@@ -2,13 +2,24 @@
 
 ## 元資料
 - **編號**:BUG-045
-- **狀態**:OPEN
+- **狀態**:CLOSED
 - **嚴重度**:🟢 Low
 - **建立時間**:2026-04-19 00:19 (UTC+8)
+- **關閉時間**:2026-04-19 10:36 (UTC+8)
 - **發現來源**:使用者回報（CT Panel Backlog 畫面截圖）
-- **關聯**:BUG-044（姊妹單,CT Panel 封存勾選無效）
-- **可重現**:100%
+- **關聯**:BUG-044（姊妹單,CT Panel 封存勾選無效）· T0195(parser 容錯) · T0196(UI archive toggle)
+- **可重現**:100%(修復前)
 - **workaround**:直接讀 `_ct-workorders/PLAN-*.md` 原始 markdown
+
+## 驗收結果（2026-04-19 第十 session）
+
+✅ **使用者驗收通過** — 原始截圖回報問題(PLAN-003/005/016 優先級顯示 Unknown + PLAN-019 顯示 IDEA)已解決。
+
+**修復鏈**:
+- T0195(`b6469ba`)— parser table 容錯,13/13 unit tests 全綠
+- T0196(`bc37c71`)— UI archive toggle + parseBugFile/parsePlanFile + lazy load,smoke test 35/35 BUG + 4/4 PLAN 全解析
+
+**範圍備註**:原單據「問題 2:DONE PLAN 未歸檔」為塔台當時推測的延伸假設,**實際使用者驗收未觸及 archive 面**(archive 面相關議題屬 CT skill v4.4 層級演進,非本 repo 範圍)。本 BUG 僅以「使用者原始回報(CT Panel Backlog 顯示正確)」為驗收標準,通過即 CLOSED。
 
 ## 現象
 

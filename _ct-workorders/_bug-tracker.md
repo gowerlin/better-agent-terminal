@@ -1,23 +1,24 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後更新：2026-04-19 03:18 (UTC+8)
+> 最後更新：2026-04-19 11:05 (UTC+8)
 >
-> 統計：🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 1 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 12**
+> 統計：🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 1 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 14**
 >
 > 📦 已歸檔：35 張（_archive/bugs/）
 >
 > 本 session 事件：
-> - BUG-047 OPEN → VERIFY（T0198 + T0199 packaging fix，等 Rico 裝 pre.2 實機驗收）
-> - BUG-046 OPEN → CLOSED（T0202a + T0202b 雙重翻案後 TLS 升級完成，yolo 派發鏈解鎖）
-> - 延伸 PLAN-022：dispatcher fingerprint pinning（PLAN-018 安全對齊）
+> - BUG-045 OPEN → CLOSED（使用者驗收通過,原截圖回報問題已解;archive 面屬塔台推測延伸,不列入本 BUG 範圍）
+> - BUG-048 新增(CT Panel 瀏覽檔案首次點擊 Preview 空白 + 目錄樹未同步,使用者選 C 先記錄稍後處理)
+> - T0203 完成(research,5fe3f6a,7 min vs est 30-60 min,4-8x 壓縮)→ 推薦 Option B
+> - BUG-042 OPEN → FIXING → CLOSED(T0204 `85f5743`,純刪死碼 -28 行,tsc 0 errors,PLAN-019 型別債清零)
+> - BUG-049 新增 → FIXING → CLOSED(T0205 `5f10e7e`,bat-notify.mjs TLS port,**使用者確認 YOLO end-to-end 首次跑通**)
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-045 | `*sync` Parser archive 面（skill 層,半閉環） | 🟢 Low | 2026-04-19 00:19 | [BUG-045](BUG-045-sync-parser-tolerance-and-archive.md) |
-| BUG-042 | TerminalPanel 呼叫不存在的 WorkspaceStore action | 🟡 Medium | 2026-04-18 22:43 | [BUG-042](BUG-042-terminalpanel-missing-store-actions.md) |
+| BUG-048 | CT Panel 瀏覽檔案首次點擊 Preview 空白 + 目錄樹未同步 | 🟡 Medium | 2026-04-19 10:42 | [BUG-048](BUG-048-ct-panel-browse-file-first-click-preview-empty-and-tree-not-synced.md) |
 
 ## ⏳ 修復中 (FIXING)
 
@@ -37,6 +38,9 @@
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-049 | bat-notify.mjs TLS 遷移漏修(T0205 `5f10e7e`,YOLO end-to-end 首次跑通) | 🟡 Medium | 2026-04-19 11:05 | [BUG-049](BUG-049-bat-notify-tls-migration-missed.md) |
+| BUG-042 | TerminalPanel 呼叫不存在的 WorkspaceStore action(T0204 Option B 修復,純刪死碼) | 🟡 Medium | 2026-04-19 10:50 | [BUG-042](BUG-042-terminalpanel-missing-store-actions.md) |
+| BUG-045 | `*sync` Parser / Backlog 面板顯示（T0195 + T0196 修復,使用者驗收通過） | 🟢 Low | 2026-04-19 10:36 | [BUG-045](BUG-045-sync-parser-tolerance-and-archive.md) |
 | BUG-046 | BAT dispatcher silent fail（TLS protocol mismatch 雙重翻案後確認） | 🔴 High | 2026-04-19 03:12 | [BUG-046](BUG-046-bat-dispatch-interactive-flag-silent-fail.md) |
 | BUG-044 | 塔台 CT Panel「包含封存」勾選無效（T0196 修復） | 🟢 Low | 2026-04-19 01:25 | [BUG-044](BUG-044-ct-panel-include-archived-toggle-noop.md) |
 | BUG-043 | Worker YOLO mode 偶發失效（複測正常,疑 BUG-046 副作用誤判） | 🟡 Medium | 2026-04-19 01:25 | [BUG-043](BUG-043-worker-yolo-mode-sporadic-failure.md) |

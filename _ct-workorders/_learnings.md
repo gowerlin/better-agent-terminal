@@ -1969,3 +1969,93 @@ tls.connect({
 **晉升條件**:若在另一專案也遇到同錯(Node.js `tls.connect` + IP),升 Global GP
 
 ---
+
+## L076 - 2026-04-19 — bat-notify.mjs / bat-terminal.mjs MinimalWS duplication(PLAN-023 候選)
+
+**情境**:BUG-049 修復時發現 `scripts/bat-notify.mjs` 和 `scripts/bat-terminal.mjs` 各自 duplicate 一套 `MinimalWS` class(L246-400,約 150 行),遵循「zero-deps CLI」原則以利單檔運行,但代價是修復時容易漏改姊妹 script(BUG-046 → BUG-049 的模式,耗時 ~7 小時才浮現)。
+
+**現況**:
+- 兩個 script 各自獨立維護 MinimalWS
+- T0205 已 mirror `bat-terminal.mjs` 的 TLS 修復到 `bat-notify.mjs`
+- 短期一致,長期再發生同類 drift 風險仍存在
+
+**PLAN-023 候選**(重構建議,本 session 未開單):
+- **方案**:抽出 `scripts/_bat-minimal-ws.mjs` shared module
+- **優點**:修復一次全覆蓋,drift 風險歸零
+- **缺點**:違反 zero-deps CLI 原則(每個 script 需多一個 import),構建 / bundle 工具需介入(如用 esbuild / rollup 合併成單檔 deliverable)
+- **折衷**:在兩個 script 頂部加 marker comment 提醒「此 class 也 copy 在 X.mjs,修改時記得同步」(最低成本,不改架構)
+
+**觸發 PLAN-023 的條件**:
+- 第三次發生 sibling drift(未來某次 MinimalWS 改動再次漏改)
+- 或:新增第三個 script 也 duplicate 同一 class(擴大 drift 面)
+
+**搜尋關鍵字**:MinimalWS duplication, zero-deps CLI trade-off, sibling script drift
+
+**相關**:GP056(sibling fix 漏修 pattern)、BUG-046 / BUG-049(實證案例)、T0202a / T0202b / T0205(修復鏈)
+
+---
+
+## L077 - 2026-04-19 — PTY input buffer 無法分辨人類 vs Worker(BAT YOLO 架構 trade-off)
+
+**情境**:YOLO 模式下 Worker 透過 `bat-notify.mjs --submit` 寫入塔台 terminal 的 PTY input buffer + 附加 `\r` 觸發自動送出。此機制**本質上無法區分人類 input 與程式化 input**(皆為 byte stream),若使用者正在打字時 Worker 完成,會發生 race condition 強插中斷。
+
+**使用者原始洞察**(第十 session):
+> 「bat-notify.mjs 其實是送到 input buffer 然後 \n 應該無法辨別是人類 input 還是 Worker 用程式送出」
+
+**設計 trade-off**:
+- ✅ **優點**:Worker 自動化與人類操作對 CLI 端**不可區分**,不需特殊 protocol,bat-notify 實作 trivial
+- ❌ **風險**:PTY 是單一 byte stream,無法在塔台端 audit 訊息來源(誰送的?何時送?),依賴 `bat-notify --source` 欄位在 BAT log 層追蹤
+- ❌ **Race condition**:使用者打字中 Worker auto-submit → buffer 內容錯亂 + `\r` 觸發送出錯誤字串
+
+**Claude Code CLI 機制限制**:
+- 沒有背景 IPC 管道 / side channel
+- Hooks 是單向 CLI → 外部,無法 inject 訊息進 conversation
+- MCP 是 RPC 工具呼叫,不是 push 訊息
+- SessionStart hook 只作用於新 session,對 running session 無效
+
+**四方案評估**(完整內容見 `_report-yolo-pty-race-condition-analysis.md`):
+- [A] BAT 前端 input activity detection(中等成本,80-90% race 消除)
+- [B] Notification banner(高成本,100% race 消除,但失去 YOLO 精神)
+- [C] 雙 PTY 模式(依賴 Anthropic,不可行)
+- [D] Simple stdin guard(低成本,60-70% race 消除)
+
+**塔台階段建議**:短期 [D] → 中期 [A] → 長期 [B] 作為 yolo 的友善降級選項。本輪**不開 PLAN**,僅以研究報告存檔。
+
+**觸發開 PLAN 的條件**:
+- 實際 race 受害案例發生 ≥1 次
+- YOLO dogfood 使用率顯著提升,race 頻率上升
+- 使用者主動要求收斂此風險
+
+**相關**:BUG-049(修復後暴露此議題)、PLAN-020(YOLO dogfood)、`_report-yolo-pty-race-condition-analysis.md`(完整研究報告)、GP059(dogfood-driven bug discovery)
+
+---
+
+## L078 - 2026-04-19 — BUG-043 真根因追溯(「Worker YOLO 偶發失效」CLOSED 決策誤判)
+
+**情境**:BUG-043 於第八 session 複測「正常」後 CLOSED,當時歸因為「疑為 BUG-046 副作用誤判」。第十 session 修復 BUG-049(bat-notify TLS 漏修)後追溯發現,BUG-043 的真根因**很可能就是 BUG-049 的早期徵兆**。
+
+**當時決策(第八 session)**:
+- 使用者回報「Worker YOLO 偶發失效」
+- 複測一次正常 → 塔台標 CLOSED
+- 備註:「複測正常,疑前期觀察為 BUG-046 副作用誤判(dispatcher 阻擋 + 手動派發不注入 CT_MODE → banner 缺失)」
+
+**當時忽略的線索**:
+- 「正常」複測可能只是 notify 偶然成功送達
+- 使用者可能無意間手動觸發(輸入 `T#### 完成`)
+- BUG-046 修復期間 dispatcher 層不穩,可能掩蓋了 bat-notify 層的 silent hang
+
+**新事實(第十 session)**:
+- T0205 修復前,bat-notify 100% silent hang(log 只有 invoke + parsed,無 send/exit)
+- BUG-046 CLOSED 後(T0202b 解鎖 dispatcher),BUG-049 症狀應該 100% 重現,但仍標為「已 CLOSED」
+- BUG-043 CLOSED 決策**錯誤**:真根因未確認,bug 從未被真正修復
+
+**教訓**(呼應 GP058「偶發症狀不應快速 CLOSED」):
+1. 「偶發」bug 複測「正常」只是**觸發到另一條成功路徑**,不等於根因消除
+2. 類似 BUG 重複浮現時,**主動回頭追溯歷史 CLOSED** 是否為同根因
+3. CLOSED 決策應附根因證據,不只是「這次沒事」
+
+**本 L 不改 BUG-043 狀態**(已 CLOSED 保留歷史紀錄),但本 L 作為「決策追溯」存檔,提醒未來遇到類似症狀時避免重蹈覆轍。
+
+**相關**:GP058(偶發症狀不等於根因消除)、BUG-043(已 CLOSED 誤判案例)、BUG-049(真根因)、第八 session 紀錄
+
+---
