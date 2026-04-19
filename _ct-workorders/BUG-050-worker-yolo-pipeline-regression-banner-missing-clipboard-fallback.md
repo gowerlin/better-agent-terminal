@@ -103,3 +103,18 @@ exit=1
 
 **FIXING → VERIFY 決策**(F-13 選項 A):觀察 3-5 張 YOLO 派發的 debug log 樣本後決策 CLOSED 或啟動階段 2(correlation id,覆蓋 refork race #2/#6/#7)
 
+## 階段 2 暫緩決策(2026-04-19 19:45,第十三 session,D064)
+
+**累積樣本**(2/3-5,質 > 量):
+- **樣本 #1 T0216**:writeResp `{hasError:false, payload:{ok:true, reason:"queued"}}` ✅
+- **樣本 #2 T0217**:真實 YOLO 工作流驗證,smoke 1 訊息 + auto-submit 都 end-to-end 到達塔台 ✅
+- **異常跡象**:0
+
+**決議**(D064):
+- 階段 2 **暫緩**(未 ABANDONED,PLAN-024 階段 2 保持 PLANNED)
+- BUG-050 **保持 🧪 VERIFY**,自然累積 YOLO 樣本
+- 觸發階段 2 啟動條件:觀察到異常 payload(非 `{ok:true,reason:"queued"}`)或 refork race 症狀
+- 觸發 CLOSED 條件:連續 10+ 張 YOLO 樣本全 clean
+- `[T0215-DEBUG-REMOVE]` 3 處 debug log 保留,CLOSED 時統一清理
+
+

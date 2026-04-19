@@ -45,10 +45,39 @@
 | D061 | 2026-04-18 | CT-T002 閉環 + v4.2.0 tag，對方塔台已吸收 yolo 功能 | CT-T002/PLAN-020 |
 | D062 | 2026-04-18 | Worker 無狀態原則：所有 runtime context 由塔台派單 explicit 傳遞 | BUG-040/BUG-041/T0176+ |
 | D063 | 2026-04-19 | BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log 再決策階段 2 | BUG-050/T0215/PLAN-024 |
+| D064 | 2026-04-19 | BUG-050 階段 2 暫緩:2 樣本 + 真實 YOLO 工作流驗證零異常,保持 VERIFY 待真實問題觸發 | BUG-050/PLAN-024/T0216/T0217 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D064 2026-04-19 — BUG-050 階段 2 暫緩:2 樣本 + 真實 YOLO 工作流驗證零異常,保持 VERIFY 待真實問題觸發
+
+- **背景**:D063 決議 VERIFY + 觀察 3-5 張 YOLO log 再決策階段 2 啟動 vs CLOSED。第十三 session 派了 T0216(PLAN-023 階段 3)與 T0217(PLAN-022 Step 1+2)作為 YOLO 樣本 #1/#2。兩張全 clean,writeResp payload 結構 100% 符合預期(`hasError:false` + `payload.ok:true` + `reason:"queued"`),未觀察到 BUG-050 描述的 silent drop 或異常。T0217 更進一步:真實 YOLO 工作流 end-to-end 驗證(Worker smoke 1 訊息 + auto-submit 都直接到塔台 terminal,非剪貼簿 fallback)。
+- **證據質量**:
+  - 樣本 #1(T0216):Worker 開工 + auto-submit 全鏈路 OK,Step 0 banner 正常,CT_MODE=yolo env 注入正確
+  - 樣本 #2(T0217):更強驗證 — Worker 主動改 bat-notify.mjs + 跑 smoke match 情境 + auto-submit,三次經過新 notify 鏈路都正常
+  - 樣本量:2 張(下限目標 3 張未達)但**證據質量 > 數量**
+  - 0 個異常跡象,與樣本數的距離不具實質價值
+- **選項**:
+  - [A] 再派 1-2 張樣本湊滿下限 3(保守)
+  - [B] 階段 2 暫緩,保持 VERIFY,階段 2 待真實問題觸發再啟動
+  - [C] 直接 CLOSED + 清理 `[T0215-DEBUG-REMOVE]` debug log + PLAN-024 階段 2 ABANDONED(激進)
+- **決定**:[B] 階段 2 暫緩
+- **理由**:
+  1. **證據質量支持**:2 樣本全 clean + 真實工作流 end-to-end 通過,比單純 smoke 更有價值
+  2. **避免「解決不存在的問題」**:階段 2 目標是修 refork race(#2/#6/#7),但這些在真實工作流中未觸發 — 推測性修改有引入新問題風險(階段 1 本身就是先修後觀察的實證)
+  3. **GP058 區分**:GP058 警告「偶發症狀複測正常不等於根因消除」,但本案是**完全無症狀**(連偶發都沒有),不適用該警告情境
+  4. **保留階段 2 選擇權**:PLAN-024 階段 2 仍 PLANNED,未來若觀察到 refork race 真實觸發(如 BAT 重啟場景、多 Worker 並發)可立即啟動,不是 ABANDONED
+  5. **debug log 保留**:`[T0215-DEBUG-REMOVE]` 3 處標記暫不清理,可繼續觀察自然累積的 YOLO log 樣本
+- **後續觀察策略**:
+  - BUG-050 保持 🧪 VERIFY 狀態
+  - 每張 YOLO 派發自然累積樣本(免專門派測試工單)
+  - 若觀察到異常 payload(非 `{ok:true,reason:"queued"}`)→ 立即轉 FIXING + 啟動 PLAN-024 階段 2
+  - 若連續 10+ 張 YOLO 樣本全 clean → 下次決策點考慮 CLOSED + 清理 debug log
+- **相關工單**:BUG-050(VERIFY 保持)/ PLAN-024 階段 2(PLANNED 保持)/ T0216 / T0217 / D063
 
 ---
 

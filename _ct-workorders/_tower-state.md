@@ -1,10 +1,75 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-19 18:42(第十二 session,BUG-050 階段 1 交付 + PLAN-024 建檔 + T0214/T0215 雙工單 6 min 極速 + tracker 同步)
+> 最後更新:2026-04-19 19:45(第十三 session,BUG-050 VERIFY 階段 2 暫緩 + T0216/T0217 雙工單 + GP042/GP063 Global + D063/D064)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-19 第十二 session,BUG-050 Option C 階段 1 方案 A 完成)
+## 🛏 本 Session 退出快照(2026-04-19 第十三 session,BUG-050 階段 1 驗收 + 階段 2 暫緩 + 2 工單極速)
+
+**退出原因**:使用者選擇 [B] 階段 2 暫緩,BUG-050 保持 VERIFY 自然累積樣本 → session 收尾
+
+**本 session 成果**(~52 min wall,2 工單 + 2 Global GP + 2 決策 + 6 commits):
+
+**工單鏈(2 張,雙極速)**:
+- `f079979` + `279def5` T0216 PLAN-023 階段 3(**9 min / est 60-120 min,~7-13x**)— FileTree 拆 4 檔(749→460 行,-39%) + FileEntry.pathKey 全面切換 + IPC boundary 注入(preload.ts)
+- `c514512` + `f651bf3` T0217 PLAN-022 Step 1+2(**6 min / est 50-65 min,~8-11x**)— bat-terminal + bat-notify fingerprint pinning + 抽共用 `_bat-cert.mjs` helper + 主動修正 PLAN-022 骨架欄位名錯誤 + BAT_SERVER_CERT_PATH env override 測試巧思
+
+**BUG/PLAN 狀態變更**:
+- **BUG-050** FIXING → 🧪 **VERIFY**(階段 1 smoke 場景 1/2 通過 + 2 YOLO 樣本 clean)
+- **PLAN-023** IN_PROGRESS → **DONE**(階段 1+2+3 全閉環,手動 smoke 4 情境驗收通過)
+- **PLAN-024** 階段 2 **暫緩**(D064,保持 PLANNED)
+
+**決策日誌(2 條)**:
+- **D063** BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log
+- **D064** BUG-050 階段 2 暫緩:2 樣本 + 真實工作流驗證零異常,保持 VERIFY 待真實問題觸發
+
+**Global 學習萃取(GP042 UPDATE + GP063 新建)**:
+- **GP042 UPDATE**:Worker time 連 37+ hit,T0216 中規模架構重整 7-13x **新場景擴展**(破除「只有小 fix 才能高倍壓縮」),T0217 又加一樣本 8-11x
+- **GP063 新建**(🟡 待跨專案驗證):**IPC boundary 注入 + 結構性子型別 = 重構豁免 consumer audit**
+  - 機制 1:單點邊界注入(preload.ts / API gateway / ORM hook)
+  - 機制 2:TypeScript 結構性子型別作為 audit 豁免
+  - 通用化:Web API / ORM / MQ / GraphQL / RPC 皆適用
+  - 來源:T0216 FileEntry.pathKey 注入實例
+
+**BUG-050 YOLO 觀察樣本(2 張,全 clean)**:
+- 樣本 #1 T0216:writeResp `{hasError:false, payload:{ok:true, reason:"queued"}}` ✅
+- 樣本 #2 T0217:**真實 YOLO 工作流 end-to-end 驗證**(Worker smoke 1 訊息 + auto-submit 都直接到塔台,非剪貼簿 fallback)✅
+- 異常跡象:**0**
+- 下個觸發點:異常 payload 觸發階段 2 啟動 / 連續 10+ clean 樣本觸發 CLOSED
+
+**Worker 品質亮點(T0217)**:
+- 主動修正 PLAN-022 骨架錯誤(`fingerprint256` 假設 → 實際 `fingerprint` persisted;兩欄位 format 同可 `===` 比對)
+- 抽共用 helper `_bat-cert.mjs`(避免 GP056 sibling duplication)
+- `BAT_SERVER_CERT_PATH` env override 巧思(smoke 不動真實 cert,免「測完必還原」風險)
+- Bonus 情境 2b(server-cert-unreadable)主動測試
+
+**未執行項(下 session 接)**:
+
+### 🟢 候選(優先級依序)
+
+- 🟡 **BUG-047 pre.2 tag**(Rico 驗收,第九 session 殘留,使用者授權後可打)— 極小
+- 🟢 **PLAN-008 中文「高」優先級 polish** — 小,適合 YOLO 樣本 #3
+- 🟢 **GP042 升 Skill** `/ct-evolve --skill worker-time-estimation`(⭐ proven 穩固至極,37+ hit,場景完整)
+- 🟢 **GP063 等跨專案驗證** — 下次在其他 repo 遇到「新增跨多 consumer 型別欄位」場景時留意
+- 🟢 **BUG-050 自然累積樣本** — 每張 YOLO 派發都是觀察機會,不需專門派測試工單
+
+### 📊 下 session 決策點
+
+- 若 YOLO 樣本累積到 10+ clean → BUG-050 可 CLOSED(清理 `[T0215-DEBUG-REMOVE]` 3 處)
+- 若觀察到異常 payload → 立即轉 FIXING + 啟動 PLAN-024 階段 2
+
+**恢復指引**(下次 `/control-tower` 啟動時):
+
+1. Fast Path 載入本快照(v4.3.0,距啟動時間 <7d 適用)
+2. **第一動作**:確認 `git status`(本 session 已全部 commit,尚待 push 授權)
+3. 下一輪優先級建議:
+   - 🟡 **BUG-047 pre.2 tag**(使用者授權後可打,極小)
+   - 🟢 **PLAN-008 中文 polish**(小,YOLO 樣本 #3 候選)
+   - 🟢 若要累積更多 BUG-050 樣本 → 任選一張 YOLO 派發即可自動採樣
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-19 第十二 session,BUG-050 Option C 階段 1 方案 A 完成)
 
 **退出原因**:使用者指示「請塔台快照,我佈新板」— 新 server 需重啟 BAT 才能載入,下 session 跑場景 1/2 手動 smoke
 
