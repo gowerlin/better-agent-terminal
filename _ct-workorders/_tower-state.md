@@ -48,7 +48,6 @@
 ### 🟢 候選(優先級依序)
 
 - 🟡 **BUG-047 pre.2 tag**(Rico 驗收,第九 session 殘留,使用者授權後可打)— 極小
-- 🟢 **PLAN-008 中文「高」優先級 polish** — 小,適合 YOLO 樣本 #3
 - 🟢 **GP042 升 Skill** `/ct-evolve --skill worker-time-estimation`(⭐ proven 穩固至極,37+ hit,場景完整)
 - 🟢 **GP063 等跨專案驗證** — 下次在其他 repo 遇到「新增跨多 consumer 型別欄位」場景時留意
 - 🟢 **BUG-050 自然累積樣本** — 每張 YOLO 派發都是觀察機會,不需專門派測試工單
@@ -64,8 +63,14 @@
 2. **第一動作**:確認 `git status`(本 session 已全部 commit,尚待 push 授權)
 3. 下一輪優先級建議:
    - 🟡 **BUG-047 pre.2 tag**(使用者授權後可打,極小)
-   - 🟢 **PLAN-008 中文 polish**(小,YOLO 樣本 #3 候選)
    - 🟢 若要累積更多 BUG-050 樣本 → 任選一張 YOLO 派發即可自動採樣
+
+### ⚠️ 記憶污染修正紀錄
+
+**2026-04-19 19:50 使用者發問觸發**:「PLAN-008 是甚麼?」→ 發現快照誤記。
+- PLAN-008 真實內容:「持久化狀態 + PTY 進程脫鉤架構」,✅ DONE 已歸檔(`_archive/plans/`,Phase 1 T0096 + Phase 2 T0106-T0113 完成)
+- 多 session 快照複製貼上「🟢 PLAN-008 中文『高』優先級 polish」是**塔台幻覺**,可能源自誤拼接 PLAN-008 元資料的「優先:高」欄位
+- **已修正**:本 session 快照移除該條,不再傳染到下 session
 
 ---
 
