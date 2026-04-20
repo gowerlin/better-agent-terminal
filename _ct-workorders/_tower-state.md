@@ -1,10 +1,93 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-20(**🎉 PLAN-025 yolo 3 連擊完成 + CT-T008 v4.3.2 release 交付 + Selene 診斷揭露 JB Gateway 假設失誤**,等 Selene OSC 52 穿透測試結果決定 v4.3.3 範圍;使用者切換議題)
+> 最後更新:2026-04-20 18:30(**🎉 Selene OSC 52 ❌ 穿透失敗確認 + CT-T009 v4.3.3 DELEGATE 建立 + PLAN-026 剪貼簿 proxy IDEA + PLAN-022 結案 D073 + *evolve L083/GP067-070 + *sync drift 修正**,第十七 session 收工,15 commits 已 push origin/main)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-20 ~13:00,等 Selene 回報切換議題)
+## 🛏 本 Session 退出快照(2026-04-20 ~18:30,第十七 session 收工)
+
+### 本輪時間線(~5 h wall,午後)
+
+1. **13:00-13:30**(30 min):`/control-tower` Fast Path 恢復 → 處理 OSC 52 測試指令補發(給 Selene 再貼一次)→ 使用者切換議題
+2. **13:30-13:40**(10 min):`*evolve` 萃取學習候選 — L083(project)+ GP067-GP070(global,含 ⭐ GP070 devcontainer 根因反模式)
+3. **13:40-13:55**(15 min):`*sync` 完整重建 — 修正 BUG-050 狀態 drift(FIXING → VERIFY)、PLAN-023 DONE、PLAN-022 IN_PROGRESS、PLAN-025 缺失、tower-state 計數器對齊
+4. **14:00-14:10**(10 min):PLAN-022 結案討論 → D073 決策(Step 3 TOFU fallback **不做**,保留 fail-close 安全模型)
+5. **14:10**:13 commits push `origin/main`(122870e..2fb4307)
+6. **18:01-18:05**(5 min):Selene 回報 OSC 52 測試 → **❌ 穿透失敗確認**(剪貼簿原 LINE copy 內容未被覆蓋 = escape sequence 被容器/Gateway/GoLand terminal 吞掉)
+7. **18:15-18:25**(10 min):v4.3.3 規劃對齊(Q1-Q4 四題) → CT-T009 DELEGATE + PLAN-026 IDEA 建立
+8. **18:30**:2fb4307..653c068 push,收工
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **學習萃取** | L083 project(flag drift)+ GP067-GP070 global(Renew-lite / skill-repo 分離 / yolo 壓縮 / **⭐ devcontainer 根因反模式**) |
+| **Drift 修正** | `_bug-tracker.md` / `_backlog.md` / `_tower-state.md` 三處對齊 |
+| **PLAN 結案** | PLAN-022 ✅ DONE(D073,Step 3 不做) |
+| **新單據** | CT-T009 DELEGATE v4.3.3(📋 TODO,待派發)+ PLAN-026 IDEA(JB Gateway 剪貼簿 proxy) |
+| **Selene OSC 52 結論** | ❌ 穿透失敗,JB Gateway Dev Container **不轉發 OSC 52** escape sequence |
+
+### v4.3.3 規劃決議(CT-T009 — 雙軌交付 [C])
+
+- **CT-T009 v4.3.3 patch**(30-45 min):A 面第 21 條偵測(`test -d /.jbdevcontainer/`)+ A.2 Step 2.5 決策樹(含 Step 2.5.1 子分支)+ C.2.3 第 13 條 OSC 52 支援清單 JB ❌ + CHANGELOG Known Limitations
+- **PLAN-026 IDEA**:JB Gateway 剪貼簿 proxy(HTTP daemon via `host.docker.internal` → `pbcopy`)→ 🟢 Low,待 ≥3 人 JB 樣本或 ≥1 月試跑 feedback 再評估
+- **誠實範圍定位**(Q4=A):v4.3.3 只解「識別正確 + 訊息清楚」,auto-session 自動化對 JB Gateway **仍不可用**(Gateway 協議本身無新分頁能力 + OSC 52 穿透失敗)
+
+**對齊決議**:Q1=**A**(`--mode yolo`)/ Q2=**C**(清理舊 guide + 新寫 `_guide-selene-v433-jb-gateway-validation.md`)/ Q3=**A**(Gower 手動 tag+push)
+
+### 本 session commits(全部已 push `origin/main`,共 14 個)
+
+```
+本 session 新產出(4 個):
+653c068 CT-T009 DELEGATE v4.3.3 + PLAN-026 IDEA
+2fb4307 PLAN-022 結案 + D073
+8dd2616 *sync drift 修正 + 重建 tracker/backlog
+4c417ca *evolve L083 寫入
+
+前 session 累積(10 個,本 session 一併 push):
+2b18b99 退出快照 — PLAN-025 yolo 三連擊 + CT-T008 v4.3.2 release
+cba7d09 CT-T008 Worker 交付 + Selene T0228 測試指南
+1e66ab7 CT-T008 建立 — v4.3.2 hotfix DELEGATE
+7ffaf87 PLAN-025 yolo 三連擊完成
+71f004d T0227 收尾元資料
+ba9aa74 T0227 C 面剪貼簿層落地
+cbeb117 T0226 B 面指令矩陣落地
+901dff2 T0225 偵測層重構
+54a9500 PLAN-025 roadmap 建立
+aea9373 T0224 研究完成
+```
+
+### 候選學習(下輪 *evolve)
+
+| ID | 候選內容 | 觀察來源 |
+|----|---------|---------|
+| **L089** | 測試指南若要求使用者從通訊軟體複製指令到目標環境執行,Cmd+V 驗證前 host 剪貼簿已被複製動作污染,指南需明示「可區分的預期輸出」(短字串 vs 整段指令長度對比) | 本 session Selene OSC 52 溝通摩擦:Selene 回報「step2 回來 mac 就是剛才 copy 的那行啊」,她誤以為無資料,實則正是穿透失敗的明確證據 |
+
+### 恢復指引(下輪 `/control-tower` 啟動)
+
+1. Fast Path 載入本快照(快照 <7 天)
+2. **立即動作優先序**:
+   - 🔴 **派 CT-T009**:切到 `D:/ForgejoGit/BMad-Guide/` → `claude "/ct-exec CT-T009"`(yolo 模式)
+   - 🟡 **等 Selene v4.3.3 實測**:Worker 交付後,塔台 grep 新 guide 路徑 → 交 Gower → LINE 給 Selene
+   - 🟢 **`*evolve` 萃取 L089**:測試指南污染場景的設計教訓
+3. **等待項目(自動,不主動)**:
+   - Global 學習(GP067-GP070 在 skill 層 `~/.claude/control-tower-data/patterns.md`)→ 等 `claude-brain-sync` auto-sync,或手動 `/brain-patch`
+   - Skill 層 `auto-session.md` 改動(PLAN-025 本 session 累計 +520 行)等 auto-sync 同步到 Forgejo
+4. **未閉環項目**(非本 session 新增,持續追蹤):
+   - 🐛 **BUG-050 VERIFY**(樣本 10/10 達標,等 PLAN-025 整體結案一起 CLOSED)
+   - 📋 **T0228 TODO**(PLAN-025 integration,等 v4.3.3 可取得)
+   - 🔄 **PLAN-021 IN_PROGRESS**(等使用者 dev smoke 驗收,不阻塞)
+   - 💡 Backlog 4 IDEA + 3 PLANNED 🟢 Low(不主動排入)
+
+### 小心假設(沿用 L088 教訓)
+
+任何「devcontainer」「remote container」「dev environment」相關討論,**先問 IDE 與遠端協議**,再動手。已 Global 化為 GP070,適用所有研究/偵測工單。
+
+---
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-20 ~13:00,等 Selene 回報切換議題)
 
 ### 本輪時間線(~2.5 h wall)
 
