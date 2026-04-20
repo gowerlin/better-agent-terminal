@@ -1909,36 +1909,35 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 ---
 
 ## 🔍 環境快照
-> 最後掃描：2026-04-20 00:36 (UTC+8) — *rescan（第十六 session 收尾後完整重掃）
+> 最後掃描：2026-04-20 10:13 (UTC+8) — *rescan（PLAN-025 建立後驗證 BAT 偵測 + global config 缺口確認）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| BMad-Method | ✅ | _bmad/ 已偵測到（_config/ + bmm/ + core/） |
-| ECC 學習 | ✅ Level 1 | ~/.claude/homunculus/ (projects/ + projects.json) |
+| BMad-Method | ❌ | _bmad/ 不存在（專案自訂工作流程）|
+| ECC 學習 | ✅ Level 1+ | ~/.claude/homunculus/ |
 | bmad-guide skill | ✅ | 可用 |
-| mem0 REST | ✅ | memsync healthy, updated 2026-04-20 00:33 |
-| 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal |
-| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-..., terminal:718b291a-... |
-| ct-exec | ✅ | |
-| ct-done | ✅ | |
-| ct-status | ✅ | |
-| ct-evolve | ✅ | |
-| ct-insights | ✅ | |
-| ct-fieldguide | ✅ | |
-| ct-help | ✅ | |
-| worker-time-estimation | ✅ 🆕 Skill | GP042 升 Skill 完成（本 session 新偵測到） |
-| _archive/ | ✅ | 203 張歸檔（workorders:163, bugs:36, plans:4，+4 本 session） |
-| _playbooks/ | ✅ | 空目錄（0 張） |
-| _decision-log | ⚠️ drift | 檔案 D065 為最新（39 條），實際已到 D072（tower-state 記） |
-| 跨專案參照 | 📋 | 無關聯（_cross-references.md 不存在） |
-| Global 學習 | ✅ ⭐ | 74 patterns(+3 本 session: GP065/GP066/GP042 UPDATE), ?? playbooks, 3 fieldguide |
-| BUG/PLAN 追蹤 | ✅ | BUG:16 熱區 / PLAN:19 熱區 |
+| mem0 REST | ✅ | memsync healthy, updated 2026-04-20 10:11, queue_size:2 |
+| 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal, WT_SESSION 空, TERM=xterm-256color |
+| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-650f-4c98-aeaf-3c5b3ffcd053, terminal:c68bf5ee-dca2-4eab-bbce-293379466527 |
+| BAT_TOWER_TERMINAL_ID | ❌ 空 | 本 session 未設 tower terminal id，bat-notify Worker 回報需走降級 |
+| 平台 | Windows | MINGW64 (Git Bash, Msys)，Windows 11 Pro for Workstations (26200) |
+| ct-exec / ct-done / ct-status | ✅ | |
+| ct-evolve / ct-insights | ✅ | |
+| ct-fieldguide / ct-help | ✅ | |
+| worker-time-estimation | ✅ Skill | (前次 session 升 Skill，沿用) |
+| _archive/ | ✅ | 205 張歸檔（本 session 未歸檔）|
+| _playbooks/ | ✅ 空 | 目錄存在，0 張（Playbook 候選仍在 Global Layer 2）|
+| _decision-log | ✅ | 至 D072（需 *sync 驗證檔案 drift）|
+| 跨專案參照 | 📋 | 無關聯（_cross-references.md 不存在）|
+| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/learnings/ — 84 patterns, 12 tech-gotchas, fieldguide/ 目錄 |
+| Global 設定 | ❌ 無 | ~/.claude/control-tower-data/config.yaml 不存在（僅 project 層設定）|
+| BUG/PLAN 追蹤 | ✅ | BUG:16 熱區 / PLAN:19 熱區（PLAN-025 新建 🔴 High）|
 | 實驗追蹤 | ✅ | EXP:2 熱區 |
-| 熱區工單 | T:70 / CT-T:7 / BUG:16 / PLAN:19 / EXP:2 | 本 session 歸檔 4 張(T0149/T0150/T0154/BUG-034) |
-| 最大編號 | T0223 / BUG-052 / PLAN-024 / D071+72 | BUG-047/051/052 全 CLOSED |
-| 設定來源 | project | _tower-config.yaml (yolo + retries:1 + commit:on + archive_days:2) |
+| 熱區工單 | T:70 / BUG:16 / PLAN:19 / EXP:2 | PLAN-025 新增，T0224 建立中（TODO，待派發）|
+| 最大編號 | T0223 / BUG-052 / PLAN-025 / D072 | T0224 尚未開始，max 保持 T0223 |
+| 設定來源 | project | _tower-config.yaml (auto-session: **yolo**, yolo_max_retries: **1**, auto_commit: on, archive_days: 2) |
 | 塔台版本 | v4.3.0 | SKILL.md frontmatter |
-| 能力等級 | Level 2 | ECC + mem0 |
+| 能力等級 | Level 2 | ECC(Level 1+) + mem0 + Layer 2 學習資料 |
 
 ---
 
