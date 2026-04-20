@@ -67,7 +67,13 @@ Selene 在 devcontainer(Debian 12)中跑以下流程:
 4. **on 模式是否走對路徑?**(剪貼簿 + 文字提示)
 5. **yolo 模式是否可行?**(BAT WebSocket 是否跨容器)
 6. **Windows Terminal 回歸是否通過?**(使用者主場景)
-7. **有沒有發現 T0225/T0226/T0227 遺漏的情境?**
+7. **R4 VS Code 自動分頁行為驗證**(T0225 延後到此驗):
+   - 在 Selene 的 VS Code 內建 terminal 執行 `claude "/ct-exec T-TEST-DUMMY"` 字面
+   - 觀察是否真開新 tab / 或是在當前 tab 繼續跑
+   - 若**失效** → VS Code non-devcontainer 情境改走剪貼簿 + 提示 Ctrl+Shift+\`
+   - 若**仍有效** → 保留現行行為
+   - 結論回報給塔台,若影響 T0225/T0226 文件則派補丁工單
+8. **有沒有發現 T0225/T0226/T0227 遺漏的情境?**
 
 ## 禁止
 
