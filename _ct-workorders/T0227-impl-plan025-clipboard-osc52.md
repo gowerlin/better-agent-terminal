@@ -4,8 +4,9 @@
 
 - **編號**:T0227
 - **類型**:implementation
-- **狀態**:📋 TODO
+- **狀態**:🔄 IN_PROGRESS
 - **建立時間**:2026-04-20 (UTC+8)
+- **開始時間**:2026-04-20 11:10 (UTC+8)
 - **派發模式**:待塔台與使用者對齊(T0225 完成後決定)
 - **優先級**:🟡 Medium(Selene 主場景**靠此路徑**,實際重要性偏高)
 - **前置條件**:T0225(✅ DONE)
@@ -97,3 +98,58 @@
 ---
 
 ## 回報區(Worker 填寫)
+
+### 完成狀態
+
+✅ DONE
+
+### 產出摘要
+
+**核心交付**：`~/.claude/skills/control-tower/references/auto-session.md` C 面段落改寫(外部 skill 檔案,由 claude-brain 同步,不入本專案 git)。
+
+**章節結構**：
+
+| 段 | 內容 |
+|---|------|
+| C.0 核心原則(4 條) | 文字提示永遠顯示／優先傳統工具／macOS Terminal.app 不走 OSC 52／tmux 穿透需外層支援 |
+| C.1 傳統剪貼簿矩陣(9 條目) | Windows pwsh / Git Bash clip(降級)/ macOS pbcopy / Linux X11 xclip / X11 xsel(備援)/ Wayland wl-copy / WSL clip.exe / WSL powershell.exe(Unicode 路徑)/ tmux load-buffer |
+| C.1 平台優先順序表 | 依 `TerminalDetection.platform` / `.type` 定義 8 分支優先鏈,含 wrapping_layers 影響規則 |
+| C.2.1 OSC 52 格式 | `ESC ] 5 2 ; c ; <base64(UTF-8)> BEL` 完整欄位說明 + 4 個常見錯誤 |
+| C.2.2 寫入函式規格 | Bash / pwsh / Node.js / Python 四語言範例 |
+| C.2.3 已知支援清單 | 11 個獨立終端 + tmux 穿透條件(共 12 條目,超過工單 10 個要求)+ Terminal.app 明標 ❌ 不支援 |
+| C.2.4 tmux 穿透 | `set -g set-clipboard on/external/off` 三態行為 + Worker 端判斷虛擬碼 |
+| C.3 降級鏈 | `copy_to_clipboard_with_fallback` 完整流程 + 9 列範例降級鏈對照 |
+| C.4 文字提示模板 | 4 種狀態(成功/ASCII 降級/OSC 52 無法確認/全敗)文案 |
+
+**同步更新**:`detect_clipboard()` 虛擬碼 stub 改指向 `copy_to_clipboard_with_fallback`(收斂 B.4 介面)。
+
+**實機 smoke test**(Worker 當前 BAT 內部 Windows 環境):
+
+- ✅ pwsh Set-Clipboard round-trip(UTF-8 中文)— 寫入 `T0227 smoke` → `Get-Clipboard` 回傳一致
+- ✅ OSC 52 escape 格式(hex dump 驗證)— `1b5d 3532 3b63 3b` (`ESC ] 5 2 ; c ;`)起 + `07` (BEL) 結;base64 `VDAyMjcgT1NDNTIgdGVzdA==` 反解回 `T0227 OSC52 test` 無誤
+- ✅ pwsh 可用(PowerShell 7.6.0)+ clip 可用(Git Bash fallback)
+
+**不驗證項**(轉 T0228):macOS pbcopy / Linux xclip / WSL clip.exe / OSC 52 實際寫入剪貼簿行為(需 Selene devcontainer 環境)。
+
+**Git commit**:見下方「commit hash」。
+
+### 遭遇問題
+
+無。
+
+### 互動紀錄
+
+無。
+
+### Renew 歷程
+
+無。
+
+### 回報時間
+
+2026-04-20 11:15 (UTC+8)
+
+### Commit
+
+- `auto-session.md` 位於 `~/.claude/skills/control-tower/references/`,不入本專案 git(由 claude-brain-sync 同步到中央 Forgejo);本專案僅 commit 工單本體
+- Commit hash:見 Step 8 commit 輸出
