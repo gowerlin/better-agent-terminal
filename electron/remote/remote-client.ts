@@ -44,6 +44,8 @@ export function computeReconnectDelay(attempt: number, rand: () => number = Math
   const base = Math.min(RECONNECT_MAX_MS, exp)
   return base + rand() * RECONNECT_JITTER_MS
 }
+const AUTH_TIMEOUT_MS = 6_000
+const DEFAULT_INVOKE_TIMEOUT_MS = 30_000
 
 export class RemoteClient {
   private ws: WebSocket | null = null
@@ -121,7 +123,7 @@ export class RemoteClient {
         this._connected = false
         this.ws?.close()
         settle({ ok: false, error: 'Connection timeout', errorCode: 'timeout' })
-      }, 10000)
+      }, AUTH_TIMEOUT_MS)
 
       // Fingerprint verification on upgrade — access the underlying TLS socket.
       this.ws.on('upgrade', (res) => {
@@ -301,7 +303,7 @@ export class RemoteClient {
     logger.log('[RemoteClient] Disconnected')
   }
 
-  invoke(channel: string, args: unknown[], timeout = 30000): Promise<unknown> {
+  invoke(channel: string, args: unknown[], timeout = DEFAULT_INVOKE_TIMEOUT_MS): Promise<unknown> {
     if (!this.isConnected) {
       return Promise.reject(new Error('Not connected to remote server'))
     }
