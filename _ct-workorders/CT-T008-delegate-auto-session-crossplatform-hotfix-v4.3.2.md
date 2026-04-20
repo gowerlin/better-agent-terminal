@@ -5,7 +5,9 @@
 - **工單編號**:CT-T008
 - **任務名稱**:【受派】auto-session.md 跨平台偵測層重寫(A/B/C/D 四面矩陣)+ v4.3.2 hotfix release
 - **類型**:implementation(DELEGATE, 跨專案)
-- **狀態**:📋 TODO
+- **狀態**:✅ DONE(2026-04-20 12:02 目標 repo commit 完成,tag/push 由使用者處理)
+- **完成時間**:2026-04-20 12:02:11 (UTC+8)
+- **目標 repo commit**:`61dec10` (BMad-Guide repo, branch dev-main)
 - **建立時間**:2026-04-20 (UTC+8)
 - **派發模式**:待塔台與使用者對齊
 - **預估工時**:60-90 min(含 sanitize + CHANGELOG + release 驗收)
@@ -207,4 +209,189 @@ grep -iE "selene|gower|plan-025|bug-050|bug-047|t0224|t0225|t0226|t0227|t0228|co
 
 ## 回報區(Worker 填寫)
 
-<!-- Worker 完成後在此填寫 sanitize diff、AC-4 grep 結果、版號 bump、CHANGELOG、tag push 確認 -->
+### 執行環境
+
+- Worker session 位置:`D:\ForgejoGit\BMad-Guide\BMad-Control-Tower\`(BMad-Guide repo, branch dev-main)
+- 目標 repo:**B** 選項——複製 v4.3.0 為新目錄 `BMad-Control-Tower-v4.3.2/` 再修改
+- 來源 auto-session.md:**A** 選項——`~/.claude/skills/control-tower/references/auto-session.md`(848 行,BAT 三張工單累計重寫後最終版)
+- 開始時間:2026-04-20 11:36:22
+- 完成時間:2026-04-20 12:02:11
+- 經過:約 26 分鐘
+
+---
+
+### AC-1 — auto-session.md sanitize + 覆蓋
+
+**來源大小**:848 行
+**目標(sanitize 後)**:850 行(因使用者提醒補充 BAT_TERMINAL_ID / BAT_TOWER_TERMINAL_ID 角色對照而多 2 行)
+
+**Sanitize diff 摘要**(約 30 處修正):
+
+| 類別 | 修正數 | 範例 |
+|------|-------|------|
+| 規格來源溯源移除 | 3 處 | 「規格來源:PLAN-025 研究工單 T0224(commit 013175a)」→ 整段刪除 |
+| T0224-T0228 工單編號 | ~15 處 | 「交 T0227」→「交 C 面」/「T0226 落實」→「本節落實」 |
+| Selene 個人識別 | 3 處 | 「Selene 主場景」→「devcontainer 主場景」/「Selene 於 macOS」段落改中性重寫 |
+| Q5/Q7/R1/R2/R4/R6/R7 風險代號 | ~10 處 | 「(R7 緩解)」→刪除 /「**T0226 緩解(R6)**」→「**緩解策略**」 |
+| Worker 機器特化 | 1 處 | 「**實機預檢結果(T0226 Worker 環境)**」→「**實機驗證狀態**」並改中性 |
+| BUG-### 引用 | 1 處 | 「避開 renderer activeWorkspaceId fallback 導致的錯派(BUG-040 Phase 1.2)」→ 移除尾括號 |
+| commit SHA | 3 處 | `013175a` / `aea9373` → 整段刪除 |
+| 本工單互指 | 3 處 | 「**R4 驗證不在本工單(T0225)範圍內**」段整段改中性重寫 |
+| §247 內部 anchor ref | 1 處 | 改為 section 名稱 ref:「見 § VS Code(non-devcontainer)備註」 |
+
+**保留的實質內容**:
+- ✅ A.1 環境變數表 20 條(完整)
+- ✅ A.2 決策樹 10 Step + Fallback(完整)
+- ✅ A 面短路規則 5 條(完整)
+- ✅ `TerminalDetection` TypeScript interface(完整)
+- ✅ B.0-B.5 全段(映射介面 / 17 終端指令表 / Quoting / 失敗偵測 / 降級介面 / R6→osascript TCC 緩解)
+- ✅ C.0-C.4 全段(9 剪貼簿工具 / OSC 52 規格 / 4 語言範例 / 12 終端支援清單 / tmux 穿透三態 / 降級鏈 / 文字提示模板)
+- ✅ 原有的「派發後行為」/「Mode 與互動旗標協定」/「BAT 內部終端路由」/「降級鏈」/「安全邊界」/「回報快捷」
+
+**新增 ( 使用者提醒後補充)**:
+- BAT_TERMINAL_ID(Worker 自身 PTY ID)vs BAT_TOWER_TERMINAL_ID(Tower PTY ID,由 `--notify-id` 注入)session-local 角色對照表(「Worker 完成自動通知」段前置 blockquote)
+- 「依賴的 BAT 基礎設施」表新增 `BAT_TOWER_TERMINAL_ID` 與 `BAT_WORKSPACE_ID` 兩列
+
+### AC-2 — 8 個 skill 版號 bump
+
+機械式 sed 處理 frontmatter 和 HTML marker(`version: "4.3.0"` → `"4.3.2"`、`<!-- version: 4.3.0 -->` → `<!-- version: 4.3.2 -->`),然後逐檔 Edit 處理 description 開頭和面板 title。
+
+**結果驗證 grep**:
+
+```
+control-tower/SKILL.md:3:version: "4.3.2"
+ct-done/SKILL.md:3:version: "4.3.2"
+ct-evolve/SKILL.md:3:version: "4.3.2"
+ct-exec/SKILL.md:3:version: "4.3.2"
+ct-fieldguide/SKILL.md:3:version: "4.3.2"
+ct-help/SKILL.md:3:version: "4.3.2"
+ct-insights/SKILL.md:3:version: "4.3.2"
+ct-status/SKILL.md:3:version: "4.3.2"
+```
+
+HTML marker 同 8 個檔皆 `<!-- version: 4.3.2 -->`。
+
+**control-tower/SKILL.md 內文 v4.3.2 面板 title / metadata 一致性**:
+- Line 223(Fast Path 面板): `🗼 BMad Control Tower v4.3.2 — 快速恢復` ✅
+- Line 275(Full Scan 面板 title): `🗼 BMad Control Tower v4.3.2 — 環境偵測` ✅
+- Line 307(面板「塔台版本」欄位): `塔台版本:v4.3.2 (frontmatter 讀取)` ✅
+- Line 368(內文 metadata 表): `| **塔台版本** | Control Tower v4.3.2 |` ✅
+- Line 579(*rescan 面板 title 參照): `🗼 BMad Control Tower v4.3.2 — 環境偵測` ✅
+
+**歷史版本敘述保留**(不動):
+- 「v4.3.0 起 Worker 無狀態」(描述 4.3.0 引入的行為變更,歷史事實)
+- 「升級 v4.3.0+ 後塔台會透過 --mode flag」(feature 引入下限,≥4.3.0 即適用 v4.3.2)
+- 「**版號一致性驗證**(v4.3.0+,CT-T007)」(feature 引入版本標註)
+- ct-help changelog 區的「v4.3.0」條目(歷史 release entry)
+
+### AC-3 — CHANGELOG v4.3.2 條目
+
+新增位置:`CHANGELOG.md` 開頭(`[4.3.0]` 之前)。
+
+**條目結構**:
+- `## [4.3.2] — 2026-04-20`
+- `### Fixed`:auto-session 終端偵測大幅擴展(A/B/C 面逐條列出新增內容)+ BAT_TERMINAL_ID / BAT_TOWER_TERMINAL_ID 角色對照釐清
+- `### Changed`:8 skill frontmatter + HTML marker / 面板 title / description 版號 bump
+- `### Notes`:文件推測項目提醒 + VS Code non-devcontainer 實測待確認 + 本次 hotfix 不是行為變更
+
+檔案長度由 687 行增至 690 行(新增 4.3.2 條目約 25 行)。
+
+### AC-4 — Sanitize 驗收 grep
+
+```bash
+cd "D:/ForgejoGit/BMad-Guide/BMad-Control-Tower/BMad-Control-Tower-v4.3.2/"
+grep -inE "selene|gower|plan-025|bug-050|bug-047|t0224|t0225|t0226|t0227|t0228|commit [0-9a-f]{7}" control-tower/references/auto-session.md
+```
+
+**結果**:`✅ 無命中`
+
+另 `better-agent-terminal` 以 env 值形式保留(`TERM_PROGRAM=better-agent-terminal`,為 BAT 實際設定的環境變數值,技術事實保留;只出現在 A.1 表第 1 列和短路規則第 1 條)。
+
+### AC-5 — Release 前品質自檢
+
+- [x] auto-session.md 所有 heading 格式一致(A.1 / A.2 + B.0 / B.1 / B.2 / B.3 / B.4 / B.5 + C.0 / C.1 / C.2 / C.3 / C.4 共 13 個 level-3 heading,B.0-B.5 六個正確、C.0-C.4 五個正確)
+- [x] 所有範例 code 區塊有語言標註(```bash / ```yaml / ```typescript / ```tmux / ```json 等)
+- [x] 決策樹 Step 0-10 + Fallback 順序與短路規則一致,無邏輯衝突
+- [x] TypeScript `TerminalDetection` struct 欄位與虛擬碼使用點對齊
+- [x] 純繁體中文,標點正確
+- [x] 8 skill 版號一致性(frontmatter / HTML marker / description 開頭 / 面板 title / metadata 表皆 v4.3.2)
+
+### 目標 repo commit
+
+- **分支**:`dev-main`(未新開 hotfix 分支,沿用專案慣例)
+- **commit SHA**:`61dec10`
+- **訊息**:`release(ct): v4.3.2 hotfix — auto-session 跨平台偵測層重寫 (CT-T008)`
+- **變更**:67 files changed, 20,933 insertions(+)(其中 60+ 檔為 v4.3.0 → v4.3.2 完整複製,實質變更為 auto-session.md + CHANGELOG.md + 8 SKILL.md)
+
+### Tag 與 push 狀態
+
+- **Tag v4.3.2**:⏳ **未建立**(使用者選擇 C,自行處理)
+- **Push upstream**:⏳ **未 push**(使用者選擇 C,自行處理)
+- **Release 連結**:⏳ 待使用者 push tag 後產生
+
+### 下游試跑指引(建議草稿,使用者可調整)
+
+試跑者取得 v4.3.2 的途徑(依使用者選擇):
+
+**途徑 A:等使用者 tag + push 後**
+```bash
+# 在試跑者本機 claude-brain-sync 設定的 repo
+cd <claude-brain-sync repo>
+git fetch origin --tags
+git checkout v4.3.2  # 或等 claude-brain-sync 自動同步 main
+```
+
+**途徑 B:直接 copy v4.3.2 目錄**
+如果試跑者透過 `claude-brain-sync` 或手動 copy skill 目錄:
+```
+BMad-Control-Tower-v4.3.2/
+├── control-tower/       → ~/.claude/skills/control-tower/
+├── ct-done/             → ~/.claude/skills/ct-done/
+├── ct-evolve/           → ~/.claude/skills/ct-evolve/
+├── ct-exec/             → ~/.claude/skills/ct-exec/
+├── ct-fieldguide/       → ~/.claude/skills/ct-fieldguide/
+├── ct-help/             → ~/.claude/skills/ct-help/
+├── ct-insights/         → ~/.claude/skills/ct-insights/
+└── ct-status/           → ~/.claude/skills/ct-status/
+```
+
+**途徑 C:/brain-patch**
+若試跑者已設定 `claude-brain-sync` + `/brain-patch` slash command,等使用者 push 後跑:
+```
+/brain-patch
+```
+
+**驗證 v4.3.2 已裝好**:
+- 在試跑者環境下任一支援的終端跑 `/control-tower`(或 `control-tower` keyword 觸發)
+- 觀察環境偵測面板底部應顯示「塔台版本:v4.3.2 (frontmatter 讀取)」
+- 若顯示 v4.3.0 則 skill 尚未更新
+- 試跑 devcontainer / WSL / Linux 桌面 / tmux / SSH 任一環境下的工單派發,觀察 auto-session 行為是否符合 A/B/C 面規格
+
+### 塔台後續決策點(供使用者參考)
+
+- 若要 push 到 Forgejo:`cd "D:/ForgejoGit/BMad-Guide/" && git push origin dev-main`
+- 若要建 tag:`cd "D:/ForgejoGit/BMad-Guide/" && git tag v4.3.2 61dec10 && git push origin v4.3.2`
+- 若下游試跑發現 B 面某終端指令失效 → 另開 v4.3.3 patch(本工單不 renew,依塔台筆記指示)
+
+### Renew 歷程
+
+無。
+
+### 互動紀錄
+
+- [11:50] Q: 目標 repo 位置? → A: 選 B(複製 v4.3.0 為 v4.3.2)/ 來源選 A(`~/.claude/skills/`) → Action: `cp -r BMad-Control-Tower-v4.3.0 BMad-Control-Tower-v4.3.2`
+- [11:58] Q: 使用者提醒 BAT_TERMINAL_ID vs BAT_TOWER_TERMINAL_ID 語意對齊 → A: 補充 session-local 角色對照 blockquote + 「依賴的 BAT 基礎設施」表新增兩列 → Action: Edit auto-session.md 補 2 處
+- [12:01] Q: Tag + push 授權? → A: 選 C(只填源工單回報區,使用者自行處理) → Action: 跳過 tag 和 push,填本回報區
+
+### 遭遇問題
+
+- **「§247 anchor ref」處理**:原始碼「(R4 待 T0228 驗證,見 §247)」用行號 ref,sanitize 後行號會變動且 T0228 要移除,改用 section name「見 § VS Code(non-devcontainer)備註」更 robust
+- **ct-help changelog 歷史敘述判斷**:ct-help/SKILL.md 含大量「v4.3.0 changelog 描述區塊」(line 271-322),這些是歷史 release entry 的描述,不是當前版本 marker,**不 bump**(否則會改到歷史敘述語意)
+- **「§431 白名單」內部行號 ref**:原始碼「WT 回歸(現行實作未動)→ 指令與 §431 白名單一致」改為「§ 安全邊界 Bash 白名單」以避免 sanitize 後行號 drift
+- **§247 與 §431 為典型「行號 ref 脆性」問題**:建議未來 auto-session.md 改用 section name ref(原始研究工單產出時若有行號 ref,release sanitize 時都該改)
+
+### 未處理事項 / 建議未來 patch
+
+1. **VS Code(non-devcontainer)自動分頁行為**:尚待實測,若證實失效需 v4.3.3 patch 修改 Step 8 vscode 分支的指令(現行 `claude "/ct-exec T####"` 字面可能無效)
+2. **B 面文件推測項**:macOS osascript / Linux gnome-terminal / konsole / tmux new-window 等多數屬文件推測,下游實測後回報可能觸發多條 patch
+3. **Sanitize 規則化**:本次 sanitize 手工執行 ~30 處,若未來有 v4.3.3 / v4.4 類似 hotfix,建議把 sanitize 規則表寫成 `scripts/sanitize-release.sh` 自動化
