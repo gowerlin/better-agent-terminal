@@ -2207,3 +2207,32 @@ CT panel(`src/types/workorder*`、parser)只認 state machine 中的 standard st
 **來源**:第十六 session T0197 rescan 升級操作,使用者即時回報 UI 不符預期(2026-04-20)
 
 ---
+
+## L083 - 2026-04-20 — 工單建議 flag 與實際派發 flag 不一致(yolo dogfood 三連觀察)
+
+**觸發情境**:
+PLAN-025 yolo 三連擊(T0225/T0226/T0227)期間,Worker 在工單「建議派發指令」區塊給出一組 flag(例如 `--mode on`),但塔台實際派發時依據 session 的 `auto-session: yolo` 覆蓋成 `--mode yolo`。三次連續發生,使用者需跨 session context 才能察覺。
+
+**根因**:
+Worker skill 的建議組態來源為工單本身(靜態),塔台派發時讀 session/project config(動態)。兩者不同步,Worker 無從得知塔台會覆寫哪些 flag。
+
+**反模式**:
+- Worker 撰寫建議派發指令時硬編 `--mode X`,未加「實際以塔台 config 為準」提示
+- 塔台派發時未在面板顯示「建議 vs 實際」差異
+
+**正確做法**(本專案 dogfood 結論):
+1. Worker 建議區塊前綴「若 session 無覆寫則:」
+2. 塔台派發面板加一行「flag diff」(建議 vs 實際),不一致時高亮
+3. 若差異屬預期(yolo 覆寫 on)→ 無行動;若意外(使用者手動 `--mode off` 但塔台仍送 yolo)→ 暫停並詢問
+
+**觀察 hit 次數**:3(T0225/T0226/T0227 連續三張 yolo 工單)
+
+**相關**:
+- `~/.claude/skills/control-tower/references/auto-session.md` § Mode 與互動旗標協定
+- GP063 IPC boundary 注入(概念類比:Worker 撰寫時不假設塔台決策邏輯)
+
+**候選晉升**:🟡 candidate: global(若其他使用 worker skill 的專案也出現 flag drift,再晉升)
+
+**來源**:better-agent-terminal PLAN-025 yolo 三連擊 dogfood(2026-04-20 本 session)
+
+---
