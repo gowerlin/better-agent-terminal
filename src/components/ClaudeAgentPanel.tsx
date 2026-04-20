@@ -9,40 +9,11 @@ import { settingsStore } from '../stores/settings-store'
 import { workspaceStore } from '../stores/workspace-store'
 import type { AgentPresetId } from '../types/agent-presets'
 import { LinkedText, FilePreviewModal } from './PathLinker'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import { useVoicePopover } from '../hooks/useVoicePopover'
 import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
-
-// Markdown rendering for completed assistant messages
-// Note: marked.use() modifies the global marked instance (shared with FileTree).
-// Both use the same settings (gfm, breaks, highlight.js, link interception),
-// so sharing is intentional and avoids configuration drift.
-function renderChatMarkdown(text: string): string {
-  // Pre-process: convert bare file:// URLs to markdown links so marked renders them as <a>
-  // marked only auto-links http/https by default
-  // Skip URLs inside code blocks/inline code and existing markdown links
-  const processed = text.replace(
-    /(`{1,3}[\s\S]*?`{1,3})|(file:\/\/\/[^\s<>)\]`'"]+)/g,
-    (match, codeBlock, fileUrl, offset, str) => {
-      if (codeBlock) return match  // preserve code blocks as-is
-      if (!fileUrl) return match
-      const before = str.slice(Math.max(0, offset - 2), offset)
-      if (before === '](' || before.endsWith('(')) return match
-      return `[${fileUrl}](${fileUrl})`
-    }
-  )
-  const rawHtml = marked.parse(processed) as string
-  // Remove whitespace between block-level HTML tags to prevent anonymous line boxes
-  const cleanHtml = rawHtml.replace(/>\s+</g, '><')
-  return DOMPurify.sanitize(cleanHtml, {
-    ADD_TAGS: ['input'],
-    ADD_ATTR: ['checked', 'disabled', 'type', 'data-external-link'],
-    ALLOWED_URI_REGEXP: /^(?:https?|mailto|tel|file):/i,
-  })
-}
+import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown'
 
 interface SessionMeta {
   model?: string
@@ -361,6 +332,15 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     userScrollIntentUntilRef.current = performance.now() + 300
   }, [])
 
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { path } = (e as CustomEvent).detail as { path: string }
+      setFilePickerPreview(path)
+    }
+    window.addEventListener('preview-file', handler)
+    return () => window.removeEventListener('preview-file', handler)
+  }, [])
 
   // Only auto-scroll if user hasn't scrolled up
   useEffect(() => {
@@ -2813,13 +2793,13 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           {msg.content && (
             <div
               className="claude-markdown"
-              dangerouslySetInnerHTML={{ __html: renderChatMarkdown(msg.content) }}
+              dangerouslySetInnerHTML={{ __html: renderChatMarkdown(msg.content, cwd) }}
               onClick={(e) => {
                 const target = e.target as HTMLElement
                 const link = target.closest('a') as HTMLAnchorElement | null
                 if (link?.href) {
                   e.preventDefault()
-                  window.electronAPI.shell.openExternal(link.href)
+                  openChatMarkdownLink(link.href)
                 }
               }}
             />
