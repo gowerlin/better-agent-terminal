@@ -171,7 +171,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const [resumeSessions, setResumeSessions] = useState<SessionSummary[]>([])
   const [resumeLoading, setResumeLoading] = useState(false)
   const [showModelList, setShowModelList] = useState(false)
-  const [contentModal, setContentModal] = useState<{ title: string; content: string } | null>(null)
+  const [contentModal, setContentModal] = useState<{ title: string; content: string; markdown?: boolean } | null>(null)
   // Subagent message storage (keyed by parent Task tool_use_id)
   const subagentMessagesRef = useRef<Map<string, MessageItem[]>>(new Map())
   const [subagentStreamingText, setSubagentStreamingText] = useState<Map<string, string>>(new Map())
@@ -2260,7 +2260,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                 <div className="claude-plan-block">
                   <div className="claude-plan-open-btn" onClick={() => {
                     window.electronAPI.fs.readFile(planPath).then(r => {
-                      if (r.content) setContentModal({ title: 'Plan', content: r.content })
+                      if (r.content) setContentModal({ title: 'Plan', content: r.content, markdown: true })
                     }).catch(() => {})
                   }}>
                     View plan
@@ -2384,7 +2384,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                     <div className="claude-task-result-text"><LinkedText text={resultText} /></div>
                   )}
                   {!isResultExpanded && isLongResult && (
-                    <div className="claude-plan-open-btn" onClick={() => setContentModal({ title: 'Task Result', content: resultText })}>
+                    <div className="claude-plan-open-btn" onClick={() => setContentModal({ title: 'Task Result', content: resultText, markdown: true })}>
                       View result ({resultLines.length} lines)
                     </div>
                   )}
@@ -2589,7 +2589,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                     <div className="claude-task-result-text"><LinkedText text={resultText} /></div>
                   )}
                   {!isResultExpanded && isLongResult && (
-                    <div className="claude-plan-open-btn" onClick={() => setContentModal({ title: 'TaskOutput Result', content: resultText })}>
+                    <div className="claude-plan-open-btn" onClick={() => setContentModal({ title: 'TaskOutput Result', content: resultText, markdown: true })}>
                       View result ({resultLines.length} lines)
                     </div>
                   )}
@@ -2965,7 +2965,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           {planContent && (
             <div className="claude-plan-block">
               <pre className="claude-plan-content">{planContent.split('\n').slice(0, 3).join('\n')}{planContent.split('\n').length > 3 ? '\n...' : ''}</pre>
-              <div className="claude-plan-open-btn" onClick={() => setContentModal({ title: 'Plan', content: planContent })}>
+              <div className="claude-plan-open-btn" onClick={() => setContentModal({ title: 'Plan', content: planContent, markdown: true })}>
                 {t('claude.viewFullPlan', { count: planContent.split('\n').length })}
               </div>
             </div>
@@ -3504,7 +3504,18 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
               <span className="claude-plan-modal-title">{contentModal.title}</span>
               <button className="claude-plan-modal-close" onClick={() => setContentModal(null)}>&times;</button>
             </div>
-            <pre className="claude-plan-modal-body">{contentModal.content}</pre>
+            {contentModal.markdown ? (
+              <div
+                className="claude-plan-modal-body claude-plan-modal-markdown claude-markdown"
+                dangerouslySetInnerHTML={{ __html: renderChatMarkdown(contentModal.content, cwd) }}
+                onClick={(e) => {
+                  const link = (e.target as HTMLElement).closest('a') as HTMLAnchorElement | null
+                  if (link?.href) { e.preventDefault(); openChatMarkdownLink(link.href) }
+                }}
+              />
+            ) : (
+              <pre className="claude-plan-modal-body">{contentModal.content}</pre>
+            )}
           </div>
         </div>
       )}
