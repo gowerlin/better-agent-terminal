@@ -807,7 +807,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         setAskOtherText({})
         setSessionMeta(null)
         setHasSdkSession(false)
-        setWorktreeInfo(null)
+        // Do not clear worktreeInfo — resetSession preserves the worktree
+        // and startSession re-emits claude:worktree-info before this event fires.
         workspaceStore.setTerminalSdkSessionId(sessionId, undefined)
       }),
 
