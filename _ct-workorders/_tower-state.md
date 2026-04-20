@@ -1,6 +1,127 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-20(**🎉 PLAN-025 yolo 3 連擊完成**,T0225/T0226/T0227 全綠 clean,BUG-050 樣本 10/10 達標;T0228 等 Selene 實機驗;另:*evolve 待決;BUG-047 三連環雙人皆驗 CLOSED 沿用)
+> 最後更新:2026-04-20(**🎉 PLAN-025 yolo 3 連擊完成 + CT-T008 v4.3.2 release 交付 + Selene 診斷揭露 JB Gateway 假設失誤**,等 Selene OSC 52 穿透測試結果決定 v4.3.3 範圍;使用者切換議題)
+
+---
+
+## 🛏 本 Session 退出快照(2026-04-20 ~13:00,等 Selene 回報切換議題)
+
+### 本輪時間線(~2.5 h wall)
+
+1. **10:13-10:47**(34 min):PLAN-025 規劃 + T0224 研究工單(~6.7-10x 壓縮)
+2. **10:48-11:15**(27 min):**yolo 三連擊** T0225/T0226/T0227(~6-9x / ~15-20x / ~12-18x)— BUG-050 樣本 7→10/10 達標
+3. **11:30-12:02**(32 min):CT-T008 DELEGATE v4.3.2 hotfix(sanitize + release,commit `61dec10`)+ Selene T0228 測試指南產出
+4. **12:30-13:00**(30 min):Selene 回報揭露**重大假設失誤**——她是 **JetBrains Gateway + GoLand Dev Container**(不是 VS Code Remote-Containers),v4.3.2 偵測對此情境無識別力
+5. **13:00** 切換議題,等 Selene 補 OSC 52 穿透結果
+
+### PLAN-025 狀態
+
+| 工單 | 狀態 | Commit | 備註 |
+|------|------|--------|------|
+| T0224 research | ✅ DONE | aea9373 | 四面矩陣 + 10 Step 決策樹 + 7 CHECK-LIST + 拆單 + 7 風險 |
+| T0225 impl | ✅ DONE | 901dff2 | A.1 20 變數表 + A.2 10 Step + TerminalDetection struct / yolo #8 clean |
+| T0226 impl | ✅ DONE | cbeb117 | B 面 17 終端指令 + 失敗偵測 + R6 osascript 緩解 / yolo #9 clean / **~15-20x 紀錄** |
+| T0227 impl | ✅ DONE | ba9aa74 | C 面 9 剪貼簿 + OSC 52 規格 + 12 支援清單 / yolo #10 達標 |
+| T0228 integration | 📋 TODO | — | **暫緩**,先處理 JB Gateway 偵測缺口 |
+| CT-T008 DELEGATE | ✅ DONE(Worker 交付) | 61dec10 | v4.3.2 release commit;tag+push 待 Gower 自處 |
+
+### BUG-050 樣本累積
+
+- 達標 **10/10** 🎯(但採 Q1.B 等 PLAN-025 整體結案再 CLOSE)
+- GP042 升 Skill 條件全達(已 Skill 化)
+
+### ⚠️ **重大假設失誤揭露**(L088 候選)
+
+**現象**:v4.3.2 對 Selene 主場景(JB Gateway Dev Container)**幾乎無識別能力**,全部 fallthrough 到 Step 10 Fallback。
+
+**根因**:
+- T0224 研究前提把「devcontainer」等同於「VS Code Remote-Containers」
+- 未詢問 Selene 實際用哪個 IDE / 遠端協議
+- 實際生態:VS Code Remote-Containers / **JetBrains Gateway Dev Container** / Cursor / 純 docker exec / 其他
+
+**從 Selene env + devcontainer.json + Dockerfile 萃取的決定性事實**:
+- **IDE**:GoLand 2026.1 aarch64(via JetBrains Gateway)
+- **容器基底**:`mcr.microsoft.com/devcontainers/go:1.26-bookworm`(MS 官方 Go devcontainer)— `USER=vscode` 是 MS base image 慣例,**不代表 VS Code**
+- **容器運行時**:OrbStack(macOS Apple Silicon)
+- **Claude**:**原生 CLI**(Dockerfile line 125),**不是 BAT** → `BAT_SESSION=1` 永遠不存在,Step 0 短路不觸發
+- **JB Dev Container 標記目錄**:`/.jbdevcontainer/`(檔案系統,比 env 可靠)
+- **關鍵 env 缺失**:❌ 無 `REMOTE_CONTAINERS` / `CODESPACES` / `TERM_PROGRAM` / `IDEA_*` / `JETBRAINS_*` / `GATEWAY_*`
+- **可用 process 信號**:`remote-dev-serv` / `jetbrainsd`(parent process 鏈)+ bash `--rcfile /.jbdevcontainer/...`
+
+### v4.3.3 Patch 初步規劃(待 Selene OSC 52 結果確認)
+
+**偵測策略**:不能靠 env,**必須檔案系統 + process**
+
+```
+A.1 新增:第 21 條 JetBrains Gateway Dev Container
+  主要偵測:test -d /.jbdevcontainer/
+  輔助:ps -ef | grep -E "remote-dev-serv|jetbrainsd"
+  輔助(弱):$PWD 以 /IdeaProjects/ 開頭
+
+A.2 新增 Step 2.5(在 Step 2 VS Code Remote-Containers 之後,Step 3 SSH 之前):
+  [ -d /.jbdevcontainer/ ]
+    → JetBrains Gateway Dev Container
+    → 子決策依 OSC 52 結果
+
+C.2.3 OSC 52 支援清單:新增 JetBrains Gateway 條目(標 ✅/❌ 依 Selene 結果)
+```
+
+**工單拆解依 Selene OSC 52 結果**:
+- ✅ 穿透 → 單張 v4.3.3 patch,~30 min
+- ❌ 穿透失敗 → research + patch,~60 min(備案:`host.docker.internal` HTTP 剪貼簿 proxy → pbcopy daemon,**超範圍但已備忘**)
+
+### 本 session 學習候選(L084-L088,待 *evolve)
+
+| ID | 候選內容 | 觀察來源 |
+|----|---------|---------|
+| L084 | 工單建議 flag vs 實際派發 flag 不一致 | T0225/T0226/T0227 連續三次 Worker 回報 |
+| L085 | **Renew-lite 有效** — 中途編輯工單,Worker 在執行中讀到更新 | T0225 R4 移交 T0228 成功採納 |
+| L086 | skill 層 reference 異動 vs repo commit 分離 | T0225/T0226/T0227 三次;auto-session.md 在 `~/.claude/skills/` 非 repo |
+| L087 | yolo 實作工單平均 ~12x 壓縮(條件:研究已收斂 + 實作邊界清楚) | T0225 ~6-9x / T0226 ~15-20x / T0227 ~12-18x |
+| **L088** | **「devcontainer」的 IDE assumption 錯誤**(假設 VS Code,實際 JB/Cursor/其他) | PLAN-025 研究前提失誤 — **根因教訓**:需求對齊階段必問「使用者實際 IDE 與遠端協議?」 |
+
+### 待辦事項(下次 session 恢復後)
+
+**依優先級**:
+
+1. 🔴 **等 Selene OSC 52 Cmd+V 結果**(塔台已透過 Gower 送出測試指令,等待中)
+2. 🔴 **收到結果 → 產 v4.3.3 patch 工單**(T-JB1 或 T-JB1+T-JB2)
+3. 🟡 **Gower 自處 CT-T008 閉環**:`git tag v4.3.2 61dec10 && git push origin dev-main v4.3.2`
+4. 🟡 **打包 v4.3.2 skill + 測試指南給 Selene**(附註:指南的 VS Code Remote-Containers 預期不適用 JB,需補 JB 版指南 or v4.3.3 出來後重寫)
+5. 🟢 **`*evolve` 萃取 L084-L088**(L088 特別重要 — 根因級教訓)
+6. 🟢 **T0228 Selene 整合驗證**(v4.3.3 可取得後)
+7. 🟢 **PLAN-025 整體結案**(T0228 通過後可關 + BUG-050 閉環 CLOSE)
+8. 🟢 **GP042 已 Skill 化沿用**(本輪 4 張工單再驗證 4 次,模式超穩)
+
+### 本 session 累計 commit(待 push,10 個)
+
+```
+cba7d09 CT-T008 Worker 完成 + Selene T0228 測試指南
+1e66ab7 CT-T008 建立 v4.3.2 hotfix DELEGATE
+7ffaf87 PLAN-025 yolo 三連擊 + BUG-050 樣本達標
+71f004d T0227 收尾元資料
+ba9aa74 T0227 C 面剪貼簿層
+cbeb117 T0226 B 面指令矩陣
+901dff2 T0225 偵測層
+54a9500 PLAN-025 roadmap
+aea9373 T0224 研究
+(BMad-Guide monorepo 另有 61dec10 — CT-T008 release commit)
+```
+
+### Session 附加產出(非工單,中途建立的指南)
+
+- `_guide-selene-t0228-devcontainer-validation.md`(~430 行,原測試指南,偏 VS Code 假設)
+- `_guide-selene-v432-intellij-diagnosis.md`(185 行,中途補的 JB 診斷指南)— 這兩份都需要在 v4.3.3 出來後整合重寫成 JB 版
+
+### 恢復指引(下次 `/control-tower` 啟動)
+
+1. Fast Path 載入本快照(快照 <7 天)
+2. **第一動作**:檢查 Gower 是否已收到 Selene OSC 52 結果
+   - 收到 → 依結果產 v4.3.3 工單(A.1 新增 + A.2 Step 2.5 + CHANGELOG)
+   - 未收到 → 等待,或詢問 Gower 是否要先處理其他待辦
+3. **小心假設**:任何「devcontainer」相關討論,先問 IDE 與遠端協議,再動
+
+---
 
 ---
 
