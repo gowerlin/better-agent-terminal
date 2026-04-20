@@ -54,10 +54,32 @@
 | D070 | 2026-04-19 | T0222 附加發現處理:BUG-052 獨立 + T0223 合併修 | BUG-052/T0222/T0223 |
 | D071 | 2026-04-20 | PLAN-021 dev smoke 驗收暫緩,UX 另案 | PLAN-021/T0218/T0219 |
 | D072 | 2026-04-20 | archive_days 7 → 2 歸檔門檻調整 | _tower-config.yaml / *archive |
+| D073 | 2026-04-20 | PLAN-022 結案,Step 3 TOFU fallback 不做 | PLAN-022 / T0217 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D073 2026-04-20 — PLAN-022 結案,Step 3 TOFU fallback 不做
+
+- **背景**:PLAN-022 dispatcher fingerprint pinning,Step 1+2(T0217,2026-04-19 DONE)採 fail-close 模式(`server-cert.json` 讀失敗即拒絕連線)。Step 3 TOFU fallback 原標「選用」,規格預留作延伸。第十七 session 使用者 review 時提問「做 Step 3 有什麼好處?」,塔台作利弊分析後使用者決策結案。
+- **選項**:
+  - A. Step 3 不做,PLAN-022 直接 DONE
+  - B. 補 Step 3(20-30 min 工單,新增 `~/.bat-dispatcher/trust.json` TOFU 機制)
+- **決定**:A(Step 3 不做,結案)
+- **理由**:
+  1. **安全性倒退**:TOFU 第一次若被惡意 process 騙就永久失陷;fail-close 每次讀最新 cert,無此風險
+  2. **好處不成立**:TOFU 主要好處(dispatcher 脫離 BAT 路徑假設、跨機器使用)在當前威脅模型**不存在** — dispatcher 限 localhost、BAT 是 Electron 單機 app、無 portable 模式計畫
+  3. **與實作決策衝突**:T0217 當時**刻意**選 fail-close(「BAT app 已啟動」是隱含前提,cert 讀失敗 = BAT 未準備好 = 應拒絕),回退等於推翻刻意決策
+  4. **對稱性 ≠ 正確**:PLAN-018 server 端 TOFU 面對任意 client,dispatcher 面對本機 cert,威脅模型不同,不需機械式對稱
+  5. **錯誤訊息已足夠**:fail-close 的 mismatch log 含「Possible MITM or BAT app reinstalled」,使用者可自行清 cache
+- **未來重啟條件**(任一觸發才重新評估 Step 3):
+  - BAT 要支援 portable 模式或非標準安裝路徑
+  - Dispatcher 要跨機器使用
+  - 收到 UX 回報「cert mismatch 訊息看不懂」
+- **相關**:PLAN-022、T0217(Step 1+2 實作)、PLAN-018 T0182(server TOFU 基建)、BUG-046(延伸議題)
 
 ---
 

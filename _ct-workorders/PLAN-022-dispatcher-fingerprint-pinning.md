@@ -3,7 +3,8 @@
 ## 元資料
 - **編號**:PLAN-022
 - **標題**:Dispatcher fingerprint pinning(對齊 PLAN-018 T0182 安全要求)
-- **狀態**:Step 1+2 DONE / Step 3 PLANNED
+- **狀態**:✅ DONE(Step 1+2 T0217 2026-04-19 交付 fail-close;Step 3 TOFU fallback 依 D073 決定不做,保留 fail-close 安全模型)
+- **完成時間**:2026-04-20(D073 結案決策)
 - **優先級**:🟡 Medium(非功能 blocker,但 `rejectUnauthorized: false` 長期是安全缺口)
 - **類型**:技術改善(安全對齊)
 - **建立時間**:2026-04-19 03:15 (UTC+8)
@@ -42,7 +43,7 @@ Dispatcher(`scripts/bat-terminal.mjs` 的 `MinimalWS.connect`)驗證 server cert
 | 工單 | 範圍 | 估時 | 狀態 |
 |-----|------|------|------|
 | T0217 Step 1+2 | 從 `server-cert.json`(user-data dir)讀 fingerprint + 加比對邏輯 + 失敗錯誤訊息 + log event(`exit:fingerprint-mismatch` / `exit:server-cert-unreadable`)。Sibling fix 同步修 bat-notify.mjs(GP056)。 | 35-50 min | ✅ DONE(2026-04-19) |
-| T#### Step 3(選用) | TOFU fallback:若無 `server-cert.json` → 第一次連線後寫 `~/.bat-dispatcher/trust.json` 記錄;後續比對 | 20-30 min | PLANNED |
+| T#### Step 3(選用) | TOFU fallback:若無 `server-cert.json` → 第一次連線後寫 `~/.bat-dispatcher/trust.json` 記錄;後續比對 | 20-30 min | 🚫 NOT DOING(D073,2026-04-20 結案決策) |
 
 **T0217 實作備註**:
 - Step 1+2 實際採 fail-close(無 TOFU fallback),原因是「BAT app 已啟動」是 dispatcher 連線的隱含前提;cert 讀失敗 = BAT app 未準備好 = 應拒絕連線

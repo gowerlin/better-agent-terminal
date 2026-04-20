@@ -2,10 +2,10 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-20 13:30 (UTC+8) — *sync 重建(新增 PLAN-025;修正 PLAN-023 DONE drift;PLAN-022 改標 IN_PROGRESS)
+> 最後同步:2026-04-20 13:40 (UTC+8) — PLAN-022 結案(D073,Step 3 TOFU fallback 不做)
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 4 | 🔄 In Progress: 2 | ✅ Done: 9 | 🚫 Dropped: 1 | **Total: 20**
+- 💡 Ideas: 4 | 📋 Planned: 4 | 🔄 In Progress: 1 | ✅ Done: 10 | 🚫 Dropped: 1 | **Total: 20**
 
 ## Active
 
@@ -13,7 +13,6 @@
 |----|------|--------|------|------|
 | PLAN-025 | Auto-session 終端偵測跨平台擴展 | 🔴 High | 📋 PLANNED | [PLAN-025](PLAN-025-auto-session-cross-platform-terminal-detection.md) |
 | PLAN-024 | BUG-050 Option C 雙階段:YOLO pipeline 顯性化與 Worker skill 一致性 | 🟡 Medium | 📋 PLANNED | [PLAN-024](PLAN-024-bug-050-option-c-two-phase-yolo-pipeline-hardening.md) |
-| PLAN-022 | Dispatcher fingerprint pinning | 🟡 Medium | 🔄 IN_PROGRESS | [PLAN-022](PLAN-022-dispatcher-fingerprint-pinning.md) |
 | PLAN-021 | RemoteServer port Settings UI | 🟢 Low | 🔄 IN_PROGRESS | [PLAN-021](PLAN-021-remote-server-port-settings-ui.md) |
 | PLAN-015 | Refactor dual-render-path shared helper | 🟢 Low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-014 | Evaluate VSCode extension vs Git GUI | 🟢 Low | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
@@ -26,6 +25,7 @@
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-022 | Dispatcher fingerprint pinning | 2026-04-20 | [PLAN-022](PLAN-022-dispatcher-fingerprint-pinning.md) |
 | PLAN-023 | FileTree 架構重整 | 2026-04-19 | [PLAN-023](PLAN-023-filetree-architecture-cleanup.md) |
 | PLAN-020 | YOLO autonomous mode | 2026-04-19 | [PLAN-020](PLAN-020-yolo-autonomous-mode.md) |
 | PLAN-019 | TypeScript debt cleanup | 2026-04-19 | [PLAN-019](PLAN-019-typescript-debt-cleanup.md) |

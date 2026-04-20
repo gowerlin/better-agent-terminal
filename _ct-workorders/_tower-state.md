@@ -1994,7 +1994,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **PLAN 最大編號** | PLAN-025 |
 | **EXP 最大編號** | EXP-RMTSEC-001 |
 | **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D072 |
+| **決策最大編號** | D073 |
 | **塔台版本** | Control Tower v4.3.0 |
 
 ---
