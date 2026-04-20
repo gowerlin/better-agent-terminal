@@ -1,6 +1,37 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-20(**🎉 BUG-047 root 三連環完全結案**,v0.2.4-pre.1 外發,Gower + Rico 雙人皆驗通過;第十六 session 延伸收尾 + *evolve 三條 pattern 晉升 Layer 2 + PLAN-021 驗收暫緩 UX 另案)
+> 最後更新:2026-04-20(**🎉 PLAN-025 yolo 3 連擊完成**,T0225/T0226/T0227 全綠 clean,BUG-050 樣本 10/10 達標;T0228 等 Selene 實機驗;另:*evolve 待決;BUG-047 三連環雙人皆驗 CLOSED 沿用)
+
+---
+
+## 🎉 本 Session PLAN-025 yolo 三連擊(2026-04-20 10:30-11:15,45 min wall)
+
+**核心戰績**:
+- ✅ T0224 research DONE(aea9373,9 min,~6.7-10x)— 四面矩陣 + 10 Step 決策樹 + 7 題 CHECK-LIST + 拆單建議 + 7 條風險
+- ✅ T0225 impl DONE(901dff2,10 min,~6-9x)— A.1 20 條變數表 + A.2 10 Step 決策樹 + TerminalDetection struct / yolo #8 clean
+- ✅ T0226 impl DONE(cbeb117,6 min,~15-20x ⭐ 紀錄)— B 面 17 終端指令 + 映射介面 + 失敗偵測 + R6 osascript 緩解 / yolo #9 clean
+- ✅ T0227 impl DONE(ba9aa74,5 min,~12-18x)— C 面 9 剪貼簿工具 + OSC 52 格式 + 12 支援清單 + 降級鏈 / yolo #10 clean
+- ⏳ T0228 integration TODO — Selene devcontainer 主場景驗證(必須 --mode on --interactive,**等 Selene 在線**)
+
+**BUG-050 樣本**:9 → **10/10 達標** 🎯(可 CLOSE,但採 Q1.B 等 PLAN-025 整體結案再閉環)
+
+**關鍵觀察**:
+- **L084** 候選:工單建議 flag vs 實際派發 flag 不一致(T0225/T0226/T0227 三次 observe)— skill 需加對齊檢查
+- **L085** 候選:**Renew-lite 有效** — T0225 中途編輯工單(R4 移交 T0228),Worker 正確採納,跨執行讀取機制確認
+- **L086** 候選:skill 層 reference 異動 vs repo commit 分離 — Worker commit 只含工單,`auto-session.md` 在 `~/.claude/skills/`,依賴 `claude-brain-sync` 同步;三張連擊三次觀察
+- **L087** 候選:yolo 實作工單平均 ~12x 壓縮(T0225 ~6-9x / T0226 ~15-20x / T0227 ~12-18x),條件「研究已收斂 + 實作邊界清楚」
+
+**PLAN-025 進度**:3/4 主工單完成,T0228 待 Selene 配合。可選延伸 T0229/T0230 看 T0228 結果。
+
+**下 session 接手動作**:
+1. 等 Selene 在線 → 派 T0228(`--mode on --interactive`,覆蓋 session yolo 設定)
+2. 或 `*evolve` 萃取本輪 L084-L087 候選
+3. 或 `/brain-patch` 同步 skill 層 auto-session.md(T0225/T0226/T0227 累計 +520 行改動)到遠端
+4. 或 push 本 session 五個 commit(aea9373/54a9500/901dff2/cbeb117/ba9aa74/71f004d)到 origin
+
+**Skill 層異動提醒**:`~/.claude/skills/control-tower/references/auto-session.md` 本 session 累計被改 3 次(466→623→?→?),最終內容在 skill 層**未 commit 到 Forgejo**,需 `/brain-patch` 或等 auto-sync hook。
+
+---
 
 ---
 
