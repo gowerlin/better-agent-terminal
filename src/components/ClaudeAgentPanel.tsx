@@ -361,6 +361,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     userScrollIntentUntilRef.current = performance.now() + 300
   }, [])
 
+
   // Only auto-scroll if user hasn't scrolled up
   useEffect(() => {
     if (followOutputRef.current) {
