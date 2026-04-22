@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-23 01:40 (UTC+8)(新增 D076 T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D)
+> 最後更新:2026-04-23 02:40 (UTC+8)(新增 D077 EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge)
 
 ---
 
@@ -58,10 +58,38 @@
 | D074 | 2026-04-22 | BAT 塔台接手 Phase 1-4 派發(T0099-T0106)| PLAN-028 / CT-T010 / T0098 |
 | D075 | 2026-04-23 | GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first | T0236 / PLAN-004 / EXP-GPUWHIS-001 |
 | D076 | 2026-04-23 | T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D 合入主線 | T0237 / EXP-GPUWHIS-001 |
+| D077 | 2026-04-23 | EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge + 刪除 worktree | T0240 / EXP-GPUWHIS-001 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D077 2026-04-23 — EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge + 刪除 worktree
+
+- **背景**:EXP-GPUWHIS-001 Phase 1 T-A/B/C 全綠交付(commits `bd27732` + `2080880` + `eba79b1` on `exp/gpu-vulkan-poc`)。T-D 最後一張依 spec §7 三選一:(1) 直接 PR 回主線 / (2) BAT 自 fork Kutalia 升 v1.8.4 / (3) 退回紙上評估。
+- **決定**:**Q1=A(Option 1 直接 PR)+ Q2=A(Squash merge)+ Q3=A(合入後刪 worktree + branch)+ Q4=B(CHANGELOG/版號下次)**
+- **理由**:
+  1. **D076 一貫性**:使用者 Q1.A「保留成果合入主線使未來硬體升級零設定自動 enable」,Option 1 是唯一達成此目標的路徑
+  2. **Squash merge 歷史乾淨**:3 個 PoC commits(swap / packaging / detection)合為 1 個 feature commit 對未來 bisect/rollback 更友善;PoC 迭代細節在 worktree branch 若有需要可從本 D077 引用的 commit hash 查
+  3. **Worktree 刪除符合 EXP CONCLUDED 流程**:本專案 EXP 命名慣例為 worktree 實驗 → 結論後合入主線即刪除 branch(參照 PLAN-004 / EXP-GPUWHIS-001 文件)
+  4. **版號與 CHANGELOG 分離降低本 session 複雜度**:本 session 已完成 9+ commits,Q4.B 讓 session 21 收工更乾淨,版號另開工單時可同時處理 CHANGELOG + release pipeline(參照 GP036)
+- **執行工單**:T0240(T-D,impl,S sizing)
+- **成功指標**:
+  - main branch 新增 1 個 feature commit(訊息 `feat(voice): GPU acceleration via Vulkan (EXP-GPUWHIS-001 Phase 1)`)
+  - `git worktree list` 不再顯示 `bat-gpu-vulkan-poc`
+  - `git branch --list exp/*` 不再顯示 `exp/gpu-vulkan-poc`
+  - build + 既有測試在 main 上通過
+  - EXP-GPUWHIS-001 狀態 🧪 EXPLORING → 📊 CONCLUDED
+- **保留條件(後續可追溯)**:
+  - 本 D077 保留 3 個原 worktree commit hash(`bd27732` / `2080880` / `eba79b1`),若未來需對照 T-A/B/C 細節可查 reflog 或重建 branch
+  - EXP-GPUWHIS-001 檔案保留在 hot zone,`*archive` 達 `archive_days` 後歸檔到 `_archive/workorders/`
+- **後續延伸工作**(**不在 T-D 範圍,另開工單**):
+  - 版號 bump + CHANGELOG entry(Q4.B 延後)
+  - Phase 2(CUDA advanced tier)— 依使用者硬體反饋決定是否啟動
+  - Kutalia upstream 追蹤(fork 停更風險 D076 記錄)
+- **關聯**:EXP-GPUWHIS-001(🧪 EXPLORING → 📊 CONCLUDED)/ D076(T-A PARTIAL 接受)/ T0240(執行工單)/ `_spec-gpu-whisper-2026-04.md` §7 T-D
 
 ---
 
