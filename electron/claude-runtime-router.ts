@@ -144,13 +144,27 @@ function classifyDegradedReason(info: ClaudeRuntimeInfo | null): DegradedReason 
   return null
 }
 
+/**
+ * Optional dependency injection for unit tests. Production callers pass nothing;
+ * the defaults wire to the real detector and embedded resolver. Tests supply
+ * stubs so they can run without electron `app` or a real claude binary present.
+ */
+export interface ResolveClaudeRuntimeDeps {
+  detectSystemClaude?: (customPath?: string) => Promise<ClaudeRuntimeInfo | null>
+  resolveEmbeddedClaudePath?: () => string
+}
+
 export async function resolveClaudeRuntime(
   settings: ClaudeRuntimeSettings,
+  deps: ResolveClaudeRuntimeDeps = {},
 ): Promise<ResolvedRuntime> {
+  const detect = deps.detectSystemClaude ?? detectSystemClaude
+  const getEmbeddedPath = deps.resolveEmbeddedClaudePath ?? resolveEmbeddedClaudePath
+
   // Embedded — trusted, no probe.
   if (settings.mode === 'embedded') {
     return {
-      path: resolveEmbeddedClaudePath(),
+      path: getEmbeddedPath(),
       source: 'embedded',
       healthStatus: 'healthy',
     }
@@ -159,12 +173,12 @@ export async function resolveClaudeRuntime(
   // System — detect + probe, with fallback branching.
   let info: ClaudeRuntimeInfo | null
   try {
-    info = await detectSystemClaude(settings.customPath)
+    info = await detect(settings.customPath)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     if (settings.fallbackToEmbedded) {
       return {
-        path: resolveEmbeddedClaudePath(),
+        path: getEmbeddedPath(),
         source: 'system-fallback-to-embedded',
         healthStatus: 'healthy',
         degraded: { reason: 'detect-threw', detail },
@@ -180,7 +194,7 @@ export async function resolveClaudeRuntime(
       : 'no candidate found'
     if (settings.fallbackToEmbedded) {
       return {
-        path: resolveEmbeddedClaudePath(),
+        path: getEmbeddedPath(),
         source: 'system-fallback-to-embedded',
         healthStatus: 'healthy',
         degraded: { reason: degradedReason, detail },
