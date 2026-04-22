@@ -2,7 +2,7 @@
 
 | 欄位 | 內容 |
 |------|------|
-| **狀態** | 📐 PLANNED(T0229 research ✅ DONE,可啟 Phase 1)|
+| **狀態** | ✅ DONE(2026-04-22 Phase 1 全部完成 — T0230/T0231/T0232/T0233 + T0235 hotfix + T0234 docs,BUG-054/053 CLOSED,使用者驗收通過)|
 | **優先級** | 🟡 Medium |
 | **類型** | 技術改善（可用性 / 維運彈性） |
 | **建立時間** | 2026-04-22 |
@@ -169,8 +169,89 @@ interface ClaudeRuntimeSettings {
 
 **下一步**:派 T0231(#2 Runtime routing + fallback + toast,45 min)。
 
+### 2026-04-22 13:04 — T0231 (#2) DONE
+
+**T0231 ✅ DONE**(commit `a767de8`,10 min):
+- 新 `electron/claude-runtime-router.ts`(216 行)
+- 三處 spawn 改寫(agent-manager L547/L1268/L2222)
+- Settings 注入 **方案 A 變體**(讀 `settings.json` 檔,沿用 `sendCompletionNotification` pattern)— 零新 IPC + 零共享狀態
+- IPC events `runtime-degraded` / `runtime-warning` + preload bridge + `electron.d.ts` 型別
+- 事件去重 `Map<sessionId, Set<type>>`
+- 9/9 AC + tsc + vite + test 全綠
+
+### 2026-04-22 13:27 — T0232 (#3) DONE
+
+**T0232 ✅ DONE**(commit `a8b3448`,14 min):
+- 新 `ClaudeRuntimeSection.tsx` + `useRuntimeToasts.ts`
+- SettingsPanel Advanced tab + App.tsx CtToast 掛載
+- i18n 三語完整(en + zh-TW + zh-CN,16 個新 key)
+- Browse 沿用既有 `dialog.selectFiles()` IPC
+- 修正 T0230 漏掉的 `electron.d.ts` `claude.detectRuntime` 宣告
+- 9/9 AC + tsc + vite 9.29s + test 全綠
+
+### 2026-04-22 19:03 — T0233 (#4) DONE + BUG-053 發現
+
+**T0233 ✅ DONE**(commit `307647d9`,15 min active):
+- 新 `tests/claude-runtime-router.test.ts` 11 條 T-R1..T-R11,**28 unit tests 全綠**
+- Router refactor 加 optional `deps: ResolveClaudeRuntimeDeps`(DI 無需 mock-loader)
+- Session state spike **positive (theoretical)** — code-path 論證,未實機驗證(交 Selene 跨平台實測)
+- Windows 驗證 4/4 通過(有 caveat)
+- **新開 BUG-053**:Windows Node 20+ `.cmd`/`.bat` shim EINVAL(CVE-2024-27980),Low,併 T0235 修
+- 產 `docs/plan-027-cross-platform-verification.md`(mac/Linux playbook)
+
+### 2026-04-22 19:50 — T0235 hotfix + BUG-054 發現與修復
+
+**使用者 runtime 驗收發現 BUG-054**:切 system 後開終端 claude-cli preset,版本仍為內嵌版。Root cause — T0229 R4 scope 缺口(只盤 agent-manager,遺漏 main.ts IPC handlers)。
+
+**T0235 ✅ DONE**(commit `058412a`,11 min):
+- 修 `main.ts` 三處 handler(`claude:get-cli-path` + 兩個 auth)接 router
+- 附修 BUG-053:`WINDOWS_BIN_NAMES = ['claude.exe']`(採 Option A,對齊 native SDK 方向)
+- 新增 `broadcastRuntimeEvent` helper(fan-out 所有 BrowserWindow)
+- 跨平台 playbook Windows 段重寫(加 anthropic installer 指引)
+- 10/10 AC + tsc + vite + test 全綠
+- **BUG-054 / BUG-053 使用者驗收通過 → CLOSED**
+
+### 2026-04-22 20:06 — T0234 (#5) DONE,Phase 1 完全閉環
+
+**T0234 ✅ DONE**(commit `58de14c`,9 min):
+- CLAUDE.md 新 `Claude Runtime Selection (v2.1.49+)` 子段 40 行
+- CHANGELOG.md `[Unreleased] → Added` 寫入條目
+- i18n 三語 hint 合併(apply scope + 2.1.111 caveat 一段化)
+- 8/8 AC + tsc + vite 2.45s + 28 test 全綠
+
 ---
 
 ## 結案紀錄
 
-（DONE 或 DROPPED 時填寫）
+### 2026-04-22 ✅ DONE — PLAN-027 Phase 1 完全閉環
+
+**執行效率**:wall-time 實際 **63 min**,原 R5 估 **255 min**(含 T0229 研究 R5 估 +hotfix T0235 實際估),倍率 **~4x**。
+
+| # | 工單 | 預估 | 實際 | Commit |
+|---|------|------|------|--------|
+| research T0229 | 45-90 min | ~15 min(12:05-12:20) | `b622b6e` + `df2b685` |
+| #1 T0230 | 60 min | 4 min | `4894b18` + `63a65e6` |
+| #2 T0231 | 45 min | 10 min | `a767de8` |
+| #3 T0232 | 60 min | 14 min | `a8b3448` |
+| #4 T0233 | 45 min | 15 min | `307647d9` |
+| **hotfix T0235** | 45 min | 11 min | `058412a` |
+| **docs T0234** | 30 min | 9 min | `58de14c` |
+
+**最終產出**:
+- **程式碼**:`claude-resolver.ts`(~210 行)+ `claude-runtime-router.ts`(216 行)+ `ClaudeRuntimeSection.tsx` + `useRuntimeToasts.ts` + 4 處 spawn 點改寫(agent-manager 三處 + main.ts `get-cli-path`)+ 兩個 auth handler 改寫
+- **測試**:28 unit tests(17 resolver + 11 router)+ `tests/_windows-probe.ts` 手動 probe
+- **文件**:CLAUDE.md 新段 40 行 + CHANGELOG 條目 + `docs/plan-027-cross-platform-verification.md`(mac/Linux playbook)
+- **BUG 閉環**:BUG-053 🚫 CLOSED(Windows `.cmd` 偵測簡化)+ BUG-054 🚫 CLOSED(runtime 覆蓋缺口修補)
+
+**核心教訓**(入 `_learnings.md` 候選):
+1. **Research scope 缺口**:T0229 R4 盤 spawn 點時只看 `claude-agent-manager.ts`,遺漏 `main.ts` 的 IPC handlers。下次研究類工單做 spawn-site 盤點必須**全庫 grep**(`execFile.*claude\|spawn.*claude\|claude-code/bin` 等)
+2. **設定注入模式創新**:T0231 Worker 發明「方案 A 變體」— main 直讀 settings.json 檔,零新 IPC + 零共享狀態,優於嚴格 A/B/C 三方案
+3. **Native binary 方向對齊**:BUG-053 修復採 Option A(砍 `.cmd`/`.bat`)而非 Option B(`shell: true` workaround),對齊新版 claude v2.x 演進方向,一步到位
+4. **工單路徑筆誤 / 型別位置**:T0230 寫「擴充 `electron/settings-store.ts`」實際 store 在 `src/stores/`(renderer);T0232 發現 T0230 漏補 `electron.d.ts`。加新 API 時 preload + d.ts 要同步
+
+**Phase 2 候選**(延後,非本 PLAN 結案條件):
+- Session state 實機驗證(T0233 flag,交 Selene 跨平台 playbook 順手做)
+- npm global shim 支援(若真有使用者反應)
+- 支援設定 `ANTHROPIC_API_KEY` 等環境變數透傳到 system claude(R4 陷阱 #3)
+
+**結案條件達成**:✅ 程式碼 + ✅ 文件 + ✅ BUG 全 CLOSED + ✅ 使用者驗收通過

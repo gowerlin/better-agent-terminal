@@ -3,7 +3,7 @@
 ## 元資料
 
 - **編號**:BUG-053
-- **狀態**:✅ FIXED(採 Option C 產品決策,T0235 一併閉環)
+- **狀態**:🚫 CLOSED(2026-04-22 19:50 隨 BUG-054 驗收一併關閉;T0235 改採 Option A = 砍 `.cmd`/`.bat` 偵測,對齊 native SDK 方向)
 - **嚴重度**:🟢 Low(dev 模式、無 `.exe` 的環境才會 hit;fallback-to-embedded 已保底)
 - **建立時間**:2026-04-22 18:50 (UTC+8)
 - **發現來源**:T0233 AC-4 Windows 驗證 probe(`tests/_windows-probe.ts`)

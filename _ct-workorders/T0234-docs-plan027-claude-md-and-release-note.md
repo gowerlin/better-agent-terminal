@@ -4,10 +4,11 @@
 
 - **編號**:T0234
 - **類型**:documentation(純文件 + 1 處 UI 文案小改)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **建立時間**:2026-04-22 19:52 (UTC+8)
 - **派發時間**:2026-04-22 19:52 (UTC+8)
 - **開始時間**:2026-04-22 19:57 (UTC+8)
+- **完成時間**:2026-04-22 20:06 (UTC+8)
 - **派發模式**:`--mode yolo`(純文件,無需互動)
 - **優先級**:🟡 Medium(PLAN-027 Phase 1 結案條件)
 - **前置條件**:T0230 / T0231 / T0232 / T0233 / T0235 全 DONE,BUG-054 / BUG-053 CLOSED
@@ -177,7 +178,7 @@ DONE
 
 ### 產出摘要
 
-- **Commit hash**:(待 commit 後填入)
+- **Commit hash**:`58de14c`
 - **修改檔案**(5 個,T0234 範圍內):
   - `CLAUDE.md` — 新增 `### Claude Runtime Selection (PLAN-027, v2.1.49+)` 子段(L42–L82,40 行)
   - `CHANGELOG.md` — `[Unreleased] → Added` 頂端新增 `#### Claude Runtime Selection (PLAN-027)` 區塊

@@ -3,7 +3,7 @@
 ## 元資料
 
 - **編號**:BUG-054
-- **狀態**:✅ FIXED(待使用者驗收,流轉至 VERIFY / CLOSED)
+- **狀態**:🚫 CLOSED(使用者 2026-04-22 19:50 實機驗收通過:切 system 開終端版本符合設定)
 - **嚴重度**:🟡 Medium(使用者期望「切 system」應全域生效,實際只影響 Agent sessions;功能宣稱與實際不符)
 - **建立時間**:2026-04-22 19:20 (UTC+8)
 - **發現來源**:使用者 runtime 驗收 PLAN-027 Phase 1 後,在 BAT 終端打開 claude-cli preset 發現仍用內嵌 `.exe`
