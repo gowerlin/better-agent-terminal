@@ -4,7 +4,8 @@
 
 - **編號**:T0228
 - **類型**:integration(整合驗證)
-- **狀態**:📋 TODO
+- **狀態**:🚫 CANCELLED(2026-04-23 — PLAN-025 移交 CT 處理,T0228 整合驗證已不需要)
+- **原狀態**:📋 TODO
 - **建立時間**:2026-04-20 (UTC+8)
 - **派發模式**:**必須 `--mode on --interactive`**(需 Selene 在 devcontainer 實機跑)
 - **優先級**:🔴 High(PLAN-025 收斂驗證)
