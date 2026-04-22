@@ -4,8 +4,9 @@
 
 - **編號**:T0230
 - **類型**:implementation(實作工單)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **開始時間**:2026-04-22 12:38 (UTC+8)
+- **完成時間**:2026-04-22 12:42 (UTC+8)
 - **建立時間**:2026-04-22 12:35 (UTC+8)
 - **派發時間**:2026-04-22 12:35 (UTC+8)
 - **派發模式**:`--mode yolo --interactive`(scope 清楚但保留互動空間給實作細節判斷)
@@ -158,7 +159,7 @@ ipcMain.handle('claude:detectRuntime', async (_, customPath?: string) => {
 
 ### 產出摘要
 
-- **Commit hash**:(填於 commit 後)
+- **Commit hash**:`4894b18`
 - **新增檔案**:
   - `electron/claude-resolver.ts`(~210 行,export `detectSystemClaude` / `probeClaudeHealth` / `__test__`)
   - `tests/claude-resolver.test.ts`(17 個 test cases,覆蓋 regex parse、semver compare、版號分類)
