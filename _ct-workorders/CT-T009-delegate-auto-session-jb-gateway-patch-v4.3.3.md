@@ -200,13 +200,13 @@ Step 2.5: JetBrains Gateway Dev Container 偵測
 
 ## Acceptance Criteria
 
-- [ ] AC-1:auto-session.md A.1 第 21 條寫入,sanitize 規則達標
-- [ ] AC-2:auto-session.md A.2 Step 2.5 完整決策樹(含 Step 2.5.1 子分支)
-- [ ] AC-3:auto-session.md C.2.3 第 13 條追加
-- [ ] AC-4:9 個 SKILL.md frontmatter + panel title 版號同步 v4.3.3
-- [ ] AC-5:CHANGELOG.md v4.3.3 條目完整(Added / Changed / Known Limitations 三段)
-- [ ] AC-6:本 repo 舊 guide 刪除 + 新 guide 新寫(_guide-selene-v433-jb-gateway-validation.md)
-- [ ] AC-7:Worker yolo commit 完成 + 結構化回報(兩個 repo commit hash)
+- [x] AC-1:auto-session.md A.1 第 21 條寫入,sanitize 規則達標
+- [x] AC-2:auto-session.md A.2 Step 2.5 完整決策樹(含 Step 2.5.1 子分支)
+- [x] AC-3:auto-session.md C.2.3 第 13 條追加
+- [x] AC-4:9 個 SKILL.md frontmatter + panel title 版號同步 v4.3.3
+- [x] AC-5:CHANGELOG.md v4.3.3 條目完整(Added / Changed / Known Limitations 三段)
+- [x] AC-6:本 repo 舊 guide 刪除 + 新 guide 新寫(_guide-selene-v433-jb-gateway-validation.md)
+- [x] AC-7:Worker yolo commit 完成 + 結構化回報(兩個 repo commit hash)
 
 ## 驗收依據
 
