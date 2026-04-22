@@ -5,8 +5,12 @@
 - **工單編號**:CT-T009
 - **任務名稱**:【受派】auto-session.md A 面第 21 條偵測 + C.2.3 OSC 52 清單補 JB Gateway + v4.3.3 patch release
 - **類型**:implementation(DELEGATE, 跨專案)
-- **狀態**:📋 TODO
+- **狀態**:✅ DONE
 - **建立時間**:2026-04-20 18:20 (UTC+8)
+- **派發時間**:2026-04-22 09:46 (UTC+8) — 剪貼簿指令寫入,等使用者手動切 `D:/ForgejoGit/BMad-Guide/` 開新 session 貼上
+- **開始時間**:2026-04-22 10:50 (UTC+8)
+- **完成時間**:2026-04-22 11:05 (UTC+8)
+- **目標 repo commit**:`2b1dd1c`(BMad-Guide, dev-main)
 - **派發模式**:`--mode yolo`(Worker 自動 commit + 回報,tag/push 由使用者處理)
 - **預估工時**:30-45 min(單純追加,非重寫)
 - **優先級**:🟡 Medium(Selene 環境識別問題的最小可行修復,非緊急)
@@ -231,3 +235,94 @@ git push origin dev-main v4.3.3
   → 緩解:AC-4 列出完整 9 檔案 + CT-T007 版號治理規範當依據
 - **風險 4**:Worker 嘗試 push / tag(超範圍)
   → 緩解:AC-7 明寫「不執行 tag/push/merge」
+
+---
+
+## 回報區
+
+### 完成狀態
+
+**DONE** — v4.3.3 patch 已完整交付,所有 AC 達標,等待 Gower 驗收 + 手動 tag/push。
+
+### 開始時間 / 完成時間
+
+- 開始:2026-04-22 10:50 (UTC+8)
+- 完成:2026-04-22 11:05 (UTC+8)
+
+### 產出摘要
+
+**目標 repo(BMad-Guide, branch dev-main)commit**:`2b1dd1c`
+
+變更內容:
+- `auto-session.md`:A.1 追加第 21 條(JB Gateway Dev Container,`/.jbdevcontainer/` 檔案系統信號 + process 輔助信號)
+- `auto-session.md`:A.2 新增 Step 2.5 決策樹(於 Step 2 後、Step 3 前),含 Step 2.5.1 能力子決策(新分頁 ❌ / OSC 52 ❌ / 降級文字提示)
+- `auto-session.md`:C.2.3 OSC 52 支援清單追加第 13 條(JB Gateway Dev Container 不穿透,2026-04 實測確認)
+- `CHANGELOG.md`:新增 v4.3.3 條目(Added / Changed / Known Limitations / Notes 四段)
+- 8 個 SKILL.md(control-tower + ct-exec/done/status/evolve/insights/fieldguide/help)frontmatter `version` / description 開頭字串 / HTML `<!-- version -->` marker 同步 `4.3.3`
+- `control-tower/SKILL.md` 面板 title / metadata 表 / state table「塔台版本」欄位(共 5 處)同步 `v4.3.3`
+
+**來源 repo(better-agent-terminal, branch main)commit**:見本 commit(self-reference;git log 可查)
+
+變更內容:
+- 刪除 `_ct-workorders/_guide-selene-t0228-devcontainer-validation.md`(VS Code Remote-Containers 假設版,已過期)
+- 刪除 `_ct-workorders/_guide-selene-v432-intellij-diagnosis.md`(中途 JB 診斷指南,內容被 v4.3.3 吸收)
+- 新寫 `_ct-workorders/_guide-selene-v433-jb-gateway-validation.md`(~280 行;Part 0 環境確認 / Part 1 A.1 #21 驗證 / Part 2 A.2 Step 2.5 驗證 / Part 3 三模式觀察 / Part 4 已知限制明示 / Part 5 回報模板)
+- 本工單 CT-T009 狀態更新為 DONE + 回報區填寫
+
+### 版號 drift 檢查結果
+
+- 8 個 SKILL.md frontmatter `version:` 欄位:全部 `"4.3.3"` ✅
+- 8 個 SKILL.md description 開頭 `vX.Y.Z` 字串:全部 `v4.3.3` ✅
+- 8 個 SKILL.md HTML `<!-- version: X.Y.Z -->` marker:全部 `4.3.3` ✅
+- `control-tower/SKILL.md` 面板 title(Fast Path / Full Scan / metadata 表 / state table):全部 `v4.3.3` ✅
+- CHANGELOG.md 頂端條目:`## [4.3.3] — 2026-04-22` ✅
+- `grep -rn "4\.3\.2" skills/` 殘餘:**0 筆**(CHANGELOG 歷史條目不算,為合法保留)✅
+
+### CHANGELOG 片段(Added 段複製)
+
+```markdown
+## [4.3.3] — 2026-04-22
+
+### Added
+
+- **auto-session.md A.1 第 21 條偵測**:新增 JetBrains Gateway Dev Container 識別層(依 `/.jbdevcontainer/` 目錄 + process `remote-dev-serv` / `jetbrainsd` + parent process `bash --rcfile /.jbdevcontainer/...`)
+- **auto-session.md A.2 Step 2.5 決策樹**:插入於 Step 2(VS Code Remote-Containers)之後、Step 3(SSH)之前,處理 JB Gateway Dev Container 情境
+- **auto-session.md C.2.3 OSC 52 支援清單第 13 條**:JetBrains Gateway Dev Container 寫入/讀取皆不穿透,2026-04 實測確認
+```
+
+### 剩餘手動動作(交 Gower)
+
+```bash
+cd D:/ForgejoGit/BMad-Guide
+git log --oneline -1          # 應顯示 2b1dd1c feat(control-tower): v4.3.3 ...
+git tag v4.3.3 2b1dd1c
+git push origin dev-main v4.3.3
+
+# 來源 repo(BAT)推送(選擇性,若有遠端)
+cd D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal
+git log --oneline -1          # 顯示本 session 最末 commit(guide 清理+新寫+CT-T009 狀態)
+git push origin main          # 若需要
+```
+
+### 互動紀錄
+
+無。全程 yolo 模式自主執行,無使用者介入。
+
+### 遭遇問題
+
+無。所有 AC 一次通過。
+
+小觀察(非阻斷):
+- Bash 工具對 Windows 反斜線路徑與 `cd && grep` 組合在 `grep` exit 1(無匹配)時會中斷後續 `&&` 指令,改用 `;` 分隔後正常。符合 DATABASE_POLICIES.md 的 pwsh 跨平台原則,但本次用 bash 非 pwsh,差異屬於工具限制不構成風險。
+
+### Renew 歷程
+
+無。本次執行未收到塔台 Renew 指示。
+
+### 驗收備註(給 Gower)
+
+- AC-1 / AC-2 / AC-3 三處 auto-session.md 追加**不影響既有行為路徑**(VS Code Remote-Containers / SSH / tmux / Linux / WSL / WT 等分支皆未動),回歸風險低
+- AC-4 版號升級**僅改版號標記**,skill 內容未動(除 control-tower/SKILL.md 面板 title 字串)
+- AC-5 CHANGELOG 明列 Known Limitations,降低下游對「v4.3.3 是否讓 JB Gateway 自動化可用」的預期偏差
+- AC-6 新 guide 寫 ~280 行,Part 0-5 結構對齊之前 T0228 / v432 兩版,但刪除 Selene 姓名前的特定子專案 debug 細節,改為環境通用敘述(ok 留 Selene 名:這是 BAT 內部 guide,不進 upstream)
+- AC-7 tag / push 交 Gower 手動(不逾越範圍)
