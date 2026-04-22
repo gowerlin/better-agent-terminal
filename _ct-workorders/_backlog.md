@@ -2,15 +2,16 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-20 18:25 (UTC+8) — 新增 PLAN-026(JB Gateway 剪貼簿 proxy,IDEA)
+> 最後同步:2026-04-22 09:45 (UTC+8) — 新增 PLAN-027(Claude Runtime 選擇機制,IDEA)
 
 ## 統計
-- 💡 Ideas: 5 | 📋 Planned: 4 | 🔄 In Progress: 1 | ✅ Done: 10 | 🚫 Dropped: 1 | **Total: 21**
+- 💡 Ideas: 6 | 📋 Planned: 4 | 🔄 In Progress: 1 | ✅ Done: 10 | 🚫 Dropped: 1 | **Total: 22**
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
+| PLAN-027 | Claude Runtime 選擇機制(內嵌 SDK vs 系統 CLI) | 🟡 Medium | 💡 IDEA | [PLAN-027](PLAN-027-claude-runtime-selection-embedded-vs-system.md) |
 | PLAN-026 | JetBrains Gateway Dev Container 剪貼簿 proxy(HTTP daemon) | 🟢 Low | 💡 IDEA | [PLAN-026](PLAN-026-jetbrains-gateway-clipboard-proxy.md) |
 | PLAN-025 | Auto-session 終端偵測跨平台擴展 | 🔴 High | 📋 PLANNED | [PLAN-025](PLAN-025-auto-session-cross-platform-terminal-detection.md) |
 | PLAN-024 | BUG-050 Option C 雙階段:YOLO pipeline 顯性化與 Worker skill 一致性 | 🟡 Medium | 📋 PLANNED | [PLAN-024](PLAN-024-bug-050-option-c-two-phase-yolo-pipeline-hardening.md) |
