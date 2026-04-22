@@ -1,10 +1,79 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-20 18:30(**🎉 Selene OSC 52 ❌ 穿透失敗確認 + CT-T009 v4.3.3 DELEGATE 建立 + PLAN-026 剪貼簿 proxy IDEA + PLAN-022 結案 D073 + *evolve L083/GP067-070 + *sync drift 修正**,第十七 session 收工,15 commits 已 push origin/main)
+> 最後更新:2026-04-22 12:05(**🎉 CT-T009 v4.3.3 DONE 閉環(ship + Selene 收到)+ PLAN-027/028 登記 + CT-T010 DELEGATE(v4.4.x meta-PLAN)+ T0229 research 派發 + `_cross-references.md` 首建 + *evolve GP071/GP072/L089**,第十八 session 收工)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-20 ~18:30,第十七 session 收工)
+## 🛏 本 Session 退出快照(2026-04-22 ~09:40-12:05,第十八 session,~2.5 h wall)
+
+### 本輪時間線
+
+1. **09:40**:`/control-tower` Fast Path 恢復(快照 <7 天,免 rescan)
+2. **09:41-09:46**:PLAN-027 對齊(Q1-Q7 共 7 題)+ 登記 IDEA
+3. **09:46-10:50**:CT-T009 派發 → IN_PROGRESS(Worker ~15 min 交付 v4.3.3)
+4. **11:05-11:25**:CT-T009 AC 驗收 DONE + v4.3.3 閉環一條龍(tag+push 指引、Selene guide 交付包、LINE 短訊版)
+5. **11:25**:CLT 分析文件(`BMad-Guide/spec/`, ~400 行)討論 → 三專案分工(CT-skill 主導 / BAT + Cooperative 雙 dogfood)
+6. **11:25-11:45**:PLAN-028 登記 IDEA + `_cross-references.md` 首建 + CT-T010 DELEGATE 準備
+7. **11:46**:CT-T010 派發 → IN_PROGRESS(CT 接手,BAT 任務完成分界)
+8. **11:55-12:00**:T0229 research 派發(PLAN-027 啟動工單,non-yolo / interactive)
+9. **12:00-12:05**:`*evolve` 萃取 GP071/GP072(Global)+ L089(Project)+ 退出快照
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **工單** | CT-T009 ✅ DONE(v4.3.3 ship)+ CT-T010 🔄 IN_PROGRESS(v4.4.x meta-PLAN 跨專案)+ T0229 🚚 DISPATCHED(PLAN-027 research) |
+| **PLAN** | PLAN-027 📐 PLANNED(Claude Runtime)+ PLAN-028 💡 IDEA(BAT dogfood CT v4.4.x) |
+| **首建** | `_cross-references.md`(跨專案參照,記錄 CT-T008/T009/T010 + CLT 文件) |
+| **學習萃取** | GP071 剪貼簿污染測試指南設計 + GP072 Skill 演進三層分工 + L089 跨專案 DELEGATE 降格模式 |
+| **閉環** | v4.3.3 ship 全套(tag+push 指引 + Selene guide 交付包 + LINE 短訊版) |
+
+### 本 session commits(本機累計 8 個,待 push)
+
+```
+e097629 T0229 research 派發 — PLAN-027 可行性研究
+bc98063 CT-T010 DELEGATE 派發 — CT v4.4.x meta-PLAN + Phase 1-4 骨架
+ebb6ae2 PLAN-028 IDEA + _cross-references.md 首建 — BAT dogfood 驗證 CT v4.4.x
+6fcbbaf CT-T009 ✅ DONE — AC-1~7 全勾選驗收
+d197b60 Selene v4.3.3 測試指南新寫 + 舊 guide 清理 (CT-T009 Worker 交付)
+95c2be0 PLAN-027 IDEA — Claude Runtime 選擇機制
+(+ 本收工 commit:_tower-state.md + _learnings.md + GP071/GP072 Global)
+```
+
+### 三個 pending(下 session 恢復後優先序)
+
+1. 🔴 **等 T0229 Worker 回報**(research,45-90 min,non-yolo,需互動):結論明確 → 派 PLAN-027 Phase 1 實作工單;結論不足 → Renew
+2. 🟡 **等 CT-T010 Worker 回報**(CT 側):交付主 PLAN 編號後,回填 PLAN-028 「主導 Repo」欄位 + `_cross-references.md` 主 PLAN hash
+3. 🟢 **等 Selene v4.3.3 實測回報**(由 CT 接手,不阻塞 BAT):若需 BAT 整合,CT 會派協作單過來
+
+### 不急項目(backlog 保持,不主動排入)
+
+- 🐛 BUG-050 VERIFY(樣本 10/10 達標,等 PLAN-025 整體結案一起 CLOSE)
+- 📋 T0228 TODO(PLAN-025 integration)
+- 🔄 PLAN-021 IN_PROGRESS(等 dev smoke)
+- 💡 backlog 其他 IDEA / PLANNED 🟢 Low
+
+### 恢復指引(下輪 `/control-tower` 啟動)
+
+1. Fast Path 載入本快照(快照 <7 天)
+2. **優先序 1**:檢查 T0229 Worker 回報(若已開 session)
+3. **優先序 2**:檢查 BMad-Guide 是否已 push(CT-T010 完成通知)
+4. **優先序 3**:等 Selene 實測回報(不主動)
+5. 下 session 新工單編號起始:T0230 / PLAN-029 / D074 / BUG-053
+
+### 本 session 學習候選(已於本輪收工時處理)
+
+- ✅ GP071(Global):測試指南需明示可區分預期輸出(剪貼簿污染場景)
+- ✅ GP072(Global):Skill 演進三層驗證分工(主導 + 穩定 + 激進 dogfood)
+- ✅ L089(Project):跨專案 DELEGATE 連續派發 → 本端塔台降格追蹤中心
+
+### 小心假設(續 L088 / GP070)
+
+跨專案 DELEGATE 連續派發時,本端塔台**絕不複製對端 PLAN 內容到本地 state**,只保留 `_cross-references.md` 追蹤。詳見 L089。
+
+---
+
+## 🛏 前次 Session 退出快照(2026-04-20 ~18:30,第十七 session 收工)
 
 ### 本輪時間線(~5 h wall,午後)
 

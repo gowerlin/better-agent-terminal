@@ -2236,3 +2236,30 @@ Worker skill 的建議組態來源為工單本身(靜態),塔台派發時讀 ses
 **來源**:better-agent-terminal PLAN-025 yolo 三連擊 dogfood(2026-04-20 本 session)
 
 ---
+
+## L089 - 2026-04-22 — 跨專案 DELEGATE 連續派發,本端塔台角色降為追蹤中心
+
+**觸發情境**:
+第十八 session 中,CT-T009(v4.3.3)→ CT-T010(v4.4.x meta-PLAN)連續兩張跨專案 DELEGATE 工單派發到 BMad-Guide。本端(BAT)塔台的角色從「執行主體」降格為「追蹤中心 + 回填站」,後續實際工作(主 PLAN 拆解 / Phase 工單派發 / Worker 進度追蹤)由對端 repo 塔台接手。
+
+**模式(本輪觀察)**:
+- 本端只保留 `_cross-references.md` + 對端 commit hash 追蹤表
+- 不複製對端 PLAN 或工單內容到本地(避免雙端 drift)
+- 本地 PLAN(如 PLAN-028)定位為「dogfood 驗證追蹤」,不試圖主導
+- 等對端回報主 PLAN 編號後,才回填本地追蹤 PLAN 與 `_cross-references.md`
+- 本 session 在派完 CT-T010 後即告結束(BAT 任務完成分界線清晰)
+
+**反模式**(未發生但須警惕):
+- 本端塔台複製對端 PLAN 進度到本地 state(雙端同步成本爆)
+- 本端 consumer 自己開 fork 實作 skill 改動(等同 consumer 變 skill 維護者,drift 災難)
+
+**相關**:
+- GP072(本 session 萃取的 Global pattern — 三層驗證分工)
+- `_cross-references.md` 首建(2026-04-22)
+- L088 ⭐ / GP070 ⭐ devcontainer drift 根因教訓(同系列:分工邊界模糊 → drift)
+
+**候選晉升**:🟡 candidate: global(本模式還在驗證,等 CT-T010 → Phase 1-4 整個迴圈跑完再評估升 GP)
+
+**來源**:better-agent-terminal 第十八 session CT-T009/T010 連續 DELEGATE(2026-04-22)
+
+---
