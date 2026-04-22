@@ -1,0 +1,9 @@
+total 80M
+-rwxr-xr-x 1 Gower 197121  67K Apr 23 01:21 ggml.dll*
+-rwxr-xr-x 1 Gower 197121 498K Apr 23 01:21 ggml-base.dll*
+-rwxr-xr-x 1 Gower 197121  53K Apr 23 01:21 ggml-blas.dll*
+-rwxr-xr-x 1 Gower 197121 516K Apr 23 01:21 ggml-cpu.dll*
+-rwxr-xr-x 1 Gower 197121  29M Apr 23 01:21 ggml-vulkan.dll*
+-rwxr-xr-x 1 Gower 197121  49M Apr 23 01:21 libopenblas.dll*
+-rwxr-xr-x 1 Gower 197121 471K Apr 23 01:21 whisper.dll*
+-rwxr-xr-x 1 Gower 197121 404K Apr 23 01:21 whisper.node*

@@ -27,6 +27,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.111",
     "@anthropic-ai/claude-code": "^2.1.111",
+    "@kutalia/whisper-node-addon": "^1.1.0",
     "@types/dompurify": "^3.0.5",
     "@types/qrcode": "^1.5.6",
     "@xterm/addon-canvas": "^0.7.0",
@@ -49,7 +50,6 @@
     "selfsigned": "^5.5.0",
     "simple-git": "^3.36.0",
     "uuid": "^9.0.0",
-    "whisper-node-addon": "^1.0.2",
     "ws": "^8.19.0"
   },
   "optionalDependencies": {
@@ -159,6 +159,7 @@
       "node_modules/@lydell/node-pty/**/*",
       "node_modules/@lydell/node-pty-*/**/*",
       "node_modules/@img/**/*",
+      "node_modules/@kutalia/whisper-node-addon/**/*",
       "dist-electron/terminal-server.js"
     ],
     "extraResources": [

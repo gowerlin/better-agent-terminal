@@ -1,0 +1,5 @@
+# Do not commit large downloaded fixtures / logs from PoC runs
+*.bin
+*.wav
+*.log
+.electron-probe.cjs

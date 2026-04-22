@@ -1,6 +1,7 @@
 import type { CreatePtyOptions } from './index'
 import type {
   WhisperModelSize,
+  VoiceGpuStatus,
   VoiceModelInfo,
   VoicePreferences,
   VoiceTranscribeOptions,
@@ -332,6 +333,13 @@ interface ElectronAPI {
     ) => () => void
     // expose the userData-relative path where models live (shared with T0004)
     getModelsDirectory: () => Promise<string>
+    /**
+     * T0239 — lightweight GPU capability hint for Settings UI.
+     * Returns detected platform, whether Vulkan loader is available, the
+     * expected backend, and a human-readable hint string. The hint factors
+     * in the current user preference (auto vs force-cpu).
+     */
+    getGpuStatus: () => Promise<VoiceGpuStatus>
   }
   fs: {
     readdir: (dirPath: string) => Promise<import('./file').FileEntry[]>

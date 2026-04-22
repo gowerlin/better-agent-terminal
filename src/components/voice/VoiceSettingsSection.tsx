@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type {
   WhisperModelSize,
+  VoiceGpuMode,
+  VoiceGpuStatus,
   VoiceLanguage,
   VoiceModelInfo,
   VoicePreferences,
@@ -38,16 +40,18 @@ export function VoiceSettingsSection() {
   const [modelsDir, setModelsDir] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [downloadProgress, setDownloadProgress] = useState<Record<string, VoiceModelDownloadProgress>>({})
+  const [gpuStatus, setGpuStatus] = useState<VoiceGpuStatus | null>(null)
   const downloadingRef = useRef<Set<WhisperModelSize>>(new Set())
 
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [modelList, prefs, dir] = await Promise.all([
+        const [modelList, prefs, dir, gpu] = await Promise.all([
           window.electronAPI.voice.listModels(),
           window.electronAPI.voice.getPreferences(),
           window.electronAPI.voice.getModelsDirectory(),
+          window.electronAPI.voice.getGpuStatus(),
         ])
 
         const modelMap = {} as Record<WhisperModelSize, ModelState>
@@ -60,6 +64,7 @@ export function VoiceSettingsSection() {
         setModels(modelMap)
         setPreferences(prefs)
         setModelsDir(dir)
+        setGpuStatus(gpu)
       } catch (err) {
         window.electronAPI.debug?.log?.(`[VoiceSettings] Failed to load data: ${err}`)
       } finally {
@@ -193,6 +198,19 @@ export function VoiceSettingsSection() {
       setPreferences(updated)
     } catch (err) {
       window.electronAPI.debug?.log?.(`[VoiceSettings] Failed to set language: ${err}`)
+    }
+  }, [])
+
+  // T0239 — switch GPU mode (auto vs force-cpu) and refresh the hint.
+  const handleSetGpuMode = useCallback(async (gpuMode: VoiceGpuMode) => {
+    try {
+      const updated = await window.electronAPI.voice.setPreferences({ gpuMode })
+      setPreferences(updated)
+      // Re-query hint so the text updates immediately (force-cpu vs auto wording).
+      const gpu = await window.electronAPI.voice.getGpuStatus()
+      setGpuStatus(gpu)
+    } catch (err) {
+      window.electronAPI.debug?.log?.(`[VoiceSettings] Failed to set gpuMode: ${err}`)
     }
   }, [])
 
@@ -406,7 +424,72 @@ export function VoiceSettingsSection() {
         </p>
       </div>
 
-      {/* E. Models Directory (read-only) */}
+      {/* E. T0239 — GPU Acceleration Status & Override */}
+      <div className="settings-group">
+        <label>GPU 加速</label>
+        {gpuStatus ? (
+          <>
+            <div className="voice-gpu-status">
+              <div className="voice-gpu-status-row">
+                <span className="voice-gpu-status-label">目前狀態:</span>
+                <span className={`voice-gpu-status-tag ${gpuStatus.effectiveMode}`}>
+                  {gpuStatus.effectiveMode === 'gpu-auto' ? 'GPU 自動' : 'CPU 強制'}
+                </span>
+              </div>
+              <div className="voice-gpu-status-row">
+                <span className="voice-gpu-status-label">預期後端:</span>
+                <span className="voice-gpu-status-value">
+                  {gpuStatus.expectedBackend === 'metal' && 'Metal(macOS)'}
+                  {gpuStatus.expectedBackend === 'vulkan' && 'Vulkan'}
+                  {gpuStatus.expectedBackend === 'cpu' && 'CPU + OpenBLAS'}
+                </span>
+              </div>
+              <div className="voice-gpu-status-row">
+                <span className="voice-gpu-status-label">平台:</span>
+                <span className="voice-gpu-status-value">
+                  {gpuStatus.platform}
+                  {gpuStatus.platform !== 'darwin' && (
+                    <>
+                      {' '}(Vulkan loader:
+                      {gpuStatus.vulkanLoaderAvailable ? ' ✅ 偵測到' : ' ❌ 未偵測到'})
+                    </>
+                  )}
+                </span>
+              </div>
+              <p className="settings-hint voice-gpu-hint">{gpuStatus.hint}</p>
+            </div>
+
+            <div className="voice-radio-group" style={{ marginTop: 8 }}>
+              <label className="voice-radio-option">
+                <input
+                  type="radio"
+                  name="voice-gpu-mode"
+                  value="auto"
+                  checked={preferences?.gpuMode === 'auto'}
+                  onChange={() => handleSetGpuMode('auto')}
+                />
+                <span>自動(推薦)— 由套件決定使用 GPU 或 CPU</span>
+              </label>
+              <label className="voice-radio-option">
+                <input
+                  type="radio"
+                  name="voice-gpu-mode"
+                  value="force-cpu"
+                  checked={preferences?.gpuMode === 'force-cpu'}
+                  onChange={() => handleSetGpuMode('force-cpu')}
+                />
+                <span>強制 CPU — 舊 GPU 無 fp16 加速時可改此設定</span>
+              </label>
+            </div>
+          </>
+        ) : (
+          <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+            GPU 狀態載入中...
+          </span>
+        )}
+      </div>
+
+      {/* F. Models Directory (read-only) */}
       <div className="settings-group">
         <label>模型儲存位置</label>
         <div className="voice-models-dir">

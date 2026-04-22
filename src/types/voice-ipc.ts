@@ -9,4 +9,6 @@ export const VOICE_IPC_CHANNELS = {
   transcribe: 'voice:transcribe',
   getModelsDirectory: 'voice:getModelsDirectory',
   modelDownloadProgress: 'voice:modelDownloadProgress',
+  // T0239 — GPU detection hint for Settings UI
+  getGpuStatus: 'voice:getGpuStatus',
 } as const

@@ -17,7 +17,9 @@ import * as https from 'https'
 import { createWriteStream, type WriteStream } from 'fs'
 import { logger } from './logger'
 import { convertSimplifiedToTraditional } from './voice-opencc'
+import { getGpuStatus, resolveUseGpu } from './gpu-detector'
 import type {
+  VoiceGpuMode,
   VoiceModelInfo,
   VoicePreferences,
   VoiceTranscribeOptions,
@@ -27,8 +29,8 @@ import type {
 import { DEFAULT_VOICE_PREFERENCES } from '../src/types/voice'
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
 
-// whisper-node-addon has its own .d.ts
-import { transcribe as whisperTranscribe } from 'whisper-node-addon'
+// @kutalia/whisper-node-addon has its own .d.ts (Vulkan + OpenBLAS prebuilt fork)
+import { transcribe as whisperTranscribe } from '@kutalia/whisper-node-addon'
 
 // --- Constants ---------------------------------------------------------------
 
@@ -68,6 +70,11 @@ const activeDownloads = new Map<WhisperModelSize, AbortController>()
 
 // --- Preferences persistence ------------------------------------------------
 
+/** T0239: validate persisted gpuMode — tolerate legacy JSON without the field. */
+function sanitiseGpuMode(value: unknown): VoiceGpuMode {
+  return value === 'force-cpu' ? 'force-cpu' : 'auto'
+}
+
 async function readPreferences(): Promise<VoicePreferences> {
   const file = getVoicePreferencesFile()
   try {
@@ -79,6 +86,7 @@ async function readPreferences(): Promise<VoicePreferences> {
       language: parsed.language ?? DEFAULT_VOICE_PREFERENCES.language,
       convertToTraditional:
         parsed.convertToTraditional ?? DEFAULT_VOICE_PREFERENCES.convertToTraditional,
+      gpuMode: sanitiseGpuMode(parsed.gpuMode),
     }
   } catch (err: unknown) {
     const e = err as NodeJS.ErrnoException
@@ -373,10 +381,23 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
       language: updates.language ?? current.language,
       convertToTraditional:
         updates.convertToTraditional ?? current.convertToTraditional,
+      gpuMode: updates.gpuMode !== undefined ? sanitiseGpuMode(updates.gpuMode) : current.gpuMode,
     }
     await writePreferences(merged)
     logger.log(`[voice] setPreferences ←`, merged)
     return merged
+  })
+
+  // T0239 — GPU status hint for Settings UI.
+  // Cheap, no model dependency; safe to call before any transcribe.
+  ipcMain.handle(VOICE_IPC_CHANNELS.getGpuStatus, async () => {
+    const prefs = await readPreferences()
+    const status = getGpuStatus(prefs.gpuMode)
+    logger.log(
+      `[voice] getGpuStatus → effectiveMode=${status.effectiveMode} ` +
+      `expectedBackend=${status.expectedBackend} vulkanLoader=${status.vulkanLoaderAvailable}`
+    )
+    return status
   })
 
   ipcMain.handle(
@@ -426,12 +447,17 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
         const estimatedSamples = Math.max(0, (byteLength - 44) / 2)
         const durationMs = Math.round((estimatedSamples / Math.max(1, sampleRate)) * 1000)
 
+        // T0239 — resolve use_gpu from user preference:
+        //   'auto'      → true  (Kutalia package auto-detects Metal/Vulkan, falls back to CPU)
+        //   'force-cpu' → false (skip GPU path; always CPU + OpenBLAS)
+        const useGpu = resolveUseGpu(prefs.gpuMode)
+
         // Call whisper-node-addon
         const startTime = Date.now()
         const whisperOpts: Parameters<typeof whisperTranscribe>[0] = {
           model: modelPath,
           fname_inp: tmpWav,
-          use_gpu: process.platform === 'darwin',  // macOS prebuilt 已含 Metal；Win/Linux 無 GPU lib 會自動 fallback CPU
+          use_gpu: useGpu,
           no_prints: true,
         }
         // Only pass language if explicitly specified (omit for auto-detect)
@@ -441,15 +467,19 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
         const result = await whisperTranscribe(whisperOpts)
         const inferenceTimeMs = Date.now() - startTime
 
-        // Extract text from result segments: string[][] → concatenated text
+        // @kutalia v1.1.0 wraps output in { transcription: string[][] | string[] }
+        // (legacy whisper-node-addon returned the array directly)
+        const segments = (result && typeof result === 'object' && 'transcription' in result)
+          ? (result as { transcription: unknown }).transcription
+          : result
         let text = ''
-        if (Array.isArray(result)) {
-          text = result.map(seg => (Array.isArray(seg) ? seg[2] ?? seg[0] : String(seg))).join('').trim()
+        if (Array.isArray(segments)) {
+          text = segments.map(seg => (Array.isArray(seg) ? seg[2] ?? seg[0] : String(seg))).join('').trim()
         }
 
         logger.log(
           `[voice] transcribe done inferenceTimeMs=${inferenceTimeMs} ` +
-          `textLength=${text.length} language=${language}`
+          `textLength=${text.length} language=${language} useGpu=${useGpu}`
         )
 
         // OpenCC simplified → traditional conversion if requested

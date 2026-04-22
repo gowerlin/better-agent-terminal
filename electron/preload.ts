@@ -3,6 +3,7 @@ import type { CreatePtyOptions } from '../src/types'
 import type { FileEntry, RawFileEntry } from '../src/types/file'
 import { withPathKeys } from '../src/utils/filePathKey'
 import type {
+  VoiceGpuStatus,
   VoiceModelInfo,
   VoicePreferences,
   VoiceTranscribeOptions,
@@ -538,6 +539,8 @@ const electronAPI = {
       ipcRenderer.on(VOICE_IPC_CHANNELS.modelDownloadProgress, handler)
       return () => ipcRenderer.removeListener(VOICE_IPC_CHANNELS.modelDownloadProgress, handler)
     },
+    // T0239 — GPU status hint for Settings UI
+    getGpuStatus: () => ipcRenderer.invoke(VOICE_IPC_CHANNELS.getGpuStatus) as Promise<VoiceGpuStatus>,
   },
   terminalServer: {
     onRecoveryAvailable: (callback: (info: { ptyCount: number }) => void) => {

@@ -19,7 +19,7 @@ export default defineConfig({
                 'ws',
                 'bufferutil',
                 'utf-8-validate',
-                'whisper-node-addon',
+                '@kutalia/whisper-node-addon',
                 /\.node$/,
               ]
             }
