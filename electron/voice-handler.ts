@@ -459,6 +459,7 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
           fname_inp: tmpWav,
           use_gpu: useGpu,
           no_prints: true,
+          translate: false,  // BUG-057: @kutalia default is true, force false for native-language output
         }
         // Only pass language if explicitly specified (omit for auto-detect)
         if (language !== 'auto') {
