@@ -4,10 +4,12 @@
 
 - **編號**:T0231
 - **類型**:implementation(實作工單)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **建立時間**:2026-04-22 12:50 (UTC+8)
 - **派發時間**:2026-04-22 12:50 (UTC+8)
 - **開始時間**:2026-04-22 12:54 (UTC+8)
+- **完成時間**:2026-04-22 13:04 (UTC+8)
+- **Commit hash**:`a767de8`
 - **派發模式**:`--mode yolo --interactive`(T0230 已 freeze IPC / settings interface,scope 清楚;保留互動給 fallback / toast 設計細節)
 - **優先級**:🟡 Medium(PLAN-027 Phase 1 核心 routing)
 - **前置條件**:T0230 ✅ DONE(`4894b18` + `63a65e6`,claude-resolver / settings / IPC 已就緒)
@@ -159,7 +161,7 @@ DONE
 
 ### 產出摘要
 
-**Commit hash**:(寫入後補;見 metadata)
+**Commit hash**:`a767de8`
 
 **新增檔案**:
 - `electron/claude-runtime-router.ts`(216 行):新模組,提供 `resolveClaudeRuntime()` / `getRuntimeSettingsSnapshot()` / `shouldEmitRuntimeEvent()` / `clearRuntimeEventHistory()` / `SystemClaudeUnavailableError`
