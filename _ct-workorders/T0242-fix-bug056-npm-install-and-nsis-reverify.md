@@ -4,8 +4,9 @@
 
 - **編號**：T0242
 - **類型**：implementation（修復型）
-- **狀態**：🔄 IN_PROGRESS
+- **狀態**：✅ FIXED
 - **開始時間**：2026-04-23 03:55 (UTC+8)
+- **完成時間**：2026-04-23 04:34 (UTC+8)
 - **優先級**：🔴 **High**（阻塞 release pipeline）
 - **建立時間**：2026-04-23 03:35 (UTC+8)
 - **派發模式**：`--mode on --interactive`（NSIS 重裝需使用者協助 uninstall → install，Worker 需要互動窗口）
@@ -161,7 +162,7 @@ Step 5 ✅ Path B 使用者協助完成。使用者回報「安裝成功, 正確
 
 ### Commit hash
 
-`<pending — 收尾時填入>`
+`e46932e` — `fix(build): restore @kutalia/whisper-node-addon via npm install (BUG-056)`
 
 **Commit 範圍**：
 - T0242/T0243/BUG-056 workorder 檔案（新增）
