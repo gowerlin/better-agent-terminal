@@ -143,7 +143,28 @@
     "remotePortRolledBack": "Failed to bind new port; rolled back to {{oldPort}} ({{reason}})",
     "remotePortActiveConnWarning": "Saving will disconnect {{count}} active client(s)",
     "stopServerConfirmTitle": "Stop Remote Server?",
-    "stopServerConfirmMessage": "This will disconnect {{count}} active client(s). All remote sessions will be terminated until the server is restarted."
+    "stopServerConfirmMessage": "This will disconnect {{count}} active client(s). All remote sessions will be terminated until the server is restarted.",
+    "claudeRuntime": {
+      "title": "Claude Runtime",
+      "description": "Choose which Claude CLI binary BAT uses for Agent sessions. Changes apply to new sessions only.",
+      "mode": {
+        "embedded": "Embedded (bundled with BAT)",
+        "system": "System (your installed claude CLI)"
+      },
+      "status": {
+        "healthy": "healthy",
+        "warning": "version-warning",
+        "tooOld": "too-old",
+        "notFound": "not detected"
+      },
+      "customPath": {
+        "toggle": "Use custom path",
+        "browse": "Browse...",
+        "placeholder": "/absolute/path/to/claude"
+      },
+      "fallbackToEmbedded": "Fall back to embedded if system fails",
+      "hint": "Changes apply to new sessions only. System mode may lack features added in 2.1.111 (Opus 4.7 / xhigh effort)."
+    }
   },
   "sidebar": {
     "workspaces": "Workspaces",
@@ -544,5 +565,19 @@
       "mismatch": "mismatch(es)"
     },
     "includeArchived": "Include Archived"
+  },
+  "toast": {
+    "runtime": {
+      "degraded": {
+        "title": "Claude runtime degraded",
+        "systemNotFound": "System claude not found on PATH. Using embedded version.",
+        "systemUnhealthy": "System claude failed health check. Using embedded version.",
+        "systemTooOld": "System claude is below minimum version (2.0.0). Using embedded version.",
+        "detectThrew": "Runtime detection failed unexpectedly. Using embedded version."
+      },
+      "warning": {
+        "title": "Claude {{version}} — version notice"
+      }
+    }
   }
 }

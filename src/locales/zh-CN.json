@@ -143,7 +143,28 @@
     "remotePortRolledBack": "绑定新 port 失败,已退回 {{oldPort}}（{{reason}}）",
     "remotePortActiveConnWarning": "保存会中断 {{count}} 个活跃连接",
     "stopServerConfirmTitle": "确定停止 Remote Server?",
-    "stopServerConfirmMessage": "即将中断 {{count}} 个活跃连接。停止后所有远程 client 将无法连接,需重新启动服务器。"
+    "stopServerConfirmMessage": "即将中断 {{count}} 个活跃连接。停止后所有远程 client 将无法连接,需重新启动服务器。",
+    "claudeRuntime": {
+      "title": "Claude Runtime",
+      "description": "选择 BAT Agent session 要使用哪一个 Claude CLI binary。设定只影响新的 session。",
+      "mode": {
+        "embedded": "Embedded（BAT 内附）",
+        "system": "System（使用系统 PATH 上的 claude CLI）"
+      },
+      "status": {
+        "healthy": "healthy",
+        "warning": "version-warning",
+        "tooOld": "too-old",
+        "notFound": "未检测到"
+      },
+      "customPath": {
+        "toggle": "使用自定义路径",
+        "browse": "浏览...",
+        "placeholder": "/绝对路径/to/claude"
+      },
+      "fallbackToEmbedded": "系统 claude 失败时自动退回 Embedded",
+      "hint": "设定只影响新的 session。System 模式可能缺少 2.1.111 之后新增的功能（Opus 4.7 / xhigh effort）。"
+    }
   },
   "sidebar": {
     "workspaces": "工作区",
@@ -538,5 +559,19 @@
       "mismatch": "项不一致"
     },
     "includeArchived": "包含归档"
+  },
+  "toast": {
+    "runtime": {
+      "degraded": {
+        "title": "Claude runtime 降级",
+        "systemNotFound": "系统 PATH 上找不到 claude,改用内附版本。",
+        "systemUnhealthy": "系统 claude 健康检查失败,改用内附版本。",
+        "systemTooOld": "系统 claude 版本低于最低需求（2.0.0）,改用内附版本。",
+        "detectThrew": "Runtime 检测发生非预期错误,改用内附版本。"
+      },
+      "warning": {
+        "title": "Claude {{version}} — 版本提醒"
+      }
+    }
   }
 }

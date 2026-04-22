@@ -799,3 +799,32 @@
   flex: 1;
   min-width: 0;
 }
+
+/* PLAN-027 #3 (T0232): Claude runtime selector badges. */
+.claude-runtime-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.claude-runtime-badge.healthy {
+  background: rgba(46, 160, 67, 0.15);
+  border-color: rgba(46, 160, 67, 0.4);
+  color: #3fb950;
+}
+
+.claude-runtime-badge.warning {
+  background: rgba(210, 153, 34, 0.18);
+  border-color: rgba(210, 153, 34, 0.4);
+  color: #d29922;
+}
+
+.claude-runtime-badge.error {
+  background: rgba(229, 83, 75, 0.18);
+  border-color: rgba(229, 83, 75, 0.4);
+  color: #e5534b;
+}

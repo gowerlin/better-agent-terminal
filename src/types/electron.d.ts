@@ -211,6 +211,22 @@ interface ElectronAPI {
       mcpTools?: { name: string; serverName: string; tokens: number; isLoaded?: boolean }[]
     } | null>
     getCliPath: () => Promise<string>
+    // PLAN-027 #1 (T0230): probe embedded + system claude binaries for the runtime selector UI.
+    detectRuntime: (customPath?: string) => Promise<{
+      embedded: {
+        path: string
+        version: string
+        versionRaw: string
+        healthStatus: 'healthy' | 'version-warning' | 'version-too-old' | 'spawn-failed'
+      }
+      system: {
+        path: string
+        version: string
+        versionRaw: string
+        healthStatus: 'healthy' | 'version-warning' | 'version-too-old' | 'spawn-failed'
+        source: 'path' | 'common-location' | 'custom'
+      } | null
+    }>
     authStatus: () => Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>
     authLogout: () => Promise<{ success: boolean; error?: string }>
     resolvePermission: (sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) => Promise<void>

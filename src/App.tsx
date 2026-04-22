@@ -17,6 +17,8 @@ import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
+import { CtToast, useCtToast } from './components/CtToast'
+import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 
@@ -122,6 +124,9 @@ export default function App() {
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
   // T0133: Worker→Tower notification toasts (queue of transient toasts)
   const [notifyToasts, setNotifyToasts] = useState<{ id: string; text: string }[]>([])
+  // PLAN-027 #3 (T0232): Claude runtime degraded / version-warning toasts.
+  const { messages: runtimeToastMessages, addToast: addRuntimeToast, dismissToast: dismissRuntimeToast } = useCtToast()
+  useRuntimeToasts(addRuntimeToast)
   // Docking system
   const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
   const [leftPanelTab, setLeftPanelTab] = useState<'workspaces' | DockablePanel>('workspaces')
@@ -1221,6 +1226,7 @@ export default function App() {
           ))}
         </div>
       )}
+      <CtToast messages={runtimeToastMessages} onDismiss={dismissRuntimeToast} />
     </div>
   )
 }

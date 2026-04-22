@@ -7,6 +7,8 @@ import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS, EFFORT_LE
 import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate, FONT_SIZE_MIN, FONT_SIZE_MAX, REMOTE_PORT_MIN, REMOTE_PORT_MAX, REMOTE_PORT_DEFAULT } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
 import { VoiceSettingsSection } from './voice/VoiceSettingsSection'
+import { ClaudeRuntimeSection } from './ClaudeRuntimeSection'
+import { DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../types'
 import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
 import type { CustomCliDefinition } from '../types/agent-runtime'
 
@@ -995,6 +997,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           <VoiceSettingsSection />
           )}
           {activeTab === 'advanced' && (<>
+          <ClaudeRuntimeSection
+            runtime={settings.claudeRuntime ?? DEFAULT_CLAUDE_RUNTIME_SETTINGS}
+            onRuntimeChange={(updates) => settingsStore.setClaudeRuntime(updates)}
+          />
           <div className="settings-section">
             <h3>Terminal Server</h3>
             <div className="settings-group">
