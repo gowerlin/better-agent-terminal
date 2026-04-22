@@ -4,7 +4,9 @@
 
 - **編號**:T0240
 - **類型**:impl(git 操作 + 主線驗證)
-- **狀態**:📋 TODO
+- **狀態**:✅ DONE
+- **開始時間**:2026-04-23 02:30 (UTC+8)
+- **完成時間**:2026-04-23 02:34 (UTC+8)
 - **派發模式**:`--mode on --interactive`(Worker 可問 Build/測試環境 / commit 訊息細節)
 - **優先級**:🟡 Medium
 - **Sizing**:S(30-60 min,git 操作為主 + build 驗證)
@@ -168,32 +170,42 @@ git commit -m "chore(ct): T0240 DONE — EXP-GPUWHIS-001 Phase 1 CONCLUDED"
 ## 回報區(Worker 填寫)
 
 ### 完成狀態
-<!-- DONE / PARTIAL / Renew -->
+DONE
 
 ### 產出連結
-- main commit hash:
-- Build 結果:
-- Test 結果:
+- main commit hash:`cb65614`(feat: GPU acceleration via Vulkan)
+- Build 結果:`npx tsc --noEmit` ✅ 乾淨 / `npx vite build` ✅ 4 個階段全過(client + main + preload + terminal-server)
+- Test 結果:`tests/gpu-detector.test.ts` 13/13 passed(0.99s)
 - Worktree cleanup:
-- EXP-GPUWHIS-001 狀態變更:
+  - `git worktree remove ../bat-gpu-vulkan-poc` ✅
+  - `git branch -D exp/gpu-vulkan-poc` ✅(was eba79b1)
+  - `git worktree list` 僅剩主 worktree、`git branch --list 'exp/*'` 僅剩 `exp/bug012-scrollOnOutput` / `exp/builder26`(非本 EXP 範圍)
+- EXP-GPUWHIS-001 狀態變更:🧪 EXPLORING → 📊 CONCLUDED,補填 T-D 產出段 + 最終結論段
 
 ### 5 項成功判準達成情況
-1. feature commit:
-2. Build:
-3. Test:
-4. Worktree + branch 刪除:
-5. EXP CONCLUDED:
+1. feature commit:✅ `cb65614` 含 `feat(voice): GPU acceleration via Vulkan (EXP-GPUWHIS-001 Phase 1)`
+2. Build:✅ `tsc --noEmit` + `vite build` 皆 exit 0
+3. Test:✅ 13/13 gpu-detector tests passed
+4. Worktree + branch 刪除:✅ 兩者皆清理,`git worktree list` / `git branch --list exp/*` 無殘留
+5. EXP CONCLUDED:✅ 檔案狀態 EXPLORING → CONCLUDED,最終結論段落填寫完整(假設驗證 / main 增加成果 / PLAN-004 更新建議 / 追溯鏈)
 
 ### 互動紀錄
+無(fire-and-forget,0 互動、0 Renew,所有步驟按工單執行步驟順序完成)
 
 ### 風險 / 阻塞 / 意外發現
+- **零衝突 squash merge**:exp/gpu-vulkan-poc 從 main 拉出後 main 未改相關檔案,merge --squash 一次成功無 conflict,符合工單預期
+- **未簽到的主線 CRLF 警告**:git merge 過程報 `LF will be replaced by CRLF` 於 T0240 自身工單 md(屬於 Windows Git 標準行為,無實質影響)
+- **殘留 exp/\* 分支**:main 上仍有 `exp/bug012-scrollOnOutput` / `exp/builder26`,屬於本 EXP 範圍外的歷史實驗,不在 T0240 清理 scope,無動作
+- **建議觀察**:`poc-bench/` 的三個 cjs 腳本合入主線,保留做未來新 GPU 硬體的基準測試,但若半年內無新硬體實測則可考慮移入 `_archive/` 降低主線噪音
 
 ### 下一步建議
-- [ ] 版號 bump + CHANGELOG(Q4.B 延後項,可建新工單)
-- [ ] PLAN-004 狀態更新(Phase 1 完成,Phase 2 評估)
-- [ ] Renew
+- [x] 版號 bump + CHANGELOG(Q4.B 延後項,可建新工單)→ 推薦塔台建 T0241 做版號 + CHANGELOG + Homebrew tap 同步
+- [x] PLAN-004 狀態更新(Phase 1 完成,Phase 2 評估)→ 推薦塔台手動更新 PLAN-004 Phase 1 DONE 欄位 + 重新評估 Phase 2 的 CUDA 通路必要性
+- [ ] 未來新 GPU 硬體(RTX 30/40 或同等 fp16)實測記錄 → 可在使用者升級後單開 EXP-GPUWHIS-002 驗證 10x CPU 目標
+- [ ] 無需 Renew
 
 ### 回報時間
+2026-04-23 02:34 (UTC+8)
 
 ---
 

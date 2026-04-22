@@ -6,7 +6,7 @@
 |------|------|
 | **編號** | EXP-GPUWHIS-001 |
 | **TOPIC** | GPUWHIS(GPU Whisper 加速實驗系列) |
-| **狀態** | 🧪 EXPLORING |
+| **狀態** | 📊 CONCLUDED |
 | **建立時間** | 2026-04-23 01:10 (UTC+8) |
 | **驅動決策** | D075(T0236 研究結論,Vulkan-first 翻轉) |
 | **關聯 PLAN** | PLAN-004(GPU/MLX Whisper 加速,🔄 IN_PROGRESS) |
@@ -135,12 +135,46 @@ git worktree add ../bat-gpu-whisper-vulkan -b exp/gpu-whisper-vulkan
   - worktree 3 commits(`bd27732` + `2080880` + `eba79b1`)可直接 merge 回 main
   - 合入主線後須在 PR 描述 / CHANGELOG 標註「GPU 加速功能已就緒,舊硬體走 CPU 不劣化,未來升級新 GPU 自動受益」
 
-### T-D 決策
-<!-- Phase 2 派工決策 -->
+### T-D 產出(T0240,2026-04-23 02:30 完成,main commit `cb65614`)
 
-### 最終結論
+- **狀態**:✅ DONE(5/5 成功判準全綠)
+- **決策**:Option 1(直接 PR 回主線)+ Squash merge(D077)
+- **執行摘要**:
+  - `git merge --squash exp/gpu-vulkan-poc` 無衝突,16 檔 789+/366-
+  - `feat(voice): GPU acceleration via Vulkan (EXP-GPUWHIS-001 Phase 1)` 單一 feature commit 進 main(`cb65614`)
+  - 3 個 PoC commits(`bd27732` / `2080880` / `eba79b1`)合併後不保留歷史
+  - main 驗證三連綠:`tsc --noEmit` ✅ / `vite build` ✅ / `gpu-detector.test.ts` 13/13 ✅
+  - worktree `../bat-gpu-vulkan-poc` 刪除、branch `exp/gpu-vulkan-poc` `-D` 刪除
+- **對 Phase 2 啟示**:
+  - Phase 1 功能已進主線,未來開新 PC(RTX 30/40 系列)即可觀察真實 GPU 加速效益
+  - 版號 bump + CHANGELOG 可建新工單處理(Q4.B 延後項)
+  - PLAN-004 Phase 2(CUDA advanced tier)派工可重新評估 — 考慮 Kutalia 已涵蓋 Vulkan 跨 vendor 零配置,Phase 2 是否仍需 CUDA-specific 通路值得再研究
 
-<!-- EXPLORING → CONCLUDED / ABANDONED 時填寫 -->
+### 最終結論(📊 CONCLUDED)
+
+**實驗假設驗證結果**:**部分成立**
+
+- ✅ Kutalia prebuilt 在 Electron 41 / ABI 145 環境整合成功(T-A 驗證、T-B packaging 驗證、T-C runtime detection 驗證、T-D 合入主線驗證)
+- ✅ 跨 NVIDIA/AMD/Intel iGPU 覆蓋能力透過 Vulkan 達成(Kutalia 1.1.0 auto-detect + 本地靜態探測)
+- ✅ Windows + Linux 零環境配置前提成立(electron-builder 26 asarUnpack + Vulkan loader 靜態探測)
+- ✅ installer size 增量 +80 MB(落在 T0236 spec +30-50 MB 估算上緣,受 libopenblas.dll 49MB 影響,可接受)
+- ⚠️  效能達 10x CPU 的目標 **未在本次硬體驗證**(GTX 1050 Ti / Pascal 無 fp16,實測 0.99x CPU,見 D076)
+  - 已以 force-cpu override 機制緩解:舊硬體使用者不劣化,未來升級新 GPU 自動受益
+  - 新世代 RTX 30/40 / Ada Lovelace / RDNA3 / Arc 等 fp16 支援 GPU 的實測留給未來工單
+
+**main 增加成果**:
+- 1 個 feature commit `cb65614`
+- `electron/gpu-detector.ts`(新增 203 行)
+- `tests/gpu-detector.test.ts`(新增 155 行,13/13 passed)
+- `voice-handler.ts` / `preload.ts` / `VoiceSettingsSection.tsx` / `settings.css` / `voice.ts` / `voice-ipc.ts` / `electron.d.ts` / `vite.config.ts` 整合改動
+- `poc-bench/` 三檔基準測試腳本(保留,便於未來新硬體複測)
+- `package.json` / `package-lock.json` 更新到 `@kutalia/whisper-node-addon@1.1.0`
+
+**對 PLAN-004 更新建議**:Phase 1 結案,Phase 2 需重新評估(CUDA 專用通路在 Vulkan 零配置優勢下的必要性)。
+
+**追溯鏈完整性**:D075(Vulkan-first 翻轉)→ D076(硬體瓶頸接受)→ D077(Squash merge 決策)→ T0236 研究 → T0237/T0238/T0239 三張 PoC → T0240 合入 → EXP-GPUWHIS-001 CONCLUDED。
+
+Phase 1 EXPLORING → **CONCLUDED** ✅(2026-04-23 02:40 UTC+8)
 
 ---
 
