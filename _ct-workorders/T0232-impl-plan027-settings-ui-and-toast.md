@@ -4,10 +4,11 @@
 
 - **編號**:T0232
 - **類型**:implementation(實作工單)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:✅ DONE
 - **建立時間**:2026-04-22 13:08 (UTC+8)
 - **派發時間**:2026-04-22 13:08 (UTC+8)
 - **開始時間**:2026-04-22 13:13 (UTC+8)
+- **完成時間**:2026-04-22 13:27 (UTC+8)
 - **派發模式**:`--mode yolo --interactive`(UI 實作,可能需要 i18n / 既有 CSS class 判斷,保留互動)
 - **優先級**:🟡 Medium(PLAN-027 Phase 1 收尾 UI)
 - **前置條件**:T0230 ✅ DONE(resolver / settings / IPC detectRuntime)、T0231 ✅ DONE(router / IPC runtime-degraded / runtime-warning)
@@ -182,7 +183,7 @@ DONE — PLAN-027 Phase 1 UI 層全部到位。Advanced tab 新增 Claude Runtim
 
 ### 產出摘要
 
-- **Commit hash**:(pending,見收尾 commit)
+- **Commit hash**:`a8b3448`
 - **新增檔案**:
   - `src/components/ClaudeRuntimeSection.tsx`(切出獨立元件,封裝 detectRuntime + radio + custom path + fallback)
   - `src/hooks/useRuntimeToasts.ts`(訂閱 onRuntimeDegraded / onRuntimeWarning,查 i18n 後丟給 addToast)
