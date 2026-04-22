@@ -221,6 +221,24 @@ const electronAPI = {
       } | null>,
     getCliPath: () =>
       ipcRenderer.invoke('claude:get-cli-path') as Promise<string>,
+    // PLAN-027 #1 (T0230): probe embedded + system claude binaries for the
+    // runtime selector UI (T0232 / #3). Pass `customPath` to override auto-detection.
+    detectRuntime: (customPath?: string) =>
+      ipcRenderer.invoke('claude:detectRuntime', customPath) as Promise<{
+        embedded: {
+          path: string
+          version: string
+          versionRaw: string
+          healthStatus: 'healthy' | 'version-warning' | 'version-too-old' | 'spawn-failed'
+        }
+        system: {
+          path: string
+          version: string
+          versionRaw: string
+          healthStatus: 'healthy' | 'version-warning' | 'version-too-old' | 'spawn-failed'
+          source: 'path' | 'common-location' | 'custom'
+        } | null
+      }>,
     authStatus: () =>
       ipcRenderer.invoke('claude:auth-status') as Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>,
     authLogout: () =>

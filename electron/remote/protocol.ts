@@ -27,6 +27,7 @@ export const PROXIED_CHANNELS = new Set([
   'claude:get-statusline-extras',
   'claude:auth-status', 'claude:auth-logout',
   'claude:get-cli-path',
+  'claude:detectRuntime',
   // Standalone worktree operations (for claude-cli preset)
   'worktree:create', 'worktree:remove', 'worktree:status', 'worktree:merge', 'worktree:rehydrate',
   // Workspace

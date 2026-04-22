@@ -1900,6 +1900,40 @@ function registerProxiedHandlers() {
     }
   })
 
+  // PLAN-027 #1 (T0230): runtime detection — embedded health probe + system claude scan.
+  // Routing decision (mode embedded/system) is owned by T0231 / #2; this handler
+  // only reports what's available so the UI (T0232 / #3) can make the choice.
+  registerHandler('claude:detectRuntime', async (_ctx, customPath?: string) => {
+    const { detectSystemClaude, probeClaudeHealth } = await import('./claude-resolver')
+
+    // Embedded resolver lives in the manager; we duplicate its tiny logic here
+    // to avoid pulling the whole agent-manager into the IPC entry point.
+    const binaryName = 'claude.exe'
+    const embeddedPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', 'claude-code', 'bin', binaryName)
+      : (() => {
+          try {
+            const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
+            return path.join(path.dirname(pkgPath), 'bin', binaryName)
+          } catch {
+            return ''
+          }
+        })()
+
+    const embeddedProbe = embeddedPath ? await probeClaudeHealth(embeddedPath) : null
+    const systemInfo = await detectSystemClaude(customPath)
+
+    return {
+      embedded: {
+        path: embeddedPath,
+        version: embeddedProbe?.version ?? 'unknown',
+        versionRaw: embeddedProbe?.versionRaw ?? '',
+        healthStatus: embeddedProbe ? 'healthy' as const : 'spawn-failed' as const,
+      },
+      system: systemInfo,
+    }
+  })
+
   // Claude Agent SDK
   registerHandler('claude:start-session', (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) => claudeManager?.startSession(sessionId, options))
   registerHandler('claude:send-message', (_ctx, sessionId: string, prompt: string, images?: string[]) => claudeManager?.sendMessage(sessionId, prompt, images))

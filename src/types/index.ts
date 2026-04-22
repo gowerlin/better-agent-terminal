@@ -247,7 +247,25 @@ export interface AppSettings {
   cacheExpiryWarning?: boolean;    // Cache 過期時警告（預設 false）
   agentCustomArgs?: Record<string, string>;  // 每個 agent preset 的自訂參數（key = preset id, value = 參數字串）
   remotePort?: number;             // RemoteServer port（PLAN-021，範圍 1024-65535，預設 9876，可被 BAT_REMOTE_PORT env 覆寫）
+  claudeRuntime?: ClaudeRuntimeSettings;  // PLAN-027 #1：claude binary 來源選擇（embedded 或系統 PATH）
 }
+
+// ============================================
+//   Claude Runtime Selection (PLAN-027 / T0230)
+// ============================================
+
+export type ClaudeRuntimeMode = 'embedded' | 'system';
+
+export interface ClaudeRuntimeSettings {
+  mode: ClaudeRuntimeMode;        // 'embedded'（預設，使用 BAT 內附 claude.exe）或 'system'（使用系統 PATH 上的 claude）
+  customPath?: string;             // 'system' 模式時的手動指定路徑；空白代表自動偵測
+  fallbackToEmbedded: boolean;    // 系統 claude 偵測或健康檢查失敗時是否自動退回內嵌版本（預設 true）
+}
+
+export const DEFAULT_CLAUDE_RUNTIME_SETTINGS: ClaudeRuntimeSettings = {
+  mode: 'embedded',
+  fallbackToEmbedded: true,
+};
 
 // ============================================
 //   Skill Commands

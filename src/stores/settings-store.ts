@@ -1,6 +1,6 @@
-import type { AppSettings, ShellType, FontType, ColorPresetId, EnvVariable, AgentCommandType, StatuslineItemConfig, StatuslineItemId, LanguageCode, LogLevel, EffortLevel } from '../types'
+import type { AppSettings, ShellType, FontType, ColorPresetId, EnvVariable, AgentCommandType, StatuslineItemConfig, StatuslineItemId, LanguageCode, LogLevel, EffortLevel, ClaudeRuntimeSettings } from '../types'
 import type { AgentPresetId } from '../types/agent-presets'
-import { FONT_OPTIONS, COLOR_PRESETS, AGENT_COMMAND_OPTIONS, STATUSLINE_ITEMS } from '../types'
+import { FONT_OPTIONS, COLOR_PRESETS, AGENT_COMMAND_OPTIONS, STATUSLINE_ITEMS, DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../types'
 
 type Listener = () => void
 
@@ -40,6 +40,7 @@ const defaultSettings: AppSettings = {
   terminalServerIdleTimeoutMinutes: 30,
   agentCustomArgs: {},
   remotePort: 9876,
+  claudeRuntime: { ...DEFAULT_CLAUDE_RUNTIME_SETTINGS },
 }
 
 export const REMOTE_PORT_MIN = 1024
@@ -348,6 +349,21 @@ class SettingsStore {
 
   setTerminalServerIdleTimeoutMinutes(minutes: number): void {
     this.settings = { ...this.settings, terminalServerIdleTimeoutMinutes: minutes }
+    this.notify()
+    this.save()
+  }
+
+  // PLAN-027 #1: Claude runtime selection (embedded vs system)
+  getClaudeRuntime(): ClaudeRuntimeSettings {
+    return this.settings.claudeRuntime ?? { ...DEFAULT_CLAUDE_RUNTIME_SETTINGS }
+  }
+
+  setClaudeRuntime(updates: Partial<ClaudeRuntimeSettings>): void {
+    const current = this.settings.claudeRuntime ?? { ...DEFAULT_CLAUDE_RUNTIME_SETTINGS }
+    this.settings = {
+      ...this.settings,
+      claudeRuntime: { ...current, ...updates },
+    }
     this.notify()
     this.save()
   }
