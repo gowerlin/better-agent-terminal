@@ -2,10 +2,10 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-23 00:15 (UTC+8) — BUG-050 VERIFY → CLOSED(使用者驗收通過)
+> 最後同步:2026-04-23 00:25 (UTC+8) — BUG-055 OPEN → WONTFIX(單次觀測 + 有 workaround,不值得修)
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 3(熱區) | ⛔ Won't Fix: 0 | **熱區 Total: 4**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 3(熱區) | ⛔ Won't Fix: 1(熱區) | **熱區 Total: 4**
 - 📦 已歸檔:15 張(見 `_archive/bugs/`)
 - 📊 整體 Total:19 張
 
@@ -13,7 +13,6 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-055 | `node_modules/@anthropic-ai/claude-code/bin/` 殘留 `claude.exe.old.XXX`(SDK install hook) | 🟢 Low | 2026-04-22 | [BUG-055](BUG-055-claude-exe-old-residue-in-node-modules-sdk-install-hook.md) |
 
 ## ⏳ 修復中 (FIXING)
 
@@ -44,3 +43,4 @@
 
 | ID | 標題 | 嚴重度 | 標記時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-055 | `node_modules/@anthropic-ai/claude-code/bin/` 殘留 `claude.exe.old.XXX`(SDK install hook) | 🟢 Low | 2026-04-23 | [BUG-055](BUG-055-claude-exe-old-residue-in-node-modules-sdk-install-hook.md) |

@@ -3,7 +3,8 @@
 ## 元資料
 
 - **編號**:BUG-055
-- **狀態**:🐛 OPEN
+- **狀態**:⛔ WONTFIX(2026-04-23 — 單次觀測 + 有 manual workaround + 疑 upstream SDK 問題 → 不值得投入修復成本。若再發生或累積 2-3 次,再考慮加 BAT postinstall hook 或回報 upstream)
+- **原狀態**:🐛 OPEN
 - **嚴重度**:🟢 Low(install hook 小瑕疵,單次觀測,有手動 workaround)
 - **建立時間**:2026-04-22 20:32 (UTC+8)
 - **發現來源**:T0235(hotfix BUG-053/054 過程中,`tests/claude-code-path.test.ts` 1/4 失敗)
