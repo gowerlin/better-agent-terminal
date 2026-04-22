@@ -2,17 +2,18 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-22 11:56 (UTC+8) — PLAN-027 IDEA → PLANNED(T0229 研究工單派發)
+> 最後同步:2026-04-22 20:40 (UTC+8) — *archive 後重建(11 張 PLAN 已歸檔到 _archive/plans/)
 
 ## 統計
-- 💡 Ideas: 6 | 📋 Planned: 5 | 🔄 In Progress: 1 | ✅ Done: 10 | 🚫 Dropped: 1 | **Total: 23**
+- 💡 Ideas: 5 | 📋 Planned: 5 | 🔄 In Progress: 1 | ✅ Done: 1(熱區) | 🚫 Dropped: 0(熱區) | **熱區 Total: 12**
+- 📦 已歸檔:11 張(見 `_archive/plans/`)
+- 📊 整體 Total:23 張
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
-| PLAN-028 | BAT dogfood 驗證 CT v4.4.x(CLT 對齊 6 項改良) | 🟡 Medium | 💡 IDEA | [PLAN-028](PLAN-028-bat-dogfood-verify-ct-v44-clt-alignment.md) |
-| PLAN-027 | Claude Runtime 選擇機制(內嵌 SDK vs 系統 CLI) | 🟡 Medium | 📐 PLANNED | [PLAN-027](PLAN-027-claude-runtime-selection-embedded-vs-system.md) |
+| PLAN-028 | BAT dogfood 驗證 CT v4.4.x(CLT 對齊 6 項改良) | 🟡 Medium | 📐 PLANNED | [PLAN-028](PLAN-028-bat-dogfood-verify-ct-v44-clt-alignment.md) |
 | PLAN-026 | JetBrains Gateway Dev Container 剪貼簿 proxy(HTTP daemon) | 🟢 Low | 💡 IDEA | [PLAN-026](PLAN-026-jetbrains-gateway-clipboard-proxy.md) |
 | PLAN-025 | Auto-session 終端偵測跨平台擴展 | 🔴 High | 📋 PLANNED | [PLAN-025](PLAN-025-auto-session-cross-platform-terminal-detection.md) |
 | PLAN-024 | BUG-050 Option C 雙階段:YOLO pipeline 顯性化與 Worker skill 一致性 | 🟡 Medium | 📋 PLANNED | [PLAN-024](PLAN-024-bug-050-option-c-two-phase-yolo-pipeline-hardening.md) |
@@ -28,19 +29,13 @@
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
-| PLAN-022 | Dispatcher fingerprint pinning | 2026-04-20 | [PLAN-022](PLAN-022-dispatcher-fingerprint-pinning.md) |
-| PLAN-023 | FileTree 架構重整 | 2026-04-19 | [PLAN-023](PLAN-023-filetree-architecture-cleanup.md) |
-| PLAN-020 | YOLO autonomous mode | 2026-04-19 | [PLAN-020](PLAN-020-yolo-autonomous-mode.md) |
-| PLAN-019 | TypeScript debt cleanup | 2026-04-19 | [PLAN-019](PLAN-019-typescript-debt-cleanup.md) |
-| PLAN-018 | Remote security hardening | 2026-04-19 | [PLAN-018](PLAN-018-remote-security-hardening.md) |
-| PLAN-016 | Electron runtime 28.3.3 → 41 升級 | 2026-04-18 | [PLAN-016](PLAN-016-electron-runtime-upgrade-28-to-41.md) |
-| PLAN-012 | Quit dialog terminal-server checkbox | 2026-04-18 | [PLAN-012](PLAN-012-quit-dialog-terminal-server-checkbox.md) |
-| PLAN-009 | Sprint 儀表板 UI(讀取 sprint-status.yaml) | 2026-04-16 | [PLAN-009](PLAN-009-sprint-dashboard-ui.md) |
-| PLAN-005 | electron-builder 24 → 26 升級 | 2026-04-18 | [PLAN-005](PLAN-005-electron-builder-upgrade.md) |
-| PLAN-003 | npm audit 殘餘漏洞(Electron 核心依賴鏈) | 2026-04-18 | [PLAN-003](PLAN-003-npm-audit-remaining-vulnerabilities.md) |
+| PLAN-027 | Claude Runtime 選擇機制(內嵌 SDK vs 系統 CLI) | 2026-04-22 | [PLAN-027](PLAN-027-claude-runtime-selection-embedded-vs-system.md) |
+
+> 📦 PLAN-003/005/009/012/016/018/019/020/022/023 已歸檔至 `_archive/plans/`(10 張)
 
 ## Dropped
 
 | ~~ID~~ | ~~標題~~ | 原因 | 連結 |
 |--------|---------|------|------|
-| ~~PLAN-001~~ | ~~Vite v5 → v6 升級~~ | 被 PLAN-003 Group B 吸收 | [PLAN-001](PLAN-001-vite-v5-to-v6-upgrade.md) |
+
+> 📦 PLAN-001 (DROPPED) 已歸檔至 `_archive/plans/`

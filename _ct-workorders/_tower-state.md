@@ -1,10 +1,55 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-22 20:25(**🎉 PLAN-027 Phase 1 ✅ DONE 完全閉環(T0230-T0234 + T0235 hotfix + BUG-053/054 CLOSED,63 min vs R5 估 285 min ~4.5x)+ CT-T010 DONE 吸收 + D074 + *evolve GP073-075/L090-091**,第十九 session 收工)
+> 最後更新:2026-04-22 21:00(**第二十 session 快收工:BUG-055 登記 + *sync 全量 + *archive 批次歸檔 101 張 + CT-T010 真相發現(對端自主完成 Phase 1-2)+ D074 過時標記**)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-22 ~12:05-20:25,第十九 session,~3.5 h wall 主力 + 下午中斷 ~5h)
+## 🛏 本 Session 退出快照(第二十 session,2026-04-22 20:25-21:00,~35 min,短 session)
+
+### 本輪時間線
+
+1. **20:25-20:30**(恢復):Fast Path(快照 <7 天)→ BUG-055 登記請求
+2. **20:30-20:35**:BUG-055 建立(`claude.exe.old.XXX` 殘留,🟢 Low / 🐛 OPEN / 只出現一次 / 有 workaround);`_bug-tracker.md` 增量更新
+3. **20:35-20:40**:`*sync` 全量重建兩個 tracker(補齊 session 17-19 drift,BUG-048/051/052/053/054 CLOSED 登記 + PLAN-027 DONE)
+4. **20:40-20:50**:`*archive` 批次歸檔 **101 張**(15 BUG + 11 PLAN + 75 T/EXP),熱區 126 → 25 張(80% 壓縮);遭遇 Git Bash CRLF 解析 bug,改用預寫 shell script 以 LF 繞過
+5. **20:50-20:55**:真相發現 — 使用者問「CT v4.4 Phase 1 對端是否已接手」,查 `D:\ForgejoGit\BMad-Guide\` parent repo 發現**對端 2026-04-22 12:10→22:40 自主完成 Phase 1-2 全部** + T0108 bonus(8 commits 已 push `origin/dev-main`);BAT 的 D074「接手派發」從未執行
+6. **20:55-21:00**:`_cross-references.md` + `_decision-log.md` D074 過時標記 + 塔台建議 C+D(Dogfood + Pull Layer 1,不派 Phase 3-4)→ 使用者接受 → 收工
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **新單** | BUG-055 🐛 OPEN(SDK install hook 殘留) |
+| **歸檔** | **101 張**(15 BUG + 11 PLAN + 75 T/EXP)→ `_archive/{bugs,plans,workorders}/` |
+| **Tracker 重建** | `_bug-tracker.md`(熱區 4 張)/ `_backlog.md`(熱區 12 張)|
+| **跨專案** | `_cross-references.md` T0099-T0104 ✅ DONE 登記 + D074 strikethrough;`_decision-log.md` D074 加過時標記(session 20)|
+| **真相** | D074 從未執行;對端 BMad-Guide 自主推進 Phase 1-2 完畢(commit `9ba3c8a`/`678d5a2`/`a9c5967`/`0de4e2b`/`c3a4282`/`a61c066`/`4b274e7`/`ebb7a63`/`41298e3`)|
+| **決策方向** | 下 session 走 **C + D**:Pull BMad-Guide Layer 1 → Dogfood 新 template v3.7 → 回饋對端作 Phase 3 設計輸入 |
+
+### 三個 pending(下 session 優先序,session 21 起手)
+
+1. 🟡 **Step 1(D):Pull BMad-Guide Layer 1 v4.4.0-dev** → BAT 本地(10-15 min)
+2. 🟡 **Step 2(C):Dogfood 一張真實工單** — 候選 BUG-055 修復 / PLAN-025 Auto-session(用新 template v3.7 完整填 intervention_type/affects_files/spec_level_check/memory_overrides)
+3. 🟡 **Step 3:CT-T011 REVIEW 類型回饋** → 對端 Phase 3 (T0105) 設計輸入
+
+### 不急項目
+
+- 🐛 BUG-050 🧪 VERIFY(等 PLAN-025 結案)
+- 📋 T0228 TODO(PLAN-025 integration)
+- 🔄 PLAN-021 IN_PROGRESS(等 dev smoke)
+- 💡 backlog 其他 🟢 Low
+
+### 恢復指引
+
+1. Fast Path 載入本快照
+2. **優先序 1**:Pull Layer 1 → Dogfood → 回饋對端(Step 1→2→3)
+3. **避免**:不要再派 CT-T011/T012 DELEGATE(對端節奏自行推進 Phase 3-4)
+4. 下 session 新單編號起始:**T0236 / BUG-056 / D075 / PLAN-029**
+
+### 本 session 教訓
+
+- **L092 跨專案狀態查核 before 決策派發**:D074 做在 11:50(對端當時 tower state 顯示 CT-T010 未 push),但對端在 12:10 後自主推進。BAT 在 `_cross-references.md` 登記「接手派發」後沒有查 parent repo 實際狀態,差點重複派工。**教訓**:跨專案協調工單在「派發前」必須做一次 parent repo 最新 git log 查核(至少 `git log --oneline -15`),否則 D074 這種「stale decision」會進 decision log 成為雜訊。候選 Global learning。
+- **L093 Git Bash CRLF 批次處理 gotcha**:Python 在 Windows 寫 `open('file','w')` 會用 CRLF line endings,bash `while read` 讀到的 `$file` 變數結尾會帶 `\r`,讓 `git mv` 失敗全靜默(已靠 `open('_move_commands.sh','wb')` 用 bytes + `\n` 繞過)。**教訓**:跨平台 shell pipeline 用 Python 產 script 時,一律 binary 模式 + 明確 `\n`。候選 Global learning。
 
 ### 本輪時間線
 

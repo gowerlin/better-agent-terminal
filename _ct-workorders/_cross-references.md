@@ -21,13 +21,13 @@
 
 | 對方 ID | Phase | 內容 | 狀態 |
 |---------|-------|------|------|
-| T0098 | meta | CT v4.4.x CLT 對齊 主 PLAN | 📐 PLANNED |
-| T0099 / T0100 / T0101 | Phase 1 | audit-only + 快勝 | 📋 TODO |
-| T0102 / T0103 / T0104 | Phase 2 | template v3.7 + evolve prompt | 📋 TODO |
+| T0098 | meta | CT v4.4.x CLT 對齊 主 PLAN | 🔄 IN_PROGRESS(Phase 1-2 DONE,Phase 3-4 TODO)|
+| T0099 / T0100 / T0101 | Phase 1 | audit-only + 快勝 | ✅ DONE(commit `9ba3c8a` / `678d5a2` / `a9c5967`)|
+| T0102 / T0103 / T0104 | Phase 2 | template v3.7 + evolve prompt | ✅ DONE(commit `0de4e2b` / `c3a4282` / `a61c066`,含 T0108 bootstrap 順修 `ebb7a63`)|
 | T0105 | Phase 3 | *evolve 輸出拆 tactical / strategic | 📋 TODO |
 | T0106 | Phase 4 | CT 設計依據 doctrine | 📋 TODO |
 
-> 本 CT 塔台(BAT 端)**接手 Phase 1-4 派發** — 透過 CT-T### DELEGATE 工單逐張推進 T0099-T0106,主線在 BMad-Guide repo `dev-main` 分支執行。
+> ~~本 CT 塔台(BAT 端)**接手 Phase 1-4 派發**~~ — **D074 決定已過時**(2026-04-22 20:50)。對端塔台 BMad-Guide 在 2026-04-22 下午自主執行 Phase 1-2 全部完成並 push 到 `origin/dev-main`;BAT 未實際派發任何 CT-T### DELEGATE 工單。Phase 3-4 的處理方式待使用者決定(由對端續作 / BAT 派發 / 暫緩)。
 
 ## 相關文件(跨專案參考)
 

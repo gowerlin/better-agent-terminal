@@ -81,6 +81,7 @@
   - BAT 本地 dogfood 在每個 Phase 交付後立即做(`*sync` / `*evolve --status` / 新工單驗證 template v3.7 等)
 - **時機**:等 T0229(PLAN-027 research)回報後評估 — 若 T0229 結論明確且 PLAN-027 Phase 1 派發不急,可先啟 CT v4.4 Phase 1;若 PLAN-027 需立即推進,CT v4.4 Phase 1 延後
 - **關聯**:PLAN-028(主 PLAN 接手登記)/ CT-T010(骨架交付)/ T0098(BMad-Guide meta-PLAN)/ L089(跨專案 DELEGATE 降格模式)
+- **⚠️ 過時標記**(2026-04-22 20:50,session 20):對端塔台 BMad-Guide 在 2026-04-22 下午(12:10-22:40)自主執行並完成 Phase 1-2 全部(T0099-T0104 + T0108 bootstrap 順修),push 到 `origin/dev-main`。BAT 未派發任何 CT-T### DELEGATE 工單。**本決策實際未執行**。Phase 3-4(T0105/T0106)處理方式需重新決策(由對端續作 / BAT 派發 / 暫緩),候選為 D075。
 
 ---
 
