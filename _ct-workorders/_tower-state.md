@@ -1,37 +1,107 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-23 03:35(**第二十二 session — T0241 研究 DONE(13 min Worker 神速交付,反轉塔台假設)→ D079 拆單 T0242 修復 + T0243 預防對策**)
+> 最後更新:2026-04-23 05:35(**🎉 第二十二 session 收工:2h30min 內完結兩連 regression(BUG-056 packaging + BUG-057 runtime flag),4 個 Worker 工單全 DONE,零 Renew,兩個 BUG CLOSED**)
 
 ---
 
-## 🚨 本 Session 開場事件(第二十二 session,2026-04-23 03:05~)
+## 🛏 本 Session 退出快照(第二十二 session,2026-04-23 03:05-05:35,~2.5h,連環救火)
+
+### 本輪時間線
+
+1. **03:05-03:08**(起手):Fast Path 啟動 → 使用者截圖回報 BAT 打包版啟動崩潰 `Cannot find module '@kutalia/whisper-node-addon'` → 塔台判定 🔴 High regression from `cb65614`
+2. **03:08**(對齊):Q1.B/Q2.A/Q3.C → 建 BUG-056 + T0241 research + D078
+3. **03:17-03:30**:**T0241 研究 13 min ✅ DONE**(commit `526b7c1` 類等,Worker 交付 H6 結論反轉塔台 H1-H5 全數假設)— 根因 = main repo 從未 `npm install`,NSIS installer 本質不含 `@kutalia`
+4. **03:35**(拆單):D079 Q1.C/Q2.B/Q3.C → 建 T0242(修復)+ T0243(預防,排隊)
+5. **03:55-04:34**:**T0242 修復 39 min ✅ FIXED**(commit `e46932e`,零 source diff,僅 `npm install` + rebuild + NSIS 重裝驗收)— 使用者 Vulkan loader ✅ 截圖驗收
+6. **04:34**:🎉 BUG-056 🚫 CLOSED + D080
+7. **04:45**(第二 regression):使用者立即回報語音辨識繁中被翻譯為英文 → `*bug` 流程 → 建 BUG-057(Q1.A/Q2.A/Q3/Q4 精準對齊 → 塔台強懷疑 H2 `translate: true` 誤啟用)
+8. **04:50**(對齊):使用者授權「其他塔台規劃」→ D081 A/A/A 路線(先研後修 + BUG-057 優先 + XS sizing)→ 建 T0244
+9. **05:16-05:25**:**T0244 研究 9 min ✅ DONE**(commit `526b7c1`)— 根因 H2 確認:@kutalia default `translate: true`(舊套件 false),voice-handler 整檔零 `translate` 字串,H1/H3/H4/H5 全排除
+10. **05:28**:D082 吸收 → 建 T0245 單行 fix
+11. **05:25-05:35**:**T0245 修復 10 min ✅ FIXED**(commit `b2124b5`,`voice-handler.ts:462` 單行 `translate: false`)— 使用者雙情境(zh + auto)runtime 驗收通過
+12. **05:35**:🎉 BUG-057 🚫 CLOSED + D083 → session 22 收工條件達成
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **BUG 閉環** | BUG-056 🚫 CLOSED(1h29min)+ BUG-057 🚫 CLOSED(50min) |
+| **研究工單** | T0241 DONE(13 min,H6)+ T0244 DONE(9 min,H2 確認)— 兩次皆反轉 / 排除塔台假設 |
+| **修復工單** | T0242 DONE(39 min,零 source diff,`npm install` + NSIS 重裝)+ T0245 DONE(10 min,1 行 diff) |
+| **延後工單** | T0243 TODO(BUG-056 預防對策,M sizing,延下 session) |
+| **決策** | D078 ~ D083 共 6 條 |
+| **Commits**(本 session 新增) | `e46932e`(T0242) / `526b7c1`(T0244) / `b2124b5`(T0245) / 多筆塔台 meta |
+| **修改檔** | `electron/voice-handler.ts`(1 行)+ `node_modules/`(npm install 產物)+ 多個 `_ct-workorders/` |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time | 2h 30min | 03:05-05:35 |
+| Worker 工單 DONE | 4 / 4 | T0241/T0242/T0244/T0245 |
+| 平均 Worker wall | 17.8 min | 13+39+9+10=71 min |
+| Renew 次數 | 0 / 4 | 零 Renew |
+| FAILED 次數 | 0 / 4 | 零失敗 |
+| 塔台假設反轉次數 | **5 + 4 = 9** | T0241 反轉 H1-H5;T0244 排除 H1/H3/H4/H5 |
+| 塔台預估準確度 | 修復 sizing 全中(XS-S) | 研究 sizing 皆低估(實際更快) |
+
+### 下 session pending(優先序)
+
+1. 🟡 **T0243 派發** — BUG-056 預防對策(build fail-fast + CI `npm ci` + CLAUDE.md),`--mode on`,M sizing,60-90 min
+2. 🟡 **T0246+ 版號 bump** — 原 session 21 預留(改編號),含 CHANGELOG + Homebrew tap
+3. 🟡 **PLAN-004 狀態更新** — Phase 1 DONE 標記,Phase 2(CUDA advanced tier)必要性重新評估(Vulkan 零配置已涵蓋跨 vendor,session 21 記錄)
+4. 🟢 **`*evolve` 批次萃取** — L101-L106 候選(多條 Global 強候選)
+5. 🟢 **CT v4.4.0 GA 後 Pull Layer 1**(session 20 原優先序,非阻塞)
+6. 🟢 **EXP-GPUWHIS-002** — 未來硬體升級後實測 10x CPU 目標
+
+### 不急項目
+
+- 🔄 PLAN-021 IN_PROGRESS(等 dev smoke)
+- 💡 backlog 其他 🟢 Low(PLAN-002/007/013/014/015/026)
+- T0153 PARTIAL(Git GUI spike,擱置)
+- PLAN-028 PLANNED(BAT dogfood CT v4.4,等 GA)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:T0243 派發(BUG-056 預防對策,M sizing,獨立非阻塞);派發模式建議 `--mode on` 非互動
+3. **優先序 2**:T0243 DONE 後執行 `*evolve` 批次萃取 L101-L106(特別是 L101/L102 Global 強候選,跨專案通用 Electron 打包通則)
+4. **優先序 3**:T0246+ 版號 bump(若 release pipeline 穩定)
+5. 下 session 新單編號起始:**T0246 / BUG-058 / PLAN-029 / D084**
+
+### 本 session 學習候選(待 `*evolve` 批次萃取)
+
+- **L101**(🌐 Global 強候選):**packaging 驗收必須涵蓋「NSIS installer 完整重裝路徑」**;`dir/` mode、`zip` smoke、`ELECTRON_RUN_AS_NODE=1 probe.js` 皆非 production 等價。只有「完整卸載舊版 → 跑 .exe installer → 檢查 resources/ 落地 → 啟動 UI」整條 path 綠才算 installer 可 release
+- **L102**(🌐 Global 強候選):**squash merge 只更新 `package.json` / `package-lock.json`,不同步 `node_modules/`**;合入後打包前必須 `npm ci` / `npm install`。CI pipeline 需強制此步驟
+- **L103**(🌐 Global 候選,已多次驗證):**先研後修 ROI 極高**;T0241(13 min)反轉 5 個假設、T0244(9 min)確認 H2,兩次研究皆避免誤派。精準對齊三要素:現象特徵區分 + 假設清單 + 建議前置檔
+- **L104**(🏠 Project 候選):**Worker Step 合併決策品質**;T0242 Worker SKIP Step 2 + 合併 Path A→B 有充分理由(VSCode 單例鎖),對照 D062「Worker 無狀態原則」此處合理。輸出判定準則
+- **L105**(🏠 Project 候選,BAT 專屬):**打包版啟動失敗 zombie 進程殘留**;3 個 `BetterAgentTerminal.exe` uninstall 前未清,Windows installer 可強制覆蓋
+- **L106**(🌐 Global 強候選):**研究型工單神速交付三要素**;(1) BUG 描述含現象特徵(區分原因空間,如「精確翻譯 vs 拼音」);(2) 塔台提供假設清單(H1-HN 含支持證據);(3) 建議前置檔(Worker 知道去哪裡看)。無此三者 Worker 需自行探索假設空間,耗時 2-3 倍
+- **L107 候選**(🌐 Global 候選):**套件升級 default 行為變動**是隱性 regression 源頭;`@kutalia/whisper-node-addon` 將 `translate` default 從 `false` 改為 `true`,升級方無文件化。應用:升級 native addon 時檢查 default params 文件或 grep `defaultParams`
+
+### 本 session 教訓
+
+1. **T0238 packaging 驗收偽陽性**:用 `ELECTRON_RUN_AS_NODE=1 probe.js` 繞過 Electron asar resolver 是假驗收(L101)
+2. **T0239/T0240 Squash merge 後缺煙測**:合入 main 後應先跑「packaged install 煙測」再派版號 bump,本輪少了這一層(L102)
+3. **套件升級隱性 default 變動**:@kutalia 將 translate 設為 true 作為 default 無文件標示,只能靠 grep `defaultParams` 發現(L107)
+4. **使用者精準描述加速診斷**:BUG-057 使用者提供「精確翻譯為英文(非拼音)」直接收斂 H2,節省大量假設測試(L106 三要素之一)
+
+### 本 session 成就
+
+- 🎉 **單 session 內兩連 regression 閉環**:從使用者截圖回報到完整修復,平均每個 bug 75 min 閉環
+- 🎉 **Worker 效率破紀錄**:4 工單平均 17.8 min wall,零 Renew 零 FAILED
+- 🎉 **塔台職責堅守**:全程不讀 code,透過工單回報區吸收 Worker 靜態分析結論,決策基於證據鏈
+- 🎉 **L103 先研後修 ROI 第三次驗證**:session 22 內兩次(T0241/T0244)皆反轉假設,若盲修會浪費 30-60 min 且可能誘發新 bug
+
+---
+
+## 🚨 本 Session 開場事件(第二十二 session,2026-04-23 03:05~)— 收工後保留備查
 
 ### Fast Path 啟動後立即觸發緊急 bug
 
 - **03:05**:使用者上傳截圖 — BAT 打包版啟動即崩潰 `Cannot find module '@kutalia/whisper-node-addon'`,require stack 指向 `app.asar\dist-electron\main.js:1:810`
 - **03:07**:塔台完成事件判定 — 🔴 High regression from `cb65614`(EXP-GPUWHIS-001 Phase 1 squash merge),T0238 packaging 驗收偽陽性(probe.js 繞過 Electron asar resolver)
 - **03:08**:需求對齊 Q1.B(pause T0241 版號 bump)/ Q2.A(開 BUG-056 + research)/ Q3.C(dir + NSIS 雙路徑驗收)→ 建 BUG-056 + T0241 + D078
-
-### 本 session pending(目前優先序)
-
-1. 🔴 **T0242 派發** — BUG-056 修復工單,`--mode on --interactive`(NSIS 重裝需使用者配合)
-2. 🟡 **T0243 排隊** — BUG-056 預防對策(build fail-fast + CI `npm ci`)待 BUG-056 CLOSED 後派發
-3. ⏸ **版號 bump**(原預留 T0241 用途)**PAUSED** — 等 BUG-056 CLOSED 後恢復,屆時另編(T0244+)
-4. ⏸ **PLAN-004 狀態更新**(session 21 pending)繼續 PAUSED
-
-### 最新編號(session 22 進行中)
-
-- T: **T0243**(T0241 DONE / T0242 TODO / T0243 TODO 排隊)
-- BUG: **BUG-056**(🔴 High 🐛 OPEN,等 T0242 修復)
-- D: **D079**(T0241 結論吸收 + 拆單決策)
-- PLAN / EXP: 無變動(PLAN-028 / EXP-GPUWHIS-001)
-
-### T0241 研究結論(H6,反轉塔台假設)
-
-- **根因**:`cb65614` squash merge 只更新 `package.json` / `package-lock.json`,main repo **從未 `npm install`**,打包時 `@kutalia/` 根本不在 `node_modules/`
-- **T0238 盲點**:worktree 打包 vs main repo 打包不等價(前者 node_modules 完整;後者缺失)
-- **修復**:**零 code 修改**,僅需 `npm install` + rebuild + NSIS 重裝驗收
-- **Worker 效率**:13 min wall(03:17-03:30),0 Renew,結論完全收斂到單一根因
 
 ### 本 session 教訓候選
 
@@ -2381,12 +2451,12 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0243(session 22 新增 T0241 research / T0242 fix / T0243 prevention) |
-| **BUG 最大編號** | BUG-056(🔴 High 🐛 OPEN,等 T0242 修復) |
+| **工單最大編號** | T0245(session 22 新增 T0241/T0242/T0243/T0244/T0245;T0243 TODO 延下 session) |
+| **BUG 最大編號** | BUG-057(🔴 High 🚫 CLOSED 05:35,T0245 單行 fix 閉環 D083) |
 | **PLAN 最大編號** | PLAN-028 |
 | **EXP 最大編號** | EXP-GPUWHIS-001(session 21 新增,📊 CONCLUDED) |
 | **上游同步版本** | v2.1.42-pre.2(2026-04-16)— ⏸ 版號 bump 暫停待 BUG-056 CLOSED |
-| **決策最大編號** | D079(session 22 新增 D078 / D079) |
+| **決策最大編號** | D083(session 22 新增 D078/D079/D080/D081/D082/D083) |
 | **塔台版本** | Control Tower v4.3.0 |
 
 ---

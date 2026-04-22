@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-23 03:35 (UTC+8)(新增 D079 — T0241 研究結論吸收,BUG-056 修復拆兩張:T0242 修復 + T0243 預防對策)
+> 最後更新:2026-04-23 05:35 (UTC+8)(新增 D083 — BUG-057 CLOSED,T0245 單行 fix 閉環,session 22 收工條件達成)
 
 ---
 
@@ -61,10 +61,111 @@
 | D077 | 2026-04-23 | EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge + 刪除 worktree | T0240 / EXP-GPUWHIS-001 |
 | D078 | 2026-04-23 | BUG-056 NSIS 打包版啟動崩潰（regression from `cb65614`）— 暫停 T0241 版號 bump，派研究工單定位根因 | BUG-056 / T0241 / cb65614 / EXP-GPUWHIS-001 |
 | D079 | 2026-04-23 | T0241 結論吸收 — BUG-056 根因為 main repo 缺 `npm install`；修復拆 T0242（npm install + NSIS 雙 path 驗收）+ T0243（build fail-fast + CI `npm ci`）| T0241 / T0242 / T0243 / BUG-056 |
+| D080 | 2026-04-23 | BUG-056 CLOSED — T0242 zero-diff fix via `npm install` + 雙 path 驗收全綠，VERIFY 決策 [1] 直接 CLOSED | BUG-056 / T0242 / `e46932e` |
+| D081 | 2026-04-23 | BUG-057 OPEN（第二 regression from `cb65614`）— 語音辨識繁中翻英，走 T0244 研究路線（A/A/A），T0243 延下 session | BUG-057 / T0244 / `cb65614` / T0243 |
+| D082 | 2026-04-23 | T0244 結論吸收 — H2 確認：`@kutalia/whisper-node-addon` default `translate: true`（舊套件 false），派 T0245 單行 fix（加 `translate: false`）+ dev mode 驗收 | T0244 / T0245 / BUG-057 / `526b7c1` |
+| D083 | 2026-04-23 | BUG-057 CLOSED — T0245 單行 fix `translate: false` 閉環,使用者雙情境(zh+auto)runtime 驗收通過,session 22 收工條件達成 | BUG-057 / T0245 / `b2124b5` |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D083 2026-04-23 — BUG-057 CLOSED — T0245 單行 fix 閉環，Session 22 收工
+
+- **背景**：T0245 Worker 10 min wall（05:25-05:35）交付修復（commit `b2124b5`），單行 diff 套用於 `electron/voice-handler.ts:462` 加 `translate: false`（含 BUG-057 inline 註解）。TS 編譯全 green，`@kutalia` 套件 `TranscribeOptions` type 本身含 `translate` 欄位，無需 `as any` cast。使用者回報「驗收通過」（情境 1 繁中 + 情境 2 auto 雙綠）。
+- **VERIFY 決策**：
+  - [1] 直接 CLOSED（使用者已 runtime 驗收）
+  - [2] 進入 VERIFY
+  - [3] 派驗收工單
+- **決定**：**[1] 直接 CLOSED**
+- **理由**：
+  1. **使用者雙情境驗收明確**：zh 設定輸出中文 ✅ + auto 設定輸出中文 ✅（auto 情境的通過同時驗證 auto-detect 正常 + translate=false 生效）
+  2. **修復範圍精確**：單行 diff 覆蓋 @kutalia default，無副作用可能
+  3. **零意外發現**：Worker 回報無其他語言路徑 / GPU 路徑退化
+- **本 session（22）收工條件達成**：BUG-056 + BUG-057 雙 CLOSED
+- **BUG-057 效率側記**：OPEN → CLOSED 合計 **50 min wall**（04:45-05:35）；對比 BUG-056 **1h 29min**（packaging 複雜度高於純 JS 邏輯）
+- **整體 session 22 救火統計**：
+  - Wall time：**2h 30min**（03:05-05:35）
+  - 兩個 regression 閉環：BUG-056（packaging）+ BUG-057（runtime flag）
+  - Worker 效率：4 個實作工單（T0241/T0242/T0244/T0245）平均 15 min wall，全 DONE
+  - 零 Renew、零 FAILED、零盲修（T0241 + T0244 皆反轉 / 排除塔台假設）
+- **相關工單**：BUG-057 / T0245 / `b2124b5` / T0244 / BUG-056（同源 regression）
+
+---
+
+### D082 2026-04-23 — T0244 結論吸收 — `@kutalia` default 行為差異，T0245 單行 fix
+
+- **背景**：T0244 Worker 9 min wall（05:16-05:25）交付研究結論（commit `526b7c1`），根因 **H2 確認成立**，H1/H3/H4/H5 全數排除（證據鏈完整）。
+- **真正根因**：`@kutalia/whisper-node-addon` 套件 **default `translate: true`**；舊 `whisper-node-addon` 套件（session 21 前）default `translate: false`。`cb65614` regression commit 的 import path 變動（`whisper-node-addon` → `@kutalia/whisper-node-addon`）**繼承了新套件的 default 行為**，voice-handler 從未明確覆寫 `translate`，導致升級即退化。
+- **關鍵機制**：whisper.cpp 的 `translate` flag 與 `language` 欄位**正交獨立** — 即使傳 `language: 'zh'`，只要 `translate: true` 仍強制翻譯為英文。使用者「沒傳 lang=zh」假設是副作用非主因（auto 模式確實沒傳 language，但 zh 模式有傳卻仍翻譯 → 證明 translate flag 才是主因）。
+- **證據鏈**（T0244 提供）：
+  - 證據 1：`node_modules/@kutalia/whisper-node-addon/dist/js/index.js:39` 顯示 `defaultParams` 含 `translate: true`
+  - 證據 2：`grep -n "translate" electron/voice-handler.ts` 整檔零命中（唯一語言相關字串為 `language`）
+  - 證據 3：`voice-handler.ts:457-466` whisperOpts 組裝僅 4 個 explicit 欄位（`model`/`fname_inp`/`use_gpu`/`no_prints`）無 `translate`
+  - 證據 4：`git diff cb65614^ cb65614 -- electron/voice-handler.ts` 唯一變動是 `use_gpu` 表達式（T0239 GPU 讀取）+ import path，與 `translate` 正交
+- **決定**：**派 T0245 單行 fix（`electron/voice-handler.ts` 加 `translate: false`）+ dev mode 驗收**
+- **理由**：
+  1. **根因單一明確**：Worker 證據鏈完整覆蓋所有假設，無歧義
+  2. **XS sizing**：1 行 diff 解決全部問題（translate=false 後 language 鏈路自動生效，auto 模式也會正確輸出中文因為 @kutalia auto-detect + translate=false 會輸出原語言）
+  3. **Dev mode 驗收夠**：本 fix 純 JS 層（voice options 組裝），非 native binary，不需 NSIS 重裝。dev 或 dir mode 可完整驗證 translate 行為
+  4. **不暴露 translate flag 到 Settings UI**：YAGNI — 本 bug 無需使用者控制 translate，強制 false 即可。若未來有翻譯需求再開 PLAN 評估
+- **執行工單**：T0245（implementation，`--mode on --interactive`，XS sizing）
+- **收工條件不變**：BUG-057 🚫 CLOSED（T0245 驗收通過後）
+- **Worker 效率側記**：T0241（BUG-056 研究）13 min + T0244（BUG-057 研究）9 min — **兩次研究型工單皆在 10-20 min XS 預估內完成**。研究前對齊愈精準（BUG 描述含現象特徵 + 塔台假設清單 + 建議前置檔），Worker 神速交付率愈高。L103（先研後修 ROI）本 session 第三度驗證
+- **相關工單**：T0244 / T0245 / BUG-057 / `526b7c1`（T0244 commit）
+
+---
+
+### D081 2026-04-23 — BUG-057 OPEN — 第二 regression 發現，A/A/A 路線（研究優先 + 救火優先）
+
+- **背景**：BUG-056 🚫 CLOSED 04:34 後 11 分鐘，使用者立即發現語音辨識繁中設定輸出為精確英文翻譯（非拼音，非音譯）。BAT voice UI 僅提供 auto / zh 兩個語言選項，兩者皆中招，100% 可重現，無 workaround。強懷疑根因 **H2**：whisper `translate: true` 在 Vulkan backend 被誤啟用（「精確翻譯為英文」是 translate mode 招牌特徵）。使用者提示「沒傳 lang=zh」亦相關（H1）。
+- **選項**（塔台給三題對齊）：
+  - Q1 調查方式：[A] 先研後修 / [B] 直接修 / [C] 探索式合一
+  - Q2 與 T0243 順序：[A] BUG-057 優先 / [B] 並行 / [C] T0243 下 session
+  - Q3 T0244 sizing：[A] XS / [B] S
+- **決定**：**Q1=A（先研後修）+ Q2=A（BUG-057 優先）+ Q3=A（XS 10-20 min）**
+- **理由**：
+  1. **Q1.A 遵循 L103**：BUG-056 T0241 剛驗證「先研後修 ROI」— 13 min 研究反轉塔台 5 個假設，避免誤派。本次根因空間雖小，但涉及 voice-handler / gpu-detector / Settings UI 三檔鏈路，直接修有風險（例如只改 translate=false 但忽略 language 未傳的問題，或改了 Settings 但 IPC 漏）
+  2. **Q2.A core UX > process hardening**：T0243 是「避免未來 BUG-056 類型重演」的預防機制；BUG-057 是「當下繁中使用者核心功能完全不可用」的 P0。L103 原則：使用者可見功能退化 > 未來防呆
+  3. **Q3.A XS 預估合理**：根因空間已由使用者提示收斂（精確翻譯 = `translate` mode 特徵 + lang 未傳假設 + cb65614 diff 範圍小）。Worker 10-20 min 可靜態分析收斂，無需大量 grep
+- **執行工單**：T0244（research，`--mode on --interactive`，XS sizing）→ T0245（fix，暫定 XS-S，待 T0244 提案定 sizing）
+- **本 session 收工條件**：BUG-057 🚫 CLOSED
+- **延後事項**（下 session）：
+  - T0243（BUG-056 預防對策）
+  - T0246 版號 bump + CHANGELOG + Homebrew tap（原 session 21 pending）
+  - PLAN-004 狀態更新
+  - `*evolve` 批次萃取 L101-L106 候選
+- **風險提示**（給使用者）：本 session 已 wall 1h40min（03:05-04:45），若 BUG-057 研究+修復再 30-60 min，合計可能達 2.5-3h。使用者可中途 `*pause` 切下 session。
+- **相關工單**：BUG-057 / T0244 / `cb65614` / BUG-056（同源 regression 已 CLOSED）/ T0243（延）
+
+---
+
+### D080 2026-04-23 — BUG-056 CLOSED — T0242 救火完成，零 source diff 修復
+
+- **背景**：T0242 Worker 39 min wall（03:55-04:34，含 2 次使用者互動未觸發 3 題上限）完成修復工單。commit `e46932e` `fix(build): restore @kutalia/whisper-node-addon via npm install (BUG-056)`。
+- **修復結果**：
+  - Step 1：`npm install` ✅ 補齊 `@kutalia/whisper-node-addon`（8 檔案完整，ggml-vulkan.dll 29.78 MB / whisper.node 413 KB 等）
+  - Step 2：SKIPPED（Worker 合理判斷合併至 Step 3/5）
+  - Step 3：Path A ✅（`npm run build:dir` 成功，`release/win-unpacked/` `@kutalia` 落地驗證通過）
+  - Step 4：✅（NSIS installer 295 MB + signtool 簽章通過，符合 T0238 基準）
+  - Step 5：Path B ✅（**使用者完整驗收**：uninstall → install → 啟動 → **Vulkan loader ✅ 偵測到截圖**）
+- **VERIFY 決策三選一**：
+  - [1] 直接 CLOSED（使用者已驗收）
+  - [2] 進入 VERIFY
+  - [3] 派驗收工單
+- **決定**：**[1] 直接 CLOSED**
+- **理由**：
+  1. **使用者 runtime 驗收證據強**：Path B Step 5 全程使用者參與 + 明確回報「安裝成功, 正確執行」+ 截圖附件（BAT 設定面板 Voice 頁籤「Vulkan loader: ✅ 偵測到」= ggml-vulkan.dll 成功 load = `@kutalia` native module 工作正常）
+  2. **零 source diff 低風險**：T0241 判定 + T0242 證實本 fix 純粹是 `npm install` 補 node_modules，無 code / config 變更，無新 regression 可能
+  3. **VERIFY 中間態無新增價值**：VERIFY 用於「code fix 完成但 runtime 尚未驗收」，本次 runtime 已驗收完整，VERIFY 只會增加流程噪音
+- **後續**：
+  1. T0243（預防對策）排隊待派 — 建議立即派發（fire-and-forget M sizing）
+  2. Session 22 pending 恢復：T0243 DONE 後 → T0244 版號 bump + CHANGELOG + Homebrew tap
+  3. 意外發現「3 個 zombie `BetterAgentTerminal.exe` 進程」另記為 L 候選 或 BUG-057 另案（不納入 T0243 範圍避免 scope creep）
+- **本 session 救火計時**：使用者 03:05 回報 → 04:34 CLOSED = **1h 29min wall**（含塔台對齊 / 研究 / 修復 / 驗收全流程）
+- **相關工單**：BUG-056 / T0241 / T0242 / `e46932e` / `cb65614`（regression 源頭）
 
 ---
 

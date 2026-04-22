@@ -4,7 +4,7 @@
 
 - **編號**：BUG-057
 - **類型**：bug
-- **狀態**：🐛 OPEN
+- **狀態**：🚫 CLOSED（2026-04-23 05:35 — T0245 單行 fix `translate: false` 套用於 `voice-handler.ts:462`，commit `b2124b5`，使用者雙情境驗收通過：zh + auto 皆正確輸出中文）
 - **嚴重度**：🔴 **High**（繁中使用者核心功能完全不可用，輸出與輸入語意一致但語言錯誤）
 - **建立時間**：2026-04-23 04:45 (UTC+8)
 - **回報者**：使用者
@@ -105,7 +105,10 @@ Whisper.cpp 有個獨特參數 `translate`：
 
 - **2026-04-23 04:34**：BUG-056 🚫 CLOSED，使用者在 Vulkan ✅ 截圖驗收後發現新問題
 - **2026-04-23 04:45**：BUG-057 OPEN，使用者提供「精確翻譯為英文（非拼音）」關鍵特徵 → 塔台判定 H2 高度懷疑
-- **(待)**：派 T0244 研究 → 根因確認 → 派 T0245 修復 → runtime 驗收 → CLOSED
+- **2026-04-23 05:16-05:25**：T0244 研究 9 min ✅ DONE（commit `526b7c1`），H2 確認：@kutalia default `translate: true`（舊套件 false），D082 吸收
+- **2026-04-23 05:25-05:35**：T0245 修復 10 min ✅ FIXED（commit `b2124b5`），單行 diff `voice-handler.ts:462` 加 `translate: false`，使用者雙情境（zh + auto）runtime 驗收通過
+- **2026-04-23 05:35**：BUG-057 🚫 CLOSED（D083）— VERIFY 決策 [1] 直接 CLOSED
+- **合計**：BUG-057 OPEN → CLOSED wall time **50 min**（04:45-05:35），含研究 9 min + 修復 10 min + 塔台吸收/派發 31 min
 
 ---
 

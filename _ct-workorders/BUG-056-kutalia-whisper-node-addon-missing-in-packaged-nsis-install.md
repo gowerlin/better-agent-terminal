@@ -4,7 +4,7 @@
 
 - **編號**：BUG-056
 - **類型**：bug
-- **狀態**：🐛 OPEN
+- **狀態**：🚫 CLOSED（2026-04-23 04:34 — T0242 Path A + Path B 雙驗收全綠，使用者 runtime 確認「安裝成功, 正確執行」+ Vulkan loader ✅ 偵測到截圖證據；commit `e46932e`，零 source diff）
 - **嚴重度**：🔴 High（打包版完全無法啟動，阻塞 release）
 - **建立時間**：2026-04-23 03:08 (UTC+8)
 - **回報者**：使用者（runtime 截圖證據）
@@ -103,7 +103,11 @@ T0238 當時報「NSIS 291 MB + asarUnpack + `ELECTRON_RUN_AS_NODE=1 probe.js` �
 
 - **2026-04-23 03:05**：使用者截圖回報打包版啟動即崩潰
 - **2026-04-23 03:08**：BUG-056 OPEN，D078 記錄處理策略
-- **(待)**：派 T0241 研究 → 根因確認 → 派修復工單 → NSIS 重裝驗收 → CLOSED
+- **2026-04-23 03:17-03:30**：T0241 研究 13 min DONE，結論 H6 反轉塔台假設（root cause = squash merge 未跑 `npm install`）
+- **2026-04-23 03:35**：D079 拆單 T0242（fix）+ T0243（prevention）
+- **2026-04-23 03:55-04:34**：T0242 39 min ✅ FIXED，commit `e46932e`，零 source diff，雙 path 驗收全綠
+- **2026-04-23 04:34**：BUG-056 🚫 CLOSED（D080）— 使用者 runtime 驗收通過 + Vulkan loader 證據截圖
+- **Post-close**：T0243（預防對策）排隊待派，確保類型重演防護（build fail-fast + CI `npm ci`）
 
 ---
 
