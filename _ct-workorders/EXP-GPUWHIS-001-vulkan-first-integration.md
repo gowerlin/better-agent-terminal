@@ -102,8 +102,17 @@ git worktree add ../bat-gpu-whisper-vulkan -b exp/gpu-whisper-vulkan
   - T-C runtime detection 要涵蓋 CPU fallback(use_gpu: true 已為 auto-detect,但需驗證 driver 太舊 / Intel iGPU compute feature 的行為)
   - T-D PR 回主線時 type 定義需補 unwrap 處理
 
-### T-B 產出
-<!-- 派發後填寫 -->
+### T-B 產出(T0238,2026-04-23 02:03 完成,commit `2080880`)
+
+- **狀態**:✅ DONE(4/4 必過判準全綠)
+- **結果**:electron-builder 26 打包 + asarUnpack + packaged Vulkan runtime 三層完整驗證通過
+- **產出**:
+  - NSIS installer:`BetterAgentTerminal Setup 1.0.0.exe` 291 MB
+  - Portable zip:`BetterAgentTerminal-1.0.0-win.zip` 413 MB
+  - asarUnpack pattern 實用:`node_modules/@kutalia/whisper-node-addon/**/*`
+- **關鍵發現**:`ELECTRON_RUN_AS_NODE=1 probe.js` 證明 packaged BAT 的 Vulkan 通路完整可用(不只 dev mode),端到端轉錄通過
+- **體積符合預期**:增量 +80 MB whisper addon 實測吻合 T0236 spec 估算
+- **對 T-C 啟示**:packaged form Vulkan runtime OK → T-C 可專注於 detection 邏輯設計,不需再驗證 runtime 路徑
 
 ### T-C 產出
 <!-- 派發後填寫 -->
