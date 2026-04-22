@@ -2,13 +2,13 @@
 
 | 欄位 | 內容 |
 |------|------|
-| **狀態** | 📐 PLANNED(T0229 研究工單派發中)|
+| **狀態** | 📐 PLANNED(T0229 research ✅ DONE,可啟 Phase 1)|
 | **優先級** | 🟡 Medium |
 | **類型** | 技術改善（可用性 / 維運彈性） |
 | **建立時間** | 2026-04-22 |
 | **建立者** | Gower |
 | **驅動契機** | Claude CLI 更新頻繁（新功能 / bug fix），但 `@anthropic-ai/claude-agent-sdk` interface 相對穩定。內嵌版作為「保底能用」的安全網，使用者若想立即取得新版 CLI 能力應能 opt-in 切換到系統安裝版，不必等 BAT 重新打包。 |
-| **關聯** | CLAUDE.md「Claude Agent SDK / CLI」段、`electron/claude-agent-manager.ts` |
+| **關聯** | T0229 research ✅ DONE(commit `b622b6e`)、研究報告 `_report-plan027-claude-runtime-selection.md`(498 行)、CLAUDE.md「Claude Agent SDK / CLI」段、`electron/claude-agent-manager.ts`、`electron/node-resolver.ts`(複用模式) |
 
 ---
 
@@ -90,21 +90,33 @@ interface ClaudeRuntimeSettings {
 
 ---
 
-## 初步拆單建議（待 CT-T009 完成後排程）
+## 正式拆單（T0229 研究後收斂,2026-04-22）
 
-| # | 工單主題 | 粒度估計 | 依賴 |
-|---|---------|---------|------|
-| 1 | 研究工單：child_process 接 SDK transport 可行性 + Windows/macOS/Linux `claude` binary 偵測策略 | research，~45-60 min | — |
-| 2 | Settings schema + IPC 通道（main ↔ renderer） | T 單，~30 min | #1 |
-| 3 | 路徑偵測 + 版號 parse + 健康檢查 | T 單，~45 min | #1, #2 |
-| 4 | Runtime routing 實作（agent-manager 分流） | T 單，~60 min | #3 |
-| 5 | Fallback 邏輯 + toast 通知 | T 單，~30 min | #4 |
-| 6 | Settings UI（Advanced 分頁） | T 單，~45 min | #2, #3 |
-| 7 | 整合測試 + 文件（CLAUDE.md 更新） | T 單，~30 min | #1-6 |
+> 原 7 張 → 收斂為 5 張,總估時 3h 40min(原 4-5h)。依據見 T0229 報告 R5 章節。
 
-**總估計**：~4-5 小時 wall time（視 #1 研究結果可能擴大或收斂）。
+| # | 工單主題 | scope 摘要 | 預估工時 | 依賴 |
+|---|---------|-----------|---------|------|
+| **#1** | 系統 claude 偵測 + 健康檢查 + Settings schema | 新增 `electron/claude-resolver.ts`(R2 PATH 搜尋 + R3 Level B health check)、`ClaudeRuntimeSettings` interface 寫入 SettingsStore、IPC `claude:detectRuntime` channel(main → renderer 回 `{ embeddedVersion, systemVersion, systemPath, healthStatus }`) | 60 min | — |
+| **#2** | Runtime routing + fallback + toast | `claude-agent-manager.ts` 三處 spawn 點(`runQuery` / `createSessionV2` / `forkSession`)讀 `settings.claudeRuntime.mode`,若 system 則呼叫 #1 的 resolver 取得路徑;失敗時 fallback `resolveClaudeCodePath()` 並透過 IPC 通知 renderer 顯示 toast | 45 min | #1 |
+| **#3** | Settings UI(Advanced 分頁 → Claude Runtime 區塊) | radio button(embedded / system)+ path input + Browse... 按鈕 + version badges + healthy/unhealthy 指示 + hint「Changes apply to new sessions only」 | 60 min | #1, #2 |
+| **#4** | 整合測試 + session state spike + 跨平台手動驗證 | (a)單元測試:resolver / health check / version parse;(b)spike:切換 runtime 後 resume 同一 sdkSessionId 是否 OK(R4 陷阱 #4);(c)手動跑 Windows + macOS + Linux 驗證 PATH 偵測、`.cmd` shim 處理、Gatekeeper toast | 45 min | #1-#3 |
+| **#5** | 文件更新(CLAUDE.md「Claude Agent SDK / CLI」段補 runtime 切換說明)+ Release note | 寫成使用者導向文件:「為什麼有兩個選項」「什麼時候用 system」「fallback 行為」「常見故障」 | 30 min | #1-#4 |
 
-**建議切入點**：從 #1 研究工單開始，驗證 child_process 模式接 SDK 的可行性是否有隱藏陷阱（例如 stdio streaming、auth token 傳遞、working directory）。
+**總估時:3h 40min wall time。**
+
+### 平行化建議
+
+- **#1 / #2 不可平行**(routing 需要 resolver 介面)
+- **#3 可在 #2 進入收尾時平行起跑**(只要 #1 完成、IPC contract 定下來,UI 可獨立寫 mock)
+- **#4 / #5 序列執行**
+
+### 關鍵技術決策(來自 T0229)
+
+- **SDK transport**:用官方 `pathToClaudeCodeExecutable` option(已是 BAT 現有模式,改 path 字串即可)
+- **版號策略**:Level B(`--version` parse)。regex `/^(\d+\.\d+\.\d+(?:-\w+)?)\s+\(Claude Code\)/`。接受 `>= 2.0.0`、`< 2.1.111` warning、`< 2.0.0` 拒絕
+- **Windows shim**:`.cmd`/`.bat` 偵測時優先選 `.exe`(避 Node `.cmd` CVE 行為)
+- **Auth/env**:完全繼承 `process.env`,BAT 不介入系統 claude 的 auth chain
+- **Session state**:R4 陷阱 #4 未完全敲定,#4 工單實機 spike
 
 ---
 
@@ -122,15 +134,40 @@ interface ClaudeRuntimeSettings {
 
 ## 排程提示
 
-- **當前阻塞**：CT-T009 v4.3.3 patch（BMad-Guide 跨專案 DELEGATE，Selene v4.3.3 實測後才處理後續）
-- **本 PLAN 啟動時機**：CT-T009 閉環後，若無其他 🔴 High 任務則進入 #1 研究工單
-- **可平行化**：#2（Settings schema）與 #1（研究）可同時進行，但 #3 之後需等研究結論
+- **當前阻塞**:無(T0230 #1 已 DONE)
+- **下一步**:派發 #2 實作工單(Runtime routing + fallback + toast,45 min,依賴 T0230)
+- **可平行化**:#3 UI 可在 #2 收尾時起跑(IPC contract 已 freeze 在 T0230)
 
 ---
 
 ## 回報 / 決議紀錄
 
-（PLAN 進行中由塔台於此區更新）
+### 2026-04-22 第十九 session — T0229 研究完成 + PLAN-027 進入實作
+
+**T0229 ✅ DONE**(12:20,commit `b622b6e`):
+- R1-R5 全部可行,核心 routing 僅 1-3 行差別
+- 拆單收斂 7 → 5 張,總估時 3h 40min(原 4-5h)
+- 報告 `_report-plan027-claude-runtime-selection.md`(498 行)
+- 互動 1/3 輪(效率高)
+
+**本輪決議**:依 T0229 R5 建議正式收斂拆單,**準備派發 #1 實作工單**。
+
+### 2026-04-22 12:42 — T0230 (#1) DONE
+
+**T0230 ✅ DONE**(12:38-12:42,4 min,commit `4894b18` + `63a65e6`):
+- **9/9 AC 全綠** + bonus AC-9(17 unit tests 全通過)
+- 新增 `electron/claude-resolver.ts`(~210 行)+ `tests/claude-resolver.test.ts`
+- IPC `claude:detectRuntime` + preload bridge + remote proxy 已加好
+- `tsc --noEmit` exit 0
+
+**Worker 自決修正(教訓)**:
+- 工單原寫「擴充 `electron/settings-store.ts`」,**實際 settings-store 在 `src/stores/`**(renderer 端,透過 IPC 持久化到 main 的 `settings.json`)
+- Worker 自決寫到正確位置:`src/types/index.ts`(interface)+ `src/stores/settings-store.ts`(setter)
+- **教訓傳遞給 T0231+**:直接引用 `src/types/index.ts` 的 `ClaudeRuntimeSettings` / `ClaudeRuntimeMode`,別複製到 `electron/`。ClaudeRuntimeSettings 已在 renderer store,electron 側從 IPC 取。
+
+**AC-7 備註**:本專案 `package.json` 無 `lint` script / 無 eslint dep,AC-7 的 lint 部分不適用,僅 `tsc --noEmit` 驗收。T0231+ AC 寫法可直接去掉 lint。
+
+**下一步**:派 T0231(#2 Runtime routing + fallback + toast,45 min)。
 
 ---
 

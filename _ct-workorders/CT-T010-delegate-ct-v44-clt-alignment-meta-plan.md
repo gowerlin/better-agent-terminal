@@ -5,9 +5,11 @@
 - **工單編號**:CT-T010
 - **任務名稱**:【受派】在 BMad-Guide 建立 CT v4.4.x 主 PLAN + Phase 1-4 拆單骨架(CLT 對齊 6 項改良)
 - **類型**:planning(DELEGATE, 跨專案, meta-PLAN + 工單骨架)
-- **狀態**:🚚 DISPATCHED
+- **狀態**:✅ DONE
+- **完成時間**:2026-04-22 11:25 (UTC+8)
 - **建立時間**:2026-04-22 11:45 (UTC+8)
 - **派發時間**:2026-04-22 11:46 (UTC+8) — 剪貼簿指令寫入,等使用者切 `D:/ForgejoGit/BMad-Guide/` 貼上
+- **開始時間**:2026-04-22 11:18 (UTC+8)
 - **派發模式**:`--mode yolo`(Worker 自動 commit + 回報主 PLAN 編號 + 所有 Phase 工單編號)
 - **預估工時**:45-60 min(純規劃,不實作)
 - **優先級**:🟡 Medium(策略性改良,非急件)
@@ -179,19 +181,45 @@ git push origin dev-main
 
 ### 完成狀態
 
-(待 Worker 填寫)
+✅ DONE
 
 ### 產出摘要
 
-(待 Worker 填寫)
-- 目標 repo commit hash:
-- 主 PLAN 編號:
-- Phase 1-4 工單編號清單:
-- `_cross-references.md` 處理:
+- **目標 repo commit hash**:`e362ed1`(`D:/ForgejoGit/BMad-Guide/`,branch `dev-main`)
+- **主 PLAN 編號**:**T0098**(該 repo 使用 `T####` 單一編號流,PLAN 系統尚未啟用,以 `類型: planning` 工單承載 meta-PLAN 角色)
+- **Phase 1-4 工單編號清單**:
+  - Phase 1(audit-only + 快勝):T0099 / T0100 / T0101(共 3 張)
+  - Phase 2(template v3.7 + evolve prompt):T0102 / T0103 / T0104(共 3 張)
+  - Phase 3(evolve 輸出拆 tactical / strategic):T0105(1 張)
+  - Phase 4(CT 設計依據 doctrine):T0106(1 張)
+  - 全部 8 張狀態 📋 TODO,未實作內容
+- **`_cross-references.md` 處理**:目標 repo **無**此機制(僅 BAT 側有),依 AC-4 合理跳過,未建立新檔
+- **Sanitize 驗證**:對 9 張新檔執行 `grep -iE "selene|gower|better-agent-terminal|cooperative|\bBAT\b|PLAN-028|CT-T010"` 結果為 0 筆命中(原本 T0106 有一筆「sanitize 規則範例」含關鍵字作為 grep 模式 → 已改寫為通用描述)
+- **commit 內容**:僅包含 9 張新 T#### 檔案,未動其他 untracked / modified 檔(T0097 / _learnings.md / _tower-state.md / 無關 zip 與 spec 檔留在工作樹)
 
-### 剩餘手動動作(交 Gower)
+### 剩餘手動動作(交使用者)
 
-(待 Worker 填寫)
+```bash
+# 1. Review 骨架內容
+cd D:/ForgejoGit/BMad-Guide
+git show e362ed1 --stat
+# 讀 T0098 meta-PLAN + T0099-T0106 八張骨架,判斷拆法 / 粒度是否接受
+
+# 2. 若接受則 push(本工單僅建立骨架,不 tag / 不 release)
+git push origin dev-main
+
+# 3. 回 BAT 塔台告知:
+#    - 主 PLAN 編號 T0098(對應 PLAN-028 回填)
+#    - 目標 repo commit hash e362ed1
+#    - 塔台可同步更新 BAT 側 _cross-references.md 加 T0098 連結
+```
+
+### 遭遇問題
+
+無阻斷性問題。以下為實作判斷註記:
+
+1. **編號規則**:工單建議使用 `CT-P###` 或 repo 慣例,實際觀察目標 repo `_tower-state.md` 的「編號追蹤」表顯示 `PLAN (未啟用)`,且 `_ct-workorders/` 全數為 `T####` 格式 → 採用 T0098 承載 meta-PLAN(類型填 `planning`),最小化對現況編號流的衝擊。
+2. **commit 範圍**:工作樹原有未提交變更(T0097、_learnings.md、_tower-state.md、無關 zip)與本工單無關,commit 僅 stage 9 張新檔,避免混入不屬於本規劃的改動。
 
 ### Renew 歷程
 

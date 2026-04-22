@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-18 12:45 (UTC+8)（新增 D059 PLAN-020 yolo 插隊啟動 + D060 yolo 資訊來源 Q2.A）
+> 最後更新:2026-04-22 12:20 (UTC+8)(新增 D074 BAT 塔台接手 Phase 1-4 派發)
 
 ---
 
@@ -55,10 +55,32 @@
 | D071 | 2026-04-20 | PLAN-021 dev smoke 驗收暫緩,UX 另案 | PLAN-021/T0218/T0219 |
 | D072 | 2026-04-20 | archive_days 7 → 2 歸檔門檻調整 | _tower-config.yaml / *archive |
 | D073 | 2026-04-20 | PLAN-022 結案,Step 3 TOFU fallback 不做 | PLAN-022 / T0217 |
+| D074 | 2026-04-22 | BAT 塔台接手 Phase 1-4 派發(T0099-T0106)| PLAN-028 / CT-T010 / T0098 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D074 2026-04-22 — BAT 塔台接手 Phase 1-4 派發(T0099-T0106)
+
+- **背景**:CT-T010(2026-04-22 11:25 ✅ DONE,commit `e362ed1`)交付 BMad-Guide 主 PLAN T0098 + Phase 1-4 骨架 8 張(T0099-T0106,全 📋 TODO)。原本 CLT 對齊 6 項改良預期由 BMad-Guide 自行推進,BAT 僅作 dogfood 驗證場 #1。
+- **選項**:
+  - A. BAT 僅 dogfood,Phase 1-4 交還 BMad-Guide 自行派發
+  - B. BAT 塔台接手 Phase 1-4 派發,透過 CT-T### DELEGATE 工單逐張推進 T0099-T0106
+- **決定**:B(BAT 接手派發)
+- **理由**:
+  1. **consumer 感最強**:BAT 已是 CT skill 成熟 consumer,對 6 項改良(intervention_type / affects_files / spec_level_check / *evolve distillation 等)在真實工作流的痛點最清楚
+  2. **double-loop 第一 loop 就地承擔**:BAT dogfood + 2026_Cooperative 激進驗證的雙 loop 架構下,第一 loop 直接主導派發能壓縮回饋路徑
+  3. **DELEGATE 模式已熟**:CT-T008/T009/T010 連續三張 DELEGATE 都順利交付(含 yolo 模式),pattern 已驗證
+  4. **skill 改動風險可控**:T0098 骨架 sanitize 零命中,BMad-Guide worker 執行時 BAT 塔台僅做協調與驗收,不寫 CT skill 檔
+- **執行模式**:
+  - 每個 Phase 以 CT-T### DELEGATE 工單派發(mode 依 Phase 風險決定,Phase 1 可 yolo、Phase 2 建議 non-yolo)
+  - 派發順序:Phase 1(audit,低風險熱身)→ Phase 2(template 最高衝擊)→ Phase 3(*evolve 輸出拆分)→ Phase 4(doctrine 文件)
+  - BAT 本地 dogfood 在每個 Phase 交付後立即做(`*sync` / `*evolve --status` / 新工單驗證 template v3.7 等)
+- **時機**:等 T0229(PLAN-027 research)回報後評估 — 若 T0229 結論明確且 PLAN-027 Phase 1 派發不急,可先啟 CT v4.4 Phase 1;若 PLAN-027 需立即推進,CT v4.4 Phase 1 延後
+- **關聯**:PLAN-028(主 PLAN 接手登記)/ CT-T010(骨架交付)/ T0098(BMad-Guide meta-PLAN)/ L089(跨專案 DELEGATE 降格模式)
 
 ---
 
