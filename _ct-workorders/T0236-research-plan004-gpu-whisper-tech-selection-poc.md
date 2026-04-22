@@ -4,7 +4,8 @@
 
 - **編號**:T0236
 - **類型**:research(允許 Worker 與使用者互動)
-- **狀態**:📋 TODO
+- **狀態**:🔄 IN_PROGRESS
+- **開始時間**:2026-04-23 00:53 (UTC+8)
 - **優先級**:🟡 Medium(平行投資,side quest,不阻塞主線)
 - **建立時間**:2026-04-23 00:50 (UTC+8)
 - **派發模式**:`--mode on --interactive`(自動開新 tab + Worker 可問問題)
@@ -125,31 +126,64 @@
 
 ## 回報區(Worker 填寫)
 
+### 完成狀態
+
+DONE
+
 ### 研究結論摘要
 
-<!-- Worker 完成後填寫:一段話總結雙軌選型建議 -->
+**雙軌假設已被 2026 年生態現況翻轉 — Vulkan 在 2025 下半年到 2026 Q1 已成熟為 BAT 場景首選**。`@kutalia/whisper-node-addon@1.1.0`(2025-07)已 ship Win/Linux Vulkan prebuilt,零環境配置 + 跨 NVIDIA/AMD/Intel 全覆蓋 + installer 膨脹僅 +30-50 MB。CUDA 雖理論速度快 20-30%,但對 Whisper 場景無感,且無 Electron ABI 145 相容的 CUDA prebuilt 套件,任何 CUDA 方案都需 BAT 自行 fork + CI 拉 CUDA Toolkit,膨脹 +150-300 MB、UX 衝擊中等。**推薦 Vulkan-first 取代原 T0236「CUDA-first + Vulkan fallback」假設,CUDA 保留為未來 advanced tier**。完整對比見報告 §6.3,PoC 腳本見 §5.2 / §5.3,Phase 1 拆單建議見 §7(T-A/B/C/D 共 4 張)。
 
 ### 5 項範圍執行結果
 
-1. CUDA 生態:
-2. Vulkan 生態:
-3. BAT 整合影響面:
-4. PoC 可行性:
-5. 雙軌實作計畫:
+1. **CUDA 生態**:`nodejs-whisper@0.2.9`(2025-05)支援 `withCuda` 但無 prebuilt,需 MinGW/MSYS2;whisper.cpp 原生 `-DGGML_CUDA=1` 編譯可用,Win MSVC 10-20 分鐘,binary +150-300 MB。**沒有**任何 npm 套件同時滿足「Electron ABI 145 + CUDA prebuilt + 零環境配置」。
+2. **Vulkan 生態**:whisper.cpp v1.8.3(2026-01)專為 iGPU 做 12x 優化,**Stable**(非 experimental),跨 NVIDIA+AMD+Intel 覆蓋,社群實測 ≈ 10x CPU;Kutalia fork 已 ship prebuilt,但 fork 底層 whisper.cpp 停在 v1.7.6(2025-07)未含 v1.8.3 優化。
+3. **BAT 整合影響面**:三套路徑(A: Kutalia 現成 / B: BAT fork+rebase / C: CUDA)詳見 spec §4.2。Path A installer +30-50 MB、UX 零衝擊;Path C installer +150-300 MB、UX 中等衝擊。現行 `use_gpu: process.platform === 'darwin'` 若切 Path A 改為 `use_gpu: true`(套件內建自動偵測)。
+4. **PoC 可行性**:依 Q2.B 決策走 EXP worktree 流程,本 session **未**實跑 CUDA 編譯(需使用者在 worktree 內執行,避免主線汙染)。PoC 腳本、停損條件、預期輸出見 spec §5。使用者環境 Win+NVIDIA+WSL Linux 均可完整實戰。
+5. **雙軌實作計畫**:Phase 1 建議 4 張工單(T-A Vulkan PoC / T-B electron-builder 打包驗證 / T-C Runtime GPU 偵測 + CPU fallback 設計 / T-D 正式化決策),sizing 分別 L/M/M/S。詳見 spec §7。
 
 ### 產出連結
 
-- 技術選型報告:`_ct-workorders/_spec-gpu-whisper-2026-04.md`(建議路徑)
-- PoC commit:`<hash>` on worktree branch `exp/gpu-cuda-poc`
-- 建議 Phase 1 拆單:
+- **技術選型報告**:[`_ct-workorders/_spec-gpu-whisper-2026-04.md`](./_spec-gpu-whisper-2026-04.md) ✅
+- **PoC commit**:未產出 — 依 Q2.B 決策交由 EXP-GPUWHIS-001 後續實作工單在 worktree 內產出
+- **建議 Phase 1 拆單**:見 spec §7
+  - T-A:Vulkan PoC worktree + 套件替換驗證(L)
+  - T-B:electron-builder 26 打包驗證(M)
+  - T-C:Runtime GPU 偵測 + CPU fallback 策略設計(M)
+  - T-D:EXP-GPUWHIS-001 正式化或 Phase 2 派工決策(S)
+
+### 互動紀錄
+
+- [00:53] Q: 研究前釐清(PoC 硬體環境 / Phase 1 落地偏好 / Vulkan 調查深度) → A: Q1.A(Win+NVIDIA)+ Linux on WSL / Q2.B(EXP worktree 正式化)/ Q3.C(Vulkan 完整 PoC) → Action: 進入完整雙 worktree PoC 模式,走 EXP 實驗分支流程,CUDA 與 Vulkan 同等深度
 
 ### 風險 / 阻塞 / 意外發現
 
+**意外發現**:
+1. **雙軌假設已翻轉**:T0236 工單假設「CUDA-first + Vulkan fallback」,但 2026 生態已反轉為「Vulkan-first 即可滿足 80% 使用者」。CUDA 在 Whisper 場景的速度優勢不顯著,且 prebuilt 生態落後。
+2. **Kutalia fork 已 9 個月未更新**(最後 commit 2025-07-18),其 whisper.cpp submodule 停在 v1.7.6 時代,**不含** v1.8.3 的 12x iGPU 優化。這不是 show-stopper,但若 PoC 實測 Vulkan 效能不如預期,升級路徑是 BAT 自 fork Kutalia + rebase upstream v1.8.4。
+
+**風險**(詳見 spec §6.4):
+- Kutalia 上游停更(中機率、中衝擊)
+- Kutalia whisper.cpp fork 停在 v1.7.6(高機率、中衝擊,但可緩解)
+- Electron 41 ABI 145 與 node-addon-api 8.3.1 不相容(低機率、高衝擊,PoC 第一件事驗證)
+- Intel iGPU compute feature 不支援(中機率影響特定硬體、低衝擊,可 fallback)
+
+**阻塞**:無。
+
 ### Renew 建議
 
-- [ ] 結論清晰 → 塔台可派 impl 工單
+- [x] **結論清晰** → 塔台可派 Phase 1 impl 工單(T-A/B/C/D)
 - [ ] 結論不清晰 → 建議 Renew(補充說明)
-- [ ] 建議改走 EXP → 建議塔台 `*exp GPUWHIS <描述>`
+- [x] **建議改走 EXP** → 建議塔台 `*exp GPUWHIS-001 vulkan-first-integration`
+  - 理由:(1) 使用者 Q2.B 已選 EXP worktree;(2) PoC 本質為實驗;(3) 成熟後再 PR 回主線符合 Local Rules EXP 工作流;(4) T-A/B/C/D 可全部併入 EXP-GPUWHIS-001 統一追蹤
+
+### Renew 歷程
+
+無。
+
+### 回報時間
+
+2026-04-23 01:05 (UTC+8)
 
 ---
 
