@@ -1,6 +1,72 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-22 21:00(**第二十 session 快收工:BUG-055 登記 + *sync 全量 + *archive 批次歸檔 101 張 + CT-T010 真相發現(對端自主完成 Phase 1-2)+ D074 過時標記**)
+> 最後更新:2026-04-23 02:45(**第二十一 session 收工:熱區 5 清理(BUG-050/055 + PLAN-024/025 + T0228)+ PLAN-004 Phase 1 完全閉環(EXP-GPUWHIS-001 CONCLUDED,main 新 feature commit `cb65614`)+ 3 條決策(D075/D076/D077)**)
+
+---
+
+## 🛏 本 Session 退出快照(第二十一 session,2026-04-23 00:12-02:45,~2.5h,高產出 session)
+
+### 本輪時間線
+
+1. **00:12-00:15**(恢復):Fast Path(快照 <7 天)→ CT 交接摘要(v4.4.0 release pipeline)→ 澄清:BAT 只需檢查是否要配合 CT 新模式 → 擬回覆 CT「BAT 無強制改動」→ 交接作廢
+2. **00:15-00:27**(熱區清理):BUG-050 VERIFY → CLOSED(使用者驗收) / PLAN-024 DROPPED(BUG-050 閉環後不需要)/ PLAN-025 DROPPED + T0228 CANCELLED(移交 CT v4.4 上游統一實作)/ BUG-055 OPEN → WONTFIX(單次觀測 + 有 workaround)
+3. **00:27-00:50**(PLAN-004 啟動):選項 B 平行 research,需求對齊 Q1.B/Q2.D/Q3.A → 建 T0236 research 工單 `--mode on --interactive`
+4. **00:53-01:05**:**T0236 Worker 12 min 神速交付**(commit `f6a2720` + `28fa867`)— 技術選型報告 `_spec-gpu-whisper-2026-04.md`(360 行),結論**翻轉原假設**:CUDA-first + Vulkan fallback → Vulkan-first + CUDA 未來 advanced tier
+5. **01:10**:🚨 YOLO 斷點 C(Worker 跨 PLAN 建議走 EXP)→ 使用者拍板 C→A 序:先記 D075,再建 EXP-GPUWHIS-001
+6. **01:15**:派 **T0237 T-A**(L sizing,`--mode on --interactive`)→ Worker 13 min(commit `bd27732`)→ 🟡 PARTIAL 停損 #2 觸發(perf 0.99x CPU,根因 GTX 1050 Ti Pascal 無 fp16)
+7. **01:35**:🚨 YOLO 斷點 B(Renew #1 = yolo_max_retries: 1 閾值)→ 使用者「保留成果,硬體升級時自動開啟支援」→ Q1.A 推進 T-B/C/D 合入主線
+8. **01:40**:記 D076 + T0237 PARTIAL → DONE(塔台接受)+ 派 **T0238 T-B**(M sizing)
+9. **02:03**:T0238 Worker 18 min(commit `2080880`)→ ✅ 4/4 全綠 — NSIS 291 MB + asarUnpack + `ELECTRON_RUN_AS_NODE=1 probe.js` 驗證 packaged Vulkan runtime
+10. **02:08-02:33**:派 **T0239 T-C**(M sizing)→ Worker 25 min(commit `eba79b1`)→ ✅ 5/5 全綠 + 0 互動 + 0 Renew — `gpu-detector.ts` 203 行 + Settings UI + 13/13 tests
+11. **02:40**:記 D077 + 派 **T0240 T-D**(S sizing)→ Worker 4 min(commit `e760b48`,main `cb65614`)→ ✅ 5/5 全綠 — Squash merge + build 三連綠 + worktree 清理 + EXP-GPUWHIS-001 📊 CONCLUDED
+12. **02:45**:退出快照收工
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **熱區清理** | 5 張:BUG-050(🧪→🚫 CLOSED)/ BUG-055(🐛→⛔ WONTFIX)/ PLAN-024(📋→🚫 DROPPED)/ PLAN-025(📋→🚫 DROPPED 移交 CT)/ T0228(📋→🚫 CANCELLED) |
+| **新 Research** | T0236 ✅ DONE(12 min,技術方向翻轉) |
+| **新 EXP** | EXP-GPUWHIS-001 📊 CONCLUDED(Vulkan-first 整合實驗) |
+| **新 Impl 工單** | T0237/T0238/T0239/T0240 全 ✅(T-A/B/C/D 四張 Phase 1) |
+| **決策** | D075 Vulkan-first 翻轉 / D076 T-A PARTIAL 接受(硬體瓶頸)/ D077 Squash merge |
+| **主線 feature** | `cb65614` `feat(voice): GPU acceleration via Vulkan (EXP-GPUWHIS-001 Phase 1)` |
+| **新檔** | `electron/gpu-detector.ts`(203 行)+ `tests/gpu-detector.test.ts`(155 行,13/13)+ `_spec-gpu-whisper-2026-04.md`(研究報告 360 行)+ 5 張工單檔 |
+| **commits**(session 內) | 15+ 個塔台 meta + Worker feature commits |
+
+### 下 session pending(優先序)
+
+1. 🟡 **T0241 版號 bump + CHANGELOG + Homebrew tap**(Q4.B 延後項,GP036 v1.1 minor/patch bump 流程)
+2. 🟡 **PLAN-004 狀態更新** — Phase 1 DONE,Phase 2(CUDA advanced tier)在 Vulkan 零配置優勢下**必要性待重新評估**(已 Kutalia 涵蓋跨 vendor)
+3. 🟢 **CT v4.4.0 GA 後 Pull Layer 1**(session 20 原優先序 Step 1,非阻塞)
+4. 🟢 **EXP-GPUWHIS-002** — 未來使用者升級 RTX 30/40 / Ada / RDNA3 / Arc 等 fp16 GPU 後實測 10x CPU 目標驗證
+
+### 不急項目
+
+- 🔄 PLAN-021 IN_PROGRESS(等 dev smoke)
+- 💡 backlog 其他 🟢 Low(PLAN-002/007/013/014/015/026)
+- T0153 PARTIAL(Git GUI spike,擱置)
+- PLAN-028 PLANNED(BAT dogfood CT v4.4,等 GA)
+
+### 恢復指引
+
+1. Fast Path 載入本快照
+2. **優先序 1**:T0241 版號 / CHANGELOG(如需發 release)
+3. **優先序 2**:PLAN-004 狀態整理(Phase 1 DONE 標記 + Phase 2 重新評估)
+4. 下 session 新單編號起始:**T0241 / BUG-056 / PLAN-029 / D078 / EXP-(依 topic 另開)**
+
+### 本 session 學習候選(待 `*evolve` 萃取)
+
+- **L094 Worker 神速交付模式**:T0236 12 min / T0240 4 min / T0237/8/9 13/18/25 min — 塔台精準 scope + 明確停損 + spec 連結讓 Worker 可 fire-and-forget,0 互動(T0239/T0240)或極少互動(T0237)仍達成高品質
+- **L095 研究工單反轉原假設的價值**:T0236 翻轉雙軌 → Vulkan-first 是**最有 ROI 的 12 min**。前研 T0058(2026-04-12)假設已過時,若直接派 impl 會走錯方向 3-5 天;先跑 research 省下大量 downstream 成本
+- **L096 硬體瓶頸 vs 套件缺陷的判定**:T-A 停損 #2 觸發時,Worker 提供雙根因分析(套件完美 + 硬體 Pascal fp16 瓶頸)讓塔台能正確接受 PARTIAL 推進 T-B/C/D。若 Worker 只報「perf 不達標」未分析根因,容易誤判為套件問題 → ABANDONED
+- **L097 Squash merge vs regular merge 的 EXP 歷史保留**:D077 決策 squash 保留 3 commit hash(bd27732/2080880/eba79b1)到 D 日誌 → 未來需對照 T-A/B/C 細節仍可查 reflog / 重建 branch;main 歷史乾淨 bisect 友善
+- **L098 use_gpu: true auto-detect + 靜態 vulkan loader 探測 hybrid 模式**:T-C Q1=A+hybrid 方案(不引入 systeminformation 重依賴 + 不 spawn probe subprocess)比純 explicit probe 輕量 10x,仍能生成完整 UI hint。通用 pattern 候選
+
+### 本 session 教訓
+
+- **L099 使用者指示釐清的 cost**:開場「交接摘要」被誤讀為執行請求,Q1 作用域確認才發現實際需求是「BAT 檢查是否需配合 CT」。**教訓**:接收到複雜交接時,先做 1 輪作用域澄清再承諾工作,可省下誤派 CP-DELEGATE 工單的成本
+- **L100 YOLO 斷點系列實證**:本 session 觸發斷點 C(T0236 Worker 建議走 EXP)+ 斷點 B(T0237 Renew #1 達閾值)皆**正確暫停**等使用者拍板 — 與 SKILL.md 規格完全一致。斷點機制是 dogfood 成果,不是擋路
 
 ---
 
@@ -2279,12 +2345,12 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0229 |
-| **BUG 最大編號** | BUG-052 |
+| **工單最大編號** | T0240(session 21 新增 T0236/237/238/239/240) |
+| **BUG 最大編號** | BUG-055(session 20 新增) |
 | **PLAN 最大編號** | PLAN-028 |
-| **EXP 最大編號** | EXP-RMTSEC-001 |
-| **上游同步版本** | v2.1.42-pre.2（2026-04-16） |
-| **決策最大編號** | D073 |
+| **EXP 最大編號** | EXP-GPUWHIS-001(session 21 新增,📊 CONCLUDED) |
+| **上游同步版本** | v2.1.42-pre.2(2026-04-16)— 待 T0241 版號 bump |
+| **決策最大編號** | D077(session 21 新增 D075/D076/D077) |
 | **塔台版本** | Control Tower v4.3.0 |
 
 ---
