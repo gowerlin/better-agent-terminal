@@ -5,9 +5,10 @@
 - **工單編號**:T0229
 - **任務名稱**:Claude Runtime 選擇機制(內嵌 SDK vs 系統 CLI)的可行性研究 + 隱藏陷阱盤點 + 細化拆單建議
 - **類型**:research(互動型,非 yolo)
-- **狀態**:🚚 DISPATCHED
+- **狀態**:🔄 IN_PROGRESS
 - **建立時間**:2026-04-22 11:55 (UTC+8)
 - **派發時間**:2026-04-22 11:56 (UTC+8) — 剪貼簿指令寫入,等使用者新開 session 貼上
+- **開始時間**:2026-04-22 12:10 (UTC+8)
 - **派發模式**:`--mode on`(非 yolo;Worker 允許**最多 3 輪**與使用者互動釐清方向)
 - **互動旗標**:`--interactive`
 - **預估工時**:45-90 min(視互動輪數 + 實際 POC 驗證深度)
@@ -123,19 +124,33 @@ PLAN-027 對齊決議(摘要):
 
 ### 完成狀態
 
-(待 Worker 填寫)
+✅ DONE
 
 ### 研究結論摘要(R1-R5)
 
-(待 Worker 填寫,每個 R 一段 3-5 行)
+- **R1(SDK transport)**:✅ 完全可行,SDK v0.2.113 官方支援 `pathToClaudeCodeExecutable` option(`sdk.d.ts:1406`),BAT 現有程式碼(`claude-agent-manager.ts:669, 1348, 2227`)已用此 option 指向內嵌 binary,**切換系統版只是把 path 字串換成偵測結果**,核心 routing 邏輯幾乎為零。stdio transport 內嵌 vs 系統版完全一致(SDK 內部一律 child_process.spawn),latency / throughput 不會有差。
+- **R2(跨平台偵測)**:✅ 可直接複用 `electron/node-resolver.ts` 模式(PATH 搜尋 → 常見路徑 fallback)。Windows 額外處理 `.cmd`/`.bat` shim,優先選 `.exe`(避免 Node `.cmd` CVE 行為)。三平台共用一套程式碼 + 平台分支處理副檔名與常見路徑(macOS `/opt/homebrew/bin`、Linux `~/.local/bin`)。空格/中文路徑無需特別處理(Node fs API 走 UTF-16,SDK spawn 自動 quote)。
+- **R3(版號 parse)**:✅ Level B(`--version` 成功 parse)。實測本機三條 binary 輸出格式完全一致:`<semver> (Claude Code)`,單行、無顏色 escape、無 stderr 雜訊。Parse regex `/^(\d+\.\d+\.\d+(?:-\w+)?)\s+\(Claude Code\)/`。版號相容範圍:`>= 2.0.0` 接受、`< 2.1.111` 加 warning badge、`< 2.0.0` 拒絕切換。
+- **R4(隱藏陷阱)**:✅ 9 個陷阱全有現成緩解。最重要 3 個:(a)Auth/env 完全繼承 `process.env`,系統 claude 自走原生 auth chain,BAT 不介入;(b)session state 共用性需 spike 驗證(同 cwd → 同 hash → 同 transcript 目錄,理論可 resume,實機要測);(c)Windows `.cmd` shim 偵測時優先選 `.exe` 避開 spawn quoting 風險。
+- **R5(拆單建議)**:✅ 收斂為 **5 張**(原 7 張),總估時 **3h 40min**(原 4-5h)。合併理由:R1 證實 routing 是 1-3 行差別,fallback 是 catch + IPC emit,Settings schema 只是 interface + key,各自單獨拆單 ceremony 比實作還重。詳見報告 R5 章節新拆單表。
 
 ### 研究報告路徑
 
-(待 Worker 填寫)
+`_ct-workorders/_report-plan027-claude-runtime-selection.md`(498 行)
 
 ### 互動紀錄
 
-(待 Worker 填寫)
+[12:13] Q: R3 健康檢查 Level / R4 Auth-env 策略 / R5 拆單粒度三選擇 → A: Level B + 繼承 env + 收斂為 5 張 → Action: 採用全部三項推薦,撰寫研究報告
+
+(1 / 3 輪互動,未用滿上限)
+
+### 回報時間
+
+2026-04-22 12:20 (UTC+8)
+
+### Commit hash
+
+(待 Step 8 commit 後填入)
 
 ### Renew 歷程
 
