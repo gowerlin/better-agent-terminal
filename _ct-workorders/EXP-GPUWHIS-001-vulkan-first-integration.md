@@ -87,8 +87,20 @@ git worktree add ../bat-gpu-whisper-vulkan -b exp/gpu-whisper-vulkan
 
 ## 回報區(每張拆單完成後更新)
 
-### T-A 產出
-<!-- 派發後填寫 -->
+### T-A 產出(T0237,2026-04-23 01:31 完成,commit `bd27732`)
+
+- **狀態**:✅ DONE(塔台接受 PARTIAL,見 D076)
+- **結果摘要**:package 整合完美、硬體 perf 受限
+  - Vulkan 被選用 ✅、零 crash ✅、效能 0.99x CPU ❌(base.en,GTX 1050 Ti 無 fp16)
+- **產出**:
+  - Worktree:`../bat-gpu-vulkan-poc` (branch `exp/gpu-vulkan-poc`)
+  - binary 總計:~80 MB / Win x64 平台(ggml-vulkan.dll 29MB + libopenblas.dll 49MB + whisper.node 404KB)
+  - 效能比較表、log 片段見 T0237 回報區
+- **意外發現**(收入 D076):Kutalia v1.1.0 API 破壞變更(`{ transcription: ... }` unwrap)、v1.8.3 無解 fp16、T-B 需補 asarUnpack、體積 ~320MB 四平台
+- **對 T-B/C/D 啟示**:
+  - T-B 必須補 `@kutalia/whisper-node-addon` 到 electron-builder asarUnpack config
+  - T-C runtime detection 要涵蓋 CPU fallback(use_gpu: true 已為 auto-detect,但需驗證 driver 太舊 / Intel iGPU compute feature 的行為)
+  - T-D PR 回主線時 type 定義需補 unwrap 處理
 
 ### T-B 產出
 <!-- 派發後填寫 -->

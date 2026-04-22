@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-23 01:10 (UTC+8)(新增 D075 GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first)
+> 最後更新:2026-04-23 01:40 (UTC+8)(新增 D076 T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D)
 
 ---
 
@@ -57,10 +57,45 @@
 | D073 | 2026-04-20 | PLAN-022 結案,Step 3 TOFU fallback 不做 | PLAN-022 / T0217 |
 | D074 | 2026-04-22 | BAT 塔台接手 Phase 1-4 派發(T0099-T0106)| PLAN-028 / CT-T010 / T0098 |
 | D075 | 2026-04-23 | GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first | T0236 / PLAN-004 / EXP-GPUWHIS-001 |
+| D076 | 2026-04-23 | T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D 合入主線 | T0237 / EXP-GPUWHIS-001 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D076 2026-04-23 — T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D 合入主線
+
+- **背景**:T0237(EXP-GPUWHIS-001 T-A)13 分鐘交付,commit `bd27732`。**3 項成功判準 2/3 通過**:Vulkan 被選用 ✅、零 crash ✅、但**效能僅 0.99x CPU**(base.en 實測),觸發 spec §6.4 停損 #2。Worker 以 PARTIAL 回報請求塔台拍板 Renew 方向。
+- **根因分析**:
+  - **套件層完美**:`@kutalia/whisper-node-addon@1.1.0` Vulkan prebuilt 在 BAT Electron 41 / ABI 145 環境**零缺陷載入**,文本輸出正確,10+ 次 inference 無 crash
+  - **硬體層瓶頸**:測試環境為 **GTX 1050 Ti(Pascal 2016)**,`fp16: 0` + 無 tensor cores + 無 matrix cores → Vulkan 跑 fp32 kernel 在 12 核 CPU + AVX2 + F16C + FMA + OpenBLAS 面前無優勢
+  - **v1.8.3 升級無法解決**:v1.8.3 主要差異在 realtime API 與 VAD,kernel 層未改,Pascal fp16 限制是**物理限制**,非軟體可克服
+- **選項**:
+  - A. **繼續跑 T-B/C/D 合入主線**(package 能力永久保留,未來硬體升級零設定自動 enable)
+  - B. **Worktree 凍結不合主線**(EXP 暫停 EXPLORING,等使用者硬體升級後再跑 T-B/C/D)
+  - C. **暫停 EXP 評估其他方案**(Kutalia v1.8.3 升版 / CUDA backend / 保留 legacy 只動 Metal)
+  - D. **ABANDONED**(Worker 不推薦 — package 無缺陷,硬體單一樣本不足以否定方向)
+- **決定**:**A(繼續跑 T-B/C/D 合入主線)**
+- **理由**:
+  1. **T-A 證明整合路徑可行**:package 層零缺陷,`use_gpu: true` 在現行套件為 auto-detect,新硬體自動受益、舊硬體走 CPU fallback 不劣化
+  2. **未來硬體升級零工作**:使用者明確表達「升級到 4070 之類,自然可開啟支援」→ 唯有 package 進主線才能達成 zero-config enable
+  3. **T-B/C/D 不依賴 perf 數據**:T-B(打包)驗證 asarUnpack 與 installer 路徑、T-C(runtime detection)驗證 CPU fallback、T-D(PR 決策)獨立可推進
+  4. **ABANDONED 機會成本過高**:package 無缺陷,未來重做一次 PoC 成本高於現在推進成本
+- **附帶意外發現(T-A 報告記錄,此處收錄)**:
+  1. **Kutalia v1.1.0 API 破壞性變更**:`transcribe()` 回傳值從 `string[][]` 改為 `{ transcription: string[][] | string[] }` → voice-handler 已加 unwrap 邏輯(T0237 `bd27732`)。T-D 合入主線時需在 type 定義補記
+  2. **v1.8.3 對 fp16 問題無幫助**:kernel 層未變,Pascal fp16 限制是物理限制
+  3. **T-B asarUnpack 需補規則**:`@kutalia/whisper-node-addon` path 需加入 electron-builder asarUnpack config,否則打包後 `.node` 解析路徑失敗
+  4. **體積成本實測吻合**:Win x64 ~80 MB / 平台(`whisper.node` 404 KB + `ggml-vulkan.dll` 29 MB + `libopenblas.dll` 49 MB + 其他 ~1.5 MB),四平台約 ~320 MB 總 binary(與 T0236 spec 估算吻合)
+- **執行路徑**:
+  - T0237 PARTIAL → ✅ DONE(塔台接受,perf caveat 記錄在本 D076)
+  - 立即派發 T-B(T0238,electron-builder 打包驗證)
+  - T-C(runtime GPU detection + CPU fallback)可與 T-B 平行派發,或依序
+  - T-D(PR 正式化)於 T-B/C 全綠後啟動
+- **成功指標(合入主線後)**:
+  - 使用者硬體升級到 RTX 30/40 系列或同等有 fp16/tensor cores 的 GPU 時,BAT Whisper 自動走 Vulkan 加速,無需任何設定或工單
+- **關聯**:T0237(T-A PoC,commit `bd27732`)/ EXP-GPUWHIS-001(🧪 EXPLORING)/ D075(Vulkan-first 決策,本決策接續)/ `_ct-workorders/_spec-gpu-whisper-2026-04.md` §6.4(停損條件參照)
 
 ---
 
