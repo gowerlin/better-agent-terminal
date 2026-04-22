@@ -163,7 +163,7 @@
         "placeholder": "/绝对路径/to/claude"
       },
       "fallbackToEmbedded": "系统 claude 失败时自动退回 Embedded",
-      "hint": "设定只影响新的 session。System 模式可能缺少 2.1.111 之后新增的功能（Opus 4.7 / xhigh effort）。"
+      "hint": "更改仅套用于新开的 session 与新终端，现有 session 不受影响。System 模式可能缺少 2.1.111 之后新增的功能（Opus 4.7 / xhigh effort）。"
     }
   },
   "sidebar": {

@@ -6,6 +6,16 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ### Added
 
+#### Claude Runtime Selection (PLAN-027)
+- **Choose between embedded and system Claude CLI** — BAT now ships with an embedded Claude CLI but also lets you opt in to your system-installed `claude` binary
+  - **Where**: `Settings → Advanced → Claude Runtime`
+  - **Why**: Use bleeding-edge Claude CLI features (new models, new effort levels) without waiting for a BAT release
+  - **Safety net**: Automatic fallback to embedded if the system runtime fails health checks (toast notifies you with the degraded reason)
+  - **Custom path**: Point to any absolute path to a `claude` binary instead of PATH lookup
+  - **Scope**: Changes apply to new sessions and new terminals only; existing sessions continue on their original runtime
+- **Windows note**: `npm install -g` produces `.cmd` / `.bat` shims that are intentionally not detected (Node 20+ spawn restrictions). Install via the Anthropic official installer so `claude.exe` lands in `%USERPROFILE%\.local\bin\`.
+- **Cross-platform install + troubleshooting playbook**: `docs/plan-027-cross-platform-verification.md`
+
 #### Multi-Agent Runtime (Phase 0 + Phase 1)
 - **Universal agent registry** — Provider-based architecture supporting Claude Code, Gemini CLI, GitHub Copilot CLI, Codex CLI, and any user-defined custom CLI
 - **Agent runtime module** (`electron/agent-runtime/`) with `AgentDefinition`, `AgentProvider`, and `AgentCapabilities` types

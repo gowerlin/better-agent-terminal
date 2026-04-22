@@ -163,7 +163,7 @@
         "placeholder": "/absolute/path/to/claude"
       },
       "fallbackToEmbedded": "Fall back to embedded if system fails",
-      "hint": "Changes apply to new sessions only. System mode may lack features added in 2.1.111 (Opus 4.7 / xhigh effort)."
+      "hint": "Changes apply to new sessions and new terminals only. Existing sessions are unaffected. System mode may lack features added in 2.1.111 (Opus 4.7 / xhigh effort)."
     }
   },
   "sidebar": {

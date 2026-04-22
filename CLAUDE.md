@@ -39,6 +39,47 @@
 - `EFFORT_LEVELS = ['low','medium','high','max','xhigh']` + `EffortLevel` type 集中宣告於 `src/types/index.ts`。新增 effort 成員時只改 const，其他檔案自動套用。
 - Settings 的 effort dropdown 現包含完整 5 級，`max` 標示「(Opus only)」（Sonnet/Haiku 不支援）；`xhigh` 需 CLI `>= 2.1.111` 才可用。
 
+### Claude Runtime Selection (PLAN-027, v2.1.49+)
+
+BAT 預設使用**內嵌版** claude CLI（隨 BAT 打包，版本鎖在 `@anthropic-ai/claude-code ^2.1.111`）。若使用者想改用系統上自己安裝的 claude CLI（例如剛 release 的新版），可在 `Settings → Advanced → Claude Runtime` 切換。
+
+**為什麼有兩個選項**
+- **內嵌（embedded，預設）**：版本跟 BAT 發行綁定，穩定、可控、不受系統環境影響。適合大多數使用者。
+- **系統（system）**：用系統 PATH 上的 claude，或使用者透過 `customPath` 指定的絕對路徑。適合想立即試用新 CLI 功能、不想等 BAT release 重打包的 power user。
+
+**什麼時候該切 system**
+- 上游剛 ship 新 model / effort 支援，BAT 尚未 bump SDK 版本
+- 想用某個特定版本測試 / debug
+- 其他時候建議用內嵌，減少環境變動面
+
+**Fallback 行為**（`fallbackToEmbedded`，預設開啟）
+
+當 system claude 符合下列任一條件時，自動退回 embedded，並觸發 toast 顯示 degraded reason：
+- 偵測不到（PATH / customPath 找不到，或 spawn ENOENT）
+- 健康檢查失敗（spawn error / version parse 失敗）
+- 版本太舊（`< 2.0.0`）
+
+關閉 fallback 時，偵測失敗會讓 Agent spawn 與 terminal claude-cli 啟動都失敗，適合嚴格要求只用 system 的場景。
+
+**設定變更範圍（T0233 Worker 旗標）**
+
+切換**只影響新開的 session 與新開的終端**。進行中的 Agent session 不受影響（transcript 仍在原 runtime 下）；既有 terminal 分頁要關掉重開才會套用新 preset。runtime router 讀設定的唯一入口是 `resolveClaudeRuntime()`（`electron/claude-runtime-router.ts`），由 agent-manager / auth-manager / terminal claude-cli preset 共享。
+
+**跨平台安裝指引**（完整 playbook 見 `docs/plan-027-cross-platform-verification.md`）
+- **macOS**：anthropic 官方 installer（`~/.local/bin/claude`）或 Homebrew（`/opt/homebrew/bin/claude`）
+- **Linux**：anthropic 官方 installer（`~/.local/bin/claude`）
+- **Windows**：anthropic 官方 installer 會放 `%USERPROFILE%\.local\bin\claude.exe`。`npm install -g` 產出的 `.cmd` / `.bat` shim **不被 router 偵測**（BUG-053 決策為 Node 20+ 不再支援 shim 探測，見 `docs/plan-027-cross-platform-verification.md`）
+
+**常見故障**
+
+| 症狀 | 可能原因 | 解法 |
+|------|---------|------|
+| 切 system 但 Agent 版本沒變 | 在現有 session 觀察 | 開新 session，設定只影響新 session |
+| 切 system 後 terminal claude-cli 版本沒變 | 舊 terminal 分頁未重開 | 關掉 terminal 分頁重開 |
+| Toast 顯示 `system-not-found` | PATH 上找不到 claude | 確認 installer 跑過，或在 UI 勾選 Use custom path 指定絕對路徑 |
+| Toast 顯示 `system-too-old` | 版本 `< 2.0.0` | 升級 claude CLI |
+| Toast 顯示 `version-warning` | 版本 `>= 2.0.0` 但 `< 2.1.111` | 功能可用但缺 Opus 4.7 / xhigh effort，建議升級到 `2.1.111+` |
+
 ## Electron Runtime
 
 - 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。
