@@ -15,6 +15,7 @@
 |----------|----------|------------|------|------|
 | CT-T008 | BMad-Guide | `61dec10` | DELEGATE(v4.3.2 release)| ✅ DONE |
 | CT-T009 | BMad-Guide | `2b1dd1c` | DELEGATE(v4.3.3 JB Gateway patch)| ✅ DONE |
+| CT-T010 | BMad-Guide | (待 Worker 交付)| DELEGATE(CT v4.4.x meta-PLAN + Phase 1-4 骨架)| 🚚 DISPATCHED |
 
 ## 相關文件(跨專案參考)
 
