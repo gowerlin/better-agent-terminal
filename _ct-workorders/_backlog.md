@@ -2,10 +2,10 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-23 00:22 (UTC+8) — PLAN-025 PLANNED → DROPPED(移交 CT 處理,BAT 端結案)
+> 最後同步:2026-04-23 00:52 (UTC+8) — PLAN-004 PLANNED → IN_PROGRESS(T0236 研究工單啟動)
 
 ## 統計
-- 💡 Ideas: 5 | 📋 Planned: 3 | 🔄 In Progress: 1 | ✅ Done: 1(熱區) | 🚫 Dropped: 2(熱區) | **熱區 Total: 12**
+- 💡 Ideas: 5 | 📋 Planned: 2 | 🔄 In Progress: 2 | ✅ Done: 1(熱區) | 🚫 Dropped: 2(熱區) | **熱區 Total: 12**
 - 📦 已歸檔:11 張(見 `_archive/plans/`)
 - 📊 整體 Total:23 張
 
@@ -20,7 +20,7 @@
 | PLAN-014 | Evaluate VSCode extension vs Git GUI | 🟢 Low | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-013 | Installer force-kill on file lock | 🟢 Low | 💡 IDEA | [PLAN-013](PLAN-013-installer-force-kill-on-file-lock.md) |
 | PLAN-007 | 遠端 / 容器開發支援研究 | 🟢 Low | 💡 IDEA | [PLAN-007](PLAN-007-remote-container-dev-support.md) |
-| PLAN-004 | GPU/MLX Whisper 加速(Windows/Linux CUDA、Vulkan) | 🟡 Medium | 📋 PLANNED | [PLAN-004](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
+| PLAN-004 | GPU/MLX Whisper 加速(Windows/Linux CUDA、Vulkan) | 🟡 Medium | 🔄 IN_PROGRESS | [PLAN-004](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
 | PLAN-002 | Dynamic Import 衝突修正 | 🟢 Low | 💡 IDEA | [PLAN-002](PLAN-002-dynamic-import-conflict-fix.md) |
 
 ## Completed
