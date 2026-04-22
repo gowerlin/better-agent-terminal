@@ -2263,3 +2263,73 @@ Worker skill 的建議組態來源為工單本身(靜態),塔台派發時讀 ses
 **來源**:better-agent-terminal 第十八 session CT-T009/T010 連續 DELEGATE(2026-04-22)
 
 ---
+
+## L090 - 2026-04-22 — BAT 專案:preload + electron.d.ts 必須同步維護
+
+**類型**:Project pattern(BAT 特有架構)
+**觸發**:Electron 加新 IPC API 時
+
+**問題**:
+- T0230 Worker 加 `claude:detectRuntime` IPC + preload bridge,**漏補** `src/types/electron.d.ts`
+- T0232 Worker 實作 UI 呼叫該 API 時 tsc 報 `TS2339: Property detectRuntime does not exist`
+- 必須就地補 d.ts 宣告才能推進
+
+**正確模式**(BAT 加新 `window.electronAPI.xxx.yyy` 時的三檔同步):
+1. **`electron/main.ts`**:`registerHandler(channel, async (ctx, ...args) => ...)` 實作
+2. **`electron/preload.ts`**:`xxx: { yyy: (args) => ipcRenderer.invoke(channel, args) }` bridge
+3. **`src/types/electron.d.ts`**:對應 TypeScript interface 宣告
+
+**反模式**:
+- 只改 preload,沒補 d.ts(tsc 會爆,但 Worker 可能沒跑 tsc 就交)
+- 先改 d.ts,沒實作 main handler(runtime call 會失敗但 compile 過)
+
+**檢查 checklist**:
+- [ ] main.ts handler 註冊
+- [ ] preload.ts bridge(`window.electronAPI.xxx.yyy`)
+- [ ] electron.d.ts type 宣告
+- [ ] `npx tsc --noEmit` 綠
+
+**來源**:
+- T0230 Worker 漏補 → T0232 Worker 發現 → T0235/T0234 沒再犯
+- 2026-04-22 PLAN-027 Phase 1
+
+**候選晉升**:本規則限 BAT 專案(electron + preload 分離架構),不升 Global
+
+---
+
+## L091 - 2026-04-22 — BAT Worker 實作效率係數:research R5 估 ÷ 實際 ≈ 4-5x
+
+**類型**:Project observation
+**觸發**:Research 類工單交付 R5 拆單估時後,計算 Phase 實作工單效率
+
+**觀察**(2026-04-22 PLAN-027 Phase 1):
+
+| # | R5 估 | 實際 | 倍率 |
+|---|------|------|------|
+| T0230 | 60 min | 4 min | 15x |
+| T0231 | 45 min | 10 min | 4.5x |
+| T0232 | 60 min | 14 min | 4.3x |
+| T0233 | 45 min | 15 min | 3x |
+| T0235 hotfix | 45 min | 11 min | 4.1x |
+| T0234 | 30 min | 9 min | 3.3x |
+| **合計** | **285 min** | **63 min** | **~4.5x** |
+
+**解釋**:
+- Research(T0229)把 scope 拆得很細,Worker 不需再判斷架構問題
+- Worker 可直接引用研究報告的具體 regex / API / decision tree
+- yolo 模式省去來回確認時間
+- 型別 + IPC 框架已在前一張工單 freeze,後續工單 plug-in 即可
+
+**應用**:
+- R5 估時**不修正**(保留保守估計給排程用)
+- 心理上可知道 **Phase 1 實際 1-2 小時可收**,不用卡整天
+- 若某張工單實際 > 估的 1x(不打折),可能需要 Renew 或檢查 scope
+
+**反模式**:
+- 用實際時間重估下個 Phase → 造成排程緊繃
+- 誤認 Worker 能力無限 → scope 失控
+
+**來源**:2026-04-22 PLAN-027 Phase 1 全程量測(本 session)
+
+**候選晉升**:本規則限 BAT + PLAN-027 這類「Research 先行 + 明確 R5 拆單」模式,不升 Global(其他專案 workflow 可能不同)
+

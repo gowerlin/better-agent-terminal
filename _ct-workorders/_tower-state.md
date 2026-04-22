@@ -1,10 +1,103 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-22 12:05(**🎉 CT-T009 v4.3.3 DONE 閉環(ship + Selene 收到)+ PLAN-027/028 登記 + CT-T010 DELEGATE(v4.4.x meta-PLAN)+ T0229 research 派發 + `_cross-references.md` 首建 + *evolve GP071/GP072/L089**,第十八 session 收工)
+> 最後更新:2026-04-22 20:25(**🎉 PLAN-027 Phase 1 ✅ DONE 完全閉環(T0230-T0234 + T0235 hotfix + BUG-053/054 CLOSED,63 min vs R5 估 285 min ~4.5x)+ CT-T010 DONE 吸收 + D074 + *evolve GP073-075/L090-091**,第十九 session 收工)
 
 ---
 
-## 🛏 本 Session 退出快照(2026-04-22 ~09:40-12:05,第十八 session,~2.5 h wall)
+## 🛏 本 Session 退出快照(2026-04-22 ~12:05-20:25,第十九 session,~3.5 h wall 主力 + 下午中斷 ~5h)
+
+### 本輪時間線
+
+1. **12:05**(恢復):Fast Path,CT-T010 已由對端 Worker yolo 自動交付,吸收 DONE + commit `e362ed1` + 主 PLAN T0098
+2. **12:10-12:20**:D074 決策 BAT 接手 Phase 1-4 派發 + `_cross-references.md`/PLAN-028/`_decision-log.md` 更新,commit `9bf8911`
+3. **12:12-12:20**:T0229 research 重派(疑停擺)→ Worker 交付,commit `b622b6e`+`df2b685`,拆單 7→5 張
+4. **12:35-12:42**:派 **T0230** → Worker 4 min,commit `4894b18`+`63a65e6`
+5. **12:50-13:04**:派 **T0231** → Worker 10 min,commit `a767de8`(**方案 A 變體**讀 settings.json 檔)
+6. **13:08-13:27**:派 **T0232** → Worker 14 min,commit `a8b3448`,三語 i18n + Toast
+7. **13:32-19:03**(含 ~5h 排程延遲):**T0233** Worker 15 min active,commit `307647d9`,28 tests + spike positive + **發現 BUG-053**
+8. **19:10-19:15**:使用者 runtime 驗收 → **發現 BUG-054**(切 system 終端版本沒變)
+9. **19:15-19:25**:Audit spawn 點發現 main.ts 3 處遺漏 + 使用者主導 Option A 決策(對齊 native)→ 開 BUG-054 + 派 **T0235**
+10. **19:34-19:45**:T0235 Worker 11 min,commit `058412a`,使用者驗收通過 → BUG-053/054 CLOSED
+11. **19:52-20:06**:派 **T0234** → Worker 9 min,commit `58de14c`,CLAUDE.md + CHANGELOG + UI hint 合併
+12. **20:10-20:25**:PLAN-027 ✅ DONE 結案 + 5 條學習萃取 + 退出快照
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **工單** | **7 張 DONE**(T0229/T0230/T0231/T0232/T0233/T0235/T0234)+ CT-T010 DONE 吸收 |
+| **PLAN** | **PLAN-027 ✅ DONE**(Phase 1 全閉環,63 min vs R5 估 285 min ~4.5x)|
+| **BUG** | BUG-053 🚫 CLOSED + BUG-054 🚫 CLOSED |
+| **決策** | D074(BAT 接手 Phase 1-4 派發)|
+| **程式碼** | 2 新檔(claude-resolver / claude-runtime-router)+ 7 檔修改 + 28 unit tests |
+| **文件** | CLAUDE.md Runtime Selection 40 行 + CHANGELOG + mac/Linux playbook |
+| **學習** | GP073 全庫 grep / GP074 settings.json 注入 / GP075 Legacy shim 砍方向(Global)+ L090 preload-d.ts 同步 / L091 Worker 效率 4-5x(Project) |
+
+### 本 session commits(本機累計 18 個,待 push)
+
+```
+[本 session 新增 10 個]
+90b1381 PLAN-027 ✅ DONE — Phase 1 完全閉環 + BUG-053/054 CLOSED
+58de14c T0234 CLAUDE.md + CHANGELOG + UI hint
+058412a T0235 hotfix BUG-054/053
+307647d9 T0233 tests + spike + playbook
+a8b3448 T0232 UI + toast
+a767de8 T0231 router + 3 spawn points
+63a65e6 T0230 closeout
+4894b18 T0230 resolver + settings + IPC
+df2b685 T0229 closeout
+b622b6e T0229 research report
+9bf8911 CT-T010 DONE 吸收 + PLAN-027/028 + D074
+
+[第十七/十八 session 累積 7 個]
+56917c6 第十八 session 退出快照
+e097629 / bc98063 / ebb6ae2 / 6fcbbaf / d197b60 / 95c2be0
+(+ 本收工 commit:_tower-state.md + _learnings.md + GP073/074/075)
+```
+
+### 三個 pending(下 session 優先序)
+
+1. 🟡 **CT v4.4 Phase 1 派發**(D074 路徑):T0099-T0101(audit + 快勝,建議 yolo+interactive)→ CT-T### DELEGATE 到 BMad-Guide `dev-main`
+2. 🟡 **PLAN-028 dogfood 驗證**:Phase 1 實作後在 BAT 跑 `*sync` / `*evolve --status`,觀察 6 項改良
+3. 🟢 **等 Selene 跨平台 playbook 實測**(含 session state 實機驗證,T0233 flag positive theoretical)
+
+### 不急項目
+
+- 🐛 BUG-050 VERIFY(等 PLAN-025 結案)
+- 📋 T0228 TODO(PLAN-025 integration)
+- 🔄 PLAN-021 IN_PROGRESS(等 dev smoke)
+- 🆕 BUG-055 候選:`claude.exe.old.XXX` 殘留(T0235 發現,install hook 問題,非 PLAN-027 範圍)
+- 💡 backlog 其他 🟢 Low
+
+### 恢復指引
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:CT v4.4 Phase 1 派發(或依使用者當下議題)
+3. **優先序 2**:若 Selene 已跑 playbook → 吸收回報
+4. 下 session 新單編號起始:**T0236 / PLAN-029 / D075 / BUG-055**
+
+### 本 session 學習候選(已處理)
+
+- ✅ GP073(Global):Research spawn-site 盤點全庫 grep
+- ✅ GP074(Global):Electron 設定注入「讀 settings.json 檔」變體
+- ✅ GP075(Global):Legacy shim 修復決策對齊 native
+- ✅ L090(Project):BAT preload + electron.d.ts 同步
+- ✅ L091(Project):BAT Worker 效率係數 R5 估 ÷ 實際 ≈ 4-5x
+
+### 本 session 教訓
+
+1. T0229 R4 scope 缺口 → GP073
+2. Worker 創新:T0231 方案 A 變體 → GP074
+3. UI 驗收 + runtime 驗收是兩個獨立關卡(T0232 通過但 BUG-054 才暴露)
+4. 原則對齊 > workaround(BUG-053 Option A 由使用者主導)→ GP075
+
+### 小心假設(續 L089)
+
+PLAN-027 4-5x 效率前提:**Research 先拆細 + yolo+interactive + 成熟架構**。不類推所有專案(見 L091)。
+
+---
+
+## 🛏 第十八 Session 退出快照(2026-04-22 ~09:40-12:05,~2.5 h wall)
 
 ### 本輪時間線
 
