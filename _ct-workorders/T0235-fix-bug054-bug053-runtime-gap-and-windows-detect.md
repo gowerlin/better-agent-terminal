@@ -4,10 +4,12 @@
 
 - **編號**:T0235
 - **類型**:fix(合併兩 BUG 修復)
-- **狀態**:⚡ IN_PROGRESS
+- **狀態**:✅ FIXED
 - **建立時間**:2026-04-22 19:25 (UTC+8)
 - **派發時間**:2026-04-22 19:25 (UTC+8)
 - **開始時間**:2026-04-22 19:34 (UTC+8)
+- **完成時間**:2026-04-22 19:45 (UTC+8)
+- **Commit**:`058412a`
 - **派發模式**:`--mode yolo --interactive`(auth handler 修法可能需判斷,保留互動)
 - **優先級**:🟡 Medium(PLAN-027 Phase 1 真正閉環的 blocker)
 - **前置條件**:T0230 / T0231 / T0232 / T0233 全 DONE,PLAN-027 Phase 1 程式碼到位
@@ -187,33 +189,60 @@ const WINDOWS_BIN_NAMES = ['claude.exe'] as const
 
 ### 完成狀態
 
-(待 Worker 填寫)
+FIXED(修復完成,等待使用者驗收)
 
 ### 產出摘要
 
-(待 Worker 填寫)
-- Commit hash:
-- 修改檔案:
-- AC 勾選:(AC-1 到 AC-10 逐項勾)
-- tsc / vite / test 結果:
-- 互動記錄:(若有,列決策點 + 塔台回覆)
+- **Commit hash**:`058412a`
+- **修改檔案**:
+  - `electron/main.ts`(新增 `broadcastRuntimeEvent` helper + 三個 handler 改寫)
+  - `electron/claude-resolver.ts`(`WINDOWS_BIN_NAMES` 縮減 + comment)
+  - `tests/_windows-probe.ts`(`.cmd` probe comment 更新)
+  - `docs/plan-027-cross-platform-verification.md`(Windows 段重寫)
+  - `_ct-workorders/BUG-053-*.md` / `BUG-054-*.md`(FIXED 紀錄)
+- **AC 勾選**:
+  - [x] AC-1:`claude:get-cli-path` → `resolveClaudeRuntime()`,degraded/warning event 用 `'__terminal__'` 去重 key、fallback 策略見下方 R5(a) 決策
+  - [x] AC-2:`claude:auth-status` 改用 resolved path,失敗回 `null`
+  - [x] AC-3:`claude:auth-logout` 改用 resolved path,失敗回 `{ success: false, error }`
+  - [x] AC-4:`WINDOWS_BIN_NAMES = ['claude.exe']`,檔頭 comment + constant comment 同步更新
+  - [x] AC-5:unit tests 綠 — resolver 17/17、router 11/11、其他 59 項(backlog / node-resolver / path-guard / remote-throttle)全綠;`claude-code-path.test.ts` 4 項中 3 綠 1 失敗為 **pre-existing 環境問題**(`node_modules/@anthropic-ai/claude-code/bin/claude.exe` 本地被改名為 `.old.1776856737641`,與本工單無關,已 `git stash` 驗證)
+  - [x] AC-6:`npx tsc --noEmit` exit 0、`npx vite build` 三 target(main / preload / terminal-server)全綠
+  - [x] AC-7:`docs/plan-027-cross-platform-verification.md` Windows 段重寫(新增「Windows 推薦安裝」段落 + 修正對照表)
+  - [x] AC-8:BUG-054 / BUG-053 單檔填 FIXED,commit `058412a`
+  - [x] AC-9:`grep -rn "claude\.cmd\|claude\.bat" electron/ src/ --include="*.ts"` 無 hit;`grep -rE "execFile\(\s*['\"]claude['\"]|spawn\(\s*['\"]claude['\"]" electron/ src/ -r --include="*.ts"` 只剩 main.ts 內的新 comment,production code 乾淨
+  - [x] AC-10:auth handler 邏輯 review 完成(runtime resolution 失敗時 auth-status 回 `null`、auth-logout 回 `{ success: false, error }`,保留既有 API 語意);實機手動驗證需要使用者在 Settings UI 按 Auth 按鈕走一次,Worker 無法自動化
+- **tsc / vite / test 結果**:tsc 綠、vite 綠、unit tests 除 pre-existing 環境 fail 外全綠
+- **互動記錄**:Worker 在 yolo + interactive 模式下執行,三個決策點(R5 a/b/c)自行判斷未回塔台,理由見下。
+
+### R5 三決策點自行判斷紀錄
+
+| 決策點 | 選擇 | 理由 |
+|--------|------|------|
+| (a) `claude:get-cli-path` 失敗 fallback 策略 | **回 `''` + emit degraded event** | 保留既有 behaviour(renderer 目前已容忍空字串);同時讓使用者看到 toast 知道原因。若改成自動回 embedded 會與 `fallbackToEmbedded=false` 的使用者意圖矛盾 |
+| (b) terminal 路徑 degraded event 去重 key | **固定字串 `'__terminal__'`** | 對齊工單 R3 建議;和 `ClaudeAgentManager` 的 per-session 去重共用同一張 `emittedEvents` Map,不會衝突(session UUID 與 `'__terminal__'` 空間互斥)|
+| (c) 其他遺漏 call site | **已 grep 清理** | `grep -rE "execFile\(\s*['\"]claude['\"]|spawn\(\s*['\"]claude['\"]"` 只剩 comment,runtime-router 內部 health probe 已用 resolved path,無其他遺漏 |
 
 ### BUG-054 修復驗證
 
-(待 Worker 填寫)
-- 手動驗證:切 system mode → 開終端 → 版本是否為 system path?
-- fallback 驗證:customPath 指不存在路徑 → 是否 emit degraded event + 使用 embedded?
+- **程式碼層驗證**:
+  - `claude:get-cli-path` handler 已改呼叫 `resolveClaudeRuntime(getRuntimeSettingsSnapshot())`,grep 確認 `electron/main.ts` 相關區塊不再硬編 embedded path(僅 `resolveClaudeRuntime` fallback 分支內走 embedded helper,by design)
+  - `claude:auth-status` / `claude:auth-logout` 已改用 resolved path
+- **手動驗證(需使用者實機)**:
+  - 切 Settings → Claude Runtime → system → 開終端 claude-cli preset → 版本應為 system path
+  - customPath 指不存在路徑 → 應 emit degraded event + 終端顯示 embedded
+  - Worker 在此階段無法自動化(需 UI interaction + 跨 session reload),交使用者驗收
 
 ### BUG-053 修復驗證
 
-(待 Worker 填寫)
-- `WINDOWS_BIN_NAMES` 現值:
-- `grep -rn claude\.cmd` 結果:
-- 既有 `.cmd` 測試 case 處理:
+- `WINDOWS_BIN_NAMES` 現值:`['claude.exe'] as const`
+- `grep -rn "claude\.cmd\|claude\.bat" electron/ src/ --include="*.ts"` 結果:**無命中**
+- `grep -rn "claude\.cmd\|claude\.bat" tests/ --include="*.ts"` 結果:只剩 `tests/_windows-probe.ts:54`(regression probe 刻意保留,comment 已更新標註預期 `spawn-failed` → router fallback)
+- 既有 `.cmd` 測試 case 處理:`claude-resolver.test.ts` 無測 `.cmd` / `.bat` 優先級,**無需調整**。`_windows-probe.ts` 是手動探針,已補註 expected behaviour
 
 ### 遭遇問題
 
-(待 Worker 填寫;無問題寫「無」)
+1. **`tests/claude-code-path.test.ts` 3/4 通過,1 項失敗**:測試預期 `node_modules/@anthropic-ai/claude-code/bin/claude.exe` 存在,但本地環境該檔被改名為 `claude.exe.old.1776856737641`(疑為前次 install hook 殘留)。`git stash` 驗證失敗在修改前後都一致,**非本工單引入**。屬於 BUG-047 guard 測試反映的 SDK install 層問題,超出 T0235 scope,記錄此處供後續 BUG 立單。
+2. **Vite build warnings**:`claude-runtime-router.ts` 被 main.ts 動態 import + 被 claude-agent-manager 靜態 import,Vite 警告 dynamic import 不會移到獨立 chunk。對 Electron main bundle 無實際影響(單一 bundle 目標),**預期行為**。
 
 ### Renew 歷程
 
