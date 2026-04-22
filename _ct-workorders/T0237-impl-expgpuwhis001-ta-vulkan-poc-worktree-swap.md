@@ -4,7 +4,7 @@
 
 - **編號**:T0237
 - **類型**:impl(實作 + 實機驗證,允許 Worker 互動以釐清環境 / 驗證策略)
-- **狀態**:🔄 IN_PROGRESS
+- **狀態**:🟡 PARTIAL(停損 #2 觸發,資料備齊待塔台拍板 Renew 方向)
 - **派發模式**:`--mode on --interactive`(自動開新 tab + Worker 可問問題)
 - **優先級**:🟡 Medium(平行投資,side quest,不阻塞主線)
 - **Sizing**:L(3-8h,含 PoC 編譯 + 實機音訊測試)
