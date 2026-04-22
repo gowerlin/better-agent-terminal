@@ -5,7 +5,8 @@
 | 欄位 | 內容 |
 |------|------|
 | **計劃編號** | PLAN-004 |
-| **狀態** | 🔄 IN_PROGRESS(2026-04-23 — T0236 研究工單啟動,雙軌 CUDA+Vulkan 技術選型 + PoC) |
+| **狀態** | 🔄 IN_PROGRESS(2026-04-23 — T0236 研究 DONE → 方向翻轉 Vulkan-first(D075)→ EXP-GPUWHIS-001 統一追蹤) |
+| **歷程** | T0236 研究 ✅ DONE → D075 技術方向決策 → EXP-GPUWHIS-001 EXPLORING |
 | **原狀態** | 📋 PLANNED |
 | **優先級** | 🟡 Medium |
 | **提出時間** | 2026-04-12 (UTC+8) |

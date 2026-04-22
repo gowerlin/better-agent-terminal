@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-22 12:20 (UTC+8)(新增 D074 BAT 塔台接手 Phase 1-4 派發)
+> 最後更新:2026-04-23 01:10 (UTC+8)(新增 D075 GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first)
 
 ---
 
@@ -56,10 +56,39 @@
 | D072 | 2026-04-20 | archive_days 7 → 2 歸檔門檻調整 | _tower-config.yaml / *archive |
 | D073 | 2026-04-20 | PLAN-022 結案,Step 3 TOFU fallback 不做 | PLAN-022 / T0217 |
 | D074 | 2026-04-22 | BAT 塔台接手 Phase 1-4 派發(T0099-T0106)| PLAN-028 / CT-T010 / T0098 |
+| D075 | 2026-04-23 | GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first | T0236 / PLAN-004 / EXP-GPUWHIS-001 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D075 2026-04-23 — GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first
+
+- **背景**:T0236(PLAN-004 研究工單)原假設「CUDA-first + Vulkan fallback 雙軌」(工單建立於 2026-04-23 00:50,基於 T0058 2026-04-12 過時研究)。Worker 在 12 分鐘內完成 2026 年現況調查(commit `f6a2720`,報告 `_spec-gpu-whisper-2026-04.md` 360 行),結論**翻轉原假設**。
+- **選項**:
+  - A. **維持雙軌**(CUDA-first + Vulkan fallback):忠於原 T0236 假設,完整跨廠商覆蓋
+  - B. **Vulkan-first + CUDA 未來 advanced tier**:採 Worker 建議,CUDA 保留延後
+  - C. **CUDA-only**:放棄跨 AMD/Intel,僅服務 NVIDIA 使用者
+  - D. **暫緩**:延後決策到 PoC 實測後
+- **決定**:**B(Vulkan-first + CUDA 未來 advanced tier)**
+- **理由**:
+  1. **prebuilt 生態現實**:`@kutalia/whisper-node-addon@1.1.0`(2025-07)已 ship Win/Linux Vulkan prebuilt,**零環境配置 + 跨 NVIDIA/AMD/Intel 全覆蓋**;CUDA **沒有**任何 npm 套件同時滿足「Electron ABI 145 + CUDA prebuilt + 零環境配置」
+  2. **速度差異不顯著**:CUDA 對 Whisper 場景僅 +20-30% 加速,使用者體感無感
+  3. **installer 成本差異懸殊**:Vulkan +30-50 MB vs CUDA +150-300 MB
+  4. **UX 衝擊差異**:Vulkan 零衝擊(套件內建 auto-detect) vs CUDA 中等衝擊(使用者需安裝 CUDA Runtime)
+  5. **v1.8.3 iGPU 優化加碼**:whisper.cpp v1.8.3(2026-01)專為 iGPU 做 12x 優化,**Stable 非 experimental**,社群實測 ≈ 10x CPU
+  6. **CUDA 延後不失**:未來若使用者明確反饋速度不足,可加做 CUDA advanced tier,Vulkan-first 不阻斷 CUDA 路徑
+- **執行路徑**:
+  - 建 EXP-GPUWHIS-001 `vulkan-first-integration`,合併 Worker 建議的 T-A/B/C/D 四張拆單統一追蹤
+  - Phase 1 以 Vulkan(Kutalia fork)為主,CUDA 完全延後到 Phase 2+
+  - EXP worktree 隔離實驗,PoC 成功後 PR 回主線(成功路徑)或丟棄(失敗路徑)
+- **已識別風險**(EXP 追蹤):
+  - Kutalia fork 9 個月未更新(whisper.cpp submodule 停在 v1.7.6)→ 若 Vulkan 效能不如預期,升級路徑為 BAT 自 fork Kutalia + rebase upstream v1.8.4
+  - Electron 41 ABI 145 與 node-addon-api 8.3.1 相容性 → PoC 第一件事驗證
+  - Intel iGPU compute feature 不支援 → 已設計 CPU fallback
+- **關聯**:T0236(研究工單,commit `f6a2720`)/ PLAN-004(IN_PROGRESS)/ EXP-GPUWHIS-001(本決策產生)/ `_spec-gpu-whisper-2026-04.md`(Worker 產出技術選型報告)
 
 ---
 
