@@ -2,10 +2,10 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-22 20:40 (UTC+8) — *archive 後重建(101 張歸檔到 _archive/bugs + _archive/plans + _archive/workorders)
+> 最後同步:2026-04-23 00:15 (UTC+8) — BUG-050 VERIFY → CLOSED(使用者驗收通過)
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 1 | 🚫 Closed: 2(熱區) | ⛔ Won't Fix: 0 | **熱區 Total: 4**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 3(熱區) | ⛔ Won't Fix: 0 | **熱區 Total: 4**
 - 📦 已歸檔:15 張(見 `_archive/bugs/`)
 - 📊 整體 Total:19 張
 
@@ -29,12 +29,12 @@
 
 | ID | 標題 | 嚴重度 | 驗證時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-050 | Worker-side YOLO pipeline 退化 — banner missing + clipboard fallback | 🟡 Medium | 2026-04-19 | [BUG-050](BUG-050-worker-yolo-pipeline-regression-banner-missing-clipboard-fallback.md) |
 
 ## 🚫 已關閉 (CLOSED)
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-050 | Worker-side YOLO pipeline 退化 — banner missing + clipboard fallback | 🟡 Medium | 2026-04-23 | [BUG-050](BUG-050-worker-yolo-pipeline-regression-banner-missing-clipboard-fallback.md) |
 | BUG-054 | PLAN-027 runtime 切換未覆蓋 BAT 終端 claude-cli preset 與 auth handlers | 🟡 Medium | 2026-04-22 | [BUG-054](BUG-054-runtime-switch-not-applied-to-terminal-and-auth.md) |
 | BUG-053 | `probeClaudeHealth` 無法 spawn `.cmd` / `.bat` shim(Node 20+ CVE-2024-27980) | 🟢 Low | 2026-04-22 | [BUG-053](BUG-053-claude-resolver-probe-fails-on-cmd-bat-shims-node-20plus.md) |
 

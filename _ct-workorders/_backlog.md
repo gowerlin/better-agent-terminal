@@ -2,10 +2,10 @@
 
 > ⚠️ 此文件由 `*sync` 自動生成,請勿手動編輯。
 
-> 最後同步:2026-04-22 20:40 (UTC+8) — *archive 後重建(11 張 PLAN 已歸檔到 _archive/plans/)
+> 最後同步:2026-04-23 00:18 (UTC+8) — PLAN-024 PLANNED → DROPPED(BUG-050 CLOSED 後不再需要)
 
 ## 統計
-- 💡 Ideas: 5 | 📋 Planned: 5 | 🔄 In Progress: 1 | ✅ Done: 1(熱區) | 🚫 Dropped: 0(熱區) | **熱區 Total: 12**
+- 💡 Ideas: 5 | 📋 Planned: 4 | 🔄 In Progress: 1 | ✅ Done: 1(熱區) | 🚫 Dropped: 1(熱區) | **熱區 Total: 12**
 - 📦 已歸檔:11 張(見 `_archive/plans/`)
 - 📊 整體 Total:23 張
 
@@ -16,7 +16,6 @@
 | PLAN-028 | BAT dogfood 驗證 CT v4.4.x(CLT 對齊 6 項改良) | 🟡 Medium | 📐 PLANNED | [PLAN-028](PLAN-028-bat-dogfood-verify-ct-v44-clt-alignment.md) |
 | PLAN-026 | JetBrains Gateway Dev Container 剪貼簿 proxy(HTTP daemon) | 🟢 Low | 💡 IDEA | [PLAN-026](PLAN-026-jetbrains-gateway-clipboard-proxy.md) |
 | PLAN-025 | Auto-session 終端偵測跨平台擴展 | 🔴 High | 📋 PLANNED | [PLAN-025](PLAN-025-auto-session-cross-platform-terminal-detection.md) |
-| PLAN-024 | BUG-050 Option C 雙階段:YOLO pipeline 顯性化與 Worker skill 一致性 | 🟡 Medium | 📋 PLANNED | [PLAN-024](PLAN-024-bug-050-option-c-two-phase-yolo-pipeline-hardening.md) |
 | PLAN-021 | RemoteServer port Settings UI | 🟢 Low | 🔄 IN_PROGRESS | [PLAN-021](PLAN-021-remote-server-port-settings-ui.md) |
 | PLAN-015 | Refactor dual-render-path shared helper | 🟢 Low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-014 | Evaluate VSCode extension vs Git GUI | 🟢 Low | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
@@ -37,5 +36,6 @@
 
 | ~~ID~~ | ~~標題~~ | 原因 | 連結 |
 |--------|---------|------|------|
+| ~~PLAN-024~~ | ~~BUG-050 Option C 雙階段:YOLO pipeline 顯性化~~ | BUG-050 CLOSED 後不再需要(方案 A 已穩定) | [PLAN-024](PLAN-024-bug-050-option-c-two-phase-yolo-pipeline-hardening.md) |
 
 > 📦 PLAN-001 (DROPPED) 已歸檔至 `_archive/plans/`
