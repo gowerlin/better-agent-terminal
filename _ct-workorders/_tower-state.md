@@ -1,10 +1,46 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-23 02:45(**第二十一 session 收工:熱區 5 清理(BUG-050/055 + PLAN-024/025 + T0228)+ PLAN-004 Phase 1 完全閉環(EXP-GPUWHIS-001 CONCLUDED,main 新 feature commit `cb65614`)+ 3 條決策(D075/D076/D077)**)
+> 最後更新:2026-04-23 03:35(**第二十二 session — T0241 研究 DONE(13 min Worker 神速交付,反轉塔台假設)→ D079 拆單 T0242 修復 + T0243 預防對策**)
 
 ---
 
-## 🛏 本 Session 退出快照(第二十一 session,2026-04-23 00:12-02:45,~2.5h,高產出 session)
+## 🚨 本 Session 開場事件(第二十二 session,2026-04-23 03:05~)
+
+### Fast Path 啟動後立即觸發緊急 bug
+
+- **03:05**:使用者上傳截圖 — BAT 打包版啟動即崩潰 `Cannot find module '@kutalia/whisper-node-addon'`,require stack 指向 `app.asar\dist-electron\main.js:1:810`
+- **03:07**:塔台完成事件判定 — 🔴 High regression from `cb65614`(EXP-GPUWHIS-001 Phase 1 squash merge),T0238 packaging 驗收偽陽性(probe.js 繞過 Electron asar resolver)
+- **03:08**:需求對齊 Q1.B(pause T0241 版號 bump)/ Q2.A(開 BUG-056 + research)/ Q3.C(dir + NSIS 雙路徑驗收)→ 建 BUG-056 + T0241 + D078
+
+### 本 session pending(目前優先序)
+
+1. 🔴 **T0242 派發** — BUG-056 修復工單,`--mode on --interactive`(NSIS 重裝需使用者配合)
+2. 🟡 **T0243 排隊** — BUG-056 預防對策(build fail-fast + CI `npm ci`)待 BUG-056 CLOSED 後派發
+3. ⏸ **版號 bump**(原預留 T0241 用途)**PAUSED** — 等 BUG-056 CLOSED 後恢復,屆時另編(T0244+)
+4. ⏸ **PLAN-004 狀態更新**(session 21 pending)繼續 PAUSED
+
+### 最新編號(session 22 進行中)
+
+- T: **T0243**(T0241 DONE / T0242 TODO / T0243 TODO 排隊)
+- BUG: **BUG-056**(🔴 High 🐛 OPEN,等 T0242 修復)
+- D: **D079**(T0241 結論吸收 + 拆單決策)
+- PLAN / EXP: 無變動(PLAN-028 / EXP-GPUWHIS-001)
+
+### T0241 研究結論(H6,反轉塔台假設)
+
+- **根因**:`cb65614` squash merge 只更新 `package.json` / `package-lock.json`,main repo **從未 `npm install`**,打包時 `@kutalia/` 根本不在 `node_modules/`
+- **T0238 盲點**:worktree 打包 vs main repo 打包不等價(前者 node_modules 完整;後者缺失)
+- **修復**:**零 code 修改**,僅需 `npm install` + rebuild + NSIS 重裝驗收
+- **Worker 效率**:13 min wall(03:17-03:30),0 Renew,結論完全收斂到單一根因
+
+### 本 session 教訓候選
+
+- **L101 候選**:packaging 驗收必須涵蓋「NSIS installer 完整重裝路徑」,不能只跑 `ELECTRON_RUN_AS_NODE=1 probe.js`(Node 模式直跑會繞過 Electron main process 的 asar integration resolver)。T0238 全綠 vs 打包後崩潰是明確反例 — 候選 Global 升級(跨專案通用:Electron 打包驗收通則)
+- **L102 候選**:squash merge EXP 到 main 時,應優先派一張「packaged install 煙測工單」而非立刻派版號 bump。D077 squash merge 後直接走到 T0241 版號 bump pending,漏了 packaging 煙測這層
+
+---
+
+## 🛏 前 Session 退出快照(第二十一 session,2026-04-23 00:12-02:45,~2.5h,高產出 session)
 
 ### 本輪時間線
 
@@ -2345,12 +2381,12 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0240(session 21 新增 T0236/237/238/239/240) |
-| **BUG 最大編號** | BUG-055(session 20 新增) |
+| **工單最大編號** | T0243(session 22 新增 T0241 research / T0242 fix / T0243 prevention) |
+| **BUG 最大編號** | BUG-056(🔴 High 🐛 OPEN,等 T0242 修復) |
 | **PLAN 最大編號** | PLAN-028 |
 | **EXP 最大編號** | EXP-GPUWHIS-001(session 21 新增,📊 CONCLUDED) |
-| **上游同步版本** | v2.1.42-pre.2(2026-04-16)— 待 T0241 版號 bump |
-| **決策最大編號** | D077(session 21 新增 D075/D076/D077) |
+| **上游同步版本** | v2.1.42-pre.2(2026-04-16)— ⏸ 版號 bump 暫停待 BUG-056 CLOSED |
+| **決策最大編號** | D079(session 22 新增 D078 / D079) |
 | **塔台版本** | Control Tower v4.3.0 |
 
 ---

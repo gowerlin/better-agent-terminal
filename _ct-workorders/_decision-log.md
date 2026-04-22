@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-23 02:40 (UTC+8)(新增 D077 EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge)
+> 最後更新:2026-04-23 03:35 (UTC+8)(新增 D079 — T0241 研究結論吸收,BUG-056 修復拆兩張:T0242 修復 + T0243 預防對策)
 
 ---
 
@@ -59,10 +59,56 @@
 | D075 | 2026-04-23 | GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first | T0236 / PLAN-004 / EXP-GPUWHIS-001 |
 | D076 | 2026-04-23 | T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D 合入主線 | T0237 / EXP-GPUWHIS-001 |
 | D077 | 2026-04-23 | EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge + 刪除 worktree | T0240 / EXP-GPUWHIS-001 |
+| D078 | 2026-04-23 | BUG-056 NSIS 打包版啟動崩潰（regression from `cb65614`）— 暫停 T0241 版號 bump，派研究工單定位根因 | BUG-056 / T0241 / cb65614 / EXP-GPUWHIS-001 |
+| D079 | 2026-04-23 | T0241 結論吸收 — BUG-056 根因為 main repo 缺 `npm install`；修復拆 T0242（npm install + NSIS 雙 path 驗收）+ T0243（build fail-fast + CI `npm ci`）| T0241 / T0242 / T0243 / BUG-056 |
 
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D079 2026-04-23 — T0241 結論吸收 — BUG-056 修復拆兩張（T0242 修復 + T0243 預防對策）
+
+- **背景**：T0241 Worker 13 min 神速交付（2026-04-23 03:17-03:30），研究結論反轉塔台 H1-H5 預設假設，提出 **H6（塔台未列）**：`cb65614` squash merge 只更新 `package.json` / `package-lock.json`，main repo **從未跑 `npm install`** → `node_modules/@kutalia/` 不存在 → NSIS installer 本質上不含 `@kutalia/whisper-node-addon`。T0238 驗收全綠是因在 **worktree** 打的 installer（worktree node_modules 完整），從 main repo 打是第一次。
+- **選項**（使用者提供）：
+  - 選項 A：僅修復（T0242 範圍 = npm install + rebuild + 雙 path 驗收）
+  - 選項 B：修復 + 預防合一（T0242 merged CI + fail-fast）
+  - 選項 C：**拆兩張**（T0242 修復救火 + T0243 預防對策另案）
+- **決定**：**Q1=C（拆兩張）+ Q2=B（雙 path 驗收）+ Q3=C（`--mode on --interactive` 保留 NSIS 重裝互動窗口）**
+- **理由**：
+  1. **Q1.C 救火與治本解耦**：release pipeline 已被 bug 阻塞，T0242 必須最小範圍最快落地；預防對策（CI pipeline 調整 + fail-fast script + CLAUDE.md 文件更新）屬 process 改進，本質 M sizing，硬塞進 T0242 會拖長救火時間。使用者明示「避免以後其他套件加入又發生類似問題」→ T0243 明確預防 BUG-056 類型（多 native module 通用，非僅 `@kutalia`）
+  2. **Q2.B 符合 BUG-056 Q3.C 承諾**：T0238 盲點即跳過 NSIS install 路徑，T0242 必須涵蓋 Path A + Path B；跨平台擴展（macOS / Linux）延後到 T0243 評估
+  3. **Q3.C 保留互動窗口**：NSIS 重裝需使用者配合 uninstall → install，`--mode on --interactive` 讓 Worker 可在卡關時問使用者（如「可以卸載 BAT 了嗎？」），走 yolo 會卡死
+  4. **零 code 修改原則**：T0241 明確驗證 `package.json` asarUnpack / `vite.config.ts` external / `electron/voice-handler.ts` import **全部無需改**。T0242 禁止改 source code，僅補 node_modules + rebuild + 驗收
+- **執行工單**：T0242（fix，`--mode on --interactive`，S sizing）→ T0243（prevention，`--mode on`，M sizing，排隊 BUG-056 CLOSED 後派發）
+- **成功指標**：
+  - T0242：Path A + Path B 雙驗收全綠 → BUG-056 CLOSED
+  - T0243：Build fail-fast + CI `npm ci` + CLAUDE.md 更新 → BUG-056 類型重演防護
+- **相關工單**：T0241（研究源頭）/ T0242（修復）/ T0243（預防）/ BUG-056（目標 CLOSED）
+
+---
+
+### D078 2026-04-23 — BUG-056 NSIS 打包版啟動崩潰 — 暫停 release pipeline，派研究工單定位根因
+
+- **背景**：Session 21 收工後（2026-04-23 02:45）使用者實機 NSIS installer 測試，啟動瞬間跳 `Cannot find module '@kutalia/whisper-node-addon'`。Require stack 指向 `C:\Program Files\BetterAgentTerminal\resources\app.asar\dist-electron\main.js:1:810`，為 main process 入口。**Regression from `cb65614`**（EXP-GPUWHIS-001 Phase 1 squash merge）。
+- **選項**：
+  - 選項 A：**開 BUG-056 + 派 research 工單**（根因不明，Worker 靜態分析 + asar 實際內容驗證）
+  - 選項 B：先 revert `cb65614` 穩定 main，再從 `exp/` 分支補強 packaging 重新合入
+  - 選項 C：直接派修復工單（塔台假設是 `asarUnpack` 缺 `@kutalia/*`，Worker 直接改 `package.json`）
+- **決定**：**Q1=B（pause T0241 版號 bump）+ Q2=A（開 BUG-056 + 派 research）+ Q3=C（dir/ 模式 + NSIS 重裝雙路徑驗收）**
+- **理由**：
+  1. **Q1.B 聚焦 bug**：Release pipeline 已被 bug 阻塞（無法發版），T0241 版號 bump 暫停是自然結果；本 session 完全聚焦 bug 修復避免注意力分散
+  2. **Q2.A 拒絕盲修**：塔台已列出 5 個假設（H1-H5），無任一有決定性證據；若直接 revert（選項 B）會浪費 session 21 完整的 Vulkan 整合成果；若直接派修復（選項 C）有盲修風險 — T0238 packaging 驗收剛好是偽陽性前例
+  3. **Q3.C 雙路徑驗收**：T0238 驗收盲點正是「用 `ELECTRON_RUN_AS_NODE=1 probe.js` 繞過 Electron main process 的 asar resolver」→ 本次驗收必須涵蓋 NSIS installer 完整重裝路徑，不能再只跑 probe.js
+  4. **編號承接**：原 session 21 收工快照預留 T0241 給版號 bump（pending 項目），本次研究工單佔用 T0241 編號；版號 bump 未來用 T0242（或依 bug 修復後實際進度另編）
+- **執行工單**：T0241（research，建議 `--mode on --interactive`，`research_max_questions: 3`）
+- **成功指標**：
+  - 根因收斂到單一或兩個最可能假設
+  - 產出可直接派修復工單的提案（具體檔案 / 欄位 / diff 量）
+  - 驗收情境涵蓋 NSIS installer 完整重裝路徑
+  - T0238 盲點記錄為 L### 學習候選（packaging 驗收必須含 NSIS 路徑）
+- **相關工單**：BUG-056 / T0241 / `cb65614` / EXP-GPUWHIS-001 / T0238（盲點來源）/ T0240（squash merge 執行者）
 
 ---
 
