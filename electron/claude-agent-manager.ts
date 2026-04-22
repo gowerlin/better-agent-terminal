@@ -10,6 +10,14 @@ import { logger } from './logger'
 import { getNodeExecutable, isElectronFallback } from './node-resolver'
 import { worktreeManager } from './worktree-manager'
 import type { WorktreeInfo } from './worktree-manager'
+import {
+  resolveClaudeRuntime,
+  getRuntimeSettingsSnapshot,
+  shouldEmitRuntimeEvent,
+  clearRuntimeEventHistory,
+  type ResolvedRuntime,
+} from './claude-runtime-router'
+import type { ClaudeRuntimeDegradedEvent, ClaudeRuntimeWarningEvent } from '../src/types'
 
 // App-level permission mode extends SDK's PermissionMode with bypassPlan
 // bypassPlan = plan mode (read-only exploration) + auto-approve all tool permissions
@@ -243,6 +251,48 @@ export class ClaudeAgentManager {
       }
     }
     broadcastHub.broadcast(channel, ...args)
+  }
+
+  /**
+   * Resolve the claude binary path for a spawn, emit toast events when the
+   * routing degraded / chose a stale-version system binary. PLAN-027 #2.
+   *
+   * Per-session dedup (R3): each sessionId emits at most one degraded and
+   * one warning event. The two types are independent so both may fire on
+   * the same session if their conditions independently apply.
+   *
+   * Throws SystemClaudeUnavailableError when fallback is disabled and the
+   * system binary is unusable; caller decides whether to abort the spawn
+   * or surface an error.
+   */
+  private async resolveRuntimeForSession(sessionId: string): Promise<ResolvedRuntime> {
+    const settings = getRuntimeSettingsSnapshot()
+    const resolved = await resolveClaudeRuntime(settings)
+
+    if (resolved.source === 'system-fallback-to-embedded' && resolved.degraded) {
+      if (shouldEmitRuntimeEvent(sessionId, 'degraded')) {
+        const payload: ClaudeRuntimeDegradedEvent = {
+          sessionId,
+          reason: resolved.degraded.reason,
+          detail: resolved.degraded.detail,
+        }
+        logger.log(`[runtime-router] degraded for session ${sessionId.slice(0, 8)}: ${payload.reason}${payload.detail ? ` (${payload.detail})` : ''}`)
+        this.send('claude:runtime-degraded', payload)
+      }
+    } else if (resolved.source === 'system' && resolved.healthStatus === 'version-warning') {
+      if (shouldEmitRuntimeEvent(sessionId, 'warning')) {
+        const version = resolved.systemVersion || 'unknown'
+        const payload: ClaudeRuntimeWarningEvent = {
+          sessionId,
+          version,
+          message: `System claude ${version} is older than recommended (requires >= 2.1.111 for Opus 4.7 / xhigh effort). SDK will still load, but some features may be unavailable.`,
+        }
+        logger.log(`[runtime-router] version warning for session ${sessionId.slice(0, 8)}: ${version}`)
+        this.send('claude:runtime-warning', payload)
+      }
+    }
+
+    return resolved
   }
 
   /**
@@ -534,13 +584,14 @@ export class ClaudeAgentManager {
 
     try {
       const query = await getQuery()
-      const claudeCodePath = resolveClaudeCodePath()
+      const resolvedRuntime = await this.resolveRuntimeForSession(sessionId)
+      const claudeCodePath = resolvedRuntime.path
       const nodeExecutable = getNodeExecutable()
       if (electronFallback) {
         process.env.ELECTRON_RUN_AS_NODE = '1'
         logger.log('[Claude] Using Electron binary as Node.js runtime (ELECTRON_RUN_AS_NODE=1)')
       }
-      logger.log(`[Claude] runQuery: cwd=${session.cwd}, resumeId=${resumeId || 'none'}, claudeCodePath=${claudeCodePath || 'none'}, nodeExecutable=${nodeExecutable}`)
+      logger.log(`[Claude] runQuery: cwd=${session.cwd}, resumeId=${resumeId || 'none'}, claudeCodePath=${claudeCodePath || 'none'} (source=${resolvedRuntime.source}), nodeExecutable=${nodeExecutable}`)
       const canUseTool: CanUseTool = async (toolName, input, opts) => {
         // Check if this is an AskUserQuestion tool — always show UI
         if (toolName === 'AskUserQuestion') {
@@ -1255,12 +1306,14 @@ export class ClaudeAgentManager {
     this.send('claude:streaming', sessionId, true)
 
     try {
-      const claudeCodePath = resolveClaudeCodePath()
+      const resolvedRuntime = await this.resolveRuntimeForSession(sessionId)
+      const claudeCodePath = resolvedRuntime.path
       const nodeExecutable = getNodeExecutable()
       const electronFallback = isElectronFallback()
       if (electronFallback) {
         process.env.ELECTRON_RUN_AS_NODE = '1'
       }
+      logger.log(`[Claude V2] runQueryV2: claudeCodePath=${claudeCodePath || 'none'} (source=${resolvedRuntime.source})`)
 
       // Build canUseTool (same logic as V1)
       const canUseTool: CanUseTool = async (toolName, input, opts) => {
@@ -2030,6 +2083,7 @@ export class ClaudeAgentManager {
     if (session) {
       session.abortController.abort()
       this.sessions.delete(sessionId)
+      clearRuntimeEventHistory(sessionId)
     }
 
     // Store the SDK session ID so startSession will use it for resume
@@ -2080,6 +2134,7 @@ export class ClaudeAgentManager {
     try { session.queryInstance?.close() } catch { /* ignore */ }
     this.sessions.delete(sessionId)
     sdkSessionIds.delete(sessionId)
+    clearRuntimeEventHistory(sessionId)
 
     // Start a fresh session preserving settings and reusing existing worktree
     const ok = await this.startSession(sessionId, {
@@ -2207,11 +2262,12 @@ export class ClaudeAgentManager {
     // Correct approach: call query() with { resume: currentSdkId, forkSession: true },
     // capture the new session_id from system:init, then abort immediately.
     const query = await getQuery()
-    const claudeCodePath = resolveClaudeCodePath()
+    const resolvedRuntime = await this.resolveRuntimeForSession(sessionId)
+    const claudeCodePath = resolvedRuntime.path
     const nodeExecutable = getNodeExecutable()
     const cwd = session?.cwd
 
-    logger.log(`[forkSession] starting: sdkSessionId=${currentSdkId.slice(0, 8)} cwd=${cwd}`)
+    logger.log(`[forkSession] starting: sdkSessionId=${currentSdkId.slice(0, 8)} cwd=${cwd} claudeCodePath=${claudeCodePath || 'none'} (source=${resolvedRuntime.source})`)
 
     const abortController = new AbortController()
     let newSdkSessionId: string | null = null
@@ -2263,6 +2319,7 @@ export class ClaudeAgentManager {
       } catch {
         // Ignore errors during shutdown
       }
+      clearRuntimeEventHistory(id)
     }
     // Do NOT clean up worktrees on dispose — they should persist across app restarts.
     // Users explicitly discard worktrees via the UI.

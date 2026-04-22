@@ -267,6 +267,28 @@ export const DEFAULT_CLAUDE_RUNTIME_SETTINGS: ClaudeRuntimeSettings = {
   fallbackToEmbedded: true,
 };
 
+// Main → renderer runtime events (PLAN-027 #2 / T0231). Fired from the three
+// spawn sites when routing fell back to embedded or detected an ageing system
+// binary. UI (T0232 / #3) subscribes via `window.electronAPI.claude.onRuntimeDegraded`
+// / `onRuntimeWarning` to surface a toast.
+export type ClaudeRuntimeDegradedReason =
+  | 'system-not-found'
+  | 'system-unhealthy'
+  | 'system-too-old'
+  | 'detect-threw';
+
+export interface ClaudeRuntimeDegradedEvent {
+  sessionId: string;
+  reason: ClaudeRuntimeDegradedReason;
+  detail?: string;
+}
+
+export interface ClaudeRuntimeWarningEvent {
+  sessionId: string;
+  version: string;
+  message: string;
+}
+
 // ============================================
 //   Skill Commands
 // ============================================

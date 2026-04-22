@@ -314,6 +314,35 @@ const electronAPI = {
       ipcRenderer.on('claude:prompt-suggestion', handler)
       return () => ipcRenderer.removeListener('claude:prompt-suggestion', handler)
     },
+    // PLAN-027 #2 (T0231) — runtime routing events. UI (T0232 / #3) subscribes
+    // to surface a toast when spawn fell back to embedded or chose a stale
+    // system claude. Events are deduplicated per session in the main process.
+    onRuntimeDegraded: (callback: (event: {
+      sessionId: string
+      reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'detect-threw'
+      detail?: string
+    }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: {
+        sessionId: string
+        reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'detect-threw'
+        detail?: string
+      }) => callback(payload)
+      ipcRenderer.on('claude:runtime-degraded', handler)
+      return () => ipcRenderer.removeListener('claude:runtime-degraded', handler)
+    },
+    onRuntimeWarning: (callback: (event: {
+      sessionId: string
+      version: string
+      message: string
+    }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: {
+        sessionId: string
+        version: string
+        message: string
+      }) => callback(payload)
+      ipcRenderer.on('claude:runtime-warning', handler)
+      return () => ipcRenderer.removeListener('claude:runtime-warning', handler)
+    },
   },
   worktree: {
     create: (sessionId: string, cwd: string) =>

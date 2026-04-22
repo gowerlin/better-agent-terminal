@@ -235,6 +235,16 @@ interface ElectronAPI {
     onRateLimit: (callback: (sessionId: string, info: { rateLimitType: string; resetsAt: number; utilization: number | null; isUsingOverage: boolean }) => void) => () => void
     onWorktreeInfo: (callback: (sessionId: string, info: { branchName: string; worktreePath: string; sourceBranch: string; gitRoot?: string } | null) => void) => () => void
     onPromptSuggestion: (callback: (sessionId: string, suggestion: string) => void) => () => void
+    onRuntimeDegraded: (callback: (event: {
+      sessionId: string
+      reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'detect-threw'
+      detail?: string
+    }) => void) => () => void
+    onRuntimeWarning: (callback: (event: {
+      sessionId: string
+      version: string
+      message: string
+    }) => void) => () => void
   }
   worktree: {
     create: (sessionId: string, cwd: string) => Promise<{ success: boolean; worktreePath?: string; branchName?: string; gitRoot?: string; sourceBranch?: string; error?: string }>
