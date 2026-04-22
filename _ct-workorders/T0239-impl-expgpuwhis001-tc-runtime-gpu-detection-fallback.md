@@ -4,7 +4,9 @@
 
 - **編號**:T0239
 - **類型**:impl(策略設計 + 程式碼實作 + UI 提示)
-- **狀態**:📋 TODO
+- **狀態**:✅ DONE
+- **開始時間**:2026-04-23 02:08 (UTC+8)
+- **完成時間**:2026-04-23 02:33 (UTC+8)
 - **派發模式**:`--mode on --interactive`(Worker 可問 UX 偏好 / 硬體策略)
 - **優先級**:🟡 Medium
 - **Sizing**:M(2-4h,含 detection 邏輯 + `voice-handler.ts` 更新 + Settings UI hint)
@@ -144,34 +146,61 @@ Worker **應互動詢問**:
 ## 回報區(Worker 填寫)
 
 ### 完成狀態
-<!-- DONE / PARTIAL / Renew -->
+DONE
 
 ### 產出連結
 - Worktree:`../bat-gpu-vulkan-poc` on branch `exp/gpu-vulkan-poc`
-- commit hash:
+- commit hash:`eba79b1` feat(voice): runtime GPU detection + CPU fallback strategy [T0239 T-C]
 - Q1/Q2/Q3 決策:
-- detection 程式碼:
+  - **Q1 = A + 輕量 hybrid**:trust `@kutalia/whisper-node-addon` 內建 auto-detect 作 runtime 決策路徑;BAT 加**靜態探測**(檢查 `vulkan-1.dll` / `libvulkan.so.1` 是否存在)生成 UI hint。**不引入 `systeminformation` 重依賴**,**不 spawn probe subprocess**(需模型 + 加啟動成本)。
+  - **Q2 = C**:提示但不擋。fp16 偵測需 parse 原生 addon stderr,超出本工單 M sizing。使用者可透過 Settings 的「強制 CPU」override 規避 suboptimal GPU 情境。
+  - **Q3 = A**(primary):Settings 新增「GPU 加速」section 顯示狀態 + auto/force-cpu radio。不加 toast(避免首次使用者煩擾)。
+- detection 程式碼:`electron/gpu-detector.ts`(新增 203 行,含 `getGpuStatus()` / `resolveUseGpu()` + 平台探測 + hint 生成,快取於 process 生命週期)
 - voice-handler.ts diff:
-- UI hint 落點:
+  - 新增 `sanitiseGpuMode()`(容錯讀舊 prefs JSON)
+  - `readPreferences` / `setPreferences` / `writePreferences` 都涵蓋 `gpuMode`
+  - 新增 `getGpuStatus` IPC handler
+  - transcribe 改呼叫 `resolveUseGpu(prefs.gpuMode)` → `use_gpu: true|false`
+- UI hint 落點:`VoiceSettingsSection.tsx`「GPU 加速」section:
+  - 3 行狀態顯示(目前狀態 / 預期後端 / 平台 + Vulkan loader 偵測結果)
+  - 1 行 hint 文字(提醒 Pascal 世代 GPU 可能不顯著加速)
+  - 2 個 radio:`auto` / `force-cpu`,切換即時更新 hint 文字
 - 實機驗證 log:
+  - `npx tsc --noEmit` → exit 0
+  - `npx vite build` → ✓ built,無 TypeScript error
+  - `npx tsx tests/gpu-detector.test.ts` → **13/13 passed**
+  - 本機環境:`platform=win32 vulkanLoader=true`(GTX 1050 Ti + Windows 11 + NVIDIA driver,符合預期)
 
 ### 成功判準達成情況
-1. detection 三情境分類:
-2. voice-handler 整合:
-3. UI hint 落地:
-4. 實機驗證:
-5. 策略文檔:
+1. **detection 三情境分類** ✅
+   - Good GPU(macOS Metal / Vulkan-available):`expectedBackend='metal' | 'vulkan'`,hint 顯示加速啟用
+   - Suboptimal GPU(GTX 1050 Ti on Windows,Vulkan loader 存在):`expectedBackend='vulkan'`,hint 顯式提醒 Pascal 世代可能不加速 + 指向 force-cpu override
+   - No GPU(無 Vulkan loader):`expectedBackend='cpu'`,hint 建議更新 driver 或接受 CPU 模式
+   - 注:fp16 偵測需原生 addon stderr parsing,本工單未實作(決策理由見 gpu-detector.ts 檔頭)
+2. **voice-handler 整合** ✅:`prefs.gpuMode` 透過 `resolveUseGpu()` 轉為 `use_gpu` bool,`force-cpu` 路徑驗證 `use_gpu: false` 會被送到 whisperTranscribe
+3. **UI hint 落地** ✅:Settings 實裝完成,radio 切換會即時 re-fetch `getGpuStatus` 讓 hint 文字跟著更新(auto ↔ force-cpu 切換時 hint 不同)
+4. **實機驗證** ✅:tsc + vite build + 13 單元測試全通過。gpu-detector 在本機真實 Windows 環境跑出 `vulkanLoader=true`,符合有 NVIDIA driver 的預期
+5. **策略文檔** ✅:gpu-detector.ts 檔頭 + voice.ts `VoiceGpuStatus` JSDoc + commit message 都說明 Q1/Q2/Q3 決策理由與「未做什麼、為什麼不做」
 
 ### 互動紀錄
+無。本工單 spec 允許 Worker 根據 T-A/B 發現 + 套件 API 分析自行決策 Q1/Q2/Q3;決策過程全部基於 T0237 實測(`fp16: 0` + Pascal GPU 瓶頸)、Kutalia package `index.d.ts`(僅 export `transcribe`,無 GPU probe API)與 BAT 既有 Settings 架構(`VoiceSettingsSection.tsx` 可直接擴充)。**未觸發互動需求**。
 
 ### 風險 / 阻塞 / 意外發現
+1. **fp16 / matrix-core 細粒度偵測延後**:需 parse `@kutalia/whisper-node-addon` 原生 stderr(GGML backend init log),超出本工單 M sizing。已在 `gpu-detector.ts` 檔頭與 `VoiceGpuStatus` JSDoc 明確標註為 known limitation。緩解:hint 文字主動告知 Pascal 世代可能問題 + 提供 force-cpu override,使用者可自行對照 T0237 經驗判斷。
+2. **Vulkan loader 路徑 heuristic**:Linux 多 distro multiarch path 只涵蓋常見位置(Debian/Ubuntu/Arch/RHEL)。非常見 distro 可能誤報 `false`。這對功能無害(Kutalia 仍會 runtime auto-detect),只是 UI hint 文字會顯示「未偵測到 Vulkan driver」+ CPU fallback;實際若套件偵測得到會照常走 GPU。
+3. **WSL 情境未驗證**:使用者環境含 WSL(per T0236 spec),本工單未在 WSL 內跑驗證。若 T-D / Phase 2 需要 WSL 驗證,建議補工單。
+4. **Renderer 立即 update hint 的重新查詢**:切換 radio 時呼叫 `setPreferences` + `getGpuStatus` 兩次 IPC,可接受(< 10ms);若未來加入需要阻塞的重探測邏輯,建議改為 main 端 push event。目前無阻塞,無需優化。
 
 ### 下一步建議
-- [ ] T-D(EXP-GPUWHIS-001 正式化 / Phase 2 決策)可啟動
-- [ ] Renew
-- [ ] 建議 scope 調整
+- [x] **T-D(EXP-GPUWHIS-001 正式化 / Phase 2 決策)可啟動**:T-A/B/C 三單都 DONE + 套件層 / 打包層 / detection 層都可用。T-D 的決策維度:
+  - (a) EXP 轉 PLAN(ACTIVE / DROP)
+  - (b) 是否需補 fp16 深度偵測工單(延後,T0239 本次未做)
+  - (c) main 線 merge 策略(squash commits / rebase / PR 流程)
+- [ ] (選配)若後續收到使用者對「hint 文字太長」或「想看到實際 GPU 裝置名稱」的 feedback,可考慮補一個 S sizing 工單改為 spawn probe + parse addon stderr
+- [ ] (選配)UI 視覺驗收:目前 tsc + vite build + 單元測試 pass,但 Settings 「GPU 加速」section 尚未在執行中的 Electron window 實拍截圖確認。建議使用者開啟 BAT → Settings → 語音輸入 section 末端確認視覺。**不阻塞** T-C DONE(程式邏輯已驗證)。
 
 ### 回報時間
+2026-04-23 02:33 (UTC+8)
 
 ---
 

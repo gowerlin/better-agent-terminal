@@ -114,8 +114,26 @@ git worktree add ../bat-gpu-whisper-vulkan -b exp/gpu-whisper-vulkan
 - **體積符合預期**:增量 +80 MB whisper addon 實測吻合 T0236 spec 估算
 - **對 T-C 啟示**:packaged form Vulkan runtime OK → T-C 可專注於 detection 邏輯設計,不需再驗證 runtime 路徑
 
-### T-C 產出
-<!-- 派發後填寫 -->
+### T-C 產出(T0239,2026-04-23 02:33 完成,commit `eba79b1` on worktree)
+
+- **狀態**:✅ DONE(5/5 全綠,0 互動、0 Renew)
+- **Worker 決策(Q1/Q2/Q3)**:
+  - **Q1 = A + 輕量 hybrid**:trust Kutalia auto-detect + BAT 靜態 `vulkan-1.dll` / `libvulkan.so.1` 探測生成 UI hint(**不引入 `systeminformation` 重依賴**)
+  - **Q2 = C**:提示但不擋,使用者可透過 Settings force-cpu override
+  - **Q3 = A**:Settings「GPU 加速」section(狀態顯示 + auto/force-cpu radio),不加 toast
+- **產出**:
+  - `electron/gpu-detector.ts`(新增 203 行,平台探測 + hint 生成 + process 生命週期 cache)
+  - `voice-handler.ts` 整合(sanitiseGpuMode / readPreferences / getGpuStatus IPC / resolveUseGpu 透傳 `use_gpu` bool)
+  - `VoiceSettingsSection.tsx` UI(3 行狀態 + 1 行 hint + auto/force-cpu radio,切換即時更新 hint)
+  - `tests/gpu-detector.test.ts` 13/13 passed
+  - tsc + vite build 通過
+- **known limitation**(已在 code 檔頭 + JSDoc 標註):
+  - fp16 / matrix-core 細粒度偵測延後 — 需 parse Kutalia 原生 stderr,超出本工單 M sizing
+  - 緩解:hint 主動告知 Pascal 世代可能問題 + 提供 force-cpu override
+- **對 T-D 啟示**:
+  - T-A/B/C 全綠 → spec §7 T-D Option 1(直接 PR 回主線)可行性成立
+  - worktree 3 commits(`bd27732` + `2080880` + `eba79b1`)可直接 merge 回 main
+  - 合入主線後須在 PR 描述 / CHANGELOG 標註「GPU 加速功能已就緒,舊硬體走 CPU 不劣化,未來升級新 GPU 自動受益」
 
 ### T-D 決策
 <!-- Phase 2 派工決策 -->
