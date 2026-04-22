@@ -50,7 +50,12 @@ async function probe() {
   console.log(JSON.stringify(customInfo, null, 2))
   console.log()
 
-  // Extra: probe npm global .cmd shim (Windows CVE-2024-27980 case)
+  // Extra: probe npm global .cmd shim (Windows CVE-2024-27980 case).
+  // T0235 / BUG-053: PATH + common-location scans no longer pick .cmd shims,
+  // but customPath is user-owned and still lets the file through. Expected
+  // outcome: Node 20+ spawn() refuses EINVAL → healthStatus: 'spawn-failed'.
+  // Kept as a manual regression probe — the router will fall back to embedded
+  // (fallbackToEmbedded=true default) or surface a degraded event.
   const cmdShim = 'C:\\Users\\Gower\\AppData\\Roaming\\npm\\claude.cmd'
   console.log(`[AC-4.2++ customPath → .cmd shim] ${cmdShim}:`)
   const cmdInfo = await detectSystemClaude(cmdShim)

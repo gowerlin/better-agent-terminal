@@ -5,9 +5,9 @@
  * runtime selection feature without touching the agent-manager spawn sites
  * (T0231 / #2 owns the routing change).
  *
- * Detection strategy (T0229 R2):
- *   1. customPath override → health probe only
- *   2. PATH env scan (cross-platform; .exe wins over .cmd/.bat on Windows)
+ * Detection strategy (T0229 R2, updated by T0235 for BUG-053):
+ *   1. customPath override → health probe only (user owns path choice)
+ *   2. PATH env scan (cross-platform; Windows scans `.exe` only, no shims)
  *   3. Platform-specific common locations fallback
  *
  * Health probe (T0229 R3 Level B):
@@ -86,11 +86,19 @@ function classifyVersion(version: string): ClaudeHealthStatus {
 // ----------------------------------------------------------------------------
 
 /**
- * Windows binary names in priority order.
- * `.exe` first to avoid Node's `.cmd` / `.bat` shim CVE behaviour
- * (T0229 R4 — same dir, prefer `.exe`).
+ * Windows binary names for PATH / common-location scans.
+ *
+ * BUG-053 (T0235): scans now only accept `claude.exe` (native binary).
+ * `.cmd` / `.bat` shims are no longer auto-detected:
+ *   - Node 20+ spawn() refuses `.cmd` shims by default (CVE-2024-27980 EINVAL).
+ *   - claude v2.x ships a native `.exe` through the anthropic installer and
+ *     `app.asar.unpacked/.../bin/claude.exe`; no shim is needed.
+ *   - Legacy `npm install -g` users can still point `customPath` at the `.exe`
+ *     inside `%APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\`.
+ *
+ * customPath is user-owned and bypasses this filter (see detectSystemClaude).
  */
-const WINDOWS_BIN_NAMES = ['claude.exe', 'claude.cmd', 'claude.bat'] as const
+const WINDOWS_BIN_NAMES = ['claude.exe'] as const
 const UNIX_BIN_NAMES = ['claude'] as const
 
 function getBinaryNames(): readonly string[] {

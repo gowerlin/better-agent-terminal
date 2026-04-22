@@ -619,6 +619,24 @@ function getAllWindows(): BrowserWindow[] {
   return wins
 }
 
+/**
+ * BUG-054 (T0235): broadcast a runtime event from an IPC handler that lacks
+ * sessionId context (e.g. claude:get-cli-path). Mirrors the `send()` helper
+ * inside ClaudeAgentManager — fan out to every local BrowserWindow and push
+ * through broadcastHub so remote clients also receive it.
+ */
+function broadcastRuntimeEvent(
+  channel: 'claude:runtime-degraded' | 'claude:runtime-warning',
+  payload: unknown,
+): void {
+  for (const win of getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send(channel, payload)
+    }
+  }
+  broadcastHub.broadcast(channel, payload)
+}
+
 /** Reverse lookup: find windowId from a WebContents (for IPC sender context) */
 function getWindowIdByWebContents(wc: Electron.WebContents): string | null {
   for (const [id, win] of windowMap) {
@@ -1875,27 +1893,68 @@ function registerProxiedHandlers() {
     return result
   })
 
-  // Get bundled Claude CLI path for claude-cli preset
-  // BUG-047 (T0221): v2.1.113 ships only `bin/claude(.exe)`; no `cli.js`.
-  // Packaged → hardcode app.asar.unpacked path; dev → resolve via package.json + bin/.
-  registerHandler('claude:get-cli-path', () => {
-    // BUG-052: claude-code 套件跨平台只 ship bin/claude.exe(install.cjs 證實)
-    const binaryName = 'claude.exe'
-    if (app.isPackaged) {
-      return path.join(
-        process.resourcesPath,
-        'app.asar.unpacked',
-        'node_modules',
-        '@anthropic-ai',
-        'claude-code',
-        'bin',
-        binaryName,
-      )
-    }
+  // Get Claude CLI path for claude-cli preset.
+  //
+  // BUG-054 (T0235): previously hard-coded the embedded binary; now defers to
+  // resolveClaudeRuntime() so system-mode / customPath / fallback all honour
+  // the same routing as SDK spawns in claude-agent-manager.
+  //
+  // No sessionId is available in this handler (the terminal preset is created
+  // before any session), so degraded / version-warning events use the fixed
+  // dedup key '__terminal__'. The toast UI already accepts an optional sessionId.
+  //
+  // On SystemClaudeUnavailableError (fallbackToEmbedded=false + system unusable)
+  // we log and return '' — the renderer treats empty string as "no CLI" and the
+  // degraded event still fires so the UI can surface a toast with detail.
+  registerHandler('claude:get-cli-path', async () => {
+    const TERMINAL_EVENT_KEY = '__terminal__'
     try {
-      const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
-      return path.join(path.dirname(pkgPath), 'bin', binaryName)
-    } catch {
+      const { resolveClaudeRuntime, getRuntimeSettingsSnapshot, shouldEmitRuntimeEvent, SystemClaudeUnavailableError } = await import('./claude-runtime-router')
+      const settings = getRuntimeSettingsSnapshot()
+      try {
+        const resolved = await resolveClaudeRuntime(settings)
+        if (resolved.source === 'system-fallback-to-embedded' && resolved.degraded) {
+          if (shouldEmitRuntimeEvent(TERMINAL_EVENT_KEY, 'degraded')) {
+            const payload = {
+              sessionId: TERMINAL_EVENT_KEY,
+              reason: resolved.degraded.reason,
+              detail: resolved.degraded.detail,
+            }
+            logger.log(`[runtime-router] terminal degraded: ${payload.reason}${payload.detail ? ` (${payload.detail})` : ''}`)
+            broadcastRuntimeEvent('claude:runtime-degraded', payload)
+          }
+        } else if (resolved.source === 'system' && resolved.healthStatus === 'version-warning') {
+          if (shouldEmitRuntimeEvent(TERMINAL_EVENT_KEY, 'warning')) {
+            const version = resolved.systemVersion || 'unknown'
+            const payload = {
+              sessionId: TERMINAL_EVENT_KEY,
+              version,
+              message: `System claude ${version} is older than recommended (requires >= 2.1.111 for Opus 4.7 / xhigh effort). SDK will still load, but some features may be unavailable.`,
+            }
+            logger.log(`[runtime-router] terminal version warning: ${version}`)
+            broadcastRuntimeEvent('claude:runtime-warning', payload)
+          }
+        }
+        return resolved.path
+      } catch (err) {
+        if (err instanceof SystemClaudeUnavailableError) {
+          // fallbackToEmbedded=false + system claude unusable. Surface a degraded
+          // toast so the user sees why the terminal has no CLI, then return ''.
+          if (shouldEmitRuntimeEvent(TERMINAL_EVENT_KEY, 'degraded')) {
+            const payload = {
+              sessionId: TERMINAL_EVENT_KEY,
+              reason: err.reason,
+              detail: err.detail,
+            }
+            logger.log(`[runtime-router] terminal system-unavailable (fallback disabled): ${payload.reason}${payload.detail ? ` (${payload.detail})` : ''}`)
+            broadcastRuntimeEvent('claude:runtime-degraded', payload)
+          }
+          return ''
+        }
+        throw err
+      }
+    } catch (err) {
+      logger.error('[claude:get-cli-path] runtime resolution failed', err)
       return ''
     }
   })
@@ -1977,11 +2036,28 @@ function registerProxiedHandlers() {
     return { success: true }
   })
 
-  // claude auth status— get current auth info
+  // claude auth status — query the auth state of the currently-selected runtime.
+  //
+  // BUG-054 (T0235): previously ran `execFile('claude', ...)` which resolved via
+  // child-process PATH, so a system-mode user running with embedded fallback
+  // could still see a stale "logged in" from whichever `claude` won the PATH
+  // race. Now uses resolveClaudeRuntime() so the status always reflects the
+  // binary BAT will actually spawn. Runtime resolution failure is treated as
+  // "not logged in" (returning null) to preserve the existing API contract.
   registerHandler('claude:auth-status', async () => {
     const { execFile } = await import('child_process')
+    let resolvedPath: string
+    try {
+      const { resolveClaudeRuntime, getRuntimeSettingsSnapshot } = await import('./claude-runtime-router')
+      const resolved = await resolveClaudeRuntime(getRuntimeSettingsSnapshot())
+      if (!resolved.path) return null
+      resolvedPath = resolved.path
+    } catch (err) {
+      logger.error('[auth-status] runtime resolution failed', err)
+      return null
+    }
     return new Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>((resolve) => {
-      execFile('claude', ['auth', 'status'], { timeout: 10000, windowsHide: true }, (err, stdout) => {
+      execFile(resolvedPath, ['auth', 'status'], { timeout: 10000, windowsHide: true }, (err, stdout) => {
         if (err) {
           logger.error('[auth-status]', err)
           resolve(null)
@@ -1996,11 +2072,24 @@ function registerProxiedHandlers() {
     })
   })
 
-  // claude auth logout
+  // claude auth logout — BUG-054 (T0235): same runtime-router change as auth-status
+  // so logout hits the binary the user actually logged in with.
   registerHandler('claude:auth-logout', async () => {
     const { execFile } = await import('child_process')
+    let resolvedPath: string
+    try {
+      const { resolveClaudeRuntime, getRuntimeSettingsSnapshot } = await import('./claude-runtime-router')
+      const resolved = await resolveClaudeRuntime(getRuntimeSettingsSnapshot())
+      if (!resolved.path) {
+        return { success: false, error: 'Claude runtime not available' }
+      }
+      resolvedPath = resolved.path
+    } catch (err) {
+      logger.error('[auth-logout] runtime resolution failed', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
     return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      execFile('claude', ['auth', 'logout'], { timeout: 10000, windowsHide: true }, (err) => {
+      execFile(resolvedPath, ['auth', 'logout'], { timeout: 10000, windowsHide: true }, (err) => {
         if (err) {
           logger.error('[auth-logout]', err)
           resolve({ success: false, error: err.message })

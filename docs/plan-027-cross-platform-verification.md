@@ -98,12 +98,24 @@
 
 | 議題 | Windows | macOS | Linux |
 |------|---------|-------|-------|
-| binary 名稱 | `claude.exe` / `claude.cmd` / `claude.bat` | `claude` | `claude` |
-| `.exe` 優先 | ✅(T0230 AC-4,實測 T0233 通過) | N/A | N/A |
-| `.cmd` / `.bat` shim probe | ⚠️ Node 20+ EINVAL(見 BUG-053) | N/A | N/A |
-| 常見安裝路徑 | `%USERPROFILE%\.local\bin\`、`%APPDATA%\npm\` | `/opt/homebrew/bin`、`/usr/local/bin`、`~/.local/bin` | `~/.local/bin`、`/usr/local/bin` |
+| binary 名稱 | `claude.exe`(native binary,T0235 起只偵測 `.exe`) | `claude` | `claude` |
+| npm `.cmd` / `.bat` shim | ❌ 不再自動偵測(T0235 / BUG-053 閉環,見下「Windows 推薦安裝」) | N/A | N/A |
+| 常見安裝路徑 | `%USERPROFILE%\.local\bin\claude.exe`(anthropic installer) | `/opt/homebrew/bin`、`/usr/local/bin`、`~/.local/bin` | `~/.local/bin`、`/usr/local/bin` |
 | PATH 展開 `~` | 不適用 | ✅(Shell 展) | ✅(Shell 展) |
 | Gatekeeper / 簽章 | Windows Defender SmartScreen(首次執行可能阻擋) | macOS Gatekeeper(首次 `--version` 呼叫可能跳授權 toast) | 無 |
+
+### Windows 推薦安裝(T0235 後)
+
+claude v2.x 已改 ship 原生 `.exe`,`.cmd` / `.bat` npm shim 在 Node 20+ 會因 CVE-2024-27980 被 `spawn()` 拒絕(`EINVAL`)。BAT 的 PATH 與 common-location scan 因此僅偵測 `claude.exe`:
+
+- **推薦**:用 **anthropic 官方 installer**(自動安裝到 `%USERPROFILE%\.local\bin\claude.exe`),BAT 會自動偵測。
+- **Legacy `npm install -g @anthropic-ai/claude-code` 使用者**:
+  - 選項 A(推薦):改用官方 installer,`.exe` 會被自動偵測,npm shim 的 `.cmd` 可保留供 CLI 用但 BAT 不再走那條路徑。
+  - 選項 B:在 Settings → Claude runtime → customPath 直接指向 npm 全域下的 **`.exe` 本體**,例:
+    ```
+    %APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe
+    ```
+    **注意**:customPath 是使用者自選路徑,BAT 不過濾副檔名。若指到 `.cmd` / `.bat` shim,health probe 會直接 `EINVAL` 失敗 → fallback 到 embedded(或在 `fallbackToEmbedded=false` 時 emit degraded toast)。
 
 ---
 
@@ -157,3 +169,4 @@ Logger 片段(搜 `[runtime-router]` / `[resolver]`):
 - T0231 `claude-runtime-router.ts`(routing + fallback)
 - T0232 Settings UI(runtime 選擇 + toast)
 - T0233 本文 + Windows 實測 + BUG-053
+- T0235 runtime 覆蓋缺口修復(BUG-054)+ Windows 偵測簡化(BUG-053)— main.ts 三個 IPC handler 改用 `resolveClaudeRuntime()`、`WINDOWS_BIN_NAMES` 只剩 `['claude.exe']`

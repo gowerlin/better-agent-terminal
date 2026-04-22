@@ -3,7 +3,7 @@
 ## 元資料
 
 - **編號**:BUG-053
-- **狀態**:🔴 OPEN
+- **狀態**:✅ FIXED(採 Option C 產品決策,T0235 一併閉環)
 - **嚴重度**:🟢 Low(dev 模式、無 `.exe` 的環境才會 hit;fallback-to-embedded 已保底)
 - **建立時間**:2026-04-22 18:50 (UTC+8)
 - **發現來源**:T0233 AC-4 Windows 驗證 probe(`tests/_windows-probe.ts`)
@@ -83,4 +83,24 @@ T0233 probe 已產出完整重現步驟:`npx tsx tests/_windows-probe.ts`(非測
 
 ## 回報區
 
-(待 Worker 填寫)
+### FIXED — 2026-04-22 19:43(T0235 — 採 Option C)
+
+**決策**:採「Option C — Windows 偵測只認 `.exe`」。理由:
+- claude v2.x 已改 ship 原生 `.exe`,anthropic 官方 installer 不放 shim
+- `.cmd` / `.bat` 只出現在 legacy `npm install -g` 或專案 `node_modules/.bin`,前者建議改 installer,後者不應在使用者 PATH
+- 砍掉 shim 偵測=砍掉 Node 20+ CVE 相容處理,程式碼簡單、行為可預期
+
+**修改檔案**:
+- `electron/claude-resolver.ts:93` `WINDOWS_BIN_NAMES` 由 `['claude.exe', 'claude.cmd', 'claude.bat']` 縮為 `['claude.exe']`,comment 改為引用 BUG-053 / T0235。
+- `electron/claude-resolver.ts:8` 上方檔頭 comment「cross-platform; .exe wins over .cmd/.bat」改為「Windows scans `.exe` only, no shims」。
+- `tests/_windows-probe.ts:53` 的 `.cmd` probe 保留作 regression check,更新 comment 標註預期行為(`spawn-failed` → router fallback 到 embedded)。
+- `docs/plan-027-cross-platform-verification.md` Windows 段改寫:新增「Windows 推薦安裝」區塊,移除「`.exe` 優先於 `.cmd/.bat`」對照表列,改為「❌ 不再自動偵測 shim」+ 推薦 anthropic 官方 installer + legacy npm 使用者兩條路線。
+
+**驗證**:
+- `grep -rn "claude\.cmd\|claude\.bat" electron/ src/ --include="*.ts"` 無命中(production code 乾淨)
+- `grep -rn "claude\.cmd\|claude\.bat" tests/ --include="*.ts"` 只剩 `_windows-probe.ts`(regression probe)
+- `npx tsc --noEmit` exit 0、`npx vite build` 三 target 綠、`claude-resolver.test.ts` 17/17 pass
+
+**customPath 的 `.cmd` / `.bat`**:scope 內仍允許使用者手動指(customPath 繞開 scan filter),但 health probe 仍會 `EINVAL` 失敗 → router 依 `fallbackToEmbedded` 決定 fallback / 噴 degraded toast。這是預期行為,不是 bug。
+
+**Commit**:(待 Step 8 填入)
