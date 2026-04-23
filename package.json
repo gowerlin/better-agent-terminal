@@ -167,8 +167,7 @@
         "from": "scripts",
         "to": "scripts",
         "filter": [
-          "bat-terminal.mjs",
-          "bat-notify.mjs"
+          "*.mjs"
         ]
       }
     ]
