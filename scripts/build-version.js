@@ -6,6 +6,10 @@ const { execSync } = require('child_process');
 // is missing critical native modules (see BUG-056, T0243).
 require('./verify-native-modules');
 
+// Fail-fast guard: abort if extraResources.filter drifts away from the helper
+// import graph (see BUG-058, T0247, T0248).
+require('./verify-helper-bundle');
+
 // Get version from git tag, environment variable, or generate one
 function getVersion() {
   // 1. Check for VERSION environment variable (set by CI)
