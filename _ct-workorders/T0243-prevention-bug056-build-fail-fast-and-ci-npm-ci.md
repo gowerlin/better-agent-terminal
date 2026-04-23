@@ -4,7 +4,10 @@
 
 - **編號**：T0243
 - **類型**：implementation（預防型 + 文件）
-- **狀態**：📋 TODO（排隊，BUG-056 CLOSED 後派發）
+- **狀態**：✅ DONE
+- **開始時間**：2026-04-23 11:53 (UTC+8)
+- **完成時間**：2026-04-23 11:58 (UTC+8)
+- **Commit**：`005132f`
 - **優先級**：🟡 Medium（非阻塞 release，但阻止類型重演的關鍵安全網）
 - **建立時間**：2026-04-23 03:35 (UTC+8)
 - **派發模式**：`--mode on`（非互動即可，Worker 自行判斷）
@@ -124,22 +127,70 @@ console.log(`[build] ✅ All ${REQUIRED_NATIVE_MODULES.length} native modules pr
 ## 回報區（Worker 填寫）
 
 ### 實作結果
-（Worker 填）
+
+**Step 1 — Build 階段 fail-fast（✅ 完成）**
+- 新增 `scripts/verify-native-modules.js`：以 `fs.existsSync(node_modules/<mod>/package.json)` 檢查三個關鍵 native modules（`@kutalia/whisper-node-addon`、`@lydell/node-pty`、`better-sqlite3`），缺失即 `process.exit(1)` 並印出明確修復指引（「`npm install` / `npm ci` 後重試」、指向 BUG-056）。
+- 整合點（三路徑全覆蓋）：
+  1. `scripts/build-version.js` 最上方 `require('./verify-native-modules')` → 覆蓋 `npm run build:release`（含 CI 主路徑）
+  2. `package.json` 的 `build` 改為 `node scripts/verify-native-modules.js && vite build && electron-builder`
+  3. `package.json` 的 `build:dir` 同步加上前置 verify
+- **不影響 dev mode**：`npm run dev` / `npm run compile` 不跑檢查（與工單要求一致）。
+
+**Step 2 — CI pipeline（✅ 完成）**
+- `.github/workflows/pre-release.yml` 已有 `npm ci`（line 90-91），順序正確（在 `@electron/rebuild` 和 build 之前）。
+- 新增顯式 `Verify required native modules present` step（位於 `@electron/rebuild` 之後、`build-version.js` 之前），三平台 matrix job 共用同一 `run: node scripts/verify-native-modules.js`（無 `if: matrix.platform` 分化）。
+- 等於雙層保險：`npm ci` 保證安裝完整 + verify script 保證 rebuild 後結構完整。
+
+**Step 3 — 文件（✅ 完成）**
+- `CLAUDE.md` 在 `## Release` 之前插入 `## Packaging / Release 前置檢查` 章節（共 4 條 bullet），涵蓋：squash merge 必做 `npm install`、build fail-fast 的覆蓋範圍與擴充規則、CI 順序宣告、release 驗收必跑 NSIS 完整重裝（BUG-056 盲點）。
+- `CHANGELOG.md` 在 `[Unreleased]` 章節新增 `#### Build Safety Net (T0243 — BUG-056 prevention)`，列出兩條具體變更。
 
 ### Commit hashes
-（Worker 填）
+
+- `005132f` — chore(build): add native-module fail-fast guard + CI verify step
 
 ### 驗收結果
-（Worker 填 — 含「刪 node_modules 測試 fail-fast」實機驗證）
+
+實機驗證（Windows 本機，2026-04-23 11:57-11:58）：
+
+| 測試 | 指令 | 預期 | 實測 |
+|------|------|------|------|
+| 正向 | `node scripts/verify-native-modules.js` | exit 0, ✅ 訊息 | ✅ `All 3 required native modules present`, exit=0 |
+| 負向 | `mv node_modules/@kutalia → .BAK` + verify | exit 1, 明確錯誤 + 修復提示 | ✅ `❌ Required native modules missing`, 列出 `@kutalia/whisper-node-addon` 缺失路徑, 指向 BUG-056, 提示 `npm install` / `npm ci`, exit=1 |
+| 恢復後 | mv 回原位置 + verify | exit 0 | ✅ `All 3 required native modules present`, exit=0 |
+| require chain | `node -e "require('./scripts/verify-native-modules')"` | 印出 verify 訊息 | ✅ `require chain OK`，確認 `build-version.js` 的 `require('./verify-native-modules')` 會正確觸發檢查 |
 
 ### 跨平台評估
-（Worker 填 — macOS / Linux 是否同步調整）
+
+**結論：三平台共用同一套檢查清單，無需分化。**
+
+- 三個 required modules 在 macOS/Linux/Windows 都應存在：
+  - `@kutalia/whisper-node-addon`：一般 `dependencies`，三平台皆裝
+  - `better-sqlite3`：一般 `dependencies`，三平台皆裝
+  - `@lydell/node-pty`：列在 `optionalDependencies`，但**非平台條件式**（和 `@img/sharp-darwin-*` 等 darwin-only 套件不同），三平台皆預期存在
+- `scripts/verify-native-modules.js` 為純 Node `fs` + `path`，跨平台 OK
+- `package.json` 的 `&&` 串接在 bash/zsh/PowerShell/cmd.exe 都支援
+- CI workflow 三 matrix job 使用同一 `run: node scripts/verify-native-modules.js`，無 `if: matrix.platform` 分化需求
+
+若未來某個 native module 變成 platform-conditional（例如 Windows-only 的 winpty 回歸），再於 `verify-native-modules.js` 以 `process.platform` 分支即可，目前不需預作。
 
 ### 意外發現
-（Worker 填）
+
+1. **`.github/` 在 repo `.gitignore` 內**：`.github/workflows/pre-release.yml` 雖然已被 git 追蹤（變更可被 detect），但 `git add .github/...` 會被 gitignore 攔下，需 `git add -f` 才能 stage 修改。原因推測：某次 `.github/` 被加入 `.gitignore` 但既有追蹤檔未 `git rm --cached`。**不在本工單範圍**，僅記錄供塔台決策是否開清理工單。
+2. **CI 順序原本就正確**：T0241 研究結論 L102 建議「CI 補 `npm ci`」，實際檢視 workflow 發現 `npm ci` 已存在於 line 90-91（位於 build 之前）。T0243 的 CI 變更純為 belt-and-suspenders（新增顯式 verify step），不是補漏。
+3. **`build-version.js` 的 `require('./verify-native-modules')` 副作用式呼叫**：verify script 無 `module.exports`，純以 top-level `process.exit(1)` 作為流程控制。這是合法的 Node pattern 但略不正統。若未來 `build-version.js` 被其他腳本 `require`，Node module cache 會確保 verify 只跑一次；目前沒有這個使用情境，無疑慮。
+
+### 互動紀錄
+
+無（`fire-and-forget` 全程自動執行，無中途提問）。
+
+### Renew 歷程
+
+無。
 
 ### 回報時間
-（Worker 填）
+
+2026-04-23 11:58 (UTC+8)
 
 ---
 
