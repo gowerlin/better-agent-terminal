@@ -6,6 +6,10 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ### Added
 
+#### Build Safety Net (T0243 — BUG-056 prevention)
+- **Build fail-fast guard** (`scripts/verify-native-modules.js`) — `npm run build`, `npm run build:release`, and `npm run build:dir` now abort before vite build / electron-builder if required native modules (`@kutalia/whisper-node-addon`, `@lydell/node-pty`, `better-sqlite3`) are missing from `node_modules/`. Prevents the BUG-056 class of failure where a squash merge updated `package-lock.json` but stale `node_modules/` shipped a broken installer.
+- **CI verify step** — `.github/workflows/pre-release.yml` runs the same guard on all three platform jobs (Windows / macOS / Linux) between `@electron/rebuild` and `build-version.js`.
+
 #### Claude Runtime Selection (PLAN-027)
 - **Choose between embedded and system Claude CLI** — BAT now ships with an embedded Claude CLI but also lets you opt in to your system-installed `claude` binary
   - **Where**: `Settings → Advanced → Claude Runtime`

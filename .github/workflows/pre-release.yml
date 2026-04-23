@@ -93,6 +93,9 @@ jobs:
       - name: Rebuild native modules for Electron
         run: npx --yes @electron/rebuild
 
+      - name: Verify required native modules present
+        run: node scripts/verify-native-modules.js
+
       - name: Update version and build
         env:
           VERSION: v${{ needs.prepare.outputs.version }}

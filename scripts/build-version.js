@@ -2,6 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Fail-fast guard: abort before bumping version / packaging if node_modules/
+// is missing critical native modules (see BUG-056, T0243).
+require('./verify-native-modules');
+
 // Get version from git tag, environment variable, or generate one
 function getVersion() {
   // 1. Check for VERSION environment variable (set by CI)
