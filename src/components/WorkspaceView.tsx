@@ -680,16 +680,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     })
 
     // Build CLI command using bundled CLI
-    // Worktree sessions start fresh (--continue would resume a session in git root)
     // BUG-051: cliPath 已為 native binary(bin/claude.exe),直接執行即可。
     // 加 'node' prefix 會讓 Node.js v25 拋 ERR_UNKNOWN_FILE_EXTENSION(.exe 非 .js/.mjs)。
+    // 不 hardcode --continue / --dangerously-skip-permissions，使用者如需可從 Settings → agent custom args 自行加入。
     const cmdParts = [`"${cliPath}"`]
-    if (!isWorktree) {
-      cmdParts.push('--continue')
-    }
-    if (settings.allowBypassPermissions) {
-      cmdParts.push('--dangerously-skip-permissions')
-    }
     const presetId = isWorktree ? 'claude-cli-worktree' : 'claude-cli'
     const customArgs = settingsStore.getAgentCustomArgs(presetId)
     if (customArgs) {
