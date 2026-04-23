@@ -37,4 +37,3 @@ dist-benchmark/
 # AI agent configs
 .claude/
 .gemini/
-.github/
