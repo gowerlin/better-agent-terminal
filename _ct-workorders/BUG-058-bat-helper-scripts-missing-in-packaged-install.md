@@ -3,13 +3,15 @@
 ## 元資料
 - **編號**：BUG-058
 - **標題**：封裝佈署後 `$BAT_HELPER_DIR` 缺少 `_bat-*.mjs` helper scripts
-- **狀態**：OPEN
-- **嚴重度**：🔴 High
+- **狀態**：🚫 CLOSED
+- **嚴重度**:🔴 High
 - **發現時間**：2026-04-23 17:20 (UTC+8)
 - **受影響版本**：v0.3.0（Session 23 首次正式版 release）
+- **修復版本**：v0.3.1（2026-04-24 GitHub Actions release）
 - **可重現性**：100%（剛打包安裝後即發生）
-- **Workaround**：從 repo `scripts/` 手動 `cp` 到 `$BAT_HELPER_DIR`（需 `C:/Program Files/` 寫入權限，可能要 admin）
-- **關閉時間**：（關閉時填入）
+- **Workaround**：從 repo `scripts/` 手動 `cp` 到 `$BAT_HELPER_DIR`（v0.3.1 已根治，不再需要）
+- **關閉時間**：2026-04-24 00:01 (UTC+8)
+- **關閉依據**：D085（v0.3.1 NSIS installer 實測 `$BAT_HELPER_DIR` 含 4 個 `.mjs` helper，使用者驗收通過）
 
 ## 問題描述
 
@@ -51,15 +53,18 @@
 
 ## 修復紀錄
 
-_以下由修復工單填寫_
-
 | 工單 | 動作 | 狀態 | Commit |
 |------|------|------|--------|
-| T0246 | 研究 — 定位根因 + 評估修復路徑 | TODO | - |
+| T0246 | 研究 — 定位根因 + 推薦方案 A（glob 白名單）| ✅ DONE | 工單回報區 |
+| T0247 | 修復 — `extraResources.filter` 改 `["*.mjs"]` | ✅ FIXED | `a460d8b` |
+| T0248 | 預防 — 新增 `verify-helper-bundle.js` 靜態驗證 | ✅ DONE | `a73a965` + `1009154` |
+| T0249 | Release — CHANGELOG + v0.3.1 bump + commit | ✅ DONE | `eca8ab6` |
 
 ## 關閉原因
 
-（CLOSED 或 WONTFIX 時填寫）
+使用者實測 v0.3.1 NSIS installer（2026-04-23 GitHub Actions release）完成安裝後，`$BAT_HELPER_DIR` 內含 4 個 `.mjs` helper 檔（`bat-terminal.mjs` / `bat-notify.mjs` / `_bat-logger.mjs` / `_bat-cert.mjs`），漏檔問題根治。
+
+**預防機制生效**：`scripts/verify-helper-bundle.js` 已整合進 build pipeline（`build` / `build:dir` / `build:release` 三路徑），未來若 `extraResources.filter` 再度偏離 import graph，build 前即 fail-fast 攔截，不會重犯同類 regression。
 
 ---
 
