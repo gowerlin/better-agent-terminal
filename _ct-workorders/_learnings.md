@@ -2333,3 +2333,29 @@ Worker skill 的建議組態來源為工單本身(靜態),塔台派發時讀 ses
 
 **候選晉升**:本規則限 BAT + PLAN-027 這類「Research 先行 + 明確 R5 拆單」模式,不升 Global(其他專案 workflow 可能不同)
 
+
+---
+
+## L092 - 2026-04-23 — Worker Step 合併/跳過決策的合理條件(對照 D062)
+
+**觸發條件**:Worker 收到多 Step 工單,主動合併或跳過某 Step
+**規則**:對照 D062「Worker 無狀態原則」,Worker 合併/跳過 Step 合理的條件:
+- 有明確外部約束(如 VSCode 單例鎖、OS 層檔案鎖定)使獨立 Step 無法執行
+- 合併後產出符合原 Step 驗收標準
+- 回報區明確記錄「跳過/合併理由」讓塔台可審查
+
+**案例**:T0242 Worker SKIP Step 2 + 合併 Path A→B,理由為 VSCode 單例鎖阻止獨立測試 dir/ mode;塔台事後認可
+**反模式**:Worker 為省時間合併 Step 但未記錄理由,塔台無從審查
+**候選晉升**:🏠 Project(本規則與 BAT 的 Worker 風格強相關,跨專案 Worker 行為可能不同)
+
+---
+
+## L093 - 2026-04-23 — BAT 打包版啟動失敗 zombie 進程殘留
+
+**觸發條件**:BAT(或類似 Electron multi-window)打包版啟動崩潰後重試
+**症狀**:Task Manager 殘留 3 個 `BetterAgentTerminal.exe` 進程(主程序 + 2 個 child windows),uninstall 前未清除會導致新版安裝時檔案鎖定
+**對策**:
+- Windows NSIS installer uninstall 前**強制 `Stop-Process`** 所有相關進程
+- 或在 installer 加 `!define FILESMUSTMATCH` + kill logic
+- 使用者 workaround:Task Manager 手動結束所有 `BetterAgentTerminal.exe` 再跑 installer
+**候選晉升**:🏠 Project(BAT 專屬,其他 Electron app 進程名不同)
