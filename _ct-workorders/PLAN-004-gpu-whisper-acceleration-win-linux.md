@@ -5,8 +5,8 @@
 | 欄位 | 內容 |
 |------|------|
 | **計劃編號** | PLAN-004 |
-| **狀態** | 🔄 IN_PROGRESS(2026-04-23 — T0236 研究 DONE → 方向翻轉 Vulkan-first(D075)→ EXP-GPUWHIS-001 統一追蹤) |
-| **歷程** | T0236 研究 ✅ DONE → D075 技術方向決策 → EXP-GPUWHIS-001 EXPLORING |
+| **狀態** | 🔄 IN_PROGRESS — Phase 1(Vulkan)✅ DONE,Phase 2(CUDA advanced tier)必要性待重新評估 |
+| **歷程** | T0236 研究 ✅ DONE → D075 技術方向決策 → EXP-GPUWHIS-001 📊 CONCLUDED(T0237/T0238/T0239/T0240 全綠 → squash merge `cb65614`)→ BUG-057 `translate` 預設值修復(`b2124b5`)|
 | **原狀態** | 📋 PLANNED |
 | **優先級** | 🟡 Medium |
 | **提出時間** | 2026-04-12 (UTC+8) |
@@ -45,5 +45,10 @@ Windows/Linux 的 GPU 加速需要：
 
 ## 塔台決策
 
-- **決定**：待分派
-- **建議時機**：Phase 1.5 或以後（Phase 1 收官後）
+- **決定**：Phase 1 完成(Vulkan 零配置跨 vendor 整合);Phase 2(CUDA advanced tier)待重新評估
+- **建議時機**:~~Phase 1.5 或以後~~ → Phase 1 已收官
+- **Phase 2 必要性評估**(2026-04-23 session 22 決議記錄):
+  - Phase 1 Vulkan-first 已涵蓋跨 vendor(NVIDIA / AMD / Intel Arc),對大多數使用者零配置
+  - Phase 2 CUDA advanced tier 僅對 fp16 高階 GPU(RTX 30/40 / Ada)有額外效益,本機 GTX 1050 Ti Pascal 無 fp16 支援(T0237 實測 perf 0.99x CPU,D076)
+  - **暫緩 Phase 2 排程**,待 EXP-GPUWHIS-002(未來硬體升級後實測)有明確 ROI 證據再啟動
+  - 若使用者回報 fp16 GPU 上 Vulkan 效能不足,再優先評估
