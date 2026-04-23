@@ -2,9 +2,22 @@
 
 All notable changes to Better Agent Terminal are documented in this file.
 
-## [Unreleased] — Multi-Agent Runtime & Supervisor Mode
+## [Unreleased]
+
+_No unreleased changes yet._
+
+## [0.3.0] — 2026-04-23 — Multi-Agent Runtime, Supervisor Mode & GPU Voice Acceleration
+
+First production release of the `gowerlin/better-agent-terminal` fork. Consolidates all pre-release work from `v0.0.x` and `v0.2.x` into a stable baseline.
 
 ### Added
+
+#### GPU Voice Acceleration (PLAN-004 Phase 1, EXP-GPUWHIS-001)
+- **Vulkan-first voice transcription acceleration on Windows and Linux** — zero-configuration GPU acceleration across NVIDIA, AMD, and Intel Arc via `@kutalia/whisper-node-addon` Vulkan backend
+- **Runtime GPU detection** (`electron/gpu-detector.ts`) — auto-detects Vulkan-capable GPUs and falls back to CPU gracefully when no supported hardware is present
+- **Settings UI toggle** for GPU acceleration with detected-hardware readout
+- **Cross-vendor zero-config** — no CUDA SDK install required; any Vulkan 1.3+ GPU works out of the box
+- **macOS Metal GPU** — already enabled in earlier pre-release via upstream `whisper-node-addon` prebuilt; unchanged in v0.3.0
 
 #### Build Safety Net (T0243 — BUG-056 prevention)
 - **Build fail-fast guard** (`scripts/verify-native-modules.js`) — `npm run build`, `npm run build:release`, and `npm run build:dir` now abort before vite build / electron-builder if required native modules (`@kutalia/whisper-node-addon`, `@lydell/node-pty`, `better-sqlite3`) are missing from `node_modules/`. Prevents the BUG-056 class of failure where a squash merge updated `package-lock.json` but stale `node_modules/` shipped a broken installer.
@@ -61,6 +74,8 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 #### Bug Fixes
 - **defaultAgent persistence** — fixed `settings-store.ts` `load()` method that was stripping `defaultAgent` on every app start via `delete parsed.defaultAgent`
+- **BUG-056 packaged NSIS installer missing `@kutalia/whisper-node-addon`** — squash-merging the EXP-GPUWHIS-001 experiment into main updated `package.json` / `package-lock.json` but did not sync the root repo's `node_modules/`, so the NSIS installer shipped without the native module and crashed at startup with `Cannot find module '@kutalia/whisper-node-addon'`. Fixed by reinstating `npm install` + native rebuild in the release flow; combined with the new build fail-fast guard above, this class of regression is blocked going forward.
+- **BUG-057 voice transcription forcibly translated to English** — a default-value change inside `@kutalia/whisper-node-addon` (`translate` flipped from `false` to `true` without changelog notice) caused Traditional Chinese (and all other source-language) voice input to be translated to English output. Voice handler now passes `translate: false` explicitly (`electron/voice-handler.ts`) to preserve source-language transcription regardless of the addon's default.
 
 ### Changed
 - **WorkspaceView** — unified `handleAddAgent()` handler replaces separate per-agent handlers; resolves agent command from registry
