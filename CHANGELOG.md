@@ -6,6 +6,16 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 _No unreleased changes yet._
 
+## [0.3.1] — 2026-04-23 — Hotfix: Packaged Helper Bundle
+
+Hotfix release addressing BUG-058 (v0.3.0 NSIS installer shipped without two required helper scripts) and adding a build-time guard to prevent future regressions of the same class.
+
+### Fixed
+- **BUG-058 packaged NSIS installer missing `_bat-logger.mjs` and `_bat-cert.mjs`** — `package.json` `build.extraResources[0].filter` was a strict whitelist that only included `bat-terminal.mjs` and `bat-notify.mjs`, dropping their ESM relative imports. Switched to glob whitelist `["*.mjs"]` so every top-level `scripts/*.mjs` helper is bundled (commit `a460d8b`).
+
+### Added
+- **Build-time fail-fast guard against helper bundle drift** (`scripts/verify-helper-bundle.js`) — statically parses every `scripts/*.mjs` relative `.mjs` import and checks that each target is covered by `package.json` `build.extraResources[].filter`. Missing coverage aborts the build before vite / electron-builder with a pointer to the offending helper and a suggested filter pattern. Wired into `npm run build`, `npm run build:dir`, and `npm run build:release` via `scripts/build-version.js`, plus a standalone `npm run verify:helpers` entry point. Scope is deliberately narrow (top-level `.mjs` + static imports) to keep false positives low (commits `a73a965` + `1009154`).
+
 ## [0.3.0] — 2026-04-23 — Multi-Agent Runtime, Supervisor Mode & GPU Voice Acceleration
 
 First production release of the `gowerlin/better-agent-terminal` fork. Consolidates all pre-release work from `v0.0.x` and `v0.2.x` into a stable baseline.
