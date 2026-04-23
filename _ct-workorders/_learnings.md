@@ -2359,3 +2359,51 @@ Worker skill 的建議組態來源為工單本身(靜態),塔台派發時讀 ses
 - 或在 installer 加 `!define FILESMUSTMATCH` + kill logic
 - 使用者 workaround:Task Manager 手動結束所有 `BetterAgentTerminal.exe` 再跑 installer
 **候選晉升**:🏠 Project(BAT 專屬,其他 Electron app 進程名不同)
+
+---
+
+## L094 - 2026-04-23 — 研究工單 Worker 不總需要觸發使用者互動
+
+**觸發條件**:研究型工單標 `intervention_type: context-dependent` + `互動模式: enabled`
+**規則**:`context-dependent` 是**允許**互動而非**強制**互動。若 Worker 判斷純靜態分析(讀檔 + grep)已可收斂到單一根因,應直接完成不需提問。
+**案例**:BUG-058 T0246(7 分鐘,0 互動)純靜態分析定根因 — 讀 `package.json` build.extraResources + grep `import` statement + 比對 filter glob,三步收斂到「filter 漏列 `_bat-*.mjs`」;推薦方案 A + 預防建議一次到位
+**反模式**:Worker 機械地問「$BAT_HELPER_DIR 路徑?」之類可自行推斷的問題,增加使用者打擾
+**塔台學到**:寫研究工單時指引要包含「若能靜態收斂則不需提問」,避免 Worker 過度保守
+**候選晉升**:🏠 Project(本觀察對應本專案 Worker 風格與塔台寫工單習慣,其他專案 Worker 行為可能不同)
+
+---
+
+## L095 - 2026-04-23 — Packaging regression 的 4-workorder hotfix pattern 候選
+
+**觸發條件**:packaged runtime 出現缺檔 / 漏打包 / 路徑錯誤類 regression,已有 release 版本出事
+**pattern 草稿**(4 張工單鏈路):
+1. **研究工單**(`research` + `context-dependent`):靜態分析 build config + import graph + 歷史先例比對 → 定根因 + 推薦修復方案 + 預防建議
+2. **修復工單**(`execution` + `fire-and-forget`):按研究結論做最小補丁 + 本機 `build:dir` 快速驗證
+3. **預防工單**(`execution` + `fire-and-forget`):新增 build-time static check 防同類 regression 復發
+4. **Release 工單**(`execution` + `fire-and-forget`):本地 CHANGELOG + bump + commit,push/tag 留給使用者手動觸發 CI
+
+**時間證據**(session 24 實測):
+- T0246 研究 7 分鐘
+- T0247 修 10 分鐘(含 build:dir)
+- T0248 預防 60 分鐘(含 CLAUDE.md 文件)
+- T0249 release 6 分鐘
+- 總計 ~1.5 小時 從發現 BUG 到本地 commit ready
+
+**當前狀態**:1 次觀察(BUG-058),候選 playbook 化
+**晉升條件**:累積 2-3 次類似 packaging regression 驗證相同鏈路 → `*evolve --playbook` 升 `_playbooks/packaging-regression-hotfix.md`
+**候選晉升**:🏠 Project(BAT 特有 release 流程與硬規則「塔台不 push」);若跨專案 3 次驗證 → Global
+
+---
+
+## L096 - 2026-04-23 — VSCode 同開鎖 electron-builder asar(本機 build 環境 gotcha)
+
+**觸發條件**:Windows 本機跑 `npm run build:dir` / `build` / `build:release`,同時 VSCode workspace 開在專案根
+**症狀**:electron-builder 清舊 `release/win-unpacked/` 失敗 — `app.asar` 報 `The process cannot access the file because it is being used by another process`(Access Denied)
+**根因推測**:VSCode 的 file watcher / Indexer / 背景 linter 掃 167 MB asar 時持 file handle 不放
+**解法**:
+- **最簡單**:build 前關 VSCode(或 Git Bash 跑 `code --reload-window` 先關掉 watcher)
+- **繞過**:`npx electron-builder --dir --config.directories.output=release-<tag>` 換新 output dir
+- **根治**:加 `release/` 到 VSCode `files.watcherExclude` + `search.exclude`(可 project 設定)
+**不適用場景**:GitHub Actions CI 無此問題 — 不開 VSCode,走乾淨 runner
+**候選晉升**:🏠 Project(Windows + BAT + VSCode 三件組特有)
+**相關**:PLAN-013(已 DROPPED,scope 不同但起源相同)、Session 24 T0247 Worker 遭遇實錄

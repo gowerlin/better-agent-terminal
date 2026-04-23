@@ -3,12 +3,14 @@
 ## 元資料
 - **編號**：PLAN-013
 - **標題**：NSIS Installer 偵測檔案鎖定時詢問使用者強制 kill Terminal Server
-- **狀態**：💡 IDEA
+- **狀態**：🚫 DROPPED
 - **優先級**：🟢 Low
 - **類型**：安裝體驗改善
 - **建立時間**：2026-04-17 17:12 (UTC+8)
+- **完成時間**：2026-04-23 17:50 (UTC+8)（DROPPED）
 - **建立 Session 決策**：D044（驗收全通過 + 依 D033 另開本 PLAN）
 - **來源**：D033（PLAN-012 拆分決策 — 「Installer 強制 kill 另開 PLAN」）
+- **DROP 決策**：D084（session 24,Q3.A）
 
 ---
 
@@ -77,3 +79,17 @@ Installer 偵測到檔案鎖 → 跳出提示 Dialog：「Terminal Server 仍在
 ## 備註
 
 當初 D033 時標註「時程緊急」所以劃出 PLAN-012 範圍；現在主流程已穩定，可依使用者遇到頻率決定是否升級優先級。
+
+---
+
+## DROP 決定（2026-04-23, D084）
+
+**狀態**：💡 IDEA → 🚫 DROPPED
+
+**理由**：
+PLAN-012（Quit Dialog + CheckBox）已實質涵蓋本 PLAN 的使用情境：使用者在退出 BAT 時透過 Dialog 選擇一併關閉 Terminal Server，升級安裝時幾乎不會遇到檔案鎖定。被動路徑（使用者忘記勾 checkbox）發生頻率極低，投入本 PLAN 實作成本（NSIS plugin 依賴、跨平台 i18n、UAC 提權）與預期收益不成比例。
+
+**Session 24（2026-04-23）追加觀察**：Worker 在 T0247 遭遇的 `release/win-unpacked/resources/app.asar` 鎖檔是**本機 build 環境問題**（VSCode 同時開啟造成 indexer 掃 asar），**不屬於本 PLAN scope**（installer 升級情境）。本機 build 時人工預處理（關 VSCode 或換 output dir），正式 release 走 GitHub Actions 無此問題。
+
+**若未來需要**：
+使用者親身遇到「升級 installer 被檔案鎖擋」且頻率變高時，可重開新 PLAN（使用本文件當起點參考），不需執著復活 PLAN-013。

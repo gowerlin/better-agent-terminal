@@ -2528,12 +2528,12 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0245(session 22 新增 T0241/T0242/T0243/T0244/T0245;T0243 TODO 延下 session) |
-| **BUG 最大編號** | BUG-057(🔴 High 🚫 CLOSED 05:35,T0245 單行 fix 閉環 D083) |
+| **工單最大編號** | T0249(session 24:T0246-T0248 DONE + T0249 release 本地準備派發中,push/tag 保留給使用者手動) |
+| **BUG 最大編號** | BUG-058(🔴 High 🔍 VERIFY,T0247+T0248 local commits ready,等 T0249 release 後 CI build→實測→CLOSED) |
 | **PLAN 最大編號** | PLAN-028 |
 | **EXP 最大編號** | EXP-GPUWHIS-001(session 21 新增,📊 CONCLUDED) |
 | **上游同步版本** | v2.1.42-pre.2(2026-04-16)— ⏸ 版號 bump 暫停待 BUG-056 CLOSED |
-| **決策最大編號** | D083(session 22 新增 D078/D079/D080/D081/D082/D083) |
+| **決策最大編號** | D084(session 24:v0.3.1 hotfix scope=T0247+T0248 併 release,PLAN-013 DROPPED,Q1.A+Q3.A) |
 | **塔台版本** | Control Tower v4.3.0 |
 
 ---
