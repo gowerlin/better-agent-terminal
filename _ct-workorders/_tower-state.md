@@ -1,10 +1,87 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-23 05:35(**🎉 第二十二 session 收工:2h30min 內完結兩連 regression(BUG-056 packaging + BUG-057 runtime flag),4 個 Worker 工單全 DONE,零 Renew,兩個 BUG CLOSED**)
+> 最後更新:2026-04-23 16:02(**🎉 第二十三 session 收工:v0.3.0 首次正式版 release(local commit + tag 本地,push 由使用者手動),T0243 BUG-056 預防對策閉環,session 22 pending 全清,`*evolve` 批次 7 條萃取(Global 5 + Project 2)**)
 
 ---
 
-## 🛏 本 Session 退出快照(第二十二 session,2026-04-23 03:05-05:35,~2.5h,連環救火)
+## 🛏 本 Session 退出快照(第二十三 session,2026-04-23 11:48-16:02,~4h 10min,v0.3.0 首次正式版 release + session 22 pending 清盤)
+
+### 本輪時間線
+
+1. **11:48**(起手):Fast Path 啟動(快照 <7 天)→ 塔台報告 session 22 退場快照 + 下 session pending 優先序
+2. **11:48-11:53**:使用者「依塔台建議」→ 塔台判斷派 T0243(BUG-056 預防對策,M sizing)→ 透過 BAT 內部終端 `bat-terminal.mjs --mode on --no-interactive` 派發
+3. **11:53-11:58**:**T0243 Worker 5 min 神速交付**(commit `005132f`)— Step 1/2/3 全綠:`scripts/verify-native-modules.js` fail-fast + CI `npm ci` + verify step + CLAUDE.md `Packaging / Release 前置檢查` 章節 + CHANGELOG unreleased 條目;實機四組驗證(正/負/恢復/require chain),跨平台評估三平台共用無需分化,零 Renew,fire-and-forget
+4. **11:58**:T0243 DONE,塔台接受 + 記 `934a8f7` meta update;3 項意外發現(`.github/` gitignore 誤分類、CI `npm ci` 已存在、副作用 require 刻意)評估完成
+5. **~12:00-14:00**:執行 `*evolve` 批次萃取 session 22 學習候選 — 使用者選項 A「依建議分類」→ Global layer 5 條(GP083 先研後修 ROI / GP084 研究型工單三要素 / TG014 Electron NSIS 驗收 / TG015 Squash merge + node_modules / TG016 Native addon default 變動)+ Project layer 2 條(L092 Worker Step 合併準則 / L093 BAT zombie 進程)→ commit `64c2c6f`
+6. **~14:10**:**塔台自主處理 T0243 意外發現 #1** — `.gitignore` line 40 `.github/` 誤混入「AI agent configs」區塊(該區塊本意僅忽略 `.claude/` / `.gemini/`),移除後 future `git add .github/...` 無需 `-f` flag → commit `39a59be`
+7. **~14:30**:**塔台自主處理 PLAN-004 狀態更新** — 元資料歷程補齊 EXP-GPUWHIS-001 CONCLUDED + squash merge `cb65614` + BUG-057 `translate` 修復;Phase 2 CUDA advanced tier 必要性評估記錄(Vulkan 已涵蓋跨 vendor,GTX 1050 Ti Pascal 無 fp16 支援,暫緩 Phase 2 待 EXP-GPUWHIS-002 硬體升級後實測)→ commit `c546a0a`
+8. **~15:00**:**v0.3.0 release 需求對齊** — Q1.C(minor bump from v0.2.x pre-release)/ Q2.All(涵蓋 session 21/22/23 + earlier unreleased)/ Q3.A(塔台直接起草 CHANGELOG)
+9. **15:00-15:30**:塔台確認版號狀態 — 釐清 `gh` CLI 預設指向 upstream `tony1223` 誤會後,確認 `gowerlin/better-agent-terminal` fork 最新 GitHub Release = `v0.2.6-pre.1`(session 22 收工 commit `4f02c4a`),v0.3.0 語意 = **fork 首次正式版**(之前 v0.0.x / v0.2.x 全 pre-release)
+10. **15:30-15:43**:CHANGELOG audit — 補 3 項 [Unreleased] 遺漏(Vulkan GPU / BUG-056 fix 說明 / BUG-057 fix)+ rename `[Unreleased]` → `[0.3.0] — 2026-04-23 — Multi-Agent Runtime, Supervisor Mode & GPU Voice Acceleration` + 新增空 `[Unreleased]` 頂層 + `package.json` + `package-lock.json` 1.0.0 → 0.3.0(同步 orphaned manifest 到 tag 序列)→ commit `2942a9d`
+11. **15:43**:建立 annotated tag `v0.3.0`(本地)
+12. **16:00**:使用者回報已 push + 自行處理 GitHub Release action → 塔台不介入
+13. **16:02**:退場快照收工
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **Worker 工單** | T0243 ✅ DONE(5 min wall,零 Renew,fire-and-forget) |
+| **塔台自主處理**(4 項) | `*evolve` 批次 7 條 / `.gitignore` 清理 / PLAN-004 狀態更新 / v0.3.0 release |
+| **Release** | **v0.3.0 首次正式版**(commit `2942a9d` + annotated tag `v0.3.0`,本地建立,使用者 push) |
+| **`*evolve` Global 晉升** | GP083 先研後修 ROI / GP084 研究型工單三要素 / TG014 Electron NSIS 驗收 / TG015 Squash merge + node_modules / TG016 Native addon default 變動 |
+| **`*evolve` Project 新增** | L092 Worker Step 合併準則 / L093 BAT zombie 進程 |
+| **決策** | 無新 D(session 23 執行型,沿用 D083 / D084 未開) |
+| **Commits**(本 session 新增) | `005132f`(T0243 impl)/ `934a8f7`(T0243 meta)/ `64c2c6f`(evolve)/ `39a59be`(gitignore)/ `c546a0a`(PLAN-004)/ `2942a9d`(v0.3.0 release)+ tag `v0.3.0` |
+| **修改檔**(使用者可見) | `scripts/verify-native-modules.js` 新增 / `.github/workflows/pre-release.yml` / `.gitignore` / `package.json` / `package-lock.json` / `CHANGELOG.md` / `CLAUDE.md` |
+| **修改檔**(塔台 meta) | `_ct-workorders/T0243-*.md` / `_ct-workorders/_learnings.md` / `_ct-workorders/PLAN-004-*.md` / `~/.claude/control-tower-data/learnings/patterns.md` / `~/.claude/control-tower-data/learnings/tech-gotchas.md` |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time | 4h 14min | 11:48-16:02(含使用者對話等待) |
+| Worker 工單 DONE | 1 / 1 | T0243(5 min wall) |
+| Renew 次數 | 0 / 1 | 零 Renew |
+| FAILED 次數 | 0 / 1 | 零失敗 |
+| 塔台自主處理項 | 4 項 | `*evolve` / gitignore / PLAN-004 / release |
+| 使用者糾正次數 | 2 | (1) 我說 v0.3.0 是從 0.0.x 往上 → 使用者澄清 fork 脫鉤 upstream,v0.x 獨立序列 (2) 我誤判本 session context 已累積 2.5h 建議收工 → 使用者糾正「這是剛開的 session」(存 feedback memory) |
+| 粒度判斷準確度 | 塔台自主處理 4 項皆 <5 行且無邏輯變動 | 符合粒度判斷樹 |
+
+### 下 session pending(優先序)
+
+1. 🟡 **v0.3.0 release action 驗收** — 使用者手動處理 GitHub Release + Homebrew tap,塔台下 session 起手可確認是否成功(`gh release view v0.3.0 --repo gowerlin/better-agent-terminal`)
+2. 🟡 **Phase 2 CUDA advanced tier 評估** — 待 EXP-GPUWHIS-002(未來硬體升級實測)有明確 ROI 證據再啟動;若使用者回報 fp16 GPU 上 Vulkan 效能不足可優先評估
+3. 🟢 **backlog 其他 🟢 Low** — PLAN-002/007/013/014/015/026(Vite upgrade / remote container / installer force kill / VSCode extension / refactor dual render path / etc.)
+4. 🟢 **CT v4.4.0 GA 後 Pull Layer 1**(session 20 原優先序,非阻塞)
+5. 🟢 **EXP-GPUWHIS-002** — 未來硬體升級後實測 10x CPU 目標
+6. 🟢 PLAN-021 IN_PROGRESS(等 dev smoke)
+7. 🟢 PLAN-028 PLANNED(BAT dogfood CT v4.4,等 GA)
+8. 🟢 T0153 PARTIAL(Git GUI spike,擱置)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:確認 v0.3.0 GitHub Release 狀態(使用者已 push,Release action 由使用者處理;塔台可被動等使用者報告,或起手時主動 `gh release view` 確認)
+3. **優先序 2**:若 v0.3.0 release 順利,session 23 交付鏈完整閉環,可轉進 backlog 🟢 Low 項目或等待新需求觸發
+4. 下 session 新單編號起始:**T0246 / BUG-058 / PLAN-029 / D084 / EXP-[TOPIC]-002+**
+
+### 本 session 成就
+
+- 🎉 **v0.3.0 首次正式版 release** — BAT fork 脫鉤 upstream 後的 stable baseline,CHANGELOG 完整記載 Multi-Agent Runtime + Supervisor Mode + GPU Voice Acceleration 三大主題
+- 🎉 **Session 22 pending 全清** — T0243 預防對策閉環(Worker 5 min)+ 4 項塔台自主處理,無殘留事項進入下 session
+- 🎉 **`*evolve` 批次萃取一次 commit 7 條** — 含 3 條強候選 Global 通則(Electron 打包驗收 / npm squash merge / native addon default 變動),直接跨專案可用
+- 🎉 **塔台職責堅守** — 全程無越權讀 code / 改 code(僅讀工單回報、meta 檔案、CHANGELOG 等文件),Worker 1 張工單完成所有 code-touching 工作
+
+### 本 session 教訓
+
+1. **Fast Path 恢復時別把上 session 的 wall time 當成本 session 成本** — 存入 `feedback_session_boundary_confusion.md` memory,下次起手時跳過此錯誤
+2. **`gh` CLI 預設指向可能不是使用者 fork** — 本專案 `gh repo view` 回 `tony1223/better-agent-terminal`(upstream),實際使用者 fork 是 `gowerlin/better-agent-terminal`;涉及 Release / Tag 操作要明確指定 `--repo gowerlin/better-agent-terminal`
+3. **版號討論必先確認 tag 序列 + GitHub Release 狀態** — 本次若盲信 `git tag` 最大值(v2.1.48-pre.1 是繼承自 upstream 的 orphan tag)會建錯版號,需雙軌確認:本地 tag + GitHub Release
+
+---
+
+## 🛏 前 Session 退出快照(第二十二 session,2026-04-23 03:05-05:35,~2.5h,連環救火)
 
 ### 本輪時間線
 
