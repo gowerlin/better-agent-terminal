@@ -7,7 +7,8 @@
 # ask   = 互動式提問 [A/B/C]
 # off   = 只顯示文字提示
 # yolo  = on 超集,Worker 自動送出 + 塔台自主決策下一張(PLAN-020 dogfood)
-auto-session: yolo
+# 2026-04-25 18:04 改為 off：upstream sync Phase 1 期間塔台需顯示驗收清單等使用者決策，避免 yolo 鏈式派發
+auto-session: off
 
 # YOLO 斷點 B 閾值(Renew ≥N 或連續 N FAILED 觸發暫停)
 # 0 = 停用斷點 B / 預設 3 / dogfood 期間用 1 盡早觸發觀察
