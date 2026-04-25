@@ -49,8 +49,8 @@ export const PROXIED_CHANNELS = new Set([
   'snippet:getCategories', 'snippet:getFavorites', 'snippet:getByWorkspace',
   // Profile
   'profile:list', 'profile:load', 'profile:load-snapshot', 'profile:get-active-ids', 'profile:activate', 'profile:deactivate',
-  // Terminal (T0133: Worker→Tower auto-notify)
-  'terminal:notify',
+  // Terminal (T0133: Worker→Tower auto-notify; Control Tower auto-session)
+  'terminal:create-with-command', 'terminal:create-agent-command', 'terminal:notify',
 ])
 
 // Events pushed from host to remote clients

@@ -4,13 +4,14 @@
 // Zero external dependencies — Node.js 18+ built-in modules only
 //
 // Usage:
-//   node scripts/bat-terminal.mjs claude "/ct-exec T0131"
+//   node scripts/bat-terminal.mjs --prompt "/ct-exec T0131"
+//   node scripts/bat-terminal.mjs --agent codex-cli --prompt "/ct-exec T0131"
 //   node scripts/bat-terminal.mjs echo hello
 //   node scripts/bat-terminal.mjs --cwd /tmp echo hello
-//   node scripts/bat-terminal.mjs --notify-id <tower-id> claude "/ct-exec T0133"
+//   node scripts/bat-terminal.mjs --notify-id <tower-id> --prompt "/ct-exec T0133"
 //     └─ Injects BAT_TOWER_TERMINAL_ID=<tower-id> into the new PTY's env,
 //        allowing Worker to notify Tower on completion via bat-notify.mjs.
-//   node scripts/bat-terminal.mjs --workspace <workspace-id> claude "/ct-exec T0137"
+//   node scripts/bat-terminal.mjs --workspace <workspace-id> --prompt "/ct-exec T0137"
 //     └─ Explicitly allocate the new PTY to the given workspace tab list.
 //        Omitted → PTY lands in the currently active workspace (T0137/BUG-031).
 //
@@ -62,13 +63,16 @@ if (process.platform === 'win32') {
 // ── Help / version (handled before env check so they work universally) ──
 
 const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
+       bat-terminal.mjs [options] --prompt <text>
 
-Open a new BAT terminal and run <command> in it.
+Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
 
 Options:
   --cwd <path>           Working directory for the new terminal
   --notify-id <id>       Target terminal ID for Worker→Tower notification binding
   --workspace <id>       Explicit workspace allocation target
+  --agent <id|default>   Agent definition for --prompt mode (default: default)
+  --prompt <text>        Start the selected/default agent with this prompt
   --mode <value>         CT mode for Worker (yolo|ask|off|on); injects CT_MODE env
   --interactive          Force interactive mode; injects CT_INTERACTIVE=1 env
   --no-interactive       Force non-interactive mode; injects CT_INTERACTIVE=0 env
@@ -76,13 +80,15 @@ Options:
   --version              Show version
 
 Examples:
-  node scripts/bat-terminal.mjs claude "/ct-exec T0001"
-  node scripts/bat-terminal.mjs --notify-id abc123 claude "/ct-exec T0001"
+  node scripts/bat-terminal.mjs --prompt "/ct-exec T0001"
+  node scripts/bat-terminal.mjs --agent codex-cli --prompt "/ct-exec T0001"
+  node scripts/bat-terminal.mjs echo hello
+  node scripts/bat-terminal.mjs --notify-id abc123 --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs --cwd /tmp echo hello
-  node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive claude "/ct-exec T0001"
+  node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --prompt "/ct-exec T0001"
 `
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--mode', '--interactive', '--no-interactive', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--mode', '--interactive', '--no-interactive', '--help', '-h', '--version']
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -134,6 +140,8 @@ const rawArgs = process.argv.slice(2)
 let cwd = process.cwd()
 let notifyId = null
 let workspaceId = null
+let agent = 'default'
+let prompt = null
 let mode = null
 let interactive = null  // null = unspecified / true = --interactive / false = --no-interactive
 const positional = []
@@ -143,7 +151,7 @@ while (i < rawArgs.length) {
   const arg = rawArgs[i]
 
   // Once we hit the first positional, everything after is part of the command
-  // (even if it starts with `-`, e.g. `claude --dangerously-skip-permissions`).
+  // (even if it starts with `-`, e.g. `codex --full-auto`).
   if (positional.length > 0) {
     positional.push(arg)
     i++
@@ -173,6 +181,20 @@ while (i < rawArgs.length) {
   if (arg === '--workspace') {
     if (!rawArgs[i + 1]) { printUsageError('--workspace requires a workspace ID argument'); process.exit(1) }
     workspaceId = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  if (arg === '--agent') {
+    if (!rawArgs[i + 1]) { printUsageError('--agent requires an agent id argument'); process.exit(1) }
+    agent = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  if (arg === '--prompt') {
+    if (!rawArgs[i + 1]) { printUsageError('--prompt requires a prompt argument'); process.exit(1) }
+    prompt = rawArgs[i + 1]
     i += 2
     continue
   }
@@ -214,7 +236,13 @@ while (i < rawArgs.length) {
   i++
 }
 
-if (positional.length === 0) {
+if (prompt && positional.length > 0) {
+  printUsageError('Use either --prompt mode or positional <command> [args...], not both')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'prompt-and-command' })
+  process.exit(1)
+}
+
+if (!prompt && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
   process.exit(1)
@@ -226,9 +254,11 @@ logEvent('bat-terminal', 'parsed', {
   cwd,
   notifyId,
   workspaceId,
+  agent,
+  promptLength: prompt ? prompt.length : 0,
   mode,
   interactive,
-  cmd: positional[0],
+  cmd: positional[0] ?? null,
   cmdArgs: positional.slice(1),
 })
 
@@ -255,7 +285,7 @@ function shellQuote(s) {
   return "'" + s.replace(/'/g, "'\\''") + "'"
 }
 
-const command = positional.map(shellQuote).join(' ')
+const command = positional.length > 0 ? positional.map(shellQuote).join(' ') : null
 const terminalId = randomBytes(16).toString('hex')
 
 // ── Minimal WebSocket client (raw net + HTTP upgrade) ──
@@ -544,8 +574,10 @@ async function main() {
     process.exit(1)
   }
 
-  // Invoke terminal:create-with-command
-  const invokePayload = { id: terminalId, cwd, command }
+  const channel = prompt ? 'terminal:create-agent-command' : 'terminal:create-with-command'
+  const invokePayload = prompt
+    ? { id: terminalId, cwd, agent, prompt }
+    : { id: terminalId, cwd, command }
   // T0133: Inject BAT_TOWER_TERMINAL_ID so Worker knows who to notify on completion
   if (notifyId) invokePayload.customEnv = { BAT_TOWER_TERMINAL_ID: notifyId }
   // T0137/BUG-031: Forward explicit workspace allocation target
@@ -569,6 +601,9 @@ async function main() {
     terminalId,
     cwd,
     workspaceId,
+    channel,
+    agent: prompt ? agent : null,
+    promptLength: prompt ? prompt.length : 0,
     command,
     customEnv: invokePayload.customEnv ?? null,
   })
@@ -576,7 +611,7 @@ async function main() {
   ws.send(JSON.stringify({
     type: 'invoke',
     id: makeId(),
-    channel: 'terminal:create-with-command',
+    channel,
     args: [invokePayload],
   }))
 

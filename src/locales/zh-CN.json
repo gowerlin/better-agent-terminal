@@ -45,6 +45,7 @@
     "createAgentTerminalByDefault": "默认创建 Agent 终端",
     "createAgentTerminalHint": "启用后，新工作区将自动包含一个 Agent 终端。",
     "defaultAgent": "默认 Agent",
+    "defaultAgentHint": "用于新建 Agent 终端与 Control Tower Worker 派工。若选择集成式 Claude Agent，BAT 内部 Worker 会自动改用对应 CLI。",
     "autoRunAgentCommand": "自动执行 Agent 命令",
     "autoRunAgentCommandHint": "创建 Agent 终端时自动执行 Agent 命令（例如 `claude`）。",
     "allowBypassPermissions": "允许跳过权限确认",

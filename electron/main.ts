@@ -432,6 +432,8 @@ interface PersistedSettings {
   terminalServerIdleTimeoutMinutes?: number
   language?: string
   remotePort?: number
+  defaultAgent?: string
+  agentCustomArgs?: Record<string, string>
 }
 
 const REMOTE_PORT_MIN = 1024
@@ -485,6 +487,68 @@ function readLoggingConfigSync(): { loggingEnabled: boolean; logLevel: LogLevel 
   return {
     loggingEnabled: parsed?.loggingEnabled !== false,
     logLevel: normalizeLogLevel(parsed?.logLevel),
+  }
+}
+
+function shellQuoteForTerminalCommand(value: string): string {
+  if (/^[a-zA-Z0-9._\-\/=:@]+$/.test(value)) return value
+  return "'" + value.replace(/'/g, "'\\''") + "'"
+}
+
+function toTerminalDrivenAgentId(agentId: string): string {
+  if (agentId === 'claude-code-worktree') return 'claude-cli-worktree'
+  if (agentId === 'claude-code' || agentId === 'claude-code-v2') return 'claude-cli'
+  return agentId
+}
+
+async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<string | null> {
+  if (!workspaceId) return null
+  try {
+    const entries = await windowRegistry.readAll()
+    for (const entry of entries) {
+      const workspaces = Array.isArray(entry.workspaces) ? entry.workspaces : []
+      const workspace = workspaces.find((w: unknown) => {
+        return typeof w === 'object' && w !== null && (w as { id?: unknown }).id === workspaceId
+      }) as { defaultAgent?: unknown } | undefined
+      if (typeof workspace?.defaultAgent === 'string' && workspace.defaultAgent) {
+        return workspace.defaultAgent
+      }
+    }
+  } catch (error) {
+    logger.warn('[agent-command] failed to resolve workspace default agent:', error)
+  }
+  return null
+}
+
+async function buildAgentPromptCommand(opts: { agent?: string; prompt: string; workspaceId?: string }): Promise<{ command: string; agentId: string } | null> {
+  const settings = readPersistedSettingsSync()
+  const workspaceAgent = opts.agent && opts.agent !== 'default'
+    ? null
+    : await resolveWorkspaceDefaultAgent(opts.workspaceId)
+  const requestedAgent = opts.agent && opts.agent !== 'default'
+    ? opts.agent
+    : (workspaceAgent || settings?.defaultAgent || 'claude-code')
+  const agentId = toTerminalDrivenAgentId(requestedAgent)
+
+  let baseCommand = agentRegistry.buildLaunchCommand(agentId)
+
+  // Claude CLI launch is normally routed through the integrated runtime helper
+  // in renderer-created terminals. BAT remote terminals only need a shell command,
+  // so use the system CLI name for this semantic helper.
+  if (!baseCommand && (agentId === 'claude-cli' || agentId === 'claude-cli-worktree')) {
+    baseCommand = 'claude'
+  }
+
+  if (!baseCommand) {
+    logger.warn(`[agent-command] cannot build launch command for agent=${requestedAgent} resolved=${agentId}`)
+    return null
+  }
+
+  const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
+  const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
+  return {
+    command: `${commandWithArgs} ${shellQuoteForTerminalCommand(opts.prompt)}`,
+    agentId,
   }
 }
 
@@ -1726,6 +1790,30 @@ function registerProxiedHandlers() {
       windowId: invokerWindowId,
     })
     return created
+  })
+
+  registerHandler('terminal:create-agent-command', async (_ctx, opts: { id: string; cwd: string; agent?: string; prompt: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => {
+    if (!opts?.prompt || typeof opts.prompt !== 'string') {
+      logger.warn('[agent-command] missing prompt for terminal:create-agent-command')
+      return false
+    }
+
+    const resolved = await buildAgentPromptCommand({
+      agent: opts.agent,
+      prompt: opts.prompt,
+      workspaceId: opts.workspaceId,
+    })
+    if (!resolved) return false
+
+    logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId}`)
+    return invokeHandler('terminal:create-with-command', [{
+      id: opts.id,
+      cwd: opts.cwd,
+      command: resolved.command,
+      shell: opts.shell,
+      customEnv: opts.customEnv,
+      workspaceId: opts.workspaceId,
+    }], _ctx.windowId)
   })
 
   // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.

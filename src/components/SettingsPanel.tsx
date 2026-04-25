@@ -473,34 +473,33 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <p className="settings-hint">{t('settings.createAgentTerminalHint')}</p>
             </div>
 
-            {settings.createDefaultAgentTerminal && (
-              <>
-                <div className="settings-group">
-                  <label>{t('settings.defaultAgent')}</label>
-                  <select
-                    value={settings.defaultAgent || 'claude-code'}
-                    onChange={e => settingsStore.setDefaultAgent(e.target.value as AgentPresetId)}
-                  >
-                    {getVisiblePresets().filter(p => p.id !== 'none').map(preset => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.icon} {preset.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="settings-group">
+              <label>{t('settings.defaultAgent')}</label>
+              <select
+                value={settings.defaultAgent || 'claude-code'}
+                onChange={e => settingsStore.setDefaultAgent(e.target.value as AgentPresetId)}
+              >
+                {getVisiblePresets().filter(p => p.id !== 'none').map(preset => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.icon} {preset.name}
+                  </option>
+                ))}
+              </select>
+              <p className="settings-hint">{t('settings.defaultAgentHint')}</p>
+            </div>
 
-                <div className="settings-group checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={settings.agentAutoCommand === true}
-                      onChange={e => settingsStore.setAgentAutoCommand(e.target.checked)}
-                    />
-                    {t('settings.autoRunAgentCommand')}
-                  </label>
-                  <p className="settings-hint">{t('settings.autoRunAgentCommandHint')}</p>
-                </div>
-              </>
+            {settings.createDefaultAgentTerminal && (
+              <div className="settings-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.agentAutoCommand === true}
+                    onChange={e => settingsStore.setAgentAutoCommand(e.target.checked)}
+                  />
+                  {t('settings.autoRunAgentCommand')}
+                </label>
+                <p className="settings-hint">{t('settings.autoRunAgentCommandHint')}</p>
+              </div>
             )}
 
             <div className="settings-group checkbox-group">

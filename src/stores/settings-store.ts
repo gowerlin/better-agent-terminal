@@ -442,8 +442,6 @@ class SettingsStore {
     if (data) {
       try {
         const parsed = JSON.parse(data)
-        // Strip persisted defaultAgent so it always falls through to code default
-        delete parsed.defaultAgent
         this.settings = { ...defaultSettings, ...parsed }
         this.notify()
       } catch (e) {

@@ -45,6 +45,7 @@
     "createAgentTerminalByDefault": "Create Agent Terminal by default",
     "createAgentTerminalHint": "When enabled, new workspaces will include an Agent Terminal.",
     "defaultAgent": "Default Agent",
+    "defaultAgentHint": "Used for new Agent terminals and Control Tower worker dispatch. If an integrated Claude Agent is selected, BAT workers automatically use the matching CLI.",
     "autoRunAgentCommand": "Auto-run agent command",
     "autoRunAgentCommandHint": "Automatically execute the agent command (e.g., `claude`) when creating an Agent Terminal.",
     "allowBypassPermissions": "Allow bypass permissions without confirmation",
