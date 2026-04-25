@@ -11,6 +11,9 @@ import { workspaceStore } from '../stores/workspace-store'
 import type { AgentPresetId } from '../types/agent-presets'
 import { LinkedText, FilePreviewModal } from './PathLinker'
 import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown'
+import { useVoicePopover } from '../hooks/useVoicePopover'
+import { MicButton } from './voice/MicButton'
+import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 
 interface SessionMeta {
   model?: string
@@ -305,6 +308,13 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const [claudeFontSize, setClaudeFontSize] = useState(settingsStore.getSettings().fontSize)
   const userMsgRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
   const observerRef = useRef<IntersectionObserver | null>(null)
+  const { voice, popoverState, transcriptionMeta, handleConfirm: handleVoiceConfirm, handleCancel: handleVoiceCancel } = useVoicePopover({
+    onConfirm: (text) => {
+      const cur = inputValueRef.current
+      setInputValue(cur ? cur + ' ' + text : text)
+      textareaRef.current?.focus()
+    },
+  })
 
   // Check if scrolled near bottom (within 80px)
   const checkIfNearBottom = useCallback(() => {
@@ -3624,7 +3634,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
 
       {/* Input area — hidden when permission card, ask-user card, or resume/model list is visible */}
       <div
-        className={`claude-input-area${isDragOver ? ' drag-over' : ''}`}
+        className={`claude-input-area${isDragOver ? ' drag-over' : ''}${popoverState !== 'hidden' ? ' voice-popover-active' : ''}`}
         style={pendingPermission || pendingQuestion || showResumeList || showModelList ? { display: 'none' } : undefined}
       >
         {/* Prompt suggestion chip */}
@@ -3774,6 +3784,23 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           </div>
 
           <div className="claude-input-actions">
+            <div className="claude-agent-voice-wrap">
+              <MicButton
+                state={voice.state}
+                onClick={voice.toggle}
+                disabled={voice.state === 'disabled'}
+                disabledTooltip={voice.error ?? '請先在 Settings 下載語音模型'}
+              />
+              <VoicePreviewPopover
+                state={popoverState}
+                text={voice.lastTranscription ?? undefined}
+                errorMessage={voice.error ?? undefined}
+                detectedLanguage={transcriptionMeta.detectedLanguage}
+                inferenceTimeMs={transcriptionMeta.inferenceTimeMs}
+                onConfirm={handleVoiceConfirm}
+                onCancel={handleVoiceCancel}
+              />
+            </div>
             {hasSdkSession && !isCodexSession && (
               <button
                 className="claude-fork-btn"

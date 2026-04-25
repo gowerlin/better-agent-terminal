@@ -158,6 +158,11 @@ const electronAPI = {
       ipcRenderer.on('claude:result', handler)
       return () => ipcRenderer.removeListener('claude:result', handler)
     },
+    onTurnEnd: (callback: (sessionId: string, payload: { reason: 'completed' | 'error' | 'aborted'; error?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, sessionId: string, payload: { reason: 'completed' | 'error' | 'aborted'; error?: string }) => callback(sessionId, payload)
+      ipcRenderer.on('claude:turn-end', handler)
+      return () => ipcRenderer.removeListener('claude:turn-end', handler)
+    },
     onError: (callback: (sessionId: string, error: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, sessionId: string, error: string) => callback(sessionId, error)
       ipcRenderer.on('claude:error', handler)

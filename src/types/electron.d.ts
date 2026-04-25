@@ -180,6 +180,7 @@ interface ElectronAPI {
     onToolUse: (callback: (sessionId: string, toolCall: unknown) => void) => () => void
     onToolResult: (callback: (sessionId: string, result: unknown) => void) => () => void
     onResult: (callback: (sessionId: string, result: unknown) => void) => () => void
+    onTurnEnd: (callback: (sessionId: string, payload: { reason: 'completed' | 'error' | 'aborted'; error?: string }) => void) => () => void
     onError: (callback: (sessionId: string, error: string) => void) => () => void
     onStream: (callback: (sessionId: string, data: unknown) => void) => () => void
     onStatus: (callback: (sessionId: string, meta: unknown) => void) => () => void

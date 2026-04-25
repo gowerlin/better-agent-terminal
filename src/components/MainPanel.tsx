@@ -5,7 +5,7 @@ import { TerminalPanel } from './TerminalPanel'
 import { ActivityIndicator } from './ActivityIndicator'
 import { PromptBox } from './PromptBox'
 import { getAgentPreset } from '../types/agent-presets'
-import { isIntegrated, isAgent as isAgentCheck } from '../types/agent-runtime'
+import { isIntegrated, isClaudeSdk, isAgent as isAgentCheck } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { workspaceStore } from '../stores/workspace-store'
 import { useVoicePopover } from '../hooks/useVoicePopover'
@@ -28,6 +28,7 @@ interface MainPanelProps {
 export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, workspaceId }: Readonly<MainPanelProps>) {
   const isAgent = isAgentCheck(terminal.agentPreset)
   const isClaudeCode = isIntegrated(terminal.agentPreset || '')
+  const canSwitchClaudeApiVersion = isClaudeSdk(terminal.agentPreset || '')
   const isCodexAgent = terminal.agentPreset === 'codex-agent'
   const presetConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
   const [registryDef, setRegistryDef] = useState<AgentDefinition | null>(null)
@@ -182,7 +183,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
               💬
             </button>
           )}
-          {isClaudeCode && onSwitchApiVersion && (
+          {canSwitchClaudeApiVersion && onSwitchApiVersion && (
             <>
               <button
                 className="action-btn"
