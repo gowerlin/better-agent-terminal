@@ -3,7 +3,7 @@
 ## 元資料
 - **工單編號**：T0270
 - **任務名稱**：PLAN-007 Phase 1 第三張 — `RemoteClient` translator middleware（invoke + onEvent）+ `auth-result.serverPlatform` metadata schema + server emit
-- **狀態**：TODO
+- **狀態**：DONE
 - **建立時間**：2026-04-26 01:12 (UTC+8)
 - **類型**：impl（production code，含整合測試）
 - **互動模式**：disabled（fire-and-forget；scope 已被 spec doc §2.2 / §2.4 / T0264 §2 凍結）
@@ -293,28 +293,40 @@ mock RemoteClient（不真連線），驗：
 
 ## 回報區（Worker 填寫）
 
-**狀態變更**：TODO → IN_PROGRESS → DONE / FAILED / 需要協助
+**狀態變更**：TODO → IN_PROGRESS（2026-04-26 01:14:50 +08:00）→ DONE（2026-04-26 01:24:03 +08:00）
 
-**worktree commit**：`<hash>` on `feature/plan-007-remote-dev`
+**worktree commit**：`26eb10d` on `feature/plan-007-remote-dev`
 
 **修改檔**：
-- ...
+- `electron/main.ts`
+- `electron/remote/path-aware-channels.ts`
+- `electron/remote/protocol.ts`
+- `electron/remote/remote-client.ts`
+- `electron/remote/remote-server.ts`
+- `tests/auth-result-metadata.test.ts`
+- `tests/remote-client-middleware.test.ts`
 
 **測試結果**：
-- middleware test：N passed
-- metadata test：N passed
-- build：✅/❌
+- middleware test：13 passed
+- metadata test：6 passed
+- build：✅ `npm run build`
 
 **Channel 校正結果**：
-- spec 預期 vs codebase 實際的差異列表
+- `electron/remote/remote-client.ts` / `electron/remote/remote-server.ts` 才是實際檔名；工單內的 `client.ts` / `server.ts` 為舊推測名稱
+- `fs:changed` 在現行 codebase 是直接 broadcast 單一字串路徑，不是 `{ path }` payload；middleware 以字串為主，另保留 object-path defensive fallback
+- `workspace:save` / `workspace:load` 的 payload 是序列化 workspace JSON，不是單一路徑字串；未納入 `PATH_AWARE_CHANNELS`，避免誤翻整包 JSON
+- `git:status` / `git:diff-files` 現行回傳 `{ status, file }` 且 `file` 為 repo-relative path，不是絕對路徑；未納入 `PATH_RETURNING_CHANNELS`
+- 依 codebase 實際 channel 額外納入 `fs:reset-watch`、`git:branch`、`git:log`、`git:get-github-url`、`pty:restart`
 
 **主動超出範圍項**（如有）：
-- ...
+- 無
 
 **遇到的問題 / 決策**：
-- ...
+- `auth-result` metadata translator 選擇需要 profile context，但 `RemoteClient` 本身原本不知道 profile；改為在 `main.ts` 建立 client 時注入 profile，讓 client 在收到 metadata 後可直接 `createTranslator(profile)` 並 fallback `IdentityTranslator`
+- `server emit + client fallback` 依 spec 落地，但 `createTranslator()` 對 `wsl-linux` / `docker-linux` / `ssh-*` 仍維持 T0269 的 pending throw；本工單 catch 後只記 warn，不中斷 legacy/phase-1 流程
+- `fs:stat` 現行回傳 `{ mtimeMs, size } | null`，不含 path；`normalizePathsInResult()` 採 narrow channel/result-shape 策略，只翻真實含絕對路徑的 channel
 
 **Renew 觸發**（如有）：
-- ...
+- 無
 
 ---
