@@ -3,7 +3,7 @@
     "name": "better-agent-terminal",
     "author": "TonyQ",
     "repo": "https://github.com/tony1223/better-agent-terminal",
-    "version": "2.1.45",
+    "version": "v2.2.26-pre.7",
     "lastSyncCommit": "f364e38",
     "lastSyncDate": "2026-04-25",
     "syncNote": "T0255/T0258 Phase 1 C3: cherry-pick 8 commits（a4cdf72→f364e38）— 1f4d7d1 file links via FilePreviewModal, 245cfcb relative markdown links, cbbdf72 worktree banner across /new, 302a065 open external links system browser, 4c1de15(empty) preserve whitespace in code blocks (BAT 已有 utils 等價修復), 8b07399 contextWindow on model switch, f96eb35 fork-session wait before abort, f9d4be8 native middle-click autoscroll. T0257 盤點 + T0258 收尾。前置：T0165 5d9f486。"
