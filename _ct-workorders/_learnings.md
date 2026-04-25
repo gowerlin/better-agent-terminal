@@ -2529,3 +2529,116 @@ BAT 內嵌 `@anthropic-ai/claude-code` SDK 作為 default agent runtime。該 SD
 **相關**：
 - GP097（Verification 工單必跑 baseline diff 校驗）：本 L 是 build 層級維度的補充
 - L095（Packaging regression 的 4-workorder hotfix pattern）：對應 packaged 層 verification
+
+---
+
+### L-cand-098: Worker bundle/layout 策略授權邊界（candidate: global）
+
+**情境**：派 PLAN-007 Phase 1 工單時，spec doc 在某些技術選擇上故意留 2-3 個選項供 Worker 自決：
+- T0270：channel set 名稱以 codebase 實際為準（spec 列表是建議）
+- T0271：native rebuild「複製 host / 在 worker 重 build / 環境變數降級」三選一
+- T0272：bundle layout 「A: esbuild entry / B: bat-server.mjs CLI」二選一
+
+**觀察**：3 樣本 Worker 全部能：
+1. 拿到「[A]/[B]/理由」表格後自決
+2. 在回報區明確勾選 + 解釋理由
+3. 選擇結果都合理（後續工單可順利接力）
+
+**塔台行動**：
+- 工單模板加「Worker 自決區段」格式：選項清單 + 必填理由
+- 派工 spec 凍結但留 2-3 個技術選項是「合理 scope」而非「規格不完整」
+- 反例：超過 3 個選項或選項間 trade-off 巨大 → 應派研究工單先收斂
+
+**儲存目標**：candidate global（觀察 5+ 樣本後晉升 GP）
+
+**證據**：T0270/T0271/T0272（2026-04-26 session 28）
+
+---
+
+### L-cand-099: Worker 主動補強的容忍邊界（candidate: global，延伸自 session 28 前段觀察）
+
+**情境**：Worker 在執行工單時做出「scope 邊緣補強」或「為 AC 達標的必要前置改動」，塔台應容忍。
+
+**樣本**（session 28，5 樣本）：
+- T0268：補 IPC type 同步、ProfileManager.update setter 擴 8、多寫 4 tests（**容忍**：邊緣補強）
+- T0270：channel set 校正（fs:changed 字串非物件、workspace:* 排除）（**容忍**：codebase 對齊）
+- T0271：移除 Windows claude.exe 改 wrapper（278→124 MB）（**容忍**：bundle 體積優化符合 spec 精神）
+- T0272：secrets.ts/remote-server.ts/certificate.ts 三檔擴 plain-Node 相容（**容忍**：AC 達標的必要前置）
+
+**邊界**：
+- ✅ scope 邊緣補強（type 同步、setter 補齊、額外 test）
+- ✅ codebase 校正（channel name、file path 對齊實際）
+- ✅ AC 達標的必要前置（既有檔擴 compat 才能讓新檔跑起來）
+- ✅ 符合 spec 精神的優化（bundle 體積、命名修正）
+- ❌ scope 外新功能（spec 沒提的新 interface / 新檔案 / 新依賴）
+- ❌ 重寫既有 class（即使 Worker 認為設計不好）
+
+**塔台行動**：
+- 收到「主動超出範圍項」回報時，先比對是否落在容忍邊界內
+- 若符合 → 收下不問
+- 若超出 → 在 _learnings 記錄並考慮補開後續工單評估
+- 預期所有 PLAN-007 後續工單都會有「主動補強」項，視為常態
+
+**儲存目標**：candidate global（5 樣本一致，觀察跨 PLAN 後晉升 GP）
+
+**證據**：T0268-T0272（2026-04-26 session 28）
+
+---
+
+### L-cand-100: Phase 收尾觸發 *evolve 是天然檢查點（candidate: global）
+
+**情境**：本 session 連續派 5 張 impl 工單後，Phase 1 自然完成。塔台在 Phase 1 → Phase 2 邊界自主暫停，提示「[A] 繼續 / [B] *evolve / [C] 收工」三選項。
+
+**觀察**：
+- Phase 邊界 = 5 張工單累積學習已達批次萃取門檻
+- 比起每張 *evolve（成本高）或 session 結束才 *evolve（候選散）
+- 比起時間切（如「每 90 min 跑一次 *evolve」）
+- Phase 邊界是任務語意上的天然斷點，候選量適中、相關度高
+
+**塔台行動**：
+- 大型 PLAN 拆 Phase 時，Phase 完成 = 自動觸發 *evolve 提示
+- Phase 內每張完成 = YOLO 自動派下一張，不打擾
+- Phase 收尾 = 強制詢問 [A]/[B]/[C]
+
+**儲存目標**：candidate global（首次驗證，觀察 3-5 個 PLAN 收尾後晉升）
+
+**證據**：PLAN-007 Phase 1 收尾（2026-04-26 session 28）
+
+**相關**：GP100（YOLO 鏈式派發）— 本 L 是 YOLO 模式的暫停時機補充
+
+---
+
+### L101: BAT remote 改 plain-Node 相容性的 3 個既有檔（project-only）
+
+**情境**：T0272 為了讓 bat-server.mjs 在 plain Node（非 Electron）環境跑起來，對既有 PLAN-018 落地的 3 個檔做 lazy-detect / fallback 擴充。
+
+**修改檔**：
+- `electron/remote/secrets.ts`：lazy-detect secret strategy（避免 headless 直接 import `electron` 失敗）
+- `electron/remote/remote-server.ts`：補 token rotation / cert renewal / custom certificate provider / plain Node version fallback
+- `electron/remote/certificate.ts`：補 `FileCertificateProvider`
+
+**對後續 PLAN-007 工單的影響**：
+- 觸碰這三檔的工單預期已有 plain-Node path，不需重新處理
+- 觸碰其他 `electron/remote/` 檔案時要注意是否仍有 `electron` hard import
+
+**儲存目標**：project-only（本專案 fact，非 generalizable pattern）
+
+**證據**：T0272 worktree commit `1fbb0bd`（2026-04-26）
+
+---
+
+### L102: PLAN-007 Phase 1 Bundle layout B（project-only）
+
+**決策**：T0272 拍板採 layout B：
+- `scripts/bat-server.mjs` 是 CLI entry（含 parseArgs / signal handler / factory call）
+- `electron/remote/server-entry.ts` 是薄殼 re-export factory + helper
+- `build-server-bundle.mjs` 把 `bat-server.mjs` 放 `staging/bin/` + `server-entry.js`/`headless-entry.js`/`lockfile.js`/`dataDir.js` 放 `staging/electron/remote/`
+
+**對後續 Phase 2/3/4 工單的影響**：
+- WSL/Docker/SSH 設定 wizard 透過遠端 spawn `node bin/bat-server.mjs` 啟動 server
+- bat-server.mjs 的 flag 介面（`--data-dir` / `--port` / `--bind-interface` / `--token`）是 wizard 與 server 的契約
+- 不要改 layout（B 已凍結）
+
+**儲存目標**：project-only
+
+**證據**：T0272 工單 Bundle layout 策略選擇 [x] B（2026-04-26）

@@ -1,10 +1,103 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-26 00:45(**第二十八 session 中段快照(context 高重啟):PLAN-007 Phase B 起手,worktree `feature/plan-007-remote-dev` 建立,T0268 ✅ DONE(targetOS schema + migration + inline prompt,9 min wall vs 估 4-8h,12 tests 全綠,worktree commit `81f58d3`)。auto-session 切回 on(project layer)。下次起手立刻派 T0269 PathTranslator + IdentityTranslator + contract test scaffold。**)
+> 最後更新:2026-04-26 03:25(**第二十八 session 收工快照:PLAN-007 Phase B Phase 1 全部 5 張落地(T0268-T0272 ✅ DONE 0 失敗 0 Renew 0 互動),累計 ~80 min wall vs 估 32-72h(差 24-50 倍)。批次 *archive 41 張 + *sync + *evolve(GP099/GP100 寫 Global、L-cand-098/099/100 + L101/L102 寫 Project)。worktree commit chain `81f58d3 → dec6184 → 26eb10d → 42eab95 → 4e6a174 → 1fbb0bd`。下次起手:派 T0273 WslPathTranslator(Phase 2 第一張)。**)
 
 ---
 
-## 🛏 本 Session 中段快照(第二十八 session,2026-04-26 00:14-00:45,~30 min,PLAN-007 Phase B 起手 + T0268 完成 + context 高重啟)
+## 🛏 本 Session 收工快照(第二十八 session,2026-04-26 00:14-03:25,~3h 11min,PLAN-007 Phase 1 完成 + 大批歸檔 + 學習萃取)
+
+### 本輪時間線(收工版,完整 28 session)
+
+**Part A:Phase B 起手(00:14-00:45,30 min,T0268)**
+1. **00:14**(起手):session 27 退場後重啟,Fast Path 載入 session 27 快照,使用者「繼續」推進 PLAN-007 Phase B
+2. **00:15**(對齊):worktree 命名選 [A] 預設 → 建立 `git worktree add ../bat-plan-007 -b feature/plan-007-remote-dev`
+3. **00:15-00:18**:塔台清理 session 27 殘留 — `bat-headless-spike/` 4K 空目錄,Windows handle lock 留待 reboot
+4. **00:18-00:25**:寫 T0268 工單 + commit;Step 11 修正(Worker 不寫 worktree 工單檔)
+5. **00:25**(config):**`*config auto_session on --project`**(從 off 改回 on),commit `d12f2a9`
+6. **00:25-00:34**:T0268 派發(yolo + no-interactive)→ ✅ DONE 9 min wall,worktree commit `81f58d3`,12 tests
+7. **00:34-00:42**:塔台同步主線 metadata,commit `d5abe1a`
+8. **00:45**:context 高,寫中段快照,session 重啟
+
+**Part B:重啟 + 批次清理(00:42-00:55,~13 min)**
+9. **00:42**:Fast Path 載入中段快照
+10. **00:45-00:50**:**`*archive A`**(批次 41 張歸檔)— 22 工單 + 9 CT-T + 6 BUG + 4 PLAN → `_archive/`,熱區 74 → 33,commit `575a053`
+11. **00:50-00:55**:**`*sync`**(重建 _bug-tracker.md / _backlog.md)— BUG 熱區只剩 2 張(BUG-055/059),Backlog 8 張 active(3 IDEA / 3 PLANNED / 2 IN_PROGRESS)
+
+**Part C:Phase 1 連發 4 張(00:55-03:15,~2h 20min,T0269-T0272)**
+12. **00:53-01:11**:**`*config auto_session yolo`**(session-level)→ T0269 派發 → ✅ DONE 14 min,worktree commit `dec6184`,48 contract tests,主線 sync `529efc6`
+13. **01:12-01:24**:**T0270 自主派發**(YOLO)→ ✅ DONE 10 min,worktree commit `26eb10d`,19 tests(channel set 校正:fs:changed 字串非物件 / workspace:* 排除 / git:status repo-relative 排除),主線 sync `3f08385`
+14. **02:26-02:48**:**T0271 自主派發**(YOLO)→ ✅ DONE 22 min,worktree commit `42eab95`(+ report `4e6a174`),tarball 123.76 MB linux-x64 / 257 檔 / whisper grep 0 / AC4 反向測試 ✅,主線 sync `1be74c7`
+15. **02:53-03:15**:**T0272 自主派發**(YOLO,Phase 1 capstone)→ ✅ DONE ~25 min,worktree commit `1fbb0bd`,6 contract tests + bundle layout B + secrets/remote-server/certificate plain-Node 相容性擴 3 檔,主線 sync `a080e5b`
+
+**Part D:Phase 1 收工(03:15-03:25,~10 min)**
+16. **03:15**:塔台 Phase boundary 自主暫停 → 提示 [A] 繼續 Phase 2 / [B] *evolve / [C] 收工
+17. **03:18**:使用者選 **B → C**(*evolve 後收工)
+18. **03:18-03:23**:**`*sync`**(熱區 37 張驗證,索引無變動);**`*evolve`** mixed mode → GP099(估時偏差 24-50 倍)+ GP100(YOLO 13 連發)寫 Global,L-cand-098/099/100(Worker 自決邊界 / 容忍邊界 / Phase 收尾觸發)+ L101(plain-Node 相容 3 檔)/ L102(Bundle layout B)寫 Project
+19. **03:25**:寫本 session 收工快照
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **Worker 工單** | T0268-T0272 5 張 ✅ DONE(0 失敗 0 Renew 0 互動) |
+| **Worktree commit chain** | `c9373ff → 81f58d3(T0268) → dec6184(T0269) → 26eb10d(T0270) → 42eab95(T0271) → 4e6a174(T0271 report) → 1fbb0bd(T0272)` 全部 on `feature/plan-007-remote-dev` |
+| **PLAN-007 Phase 1 收尾** | 5 張(targetOS schema → PathTranslator → RemoteClient middleware → server bundle → headless factory)完整落地;Phase 1 / 5 完成 |
+| **批次歸檔** | 41 張(22 T + 9 CT-T + 6 BUG + 4 PLAN)→ `_archive/`,熱區 74 → 33 → 37(本 session 加 5)|
+| **學習萃取** | Global +2(GP099/GP100,GP 總數 100)/ Project +5(L-cand-098/099/100 + L101/L102) |
+| **Config 變更** | `auto-session off → on`(project,commit `d12f2a9`)→ `yolo`(session-level,未存檔) |
+| **Commits 主線**(時間序) | `1299119`(T0268 創建)/ `d12f2a9`(config)/ `d5abe1a`(T0268 sync)/ `chore session 28 mid snapshot`(63b8bdb 起手)/ `575a053`(*archive 41 張)/ `*sync` rebuild / `af34369`(T0269 創建)/ `529efc6`(T0269 sync)/ `1be74c7`(T0270 創建合併 sync)/ `3f08385`(T0270 sync)/ `1be74c7`(T0271 創建)/ `1be74c7`(T0271 sync)/ `a080e5b`(T0272 sync)|
+| **Worker 主動超出範圍**(總計 7 項) | T0268: IPC type / setter ×8 / 4 tests;T0270: channel set 校正;T0271: 移 Windows claude.exe(278→124 MB);T0272: secrets/remote-server/certificate plain-Node 相容擴 3 檔 |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time(全 session) | ~3h 11min | 00:14-03:25 |
+| Worker 工單 DONE | 5 / 5 | T0268-T0272 全綠 |
+| Worker 累計 wall | ~80 min | 9+14+10+22+25(全部 spec-frozen impl)|
+| 估 vs 實差距 | 24-50× | 估 32-72h 實 80 min |
+| Renew 次數 | 0 / 5 | |
+| FAILED 次數 | 0 / 5 | |
+| 互動觸發 | 0 / 5 | yolo + no-interactive |
+| YOLO 自主派發 | 4 次 | T0269-T0272(T0268 手動派,後續 chain) |
+| 塔台 commits 主線 | ~14 | 含 archive / sync / config / metadata sync |
+
+### 下 session pending(優先序)
+
+1. 🟢 **派 T0273** — WslPathTranslator + wsl-path 純函數整合(Phase 2 第一張,M sizing,但依 GP099 預期 wall 10-25 min)
+2. 🟢 **可並行 T0274** — WSL setup wizard steps 1-4(L sizing,依 T0271)
+3. 🟢 **歸檔下批候選**(達 04-28 起):T0268-T0272(本 session)+ BUG-055/059 + T0250-T0259 + EXP-HEADLESS-001
+4. 🟢 v0.3.0/v0.3.1 release 觀察 / Phase 1 C3 runtime 驗收 / PLAN-021/028 / Phase 2 CUDA(全部 session 26-27 殘留)
+5. 🟢 手動清 `bat-headless-spike/` 4K 殘留(reboot 或 cmd.exe `rmdir`)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:確認 worktree `../bat-plan-007` 仍存在(`git worktree list`),HEAD 應為 `1fbb0bd`(T0272 DONE)
+3. **優先序 2**:派 T0273(spec doc §8 藍圖卡 + spec §2.2 已凍結 framework + L101 plain-Node 相容 3 檔資訊)
+4. **塔台規則繼續**:D089 worktree 策略不變,Phase 2 沿用 yolo + no-interactive(本 session 13 連發零異常已證高效)
+5. **編號起始**:T0273 / BUG-060 / PLAN-029 / D090 / EXP-WSL-MIRRORED-001(spike 候選依 T0263 §B)
+6. **預期 Phase 2 4 張(T0273-T0276)累計 wall ≤ 90 min**(GP099 校準後)
+
+### 本 session 教訓
+
+1. **Phase boundary 是天然 *evolve 觸發點** — L-cand-100 已記。比起每張 *evolve(成本高)或 session 結束才 *evolve(候選散),Phase 收尾甜蜜點。
+2. **YOLO 鏈式對 impl 同樣有效** — GP100 已記。13 連發跨 research / impl 兩 type 零異常。
+3. **spec-frozen impl 估時表完全失效** — GP099 已記。Phase 2 工單估時應改 30 min 而非 sizing 表。
+4. **Worker 主動超出範圍是常態,不是例外** — L-cand-099 已記。預期 Phase 2 每張會有 1-3 項。
+5. **批次 *archive 是清熱區的核心動作** — 本 session 一次性 41 張,熱區 74→33,搜尋成本驟降。下次達門檻立刻跑。
+
+### 本 session 成就
+
+- 🏆 **PLAN-007 Phase 1 整段完成** — 從 schema → translator framework → middleware → server bundle → headless factory,1 day 內 5 張 0 失敗
+- 🎉 **GP 達 100 條里程碑**(GP099/GP100 寫入 Global)
+- 🎉 **YOLO 13 連發零異常**(session 27 8 張 research + session 28 5 張 impl)
+- 🎉 **熱區大瘦身**(74→33→37,*archive 一次處理 41 張)
+- 🎉 **估時觀念校準**(spec-frozen impl wall 接近 research speed,後續 Phase 2/3/4 工單規劃可大幅壓縮)
+
+---
+
+## 🛏 前 Session 中段快照(第二十八 session 前段,2026-04-26 00:14-00:45,~30 min,PLAN-007 Phase B 起手 + T0268 完成 + context 高重啟)
 
 ### 本輪時間線
 
