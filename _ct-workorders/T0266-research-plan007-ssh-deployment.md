@@ -3,9 +3,11 @@
 ## 元資料
 - **工單編號**：T0266
 - **任務名稱**：PLAN-007 — SSH 部署環境研究（在共通 spec 基礎上聚焦 SSH-only 差異 + 跨 OS server matrix）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-25 22:55 (UTC+8)
 - **開始時間**：2026-04-25 22:55 (UTC+8)
+- **完成時間**：2026-04-25 23:10 (UTC+8)
+- **commit**：`496fba4`
 - **類型**：research（讀 code + 寫 spec 章節，**不寫 production code、不重構**）
 - **互動模式**：enabled（auth 方式 / 跨 OS matrix / tunnel 策略有設計分支）
 - **Renew 次數**：0
