@@ -4,7 +4,9 @@
 
 - **編號**：T0251
 - **類型**：bug-fix（衍生自 BUG-059，亦修 BUG-055）
-- **狀態**：🔄 IN_PROGRESS（開始時間：2026-04-25 10:08:52）
+- **狀態**：✅ FIXED（修復已完成，等待 AC2/AC3 運行時驗收）
+- **開始時間**：2026-04-25 10:08:52
+- **完成時間**：2026-04-25 10:15:26
 - **優先級**：🔴 **High**（packaged 用戶端可用性中斷修復）
 - **建立時間**：2026-04-25 (UTC+8)
 - **派發模式建議**：`--mode on --no-interactive`（修復工單，方案 A 已確定，無需互動）
@@ -138,6 +140,9 @@ AC2/AC3 為運行時驗收，必須在 build + 重啟 BAT 後手動觀察，無�
 無
 
 ### Commit
+
+- `426d6fc` — fix(electron): inject DISABLE_AUTOUPDATER=1 into all BAT spawn paths
+  - 含工單編號 T0251、BUG-059、BUG-055、研究來源 T0250、決策 D087 reference
 
 
 
