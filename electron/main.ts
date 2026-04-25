@@ -3032,7 +3032,7 @@ function registerLocalHandlers() {
         const senderWindowId = getWindowIdByWebContents(event.sender)
         const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
         const boundProfileId = senderEntry?.profileId ?? null
-        const client = new RemoteClient(() => getWindowsForProfile(remoteClientProfileId))
+        const client = new RemoteClient(() => getWindowsForProfile(boundProfileId))
         const result = await client.connect(host, port, token, label, fingerprint)
         if (!result.ok) {
           remoteClient = null
@@ -3063,10 +3063,16 @@ function registerLocalHandlers() {
     remoteOpMutex = task.catch(() => {})
     return task
   })
-  ipcMain.handle('remote:client-status', async () => ({
-    connected: remoteClient?.isConnected ?? false,
-    info: remoteClient?.connectionInfo ?? null
-  }))
+  ipcMain.handle('remote:client-status', async (event) => {
+    const senderWindowId = getWindowIdByWebContents(event.sender)
+    const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
+    const senderProfileId = senderEntry?.profileId ?? null
+    const connected = !!remoteClient?.isConnected && !!remoteClientProfileId && senderProfileId === remoteClientProfileId
+    return {
+      connected,
+      info: connected ? remoteClient?.connectionInfo ?? null : null,
+    }
+  })
   ipcMain.handle('remote:test-connection', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const testClient = new RemoteClient(() => [])
     try {
