@@ -3,12 +3,13 @@
 ## 元資料
 - **工單編號**：T0252
 - **任務名稱**：研究：評估 upstream `tony1223/better-agent-terminal` v2.1.46 → v2.2.26-pre.7 同步可行性
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **類型**：research
 - **互動模式**：enabled（research_interaction: true，最多 3 個釐清問題）
 - **Renew 次數**：0
 - **建立時間**：2026-04-25 16:30 (UTC+8)
 - **開始時間**：2026-04-25 16:33 (UTC+08:00)
+- **完成時間**：2026-04-25 16:42 (UTC+08:00)
 - **預估 context cost**：高（~30-50% window，114 commits 詳細分析；Worker 應主動分批讀避免 context 爆）
 - **預估 wall time**：30-60 min（仿 T0164 規格但規模 ~9 倍）
 - **關聯**：
@@ -429,8 +430,8 @@ Worker 在研究過程允許向使用者提問，但**遵循以下限制**：
   - 若要追大功能，先開 `PLAN-030`
 - **Renew 歷程**：無
 - **回報時間**：2026-04-25 16:42 (UTC+08:00)
-- **commit hash**：待填
-- **yaml**：待檢查
+- **commit hash**：`9b8c581`
+- **yaml**：不適用（研究工單，未更新 `sprint-status.yaml`）
 
 ---
 
