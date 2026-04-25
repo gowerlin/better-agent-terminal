@@ -3,9 +3,11 @@
 ## 元資料
 - **工單編號**：T0263
 - **任務名稱**：PLAN-007 — WSL 部署環境研究（BAT server 在 WSL2 內跑，Win client 連 localhost）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-25 22:35 (UTC+8)
 - **開始時間**：2026-04-25 22:26 (UTC+8)
+- **完成時間**：2026-04-25 22:31 (UTC+8)
+- **commit hash**：afb34a0
 - **類型**：research（讀 code + 寫 spec 章節，**不寫 production code、不重構**）
 - **互動模式**：enabled（path 映射策略 / 啟動方式有設計分支）
 - **Renew 次數**：0
@@ -607,5 +609,7 @@ export function wslToWin(wslPath: string, distro: string): string {
 ---
 
 ### 收尾 commit
-- 工單元資料：IN_PROGRESS → DONE，填完成時間
-- commit message：`chore(workorder): T0263 PLAN-007 WSL deployment spec done — 7 sections ready`
+- commit hash：`afb34a0`
+- 完成時間：2026-04-25 22:31 (UTC+8)
+- 開始時間：2026-04-25 22:26 (UTC+8)
+- wall time：~5 min（讀 code + 寫 spec，YOLO 模式無互動阻擋）
