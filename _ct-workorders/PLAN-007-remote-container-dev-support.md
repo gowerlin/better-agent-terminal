@@ -1,14 +1,20 @@
-# PLAN-007 — 遠端 / 容器開發支援研究
+# PLAN-007 — Remote Dev Support（BAT terminal client/server 跨環境部署）
 
 ## 元資料
 
 | 欄位 | 內容 |
 |------|------|
 | **PLAN 編號** | PLAN-007 |
-| **標題** | BAT 遠端 / 容器開發環境支援（SSH / WSL / Docker） |
-| **狀態** | 💡 IDEA |
+| **標題** | BAT terminal client/server 拆分 + 跨環境 server 部署（local-host / WSL / Docker / SSH） |
+| **狀態** | 📋 PLANNED |
 | **建立時間** | 2026-04-13 10:42 (UTC+8) |
-| **優先級** | 🟡 Medium（研究性質，非緊急） |
+| **PLANNED 升級** | 2026-04-25 23:30 (UTC+8) — Phase A research 全部完成 |
+| **拍板依據** | T0267 spec consolidation（commit `f1934f9` — `_spec-remote-dev-support-2026-04.md` 832 行）|
+| **優先級** | 🟡 Medium |
+| **框架翻轉紀錄** | 2026-04-25 第 27 session — 原構想「AI Agent 跨環境執行」翻轉為「BAT terminal server 跨環境部署 + 本地 BAT client 連線」 |
+| **research 工單** | T0260 / T0261 (EXP-HEADLESS-001) / T0262 / T0263 / T0264 / T0265 / T0266 / T0267 全部 ✅ DONE |
+| **實作工單藍圖** | T0268-T0290（23 張，分 5 Phase，22-30 工程日 → 含風險係數 30-40d） |
+| **規格文件** | `_ct-workorders/_spec-remote-dev-support-2026-04.md` |
 
 ---
 
