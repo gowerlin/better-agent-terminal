@@ -3,8 +3,9 @@
 ## 元資料
 - **工單編號**：T0254
 - **任務名稱**：upstream sync Phase 1 cherry-pick C2 — Codex robustness（7 commits）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **開始時間**：2026-04-25 19:17 (UTC+8)
+- **完成時間**：2026-04-25 19:33 (UTC+8)
 - **類型**：implementation
 - **互動模式**：disabled
 - **Renew 次數**：0
