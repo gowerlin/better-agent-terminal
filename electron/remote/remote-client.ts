@@ -2,7 +2,14 @@ import WebSocket from 'ws'
 import type { TLSSocket, PeerCertificate } from 'tls'
 import { randomBytes } from 'crypto'
 import { BrowserWindow } from 'electron'
-import { PROXIED_EVENTS, type RemoteFrame } from './protocol'
+import type { ProfileEntry } from '../profile-manager'
+import { PROXIED_EVENTS, type AuthResult, type AuthResultMetadata, type RemoteFrame } from './protocol'
+import {
+  normalizePathsInResult,
+  translateInvokeArgs,
+  translateRemoteEventArgs,
+} from './path-aware-channels'
+import { createTranslator, IdentityTranslator, type PathTranslator } from './path-translator'
 import { logger } from '../logger'
 
 interface PendingInvoke {
@@ -51,6 +58,9 @@ export class RemoteClient {
   private ws: WebSocket | null = null
   private pending: Map<string, PendingInvoke> = new Map()
   private getWindows: () => BrowserWindow[]
+  private profile: ProfileEntry | null
+  private translator: PathTranslator = new IdentityTranslator()
+  private serverMetadataValue: AuthResultMetadata | null = null
   private _connected = false
   private _connectedFingerprint = ''
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -62,8 +72,9 @@ export class RemoteClient {
   private expectedFingerprint = ''
   private shouldReconnect = false
 
-  constructor(getWindows: () => BrowserWindow[]) {
+  constructor(getWindows: () => BrowserWindow[], profile?: ProfileEntry | null) {
     this.getWindows = getWindows
+    this.profile = profile ?? null
   }
 
   get isConnected(): boolean {
@@ -73,6 +84,21 @@ export class RemoteClient {
   get connectionInfo(): { host: string; port: number; fingerprint: string } | null {
     if (!this._connected) return null
     return { host: this.host, port: this.port, fingerprint: this._connectedFingerprint }
+  }
+
+  get serverMetadata(): AuthResultMetadata | null {
+    return this.serverMetadataValue
+  }
+
+  setProfile(profile: ProfileEntry | null): void {
+    this.profile = profile
+    if (this.serverMetadataValue) {
+      this.updateTranslatorFromProfile()
+    }
+  }
+
+  setTranslator(translator: PathTranslator): void {
+    this.translator = translator
   }
 
   /**
@@ -181,6 +207,7 @@ export class RemoteClient {
             this._connected = true
             this._connectedFingerprint = observedFingerprint
             this.reconnectAttempts = 0
+            this.applyAuthResult(frame.result as AuthResult | undefined)
             logger.log(
               `[RemoteClient] Connected to ${this.host}:${this.port} ` +
                 `(fingerprint=${observedFingerprint.substring(0, 23)}...)`
@@ -210,9 +237,14 @@ export class RemoteClient {
 
         // Event — forward to renderer
         if (frame.type === 'event' && frame.channel && PROXIED_EVENTS.has(frame.channel)) {
+          const translatedArgs = translateRemoteEventArgs(
+            frame.channel,
+            frame.args || [],
+            this.translator,
+          )
           for (const win of this.getWindows()) {
             if (!win.isDestroyed()) {
-              win.webContents.send(frame.channel, ...(frame.args || []))
+              win.webContents.send(frame.channel, ...translatedArgs)
             }
           }
           return
@@ -309,7 +341,8 @@ export class RemoteClient {
     }
 
     const id = this.nextId()
-    const frame: RemoteFrame = { type: 'invoke', id, channel, args }
+    const translatedArgs = translateInvokeArgs(channel, args, this.translator)
+    const frame: RemoteFrame = { type: 'invoke', id, channel, args: translatedArgs }
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -317,9 +350,42 @@ export class RemoteClient {
         reject(new Error(`Remote invoke timeout: ${channel}`))
       }, timeout)
 
-      this.pending.set(id, { resolve, reject, timer })
+      this.pending.set(id, {
+        resolve: (result) => {
+          resolve(normalizePathsInResult(channel, result, this.translator))
+        },
+        reject,
+        timer,
+      })
       this.ws!.send(JSON.stringify(frame))
     })
+  }
+
+  private applyAuthResult(result: AuthResult | undefined): void {
+    if (result && typeof result === 'object') {
+      this.serverMetadataValue = result
+      this.updateTranslatorFromProfile()
+      return
+    }
+    this.serverMetadataValue = null
+    this.translator = new IdentityTranslator()
+  }
+
+  private updateTranslatorFromProfile(): void {
+    if (!this.profile) {
+      this.translator = new IdentityTranslator()
+      return
+    }
+
+    try {
+      this.translator = createTranslator(this.profile)
+    } catch (error) {
+      logger.warn(
+        '[RemoteClient] translator not available, using Identity:',
+        error instanceof Error ? error.message : String(error),
+      )
+      this.translator = new IdentityTranslator()
+    }
   }
 
   private _counter = 0

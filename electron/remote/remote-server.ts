@@ -1,12 +1,14 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import { randomBytes } from 'crypto'
+import { app } from 'electron'
 import { networkInterfaces } from 'os'
+import * as os from 'os'
 import * as https from 'https'
 import * as path from 'path'
 import { invokeHandler } from './handler-registry'
 import { logger } from '../logger'
 import { broadcastHub } from './broadcast-hub'
-import { PROXIED_EVENTS, type RemoteFrame } from './protocol'
+import { PROXIED_EVENTS, type AuthResultMetadata, type RemoteFrame } from './protocol'
 import { loadOrCreateServerCertificate } from './certificate'
 import { readSecretFile, writeSecretFile } from './secrets'
 
@@ -116,6 +118,24 @@ function resolveBindHost(
     host: '',
     error:
       'bind-interface=tailscale selected but no Tailscale (100.x.y.z) IPv4 interface was found'
+  }
+}
+
+function getBundleVersion(): string {
+  try {
+    return app.getVersion()
+  } catch {
+    return '0.0.0'
+  }
+}
+
+function buildAuthMetadata(): AuthResultMetadata {
+  return {
+    serverPlatform: os.platform() as AuthResultMetadata['serverPlatform'],
+    serverArch: os.arch() as AuthResultMetadata['serverArch'],
+    serverEnv: 'native',
+    nodeVersion: process.versions.node,
+    bundleVersion: getBundleVersion(),
   }
 }
 
@@ -276,7 +296,7 @@ export class RemoteServer {
               label: (frame.args?.[0] as string) || 'Remote Client',
               connectedAt: Date.now()
             })
-            this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: true })
+            this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata() })
             logger.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
           } else {
             if (clientIp) {

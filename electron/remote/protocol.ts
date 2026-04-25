@@ -1,5 +1,24 @@
 export type RemoteFrameType = 'invoke' | 'invoke-result' | 'invoke-error' | 'event' | 'auth' | 'auth-result' | 'ping' | 'pong'
 
+export type AuthServerPlatform = 'win32' | 'linux' | 'darwin'
+export type AuthServerArch = 'x64' | 'arm64'
+export type AuthServerEnv = 'native' | 'wsl' | 'docker' | 'ssh'
+
+export interface AuthResultMetadata {
+  serverPlatform: AuthServerPlatform
+  serverArch: AuthServerArch
+  serverEnv?: AuthServerEnv
+  wslDistro?: string
+  dockerMounts?: Array<{ host: string; container: string }>
+  serverHome?: string
+  nodeVersion: string
+  claudeVersion?: string
+  bundleVersion: string
+  glibcVersion?: string
+}
+
+export type AuthResult = true | AuthResultMetadata
+
 export interface RemoteFrame {
   type: RemoteFrameType
   id: string

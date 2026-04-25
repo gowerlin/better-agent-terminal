@@ -1113,7 +1113,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
     const label = profileEntry.name || profileId
     const task = remoteOpMutex.then(async () => {
       try {
-        const client = new RemoteClient(() => getWindowsForProfile(profileId))
+        const client = new RemoteClient(() => getWindowsForProfile(profileId), profileEntry)
         const result = await client.connect(
           host,
           port,
@@ -3138,7 +3138,7 @@ function registerLocalHandlers() {
         const senderWindowId = getWindowIdByWebContents(event.sender)
         const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
         const boundProfileId = senderEntry?.profileId ?? null
-        const client = new RemoteClient(() => getWindowsForProfile(boundProfileId))
+        const client = new RemoteClient(() => getWindowsForProfile(boundProfileId), senderEntry ? await profileManager.getProfile(boundProfileId ?? '') : null)
         const result = await client.connect(host, port, token, label, fingerprint)
         if (!result.ok) {
           remoteClient = null
