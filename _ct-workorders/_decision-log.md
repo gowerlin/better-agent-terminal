@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-23 05:35 (UTC+8)(新增 D083 — BUG-057 CLOSED,T0245 單行 fix 閉環,session 22 收工條件達成)
+> 最後更新:2026-04-25 14:54 (UTC+8)(補入 D084-D088 — session 24 BUG-058 chain + v0.3.1 hotfix release + session 25 BUG-059/055 chain via T0250→T0251 修復鏈)
 
 ---
 
@@ -65,6 +65,11 @@
 | D081 | 2026-04-23 | BUG-057 OPEN（第二 regression from `cb65614`）— 語音辨識繁中翻英，走 T0244 研究路線（A/A/A），T0243 延下 session | BUG-057 / T0244 / `cb65614` / T0243 |
 | D082 | 2026-04-23 | T0244 結論吸收 — H2 確認：`@kutalia/whisper-node-addon` default `translate: true`（舊套件 false），派 T0245 單行 fix（加 `translate: false`）+ dev mode 驗收 | T0244 / T0245 / BUG-057 / `526b7c1` |
 | D083 | 2026-04-23 | BUG-057 CLOSED — T0245 單行 fix `translate: false` 閉環,使用者雙情境(zh+auto)runtime 驗收通過,session 22 收工條件達成 | BUG-057 / T0245 / `b2124b5` |
+| D084 | 2026-04-23 | BUG-058 OPEN(session 24) — packaged BAT 缺 `_bat-*.mjs` helper scripts,Q3.A 拆鏈:T0246 研究 → T0247 修復 → T0248 預防 → T0249 v0.3.1 release prep | BUG-058 / T0246 / T0247 / T0248 / T0249 |
+| D085 | 2026-04-24 | BUG-058 CLOSED — v0.3.1 GitHub Actions release(commits `a460d8b` filter fix + `a73a965` `1009154` 預防 + `eca8ab6` `02d8bb2` release),NSIS installer 實測 `$BAT_HELPER_DIR` 含 4 個 `.mjs`,使用者驗收通過 | BUG-058 / T0247 / T0248 / T0249 / `b0b8128` |
+| D086 | 2026-04-25 | BUG-059 OPEN + BUG-055 REOPEN(session 25) — packaged embedded `claude.exe` auto-update 失敗(觀測 `.old.<ts>` 殘留 + binary missing),T0250 反組譯研究 + cross-ref BUG-055 同根因疑慮 | BUG-059 / BUG-055 / T0250 |
+| D087 | 2026-04-25 | T0250 結論吸收 — 根因確認:embedded claude auto-update orphans binary 到 npm prefix(不在 BAT 路徑);採方案 A 在所有 BAT spawn 路徑無條件注入 `DISABLE_AUTOUPDATER=1`,派 T0251 單檔多點修改 | T0250 / T0251 / `2d5db28` |
+| D088 | 2026-04-25 | BUG-059 + BUG-055 一同 CLOSED — T0251 commit `426d6fc` runtime 驗收通過(AC1-5 全綠,使用者實機確認無 `.old.*` 殘留 + `claude --version` 不觸發 update),BUG-055 連帶閉環(同根因) | BUG-059 / BUG-055 / T0251 / `426d6fc` |
 
 ---
 

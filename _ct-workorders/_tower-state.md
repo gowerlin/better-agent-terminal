@@ -1,10 +1,116 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-23 16:02(**🎉 第二十三 session 收工:v0.3.0 首次正式版 release(local commit + tag 本地,push 由使用者手動),T0243 BUG-056 預防對策閉環,session 22 pending 全清,`*evolve` 批次 7 條萃取(Global 5 + Project 2)**)
+> 最後更新:2026-04-25 14:55(**🎉 第二十五 session 收工:BUG-059 + BUG-055 一同 🚫 CLOSED,T0250→T0251 修復鏈閉環(13 min 研究 + 7 min 修復),`DISABLE_AUTOUPDATER=1` env 注入 4 處,熱區 8 張 BUG 全數閉環首次達成。本 session 並補入 session 24 退場快照(BUG-058 + v0.3.1 hotfix release)+ D084-D088 補回 _decision-log.md(drift 修復)+ *sync/*rescan 索引重建**)
 
 ---
 
-## 🛏 本 Session 退出快照(第二十三 session,2026-04-23 11:48-16:02,~4h 10min,v0.3.0 首次正式版 release + session 22 pending 清盤)
+## 🛏 本 Session 退出快照(第二十五 session,2026-04-25 09:30-12:31,~3h,BUG-059/055 修復鏈閉環)
+
+### 本輪時間線
+
+1. **~09:30**(起手):使用者觀測 packaged BAT 內 embedded `claude.exe.old.<ts>` 殘留 + `claude --version` 觸發 update,binary missing → BUG-059 OPEN(🔴 High,packaged 用戶端 worker session 整條鏈路斷)
+2. **~09:35**(對齊):BUG-055 重評估(原 WONTFIX,T0235 過程中觀測殘留)→ 與 BUG-059 cross-ref,疑似同根因 install hook 走 auto-update path
+3. **~09:35-09:40**(D086 決策):開 BUG-059 + T0250 反組譯研究工單,cross-ref BUG-055 待重評估
+4. **09:40-09:55**:**T0250 研究 13 min ✅ DONE**(commit `2d5db28`)— 反組譯 `node_modules/@anthropic-ai/claude-code/cli.js` 找出 auto-update flow 把 `app.asar.unpacked/.../bin/claude.exe` rename 成 `.old.<ts>` 然後 `npm install -g` 到使用者 npm prefix(不在 BAT 路徑)。BUG-055 同根因確認。方案 A 推薦:在 BAT 所有 spawn 路徑無條件注入 `DISABLE_AUTOUPDATER=1`(env flag 由 native installer 自我關閉,但 npm-global 路徑仍受影響)
+5. **~10:00**(D087 決策):採方案 A,派 T0251 單檔多點修改(`pty-manager.ts` 三處 envWithUtf8 + `claude-agent-manager.ts` constructor)+ CLAUDE.md 補「Embedded claude auto-update 停用」段落
+6. **10:08-10:15**:**T0251 修復 7 min ✅ DONE**(commit `426d6fc`)— `electron/pty-manager.ts` + `electron/claude-agent-manager.ts` env 注入 4 處 + `CLAUDE.md` 文件章節。Worker 自報 build green,AC1 靜態通過,AC2/AC3 待 runtime 驗收(commit `42abda5`)
+7. **~10:23**(meta update):`f572a06` BUG-055/059 status update + T0250 完成時間修正
+8. **~10:23-12:27**:packaged installer 重建 + 使用者實機驗收(AC1 build green ✅ / AC2 `claude --version` 不觸發 update ✅ / AC3 spawn 後無 `.old.*` 殘留 ✅ / AC4 worker session 鏈路完整 ✅ / AC5 dev `.old.*` 連帶解除 ✅)
+9. **12:27-12:31**(D088):**BUG-059 + BUG-055 一同 🚫 CLOSED**(commit `3101c6b`),session 25 收工條件達成
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **BUG 閉環** | BUG-059 🚫 CLOSED + BUG-055 🚫 CLOSED(原 WONTFIX → REOPEN → CLOSED,連帶閉環 D088) |
+| **研究工單** | T0250 ✅ DONE(13 min,反組譯 cli.js,根因 + 方案 A) |
+| **修復工單** | T0251 ✅ DONE(7 min wall,單檔多點 env 注入,fire-and-forget,零 Renew) |
+| **決策**(本 session 新增) | D086 / D087 / D088 共 3 條 |
+| **Commits**(本 session 新增) | `2d5db28`(T0250)/ `426d6fc`(T0251 fix)/ `42abda5`(T0251 worker report)/ `f572a06`(meta update)/ `3101c6b`(BUG CLOSED 收工) |
+| **修改檔** | `electron/pty-manager.ts` / `electron/claude-agent-manager.ts` / `CLAUDE.md`(Embedded claude auto-update 停用章節) + `_ct-workorders/T0250-*.md` / `T0251-*.md` / `BUG-055-*.md` / `BUG-059-*.md` |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time | ~3h(含驗收等待) | 09:30-12:31 |
+| Worker 工單 DONE | 2 / 2 | T0250(13 min)+ T0251(7 min) |
+| 平均 Worker wall | 10 min | (13+7)/2 |
+| Renew 次數 | 0 / 2 | 零 Renew |
+| FAILED 次數 | 0 / 2 | 零失敗 |
+| 一次研究即定根因 | 1 | T0250 反組譯直接找出 update flow |
+| 一次修復即達成 AC | 1 | T0251 單檔多點修改,AC1-5 全綠 |
+
+### 下 session pending(優先序)
+
+1. 🟢 **`*evolve` 批次萃取 L067-L070** — session 25 候選(L067 反組譯研究神速 / L068 install hook 與 auto-update 同根因模式 / L069 spawn env flag 防御性修復通則 / L070 WONTFIX → REOPEN 觸發條件)
+2. 🟡 **v0.3.0/v0.3.1 release 後續觀察** — GitHub Release + Homebrew tap 狀態,使用者已 push,塔台可被動等回報
+3. 🟢 **Phase 2 CUDA advanced tier 評估** — 待 EXP-GPUWHIS-002 硬體升級實測
+4. 🟢 **backlog 🟢 Low** — PLAN-002/007/015/026
+5. 🟢 PLAN-021 IN_PROGRESS(等 dev smoke)
+6. 🟢 PLAN-028 PLANNED(BAT dogfood CT v4.4)
+7. 🟢 T0153 PARTIAL(Git GUI spike,擱置)
+8. 🟢 **批次歸檔候選** — 熱區 8 張 BUG 全 CLOSED + 19 張 T DONE,等 `archive_days` 門檻(BUG-055/058/059 為 04-24/25 閉環需等 04-26+)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:`*evolve` 批次萃取 L067-L070(session 25 候選,有 4 條候選)
+3. **優先序 2**:批次歸檔(等 04-26+ 達 `archive_days: 2` 門檻)
+4. 下 session 新單編號起始:**T0252 / BUG-060 / PLAN-029 / D089 / EXP-[TOPIC]-002+**
+
+### 本 session 成就
+
+- 🎉 **熱區 8 張 BUG 全數 🚫 CLOSED 首次達成** — BAT 專案歷史首次零 open BUG 狀態
+- 🎉 **T0250 反組譯神速** — 13 min 直接從 `cli.js` 找出 auto-update flow,L106 三要素再次驗證(BUG 描述含現象特徵 + 假設清單 + 建議前置檔)
+- 🎉 **T0251 fire-and-forget 7 min** — 單檔多點 env 注入,Worker 零互動零 Renew,`DISABLE_AUTOUPDATER=1` 同時解 BUG-059(packaged)+ BUG-055(dev)兩條
+- 🎉 **WONTFIX → REOPEN → CLOSED 完整閉環** — BUG-055 反證 WONTFIX 決策可在新證據下重評估,L070 候選
+
+### 本 session 教訓
+
+1. **WONTFIX 決策應留 reopen trigger** — BUG-055 原 WONTFIX(單次觀測 + 有 workaround),session 25 因 BUG-059 連帶反證 install hook 同根因,REOPEN 後一同閉環。教訓:WONTFIX 不是 final,應在元資料補「reopen trigger」欄位記錄重評估條件
+2. **反組譯是研究型工單高效武器** — 當套件本身行為違反文件預期時,直接讀 `cli.js` 比測試假設快 5-10 倍。L067 候選(`*evolve` 批次)
+3. **Spawn env flag 是防御性修復通則** — 當無法控制套件內部 auto-update 行為時,在所有 spawn 路徑無條件注入 disable env 是最 robust 的方案(vs. patch 套件 / 自行重打包)。L069 候選
+
+---
+
+## 🛏 前 Session 退出快照(第二十四 session,2026-04-23 16:30 ~ 2026-04-24 02:15,BUG-058 chain + v0.3.1 hotfix release)
+
+### 本輪時間線
+
+1. **04-23 16:30**(起手):使用者打包 v0.3.0 NSIS 後實機觀測 — `$BAT_HELPER_DIR` 缺 `_bat-*.mjs` helper scripts(yolo 派發鏈斷),BUG-058 OPEN(🔴 High,session 23 v0.3.0 release 後立即 regression)
+2. **17:30**:T0246 研究結論(commit `f4aa535`)— 根因定位於 `package.json` `extraResources.filter` 白名單漏列,只 bundle 部分 helper(L107 候選 — release 過程缺 NSIS 完整重裝實機驗收)
+3. **17:35-17:46**(D084):**T0247 fix-and-forget 11 min ✅ FIXED**(commit `a460d8b`,filter 改 glob 白名單 `_bat-*.mjs` 包全)
+4. **19:05**(預防):**T0248 ✅ DONE**(commits `a73a965` + `1009154`)— 新增 `scripts/verify-helper-bundle.js` 靜態掃描 `scripts/*.mjs` 的 relative `.mjs` import,比對 `extraResources[].filter` 涵蓋,不通過則 abort build(防 helper bundle drift)+ CLAUDE.md「Packaging / Release 前置檢查」章節更新
+5. **19:27-19:33**:**T0249 v0.3.1 release prep ✅ DONE**(commits `eca8ab6` chore + `02d8bb2` v0.3.1 hotfix)— CHANGELOG + bump 0.3.0 → 0.3.1 + commit,使用者 push + tag 觸發 GitHub Actions release
+6. **20:43**:`44a180c` refactor terminal — 移除 hardcoded `--continue` / `--dangerously-skip-permissions`,對齊 PLAN-027 system claude runtime 路線
+7. **04-24 02:15**(D085):**BUG-058 🚫 CLOSED**(commit `b0b8128`)— v0.3.1 GitHub Actions release(`02d8bb2`)NSIS installer 實測 `$BAT_HELPER_DIR` 含 4 個 `.mjs` helper,使用者驗收通過
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **BUG 閉環** | BUG-058 🚫 CLOSED(~10h wall 含 release 等待,純 work 約 2h) |
+| **研究工單** | T0246 ✅ DONE(根因定位於 filter 白名單漏列) |
+| **修復工單** | T0247 ✅ FIXED(11 min,filter glob)+ T0248 ✅ DONE(預防 verify-helper-bundle.js)+ T0249 ✅ DONE(release prep) |
+| **決策** | D084 / D085 共 2 條 |
+| **Release** | **v0.3.1 hotfix**(commit `02d8bb2` + GitHub Actions release,使用者 push) |
+| **Commits**(本 session 新增) | `f4aa535`(T0246)/ `a460d8b`(T0247 fix)/ `a73a965` `1009154`(T0248 預防)/ `eca8ab6` `02d8bb2`(T0249 release)/ `44a180c`(terminal refactor)/ `b0b8128`(BUG-058 CLOSED docs) |
+| **修改檔** | `package.json` extraResources.filter / `scripts/verify-helper-bundle.js`(新增) / `scripts/build-version.js`(require chain) / `CLAUDE.md` Packaging 章節 / `CHANGELOG.md` / `electron/terminal/*.ts`(refactor) |
+
+### 下 session pending → 全部由 session 25 處理
+
+(已於 session 25 起手立即接 BUG-059)
+
+### 本 session 教訓
+
+1. **packaging filter 變更要靜態檢查** — `extraResources.filter` 是 glob 白名單,新增 helper 容易漏列。L108 候選:filter 變更時觸發 verify-helper-bundle.js 強制檢查
+2. **release 必須跑完 GitHub Actions 實機驗收** — session 23 的 v0.3.0 在打包前未實測 NSIS 完整路徑,BUG-058 在 release 後 30 min 內被使用者實機回報。L101 三度驗證
+3. **預防工單與修復工單應該同 session 處理** — T0247 修 + T0248 預防同 session 完成,確保 release prep 包含完整修復鏈,避免漏防御層
+
+---
+
+## 🛏 前 Session 退出快照(第二十三 session,2026-04-23 11:48-16:02,~4h 10min,v0.3.0 首次正式版 release + session 22 pending 清盤)
 
 ### 本輪時間線
 
@@ -2600,35 +2706,39 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 ---
 
 ## 🔍 環境快照
-> 最後掃描：2026-04-20 10:13 (UTC+8) — *rescan（PLAN-025 建立後驗證 BAT 偵測 + global config 缺口確認）
+> 最後掃描:2026-04-25 14:51 (UTC+8) — *rescan(session 26 起手,session 25 BUG-059/055 收工後首掃,decision-log drift 偵測 D083→D088)
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| BMad-Method | ❌ | _bmad/ 不存在（專案自訂工作流程）|
+| BMad-Method | ❌ | _bmad/ 不存在(專案自訂工作流程)|
 | ECC 學習 | ✅ Level 1+ | ~/.claude/homunculus/ |
 | bmad-guide skill | ✅ | 可用 |
-| mem0 REST | ✅ | memsync healthy, updated 2026-04-20 10:11, queue_size:2 |
+| mem0 REST | ✅ | memsync healthy, updated 2026-04-25 14:49, queue_size:2 |
 | 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal, WT_SESSION 空, TERM=xterm-256color |
-| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-650f-4c98-aeaf-3c5b3ffcd053, terminal:c68bf5ee-dca2-4eab-bbce-293379466527 |
-| BAT_TOWER_TERMINAL_ID | ❌ 空 | 本 session 未設 tower terminal id，bat-notify Worker 回報需走降級 |
-| 平台 | Windows | MINGW64 (Git Bash, Msys)，Windows 11 Pro for Workstations (26200) |
+| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-650f-4c98-aeaf-3c5b3ffcd053, terminal:e00c24cd-3c6c-4a10-b116-2c2077603907 |
+| BAT_TOWER_TERMINAL_ID | ❌ 空 | 本 session 未設 tower terminal id,bat-notify Worker 回報需走降級 |
+| 平台 | Windows | MINGW64 (Git Bash, Msys),Windows 11 Pro for Workstations (26200) |
 | ct-exec / ct-done / ct-status | ✅ | |
 | ct-evolve / ct-insights | ✅ | |
 | ct-fieldguide / ct-help | ✅ | |
-| worker-time-estimation | ✅ Skill | (前次 session 升 Skill，沿用) |
-| _archive/ | ✅ | 205 張歸檔（本 session 未歸檔）|
-| _playbooks/ | ✅ 空 | 目錄存在，0 張（Playbook 候選仍在 Global Layer 2）|
-| _decision-log | ✅ | 至 D072（需 *sync 驗證檔案 drift）|
-| 跨專案參照 | 📋 | 無關聯（_cross-references.md 不存在）|
-| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/learnings/ — 84 patterns, 12 tech-gotchas, fieldguide/ 目錄 |
-| Global 設定 | ❌ 無 | ~/.claude/control-tower-data/config.yaml 不存在（僅 project 層設定）|
-| BUG/PLAN 追蹤 | ✅ | BUG:16 熱區 / PLAN:19 熱區（PLAN-025 新建 🔴 High）|
-| 實驗追蹤 | ✅ | EXP:2 熱區 |
-| 熱區工單 | T:70 / BUG:16 / PLAN:19 / EXP:2 | PLAN-025 新增，T0224 建立中（TODO，待派發）|
-| 最大編號 | T0223 / BUG-052 / PLAN-025 / D072 | T0224 尚未開始，max 保持 T0223 |
+| worker-time-estimation | ✅ Skill | (前次 session 升 Skill,沿用) |
+| _archive/ | ✅ | **304 張歸檔**(workorders:238 / bugs:51 / plans:15;v.s. 上次 205,session 21-25 期間自然累積) |
+| _playbooks/ | ✅ 空 | 目錄存在,0 張(Playbook 候選仍在 Global Layer 2) |
+| _decision-log | ⚠️ | 檔案至 D083(drift!metadata 報 D088,session 24/25 D084-D088 待補) |
+| 跨專案參照 | 📋 | 無關聯(_cross-references.md 不存在)|
+| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/learnings/ — patterns.md + tech-gotchas.md(session 23 *evolve 後新增 GP083/084/TG014-016) |
+| Global 設定 | ❌ 無 | ~/.claude/control-tower-data/config.yaml 不存在(僅 project 層設定) |
+| BUG/PLAN 追蹤 | ✅ | BUG:8 熱區(全 CLOSED!)/ PLAN:12 熱區(4 IDEA / 2 PLANNED / 2 IP / 1 DONE / 3 DROPPED) |
+| 實驗追蹤 | ✅ | EXP:1 熱區(EXP-GPUWHIS-001 CONCLUDED) |
+| 熱區工單 | **T:25 / BUG:8 / PLAN:12 / EXP:1** = 46 張 | T0153 唯一 PARTIAL(spike 擱置),其餘已交付 |
+| 最大編號 | **T0251 / BUG-059 / PLAN-028 / EXP-GPUWHIS-001 / D088** | session 25 收工後 |
 | 設定來源 | project | _tower-config.yaml (auto-session: **yolo**, yolo_max_retries: **1**, auto_commit: on, archive_days: 2) |
-| 塔台版本 | v4.3.0 | SKILL.md frontmatter |
+| 塔台版本 | v4.4.0 | SKILL.md frontmatter(已自 v4.3.0 升級) |
 | 能力等級 | Level 2 | ECC(Level 1+) + mem0 + Layer 2 學習資料 |
+
+> **⚠️ Drift 警告**:
+> 1. `_decision-log.md` 末記 D083(2026-04-23),metadata 報 D088 — D084-D088 需在補 session 24/25 退場快照時一併補入
+> 2. `_tower-state.md` 頂部「最後更新」仍標 2026-04-23 16:02 (session 23) — 需於 Step 3(D)補史料時更新
 
 ---
 

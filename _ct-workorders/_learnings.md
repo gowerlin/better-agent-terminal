@@ -2407,3 +2407,44 @@ Worker skill 的建議組態來源為工單本身(靜態),塔台派發時讀 ses
 **不適用場景**:GitHub Actions CI 無此問題 — 不開 VSCode,走乾淨 runner
 **候選晉升**:🏠 Project(Windows + BAT + VSCode 三件組特有)
 **相關**:PLAN-013(已 DROPPED,scope 不同但起源相同)、Session 24 T0247 Worker 遭遇實錄
+
+---
+
+## L100 - 2026-04-25 — Install hook + auto-update 同根因模式(BAT embedded claude SDK 專屬)
+
+**觸發條件**:dev 環境出現 `<binary>.old.<ts>` 殘留 + packaged 環境出現 binary missing 兩類觀測同時或先後出現
+
+**模式描述**:
+BAT 內嵌 `@anthropic-ai/claude-code` SDK 作為 default agent runtime。該 SDK 行為:
+- **dev 環境(npm install 階段)**:install hook 走 update flow,把 `node_modules/@anthropic-ai/claude-code/bin/claude.exe` rename 成 `claude.exe.old.<ts>`,然後 `npm install -g` 到使用者 npm prefix
+- **packaged 環境(BAT runtime spawn)**:auto-update flow 走相同邏輯,把 `app.asar.unpacked/.../bin/claude.exe` rename 成 `.old.<ts>`,然後安裝到使用者 npm prefix(不在 BAT 路徑)
+- **共同根因**:embedded claude CLI 在所有環境皆走 update flow,rename + 重新安裝到固定 npm prefix path
+
+**反例(分頭調查的浪費)**:
+- BUG-055(2026-04-23):dev `claude.exe.old.<ts>` 殘留,當時誤判為 install hook 小瑕疵 → WONTFIX
+- BUG-059(2026-04-25):packaged `claude.exe` missing 導致 worker session 整條鏈路斷 → 起初當作獨立 packaged regression 調查
+- T0250 反組譯後發現:**兩者同根因**,都是 update flow 觸發 binary rename + npm-global 安裝
+
+**正確模式**:當 BAT 出現「dev 殘留 + packaged regression」雙報告時:
+1. **第一反應**:cross-ref 檢查兩條 BUG 是否同根因,不要拆 2 個獨立 BUG 並行修
+2. **研究方法**:T0250 反組譯模式,讀 SDK source code 找 update flow(對照 GP092)
+3. **修復方法**:spawn env flag 注入(對照 GP094,T0251 `DISABLE_AUTOUPDATER=1`)
+4. **驗證方法**:dev `npm install` 後檢查 `.old.*` 殘留 + packaged spawn 後檢查 binary 完整性,**兩端同步驗證**
+
+**為什麼這是 Project 而非 Global**:
+- BAT 同時管理 dev runtime + packaged runtime + embedded SDK 三件組,結構特殊
+- 一般專案只面對單一 runtime 場景(dev OR packaged),不會碰到雙端同根因
+- 套件名稱 `@anthropic-ai/claude-code` 是 BAT 專屬依賴
+
+**通則的部分(已晉升 Global)**:
+- GP092(反組譯研究):本 L100 的研究方法
+- GP093(WONTFIX reopen trigger):BUG-055 的反例教訓
+- GP094(spawn env flag):本 L100 的修復方法
+
+**相關**:
+- D086 / D087 / D088(session 25 三條決策)
+- BUG-055 / BUG-059(同根因雙閉環)
+- T0250 / T0251(研究 → 修復鏈)
+- GP092 / GP093 / GP094(本輪同 session 萃取的通則)
+
+**狀態**:🟢 reliable(本 session 同時跨 dev + packaged 兩端驗證,T0251 commit `426d6fc` AC1-5 全綠)
