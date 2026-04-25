@@ -2528,12 +2528,12 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
 | **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
 | **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0251(session 25:T0250 DONE → T0251 FIXED commit `426d6fc`,方案 A spawn env DISABLE_AUTOUPDATER,等 runtime VERIFY) |
-| **BUG 最大編號** | BUG-059(🔴 High 🔍 VERIFY 2026-04-25,T0251 FIXED,AC1/4/5 綠 / AC2/3 等重啟 BAT 實測;BUG-055 連帶待同步 CLOSED) |
+| **工單最大編號** | T0251(session 25 完成:T0250→T0251 全綠,commit `426d6fc`,DISABLE_AUTOUPDATER env 注入 4 處) |
+| **BUG 最大編號** | BUG-059(🔴 High 🚫 CLOSED 2026-04-25,T0251 runtime 驗收通過;BUG-055 連帶 CLOSED,D088) |
 | **PLAN 最大編號** | PLAN-028 |
 | **EXP 最大編號** | EXP-GPUWHIS-001(session 21 新增,📊 CONCLUDED) |
 | **上游同步版本** | v2.1.42-pre.2(2026-04-16)— ⏸ 版號 bump 暫停待 BUG-056 CLOSED |
-| **決策最大編號** | D087(session 25:採方案 A spawn env 注入 DISABLE_AUTOUPDATER=1,BUG-055 REOPEN 合併修復) |
+| **決策最大編號** | D088(session 25:BUG-059 + BUG-055 一同 CLOSED,T0250→T0251 修復鏈閉環,L067-070 候選待 *evolve) |
 | **塔台版本** | Control Tower v4.3.0 |
 
 ---
