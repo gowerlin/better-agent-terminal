@@ -3,8 +3,9 @@
 ## 元資料
 - **工單編號**：T0269
 - **任務名稱**：PLAN-007 Phase 1 第二張 — `PathTranslator` interface + `IdentityTranslator` + `createTranslator` factory + contract test scaffold
-- **狀態**：TODO
+- **狀態**：DONE
 - **建立時間**：2026-04-26 00:53 (UTC+8)
+- **完成時間**：2026-04-26 01:07 (UTC+08:00)
 - **類型**：impl（production code，含 contract test）
 - **互動模式**：disabled（fire-and-forget；scope 已被 spec doc §2.2 / §6 D-SSH-6 凍結）
 - **Renew 次數**：0
@@ -219,23 +220,27 @@ export function runContract(
 
 **狀態變更**：TODO → IN_PROGRESS → DONE / FAILED / 需要協助
 
-**worktree commit**：`<hash>` on `feature/plan-007-remote-dev`
+**開始時間**：2026-04-26 00:56 (UTC+08:00)
+
+**worktree commit**：`dec6184` on `feature/plan-007-remote-dev`
 
 **修改檔**：
-- `<file>` (+N/-N)
-- ...
+- `electron/remote/path-translator.ts` (+101/-0)
+- `tests/path-translator.contract.test.ts` (+217/-0)
 
 **測試結果**：
-- contract test：N passed
-- build：✅/❌
+- contract test：48 passed（`npx tsx tests/path-translator.contract.test.ts`）
+- compile：✅（`npm run compile`）
+- build：✅（`npm run build`）
 
 **主動超出範圍項**（如有）：
-- ...
+- 無
 
 **遇到的問題 / 決策**：
-- ...
+- `runContract` 採 test-runner-agnostic harness 介面，避免把 production module 綁死在 Vitest；目前以 repo 既有 `npx tsx` 測試樣式落地，後續 WSL/Docker/SSH translator 可直接復用同一份 contract fixtures / runner
+- `sprint-status.yaml` 存在但內容停留在早期里程碑、且檔頭明示「重要節點由 Tower 更新」；本工單未直接改寫，視為由 Tower 統一維護
 
 **Renew 觸發**（如有）：
-- ...
+- 無
 
 ---
