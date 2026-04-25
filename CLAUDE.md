@@ -80,6 +80,18 @@ BAT 預設使用**內嵌版** claude CLI（隨 BAT 打包，版本鎖在 `@anthr
 | Toast 顯示 `system-too-old` | 版本 `< 2.0.0` | 升級 claude CLI |
 | Toast 顯示 `version-warning` | 版本 `>= 2.0.0` 但 `< 2.1.111` | 功能可用但缺 Opus 4.7 / xhigh effort，建議升級到 `2.1.111+` |
 
+### Embedded claude auto-update 停用（BUG-059）
+
+BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDATER=1`：
+
+- **Embedded**：必須關，否則 claude CLI 會把 `app.asar.unpacked/.../bin/claude.exe` rename 成 `.old.<ts>`，再 `npm install -g` 到使用者 npm prefix（不在 BAT 路徑），導致 BAT 下次 spawn 找不到 binary（BUG-059 / BUG-055 同根因）
+- **System**：native installer 已自我關閉 auto-update（`autoUpdatesProtectedForNative: true`），疊加 env flag 無副作用；npm-global system 安裝同樣受益於此 flag
+- 使用者要更新 embedded：等 BAT release 重打包；要更新 system：在 BAT 外手動 `claude update` 或重跑 installer
+
+注入點：`electron/pty-manager.ts` 三處 `envWithUtf8`（terminal 子行程） + `electron/claude-agent-manager.ts` constructor（Agent SDK 子行程繼承 `process.env`）。
+
+**已知未修副作用**：使用者一旦觸發過 BUG-059，`~/.claude/...` config 已被寫入 `installMethod: "global"`。本修復不重置該 config（影響面評估中），但 spawn env 注入會 short-circuit update flow，config 值不會再被讀取觸發新一輪 update。
+
 ## Electron Runtime
 
 - 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。

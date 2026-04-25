@@ -417,6 +417,8 @@ export class PtyManager {
         TERM_PROGRAM: 'better-agent-terminal',
         TERM_PROGRAM_VERSION: '1.0',
         BAT_SESSION: '1',
+        // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
+        DISABLE_AUTOUPDATER: '1',
         // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
         BAT_TERMINAL_ID: id,
         // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
@@ -468,6 +470,8 @@ export class PtyManager {
           TERM_PROGRAM_VERSION: '1.0',
           // BAT session identification (for Control Tower auto-session detection)
           BAT_SESSION: '1',
+          // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
+          DISABLE_AUTOUPDATER: '1',
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
@@ -546,6 +550,8 @@ export class PtyManager {
           TERM_PROGRAM_VERSION: '1.0',
           // BAT session identification (for Control Tower auto-session detection)
           BAT_SESSION: '1',
+          // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
+          DISABLE_AUTOUPDATER: '1',
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)

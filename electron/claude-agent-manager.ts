@@ -221,6 +221,10 @@ export class ClaudeAgentManager {
 
   constructor(getWindows: () => BrowserWindow[]) {
     this.getWindows = getWindows
+    // BUG-059: globally disable embedded claude auto-updater so SDK-spawned children
+    // don't self-rename (claude.exe → claude.exe.old.<ts>) + npm install -g, which orphans
+    // app.asar.unpacked/.../bin/claude.exe and breaks subsequent BAT spawns. See pty-manager.ts.
+    process.env.DISABLE_AUTOUPDATER = '1'
     // Health check: detect stalled subagents every 45s
     this.healthCheckTimer = setInterval(() => this.checkStalledTasks(), 45_000)
     // BUG-047: assert Claude CLI path is valid on disk; warn-only
