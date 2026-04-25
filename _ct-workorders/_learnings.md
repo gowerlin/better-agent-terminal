@@ -2448,3 +2448,84 @@ BAT 內嵌 `@anthropic-ai/claude-code` SDK 作為 default agent runtime。該 SD
 - GP092 / GP093 / GP094(本輪同 session 萃取的通則)
 
 **狀態**:🟢 reliable(本 session 同時跨 dev + packaged 兩端驗證,T0251 commit `426d6fc` AC1-5 全綠)
+
+---
+
+## L101 - 2026-04-25 — YOLO + interactive enabled 但零互動的邊界判斷力（BAT 客製合併場景）
+
+**情境**：T0258 工單元資料 `互動模式: enabled`，本意是給 ClaudeAgentPanel.tsx 重客製的 cherry-pick 手併「保留詢問空間」（BAT_BUILTIN_MODELS / MODEL_PRICING / worker / supervisor 等客製）。
+
+**結果**：Worker 全程零互動完成 4 個 cherry-pick（含 #6 empty / #7 conflict 解 / #8 auto-merge），所有決策點都自主處理。
+
+**Worker 自主決策點清單**：
+1. #6 empty commit 是否保留 → 看到 BAT 已抽 fn `chat-markdown.ts` 套同等修復 → 採 empty + trailer 路線
+2. #7 `autoCompactWindow` 兩行如何處理 → grep BAT `setModel` 簽名確認不含此參數 → 丟棄
+3. #5 ClaudeAgentPanel/CodexAgentPanel 採 ours / theirs → 看到 stage 1/2/3 + working tree 比對得到「使用者已採 ours」線索 → 沿用
+4. #8 fork-session abort flow → git auto-merge 無 conflict → 直接 commit
+
+**收穫**：
+- `interactive enabled` ≠ 「Worker 必須問」，是「給 Worker 詢問權」
+- Worker 邊界判斷力的觸發條件：**決策點是否有可從 repo 內挖出的明確線索**
+  - 有線索（grep / git history / 既有抽 fn / 簽名變動）→ 自主處理
+  - 無線索 / 多種合理解 → 觸發互動詢問
+- ClaudeAgentPanel 重客製不等於「逢改必問」— 客製欄位 vs 行為修復可分流
+
+**對 BAT 工單派發的啟示**：
+- 重客製檔的 cherry-pick 不必預設互動 enabled，可先試 disabled fire-and-forget
+- 若 Worker 回報 BLOCKED 或 Renew → 那次再升 enabled
+- 此模式可省下 ~10-15 min/工單的「等使用者回應」wall time
+
+**反例邊界**（何時 enabled 真的需要）：
+- 客製欄位 vs upstream 行為修復**直接衝突**且雙方都有合理理由
+- 客製功能的測試不存在 → 改了不知道有沒有破
+
+**證據**：
+- T0258（2026-04-25）：4 個 cherry-pick + version.json + 母工單收尾，wall ~20 min（vs 估 40-60 min），零互動，零 Renew
+
+**狀態**：🟢 reliable（本專案場景重複觀察 2 次 — T0254 + T0258）
+
+**相關**：
+- L094（研究工單 Worker 不總需要觸發使用者互動）：本 L 是 implementation 工單版本
+- GP084（研究型工單神速交付三要素）
+
+---
+
+## L102 - 2026-04-25 — Verification 工單必須明示 build 層級（compile / full / packaged）
+
+**情境**：T0259 工單頭寫 `npm run build`，但 BAT 的 `npm run build` 完整鏈是 `verify-native-modules → verify-helper-bundle → vite build → electron-builder`，最後一步 NSIS installer 打包與「verification 工單不跑 packaged installer」精神衝突，且 wall time 估計 5-10 min 不足以跑完 electron-builder。
+
+**Worker 折衷**：自行改跑 `npm run compile`（= vite build 4 entries）。AC1 字面未通過但精神上達成。
+
+**根因**：BAT 的三層 build chain 有不同成本與目的：
+| 層級 | 命令 | wall time | 目的 |
+|------|------|----------|------|
+| compile | `npm run compile` | ~1-2 min | TS / vite 編譯級驗證（無 native build 確認） |
+| full | `npm run build` | ~5-8 min | + native modules / helper bundle 靜態驗證 |
+| packaged | `npm run build` 全鏈 | ~10-15 min | + electron-builder NSIS 實機可裝 |
+
+**對工單模板的修正**：
+- Verification 工單 AC 必須明示「驗收哪一層」
+  - 例：`AC1: vite compile exit 0`（layer = compile）
+  - 例：`AC1: full build chain exit 0（含 verify-native）`（layer = full）
+  - 例：`AC1: packaged installer 可裝（NSIS 重裝測試）`（layer = packaged）
+- Wall time 預估必須對齊指定層級
+- 嚴格禁止段必須對齊（compile 層不跑 dev server，full 層不跑 NSIS 等）
+
+**對塔台派發的啟示**：
+- cherry-pick / 純 source 改動 → compile 層驗收即可
+- native module / packaging 配置變動 → full 層
+- release 前最終驗收 → packaged 層（必須跑完 NSIS 實機重裝，BUG-058 教訓）
+
+**Worker 折衷處理範例**（T0259）：
+1. 觀察工單命令與精神衝突 → 不盲跑
+2. 折衷選擇 + 明確標註「採用偏離」段落
+3. 回報塔台「若堅持 full / packaged，請另派工單跑」
+
+**證據**：
+- T0259（2026-04-25）：採折衷跑 compile 層通過，明確列出偏離原因 + 替代命令選項
+
+**狀態**：🟡 candidate（首次觀察，需在 release / hotfix 場景再次驗證模板對齊）
+
+**相關**：
+- GP097（Verification 工單必跑 baseline diff 校驗）：本 L 是 build 層級維度的補充
+- L095（Packaging regression 的 4-workorder hotfix pattern）：對應 packaged 層 verification
