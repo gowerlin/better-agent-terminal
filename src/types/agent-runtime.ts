@@ -80,7 +80,7 @@ export function isClaudeCli(id: string): boolean {
 
 /** Check if a definition ID is an integrated (SDK-based) agent */
 export function isIntegrated(id: string): boolean {
-  return isClaudeSdk(id) || id === 'codex-agent'
+  return isClaudeSdk(id) || id === 'codex-agent' || id === 'codex-agent-worktree'
 }
 
 /** Check if this is an active agent (not 'none' and not undefined) */
@@ -90,5 +90,5 @@ export function isAgent(id: string | undefined): boolean {
 
 /** Check if this agent supports worktree */
 export function isWorktreeAgent(id: string): boolean {
-  return id === 'claude-code-worktree' || id === 'claude-cli-worktree'
+  return id === 'claude-code-worktree' || id === 'claude-cli-worktree' || id === 'codex-agent-worktree'
 }

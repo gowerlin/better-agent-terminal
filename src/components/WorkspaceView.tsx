@@ -11,7 +11,7 @@ import { CloseConfirmDialog } from './CloseConfirmDialog'
 import { ResizeHandle } from './ResizeHandle'
 import { WorkerPanel } from './WorkerPanel'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
-import { isClaudeSdk, isClaudeCli, isWorktreeAgent } from '../types/agent-runtime'
+import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
@@ -426,7 +426,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         // Restored terminals: start PTY processes for non-integrated terminals
         // Integrated agent terminals (Claude SDK) will be started by ClaudeAgentPanel on mount
         for (const terminal of terminals) {
-          if (isClaudeSdk(terminal.agentPreset || '')) continue
+          if (isIntegrated(terminal.agentPreset || '')) continue
           // claude-cli presets use startClaudeCliPty for bundled CLI + env setup
           if (isClaudeCli(terminal.agentPreset || '')) {
             startClaudeCliPty(terminal.id, terminal.cwd || workspace.folderPath, isWorktreeAgent(terminal.agentPreset || ''))
@@ -484,7 +484,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           const agentTerminal = workspaceStore.addTerminal(workspace.id, defaultAgent as AgentPresetId)
           if (isClaudeCli(defaultAgent)) {
             startClaudeCliPty(agentTerminal.id, workspace.folderPath, isWorktreeAgent(defaultAgent))
-          } else if (!isClaudeSdk(defaultAgent)) {
+          } else if (!isIntegrated(defaultAgent)) {
             window.electronAPI.pty.create({
               id: agentTerminal.id,
               cwd: workspace.folderPath,
@@ -727,7 +727,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     workspaceStore.save()
 
     // Integrated (Claude SDK) agents are handled by ClaudeAgentPanel on mount
-    if (isClaudeSdk(definitionId)) return
+    if (isIntegrated(definitionId)) return
 
     // Claude CLI gets special handling with bundled CLI path
     if (isClaudeCli(definitionId)) {
@@ -796,9 +796,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const handleConfirmClose = useCallback((cleanWorktree = false) => {
     if (showCloseConfirm) {
       const terminal = terminals.find(t => t.id === showCloseConfirm)
-      if (terminal?.agentPreset && isClaudeSdk(terminal.agentPreset)) {
+      if (terminal?.agentPreset && isIntegrated(terminal.agentPreset)) {
         window.electronAPI.claude.stopSession(showCloseConfirm)
-        if (cleanWorktree && terminal.agentPreset === 'claude-code-worktree') {
+        if (cleanWorktree && (isWorktreeAgent(terminal.agentPreset) || !!terminal.worktreePath)) {
           window.electronAPI.claude.cleanupWorktree(showCloseConfirm, true)
         }
       } else {
@@ -816,12 +816,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const handleRestart = useCallback(async (id: string) => {
     const terminal = terminals.find(t => t.id === id)
     if (terminal) {
-      if (terminal.agentPreset && isClaudeSdk(terminal.agentPreset)) {
+      if (terminal.agentPreset && isIntegrated(terminal.agentPreset)) {
         // Stop and restart Claude session
         await window.electronAPI.claude.stopSession(id)
         await window.electronAPI.claude.startSession(id, {
           cwd: terminal.cwd,
-          ...(terminal.agentPreset === 'claude-code-worktree' ? { useWorktree: true, worktreePath: terminal.worktreePath, worktreeBranch: terminal.worktreeBranch } : {}),
+          ...(terminal.worktreePath ? { useWorktree: true, worktreePath: terminal.worktreePath, worktreeBranch: terminal.worktreeBranch } : {}),
+          agentPreset: terminal.agentPreset,
         })
       } else if (terminal.agentPreset && isClaudeCli(terminal.agentPreset)) {
         // Restart claude-cli PTY with bundled CLI
@@ -992,7 +993,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             <GitPanel
               workspaceFolderPath={workspace.folderPath}
               worktreePaths={terminals
-                .filter(t => t.agentPreset === 'claude-code-worktree' && t.worktreePath)
+                .filter(t => (t.agentPreset === 'claude-code-worktree' || t.agentPreset === 'codex-agent-worktree') && t.worktreePath)
                 .map(t => ({ path: t.worktreePath!, branch: t.worktreeBranch || 'worktree' }))
               }
             />
@@ -1251,7 +1252,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         <CloseConfirmDialog
           onConfirm={() => handleConfirmClose(false)}
           onCancel={() => setShowCloseConfirm(null)}
-          isWorktree={['claude-code-worktree', 'claude-cli-worktree'].includes(terminals.find(t => t.id === showCloseConfirm)?.agentPreset || '')}
+          isWorktree={['claude-code-worktree', 'claude-cli-worktree', 'codex-agent-worktree'].includes(terminals.find(t => t.id === showCloseConfirm)?.agentPreset || '')}
           onConfirmAndClean={() => handleConfirmClose(true)}
         />
       )}

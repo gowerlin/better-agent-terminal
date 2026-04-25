@@ -752,7 +752,7 @@ export default function App() {
         return <LazyGitPanel
           workspaceFolderPath={activeWorkspace.folderPath}
           worktreePaths={wsTerminals
-            .filter(t2 => t2.agentPreset === 'claude-code-worktree' && t2.worktreePath)
+            .filter(t2 => (t2.agentPreset === 'claude-code-worktree' || t2.agentPreset === 'codex-agent-worktree') && t2.worktreePath)
             .map(t2 => ({ path: t2.worktreePath!, branch: t2.worktreeBranch || 'worktree' }))}
         />
       }

@@ -172,7 +172,7 @@ interface ElectronAPI {
     getWorkerOutput: (targetId: string, lines: number) => Promise<string[]>
   }
   claude: {
-    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) => Promise<void>
+    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: string; codexApprovalPolicy?: string }) => Promise<void>
     sendMessage: (sessionId: string, prompt: string, images?: string[]) => Promise<void>
     stopSession: (sessionId: string) => Promise<void>
     abortSession: (sessionId: string) => Promise<void>
@@ -234,7 +234,7 @@ interface ElectronAPI {
     resolvePermission: (sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) => Promise<void>
     resolveAskUser: (sessionId: string, toolUseId: string, answers: Record<string, string>) => Promise<void>
     listSessions: (cwd: string) => Promise<unknown>
-    resumeSession: (sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string) => Promise<void>
+    resumeSession: (sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string, agentPreset?: string, codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access', codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never', permissionMode?: string, effort?: string) => Promise<void>
     forkSession: (sessionId: string) => Promise<{ newSdkSessionId: string } | null>
     stopTask: (sessionId: string, taskId: string) => Promise<boolean>
     restSession: (sessionId: string) => Promise<boolean>

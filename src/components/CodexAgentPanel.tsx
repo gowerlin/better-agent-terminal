@@ -115,7 +115,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isCodexSession = true
   const isV2Session = terminal?.agentPreset === 'claude-code-v2'
-  const isWorktreeSession = terminal?.agentPreset === 'claude-code-worktree'
+  const isWorktreeSession = terminal?.agentPreset === 'claude-code-worktree' || terminal?.agentPreset === 'codex-agent-worktree' || !!terminal?.worktreePath
   const normalizedAgentParams = normalizeAgentParams(terminal?.agentPreset, terminal?.agentParams)
   const [messages, setMessages] = useState<MessageItem[]>([])
   const inputValueRef = useRef('')
@@ -1019,7 +1019,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       const savedSdkSessionId = terminal?.sdkSessionId
       const savedModel = terminal?.model
       const apiVersion = terminal?.agentPreset === 'claude-code-v2' ? 'v2' as const : 'v1' as const
-      const useWorktree = terminal?.agentPreset === 'claude-code-worktree' || !!terminal?.worktreePath
+      const useWorktree = terminal?.agentPreset === 'claude-code-worktree' || terminal?.agentPreset === 'codex-agent-worktree' || !!terminal?.worktreePath
       const globalSettings = settingsStore.getSettings()
       dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}" apiVersion=${apiVersion}`)
 

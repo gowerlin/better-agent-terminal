@@ -2095,7 +2095,7 @@ function registerProxiedHandlers() {
   // Integrated Agent SDKs. Codex intentionally shares the existing claude:* renderer
   // event surface so the chat panels can reuse the mature Claude UI plumbing.
   registerHandler('claude:start-session', async (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'; codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never' }) => {
-    if (options.agentPreset === 'codex-agent') {
+    if (options.agentPreset === 'codex-agent' || options.agentPreset === 'codex-agent-worktree') {
       sessionManagerMap.set(sessionId, 'codex')
       return codexManager?.startSession(sessionId, options)
     }
@@ -2422,11 +2422,11 @@ function registerProxiedHandlers() {
   registerHandler('claude:resolve-permission', (_ctx, sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) => getSessionManager(sessionId)?.resolvePermission(sessionId, toolUseId, result))
   registerHandler('claude:resolve-ask-user', (_ctx, sessionId: string, toolUseId: string, answers: Record<string, string>) => getSessionManager(sessionId)?.resolveAskUser(sessionId, toolUseId, answers))
   registerHandler('claude:list-sessions', (_ctx, cwd: string, agentPreset?: string) =>
-    agentPreset === 'codex-agent' ? codexManager?.listSessions(cwd) : claudeManager?.listSessions(cwd))
+    (agentPreset === 'codex-agent' || agentPreset === 'codex-agent-worktree') ? codexManager?.listSessions(cwd) : claudeManager?.listSessions(cwd))
   registerHandler('claude:resume-session', (_ctx, sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string, agentPreset?: string, codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access', codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never') => {
-    if (agentPreset === 'codex-agent') {
+    if (agentPreset === 'codex-agent' || agentPreset === 'codex-agent-worktree') {
       sessionManagerMap.set(sessionId, 'codex')
-      return codexManager?.resumeSession(sessionId, sdkSessionId, cwd, model, codexSandboxMode, codexApprovalPolicy)
+      return codexManager?.resumeSession(sessionId, sdkSessionId, cwd, model, codexSandboxMode, codexApprovalPolicy, useWorktree, worktreePath, worktreeBranch)
     }
     sessionManagerMap.set(sessionId, 'claude')
     return claudeManager?.resumeSession(sessionId, sdkSessionId, cwd, model, apiVersion, useWorktree, worktreePath, worktreeBranch)

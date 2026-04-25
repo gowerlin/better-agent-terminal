@@ -29,7 +29,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
   const isAgent = isAgentCheck(terminal.agentPreset)
   const isClaudeCode = isIntegrated(terminal.agentPreset || '')
   const canSwitchClaudeApiVersion = isClaudeSdk(terminal.agentPreset || '')
-  const isCodexAgent = terminal.agentPreset === 'codex-agent'
+  const isCodexAgent = terminal.agentPreset === 'codex-agent' || terminal.agentPreset === 'codex-agent-worktree'
   const presetConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
   const [registryDef, setRegistryDef] = useState<AgentDefinition | null>(null)
 

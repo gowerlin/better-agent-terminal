@@ -11,6 +11,7 @@ import { prepareImageForApi } from './image-utils'
 import { logger } from './logger'
 import { broadcastHub } from './remote/broadcast-hub'
 import { wrapInterruptedPrompt } from './agent-prompt-utils'
+import { worktreeManager, type WorktreeInfo } from './worktree-manager'
 
 type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 type CodexApprovalPolicy = 'untrusted' | 'on-request' | 'never'
@@ -44,6 +45,8 @@ interface CodexSessionInstance {
   state: ClaudeSessionState
   threadId?: string
   cwd: string
+  worktreeInfo?: WorktreeInfo
+  originalCwd?: string
   metadata: SessionMetadata
   codexInstance?: unknown
   thread?: unknown
@@ -733,6 +736,9 @@ export class CodexAgentManager {
     codexSandboxMode?: CodexSandboxMode
     codexApprovalPolicy?: CodexApprovalPolicy
     agentPreset?: string
+    useWorktree?: boolean
+    worktreePath?: string
+    worktreeBranch?: string
     [key: string]: unknown
   }): Promise<boolean> {
     if (this.sessions.has(sessionId)) return true
@@ -750,14 +756,33 @@ export class CodexAgentManager {
     const sandboxMode = options.codexSandboxMode || 'workspace-write'
     const approvalPolicy = options.codexApprovalPolicy || 'on-request'
 
+    let worktreeInfo: WorktreeInfo | undefined
+    let effectiveCwd = options.cwd
+    if (options.useWorktree) {
+      if (options.worktreePath && existsSync(options.worktreePath)) {
+        worktreeInfo = worktreeManager.rehydrate(sessionId, options.cwd, options.worktreePath, options.worktreeBranch || '')
+        effectiveCwd = options.worktreePath
+        logger.log(`${stag} reusing existing worktree at ${effectiveCwd}`)
+      } else {
+        try {
+          worktreeInfo = await worktreeManager.createWorktree(sessionId, options.cwd)
+          effectiveCwd = worktreeInfo.worktreePath
+          logger.log(`${stag} using worktree at ${effectiveCwd}`)
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err)
+          logger.warn(`${stag} Failed to create worktree, falling back to normal mode: ${errMsg}`)
+        }
+      }
+    }
+
     const session: CodexSessionInstance = {
       abortController: new AbortController(),
       state: { sessionId, messages: [], isStreaming: false },
-      cwd: options.cwd,
+      cwd: effectiveCwd,
       metadata: {
         ...this.makeMetadata(),
         model: effectiveModel,
-        cwd: options.cwd,
+        cwd: effectiveCwd,
       },
       sandboxMode,
       approvalPolicy,
@@ -765,6 +790,7 @@ export class CodexAgentManager {
       effort: normalizeCodexEffort(options.effort),
       messageQueue: [],
       startTime: Date.now(),
+      ...(worktreeInfo ? { worktreeInfo, originalCwd: options.cwd } : {}),
     }
 
     this.sessions.set(sessionId, session)
@@ -778,6 +804,30 @@ export class CodexAgentManager {
       timestamp: Date.now(),
     })
 
+    if (options.useWorktree && worktreeInfo) {
+      this.addMessage(sessionId, {
+        id: `sys-worktree-${sessionId}`,
+        sessionId,
+        role: 'system',
+        content: `🌳 Running in worktree isolation: \`${worktreeInfo.branchName}\`\nPath: ${worktreeInfo.worktreePath}`,
+        timestamp: Date.now(),
+      })
+      this.send('claude:worktree-info', sessionId, {
+        branchName: worktreeInfo.branchName,
+        worktreePath: worktreeInfo.worktreePath,
+        sourceBranch: worktreeInfo.sourceBranch,
+        gitRoot: worktreeInfo.gitRoot,
+      })
+    } else if (options.useWorktree && !worktreeInfo) {
+      this.addMessage(sessionId, {
+        id: `sys-worktree-warn-${sessionId}`,
+        sessionId,
+        role: 'system',
+        content: '⚠️ Failed to create worktree. Running in normal mode.',
+        timestamp: Date.now(),
+      })
+    }
+
     // Create Codex instance and thread
     try {
       const Codex = await getCodexClass() as new (opts: Record<string, unknown>) => unknown
@@ -787,7 +837,7 @@ export class CodexAgentManager {
       session.codexInstance = codex
 
       const threadOpts: Record<string, unknown> = {
-        workingDirectory: options.cwd,
+        workingDirectory: effectiveCwd,
         sandboxMode,
         approvalPolicy,
         modelReasoningEffort: session.effort,
@@ -1336,12 +1386,13 @@ export class CodexAgentManager {
     return this.sessions.get(sessionId)?.isResting ?? false
   }
 
-  async resumeSession(sessionId: string, threadId: string, cwd: string, model?: string, codexSandboxMode?: CodexSandboxMode, codexApprovalPolicy?: CodexApprovalPolicy): Promise<boolean> {
+  async resumeSession(sessionId: string, threadId: string, cwd: string, model?: string, codexSandboxMode?: CodexSandboxMode, codexApprovalPolicy?: CodexApprovalPolicy, useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string): Promise<boolean> {
     sdkThreadIds.set(sessionId, threadId)
     const result = await this.startSession(sessionId, {
       cwd, model,
       ...(codexSandboxMode ? { codexSandboxMode } : {}),
       ...(codexApprovalPolicy ? { codexApprovalPolicy } : {}),
+      ...(useWorktree ? { useWorktree: true, worktreePath, worktreeBranch } : {}),
     })
     if (result) {
       await this.loadSessionHistory(sessionId, threadId).catch(err => {
@@ -1458,8 +1509,29 @@ export class CodexAgentManager {
   async getContextUsage(_sessionId: string): Promise<null> { return null }
   async forkSession(_sessionId: string): Promise<null> { return null }
   async fetchSubagentMessages(_sessionId: string, _agentToolUseId: string): Promise<[]> { return [] }
-  async getWorktreeStatus(_sessionId: string): Promise<null> { return null }
-  async cleanupWorktree(_sessionId: string, _deleteBranch?: boolean): Promise<boolean> { return false }
+  async getWorktreeStatus(sessionId: string): Promise<{ diff: string; branchName: string; worktreePath: string; sourceBranch: string } | null> {
+    return worktreeManager.getWorktreeStatus(sessionId)
+  }
+
+  async cleanupWorktree(sessionId: string, deleteBranch = true): Promise<boolean> {
+    const session = this.sessions.get(sessionId)
+    try {
+      await worktreeManager.removeWorktree(sessionId, deleteBranch)
+      if (session) {
+        if (session.originalCwd) {
+          session.cwd = session.originalCwd
+          session.metadata.cwd = session.originalCwd
+        }
+        session.worktreeInfo = undefined
+        session.originalCwd = undefined
+        this.send('claude:worktree-info', sessionId, null)
+      }
+      return true
+    } catch (err) {
+      logger.error(`[Codex] Failed to cleanup worktree: ${err}`)
+      return false
+    }
+  }
 
   resolvePermission(_sessionId: string, _toolUseId: string, _result: unknown): boolean { return false }
   resolveAskUser(_sessionId: string, _toolUseId: string, _answers: unknown): boolean { return false }

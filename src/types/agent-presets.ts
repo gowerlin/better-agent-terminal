@@ -13,7 +13,7 @@ export interface AgentPreset {
   suggested?: boolean; // 標記為推薦選項
 }
 
-export type AgentPresetId = 'claude-code' | 'claude-code-v2' | 'claude-code-worktree' | 'claude-cli' | 'claude-cli-worktree' | 'gemini-cli' | 'codex-agent' | 'codex-cli' | 'copilot-cli' | 'none' | (string & {});
+export type AgentPresetId = 'claude-code' | 'claude-code-v2' | 'claude-code-worktree' | 'claude-cli' | 'claude-cli-worktree' | 'gemini-cli' | 'codex-agent' | 'codex-agent-worktree' | 'codex-cli' | 'copilot-cli' | 'none' | (string & {});
 
 export const AGENT_PRESETS: AgentPreset[] = [
   {
@@ -63,6 +63,13 @@ export const AGENT_PRESETS: AgentPreset[] = [
     icon: '⬡',
     color: '#10a37f',
     suggested: true,
+  },
+  {
+    id: 'codex-agent-worktree',
+    name: 'Codex Agent (Worktree)',
+    icon: '🌳',
+    color: '#10a37f',
+    debug: true,
   },
   { 
     id: 'codex-cli', 
