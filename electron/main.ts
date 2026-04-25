@@ -3213,7 +3213,7 @@ function registerLocalHandlers() {
   ipcMain.handle('profile:delete', async (_event, profileId: string) => profileManager.delete(profileId))
   ipcMain.handle('profile:rename', async (_event, profileId: string, newName: string) => profileManager.rename(profileId, newName))
   ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => profileManager.duplicate(profileId, newName))
-  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => profileManager.update(profileId, updates))
+  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => profileManager.update(profileId, updates))
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
 
   // Get the profile ID this instance was launched with (--profile= argument)

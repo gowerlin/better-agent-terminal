@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
+type TargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
+
 interface ProfileEntry {
   id: string
   name: string
@@ -12,7 +14,21 @@ interface ProfileEntry {
   remoteFingerprint?: string
   createdAt: number
   updatedAt: number
+  // PLAN-007 T0268: targetOS schema (flat — see profile-manager.ts)
+  targetOS?: TargetOS
+  wslDistro?: string
+  dockerContainer?: string
+  dockerHost?: string
+  sshHost?: string
+  sshUser?: string
+  sshPort?: number
+  sshKeyPath?: string
+  useSshTunnel?: boolean
+  tunnelLocalPort?: number
 }
+
+// PLAN-007 T0268: targetOS choices for the legacy-remote inline prompt.
+const REMOTE_TARGET_OS_OPTIONS: TargetOS[] = ['wsl-linux', 'docker-linux', 'ssh-linux', 'ssh-darwin']
 
 interface RemoteProfileOption {
   id: string
@@ -293,6 +309,13 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
     }
   }
 
+  // PLAN-007 T0268: set targetOS on a legacy remote profile from the inline prompt.
+  // Non-blocking: user may skip and keep using legacy IdentityTranslator path.
+  const handleSetTargetOS = async (profileId: string, targetOS: TargetOS) => {
+    await window.electronAPI.profile.update(profileId, { targetOS })
+    loadProfiles()
+  }
+
   const handleDelete = async (profileId: string) => {
     await window.electronAPI.profile.delete(profileId)
     setConfirmDelete(null)
@@ -502,6 +525,49 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                 {/* Remote connection edit form */}
                 {editingRemoteId === profile.id && (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, width: '100%' }} onClick={e => e.stopPropagation()}>
+                    {/* PLAN-007 T0268: legacy remote profile (no targetOS) — inline prompt, non-blocking */}
+                    {profile.type === 'remote' && profile.targetOS === undefined && (
+                      <div
+                        data-testid="legacy-remote-targetos-prompt"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          marginBottom: 6,
+                          background: 'rgba(210, 153, 34, 0.12)',
+                          border: '1px solid rgba(210, 153, 34, 0.5)',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          color: '#d29922',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <span style={{ flex: '1 1 auto' }}>
+                          ⚠ {t(
+                            'profiles.legacyTargetOsPrompt',
+                            'This profile has no targetOS — connecting in legacy mode (no path translation). Set targetOS to enable cross-OS path handling.',
+                          )}
+                        </span>
+                        <select
+                          className="profile-name-input"
+                          defaultValue=""
+                          onChange={e => {
+                            const v = e.target.value as TargetOS | ''
+                            if (v) handleSetTargetOS(profile.id, v)
+                          }}
+                          style={{ width: 160, fontSize: 12 }}
+                        >
+                          <option value="" disabled>
+                            {t('profiles.selectTargetOs', 'Select targetOS…')}
+                          </option>
+                          {REMOTE_TARGET_OS_OPTIONS.map(os => (
+                            <option key={os} value={os}>{os}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <input
                       type="text"
                       className="profile-name-input"

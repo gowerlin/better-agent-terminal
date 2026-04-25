@@ -4,6 +4,21 @@ import * as fs from 'fs/promises'
 import type { WindowRegistry } from './window-registry'
 import { logger } from './logger'
 
+/**
+ * Discriminator for which OS the profile targets. Drives translator selection
+ * and metadata interpretation in PathTranslator (T0269+).
+ *
+ * - 'local'        — local machine, no translation
+ * - 'wsl-linux'    — WSL distro on Windows host
+ * - 'docker-linux' — Linux container on local/remote Docker daemon
+ * - 'ssh-linux'    — Linux machine reached via SSH tunnel
+ * - 'ssh-darwin'   — macOS machine reached via SSH tunnel
+ *
+ * `undefined` means a legacy profile (BAT remote pre-PLAN-007) — keeps using
+ * IdentityTranslator for backward compatibility.
+ */
+export type TargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
+
 export interface ProfileEntry {
   id: string
   name: string
@@ -15,6 +30,91 @@ export interface ProfileEntry {
   remoteFingerprint?: string  // pinned SHA-256 cert fingerprint (TOFU)
   createdAt: number
   updatedAt: number
+  // PLAN-007 T0268: targetOS schema (flat — see spec doc §2.1).
+  // All optional so legacy profiles load unchanged.
+  targetOS?: TargetOS
+  // per-OS metadata (interpretation depends on targetOS)
+  wslDistro?: string
+  dockerContainer?: string
+  dockerHost?: string
+  sshHost?: string
+  sshUser?: string
+  sshPort?: number
+  sshKeyPath?: string
+  useSshTunnel?: boolean      // ssh-* default true at use-site
+  tunnelLocalPort?: number    // ssh-* dynamic port at use-site; schema slot only
+}
+
+/**
+ * Discriminated union view of a ProfileEntry, narrowed by targetOS.
+ * Returned by extractTargetOSMeta() for downstream consumers (translator
+ * registry, wizard, UI) to switch on without touching irrelevant flat fields.
+ */
+export type TargetOSMetadata =
+  | { targetOS: 'local' }
+  | { targetOS: 'wsl-linux'; wslDistro: string }
+  | { targetOS: 'docker-linux'; dockerContainer: string; dockerHost?: string }
+  | {
+      targetOS: 'ssh-linux' | 'ssh-darwin'
+      sshHost: string
+      sshUser: string
+      sshPort?: number
+      sshKeyPath?: string
+      useSshTunnel?: boolean
+      tunnelLocalPort?: number
+    }
+  | { targetOS: undefined }   // legacy remote profile (pre-PLAN-007)
+
+/**
+ * Project a flat ProfileEntry into a typed metadata view.
+ * Pure function; does not validate flat fields are present (caller should
+ * surface errors at use-site, not here).
+ */
+export function extractTargetOSMeta(entry: ProfileEntry): TargetOSMetadata {
+  switch (entry.targetOS) {
+    case 'local':
+      return { targetOS: 'local' }
+    case 'wsl-linux':
+      return { targetOS: 'wsl-linux', wslDistro: entry.wslDistro ?? '' }
+    case 'docker-linux':
+      return {
+        targetOS: 'docker-linux',
+        dockerContainer: entry.dockerContainer ?? '',
+        dockerHost: entry.dockerHost,
+      }
+    case 'ssh-linux':
+    case 'ssh-darwin':
+      return {
+        targetOS: entry.targetOS,
+        sshHost: entry.sshHost ?? '',
+        sshUser: entry.sshUser ?? '',
+        sshPort: entry.sshPort,
+        sshKeyPath: entry.sshKeyPath,
+        useSshTunnel: entry.useSshTunnel,
+        tunnelLocalPort: entry.tunnelLocalPort,
+      }
+    case undefined:
+    default:
+      return { targetOS: undefined }
+  }
+}
+
+/**
+ * Passive migration (PLAN-007 spec §6 C-2):
+ *   - local profile without targetOS → auto-set to 'local' (DOES NOT touch updatedAt)
+ *   - remote profile without targetOS → leave undefined (legacy IdentityTranslator path)
+ *   - any profile with targetOS already set → no change (idempotent)
+ *
+ * Runs at load time only; never persisted automatically. Disk shape stays
+ * identical until user explicitly edits the profile.
+ */
+export function migrateProfile(entry: ProfileEntry): ProfileEntry {
+  if (entry.targetOS !== undefined) return entry
+  if (entry.type === 'local') {
+    return { ...entry, targetOS: 'local' }
+  }
+  // remote without targetOS → leave alone (legacy)
+  return entry
 }
 
 export interface ProfileIndex {
@@ -88,7 +188,10 @@ function normalizeIndex(raw: Record<string, unknown>): ProfileIndex {
   if (!Array.isArray(raw.profiles)) {
     throw new Error('malformed profile index: "profiles" must be an array')
   }
-  return raw as unknown as ProfileIndex
+  // PLAN-007 T0268 passive migration — apply at load only, never persist.
+  const index = raw as unknown as ProfileIndex
+  index.profiles = index.profiles.map(migrateProfile)
+  return index
 }
 
 async function readIndexFile(filePath: string): Promise<ProfileIndex | null> {
@@ -406,7 +509,23 @@ export class ProfileManager {
     return entry
   }
 
-  async update(profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }): Promise<boolean> {
+  async update(profileId: string, updates: {
+    remoteHost?: string
+    remotePort?: number
+    remoteToken?: string
+    remoteProfileId?: string
+    remoteFingerprint?: string
+    targetOS?: TargetOS
+    wslDistro?: string
+    dockerContainer?: string
+    dockerHost?: string
+    sshHost?: string
+    sshUser?: string
+    sshPort?: number
+    sshKeyPath?: string
+    useSshTunnel?: boolean
+    tunnelLocalPort?: number
+  }): Promise<boolean> {
     const index = await ensureInitialized()
     const entry = index.profiles.find(p => p.id === profileId)
     if (!entry) return false
@@ -416,6 +535,16 @@ export class ProfileManager {
     if (updates.remoteToken !== undefined) entry.remoteToken = updates.remoteToken
     if (updates.remoteProfileId !== undefined) entry.remoteProfileId = updates.remoteProfileId
     if (updates.remoteFingerprint !== undefined) entry.remoteFingerprint = updates.remoteFingerprint
+    if (updates.targetOS !== undefined) entry.targetOS = updates.targetOS
+    if (updates.wslDistro !== undefined) entry.wslDistro = updates.wslDistro
+    if (updates.dockerContainer !== undefined) entry.dockerContainer = updates.dockerContainer
+    if (updates.dockerHost !== undefined) entry.dockerHost = updates.dockerHost
+    if (updates.sshHost !== undefined) entry.sshHost = updates.sshHost
+    if (updates.sshUser !== undefined) entry.sshUser = updates.sshUser
+    if (updates.sshPort !== undefined) entry.sshPort = updates.sshPort
+    if (updates.sshKeyPath !== undefined) entry.sshKeyPath = updates.sshKeyPath
+    if (updates.useSshTunnel !== undefined) entry.useSshTunnel = updates.useSshTunnel
+    if (updates.tunnelLocalPort !== undefined) entry.tunnelLocalPort = updates.tunnelLocalPort
     entry.updatedAt = Date.now()
     await writeIndex(index)
     return true

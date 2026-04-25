@@ -10,6 +10,9 @@ import type {
 } from './voice'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
+// PLAN-007 T0268: targetOS schema (kept in sync with electron/profile-manager.ts)
+type ProfileTargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
+
 interface ProfileRecord {
   id: string
   name: string
@@ -21,6 +24,17 @@ interface ProfileRecord {
   remoteFingerprint?: string
   createdAt: number
   updatedAt: number
+  // PLAN-007 T0268: targetOS + per-OS metadata (all optional, legacy profiles unaffected)
+  targetOS?: ProfileTargetOS
+  wslDistro?: string
+  dockerContainer?: string
+  dockerHost?: string
+  sshHost?: string
+  sshUser?: string
+  sshPort?: number
+  sshKeyPath?: string
+  useSshTunnel?: boolean
+  tunnelLocalPort?: number
 }
 
 type RemoteBindInterface = 'localhost' | 'tailscale' | 'all'
@@ -279,7 +293,7 @@ interface ElectronAPI {
     load: (profileId: string) => Promise<unknown>
     delete: (profileId: string) => Promise<boolean>
     rename: (profileId: string, newName: string) => Promise<boolean>
-    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => Promise<boolean>
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: ProfileTargetOS; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => Promise<boolean>
     duplicate: (profileId: string, newName: string) => Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>
     get: (profileId: string) => Promise<ProfileRecord | null>
     getActiveIds: () => Promise<string[]>
