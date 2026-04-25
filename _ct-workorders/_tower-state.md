@@ -1,10 +1,137 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-25 21:25(**🎉 第二十六 session 收工:T0255 Phase 1 C3 cherry-pick 鏈完整閉環,從中斷現場以 research-first 路線(T0257 偵察 → T0258 續做 ~20 min vs 估 40-60 min → T0259 baseline-diff verification)續完 8/8 cherry-pick + version.json bump,*evolve 批次萃取 6 條(L101/L102 + GP095-GP098)。YOLO 模式全程零互動零 Renew 零 FAILED**)
+> 最後更新:2026-04-25 23:35(**🎉 第二十七 session 收工:PLAN-007 Phase A research 全部完成 + PLANNED 升級。8 張 research 工單(T0260-T0267)+ EXP-HEADLESS-001 ✅ CONCLUDED + spec doc 832 行落地 + 8 RFC 拍板 + 23 張實作藍圖。YOLO 鏈式派發,Worker 累計 wall ~82 min(平均 ~10 min/張)。D089 確立 Phase B worktree 策略:主線保留 hotfix,worktree 等全部完成才合併**)
 
 ---
 
-## 🛏 本 Session 退出快照(第二十六 session,2026-04-25 14:55-21:25,~6h 30min,T0255 Phase 1 C3 中斷恢復閉環)
+## 🛏 本 Session 退出快照(第二十七 session,2026-04-25 21:30-23:35,~2h 5min,PLAN-007 Phase A research 全部完成 + PLANNED 升級)
+
+### 本輪時間線
+
+1. **21:30**(起手):Fast Path 載入 session 26 退場快照,使用者要求啟動 PLAN-007「支援遠端開發(WSL/Docker/SSH + BAT remote Mode)」,需求對齊 Q1.A(Phase A 全研究)Q2.A(框架翻轉:BAT terminal client/server 拆分,server 跨環境)Q3.塔台規劃 Q4.塔台規劃詳細
+2. **21:30-21:45**:塔台規劃序列 → T0260 scoping 派發前對齊 → 使用者「一張回來再一張」+ `*config auto_session yolo` + D 模式(每張完成塔台 pause 等檢視) + 1 立即派
+3. **21:45-21:51**:T0260 ✅ DONE(6 min,commit `9e9d1dd`)— 4 環境拆單建議卡 + topology 矩陣 + 揭露 server-side 0 deps 假設
+4. **21:51-22:18**:T0261 EXP-HEADLESS-001 spike 派發前塔台規劃調整(原 T0261 BAT-remote 強化改為 spike,證可行性錨點)→ 工單寫完 → worktree `../bat-headless-spike` 建立 → spike DONE 29 min(commit `8040e49` 主線 / `17ac525` worktree)→ AC1-AC8 全綠 + EXP CONCLUDED → server-side 0 個 app.* / electron deps 驗證
+5. **22:18-22:30**:worktree 清理(branch 刪 / 磁碟殘留 permission denied 留待後處理) + 塔台規劃調整(EXP-HOST-DISPATCH 砍掉,T0262 縮 scope 到 server-side only)
+6. **22:30-22:42**:T0262 server-side spec ✅ DONE(6 min,commit `6477cf9`)— 7 節 + 工程量上修 1-2 天 → 3-5 週(W1-W5 直接實作 + S1-S4 spike + 後續分批);T0263 WSL research ✅ DONE(5 min,commit `afb34a0`)— 7 節 + path translation 純字串 + WSL1 不支援
+7. **22:42-22:51**:T0263 主動建議插入 T0264 共通抽象 → 塔台接受並調整序列 → T0264 ✅ DONE(5 min,commit `92af5c7`)— 6 節跨 4 環境共通 spec 凍結
+8. **22:51-23:10**:T0265 Docker research ✅ DONE(5 min,commit `055d8e2`)— 8 節 + base image bookworm-slim + 3 個 Docker EXP child;T0266 SSH research ✅ DONE(16 min,commit `496fba4`)— 9 節最複雜 + 8 個 RFC 浮現 + 7 個 cross-cutting risks
+9. **23:15-23:25**:T0267 spec consolidation ✅ DONE(10 min,spec commit `f1934f9` + workorder commit `a388c11`)— 832 行 spec doc 落地 + 8 RFC 拍板 + 23 張實作藍圖 T0268-T0290 + PLANNED 升級檢核表 7/8 ✅
+10. **23:30**:塔台執行 PLAN-007 元資料更新(💡 IDEA → 📋 PLANNED,commit `5e42553`)→ 拍板依據 T0267 + spec commit `f1934f9`
+11. **23:35**:使用者「收工,下次回來在 worktree 推進 PLAN-007,主線保留隨時 hotfix 需求,worktree 等 PLAN-007 全部完成再合併」→ 記 D089
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **PLAN 升級** | PLAN-007 💡 IDEA → 📋 PLANNED(commit `5e42553`)— 框架翻轉「AI Agent 跨環境執行」→「BAT terminal server 跨環境部署 + client 連線」 |
+| **Research 工單** | T0260/T0262/T0263/T0264/T0265/T0266/T0267 共 7 張 ✅ DONE |
+| **Spike** | T0261 EXP-HEADLESS-001 ✅ CONCLUDED(server-side 0 deps 錨定) |
+| **Spec 文件** | `_ct-workorders/_spec-remote-dev-support-2026-04.md`(832 行,9 節結構) |
+| **RFC 拍板** | 8 個(C-1~C-7 + D-SSH-6),全部 closed |
+| **實作藍圖** | 23 張(T0268-T0290,5 Phase,22-30 工程日 → 含風險係數 30-40d) |
+| **決策** | D089(本 session 新增,PLAN-007 Phase B worktree 策略) |
+| **Commits 本 session 新增**(時間序) | `9e9d1dd`(T0260)/ `2a9a906`(T0260 meta)/ `8040e49`(T0261 spike)/ `f9aa64f`(T0261 meta)/ `6477cf9`(T0262)/ `53bd102`(T0262 meta)/ `afb34a0`(T0263)/ `bb6d722`(T0263 meta)/ `92af5c7`(T0264)/ `190d9a3`(T0264 meta)/ `055d8e2`(T0265)/ `a1ce0af`(T0265 meta)/ `496fba4`(T0266)/ `88daa06`(T0266 meta)/ `f1934f9`(spec doc)/ `a388c11`(T0267)/ `5e42553`(PLAN-007 PLANNED) |
+| **修改檔** | `_ct-workorders/T0260-T0267-*.md`(8 張工單)/ `_ct-workorders/EXP-HEADLESS-001-*.md` / `_ct-workorders/_spec-remote-dev-support-2026-04.md`(新增) / `_ct-workorders/PLAN-007-*.md` |
+| **worktree** | `../bat-headless-spike`(EXP-HEADLESS-001 用,branch `exp/headless-server-spike` 已刪;磁碟目錄殘留 permission denied,待手動清) |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time(全 session) | ~2h 5min | 21:30-23:35,含對齊 + Worker pause review |
+| Worker 累計 wall | ~82 min | T0260(6)+ T0261(29)+ T0262(6)+ T0263(5)+ T0264(5)+ T0265(5)+ T0266(16)+ T0267(10) |
+| Worker 工單 DONE | 8 / 8 | 零失敗 |
+| Renew 次數 | 0 / 8 | 零 Renew |
+| FAILED 次數 | 0 / 8 | 零失敗 |
+| 互動觸發 | 0 / 8 | YOLO + interactive enabled 但 Worker 全程零互動 |
+| YOLO 自主派發 | 7 次 | T0261-T0267(T0260 起手手動派,後續鏈式) |
+| 塔台主動規劃調整 | 4 次 | (1)T0261 改 spike(2)T0262 砍 EXP-HOST-DISPATCH 縮 scope(3)插入 T0264 共通抽象(4)接受 D-SSH-6 命名修正 |
+| Worker 主動建議採納 | 3 次 | T0261 結論翻轉「server-side 1-2 天 → 3-5 週」/ T0263 建議插 T0264 共通抽象 / T0266 建議改 SshPathTranslator |
+| spec doc 行數 | 832 | 落在 800-1500 目標區間 |
+| 平均 Worker wall / 工單 | ~10 min | 大幅低於原估 60-120 min |
+
+### 下 session pending(優先序)
+
+1. 🟡 **建立 PLAN-007 Phase B worktree** — 依 D089,建議 `git worktree add ../bat-plan-007 -b feature/plan-007-remote-dev`(命名待塔台對齊使用者偏好,可能 `feat/remote-dev` / `phase/plan-007` 等)
+2. 🟡 **派 T0268** — Phase 1 第一張(targetOS profile schema + migration,M sizing 4-8h,無依賴),在 worktree 內執行
+3. 🟢 **`*sync` 重建索引** — PLAN-007 PLANNED 變動需反映到 `_backlog.md`,順便處理 BUG/EXP 狀態同步(<1 min)
+4. 🟢 **`*evolve` 批次萃取** — 本 session 高度密集的學習候選(見下方「學習候選」段)
+5. 🟢 **可選:斷點重評估** — D089 worktree 策略意味 Phase B 期間主線只接 hotfix,塔台需要在每張 worktree 工單 DONE 後評估是否該回主線檢查 hotfix backlog
+6. 🟢 **批次歸檔候選** — session 25 8 張 BUG CLOSED + session 26 T0255-T0259(達門檻 04-26+ 起;已過)+ session 27 T0260-T0267(達 04-27+)
+7. 🟢 **手動清 `bat-headless-spike` 磁碟殘留** — `/d/ForgejoGit/BMad-Guide/better-agent-terminal/bat-headless-spike/` permission denied,等鎖解後 `rm -rf` 或重啟系統
+8. 🟢 **使用者親自跑 dev / packaged 實機驗收 Phase 1 C3**(session 26 pending 仍在)
+9. 🟢 **v0.3.0/v0.3.1 release 後續觀察**(session 25-26 pending)
+10. 🟢 PLAN-021 IN_PROGRESS / PLAN-028 PLANNED / T0153 PARTIAL / Phase 2 CUDA 評估
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:對齊使用者 worktree 命名偏好 → 建立 `../bat-plan-007`(或使用者指定名)→ 切過去 → 開新 sub-session
+3. **優先序 2**:T0268 派發(在 worktree 內)— 工單沿用 PLAN-007 spec doc §8 藍圖卡細則,塔台先寫完整工單檔
+4. **優先序 3**:第 1-2 張 worktree 工單 DONE 後跑 `*sync` + `*evolve`(本 session 累積學習候選 + PLAN 狀態 propagation)
+5. 下 session 新單編號起始:**T0268 / BUG-060 / PLAN-029 / D090 / EXP-NODE-SEA-001 或 EXP-WSL-MIRRORED-001**(spike 候選依 T0267 §B)
+6. **編號特殊註記**:T0268-T0290 已預留為 PLAN-007 Phase B 實作工單(藍圖卡見 spec doc §8),不要佔用為其他 PLAN 工單
+
+### D089 — PLAN-007 Phase B Worktree 策略
+
+**決策**:Phase B 全程在 worktree 內推進,主線保留隨時 hotfix 容量。
+
+**規格**:
+- worktree 分支命名:`feature/plan-007-remote-dev` 或類似(下 session 對齊)
+- worktree 路徑:`../bat-plan-007` 或類似
+- 合併條件:**Phase 5 T0290 DONE 才考慮 PR 回主線**(全部 5 Phase 23 張工單完成 + e2e smoke 綠)
+- 主線在 PLAN-007 期間只接 hotfix(BUG / 緊急 PLAN)
+- 跨 commit 同步:worktree 定期 `git merge origin/main`(rebase 或 merge,下 session 對齊)避免 drift
+
+**理由**(使用者表述):
+- PLAN-007 工程量 30-40 工程日,大塊變動不應綁主線 release cadence
+- 主線 release(version bump / hotfix)期間 worktree 仍可推進
+- 完成後一次性大 PR review,清晰 traceable
+
+**實作影響**:
+- 塔台派工要明確標「在 worktree 執行」
+- Worker 在 worktree 跑,主線只接 hotfix 工單
+- 塔台 meta 工單(PLAN 元資料 / spec doc 修正)走主線(避免 worktree 與主線兩份不同步)
+- 每階段 commit 都是 worktree 內 commit(`feature/plan-007-remote-dev` 分支),非主線
+
+**風險**:
+- worktree drift(若主線有大變動 BAT codebase 改動)
+- 合併衝突在 Phase 5 收尾時集中爆發
+- Worker 容易誤把 worktree 工單寫到主線(需在工單明示「affects_files: worktree path」)
+
+### 本 session 學習候選(待 `*evolve` 批次萃取)
+
+#### 強候選 Global
+
+- **GP-cand-A**(高度可能晉升):**「scoping → spike → 共通抽象 → 細節展開 → 彙整」5 階段研究模式**。本 session T0260 → T0261 → T0264(中插)→ T0263/T0265/T0266 → T0267 完整走完一輪,8 張工單 ~82 min wall,零 Renew 零 FAILED。對「大型未知 PLAN」(>20 工程日 + 多環境 / 跨層級)極度有效。比 GP083「先研後修 ROI 極高」更上一層的「先 scoping 再研究」結構。
+- **GP-cand-B**:**Worker 主動建議插入工單時的塔台採納原則**。本 session T0263 / T0266 兩次主動建議(插 T0264 / 改 SshPathTranslator),塔台均採納。判斷準則「Worker 在執行中浮現的洞察 > 塔台事前規劃」當證據鏈完整時,塔台應彈性調整序列。GP084 研究型工單三要素的延伸。
+- **GP-cand-C**:**YOLO 鏈式派發在純 research 工單的高效率**。8 張工單 ~10 min/張,大幅低於原估 60-120 min/張。原因:research 不寫 code,Worker 靠讀 + 寫 spec 即可,YOLO + interactive enabled 但 Worker 自決 = 最佳組合。對比 impl 工單(T0258 cherry-pick 20 min)亦顯示 research 工單天生快。
+- **GP-cand-D**:**Spec doc 落地工單(T0267)的特殊授權慣例**。一般 research 禁止寫工單外檔,但彙整工單例外允許寫 `_spec-*.md`(F-24 慣例),且仍維持「不寫 source code」紅線。模式可複製到其他 PLAN 的彙整階段。
+- **GP-cand-E**:**塔台規劃中途調整的成本極低**。本 session 4 次調整(T0261 改 spike / T0262 縮 scope / T0264 中插 / 命名修正),Worker 對工單檔變更無反彈(讀完即執行)。意味著研究工單階段塔台可保留高度彈性,不需鎖死預先規劃。
+
+#### Project 候選
+
+- **L-cand-A**:**BAT remote 已七成完成 client/server 拆分**(T0260 / T0261 結論),secrets.ts strategy 已落地。意味未來 BAT-remote 相關 PLAN 起點高,不需重做基礎研究。
+- **L-cand-B**:**worktree 殘留磁碟清理問題**。`bat-headless-spike` 目錄因 node_modules locked 無法清,git 已斷註冊但檔案占空間。下次 EXP 結束前需先確認 process release 才能清。
+
+### 本 session 教訓
+
+1. **規劃預估與實際 wall 落差大**(估 60-120 min/張 vs 實際 ~10 min/張)— 純 research 工單應重訂預估基準。下次寫 research 工單估時欄位用「20-40 min wall + 60-180 min context cost」雙軸。
+2. **Worker 估時口徑跨類型混用易誤判**— T0260 spike 工單 Worker 給「10-14h」其實是「實作工時」,塔台原想接受時被工程量上修糾正。下次工單 metadata 「預估 wall time」應明確標註「研究 wall(讀+寫)」vs「實作工時」。
+3. **塔台 D 模式 + YOLO 自主派發共存**運作良好 — D 模式 = 每張完成 pause 給 user review;YOLO = 鏈式派發。看似衝突但實作上 pause 在「下一張派出前」,user 可中斷或讓塔台繼續,順暢。
+
+### 本 session 成就
+
+- 🎉 **單 session 完成 PLAN-007 Phase A 全研究** — 8 張 research + 1 spike + spec doc + PLANNED 升級,~2h 5min 全 session(Worker 累計 ~82 min)
+- 🎉 **完整研究方法論驗證** — scoping → spike → 共通 → 環境細節 → 彙整,5 階段全跑完零 Renew
+- 🎉 **Worker 連續 ~10 min/張 高效率** — 純 YOLO + interactive enabled,設計分支 100% Worker 自決
+- 🎉 **8 RFC 全拍板 + 23 實作藍圖 + 832 行 spec doc** — PLAN-007 從 IDEA 變成可執行藍圖,工程量明確(30-40 工程日)
+- 🎉 **D089 worktree 策略確立** — 大型 PLAN 與主線解耦,hotfix 路徑保留
+
+---
+
+## 🛏 前 Session 退出快照(第二十六 session,2026-04-25 14:55-21:25,~6h 30min,T0255 Phase 1 C3 中斷恢復閉環)
 
 ### 本輪時間線
 
