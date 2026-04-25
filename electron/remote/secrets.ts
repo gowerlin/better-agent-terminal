@@ -1,13 +1,9 @@
-import { safeStorage } from 'electron'
 import * as fs from 'fs'
 import { logger } from '../logger'
 
 // Layout of the persisted secret file:
 //   { v: 1, encrypted: true,  data: "<base64 of safeStorage ciphertext>" }
 //   { v: 1, encrypted: false, data: "<raw plaintext>" }
-// On Linux without a keychain (safeStorage unavailable) we fall back to
-// plaintext with a visible warning — this preserves fork behaviour before
-// T0182 and matches the decision recorded in the PLAN-018 Q1.A answer.
 
 interface PersistedSecretV1 {
   v: 1
@@ -15,15 +11,72 @@ interface PersistedSecretV1 {
   data: string
 }
 
-let warnedUnavailable = false
+export interface SecretStrategy {
+  name: string
+  isAvailable(): boolean
+  encrypt(plain: string): PersistedSecretV1
+  decrypt(record: PersistedSecretV1): string
+}
 
-function isEncryptionAvailable(): boolean {
-  try {
-    return safeStorage.isEncryptionAvailable()
-  } catch {
-    return false
+interface ElectronSafeStorageLike {
+  isEncryptionAvailable(): boolean
+  encryptString(plain: string): Buffer
+  decryptString(value: Buffer): string
+}
+
+class PlaintextStrategy implements SecretStrategy {
+  readonly name = 'plaintext'
+
+  constructor(private readonly warnOnUse: boolean = true) {}
+
+  isAvailable(): boolean {
+    return true
+  }
+
+  encrypt(plain: string): PersistedSecretV1 {
+    if (this.warnOnUse) warnFallbackOnce()
+    return { v: 1, encrypted: false, data: plain }
+  }
+
+  decrypt(record: PersistedSecretV1): string {
+    if (this.warnOnUse) warnFallbackOnce()
+    return record.data
   }
 }
+
+class ElectronSafeStorageStrategy implements SecretStrategy {
+  readonly name = 'electron-safe-storage'
+
+  constructor(private readonly safeStorage: ElectronSafeStorageLike) {}
+
+  isAvailable(): boolean {
+    try {
+      return this.safeStorage.isEncryptionAvailable()
+    } catch {
+      return false
+    }
+  }
+
+  encrypt(plain: string): PersistedSecretV1 {
+    if (!this.isAvailable()) {
+      throw new Error('safeStorage encryption is unavailable')
+    }
+    const buf = this.safeStorage.encryptString(plain)
+    return { v: 1, encrypted: true, data: buf.toString('base64') }
+  }
+
+  decrypt(record: PersistedSecretV1): string {
+    if (!this.isAvailable()) {
+      throw new Error(
+        'Stored secret is encrypted but safeStorage is unavailable on this system'
+      )
+    }
+    return this.safeStorage.decryptString(Buffer.from(record.data, 'base64'))
+  }
+}
+
+let warnedUnavailable = false
+let activeStrategy: SecretStrategy | null = null
 
 function warnFallbackOnce(): void {
   if (warnedUnavailable) return
@@ -34,30 +87,53 @@ function warnFallbackOnce(): void {
   )
 }
 
-export function encryptString(plain: string): PersistedSecretV1 {
-  if (isEncryptionAvailable()) {
-    const buf = safeStorage.encryptString(plain)
-    return { v: 1, encrypted: true, data: buf.toString('base64') }
+function tryLoadElectronSafeStorage(): ElectronSafeStorageLike | null {
+  try {
+    const electron = require('electron') as { safeStorage?: ElectronSafeStorageLike }
+    return electron.safeStorage ?? null
+  } catch {
+    return null
   }
-  warnFallbackOnce()
-  return { v: 1, encrypted: false, data: plain }
+}
+
+export function detectSecretStrategy(): SecretStrategy {
+  const safeStorage = tryLoadElectronSafeStorage()
+  if (safeStorage) {
+    const strategy = new ElectronSafeStorageStrategy(safeStorage)
+    if (strategy.isAvailable()) return strategy
+  }
+  return new PlaintextStrategy(true)
+}
+
+export function setSecretStrategy(strategy: SecretStrategy): void {
+  activeStrategy = strategy
+}
+
+export function getSecretStrategy(): SecretStrategy {
+  if (!activeStrategy) {
+    activeStrategy = detectSecretStrategy()
+  }
+  return activeStrategy
+}
+
+export function encryptString(plain: string): PersistedSecretV1 {
+  const strategy = getSecretStrategy()
+  if (strategy.isAvailable()) {
+    return strategy.encrypt(plain)
+  }
+  const fallback = new PlaintextStrategy(true)
+  setSecretStrategy(fallback)
+  return fallback.encrypt(plain)
 }
 
 export function decryptPersisted(record: PersistedSecretV1): string {
   if (!record || typeof record !== 'object') {
     throw new Error('decryptPersisted: invalid record')
   }
-  if (record.encrypted) {
-    if (!isEncryptionAvailable()) {
-      throw new Error(
-        'Stored secret is encrypted but safeStorage is unavailable on this system'
-      )
-    }
-    const buf = Buffer.from(record.data, 'base64')
-    return safeStorage.decryptString(buf)
+  if (!record.encrypted) {
+    return new PlaintextStrategy(true).decrypt(record)
   }
-  warnFallbackOnce()
-  return record.data
+  return getSecretStrategy().decrypt(record)
 }
 
 export function readSecretFile(filePath: string): string | null {
@@ -65,9 +141,6 @@ export function readSecretFile(filePath: string): string | null {
     const raw = fs.readFileSync(filePath, 'utf-8')
     const parsed = JSON.parse(raw)
 
-    // Legacy plaintext shape written by older fork versions:
-    //   { token: "..." } or { cert, key, fingerprint }
-    // Detect by absence of { v, encrypted, data }.
     if (
       parsed &&
       typeof parsed === 'object' &&
@@ -78,8 +151,6 @@ export function readSecretFile(filePath: string): string | null {
       return decryptPersisted(parsed as PersistedSecretV1)
     }
 
-    // Accept legacy { token: string } shape for backward compatibility during
-    // first-run migration. Caller is expected to rewrite with encryptString.
     if (parsed && typeof parsed === 'object' && typeof parsed.token === 'string') {
       return parsed.token
     }
@@ -95,5 +166,7 @@ export function writeSecretFile(filePath: string, plain: string): void {
 }
 
 export function isSafeStorageAvailable(): boolean {
-  return isEncryptionAvailable()
+  return getSecretStrategy().name === 'electron-safe-storage'
 }
+
+export { PlaintextStrategy }

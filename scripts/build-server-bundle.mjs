@@ -78,10 +78,15 @@ async function prepareDirs() {
 }
 
 async function bundleServerEntry() {
-  log('2', 'Bundling electron/remote/server-entry.ts with esbuild')
+  log('2', 'Bundling headless server entries with esbuild')
   await build({
-    entryPoints: [resolveProjectPath('electron', 'remote', 'server-entry.ts')],
-    outfile: path.join(binDir, 'bat-server.js'),
+    entryPoints: [
+      resolveProjectPath('electron', 'remote', 'server-entry.ts'),
+      resolveProjectPath('electron', 'remote', 'headless-entry.ts'),
+      resolveProjectPath('electron', 'remote', 'lockfile.ts'),
+      resolveProjectPath('electron', 'remote', 'dataDir.ts'),
+    ],
+    outdir: remoteDir,
     bundle: true,
     platform: 'node',
     target: 'node24',
@@ -211,6 +216,7 @@ async function pruneAnthropicPackages() {
 async function copyServerSources() {
   log('5', 'Copying server source directories into staging')
   await copyRecursive(resolveProjectPath('electron', 'remote'), remoteDir)
+  await copyFile(resolveProjectPath('scripts', 'bat-server.mjs'), path.join(binDir, 'bat-server.mjs'))
   const handlersSource = resolveProjectPath('electron', 'handlers')
   if (existsAndIsDirectory(handlersSource)) {
     await copyRecursive(handlersSource, handlersDir)
@@ -223,7 +229,13 @@ async function writeLauncherAndReadme(nodeVersion) {
   log('6', 'Writing launcher script and README')
   await writeExecutableScript(
     path.join(binDir, 'bat-server'),
-    '#!/bin/sh\nexec "$(dirname "$0")/node" "$(dirname "$0")/bat-server.js" "$@"\n'
+    '#!/bin/sh\nexec "$(dirname "$0")/node" "$(dirname "$0")/bat-server.mjs" "$@"\n'
+  )
+
+  writeFileSync(
+    path.join(stagingRoot, 'package.json'),
+    JSON.stringify({ name: pkg.name, version }, null, 2) + '\n',
+    'utf8'
   )
 
   const readmePath = path.join(stagingRoot, 'README.md')

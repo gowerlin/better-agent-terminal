@@ -1,18 +1,22 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import { randomBytes } from 'crypto'
-import { app } from 'electron'
 import { networkInterfaces } from 'os'
 import * as os from 'os'
 import * as https from 'https'
+import * as fs from 'fs'
 import * as path from 'path'
 import { invokeHandler } from './handler-registry'
-import { logger } from '../logger'
+import { logger as defaultLogger } from '../logger'
 import { broadcastHub } from './broadcast-hub'
 import { PROXIED_EVENTS, type AuthResultMetadata, type RemoteFrame } from './protocol'
-import { loadOrCreateServerCertificate } from './certificate'
+import {
+  FileCertificateProvider,
+  type CertificateProvider,
+  type LoadedCertificateBundle,
+} from './certificate'
 import { readSecretFile, writeSecretFile } from './secrets'
 
-export type BindInterface = 'localhost' | 'tailscale' | 'all'
+export type BindInterface = 'localhost' | 'tailscale' | 'all' | `ip:${string}`
 
 interface AuthenticatedClient {
   ws: WebSocket
@@ -34,22 +38,30 @@ export interface AuthFailureEntry {
   bannedUntil?: number
 }
 
+export interface RotateTokenResult {
+  token: string
+  oldToken: string
+  oldValidUntil: number
+}
+
+interface RemoteServerLogger {
+  log: (...args: unknown[]) => void
+  warn: (...args: unknown[]) => void
+  error: (...args: unknown[]) => void
+}
+
+interface RemoteServerOptions {
+  certificateProvider?: CertificateProvider
+  logger?: RemoteServerLogger
+}
+
 const TOKEN_FILENAME = 'server-token.json'
 
-// Brute-force throttle constants (PLAN-018 T0184).
-// 5 failed auth attempts within 60s → 10min ban for that IP.
 export const AUTH_FAIL_WINDOW_MS = 60_000
 export const AUTH_FAIL_THRESHOLD = 5
 export const AUTH_BAN_DURATION_MS = 10 * 60_000
-// WebSocket maxPayload cap — rejects single frames larger than 32 MB to
-// protect against OOM from a misbehaving/malicious peer.
 const WS_MAX_PAYLOAD_BYTES = 32 * 1024 * 1024
 
-/**
- * Normalise an IPv4-mapped IPv6 address (e.g. `::ffff:192.0.2.1`) to its
- * plain IPv4 form so per-IP throttle state stays keyed consistently.
- * Exported for unit tests.
- */
 export function normalizeIp(raw: string): string {
   if (!raw) return ''
   const lower = raw.toLowerCase()
@@ -57,11 +69,6 @@ export function normalizeIp(raw: string): string {
   return raw
 }
 
-/**
- * Check whether an IP is currently within its brute-force ban window.
- * Expired entries are garbage-collected in place.
- * Exported for unit tests.
- */
 export function isIpBanned(
   store: Map<string, AuthFailureEntry>,
   ip: string,
@@ -70,23 +77,16 @@ export function isIpBanned(
   const entry = store.get(ip)
   if (!entry?.bannedUntil) return false
   if (now < entry.bannedUntil) return true
-  // Ban expired — clear entry so a fresh 60s window starts next failure.
   store.delete(ip)
   return false
 }
 
-/**
- * Record a failed auth attempt. Returns true iff this attempt tripped the
- * brute-force threshold and the IP is now banned.
- * Exported for unit tests.
- */
 export function recordAuthFailure(
   store: Map<string, AuthFailureEntry>,
   ip: string,
   now: number
 ): boolean {
   const existing = store.get(ip)
-  // No entry, or the prior window has fully lapsed → start a fresh window.
   if (!existing || now - existing.firstFailAt > AUTH_FAIL_WINDOW_MS) {
     store.set(ip, { count: 1, firstFailAt: now })
     return false
@@ -104,7 +104,11 @@ function resolveBindHost(
 ): { host: string; error?: string } {
   if (bindInterface === 'localhost') return { host: '127.0.0.1' }
   if (bindInterface === 'all') return { host: '0.0.0.0' }
-  // tailscale — find first 100.x.y.z interface; fail-closed if absent.
+  if (bindInterface.startsWith('ip:')) {
+    const host = bindInterface.slice(3).trim()
+    if (!host) return { host: '', error: 'bind-interface=ip requires an explicit IPv4/IPv6 address' }
+    return { host }
+  }
   const nets = networkInterfaces()
   for (const iface of Object.values(nets)) {
     if (!iface) continue
@@ -121,12 +125,26 @@ function resolveBindHost(
   }
 }
 
-function getBundleVersion(): string {
+function resolveBundleVersion(): string {
   try {
-    return app.getVersion()
+    const electron = require('electron') as { app?: { getVersion(): string } }
+    if (electron.app?.getVersion) {
+      return electron.app.getVersion()
+    }
   } catch {
-    return '0.0.0'
+    // ignore
   }
+
+  try {
+    const pkgPath = path.resolve(__dirname, '..', '..', 'package.json')
+    const raw = fs.readFileSync(pkgPath, 'utf8')
+    const pkg = JSON.parse(raw) as { version?: string }
+    if (pkg.version) return pkg.version
+  } catch {
+    // ignore
+  }
+
+  return '0.0.0'
 }
 
 function buildAuthMetadata(): AuthResultMetadata {
@@ -135,7 +153,7 @@ function buildAuthMetadata(): AuthResultMetadata {
     serverArch: os.arch() as AuthResultMetadata['serverArch'],
     serverEnv: 'native',
     nodeVersion: process.versions.node,
-    bundleVersion: getBundleVersion(),
+    bundleVersion: resolveBundleVersion(),
   }
 }
 
@@ -143,16 +161,23 @@ export class RemoteServer {
   private wss: WebSocketServer | null = null
   private httpsServer: https.Server | null = null
   private token: string = ''
+  private previousToken: { token: string; validUntil: number } | null = null
   private fingerprint: string = ''
+  private certificateExpiresAt = 0
   private currentBindInterface: BindInterface = 'localhost'
   private currentHost: string = '127.0.0.1'
   private clients: Map<WebSocket, AuthenticatedClient> = new Map()
-  // Brute-force throttle state — per-IP auth failure tracking (PLAN-018 T0184).
-  // Cleared on server restart; acceptable per report §I.1 R5.
   private authFailures: Map<string, AuthFailureEntry> = new Map()
   private broadcastListener: ((...args: unknown[]) => void) | null = null
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
-  configDir: string = '' // Set by main.ts to app.getPath('userData')
+  private readonly certificateProvider?: CertificateProvider
+  private readonly log: RemoteServerLogger
+  configDir: string = ''
+
+  constructor(options: RemoteServerOptions = {}) {
+    this.certificateProvider = options.certificateProvider
+    this.log = options.logger ?? defaultLogger
+  }
 
   get port(): number | null {
     const addr = this.wss?.address()
@@ -180,6 +205,10 @@ export class RemoteServer {
     return this.currentHost
   }
 
+  get certificateExpiry(): number {
+    return this.certificateExpiresAt
+  }
+
   get connectedClients(): { label: string; connectedAt: number }[] {
     return Array.from(this.clients.values()).map(c => ({
       label: c.label,
@@ -201,8 +230,29 @@ export class RemoteServer {
     try {
       writeSecretFile(this.tokenPath(), token)
     } catch (e) {
-      logger.warn('[RemoteServer] Failed to persist token:', e)
+      this.log.warn('[RemoteServer] Failed to persist token:', e)
     }
+  }
+
+  private getCertificateProvider(): CertificateProvider {
+    return this.certificateProvider ?? new FileCertificateProvider(this.configDir)
+  }
+
+  private applyLoadedCertificate(bundle: LoadedCertificateBundle): void {
+    this.fingerprint = bundle.fingerprint
+    this.certificateExpiresAt = bundle.expiresAt
+  }
+
+  private isTokenAccepted(candidate?: string): boolean {
+    if (!candidate) return false
+    if (candidate === this.token) return true
+    if (this.previousToken && Date.now() <= this.previousToken.validUntil) {
+      return candidate === this.previousToken.token
+    }
+    if (this.previousToken && Date.now() > this.previousToken.validUntil) {
+      this.previousToken = null
+    }
+    return false
   }
 
   async start(
@@ -218,21 +268,17 @@ export class RemoteServer {
 
     const bindResolution = resolveBindHost(bindInterface)
     if (bindResolution.error) {
-      // fail-closed per PLAN-018 Q2.A
       throw new Error(bindResolution.error)
     }
 
-    // Priority: explicit token > persisted token > new random token
     this.token = token || this.loadPersistedToken() || randomBytes(16).toString('hex')
     this.currentBindInterface = bindInterface
     this.currentHost = bindResolution.host
 
-    const { cert, key, fingerprint } = await loadOrCreateServerCertificate(
-      this.configDir
-    )
-    this.fingerprint = fingerprint
+    const bundle = await this.getCertificateProvider().load()
+    const { cert, key } = bundle
+    this.applyLoadedCertificate(bundle)
 
-    // Build an HTTPS server so the WebSocket upgrade runs over TLS.
     this.httpsServer = https.createServer({ cert, key })
 
     await new Promise<void>((resolve, reject) => {
@@ -257,9 +303,8 @@ export class RemoteServer {
     this.wss.on('connection', (ws, req) => {
       const clientIp = normalizeIp(req.socket?.remoteAddress || '')
 
-      // Per-IP brute-force gate — reject during active ban window (PLAN-018 T0184).
       if (clientIp && isIpBanned(this.authFailures, clientIp, Date.now())) {
-        logger.warn(
+        this.log.warn(
           `[RemoteServer] Rejected banned IP ${clientIp} (brute-force throttle active)`
         )
         this.sendFrame(ws, { type: 'auth-result', id: '0', error: 'Too many failed attempts' })
@@ -269,7 +314,6 @@ export class RemoteServer {
 
       let authenticated = false
 
-      // Auth timeout — must authenticate within 5 seconds
       const authTimeout = setTimeout(() => {
         if (!authenticated) {
           this.sendFrame(ws, { type: 'auth-result', id: '0', error: 'Auth timeout' })
@@ -282,12 +326,11 @@ export class RemoteServer {
         try {
           frame = JSON.parse(raw.toString())
         } catch {
-          return // ignore malformed
+          return
         }
 
-        // Auth handshake
         if (frame.type === 'auth') {
-          if (frame.token === this.token) {
+          if (this.isTokenAccepted(frame.token)) {
             authenticated = true
             clearTimeout(authTimeout)
             if (clientIp) this.authFailures.delete(clientIp)
@@ -297,12 +340,12 @@ export class RemoteServer {
               connectedAt: Date.now()
             })
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata() })
-            logger.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
+            this.log.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
           } else {
             if (clientIp) {
               const banned = recordAuthFailure(this.authFailures, clientIp, Date.now())
               if (banned) {
-                logger.warn(
+                this.log.warn(
                   `[RemoteServer] IP ${clientIp} banned for ${AUTH_BAN_DURATION_MS / 60000}min ` +
                     `after ${AUTH_FAIL_THRESHOLD} failed auth attempts`
                 )
@@ -314,24 +357,19 @@ export class RemoteServer {
           return
         }
 
-        // Non-auth frame before authentication → close immediately.
-        // Prevents pre-auth clients from probing the invoke surface.
         if (!authenticated) {
           this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: 'Not authenticated' })
           ws.close()
           return
         }
 
-        // Pong
         if (frame.type === 'ping') {
           this.sendFrame(ws, { type: 'pong', id: frame.id })
           return
         }
 
-        // Invoke
         if (frame.type === 'invoke' && frame.channel) {
           try {
-            // Strip trailing nulls — JSON serializes undefined → null, breaking default params
             let args = frame.args || []
             while (args.length > 0 && args[args.length - 1] == null) {
               args = args.slice(0, -1)
@@ -350,18 +388,17 @@ export class RemoteServer {
         clearTimeout(authTimeout)
         const client = this.clients.get(ws)
         if (client) {
-          logger.log(`[RemoteServer] Client disconnected: ${client.label}`)
+          this.log.log(`[RemoteServer] Client disconnected: ${client.label}`)
         }
         this.clients.delete(ws)
       })
 
       ws.on('error', (err) => {
-        logger.error('[RemoteServer] WebSocket error:', err.message)
+        this.log.error('[RemoteServer] WebSocket error:', err.message)
         this.clients.delete(ws)
       })
     })
 
-    // Subscribe to broadcastHub → push proxied events to all clients
     this.broadcastListener = (channel: unknown, ...args: unknown[]) => {
       if (typeof channel !== 'string') return
       if (!PROXIED_EVENTS.has(channel)) return
@@ -380,7 +417,6 @@ export class RemoteServer {
     }
     broadcastHub.on('broadcast', this.broadcastListener)
 
-    // Heartbeat — detect dead connections every 30 seconds
     this.heartbeatInterval = setInterval(() => {
       if (!this.wss) return
       for (const client of this.clients.values()) {
@@ -392,19 +428,50 @@ export class RemoteServer {
       }
     }, 30000)
 
-    // Persist token after server is listening (encrypted via safeStorage)
     this.persistToken(this.token)
 
-    logger.log(
-      `[RemoteServer] Started on ${this.currentHost}:${port} (bind=${bindInterface}), ` +
-        `fingerprint=${fingerprint.substring(0, 23)}..., token=${this.token.substring(0, 8)}...`
+    const actualPort = this.port ?? port
+    this.log.log(
+      `[RemoteServer] Started on ${this.currentHost}:${actualPort} (bind=${bindInterface}), ` +
+        `fingerprint=${this.fingerprint.substring(0, 23)}..., token=${this.token.substring(0, 8)}...`
     )
     return {
-      port,
+      port: actualPort,
       token: this.token,
-      fingerprint,
+      fingerprint: this.fingerprint,
       bindInterface,
       host: this.currentHost
+    }
+  }
+
+  async rotateToken(opts: { gracePeriodMs?: number } = {}): Promise<RotateTokenResult> {
+    const oldToken = this.token || this.loadPersistedToken() || randomBytes(16).toString('hex')
+    const token = randomBytes(32).toString('base64url')
+    const oldValidUntil = Date.now() + (opts.gracePeriodMs ?? 300_000)
+
+    this.previousToken = { token: oldToken, validUntil: oldValidUntil }
+    this.token = token
+    this.persistToken(token)
+
+    this.log.log(
+      `[RemoteServer] Token rotated; old token valid until ${new Date(oldValidUntil).toISOString()}`
+    )
+    return { token, oldToken, oldValidUntil }
+  }
+
+  async renewCertificate(): Promise<{ fingerprint: string; expiresAt: number }> {
+    const bundle = await this.getCertificateProvider().renew()
+    this.applyLoadedCertificate(bundle)
+    const tlsServer = this.httpsServer as https.Server & {
+      setSecureContext?: (options: { cert: string; key: string }) => void
+    }
+    tlsServer.setSecureContext?.({ cert: bundle.cert, key: bundle.key })
+    this.log.log(
+      `[RemoteServer] Certificate renewed; fingerprint=${bundle.fingerprint.substring(0, 23)}...`
+    )
+    return {
+      fingerprint: bundle.fingerprint,
+      expiresAt: bundle.expiresAt
     }
   }
 
@@ -419,7 +486,6 @@ export class RemoteServer {
       this.broadcastListener = null
     }
 
-    // Close all client connections
     for (const client of this.clients.values()) {
       client.ws.close()
     }
@@ -435,30 +501,19 @@ export class RemoteServer {
       this.httpsServer = null
     }
 
-    logger.log('[RemoteServer] Stopped')
+    this.log.log('[RemoteServer] Stopped')
   }
 
-  /**
-   * Hot-switch the server to a new port. Retains token + bindInterface.
-   * On failure to bind the new port, attempts to recover the old port so
-   * existing env-injected PTYs (BAT_REMOTE_PORT) stay usable.
-   *
-   * Returns the new StartServerResult on success; on fallback success, returns
-   * the old-port result with `restartError` set so UI can surface the failure.
-   * Throws only if both new bind and recovery fail.
-   */
   async restart(newPort: number): Promise<StartServerResult & { restartError?: string }> {
     const oldPort = this.port
     const oldToken = this.token
     const oldBind = this.currentBindInterface
 
     if (!this.wss) {
-      // Not currently running — just start on the new port.
       return this.start(newPort, oldToken || undefined, oldBind)
     }
 
     if (oldPort === newPort) {
-      // No-op; return current state as a StartServerResult shape.
       return {
         port: oldPort,
         token: oldToken,
@@ -468,17 +523,17 @@ export class RemoteServer {
       }
     }
 
-    logger.log(`[RemoteServer] Hot-switching port ${oldPort} → ${newPort} (bind=${oldBind})`)
+    this.log.log(`[RemoteServer] Hot-switching port ${oldPort} → ${newPort} (bind=${oldBind})`)
 
     this.stop()
 
     try {
       const result = await this.start(newPort, oldToken, oldBind)
-      logger.log(`[RemoteServer] Hot-switch to ${newPort} succeeded`)
+      this.log.log(`[RemoteServer] Hot-switch to ${newPort} succeeded`)
       return result
     } catch (err) {
       const newErr = err instanceof Error ? err.message : String(err)
-      logger.warn(`[RemoteServer] Hot-switch to ${newPort} failed: ${newErr} — attempting rollback to ${oldPort}`)
+      this.log.warn(`[RemoteServer] Hot-switch to ${newPort} failed: ${newErr} — attempting rollback to ${oldPort}`)
       try {
         if (oldPort === null) throw new Error('No previous port to recover')
         const recovered = await this.start(oldPort, oldToken, oldBind)

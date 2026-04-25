@@ -1,1 +1,11 @@
-console.log('[bat-server] T0271 stub — T0272 will implement createHeadlessServer')
+export {
+  createHeadlessServer,
+  getHeadlessBundleVersion,
+  loadOrGenerateToken,
+  type HeadlessHandlerRegistration,
+  type HeadlessServer,
+  type HeadlessServerInfo,
+  type HeadlessServerOptions,
+  type RemoteHandlerContext,
+} from './headless-entry'
+export { resolveDefaultDataDir } from './dataDir'

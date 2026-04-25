@@ -10,11 +10,20 @@ export interface CertificateBundle {
   fingerprint: string
 }
 
-interface PersistedCertificate {
+export interface PersistedCertificate {
   cert: string
   key: string
   fingerprint: string
   expiresAt: number // ms epoch
+}
+
+export interface LoadedCertificateBundle extends CertificateBundle {
+  expiresAt: number
+}
+
+export interface CertificateProvider {
+  load(): Promise<LoadedCertificateBundle>
+  renew(): Promise<LoadedCertificateBundle>
 }
 
 const CERT_FILENAME = 'server-cert.json'
@@ -76,34 +85,10 @@ export async function generateSelfSignedCert(
   }
 }
 
-export async function loadOrCreateServerCertificate(
-  configDir: string
-): Promise<CertificateBundle> {
-  const certPath = path.join(configDir, CERT_FILENAME)
-  try {
-    const raw = fs.readFileSync(certPath, 'utf-8')
-    const persisted = JSON.parse(raw) as PersistedCertificate
-    if (
-      persisted?.cert &&
-      persisted?.key &&
-      persisted?.fingerprint &&
-      typeof persisted.expiresAt === 'number' &&
-      persisted.expiresAt - Date.now() > RENEW_THRESHOLD_MS
-    ) {
-      return {
-        cert: persisted.cert,
-        key: persisted.key,
-        fingerprint: persisted.fingerprint
-      }
-    }
-    if (persisted?.cert) {
-      logger.log('[Certificate] Existing cert near expiry — regenerating')
-    }
-  } catch {
-    // no cert or invalid — generate fresh
-  }
-
-  const bundle = await generateSelfSignedCert()
+async function persistCertificate(
+  certPath: string,
+  bundle: CertificateBundle
+): Promise<LoadedCertificateBundle> {
   const persist: PersistedCertificate = {
     ...bundle,
     expiresAt: Date.now() + TEN_YEARS_DAYS * 24 * 60 * 60 * 1000
@@ -115,7 +100,55 @@ export async function loadOrCreateServerCertificate(
   } catch (e) {
     logger.warn('[Certificate] Failed to persist cert:', e)
   }
-  return bundle
+  return persist
+}
+
+export class FileCertificateProvider implements CertificateProvider {
+  constructor(private readonly configDir: string) {}
+
+  private certPath(): string {
+    return path.join(this.configDir, CERT_FILENAME)
+  }
+
+  async load(): Promise<LoadedCertificateBundle> {
+    const certPath = this.certPath()
+    try {
+      const raw = fs.readFileSync(certPath, 'utf-8')
+      const persisted = JSON.parse(raw) as PersistedCertificate
+      if (
+        persisted?.cert &&
+        persisted?.key &&
+        persisted?.fingerprint &&
+        typeof persisted.expiresAt === 'number' &&
+        persisted.expiresAt - Date.now() > RENEW_THRESHOLD_MS
+      ) {
+        return persisted
+      }
+      if (persisted?.cert) {
+        logger.log('[Certificate] Existing cert near expiry — regenerating')
+      }
+    } catch {
+      // no cert or invalid — generate fresh
+    }
+
+    return this.renew()
+  }
+
+  async renew(): Promise<LoadedCertificateBundle> {
+    const bundle = await generateSelfSignedCert()
+    return persistCertificate(this.certPath(), bundle)
+  }
+}
+
+export async function loadOrCreateServerCertificate(
+  configDir: string
+): Promise<CertificateBundle> {
+  const bundle = await new FileCertificateProvider(configDir).load()
+  return {
+    cert: bundle.cert,
+    key: bundle.key,
+    fingerprint: bundle.fingerprint
+  }
 }
 
 export { computeFingerprint }
