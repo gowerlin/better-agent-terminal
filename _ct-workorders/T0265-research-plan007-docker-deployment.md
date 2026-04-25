@@ -3,9 +3,11 @@
 ## 元資料
 - **工單編號**：T0265
 - **任務名稱**：PLAN-007 — Docker 部署環境研究（在共通 spec 基礎上聚焦 Docker-only 差異）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-25 22:46 (UTC+8)
 - **開始時間**：2026-04-25 22:46 (UTC+8)
+- **完成時間**：2026-04-25 22:51 (UTC+8)
+- **Commit**：055d8e2
 - **類型**：research（讀 code + 寫 spec 章節，**不寫 production code、不重構**）
 - **互動模式**：enabled（base image / mount strategy / container 生命週期有設計分支）
 - **Renew 次數**：0
