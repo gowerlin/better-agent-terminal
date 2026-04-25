@@ -3,9 +3,10 @@
 ## 元資料
 - **工單編號**：T0271
 - **任務名稱**：PLAN-007 Phase 1 第四張 — Server bundle pipeline (linux-x64 baseline) — esbuild bundle + 內嵌 node 24 + native rebuild + verify-server-bundle.js
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-26 02:26 (UTC+8)
 - **開始時間**：2026-04-26 21:00 (UTC+8)
+- **完成時間**：2026-04-26 02:47
 - **類型**：impl（build infra + verify script，無 production runtime code）
 - **互動模式**：disabled（fire-and-forget；scope 已被 spec doc §2.3 / §6 C-6 凍結）
 - **Renew 次數**：0
@@ -139,7 +140,7 @@
 
 **狀態變更**：TODO → IN_PROGRESS → DONE
 
-**worktree commit**：`<pending>` on `feature/plan-007-remote-dev`
+**worktree commit**：`42eab95` on `feature/plan-007-remote-dev`
 
 **修改檔**：
 - `.gitignore`
