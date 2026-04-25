@@ -13,6 +13,7 @@ import { WorkerPanel } from './WorkerPanel'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
+import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
 
@@ -478,7 +479,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         const terminalCount = settings.defaultTerminalCount || 1
         const createAgentTerminal = settings.createDefaultAgentTerminal === true
         const defaultAgent = createAgentTerminal
-          ? (workspace.defaultAgent || settings.defaultAgent || 'claude')
+          ? (workspace.defaultAgent || settings.defaultAgent || 'claude-code')
           : 'none'
 
         if (createAgentTerminal) {
@@ -594,9 +595,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Execute a Control Tower work order in a new terminal
   const handleExecWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
-    const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
-    const command = `claude "/ct-exec ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
     const settings = settingsStore.getSettings()
+    const runtime = resolveControlTowerAgentRuntime(workspace.defaultAgent || settings.defaultAgent)
+    const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+    const command = buildControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs)
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
       id: terminal.id,
@@ -609,14 +611,15 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     setActiveTab('terminal')
     try { localStorage.setItem(TAB_KEY, 'terminal') } catch { /* ignore */ }
     workspaceStore.save()
-  }, [workspace.id, workspace.folderPath, workspace.envVars])
+  }, [workspace.id, workspace.folderPath, workspace.envVars, workspace.defaultAgent])
 
   // Remedial close a Control Tower work order (ct-done) in a new terminal
   const handleDoneWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
-    const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
-    const command = `claude "/ct-done ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
     const settings = settingsStore.getSettings()
+    const runtime = resolveControlTowerAgentRuntime(workspace.defaultAgent || settings.defaultAgent)
+    const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+    const command = buildControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs)
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
       id: terminal.id,
@@ -629,7 +632,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     setActiveTab('terminal')
     try { localStorage.setItem(TAB_KEY, 'terminal') } catch { /* ignore */ }
     workspaceStore.save()
-  }, [workspace.id, workspace.folderPath, workspace.envVars])
+  }, [workspace.id, workspace.folderPath, workspace.envVars, workspace.defaultAgent])
 
   const handleAddClaudeAgent = useCallback(() => {
     const agentTerminal = workspaceStore.addTerminal(workspace.id, 'claude-code' as AgentPresetId)

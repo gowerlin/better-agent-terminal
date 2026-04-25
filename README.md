@@ -52,14 +52,14 @@
 
 ### ⭐ 指令自動完成
 - `*` 前綴觸發星號指令（掃描 `ct-*`、`gsd-*` 等 Skill）
-- `/` 前綴觸發斜線指令（Claude Code 內建指令）
+- AI 內建指令前綴依 runtime 決定，Claude Code 用 `/`，Codex 用 `$`
 - Agent 面板與 PromptBox 均支援
 - 鍵盤導航選取
 
 ### 🏗️ Control Tower 整合
 - **看板檢視** — 視覺化管理工單狀態（待辦 / 進行中 / 已完成）
 - **Sprint 進度** — 即時追蹤 Sprint 完成百分比
-- **工單操作** — 一鍵執行 `ct-exec`、`ct-done`、`ct-sync`
+- **工單操作** — 一鍵執行 `ct-exec`、`ct-done`、`ct-sync`，並依 default agent 自動選擇 Claude `/` 或 Codex `$` 前綴
 - **CtToast 通知** — 工單狀態變更即時通知
 
 ### 👁 Supervisor 模式
@@ -122,7 +122,7 @@ choco install better-agent-terminal
 
 **前置需求：**
 - [Node.js](https://nodejs.org/) 18+
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) 已安裝並驗證
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) 或 [Codex CLI](https://developers.openai.com/codex/) 至少其一已安裝並驗證
 
 ```bash
 git clone https://github.com/gowerlin/better-agent-terminal.git

@@ -19,6 +19,7 @@ import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
 import { CtToast, useCtToast } from './components/CtToast'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
+import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from './utils/control-tower-launch'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 
@@ -788,9 +789,10 @@ export default function App() {
           workspaceFolderPath={activeWorkspace.folderPath}
           onExecWorkOrder={async (workOrderId: string) => {
             const terminal = workspaceStore.addTerminal(activeWorkspace.id)
-            const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
-            const command = `claude "/ct-exec ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
             const settings = settingsStore.getSettings()
+            const runtime = resolveControlTowerAgentRuntime(activeWorkspace.defaultAgent || settings.defaultAgent)
+            const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+            const command = buildControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs)
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
               if (v.enabled) mergedEnv[v.key] = v.value
@@ -807,9 +809,10 @@ export default function App() {
           }}
           onDoneWorkOrder={async (workOrderId: string) => {
             const terminal = workspaceStore.addTerminal(activeWorkspace.id)
-            const ctArgs = settingsStore.getAgentCustomArgs('claude-cli')
-            const command = `claude "/ct-done ${workOrderId}"${ctArgs ? ` ${ctArgs}` : ''}`
             const settings = settingsStore.getSettings()
+            const runtime = resolveControlTowerAgentRuntime(activeWorkspace.defaultAgent || settings.defaultAgent)
+            const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+            const command = buildControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs)
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
               if (v.enabled) mergedEnv[v.key] = v.value
