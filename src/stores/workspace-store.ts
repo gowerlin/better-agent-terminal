@@ -708,7 +708,12 @@ class WorkspaceStore {
   }
 
   listenForReload(): () => void {
-    return window.electronAPI.workspace.onReload(() => {
+    return window.electronAPI.workspace.onReload((data?: string) => {
+      if (data) {
+        this.applySerializedData(data)
+        this.save()
+        return
+      }
       this.load()
     })
   }
@@ -754,57 +759,59 @@ class WorkspaceStore {
   async load(): Promise<void> {
     const data = await window.electronAPI.workspace.load()
     if (data) {
-      try {
-        const parsed = JSON.parse(data)
-        // Restore terminals with empty runtime fields
-        const workspaces: Workspace[] = parsed.workspaces || []
-        const workspaceMap = new Map(workspaces.map((w: Workspace) => [w.id, w]))
-        const terminals = (parsed.terminals || []).map((t: Partial<TerminalInstance>): TerminalInstance | null => {
-          const ws = t.workspaceId ? workspaceMap.get(t.workspaceId) : undefined
-          if (!ws?.folderPath) {
-            window.electronAPI?.debug?.log?.(`[workspace-store] Warning: terminal ${t.id} has no valid workspace, skipping`)
-            return null
-          }
-          const cwd = ws.folderPath
-          return {
-            id: t.id || '',
-            workspaceId: t.workspaceId || '',
-            type: 'terminal' as const,
-            agentPreset: t.agentPreset,
-            title: t.title || 'Terminal',
-            alias: t.alias,
-            cwd,
-            sdkSessionId: t.sdkSessionId,
-            model: t.model,
-            agentParams: normalizeAgentParams(t.agentPreset, t.agentParams),
-            sessionMeta: t.sessionMeta,
-            scrollbackBuffer: [],
-            pid: undefined,
-          }
-        }).filter((t: TerminalInstance | null): t is TerminalInstance => t !== null)
-        this.state = {
-          ...this.state,
-          workspaces,
-          activeWorkspaceId: parsed.activeWorkspaceId || null,
-          terminals,
-          activeTerminalId: parsed.activeTerminalId || null,
-        }
-        this.activeGroup = parsed.activeGroup || null
-
-        // Restore UI layout from saved snapshot (if available)
-        if (parsed.layout) {
-          restoreLayoutSnapshot(parsed.layout)
-        }
-
-        this.notify()
-      } catch (e) {
-        window.electronAPI?.debug?.log?.(`Failed to parse workspace data: ${e}`)
-        console.error('Failed to parse workspace data:', e)
-      }
+      this.applySerializedData(data)
     }
 
     // Start periodic auto-save (30s) after initial load
     this.startAutoSave()
+  }
+
+  private applySerializedData(data: string): void {
+    try {
+      const parsed = JSON.parse(data)
+      const workspaces: Workspace[] = parsed.workspaces || []
+      const workspaceMap = new Map(workspaces.map((w: Workspace) => [w.id, w]))
+      const terminals = (parsed.terminals || []).map((t: Partial<TerminalInstance>): TerminalInstance | null => {
+        const ws = t.workspaceId ? workspaceMap.get(t.workspaceId) : undefined
+        if (!ws?.folderPath) {
+          window.electronAPI?.debug?.log?.(`[workspace-store] Warning: terminal ${t.id} has no valid workspace, skipping`)
+          return null
+        }
+        const cwd = ws.folderPath
+        return {
+          id: t.id || '',
+          workspaceId: t.workspaceId || '',
+          type: 'terminal' as const,
+          agentPreset: t.agentPreset,
+          title: t.title || 'Terminal',
+          alias: t.alias,
+          cwd,
+          sdkSessionId: t.sdkSessionId,
+          model: t.model,
+          agentParams: normalizeAgentParams(t.agentPreset, t.agentParams),
+          sessionMeta: t.sessionMeta,
+          scrollbackBuffer: [],
+          pid: undefined,
+        }
+      }).filter((t: TerminalInstance | null): t is TerminalInstance => t !== null)
+      this.state = {
+        ...this.state,
+        workspaces,
+        activeWorkspaceId: parsed.activeWorkspaceId || null,
+        terminals,
+        activeTerminalId: parsed.activeTerminalId || null,
+      }
+      this.activeGroup = parsed.activeGroup || null
+
+      if (parsed.layout) {
+        restoreLayoutSnapshot(parsed.layout)
+      }
+
+      this.notify()
+    } catch (e) {
+      window.electronAPI?.debug?.log?.(`Failed to parse workspace data: ${e}`)
+      console.error('Failed to parse workspace data:', e)
+    }
   }
 
   /** Start periodic auto-save to protect against crash data loss */

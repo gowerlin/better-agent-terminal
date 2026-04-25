@@ -14,6 +14,7 @@ import DOMPurify from 'dompurify'
 import { useVoicePopover } from '../hooks/useVoicePopover'
 import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
+import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 
 // Markdown rendering for completed assistant messages
 // Note: marked.use() modifies the global marked instance (shared with FileTree).
@@ -117,6 +118,7 @@ interface ClaudeAgentPanelProps {
   cwd: string
   isActive: boolean
   workspaceId?: string
+  isRemoteConnected?: boolean
   showUserMsg?: boolean
   showAssistantMsg?: boolean
   showToolMsg?: boolean
@@ -138,8 +140,9 @@ type MessageItem = ClaudeMessage | ClaudeToolCall
 // Track sessions that have been started to prevent duplicate calls across StrictMode remounts
 const startedSessions = new Set<string>()
 
-export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<ClaudeAgentPanelProps>) {
+export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemoteConnected, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<ClaudeAgentPanelProps>) {
   const { t } = useTranslation()
+  const isRemoteConnectedRef = useRef(!!isRemoteConnected)
   // Determine if this is a V2 session based on agentPreset
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isV2Session = terminal?.agentPreset === 'claude-code-v2'
@@ -276,10 +279,17 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
   const permissionCardRef = useRef<HTMLDivElement>(null)
   const [userScrolledUp, setUserScrolledUp] = useState(false)
   const isNearBottomRef = useRef(true)
+  const followOutputRef = useRef(true)
+  const lastScrollTopRef = useRef(0)
+  const userScrollIntentUntilRef = useRef(0)
   const [aboveViewportUserMsgIds, setAboveViewportUserMsgIds] = useState<Set<string>>(new Set())
   const [claudeFontSize, setClaudeFontSize] = useState(settingsStore.getSettings().fontSize)
   const userMsgRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
   const observerRef = useRef<IntersectionObserver | null>(null)
+
+  useEffect(() => {
+    isRemoteConnectedRef.current = !!isRemoteConnected
+  }, [isRemoteConnected])
 
   // Check if scrolled near bottom (within 80px)
   const checkIfNearBottom = useCallback(() => {
@@ -290,24 +300,73 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
 
   // Auto-scroll to bottom — use instant scroll to avoid layout thrashing with rapid updates
   const scrollToBottom = useCallback(() => {
+    const el = messagesContainerRef.current
+    if (el) {
+      el.scrollTop = el.scrollHeight
+      lastScrollTopRef.current = el.scrollTop
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior })
     setUserScrolledUp(false)
     isNearBottomRef.current = true
+    followOutputRef.current = true
   }, [])
+
+  const scrollToBottomAfterRender = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToBottom()
+      })
+    })
+  }, [scrollToBottom])
 
   // Handle user scroll events on messages container
   const handleMessagesScroll = useCallback(() => {
+    const el = messagesContainerRef.current
+    if (!el) return
     const nearBottom = checkIfNearBottom()
+    const delta = el.scrollTop - lastScrollTopRef.current
+    lastScrollTopRef.current = el.scrollTop
     isNearBottomRef.current = nearBottom
-    setUserScrolledUp(!nearBottom)
+    if (nearBottom) {
+      followOutputRef.current = true
+      setUserScrolledUp(false)
+      return
+    }
+    if (performance.now() < userScrollIntentUntilRef.current && delta < -1) {
+      followOutputRef.current = false
+      setUserScrolledUp(true)
+      return
+    }
+    if (!followOutputRef.current) setUserScrolledUp(true)
   }, [checkIfNearBottom])
+
+  const markUserScrollIntent = useCallback(() => {
+    userScrollIntentUntilRef.current = performance.now() + 1500
+  }, [])
+
+  const handleMessagesWheel = useCallback((e: React.WheelEvent) => {
+    markUserScrollIntent()
+    if (e.deltaY < 0) {
+      followOutputRef.current = false
+      isNearBottomRef.current = false
+      setUserScrolledUp(true)
+    }
+  }, [markUserScrollIntent])
+
+  const handleMessagesMouseDown = useCallback(() => {
+    markUserScrollIntent()
+  }, [markUserScrollIntent])
+
+  const handleMessagesMouseUp = useCallback(() => {
+    userScrollIntentUntilRef.current = performance.now() + 300
+  }, [])
 
   // Only auto-scroll if user hasn't scrolled up
   useEffect(() => {
-    if (isNearBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior })
+    if (followOutputRef.current) {
+      scrollToBottomAfterRender()
     }
-  }, [messages, streamingText, streamingThinking])
+  }, [messages, scrollToBottomAfterRender, streamingText, streamingThinking])
 
   // Auto-scroll streaming thinking <pre> to bottom so latest content is visible
   useEffect(() => {
@@ -521,14 +580,28 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
             ? { ...message, thinking: prevThinking }
             : message
           setMessages(prev => {
-            if (prev.some(m => m.id === finalMsg.id)) return prev
-            // Dedup user messages: if a local user message with same content exists within 5s, skip
-            if (finalMsg.role === 'user' && prev.some(m =>
+            let nextPrev = prev
+            const interruptedContinuation = finalMsg.role === 'user'
+              ? extractInterruptedContinuation(finalMsg.content)
+              : null
+            const normalizedFinalMsg = interruptedContinuation
+              ? { ...finalMsg, content: interruptedContinuation }
+              : finalMsg
+            if (interruptedContinuation) {
+              nextPrev = nextPrev.filter(m =>
+                !isToolCall(m) &&
+                (m as ClaudeMessage).role === 'user' &&
+                (m as ClaudeMessage).content === interruptedContinuation &&
+                Math.abs((m as ClaudeMessage).timestamp - normalizedFinalMsg.timestamp) < 10_000
+              )
+            }
+            if (nextPrev.some(m => m.id === normalizedFinalMsg.id)) return nextPrev
+            if (normalizedFinalMsg.role === 'user' && nextPrev.some(m =>
               !isToolCall(m) && (m as ClaudeMessage).role === 'user' &&
-              (m as ClaudeMessage).content === finalMsg.content &&
-              Math.abs((m as ClaudeMessage).timestamp - finalMsg.timestamp) < 5000
-            )) return prev
-            return [...prev, finalMsg]
+              (m as ClaudeMessage).content === normalizedFinalMsg.content &&
+              Math.abs((m as ClaudeMessage).timestamp - normalizedFinalMsg.timestamp) < 5000
+            )) return nextPrev
+            return [...nextPrev, normalizedFinalMsg]
           })
           return ''
         })
@@ -1310,14 +1383,16 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           `Set workspaceId on a snippet to scope it to a specific workspace, or omit for global visibility.`,
           query ? '' : `How would you like to work with your snippets?`,
         ].filter(Boolean).join('\n')
-        // Show clean user message
-        setMessages(prev => [...prev, {
-          id: `user-${Date.now()}`,
-          sessionId,
-          role: 'user' as const,
-          content: trimmed,
-          timestamp: Date.now(),
-        }])
+        // Show clean user message only for local sessions; remote sessions mirror from host.
+        if (!isRemoteConnectedRef.current) {
+          setMessages(prev => [...prev, {
+            id: `user-${Date.now()}`,
+            sessionId,
+            role: 'user' as const,
+            content: trimmed,
+            timestamp: Date.now(),
+          }])
+        }
         setIsStreaming(true)
         setIsInterrupted(false)
         setStreamingText('')
@@ -1356,7 +1431,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
       promptToSend = filePrefix + (trimmed ? '\n\n' + trimmed : '')
     }
 
-    // Add user message locally
+    // Add user message locally only for non-remote sessions.
     const imageNote = imageDataUrls.length > 0
       ? `\n[${imageDataUrls.length} image${imageDataUrls.length > 1 ? 's' : ''} attached]`
       : ''
@@ -1367,13 +1442,15 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
     const displayContent = (trimmed + imageNote + fileNote).replace(/^\n/, '')
     const userMsgId = `user-${Date.now()}`
     currentTurnMsgIdRef.current = userMsgId
-    setMessages(prev => [...prev, {
-      id: userMsgId,
-      sessionId,
-      role: 'user' as const,
-      content: displayContent,
-      timestamp: Date.now(),
-    }])
+    if (!isRemoteConnectedRef.current) {
+      setMessages(prev => [...prev, {
+        id: userMsgId,
+        sessionId,
+        role: 'user' as const,
+        content: displayContent,
+        timestamp: Date.now(),
+      }])
+    }
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
   }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput])
@@ -2818,7 +2895,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, showUs
           })}
         </div>
       )}
-      <div className="claude-messages claude-timeline" ref={messagesContainerRef} onScroll={handleMessagesScroll}>
+      <div
+        className="claude-messages claude-timeline"
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
+        onWheel={handleMessagesWheel}
+        onMouseDown={handleMessagesMouseDown}
+        onMouseUp={handleMessagesMouseUp}
+      >
         {(hasMoreArchived || isLoadingMore) && (
           <div className="claude-load-more">
             <button

@@ -14,6 +14,7 @@ import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown
 import { useVoicePopover } from '../hooks/useVoicePopover'
 import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
+import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 
 interface SessionMeta {
   model?: string
@@ -89,6 +90,7 @@ export interface CodexAgentPanelProps {
   isActive: boolean
   workspaceId?: string
   onClose?: (id: string) => void
+  isRemoteConnected?: boolean
   showUserMsg?: boolean
   showAssistantMsg?: boolean
   showToolMsg?: boolean
@@ -110,8 +112,9 @@ type MessageItem = ClaudeMessage | ClaudeToolCall
 // Track sessions that have been started to prevent duplicate calls across StrictMode remounts
 const startedSessions = new Set<string>()
 
-export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<CodexAgentPanelProps>) {
+export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose, isRemoteConnected, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<CodexAgentPanelProps>) {
   const { t } = useTranslation()
+  const isRemoteConnectedRef = useRef(!!isRemoteConnected)
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isCodexSession = true
   const isV2Session = terminal?.agentPreset === 'claude-code-v2'
@@ -308,6 +311,10 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const [claudeFontSize, setClaudeFontSize] = useState(settingsStore.getSettings().fontSize)
   const userMsgRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
   const observerRef = useRef<IntersectionObserver | null>(null)
+
+  useEffect(() => {
+    isRemoteConnectedRef.current = !!isRemoteConnected
+  }, [isRemoteConnected])
   const { voice, popoverState, transcriptionMeta, handleConfirm: handleVoiceConfirm, handleCancel: handleVoiceCancel } = useVoicePopover({
     onConfirm: (text) => {
       const cur = inputValueRef.current
@@ -626,14 +633,28 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
             ? { ...message, thinking: prevThinking }
             : message
           setMessages(prev => {
-            if (prev.some(m => m.id === finalMsg.id)) return prev
-            // Dedup user messages: if a local user message with same content exists within 5s, skip
-            if (finalMsg.role === 'user' && prev.some(m =>
+            let nextPrev = prev
+            const interruptedContinuation = finalMsg.role === 'user'
+              ? extractInterruptedContinuation(finalMsg.content)
+              : null
+            const normalizedFinalMsg = interruptedContinuation
+              ? { ...finalMsg, content: interruptedContinuation }
+              : finalMsg
+            if (interruptedContinuation) {
+              nextPrev = nextPrev.filter(m =>
+                !isToolCall(m) &&
+                (m as ClaudeMessage).role === 'user' &&
+                (m as ClaudeMessage).content === interruptedContinuation &&
+                Math.abs((m as ClaudeMessage).timestamp - normalizedFinalMsg.timestamp) < 10_000
+              )
+            }
+            if (nextPrev.some(m => m.id === normalizedFinalMsg.id)) return nextPrev
+            if (normalizedFinalMsg.role === 'user' && nextPrev.some(m =>
               !isToolCall(m) && (m as ClaudeMessage).role === 'user' &&
-              (m as ClaudeMessage).content === finalMsg.content &&
-              Math.abs((m as ClaudeMessage).timestamp - finalMsg.timestamp) < 5000
-            )) return prev
-            return [...prev, finalMsg]
+              (m as ClaudeMessage).content === normalizedFinalMsg.content &&
+              Math.abs((m as ClaudeMessage).timestamp - normalizedFinalMsg.timestamp) < 5000
+            )) return nextPrev
+            return [...nextPrev, normalizedFinalMsg]
           })
           return ''
         })
@@ -720,11 +741,13 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           const acPrompt = ac.prompt
           const userMsgId = `user-ac-${Date.now()}`
           currentTurnMsgIdRef.current = userMsgId
-          setMessages(prev => [...prev, {
-            id: userMsgId, sessionId, role: 'user' as const,
-            content: `${acPrompt}  [auto ${ac.used}/${ac.max}]`,
-            timestamp: Date.now(),
-          }])
+          if (!isRemoteConnectedRef.current) {
+            setMessages(prev => [...prev, {
+              id: userMsgId, sessionId, role: 'user' as const,
+              content: `${acPrompt}  [auto ${ac.used}/${ac.max}]`,
+              timestamp: Date.now(),
+            }])
+          }
           setIsStreaming(true)
           setTimeout(() => {
             window.electronAPI.claude.sendMessage(sessionId, acPrompt)
@@ -959,13 +982,16 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           workspaceStore.setTerminalPendingPrompt(sessionId, '')
           window.electronAPI?.debug?.log(`${tag} onHistory AUTO-SENDING pending prompt: "${prompt}" images=${images?.length ?? 0}`)
           // Set history + user message together so it doesn't get overwritten
-          setMessages([...historyItems, {
-            id: `user-fork-${Date.now()}`,
-            sessionId,
-            role: 'user' as const,
-            content: prompt,
-            timestamp: Date.now(),
-          }])
+          setMessages([
+            ...historyItems,
+            ...(isRemoteConnectedRef.current ? [] : [{
+              id: `user-fork-${Date.now()}`,
+              sessionId,
+              role: 'user' as const,
+              content: prompt,
+              timestamp: Date.now(),
+            }]),
+          ])
           scrollToBottomAfterRender()
           setIsStreaming(true)
           window.electronAPI.claude.sendMessage(sessionId, prompt, images)
@@ -1663,14 +1689,16 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           `Set workspaceId on a snippet to scope it to a specific workspace, or omit for global visibility.`,
           query ? '' : `How would you like to work with your snippets?`,
         ].filter(Boolean).join('\n')
-        // Show clean user message
-        setMessages(prev => [...prev, {
-          id: `user-${Date.now()}`,
-          sessionId,
-          role: 'user' as const,
-          content: trimmed,
-          timestamp: Date.now(),
-        }])
+        // Show clean user message only for local sessions; remote sessions mirror from host.
+        if (!isRemoteConnectedRef.current) {
+          setMessages(prev => [...prev, {
+            id: `user-${Date.now()}`,
+            sessionId,
+            role: 'user' as const,
+            content: trimmed,
+            timestamp: Date.now(),
+          }])
+        }
         setIsStreaming(true)
         setIsInterrupted(false)
         setStreamingText('')
@@ -1722,7 +1750,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       promptToSend = filePrefix + (trimmed ? '\n\n' + trimmed : '')
     }
 
-    // Add user message locally
+    // Add user message locally only for non-remote sessions.
     const imageNote = imageDataUrls.length > 0
       ? `\n[${imageDataUrls.length} image${imageDataUrls.length > 1 ? 's' : ''} attached]`
       : ''
@@ -1733,13 +1761,15 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     const displayContent = (trimmed + imageNote + fileNote).replace(/^\n/, '')
     const userMsgId = `user-${Date.now()}`
     currentTurnMsgIdRef.current = userMsgId
-    setMessages(prev => [...prev, {
-      id: userMsgId,
-      sessionId,
-      role: 'user' as const,
-      content: displayContent,
-      timestamp: Date.now(),
-    }])
+    if (!isRemoteConnectedRef.current) {
+      setMessages(prev => [...prev, {
+        id: userMsgId,
+        sessionId,
+        role: 'user' as const,
+        content: displayContent,
+        timestamp: Date.now(),
+      }])
+    }
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
   }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput])

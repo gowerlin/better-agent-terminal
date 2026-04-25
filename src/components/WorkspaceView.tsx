@@ -117,6 +117,7 @@ interface WorkspaceViewProps {
   terminals: TerminalInstance[]
   focusedTerminalId: string | null
   isActive: boolean
+  isRemoteConnected?: boolean
   isMaximized?: boolean
   onMaximizeToggle?: () => void
   dockedPanels?: DockablePanel[]
@@ -158,7 +159,7 @@ export function clearInitializedWorkspaces(): void {
   initializedWorkspaces.clear()
 }
 
-export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel }: Readonly<WorkspaceViewProps>) {
+export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isRemoteConnected, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel }: Readonly<WorkspaceViewProps>) {
   const { t } = useTranslation()
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
@@ -947,6 +948,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                   onClose={handleCloseTerminal}
                   onRestart={handleRestart}
                   onSwitchApiVersion={handleSwitchApiVersion}
+                  isRemoteConnected={isRemoteConnected}
                   workspaceId={workspace.id}
                 />
               </div>
@@ -967,6 +969,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                   onClose={handleCloseTerminal}
                   onRestart={handleRestart}
                   onSwitchApiVersion={handleSwitchApiVersion}
+                  isRemoteConnected={isRemoteConnected}
                   workspaceId={workspace.id}
                 />
               </div>

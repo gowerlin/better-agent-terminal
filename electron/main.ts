@@ -1892,6 +1892,7 @@ function registerProxiedHandlers() {
     if (entry.profileId) {
       profileManager.save(entry.profileId).catch(() => { /* ignore */ })
     }
+    broadcastHub.broadcast('workspace:reload', data)
     return true
   })
   registerHandler('workspace:load', async (ctx) => {
@@ -3187,6 +3188,7 @@ function registerLocalHandlers() {
     const targetWin = windowMap.get(targetWindowId)
     if (sourceWin && !sourceWin.isDestroyed()) sourceWin.webContents.send('workspace:reload')
     if (targetWin && !targetWin.isDestroyed()) targetWin.webContents.send('workspace:reload')
+    broadcastHub.broadcast('workspace:reload')
 
     logger.log(`[workspace] Moved workspace ${workspaceId} from ${sourceWindowId} to ${targetWindowId}`)
     return true

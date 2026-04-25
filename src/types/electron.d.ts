@@ -49,7 +49,7 @@ interface ElectronAPI {
     onDetached: (callback: (workspaceId: string) => void) => () => void
     onReattached: (callback: (workspaceId: string) => void) => () => void
     moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) => Promise<boolean>
-    onReload: (callback: () => void) => () => void
+    onReload: (callback: (data?: string) => void) => () => void
     onFlushSave: (callback: () => Promise<void>) => () => void
   }
   settings: {

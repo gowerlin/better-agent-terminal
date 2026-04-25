@@ -22,10 +22,11 @@ interface MainPanelProps {
   onClose: (id: string) => void
   onRestart: (id: string) => void
   onSwitchApiVersion?: (id: string) => void
+  isRemoteConnected?: boolean
   workspaceId?: string
 }
 
-export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, workspaceId }: Readonly<MainPanelProps>) {
+export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, isRemoteConnected, workspaceId }: Readonly<MainPanelProps>) {
   const isAgent = isAgentCheck(terminal.agentPreset)
   const isClaudeCode = isIntegrated(terminal.agentPreset || '')
   const canSwitchClaudeApiVersion = isClaudeSdk(terminal.agentPreset || '')
@@ -235,6 +236,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
                 isActive={isActive}
                 workspaceId={workspaceId}
                 onClose={onClose}
+                isRemoteConnected={isRemoteConnected}
                 showUserMsg={showUserMsg}
                 showAssistantMsg={showAssistantMsg}
                 showToolMsg={showToolMsg}
@@ -246,6 +248,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
                 cwd={terminal.cwd}
                 isActive={isActive}
                 workspaceId={workspaceId}
+                isRemoteConnected={isRemoteConnected}
                 showUserMsg={showUserMsg}
                 showAssistantMsg={showAssistantMsg}
                 showToolMsg={showToolMsg}
