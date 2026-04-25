@@ -67,6 +67,7 @@ if (process.platform === 'win32') {
 
 import { PtyManager } from './pty-manager'
 import { ClaudeAgentManager } from './claude-agent-manager'
+import { CodexAgentManager } from './codex-agent-manager'
 import { worktreeManager } from './worktree-manager'
 import { checkForUpdates, UpdateCheckResult } from './update-checker'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
@@ -412,6 +413,8 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
 
 let ptyManager: PtyManager | null = null
 let claudeManager: ClaudeAgentManager | null = null
+let codexManager: CodexAgentManager | null = null
+const sessionManagerMap = new Map<string, 'claude' | 'codex'>()
 let updateCheckResult: UpdateCheckResult | null = null
 const profileManager = new ProfileManager()
 const remoteServer = new RemoteServer()
@@ -861,6 +864,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
     ptyManager = new PtyManager(getAllWindows)
   }
   if (!claudeManager) claudeManager = new ClaudeAgentManager(getAllWindows)
+  if (!codexManager) codexManager = new CodexAgentManager(getAllWindows)
 
   const urlParam = `?windowId=${encodeURIComponent(windowId)}`
   if (VITE_DEV_SERVER_URL) {
@@ -1018,9 +1022,13 @@ function cleanupAllProcesses() {
   try { remoteServer.stop() } catch { /* ignore */ }
   try { claudeManager?.killAll() } catch { /* ignore */ }
   try { claudeManager?.dispose() } catch { /* ignore */ }
+  try { codexManager?.killAll() } catch { /* ignore */ }
+  try { codexManager?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   remoteClient = null
   claudeManager = null
+  codexManager = null
+  sessionManagerMap.clear()
   ptyManager = null
 }
 
@@ -2081,21 +2089,34 @@ function registerProxiedHandlers() {
     }
   })
 
-  // Claude Agent SDK
-  registerHandler('claude:start-session', (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) => claudeManager?.startSession(sessionId, options))
-  registerHandler('claude:send-message', (_ctx, sessionId: string, prompt: string, images?: string[]) => claudeManager?.sendMessage(sessionId, prompt, images))
-  registerHandler('claude:stop-session', (_ctx, sessionId: string) => claudeManager?.stopSession(sessionId))
-  registerHandler('claude:abort-session', (_ctx, sessionId: string) => claudeManager?.abortSession(sessionId))
+  const getSessionManager = (sessionId: string) =>
+    sessionManagerMap.get(sessionId) === 'codex' ? codexManager : claudeManager
+
+  // Integrated Agent SDKs. Codex intentionally shares the existing claude:* renderer
+  // event surface so the chat panels can reuse the mature Claude UI plumbing.
+  registerHandler('claude:start-session', async (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'; codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never' }) => {
+    if (options.agentPreset === 'codex-agent') {
+      sessionManagerMap.set(sessionId, 'codex')
+      return codexManager?.startSession(sessionId, options)
+    }
+    sessionManagerMap.set(sessionId, 'claude')
+    return claudeManager?.startSession(sessionId, options)
+  })
+  registerHandler('claude:send-message', (_ctx, sessionId: string, prompt: string, images?: string[]) => getSessionManager(sessionId)?.sendMessage(sessionId, prompt, images))
+  registerHandler('claude:stop-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.stopSession(sessionId))
+  registerHandler('claude:abort-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.abortSession(sessionId))
   registerHandler('claude:set-permission-mode', (_ctx, sessionId: string, mode: string) => claudeManager?.setPermissionMode(sessionId, mode as import('@anthropic-ai/claude-agent-sdk').PermissionMode))
-  registerHandler('claude:set-model', (_ctx, sessionId: string, model: string) => claudeManager?.setModel(sessionId, model))
-  registerHandler('claude:set-effort', (_ctx, sessionId: string, effort: string) => claudeManager?.setEffort(sessionId, effort as import('../src/types').EffortLevel))
-  registerHandler('claude:reset-session', (_ctx, sessionId: string) => claudeManager?.resetSession(sessionId))
-  registerHandler('claude:get-supported-models', (_ctx, sessionId: string) => claudeManager?.getSupportedModels(sessionId))
-  registerHandler('claude:get-account-info', (_ctx, sessionId: string) => claudeManager?.getAccountInfo(sessionId))
-  registerHandler('claude:get-supported-commands', (_ctx, sessionId: string) => claudeManager?.getSupportedCommands(sessionId))
-  registerHandler('claude:get-supported-agents', (_ctx, sessionId: string) => claudeManager?.getSupportedAgents(sessionId))
-  registerHandler('claude:get-worktree-status', (_ctx, sessionId: string) => claudeManager?.getWorktreeStatus(sessionId))
-  registerHandler('claude:cleanup-worktree', (_ctx, sessionId: string, deleteBranch: boolean) => claudeManager?.cleanupWorktree(sessionId, deleteBranch))
+  registerHandler('claude:set-codex-sandbox-mode', (_ctx, sessionId: string, mode: 'read-only' | 'workspace-write' | 'danger-full-access') => codexManager?.setSandboxMode(sessionId, mode))
+  registerHandler('claude:set-codex-approval-policy', (_ctx, sessionId: string, policy: 'untrusted' | 'on-request' | 'never') => codexManager?.setApprovalPolicy(sessionId, policy))
+  registerHandler('claude:set-model', (_ctx, sessionId: string, model: string) => getSessionManager(sessionId)?.setModel(sessionId, model))
+  registerHandler('claude:set-effort', (_ctx, sessionId: string, effort: string) => getSessionManager(sessionId)?.setEffort(sessionId, effort as import('../src/types').EffortLevel))
+  registerHandler('claude:reset-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.resetSession(sessionId))
+  registerHandler('claude:get-supported-models', (_ctx, sessionId: string) => getSessionManager(sessionId)?.getSupportedModels(sessionId))
+  registerHandler('claude:get-account-info', (_ctx, sessionId: string) => getSessionManager(sessionId)?.getAccountInfo(sessionId))
+  registerHandler('claude:get-supported-commands', (_ctx, sessionId: string) => getSessionManager(sessionId)?.getSupportedCommands(sessionId))
+  registerHandler('claude:get-supported-agents', (_ctx, sessionId: string) => getSessionManager(sessionId)?.getSupportedAgents(sessionId))
+  registerHandler('claude:get-worktree-status', (_ctx, sessionId: string) => getSessionManager(sessionId)?.getWorktreeStatus(sessionId))
+  registerHandler('claude:cleanup-worktree', (_ctx, sessionId: string, deleteBranch: boolean) => getSessionManager(sessionId)?.cleanupWorktree(sessionId, deleteBranch))
   // Standalone worktree operations (for claude-cli preset, not tied to SDK session)
   registerHandler('worktree:create', async (_ctx, sessionId: string, cwd: string) => {
     try {
@@ -2187,6 +2208,10 @@ function registerProxiedHandlers() {
       })
     })
   })
+  registerHandler('claude:auth-login', async () => ({ success: false, error: 'Auth login is not available in this build' }))
+  registerHandler('claude:account-list', async () => ({ accounts: [], activeAccountId: null, switchWarningShown: true }))
+  registerHandler('claude:account-import-current', async () => null)
+  registerHandler('claude:account-switch', async () => false)
 
   // Scan .claude/commands/ directories for skill files
   registerHandler('claude:scan-skills', async (_ctx, cwd: string) => {
@@ -2392,18 +2417,27 @@ function registerProxiedHandlers() {
 
     return result
   })
-  registerHandler('claude:get-session-meta', (_ctx, sessionId: string) => claudeManager?.getSessionMeta(sessionId))
-  registerHandler('claude:get-context-usage', (_ctx, sessionId: string) => claudeManager?.getContextUsage(sessionId))
-  registerHandler('claude:resolve-permission', (_ctx, sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) => claudeManager?.resolvePermission(sessionId, toolUseId, result))
-  registerHandler('claude:resolve-ask-user', (_ctx, sessionId: string, toolUseId: string, answers: Record<string, string>) => claudeManager?.resolveAskUser(sessionId, toolUseId, answers))
-  registerHandler('claude:list-sessions', (_ctx, cwd: string) => claudeManager?.listSessions(cwd))
-  registerHandler('claude:resume-session', (_ctx, sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string) => claudeManager?.resumeSession(sessionId, sdkSessionId, cwd, model, apiVersion, useWorktree, worktreePath, worktreeBranch))
-  registerHandler('claude:fork-session', (_ctx, sessionId: string) => claudeManager?.forkSession(sessionId))
-  registerHandler('claude:stop-task', (_ctx, sessionId: string, taskId: string) => claudeManager?.stopTask(sessionId, taskId))
-  registerHandler('claude:rest-session', (_ctx, sessionId: string) => claudeManager?.restSession(sessionId))
-  registerHandler('claude:wake-session', (_ctx, sessionId: string) => claudeManager?.wakeSession(sessionId))
-  registerHandler('claude:is-resting', (_ctx, sessionId: string) => claudeManager?.isResting(sessionId) ?? false)
-  registerHandler('claude:fetch-subagent-messages', (_ctx, sessionId: string, agentToolUseId: string) => claudeManager?.fetchSubagentMessages(sessionId, agentToolUseId) ?? [])
+  registerHandler('claude:get-session-meta', (_ctx, sessionId: string) => getSessionManager(sessionId)?.getSessionMeta(sessionId))
+  registerHandler('claude:get-context-usage', (_ctx, sessionId: string) => getSessionManager(sessionId)?.getContextUsage(sessionId))
+  registerHandler('claude:resolve-permission', (_ctx, sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) => getSessionManager(sessionId)?.resolvePermission(sessionId, toolUseId, result))
+  registerHandler('claude:resolve-ask-user', (_ctx, sessionId: string, toolUseId: string, answers: Record<string, string>) => getSessionManager(sessionId)?.resolveAskUser(sessionId, toolUseId, answers))
+  registerHandler('claude:list-sessions', (_ctx, cwd: string, agentPreset?: string) =>
+    agentPreset === 'codex-agent' ? codexManager?.listSessions(cwd) : claudeManager?.listSessions(cwd))
+  registerHandler('claude:resume-session', (_ctx, sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string, agentPreset?: string, codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access', codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never') => {
+    if (agentPreset === 'codex-agent') {
+      sessionManagerMap.set(sessionId, 'codex')
+      return codexManager?.resumeSession(sessionId, sdkSessionId, cwd, model, codexSandboxMode, codexApprovalPolicy)
+    }
+    sessionManagerMap.set(sessionId, 'claude')
+    return claudeManager?.resumeSession(sessionId, sdkSessionId, cwd, model, apiVersion, useWorktree, worktreePath, worktreeBranch)
+  })
+  registerHandler('claude:fork-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.forkSession(sessionId))
+  registerHandler('claude:rewind-to-prompt', () => ({ error: 'Rewind is not available in this build' }))
+  registerHandler('claude:stop-task', (_ctx, sessionId: string, taskId: string) => getSessionManager(sessionId)?.stopTask(sessionId, taskId))
+  registerHandler('claude:rest-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.restSession(sessionId))
+  registerHandler('claude:wake-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.wakeSession(sessionId))
+  registerHandler('claude:is-resting', (_ctx, sessionId: string) => getSessionManager(sessionId)?.isResting(sessionId) ?? false)
+  registerHandler('claude:fetch-subagent-messages', (_ctx, sessionId: string, agentToolUseId: string) => getSessionManager(sessionId)?.fetchSubagentMessages(sessionId, agentToolUseId) ?? [])
 
   // Message archiving
   registerHandler('claude:archive-messages', async (_ctx, sessionId: string, messages: unknown[]) => {

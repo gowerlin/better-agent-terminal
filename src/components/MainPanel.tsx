@@ -14,6 +14,7 @@ import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 
 // Lazy load Claude Agent SDK (~240KB chunk) — only needed for claude-code terminals
 const ClaudeAgentPanel = lazy(() => import('./ClaudeAgentPanel').then(m => ({ default: m.ClaudeAgentPanel })))
+const CodexAgentPanel = lazy(() => import('./CodexAgentPanel').then(m => ({ default: m.CodexAgentPanel })))
 
 interface MainPanelProps {
   terminal: TerminalInstance
@@ -27,6 +28,7 @@ interface MainPanelProps {
 export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, workspaceId }: Readonly<MainPanelProps>) {
   const isAgent = isAgentCheck(terminal.agentPreset)
   const isClaudeCode = isIntegrated(terminal.agentPreset || '')
+  const isCodexAgent = terminal.agentPreset === 'codex-agent'
   const presetConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
   const [registryDef, setRegistryDef] = useState<AgentDefinition | null>(null)
 
@@ -225,16 +227,30 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
       <div className="main-panel-content">
         {isClaudeCode ? (
           <Suspense fallback={<div className="loading-panel" />}>
-            <ClaudeAgentPanel
-              sessionId={terminal.id}
-              cwd={terminal.cwd}
-              isActive={isActive}
-              workspaceId={workspaceId}
-              showUserMsg={showUserMsg}
-              showAssistantMsg={showAssistantMsg}
-              showToolMsg={showToolMsg}
-              showThinkingMsg={showThinkingMsg}
-            />
+            {isCodexAgent ? (
+              <CodexAgentPanel
+                sessionId={terminal.id}
+                cwd={terminal.cwd}
+                isActive={isActive}
+                workspaceId={workspaceId}
+                onClose={onClose}
+                showUserMsg={showUserMsg}
+                showAssistantMsg={showAssistantMsg}
+                showToolMsg={showToolMsg}
+                showThinkingMsg={showThinkingMsg}
+              />
+            ) : (
+              <ClaudeAgentPanel
+                sessionId={terminal.id}
+                cwd={terminal.cwd}
+                isActive={isActive}
+                workspaceId={workspaceId}
+                showUserMsg={showUserMsg}
+                showAssistantMsg={showAssistantMsg}
+                showToolMsg={showToolMsg}
+                showThinkingMsg={showThinkingMsg}
+              />
+            )}
           </Suspense>
         ) : (
           <TerminalPanel terminalId={terminal.id} isActive={isActive} />

@@ -120,9 +120,26 @@ const BUILTIN_DEFINITIONS: AgentDefinition[] = [
     supportsYolo: true,
   },
   {
+    id: 'codex-agent',
+    name: 'Codex Agent',
+    icon: '⬡',
+    color: '#10a37f',
+    providerId: 'codex-sdk',
+    providerMode: 'integrated',
+    supportsWorktree: false,
+    supportsStructuredEvents: true,
+    supportsImages: true,
+    supportsResume: true,
+    supportsModelSelection: true,
+    supportsApprovalFlow: true,
+    supportsSandbox: true,
+    supportsYolo: true,
+    suggested: true,
+  },
+  {
     id: 'codex-cli',
     name: 'Codex CLI',
-    icon: '⬡',
+    icon: '▶',
     color: '#10a37f',
     providerId: 'codex-cli',
     providerMode: 'terminal-driven',
@@ -395,10 +412,16 @@ class AgentRegistry {
 
         if (definitionId === 'codex-cli') {
           if (opt.key === 'approval-mode' && typeof val === 'string') {
-            parts.push(`--approval-mode=${val}`)
+            if (val === 'full-auto') {
+              parts.push('--full-auto')
+            } else if (val === 'auto-edit') {
+              parts.push('--ask-for-approval=on-request', '--sandbox=workspace-write')
+            } else {
+              parts.push('--ask-for-approval=on-request', '--sandbox=read-only')
+            }
           }
           if (opt.key === 'sandbox') {
-            if (val === 'false' || val === false) parts.push('--no-sandbox')
+            if (val === 'false' || val === false) parts.push('--sandbox=danger-full-access')
           }
         } else if (definitionId === 'gemini-cli') {
           if (opt.key === 'sandbox' && (val === true || val === 'true')) {

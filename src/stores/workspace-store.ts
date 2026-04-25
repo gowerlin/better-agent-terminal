@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import type { Workspace, TerminalInstance, AppState } from '../types'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
+import { normalizeAgentParams } from '../types/agent-profiles'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { settingsStore } from './settings-store'
 
@@ -301,7 +302,8 @@ class WorkspaceStore {
       title,
       cwd: workspace.folderPath,
       scrollbackBuffer: [],
-      lastActivityTime: Date.now()
+      lastActivityTime: Date.now(),
+      agentParams: normalizeAgentParams(agentPreset)
     }
 
     // Auto-focus if it's an agent terminal or no current focus
@@ -425,6 +427,21 @@ class WorkspaceStore {
       ...this.state,
       terminals: this.state.terminals.map(t =>
         t.id === id ? { ...t, model } : t
+      )
+    }
+
+    this.notify()
+    this.save()
+  }
+
+  updateTerminalAgentParams(id: string, params: Record<string, string | number | boolean>): void {
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t =>
+        t.id === id ? {
+          ...t,
+          agentParams: normalizeAgentParams(t.agentPreset, { ...(t.agentParams || {}), ...params }),
+        } : t
       )
     }
 
@@ -715,6 +732,7 @@ class WorkspaceStore {
         cwd: t.cwd,
         sdkSessionId: t.sdkSessionId,
         model: t.model,
+        agentParams: t.agentParams,
         sessionMeta: t.sessionMeta,
       }))
       const data = JSON.stringify({
@@ -758,6 +776,7 @@ class WorkspaceStore {
             cwd,
             sdkSessionId: t.sdkSessionId,
             model: t.model,
+            agentParams: normalizeAgentParams(t.agentPreset, t.agentParams),
             sessionMeta: t.sessionMeta,
             scrollbackBuffer: [],
             pid: undefined,

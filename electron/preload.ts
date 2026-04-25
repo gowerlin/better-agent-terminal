@@ -130,7 +130,7 @@ const electronAPI = {
     writeImage: (filePath: string) => ipcRenderer.invoke('clipboard:writeImage', filePath),
   },
   claude: {
-    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }) =>
+    startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; autoCompactWindow?: number; agentPreset?: string; codexSandboxMode?: string; codexApprovalPolicy?: string }) =>
       ipcRenderer.invoke('claude:start-session', sessionId, options),
     sendMessage: (sessionId: string, prompt: string, images?: string[]) =>
       ipcRenderer.invoke('claude:send-message', sessionId, prompt, images),
@@ -180,8 +180,12 @@ const electronAPI = {
     },
     setPermissionMode: (sessionId: string, mode: string) =>
       ipcRenderer.invoke('claude:set-permission-mode', sessionId, mode),
-    setModel: (sessionId: string, model: string) =>
-      ipcRenderer.invoke('claude:set-model', sessionId, model),
+    setCodexSandboxMode: (sessionId: string, mode: 'read-only' | 'workspace-write' | 'danger-full-access') =>
+      ipcRenderer.invoke('claude:set-codex-sandbox-mode', sessionId, mode),
+    setCodexApprovalPolicy: (sessionId: string, policy: 'untrusted' | 'on-request' | 'never') =>
+      ipcRenderer.invoke('claude:set-codex-approval-policy', sessionId, policy),
+    setModel: (sessionId: string, model: string, autoCompactWindow?: number) =>
+      ipcRenderer.invoke('claude:set-model', sessionId, model, autoCompactWindow),
     setEffort: (sessionId: string, effort: string) =>
       ipcRenderer.invoke('claude:set-effort', sessionId, effort),
     resetSession: (sessionId: string) =>
@@ -242,18 +246,28 @@ const electronAPI = {
       }>,
     authStatus: () =>
       ipcRenderer.invoke('claude:auth-status') as Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>,
+    authLogin: () =>
+      ipcRenderer.invoke('claude:auth-login') as Promise<{ success: boolean; error?: string }>,
     authLogout: () =>
       ipcRenderer.invoke('claude:auth-logout') as Promise<{ success: boolean; error?: string }>,
+    accountList: () =>
+      ipcRenderer.invoke('claude:account-list') as Promise<{ accounts: { id: string; email: string; subscriptionType?: string; isDefault: boolean; createdAt: number }[]; activeAccountId: string | null; switchWarningShown: boolean }>,
+    accountImportCurrent: () =>
+      ipcRenderer.invoke('claude:account-import-current') as Promise<{ id: string; email: string; subscriptionType?: string } | null>,
+    accountSwitch: (accountId: string) =>
+      ipcRenderer.invoke('claude:account-switch', accountId) as Promise<boolean>,
     resolvePermission: (sessionId: string, toolUseId: string, result: { behavior: string; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[]; message?: string; dontAskAgain?: boolean }) =>
       ipcRenderer.invoke('claude:resolve-permission', sessionId, toolUseId, result),
     resolveAskUser: (sessionId: string, toolUseId: string, answers: Record<string, string>) =>
       ipcRenderer.invoke('claude:resolve-ask-user', sessionId, toolUseId, answers),
-    listSessions: (cwd: string) =>
-      ipcRenderer.invoke('claude:list-sessions', cwd),
-    resumeSession: (sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string) =>
-      ipcRenderer.invoke('claude:resume-session', sessionId, sdkSessionId, cwd, model, apiVersion, useWorktree, worktreePath, worktreeBranch),
+    listSessions: (cwd: string, agentPreset?: string) =>
+      ipcRenderer.invoke('claude:list-sessions', cwd, agentPreset),
+    resumeSession: (sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string, agentPreset?: string, codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access', codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never', permissionMode?: string, effort?: string) =>
+      ipcRenderer.invoke('claude:resume-session', sessionId, sdkSessionId, cwd, model, apiVersion, useWorktree, worktreePath, worktreeBranch, agentPreset, codexSandboxMode, codexApprovalPolicy, permissionMode, effort),
     forkSession: (sessionId: string) =>
       ipcRenderer.invoke('claude:fork-session', sessionId) as Promise<{ newSdkSessionId: string } | null>,
+    rewindToPrompt: (sessionId: string, promptIndex: number) =>
+      ipcRenderer.invoke('claude:rewind-to-prompt', sessionId, promptIndex) as Promise<{ newSdkSessionId: string; removedPromptCount: number } | { error: string }>,
     stopTask: (sessionId: string, taskId: string) =>
       ipcRenderer.invoke('claude:stop-task', sessionId, taskId) as Promise<boolean>,
     restSession: (sessionId: string) =>

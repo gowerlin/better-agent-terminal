@@ -80,8 +80,7 @@ export function isClaudeCli(id: string): boolean {
 
 /** Check if a definition ID is an integrated (SDK-based) agent */
 export function isIntegrated(id: string): boolean {
-  // Currently only claude-code variants are integrated
-  return isClaudeSdk(id)
+  return isClaudeSdk(id) || id === 'codex-agent'
 }
 
 /** Check if this is an active agent (not 'none' and not undefined) */

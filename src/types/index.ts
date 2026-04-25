@@ -7,6 +7,8 @@ export interface EnvVariable {
   enabled: boolean;
 }
 
+export type AgentParamValue = string | number | boolean;
+
 export interface Workspace {
   id: string;
   name: string;
@@ -48,6 +50,7 @@ export interface TerminalInstance {
   isAltBuffer?: boolean;         // Alt buffer mode active (vim, TUI apps, etc.)
   sdkSessionId?: string;         // Claude SDK session ID for auto-resume
   model?: string;                // Selected Claude model for this session
+  agentParams?: Record<string, AgentParamValue>; // Normalized agent-specific persisted params
   pendingPrompt?: string;        // Prompt to auto-send after fork/resume
   pendingImages?: string[];      // Data URLs of images to send with pendingPrompt
   sessionMeta?: {                // Persisted session metadata for status line
@@ -119,6 +122,9 @@ export type FontType = 'system' | 'sf-mono' | 'menlo' | 'consolas' | 'monaco' | 
 // `max` maps to Opus-only extended thinking budget; `xhigh` is the newest tier.
 export const EFFORT_LEVELS = ['low', 'medium', 'high', 'max', 'xhigh'] as const;
 export type EffortLevel = typeof EFFORT_LEVELS[number];
+
+export const CODEX_EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+export type CodexEffortLevel = typeof CODEX_EFFORT_LEVELS[number];
 
 const isWindows = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
 
@@ -227,6 +233,7 @@ export interface AppSettings {
   allowBypassPermissions: boolean;  // 允許切換 bypassPermissions 模式時不再確認
   defaultModel?: string;     // 預設模型（空 = 使用 SDK 預設）
   defaultEffort?: EffortLevel;  // 預設 effort level
+  autoCompactWindow?: number;     // Auto-compact context window size (token count)
   showDockBadge?: boolean;               // Dock 圖示顯示待處理數量
   notifyOnComplete?: boolean;           // Agent 完成時發送系統通知
   notifySound?: boolean;               // 通知時播放聲音
