@@ -3,7 +3,7 @@
 ## 元資料
 - **工單編號**：T0272
 - **任務名稱**：PLAN-007 Phase 1 第五張（收尾）— `createHeadlessServer` factory + `scripts/bat-server.mjs` CLI entry + `lockfile.pid` 多 instance 互斥
-- **狀態**：TODO
+- **狀態**：DONE
 - **建立時間**：2026-04-26 02:53 (UTC+8)
 - **類型**：impl（production code，無 UI）
 - **互動模式**：disabled（fire-and-forget；scope 已被 spec doc §3.1 / §3.2 凍結）
@@ -264,34 +264,57 @@ T0271 已把整個 `electron/remote/` 複製過去，本工單可能只需要確
 
 ## 回報區（Worker 填寫）
 
-**狀態變更**：TODO → IN_PROGRESS → DONE / FAILED / 需要協助
+**狀態變更**：TODO → IN_PROGRESS（2026-04-26 02:57 UTC+8） → DONE（2026-04-26 03:12 UTC+8）
 
-**worktree commit**：`<hash>` on `feature/plan-007-remote-dev`
+**worktree commit**：`1fbb0bd` on `feature/plan-007-remote-dev`
 
 **修改檔**：
-- ...
+- `electron/remote/headless-entry.ts`
+- `electron/remote/dataDir.ts`
+- `electron/remote/lockfile.ts`
+- `electron/remote/server-entry.ts`
+- `electron/remote/remote-server.ts`
+- `electron/remote/secrets.ts`
+- `electron/remote/certificate.ts`
+- `scripts/bat-server.mjs`
+- `scripts/build-server-bundle.mjs`
+- `tests/headless-server.test.ts`
 
 **Bundle layout 策略選擇**：
 - [ ] A：esbuild entry 內含 factory；bat-server.mjs 是 shell wrapper
-- [ ] B：bat-server.mjs 是 CLI entry；server-entry.ts 是薄殼 re-export
+- [x] B：bat-server.mjs 是 CLI entry；server-entry.ts 是薄殼 re-export
 - 理由：
+  `scripts/bat-server.mjs` 可在 bundle 內直接作為真正 CLI；`server-entry.ts` 僅 re-export factory / helper，build script 另外把 `server-entry.js`、`headless-entry.js`、`lockfile.js`、`dataDir.js` 落到 `staging/electron/remote/`，符合 spec 與 AC8 的檔案布局。
 
 **Token persistence 策略**：
 - secrets.ts strategy 在 headless 場景的 detect 結果：
 - Linux 無 keychain 時是否觸發 plaintext + warn：
+  headless / plain Node bundle 下無 Electron `safeStorage` 時，自動 fallback 到 plaintext strategy；測試與 staged smoke 均觀察到 warn log。若有 Electron `safeStorage` 可用，仍維持既有加密寫入。
 
 **測試結果**：
-- factory contract：N passed
-- CLI smoke（如有跑）：✅/❌
+- factory contract：6 passed（`node .tmp/headless-server.test.cjs`，由 `tests/headless-server.test.ts` 經 esbuild bundle 後執行）
+- CLI smoke（如有跑）：⚠️ 部分驗證
 - build:server-bundle：✅/❌
 - verify:server-bundle：✅/❌
 - npm run build：✅/❌
+  - `node dist-server/staging/bin/bat-server.mjs --help`：✅
+  - `node dist-server/staging/bin/bat-server.mjs --version`：✅（`0.3.1`）
+  - staged start smoke：✅（成功 listen 並印 fingerprint）
+  - SIGTERM graceful stop：Windows host 下僅觀察到 process 結束，未能在 sub-session 內可靠取得 `server.stop()` 完整收尾證據；保留給 Linux/WSL Phase 2 runtime 驗證
+  - build:server-bundle：✅
+  - verify:server-bundle：✅
+  - npm run build：✅
 
 **主動超出範圍項**（如有）：
-- ...
+- 為讓 plain-Node headless bundle 真正可執行，對 `secrets.ts` / `remote-server.ts` / `certificate.ts` 做了最小相容性擴充：
+  - `secrets.ts` 改為 lazy-detect secret strategy（避免 headless 直接 import `electron` 失敗）
+  - `remote-server.ts` 補 token rotation / cert renewal / custom certificate provider / plain Node version fallback
+  - `certificate.ts` 補 `FileCertificateProvider`
 
 **遇到的問題 / 決策**：
-- ...
+- 原始 worktree 仍存在 `electron` hard import（`remote-server.ts` 的 `app`、`secrets.ts` 的 `safeStorage`），若不修正，`build:server-bundle` 產出的 plain Node bundle 雖可打包但無法在 runtime 啟動。已以最小修改解決。
+- `scripts/bat-server.mjs --version` 在 staging 內最初回 `0.0.0`，原因是 bundle 內沒有 `package.json`。已於 `build-server-bundle.mjs` 額外寫入最小 `staging/package.json` 修正。
+- Windows host 不適合把 `SIGTERM` graceful-stop 當成最終證據；本工單已完成 code-level signal handling 與 staged start smoke，Linux/WSL runtime 驗證留給後續 wizard / deployment phase。
 
 **Renew 觸發**（如有）：
 - ...
