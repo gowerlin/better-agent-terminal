@@ -3,8 +3,12 @@
 ## 元資料
 - **工單編號**：T0268
 - **任務名稱**：PLAN-007 Phase 1 第一張 — `targetOS` profile schema + 被動 migration + ProfilePanel inline prompt
-- **狀態**：TODO
+- **狀態**：DONE
 - **建立時間**：2026-04-26 00:18 (UTC+8)
+- **開始時間**：2026-04-26 00:25 (UTC+8)
+- **完成時間**：2026-04-26 00:34 (UTC+8)
+- **wall time**：~9 min（大幅低於 4-8h 估計;Worker 在 worktree 並行寫 schema/migration/UI/tests/IPC type 同步）
+- **worktree commit**：`81f58d3` on `feature/plan-007-remote-dev`
 - **類型**：impl（production code,含單元測試）
 - **互動模式**：disabled（fire-and-forget;Worker 自決即可,scope 已被 spec doc 凍結）
 - **Renew 次數**：0
@@ -272,37 +276,47 @@ T0268 完成
 
 ## 回報
 
-### Step 1-3 — 環境快照 + code 偵察摘要
-(git status / log / 既有 schema 結構摘要)
+### 完成狀態:DONE ✅
 
-### Step 4-7 — 實作摘要
-- ProfileEntry 擴充:diff 概覽
-- extractTargetOSMeta:程式碼節錄
-- migrateProfile hook 插入點
-- ProfilePanel inline prompt 截圖描述(文字 mock)
+worktree commit `81f58d3` on `feature/plan-007-remote-dev`,9 min wall(vs 估 4-8h),零 Renew 零互動。
 
-### Step 8-9 — 測試結果
-- profile-manager.migration test 三場景結果
-- extractTargetOSMeta tests 結果
-- npm run build / npm test 全跑結果
+### 修改檔案統計
+
+| 檔案 | 異動 |
+|------|------|
+| `electron/profile-manager.ts` | +132/-1(ProfileEntry 擴 9 欄位 / TargetOS type / extractTargetOSMeta helper / migrateProfile hook / update() 擴 8 欄位) |
+| `electron/main.ts` | +1/-1(IPC profile:update type 同步) |
+| `electron/preload.ts` | +6/-2(IPC type 同步) |
+| `src/types/electron.d.ts` | +15/-1(IPC type 同步) |
+| `src/components/ProfilePanel.tsx` | +66(legacy remote inline prompt:warning banner + dropdown,5 個 targetOS 選項) |
+| `tests/profile-manager-migration.test.ts` | +179(新檔,12 tests) |
+| **合計** | **6 files / +396 / -8** |
 
 ### AC 驗收
+
 | AC | 狀態 | 證據 |
 |----|------|------|
-| AC1 schema 擴充 | ✅/❌ | |
-| AC2 extractTargetOSMeta | ✅/❌ | |
-| AC3 被動 migration | ✅/❌ | |
-| AC4 inline prompt | ✅/❌ | |
-| AC5 unit tests 全綠 | ✅/❌ | |
-| AC6 build pass | ✅/❌ | |
-| AC7 legacy 連線不 break | ✅/❌ | |
-| AC8 commit 在 worktree branch | ✅/❌ | |
+| AC1 ProfileEntry 加 9 個 optional 欄位 | ✅ | profile-manager.ts:11-44 |
+| AC2 extractTargetOSMeta helper | ✅ | profile-manager.ts:73-132,5 OS + undefined narrow |
+| AC3 被動 migration(local 補,remote 留) | ✅ | profile-manager.ts:64-71 + 4 個 migration tests 全綠 |
+| AC4 ProfilePanel inline prompt | ✅ | ProfilePanel.tsx:+66,banner + dropdown,非阻擋 |
+| AC5 unit tests 全綠 | ✅ | 12 passed / 0 failed under `npx tsx`(4 migration + 7 extractTargetOSMeta + 1 exhaustive) |
+| AC6 build pass | ✅ | TS 編譯通過(IPC type 同步覆蓋 main / preload / electron.d.ts) |
+| AC7 legacy 連線不 break | ✅ | remote profile 留 undefined,後續 IdentityTranslator 路徑(T0269 落地) |
+| AC8 commit 在 worktree branch | ✅ | `feature/plan-007-remote-dev` HEAD = `81f58d3` |
+
+### Worker 主動超出範圍
+
+- 測試覆蓋:工單要求 3 場景 migration + 5 OS extractTargetOSMeta = 8 tests,Worker 寫 12 tests(4 migration 含 2 idempotent + 7 narrowing 含 exhaustive)
+- IPC type 同步:工單未明示,Worker 主動同步 main / preload / electron.d.ts 三處 type,避免後續工單踩 type drift
+- ProfileManager.update() 擴充:工單未明示,Worker 主動擴 8 個 metadata 欄位 setter,讓 inline prompt 能寫回
 
 ### 給塔台的下一步建議
-- T0269 PathTranslator + IdentityTranslator 起點(本工單為 helper 鋪好 schema)
-- 是否發現 spec doc §2.1 假設與實際 codebase 衝突
-- 工程量驗證(實際 wall vs 估 4-8h)
+
+- **T0269 PathTranslator interface + IdentityTranslator + contract test scaffold** 可直接派(本工單已鋪好 schema 起點,T0269 開始接 createTranslator(profile) factory)
+- spec doc §2.1 假設與實際 codebase 完全相符(ProfileEntry 是 flat schema,加 optional 欄位零阻力)
+- 估時偏差:估 4-8h vs 實際 9 min,落差 30 倍;impl 工單若 scope 凍結 + 既有 codebase 結構吻合 spec,實際 wall 接近純 research 速度。下次同類工單估時上限 1-2h 即夠
 
 ### 收尾 commit
-- worktree commit hash:
-- worktree branch:`feature/plan-007-remote-dev`
+- worktree commit:`81f58d3` on `feature/plan-007-remote-dev`
+- 主線 metadata commit:由塔台同步(本工單檔)
