@@ -3,9 +3,12 @@
 ## 元資料
 - **工單編號**：T0261
 - **任務名稱**：EXP-HEADLESS-001 T-A — BAT remote server headless 啟動 PoC（純 Node + secrets strategy + echo client）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-25 21:50 (UTC+8)
 - **開始時間**：2026-04-25 21:49 (UTC+8)
+- **完成時間**：2026-04-25 22:18 (UTC+8)
+- **主線 commit**：`8040e49`
+- **worktree commit**：`17ac525` on `exp/headless-server-spike`
 - **類型**：spike（PoC 證可行性，不交付 production code）
 - **互動模式**：enabled（spike 過程必然踩雷，遇設計分支可問塔台）
 - **Renew 次數**：0
