@@ -3,7 +3,8 @@
 ## 元資料
 
 - **編號**:BUG-055
-- **狀態**:⛔ WONTFIX(2026-04-23 — 單次觀測 + 有 manual workaround + 疑 upstream SDK 問題 → 不值得投入修復成本。若再發生或累積 2-3 次,再考慮加 BAT postinstall hook 或回報 upstream)
+- **狀態**:🔁 REOPEN → BLOCKED-BY: T0251(2026-04-25 — T0250 反組譯確認與 BUG-059 同根因,方案 A spawn env 注入可同時解。原 WONTFIX 推測「upstream install hook bug」錯誤,實際是 update flow 不認得 BAT 路徑。等 T0251 DONE 後合併 CLOSED)
+- **舊狀態**:⛔ WONTFIX(2026-04-23,推測根因錯誤,見 T0250 § 6 合併修復可行性)
 - **原狀態**:🐛 OPEN
 - **嚴重度**:🟢 Low(install hook 小瑕疵,單次觀測,有手動 workaround)
 - **建立時間**:2026-04-22 20:32 (UTC+8)
