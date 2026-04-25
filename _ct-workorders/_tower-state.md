@@ -1,10 +1,92 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-25 23:35(**🎉 第二十七 session 收工:PLAN-007 Phase A research 全部完成 + PLANNED 升級。8 張 research 工單(T0260-T0267)+ EXP-HEADLESS-001 ✅ CONCLUDED + spec doc 832 行落地 + 8 RFC 拍板 + 23 張實作藍圖。YOLO 鏈式派發,Worker 累計 wall ~82 min(平均 ~10 min/張)。D089 確立 Phase B worktree 策略:主線保留 hotfix,worktree 等全部完成才合併**)
+> 最後更新:2026-04-26 00:45(**第二十八 session 中段快照(context 高重啟):PLAN-007 Phase B 起手,worktree `feature/plan-007-remote-dev` 建立,T0268 ✅ DONE(targetOS schema + migration + inline prompt,9 min wall vs 估 4-8h,12 tests 全綠,worktree commit `81f58d3`)。auto-session 切回 on(project layer)。下次起手立刻派 T0269 PathTranslator + IdentityTranslator + contract test scaffold。**)
 
 ---
 
-## 🛏 本 Session 退出快照(第二十七 session,2026-04-25 21:30-23:35,~2h 5min,PLAN-007 Phase A research 全部完成 + PLANNED 升級)
+## 🛏 本 Session 中段快照(第二十八 session,2026-04-26 00:14-00:45,~30 min,PLAN-007 Phase B 起手 + T0268 完成 + context 高重啟)
+
+### 本輪時間線
+
+1. **00:14**(起手):session 27 退場後重啟,Fast Path 載入 session 27 快照,使用者「繼續」推進 PLAN-007 Phase B
+2. **00:15**(對齊):worktree 命名選 [A] 預設 → 建立 `git worktree add ../bat-plan-007 -b feature/plan-007-remote-dev`(HEAD = `c9373ff`)
+3. **00:15-00:18**:塔台清理 session 27 殘留 — `bat-headless-spike/` 4K 空目錄,Windows handle lock(Device or resource busy),內容已空,4K 不阻擋,留待 reboot 或 cmd.exe `rmdir`
+4. **00:18-00:25**:寫 T0268 工單檔(spec doc §2.1 + §6 C-2 為依據),commit 主線 `1299119`;Step 11 修正(Worker 不寫 worktree 工單檔,塔台同步主線)
+5. **00:25**(config):**`*config auto_session on --project`**(從 off 改回 on),commit `d12f2a9` — 理由:PLAN-007 Phase B worktree 階段恢復自動派發,個別工單仍可 `*config yolo` 覆寫
+6. **00:25-00:34**:T0268 派發(yolo + no-interactive,fire-and-forget)→ Worker 在 worktree 執行 → ✅ DONE 9 min wall,worktree commit `81f58d3`,12 tests passed(4 migration + 7 narrowing + 1 exhaustive)
+7. **00:34-00:42**:塔台同步主線 T0268 metadata,commit `d5abe1a` — 完整 AC 驗收 8/8 + Worker 主動超出範圍項記錄(IPC type 同步 / ProfileManager.update 擴 8 setter / 多寫 4 tests)
+8. **00:45**:使用者「塔台 context 高,快照重啟」→ 寫本快照
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **Worker 工單** | T0268 ✅ DONE(9 min wall,worktree commit `81f58d3`,6 files / +396 / -8) |
+| **Worktree** | `../bat-plan-007` on `feature/plan-007-remote-dev`,HEAD `81f58d3`(c9373ff base + T0268 commit) |
+| **Config 變更** | `auto-session: off → on`(project layer,commit `d12f2a9`) |
+| **塔台清理** | `bat-headless-spike/` 殘留偵測(4K 鎖定,留待手動清) |
+| **Commits 主線**(本 session 新增) | `1299119`(T0268 創建)/ `d12f2a9`(config)/ `d5abe1a`(T0268 metadata sync) |
+| **Commits worktree**(本 session 新增) | `81f58d3`(T0268 feat:profile schema + migration + inline prompt + tests) |
+| **修改檔**(worktree) | `electron/profile-manager.ts`(+132/-1)/ `electron/main.ts`(+1/-1)/ `electron/preload.ts`(+6/-2)/ `src/types/electron.d.ts`(+15/-1)/ `src/components/ProfilePanel.tsx`(+66)/ `tests/profile-manager-migration.test.ts`(+179 新檔) |
+| **修改檔**(主線) | `_ct-workorders/T0268-*.md` / `_ct-workorders/_tower-config.yaml` |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time(全 session) | ~30 min | 00:14-00:45,含 worktree 對齊 + config 變更 + 塔台 sync |
+| Worker 工單 DONE | 1 / 1 | T0268,零失敗零 Renew |
+| Worker wall | 9 min | 00:25-00:34(估 4-8h,落差 30 倍) |
+| Worker 主動超出範圍 | 3 項 | IPC type 同步 / ProfileManager.update 擴 setter / 多寫 4 tests |
+| 互動觸發 | 0 / 1 | disabled fire-and-forget |
+| 塔台 commits | 3 | T0268 創建 / config / metadata sync |
+
+### 下 session pending(優先序)
+
+1. 🟡 **派 T0269** — PathTranslator interface + IdentityTranslator + contract test scaffold(Phase 1 第二張,依 T0268 schema,建議 wall 估 30-60 min impl + 30 min tests)
+2. 🟡 **派 T0271** 可與 T0269 並行 — Server bundle pipeline (linux-x64) baseline,無 schema 相依
+3. 🟢 **`*sync` + `*evolve`** — session 27/28 累積學習候選(GP-cand-A/B/C/D/E + L-cand-A/B + 本 session L-cand「估時偏差 30 倍」),T0269 後一次跑
+4. 🟢 **批次歸檔候選** — 達門檻(session 25 8 BUG / session 26 T0255-T0259 / session 27 T0260-T0267)
+5. 🟢 **手動清 `bat-headless-spike/` 4K 殘留** — reboot 或 cmd.exe `rmdir` 處理
+6. 🟢 v0.3.0/v0.3.1 release 觀察 / Phase 1 C3 runtime 驗收 / PLAN-021/028 / Phase 2 CUDA(全部 session 26 殘留)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:確認 worktree `../bat-plan-007` 仍存在(`git worktree list` 應該見到)
+3. **優先序 2**:派 T0269 — 寫工單(範圍見 spec doc §8 藍圖卡)→ commit 主線 → 派發(auto-session=on 會自動處理)→ Worker 在 worktree 內執行
+4. **塔台規則繼續**:D089 worktree 策略不變(主線僅 hotfix + 工單 metadata,code 都在 worktree branch)
+5. **編號起始**:T0269 / BUG-060 / PLAN-029 / D090 / EXP-NODE-SEA-001 或 EXP-WSL-MIRRORED-001
+6. **Worker 估時校正**:impl 工單若 spec 凍結 + 既有 codebase 結構吻合,實際 wall 接近研究速度(10-30 min),不要照 4-8h 估
+
+### 本 session 學習候選
+
+#### 強候選 Global
+
+- **GP-cand-本 session**:**impl 工單估時偏差 30 倍,因 spec 凍結 + codebase 吻合**。T0268 估 4-8h,實際 9 min。GP-cand 句:「impl 工單若(1)scope 完全凍結(spec doc §X)(2)既有 codebase 結構吻合 spec 假設(3)無外部依賴新增 → 實際 wall 接近 research 速度(10-30 min)」。
+- **GP-cand**:**Worker 主動補 IPC type 同步 + 測試覆蓋 + setter 擴充**這類「scope 邊緣補強」對 PLAN 推進極有價值。塔台不需明示,Worker 邊執行邊補。可寫成 GP「Worker 邊緣補強的容忍邊界」(明顯有助於後續工單的補強允許,scope creep 的不允許)。
+
+#### Project 候選
+
+- **L-cand**:BAT profile schema 是 flat structure,加 optional 欄位零阻力。後續 PLAN-007 工單(translator factory 註冊 / wizard step / metadata UI)都可放心擴。
+- **L-cand**:Worker 在 worktree 工作但 update main 工單 metadata(IPC type 同步是這裡),需要明示「main metadata 由塔台 sync,Worker 只回報」避免雙寫衝突。本工單已預先說明,Worker 遵守。
+
+### 本 session 教訓
+
+1. **Worktree workorder 模式驗證可行** — Worker 順利在 `../bat-plan-007` 內 cd / npm install / impl / test / commit feature branch,主線零污染。D089 第一次實戰通過。
+2. **auto-session config 切換要記** — session 27 收工時 config 是 off,本 session 改回 on,commit message 標註原因避免下次困惑。
+3. **Worker estimate 校正** — 之前 spec 出來 estimate 都偏高(基於「實作 + debug + edge case」想像),T0268 證 spec-frozen impl 接近 research speed。
+4. **塔台 metadata sync 是必要 step** — Worker 完成後塔台手動更新主線工單檔(狀態 / 時間 / commit hash / report),這是 worktree 模式的固定 overhead(~3-5 min/張)。下次工單明示「Worker 不動主線工單檔」(已在 T0268 守則中),避免雙寫衝突。
+
+### 本 session 成就
+
+- 🎉 **PLAN-007 Phase B 第一張落地** — D089 worktree 策略首次實戰,Worker 9 min 完成 schema + migration + UI + 12 tests
+- 🎉 **Worker 主動補強三項** — IPC type / setter / tests,塔台未指示但結果更紮實
+- 🎉 **estimate 30 倍偏差揭露** — impl 工單在 spec-frozen + codebase-fit 條件下接近 research speed,這是後續 22 張工單的重要校準
+
+---
+
+## 🛏 前 Session 退出快照(第二十七 session,2026-04-25 21:30-23:35,~2h 5min,PLAN-007 Phase A research 全部完成 + PLANNED 升級)
 
 ### 本輪時間線
 
