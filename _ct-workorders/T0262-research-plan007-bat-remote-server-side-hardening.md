@@ -3,9 +3,10 @@
 ## 元資料
 - **工單編號**：T0262
 - **任務名稱**：PLAN-007 — BAT remote server-side 強化研究（headless entry contract + PLAN-018 server 差距 spec）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-04-25 22:30 (UTC+8)
 - **開始時間**：2026-04-25 22:14 (UTC+8)
+- **完成時間**：2026-04-25 22:20 (UTC+8)
 - **類型**：research（讀 code + 寫 spec 章節，**不寫 production code、不重構**）
 - **互動模式**：enabled（headless contract API / 多項策略選擇有設計分支）
 - **Renew 次數**：0
@@ -815,7 +816,8 @@ T0262 (本工單) — server-side spec
 
 ### 收尾 commit
 
-待 Step 8 填入。
+- 主線：`6477cf9` on `main` —— `chore(workorder): T0262 PLAN-007 server-side hardening spec done — 7 sections ready`（822 insertions）
+- working tree byte-identical 驗證（AC9）：commit 前 `git status` 僅顯示本工單檔為 untracked，commit 後僅本工單檔變更，未動 source code、未動 `package.json`、未跑 `npm install` / `npm run build`。✅ 通過。
 
 ### Renew 歷程
 
