@@ -1,10 +1,83 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-25 14:55(**🎉 第二十五 session 收工:BUG-059 + BUG-055 一同 🚫 CLOSED,T0250→T0251 修復鏈閉環(13 min 研究 + 7 min 修復),`DISABLE_AUTOUPDATER=1` env 注入 4 處,熱區 8 張 BUG 全數閉環首次達成。本 session 並補入 session 24 退場快照(BUG-058 + v0.3.1 hotfix release)+ D084-D088 補回 _decision-log.md(drift 修復)+ *sync/*rescan 索引重建**)
+> 最後更新:2026-04-25 21:25(**🎉 第二十六 session 收工:T0255 Phase 1 C3 cherry-pick 鏈完整閉環,從中斷現場以 research-first 路線(T0257 偵察 → T0258 續做 ~20 min vs 估 40-60 min → T0259 baseline-diff verification)續完 8/8 cherry-pick + version.json bump,*evolve 批次萃取 6 條(L101/L102 + GP095-GP098)。YOLO 模式全程零互動零 Renew 零 FAILED**)
 
 ---
 
-## 🛏 本 Session 退出快照(第二十五 session,2026-04-25 09:30-12:31,~3h,BUG-059/055 修復鏈閉環)
+## 🛏 本 Session 退出快照(第二十六 session,2026-04-25 14:55-21:25,~6h 30min,T0255 Phase 1 C3 中斷恢復閉環)
+
+### 本輪時間線
+
+1. **14:55**(前 session 收工):session 25 BUG-059/055 雙閉環,使用者註記「因系統資源不足,Worker 已暫停工單,紀錄 check-point,等我重開機再繼續」
+2. **(中間 session 留下中斷現場)**:T0255 Phase 1 C3 cherry-pick 鏈執行到 #5(220b093 open external links),git 處 cherry-pick paused mid-conflict,UU 標記在 ClaudeAgentPanel.tsx + CodexAgentPanel.tsx 但 working tree 已無 conflict markers(使用者已手解採 ours 但未 git add),main.ts 有 staged +13 行,T0255 工單檔 untracked 但已寫 CHECKPOINT 段
+3. **20:15**(本 session 起手):Fast Path 載入 → 偵測中斷狀態(UU + M + ??)→ 塔台給 4 選項面板(A 續/B 棄/C 偵察/D 看工單)→ 使用者選 C,並 `*config auto_session yolo`(僅本 session)
+4. **20:15-20:26**:**T0257 research 11 min ✅ DONE**(commit `8d2a440`)— 純偵察工單禁所有寫操作,4 件事盤點:cherry-pick 進度(#1-#4 done / #5 paused)、UU 檔 stage 1/2/3 vs WT 比對(揭露「已手解未 add」隱形狀態)、main.ts staged diff 概覽、CHERRY_PICK_HEAD 指向確認。結論:選項 A 強推,工作樹狀況良好
+5. **20:30-20:50**:**T0258 implementation 20 min ✅ DONE**(YOLO + interactive enabled)— 續做 cherry-pick 鏈 #5 收尾(`git add + cherry-pick --continue`)+ #6/#7/#8 + version.json。Worker 全程零互動自主處理(#6 empty commit + trailer / #7 丟棄 autoCompactWindow / #8 git auto-merge)。Commits `302a065` `4c1de15` `8b07399` `f96eb35` `acc4a81` + 〈chore T0255+T0257+T0258 trace〉
+6. **20:55-20:46**:**T0259 verification 6 min ✅ DONE**(commit `3f090c9`)— vite build exit 0 + tsc 跑出 37 errors 但 baseline diff 校驗(checkout `302a065^` 同 37 errors)→ 確認 cherry-pick 鏈零新增。AC1 採折衷跑 `npm run compile` 而非 full build(避開 NSIS),明確標註偏離原因
+7. **21:10**:塔台自主處理 T0258 工單檔元資料 commit gap → commit `964c4bd`(auto_commit=ask 詢問使用者後執行)
+8. **21:15-21:25**:`*evolve` 批次萃取 → 提案 6 條(4 global + 2 project)→ 使用者「全照建議」→ 寫入 + commits `c3a0a25`(BAT _learnings.md) + `37097c1`(control-tower-data/learnings/patterns.md)
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **母工單閉環** | T0255 ✅ DONE(Phase 1 C3 8/8 cherry-pick + version.json bump,從中斷現場恢復) |
+| **本 session Worker 工單** | T0257 ✅ DONE(research 11 min)/ T0258 ✅ DONE(implementation 20 min)/ T0259 ✅ DONE(verification 6 min) |
+| **`*evolve` Global 晉升** | GP095(中斷恢復 research-first 偵察)/ GP096(cherry-pick empty commit + trailer)/ GP097(verification baseline diff)/ GP098(工單元資料 commit gap systemic) |
+| **`*evolve` Project 新增** | L101(YOLO + interactive 但零互動)/ L102(verification 工單必明示 build 層級) |
+| **決策** | 無新 D(本 session 沿用既有原則,YOLO 自主決策走 GP083+L106 線索) |
+| **Commits 本 session 新增**(時間序) | `302a065` `4c1de15` `8b07399` `f96eb35` `acc4a81`(T0258 cherry-pick #5-#8 + version.json)/ 〈chore T0255+T0257+T0258 trace〉/ `3f090c9`(T0259)/ `964c4bd`(T0258 meta sync)/ `c3a0a25`(BAT learnings)/ control-tower-data `37097c1`(global patterns) |
+| **修改檔** | `electron/main.ts`(setWindowOpenHandler + will-navigate)/ `src/components/ClaudeAgentPanel.tsx`(empty net-zero)/ `src/components/CodexAgentPanel.tsx`/ `electron/claude-agent-manager.ts`(contextWindow sync + fork-session abort)/ `version.json` lastSyncCommit bump / `_ct-workorders/T0255/T0257/T0258/T0259-*.md` / `_ct-workorders/_learnings.md` / `~/.claude/control-tower-data/learnings/patterns.md` |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time | ~6h 30min | 14:55-21:25(含使用者對話 / *evolve 提案討論) |
+| 純 Worker wall | ~37 min | T0257(11)+ T0258(20)+ T0259(6) |
+| Worker 工單 DONE | 3 / 3 | 零失敗 |
+| Renew 次數 | 0 / 3 | 零 Renew |
+| FAILED 次數 | 0 / 3 | 零失敗 |
+| 互動觸發 | 0 / 3 | T0258 enabled 但 Worker 全程零互動(L101 證據) |
+| YOLO 自主派發 | 3 次 | T0257 → T0258 → T0259 鏈,塔台自主依 T0257 報告 → T0258 邏輯下一步 → T0259 build 驗收 |
+| 塔台自主 commit | 1 | T0258 元資料同步(`964c4bd`,auto_commit=ask 詢問後) |
+| 預估 vs 實際 | T0258 估 40-60 min → 實際 20 min(GP069 yolo 壓縮再驗證) |
+
+### 下 session pending(優先序)
+
+1. 🟡 **使用者親自跑 dev / packaged 實機驗收 Phase 1 C3** — 4 個 cherry-pick(尤其 #5 external link 行為 + #7 contextWindow label 即時切換 + #8 fork-session transcript 持久化)需 runtime 驗收
+2. 🟢 **batch 歸檔候選** — session 25 8 張 BUG CLOSED + session 26 T0255-T0259 完成,等 `archive_days: 2` 門檻(BUG-055/058/059 達 04-26+,T0255-T0259 達 04-27+)
+3. 🟢 **v0.3.0/v0.3.1 release 後續觀察** — GitHub Release + Homebrew tap 狀態
+4. 🟢 **Phase 2 CUDA advanced tier 評估** — 待 EXP-GPUWHIS-002 硬體升級實測
+5. 🟢 **backlog 🟢 Low** — PLAN-002/007/015/026
+6. 🟢 PLAN-021 IN_PROGRESS(等 dev smoke)
+7. 🟢 PLAN-028 PLANNED(BAT dogfood CT v4.4)
+8. 🟢 T0153 PARTIAL(Git GUI spike,擱置)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 1**:詢問使用者 Phase 1 C3 runtime 驗收結果 — 若 OK 則 Phase 1 全部閉環,可進 Phase 2;若有 regression 則開 BUG 單分流
+3. **優先序 2**:批次歸檔(達門檻時)
+4. 下 session 新單編號起始:**T0260 / BUG-060 / PLAN-029 / D089 / EXP-[TOPIC]-002+**
+5. **編號異常注意**:_learnings.md L100 之後本 session 直接跳 L101(GP 編號 GP094 → GP095 連續無跳號),正常
+
+### 本 session 成就
+
+- 🎉 **中斷恢復零成本** — research-first(T0257 11 min)精準揭露「已手解未 add」隱形狀態,T0258 直接續做 ~20 min,vs 預估 40-60 min 省一半
+- 🎉 **YOLO 自主鏈式派發** — T0257 → T0258 → T0259 三張連續派發,使用者僅 1 次決策(*evolve 確認 + auto_commit 確認 1 次),其餘塔台自主走「邏輯下一步」
+- 🎉 **`*evolve` 一次萃取 6 條** — 4 條強候選 Global 通則(中斷恢復 research-first / cherry-pick empty trailer / baseline diff / 元資料 commit gap),都跨專案可用
+- 🎉 **GP083 線索再次驗證** — 「先研後修 ROI 極高」這次特化為「中斷恢復也走 research-first」,GP095 為其變體子型
+
+### 本 session 教訓
+
+1. **工單元資料 commit gap 是 systemic 問題** — T0258/T0259 都觀察到「Worker 收尾 commit 後 lint 才改 IN_PROGRESS → DONE,WT 有 metadata 漂移」。GP098 已記入,下次工單模板「最終 commit step」應加 double-check loop
+2. **Verification 工單必明示 build 層級** — `npm run build` 在 BAT 含 NSIS electron-builder,5-10 min 估時不夠跑完。L102 + GP097(baseline diff)兩條合用作為 verification 工單模板修正方向
+3. **YOLO + interactive enabled 不等於「Worker 必須問」** — T0258 enabled 但 Worker 全程零互動,證明 Worker 邊界判斷力可從 repo 內挖明確線索(L101)。下次重客製 cherry-pick 工單可先試 disabled fire-and-forget,失敗再升 enabled
+
+---
+
+## 🛏 前 Session 退出快照(第二十五 session,2026-04-25 09:30-12:31,~3h,BUG-059/055 修復鏈閉環)
 
 ### 本輪時間線
 
