@@ -3,8 +3,9 @@
 ## 元資料
 - **工單編號**：T0258
 - **任務名稱**：續做 T0255 cherry-pick 鏈 — #5 收尾 + #6-#8 + version.json + T0255 收尾
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **開始時間**：2026-04-25 20:30 (UTC+8)
+- **完成時間**：2026-04-25 20:50 (UTC+8)
 - **類型**：implementation
 - **互動模式**：**enabled**（ClaudeAgentPanel 客製手併保留詢問空間）
 - **Renew 次數**：0
