@@ -7,11 +7,11 @@
 | 工單編號 | T0299 |
 | 類型 | fix（v0.4.1 patch） |
 | Phase | v0.4.1 patch chain 第 1 張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 18:12 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 18:13 (UTC+8) |
+| 完成時間 | 2026-04-26 18:32 (UTC+8) |
+| Wall time | ~19 min（GP099 下界） |
 | Sizing | L（GP099 校準後預期 wall 15-25 min — kill helper + await chain + cross-file 套用） |
 | 依賴 | T0298 ✅（v0.4.0 GO verdict）、T0296（ssh-args.ts helper pattern）、BUG-063、BUG-067 |
 | 後續 | T0300（RemoteClient + WizardRunner state）→ T0301 → T0302 |
@@ -161,4 +161,58 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
 ## 工單回報區
 
-（Worker 完成後在此補回報；塔台會在收到「T0299 完成」訊息後從本檔讀回報區）
+**完成狀態**：DONE — 10/10 AC pass，BUG-063 + BUG-067 雙根因落地，零 regression。
+
+**產出摘要**：
+- **新增** `electron/remote/ssh-process-lifecycle.ts`：`shutdownSshProcess` 共用 helper，4 階段（SIGTERM → grace → SIGKILL → final timeout），含 logger.warn 升級。Default grace=1s / total=5s。
+- **修 BUG-063** 三個 ssh lifecycle 入口：
+  - `ssh-tunnel.ts::stop()` 改 `await shutdownSshProcess(proc)`（同時把 start() 失敗的 error path 也走 helper）
+  - `ssh-start-server.ts::runSsh` timeout 路徑：`void shutdownSshProcess(proc)` fire-and-forget（runSsh 仍在 timer fire 時回傳 timedOut）
+  - `ssh-auth-probe.ts` probe timeout 路徑：同 fire-and-forget pattern + 帶 logger
+- **修 BUG-067** `RemoteClient.disconnect()` 改為 `async` + `await this.tunnel?.stop()`（連帶 `connect()` 也 `async` 並 `await this.disconnect()`）。所有現有 `await client.connect(...)` callsite 不受影響。
+- **新增** `tests/ssh-process-lifecycle.test.ts`：6 case（SIGTERM exit / SIGKILL escalation + warn / SIGKILL ignored timeout / 已 exit short-circuit / 自訂 grace+timeout / kill throw 吞掉）
+- **補 case** `tests/ssh-tunnel.test.ts` test9：stop() 必須 await SIGKILL 真正觸發 exit 才 resolve
+- **補 case** `tests/remote-client-middleware.test.ts`：disconnect() 等 tunnel.stop()、disconnect() 吞掉 stop() rejection
+
+**測試結果**：
+- ssh-process-lifecycle: 6/6 pass（new file）
+- ssh-tunnel: 11/11 pass（10 既有 + 1 新增 test9）
+- ssh-args / ssh-auth-probe / ssh-start-server / ssh-bundle-uploader / ssh-config-parser: 全綠（13 + 10 + 19 + 8 + 8 = 58）
+- **SSH suite 全部**：75 pass / 0 fail
+- remote-client-middleware: 15/15 pass（13 既有 + 2 新增 disconnect await）
+- auth-result-metadata: 5/6（baseline 既有 1 fail，與本工單無關，stash 驗證）
+- tsc baseline: **36 errors**（CodexAgentPanel.tsx + agent-profiles.ts BUG-061，零 drift）
+
+**Diff stat（受影響）**：8 file changed，net add **246 lines**（≤ AC9 上限 250）
+- `electron/remote/ssh-process-lifecycle.ts` +69（新檔）
+- `tests/ssh-process-lifecycle.test.ts` +85（新檔）
+- `electron/remote/remote-client.ts` net +13
+- `electron/remote/ssh-tunnel.ts` net 0（24 add / 24 del — helper 替換）
+- `electron/remote/ssh-start-server.ts` net +5
+- `electron/remote/ssh-auth-probe.ts` net +4
+- `tests/ssh-tunnel.test.ts` net +42（test9 SIGKILL escalation case）
+- `tests/remote-client-middleware.test.ts` net +27（2 case + helper）
+
+**互動紀錄**：無（fire-and-forget yolo）
+
+**遭遇問題**：無實質卡點。一輪 trim：初版 net 407（test 過詳）→ 削減測試文件 + helper docstring 至 246（過 AC9）。
+
+**Renew 歷程**：無
+
+**AC 對照**：
+
+| # | 條件 | 結果 |
+|---|------|------|
+| AC1 | ssh-process-lifecycle.ts export shutdownSshProcess + grace/timeout | ✅ |
+| AC2 | tunnel/start-server/probe 三入口皆走 shutdownSshProcess | ✅ grep 確認 |
+| AC3 | helper 4 階段 SIGTERM→grace→SIGKILL→timeout | ✅ test1+2+3+5 涵蓋 |
+| AC4 | RemoteClient.disconnect() async + await tunnel.stop() | ✅ |
+| AC5 | ssh-process-lifecycle.test.ts ≥ 6 case | ✅ 6 pass |
+| AC6 | tunnel.stop() 已 await shutdownSshProcess | ✅ test9 證實 stop() 不在 SIGKILL exit 前 resolve |
+| AC7 | 既有 4 個 ssh 模組 + remote-client test 零 regression | ✅ SSH 75/75、middleware 15/15 |
+| AC8 | tsc baseline drift = 0（沿用 36） | ✅ |
+| AC9 | git diff stat ≤ 250 lines net add | ✅ 246 |
+| AC10 | logger.warn 在 SIGKILL escalation 觸發 | ✅ test2 assert pid=12345 + escalating SIGKILL |
+
+**Commit**：`db496c7` — fix(remote): T0299 SSH/Tunnel lifecycle hardening (BUG-063 + BUG-067)
+
