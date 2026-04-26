@@ -3,6 +3,9 @@
 > Connect BAT to a remote development server over SSH. This is the third remote
 > deployment path (after WSL and Docker) and the recommended approach for
 > remote Linux/macOS hosts that you reach over the network rather than locally.
+>
+> Part of BAT remote dev support. For the cross-environment overview and
+> decision tree, see [Remote Dev Overview](./remote-dev-overview.md).
 
 ## Prerequisites
 
@@ -156,6 +159,51 @@ The remote host is not reachable on the configured SSH port. Check:
 1. `ssh -v user@host` from your terminal — does the TCP handshake even land?
 2. Firewall rules on both ends (client outbound + server inbound).
 3. If using a jump host, confirm the jump alias works: `ssh -J jump user@host`.
+
+## Rollback chain
+
+If any of the eight wizard steps fails (or the user cancels mid-wizard) the
+wizard runner walks the completed steps in reverse and invokes their
+rollback handler (best-effort, not transactional). For the SSH flow:
+
+- **install-server-bundle** rollback runs `ssh user@host 'rm -rf <install-path>'`
+  to remove the partially-extracted bundle on the remote host.
+- **start-server** rollback stops the systemd user unit (linux) or unloads
+  the launchd plist (darwin), then removes the unit/plist file.
+- **fetch-fingerprint** / **connect-test** failures are read-only; the chain
+  still triggers downstream stop+cleanup of the previous `start-server` step.
+- **write-profile** rollback removes the partially-created profile entry.
+  The SSH profile is **not** persisted unless the wizard reaches `done`
+  cleanly.
+- Cancellation during `permission-denied` recovery (e.g. the user picks
+  Cancel in the key-setup modal) cleanly returns to step 1 with no remote
+  side-effects, since auth verification is read-only.
+
+Re-opening **Add SSH Profile** after a rollback is safe; the chain ensures
+the previous failed install does not leak state into the next attempt.
+Contract source of truth: `src/components/setup-wizard/wizard-runner.ts`
+plus `tests/wizard-rollback.test.ts` /
+`tests/wizard-rollback-cross.test.ts`.
+
+## Editing an SSH profile from the ProfilePanel
+
+After the wizard completes, the SSH profile appears in the ProfilePanel as a
+**ProfileCard**. The card shows:
+
+- Profile name and `targetOS: ssh-linux` or `ssh-darwin` badge.
+- `user@host:port` summary + identity-file path (or `~/.ssh/config` alias if
+  one was selected) + transport mode (tunnel / direct).
+- Pinned TLS fingerprint (read-only) with a **Pin expected fingerprint**
+  button to refresh manually if the server cert is rotated.
+- A **Re-run wizard** button that reopens the SSH wizard pre-filled with the
+  current profile — useful after a server reinstall or when switching
+  transport mode.
+- A **Delete** button that removes the local profile entry only. The remote
+  service is **not** stopped automatically — see Uninstallation below.
+
+Per-environment metadata (`serverHome`, tunnel mode, jump host config) is
+exposed under the ProfileCard's **Details** slot so the ProfilePanel UI
+stays consistent across local / WSL / Docker / SSH cards.
 
 ## Uninstallation
 

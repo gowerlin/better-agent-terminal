@@ -1,5 +1,8 @@
 # Docker Deployment Guide
 
+> Part of BAT remote dev support. For the cross-environment overview and
+> decision tree, see [Remote Dev Overview](./remote-dev-overview.md).
+
 This guide explains how to build the local BAT server Docker image, verify the result, and complete the manual release checks for the Phase 3 Docker baseline.
 
 ## Prerequisites
@@ -194,6 +197,50 @@ docker image inspect bat-server:latest --format='{{.Size}}'
 ```
 
 If the image exceeds the threshold, confirm the build used the generated tarball only and did not copy extra files into the build context.
+
+## Rollback chain
+
+If a wizard step fails (e.g. image build fails, daemon becomes unreachable
+mid-flow, container start fails) the wizard runner walks the completed steps
+in reverse and invokes their rollback handler (best-effort, not transactional).
+For the Docker flow:
+
+- **build-image** rollback removes the partially-built image tag if the
+  build aborted between layers.
+- **start-container** rollback runs `docker stop` + `docker rm` on the
+  managed container created by wizard mode B.
+- **fetch-fingerprint** / **connect-test** failures are read-only; the
+  rollback chain still logs their outcome and stops the container started in
+  the previous step.
+- The Docker profile is **not** persisted unless the wizard reaches `done`
+  cleanly. Mode A (attach to existing container) deliberately leaves
+  pre-existing containers untouched on rollback — only state created **by
+  the wizard run** is rolled back.
+
+Re-running **Add Docker Profile** after a rollback is safe; the chain
+ensures the previous failed install does not leak state into the next
+attempt. Contract source of truth:
+`src/components/setup-wizard/wizard-runner.ts` plus
+`tests/wizard-rollback.test.ts` / `tests/wizard-rollback-cross.test.ts`.
+
+## Editing a Docker profile from the ProfilePanel
+
+After the wizard completes, the Docker profile appears in the ProfilePanel
+as a **ProfileCard**. The card shows:
+
+- Profile name and `targetOS: docker-linux` badge.
+- Container name + image tag (`bat-server:<version>`) + bind mount summary.
+- Pinned TLS fingerprint (read-only) with a **Pin expected fingerprint**
+  button to refresh after a container rebuild.
+- A **Re-run wizard** button that reopens the Docker wizard pre-filled with
+  the current profile — useful when bind mounts change or you switch from
+  mode A (attach) to mode B (managed container).
+- A **Delete** button that removes the local profile entry. The container
+  itself is **not** stopped automatically; use `docker stop / rm` manually.
+
+Per-environment metadata (mounts, container id, restart policy) is exposed
+under the ProfileCard's **Details** slot so the ProfilePanel UI stays
+consistent across local / WSL / Docker / SSH cards.
 
 ## Release Pre-Flight Checklist
 

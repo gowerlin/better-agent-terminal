@@ -1,5 +1,8 @@
 # WSL Deployment Guide
 
+> Part of BAT remote dev support. For the cross-environment overview and
+> decision tree, see [Remote Dev Overview](./remote-dev-overview.md).
+
 This guide explains how to add a WSL-backed BAT profile from the Windows app, what the wizard does, and how to verify the result before release.
 
 ## Prerequisites
@@ -142,6 +145,47 @@ Confirm that the BAT service started successfully inside WSL and that the local 
 ### Profile created but connect-test failed
 
 Delete the profile, verify the service is active, and rerun the wizard. The rollback chain should remove partial install artifacts automatically when the failure occurs during the wizard run.
+
+## Rollback chain
+
+If a wizard step fails or the user cancels mid-wizard, the wizard runner walks
+the already-completed steps in reverse and invokes each step's rollback
+handler (best-effort, not transactional). For the WSL flow, this means:
+
+- **install-server-bundle** rollback removes `~/.local/bat-server` inside the
+  distro.
+- **start-server** rollback stops `bat-server.service`, disables it, removes
+  the unit file, and reloads the user daemon.
+- **fetch-fingerprint** / **verify-remote-connection** failures do not need
+  state rollback (read-only operations) but still log their outcome.
+- **create-remote-profile** rollback deletes the partially-created profile
+  entry. The profile is **not** persisted unless the wizard reaches
+  `finalize-wsl-setup` cleanly.
+
+You can re-open **Add WSL Profile** at any time after a rollback; the chain
+ensures the previous failed install does not leak state into the next attempt.
+Contract source of truth: `src/components/setup-wizard/wizard-runner.ts`
+plus `tests/wizard-rollback.test.ts` /
+`tests/wizard-rollback-cross.test.ts`.
+
+## Editing a WSL profile from the ProfilePanel
+
+After the wizard completes, the WSL profile appears in the ProfilePanel as a
+**ProfileCard**. The card shows:
+
+- Profile name and `targetOS: wsl-linux` badge.
+- Bound `wslDistro` and `remoteHost` / `remotePort`.
+- Pinned TLS fingerprint (read-only) with a **Pin expected fingerprint**
+  button to refresh manually if the server cert is rotated.
+- A **Re-run wizard** button that reopens the WSL wizard pre-filled with the
+  current profile — useful when the underlying distro changes networking
+  mode (mirrored ↔ NAT) or after a `wsl --shutdown`.
+- A **Delete** button that removes the local profile entry. The remote WSL
+  service is **not** stopped automatically — see Uninstallation below.
+
+Per-environment metadata is exposed under the ProfileCard's **Details** slot
+(expandable section) so the cross-environment ProfilePanel UI stays
+consistent across local / WSL / Docker / SSH cards.
 
 ## Uninstallation
 
