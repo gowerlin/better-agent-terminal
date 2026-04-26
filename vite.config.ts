@@ -5,6 +5,11 @@ import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 import path from 'path'
 
+// vitest mode: skip electron + renderer plugins (they shim Node built-ins
+// like `node:stream`/`node:crypto` for Electron renderer, which breaks
+// vitest's pure-Node test runner — see T0317).
+const isTest = process.env.VITEST === 'true' || process.env.NODE_ENV === 'test'
+
 export default defineConfig({
   test: {
     environment: 'jsdom',
@@ -13,7 +18,7 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**/*.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'dist-electron/**', 'release/**'],
   },
-  plugins: [
+  plugins: isTest ? [react()] : [
     react(),
     electron([
       {

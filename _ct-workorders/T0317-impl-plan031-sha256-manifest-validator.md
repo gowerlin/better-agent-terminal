@@ -7,9 +7,10 @@
 | 工單編號 | T0317 |
 | 類型 | impl（純函數 lib + vitest，無 IPC、無 fetch、無 file IO） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 2 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-27 01:44 (UTC+8) |
 | 派發時間 | 2026-04-27 01:44 (UTC+8) |
+| 開始時間 | 2026-04-27 01:48 (UTC+8) |
 | Sizing | M（estimate 30-45 min wall） |
 | 依賴 | T0314 ✅（manifest schema + arch-normalize types） |
 | 平行 | T0315 ✅、T0316（electron-builder） |
@@ -230,16 +231,38 @@ export type { ServerBundleArch } from './arch-normalize'
 
 ### 1. server-bundle-manifest.ts 摘要
 
-（待填：總行數、函數實作 highlight、tricky case 處理）
+- **總行數**：298 行（含 JSDoc）
+- **5 個 export 函數**：`parseManifest`、`isValidManifest`、`lookupTarball`、`createSha256Stream`、`compareSha256` + `ServerBundleArch` re-export（Deliverable 3）
+- **8 個 errorCode** 全部覆蓋；`fail()` helper 統一錯誤訊息格式（`"<code>: <human message with field name>"`）便於 T0318 download module 直接顯示給 user
+- **SHA256 hex regex**：`/^[a-f0-9]{64}$/`（lowercase only，符合 spec §123）
+- **semver regex**：`/^\d+\.\d+\.\d+(-[a-z0-9.-]+)?$/`（不依賴 `semver` package，符合 spec §122）
+- **ISO 8601 buildDate**：`Date.parse() && !Number.isNaN()`（spec §121 寬鬆策略）
+- **size 驗證**：`Number.isInteger() && size > 0`（拒絕 0 / 負數 / 浮點 / 字串）
+- **`createSha256Stream` 設計**：Transform `_transform` 中 `hash.update(chunk)` 後 `cb(null, chunk)` 原樣 passthrough；`getDigest()` 用 promise queue + cached `resolved`/`rejected` 狀態，呼叫順序不限（end 前後皆可，多次呼叫一致）
+- **`compareSha256` timing-safe**：`crypto.timingSafeEqual` + length / format pre-check 防止 timing oracle；非字串 / 長度不符 / format 違規一律回 `false` 不 throw
+- **純函數紀律**：lib 檔案 0 處 `process.env`、0 處 `fs.*`、0 處 `fetch`，僅 `node:crypto` + `node:stream` 內建 import（AC-6 ✅）
+- **import 改用 `node:` 前綴**：`vite-plugin-electron-renderer` 會把 bare `'stream'` / `'crypto'` shim 成 ESM wrapper（renderer 端用），但 `node:` 前綴在 vitest 跑時也會被該 plugin 攔截；**修法**：`vite.config.ts` 在 `VITEST=true` 時 skip `electron()` 與 `renderer()` plugin（兩者 runtime-only，與 vitest 無關），讓 vitest 拿到原生 Node built-in。註解標 `// see T0317`，影響範圍僅 `npm run test:unit`，build / dev 不受影響
 
 ### 2. test 結果
 
-（待填：`npm run test:unit` 輸出 / case 總數 / 是否全綠）
+- **case 數**：T0317 新增 **39 cases**（≥30 ✅，AC-2）
+  - parseManifest: 21 cases（happy 2 + invalid-json 3 + schema-mismatch 2 + missing-field 4 + invalid-version 2 + invalid-build-date 1 + missing-tarball-arch 2 + invalid-sha256 3 + invalid-size 4）
+  - isValidManifest: 5
+  - lookupTarball: 2
+  - createSha256Stream: 4（hello / empty / multi-chunk / 重複 getDigest）
+  - compareSha256: 5
+- **8 個 errorCode 覆蓋**（AC-5 ✅）：invalid-json ✅ / schema-version-mismatch ✅ / missing-field ✅ / invalid-version ✅ / invalid-build-date ✅ / missing-tarball-arch ✅（含 arch 名稱在 error message 驗證）/ invalid-sha256-format ✅ / invalid-size ✅
+- **AC-4 已知 SHA**：`"hello"` → `2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824` ✅；空 stream → `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` ✅
+- **`npm run test:unit` 結果**：5 files / **112 passed**（73 既有 + 39 新增）/ duration 3.73s（AC-3 ✅）
 
 ### 3. PARTIAL / 矛盾項（如有）
 
-（待填）
+- 無 PARTIAL。
+- **vite.config.ts 副作用**：為了讓 vitest 跑通，修改 `vite.config.ts` 在 `VITEST=true` 時關掉 `electron()` 與 `renderer()` plugin。此修改不在原工單範圍但屬必要（純函數 lib 用 Node built-in 是 spec §124 明確指定的實作方式）。已加註解說明，影響面限 vitest，dev / build 不變。
+- **既有 tsc 噪音**：`npx tsc --noEmit` 在 `CodexAgentPanel.tsx` 等檔案有大量 pre-existing TS error（與 T0317 無關，未新增也未消除）。新增的 `server-bundle-manifest.ts` 與 test 檔 0 TS error。
 
 ### 完成註記
 
-（待填：commit hash / wall time / Full DONE）
+- commit：`6b58a2d`（chore(types): T0317 - PLAN-031 SHA256 manifest validator + stream）
+- wall time：~12 min（01:48 → 02:00 UTC+8）
+- Full DONE — 所有 AC（1–7）通過。
