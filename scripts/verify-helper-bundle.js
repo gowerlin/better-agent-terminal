@@ -114,6 +114,105 @@ for (const entry of extraResources) {
   }
 }
 
+// ---------- T0316: server bundle baseline check ----------
+//
+// Per PLAN-031 spec §3.1, electron-builder build.{win,mac,linux}.extraResources
+// declares which baseline tarballs should be packed into the installer. The
+// fetch-baseline-tarball.mjs pre-step writes them to dist-baseline/. Here we
+// verify that for each platform-specific extraResources entry that targets
+// dist-baseline/, every declared baseline tarball glob has at least one
+// matching file on disk together with its .sha256 sidecar.
+//
+// Filename pattern: bat-server-<archTag>-v<version>.tar.gz
+//   archTag ∈ { linux-x64, linux-arm64, darwin-arm64 }
+//
+// Linux double-arch nuance: the linux block declares both linux-x64 + linux-arm64
+// globs (electron-builder JSON cannot branch on --arch). The fetch script only
+// drops the active arch into dist-baseline/, so we only require AT LEAST ONE
+// baseline tarball glob to be satisfied for a platform — not all of them.
+
+const SERVER_BUNDLE_GLOB_RE = /^bat-server-(linux-x64|linux-arm64|darwin-arm64)-v\*\.tar\.gz$/;
+
+function checkServerBundleBaseline() {
+  const buildSection = pkg.build || {};
+  const platforms = ['win', 'mac', 'linux'];
+  const issues = [];
+
+  for (const platform of platforms) {
+    const platformBuild = buildSection[platform];
+    if (!platformBuild || !Array.isArray(platformBuild.extraResources)) continue;
+
+    for (const entry of platformBuild.extraResources) {
+      if (!entry || typeof entry !== 'object') continue;
+      const fromDir = entry.from;
+      const filterGlobs = Array.isArray(entry.filter) ? entry.filter : [];
+      if (!fromDir || filterGlobs.length === 0) continue;
+
+      const tarballGlobs = filterGlobs.filter((g) => SERVER_BUNDLE_GLOB_RE.test(g));
+      if (tarballGlobs.length === 0) continue;
+
+      const absFromDir = path.join(projectRoot, fromDir);
+      const dirExists = fs.existsSync(absFromDir) && fs.statSync(absFromDir).isDirectory();
+      const onDisk = dirExists ? fs.readdirSync(absFromDir) : [];
+
+      let satisfiedCount = 0;
+      const missingSidecars = [];
+
+      for (const tarGlob of tarballGlobs) {
+        const re = globToRegex(tarGlob);
+        const tarballMatches = onDisk.filter((n) => re.test(n));
+        if (tarballMatches.length === 0) continue;
+
+        // sidecar must accompany every tarball match
+        const sidecarMatches = onDisk.filter((n) => re.test(n.replace(/\.sha256$/, '')) && n.endsWith('.sha256'));
+        for (const tar of tarballMatches) {
+          if (!onDisk.includes(`${tar}.sha256`)) missingSidecars.push(`${tar}.sha256`);
+        }
+        if (tarballMatches.length > 0 && sidecarMatches.length === 0) {
+          // count as satisfied for tarball but record sidecar gap separately
+        }
+        satisfiedCount++;
+      }
+
+      if (satisfiedCount === 0) {
+        issues.push({
+          platform,
+          fromDir,
+          tarballGlobs,
+          dirExists,
+        });
+      }
+      if (missingSidecars.length > 0) {
+        issues.push({ platform, fromDir, missingSidecars });
+      }
+    }
+  }
+
+  if (issues.length > 0) {
+    console.error('');
+    console.error('[verify-helper-bundle] PLAN-031 server bundle baseline check failed');
+    console.error('');
+    for (const issue of issues) {
+      if (issue.missingSidecars) {
+        console.error(`  - ${issue.fromDir}/ is missing .sha256 sidecar(s) for ${issue.platform}: ${issue.missingSidecars.join(', ')}`);
+      } else {
+        const dirNote = issue.dirExists ? `${issue.fromDir}/ exists but contains no matching tarball` : `${issue.fromDir}/ does not exist`;
+        console.error(`  - ${issue.platform}.extraResources expects ${issue.tarballGlobs.join(' / ')} but ${dirNote}`);
+      }
+    }
+    console.error('');
+    console.error('[verify-helper-bundle] Fix: run the baseline pre-fetch before build, e.g.');
+    console.error('      node scripts/fetch-baseline-tarball.mjs --host-os <win|mac|linux> --host-arch <x64|arm64>');
+    console.error('  or  npm run fetch:baseline');
+    console.error('');
+    console.error('[verify-helper-bundle] Background: T0316 / PLAN-031 — baseline tarballs must be packed into the installer.');
+    console.error('');
+    process.exit(1);
+  }
+}
+
+checkServerBundleBaseline();
+
 if (problems.length > 0) {
   console.error('');
   console.error('[verify-helper-bundle] extraResources.filter does not cover every helper import');
