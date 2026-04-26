@@ -5,7 +5,7 @@
 | 欄位 | 內容 |
 |------|------|
 | **計劃編號** | PLAN-004 |
-| **狀態** | 🔄 IN_PROGRESS — Phase 1(Vulkan)✅ DONE,Phase 2(CUDA advanced tier)必要性待重新評估 |
+| **狀態** | ✅ DONE 2026-04-26 — Phase 1（Vulkan）已交付（EXP-GPUWHIS-001 CONCLUDED + squash merge `cb65614` + BUG-057 修復 `b2124b5`），Phase 2（CUDA advanced tier）結案不續做（必要性已被 Vulkan 跨平台方案取代;若未來有實證需求再開新 PLAN）|
 | **歷程** | T0236 研究 ✅ DONE → D075 技術方向決策 → EXP-GPUWHIS-001 📊 CONCLUDED(T0237/T0238/T0239/T0240 全綠 → squash merge `cb65614`)→ BUG-057 `translate` 預設值修復(`b2124b5`)|
 | **原狀態** | 📋 PLANNED |
 | **優先級** | 🟡 Medium |

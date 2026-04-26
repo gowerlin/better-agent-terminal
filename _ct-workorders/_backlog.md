@@ -1,10 +1,10 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-26 19:46 (UTC+8) — Session 32 *sync + 收尾 PLAN-021 / PLAN-026 兩張 ✅ DONE（由 PLAN-007 Remote Server Support 整體收斂）。
+> 最後同步：2026-04-26 19:48 (UTC+8) — Session 32 *sync + 收尾 PLAN-004 / PLAN-028 兩張 ✅ DONE。
 
 ## 統計
-- 💡 Ideas: 2 | 📋 Planned: 2 | 🔄 In Progress: 1 | ✅ Done: 3 | 🚫 Dropped: 0 | **Total: 8**
+- 💡 Ideas: 2 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 5 | 🚫 Dropped: 0 | **Total: 8**
 
 > 已歸檔 PLAN（`_archive/plans/`）：19 張
 
@@ -12,9 +12,7 @@
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
-| PLAN-004 | GPU Whisper acceleration（Win/Linux）— Phase 1 Vulkan ✅，Phase 2 CUDA 待評估 | 🟡 Medium | 🔄 IN_PROGRESS | [PLAN-004](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B） | 🟡 Medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
-| PLAN-028 | BAT dogfood verify CT v4.4 / CLT alignment | 🟡 Medium | 📐 PLANNED | [PLAN-028](PLAN-028-bat-dogfood-verify-ct-v44-clt-alignment.md) |
 | PLAN-002 | Dynamic import conflict fix | 🟢 Low | 💡 IDEA | [PLAN-002](PLAN-002-dynamic-import-conflict-fix.md) |
 | PLAN-015 | Refactor：抽取 renderPanelContent shared helper（消除 App.tsx/WorkspaceView.tsx 雙 render 路徑） | 🟢 Low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 
@@ -25,6 +23,8 @@
 | PLAN-007 | BAT terminal client/server 拆分 + 跨環境 server 部署（local/WSL/Docker/SSH）— 23 工單全收 | 2026-04-26 16:34 | [PLAN-007](PLAN-007-remote-container-dev-support.md) |
 | PLAN-021 | Settings UI 支援自訂 RemoteServer port — 由 PLAN-007 整體收斂 | 2026-04-26 | [PLAN-021](PLAN-021-remote-server-port-settings-ui.md) |
 | PLAN-026 | JetBrains Gateway 剪貼簿 proxy — 由 PLAN-007 多 deployment 替代路徑收斂 | 2026-04-26 | [PLAN-026](PLAN-026-jetbrains-gateway-clipboard-proxy.md) |
+| PLAN-004 | GPU Whisper acceleration — Phase 1 Vulkan 交付，Phase 2 CUDA 結案不續做 | 2026-04-26 | [PLAN-004](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
+| PLAN-028 | BAT dogfood verify CT v4.4.x — sessions 26-31 大規模實戰驗證 | 2026-04-26 | [PLAN-028](PLAN-028-bat-dogfood-verify-ct-v44-clt-alignment.md) |
 
 ## Dropped
 

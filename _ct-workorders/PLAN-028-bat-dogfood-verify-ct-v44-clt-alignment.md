@@ -2,7 +2,7 @@
 
 | 欄位 | 內容 |
 |------|------|
-| **狀態** | 📐 PLANNED(主 PLAN T0098 已建立,進入 dogfood + 接手 Phase 1-4 派發)|
+| **狀態** | ✅ DONE 2026-04-26 — BAT 已透過 sessions 26-31 大規模 dogfood 驗證 CT v4.4.x:PLAN-007 23 工單一氣呵成、v0.4.0 + v0.4.1 雙 release GO、yolo 鏈式自主派發成熟、`*evolve` tactical/strategic 分類落地（GP076-080 + L103-107）;CLT 6 項改良在實戰中已內化,主 PLAN T0098 與 BMad-Guide 端 CT-T### 跟進結案 |
 | **優先級** | 🟡 Medium |
 | **類型** | 技術改善(dogfood 驗證 / skill 升級觀察 / **跨專案派發主導**)|
 | **建立時間** | 2026-04-22 |
