@@ -4,7 +4,64 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Added
+- **PLAN-007 Phase 1–5 — Remote dev support across four environments**
+  (`local`, `wsl-linux`, `docker-linux`, `ssh-linux` / `ssh-darwin`). BAT
+  terminal now drives AI agents in a remote BAT server installed via a
+  unified setup wizard that installs the bundle, registers the service,
+  pins the TLS fingerprint, and verifies connectivity end-to-end.
+- **SSH deployment** — full SSH wizard with `~/.ssh/config` alias detection,
+  key-based authentication (with permission-denied recovery), tunnel mode
+  (default, NAT-friendly) and direct mode (advanced), and a multi-arch
+  server bundle matrix covering `linux-x64`, `linux-arm64`, and
+  `darwin-arm64`. Backed by `SshTunnel` with exponential-backoff
+  reconnect (1s → 2s → 4s → 8s → 16s) and `SshPathTranslator` for
+  cross-OS chat-context attachments (Windows client → linux/darwin server).
+- **Setup wizard rollback contract (C-3, best-effort)** — every wizard step
+  registers a rollback handler; on failure or cancellation, the runner
+  walks completed steps in reverse and invokes each handler. Profiles are
+  **not** persisted unless the wizard reaches `done` cleanly. Coverage:
+  `tests/wizard-rollback.test.ts` + `tests/wizard-rollback-cross.test.ts`.
+- **ProfileCard UI (C-7)** — ProfilePanel refactored to a list of
+  `ProfileCard` components with a per-environment **Details** slot. Each
+  card surfaces the bound profile, `targetOS`, pinned TLS fingerprint, and
+  a **Re-run wizard** entry point. Consistent UI across local / WSL /
+  Docker / SSH cards.
+- **Server bundle CI workflow** —
+  `.github/workflows/build-server-bundle.yml` now ships server bundle
+  artifacts independently of the desktop release pipeline. Three platform
+  matrix entries (`linux-x64`, `linux-arm64`, `darwin-arm64`) publish
+  `bat-server-<platform>-v<version>.tar.gz` per release.
+- **Cross-environment overview docs** —
+  `docs/remote-dev-overview.md` (decision tree, comparison table, common
+  concepts) plus `docs/plan-007-release-checklist.md` (release engineer
+  pre-flight checklist covering all four environments and the rollback
+  contract).
+
+### Changed
+- **ProfilePanel** rewritten as a list of `ProfileCard` rows with per-env
+  details slot, replacing the previous flat key/value layout. Editing flow
+  routes through the matching wizard via the **Re-run wizard** button.
+- **PathTranslator framework** — new abstraction with five concrete
+  translators (`IdentityTranslator` for `local` and undefined-target
+  profiles, plus `WslPathTranslator`, `DockerPathTranslator`, and
+  `SshPathTranslator` for the remote environments). Pure functions over
+  profile metadata, individually unit-tested.
+- **RemoteClient middleware** — gained an SSH tunnel chain hook so the SSH
+  transport can reuse the same reconnect / fingerprint-pin / health-check
+  pipeline as the WSL and Docker transports.
+
+### Fixed
+- **BUG-060 — YOLO chained-shell preference loss** — fixed in session 31
+  (commit `fad2978`). Worker chained-shell preference no longer drops on
+  successive YOLO mode workorders.
+
+### Known issues
+- **BUG-061 — `CodexAgentPanel.tsx` baseline TypeScript errors** — pre-existing
+  baseline `tsc` errors in `CodexAgentPanel.tsx` are surfaced by the
+  `feature/plan-007-remote-dev` branch but **do not affect runtime**. They
+  are dev-only and tracked separately; PLAN-007 explicitly excludes their
+  cleanup from scope.
 
 ## [0.3.1] — 2026-04-23 — Hotfix: Packaged Helper Bundle
 

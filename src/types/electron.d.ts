@@ -10,6 +10,9 @@ import type {
 } from './voice'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
+// PLAN-007 T0268: targetOS schema (kept in sync with electron/profile-manager.ts)
+type ProfileTargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
+
 interface ProfileRecord {
   id: string
   name: string
@@ -21,9 +24,41 @@ interface ProfileRecord {
   remoteFingerprint?: string
   createdAt: number
   updatedAt: number
+  // PLAN-007 T0268: targetOS + per-OS metadata (all optional, legacy profiles unaffected)
+  targetOS?: ProfileTargetOS
+  wslDistro?: string
+  dockerContainer?: string
+  dockerHost?: string
+  dockerMounts?: Array<{ host: string; container: string }>
+  sshHost?: string
+  sshUser?: string
+  sshPort?: number
+  sshKeyPath?: string
+  useSshTunnel?: boolean
+  tunnelLocalPort?: number
 }
 
 type RemoteBindInterface = 'localhost' | 'tailscale' | 'all'
+type WslState = 'Running' | 'Stopped'
+
+interface WslDistroRecord {
+  name: string
+  version: 1 | 2
+  state: WslState
+}
+
+interface RemoteAuthMetadata {
+  serverPlatform: 'win32' | 'linux' | 'darwin'
+  serverArch: 'x64' | 'arm64'
+  serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'
+  wslDistro?: string
+  dockerMounts?: Array<{ host: string; container: string }>
+  serverHome?: string
+  nodeVersion: string
+  claudeVersion?: string
+  bundleVersion: string
+  glibcVersion?: string
+}
 
 interface ElectronAPI {
   platform: 'win32' | 'darwin' | 'linux'
@@ -83,6 +118,7 @@ interface ElectronAPI {
     getLaunchProfile: () => Promise<string | null>
     getWindowId: () => Promise<string | null>
     getWindowProfile: () => Promise<string | null>
+    getUserDataPath: () => Promise<string>
     getWindowIndex: () => Promise<number>
     newWindow: () => Promise<string>
     setDockBadge: (count: number) => Promise<void>
@@ -279,12 +315,113 @@ interface ElectronAPI {
     load: (profileId: string) => Promise<unknown>
     delete: (profileId: string) => Promise<boolean>
     rename: (profileId: string, newName: string) => Promise<boolean>
-    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => Promise<boolean>
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: ProfileTargetOS; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; serverHome?: string }) => Promise<boolean>
     duplicate: (profileId: string, newName: string) => Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>
     get: (profileId: string) => Promise<ProfileRecord | null>
     getActiveIds: () => Promise<string[]>
     activate: (profileId: string) => Promise<void>
     deactivate: (profileId: string) => Promise<void>
+  }
+  wsl: {
+    list: () => Promise<{ distros: WslDistroRecord[]; default: string | null }>
+    systemdEnabled: (distro: string) => Promise<boolean>
+    detectNetworkMode: (distro: string) => Promise<'mirrored' | 'nat' | 'unknown'>
+    installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+    uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+  }
+  docker: {
+    status: () => Promise<{ available: boolean; version?: string; error?: string }>
+    listContainers: () => Promise<Array<{ id: string; name: string; image: string; state: string; status: string }>>
+    inspectContainer: (name: string) => Promise<{
+      id: string
+      name: string
+      image: string
+      state: { status: string; running: boolean; health: string }
+      mounts: Array<{ source: string; destination: string }>
+      ports: string[]
+      env: string[]
+    }>
+    validateMounts: (mounts: Array<{ host: string; container: string }>) => Promise<{ ok: boolean; errors: string[] }>
+    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) => Promise<{ ok: boolean; token?: string; error?: string }>
+    stopContainer: (name: string, options?: { remove?: boolean }) => Promise<{ ok: boolean; error?: string }>
+    removeContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
+    restartContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
+    getContainerLogs: (name: string, options?: { tail?: number; follow?: boolean }) => Promise<{ ok: boolean; logs?: string; error?: string }>
+    getContainerHealth: (name: string) => Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>
+    // PLAN-007 T0289 — best-effort rollback for install-server-bundle on
+    // existing containers (RFC C-3). Mocked in cross-deployment tests; real
+    // IPC handler lands in a follow-up workorder.
+    execCommand: (name: string, command: string[]) => Promise<{ ok: true; stdout?: string } | { ok: false; error: string }>
+  }
+  wslSystemd: {
+    writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) => Promise<{ ok: true }>
+    enableLinger: (distro: string) => Promise<{ ok: boolean; error?: string }>
+    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) => Promise<{ ok: true; token: string | null } | { ok: false; error: string; token?: string | null }>
+    removeUnit: (distro: string, serviceName: string, options?: { path?: string }) => Promise<{ ok: true }>
+  }
+  ssh: {
+    listHosts: () => Promise<string[]>
+    probeAuth: (opts: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }) => Promise<{
+      ok: boolean
+      serverPlatform?: 'linux' | 'darwin'
+      serverArch?: string
+      serverHome?: string
+      sshExecPath?: string
+      error?: string
+      errorCode?: 'no-ssh' | 'permission-denied' | 'host-key' | 'connect-timeout' | 'unknown'
+    }>
+    uploadBundle: (request: {
+      uploadId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        installPath: string
+        tarballPath: string
+      }
+    }) => Promise<{ ok: true } | { ok: false; error: string }>
+    onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => () => void
+    // PLAN-007 T0286 — start-server (systemd unit / launchd plist + enable + verify)
+    startServer: (request: {
+      startId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        targetOS: 'ssh-linux' | 'ssh-darwin'
+        installPath: string
+        serverPort?: number
+        serverHome: string
+      }
+    }) => Promise<{
+      ok: boolean
+      method: 'systemd' | 'launchd' | 'failed'
+      servicePath: string
+      checkOutput?: string
+      error?: string
+      errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
+    }>
+    onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => () => void
+    // PLAN-007 T0289 — best-effort rollback hooks (RFC C-3). Real IPC handlers
+    // land in a follow-up workorder; T0289 only declares the surface so wizard
+    // step rollback fns and cross-deployment tests can compile + mock cleanly.
+    uninstallBundle: (request: {
+      sshHost: string
+      sshUser: string
+      sshPort?: number
+      sshKeyPath?: string
+      installPath: string
+    }) => Promise<{ ok: true } | { ok: false; error: string }>
+    stopServer: (request: {
+      sshHost: string
+      sshUser: string
+      sshPort?: number
+      sshKeyPath?: string
+      targetOS: 'ssh-linux' | 'ssh-darwin'
+      serverHome: string
+    }) => Promise<{ ok: true } | { ok: false; error: string }>
   }
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>
@@ -293,7 +430,7 @@ interface ElectronAPI {
     connect: (host: string, port: number, token: string, label?: string, fingerprint?: string) => Promise<{ connected: boolean; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
     disconnect: () => Promise<boolean>
     clientStatus: () => Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>
-    testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string }>
+    testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: RemoteAuthMetadata | null }>
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
     restartServer: (newPort: number) => Promise<
       | { port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string; restartError?: string }

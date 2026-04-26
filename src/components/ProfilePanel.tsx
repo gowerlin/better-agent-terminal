@@ -1,18 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { SetupWizardShell, useSshWizardController, useWslWizardController } from './setup-wizard/SetupWizardShell'
+// PLAN-007 T0288 — RFC C-7 ProfileCard + per-env Details slot.
+import { ProfileCard, EditRemoteProfileModal } from './profiles'
+import type { ProfileEntry, TargetOS } from './profiles'
 
-interface ProfileEntry {
-  id: string
-  name: string
-  type: 'local' | 'remote'
-  remoteHost?: string
-  remotePort?: number
-  remoteToken?: string
-  remoteProfileId?: string
-  remoteFingerprint?: string
-  createdAt: number
-  updatedAt: number
-}
+// PLAN-007 T0268: targetOS choices for the legacy-remote inline prompt.
+const REMOTE_TARGET_OS_OPTIONS: TargetOS[] = ['wsl-linux', 'docker-linux', 'ssh-linux', 'ssh-darwin']
 
 interface RemoteProfileOption {
   id: string
@@ -25,6 +19,31 @@ interface ProfilePanelProps {
   onSwitch?: (profileId: string) => void  // deprecated, kept for compat
   onSwitchNewWindow: (profileId: string) => void
   onProfileRenamed?: (profileId: string, newName: string) => void
+}
+
+function parseConnectionUrl(input: string): {
+  host: string
+  port: number
+  token: string
+  fingerprint: string
+} | null {
+  try {
+    const url = new URL(input.trim())
+    const token = url.searchParams.get('token')
+    const fingerprint = url.searchParams.get('fp')
+    const port = Number(url.port || '9876')
+    if (!url.hostname || !token || !fingerprint || Number.isNaN(port)) {
+      return null
+    }
+    return {
+      host: url.hostname,
+      port,
+      token,
+      fingerprint,
+    }
+  } catch {
+    return null
+  }
 }
 
 export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: ProfilePanelProps) {
@@ -60,6 +79,17 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
   const editInputRef = useRef<HTMLInputElement>(null)
 
   const [remoteActiveByLocalId, setRemoteActiveByLocalId] = useState<Record<string, boolean>>({})
+  // PLAN-007 T0288 — RFC C-7: track per-card expansion (auto-expand the card
+  // currently being remote-edited so the legacy targetOS prompt remains visible).
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
   const loadProfiles = useCallback(async () => {
     const result = await window.electronAPI.profile.listLocal()
@@ -125,6 +155,14 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
       editInputRef.current.select()
     }
   }, [editingId])
+
+  const wslWizard = useWslWizardController(() => {
+    void loadProfiles()
+  })
+  // T0287 — Phase 4 capstone: SSH wizard entry. Mirrors WSL wizard pattern.
+  const sshWizard = useSshWizardController(() => {
+    void loadProfiles()
+  })
 
   // Escape to close
   useEffect(() => {
@@ -293,6 +331,13 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
     }
   }
 
+  // PLAN-007 T0268: set targetOS on a legacy remote profile from the inline prompt.
+  // Non-blocking: user may skip and keep using legacy IdentityTranslator path.
+  const handleSetTargetOS = async (profileId: string, targetOS: TargetOS) => {
+    await window.electronAPI.profile.update(profileId, { targetOS })
+    loadProfiles()
+  }
+
   const handleDelete = async (profileId: string) => {
     await window.electronAPI.profile.delete(profileId)
     setConfirmDelete(null)
@@ -337,10 +382,6 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
     onSwitchNewWindow(profileId)
   }
 
-  const formatDate = (ts: number) => {
-    return new Date(ts).toLocaleString()
-  }
-
   return (
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
@@ -358,6 +399,12 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
             </button>
             <button className="profile-action-btn" onClick={() => { setCreating('remote'); setNewName('') }}>
               {t('profiles.addRemote')}
+            </button>
+            <button className="profile-action-btn" onClick={() => wslWizard.open('')}>
+              Add WSL Profile
+            </button>
+            <button className="profile-action-btn" onClick={() => sshWizard.open('')}>
+              Add SSH Profile
             </button>
           </div>
 
@@ -461,139 +508,71 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               p.type === 'remote'
                 ? !!remoteActiveByLocalId[p.id]
                 : activeProfileIds.includes(p.id)
-            const renderProfile = (profile: ProfileEntry) => (
-              <div
-                key={profile.id}
-                className={`profile-item ${profile.id === windowProfileId ? 'active' : ''} ${isProfileRunning(profile) ? 'running' : ''}`}
-                onClick={() => handleSwitchRequest(profile.id)}
-              >
-                <div className="profile-item-info">
-                  {editingId === profile.id ? (
-                    <input
-                      ref={editInputRef}
-                      type="text"
-                      className="profile-name-input"
-                      value={editValue}
-                      onChange={e => setEditValue(e.target.value)}
-                      onBlur={() => handleRename(profile.id)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleRename(profile.id)
-                        if (e.key === 'Escape') { setEditingId(null); setEditValue('') }
-                      }}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  ) : (
-                    <>
-                      <span className="profile-item-name">
-                        {profile.id === windowProfileId && <span className="profile-active-dot" />}
-                        {profile.name}
-                        {(profile.type === 'remote') && (
-                          <span style={{ fontSize: 10, color: '#58a6ff', marginLeft: 6, opacity: 0.8 }}>{t('profiles.remote')}</span>
-                        )}
-                      </span>
-                      <span className="profile-item-meta">
-                        {profile.type === 'remote'
-                          ? `${profile.remoteHost}:${profile.remotePort}${profile.remoteProfileId ? ` → ${profile.remoteProfileId}` : ''}`
-                          : t('profiles.updated', { date: formatDate(profile.updatedAt) })}
-                      </span>
-                    </>
-                  )}
-                </div>
-                {/* Remote connection edit form */}
-                {editingRemoteId === profile.id && (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, width: '100%' }} onClick={e => e.stopPropagation()}>
-                    <input
-                      type="text"
-                      className="profile-name-input"
-                      placeholder={t('profiles.connectionUrlPlaceholder', 'Paste connection URL (wss://host:port?token=…&fp=…)')}
-                      onChange={e => {
-                        const parsed = parseConnectionUrl(e.target.value)
-                        if (!parsed) return
-                        setEditRemoteHost(parsed.host)
-                        setEditRemotePort(String(parsed.port))
-                        setEditRemoteToken(parsed.token)
-                        setEditRemoteFingerprint(parsed.fingerprint)
-                        setEditRemoteProfiles([])
-                        e.target.value = ''
-                      }}
-                      style={{ flex: '1 1 100%', fontFamily: 'monospace', fontSize: 11 }}
-                    />
-                    <input
-                      type="text"
-                      className="profile-name-input"
-                      placeholder={t('profiles.host')}
-                      value={editRemoteHost}
-                      onChange={e => { setEditRemoteHost(e.target.value); setEditRemoteProfiles([]) }}
-                      style={{ flex: '1 1 120px' }}
-                    />
-                    <input
-                      type="number"
-                      className="profile-name-input"
-                      placeholder={t('profiles.portPlaceholder')}
-                      value={editRemotePort}
-                      onChange={e => { setEditRemotePort(e.target.value); setEditRemoteProfiles([]) }}
-                      style={{ width: 70 }}
-                    />
-                    <input
-                      type="text"
-                      className="profile-name-input"
-                      placeholder={t('profiles.tokenPlaceholder')}
-                      value={editRemoteToken}
-                      onChange={e => { setEditRemoteToken(e.target.value); setEditRemoteProfiles([]) }}
-                      style={{ flex: '1 1 160px' }}
-                    />
-                    <input
-                      type="text"
-                      className="profile-name-input"
-                      placeholder="Pinned fingerprint (read-only)"
-                      value={editRemoteFingerprint}
-                      readOnly
-                      title="Read-only. Use 'Pin expected fingerprint' below to refresh from the server."
-                      style={{ flex: '1 1 100%', fontFamily: 'monospace', fontSize: 11 }}
-                    />
-                    <div style={{ display: 'flex', gap: 6, width: '100%', alignItems: 'center' }}>
-                      <button
-                        className="profile-action-btn"
-                        onClick={handleFetchEditRemoteProfiles}
-                        disabled={editFetchingRemoteProfiles || !editRemoteHost.trim() || !editRemoteToken.trim()}
-                      >
-                        {editFetchingRemoteProfiles ? t('profiles.fetchingProfiles') : t('profiles.fetchProfiles')}
-                      </button>
-                      <button
-                        className="profile-action-btn"
-                        onClick={() => handlePinFingerprint(profile)}
-                        disabled={!profile.remoteHost || !profile.remoteToken}
-                        title="Fetch current server fingerprint and pin it for future connections"
-                      >
-                        Pin expected fingerprint
-                      </button>
-                      {editSelectedRemoteProfileId && editRemoteProfiles.length === 0 && (
-                        <span style={{ fontSize: 11, color: '#8b949e' }}>
-                          {t('profiles.currentTarget')}: {editSelectedRemoteProfileId}
-                        </span>
-                      )}
-                    </div>
-                    {editRemoteProfiles.length > 0 && (
-                      <select
-                        className="profile-name-input"
-                        value={editSelectedRemoteProfileId}
-                        onChange={e => setEditSelectedRemoteProfileId(e.target.value)}
-                        style={{ width: '100%' }}
-                      >
-                        {editRemoteProfiles.map(rp => (
-                          <option key={rp.id} value={rp.id}>
-                            {rp.name} {rp.type === 'remote' ? `(${t('profiles.remote')})` : ''}
-                          </option>
-                        ))}
-                      </select>
+
+            // PLAN-007 T0288 — RFC C-7: render each row via <ProfileCard>. The
+            // legacy targetOS prompt rides into expandedExtras; rename input
+            // overrides the header; remote-edit moves to a modal (see below).
+            const renderCard = (profile: ProfileEntry) => {
+              const isRunning = isProfileRunning(profile)
+              const isActive = profile.id === windowProfileId
+              const isExpanded = expandedIds.has(profile.id) || editingRemoteId === profile.id
+              const headerOverride = editingId === profile.id ? (
+                <input
+                  ref={editInputRef}
+                  type="text"
+                  className="profile-name-input"
+                  value={editValue}
+                  onChange={e => setEditValue(e.target.value)}
+                  onBlur={() => handleRename(profile.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleRename(profile.id)
+                    if (e.key === 'Escape') { setEditingId(null); setEditValue('') }
+                  }}
+                  onClick={e => e.stopPropagation()}
+                />
+              ) : undefined
+              const expandedExtras = profile.type === 'remote' && profile.targetOS === undefined ? (
+                <div
+                  data-testid="legacy-remote-targetos-prompt"
+                  className="profile-card-legacy-prompt"
+                  style={{
+                    padding: '8px 10px',
+                    marginBottom: 6,
+                    background: 'rgba(210, 153, 34, 0.12)',
+                    border: '1px solid rgba(210, 153, 34, 0.5)',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    color: '#d29922',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ flex: '1 1 auto' }}>
+                    ⚠ {t(
+                      'profiles.legacyTargetOsPrompt',
+                      'This profile has no targetOS — connecting in legacy mode (no path translation). Set targetOS to enable cross-OS path handling.',
                     )}
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="profile-action-btn" onClick={() => handleSaveRemote(profile.id)}>{t('common.save')}</button>
-                      <button className="profile-action-btn" onClick={() => { setEditingRemoteId(null); setEditRemoteProfiles([]) }}>{t('common.cancel')}</button>
-                    </div>
-                  </div>
-                )}
-                <div className="profile-item-actions" onClick={e => e.stopPropagation()}>
+                  </span>
+                  <select
+                    className="profile-name-input"
+                    defaultValue=""
+                    onChange={e => {
+                      const v = e.target.value as TargetOS | ''
+                      if (v) handleSetTargetOS(profile.id, v)
+                    }}
+                    style={{ width: 160, fontSize: 12 }}
+                  >
+                    <option value="" disabled>{t('profiles.selectTargetOs', 'Select targetOS…')}</option>
+                    {REMOTE_TARGET_OS_OPTIONS.map(os => (
+                      <option key={os} value={os}>{os}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : undefined
+              const inlineActions = (
+                <>
                   {profile.type === 'remote' && (
                     <button
                       className={`profile-icon-btn ${testResult[profile.id] === 'ok' ? 'success' : testResult[profile.id] === 'fail' ? 'danger' : ''}`}
@@ -628,16 +607,6 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                   )}
                   <button
                     className="profile-icon-btn"
-                    title={t('profiles.rename')}
-                    onClick={() => { setEditingId(profile.id); setEditValue(profile.name) }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                  </button>
-                  <button
-                    className="profile-icon-btn"
                     title={t('profiles.duplicate')}
                     onClick={() => handleDuplicate(profile.id)}
                   >
@@ -646,30 +615,33 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
                   </button>
-                  {profile.id !== 'default' && (
-                    <button
-                      className="profile-icon-btn danger"
-                      title={t('common.delete')}
-                      onClick={() => setConfirmDelete(profile.id)}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 6h18" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
+                </>
+              )
+              return (
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  isActive={isActive}
+                  isRunning={isRunning}
+                  isExpanded={isExpanded}
+                  onToggleExpand={() => toggleExpanded(profile.id)}
+                  onSwitch={() => handleSwitchRequest(profile.id)}
+                  onEdit={() => { setEditingId(profile.id); setEditValue(profile.name) }}
+                  onDelete={profile.id !== 'default' ? () => setConfirmDelete(profile.id) : undefined}
+                  actions={inlineActions}
+                  expandedExtras={expandedExtras}
+                  headerOverride={headerOverride}
+                />
+              )
+            }
             return (
               <div className="profile-list">
                 <div className="profile-section-header">{t('profiles.localSection')}</div>
-                {localList.map(renderProfile)}
+                {localList.map(renderCard)}
                 {remoteList.length > 0 && (
                   <>
                     <div className="profile-section-header">{t('profiles.remoteSection')}</div>
-                    {remoteList.map(renderProfile)}
+                    {remoteList.map(renderCard)}
                   </>
                 )}
               </div>
@@ -689,6 +661,74 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="profile-action-btn" onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</button>
               <button className="profile-action-btn danger" onClick={() => handleDelete(confirmDelete)}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PLAN-007 T0288 — RFC C-7: remote-edit moved out of the inline row into a dedicated modal. */}
+      {editingRemoteId && (() => {
+        const profile = profiles.find(p => p.id === editingRemoteId)
+        if (!profile) return null
+        const closeModal = () => { setEditingRemoteId(null); setEditRemoteProfiles([]) }
+        return (
+          <EditRemoteProfileModal
+            profile={profile}
+            host={editRemoteHost}
+            port={editRemotePort}
+            token={editRemoteToken}
+            fingerprint={editRemoteFingerprint}
+            selectedRemoteProfileId={editSelectedRemoteProfileId}
+            remoteProfiles={editRemoteProfiles}
+            fetching={editFetchingRemoteProfiles}
+            setHost={setEditRemoteHost}
+            setPort={setEditRemotePort}
+            setToken={setEditRemoteToken}
+            setFingerprint={setEditRemoteFingerprint}
+            setSelectedRemoteProfileId={setEditSelectedRemoteProfileId}
+            setRemoteProfiles={setEditRemoteProfiles}
+            parseConnectionUrl={parseConnectionUrl}
+            onFetch={handleFetchEditRemoteProfiles}
+            onPin={() => handlePinFingerprint(profile)}
+            onSave={() => handleSaveRemote(profile.id)}
+            onClose={closeModal}
+          />
+        )
+      })()}
+
+      {wslWizard.isOpen && wslWizard.ctx && (
+        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={wslWizard.close}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div className="settings-header">
+              <h2>Add WSL Profile</h2>
+              <button className="settings-close" onClick={wslWizard.close}>&times;</button>
+            </div>
+            <div className="settings-body" style={{ padding: '16px' }}>
+              <SetupWizardShell
+                key={wslWizard.key}
+                ctx={wslWizard.ctx}
+                onComplete={wslWizard.handleComplete}
+                steps={wslWizard.steps}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sshWizard.isOpen && sshWizard.ctx && (
+        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={sshWizard.close}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div className="settings-header">
+              <h2>Add SSH Profile</h2>
+              <button className="settings-close" onClick={sshWizard.close}>&times;</button>
+            </div>
+            <div className="settings-body" style={{ padding: '16px' }}>
+              <SetupWizardShell
+                key={sshWizard.key}
+                ctx={sshWizard.ctx}
+                onComplete={sshWizard.handleComplete}
+                steps={sshWizard.steps}
+              />
             </div>
           </div>
         </div>

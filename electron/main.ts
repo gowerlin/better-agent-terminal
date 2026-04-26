@@ -80,6 +80,7 @@ import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
+import { registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
@@ -87,6 +88,11 @@ import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
+import * as dockerDetect from './docker-detect'
+import * as dockerLifecycle from './docker-lifecycle'
+import * as dockerValidate from './docker-validate'
+import * as wslDetect from './wsl-detect'
+import * as wslSystemd from './wsl-systemd'
 import {
   assertPathAllowed,
   isPathAllowed,
@@ -1124,7 +1130,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
     const label = profileEntry.name || profileId
     const task = remoteOpMutex.then(async () => {
       try {
-        const client = new RemoteClient(() => getWindowsForProfile(profileId))
+        const client = new RemoteClient(() => getWindowsForProfile(profileId), profileEntry)
         const result = await client.connect(
           host,
           port,
@@ -3113,7 +3119,7 @@ function registerLocalHandlers() {
         const senderWindowId = getWindowIdByWebContents(event.sender)
         const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
         const boundProfileId = senderEntry?.profileId ?? null
-        const client = new RemoteClient(() => getWindowsForProfile(boundProfileId))
+        const client = new RemoteClient(() => getWindowsForProfile(boundProfileId), senderEntry ? await profileManager.getProfile(boundProfileId ?? '') : null)
         const result = await client.connect(host, port, token, label, fingerprint)
         if (!result.ok) {
           remoteClient = null
@@ -3159,7 +3165,13 @@ function registerLocalHandlers() {
     try {
       const result = await testClient.connect(host, port, token, undefined, fingerprint)
       testClient.disconnect()
-      return { ok: result.ok, fingerprint: result.fingerprint, errorCode: result.errorCode, error: result.error }
+      return {
+        ok: result.ok,
+        fingerprint: result.fingerprint,
+        errorCode: result.errorCode,
+        error: result.error,
+        metadata: testClient.serverMetadata,
+      }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
@@ -3188,8 +3200,43 @@ function registerLocalHandlers() {
   ipcMain.handle('profile:delete', async (_event, profileId: string) => profileManager.delete(profileId))
   ipcMain.handle('profile:rename', async (_event, profileId: string, newName: string) => profileManager.rename(profileId, newName))
   ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => profileManager.duplicate(profileId, newName))
-  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => profileManager.update(profileId, updates))
+  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => profileManager.update(profileId, updates))
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
+  ipcMain.handle('docker:status', () => dockerDetect.dockerStatus())
+  ipcMain.handle('docker:list-containers', () => dockerDetect.listContainers())
+  ipcMain.handle('docker:inspect-container', (_event, name: string) => dockerDetect.inspectContainer(name))
+  ipcMain.handle('docker:validate-mounts', (_event, mounts: Array<{ host: string; container: string }>) => dockerValidate.validateMountTable(mounts))
+  ipcMain.handle('docker:start-container', (_event, name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
+    dockerLifecycle.startContainer(name, options))
+  ipcMain.handle('docker:stop-container', (_event, name: string, options?: { remove?: boolean }) => dockerLifecycle.stopContainer(name, options))
+  ipcMain.handle('docker:remove-container', (_event, name: string) => dockerLifecycle.removeContainer(name))
+  ipcMain.handle('docker:restart-container', (_event, name: string) => dockerLifecycle.restartContainer(name))
+  ipcMain.handle('docker:get-container-logs', (_event, name: string, options?: { tail?: number; follow?: boolean }) => dockerLifecycle.getContainerLogs(name, options))
+  ipcMain.handle('docker:get-container-health', (_event, name: string) => dockerLifecycle.getContainerHealth(name))
+  ipcMain.handle('wsl:list', () => wslDetect.list())
+  ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
+  ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))
+  ipcMain.handle('wsl:install-bundle', (_event, distro: string, tarballPath: string, installPath: string) =>
+    wslDetect.installBundle(distro, tarballPath, installPath))
+  ipcMain.handle('wsl:uninstall-bundle', async (_event, distro: string, installPath: string) => {
+    try {
+      await wslDetect.uninstallBundle(distro, installPath)
+      return { ok: true as const }
+    } catch (error) {
+      return {
+        ok: false as const,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+  registerSshSetupHandlers(ipcMain)
+  ipcMain.handle('wsl-systemd:write-unit', (_event, distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
+    wslSystemd.writeUnit(distro, unit))
+  ipcMain.handle('wsl-systemd:enable-linger', (_event, distro: string) => wslSystemd.enableLinger(distro))
+  ipcMain.handle('wsl-systemd:start-service', (_event, distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
+    wslSystemd.startService(distro, serviceName, options))
+  ipcMain.handle('wsl-systemd:remove-unit', (_event, distro: string, serviceName: string, options?: { path?: string }) =>
+    wslSystemd.removeUnit(distro, serviceName, options))
 
   // Get the profile ID this instance was launched with (--profile= argument)
   ipcMain.handle('app:get-launch-profile', () => launchProfileId)
@@ -3201,6 +3248,7 @@ function registerLocalHandlers() {
     const entry = await windowRegistry.getEntry(windowId)
     return entry?.profileId ?? null
   })
+  ipcMain.handle('app:get-user-data-path', () => app.getPath('userData'))
   // Get this window's index within its profile (1-based)
   ipcMain.handle('app:get-window-index', async (event) => {
     const windowId = getWindowIdByWebContents(event.sender)

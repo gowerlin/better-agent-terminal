@@ -2,8 +2,21 @@ import WebSocket from 'ws'
 import type { TLSSocket, PeerCertificate } from 'tls'
 import { randomBytes } from 'crypto'
 import { BrowserWindow } from 'electron'
-import { PROXIED_EVENTS, type RemoteFrame } from './protocol'
+import { extractTargetOSMeta, type ProfileEntry } from '../profile-manager'
+import { PROXIED_EVENTS, type AuthResult, type AuthResultMetadata, type RemoteFrame } from './protocol'
+import {
+  normalizePathsInResult,
+  translateInvokeArgs,
+  translateRemoteEventArgs,
+} from './path-aware-channels'
+import { createTranslator, IdentityTranslator, type PathTranslator } from './path-translator'
+import { SshTunnel } from './ssh-tunnel'
 import { logger } from '../logger'
+
+// PLAN-007 T0284: After this many consecutive failed tunnel restarts the
+// reconnect chain stops trying. Surfaced via existing connection-error path
+// (no new IPC channel — T0270 channel set is frozen, AC9).
+export const TUNNEL_MAX_RESTART_FAILURES = 5
 
 interface PendingInvoke {
   resolve: (result: unknown) => void
@@ -51,6 +64,9 @@ export class RemoteClient {
   private ws: WebSocket | null = null
   private pending: Map<string, PendingInvoke> = new Map()
   private getWindows: () => BrowserWindow[]
+  private profile: ProfileEntry | null
+  private translator: PathTranslator = new IdentityTranslator()
+  private serverMetadataValue: AuthResultMetadata | null = null
   private _connected = false
   private _connectedFingerprint = ''
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -62,8 +78,16 @@ export class RemoteClient {
   private expectedFingerprint = ''
   private shouldReconnect = false
 
-  constructor(getWindows: () => BrowserWindow[]) {
+  // PLAN-007 T0284: SSH tunnel state. Non-null only when the bound profile is
+  // ssh-linux/ssh-darwin with useSshTunnel === true. wss host/port are
+  // rewritten to 127.0.0.1:<localPort> once the tunnel is up.
+  private tunnel: SshTunnel | null = null
+  private remoteServerPort = 0   // pre-tunnel destination port on the SSH host
+  private tunnelRestartFailures = 0
+
+  constructor(getWindows: () => BrowserWindow[], profile?: ProfileEntry | null) {
     this.getWindows = getWindows
+    this.profile = profile ?? null
   }
 
   get isConnected(): boolean {
@@ -73,6 +97,21 @@ export class RemoteClient {
   get connectionInfo(): { host: string; port: number; fingerprint: string } | null {
     if (!this._connected) return null
     return { host: this.host, port: this.port, fingerprint: this._connectedFingerprint }
+  }
+
+  get serverMetadata(): AuthResultMetadata | null {
+    return this.serverMetadataValue
+  }
+
+  setProfile(profile: ProfileEntry | null): void {
+    this.profile = profile
+    if (this.serverMetadataValue) {
+      this.updateTranslatorFromProfile()
+    }
+  }
+
+  setTranslator(translator: PathTranslator): void {
+    this.translator = translator
   }
 
   /**
@@ -99,11 +138,98 @@ export class RemoteClient {
       ? normalizeFingerprint(expectedFingerprint)
       : ''
     this.shouldReconnect = true
+    this.remoteServerPort = port
+
+    // PLAN-007 T0284: prepare SshTunnel from profile metadata. doConnect()
+    // will lazily start it before opening the wss socket.
+    this.maybeCreateTunnel()
 
     return this.doConnect()
   }
 
-  private doConnect(): Promise<ConnectResult> {
+  /**
+   * PLAN-007 T0284: instantiate SshTunnel iff the bound profile asks for it.
+   * Idempotent — safe to call repeatedly during reconnect.
+   */
+  private maybeCreateTunnel(): void {
+    if (this.tunnel) return
+    if (!this.profile) return
+    const meta = extractTargetOSMeta(this.profile)
+    if (meta.targetOS !== 'ssh-linux' && meta.targetOS !== 'ssh-darwin') return
+    if (!meta.useSshTunnel) return
+    if (!meta.sshHost || !meta.sshUser) {
+      logger.warn(
+        '[RemoteClient] profile requests SSH tunnel but sshHost/sshUser are blank — skipping',
+      )
+      return
+    }
+
+    this.tunnel = new SshTunnel({
+      sshHost: meta.sshHost,
+      sshUser: meta.sshUser,
+      sshPort: meta.sshPort,
+      sshKeyPath: meta.sshKeyPath,
+      remotePort: this.remoteServerPort,
+      localPort: meta.tunnelLocalPort,
+    })
+
+    this.tunnel.on('tunnel-down', () => {
+      logger.warn('[RemoteClient] SshTunnel reported tunnel-down — closing wss to trigger reconnect')
+      // Closing the socket fires the existing 'close' handler which decides
+      // whether to schedule a reconnect (shouldReconnect && wasConnected).
+      try { this.ws?.close() } catch { /* ignore */ }
+      // Defensive: if wss was never connected (e.g. tunnel died mid-handshake)
+      // the close handler will not schedule, so push a reconnect ourselves.
+      if (this.shouldReconnect && !this._connected) {
+        this.scheduleReconnect()
+      }
+    })
+  }
+
+  /**
+   * PLAN-007 T0284 reconnect chain step 1: ensure the SSH tunnel is up
+   * before attempting wss. Returns false (with error) when tunnel start
+   * keeps failing past TUNNEL_MAX_RESTART_FAILURES so the caller can
+   * surface a connection-error and stop retrying.
+   */
+  private async ensureTunnelReady(): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!this.tunnel) return { ok: true }
+    if (this.tunnel.isAlive()) {
+      // Tunnel is up; this.port should already point at its localPort.
+      return { ok: true }
+    }
+    try {
+      const { localPort } = await this.tunnel.start()
+      // Rewrite wss target to the loopback port the tunnel forwards from.
+      this.host = '127.0.0.1'
+      this.port = localPort
+      this.tunnelRestartFailures = 0
+      return { ok: true }
+    } catch (err) {
+      this.tunnelRestartFailures += 1
+      const msg = err instanceof Error ? err.message : String(err)
+      logger.error(
+        `[RemoteClient] SshTunnel start failed (attempt ${this.tunnelRestartFailures}/${TUNNEL_MAX_RESTART_FAILURES}): ${msg}`,
+      )
+      return { ok: false, error: msg }
+    }
+  }
+
+  private async doConnect(): Promise<ConnectResult> {
+    // PLAN-007 T0284: ensure tunnel is up before opening wss. If the
+    // profile doesn't use a tunnel this is a no-op.
+    const tunnelReady = await this.ensureTunnelReady()
+    if (!tunnelReady.ok) {
+      return {
+        ok: false,
+        error: `SSH tunnel unavailable: ${tunnelReady.error}`,
+        errorCode: 'network',
+      }
+    }
+    return this.openWss()
+  }
+
+  private openWss(): Promise<ConnectResult> {
     return new Promise((resolve) => {
       const url = `wss://${this.host}:${this.port}`
       // We verify the self-signed cert ourselves via fingerprint pinning below,
@@ -181,6 +307,7 @@ export class RemoteClient {
             this._connected = true
             this._connectedFingerprint = observedFingerprint
             this.reconnectAttempts = 0
+            this.applyAuthResult(frame.result as AuthResult | undefined)
             logger.log(
               `[RemoteClient] Connected to ${this.host}:${this.port} ` +
                 `(fingerprint=${observedFingerprint.substring(0, 23)}...)`
@@ -210,9 +337,14 @@ export class RemoteClient {
 
         // Event — forward to renderer
         if (frame.type === 'event' && frame.channel && PROXIED_EVENTS.has(frame.channel)) {
+          const translatedArgs = translateRemoteEventArgs(
+            frame.channel,
+            frame.args || [],
+            this.translator,
+          )
           for (const win of this.getWindows()) {
             if (!win.isDestroyed()) {
-              win.webContents.send(frame.channel, ...(frame.args || []))
+              win.webContents.send(frame.channel, ...translatedArgs)
             }
           }
           return
@@ -256,6 +388,25 @@ export class RemoteClient {
 
   private scheduleReconnect() {
     if (this.reconnectTimer) return
+    // PLAN-007 T0284: bail when SSH tunnel restarts have repeatedly failed.
+    // Surface the failure to renderers via the existing connection-error
+    // channel rather than introducing a new IPC name (AC9).
+    if (
+      this.tunnel
+      && this.tunnelRestartFailures >= TUNNEL_MAX_RESTART_FAILURES
+    ) {
+      // AC9: T0270 froze the IPC channel set, so we surface this via a
+      // structured logger.error instead of inventing a new channel. The
+      // wizard work in T0285 will add the user-visible modal hookup using
+      // an existing channel (e.g. piggy-back on auth-result with an
+      // errorType discriminator) once it ships.
+      logger.error(
+        `[RemoteClient] tunnel restart gave up: errorType=tunnel host=${this.host} port=${this.port} ` +
+          `failures=${this.tunnelRestartFailures}`,
+      )
+      this.shouldReconnect = false
+      return
+    }
     const delay = computeReconnectDelay(this.reconnectAttempts)
     this.reconnectAttempts += 1
     logger.log(
@@ -266,6 +417,8 @@ export class RemoteClient {
       this.reconnectTimer = null
       if (!this.shouldReconnect) return
       try {
+        // doConnect() will run ensureTunnelReady() first, so a dead tunnel
+        // is rebuilt before the wss attempt (PLAN-007 T0284 reconnect chain).
         const res = await this.doConnect()
         if (!res.ok && this.shouldReconnect) {
           this.scheduleReconnect()
@@ -300,6 +453,21 @@ export class RemoteClient {
       this.ws = null
     }
 
+    // PLAN-007 T0284: also tear down the SSH tunnel so the ssh subprocess
+    // does not linger after an explicit disconnect. start() will rebuild it
+    // on the next connect() if needed.
+    if (this.tunnel) {
+      const t = this.tunnel
+      this.tunnel = null
+      this.tunnelRestartFailures = 0
+      t.stop().catch((err) => {
+        logger.warn(
+          '[RemoteClient] tunnel stop failed during disconnect:',
+          err instanceof Error ? err.message : String(err),
+        )
+      })
+    }
+
     logger.log('[RemoteClient] Disconnected')
   }
 
@@ -309,7 +477,8 @@ export class RemoteClient {
     }
 
     const id = this.nextId()
-    const frame: RemoteFrame = { type: 'invoke', id, channel, args }
+    const translatedArgs = translateInvokeArgs(channel, args, this.translator)
+    const frame: RemoteFrame = { type: 'invoke', id, channel, args: translatedArgs }
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -317,9 +486,42 @@ export class RemoteClient {
         reject(new Error(`Remote invoke timeout: ${channel}`))
       }, timeout)
 
-      this.pending.set(id, { resolve, reject, timer })
+      this.pending.set(id, {
+        resolve: (result) => {
+          resolve(normalizePathsInResult(channel, result, this.translator))
+        },
+        reject,
+        timer,
+      })
       this.ws!.send(JSON.stringify(frame))
     })
+  }
+
+  private applyAuthResult(result: AuthResult | undefined): void {
+    if (result && typeof result === 'object') {
+      this.serverMetadataValue = result
+      this.updateTranslatorFromProfile()
+      return
+    }
+    this.serverMetadataValue = null
+    this.translator = new IdentityTranslator()
+  }
+
+  private updateTranslatorFromProfile(): void {
+    if (!this.profile) {
+      this.translator = new IdentityTranslator()
+      return
+    }
+
+    try {
+      this.translator = createTranslator(this.profile)
+    } catch (error) {
+      logger.warn(
+        '[RemoteClient] translator not available, using Identity:',
+        error instanceof Error ? error.message : String(error),
+      )
+      this.translator = new IdentityTranslator()
+    }
   }
 
   private _counter = 0

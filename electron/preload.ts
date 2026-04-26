@@ -117,6 +117,7 @@ const electronAPI = {
     getLaunchProfile: () => ipcRenderer.invoke('app:get-launch-profile') as Promise<string | null>,
     getWindowId: () => ipcRenderer.invoke('app:get-window-id') as Promise<string | null>,
     getWindowProfile: () => ipcRenderer.invoke('app:get-window-profile') as Promise<string | null>,
+    getUserDataPath: () => ipcRenderer.invoke('app:get-user-data-path') as Promise<string>,
     getWindowIndex: () => ipcRenderer.invoke('app:get-window-index') as Promise<number>,
     newWindow: () => ipcRenderer.invoke('app:new-window') as Promise<string>,
     setDockBadge: (count: number) => ipcRenderer.invoke('app:set-dock-badge', count),
@@ -451,23 +452,125 @@ const electronAPI = {
     },
   },
   profile: {
-    list: () => ipcRenderer.invoke('profile:list') as Promise<{ profiles: { id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number }[]; activeProfileIds: string[] }>,
+    list: () => ipcRenderer.invoke('profile:list') as Promise<{ profiles: { id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }[]; activeProfileIds: string[] }>,
     // Local-only profile list — returns THIS machine's profiles even when
     // connected to a remote host (where profile:list would return the remote's
     // profiles). Used to resolve window identity / local aliases.
-    listLocal: () => ipcRenderer.invoke('profile:list-local') as Promise<{ profiles: { id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number }[]; activeProfileIds: string[] }>,
+    listLocal: () => ipcRenderer.invoke('profile:list-local') as Promise<{ profiles: { id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }[]; activeProfileIds: string[] }>,
     create: (name: string, options?: { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) =>
       ipcRenderer.invoke('profile:create', name, options) as Promise<{ id: string; name: string; type: 'local' | 'remote'; createdAt: number; updatedAt: number }>,
     save: (profileId: string) => ipcRenderer.invoke('profile:save', profileId) as Promise<boolean>,
     load: (profileId: string) => ipcRenderer.invoke('profile:load', profileId) as Promise<unknown>,
     delete: (profileId: string) => ipcRenderer.invoke('profile:delete', profileId) as Promise<boolean>,
     rename: (profileId: string, newName: string) => ipcRenderer.invoke('profile:rename', profileId, newName) as Promise<boolean>,
-    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => ipcRenderer.invoke('profile:update', profileId, updates) as Promise<boolean>,
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => ipcRenderer.invoke('profile:update', profileId, updates) as Promise<boolean>,
     duplicate: (profileId: string, newName: string) => ipcRenderer.invoke('profile:duplicate', profileId, newName) as Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>,
-    get: (profileId: string) => ipcRenderer.invoke('profile:get', profileId) as Promise<{ id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number } | null>,
+    get: (profileId: string) => ipcRenderer.invoke('profile:get', profileId) as Promise<{ id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number } | null>,
     getActiveIds: () => ipcRenderer.invoke('profile:get-active-ids') as Promise<string[]>,
     activate: (profileId: string) => ipcRenderer.invoke('profile:activate', profileId) as Promise<void>,
     deactivate: (profileId: string) => ipcRenderer.invoke('profile:deactivate', profileId) as Promise<void>,
+  },
+  wsl: {
+    list: () => ipcRenderer.invoke('wsl:list') as Promise<{ distros: { name: string; version: 1 | 2; state: 'Running' | 'Stopped' }[]; default: string | null }>,
+    systemdEnabled: (distro: string) => ipcRenderer.invoke('wsl:systemd-enabled', distro) as Promise<boolean>,
+    detectNetworkMode: (distro: string) => ipcRenderer.invoke('wsl:detect-network-mode', distro) as Promise<'mirrored' | 'nat' | 'unknown'>,
+    installBundle: (distro: string, tarballPath: string, installPath: string) =>
+      ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
+    uninstallBundle: (distro: string, installPath: string) =>
+      ipcRenderer.invoke('wsl:uninstall-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
+  },
+  docker: {
+    status: () => ipcRenderer.invoke('docker:status') as Promise<{ available: boolean; version?: string; error?: string }>,
+    listContainers: () => ipcRenderer.invoke('docker:list-containers') as Promise<Array<{ id: string; name: string; image: string; state: string; status: string }>>,
+    inspectContainer: (name: string) =>
+      ipcRenderer.invoke('docker:inspect-container', name) as Promise<{
+        id: string
+        name: string
+        image: string
+        state: { status: string; running: boolean; health: string }
+        mounts: Array<{ source: string; destination: string }>
+        ports: string[]
+        env: string[]
+      }>,
+    validateMounts: (mounts: Array<{ host: string; container: string }>) =>
+      ipcRenderer.invoke('docker:validate-mounts', mounts) as Promise<{ ok: boolean; errors: string[] }>,
+    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
+      ipcRenderer.invoke('docker:start-container', name, options) as Promise<{ ok: boolean; token?: string; error?: string }>,
+    stopContainer: (name: string, options?: { remove?: boolean }) =>
+      ipcRenderer.invoke('docker:stop-container', name, options) as Promise<{ ok: boolean; error?: string }>,
+    removeContainer: (name: string) =>
+      ipcRenderer.invoke('docker:remove-container', name) as Promise<{ ok: boolean; error?: string }>,
+    restartContainer: (name: string) =>
+      ipcRenderer.invoke('docker:restart-container', name) as Promise<{ ok: boolean; error?: string }>,
+    getContainerLogs: (name: string, options?: { tail?: number; follow?: boolean }) =>
+      ipcRenderer.invoke('docker:get-container-logs', name, options) as Promise<{ ok: boolean; logs?: string; error?: string }>,
+    getContainerHealth: (name: string) =>
+      ipcRenderer.invoke('docker:get-container-health', name) as Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>,
+  },
+  ssh: {
+    listHosts: () => ipcRenderer.invoke('ssh:list-hosts') as Promise<string[]>,
+    probeAuth: (opts: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }) =>
+      ipcRenderer.invoke('ssh:probe-auth', opts) as Promise<{
+        ok: boolean
+        serverPlatform?: 'linux' | 'darwin'
+        serverArch?: string
+        serverHome?: string
+        sshExecPath?: string
+        error?: string
+        errorCode?: 'no-ssh' | 'permission-denied' | 'host-key' | 'connect-timeout' | 'unknown'
+      }>,
+    uploadBundle: (request: {
+      uploadId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        installPath: string
+        tarballPath: string
+      }
+    }) => ipcRenderer.invoke('ssh:upload-bundle', request) as Promise<{ ok: true } | { ok: false; error: string }>,
+    onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => {
+      const handler = (_event: unknown, payload: { uploadId: string; bytesSent: number; totalBytes: number }) => callback(payload)
+      ipcRenderer.on('ssh:upload-progress', handler)
+      return () => ipcRenderer.removeListener('ssh:upload-progress', handler)
+    },
+    // T0286 — start-server (systemd unit / launchd plist + enable + verify)
+    startServer: (request: {
+      startId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        targetOS: 'ssh-linux' | 'ssh-darwin'
+        installPath: string
+        serverPort?: number
+        serverHome: string
+      }
+    }) => ipcRenderer.invoke('ssh:start-server', request) as Promise<{
+      ok: boolean
+      method: 'systemd' | 'launchd' | 'failed'
+      servicePath: string
+      checkOutput?: string
+      error?: string
+      errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
+    }>,
+    onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => {
+      const handler = (_event: unknown, payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => callback(payload)
+      ipcRenderer.on('ssh:start-progress', handler)
+      return () => ipcRenderer.removeListener('ssh:start-progress', handler)
+    },
+  },
+  wslSystemd: {
+    writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
+      ipcRenderer.invoke('wsl-systemd:write-unit', distro, unit) as Promise<{ ok: true }>,
+    enableLinger: (distro: string) =>
+      ipcRenderer.invoke('wsl-systemd:enable-linger', distro) as Promise<{ ok: boolean; error?: string }>,
+    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
+      ipcRenderer.invoke('wsl-systemd:start-service', distro, serviceName, options) as Promise<{ ok: true; token: string | null } | { ok: false; error: string; token?: string | null }>,
+    removeUnit: (distro: string, serviceName: string, options?: { path?: string }) =>
+      ipcRenderer.invoke('wsl-systemd:remove-unit', distro, serviceName, options) as Promise<{ ok: true }>,
   },
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: 'localhost' | 'tailscale' | 'all') =>
@@ -483,7 +586,7 @@ const electronAPI = {
     clientStatus: () =>
       ipcRenderer.invoke('remote:client-status') as Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>,
     testConnection: (host: string, port: number, token: string, fingerprint?: string) =>
-      ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string }>,
+      ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: { serverPlatform: 'win32' | 'linux' | 'darwin'; serverArch: 'x64' | 'arm64'; serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'; wslDistro?: string; dockerMounts?: Array<{ host: string; container: string }>; serverHome?: string; nodeVersion: string; claudeVersion?: string; bundleVersion: string; glibcVersion?: string } | null }>,
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) =>
       ipcRenderer.invoke('remote:list-profiles', host, port, token, fingerprint) as Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>,
     restartServer: (newPort: number) =>

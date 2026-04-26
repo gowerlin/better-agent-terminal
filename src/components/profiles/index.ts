@@ -1,0 +1,13 @@
+// PLAN-007 T0288 — Barrel export for the profiles UI module (RFC C-7).
+export { ProfileCard } from './ProfileCard'
+export type { ProfileCardProps } from './ProfileCard'
+export { ProfileCardDetails } from './ProfileCardDetails'
+export { EditRemoteProfileModal } from './EditRemoteProfileModal'
+export type { EditRemoteProfileModalProps } from './EditRemoteProfileModal'
+export { LocalDetails } from './details/LocalDetails'
+export { WslDetails } from './details/WslDetails'
+export { DockerDetails } from './details/DockerDetails'
+export { SshDetails } from './details/SshDetails'
+export { RemoteLegacyDetails } from './details/RemoteLegacyDetails'
+export { selectDetailsVariant } from './types'
+export type { ProfileEntry, TargetOS, ConnectionStatus, ProfileDetailsVariant } from './types'
