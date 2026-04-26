@@ -7,8 +7,9 @@
 | 工單編號 | T0307b |
 | 類型 | impl |
 | 優先級 | 🟡 Medium（補 T0307 PARTIAL gap，同時為 PLAN-030 後續工單建立 frontend test 基礎建設） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-26 23:20 (UTC+8) |
+| 完成時間 | 2026-04-26 23:25 (UTC+8) |
 | 預估規模 | S |
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-26 23:?? (UTC+8) |
@@ -194,7 +195,7 @@ DONE
 無
 
 ### Commit
-- Hash：（commit 後填入）
+- Hash：`fbbdaed`
 - Message：`chore(test): T0307b add vitest + jsdom + RTL infra, validate Stepper 18 cases — relates PLAN-030`
 
 ### sprint-status.yaml
