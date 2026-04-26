@@ -7,11 +7,11 @@
 | 工單編號 | T0301 |
 | 類型 | fix（v0.4.1 patch） |
 | Phase | v0.4.1 patch chain 第 3 張（最後一張 fix） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 建立時間 | 2026-04-26 18:38 (UTC+8) |
 | 派發時間 | 2026-04-26 18:47 (UTC+8) |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 完成時間 | 2026-04-26 18:56 (UTC+8) |
+| Wall time | ~9 min |
 | Sizing | M（GP099 校準後預期 wall 10-20 min — env 注入 + schema table + test） |
 | 依賴 | T0299 ✅、T0300 ✅、BUG-064、BUG-065 |
 | 後續 | T0302（v0.4.1 verification + version bump 0.4.0→0.4.1） |
@@ -203,7 +203,7 @@ FIXED — 10/10 AC pass。
 
 ### Commit
 fix(remote): T0301 SSH stderr i18n + translateInvokeArgs schema-driven (BUG-064 + BUG-065)
-hash: （待補，commit 後填）
+hash: 27d78c9
 
 ### 回報時間
 2026-04-26 18:56 (UTC+8)
