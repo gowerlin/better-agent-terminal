@@ -170,6 +170,32 @@ export const startServerStep: WizardStep = {
       unsubscribe()
     }
   },
+  // PLAN-007 T0289 — RFC C-3 best-effort rollback. Tears down the unit/plist
+  // we registered: systemd `disable --now` + remove unit (linux), or
+  // `launchctl unload` + remove plist (darwin). Failures warn-log only.
+  async rollback(ctx) {
+    const state = ctx.state as StartServerState
+    if (!state.sshHost || !state.sshUser || !state.sshServerHome) {
+      return
+    }
+    if (ctx.targetOS !== 'ssh-linux' && ctx.targetOS !== 'ssh-darwin') {
+      return
+    }
+    const result = await window.electronAPI.ssh.stopServer({
+      sshHost: state.sshHost,
+      sshUser: state.sshUser,
+      sshPort: state.sshPort,
+      sshKeyPath: state.sshKeyPath,
+      targetOS: ctx.targetOS,
+      serverHome: state.sshServerHome,
+    })
+    if (!result.ok) {
+      ctx.logger.warn(`Failed to stop bat-server over SSH (${ctx.targetOS}): ${result.error}`)
+      return
+    }
+    ctx.systemdServiceActive = false
+    state.sshStartServicePath = undefined
+  },
 }
 
 export const SshStartServerStep = startServerStep

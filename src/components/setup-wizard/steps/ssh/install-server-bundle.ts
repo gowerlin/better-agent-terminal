@@ -119,6 +119,27 @@ export const installSshServerBundleStep: WizardStep = {
     ctx.serverInstallPath = state.sshInstallPath
     ctx.logger.info(`✓ Server bundle installed at ${state.sshInstallPath}`)
   },
+  // PLAN-007 T0289 — RFC C-3 best-effort rollback. Removes the install
+  // directory the upload created (`ssh user@host "rm -rf <installPath>"`).
+  // Failures are surfaced via warn log only; never throw.
+  async rollback(ctx) {
+    const state = ctx.state as InstallSshBundleState
+    if (!state.sshHost || !state.sshUser || !state.sshInstallPath) {
+      return
+    }
+    const result = await window.electronAPI.ssh.uninstallBundle({
+      sshHost: state.sshHost,
+      sshUser: state.sshUser,
+      sshPort: state.sshPort,
+      sshKeyPath: state.sshKeyPath,
+      installPath: state.sshInstallPath,
+    })
+    if (!result.ok) {
+      ctx.logger.warn(`Failed to remove BAT server bundle over SSH: ${result.error}`)
+      return
+    }
+    ctx.serverInstallPath = undefined
+  },
 }
 
 export const SshInstallBundleStep = installSshServerBundleStep

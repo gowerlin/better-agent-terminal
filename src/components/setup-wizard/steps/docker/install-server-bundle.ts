@@ -25,7 +25,22 @@ export const installDockerServerBundleStep: WizardStep = {
     const warning = `Existing container ${ctx.state.dockerContainer} must already contain /opt/bat-server.`
     if (!ctx.warnings.includes(warning)) ctx.warnings.push(warning)
   },
-  async rollback() {
-    return
+  // PLAN-007 T0289 — RFC C-3 best-effort rollback. For "new" mode the
+  // pick-container rollback already removes the whole container so there is
+  // nothing to clean up here. For "existing" mode we attempt to remove the
+  // install path inside the user's container; failures warn-log only.
+  async rollback(ctx) {
+    if (ctx.state.containerMode !== 'existing') return
+    if (typeof ctx.state.dockerContainer !== 'string' || !ctx.serverInstallPath) return
+    const result = await window.electronAPI.docker.execCommand(ctx.state.dockerContainer, [
+      'rm',
+      '-rf',
+      ctx.serverInstallPath,
+    ])
+    if (!result.ok) {
+      ctx.logger.warn(`Failed to clean BAT install path inside container ${ctx.state.dockerContainer}: ${result.error}`)
+      return
+    }
+    ctx.serverInstallPath = undefined
   },
 }

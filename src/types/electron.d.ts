@@ -348,6 +348,10 @@ interface ElectronAPI {
     restartContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
     getContainerLogs: (name: string, options?: { tail?: number; follow?: boolean }) => Promise<{ ok: boolean; logs?: string; error?: string }>
     getContainerHealth: (name: string) => Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>
+    // PLAN-007 T0289 — best-effort rollback for install-server-bundle on
+    // existing containers (RFC C-3). Mocked in cross-deployment tests; real
+    // IPC handler lands in a follow-up workorder.
+    execCommand: (name: string, command: string[]) => Promise<{ ok: true; stdout?: string } | { ok: false; error: string }>
   }
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) => Promise<{ ok: true }>
@@ -400,6 +404,24 @@ interface ElectronAPI {
       errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
     }>
     onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => () => void
+    // PLAN-007 T0289 — best-effort rollback hooks (RFC C-3). Real IPC handlers
+    // land in a follow-up workorder; T0289 only declares the surface so wizard
+    // step rollback fns and cross-deployment tests can compile + mock cleanly.
+    uninstallBundle: (request: {
+      sshHost: string
+      sshUser: string
+      sshPort?: number
+      sshKeyPath?: string
+      installPath: string
+    }) => Promise<{ ok: true } | { ok: false; error: string }>
+    stopServer: (request: {
+      sshHost: string
+      sshUser: string
+      sshPort?: number
+      sshKeyPath?: string
+      targetOS: 'ssh-linux' | 'ssh-darwin'
+      serverHome: string
+    }) => Promise<{ ok: true } | { ok: false; error: string }>
   }
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>

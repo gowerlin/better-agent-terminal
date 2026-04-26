@@ -83,6 +83,10 @@ export function createMockElectronApi(options: MockOptions = {}) {
     sshProbeCalls: [] as Array<{ sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }>,
     sshUploadCalls: [] as Array<{ uploadId: string; sshHost: string; installPath: string; tarballPath: string }>,
     sshStartCalls: [] as Array<{ startId: string; sshHost: string; targetOS: string; serverPort?: number; serverHome: string }>,
+    // T0289 PLAN-007 rollback IPC log (RFC C-3 best-effort cleanup hooks)
+    sshUninstallCalls: [] as Array<{ sshHost: string; sshUser: string; installPath: string }>,
+    sshStopServerCalls: [] as Array<{ sshHost: string; sshUser: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }>,
+    dockerExecCalls: [] as Array<{ name: string; command: string[] }>,
   }
 
   const distros = options.distros ?? [{ name: 'Ubuntu', version: 2 as const, state: 'Running' as const }]
@@ -275,6 +279,38 @@ export function createMockElectronApi(options: MockOptions = {}) {
         sshStartProgressListeners.add(callback)
         return () => { sshStartProgressListeners.delete(callback) }
       },
+      // T0289 PLAN-007 — best-effort rollback IPC mocks (always succeed unless
+      // a future test wires a failure sequence in via options).
+      uninstallBundle: async (request: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        installPath: string
+      }) => {
+        operationLog.sshUninstallCalls.push({
+          sshHost: request.sshHost,
+          sshUser: request.sshUser,
+          installPath: request.installPath,
+        })
+        return { ok: true as const }
+      },
+      stopServer: async (request: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        targetOS: 'ssh-linux' | 'ssh-darwin'
+        serverHome: string
+      }) => {
+        operationLog.sshStopServerCalls.push({
+          sshHost: request.sshHost,
+          sshUser: request.sshUser,
+          targetOS: request.targetOS,
+          serverHome: request.serverHome,
+        })
+        return { ok: true as const }
+      },
     },
     remote: {
       testConnection: async (host: string, port: number) => {
@@ -384,6 +420,13 @@ export function createMockElectronApi(options: MockOptions = {}) {
       getContainerHealth: async (name: string) => {
         operationLog.dockerHealthCalls.push(name)
         return { ok: true as const, health: dockerHealthSequence.shift() ?? 'healthy' }
+      },
+      // T0289 PLAN-007 — best-effort rollback for docker install-server-bundle
+      // on existing containers. Records command verbatim so the cross-test can
+      // assert `rm -rf <installPath>` shape.
+      execCommand: async (name: string, command: string[]) => {
+        operationLog.dockerExecCalls.push({ name, command: [...command] })
+        return { ok: true as const }
       },
     },
     profile: {
