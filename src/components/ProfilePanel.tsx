@@ -723,7 +723,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
 
       {wslWizard.isOpen && wslWizard.ctx && (
         <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={wslWizard.close}>
-          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 'min(1040px, 90vw)' }}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>Add WSL Profile</h2>
               <button className="settings-close" onClick={wslWizard.close}>&times;</button>
@@ -742,7 +742,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
 
       {dockerWizard.isOpen && dockerWizard.ctx && (
         <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={dockerWizard.close}>
-          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 'min(1040px, 90vw)' }}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>Add Docker Profile</h2>
               <button className="settings-close" onClick={dockerWizard.close}>&times;</button>
@@ -761,7 +761,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
 
       {sshWizard.isOpen && sshWizard.ctx && (
         <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={sshWizard.close}>
-          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 'min(1040px, 90vw)' }}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>Add SSH Profile</h2>
               <button className="settings-close" onClick={sshWizard.close}>&times;</button>
