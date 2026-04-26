@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SetupWizardShell, useSshWizardController, useWslWizardController } from './setup-wizard/SetupWizardShell'
+import { SetupWizardShell, useDockerWizardController, useSshWizardController, useWslWizardController } from './setup-wizard/SetupWizardShell'
 // PLAN-007 T0288 — RFC C-7 ProfileCard + per-env Details slot.
 import { ProfileCard, EditRemoteProfileModal } from './profiles'
 import type { ProfileEntry, TargetOS } from './profiles'
+import { AddProfileMenu, type ProfileTypeOption } from './profiles/AddProfileMenu'
 
 // PLAN-007 T0268: targetOS choices for the legacy-remote inline prompt.
 const REMOTE_TARGET_OS_OPTIONS: TargetOS[] = ['wsl-linux', 'docker-linux', 'ssh-linux', 'ssh-darwin']
@@ -157,6 +158,10 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
   }, [editingId])
 
   const wslWizard = useWslWizardController(() => {
+    void loadProfiles()
+  })
+  // T0306 — Docker wizard entry, surfaced via AddProfileMenu (group: container).
+  const dockerWizard = useDockerWizardController(() => {
     void loadProfiles()
   })
   // T0287 — Phase 4 capstone: SSH wizard entry. Mirrors WSL wizard pattern.
@@ -390,7 +395,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
           <button className="settings-close" onClick={onClose}>&times;</button>
         </div>
         <div className="settings-body" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             <button className="profile-action-btn" onClick={handleSaveCurrent} title={t('profiles.saveCurrent')}>
               {t('profiles.saveCurrent')}
             </button>
@@ -400,12 +405,32 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
             <button className="profile-action-btn" onClick={() => { setCreating('remote'); setNewName('') }}>
               {t('profiles.addRemote')}
             </button>
-            <button className="profile-action-btn" onClick={() => wslWizard.open('')}>
-              Add WSL Profile
-            </button>
-            <button className="profile-action-btn" onClick={() => sshWizard.open('')}>
-              Add SSH Profile
-            </button>
+            <AddProfileMenu
+              options={[
+                {
+                  id: 'wsl',
+                  section: 'container',
+                  icon: '🐧',
+                  label: t('profiles.addWslProfile'),
+                  suggested: true,
+                  onClick: () => wslWizard.open(''),
+                },
+                {
+                  id: 'docker',
+                  section: 'container',
+                  icon: '🐳',
+                  label: t('profiles.addDockerProfile'),
+                  onClick: () => dockerWizard.open(''),
+                },
+                {
+                  id: 'ssh',
+                  section: 'remote',
+                  icon: '🔐',
+                  label: t('profiles.addSshProfile'),
+                  onClick: () => sshWizard.open(''),
+                },
+              ] satisfies ProfileTypeOption[]}
+            />
           </div>
 
           {creating && (
@@ -709,6 +734,25 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                 ctx={wslWizard.ctx}
                 onComplete={wslWizard.handleComplete}
                 steps={wslWizard.steps}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dockerWizard.isOpen && dockerWizard.ctx && (
+        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={dockerWizard.close}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div className="settings-header">
+              <h2>Add Docker Profile</h2>
+              <button className="settings-close" onClick={dockerWizard.close}>&times;</button>
+            </div>
+            <div className="settings-body" style={{ padding: '16px' }}>
+              <SetupWizardShell
+                key={dockerWizard.key}
+                ctx={dockerWizard.ctx}
+                onComplete={dockerWizard.handleComplete}
+                steps={dockerWizard.steps}
               />
             </div>
           </div>

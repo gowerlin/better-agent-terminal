@@ -195,6 +195,35 @@
   opacity: 0.8;
 }
 
+.thumbnail-add-menu-section-header {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  padding: 8px 14px 4px;
+  opacity: 0.7;
+  user-select: none;
+}
+
+.thumbnail-add-menu-section-header + .thumbnail-add-menu-item {
+  /* Reduce gap between header and first item of section */
+  padding-top: 6px;
+}
+
+.thumbnail-add-menu-item + .thumbnail-add-menu-section-header {
+  /* Visual divider above subsequent section headers (when preceded by item) */
+  border-top: 1px solid var(--border-color);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.thumbnail-add-menu-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
+  opacity: 0.6;
+}
+
 .thumbnail-collapse-btn {
   background: transparent;
   border: none;

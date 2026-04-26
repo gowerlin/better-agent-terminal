@@ -201,6 +201,15 @@
     "saveCurrent": "保存当前状态",
     "addLocal": "+ 本地",
     "addRemote": "+ 远程",
+    "addMore": "+ 更多 ▾",
+    "addWslProfile": "添加 WSL 配置",
+    "addDockerProfile": "添加 Docker 配置",
+    "addSshProfile": "添加 SSH 配置",
+    "section": {
+      "container": "容器类",
+      "remote": "远程类",
+      "experimental": "实验类"
+    },
     "profileNamePlaceholder": "配置名称...",
     "hostPlaceholder": "主机（例如 192.168.1.100）",
     "portPlaceholder": "端口",

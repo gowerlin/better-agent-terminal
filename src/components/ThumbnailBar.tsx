@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { getSubmenuDirection } from '../hooks/useMenuPosition'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { TerminalInstance, ShellType } from '../types'
 import { SHELL_OPTIONS } from '../types'
 import { TerminalThumbnail } from './TerminalThumbnail'
 import { getAgentPreset } from '../types/agent-presets'
 import type { AgentDefinition } from '../types/agent-runtime'
+import { AddMenu, type AddMenuSection } from './common/AddMenu'
 
 interface ThumbnailBarProps {
   terminals: TerminalInstance[]
@@ -69,14 +69,11 @@ export function ThumbnailBar({
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before')
   const [showAddMenu, setShowAddMenu] = useState(false)
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const [shellSubmenu, setShellSubmenu] = useState(false)
   const shellItemRef = useRef<HTMLDivElement>(null)
   const [submenuDir, setSubmenuDir] = useState<'right' | 'left'>('right')
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
-  const addMenuRef = useRef<HTMLDivElement>(null)
-  const addMenuPopupRef = useRef<HTMLDivElement>(null)
   const addBtnRef = useRef<HTMLButtonElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -110,22 +107,6 @@ export function ThumbnailBar({
     if (!el) return
     el.scrollBy({ left: direction === 'left' ? -220 : 220, behavior: 'smooth' })
   }, [])
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!showAddMenu) return
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (
-        addMenuRef.current && !addMenuRef.current.contains(target) &&
-        addMenuPopupRef.current && !addMenuPopupRef.current.contains(target)
-      ) {
-        setShowAddMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [showAddMenu])
 
   const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
     setDraggedId(id)
@@ -214,127 +195,105 @@ export function ThumbnailBar({
       <div className="thumbnail-bar-header">
         <span>{label}</span>
         <div className="thumbnail-bar-actions">
-          {onAddTerminal && (
-            <div className="thumbnail-add-wrapper" ref={addMenuRef}>
-              <button
-                ref={addBtnRef}
-                className="thumbnail-add-btn"
-                onClick={() => {
-                  setShowAddMenu(prev => {
-                    if (!prev && addBtnRef.current) {
-                      const rect = addBtnRef.current.getBoundingClientRect()
-                      const menuHeight = 200
-                      const spaceBelow = window.innerHeight - rect.bottom
-                      const openUpward = spaceBelow < menuHeight && rect.top > menuHeight
-                      setMenuStyle(openUpward
-                        ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
-                        : { top: rect.bottom + 4, right: window.innerWidth - rect.right }
-                      )
-                    }
-                    return !prev
-                  })
-                }}
-                title={t('terminal.addTerminalOrAgent')}
+          {onAddTerminal && (() => {
+            const items: ReactNode[] = []
+            items.push(
+              <div
+                ref={shellItemRef}
+                className="thumbnail-add-menu-item has-submenu"
+                onClick={() => { onAddTerminal(); setShowAddMenu(false); setShellSubmenu(false) }}
+                onMouseEnter={() => { setShellSubmenu(true); setSubmenuDir(getSubmenuDirection(shellItemRef.current)) }}
+                onMouseLeave={() => setShellSubmenu(false)}
               >
-                +
-              </button>
-              {showAddMenu && createPortal(
-                <div className="thumbnail-add-menu" ref={addMenuPopupRef} style={menuStyle}>
-                  <div
-                    ref={shellItemRef}
-                    className="thumbnail-add-menu-item has-submenu"
-                    onClick={() => { onAddTerminal(); setShowAddMenu(false); setShellSubmenu(false) }}
-                    onMouseEnter={() => { setShellSubmenu(true); setSubmenuDir(getSubmenuDirection(shellItemRef.current)) }}
-                    onMouseLeave={() => setShellSubmenu(false)}
-                  >
-                    <span className="thumbnail-add-menu-icon">⌘</span>
-                    {t('terminal.terminalLabel')}
-                    <span className="thumbnail-submenu-arrow">{submenuDir === 'left' ? '◂' : '▸'}</span>
-                    {shellSubmenu && onAddTerminalWithShell && shellOptions.length > 0 && (
-                      <div className="thumbnail-add-submenu" style={submenuDir === 'left' ? { left: 'auto', right: '100%' } : undefined}>
-                        {shellOptions.map(opt => (
-                          <div
-                            key={opt.id}
-                            className="thumbnail-add-menu-item"
-                            onClick={(e) => { e.stopPropagation(); onAddTerminalWithShell(opt.id); setShowAddMenu(false); setShellSubmenu(false) }}
-                          >
-                            <span className="thumbnail-add-menu-icon">⌘</span>
-                            {opt.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* Dynamic agent definitions from registry */}
-                  {onAddAgent && agentDefinitions.length > 0 ? (
-                    agentDefinitions.map(def => (
+                <span className="thumbnail-add-menu-icon">⌘</span>
+                {t('terminal.terminalLabel')}
+                <span className="thumbnail-submenu-arrow">{submenuDir === 'left' ? '◂' : '▸'}</span>
+                {shellSubmenu && onAddTerminalWithShell && shellOptions.length > 0 && (
+                  <div className="thumbnail-add-submenu" style={submenuDir === 'left' ? { left: 'auto', right: '100%' } : undefined}>
+                    {shellOptions.map(opt => (
                       <div
-                        key={def.id}
+                        key={opt.id}
                         className="thumbnail-add-menu-item"
-                        onClick={() => { onAddAgent(def.id); setShowAddMenu(false) }}
+                        onClick={(e) => { e.stopPropagation(); onAddTerminalWithShell(opt.id); setShowAddMenu(false); setShellSubmenu(false) }}
                       >
-                        <span className="thumbnail-add-menu-icon" style={{ color: def.color }}>{def.icon}</span>
-                        {def.name}
-                        {def.suggested && <span className="thumbnail-add-menu-suggested">suggested</span>}
+                        <span className="thumbnail-add-menu-icon">⌘</span>
+                        {opt.name}
                       </div>
-                    ))
-                  ) : (
-                    <>
-                      {/* Legacy fallback — remove when fully migrated */}
-                      {onAddClaudeAgent && (
-                        <div
-                          className="thumbnail-add-menu-item"
-                          onClick={() => { onAddClaudeAgent(); setShowAddMenu(false) }}
-                        >
-                          <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>✦</span>
-                          Claude Agent V1
-                          <span className="thumbnail-add-menu-suggested">suggested</span>
-                        </div>
-                      )}
-                      {onAddClaudeAgentV2 && (
-                        <div
-                          className="thumbnail-add-menu-item"
-                          onClick={() => { onAddClaudeAgentV2(); setShowAddMenu(false) }}
-                        >
-                          <span className="thumbnail-add-menu-icon" style={{ color: '#eab308' }}>✦</span>
-                          Claude Agent V2
-                        </div>
-                      )}
-                      {onAddClaudeWorktree && (
-                        <div
-                          className="thumbnail-add-menu-item"
-                          onClick={() => { onAddClaudeWorktree(); setShowAddMenu(false) }}
-                        >
-                          <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>🌳</span>
-                          Claude Agent V1 (Worktree)
-                        </div>
-                      )}
-                      {onAddClaudeCli && (
-                        <div
-                          className="thumbnail-add-menu-item"
-                          onClick={() => { onAddClaudeCli(); setShowAddMenu(false) }}
-                        >
-                          <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>▶</span>
-                          Claude CLI
-                          <span className="thumbnail-add-menu-suggested">suggested</span>
-                        </div>
-                      )}
-                      {onAddClaudeCliWorktree && (
-                        <div
-                          className="thumbnail-add-menu-item"
-                          onClick={() => { onAddClaudeCliWorktree(); setShowAddMenu(false) }}
-                        >
-                          <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>▶🌳</span>
-                          Claude CLI (Worktree)
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>,
-                document.body
-              )}
-            </div>
-          )}
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+
+            if (onAddAgent && agentDefinitions.length > 0) {
+              for (const def of agentDefinitions) {
+                items.push(
+                  <div
+                    className="thumbnail-add-menu-item"
+                    onClick={() => { onAddAgent(def.id); setShowAddMenu(false) }}
+                  >
+                    <span className="thumbnail-add-menu-icon" style={{ color: def.color }}>{def.icon}</span>
+                    {def.name}
+                    {def.suggested && <span className="thumbnail-add-menu-suggested">suggested</span>}
+                  </div>
+                )
+              }
+            } else {
+              if (onAddClaudeAgent) items.push(
+                <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeAgent(); setShowAddMenu(false) }}>
+                  <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>✦</span>
+                  Claude Agent V1
+                  <span className="thumbnail-add-menu-suggested">suggested</span>
+                </div>
+              )
+              if (onAddClaudeAgentV2) items.push(
+                <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeAgentV2(); setShowAddMenu(false) }}>
+                  <span className="thumbnail-add-menu-icon" style={{ color: '#eab308' }}>✦</span>
+                  Claude Agent V2
+                </div>
+              )
+              if (onAddClaudeWorktree) items.push(
+                <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeWorktree(); setShowAddMenu(false) }}>
+                  <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>🌳</span>
+                  Claude Agent V1 (Worktree)
+                </div>
+              )
+              if (onAddClaudeCli) items.push(
+                <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeCli(); setShowAddMenu(false) }}>
+                  <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>▶</span>
+                  Claude CLI
+                  <span className="thumbnail-add-menu-suggested">suggested</span>
+                </div>
+              )
+              if (onAddClaudeCliWorktree) items.push(
+                <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeCliWorktree(); setShowAddMenu(false) }}>
+                  <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>▶🌳</span>
+                  Claude CLI (Worktree)
+                </div>
+              )
+            }
+
+            const sections: AddMenuSection[] = [{ id: 'all', items }]
+
+            return (
+              <div className="thumbnail-add-wrapper">
+                <button
+                  ref={addBtnRef}
+                  className="thumbnail-add-btn"
+                  onClick={() => setShowAddMenu(prev => !prev)}
+                  title={t('terminal.addTerminalOrAgent')}
+                >
+                  +
+                </button>
+                <AddMenu
+                  open={showAddMenu}
+                  anchorRef={addBtnRef}
+                  onClose={() => setShowAddMenu(false)}
+                  sections={sections}
+                />
+              </div>
+            )
+          })()}
           {onCollapse && (
             <button className="thumbnail-collapse-btn" onClick={onCollapse} title={t('terminal.collapsePanel')}>
               ▼
@@ -353,10 +312,10 @@ export function ThumbnailBar({
           // Only trigger on the list background, not on individual thumbnails
           if ((e.target as HTMLElement).closest('.thumbnail')) return
           e.preventDefault()
-          if (onAddTerminal) {
-            setMenuStyle({ top: e.clientY, left: e.clientX })
-            setShowAddMenu(true)
-          }
+          // Open the add menu anchored to the + button (cursor-position anchoring
+          // was lost when the menu was extracted to <AddMenu>; behavior preserved
+          // as "right-click opens add menu" without the cursor-precise position.)
+          if (onAddTerminal) setShowAddMenu(true)
         }}
       >
         {terminals.map(terminal => (

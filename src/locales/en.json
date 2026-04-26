@@ -201,6 +201,15 @@
     "saveCurrent": "Save Current",
     "addLocal": "+ Local",
     "addRemote": "+ Remote",
+    "addMore": "+ More ▾",
+    "addWslProfile": "Add WSL Profile",
+    "addDockerProfile": "Add Docker Profile",
+    "addSshProfile": "Add SSH Profile",
+    "section": {
+      "container": "Container",
+      "remote": "Remote",
+      "experimental": "Experimental"
+    },
     "profileNamePlaceholder": "Profile name...",
     "hostPlaceholder": "Host (e.g. 192.168.1.100)",
     "portPlaceholder": "Port",

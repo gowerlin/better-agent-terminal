@@ -201,6 +201,15 @@
     "saveCurrent": "儲存目前狀態",
     "addLocal": "+ 本機",
     "addRemote": "+ 遠端",
+    "addMore": "+ 更多 ▾",
+    "addWslProfile": "新增 WSL 設定檔",
+    "addDockerProfile": "新增 Docker 設定檔",
+    "addSshProfile": "新增 SSH 設定檔",
+    "section": {
+      "container": "容器類",
+      "remote": "遠端類",
+      "experimental": "實驗類"
+    },
     "profileNamePlaceholder": "配置名稱...",
     "hostPlaceholder": "主機（例如 192.168.1.100）",
     "portPlaceholder": "連接埠",
