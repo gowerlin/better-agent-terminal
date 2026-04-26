@@ -7,8 +7,10 @@
 | 工單編號 | T0318 |
 | 類型 | impl（main process 模組 + IPC progress event + 重用 T0317 純函數） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 3 |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 02:30 (UTC+8) |
+| 完成時間 | 2026-04-27 02:43 (UTC+8) |
+| Commit | 89f5ecc |
 | 建立時間 | 2026-04-27 02:25 (UTC+8) |
 | 派發時間 | 2026-04-27 02:25 (UTC+8) |
 | Sizing | L（estimate 60-120 min wall） |
