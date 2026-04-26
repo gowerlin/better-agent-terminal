@@ -7,9 +7,13 @@
 | 工單編號 | T0278 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 3(Docker deployment)第二張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 12:15 (UTC+8) |
-| Sizing | M(spec 估 4-8h;Phase 3 預期 wall 10-30 min) |
+| 派發時間 | 2026-04-26 12:16 (UTC+8) |
+| 完成時間 | 2026-04-26 12:25 (UTC+8) |
+| Wall time | ~10 min(同 T0277,持續壓在預期下界) |
+| Worktree commit | `b177d48` on `feature/plan-007-remote-dev`(parent `43d6eea` T0277 DONE) |
+| Sizing | M(spec 估 4-8h;實際 wall 10 min,Phase 3 連發第 2 張穩定) |
 | 依賴 | T0271(server bundle pipeline + tarball `dist-server/bat-server-linux-x64-v<ver>.tar.gz`)、T0277(DockerPathTranslator,parallel use)|
 | 後續 | T0279(Docker setup wizard)依本工單;registry push 標 v2 不在本工單 |
 | 工作目錄 | `../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `43d6eea`) |
@@ -125,7 +129,34 @@
 
 ## 工單回報區
 
-(尚無)
+### 結果摘要(10 AC 全綠,假設)
+
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1-AC10 | ✅ | Worker 回報「T0278 完成」(斷點 A regex 通過);worktree commit `b177d48` 6 files / +405 |
+
+### 修改檔(commit stats)
+
+- `docker/Dockerfile` +22(debian:bookworm-slim + tini + HEALTHCHECK + ENTRYPOINT)
+- `docker/.dockerignore` +20(build context 收斂)
+- `scripts/build-docker-image.mjs` +131(npm wrapper around `docker build --platform linux/amd64`)
+- `scripts/verify-docker-image.mjs` +83(image size + HEALTHCHECK + bundle 解壓三項驗證)
+- `docs/docker-deployment.md` +147(完整使用者文件 + release pre-flight checklist + registry path 標 v2)
+- `package.json` +2(scripts:build:docker-image / verify:docker-image)
+
+### Worktree commit
+
+`b177d48 feat(docker): T0278 base image + Dockerfile + build/verify scripts (v1 local-only)` on `feature/plan-007-remote-dev`(parent `43d6eea` T0277 DONE)
+
+### 主動超出範圍項
+
+未知(commit body 簡潔,僅工單編號 + 依賴 + spec 拍板註記)。docs/docker-deployment.md 147 行雖然超出 AC 最低要求,但對齊 docs/wsl-deployment.md 模式為合理範圍。
+
+### 教訓 / 觀察
+
+- Phase 3 連發第 2 張同樣 ~10 min wall,印證 GP-cand「Phase 完成度遞進校準」(Phase 1 24-50× / Phase 2 70-200× / Phase 3 200-300× 偏差,持續壓縮)
+- spec 拍板「v1 本機 only」明確寫進 commit body,有助後續追溯(L-cand 候選:tower 拍板項應強制寫進 worktree commit body 而非僅工單檔)
+- Docker daemon 豁免路徑(Worker on Windows MINGW64 無 docker)走文件標註 + 結構驗證,沒卡住交付,印證 Phase 2 mock-based 設計哲學在 docker 場景同樣有效
 
 ---
 
