@@ -5,6 +5,7 @@ import { createWslWizardContext } from '../../src/components/setup-wizard/wsl-fl
 type NetworkMode = 'mirrored' | 'nat' | 'unknown'
 
 interface MockOptions {
+  platform?: 'win32' | 'darwin' | 'linux'
   distros?: Array<{ name: string; version: 1 | 2; state: 'Running' | 'Stopped' }>
   defaultDistro?: string | null
   systemdEnabled?: boolean
@@ -20,6 +21,9 @@ interface MockOptions {
   dockerContainers?: Array<{ id: string; name: string; image: string; state: string; status: string }>
   dockerSelectFolders?: string[] | null
   dockerValidateErrors?: string[]
+  dockerStartOk?: boolean
+  dockerStartError?: string
+  dockerLogs?: string
   dockerHealthSequence?: Array<'healthy' | 'unhealthy' | 'starting' | 'none'>
 }
 
@@ -36,9 +40,21 @@ export function createMockElectronApi(options: MockOptions = {}) {
     createdProfileIds: [] as string[],
     deletedProfileIds: [] as string[],
     remoteTestHosts: [] as Array<{ host: string; port: number }>,
-    dockerStartCalls: [] as Array<{ name: string; createIfMissing: boolean; image?: string }>,
+    dockerStartCalls: [] as Array<{
+      name: string
+      createIfMissing: boolean
+      image?: string
+      mounts?: Array<{ host: string; container: string }>
+      port?: number
+      restartPolicy?: string
+      token?: string
+      dataVolume?: string
+    }>,
     dockerStopCalls: [] as Array<{ name: string; remove?: boolean }>,
     dockerRemoveCalls: [] as string[],
+    dockerRestartCalls: [] as string[],
+    dockerLogsCalls: [] as Array<{ name: string; tail?: number; follow?: boolean }>,
+    dockerHealthCalls: [] as string[],
   }
 
   const distros = options.distros ?? [{ name: 'Ubuntu', version: 2 as const, state: 'Running' as const }]
@@ -46,11 +62,12 @@ export function createMockElectronApi(options: MockOptions = {}) {
   const remoteFingerprint = options.remoteFingerprint ?? 'FP:AA:BB:CC'
   const remoteToken = options.remoteToken ?? 'secret-token'
   const serverPort = options.serverPort ?? 9876
+  const platform = options.platform ?? 'win32'
   const dockerContainers = new Map((options.dockerContainers ?? []).map((container) => [container.name, { ...container }]))
   const dockerHealthSequence = [...(options.dockerHealthSequence ?? ['healthy'])]
 
   const electronAPI = {
-    platform: 'win32' as const,
+    platform,
     dialog: {
       selectFolder: async () => options.dockerSelectFolders ?? ['C:\\Users\\test\\project'],
       selectImages: async () => [],
@@ -142,8 +159,31 @@ export function createMockElectronApi(options: MockOptions = {}) {
       validateMounts: async () => options.dockerValidateErrors?.length
         ? { ok: false as const, errors: options.dockerValidateErrors }
         : { ok: true as const, errors: [] },
-      startContainer: async (name: string, startOptions?: { createIfMissing?: boolean; image?: string }) => {
-        operationLog.dockerStartCalls.push({ name, createIfMissing: Boolean(startOptions?.createIfMissing), image: startOptions?.image })
+      startContainer: async (
+        name: string,
+        startOptions?: {
+          createIfMissing?: boolean
+          image?: string
+          mounts?: Array<{ host: string; container: string }>
+          port?: number
+          restartPolicy?: string
+          token?: string
+          dataVolume?: string
+        },
+      ) => {
+        operationLog.dockerStartCalls.push({
+          name,
+          createIfMissing: Boolean(startOptions?.createIfMissing),
+          image: startOptions?.image,
+          mounts: startOptions?.mounts,
+          port: startOptions?.port,
+          restartPolicy: startOptions?.restartPolicy,
+          token: startOptions?.token,
+          dataVolume: startOptions?.dataVolume,
+        })
+        if (options.dockerStartOk === false) {
+          return { ok: false as const, error: options.dockerStartError ?? 'Docker image not found' }
+        }
         if (startOptions?.createIfMissing) {
           dockerContainers.set(name, {
             id: `container-${name}`,
@@ -165,9 +205,18 @@ export function createMockElectronApi(options: MockOptions = {}) {
         dockerContainers.delete(name)
         return { ok: true as const }
       },
-      restartContainer: async () => ({ ok: true as const }),
-      getContainerLogs: async () => ({ ok: true as const, logs: 'container logs' }),
-      getContainerHealth: async () => ({ ok: true as const, health: dockerHealthSequence.shift() ?? 'healthy' }),
+      restartContainer: async (name: string) => {
+        operationLog.dockerRestartCalls.push(name)
+        return { ok: true as const }
+      },
+      getContainerLogs: async (name: string, logOptions?: { tail?: number; follow?: boolean }) => {
+        operationLog.dockerLogsCalls.push({ name, tail: logOptions?.tail, follow: logOptions?.follow })
+        return { ok: true as const, logs: options.dockerLogs ?? 'container logs' }
+      },
+      getContainerHealth: async (name: string) => {
+        operationLog.dockerHealthCalls.push(name)
+        return { ok: true as const, health: dockerHealthSequence.shift() ?? 'healthy' }
+      },
     },
     profile: {
       create: async (name: string, config?: Record<string, unknown>) => {
