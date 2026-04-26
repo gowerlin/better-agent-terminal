@@ -16,7 +16,7 @@
 | 報告者 | 塔台（使用者實機驗收 T0311 後回報） |
 | 關聯 PLAN | PLAN-030（後續 polish） |
 | 前置工單 | T0311（DONE，layout 改 side-by-side） |
-| Renew 次數 | 0 |
+| Renew 次數 | 2 |
 | 影響範圍 | Setup Wizard Dialog 的最大寬度設定（grep `max-width` / `width` / Dialog component props） |
 
 ## 背景
@@ -152,4 +152,35 @@ T0311 加了 `@media (max-width: 720px)` fallback 回 stacked。本工單的 `mi
 
 ### Renew 歷程
 
-無
+- **Renew #1（00:30，使用者實機回報）**：「dialog 寬度沒變化」
+  - 根因：`.settings-panel` (src/styles/settings.css:16) 有 `width: 450px`，比原本 `maxWidth: 720` 還小，inline 改 maxWidth 完全無效（width 在 cascade 中勝出，實際渲染 450px）
+  - 修復：inline 同時覆蓋 `width` + `maxWidth` 為 `min(1040px, 90vw)`
+  - commit：`04fc076`
+
+- **Renew #2（00:33，使用者追加要求）**：「左右寬比 4:6, 左右區塊各自垂直捲動 dialog body 不捲」
+  - 變更：
+    1. `setup-wizard.css` 的 `.bat-wizard-grid` 改 `grid-template-columns: 4fr 6fr`（原 `minmax(220px,280px) 1fr` ≈ 3:7 不固定）
+    2. `.bat-wizard-shell` 加 `display:flex; flex-direction:column; height:100%; min-height:0` 撐滿 dialog body 高度
+    3. `.bat-wizard-grid` 改 `flex:1 + min-height:0` 占據 shell 剩餘高度
+    4. 兩欄移除 `max-height: 70vh`，改用 `min-height:0`，讓 `overflow-y:auto` 在 grid 區塊內生效（捲動範圍綁 dialog body）
+    5. `ProfilePanel.tsx` 三個 wizard 的 `.settings-body` inline 加 `overflow:hidden + display:flex + flexDirection:column + minHeight:0`，把捲動責任轉給左右欄
+  - commit：`865be7b`
+
+### 補充：最終生效設定
+
+| 項目 | 值 |
+|------|----|
+| Dialog 寬度 | `width: min(1040px, 90vw)` + `maxWidth: min(1040px, 90vw)`（inline，覆蓋 `.settings-panel` 的 `width:450px`） |
+| 欄寬比例 | 左:右 = `4fr : 6fr`（固定比例，T0311 原本是 minmax 變動） |
+| 捲動位置 | 左欄獨立 `overflow-y:auto` ／ 右欄獨立 `overflow-y:auto` ／ dialog body `overflow:hidden`（不捲） |
+| 高度模型 | `.settings-panel` `max-height:80vh` → `.settings-body` `flex:1` → `.bat-wizard-shell` `height:100%` → `.bat-wizard-grid` `flex:1 + min-height:0` → 兩欄 `min-height:0 + overflow-y:auto` |
+| 小視窗 fallback | `< 720px` 走 stacked（T0311 既有 `@media`），未動 |
+
+### 最終 commits
+
+| commit | 說明 |
+|--------|------|
+| `9ae338a` | 初版（只動 maxWidth，無效） |
+| `076e8e9` | metadata DONE + 回報區（首版） |
+| `04fc076` | Renew #1 修：覆蓋 width:450px |
+| `865be7b` | Renew #2 修：4:6 比例 + 左右各自捲動 + body 不捲 |
