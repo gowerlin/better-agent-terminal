@@ -7,7 +7,8 @@
 | 工單編號 | T0307 |
 | 類型 | impl |
 | 優先級 | 🔴 High（PLAN-030 基礎建設，T0308/T0309 都依賴本工單） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
+| 開始時間 | 2026-04-26 22:58 (UTC+8) |
 | 預估規模 | M |
 | 互動模式 | non-interactive（YOLO 鏈式；遇到設計取捨直接採 T0305 結論） |
 | 建立時間 | 2026-04-26 22:?? (UTC+8) |
@@ -167,3 +168,68 @@ export interface StepperProps {
 1. `git add` + `git commit`（message：`feat(stepper): T0307 add common <Stepper> component for horizontal/vertical layouts — relates PLAN-030`）
 2. 在工單檔尾追加 Worker 回報區（含實作摘要、commit hash、tests 結果、grouping mode 是否 deferred）
 3. **回報字串嚴格符合斷點 A regex**：`T0307 完成` / `T0307 部分完成` / `T0307 失敗` / `T0307 需要協助`
+
+---
+
+## Worker 回報區
+
+| 欄位 | 內容 |
+|------|------|
+| 完成狀態 | PARTIAL |
+| 開始時間 | 2026-04-26 22:58 (UTC+8) |
+| 完成時間 | 2026-04-26 23:07 (UTC+8) |
+| 執行時長 | ~9 分鐘 |
+| commit hash | 待填（見下方 commit step） |
+
+### 產出摘要
+
+新增檔案：
+- `src/components/stepper/types.ts` — `StepperOrientation`/`StepStatus`/`StepDescriptor`/`StepperProps` 型別（依 T0305 Phase B1）
+- `src/components/stepper/status-preset.ts` — `STATUS_PRESET` mapping（6 status × icon × hex 配色 × label） + `worstStatus()` helper（為未來 compress mode 準備）
+- `src/components/stepper/Stepper.tsx` — 主元件，horizontal + vertical 兩 layout、a11y attrs、`onStepClick` Enter/Space 鍵盤支援、`renderFailedActions` slot、`groupLabel` 連續合併（vertical mode）
+- `src/components/stepper/__tests__/Stepper.test.tsx` — 18 個 test cases（vitest + RTL 語法）
+- `src/styles/stepper.css` — `.bat-stepper-*` 全域 class（沿既有 BugWorkflowIndicator/global CSS 模式，不引入 CSS modules），含 horizontal/vertical layout、6 status 視覺處理（pending opacity / running pulse / completed / failed / skipped dashed border / rolled-back line-through）、focus-visible outline
+
+修改檔案：
+- `src/main.tsx` — 新增 `import './styles/stepper.css'`
+- `tsconfig.json` — 加 `exclude` 排除 `__tests__/**` 與 `*.test.{ts,tsx}`，避免測試檔在沒有 vitest dev deps 時阻擋 typecheck
+
+### DOD 對照
+
+| 項目 | 狀態 | 備註 |
+|------|------|------|
+| 5 檔案目錄建立 | ✅ | types/preset/Stepper/test/css 都齊 |
+| horizontal + vertical 兩 mode | ✅ | 各自獨立 render path |
+| 6 status 視覺正確 | ✅ | preset color inline style + status class CSS |
+| `clickableSteps` + `onStepClick` 互動 | ✅ | 三種模式都實作 + Enter/Space 鍵盤觸發 |
+| `renderFailedActions` slot | ✅ | vertical mode 在 failed step content-col 底部 |
+| `groupLabel` group header | ✅ | vertical mode `buildGroupRuns()` 合併連續同 label |
+| a11y（role/aria-current/aria-label） | ✅ | 含 `role=alert` + `aria-live=polite` for errorMessage |
+| Unit tests 全綠（≥10 cases） | ⚠️ **部分** | 已撰寫 18 cases（vitest + RTL 標準語法），但本專案未安裝 vitest/jest（package.json 僅 @playwright/test for e2e），無法當下執行。檔案內已標註安裝指令與 vite.config.ts 補丁；待 follow-up 工單補上 dev deps 後即可跑 |
+| TypeScript baseline 不增加新錯誤 | ✅ | 跑過 `npx tsc --noEmit`，stepper 相關零錯；既有 CodexAgentPanel.tsx 等 baseline 錯誤與本工單無關 |
+| CSS class `.bat-stepper-*` prefix | ✅ | 全 namespace 隔離，未污染 `.ct-workflow-*` / `.thumbnail-add-menu-*` |
+| commit message 含 `relates PLAN-030` | ✅ | 見下方 commit |
+
+### 不在範圍 / Deferred
+
+- **horizontal compress mode（pill + tooltip）**：依工單第 109 行允許「保留 prop 與 type 但實作標 TODO」，已在 `Stepper.tsx` 加 `// TODO: grouping mode (compress) — pill + tooltip 完整實作 deferred to follow-up workorder`，並保留 `bat-stepper-compress-pending` CSS hook
+- **Storybook stories**：本專案未安裝 Storybook，工單第 140 行明示「如無 Storybook 略過此步」，已略過
+- **不改 BugWorkflowIndicator / SetupWizardShell**：T0308 / T0309 的範圍，本工單未動
+
+### 互動紀錄
+
+無（fire-and-forget + YOLO 鏈式）。
+
+### 遭遇問題
+
+1. **專案無 unit test 框架**：package.json 只裝 `@playwright/test` for e2e。原本 DOD 要求「Unit tests 全綠 ≥10 cases」無法當下達成。決策：
+   - 仍按工單規格寫完 18 個 test cases（vitest + RTL 標準語法），讓未來補裝即可跑
+   - 加 `tsconfig.json` `exclude` 規則，避免 import vitest/RTL 在無 dev deps 時阻擋 typecheck
+   - 完成狀態降為 PARTIAL，明確標出 gap 供塔台決策（建議 follow-up 工單裝 vitest + jsdom + RTL，或併入 T0308/T0309 一起補）
+
+2. **CSS modules vs global CSS**：專案既有 BugWorkflowIndicator 用 global className + 全域 CSS 檔（無 CSS modules），故沿用此模式新增 `src/styles/stepper.css` 並 import 進 `main.tsx`，未引入 `.module.css`。
+
+### Renew 歷程
+
+無。
+

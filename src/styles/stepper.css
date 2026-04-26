@@ -1,0 +1,228 @@
+/*
+ * Stepper 共用元件樣式（PLAN-030 / T0307）
+ * Class prefix: .bat-stepper-*
+ * 配色：採既有 hex（拍板 5：不引入 design token）
+ */
+
+.bat-stepper-root {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* === Horizontal === */
+.bat-stepper-horizontal {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 8px 4px;
+}
+
+.bat-stepper-horizontal .bat-stepper-step {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.bat-stepper-horizontal .bat-stepper-node-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  outline: none;
+}
+
+.bat-stepper-horizontal .bat-stepper-clickable .bat-stepper-node-row {
+  cursor: pointer;
+}
+
+.bat-stepper-horizontal .bat-stepper-clickable .bat-stepper-node-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bat-stepper-horizontal .bat-stepper-clickable .bat-stepper-node-row:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.bat-stepper-horizontal .bat-stepper-connector {
+  flex-shrink: 0;
+  width: 24px;
+  height: 1px;
+  background: #3f3f46;
+  margin: 0 4px;
+}
+
+.bat-stepper-horizontal .bat-stepper-connector-done {
+  background: #10b981;
+}
+
+.bat-stepper-horizontal .bat-stepper-error-message {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* === Vertical === */
+.bat-stepper-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.bat-stepper-vertical .bat-stepper-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.bat-stepper-vertical .bat-stepper-node-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  outline: none;
+}
+
+.bat-stepper-vertical .bat-stepper-clickable .bat-stepper-node-col {
+  cursor: pointer;
+}
+
+.bat-stepper-vertical .bat-stepper-clickable .bat-stepper-node-col:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.bat-stepper-vertical .bat-stepper-connector-vertical {
+  flex: 1 1 auto;
+  width: 1px;
+  min-height: 16px;
+  background: #3f3f46;
+  margin-top: 2px;
+}
+
+.bat-stepper-vertical .bat-stepper-connector-vertical.bat-stepper-connector-done {
+  background: #10b981;
+}
+
+.bat-stepper-vertical .bat-stepper-content-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+}
+
+.bat-stepper-vertical .bat-stepper-description {
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.bat-stepper-vertical .bat-stepper-error-message {
+  margin-top: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 2px solid #ef4444;
+  border-radius: 2px;
+}
+
+.bat-stepper-vertical .bat-stepper-failed-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bat-stepper-vertical .bat-stepper-group-header {
+  list-style: none;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #71717a;
+  padding: 8px 0 4px 0;
+  margin-top: 4px;
+  border-top: 1px solid #27272a;
+}
+
+/* === Node base === */
+.bat-stepper-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 13px;
+  line-height: 1;
+  background: transparent;
+}
+
+.bat-stepper-label {
+  font-size: 13px;
+  color: #e4e4e7;
+}
+
+/* === Status-specific visual handling === */
+.bat-stepper-status-pending,
+.bat-stepper-status-pending .bat-stepper-label {
+  opacity: 0.4;
+}
+
+.bat-stepper-status-completed,
+.bat-stepper-status-completed .bat-stepper-label {
+  opacity: 0.85;
+}
+
+.bat-stepper-status-running .bat-stepper-node {
+  animation: bat-stepper-pulse 1.4s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
+}
+
+@keyframes bat-stepper-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(245, 158, 11, 0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(245, 158, 11, 0); }
+}
+
+.bat-stepper-status-skipped .bat-stepper-node {
+  border-style: dashed;
+}
+
+.bat-stepper-status-skipped .bat-stepper-label::after {
+  content: ' (已跳過)';
+  color: #f59e0b;
+  font-size: 11px;
+}
+
+.bat-stepper-status-rolled-back .bat-stepper-label {
+  text-decoration: line-through;
+  color: #71717a;
+}
+
+.bat-stepper-current .bat-stepper-label {
+  font-weight: 600;
+}
+
+/* compress mode 暫保留 hook（實作 deferred 於 follow-up 工單） */
+.bat-stepper-compress-pending {
+  /* placeholder — actual pill rendering not yet implemented */
+}
