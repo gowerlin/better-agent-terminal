@@ -7,11 +7,13 @@
 | 工單編號 | T0284 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 4（SSH deployment）第三張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE（clean DONE，無 PARTIAL；所有 10 AC 全綠；worktree commit `c9d3801`，3 files / +642 / -2） |
 | 建立時間 | 2026-04-26 14:30 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 14:30 (UTC+8) |
+| 完成時間 | 2026-04-26 14:45 (UTC+8) |
+| Wall time | ~15 min（GP099 校準 30-60 min 預期，第三次連續落於下界以下；T0266 §5 spawn args 逐字 + §8 reconnect chain 完整 spec + D042 既有 secure spawn pattern 是神速主因） |
+| Worktree commit | `c9d3801` on `feature/plan-007-remote-dev` |
+| 關鍵設計亮點 | 1) `SshTunnelDeps` 注入式設計讓 8 個 mock test 不真連 ssh；2) `errorType=tunnel` 沿用既有 channel 守住 T0270 凍結 channel set；3) `TUNNEL_MAX_RESTART_FAILURES=5` 限制讓 reconnect 不無限重試 |
 | Sizing | L（spec 估 8-16h；GP099 校準後預期 wall 30-60 min — child_process spawn ssh + reconnect chain hook） |
 | 依賴 | T0270（RemoteClient middleware + reconnect framework）✅、T0282（profile schema serverHome 已落地）✅ |
 | 後續 | T0285 SSH setup wizard（依本工單 SshTunnel + verify-ssh-auth）、T0286 systemd / launchd 啟動（依 wizard） |
