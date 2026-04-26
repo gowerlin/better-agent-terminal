@@ -7,7 +7,7 @@
 | 工單編號 | T0295 |
 | 類型 | fix（v0.4.0 release blocker） |
 | Phase | PLAN-007 release prep — fix chain 第 2 張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE 2026-04-26 — fix commit `4b5db1e`（~5 min wall, +35 net, 10/10 AC）;metadata drift 在 session 32 *sync 時補回 |
 | 建立時間 | 2026-04-26 17:30 (UTC+8) |
 | 派發時間 | （待派） |
 | 完成時間 | （待） |

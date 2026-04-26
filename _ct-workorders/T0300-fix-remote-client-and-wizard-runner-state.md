@@ -7,7 +7,7 @@
 | 工單編號 | T0300 |
 | 類型 | fix（v0.4.1 patch） |
 | Phase | v0.4.1 patch chain 第 2 張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE 2026-04-26 — fix commit `a5841ae`（修 BUG-062 + BUG-066 + BUG-068,v0.4.1 patch chain 第 2 張）;metadata drift 在 session 32 *sync 時補回 |
 | 建立時間 | 2026-04-26 18:35 (UTC+8) |
 | 派發時間 | （待派） |
 | 完成時間 | （待） |
