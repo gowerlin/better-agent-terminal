@@ -3192,6 +3192,55 @@ function registerLocalHandlers() {
     return detectRemoteArch(profile)
   })
 
+  // PLAN-031 T0318 — server bundle download (manifest fetch + tarball + SHA verify).
+  // Cancellation IPC deferred to T0320 distributor; current API is fire-and-resolve.
+  ipcMain.handle(
+    'server-bundle:download',
+    async (
+      evt,
+      opts: {
+        arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+        version: string
+        baseURL?: string
+        githubToken?: string
+      },
+    ) => {
+      if (
+        !opts ||
+        typeof opts.arch !== 'string' ||
+        !['linux-x64', 'linux-arm64', 'darwin-arm64'].includes(opts.arch) ||
+        typeof opts.version !== 'string' ||
+        opts.version.length === 0
+      ) {
+        return {
+          ok: false as const,
+          errorCode: 'manifest-fetch-failed' as const,
+          error: 'Invalid arguments to server-bundle:download',
+        }
+      }
+      const cacheDir = path.join(app.getPath('userData'), 'bat-server-bundles')
+      const { downloadServerBundle } = await import('./remote/server-bundle-download')
+      const onProgress = (event: {
+        phase: 'manifest' | 'tarball'
+        bytesDownloaded: number
+        bytesTotal: number
+        percent: number
+      }) => {
+        if (!evt.sender.isDestroyed()) {
+          evt.sender.send('server-bundle:download-progress', event)
+        }
+      }
+      return downloadServerBundle({
+        arch: opts.arch,
+        version: opts.version,
+        cacheDir,
+        baseURL: opts.baseURL,
+        githubToken: opts.githubToken,
+        onProgress,
+      })
+    },
+  )
+
   ipcMain.handle('remote:list-profiles', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const tempClient = new RemoteClient(() => [])
     try {

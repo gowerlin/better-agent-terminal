@@ -7,7 +7,8 @@
 | 工單編號 | T0318 |
 | 類型 | impl（main process 模組 + IPC progress event + 重用 T0317 純函數） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 3 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🔧 IN_PROGRESS |
+| 開始時間 | 2026-04-27 02:30 (UTC+8) |
 | 建立時間 | 2026-04-27 02:25 (UTC+8) |
 | 派發時間 | 2026-04-27 02:25 (UTC+8) |
 | Sizing | L（estimate 60-120 min wall） |
@@ -262,32 +263,82 @@ main process 內用既有 `logger` (`./logger`)：
 
 ### 1. server-bundle-download.ts 摘要
 
-（待填：總行數、5 phase 實作 highlight、純函數抽出列表）
+`electron/remote/server-bundle-download.ts`（503 lines）。實作 7 個 phase：
+
+1. **Manifest fetch**：`fetchWithRetry(manifestURL)` → `parseManifest(text)`（T0317） → 失敗回 `manifest-fetch-failed` / `manifest-parse-failed`
+2. **Arch lookup**：`manifest.tarballs[arch]` → `arch-not-in-manifest`
+3. **Cache check**：`checkCache()` → `fs.stat` size 比對 → `createSha256Stream` 重新算 SHA → `compareSha256`（T0317 timing-safe）→ hit 則回 `fromCache: true`
+4. **Tarball download**：`fetchWithRetry(tarballURL)` 帶 GITHUB_TOKEN（若有）
+5. **Stream pipe**：`Readable.fromWeb(res.body)` → `createSha256Stream` → `createWriteStream(tmp)` 用 `pipeline()` 串接
+6. **SHA verify**：`getDigest()` + `compareSha256` 失敗回 `sha-mismatch`
+7. **Atomic rename**：`fs.rename(tmp, cache)`
+
+純函數抽出至 `src/lib/server-bundle-download-helpers.ts`（136 lines），對應 T0319 `arch-detect.ts` ↔ `arch-detect-result.ts` 拆分慣例（避免 composite tsconfig.node.json 把 electron/ ts 拖進 src/ 測試 graph）：
+
+- `buildBaseURL(version, override?)` — explicit > env > default GitHub Release，trailing slash 正規化
+- `buildTarballURL(baseURL, filename)` — 容忍 trailing slash
+- `shouldRetryError({status, code, name, headers})` — AbortError / 4xx / 403 + rate-limit-remaining=0 不 retry；5xx + ECONNRESET/ETIMEDOUT/ENOTFOUND/EAI_AGAIN/ECONNREFUSED/EPIPE/UND_ERR_SOCKET 重試；其他 fail-safe 不 retry
+- `parseRateLimitHeaders(headers)` — case-insensitive；接受 unix epoch 秒或 ISO 8601；`remaining` 預設 60；`resetISO` 失敗回 null
+- `shouldThrottleProgress(lastMs, lastBytes, currMs, currBytes)` — `lastMs === 0` 永不 throttle（首發）；達 1MB byte delta 或 500ms time delta 即 emit
+
+額外特性：
+- AbortSignal：每個 fetch + pipeline + delay 都帶 signal；`abortError()` 標準化 `name = 'AbortError'`
+- Retry policy：4 次嘗試（即時 + 500/1500/3000ms backoff）；rate-limited / 4xx / abort 跳過 retry
+- GITHUB_TOKEN：`options.githubToken ?? process.env.GITHUB_TOKEN`，存在時 fetch 帶 `Authorization: Bearer`
+- Tmp file 收尾：所有失敗路徑（pipeline error / SHA mismatch / rename error）都跑 `tryUnlink(tmp)`
 
 ### 2. IPC handler + progress event
 
-（待填：註冊位置、event 命名、cancellation 處理）
+註冊位置：`electron/main.ts:3194-3243`（緊接 `remote:detect-arch` 之後）。
+
+- IPC channel: `server-bundle:download`
+- Progress event: `server-bundle:download-progress`（main → renderer，過 `evt.sender.send`）
+- 入口 validation：`opts.arch` 必須為 `linux-x64 | linux-arm64 | darwin-arm64`、`opts.version` 必須非空字串，否則回 `manifest-fetch-failed` errorCode 不打 fetch
+- `cacheDir = app.getPath('userData') + '/bat-server-bundles'`，handler 內走 `mkdir(recursive: true)` 由 `downloadServerBundle` 自己處理
+- Sender 失效守衛：`if (!evt.sender.isDestroyed())` 才 emit progress（避免 renderer 關閉後 throw）
+- Cancellation IPC：本工單**未實作**（依工單 §164 pull-it-forward 紀律），下文「out-of-scope but justified」說明
 
 ### 3. preload + type augmentation
 
-（待填）
+- `electron/preload.ts:601-647`：`window.electronAPI.remote.serverBundle.download(opts)` + `onDownloadProgress(callback)`（return unsubscribe fn）
+- `src/types/electron.d.ts:446-477`：完整 union 型別暴露 `DownloadResult` + `DownloadErrorCode` 9 種；不破壞既有 `electronAPI.remote` 結構
 
 ### 4. 純函數單元測試
 
-（待填：case 數、覆蓋哪些 helper）
+`src/lib/__tests__/server-bundle-download.test.ts`（219 lines）：
+
+| group | cases |
+|------|------|
+| `buildBaseURL` | 7（default / env override / explicit beats env / trailing slash 兩處 / 空字串 fallback / version 嵌入） |
+| `buildTarballURL` | 3（標準 join / trailing slash 容忍 / filename verbatim） |
+| `shouldRetryError` | 7（5xx 三 case / 4xx 兩 case / 403 rate-limit / 大寫 header / network code 四 case / AbortError 兩 case / unknown） |
+| `parseRateLimitHeaders` | 6（unix epoch / ISO / case-insensitive / 缺 header / 壞日期 / 非數字 remaining） |
+| `shouldThrottleProgress` | 6（首次 / 兩條件都不滿足 / byte 達標 / time 達標 / 兩條件都滿足 / byte delta 用 currentBytes - lastBytes） |
+| **Total** | **29 cases**（>>15 case 工單下限） |
 
 ### 5. 既有 test + tsc 結果
 
-（待填：`npm run test:unit` summary、`tsc --noEmit` 結果）
+```
+npm run test:unit
+ Test Files  7 passed (7)
+      Tests  154 passed (154)   ← 125 baseline + 29 new
+```
+
+`npx tsc --noEmit`：36 errors total（baseline 37，少 1 個）。**全部錯誤位於既有 `src/components/CodexAgentPanel.tsx` 與 `src/types/agent-profiles.ts`**，與本工單新檔無關。新增的 `electron/remote/server-bundle-download.ts` / `src/lib/server-bundle-download-helpers.ts` / `src/lib/__tests__/server-bundle-download.test.ts` / `electron/main.ts` / `electron/preload.ts` / `src/types/electron.d.ts` 全部 0 error。
 
 ### 6. PARTIAL / 矛盾項（如有）
 
-（待填）
+無。15 條 AC 全達成。
 
 ### 7. Out-of-scope but justified（如有）
 
-（待填）
+- **Cancellation IPC 未實作**（工單 §164 明示「先不做 cancellation IPC，等 T0320 distributor 評估」）。`AbortSignal` 介面已在 `DownloadOptions` 預留，T0320 整合時加 `ipcMain.on('server-bundle:cancel-download', requestId)` + AbortController map 即可，無需改動 `downloadServerBundle` 內部邏輯
+- **純函數抽出 helpers 到 `src/lib/`**（不是工單原文，但符合 T0319 模式）：工單 §189 列的純函數示範是寫在 `electron/remote/server-bundle-download.ts` 內 export，但這會踩到 composite `tsconfig.node.json` 與 `tsconfig.json` 的 cross-project 引用（`TS6305: Output file ... has not been built`），測試會 break。對齊 T0319 `arch-detect-result.ts` 的拆分慣例，將 5 個純函數搬到 `src/lib/server-bundle-download-helpers.ts`，electron 模組以 re-export 維持公開 API 不變
+- **Web ReadableStream → Node Readable 轉換**（工單未明示）：用 `node:stream` 內建 `Readable.fromWeb()`（Node 18+ / Electron 41 native），不引入 `node-fetch` / `axios` 任何依賴。`pipeline()` 串接 `nodeReadable → shaStream → writeStream` 才能正確傳遞 SHA hash 與寫入動作
 
 ### 完成註記
 
-（待填：commit hash / wall time / Full DONE）
+- Wall time：~50 min（02:30 → 03:20，落在工單 sizing L 60-120 min 區間下緣）
+- Tests：125 → 154（+29 case，**全綠**）
+- TSC：36（baseline 37，本工單新檔 0 error）
+- 完成狀態：✅ Full DONE

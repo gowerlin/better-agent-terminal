@@ -599,6 +599,52 @@ const electronAPI = {
         | { ok: true; arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'; rawUname: string }
         | { ok: false; error: string; errorCode: 'unsupported-arch' | 'detect-failed' | 'remote-unreachable' | 'no-state' }
       >,
+    // PLAN-031 T0318 — server bundle download (manifest + tarball + SHA verify).
+    serverBundle: {
+      download: (opts: {
+        arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+        version: string
+        baseURL?: string
+        githubToken?: string
+      }) =>
+        ipcRenderer.invoke('server-bundle:download', opts) as Promise<
+          | { ok: true; tarballPath: string; sha256: string; sizeBytes: number; fromCache: boolean }
+          | {
+              ok: false
+              error: string
+              errorCode:
+                | 'manifest-fetch-failed'
+                | 'manifest-parse-failed'
+                | 'arch-not-in-manifest'
+                | 'tarball-fetch-failed'
+                | 'sha-mismatch'
+                | 'cache-write-failed'
+                | 'rate-limited'
+                | 'aborted'
+                | 'network-error'
+            }
+        >,
+      onDownloadProgress: (
+        callback: (event: {
+          phase: 'manifest' | 'tarball'
+          bytesDownloaded: number
+          bytesTotal: number
+          percent: number
+        }) => void,
+      ) => {
+        const handler = (
+          _evt: unknown,
+          event: {
+            phase: 'manifest' | 'tarball'
+            bytesDownloaded: number
+            bytesTotal: number
+            percent: number
+          },
+        ) => callback(event)
+        ipcRenderer.on('server-bundle:download-progress', handler)
+        return () => ipcRenderer.removeListener('server-bundle:download-progress', handler)
+      },
+    },
     restartServer: (newPort: number) =>
       ipcRenderer.invoke('remote:restart-server', newPort) as Promise<
         | { port: number; token: string; fingerprint: string; bindInterface: 'localhost' | 'tailscale' | 'all'; host: string; restartError?: string }

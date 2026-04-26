@@ -443,6 +443,39 @@ interface ElectronAPI {
       | { ok: true; arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'; rawUname: string }
       | { ok: false; error: string; errorCode: 'unsupported-arch' | 'detect-failed' | 'remote-unreachable' | 'no-state' }
     >
+    // PLAN-031 T0318 — server bundle runtime download (manifest fetch + tarball + SHA verify).
+    serverBundle: {
+      download: (opts: {
+        arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+        version: string
+        baseURL?: string
+        githubToken?: string
+      }) => Promise<
+        | { ok: true; tarballPath: string; sha256: string; sizeBytes: number; fromCache: boolean }
+        | {
+            ok: false
+            error: string
+            errorCode:
+              | 'manifest-fetch-failed'
+              | 'manifest-parse-failed'
+              | 'arch-not-in-manifest'
+              | 'tarball-fetch-failed'
+              | 'sha-mismatch'
+              | 'cache-write-failed'
+              | 'rate-limited'
+              | 'aborted'
+              | 'network-error'
+          }
+      >
+      onDownloadProgress: (
+        callback: (event: {
+          phase: 'manifest' | 'tarball'
+          bytesDownloaded: number
+          bytesTotal: number
+          percent: number
+        }) => void,
+      ) => () => void
+    }
   }
   snippet: {
     getAll: () => Promise<unknown>
