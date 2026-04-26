@@ -478,6 +478,16 @@ const electronAPI = {
     uninstallBundle: (distro: string, installPath: string) =>
       ipcRenderer.invoke('wsl:uninstall-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
   },
+  wslSystemd: {
+    writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
+      ipcRenderer.invoke('wsl-systemd:write-unit', distro, unit) as Promise<{ ok: true }>,
+    enableLinger: (distro: string) =>
+      ipcRenderer.invoke('wsl-systemd:enable-linger', distro) as Promise<{ ok: boolean; error?: string }>,
+    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
+      ipcRenderer.invoke('wsl-systemd:start-service', distro, serviceName, options) as Promise<{ ok: true; token: string | null } | { ok: false; error: string; token?: string | null }>,
+    removeUnit: (distro: string, serviceName: string, options?: { path?: string }) =>
+      ipcRenderer.invoke('wsl-systemd:remove-unit', distro, serviceName, options) as Promise<{ ok: true }>,
+  },
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: 'localhost' | 'tailscale' | 'all') =>
       ipcRenderer.invoke('remote:start-server', port, token, bindInterface) as Promise<{ port: number; token: string; fingerprint: string; bindInterface: 'localhost' | 'tailscale' | 'all'; host: string } | { error: string }>,
@@ -492,7 +502,7 @@ const electronAPI = {
     clientStatus: () =>
       ipcRenderer.invoke('remote:client-status') as Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>,
     testConnection: (host: string, port: number, token: string, fingerprint?: string) =>
-      ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string }>,
+      ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: { serverPlatform: 'win32' | 'linux' | 'darwin'; serverArch: 'x64' | 'arm64'; serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'; wslDistro?: string; dockerMounts?: Array<{ host: string; container: string }>; serverHome?: string; nodeVersion: string; claudeVersion?: string; bundleVersion: string; glibcVersion?: string } | null }>,
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) =>
       ipcRenderer.invoke('remote:list-profiles', host, port, token, fingerprint) as Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>,
     restartServer: (newPort: number) =>

@@ -29,6 +29,25 @@ export interface WizardContext {
   wslDistro?: string
   wslSystemdEnabled?: boolean
   serverInstallPath?: string
+  serverPort?: number
+  remoteToken?: string
+  systemdServiceActive?: boolean
+  fallbackStartHint?: string
+  fingerprint?: string | null
+  serverMetadata?: {
+    serverPlatform: 'win32' | 'linux' | 'darwin'
+    serverArch: 'x64' | 'arm64'
+    serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'
+    wslDistro?: string
+    dockerMounts?: Array<{ host: string; container: string }>
+    serverHome?: string
+    nodeVersion: string
+    claudeVersion?: string
+    bundleVersion: string
+    glibcVersion?: string
+  } | null
+  connectTestSkipped?: boolean
+  createdProfileId?: string
   logger: WizardLogger
   requestChoice?: (request: WizardChoiceRequest) => Promise<string | null>
 }

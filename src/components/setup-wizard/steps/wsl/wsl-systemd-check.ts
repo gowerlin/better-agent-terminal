@@ -14,7 +14,7 @@ export const wslSystemdCheckStep: WizardStep = {
     ctx.wslSystemdEnabled = enabled
 
     if (!enabled) {
-      const warning = 'systemd is not enabled. BAT will fall back to `wsl exec` startup until T0275 adds the service flow.'
+      const warning = 'systemd is not enabled. BAT will fall back to a manual `wsl exec` start command.'
       if (!ctx.warnings.includes(warning)) {
         ctx.warnings.push(warning)
       }

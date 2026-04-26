@@ -46,6 +46,19 @@ interface WslDistroRecord {
   state: WslState
 }
 
+interface RemoteAuthMetadata {
+  serverPlatform: 'win32' | 'linux' | 'darwin'
+  serverArch: 'x64' | 'arm64'
+  serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'
+  wslDistro?: string
+  dockerMounts?: Array<{ host: string; container: string }>
+  serverHome?: string
+  nodeVersion: string
+  claudeVersion?: string
+  bundleVersion: string
+  glibcVersion?: string
+}
+
 interface ElectronAPI {
   platform: 'win32' | 'darwin' | 'linux'
   pty: {
@@ -314,6 +327,12 @@ interface ElectronAPI {
     installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
   }
+  wslSystemd: {
+    writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) => Promise<{ ok: true }>
+    enableLinger: (distro: string) => Promise<{ ok: boolean; error?: string }>
+    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) => Promise<{ ok: true; token: string | null } | { ok: false; error: string; token?: string | null }>
+    removeUnit: (distro: string, serviceName: string, options?: { path?: string }) => Promise<{ ok: true }>
+  }
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>
     stopServer: () => Promise<boolean>
@@ -321,7 +340,7 @@ interface ElectronAPI {
     connect: (host: string, port: number, token: string, label?: string, fingerprint?: string) => Promise<{ connected: boolean; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
     disconnect: () => Promise<boolean>
     clientStatus: () => Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>
-    testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string }>
+    testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: RemoteAuthMetadata | null }>
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
     restartServer: (newPort: number) => Promise<
       | { port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string; restartError?: string }

@@ -1,6 +1,7 @@
 import * as childProcess from 'child_process'
 import path from 'path'
 import { winToWsl } from '../src/utils/wsl-path'
+import { assertValidDistro, assertValidUnixPath } from './wsl-validate'
 
 export interface WslDistro {
   name: string
@@ -13,8 +14,6 @@ interface ExecResult {
   stderr: Buffer
 }
 
-const DISTRO_NAME_PATTERN = /^[A-Za-z0-9._-]+$/
-const INSTALL_PATH_PATTERN = /^(?:~\/|\/)(?!.*\.\.)(?!.*[;|&$`]).+$/
 let execFileImpl: (...args: any[]) => unknown = childProcess.execFile
 
 export function setExecFileImplForTests(execFile: (...args: any[]) => unknown): void {
@@ -101,16 +100,12 @@ export function parseWslListOutput(buffer: Buffer): { distros: WslDistro[]; defa
 }
 
 export function validateDistroName(distro: string): string {
-  if (!DISTRO_NAME_PATTERN.test(distro)) {
-    throw new Error(`Invalid WSL distro name: ${distro}`)
-  }
+  assertValidDistro(distro)
   return distro
 }
 
 export function validateInstallPath(installPath: string): string {
-  if (!INSTALL_PATH_PATTERN.test(installPath)) {
-    throw new Error(`Invalid install path: ${installPath}`)
-  }
+  assertValidUnixPath(installPath, true)
   return installPath
 }
 

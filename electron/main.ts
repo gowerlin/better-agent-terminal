@@ -87,6 +87,7 @@ import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
 import * as wslDetect from './wsl-detect'
+import * as wslSystemd from './wsl-systemd'
 import {
   assertPathAllowed,
   isPathAllowed,
@@ -3185,7 +3186,13 @@ function registerLocalHandlers() {
     try {
       const result = await testClient.connect(host, port, token, undefined, fingerprint)
       testClient.disconnect()
-      return { ok: result.ok, fingerprint: result.fingerprint, errorCode: result.errorCode, error: result.error }
+      return {
+        ok: result.ok,
+        fingerprint: result.fingerprint,
+        errorCode: result.errorCode,
+        error: result.error,
+        metadata: testClient.serverMetadata,
+      }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
@@ -3231,6 +3238,13 @@ function registerLocalHandlers() {
       }
     }
   })
+  ipcMain.handle('wsl-systemd:write-unit', (_event, distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
+    wslSystemd.writeUnit(distro, unit))
+  ipcMain.handle('wsl-systemd:enable-linger', (_event, distro: string) => wslSystemd.enableLinger(distro))
+  ipcMain.handle('wsl-systemd:start-service', (_event, distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
+    wslSystemd.startService(distro, serviceName, options))
+  ipcMain.handle('wsl-systemd:remove-unit', (_event, distro: string, serviceName: string, options?: { path?: string }) =>
+    wslSystemd.removeUnit(distro, serviceName, options))
 
   // Get the profile ID this instance was launched with (--profile= argument)
   ipcMain.handle('app:get-launch-profile', () => launchProfileId)
