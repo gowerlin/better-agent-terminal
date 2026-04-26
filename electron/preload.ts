@@ -117,6 +117,7 @@ const electronAPI = {
     getLaunchProfile: () => ipcRenderer.invoke('app:get-launch-profile') as Promise<string | null>,
     getWindowId: () => ipcRenderer.invoke('app:get-window-id') as Promise<string | null>,
     getWindowProfile: () => ipcRenderer.invoke('app:get-window-profile') as Promise<string | null>,
+    getUserDataPath: () => ipcRenderer.invoke('app:get-user-data-path') as Promise<string>,
     getWindowIndex: () => ipcRenderer.invoke('app:get-window-index') as Promise<number>,
     newWindow: () => ipcRenderer.invoke('app:new-window') as Promise<string>,
     setDockBadge: (count: number) => ipcRenderer.invoke('app:set-dock-badge', count),
@@ -468,6 +469,14 @@ const electronAPI = {
     getActiveIds: () => ipcRenderer.invoke('profile:get-active-ids') as Promise<string[]>,
     activate: (profileId: string) => ipcRenderer.invoke('profile:activate', profileId) as Promise<void>,
     deactivate: (profileId: string) => ipcRenderer.invoke('profile:deactivate', profileId) as Promise<void>,
+  },
+  wsl: {
+    list: () => ipcRenderer.invoke('wsl:list') as Promise<{ distros: { name: string; version: 1 | 2; state: 'Running' | 'Stopped' }[]; default: string | null }>,
+    systemdEnabled: (distro: string) => ipcRenderer.invoke('wsl:systemd-enabled', distro) as Promise<boolean>,
+    installBundle: (distro: string, tarballPath: string, installPath: string) =>
+      ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
+    uninstallBundle: (distro: string, installPath: string) =>
+      ipcRenderer.invoke('wsl:uninstall-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
   },
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: 'localhost' | 'tailscale' | 'all') =>

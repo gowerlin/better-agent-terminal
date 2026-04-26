@@ -86,6 +86,7 @@ import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
+import * as wslDetect from './wsl-detect'
 import {
   assertPathAllowed,
   isPathAllowed,
@@ -3215,6 +3216,21 @@ function registerLocalHandlers() {
   ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => profileManager.duplicate(profileId, newName))
   ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => profileManager.update(profileId, updates))
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
+  ipcMain.handle('wsl:list', () => wslDetect.list())
+  ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
+  ipcMain.handle('wsl:install-bundle', (_event, distro: string, tarballPath: string, installPath: string) =>
+    wslDetect.installBundle(distro, tarballPath, installPath))
+  ipcMain.handle('wsl:uninstall-bundle', async (_event, distro: string, installPath: string) => {
+    try {
+      await wslDetect.uninstallBundle(distro, installPath)
+      return { ok: true as const }
+    } catch (error) {
+      return {
+        ok: false as const,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
 
   // Get the profile ID this instance was launched with (--profile= argument)
   ipcMain.handle('app:get-launch-profile', () => launchProfileId)
@@ -3226,6 +3242,7 @@ function registerLocalHandlers() {
     const entry = await windowRegistry.getEntry(windowId)
     return entry?.profileId ?? null
   })
+  ipcMain.handle('app:get-user-data-path', () => app.getPath('userData'))
   // Get this window's index within its profile (1-based)
   ipcMain.handle('app:get-window-index', async (event) => {
     const windowId = getWindowIdByWebContents(event.sender)

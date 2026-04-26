@@ -38,6 +38,13 @@ interface ProfileRecord {
 }
 
 type RemoteBindInterface = 'localhost' | 'tailscale' | 'all'
+type WslState = 'Running' | 'Stopped'
+
+interface WslDistroRecord {
+  name: string
+  version: 1 | 2
+  state: WslState
+}
 
 interface ElectronAPI {
   platform: 'win32' | 'darwin' | 'linux'
@@ -97,6 +104,7 @@ interface ElectronAPI {
     getLaunchProfile: () => Promise<string | null>
     getWindowId: () => Promise<string | null>
     getWindowProfile: () => Promise<string | null>
+    getUserDataPath: () => Promise<string>
     getWindowIndex: () => Promise<number>
     newWindow: () => Promise<string>
     setDockBadge: (count: number) => Promise<void>
@@ -299,6 +307,12 @@ interface ElectronAPI {
     getActiveIds: () => Promise<string[]>
     activate: (profileId: string) => Promise<void>
     deactivate: (profileId: string) => Promise<void>
+  }
+  wsl: {
+    list: () => Promise<{ distros: WslDistroRecord[]; default: string | null }>
+    systemdEnabled: (distro: string) => Promise<boolean>
+    installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+    uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
   }
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>
