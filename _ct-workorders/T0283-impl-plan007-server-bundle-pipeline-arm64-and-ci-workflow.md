@@ -7,11 +7,13 @@
 | 工單編號 | T0283 |
 | 類型 | impl（build infra + CI workflow，無 production runtime code） |
 | Phase | PLAN-007 Phase 4（SSH deployment）第二張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE（PARTIAL → 接受；AC1/5/6/7/8/9/10 全綠 + AC2/3 環境限制（Windows worktree 缺 arm64/darwin native sub-package，Worker 守則 7 已預告 fail-fast 行為） + AC4 CI-only（全 3 platform 必走 matrix）；worktree commit `36800f1`） |
 | 建立時間 | 2026-04-26 14:14 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 14:14 (UTC+8) |
+| 完成時間 | 2026-04-26 14:25 (UTC+8) |
+| Wall time | ~11 min（GP099 校準 30-90 min 預期，再次落於下界以下；T0271 baseline + spec §6 C-1 凍結 + Worker 守則 8 預先給 runner labels guidance 是神速主因） |
+| Worktree commit | `36800f1` on `feature/plan-007-remote-dev` |
+| CI matrix 待驗 | push `feature/plan-007-remote-dev` 後觸發 `build-server-bundle.yml` 新 workflow，AC2/3/4 在 GitHub Actions matrix 自然驗（runner: `ubuntu-22.04` / `ubuntu-22.04-arm` / `macos-14`） |
 | Sizing | L（spec 估 8-16h；GP099 校準後預期 wall 30-90 min — esbuild 已備、CI workflow 為主要工作量） |
 | 依賴 | T0271 ✅（linux-x64 baseline pipeline）、T0282 ✅（無直接依賴；可平行但併入鏈式派發） |
 | 後續 | T0284（SshTunnel class）+ T0285（SSH setup wizard）皆需 server bundle 才能在 e2e 跑通；T0286 SSH e2e 直接消費本工單 artifact |
