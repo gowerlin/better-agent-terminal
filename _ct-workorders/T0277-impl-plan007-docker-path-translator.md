@@ -7,12 +7,16 @@
 | 工單編號 | T0277 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 3(Docker deployment)第一張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 11:58 (UTC+8) |
-| Sizing | M(spec 估 4-8h;GP099 校準後預期 wall 10-30 min,Phase 3 GP-cand 預估 ≤30 min)|
+| 派發時間 | 2026-04-26 12:00 (UTC+8) |
+| 完成時間 | 2026-04-26 12:10 (UTC+8) |
+| Wall time | ~10 min(GP099 + Phase 3 校準下界,符合預期) |
+| Worktree commit | `43d6eea` on `feature/plan-007-remote-dev`(parent `15ac3ed` T0276 DONE) |
+| Sizing | M(spec 估 4-8h;實際 wall 10 min,印證 Phase 3 ≤30 min 預期) |
 | 依賴 | T0269(PathTranslator framework + contract harness)、T0273(wsl 模式作參考實作) |
 | 後續 | T0278(Docker base image + Dockerfile + multi-arch baseline)鏈式自動派發 |
-| 工作目錄 | `../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `15ac3ed`) |
+| 工作目錄 | `../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `43d6eea`) |
 | Renew 次數 | 0 |
 | 互動旗標 | `--no-interactive`(yolo + fire-and-forget) |
 | `affects_files` | `electron/remote/path-translator.ts`、`electron/profile-manager.ts`、`src/utils/docker-path.ts`(新建)、`tests/path-translator.contract.test.ts`、`tests/docker-path.test.ts`(新建) |
@@ -156,7 +160,33 @@
 
 ## 工單回報區
 
-(尚無)
+### 結果摘要(10 AC 全綠,假設)
+
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1-AC10 | ✅ | Worker 回報「T0277 完成」(斷點 A regex 通過);worktree commit `43d6eea` 5 files / +380 / -6 |
+
+### 修改檔(commit stats)
+
+- `electron/profile-manager.ts` +12 / -1(`dockerMounts` 欄位 + `TargetOSMetadata` docker-linux case 擴充)
+- `electron/remote/path-translator.ts` +34 / -3(`DockerPathTranslator` class + factory switch case)
+- `src/utils/docker-path.ts` +57 / 0(新建純函數模組)
+- `tests/docker-path.test.ts` +182 / 0(新建純函數測試)
+- `tests/path-translator.contract.test.ts` +101 / -1(docker fixtures + factory test 反向修正)
+
+### Worktree commit
+
+`43d6eea feat(remote): T0277 DockerPathTranslator (production-grade) + dockerMounts schema` on `feature/plan-007-remote-dev`(parent `15ac3ed` T0276 DONE)
+
+### 主動超出範圍項
+
+未知(Worker commit body 簡潔,僅工單編號 + 依賴。檔案統計顯示 5 file 對應 spec 範圍,無越界)。
+
+### 教訓 / 觀察
+
+- Phase 3 第一張 wall ~10 min,印證 Phase 完成度遞進校準(Phase 1 spec 32-72h 實 80 min / Phase 2 spec 24-32h 實 42 min / Phase 3 第一張 spec 4-8h 實 10 min,持續壓縮)
+- 同 Phase 路徑翻譯模式可參考(wsl-path → docker-path),Worker 應有對照 T0273 模式快速落地
+- contract test framework(T0269 留下)第三次套用,fixtures 設計成本邊際遞減
 
 ---
 
