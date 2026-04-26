@@ -2988,7 +2988,66 @@ chore(ct): PLAN-012 + BUG-032 meta (D033-D037)
 ---
 
 ## 🌅 起手式（Quick Recovery）
-> 最後更新：2026-04-18 00:55 UTC+8
+> 最後更新：2026-04-26 19:25 UTC+8（session 31 收工）
+
+### 🏆 Session 31 收工快照（2026-04-26 14:00-19:25，~5h25min，PLAN-007 全收 + 雙 release GO）
+
+**史詩級單 session 成就**（21 工單派發 / 0 Renew / 0 真正 FAILED）：
+
+- ✅ **PLAN-007 全 23 藍圖工單 DONE**（Phase 1-5 全收，commit `e01c34b` D089 全案閉環）
+  - Phase 4 SSH (T0282-T0287, 6 張, 72 min wall)
+  - Phase 5 整合 (T0288-T0291, 4 張, 49 min wall)
+- ✅ **release/v0.4.0 分支建立**（merge `feature/plan-007-remote-dev` `--no-ff`，113 files / +14569 / -334 auto-merge 無衝突）
+- ✅ **bmad 雙審完成**（T0292 adversarial 25 findings + T0293 edge-case 9 findings = 34 findings）
+- ✅ **v0.4.0 fix chain 全綠**（T0294-T0298, 5 張, 29+5 min wall, GO verdict）
+  - 6 必修 finding 修完：F-001 + EC-001 / F-002 / F-003 / F-004 + EC-002 + EC-003 / F-005
+- ✅ **v0.4.1 patch chain 全綠**（T0299-T0302, 4 張, 47+10 min wall, GO verdict）
+  - 7 緩修 BUG 修完：BUG-062~068（fingerprint return / SIGKILL escalation / i18n / schema-driven / runPromise reset / disconnect await / invoke translator freeze）
+  - `package.json` bump `0.3.1 → 0.4.1`，CHANGELOG `[0.4.1]` section 完整
+- ✅ **BUG-060 CLOSED**（YOLO 鏈式 shell preference fix `fad2978` 持久觀察 2 次連線通過）
+- 🐛 **BUG-061 OPEN baseline**（CodexAgentPanel.tsx tsc errors 36 個，dev-only，不影響 runtime）
+- 📚 **`*evolve` 萃取完成**（commit `9e83985`）：
+  - **Global**：GP103（Worker 神速三要素）+ GP104（bmad 5 階段 release）+ GP105（Helper 抽取累積效應）
+  - **Project**：L106（BAT YOLO 21 工單）+ L107（release branch + worktree merge pattern）
+
+### 立即待辦（下一輪起手 — 由使用者人工執行）
+
+1. **Push release/v0.4.0 to origin** — 使用者收工後人工執行（塔台不 push 規則）
+2. **Pre-release 人工驗證**（依 `docs/plan-007-release-checklist.md`）：
+   - NSIS / dmg 打包驗證
+   - WSL real e2e（Win 11 23H2+ + Ubuntu + systemd）
+   - Docker real e2e（Docker Desktop / colima）
+   - SSH real e2e（linux-x64 / linux-arm64 / darwin-arm64 + 1 cross-OS）
+   - Migration verification（legacy remote profile）
+3. **Tag + GitHub Release**：`git tag v0.4.1` + `git push origin v0.4.1` 觸發 CI release
+4. **Homebrew tap 更新**（v0.4.1 為非 prerelease）
+
+### Session 31 數據（最終）
+
+| 指標 | 值 |
+|------|------|
+| 時長 | ~5h25min（14:00-19:25）|
+| 工單派發 | **21 張全 DONE** |
+| BUG 處理 | 1 CLOSED + 7 OPEN→FIXED + 1 OPEN baseline |
+| Worker wall total | ~235 min（平均 12 min/工單）|
+| Renew / FAILED / PARTIAL | 0 / 0 / 1 環境 + 1 baseline 豁免 |
+| GP099 下界次數 | **14+ 連續** |
+| 雙 release verdict | v0.4.0 GO + v0.4.1 GO |
+| Test suite | 250+ pass / 0 fail |
+| Baseline drift | 36 → 36（0 變化）|
+| Main commits | 30+（含 release/v0.4.0）|
+| Worktree commits | 11 |
+
+### 下 session 起手指引
+
+- Fast Path 載入（快照 < 7 天）
+- 優先序 1：確認使用者已 push release/v0.4.0 + tag v0.4.1
+- 優先序 2：依 release 結果決定下一 PLAN（PLAN-013 / PLAN-021 / 其他 backlog）
+- 下 session 新單編號起始：**T0303 / BUG-069 / PLAN-029 / D090 / EXP-[TOPIC]-002+**
+
+---
+
+### 🟠 上一輪起手式（2026-04-18 00:55 存檔，歷史追溯用）
 
 ### 🎉 BUG-037 全鏈路閉環（2026-04-18 00:23~00:43）
 
