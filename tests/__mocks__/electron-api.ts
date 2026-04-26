@@ -1,8 +1,21 @@
 import type { WizardContext } from '../../src/components/setup-wizard/wizard-runner'
 import { createDockerWizardContext } from '../../src/components/setup-wizard/docker-flow'
+import { createSshWizardContext } from '../../src/components/setup-wizard/ssh-flow'
 import { createWslWizardContext } from '../../src/components/setup-wizard/wsl-flow'
 
 type NetworkMode = 'mirrored' | 'nat' | 'unknown'
+
+// T0287: SSH mock harness — drives ssh.{listHosts,probeAuth,uploadBundle,startServer}
+// + remote.testConnection + profile.create/update against the mock-based e2e tests.
+// Sequence-based responses let a single harness emulate the "first call fails,
+// retry succeeds" pattern (Journey B permission-denied recovery).
+type SshProbeResponse =
+  | { ok: true; serverPlatform?: 'linux' | 'darwin'; serverArch?: string; serverHome?: string }
+  | { ok: false; errorCode?: 'no-ssh' | 'permission-denied' | 'host-key' | 'connect-timeout' | 'unknown'; error?: string }
+
+type SshStartResponse =
+  | { ok: true; method: 'systemd' | 'launchd'; servicePath: string; checkOutput?: string }
+  | { ok: false; method: 'failed'; servicePath: string; error: string; errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown' }
 
 interface MockOptions {
   platform?: 'win32' | 'darwin' | 'linux'
@@ -15,7 +28,7 @@ interface MockOptions {
   remoteToken?: string
   profileUpdateOk?: boolean
   serverPort?: number
-  remoteServerEnv?: 'wsl' | 'docker'
+  remoteServerEnv?: 'wsl' | 'docker' | 'ssh'
   dockerRemoteMounts?: Array<{ host: string; container: string }>
   dockerAvailable?: boolean
   dockerContainers?: Array<{ id: string; name: string; image: string; state: string; status: string }>
@@ -25,6 +38,17 @@ interface MockOptions {
   dockerStartError?: string
   dockerLogs?: string
   dockerHealthSequence?: Array<'healthy' | 'unhealthy' | 'starting' | 'none'>
+  // T0287 SSH options
+  sshHosts?: string[]
+  sshProbeSequence?: SshProbeResponse[]
+  sshUploadOk?: boolean
+  sshUploadError?: string
+  sshUploadProgressChunks?: number
+  sshStartSequence?: SshStartResponse[]
+  remoteServerPlatform?: 'linux' | 'darwin'
+  remoteServerArch?: 'x64' | 'arm64'
+  remoteServerHome?: string
+  bundleEntries?: Array<{ name: string; path: string }>
 }
 
 function slugifyProfileId(name: string): string {
@@ -55,6 +79,10 @@ export function createMockElectronApi(options: MockOptions = {}) {
     dockerRestartCalls: [] as string[],
     dockerLogsCalls: [] as Array<{ name: string; tail?: number; follow?: boolean }>,
     dockerHealthCalls: [] as string[],
+    // T0287 SSH operation log
+    sshProbeCalls: [] as Array<{ sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }>,
+    sshUploadCalls: [] as Array<{ uploadId: string; sshHost: string; installPath: string; tarballPath: string }>,
+    sshStartCalls: [] as Array<{ startId: string; sshHost: string; targetOS: string; serverPort?: number; serverHome: string }>,
   }
 
   const distros = options.distros ?? [{ name: 'Ubuntu', version: 2 as const, state: 'Running' as const }]
@@ -65,6 +93,24 @@ export function createMockElectronApi(options: MockOptions = {}) {
   const platform = options.platform ?? 'win32'
   const dockerContainers = new Map((options.dockerContainers ?? []).map((container) => [container.name, { ...container }]))
   const dockerHealthSequence = [...(options.dockerHealthSequence ?? ['healthy'])]
+  // T0287 SSH sequence state — shifted on each call so tests can model
+  // "first probe fails permission-denied, second probe succeeds" patterns.
+  const sshProbeSequence: SshProbeResponse[] = [...(options.sshProbeSequence ?? [])]
+  const sshStartSequence: SshStartResponse[] = [...(options.sshStartSequence ?? [])]
+  const sshHosts = options.sshHosts ?? []
+  const remoteServerPlatform = options.remoteServerPlatform ?? 'linux'
+  const remoteServerArch = options.remoteServerArch ?? 'x64'
+  const remoteServerHome = options.remoteServerHome ?? '/home/test'
+  const bundleEntries = options.bundleEntries ?? [
+    {
+      name: 'bat-server-linux-x64-v0.3.1.tar.gz',
+      path: 'C:\\Users\\test\\AppData\\Roaming\\BAT\\bat-server-bundles\\bat-server-linux-x64-v0.3.1.tar.gz',
+    },
+  ]
+  // Listeners installed by step run() bodies. Tests can inspect the harness
+  // to assert the right ssh:upload-progress / ssh:start-progress flows fired.
+  const sshUploadProgressListeners = new Set<(payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void>()
+  const sshStartProgressListeners = new Set<(payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void>()
 
   const electronAPI = {
     platform,
@@ -100,14 +146,135 @@ export function createMockElectronApi(options: MockOptions = {}) {
       getUserDataPath: async () => 'C:\\Users\\test\\AppData\\Roaming\\BAT',
     },
     fs: {
-      readdir: async () => [
-        {
-          name: 'bat-server-linux-x64-v0.3.1.tar.gz',
-          path: 'C:\\Users\\test\\AppData\\Roaming\\BAT\\bat-server-bundles\\bat-server-linux-x64-v0.3.1.tar.gz',
-          isDirectory: false,
-          pathKey: 'bundle',
-        },
-      ],
+      readdir: async () => bundleEntries.map((entry) => ({
+        name: entry.name,
+        path: entry.path,
+        isDirectory: false,
+        pathKey: 'bundle',
+      })),
+    },
+    ssh: {
+      listHosts: async () => [...sshHosts],
+      probeAuth: async (opts: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }) => {
+        operationLog.sshProbeCalls.push({ ...opts })
+        const next = sshProbeSequence.shift()
+        if (next) {
+          if (!next.ok) {
+            return {
+              ok: false,
+              errorCode: next.errorCode ?? 'unknown',
+              error: next.error ?? `Probe failed: ${next.errorCode ?? 'unknown'}`,
+            }
+          }
+          return {
+            ok: true,
+            serverPlatform: next.serverPlatform ?? remoteServerPlatform,
+            serverArch: next.serverArch ?? remoteServerArch,
+            serverHome: next.serverHome ?? remoteServerHome,
+            sshExecPath: '/usr/bin/ssh',
+          }
+        }
+        return {
+          ok: true,
+          serverPlatform: remoteServerPlatform,
+          serverArch: remoteServerArch,
+          serverHome: remoteServerHome,
+          sshExecPath: '/usr/bin/ssh',
+        }
+      },
+      uploadBundle: async (request: {
+        uploadId: string
+        options: {
+          sshHost: string
+          sshUser: string
+          sshPort?: number
+          sshKeyPath?: string
+          installPath: string
+          tarballPath: string
+        }
+      }) => {
+        operationLog.sshUploadCalls.push({
+          uploadId: request.uploadId,
+          sshHost: request.options.sshHost,
+          installPath: request.options.installPath,
+          tarballPath: request.options.tarballPath,
+        })
+        const totalBytes = 1_500_000
+        const chunks = options.sshUploadProgressChunks ?? 3
+        for (let i = 1; i <= chunks; i += 1) {
+          const bytesSent = Math.round((totalBytes / chunks) * i)
+          for (const listener of sshUploadProgressListeners) {
+            listener({ uploadId: request.uploadId, bytesSent, totalBytes })
+          }
+        }
+        if (options.sshUploadOk === false) {
+          return { ok: false as const, error: options.sshUploadError ?? 'tar pipe broken (mock)' }
+        }
+        return { ok: true as const }
+      },
+      onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => {
+        sshUploadProgressListeners.add(callback)
+        return () => { sshUploadProgressListeners.delete(callback) }
+      },
+      startServer: async (request: {
+        startId: string
+        options: {
+          sshHost: string
+          sshUser: string
+          sshPort?: number
+          sshKeyPath?: string
+          targetOS: 'ssh-linux' | 'ssh-darwin'
+          installPath: string
+          serverPort?: number
+          serverHome: string
+        }
+      }) => {
+        operationLog.sshStartCalls.push({
+          startId: request.startId,
+          sshHost: request.options.sshHost,
+          targetOS: request.options.targetOS,
+          serverPort: request.options.serverPort,
+          serverHome: request.options.serverHome,
+        })
+        // Always emit phase progress so the step's onStartProgress wiring is
+        // exercised in tests, regardless of success or failure outcome.
+        for (const phase of ['writing-unit', 'enabling', 'starting', 'verifying'] as const) {
+          for (const listener of sshStartProgressListeners) {
+            listener({ startId: request.startId, phase })
+          }
+        }
+        const next = sshStartSequence.shift()
+        if (next) {
+          if (next.ok) {
+            return {
+              ok: true,
+              method: next.method,
+              servicePath: next.servicePath,
+              checkOutput: next.checkOutput,
+            }
+          }
+          return {
+            ok: false,
+            method: 'failed' as const,
+            servicePath: next.servicePath,
+            error: next.error,
+            errorCode: next.errorCode ?? 'unknown',
+          }
+        }
+        const isLinux = request.options.targetOS === 'ssh-linux'
+        return {
+          ok: true,
+          method: (isLinux ? 'systemd' : 'launchd') as 'systemd' | 'launchd',
+          servicePath: isLinux
+            ? `${request.options.serverHome}/.config/systemd/user/bat-server.service`
+            : `${request.options.serverHome}/Library/LaunchAgents/com.bat-server.plist`,
+          checkOutput: 'Active: active (running)',
+        }
+      },
+      onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => {
+        sshStartProgressListeners.add(callback)
+        return () => { sshStartProgressListeners.delete(callback) }
+      },
     },
     remote: {
       testConnection: async (host: string, port: number) => {
@@ -124,9 +291,10 @@ export function createMockElectronApi(options: MockOptions = {}) {
           ok: true,
           fingerprint: remoteFingerprint,
           metadata: {
-            serverPlatform: 'linux' as const,
-            serverArch: 'x64' as const,
-            serverEnv: (options.remoteServerEnv ?? 'wsl') as 'wsl' | 'docker',
+            serverPlatform: remoteServerPlatform as 'linux' | 'darwin',
+            serverArch: remoteServerArch as 'x64' | 'arm64',
+            serverEnv: (options.remoteServerEnv ?? 'wsl') as 'wsl' | 'docker' | 'ssh',
+            serverHome: options.remoteServerEnv === 'ssh' ? remoteServerHome : undefined,
             dockerMounts: options.remoteServerEnv === 'docker'
               ? (options.dockerRemoteMounts ?? [{ host: 'C:\\Users\\test\\project', container: '/workspace/project' }])
               : undefined,
@@ -268,6 +436,18 @@ export function createMockElectronApi(options: MockOptions = {}) {
       const ctx = createDockerWizardContext({ profileName })
       ctx.serverPort = serverPort
       ctx.state.serverPort = serverPort
+      return ctx
+    },
+    createSshContext(profileName = '', initialState: Record<string, unknown> = {}): WizardContext {
+      const ctx = createSshWizardContext({ profileName })
+      ctx.serverPort = serverPort
+      ctx.state.serverPort = serverPort
+      // Pre-populate token + ctx fields so connect-test/write-profile can run
+      // without requiring a live remote handshake.
+      ctx.remoteToken = remoteToken
+      // Tests can seed state.sshHost / sshUser / sshKeyPath / bundleTarballPath
+      // / sshAlias here to skip step-level prompts.
+      Object.assign(ctx.state, initialState)
       return ctx
     },
   }

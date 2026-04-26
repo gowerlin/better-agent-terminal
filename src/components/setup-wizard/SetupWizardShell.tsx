@@ -9,6 +9,7 @@ import {
   type WizardTargetOS,
 } from './wizard-runner'
 import { buildDockerWizardSteps, createDockerWizardContext } from './docker-flow'
+import { buildSshWizardSteps, createSshWizardContext } from './ssh-flow'
 import { buildWslWizardSteps, createWslWizardContext } from './wsl-flow'
 
 interface SetupWizardShellProps {
@@ -41,6 +42,9 @@ function resolveWizardSteps(targetOS: WizardTargetOS): WizardStep[] {
       return buildWslWizardSteps()
     case 'docker-linux':
       return buildDockerWizardSteps()
+    case 'ssh-linux':
+    case 'ssh-darwin':
+      return buildSshWizardSteps()
     default:
       return []
   }
@@ -52,6 +56,9 @@ function createWizardContext(targetOS: WizardTargetOS, initial: { profileName: s
       return createWslWizardContext(initial)
     case 'docker-linux':
       return createDockerWizardContext(initial)
+    case 'ssh-linux':
+    case 'ssh-darwin':
+      return createSshWizardContext(initial)
     default:
       throw new Error(`Setup wizard is not implemented for ${targetOS}.`)
   }
@@ -95,6 +102,13 @@ export function useWslWizardController(onComplete: (profileId: string) => void) 
 
 export function useDockerWizardController(onComplete: (profileId: string) => void) {
   return useSetupWizardController('docker-linux', onComplete)
+}
+
+// T0287: SSH wizard controller — Phase 4 capstone entry point. Defaults to
+// ssh-linux; verify-ssh-auth flips ctx.targetOS to ssh-darwin if the probe
+// detects a macOS server (Journey C cross-OS scenario).
+export function useSshWizardController(onComplete: (profileId: string) => void) {
+  return useSetupWizardController('ssh-linux', onComplete)
 }
 
 export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellProps) {

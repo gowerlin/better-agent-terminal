@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SetupWizardShell, useWslWizardController } from './setup-wizard/SetupWizardShell'
+import { SetupWizardShell, useSshWizardController, useWslWizardController } from './setup-wizard/SetupWizardShell'
 
 type TargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
 
@@ -169,6 +169,10 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
   }, [editingId])
 
   const wslWizard = useWslWizardController(() => {
+    void loadProfiles()
+  })
+  // T0287 — Phase 4 capstone: SSH wizard entry. Mirrors WSL wizard pattern.
+  const sshWizard = useSshWizardController(() => {
     void loadProfiles()
   })
 
@@ -414,6 +418,9 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
             </button>
             <button className="profile-action-btn" onClick={() => wslWizard.open('')}>
               Add WSL Profile
+            </button>
+            <button className="profile-action-btn" onClick={() => sshWizard.open('')}>
+              Add SSH Profile
             </button>
           </div>
 
@@ -806,6 +813,25 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                 ctx={wslWizard.ctx}
                 onComplete={wslWizard.handleComplete}
                 steps={wslWizard.steps}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sshWizard.isOpen && sshWizard.ctx && (
+        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={sshWizard.close}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div className="settings-header">
+              <h2>Add SSH Profile</h2>
+              <button className="settings-close" onClick={sshWizard.close}>&times;</button>
+            </div>
+            <div className="settings-body" style={{ padding: '16px' }}>
+              <SetupWizardShell
+                key={sshWizard.key}
+                ctx={sshWizard.ctx}
+                onComplete={sshWizard.handleComplete}
+                steps={sshWizard.steps}
               />
             </div>
           </div>
