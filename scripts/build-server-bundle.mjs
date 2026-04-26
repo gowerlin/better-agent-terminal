@@ -29,21 +29,101 @@ const binDir = path.join(stagingRoot, 'bin')
 const nodeModulesDir = path.join(stagingRoot, 'node_modules')
 const remoteDir = path.join(stagingRoot, 'electron', 'remote')
 const handlersDir = path.join(stagingRoot, 'handlers')
-const bundleName = `bat-server-linux-x64-v${version}.tar.gz`
-const bundlePath = path.join(distRoot, bundleName)
-const hardExcludedPatterns = ['whisper', 'sharp-darwin', 'sharp-win32', 'node-pty-darwin', 'node-pty-win32']
-
-const nativePackages = [
-  '@lydell/node-pty',
-  '@lydell/node-pty-linux-x64',
+const VALID_TARGETS = ['linux-x64', 'linux-arm64', 'darwin-arm64']
+const TARGET_CONFIG = {
+  'linux-x64': {
+    nodeArchiveExt: 'tar.xz',
+    nodeArchiveBase: 'linux-x64',
+    nodeBinarySubpath: ['bin', 'node'],
+    runtimeBinaryName: 'node',
+    readmeRuntimeLine: '- glibc lower bound: 2.35',
+    nativePackages: [
+      '@lydell/node-pty',
+      '@lydell/node-pty-linux-x64',
+      'better-sqlite3',
+      'sharp',
+      '@img/sharp-linux-x64',
+      '@img/sharp-libvips-linux-x64',
+      '@anthropic-ai/claude-code',
+      '@anthropic-ai/claude-code-linux-x64',
+      '@anthropic-ai/claude-agent-sdk',
+      '@anthropic-ai/claude-agent-sdk-linux-x64',
+    ],
+    claudeCodeBinaryPackage: '@anthropic-ai/claude-code-linux-x64',
+    claudeCodeBinaryName: 'claude',
+  },
+  'linux-arm64': {
+    nodeArchiveExt: 'tar.xz',
+    nodeArchiveBase: 'linux-arm64',
+    nodeBinarySubpath: ['bin', 'node'],
+    runtimeBinaryName: 'node',
+    readmeRuntimeLine: '- glibc lower bound: 2.35',
+    nativePackages: [
+      '@lydell/node-pty',
+      '@lydell/node-pty-linux-arm64',
+      'better-sqlite3',
+      'sharp',
+      '@img/sharp-linux-arm64',
+      '@img/sharp-libvips-linux-arm64',
+      '@anthropic-ai/claude-code',
+      '@anthropic-ai/claude-code-linux-arm64',
+      '@anthropic-ai/claude-agent-sdk',
+      '@anthropic-ai/claude-agent-sdk-linux-arm64',
+    ],
+    claudeCodeBinaryPackage: '@anthropic-ai/claude-code-linux-arm64',
+    claudeCodeBinaryName: 'claude',
+  },
+  'darwin-arm64': {
+    nodeArchiveExt: 'tar.gz',
+    nodeArchiveBase: 'darwin-arm64',
+    nodeBinarySubpath: ['bin', 'node'],
+    runtimeBinaryName: 'node',
+    readmeRuntimeLine: '- glibc lower bound: n/a (darwin)',
+    nativePackages: [
+      '@lydell/node-pty',
+      '@lydell/node-pty-darwin-arm64',
+      'better-sqlite3',
+      'sharp',
+      '@img/sharp-darwin-arm64',
+      '@img/sharp-libvips-darwin-arm64',
+      '@anthropic-ai/claude-code',
+      '@anthropic-ai/claude-code-darwin-arm64',
+      '@anthropic-ai/claude-agent-sdk',
+      '@anthropic-ai/claude-agent-sdk-darwin-arm64',
+    ],
+    claudeCodeBinaryPackage: '@anthropic-ai/claude-code-darwin-arm64',
+    claudeCodeBinaryName: 'claude',
+  },
+}
+const externalPackages = [
+  'electron',
   'better-sqlite3',
   'sharp',
+  '@anthropic-ai/claude-code',
+  '@anthropic-ai/claude-agent-sdk',
+  '@kutalia/whisper-node-addon',
+  '@lydell/node-pty',
+  '@lydell/node-pty-linux-x64',
+  '@lydell/node-pty-linux-arm64',
+  '@lydell/node-pty-darwin-arm64',
   '@img/sharp-linux-x64',
   '@img/sharp-libvips-linux-x64',
-  '@anthropic-ai/claude-code',
+  '@img/sharp-linux-arm64',
+  '@img/sharp-libvips-linux-arm64',
+  '@img/sharp-darwin-arm64',
+  '@img/sharp-libvips-darwin-arm64',
   '@anthropic-ai/claude-code-linux-x64',
-  '@anthropic-ai/claude-agent-sdk',
+  '@anthropic-ai/claude-code-linux-arm64',
+  '@anthropic-ai/claude-code-darwin-arm64',
+  '@anthropic-ai/claude-agent-sdk-linux-x64',
+  '@anthropic-ai/claude-agent-sdk-linux-arm64',
+  '@anthropic-ai/claude-agent-sdk-darwin-arm64',
 ]
+const target = parseTargetArg(process.argv.slice(2))
+const targetConfig = TARGET_CONFIG[target]
+const bundleName = `bat-server-${target}-v${version}.tar.gz`
+const bundlePath = path.join(distRoot, bundleName)
+const hardExcludedPatterns = ['whisper']
 
 function resolveProjectPath(...parts) {
   return path.join(projectRoot, ...parts)
@@ -69,16 +149,49 @@ async function selectNodeVersion() {
   return match.version.slice(1)
 }
 
+function parseTargetArg(argv) {
+  let resolvedTarget = 'linux-x64'
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+    if (arg === '--help' || arg === '-h') {
+      console.log('Usage: node scripts/build-server-bundle.mjs [--target <linux-x64|linux-arm64|darwin-arm64>]')
+      process.exit(0)
+    }
+    if (arg === '--target') {
+      const value = argv[index + 1]
+      if (!value) {
+        throw new Error(`Missing value for --target. Valid targets: ${VALID_TARGETS.join(', ')}`)
+      }
+      resolvedTarget = value
+      index += 1
+      continue
+    }
+    if (arg.startsWith('--target=')) {
+      resolvedTarget = arg.slice('--target='.length)
+      continue
+    }
+    throw new Error(`Unknown argument: ${arg}. Valid targets: ${VALID_TARGETS.join(', ')}`)
+  }
+
+  if (!VALID_TARGETS.includes(resolvedTarget)) {
+    throw new Error(`Unsupported target "${resolvedTarget}". Valid targets: ${VALID_TARGETS.join(', ')}`)
+  }
+  return resolvedTarget
+}
+
 async function prepareDirs() {
-  cleanDir(distRoot)
+  ensureDir(distRoot)
+  cleanDir(stagingRoot)
   ensureDir(binDir)
   ensureDir(nodeModulesDir)
   ensureDir(remoteDir)
   ensureDir(handlersDir)
+  await removePath(bundlePath)
 }
 
 async function bundleServerEntry() {
-  log('2', 'Bundling headless server entries with esbuild')
+  log('2', `Bundling headless server entries with esbuild for ${target}`)
   await build({
     entryPoints: [
       resolveProjectPath('electron', 'remote', 'server-entry.ts'),
@@ -93,19 +206,7 @@ async function bundleServerEntry() {
     format: 'cjs',
     sourcemap: 'inline',
     logLevel: 'info',
-    external: [
-      'electron',
-      '@lydell/node-pty',
-      '@lydell/node-pty-linux-x64',
-      'better-sqlite3',
-      '@img/sharp-linux-x64',
-      '@img/sharp-libvips-linux-x64',
-      'sharp',
-      '@anthropic-ai/claude-code',
-      '@anthropic-ai/claude-code-linux-x64',
-      '@anthropic-ai/claude-agent-sdk',
-      '@kutalia/whisper-node-addon',
-    ],
+    external: externalPackages,
   })
 }
 
@@ -124,21 +225,28 @@ async function provisionNodeBinary() {
   }
 
   const nodeVersion = await selectNodeVersion()
-  const tarballName = `node-v${nodeVersion}-linux-x64.tar.xz`
+  const tarballName = `node-v${nodeVersion}-${targetConfig.nodeArchiveBase}.${targetConfig.nodeArchiveExt}`
   const tempDir = await makeTempDir('bat-server-node-')
   const archivePath = path.join(tempDir, tarballName)
   const extractDir = path.join(tempDir, 'extract')
   ensureDir(extractDir)
 
-  log('3', `Downloading Node v${nodeVersion} linux-x64 prebuilt`)
+  log('3', `Downloading Node v${nodeVersion} ${targetConfig.nodeArchiveBase} prebuilt`)
   await downloadFile(`https://nodejs.org/dist/v${nodeVersion}/${tarballName}`, archivePath)
-  run('tar', ['-xJf', archivePath, '-C', extractDir])
+  const tarArgs = targetConfig.nodeArchiveExt === 'tar.xz'
+    ? ['-xJf', tarballName, '-C', 'extract']
+    : ['-xzf', tarballName, '-C', 'extract']
+  run('tar', tarArgs, { cwd: tempDir })
 
-  const nodeBinary = path.join(extractDir, `node-v${nodeVersion}-linux-x64`, 'bin', 'node')
+  const nodeBinary = path.join(
+    extractDir,
+    `node-v${nodeVersion}-${targetConfig.nodeArchiveBase}`,
+    ...targetConfig.nodeBinarySubpath
+  )
   if (!existsAndIsFile(nodeBinary)) {
     throw new Error(`Expected extracted node binary at ${nodeBinary}`)
   }
-  await copyFile(nodeBinary, path.join(binDir, 'node'))
+  await copyFile(nodeBinary, path.join(binDir, targetConfig.runtimeBinaryName))
   await removePath(tempDir)
   return {
     nodeVersion,
@@ -152,9 +260,9 @@ async function copyPackage(packageName) {
 
   if (!existsAndIsDirectory(sourceDir)) {
     const allowMissing = process.env.BAT_SERVER_ALLOW_MISSING_NATIVE === '1'
-    const hint = packageName.includes('linux-x64')
-      ? 'Install the linux-x64 package in this worktree or rerun with BAT_SERVER_ALLOW_MISSING_NATIVE=1 for schema-only verification.'
-      : 'Run npm install in this worktree and retry.'
+    const hint = packageName.includes(target)
+      ? `Install the ${target} package in this environment or rerun with BAT_SERVER_ALLOW_MISSING_NATIVE=1 for schema-only verification.`
+      : `Run npm install for the ${target} target in CI or on a matching host and retry.`
     const message = `Missing required package: ${packageName} (${sourceDir}). ${hint}`
     if (allowMissing) {
       console.warn(`[build-server-bundle] [4] Skipping missing package because BAT_SERVER_ALLOW_MISSING_NATIVE=1: ${packageName}`)
@@ -168,9 +276,9 @@ async function copyPackage(packageName) {
 }
 
 async function copyNativeModules() {
-  log('4', 'Copying linux-x64 runtime packages into staging/node_modules')
+  log('4', `Copying ${target} runtime packages into staging/node_modules`)
   const results = []
-  for (const packageName of nativePackages) {
+  for (const packageName of targetConfig.nativePackages) {
     results.push(await copyPackage(packageName))
   }
 
@@ -189,7 +297,7 @@ async function copyNativeModules() {
 
 async function pruneAnthropicPackages() {
   const claudeCodeRoot = path.join(nodeModulesDir, '@anthropic-ai', 'claude-code')
-  const claudeLinuxRoot = path.join(nodeModulesDir, '@anthropic-ai', 'claude-code-linux-x64')
+  const claudeBinaryPackageRoot = path.join(nodeModulesDir, ...targetConfig.claudeCodeBinaryPackage.split('/'))
   const windowsBinary = path.join(claudeCodeRoot, 'bin', 'claude.exe')
   if (existsAndIsFile(windowsBinary)) {
     await unlink(windowsBinary)
@@ -198,7 +306,7 @@ async function pruneAnthropicPackages() {
   const wrapperPath = path.join(claudeCodeRoot, 'bin', 'claude')
   await writeFile(
     wrapperPath,
-    '#!/bin/sh\nexec "$(dirname "$0")/../../claude-code-linux-x64/claude" "$@"\n',
+    `#!/bin/sh\nexec "$(dirname "$0")/../../${targetConfig.claudeCodeBinaryPackage.split('/')[1]}/${targetConfig.claudeCodeBinaryName}" "$@"\n`,
     'utf8'
   )
   await chmod(wrapperPath, 0o755)
@@ -208,8 +316,8 @@ async function pruneAnthropicPackages() {
   claudePackageJson.bin = { claude: 'bin/claude' }
   await writeFile(claudePackageJsonPath, JSON.stringify(claudePackageJson, null, 2) + '\n', 'utf8')
 
-  if (!existsAndIsFile(path.join(claudeLinuxRoot, 'claude'))) {
-    throw new Error('Expected @anthropic-ai/claude-code-linux-x64/claude after pruning staged Anthropic packages')
+  if (!existsAndIsFile(path.join(claudeBinaryPackageRoot, targetConfig.claudeCodeBinaryName))) {
+    throw new Error(`Expected ${targetConfig.claudeCodeBinaryPackage}/${targetConfig.claudeCodeBinaryName} after pruning staged Anthropic packages`)
   }
 }
 
@@ -229,7 +337,7 @@ async function writeLauncherAndReadme(nodeVersion) {
   log('6', 'Writing launcher script and README')
   await writeExecutableScript(
     path.join(binDir, 'bat-server'),
-    '#!/bin/sh\nexec "$(dirname "$0")/node" "$(dirname "$0")/bat-server.mjs" "$@"\n'
+    `#!/bin/sh\nexec "$(dirname "$0")/${targetConfig.runtimeBinaryName}" "$(dirname "$0")/bat-server.mjs" "$@"\n`
   )
 
   writeFileSync(
@@ -243,9 +351,9 @@ async function writeLauncherAndReadme(nodeVersion) {
     `# BAT Server Bundle`,
     ``,
     `- version: ${version}`,
-    `- target: linux-x64`,
+    `- target: ${target}`,
     `- node version: ${nodeVersion}`,
-    `- glibc lower bound: 2.35`,
+    targetConfig.readmeRuntimeLine,
     `- sha256: pending`,
     ``,
     `This archive was produced by scripts/build-server-bundle.mjs.`,
@@ -255,7 +363,7 @@ async function writeLauncherAndReadme(nodeVersion) {
 
 async function packBundle(nodeVersion) {
   log('7', `Packing ${bundleName}`)
-  run('tar', ['-czf', bundlePath, '-C', distRoot, 'staging'])
+  run('tar', ['-czf', bundleName, 'staging'], { cwd: distRoot })
   const sha = await sha256File(bundlePath)
   const readmePath = path.join(stagingRoot, 'README.md')
   const readme = await readFile(readmePath, 'utf8')
@@ -264,7 +372,7 @@ async function packBundle(nodeVersion) {
     readme.replace('- sha256: pending', `- sha256: ${sha}`),
     'utf8'
   )
-  run('tar', ['-czf', bundlePath, '-C', distRoot, 'staging'])
+  run('tar', ['-czf', bundleName, 'staging'], { cwd: distRoot })
   return {
     sha256: await sha256File(bundlePath),
     nodeVersion,
@@ -284,6 +392,7 @@ async function main() {
   const skippedPackages = copyResults.filter((item) => !item.copied).map((item) => item.packageName)
   const summary = {
     bundlePath: path.relative(projectRoot, bundlePath),
+    target,
     nodeVersion,
     nodeSource: source,
     handlersCopied,
