@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D089 | 2026-04-26 | PLAN-007 全案閉環 — 23 張藍圖工單全 DONE，session 31 一氣呵成 10 工單 121 min wall，GP099 連 10 次下界 → 強烈建議 `*evolve` 重校準 | PLAN-007 / T0282-T0291 |
 | D001-D012 | 2026-04-11 早期 | Phase 1 前置決策（詳見歸檔） | T0001-T0012 |
 | D013 | 2026-04-11 | 技術債 Backlog + 派發 T0004/T0005 半平行 | T0004/T0005 |
 | D014 | 2026-04-11 | T0005 PARTIAL 接受，runtime 驗證延後到 T0009 | T0005 |
@@ -74,6 +75,36 @@
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D089 2026-04-26 — PLAN-007 全案閉環 — 23 張藍圖工單全 DONE，session 31 神速交付里程碑
+
+- **背景**：Session 31 從 14:00 起跑 PLAN-007 Phase 4-5（T0282-T0291，10 張工單），期間順帶 BUG-060 CLOSED + BUG-061 OPEN（baseline）+ decision-log drift 修復。所有工單採 yolo `--no-interactive` fire-and-forget 模式，零 Renew、零真正 FAILED、僅 1 環境性 PARTIAL（T0283 CI matrix）+ 1 baseline 豁免（T0282 AC8）。
+- **里程碑**：
+  - PLAN-007 全 5 Phase 完成（Phase 1 T0268-T0272 / Phase 2 T0273-T0276 / Phase 3 T0277-T0280 / Phase 4 T0282-T0287 / Phase 5 T0288-T0291）
+  - 23 張藍圖工單全 DONE（T0268-T0291，期間 T0281 為 BUG-060 fix 占用）
+  - 4 environment 完整支援：local / WSL / Docker / SSH（linux + darwin）
+  - 8 RFC 全部落地（C-1 ~ C-7 + D-SSH-6）
+  - 累計 Worker wall ~121 min（spec 估 22-30 工程日 / 含風險係數 30-40d）
+- **session 31 效率指標**：
+  - 10 工單 / 121 min wall = 平均 12 min/工單
+  - GP099 校準後預期 wall：M sizing 10-30 min / L sizing 30-90 min；實際全落 lower bound 以下（M: 3-13 min / L: 11-18 min）
+  - 連 10 次下界 → GP099 重校準訊號極強烈
+- **Worker 神速三要素**（候選 GP103 抽象）：
+  1. **Spec freeze 完整**：T0266 §6 給逐字 production code、T0267 §3 拍板所有 RFC、避免 Worker 設計分支
+  2. **既有 mock pattern 沿用**：T0282 ssh-config-parser → T0284 SshTunnel → T0285 ssh-auth-probe → T0289 wizard-rollback；mock spawn / mock IPC pattern 跨工單復用
+  3. **Worktree 隔離**：所有 commit 走 worktree `feature/plan-007-remote-dev`，主線零汙染，rollback 安全
+- **決定**：
+  1. PLAN-007 metadata → ✅ DONE
+  2. 評估 v0.4.0 release（依 T0290 寫的 release checklist 跑 pre-release verification）
+  3. 強烈建議跑 `*evolve` 萃取（GP099 重校準 + Worker 神速三要素）
+  4. Worktree merge 評估（直接 squash merge 還是 PR review）
+- **本 session 學習候選**（給 `*evolve` 處理）：
+  - L候選：YOLO + worktree + spec freeze 三合一適合長 Phase 鏈式派發（PLAN-007 驗證 10 工單無中斷）
+  - GP候選：研究型工單給 production code 逐字 spec 是 Worker 神速關鍵（vs. 設計分支留給 Worker 自決）
+  - GP候選：BUG-061 baseline 豁免先例可作為「不阻塞主線開發的 dev-only 技術債」處理通則
+- **相關工單**：PLAN-007 / T0282-T0291（10 張）/ BUG-060（CLOSED）/ BUG-061（OPEN baseline）
 
 ---
 

@@ -6,7 +6,9 @@
 |------|------|
 | **PLAN 編號** | PLAN-007 |
 | **標題** | BAT terminal client/server 拆分 + 跨環境 server 部署（local-host / WSL / Docker / SSH） |
-| **狀態** | 🔄 IN_PROGRESS（Phase 1 ✅ T0268-T0272 / Phase 2 ✅ T0273-T0276 / Phase 3 ✅ T0277-T0280 / Phase 4 ✅ T0282-T0287 全收 2026-04-26 15:37 / Phase 5 待 — T0288-T0290 整合測試 + UX polish + release prep） |
+| **狀態** | ✅ DONE 2026-04-26 16:34（全 5 Phase 收尾，23 張藍圖工單全 DONE — Phase 1 T0268-T0272 / Phase 2 T0273-T0276 / Phase 3 T0277-T0280 / Phase 4 T0282-T0287 / Phase 5 T0288-T0291 capstone；總 Worker wall ~121 min，session 31 一氣呵成 10 工單派發無中斷） |
+| **完成時間** | 2026-04-26 16:34 (UTC+8) |
+| **總工程量** | ~121 min Worker wall（spec 估 22-30 工程日，實際 1 個 session 2 小時內 fire-and-forget；所有工單 GP099 校準後預期 wall 全落於下界以下，連 10 次） |
 | **建立時間** | 2026-04-13 10:42 (UTC+8) |
 | **PLANNED 升級** | 2026-04-25 23:30 (UTC+8) — Phase A research 全部完成 |
 | **拍板依據** | T0267 spec consolidation（commit `f1934f9` — `_spec-remote-dev-support-2026-04.md` 832 行）|
