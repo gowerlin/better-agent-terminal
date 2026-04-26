@@ -1,10 +1,96 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-26 13:30(**第三十 session 收工快照:PLAN-007 Phase 3(Docker deployment)4 張全部落地(T0277-T0280 ✅ DONE)+ BUG-060 修復(T0281 ✅,根因 H4)。累計 Phase 3 ~58 min wall vs 估 20-40h。鏈式自主派發(T0278-T0280 連發)。worktree commit chain `43d6eea → b177d48 → 8ca2f34 → 13c9c51`。BUG-060 → 🧪 VERIFY(待 BAT 重建重啟 + Phase 4 鏈式驗證)。萃取 GP101/GP102(global)+ L103/L104/L105(project)。下次起手:使用者重建 BAT → 派 T0282 啟動 Phase 4(SSH deployment)。**)
+> 最後更新:2026-04-26 19:58(**第三十二 session 收工快照:metadata 清理 session 一氣呵成 5 commit。BUG-062~068 7 張 CLOSED + _bug-tracker 重建;PLAN-021/026/004/028 → DONE(全 PLAN-007 整體收斂或自然交付)+ PLAN-002 → DROPPED(Vite 觸發點錯過);T0295/T0300 metadata DONE drift 修;EXP-GPUWHIS-001 歸檔。熱區乾淨:T:53+4reports / BUG:11(1 OPEN baseline + 10 CLOSED)/ PLAN:8(2 Active + 5 Done + 1 Dropped)/ EXP:1。BUG-061 拍板維持 OPEN(dev-only baseline,無觸發條件);PLAN-015 維持 IDEA 觀察(BUG-037 後未復發)。無 Worker 工單派發。下次起手:大批歸檔(04-27/04-28 達門檻)或 PLAN-014 啟動。**)
 
 ---
 
-## 🛏 本 Session 收工快照(第三十 session,2026-04-26 11:57-13:30,~1h 33min,PLAN-007 Phase 3 全部 4 張落地 + BUG-060 修復)
+## 🛏 本 Session 收工快照(第三十二 session,2026-04-26 19:36-19:58,~22 min,起手 metadata 清理 5 commit)
+
+### 本輪時間線
+
+1. **19:36**(起手):Fast Path 載入 session 31 收工快照(<1 天);使用者要求 *rescan + *sync 完整重掃
+2. **19:36-19:40**:*rescan + *sync 偵測到 session 31 metadata drift — 7 張 v0.4.1 BUG 雖 commit 已落但單據仍 OPEN
+3. **19:40**:塔台分析現況面板 → 使用者選 [B] 塔台手動逐張更新 BUG-062~068
+4. **19:40**:commit `07a1fab` — BUG-062~068 CLOSED + _bug-tracker.md 重建(1 OPEN + 10 CLOSED)
+5. **19:43**:使用者拍板 PLAN-021/026 由 PLAN-007 Remote Server Support 整體收斂 → DONE
+6. **19:46**:commit `d27a6ff` — PLAN-021 + PLAN-026 → DONE,_backlog.md 重建
+7. **19:46**:使用者繼續拍板 PLAN-004/028 結案
+8. **19:48**:commit `7248549` — PLAN-004 + PLAN-028 → DONE
+9. **19:50**:T0295/T0300 metadata drift 修 + EXP-GPUWHIS-001 歸檔(唯一合格候選,PLAN-004 已 DONE 解除引用豁免)
+10. **19:51**:commit `98eed63`
+11. **19:53-19:54**:BUG-061 評估 → 使用者選 [A] 維持 OPEN(dev-only baseline,無實質 driver)
+12. **19:55-19:57**:PLAN-002/015 評估 — 程式碼驗證確認問題仍存在;PLAN-002 觸發點 Vite 7.x 已錯過 → DROPPED;PLAN-015 痛點未復發 → 維持 IDEA
+13. **19:58**:commit `169d4be` — PLAN-002 → DROPPED + PLAN-015 觀察
+14. **19:58**:使用者「收工」→ 本快照
+
+### 本 session 產出(commit chain)
+
+| Commit | 內容 |
+|--------|------|
+| `07a1fab` | BUG-062~068 7 張 CLOSED + _bug-tracker.md 重建 |
+| `d27a6ff` | PLAN-021 + PLAN-026 → DONE(由 PLAN-007 整體收斂)+ _backlog.md 重建 |
+| `7248549` | PLAN-004 + PLAN-028 → DONE(GPU Whisper Phase 2 結案 + dogfood 驗證完成) |
+| `98eed63` | T0295/T0300 metadata DONE drift 修 + EXP-GPUWHIS-001 歸檔 |
+| `169d4be` | PLAN-002 → 🚫 DROPPED + PLAN-015 維持 💡 IDEA 觀察 |
+
+### 本 session 統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time | ~22 min | 19:36-19:58 |
+| Worker 工單派發 | 0 | 純塔台 metadata 清理 |
+| BUG 狀態變更 | 7 | OPEN → CLOSED(BUG-062~068) |
+| PLAN 狀態變更 | 5 | 4 → DONE(021/026/004/028)+ 1 → DROPPED(002) |
+| T 工單 metadata 修 | 2 | T0295/T0300 TODO → DONE drift |
+| 歸檔 | 1 | EXP-GPUWHIS-001 → _archive/workorders/ |
+| 索引重建 | 2 | _bug-tracker.md + _backlog.md |
+| 主線 commits | 5 | 全 chore(bugs/plans/workorders+archive) |
+
+### 熱區現況(收工)
+
+| 類型 | 數量 | 狀態分布 |
+|------|------|---------|
+| **T 工單** | 53 + 4 reports | 全 DONE |
+| **BUG** | 11 | 1 OPEN(BUG-061 baseline)+ 10 CLOSED |
+| **PLAN** | 8 | 2 Active(014/015)+ 5 Done(007/021/026/004/028)+ 1 Dropped(002) |
+| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED(04-27 起合格歸檔) |
+
+### 下 session pending(優先序)
+
+1. 🟢 **大批歸檔 batch 1**(04-27 起合格):BUG-055/059 + EXP-HEADLESS-001 + T0250-T0267(~18 張 research/spike chain)
+2. 🟢 **大批歸檔 batch 2**(04-28 起合格):T0268-T0302 PLAN-007 工單群(~35 張)+ BUG-060/062-068(8 張)
+3. 🟡 **PLAN-014 啟動評估**(BAT 內建 Git 圖形介面,方向 B)— 唯一 Medium Active PLAN,T0153 spike 已 PARTIAL 接受,可開研究工單評估方向
+4. 🟢 PLAN-015 觀察點:若 PLAN-014 啟動或新增 panel,順帶處理雙 render path
+5. 🟢 BUG-061 觀察點:若引入 CI tsc strict gate 或 SessionMeta 擴充 → 升 Medium 派修
+6. 🟢 v0.4.1 release 觀察(Homebrew tap 更新後等使用者回饋)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **熱區乾淨,無進行中工單** — 起手即可決定方向
+3. **編號起始**:T0303 / BUG-069 / PLAN-029 / D090 / EXP-[TOPIC]-001(下批)
+4. **塔台規則繼續**:auto-session: on(yolo_max_retries: 1, archive_days: 2, auto_commit: on);experience-level: standard
+5. **建議起手動作**:
+   - 跑 `*archive --dry-run` 看 04-27 合格清單(若是 04-27 之後)
+   - 或直接派研究工單評估 PLAN-014(BAT 內建 Git GUI)
+
+### 本 session 教訓
+
+1. **Metadata drift 是 release 後常見現象** — 高速派發(session 31 全 PLAN-007 + v0.4.1 patch chain)時,fix commit 落地與工單 metadata 收尾可能脫鉤;`*sync` 是發現 drift 的關鍵環節
+2. **塔台可一次處理大量小變動** — 5 commit / 22 min 純塔台操作,證明 *config auto_commit:on + ask 模式效率甚佳;7 BUG + 5 PLAN + 2 T metadata + 1 archive 全在使用者單句拍板下逐批落地
+3. **PLAN 結案要看「是否有實質 driver」** — PLAN-002 觸發點(Vite 升級)已錯過 + 無實證痛點 → DROPPED 是負責任的「不假裝有計畫」;PLAN-015 雖結構債仍存,但痛點未活化 → IDEA 等觸發點是正確策略
+4. **BUG-061 維持 OPEN 不算 drift** — 「忠實反映現況」與「視覺潔癖」要區分,Low 嚴重度 + dev-only + 無觸發條件 → OPEN 是健康的紀錄
+
+### 本 session 成就
+
+- 🏆 **熱區清掃完成** — BUG/PLAN 索引 fully synced,Drift 歸零
+- 🎉 **5 commit 一氣呵成** — 全塔台手動,無 Worker 派發,~22 min wall
+- 🎉 **7 BUG CLOSED + 4 PLAN DONE + 1 DROPPED** 一個 session 內全完成
+- 🎉 **熱區僅剩 2 張 Active PLAN + 1 baseline OPEN BUG** — 視覺與真實同步
+
+---
+
+## 🛏 前 Session 收工快照(第三十 session,2026-04-26 11:57-13:30,~1h 33min,PLAN-007 Phase 3 全部 4 張落地 + BUG-060 修復)
 
 ### 本輪時間線
 
