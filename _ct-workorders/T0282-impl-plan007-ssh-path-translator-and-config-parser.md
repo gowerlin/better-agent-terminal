@@ -7,11 +7,14 @@
 | 工單編號 | T0282 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 4（SSH deployment）第一張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE（PARTIAL → 接受；AC1-7 全綠，AC8 卡 pre-existing CodexAgentPanel.tsx baseline 豁免，依 D014 / D080 PARTIAL 接受先例；worktree commit `462d4f8`，5 files / +290 / -13） |
 | 建立時間 | 2026-04-26 14:05 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 14:06 (UTC+8) |
+| 完成時間 | 2026-04-26 14:09 (UTC+8) |
+| Wall time | ~3 min（GP099 校準後 10-30 min 預期，再次落於下界以下；T0266 §6 production 版本逐字 spec 是 Worker 神速主因） |
+| Worktree commit | `462d4f8` on `feature/plan-007-remote-dev` |
+| Worker 範圍擴展 | `electron/profile-manager.ts` 加 `serverHome?: string`（補 T0268 schema 缺口，合理擴展，3 處同步：`ProfileEntry` / `TargetOSMetadata` / `extractTargetOSMeta`） |
+| BUG-060 鏈式觀察 #1 | ✅ git bash + codex（使用者人眼確認 2026-04-26 14:09，Phase 4 第一張派發 fix 生效） |
 | Sizing | M（spec 估 4-8h；GP099 校準後預期 wall 10-30 min — 純函數 + parser，與 T0273 同類型） |
 | 依賴 | T0269（PathTranslator framework + IdentityTranslator）✅、T0268（ProfileEntry SSH 欄位 schema）✅ |
 | 後續 | T0283（server bundle linux-arm64 + darwin-arm64）可平行；T0284 SshTunnel 依本工單 translator |
