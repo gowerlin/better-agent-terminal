@@ -7,11 +7,11 @@
 | 工單編號 | T0294 |
 | 類型 | fix（v0.4.0 release blocker） |
 | Phase | PLAN-007 release prep — fix chain 第 1 張 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 17:20 (UTC+8) |
 | 派發時間 | 2026-04-26 17:23 (UTC+8) |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 完成時間 | 2026-04-26 17:28 (UTC+8) |
+| Wall time | ~5 min |
 | Sizing | M（GP099 校準後預期 wall 10-20 min — boundary helper + degenerate input rejection + fixtures） |
 | 依賴 | T0292 review F-001、T0293 review EC-001 |
 | 後續 | T0295 (build-server-bundle 安全強化) → T0296 (SSH argv) → T0297 (launchd plist) |
@@ -191,4 +191,4 @@ source: 27+36 = 63 net add；tests: 116+54 = 170 net add；total **219 lines**�
 
 ### Commit
 
-（見 commit hash 於下方）
+`c2e101d` — fix(remote): T0294 path translator boundary + degeneracy (F-001 + EC-001)
