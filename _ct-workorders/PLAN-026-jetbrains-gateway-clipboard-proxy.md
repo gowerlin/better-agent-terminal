@@ -2,7 +2,7 @@
 
 | 欄位 | 內容 |
 |------|------|
-| **狀態** | 💡 IDEA |
+| **狀態** | ✅ DONE 2026-04-26 — 由 PLAN-007 Remote Server Support 整體收斂；WSL / Docker / SSH 多 deployment 選項為使用者提供繞過 JetBrains Gateway 剪貼簿瓶頸的替代路徑，原 HTTP daemon proxy 設計不再必要 |
 | **優先級** | 🟢 Low |
 | **類型** | 技術改善(UX 延伸) |
 | **建立時間** | 2026-04-20 |
