@@ -60,6 +60,15 @@ export interface WizardStep {
   run(ctx: WizardContext): Promise<void>
   rollback?(ctx: WizardContext): Promise<void>
   retryable?: boolean
+  // T0309 (PLAN-030 #4): user-facing metadata. SetupWizardShell prefers
+  // labelKey over the legacy `title`; keys are resolved via i18next at
+  // render time. groupKey drives the vertical-stepper section header.
+  // editableFromFailure marks steps the user can jump back to from a
+  // downstream failure (e.g. configure-ssh-host after verify-ssh-auth fails).
+  labelKey?: string
+  descriptionKey?: string
+  groupKey?: string
+  editableFromFailure?: boolean
 }
 
 export enum WizardStepStatus {
@@ -77,6 +86,12 @@ export interface WizardStepSnapshot {
   retryable: boolean
   error?: string
   skipped?: boolean
+  // T0309: mirrored from WizardStep so the UI never has to look up the
+  // original step descriptor when rendering snapshots.
+  labelKey?: string
+  descriptionKey?: string
+  groupKey?: string
+  editableFromFailure?: boolean
 }
 
 function defaultLogger(): WizardLogger {
@@ -97,6 +112,9 @@ export class WizardRunner {
   private runPromise: Promise<void> | null = null
   private waitForRetry: (() => void) | null = null
   private waitForSkip: (() => void) | null = null
+  // T0309: when set, the next "retry" decision in runInternal redirects the
+  // loop to this index instead of re-running the same failed step.
+  private pendingJumpTarget: number | null = null
 
   constructor(
     steps: WizardStep[],
@@ -110,6 +128,10 @@ export class WizardRunner {
       title: step.title,
       status: WizardStepStatus.Pending,
       retryable: step.retryable !== false,
+      labelKey: step.labelKey,
+      descriptionKey: step.descriptionKey,
+      groupKey: step.groupKey,
+      editableFromFailure: step.editableFromFailure,
     }))
     this.emitProgress()
   }
@@ -153,6 +175,55 @@ export class WizardRunner {
     this.waitForSkip = null
   }
 
+  /**
+   * T0309: jump back to an earlier `editableFromFailure` step from a
+   * downstream failure. Basic version (PARTIAL of full DOD): resets the
+   * snapshot statuses for steps in [targetIndex, currentStepIndex] back to
+   * Pending and unblocks the failure-await loop with a "retry" decision so
+   * the runner re-enters the loop at targetIndex on the next iteration.
+   *
+   * Limitation (deferred): does NOT walk `rollback()` for the steps in
+   * between — see workorder Step 5 note "TODO: jumpToStep with full
+   * rollback chain (basic version landed)".
+   */
+  async jumpToStep(targetIndex: number): Promise<void> {
+    if (targetIndex < 0 || targetIndex >= this.activeSteps.length) {
+      this.ctx.logger.warn(`jumpToStep: targetIndex ${targetIndex} out of range`)
+      return
+    }
+    if (this.currentStepIndex < 0) return
+    if (targetIndex > this.currentStepIndex) {
+      this.ctx.logger.warn(
+        `jumpToStep: cannot jump forward (target=${targetIndex} current=${this.currentStepIndex})`,
+      )
+      return
+    }
+
+    // Reset snapshots for [targetIndex .. currentStepIndex]. Preserve
+    // metadata (labelKey/groupKey/etc) but clear runtime state so the
+    // re-run starts clean.
+    for (let i = targetIndex; i <= this.currentStepIndex; i += 1) {
+      const snap = this.stepSnapshots[i]
+      snap.status = WizardStepStatus.Pending
+      snap.error = undefined
+      snap.skipped = false
+    }
+    // Drop completed-step bookkeeping for the same range so retry/skip
+    // accounting stays consistent on re-execution.
+    for (let i = this.completedStepIndexes.length - 1; i >= 0; i -= 1) {
+      if (this.completedStepIndexes[i] >= targetIndex) {
+        this.completedStepIndexes.splice(i, 1)
+      }
+    }
+    this.emitProgress()
+
+    // Set pendingJumpTarget so the failure-loop's "retry" branch redirects
+    // index = targetIndex - 1 instead of re-running the same failed step.
+    this.pendingJumpTarget = targetIndex
+    this.waitForRetry?.()
+    this.waitForRetry = null
+  }
+
   async cancel(): Promise<void> {
     this.cancelRequested = true
     if (this.currentStepIndex >= 0 && this.stepSnapshots[this.currentStepIndex].status === WizardStepStatus.Failed) {
@@ -194,6 +265,13 @@ export class WizardRunner {
         if (snapshot.retryable && !this.cancelRequested) {
           const decision = await this.waitForRetryOrSkip()
           if (decision === 'retry') {
+            if (this.pendingJumpTarget !== null) {
+              const jumpTarget = this.pendingJumpTarget
+              this.pendingJumpTarget = null
+              // Set index = jumpTarget - 1 so the for-loop increment lands on jumpTarget.
+              index = jumpTarget - 1
+              continue
+            }
             index -= 1
             continue
           }

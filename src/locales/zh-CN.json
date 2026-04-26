@@ -586,5 +586,124 @@
         "title": "Claude {{version}} — 版本提醒"
       }
     }
+  },
+  "wizard": {
+    "title": {
+      "wsl-linux": "设置向导：新增 WSL 连接配置",
+      "docker-linux": "设置向导：新增 Docker 连接配置",
+      "ssh-linux": "设置向导：新增 SSH 连接配置",
+      "ssh-darwin": "设置向导：新增 SSH 连接配置"
+    },
+    "progress": {
+      "label": "进度：{{completed}} / {{total}}",
+      "complete": "设置向导已完成。"
+    },
+    "currentStep": "当前步骤",
+    "readonly": {
+      "viewing": "正在查看已完成的步骤（只读）",
+      "back": "回到当前步骤"
+    },
+    "noStep": "等待首个步骤启动…",
+    "skippedNote": "用户已跳过",
+    "warningHeader": "警告",
+    "errorHeader": "设置向导错误",
+    "group": {
+      "detection": "环境检测",
+      "connection": "连接设置",
+      "deployment": "安装部署",
+      "verification": "验证测试",
+      "finalization": "收尾"
+    },
+    "action": {
+      "retry": "重试",
+      "skip": "跳过",
+      "editConfig": "编辑设置",
+      "cancel": "取消",
+      "skipChoice": "跳过"
+    },
+    "shared": {
+      "step": {
+        "detectEnv": {
+          "label": "检测目标环境",
+          "description": "确认目标运行环境可连接后再安装 BAT 服务器。"
+        },
+        "fetchFingerprint": {
+          "label": "获取 TLS 指纹",
+          "description": "钉选服务器自签 TLS 指纹（首次信任 TOFU）。"
+        },
+        "connectTest": {
+          "label": "连接测试",
+          "description": "建立 TLS 连接并验证刚启动的服务器。"
+        },
+        "writeProfile": {
+          "label": "保存连接配置",
+          "description": "保存已验证的连接配置，可在配置选单中查看。"
+        },
+        "done": {
+          "label": "完成",
+          "description": "收尾并显示安装后提示。"
+        }
+      }
+    },
+    "wsl": {
+      "step": {
+        "pickDistro": {
+          "label": "选择 WSL 发行版",
+          "description": "挑一个 WSL2 发行版来托管 BAT 服务器。"
+        },
+        "systemdCheck": {
+          "label": "检查 systemd 是否启用",
+          "description": "确认所选发行版已启用 systemd（服务管理必需）。"
+        },
+        "installBundle": {
+          "label": "安装 BAT 服务器套件",
+          "description": "将 BAT 服务器套件流式传送进 WSL 并解压。"
+        },
+        "writeSystemdUnit": {
+          "label": "写入 systemd 用户服务",
+          "description": "安装并启用 bat-server systemd user unit。"
+        }
+      }
+    },
+    "docker": {
+      "step": {
+        "pickContainer": {
+          "label": "选择 Docker 容器模式",
+          "description": "重用现有容器或新建容器来运行 BAT 服务器。"
+        },
+        "configureMounts": {
+          "label": "配置 bind mounts",
+          "description": "将宿主机工作区目录挂载进容器。"
+        },
+        "installBundle": {
+          "label": "确认 BAT 服务器套件",
+          "description": "确认容器镜像中已包含 BAT 服务器套件。"
+        },
+        "startServer": {
+          "label": "启动 Docker 容器",
+          "description": "启动容器并等待 healthy 状态。"
+        }
+      }
+    },
+    "ssh": {
+      "step": {
+        "configureHost": {
+          "label": "配置 SSH 主机信息",
+          "description": "选择主机、账号、端口、密钥、安装路径与通道模式。"
+        },
+        "verifyAuth": {
+          "label": "验证 SSH 认证",
+          "description": "执行 BAT_AUTH_OK probe 并检测远端 OS 与家目录。"
+        },
+        "installBundle": {
+          "label": "安装 BAT 服务器套件（SSH）",
+          "description": "通过 ssh+tar pipe 将 BAT 服务器套件传到远端主机。"
+        },
+        "startServer": {
+          "label": "启动 bat-server（SSH）",
+          "description": "安装并启用 systemd unit（Linux）或 launchd plist（macOS）。"
+        }
+      }
+    }
   }
 }

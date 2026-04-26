@@ -5,6 +5,10 @@ export const installDockerServerBundleStep: WizardStep = {
   title: 'Verify BAT server bundle',
   appliesTo: ['docker-linux'],
   retryable: true,
+  labelKey: 'wizard.docker.step.installBundle.label',
+  descriptionKey: 'wizard.docker.step.installBundle.description',
+  groupKey: 'wizard.group.deployment',
+  editableFromFailure: false,
   async run(ctx) {
     const mode = ctx.state.containerMode
     const image = typeof ctx.state.dockerImage === 'string' ? ctx.state.dockerImage : 'bat-server:latest'

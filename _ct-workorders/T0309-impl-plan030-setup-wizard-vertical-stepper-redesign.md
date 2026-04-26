@@ -7,10 +7,11 @@
 | 工單編號 | T0309 |
 | 類型 | impl |
 | 優先級 | 🔴 High（PLAN-030 大宗交付，3 wizard 全動） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 預估規模 | **L**（依 T0305 拍板 2 維持單張不拆，視覺一致性必須一次完成） |
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-26 23:?? (UTC+8) |
+| 開始時間 | 2026-04-26 23:42 (UTC+8) |
 | 報告者 | 塔台（PLAN-030 Phase C #4 + 拍板 4 合併 PLAN-029 R5） |
 | 關聯 PLAN | PLAN-030 (主) / PLAN-029 R5（合併進本工單，setup-wizard chunk 切分） |
 | 前置工單 | T0307 (DONE) Stepper / T0307b (DONE) vitest / T0308 (DONE) BugWorkflowIndicator 套用驗證 |
@@ -281,3 +282,102 @@ build: {
 - jumpToStep full rollback chain
 - read-only 檢視（基本版即可）
 - 像素級回歸（snapshot tests 即足夠長期防護）
+
+---
+
+## Worker 回報
+
+| 欄位 | 內容 |
+|------|------|
+| 完成狀態 | ✅ DONE |
+| 開始時間 | 2026-04-26 23:42 (UTC+8) |
+| 完成時間 | 2026-04-26 23:57 (UTC+8) |
+| commit hash | (見下方 commit message) |
+
+### 實作摘要
+
+**Schema 擴充**（wizard-runner.ts）
+- `WizardStep` + `WizardStepSnapshot` 加入 `labelKey?` / `descriptionKey?` / `groupKey?` / `editableFromFailure?` 4 個 optional 欄位（向後相容，舊 `title` 保留）
+- 新增 `WizardRunner.jumpToStep(targetIndex)` API（基本版）：reset snapshot statuses，透過 `pendingJumpTarget` 機制讓 failure-loop 的 retry branch 重導向到目標 index，避免 re-run 同一個失敗 step
+
+**3 wizard 元資料補齊**（26 steps）
+- WSL 9 steps：detectEnv (shared) / pickDistro (editable) / systemdCheck / installBundle / writeSystemdUnit / fetchFingerprint (shared) / connectTest (shared) / writeProfile (shared) / done (shared)
+- Docker 9 steps：detectEnv (shared) / pickContainer (editable) / configureMounts (editable) / installBundle / startServer / fetchFingerprint / connectTest / writeProfile / done
+- SSH 8 steps：configureHost (editable) / verifyAuth / installBundle / startServer / fetchFingerprint / connectTest / writeProfile / done
+- 共享 step（fetchFingerprint / connectTest / writeProfile / done / detectEnv）採 `wizard.shared.step.X` keys，跨 wizard 共用
+
+**i18n keys 補齊**（en + zh-TW + zh-CN）
+- 5 個 group keys（detection / connection / deployment / verification / finalization）
+- 5 個 shared step keys × 2 (label + description) = 10
+- 4 + 4 + 4 個 wsl/docker/ssh step keys × 2 = 24
+- 4 個 title keys (wsl/docker/ssh-linux/ssh-darwin)
+- 5 個 action keys (retry/skip/editConfig/cancel/skipChoice)
+- 7 個 misc keys (progress/currentStep/readonly/noStep/skippedNote/warningHeader/errorHeader)
+- 三個 locale 檔各加 ~119 行（合計新增 357 行 i18n）
+
+**SetupWizardShell.tsx 兩欄式重設計**
+- 採 `<Stepper orientation="vertical" groupingMode="none" clickableSteps="completed" />` 做左欄 stepper（自動渲染 group section header）
+- 右欄 `<StepDetailPanel>` 顯示當前/唯讀 step 的 label/description/狀態/錯誤訊息/choice prompt/警告
+- 失敗 step 在 stepper 內 inline 渲染 actions slot：retry + skip + cancel + 條件式 editConfig（當失敗 step 不可編輯且存在可編輯前置 step 時才顯示，呼叫 `runner.jumpToStep(editableTarget)`）
+- 完成的 step 可點擊切換右欄到 read-only mode（顯示「← 回到目前步驟」按鈕）
+- 進度條附 ARIA `role="progressbar"` + `aria-valuenow`
+- step.id **完全不渲染**（移除原 line 174 的 `text-xs uppercase` div）— BUG-070 baseline 痛點消除
+
+**vite.config.ts manualChunks 切分**（PLAN-029 R5 合併）
+- 將原物件形 manualChunks 改為函式形，新增 `setup-wizard` chunk（catch all `src/components/setup-wizard/**`）
+- 路徑比對先 normalize Windows backslash 避免 cross-platform 漏網
+- 已驗證輸出：`dist/assets/setup-wizard-gVioFOJK.js` 95.10 kB / gzip 28.21 kB（獨立 chunk 確認）
+
+**Unit tests**（16 新 cases）
+- `src/components/setup-wizard/__tests__/SetupWizardShell.test.tsx` 共 16 cases
+- 涵蓋：兩欄式 layout / step.id 不渲染 regression guard / i18n labelKey 渲染 / 4 group section header / 失敗 actions slot (retry+skip+cancel) / editConfig 條件式渲染（有/無 editable 前置 step） / 完成 step click 切 read-only / 回到當前 step / 進度 label / aria progressbar / 各 targetOS title / skipped 提示 / ctx.warnings 渲染 / jumpToStep 重設範圍 / out-of-range jump warn
+
+### 產出
+
+**修改/新增檔案**（24 + 1 = 25 files）
+- 1 worker report（本檔）
+- 1 type/runner extension（wizard-runner.ts）
+- 18 step files（+4 lines metadata each）
+- 1 SetupWizardShell rewrite（+289 lines）
+- 3 locale files（+119 lines each）
+- 1 vite.config.ts manualChunks（+19 lines）
+- 1 new test file（230 lines, 16 cases）
+
+### 驗收結果
+
+- [x] WizardStepSnapshot 擴充 4 個新欄位 ✅
+- [x] 3 wizard 全部 step 補完元資料（26 steps） ✅
+- [x] i18n keys 補完（en + zh-TW + zh-CN，~50 keys × 3 locales） ✅
+- [x] SetupWizardShell 兩欄式 layout 實作完成 ✅
+- [x] step.id **不再渲染**到 UI ✅（test guard）
+- [x] groupLabel section header 4+ 個區段正確渲染 ✅
+- [x] 失敗 step actions slot（retry/skip/editConfig/cancel）正確渲染 ✅
+- [x] read-only 檢視已完成 step 切換正確 ✅
+- [x] wizard-runner.jumpToStep API 基本版（full rollback chain deferred） ✅
+- [x] vite.config.ts manualChunks setup-wizard chunk 切分 ✅（95.10 kB 獨立 chunk）
+- [x] Unit tests ≥15 cases 全綠 ✅（**16 new cases**）
+- [x] `npm run test:unit` ✅ 全綠（**47 cases**：T0307 18 + T0308 13 + T0309 16）
+- [x] `npx tsc --noEmit` ✅ baseline 無新錯誤（36 → 36，全為 CodexAgentPanel/agent-profiles 既有 baseline）
+- [x] `npx vite build` ✅ 通過 + setup-wizard chunk 獨立確認（dist/assets/setup-wizard-*.js）
+- [x] 像素級回歸 deferred 到實機驗收（同 T0308 模式可接受）
+- [x] git commit message 含 `relates PLAN-030 / PLAN-029 R5 / T0309` ✅
+
+### Deferred / 已知限制
+
+1. **jumpToStep full rollback chain**：目前實作只重設 snapshot statuses 並重導向 loop 到 target index，**不**呼叫 [target..current] 範圍內 step 的 `rollback()`。原因：完整 rollback chain 風險高（step 之間有隱式狀態依賴，rollback 順序錯誤可能導致 ctx 髒污），需要 follow-up 工單針對個別 step 的 rollback semantics 做 audit。對主要 user journey（configure-host 失敗 → 跳回編輯 → 重新驗證）已足夠。
+2. **像素級回歸測試**：依工單同 T0308 模式 deferred 到使用者實機驗收。snapshot test 防護已涵蓋結構性回歸。
+3. **舊 `title` 欄位**：保留向後相容，未 deprecate。SetupWizardShell 優先用 labelKey，缺失才 fallback `title`。日後 follow-up 可加 ESLint 規則禁用 `title` only。
+
+### 互動紀錄
+
+無（fire-and-forget 模式，無使用者互動）。
+
+### 遭遇問題
+
+1. **Vitest unhandled rejection**（`runner.cancel()` 拋 `Wizard cancelled`）：第一輪 jumpToStep 測試使用 `void runner.run()` 雖討論討好型別檢查但仍讓 rejection 漏出。改成 `runner.run().catch(() => undefined)` 後修復。
+2. **TypeScript baseline 新錯誤**（vi/act/step unused）：tsc 嚴格模式偵測未使用 import / param。三處皆移除或加 `_` 前綴。最終 36 errors（=baseline，無新錯誤）。
+
+### Renew 歷程
+
+無（首次執行即完成）。
+

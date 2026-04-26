@@ -17,6 +17,10 @@ export const startDockerServerStep: WizardStep = {
   title: 'Start Docker container',
   appliesTo: ['docker-linux'],
   retryable: true,
+  labelKey: 'wizard.docker.step.startServer.label',
+  descriptionKey: 'wizard.docker.step.startServer.description',
+  groupKey: 'wizard.group.deployment',
+  editableFromFailure: false,
   async run(ctx) {
     const containerName = typeof ctx.state.dockerContainer === 'string' ? ctx.state.dockerContainer : ''
     if (!containerName) throw new Error('Container name is missing.')

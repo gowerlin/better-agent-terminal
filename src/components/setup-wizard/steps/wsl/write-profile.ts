@@ -26,6 +26,10 @@ export const writeProfileStep: WizardStep = {
   title: 'Create remote profile',
   appliesTo: 'all',
   retryable: false,
+  labelKey: 'wizard.shared.step.writeProfile.label',
+  descriptionKey: 'wizard.shared.step.writeProfile.description',
+  groupKey: 'wizard.group.finalization',
+  editableFromFailure: false,
   async run(ctx) {
     const port = ctx.serverPort ?? 9876
     const fingerprint = ctx.fingerprint ?? undefined

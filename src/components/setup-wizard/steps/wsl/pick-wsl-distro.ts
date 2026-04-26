@@ -5,6 +5,10 @@ export const pickWslDistroStep: WizardStep = {
   title: 'Select WSL distro',
   appliesTo: ['wsl-linux'],
   retryable: true,
+  labelKey: 'wizard.wsl.step.pickDistro.label',
+  descriptionKey: 'wizard.wsl.step.pickDistro.description',
+  groupKey: 'wizard.group.detection',
+  editableFromFailure: true,
   async run(ctx) {
     const result = await window.electronAPI.wsl.list()
     ctx.availableDistros = result.distros

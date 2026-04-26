@@ -109,6 +109,10 @@ export const startServerStep: WizardStep = {
   title: 'Start bat-server (SSH)',
   appliesTo: ['ssh-linux', 'ssh-darwin'],
   retryable: true,
+  labelKey: 'wizard.ssh.step.startServer.label',
+  descriptionKey: 'wizard.ssh.step.startServer.description',
+  groupKey: 'wizard.group.deployment',
+  editableFromFailure: false,
   async run(ctx: WizardContext) {
     const state = ctx.state as StartServerState
     if (!state.sshHost || !state.sshUser) {

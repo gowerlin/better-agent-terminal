@@ -5,6 +5,10 @@ export const doneStep: WizardStep = {
   title: 'Finalize setup',
   appliesTo: 'all',
   retryable: false,
+  labelKey: 'wizard.shared.step.done.label',
+  descriptionKey: 'wizard.shared.step.done.description',
+  groupKey: 'wizard.group.finalization',
+  editableFromFailure: false,
   async run(ctx) {
     if (ctx.systemdServiceActive === false && ctx.fallbackStartHint) {
       const warning = `systemd is unavailable; use the fallback command: ${ctx.fallbackStartHint}`

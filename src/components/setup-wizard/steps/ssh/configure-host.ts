@@ -55,6 +55,10 @@ export const configureSshHostStep: WizardStep = {
   title: 'Configure SSH host',
   appliesTo: ['ssh-linux', 'ssh-darwin'],
   retryable: true,
+  labelKey: 'wizard.ssh.step.configureHost.label',
+  descriptionKey: 'wizard.ssh.step.configureHost.description',
+  groupKey: 'wizard.group.connection',
+  editableFromFailure: true,
   async run(ctx) {
     const state = readState(ctx)
 

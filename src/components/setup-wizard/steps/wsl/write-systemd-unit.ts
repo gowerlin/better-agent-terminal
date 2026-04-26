@@ -13,6 +13,10 @@ export const writeSystemdUnitStep: WizardStep = {
   title: 'Write BAT systemd user service',
   appliesTo: ['wsl-linux'],
   retryable: true,
+  labelKey: 'wizard.wsl.step.writeSystemdUnit.label',
+  descriptionKey: 'wizard.wsl.step.writeSystemdUnit.description',
+  groupKey: 'wizard.group.deployment',
+  editableFromFailure: false,
   async run(ctx) {
     if (!ctx.wslDistro) {
       throw new Error('Select a WSL distro before configuring the BAT service.')

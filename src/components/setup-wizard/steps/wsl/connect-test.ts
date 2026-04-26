@@ -5,6 +5,10 @@ export const connectTestStep: WizardStep = {
   title: 'Verify remote connection',
   appliesTo: 'all',
   retryable: true,
+  labelKey: 'wizard.shared.step.connectTest.label',
+  descriptionKey: 'wizard.shared.step.connectTest.description',
+  groupKey: 'wizard.group.verification',
+  editableFromFailure: false,
   async run(ctx) {
     if (ctx.systemdServiceActive === false || !ctx.fingerprint) {
       ctx.connectTestSkipped = true

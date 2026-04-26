@@ -69,6 +69,10 @@ export const installSshServerBundleStep: WizardStep = {
   title: 'Install BAT server bundle (SSH)',
   appliesTo: ['ssh-linux', 'ssh-darwin'],
   retryable: true,
+  labelKey: 'wizard.ssh.step.installBundle.label',
+  descriptionKey: 'wizard.ssh.step.installBundle.description',
+  groupKey: 'wizard.group.deployment',
+  editableFromFailure: false,
   async run(ctx) {
     const state = ctx.state as InstallSshBundleState
     if (!state.sshHost || !state.sshUser) {

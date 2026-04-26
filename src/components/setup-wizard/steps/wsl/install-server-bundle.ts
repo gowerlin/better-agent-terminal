@@ -47,6 +47,10 @@ export const installServerBundleStep: WizardStep = {
   title: 'Install BAT server bundle',
   appliesTo: ['wsl-linux'],
   retryable: true,
+  labelKey: 'wizard.wsl.step.installBundle.label',
+  descriptionKey: 'wizard.wsl.step.installBundle.description',
+  groupKey: 'wizard.group.deployment',
+  editableFromFailure: false,
   async run(ctx) {
     if (!ctx.wslDistro) {
       throw new Error('Select a WSL distro before installing the server bundle.')

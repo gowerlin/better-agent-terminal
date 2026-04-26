@@ -11,6 +11,10 @@ export const pickContainerStep: WizardStep = {
   title: 'Choose Docker container mode',
   appliesTo: ['docker-linux'],
   retryable: true,
+  labelKey: 'wizard.docker.step.pickContainer.label',
+  descriptionKey: 'wizard.docker.step.pickContainer.description',
+  groupKey: 'wizard.group.detection',
+  editableFromFailure: true,
   async run(ctx) {
     const containers = await window.electronAPI.docker.listContainers()
     const defaultMode = containers.length > 0 ? 'existing' : 'new'

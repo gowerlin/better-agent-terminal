@@ -5,6 +5,10 @@ export const detectEnvStep: WizardStep = {
   title: 'Detect target environment',
   appliesTo: 'all',
   retryable: true,
+  labelKey: 'wizard.shared.step.detectEnv.label',
+  descriptionKey: 'wizard.shared.step.detectEnv.description',
+  groupKey: 'wizard.group.detection',
+  editableFromFailure: false,
   async run(ctx) {
     if (ctx.targetOS === 'docker-linux') {
       const status = await window.electronAPI.docker.status()

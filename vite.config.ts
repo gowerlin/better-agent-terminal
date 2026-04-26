@@ -79,11 +79,27 @@ export default defineConfig({
     rollupOptions: {
       external: ['@lydell/node-pty'],
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links', '@xterm/addon-unicode11'],
-          'hljs': ['highlight.js'],
-        }
+        // PLAN-029 R5 + T0309: split setup-wizard out so wizard regressions
+        // don't bloat or invalidate the launch chunk. Function form lets us
+        // catch every file under src/components/setup-wizard/ without
+        // listing each step file individually.
+        manualChunks: (id: string) => {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
+            return 'react-vendor'
+          }
+          if (id.includes('node_modules/@xterm/')) {
+            return 'xterm'
+          }
+          if (id.includes('node_modules/highlight.js/')) {
+            return 'hljs'
+          }
+          // Normalize Windows backslashes before matching.
+          const normalized = id.replace(/\\/g, '/')
+          if (normalized.includes('/src/components/setup-wizard/')) {
+            return 'setup-wizard'
+          }
+          return undefined
+        },
       }
     }
   }

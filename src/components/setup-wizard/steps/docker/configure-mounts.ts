@@ -14,6 +14,10 @@ export const configureMountsStep: WizardStep = {
   title: 'Configure bind mounts',
   appliesTo: ['docker-linux'],
   retryable: true,
+  labelKey: 'wizard.docker.step.configureMounts.label',
+  descriptionKey: 'wizard.docker.step.configureMounts.description',
+  groupKey: 'wizard.group.detection',
+  editableFromFailure: true,
   async run(ctx) {
     let mounts = Array.isArray(ctx.state.dockerMounts)
       ? ctx.state.dockerMounts as Array<{ host: string; container: string }>

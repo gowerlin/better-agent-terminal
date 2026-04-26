@@ -592,5 +592,124 @@
         "title": "Claude {{version}} — version notice"
       }
     }
+  },
+  "wizard": {
+    "title": {
+      "wsl-linux": "Setup Wizard: Add WSL Profile",
+      "docker-linux": "Setup Wizard: Add Docker Profile",
+      "ssh-linux": "Setup Wizard: Add SSH Profile",
+      "ssh-darwin": "Setup Wizard: Add SSH Profile"
+    },
+    "progress": {
+      "label": "Progress: {{completed}} / {{total}}",
+      "complete": "Wizard complete."
+    },
+    "currentStep": "Current step",
+    "readonly": {
+      "viewing": "Viewing completed step (read-only)",
+      "back": "Return to current step"
+    },
+    "noStep": "Waiting for first step...",
+    "skippedNote": "Skipped by user",
+    "warningHeader": "Warnings",
+    "errorHeader": "Wizard error",
+    "group": {
+      "detection": "Detection",
+      "connection": "Connection",
+      "deployment": "Deployment",
+      "verification": "Verification",
+      "finalization": "Finalization"
+    },
+    "action": {
+      "retry": "Retry",
+      "skip": "Skip",
+      "editConfig": "Edit settings",
+      "cancel": "Cancel",
+      "skipChoice": "Skip"
+    },
+    "shared": {
+      "step": {
+        "detectEnv": {
+          "label": "Detect target environment",
+          "description": "Confirm the target runtime is reachable before installing the BAT server."
+        },
+        "fetchFingerprint": {
+          "label": "Fetch TLS fingerprint",
+          "description": "Pin the server's self-signed TLS fingerprint for trust-on-first-use."
+        },
+        "connectTest": {
+          "label": "Verify remote connection",
+          "description": "Open a TLS handshake and authenticate against the freshly started server."
+        },
+        "writeProfile": {
+          "label": "Save remote profile",
+          "description": "Persist the verified profile so it appears in the profile picker."
+        },
+        "done": {
+          "label": "Finalize",
+          "description": "Wrap up and surface any post-install hints."
+        }
+      }
+    },
+    "wsl": {
+      "step": {
+        "pickDistro": {
+          "label": "Select WSL distro",
+          "description": "Pick a WSL2 distro to host the BAT server."
+        },
+        "systemdCheck": {
+          "label": "Check systemd availability",
+          "description": "Confirm systemd is enabled inside the chosen distro (required for service management)."
+        },
+        "installBundle": {
+          "label": "Install BAT server bundle",
+          "description": "Stream the BAT server bundle into the WSL distro and unpack it."
+        },
+        "writeSystemdUnit": {
+          "label": "Write systemd user service",
+          "description": "Install and enable the bat-server systemd user unit."
+        }
+      }
+    },
+    "docker": {
+      "step": {
+        "pickContainer": {
+          "label": "Choose Docker container mode",
+          "description": "Reuse an existing container or create a new one for the BAT server."
+        },
+        "configureMounts": {
+          "label": "Configure bind mounts",
+          "description": "Map host workspace directories into the container."
+        },
+        "installBundle": {
+          "label": "Verify BAT server bundle",
+          "description": "Confirm the BAT server bundle is present inside the container image."
+        },
+        "startServer": {
+          "label": "Start Docker container",
+          "description": "Launch the container and wait for it to become healthy."
+        }
+      }
+    },
+    "ssh": {
+      "step": {
+        "configureHost": {
+          "label": "Configure SSH host",
+          "description": "Pick host, user, port, identity, install path, and tunnel mode."
+        },
+        "verifyAuth": {
+          "label": "Verify SSH authentication",
+          "description": "Test BAT_AUTH_OK probe and detect the remote OS / home directory."
+        },
+        "installBundle": {
+          "label": "Install BAT server bundle (SSH)",
+          "description": "Pipe the BAT server bundle to the remote host over ssh+tar."
+        },
+        "startServer": {
+          "label": "Start bat-server (SSH)",
+          "description": "Install and enable systemd unit (Linux) or launchd plist (macOS)."
+        }
+      }
+    }
   }
 }

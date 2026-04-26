@@ -23,6 +23,10 @@ export const fetchFingerprintStep: WizardStep = {
   title: 'Fetch TLS fingerprint',
   appliesTo: 'all',
   retryable: true,
+  labelKey: 'wizard.shared.step.fetchFingerprint.label',
+  descriptionKey: 'wizard.shared.step.fetchFingerprint.description',
+  groupKey: 'wizard.group.verification',
+  editableFromFailure: false,
   async run(ctx) {
     if (ctx.systemdServiceActive === false) {
       ctx.fingerprint = null

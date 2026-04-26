@@ -56,6 +56,10 @@ export const verifySshAuthStep: WizardStep = {
   title: 'Verify SSH authentication',
   appliesTo: ['ssh-linux', 'ssh-darwin'],
   retryable: true,
+  labelKey: 'wizard.ssh.step.verifyAuth.label',
+  descriptionKey: 'wizard.ssh.step.verifyAuth.description',
+  groupKey: 'wizard.group.connection',
+  editableFromFailure: false,
   async run(ctx) {
     const state = readState(ctx)
     if (!state.sshHost || !state.sshUser) {
