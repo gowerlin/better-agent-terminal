@@ -7,11 +7,11 @@
 | 工單編號 | T0298 |
 | 類型 | review（純讀，無 production code 修改） |
 | Phase | PLAN-007 release prep — fix chain 收尾驗證 |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 18:00 (UTC+8) |
 | 派發時間 | 2026-04-26 18:03 (UTC+8) |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 完成時間 | 2026-04-26 18:08 (UTC+8) |
+| Wall time | ~5 min |
 | Sizing | M（GP099 校準後預期 wall 10-20 min — 比對 6 finding 的 fix 落地 + 跑全 test + 給 release decision） |
 | 依賴 | T0292 / T0293 review reports + T0294-T0297 fix workorders |
 | 後續 | release decision：GO / NO-GO（依 verdict 決定 v0.4.0 release 流程） |
@@ -188,4 +188,4 @@ DONE
 **10/10 ✅**（見 verification-report 附錄 C）
 
 ### Commit
-（待 commit 後填入 hash）
+`155db45` — docs(review): T0298 fix verification + v0.4.0 release readiness report
