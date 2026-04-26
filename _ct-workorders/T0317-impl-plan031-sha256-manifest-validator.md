@@ -7,10 +7,11 @@
 | 工單編號 | T0317 |
 | 類型 | impl（純函數 lib + vitest，無 IPC、無 fetch、無 file IO） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 2 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 01:44 (UTC+8) |
 | 派發時間 | 2026-04-27 01:44 (UTC+8) |
 | 開始時間 | 2026-04-27 01:48 (UTC+8) |
+| 完成時間 | 2026-04-27 01:53 (UTC+8) |
 | Sizing | M（estimate 30-45 min wall） |
 | 依賴 | T0314 ✅（manifest schema + arch-normalize types） |
 | 平行 | T0315 ✅、T0316（electron-builder） |
@@ -263,6 +264,6 @@ export type { ServerBundleArch } from './arch-normalize'
 
 ### 完成註記
 
-- commit：`6b58a2d`（chore(types): T0317 - PLAN-031 SHA256 manifest validator + stream）
-- wall time：~12 min（01:48 → 02:00 UTC+8）
+- commit：`a669591`（chore(types): T0317 - PLAN-031 SHA256 manifest validator + stream）
+- wall time：~5 min（01:48 → 01:53 UTC+8）
 - Full DONE — 所有 AC（1–7）通過。
