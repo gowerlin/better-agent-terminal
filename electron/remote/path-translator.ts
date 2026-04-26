@@ -1,4 +1,5 @@
 import type { ProfileEntry } from '../profile-manager'
+import os from 'os'
 import {
   containerToHost,
   hostToContainer,
@@ -86,6 +87,49 @@ export class DockerPathTranslator implements PathTranslator {
   }
 }
 
+const SSH_WIN_HOME_PATTERN = /^[A-Za-z]:[\\/]/
+
+export class SshPathTranslator implements PathTranslator {
+  constructor(
+    private readonly clientHome: string,
+    private readonly serverHome: string,
+    private readonly clientIsWindows: boolean,
+  ) {}
+
+  toServer(clientPath: string): string {
+    const normalizedPath = this.normalizeClient(clientPath)
+    const normalizedHome = this.normalizeClient(this.clientHome)
+    if (normalizedPath.startsWith(normalizedHome)) {
+      const tail = normalizedPath.slice(normalizedHome.length)
+      return this.serverHome + tail
+    }
+    return clientPath
+  }
+
+  toClient(serverPath: string): string {
+    if (serverPath.startsWith(this.serverHome)) {
+      const tail = serverPath.slice(this.serverHome.length)
+      if (this.clientIsWindows) {
+        return this.clientHome + tail.replace(/\//g, '\\')
+      }
+      return this.clientHome + tail
+    }
+    return serverPath
+  }
+
+  owns(path: string): boolean {
+    return this.normalizeClient(path).startsWith(this.normalizeClient(this.clientHome))
+      || path.startsWith(this.serverHome)
+  }
+
+  private normalizeClient(path: string): string {
+    if (this.clientIsWindows && SSH_WIN_HOME_PATTERN.test(path)) {
+      return path[0].toLowerCase() + path.slice(1).replace(/\\/g, '/')
+    }
+    return path
+  }
+}
+
 export interface ContractFixture {
   name: string
   clientPath: string
@@ -161,11 +205,19 @@ export function createTranslator(profile: ProfileEntry): PathTranslator {
       return new DockerPathTranslator(profile.dockerMounts)
 
     case 'ssh-linux':
-    case 'ssh-darwin':
-      throw new Error(
-        `[PathTranslator] ${profile.targetOS} translator not implemented yet ` +
-        `(pending T0282). Profile: ${profile.id}`,
+    case 'ssh-darwin': {
+      if (!profile.serverHome) {
+        throw new Error(
+          `[PathTranslator] ${profile.targetOS} profile ${profile.id} missing serverHome ` +
+          `(populated by first connect's auth-result frame)`,
+        )
+      }
+      return new SshPathTranslator(
+        os.homedir(),
+        profile.serverHome,
+        process.platform === 'win32',
       )
+    }
 
     default: {
       const _exhaustive: never = profile.targetOS

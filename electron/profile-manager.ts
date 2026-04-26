@@ -45,6 +45,7 @@ export interface ProfileEntry {
   sshKeyPath?: string
   useSshTunnel?: boolean      // ssh-* default true at use-site
   tunnelLocalPort?: number    // ssh-* dynamic port at use-site; schema slot only
+  serverHome?: string
 }
 
 /**
@@ -69,6 +70,7 @@ export type TargetOSMetadata =
       sshKeyPath?: string
       useSshTunnel?: boolean
       tunnelLocalPort?: number
+      serverHome?: string
     }
   | { targetOS: undefined }   // legacy remote profile (pre-PLAN-007)
 
@@ -100,6 +102,7 @@ export function extractTargetOSMeta(entry: ProfileEntry): TargetOSMetadata {
         sshKeyPath: entry.sshKeyPath,
         useSshTunnel: entry.useSshTunnel,
         tunnelLocalPort: entry.tunnelLocalPort,
+        serverHome: entry.serverHome,
       }
     case undefined:
     default:
@@ -534,6 +537,7 @@ export class ProfileManager {
     sshKeyPath?: string
     useSshTunnel?: boolean
     tunnelLocalPort?: number
+    serverHome?: string
   }): Promise<boolean> {
     const index = await ensureInitialized()
     const entry = index.profiles.find(p => p.id === profileId)
@@ -555,6 +559,7 @@ export class ProfileManager {
     if (updates.sshKeyPath !== undefined) entry.sshKeyPath = updates.sshKeyPath
     if (updates.useSshTunnel !== undefined) entry.useSshTunnel = updates.useSshTunnel
     if (updates.tunnelLocalPort !== undefined) entry.tunnelLocalPort = updates.tunnelLocalPort
+    if (updates.serverHome !== undefined) entry.serverHome = updates.serverHome
     entry.updatedAt = Date.now()
     await writeIndex(index)
     return true

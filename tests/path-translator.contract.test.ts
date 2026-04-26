@@ -9,6 +9,7 @@ import {
   createTranslator,
   DockerPathTranslator,
   IdentityTranslator,
+  SshPathTranslator,
   WslPathTranslator,
   runContract,
   type ContractFixture,
@@ -231,6 +232,92 @@ runContract(
   },
 )
 
+const sshLinuxFixtures: ContractFixture[] = [
+  {
+    name: 'Windows home path',
+    clientPath: 'C:\\Users\\Alice\\src\\foo.ts',
+    serverPath: '/home/alice/src/foo.ts',
+    shouldOwn: true,
+  },
+  {
+    name: 'Windows home root',
+    clientPath: 'C:\\Users\\Alice',
+    serverPath: '/home/alice',
+    shouldOwn: true,
+  },
+  {
+    name: 'Outside Windows home is passthrough',
+    clientPath: 'D:\\external',
+    serverPath: 'D:\\external',
+    shouldOwn: false,
+  },
+  {
+    name: 'Server system path is passthrough',
+    clientPath: '/etc/hosts',
+    serverPath: '/etc/hosts',
+    shouldOwn: false,
+  },
+  {
+    name: 'Windows Chinese path',
+    clientPath: 'C:\\Users\\Alice\\使用者文件\\x.txt',
+    serverPath: '/home/alice/使用者文件/x.txt',
+    shouldOwn: true,
+  },
+  {
+    name: 'Windows drive letter path',
+    clientPath: 'C:\\Users\\Alice\\x',
+    serverPath: '/home/alice/x',
+    shouldOwn: true,
+  },
+]
+
+runContract(
+  'SshPathTranslator (Win→linux)',
+  () => new SshPathTranslator('C:\\Users\\Alice', '/home/alice', true),
+  sshLinuxFixtures,
+  {
+    suite: describe,
+    test,
+  },
+)
+
+const sshDarwinFixtures: ContractFixture[] = [
+  {
+    name: 'POSIX home path',
+    clientPath: '/Users/alice/x',
+    serverPath: '/Users/bob/x',
+    shouldOwn: true,
+  },
+  {
+    name: 'POSIX home root',
+    clientPath: '/Users/alice',
+    serverPath: '/Users/bob',
+    shouldOwn: true,
+  },
+  {
+    name: 'Outside POSIX home is passthrough',
+    clientPath: '/tmp/log',
+    serverPath: '/tmp/log',
+    shouldOwn: false,
+  },
+  {
+    name: 'POSIX Chinese path',
+    clientPath: '/Users/alice/文件/y.txt',
+    serverPath: '/Users/bob/文件/y.txt',
+    shouldOwn: true,
+  },
+]
+
+runContract(
+  'SshPathTranslator (mac→darwin)',
+  () => new SshPathTranslator('/Users/alice', '/Users/bob', false),
+  sshDarwinFixtures,
+  {
+    suite: describe,
+    test,
+  },
+)
+
 describe('IdentityTranslator specifics', () => {
   test('toServer and toClient are the same identity mapping', () => {
     const translator = new IdentityTranslator()
@@ -290,6 +377,25 @@ describe('DockerPathTranslator specifics', () => {
   })
 })
 
+describe('SshPathTranslator specifics', () => {
+  test('toServer normalizes Windows drive letter case before prefix swap', () => {
+    const translator = new SshPathTranslator('C:\\Users\\Alice', '/home/alice', true)
+    assert.strictEqual(translator.toServer('c:\\Users\\Alice\\x'), '/home/alice/x')
+    assert.strictEqual(translator.toServer('C:\\Users\\Alice\\x'), '/home/alice/x')
+  })
+
+  test('toClient maps server home back to Windows separators', () => {
+    const translator = new SshPathTranslator('C:\\Users\\Alice', '/home/alice', true)
+    assert.strictEqual(translator.toClient('/home/alice/src/main.ts'), 'C:\\Users\\Alice\\src\\main.ts')
+  })
+
+  test('owns server-side home path and rejects unrelated paths', () => {
+    const translator = new SshPathTranslator('/Users/alice', '/Users/bob', false)
+    assert.strictEqual(translator.owns('/Users/bob/project'), true)
+    assert.strictEqual(translator.owns('/var/log/system.log'), false)
+  })
+})
+
 describe('createTranslator factory', () => {
   test('targetOS=local returns IdentityTranslator', () => {
     const translator = createTranslator(makeProfile({ type: 'local', targetOS: 'local' }))
@@ -343,20 +449,35 @@ describe('createTranslator factory', () => {
     )
   })
 
-  for (const [os, ticket] of [
-    ['ssh-linux', 'T0282'],
-    ['ssh-darwin', 'T0282'],
-  ] as const) {
-    test(`${os} throws an explicit pending implementation error`, () => {
-      const profile = makeProfile({ id: `profile-${os}`, targetOS: os })
+  test('targetOS=ssh-linux returns SshPathTranslator', () => {
+    const translator = createTranslator(makeProfile({
+      id: 'profile-ssh-linux',
+      targetOS: 'ssh-linux',
+      serverHome: '/home/remote',
+    }))
+    assert.ok(translator instanceof SshPathTranslator)
+    assert.strictEqual(translator.toServer('/tmp/outside'), '/tmp/outside')
+  })
+
+  test('targetOS=ssh-darwin returns SshPathTranslator', () => {
+    const translator = createTranslator(makeProfile({
+      id: 'profile-ssh-darwin',
+      targetOS: 'ssh-darwin',
+      serverHome: '/Users/remote',
+    }))
+    assert.ok(translator instanceof SshPathTranslator)
+  })
+
+  for (const os of ['ssh-linux', 'ssh-darwin'] as const) {
+    test(`${os} without serverHome throws explicit error`, () => {
+      const profile = makeProfile({ id: `profile-${os}-missing`, targetOS: os })
       assert.throws(
         () => createTranslator(profile),
         (error: unknown) => {
           const message = (error as Error).message
           return (
-            message.includes(os) &&
-            message.includes(profile.id) &&
-            message.includes(ticket)
+            message ===
+            `[PathTranslator] ${os} profile ${profile.id} missing serverHome (populated by first connect's auth-result frame)`
           )
         },
       )
