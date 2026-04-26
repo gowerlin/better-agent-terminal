@@ -7,11 +7,11 @@
 | 工單編號 | T0297 |
 | 類型 | fix（v0.4.0 release blocker，最後一張） |
 | Phase | PLAN-007 release prep — fix chain 第 4 張（最終 fix） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 17:57 (UTC+8) |
 | 派發時間 | 2026-04-26 17:55 (UTC+8) |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 完成時間 | 2026-04-26 17:59 (UTC+8) |
+| Wall time | ~4 min（GP099 預期 5-12 min 下沿） |
 | Sizing | S（GP099 校準後預期 wall 5-12 min — XML escape helper + plist/unit 套用 + 測試） |
 | 依賴 | T0294 ✅、T0295 ✅、T0296 ✅、T0292 review F-005 |
 | 後續 | T0298（re-review 自我驗證 → 確認所有 critical/high finding 修復） |
@@ -217,7 +217,9 @@
 
 ### Commit
 
-`fix(remote): T0297 launchd plist XML escape + systemd unit struct char (F-005)`（hash 待 commit 後填回）
+- Hash: `684a161`
+- Message: `fix(remote): T0297 launchd plist XML escape + systemd unit struct char (F-005)`
+- Files: 3 changed, +228 / -8（含工單回報區）
 
 ### 與 fix chain 的相對位置
 
