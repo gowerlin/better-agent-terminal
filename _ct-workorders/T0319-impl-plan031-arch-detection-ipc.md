@@ -7,10 +7,12 @@
 | 工單編號 | T0319 |
 | 類型 | impl（IPC handler + preload + 重用既有純函數） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 3 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 02:06 (UTC+8) |
 | 派發時間 | 2026-04-27 02:06 (UTC+8) |
 | 開始時間 | 2026-04-27 02:13 (UTC+8) |
+| 完成時間 | 2026-04-27 02:25 (UTC+8) |
+| Commit | faa10f2 |
 | Sizing | M（estimate 45-75 min wall） |
 | 依賴 | T0314 ✅（`normalizeArch` 純函數已落地 src/lib/arch-normalize.ts） |
 | 平行 | T0318（download module） |

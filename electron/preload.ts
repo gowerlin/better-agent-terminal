@@ -644,6 +644,53 @@ const electronAPI = {
         ipcRenderer.on('server-bundle:download-progress', handler)
         return () => ipcRenderer.removeListener('server-bundle:download-progress', handler)
       },
+      // PLAN-031 T0320 — distributor (cache → baseline → download).
+      distribute: (opts: {
+        profileId: string
+        version?: string
+        baseURL?: string
+        githubToken?: string
+      }) =>
+        ipcRenderer.invoke('server-bundle:distribute', opts) as Promise<
+          | {
+              ok: true
+              tarballPath: string
+              sha256: string
+              sizeBytes: number
+              source: 'cache' | 'baseline' | 'download'
+              arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+            }
+          | {
+              ok: false
+              error: string
+              errorCode:
+                | 'arch-detection-failed'
+                | 'no-source-available'
+                | 'download-failed'
+                | 'baseline-corrupted'
+                | 'aborted'
+            }
+        >,
+      onDistributeProgress: (
+        callback: (event: {
+          phase: 'manifest' | 'tarball'
+          bytesDownloaded: number
+          bytesTotal: number
+          percent: number
+        }) => void,
+      ) => {
+        const handler = (
+          _evt: unknown,
+          event: {
+            phase: 'manifest' | 'tarball'
+            bytesDownloaded: number
+            bytesTotal: number
+            percent: number
+          },
+        ) => callback(event)
+        ipcRenderer.on('server-bundle:distribute-progress', handler)
+        return () => ipcRenderer.removeListener('server-bundle:distribute-progress', handler)
+      },
     },
     restartServer: (newPort: number) =>
       ipcRenderer.invoke('remote:restart-server', newPort) as Promise<

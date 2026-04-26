@@ -3241,6 +3241,60 @@ function registerLocalHandlers() {
     },
   )
 
+  // PLAN-031 T0320 — server bundle distributor (cache → baseline → download).
+  // Resolves arch from profile, then dispatches three-layer lookup. Composes
+  // T0316 baseline / T0317 SHA / T0318 download / T0319 detectRemoteArch.
+  ipcMain.handle(
+    'server-bundle:distribute',
+    async (
+      evt,
+      opts: {
+        profileId: string
+        version?: string
+        baseURL?: string
+        githubToken?: string
+      },
+    ) => {
+      if (
+        !opts ||
+        typeof opts.profileId !== 'string' ||
+        !/^[a-zA-Z0-9._-]+$/.test(opts.profileId)
+      ) {
+        return {
+          ok: false as const,
+          errorCode: 'arch-detection-failed' as const,
+          error: 'Invalid profileId',
+        }
+      }
+      const profile = await profileManager.getProfile(opts.profileId)
+      if (!profile) {
+        return {
+          ok: false as const,
+          errorCode: 'arch-detection-failed' as const,
+          error: `Profile not found: ${opts.profileId}`,
+        }
+      }
+      const { distributeServerBundle } = await import('./remote/server-bundle-distributor')
+      const onProgress = (event: {
+        phase: 'manifest' | 'tarball'
+        bytesDownloaded: number
+        bytesTotal: number
+        percent: number
+      }) => {
+        if (!evt.sender.isDestroyed()) {
+          evt.sender.send('server-bundle:distribute-progress', event)
+        }
+      }
+      return distributeServerBundle({
+        profile,
+        version: opts.version,
+        baseURL: opts.baseURL,
+        githubToken: opts.githubToken,
+        onProgress,
+      })
+    },
+  )
+
   ipcMain.handle('remote:list-profiles', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const tempClient = new RemoteClient(() => [])
     try {

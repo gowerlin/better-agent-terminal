@@ -7,9 +7,10 @@
 | 工單編號 | T0320 |
 | 類型 | impl（main process 模組整合 + IPC + 純函數 helpers） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 3 收尾（序列瓶頸） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🔄 IN_PROGRESS |
 | 建立時間 | 2026-04-27 02:46 (UTC+8) |
 | 派發時間 | 2026-04-27 02:46 (UTC+8) |
+| 開始時間 | 2026-04-27 02:47 (UTC+8) |
 | Sizing | L（estimate 60-90 min wall） |
 | 依賴 | T0316 ✅（baseline tarball installer 整合） / T0317 ✅（manifest validator + SHA stream） / T0318 ✅（download module） / T0319 ✅（arch detection IPC） |
 | 平行 | 無（序列瓶頸） |
@@ -266,36 +267,85 @@ Type augmentation 加在 `src/types/electron.d.ts` 既有 `serverBundle` 結構�
 
 ### 1. server-bundle-distributor.ts 摘要
 
-（待填）
+新建 `electron/remote/server-bundle-distributor.ts`（約 270 行）。Public entry `distributeServerBundle(options)` 實作三層 lookup：
+
+- **Phase 0**：Resolve defaults（version 預設 `app.getVersion()`、cacheDir 走 `app.getPath('userData')/bat-server-bundles`、baselineDir 走 `process.resourcesPath/bat-server-baseline`）+ early abort + `fs.mkdir` cacheDir。
+- **Phase 1（T0319 整合）**：呼叫 `detectRemoteArch(profile)` 取得 arch；失敗即 `arch-detection-failed`。
+- **Phase 2（baseline manifest 預讀）**：`resolveBaselineEntry()` 一次處理 4 個 state（`ok` / `missing-manifest` / `missing-tarball` / `corrupted`），用 T0317 `parseManifest` + 內部 `verifyTarballSha`（沿 T0318 `checkCache` 同模式 SHA stream）。
+- **Layer 1（cache）**：`resolveCacheEntry()` — 用 baseline manifest 的 SHA 作為唯一信源驗 cache；缺 baseline 則 cache 層直接跳過（無法驗證）。命中 → `source: 'cache'`。
+- **Layer 2（baseline）**：state === `'ok'` → 額外 `copyBaselineToCache()`（best-effort，失敗只 warn）→ `source: 'baseline'`；state === `'corrupted'` → fail-closed 走 `classifyDistributeError('baseline', ...)` 回 `baseline-corrupted`，**不**降到 download（spec §AC-8 紀律）。
+- **Layer 3（T0318 整合）**：state ∈ {`missing-manifest`, `missing-tarball`} → 呼叫 `downloadServerBundle`，T0318 `aborted` 直通，其他 errorCode 用 `classifyDistributeError('download', ...)` 包成 `download-failed`。
+
+`signal?.aborted` 在 4 個關鍵時機檢查（start / baseline-check 後 / cache-check 後 / SHA stream pipeline 內由 `node:stream/promises` 內建）。
 
 ### 2. 純函數 helpers 摘要
 
-（待填）
+新建 `src/lib/server-bundle-distributor-helpers.ts`：
+
+- `expectedTarballFilename(arch, version)` — 包 T0314 `tarballNameForArch` 給 distributor 內呼叫點命名清晰。
+- `resolveDefaultPaths({ userDataDir, resourcesPath })` — caller-provided dirs（避電 electron 依賴），純 `path.join`。
+- `classifyDistributeError(layer, innerError)` — 三層 error → 對應 errorCode + actionable msg。
+- `shouldFallbackToDownload(baselineState)` — `'corrupted'` 回 false，其他 true。
+- 集中 export `DistributeSource`、`DistributeErrorCode` 兩個 union type 給 distributor 與測試共用。
 
 ### 3. IPC handler + progress event
 
-（待填）
+`electron/main.ts` 在 `remote:list-profiles` 之前新增 `server-bundle:distribute` handler（沿 T0319 / T0318 模式）：
+
+- profileId regex 白名單 `/^[a-zA-Z0-9._-]+$/`，違反即回 `arch-detection-failed`。
+- `profileManager.getProfile(profileId)`，找不到 → `arch-detection-failed`。
+- `await import('./remote/server-bundle-distributor')` lazy load。
+- onProgress callback 透過 `evt.sender.send('server-bundle:distribute-progress', event)`，先 `isDestroyed()` 檢查（與 T0318 同 pattern）。
+
+Progress event 復用 T0318 `ProgressEvent` 型別（`phase: 'manifest' | 'tarball'`），cache / baseline 層命中時不發 progress（無下載動作）。
 
 ### 4. preload + type augmentation
 
-（待填）
+`electron/preload.ts` `serverBundle` 物件擴張：新增 `distribute(opts)` invoke + `onDistributeProgress(callback)` listener factory（回傳 unsubscribe），channel 名稱與 main 側對齊。
+
+`src/types/electron.d.ts` `serverBundle` 型別 block 同步加入 `distribute`/`onDistributeProgress` 簽章，DistributeSource union 與 DistributeErrorCode union 全列出（`arch-detection-failed | no-source-available | download-failed | baseline-corrupted | aborted`）。
 
 ### 5. 純函數單元測試
 
-（待填）
+`src/lib/__tests__/server-bundle-distributor.test.ts` — 14 cases（≥12 要求滿足）：
+
+| function | cases |
+|----------|-------|
+| `expectedTarballFilename` | 4（linux-x64 stable / linux-arm64 pre-release / darwin-arm64 / pre-release suffix round-trip）|
+| `resolveDefaultPaths` | 3（macOS / Windows / Linux 三 host 路徑）|
+| `classifyDistributeError` | 4（baseline / download / cache / inner verbatim cross-layer）|
+| `shouldFallbackToDownload` | 3（missing-manifest=true / missing-tarball=true / corrupted=false）|
+
+工單最少 12，實際 14。Stream / fetch / fs 整合測試明確排除（spec 範圍排除 §244-250）。
 
 ### 6. 既有 test + tsc 結果
 
-（待填）
+- `npm run test:unit`：**168 passed / 168 total**（154 + 14 新增），duration 2.47s，全綠。
+- `npx tsc --noEmit`：對本工單觸碰的 4 檔（`server-bundle-distributor.ts`、`server-bundle-distributor-helpers.ts`、`main.ts`、`preload.ts`、`electron.d.ts`）+ 測試檔，**0 error**。
+- 既有 36 個 tsc error 全部位於 `src/components/CodexAgentPanel.tsx`（未觸碰、PLAN-031 範圍外、與本工單無關）。
 
 ### 7. PARTIAL / 矛盾項（如有）
 
-（待填）
+無。15 個 AC 全部滿足。
 
 ### 8. Out-of-scope but justified（如有）
 
-（待填）
+**API 簽章微調**：`DistributeOptions.profileId: string` → `DistributeOptions.profile: ProfileEntry`。
+
+理由：
+- `profileManager` 是 `electron/main.ts` 內 local instance（`const profileManager = new ProfileManager()`，line 427），未對外 export。
+- T0319 `detectRemoteArch(profile)` 已建立「IPC 層解析 profile，下游模組接 ProfileEntry」的慣例。
+- 若 distributor 內部呼叫 `profileManager`，需要新增 export 點或 singleton 重構，scope 超出本工單。
+- 對外 IPC 簽章 `server-bundle:distribute` **仍接 `profileId`**（與工單原 spec 一致），renderer 與 type augmentation 體感無差異。
+
+影響面：僅 `electron/remote/server-bundle-distributor.ts` 的 main process API；preload / type / IPC channel 全保持 spec 樣貌。
+
+### Renew 歷程
+
+無。
 
 ### 完成註記
 
-（待填）
+- 完成時間：2026-04-27 03:00 (UTC+8)
+- Commit hash：（見下方 commit）
+- 後續：Sprint 4（T0321/T0322/T0323）三平台 install-bundle steps 可直接消費 `window.electronAPI.remote.serverBundle.distribute({ profileId, ... })`。

@@ -475,6 +475,40 @@ interface ElectronAPI {
           percent: number
         }) => void,
       ) => () => void
+      // PLAN-031 T0320 — distributor (cache → baseline → download three-layer lookup).
+      distribute: (opts: {
+        profileId: string
+        version?: string
+        baseURL?: string
+        githubToken?: string
+      }) => Promise<
+        | {
+            ok: true
+            tarballPath: string
+            sha256: string
+            sizeBytes: number
+            source: 'cache' | 'baseline' | 'download'
+            arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+          }
+        | {
+            ok: false
+            error: string
+            errorCode:
+              | 'arch-detection-failed'
+              | 'no-source-available'
+              | 'download-failed'
+              | 'baseline-corrupted'
+              | 'aborted'
+          }
+      >
+      onDistributeProgress: (
+        callback: (event: {
+          phase: 'manifest' | 'tarball'
+          bytesDownloaded: number
+          bytesTotal: number
+          percent: number
+        }) => void,
+      ) => () => void
     }
   }
   snippet: {
