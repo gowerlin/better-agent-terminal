@@ -7,9 +7,11 @@
 | 工單編號 | T0316 |
 | 類型 | impl（electron-builder 配置 + build script + verify scanner 擴充） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 2 收尾 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 01:54 (UTC+8) |
 | 派發時間 | 2026-04-27 01:54 (UTC+8) |
+| 開始時間 | 2026-04-27 01:59 (UTC+8) |
+| 完成時間 | 2026-04-27 02:05 (UTC+8) |
 | Sizing | L（estimate 60-90 min wall） |
 | 依賴 | T0314 ✅（spec §3.1 baseline matrix） / T0315 ✅（manifest schema 已固化） |
 | 平行 | T0317 ✅（已完成） |
@@ -241,32 +243,84 @@ const defaultHostArch = process.env.BUILD_HOST_ARCH || (
 
 ### 1. fetch-baseline-tarball.mjs 摘要
 
-（待填：總行數、CLI parse、retry / SHA / rate limit handle 實作）
+新建 `scripts/fetch-baseline-tarball.mjs`（約 280 行）。實作要點：
+
+- **CLI parse**：手寫 `parseArgs`，支援 `--host-os` / `--host-arch` / `--version` / `--output-dir` / `--source-url` / `--dry-run` / `-h|--help`；未知 flag → `exit 2`
+- **預設值偵測**：`--host-os` 優先讀 `BUILD_HOST_OS` env，否則 `os.platform()` 對應（`darwin→mac`、`win32→win`、其他→`linux`）；`--host-arch` 同樣 env > `os.arch()`；`--version` 預設讀 `package.json`
+- **Baseline matrix**：靜態 const 對應 spec §3.1（win×x64=[linux-x64], mac×arm64=[linux-x64,darwin-arm64], linux×x64=[linux-x64], linux×arm64=[linux-arm64]）；非合理組合 → exit 1 with msg 引用 spec §3.1
+- **Local cache by SHA**：先比對既存 tarball + sidecar，SHA 通過則 skip download
+- **Retry**：500 / 1500 / 3000 ms exponential backoff（共 4 次嘗試）；rate-limit error 不 retry（不會在 3 秒內恢復）
+- **GitHub rate limit**：HTTP 403 + `X-RateLimit-Remaining: 0` → 印「retry after `${reset}` ISO8601 or set `GITHUB_TOKEN` env」；若有 `GITHUB_TOKEN` env 則自動以 `Authorization: Bearer` 帶入請求
+- **SHA256 校驗**：**inlined**（worker 守則 8 + 工單第 1 行 fallback 條款）。原因：`server-bundle-manifest.ts` 是 TypeScript source，`.mjs` 沒有 build step 不能 dynamic import 它。改 inline `crypto.createHash('sha256')` + `crypto.timingSafeEqual` + 64 位 hex 校驗，語意對齊 T0317 `compareSha256` / `createSha256Stream`。
+- **manifest.json**：若 `dist-baseline/manifest.json` 已存在則 skip 重抓
+- **錯誤訊息**：actionable + 引用 spec/AC（例：`baseline matrix does not recognise "mac × x64". Spec §3.1 only covers: ...`）
 
 ### 2. package.json 改動摘要
 
-（待填：extraResources platform-specific 配置、scripts 段改動）
+**`scripts` 段**：
+- 新增 `fetch:baseline`、`prebuild`（呼叫 `fetch:baseline`）
+- `build:dir` / `build:release` 開頭加 `npm run fetch:baseline &&`
+- `build` 不直接加（npm 自帶 `prebuild` 鉤子，run `npm run build` 時自動先跑 prebuild）
+
+**`build` 段 platform-specific extraResources**：
+- `build.win.extraResources`：`dist-baseline/` → `bat-server-baseline/`，filter `[linux-x64 tar.gz, sidecar, manifest.json]`
+- `build.mac.extraResources`：filter 加上 `darwin-arm64` 雙 tarball + sidecar + manifest
+- `build.linux.extraResources`：filter 列雙 arch（x64 + arm64），electron-builder JSON static，實際只會包到 fetch script 放進 `dist-baseline/` 的對應 arch
+- 既存 `build.extraResources`（共通 `scripts/*.mjs`）保留不動，避免影響 BUG-058 / T0247 修復
+
+**JSON parse sanity**：`node -e "console.log(JSON.stringify(require('./package.json').build.win.extraResources))"` 通過
 
 ### 3. verify-helper-bundle.js 擴張摘要
 
-（待填：新增段落行數、檢查邏輯、actionable msg 範例）
+新增 `checkServerBundleBaseline()` 函式（約 90 行）+ 一行呼叫，**插在原始 problems 收集 → if (problems.length > 0) 之前**，不重構既有邏輯：
+
+- **掃描範圍**：`pkg.build.{win, mac, linux}.extraResources[]`，逐 entry 找 filter 中符合 `bat-server-(linux-x64|linux-arm64|darwin-arm64)-v\*\.tar\.gz` 的 glob
+- **檢查 1（missing tarball）**：對每平台的 baseline tarball glob，要求至少有一個 glob 在 `dist-baseline/` 找到實檔。三平台都 0 命中 → abort（涵蓋「忘記跑 fetch:baseline」場景）
+- **檢查 2（missing sidecar）**：每個 tarball 實檔必須伴隨 `.sha256` sidecar，否則 abort 含具體缺檔名
+- **不檢查 manifest.json**：fetch script 會同步寫，沒必要在 verify 重複
+- **Actionable msg**：印「Fix: run `node scripts/fetch-baseline-tarball.mjs --host-os <X> --host-arch <Y>` 或 `npm run fetch:baseline`」
+- **Linux 雙 arch 折衷**：採「at least one glob 滿足」語意，避免 linux build 時被誤判（filter 列雙 arch 但實際只放一個進 dist-baseline/）
+- **Mac 雙 tarball 限制**：當前語意是「至少一個」，無法強制檢查 mac 必須同時有 linux-x64 + darwin-arm64。Verify 不知道當前 build target 是哪個平台，所以只能做 sanity bound。真正完整性由 fetch script 的 matrix 邏輯保證。
 
 ### 4. 本機驗證結果
 
-（待填：AC-1/2/3 dry-run 結果 / AC-7 fake tarball verify 結果）
+- **AC-1/2 (`--dry-run` matrix)**：win×x64 → 1 tarball；mac×arm64 → 2 tarball；linux×arm64 → 1 tarball — 全部印出正確 plan + URL，exit 0
+- **AC-3 (invalid combo)**：`mac × x64` → 印 `baseline matrix does not recognise "mac × x64". Spec §3.1 only covers: ...`，exit 1 ✅
+- **AC-4 (extraResources)**：JSON 結構與工單範例一致；node 反序列化通過 ✅
+- **AC-5 (verify scanner)**：sidecar 缺失時印「dist-baseline/ is missing .sha256 sidecar(s) for win/mac/linux」+ 完整 fix hint ✅
+- **AC-6 (npm scripts)**：`fetch:baseline` + `prebuild` + `build:dir` / `build:release` 改動到位 ✅
+- **AC-7 (fake tarball)**：建 `dist-baseline/bat-server-linux-x64-v0.4.1.tar.gz` + sidecar + manifest.json → verify 通過；刪 sidecar → verify abort 含 fetch script suggested command ✅
 
 ### 5. cross-platform 偵測測試
 
-（待填：`os.platform()` 實際值對應 mapping）
+實際在 Win Git Bash (MSYS) 執行：
+- `os.platform()` = `win32` → `win` ✅
+- `os.arch()` = `x64` → `x64` ✅
+
+腳本內偵測純 Node API（`node:os`），不依賴 `uname`，符合 worker 守則 5。Mac / Linux 走 same code path，`os.platform()` darwin→mac、其他→linux 已對應。
 
 ### 6. PARTIAL / 矛盾項（如有）
 
-（待填）
+無 PARTIAL。
+
+**已知設計取捨**（非 PARTIAL，工單範圍排除）：
+- verify scanner 「at least one glob 滿足」語意對 Mac 雙 tarball 場景偏寬鬆 — fetch script 的 matrix 邏輯保證完整性。verify 在不知道 build target 的情況下只能做 sanity bound（見回報區 §3 末段）。
+- `prebuild` 鉤子只覆蓋 `npm run build`，`build:dir` / `build:release` 因要避免雙重執行（`prebuild` 由 npm 自動觸發），改在 script 開頭直接串 `npm run fetch:baseline &&`。CI / dev 兩條路徑都涵蓋。
 
 ### 7. Out-of-scope but justified（如有）
 
-（待填：若動了非 affects_files 列檔案，列在此並說明理由）
+- **`.gitignore` 加 `dist-baseline/`**：非 affects_files 列檔案。理由：fetch script 預設輸出至 `dist-baseline/`，與 `dist/` / `dist-electron/` 等 build artifact 同性質，commit 進 git 沒意義且會污染 diff。新增 1 行，與既存 `dist*` 排除規則同列。
 
 ### 完成註記
 
-（待填：commit hashes / wall time / Full DONE）
+- 完成狀態：DONE
+- 完成時間：2026-04-27 02:05 (UTC+8)
+- Wall time：~6 分鐘（vs 60-90 min estimate；實作量符合 L size，但 baseline 邏輯純 spec-driven 沒需求歧義）
+- 改動檔案：
+  - 新增 `scripts/fetch-baseline-tarball.mjs`（~280 行）
+  - 新增段落 `scripts/verify-helper-bundle.js`（+~95 行）
+  - 修改 `package.json`（scripts 段 + build.win/mac/linux extraResources）
+  - 修改 `.gitignore`（+1 行 `dist-baseline/`）
+- Commit（per AC-9，拆 2 commit）：
+  1. `9b64b10` — chore(build): T0316 - fetch-baseline-tarball.mjs + verify-helper-bundle 擴張
+  2. `cb8ef96` — chore(build): T0316 - package.json extraResources per-host + npm scripts
