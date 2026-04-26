@@ -19,9 +19,11 @@
     "verify:renderer-imports": "node scripts/verify-renderer-imports.js",
     "verify:server-bundle": "node scripts/verify-server-bundle.js",
     "verify:docker-image": "node scripts/verify-docker-image.mjs",
+    "fetch:baseline": "node scripts/fetch-baseline-tarball.mjs",
+    "prebuild": "npm run fetch:baseline",
     "build": "node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder",
-    "build:dir": "node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder --dir",
-    "build:release": "node scripts/build-version.js",
+    "build:dir": "npm run fetch:baseline && node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder --dir",
+    "build:release": "npm run fetch:baseline && node scripts/build-version.js",
     "postinstall": "node -e \"if(process.platform==='darwin'){const p=require('path').join('node_modules/electron/dist/Electron.app/Contents/Info.plist');try{require('child_process').execSync('plutil -replace CFBundleName -string BetterAgentTerminal '+p+' && plutil -replace CFBundleDisplayName -string BetterAgentTerminal '+p)}catch(e){}}\" && npm rebuild better-sqlite3 && echo 'postinstall done'",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
@@ -121,7 +123,18 @@
         "nsis",
         "zip"
       ],
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "extraResources": [
+        {
+          "from": "dist-baseline",
+          "to": "bat-server-baseline",
+          "filter": [
+            "bat-server-linux-x64-v*.tar.gz",
+            "bat-server-linux-x64-v*.tar.gz.sha256",
+            "manifest.json"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -155,11 +168,37 @@
         "NSDesktopFolderUsageDescription": "BetterAgentTerminal needs access to your Desktop folder to open terminals and manage files in your projects.",
         "NSDownloadsFolderUsageDescription": "BetterAgentTerminal needs access to your Downloads folder to open terminals and manage files in your projects.",
         "NSMicrophoneUsageDescription": "better-agent-terminal 需要存取麥克風以提供語音輸入功能，將語音辨識後填入輸入框。/ better-agent-terminal needs microphone access for voice input feature, transcribing speech into the input textarea."
-      }
+      },
+      "extraResources": [
+        {
+          "from": "dist-baseline",
+          "to": "bat-server-baseline",
+          "filter": [
+            "bat-server-linux-x64-v*.tar.gz",
+            "bat-server-linux-x64-v*.tar.gz.sha256",
+            "bat-server-darwin-arm64-v*.tar.gz",
+            "bat-server-darwin-arm64-v*.tar.gz.sha256",
+            "manifest.json"
+          ]
+        }
+      ]
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icon-512.png"
+      "icon": "assets/icon-512.png",
+      "extraResources": [
+        {
+          "from": "dist-baseline",
+          "to": "bat-server-baseline",
+          "filter": [
+            "bat-server-linux-x64-v*.tar.gz",
+            "bat-server-linux-x64-v*.tar.gz.sha256",
+            "bat-server-linux-arm64-v*.tar.gz",
+            "bat-server-linux-arm64-v*.tar.gz.sha256",
+            "manifest.json"
+          ]
+        }
+      ]
     },
     "forceCodeSigning": false,
     "npmRebuild": false,
