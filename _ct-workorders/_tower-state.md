@@ -1,8 +1,120 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-26 19:58(**第三十二 session 收工快照:metadata 清理 session 一氣呵成 5 commit。BUG-062~068 7 張 CLOSED + _bug-tracker 重建;PLAN-021/026/004/028 → DONE(全 PLAN-007 整體收斂或自然交付)+ PLAN-002 → DROPPED(Vite 觸發點錯過);T0295/T0300 metadata DONE drift 修;EXP-GPUWHIS-001 歸檔。熱區乾淨:T:53+4reports / BUG:11(1 OPEN baseline + 10 CLOSED)/ PLAN:8(2 Active + 5 Done + 1 Dropped)/ EXP:1。BUG-061 拍板維持 OPEN(dev-only baseline,無觸發條件);PLAN-015 維持 IDEA 觀察(BUG-037 後未復發)。無 Worker 工單派發。下次起手:大批歸檔(04-27/04-28 達門檻)或 PLAN-014 啟動。**)
+> 最後更新:2026-04-27 00:50(**第三十四 session 收工快照:PLAN-030 全案閉環 + 4 BUG 登記。8 工單派發 (T0305 research → T0306 BUG-070 fix → T0307 Stepper + T0307b vitest infra → T0308 BugWorkflowIndicator refactor → T0309 Setup Wizard L 大宗 + PLAN-029 R5 合併 → T0310 docs spec → T0311 layout fix → T0312 dialog widen polish)。2 BUG CLOSED (BUG-069 NSIS renderer + BUG-070 Profile dropdown 使用者實機驗收)。dogfood 暴露 4 新 BUG (BUG-071~074):server bundle download 缺失 + 3 wizard error UX 不友善。47 unit tests 全綠。新建 vitest infra + Stepper 元件 + 設計規範文件。YOLO 觸發斷點 3 次皆通過。下次起手:開 PLAN-031 (wizard error UX overhaul) 涵蓋 BUG-072/073/074 + PLAN-007 follow-up 處理 BUG-071。**)
 
 ---
+
+## 🛏 本 Session 收工快照（第三十四 session,2026-04-26 22:?? - 2026-04-27 00:50,~3h 30min,PLAN-030 全案 + dogfood 揭錯）
+
+### 本輪時間線
+
+1. **22:??**（起手）：使用者開 *bug 回報 ProfilePanel 工具列溢出（BUG-070）
+2. **22:??**：拍板開 PLAN-030（含 ProfilePanel + Setup Wizard UI overhaul）
+3. **22:??**：使用者 `*config auto-session yolo` 啟動 YOLO mode
+4. **22:25-22:29**：T0305 research DONE（commit `8efd715`），4 min；5 個塔台拍板項全採塔台建議
+5. **22:36-22:45**：T0306 impl DONE（commit `014da72`），9 min — BUG-070 → VERIFY
+6. **22:58-23:07**：T0307 PARTIAL（commit `4f7ed05`），9 min — Stepper 主元件 9/10，缺 vitest 跑 tests → 拍板 [A] 派 T0307b
+7. **23:20-23:25**：T0307b DONE（commit `fbbdaed`），5 min — vitest infra 引入，18 tests 全綠 → T0307 解鎖 DONE
+8. **23:28-23:36**：T0308 PARTIAL（commit `dc41763`），8 min — BugWorkflowIndicator 結構性 9/10，截圖比對 deferred → 拍板 [A] 接受 PARTIAL 等同 DONE
+9. **23:42-23:57**：T0309 大宗 DONE（commit `8381190`），15 min — Setup Wizard vertical stepper 重設計 + 26 step 元資料 + 357 行 i18n + jumpToStep API + manualChunks (PLAN-029 R5 合併)
+10. **00:01-00:04**：T0310 docs DONE（commit `6169ca9`），3 min — `docs/design/bat-stepper-design-language.md` 313 行
+11. **00:04**：PLAN-030 → DONE，PLAN-029 R5 標 merged
+12. **00:??**：使用者實機驗收 → 發現 T0309 layout 是 stacked 不是 side-by-side
+13. **00:18-00:21**：T0311 fix DONE（commit `71bf90c`），3 min — 找到 dead Tailwind classes 真因，補真正 grid CSS
+14. **00:??**：使用者驗收通過 BUG-070 → CLOSED
+15. **00:27-00:28**：T0312 polish DONE（commit `9ae338a`），1 min — Dialog maxWidth `720 → min(1040px, 90vw)`
+16. **00:??**：使用者驗收通過 BUG-069 → CLOSED
+17. **00:??**：dogfood 揭三個新 wizard 問題 → BUG-071/072/073/074 登記
+18. **00:50**：寫本快照
+
+### 本 session 產出（commit chain）
+
+| Commit | 內容 |
+|--------|------|
+| `8efd715` | T0305 research：PLAN-030 設計探索完成（5 個拍板項） |
+| `014da72` | T0306 feat：ProfilePanel 群組化下拉（closes BUG-070） |
+| `4f7ed05` | T0307 feat：`<Stepper>` 共用元件（horizontal + vertical + a11y） |
+| `fbbdaed` | T0307b chore：vitest + jsdom + RTL infra（18 cases 驗證綠） |
+| `dc41763` | T0308 refactor：BugWorkflowIndicator 內化到 `<Stepper>` |
+| `8381190` | T0309 feat：Setup Wizard vertical stepper redesign + chunk split |
+| `6169ca9` | T0310 docs：BAT UI Stepper design language spec |
+| `71bf90c` | T0311 fix：Setup Wizard 真兩欄式 layout（修 T0309 dead Tailwind classes） |
+| `9ae338a` | T0312 fix：Dialog 寬度 720 → 1040px（polish） |
+| `c169f67` | BUG-070 → CLOSED |
+| `92dc6c9` | BUG-071 + BUG-072 OPEN |
+| `8f4f48d` | BUG-073 + BUG-074 OPEN |
+| 其他 ~10 commits | metadata + dispatch chore |
+
+### 本 session 統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time | ~3h 30min | 22:?? - 00:50 |
+| Worker 工單 DONE | 8 / 8 | 含 T0307b 補丁 |
+| Worker 累計 wall | ~52 min | research 4 + 9+5+8+15+3+3+1+ T0306 9 |
+| Renew 次數 | 0 | 0/8 |
+| FAILED 次數 | 0 | 0/8 |
+| PARTIAL 次數 | 2 | T0307（環境缺）/ T0308（截圖 deferred） |
+| YOLO 自主派發 | 7 次 | T0306/T0307/T0307b/T0308/T0309/T0310/T0311/T0312 |
+| YOLO 斷點觸發 | 3 次 | T0305 拍板 / T0307 PARTIAL / T0308 PARTIAL（皆通過） |
+| 主線 commits | ~30 | 含 metadata/dispatch chore |
+| BUG CLOSED | 2 | BUG-069 NSIS renderer + BUG-070 Profile dropdown |
+| BUG OPEN（新增） | 4 | BUG-071/072/073/074 |
+| Unit tests | 47 / 47 ✅ | T0307b 引入 vitest 後累計 |
+| 新建檔案 | ~25 | 含 Stepper 元件群、AddProfileMenu、AddMenu、stepper.css、setup-wizard.css、design spec、BUG/工單檔 |
+
+### 熱區現況（收工）
+
+| 類型 | 數量 | 狀態分布 |
+|------|------|---------|
+| **T 工單** | ~62 + 4 reports | 全 DONE（T0305-T0312 + T0307b 全綠） |
+| **BUG** | 17 | 5 OPEN（BUG-061/071/072/073/074）+ 12 CLOSED |
+| **PLAN** | 10 | 1 PLANNED（014）+ 2 IDEA（015/029）+ 6 Done（含本 session PLAN-030）+ 1 Dropped（002） |
+| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED（04-27 起合格歸檔） |
+
+### 下 session pending（優先序）
+
+1. 🔴 **PLAN-007 follow-up** — 處理 BUG-071（server bundle download flow 未實作，影響全部使用者實機跑 wizard）
+2. 🟡 **開 PLAN-031: Wizard error UX overhaul** — 涵蓋 BUG-072/073/074 三個同族問題（統一 error mapping + Stepper `awaiting-input` status + pre-flight 偵測）
+3. 🟢 **大批歸檔 batch 2**（04-28 起合格）：T0268-T0302 PLAN-007 工單群 + BUG-060/062-068 + BUG-069 + EXP-HEADLESS-001 + T0250-T0267
+4. 🟢 PLAN-014 啟動評估（BAT 內建 Git GUI，唯一 Medium Active PLAN）
+5. 🟢 PLAN-029 R3 indexBench.ts 整理（R5 已由 T0309 合併）
+6. 🟢 v0.4.2 release 評估（BUG-069/070 fix 是否 batch ship；BUG-071 是否阻擋 release）
+7. 🟢 PLAN-015 觀察點
+
+### 恢復指引（下 session 起手）
+
+1. Fast Path 載入本快照（<7 天）
+2. **熱區乾淨,8 工單全 DONE,5 BUG OPEN**
+3. **編號起始**：T0313 / BUG-075 / PLAN-031 / D091 / EXP-[TOPIC]-001
+4. **塔台規則繼續**：auto-session: on（yolo_max_retries: 1, archive_days: 2, auto_commit: on）；experience-level: standard
+5. **建議起手動作**：
+   - 開 PLAN-031（Wizard error UX overhaul）+ PLAN-007 follow-up 處理 BUG-071
+   - 或先跑 `*archive --dry-run` 看 04-27 合格清單
+
+### 本 session 教訓（候選 *evolve 萃取項）
+
+1. **PLAN 級需求對齊節省下游 Renew**（GP 候選） — T0305 research 一張展開 4 段（Phase A 盤點 / B1-B4 設計 / C 拆單），讓後續 7 張實作工單 0 Renew 0 FAILED。對齊投資 4 min 換來 ~50 min 流暢執行
+2. **Worker 主動標 PARTIAL + 給拍板選項是高價值行為**（GP 候選） — T0307/T0308 兩次 PARTIAL，Worker 都明確標出 gap + 給 [A]/[B]/[C] 三選一建議 + 各自評估，塔台拍板成本 <1 min
+3. **dead code class hint 的偽陽性**（L 候選） — T0309 用 Tailwind responsive class 但專案沒裝 tailwind，class 全是死碼。看似交付 spec（DOM 結構含 grid class）實際卻是 stacked。教訓：跨 framework 假設要先 grep `tailwind.config.*` / `import './tailwind...'`
+4. **dogfood 駕駛 BUG 發現**（GP 候選） — UI overhaul 全綠 + tests 全綠 + build 全綠後**仍有** 4 個 BUG 沒被 unit test / build 偵測到。實機驗收是 last-mile，但 PARTIAL 接受策略要含「實機驗收前不算真 DONE」
+5. **共用元件抽出值得單獨 PLAN**（L 候選） — Stepper 抽出（T0307）+ 第一個套用案例（T0308）+ 大宗套用（T0309）+ 設計規範（T0310）的 4-step 流程是 reusable pattern
+6. **YOLO 鏈式 + auto_commit:on 的 8 工單流暢度** — 0 FAILED，2 PARTIAL（皆 graceful），無使用者中斷 → YOLO mode 對 PLAN 級任務的有效性實證
+7. **Tailwind classes 在無 tailwind 設定的專案是 dead code** — 跟教訓 3 同源，但值得獨立列為防呆 Lint 規則候選
+
+### 本 session 成就
+
+- 🏆 **PLAN-030 全案 8 工單一氣呵成** — UI overhaul 全套交付（從 research → impl → polish）
+- 🎉 **vitest infra 引入** — 為未來所有 frontend unit tests 打基礎
+- 🎉 **`<Stepper>` 共用元件** — 為未來 onboarding / GPU Whisper / Profile bind 等流程奠基
+- 🎉 **設計規範文件** — `docs/design/bat-stepper-design-language.md` 建立，未來 fieldguide design 子命令可萃取
+- 🎉 **2 BUG 同 session CLOSED**（BUG-069 + BUG-070）+ 4 BUG 登記為下 session 入口
+- 🎉 **47 unit tests** 從 0 起步
+- 🎉 **YOLO mode 8 連發無 FAILED** — 證實 yolo + 良好工單規格的協作威力
+
+---
+
+## 🛏 前 Session 收工快照（第三十二 session,2026-04-26 19:36-19:58,~22 min,起手 metadata 清理 5 commit）
 
 ## 🛏 本 Session 收工快照(第三十二 session,2026-04-26 19:36-19:58,~22 min,起手 metadata 清理 5 commit)
 
