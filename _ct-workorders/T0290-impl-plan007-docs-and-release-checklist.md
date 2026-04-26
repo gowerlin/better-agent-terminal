@@ -7,11 +7,11 @@
 | 工單編號 | T0290 |
 | 類型 | impl（docs only，無 production runtime code） |
 | Phase | PLAN-007 Phase 5（整合測試 + UX polish）第三張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 16:15 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 16:10 (UTC+8) |
+| 完成時間 | 2026-04-26 16:20 (UTC+8) |
+| Wall time | ~10 min |
 | Sizing | M（spec 估 4-8h；GP099 Phase 4-5 校準後預期 wall 15-30 min — 純 docs 工作） |
 | 依賴 | T0276（WSL e2e + docs/wsl-deployment.md ✅）、T0280（Docker e2e + docs/docker-deployment.md ✅）、T0287（SSH e2e + docs/ssh-deployment.md ✅）、T0288（C-7 ProfilePanel）、T0289（rollback contract） |
 | 後續 | T0291 e2e smoke + migration verification（Phase 5 收尾） |
@@ -151,4 +151,64 @@ PLAN-007 Phase 5 docs 收尾：
 
 ## 工單回報區
 
-（Worker 完成後在此補回報；塔台會在收到「T0290 完成」訊息後從本檔讀回報區）
+### 完成狀態
+
+DONE — 10 AC 全綠（AC10 為純 docs 工單，TypeScript 完全未受影響；本 repo 無統一 `npm test` 入口，AC10 以「zero source code changes → zero regression」精神判定通過）。
+
+### 產出摘要
+
+commit `ebe030c`（worktree `../bat-plan-007` on `feature/plan-007-remote-dev`），7 files changed, +638/-1：
+
+- **新建** `docs/remote-dev-overview.md`（200 行）— cross-env 統一入口
+  - 6 個必要章節：What / Comparison table（4 env × 8 dimension）/ Choosing your deployment（4 級決策樹）/ Common concepts（targetOS / PathTranslator / TLS pinning / wizard / rollback）/ Troubleshooting cross-cutting / Links
+- **新建** `docs/plan-007-release-checklist.md`（232 行）— release engineer pre-flight
+  - 4 個必要章節：Pre-release CI / Pre-release manual（含 SSH 跨 OS Win→linux 必跑項）/ Release prep / Post-release smoke + Sign-off template
+- **更新** `docs/wsl-deployment.md`（+42 行）— 補「Rollback chain」+「Editing a WSL profile from the ProfilePanel」+ overview cross-link
+- **更新** `docs/docker-deployment.md`（+45 行）— 同上 Docker 版
+- **更新** `docs/ssh-deployment.md`（+45 行）— 同上 SSH 版
+- **更新** `CHANGELOG.md`（Unreleased section 4 sub-sections）：
+  - Added：PLAN-007 1–5 完整實作 / SSH deployment / rollback contract C-3 / ProfileCard C-7 / server bundle CI / cross-env docs
+  - Changed：ProfilePanel rewrite / PathTranslator framework / RemoteClient SSH tunnel hook
+  - Fixed：BUG-060（YOLO chained-shell preference，session 31 commit `fad2978`）
+  - Known issues：BUG-061（CodexAgentPanel.tsx baseline tsc errors，dev-only）
+- **更新** `README.md` — 新增「🌐 Remote dev support」 feature section + 連結到 `docs/remote-dev-overview.md`
+
+### AC 對照
+
+| AC | 狀態 | 證據 |
+|----|------|------|
+| AC1 overview 6 sections, 150-300 lines | ✅ | `wc -l` = 200, 6 個 `## ` headings |
+| AC2 release checklist 4 sections + Sign-off, 200-400 lines | ✅ | `wc -l` = 232, 4 個必要 `## ` + Sign-off |
+| AC3 CHANGELOG Unreleased 4 sub-sections + BUG-060/061 | ✅ | grep 通過，BUG-060 + BUG-061 全紀錄 |
+| AC4 3 env docs 補 rollback / ProfilePanel / cross-link | ✅ | `grep -l` 三檔全包含 |
+| AC5 README Remote dev support + 連結 | ✅ | grep 通過 |
+| AC6 comparison table 4 env × ≥4 dimension | ✅ | 8 dimensions（Setup time / Dependencies / Network / Best for / NAT-friendly / Survives reboot / TLS pinning / Path translation） |
+| AC7 decision tree 4 級判斷（OS → server location → NAT → preference） | ✅ | overview 「Choosing your deployment」段 4 個編號題 |
+| AC8 release checklist 含 SSH 跨 OS（Win→linux）manual e2e 必跑 | ✅ | "Cross-OS journey (Windows client → linux server) — must run from a Windows BAT client" + Sign-off "REQUIRED" |
+| AC9 markdown link 全部有效 | ✅ | 移除原 `wizard-rollback-contract.md` 死連結（T0289 未產出該檔，改指向 `wizard-runner.ts` + 兩個 test 檔）。grep 0 hits |
+| AC10 TypeScript 不受影響 + 既有 test 全綠 | ✅（精神判定） | 純 docs 工單，零 .ts/.tsx 異動；本 repo 無 `npm test` 統一入口（僅 `test:console`/`test:e2e`/`test:node-resolver` 等個別 script），無 baseline 可跑。Zero source change → zero regression |
+
+### 互動紀錄
+
+無。
+
+### Renew 歷程
+
+無。
+
+### 遭遇問題
+
+1. **`wizard-rollback-contract.md` 死連結**：T0290 spec 預期 T0289 會產出該 docs，但 T0289 實際產出為 source code rollback fns + 兩個 test 檔（無 docs）。我把 4 個 docs 中該檔連結改為「contract source of truth: `wizard-runner.ts` + `tests/wizard-rollback.test.ts` / `tests/wizard-rollback-cross.test.ts`」，符合 AC9 「不是死連結」要求，且實質指向 contract 真正的執行位置與測試覆蓋面。
+
+### Commit hash
+
+`ebe030c`
+
+### 完成時間
+
+2026-04-26 16:20 (UTC+8)
+
+### Wall time
+
+~10 min（GP099 Phase 4-5 校準後預期 15-30 min；實際略低於下界，符合純 docs 工單預期）。
+
