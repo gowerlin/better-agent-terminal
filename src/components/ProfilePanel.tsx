@@ -728,7 +728,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               <h2>Add WSL Profile</h2>
               <button className="settings-close" onClick={wslWizard.close}>&times;</button>
             </div>
-            <div className="settings-body" style={{ padding: '16px' }}>
+            <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <SetupWizardShell
                 key={wslWizard.key}
                 ctx={wslWizard.ctx}
@@ -747,7 +747,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               <h2>Add Docker Profile</h2>
               <button className="settings-close" onClick={dockerWizard.close}>&times;</button>
             </div>
-            <div className="settings-body" style={{ padding: '16px' }}>
+            <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <SetupWizardShell
                 key={dockerWizard.key}
                 ctx={dockerWizard.ctx}
@@ -766,7 +766,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               <h2>Add SSH Profile</h2>
               <button className="settings-close" onClick={sshWizard.close}>&times;</button>
             </div>
-            <div className="settings-body" style={{ padding: '16px' }}>
+            <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <SetupWizardShell
                 key={sshWizard.key}
                 ctx={sshWizard.ctx}
