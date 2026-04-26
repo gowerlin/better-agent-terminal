@@ -7,8 +7,9 @@
 | 工單編號 | T0310 |
 | 類型 | docs |
 | 優先級 | 🟢 Low（PLAN-030 收尾，非阻擋） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 00:01 (UTC+8) |
+| 完成時間 | 2026-04-27 00:04 (UTC+8) |
 | 預估規模 | S |
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-26 23:?? (UTC+8) |
@@ -243,4 +244,4 @@ DONE
 無
 
 ### Commit hash
-（待填）
+`6169ca9` — `docs(design): T0310 add BAT UI Stepper design language spec — relates PLAN-030`
