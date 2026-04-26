@@ -4,6 +4,7 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { execFileSync, spawnSync, fork } from 'child_process'
 import { WindowRegistry } from './window-registry'
+import { resolvePersistedShellPath, resolveShellPath } from './shell-path-resolver'
 
 // Fix PATH for GUI-launched apps on macOS.
 // When launched via .dmg / Applications, macOS gives a minimal PATH that
@@ -441,6 +442,8 @@ interface PersistedSettings {
   remotePort?: number
   defaultAgent?: string
   agentCustomArgs?: Record<string, string>
+  shell?: string
+  customShellPath?: string
 }
 
 const REMOTE_PORT_MIN = 1024
@@ -487,6 +490,14 @@ function readPersistedSettingsSync(): PersistedSettings | null {
   } catch {
     return null
   }
+}
+
+function resolveConfiguredShellPathSync(settings: PersistedSettings | null | undefined): string | undefined {
+  return resolvePersistedShellPath(settings, {
+    platform: process.platform,
+    env: process.env,
+    existsSync: fsSync.existsSync,
+  })
 }
 
 function readLoggingConfigSync(): { loggingEnabled: boolean; logLevel: LogLevel } {
@@ -1877,11 +1888,12 @@ function registerProxiedHandlers() {
       })
       return false
     }
+    const shell = opts.shell || resolveConfiguredShellPathSync(readPersistedSettingsSync())
     const created = ptyManager.create({
       id: opts.id,
       cwd: opts.cwd,
       type: 'terminal',
-      shell: opts.shell,
+      shell,
       customEnv: opts.customEnv,
       workspaceId: opts.workspaceId,  // T0176: forward workspaceId for BAT_WORKSPACE_ID env injection
     })
@@ -2068,48 +2080,11 @@ function registerProxiedHandlers() {
     const cached = shellPathCache.get(shellType)
     if (cached) return cached
 
-    let result: string
-    if (process.platform === 'darwin' || process.platform === 'linux') {
-      if (shellType === 'auto') result = process.env.SHELL || '/bin/zsh'
-      else if (shellType === 'zsh') result = '/bin/zsh'
-      else if (shellType === 'bash') {
-        if (fsSync.existsSync('/opt/homebrew/bin/bash')) result = '/opt/homebrew/bin/bash'
-        else if (fsSync.existsSync('/usr/local/bin/bash')) result = '/usr/local/bin/bash'
-        else result = '/bin/bash'
-      }
-      else if (shellType === 'sh') result = '/bin/sh'
-      else if (shellType === 'pwsh' || shellType === 'powershell' || shellType === 'cmd') result = process.env.SHELL || '/bin/zsh'
-      else result = shellType
-    } else {
-      if (shellType === 'auto' || shellType === 'pwsh') {
-        const pwshPaths = [
-          'C:\\Program Files\\PowerShell\\7\\pwsh.exe',
-          'C:\\Program Files (x86)\\PowerShell\\7\\pwsh.exe',
-          process.env.LOCALAPPDATA + '\\Microsoft\\WindowsApps\\pwsh.exe'
-        ]
-        let found = ''
-        for (const p of pwshPaths) { if (fsSync.existsSync(p)) { found = p; break } }
-        if (found) result = found
-        else if (shellType === 'pwsh') result = 'pwsh.exe'
-        else if (shellType === 'auto' || shellType === 'powershell') result = 'powershell.exe'
-        else if (shellType === 'cmd') result = 'cmd.exe'
-        else result = shellType
-      }
-      else if (shellType === 'powershell') result = 'powershell.exe'
-      else if (shellType === 'cmd') result = 'cmd.exe'
-      else if (shellType === 'git-bash') {
-        const gitBashPaths = [
-          'C:\\Program Files\\Git\\bin\\bash.exe',
-          'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
-          process.env.LOCALAPPDATA + '\\Programs\\Git\\bin\\bash.exe'
-        ]
-        let found = ''
-        for (const p of gitBashPaths) { if (fsSync.existsSync(p)) { found = p; break } }
-        result = found || 'C:\\Program Files\\Git\\bin\\bash.exe'
-      }
-      else result = shellType
-    }
-
+    const result = resolveShellPath(shellType, {
+      platform: process.platform,
+      env: process.env,
+      existsSync: fsSync.existsSync,
+    })
     shellPathCache.set(shellType, result)
     return result
   })
