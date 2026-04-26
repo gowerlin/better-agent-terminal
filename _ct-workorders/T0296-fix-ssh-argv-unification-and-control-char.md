@@ -7,12 +7,12 @@
 | 工單編號 | T0296 |
 | 類型 | fix（v0.4.0 release blocker） |
 | Phase | PLAN-007 release prep — fix chain 第 3 張 |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 17:35 (UTC+8) |
 | 派發時間 | 2026-04-26 17:40 (UTC+8) |
 | 開始時間 | 2026-04-26 17:40 (UTC+8) |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 完成時間 | 2026-04-26 17:55 (UTC+8) |
+| Wall time | ~15 min |
 | Sizing | L（GP099 校準後預期 wall 15-25 min — 4 個 ssh-*.ts 抽 helper + 控制字元 reject + BatchMode 補上） |
 | 依賴 | T0294 ✅、T0295 ✅、T0292 review F-004、T0293 review EC-002 + EC-003 |
 | 後續 | T0297（launchd plist XML escape） → T0298（re-review） |
@@ -222,4 +222,4 @@ tests/ssh-start-server.test.ts ... 13/13 pass（含 10b/10c/10d 新增）
 無。1 處小設計權衡：workorder 的 helper signature `args.push('--', user@host)` 終結於 user@host，但 SshTunnel 需在 `--` 之前 splice `-N -L …` 等 tunnel-specific opts（否則會被 ssh 當成 remote command）。採方案：`buildBaseSshArgs` 加可選 `extraOpts: readonly string[] = []` 參數，spliced before `--`。對其他 3 個模組為向下相容（不傳 extraOpts），對 SshTunnel 直接傳入 tunnel extras。
 
 ### Commit
-（待補 hash）
+`2ed8246` fix(remote): T0296 SSH argv unification + control char + BatchMode (F-004 + EC-002 + EC-003)
