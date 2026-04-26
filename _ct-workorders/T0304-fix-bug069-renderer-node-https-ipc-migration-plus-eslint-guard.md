@@ -7,8 +7,9 @@
 | 工單編號 | T0304 |
 | 類型 | fix |
 | 優先級 | 🔴 High（v0.4.2 patch blocker） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 開始時間 | 2026-04-26 20:37 (UTC+8) |
+| 完成時間 | 2026-04-26 20:46 (UTC+8) |
 | 預估規模 | S-M（30-45 min Spike A + 10 min R2 ESLint）|
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-26 20:42 (UTC+8) |
@@ -244,7 +245,7 @@ fix(renderer): T0304 BUG-069 v0.4.1 NSIS renderer crash — IPC 遷移 + verify 
 - build / build:dir / build:release pipeline 串接此 verify（D090 守衛等效手段）
 ```
 
-commit hash 見 git log（git commit 完才填）。
+commit hash：`e8bb389`（main）。
 
 ### 互動紀錄
 
