@@ -7,7 +7,8 @@
 | 工單編號 | T0310 |
 | 類型 | docs |
 | 優先級 | 🟢 Low（PLAN-030 收尾，非阻擋） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
+| 開始時間 | 2026-04-27 00:01 (UTC+8) |
 | 預估規模 | S |
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-26 23:?? (UTC+8) |
@@ -191,3 +192,55 @@ T0310 是 PLAN-030 最後一張工單。Worker 完成後塔台會：
 - 等使用者實機驗收 BUG-070 + 整套 UI 後 → BUG-070 → CLOSED
 
 YOLO 鏈式至此自然停止（無下一張工單）。
+
+---
+
+## Worker 回報區
+
+### 完成狀態
+DONE
+
+### 開始 / 完成時間
+- 開始：2026-04-27 00:01 (UTC+8)
+- 完成：2026-04-27 00:04 (UTC+8)
+
+### 交付摘要
+- 新增 `docs/design/bat-stepper-design-language.md`（313 行，8 章節 + 2 附錄）
+- 元件 API 與狀態-視覺對應表直接從 `src/components/stepper/types.ts` + `status-preset.ts` 同步（T0307 落地版本）
+- ID 隱藏原則引用 T0309 實作；BUG status 套用引用 T0308；Setup Wizard 套用引用 T0309
+- 不改任何程式碼，純新增 docs 一份
+- `docs/design/` 為新建目錄
+
+### 章節 / 程式碼引用對照
+
+| 章節 | 引用程式碼 |
+|------|-----------|
+| 2. 元件 API | `src/components/stepper/types.ts`（StepperOrientation / StepStatus / StepDescriptor / StepperProps）|
+| 3. 狀態-視覺對應表 | `src/components/stepper/status-preset.ts`（STATUS_PRESET / SEVERITY_ORDER / worstStatus）|
+| 5. ID 隱藏原則 | `src/components/setup-wizard/SetupWizardShell.tsx`（T0309 移除 `text-xs uppercase`）|
+| 6. 適用情境 — BUG | `src/components/BugWorkflowIndicator.tsx`（T0308 horizontal）|
+| 6. 適用情境 — Wizard | `src/components/setup-wizard/SetupWizardShell.tsx`（T0309 vertical 4 group）|
+| 8. i18n 範例 | `src/locales/{en,zh-TW,zh-CN}.json` 的 `wizard.*.steps.*` keys |
+| 附錄 A | `wizard-runner.ts` (jumpToStep)、`stepper.css` |
+
+### Step 3 / 4 可選步驟
+- Step 3（README index）：`docs/README.md` / `docs/index.md` 不存在，跳過
+- Step 4（fieldguide design 子命令 hook）：BAT 無此子命令，標記 deferred 不影響本工單完成
+
+### 不在範圍 / 已遵守
+- ✅ 不改程式碼
+- ✅ 不改既有 docs 結構
+- ✅ 不寫 changelog
+- ✅ 不寫 fieldguide 子命令本體
+
+### 互動紀錄
+無
+
+### Renew 歷程
+無
+
+### 遭遇問題
+無
+
+### Commit hash
+（待填）
