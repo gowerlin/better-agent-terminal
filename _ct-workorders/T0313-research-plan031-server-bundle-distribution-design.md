@@ -738,4 +738,4 @@ function tarballURL(arch: ..., batVersion: string, baseURL?: string): string {
 - **PARTIAL 與否**：Full DONE。6 段全填，無空話；所有 9 cell 矩陣有實證；推薦方案 C-narrow 帶具體理由 + 反駁塔台預判 C-full；拆單表 14 張含 sizing/依賴/平行性/拍板需求
 - **需塔台拍板項數量**：7 項（見 Phase F 末段）
 - **新增文件**：無（研究結論已壓進 T0313 回報區，未獨立成 spec；spec 凝練留待 T0314 第一張 impl 工單內生產 `_spec-server-bundle-distribution.md` — 屆時整合本工單回報 + 塔台拍板結果）
-- **Commit**：將以 `chore(research): T0313 PLAN-031 server bundle distribution research` + 工單編號標記
+- **Commit**：`66d7437` `chore(research): T0313 PLAN-031 server bundle distribution research`
