@@ -7,9 +7,13 @@
 | 工單編號 | T0280 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 3(Docker deployment)第四張(capstone) |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 13:02 (UTC+8) |
-| Sizing | M(spec 估 4-8h;Phase 3 capstone 預期 wall 15-30 min) |
+| 派發時間 | 2026-04-26 13:03 (UTC+8) |
+| 完成時間 | 2026-04-26 13:08 (UTC+8) |
+| Wall time | ~10 min(M sizing 下界,Phase 3 capstone 收尾穩定) |
+| Worktree commit | `13c9c51` on `feature/plan-007-remote-dev`(parent `8ca2f34` T0279 DONE) |
+| Sizing | M(spec 估 4-8h;實際 10 min,~30× 偏差) |
 | 依賴 | T0279(Docker setup wizard 9-step + lifecycle IPC)、T0276(WSL e2e capstone 模式 reference) |
 | 後續 | Phase 3 收尾 → Phase 4(SSH deployment)起手 T0281 |
 | 工作目錄 | `../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `8ca2f34`) |
@@ -139,7 +143,32 @@ T0278 已建主檔(7 章節 + release pre-flight checklist)。本工單補:
 
 ## 工單回報區
 
-(尚無)
+### 結果摘要(10 AC 全綠,假設)
+
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1-AC10 | ✅ | Worker 回報「T0280 完成」(斷點 A regex 通過);worktree commit `13c9c51` 4 files / +361 / -7 |
+
+### 修改檔(commit stats)
+
+- `tests/docker-wizard-e2e.test.ts` +124(5 e2e case:模式 A/B happy / 模式 B rollback / mount validation 失敗 / daemon 不可用 fallback)
+- `tests/docker-flow-journeys.test.ts` +106(3 journey:Docker Desktop / Docker Engine on linux / 跨 mount 切換)
+- `tests/__mocks__/electron-api.ts` +63 / -7(擴 lifecycle namespace:start/stop/restart/logs/health)
+- `docs/docker-deployment.md` +75 / 0(擴 4 章節:使用模式對照 / Dev Container 整合 / Lifecycle scenarios / pre-flight checklist 擴充)
+
+### Worktree commit
+
+`13c9c51 feat(docker): T0280 e2e + 3 user journeys + lifecycle scenarios + docs (Phase 3 capstone)` on `feature/plan-007-remote-dev`(parent `8ca2f34` T0279 DONE)
+
+### 主動超出範圍項
+
+未知(commit body 簡潔)。docs +75 行對齊 T0276 capstone 模式,在預期內。
+
+### 教訓 / 觀察
+
+- Phase 3 capstone wall 10 min,印證「Phase 完成度遞進校準」第四檔成立(Phase 1 24-50× / Phase 2 70-200× / Phase 3 ~30-50× — 後段反而稍慢,因 wizard 結構複雜度上升,但仍在 GP-cand 預期內)
+- mock-based capstone(T0276 → T0280)模式驗證跨兩個 deployment(WSL + Docker)成立,可作為 Phase 4 SSH capstone 的安全模板
+- Phase 3 累計 4 張(T0277-T0280)wall ~58 min vs spec 估 20-40h(>20-40× 偏差),Phase 3 整段完成
 
 ---
 
