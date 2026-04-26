@@ -2,6 +2,7 @@ import type { WizardContext, WizardStep } from './wizard-runner'
 import { configureSshHostStep } from './steps/ssh/configure-host'
 import { verifySshAuthStep } from './steps/ssh/verify-auth'
 import { installSshServerBundleStep } from './steps/ssh/install-server-bundle'
+import { startServerStep } from './steps/ssh/start-server'
 import { connectTestStep } from './steps/wsl/connect-test'
 import { fetchFingerprintStep } from './steps/wsl/fetch-fingerprint'
 import { writeProfileStep } from './steps/wsl/write-profile'
@@ -15,7 +16,7 @@ const DEFAULT_INSTALL_PATH = '~/.local/bat-server'
  *   configure-ssh-host   → user picks host/user/port/key/install path/tunnel
  *   verify-ssh-auth       → BAT_AUTH_OK probe + uname/HOME parse
  *   install-server-bundle → ssh+tar pipe upload
- *   (write-systemd-unit)  → T0286 — not yet wired
+ *   start-server          → T0286: systemd unit / launchd plist + enable + verify
  *   fetch-fingerprint     → existing PLAN-018 step
  *   connect-test          → existing PLAN-018 step
  *   write-profile         → existing PLAN-018 step
@@ -26,6 +27,7 @@ export function buildSshWizardSteps(): WizardStep[] {
     configureSshHostStep,
     verifySshAuthStep,
     installSshServerBundleStep,
+    startServerStep,
     fetchFingerprintStep,
     connectTestStep,
     writeProfileStep,

@@ -535,6 +535,32 @@ const electronAPI = {
       ipcRenderer.on('ssh:upload-progress', handler)
       return () => ipcRenderer.removeListener('ssh:upload-progress', handler)
     },
+    // T0286 — start-server (systemd unit / launchd plist + enable + verify)
+    startServer: (request: {
+      startId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        targetOS: 'ssh-linux' | 'ssh-darwin'
+        installPath: string
+        serverPort?: number
+        serverHome: string
+      }
+    }) => ipcRenderer.invoke('ssh:start-server', request) as Promise<{
+      ok: boolean
+      method: 'systemd' | 'launchd' | 'failed'
+      servicePath: string
+      checkOutput?: string
+      error?: string
+      errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
+    }>,
+    onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => {
+      const handler = (_event: unknown, payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => callback(payload)
+      ipcRenderer.on('ssh:start-progress', handler)
+      return () => ipcRenderer.removeListener('ssh:start-progress', handler)
+    },
   },
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>

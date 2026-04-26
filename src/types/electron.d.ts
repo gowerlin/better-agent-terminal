@@ -378,6 +378,28 @@ interface ElectronAPI {
       }
     }) => Promise<{ ok: true } | { ok: false; error: string }>
     onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => () => void
+    // PLAN-007 T0286 — start-server (systemd unit / launchd plist + enable + verify)
+    startServer: (request: {
+      startId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        targetOS: 'ssh-linux' | 'ssh-darwin'
+        installPath: string
+        serverPort?: number
+        serverHome: string
+      }
+    }) => Promise<{
+      ok: boolean
+      method: 'systemd' | 'launchd' | 'failed'
+      servicePath: string
+      checkOutput?: string
+      error?: string
+      errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
+    }>
+    onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => () => void
   }
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>
