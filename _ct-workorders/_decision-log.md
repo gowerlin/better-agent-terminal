@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新:2026-04-25 14:54 (UTC+8)(補入 D084-D088 — session 24 BUG-058 chain + v0.3.1 hotfix release + session 25 BUG-059/055 chain via T0250→T0251 修復鏈)
+> 最後更新：2026-04-26 13:55 (UTC+8)（補入 D084-D088 body 區段 — drift 修復：索引表已先記載但 body 缺，本次補齊 session 24 BUG-058 chain + v0.3.1 hotfix release + session 25 BUG-059/055 chain via T0250→T0251 修復鏈）
 
 ---
 
@@ -74,6 +74,86 @@
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D088 2026-04-25 — BUG-059 + BUG-055 一同 🚫 CLOSED — T0251 runtime 驗收全綠，Session 25 收工
+
+- **背景**：T0251 修復鏈完成（commit `426d6fc` env 注入 + `42abda5` worker report + `f572a06` meta + `3101c6b` BUG CLOSED 收工）。使用者重建 packaged installer 後實機驗收 AC1-5：
+  - AC1 build green ✅
+  - AC2 `claude --version` 不觸發 update ✅（無 `.old.<ts>` 殘留）
+  - AC3 spawn 後無 `.old.*` 殘留 ✅
+  - AC4 worker session 鏈路完整 ✅
+  - AC5 dev 環境連帶 `.old.*` 解除 ✅
+- **VERIFY 決策**：[1] 直接 CLOSED — 使用者實機 5/5 AC 全綠
+- **連帶閉環**：BUG-055（原 WONTFIX，session 25 因 BUG-059 反證 install hook 同根因 → REOPEN → 一同 CLOSED）— 同根因 fix 一次解兩條
+- **本 session 25 成就**：熱區 8 張 BUG **全數 🚫 CLOSED 首次達成**（BAT 專案歷史首次零 open BUG 狀態）
+- **效率指標**：T0250（13 min 反組譯研究）+ T0251（7 min fire-and-forget 修復），平均 Worker wall 10 min，零 Renew，零 FAILED
+- **相關工單**：BUG-059 / BUG-055 / T0250 / T0251 / `426d6fc` / `3101c6b`
+
+---
+
+### D087 2026-04-25 — T0250 結論吸收 — 採方案 A spawn env 注入，派 T0251 單檔多點修改
+
+- **背景**：T0250 反組譯 13 min DONE（commit `2d5db28`），找出 `node_modules/@anthropic-ai/claude-code/cli.js` 的 auto-update flow：將 `app.asar.unpacked/.../bin/claude.exe` rename 為 `.old.<ts>` 後 `npm install -g` 到使用者 npm prefix（不在 BAT spawn 路徑），導致 binary missing。BUG-055（dev 殘留）同根因確認。
+- **方案選項**（Worker 提供）：
+  - **A 推薦**：在 BAT 所有 spawn 路徑無條件注入 `DISABLE_AUTOUPDATER=1`（最 robust，env flag native installer 已自我關閉，npm-global 路徑亦受益）
+  - B：patch `cli.js`（侵入式，每次 SDK 升級需重新處理）
+  - C：自行重打包 `@anthropic-ai/claude-code`（維護成本高）
+- **決定**：**[A] spawn env 無條件注入**
+- **理由**：
+  1. **防御性最強**：env flag 是 short-circuit update flow 的最早攔截點，config 值不會再被讀取觸發 update
+  2. **零侵入**：不 patch 第三方套件，SDK 升級無需重新處理
+  3. **同時解兩條 BUG**：embedded（BUG-059 packaged）+ dev（BUG-055）皆 spawn 路徑統一注入
+- **執行工單**：T0251（`pty-manager.ts` 三處 envWithUtf8 + `claude-agent-manager.ts` constructor + `CLAUDE.md` 補「Embedded claude auto-update 停用」段落）
+- **相關工單**：T0250 / T0251 / `2d5db28`
+
+---
+
+### D086 2026-04-25 — BUG-059 OPEN + BUG-055 REOPEN — Session 25 起手，反組譯研究路線
+
+- **背景**：使用者觀測 packaged BAT 內 embedded `claude.exe.old.<ts>` 殘留 + `claude --version` 觸發 update + binary missing → packaged 用戶端 worker session 整條鏈路斷。BUG-059 OPEN（🔴 High）。同時 BUG-055（原 WONTFIX，T0235 過程中觀測 dev 環境 `.old.*` 殘留）疑似同根因，重評估 cross-ref。
+- **選項**：
+  - Q1：[A] 派研究工單反組譯 cli.js / [B] 直接修
+  - Q2：[A] BUG-059 + BUG-055 同案 / [B] 拆兩條獨立追
+- **決定**：**Q1=A（派 T0250 反組譯研究）+ Q2=A（cross-ref 同案，待 T0250 確認再決定 BUG-055 REOPEN）**
+- **理由**：
+  1. **反組譯是套件行為違反文件預期時的高效武器**（L067 候選）— 直接讀 `cli.js` 比測試假設快 5-10 倍
+  2. **Cross-ref 避免 scope 切割**：若同根因，一次修可解兩條；若不同根因，再拆案不晚
+- **執行工單**：T0250（research，反組譯 `node_modules/@anthropic-ai/claude-code/cli.js` auto-update flow）
+- **本 session 收工條件**：BUG-059 🚫 CLOSED（並評估 BUG-055 連帶處理）
+- **相關工單**：BUG-059 / BUG-055 / T0250
+
+---
+
+### D085 2026-04-24 — BUG-058 🚫 CLOSED — v0.3.1 GitHub Actions hotfix release 驗收通過
+
+- **背景**：T0249 release prep DONE（`eca8ab6` chore + `02d8bb2` v0.3.1 hotfix bump）後，使用者 push + tag 觸發 GitHub Actions release。NSIS installer 實機重裝驗收 `$BAT_HELPER_DIR` 含 4 個 `.mjs` helper（T0247 修復 + T0248 預防雙保險生效）。
+- **VERIFY 決策**：[1] 直接 CLOSED — GitHub Actions release artifact + 使用者實機重裝實測雙確認
+- **修復鏈總結**：T0246 研究（filter 漏列根因）→ T0247 fix（filter 改 glob 白名單）→ T0248 預防（`scripts/verify-helper-bundle.js` fail-fast）→ T0249 release prep（CHANGELOG + bump 0.3.0→0.3.1）→ v0.3.1 GitHub Actions release
+- **教訓**（本 session 24 學習候選）：
+  1. **packaging filter 變更要靜態檢查**（L108 候選）— `extraResources.filter` glob 白名單漏列即時靜檢
+  2. **release 必須跑完 GitHub Actions 實機驗收**（L101 三度驗證）— session 23 v0.3.0 在打包前未實測 NSIS 完整路徑，BUG-058 在 release 後 30 min 內被回報
+  3. **預防工單與修復工單應同 session 處理** — T0247 修 + T0248 預防同 session 完成，確保 release prep 包含完整修復鏈
+- **相關工單**：BUG-058 / T0247 / T0248 / T0249 / `b0b8128` / `02d8bb2`
+
+---
+
+### D084 2026-04-23 — BUG-058 OPEN + T0246-T0249 拆鏈派發 — Session 24 起手，v0.3.0 release 後 30 min regression
+
+- **背景**：使用者打包 v0.3.0 NSIS 後實機觀測 — `$BAT_HELPER_DIR` 缺 `_bat-*.mjs` helper scripts，yolo 派發鏈斷。BUG-058 OPEN（🔴 High，session 23 v0.3.0 release 後立即 regression）。
+- **選項**（Q3 拆單策略）：
+  - A：研究 → 修復 → 預防 → release 四工單拆鏈
+  - B：合併研究+修復為一張，預防+release 各一張
+  - C：單一巨單一次處理
+- **決定**：**Q3=A 四張拆鏈（T0246 研究 / T0247 修復 / T0248 預防 / T0249 v0.3.1 release prep）**
+- **理由**：
+  1. **研究先行避免盲修**（L103 先研後修 ROI）— 雖 root cause space 看似小（filter 漏列），但 `extraResources.filter` glob 行為易踩坑
+  2. **預防工單獨立**：靜態檢查工具（`verify-helper-bundle.js`）與 fix 邏輯解耦，未來 helper 新增自動受保護
+  3. **Release prep 獨立工單**：CHANGELOG / bump / commit 訊息規格化，方便 review
+- **執行工單**：T0246（research）→ T0247（fix-and-forget）→ T0248（preventive）→ T0249（release prep）
+- **本 session 收工條件**：v0.3.1 hotfix release 上架（GitHub Actions artifact + 使用者實機驗收）
+- **相關工單**：BUG-058 / T0246 / T0247 / T0248 / T0249
 
 ---
 

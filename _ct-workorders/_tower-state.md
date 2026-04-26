@@ -3281,7 +3281,7 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | worker-time-estimation | ✅ Skill | (前次 session 升 Skill,沿用) |
 | _archive/ | ✅ | **304 張歸檔**(workorders:238 / bugs:51 / plans:15;v.s. 上次 205,session 21-25 期間自然累積) |
 | _playbooks/ | ✅ 空 | 目錄存在,0 張(Playbook 候選仍在 Global Layer 2) |
-| _decision-log | ⚠️ | 檔案至 D083(drift!metadata 報 D088,session 24/25 D084-D088 待補) |
+| _decision-log | ✅ | 檔案至 D088(drift 2026-04-26 13:55 修復,session 30 補入 D084-D088 body 5 條) |
 | 跨專案參照 | 📋 | 無關聯(_cross-references.md 不存在)|
 | Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/learnings/ — patterns.md + tech-gotchas.md(session 23 *evolve 後新增 GP083/084/TG014-016) |
 | Global 設定 | ❌ 無 | ~/.claude/control-tower-data/config.yaml 不存在(僅 project 層設定) |
@@ -3293,9 +3293,9 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 | 塔台版本 | v4.4.0 | SKILL.md frontmatter(已自 v4.3.0 升級) |
 | 能力等級 | Level 2 | ECC(Level 1+) + mem0 + Layer 2 學習資料 |
 
-> **⚠️ Drift 警告**:
-> 1. `_decision-log.md` 末記 D083(2026-04-23),metadata 報 D088 — D084-D088 需在補 session 24/25 退場快照時一併補入
-> 2. `_tower-state.md` 頂部「最後更新」仍標 2026-04-23 16:02 (session 23) — 需於 Step 3(D)補史料時更新
+> **Drift 狀態**:
+> 1. ✅ `_decision-log.md` D084-D088 body 已補入(2026-04-26 13:55,session 31)
+> 2. `_tower-state.md` 頂部「最後更新」仍標 2026-04-23 16:02 (session 23) — 待後續 session 退場快照時更新
 
 ---
 
