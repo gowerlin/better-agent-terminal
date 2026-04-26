@@ -9,7 +9,8 @@
 | 嚴重度 | 🟡 Medium |
 | 可重現 | 100%(本 session 第一張 T0277 正確,T0278/T0279/T0280 連續 3 張錯誤)|
 | Workaround | 不確定(待調查;可能解:每次手動關閉 BAT 終端後重派 / 強制重啟 BAT process) |
-| 狀態 | 🔴 OPEN |
+| 狀態 | ⏳ FIXING |
+| 修復工單 | T0281(2026-04-26 13:12 派發)|
 | 建立時間 | 2026-04-26 13:08 (UTC+8) |
 | 報告者 | Gower(human via 塔台 *bug)|
 | 影響範圍 | YOLO 鏈式派發 / `auto-session: yolo` 模式 / BAT 內部終端開啟流程 |
