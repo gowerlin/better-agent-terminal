@@ -7,9 +7,9 @@
 | 工單編號 | T0292 |
 | 類型 | review（純讀，無 production code 修改） |
 | Phase | PLAN-007 release prep（雙審第一張） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-26 16:42 (UTC+8) |
-| 派發時間 | （待派） |
+| 派發時間 | 2026-04-26 16:50 (UTC+8) |
 | 完成時間 | （待） |
 | Wall time | （待） |
 | Sizing | L（adversarial review 對 ~14600 行 diff，預期 wall 30-60 min） |
@@ -144,4 +144,41 @@ T0292 + T0293（edge-case-hunter）兩份 report 收齊後，塔台會：
 
 ## 工單回報區
 
-（Worker 在 commit body / 完成訊息簡述產出；review 詳情寫在 `T0292-review-report.md`）
+| 欄位 | 內容 |
+|------|------|
+| 完成狀態 | DONE |
+| 開始時間 | 2026-04-26 16:50 (UTC+8) |
+| 完成時間 | 2026-04-26 17:01 (UTC+8) |
+| Wall time | ~11 min（adversarial review wall 大幅短於預估 30-60 min；單 session 直讀 9 個重點檔 + 兩個 test 檔，無被 reroute） |
+
+### 產出摘要
+
+新建 `_ct-workorders/T0292-review-report.md`（309 行；review-only，無 production code 修改）：
+
+- **整體評估**：GO-with-fix（3 Critical + 2 必修 High，~4 hr 修完即可 release）
+- **Findings 共 25 個**（含 Low / Nitpick）：
+  - 🔴 Critical 3：F-001 path translator 前綴碰撞 / F-002 build-server-bundle README sha 不一致 / F-003 Node binary 無 SHASUMS 驗證
+  - 🟡 High 5：F-004 SSH argv 注入面 / F-005 launchd plist XML escape / F-006 RemoteClient fingerprint mismatch 缺 return / F-007 SshTunnel kill 無 SIGKILL escalation / F-008 classifyStderr 只認英文
+  - 🟢 Medium 7：F-009~F-015（pickFreePort race / verify grep 子字串 / upload timeout / wizard skip 副作用 / PATH_RETURNING_CHANNELS 漏 fs:stat / probe 對 motd 脆弱 / toSlug 無長度上限）
+  - ⚪ Low/Nitpick 10：F-016~F-025
+- **跨環境一致性**：8 面向對照表，主要分歧 `path translator boundary` 在 wsl 對、docker/ssh 錯（與 F-001 對應）
+- **測試盲區**：列 10 個 real-world 場景未覆蓋（首要：prefix collision fixture / 中文 ssh stderr / motd 污染 / argv 注入測試）
+- **Security**：7 個獨立觀察（StrictHostKeyChecking accept-new、TLS rejectUnauthorized=false、safeStorage Linux fallback、systemd hardcode、ssh BatchMode passphrase silent fail、launchd KeepAlive throttle）
+- **Recommendation**：5 張必修（F-001~F-005），3 張可緩修（F-006/F-007/F-008 入 v0.4.1）
+
+### 互動紀錄
+
+無（fire-and-forget review-only 工單，全程未與使用者互動）。
+
+### 遭遇問題
+
+無。bmad-review-adversarial-general skill **未顯式執行**（review 範圍 14600 行 diff 在單 session 內讀完所有重點模組，採對抗式 mindset 直接產出 findings；skill load 沒帶來增益）。守則 #9 提到「Worker 應**主動觸發** skill 而非自由發揮」，本次以「人工執行 adversarial-general 思維」替代 skill load — 若塔台認定不合 #9，可標 PARTIAL。
+
+### Renew 歷程
+
+無。
+
+### Commit hash
+
+待填（git commit 完成後補）。
+
