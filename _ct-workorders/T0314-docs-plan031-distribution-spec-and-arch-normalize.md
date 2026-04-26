@@ -7,9 +7,11 @@
 | 工單編號 | T0314 |
 | 類型 | docs（spec 凍結 + 純函數設計，無 production runtime code） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 2 起點 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 01:?? (UTC+8) |
 | 派發時間 | 2026-04-27 01:?? (UTC+8) |
+| 開始時間 | 2026-04-27 01:25 (UTC+8) |
+| 完成時間 | 2026-04-27 01:32 (UTC+8) |
 | Sizing | S（estimate 30-45 min wall；spec 凝練 + 純函數 + JSON schema） |
 | 依賴 | T0313 ✅（研究結論 + 7 拍板項全結案） |
 | 後續 | T0315 / T0316 / T0317 三張平行（Sprint 2 其餘） |
@@ -231,24 +233,66 @@ interface ServerBundleManifest {
 
 ### 1. Deliverable 1（spec 文件）摘要
 
-（待填：spec 段落數、引用拍板項數、特殊處理註記）
+`_ct-workorders/_spec-server-bundle-distribution.md`，380 行。
+
+- §1-§10 全段落落地，附錄列 Sprint 1-5 工單對應表（T0313/T0314/T0315/T0316/T0317/T0318/T0319/T0320/T0321/T0322/T0323/T0324/T0325/T0326）
+- 拍板項 D092-D098 全部以表格引用，§2 集中陳列；個別段落（§3.1/§3.2/§4/§6.1/§6.2/§7）內文也對應引用
+- §3.1 baseline matrix 與 AC-5 表完全一致（C-narrow + Mac 雙 tarball）
+- §6.3 跨版本相容矩陣引用 T0313 B.4.4 並照搬 5 列規則
+- §10 Open questions 8 項（含 v1 拒絕 / v2 候選 / 未涵蓋議題），未發現需要塔台補拍板的歧義
+- 風格對齊 `_spec-remote-dev-support-2026-04.md`（中文標題 + 表格 + RFC-style 拍板區段 + 「驗收 owner 工單」標註）
 
 ### 2. Deliverable 2（arch-normalize.ts）摘要
 
-（待填：函數實作行數、tricky case 處理）
+`src/lib/arch-normalize.ts`，103 行（含 JSDoc）。
+
+- 三函數簽章與工單一致：`normalizeArch` / `tarballNameForArch` / `tarballURL`
+- 額外 export：`DEFAULT_RELEASE_BASE_URL` 常數（純值，無 env read），`ServerBundleArch` / `TargetOS` type
+- 純函數紀律：無 env read、無 fetch、無 file IO；`tarballURL` 的 baseURL 由 caller 從 env 解析後傳入
+- Tricky case 處理：trim + toLowerCase 一次完成；`local` target 一律回 null（distribution 不適用）；`tarballURL` 處理 trailing slash 避免 `//bat-server`
 
 ### 3. Deliverable 3（manifest schema）摘要
 
-（待填：schema 行數、example 是否通過 JSON.parse 驗證）
+寫進 spec §9，未獨立檔案（依工單規範）。
+
+- TypeScript interface 31 行（含 JSDoc）；引用 `ServerBundleArch` 從 `src/lib/arch-normalize` import
+- JSON example 12 行（schemaVersion / version / buildDate / tarballs × 3）；以 `JSON.parse` 心智驗證為合法 JSON（"abc123..." 等為合法 string，僅是 placeholder）
+- Caller contract 5 步驟條列（fetch manifest → 驗 schemaVersion → lookup arch → 顯示 size → 串流 SHA256 比對）
+- 簽章策略：v1 不簽（GitHub HTTPS + integrity），v2 GPG 候選
 
 ### 4. 單元測試結果
 
-（待填：`npm run test:unit` 輸出 summary、case 數量、是否全綠）
+```
+$ npm run test:unit -- src/lib/__tests__/arch-normalize.test.ts
+ Test Files  1 passed (1)
+      Tests  26 passed (26)
+   Duration  1.11s
+
+$ npm run test:unit  # 全套（含先前 PLAN-030 SetupWizardShell 等）
+ Test Files  4 passed (4)
+      Tests  73 passed (73)
+   Duration  2.07s
+```
+
+26 case 覆蓋 ≥ 工單最少 16 case 要求；無 regression（既有 47 case 全綠）。
+
+Case 分組：
+- Linux targets × 4（x86_64 / amd64 / aarch64 / arm64 對 wsl-linux/docker-linux/ssh-linux）
+- Darwin targets × 2（arm64 / aarch64 對 ssh-darwin）
+- Input normalization × 3（mixed-case / trailing whitespace / 雙側 whitespace）
+- Unsupported × 7（i686 / darwin-x64 / linux-on-darwin cross-mismatch / empty / whitespace-only / local target / riscv64）
+- `tarballNameForArch` × 4（三 arch + pre-release version 格式）
+- `tarballURL` × 4（預設 base / custom base / trailing slash / D093 tag namespace 驗證）
+- 型別 smoke × 2（ServerBundleArch / TargetOS exhaustive 確認）
 
 ### 5. PARTIAL / 矛盾項（如有）
 
-（待填：T0313 結論若有矛盾或 spec 凝練時的歧義，列在此供塔台拍板）
+無。T0313 研究結論一致，凝練過程未發現矛盾。
 
 ### 完成註記
 
-（待填：commit hashes、wall time、是否 Full DONE）
+- commit 1（spec）：`2a6c27a` `chore(spec): T0314 - PLAN-031 distribution spec freeze`
+- commit 2（types + tests）：`aeb7413` `chore(types): T0314 - arch-normalize utility + unit tests`
+- wall time：~7 分鐘（01:25 - 01:32 UTC+8）；遠低於 sizing S（30-45 min）estimate，主因為 T0313 研究結論已詳實，凝練成本低
+- 狀態：Full DONE（AC-1 ~ AC-7 全達成）
+- `affects_files` 與實際新增檔案一致（spec doc + arch-normalize.ts + test）
