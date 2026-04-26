@@ -25,6 +25,7 @@ export interface WizardContext {
   profileDraft: Record<string, unknown>
   warnings: string[]
   state: Record<string, unknown>
+  networkMode?: 'mirrored' | 'nat' | 'unknown'
   availableDistros?: Array<{ name: string; version: 1 | 2; state: 'Running' | 'Stopped' }>
   wslDistro?: string
   wslSystemdEnabled?: boolean
@@ -196,6 +197,7 @@ export class WizardRunner {
           }
         }
 
+        await this.rollbackFailedStep(step)
         await this.rollbackCompletedSteps()
         throw error
       }
@@ -237,6 +239,20 @@ export class WizardRunner {
         )
       }
       this.emitProgress()
+    }
+  }
+
+  private async rollbackFailedStep(step: WizardStep): Promise<void> {
+    if (!step.rollback) {
+      return
+    }
+
+    try {
+      await step.rollback(this.ctx)
+    } catch (error) {
+      this.ctx.logger.warn(
+        `Rollback failed for failed step ${step.id}: ${error instanceof Error ? error.message : String(error)}`,
+      )
     }
   }
 

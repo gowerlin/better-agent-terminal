@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, test } from 'node:test'
 import {
+  detectNetworkMode,
   installBundle,
   list,
   resetExecFileImplForTests,
@@ -99,6 +100,72 @@ test('systemdEnabled() falls back to /etc/wsl.conf when systemctl is unavailable
   })
 
   assert.equal(await systemdEnabled('Ubuntu'), true)
+})
+
+test('detectNetworkMode() reports NAT when ip route has an explicit gateway', async () => {
+  setExecFileImplForTests((_file, args, _options, callback) => {
+    const command = Array.isArray(args) ? args.join(' ') : ''
+    if (command.includes('ip route show default')) {
+      ;(callback as (error: Error | null, stdout: Buffer, stderr: Buffer) => void)(
+        null,
+        Buffer.from('default via 172.25.176.1 dev eth0 proto kernel\n'),
+        Buffer.alloc(0),
+      )
+      return {} as never
+    }
+    ;(callback as (error: Error | null, stdout: Buffer, stderr: Buffer) => void)(
+      new Error(`unexpected args: ${command}`),
+      Buffer.alloc(0),
+      Buffer.alloc(0),
+    )
+    return {} as never
+  })
+
+  assert.equal(await detectNetworkMode('Ubuntu'), 'nat')
+})
+
+test('detectNetworkMode() reports mirrored when ip route is direct', async () => {
+  setExecFileImplForTests((_file, args, _options, callback) => {
+    const command = Array.isArray(args) ? args.join(' ') : ''
+    if (command.includes('ip route show default')) {
+      ;(callback as (error: Error | null, stdout: Buffer, stderr: Buffer) => void)(
+        null,
+        Buffer.from('default dev eth0 proto kernel scope link src 192.168.1.55\n'),
+        Buffer.alloc(0),
+      )
+      return {} as never
+    }
+    ;(callback as (error: Error | null, stdout: Buffer, stderr: Buffer) => void)(
+      new Error(`unexpected args: ${command}`),
+      Buffer.alloc(0),
+      Buffer.alloc(0),
+    )
+    return {} as never
+  })
+
+  assert.equal(await detectNetworkMode('Ubuntu'), 'mirrored')
+})
+
+test('detectNetworkMode() falls back to unknown on empty route output', async () => {
+  setExecFileImplForTests((_file, args, _options, callback) => {
+    const command = Array.isArray(args) ? args.join(' ') : ''
+    if (command.includes('ip route show default')) {
+      ;(callback as (error: Error | null, stdout: Buffer, stderr: Buffer) => void)(
+        null,
+        Buffer.alloc(0),
+        Buffer.alloc(0),
+      )
+      return {} as never
+    }
+    ;(callback as (error: Error | null, stdout: Buffer, stderr: Buffer) => void)(
+      new Error(`unexpected args: ${command}`),
+      Buffer.alloc(0),
+      Buffer.alloc(0),
+    )
+    return {} as never
+  })
+
+  assert.equal(await detectNetworkMode('Ubuntu'), 'unknown')
 })
 
 test('validateDistroName() rejects shell metacharacters', () => {

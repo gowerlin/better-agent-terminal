@@ -14,6 +14,10 @@ export const pickWslDistroStep: WizardStep = {
       if (result.distros.length === 0) {
         throw new Error('No WSL distros found. Run `wsl --install -d Ubuntu` first.')
       }
+      const warning = 'BAT only supports WSL2. Run `wsl --set-version <distro> 2` before continuing.'
+      if (!ctx.warnings.includes(warning)) {
+        ctx.warnings.push(warning)
+      }
       throw new Error('BAT requires WSL2. Upgrade an existing distro to version 2 and retry.')
     }
 

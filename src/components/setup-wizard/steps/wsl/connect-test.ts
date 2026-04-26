@@ -16,6 +16,13 @@ export const connectTestStep: WizardStep = {
       throw new Error('Remote server token was not available after starting the BAT service.')
     }
 
+    if (ctx.networkMode === 'nat') {
+      const warning = 'connect-test is running against localhost while WSL reports NAT mode; mirrored mode is recommended for the best BAT experience.'
+      if (!ctx.warnings.includes(warning)) {
+        ctx.warnings.push(warning)
+      }
+    }
+
     let lastError: string | null = null
     const port = ctx.serverPort ?? 9876
     for (let attempt = 0; attempt < 3; attempt += 1) {

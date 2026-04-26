@@ -3225,6 +3225,7 @@ function registerLocalHandlers() {
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
   ipcMain.handle('wsl:list', () => wslDetect.list())
   ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
+  ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))
   ipcMain.handle('wsl:install-bundle', (_event, distro: string, tarballPath: string, installPath: string) =>
     wslDetect.installBundle(distro, tarballPath, installPath))
   ipcMain.handle('wsl:uninstall-bundle', async (_event, distro: string, installPath: string) => {

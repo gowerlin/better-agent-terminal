@@ -29,6 +29,7 @@ export const writeProfileStep: WizardStep = {
       remoteToken: ctx.remoteToken,
       remoteFingerprint: fingerprint,
     })
+    ctx.createdProfileId = profile.id
 
     const updated = await window.electronAPI.profile.update(profile.id, {
       targetOS: 'wsl-linux',
@@ -41,8 +42,6 @@ export const writeProfileStep: WizardStep = {
     if (!updated) {
       throw new Error('Failed to persist WSL profile metadata.')
     }
-
-    ctx.createdProfileId = profile.id
   },
   async rollback(ctx) {
     if (!ctx.createdProfileId) {

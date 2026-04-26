@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { SetupWizardShell, useWslWizardController } from './setup-wizard/SetupWizardShell'
 
 type TargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
 
@@ -41,6 +42,31 @@ interface ProfilePanelProps {
   onSwitch?: (profileId: string) => void  // deprecated, kept for compat
   onSwitchNewWindow: (profileId: string) => void
   onProfileRenamed?: (profileId: string, newName: string) => void
+}
+
+function parseConnectionUrl(input: string): {
+  host: string
+  port: number
+  token: string
+  fingerprint: string
+} | null {
+  try {
+    const url = new URL(input.trim())
+    const token = url.searchParams.get('token')
+    const fingerprint = url.searchParams.get('fp')
+    const port = Number(url.port || '9876')
+    if (!url.hostname || !token || !fingerprint || Number.isNaN(port)) {
+      return null
+    }
+    return {
+      host: url.hostname,
+      port,
+      token,
+      fingerprint,
+    }
+  } catch {
+    return null
+  }
 }
 
 export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: ProfilePanelProps) {
@@ -141,6 +167,10 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
       editInputRef.current.select()
     }
   }, [editingId])
+
+  const wslWizard = useWslWizardController(() => {
+    void loadProfiles()
+  })
 
   // Escape to close
   useEffect(() => {
@@ -381,6 +411,9 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
             </button>
             <button className="profile-action-btn" onClick={() => { setCreating('remote'); setNewName('') }}>
               {t('profiles.addRemote')}
+            </button>
+            <button className="profile-action-btn" onClick={() => wslWizard.open('')}>
+              Add WSL Profile
             </button>
           </div>
 
@@ -755,6 +788,25 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="profile-action-btn" onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</button>
               <button className="profile-action-btn danger" onClick={() => handleDelete(confirmDelete)}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {wslWizard.isOpen && wslWizard.ctx && (
+        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={wslWizard.close}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div className="settings-header">
+              <h2>Add WSL Profile</h2>
+              <button className="settings-close" onClick={wslWizard.close}>&times;</button>
+            </div>
+            <div className="settings-body" style={{ padding: '16px' }}>
+              <SetupWizardShell
+                key={wslWizard.key}
+                ctx={wslWizard.ctx}
+                onComplete={wslWizard.handleComplete}
+                steps={wslWizard.steps}
+              />
             </div>
           </div>
         </div>

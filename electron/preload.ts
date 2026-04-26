@@ -473,6 +473,7 @@ const electronAPI = {
   wsl: {
     list: () => ipcRenderer.invoke('wsl:list') as Promise<{ distros: { name: string; version: 1 | 2; state: 'Running' | 'Stopped' }[]; default: string | null }>,
     systemdEnabled: (distro: string) => ipcRenderer.invoke('wsl:systemd-enabled', distro) as Promise<boolean>,
+    detectNetworkMode: (distro: string) => ipcRenderer.invoke('wsl:detect-network-mode', distro) as Promise<'mirrored' | 'nat' | 'unknown'>,
     installBundle: (distro: string, tarballPath: string, installPath: string) =>
       ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
     uninstallBundle: (distro: string, installPath: string) =>

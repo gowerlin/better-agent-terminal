@@ -36,6 +36,12 @@ async function resolveBundleTarballPath(ctx: WizardContext): Promise<string> {
   throw new Error('Server bundle tarball not found in userData/bat-server-bundles. Release download flow lands in T0282.')
 }
 
+function pushWarning(ctx: WizardContext, warning: string): void {
+  if (!ctx.warnings.includes(warning)) {
+    ctx.warnings.push(warning)
+  }
+}
+
 export const installServerBundleStep: WizardStep = {
   id: 'install-server-bundle',
   title: 'Install BAT server bundle',
@@ -57,6 +63,25 @@ export const installServerBundleStep: WizardStep = {
     ctx.serverInstallPath = INSTALL_PATH
     ctx.state.bundleTarballPath = tarballPath
     ctx.state.bundleSha256Verified = false
+
+    const presetNetworkMode = typeof ctx.state.networkMode === 'string' ? ctx.state.networkMode : null
+    if (presetNetworkMode === 'mirrored' || presetNetworkMode === 'nat' || presetNetworkMode === 'unknown') {
+      ctx.networkMode = presetNetworkMode
+    } else {
+      try {
+        ctx.networkMode = await window.electronAPI.wsl.detectNetworkMode(ctx.wslDistro)
+      } catch (error) {
+        ctx.networkMode = 'unknown'
+        ctx.logger.warn(`Unable to detect WSL networking mode: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    if (ctx.networkMode === 'nat') {
+      pushWarning(
+        ctx,
+        'WSL is using NAT networking. Switch to mirrored mode or be ready to replace localhost with the distro IP if connect-test fails.',
+      )
+    }
   },
   async rollback(ctx) {
     if (!ctx.wslDistro || !ctx.serverInstallPath) {
@@ -68,5 +93,6 @@ export const installServerBundleStep: WizardStep = {
       return
     }
     ctx.serverInstallPath = undefined
+    ctx.networkMode = undefined
   },
 }

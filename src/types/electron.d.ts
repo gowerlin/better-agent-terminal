@@ -324,6 +324,7 @@ interface ElectronAPI {
   wsl: {
     list: () => Promise<{ distros: WslDistroRecord[]; default: string | null }>
     systemdEnabled: (distro: string) => Promise<boolean>
+    detectNetworkMode: (distro: string) => Promise<'mirrored' | 'nat' | 'unknown'>
     installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
   }

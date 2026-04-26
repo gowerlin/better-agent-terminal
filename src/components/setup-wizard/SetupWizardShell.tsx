@@ -7,10 +7,12 @@ import {
   type WizardStep,
   type WizardStepSnapshot,
 } from './wizard-runner'
+import { buildWslWizardSteps, createWslWizardContext } from './wsl-flow'
 
 interface SetupWizardShellProps {
   steps: WizardStep[]
   ctx: WizardContext
+  onComplete?: (profileId: string) => void
 }
 
 function statusIcon(step: WizardStepSnapshot): string {
@@ -31,7 +33,39 @@ function statusIcon(step: WizardStepSnapshot): string {
   }
 }
 
-export function SetupWizardShell({ steps, ctx }: SetupWizardShellProps) {
+export function useWslWizardController(onComplete: (profileId: string) => void) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [ctx, setCtx] = useState<WizardContext | null>(null)
+  const [instanceKey, setInstanceKey] = useState(0)
+
+  const open = (profileName = '') => {
+    setCtx(createWslWizardContext({ profileName }))
+    setInstanceKey((value) => value + 1)
+    setIsOpen(true)
+  }
+
+  const close = () => {
+    setIsOpen(false)
+    setCtx(null)
+  }
+
+  const handleComplete = (profileId: string) => {
+    onComplete(profileId)
+    close()
+  }
+
+  return {
+    isOpen,
+    key: instanceKey,
+    steps: buildWslWizardSteps(),
+    ctx,
+    open,
+    close,
+    handleComplete,
+  }
+}
+
+export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellProps) {
   const [stepStates, setStepStates] = useState<WizardStepSnapshot[]>([])
   const [activeChoice, setActiveChoice] = useState<WizardChoiceRequest | null>(null)
   const [wizardError, setWizardError] = useState<string | null>(null)
@@ -51,7 +85,12 @@ export function SetupWizardShell({ steps, ctx }: SetupWizardShellProps) {
     const runner = new WizardRunner(steps, runnerCtx, setStepStates)
     runnerRef.current = runner
     void runner.run()
-      .then(() => setComplete(true))
+      .then(() => {
+        setComplete(true)
+        if (runnerCtx.createdProfileId) {
+          onComplete?.(runnerCtx.createdProfileId)
+        }
+      })
       .catch((error) => setWizardError(error instanceof Error ? error.message : String(error)))
 
     return () => {

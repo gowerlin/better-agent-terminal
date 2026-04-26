@@ -9,6 +9,8 @@ export interface WslDistro {
   state: 'Running' | 'Stopped'
 }
 
+export type WslNetworkMode = 'mirrored' | 'nat' | 'unknown'
+
 interface ExecResult {
   stdout: Buffer
   stderr: Buffer
@@ -152,6 +154,27 @@ export async function systemdEnabled(distro: string): Promise<boolean> {
   const confResult = await runWsl(validatedDistro, ['cat', '/etc/wsl.conf'], { allowFailure: true })
   const confText = normalizeTextOutput(confResult.stdout)
   return /^\s*systemd\s*=\s*true\s*$/im.test(confText)
+}
+
+export async function detectNetworkMode(distro: string): Promise<WslNetworkMode> {
+  const validatedDistro = validateDistroName(distro)
+  const routeResult = await runWsl(validatedDistro, ['ip', 'route', 'show', 'default'], { allowFailure: true })
+  const routeText = normalizeTextOutput(routeResult.stdout)
+  const routeLower = routeText.toLowerCase()
+  if (!routeLower) {
+    return 'unknown'
+  }
+
+  // Best-effort heuristic:
+  // - a default route with an explicit gateway is typically WSL NAT
+  // - a direct default route (no "via") is typically mirrored mode
+  if (routeLower.includes(' via ')) {
+    return 'nat'
+  }
+  if (routeLower.includes(' dev ')) {
+    return 'mirrored'
+  }
+  return 'unknown'
 }
 
 export async function installBundle(
