@@ -7,8 +7,9 @@
 | 工單編號 | T0312 |
 | 類型 | impl（UI polish） |
 | 優先級 | 🟡 Medium（T0311 layout 已 side-by-side 但右欄過擠，內容換行影響可讀性） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 00:27 (UTC+8) |
+| 完成時間 | 2026-04-27 00:28 (UTC+8) |
 | 預估規模 | XS-S |
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
@@ -97,3 +98,58 @@ T0311 加了 `@media (max-width: 720px)` fallback 回 stacked。本工單的 `mi
 1. `git add` + `git commit`（message：`fix(wizard): T0312 widen setup wizard dialog 2x for comfortable side-by-side reading — relates PLAN-030`）
 2. 在工單檔尾追加 Worker 回報區（含寬度數值前後對照、commit hash、tests 結果）
 3. **回報字串嚴格符合斷點 A regex**：`T0312 完成` / `T0312 部分完成` / `T0312 失敗` / `T0312 需要協助`
+
+---
+
+## Worker 回報區
+
+| 欄位 | 內容 |
+|------|------|
+| 完成狀態 | DONE |
+| 開始時間 | 2026-04-27 00:27 (UTC+8) |
+| 完成時間 | 2026-04-27 00:28 (UTC+8) |
+| commit | 9ae338a |
+| tests | `npm run test:unit` ✅ 47 passed / `npx vite build` ✅ 通過 |
+
+### 產出摘要
+
+**修改檔案**：
+- `src/components/ProfilePanel.tsx`（3 處）：WSL / Docker / SSH wizard dialog 的 `maxWidth` 由 `720` 改為 `'min(1040px, 90vw)'`
+- `_ct-workorders/T0312-impl-plan030-setup-wizard-dialog-width-2x.md`：metadata 狀態與本回報區
+
+**寬度前後對照**：
+| 項目 | 前 | 後 |
+|------|----|----|
+| `maxWidth` | `720` (px) | `'min(1040px, 90vw)'` |
+| desktop ≥1156px 視窗 | 720px | 1040px（2 × 既有，符合 DOD「2x」目標） |
+| 1040px > 視窗 ≥ 800px | 720px | 90vw（自適應，避免爆出） |
+| 視窗 < 720px | 720px（會超出畫面） | 90vw（縮小不爆出，且觸發 T0311 的 `@media (max-width:720px)` stacked fallback） |
+
+**設計選擇理由**：
+- 採用工單建議方案 [B+C] 變體：直接 inline `min(1040px, 90vw)`，未引入特化 class（最小變動，沿用既有 `.settings-panel` 的其他樣式）
+- **未加 `min-width: 720px`**：若加，視窗 < 720px 時 dialog 仍強制 720px 會橫向溢出。改用 `90vw` 作為下界，搭配 T0311 setup-wizard.css 的 `@media (max-width: 720px)` stacked fallback 自動降級
+- 三個 wizard（WSL / Docker / SSH）共用相同 inline style，未來若要再特化可再抽 class
+- 不影響其他 dialog：grep 確認 `maxWidth: 720` 僅此 3 處，其他 modal 各自獨立寬度（520 / 360 / 1060 etc.）
+
+### 驗收條件對照
+
+- [x] Setup Wizard Dialog `max-width` 放寬到約 1040px（2x 既有 720）
+- [x] viewport-aware（`min(1040px, 90vw)`）避免超出畫面
+- [x] 不影響其他 Dialog 既有寬度（grep 驗證）
+- [x] `npm run test:unit` ✅ 47 passed
+- [x] `npx vite build` ✅ 通過
+- [x] git commit message 含 `relates PLAN-030`
+- [-] `min-width: 720px`：刻意未加，理由見上方「設計選擇理由」（`90vw` + T0311 stacked fallback 已涵蓋小視窗情境）
+- [△] 視覺驗證（distro 按鈕能 inline）：靜態驗證已通過（寬度數值對照），實機 DevTools 拖視窗驗證留待使用者確認
+
+### 互動紀錄
+
+無
+
+### 遭遇問題
+
+無
+
+### Renew 歷程
+
+無
