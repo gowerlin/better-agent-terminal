@@ -7,8 +7,9 @@
 | 工單編號 | T0306 |
 | 類型 | impl |
 | 優先級 | 🔴 High（收斂 BUG-070 — Workaround:無，使用者無法觸及被裁切按鈕） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-26 22:36 (UTC+8) |
+| 完成時間 | 2026-04-26 22:45 (UTC+8) |
 | 預估規模 | S-M（reuse `.thumbnail-add-menu` 模式 + 新增 2 個 CSS class + AddProfileMenu 元件 + ProfilePanel 工具列改造 + i18n） |
 | 互動模式 | non-interactive（YOLO 鏈式，無需與使用者互動；遇到設計取捨直接採 T0305 結論） |
 | 建立時間 | 2026-04-26 22:?? (UTC+8) |
@@ -215,5 +216,5 @@ export function AddProfileMenu({ options, buttonLabel }: Props) {
 
 **Renew 歷程**：無。
 
-**Commit hash**：（commit 後填入）
+**Commit hash**：`014da72` — `feat(profiles): T0306 group-by-category dropdown for advanced profile types — closes BUG-070`
 

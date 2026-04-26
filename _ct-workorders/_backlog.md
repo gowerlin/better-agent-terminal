@@ -1,10 +1,10 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-26 20:46 (UTC+8) — Session 33 PLAN-029 IDEA（BUG-069 audit 衍生 R3 + R5）。
+> 最後同步：2026-04-26 22:?? (UTC+8) — Session 34 起手 PLAN-030 IDEA（ProfilePanel + Setup Wizard UI overhaul，收斂 BUG-070）。
 
 ## 統計
-- 💡 Ideas: 2 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 5 | 🚫 Dropped: 1 | **Total: 9**
+- 💡 Ideas: 3 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 5 | 🚫 Dropped: 1 | **Total: 10**
 
 > 已歸檔 PLAN（`_archive/plans/`）：19 張
 
@@ -12,6 +12,7 @@
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
+| PLAN-030 | ProfilePanel + Setup Wizard UI 整體改善（套用 BUG Report stepper 視覺語言；收斂 BUG-070） | 🔴 High | 📐 PLANNED | [PLAN-030](PLAN-030-profile-panel-setup-wizard-ui-overhaul.md) |
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B） | 🟡 Medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-015 | Refactor：抽取 renderPanelContent shared helper（消除 App.tsx/WorkspaceView.tsx 雙 render 路徑） | 🟢 Low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts misplaced require + R5 setup-wizard manualChunks（BUG-069 audit 衍生） | 🟢 Low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
