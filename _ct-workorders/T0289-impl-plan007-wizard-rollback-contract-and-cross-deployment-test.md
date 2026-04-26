@@ -7,11 +7,11 @@
 | 工單編號 | T0289 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 5（整合測試 + UX polish）第二張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE（clean DONE，AC1-AC10 全綠；baseline drift 0/36→36；Worker 發現 wizard-runner rollback chain 已備（前期工單），僅補 Docker + SSH rollback fn + 9 個測試 case；7 files / +642 / -2） |
 | 建立時間 | 2026-04-26 16:00 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 16:00 (UTC+8) |
+| 完成時間 | 2026-04-26 16:13 (UTC+8) |
+| Wall time | ~13 min（GP099 校準 15-25 min 預期，第八次連續落於下界以下） |
 | Sizing | M（spec 估 4-8h；GP099 Phase 4-5 校準後預期 wall 15-25 min — rollback hook + 跨 3 deployment 測試） |
 | 依賴 | T0276 ✅、T0280 ✅、T0287 ✅、T0288 ✅（Phase 5 ProfilePanel 重構） |
 | 後續 | T0290 docs + release checklist、T0291 e2e smoke + migration verification |
