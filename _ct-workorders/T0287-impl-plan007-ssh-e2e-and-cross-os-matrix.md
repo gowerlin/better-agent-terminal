@@ -7,11 +7,11 @@
 | 工單編號 | T0287 |
 | 類型 | impl（Phase 4 capstone） |
 | Phase | PLAN-007 Phase 4（SSH deployment）第六張（收尾） |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 15:18 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 15:19 (UTC+8) |
+| 完成時間 | 2026-04-26 15:37 (UTC+8) |
+| Wall time | ~18 min |
 | Sizing | L（spec 估 8-16h；GP099 校準後預期 wall 20-40 min — mock-based e2e + ProfilePanel 入口 + 文件） |
 | 依賴 | T0282 ✅、T0283 ✅、T0284 ✅、T0285 ✅、T0286 ✅（Phase 4 全前序 DONE） |
 | 後續 | Phase 4 完整收尾 → 進入 Phase 5（整合測試 + UX polish + 文件 + release prep） |
@@ -146,4 +146,60 @@ T0287 DONE 後塔台應：
 
 ## 工單回報區
 
-（Worker 完成後在此補回報；塔台會在收到「T0287 完成」訊息後從本檔讀回報區）
+### 完成狀態
+DONE（10/10 AC 全過）
+
+### 開始 / 完成 / wall
+- 開始：2026-04-26 15:19
+- 完成：2026-04-26 15:37
+- wall：~18 min（再度落於估時下界 20 min 之下，GP099 第六次連續觸發）
+
+### Commit
+`6edd259` — `feat(remote): T0287 SSH e2e + cross-OS matrix + ProfilePanel integration (Phase 4 capstone)`，分支 `feature/plan-007-remote-dev`，worktree `bat-plan-007`。
+
+### 產出摘要
+- 新建（4 檔）：
+  - `tests/ssh-flow.test.ts`（5 cases，AC1）
+  - `tests/ssh-wizard-e2e.test.ts`（5 cases，AC2，含 selfsigned HTTPS mock server）
+  - `tests/ssh-flow-journeys.test.ts`（3 cases，AC3 + AC4 跨 OS 翻譯）
+  - `docs/ssh-deployment.md`（213 行，8 章節，AC7）
+- 修改（5 檔）：
+  - `src/components/setup-wizard/SetupWizardShell.tsx`：`useSshWizardController` hook + `ssh-linux`/`ssh-darwin` 進入 `resolveWizardSteps` / `createWizardContext`（AC5）
+  - `src/components/ProfilePanel.tsx`：Add SSH Profile button + overlay（28 行 diff，≤ 50 上限 ✓ AC6）
+  - `src/components/setup-wizard/steps/wsl/write-profile.ts`：SSH 分支將 ctx.state → ProfileEntry schema（`useSshTunnel` boolean，drop `sshAlias`/`sshInstallPath` runtime artifact）
+  - `tests/__mocks__/electron-api.ts`：擴充 `ssh.{listHosts,probeAuth,uploadBundle,startServer,onUploadProgress,onStartProgress}` + sequence-based responses + `createSshContext`
+  - `src/types/electron.d.ts`：補 `serverHome` 到 `profile.update`（backend 早已支援，typing 落後）
+- 測試結果：13/13 SSH tests pass；16/16 WSL+Docker regression suite 仍綠。
+- TS：error 數從 baseline 36 → 36（無新增；BUG-061 族系外無觸發）。
+- 無新 dep（AC8 ✓）；無 real spawn ssh/systemd/launchd（AC9 ✓）。
+
+### AC 對照
+- AC1 ✓ ssh-flow.test.ts 5 cases（AC1.1 step ordering / AC1.2 appliesTo SSH-only / AC1.3 appliesTo all / AC1.4 createSshWizardContext defaults / AC1.5 retryable flags）
+- AC2 ✓ ssh-wizard-e2e.test.ts 5 cases（happy path / upload progress / sequence + write-profile metadata / start-server failure rollback / custom profile names）
+- AC3 ✓ ssh-flow-journeys.test.ts 3 cases（Journey A alias / Journey B permission-denied recovery / Journey C 跨 OS macOS arm64）
+- AC4 ✓ Journey C 寫入 `SshPathTranslator('C:\\Users\\Alice','/Users/bob',true)` 雙向 assertion
+- AC5 ✓ `useSshWizardController` exported（grep 通過 SetupWizardShell.tsx）
+- AC6 ✓ ProfilePanel 改動 28 行（≤ 50）；既有 BUG-061 errors 未觸發
+- AC7 ✓ docs/ssh-deployment.md 213 行；8 章節（grep `^## ` = 8）
+- AC8 ✓ 無新 dep（git diff package.json 空）；mock HTTPS 用 selfsigned + node:https
+- AC9 ✓ 全 mock；grep `child_process|spawn ssh|systemctl|launchctl` 於三個 test 檔案皆 0 命中
+- AC10 ✓ TS error count 不變（baseline 36 → 36）；total Phase 4 e2e count = 5 + 5 + 3 = 13（≥ 12）
+
+### 互動紀錄
+無（fire-and-forget，CT_INTERACTIVE=0）
+
+### Renew 歷程
+無
+
+### 遭遇問題
+- **WSL `write-profile.ts` 不處理 SSH 分支**：T0285 ssh-flow.ts 重用 `wsl/write-profile.ts`，但該檔僅處理 `docker-linux` 與 WSL，遇到 `ssh-linux`/`ssh-darwin` 會抛 `wslDistro` 錯誤。雖未列在 affects_files，為達端到端正確性必須擴。已加 SSH 分支（60 行新增），對齊 ProfileEntry schema（`useSshTunnel` 而非 `sshTunnelMode`）。
+- **`profile.update` typing 落後 backend**：`ProfileEntry` 已含 `serverHome`，backend update API 也讀，但 `electron.d.ts` 的 `profile.update` 簽名漏了。1 行補上。
+- **`install-server-bundle` 對 darwin 沒有 fallback regex**：`findBundleInDirectory` 只認 `bat-server-linux-{x64,arm64}`，無 darwin pattern。Journey C 用 `ctx.state.bundleTarballPath` 顯式覆寫繞過（這是 production code 預留的 escape hatch，符合 AC9 不修 baseline 限制）。
+
+### 給塔台的訊號
+- **Phase 4 收尾完成**：T0282-T0287 全 DONE，Phase 4（SSH deployment）端到端可用。
+- **Phase 5 入口建議**：T0288-T0290 候選為「整合測試 + UX polish + release prep」（PLAN-007 spec §收尾）。
+- **GP099 第六次下界**：估 8-16h spec / 20-40 min wall，實際 ~18 min。連續 6 張工單 wall 落於下界以下，sizing model 需重 calibrate（建議 `*evolve`）。
+- **Worker 神速三要素再驗證**：spec freeze（T0266 §7 Journey 凍結）+ 既有 mock pattern（T0276 WSL e2e 同構）+ worktree 隔離（baseline BUG-061 不污染）。
+- **小型 schema 升級候選**：未來 Phase 5 整合測試若需要 alias/installPath 跨 session 持久化，可考慮把這兩個欄位加入 ProfileEntry（目前是「runtime artifact」設計，但 UX 上 power user 可能期待「我選的 alias 下次還在」）。
+
