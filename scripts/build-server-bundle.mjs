@@ -400,6 +400,18 @@ async function packBundle(nodeVersion) {
   log('7', `Packing ${bundleName}`)
   run('tar', ['-czf', bundleName, 'staging'], { cwd: distRoot })
   const sha = await sha256File(bundlePath)
+  const sidecarPath = `${bundlePath}.sha256`
+  // 標準 sha256sum 格式：<hex>  <filename>\n（hash + 雙空格 + filename + LF）
+  const sidecarLine = `${sha}  ${bundleName}\n`
+  try {
+    writeFileSync(sidecarPath, sidecarLine, 'utf8')
+    log('7', `Wrote sha256 sidecar: ${path.relative(projectRoot, sidecarPath)}`)
+  } catch (error) {
+    // 衍生檔，sidecar 寫失敗不阻斷 build（tarball 已 OK）
+    console.warn(
+      `[build-server-bundle] [7] ⚠️ Failed to write sha256 sidecar (${sidecarPath}): ${error.message}`
+    )
+  }
   return {
     sha256: sha,
     nodeVersion,

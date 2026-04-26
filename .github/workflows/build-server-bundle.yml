@@ -56,12 +56,82 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           if-no-files-found: error
-          path: dist-server/bat-server-${{ matrix.target }}-v*.tar.gz
+          path: |
+            dist-server/bat-server-${{ matrix.target }}-v*.tar.gz
+            dist-server/bat-server-${{ matrix.target }}-v*.tar.gz.sha256
+
+  manifest:
+    name: Generate manifest.json
+    needs: [build]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: staging
+
+      - name: Flatten artifacts into dist-server/
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-server
+          # Each artifact lands in staging/<artifact_name>/<files>; flatten to dist-server/
+          find staging -type f \( -name 'bat-server-*.tar.gz' -o -name 'bat-server-*.tar.gz.sha256' \) -exec mv -v {} dist-server/ \;
+          ls -la dist-server/
+
+      - name: Parse version from tarball filename
+        id: parse_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Pick any one tarball; parse vX.Y.Z from filename pattern bat-server-<arch>-vX.Y.Z.tar.gz
+          first=$(ls dist-server/bat-server-linux-x64-v*.tar.gz | head -n1)
+          if [ -z "$first" ]; then
+            echo "❌ No linux-x64 tarball found to parse version from" >&2
+            exit 1
+          fi
+          version=$(basename "$first" | sed -E 's/^bat-server-linux-x64-v(.+)\.tar\.gz$/\1/')
+          if [ -z "$version" ]; then
+            echo "❌ Failed to parse version from $first" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "Parsed version: $version"
+
+      - name: Generate manifest.json
+        run: |
+          node scripts/generate-server-bundle-manifest.mjs \
+            --input-dir dist-server \
+            --version ${{ steps.parse_version.outputs.version }} \
+            --build-date ${{ steps.parse_version.outputs.build_date }} \
+            --output dist-server/manifest.json
+
+      - name: Verify release bundles
+        run: node scripts/verify-server-bundle.js
+
+      - name: Upload manifest + tarballs + sidecars
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-bundle-release
+          if-no-files-found: error
+          path: |
+            dist-server/bat-server-*.tar.gz
+            dist-server/bat-server-*.tar.gz.sha256
+            dist-server/manifest.json
 
   release:
     name: Publish server bundle release
     if: startsWith(github.ref, 'refs/tags/server-bundle-v')
-    needs: build
+    needs: [manifest]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -75,11 +145,11 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Download all artifacts
+      - name: Download release artifact
         uses: actions/download-artifact@v4
         with:
+          name: server-bundle-release
           path: dist-server
-          merge-multiple: true
 
       - name: Verify release bundles
         run: node scripts/verify-server-bundle.js
@@ -88,4 +158,11 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
-          files: dist-server/bat-server-*.tar.gz
+          files: |
+            dist-server/bat-server-linux-x64-v*.tar.gz
+            dist-server/bat-server-linux-x64-v*.tar.gz.sha256
+            dist-server/bat-server-linux-arm64-v*.tar.gz
+            dist-server/bat-server-linux-arm64-v*.tar.gz.sha256
+            dist-server/bat-server-darwin-arm64-v*.tar.gz
+            dist-server/bat-server-darwin-arm64-v*.tar.gz.sha256
+            dist-server/manifest.json
