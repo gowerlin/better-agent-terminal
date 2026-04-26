@@ -7,10 +7,12 @@
 | 工單編號 | T0320 |
 | 類型 | impl（main process 模組整合 + IPC + 純函數 helpers） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 3 收尾（序列瓶頸） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 02:46 (UTC+8) |
 | 派發時間 | 2026-04-27 02:46 (UTC+8) |
 | 開始時間 | 2026-04-27 02:47 (UTC+8) |
+| 完成時間 | 2026-04-27 03:00 (UTC+8) |
+| Commit | f983610 |
 | Sizing | L（estimate 60-90 min wall） |
 | 依賴 | T0316 ✅（baseline tarball installer 整合） / T0317 ✅（manifest validator + SHA stream） / T0318 ✅（download module） / T0319 ✅（arch detection IPC） |
 | 平行 | 無（序列瓶頸） |
