@@ -7,11 +7,13 @@
 | 工單編號 | T0285 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 4（SSH deployment）第四張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE（clean DONE，無 PARTIAL；13 files / +1242 lines；worktree commit `0a89800`） |
 | 建立時間 | 2026-04-26 14:48 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 14:48 (UTC+8) |
+| 完成時間 | 2026-04-26 15:03 (UTC+8) |
+| Wall time | ~15 min（GP099 校準 30-90 min 預期，第四次連續落於下界以下；T0266 §7 完整 spec + T0282/T0284 既有 mock 測試風格 是神速主因） |
+| Worktree commit | `0a89800` on `feature/plan-007-remote-dev` |
+| Worker bonus | 1) 5 個 case 額外加單引號注入防護（installPath 內單引號 escape，避免 ssh 命令 injection）；2) 8 個 probe test cases（超過 AC 6 個下限）；3) 修飾性新 IPC channel `ssh:upload-progress`（namespace 不破 T0270 凍結，附 progress event payload） |
 | Sizing | L（spec 估 8-16h；GP099 校準後預期 wall 30-90 min — 3 個 wizard step + UI + IPC handler + ssh+tar pipe） |
 | 依賴 | T0282（SshPathTranslator + ssh-config-parser）✅、T0283（server bundle linux-x64 tarball 已可產出）✅、T0284（SshTunnel 可選用，本工單不必依賴 tunnel runtime） |
 | 後續 | T0286（systemd unit + launchd plist，依本工單 install-server-bundle 完成後產出 server-side install path）、T0287（SSH e2e + cross-OS matrix） |
