@@ -1,10 +1,10 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-26 19:48 (UTC+8) — Session 32 *sync + 收尾 PLAN-004 / PLAN-028 兩張 ✅ DONE。
+> 最後同步：2026-04-26 19:58 (UTC+8) — Session 32 *sync + PLAN-002 → 🚫 DROPPED（Vite 升級觸發點錯過 + 痛點未活化）。
 
 ## 統計
-- 💡 Ideas: 2 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 5 | 🚫 Dropped: 0 | **Total: 8**
+- 💡 Ideas: 1 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 5 | 🚫 Dropped: 1 | **Total: 8**
 
 > 已歸檔 PLAN（`_archive/plans/`）：19 張
 
@@ -13,7 +13,6 @@
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B） | 🟡 Medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
-| PLAN-002 | Dynamic import conflict fix | 🟢 Low | 💡 IDEA | [PLAN-002](PLAN-002-dynamic-import-conflict-fix.md) |
 | PLAN-015 | Refactor：抽取 renderPanelContent shared helper（消除 App.tsx/WorkspaceView.tsx 雙 render 路徑） | 🟢 Low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 
 ## Completed
@@ -30,3 +29,4 @@
 
 | ~~ID~~ | ~~標題~~ | 原因 | 連結 |
 |--------|---------|------|------|
+| ~~PLAN-002~~ | ~~Dynamic import 衝突修正~~ | Vite 7.x 升級觸發點已錯過（PLAN-003/T0163）+ 純預防性無實證痛點 + hybrid 策略合理 | [PLAN-002](PLAN-002-dynamic-import-conflict-fix.md) |

@@ -5,7 +5,7 @@
 | 欄位 | 內容 |
 |------|------|
 | **計劃編號** | PLAN-002 |
-| **狀態** | 💡 IDEA |
+| **狀態** | 🚫 DROPPED 2026-04-26 — 觸發點已錯過 + 痛點未活化:(1) 原計劃「搭配 Vite 升級一起做」,Vite 7.x 已於 2026-04-18 升完(PLAN-003/T0163)未一併處理;(2) 4 個衝突 panel 自然演進到 3 個（FileTree 兩處皆 lazy 已一致）;(3) 純預防性,無 user-facing 痛點;(4) 目前 hybrid 策略合理（常用 sidebar panel 立即可用,MainZone/FileTree lazy 省 bundle）。如未來新增 panel 撞到實際 bundling/runtime 問題再開新 PLAN |
 | **優先級** | 🟢 Low |
 | **提出時間** | 2026-04-12 (UTC+8) |
 | **提出人** | 塔台（T0034 依賴審計發現） |
