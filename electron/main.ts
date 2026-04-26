@@ -72,7 +72,7 @@ import { CodexAgentManager } from './codex-agent-manager'
 import { worktreeManager } from './worktree-manager'
 import { checkForUpdates, UpdateCheckResult } from './update-checker'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
-import { ProfileManager, type ProfileSnapshot } from './profile-manager'
+import { ProfileManager, type ProfileEntry, type ProfileSnapshot } from './profile-manager'
 import { registerHandler, invokeHandler } from './remote/handler-registry'
 import { broadcastHub } from './remote/broadcast-hub'
 import { PROXIED_CHANNELS } from './remote/protocol'
@@ -3249,29 +3249,81 @@ function registerLocalHandlers() {
     async (
       evt,
       opts: {
-        profileId: string
+        // Either profileId (existing profile) OR draftProfile (wizard pre-write).
+        // T0321: WSL install-bundle step runs before writeProfileStep so no
+        // persisted profile exists yet — pass draftProfile with the minimal
+        // fields needed by detectRemoteArch (targetOS + per-OS target field).
+        profileId?: string
+        draftProfile?: {
+          targetOS: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
+          wslDistro?: string
+          dockerContainer?: string
+          dockerHost?: string
+          sshHost?: string
+          sshUser?: string
+          sshPort?: number
+          sshKeyPath?: string
+          useSshTunnel?: boolean
+        }
         version?: string
         baseURL?: string
         githubToken?: string
       },
     ) => {
-      if (
-        !opts ||
-        typeof opts.profileId !== 'string' ||
-        !/^[a-zA-Z0-9._-]+$/.test(opts.profileId)
-      ) {
-        return {
-          ok: false as const,
-          errorCode: 'arch-detection-failed' as const,
-          error: 'Invalid profileId',
+      let profile: ProfileEntry | null = null
+      if (opts && typeof opts.profileId === 'string' && /^[a-zA-Z0-9._-]+$/.test(opts.profileId)) {
+        profile = await profileManager.getProfile(opts.profileId)
+        if (!profile) {
+          return {
+            ok: false as const,
+            errorCode: 'arch-detection-failed' as const,
+            error: `Profile not found: ${opts.profileId}`,
+          }
         }
-      }
-      const profile = await profileManager.getProfile(opts.profileId)
-      if (!profile) {
+      } else if (opts && opts.draftProfile && typeof opts.draftProfile.targetOS === 'string') {
+        const draft = opts.draftProfile
+        // Validate per-OS target identifier with the same regex used by other
+        // child_process spawn paths (CLAUDE.md Child Process Spawning rule).
+        const NAME_RX = /^[a-zA-Z0-9._-]+$/
+        if (draft.targetOS === 'wsl-linux') {
+          if (!draft.wslDistro || !NAME_RX.test(draft.wslDistro)) {
+            return {
+              ok: false as const,
+              errorCode: 'arch-detection-failed' as const,
+              error: 'draftProfile.wslDistro missing or invalid',
+            }
+          }
+        } else if (draft.targetOS === 'docker-linux') {
+          if (!draft.dockerContainer || !NAME_RX.test(draft.dockerContainer)) {
+            return {
+              ok: false as const,
+              errorCode: 'arch-detection-failed' as const,
+              error: 'draftProfile.dockerContainer missing or invalid',
+            }
+          }
+        }
+        const now = Date.now()
+        profile = {
+          id: '__wizard_draft__',
+          name: '__wizard_draft__',
+          type: 'remote',
+          createdAt: now,
+          updatedAt: now,
+          targetOS: draft.targetOS,
+          wslDistro: draft.wslDistro,
+          dockerContainer: draft.dockerContainer,
+          dockerHost: draft.dockerHost,
+          sshHost: draft.sshHost,
+          sshUser: draft.sshUser,
+          sshPort: draft.sshPort,
+          sshKeyPath: draft.sshKeyPath,
+          useSshTunnel: draft.useSshTunnel,
+        } as ProfileEntry
+      } else {
         return {
           ok: false as const,
           errorCode: 'arch-detection-failed' as const,
-          error: `Profile not found: ${opts.profileId}`,
+          error: 'Either profileId or draftProfile must be provided',
         }
       }
       const { distributeServerBundle } = await import('./remote/server-bundle-distributor')

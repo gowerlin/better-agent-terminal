@@ -7,9 +7,10 @@
 | 工單編號 | T0321 |
 | 類型 | impl（wizard step rewrite，消費 T0320 distributor） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 4 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-27 03:02 (UTC+8) |
 | 派發時間 | 2026-04-27 03:02 (UTC+8) |
+| 開始時間 | 2026-04-27 03:04 (UTC+8) |
 | Sizing | S（estimate 30-45 min wall） |
 | 依賴 | T0320 ✅（distributor 共用模組） |
 | 平行 | T0322（SSH install-bundle）+ T0323（Docker install-bundle）— 邏輯獨立但 YOLO 鏈式序列派 |
@@ -167,28 +168,53 @@ Worker 探查既有 `wsl/index.ts` step chain 後決定。預期：**不需新�
 
 ### 1. install-server-bundle.ts 重寫摘要
 
-（待填：總行數變化、移除/新增 highlight、distributor 呼叫位置）
+- 行數：103 → 113 行（淨 +10；移除 hardcoded lookup helper、新增 distributor 呼叫 + progress unsubscribe + source diagnostic）
+- 移除：`findBundleInDirectory`、`joinPlatformPath`、`resolveBundleTarballPath`、`bat-server-linux-x64-v.+\.tar\.gz` regex、T0282 placeholder throw、`FileEntry` import
+- 新增：`describeSource()` helper、`window.electronAPI.remote.serverBundle.distribute({ draftProfile, version })` 呼叫、`onDistributeProgress` 訂閱（`try/finally` cleanup）、`{ok:false}` 直 throw 帶 errorCode、`ctx.state.bundleSource` 紀錄
+- 上傳邏輯（`window.electronAPI.wsl.installBundle(...)`）保留，networkMode detection / NAT warning 不動
+- version 從 `window.electronAPI.update.getVersion()` 取（既有 IPC，避免新增 `app.getVersion`）
 
 ### 2. Step chain 整合（如有改動）
 
-（待填：是否動 `wsl/index.ts`、是否新增 step、理由）
+未動 `wsl/index.ts` 與 `wsl-flow.ts`。distributor 已內建 `detectRemoteArch`（透過 draftProfile 注入 wslDistro），無需獨立 detect-arch step。符合工單 §Deliverable 2 預期路徑。
 
 ### 3. i18n 文案處理
 
-（待填：新增 keys 數量 / 改 hardcode）
+未新增 i18n keys。專案 wizard 既有 `wizard.wsl.step.installBundle.label/description` 為 step 標題用，無 per-progress key 慣例。Progress 訊息走 `ctx.logger.info(...)` inline 英文（沿用 `Installing BAT server bundle from ${tarballPath}` 等既有 step pattern）。Source diagnostic（cache / baseline / download）用 `describeSource()` mapping inline。
 
 ### 4. tsc + test 結果
 
-（待填：`npm run test:unit` summary、`tsc --noEmit` 對改動檔的結果）
+- `npx tsc --noEmit`：對本工單改動檔（`install-server-bundle.ts` / `electron/main.ts` / `electron/preload.ts` / `src/types/electron.d.ts`）**0 error**。pre-existing 錯誤（`CodexAgentPanel.tsx`、`agent-profiles.ts` 等）與本工單無關，不在驗收範圍。
+- `npm run test:unit`：**168/168 passed**（8 test files；vitest v4.1.5；2.45s）。
 
 ### 5. PARTIAL / 矛盾項（如有）
 
-（待填）
+無 PARTIAL。
+
+矛盾項一筆：工單 Deliverable 1 範例假設 `ctx.setStatus({...})` API 存在，但實際 `WizardContext` 介面（`src/components/setup-wizard/wizard-runner.ts:23`）只暴露 `logger: WizardLogger`（info/warn/error）而無 `setStatus`。Wizard UI 的 status 由 `WizardStepStatus` enum（pending/running/succeeded/failed/rolled-back）+ snapshot 機制控制，per-step 動態文案目前不在 contract 內。改用 `ctx.logger.info(...)` 報 progress（與既有 step 一致），符合工單 §Deliverable 1「精確結構由 worker 依照既有 step pattern 決定」的彈性條款。
 
 ### 6. Out-of-scope but justified（如有）
 
-（待填）
+**擴 distributor IPC contract：新增 `draftProfile` 入參**（`electron/main.ts:3247-3296`、`electron/preload.ts:648-687`、`src/types/electron.d.ts:478-503`）。
+
+**理由**：WSL 設定精靈步驟順序為 `pickWslDistro → wslSystemdCheck → installServerBundle → … → writeProfile`（`src/components/setup-wizard/wsl-flow.ts:15-27`），`writeProfileStep` 排在 install-bundle **之後**。install-bundle 階段尚無持久化 profile，無 `profileId` 可傳。原 IPC 簽章只接受 `profileId: string`，無法支援此正常 flow。
+
+**最小擴張**：IPC opts 新增可選 `draftProfile: { targetOS, wslDistro?, dockerContainer?, sshHost?, … }`（與 `ProfileEntry` 中 `detectRemoteArch` 用得上的欄位平行）。Validation：profileId 走原 regex；draftProfile 對 `wslDistro` / `dockerContainer` 套同一 `^[a-zA-Z0-9._-]+$` 白名單（CLAUDE.md Child Process Spawning 規則延伸）。Handler 在收到 draftProfile 時建構臨時 `ProfileEntry`（id/name 用 sentinel `__wizard_draft__`，type=remote，timestamps=now），不寫入 profileManager。
+
+**為什麼不選其他方案**：
+1. 重排 wizard step（writeProfile 提前）→ 跨工單範圍變動，影響 fetchFingerprint / connectTest 等 downstream invariants
+2. 自寫 lookup 邏輯（不走 distributor）→ 違反工單 Worker 守則 #1「重用 distributor」
+3. 走「先建立空 profile 再 update」→ 引入半成品 profile 永續性問題，更難 rollback
+
+**T0322 / T0323 受益**：SSH / Docker install-bundle 工單可同樣以 `draftProfile: { targetOS: 'ssh-linux', sshHost, … }` / `{ targetOS: 'docker-linux', dockerContainer, … }` 重用此入口，無需再次擴 IPC。
+
+### Renew 歷程
+
+無。
 
 ### 完成註記
 
-（待填）
+- 完成狀態：DONE
+- AC-1～AC-9 全部達成（含 commit 訊息 `chore(wizard): T0321 - WSL install-bundle step 改寫`）
+- 觸及檔案 5 份（含工單本身）；單 commit
+- e2e 驗證留 T0324 / T0325（Sprint 5）依工單 §Deliverable 4 規定

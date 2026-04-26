@@ -645,8 +645,21 @@ const electronAPI = {
         return () => ipcRenderer.removeListener('server-bundle:download-progress', handler)
       },
       // PLAN-031 T0320 — distributor (cache → baseline → download).
+      // T0321: distribute accepts either a persisted profileId OR an inline
+      // draftProfile (used by setup-wizard before write-profile step lands).
       distribute: (opts: {
-        profileId: string
+        profileId?: string
+        draftProfile?: {
+          targetOS: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
+          wslDistro?: string
+          dockerContainer?: string
+          dockerHost?: string
+          sshHost?: string
+          sshUser?: string
+          sshPort?: number
+          sshKeyPath?: string
+          useSshTunnel?: boolean
+        }
         version?: string
         baseURL?: string
         githubToken?: string

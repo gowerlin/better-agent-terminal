@@ -476,8 +476,21 @@ interface ElectronAPI {
         }) => void,
       ) => () => void
       // PLAN-031 T0320 — distributor (cache → baseline → download three-layer lookup).
+      // T0321: accepts either profileId (existing profile) OR draftProfile
+      // (setup-wizard pre-write scenario).
       distribute: (opts: {
-        profileId: string
+        profileId?: string
+        draftProfile?: {
+          targetOS: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
+          wslDistro?: string
+          dockerContainer?: string
+          dockerHost?: string
+          sshHost?: string
+          sshUser?: string
+          sshPort?: number
+          sshKeyPath?: string
+          useSshTunnel?: boolean
+        }
         version?: string
         baseURL?: string
         githubToken?: string
