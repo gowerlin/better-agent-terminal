@@ -3,7 +3,9 @@ import os from 'os'
 import {
   containerToHost,
   hostToContainer,
+  isValidMount,
   ownsDockerPath,
+  startsWithPath,
   type DockerMount,
 } from '../../src/utils/docker-path'
 import { winToWsl, wslToWin } from '../../src/utils/wsl-path'
@@ -71,6 +73,14 @@ export class DockerPathTranslator implements PathTranslator {
   private readonly mounts: DockerMount[]
 
   constructor(mounts: DockerMount[]) {
+    const invalid = mounts.find(m => !isValidMount(m))
+    if (invalid) {
+      throw new Error(
+        `DockerPathTranslator: degenerate mount rejected ` +
+        `(host=${JSON.stringify(invalid.host)}, container=${JSON.stringify(invalid.container)}); ` +
+        `host/container must be non-empty and not root-only`,
+      )
+    }
     this.mounts = [...mounts].sort((a, b) => b.host.length - a.host.length)
   }
 
@@ -94,12 +104,19 @@ export class SshPathTranslator implements PathTranslator {
     private readonly clientHome: string,
     private readonly serverHome: string,
     private readonly clientIsWindows: boolean,
-  ) {}
+  ) {
+    if (!clientHome || !serverHome) {
+      throw new Error(
+        `SshPathTranslator: clientHome / serverHome must be non-empty ` +
+        `(clientHome=${JSON.stringify(clientHome)}, serverHome=${JSON.stringify(serverHome)})`,
+      )
+    }
+  }
 
   toServer(clientPath: string): string {
     const normalizedPath = this.normalizeClient(clientPath)
     const normalizedHome = this.normalizeClient(this.clientHome)
-    if (normalizedPath.startsWith(normalizedHome)) {
+    if (startsWithPath(normalizedPath, normalizedHome)) {
       const tail = normalizedPath.slice(normalizedHome.length)
       return this.serverHome + tail
     }
@@ -107,7 +124,7 @@ export class SshPathTranslator implements PathTranslator {
   }
 
   toClient(serverPath: string): string {
-    if (serverPath.startsWith(this.serverHome)) {
+    if (startsWithPath(serverPath, this.serverHome)) {
       const tail = serverPath.slice(this.serverHome.length)
       if (this.clientIsWindows) {
         return this.clientHome + tail.replace(/\//g, '\\')
@@ -118,8 +135,8 @@ export class SshPathTranslator implements PathTranslator {
   }
 
   owns(path: string): boolean {
-    return this.normalizeClient(path).startsWith(this.normalizeClient(this.clientHome))
-      || path.startsWith(this.serverHome)
+    return startsWithPath(this.normalizeClient(path), this.normalizeClient(this.clientHome))
+      || startsWithPath(path, this.serverHome)
   }
 
   private normalizeClient(path: string): string {

@@ -269,6 +269,14 @@ const sshLinuxFixtures: ContractFixture[] = [
     serverPath: '/home/alice/x',
     shouldOwn: true,
   },
+  {
+    // T0294 F-001: 'C:\\Users\\Al' (prefix of 'Alice') must not match
+    // (covered as a separate translator instance in F-001 case below)
+    name: 'Sibling Windows home is not owned (boundary)',
+    clientPath: 'C:\\Users\\Alicia\\x.txt',
+    serverPath: 'C:\\Users\\Alicia\\x.txt',
+    shouldOwn: false,
+  },
 ]
 
 runContract(
@@ -305,6 +313,13 @@ const sshDarwinFixtures: ContractFixture[] = [
     clientPath: '/Users/alice/文件/y.txt',
     serverPath: '/Users/bob/文件/y.txt',
     shouldOwn: true,
+  },
+  {
+    // T0294 F-001: '/Users/alice' must not over-match '/Users/alicia/x'
+    name: 'Sibling POSIX home is not owned (boundary)',
+    clientPath: '/Users/alicia/x',
+    serverPath: '/Users/alicia/x',
+    shouldOwn: false,
   },
 ]
 
@@ -483,6 +498,45 @@ describe('createTranslator factory', () => {
       )
     })
   }
+})
+
+describe('SshPathTranslator T0294 F-001 + EC-001', () => {
+  test('F-001 reproduction: prefix-collision clientHome does not over-match', () => {
+    // '/Users/al' (clientHome) must NOT match '/Users/alice/x.txt'
+    const t = new SshPathTranslator('/Users/al', '/Users/bob', false)
+    assert.strictEqual(t.toServer('/Users/alice/x.txt'), '/Users/alice/x.txt')
+    assert.strictEqual(t.owns('/Users/alice/x.txt'), false)
+    // exact match still works
+    assert.strictEqual(t.toServer('/Users/al'), '/Users/bob')
+    assert.strictEqual(t.toServer('/Users/al/file'), '/Users/bob/file')
+  })
+
+  test('F-001 reproduction: prefix-collision serverHome does not over-match', () => {
+    // serverHome '/Users/bo' must NOT match '/Users/bobby/x'
+    const t = new SshPathTranslator('/Users/alice', '/Users/bo', false)
+    assert.strictEqual(t.toClient('/Users/bobby/x'), '/Users/bobby/x')
+  })
+
+  test('EC-001: empty clientHome throws at construction', () => {
+    assert.throws(
+      () => new SshPathTranslator('', '/home/x', false),
+      /clientHome \/ serverHome must be non-empty/,
+    )
+  })
+
+  test('EC-001: empty serverHome throws at construction', () => {
+    assert.throws(
+      () => new SshPathTranslator('/home/x', '', false),
+      /clientHome \/ serverHome must be non-empty/,
+    )
+  })
+
+  test('EC-001: both empty throws at construction', () => {
+    assert.throws(
+      () => new SshPathTranslator('', '', false),
+      /clientHome \/ serverHome must be non-empty/,
+    )
+  })
 })
 
 describe('TargetOS exhaustiveness spot-check', () => {

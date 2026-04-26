@@ -2,10 +2,13 @@ import * as assert from 'assert'
 import {
   containerToHost,
   hostToContainer,
+  isValidMount,
   normalizeHostPath,
   ownsDockerPath,
+  startsWithPath,
   type DockerMount,
 } from '../src/utils/docker-path'
+import { DockerPathTranslator } from '../electron/remote/path-translator'
 
 let passed = 0
 let failed = 0
@@ -175,6 +178,119 @@ describe('ownsDockerPath', () => {
 
   test('empty mounts never own paths', () => {
     assert.strictEqual(ownsDockerPath('C:\\projects\\bat\\src', []), false)
+  })
+})
+
+describe('startsWithPath boundary helper (T0294)', () => {
+  test('empty prefix returns false (degeneracy guard)', () => {
+    assert.strictEqual(startsWithPath('/anything', ''), false)
+  })
+
+  test('exact match returns true', () => {
+    assert.strictEqual(startsWithPath('/home/alice', '/home/alice'), true)
+  })
+
+  test('prefix followed by / returns true', () => {
+    assert.strictEqual(startsWithPath('/home/alice/x', '/home/alice'), true)
+  })
+
+  test('prefix followed by \\ returns true', () => {
+    assert.strictEqual(startsWithPath('C:\\Users\\Alice\\x', 'C:\\Users\\Alice'), true)
+  })
+
+  test('prefix-collision case rejected (F-001)', () => {
+    // '/Users/al' is NOT a path prefix of '/Users/alice/x.txt'
+    assert.strictEqual(startsWithPath('/Users/alice/x.txt', '/Users/al'), false)
+  })
+
+  test('non-prefix returns false', () => {
+    assert.strictEqual(startsWithPath('/etc/passwd', '/home/alice'), false)
+  })
+})
+
+describe('isValidMount (T0294 EC-001)', () => {
+  test('rejects empty host', () => {
+    assert.strictEqual(isValidMount({ host: '', container: '/c' }), false)
+  })
+
+  test('rejects empty container', () => {
+    assert.strictEqual(isValidMount({ host: '/h', container: '' }), false)
+  })
+
+  test('rejects root-only host', () => {
+    assert.strictEqual(isValidMount({ host: '/', container: '/c' }), false)
+    assert.strictEqual(isValidMount({ host: '\\', container: '/c' }), false)
+  })
+
+  test('rejects root-only container', () => {
+    assert.strictEqual(isValidMount({ host: '/h', container: '/' }), false)
+    assert.strictEqual(isValidMount({ host: '/h', container: '\\' }), false)
+  })
+
+  test('accepts normal mount', () => {
+    assert.strictEqual(isValidMount({ host: '/home/u', container: '/workspace' }), true)
+  })
+})
+
+describe('docker-path boundary regressions (T0294 F-001 + EC-001)', () => {
+  test('F-001: prefix-collision host mount does not over-match', () => {
+    // '/home/u' must not match '/home/user/x'
+    const mounts: DockerMount[] = [{ host: '/home/u', container: '/c/u' }]
+    assert.strictEqual(ownsDockerPath('/home/user/x', mounts), false)
+    assert.strictEqual(hostToContainer('/home/user/x', mounts), '/home/user/x')
+  })
+
+  test('F-001: exact match still translates', () => {
+    const mounts: DockerMount[] = [{ host: '/home/u', container: '/c/u' }]
+    assert.strictEqual(hostToContainer('/home/u', mounts), '/c/u')
+    assert.strictEqual(hostToContainer('/home/u/x', mounts), '/c/u/x')
+  })
+
+  test('F-001: prefix-collision container mount does not over-match', () => {
+    const mounts: DockerMount[] = [{ host: '/home/u', container: '/work' }]
+    assert.strictEqual(ownsDockerPath('/working/area', mounts), false)
+    assert.strictEqual(containerToHost('/working/area', mounts), '/working/area')
+  })
+
+  test('EC-001: degenerate root host mount filtered (passthrough)', () => {
+    // AC7: hostToContainer with degenerate root-only mount is filtered out → passthrough
+    assert.strictEqual(
+      hostToContainer('/etc/passwd', [{ host: '/', container: '/c' }]),
+      '/etc/passwd',
+    )
+    assert.strictEqual(
+      ownsDockerPath('/etc/passwd', [{ host: '/', container: '/c' }]),
+      false,
+    )
+  })
+
+  test('EC-001: degenerate empty host mount filtered (passthrough)', () => {
+    assert.strictEqual(
+      hostToContainer('/etc/passwd', [{ host: '', container: '/c' }]),
+      '/etc/passwd',
+    )
+  })
+
+  test('EC-001: degenerate empty container mount filtered (passthrough)', () => {
+    assert.strictEqual(
+      containerToHost('/anything', [{ host: '/h', container: '' }]),
+      '/anything',
+    )
+  })
+
+  test('EC-001: DockerPathTranslator constructor throws on degenerate mount', () => {
+    assert.throws(
+      () => new DockerPathTranslator([{ host: '/', container: '/c' }]),
+      /degenerate mount rejected/,
+    )
+    assert.throws(
+      () => new DockerPathTranslator([{ host: '', container: '/c' }]),
+      /degenerate mount rejected/,
+    )
+    assert.throws(
+      () => new DockerPathTranslator([{ host: '/h', container: '' }]),
+      /degenerate mount rejected/,
+    )
   })
 })
 
