@@ -7,11 +7,11 @@
 | 工單編號 | T0293 |
 | 類型 | review（純讀，無 production code 修改） |
 | Phase | PLAN-007 release prep（雙審第二張，串行於 T0292 後） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 17:05 (UTC+8) |
 | 派發時間 | 2026-04-26 17:04 (UTC+8) |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 完成時間 | 2026-04-26 17:16 (UTC+8) |
+| Wall time | 12 min |
 | Sizing | L（edge case 對 ~14600 行 diff，預期 wall 20-45 min；T0292 已建立 baseline，本工單聚焦補 T0292 漏網之魚） |
 | 依賴 | T0292 ✅ DONE（adversarial-general report 309 行，25 findings 已落地） |
 | 後續 | 塔台合併 T0292 + T0293 findings 去重 → 開修復工單 T0294+ |
@@ -164,4 +164,7 @@
 無
 
 ### Commit
-（待 commit 後填入 hash）
+`26cf54a` — docs(review): T0293 bmad edge case hunter report on release/v0.4.0 (PLAN-007)
+
+### 回報時間
+2026-04-26 17:16 (UTC+8)
