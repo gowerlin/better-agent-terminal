@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import path from 'path'
 import * as fs from 'fs/promises'
+import type { DockerMount } from '../src/utils/docker-path'
 import type { WindowRegistry } from './window-registry'
 import { logger } from './logger'
 
@@ -37,6 +38,7 @@ export interface ProfileEntry {
   wslDistro?: string
   dockerContainer?: string
   dockerHost?: string
+  dockerMounts?: DockerMount[]
   sshHost?: string
   sshUser?: string
   sshPort?: number
@@ -53,7 +55,12 @@ export interface ProfileEntry {
 export type TargetOSMetadata =
   | { targetOS: 'local' }
   | { targetOS: 'wsl-linux'; wslDistro: string }
-  | { targetOS: 'docker-linux'; dockerContainer: string; dockerHost?: string }
+  | {
+      targetOS: 'docker-linux'
+      dockerContainer: string
+      dockerHost?: string
+      dockerMounts: DockerMount[]
+    }
   | {
       targetOS: 'ssh-linux' | 'ssh-darwin'
       sshHost: string
@@ -81,6 +88,7 @@ export function extractTargetOSMeta(entry: ProfileEntry): TargetOSMetadata {
         targetOS: 'docker-linux',
         dockerContainer: entry.dockerContainer ?? '',
         dockerHost: entry.dockerHost,
+        dockerMounts: entry.dockerMounts ?? [],
       }
     case 'ssh-linux':
     case 'ssh-darwin':
@@ -519,6 +527,7 @@ export class ProfileManager {
     wslDistro?: string
     dockerContainer?: string
     dockerHost?: string
+    dockerMounts?: DockerMount[]
     sshHost?: string
     sshUser?: string
     sshPort?: number
@@ -539,6 +548,7 @@ export class ProfileManager {
     if (updates.wslDistro !== undefined) entry.wslDistro = updates.wslDistro
     if (updates.dockerContainer !== undefined) entry.dockerContainer = updates.dockerContainer
     if (updates.dockerHost !== undefined) entry.dockerHost = updates.dockerHost
+    if (updates.dockerMounts !== undefined) entry.dockerMounts = updates.dockerMounts
     if (updates.sshHost !== undefined) entry.sshHost = updates.sshHost
     if (updates.sshUser !== undefined) entry.sshUser = updates.sshUser
     if (updates.sshPort !== undefined) entry.sshPort = updates.sshPort

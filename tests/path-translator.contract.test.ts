@@ -7,11 +7,13 @@
 import * as assert from 'assert'
 import {
   createTranslator,
+  DockerPathTranslator,
   IdentityTranslator,
   WslPathTranslator,
   runContract,
   type ContractFixture,
 } from '../electron/remote/path-translator'
+import { normalizeHostPath } from '../src/utils/docker-path'
 import type { ProfileEntry, TargetOS } from '../electron/profile-manager'
 
 let passed = 0
@@ -175,6 +177,60 @@ runContract('WslPathTranslator', () => new WslPathTranslator('Ubuntu'), wslFixtu
   test,
 })
 
+const dockerFixtures: ContractFixture[] = [
+  {
+    name: 'Windows host single mount',
+    clientPath: 'C:\\projects\\bat\\src',
+    serverPath: '/workspace/win-bat/src',
+    shouldOwn: true,
+  },
+  {
+    name: 'POSIX host single mount',
+    clientPath: '/home/user/bat/src',
+    serverPath: '/workspace/posix-bat/src',
+    shouldOwn: true,
+  },
+  {
+    name: 'Mount root path',
+    clientPath: 'C:\\projects\\bat\\sub',
+    serverPath: '/workspace/sub',
+    shouldOwn: true,
+  },
+  {
+    name: 'Longest host prefix wins',
+    clientPath: 'C:\\projects\\bat\\sub\\file.ts',
+    serverPath: '/workspace/sub/file.ts',
+    shouldOwn: true,
+  },
+  {
+    name: 'Path with spaces',
+    clientPath: 'C:\\Program Files\\bat\\x',
+    serverPath: '/workspace/spaces/x',
+    shouldOwn: true,
+  },
+  {
+    name: 'Unknown path is passthrough and not owned',
+    clientPath: '/etc/passwd',
+    serverPath: '/etc/passwd',
+    shouldOwn: false,
+  },
+]
+
+runContract(
+  'DockerPathTranslator',
+  () => new DockerPathTranslator([
+    { host: 'C:\\projects\\bat', container: '/workspace/win-bat' },
+    { host: '/home/user/bat', container: '/workspace/posix-bat' },
+    { host: 'C:\\projects\\bat\\sub', container: '/workspace/sub' },
+    { host: 'C:\\Program Files\\bat', container: '/workspace/spaces' },
+  ]),
+  dockerFixtures,
+  {
+    suite: describe,
+    test,
+  },
+)
+
 describe('IdentityTranslator specifics', () => {
   test('toServer and toClient are the same identity mapping', () => {
     const translator = new IdentityTranslator()
@@ -206,6 +262,31 @@ describe('WslPathTranslator specifics', () => {
     assert.strictEqual(translator.owns('/home/user/repo'), true)
     assert.strictEqual(translator.owns('.\\relative'), false)
     assert.strictEqual(translator.owns('\\\\server\\share\\repo'), false)
+  })
+})
+
+describe('DockerPathTranslator specifics', () => {
+  test('toClient round-trips Windows paths after normalization', () => {
+    const translator = new DockerPathTranslator([
+      { host: 'C:\\projects\\bat', container: '/workspace/bat' },
+    ])
+
+    const original = 'c:\\projects\\bat\\src\\main.ts'
+    const containerPath = translator.toServer(original)
+    const roundTrip = translator.toClient(containerPath)
+
+    assert.strictEqual(containerPath, '/workspace/bat/src/main.ts')
+    assert.strictEqual(normalizeHostPath(roundTrip), normalizeHostPath(original))
+  })
+
+  test('owns only paths covered by host or container mounts', () => {
+    const translator = new DockerPathTranslator([
+      { host: '/home/user/bat', container: '/workspace/bat' },
+    ])
+
+    assert.strictEqual(translator.owns('/home/user/bat/src'), true)
+    assert.strictEqual(translator.owns('/workspace/bat/src'), true)
+    assert.strictEqual(translator.owns('/tmp/outside'), false)
   })
 })
 
@@ -243,8 +324,26 @@ describe('createTranslator factory', () => {
     )
   })
 
+  test('targetOS=docker-linux returns DockerPathTranslator', () => {
+    const translator = createTranslator(makeProfile({
+      id: 'profile-docker',
+      targetOS: 'docker-linux',
+      dockerMounts: [{ host: 'C:\\projects\\bat', container: '/workspace/bat' }],
+    }))
+
+    assert.ok(translator instanceof DockerPathTranslator)
+    assert.strictEqual(translator.toServer('C:\\projects\\bat\\src'), '/workspace/bat/src')
+  })
+
+  test('targetOS=docker-linux without dockerMounts throws explicit error', () => {
+    const profile = makeProfile({ id: 'profile-docker-missing', targetOS: 'docker-linux' })
+    assert.throws(
+      () => createTranslator(profile),
+      (error: unknown) => (error as Error).message === '[PathTranslator] docker-linux profile profile-docker-missing missing dockerMounts',
+    )
+  })
+
   for (const [os, ticket] of [
-    ['docker-linux', 'T0277'],
     ['ssh-linux', 'T0282'],
     ['ssh-darwin', 'T0282'],
   ] as const) {

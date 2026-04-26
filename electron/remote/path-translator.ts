@@ -1,4 +1,10 @@
 import type { ProfileEntry } from '../profile-manager'
+import {
+  containerToHost,
+  hostToContainer,
+  ownsDockerPath,
+  type DockerMount,
+} from '../../src/utils/docker-path'
 import { winToWsl, wslToWin } from '../../src/utils/wsl-path'
 
 export interface PathTranslator {
@@ -57,6 +63,26 @@ export class WslPathTranslator implements PathTranslator {
     }
 
     return path.startsWith('/')
+  }
+}
+
+export class DockerPathTranslator implements PathTranslator {
+  private readonly mounts: DockerMount[]
+
+  constructor(mounts: DockerMount[]) {
+    this.mounts = [...mounts].sort((a, b) => b.host.length - a.host.length)
+  }
+
+  toServer(clientPath: string): string {
+    return hostToContainer(clientPath, this.mounts)
+  }
+
+  toClient(serverPath: string): string {
+    return containerToHost(serverPath, this.mounts)
+  }
+
+  owns(path: string): boolean {
+    return ownsDockerPath(path, this.mounts)
   }
 }
 
@@ -129,10 +155,10 @@ export function createTranslator(profile: ProfileEntry): PathTranslator {
       return new WslPathTranslator(profile.wslDistro)
 
     case 'docker-linux':
-      throw new Error(
-        `[PathTranslator] docker-linux translator not implemented yet ` +
-        `(pending T0277). Profile: ${profile.id}`,
-      )
+      if (!profile.dockerMounts || profile.dockerMounts.length === 0) {
+        throw new Error(`[PathTranslator] docker-linux profile ${profile.id} missing dockerMounts`)
+      }
+      return new DockerPathTranslator(profile.dockerMounts)
 
     case 'ssh-linux':
     case 'ssh-darwin':
