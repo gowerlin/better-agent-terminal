@@ -1,10 +1,98 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-26 11:36(**第二十九 session 收工快照:PLAN-007 Phase 2(WSL deployment)4 張全部落地(T0273-T0276 ✅ DONE 0 失敗 0 Renew 0 互動),累計 ~42 min wall vs 估 3-4 day。鏈式自主派發(T0274/T0275/T0276 連發)。Worker 主動降 TS baseline 37→36。worktree commit chain `e569183 → 70404d2 → 5d75d4b → 15ac3ed`。下次起手:派 T0277 DockerPathTranslator(Phase 3 第一張)或先 *evolve。**)
+> 最後更新:2026-04-26 13:30(**第三十 session 收工快照:PLAN-007 Phase 3(Docker deployment)4 張全部落地(T0277-T0280 ✅ DONE)+ BUG-060 修復(T0281 ✅,根因 H4)。累計 Phase 3 ~58 min wall vs 估 20-40h。鏈式自主派發(T0278-T0280 連發)。worktree commit chain `43d6eea → b177d48 → 8ca2f34 → 13c9c51`。BUG-060 → 🧪 VERIFY(待 BAT 重建重啟 + Phase 4 鏈式驗證)。萃取 GP101/GP102(global)+ L103/L104/L105(project)。下次起手:使用者重建 BAT → 派 T0282 啟動 Phase 4(SSH deployment)。**)
 
 ---
 
-## 🛏 本 Session 收工快照(第二十九 session,2026-04-26 10:11-11:36,~1h 25min,PLAN-007 Phase 2 全部 4 張落地)
+## 🛏 本 Session 收工快照(第三十 session,2026-04-26 11:57-13:30,~1h 33min,PLAN-007 Phase 3 全部 4 張落地 + BUG-060 修復)
+
+### 本輪時間線
+
+1. **11:57**(起手):Fast Path 載入 session 29 收工快照(<1 天)
+2. **12:00**(派發):T0277 DockerPathTranslator + dockerMounts schema → ✅ DONE 10 min,worktree commit `43d6eea`,5 files / +380 / -6
+3. **12:15**(拍板):spec § C-1 待拍板項「image push registry」→ 使用者選 [A] v1 本機 only,registry 標 v2
+4. **12:16-12:25**:T0278 Dockerfile + build/verify scripts → ✅ DONE 10 min(YOLO 鏈式),worktree commit `b177d48`,6 files / +405,docs/docker-deployment.md 147 行新建
+5. **12:30-12:58**:T0279 Docker setup wizard 9-step + IPC handlers → ✅ DONE 28 min(YOLO 鏈式),worktree commit `8ca2f34`,19 files / +938 / -11
+6. **13:02-13:08**:T0280 Docker e2e + 3 journeys + lifecycle scenarios → ✅ DONE 10 min(YOLO 鏈式 capstone),worktree commit `13c9c51`,4 files / +361 / -7
+7. **13:08**:Phase 3 boundary 自主暫停 → 使用者 *bug 回報 yolo 派發 shell 錯
+8. **13:08-13:12**:寫 BUG-060(YOLO 鏈式第二張起 BAT 終端 shell preference 未套用,Medium / 100% repro)→ 使用者選 [B] Phase 4 驗證
+9. **13:12-13:20**:T0281 派發(主線 main fix,interactive)→ ✅ DONE 8 min,主線 commit `fad2978`,根因 **H4**(terminal_create handler 沒 resolve persisted shell pref),抽 `electron/shell-path-resolver.ts` + 73 行 regression test
+10. **13:20**:T0281 自身派發終端是 PWSH(證明 bug 在 T0281 派發瞬間仍 active)→ Worker 在 PWSH 環境下完成修復
+11. **13:20-13:30**:更新 BUG-060 → 🧪 VERIFY;*evolve 萃取(塔台推薦 5 條,使用者依推薦)→ 寫 GP101/GP102(global)+ L103/L104/L105(project)
+12. **13:30**:寫本 session 收工快照
+
+### 本 session 產出
+
+| 類別 | 內容 |
+|------|------|
+| **Worker 工單** | T0277-T0281 5 張 ✅ DONE(0 失敗 0 Renew 0 互動,T0281 為 bugfix interactive 但 Worker 沒實際觸發) |
+| **Worktree commit chain** | `15ac3ed → 43d6eea(T0277)→ b177d48(T0278)→ 8ca2f34(T0279)→ 13c9c51(T0280)` 全部 on `feature/plan-007-remote-dev` |
+| **主線 fix commit** | `fad2978`(T0281 fix BUG-060,在 main)|
+| **PLAN-007 Phase 3 收尾** | 4 張(DockerPathTranslator → Dockerfile → wizard → e2e capstone)完整落地;Phase 3 / 5 完成 |
+| **BUG 處理** | BUG-060 OPEN → FIXING → 🧪 VERIFY(待 BAT 重建重啟 + Phase 4 鏈式驗證) |
+| **新建模組**(總計) | `src/utils/docker-path.ts` / `electron/{shell-path-resolver, docker-detect, docker-validate, docker-lifecycle}.ts` / `docker/Dockerfile` + `.dockerignore` / `scripts/{build-docker-image, verify-docker-image}.mjs` / `src/components/setup-wizard/{docker-flow.ts, steps/docker/*.ts}` |
+| **新建測試** | `docker-path.test.ts` / `docker-flow.test.ts` / `docker-wizard-runner.test.ts` / `docker-wizard-e2e.test.ts` / `docker-flow-journeys.test.ts` / `shell-path-resolver.test.ts` |
+| **新建 docs** | `docs/docker-deployment.md`(147 + 75 = 222 行,8 章節含 release pre-flight checklist + Dev Container 整合)|
+| **TS baseline** | 36 → 36(Phase 3 持平,Worker 沒新增也沒消減) |
+| **學習萃取**(本 session)| Global +2(GP101 mock-based capstone 跨 deployment / GP102 Electron main 重建重啟)/ Project +3(L103 BAT yolo shell fallback bug / L104 bugfix root cause commit body / L105 spec 拍板寫 commit body)|
+| **熱區工單** | session 29 收工 40 張 → session 30 收工 45 張(+5 為 T0277-T0281) |
+
+### 本 session 效率統計
+
+| 指標 | 值 | 備註 |
+|------|------|------|
+| Wall time(全 session) | ~1h 33min | 11:57-13:30 |
+| Worker 工單 DONE | 5 / 5 | T0277-T0281 全綠 |
+| Worker 累計 wall | ~66 min | 10+10+28+10+8 |
+| Phase 3 累計 wall vs spec 估 | ~58 min vs 20-40h | >20-40× 偏差延續 |
+| Renew 次數 | 0 / 5 | |
+| FAILED 次數 | 0 / 5 | |
+| 互動觸發 | 0 / 5 | yolo + no-interactive(T0281 interactive 但 Worker 沒觸發)|
+| YOLO 自主派發 | 4 次 | T0278-T0280 + T0281(T0277 手動派)|
+| 塔台 commits 主線 | ~12 | 5 創建 + 5 sync + 1 BUG + 1 fix metadata |
+| AC 全綠 | 49/49 | 10+10+12+10+7 |
+
+### 下 session pending(優先序)
+
+1. 🚨 **使用者重建 BAT** — `npm install && npm run build:dir`(或 `npm run build`)+ 完整關閉 BAT + 重啟。**必做** — Phase 4 派發前置
+2. 🟢 **派 T0282** — SshPathTranslator + ssh-config alias parser(Phase 4 第一張,M sizing,依 T0269 已 DONE)
+3. 🟢 **Phase 4 鏈式 6 連發 = BUG-060 live regression**:T0282-T0287 全部 git bash → BUG-060 → CLOSED;任一錯 → 退回 FIXING
+4. 🟢 歸檔候選(達 04-28 起):T0277-T0281 + BUG-055/059 + EXP-HEADLESS-001
+5. 🟢 BAT 重啟後可選:`*sync` 確認索引(BUG-060 → VERIFY 寫入 _bug-tracker.md)
+6. 🟢 v0.3.0/v0.3.1 release 觀察 / Phase 1 C3 runtime 驗收 / PLAN-021/028(全部 session 26-27 殘留)
+7. 🟢 手動清 `bat-headless-spike/` 4K 殘留(reboot 或 cmd.exe `rmdir`)
+
+### 恢復指引(下 session 起手)
+
+1. Fast Path 載入本快照(<7 天)
+2. **優先序 0**:確認使用者已重建 + 重啟 BAT(若否,提示重啟流程)
+3. **優先序 1**:確認 worktree `../bat-plan-007` 仍存在,HEAD 應為 `13c9c51`(T0280 DONE);main HEAD 應含 `fad2978`(T0281 fix)
+4. **優先序 2**:派 T0282(spec § Phase 4 + T0266 §6 SshPathTranslator 規格 + T0269 contract framework + L101 plain-Node 相容資訊)
+5. **塔台規則繼續**:D089 worktree 策略不變;Phase 4 沿用 yolo + no-interactive(GP100 跨 type 通用 + GP101 mock-based capstone 模式)
+6. **編號起始**:T0282 / BUG-061 / PLAN-029 / D090 / EXP-SSH-PROXYJUMP-001
+7. **預期 Phase 4 6 張(T0282-T0287)累計 wall ≤ 90 min**(GP101 校準 + cross-deployment shared step 抽象成熟)
+
+### 本 session 教訓
+
+1. **Phase 完成度遞進校準延續但有抑制因素** — Phase 3 wall 偏差 ~30-50× 略低於 Phase 2 70-200×,因 wizard L sizing(T0279 ~28 min)為 deployment 共用 step 整合期,結構複雜度抵消部分 framework 複利。GP-cand-101 因樣本不足未升,留待 Phase 4 觀察。
+2. **mock-based capstone 跨 deployment 模式驗證成立**(GP101 已升)— `__mocks__/electron-api.ts` 第二次套用邊際成本 ~50% 下降,可作為 Phase 4 起手依據。
+3. **Electron main process 修復必須提示重建 + 重啟**(GP102 已升)— Worker 完成 unit test 不等於 full e2e 通過,後續 fix workorder AC 必須含此前置。
+4. **bugfix commit body 標根因是高 ROI 紀錄**(L104 已記)— git log 永久保留 vs 工單檔可能歸檔。
+5. **塔台拍板項寫 commit body 防爭議**(L105 已記)— spec § C-1 拍板「v1 本機 only」寫進 T0278 commit body,後續 T0279/T0280 不重啟議題。
+6. **BUG-060 修復策略「Phase 4 作為 live regression」是聰明選**(使用者建議)— 修復不阻擋 Phase 4 規劃,且修復生效驗證自然走 6 連發測試。
+
+### 本 session 成就
+
+- 🏆 **PLAN-007 Phase 3 整段完成**(T0277-T0280,4 張連發 ~58 min)
+- 🎉 **20 連發鏈式零異常**(session 27 8 張 + session 28 5 張 + session 29 3 張 + session 30 4 張)
+- 🎉 **BUG-060 根因清晰修復 + 抽 shell-path-resolver 共用模組**(8 min wall)
+- 🎉 **跨 PLAN type 萃取**(2 GP global + 3 L project)為知識管線注入 5 條
+- 🎉 **mock-based capstone 跨兩個 deployment 驗證**(WSL + Docker,Phase 4 SSH 可直接套用)
+- 🎉 **Phase 3 docs 擴增**(docker-deployment.md 222 行,Dev Container 整合 + lifecycle scenarios)
+
+---
+
+## 🛏 前 Session 收工快照(第二十九 session,2026-04-26 10:11-11:36,~1h 25min,PLAN-007 Phase 2 全部 4 張落地)
 
 ### 本輪時間線
 

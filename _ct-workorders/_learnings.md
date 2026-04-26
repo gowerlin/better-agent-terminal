@@ -2642,3 +2642,105 @@ BAT 內嵌 `@anthropic-ai/claude-code` SDK 作為 default agent runtime。該 SD
 **儲存目標**：project-only
 
 **證據**：T0272 工單 Bundle layout 策略選擇 [x] B（2026-04-26）
+
+---
+
+## L103 - 2026-04-26 — BAT 內部終端 yolo 派發 shell preference 第二張起 fallback bug 模式
+
+**情境**:BAT Settings 指定 shell=git bash + agent=codex cli。塔台用 `bat-terminal.mjs --notify-id ... --workspace ... --mode yolo --no-interactive --agent default --prompt "/ct-exec T####"` 鏈式派發。**第一張正確**(git bash + codex),**第二張起錯誤**(PowerShell + codex)。
+
+**根因**(T0281 確認 H4):`terminal_create` IPC handler 從沒 resolve / pass persisted shell preference,PTY fallback 到 Windows process platform 預設(pwsh)。
+
+**修復**:抽 `electron/shell-path-resolver.ts` 共用模組,`electron/main.ts` 改呼叫此 resolver 統一處理 shell 解析路徑。
+
+**為什麼是 BAT 專屬模式**:
+- BAT 的 yolo 派發走「外部 process spawn → 內部 IPC → PTY」鏈
+- 第一次 cold start 時某條件成立讓 Settings 路徑被觸發(待後續調查)
+- 後續派發走 PTY fallback,bypass Settings 路徑 → 命中 platform 預設
+
+**塔台行動**:
+1. **後續若遇「第一次正確、第二次起錯」類症狀**,優先檢查 shell preference / agent resolution / IPC payload 的 fallback path
+2. **BAT 內部終端派發工單 AC 必須驗 shell preference**:第一次派發後立刻派第二張驗 shell 正確
+3. **Phase 4 派發作為 live regression**:6 連發若全部 git bash → BUG-060 CLOSED
+
+**反例**(不是此模式):
+- 一致性錯誤(每次都錯):走「sample 1 vs platform default」路徑
+- 偶發錯誤(時對時錯):race condition / timing
+
+**儲存目標**:project-only(BAT 專屬,因為依賴 BAT terminal 架構)
+
+**證據**:
+- session 30 T0277(正確)→ T0278/T0279/T0280/T0281 連續 4 張錯誤
+- T0281 commit body 標 H4 命中
+
+**相關**:BUG-060 / T0281 / L090(preload + electron.d.ts 同步)
+
+---
+
+## L104 - 2026-04-26 — Bugfix 工單 commit body 必須明列「根因:H<#> + 一句話」
+
+**情境**:T0281 commit body:
+```
+fix(yolo): BUG-060 apply persisted shell setting to remote worker terminals
+
+工單:T0281
+BUG:BUG-060
+根因:H4 remote terminal creation never resolved/passed the persisted
+shell preference, so PTY fallback defaulted to PowerShell on Windows.
+```
+後續看 git log 即可一眼追溯,**不需要回看工單檔**。
+
+**塔台行動**:
+1. **Bugfix 工單模板新增 AC**:「commit body 含『根因:<證據編號> + 一句話說明』」
+2. **多假設工單**(像 T0281 列了 H1-H4):commit body 明列哪個假設命中,prevent 後續 regression 重新驗證所有假設
+3. **塔台分析 bug 時假設應編號**(H1/H2/H3...),Worker 修復時 commit body 直接引用編號
+
+**反例**(不適用):
+- 純 typo / 格式修復:commit body 不需要 deep root cause 說明
+- 自描述強的 commit(`fix: typo in README`):無需額外 root cause
+
+**為何成立**:
+- 後續 regression 的 root cause 比對是 git log scan,不是工單檔搜尋
+- 工單檔可能被歸檔到冷區,git log 永久保留
+- LLM Worker 寫 commit body 邊際成本接近零,Y;高 ROI
+
+**儲存目標**:project-only(可考慮升 Global 但需更多樣本)
+
+**證據**:
+- session 30 T0281(2026-04-26 13:20)
+- 對比:T0277-T0280 commit body 簡潔(僅工單編號 + 依賴),非 bug-fix 場景
+
+**相關**:GP098(工單 metadata commit gap)/ L101(YOLO 邊界判斷力)
+
+---
+
+## L105 - 2026-04-26 — 塔台 spec 拍板項應寫進第一個落地工單的 commit body
+
+**情境**:PLAN-007 spec L680「image push 到 ghcr.io 或 BAT release(待塔台拍板)」是 RFC open decision。塔台拍板選 [A] 純本機 build 後,T0278 commit body 含:
+```
+spec § C-1 拍板:v1 本機 only,registry push 標 v2
+```
+後續 Phase 3 工單(T0279/T0280)看 git log 即可知道此決策已凍結,不重新爭議。
+
+**塔台行動**:
+1. **塔台拍板 RFC 後**,在第一個落地工單的 commit body 標「spec § X-Y 拍板:<決定> + 標 vN」
+2. **拍板項影響多個後續工單**:在 PLAN 主文件(`PLAN-###-*.md`)同步更新「拍板紀錄」章節
+3. **避免 spec 內 open decision 多次重啟**:使用者下次問同樣問題時塔台能引 git log + commit body 證據
+
+**反例**(不適用):
+- 微觀技術選擇(命名 / 路徑):commit body 不需要 spec 拍板註記
+- 已凍結的 spec(L 而非 RFC):commit body 引 spec 段落即可
+
+**為何成立**:
+- spec 內 RFC 通常 100-200 字記錄,塔台拍板後 spec 不一定即時更新(因為要等實作驗證)
+- commit body 是「可信時序紀錄」(git log 不可竄改),拍板時間 + 決定 + 標籤 vN 一起寫
+- 後續工單看 git log 即可重建決策時序,不需翻 spec history
+
+**儲存目標**:project-only(BAT/PLAN-007 適用,可考慮升 Global)
+
+**證據**:
+- session 30 T0278 commit body(2026-04-26 12:25)
+- spec § C-1 RFC(L452-457) → T0278 拍板執行
+- T0279 / T0280 commit body 引 T0278 為拍板源頭
+
+**相關**:GP002(跨專案功能完成後做一致性 Review)的反面 — prevent 後續再次爭議
