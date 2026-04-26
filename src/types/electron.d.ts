@@ -438,6 +438,11 @@ interface ElectronAPI {
       | { port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string; restartError?: string }
       | { error: string }
     >
+    // PLAN-031 T0319 — detect remote server architecture for WSL/Docker/SSH profiles.
+    detectArch: (profileId: string) => Promise<
+      | { ok: true; arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'; rawUname: string }
+      | { ok: false; error: string; errorCode: 'unsupported-arch' | 'detect-failed' | 'remote-unreachable' | 'no-state' }
+    >
   }
   snippet: {
     getAll: () => Promise<unknown>

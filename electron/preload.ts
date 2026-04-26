@@ -593,6 +593,12 @@ const electronAPI = {
       ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: { serverPlatform: 'win32' | 'linux' | 'darwin'; serverArch: 'x64' | 'arm64'; serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'; wslDistro?: string; dockerMounts?: Array<{ host: string; container: string }>; serverHome?: string; nodeVersion: string; claudeVersion?: string; bundleVersion: string; glibcVersion?: string } | null }>,
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) =>
       ipcRenderer.invoke('remote:list-profiles', host, port, token, fingerprint) as Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>,
+    // PLAN-031 T0319 — detect remote server architecture (WSL/Docker/SSH dispatch).
+    detectArch: (profileId: string) =>
+      ipcRenderer.invoke('remote:detect-arch', profileId) as Promise<
+        | { ok: true; arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'; rawUname: string }
+        | { ok: false; error: string; errorCode: 'unsupported-arch' | 'detect-failed' | 'remote-unreachable' | 'no-state' }
+      >,
     restartServer: (newPort: number) =>
       ipcRenderer.invoke('remote:restart-server', newPort) as Promise<
         | { port: number; token: string; fingerprint: string; bindInterface: 'localhost' | 'tailscale' | 'all'; host: string; restartError?: string }

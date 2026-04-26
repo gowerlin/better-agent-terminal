@@ -7,9 +7,10 @@
 | 工單編號 | T0319 |
 | 類型 | impl（IPC handler + preload + 重用既有純函數） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 3 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-27 02:06 (UTC+8) |
 | 派發時間 | 2026-04-27 02:06 (UTC+8) |
+| 開始時間 | 2026-04-27 02:13 (UTC+8) |
 | Sizing | M（estimate 45-75 min wall） |
 | 依賴 | T0314 ✅（`normalizeArch` 純函數已落地 src/lib/arch-normalize.ts） |
 | 平行 | T0318（download module） |
@@ -219,36 +220,78 @@ Type augmentation 加在既有 `electronAPI` 型別宣告處。**保持既有 re
 
 ### 1. detectRemoteArch 摘要
 
-（待填）
+落腳在 `electron/remote/arch-detect.ts`（依專案 convention 走 `electron/remote/` 目錄而非工單 affects_files 寫的 top-level，匹配既有 `ssh-*.ts` / `remote-server.ts` / `tunnel-manager.ts` 同層級）。
+
+四 dispatch 路徑：
+- **WSL**：`execFile('wsl', ['-d', distro, '--', 'uname', '-m'])`，5s timeout
+- **Docker**：`execFile('docker', ['exec', container, 'uname', '-m'])`，stderr 內容判斷 `Cannot connect to the Docker daemon` / `No such container` 細分 `remote-unreachable`
+- **SSH**：讀 `profile.sshServerArch`（不 re-fetch），若 undefined → `no-state`
+- **Local**：直接 `no-state`
+
+純化策略：把 `normalize + 包裝 result` 抽到 `src/lib/arch-detect-result.ts` 的 `buildArchResult(rawUname, targetOS)`，detect 模組 import。tests 只測 pure helper，不 mock 子行程。
+
+`execFileImpl` test seam（`setExecFileImplForTests`/`resetExecFileImplForTests`）照 `electron/docker-detect.ts` / `electron/wsl-detect.ts` 既有 pattern 預留供將來 integration test 使用。
 
 ### 2. IPC handler 註冊位置
 
-（待填）
+`electron/main.ts` 既有 `remote:list-profiles` handler 之前一行（line 3180 區段）插入 `remote:detect-arch`。
+
+安全性：renderer 只傳 `profileId: string`，main 端先做 `/^[a-zA-Z0-9._-]+$/` regex 驗證 → `profileManager.getProfile(profileId)` 重新 lookup → 不接受 inline profile object。lookup 失敗 → `errorCode: 'no-state'` + msg「Profile not found: <id>」。
+
+實作用 dynamic `await import('./remote/arch-detect')` 避免 main.ts top-level static import（保持冷啟動 import graph 不增重）。
 
 ### 3. preload + type augmentation
 
-（待填）
+`electron/preload.ts` line 597 區段，在既有 `restartServer` 之前插入 `detectArch(profileId)`，inline cast 完整 union 型別。
+
+`src/types/electron.d.ts` line 437 區段，在 `restartServer` 後加 `detectArch` 簽章宣告。保持既有 `remote.*` 結構不動（AC-4：only extend）。
 
 ### 4. 純函數單元測試
 
-（待填）
+`src/lib/__tests__/arch-detect-ipc.test.ts` — 13 cases (≥10 達標)：
+- happy paths 7 cases：WSL x86_64 / WSL aarch64 / Docker amd64 / Docker arm64 / SSH linux x86_64 / SSH darwin arm64 / 含 trailing whitespace
+- unsupported-arch 5 cases：WSL i686（含「i686」+ supported list 出現）/ 空 rawUname / 多行雜訊 / SSH-darwin x86_64（D 1.3 排除 Intel Mac）/ Docker-linux i686
+- local 1 case：local target 不論 rawUname → no-state
 
 ### 5. 既有 test + tsc 結果
 
-（待填）
+- `npm run test:unit -- --run`：**125 passed / 6 files passed**（112 既有 + 13 新增），duration 2.26s
+- `npx tsc --noEmit`：對所有本工單**新檔 + 修改檔**（`arch-detect.ts` / `arch-detect-result.ts` / `arch-detect-ipc.test.ts` / `main.ts` / `preload.ts` / `profile-manager.ts` / `electron.d.ts`）**0 error**。其餘 pre-existing CodexAgentPanel.tsx / agent-profiles.ts 錯誤與本工單無關（不在 scope）。
 
 ### 6. profile 安全 lookup 處理
 
-（待填）
+- IPC channel 只收 `profileId: string` (regex validated)
+- main 端 `profileManager.getProfile(profileId)` resolve 完整 `ProfileEntry`
+- `detectRemoteArch(profile)` 只接受 main 端取出的 profile，renderer 無法 inject 假 profile 繞過驗證
+- WSL distro / Docker container 名稱再做一次 regex 過濾（雙層防禦）
 
 ### 7. PARTIAL / 矛盾項（如有）
 
-（待填）
+無 PARTIAL。一個與工單敘述對齊但實作層需澄清的點：
+
+工單原文「`profile.ssh?.serverArch`」假設 ProfileEntry 是 nested 結構（`profile.ssh.serverArch`），但 codebase 實際 ProfileEntry 是 **flat** 結構（`sshHost`、`sshUser`、…）。已加 `sshServerArch?: string` 平面欄位（與 `serverHome`、`sshKeyPath` 同層）並擴 `update()` updates 物件 + `profile:update` IPC channel 的 type augmentation，不破壞既有 schema（field 為 optional，既有 profile load 不需 migration）。
 
 ### 8. Out-of-scope but justified（如有）
 
-（待填）
+**1) `ProfileEntry.sshServerArch` 平面欄位 + `update()` API 擴張**
+
+工單敘述「reuse profile.serverArch (set by verify-auth, no re-fetch)」假設 verify-auth 已在 profile 寫入 serverArch。實際 codebase verify-auth 只寫到 `ctx.serverMetadata.serverArch` / `ctx.state.sshServerArch`（wizard runtime state，非 ProfileEntry 持久化欄位）。
+
+選擇：擴 ProfileEntry 加 optional `sshServerArch` 欄位 + 對應 `update()` updates 接受 + `profile:update` IPC schema augmentation。**未動 verify-auth.ts 自動寫入這個欄位**（明確被工單 §範圍排除「不擴 verify-auth.ts serverArch 抓取邏輯」），等 Sprint 4 wizard wiring 接上。
+
+理由：
+- AC-5「SSH 路徑不 re-fetch，從 profile.ssh.serverArch 直接讀」要求 profile 上必須有此欄位，否則 detect IPC 在 SSH 路徑永遠拿不到資料
+- 純加 optional 欄位 ≈ schema 擴張，與既有 profile JSON 完全相容（passive load）
+- 若不做這個擴張，AC-5 形同空殼
+
+**2) `electron/remote/arch-detect.ts` 路徑（非 `electron/remote-arch-detect.ts`）**
+
+工單 `affects_files` 寫的是 `electron/remote-arch-detect.ts`，但既有 SSH/remote 相關模組全部位於 `electron/remote/` 目錄下。把新檔放在 `electron/remote/` 維持目錄一致性，import path `'./remote/arch-detect'`。Worker 守則 §1 / §13 允許 worker 決定路徑。
 
 ### 完成註記
 
-（待填）
+完成時間：2026-04-27 02:24 (UTC+8)
+
+驗收條件：AC-1 ~ AC-10 全綠（含 ≥10 cases、`npm run test:unit` / `npx tsc --noEmit` clean、執行檔強制 array args 而非模板字串、distro/container/profileId 三層 regex validation、SSH 不 re-fetch、commit message 走指定格式）。
+
+commit hash：（見元資料區下方收尾 commit）。

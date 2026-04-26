@@ -46,6 +46,11 @@ export interface ProfileEntry {
   useSshTunnel?: boolean      // ssh-* default true at use-site
   tunnelLocalPort?: number    // ssh-* dynamic port at use-site; schema slot only
   serverHome?: string
+  // PLAN-031 T0319 — cached uname -m for ssh-* targets, written by verify-auth
+  // wizard step in a follow-up (Sprint 4). Used by remote:detect-arch IPC to
+  // avoid re-fetching over SSH. Free-form string (raw uname output, e.g.
+  // "x86_64", "arm64") — normalization happens at consumption site.
+  sshServerArch?: string
 }
 
 /**
@@ -591,6 +596,7 @@ export class ProfileManager {
     useSshTunnel?: boolean
     tunnelLocalPort?: number
     serverHome?: string
+    sshServerArch?: string
   }): Promise<boolean> {
     const index = await ensureInitialized()
     const entry = index.profiles.find(p => p.id === profileId)
@@ -613,6 +619,7 @@ export class ProfileManager {
     if (updates.useSshTunnel !== undefined) entry.useSshTunnel = updates.useSshTunnel
     if (updates.tunnelLocalPort !== undefined) entry.tunnelLocalPort = updates.tunnelLocalPort
     if (updates.serverHome !== undefined) entry.serverHome = updates.serverHome
+    if (updates.sshServerArch !== undefined) entry.sshServerArch = updates.sshServerArch
     entry.updatedAt = Date.now()
     await writeIndex(index)
     return true

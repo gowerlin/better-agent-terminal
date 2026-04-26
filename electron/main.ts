@@ -3177,6 +3177,21 @@ function registerLocalHandlers() {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
+  // PLAN-031 T0319 — main process arch detection (WSL/Docker/SSH dispatch).
+  // Renderer passes profileId; main resolves to full ProfileEntry via
+  // profileManager — never trust an inline profile object from the renderer.
+  ipcMain.handle('remote:detect-arch', async (_event, profileId: string) => {
+    if (typeof profileId !== 'string' || !/^[a-zA-Z0-9._-]+$/.test(profileId)) {
+      return { ok: false, error: 'Invalid profileId', errorCode: 'detect-failed' as const }
+    }
+    const profile = await profileManager.getProfile(profileId)
+    if (!profile) {
+      return { ok: false, error: `Profile not found: ${profileId}`, errorCode: 'no-state' as const }
+    }
+    const { detectRemoteArch } = await import('./remote/arch-detect')
+    return detectRemoteArch(profile)
+  })
+
   ipcMain.handle('remote:list-profiles', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const tempClient = new RemoteClient(() => [])
     try {
@@ -3201,7 +3216,7 @@ function registerLocalHandlers() {
   ipcMain.handle('profile:delete', async (_event, profileId: string) => profileManager.delete(profileId))
   ipcMain.handle('profile:rename', async (_event, profileId: string, newName: string) => profileManager.rename(profileId, newName))
   ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => profileManager.duplicate(profileId, newName))
-  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => profileManager.update(profileId, updates))
+  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; sshServerArch?: string }) => profileManager.update(profileId, updates))
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
   ipcMain.handle('docker:status', () => dockerDetect.dockerStatus())
   ipcMain.handle('docker:list-containers', () => dockerDetect.listContainers())
