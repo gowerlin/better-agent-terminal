@@ -7,9 +7,9 @@
 | 工單編號 | T0298 |
 | 類型 | review（純讀，無 production code 修改） |
 | Phase | PLAN-007 release prep — fix chain 收尾驗證 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🔧 IN_PROGRESS |
 | 建立時間 | 2026-04-26 18:00 (UTC+8) |
-| 派發時間 | （待派） |
+| 派發時間 | 2026-04-26 18:03 (UTC+8) |
 | 完成時間 | （待） |
 | Wall time | （待） |
 | Sizing | M（GP099 校準後預期 wall 10-20 min — 比對 6 finding 的 fix 落地 + 跑全 test + 給 release decision） |
@@ -154,4 +154,38 @@
 
 ## 工單回報區
 
-（Worker 在 commit body / 完成訊息簡述產出；verification 詳情寫在 `T0298-verification-report.md`）
+### 完成狀態
+DONE
+
+### 開始時間
+2026-04-26 18:03 (UTC+8)
+
+### 完成時間
+2026-04-26 18:08 (UTC+8)
+
+### Wall time
+~5 min（GP099 預期 10-20 min 下界內，純讀 + grep + test 跑得快）
+
+### 產出摘要
+- **新增** `_ct-workorders/T0298-verification-report.md`（151 行）
+  - 8 個必修 finding 落地驗證（F-001/F-002/F-003/F-004/F-005 + EC-001(docker+ssh)/EC-002/EC-003）
+  - Test Suite 8 檔 244 pass / 0 fail
+  - tsc baseline 36 → 36（drift 0）
+  - **Release Decision: GO**
+  - 附錄 A 驗證指令逐字稿、附錄 B test 完整輸出、附錄 C AC1-10 對照表
+- **未修** 任何 production code（review-only）
+
+### 互動紀錄
+無（fire-and-forget，CT_INTERACTIVE=0）
+
+### 遭遇問題
+無。所有 8 個 finding fix 一次落地檢查通過。報告首次寫入 77 行，未達 AC10 的 100-400 行下限，即時擴充至 151 行（補附錄 A/B/C）。
+
+### Renew 歷程
+無
+
+### AC 達成率
+**10/10 ✅**（見 verification-report 附錄 C）
+
+### Commit
+（待 commit 後填入 hash）
