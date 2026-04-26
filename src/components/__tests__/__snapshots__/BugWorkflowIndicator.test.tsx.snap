@@ -1,0 +1,942 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`BugWorkflowIndicator > renders CLOSED status snapshot 1`] = `
+<div
+  class="ct-workflow-indicator"
+>
+  <div
+    class="ct-workflow-bar"
+  >
+    <ol
+      aria-label="Bug workflow status: CLOSED"
+      class="ct-workflow-root ct-workflow-horizontal"
+      role="list"
+    >
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            📋
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            OPEN
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            ⏳
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXING
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXED
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            VERIFY
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        aria-current="step"
+        class="ct-workflow-step ct-workflow-status-running ct-workflow-current"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(245, 158, 11); border-color: rgb(245, 158, 11);"
+          >
+            ✅
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            CLOSED
+          </span>
+        </div>
+      </li>
+    </ol>
+  </div>
+  <div
+    class="ct-workflow-guidance"
+  >
+    <span
+      class="ct-workflow-guidance-icon"
+    >
+      ✅
+    </span>
+    <span
+      class="ct-workflow-guidance-text"
+    >
+      已結案，無需任何動作
+    </span>
+  </div>
+</div>
+`;
+
+exports[`BugWorkflowIndicator > renders FIXED status snapshot 1`] = `
+<div
+  class="ct-workflow-indicator"
+>
+  <div
+    class="ct-workflow-bar"
+  >
+    <ol
+      aria-label="Bug workflow status: FIXED"
+      class="ct-workflow-root ct-workflow-horizontal"
+      role="list"
+    >
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            📋
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            OPEN
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            ⏳
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXING
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        aria-current="step"
+        class="ct-workflow-step ct-workflow-status-running ct-workflow-current"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(245, 158, 11); border-color: rgb(245, 158, 11);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXED
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            VERIFY
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            ✅
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            CLOSED
+          </span>
+        </div>
+      </li>
+    </ol>
+  </div>
+  <div
+    class="ct-workflow-guidance ct-workflow-action-required"
+  >
+    <span
+      class="ct-workflow-guidance-icon"
+    >
+      🔔
+    </span>
+    <span
+      class="ct-workflow-guidance-text"
+    >
+      <strong>
+        需要你介入：
+      </strong>
+      請安裝最新版本並測試，確認修復後回報指揮塔「驗收通過」
+    </span>
+  </div>
+</div>
+`;
+
+exports[`BugWorkflowIndicator > renders FIXING status snapshot 1`] = `
+<div
+  class="ct-workflow-indicator"
+>
+  <div
+    class="ct-workflow-bar"
+  >
+    <ol
+      aria-label="Bug workflow status: FIXING"
+      class="ct-workflow-root ct-workflow-horizontal"
+      role="list"
+    >
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            📋
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            OPEN
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        aria-current="step"
+        class="ct-workflow-step ct-workflow-status-running ct-workflow-current"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(245, 158, 11); border-color: rgb(245, 158, 11);"
+          >
+            ⏳
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXING
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXED
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            VERIFY
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            ✅
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            CLOSED
+          </span>
+        </div>
+      </li>
+    </ol>
+  </div>
+  <div
+    class="ct-workflow-guidance"
+  >
+    <span
+      class="ct-workflow-guidance-icon"
+    >
+      ⏳
+    </span>
+    <span
+      class="ct-workflow-guidance-text"
+    >
+      Worker 修復中，等待 commit 完成回報
+    </span>
+  </div>
+</div>
+`;
+
+exports[`BugWorkflowIndicator > renders OPEN status snapshot 1`] = `
+<div
+  class="ct-workflow-indicator"
+>
+  <div
+    class="ct-workflow-bar"
+  >
+    <ol
+      aria-label="Bug workflow status: OPEN"
+      class="ct-workflow-root ct-workflow-horizontal"
+      role="list"
+    >
+      <li
+        aria-current="step"
+        class="ct-workflow-step ct-workflow-status-running ct-workflow-current"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(245, 158, 11); border-color: rgb(245, 158, 11);"
+          >
+            📋
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            OPEN
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            ⏳
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXING
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXED
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            VERIFY
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            ✅
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            CLOSED
+          </span>
+        </div>
+      </li>
+    </ol>
+  </div>
+  <div
+    class="ct-workflow-guidance"
+  >
+    <span
+      class="ct-workflow-guidance-icon"
+    >
+      📋
+    </span>
+    <span
+      class="ct-workflow-guidance-text"
+    >
+      等待指揮塔開工單指派 Worker 修復
+    </span>
+  </div>
+</div>
+`;
+
+exports[`BugWorkflowIndicator > renders VERIFY status snapshot 1`] = `
+<div
+  class="ct-workflow-indicator"
+>
+  <div
+    class="ct-workflow-bar"
+  >
+    <ol
+      aria-label="Bug workflow status: VERIFY"
+      class="ct-workflow-root ct-workflow-horizontal"
+      role="list"
+    >
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            📋
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            OPEN
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            ⏳
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXING
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-completed"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(16, 185, 129); border-color: rgb(16, 185, 129);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXED
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal ct-workflow-connector-done"
+        />
+      </li>
+      <li
+        aria-current="step"
+        class="ct-workflow-step ct-workflow-status-running ct-workflow-current"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(245, 158, 11); border-color: rgb(245, 158, 11);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            VERIFY
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            ✅
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            CLOSED
+          </span>
+        </div>
+      </li>
+    </ol>
+  </div>
+  <div
+    class="ct-workflow-guidance ct-workflow-action-required"
+  >
+    <span
+      class="ct-workflow-guidance-icon"
+    >
+      🔔
+    </span>
+    <span
+      class="ct-workflow-guidance-text"
+    >
+      <strong>
+        需要你介入：
+      </strong>
+      驗收進行中，請確認後回報指揮塔「驗收通過」
+    </span>
+  </div>
+</div>
+`;
+
+exports[`BugWorkflowIndicator > renders WONTFIX status snapshot 1`] = `
+<div
+  class="ct-workflow-indicator"
+>
+  <div
+    class="ct-workflow-bar"
+  >
+    <ol
+      aria-label="Bug workflow status: WONTFIX"
+      class="ct-workflow-root ct-workflow-horizontal"
+      role="list"
+    >
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            📋
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            OPEN
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            ⏳
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXING
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            FIXED
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            🔔
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            VERIFY
+          </span>
+        </div>
+        <span
+          aria-hidden="true"
+          class="ct-workflow-connector ct-workflow-connector-horizontal"
+        />
+      </li>
+      <li
+        class="ct-workflow-step ct-workflow-status-pending"
+        role="listitem"
+      >
+        <div
+          class="ct-workflow-node-row"
+        >
+          <span
+            aria-hidden="true"
+            class="ct-workflow-node"
+            style="color: rgb(113, 113, 122); border-color: rgb(113, 113, 122);"
+          >
+            ✅
+          </span>
+          <span
+            class="ct-workflow-label"
+          >
+            CLOSED
+          </span>
+        </div>
+      </li>
+    </ol>
+    <div
+      class="ct-workflow-step ct-workflow-wontfix-branch"
+    >
+      <div
+        class="ct-workflow-node ct-workflow-wontfix"
+      >
+        <span
+          class="ct-workflow-icon"
+        >
+          🚫
+        </span>
+      </div>
+      <span
+        class="ct-workflow-label ct-workflow-label-current"
+      >
+        WONTFIX
+      </span>
+    </div>
+  </div>
+  <div
+    class="ct-workflow-guidance"
+  >
+    <span
+      class="ct-workflow-guidance-icon"
+    >
+      🚫
+    </span>
+    <span
+      class="ct-workflow-guidance-text"
+    >
+      已決定不修復，已銷單
+    </span>
+  </div>
+</div>
+`;

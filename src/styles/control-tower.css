@@ -979,6 +979,70 @@
   opacity: 0.7;
 }
 
+/* T0308: Stepper-rendered Bug Workflow bridge — internalize via classNamePrefix="ct-workflow" */
+/* Reset Stepper's <ol> root inside .ct-workflow-bar so it acts as inline flex row */
+.ct-workflow-bar .ct-workflow-root {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Stepper's node-row: Stepper uses flex-row by default for horizontal; we want column
+ * to keep label below node (matching old layout). */
+.ct-workflow-bar .ct-workflow-node-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Stepper's status-* classes → legacy past/current/future visual mapping
+ * Override inline style={color, borderColor} from Stepper preset. */
+.ct-workflow-bar .ct-workflow-status-running .ct-workflow-node {
+  background: rgba(245, 158, 11, 0.2) !important;
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+  color: inherit !important;
+  opacity: 1;
+}
+.ct-workflow-bar .ct-workflow-status-running .ct-workflow-label {
+  color: #f59e0b;
+  opacity: 1;
+  font-weight: 700;
+}
+.ct-workflow-bar .ct-workflow-status-completed .ct-workflow-node {
+  background: rgba(107, 114, 128, 0.1) !important;
+  border-color: rgba(107, 114, 128, 0.25) !important;
+  color: inherit !important;
+  opacity: 0.5;
+}
+.ct-workflow-bar .ct-workflow-status-pending .ct-workflow-node {
+  background: rgba(107, 114, 128, 0.08) !important;
+  border-color: rgba(107, 114, 128, 0.15) !important;
+  color: inherit !important;
+  opacity: 0.35;
+}
+
+/* Neutralize legacy .ct-workflow-current applied to <li> by Stepper
+ * (legacy rule expected node-div context, not list-item) */
+.ct-workflow-bar > .ct-workflow-root > li.ct-workflow-current {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Stepper's connector-horizontal: align with legacy positioning */
+.ct-workflow-bar .ct-workflow-connector-horizontal {
+  position: absolute;
+  top: 14px;
+  left: calc(50% + 14px);
+  width: calc(100% - 28px);
+  height: 2px;
+  background: rgba(107, 114, 128, 0.2);
+  min-width: 24px;
+}
+
 /* New status badge styles */
 .ct-bug-status-fixing  { background: rgba(245, 158, 11, 0.15); color: #f59e0b;  border-color: rgba(245, 158, 11, 0.35); }
 .ct-bug-status-wontfix { background: rgba(239, 68, 68, 0.15);  color: #ef4444;  border-color: rgba(239, 68, 68, 0.35); }
