@@ -6,7 +6,9 @@ import {
   type WizardContext,
   type WizardStep,
   type WizardStepSnapshot,
+  type WizardTargetOS,
 } from './wizard-runner'
+import { buildDockerWizardSteps, createDockerWizardContext } from './docker-flow'
 import { buildWslWizardSteps, createWslWizardContext } from './wsl-flow'
 
 interface SetupWizardShellProps {
@@ -33,13 +35,35 @@ function statusIcon(step: WizardStepSnapshot): string {
   }
 }
 
-export function useWslWizardController(onComplete: (profileId: string) => void) {
+function resolveWizardSteps(targetOS: WizardTargetOS): WizardStep[] {
+  switch (targetOS) {
+    case 'wsl-linux':
+      return buildWslWizardSteps()
+    case 'docker-linux':
+      return buildDockerWizardSteps()
+    default:
+      return []
+  }
+}
+
+function createWizardContext(targetOS: WizardTargetOS, initial: { profileName: string }): WizardContext {
+  switch (targetOS) {
+    case 'wsl-linux':
+      return createWslWizardContext(initial)
+    case 'docker-linux':
+      return createDockerWizardContext(initial)
+    default:
+      throw new Error(`Setup wizard is not implemented for ${targetOS}.`)
+  }
+}
+
+function useSetupWizardController(targetOS: WizardTargetOS, onComplete: (profileId: string) => void) {
   const [isOpen, setIsOpen] = useState(false)
   const [ctx, setCtx] = useState<WizardContext | null>(null)
   const [instanceKey, setInstanceKey] = useState(0)
 
   const open = (profileName = '') => {
-    setCtx(createWslWizardContext({ profileName }))
+    setCtx(createWizardContext(targetOS, { profileName }))
     setInstanceKey((value) => value + 1)
     setIsOpen(true)
   }
@@ -57,12 +81,20 @@ export function useWslWizardController(onComplete: (profileId: string) => void) 
   return {
     isOpen,
     key: instanceKey,
-    steps: buildWslWizardSteps(),
+    steps: resolveWizardSteps(targetOS),
     ctx,
     open,
     close,
     handleComplete,
   }
+}
+
+export function useWslWizardController(onComplete: (profileId: string) => void) {
+  return useSetupWizardController('wsl-linux', onComplete)
+}
+
+export function useDockerWizardController(onComplete: (profileId: string) => void) {
+  return useSetupWizardController('docker-linux', onComplete)
 }
 
 export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellProps) {

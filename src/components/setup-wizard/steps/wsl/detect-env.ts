@@ -2,10 +2,19 @@ import type { WizardStep } from '../../wizard-runner'
 
 export const detectEnvStep: WizardStep = {
   id: 'detect-env',
-  title: 'Detect Windows + WSL environment',
+  title: 'Detect target environment',
   appliesTo: 'all',
   retryable: true,
   async run(ctx) {
+    if (ctx.targetOS === 'docker-linux') {
+      const status = await window.electronAPI.docker.status()
+      if (!status.available) {
+        throw new Error(status.error || 'Docker is not available on this machine.')
+      }
+      ctx.logger.info(`Docker detected (${status.version ?? 'version unknown'}).`)
+      return
+    }
+
     if (window.electronAPI.platform !== 'win32') {
       throw new Error('WSL setup is only available from the Windows BAT client.')
     }

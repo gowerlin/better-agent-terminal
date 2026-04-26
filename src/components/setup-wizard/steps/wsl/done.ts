@@ -2,7 +2,7 @@ import type { WizardStep } from '../../wizard-runner'
 
 export const doneStep: WizardStep = {
   id: 'done',
-  title: 'Finalize WSL setup',
+  title: 'Finalize setup',
   appliesTo: 'all',
   retryable: false,
   async run(ctx) {

@@ -1,4 +1,5 @@
 import type { WizardContext } from '../../src/components/setup-wizard/wizard-runner'
+import { createDockerWizardContext } from '../../src/components/setup-wizard/docker-flow'
 import { createWslWizardContext } from '../../src/components/setup-wizard/wsl-flow'
 
 type NetworkMode = 'mirrored' | 'nat' | 'unknown'
@@ -13,6 +14,13 @@ interface MockOptions {
   remoteToken?: string
   profileUpdateOk?: boolean
   serverPort?: number
+  remoteServerEnv?: 'wsl' | 'docker'
+  dockerRemoteMounts?: Array<{ host: string; container: string }>
+  dockerAvailable?: boolean
+  dockerContainers?: Array<{ id: string; name: string; image: string; state: string; status: string }>
+  dockerSelectFolders?: string[] | null
+  dockerValidateErrors?: string[]
+  dockerHealthSequence?: Array<'healthy' | 'unhealthy' | 'starting' | 'none'>
 }
 
 function slugifyProfileId(name: string): string {
@@ -28,6 +36,9 @@ export function createMockElectronApi(options: MockOptions = {}) {
     createdProfileIds: [] as string[],
     deletedProfileIds: [] as string[],
     remoteTestHosts: [] as Array<{ host: string; port: number }>,
+    dockerStartCalls: [] as Array<{ name: string; createIfMissing: boolean; image?: string }>,
+    dockerStopCalls: [] as Array<{ name: string; remove?: boolean }>,
+    dockerRemoveCalls: [] as string[],
   }
 
   const distros = options.distros ?? [{ name: 'Ubuntu', version: 2 as const, state: 'Running' as const }]
@@ -35,9 +46,17 @@ export function createMockElectronApi(options: MockOptions = {}) {
   const remoteFingerprint = options.remoteFingerprint ?? 'FP:AA:BB:CC'
   const remoteToken = options.remoteToken ?? 'secret-token'
   const serverPort = options.serverPort ?? 9876
+  const dockerContainers = new Map((options.dockerContainers ?? []).map((container) => [container.name, { ...container }]))
+  const dockerHealthSequence = [...(options.dockerHealthSequence ?? ['healthy'])]
 
   const electronAPI = {
     platform: 'win32' as const,
+    dialog: {
+      selectFolder: async () => options.dockerSelectFolders ?? ['C:\\Users\\test\\project'],
+      selectImages: async () => [],
+      selectFiles: async () => [],
+      confirm: async () => true,
+    },
     wsl: {
       list: async () => ({ distros, default: defaultDistro }),
       systemdEnabled: async () => options.systemdEnabled ?? true,
@@ -90,12 +109,65 @@ export function createMockElectronApi(options: MockOptions = {}) {
           metadata: {
             serverPlatform: 'linux' as const,
             serverArch: 'x64' as const,
-            serverEnv: 'wsl' as const,
+            serverEnv: (options.remoteServerEnv ?? 'wsl') as 'wsl' | 'docker',
+            dockerMounts: options.remoteServerEnv === 'docker'
+              ? (options.dockerRemoteMounts ?? [{ host: 'C:\\Users\\test\\project', container: '/workspace/project' }])
+              : undefined,
             nodeVersion: '24.0.0',
             bundleVersion: '0.3.1',
           },
         }
       },
+    },
+    docker: {
+      status: async () => options.dockerAvailable === false
+        ? { available: false as const, error: 'Docker daemon unavailable' }
+        : { available: true as const, version: 'Docker version 27.0.0' },
+      listContainers: async () => Array.from(dockerContainers.values()),
+      inspectContainer: async (name: string) => {
+        const container = dockerContainers.get(name)
+        if (!container) {
+          throw new Error(`Container not found: ${name}`)
+        }
+        return {
+          id: container.id,
+          name: container.name,
+          image: container.image,
+          state: { status: container.state, running: container.state === 'running', health: 'healthy' as const },
+          mounts: options.dockerRemoteMounts?.map((mount) => ({ source: mount.host, destination: mount.container })) ?? [],
+          ports: ['9876/tcp'],
+          env: [],
+        }
+      },
+      validateMounts: async () => options.dockerValidateErrors?.length
+        ? { ok: false as const, errors: options.dockerValidateErrors }
+        : { ok: true as const, errors: [] },
+      startContainer: async (name: string, startOptions?: { createIfMissing?: boolean; image?: string }) => {
+        operationLog.dockerStartCalls.push({ name, createIfMissing: Boolean(startOptions?.createIfMissing), image: startOptions?.image })
+        if (startOptions?.createIfMissing) {
+          dockerContainers.set(name, {
+            id: `container-${name}`,
+            name,
+            image: startOptions.image ?? 'bat-server:latest',
+            state: 'running',
+            status: 'Up 1 second',
+          })
+        }
+        return { ok: true as const, token: remoteToken }
+      },
+      stopContainer: async (name: string, stopOptions?: { remove?: boolean }) => {
+        operationLog.dockerStopCalls.push({ name, remove: stopOptions?.remove })
+        if (stopOptions?.remove) dockerContainers.delete(name)
+        return { ok: true as const }
+      },
+      removeContainer: async (name: string) => {
+        operationLog.dockerRemoveCalls.push(name)
+        dockerContainers.delete(name)
+        return { ok: true as const }
+      },
+      restartContainer: async () => ({ ok: true as const }),
+      getContainerLogs: async () => ({ ok: true as const, logs: 'container logs' }),
+      getContainerHealth: async () => ({ ok: true as const, health: dockerHealthSequence.shift() ?? 'healthy' }),
     },
     profile: {
       create: async (name: string, config?: Record<string, unknown>) => {
@@ -139,6 +211,12 @@ export function createMockElectronApi(options: MockOptions = {}) {
     profiles,
     createContext(profileName = ''): WizardContext {
       const ctx = createWslWizardContext({ profileName })
+      ctx.serverPort = serverPort
+      ctx.state.serverPort = serverPort
+      return ctx
+    },
+    createDockerContext(profileName = ''): WizardContext {
+      const ctx = createDockerWizardContext({ profileName })
       ctx.serverPort = serverPort
       ctx.state.serverPort = serverPort
       return ctx

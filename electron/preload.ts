@@ -463,7 +463,7 @@ const electronAPI = {
     load: (profileId: string) => ipcRenderer.invoke('profile:load', profileId) as Promise<unknown>,
     delete: (profileId: string) => ipcRenderer.invoke('profile:delete', profileId) as Promise<boolean>,
     rename: (profileId: string, newName: string) => ipcRenderer.invoke('profile:rename', profileId, newName) as Promise<boolean>,
-    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => ipcRenderer.invoke('profile:update', profileId, updates) as Promise<boolean>,
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => ipcRenderer.invoke('profile:update', profileId, updates) as Promise<boolean>,
     duplicate: (profileId: string, newName: string) => ipcRenderer.invoke('profile:duplicate', profileId, newName) as Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>,
     get: (profileId: string) => ipcRenderer.invoke('profile:get', profileId) as Promise<{ id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number } | null>,
     getActiveIds: () => ipcRenderer.invoke('profile:get-active-ids') as Promise<string[]>,
@@ -478,6 +478,34 @@ const electronAPI = {
       ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
     uninstallBundle: (distro: string, installPath: string) =>
       ipcRenderer.invoke('wsl:uninstall-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
+  },
+  docker: {
+    status: () => ipcRenderer.invoke('docker:status') as Promise<{ available: boolean; version?: string; error?: string }>,
+    listContainers: () => ipcRenderer.invoke('docker:list-containers') as Promise<Array<{ id: string; name: string; image: string; state: string; status: string }>>,
+    inspectContainer: (name: string) =>
+      ipcRenderer.invoke('docker:inspect-container', name) as Promise<{
+        id: string
+        name: string
+        image: string
+        state: { status: string; running: boolean; health: string }
+        mounts: Array<{ source: string; destination: string }>
+        ports: string[]
+        env: string[]
+      }>,
+    validateMounts: (mounts: Array<{ host: string; container: string }>) =>
+      ipcRenderer.invoke('docker:validate-mounts', mounts) as Promise<{ ok: boolean; errors: string[] }>,
+    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
+      ipcRenderer.invoke('docker:start-container', name, options) as Promise<{ ok: boolean; token?: string; error?: string }>,
+    stopContainer: (name: string, options?: { remove?: boolean }) =>
+      ipcRenderer.invoke('docker:stop-container', name, options) as Promise<{ ok: boolean; error?: string }>,
+    removeContainer: (name: string) =>
+      ipcRenderer.invoke('docker:remove-container', name) as Promise<{ ok: boolean; error?: string }>,
+    restartContainer: (name: string) =>
+      ipcRenderer.invoke('docker:restart-container', name) as Promise<{ ok: boolean; error?: string }>,
+    getContainerLogs: (name: string, options?: { tail?: number; follow?: boolean }) =>
+      ipcRenderer.invoke('docker:get-container-logs', name, options) as Promise<{ ok: boolean; logs?: string; error?: string }>,
+    getContainerHealth: (name: string) =>
+      ipcRenderer.invoke('docker:get-container-health', name) as Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>,
   },
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>

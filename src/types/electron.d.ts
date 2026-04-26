@@ -29,6 +29,7 @@ interface ProfileRecord {
   wslDistro?: string
   dockerContainer?: string
   dockerHost?: string
+  dockerMounts?: Array<{ host: string; container: string }>
   sshHost?: string
   sshUser?: string
   sshPort?: number
@@ -314,7 +315,7 @@ interface ElectronAPI {
     load: (profileId: string) => Promise<unknown>
     delete: (profileId: string) => Promise<boolean>
     rename: (profileId: string, newName: string) => Promise<boolean>
-    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: ProfileTargetOS; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => Promise<boolean>
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: ProfileTargetOS; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => Promise<boolean>
     duplicate: (profileId: string, newName: string) => Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>
     get: (profileId: string) => Promise<ProfileRecord | null>
     getActiveIds: () => Promise<string[]>
@@ -327,6 +328,26 @@ interface ElectronAPI {
     detectNetworkMode: (distro: string) => Promise<'mirrored' | 'nat' | 'unknown'>
     installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+  }
+  docker: {
+    status: () => Promise<{ available: boolean; version?: string; error?: string }>
+    listContainers: () => Promise<Array<{ id: string; name: string; image: string; state: string; status: string }>>
+    inspectContainer: (name: string) => Promise<{
+      id: string
+      name: string
+      image: string
+      state: { status: string; running: boolean; health: string }
+      mounts: Array<{ source: string; destination: string }>
+      ports: string[]
+      env: string[]
+    }>
+    validateMounts: (mounts: Array<{ host: string; container: string }>) => Promise<{ ok: boolean; errors: string[] }>
+    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) => Promise<{ ok: boolean; token?: string; error?: string }>
+    stopContainer: (name: string, options?: { remove?: boolean }) => Promise<{ ok: boolean; error?: string }>
+    removeContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
+    restartContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
+    getContainerLogs: (name: string, options?: { tail?: number; follow?: boolean }) => Promise<{ ok: boolean; logs?: string; error?: string }>
+    getContainerHealth: (name: string) => Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>
   }
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) => Promise<{ ok: true }>

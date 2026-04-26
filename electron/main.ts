@@ -86,6 +86,9 @@ import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
+import * as dockerDetect from './docker-detect'
+import * as dockerLifecycle from './docker-lifecycle'
+import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
 import * as wslSystemd from './wsl-systemd'
 import {
@@ -3221,8 +3224,19 @@ function registerLocalHandlers() {
   ipcMain.handle('profile:delete', async (_event, profileId: string) => profileManager.delete(profileId))
   ipcMain.handle('profile:rename', async (_event, profileId: string, newName: string) => profileManager.rename(profileId, newName))
   ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => profileManager.duplicate(profileId, newName))
-  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => profileManager.update(profileId, updates))
+  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => profileManager.update(profileId, updates))
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
+  ipcMain.handle('docker:status', () => dockerDetect.dockerStatus())
+  ipcMain.handle('docker:list-containers', () => dockerDetect.listContainers())
+  ipcMain.handle('docker:inspect-container', (_event, name: string) => dockerDetect.inspectContainer(name))
+  ipcMain.handle('docker:validate-mounts', (_event, mounts: Array<{ host: string; container: string }>) => dockerValidate.validateMountTable(mounts))
+  ipcMain.handle('docker:start-container', (_event, name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
+    dockerLifecycle.startContainer(name, options))
+  ipcMain.handle('docker:stop-container', (_event, name: string, options?: { remove?: boolean }) => dockerLifecycle.stopContainer(name, options))
+  ipcMain.handle('docker:remove-container', (_event, name: string) => dockerLifecycle.removeContainer(name))
+  ipcMain.handle('docker:restart-container', (_event, name: string) => dockerLifecycle.restartContainer(name))
+  ipcMain.handle('docker:get-container-logs', (_event, name: string, options?: { tail?: number; follow?: boolean }) => dockerLifecycle.getContainerLogs(name, options))
+  ipcMain.handle('docker:get-container-health', (_event, name: string) => dockerLifecycle.getContainerHealth(name))
   ipcMain.handle('wsl:list', () => wslDetect.list())
   ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
   ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))
