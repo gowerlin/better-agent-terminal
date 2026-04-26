@@ -7,10 +7,10 @@
 | 工單編號 | T0275 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 2(WSL deployment)第三張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 10:51 (UTC+8) |
-| 派發時間 | (待派發,鏈式自動) |
-| 完成時間 | - |
+| 派發時間 | 2026-04-26 11:01 (UTC+8) |
+| 完成時間 | 2026-04-26 11:10 (UTC+8) |
 | Sizing | M (spec 估 4-8h;校準後預期 wall 12-30 min) |
 | 依賴 | T0274(wizard runner + steps 1-4 ✅)、T0272(createHeadlessServer factory ✅) |
 | 後續 | T0276(WSL e2e + 3 user journeys) |
@@ -172,7 +172,52 @@
 > 3. 主動超出範圍項(若有)
 > 4. 教訓 / 觀察(可空)
 
-(Worker 填)
+### 結果摘要
+
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1 | ✅ | `electron/wsl-systemd.ts` 已落地，export `writeUnit` / `enableLinger` / `startService` / `removeUnit` + `renderSystemdUnit` |
+| AC2 | ✅ | `electron/wsl-validate.ts` 已落地；`electron/wsl-detect.ts` 改用共用 validation helper |
+| AC3 | ✅ | 5 個新 step 已落地：`write-systemd-unit` / `fetch-fingerprint` / `connect-test` / `write-profile` / `done` |
+| AC4 | ✅ | `tests/wsl-systemd.test.ts` 驗證 `renderSystemdUnit` section / env / escaping |
+| AC5 | ✅ | `fetch-fingerprint.ts` 以 `node:https` + `rejectUnauthorized: false` 做首次 TOFU 抓指紋 |
+| AC6 | ✅ | `systemdServiceActive === false` 時，`fetch-fingerprint` / `connect-test` 走 skip 分支而非 fail |
+| AC7 | ✅ | `tests/wsl-systemd.test.ts` 9/9 全綠（>=8） |
+| AC8 | ✅ | `npx tsc --noEmit` 仍有既有 error，但本次未新增 WSL wizard / IPC / test 相關編譯錯誤 |
+| AC9 | ✅ | `electron/wsl-systemd.ts` 無 `child_process.exec(`；所有 user input 走 argv + validation |
+| AC10 | ✅ | `tests/wizard-runner.test.ts` 新增 9-step happy path，驗證 ctx 累積完整 |
+
+### Worktree commit
+
+- `5d75d4b` — `feat(wsl): T0275 wizard steps 5-7 + systemd unit + linger`
+
+### 產出摘要
+
+- 新增 main-process systemd helper：`electron/wsl-systemd.ts`
+- 新增共用 validation：`electron/wsl-validate.ts`
+- 新增 WSL wizard 後半段 5 steps + `steps/wsl/index.ts`
+- 擴充 `electron/main.ts` / `electron/preload.ts` / `src/types/electron.d.ts`
+- 擴充 `remote:test-connection` 回傳 metadata 供 connect-test 寫入 ctx
+- 新增 `tests/wsl-systemd.test.ts`，並擴充 `tests/wizard-runner.test.ts`
+
+### 驗證指令
+
+- `npx tsx tests/wsl-detect.test.ts`
+- `npx tsx tests/wsl-systemd.test.ts`
+- `npx tsx tests/wizard-runner.test.ts`
+- `npx tsc --noEmit`（失敗為既有 baseline：`CodexAgentPanel.tsx` / `ProfilePanel.tsx` / `agent-profiles.ts`）
+
+### 遭遇問題
+
+- 無 blocker。唯一未清零項為 repo 既有 TypeScript baseline errors，未在本工單範圍內處理。
+
+### 互動紀錄
+
+- 無
+
+### Renew 歷程
+
+- 無
 
 ---
 
