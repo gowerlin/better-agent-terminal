@@ -7,11 +7,11 @@
 | 工單編號 | T0302 |
 | 類型 | review + admin（驗證 + 版本 bump + CHANGELOG，**允許**寫 CHANGELOG / package.json / version-info.ts） |
 | Phase | v0.4.1 patch chain 收尾（最後一張）|
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 18:58 (UTC+8) |
 | 派發時間 | 2026-04-26 18:59 (UTC+8) |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 完成時間 | 2026-04-26 19:09 (UTC+8) |
+| Wall time | ~10 min（GP099 下界）|
 | Sizing | M（GP099 校準後預期 wall 10-20 min — 7 BUG fix grep 驗證 + 跑全 test + bump version + CHANGELOG + 給 release decision） |
 | 依賴 | T0298 ✅、T0299 ✅、T0300 ✅、T0301 ✅、BUG-062~068（v0.4.1 backlog） |
 | 後續 | v0.4.1 release decision：GO → 進行 tag + push trigger CI |
