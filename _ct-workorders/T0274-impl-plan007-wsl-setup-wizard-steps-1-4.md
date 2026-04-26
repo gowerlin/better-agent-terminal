@@ -7,10 +7,12 @@
 | 工單編號 | T0274 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 2(WSL deployment)第二張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 10:33 (UTC+8) |
-| 派發時間 | (待派發,鏈式自動) |
-| 完成時間 | - |
+| 派發時間 | 2026-04-26 10:36 (UTC+8) |
+| 完成時間 | 2026-04-26 10:50 (UTC+8) |
+| Wall time | ~14 min(GP099 + T0273 校準預期 15-40 min,實際接近下界) |
+| Worktree commit | `70404d2` on `feature/plan-007-remote-dev` |
 | Sizing | L (spec 估 8-16h;GP099 + T0273 校準後預期 wall 15-40 min) |
 | 依賴 | T0271(server bundle linux-x64 ✅ DONE) |
 | 後續 | T0275(steps 5-7 + systemd unit)、T0276(WSL e2e) |
@@ -163,13 +165,44 @@
 
 ## 工單回報區
 
-> Worker 收尾後,在此貼:
-> 1. 結果摘要(AC 逐項勾選)
-> 2. worktree commit hash
-> 3. 主動超出範圍項(若有)
-> 4. 教訓 / 觀察(可空)
+### 結果摘要(10 AC 全綠)
 
-(Worker 填)
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1 | ✅ | `wizard-runner.ts` 227 行,export `WizardStep` interface + `WizardRunner` class + step status |
+| AC2 | ✅ | `SetupWizardShell.tsx` 182 行,接 steps/ctx props,渲染 step list + status icons |
+| AC3 | ✅ | `electron/wsl-detect.ts` 196 行,export `list` / `systemdEnabled` / `installBundle` / `uninstallBundle` 四函數 |
+| AC4 | ✅ | UTF-16LE parsing 用 Node 內建 Buffer + utf16le decode,`grep iconv` 為 0 |
+| AC5 | ✅ | 4 個 WSL steps 落地於 `setup-wizard/steps/wsl/`(detect-env / pick-wsl-distro / wsl-systemd-check / install-server-bundle) |
+| AC6 | ✅ | `wizard-runner.test.ts` 1/1 涵蓋反向 rollback chain(best-effort,失敗不中斷) |
+| AC7 | ✅ | `electronAPI.wsl.{list,systemdEnabled,installBundle}` 在 `electron.d.ts` 14 行擴充落地 |
+| AC8 | ✅ | `wsl-detect.test.ts` 7/7(≥6 要求,含 UTF-16LE / empty / systemd 雙態 / 兩個 input validation) |
+| AC9 | ✅ | tsc T0274 觸碰檔案零新增 error(總 errors 維持 37 baseline) |
+| AC10 | ✅ | **安全**:T0274 觸碰檔案 `child_process.exec(` 計數為 0,全部走 `execFile`/`spawn`;distro / installPath / tarballPath 入口均有 validation |
+
+### 修改檔(12 files / +997 / 0)
+
+| 類別 | 檔案 |
+|------|------|
+| 新建框架 | `src/components/setup-wizard/wizard-runner.ts` (227) / `SetupWizardShell.tsx` (182) |
+| 新建 IPC | `electron/wsl-detect.ts` (196) |
+| 新建 steps | `steps/wsl/detect-env.ts` (23) / `pick-wsl-distro.ts` (47) / `wsl-systemd-check.ts` (23) / `install-server-bundle.ts` (72) |
+| 新建 tests | `tests/wizard-runner.test.ts` (65) / `tests/wsl-detect.test.ts` (122) |
+| 修改既有 | `electron/main.ts` (+17) / `electron/preload.ts` (+9) / `src/types/electron.d.ts` (+14) |
+
+### Worktree commit
+
+`70404d2 feat(wsl): T0274 setup wizard steps 1-4 + runner + UI shell` on `feature/plan-007-remote-dev`(parent `e569183` T0273 DONE)
+
+### 主動超出範圍項
+
+無(嚴格按 spec doc §2.6 + §4.1 + T0263 落地;Worker 注意到 hook 強制 execFile,主動加 input validation 是 AC10 要求,不算超範圍)。
+
+### 教訓 / 觀察
+
+- 共通框架(WizardRunner)與 deployment-specific steps(WSL 變體)分離設計成功,後續 T0279(Docker wizard)/ T0284(SSH wizard)只需新增 `steps/docker/` `steps/ssh/` 即可,runner 不變
+- UTF-16LE 用 Node 內建 `Buffer.from(b, 'utf16le')` 處理 BOM strip 完全可行,無需 `iconv-lite` dep,符合「不引入新 dep」守則
+- input validation 在 IPC handler 入口集中設計,後續 Docker / SSH IPC handler 可沿用相同 pattern
 
 ---
 
