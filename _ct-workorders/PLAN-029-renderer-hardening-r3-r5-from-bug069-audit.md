@@ -8,7 +8,7 @@
 | 標題 | Renderer hardening：R3 indexBench.ts misplaced require + R5 setup-wizard manualChunks 切分 |
 | 優先級 | 🟢 Low |
 | 類型 | 技術改善 |
-| 狀態 | 💡 IDEA |
+| 狀態 | 💡 IDEA — R5 已由 T0309（PLAN-030 合併）落地，僅剩 R3 indexBench.ts 整理待評估 |
 | 建立時間 | 2026-04-26 20:42 (UTC+8) |
 | 來源 | T0303 BUG-069 wider audit Risk Inventory R3 + R5 |
 | 動機 | BUG-069 修復後仍有兩項 renderer 結構性風險：R3（src/ 下 misplaced require 腳本）+ R5（setup-wizard 未獨立 chunk 導致 wizard regression 影響 launch）。非阻塞但值得排程。 |

@@ -8,9 +8,14 @@
 | 標題 | ProfilePanel 工具列群組化 + Setup Wizard 視覺重設計，建立統一 stepper 視覺語言 |
 | 優先級 | 🔴 High |
 | 類型 | 技術改善 + 架構調整（塔台協調 Worker 設計） |
-| 狀態 | 📐 PLANNED — T0305 research 派發中（2026-04-26 22:?? YOLO dispatch） |
+| 狀態 | ✅ DONE — 2026-04-27 00:04 全案閉環（T0305→T0306→T0307+T0307b→T0308→T0309→T0310，6 工單 + 1 補丁，~50 min Worker wall） |
 | 建立時間 | 2026-04-26 22:?? (UTC+8) |
+| 完成時間 | 2026-04-27 00:04 (UTC+8) |
 | 啟動工單 | T0305（research，Phase A 盤點 + Phase B 設計 spike + Phase C 拆單建議） |
+| 收斂工單 | T0306 (BUG-070 fix → VERIFY) / T0307 (Stepper) / T0307b (vitest infra) / T0308 (BugWorkflowIndicator refactor) / T0309 (Setup Wizard + PLAN-029 R5 merged) / T0310 (design language docs) |
+| 累計 unit tests | 47 cases all green |
+| 收斂 BUG | BUG-070 → 🧪 VERIFY (T0306 commit `014da72`)，等使用者實機驗收 |
+| 副效果 | PLAN-029 R5 (setup-wizard chunk 切分) 已由 T0309 順帶完成 |
 | 來源 | v0.4.1 release dogfood — BUG-070 + Setup Wizard UX 痛點同時暴露 |
 | 收斂 | BUG-070（Profile Dialog Add 按鈕橫向溢出）由本 PLAN 統一處理 |
 | 相關 PLAN | PLAN-007（Remote Server Support，引入 WSL/Docker/SSH 觸發 ProfilePanel 溢出）、PLAN-029（renderer hardening R5 setup-wizard chunk 切分，可同步處理） |

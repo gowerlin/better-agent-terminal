@@ -1,10 +1,10 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-26 22:?? (UTC+8) — Session 34 起手 PLAN-030 IDEA（ProfilePanel + Setup Wizard UI overhaul，收斂 BUG-070）。
+> 最後同步：2026-04-27 00:05 (UTC+8) — Session 34 PLAN-030 全案閉環（6 工單 + 1 補丁）；R5 已順帶完成併入 PLAN-029 註記。
 
 ## 統計
-- 💡 Ideas: 3 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 5 | 🚫 Dropped: 1 | **Total: 10**
+- 💡 Ideas: 2 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 6 | 🚫 Dropped: 1 | **Total: 10**
 
 > 已歸檔 PLAN（`_archive/plans/`）：19 張
 
@@ -12,15 +12,15 @@
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
-| PLAN-030 | ProfilePanel + Setup Wizard UI 整體改善（套用 BUG Report stepper 視覺語言；收斂 BUG-070） | 🔴 High | 📐 PLANNED | [PLAN-030](PLAN-030-profile-panel-setup-wizard-ui-overhaul.md) |
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B） | 🟡 Medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-015 | Refactor：抽取 renderPanelContent shared helper（消除 App.tsx/WorkspaceView.tsx 雙 render 路徑） | 🟢 Low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
-| PLAN-029 | Renderer hardening：R3 indexBench.ts misplaced require + R5 setup-wizard manualChunks（BUG-069 audit 衍生） | 🟢 Low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
+| PLAN-029 | Renderer hardening：R3 indexBench.ts misplaced require（R5 已由 T0309 合併落地） | 🟢 Low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
 
 ## Completed
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-030 | ProfilePanel + Setup Wizard UI 整體改善（6 工單 + 1 補丁，~50 min Worker wall，47 unit tests，收斂 BUG-070 → VERIFY） | 2026-04-27 00:04 | [PLAN-030](PLAN-030-profile-panel-setup-wizard-ui-overhaul.md) |
 | PLAN-007 | BAT terminal client/server 拆分 + 跨環境 server 部署（local/WSL/Docker/SSH）— 23 工單全收 | 2026-04-26 16:34 | [PLAN-007](PLAN-007-remote-container-dev-support.md) |
 | PLAN-021 | Settings UI 支援自訂 RemoteServer port — 由 PLAN-007 整體收斂 | 2026-04-26 | [PLAN-021](PLAN-021-remote-server-port-settings-ui.md) |
 | PLAN-026 | JetBrains Gateway 剪貼簿 proxy — 由 PLAN-007 多 deployment 替代路徑收斂 | 2026-04-26 | [PLAN-026](PLAN-026-jetbrains-gateway-clipboard-proxy.md) |
