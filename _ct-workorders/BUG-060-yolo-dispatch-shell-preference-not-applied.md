@@ -9,7 +9,7 @@
 | 嚴重度 | 🟡 Medium |
 | 可重現 | 100%(本 session 第一張 T0277 正確,T0278/T0279/T0280 連續 3 張錯誤)|
 | Workaround | 不確定(待調查;可能解:每次手動關閉 BAT 終端後重派 / 強制重啟 BAT process) |
-| 狀態 | 🧪 VERIFY（BAT 已重建+重啟 2026-04-26 ~13:50；觀察 #1 ✅ T0282 派發 14:06 開 git bash + codex；待 T0283 派發第二次觀察 confirm 後 CLOSED） |
+| 狀態 | 🚫 CLOSED 2026-04-26 14:30 — 觀察 #1（T0282 派發 14:06）+ #2（T0283 派發 14:14）連續兩次皆 git bash + codex，使用者人眼確認 fix 持久生效；VERIFY 決策 [1] 直接 CLOSED |
 | 修復工單 | T0281 ✅ DONE(2026-04-26 13:20)|
 | 根因 | H4:remote terminal creation 沒 resolve/pass persisted shell preference,PTY fallback Windows 預設 PowerShell |
 | 主線 commit | `fad2978` on `main` |
