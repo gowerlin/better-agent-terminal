@@ -4,7 +4,7 @@
 > 最後同步：2026-04-26 22:?? (UTC+8) — Session 34 起手新增 BUG-070（Profile Dialog Add 按鈕溢出）。
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 13**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 13**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -18,7 +18,6 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-069 | v0.4.1 NSIS install renderer crash：`require is not defined`（T0304 IPC 遷移 + ESLint 守衛 D090） | 🔴 High | 2026-04-26 20:12 | [BUG-069](BUG-069-v041-nsis-renderer-require-not-defined.md) |
 
 ## ✅ 已修復
 
@@ -35,6 +34,7 @@
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-070 | Profile Dialog Add 按鈕橫向溢出（T0306 commit `014da72`，使用者實機驗收通過） | 🔴 High | 2026-04-27 | [BUG-070](BUG-070-profile-dialog-add-buttons-overflow.md) |
+| BUG-069 | v0.4.1 NSIS renderer `require is not defined`（T0303+T0304 commit `e8bb389`，使用者實機驗收通過） | 🔴 High | 2026-04-27 | [BUG-069](BUG-069-v041-nsis-renderer-require-not-defined.md) |
 | BUG-068 | RemoteClient.invoke 中途換 translator（freeze per-invoke） | 🟢 Low | 2026-04-26 | [BUG-068](BUG-068-remoteclient-invoke-translator-swap-mid-flight.md) |
 | BUG-067 | RemoteClient.disconnect 不 await tunnel.stop() | 🟡 Medium | 2026-04-26 | [BUG-067](BUG-067-remoteclient-disconnect-no-await-tunnel-stop.md) |
 | BUG-066 | WizardRunner.run() 失敗後 runPromise 不 reset | 🟢 Low | 2026-04-26 | [BUG-066](BUG-066-wizardrunner-runpromise-not-restartable.md) |

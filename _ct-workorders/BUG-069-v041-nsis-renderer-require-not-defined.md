@@ -9,7 +9,7 @@
 | 嚴重度 | 🔴 High |
 | 可重現 | 100%（每次安裝啟動皆炸） |
 | Workaround | 無（renderer 完全死，UI 黑畫面/白畫面） |
-| 狀態 | ⏳ FIXING — T0303 研究 DONE，根因確認，派 T0304 IPC 遷移 + ESLint 守衛 |
+| 狀態 | 🚫 CLOSED — 2026-04-27 使用者實機驗收通過（T0303 研究 + T0304 IPC 遷移 + ESLint 守衛 commit `e8bb389`） |
 | Root cause | `src/components/setup-wizard/steps/wsl/fetch-fingerprint.ts:1` 的 `import * as https from 'node:https'` 被 `vite-plugin-electron-renderer` 0.14.6 轉成虛擬 chunk 含 `const avoid_parse_require = require;`；setup-wizard 未獨立 chunk 進主 bundle eager-load；nodeIntegration:false 無 `require` → 炸。觸發 commit：`5d75d4b`（T0275），非 vite 7 升級。 |
 | Fix strategy | Spike A IPC 遷移：移除 renderer 的 `node:https` import，改 main process IPC handler `wsl:fetchFingerprint`，preload 暴露 `window.electronAPI.wsl.fetchFingerprint(port)`。同步加 ESLint `no-restricted-imports` 守衛（D090）防復發。 |
 | Verify steps | (1) `npx vite build` 成功 (2) `grep -rn "from 'node:" src/` 結果為 0 (3) `grep -rn "avoid_parse_require" dist/` 結果為 0 (4) NSIS 安裝 v0.4.2 → renderer console 無 `require is not defined` (5) wizard SSH/WSL/Docker 至少一條 flow 跑到 fetch-fingerprint 確認 IPC 正常 |
