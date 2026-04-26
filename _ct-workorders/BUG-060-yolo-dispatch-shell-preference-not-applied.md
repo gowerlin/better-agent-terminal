@@ -9,8 +9,10 @@
 | 嚴重度 | 🟡 Medium |
 | 可重現 | 100%(本 session 第一張 T0277 正確,T0278/T0279/T0280 連續 3 張錯誤)|
 | Workaround | 不確定(待調查;可能解:每次手動關閉 BAT 終端後重派 / 強制重啟 BAT process) |
-| 狀態 | ⏳ FIXING |
-| 修復工單 | T0281(2026-04-26 13:12 派發)|
+| 狀態 | 🧪 VERIFY(主線 fix `fad2978` 已落,待 BAT 重建 + 重啟 + Phase 4 鏈式驗證)|
+| 修復工單 | T0281 ✅ DONE(2026-04-26 13:20)|
+| 根因 | H4:remote terminal creation 沒 resolve/pass persisted shell preference,PTY fallback Windows 預設 PowerShell |
+| 主線 commit | `fad2978` on `main` |
 | 建立時間 | 2026-04-26 13:08 (UTC+8) |
 | 報告者 | Gower(human via 塔台 *bug)|
 | 影響範圍 | YOLO 鏈式派發 / `auto-session: yolo` 模式 / BAT 內部終端開啟流程 |

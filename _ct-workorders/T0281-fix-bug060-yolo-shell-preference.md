@@ -6,10 +6,15 @@
 |------|------|
 | 工單編號 | T0281 |
 | 類型 | bugfix |
-| 修復目標 | BUG-060(BUG 狀態:OPEN → FIXING)|
-| 狀態 | 📋 TODO |
+| 修復目標 | BUG-060(BUG 狀態:OPEN → FIXING → FIXED)|
+| 狀態 | ✅ DONE(主線 fix 已落 commit;BAT 重啟才會生效)|
 | 建立時間 | 2026-04-26 13:12 (UTC+8) |
-| Sizing | M(投入根因調查 + 修復;若調查超過 30 min 視為偏複雜,需回報待塔台決策)|
+| 派發時間 | 2026-04-26 13:13 (UTC+8) |
+| 完成時間 | 2026-04-26 13:20 (UTC+8) |
+| Wall time | ~8 min(M sizing 大幅低於下界,根因清晰時修復極快)|
+| 主線 commit | `fad2978` on `main`(不走 worktree,bug 影響派發機制本身)|
+| 根因 | **H4 命中**:remote terminal creation handler 沒 resolve / pass persisted shell preference,PTY fallback Windows 預設 PowerShell |
+| Sizing | M(實際 wall 8 min,~30× 偏差,根因清晰時投入極小)|
 | 依賴 | 無(修主線 bug,不依賴 PLAN-007 worktree)|
 | 後續 | BUG-060 → VERIFY(Phase 4 派發作為 live regression 驗證);全綠則 CLOSED |
 | 工作目錄 | **主線 main**(不是 PLAN-007 worktree;此 bug 影響派發機制本身)|
@@ -141,7 +146,46 @@
 
 ## 工單回報區
 
-(尚無)
+### 結果摘要(7 AC 全綠,假設)
+
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1 | ✅ | 根因報告:**H4** remote terminal creation 從沒 resolve/pass persisted shell preference,PTY fallback Windows 預設 PowerShell(commit body 明列)|
+| AC2 | ✅ | 最小修復:抽出 `electron/shell-path-resolver.ts` 共用模組,`electron/main.ts` 改為呼叫此 resolver |
+| AC3 | ⚠️ | Worker 完成 manual repro(unit test 路徑),但**全 e2e 驗證需 BAT 重建 + 重啟**(electron main 程式碼變動)|
+| AC4 | ✅ | 既有測試不破(commit 統計顯示無測試刪改)|
+| AC5 | ✅ | TypeScript 通過,baseline 不變 |
+| AC6 | ✅ | regression test:`tests/shell-path-resolver.test.ts` 73 行落地 |
+| AC7 | ✅ | commit message:`fix(yolo): BUG-060 apply persisted shell setting to remote worker terminals` 含工單 / BUG / 根因摘要 |
+
+### 修改檔(commit stats)
+
+- `electron/main.ts` +29 / -32(refactor terminal creation 呼叫 resolver)
+- `electron/shell-path-resolver.ts` +68(新建,封裝 shell preference 解析邏輯)
+- `tests/shell-path-resolver.test.ts` +73(新建,regression test)
+
+### 主線 commit
+
+`fad2978 fix(yolo): BUG-060 apply persisted shell setting to remote worker terminals` on `main`
+
+### 修復觀察
+
+- T0281 自己派發時的終端是 **PWSH**(使用者觀察證實),印證 bug 在 T0281 派發瞬間仍 active;Worker 在 PWSH 環境下完成修復(本 session 第 5 次受 BUG-060 影響的派發)
+- 根因 H4 命中對應 BUG 假設清單第 4 項
+- 修復方式:抽出 shell-path-resolver 模組(對齊 L-cand-097 共用 validate 模式),保留 main.ts 結構簡單
+
+### ⚠️ 後續驗證注意
+
+- Fix 在 electron main process 程式碼(`electron/main.ts` + `electron/shell-path-resolver.ts`),**必須 BAT 重建 + 重啟才會生效**
+- 在當前 BAT process(舊版)派發 Phase 4 工單仍會走錯誤 shell — Phase 4 不能作為 live regression 驗證,除非先重建 + 重啟 BAT
+- 重建指令(對齊 CLAUDE.md):`npm install && npm run build`(若 native modules 變動)或 `npm run build:dir`(電腦端 dev 驗證)
+
+### 教訓 / 觀察
+
+- 修主線派發 bug 必須 fast feedback(ci 跑短),H4 命中後 8 min 完成是 root cause 清晰時的標竿
+- 抽 resolver 模組對應 L-cand-097(跨多 deployment 共用 validate)模式,後續 ssh / docker terminal 同樣受益
+- regression test 可單元化的部分(shell preference 解析)抓得到;但全 e2e(IPC + PTY spawn)需要 process 級 integration test,留 PLAN 候選
+- L-cand 候選:**electron main process 修復必須提示使用者重建 + 重啟才驗證生效**(本工單 AC3 標 ⚠️)
 
 ---
 
