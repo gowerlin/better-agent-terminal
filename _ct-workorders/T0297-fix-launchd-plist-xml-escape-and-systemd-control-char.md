@@ -7,9 +7,9 @@
 | 工單編號 | T0297 |
 | 類型 | fix（v0.4.0 release blocker，最後一張） |
 | Phase | PLAN-007 release prep — fix chain 第 4 張（最終 fix） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-26 17:57 (UTC+8) |
-| 派發時間 | （待派） |
+| 派發時間 | 2026-04-26 17:55 (UTC+8) |
 | 完成時間 | （待） |
 | Wall time | （待） |
 | Sizing | S（GP099 校準後預期 wall 5-12 min — XML escape helper + plist/unit 套用 + 測試） |
@@ -156,4 +156,76 @@
 
 ## 工單回報區
 
-（Worker 完成後在此補回報；塔台會在收到「T0297 完成」訊息後從本檔讀回報區）
+### 完成狀態
+
+**DONE** — F-005 fix 落地，10/10 AC 全過，19/19 ssh-start-server test 綠 + 60/60 全 SSH 測試零 regression。
+
+### Wall time
+
+~4 分鐘（17:55:55 → 17:59:47），落在 GP099 預期 5-12 min 下沿（最快的 fix workorder，符合工單預期）。
+
+### 產出摘要
+
+**修改檔案**（2）：
+- `electron/remote/ssh-start-server.ts`：+52 / -4
+- `tests/ssh-start-server.test.ts`：+101 / -1
+
+**Net 148 lines add**，AC10 ≤ 150 達成（緊邊界）。
+
+**核心改動**：
+
+1. **`escapeXml` helper**（純函數，7 行）：把 `& < > " '` 五個 XML special char 轉為 entity reference（`&amp; &lt; &gt; &quot; &apos;`）。Order critical — `&` 必須最先處理，否則 `&lt;` 會被雙重 escape 成 `&amp;lt;`
+2. **`validateSystemdValue` helper**（10 行）：拒絕 `\n \r [ ] =` 五個 systemd INI 結構字元，throw with field name in error message。`\n \r` 與 T0296 `escapeSingleQuotesStrict` 互補（T0296 防 shell 注入 + heredoc 框架破壞，本工單防 systemd unit 結構破壞）
+3. **`renderLaunchdPlist`**：`Label / installPath / port` 三個 `<string>` 插值點全走 `escapeXml`。攻擊複現（test11b）：`/tmp</string><key>RunAsUser</key><string>root` 被完整 entity-encode，無法 inject `<key>RunAsUser</key>`
+4. **`renderSystemdUnit`**：`installPath` 插值前過 `validateSystemdValue`，攻擊立即 throw（fail-fast，非 silent escape；INI 格式無 entity ref 機制，只能拒收）
+5. **`__internals` export**：暴露 `escapeXml` 和 `validateSystemdValue` 給 test 直接呼叫
+6. **6 個新測試**（test11a-f）：5 個 special char unit + 攻擊複現（plist breakout / systemd section injection）+ benign happy-path regression
+
+**未動部分**（守則 #9 範圍守護）：
+- 未碰 `ssh-args.ts`（T0296 已修 control char）
+- 未動 baseline BUG-061
+- 未引入 plist library（YAGNI）
+- 未擴 v0.4.1 backlog
+- systemd `Environment=` 行進階 escape 不在 v1 scope
+
+### 互動紀錄
+
+無（fire-and-forget yolo 模式，零互動）。
+
+### 遭遇問題
+
+**最小議題**：初版 net add 151 lines（超 AC10 上限 1 行）。trim test11f 文件註解 3 行降到 148 net，過關。屬「測試文件詳盡度 vs sizing budget」的小取捨，無實質風險。
+
+### Renew 歷程
+
+無。
+
+### 驗收細節
+
+| AC | 條件 | 結果 |
+|----|------|------|
+| AC1 | escapeXml helper 5 chars | ✅ inline 於 ssh-start-server.ts:86-94 |
+| AC2 | renderLaunchdPlist 所有 <string> 插值 escape | ✅ Label / installPath / port 三點 |
+| AC3 | F-005 攻擊複現（plist breakout） | ✅ test11b — 攻擊 payload 無法 inject RunAsUser key |
+| AC4 | validateSystemdValue 檢查 \n \r [ ] = | ✅ 於 ssh-start-server.ts:104-111 |
+| AC5 | systemd 攻擊複現（[Foo] / =oops throw） | ✅ test11d 三 case 全 throw |
+| AC6 | escapeXml unit test ≥ 6 case | ✅ test11a 7 assertion（5 char 各自 + amp-first ordering + composite + ASCII no-op） |
+| AC7 | ssh-start-server test 零 regression | ✅ 19/19（13 既有 + 6 新增） |
+| AC8 | 全 SSH test 零 regression | ✅ 60/60（ssh-args + ssh-tunnel + ssh-bundle-uploader + ssh-auth-probe + ssh-start-server） |
+| AC9 | tsc baseline drift = 0 | ✅ 36 errors 全屬 CodexAgentPanel.tsx + agent-profiles.ts 既有 baseline |
+| AC10 | net add ≤ 150 | ✅ 148 net |
+
+### Commit
+
+`fix(remote): T0297 launchd plist XML escape + systemd unit struct char (F-005)`（hash 待 commit 後填回）
+
+### 與 fix chain 的相對位置
+
+**PLAN-007 release prep fix chain 第 4 / 4 張（最終）**：
+- T0294 ✅ ws + safeStorage + token TOFU（F-001 / EC-001）
+- T0295 ✅ build-server-bundle SHA + Node SHASUMS（F-002 / F-003）
+- T0296 ✅ SSH argv 一致性 + 控制字元 + BatchMode（F-004 / EC-002 / EC-003）
+- **T0297 ✅ launchd plist XML escape + systemd struct char（F-005）← 本張**
+- T0298（後續）：re-review 自我驗證 → 確認 T0292 所有 critical/high finding 已修復
+
+T0297 收尾後 fix chain 完成，可進 T0298 re-review 收 v0.4.0 release 紅燈。

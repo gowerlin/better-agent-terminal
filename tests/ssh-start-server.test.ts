@@ -10,7 +10,14 @@ import {
   __internals,
 } from '../electron/remote/ssh-start-server'
 
-const { renderSystemdUnit, renderLaunchdPlist, buildWriteUnitCommand, escapeSingleQuotes } = __internals
+const {
+  renderSystemdUnit,
+  renderLaunchdPlist,
+  buildWriteUnitCommand,
+  escapeSingleQuotes,
+  escapeXml,
+  validateSystemdValue,
+} = __internals
 
 interface FakeProc extends EventEmitter {
   stdout: EventEmitter
@@ -238,6 +245,99 @@ test('test10c (T0296 F-004): sshHost with leading - throws before any ssh exec',
 
 test('test10d (T0296 EC-002): installPath with \\r rejected via escapeSingleQuotes', () => {
   assert.throws(() => escapeSingleQuotes('~/.local/bat\rserver'), /forbidden control char/)
+})
+
+test('test11a (T0297 F-005): escapeXml maps each of the 5 XML special chars to its entity reference', () => {
+  assert.equal(escapeXml('&'), '&amp;')
+  assert.equal(escapeXml('<'), '&lt;')
+  assert.equal(escapeXml('>'), '&gt;')
+  assert.equal(escapeXml('"'), '&quot;')
+  assert.equal(escapeXml("'"), '&apos;')
+  // ampersand must be processed first — otherwise `&lt;` would double-escape
+  // to `&amp;lt;`. Verify by feeding a raw `&` along with a `<`.
+  assert.equal(escapeXml('a&b<c'), 'a&amp;b&lt;c')
+  // composite attack string: should emerge fully neutralised (no raw <, >, ', ")
+  const attack = `</string><key>Foo</key><string>x`
+  const escaped = escapeXml(attack)
+  assert.equal(escaped, '&lt;/string&gt;&lt;key&gt;Foo&lt;/key&gt;&lt;string&gt;x')
+  // plain ASCII passes through untouched
+  assert.equal(escapeXml('~/.local/bat-server'), '~/.local/bat-server')
+})
+
+test('test11b (T0297 F-005): renderLaunchdPlist neutralises plist breakout attempt in installPath', () => {
+  const evilOpts: StartServerOptions = {
+    ...baseDarwin,
+    installPath: `/tmp</string><key>RunAsUser</key><string>root`,
+  }
+  const plist = renderLaunchdPlist(evilOpts)
+  // The raw attack substring must NOT appear verbatim — it would have closed
+  // the ProgramArguments <string> early and injected a sibling <key>.
+  assert.ok(
+    !plist.includes(`/tmp</string><key>RunAsUser</key><string>root/bin/bat-server`),
+    'attack payload leaked into plist unescaped',
+  )
+  // The escaped form must be present.
+  assert.match(
+    plist,
+    /<string>\/tmp&lt;\/string&gt;&lt;key&gt;RunAsUser&lt;\/key&gt;&lt;string&gt;root\/bin\/bat-server<\/string>/,
+  )
+  // No injected RunAsUser key — only the legit dict keys remain (Label,
+  // ProgramArguments, EnvironmentVariables, RunAtLoad, KeepAlive plus nested
+  // BAT_REMOTE_BIND / BAT_REMOTE_PORT / Crashed / SuccessfulExit).
+  assert.ok(!/<key>RunAsUser<\/key>/.test(plist), 'attack injected RunAsUser key')
+  // Structural sanity: exactly one root <plist>...</plist> wrapper, opens with
+  // <plist version="1.0"> and closes with </plist> on its own line.
+  const plistOpens = (plist.match(/<plist version="1\.0">/g) ?? []).length
+  const plistCloses = (plist.match(/<\/plist>/g) ?? []).length
+  assert.equal(plistOpens, 1, 'plist root opened more than once (broken structure)')
+  assert.equal(plistCloses, 1, 'plist root closed more than once (broken structure)')
+})
+
+test('test11c (T0297 F-005): renderLaunchdPlist also escapes & " in installPath', () => {
+  const ampOpts: StartServerOptions = { ...baseDarwin, installPath: '/tmp/foo&bar' }
+  const ampPlist = renderLaunchdPlist(ampOpts)
+  assert.match(ampPlist, /<string>\/tmp\/foo&amp;bar\/bin\/bat-server<\/string>/)
+  assert.ok(!/<string>\/tmp\/foo&bar\/bin\/bat-server<\/string>/.test(ampPlist))
+
+  const quoteOpts: StartServerOptions = { ...baseDarwin, installPath: '/tmp/he said "hi"' }
+  const quotePlist = renderLaunchdPlist(quoteOpts)
+  assert.match(quotePlist, /<string>\/tmp\/he said &quot;hi&quot;\/bin\/bat-server<\/string>/)
+})
+
+test('test11d (T0297 F-005): renderSystemdUnit rejects [, ], = in installPath', () => {
+  // `[` would open a new INI section
+  assert.throws(
+    () => renderSystemdUnit({ ...baseLinux, installPath: '/tmp[Service]' }),
+    /installPath contains forbidden char .* for systemd unit/,
+  )
+  // `]` would close one
+  assert.throws(
+    () => renderSystemdUnit({ ...baseLinux, installPath: '/tmp/foo]bar' }),
+    /installPath contains forbidden char/,
+  )
+  // `=` would inject a key=value pair
+  assert.throws(
+    () => renderSystemdUnit({ ...baseLinux, installPath: '/tmp=oops' }),
+    /installPath contains forbidden char/,
+  )
+})
+
+test('test11e (T0297 F-005): validateSystemdValue happy path leaves benign values untouched', () => {
+  // `~` and `/` are intentionally not in the forbidden set — they're legitimate
+  // path chars. `\n` / `\r` are upstream concerns (escapeSingleQuotesStrict).
+  assert.equal(validateSystemdValue('~/.local/bat-server', 'installPath'), '~/.local/bat-server')
+  assert.equal(validateSystemdValue('/opt/bat', 'installPath'), '/opt/bat')
+  // `\n` still throws (validateSystemdValue's own check, not delegated)
+  assert.throws(
+    () => validateSystemdValue('/tmp\n[Service]\nExecStart=evil', 'installPath'),
+    /forbidden char/,
+  )
+})
+
+test('test11f (T0297 F-005): benign installPath produces no entity refs (escape is a no-op)', () => {
+  const plist = renderLaunchdPlist(baseDarwin)
+  assert.match(plist, /<string>~\/\.local\/bat-server\/bin\/bat-server<\/string>/)
+  assert.ok(!/&amp;|&lt;|&gt;|&quot;|&apos;/.test(plist), 'benign plist contains entity refs')
 })
 
 test('test10 (bonus): verify failure surfaces verify-failed errorCode + checkOutput populated', async () => {

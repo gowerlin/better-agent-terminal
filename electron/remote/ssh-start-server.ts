@@ -83,6 +83,42 @@ function escapeSingleQuotes(value: string): string {
   return escapeSingleQuotesStrict(value, 'value')
 }
 
+/**
+ * XML structural escape for plist `<string>...</string>` interpolation
+ * (T0297, F-005). Complements `escapeSingleQuotesStrict` (control char +
+ * single-quote injection) by neutralising the 5 XML special chars so a
+ * malicious `installPath` like `/tmp</string><key>Foo</key><string>x`
+ * cannot break out of the `<string>` element and inject extra plist keys.
+ *
+ * Order matters: `&` must run first or subsequent entity refs get
+ * double-escaped (`&lt;` → `&amp;lt;`).
+ */
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+/**
+ * Reject systemd unit values containing structural chars (T0297, F-005).
+ * `\n` / `\r` are already caught by `escapeSingleQuotesStrict` upstream,
+ * but the heredoc body is written verbatim — so a value with `\n[Service]\n`
+ * would still inject a new section. `[`, `]`, `=` are systemd's section /
+ * key=value structural chars; anything containing them in a path is almost
+ * certainly an attack or misuse. Fail-fast (throw) to make the failure loud.
+ */
+function validateSystemdValue(value: string, fieldName: string): string {
+  if (/[\n\r\[\]=]/.test(value)) {
+    throw new Error(
+      `${fieldName} contains forbidden char (\\n, \\r, [, ], =) for systemd unit: ${JSON.stringify(value)}`,
+    )
+  }
+  return value
+}
+
 function systemdUnitPath(): { dir: string; file: string } {
   return {
     dir: '~/.config/systemd/user',
@@ -99,6 +135,10 @@ function launchdPlistPath(): { dir: string; file: string } {
 
 function renderSystemdUnit(opts: StartServerOptions): string {
   const port = opts.serverPort ?? DEFAULT_SERVER_PORT
+  // T0297 F-005: reject structural chars in installPath before interpolating.
+  // `\n` / `\r` already rejected upstream by escapeSingleQuotesStrict (T0296),
+  // but `[ ] =` would still inject INI sections / key-value pairs.
+  const safeInstallPath = validateSystemdValue(opts.installPath, 'installPath')
   // %h is resolved by systemd to the user's home; we keep installPath as
   // literal `~/.local/bat-server` so the unit is portable when copied.
   return [
@@ -110,7 +150,7 @@ function renderSystemdUnit(opts: StartServerOptions): string {
     'Type=simple',
     'Environment=BAT_REMOTE_BIND=localhost',
     `Environment=BAT_REMOTE_PORT=${port}`,
-    `ExecStart=${opts.installPath}/bin/bat-server`,
+    `ExecStart=${safeInstallPath}/bin/bat-server`,
     'Restart=on-failure',
     'RestartSec=5s',
     '',
@@ -122,23 +162,29 @@ function renderSystemdUnit(opts: StartServerOptions): string {
 
 function renderLaunchdPlist(opts: StartServerOptions): string {
   const port = opts.serverPort ?? DEFAULT_SERVER_PORT
+  // T0297 F-005: every value interpolated into `<string>...</string>` runs
+  // through escapeXml so attacker-controlled chars cannot terminate the
+  // element early and inject siblings (e.g. `</string><key>RunAsUser</key>...`).
+  const labelXml = escapeXml(LAUNCHD_LABEL)
+  const installPathXml = escapeXml(opts.installPath)
+  const portXml = escapeXml(String(port))
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
     '<plist version="1.0">',
     '<dict>',
     '  <key>Label</key>',
-    `  <string>${LAUNCHD_LABEL}</string>`,
+    `  <string>${labelXml}</string>`,
     '  <key>ProgramArguments</key>',
     '  <array>',
-    `    <string>${opts.installPath}/bin/bat-server</string>`,
+    `    <string>${installPathXml}/bin/bat-server</string>`,
     '  </array>',
     '  <key>EnvironmentVariables</key>',
     '  <dict>',
     '    <key>BAT_REMOTE_BIND</key>',
     '    <string>localhost</string>',
     '    <key>BAT_REMOTE_PORT</key>',
-    `    <string>${port}</string>`,
+    `    <string>${portXml}</string>`,
     '  </dict>',
     '  <key>RunAtLoad</key>',
     '  <true/>',
@@ -342,6 +388,8 @@ export const __internals = {
   buildWriteUnitCommand,
   buildSshConnectArgs,
   escapeSingleQuotes,
+  escapeXml,
+  validateSystemdValue,
   systemdUnitPath,
   launchdPlistPath,
   SERVICE_NAME,
