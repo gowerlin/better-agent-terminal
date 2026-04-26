@@ -7,9 +7,9 @@
 | 工單編號 | T0293 |
 | 類型 | review（純讀，無 production code 修改） |
 | Phase | PLAN-007 release prep（雙審第二張，串行於 T0292 後） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-26 17:05 (UTC+8) |
-| 派發時間 | （待派） |
+| 派發時間 | 2026-04-26 17:04 (UTC+8) |
 | 完成時間 | （待） |
 | Wall time | （待） |
 | Sizing | L（edge case 對 ~14600 行 diff，預期 wall 20-45 min；T0292 已建立 baseline，本工單聚焦補 T0292 漏網之魚） |
@@ -142,4 +142,26 @@
 
 ## 工單回報區
 
-（Worker 在 commit body / 完成訊息簡述產出；review 詳情寫在 `T0293-review-report.md`）
+### 完成狀態
+**DONE** — 10/10 AC 全過
+
+### 產出摘要
+- 新建 `_ct-workorders/T0293-review-report.md`（322 行，落在 AC10 250-800 範圍）
+- 8 個 H2 章節全到（AC1）：整體評估 / 與 T0292 的互補關係 / Findings / Branch Path 矩陣 / Boundary Input 矩陣 / Async / State Machine Corner / Resource Lifecycle Corner / Recommendation
+- **9 個 EC findings**（AC3 ≥ 6）：1 Critical（EC-001 translator 退化）+ 4 High（EC-002 `\r` 漏防、EC-003 SshTunnel 缺 BatchMode、EC-004 args[0] 翻譯漏、EC-005 WizardRunner runPromise 不可重啟）+ 3 Medium（EC-006~EC-008）+ 1 Low（EC-009）
+- 互補關係表（AC2）列出 EC-001~EC-009 與 T0292 F-001~F-015 的對照，明確標註「同檔不同 case」「跨檔同 pattern」「對偶」「新發現」四類關係
+- Branch Path 矩陣 6 模組（AC4 ≥ 5）；Boundary Input 矩陣 7 input × 7 boundary（AC5 ≥ 5）；Async corner 5 case（AC6 ≥ 3）；Resource Lifecycle 3 scenario（AC7 ≥ 2）
+- Recommendation（AC8）：與 T0292 合併後仍 GO-with-fix，必修清單擴充（T0292 F-001/F-004/F-005 + T0293 EC-001/EC-002/EC-003 三組可同 PR 修），總工時 ~6.5 hr；T0293 EC-005~EC-007 排 v0.4.1 patch；EC-008/EC-009 入 backlog
+- AC9 ✓ 0 行 production code 修改（僅新增 review-report.md + 修工單 metadata）
+
+### 互動紀錄
+無（fire-and-forget，CT_INTERACTIVE=0）
+
+### 遭遇問題
+無。第二輪 review skill 沿用 T0292 的方法論，T0292 已建立 baseline，T0293 聚焦補盲區，順利收斂於預期 wall time 範圍內。
+
+### Renew 歷程
+無
+
+### Commit
+（待 commit 後填入 hash）
