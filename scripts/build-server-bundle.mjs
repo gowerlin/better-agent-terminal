@@ -12,6 +12,7 @@ import {
   ensureDir,
   existsAndIsDirectory,
   existsAndIsFile,
+  fetchText,
   listRelativeFiles,
   makeTempDir,
   removePath,
@@ -231,8 +232,41 @@ async function provisionNodeBinary() {
   const extractDir = path.join(tempDir, 'extract')
   ensureDir(extractDir)
 
+  const baseUrl = `https://nodejs.org/dist/v${nodeVersion}`
+
+  log('3', `Fetching SHASUMS256.txt for Node v${nodeVersion}`)
+  const shasumsText = await fetchText(`${baseUrl}/SHASUMS256.txt`)
+  const shasumsLine = shasumsText
+    .split('\n')
+    .find((line) => line.endsWith(`  ${tarballName}`))
+  if (!shasumsLine) {
+    throw new Error(
+      `SHASUMS256.txt missing entry for ${tarballName} (Node v${nodeVersion}). ` +
+        `Expected a line ending with "  ${tarballName}".`
+    )
+  }
+  const expectedSha = shasumsLine.split(/\s+/)[0]
+  if (!/^[a-f0-9]{64}$/.test(expectedSha)) {
+    throw new Error(
+      `SHASUMS256.txt line malformed for ${tarballName}: "${shasumsLine}" ` +
+        `(expected 64-char lowercase hex sha256)`
+    )
+  }
+
   log('3', `Downloading Node v${nodeVersion} ${targetConfig.nodeArchiveBase} prebuilt`)
-  await downloadFile(`https://nodejs.org/dist/v${nodeVersion}/${tarballName}`, archivePath)
+  await downloadFile(`${baseUrl}/${tarballName}`, archivePath)
+
+  const actualSha = await sha256File(archivePath)
+  if (actualSha !== expectedSha) {
+    throw new Error(
+      `Node binary checksum mismatch for ${tarballName}:\n` +
+        `  expected: ${expectedSha}\n` +
+        `  actual:   ${actualSha}\n` +
+        `  source:   ${baseUrl}/SHASUMS256.txt`
+    )
+  }
+  log('3', `SHASUMS256 verified for ${tarballName} (${actualSha.slice(0, 12)}…)`)
+
   const tarArgs = targetConfig.nodeArchiveExt === 'tar.xz'
     ? ['-xJf', tarballName, '-C', 'extract']
     : ['-xzf', tarballName, '-C', 'extract']
@@ -354,9 +388,10 @@ async function writeLauncherAndReadme(nodeVersion) {
     `- target: ${target}`,
     `- node version: ${nodeVersion}`,
     targetConfig.readmeRuntimeLine,
-    `- sha256: pending`,
+    `- built at: ${new Date().toISOString()}`,
     ``,
     `This archive was produced by scripts/build-server-bundle.mjs.`,
+    `See the GitHub Release notes (or build summary JSON) for the bundle checksum.`,
   ].join('\n')
   writeFileSync(readmePath, initial, 'utf8')
 }
@@ -365,16 +400,8 @@ async function packBundle(nodeVersion) {
   log('7', `Packing ${bundleName}`)
   run('tar', ['-czf', bundleName, 'staging'], { cwd: distRoot })
   const sha = await sha256File(bundlePath)
-  const readmePath = path.join(stagingRoot, 'README.md')
-  const readme = await readFile(readmePath, 'utf8')
-  writeFileSync(
-    readmePath,
-    readme.replace('- sha256: pending', `- sha256: ${sha}`),
-    'utf8'
-  )
-  run('tar', ['-czf', bundleName, 'staging'], { cwd: distRoot })
   return {
-    sha256: await sha256File(bundlePath),
+    sha256: sha,
     nodeVersion,
   }
 }

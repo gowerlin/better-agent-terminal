@@ -54,6 +54,14 @@ export async function sha256File(filePath) {
   return createHash('sha256').update(content).digest('hex')
 }
 
+export async function fetchText(url) {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Fetch failed (${response.status} ${response.statusText}) for ${url}`)
+  }
+  return response.text()
+}
+
 export async function downloadFile(url, destination) {
   const response = await fetch(url)
   if (!response.ok) {
