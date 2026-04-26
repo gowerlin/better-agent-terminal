@@ -128,6 +128,59 @@ export function migrateProfile(entry: ProfileEntry): ProfileEntry {
   return entry
 }
 
+/**
+ * Pure inspection predicate (PLAN-007 spec §6 C-2 / T0291):
+ *   - needsMigration = remote profile without targetOS (UI inline prompt trigger)
+ *   - unknownTargetOS = targetOS is a non-empty string outside the known enum
+ *     (forward-compat: future BAT versions may add new targetOS values)
+ *
+ * Pure: no I/O, no mutation. Callers (ProfilePanel, profile-manager IPC) decide
+ * how to surface the flags (inline prompt, upgrade hint, etc.).
+ */
+const KNOWN_TARGET_OS: ReadonlyArray<TargetOS> = [
+  'local',
+  'wsl-linux',
+  'docker-linux',
+  'ssh-linux',
+  'ssh-darwin',
+]
+
+export interface ProfileMigrationFlags {
+  needsMigration: boolean
+  unknownTargetOS: boolean
+}
+
+export function inspectProfileMigration(entry: ProfileEntry): ProfileMigrationFlags {
+  const t = entry.targetOS as string | undefined
+  if (t === undefined) {
+    return {
+      needsMigration: entry.type === 'remote',
+      unknownTargetOS: false,
+    }
+  }
+  const known = (KNOWN_TARGET_OS as ReadonlyArray<string>).includes(t)
+  return {
+    needsMigration: false,
+    unknownTargetOS: !known,
+  }
+}
+
+/**
+ * Minimal shape validation for profile entries loaded from disk (PLAN-007 T0291
+ * Scenario 6 — corrupt JSON entries should be skipped, not fatal).
+ * Pure predicate; never throws. Callers (normalizeIndex) decide whether to
+ * filter + log. Returning false here lets us document the contract: id+name+type
+ * are the bare minimum every profile must carry.
+ */
+export function validateProfileShape(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false
+  const obj = raw as Record<string, unknown>
+  if (typeof obj.id !== 'string' || obj.id.length === 0) return false
+  if (typeof obj.name !== 'string' || obj.name.length === 0) return false
+  if (obj.type !== 'local' && obj.type !== 'remote') return false
+  return true
+}
+
 export interface ProfileIndex {
   profiles: ProfileEntry[]
   activeProfileIds: string[]

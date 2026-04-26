@@ -462,6 +462,15 @@ export function createMockElectronApi(options: MockOptions = {}) {
         profiles: Array.from(profiles.values()) as Array<Record<string, unknown>>,
         activeProfileIds: [],
       }),
+      // T0291 PLAN-007 capstone — single-entry load lets migration tests
+      // pre-seed legacy / current / unknown schema entries via the harness's
+      // `profiles` map and assert load-time behavior without going through
+      // the full createMockElectronApi flow. Returns null for unknown ids
+      // (matches profile-manager.ts contract: "first run" / "deleted").
+      load: async (profileId: string) => {
+        const entry = profiles.get(profileId)
+        return entry ? ({ ...entry } as Record<string, unknown>) : null
+      },
     },
   }
 
