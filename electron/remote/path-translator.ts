@@ -1,4 +1,5 @@
 import type { ProfileEntry } from '../profile-manager'
+import { winToWsl, wslToWin } from '../../src/utils/wsl-path'
 
 export interface PathTranslator {
   /** Client-side absolute path -> server-side absolute path before IPC. */
@@ -22,6 +23,40 @@ export class IdentityTranslator implements PathTranslator {
 
   owns(_path: string): boolean {
     return true
+  }
+}
+
+const WIN_DRIVE_PATTERN = /^[A-Za-z]:[\\/]/
+const LONG_WIN_DRIVE_PATTERN = /^\\\\\?[\\][A-Za-z]:[\\/]/
+const WSL_UNC_PREFIX_PATTERN = /^\\\\wsl(?:\$|\.localhost)\\([^\\]+)(?:\\|$)/i
+const WSL_MOUNT_PATTERN = /^\/mnt\/[a-zA-Z](?:\/|$)/
+
+export class WslPathTranslator implements PathTranslator {
+  constructor(private readonly distro: string) {}
+
+  toServer(clientPath: string): string {
+    return winToWsl(clientPath, this.distro)
+  }
+
+  toClient(serverPath: string): string {
+    return wslToWin(serverPath, this.distro)
+  }
+
+  owns(path: string): boolean {
+    if (!path) {
+      return false
+    }
+
+    if (WIN_DRIVE_PATTERN.test(path) || LONG_WIN_DRIVE_PATTERN.test(path) || WSL_MOUNT_PATTERN.test(path)) {
+      return true
+    }
+
+    const uncMatch = path.match(WSL_UNC_PREFIX_PATTERN)
+    if (uncMatch) {
+      return uncMatch[1].toLowerCase() === this.distro.toLowerCase()
+    }
+
+    return path.startsWith('/')
   }
 }
 
@@ -88,10 +123,10 @@ export function createTranslator(profile: ProfileEntry): PathTranslator {
       return new IdentityTranslator()
 
     case 'wsl-linux':
-      throw new Error(
-        `[PathTranslator] wsl-linux translator not implemented yet ` +
-        `(pending T0273). Profile: ${profile.id}`,
-      )
+      if (!profile.wslDistro) {
+        throw new Error(`[PathTranslator] wsl-linux profile ${profile.id} missing wslDistro`)
+      }
+      return new WslPathTranslator(profile.wslDistro)
 
     case 'docker-linux':
       throw new Error(

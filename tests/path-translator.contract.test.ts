@@ -8,6 +8,7 @@ import * as assert from 'assert'
 import {
   createTranslator,
   IdentityTranslator,
+  WslPathTranslator,
   runContract,
   type ContractFixture,
 } from '../electron/remote/path-translator'
@@ -130,6 +131,50 @@ runContract('IdentityTranslator', () => new IdentityTranslator(), identityFixtur
   test,
 })
 
+const wslFixtures: ContractFixture[] = [
+  {
+    name: 'Windows drive letter',
+    clientPath: 'C:\\Users\\Gower\\repo',
+    serverPath: '/mnt/c/Users/Gower/repo',
+    shouldOwn: true,
+  },
+  {
+    name: 'Windows UNC wsl.localhost',
+    clientPath: '\\\\wsl.localhost\\Ubuntu\\home\\user\\repo',
+    serverPath: '/home/user/repo',
+    shouldOwn: true,
+  },
+  {
+    name: 'Chinese path',
+    clientPath: 'C:\\使用者\\專案\\檔案.txt',
+    serverPath: '/mnt/c/使用者/專案/檔案.txt',
+    shouldOwn: true,
+  },
+  {
+    name: 'Long path prefix',
+    clientPath: 'C:\\very\\long\\path\\file.txt',
+    serverPath: '/mnt/c/very/long/path/file.txt',
+    shouldOwn: true,
+  },
+  {
+    name: 'Path with spaces',
+    clientPath: 'C:\\Program Files\\BAT\\repo',
+    serverPath: '/mnt/c/Program Files/BAT/repo',
+    shouldOwn: true,
+  },
+  {
+    name: 'Distro mismatch UNC is not owned',
+    clientPath: '\\\\wsl.localhost\\Debian\\home\\user\\repo',
+    serverPath: '\\\\wsl.localhost\\Debian\\home\\user\\repo',
+    shouldOwn: false,
+  },
+]
+
+runContract('WslPathTranslator', () => new WslPathTranslator('Ubuntu'), wslFixtures, {
+  suite: describe,
+  test,
+})
+
 describe('IdentityTranslator specifics', () => {
   test('toServer and toClient are the same identity mapping', () => {
     const translator = new IdentityTranslator()
@@ -144,6 +189,23 @@ describe('IdentityTranslator specifics', () => {
     for (const sample of ['abc', '', '/tmp/file', 'C:\\temp\\file.txt']) {
       assert.strictEqual(translator.owns(sample), true)
     }
+  })
+})
+
+describe('WslPathTranslator specifics', () => {
+  test('toServer strips the Windows long-path prefix before translation', () => {
+    const translator = new WslPathTranslator('Ubuntu')
+    assert.strictEqual(
+      translator.toServer('\\\\?\\C:\\very\\long\\path\\file.txt'),
+      '/mnt/c/very/long/path/file.txt',
+    )
+  })
+
+  test('owns a POSIX absolute path and rejects relative or foreign UNC paths', () => {
+    const translator = new WslPathTranslator('Ubuntu')
+    assert.strictEqual(translator.owns('/home/user/repo'), true)
+    assert.strictEqual(translator.owns('.\\relative'), false)
+    assert.strictEqual(translator.owns('\\\\server\\share\\repo'), false)
   })
 })
 
@@ -163,8 +225,25 @@ describe('createTranslator factory', () => {
     assert.ok(translator instanceof IdentityTranslator)
   })
 
+  test('targetOS=wsl-linux returns WslPathTranslator', () => {
+    const translator = createTranslator(makeProfile({
+      id: 'profile-wsl',
+      targetOS: 'wsl-linux',
+      wslDistro: 'Ubuntu',
+    }))
+    assert.ok(translator instanceof WslPathTranslator)
+    assert.strictEqual(translator.toServer('C:\\Users\\Gower\\repo'), '/mnt/c/Users/Gower/repo')
+  })
+
+  test('targetOS=wsl-linux without wslDistro throws explicit error', () => {
+    const profile = makeProfile({ id: 'profile-wsl-missing', targetOS: 'wsl-linux' })
+    assert.throws(
+      () => createTranslator(profile),
+      (error: unknown) => (error as Error).message === '[PathTranslator] wsl-linux profile profile-wsl-missing missing wslDistro',
+    )
+  })
+
   for (const [os, ticket] of [
-    ['wsl-linux', 'T0273'],
     ['docker-linux', 'T0277'],
     ['ssh-linux', 'T0282'],
     ['ssh-darwin', 'T0282'],
