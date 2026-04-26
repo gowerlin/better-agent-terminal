@@ -7,6 +7,14 @@
 - Run the build (`npx vite build`) to confirm compilation succeeds.
 - When modifying shared code (stores, IPC handlers, types), trace all consumers to ensure nothing breaks.
 
+## Frontend unit tests
+
+- 框架：vitest + jsdom + React Testing Library + jest-dom（T0307b 引入）
+- 執行：`npm run test:unit`（一次跑完）/ `npm run test:unit:watch`（watch mode）/ `npm run test:unit:ui`（UI mode）
+- 測試檔位置：`src/**/*.test.{ts,tsx}` 或 `src/**/__tests__/**/*.{ts,tsx}`
+- 設定：`vite.config.ts` 內的 `test` 區塊；setup 檔 `vitest.setup.ts`（auto-import jest-dom matchers）
+- e2e（playwright）獨立：`npm run test:e2e`，不與 unit test 混跑
+
 ## Logging
 
 - **Frontend (renderer)**: Use `window.electronAPI.debug.log(...)` instead of `console.log()`. This sends logs to the electron main process logger, which writes to disk.

@@ -20,7 +20,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "src/types/*.d.ts"],
-  "exclude": ["src/**/__tests__/**", "src/**/*.test.ts", "src/**/*.test.tsx"],
+  "include": ["src", "src/types/*.d.ts", "vitest.setup.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
