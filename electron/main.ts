@@ -79,6 +79,7 @@ import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
+import { registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
@@ -3253,6 +3254,7 @@ function registerLocalHandlers() {
       }
     }
   })
+  registerSshSetupHandlers(ipcMain)
   ipcMain.handle('wsl-systemd:write-unit', (_event, distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
     wslSystemd.writeUnit(distro, unit))
   ipcMain.handle('wsl-systemd:enable-linger', (_event, distro: string) => wslSystemd.enableLinger(distro))

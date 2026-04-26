@@ -507,6 +507,35 @@ const electronAPI = {
     getContainerHealth: (name: string) =>
       ipcRenderer.invoke('docker:get-container-health', name) as Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>,
   },
+  ssh: {
+    listHosts: () => ipcRenderer.invoke('ssh:list-hosts') as Promise<string[]>,
+    probeAuth: (opts: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }) =>
+      ipcRenderer.invoke('ssh:probe-auth', opts) as Promise<{
+        ok: boolean
+        serverPlatform?: 'linux' | 'darwin'
+        serverArch?: string
+        serverHome?: string
+        sshExecPath?: string
+        error?: string
+        errorCode?: 'no-ssh' | 'permission-denied' | 'host-key' | 'connect-timeout' | 'unknown'
+      }>,
+    uploadBundle: (request: {
+      uploadId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        installPath: string
+        tarballPath: string
+      }
+    }) => ipcRenderer.invoke('ssh:upload-bundle', request) as Promise<{ ok: true } | { ok: false; error: string }>,
+    onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => {
+      const handler = (_event: unknown, payload: { uploadId: string; bytesSent: number; totalBytes: number }) => callback(payload)
+      ipcRenderer.on('ssh:upload-progress', handler)
+      return () => ipcRenderer.removeListener('ssh:upload-progress', handler)
+    },
+  },
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
       ipcRenderer.invoke('wsl-systemd:write-unit', distro, unit) as Promise<{ ok: true }>,

@@ -355,6 +355,30 @@ interface ElectronAPI {
     startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) => Promise<{ ok: true; token: string | null } | { ok: false; error: string; token?: string | null }>
     removeUnit: (distro: string, serviceName: string, options?: { path?: string }) => Promise<{ ok: true }>
   }
+  ssh: {
+    listHosts: () => Promise<string[]>
+    probeAuth: (opts: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }) => Promise<{
+      ok: boolean
+      serverPlatform?: 'linux' | 'darwin'
+      serverArch?: string
+      serverHome?: string
+      sshExecPath?: string
+      error?: string
+      errorCode?: 'no-ssh' | 'permission-denied' | 'host-key' | 'connect-timeout' | 'unknown'
+    }>
+    uploadBundle: (request: {
+      uploadId: string
+      options: {
+        sshHost: string
+        sshUser: string
+        sshPort?: number
+        sshKeyPath?: string
+        installPath: string
+        tarballPath: string
+      }
+    }) => Promise<{ ok: true } | { ok: false; error: string }>
+    onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => () => void
+  }
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>
     stopServer: () => Promise<boolean>
