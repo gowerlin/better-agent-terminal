@@ -16,6 +16,7 @@ import './styles/claude-agent.css'
 import './styles/skills-panel.css'
 import './styles/control-tower.css'
 import './styles/stepper.css'
+import './styles/setup-wizard.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
 const t0 = (window as unknown as { __t0?: number }).__t0 || Date.now()
