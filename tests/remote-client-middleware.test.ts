@@ -92,6 +92,26 @@ describe('RemoteClient middleware helpers', () => {
     assert.deepStrictEqual(actual, ['hello'])
   })
 
+  // BUG-065 / T0301 — multi-path channel (git:diff-files) must translate ALL
+  // path args, not just args[0]. Previously default branch only touched index 0.
+  test('translateInvokeArgs git:diff-files rewrites every path argument (BUG-065)', () => {
+    const actual = translateInvokeArgs(
+      'git:diff-files',
+      ['/client/repo/a.txt', '/client/repo/b.txt'],
+      translator,
+    )
+    assert.deepStrictEqual(actual, ['/server/repo/a.txt', '/server/repo/b.txt'])
+  })
+
+  test('translateInvokeArgs fs:reset-watch rewrites array-of-paths first arg (BUG-065)', () => {
+    const actual = translateInvokeArgs(
+      'fs:reset-watch',
+      [['/client/a', '/client/b']],
+      translator,
+    )
+    assert.deepStrictEqual(actual, [['/server/a', '/server/b']])
+  })
+
   test('normalizePathsInResult rewrites fs:readdir entry paths', () => {
     const actual = normalizePathsInResult('fs:readdir', [{ name: 'a', path: '/server/project/a', isDirectory: false }], translator)
     assert.deepStrictEqual(actual, [{ name: 'a', path: '/client/project/a', isDirectory: false }])

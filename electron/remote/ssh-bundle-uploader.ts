@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import type { ReadStream } from 'fs'
 import { logger } from '../logger'
-import { buildBaseSshArgs, escapeSingleQuotesStrict } from './ssh-args'
+import { buildBaseSshArgs, buildBaseSshSpawnEnv, escapeSingleQuotesStrict } from './ssh-args'
 
 export interface UploadOptions {
   sshHost: string
@@ -19,7 +19,7 @@ export type UploadProgress = (bytesSent: number, totalBytes: number) => void
 type SpawnFn = (
   command: string,
   args: readonly string[],
-  options?: { stdio?: unknown; windowsHide?: boolean },
+  options?: { stdio?: unknown; windowsHide?: boolean; env?: NodeJS.ProcessEnv },
 ) => ChildProcess
 
 type CreateReadStreamFn = (path: string) => ReadStream
@@ -74,6 +74,7 @@ export async function uploadServerBundle(
   const proc = spawn('ssh', args, {
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
+    env: { ...process.env, ...buildBaseSshSpawnEnv() },
   })
 
   let stderr = ''

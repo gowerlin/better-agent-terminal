@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import { logger } from '../logger'
-import { buildBaseSshArgs, escapeSingleQuotesStrict } from './ssh-args'
+import { buildBaseSshArgs, buildBaseSshSpawnEnv, escapeSingleQuotesStrict } from './ssh-args'
 import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface StartServerOptions {
@@ -50,7 +50,7 @@ export type StartServerProgress = (phase: StartServerPhase) => void
 type SpawnFn = (
   command: string,
   args: readonly string[],
-  options?: { stdio?: unknown; windowsHide?: boolean },
+  options?: { stdio?: unknown; windowsHide?: boolean; env?: NodeJS.ProcessEnv },
 ) => ChildProcess
 
 /**
@@ -246,7 +246,11 @@ async function runSsh(
   const args = [...connectArgs, remoteCommand]
   let proc: ChildProcess
   try {
-    proc = spawn('ssh', args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    proc = spawn('ssh', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      env: { ...process.env, ...buildBaseSshSpawnEnv() },
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return { ok: false, exitCode: null, stdout: '', stderr: message, timedOut: false, spawnError: error instanceof Error ? error : new Error(message) }

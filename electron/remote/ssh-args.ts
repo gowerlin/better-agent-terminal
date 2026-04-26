@@ -79,3 +79,19 @@ export function buildBaseSshArgs(
   args.push('--', `${user}@${host}`)
   return args
 }
+
+/**
+ * Forces ssh stderr/stdout to English (POSIX C locale) so classifyStderr can
+ * pattern-match on canonical phrases (BUG-064 / T0301). Caller merges this
+ * into spawn options.env, e.g. `{ ...process.env, ...buildBaseSshSpawnEnv() }`.
+ *
+ * Set on every ssh CLI invocation so non-en system locales don't fall through
+ * to 'unknown' errorCode.
+ */
+export function buildBaseSshSpawnEnv(): Record<string, string> {
+  return {
+    LANG: 'C',
+    LC_MESSAGES: 'C',
+    LC_ALL: 'C',
+  }
+}

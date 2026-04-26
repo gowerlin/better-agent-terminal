@@ -2,7 +2,7 @@ import { EventEmitter } from 'events'
 import type { ChildProcess } from 'child_process'
 import type { Server, Socket } from 'net'
 import { logger } from '../logger'
-import { buildBaseSshArgs } from './ssh-args'
+import { buildBaseSshArgs, buildBaseSshSpawnEnv } from './ssh-args'
 import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface SshTunnelOptions {
@@ -17,7 +17,7 @@ export interface SshTunnelOptions {
 type SpawnFn = (
   command: string,
   args: readonly string[],
-  options?: { stdio?: unknown; windowsHide?: boolean },
+  options?: { stdio?: unknown; windowsHide?: boolean; env?: NodeJS.ProcessEnv },
 ) => ChildProcess
 
 type CreateServerFn = () => Server
@@ -117,6 +117,7 @@ export class SshTunnel extends EventEmitter {
     const proc = spawn('ssh', args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
+      env: { ...process.env, ...buildBaseSshSpawnEnv() },
     })
     this.process = proc
 

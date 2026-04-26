@@ -41,6 +41,35 @@ function translatePathField<T extends Record<string, unknown>>(
   return { ...value, [key]: translate(current) }
 }
 
+/**
+ * Per-channel schema for path translation (BUG-065 / T0301). Replaces the
+ * prior default-args[0] assumption that skipped args[1+] on multi-path
+ * channels like git:diff-files. Channels not listed default to 'first-string'.
+ */
+type PathArgSchema =
+  | 'first-string' | 'all-strings' | 'array-of-strings'
+  | 'pty-create' | 'pty-restart' | 'none'
+
+const PATH_ARG_SCHEMA: Record<string, PathArgSchema> = {
+  'fs:readdir': 'first-string',
+  'fs:readFile': 'first-string',
+  'fs:stat': 'first-string',
+  'fs:search': 'first-string',
+  'fs:watch': 'first-string',
+  'fs:unwatch': 'first-string',
+  'fs:reset-watch': 'array-of-strings',
+  'git:branch': 'first-string',
+  'git:log': 'first-string',
+  'git:diff': 'first-string',
+  'git:diff-files': 'all-strings',
+  'git:status': 'first-string',
+  'git:get-github-url': 'first-string',
+  'git:getRoot': 'first-string',
+  'image:read-as-data-url': 'first-string',
+  'pty:create': 'pty-create',
+  'pty:restart': 'pty-restart',
+}
+
 export function translateInvokeArgs(
   channel: string,
   args: unknown[],
@@ -48,24 +77,43 @@ export function translateInvokeArgs(
 ): unknown[] {
   if (!PATH_AWARE_CHANNELS.has(channel)) return args
 
-  switch (channel) {
-    case 'pty:create': {
+  const schema: PathArgSchema = PATH_ARG_SCHEMA[channel] ?? 'first-string'
+
+  switch (schema) {
+    case 'none':
+      return args
+
+    case 'first-string':
+      if (typeof args[0] !== 'string') return args
+      return [translator.toServer(args[0]), ...args.slice(1)]
+
+    case 'all-strings':
+      return args.map((value) => (
+        typeof value === 'string' ? translator.toServer(value) : value
+      ))
+
+    case 'array-of-strings': {
+      const head = args[0]
+      if (!Array.isArray(head)) return args
+      const translated = head.map((entry) => (
+        typeof entry === 'string' ? translator.toServer(entry) : entry
+      ))
+      return [translated, ...args.slice(1)]
+    }
+
+    case 'pty-create': {
       const [options, ...rest] = args
       if (!options || typeof options !== 'object') return args
       return [translatePathField(options as PtyCreateLike, 'cwd', (value) => translator.toServer(value)), ...rest]
     }
 
-    case 'pty:restart': {
+    case 'pty-restart': {
       const [id, cwd, ...rest] = args
       return [id, typeof cwd === 'string' ? translator.toServer(cwd) : cwd, ...rest]
     }
 
     default:
-      return args.map((value, index) => (
-        index === 0 && typeof value === 'string'
-          ? translator.toServer(value)
-          : value
-      ))
+      return args
   }
 }
 

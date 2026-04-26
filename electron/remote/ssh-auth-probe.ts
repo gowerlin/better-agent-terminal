@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import { logger } from '../logger'
-import { buildBaseSshArgs } from './ssh-args'
+import { buildBaseSshArgs, buildBaseSshSpawnEnv } from './ssh-args'
 import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface SshProbeOptions {
@@ -31,7 +31,7 @@ export interface SshProbeResult {
 type SpawnFn = (
   command: string,
   args: readonly string[],
-  options?: { stdio?: unknown; windowsHide?: boolean },
+  options?: { stdio?: unknown; windowsHide?: boolean; env?: NodeJS.ProcessEnv },
 ) => ChildProcess
 
 type LookupSshFn = () => Promise<string | null>
@@ -120,7 +120,11 @@ export async function probeSshAuth(
 
   let proc: ChildProcess
   try {
-    proc = spawn('ssh', args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    proc = spawn('ssh', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      env: { ...process.env, ...buildBaseSshSpawnEnv() },
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     logger.warn(`[ssh-auth-probe] spawn failed: ${message}`)

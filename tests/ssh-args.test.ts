@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildBaseSshArgs,
+  buildBaseSshSpawnEnv,
   escapeSingleQuotesStrict,
   validateSshIdentifier,
   type SshConnectOpts,
@@ -123,6 +124,25 @@ test('buildBaseSshArgs: extraOpts spliced before -- so option parsing still appl
   const idxStrict = args.indexOf('StrictHostKeyChecking=accept-new')
   assert.ok(idxStrict < idxL, 'extras come after the base prefix')
   assert.equal(args[args.length - 1], 'alice@devbox.example')
+})
+
+// ── buildBaseSshSpawnEnv (BUG-064 / T0301) ───────────────────────────────
+
+test('buildBaseSshSpawnEnv: forces POSIX C locale (LANG/LC_MESSAGES/LC_ALL = C)', () => {
+  const env = buildBaseSshSpawnEnv()
+  assert.equal(env.LANG, 'C')
+  assert.equal(env.LC_MESSAGES, 'C')
+  assert.equal(env.LC_ALL, 'C')
+})
+
+test('buildBaseSshSpawnEnv: returns a fresh object on each call (caller-mergeable, no shared ref)', () => {
+  const a = buildBaseSshSpawnEnv()
+  const b = buildBaseSshSpawnEnv()
+  assert.notEqual(a, b)
+  // typical caller usage pattern: merge over process.env
+  const merged = { FOO: 'bar', ...a }
+  assert.equal(merged.FOO, 'bar')
+  assert.equal(merged.LANG, 'C')
 })
 
 test('buildBaseSshArgs: sshKeyPath also runs through validateSshIdentifier', () => {
