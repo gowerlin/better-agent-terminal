@@ -7,8 +7,10 @@
 | 工單編號 | T0305 |
 | 類型 | research |
 | 優先級 | 🔴 High |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-26 22:25 (UTC+8) |
+| 完成時間 | 2026-04-26 22:29 (UTC+8) |
+| Commit | 8efd715 |
 | 預估規模 | M-L（純設計探索 + spike 元件 API + 設計 mock，不含實作落地） |
 | 互動模式 | interactive=true（research_max_questions: 3 — 設計取捨、視覺方向、API trade-off 可隨時跟使用者確認） |
 | 建立時間 | 2026-04-26 22:?? (UTC+8) |
