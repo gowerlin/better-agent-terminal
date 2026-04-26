@@ -164,3 +164,29 @@ test('test8: spawn with sshPort=2222 emits -p 2222 arg, sshKeyPath emits -i', as
   assert.ok(args.includes('/home/me/.ssh/id_ed25519'))
   assert.ok(args.includes('alice@devbox.example'))
 })
+
+test('test9 (T0296 EC-003): probe argv contains BatchMode=yes', async () => {
+  const { spawn, calls } = makeSpawn([(proc) => {
+    proc.stdout.emit('data', Buffer.from('BAT_AUTH_OK\nLinux x86_64\nHOME=/h\n', 'utf8'))
+    proc.exitCode = 0
+    proc.emit('exit', 0)
+  }])
+  await probeSshAuth(baseOpts, { lookupSsh: async () => '/usr/bin/ssh', spawn })
+  const args = calls[0].args
+  const idx = args.indexOf('BatchMode=yes')
+  assert.ok(idx > 0, 'BatchMode=yes must be present in probe argv')
+  assert.equal(args[idx - 1], '-o')
+})
+
+test('test10 (T0296 F-004): sshHost with leading - rejected upfront (throws before spawn)', async () => {
+  await assert.rejects(
+    () => probeSshAuth(
+      { sshHost: '-oProxyCommand=evil.sh', sshUser: 'alice' },
+      {
+        lookupSsh: async () => '/usr/bin/ssh',
+        spawn: () => { throw new Error('spawn must not be called when host is invalid') },
+      },
+    ),
+    /sshHost.*cannot start with '-'/,
+  )
+})

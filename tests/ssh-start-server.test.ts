@@ -210,6 +210,36 @@ test('test9 (bonus): heredoc EOF wrapper uses single-quoted form (D-T0286-#10)',
   assert.match(cmd, /^mkdir -p '~\/\.config\/systemd\/user'/)
 })
 
+test('test10b (T0296 EC-003): connect args contain BatchMode=yes', async () => {
+  const { spawn, calls } = makeScriptedSpawn([
+    { exitCode: 0 },
+    { exitCode: 0 },
+    { exitCode: 0, stdout: 'active\n' },
+  ])
+  await startServerOnRemote(baseLinux, undefined, { spawn })
+  const args = calls[0].args
+  const idx = args.indexOf('BatchMode=yes')
+  assert.ok(idx > 0, 'BatchMode=yes must be present')
+  assert.equal(args[idx - 1], '-o')
+})
+
+test('test10c (T0296 F-004): sshHost with leading - throws before any ssh exec', async () => {
+  const { spawn, calls } = makeScriptedSpawn([])
+  await assert.rejects(
+    () => startServerOnRemote(
+      { ...baseLinux, sshHost: '-oProxyCommand=evil.sh' },
+      undefined,
+      { spawn },
+    ),
+    /sshHost.*cannot start with '-'/,
+  )
+  assert.equal(calls.length, 0)
+})
+
+test('test10d (T0296 EC-002): installPath with \\r rejected via escapeSingleQuotes', () => {
+  assert.throws(() => escapeSingleQuotes('~/.local/bat\rserver'), /forbidden control char/)
+})
+
 test('test10 (bonus): verify failure surfaces verify-failed errorCode + checkOutput populated', async () => {
   const { spawn } = makeScriptedSpawn([
     { exitCode: 0 },

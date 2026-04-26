@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import type { ReadStream } from 'fs'
 import { logger } from '../logger'
+import { buildBaseSshArgs, escapeSingleQuotesStrict } from './ssh-args'
 
 export interface UploadOptions {
   sshHost: string
@@ -36,25 +37,18 @@ export interface UploaderDeps {
 }
 
 function buildSshArgs(opts: UploadOptions): string[] {
-  const args: string[] = [
-    '-o', 'BatchMode=yes',
-    '-o', 'ConnectTimeout=10',
-    '-o', 'StrictHostKeyChecking=accept-new',
-  ]
-  if (typeof opts.sshPort === 'number' && opts.sshPort !== 22) {
-    args.push('-p', String(opts.sshPort))
-  }
-  if (opts.sshKeyPath && opts.sshKeyPath.trim().length > 0) {
-    args.push('-i', opts.sshKeyPath)
-  }
-  // Single-quote the install path; the path itself is constructed from a
-  // controlled radio choice (`~/.local/bat-server` or `/opt/bat-server`),
-  // not free-form user input. Any embedded single quote is rejected upfront.
-  if (opts.installPath.includes("'") || opts.installPath.includes('\n')) {
+  // Single-quote rejection is preserved (test5 contract: installPath with `'`
+  // must throw a /forbidden character/i message). escapeSingleQuotesStrict
+  // additionally rejects `\r` / `\n` / NUL / other control chars (EC-002).
+  if (opts.installPath.includes("'")) {
     throw new Error(`installPath contains forbidden character: ${opts.installPath}`)
   }
-  const remoteCommand = `mkdir -p '${opts.installPath}' && cd '${opts.installPath}' && tar xz`
-  args.push(`${opts.sshUser}@${opts.sshHost}`, remoteCommand)
+  const safePath = escapeSingleQuotesStrict(opts.installPath, 'installPath')
+  const remoteCommand = `mkdir -p '${safePath}' && cd '${safePath}' && tar xz`
+  // user@host validation (F-004) + BatchMode/ConnectTimeout/StrictHostKeyChecking
+  // prefix (EC-003) live in buildBaseSshArgs.
+  const args = buildBaseSshArgs(opts)
+  args.push(remoteCommand)
   return args
 }
 

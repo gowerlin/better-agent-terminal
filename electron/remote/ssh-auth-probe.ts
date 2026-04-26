@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import { logger } from '../logger'
+import { buildBaseSshArgs } from './ssh-args'
 
 export interface SshProbeOptions {
   sshHost: string
@@ -52,18 +53,11 @@ const DEFAULT_TIMEOUT_MS = 15_000
 const REMOTE_PROBE_COMMAND = 'echo BAT_AUTH_OK; uname -sm; echo HOME=$HOME'
 
 function buildSshArgs(opts: SshProbeOptions): string[] {
-  const args: string[] = [
-    '-o', 'BatchMode=yes',
-    '-o', 'ConnectTimeout=10',
-    '-o', 'StrictHostKeyChecking=accept-new',
-  ]
-  if (typeof opts.sshPort === 'number' && opts.sshPort !== 22) {
-    args.push('-p', String(opts.sshPort))
-  }
-  if (opts.sshKeyPath && opts.sshKeyPath.trim().length > 0) {
-    args.push('-i', opts.sshKeyPath)
-  }
-  args.push(`${opts.sshUser}@${opts.sshHost}`, REMOTE_PROBE_COMMAND)
+  // user@host validation (F-004) + BatchMode/ConnectTimeout/StrictHostKeyChecking
+  // (EC-003) come from the shared helper. Remote command goes after `--
+  // user@host`, where ssh treats it as the command rather than an option.
+  const args = buildBaseSshArgs(opts)
+  args.push(REMOTE_PROBE_COMMAND)
   return args
 }
 

@@ -162,8 +162,15 @@ test('test4: spawn args contain the full frozen ssh option set', async () => {
 
   const { command, args } = recorder.calls[0]
   assert.equal(command, 'ssh')
-  // exact frozen option set from T0266 §5
-  assert.deepEqual(args.slice(0, 11), [
+  // T0296: argv now starts with the shared connect prefix (BatchMode +
+  // ConnectTimeout + StrictHostKeyChecking from EC-003 fix), then tunnel
+  // extras, then `--` + user@host (F-004 fix).
+  assert.deepEqual(args.slice(0, 6), [
+    '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=10',
+    '-o', 'StrictHostKeyChecking=accept-new',
+  ])
+  assert.deepEqual(args.slice(6, 17), [
     '-N',
     '-L', '40000:localhost:9876',
     '-o', 'ServerAliveInterval=30',
@@ -171,9 +178,11 @@ test('test4: spawn args contain the full frozen ssh option set', async () => {
     '-o', 'ExitOnForwardFailure=yes',
     '-o', 'StreamLocalBindUnlink=yes',
   ])
+  // `--` terminates ssh option parsing — F-004 defence in depth.
+  assert.equal(args[args.length - 2], '--')
   // last arg is user@host
   assert.equal(args[args.length - 1], 'alice@devbox.example')
-  assert.equal(args.length, 12)
+  assert.equal(args.length, 19)
 })
 
 test('test5: sshKeyPath is forwarded as -i; absent path emits no -i', () => {
@@ -196,6 +205,23 @@ test('test6: sshPort 22 is implicit; non-22 emits explicit -p', () => {
   const custom = SshTunnel.buildSpawnArgs({ ...baseOpts, sshPort: 2222 }, 50001)
   const idx = custom.indexOf('-p')
   assert.equal(custom[idx + 1], '2222')
+})
+
+test('test6b (T0296 EC-003): buildSpawnArgs always emits BatchMode=yes', () => {
+  const args = SshTunnel.buildSpawnArgs(baseOpts, 50000)
+  const idx = args.indexOf('BatchMode=yes')
+  assert.ok(idx > 0, 'BatchMode=yes must be present')
+  assert.equal(args[idx - 1], '-o')
+})
+
+test('test6c (T0296 F-004): sshHost with leading - throws on buildSpawnArgs', () => {
+  assert.throws(
+    () => SshTunnel.buildSpawnArgs(
+      { ...baseOpts, sshHost: '-oProxyCommand=evil.sh' },
+      50000,
+    ),
+    /sshHost.*cannot start with '-'/,
+  )
 })
 
 test('test7: stop() makes isAlive() return false and suppresses tunnel-down', async () => {

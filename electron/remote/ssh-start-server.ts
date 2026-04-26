@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import { logger } from '../logger'
+import { buildBaseSshArgs, escapeSingleQuotesStrict } from './ssh-args'
 
 export interface StartServerOptions {
   sshHost: string
@@ -68,15 +69,18 @@ const SERVICE_NAME = 'bat-server'
 const LAUNCHD_LABEL = 'com.bat-server'
 
 /**
- * Bash single-quote escape: `'` becomes `'\''`. Used for any value that ends
- * up wrapped in `'…'` inside the remote shell command. Newlines are still
- * forbidden defensively (would break `<< 'EOF'` heredoc framing).
+ * Bash single-quote escape: `'` becomes `'\''`. Test-facing wrapper around
+ * the shared `escapeSingleQuotesStrict` (T0296) that:
+ *   - rejects `\n` (heredoc framing) — pre-existing contract
+ *   - rejects `\r` / NUL / other control chars (EC-002, T0293)
+ * Error message preserves the legacy `/forbidden newline/` substring for
+ * the `\n` case to keep test7 in ssh-start-server.test.ts green.
  */
 function escapeSingleQuotes(value: string): string {
   if (value.includes('\n')) {
     throw new Error(`Value contains forbidden newline: ${value}`)
   }
-  return value.replace(/'/g, "'\\''")
+  return escapeSingleQuotesStrict(value, 'value')
 }
 
 function systemdUnitPath(): { dir: string; file: string } {
@@ -166,28 +170,15 @@ function buildWriteUnitCommand(dir: string, file: string, content: string): stri
 }
 
 function buildSshConnectArgs(opts: StartServerOptions): string[] {
-  const args: string[] = [
-    '-o', 'BatchMode=yes',
-    '-o', 'ConnectTimeout=10',
-    '-o', 'StrictHostKeyChecking=accept-new',
-  ]
-  if (typeof opts.sshPort === 'number' && opts.sshPort !== 22) {
-    args.push('-p', String(opts.sshPort))
-  }
-  if (opts.sshKeyPath && opts.sshKeyPath.trim().length > 0) {
-    args.push('-i', opts.sshKeyPath)
-  }
-  // `sshHost` and `sshUser` flow into the `user@host` token — we don't quote
-  // it in shell, but if either contains `'` it would still confuse the
-  // login form. Validate defensively to surface garbage early.
-  if (opts.sshUser.includes(' ') || opts.sshUser.includes('@')) {
+  // F-004 (leading `-`) + control-char + whitespace rejection now lives in
+  // buildBaseSshArgs.validateSshIdentifier (T0296). `@` in sshUser remains
+  // forbidden here for legacy reasons — it would still parse but is almost
+  // certainly garbage. Errors mirror the historic message format so existing
+  // test7's guard regex (and any future log-grep) keeps working.
+  if (opts.sshUser.includes('@')) {
     throw new Error(`Invalid sshUser: ${opts.sshUser}`)
   }
-  if (opts.sshHost.includes(' ')) {
-    throw new Error(`Invalid sshHost: ${opts.sshHost}`)
-  }
-  args.push(`${opts.sshUser}@${opts.sshHost}`)
-  return args
+  return buildBaseSshArgs(opts)
 }
 
 interface SshExecResult {

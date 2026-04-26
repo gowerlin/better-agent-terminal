@@ -7,9 +7,10 @@
 | 工單編號 | T0296 |
 | 類型 | fix（v0.4.0 release blocker） |
 | Phase | PLAN-007 release prep — fix chain 第 3 張 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🔧 IN_PROGRESS |
 | 建立時間 | 2026-04-26 17:35 (UTC+8) |
-| 派發時間 | （待派） |
+| 派發時間 | 2026-04-26 17:40 (UTC+8) |
+| 開始時間 | 2026-04-26 17:40 (UTC+8) |
 | 完成時間 | （待） |
 | Wall time | （待） |
 | Sizing | L（GP099 校準後預期 wall 15-25 min — 4 個 ssh-*.ts 抽 helper + 控制字元 reject + BatchMode 補上） |
@@ -170,4 +171,55 @@ export function buildBaseSshArgs(opts: SshConnectOpts): string[] {
 
 ## 工單回報區
 
-（Worker 完成後在此補回報；塔台會在收到「T0296 完成」訊息後從本檔讀回報區）
+### 完成狀態
+DONE（10/10 AC pass）
+
+### 開始 / 完成時間
+- 開始：2026-04-26 17:40 (UTC+8)
+- 完成：2026-04-26 17:55 (UTC+8)
+- Wall：~15 min
+
+### 產出摘要
+新增 `electron/remote/ssh-args.ts`（共用 helper：`validateSshIdentifier` / `escapeSingleQuotesStrict` / `buildBaseSshArgs` + `SshConnectOpts` interface），4 個 ssh 模組（`ssh-tunnel.ts` / `ssh-bundle-uploader.ts` / `ssh-auth-probe.ts` / `ssh-start-server.ts`）的 argv builder 全部改用新 helper。`escapeSingleQuotes` 內部委派 `escapeSingleQuotesStrict` 並保留歷史 `forbidden newline` 訊息向下相容。
+
+新增 `tests/ssh-args.test.ts`（13 case 全綠），4 個既有 ssh test 各補 1–3 case 驗證 BatchMode / leading `-` / 控制字元。
+
+### 檔案異動
+- 新增：`electron/remote/ssh-args.ts`、`tests/ssh-args.test.ts`
+- 修改：`electron/remote/ssh-tunnel.ts`、`electron/remote/ssh-bundle-uploader.ts`、`electron/remote/ssh-auth-probe.ts`、`electron/remote/ssh-start-server.ts`、`tests/ssh-tunnel.test.ts`、`tests/ssh-bundle-uploader.test.ts`、`tests/ssh-auth-probe.test.ts`、`tests/ssh-start-server.test.ts`
+
+### AC 對照（10/10 pass）
+| AC | 結果 | 備註 |
+|----|------|------|
+| AC1 | ✅ | `electron/remote/ssh-args.ts` export 三 helpers + `SshConnectOpts` |
+| AC2 | ✅ | F-004：validateSshIdentifier 拒絕 leading `-` / 控制字元 / 空白 |
+| AC3 | ✅ | EC-002：escapeSingleQuotesStrict 拒絕 `\r` / `\n` / NUL / DEL / `\x1b` |
+| AC4 | ✅ | EC-003：buildBaseSshArgs 含 BatchMode + ConnectTimeout + StrictHostKey + `--` |
+| AC5 | ✅ | 4 個 ssh 模組 builder 全部改用 buildBaseSshArgs |
+| AC6 | ✅ | 4 個 ssh test 各補 1–3 case（BatchMode / control char / leading `-`） |
+| AC7 | ✅ | bundle-uploader 的 installPath、start-server 的 escapeSingleQuotes 全走 strict |
+| AC8 | ✅ | tests/ssh-args.test.ts 13 case 全綠（≥ 12） |
+| AC9 | ✅ | 既有 4 ssh test 31/31 全綠（zero regression） |
+| AC10 | ✅ | TypeScript ssh 檔 baseline drift = 0；net add 324 lines（≤ 350） |
+
+### 測試結果
+```
+tests/ssh-args.test.ts ........... 13/13 pass
+tests/ssh-tunnel.test.ts ......... 10/10 pass（含 6b/6c 新增）
+tests/ssh-bundle-uploader.test.ts ... 8/8 pass（含 5b/5c/5d 新增）
+tests/ssh-auth-probe.test.ts ..... 10/10 pass（含 9/10 新增）
+tests/ssh-start-server.test.ts ... 13/13 pass（含 10b/10c/10d 新增）
+總計：54 tests pass, 0 fail
+```
+
+### 互動紀錄
+無。fire-and-forget 全程自動。
+
+### Renew 歷程
+無。
+
+### 遭遇問題
+無。1 處小設計權衡：workorder 的 helper signature `args.push('--', user@host)` 終結於 user@host，但 SshTunnel 需在 `--` 之前 splice `-N -L …` 等 tunnel-specific opts（否則會被 ssh 當成 remote command）。採方案：`buildBaseSshArgs` 加可選 `extraOpts: readonly string[] = []` 參數，spliced before `--`。對其他 3 個模組為向下相容（不傳 extraOpts），對 SshTunnel 直接傳入 tunnel extras。
+
+### Commit
+（待補 hash）

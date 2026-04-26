@@ -2,6 +2,7 @@ import { EventEmitter } from 'events'
 import type { ChildProcess } from 'child_process'
 import type { Server, Socket } from 'net'
 import { logger } from '../logger'
+import { buildBaseSshArgs } from './ssh-args'
 
 export interface SshTunnelOptions {
   sshHost: string
@@ -81,22 +82,17 @@ export class SshTunnel extends EventEmitter {
    * frozen spec can be asserted token-by-token without spawning anything.
    */
   static buildSpawnArgs(opts: SshTunnelOptions, localPort: number): string[] {
-    const args: string[] = [
+    // Tunnel-specific opts are spliced before `--` by buildBaseSshArgs so the
+    // shared BatchMode/ConnectTimeout/StrictHostKeyChecking prefix (EC-003) +
+    // user@host validation (F-004) apply uniformly across all 4 ssh sites.
+    return buildBaseSshArgs(opts, [
       '-N',
       '-L', `${localPort}:localhost:${opts.remotePort}`,
       '-o', 'ServerAliveInterval=30',
       '-o', 'ServerAliveCountMax=3',
       '-o', 'ExitOnForwardFailure=yes',
       '-o', 'StreamLocalBindUnlink=yes',
-    ]
-    if (opts.sshPort && opts.sshPort !== 22) {
-      args.push('-p', String(opts.sshPort))
-    }
-    if (opts.sshKeyPath) {
-      args.push('-i', opts.sshKeyPath)
-    }
-    args.push(`${opts.sshUser}@${opts.sshHost}`)
-    return args
+    ])
   }
 
   get localPort(): number {
