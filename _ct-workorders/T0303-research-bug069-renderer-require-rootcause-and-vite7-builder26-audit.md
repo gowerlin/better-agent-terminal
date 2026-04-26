@@ -7,7 +7,7 @@
 | 工單編號 | T0303 |
 | 類型 | research |
 | 優先級 | 🔴 High（v0.4.1 production 已壞，需快速修復） |
-| 狀態 | ✅ DONE |
+| 狀態 | ✅ DONE — 塔台拍板：採 Spike A + R2 ESLint 守衛（D090），派 T0304 實作；R3/R5 → PLAN-029 |
 | 開始時間 | 2026-04-26 20:16 (UTC+8) |
 | 完成時間 | 2026-04-26 20:38 (UTC+8) |
 | 預估規模 | M-L（worker 自評 — 含 wider audit） |

@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D090 | 2026-04-26 | Renderer 嚴禁 import Node builtin（含 `node:*` 與裸 `fs/path/...`）— BUG-069 根因，採 Spike A IPC 遷移 + ESLint `no-restricted-imports` 守衛防復發 | BUG-069 / T0303 / T0304 / PLAN-029 |
 | D089 | 2026-04-26 | PLAN-007 全案閉環 — 23 張藍圖工單全 DONE，session 31 一氣呵成 10 工單 121 min wall，GP099 連 10 次下界 → 強烈建議 `*evolve` 重校準 | PLAN-007 / T0282-T0291 |
 | D001-D012 | 2026-04-11 早期 | Phase 1 前置決策（詳見歸檔） | T0001-T0012 |
 | D013 | 2026-04-11 | 技術債 Backlog + 派發 T0004/T0005 半平行 | T0004/T0005 |
@@ -75,6 +76,29 @@
 ---
 
 ## 決策紀錄（降序，最新在上）
+
+---
+
+### D090 2026-04-26 — Renderer 嚴禁 import Node builtin（架構鐵律）— BUG-069 根因 + 守衛策略
+
+- **背景**：v0.4.1 NSIS 安裝啟動 100% 觸發 `Uncaught ReferenceError: require is not defined`（renderer index-DiPLuJp3.js:127:6608）。T0303 研究 22 min 用靜態證據鏈定位根因。
+- **根因**：`src/components/setup-wizard/steps/wsl/fetch-fingerprint.ts:1` 寫了 `import * as https from 'node:https'`（T0275 commit `5d75d4b` 引入）。`vite-plugin-electron-renderer` 0.14.6 在 build 時把 `node:*` import 轉成虛擬 `.mjs` chunk，內容固定為 `const avoid_parse_require = require; const _M_ = avoid_parse_require("node:https");`。setup-wizard 未獨立 chunk 進主 bundle eager-load，啟動時執行 top-level `const avoid_parse_require = require;`，但 `electron/main.ts:881-882` 設 `nodeIntegration:false` + `contextIsolation:true`，renderer 沒有 `require` 全域變數 → 炸。
+- **為何 v0.4.0 不炸 / vite 7 升級不是因果**：v0.3.1 renderer 沒任何 `node:*` import；T0275 是真正觸發點。Vite 5/6/7 同樣會炸（plugin behavior 自 v0.13 起一致）。
+- **決定**：
+  1. **修復策略**：採 Spike A IPC 遷移 — 移除 renderer 的 `node:https` import，改 main process IPC handler `wsl:fetchFingerprint`，preload 暴露 `window.electronAPI.wsl.fetchFingerprint(port)`
+  2. **架構鐵律**：Renderer source（`src/**`）禁止 import 任何 Node builtin — 含 `node:*` 前綴與裸名（`fs`、`path`、`os`、`http`、`https`、`crypto`、`stream`、`net`、`url`、`buffer`、`child_process`）。所有 Node 能力一律經 IPC 取得。
+  3. **守衛機制**：T0304 同步加 ESLint `no-restricted-imports` 規則（僅 `src/**`），訊息引用 `D090`。
+- **理由**：
+  - Spike A 對齊既有架構（contextIsolation:true + IPC 是主流），工時 30-45 min，可逆性最佳，不引入新全域 hook（否決 Spike B 的 `setCertificateVerifyProc`）
+  - Spike C（manualChunks 切分）只延後 crash 不修根因，使用者明確要求避免「補一個又發現一個」
+  - ESLint 守衛 ~5-10 min 加碼換永久防復發，CP 值極高
+- **不採行**：Spike B（fetch + cert hook，全域 session 影響面太大）、Spike C（假修復）、回測 v0.4.0（使用者明確跳過）
+- **後續處理**：
+  - T0304：實作 Spike A + R2 ESLint 守衛（v0.4.2 patch）
+  - PLAN-029（IDEA）：R3 indexBench.ts misplaced require 整理 + R5 setup-wizard manualChunks 切分（backlog，非阻塞）
+  - R4（移除 `vite-plugin-electron-renderer`）：知識記錄，需獨立評估，不在此決策範圍
+- **相關工單**：BUG-069 / T0303 / T0304 / PLAN-029
+- **觸發 commit**：`5d75d4b`（T0275 wizard，引入 `node:https`）
 
 ---
 

@@ -1,10 +1,10 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-26 20:14 (UTC+8) — Session 33 起手 BUG-069 v0.4.1 NSIS renderer crash 登記。
+> 最後同步：2026-04-26 20:46 (UTC+8) — Session 33 T0303 DONE → BUG-069 OPEN→FIXING（D090 拍板採 Spike A + R2 ESLint 守衛，派 T0304）。
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 10 | ⛔ Won't Fix: 0 | **Total: 12**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 10 | ⛔ Won't Fix: 0 | **Total: 12**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -12,13 +12,13 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-069 | v0.4.1 NSIS install renderer crash：`require is not defined`（派 T0303 研究） | 🔴 High | 2026-04-26 20:12 | [BUG-069](BUG-069-v041-nsis-renderer-require-not-defined.md) |
 | BUG-061 | CodexAgentPanel.tsx baseline tsc errors（dev-only，非阻塞） | 🟢 Low | 2026-04-26 14:10 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-069 | v0.4.1 NSIS install renderer crash：`require is not defined`（T0304 IPC 遷移 + ESLint 守衛 D090） | 🔴 High | 2026-04-26 20:12 | [BUG-069](BUG-069-v041-nsis-renderer-require-not-defined.md) |
 
 ## ✅ 已修復
 
