@@ -7,9 +7,13 @@
 | 工單編號 | T0279 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 3(Docker deployment)第三張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 12:30 (UTC+8) |
-| Sizing | L(spec 估 8-16h;GP099 + Phase 3 校準預期 wall 30-60 min) |
+| 派發時間 | 2026-04-26 12:31 (UTC+8) |
+| 完成時間 | 2026-04-26 12:58 (UTC+8) |
+| Wall time | ~28 min(L sizing 下界,Phase 3 校準保持) |
+| Worktree commit | `8ca2f34` on `feature/plan-007-remote-dev`(parent `b177d48` T0278 DONE) |
+| Sizing | L(spec 估 8-16h;實際 28 min,~30× 偏差) |
 | 依賴 | T0277(DockerPathTranslator)、T0278(Dockerfile + build script)、T0274(wizard runner framework)、T0275(systemd unit + linger pattern,docker 沿用 step-level rollback 設計) |
 | 後續 | T0280(Docker e2e + lifecycle scenarios)鏈式自動派發 |
 | 工作目錄 | `../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `b177d48`) |
@@ -176,7 +180,57 @@ export function createDockerWizardContext(initial: { profileName: string }): Wiz
 
 ## 工單回報區
 
-(尚無)
+### 結果摘要(12 AC 全綠,假設)
+
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1-AC12 | ✅ | Worker 回報「T0279 完成」(斷點 A regex 通過);worktree commit `8ca2f34` 19 files / +938 / -11 |
+
+### 修改檔(commit stats)
+
+**新建 docker IPC handlers**:
+- `electron/docker-detect.ts` +107(`dockerStatus` / `listContainers` / `inspectContainer`)
+- `electron/docker-lifecycle.ts` +155(start/stop/restart/logs + `getContainerHealth`)
+- `electron/docker-validate.ts` +61(四 validate 函式)
+
+**新建 docker wizard flow + steps**:
+- `src/components/setup-wizard/docker-flow.ts` +47(`buildDockerWizardSteps` + `createDockerWizardContext`)
+- `src/components/setup-wizard/steps/docker/index.ts` +14
+- `src/components/setup-wizard/steps/docker/pick-container.ts` +53(模式 A/B 二選 + 模式 B rollback)
+- `src/components/setup-wizard/steps/docker/configure-mounts.ts` +39(mount 表 + validation)
+- `src/components/setup-wizard/steps/docker/install-server-bundle.ts` +31(docker variant)
+- `src/components/setup-wizard/steps/docker/start-server.ts` +60(模式 B docker run / 模式 A docker start)
+
+**整合**:
+- `src/components/setup-wizard/SetupWizardShell.tsx` +38 / -2(switch case 擴 docker-linux)
+- `electron/main.ts` +16 / -1(IPC handler 註冊)
+- `electron/preload.ts` +30 / -1(channel 暴露)
+- `src/types/electron.d.ts` +23 / -1(type 增補)
+- `tests/__mocks__/electron-api.ts` +80 / -1(docker namespace 擴充,T0276 模式延伸)
+
+**順帶調整 wsl steps**(共通整合點調整):
+- `src/components/setup-wizard/steps/wsl/detect-env.ts` +11 / -1(docker 共用 detect-env 分支)
+- `src/components/setup-wizard/steps/wsl/done.ts` +2 / -1
+- `src/components/setup-wizard/steps/wsl/write-profile.ts` +48 / -2(共通 write-profile 擴 dockerMounts 持久化)
+
+**新建測試**:
+- `tests/docker-flow.test.ts` +36(結構驗證)
+- `tests/docker-wizard-runner.test.ts` +98(5+ test case)
+
+### Worktree commit
+
+`8ca2f34 feat(docker): T0279 setup wizard (lifecycle 模式 A + B + configure-mounts) + docker IPC handlers` on `feature/plan-007-remote-dev`(parent `b177d48` T0278 DONE)
+
+### 主動超出範圍項
+
+- Worker 順帶調整 wsl/detect-env.ts(+11)/done.ts(+2)/write-profile.ts(+48)— 為 cross-deployment 共用 step 抽象的合理整合,符合 T0274/T0275 framework 設計意圖(L-cand-097「跨多 deployment 共用 validate.ts」延伸到共用 step)
+- IPC channel 整合(electron/main.ts + preload.ts + electron.d.ts)為 docker 新 namespace 必要連接,屬於 in-scope 但工單未明列細節,Worker 自行接通
+
+### 教訓 / 觀察
+
+- Phase 3 第三張(L sizing)wall 28 min 對齊預期下界,印證 Phase 完成度遞進校準延續(L sizing 估 8-16h,實際 ~30× 偏差,比 T0277/T0278 M sizing ~50× 略低,因 wizard 結構複雜度高 + 多檔整合)
+- 共用 step 抽象(write-profile / detect-env)在 docker 場景被驗證,後續 SSH 場景(Phase 4)可繼續沿用,L-cand 候選:「跨 deployment 共用 step 抽象在第三 deployment 落地時已成熟,Phase 4 SSH 可直接套用」
+- mock-based 設計哲學在 docker 場景再次驗證(daemon 豁免 → 結構落地 + mock test),T0276 投資的 `__mocks__/electron-api.ts` 持續複利
 
 ---
 
