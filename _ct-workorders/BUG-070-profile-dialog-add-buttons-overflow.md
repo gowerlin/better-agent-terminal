@@ -9,7 +9,7 @@
 | 嚴重度 | 🔴 High |
 | 可重現 | 偶爾 — Dialog 為固定大小不可調整；溢出條件依「啟用的 profile 類型 + label 語系寬度」而定（中文 label 較窄、英文 label 較寬；WSL/Docker/SSH 類型全啟用時必觸發） |
 | Workaround | ❌ 無 — Dialog 固定寬度且不可橫向滾動，被裁切按鈕完全無法觸及 |
-| 狀態 | 🧪 VERIFY — T0306 commit `014da72` 修復完成（2026-04-26 22:45），等使用者人工驗收 → CLOSED |
+| 狀態 | 🚫 CLOSED — 2026-04-27 使用者實機驗收通過（T0306 commit `014da72`） |
 | 建立時間 | 2026-04-26 22:?? (UTC+8) |
 | 報告者 | 使用者（v0.4.1 release 後 dogfood） |
 | 影響範圍 | `src/components/ProfilePanel.tsx` 工具列佈局；隨 PLAN-007 Phase 2-4 陸續加入 WSL / Docker / SSH 三個 Add 按鈕後出現 |
