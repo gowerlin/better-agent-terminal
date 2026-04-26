@@ -2830,3 +2830,29 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 - L106（YOLO 21 工單）：本 L 是該 session 的 git stage management
 
 **來源**：better-agent-terminal session 31（2026-04-26 v0.4.0+v0.4.1 release prep）
+
+## L108 - 2026-04-27 — Tailwind responsive class 在無 tailwind 設定的專案是 dead code（BAT 專屬陷阱）
+
+**規則**：本專案（BAT）**沒有裝 tailwindcss**（無 `tailwind.config.*`，`main.tsx` 沒 import tailwind utility CSS）。任何 Tailwind class（`grid grid-cols-1 md:grid-cols-[...]` / `flex` / `text-xs` / `uppercase` 等）寫進 JSX 都是 dead code，視覺上看不出 — 子元素直接 fallback 到 block 預設或 inline 預設。
+
+**Why**：T0309 Worker 寫 `<div className="grid grid-cols-1 md:grid-cols-[minmax(220px,300px)_1fr]">` 期待 side-by-side layout，實際變 stacked 因為 className 全是 noop。tests 跑綠（檢查 className 存在）但實機 layout 全錯。T0311 修復時找到真因。
+
+**How to apply**：
+1. 寫 layout/styling JSX 前，**確認專案是否裝 tailwind**：`grep -E "tailwindcss" package.json` + `find . -name "tailwind.config.*"`
+2. 若沒裝 → 用 inline style / 真實 CSS class（建立對應 `.css` 檔 + import 到 main.tsx）
+3. 既有 component 看到 Tailwind class 別假設它生效 — 開 DevTools 確認 computed style
+4. 工單派發時若涉及 layout，明示「本專案無 tailwind，請用真實 CSS class」
+
+**反例**（有 tailwind 的專案）：直接寫 Tailwind class 是正解，本 L 不適用
+
+**證據**：
+- session 34 T0309 layout regression（commit `8381190`）→ T0311 fix（commit `71bf90c`）建立 `src/styles/setup-wizard.css` 真 grid CSS
+- T0309 unit tests 全綠（16 cases），但 layout 視覺錯 → 印證 GP108（tests 全綠不等於真 DONE）
+
+**長期解**：考慮加 ESLint rule 偵測 Tailwind class string（e.g. `grid-cols-` / `md:` 前綴）給警告；或乾脆引入 tailwindcss 統一 styling 體系（成本評估後 PLAN）
+
+**相關**：
+- GP108（dogfood 駕駛 BUG 發現）：本 L 是其證據之一
+- GP109（共用元件 4-step PLAN）：T0309 該被視為 step 3 大宗，而 layout regression 暴露 step 1 (T0307) 和 step 2 (T0308) 沒驗到 layout 問題
+
+**來源**：better-agent-terminal session 34 T0309 layout regression（2026-04-27）
