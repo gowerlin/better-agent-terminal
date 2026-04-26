@@ -7,7 +7,8 @@
 | 工單編號 | T0312 |
 | 類型 | impl（UI polish） |
 | 優先級 | 🟡 Medium（T0311 layout 已 side-by-side 但右欄過擠，內容換行影響可讀性） |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
+| 開始時間 | 2026-04-27 00:27 (UTC+8) |
 | 預估規模 | XS-S |
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
