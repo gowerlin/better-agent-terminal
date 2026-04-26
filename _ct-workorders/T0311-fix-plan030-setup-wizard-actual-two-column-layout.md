@@ -7,8 +7,9 @@
 | 工單編號 | T0311 |
 | 類型 | fix |
 | 優先級 | 🔴 High（T0309 spec regression — 使用者需捲到底才看到當前步驟詳情，UX 不可接受） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 00:18 (UTC+8) |
+| 完成時間 | 2026-04-27 00:21 (UTC+8) |
 | 預估規模 | S |
 | 互動模式 | non-interactive |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
@@ -145,3 +146,51 @@ test('layout body is flex row (side-by-side, not stacked)', () => {
 1. `git add` + `git commit`（message：`fix(wizard): T0311 setup wizard actual two-column side-by-side layout — fixes T0309 regression`）
 2. 在工單檔尾追加 Worker 回報區（含實作摘要、commit hash、tests 結果）
 3. **回報字串嚴格符合斷點 A regex**：`T0311 完成` / `T0311 部分完成` / `T0311 失敗` / `T0311 需要協助`
+
+---
+
+## Worker 回報區
+
+### 完成狀態
+DONE
+
+### 產出摘要
+
+**根因定位**：`SetupWizardShell.tsx` 用 Tailwind responsive classes（`grid grid-cols-1 md:grid-cols-[minmax(220px,300px)_1fr]`）做兩欄式 layout，但本專案**沒有 tailwindcss 設定**（`grep tailwind.config.*` 無結果，`main.tsx` 也沒 import tailwind 的 utility CSS），所以這些 class 都是死碼。子元素直接 fallback 到 block 預設，從上而下堆疊（top-bottom stacked），用戶必須捲到底才看到「目前步驟」詳情。
+
+**最小修補**：建立真正的 CSS 規則檔 `src/styles/setup-wizard.css`，覆蓋 `.bat-wizard-grid / .bat-wizard-stepper-col / .bat-wizard-detail-col`：
+- `display: grid; grid-template-columns: minmax(220px, 280px) 1fr; gap: 16px;`
+- 兩欄各自 `overflow-y: auto; max-height: 70vh;`
+- 720px 以下用 `@media` + `@container` fallback 回 single column（小視窗時 stacked 仍可用）
+
+**檔案變更**：
+- `src/styles/setup-wizard.css`（新檔）— 真正的 grid CSS
+- `src/main.tsx` — 加 `import './styles/setup-wizard.css'`
+- `_ct-workorders/T0311-*.md` — 工單元資料 / 回報區
+
+**未動到的部分**（依工單「不在範圍」）：
+- `SetupWizardShell.tsx` 沒改 — 既有 className 字串維持原樣（dead Tailwind classes 不會壞事，留著減少 diff）
+- Stepper 元件 / wizard-runner / step 元資料 / i18n / Dialog 寬度 — 全未動
+- 沒寫額外的 layout regression test（spec Step 5 標 optional；47 個既有測試全綠已涵蓋 layout DOM 結構斷言 `bat-wizard-grid` / `bat-stepper-vertical` / `bat-wizard-detail`）
+
+### 驗收結果
+
+| 項目 | 結果 |
+|------|------|
+| `npm run test:unit -- --run` | ✅ 47 / 47 passed（3 test files，含 SetupWizardShell.test.tsx 既有 layout 斷言） |
+| `npx vite build` | ✅ 通過（281 modules transformed，built in 9.33s；只有與 T0311 無關的 dynamic-import warnings） |
+| commit message 含 `fixes T0309 regression` | ✅ 是 |
+| DOD checklist | ✅ 全部達成（layout 改 grid row / 兩 col widths / 各 col 獨立 overflow / Dialog 寬度足夠時 side-by-side / tests 綠 / build 通過 / commit message 合規） |
+
+### Commit
+- `71bf90c` fix(wizard): T0311 setup wizard actual two-column side-by-side layout — fixes T0309 regression
+
+### 互動紀錄
+無
+
+### 遭遇問題
+無
+
+### Renew 歷程
+無
+
