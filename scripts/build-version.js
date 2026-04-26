@@ -10,6 +10,10 @@ require('./verify-native-modules');
 // import graph (see BUG-058, T0247, T0248).
 require('./verify-helper-bundle');
 
+// Fail-fast guard: abort if anything under src/ imports a Node.js builtin
+// (see BUG-069, T0304, D090).
+require('./verify-renderer-imports');
+
 // Get version from git tag, environment variable, or generate one
 function getVersion() {
   // 1. Check for VERSION environment variable (set by CI)

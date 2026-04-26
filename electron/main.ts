@@ -100,6 +100,7 @@ import {
   MAX_IMAGE_SIZE,
 } from './path-guard'
 import * as net from 'net'
+import * as https from 'https'
 
 // Startup timing — capture module load time before anything else
 const _processStart = Number(process.env._BAT_T0 || Date.now())
@@ -3228,6 +3229,29 @@ function registerLocalHandlers() {
         error: error instanceof Error ? error.message : String(error),
       }
     }
+  })
+  // T0304 / BUG-069: moved from renderer to main to keep `node:https` out of the
+  // renderer bundle (D090). Connects to localhost:<port>/fingerprint over a
+  // self-signed TLS endpoint (rejectUnauthorized:false retained — local-only).
+  ipcMain.handle('wsl:fetch-fingerprint', async (_event, port: number): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
+      const request = https.get(
+        `https://localhost:${port}/fingerprint`,
+        { rejectUnauthorized: false },
+        (response) => {
+          const chunks: Buffer[] = []
+          response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+          response.on('end', () => {
+            if ((response.statusCode ?? 500) >= 400) {
+              reject(new Error(`Fingerprint endpoint returned HTTP ${response.statusCode}`))
+              return
+            }
+            resolve(Buffer.concat(chunks).toString('utf8').trim())
+          })
+        },
+      )
+      request.on('error', reject)
+    })
   })
   registerSshSetupHandlers(ipcMain)
   ipcMain.handle('wsl-systemd:write-unit', (_event, distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>

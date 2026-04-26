@@ -328,6 +328,8 @@ interface ElectronAPI {
     detectNetworkMode: (distro: string) => Promise<'mirrored' | 'nat' | 'unknown'>
     installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+    // T0304 / BUG-069 — IPC migrated from renderer (was direct `node:https` call).
+    fetchFingerprint: (port: number) => Promise<string>
   }
   docker: {
     status: () => Promise<{ available: boolean; version?: string; error?: string }>

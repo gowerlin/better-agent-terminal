@@ -478,6 +478,10 @@ const electronAPI = {
       ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
     uninstallBundle: (distro: string, installPath: string) =>
       ipcRenderer.invoke('wsl:uninstall-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
+    // T0304 / BUG-069: setup-wizard step delegates fingerprint fetch to main
+    // process so renderer never needs `node:https`.
+    fetchFingerprint: (port: number) =>
+      ipcRenderer.invoke('wsl:fetch-fingerprint', port) as Promise<string>,
   },
   docker: {
     status: () => ipcRenderer.invoke('docker:status') as Promise<{ available: boolean; version?: string; error?: string }>,

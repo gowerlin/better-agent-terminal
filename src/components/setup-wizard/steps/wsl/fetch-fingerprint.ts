@@ -1,52 +1,21 @@
-import * as https from 'node:https'
+// T0304 / BUG-069: renderer no longer imports `node:https`. The HTTPS fetch
+// runs in the main process via `window.electronAPI.wsl.fetchFingerprint`. The
+// renderer-only `node:https` import was the root cause of v0.4.1 NSIS crash
+// (`require is not defined`); see D090.
 import type { WizardStep } from '../../wizard-runner'
 
-type HttpsGetResult = Promise<string>
+type FetchFingerprintImpl = (port: number) => Promise<string>
 
-let fetchFingerprintImpl = (port: number): HttpsGetResult =>
-  new Promise((resolve, reject) => {
-    const request = https.get(
-      `https://localhost:${port}/fingerprint`,
-      { rejectUnauthorized: false },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
-        response.on('end', () => {
-          if ((response.statusCode ?? 500) >= 400) {
-            reject(new Error(`Fingerprint endpoint returned HTTP ${response.statusCode}`))
-            return
-          }
-          resolve(Buffer.concat(chunks).toString('utf8').trim())
-        })
-      },
-    )
-    request.on('error', reject)
-  })
+const defaultImpl: FetchFingerprintImpl = (port) => window.electronAPI.wsl.fetchFingerprint(port)
 
-export function setFetchFingerprintImplForTests(impl: (port: number) => HttpsGetResult): void {
+let fetchFingerprintImpl: FetchFingerprintImpl = defaultImpl
+
+export function setFetchFingerprintImplForTests(impl: FetchFingerprintImpl): void {
   fetchFingerprintImpl = impl
 }
 
 export function resetFetchFingerprintImplForTests(): void {
-  fetchFingerprintImpl = (port: number) =>
-    new Promise((resolve, reject) => {
-      const request = https.get(
-        `https://localhost:${port}/fingerprint`,
-        { rejectUnauthorized: false },
-        (response) => {
-          const chunks: Buffer[] = []
-          response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
-          response.on('end', () => {
-            if ((response.statusCode ?? 500) >= 400) {
-              reject(new Error(`Fingerprint endpoint returned HTTP ${response.statusCode}`))
-              return
-            }
-            resolve(Buffer.concat(chunks).toString('utf8').trim())
-          })
-        },
-      )
-      request.on('error', reject)
-    })
+  fetchFingerprintImpl = defaultImpl
 }
 
 export const fetchFingerprintStep: WizardStep = {
