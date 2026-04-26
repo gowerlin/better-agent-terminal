@@ -3,6 +3,7 @@ import type { ChildProcess } from 'child_process'
 import type { Server, Socket } from 'net'
 import { logger } from '../logger'
 import { buildBaseSshArgs } from './ssh-args'
+import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface SshTunnelOptions {
   sshHost: string
@@ -147,14 +148,13 @@ export class SshTunnel extends EventEmitter {
       )
       return { localPort }
     } catch (err) {
-      // start() failed — kill the subprocess so it doesn't linger and so
-      // its eventual exit doesn't fire tunnel-down on the next event loop.
+      // start() failed — escalate SIGTERM → SIGKILL via the shared helper so
+      // the subprocess doesn't linger (BUG-063) and its eventual exit doesn't
+      // fire tunnel-down on the next event loop.
       this.stopRequested = true
-      try {
-        proc.kill()
-      } catch {
-        /* ignore */
-      }
+      await shutdownSshProcess(proc, { logger }).catch(() => {
+        /* helper already swallowed kill races; never throw out of stop path */
+      })
       this.process = null
       throw err
     }
@@ -165,11 +165,11 @@ export class SshTunnel extends EventEmitter {
     const proc = this.process
     this.process = null
     if (proc) {
-      try {
-        proc.kill()
-      } catch {
-        /* ignore */
-      }
+      // Await the shutdown so RemoteClient.disconnect() (BUG-067 fix) can
+      // observe the ssh subprocess actually exited before resolving.
+      await shutdownSshProcess(proc, { logger }).catch(() => {
+        /* helper already handles internal kill races */
+      })
     }
   }
 

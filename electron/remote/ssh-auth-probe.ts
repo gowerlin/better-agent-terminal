@@ -2,6 +2,7 @@ import type { ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import { logger } from '../logger'
 import { buildBaseSshArgs } from './ssh-args'
+import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface SshProbeOptions {
   sshHost: string
@@ -140,7 +141,9 @@ export async function probeSshAuth(
     const timer = setTimeout(() => {
       if (settled) return
       settled = true
-      try { proc.kill('SIGTERM') } catch { /* noop */ }
+      // BUG-063 (T0299): SIGTERM → SIGKILL escalation via shared helper so a
+      // probe child that ignores SIGTERM doesn't survive past the timeout.
+      void shutdownSshProcess(proc, { logger }).catch(() => { /* noop */ })
       resolve({ exitCode: null, timedOut: true })
     }, timeoutMs)
     proc.on('error', (err: Error) => {

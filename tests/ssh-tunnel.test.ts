@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { EventEmitter } from 'events'
 import * as net from 'net'
+import type { ChildProcess } from 'child_process'
 import { SshTunnel, type SshTunnelDeps, type SshTunnelOptions } from '../electron/remote/ssh-tunnel'
+import { shutdownSshProcess } from '../electron/remote/ssh-process-lifecycle'
 
 interface FakeProc extends EventEmitter {
   stderr: EventEmitter
@@ -272,3 +274,43 @@ test('test8: dynamic localPort selection yields a real free port', async () => {
   assert.equal(args[lIdx + 1], `${localPort}:localhost:${baseOpts.remotePort}`)
   await tunnel.stop()
 })
+
+// T0299 BUG-063: stop() routes through shutdownSshProcess (SIGTERM → SIGKILL
+// escalation). Proc ignores SIGTERM, exits only after SIGKILL — stop() must
+// await that exit before resolving.
+test('test9 (T0299 BUG-063): stop() awaits shutdownSshProcess (SIGKILL escalation)', async () => {
+  const proc = new (class extends EventEmitter {
+    exitCode: number | null = null
+    signalCode: NodeJS.Signals | null = null
+    pid = 4242
+    stderr = new EventEmitter()
+    killCalls: NodeJS.Signals[] = []
+    kill(sig?: NodeJS.Signals | number): boolean {
+      this.killCalls.push(sig as NodeJS.Signals)
+      if (sig === 'SIGKILL' && this.exitCode === null) {
+        setTimeout(() => { this.exitCode = 137; this.signalCode = 'SIGKILL'; this.emit('exit', 137, 'SIGKILL') }, 25)
+      }
+      return true
+    }
+  })()
+  const recorder = makeSpawnRecorder(proc as unknown as FakeProc)
+  const tunnel = new SshTunnel({ ...baseOpts, localPort: 40050 }, {
+    spawn: recorder.spawn,
+    pollIntervalMs: 5,
+    readyTimeoutMs: 30,
+    createConnection: () => { const s = new net.Socket(); setImmediate(() => s.emit('connect')); return s },
+  })
+  await tunnel.start()
+  let stopResolved = false
+  const p = tunnel.stop().then(() => { stopResolved = true })
+  await new Promise((r) => setTimeout(r, 5))
+  assert.equal(stopResolved, false, 'stop() must not resolve before SIGKILL exit fires')
+  await p
+  assert.deepEqual(proc.killCalls, ['SIGTERM', 'SIGKILL'])
+  assert.equal(tunnel.isAlive(), false)
+})
+
+// Keep the import linked even if the tunnel refactors away from named-import:
+void shutdownSshProcess
+const _t: ChildProcess | null = null
+void _t

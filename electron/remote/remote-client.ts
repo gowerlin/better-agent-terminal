@@ -121,14 +121,16 @@ export class RemoteClient {
    * connection performs TOFU (trust on first use) and returns the server's
    * fingerprint so the caller can pin it for subsequent connects.
    */
-  connect(
+  async connect(
     host: string,
     port: number,
     token: string,
     label?: string,
     expectedFingerprint?: string
   ): Promise<ConnectResult> {
-    if (this.ws) this.disconnect()
+    // BUG-067 (T0299): await disconnect() so the previous tunnel's ssh
+    // subprocess fully exits before we spawn a fresh one for the new connect.
+    if (this.ws) await this.disconnect()
 
     this.host = host
     this.port = port
@@ -431,7 +433,7 @@ export class RemoteClient {
     }, delay)
   }
 
-  disconnect(): void {
+  async disconnect(): Promise<void> {
     this.shouldReconnect = false
     this._connected = false
     this.reconnectAttempts = 0
@@ -453,19 +455,22 @@ export class RemoteClient {
       this.ws = null
     }
 
-    // PLAN-007 T0284: also tear down the SSH tunnel so the ssh subprocess
-    // does not linger after an explicit disconnect. start() will rebuild it
-    // on the next connect() if needed.
+    // PLAN-007 T0284 + BUG-067 (T0299): tear down the SSH tunnel and await
+    // the ssh subprocess's actual exit so the next connect() doesn't race a
+    // half-dead forwarder. start() will rebuild the tunnel on the next
+    // connect() if the profile still asks for it.
     if (this.tunnel) {
       const t = this.tunnel
       this.tunnel = null
       this.tunnelRestartFailures = 0
-      t.stop().catch((err) => {
+      try {
+        await t.stop()
+      } catch (err) {
         logger.warn(
           '[RemoteClient] tunnel stop failed during disconnect:',
           err instanceof Error ? err.message : String(err),
         )
-      })
+      }
     }
 
     logger.log('[RemoteClient] Disconnected')

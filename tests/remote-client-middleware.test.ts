@@ -8,6 +8,7 @@ import {
   translateRemoteEventArgs,
 } from '../electron/remote/path-aware-channels'
 import { IdentityTranslator, type PathTranslator } from '../electron/remote/path-translator'
+import { RemoteClient } from '../electron/remote/remote-client'
 
 let passed = 0
 let failed = 0
@@ -15,6 +16,18 @@ let failed = 0
 function test(name: string, fn: () => void) {
   try {
     fn()
+    console.log(`  ✅ ${name}`)
+    passed++
+  } catch (error) {
+    console.log(`  ❌ ${name}`)
+    console.log(`     ${(error as Error).message}`)
+    failed++
+  }
+}
+
+async function testAsync(name: string, fn: () => Promise<void>) {
+  try {
+    await fn()
     console.log(`  ✅ ${name}`)
     passed++
   } catch (error) {
@@ -118,5 +131,31 @@ describe('RemoteClient middleware helpers', () => {
   })
 })
 
-console.log(`\n${passed} passed, ${failed} failed`)
-process.exit(failed === 0 ? 0 : 1)
+// T0299 BUG-067 — disconnect() must be async + await tunnel.stop().
+function injectFakeTunnel(client: RemoteClient, stop: () => Promise<void>) {
+  const t = { stop, on: () => t, isAlive: () => true, localPort: 0 }
+  ;(client as unknown as { tunnel: typeof t }).tunnel = t
+}
+
+;(async () => {
+  console.log('\nRemoteClient disconnect/tunnel lifecycle (T0299 BUG-067):')
+  await testAsync('disconnect() awaits tunnel.stop() before resolving', async () => {
+    const client = new RemoteClient(() => [])
+    let stopResolved = false
+    injectFakeTunnel(client, () => new Promise((r) => setTimeout(() => { stopResolved = true; r() }, 30)))
+    const p = client.disconnect()
+    let resolved = false
+    void p.then(() => { resolved = true })
+    await new Promise((r) => setTimeout(r, 5))
+    assert.strictEqual(resolved, false, 'disconnect() must not resolve before tunnel.stop()')
+    await p
+    assert.strictEqual(stopResolved, true)
+  })
+  await testAsync('disconnect() swallows tunnel.stop() rejections', async () => {
+    const client = new RemoteClient(() => [])
+    injectFakeTunnel(client, () => Promise.reject(new Error('boom')))
+    await client.disconnect()  // must not throw
+  })
+  console.log(`\n${passed} passed, ${failed} failed`)
+  process.exit(failed === 0 ? 0 : 1)
+})()

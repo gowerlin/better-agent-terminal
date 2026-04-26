@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import { logger } from '../logger'
 import { buildBaseSshArgs, escapeSingleQuotesStrict } from './ssh-args'
+import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface StartServerOptions {
   sshHost: string
@@ -265,7 +266,10 @@ async function runSsh(
     const timer = setTimeout(() => {
       if (settled) return
       settled = true
-      try { proc.kill('SIGTERM') } catch { /* noop */ }
+      // BUG-063 (T0299): escalate SIGTERM → SIGKILL via the shared helper so a
+      // stuck remote shell can't survive the timeout as a zombie. Fire-and-
+      // forget — runSsh resolves on the timeout, lifecycle continues async.
+      void shutdownSshProcess(proc).catch(() => { /* swallow kill races */ })
       resolve({ exitCode: null, timedOut: true })
     }, timeoutMs)
     proc.on('error', (err: Error) => {
