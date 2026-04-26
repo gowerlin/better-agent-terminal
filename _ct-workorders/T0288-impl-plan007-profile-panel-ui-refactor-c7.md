@@ -7,11 +7,13 @@
 | 工單編號 | T0288 |
 | 類型 | impl（UI 重構） |
 | Phase | PLAN-007 Phase 5（整合測試 + UX polish）第一張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE（clean DONE；12 files / +907 / -233；ProfilePanel.tsx 362 lines touched 略超 300 cap 但合理（split 含 deletions），Worker bonus 抽 EditRemoteProfileModal + types.ts + RemoteLegacyDetails；worktree commit `6b7670c`） |
 | 建立時間 | 2026-04-26 15:42 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 15:42 (UTC+8) |
+| 完成時間 | 2026-04-26 15:56 (UTC+8) |
+| Wall time | ~14 min（GP099 校準 25-45 min 預期，第七次連續落於下界以下；C-7 spec 拍板明確 + 既有 setup-wizard pattern 沿用 是神速主因） |
+| Worktree commit | `6b7670c` on `feature/plan-007-remote-dev` |
+| Worker bonus | 1) EditRemoteProfileModal（159 lines）抽出避免 inline form 殘留 ProfilePanel；2) types.ts（60 lines）跨 details component 共用 props interface；3) RemoteLegacyDetails 補 legacy fallback path |
 | Sizing | L（spec 估 8-16h；GP099 重校準後（Phase 4 連 6 次下界）預期 wall 25-45 min — UI extract + 4 個 details component） |
 | 依賴 | T0276 ✅（WSL e2e）、T0280 ✅（Docker e2e）、T0287 ✅（SSH Phase 4 capstone） |
 | 後續 | T0289 Setup wizard rollback contract + cross-deployment test、T0290 docs + release checklist、T0291 e2e smoke + migration verification |
