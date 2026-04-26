@@ -7,10 +7,12 @@
 | 工單編號 | T0321 |
 | 類型 | impl（wizard step rewrite，消費 T0320 distributor） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 4 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 03:02 (UTC+8) |
 | 派發時間 | 2026-04-27 03:02 (UTC+8) |
 | 開始時間 | 2026-04-27 03:04 (UTC+8) |
+| 完成時間 | 2026-04-27 03:12 (UTC+8) |
+| Commit | `ac7021d` |
 | Sizing | S（estimate 30-45 min wall） |
 | 依賴 | T0320 ✅（distributor 共用模組） |
 | 平行 | T0322（SSH install-bundle）+ T0323（Docker install-bundle）— 邏輯獨立但 YOLO 鏈式序列派 |
