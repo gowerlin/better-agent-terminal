@@ -7,10 +7,12 @@
 | 工單編號 | T0273 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 2(WSL deployment)第一張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 10:21 (UTC+8) |
-| 派發時間 | (待派發) |
-| 完成時間 | - |
+| 派發時間 | 2026-04-26 10:23 (UTC+8) |
+| 完成時間 | 2026-04-26 10:27 (UTC+8) |
+| Wall time | ~4 min(GP099 校準後預期 10-30 min,實際遠低於下界) |
+| Worktree commit | `e569183` on `feature/plan-007-remote-dev` |
 | Sizing | M (spec 估 4-8h;GP099 校準後預期 wall 10-30 min) |
 | 依賴 | T0269(PathTranslator framework)、T0270(RemoteClient middleware,channel set 已凍結) |
 | 後續 | T0274(WSL setup wizard)可並行;T0275 連線 fingerprint TOFU |
@@ -127,13 +129,39 @@
 
 ## 工單回報區
 
-> Worker 收尾後,在此貼:
-> 1. 結果摘要(AC 逐項勾選)
-> 2. worktree commit hash
-> 3. 主動超出範圍項(若有)
-> 4. 教訓 / 觀察(可空)
+### 結果摘要(8 AC 全綠)
 
-(Worker 填)
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1 | ✅ | `src/utils/wsl-path.ts` 45 行,export `winToWsl` / `wslToWin` |
+| AC2 | ✅ | `tests/wsl-path.test.ts` 21/21 passed(超過 ≥14 要求) |
+| AC3 | ✅ | `WslPathTranslator` class 落地於 `electron/remote/path-translator.ts`,實作 PathTranslator 三方法 |
+| AC4 | ✅ | `createTranslator` switch wsl-linux 改為 `return new WslPathTranslator(profile.wslDistro)`;缺 wslDistro 才 throw 明確錯誤 |
+| AC5 | ✅ | contract test 69/0(was 48,+21 WSL fixtures × 3 axes) |
+| AC6 | ✅ | `c:\foo` 與 `C:\foo` 翻譯均為 `/mnt/c/foo`(round-trip uppercase normalize 已測) |
+| AC7 | ✅ | `\\wsl$\<distro>\...` 與 `\\wsl.localhost\<distro>\...` 雙向接受;output 永遠 `\\wsl.localhost` |
+| AC8 | ✅ | `tsc --noEmit`:T0273 觸碰檔案零新增 error(預存 37 個全在非本工單範圍檔) |
+
+### 修改檔(4 files / +228 / -5)
+
+- `electron/remote/path-translator.ts` +43 / -5(WslPathTranslator class + switch case 實裝)
+- `src/utils/wsl-path.ts` +45 / 0(新建純函數模組)
+- `tests/path-translator.contract.test.ts` +81 / -1(WSL fixtures)
+- `tests/wsl-path.test.ts` +64 / 0(新建純函數測試)
+
+### Worktree commit
+
+`e569183 feat(remote): T0273 WslPathTranslator + wsl-path pure functions` on `feature/plan-007-remote-dev`(parent `1fbb0bd` T0272 DONE)
+
+### 主動超出範圍項
+
+無(嚴格按 spec doc §2.2 + T0263 §3 規格落地,fixtures 設計與 spec edge cases 表 1:1 對齊)。
+
+### 教訓 / 觀察
+
+- T0263 §3 spec 給的 regex 直譯即可,所有 11 條 edge cases 設計在 fixtures 中 fully covered;再次驗證 GP099(spec-frozen impl wall 接近 research speed)
+- 純函數零 IO 設計讓 wsl-path 模組 100% 可測,與 WslPathTranslator wrapper 解耦,後續 docker / ssh translator 可沿用相同模式
+- contract test framework(T0269 留下)的 `runContract` API 直接套用,新增 fixtures 即得 ×3 axes 自動覆蓋,工程量極小
 
 ---
 
