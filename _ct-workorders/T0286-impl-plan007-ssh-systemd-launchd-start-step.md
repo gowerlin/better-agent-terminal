@@ -7,11 +7,12 @@
 | 工單編號 | T0286 |
 | 類型 | impl |
 | Phase | PLAN-007 Phase 4（SSH deployment）第五張 |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE（clean DONE，無 PARTIAL；8 files / +851 lines / -1；worktree commit `70417d4`） |
 | 建立時間 | 2026-04-26 15:05 (UTC+8) |
-| 派發時間 | （待派） |
-| 完成時間 | （待） |
-| Wall time | （待） |
+| 派發時間 | 2026-04-26 15:05 (UTC+8) |
+| 完成時間 | 2026-04-26 15:15 (UTC+8) |
+| Wall time | ~10 min（GP099 校準 15-30 min 預期，第五次連續落於下界以下） |
+| Worktree commit | `70417d4` on `feature/plan-007-remote-dev` |
 | Sizing | M（spec 估 4-8h；GP099 校準後預期 wall 15-30 min — 兩段 unit/plist template + ssh exec 寫入 + start command） |
 | 依賴 | T0285 ✅（install-server-bundle wizard step / ssh-bundle-uploader / ssh-setup-handlers）、T0282 ✅（profile schema serverHome / targetOS） |
 | 後續 | T0287（SSH e2e + cross-OS matrix，依本工單 start-server 完成端到端可連） |
