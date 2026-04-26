@@ -22,6 +22,16 @@
 - Do NOT use `console.log()` for debugging — use the logger so logs are persisted and visible in the log file.
 - **Log file location**: `~/Library/Application Support/better-agent-terminal/debug.log`
 
+## Child Process Spawning
+
+新增涉及 child_process 的程式碼（特別是 IPC handler / wizard step / shell 互動）：
+
+- ✅ 用 `execFile` 或 `spawn` + array args（既有 `electron/docker-detect.ts` / `electron/claude-resolver.ts` 為範本）
+- ❌ 禁用 `child_process.exec` 模板字串呼叫（shell injection 風險；`execSync` 僅限 hardcoded 命令無 user input 的場景，如 `electron/codex-agent-manager.ts`）
+- 任何外部輸入（distro / container name / profileId / path）使用前必過 regex `/^[a-zA-Z0-9._-]+$/` 白名單
+- timeout 必設（建議 5s for 同步 detect / 30s for IO 操作）
+- 注意：security hook 提示的 `src/utils/execFileNoThrow.ts` 在本專案**不存在**（hook 是泛用建議），沿用 Node 內建 `child_process.execFile` 即可
+
 ## Sub-agent / Active Tasks Tracking
 
 - The Claude Agent SDK does **NOT** reliably emit `task_started` / `task_progress` / `task_notification` system messages.
@@ -147,6 +157,15 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 - 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範
 - 該檔案定義了本專案的擴充單據類型（BUG/PLAN）、索引同步原則、歸檔策略等
 - 此為 Layer 3 附加規則，優先級高於 skill 預設行為
+
+### 工單與文件撰寫慣例
+
+塔台工單（`_ct-workorders/T*.md`）與 spec 文件中提及 child_process 安全規則時：
+
+- ❌ 禁止在「禁用範例」段落寫具體 `exec(\`command ${var}\`)` 字串（security hook 會在 Write 時誤觸並 abort 寫入；T0319 草稿首發即被攔截兩次）
+- ✅ 改用敘述：「禁用 `child_process.exec` 模板字串呼叫」或「禁用 shell-spawning exec API」
+- 程式碼範例只放正確寫法（`execFile` / `spawn`），不放 ❌ 反例
+- 同樣慣例適用於提及任何受 hook 攔截的 API（後續發現再補進此清單）
 
 ## Packaging / Release 前置檢查
 
