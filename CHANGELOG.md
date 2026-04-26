@@ -63,6 +63,34 @@ All notable changes to Better Agent Terminal are documented in this file.
   are dev-only and tracked separately; PLAN-007 explicitly excludes their
   cleanup from scope.
 
+## [0.4.1] — 2026-04-26 — PLAN-007 Patch Chain: Remote Dev Hardening
+
+Patch release on top of v0.4.0 closing the seven follow-up BUGs (BUG-062 ~ BUG-068) raised against PLAN-007 remote-dev. All fixes preserve TypeScript baseline (36 errors, all pre-existing in `CodexAgentPanel.tsx` per BUG-061) and ship 250+ green unit tests across SSH lifecycle, path translation, wizard rollback, and remote-client middleware.
+
+### Fixed
+- **BUG-062** (F-006, T0300): `RemoteClient` `fingerprint-mismatch` handler now early-returns after emitting the failure callback so the WebSocket open path cannot still settle the connection on a pinned-but-mismatched server.
+- **BUG-063** (F-007 + EC-009, T0299): SSH child processes (`ssh-tunnel`, `ssh-start-server`, `ssh-auth-probe`) now share `electron/remote/ssh-process-lifecycle.ts::shutdownSshProcess`, providing SIGTERM → SIGKILL escalation with grace + timeout windows so a wedged `ssh` cannot leak past disconnect / reconnect.
+- **BUG-064** (F-008, T0301): SSH spawns inject `LANG=C LC_MESSAGES=C LC_ALL=C` via shared `buildBaseSshSpawnEnv()` so stderr matchers see English-only error strings regardless of host locale (auth-probe / tunnel / start-server / bundle-uploader).
+- **BUG-065** (EC-004, T0301): `translateInvokeArgs` is now schema-driven through `PATH_ARG_SCHEMA` in `electron/remote/path-aware-channels.ts`, lifting the prior "first string only" limitation. Multi-path channels (e.g. `git:diff-files`, `fs:copy`) now translate every path argument according to the channel’s declared shape.
+- **BUG-066** (EC-005, T0300): `WizardRunner.run()` resets `runPromise = null` on failure so a wizard that crashes mid-run (e.g. SSH key auth denied) can be retried without reloading the renderer.
+- **BUG-067** (EC-006, T0299): `RemoteClient.disconnect()` is now `async` and awaits `tunnel.stop()` before resolving so the next `connect()` does not race a half-dead SSH forwarder.
+- **BUG-068** (EC-007, T0300): `RemoteClient.invoke` freezes the translator reference at the start of the call and reuses it for both args translation and result normalisation, preventing translator swap-races across long-lived `invoke` round-trips.
+
+### Internal
+- New shared helper: `electron/remote/ssh-process-lifecycle.ts` (`shutdownSshProcess`).
+- New schema table: `PATH_ARG_SCHEMA` in `electron/remote/path-aware-channels.ts` (centralises per-channel path-arg shapes).
+- New / extended tests:
+  - `tests/ssh-process-lifecycle.test.ts` (new, 6 cases — SIGTERM/SIGKILL/timeout matrix).
+  - `tests/path-aware-channels.test.ts` (new + extended, 9 cases — schema-driven multi-path).
+  - `tests/remote-client-middleware.test.ts` (extended, 21 cases — fingerprint-mismatch gate + invoke translator freeze).
+  - `tests/wizard-runner.test.ts` (extended, 5 cases — failure-retry).
+  - `tests/ssh-args.test.ts` (extended, 15 cases — `buildBaseSshSpawnEnv` env injection).
+- TypeScript baseline drift: **0** (36 errors pre/post, all in `CodexAgentPanel.tsx` per BUG-061).
+- Aggregate suite (v0.4.1 critical + neighbours): **250+ pass / 0 fail**.
+
+### Known
+- **BUG-061** — `src/components/CodexAgentPanel.tsx` baseline `tsc` errors persist (dev-only, runtime unaffected). Cleanup tracked separately; out of scope for the v0.4.x line.
+
 ## [0.3.1] — 2026-04-23 — Hotfix: Packaged Helper Bundle
 
 Hotfix release addressing BUG-058 (v0.3.0 NSIS installer shipped without two required helper scripts) and adding a build-time guard to prevent future regressions of the same class.

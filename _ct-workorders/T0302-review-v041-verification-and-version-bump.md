@@ -7,9 +7,9 @@
 | 工單編號 | T0302 |
 | 類型 | review + admin（驗證 + 版本 bump + CHANGELOG，**允許**寫 CHANGELOG / package.json / version-info.ts） |
 | Phase | v0.4.1 patch chain 收尾（最後一張）|
-| 狀態 | 📋 TODO |
+| 狀態 | 🔄 IN_PROGRESS |
 | 建立時間 | 2026-04-26 18:58 (UTC+8) |
-| 派發時間 | （待派） |
+| 派發時間 | 2026-04-26 18:59 (UTC+8) |
 | 完成時間 | （待） |
 | Wall time | （待） |
 | Sizing | M（GP099 校準後預期 wall 10-20 min — 7 BUG fix grep 驗證 + 跑全 test + bump version + CHANGELOG + 給 release decision） |
@@ -168,4 +168,66 @@
 
 ## 工單回報區
 
-（Worker 完成後在此補回報；塔台會在收到「T0302 完成」訊息後從本檔讀回報區）
+### 完成狀態
+
+✅ **DONE** — 10/10 AC 全過。v0.4.1 patch chain 收尾完成，verdict **GO**。
+
+### 產出摘要
+
+- **新建**：`_ct-workorders/T0302-verification-report.md`（v0.4.1 verification + release readiness 完整報告）
+- **修改**：
+  - `package.json`：`0.3.1` → `0.4.1`（branch `release/v0.4.0` 上 package.json 版號未隨 tag bump，本次一次到位）
+  - `package-lock.json`：root + `packages.""` 同步 `0.3.1` → `0.4.1`
+  - `CHANGELOG.md`：新增 `## [0.4.1] — 2026-04-26 — PLAN-007 Patch Chain: Remote Dev Hardening` 章節（Fixed 7 BUG + Internal + Known）
+- **不做**：未 `git tag v0.4.1`、未 `git push`（守則 6 + AC9 — 留人工執行）
+
+### 7 BUG 落地驗證（grep 一次過）
+
+| BUG | 修復工單 | 狀態 |
+|-----|---------|------|
+| BUG-062 | T0300 | ✅（remote-client.ts:282-285 早退 + return）|
+| BUG-063 | T0299 | ✅（shutdownSshProcess 三模組 import + 呼叫）|
+| BUG-064 | T0301 | ✅（buildBaseSshSpawnEnv 4 spawn 點 env override）|
+| BUG-065 | T0301 | ✅（PATH_ARG_SCHEMA 表 + translateInvokeArgs 讀取）|
+| BUG-066 | T0300 | ✅（wizard-runner.ts:127 runPromise = null on catch）|
+| BUG-067 | T0299 | ✅（async disconnect + await tunnel.stop）|
+| BUG-068 | T0300 | ✅（invoke 凍結 translator 引用）|
+
+### Test Suite
+
+**15 test 檔 / 311 cases pass / 0 fail**（含 v0.4.1 critical 5 + SSH/wizard/path 鄰近 10）。
+
+### tsc baseline
+
+36 → 36，**drift = 0**（全部仍在 `CodexAgentPanel.tsx` + `agent-profiles.ts`，BUG-061 known dev-only）。
+
+### Release Decision
+
+✅ **GO** — 軟體面就緒。Pre-release checklist 待 release engineer 跑（WSL/Docker/SSH real e2e + tag/push CI + Homebrew + NSIS 重裝 smoke）。
+
+### 互動紀錄
+
+無（fire-and-forget，無使用者互動）。
+
+### 遭遇問題
+
+1. **package.json 版號 drift**：工單預期 `0.4.0 → 0.4.1`，實測為 `0.3.1`（branch `release/v0.4.0` 上版號未隨命名同步 bump，靠 git tag 表達）。直接 `0.3.1 → 0.4.1` 一次到位，已記錄於 verification-report 的 Version Bump 段。
+2. **`electron/version-info.ts` 不存在**：工單列為可能同步點，實際 codebase 無此檔；版號統一由 `package.json` 主導，無其他 hardcode 需要同步（grep `"0.3.1"` 在排除 node_modules 後 0 命中）。
+3. **CHANGELOG `[Unreleased]` 段保留**：v0.4.0 未在 CHANGELOG 寫入專屬章節（僅靠 git tag 表達），v0.4.1 章節插入於 Unreleased 與 0.3.1 之間，維持時序連貫。
+
+### Renew 歷程
+
+無。
+
+### Wall time
+
+~10 分鐘（18:59 → 19:09）— 落 GP099 預期 10-20 min 下界。
+
+### Commit
+
+`chore(release): T0302 v0.4.1 verification + version bump 0.3.1→0.4.1 + CHANGELOG`（hash 見 git log）
+
+### 回報時間
+
+2026-04-26 19:09 (UTC+8)
+
