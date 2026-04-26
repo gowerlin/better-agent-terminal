@@ -7,8 +7,10 @@
 | 工單編號 | T0315 |
 | 類型 | impl（CI workflow + build script 擴充，無 BAT runtime 改動） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 2 |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 01:38 (UTC+8) |
+| 完成時間 | 2026-04-27 01:43 (UTC+8) |
+| Commit | `60ca761` |
 | 建立時間 | 2026-04-27 01:35 (UTC+8) |
 | 派發時間 | 2026-04-27 01:35 (UTC+8) |
 | Sizing | M（estimate 30-60 min wall） |
