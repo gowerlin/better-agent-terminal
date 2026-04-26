@@ -7,10 +7,10 @@
 | 工單編號 | T0292 |
 | 類型 | review（純讀，無 production code 修改） |
 | Phase | PLAN-007 release prep（雙審第一張） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 16:42 (UTC+8) |
 | 派發時間 | 2026-04-26 16:50 (UTC+8) |
-| 完成時間 | （待） |
+| 完成時間 | 2026-04-26 17:01 (UTC+8) |
 | Wall time | （待） |
 | Sizing | L（adversarial review 對 ~14600 行 diff，預期 wall 30-60 min） |
 | 依賴 | release/v0.4.0 已建（merge commit `HEAD`），含 feature/plan-007-remote-dev 全 worktree commits |
@@ -180,5 +180,5 @@ T0292 + T0293（edge-case-hunter）兩份 report 收齊後，塔台會：
 
 ### Commit hash
 
-待填（git commit 完成後補）。
+`59e149a` — docs(review): T0292 bmad adversarial review report on release/v0.4.0 (PLAN-007)
 
