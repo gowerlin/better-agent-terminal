@@ -7,10 +7,12 @@
 | 工單編號 | T0276 |
 | 類型 | impl(Phase 2 capstone) |
 | Phase | PLAN-007 Phase 2(WSL deployment)第四張(收尾) |
-| 狀態 | 📋 TODO |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-26 11:14 (UTC+8) |
-| 派發時間 | (待派發,鏈式自動) |
-| 完成時間 | - |
+| 派發時間 | 2026-04-26 11:18 (UTC+8) |
+| 完成時間 | 2026-04-26 11:33 (UTC+8) |
+| Wall time | ~15 min(校準預期 15-35 min,準下界) |
+| Worktree commit | `15ac3ed` on `feature/plan-007-remote-dev` |
 | Sizing | M (spec 估 4-8h;校準後預期 wall 15-35 min) |
 | 依賴 | T0275(systemd + 後半 wizard ✅)、T0274(wizard runner + 前半 wizard ✅) |
 | 後續 | Phase 2 完整收尾 → 進入 Phase 3(Docker) |
@@ -141,13 +143,49 @@ T0273 + T0274 + T0275 + T0276 = PLAN-007 Phase 2 完整收尾。下一階段為 
 
 ## 工單回報區
 
-> Worker 收尾後,在此貼:
-> 1. 結果摘要(AC 逐項勾選)
-> 2. worktree commit hash
-> 3. 主動超出範圍項(若有)
-> 4. 教訓 / 觀察(可空)
+### 結果摘要(10 AC 全綠)
 
-(Worker 填)
+| AC | 狀態 | 驗證 |
+|----|------|------|
+| AC1 | ✅ | `wsl-flow.ts` 48 行,export `buildWslWizardSteps` + `createWslWizardContext` |
+| AC2 | ✅ | `wsl-wizard-e2e.test.ts` 89 行,mock-based e2e 9-step happy path,5 cases 全綠 |
+| AC3 | ✅ | `wsl-flow-journeys.test.ts` 61 行,3 user journey(happy / NAT / 跨 distro)全綠 |
+| AC4 | ✅ | `docs/wsl-deployment.md` 183 行,7 章節(Prerequisites / Installation / Mirrored / Troubleshooting / Uninstallation + checklist + reference)|
+| AC5 | ✅ | mirrored vs NAT 偵測加進 wsl-detect.ts (+23) 與 install-server-bundle.ts (+26),寫 `ctx.networkMode` |
+| AC6 | ✅ | `SetupWizardShell.tsx` (+43) 加 wizard launch hook + ctx.warnings UI |
+| AC7 | ✅ | `ProfilePanel.tsx` 加 +52 行 WSL entry,**TS errors 由 37 → 36**(Worker 主動降 1 個 baseline)|
+| AC8 | ✅ | `wizard-runner.test.ts` 加 case 跑 `buildWslWizardSteps()` 全 9 step |
+| AC9 | ✅ | tsc T0276 觸碰檔案零新增 error(36 baseline,比派發時 37 還少 1)|
+| AC10 | ✅ | docs 含「real WSL pre-flight checklist」≥5 條(具體在 Verification 章節)|
+
+### 修改檔(19 files / +849 / -16)
+
+| 類別 | 檔案 |
+|------|------|
+| 新建 e2e/journey | `tests/wsl-wizard-e2e.test.ts` (89) / `wsl-flow-journeys.test.ts` (61) / `__mocks__/electron-api.ts` (151) |
+| 新建 flow | `setup-wizard/wsl-flow.ts` (48) |
+| 新建 docs | `docs/wsl-deployment.md` (183) |
+| 修改既有 step | install-server-bundle.ts (+26 mirrored) / connect-test.ts (+7) / pick-wsl-distro.ts (+4) / write-profile.ts (+3) / index.ts (-14/+0 整理) |
+| 修改 UI | `ProfilePanel.tsx` (+52 WSL entry) / `SetupWizardShell.tsx` (+43 hook + warning UI) |
+| 修改 IPC | `electron/main.ts` (+1) / `preload.ts` (+1) / `electron.d.ts` (+1) / `wsl-detect.ts` (+23 mirrored helper) |
+| 修改 runner / tests | `wizard-runner.ts` (+16) / `wizard-runner.test.ts` (+75) / `wsl-detect.test.ts` (+67 mirrored) |
+
+### Worktree commit
+
+`15ac3ed feat(wsl): T0276 e2e + 3 user journeys + ProfilePanel integration + docs` on `feature/plan-007-remote-dev`(parent `5d75d4b` T0275 DONE)
+
+### 主動超出範圍項(2 項)
+
+1. **TS baseline 由 37 降至 36** — Worker 在動 ProfilePanel WSL entry 時順手修了一個既有 type error,屬於正向 cleanup,不算 scope creep
+2. **wsl-detect.test.ts 擴 +67 行測試 mirrored 偵測** — 工單 AC5 只要求 mirrored 偵測落地,測試只在 wsl-flow-journeys 隱式 cover;Worker 主動補單元測試,提升 mirrored helper 的單測覆蓋率
+
+### 教訓 / 觀察
+
+- **mock-based e2e 是對的選擇** — 不需 real WSL 即可驗 9-step happy path + 3 journey + rollback,CI / 開發機都能跑;real WSL 留 release pre-flight checklist 由人類驗收(docs 已含)
+- **`__mocks__/electron-api.ts` 共用 mock infra** — 後續 Docker / SSH 工單(T0277-T0286)寫 e2e 時可沿用此 mock 結構,擴 namespace 即可
+- **TS baseline 漂移** — Worker 順手修既有 error 雖正向,但塔台應該追蹤(避免 baseline 不可預測);本次降 1 個合理,後續工單若 Worker 主動修建議單獨 commit 標註
+- **mirrored vs NAT 偵測 best-effort** — `/proc/net/route` parsing 在不同 distro 行為一致,fallback `unknown` 不阻擋是正確設計
+- **Phase 2 全段 ~42 min vs 估 3-4 day** — GP099 在 Phase 1(~80 min,5 張)之後再校準一次,Phase 2(~42 min,4 張)wall 仍接近 research speed,可形成新 Global pattern 候選
 
 ---
 
