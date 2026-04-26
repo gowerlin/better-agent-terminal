@@ -2744,3 +2744,89 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 - T0279 / T0280 commit body 引 T0278 為拍板源頭
 
 **相關**:GP002(跨專案功能完成後做一致性 Review)的反面 — prevent 後續再次爭議
+
+
+## L106 - 2026-04-26 — BAT YOLO 鏈式 21 工單同 session 完成（Phase 4-5 + 雙 release chain）
+
+**情境**：Session 31（14:00-19:09，~5h）一氣呵成 21 工單派發：PLAN-007 Phase 4 (T0282-T0287, 6 張) + Phase 5 (T0288-T0291, 4 張) + v0.4.0 fix chain (T0294-T0298, 5 張) + v0.4.1 patch chain (T0299-T0302, 4 張) + 雙 review (T0292/T0293)。塔台採 `auto-session: yolo` + `--no-interactive` fire-and-forget；使用者全程只回報「T#### 完成」，無中段 abort、無 Renew、無真正 FAILED。
+
+**Project-specific 條件**（為何 BAT 環境特別適合）：
+
+1. **BAT 內部終端 worker session 機制**：透過 `bat-terminal.mjs --notify-id $BAT_TERMINAL_ID --workspace "$BAT_WORKSPACE_ID" --mode yolo --no-interactive --agent default` 派發，每張工單在獨立 BAT 內部終端跑 codex CLI，避免 shell preference 跨 session 污染（BUG-060 修復後第一條保證）
+2. **BAT 內 codex agent 對 worktree-aware**：worker 預設知道 worktree path（`../bat-plan-007`），守則只需「禁止切回 main」即可
+3. **塔台 auto_commit: on**：小變動（metadata update）塔台直接 commit + push 到 release branch，不需開單
+
+**塔台行動**：
+
+1. **Session 累積 21+ 工單派發前確認**：BAT 是否已重建（含最新 main 修復如 BUG-060）；否則 shell preference fallback 風險
+2. **每張工單派發後檢查 git log**：確認 worktree 真有 commit（worker 的 fire-and-forget 完成訊息可能誤報）
+3. **GP099 校準後預期 wall**：M sizing 5-15 min, L sizing 10-25 min；若超過 ×2 即考慮 abort 重派
+4. **Session 中 baseline 維持**：BUG-061 family TS errors（CodexAgentPanel.tsx, ~36 errors）允許豁免 AC8 / AC10 baseline check；其他 component 不可漂移
+
+**反例**（不適用）：
+
+- 跨 BAT 重建週期：BAT 自身修復不能在 yolo 鏈中（self-modifying；session 31 BUG-060 fix 必須 release-然後重建-然後再派發）
+- 需要 GUI runtime 驗證的工單：codex CLI 跑不了 BAT app 互動，必須降為人工驗證
+
+**為何成立（BAT-specific）**：
+
+- BAT 內部終端 + workspace 隔離 = 每 worker 獨立 cwd 不互相污染
+- codex CLI fire-and-forget 模式對 spec-frozen 工單神速（GP103）
+- 塔台 BAT_TOWER_TERMINAL_ID 雖未設仍可透過完成訊息回報，使用者代為轉達不阻塞
+
+**證據**：
+- session 31（2026-04-26）：21/21 工單成功完成，total wall ~235 min，平均 12 min/工單
+- 對比 session 25 / session 22 等較短 session（~6-10 工單）：本 session 達 ×3 規模仍維持 0 中斷
+
+**相關**：
+- GP100（YOLO 鏈式跨 type 通用）：本 L 是其 BAT-specific 大規模驗證
+- GP103（Worker 神速三要素）：項目 (3) Worktree 隔離在 BAT 落實為「BAT 內部終端 + workspace」
+- L101（YOLO 邊界判斷力）：本 L 是 L101 的規模延伸
+
+**來源**：better-agent-terminal session 31（2026-04-26 PLAN-007 + 雙 release chain）
+
+---
+
+## L107 - 2026-04-26 — BAT release branch + worktree merge + fix on branch pattern
+
+**情境**：Session 31 完成 PLAN-007 全 23 工單後，使用者要求「由 main 分出 v0.4.0 分支，合併 worktree 後派 bmad 對抗式審查」。塔台採以下流程：(1) `git checkout -b release/v0.4.0 main`；(2) `git merge --no-ff feature/plan-007-remote-dev`（保留 merge commit 給 review diff 追蹤；113 files / +14569 / -334 auto-merge 無衝突）；(3) review + fix 都在 `release/v0.4.0` 上累積；(4) version bump + CHANGELOG 在 release branch 一次到位（`package.json: 0.3.1 → 0.4.1`，跳過 0.4.0 因內部 fix 一氣呵成）；(5) Worker 嚴禁 tag / push（留人工執行）。worktree 保留作為後續 follow-up workspace。
+
+**Pattern 五要素**：
+
+| 要素 | 說明 |
+|------|------|
+| **`--no-ff` merge** | 保留 merge commit，bmad review 看 `git diff main..release/v0.4.0` 整個 PLAN-007 範圍清楚 |
+| **Fix on branch（不切新分支）** | review-fix-verify-bump 全在 release branch；避免「fix-branch / hotfix-branch」過多 |
+| **Worktree 保留** | 修復用 release branch / main repo cwd；worktree 留作後續 phase（如 PLAN-013）workspace |
+| **Version bump 一次到位** | 內部不發 0.4.0 prerelease（fix chain 在 internal release prep 完成），直接 bump 到 0.4.1 含 v0.4.0 + v0.4.1 兩階段內容 |
+| **Tag/Push 人工** | Worker 守則嚴禁 tag/push；塔台 auto_commit 不含 push（與 global RULES.md 的 `Never Auto-Push` 對齊） |
+
+**塔台行動**：
+
+1. **派發 review/fix 工單時明示工作分支**：守則 1 必明寫 `release/v0.4.0`，避免 Worker 在 worktree 改 release-only 的東西
+2. **Verification 工單守則 9 必含「不 tag / 不 push」**：留人工執行，避免 release 自動觸發 CI 而 e2e 未跑
+3. **Version bump 在 verification 工單做**（如 T0302）：與 release readiness check 同 commit，避免 bump 後忘記 verify
+4. **CHANGELOG 沿用 BAT 既有 conventions**：`## [0.4.1] - 2026-04-26 — <主題>` + Fixed/Internal/Known sections
+
+**反例**（不適用）：
+
+- **多人 review process repo**：fix on branch 應該是 PR-driven，每個 finding 一個 PR；本 pattern 是 fork / 單人 release
+- **小型 hotfix**：直接在 main 改即可，不需 release branch
+- **持續 deploy**：每 commit 自動 release，不需 explicit branch
+
+**為何成立（BAT-specific）**：
+
+- BAT 是 fork（gowerlin），單人控制 release cadence
+- worktree 隔離已提供「不汙染 main」保證，release branch 是 review/fix 的工作空間
+- bmad review skill 對 `git diff` 範圍敏感，merge commit 是清晰邊界
+- 沒有外部 CI gate，version bump + CHANGELOG 一次到位最省工
+
+**證據**：
+- session 31（2026-04-26）：1 release branch + 11 fix-related commits + 0 push（人工保留）+ 1 GO verdict
+- merge 自動成功（`Auto-merging electron/main.ts` 含 PLAN-007 期間 main 與 worktree 各自小改）
+
+**相關**：
+- GP104（bmad 5 階段 release）：本 L 是 stage 1-5 落地時的 git workflow
+- L106（YOLO 21 工單）：本 L 是該 session 的 git stage management
+
+**來源**：better-agent-terminal session 31（2026-04-26 v0.4.0+v0.4.1 release prep）
