@@ -4,7 +4,7 @@
 > 最後同步：2026-04-26 22:?? (UTC+8) — Session 34 起手新增 BUG-070（Profile Dialog Add 按鈕溢出）。
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 13**
+- 🔴 Open: 3 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 15**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -12,6 +12,8 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-071 | Setup Wizard install-server-bundle 硬性失敗（server bundle download flow 未實作） | 🔴 High | 2026-04-27 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
+| BUG-072 | WSL wizard systemd linger 啟用失敗錯誤訊息不友善 + 連帶 service timeout | 🟡 Medium | 2026-04-27 | [BUG-072](BUG-072-wsl-systemd-linger-error-handling.md) |
 | BUG-061 | CodexAgentPanel.tsx baseline tsc errors（dev-only，非阻塞） | 🟢 Low | 2026-04-26 14:10 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
 ## ⏳ 修復中 (FIXING)
