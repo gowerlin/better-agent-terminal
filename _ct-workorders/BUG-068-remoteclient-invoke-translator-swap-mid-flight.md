@@ -9,7 +9,7 @@
 | 嚴重度 | 🟢 Low |
 | 可重現 | 罕見 race（需在 reconnect 期間使用者編輯 profile + 同時有 in-flight invoke） |
 | Workaround | reconnect 期間 invoke queue 會 hold，實務上 race window 極短 |
-| 狀態 | 🐛 OPEN（v0.4.1 patch backlog） |
+| 狀態 | 🚫 CLOSED 2026-04-26 — T0300 fix commit `a5841ae`（與 BUG-062 / BUG-066 同批）；v0.4.1 patch chain T0299-T0302 全綠 GO verdict |
 | 建立時間 | 2026-04-26 17:18 (UTC+8) |
 | 報告者 | T0293 review EC-007 |
 | 影響範圍 | `electron/remote/remote-client.ts::invoke`（in-flight invoke 的 translator 一致性） |

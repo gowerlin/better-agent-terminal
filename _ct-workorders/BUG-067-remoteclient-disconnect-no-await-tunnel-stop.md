@@ -9,7 +9,7 @@
 | 嚴重度 | 🟡 Medium |
 | 可重現 | race condition（disconnect 後立即 reconnect 觸發） |
 | Workaround | UI 在 disconnect 後加 ~500ms delay 再 reconnect |
-| 狀態 | 🐛 OPEN（v0.4.1 patch backlog） |
+| 狀態 | 🚫 CLOSED 2026-04-26 — T0299 fix commit `db496c7`（與 BUG-063 同批）；v0.4.1 patch chain T0299-T0302 全綠 GO verdict |
 | 建立時間 | 2026-04-26 17:18 (UTC+8) |
 | 報告者 | T0293 review EC-006 |
 | 影響範圍 | `electron/remote/remote-client.ts::disconnect` |

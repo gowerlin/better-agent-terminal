@@ -9,7 +9,7 @@
 | 嚴重度 | 🟡 Medium |
 | 可重現 | 100%（如 git:diff-files 真的傳兩個 path） |
 | Workaround | 暫時：caller 端先把 args[1+] 也翻完再 invoke（破壞抽象） |
-| 狀態 | 🐛 OPEN（v0.4.1 patch backlog） |
+| 狀態 | 🚫 CLOSED 2026-04-26 — T0301 fix commit `27d78c9`（與 BUG-064 同批）；v0.4.1 patch chain T0299-T0302 全綠 GO verdict |
 | 建立時間 | 2026-04-26 17:18 (UTC+8) |
 | 報告者 | T0293 review EC-004 |
 | 影響範圍 | `electron/remote/path-aware-channels.ts:62-68`（default 分支） |

@@ -3322,35 +3322,32 @@ T0143 研究定調：採 **Electron 原生 `dialog.showMessageBox`**（內建 ch
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-04-25 14:51 (UTC+8) — *rescan(session 26 起手,session 25 BUG-059/055 收工後首掃,decision-log drift 偵測 D083→D088)
+> 最後掃描:2026-04-26 19:36 (UTC+8) — *rescan + *sync(session 32 起手,session 31 PLAN-007 全收 + v0.4.1 GO 後首掃)
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| BMad-Method | ❌ | _bmad/ 不存在(專案自訂工作流程)|
+| BMad-Method | ❌ | _bmad/ 不存在(專案自訂工作流程);commit cee4fbc 升 v6.5 但未啟用 |
 | ECC 學習 | ✅ Level 1+ | ~/.claude/homunculus/ |
 | bmad-guide skill | ✅ | 可用 |
-| mem0 REST | ✅ | memsync healthy, updated 2026-04-25 14:49, queue_size:2 |
-| 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal, WT_SESSION 空, TERM=xterm-256color |
-| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-650f-4c98-aeaf-3c5b3ffcd053, terminal:e00c24cd-3c6c-4a10-b116-2c2077603907 |
-| BAT_TOWER_TERMINAL_ID | ❌ 空 | 本 session 未設 tower terminal id,bat-notify Worker 回報需走降級 |
-| 平台 | Windows | MINGW64 (Git Bash, Msys),Windows 11 Pro for Workstations (26200) |
-| ct-exec / ct-done / ct-status | ✅ | |
-| ct-evolve / ct-insights | ✅ | |
-| ct-fieldguide / ct-help | ✅ | |
-| worker-time-estimation | ✅ Skill | (前次 session 升 Skill,沿用) |
-| _archive/ | ✅ | **304 張歸檔**(workorders:238 / bugs:51 / plans:15;v.s. 上次 205,session 21-25 期間自然累積) |
-| _playbooks/ | ✅ 空 | 目錄存在,0 張(Playbook 候選仍在 Global Layer 2) |
-| _decision-log | ✅ | 檔案至 D088(drift 2026-04-26 13:55 修復,session 30 補入 D084-D088 body 5 條) |
-| 跨專案參照 | 📋 | 無關聯(_cross-references.md 不存在)|
-| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/learnings/ — patterns.md + tech-gotchas.md(session 23 *evolve 後新增 GP083/084/TG014-016) |
-| Global 設定 | ❌ 無 | ~/.claude/control-tower-data/config.yaml 不存在(僅 project 層設定) |
-| BUG/PLAN 追蹤 | ✅ | BUG:8 熱區(全 CLOSED!)/ PLAN:12 熱區(4 IDEA / 2 PLANNED / 2 IP / 1 DONE / 3 DROPPED) |
-| 實驗追蹤 | ✅ | EXP:1 熱區(EXP-GPUWHIS-001 CONCLUDED) |
-| 熱區工單 | **T:25 / BUG:8 / PLAN:12 / EXP:1** = 46 張 | T0153 唯一 PARTIAL(spike 擱置),其餘已交付 |
-| 最大編號 | **T0251 / BUG-059 / PLAN-028 / EXP-GPUWHIS-001 / D088** | session 25 收工後 |
-| 設定來源 | project | _tower-config.yaml (auto-session: **yolo**, yolo_max_retries: **1**, auto_commit: on, archive_days: 2) |
-| 塔台版本 | v4.4.0 | SKILL.md frontmatter(已自 v4.3.0 升級) |
-| 能力等級 | Level 2 | ECC(Level 1+) + mem0 + Layer 2 學習資料 |
+| mem0 REST | ✅ | memsync healthy, updated 2026-04-26 19:35, queue_size:2 |
+| 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal, WT_SESSION 空 |
+| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-650f-4c98-aeaf-3c5b3ffcd053 |
+| BAT_TOWER_TERMINAL_ID | ❌ 空 | 本 session 未設,bat-notify Worker 回報需走降級 |
+| 平台 | Windows | MINGW64 (Git Bash, Msys),Win11 Pro WS (26200) |
+| ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
+| _archive/ | ✅ | **345 張歸檔**(workorders:269 / bugs:57 / plans:19;vs. 上次 304,session 26-31 累積 +41) |
+| _playbooks/ | ✅ 空 | 目錄存在,0 張 |
+| _decision-log | ✅ | 至 D089(PLAN-007 全案閉環);63 entries 含 D001-D012 collapsed |
+| 跨專案參照 | 📋 | 無 _cross-references.md |
+| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/learnings/ + 6 個 GP playbooks(GP076-080 + GP-COOP-001) |
+| Global 設定 | ❌ 無 | 僅 project 層 |
+| BUG/PLAN 追蹤 | ✅ | BUG:11 熱區(8 OPEN v0.4.1 backlog,3 historical)/ PLAN:8 熱區 |
+| 實驗追蹤 | ✅ | EXP:2 熱區(EXP-GPUWHIS-001 CONCLUDED + EXP-HEADLESS-001) |
+| 熱區工單 | **T:54 + 4 reports / BUG:11 / PLAN:8 / EXP:2** = 79 張(含 reports) | T0295/T0300 TODO,其餘 DONE |
+| 最大編號 | **T0302 / BUG-068 / PLAN-028 / EXP-HEADLESS-001 / D089** | session 31 收工後 |
+| 設定來源 | project | _tower-config.yaml (auto-session: **on**, yolo_max_retries: **1**, auto_commit: on, archive_days: **2**) |
+| 塔台版本 | v4.4.0 | SKILL.md frontmatter |
+| 能力等級 | Level 2 | ECC + mem0 + Layer 2 |
 
 > **Drift 狀態**:
 > 1. ✅ `_decision-log.md` D084-D088 body 已補入(2026-04-26 13:55,session 31)
