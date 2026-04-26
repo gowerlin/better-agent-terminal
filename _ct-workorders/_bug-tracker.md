@@ -1,10 +1,10 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-26 20:46 (UTC+8) — Session 33 T0303 DONE → BUG-069 OPEN→FIXING（D090 拍板採 Spike A + R2 ESLint 守衛，派 T0304）。
+> 最後同步：2026-04-26 22:?? (UTC+8) — Session 34 起手新增 BUG-070（Profile Dialog Add 按鈕溢出）。
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 10 | ⛔ Won't Fix: 0 | **Total: 12**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 1 | 🚫 Closed: 10 | ⛔ Won't Fix: 0 | **Total: 13**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -29,6 +29,7 @@
 
 | ID | 標題 | 嚴重度 | 驗證時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-070 | Profile Dialog Add 按鈕橫向溢出（T0306 commit `014da72` 修復，等使用者驗收） | 🔴 High | 2026-04-26 22:45 | [BUG-070](BUG-070-profile-dialog-add-buttons-overflow.md) |
 
 ## 🚫 已關閉 (CLOSED)
 
