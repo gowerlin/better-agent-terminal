@@ -222,3 +222,61 @@ test('buildWslWizardSteps() integrates with WizardRunner end-to-end', async () =
 
   resetFetchFingerprintImplForTests()
 })
+
+// T0300 BUG-066 — run() must reset runPromise on rejection so the same
+// instance can be retried by calling run() again, without returning the
+// previous (already-rejected) promise.
+test('WizardRunner run() can be retried on the same instance after failure', async () => {
+  let runCalls = 0
+  let throwOnce = true
+  const steps: WizardStep[] = [
+    {
+      id: 'flaky',
+      title: 'Flaky step',
+      appliesTo: 'all',
+      retryable: false,
+      async run() {
+        runCalls += 1
+        if (throwOnce) {
+          throwOnce = false
+          throw new Error('first attempt failed')
+        }
+      },
+    },
+  ]
+
+  const runner = new WizardRunner(steps, makeContext())
+
+  await assert.rejects(() => runner.run(), /first attempt failed/)
+  // BUG-066: previously this resolved/rejected with the cached failed
+  // promise without re-entering runInternal; now it must run again.
+  await runner.run()
+
+  assert.equal(runCalls, 2, 'second run() must trigger a fresh runInternal flow')
+})
+
+test('WizardRunner run() can be retried after consecutive failures (third try succeeds)', async () => {
+  let runCalls = 0
+  const steps: WizardStep[] = [
+    {
+      id: 'flaky',
+      title: 'Flaky step',
+      appliesTo: 'all',
+      retryable: false,
+      async run() {
+        runCalls += 1
+        if (runCalls < 3) {
+          throw new Error(`attempt ${runCalls} failed`)
+        }
+      },
+    },
+  ]
+
+  const runner = new WizardRunner(steps, makeContext())
+
+  await assert.rejects(() => runner.run(), /attempt 1 failed/)
+  await assert.rejects(() => runner.run(), /attempt 2 failed/)
+  await runner.run()
+
+  assert.equal(runCalls, 3, 'each run() must trigger its own runInternal pass')
+})

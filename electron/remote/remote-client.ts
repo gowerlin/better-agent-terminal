@@ -269,6 +269,11 @@ export class RemoteClient {
             `[RemoteClient] Fingerprint mismatch: expected ${this.expectedFingerprint.substring(0, 23)}... ` +
               `got ${fp.substring(0, 23)}...`
           )
+          // BUG-062 (T0300): set _connected = false before settle so any
+          // racing 'open' / 'message' handler that fires between close()
+          // and the actual socket teardown sees the gated state. The
+          // explicit `return` short-circuits this handler so we don't fall
+          // through into any later upgrade-time logic added in future.
           this._connected = false
           this.ws?.close()
           settle({
@@ -277,10 +282,15 @@ export class RemoteClient {
             errorCode: 'fingerprint-mismatch',
             fingerprint: fp
           })
+          return
         }
       })
 
       this.ws.on('open', () => {
+        // BUG-062 (T0300): if upgrade already settled (e.g. fingerprint
+        // mismatch fired close() but 'open' still races through) we must
+        // not send the auth frame on a socket the caller has rejected.
+        if (settled) return
         // Send auth frame (fingerprint already validated during upgrade)
         const authFrame: RemoteFrame = {
           type: 'auth',
@@ -481,8 +491,14 @@ export class RemoteClient {
       return Promise.reject(new Error('Not connected to remote server'))
     }
 
+    // BUG-068 (T0300): freeze translator reference for the lifetime of this
+    // invoke. If a reconnect swaps `this.translator` mid-flight, the result
+    // normalisation must still run through the translator that produced the
+    // request args — otherwise an args-toServer / result-toClient pair could
+    // straddle two distinct mappings.
+    const translator = this.translator
     const id = this.nextId()
-    const translatedArgs = translateInvokeArgs(channel, args, this.translator)
+    const translatedArgs = translateInvokeArgs(channel, args, translator)
     const frame: RemoteFrame = { type: 'invoke', id, channel, args: translatedArgs }
 
     return new Promise((resolve, reject) => {
@@ -493,7 +509,7 @@ export class RemoteClient {
 
       this.pending.set(id, {
         resolve: (result) => {
-          resolve(normalizePathsInResult(channel, result, this.translator))
+          resolve(normalizePathsInResult(channel, result, translator))
         },
         reject,
         timer,

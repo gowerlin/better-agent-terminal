@@ -120,7 +120,13 @@ export class WizardRunner {
 
   async run(): Promise<void> {
     if (!this.runPromise) {
-      this.runPromise = this.runInternal()
+      // BUG-066 (T0300): clear runPromise on rejection so the caller can
+      // retry by calling run() again on the same instance. Re-throw to
+      // preserve the rejection contract for the original caller.
+      this.runPromise = this.runInternal().catch((err) => {
+        this.runPromise = null
+        throw err
+      })
     }
     return this.runPromise
   }
