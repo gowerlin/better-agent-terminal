@@ -1,6 +1,10 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-27 22:08(**第三十九 session 收工快照:輕量 session, ~30 min wall, PLAN-033 Sprint 2 真正收尾(上游 PR 階段)。(1) T0350a 預掃發現上游 working tree 有 v4.4.1↔v4.4.0 同步錯誤 + BAT args 重構 working M。(2) T0350 派發(YOLO mjs `--mode yolo --no-interactive`),Worker 6 min DONE — 7 entries drift 決策表 + 兩個獨立 commit(基底對齊 e92bb01 + PLAN-033 三段 794f0ea)。(3) push 上游 dev-main(`ca5097b..794f0ea`)。(4) *evolve 4 entries — Global GP122-124(sprint 五件套節奏 / drift 決策表 / push gate)+ Project L113(monorepo dev-main 直接 commit)。下次起手:PLAN-032 Sprint 2 解封 — T0330 keystone(YOLO 鏈式可重啟),或 T0324 DGX Spark dogfood VERIFY,或上游目錄 rename 評估(v4.4.1 → v4.4.2)。**)
+> 最後更新:2026-04-28(session 41 起手式 drift 修正,塔台直接更新)
+>
+> ⚠️ **Drift 註記**:第四十 session(2026-04-27 ~22:30 - 2026-04-28 ~03:32, ~5 hr wall)未寫 收工快照。實際完成 PLAN-032 Sprint 2 五張(T0330-T0334 全 DONE)+ Sprint 3 三張(T0335-T0337 全 FIXED,BUG-072/073/074 → 🔍 VERIFY),共 8 張工單 + 1 張 metadata bookkeeping commit `7c2b66a`。git log 為 single source of truth,本檔 session 39「本」段保留不動,session 41 收工時依 hygiene 規則自然 archive。
+>
+> 上一次正式 收工:2026-04-27 22:08(第三十九 session 結尾,見下方 🛏 本 Session 區段)。
 
 ---
 
@@ -266,19 +270,27 @@ GP119（三件套節奏）+ GP121（實證驅動補規則）完整 dogfood 閉�
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-04-27 22:08 UTC+8（session 39 收工）
+> 最後更新：2026-04-28 UTC+8（session 41 起手 drift 修正）
 
 ### 立即待辦
-1. **PLAN-032 Sprint 2 解封**：T0330 keystone → T0331-T0334（YOLO 鏈式已由 BUG-075 三層防線 + 五件套節奏雙重解封）。
-2. **T0324 DGX Spark dogfood VERIFY**：等待使用者實機回報，作為 BUG-071 VERIFY/CLOSED 路徑。
-3. **上游目錄 rename 評估**：v4.4.1 → v4.4.2 是否值得 bump 承載 PLAN-033 三段規則。
-4. **BUG-071 metadata 對齊**：依 T0321/T0322/T0324 結果決定 OPEN→FIXED/VERIFY。
-5. **Archive batch 2**：04-28 起合格（BUG-070/069 + T0303-T0312）。
+1. **PLAN-032 三 BUG smoke**：BUG-072（WSL linger/systemd, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED。
+2. **Push 37 commits**：local main 領先 origin/main 37 commits（含 PLAN-032 Sprint 2+3 全部成果），需使用者授權 push（GP124 push gate）。
+3. **PLAN-032 Sprint 4-5 規劃**：Sprint 2+3 已收，Sprint 4-5 範圍待研究/拆單（research 工單候選）。
+4. **上游目錄 rename 評估**：v4.4.1 → v4.4.2 是否 bump 承載 PLAN-033 三段規則。
+5. **BUG-071 metadata 對齊**：依 T0321/T0322/T0324 結果決定 OPEN→FIXED/VERIFY。
+6. **Archive batch 2**：04-28 起合格（BUG-070/069 + T0303-T0312 + 已收 PLAN-032 Sprint 2/3 工單批次）。
+7. **session 40 timeline 反向重建**（可選）：若需正式收工快照，可從 git log e0a23e5..7c2b66a + 工單回報區重建 — 否則維持 git 為 SoT。
 
-### 近期完成
-- **T0350**：上游 SKILL.md PR — commits `e92bb01` + `794f0ea`，已 push dev-main。
-- **GP122-124 + L113**：sprint 五件套節奏 / drift 決策表 / push gate / monorepo 直接 commit。
-- **PLAN-033 Sprint 2 真正收尾**：跨 3 sessions 五件套（research → implement → codify-rule → dogfood → upstream-PR）。
+### 近期完成（session 40，未正式收工但 git 已落地）
+- **T0330**（keystone, `e0a23e5`）：Stepper + WizardRunner `awaiting-input` 狀態擴充。
+- **T0331-T0334**（Sprint 2 完整收尾）：ErrorMapper / Preflight / Recovery actions / design+i18n docs。
+- **T0335-T0337**（Sprint 3 三平台 BUG fix）：BUG-074/073/072 → FIXED，三 BUG → 🔍 VERIFY。
+- **PLAN-032**：Sprint 2 ✅ 5/5、Sprint 3 ✅ 3/3，整體仍 IN_PROGRESS（待 Sprint 4-5 + 三 BUG smoke）。
+
+### 上 session（39）完成
+- T0350 上游 SKILL.md PR（`e92bb01` + `794f0ea`，已 push dev-main）。
+- GP122-124 + L113（五件套節奏 / drift 決策表 / push gate / monorepo 直接 commit）。
+- PLAN-033 Sprint 2 跨 3 sessions 五件套真正收尾。
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)
@@ -288,7 +300,8 @@ GP119（三件套節奏）+ GP121（實證驅動補規則）完整 dogfood 閉�
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)
 
 ### 編號起始
-- T0351 / BUG-076 / PLAN-034 / D110 / EXP-[TOPIC]-001
+- T0338 / BUG-076 / PLAN-034 / D110 / EXP-[TOPIC]-001
+- ⚠️ session 39 快照標 T0351 為 drift（實際 T0337 為最後落地工單；session 40 PLAN-032 Sprint 2/3 串接 T0330-T0337，未跳號到 T035x）
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 
