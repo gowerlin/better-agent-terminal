@@ -200,7 +200,7 @@ Closes T0348 (PLAN-033 Sprint 2)
 
 ### C. Commit
 
-- Commit hash: 待填
+- Commit hash: `dea3281`
 - 訊息：`chore(rules): add tower state archive + size check + Quick Recovery hygiene rules (PLAN-033 Sprint 2)`
 
 ### 結論摘要
