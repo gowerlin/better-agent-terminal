@@ -175,6 +175,20 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 - **CI pipeline**：`.github/workflows/pre-release.yml` 三平台 build job 依序為 `npm ci` → `@electron/rebuild` → `verify-native-modules.js` → `verify-helper-bundle.js`（在 `build-version.js` 開頭自動 require） → `build-version.js` → `electron-builder`。新增 CI job 時請沿用相同順序。
 - **Release 驗收必跑 NSIS 完整重裝**：`--dir` mode 和 `zip` smoke 不是 production 等價；release 前必須完整「uninstall → 跑 installer → 啟動 UI → 踩 voice input / terminal / sqlite 路徑」驗收（BUG-056 盲點記錄）。
 
+### Server bundle baseline（PLAN-031）
+
+- **`npm run fetch:baseline` 在 build 前**：electron-builder build 前必跑（`prebuild` hook 已自動串接），從 GitHub Release 抓對應 host arch 的 baseline tarball 到 `dist-baseline/`，由 installer 內建 (`extraResources`)
+- **per-host matrix（C-narrow，D092）**：
+  - Win × x64 → `linux-x64`
+  - Mac × arm64 → `linux-x64` + `darwin-arm64`（雙 tarball）
+  - Linux × x64 → `linux-x64`
+  - Linux × arm64 → `linux-arm64`
+- **fail-fast**：`scripts/verify-helper-bundle.js` 已擴 server bundle 檢查（T0316 落地），dist-baseline 缺 tarball 即 abort with actionable msg
+- **Server bundle release（獨立 tag）**：`server-bundle-vX.Y.Z` tag push 觸發 `.github/workflows/build-server-bundle.yml`（與 desktop release `pre-release.yml` 完全解耦，spec §6 C-1 + D093）
+- **Mac installer size cap**：280 MB（D094）；超出觸發塔台復議
+- **私有 fork**：設 `BAT_SERVER_BUNDLE_BASE_URL` env override GitHub Release 預設（D095）
+- **詳細**：見 `docs/server-bundle-distribution.md`
+
 ## Release
 
 - **正式版**: `release new tag version` → 基於最新 tag 遞增 patch 版號，建立 tag 並 push

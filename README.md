@@ -79,6 +79,7 @@
 - 統一 setup wizard：安裝 server bundle → 啟動服務 → TLS fingerprint pinning → 連線驗證
 - 跨環境 path translator 自動轉換 chat context 附件路徑（Windows ↔ Linux ↔ macOS）
 - 詳見 [Remote Dev Overview](docs/remote-dev-overview.md)
+- Server bundle 分發機制（installer 內建 baseline + GitHub Release fallback）詳見 [Server Bundle Distribution](docs/server-bundle-distribution.md)
 
 ### 📊 狀態列
 - 13 項可配置狀態顯示（模型、成本、Token、快取等）

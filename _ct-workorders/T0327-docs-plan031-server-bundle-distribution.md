@@ -7,9 +7,10 @@
 | 工單編號 | T0327 |
 | 類型 | docs（user-facing 文件 + CLAUDE.md「Packaging/Release 前置檢查」段落更新 + 可能 README pointer） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 5 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🔧 IN_PROGRESS |
 | 建立時間 | 2026-04-27 11:05 (UTC+8) |
 | 派發時間 | 2026-04-27 11:05 (UTC+8) |
+| 開始時間 | 2026-04-27 11:07 (UTC+8) |
 | Sizing | S（estimate 30-45 min wall） |
 | 依賴 | T0314 ✅（spec 凍結） / T0315-T0325 ✅（全套實作 + tests） |
 | 平行 | 無（Sprint 5 收尾，T0324/T0326 等下個 session） |
@@ -172,24 +173,61 @@ Worker 探查後決定。
 
 ### 1. docs/server-bundle-distribution.md 摘要
 
-（待填：總行數、9 段落是否齊全）
+- 新建：`docs/server-bundle-distribution.md`（約 130 行）
+- 9 必填段落齊全：
+  1. 動機（PLAN-030 → BUG-071 → PLAN-031 30 秒交代）
+  2. Distribution 三層 lookup（Cache / Baseline / Download，含實作入口）
+  3. Per-host baseline matrix（C-narrow + Mac 雙 tarball，D092）
+  4. Architecture detection（WSL `execFile uname` / SSH `verify-auth probe` / Docker image-based）
+  5. SHA256 manifest schema（簡化版 + pointer 到 spec §9）
+  6. 私有部署 / fork（`BAT_SERVER_BUNDLE_BASE_URL` env，含 endpoint 結構範例，D095）
+  7. GitHub Rate Limit 處理（anonymous 60/hr + `GITHUB_TOKEN` v2 候選 + actionable msg 行為）
+  8. DGX Spark / ARM64 Linux 特別說明（C-narrow 對 arm64 的影響 + D097 dogfood 引用）
+  9. 排錯（6 症狀 × 解法表）
+- 額外段落：升級既有 server bundle（v0.5.0+ T0326 預告，D098）+ 相關工單與決策（PLAN-031 + 7 拍板項 + BUG-071 + PLAN-007/027 cross-link）
+- 寫作風格遵守：中文 + technical English term；檔名 / 命令 / env 用 backtick；不複製 spec 內容（pointer 引用）
 
 ### 2. CLAUDE.md 擴張摘要
 
-（待填：插入位置、新增行數）
+- 插入位置：「Packaging / Release 前置檢查」段尾（既有 5 個 bullet 之後，「Release」段之前）
+- 新增 subsection：`### Server bundle baseline（PLAN-031）`，共 8 個 bullet
+- 不重構既有結構（純追加，遵守 worker 守則 4）
+- 內容覆蓋：`fetch:baseline` prebuild hook / per-host matrix / verify-helper-bundle 擴 server bundle 檢查 / 獨立 release tag (`server-bundle-vX.Y.Z`) / Mac 280 MB cap / `BAT_SERVER_BUNDLE_BASE_URL` / pointer 到新 docs
 
 ### 3. README.md 處理（加 pointer / 不加）
 
-（待填：探查結果 + 理由）
+**結論**：加 pointer。
+
+**探查結果**：README.md「Remote dev support」段（line 77-81）已有 `[Remote Dev Overview](docs/remote-dev-overview.md)` pointer 慣例，server bundle distribution 與 remote dev 同主軸，新增為兄弟 bullet 自然不突兀。
+
+**插入內容**：在 `詳見 [Remote Dev Overview](docs/remote-dev-overview.md)` 下方加一行：
+> Server bundle 分發機制（installer 內建 baseline + GitHub Release fallback）詳見 [Server Bundle Distribution](docs/server-bundle-distribution.md)
+
+**判斷理由**：worker 守則 5「探查 README.md 既有結構決定」滿足；既有 docs/ link 慣例已立，pointer 補完不需 over-engineering。
 
 ### 4. PARTIAL / 矛盾項（如有）
 
-（待填）
+無。三項 deliverable 皆完成。
 
 ### 5. Out-of-scope but justified（如有）
 
-（待填）
+無 scope expansion。本工單嚴格落在 user-facing docs + CLAUDE.md 擴段 + README pointer 三者範圍內。
+
+### AC 驗收
+
+- AC-1 ✅ `docs/server-bundle-distribution.md` 存在，9 必填段落齊全（見 §1 摘要）
+- AC-2 ✅ CLAUDE.md「Packaging / Release 前置檢查」段尾擴 server bundle baseline subsection
+- AC-3 ✅ README.md 加 pointer（見 §3 判斷理由）
+- AC-4 ✅ `npm run test:unit` 全綠（10 files / 187 tests passed, duration 7.23s）
+- AC-5 ✅ `npx tsc --noEmit` 無新錯誤（殘留錯誤皆 pre-existing on `CodexAgentPanel.tsx` / `agent-profiles.ts`，與本工單 docs-only 修改無關）
+- AC-6 ✅ commit 訊息走 `chore(docs): T0327 - PLAN-031 server bundle distribution 用戶文件`（見完成註記 commit hash）
 
 ### 完成註記
 
-（待填）
+- 修改檔案：3 個
+  - 新建：`docs/server-bundle-distribution.md`
+  - 擴段：`CLAUDE.md`（Packaging / Release 前置檢查 → 新增 Server bundle baseline subsection）
+  - 加 pointer：`README.md`（Remote dev support 段）
+- 單 commit（遵守 worker 守則 7）
+- commit hash：見元資料區「結束時間」下方填入
+- 後續：PLAN-031 結案 → BUG-071 CLOSED（依工單元資料「後續」欄位）
