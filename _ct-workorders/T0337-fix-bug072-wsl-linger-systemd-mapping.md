@@ -8,9 +8,11 @@
 | 標題 | 修復 BUG-072：WSL `write-systemd-unit` step 的 linger 失敗 + 下游 service start timeout 套用 ErrorMapper + fixed-and-retry actions；補 detect-env WSL 分支 preflight；達成 PLAN-032 Sprint 3 ship gate D109 |
 | 類型 | fix（BUG 修復 + framework 套用）|
 | 優先級 | 🔴 High（BUG-072 + Sprint 3 收尾，達 ship gate D109 → v0.4.3 release 候選） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 建立時間 | 2026-04-28 03:24 (UTC+8) |
 | 開始時間 | 2026-04-28 03:26 (UTC+8) |
+| 完成時間 | 2026-04-28 03:32 (UTC+8) |
+| commit | `57896e7` |
 | 派發模式 | `--mode yolo --no-interactive` |
 | 關聯 PLAN | PLAN-032（Sprint 3 第三票，最後收尾） |
 | 關聯 BUG | **BUG-072**（owner，本票負責 OPEN → FIXED → VERIFY） |
