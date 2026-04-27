@@ -7,8 +7,10 @@
 | 工單編號 | T0325 |
 | 類型 | qa（vitest integration with mocked fetch/fs + playwright spec scaffolding） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 5 |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 10:49 (UTC+8) |
+| 完成時間 | 2026-04-27 11:03 (UTC+8) |
+| Commit | 6c432c1 |
 | 建立時間 | 2026-04-27 10:39 (UTC+8) |
 | 派發時間 | 2026-04-27 10:39 (UTC+8) |
 | Sizing | M（estimate 45-75 min wall） |
