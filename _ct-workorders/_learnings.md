@@ -2856,3 +2856,81 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 - GP109（共用元件 4-step PLAN）：T0309 該被視為 step 3 大宗，而 layout regression 暴露 step 1 (T0307) 和 step 2 (T0308) 沒驗到 layout 問題
 
 **來源**：better-agent-terminal session 34 T0309 layout regression（2026-04-27）
+
+---
+
+## L109 - 2026-04-27 — Pure function helpers 抽到 `src/lib/{module}-helpers.ts`（BAT 專屬慣例）
+
+**觸發條件**：在 BAT 寫新的 electron/ 模組，需要可測試的純函數
+**規則**：
+- ✅ 抽純函數到 `src/lib/{module}-helpers.ts`（如 `src/lib/server-bundle-helpers.ts`）
+- ✅ electron/ 對應檔案以 re-export 維持公開 API
+- ✅ 對應 vitest 測試放 `src/lib/{module}-helpers.test.ts`
+
+**Why**：
+1. 避免 composite tsconfig 衝突（electron/ 和 src/ 是不同 tsconfig 範圍）
+2. vitest 跑 src/ 範圍方便（不需配置 electron 環境）
+3. 跨 main/renderer 共用同一份邏輯（避免 duplication）
+
+**How to apply**：
+- 識別 electron/ 模組中可測試的純函數 → 抽到 src/lib/
+- electron/ 保留 IPC handler / side effect 邏輯
+- import 路徑：electron/ 用 `../src/lib/...`，renderer 用 `@/lib/...`
+
+**證據**（PLAN-031）：
+- T0317 sha256-manifest-validator
+- T0318 runtime-download-module
+- T0319 arch-detection-ipc
+- T0320 server-bundle-distributor
+- 4 工單 4 出現，已成本專案標準模式
+
+**候選晉升**：候選 global（其他 vite + electron + composite tsconfig 專案可能適用）
+
+---
+
+## L110 - 2026-04-27 — draftProfile IPC pattern（BAT setup wizard 專屬）
+
+**觸發條件**：在 BAT 寫 setup wizard step 並涉及 server bundle distribution / arch detection / 任何在 profile 寫入前需要 OS 元資料的操作
+**規則**：Wizard step 在 writeProfile 之前必含 inline draftProfile（不可只接 profileId）
+
+**Why**：
+- writeProfile 是 wizard 最後一步
+- 在那之前的 IPC（如 server-bundle-distribute / arch-detection）需要存取 profile 元資料
+- 若只接 profileId，draft 階段的元資料還沒寫入 → IPC 拿不到資料
+- 必須讓 IPC handler 接受 inline profile（draftProfile），由 wizard step 傳遞
+
+**How to apply**：
+- IPC handler 簽名：`{ profileId?: string, draftProfile?: ProfileEntry }`
+- handler 內部優先用 draftProfile（draft 模式），fallback 到 profileId（已寫入後的修改模式）
+- ProfileEntry interface 必須完整覆蓋 draft 階段需要的所有欄位（含 multi-OS 元資料）
+
+**證據**：
+- T0321 WSL setup wizard：原工單漏設計此抽象，Worker 主動補上（D100）
+- ProfileEntry interface 同步擴充 multi-OS metadata
+- T0322 SSH / T0323 Docker 後續工單沿用此 pattern
+
+**候選晉升**：📂 Project（高度 BAT 專屬，依賴 wizard 架構）
+
+---
+
+## L111 - 2026-04-27 — sshServerArch wire-up 路徑必須在工單預先指明（BAT IPC 路徑 gotcha）
+
+**觸發條件**：BAT setup wizard step 涉及多階段 state 傳遞（IPC verify-auth → wizard ctx state → draftProfile → ProfileEntry）
+**規則**：塔台工單必須預列完整的 wire-up 路徑（IPC handler → state field → draftProfile attribute → ProfileEntry sentinel），否則 Worker 會卡在「資料從哪一層拿」的猜測
+
+**Why**：BAT setup wizard 有 4-5 層 state 傳遞鏈，每層命名和資料形狀都不同；Worker 沒有完整路徑就會反覆 grep / 試錯
+
+**How to apply**：
+- 工單「修改範圍」段落明示完整 wire-up 路徑表格
+- 表頭：`階段 | 檔案位置 | 欄位/變數名 | 資料形狀`
+- 範例（T0322 SSH）：
+  - IPC `verify-auth` response → `electron/ssh-bridge.ts` → `serverArch: string`
+  - Wizard ctx state → `src/components/SetupWizard/...` → `state.sshServerArch`
+  - draftProfile → `ProfileEntry.sshServerArch?: 'x64' | 'arm64'`
+
+**證據**：
+- T0322 SSH 成功因為塔台預列上述 4 階段路徑（Worker 直接照表填）
+- 對比：T0321 WSL 因塔台漏 draftProfile 抽象，Worker 主動補（OOS expansion 但合理）
+
+**候選晉升**：📂 Project（BAT 專屬 wizard 架構）
+
