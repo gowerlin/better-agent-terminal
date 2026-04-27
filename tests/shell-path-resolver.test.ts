@@ -1,6 +1,6 @@
 import * as assert from 'assert'
 
-import { resolvePersistedShellPath, resolveShellPath } from '../electron/shell-path-resolver'
+import { resolvePersistedShellPath, resolvePersistedShellPathWithDiagnostics, resolveShellPath } from '../electron/shell-path-resolver'
 
 let passed = 0
 let failed = 0
@@ -57,6 +57,32 @@ test('persisted git-bash resolves to git bash path', () => {
     }
   )
   assert.strictEqual(result, 'C:\\Program Files\\Git\\bin\\bash.exe')
+})
+
+test('actual settings shape with empty customShellPath falls back to default shell', () => {
+  const result = resolvePersistedShellPathWithDiagnostics(
+    { shell: 'custom', customShellPath: '' },
+    { platform: 'win32', env: {}, existsSync: () => false }
+  )
+  assert.strictEqual(result.shellPath, undefined)
+  assert.strictEqual(result.persistedShell, 'custom')
+  assert.strictEqual(result.fallback, true)
+  assert.strictEqual(result.fallbackReason, 'empty-custom-shell-path')
+})
+
+test('persisted git-bash reports fallback when known executables are missing', () => {
+  const result = resolvePersistedShellPathWithDiagnostics(
+    { shell: 'git-bash' },
+    {
+      platform: 'win32',
+      env: { LOCALAPPDATA: 'C:\\Users\\tester\\AppData\\Local' },
+      existsSync: () => false,
+    }
+  )
+  assert.strictEqual(result.shellPath, 'C:\\Program Files\\Git\\bin\\bash.exe')
+  assert.strictEqual(result.persistedShell, 'git-bash')
+  assert.strictEqual(result.fallback, true)
+  assert.strictEqual(result.fallbackReason, 'missing-known-executable')
 })
 
 test('missing persisted shell returns undefined', () => {

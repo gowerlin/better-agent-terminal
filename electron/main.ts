@@ -4,7 +4,8 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { execFileSync, spawnSync, fork } from 'child_process'
 import { WindowRegistry } from './window-registry'
-import { resolvePersistedShellPath, resolveShellPath } from './shell-path-resolver'
+import { resolveShellPath } from './shell-path-resolver'
+import { registerTerminalCommandHandlers } from './terminal-command-handlers'
 
 // Fix PATH for GUI-launched apps on macOS.
 // When launched via .dmg / Applications, macOS gives a minimal PATH that
@@ -497,14 +498,6 @@ function readPersistedSettingsSync(): PersistedSettings | null {
   } catch {
     return null
   }
-}
-
-function resolveConfiguredShellPathSync(settings: PersistedSettings | null | undefined): string | undefined {
-  return resolvePersistedShellPath(settings, {
-    platform: process.platform,
-    env: process.env,
-    existsSync: fsSync.existsSync,
-  })
 }
 
 function readLoggingConfigSync(): { loggingEnabled: boolean; logLevel: LogLevel } {
@@ -1894,128 +1887,18 @@ function registerProxiedHandlers() {
   registerHandler('pty:restart', (_ctx, id: string, cwd: string, shellPath?: string) => ptyManager?.restart(id, cwd, shellPath))
   registerHandler('pty:get-cwd', (_ctx, id: string) => ptyManager?.getCwd(id))
 
-  // Terminal: create + immediately send a command (for Control Tower auto-session)
-  // T0137: `workspaceId` (optional) propagates from `bat-terminal.mjs --workspace <id>`
-  // through to the renderer so the PTY lands in the requested workspace.
-  registerHandler('terminal:create-with-command', (_ctx, opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => {
-    // T0193: Diagnostic logging — record ipc-invoke with key BAT_*/CT_* signals.
-    // Detect reusedExisting BEFORE calling ptyManager.create() to capture the true state.
-    const reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
-    const customEnv = pickWhitelistedEnv(opts.customEnv)
-    const sourceTerminalId = opts.customEnv?.BAT_TERMINAL_ID
-    const workspaceId = opts.workspaceId ?? opts.customEnv?.BAT_WORKSPACE_ID
-    const invokerWindowId = _ctx.windowId ?? null
-
-    logger.log(`[remote][terminal] ipc-invoke channel=terminal:create-with-command id=${opts.id} reused=${reusedExisting} source=${sourceTerminalId ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
-    mirrorToBatScripts('ipc-invoke', {
-      channel: 'terminal:create-with-command',
-      terminalId: opts.id,
-      reusedExisting,
-      customEnv,
-      sourceTerminalId,
-      workspaceId,
-      windowId: invokerWindowId,
-      hasCommand: Boolean(opts.command),
-    })
-
-    if (!ptyManager) {
-      logger.log('[remote][terminal] ipc-result channel=terminal:create-with-command result=false reason=no-pty-manager')
-      mirrorToBatScripts('ipc-result', {
-        channel: 'terminal:create-with-command',
-        terminalId: opts.id,
-        result: false,
-        reason: 'no-pty-manager',
-      })
-      return false
-    }
-    const shell = opts.shell || resolveConfiguredShellPathSync(readPersistedSettingsSync())
-    const created = ptyManager.create({
-      id: opts.id,
-      cwd: opts.cwd,
-      type: 'terminal',
-      shell,
-      customEnv: opts.customEnv,
-      workspaceId: opts.workspaceId,  // T0176: forward workspaceId for BAT_WORKSPACE_ID env injection
-    })
-    if (created && opts.command) {
-      // Delay to let shell initialize before writing command
-      setTimeout(() => {
-        ptyManager!.write(opts.id, opts.command + '\r')
-      }, 500)
-    }
-    // T0130: Notify renderer(s) when a terminal is created externally (e.g. via RemoteServer WebSocket)
-    // so the UI can add it to the terminal list, bind xterm, and show the thumbnail.
-    // Only notify when ctx has no windowId (i.e. not initiated from the renderer itself).
-    if (created && !_ctx.windowId) {
-      for (const win of BrowserWindow.getAllWindows()) {
-        try {
-          win.webContents.send('terminal:created-externally', {
-            id: opts.id,
-            cwd: opts.cwd,
-            command: opts.command,
-            workspaceId: opts.workspaceId,
-          })
-        } catch { /* window closing */ }
-      }
-    }
-    // T0193: Record final outcome — created vs reused. `created === true` covers both
-    // spawned-anew and idempotent-skip paths (pty-manager.ts:402). `reusedExisting`
-    // disambiguates which branch ran.
-    const outcomeEvent = reusedExisting ? 'terminal-reused' : 'terminal-created'
-    logger.log(`[remote][terminal] ${outcomeEvent} id=${opts.id} result=${created} workspaceId=${workspaceId ?? 'n/a'}`)
-    mirrorToBatScripts(outcomeEvent, {
-      channel: 'terminal:create-with-command',
-      terminalId: opts.id,
-      reusedExisting,
-      result: created,
-      customEnv,
-      sourceTerminalId,
-      workspaceId,
-      windowId: invokerWindowId,
-    })
-    return created
-  })
-
-  registerHandler('terminal:create-agent-command', async (_ctx, opts: { id: string; cwd: string; agent?: string; prompt?: string; skill?: string; workorder?: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => {
-    const hasPrompt = typeof opts?.prompt === 'string' && opts.prompt.length > 0
-    const hasSkillPayload = typeof opts?.skill === 'string' && typeof opts?.workorder === 'string'
-    if (!hasPrompt && !hasSkillPayload) {
-      logger.warn('[agent-command] missing prompt or skill/workorder for terminal:create-agent-command')
-      return false
-    }
-    if (hasPrompt && hasSkillPayload) {
-      logger.warn('[agent-command] received both prompt and skill/workorder for terminal:create-agent-command')
-      return false
-    }
-
-    const resolved = await buildAgentPromptCommand({
-      agent: opts.agent,
-      prompt: opts.prompt,
-      skill: opts.skill,
-      workorder: opts.workorder,
-      workspaceId: opts.workspaceId,
-    })
-    if (!resolved) return false
-
-    if (resolved.prefixNormalized) {
-      logger.log(`[agent-command] prefix-normalized agent=${resolved.agentId} prompt=${resolved.prompt}`)
-      mirrorToBatScripts('prefix-normalized', {
-        channel: 'terminal:create-agent-command',
-        terminalId: opts.id,
-        agentId: resolved.agentId,
-        prompt: resolved.prompt,
-      })
-    }
-
-    logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId}`)
-    return invokeHandler('terminal:create-with-command', [{
-      id: opts.id,
-      cwd: opts.cwd,
-      command: resolved.command,
-      shell: opts.shell,
-      customEnv: opts.customEnv,
-      workspaceId: opts.workspaceId,
-    }], _ctx.windowId)
+  // Terminal: create + immediately send a command (for Control Tower auto-session).
+  registerTerminalCommandHandlers({
+    registerHandler,
+    invokeHandler,
+    getPtyManager: () => ptyManager,
+    getAllWindows: () => BrowserWindow.getAllWindows(),
+    readPersistedSettingsSync,
+    buildAgentPromptCommand,
+    pickWhitelistedEnv,
+    mirrorToBatScripts,
+    logger,
+    existsSync: fsSync.existsSync,
   })
 
   // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.

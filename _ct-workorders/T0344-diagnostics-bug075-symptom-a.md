@@ -7,7 +7,8 @@
 | 工單編號 | T0344 |
 | 類型 | diagnostics + test |
 | 所屬 | BUG-075（症狀 A：shell preference 失效，T0329 未證實） |
-| 狀態 | 📋 PENDING |
+| 狀態 | 🚧 IN_PROGRESS |
+| 開始時間 | 2026-04-27 16:28 (UTC+8) |
 | 建立時間 | 2026-04-27 14:08 (UTC+8) |
 | Sizing | S（estimate 30-45 min wall） |
 | 依賴 | 無（可獨立進行） |
@@ -68,20 +69,58 @@ T0329 Phase B/C 結論：症狀 A（shell preference 失效）目前未被證實
 ## 回報區（Worker 填）
 
 ### 完成摘要
-（Worker 填）
+完成狀態：DONE
+
+新增 shell preference diagnostics：
+- `terminal:create-with-command` 在 PTY create 前記錄 resolved shell basename、persisted shell setting、shell source、fallback flag/reason。
+- `terminal:create-agent-command` 透過同一 handler path 走 `terminal:create-with-command`，因此 agent auto-session 也覆蓋相同 diagnostics。
+- 抽出 `electron/terminal-command-handlers.ts`，讓 IPC handler 可注入 fake PTY/settings 進行 integration regression guard。
+
+修改/新增檔案：
+- `electron/main.ts`
+- `electron/shell-path-resolver.ts`
+- `electron/terminal-command-handlers.ts`
+- `tests/shell-path-resolver.test.ts`
+- `tests/terminal-create-agent-command.integration.test.ts`
+- `_ct-workorders/T0344-diagnostics-bug075-symptom-a.md`
 
 ### Logging 變更
-（Worker 填）
+- Log line：`[remote][terminal] shell-resolution ... basename=<bash.exe|pwsh.exe|cmd.exe|pty-default> persistedShell=<setting|unset> source=<explicit|persisted|pty-default> fallback=<yes|no> reason=<reason>`
+- `mirrorToBatScripts('shell-resolution', ...)` 同步寫入安全欄位，僅包含 basename，不包含完整 path。
+- `opts.shell` 明確傳入時標記 `source=explicit`；settings shell 解析成功時標記 `source=persisted`；無 persisted/custom 空字串等情境標記 `source=pty-default` 與 fallback reason。
 
 ### 測試清單
-（Worker 填）
+- Unit 擴充：
+  - actual settings shape：`{ shell: "custom", customShellPath: "" }` 回報 fallback。
+  - `git-bash` 且 known executable missing 時回報 fallback 到預設 Git Bash path。
+- Integration 新增：
+  - Mock persisted settings `{ shell: "git-bash" }`。
+  - Simulate `terminal:create-agent-command` invoke 3 次。
+  - Assert 每次 forwarded/resolved create shell basename 都是 `bash.exe`。
+  - Assert diagnostics log 包含 `basename=bash.exe` / `persistedShell=git-bash`，且不含完整 Git Bash path。
 
 ### 驗證紀錄
-（Worker 填）
+- `npx tsx tests/shell-path-resolver.test.ts` → PASS（7 passed, 0 failed）
+- `npx tsx tests/terminal-create-agent-command.integration.test.ts` → PASS
+- `npx tsc --noEmit --skipLibCheck --target ES2020 --module commonjs --moduleResolution node electron/shell-path-resolver.ts electron/terminal-command-handlers.ts tests/shell-path-resolver.test.ts tests/terminal-create-agent-command.integration.test.ts` → PASS
+- `npm run test:unit` → PASS（11 files, 189 tests）
+- `npx tsc --noEmit` → BLOCKED by pre-existing unrelated `src/components/CodexAgentPanel.tsx` / `src/types/agent-profiles.ts` type errors; no errors from touched files in narrow check.
 
 ### OOS but justified（如有）
-（Worker 填）
+無。未修改 shell resolver 行為，只增加 diagnostics wrapper 與 regression coverage。
+
+### 遭遇問題
+無本工單阻塞。注意：工作樹已有未提交的 `_ct-workorders/T0342-test-bug075-msys-rewrite-regression.md` 修改，未納入本工單。
+
+### 互動紀錄
+無。
+
+### Renew 歷程
+無。
+
+### Commit
+待 commit。
 
 ---
 
-**狀態**：📋 PENDING
+**狀態**：🚧 IN_PROGRESS
