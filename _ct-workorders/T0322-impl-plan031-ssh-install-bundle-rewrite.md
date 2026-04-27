@@ -7,10 +7,12 @@
 | 工單編號 | T0322 |
 | 類型 | impl（wizard step rewrite，消費 T0320 distributor + T0321 draftProfile pattern） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 4 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 03:14 (UTC+8) |
 | 派發時間 | 2026-04-27 03:14 (UTC+8) |
 | 開始時間 | 2026-04-27 03:16 (UTC+8) |
+| 完成時間 | 2026-04-27 10:28 (UTC+8) |
+| Commit | ffe5506 |
 | Sizing | S（estimate 30-45 min wall；含 archHint 移除 + sshServerArch wire-up） |
 | 依賴 | T0320 ✅（distributor） / T0321 ✅（draftProfile IPC pattern） |
 | 平行 | T0323（Docker，邏輯獨立） |
