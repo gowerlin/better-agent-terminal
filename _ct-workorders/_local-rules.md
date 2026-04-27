@@ -321,3 +321,98 @@ node "$BAT_HELPER_DIR/bat-terminal.mjs" claude "/ct-exec T####" --dangerously-sk
 | 外部終端 UI 同步 | T0130 | ✅ |
 | CLI helper (bat-terminal.mjs) | T0131 | ✅ |
 | Agent 自訂參數 | T0128 | ✅ |
+
+---
+
+## Tower State Archive 規則（PLAN-033）
+
+### 自動觸發（收工流程整合）
+
+每次收工寫快照前，塔台執行：
+1. 識別 `_tower-state.md` 中即將被擠出 hot path 的「前前 session 收工快照」段落
+2. 依 session header ISO 日期（regex `\d{4}-\d{2}-\d{2}`）判定季度
+3. Append 到 `_archive/state-snapshots/<YYYY-Q?>.md`（無檔則建）
+4. 若目標季檔 size > 200 KB → 自動切割為 `<YYYY-Q?>-a.md` / `<YYYY-Q?>-b.md`（依 entry count 對半）
+5. 更新 `INDEX.md`（append session row + 更新 `Last archived session #`）
+6. 從 `_tower-state.md` 移除該段
+7. 寫入新「本 Session」段，原「本」降級為「前」
+
+### 補救命令：*archive --state --rebuild-index
+
+異常情境使用：
+- INDEX.md 損毀或解析失敗
+- 收工流程中斷（archive 半套）
+- 手動補 archive（跳過某次 session）
+
+行為：
+1. 掃 `_archive/state-snapshots/2026-Q*.md` 所有檔案
+2. 抽 session header + 日期 + summary 重建 INDEX.md
+3. 原 INDEX.md 備份為 `INDEX.md.bak.<UNIX_TS>`
+4. 報告新增/修正/重複的 row 數
+
+### 季檔切割規則
+
+- 主軸：自然季度（`2026-Q1.md` / `2026-Q2.md`）
+- 後備：單檔 > 200 KB 自動切 `-a/-b` 後綴
+- 切割點：依 entry count 對半（非 byte 等分），確保時間軸連續性
+- INDEX.md 表格 `File` 欄位記錄實際檔名（含後綴）
+
+### INDEX.md 格式
+
+固定欄位：`| Session | Date | File | Summary |`
+
+- **Session**：原 header label（如「第三十五 session」），允許非整數命名
+- **Date**：ISO `YYYY-MM-DD`
+- **File**：實際季檔名（如 `2026-Q2-b.md`）
+- **Summary**：header 後第一段截斷至 ≤ 60 字
+
+---
+
+## Tower State Size 檢查（PLAN-033）
+
+啟動 Step 0（Full Scan / Fast Path）額外驗證 `_tower-state.md` 大小：
+
+| 大小 | 行為 |
+|------|------|
+| < 30 KB | ✅ 正常 |
+| 30 KB ~ 60 KB | ⚠️ 軟警告 — 顯示「state 已超軟警告閾值，建議下次收工後跑 *archive --state」 |
+| 60 KB ~ 256 KB | 🔴 強制提示 — 顯示「state 接近 Read 上限，建議**立即** *archive --state --rebuild-index」 |
+| > 256 KB | ❌ Read 工具上限觸發 — 強制走 `limit=N` + grep 降級恢復 |
+
+實作位置：Step 0 偵測完成後、面板顯示前。
+
+---
+
+## Quick Recovery Hygiene（PLAN-033 補規）
+
+### 設計原則
+
+`_tower-state.md` 開頭的 🌅 起手式（Quick Recovery）區段語意為「**最新狀態指引**」，不應內嵌歷史 session 完整摘要。
+
+### 違規情境
+
+T0347 落地後實測：起手式內嵌 Session 31 收工快照大段（~234 行），導致瘦身後 hot path 仍 48 KB（超 30 KB 軟警告）。
+
+### 規則
+
+1. ✅ 起手式可包含：
+   - 立即待辦（≤ 5 條）
+   - 近期完成摘要（≤ 5 條，每條一行）
+   - 快速連結（指向其他文件）
+   - 編號起始（T#### / BUG-### / PLAN-### / D###）
+
+2. ❌ 起手式禁止內嵌：
+   - 完整 session 收工快照（屬 archive 範圍）
+   - 大段時間線（> 10 行）
+   - 詳細統計表格（屬本 session / 前 session 區段）
+
+3. **若起手式因任何理由超過 50 行**：
+   - 視為違規，需重構
+   - 大段內容應移到對應 session 收工快照區段
+   - 若內容屬「跨 session 持續性指引」，移到 `_local-rules.md` 或獨立文件
+
+### 自動偵測（Step 0 整合）
+
+Step 0 額外掃 🌅 起手式區段行數：
+- > 30 行 → ⚠️ 軟警告
+- > 60 行 → 🔴 強制提示重構
