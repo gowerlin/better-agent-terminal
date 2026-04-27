@@ -9,7 +9,7 @@
 | 嚴重度 | 🔴 High（**塔台派發鏈完全斷裂**，YOLO 鏈式無法運作；本 session T0328 已撞，下個 PLAN 也會撞） |
 | 可重現 | 100%（本 session 第一張派發即觸發；BUG-060 fix `fad2978` 後本是首次再現） |
 | Workaround | 1. 使用者手動開新 BAT 終端，直接打 `/ct-exec T0328`（繞過 mjs 派發鏈）<br>2. 改用剪貼簿降級（pwsh `Set-Clipboard`），使用者貼上 |
-| 狀態 | 🐛 OPEN |
+| 狀態 | ✅ CLOSED |
 | 建立時間 | 2026-04-27 13:00 (UTC+8) |
 | 報告者 | Gower（塔台派發 T0328 即時觀察） |
 | 影響範圍 | `scripts/bat-terminal.mjs` / BAT 終端 spawn 流程 / 塔台 auto-session 派發鏈 / YOLO 鏈式派發完全 broken |
@@ -76,6 +76,15 @@ T0329 初步確認：
 - T0329（research）— BUG-075 root cause 三候選 H 群驗證 + git log diff `fad2978` ~ HEAD + reproduce isolation
 - T03xx（fix）— 依研究結論派 fix 工單（範圍待定）
 - T03xx（regression test）— 加 tests 避免 BUG-060 + BUG-075 同族第三次再現
+
+## 修復記錄
+
+### 2026-04-27 — CLOSED via T0341 / T0343 / T0345
+
+- T0341 修復 `scripts/bat-terminal.mjs` auto-session Worker PTY payload，注入 `customEnv.MSYS_NO_PATHCONV='1'`，避免 Git Bash/MSYS 把 `/ct-exec` 類 prompt 改寫成 `C:/Program Files/Git/ct-exec`。
+- T0343 修復 Tower/BAT auto-session prefix mismatch，新增 agent-neutral `--skill/--workorder` dispatch，並由 BAT app 依 resolved agent 產生 Codex `$ct-*` 或 Claude `/ct-*` prompt。
+- T0345 新增 Windows-only Playwright e2e regression：透過 mock BAT RemoteServer 連續派發 3 次 `bat-terminal.mjs --agent default --skill ct-exec --workorder T0345`，驗證 Codex literal prompt、三次 Git Bash shell consistency，以及三次 `MSYS_NO_PATHCONV='1'` 皆成立。
+- 受控負向驗證：短暫移除 T0341 的 `MSYS_NO_PATHCONV` 注入後，T0345 e2e 會因三次 env assertion 皆為 `undefined` 而紅燈；還原後測試通過。
 
 ## 觸發 *evolve 候選 L
 

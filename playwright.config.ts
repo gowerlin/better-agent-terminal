@@ -2,7 +2,8 @@ import { defineConfig } from '@playwright/test';
 import path from 'node:path';
 
 export default defineConfig({
-  testDir: path.join(__dirname, 'e2e'),
+  testDir: __dirname,
+  testMatch: ['e2e/**/*.spec.ts', 'tests/e2e/**/*.test.ts'],
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,
