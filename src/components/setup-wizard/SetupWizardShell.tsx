@@ -172,6 +172,17 @@ function resolveMappedErrorForSnapshot(
   targetOS: WizardTargetOS,
 ): WizardMappedError | null {
   if (!snap || snap.status !== WizardStepStatus.Failed) return null
+  // T0339 / BUG-076: prefer the runner-shipped mappedError (single source of
+  // truth). The runner resolves errors with full context (errorCode + message)
+  // so the stage-1 exact errorCode match is preserved. Re-resolving here from
+  // `snap.error` alone drops `errorCode`, bypassing the exact match and falling
+  // back to regex/fallback (e.g. wsl-not-installed renders as the generic
+  // "step failed" instead of the mapped MSFT install link).
+  if (snap.mappedError) return snap.mappedError
+  // Defensive fallback: reached only when the runner did not ship a
+  // mappedError. Current runner always ships one on failure (wizard-runner.ts
+  // line ~464), so this path is dead code today but kept so future runner
+  // refactors don't silently break the Shell's mapped error UI.
   const rawMessage = snap.error ?? 'Unknown wizard step error'
   return resolveWizardError(
     {

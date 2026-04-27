@@ -150,23 +150,16 @@ describe('integration.mapped-ux (T0338) — 6 registry entries × Shell render �
   })
 
   // ─────────────────────────────────────────────────────────────────────
-  // 4. wsl-not-installed (T0337 extra coverage)
+  // 4. wsl-not-installed (T0337 extra coverage; T0339/BUG-076 unskipped)
   //
-  // ⚠️ T0338 Sprint 5 discovery: SetupWizardShell.resolveMappedErrorForSnapshot
-  // re-resolves the registry without `errorCode`, only with `error.message`.
-  // The `wsl-not-installed` entry ships errorCodes ONLY (no `patterns`), so
-  // the Shell-level render falls through to the generic fallback even though
-  // runner.snapshot.mappedError correctly carries `wsl-not-installed`
-  // (proven by integration.transitions.test.ts Path 7).
-  //
-  // Two clean fixes (production change, out of T0338 scope):
-  //   (a) Shell prefers snapshot.mappedError over fresh resolution
-  //   (b) Add a `patterns: [/WSL2 is not installed/i]` fallback to the entry
-  //
-  // Leaving this case skipped; T0340 audit should triage which fix to ship
-  // and re-enable the test in a follow-up workorder.
+  // T0338 Sprint 5 originally discovered that SetupWizardShell re-resolved the
+  // registry from `error.message` alone, dropping `errorCode` and bypassing
+  // the stage-1 exact match for entries that ship errorCodes only (no
+  // patterns). T0339 fixes the Shell to prefer `snapshot.mappedError` (single
+  // source of truth, runner already resolved with full context), so this case
+  // now passes and the prior fallback regression guard (#4b) is removed.
   // ─────────────────────────────────────────────────────────────────────
-  it.skip('4. wsl-not-installed — open-link uses Microsoft WSL install guide (BLOCKED — Shell re-resolution drops errorCode; see T0340 audit)', async () => {
+  it('4. wsl-not-installed — open-link uses Microsoft WSL install guide', async () => {
     const step = failingStep(
       'detect-env',
       'WSL2 is not installed on this Windows host',
@@ -186,28 +179,6 @@ describe('integration.mapped-ux (T0338) — 6 registry entries × Shell render �
       window as unknown as { electronAPI: { shell: { openExternal: ReturnType<typeof vi.fn> } } }
     ).electronAPI.shell.openExternal
     expect(openExternal).toHaveBeenCalledWith('https://learn.microsoft.com/en-us/windows/wsl/install')
-  })
-
-  // 4b. Documenting the current Shell behavior (fallback) so a regression
-  // that "fixes" the gap shows up as a snapshot mismatch rather than
-  // silently passing. Once the production fix lands, flip 4 from skip ->
-  // active and remove this stub.
-  it('4b. wsl-not-installed — current Shell behavior renders fallback (regression guard for the gap above)', async () => {
-    const step = failingStep(
-      'detect-env',
-      'WSL2 is not installed on this Windows host',
-      'wsl-not-installed',
-    )
-    const { container } = render(
-      <SetupWizardShell steps={[step]} ctx={makeCtx('wsl-linux')} />,
-    )
-    const actions = await waitForFailedActions(container)
-    // Fallback action set: retry / skip / cancel (no open-link, no fixed-and-retry).
-    const kinds = Array.from(actions.querySelectorAll('button[data-action-kind]'))
-      .map((b) => b.getAttribute('data-action-kind'))
-      .filter(Boolean)
-    expect(kinds).toEqual(['retry', 'skip', 'cancel'])
-    expect(actions.querySelector('[data-action-kind="open-link"]')).toBeNull()
   })
 
   // ─────────────────────────────────────────────────────────────────────
