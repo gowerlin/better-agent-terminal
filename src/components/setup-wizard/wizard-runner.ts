@@ -1,5 +1,19 @@
 export type WizardTargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
 
+import {
+  DEFAULT_WIZARD_ERROR_REGISTRY,
+  resolveWizardError,
+  targetOSToErrorPlatform,
+  type WizardMappedError,
+} from './error-mapper'
+
+export type { WizardMappedError } from './error-mapper'
+export {
+  DEFAULT_WIZARD_ERROR_REGISTRY,
+  resolveWizardError,
+  targetOSToErrorPlatform,
+} from './error-mapper'
+
 export interface WizardChoiceOption {
   label: string
   value: string
@@ -183,6 +197,13 @@ export interface WizardStepSnapshot {
   descriptionKey?: string
   groupKey?: string
   editableFromFailure?: boolean
+  /**
+   * T0331 (PLAN-032 Sprint 2): structured error mapping result. Set when a
+   * step throws and the runner resolves the error against
+   * DEFAULT_WIZARD_ERROR_REGISTRY. UI prefers `mappedError.title`/`body` over
+   * the raw `error` string.
+   */
+  mappedError?: WizardMappedError
 }
 
 function defaultLogger(): WizardLogger {
@@ -358,7 +379,25 @@ export class WizardRunner {
         this.emitProgress()
       } catch (error) {
         this.transitionStatus(index, WizardStepStatus.Failed)
-        snapshot.error = error instanceof Error ? error.message : String(error)
+        const errorObj = error instanceof Error ? error : new Error(String(error))
+        // T0331: resolve raw error into structured mapping. Errors with a
+        // `code` property (string) populate stage-1 errorCode lookup.
+        const errorCode =
+          typeof (errorObj as Error & { code?: unknown }).code === 'string'
+            ? ((errorObj as Error & { code?: string }).code as string)
+            : undefined
+        snapshot.mappedError = resolveWizardError(
+          {
+            platform: targetOSToErrorPlatform(this.ctx.targetOS),
+            stepId: step.id,
+            errorCode,
+            error: errorObj,
+          },
+          DEFAULT_WIZARD_ERROR_REGISTRY,
+        )
+        // Preserve raw message in snapshot.error for backwards compatibility
+        // with existing UI/tests that read snapshot.error directly.
+        snapshot.error = errorObj.message
         this.emitProgress()
 
         if (snapshot.retryable && !this.cancelRequested) {
