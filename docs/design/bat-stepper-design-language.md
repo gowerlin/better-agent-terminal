@@ -1,8 +1,8 @@
 # BAT UI Stepper Design Language
 
-> **狀態**：v1.0（PLAN-030 落地版本，2026-04-27）
+> **狀態**：v1.1（PLAN-032 Sprint 2 補入 `awaiting-input` 規範與 wizard error mapping i18n hooks，2026-04-27）
 > **權威來源**：本文件
-> **參考實作**：`src/components/stepper/`、`src/components/BugWorkflowIndicator.tsx`、`src/components/setup-wizard/SetupWizardShell.tsx`
+> **參考實作**：`src/components/stepper/`、`src/components/BugWorkflowIndicator.tsx`、`src/components/setup-wizard/SetupWizardShell.tsx`、`src/components/setup-wizard/error-mapper.ts`
 
 ---
 
@@ -48,13 +48,16 @@ type StepperOrientation = 'horizontal' | 'vertical'
 type StepStatus =
   | 'pending'
   | 'running'
+  | 'awaiting-input'
   | 'completed'
   | 'failed'
   | 'skipped'
   | 'rolled-back'
 ```
 
-6 個值對應第 3 章「狀態-視覺對應表」。每個 step 必填。
+7 個值對應第 3 章「狀態-視覺對應表」。每個 step 必填。
+
+> `awaiting-input` 由 PLAN-032 Sprint 2（T0330）落地，代表 input step 進入等待使用者選擇／輸入的中性狀態，視覺與 a11y 行為與 `failed` 嚴格區隔。
 
 ### `StepDescriptor`
 
@@ -120,18 +123,23 @@ interface StepperProps {
 |--------|------|-----------|---------|---------|
 | `pending` | `○` | `#71717a` | opacity 0.4 | 未到的 step |
 | `running` | `🔄` | `#f59e0b` | pulse 光暈 | 進行中的 step |
+| `awaiting-input` | `●` | `#38bdf8` | 中性藍實心圓；不掛 `role="alert"`、不顯示 Retry/Skip CTA；保留 `aria-current="step"`，可透過 `promptRegionId` 走 `aria-describedby` 指向提示區塊 | 等待使用者輸入（input step kind） |
 | `completed` | `✓` | `#10b981` | opacity 0.8 | 已完成的 step |
 | `failed` | `✗` | `#ef4444` | 錯誤訊息展開 + actions slot | 失敗的 step |
 | `skipped` | `⏭` | `#f59e0b` | dashed border | 使用者主動跳過 |
 | `rolled-back` | `↩` | `#71717a` | line-through | 已回滾的 step |
+
+> **PLAN-032 Sprint 2 補入**：`awaiting-input` 是中性等待態，**不是錯誤態**。任何「input 開啟即顯示為失敗」的舊路徑（BUG-074 root cause）都應改為 `awaiting-input`。a11y 走 `aria-current="step"` + `aria-describedby`，**禁止**掛 `role="alert"`。
 
 ### Severity 順序（compress 模式用）
 
 當 `groupingMode === 'compress'` 把多個 step 合併成單一 pill 時，pill 配色取群組內「最差」status：
 
 ```
-failed > running > skipped > rolled-back > pending > completed
+failed > running > awaiting-input > skipped > rolled-back > pending > completed
 ```
+
+> `awaiting-input` 排在 `running` 後 `skipped` 前，因為它代表使用者主動干預中（高於被略過，但低於正在執行的步驟）。
 
 實作見 `status-preset.ts::worstStatus`。
 
@@ -190,6 +198,7 @@ T0309 Setup Wizard 重設計時把原本的：
 | Setup Wizard（WSL） | vertical（4 group）| T0309 | 8 step（detect-env / pick-distro / systemd / install / unit / fingerprint / connect / done）|
 | Setup Wizard（Docker） | vertical（4 group）| T0309 | 4 step（pick-container / mounts / install / start）|
 | Setup Wizard（SSH） | vertical（4 group）| T0309 | 4 step（configure-host / verify / install / start）|
+| Setup Wizard input steps（awaiting-input） | vertical | T0330（PLAN-032 Sprint 2）| SSH `configure-host`、WSL `pick-wsl-distro`、Docker `pick-container` / `configure-mounts` — 透過 `WizardStepKind = 'input'` 自動標註，runner 在 `requestChoice` pending 期間流轉到 `awaiting-input` |
 
 ### 🔮 未來預期
 
@@ -227,6 +236,14 @@ T0309 Setup Wizard 重設計時把原本的：
   - 反例：「Step 3：環境檢查」展開後內含 horizontal `[檢查 OS] → [檢查 GPU] → [檢查 Docker]`
   - 正解：採子任務 progress 列代替；或把子任務拉成主 stepper 的獨立 step
 
+- ❌ **不要把 input step 標 `failed`**（PLAN-032 Sprint 2）
+  - 反例：SSH wizard 第 1 步 `configure-ssh-host` 開啟即顯示紅 X + Retry/Skip（BUG-074 root cause）
+  - 正解：input step（`kind: 'input'`）開啟時應顯示為 `awaiting-input`，使用 `aria-current="step"` + `aria-describedby` 指向提示區塊
+
+- ❌ **不在 `awaiting-input` 上掛 `role="alert"`**（PLAN-032 Sprint 2）
+  - 反例：把 input step 的提示文字塞進 `<div role="alert">`，導致 screen reader 讀成錯誤
+  - 正解：`role="alert"` 是 failure-only。`awaiting-input` 是中性狀態，使用 `aria-current="step"` + `aria-describedby` 點到 `promptRegionId`
+
 ---
 
 ## 8. 未來擴充點
@@ -261,6 +278,26 @@ const steps: StepDescriptor[] = wizardSteps.map(s => ({
   status: s.status,
 }))
 ```
+
+#### Wizard Error Mapping i18n keys（PLAN-032 Sprint 2）
+
+framework 已 i18n-ready：T0331 `WizardErrorMapper` 採 `messageKey` lookup，T0333 把 recovery action labels 拆出可 i18n 的 keys。
+目前覆蓋下列 keys（`src/locales/{en,zh-TW,zh-CN}.json` 三檔已同步）：
+
+- `wizard.action.retry` / `skip` / `cancel` / `editConfig` / `skipChoice`：T0309 baseline
+- `wizard.action.fixedAndRetry`：「已修復，重試」（T0333 新增）
+- `wizard.action.showDetails`：「顯示詳細」（T0333 新增）
+
+`error-mapper.ts` 內 `MESSAGE_DICT` 目前覆蓋（zh-TW only，OOS for translation per D108）：
+
+- `docker.daemon.unavailable`：title + body
+- `wsl.linger.failure`：title + body
+- `ssh.auth.permission-denied`：title + body
+- `fallback`：title「步驟發生錯誤」+ body 取 raw `error.message`
+
+> 後續開發者新增 registry entry 時，請同步在 `MESSAGE_DICT` 補對應 key。
+> Action label i18n keys（`wizard.action.*`）必須三檔（en / zh-TW / zh-CN）齊備，由 `i18n-completeness.test.ts` 驗證（T0334 新增）。
+> `MESSAGE_DICT` 字典目前內嵌於 `error-mapper.ts`，未來可拆出至 i18n loader（OOS for Sprint 2）。
 
 ### Compress mode
 

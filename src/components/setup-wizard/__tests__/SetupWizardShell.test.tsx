@@ -483,3 +483,100 @@ describe('<SetupWizardShell> recovery actions (T0333)', () => {
     expect(container.querySelector('.bat-wizard-mapped-error-raw')?.textContent).toContain(rawMessage)
   })
 })
+
+// =====================================================================
+// T0334 (PLAN-032 Sprint 2): Mapped error visual snapshot
+// =====================================================================
+
+describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
+  function failingStepWithError(
+    id: string,
+    group: string,
+    label: string,
+    errorMessage: string,
+    opts: Partial<WizardStep> = {},
+  ): WizardStep {
+    return {
+      id,
+      title: `legacy-${id}`,
+      appliesTo: 'all',
+      retryable: true,
+      labelKey: `wizard.shared.step.${label}.label`,
+      descriptionKey: `wizard.shared.step.${label}.description`,
+      groupKey: `wizard.group.${group}`,
+      editableFromFailure: false,
+      async run() {
+        throw new Error(errorMessage)
+      },
+      ...opts,
+    }
+  }
+
+  beforeEach(() => {
+    ;(window as unknown as { electronAPI: unknown }).electronAPI = {
+      shell: { openExternal: vi.fn() },
+    }
+  })
+
+  afterEach(() => {
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI
+    vi.restoreAllMocks()
+  })
+
+  it('locks docker daemon mapped-error visual contract (title / body / raw / actions)', async () => {
+    const rawMessage = 'error during connect: open //./pipe/docker_engine: not found'
+    const steps = [
+      failingStepWithError('detect-env', 'detection', 'detectEnv', rawMessage),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'docker-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
+
+    // L1 Title — rose-200 semibold heading.
+    const title = panel.querySelector('h4') as HTMLElement
+    expect(title.textContent).toBe('未偵測到 Docker daemon')
+    expect(title.className).toContain('text-rose-200')
+    expect(title.className).toContain('font-semibold')
+
+    // L2 Body — rose-100 paragraph (mapped body, not raw).
+    const body = panel.querySelector('p') as HTMLElement
+    expect(body.textContent).toContain('Docker Desktop')
+    expect(body.className).toContain('text-rose-100')
+
+    // L3 Raw — append-raw mode renders <pre> immediately with border + dark bg.
+    const raw = panel.querySelector('pre.bat-wizard-mapped-error-raw') as HTMLElement
+    expect(raw).not.toBeNull()
+    expect(raw.textContent).toContain(rawMessage)
+    expect(raw.className).toContain('border-rose-900/60')
+    expect(raw.className).toContain('bg-rose-950/40')
+
+    // L4 Actions — three buttons in spec order: open-link, fixed-and-retry, cancel.
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    const buttons = Array.from(actions.querySelectorAll('button[data-action-kind]'))
+    const fingerprint = buttons.map((btn) => ({
+      kind: btn.getAttribute('data-action-kind'),
+      label: btn.textContent?.trim() ?? '',
+    }))
+    expect(fingerprint).toMatchInlineSnapshot(`
+      [
+        {
+          "kind": "open-link",
+          "label": "下載 Docker Desktop",
+        },
+        {
+          "kind": "fixed-and-retry",
+          "label": "我已啟動 Docker，重試",
+        },
+        {
+          "kind": "cancel",
+          "label": "取消",
+        },
+      ]
+    `)
+  })
+})
+
