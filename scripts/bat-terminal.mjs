@@ -576,10 +576,12 @@ async function main() {
 
   const channel = prompt ? 'terminal:create-agent-command' : 'terminal:create-with-command'
   const invokePayload = prompt
-    ? { id: terminalId, cwd, agent, prompt }
+    // BUG-075/T0341: BAT auto-session Workers may start Codex from Git Bash;
+    // keep slash-command prompts from being rewritten by MSYS path conversion.
+    ? { id: terminalId, cwd, agent, prompt, customEnv: { MSYS_NO_PATHCONV: '1' } }
     : { id: terminalId, cwd, command }
   // T0133: Inject BAT_TOWER_TERMINAL_ID so Worker knows who to notify on completion
-  if (notifyId) invokePayload.customEnv = { BAT_TOWER_TERMINAL_ID: notifyId }
+  if (notifyId) invokePayload.customEnv = { ...invokePayload.customEnv, BAT_TOWER_TERMINAL_ID: notifyId }
   // T0137/BUG-031: Forward explicit workspace allocation target
   if (workspaceId) invokePayload.workspaceId = workspaceId
   // T0180/BUG-041 Phase 2.2: Inject CT_MODE / CT_INTERACTIVE env when explicitly specified.
