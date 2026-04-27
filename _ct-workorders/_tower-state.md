@@ -45,14 +45,17 @@
 
 ### 下 session pending（優先序）
 
-1. 🔴 **PLAN-032 Sprint 2 解封 — T0330 keystone**（YOLO 鏈式可重啟，BUG-075 三層防線已落地）
-2. 🔴 **T0324 DGX Spark dogfood VERIFY**（user 親跑進行中 / 待回報，BUG-071 VERIFY 路徑）
-3. 🟡 **PLAN-032 Sprint 2 後續 T0331-T0334**（依賴 T0330）
-4. 🟡 **PLAN-032 Sprint 3-5 — T0335-T0340**
-5. 🟢 **BUG-071 metadata 對齊**：T0321/T0322 已實作 + 等 T0324 dogfood，建議 OPEN→FIXED 或 VERIFY（當前工單檔仍 OPEN）
-6. 🟢 **BUG-061** CodexAgentPanel.tsx tsc errors（dev-only 非阻塞，long-tail）
-7. 🟢 大批歸檔 batch 2（04-28 起合格：BUG-070/069 + T0303-T0312）
-8. 🟢 PLAN-014 啟動評估 / v0.4.3 release 評估
+1. 🔴 **PLAN-033 Sprint 1 research 派發**（state snapshot archive 架構 — 解封自身基礎設施 264KB 撞 256KB Read 上限，dogfood 自治；session 37 實證觸發）
+2. 🔴 **PLAN-032 Sprint 2 解封 — T0330 keystone**（YOLO 鏈式可重啟，BUG-075 三層防線已落地）
+3. 🔴 **T0324 DGX Spark dogfood VERIFY**（user 親跑進行中 / 待回報，BUG-071 VERIFY 路徑）
+4. 🟡 **PLAN-032 Sprint 2 後續 T0331-T0334**（依賴 T0330）
+5. 🟡 **PLAN-032 Sprint 3-5 — T0335-T0340**
+6. 🟢 **BUG-071 metadata 對齊**：T0321/T0322 已實作 + 等 T0324 dogfood，建議 OPEN→FIXED 或 VERIFY（當前工單檔仍 OPEN）
+7. 🟢 **BUG-061** CodexAgentPanel.tsx tsc errors（dev-only 非阻塞，long-tail）
+8. 🟢 大批歸檔 batch 2（04-28 起合格：BUG-070/069 + T0303-T0312）
+9. 🟢 PLAN-014 啟動評估 / v0.4.3 release 評估
+
+> 🟡 **PLAN-033 vs PLAN-032 派發順序**：兩者皆 High，PLAN-033 解封基礎設施（Read 上限 + Fast Path 加速），PLAN-032 推進業務邏輯。建議下 session 起手讀 backlog 後一起決策。若 *evolve / 收工頻繁，PLAN-033 收益更立即；若集中 ship feature，PLAN-032 優先。
 
 ### 恢復指引（下 session 起手）
 
@@ -61,7 +64,8 @@
 3. **編號起始**：T0346 / BUG-076 / PLAN-033 / D110 / EXP-[TOPIC]-001
 4. **塔台規則繼續**：auto-session 切回 yolo（建議）；experience-level: standard
 5. **建議起手動作**：
-   - PLAN-032 Sprint 2 鏈式派發（T0330 keystone → T0331-T0334）
+   - **PLAN-033 Sprint 1 research 派發**（自治優先 — 解封自身 Read 上限）
+   - 或 PLAN-032 Sprint 2 鏈式派發（T0330 keystone → T0331-T0334，業務邏輯）
    - 或 T0324 VERIFY 結果處理（若 user 已測完）
    - 或 BUG-071 metadata 對齊（OPEN→FIXED）
 
