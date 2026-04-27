@@ -2934,3 +2934,34 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 
 **候選晉升**：📂 Project（BAT 專屬 wizard 架構）
 
+
+---
+
+## L112 - 2026-04-27 — BUG-060 → BUG-075 同族再現史（BAT 內部終端 / mjs 派發鏈專屬）
+
+**觸發條件**：BAT 內部終端透過 `bat-terminal.mjs` 派發 Worker session（YOLO / on / ask 任一模式），涉及 Git Bash + MSYS path 行為 + agent CLI prefix（claude `/` vs codex `$`）
+
+**規則**：BAT 內部終端 + mjs 派發 + Git Bash 環境的「shell preference + MSYS rewrite + prefix mismatch」三重風險已連續 22h 內再現過一次（BUG-060 → BUG-075）。任何 mjs 派發鏈或 PTY env / shell resolver 修改後，必須跑：
+1. T0342 unit + integration MSYS regression（最低門檻）
+2. T0344 shell preference diagnostics + 3-shot integration（防症狀 A）
+3. T0345 e2e（codex argv probe + 3-shot Git Bash + MSYS env）— 防第三次再現
+
+**Why**：
+- BUG-060 fix `fad2978` (T0281, 2026-04-26) 修了 shell preference fallback
+- 22h 後 BUG-075（2026-04-27）同族再現：症狀 B（MSYS rewrite）+ 症狀 A（shell pref，未證實）+ prefix mismatch 三層
+- 強訊號：原 fix 沒加 regression test → 修法無 guard 防止下次同族再現
+- BAT mjs 派發鏈是 self-hosted 工具鏈，撞線時阻擋整個 PLAN 推進（GP116 graceful degrade 緩解但不解根因）
+
+**How to apply**：
+- 任何修改 `scripts/bat-terminal.mjs` / `electron/pty-manager.ts` / `electron/shell-path-resolver.ts` / `electron/terminal-command-handlers.ts` 的工單，必須含三層 regression test 對照表（哪一層覆蓋哪個症狀）
+- `customEnv.MSYS_NO_PATHCONV='1'` 注入點不可移除（T0341 fix）
+- agent prefix 規則（`/` for claude / `$` for codex）必須保留 + 工單明示傳遞路徑（T0343 fix）
+- 工單模板新增「BUG-075 三層防線檢查表」段落（待塔台實作於 work-order-template.md）
+
+**證據**：
+- BUG-060 → BUG-075（22h，2026-04-26 → 2026-04-27）
+- BUG-075 fix chain：T0341 MSYS env 注入 + T0343 prefix dual fix + T0342/T0344/T0345 三層 regression
+- e2e 三 shot 全綠 → BUG-075 CLOSED（2026-04-27 16:40）
+
+**候選晉升**：📂 Project（高度 BAT 專屬，但「self-hosted 工具鏈三層防線」概念已晉升 GP113）
+
