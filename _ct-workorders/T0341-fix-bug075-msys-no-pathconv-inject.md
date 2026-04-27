@@ -7,9 +7,10 @@
 | 工單編號 | T0341 |
 | 類型 | bugfix（Fix-B1） |
 | 所屬 | BUG-075（症狀 B：MSYS slash-command path rewrite） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 建立時間 | 2026-04-27 14:08 (UTC+8) |
 | 開始時間 | 2026-04-27 14:22 (UTC+08:00) |
+| 完成時間 | 2026-04-27 14:24 (UTC+08:00) |
 | Sizing | S（estimate 15-30 min wall） |
 | 依賴 | T0329 研究結論（H6 信心 0.90） |
 | 後續 | T0342 (regression test) |
@@ -61,7 +62,7 @@ T0329 Phase B/D 證實：Git Bash 中啟動 codex 時，MSYS 會把 `/ct-exec T0
 ### 修改清單
 - `scripts/bat-terminal.mjs`
 - `_ct-workorders/T0341-fix-bug075-msys-no-pathconv-inject.md`
-- commit: 待提交
+- commit: `c317832`
 
 ### 驗證紀錄
 - `node --check scripts/bat-terminal.mjs` → pass
@@ -80,4 +81,4 @@ T0329 Phase B/D 證實：Git Bash 中啟動 codex 時，MSYS 會把 `/ct-exec T0
 
 ---
 
-**狀態**：🚧 IN_PROGRESS
+**狀態**：✅ FIXED

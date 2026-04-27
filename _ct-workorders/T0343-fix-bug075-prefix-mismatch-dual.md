@@ -7,7 +7,7 @@
 | 工單編號 | T0343 |
 | 類型 | bugfix（Q1.C 雙修路線） |
 | 所屬 | BUG-075（Tower skill 派發協定缺陷 + BAT app normalize fallback） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 建立時間 | 2026-04-27 14:08 (UTC+8) |
 | Sizing | M（estimate 45-90 min wall；跨 skill + app + Tower skill sync） |
 | 依賴 | T0341（MSYS path 修好才能驗 prefix）/ T0329 補充鑑別段落 |
@@ -17,6 +17,7 @@
 | `affects_files` | Tower skill `SKILL.md` + `references/auto-session.md`（兩個 home 都要同步）+ `electron/main.ts` `terminal:create-agent-command` handler |
 | Release target | v0.4.2.1 hotfix（BAT app 端）+ Tower skill 跨專案 sync（v4.4.1 candidate） |
 | 開始時間 | 2026-04-27 14:27:10 +08:00 |
+| 完成時間 | 2026-04-27 14:36:12 +08:00 |
 
 ## 背景
 
@@ -131,8 +132,8 @@ FIXED — 修復已完成，等待驗收。
 無
 
 ### Commit
-待 commit 後補填
+`01d892e` — `fix(control-tower): add agent-neutral BAT dispatch`
 
 ---
 
-**狀態**：🔄 IN_PROGRESS
+**狀態**：✅ FIXED
