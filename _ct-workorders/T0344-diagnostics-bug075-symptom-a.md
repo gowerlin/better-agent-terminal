@@ -7,8 +7,9 @@
 | 工單編號 | T0344 |
 | 類型 | diagnostics + test |
 | 所屬 | BUG-075（症狀 A：shell preference 失效，T0329 未證實） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 16:28 (UTC+8) |
+| 完成時間 | 2026-04-27 16:34 (UTC+8) |
 | 建立時間 | 2026-04-27 14:08 (UTC+8) |
 | Sizing | S（estimate 30-45 min wall） |
 | 依賴 | 無（可獨立進行） |
@@ -105,6 +106,7 @@ T0329 Phase B/C 結論：症狀 A（shell preference 失效）目前未被證實
 - `npx tsc --noEmit --skipLibCheck --target ES2020 --module commonjs --moduleResolution node electron/shell-path-resolver.ts electron/terminal-command-handlers.ts tests/shell-path-resolver.test.ts tests/terminal-create-agent-command.integration.test.ts` → PASS
 - `npm run test:unit` → PASS（11 files, 189 tests）
 - `npx tsc --noEmit` → BLOCKED by pre-existing unrelated `src/components/CodexAgentPanel.tsx` / `src/types/agent-profiles.ts` type errors; no errors from touched files in narrow check.
+- `rg -n "T0344|0344|BUG-075|bug075" sprint-status.yaml _bmad-output docs ...` → no matching sprint-status entry; yaml update 不適用。
 
 ### OOS but justified（如有）
 無。未修改 shell resolver 行為，只增加 diagnostics wrapper 與 regression coverage。
@@ -119,8 +121,10 @@ T0329 Phase B/C 結論：症狀 A（shell preference 失效）目前未被證實
 無。
 
 ### Commit
-待 commit。
+Implementation commit：`f98a495`（`test(control-tower): guard shell preference resolution`）
 
 ---
 
-**狀態**：🚧 IN_PROGRESS
+**完成時間**：2026-04-27 16:34 (UTC+8)
+
+**狀態**：✅ DONE
