@@ -8,9 +8,10 @@
 | 標題 | 修復 BUG-073：Docker daemon 未運作時 detect-env 顯示友善訊息 + open-link 下載按鈕；用 T0332 Preflight 提前攔截避免使用者等到 step.run() 才看錯誤 |
 | 類型 | fix（BUG 修復 + framework 套用） |
 | 優先級 | 🔴 High（BUG-073 是 PLAN-032 release ship gate 之一 — D109） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 建立時間 | 2026-04-28 03:13 (UTC+8) |
 | 開始時間 | 2026-04-28 03:16 (UTC+8) |
+| 完成時間 | 2026-04-28 03:21 (UTC+8) |
 | 派發模式 | `--mode yolo --no-interactive` |
 | 關聯 PLAN | PLAN-032（Sprint 3 第二票） |
 | 關聯 BUG | **BUG-073**（owner，本票負責 OPEN → FIXED → VERIFY） |
@@ -230,30 +231,57 @@ T0337 DONE → **PLAN-032 Sprint 3 完整收尾（3/3 BUG fix）+ ship gate D109
 ## 回報區（Worker 填寫）
 
 ### 實作摘要
-（範圍、commit hash、tests 數）
+- 範圍：`src/components/setup-wizard/steps/wsl/detect-env.ts` 加 preflight + Docker 分支 throw 補 errorCode；`error-mapper.ts` registry entry 補 `errorCodes: ['docker-daemon-down']`；新增 `__tests__/detect-env.test.ts` 6 case
+- commit hash：`a8b2363`
+- 新增 tests：6（baseline 276 + 6 = 282 全綠；pre-existing bat-terminal MSYS test 在這次 run 也綠了，應為環境敏感不穩定 case，與本票無關）
 
 ### Preflight 設計細節
-（cache 策略、TTL 選擇、與既有 step.run() 兜底邏輯互動）
+- **cache key**：`docker-daemon-status`（單一 key，docker 分支共用）
+- **TTL 雙策略**：ok → 30 s（避免 retry 期間每次重打 IPC），fail → 5 s（使用者點 fixed-and-retry 後 5 s 內 daemon 啟動可重新偵測）
+- **與 step.run() 兜底邏輯**：preflight 失敗時 runner 直接 throw，不進 step.run()；step.run() 內保留同樣的 `status.available` 檢查（含 errorCode），作為 preflight 被繞過時（例如未來其他 docker step 重用 detectEnvStep.run()）的 defensive net
+- **WSL 分支**：preflight 直接 `return { ok: true }`，不打 docker.status；T0337 補 WSL preflight
 
 ### errorCode 唯一性確認
-（grep `'docker-daemon-down'` 確認唯一）
+`grep -rn "docker-daemon-down" src/` 結果：
+- `error-mapper.ts:246`（registry entry，唯一定義）
+- `preflight.ts:22`（注釋範例）
+- `detect-env.ts`（步驟內 throw + preflight）
+- 兩個 test 檔（preflight.test.ts 既有 case + detect-env.test.ts AC-5 case）
+
+未發現重複 entry / 衝突；errorCode 在 registry 內僅綁定到 `docker-daemon-unavailable`。
 
 ### State machine 流轉驗證
-（5 種場景的實測流轉）
+| 場景 | 預期流轉 | 實測 |
+|------|---------|------|
+| daemon down 開 wizard | pending → failed（preflight hard fail）+ mappedError.matchId='docker-daemon-unavailable' | ✅（detect-env.test AC-5 case 2） |
+| daemon up 開 wizard | pending → running → succeeded | ✅（既有 docker-flow tests + AC-5 case 1） |
+| daemon down → fixed-and-retry → daemon up | failed → pending → running → succeeded（cache 5s 過期重跑 preflight） | ✅（AC-5 case 4：mock now+=6000 後 preflight 重打 IPC 拿到 ok） |
+| daemon down → open-link | failed 維持 + actions 含 `open-link` href=docker.com | ✅（AC-5 case 2 actions 斷言） |
+| daemon down → cancel | failed → cancellation 由 SetupWizardShell 觸發 runner.cancel | ✅（既有 wizard-runner.transitions tests 已涵蓋） |
+
+baseline 276 transition tests + 本票 6 case 全綠（共 282）。
 
 ### 偏離 spec 的決策
-（如有）
+無。完全照工單規格實作（preflight + errorCode + cache TTL 30s/5s）。
+
+唯一小調整：AC-5 case 2 的 runner integration assertion 改用「polling snapshot.status + cancel 解除阻塞」模式（detectEnvStep retryable=true 預設會卡在 waitForRetryOrSkip），而非工單建議的 `await expect(runner.run()).rejects`。snapshot 在 emitProgress 時已含 mappedError，斷言邏輯不變。
 
 ### 自檢結果
-- [ ] AC-1 ~ AC-7 全達成
-- [ ] build / test 全綠
-- [ ] commit hash：`______`
+- [x] AC-1 ~ AC-7 全達成
+- [x] build / test 全綠（`npm run test:unit`=282 pass / `npx vite build`=clean）
+- [x] commit hash：`a8b2363`
 
 ### BUG-073 狀態建議
-（FIXED → VERIFY 還是 FIXED → CLOSED；建議與 T0335 一致 → VERIFY 等人工 smoke）
+**FIXED → VERIFY**（與 T0335 對稱）。Worker 不直接動 BUG-073 檔案；建議塔台處理：
+- BUG-073 metadata 狀態 OPEN → FIXED
+- 候選 next：人工 smoke（關掉 Docker Desktop 開 docker wizard，確認看到「下載 Docker Desktop」按鈕，按鈕點擊呼叫 `shell.openExternal`）→ 通過後 → VERIFY → CLOSED
 
 ### 後續建議
-（給塔台派 T0337 時的提示）
+T0337（Sprint 3 收尾）：
+- detect-env.ts WSL 分支套同一 preflight 模式（`window.electronAPI.wsl.list()` 偵測；errorCode TBD 例如 `wsl-not-installed`）
+- `write-systemd-unit` step 的 linger throw 補 `errorCode='wsl-linger-failed'`，registry `wsl-linger-failure` 補對應 errorCodes
+- BUG-072 → FIXED → VERIFY
+- T0337 DONE 後 Sprint 3 完整收尾，PLAN-032 ship gate D109 滿足，可釋出 v0.4.3 release 候選
 
 ---
 
