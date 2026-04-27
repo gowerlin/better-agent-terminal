@@ -8,7 +8,7 @@
 | 標題 | Setup Wizard 三平台 (WSL / SSH / Docker) 錯誤訊息友善化、pre-flight 偵測層、Stepper 擴充 `awaiting-input` 狀態、統一 recovery action 設計 |
 | 優先級 | 🟡 Medium（不阻擋功能但 dogfood 三同族 BUG 揭露 wizard UX 不直觀；release 前修整體驗） |
 | 類型 | 技術改善 + UX 重構（涉及 Stepper 元件 / 三平台 wizard step / error mapping framework） |
-| 狀態 | 📐 PLANNED |
+| 狀態 | 🔄 IN_PROGRESS（T0328 ✅ DONE @2026-04-27 13:?? / Sprint 2 待派發 T0330） |
 | 建立時間 | 2026-04-27 12:58 (UTC+8) |
 | 報告者 | 使用者（PLAN-030 dogfood 三同族 BUG，screenshot #7/#8/#9） |
 | Release target | **v0.4.3 獨立 release**（wizard UX patch；不與 PLAN-031 v0.5.0 綁定） |
@@ -68,38 +68,68 @@ PLAN-030 完工後使用者實機跑 v0.4.1 三平台 setup wizard，揭露三�
 - 不對所有 step 都導入 pre-flight（只對 root cause owner step + 明顯需要的 step；其餘 follow-up）
 - 不做 error reporting / telemetry（單純 UI 友善化）
 
-## 拆單方向（待 T0328 研究工單細化）
+## 拆單表（T0328 研究結論 finalized）
 
-> ⚠️ 以下為塔台粗略構想，**最終拆單以 T0328 research 結論為準**
+> 來源：T0328 § Phase D。Spec 文件：`_ct-workorders/_spec-wizard-error-ux.md`（T0328 commit `d89d867`）
 
-### Sprint 1：方案拍板 + 設計
+### Sprint 1：研究 ✅ DONE
 
-- **T0328**（research）— PLAN-032 方案探索 + Stepper spike + error mapping spike + 拆單建議 + reachability matrix
+- **T0328**（research）— ✅ DONE @2026-04-27 — Phase A-E 完整盤點 + 8 拍板項 + spec 落地
 
-### Sprint 2：Framework 基礎建設
+### Sprint 2：Framework 基礎建設（5 工單）
 
-- T03xx — Stepper 元件擴充 `awaiting-input` status（含 visual + a11y + tests）
-- T03xx — `WizardErrorMapper` framework（核心型別 + dictionary 結構 + matcher 邏輯 + tests）
-- T03xx — `WizardPreflight` framework（核心型別 + resolver + tests）
-- T03xx — 設計規範文件更新（`bat-stepper-design-language.md` 補 `awaiting-input` 章節）
+| 工單 | 標題 | Sizing | 依賴 | 平行可? | OOS |
+|------|------|--------|------|--------|-----|
+| T0330 | Stepper + WizardRunner `awaiting-input` 狀態擴充 | M | — | 否（多票依賴） | 不做視覺 token 重構 |
+| T0331 | `WizardErrorMapper` framework（registry + fallback） | M | — | 是 | 不一次清完所有字典 |
+| T0332 | `WizardPreflight` hook + cache | M | — | 是 | 不抽成獨立 visual step |
+| T0333 | Recovery actions schema + `SetupWizardShell` wiring | M | T0330 | 部分 | 不做 arbitrary plugin actions |
+| T0334 | 設計規範 / tests 更新（Stepper + Shell） | S | T0330 | 是 | 不做多語文案落地 |
 
-### Sprint 3：三平台 BUG 修復（套用 framework）
+### Sprint 3：三平台 BUG 修復（套用 framework，3 工單）
 
-- T03xx — BUG-072 WSL linger error UX（pre-flight + error map）
-- T03xx — BUG-073 Docker daemon error UX（pre-flight + error map）
-- T03xx — BUG-074 SSH input step 改用 `awaiting-input`（含 alias dropdown / host input / port / user / 認證方式）
+| 工單 | 標題 | Sizing | 依賴 | 平行可? | BUG |
+|------|------|--------|------|--------|-----|
+| T0335 | BUG-074 SSH input-step `awaiting-input` 落地 | M | T0330+T0333 | 是 | BUG-074 |
+| T0336 | BUG-073 Docker detect-env mapping + download/start actions | M | T0331 | 是 | BUG-073 |
+| T0337 | BUG-072 WSL linger/systemd mapping + fixed-and-retry flow | M | T0331+T0333 | 是 | BUG-072 |
 
-### Sprint 4：跨平台 input step 統一
+### Sprint 4：跨平台抽象（1 工單）
 
-- T03xx — 盤點所有現有 input step，統一改用 `awaiting-input`（WSL / Docker / Codex Profile / SSH 進階設定等）
+| 工單 | 標題 | Sizing | 依賴 |
+|------|------|--------|------|
+| T0338 | Cross-platform input step abstraction（choice vs form prompt） | M/L | T0335 |
 
-### Sprint 5：整合 + e2e + verification
+### Sprint 5：整合 + 驗收（2 工單）
 
-- T03xx — Integration tests（三平台 wizard E2E happy path + error path）
-- T03xx — `*fieldguide audit` 對 setup-wizard 模組做一致性掃描
-- T03xx — v0.4.3 release notes / CHANGELOG 草稿
+| 工單 | 標題 | Sizing | 依賴 |
+|------|------|--------|------|
+| T0339 | Integration tests: transition matrix + mapped UX cases | M | All Sprint 3 |
+| T0340 | Audit / release notes / docs polish | S | All |
 
-> 預估總工單數：~12-15（Sprint 1 × 1 + Sprint 2 × 4 + Sprint 3 × 3 + Sprint 4 × 1-2 + Sprint 5 × 3）。最終以 T0328 拆單表為準。
+**總量**：11 工單（落 T0328 預估 10-12 範圍中）。
+
+### 依賴圖
+
+```text
+T0328 ✅
+  │
+  ├── Sprint 2 foundation
+  │    ├─ T0330 awaiting-input state ──┐
+  │    ├─ T0331 ErrorMapper             │
+  │    ├─ T0332 Preflight hook          │
+  │    ├─ T0333 Recovery actions ◄──────┘
+  │    └─ T0334 spec + tests ◄──────────┘
+  │
+  ├── Sprint 3 platform fixes (parallel after S2)
+  │    ├─ T0335 BUG-074 SSH input  ◄─── T0330+T0333
+  │    ├─ T0336 BUG-073 Docker     ◄─── T0331
+  │    └─ T0337 BUG-072 WSL        ◄─── T0331+T0333
+  │
+  ├── Sprint 4: T0338 input abstraction ◄─── T0335 learning
+  │
+  └── Sprint 5: T0339 tests + T0340 audit
+```
 
 ## 風險與緩解
 
@@ -111,17 +141,22 @@ PLAN-030 完工後使用者實機跑 v0.4.1 三平台 setup wizard，揭露三�
 | BUG-072 fallback 策略（linger vs SSH tunnel temp spawn）爭議 | Medium | T0328 拍板項列入；Worker 提 [A]/[B]/[C] 三方案，塔台選 |
 | v0.4.3 surface 變大拖累 release | Medium | Sprint 切到 5 段 + ship gate 在 Sprint 3 結束（必達 BUG fix）；Sprint 4-5 可 follow-up |
 
-## 拍板項（T0328 完成後塔台填）
+## 拍板項（T0328 後 finalized — D102 ~ D109）
 
-> 待 T0328 研究結論回報後，塔台在此填具體拍板。預期 5-8 項。
+> 全部採納 T0328 Phase E 推薦方案；塔台無翻案。
 
-- D102 候選：Stepper `awaiting-input` 視覺風格定案（藍色 outline / 藍色 fill / 淡灰 + 藍邊框？）
-- D103 候選：`WizardErrorMapper` matcher 策略（regex / errorCode / class instanceof / hybrid？）
-- D104 候選：BUG-072 WSL linger 修法（提示重試 / fallback temp spawn / hybrid？）
-- D105 候選：所有現有 input step 統一改用 `awaiting-input` 是否在本 PLAN 完成（vs follow-up PLAN）
-- D106 候選：error mapping i18n 是否本 PLAN 落地（vs 留 hook 給未來 i18n PLAN）
-- D107 候選：v0.4.3 release ship gate 切點（Sprint 3 必達 / Sprint 5 全達）
-- D108 候選：Pre-flight cache 策略（per-wizard-session / per-app-session / 不 cache）
+| D | 主題 | 採納方案 | 理由 |
+|---|------|---------|------|
+| D102 | Stepper 狀態擴充 | **A** — 新增獨立 `awaiting-input` status | 狀態機才是缺口，flag 只會把語意藏到 callsite |
+| D103 | Error mapping 策略 | **B** — `errorCode + regex` 混合 | SSH 已現成；Docker/WSL 可漸進補齊 |
+| D104 | Pre-flight 形態 | **A** — `step.preflight` hook | 最小侵入；便於 cache + 統一 failure UX |
+| D105 | Recovery actions 模型 | **C** — hybrid typed actions（7 內建 kinds：retry / fixed-and-retry / open-link / edit-config / skip / cancel / custom） | 規範共用 UX + 保留 open-link / custom 擴充 |
+| D106 | BUG-072 fallback 策略 | **C** — try linger，失敗時 manual fix hint + optional fallback | 保留 deployment 設計，降低卡死率 |
+| D107 | input step 範圍 | **先 A 後 B** — Sprint 3 修 SSH（T0335），Sprint 4 抽象（T0338） | 先止血 + 再一般化，風險低 |
+| D108 | i18n 範圍 | **A** — 只留 `messageKey` hook，不補翻譯 | 先固化 API，比寫大量 copy 更重要 |
+| D109 | v0.4.3 ship gate | **B** — 三 BUG 都補齊才出貨 | 同族 UX overhaul，拆半套出貨會讓使用者更混亂 |
+
+**Pre-flight cache 策略補充**：依 T0328 § B.3 推薦，cache 範圍為 **per-wizard-session**（同 wizard run 內結果可重用，wizard 重新啟動則 invalidate）。寫入 T0332 工單 spec。
 
 ## Session 安排
 
