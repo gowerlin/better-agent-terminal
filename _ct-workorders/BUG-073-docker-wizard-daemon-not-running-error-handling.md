@@ -9,7 +9,7 @@
 | 嚴重度 | 🟡 Medium（功能受阻，但根因是使用者環境問題；錯誤訊息對非技術使用者不友善） |
 | 可重現 | 100%（任何沒裝 Docker Desktop 或 Docker daemon 沒啟動的使用者開 Docker wizard 都會撞） |
 | Workaround | 安裝並啟動 Docker Desktop 後重試（普通使用者不知道從錯誤訊息推到這步） |
-| 狀態 | 🐛 OPEN |
+| 狀態 | 🔍 VERIFY（T0336 ✅ FIXED `a8b2363` @2026-04-28 03:21 — 待人工 smoke：關 Docker Desktop 開 docker wizard 確認看到「下載 Docker Desktop」按鈕；通過後 → CLOSED） |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
 | 報告者 | 使用者（PLAN-030 完工後實機跑 Docker wizard，screenshot #8） |
 | 影響範圍 | `electron/docker-detect.ts`（推測，待確認） / Docker wizard 第 1 步 detect-env step |

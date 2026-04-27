@@ -10,6 +10,15 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D118 | 2026-04-27 | T0333-D1：`ssh-permission-denied` registry entry 加 `patterns: [/permission denied/i]` regex fallback（spec 嚴格用 errorCode，但 Shell 從 snapshot 取 error 時無 errorCode 通道；後續若補 errorCode 通道可拿掉 pattern） | T0333 / PLAN-032 |
+| D117 | 2026-04-27 | T0332-D3：`WizardContext.preflightCache` 設為 optional 不破壞既有 callsite；runner constructor `??=` 注入預設 cache 後 runtime invariant always-defined | T0332 / PLAN-032 |
+| D116 | 2026-04-27 | T0332-D2：preflight hard fail 透過 throw 重用既有 catch 分支（不另開 error pipeline），避免兩條 pipeline drift；對外行為與 spec 等價 | T0332 / PLAN-032 |
+| D115 | 2026-04-27 | T0332-D1：runner 自動 cache result（只要 `result.cacheKey` 有值即 `setPreflightCached`）；hit 邏輯仍由 step 自決，省 step 重複 boilerplate | T0332 / PLAN-032 |
+| D114 | 2026-04-27 | T0331-D2：errorCode 從 `error.code` 屬性抽（非依賴 `WizardStepError` class，spec § AC-4 Optional 已允許）；SSH structured error 在 T0335 / Sprint 3 收緊 | T0331 / PLAN-032 |
+| D113 | 2026-04-27 | T0331-D1：`WizardErrorPlatform` 軸獨立於 `WizardTargetOS`（runner 既有型別含 `wsl-linux` / `ssh-darwin` 等需轉換）；新增 `targetOSToErrorPlatform()` helper，error 軸不需區分 ssh-linux/ssh-darwin 但保留 local | T0331 / PLAN-032 |
+| D112 | 2026-04-27 | T0330-D3：configure-mounts 也標 `kind: 'input'`（selectFolder dialog 雖非 requestChoice，語意對等；runner 暫不 wrap selectFolder 留 Sprint 3） | T0330 / PLAN-032 |
+| D111 | 2026-04-27 | T0330-D2：spec 寫 `awaiting-input → skipped` 改成 `awaiting-input → succeeded(skipped flag)`（runner 中 skipped 是 boolean flag 不是獨立 status，語意對等） | T0330 / PLAN-032 |
+| D110 | 2026-04-27 | T0330-D1：transition rules 加 `failed → running`（spec 寫 retry 走 `failed → pending`，但 runner 實際 retry 直接 continue loop 寫 Running，重排 loop 結構超出本票範圍且無 user 可見差異） | T0330 / PLAN-032 |
 | D090 | 2026-04-26 | Renderer 嚴禁 import Node builtin（含 `node:*` 與裸 `fs/path/...`）— BUG-069 根因，採 Spike A IPC 遷移 + ESLint `no-restricted-imports` 守衛防復發 | BUG-069 / T0303 / T0304 / PLAN-029 |
 | D089 | 2026-04-26 | PLAN-007 全案閉環 — 23 張藍圖工單全 DONE，session 31 一氣呵成 10 工單 121 min wall，GP099 連 10 次下界 → 強烈建議 `*evolve` 重校準 | PLAN-007 / T0282-T0291 |
 | D001-D012 | 2026-04-11 早期 | Phase 1 前置決策（詳見歸檔） | T0001-T0012 |

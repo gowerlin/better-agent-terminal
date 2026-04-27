@@ -8,8 +8,9 @@
 | 標題 | 收緊 `WizardRecoveryAction` discriminated union（7 kinds）+ Shell 渲染 mapped actions UI + Electron shell open + 補 registry 3 entries 對應 actions |
 | 類型 | feat（schema + UI integration） |
 | 優先級 | 🔴 High（PLAN-032 Sprint 2 — Sprint 3 BUG 修復需要 actions UI 才能完整 ship） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 23:13 (UTC+8) |
+| 完成時間 | 2026-04-27 23:30 (UTC+8) |
 | 建立時間 | 2026-04-27 23:11 (UTC+8) |
 | 派發模式 | `--mode yolo --no-interactive` |
 | 關聯 PLAN | PLAN-032（Sprint 2） |
@@ -239,7 +240,7 @@ T0334 DONE → Sprint 2 完整收尾，PLAN-032 進入 Sprint 3（T0335-T0337 BU
 - [x] AC-7：既有 baseline 全綠 + alias 向下相容
 - [x] `npm run test:unit` 244 passed (預期 ≥242 ✓)
 - [x] `npx vite build` 綠（4 chunks）
-- [x] commit hash：__待填__
+- [x] commit hash：`a24ba4a`
 
 ### 後續建議
 - T0334（Sprint 2 收尾）可進行：DESIGN.md 加 `awaiting-input` 視覺規範、補 visual snapshot tests、i18n hook 文件（已先補 `fixedAndRetry` / `showDetails` 兩 keys，T0334 可繼續整理）

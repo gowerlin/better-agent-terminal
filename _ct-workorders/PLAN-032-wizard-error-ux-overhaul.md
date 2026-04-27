@@ -8,7 +8,7 @@
 | 標題 | Setup Wizard 三平台 (WSL / SSH / Docker) 錯誤訊息友善化、pre-flight 偵測層、Stepper 擴充 `awaiting-input` 狀態、統一 recovery action 設計 |
 | 優先級 | 🟡 Medium（不阻擋功能但 dogfood 三同族 BUG 揭露 wizard UX 不直觀；release 前修整體驗） |
 | 類型 | 技術改善 + UX 重構（涉及 Stepper 元件 / 三平台 wizard step / error mapping framework） |
-| 狀態 | 🔄 IN_PROGRESS（T0328 ✅ DONE @2026-04-27 13:?? / Sprint 2 待派發 T0330） |
+| 狀態 | 🔄 IN_PROGRESS（Sprint 2 ✅ 5/5 / Sprint 3 ✅ 3/3：T0335 `94733d7`（BUG-074→VERIFY）+ T0336 `a8b2363`（BUG-073→VERIFY）+ T0337 `57896e7`（BUG-072→VERIFY）；待 Sprint 4-5 + 三 BUG 人工 smoke） |
 | 建立時間 | 2026-04-27 12:58 (UTC+8) |
 | 報告者 | 使用者（PLAN-030 dogfood 三同族 BUG，screenshot #7/#8/#9） |
 | Release target | **v0.4.3 獨立 release**（wizard UX patch；不與 PLAN-031 v0.5.0 綁定） |
@@ -78,21 +78,21 @@ PLAN-030 完工後使用者實機跑 v0.4.1 三平台 setup wizard，揭露三�
 
 ### Sprint 2：Framework 基礎建設（5 工單）
 
-| 工單 | 標題 | Sizing | 依賴 | 平行可? | OOS |
-|------|------|--------|------|--------|-----|
-| T0330 | Stepper + WizardRunner `awaiting-input` 狀態擴充 | M | — | 否（多票依賴） | 不做視覺 token 重構 |
-| T0331 | `WizardErrorMapper` framework（registry + fallback） | M | — | 是 | 不一次清完所有字典 |
-| T0332 | `WizardPreflight` hook + cache | M | — | 是 | 不抽成獨立 visual step |
-| T0333 | Recovery actions schema + `SetupWizardShell` wiring | M | T0330 | 部分 | 不做 arbitrary plugin actions |
-| T0334 | 設計規範 / tests 更新（Stepper + Shell） | S | T0330 | 是 | 不做多語文案落地 |
+| 工單 | 標題 | Sizing | 依賴 | 平行可? | OOS | 狀態 |
+|------|------|--------|------|--------|-----|------|
+| T0330 | Stepper + WizardRunner `awaiting-input` 狀態擴充 | M | — | 否（多票依賴） | 不做視覺 token 重構 | ✅ DONE @2026-04-27 22:47 `e0a23e5` |
+| T0331 | `WizardErrorMapper` framework（registry + fallback） | M | — | 是 | 不一次清完所有字典 | ✅ DONE @2026-04-27 22:59 `85eb8ff` |
+| T0332 | `WizardPreflight` hook + cache | M | — | 是 | 不抽成獨立 visual step | ✅ DONE @2026-04-27 23:09 `8bb972e` |
+| T0333 | Recovery actions schema + `SetupWizardShell` wiring | M | T0330 | 部分 | 不做 arbitrary plugin actions | ✅ DONE @2026-04-27 23:30 `a24ba4a` |
+| T0334 | 設計規範 / tests 更新（Stepper + Shell） | S | T0330 | 是 | 不做多語文案落地 | ✅ DONE @2026-04-27 23:43 `4b43a4f` |
 
 ### Sprint 3：三平台 BUG 修復（套用 framework，3 工單）
 
 | 工單 | 標題 | Sizing | 依賴 | 平行可? | BUG |
 |------|------|--------|------|--------|-----|
-| T0335 | BUG-074 SSH input-step `awaiting-input` 落地 | M | T0330+T0333 | 是 | BUG-074 |
-| T0336 | BUG-073 Docker detect-env mapping + download/start actions | M | T0331 | 是 | BUG-073 |
-| T0337 | BUG-072 WSL linger/systemd mapping + fixed-and-retry flow | M | T0331+T0333 | 是 | BUG-072 |
+| T0335 | BUG-074 SSH input-step `awaiting-input` 落地 | M | T0330+T0333 | 是 | BUG-074 → VERIFY @2026-04-28 03:10 `94733d7` |
+| T0336 | BUG-073 Docker detect-env mapping + download/start actions | M | T0331 | 是 | BUG-073 → VERIFY @2026-04-28 03:21 `a8b2363` |
+| T0337 | BUG-072 WSL linger/systemd mapping + fixed-and-retry flow | M | T0331+T0333 | 是 | BUG-072 → VERIFY @2026-04-28 03:32 `57896e7` |
 
 ### Sprint 4：跨平台抽象（1 工單）
 

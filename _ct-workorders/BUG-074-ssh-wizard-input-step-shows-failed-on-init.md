@@ -9,7 +9,7 @@
 | 嚴重度 | 🟡 Medium（UX 不直觀；使用者誤以為 wizard 已壞） |
 | 可重現 | 100%（任何使用者開 SSH wizard 都看到第 1 步是 failed 狀態） |
 | Workaround | 使用者點「重試」或自行理解這是 input prompt 而非 error（不直觀） |
-| 狀態 | 🐛 OPEN |
+| 狀態 | 🔍 VERIFY（T0335 ✅ FIXED `94733d7` @2026-04-28 03:10 — 待 macOS/Linux/Windows 三平台 SSH wizard 開啟 smoke 驗證第一步顯示 awaiting-input；通過後 → CLOSED） |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
 | 報告者 | 使用者（PLAN-030 完工後實機跑 SSH wizard，screenshot #9） |
 | 影響範圍 | `src/components/setup-wizard/steps/ssh/configure-host.ts` 的 step state 邏輯 / SetupWizardShell 對 input step 的渲染 |

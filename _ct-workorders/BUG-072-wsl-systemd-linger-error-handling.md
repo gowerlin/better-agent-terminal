@@ -9,7 +9,7 @@
 | 嚴重度 | 🟡 Medium（功能受阻但有 workaround；錯誤訊息純粹技術性，使用者不知道下一步） |
 | 可重現 | 偶爾（依 WSL distro / systemd 啟用狀態 / loginctl 可用性而定） |
 | Workaround | 使用者手動在 WSL 跑 `loginctl enable-linger $USER`（普通使用者不會） |
-| 狀態 | 🐛 OPEN |
+| 狀態 | 🔍 VERIFY（T0337 ✅ FIXED `57896e7` @2026-04-28 03:32 — 待 WSL 環境 smoke：linger 未開 + systemd 未啟用兩種情境，確認看到對應 fixedAndRetry 引導；通過後 → CLOSED） |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
 | 報告者 | 使用者（PLAN-030 完工後實機跑 WSL wizard，screenshot #7） |
 | 影響範圍 | WSL wizard 的 linger 啟用 step / systemd service 啟動 step（具體檔案待調查） |
