@@ -523,7 +523,29 @@ function shellQuoteForTerminalCommand(value: string): string {
 function toTerminalDrivenAgentId(agentId: string): string {
   if (agentId === 'claude-code-worktree') return 'claude-cli-worktree'
   if (agentId === 'claude-code' || agentId === 'claude-code-v2') return 'claude-cli'
+  if (agentId === 'codex-agent' || agentId === 'codex-agent-worktree') return 'codex-cli'
   return agentId
+}
+
+function isCodexAgentId(agentId: string): boolean {
+  return agentId === 'codex-cli' || agentId === 'codex-agent' || agentId === 'codex-agent-worktree'
+}
+
+function buildControlTowerSkillPrompt(agentId: string, skill: string, workorder: string): string | null {
+  if (!/^(ct-exec|ct-done)$/.test(skill) || !/^T\d+$/.test(workorder)) return null
+  const prefix = isCodexAgentId(agentId) ? '$' : '/'
+  return `${prefix}${skill} ${workorder}`
+}
+
+function normalizeControlTowerPromptForAgent(agentId: string, prompt: string): { prompt: string; normalized: boolean } {
+  if (!isCodexAgentId(agentId) || !prompt.startsWith('/ct-')) {
+    return { prompt, normalized: false }
+  }
+
+  return {
+    prompt: `$${prompt.slice(1)}`,
+    normalized: true,
+  }
 }
 
 async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<string | null> {
@@ -545,7 +567,7 @@ async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<strin
   return null
 }
 
-async function buildAgentPromptCommand(opts: { agent?: string; prompt: string; workspaceId?: string }): Promise<{ command: string; agentId: string } | null> {
+async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string }): Promise<{ command: string; agentId: string; prompt: string; prefixNormalized: boolean } | null> {
   const settings = readPersistedSettingsSync()
   const workspaceAgent = opts.agent && opts.agent !== 'default'
     ? null
@@ -569,11 +591,22 @@ async function buildAgentPromptCommand(opts: { agent?: string; prompt: string; w
     return null
   }
 
+  const prompt = opts.skill && opts.workorder
+    ? buildControlTowerSkillPrompt(agentId, opts.skill, opts.workorder)
+    : opts.prompt
+  if (!prompt) {
+    logger.warn(`[agent-command] invalid prompt payload for agent=${requestedAgent} resolved=${agentId} skill=${opts.skill ?? 'n/a'} workorder=${opts.workorder ?? 'n/a'}`)
+    return null
+  }
+
+  const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
   const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
   const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
   return {
-    command: `${commandWithArgs} ${shellQuoteForTerminalCommand(opts.prompt)}`,
+    command: `${commandWithArgs} ${shellQuoteForTerminalCommand(normalized.prompt)}`,
     agentId,
+    prompt: normalized.prompt,
+    prefixNormalized: normalized.normalized,
   }
 }
 
@@ -1943,18 +1976,36 @@ function registerProxiedHandlers() {
     return created
   })
 
-  registerHandler('terminal:create-agent-command', async (_ctx, opts: { id: string; cwd: string; agent?: string; prompt: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => {
-    if (!opts?.prompt || typeof opts.prompt !== 'string') {
-      logger.warn('[agent-command] missing prompt for terminal:create-agent-command')
+  registerHandler('terminal:create-agent-command', async (_ctx, opts: { id: string; cwd: string; agent?: string; prompt?: string; skill?: string; workorder?: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => {
+    const hasPrompt = typeof opts?.prompt === 'string' && opts.prompt.length > 0
+    const hasSkillPayload = typeof opts?.skill === 'string' && typeof opts?.workorder === 'string'
+    if (!hasPrompt && !hasSkillPayload) {
+      logger.warn('[agent-command] missing prompt or skill/workorder for terminal:create-agent-command')
+      return false
+    }
+    if (hasPrompt && hasSkillPayload) {
+      logger.warn('[agent-command] received both prompt and skill/workorder for terminal:create-agent-command')
       return false
     }
 
     const resolved = await buildAgentPromptCommand({
       agent: opts.agent,
       prompt: opts.prompt,
+      skill: opts.skill,
+      workorder: opts.workorder,
       workspaceId: opts.workspaceId,
     })
     if (!resolved) return false
+
+    if (resolved.prefixNormalized) {
+      logger.log(`[agent-command] prefix-normalized agent=${resolved.agentId} prompt=${resolved.prompt}`)
+      mirrorToBatScripts('prefix-normalized', {
+        channel: 'terminal:create-agent-command',
+        terminalId: opts.id,
+        agentId: resolved.agentId,
+        prompt: resolved.prompt,
+      })
+    }
 
     logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId}`)
     return invokeHandler('terminal:create-with-command', [{

@@ -5,6 +5,7 @@
 //
 // Usage:
 //   node scripts/bat-terminal.mjs --prompt "/ct-exec T0131"
+//   node scripts/bat-terminal.mjs --skill ct-exec --workorder T0131
 //   node scripts/bat-terminal.mjs --agent codex-cli --prompt "/ct-exec T0131"
 //   node scripts/bat-terminal.mjs echo hello
 //   node scripts/bat-terminal.mjs --cwd /tmp echo hello
@@ -64,6 +65,7 @@ if (process.platform === 'win32') {
 
 const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs [options] --prompt <text>
+       bat-terminal.mjs [options] --skill <name> --workorder <T####>
 
 Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
 
@@ -73,6 +75,8 @@ Options:
   --workspace <id>       Explicit workspace allocation target
   --agent <id|default>   Agent definition for --prompt mode (default: default)
   --prompt <text>        Start the selected/default agent with this prompt
+  --skill <name>         Agent-neutral Control Tower skill name (ct-exec|ct-done)
+  --workorder <T####>    Work order ID for --skill mode
   --mode <value>         CT mode for Worker (yolo|ask|off|on); injects CT_MODE env
   --interactive          Force interactive mode; injects CT_INTERACTIVE=1 env
   --no-interactive       Force non-interactive mode; injects CT_INTERACTIVE=0 env
@@ -81,14 +85,15 @@ Options:
 
 Examples:
   node scripts/bat-terminal.mjs --prompt "/ct-exec T0001"
+  node scripts/bat-terminal.mjs --skill ct-exec --workorder T0001
   node scripts/bat-terminal.mjs --agent codex-cli --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs echo hello
   node scripts/bat-terminal.mjs --notify-id abc123 --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs --cwd /tmp echo hello
-  node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --prompt "/ct-exec T0001"
+  node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --skill ct-exec --workorder T0001
 `
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--mode', '--interactive', '--no-interactive', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--help', '-h', '--version']
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -142,6 +147,8 @@ let notifyId = null
 let workspaceId = null
 let agent = 'default'
 let prompt = null
+let skill = null
+let workorder = null
 let mode = null
 let interactive = null  // null = unspecified / true = --interactive / false = --no-interactive
 const positional = []
@@ -199,6 +206,30 @@ while (i < rawArgs.length) {
     continue
   }
 
+  if (arg === '--skill') {
+    if (!rawArgs[i + 1]) { printUsageError('--skill requires a skill name argument'); process.exit(1) }
+    const value = rawArgs[i + 1]
+    if (!/^(ct-exec|ct-done)$/.test(value)) {
+      console.error(`Error: Invalid --skill value: '${value}' (expected one of: ct-exec, ct-done)`)
+      process.exit(1)
+    }
+    skill = value
+    i += 2
+    continue
+  }
+
+  if (arg === '--workorder') {
+    if (!rawArgs[i + 1]) { printUsageError('--workorder requires a work order ID argument'); process.exit(1) }
+    const value = rawArgs[i + 1]
+    if (!/^T\d+$/.test(value)) {
+      console.error(`Error: Invalid --workorder value: '${value}' (expected T followed by digits)`)
+      process.exit(1)
+    }
+    workorder = value
+    i += 2
+    continue
+  }
+
   if (arg === '--mode') {
     if (!rawArgs[i + 1]) { printUsageError('--mode requires a value argument (yolo|ask|off|on)'); process.exit(1) }
     const value = rawArgs[i + 1]
@@ -236,13 +267,26 @@ while (i < rawArgs.length) {
   i++
 }
 
-if (prompt && positional.length > 0) {
-  printUsageError('Use either --prompt mode or positional <command> [args...], not both')
+const hasSkillMode = Boolean(skill || workorder)
+if (hasSkillMode && !(skill && workorder)) {
+  printUsageError('Use --skill and --workorder together')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'incomplete-skill-mode' })
+  process.exit(1)
+}
+
+if ((prompt || hasSkillMode) && positional.length > 0) {
+  printUsageError('Use either agent mode (--prompt or --skill/--workorder) or positional <command> [args...], not both')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'prompt-and-command' })
   process.exit(1)
 }
 
-if (!prompt && positional.length === 0) {
+if (prompt && hasSkillMode) {
+  printUsageError('Use either --prompt or --skill/--workorder, not both')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'prompt-and-skill' })
+  process.exit(1)
+}
+
+if (!prompt && !hasSkillMode && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
   process.exit(1)
@@ -256,6 +300,8 @@ logEvent('bat-terminal', 'parsed', {
   workspaceId,
   agent,
   promptLength: prompt ? prompt.length : 0,
+  skill,
+  workorder,
   mode,
   interactive,
   cmd: positional[0] ?? null,
@@ -574,11 +620,11 @@ async function main() {
     process.exit(1)
   }
 
-  const channel = prompt ? 'terminal:create-agent-command' : 'terminal:create-with-command'
-  const invokePayload = prompt
+  const channel = prompt || hasSkillMode ? 'terminal:create-agent-command' : 'terminal:create-with-command'
+  const invokePayload = prompt || hasSkillMode
     // BUG-075/T0341: BAT auto-session Workers may start Codex from Git Bash;
     // keep slash-command prompts from being rewritten by MSYS path conversion.
-    ? { id: terminalId, cwd, agent, prompt, customEnv: { MSYS_NO_PATHCONV: '1' } }
+    ? { id: terminalId, cwd, agent, ...(prompt ? { prompt } : { skill, workorder }), customEnv: { MSYS_NO_PATHCONV: '1' } }
     : { id: terminalId, cwd, command }
   // T0133: Inject BAT_TOWER_TERMINAL_ID so Worker knows who to notify on completion
   if (notifyId) invokePayload.customEnv = { ...invokePayload.customEnv, BAT_TOWER_TERMINAL_ID: notifyId }
@@ -604,8 +650,10 @@ async function main() {
     cwd,
     workspaceId,
     channel,
-    agent: prompt ? agent : null,
+    agent: prompt || hasSkillMode ? agent : null,
     promptLength: prompt ? prompt.length : 0,
+    skill,
+    workorder,
     command,
     customEnv: invokePayload.customEnv ?? null,
   })
