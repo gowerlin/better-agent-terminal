@@ -14,6 +14,24 @@ export {
   targetOSToErrorPlatform,
 } from './error-mapper'
 
+import {
+  createPreflightCache,
+  setPreflightCached,
+  type WizardPreflightCache,
+  type WizardPreflightResult,
+} from './preflight'
+
+export type {
+  WizardPreflightCache,
+  WizardPreflightCacheEntry,
+  WizardPreflightResult,
+} from './preflight'
+export {
+  createPreflightCache,
+  getPreflightCached,
+  setPreflightCached,
+} from './preflight'
+
 export interface WizardChoiceOption {
   label: string
   value: string
@@ -38,6 +56,8 @@ export interface WizardContext {
   targetOS: WizardTargetOS
   profileDraft: Record<string, unknown>
   warnings: string[]
+  /** T0332: per-wizard-session preflight result cache. Runner injects createPreflightCache() if unset. */
+  preflightCache?: WizardPreflightCache
   state: Record<string, unknown>
   networkMode?: 'mirrored' | 'nat' | 'unknown'
   availableDistros?: Array<{ name: string; version: 1 | 2; state: 'Running' | 'Stopped' }>
@@ -85,6 +105,14 @@ export interface WizardStep {
   appliesTo: WizardTargetOS[] | 'all'
   /** T0330: defaults to 'task'. See WizardStepKind. */
   kind?: WizardStepKind
+  /**
+   * T0332: optional pre-flight check executed before run(). Return ok:false
+   * to block run() (hard fail, surfaces via ErrorMapper) or warningOnly:true
+   * to record a warning on ctx.warnings without blocking. Step authors may
+   * use ctx.preflightCache + getPreflightCached/setPreflightCached helpers to
+   * memoize expensive checks (e.g. docker daemon ping) per wizard session.
+   */
+  preflight?(ctx: WizardContext): Promise<WizardPreflightResult>
   run(ctx: WizardContext): Promise<void>
   rollback?(ctx: WizardContext): Promise<void>
   retryable?: boolean
@@ -234,6 +262,10 @@ export class WizardRunner {
     private readonly onProgress?: (steps: WizardStepSnapshot[]) => void,
   ) {
     this.ctx.logger ??= defaultLogger()
+    // T0332: ensure a per-wizard-session preflight cache exists. Callers may
+    // inject their own (e.g. for tests / cross-runner reuse); otherwise we
+    // start with a fresh Map.
+    this.ctx.preflightCache ??= createPreflightCache()
     this.activeSteps = steps.filter((step) => step.appliesTo === 'all' || step.appliesTo.includes(ctx.targetOS))
     this.stepSnapshots = this.activeSteps.map((step) => ({
       id: step.id,
@@ -363,6 +395,49 @@ export class WizardRunner {
       this.emitProgress()
 
       try {
+        // T0332: preflight hook. Run before step.run(). Hard failure
+        // (ok:false + !warningOnly) bypasses step.run() and goes through the
+        // same ErrorMapper + retry/skip/rollback pipeline as a step throw.
+        // warningOnly appends to ctx.warnings and continues. Throws are
+        // synthesized into hard failures.
+        if (typeof step.preflight === 'function') {
+          let preflightResult: WizardPreflightResult
+          try {
+            preflightResult = await step.preflight(this.ctx)
+          } catch (preflightErr) {
+            const e =
+              preflightErr instanceof Error
+                ? preflightErr
+                : new Error(String(preflightErr))
+            preflightResult = { ok: false, reason: e.message }
+          }
+          if (preflightResult.cacheKey) {
+            // Step authors who want caching can also use getPreflightCached
+            // directly; runner stores the result here so adjacent steps may
+            // share it via the same key.
+            setPreflightCached(
+              this.ctx.preflightCache!,
+              preflightResult.cacheKey,
+              preflightResult,
+            )
+          }
+          if (!preflightResult.ok && !preflightResult.warningOnly) {
+            const err = new Error(
+              preflightResult.reason ?? 'Preflight check failed',
+            ) as Error & { code?: string }
+            if (preflightResult.errorCode) err.code = preflightResult.errorCode
+            // Throw into the existing catch arm so retry/skip/rollback +
+            // ErrorMapper resolution stays in one place.
+            throw err
+          }
+          if (!preflightResult.ok && preflightResult.warningOnly) {
+            this.ctx.warnings.push(
+              preflightResult.reason ?? `preflight warning: ${step.id}`,
+            )
+            this.emitProgress()
+          }
+        }
+
         // T0330: input-kind steps get a wrapped requestChoice so the runner
         // can flip status to AwaitingInput while the prompt is pending and
         // back to Running once resolved.
