@@ -7,9 +7,10 @@
 | 工單編號 | T0322 |
 | 類型 | impl（wizard step rewrite，消費 T0320 distributor + T0321 draftProfile pattern） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 4 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-27 03:14 (UTC+8) |
 | 派發時間 | 2026-04-27 03:14 (UTC+8) |
+| 開始時間 | 2026-04-27 03:16 (UTC+8) |
 | Sizing | S（estimate 30-45 min wall；含 archHint 移除 + sshServerArch wire-up） |
 | 依賴 | T0320 ✅（distributor） / T0321 ✅（draftProfile IPC pattern） |
 | 平行 | T0323（Docker，邏輯獨立） |
@@ -184,28 +185,89 @@ export async function runSshInstallServerBundle(ctx: WizardContext) {
 
 ### 1. install-server-bundle.ts 重寫摘要
 
-（待填）
+整支重寫（149 → 174 行，net +25 行）：
+
+**移除**：
+- `findBundleInDirectory(directory, archHint)` helper（含 `linux-arm64` / `linux-x64` regex）
+- `resolveBundleTarballPath(ctx, archHint)` helper（userData/bat-server-bundles 直查）
+- `joinPlatformPath()` helper（無人再呼叫）
+- `import type { FileEntry }`（已不再使用）
+- `archHint` fallback 邏輯（`state.sshServerArch ?? 'x86_64'`）
+
+**新增**：
+- `describeSource()` helper（沿 T0321 WSL step pattern，文案三選一）
+- 強制驗證 `state.sshServerArch` 必填（缺失 → throw with hint「re-run verify-ssh-auth」），不再 fallback x86_64
+- `window.electronAPI.update.getVersion()` → 帶入 distributor
+- `window.electronAPI.remote.serverBundle.distribute({ draftProfile, version })` 取代本地 lookup
+- `onDistributeProgress` 訂閱 + finally cleanup（manifest / tarball 兩階段都 log）
+- `distributeResult.ok === false` → throw `[errorCode] error`（不重試、不 fallback）
+- `state.bundleSource = result.source`（cache / baseline / download）
+
+**保留**：
+- `ssh:upload-bundle` + `ssh:upload-progress` 串流上傳（D-SSH-4 invariant：ssh+tar pipe）
+- `makeUploadId()` helper、uploadId 過濾、speed/eta 計算
+- rollback 邏輯（`ssh:uninstallBundle`）完全不動
+- step metadata（labelKey / descriptionKey / groupKey / appliesTo）
 
 ### 2. ctx.state.sshServerArch 來源驗證
 
-（待填：grep verify-auth.ts 確認寫入點 / step chain 順序）
+**verify-auth.ts:115** 確認寫入：`Object.assign(ctx.state, { ..., sshServerArch: result.serverArch })`
+
+`result.serverArch` 來源 ssh-auth-probe.ts:202 → `parsePlatform(platformLine).arch`，
+parsePlatform (ssh-auth-probe.ts:86-95) 直接回傳 `uname -sm` 第二欄 raw value（如 `x86_64` / `aarch64` / `arm64`），未做正規化 — 與 distributor `arch-detect.ts:192 → buildArchResult(cached, targetOS)` 預期 raw uname 輸入一致。
+
+**ssh-flow.ts step 順序**（line 26-35）：configureSshHostStep → verifySshAuthStep → installSshServerBundleStep → … → writeProfileStep → … 確認 verify-auth 在 install-bundle 之前、write-profile 在 install-bundle 之後 → draftProfile 模式正確 fit。
 
 ### 3. draftProfile 結構
 
-（待填：實際 SSH draftProfile fields / IPC handler 是否需要擴 validation）
+實際傳入 distributor 的欄位：
+```ts
+{
+  targetOS: ctx.targetOS as 'ssh-linux' | 'ssh-darwin',  // verify-auth 已 set
+  sshHost: state.sshHost,
+  sshUser: state.sshUser,
+  sshPort: state.sshPort,
+  sshKeyPath: state.sshKeyPath,
+  sshServerArch: state.sshServerArch,  // raw uname value
+}
+```
+
+**IPC handler 擴充**（electron/main.ts）：T0321 只 validate WSL/Docker，本工單補上 SSH validation：
+- `sshHost`：必填，非空字串（不套 NAME_RX 因 host 可含 dot/IP）
+- `sshUser`：必填，過 NAME_RX 白名單
+- `sshServerArch`：必填，非空字串（缺失 → `arch-detection-failed` errorCode + hint「run verify-auth before install-bundle」）
+- `sshPort` / `sshKeyPath` / `useSshTunnel`：optional，照傳
+
+`ProfileEntry` sentinel 新增 `sshServerArch: draft.sshServerArch` 欄位 → arch-detect.ts:183 `profile.sshServerArch` 命中 → `buildArchResult(cached, targetOS)` 走 cached path 無 SSH re-fetch。
+
+**Type surface 同步**：`electron/preload.ts:661` + `src/types/electron.d.ts:493` 的 `draftProfile` 介面也補上 optional `sshServerArch?: string`。
 
 ### 4. tsc + test 結果
 
-（待填）
+- `npx tsc --noEmit` grep 改動檔（`install-server-bundle.ts` / `electron/main.ts` / `preload.ts` / `electron.d.ts`）→ 0 error
+  - 修掉一次 TS6196「`WizardContext` declared but never used」（移除未用 import）
+- `npm run test:unit` → **8 files passed / 168 tests passed**（無新增測試；本工單為 wizard step，e2e 留 T0324/T0325）
 
 ### 5. PARTIAL / 矛盾項（如有）
 
-（待填）
+無。
 
 ### 6. Out-of-scope but justified（如有）
 
-（待填）
+**IPC handler `server-bundle:distribute` 擴 SSH validation**（main.ts +28 行 / preload.ts + .d.ts +1 行 each）— 工單 §「範圍排除」原寫「不改 IPC handler」，但同時 §3 Deliverable 1 註明「如 IPC handler 對 SSH draftProfile 缺欄位驗證 → worker 補上（依 T0321 已有的 wsl/docker validation pattern 擴）」。
+
+實際盤查：T0321 IPC handler 完全沒有 SSH 分支驗證（只有 wsl-linux / docker-linux）；同時 ProfileEntry sentinel 也漏帶 `sshServerArch`（draftProfile 接了沒往 ProfileEntry 塞 → arch-detect 拿不到 cached → 失敗）。為了讓 SSH 走 distributor 流程能跑通，這個擴充屬於 §3 預留的允許範圍，沿 T0321 wsl/docker 模式擴 SSH 分支，與「不改 IPC handler」精神一致（pattern 沿用，不重新設計）。
 
 ### 完成註記
 
-（待填）
+T0322 SSH install-server-bundle step 改寫完成。核心：
+1. SSH step 卸下本地 archHint regex / lookup helpers，全交給 T0320 distributor
+2. `sshServerArch` 從 verify-auth state → draftProfile → ProfileEntry sentinel → arch-detect cached path 完整 wire-up
+3. IPC handler SSH 驗證分支補齊（沿 T0321 wsl/docker 模式）
+4. 上傳邏輯（ssh+tar pipe / progress event）一字未動
+5. 改動檔 `npx tsc --noEmit` 0 error；`npm run test:unit` 168/168 全綠
+
+E2E 跑通留 T0324（DGX Spark dogfood）/ T0325（offline / rate limit）。
+
+完成時間：2026-04-27 10:28 (UTC+8)
+Wall time：約 12 分鐘（含 hook 干擾與多次重讀）— 略低於 Sizing S 的 30-45 min estimate。

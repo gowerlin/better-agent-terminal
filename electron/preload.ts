@@ -659,6 +659,7 @@ const electronAPI = {
           sshPort?: number
           sshKeyPath?: string
           useSshTunnel?: boolean
+          sshServerArch?: string
         }
         version?: string
         baseURL?: string

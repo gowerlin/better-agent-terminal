@@ -1,5 +1,4 @@
-import type { FileEntry } from '../../../../types/file'
-import type { WizardContext, WizardStep } from '../../wizard-runner'
+import type { WizardStep } from '../../wizard-runner'
 
 interface InstallSshBundleState {
   sshHost?: string
@@ -9,47 +8,22 @@ interface InstallSshBundleState {
   sshInstallPath?: string
   sshServerArch?: string
   bundleTarballPath?: string
+  bundleSource?: 'cache' | 'baseline' | 'download'
   uploadBytesSent?: number
   uploadTotalBytes?: number
   uploadSpeedBytesPerSec?: number
   uploadEtaSeconds?: number
 }
 
-function joinPlatformPath(platform: 'win32' | 'darwin' | 'linux', ...parts: string[]): string {
-  const separator = platform === 'win32' ? '\\' : '/'
-  return parts.reduce((acc, part) => {
-    if (!acc) return part
-    return `${acc.replace(/[\\/]+$/, '')}${separator}${part.replace(/^[\\/]+/, '')}`
-  })
-}
-
-async function findBundleInDirectory(directory: string, archHint: string): Promise<FileEntry | null> {
-  try {
-    const entries = await window.electronAPI.fs.readdir(directory)
-    // Prefer arch-specific tarball; fall back to x64 for backwards compat.
-    const archCandidates = archHint === 'arm64' || archHint === 'aarch64'
-      ? [/^bat-server-linux-arm64-v.+\.tar\.gz$/i, /^bat-server-linux-x64-v.+\.tar\.gz$/i]
-      : [/^bat-server-linux-x64-v.+\.tar\.gz$/i]
-    for (const pattern of archCandidates) {
-      const match = entries.find((entry) => !entry.isDirectory && pattern.test(entry.name))
-      if (match) return match
-    }
-    return null
-  } catch {
-    return null
+function describeSource(source: 'cache' | 'baseline' | 'download'): string {
+  switch (source) {
+    case 'cache':
+      return 'Using cached server bundle'
+    case 'baseline':
+      return 'Using bundled server bundle (offline)'
+    case 'download':
+      return 'Downloaded server bundle from release'
   }
-}
-
-async function resolveBundleTarballPath(ctx: WizardContext, archHint: string): Promise<string> {
-  const explicit = typeof ctx.state.bundleTarballPath === 'string' ? (ctx.state.bundleTarballPath as string) : null
-  if (explicit) return explicit
-
-  const userDataPath = await window.electronAPI.app.getUserDataPath()
-  const bundleDirectory = joinPlatformPath(window.electronAPI.platform, userDataPath, 'bat-server-bundles')
-  const bundleEntry = await findBundleInDirectory(bundleDirectory, archHint)
-  if (bundleEntry) return bundleEntry.path
-
-  throw new Error('Server bundle tarball not found in userData/bat-server-bundles. Ensure the BAT release shipped the linux-x64 / linux-arm64 tarball.')
 }
 
 function makeUploadId(): string {
@@ -57,12 +31,20 @@ function makeUploadId(): string {
 }
 
 /**
- * `install-server-bundle` step (T0285 AC5/AC9).
+ * `install-server-bundle` step (T0285 AC5/AC9, rewritten in T0322).
  *
- * Streams the local server bundle tarball over `ssh user@host 'mkdir -p X
- * && cd X && tar xz'` (D-SSH-4: ssh+tar pipe, no scp/rsync). Progress is
- * reported via `ssh:upload-progress` one-way events (still in the `ssh:*`
- * namespace, so AC8 ≤3 handler-channel budget is preserved).
+ * PLAN-031 T0322 — delegates tarball lookup to the T0320 distributor (cache →
+ * baseline → download three-layer resolution). The wizard's write-profile step
+ * runs after install-bundle, so we pass a draftProfile (T0321 sentinel pattern)
+ * containing the SSH connection details and the cached `sshServerArch` raw
+ * uname value (verify-auth wrote it into ctx.state). The distributor's
+ * arch-detect reads `profile.sshServerArch` directly without re-issuing an SSH
+ * call — verify-auth is the sole source of arch information for SSH targets.
+ *
+ * Once the local tarball is resolved, this step still streams it to the remote
+ * via `ssh user@host 'mkdir -p X && cd X && tar xz'` (D-SSH-4 invariant: ssh+tar
+ * pipe, no scp/rsync). Progress is reported via `ssh:upload-progress` one-way
+ * events (still in the `ssh:*` namespace, AC8 ≤3 handler-channel budget intact).
  */
 export const installSshServerBundleStep: WizardStep = {
   id: 'install-server-bundle',
@@ -81,16 +63,57 @@ export const installSshServerBundleStep: WizardStep = {
     if (!state.sshInstallPath) {
       throw new Error('Install path must be selected before installing the server bundle.')
     }
+    if (!state.sshServerArch) {
+      throw new Error('SSH server architecture not detected — re-run verify-ssh-auth before installing the server bundle.')
+    }
 
-    const archHint = state.sshServerArch ?? 'x86_64'
-    const tarballPath = await resolveBundleTarballPath(ctx, archHint)
+    // PLAN-031 T0322 — delegate tarball lookup to T0320 distributor via the
+    // T0321 draftProfile pattern. ctx.targetOS was set by verify-auth based on
+    // the remote `uname -s` output (ssh-linux | ssh-darwin).
+    const version = await window.electronAPI.update.getVersion()
+
+    const unsubscribeDistributeProgress = window.electronAPI.remote.serverBundle.onDistributeProgress((event) => {
+      if (event.phase === 'tarball') {
+        ctx.logger.info(`Downloading server bundle: ${event.percent}% (${event.bytesDownloaded}/${event.bytesTotal} bytes)`)
+      } else if (event.phase === 'manifest') {
+        ctx.logger.info('Fetching server bundle manifest…')
+      }
+    })
+
+    let distributeResult: Awaited<ReturnType<typeof window.electronAPI.remote.serverBundle.distribute>>
+    try {
+      distributeResult = await window.electronAPI.remote.serverBundle.distribute({
+        draftProfile: {
+          targetOS: ctx.targetOS as 'ssh-linux' | 'ssh-darwin',
+          sshHost: state.sshHost,
+          sshUser: state.sshUser,
+          sshPort: state.sshPort,
+          sshKeyPath: state.sshKeyPath,
+          sshServerArch: state.sshServerArch,
+        },
+        version,
+      })
+    } finally {
+      unsubscribeDistributeProgress()
+    }
+
+    if (!distributeResult.ok) {
+      // Distributor already classified the failure (arch-detection-failed,
+      // no-source-available, download-failed, baseline-corrupted, aborted) —
+      // surface it directly without local retry / fallback (T0320 owns that).
+      throw new Error(`[${distributeResult.errorCode}] ${distributeResult.error}`)
+    }
+
+    const tarballPath = distributeResult.tarballPath
     state.bundleTarballPath = tarballPath
+    state.bundleSource = distributeResult.source
+    ctx.logger.info(`${describeSource(distributeResult.source)}: ${tarballPath}`)
     ctx.logger.info(`Uploading ${tarballPath} → ${state.sshUser}@${state.sshHost}:${state.sshInstallPath}`)
 
     const uploadId = makeUploadId()
     const startedAt = Date.now()
 
-    const unsubscribe = window.electronAPI.ssh.onUploadProgress((payload) => {
+    const unsubscribeUpload = window.electronAPI.ssh.onUploadProgress((payload) => {
       if (payload.uploadId !== uploadId) return
       const elapsedSec = Math.max(0.001, (Date.now() - startedAt) / 1000)
       const speed = payload.bytesSent / elapsedSec
@@ -117,7 +140,7 @@ export const installSshServerBundleStep: WizardStep = {
       })
       if (!result.ok) throw new Error(result.error)
     } finally {
-      unsubscribe()
+      unsubscribeUpload()
     }
 
     ctx.serverInstallPath = state.sshInstallPath

@@ -3264,6 +3264,7 @@ function registerLocalHandlers() {
           sshPort?: number
           sshKeyPath?: string
           useSshTunnel?: boolean
+          sshServerArch?: string
         }
         version?: string
         baseURL?: string
@@ -3301,6 +3302,32 @@ function registerLocalHandlers() {
               error: 'draftProfile.dockerContainer missing or invalid',
             }
           }
+        } else if (draft.targetOS === 'ssh-linux' || draft.targetOS === 'ssh-darwin') {
+          // T0322 — SSH path requires sshHost + sshUser + cached sshServerArch
+          // (verify-auth step writes ctx.state.sshServerArch from `uname -sm`).
+          // Distributor's arch-detect reads profile.sshServerArch directly with
+          // no SSH re-fetch, so it must be present in the draftProfile.
+          if (!draft.sshHost || typeof draft.sshHost !== 'string' || draft.sshHost.trim() === '') {
+            return {
+              ok: false as const,
+              errorCode: 'arch-detection-failed' as const,
+              error: 'draftProfile.sshHost missing or invalid',
+            }
+          }
+          if (!draft.sshUser || !NAME_RX.test(draft.sshUser)) {
+            return {
+              ok: false as const,
+              errorCode: 'arch-detection-failed' as const,
+              error: 'draftProfile.sshUser missing or invalid',
+            }
+          }
+          if (!draft.sshServerArch || typeof draft.sshServerArch !== 'string' || draft.sshServerArch.trim() === '') {
+            return {
+              ok: false as const,
+              errorCode: 'arch-detection-failed' as const,
+              error: 'draftProfile.sshServerArch missing — run verify-auth before install-bundle',
+            }
+          }
         }
         const now = Date.now()
         profile = {
@@ -3318,6 +3345,7 @@ function registerLocalHandlers() {
           sshPort: draft.sshPort,
           sshKeyPath: draft.sshKeyPath,
           useSshTunnel: draft.useSshTunnel,
+          sshServerArch: draft.sshServerArch,
         } as ProfileEntry
       } else {
         return {
