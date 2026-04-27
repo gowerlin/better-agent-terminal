@@ -20,6 +20,8 @@ export default defineConfig({
       'src/**/__tests__/**/*.{ts,tsx}',
       // T0325 — integration tests for electron/remote modules
       'electron/remote/__tests__/**/*.test.ts',
+      // T0342 — Windows/MSYS regression guard for bat-terminal helper
+      'tests/bat-terminal-msys.test.mjs',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'dist-electron/**', 'release/**'],
   },
