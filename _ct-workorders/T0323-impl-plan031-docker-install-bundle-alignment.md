@@ -7,10 +7,12 @@
 | 工單編號 | T0323 |
 | 類型 | impl（極小修改：source 標記 + 註解，無 distributor 整合） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 4 收尾 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 10:30 (UTC+8) |
 | 派發時間 | 2026-04-27 10:30 (UTC+8) |
 | 開始時間 | 2026-04-27 10:33 (UTC+8) |
+| 完成時間 | 2026-04-27 10:37 (UTC+8) |
+| commit | fe6a4ff |
 | Sizing | **XS**（estimate 5-15 min wall；下調自原 M 估算，理由：D096 已決定 v1 不做 distributor fallback，且現況已 spec-compliant） |
 | 依賴 | T0321 ✅（建立 bundleSource 慣例） / T0322 ✅（建立 SSH parallel pattern） |
 | 平行 | 無（Sprint 4 收尾） |
@@ -100,20 +102,27 @@ ctx.state.bundleSource = 'image-baked'
 
 ### 1. install-server-bundle.ts 修改摘要
 
-（待填：行數變化、union 是否需擴）
+- 新增 JSDoc 區塊（11 行）放在 `installDockerServerBundleStep` export 上方，引用 PLAN-031 D096，說明 Docker 走 image-based distribution、v1 不做 distributor fallback、對齊 WSL/SSH 的 source 標記慣例
+- `mode === 'new'` 分支末尾（return 前）加 `ctx.state.bundleSource = 'image-baked'`
+- `mode === 'existing'` 分支末尾（warning push 之後）加 `ctx.state.bundleSource = 'image-baked'`
+- **Union 未擴**：本檔案無 local `InstallDockerBundleState` interface（不像 ssh/wsl），且 `ctx.state` 在 `wizard-runner.ts` 中為 `Record<string, unknown>`，直接賦字串 literal 即合法。AC-2 對 Docker 而言屬「N/A — 無 type union 需擴」
+- 行數變化：+14（11 行 JSDoc + 2 行 bundleSource 賦值 + 1 行空白）
 
 ### 2. tsc + test 結果
 
-（待填）
+- `npx tsc --noEmit`：**改動檔 0 error**（`docker/install-server-bundle.ts` 不在錯誤清單）。其他檔案（`CodexAgentPanel.tsx` 等）有既有 pre-existing errors，與本工單無關 → AC-5 ✅
+- `npm run test:unit`：8 files / **168 tests passed**（與工單預期 168 tests 完全相符，無破壞）→ AC-4 ✅
 
 ### 3. PARTIAL / 矛盾項（如有）
 
-（待填）
+無。
 
 ### 4. Out-of-scope but justified（如有）
 
-（待填）
+無。AC-1 / AC-3 / AC-4 / AC-5 / AC-6 全部達成；AC-2 因 Docker 檔無 local state union 而 N/A（已於 §1 註明）。
 
 ### 完成註記
 
-（待填）
+- commit：`fe6a4ff`（main branch）
+- bundleSource 慣例擴充為四種：`'cache' | 'baseline' | 'download' | 'image-baked'`（後三者為各 platform install-bundle step 各自宣告，無 central type 收斂；目前無 cross-platform 消費者，YAGNI）
+- Sprint 4 收尾完成（T0321 / T0322 / T0323 三張同 wave，皆為 install-bundle step 對齊）；後續 Sprint 5（T0324-T0327）為 dogfood / e2e / UI / docs
