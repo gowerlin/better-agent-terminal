@@ -1,5 +1,17 @@
 import type { WizardStep } from '../../wizard-runner'
 
+/**
+ * Docker install-bundle step：image-based distribution（PLAN-031 D096）
+ *
+ * Docker server bundle 由 image build pipeline 內建（image 路徑 `/opt/bat-server`），
+ * 不走 PLAN-031 distributor（cache → baseline → download）。
+ *
+ * v1 不做 distributor fallback；image build 時若失敗即 image 不可用，
+ * 使用者透過 docker pull / docker build 重新取得。
+ *
+ * 對齊 WSL/SSH source 標記：本 step 標 `ctx.state.bundleSource = 'image-baked'`
+ * 方便後續 e2e 與診斷一致。
+ */
 export const installDockerServerBundleStep: WizardStep = {
   id: 'install-server-bundle',
   title: 'Verify BAT server bundle',
@@ -15,6 +27,7 @@ export const installDockerServerBundleStep: WizardStep = {
     if (mode === 'new') {
       ctx.serverInstallPath = '/opt/bat-server'
       ctx.logger.info(`Docker image ${image} will provide the BAT server bundle.`)
+      ctx.state.bundleSource = 'image-baked'
       return
     }
 
@@ -28,6 +41,7 @@ export const installDockerServerBundleStep: WizardStep = {
     ctx.serverInstallPath = '/opt/bat-server'
     const warning = `Existing container ${ctx.state.dockerContainer} must already contain /opt/bat-server.`
     if (!ctx.warnings.includes(warning)) ctx.warnings.push(warning)
+    ctx.state.bundleSource = 'image-baked'
   },
   // PLAN-007 T0289 — RFC C-3 best-effort rollback. For "new" mode the
   // pick-container rollback already removes the whole container so there is

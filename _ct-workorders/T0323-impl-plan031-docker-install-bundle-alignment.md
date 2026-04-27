@@ -7,9 +7,10 @@
 | 工單編號 | T0323 |
 | 類型 | impl（極小修改：source 標記 + 註解，無 distributor 整合） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 4 收尾 |
-| 狀態 | 📋 TODO |
+| 狀態 | 🚧 IN_PROGRESS |
 | 建立時間 | 2026-04-27 10:30 (UTC+8) |
 | 派發時間 | 2026-04-27 10:30 (UTC+8) |
+| 開始時間 | 2026-04-27 10:33 (UTC+8) |
 | Sizing | **XS**（estimate 5-15 min wall；下調自原 M 估算，理由：D096 已決定 v1 不做 distributor fallback，且現況已 spec-compliant） |
 | 依賴 | T0321 ✅（建立 bundleSource 慣例） / T0322 ✅（建立 SSH parallel pattern） |
 | 平行 | 無（Sprint 4 收尾） |
