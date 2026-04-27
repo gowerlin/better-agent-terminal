@@ -241,6 +241,9 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     id: 'docker-daemon-unavailable',
     platforms: ['docker'],
     stepIds: ['detect-env'],
+    // T0336 (BUG-073): structured errorCode lets preflight + step.run() throw
+    // hit Stage 1 directly; regex patterns kept as Stage 2/3 fallback.
+    errorCodes: ['docker-daemon-down'],
     patterns: [
       /pipe.*docker_engine/i,
       /cannot connect to.*docker daemon/i,
