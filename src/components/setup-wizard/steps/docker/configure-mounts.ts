@@ -13,6 +13,10 @@ export const configureMountsStep: WizardStep = {
   id: 'configure-mounts',
   title: 'Configure bind mounts',
   appliesTo: ['docker-linux'],
+  // T0330 (PLAN-032 Sprint 2): folder picker dialog blocks for user input.
+  // No requestChoice today, but `kind: 'input'` correctly signals the
+  // semantic — Sprint 3 may wrap selectFolder() the same way.
+  kind: 'input',
   retryable: true,
   labelKey: 'wizard.docker.step.configureMounts.label',
   descriptionKey: 'wizard.docker.step.configureMounts.description',

@@ -107,6 +107,9 @@ function mapStepStatus(snapshot: WizardStepSnapshot): StepStatus {
       return 'pending'
     case WizardStepStatus.Running:
       return 'running'
+    // T0330: input-kind step waiting on requestChoice.
+    case WizardStepStatus.AwaitingInput:
+      return 'awaiting-input'
     case WizardStepStatus.Succeeded:
       return 'completed'
     case WizardStepStatus.Failed:
@@ -123,6 +126,11 @@ function mapStepStatus(snapshot: WizardStepSnapshot): StepStatus {
  * legacy `title` when keys are missing (back-compat for steps not yet
  * migrated).
  */
+// T0330: shared DOM id for the active prompt region. The Stepper wires
+// aria-describedby={PROMPT_REGION_ID} on awaiting-input steps so screen
+// readers announce the prompt as the step's description.
+const PROMPT_REGION_ID = 'bat-wizard-active-prompt'
+
 function buildStepDescriptors(
   snapshots: WizardStepSnapshot[],
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -131,14 +139,18 @@ function buildStepDescriptors(
     const label = s.labelKey ? t(s.labelKey) : s.title
     const description = s.descriptionKey ? t(s.descriptionKey) : undefined
     const groupLabel = s.groupKey ? t(s.groupKey) : undefined
+    const status = mapStepStatus(s)
     return {
       id: s.id,
       label,
       description,
       groupLabel,
-      status: mapStepStatus(s),
+      status,
       retryable: s.retryable,
       errorMessage: s.error,
+      // T0330: only set promptRegionId on awaiting-input rows so non-input
+      // steps don't pick up a stray aria-describedby pointer.
+      promptRegionId: status === 'awaiting-input' ? PROMPT_REGION_ID : undefined,
     }
   })
 }
@@ -200,7 +212,12 @@ function StepDetailPanel({
       </div>
 
       {!isReadOnly && activeChoice && (
-        <div className="mt-3 rounded-lg border border-sky-700 bg-sky-950/40 p-4">
+        <div
+          id={PROMPT_REGION_ID}
+          className="mt-3 rounded-lg border border-sky-700 bg-sky-950/40 p-4"
+          role="group"
+          aria-label={activeChoice.title}
+        >
           <h4 className="font-medium text-sky-100">{activeChoice.title}</h4>
           {activeChoice.description && (
             <p className="mt-1 text-sm text-sky-200">{activeChoice.description}</p>
@@ -302,6 +319,9 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
   const activeStep = useMemo(() => {
     const running = stepStates.find((s) => s.status === WizardStepStatus.Running)
     if (running) return running
+    // T0330: awaiting-input step is the user's focus while a choice is pending.
+    const awaiting = stepStates.find((s) => s.status === WizardStepStatus.AwaitingInput)
+    if (awaiting) return awaiting
     const failed = stepStates.find((s) => s.status === WizardStepStatus.Failed)
     if (failed) return failed
     const firstPending = stepStates.find((s) => s.status === WizardStepStatus.Pending)

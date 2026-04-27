@@ -4,6 +4,9 @@ export const pickWslDistroStep: WizardStep = {
   id: 'pick-wsl-distro',
   title: 'Select WSL distro',
   appliesTo: ['wsl-linux'],
+  // T0330 (PLAN-032 Sprint 2): when multiple WSL2 distros exist this step
+  // calls ctx.requestChoice — runner flips to awaiting-input while waiting.
+  kind: 'input',
   retryable: true,
   labelKey: 'wizard.wsl.step.pickDistro.label',
   descriptionKey: 'wizard.wsl.step.pickDistro.description',

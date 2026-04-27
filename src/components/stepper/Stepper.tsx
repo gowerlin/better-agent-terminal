@@ -9,6 +9,9 @@ import { STATUS_PRESET } from './status-preset'
 function defaultCurrentIndex(steps: StepDescriptor[]): number {
   const firstRunning = steps.findIndex((s) => s.status === 'running')
   if (firstRunning >= 0) return firstRunning
+  // T0330: awaiting-input also draws focus, secondary to running.
+  const firstAwaiting = steps.findIndex((s) => s.status === 'awaiting-input')
+  if (firstAwaiting >= 0) return firstAwaiting
   // 最後 completed 之後的下一個（若有）
   let lastCompleted = -1
   steps.forEach((s, i) => {
@@ -30,6 +33,18 @@ function stepIsClickable(
 function renderIcon(step: StepDescriptor): ReactNode {
   if (step.icon !== undefined && step.icon !== null && step.icon !== '') return step.icon
   return STATUS_PRESET[step.status].icon
+}
+
+/**
+ * T0330: awaiting-input step does NOT render Retry/Skip CTA (failed-only),
+ * does NOT mount role="alert" (no error). aria-describedby wires to
+ * promptRegionId so screen readers announce the prompt region.
+ */
+function ariaDescribedByFor(step: StepDescriptor): string | undefined {
+  if (step.status === 'awaiting-input' && step.promptRegionId) {
+    return step.promptRegionId
+  }
+  return undefined
 }
 
 interface GroupRun {
@@ -118,12 +133,14 @@ export function Stepper(props: StepperProps) {
                 const isCurrent = index === resolvedCurrentIndex
                 const preset = STATUS_PRESET[step.status]
                 const clickable = stepIsClickable(step, clickableSteps) && !!onStepClick
+                const describedBy = ariaDescribedByFor(step)
                 return (
                   <li
                     key={step.id}
                     className={`${cx('step')} ${cx(`status-${step.status}`)}${isCurrent ? ' ' + cx('current') : ''}${clickable ? ' ' + cx('clickable') : ''}`}
                     role="listitem"
                     aria-current={isCurrent ? 'step' : undefined}
+                    aria-describedby={describedBy}
                   >
                     <div
                       className={cx('node-col')}
@@ -191,12 +208,14 @@ export function Stepper(props: StepperProps) {
         const isCurrent = index === resolvedCurrentIndex
         const preset = STATUS_PRESET[step.status]
         const clickable = stepIsClickable(step, clickableSteps) && !!onStepClick
+        const describedBy = ariaDescribedByFor(step)
         return (
           <li
             key={step.id}
             className={`${cx('step')} ${cx(`status-${step.status}`)}${isCurrent ? ' ' + cx('current') : ''}${clickable ? ' ' + cx('clickable') : ''}`}
             role="listitem"
             aria-current={isCurrent ? 'step' : undefined}
+            aria-describedby={describedBy}
           >
             <div
               className={cx('node-row')}

@@ -10,6 +10,9 @@ export const pickContainerStep: WizardStep = {
   id: 'pick-container',
   title: 'Choose Docker container mode',
   appliesTo: ['docker-linux'],
+  // T0330 (PLAN-032 Sprint 2): mode picker uses ctx.requestChoice — runner
+  // flips status to awaiting-input while the user decides.
+  kind: 'input',
   retryable: true,
   labelKey: 'wizard.docker.step.pickContainer.label',
   descriptionKey: 'wizard.docker.step.pickContainer.description',

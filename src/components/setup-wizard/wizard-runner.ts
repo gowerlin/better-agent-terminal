@@ -53,10 +53,24 @@ export interface WizardContext {
   requestChoice?: (request: WizardChoiceRequest) => Promise<string | null>
 }
 
+/**
+ * T0330 (PLAN-032 Sprint 2): step semantics. `task` (default) runs to
+ * completion without user interaction; `input` waits for ctx.requestChoice
+ * (or similar) and the runner snapshots `awaiting-input` while pending.
+ *
+ * Marking a step `kind: 'input'` is metadata for the runner to wrap
+ * ctx.requestChoice — the step itself does NOT have to change. Steps that
+ * never call requestChoice (e.g. SSH configure-host today) still benefit
+ * because Sprint 3 (T0335) will refactor them to use the same channel.
+ */
+export type WizardStepKind = 'task' | 'input'
+
 export interface WizardStep {
   id: string
   title: string
   appliesTo: WizardTargetOS[] | 'all'
+  /** T0330: defaults to 'task'. See WizardStepKind. */
+  kind?: WizardStepKind
   run(ctx: WizardContext): Promise<void>
   rollback?(ctx: WizardContext): Promise<void>
   retryable?: boolean
@@ -74,9 +88,86 @@ export interface WizardStep {
 export enum WizardStepStatus {
   Pending = 'pending',
   Running = 'running',
+  /** T0330: input-kind step waiting for user decision (e.g. requestChoice). */
+  AwaitingInput = 'awaiting-input',
   Succeeded = 'succeeded',
   Failed = 'failed',
   RolledBack = 'rolled-back',
+}
+
+/**
+ * T0330: thrown when a status transition violates the state-machine guard.
+ * Surfaces from/to + stepId so callers can debug runner regressions.
+ */
+export class WizardStateTransitionError extends Error {
+  constructor(
+    public readonly stepId: string,
+    public readonly from: WizardStepStatus,
+    public readonly to: WizardStepStatus,
+  ) {
+    super(`Invalid wizard step transition for ${stepId}: ${from} -> ${to}`)
+    this.name = 'WizardStateTransitionError'
+  }
+}
+
+/**
+ * T0330: allowed status transitions. Workorder spec mandates:
+ *  - allowed: pending->running/awaiting-input, running->awaiting-input/failed/succeeded,
+ *             awaiting-input->running/failed/succeeded, failed->running (retry) /succeeded (skip)
+ *  - forbidden: succeeded->awaiting-input, failed->awaiting-input (no implicit retry),
+ *               skipped (status=succeeded+skipped flag)->awaiting-input, rolled-back->*
+ *
+ * Practical adjustments (vs spec literal):
+ *  - retry transitions failed->running directly (not failed->pending->running) — this
+ *    matches the existing runner loop (index -= 1; continue;).
+ *  - jumpToStep resets [target..current] back to pending; we allow
+ *    succeeded->pending and failed->pending as part of the jump-back semantics.
+ *  - rollback can land on any step that has a rollback() handler, so we allow
+ *    transitions to rolled-back from running/succeeded/failed/awaiting-input.
+ */
+const ALLOWED_TRANSITIONS: Record<WizardStepStatus, WizardStepStatus[]> = {
+  [WizardStepStatus.Pending]: [
+    WizardStepStatus.Running,
+    WizardStepStatus.AwaitingInput,
+    WizardStepStatus.RolledBack,
+  ],
+  [WizardStepStatus.Running]: [
+    WizardStepStatus.AwaitingInput,
+    WizardStepStatus.Succeeded,
+    WizardStepStatus.Failed,
+    WizardStepStatus.RolledBack,
+    WizardStepStatus.Pending, // jumpToStep reset
+  ],
+  [WizardStepStatus.AwaitingInput]: [
+    WizardStepStatus.Running,
+    WizardStepStatus.Failed,
+    WizardStepStatus.Succeeded,
+    WizardStepStatus.RolledBack,
+    WizardStepStatus.Pending, // jumpToStep reset
+  ],
+  [WizardStepStatus.Failed]: [
+    WizardStepStatus.Running, // retry
+    WizardStepStatus.Succeeded, // skip (snapshot.skipped=true)
+    WizardStepStatus.Pending, // jumpToStep reset
+    WizardStepStatus.RolledBack,
+  ],
+  [WizardStepStatus.Succeeded]: [
+    WizardStepStatus.Pending, // jumpToStep reset over completed step
+    WizardStepStatus.RolledBack,
+  ],
+  [WizardStepStatus.RolledBack]: [],
+}
+
+function assertTransition(
+  stepId: string,
+  from: WizardStepStatus,
+  to: WizardStepStatus,
+): void {
+  if (from === to) return
+  const allowed = ALLOWED_TRANSITIONS[from]
+  if (!allowed.includes(to)) {
+    throw new WizardStateTransitionError(stepId, from, to)
+  }
 }
 
 export interface WizardStepSnapshot {
@@ -167,7 +258,7 @@ export class WizardRunner {
     if (!current || current.status !== WizardStepStatus.Failed) {
       return
     }
-    current.status = WizardStepStatus.Succeeded
+    this.transitionStatus(this.currentStepIndex, WizardStepStatus.Succeeded)
     current.skipped = true
     current.error = undefined
     this.emitProgress()
@@ -203,8 +294,8 @@ export class WizardRunner {
     // metadata (labelKey/groupKey/etc) but clear runtime state so the
     // re-run starts clean.
     for (let i = targetIndex; i <= this.currentStepIndex; i += 1) {
+      this.transitionStatus(i, WizardStepStatus.Pending)
       const snap = this.stepSnapshots[i]
-      snap.status = WizardStepStatus.Pending
       snap.error = undefined
       snap.skipped = false
     }
@@ -245,20 +336,28 @@ export class WizardRunner {
       const step = this.activeSteps[index]
       const snapshot = this.stepSnapshots[index]
 
-      snapshot.status = WizardStepStatus.Running
+      this.transitionStatus(index, WizardStepStatus.Running)
       snapshot.error = undefined
       snapshot.skipped = false
       this.emitProgress()
 
       try {
-        await step.run(this.ctx)
+        // T0330: input-kind steps get a wrapped requestChoice so the runner
+        // can flip status to AwaitingInput while the prompt is pending and
+        // back to Running once resolved.
+        const restoreRequestChoice = this.maybeWrapRequestChoice(step, index)
+        try {
+          await step.run(this.ctx)
+        } finally {
+          restoreRequestChoice()
+        }
         if (!snapshot.skipped) {
-          snapshot.status = WizardStepStatus.Succeeded
+          this.transitionStatus(index, WizardStepStatus.Succeeded)
           this.completedStepIndexes.push(index)
         }
         this.emitProgress()
       } catch (error) {
-        snapshot.status = WizardStepStatus.Failed
+        this.transitionStatus(index, WizardStepStatus.Failed)
         snapshot.error = error instanceof Error ? error.message : String(error)
         this.emitProgress()
 
@@ -309,14 +408,13 @@ export class WizardRunner {
     // state it introduced after its dependents are already gone.
     for (const index of [...this.completedStepIndexes].reverse()) {
       const step = this.activeSteps[index]
-      const snapshot = this.stepSnapshots[index]
       if (!step.rollback) {
         continue
       }
 
       try {
         await step.rollback(this.ctx)
-        snapshot.status = WizardStepStatus.RolledBack
+        this.transitionStatus(index, WizardStepStatus.RolledBack)
       } catch (error) {
         this.ctx.logger.warn(
           `Rollback failed for ${step.id}: ${error instanceof Error ? error.message : String(error)}`,
@@ -338,6 +436,53 @@ export class WizardRunner {
         `Rollback failed for failed step ${step.id}: ${error instanceof Error ? error.message : String(error)}`,
       )
     }
+  }
+
+  /**
+   * T0330: when the active step is `kind: 'input'`, swap ctx.requestChoice
+   * with a wrapped version that flips the step status between Running and
+   * AwaitingInput. Returns a restore() that the caller MUST invoke (in a
+   * finally block) to put the original requestChoice back. No-op when the
+   * step is not input-kind or when ctx.requestChoice is unset.
+   */
+  private maybeWrapRequestChoice(step: WizardStep, index: number): () => void {
+    if (step.kind !== 'input') return () => undefined
+    const original = this.ctx.requestChoice
+    if (typeof original !== 'function') return () => undefined
+
+    this.ctx.requestChoice = async (request) => {
+      // running -> awaiting-input
+      this.transitionStatus(index, WizardStepStatus.AwaitingInput)
+      this.emitProgress()
+      try {
+        return await original(request)
+      } finally {
+        // awaiting-input -> running (regardless of whether user chose or skipped)
+        // Only flip back if step is still in awaiting-input — guards against
+        // concurrent transitions (e.g. cancel during input).
+        const snap = this.stepSnapshots[index]
+        if (snap && snap.status === WizardStepStatus.AwaitingInput) {
+          this.transitionStatus(index, WizardStepStatus.Running)
+          this.emitProgress()
+        }
+      }
+    }
+
+    return () => {
+      this.ctx.requestChoice = original
+    }
+  }
+
+  /**
+   * T0330: centralized status transition with state-machine guard.
+   * All snapshot.status assignments MUST go through this helper so the
+   * ALLOWED_TRANSITIONS table catches regressions.
+   */
+  private transitionStatus(index: number, to: WizardStepStatus): void {
+    const snap = this.stepSnapshots[index]
+    if (!snap) return
+    assertTransition(snap.id, snap.status, to)
+    snap.status = to
   }
 
   private emitProgress(): void {

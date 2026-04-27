@@ -5,6 +5,7 @@ export type StepperOrientation = 'horizontal' | 'vertical'
 export type StepStatus =
   | 'pending'
   | 'running'
+  | 'awaiting-input'
   | 'completed'
   | 'failed'
   | 'skipped'
@@ -19,6 +20,12 @@ export interface StepDescriptor {
   retryable?: boolean
   errorMessage?: string
   groupLabel?: string
+  /**
+   * T0330 (PLAN-032 Sprint 2): DOM id of an associated prompt region for
+   * `awaiting-input` steps. When set, the Stepper renders
+   * aria-describedby={promptRegionId} so screen readers announce the prompt.
+   */
+  promptRegionId?: string
 }
 
 export type StepperClickableMode = 'completed' | 'all' | 'none'

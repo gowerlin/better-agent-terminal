@@ -54,6 +54,11 @@ export const configureSshHostStep: WizardStep = {
   id: 'configure-ssh-host',
   title: 'Configure SSH host',
   appliesTo: ['ssh-linux', 'ssh-darwin'],
+  // T0330 (PLAN-032 Sprint 2): SSH host config gathers user input upfront.
+  // BUG-074 root cause: this step throws when state.sshHost is empty, but the
+  // intent is to wait for user form submission. T0335 will refactor to use
+  // ctx.requestChoice; for now `kind: 'input'` is metadata for the runner.
+  kind: 'input',
   retryable: true,
   labelKey: 'wizard.ssh.step.configureHost.label',
   descriptionKey: 'wizard.ssh.step.configureHost.description',
