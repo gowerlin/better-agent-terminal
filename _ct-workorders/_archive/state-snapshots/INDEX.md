@@ -1,7 +1,7 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-04-27 (T0349 PLAN-033 Sprint 2 Quick Recovery hygiene)
-> Hot path retains: session 37 + session 36 + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-04-27 (Session 39 收工 — Session 36 archived per Quick Recovery hygiene)
+> Hot path retains: session 39 + session 38 + session 37 + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
 > Total archived entries: 55 (0 in Q1 / 55 in Q2)
 
@@ -62,3 +62,4 @@
 | 53 | 第三十四 session | 2026-04-27 | 2026-Q2-b.md | 第三十四 session, 2026-04-27 00:00 - 00:50, ~3h 30min, PLAN-030 全案 + dogfood 揭錯 |
 | 54 | 第三十五 session | 2026-04-27 | 2026-Q2-b.md | 第三十五 session, 2026-04-27 00:50 - 11:13, ~10h 23min wall 含 sleep / ~113 min Worke |
 | 55 | Session 31 收工快照（PLAN-007 全收 + 雙 release GO） | 2026-04-26 | 2026-Q2-b.md | 2026-04-26 Session 31，PLAN-007 全收 + 雙 release GO |
+| 56 | 第三十六 session | 2026-04-27 | 2026-Q2-b.md | 第三十六 session, 2026-04-27 12:36-13:51, ~75 min, *evolve 萃取 + PLAN-032 拍板 + BUG-075 識別 |

@@ -1,10 +1,97 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-27 21:35(**第三十八 session 收工快照:中度 session, ~3.5 hr wall, PLAN-033 Sprint 2 完整四件套收尾 + dogfood 驗證 + *evolve。(1) T0345 chore commit 補登(`f56fe5e`)。(2) *evolve 3 entries: GP119(三件套 sprint 節奏) + GP120(skill 本地先行 + 上游 PR 分流) + GP121(實證驅動補規則), commit `1c163fe`。(3) T0349 派發(`fa44905`) + worker DONE(`ff528ee`): _tower-state.md 起手式 232→28 行, size 49.5KB→24KB(軟警告綠燈), session 31 摘要 archive 至 2026-Q2-b.md row #55。(4) T0349 chore backfill(`5499509`)。dogfood 驗證: GP121(實證驅動補規則) + GP119(三件套節奏) 完整閉環。下次起手: T0350 上游 SKILL.md PR (合進 control-tower skill 主檔), 或 PLAN-032 Sprint 2 解封 (T0330 keystone)。**)
+> 最後更新:2026-04-27 22:08(**第三十九 session 收工快照:輕量 session, ~30 min wall, PLAN-033 Sprint 2 真正收尾(上游 PR 階段)。(1) T0350a 預掃發現上游 working tree 有 v4.4.1↔v4.4.0 同步錯誤 + BAT args 重構 working M。(2) T0350 派發(YOLO mjs `--mode yolo --no-interactive`),Worker 6 min DONE — 7 entries drift 決策表 + 兩個獨立 commit(基底對齊 e92bb01 + PLAN-033 三段 794f0ea)。(3) push 上游 dev-main(`ca5097b..794f0ea`)。(4) *evolve 4 entries — Global GP122-124(sprint 五件套節奏 / drift 決策表 / push gate)+ Project L113(monorepo dev-main 直接 commit)。下次起手:PLAN-032 Sprint 2 解封 — T0330 keystone(YOLO 鏈式可重啟),或 T0324 DGX Spark dogfood VERIFY,或上游目錄 rename 評估(v4.4.1 → v4.4.2)。**)
 
 ---
 
-## 🛏 本 Session 收工快照 (第三十八 session, 2026-04-27 ~18:00 - 21:35, ~3.5 hr wall, PLAN-033 Sprint 2 完整四件套收尾 + dogfood 驗證)
+## 🛏 本 Session 收工快照 (第三十九 session, 2026-04-27 ~21:38 - 22:08, ~30 min wall, PLAN-033 Sprint 2 上游 PR 真正收尾)
+
+### 本輪時間線
+
+1. **21:38**（起手）：Fast Path 載入 session 38 快照；使用者選 [A] 派 T0350 上游 SKILL.md PR
+2. **21:39-21:48**：需求對齊 3 輪 — Q1（產出形式）、Q2（上游路徑）、Q3（合併範圍）；使用者反饋「應該是 v4.4.1，全部合併」→ 範圍從精準三段擴為全量 drift
+3. **21:46**：T0350a 預掃 — 上游 dev-main 既有 M（5 處 v4.4.1→v4.4.0 降版 + 4 處 BAT args 重構），與 PLAN-033 三段零 conflict
+4. **21:48**：T0350 工單產出 + YOLO mjs 派發（`--mode yolo --no-interactive`）
+5. **21:51-21:54**：Worker DONE（6 min）— 兩個 commit `e92bb01` + `794f0ea`，7 entries drift 決策表，Phase 4 自檢全綠
+6. **21:55**：塔台 chore commit `6c0951b`（T0350 工單檔回報區 backfill）
+7. **21:56**：Push 上游 `ca5097b..794f0ea` on dev-main
+8. **21:58-22:05**：*evolve 4 entries — GP122-124（Global，commit `028000b`）+ L113（Project，commit `d31ace9`）
+9. **22:05-22:08**：Session 36 entry archive 至 2026-Q2-b.md (#56) + 收工快照寫入
+
+### 本 session 統計
+
+| 指標 | 值 |
+|------|-----|
+| Wall time | ~30 min（21:38-22:08） |
+| Worker wall | ~6 min（T0350 21:51-21:54） |
+| 工單派發 | 1（T0350，YOLO） |
+| Worker DONE | 1 / 1（0 Renew / 0 FAILED / 0 PARTIAL） |
+| 上游 commits | 2（`e92bb01` 基底對齊 + `794f0ea` PLAN-033 三段，已 push） |
+| 本專案 commits | 3（`6c0951b` T0350 backfill / `028000b` GP122-124 / `d31ace9` L113） |
+| 萃取項 | 4（3 Global GP + 1 Project L） |
+| BUG 狀態變更 | 無 |
+| PLAN 狀態變更 | PLAN-033 Sprint 2 真正收尾（含上游 PR） |
+
+### PLAN-033 Sprint 2 完整五件套（跨 3 sessions）
+
+| 工單 | 階段 | Session | Commit |
+|------|------|---------|--------|
+| T0346 | research | 38 | DONE |
+| T0347 | implement (archive) | 38 | `a9a5c82` |
+| T0348 | codify-rule | 38 | `dea3281` |
+| T0349 | dogfood (hygiene) | 38 | `ff528ee` |
+| **T0350** | **upstream-PR** | **39** | **`e92bb01` + `794f0ea`** |
+
+GP122（五件套節奏）+ GP123（drift 決策表）+ GP124（push gate）完整 dogfood 閉環。
+
+### 熱區現況（收工）
+
+| 類型 | 數量 | 狀態分布 |
+|------|------|---------|
+| **T 工單** | 94 + 4 reports | 81 DONE + 9 PENDING（T0324 user dogfood / T0326 待外部 / T0329 DONE / T0341/T0343 FIXED / T0330-T0340 PENDING Sprint 2-5） |
+| **BUG** | 18 | 5 OPEN + 13 CLOSED |
+| **PLAN** | 13 | 2 IDEA + 1 PLANNED + 2 IN_PROGRESS（PLAN-031/032）+ 7 DONE（含 PLAN-033 Sprint 2 真正完成）+ 1 DROPPED |
+| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED |
+
+### 下 session pending（優先序）
+
+1. 🔴 **PLAN-032 Sprint 2 解封 — T0330 keystone**（YOLO 鏈式可重啟，BUG-075 三層防線 + 五件套節奏已驗證）
+2. 🔴 **T0324 DGX Spark dogfood VERIFY**（user 親跑 / 待回報）
+3. 🟡 **PLAN-032 Sprint 2 後續 T0331-T0334**（依賴 T0330）
+4. 🟡 **上游目錄 rename 評估**（v4.4.1 → v4.4.2 承載 PLAN-033 三段是否值得 bump）
+5. 🟡 **BUG-071 metadata 對齊**（依 T0321/T0322/T0324 結果決定 OPEN→FIXED/VERIFY）
+6. 🟢 **BUG-061** CodexAgentPanel.tsx tsc errors（dev-only 非阻塞）
+7. 🟢 **Archive batch 2**（04-28 起合格：BUG-070/069 + T0303-T0312）
+
+### 恢復指引（下 session 起手）
+
+1. Fast Path 載入本快照（< 7 天）
+2. **熱區乾淨，PLAN-033 Sprint 2 真正完整收尾（含 upstream PR）**
+3. **編號起始**：T0351 / BUG-076 / PLAN-034 / D110 / EXP-[TOPIC]-001
+4. **塔台規則**：auto-session: yolo（建議延續）；experience-level: standard
+5. **建議起手動作**：
+   - **PLAN-032 Sprint 2 鏈式派發**（T0330 keystone → T0331-T0334，業務邏輯）
+   - 或 T0324 VERIFY 結果處理（若 user 已測完）
+   - 或上游目錄 rename 工單（v4.4.1 → v4.4.2，承載 PLAN-033 三段）
+
+### 本 session 教訓（已萃取至 GP122-124 + L113）
+
+1. **GP122**：Sprint 五件套節奏（research → implement → codify-rule → dogfood → upstream-PR）— GP119 三件套擴展版
+2. **GP123**：Drift 決策表取代盲目合併（雙向 sync 場景通用，T0350 7 entries 0 conflict 證實）
+3. **GP124**：上游 PR / fork sync 工單必設 push gate（搭配 Never Auto-Push 全局規則）
+4. **L113**：Monorepo dev-main 直接 commit（不開 feature branch）的適用條件（BMad-Guide monorepo 專屬）
+
+### 本 session 成就
+
+- 🏆 PLAN-033 Sprint 2 跨 3 sessions（38+39）完整五件套閉環，GP119 三件套節奏升級為 GP122 五件套
+- 🎉 T0350 7 entries drift 決策表設計優雅 — 0 conflict 一次到位，使用者驗收 OK
+- 🎉 GP123（drift 決策表）+ GP124（push gate）兩條 cross-project pattern 落地
+- 🎉 全 session 0 Renew / 0 FAILED / 0 PARTIAL，1 工單 YOLO 派發 + 自然收斂
+- 🎉 上游 brain-sync 自動拉到 v4.4.1 skill（system-reminder skills list 證實）
+
+---
+
+## 🛏 前 Session 收工快照 (第三十八 session, 2026-04-27 ~18:00 - 21:35, ~3.5 hr wall, PLAN-033 Sprint 2 完整四件套收尾 + dogfood 驗證)
 
 ### 本輪時間線
 
@@ -89,7 +176,8 @@ GP119（三件套節奏）+ GP121（實證驅動補規則）完整 dogfood 閉�
 
 ---
 
-## 🛏 前 Session 收工快照 (第三十七 session, 2026-04-27 ~16:21 - 16:50, ~30 min wall, BUG-075 三層防線收尾 + *sync + *evolve)
+## 🛏 前前 Session 收工快照 (第三十七 session, 2026-04-27 ~16:21 - 16:50, ~30 min wall, BUG-075 三層防線收尾 + *sync + *evolve)
+> 第三十六 session 收工快照已 archive 至 `_archive/state-snapshots/2026-Q2-b.md` (#56)。
 
 ### 本輪時間線
 
@@ -175,103 +263,22 @@ GP119（三件套節奏）+ GP121（實證驅動補規則）完整 dogfood 閉�
 
 ---
 
-## 🛏 前前 Session 收工快照 (第三十六 session, 2026-04-27 12:36 - 13:51, ~75 min wall, 輕度 session — 萃取 + PLAN-032 拍板 + BUG-075 識別)
-
-> ⚠️ 此快照待 `*archive --state` 命令實作後自動 archive 至 `_archive/state-snapshots/2026-Q2-b.md`（T0348 OOS 列入後續 sprint 實作）。
-
-### 本輪時間線
-
-1. **12:36**（起手）：Fast Path 載入 session 35 快照；使用者選 [A] *evolve 萃取
-2. **12:36-12:42**：*evolve 萃取 7 entries → 4 Global (GP110-112 + tech-gotcha) + 3 Project (L109-111)，commit `afb91c4`
-3. **12:42**：使用者選 [B] PLAN-032 評估
-4. **12:50-12:58**：3 BUG (072/073/074) 同族盤點 + 3 輪選項提問 (Q1.A 大規模 / Q2.A research-first / Q3.B v0.4.3 獨立 release)
-5. **12:58-13:00**：PLAN-032 + T0328 spec freeze，commit `9489933`
-6. **13:00**：T0328 派發 → BUG-075 撞線 (`/ct-exec T0328` 被 MSYS rewrite 為 `C:/Program Files/Git/ct-exec T0328`)
-7. **13:00-13:05**：BUG-075 OPEN + T0329 PENDING 預備，commits `0136575` + `ff04973`
-8. **13:05-13:30**：使用者手動派發 T0328（繞過 mjs，避開 BUG-075）
-9. **13:30-13:50**：T0328 完成回報 — 8 拍板項 + 11 工單拆單 + spec 文件，commit `d89d867`
-10. **13:50-13:51**：塔台拍板 D102-D109 全採 Worker 推薦 + finalize 拆單表，commit `b5ae862`
-11. **13:51**：使用者選 [D] 收工 → 寫本快照
-
-### 本 session 統計
-
-| 指標 | 值 |
-|------|------|
-| Wall time | ~75 min（12:36-13:51） |
-| Worker wall | ~30 min（T0328 manual dispatch concentrated） |
-| 工單派發 | 1（T0328） |
-| Worker DONE | 1 / 1 |
-| Renew / FAILED | 0 / 0 |
-| 主線 commits | 6（`afb91c4` learnings → `9489933` PLAN-032 → `0136575` BUG-075 → `ff04973` T0329 → `d89d867` T0328 worker → `b5ae862` PLAN-032 拍板） |
-| 拍板項 | 8（D102-D109） |
-| 萃取項 | 7（4 Global + 3 Project） |
-| BUG 狀態變更 | BUG-075 NEW → OPEN |
-| PLAN 狀態變更 | PLAN-032 NEW → IN_PROGRESS |
-
-### 熱區現況（收工）
-
-| 類型 | 數量 | 狀態分布 |
-|------|------|---------|
-| **T 工單** | 84 + 4 reports | 76 DONE + 8 NEW（T0324 進行中 + T0326 待外部 + T0328 ✅ + T0329 PENDING + T0330-T0334 PENDING Sprint 2 + T0335-T0340 PENDING Sprint 3-5） |
-| **BUG** | 18 | 5 OPEN（BUG-072/073/074/075）+ 1 FIXING（BUG-071）+ 12 CLOSED |
-| **PLAN** | 12 | 2 IDEA + 1 PLANNED + 2 IN_PROGRESS（PLAN-031, PLAN-032）+ 6 DONE + 1 DROPPED |
-| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED |
-
-### 下 session pending（優先序）
-
-1. 🔴 **T0329 派發 — BUG-075 root cause research**（解封 YOLO 鏈式，PLAN-032 Sprint 2 前置）
-2. 🔴 **T0324 DGX Spark dogfood VERIFY**（user 親跑進行中 / 待回報）
-3. 🟡 **PLAN-032 Sprint 2** — T0330 keystone → T0331-T0334（5 工單）
-4. 🟡 **PLAN-032 Sprint 3** — T0335-T0337（BUG-074/073/072 三 fix，依賴 Sprint 2）
-5. 🟢 **PLAN-032 Sprint 4-5** — T0338-T0340
-6. 🟢 大批歸檔 batch 2（04-28 起合格）
-7. 🟢 PLAN-014 啟動評估 / v0.4.3 release 評估
-
-### 恢復指引（下 session 起手）
-
-1. Fast Path 載入本快照（<7 天）
-2. **熱區進行中**：T0324 (user dogfood) + PLAN-032 Sprint 2 待派發
-3. **編號起始**：T0341 / BUG-076 / PLAN-033 / D110 / EXP-[TOPIC]-001
-4. **塔台規則**：auto-session: on（**但 BUG-075 阻擋 YOLO 鏈式，user 需手動派發直到 T0329 fix**）；experience-level: standard
-5. **建議起手動作**：
-   - 先派 T0329（user 手動，BUG-075 root cause research）→ 收斂 H1-H6
-   - 或 T0324 VERIFY 結果處理（BUG-071 → CLOSED 路徑）
-   - PLAN-032 Sprint 2 等 BUG-075 解封後再走 YOLO
-
-### 本 session 教訓（候選下 session *evolve 萃取項）
-
-1. **修復 22 小時內同族 BUG 再現是 high-priority 信號**（L 候選） — BUG-060 fix `fad2978` (T0281) 22h 後 BUG-075 同族再現，說明只修症狀沒加 regression test。應該成為塔台 fix 工單的硬性檢查項
-2. **Worker T0328 拍板項 100% 採納率反映研究品質**（GP 候選） — 8 拍板 8 全採 Worker 推薦，無翻案。對照 T0313 的 7 拍板也類似比例 → 「研究型工單品質高 = 塔台拍板成本接近零」是可證實 pattern
-3. **BUG 識別後 5 分鐘內預備下 session 研究工單是好實踐**（GP 候選） — BUG-075 OPEN → T0329 PENDING 草稿 5 min 內完成 + 預先列 6 H 候選，下 session 起手即派發無冷啟動成本
-4. **不可控外部依賴撞線時的工作流降級**（GP 候選） — BUG-075 阻 YOLO 但研究工單可手動派發繞過 → 工作流 graceful degrade，PLAN 推進不受 infrastructure bug 完全阻擋
-
-### 本 session 成就
-
-- 🎉 *evolve 7 entries 落地（Global GP110/111/112 + tech-gotcha + Project L109/110/111）
-- 🎉 PLAN-032 spec freeze + 8 拍板項一氣完成
-- 🎉 T0328 研究工單繼承 PLAN-031 T0313 模式（6 phase + reachability matrix + 拍板 ≥5）
-- 🎉 BUG-075 即時識別 + 預備研究工單 + workflow graceful degrade
-- 🎉 T0328 spec 文件落地（`_spec-wizard-error-ux.md`），後續工單可直接引用
-
----
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-04-27 21:35 UTC+8（session 38 收工）
+> 最後更新：2026-04-27 22:08 UTC+8（session 39 收工）
 
 ### 立即待辦
-1. **T0350 上游 SKILL.md PR**：PLAN-033 Sprint 2 真正收尾，把 _local-rules.md 三段規則合進 control-tower skill 主檔。
-2. **PLAN-032 Sprint 2 解封**：T0330 keystone → T0331-T0334，YOLO 鏈式已由 BUG-075 三層防線解封。
-3. **T0324 DGX Spark dogfood VERIFY**：等待使用者實機回報，作為 BUG-071 VERIFY/CLOSED 路徑。
+1. **PLAN-032 Sprint 2 解封**：T0330 keystone → T0331-T0334（YOLO 鏈式已由 BUG-075 三層防線 + 五件套節奏雙重解封）。
+2. **T0324 DGX Spark dogfood VERIFY**：等待使用者實機回報，作為 BUG-071 VERIFY/CLOSED 路徑。
+3. **上游目錄 rename 評估**：v4.4.1 → v4.4.2 是否值得 bump 承載 PLAN-033 三段規則。
 4. **BUG-071 metadata 對齊**：依 T0321/T0322/T0324 結果決定 OPEN→FIXED/VERIFY。
-5. **Archive batch 2**：04-28 起可評估 BUG-070/069 + T0303-T0312 歸檔。
+5. **Archive batch 2**：04-28 起合格（BUG-070/069 + T0303-T0312）。
 
 ### 近期完成
-- **T0349**：Quick Recovery hygiene refactor，_tower-state.md 48 KB → 24 KB（軟警告綠燈），起手式 232→28 行。
-- **T0348**：新增 Quick Recovery Hygiene 規則，禁止起手式內嵌完整 session 快照。
-- **T0347**：state snapshot archive 落地，270 KB → 48 KB。
-- **GP119/120/121**：sprint 三件套節奏 / skill 本地先行 / 實證驅動補規則（commit `1c163fe`）。
-- **PLAN-033 Sprint 2**：完整四件套（research → implement → codify-rule → dogfood-validate）閉環。
+- **T0350**：上游 SKILL.md PR — commits `e92bb01` + `794f0ea`，已 push dev-main。
+- **GP122-124 + L113**：sprint 五件套節奏 / drift 決策表 / push gate / monorepo 直接 commit。
+- **PLAN-033 Sprint 2 真正收尾**：跨 3 sessions 五件套（research → implement → codify-rule → dogfood → upstream-PR）。
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)
@@ -281,7 +288,7 @@ GP119（三件套節奏）+ GP121（實證驅動補規則）完整 dogfood 閉�
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)
 
 ### 編號起始
-- T0350 / BUG-076 / PLAN-033 / D110 / EXP-[TOPIC]-001
+- T0351 / BUG-076 / PLAN-034 / D110 / EXP-[TOPIC]-001
 
 ## 🌅 明日起手式（Quick Recovery）<!-- ORIGINAL -->
 
