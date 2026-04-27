@@ -8,9 +8,10 @@
 | 標題 | Tower archive 規格落地 + session 1-35 一次性遷移 |
 | 類型 | implementation |
 | 優先級 | 🔴 High |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 17:25 (UTC+8) |
 | 開始時間 | 2026-04-27 17:29 (UTC+8) |
+| 完成時間 | 2026-04-27 17:42 (UTC+8) |
 | 派發模式 | `--mode yolo --no-interactive`（YOLO 鏈式，依 T0346 拆單表） |
 | 關聯 PLAN | PLAN-033 |
 | 關聯研究 | T0346（規格收斂，commit `7a53259`） |
@@ -201,9 +202,9 @@ Worker 完成後塔台 verify：
 
 ### D. Commit
 
-- Commit hash: 待填（commit 後 patch）
+- Commit hash: `a9a5c82`
 - 策略：**單 commit**
-- 訊息：`chore(state): T0347 archive sessions 1-37 historical snapshots to _archive/state-snapshots/`
+- 訊息：`chore(state): archive 54 historical entries to _archive/state-snapshots/ (PLAN-033 Sprint 2)`
 
 ### E. 規格實況落差說明（非塔台 verify 失敗，僅供補背景）
 
