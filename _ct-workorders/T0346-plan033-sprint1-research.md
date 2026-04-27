@@ -8,9 +8,11 @@
 | 標題 | PLAN-033 Sprint 1 — hot/cold 切點規格 + INDEX 格式 + 季度切割策略 + 拆單建議表 |
 | 類型 | research |
 | 優先級 | 🔴 High |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 17:14 (UTC+8) |
 | 開始時間 | 2026-04-27 17:17 (UTC+8) |
+| 完成時間 | 2026-04-27 17:21 (UTC+8) |
+| Commit | `7a53259` |
 | 派發模式 | `--mode yolo --interactive`（研究型，可雙向澄清） |
 | 關聯 PLAN | PLAN-033 |
 | 預估時間 | 30-45 min |
