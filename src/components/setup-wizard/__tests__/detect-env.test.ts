@@ -128,11 +128,63 @@ describe('detect-env preflight (T0336 / BUG-073)', () => {
     expect(dockerStatusMock).toHaveBeenCalledTimes(2)
   })
 
-  it('AC-5 case 5: WSL branch returns ok without calling docker.status', async () => {
+  it('AC-5 case 5: WSL branch ok when wsl.list resolves (60s TTL, no docker.status)', async () => {
+    const ctx = makeCtx({ targetOS: 'wsl-linux' })
+    const wslList = (window as unknown as { electronAPI: { wsl: { list: ReturnType<typeof vi.fn> } } })
+      .electronAPI.wsl.list
+    const result = await detectEnvStep.preflight!(ctx)
+    expect(result).toEqual({ ok: true, cacheKey: 'wsl-list-status', ttlMs: 60_000 })
+    expect(dockerStatusMock).not.toHaveBeenCalled()
+    expect(wslList).toHaveBeenCalledTimes(1)
+  })
+
+  it('T0337 case A: WSL preflight fail when wsl.list throws -> errorCode wsl-not-installed', async () => {
+    ;(window as unknown as { electronAPI: { wsl: { list: ReturnType<typeof vi.fn> } } })
+      .electronAPI.wsl.list = vi.fn(async () => {
+        throw new Error('wsl: command not found')
+      })
     const ctx = makeCtx({ targetOS: 'wsl-linux' })
     const result = await detectEnvStep.preflight!(ctx)
-    expect(result).toEqual({ ok: true })
-    expect(dockerStatusMock).not.toHaveBeenCalled()
+    expect(result.ok).toBe(false)
+    expect(result.errorCode).toBe('wsl-not-installed')
+    expect(result.cacheKey).toBe('wsl-list-status')
+    expect(result.ttlMs).toBe(5_000)
+    expect(result.reason).toMatch(/wsl: command not found/)
+  })
+
+  it('T0337 case B: WSL preflight short-circuits on non-Windows host with errorCode wsl-not-on-windows', async () => {
+    ;(window as unknown as { electronAPI: { platform: string } }).electronAPI.platform = 'darwin'
+    const ctx = makeCtx({ targetOS: 'wsl-linux' })
+    const result = await detectEnvStep.preflight!(ctx)
+    expect(result.ok).toBe(false)
+    expect(result.errorCode).toBe('wsl-not-on-windows')
+    // No cacheKey since platform check is cheap and never changes per session.
+    expect(result.cacheKey).toBeUndefined()
+  })
+
+  it('T0337 case C: WSL preflight failure runner snapshot maps to wsl-not-installed with open-link', async () => {
+    ;(window as unknown as { electronAPI: { wsl: { list: ReturnType<typeof vi.fn> } } })
+      .electronAPI.wsl.list = vi.fn(async () => {
+        throw new Error('wsl: command not found')
+      })
+    const ctx = makeCtx({ targetOS: 'wsl-linux' })
+    const runner = new WizardRunner([detectEnvStep], ctx)
+    const runPromise = runner.run().catch(() => undefined)
+    await new Promise<void>((resolve) => {
+      const tick = () =>
+        runner.getSnapshots()[0].status === WizardStepStatus.Failed
+          ? resolve()
+          : setTimeout(tick, 5)
+      tick()
+    })
+    const snap = runner.getSnapshots()[0]
+    await runner.cancel()
+    await runPromise
+    expect(snap.status).toBe(WizardStepStatus.Failed)
+    expect(snap.mappedError?.matchId).toBe('wsl-not-installed')
+    const kinds = snap.mappedError?.actions.map((a) => a.kind) ?? []
+    expect(kinds).toContain('open-link')
+    expect(kinds).toContain('fixed-and-retry')
   })
 
   it('AC-5 case 6: errorCode Stage 1 lookup hits docker-daemon-unavailable', () => {

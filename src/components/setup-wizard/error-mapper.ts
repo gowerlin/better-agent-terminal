@@ -116,6 +116,16 @@ const MESSAGE_DICT: Record<string, MessageDictEntry> = {
     title: '無法自動啟用 systemd lingering',
     body: 'WSL2 distro 限制可能導致此情況。可手動執行 sudo loginctl enable-linger $USER 後重試。',
   },
+  // T0337 (BUG-072): WSL systemd service start timeout dictionary entry.
+  'wsl.service.start-timeout': {
+    title: 'BAT systemd 服務啟動逾時',
+    body: '請在 WSL 內執行 `journalctl --user -u bat-server.service -n 50` 查看服務啟動日誌；linger 未啟用是常見原因。',
+  },
+  // T0337 (BUG-072): WSL not installed (Windows-only) dictionary entry.
+  'wsl.not-installed': {
+    title: '找不到 WSL2',
+    body: '請先安裝 WSL2，然後重試。Windows 11 / 10 22H2 可在 PowerShell 執行 `wsl --install`。',
+  },
   'ssh.auth.permission-denied': {
     title: 'SSH 認證失敗',
     body: '請檢查 SSH key 是否正確設定，或確認帳號密碼。',
@@ -261,6 +271,9 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     id: 'wsl-linger-failure',
     platforms: ['wsl'],
     stepIds: ['write-systemd-unit'],
+    // T0337 (BUG-072): structured errorCode lets write-systemd-unit throw hit
+    // Stage 1 directly; regex patterns kept as Stage 2/3 fallback.
+    errorCodes: ['wsl-linger-failed'],
     patterns: [
       /Could not enable linger/i,
       /No such device or address/i,
@@ -303,6 +316,41 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     detailMode: 'hidden-by-default',
     actions: [
       { kind: 'edit-config', label: '修改 SSH 設定', targetStepId: 'configure-ssh-host' },
+      { kind: 'cancel', label: '取消' },
+    ],
+  },
+  // T0337 (BUG-072, PLAN-032 Sprint 3): WSL systemd service start timeout.
+  // Distinct from wsl-service-start-failed (generic) so the journalctl hint
+  // only surfaces when timeout is the likely root cause.
+  {
+    id: 'wsl-service-start-timeout',
+    platforms: ['wsl'],
+    stepIds: ['write-systemd-unit'],
+    errorCodes: ['wsl-service-start-timeout'],
+    patterns: [
+      /Timed out waiting for.*service to become active/i,
+      /service.*start.*timeout/i,
+    ],
+    messageKey: 'wsl.service.start-timeout',
+    detailMode: 'append-raw',
+    actions: [
+      { kind: 'fixed-and-retry', label: '我已檢查 journal，重試' },
+      { kind: 'skip', label: '略過此步驟（手動啟動）' },
+      { kind: 'cancel', label: '取消' },
+    ],
+  },
+  // T0337 (BUG-072): WSL not installed on Windows host. open-link to MSFT
+  // install guide; fixed-and-retry once user has run wsl --install.
+  {
+    id: 'wsl-not-installed',
+    platforms: ['wsl'],
+    stepIds: ['detect-env'],
+    errorCodes: ['wsl-not-installed', 'wsl-not-on-windows'],
+    messageKey: 'wsl.not-installed',
+    detailMode: 'append-raw',
+    actions: [
+      { kind: 'open-link', label: '安裝 WSL2 指南', href: 'https://learn.microsoft.com/en-us/windows/wsl/install' },
+      { kind: 'fixed-and-retry', label: '我已安裝 WSL2，重試' },
       { kind: 'cancel', label: '取消' },
     ],
   },

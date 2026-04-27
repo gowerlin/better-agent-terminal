@@ -19,28 +19,62 @@ export const detectEnvStep: WizardStep = {
   groupKey: 'wizard.group.detection',
   editableFromFailure: false,
   async preflight(ctx): Promise<WizardPreflightResult> {
-    // T0337 will extend this to the WSL branch; for now docker-only.
-    if (ctx.targetOS !== 'docker-linux') {
-      return { ok: true }
+    if (ctx.targetOS === 'docker-linux') {
+      const cacheKey = 'docker-daemon-status'
+      const cached = ctx.preflightCache
+        ? getPreflightCached(ctx.preflightCache, cacheKey)
+        : undefined
+      if (cached) return cached
+
+      const status = await window.electronAPI.docker.status()
+      if (status.available) {
+        return { ok: true, cacheKey, ttlMs: 30_000 }
+      }
+      return {
+        ok: false,
+        reason: status.error || 'Docker is not available on this machine.',
+        errorCode: 'docker-daemon-down',
+        cacheKey,
+        ttlMs: 5_000,
+      }
     }
 
-    const cacheKey = 'docker-daemon-status'
-    const cached = ctx.preflightCache
-      ? getPreflightCached(ctx.preflightCache, cacheKey)
-      : undefined
-    if (cached) return cached
+    // T0337 (PLAN-032 Sprint 3, BUG-072): WSL preflight — fail-fast when WSL2
+    // is not installed on a Windows host so the user sees the install link
+    // instead of the wsl-cli ENOENT raw stderr from step.run(). systemd /
+    // distro state checks stay in step.run() because they are cheap and need
+    // wslDistro context not yet picked.
+    if (ctx.targetOS === 'wsl-linux') {
+      if (window.electronAPI.platform !== 'win32') {
+        return {
+          ok: false,
+          reason: 'WSL setup is only available from the Windows BAT client.',
+          errorCode: 'wsl-not-on-windows',
+        }
+      }
 
-    const status = await window.electronAPI.docker.status()
-    if (status.available) {
-      return { ok: true, cacheKey, ttlMs: 30_000 }
+      const cacheKey = 'wsl-list-status'
+      const cached = ctx.preflightCache
+        ? getPreflightCached(ctx.preflightCache, cacheKey)
+        : undefined
+      if (cached) return cached
+
+      try {
+        await window.electronAPI.wsl.list()
+        // WSL install state changes infrequently — 60s TTL.
+        return { ok: true, cacheKey, ttlMs: 60_000 }
+      } catch (error) {
+        return {
+          ok: false,
+          reason: `Unable to detect WSL: ${error instanceof Error ? error.message : String(error)}`,
+          errorCode: 'wsl-not-installed',
+          cacheKey,
+          ttlMs: 5_000,
+        }
+      }
     }
-    return {
-      ok: false,
-      reason: status.error || 'Docker is not available on this machine.',
-      errorCode: 'docker-daemon-down',
-      cacheKey,
-      ttlMs: 5_000,
-    }
+
+    return { ok: true }
   },
   async run(ctx) {
     if (ctx.targetOS === 'docker-linux') {

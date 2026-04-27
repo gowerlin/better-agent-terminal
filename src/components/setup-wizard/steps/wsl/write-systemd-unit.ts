@@ -54,17 +54,32 @@ export const writeSystemdUnitStep: WizardStep = {
 
     const lingerResult = await window.electronAPI.wslSystemd.enableLinger(ctx.wslDistro)
     if (!lingerResult.ok && lingerResult.error) {
+      // T0337 (BUG-072): keep ctx.warnings push for debug log, but also throw a
+      // structured error so ErrorMapper Stage 1 hits 'wsl-linger-failure' and
+      // surfaces the fixed-and-retry / skip / cancel action set. Spec D106:
+      // "try linger, fail with manual fix hint + optional fallback".
       const warning = `Unable to enable linger automatically: ${lingerResult.error}`
       if (!ctx.warnings.includes(warning)) {
         ctx.warnings.push(warning)
       }
+      const err = new Error(`Could not enable linger: ${lingerResult.error}`) as Error & { code?: string }
+      err.code = 'wsl-linger-failed'
+      throw err
     }
 
     const startResult = await window.electronAPI.wslSystemd.startService(ctx.wslDistro, SERVICE_NAME, {
       dataDir: DATA_DIR,
     })
     if (!startResult.ok) {
-      throw new Error(startResult.error)
+      // T0337 (BUG-072): structured errorCode so ErrorMapper Stage 1 distinguishes
+      // service-start-timeout (recoverable, journalctl hint) from generic
+      // service-start-failed (raw stderr fallback).
+      const rawError = startResult.error ?? 'Failed to start bat-server systemd service'
+      const err = new Error(rawError) as Error & { code?: string }
+      err.code = /timed? out|timeout/i.test(rawError)
+        ? 'wsl-service-start-timeout'
+        : 'wsl-service-start-failed'
+      throw err
     }
 
     ctx.systemdServiceActive = true
