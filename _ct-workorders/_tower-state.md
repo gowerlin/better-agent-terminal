@@ -1,10 +1,88 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-27 11:13(**第三十五 session 收工快照:PLAN-031 開立 + 主體 11 工單一氣呵成 (Sprint 1-5, ~113 min Worker wall, 8x 神速)。本 session 14 工單派發、全 DONE、0 Renew、0 FAILED。187 tests (自起手 47 +298%)。17 主線 commits。CLAUDE.md 新增三段 (Child Process Spawning / 工單撰寫慣例 / Server bundle baseline)。10 拍板項落地 (D092-D101，含 dead errorCode finding)。剩 T0324 DGX Spark user dogfood + T0326 升級 UI 等下個 session。BUG-071 → FIXING (待 T0324 VERIFY)。下次起手:跑 *evolve 萃取本 session ~10 個 GP/L 候選；T0324 dogfood by user；評估 PLAN-032 wizard error UX (含 BUG-072/073/074)。**)
+> 最後更新:2026-04-27 13:51(**第三十六 session 收工快照:輕度 session, 3 主軸並行。(1) *evolve 萃取 7 entries (4 Global GP110-112 + 1 tech-gotcha + 3 Project L109-111)。(2) PLAN-032 (Wizard Error UX Overhaul) 開立 + T0328 research 派發/完成/拍板 (8 項 D102-D109 全採 Worker 推薦) + 11 工單拆單表 finalized + spec 文件 _spec-wizard-error-ux.md 落地。(3) BUG-075 OPEN: BAT 內部終端 shell pref + MSYS path rewrite 雙 regression (BUG-060 fix 22h 內再現), 阻擋 YOLO 鏈式派發, T0329 PENDING for 下 session。並行: T0324 DGX Spark dogfood by user 進行中。下次起手: 先派 T0329 修 BUG-075 (YOLO 解封), 然後 PLAN-032 Sprint 2 5 工單鏈式派發 (T0330 keystone → T0331-T0334), 或先處理 T0324 VERIFY。**)
 
 ---
 
-## 🛏 本 Session 收工快照 (第三十五 session, 2026-04-27 00:50 - 11:13, ~10h 23min wall 含 sleep / ~113 min Worker concentrated wall, PLAN-031 全套 distribution stack 落地)
+## 🛏 本 Session 收工快照 (第三十六 session, 2026-04-27 12:36 - 13:51, ~75 min wall, 輕度 session — 萃取 + PLAN-032 拍板 + BUG-075 識別)
+
+### 本輪時間線
+
+1. **12:36**（起手）：Fast Path 載入 session 35 快照；使用者選 [A] *evolve 萃取
+2. **12:36-12:42**：*evolve 萃取 7 entries → 4 Global (GP110-112 + tech-gotcha) + 3 Project (L109-111)，commit `afb91c4`
+3. **12:42**：使用者選 [B] PLAN-032 評估
+4. **12:50-12:58**：3 BUG (072/073/074) 同族盤點 + 3 輪選項提問 (Q1.A 大規模 / Q2.A research-first / Q3.B v0.4.3 獨立 release)
+5. **12:58-13:00**：PLAN-032 + T0328 spec freeze，commit `9489933`
+6. **13:00**：T0328 派發 → BUG-075 撞線 (`/ct-exec T0328` 被 MSYS rewrite 為 `C:/Program Files/Git/ct-exec T0328`)
+7. **13:00-13:05**：BUG-075 OPEN + T0329 PENDING 預備，commits `0136575` + `ff04973`
+8. **13:05-13:30**：使用者手動派發 T0328（繞過 mjs，避開 BUG-075）
+9. **13:30-13:50**：T0328 完成回報 — 8 拍板項 + 11 工單拆單 + spec 文件，commit `d89d867`
+10. **13:50-13:51**：塔台拍板 D102-D109 全採 Worker 推薦 + finalize 拆單表，commit `b5ae862`
+11. **13:51**：使用者選 [D] 收工 → 寫本快照
+
+### 本 session 統計
+
+| 指標 | 值 |
+|------|------|
+| Wall time | ~75 min（12:36-13:51） |
+| Worker wall | ~30 min（T0328 manual dispatch concentrated） |
+| 工單派發 | 1（T0328） |
+| Worker DONE | 1 / 1 |
+| Renew / FAILED | 0 / 0 |
+| 主線 commits | 6（`afb91c4` learnings → `9489933` PLAN-032 → `0136575` BUG-075 → `ff04973` T0329 → `d89d867` T0328 worker → `b5ae862` PLAN-032 拍板） |
+| 拍板項 | 8（D102-D109） |
+| 萃取項 | 7（4 Global + 3 Project） |
+| BUG 狀態變更 | BUG-075 NEW → OPEN |
+| PLAN 狀態變更 | PLAN-032 NEW → IN_PROGRESS |
+
+### 熱區現況（收工）
+
+| 類型 | 數量 | 狀態分布 |
+|------|------|---------|
+| **T 工單** | 84 + 4 reports | 76 DONE + 8 NEW（T0324 進行中 + T0326 待外部 + T0328 ✅ + T0329 PENDING + T0330-T0334 PENDING Sprint 2 + T0335-T0340 PENDING Sprint 3-5） |
+| **BUG** | 18 | 5 OPEN（BUG-072/073/074/075）+ 1 FIXING（BUG-071）+ 12 CLOSED |
+| **PLAN** | 12 | 2 IDEA + 1 PLANNED + 2 IN_PROGRESS（PLAN-031, PLAN-032）+ 6 DONE + 1 DROPPED |
+| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED |
+
+### 下 session pending（優先序）
+
+1. 🔴 **T0329 派發 — BUG-075 root cause research**（解封 YOLO 鏈式，PLAN-032 Sprint 2 前置）
+2. 🔴 **T0324 DGX Spark dogfood VERIFY**（user 親跑進行中 / 待回報）
+3. 🟡 **PLAN-032 Sprint 2** — T0330 keystone → T0331-T0334（5 工單）
+4. 🟡 **PLAN-032 Sprint 3** — T0335-T0337（BUG-074/073/072 三 fix，依賴 Sprint 2）
+5. 🟢 **PLAN-032 Sprint 4-5** — T0338-T0340
+6. 🟢 大批歸檔 batch 2（04-28 起合格）
+7. 🟢 PLAN-014 啟動評估 / v0.4.3 release 評估
+
+### 恢復指引（下 session 起手）
+
+1. Fast Path 載入本快照（<7 天）
+2. **熱區進行中**：T0324 (user dogfood) + PLAN-032 Sprint 2 待派發
+3. **編號起始**：T0341 / BUG-076 / PLAN-033 / D110 / EXP-[TOPIC]-001
+4. **塔台規則**：auto-session: on（**但 BUG-075 阻擋 YOLO 鏈式，user 需手動派發直到 T0329 fix**）；experience-level: standard
+5. **建議起手動作**：
+   - 先派 T0329（user 手動，BUG-075 root cause research）→ 收斂 H1-H6
+   - 或 T0324 VERIFY 結果處理（BUG-071 → CLOSED 路徑）
+   - PLAN-032 Sprint 2 等 BUG-075 解封後再走 YOLO
+
+### 本 session 教訓（候選下 session *evolve 萃取項）
+
+1. **修復 22 小時內同族 BUG 再現是 high-priority 信號**（L 候選） — BUG-060 fix `fad2978` (T0281) 22h 後 BUG-075 同族再現，說明只修症狀沒加 regression test。應該成為塔台 fix 工單的硬性檢查項
+2. **Worker T0328 拍板項 100% 採納率反映研究品質**（GP 候選） — 8 拍板 8 全採 Worker 推薦，無翻案。對照 T0313 的 7 拍板也類似比例 → 「研究型工單品質高 = 塔台拍板成本接近零」是可證實 pattern
+3. **BUG 識別後 5 分鐘內預備下 session 研究工單是好實踐**（GP 候選） — BUG-075 OPEN → T0329 PENDING 草稿 5 min 內完成 + 預先列 6 H 候選，下 session 起手即派發無冷啟動成本
+4. **不可控外部依賴撞線時的工作流降級**（GP 候選） — BUG-075 阻 YOLO 但研究工單可手動派發繞過 → 工作流 graceful degrade，PLAN 推進不受 infrastructure bug 完全阻擋
+
+### 本 session 成就
+
+- 🎉 *evolve 7 entries 落地（Global GP110/111/112 + tech-gotcha + Project L109/110/111）
+- 🎉 PLAN-032 spec freeze + 8 拍板項一氣完成
+- 🎉 T0328 研究工單繼承 PLAN-031 T0313 模式（6 phase + reachability matrix + 拍板 ≥5）
+- 🎉 BUG-075 即時識別 + 預備研究工單 + workflow graceful degrade
+- 🎉 T0328 spec 文件落地（`_spec-wizard-error-ux.md`），後續工單可直接引用
+
+---
+
+## 🛏 前 Session 收工快照 (第三十五 session, 2026-04-27 00:50 - 11:13, ~10h 23min wall 含 sleep / ~113 min Worker concentrated wall, PLAN-031 全套 distribution stack 落地)
 
 ### 本輪時間線
 
