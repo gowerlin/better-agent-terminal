@@ -7,9 +7,10 @@
 | 工單編號 | T0342 |
 | 類型 | test |
 | 所屬 | BUG-075（症狀 B regression guard） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 14:08 (UTC+8) |
 | 開始時間 | 2026-04-27 16:27:46 +08:00 |
+| 完成時間 | 2026-04-27 16:32:49 +08:00 |
 | Sizing | S（estimate 20-40 min wall） |
 | 依賴 | T0341（MSYS_NO_PATHCONV 注入完成） |
 | 後續 | T0345（e2e） |
@@ -68,7 +69,11 @@ Renew 歷程：無
 
 回報時間：2026-04-27 16:31:57 +08:00
 
-commit：待提交
+commit：873435a
+
+yaml：不適用（`sprint-status.yaml` 存在但未追蹤 T0342/當前 hotfix 工單）
+
+BAT 通知：`CT_MODE=on`，已透過 `bat-notify.mjs` 預填塔台終端 `T0342 完成`
 
 ### 測試清單
 - `tests/bat-terminal-msys.test.mjs`
@@ -96,4 +101,4 @@ commit：待提交
 
 ---
 
-**狀態**：🔄 IN_PROGRESS
+**狀態**：✅ DONE
