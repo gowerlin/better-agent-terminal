@@ -8,9 +8,10 @@
 | 標題 | WizardRunner + ErrorMapper + Preflight + Recovery + SetupWizardShell 整合測試（vitest + RTL，jsdom） |
 | 類型 | test |
 | 優先級 | 🟡 Medium（Sprint 5 第一張，安全網先於 Sprint 4 重構） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-28 05:47 (UTC+8) |
 | 開始時間 | 2026-04-28 05:58 (UTC+8) |
+| 完成時間 | 2026-04-28 06:08 (UTC+8) |
 | 派發模式 | `--mode yolo --no-interactive`（建議） |
 | 關聯 PLAN | PLAN-032（Sprint 5） |
 | 關聯 spec | `_ct-workorders/_spec-wizard-error-ux.md` § 1-5 + § 6 |
@@ -217,7 +218,7 @@ T0339（Sprint 4，input step abstraction）是 M/L 級重構，需要先把現�
 
 ### Commit hash
 
-`<待 Step 8 填入>`
+`be40f7d`
 
 ### Transition 路徑覆蓋表（AC-1）
 
