@@ -7,10 +7,11 @@
 | 工單編號 | T0329 |
 | 類型 | research（root cause 偵察 + git log diff + reproduce isolation） |
 | 所屬 | BUG-075 — BAT terminal shell pref + MSYS path rewrite regression |
-| 狀態 | 🔄 DISPATCHED（手動派發；BUG-075 阻擋 bat-terminal.mjs 自動派發） |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 13:05 (UTC+8) |
 | 派發時間 | 2026-04-27 13:54 (UTC+8) — session 37 起手手動派發 |
 | 開始時間 | 2026-04-27 13:58 (UTC+08:00) |
+| 完成時間 | 2026-04-27 14:02 (UTC+08:00) |
 | Sizing | M（estimate 30-60 min wall；3 phase 偵察 + reproduce + candidate fix 提案） |
 | 依賴 | BUG-075 / BUG-060 closed 工單（T0281 fix `fad2978`）/ `scripts/bat-terminal.mjs` 現況 |
 | 後續 | 拍板後拆 1-2 張 fix 工單（symptom A / symptom B 或合併） + 1 張 regression test 工單 |
@@ -186,6 +187,7 @@ node -e "console.log(process.argv)" /ct-exec T0328  # node 接到的 argv 是什
 產出摘要：
 - 更新 T0329 研究回報。
 - 更新 BUG-075 根因確認摘要。
+- commit：`0a0a752`
 
 ### Phase A：Git log 偵察
 #### Commit history 比對表
@@ -332,6 +334,27 @@ Regression test：
 ### OOS but justified（如有）
 讀取 `%APPDATA%\BetterAgentTerminal\settings.json` 與 `%APPDATA%\BetterAgentTerminal\Logs\bat-scripts.log`。理由：工單要求 reproduce isolation，且 BAT RemoteServer token 在本 Worker env 缺失，無法安全主動重開新 terminal；現有 BAT script log 是最接近 T0328 實際派發鏈的證據。
 
+### 補充鑑別：Codex 前綴仍用 `/ct-exec`
+
+使用者補充觀察：Codex Worker 派發時仍使用 `/ct-exec`，而不是 Codex skill 觸發慣例 `$ct-exec`。
+
+追加確認：
+- BAT UI 內建 Control Tower panel 不是此問題來源。`src/utils/control-tower-launch.ts` 對 `codex-cli` / `codex-agent` 會回傳 `command='codex'`、`prefix='$'`，並產生 `codex "$ct-exec T####"`。
+- `src/App.tsx` 與 `src/components/WorkspaceView.tsx` 的 `onExecWorkOrder` / `handleExecWorkOrder` 都走 `resolveControlTowerAgentRuntime(activeWorkspace.defaultAgent || settings.defaultAgent)`，因此 BAT UI path 對 Codex 是正確的。
+- 實際 T0328 log 為 `node scripts/bat-terminal.mjs ... --agent default --prompt "/ct-exec T0328"`。這條路徑不是 BAT UI ControlTowerPanel，而是 Tower skill 的 BAT auto-session 規格。
+- `C:\Users\Gower\.codex\skills\control-tower\SKILL.md` 與 `references/auto-session.md` 明確硬編碼 BAT 內部終端為 `--agent default --prompt "/ct-exec T####"`，並寫「由 BAT Default Agent 設定決定要開 Claude Agent、Codex Agent、Codex CLI 或其他 agent」。這與 prompt 本身仍固定 slash prefix 互相矛盾。
+
+責任切分：
+- **Tower skill / 派發協定問題**：錯誤地把 BAT `--agent default` 視為 agent-agnostic，但 prompt 卻硬編碼 Claude-style `/ct-exec`。這是 Codex 收到錯前綴的直接來源。
+- **BAT helper / PTY env 問題**：未對 Git Bash Worker PTY 注入 `MSYS_NO_PATHCONV=1`，導致 slash prompt 進一步被 MSYS 改寫成 `C:/Program Files/Git/ct-exec ...`。這是 path rewrite 的直接來源。
+- **BAT UI 問題**：目前未證實。UI 內建 Control Tower panel 的 runtime prefix selection 對 Codex 是正確的。
+- **bat-terminal.mjs parser 問題**：不是主要來源。它能修復外層 MSYS argv 污染並把 promptLength 還原為 14；但它目前也沒有能力依 `--agent default` resolved agent 自動改 `/ct-exec` 為 `$ct-exec`。
+
+修法建議更新：
+- Fix-B1：BAT auto-session Worker PTY 注入 `MSYS_NO_PATHCONV=1`，解 path rewrite。
+- Fix-B2：修 Tower skill BAT route，不可固定 `--prompt "/ct-exec T####"` 給 `--agent default`。候選方案是 Tower 解析 BAT default agent 後選 `/` 或 `$`，或改 BAT app 的 `terminal:create-agent-command` 在 resolved agent 為 Codex 時 normalize Control Tower prompt prefix。
+- Regression test 必須同時驗兩件事：Codex route 產生 `$ct-exec T####`，Git Bash route 不把 prompt 改寫成 `C:/Program Files/Git/...`。
+
 ---
 
-**狀態**：🔄 IN_PROGRESS
+**狀態**：✅ DONE
