@@ -1,5 +1,97 @@
 # Tower State — better-agent-terminal
 
+> 最後更新:2026-04-27 11:13(**第三十五 session 收工快照:PLAN-031 開立 + 主體 11 工單一氣呵成 (Sprint 1-5, ~113 min Worker wall, 8x 神速)。本 session 14 工單派發、全 DONE、0 Renew、0 FAILED。187 tests (自起手 47 +298%)。17 主線 commits。CLAUDE.md 新增三段 (Child Process Spawning / 工單撰寫慣例 / Server bundle baseline)。10 拍板項落地 (D092-D101，含 dead errorCode finding)。剩 T0324 DGX Spark user dogfood + T0326 升級 UI 等下個 session。BUG-071 → FIXING (待 T0324 VERIFY)。下次起手:跑 *evolve 萃取本 session ~10 個 GP/L 候選；T0324 dogfood by user；評估 PLAN-032 wizard error UX (含 BUG-072/073/074)。**)
+
+---
+
+## 🛏 本 Session 收工快照 (第三十五 session, 2026-04-27 00:50 - 11:13, ~10h 23min wall 含 sleep / ~113 min Worker concentrated wall, PLAN-031 全套 distribution stack 落地)
+
+### 本輪時間線
+
+1. **00:50** (起手):Fast Path 載入 session 34 快照;使用者選 [B] 處理 BUG-071 (server bundle download flow missing)
+2. **00:53**:D091 升格決策 — BUG-071 → PLAN-031 (3 子系統 + ARM64 Linux + 三平台同根因);T0313 派發
+3. **01:14**:T0313 research DONE (11 min) — 6 phase 盤點 + 9-cell 矩陣 + 14 張拆單表;Worker 反推 C-narrow 勝 C-full
+4. **01:14-01:25**:塔台 7 拍板項 D092-D098 全結;T0314 派發 (spec freeze + arch normalize)
+5. **01:32-01:43**:T0314 → T0315 → T0317 鏈式 DONE (Sprint 2 起跑, YOLO mode 啟動)
+6. **01:48-02:05**:T0317 → T0316 鏈式 DONE (Sprint 2 全結)
+7. **02:13-03:00**:T0319 → T0318 → T0320 鏈式 DONE (Sprint 3 全結)
+8. **02:13**:T0319 草稿被 security hook 攔兩次 (child_process shell-spawning API 反例觸發) → D099 落地 CLAUDE.md 兩段
+9. **03:04-03:12**:T0321 WSL DONE — Worker OOS expansion 補 draftProfile IPC (D100, 塔台漏設計的關鍵抽象)
+10. **03:14-10:28** (含 sleep):T0322 SSH DONE — sshServerArch wire-up + IPC SSH validation 補完
+11. **10:33-10:37**:T0323 Docker DONE (image-baked 一致性對齊)
+12. **10:49-11:03**:T0325 integration tests + e2e scaffolding DONE (187 tests, dead errorCode finding D101)
+13. **11:07-11:11**:T0327 docs 收尾 (user-facing docs + CLAUDE.md 第三段)
+14. **11:13**:使用者選 [D] *sync 同步 + 收工 → 本快照
+
+### 本 session 統計
+
+| 指標 | 值 |
+|------|------|
+| Worker concentrated wall | ~113 min (13 工單) |
+| 工單派發 | 14 (T0313-T0327) |
+| Worker DONE | 13 (全 DONE，無 PARTIAL) |
+| Renew / FAILED | 0 / 0 |
+| YOLO 鏈式派發 | 11 連發 (斷點全程綠) |
+| 主線 commits | ~17 |
+| Tests 增量 | +140 (47→187, +298%) |
+| 拍板項 | 10 (D091-D101) |
+| OOS expansion | 7 次全 justified |
+| 神速倍率 | ~8x (645-990 min estimate vs 113 min 實際) |
+| BUG 狀態變更 | BUG-071 OPEN→FIXING |
+| PLAN 狀態變更 | PLAN-031 PLANNED→IN_PROGRESS |
+
+### 熱區現況 (收工)
+
+| 類型 | 數量 | 狀態分布 |
+|------|------|---------|
+| **T 工單** | 78 + 4 reports | 75 DONE + 3 NEW (T0324 待 user / T0326 待外部 / T0327 ✅) |
+| **BUG** | 17 | 4 OPEN + 1 FIXING (BUG-071) + 12 CLOSED |
+| **PLAN** | 11 | 2 IDEA + 1 PLANNED + 1 IN_PROGRESS (PLAN-031) + 6 DONE + 1 DROPPED |
+| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED |
+
+### 下 session pending (優先序)
+
+1. 🔴 **T0324 DGX Spark dogfood** (user 親跑) — BUG-071 VERIFY 路徑
+2. 🟡 **`*evolve` 萃取本 session 候選** — ~10 個 GP/L (見下方教訓段)
+3. 🟡 **PLAN-032 評估** — wizard error UX overhaul (BUG-072/073/074 同族)
+4. 🟢 **T0326** 升級既有 server UI (等 T0287 ProfilePanel)
+5. 🟢 大批歸檔 batch 2 (04-28 起合格)
+6. 🟢 PLAN-014 啟動評估 (BAT 內建 Git GUI)
+7. 🟢 v0.5.0 release 前置 (T0324 通過 + PLAN-032 ship)
+
+### 恢復指引 (下 session 起手)
+
+1. Fast Path 載入本快照 (<7 天)
+2. **熱區乾淨,無進行中工單**
+3. **編號起始**:T0328 / BUG-075 / PLAN-032 / D102 / EXP-[TOPIC]-001
+4. **塔台規則繼續**:auto-session: yolo (yolo_max_retries: 1, archive_days: 2, auto_commit: on);experience-level: standard
+5. **建議起手動作**:跑 *evolve 萃取候選 (context fresh) / 或直接派 PLAN-032 / 或 user 跑 T0324
+
+### 本 session 教訓 (候選 *evolve 萃取項)
+
+1. **PLAN 級需求對齊節省下游 Renew + 神速 8x 落地** (GP) — T0313 一張研究展開 6 phase + 7 拍板項預先固化, 讓後續 11 張實作 0 Renew 0 FAILED;對齊投資 ~11 min 換來 ~100 min 流暢執行
+2. **Pure function helpers belong in `src/lib/`** (GP, 4 出現) — T0317/T0318/T0319/T0320 都抽純函數到 `src/lib/{module}-helpers.ts`, electron/ 以 re-export 維持公開 API。理由:避免 composite tsconfig 衝突 + 易於 vitest + 跨 main/renderer 共用
+3. **draftProfile IPC pattern** (GP, T0321 落地) — Wizard step 在 writeProfile 之前必含 inline profile (不可只接 profileId);塔台原工單漏設計, Worker 主動補上是優秀判斷
+4. **"OOS but justified" 段落已成 worker 自然行為** (GP) — 7 工單 7 次 OOS, Worker 都能 (a) 識別 (b) 給理由 (c) 拒絕替代;可從工單模板移到正式段落
+5. **CLAUDE.md security hook 防範** (D099 已落地) — 工單禁寫 shell-spawning API 反例字串
+6. **dead errorCode finding pattern** (D101, L) — Sprint 5 integration test 才發現 T0318 `arch-not-in-manifest` 在當前 schema 下 unreachable;下次拆單建議在 phase F 加 reachability matrix
+7. **YOLO mode 對 PLAN 級任務有效性實證** — 11 工單鏈式 0 FAILED 0 Renew 0 PARTIAL;證實 yolo_max_retries=1 + 良好工單規格的協作威力
+8. **sshServerArch wire-up 路徑必須在工單預先指明** (L) — T0322 成功因為塔台預列 `verify-auth → ctx.state → draftProfile → ProfileEntry sentinel`;未列 worker 會卡
+
+### 本 session 成就
+
+- 🏆 PLAN-031 主體 11 工單一氣呵成 (Sprint 1-5 全套 distribution stack)
+- 🎉 187 tests (+298% from 47)
+- 🎉 YOLO mode 11 連發無 FAILED — PLAN 級對齊扎實實證
+- 🎉 CLAUDE.md 三段落地
+- 🎉 D100 draftProfile 抽象由 Worker 主動補上
+- 🎉 D101 dead errorCode finding (Sprint 5 額外價值)
+- 🎉 ARM64 Linux 全 path 設計就緒 (DGX Spark dogfood ready)
+
+---
+
+## 🛏 前 Session 收工快照 (第三十四 session, 2026-04-27 00:00 - 00:50, ~3h 30min, PLAN-030 全案 + dogfood 揭錯)
+
 > 最後更新:2026-04-27 00:50(**第三十四 session 收工快照:PLAN-030 全案閉環 + 4 BUG 登記。8 工單派發 (T0305 research → T0306 BUG-070 fix → T0307 Stepper + T0307b vitest infra → T0308 BugWorkflowIndicator refactor → T0309 Setup Wizard L 大宗 + PLAN-029 R5 合併 → T0310 docs spec → T0311 layout fix → T0312 dialog widen polish)。2 BUG CLOSED (BUG-069 NSIS renderer + BUG-070 Profile dropdown 使用者實機驗收)。dogfood 暴露 4 新 BUG (BUG-071~074):server bundle download 缺失 + 3 wizard error UX 不友善。47 unit tests 全綠。新建 vitest infra + Stepper 元件 + 設計規範文件。YOLO 觸發斷點 3 次皆通過。下次起手:開 PLAN-031 (wizard error UX overhaul) 涵蓋 BUG-072/073/074 + PLAN-007 follow-up 處理 BUG-071。**)
 
 ---

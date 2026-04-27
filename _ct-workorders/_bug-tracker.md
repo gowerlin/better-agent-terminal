@@ -1,10 +1,10 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-26 22:?? (UTC+8) — Session 34 起手新增 BUG-070（Profile Dialog Add 按鈕溢出）。
+> 最後同步：2026-04-27 11:13 (UTC+8) — Session 35 PLAN-031 全套實作落地，BUG-071 → FIXING（T0321/T0322 修復，待 T0324 DGX Spark dogfood VERIFY）。
 
 ## 統計
-- 🔴 Open: 5 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 17**
+- 🔴 Open: 4 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 17**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -12,7 +12,6 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-071 | Setup Wizard install-server-bundle 硬性失敗（server bundle download flow 未實作） | 🔴 High | 2026-04-27 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 | BUG-072 | WSL wizard systemd linger 啟用失敗錯誤訊息不友善 + 連帶 service timeout | 🟡 Medium | 2026-04-27 | [BUG-072](BUG-072-wsl-systemd-linger-error-handling.md) |
 | BUG-073 | Docker wizard：daemon 未運作時錯誤純技術，無 actionable 引導 | 🟡 Medium | 2026-04-27 | [BUG-073](BUG-073-docker-wizard-daemon-not-running-error-handling.md) |
 | BUG-074 | SSH wizard：configure-host input step 在使用者還沒輸入前就顯示 failed 狀態 | 🟡 Medium | 2026-04-27 | [BUG-074](BUG-074-ssh-wizard-input-step-shows-failed-on-init.md) |
@@ -22,6 +21,7 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-071 | Setup Wizard install-server-bundle 硬性失敗（PLAN-031 T0321/T0322 已修復；待 T0324 DGX Spark dogfood VERIFY） | 🔴 High | 2026-04-27 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 
 ## ✅ 已修復
 

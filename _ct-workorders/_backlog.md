@@ -1,10 +1,10 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-27 00:05 (UTC+8) — Session 34 PLAN-030 全案閉環（6 工單 + 1 補丁）；R5 已順帶完成併入 PLAN-029 註記。
+> 最後同步：2026-04-27 11:13 (UTC+8) — Session 35 PLAN-031 開立 + 主體實作 11 工單一氣呵成（Sprint 1-5，~113 min Worker wall）；剩 T0324（user dogfood）+ T0326（外部依賴）待下個 session。
 
 ## 統計
-- 💡 Ideas: 2 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 6 | 🚫 Dropped: 1 | **Total: 10**
+- 💡 Ideas: 2 | 📋 Planned: 1 | 🔄 In Progress: 1 | ✅ Done: 6 | 🚫 Dropped: 1 | **Total: 11**
 
 > 已歸檔 PLAN（`_archive/plans/`）：19 張
 
@@ -12,6 +12,7 @@
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
+| PLAN-031 | Server Bundle Distribution（含 ARM64 Linux）— Sprint 1-5 主體 11 工單已 DONE，剩 T0324 dogfood + T0326 升級 UI | 🔴 High | 🔄 IN_PROGRESS | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-014 | BAT 內建 Git 圖形介面（方向 B） | 🟡 Medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-015 | Refactor：抽取 renderPanelContent shared helper（消除 App.tsx/WorkspaceView.tsx 雙 render 路徑） | 🟢 Low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts misplaced require（R5 已由 T0309 合併落地） | 🟢 Low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
