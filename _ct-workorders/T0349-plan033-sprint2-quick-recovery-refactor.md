@@ -186,7 +186,7 @@ PowerShell 第一次機械 rewrite 時 `AddRange(System.Object[])` 型別錯誤�
 
 ### Commit
 
-`26e67a8` — `chore(state): refactor _tower-state.md Quick Recovery section per hygiene rule (PLAN-033 Sprint 2)`
+`ff528ee` — `chore(state): refactor _tower-state.md Quick Recovery section per hygiene rule (PLAN-033 Sprint 2)`
 
 ### 回報時間
 
