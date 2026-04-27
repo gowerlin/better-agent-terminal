@@ -7,9 +7,10 @@
 | 工單編號 | T0345 |
 | 類型 | test（e2e） |
 | 所屬 | BUG-075（防第三次同族再現的 e2e 保險） |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 14:08 (UTC+8) |
 | 開始時間 | 2026-04-27 16:40 (UTC+8) |
+| 完成時間 | 2026-04-27 16:48 (UTC+8) |
 | Sizing | M（estimate 60-120 min wall；e2e harness 設置 + Windows runner 條件） |
 | 依賴 | T0341（MSYS fix）+ T0343（prefix mismatch fix）|
 | 後續 | 結束 BUG-075 → CLOSED |
@@ -84,6 +85,7 @@ DONE — BUG-075 e2e regression 已落地。
 - T0343 guard：目標 e2e 走 `--skill ct-exec --workorder T0345` agent-neutral dispatch，並驗證 Codex 收到 `$ct-exec T0345`；若 T0343 的 `--skill/--workorder` 支援或 Codex prefix 決策回退，測試會在 bat-terminal exit code 或 command assertion 紅燈。
 - `npm run test:unit` → pass（11 files / 189 tests）
 - `git diff --check -- playwright.config.ts tests/e2e/bug075-bat-auto-session.test.ts _ct-workorders/T0345-e2e-bug075-regression.md` → pass
+- commit: `6d4da38` — `test(e2e): add BUG-075 auto-session regression`
 
 ### 互動紀錄
 無
@@ -92,7 +94,8 @@ DONE — BUG-075 e2e regression 已落地。
 - 未啟動真實 BAT app / 真實 RemoteServer：本 session 本身在 BAT 內部終端，啟停真實 RemoteServer 有干擾當前 Worker 的風險；改用 protocol-compatible mock RemoteServer 驗證 dispatch payload 與 handler 行為。
 - 未執行完整 `npm run test:e2e`：既有 `e2e/smoke.spec.ts` 會啟動 Electron，於本 BAT worker 環境 timeout；本工單改跑新增目標 e2e。
 - 未對 T0343 做完整 git revert：T0343 涉及跨 repo / home skill 改動；本工單以 `--skill/--workorder` 路徑與 Codex `$ct-exec` assertion 作為 regression guard。
+- `sprint-status.yaml` 存在但檔頭標示重要節點由 Tower 更新，且內容停留在早期全專案摘要；本工單未改寫，標記為不適用。
 
 ---
 
-**狀態**：🔧 IN_PROGRESS
+**狀態**：✅ DONE
