@@ -7,10 +7,12 @@
 | 工單編號 | T0327 |
 | 類型 | docs（user-facing 文件 + CLAUDE.md「Packaging/Release 前置檢查」段落更新 + 可能 README pointer） |
 | 所屬 | PLAN-031 — Server Bundle Distribution / Sprint 5 |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 11:05 (UTC+8) |
 | 派發時間 | 2026-04-27 11:05 (UTC+8) |
 | 開始時間 | 2026-04-27 11:07 (UTC+8) |
+| 完成時間 | 2026-04-27 11:11 (UTC+8) |
+| Commit | bdd2f92 |
 | Sizing | S（estimate 30-45 min wall） |
 | 依賴 | T0314 ✅（spec 凍結） / T0315-T0325 ✅（全套實作 + tests） |
 | 平行 | 無（Sprint 5 收尾，T0324/T0326 等下個 session） |
