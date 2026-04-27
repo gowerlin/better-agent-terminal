@@ -120,6 +120,11 @@ const MESSAGE_DICT: Record<string, MessageDictEntry> = {
     title: 'SSH 認證失敗',
     body: '請檢查 SSH key 是否正確設定，或確認帳號密碼。',
   },
+  // T0335 (BUG-074): empty-host validation message.
+  'ssh.configure-host.empty': {
+    title: 'SSH 主機名稱為必填',
+    body: '請選擇 ~/.ssh/config 中的 alias 或手動輸入主機名稱。',
+  },
   fallback: {
     title: '步驟發生錯誤',
     body: '', // body falls back to ctx.error.message
@@ -279,6 +284,22 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     actions: [
       { kind: 'edit-config', label: '修改 SSH 設定', targetStepId: 'configure-ssh-host' },
       { kind: 'retry', label: '重試' },
+      { kind: 'cancel', label: '取消' },
+    ],
+  },
+  // T0335 (BUG-074, PLAN-032 Sprint 3): empty-host throw fires only after
+  // the user actively submits an empty value. edit-config sends them back to
+  // the same step; cancel exits cleanly.
+  {
+    id: 'ssh-configure-host-empty',
+    platforms: ['ssh'],
+    stepIds: ['configure-ssh-host'],
+    errorCodes: ['configure-host-empty'],
+    patterns: [/SSH host is required/i],
+    messageKey: 'ssh.configure-host.empty',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'edit-config', label: '修改 SSH 設定', targetStepId: 'configure-ssh-host' },
       { kind: 'cancel', label: '取消' },
     ],
   },

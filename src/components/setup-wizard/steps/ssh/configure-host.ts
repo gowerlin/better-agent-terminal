@@ -42,22 +42,16 @@ function writeState(ctx: WizardContext, patch: ConfigureSshHostState): void {
 /**
  * `configure-ssh-host` step (T0285 AC5/AC6).
  *
- * Collects host / user / port / identity / install path / tunnel mode and
- * surfaces a dropdown of `~/.ssh/config` aliases via the new `ssh:list-hosts`
- * IPC channel (T0282 backend, T0285 wiring).
- *
- * UI rendering happens inside the SetupWizardShell — this `WizardStep` object
- * is the single source of truth for step id / title / state shape, mirroring
- * the existing WSL/Docker step convention (T0274 / T0279).
+ * T0335 (BUG-074, PLAN-032 Sprint 3): empty-host throw deferred until the
+ * user actively submits via ctx.requestChoice. The runner's input-step
+ * wrap flips status to awaiting-input while the prompt is pending, so the
+ * step no longer flashes "failed" the moment the wizard opens. Structured
+ * throws carry `code = 'configure-host-empty'` for WizardErrorMapper.
  */
 export const configureSshHostStep: WizardStep = {
   id: 'configure-ssh-host',
   title: 'Configure SSH host',
   appliesTo: ['ssh-linux', 'ssh-darwin'],
-  // T0330 (PLAN-032 Sprint 2): SSH host config gathers user input upfront.
-  // BUG-074 root cause: this step throws when state.sshHost is empty, but the
-  // intent is to wait for user form submission. T0335 will refactor to use
-  // ctx.requestChoice; for now `kind: 'input'` is metadata for the runner.
   kind: 'input',
   retryable: true,
   labelKey: 'wizard.ssh.step.configureHost.label',
@@ -67,27 +61,46 @@ export const configureSshHostStep: WizardStep = {
   async run(ctx) {
     const state = readState(ctx)
 
-    // Populate alias dropdown so the UI can render it. Cached on ctx.state
-    // so the step can be re-entered without re-reading the file.
     if (!Array.isArray(state.sshHostsAvailable)) {
       const hosts = await loadAliasOptions(ctx)
       writeState(ctx, { sshHostsAvailable: hosts })
     }
 
     if (!state.sshHost && state.sshAlias) {
-      // When the user picks an alias, OpenSSH resolves host/user/port/key
-      // transparently — we keep host = alias and let ssh handle the rest
-      // (D-SSH-5: no jump-host UI; ssh-config is the source of truth).
       writeState(ctx, { sshHost: state.sshAlias })
     }
 
+    // T0335 (BUG-074): defer the empty-host throw until the user actively
+    // submits via ctx.requestChoice. Picking an alias = submit; the
+    // resolver runs again afterwards and only throws (with a structured
+    // errorCode) if the host is still empty.
+    if (
+      (!state.sshHost || state.sshHost.trim().length === 0)
+      && typeof ctx.requestChoice === 'function'
+    ) {
+      const aliases = readState(ctx).sshHostsAvailable ?? []
+      if (aliases.length > 0) {
+        const choice = await ctx.requestChoice({
+          stepId: 'configure-ssh-host',
+          title: 'Select SSH host',
+          description: 'Pick an alias from ~/.ssh/config to connect to.',
+          options: aliases.map((alias) => ({ label: alias, value: alias })),
+          allowSkip: false,
+        })
+        if (typeof choice === 'string' && choice.length > 0) {
+          writeState(ctx, { sshAlias: choice, sshHost: choice })
+        }
+      }
+    }
+
     if (!state.sshHost || state.sshHost.trim().length === 0) {
-      throw new Error('SSH host is required (pick an alias from ~/.ssh/config or type host).')
+      const err = new Error(
+        'SSH host is required (pick an alias from ~/.ssh/config or type host).',
+      ) as Error & { code?: string }
+      err.code = 'configure-host-empty'
+      throw err
     }
     if (!state.sshUser || state.sshUser.trim().length === 0) {
-      // Aliases may carry the user via ssh-config; leave a synthetic placeholder
-      // so verify-ssh-auth can still attempt the connection. The probe will
-      // fail with a clear errorCode if the user is wrong.
       writeState(ctx, { sshUser: state.sshAlias ? '' : '' })
     }
 
@@ -111,8 +124,6 @@ export const configureSshHostStep: WizardStep = {
   },
 }
 
-// PascalCase alias to satisfy AC5 grep (`SshConfigureHostStep`); both names
-// reference the same WizardStep object so import sites stay consistent.
 export const SshConfigureHostStep = configureSshHostStep
 
 export const sshConfigureHostInstallPathOptions = INSTALL_PATH_OPTIONS
