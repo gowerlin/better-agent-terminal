@@ -1,3 +1,7 @@
+// verify-renderer-imports-allow — main-process only, never imported by renderer.
+// Importers (grep-verified): electron/remote/server-bundle-distributor.ts,
+// electron/remote/server-bundle-download.ts. Follow-up: relocate to electron/remote/.
+//
 // Server bundle manifest validator + SHA256 stream helpers (PLAN-031 / T0317).
 //
 // Pure library — no env reads, no fs IO, no fetch. Only Node `crypto` + `stream`

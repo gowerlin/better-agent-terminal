@@ -68,13 +68,19 @@ const ALLOW_COMMENT = 'verify-renderer-imports-allow';
 
 const SOURCE_EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 
+// Test files run under vitest (Node), not vite renderer build, so importing
+// Node builtins from them is safe and should not trip this check.
+const TEST_FILE_RE = /\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
+
 function* walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'dist-electron') continue;
+      if (entry.name === '__tests__' || entry.name === '__mocks__') continue;
       yield* walk(full);
     } else if (entry.isFile() && SOURCE_EXT.has(path.extname(entry.name))) {
+      if (TEST_FILE_RE.test(entry.name)) continue;
       yield full;
     }
   }

@@ -1,3 +1,7 @@
+// verify-renderer-imports-allow — main-process only, never imported by renderer.
+// Sole importer (grep-verified): electron/remote/server-bundle-distributor.ts.
+// Follow-up: relocate to electron/remote/.
+//
 // Pure helpers for server bundle distributor (PLAN-031 / T0320).
 //
 // Extracted from `electron/remote/server-bundle-distributor.ts` so they can be
