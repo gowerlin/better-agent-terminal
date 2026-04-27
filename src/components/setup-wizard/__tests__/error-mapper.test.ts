@@ -102,7 +102,8 @@ describe('resolveWizardError - DEFAULT_WIZARD_ERROR_REGISTRY', () => {
     expect(result.body).toBe(rawMessage)
     expect(result.rawError).toBe(rawMessage)
     expect(result.detailMode).toBe('append-raw')
-    expect(result.actions).toEqual([])
+    // T0333: fallback now ships baseline retry/skip/cancel actions.
+    expect(result.actions.map((a) => a.kind)).toEqual(['retry', 'skip', 'cancel'])
   })
 
   it('Stage 4: docker step regex but wrong stepId falls through to fallback', () => {
@@ -245,5 +246,26 @@ describe('resolveWizardError - custom registry', () => {
     )
     expect(result.matchId).toBe('no-detail-mode')
     expect(result.detailMode).toBe('append-raw')
+  })
+})
+
+describe('DEFAULT_WIZARD_ERROR_REGISTRY actions (T0333)', () => {
+  it('docker-daemon-unavailable carries open-link + fixed-and-retry + cancel', () => {
+    const entry = DEFAULT_WIZARD_ERROR_REGISTRY.find((e) => e.id === 'docker-daemon-unavailable')!
+    expect(entry.actions?.map((a) => a.kind)).toEqual(['open-link', 'fixed-and-retry', 'cancel'])
+    const link = entry.actions?.find((a) => a.kind === 'open-link') as { href: string } | undefined
+    expect(link?.href).toMatch(/docker\.com/)
+  })
+
+  it('wsl-linger-failure carries fixed-and-retry + skip + cancel', () => {
+    const entry = DEFAULT_WIZARD_ERROR_REGISTRY.find((e) => e.id === 'wsl-linger-failure')!
+    expect(entry.actions?.map((a) => a.kind)).toEqual(['fixed-and-retry', 'skip', 'cancel'])
+  })
+
+  it('ssh-permission-denied carries edit-config (with targetStepId) + retry + cancel', () => {
+    const entry = DEFAULT_WIZARD_ERROR_REGISTRY.find((e) => e.id === 'ssh-permission-denied')!
+    expect(entry.actions?.map((a) => a.kind)).toEqual(['edit-config', 'retry', 'cancel'])
+    const editAction = entry.actions?.find((a) => a.kind === 'edit-config') as { targetStepId?: string } | undefined
+    expect(editAction?.targetStepId).toBe('configure-ssh-host')
   })
 })

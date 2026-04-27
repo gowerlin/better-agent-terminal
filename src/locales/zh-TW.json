@@ -625,7 +625,9 @@
       "skip": "跳過",
       "editConfig": "編輯設定",
       "cancel": "取消",
-      "skipChoice": "跳過"
+      "skipChoice": "跳過",
+      "fixedAndRetry": "已修復，重試",
+      "showDetails": "顯示詳細"
     },
     "shared": {
       "step": {

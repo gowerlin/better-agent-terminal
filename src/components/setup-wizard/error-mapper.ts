@@ -8,11 +8,11 @@
  *   3. platform-wide regex match
  *   4. fallback (raw error.message)
  *
- * Sprint 3 (BUG-072 / BUG-073) extends DEFAULT_WIZARD_ERROR_REGISTRY without
- * touching the resolver. T0333 will tighten WizardRecoveryActionTemplate into
- * a discriminated union once the action runtime lands.
+ * T0333 (Sprint 2 follow-up): tightened `WizardRecoveryAction` into a
+ * discriminated union and extended DEFAULT_WIZARD_ERROR_REGISTRY with concrete
+ * recovery actions for the 3 baseline entries.
  *
- * See spec: _ct-workorders/_spec-wizard-error-ux.md § 3.
+ * See spec: _ct-workorders/_spec-wizard-error-ux.md § 3 + § 5.
  */
 
 import type { WizardTargetOS } from './wizard-runner'
@@ -40,16 +40,26 @@ export function targetOSToErrorPlatform(target: WizardTargetOS): WizardErrorPlat
 }
 
 /**
- * Recovery action placeholder. T0333 (Sprint 3) will collapse this into a
- * discriminated union (open-link | fixed-and-retry | run-command | ...).
- * Kept structural here so registry entries can carry forward-compatible action
- * stubs without blocking compilation.
+ * T0333 (Sprint 2): Recovery action discriminated union (7 kinds).
+ *
+ * The first 6 kinds (retry / fixed-and-retry / open-link / edit-config /
+ * skip / cancel) are dispatched by SetupWizardShell against WizardRunner +
+ * Electron shell APIs. `custom` is an extension point for future kinds.
  */
-export type WizardRecoveryActionTemplate = {
-  kind: string // T0333: tighten to union
-  label?: string
-  [key: string]: unknown
-}
+export type WizardRecoveryAction =
+  | { kind: 'retry'; label?: string }
+  | { kind: 'fixed-and-retry'; label?: string }
+  | { kind: 'open-link'; label: string; href: string }
+  | { kind: 'edit-config'; label?: string; targetStepId?: string }
+  | { kind: 'skip'; label?: string }
+  | { kind: 'cancel'; label?: string }
+  | { kind: 'custom'; label: string; run: () => Promise<void> | void }
+
+/**
+ * Backwards-compat alias kept so T0331/T0332 callsites compile without
+ * touching their imports. New code should prefer `WizardRecoveryAction`.
+ */
+export type WizardRecoveryActionTemplate = WizardRecoveryAction
 
 export interface WizardErrorMatch {
   /** Unique identifier (e.g. 'docker-daemon-unavailable'). */
@@ -66,8 +76,8 @@ export interface WizardErrorMatch {
   messageKey: string
   /** How the UI should expose the raw error string. */
   detailMode?: 'append-raw' | 'hidden-by-default'
-  /** Recovery actions (placeholder until T0333). */
-  actions?: WizardRecoveryActionTemplate[]
+  /** Recovery actions surfaced by the Shell (T0333). */
+  actions?: WizardRecoveryAction[]
 }
 
 export interface WizardMappedError {
@@ -77,7 +87,7 @@ export interface WizardMappedError {
   body: string
   rawError: string
   detailMode: 'append-raw' | 'hidden-by-default'
-  actions: WizardRecoveryActionTemplate[]
+  actions: WizardRecoveryAction[]
 }
 
 export interface WizardErrorContext {
@@ -149,6 +159,12 @@ function buildMapped(
   }
 }
 
+/**
+ * T0333: fallback now ships a baseline `[retry, skip, cancel]` action set so
+ * the Shell always has something to render even when no registry entry hits.
+ * Tests that rely on the old empty-actions behavior were updated alongside
+ * this change.
+ */
 function buildFallback(ctx: WizardErrorContext): WizardMappedError {
   const dict = MESSAGE_DICT.fallback
   const rawError = ctx.error.message
@@ -158,7 +174,11 @@ function buildFallback(ctx: WizardErrorContext): WizardMappedError {
     body: rawError,
     rawError,
     detailMode: 'append-raw',
-    actions: [],
+    actions: [
+      { kind: 'retry' },
+      { kind: 'skip' },
+      { kind: 'cancel' },
+    ],
   }
 }
 
@@ -172,7 +192,7 @@ export function resolveWizardError(
 ): WizardMappedError {
   const message = ctx.error.message
 
-  // Stage 1 — exact errorCode match.
+  // Stage 1 -- exact errorCode match.
   if (ctx.errorCode) {
     const stage1 = registry.find(
       (entry) =>
@@ -183,7 +203,7 @@ export function resolveWizardError(
     if (stage1) return buildMapped(stage1, ctx)
   }
 
-  // Stage 2 — step-scoped regex match (entry has stepIds AND covers ctx.stepId).
+  // Stage 2 -- step-scoped regex match (entry has stepIds AND covers ctx.stepId).
   const stage2 = registry.find(
     (entry) =>
       platformMatches(entry.platforms, ctx.platform) &&
@@ -193,7 +213,7 @@ export function resolveWizardError(
   )
   if (stage2) return buildMapped(stage2, ctx)
 
-  // Stage 3 — platform-wide regex match (entries without stepIds restriction).
+  // Stage 3 -- platform-wide regex match (entries without stepIds restriction).
   const stage3 = registry.find(
     (entry) =>
       platformMatches(entry.platforms, ctx.platform) &&
@@ -202,13 +222,14 @@ export function resolveWizardError(
   )
   if (stage3) return buildMapped(stage3, ctx)
 
-  // Stage 4 — fallback.
+  // Stage 4 -- fallback.
   return buildFallback(ctx)
 }
 
 /**
- * Sprint-2 minimum viable registry. Sprint-3 BUG-072 / BUG-073 fixes will
- * extend this list; the resolver itself is registry-agnostic.
+ * Sprint-2 minimum viable registry. T0333 attached recovery actions to the 3
+ * baseline entries; Sprint-3 BUG-072 / BUG-073 fixes will extend the list.
+ * The resolver itself remains registry-agnostic.
  */
 export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
   {
@@ -222,7 +243,11 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     ],
     messageKey: 'docker.daemon.unavailable',
     detailMode: 'append-raw',
-    actions: [], // T0333: open-link to Docker Desktop install / fixed-and-retry
+    actions: [
+      { kind: 'open-link', label: '下載 Docker Desktop', href: 'https://www.docker.com/products/docker-desktop/' },
+      { kind: 'fixed-and-retry', label: '我已啟動 Docker，重試' },
+      { kind: 'cancel', label: '取消' },
+    ],
   },
   {
     id: 'wsl-linger-failure',
@@ -234,15 +259,27 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     ],
     messageKey: 'wsl.linger.failure',
     detailMode: 'append-raw',
-    actions: [],
+    actions: [
+      { kind: 'fixed-and-retry', label: '我已執行命令，重試' },
+      { kind: 'skip', label: '略過此步驟' },
+      { kind: 'cancel', label: '取消' },
+    ],
   },
   {
     id: 'ssh-permission-denied',
     platforms: ['ssh'],
     stepIds: ['verify-ssh-auth'],
     errorCodes: ['permission-denied'],
+    // T0333: regex fallback so the entry still matches when callers
+    // construct WizardErrorContext without an explicit errorCode (Shell
+    // currently only forwards error.message from the snapshot).
+    patterns: [/permission denied/i],
     messageKey: 'ssh.auth.permission-denied',
     detailMode: 'hidden-by-default',
-    actions: [],
+    actions: [
+      { kind: 'edit-config', label: '修改 SSH 設定', targetStepId: 'configure-ssh-host' },
+      { kind: 'retry', label: '重試' },
+      { kind: 'cancel', label: '取消' },
+    ],
   },
 ]

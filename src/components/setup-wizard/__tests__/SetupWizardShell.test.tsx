@@ -13,7 +13,7 @@
  * Tests inject controlled WizardStep[] so we never touch electronAPI.
  */
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import '../../../i18n' // initialize i18next once
 import { SetupWizardShell } from '../SetupWizardShell'
@@ -317,5 +317,169 @@ describe('WizardRunner.jumpToStep (T0309)', () => {
     await runner.jumpToStep(99)
     expect(warnings.some((m) => m.includes('out of range'))).toBe(true)
     await runner.cancel()
+  })
+})
+
+// =====================================================================
+// T0333 (PLAN-032 Sprint 2): Recovery actions UI tests
+// =====================================================================
+
+describe('<SetupWizardShell> recovery actions (T0333)', () => {
+  // Local helper: factory that throws a registry-matchable error message.
+  function failingStepWithError(
+    id: string,
+    group: string,
+    label: string,
+    errorMessage: string,
+    opts: Partial<WizardStep> = {},
+  ): WizardStep {
+    return {
+      id,
+      title: `legacy-${id}`,
+      appliesTo: 'all',
+      retryable: true,
+      labelKey: `wizard.shared.step.${label}.label`,
+      descriptionKey: `wizard.shared.step.${label}.description`,
+      groupKey: `wizard.group.${group}`,
+      editableFromFailure: false,
+      async run() {
+        throw new Error(errorMessage)
+      },
+      ...opts,
+    }
+  }
+
+  function quickStepLocal(id: string, group: string, label: string, opts: Partial<WizardStep> = {}): WizardStep {
+    return {
+      id,
+      title: `legacy-${id}`,
+      appliesTo: 'all',
+      retryable: true,
+      labelKey: `wizard.shared.step.${label}.label`,
+      descriptionKey: `wizard.shared.step.${label}.description`,
+      groupKey: `wizard.group.${group}`,
+      editableFromFailure: false,
+      async run() {
+        // success
+      },
+      ...opts,
+    }
+  }
+
+  beforeEach(() => {
+    // Provide a stub electronAPI.shell so open-link does not throw.
+    ;(window as unknown as { electronAPI: unknown }).electronAPI = {
+      shell: { openExternal: vi.fn() },
+    }
+  })
+
+  afterEach(() => {
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI
+    vi.restoreAllMocks()
+  })
+
+  it('renders mapped Docker recovery actions when daemon is unavailable', async () => {
+    const steps = [
+      failingStepWithError(
+        'detect-env',
+        'detection',
+        'detectEnv',
+        'error during connect: open //./pipe/docker_engine: not found',
+      ),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'docker-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-stepper-failed-actions')).not.toBeNull()
+    })
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    // Three Docker actions: open-link / fixed-and-retry / cancel
+    expect(actions.querySelector('[data-action-kind="open-link"]')).not.toBeNull()
+    expect(actions.querySelector('[data-action-kind="fixed-and-retry"]')).not.toBeNull()
+    expect(actions.querySelector('[data-action-kind="cancel"]')).not.toBeNull()
+    // Mapped title must surface in the detail panel.
+    expect(screen.getAllByText('未偵測到 Docker daemon').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('open-link click invokes window.electronAPI.shell.openExternal with href', async () => {
+    const steps = [
+      failingStepWithError(
+        'detect-env',
+        'detection',
+        'detectEnv',
+        'error during connect: pipe/docker_engine',
+      ),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'docker-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('[data-action-kind="open-link"]')).not.toBeNull()
+    })
+    const link = container.querySelector('[data-action-kind="open-link"]') as HTMLButtonElement
+    fireEvent.click(link)
+    const openExternal = (window as unknown as { electronAPI: { shell: { openExternal: ReturnType<typeof vi.fn> } } }).electronAPI.shell.openExternal
+    expect(openExternal).toHaveBeenCalledTimes(1)
+    expect(openExternal).toHaveBeenCalledWith('https://www.docker.com/products/docker-desktop/')
+  })
+
+  it('retry click triggers WizardRunner.retryCurrentStep', async () => {
+    const retrySpy = vi.spyOn(WizardRunner.prototype, 'retryCurrentStep').mockResolvedValue(undefined)
+    const steps = [failingStep('detect-env', 'detection', 'detectEnv')]
+    const { container } = render(<SetupWizardShell steps={steps} ctx={makeCtx()} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-action-kind="retry"]')).not.toBeNull()
+    })
+    const retryBtn = container.querySelector('[data-action-kind="retry"]') as HTMLButtonElement
+    fireEvent.click(retryBtn)
+    expect(retrySpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('edit-config (registry targetStepId) jumps to the named step', async () => {
+    const jumpSpy = vi.spyOn(WizardRunner.prototype, 'jumpToStep').mockResolvedValue(undefined)
+    const steps = [
+      quickStepLocal('configure-ssh-host', 'connection', 'detectEnv'),
+      failingStepWithError(
+        'verify-ssh-auth',
+        'connection',
+        'connectTest',
+        'Permission denied (publickey).',
+      ),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'ssh-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('[data-action-kind="edit-config"]')).not.toBeNull()
+    })
+    const editBtn = container.querySelector('[data-action-kind="edit-config"]') as HTMLButtonElement
+    fireEvent.click(editBtn)
+    await waitFor(() => {
+      expect(jumpSpy).toHaveBeenCalledWith(0)
+    })
+  })
+
+  it('hidden-by-default detailMode hides raw error until "Show details" is clicked', async () => {
+    const rawMessage = 'Permission denied (publickey).'
+    const steps = [
+      failingStepWithError('verify-ssh-auth', 'connection', 'connectTest', rawMessage),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'ssh-linux' })} />,
+    )
+    // Wait for the failed state to mount the mapped error panel.
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    // Initially: detailMode is hidden-by-default -> raw error must NOT render.
+    expect(container.querySelector('.bat-wizard-mapped-error-raw')).toBeNull()
+    expect(screen.getByText('Show details')).toBeInTheDocument()
+    // Click "Show details" -> raw error reveals.
+    fireEvent.click(screen.getByText('Show details'))
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error-raw')).not.toBeNull()
+    })
+    expect(container.querySelector('.bat-wizard-mapped-error-raw')?.textContent).toContain(rawMessage)
   })
 })

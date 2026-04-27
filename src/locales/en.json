@@ -625,7 +625,9 @@
       "skip": "Skip",
       "editConfig": "Edit settings",
       "cancel": "Cancel",
-      "skipChoice": "Skip"
+      "skipChoice": "Skip",
+      "fixedAndRetry": "Already fixed, retry",
+      "showDetails": "Show details"
     },
     "shared": {
       "step": {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   WizardRunner,
   WizardStepStatus,
@@ -12,6 +13,13 @@ import {
 import { buildDockerWizardSteps, createDockerWizardContext } from './docker-flow'
 import { buildSshWizardSteps, createSshWizardContext } from './ssh-flow'
 import { buildWslWizardSteps, createWslWizardContext } from './wsl-flow'
+import {
+  DEFAULT_WIZARD_ERROR_REGISTRY,
+  resolveWizardError,
+  targetOSToErrorPlatform,
+  type WizardMappedError,
+  type WizardRecoveryAction,
+} from './error-mapper'
 import { Stepper } from '../stepper/Stepper'
 import type { StepDescriptor, StepStatus } from '../stepper/types'
 
@@ -89,7 +97,7 @@ export function useDockerWizardController(onComplete: (profileId: string) => voi
   return useSetupWizardController('docker-linux', onComplete)
 }
 
-// T0287: SSH wizard controller — Phase 4 capstone entry point. Defaults to
+// T0287: SSH wizard controller -- Phase 4 capstone entry point. Defaults to
 // ssh-linux; verify-ssh-auth flips ctx.targetOS to ssh-darwin if the probe
 // detects a macOS server (Journey C cross-OS scenario).
 export function useSshWizardController(onComplete: (profileId: string) => void) {
@@ -97,7 +105,7 @@ export function useSshWizardController(onComplete: (profileId: string) => void) 
 }
 
 /**
- * Map runner snapshot status → Stepper StepStatus.
+ * Map runner snapshot status -> Stepper StepStatus.
  * `succeeded + skipped` collapses to 'skipped' so the visual matches user intent.
  */
 function mapStepStatus(snapshot: WizardStepSnapshot): StepStatus {
@@ -133,7 +141,7 @@ const PROMPT_REGION_ID = 'bat-wizard-active-prompt'
 
 function buildStepDescriptors(
   snapshots: WizardStepSnapshot[],
-  t: (key: string, opts?: Record<string, unknown>) => string,
+  t: TFunction,
 ): StepDescriptor[] {
   return snapshots.map((s) => {
     const label = s.labelKey ? t(s.labelKey) : s.title
@@ -155,6 +163,51 @@ function buildStepDescriptors(
   })
 }
 
+/**
+ * T0333: resolve registered/fallback recovery actions for a failed step.
+ * Returns null when the step is not in failed state.
+ */
+function resolveMappedErrorForSnapshot(
+  snap: WizardStepSnapshot | null,
+  targetOS: WizardTargetOS,
+): WizardMappedError | null {
+  if (!snap || snap.status !== WizardStepStatus.Failed) return null
+  const rawMessage = snap.error ?? 'Unknown wizard step error'
+  return resolveWizardError(
+    {
+      platform: targetOSToErrorPlatform(targetOS),
+      stepId: snap.id,
+      error: new Error(rawMessage),
+    },
+    DEFAULT_WIZARD_ERROR_REGISTRY,
+  )
+}
+
+/**
+ * T0333: default labels per action kind when registry omits an explicit
+ * `label`. open-link / custom kinds always carry their own label by type.
+ */
+function defaultActionLabel(
+  action: WizardRecoveryAction,
+  t: TFunction,
+): string {
+  if ('label' in action && action.label) return action.label
+  switch (action.kind) {
+    case 'retry':
+      return t('wizard.action.retry')
+    case 'fixed-and-retry':
+      return t('wizard.action.fixedAndRetry', 'Already fixed, retry')
+    case 'skip':
+      return t('wizard.action.skip')
+    case 'cancel':
+      return t('wizard.action.cancel')
+    case 'edit-config':
+      return t('wizard.action.editConfig')
+    default:
+      return action.kind
+  }
+}
+
 interface StepDetailPanelProps {
   active: WizardStepSnapshot | null
   readOnly: WizardStepSnapshot | null
@@ -162,6 +215,7 @@ interface StepDetailPanelProps {
   onChoiceSelect: (value: string | null) => void
   onBackToCurrent: () => void
   ctx: WizardContext
+  mappedError: WizardMappedError | null
 }
 
 function StepDetailPanel({
@@ -171,10 +225,18 @@ function StepDetailPanel({
   onChoiceSelect,
   onBackToCurrent,
   ctx,
+  mappedError,
 }: StepDetailPanelProps) {
   const { t } = useTranslation()
   const display = readOnly ?? active
   const isReadOnly = readOnly !== null
+  const [showRawError, setShowRawError] = useState(false)
+
+  // Reset reveal toggle whenever the displayed step changes so a fresh failure
+  // re-applies its detailMode default.
+  useEffect(() => {
+    setShowRawError(false)
+  }, [display?.id, display?.status])
 
   if (!display) {
     return (
@@ -186,6 +248,10 @@ function StepDetailPanel({
 
   const label = display.labelKey ? t(display.labelKey) : display.title
   const description = display.descriptionKey ? t(display.descriptionKey) : undefined
+
+  const showMappedError = !isReadOnly && mappedError && display.status === WizardStepStatus.Failed
+  const detailMode = mappedError?.detailMode ?? 'append-raw'
+  const rawVisible = detailMode === 'append-raw' || showRawError
 
   return (
     <div className="bat-wizard-detail">
@@ -199,9 +265,31 @@ function StepDetailPanel({
 
       <div className="bat-wizard-detail-body">
         {display.status === WizardStepStatus.Running && (
-          <p className="text-sm text-sky-300">⏳ {t('wizard.currentStep')}…</p>
+          <p className="text-sm text-sky-300">{t('wizard.currentStep')}...</p>
         )}
-        {display.status === WizardStepStatus.Failed && display.error && (
+        {showMappedError && mappedError && (
+          <div className="bat-wizard-mapped-error mt-2" role="alert">
+            <h4 className="text-sm font-semibold text-rose-200">{mappedError.title}</h4>
+            {mappedError.body && (
+              <p className="mt-1 text-sm text-rose-100">{mappedError.body}</p>
+            )}
+            {detailMode === 'hidden-by-default' && !showRawError && (
+              <button
+                type="button"
+                className="mt-2 text-xs text-rose-300 underline"
+                onClick={() => setShowRawError(true)}
+              >
+                {t('wizard.action.showDetails', 'Show details')}
+              </button>
+            )}
+            {rawVisible && mappedError.rawError && (
+              <pre className="bat-wizard-mapped-error-raw mt-2 whitespace-pre-wrap rounded border border-rose-900/60 bg-rose-950/40 p-2 text-xs text-rose-200">
+                {mappedError.rawError}
+              </pre>
+            )}
+          </div>
+        )}
+        {!showMappedError && display.status === WizardStepStatus.Failed && display.error && (
           <p className="mt-2 text-sm text-rose-300" role="alert">
             {display.error}
           </p>
@@ -253,7 +341,7 @@ function StepDetailPanel({
             onClick={onBackToCurrent}
             type="button"
           >
-            ← {t('wizard.readonly.back')}
+            {t('wizard.readonly.back')}
           </button>
         </div>
       )}
@@ -334,6 +422,12 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
     return stepStates.find((s) => s.id === readOnlyStepId) ?? null
   }, [readOnlyStepId, stepStates])
 
+  // T0333: derive mappedError for the panel's active step (failed steps only).
+  const activeMappedError = useMemo(
+    () => resolveMappedErrorForSnapshot(activeStep, ctx.targetOS),
+    [activeStep, ctx.targetOS],
+  )
+
   const stepDescriptors = useMemo(() => buildStepDescriptors(stepStates, t), [stepStates, t])
   const currentIndex = useMemo(() => {
     if (!activeStep) return 0
@@ -359,6 +453,54 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       if (stepStates[i].editableFromFailure) return i
     }
     return null
+  }
+
+  // T0333: dispatch a single recovery action against runner / shell.
+  const dispatchAction = async (
+    action: WizardRecoveryAction,
+    failedIndex: number,
+  ): Promise<void> => {
+    const runner = runnerRef.current
+    switch (action.kind) {
+      case 'retry':
+      case 'fixed-and-retry':
+        await runner?.retryCurrentStep()
+        return
+      case 'skip':
+        await runner?.skipCurrentStep()
+        return
+      case 'cancel':
+        await runner?.cancel()
+        return
+      case 'open-link':
+        try {
+          window.electronAPI?.shell?.openExternal?.(action.href)
+        } catch (err) {
+          console.warn('[SetupWizardShell] open-link failed:', err)
+        }
+        return
+      case 'edit-config': {
+        let targetIndex: number | null = null
+        if (action.targetStepId) {
+          const idx = stepStates.findIndex((s) => s.id === action.targetStepId)
+          if (idx >= 0) targetIndex = idx
+        }
+        if (targetIndex === null) {
+          targetIndex = findEditableTarget(failedIndex)
+        }
+        if (targetIndex !== null) {
+          await runner?.jumpToStep(targetIndex)
+        }
+        return
+      }
+      case 'custom':
+        try {
+          await action.run()
+        } catch (err) {
+          console.warn('[SetupWizardShell] custom action failed:', err)
+        }
+        return
+    }
   }
 
   return (
@@ -394,43 +536,59 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
             ariaLabel={t(`wizard.title.${ctx.targetOS}`, ctx.targetOS)}
             renderFailedActions={(_step, index) => {
               const snap = stepStates[index]
+              if (!snap) return null
+              const mapped = resolveMappedErrorForSnapshot(snap, ctx.targetOS)
               const editableTarget = findEditableTarget(index)
+              const baseActions: WizardRecoveryAction[] = mapped
+                ? [...mapped.actions]
+                : [{ kind: 'retry' }, { kind: 'skip' }, { kind: 'cancel' }]
+
+              // T0333: preserve legacy "Edit settings" affordance when an
+              // editable predecessor exists and the registry didn't already
+              // emit an edit-config action. Insert before cancel (or append).
+              if (
+                editableTarget !== null &&
+                snap.editableFromFailure === false &&
+                !baseActions.some((a) => a.kind === 'edit-config')
+              ) {
+                const cancelIdx = baseActions.findIndex((a) => a.kind === 'cancel')
+                const editAction: WizardRecoveryAction = { kind: 'edit-config' }
+                if (cancelIdx >= 0) {
+                  baseActions.splice(cancelIdx, 0, editAction)
+                } else {
+                  baseActions.push(editAction)
+                }
+              }
+
               return (
                 <div className="bat-stepper-failed-actions flex flex-wrap gap-2">
-                  {snap?.retryable !== false && (
-                    <button
-                      className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-100 transition hover:bg-neutral-800"
-                      onClick={() => void runnerRef.current?.retryCurrentStep()}
-                      type="button"
-                    >
-                      {t('wizard.action.retry')}
-                    </button>
-                  )}
-                  {snap?.retryable !== false && (
-                    <button
-                      className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-100 transition hover:bg-neutral-800"
-                      onClick={() => void runnerRef.current?.skipCurrentStep()}
-                      type="button"
-                    >
-                      {t('wizard.action.skip')}
-                    </button>
-                  )}
-                  {snap?.editableFromFailure === false && editableTarget !== null && (
-                    <button
-                      className="rounded-md border border-amber-700 px-2 py-1 text-xs text-amber-100 transition hover:bg-amber-950"
-                      onClick={() => void runnerRef.current?.jumpToStep(editableTarget)}
-                      type="button"
-                    >
-                      {t('wizard.action.editConfig')}
-                    </button>
-                  )}
-                  <button
-                    className="rounded-md border border-rose-700 px-2 py-1 text-xs text-rose-100 transition hover:bg-rose-950"
-                    onClick={() => void runnerRef.current?.cancel()}
-                    type="button"
-                  >
-                    {t('wizard.action.cancel')}
-                  </button>
+                  {baseActions.map((action, i) => {
+                    const disabled =
+                      snap.retryable === false &&
+                      (action.kind === 'retry' ||
+                        action.kind === 'fixed-and-retry' ||
+                        action.kind === 'skip')
+                    if (disabled) return null
+                    const tone =
+                      action.kind === 'cancel'
+                        ? 'border-rose-700 text-rose-100 hover:bg-rose-950'
+                        : action.kind === 'edit-config'
+                        ? 'border-amber-700 text-amber-100 hover:bg-amber-950'
+                        : action.kind === 'open-link'
+                        ? 'border-sky-700 text-sky-100 hover:bg-sky-950'
+                        : 'border-neutral-700 text-neutral-100 hover:bg-neutral-800'
+                    return (
+                      <button
+                        key={`${action.kind}-${i}`}
+                        className={`rounded-md border px-2 py-1 text-xs transition ${tone}`}
+                        onClick={() => void dispatchAction(action, index)}
+                        type="button"
+                        data-action-kind={action.kind}
+                      >
+                        {defaultActionLabel(action, t)}
+                      </button>
+                    )
+                  })}
                 </div>
               )
             }}
@@ -445,6 +603,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
             onChoiceSelect={handleChoiceSelect}
             onBackToCurrent={handleBackToCurrent}
             ctx={ctx}
+            mappedError={activeMappedError}
           />
         </div>
       </div>

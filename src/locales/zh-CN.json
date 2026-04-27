@@ -619,7 +619,9 @@
       "skip": "跳过",
       "editConfig": "编辑设置",
       "cancel": "取消",
-      "skipChoice": "跳过"
+      "skipChoice": "跳过",
+      "fixedAndRetry": "已修复，重试",
+      "showDetails": "显示详细"
     },
     "shared": {
       "step": {
