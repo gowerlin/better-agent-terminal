@@ -49,6 +49,13 @@
 
 ## 後續處理
 
+### 研究結論（T0329，2026-04-27 14:02 UTC+8）
+
+T0329 初步確認：
+- 症狀 A（shell preference 失效）未被證實。`settings.json` 仍為 `shell=git-bash`，`electron/main.ts` 的 BUG-060 fix 仍保留，`tests/shell-path-resolver.test.ts` 5/5 通過；且症狀 B 的二次 rewrite 需要新 Worker PTY 實際跑在 Git Bash 才成立。
+- 症狀 B 根因高信心為 `MSYS_NO_PATHCONV` 未注入新 Worker PTY。`bat-terminal.mjs` 已修正塔台呼叫腳本時的外層 argv 污染（T0328 log 中 `parsed.promptLength=14`），但 Git Bash 中啟動 `codex --yolo '/ct-exec T0328'` 時，codex npm wrapper 再呼叫 Windows native Node，MSYS 會把 slash prompt 改成 `C:/Program Files/Git/ct-exec T0328`。
+- 推薦修法：先在 `scripts/bat-terminal.mjs --prompt` 建立 Worker PTY 時注入 `customEnv.MSYS_NO_PATHCONV='1'`（精準保護 auto-session），並加 unit/integration/e2e regression test。
+
 塔台建議流程：
 
 1. **立即 workaround**（本 session）：使用者手動派發 T0328（開新 BAT 終端直接打 `/ct-exec T0328`）→ T0328 不阻塞
