@@ -7,9 +7,10 @@
 | 工單編號 | T0328 |
 | 類型 | research（互動式研究，多 phase 盤點 + 方案評估 + 拆單建議） |
 | 所屬 | PLAN-032 — Setup Wizard Error UX Overhaul |
-| 狀態 | 📋 PENDING（待派發） |
+| 狀態 | 🔄 IN_PROGRESS（執行中） |
 | 建立時間 | 2026-04-27 12:58 (UTC+8) |
 | 派發時間 | （待塔台派發） |
+| 開始時間 | 2026-04-27 13:27 (UTC+8) |
 | Sizing | L（estimate 60-120 min wall；6 phase 盤點 + 方案矩陣 + 拆單 + reachability matrix。對照 GP099/T0313 預期 ~15 min wall 落於下界以下） |
 | 依賴 | PLAN-030 ✅（Stepper 元件 + 設計規範）/ PLAN-031 主體 ✅（三平台 install-bundle step 結構參考）/ BUG-072/073/074（root cause 三同族） |
 | 後續 | 拍板後拆 Sprint 2-5 共 ~10-12 張實作工單 |
@@ -271,4 +272,4 @@ D.1 表格每行加註「在當前 schema 下是否可達」欄位（GP112 規�
 
 ---
 
-**狀態**：📋 PENDING
+**狀態**：🔄 IN_PROGRESS
