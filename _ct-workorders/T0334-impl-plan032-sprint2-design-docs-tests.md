@@ -8,8 +8,9 @@
 | 標題 | 更新 `docs/design/bat-stepper-design-language.md` 加 `awaiting-input` 規範 + Stepper visual snapshot tests + i18n hook 文件補完 |
 | 類型 | docs + tests（規範收尾） |
 | 優先級 | 🟡 Medium（Sprint 2 收尾，無新功能；為 Sprint 3 BUG fix 工單與後續開發者鋪規範路） |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-27 23:33 (UTC+8) |
+| 完成時間 | 2026-04-27 23:43 (UTC+8) |
 | 建立時間 | 2026-04-27 23:32 (UTC+8) |
 | 派發模式 | `--mode yolo --no-interactive` |
 | 關聯 PLAN | PLAN-032（Sprint 2 收尾，最後一票） |
@@ -266,7 +267,7 @@ PLAN-032 Sprint 2 收尾完成。本票交付：
 - [x] AC-4：i18n completeness test 22 case 全綠（7 keys × 3 locales + 1 set-equality）
 - [x] AC-5（可選）：`docs/design/wizard-error-ux.md` 開發者指南產出
 - [x] AC-6：`npm run test:unit` 269 pass / 269（baseline 244 + 本票新增 25）；`npx vite build` 綠
-- [x] commit hash：`______`（reverse-write 規則，commit 後填入）
+- [x] commit hash：`4b43a4f`（reverse-write 規則，commit 後填入）
 
 ### 後續建議
 
