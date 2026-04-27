@@ -2965,3 +2965,38 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 
 **候選晉升**：📂 Project（高度 BAT 專屬，但「self-hosted 工具鏈三層防線」概念已晉升 GP113）
 
+---
+
+## L113 - 2026-04-27 — Monorepo dev-main 直接 commit（不開 feature branch）的適用條件（BMad-Guide monorepo 專屬）
+
+**觸發條件**：在 BMad-Guide monorepo（`D:/ForgejoGit/BMad-Guide`）的 dev-main 分支上跑跨子專案 sync 工單（例：control-tower skill upstream PR、跨子專案 spec 同步），且 working tree 已有合法 uncommitted M。
+
+**規則**：BMad-Guide monorepo dev-main 是「整合線」而非「保護線」，跨子專案 sync 工單可直接 commit 在 dev-main，不必開 feature branch。前提條件全滿足：
+1. 是 monorepo 整合線 dev-main，不是 production main
+2. 工單範圍是純 sync / drift 修正，無功能新增
+3. 兩個 commit 內可完成（基底對齊 + 規則 promote 各一）
+4. 設 push gate（GP124）讓使用者驗收
+
+**Why**：
+- monorepo dev-main 已是中繼整合分支，再開 feature branch 多一層 noise
+- 短鏈工單（≤2 commits）開 branch 的 overhead > 風險防護收益
+- working tree 已有合法 M 的場景，feature branch 反而要先 stash 增加複雜度
+- push gate（GP124）已提供回滾節點，feature branch 的隔離效益重複
+
+**How to apply**：
+1. 識別工單是「跨子專案 sync」類型（非新功能 / 重構）
+2. 檢查 working tree 有無合法 M：有 → 直接 commit；無 → 看下一步是否需多步驟（>2 commits 仍建議開 branch）
+3. Commit 必設 push gate（不 push，使用者驗收後手動 push）
+4. Commit message 明確標注 sync 範圍，便於後續 cherry-pick / revert
+
+**證據**：
+- T0350：monorepo dev-main 直接 commit `e92bb01` + `794f0ea`，使用者驗收後 push 成功，無混亂
+- 對照組（CT-T003，2026-04-18）：開 branch 反而引發 monorepo vs 獨立 repo 結構假設缺口（L065）
+
+**不適用場景**：
+- BMad-Guide 之外的單體 repo（main 是 production line）
+- 多步驟 / 多人協作工單
+- 需要長時間 review 的功能變更（feature branch 仍必要）
+
+**候選晉升**：📂 Project（BMad-Guide monorepo 結構專屬；通用「短鏈 sync 工單可省 branch」概念若再有其他 repo 證據可考慮晉升）
+
