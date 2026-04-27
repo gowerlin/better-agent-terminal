@@ -7,10 +7,12 @@
 | 工單編號 | T0328 |
 | 類型 | research（互動式研究，多 phase 盤點 + 方案評估 + 拆單建議） |
 | 所屬 | PLAN-032 — Setup Wizard Error UX Overhaul |
-| 狀態 | 🔄 IN_PROGRESS（執行中） |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 12:58 (UTC+8) |
-| 派發時間 | （待塔台派發） |
+| 派發時間 | 2026-04-27 13:27 (UTC+8) |
 | 開始時間 | 2026-04-27 13:27 (UTC+8) |
+| 完成時間 | 2026-04-27 13:32 (UTC+8) |
+| Wall time | ~5 min（純文件研究；Stepper / wizard code path 集中，無需實作驗證） |
 | Sizing | L（estimate 60-120 min wall；6 phase 盤點 + 方案矩陣 + 拆單 + reachability matrix。對照 GP099/T0313 預期 ~15 min wall 落於下界以下） |
 | 依賴 | PLAN-030 ✅（Stepper 元件 + 設計規範）/ PLAN-031 主體 ✅（三平台 install-bundle step 結構參考）/ BUG-072/073/074（root cause 三同族） |
 | 後續 | 拍板後拆 Sprint 2-5 共 ~10-12 張實作工單 |
@@ -240,6 +242,7 @@ D.1 表格每行加註「在當前 schema 下是否可達」欄位（GP112 規�
 - 交付物：
   - `_ct-workorders/_spec-wizard-error-ux.md`
   - 本工單 Phase A-E 完整研究回報
+- Commit：`d89d867` (`docs(plan-032): research wizard error ux design`)
 - 核心結論：
   1. 現況缺口不只在 `Stepper`，而是 `Stepper StepStatus` + `WizardRunner WizardStepStatus` + `SetupWizardShell` failed-action wiring三層一起缺少 `awaiting-input` 語意。
   2. 推薦採 **B.1-A / B.2-B / B.3-A / B.4-C**：新增獨立 `awaiting-input` status、混合式 `errorCode + regex matcher`、`preflight` step hook、hybrid recovery actions。
@@ -545,4 +548,4 @@ T0328 research
 
 ---
 
-**狀態**：🔄 IN_PROGRESS
+**狀態**：✅ DONE
