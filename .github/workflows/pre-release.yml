@@ -57,8 +57,96 @@ jobs:
           echo "TAG=v${VERSION}" >> $GITHUB_OUTPUT
           echo "Resolved version: ${VERSION} (tag: v${VERSION})"
 
-  build:
+  server-bundle:
     needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runs_on: ubuntu-22.04
+          - target: linux-arm64
+            runs_on: ubuntu-22.04-arm
+          - target: darwin-arm64
+            runs_on: macos-14
+    runs-on: ${{ matrix.runs_on }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync package.json version (so tarball + manifest carry release version)
+        shell: bash
+        run: npm version --no-git-tag-version --allow-same-version "${{ needs.prepare.outputs.version }}"
+
+      - name: Build server bundle (${{ matrix.target }})
+        run: node scripts/build-server-bundle.mjs --target=${{ matrix.target }}
+
+      - name: Verify server bundle (${{ matrix.target }})
+        run: node scripts/verify-server-bundle.js --target=${{ matrix.target }}
+
+      - name: Upload server bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-bundle-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            dist-server/bat-server-${{ matrix.target }}-v*.tar.gz
+            dist-server/bat-server-${{ matrix.target }}-v*.tar.gz.sha256
+
+  server-bundle-manifest:
+    needs: [prepare, server-bundle]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download server bundle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: server-bundle-*
+          merge-multiple: true
+          path: dist-server
+
+      - name: Generate manifest.json
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          node scripts/generate-server-bundle-manifest.mjs \
+            --input-dir dist-server \
+            --version "${VERSION}" \
+            --build-date "${BUILD_DATE}" \
+            --output dist-server/manifest.json
+
+      - name: Upload baseline bundle (tarballs + sidecars + manifest)
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-bundle-baseline
+          if-no-files-found: error
+          path: |
+            dist-server/bat-server-*.tar.gz
+            dist-server/bat-server-*.tar.gz.sha256
+            dist-server/manifest.json
+
+  build:
+    needs: [prepare, server-bundle-manifest]
     strategy:
       matrix:
         include:
@@ -95,6 +183,16 @@ jobs:
 
       - name: Verify required native modules present
         run: node scripts/verify-native-modules.js
+
+      - name: Download server bundle baselines into dist-baseline/
+        uses: actions/download-artifact@v4
+        with:
+          name: server-bundle-baseline
+          path: dist-baseline
+
+      - name: List dist-baseline (debug)
+        shell: bash
+        run: ls -la dist-baseline
 
       - name: Update version and build
         env:
