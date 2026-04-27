@@ -8,8 +8,10 @@
 | 標題 | _tower-state.md 🌅 起手式區段瘦身（hygiene refactor）+ archive 內嵌摘要 |
 | 類型 | refactor（state hygiene） |
 | 優先級 | 🔴 High |
-| 狀態 | 📋 PENDING |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-27 18:08 (UTC+8) |
+| 開始時間 | 2026-04-27 21:23 (UTC+8) |
+| 完成時間 | 2026-04-27 21:29 (UTC+8) |
 | 派發模式 | `--mode on --no-interactive` |
 | 關聯 PLAN | PLAN-033 |
 | 關聯規則 | T0348（_local-rules.md「Quick Recovery Hygiene」段落）+ GP121（實證驅動補規則） |
@@ -146,3 +148,46 @@ Closes T0349 (PLAN-033 Sprint 2 OOS hygiene cleanup)
 
 ### 結論摘要
 
+DONE — Quick Recovery hygiene refactor 完成，`_tower-state.md` 起手式已由 238 行歷史內嵌縮至 28 行，state size 49,502 bytes → 24,077 bytes（< 30 KB）。Session 31 歷史摘要已 append 至 `_archive/state-snapshots/2026-Q2-b.md`，`INDEX.md` 新增 row #55。
+
+### 完成狀態
+
+DONE
+
+### 產出摘要
+
+- 修改 `_ct-workorders/_tower-state.md`：保留 line 7-169，將 Quick Recovery 改為 立即待辦 / 近期完成 / 快速連結 / 編號起始。
+- 修改 `_ct-workorders/_archive/state-snapshots/2026-Q2-b.md`：append Session 31 收工快照，Entries 27 → 28。
+- 修改 `_ct-workorders/_archive/state-snapshots/INDEX.md`：Total archived entries 54 → 55，新增 Session 31 row。
+- 修改 `sprint-status.yaml`：更新 last_updated 與 next ID pointers。
+- 修改本工單：開始時間與回報區。
+
+### 驗證
+
+- `git diff --check`：通過（僅 Git 提示 LF/CRLF touch warning）。
+- `_tower-state.md` size：24,077 bytes，< 30 KB。
+- Quick Recovery section：line 171-198，28 lines，≤ 50。
+- `2026-Q2-b.md` size：178,853 bytes，< 200 KB，未觸發再切割。
+- Archive entry count：`^## 🏆 Session 31 收工快照` = 1。
+- INDEX row count：`| 55 | Session 31 收工快照` = 1。
+- `sprint-status.yaml`：已更新。
+
+### 遭遇問題
+
+PowerShell 第一次機械 rewrite 時 `AddRange(System.Object[])` 型別錯誤，導致 `_tower-state.md` 先寫入了缺失 Quick Recovery 的中間狀態；已立即以 `apply_patch` 修復。另一次 `INDEX.md` rewrite 將既有 embedded CR 拆成多行；已從 `HEAD` 原文重建並只重套 metadata + row 55，diff 已確認只剩預期變更。
+
+### 互動紀錄
+
+無
+
+### Renew 歷程
+
+無
+
+### Commit
+
+`26e67a8` — `chore(state): refactor _tower-state.md Quick Recovery section per hygiene rule (PLAN-033 Sprint 2)`
+
+### 回報時間
+
+2026-04-27 21:28 (UTC+8)
