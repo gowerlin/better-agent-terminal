@@ -1,10 +1,10 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-28 23:21 (UTC+8) — Session 42 BUG-078 新增 FIXING（T0348 派出，CI run 25060731646 D090 guard 攔到 T0346 漏網）。
+> 最後同步：2026-04-28 23:36 (UTC+8) — Session 42 BUG-078 → FIXED（T0348 commit `5e93b52`，377 tests 全綠 + vite build + D090 guard 通過；待 CI 重跑驗證）。
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 3 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 21**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 3 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 21**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -19,12 +19,12 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-078 | ct-drift-telemetry.ts 引用 node:fs/path/os 觸發 D090 guard，pre-release CI 三平台 build fail 阻塞 v0.5.0-pre.1（T0348 已派出，方案 A 搬到 electron/ + IPC） | 🔴 High | 2026-04-28 23:21 | [BUG-078](BUG-078-ct-drift-telemetry-renderer-node-imports-d090-violation.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-078 | ct-drift-telemetry 搬到 electron/ + IPC bridge 完成（T0348 commit `5e93b52` @2026-04-28 23:36；377 tests + vite build + D090 guard 全綠；待 CI 重跑 verify） | 🔴 High | 2026-04-28 23:36 | [BUG-078](BUG-078-ct-drift-telemetry-renderer-node-imports-d090-violation.md) |
 
 ## 🧪 驗收中 (VERIFY)
 
