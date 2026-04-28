@@ -8,9 +8,10 @@
 | 標題 | 將現有 4 個 input-flavor steps 統一標 `kind: 'input'`，套用 awaiting-input transition + 移除 pre-submit terminal validation；不新增 form API |
 | 類型 | refactor |
 | 優先級 | 🟡 Medium（PLAN-032 Sprint 4，T0335 SSH learning 推廣到其他平台） |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-28 06:18 (UTC+8) |
 | 開始時間 | 2026-04-28 08:55 (UTC+8) |
+| 完成時間 | 2026-04-28 09:02 (UTC+8) |
 | 派發模式 | `--mode yolo --no-interactive` |
 | 關聯 PLAN | PLAN-032（Sprint 4） |
 | 關聯 spec | `_ct-workorders/_spec-wizard-error-ux.md` § 2（Wizard Runner Contract / Input-step behavior） |
@@ -247,4 +248,4 @@ T0341 audit 階段可獨立評估（**本票範圍外**）：
 
 ### Commit hash
 
-`<填入>`
+`58ec3bd` — `refactor(setup-wizard): rollout kind: 'input' to wsl/docker steps (T0340, PLAN-032 Sprint 4)`
