@@ -1,10 +1,10 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-28 18:15 (UTC+8) — Session 42 *sync + BUG-077 開單（指揮塔 UI parser 誤報 DONE 為 Pending）。
+> 最後同步：2026-04-28 20:15 (UTC+8) — Session 42 BUG-077 → CLOSED（PLAN-034 Sprint 5 收斂，T0346 commit `1780976`）。
 
 ## 統計
-- 🔴 Open: 3 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 3 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 20**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 3 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 20**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -12,7 +12,6 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-077 | 指揮塔 UI 工單狀態 parser：T0313/T0314 metadata DONE 但 UI 顯示 Pending（統計 91+2≠101 也漂移） | 🟡 Medium | 2026-04-28 18:15 | [BUG-077](BUG-077-control-tower-ui-status-parser-misreports-done-as-pending.md) |
 | BUG-071 | Setup Wizard install-server-bundle 硬性失敗（PLAN-031 T0321/T0322 已實作完成；等 T0324 DGX Spark dogfood VERIFY，工單 metadata 仍 OPEN） | 🔴 High | 2026-04-27 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 | BUG-061 | CodexAgentPanel.tsx baseline tsc errors（dev-only，非阻塞） | 🟢 Low | 2026-04-26 14:10 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
@@ -38,6 +37,7 @@
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-077 | 指揮塔 UI 工單狀態 parser：T0313/T0314 metadata DONE 但 UI 顯示 Pending（PLAN-034 Sprint 5 收斂，T0346 commit `1780976`） | 🟡 Medium | 2026-04-28 20:11 | [BUG-077](BUG-077-control-tower-ui-status-parser-misreports-done-as-pending.md) |
 | BUG-076 | Shell mapped error resolver 遺失 errorCode（T0339 FIXED `f711baf` @2026-04-28 06:16；T0338 integration test case #4 unskipped 自動驗證；304/304 全綠 0 regression） | 🟡 Medium | 2026-04-28 | [BUG-076](BUG-076-shell-mapped-error-resolver-loses-errorcode.md) |
 | BUG-075 | BAT 內部終端 shell pref + MSYS path rewrite 雙 regression（T0341 MSYS env + T0343 prefix dual fix + T0342/T0344/T0345 三層 regression test） | 🔴 High | 2026-04-27 | [BUG-075](BUG-075-bat-terminal-shell-pref-and-msys-path-rewrite-regression.md) |
 | BUG-070 | Profile Dialog Add 按鈕橫向溢出（T0306 commit `014da72`，使用者實機驗收通過） | 🔴 High | 2026-04-27 | [BUG-070](BUG-070-profile-dialog-add-buttons-overflow.md) |

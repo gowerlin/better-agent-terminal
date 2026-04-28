@@ -3,9 +3,12 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-034
 title: Workorder/Index 檔 YAML frontmatter metadata schema 強制化（BAT + CT 雙端）
-status: PLANNED
+status: DONE
 priority: high
 created_at: "2026-04-28T18:20:00+08:00"
+done_at: "2026-04-28T20:14:00+08:00"
+trigger_bugs:
+  - BUG-077
 ---
 # PLAN-034 — Workorder/Index 檔 YAML frontmatter metadata schema 強制化（BAT + CT 雙端）
 
@@ -15,7 +18,7 @@ created_at: "2026-04-28T18:20:00+08:00"
 |------|------|
 | PLAN 編號 | PLAN-034 |
 | 標題 | Workorder/Index 檔 YAML frontmatter metadata schema 強制化（BAT + CT 雙端） |
-| 狀態 | 📋 PLANNED |
+| 狀態 | ✅ DONE（2026-04-28 20:14 — Sprint 1-5 全綠，Sprint 6 strict mode 留 1-2 週 drift 觀察期 conditional） |
 | 優先級 | 🔴 High |
 | 類型 | 架構調整 + 技術改善（兩者皆是） |
 | 建立時間 | 2026-04-28 18:20 (UTC+8) |
@@ -100,12 +103,38 @@ created_at: "2026-04-28T18:20:00+08:00"
 
 ## 後續處理
 
-- [ ] 派 Sprint 1 research 工單拍板 6 大設計問題
-- [ ] research 結論後拆 Sprint 2-6 實作工單
-- [ ] BUG-077 在 Sprint 5 dogfood 驗證階段一併收斂
+- [x] 派 Sprint 1 research 工單拍板 6 大設計問題（T0342 commit `6e80b45`）
+- [x] research 結論後拆 Sprint 2-6 實作工單
+- [x] BUG-077 在 Sprint 5 dogfood 驗證階段一併收斂（T0346 commit `1780976`，BUG-077 → CLOSED）
+- [ ] CT skill upstream PR（套用 5 份 `_draft-ct-frontmatter-sprint2-*.md` 到 `~/.claude/skills/control-tower/**`，沿 T0350 慣例，使用者手動）
+- [ ] BAT + CT 同步 release（使用者已指示「全部完成同時更版」）
+- [ ] Sprint 6 strict mode 評估（1-2 週後依 `~/.bat-cache/ct-drift.log` drift 量決定）
+
+## Sprint 完成總表
+
+| Sprint | 內容 | wall time | Worker commit |
+|--------|------|-----------|--------------|
+| 1 | T0342 Research（schema spec + 5 範例 + 9 拍板） | ~5.4 min | `6e80b45` |
+| 2 | T0343 CT 模板 + 5 份 upstream draft + spec P1/P2 | ~6.4 min | `b064a16` |
+| 3 | T0344 BAT parser frontmatter-first + INVALID status | ~10 min | `b250db5` |
+| 4 | T0345 Migration script + 141 張單據遷移 | ~5 min | `e24428b` |
+| 5 | T0346 BUG-077 收斂 + parity tests + drift telemetry | ~8 min | `1780976` |
+| **合計** | **5 sprint, 365→375 tests** | **~35 min** | **5 commits** |
+
+## 主要交付
+
+- 📐 `_spec-yaml-frontmatter-schema.md`（513 行 spec，schema_version: 1）
+- 📁 `_ct-workorders/examples/`（5 範例：T/BUG/PLAN/EXP/_bug-tracker）
+- 📜 `_draft-ct-frontmatter-sprint2-*.md`（5 份 upstream CT skill PR draft）
+- 🔧 `src/utils/ct-frontmatter.ts`（types + helpers）
+- 🔧 `src/utils/ct-drift-telemetry.ts`（drift logger）
+- 🔧 BAT 5 面板 parser frontmatter-first（向下相容 legacy markdown table）
+- 🚚 `scripts/migrate-ct-frontmatter.mjs`（483 行，idempotent，141 張遷移）
+- 🐛 BUG-077 → CLOSED（指揮塔 UI parser 誤報根因解）
 
 ---
 
 ## 變更歷史
 
 - 2026-04-28 18:20：建立（第四十二 session 使用者提案，BUG-077 根因解）
+- 2026-04-28 20:14：Sprint 1-5 全綠落地（35 min worker wall）→ status DONE
