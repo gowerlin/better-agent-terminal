@@ -1,14 +1,103 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-28(session 41 起手式 drift 修正,塔台直接更新)
+> 最後更新:2026-04-28 09:35 (UTC+8) — **第四十一 session 收工快照**:~4.4 hr wall,PLAN-032 Sprint 2-5 全收尾跨 5 sessions(本 session 派 4 張 T0338-T0341 YOLO 鏈式全綠 + 衍生 BUG-076 fix),drift fix(session 40 未收工 → 不偽造,git log 為 SoT,L114),plugin hook 災情處置(${CLAUDE_PLUGIN_ROOT} mangle,L115),bat-terminal.mjs stdout 不可靠(L116),萃取 GP126(Test-discovered bug 三步法)+ GP122 footnote。
 >
-> ⚠️ **Drift 註記**:第四十 session(2026-04-27 ~22:30 - 2026-04-28 ~03:32, ~5 hr wall)未寫 收工快照。實際完成 PLAN-032 Sprint 2 五張(T0330-T0334 全 DONE)+ Sprint 3 三張(T0335-T0337 全 FIXED,BUG-072/073/074 → 🔍 VERIFY),共 8 張工單 + 1 張 metadata bookkeeping commit `7c2b66a`。git log 為 single source of truth,本檔 session 39「本」段保留不動,session 41 收工時依 hygiene 規則自然 archive。
->
-> 上一次正式 收工:2026-04-27 22:08(第三十九 session 結尾,見下方 🛏 本 Session 區段)。
+> **下次起手**:三 BUG smoke(BUG-072/073/074)結果 → PLAN-032 → DONE,或 push ~10 commits,或 v0.4.2 release engineering,或 WSL/Docker structured errorCode PLAN。
 
 ---
 
-## 🛏 本 Session 收工快照 (第三十九 session, 2026-04-27 ~21:38 - 22:08, ~30 min wall, PLAN-033 Sprint 2 上游 PR 真正收尾)
+## 🛏 本 Session 收工快照 (第四十一 session, 2026-04-28 ~05:11 - 09:35, ~4.4 hr wall, PLAN-032 Sprint 2-5 全收尾 + drift fix + plugin hook 災情處置 + GP126/L114-116)
+
+### 本輪時間線
+
+1. **05:11**（起手）：Fast Path 載入 session 39 快照（snapshot < 7 天）；發現 git log 顯示 session 40 已落地 8 張工單（T0330-T0337）但無收工快照 → 重大 drift
+2. **~05:30**：State drift fix（commit `14dead7`）— 頂部標 drift 註記、Quick Recovery 立即待辦改寫、編號起始 T0351 → T0338
+3. **05:47**：派 T0338 (integration tests, Sprint 5) — Worker 撞 plugin hook bug（`security-guidance` ${CLAUDE_PLUGIN_ROOT} 在 Windows Git Bash mangle 成 `D:\c\Users\...`）。診斷後改 `~/.claude/settings.json` `security-guidance` 設 `enabled: false`
+4. **05:58-06:08**：T0338 重派 → DONE `be40f7d`（10 min；8 transition paths + 5 mapped UX cases + 1 skipped + 1 regression guard；304 tests 全綠）；衍生 P1 production gap → BUG-076
+5. **06:10**：開 BUG-076（SetupWizardShell `resolveMappedErrorForSnapshot` errorCode 遺失）+ 派 T0339 採方案 (a) 根治
+6. **06:13-06:16**：T0339 → FIXED `f711baf`（3 min；304 tests 全綠 0 regression；BUG-076 → CLOSED via T0338 case #4 unskip 自動驗收）
+7. **08:55-09:02**：派 T0340 (Sprint 4 input-kind audit, M/L) → DONE `58ec3bd`（7 min；4 step audit 全已 input-aligned，補 14 unit tests / 3 files；304→321 tests 全綠）
+8. **09:08-09:27**：派 T0341 (Sprint 5 audit, S) — 首次 bat-terminal.mjs stdout 顯示 `null` 但 Worker 沒跑（L116 source）；剪貼簿降級 → 手動貼上後 → DONE `0cadea0`（7 min；5 visual snapshots + docs 對齊 + CHANGELOG v0.4.2 草稿；321→326 tests 全綠）
+9. **09:30-09:35**：PLAN-032 metadata 同步 + *evolve 5 entries（commit `797c2e9`：L114-L116）+ Global GP126 + GP122 footnote
+10. **09:35-現在**：State hygiene archive session 37 → 寫本快照
+
+### 本 session 統計
+
+| 指標 | 值 |
+|------|-----|
+| Wall time | ~4.4 hr（05:11-09:35） |
+| Worker wall | ~27 min（T0338 10 + T0339 3 + T0340 7 + T0341 7） |
+| 工單派發 | 4（T0338/T0339/T0340/T0341） |
+| Worker DONE | 4 / 4（0 Renew / 0 FAILED / 0 PARTIAL） |
+| 主線 commits | ~10（drift fix + 4 worker commits + 4 chore/metadata + evolve） |
+| Tests 增量 | 286 → 326（+40，全綠 0 regression） |
+| 萃取項 | 5（Global GP126 + GP122 footnote / Project L114/L115/L116） |
+| BUG 狀態變更 | BUG-076 OPEN → CLOSED（衍生並一站式收尾） |
+| PLAN 狀態變更 | **PLAN-032 Sprint 2-5 全部 12 工單 DONE**（pending 3 BUG smoke 才能 PLAN → DONE） |
+
+### PLAN-032 跨 5 sessions 完整收尾
+
+| Sprint | 工單 | session | commits |
+|--------|------|---------|---------|
+| 1 (research) | T0328 | 36 | DONE |
+| 2 (framework) | T0330-T0334 | 40 | 5/5 |
+| 3 (BUG fixes) | T0335-T0337 | 40 | 3/3（BUG-072/073/074 → VERIFY） |
+| 4 (input rollout) | T0340 | **41** | 1/1 `58ec3bd` |
+| 5 (tests + audit) | T0338/T0339/T0341 | **41** | 3/3 + BUG-076 衍生 |
+
+GP126（Test-discovered bug 三步處理法）= 本 session T0338→BUG-076→T0339 流程 dogfood 萃取。
+
+### 熱區現況（收工）
+
+| 類型 | 數量 | 狀態分布 |
+|------|------|---------|
+| **T 工單** | 102 + 4 reports | 89 DONE + 13 NEW（含 T0338-T0341 全 DONE / T0324 user dogfood 待 / T0326 待外部 / T0341/T0343 FIXED） |
+| **BUG** | 19 | 4 OPEN（BUG-061/071 + 三 VERIFY 未列）+ 14 CLOSED（含 BUG-076 新閉環）+ 3 VERIFY (BUG-072/073/074) |
+| **PLAN** | 13 | 2 IDEA + 1 PLANNED + 2 IN_PROGRESS（PLAN-031/032）+ 7 DONE + 1 DROPPED |
+| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED |
+
+### 下 session pending（優先序）
+
+1. 🔴 **三 BUG smoke**（BUG-072/073/074）— user 親跑，PLAN-032 → DONE 條件
+2. 🔴 **Push ~10 commits** to origin/main（GP124 push gate，需使用者授權）
+3. 🟡 **v0.4.2 release engineering**（npm version bump + tag + push，CHANGELOG 草稿已就位）
+4. 🟡 **WSL/Docker structured errorCode + ErrorMapper entries PLAN**（T0340 P2 後續建議，獨立開）
+5. 🟡 **T0324 DGX Spark dogfood VERIFY**（user 親跑進行中 / 待回報）
+6. 🟢 **BUG-071 metadata 對齊**：依 T0321/T0322/T0324 結果決定 OPEN→FIXED/VERIFY
+7. 🟢 **BUG-061** CodexAgentPanel.tsx tsc errors（dev-only）
+8. 🟢 **Archive batch 2**（04-28 起合格：BUG-070/069 + T0303-T0312 + 已收 PLAN-032 工單批次）
+
+### 恢復指引（下 session 起手）
+
+1. Fast Path 載入本快照（< 7 天）
+2. **熱區聚焦：PLAN-032 全工單 DONE，僅待三 BUG smoke + push**
+3. **編號起始**：T0342 / BUG-077 / PLAN-034 / D110 / EXP-[TOPIC]-001
+4. **塔台規則繼續**：auto-session: on（建議延續，YOLO 鏈式 4 張全綠驗證）；experience-level: standard
+5. **建議起手動作**：
+   - 若使用者已跑 BUG smoke：CLOSED 三 BUG → PLAN-032 → DONE → push
+   - 若未跑：先處理 push（10 commits 偏多）+ 等 smoke 結果
+   - 或開 WSL/Docker structured errorCode PLAN（非阻塞 PLAN-032）
+
+### 本 session 教訓（已萃取）
+
+1. **GP126**（Global）：Test-discovered production bug 三步處理法（守界 → 回報 → 衍生）— 本 session T0338→BUG-076→T0339 dogfood
+2. **GP122 footnote**（Global）：產品 PLAN 的五件套變體 = research → framework → BUG-fix → rollout → audit；audit 票天然落 S 區間
+3. **L114**（Project）：Session drift 修法不偽造歷史（git log 為 SoT）— session 41 起手實證
+4. **L115**（Project）：Plugin hook ${CLAUDE_PLUGIN_ROOT} 在 BAT × Git Bash × Windows 三層疊加會 mangle
+5. **L116**（Project）：bat-terminal.mjs 派發成功與否 stdout 不可靠（看 git working tree）
+
+### 本 session 成就
+
+- 🏆 **PLAN-032 跨 5 sessions 完整收尾**：framework + 三平台 BUG fix + input-kind rollout + tests + audit 12 工單 + 1 衍生 BUG fix
+- 🎉 4 張 YOLO 鏈式 0 Renew / 0 FAILED / 0 PARTIAL，平均 7 min Worker wall
+- 🎉 GP126（Test-discovered bug 三步法）首次完整 dogfood，T0338→BUG-076→T0339 三步流程零摩擦
+- 🎉 plugin hook 災情快速診斷 + 治標處置（settings.json `enabled: false`）+ 重派恢復鏈式
+- 🎉 State drift 修法不偽造歷史（git log 為 SoT），L114 落地
+- 🎉 Tests 286 → 326（+40 cases / 5 新檔），0 regression
+
+---
+
+## 🛏 前 Session 收工快照 (第三十九 session, 2026-04-27 ~21:38 - 22:08, ~30 min wall, PLAN-033 Sprint 2 上游 PR 真正收尾)
 
 ### 本輪時間線
 
@@ -95,7 +184,7 @@ GP122（五件套節奏）+ GP123（drift 決策表）+ GP124（push gate）完�
 
 ---
 
-## 🛏 前 Session 收工快照 (第三十八 session, 2026-04-27 ~18:00 - 21:35, ~3.5 hr wall, PLAN-033 Sprint 2 完整四件套收尾 + dogfood 驗證)
+## 🛏 前前 Session 收工快照 (第三十八 session, 2026-04-27 ~18:00 - 21:35, ~3.5 hr wall, PLAN-033 Sprint 2 完整四件套收尾 + dogfood 驗證)
 
 ### 本輪時間線
 
@@ -180,117 +269,37 @@ GP119（三件套節奏）+ GP121（實證驅動補規則）完整 dogfood 閉�
 
 ---
 
-## 🛏 前前 Session 收工快照 (第三十七 session, 2026-04-27 ~16:21 - 16:50, ~30 min wall, BUG-075 三層防線收尾 + *sync + *evolve)
-> 第三十六 session 收工快照已 archive 至 `_archive/state-snapshots/2026-Q2-b.md` (#56)。
-
-### 本輪時間線
-
-1. **16:21**（起手）：Fast Path 載入 session 36 快照；偵測 session 36→37 之間已落地 7 commits（T0341/T0343 fix + 3 regression test PENDING + server bundle workflow + verify-imports fix），但 BUG-075 metadata 仍 OPEN，T0342/T0344/T0345 PENDING
-2. **16:21-16:25**：使用者選 [A] 派 BUG-075 regression tests；確認 [A3] 並行 T0342+T0344 → T0345 收尾、走 mjs 派發（順便當 e2e 驗證）、`auto-session: on`
-3. **16:25**：mjs 並行派發 T0342 + T0344（`--mode on --no-interactive`）
-4. **16:31**：T0342 DONE — `tests/bat-terminal-msys.test.mjs` 1 unit + 1 integration，189 tests 綠，revert T0341 → 紅；commit `873435a`
-5. **16:34**：T0344 DONE — `electron/terminal-command-handlers.ts` 抽出 + diagnostics log + 3-shot integration test，189 tests 綠；commit `f98a495` + close `f26e0db`
-6. **16:35**：塔台 chore commit `a60f38a`（T0342 工單檔回報區 BAT 通知段落 backfill +8/-3）
-7. **16:35**：mjs 派發 T0345（`--mode on --interactive`）
-8. **16:42**：T0345 DONE — Playwright e2e + Mock BAT RemoteServer，三 shot 全綠（codex argv probe `$ct-exec T0345` literal + bash.exe basename + MSYS_NO_PATHCONV=1），revert T0341 → 紅；commit `6d4da38`；BUG-075 metadata → CLOSED
-9. **16:42-16:45**：*sync patch — _bug-tracker.md（OPEN +1 / FIXING -1 / CLOSED +1）+ _backlog.md（PLAN-032 IN_PROGRESS 加入）；歸檔候選 0 張（archive_days 7 未到）
-10. **16:45-16:50**：*evolve 7 entries — Global GP113-118（6）+ Project L112（1）；commits `d42cb42`（_learnings + indices）+ `f465548`（Global learnings 含 session 36 留下的 GP110-112）
-11. **16:50**：使用者選 [F] 收工 → 寫本快照
-
-### 本 session 統計
-
-| 指標 | 值 |
-|------|------|
-| Wall time | ~30 min（16:21-16:50） |
-| Worker wall | ~17 min（T0342+T0344 並行 ~9 min + T0345 ~7 min） |
-| 工單派發 | 3（T0342 / T0344 / T0345） |
-| Worker DONE | 3 / 3（無 PARTIAL，無 FAILED，無 Renew） |
-| 主線 commits | 7（`873435a` T0342 + `f98a495` T0344 + `f26e0db` close + `a60f38a` chore backfill + `6d4da38` T0345 + `d42cb42` sync/L112 + `f465548` Global learnings） |
-| 萃取項 | 7（GP113-118 + L112） |
-| Tests 增量 | +2 unit + 1 e2e（189 → 191 unit + 1 e2e） |
-| BUG 狀態變更 | BUG-075 OPEN → CLOSED；BUG-071 FIXING → OPEN（per metadata SoT 修正） |
-| PLAN 狀態變更 | 無 |
-
-### 熱區現況（收工）
-
-| 類型 | 數量 | 狀態分布 |
-|------|------|---------|
-| **T 工單** | 89 + 4 reports | 79 DONE + 10 NEW（T0324 user dogfood / T0326 待外部 / T0329 DONE / T0341/T0343 FIXED / T0342/T0344/T0345 DONE / T0330-T0334 PENDING Sprint 2 / T0335-T0340 PENDING Sprint 3-5） |
-| **BUG** | 18 | 5 OPEN（BUG-061/071/072/073/074）+ 13 CLOSED（含 BUG-075 新閉環） |
-| **PLAN** | 12 | 2 IDEA + 1 PLANNED + 2 IN_PROGRESS（PLAN-031/032）+ 6 DONE + 1 DROPPED |
-| **EXP** | 1 | EXP-HEADLESS-001 CONCLUDED |
-
-### 下 session pending（優先序）
-
-1. 🔴 **PLAN-033 Sprint 1 research 派發**（state snapshot archive 架構 — 解封自身基礎設施 264KB 撞 256KB Read 上限，dogfood 自治；session 37 實證觸發）
-2. 🔴 **PLAN-032 Sprint 2 解封 — T0330 keystone**（YOLO 鏈式可重啟，BUG-075 三層防線已落地）
-3. 🔴 **T0324 DGX Spark dogfood VERIFY**（user 親跑進行中 / 待回報，BUG-071 VERIFY 路徑）
-4. 🟡 **PLAN-032 Sprint 2 後續 T0331-T0334**（依賴 T0330）
-5. 🟡 **PLAN-032 Sprint 3-5 — T0335-T0340**
-6. 🟢 **BUG-071 metadata 對齊**：T0321/T0322 已實作 + 等 T0324 dogfood，建議 OPEN→FIXED 或 VERIFY（當前工單檔仍 OPEN）
-7. 🟢 **BUG-061** CodexAgentPanel.tsx tsc errors（dev-only 非阻塞，long-tail）
-8. 🟢 大批歸檔 batch 2（04-28 起合格：BUG-070/069 + T0303-T0312）
-9. 🟢 PLAN-014 啟動評估 / v0.4.3 release 評估
-
-> 🟡 **PLAN-033 vs PLAN-032 派發順序**：兩者皆 High，PLAN-033 解封基礎設施（Read 上限 + Fast Path 加速），PLAN-032 推進業務邏輯。建議下 session 起手讀 backlog 後一起決策。若 *evolve / 收工頻繁，PLAN-033 收益更立即；若集中 ship feature，PLAN-032 優先。
-
-### 恢復指引（下 session 起手）
-
-1. Fast Path 載入本快照（<7 天）
-2. **熱區乾淨，BUG-075 已 CLOSED，YOLO 鏈式解封**
-3. **編號起始**：T0346 / BUG-076 / PLAN-033 / D110 / EXP-[TOPIC]-001
-4. **塔台規則繼續**：auto-session 切回 yolo（建議）；experience-level: standard
-5. **建議起手動作**：
-   - **PLAN-033 Sprint 1 research 派發**（自治優先 — 解封自身 Read 上限）
-   - 或 PLAN-032 Sprint 2 鏈式派發（T0330 keystone → T0331-T0334，業務邏輯）
-   - 或 T0324 VERIFY 結果處理（若 user 已測完）
-   - 或 BUG-071 metadata 對齊（OPEN→FIXED）
-
-### 本 session 教訓（已萃取至 GP113-118 + L112）
-
-1. **GP113**：22h 同族再現 → 三層防線升級規則（fix + unit/integration + e2e）
-2. **GP114**：Worker 拍板採納率 100% 反映研究品質（YOLO 綠燈訊號）
-3. **GP115**：BUG 識別 5 min 內預備下 session 研究工單（0 冷啟動）
-4. **GP116**：self-hosted 工具鏈撞線時 graceful degrade（PLAN 推進不停擺）
-5. **GP117**：派發鏈本身可當 BUG fix 的 e2e（dogfood your own fix）
-6. **GP118**：塔台 chore commit 處理 worker 漏 commit 工單檔（自然分工）
-7. **L112**：BAT mjs 派發鏈三層防線（BUG-060→BUG-075 lineage，BAT 專屬）
-
-### 本 session 成就
-
-- 🏆 BUG-075 22h 內同族再現 → 三層防線（T0341/T0343 fix + T0342/T0344/T0345 test）一氣收尾，30 min 內完整閉環
-- 🎉 派發鏈雙重用途實證：T0342+T0344 mjs 派發 = e2e 驗證，0 regression
-- 🎉 T0345 e2e Mock BAT RemoteServer 設計優雅，避免 self-disrupt 當前 worker session
-- 🎉 *sync patch 精準（不全 rebuild），_bug-tracker 認知對齊
-- 🎉 *evolve 7 entries 落地，含 GP116（infrastructure 撞線降級）+ GP117（dogfood your own fix）兩條跨專案重要 pattern
-- 🎉 全 session 0 Renew / 0 FAILED / 0 PARTIAL，3 工單神速並行 + 收尾
-
----
-
+> 第三十七 session 收工快照已 archive 至 `_archive/state-snapshots/2026-Q2-b.md` (#57)。
+> 第三十八 session 將於下次收工時 archive（per state hygiene rule）。
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-04-28 UTC+8（session 41 起手 drift 修正）
+> 最後更新：2026-04-28 09:35 UTC+8（session 41 收工）
 
 ### 立即待辦
-1. **PLAN-032 三 BUG smoke**：BUG-072（WSL linger/systemd, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED。
-2. **Push 37 commits**：local main 領先 origin/main 37 commits（含 PLAN-032 Sprint 2+3 全部成果），需使用者授權 push（GP124 push gate）。
-3. **PLAN-032 Sprint 4-5 規劃**：Sprint 2+3 已收，Sprint 4-5 範圍待研究/拆單（research 工單候選）。
-4. **上游目錄 rename 評估**：v4.4.1 → v4.4.2 是否 bump 承載 PLAN-033 三段規則。
-5. **BUG-071 metadata 對齊**：依 T0321/T0322/T0324 結果決定 OPEN→FIXED/VERIFY。
-6. **Archive batch 2**：04-28 起合格（BUG-070/069 + T0303-T0312 + 已收 PLAN-032 Sprint 2/3 工單批次）。
-7. **session 40 timeline 反向重建**（可選）：若需正式收工快照，可從 git log e0a23e5..7c2b66a + 工單回報區重建 — 否則維持 git 為 SoT。
+1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072（WSL linger/systemd, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED → PLAN-032 → DONE
+2. 🔴 **Push ~10 commits** to origin/main（GP124 push gate，需使用者授權；累積 ~48 commits 偏多）
+3. 🟡 **v0.4.2 release engineering**（npm version bump + tag + push；CHANGELOG 草稿已就位於 T0341）
+4. 🟡 **WSL/Docker structured errorCode PLAN**（T0340 P2 後續建議，獨立開）
+5. 🟡 **T0324 DGX Spark dogfood VERIFY**（user 親跑進行中 / 待回報）
+6. 🟢 **BUG-071 metadata 對齊** / **BUG-061** / **Archive batch 2**
 
-### 近期完成（session 40，未正式收工但 git 已落地）
-- **T0330**（keystone, `e0a23e5`）：Stepper + WizardRunner `awaiting-input` 狀態擴充。
-- **T0331-T0334**（Sprint 2 完整收尾）：ErrorMapper / Preflight / Recovery actions / design+i18n docs。
-- **T0335-T0337**（Sprint 3 三平台 BUG fix）：BUG-074/073/072 → FIXED，三 BUG → 🔍 VERIFY。
-- **PLAN-032**：Sprint 2 ✅ 5/5、Sprint 3 ✅ 3/3，整體仍 IN_PROGRESS（待 Sprint 4-5 + 三 BUG smoke）。
+### 近期完成（session 41，4 張 YOLO 鏈式全綠）
+- **T0338**（integration tests, `be40f7d`）：8 transition paths + 5 mapped UX cases，發現 BUG-076 衍生
+- **T0339**（BUG-076 fix, `f711baf`）：Shell `resolveMappedErrorForSnapshot` 改用 snapshot.mappedError 根治；BUG-076 → CLOSED 自動驗收
+- **T0340**（input-kind audit, `58ec3bd`）：4 step 全 input-aligned，補 14 unit tests / 3 files
+- **T0341**（Sprint 5 audit, `0cadea0`）：5 visual snapshots + docs 對齊 + CHANGELOG v0.4.2 草稿
+- **PLAN-032 全工單 DONE**（pending 三 BUG smoke）；GP126 + GP122 footnote + L114-L116 萃取
 
-### 上 session（39）完成
-- T0350 上游 SKILL.md PR（`e92bb01` + `794f0ea`，已 push dev-main）。
-- GP122-124 + L113（五件套節奏 / drift 決策表 / push gate / monorepo 直接 commit）。
-- PLAN-033 Sprint 2 跨 3 sessions 五件套真正收尾。
+### 快速連結
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)
+- Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)
+- Learnings → [_learnings.md](_learnings.md)
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)
+
+### 編號起始
+- T0342 / BUG-077 / PLAN-034 / D110 / EXP-[TOPIC]-001
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)
