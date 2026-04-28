@@ -130,6 +130,8 @@ interface StepperProps {
 | `rolled-back` | `↩` | `#71717a` | line-through | 已回滾的 step |
 
 > **PLAN-032 Sprint 2 補入**：`awaiting-input` 是中性等待態，**不是錯誤態**。任何「input 開啟即顯示為失敗」的舊路徑（BUG-074 root cause）都應改為 `awaiting-input`。a11y 走 `aria-current="step"` + `aria-describedby`，**禁止**掛 `role="alert"`。
+>
+> **失敗態與 mapped error 的對應關係見** [`wizard-error-ux.md`](./wizard-error-ux.md) § 2.1（6 個 ship 中的 registry entries）與 § 4（recovery action 7 kinds dispatch）。Setup Wizard 的 `failed` 狀態 actions slot 由 `dispatchAction` 統一驅動，不要繞過它直接調 runner API。
 
 ### Severity 順序（compress 模式用）
 
@@ -243,6 +245,10 @@ T0309 Setup Wizard 重設計時把原本的：
 - ❌ **不在 `awaiting-input` 上掛 `role="alert"`**（PLAN-032 Sprint 2）
   - 反例：把 input step 的提示文字塞進 `<div role="alert">`，導致 screen reader 讀成錯誤
   - 正解：`role="alert"` 是 failure-only。`awaiting-input` 是中性狀態，使用 `aria-current="step"` + `aria-describedby` 點到 `promptRegionId`
+
+- ❌ **不要在 input 等待期間 render 為 `failed`**（PLAN-032 Sprint 2-4）
+  - 反例：input step 開啟即顯示紅 X / Retry / Skip CTA（BUG-074 root cause），讓使用者誤以為剛才有錯
+  - 正解：把 step 標 `kind: 'input'`，runner 進場直接流轉 `awaiting-input`；recovery actions 僅在真實 `failed` 才出現，dispatch 流程見 [`wizard-error-ux.md`](./wizard-error-ux.md) § 4
 
 ---
 

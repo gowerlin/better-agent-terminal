@@ -4,7 +4,16 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+> v0.4.2 候選草稿（T0341，PLAN-032 收尾）— 不 bump package.json 版號，待 maintainer release engineering 流程處理。
+
 ### Added
+- **PLAN-032 — Setup Wizard 錯誤 UX 全面整修**
+  Setup Wizard（WSL / Docker / SSH）的失敗處理從「丟一行紅字 + Retry」升級為結構化的可恢復 UX：
+  - **`awaiting-input` 狀態**：等待使用者輸入的 step（選 distro / 選 container / 設定 host 等）改用中性藍 `awaiting-input` 狀態，不再進場閃現「失敗」UI。
+  - **`WizardErrorMapper`**：4-stage error resolver（exact errorCode → step-scoped regex → platform-wide regex → fallback），把 raw 錯誤翻譯成有標題、body、可展開原始錯誤的 friendly 面板。
+  - **`WizardPreflight`**：每個 step 可宣告 preflight check（如 Docker daemon 可達性 / WSL service 狀態），失敗會直接 short-circuit 為 mapped error，不必跑進 step 才爆。
+  - **`WizardRecoveryAction` 7 種 kinds**：`retry` / `fixed-and-retry` / `open-link` / `edit-config` / `skip` / `cancel` / `custom`，按 entry 量身訂制最合適的恢復路徑。
+  - **6 個 baseline error mappings**：Docker daemon 未啟動、WSL linger 失敗、WSL service 啟動逾時、WSL 未安裝、SSH 認證失敗、SSH 主機名稱為空。
 - **PLAN-007 Phase 1–5 — Remote dev support across four environments**
   (`local`, `wsl-linux`, `docker-linux`, `ssh-linux` / `ssh-darwin`). BAT
   terminal now drives AI agents in a remote BAT server installed via a
@@ -51,10 +60,24 @@ All notable changes to Better Agent Terminal are documented in this file.
   transport can reuse the same reconnect / fingerprint-pin / health-check
   pipeline as the WSL and Docker transports.
 
+### Changed
+- **4 個 input-flavor wizard steps 統一 `kind: 'input'`**
+  `configure-ssh-host`、`pick-wsl-distro`、`pick-container`、`configure-mounts` 在 runner 進場直接流轉到 `awaiting-input`，取代以往「先短暫 running 才閃成 failed」的舊路徑。
+  - 例外：`configure-mounts` 採 native folder picker（`electronAPI.dialog.showOpenDialog`），不走 `requestChoice`，但仍標 `kind: 'input'` 維持視覺契約。
+
 ### Fixed
+- **BUG-072** — WSL 啟用 systemd lingering 失敗時，現在會跳「我已執行 `loginctl enable-linger`，重試」的 fixed-and-retry 引導；同時新增「WSL service 啟動逾時」（含 `journalctl` 提示）與「找不到 WSL2」（含 MSFT 安裝指南連結）兩個 mapped errors。
+- **BUG-073** — Docker wizard 偵測不到 daemon 時，新面板會提供「下載 Docker Desktop」連結 + 「我已啟動，重試」按鈕，不再只是丟原始 pipe error。
+- **BUG-074** — SSH wizard 第一個 `configure-host` step 不再開場就閃現紅 X / Retry / Skip。空值送出時改用 `ssh-configure-host-empty` mapped error（嚴格 2-action set：`修改 SSH 設定` + `取消`，不誤導 retry）。
+- **BUG-076** — `SetupWizardShell` 的 mapped error 解析改為優先採用 `WizardRunner` 在失敗瞬間 ship 的 `mappedError`，避免在 render 時重新解析時掉 `errorCode` — 修復 errorCode-only registry entries（如 `wsl-not-installed`）會 fall through 到「步驟發生錯誤」fallback 的 bug。
 - **BUG-060 — YOLO chained-shell preference loss** — fixed in session 31
   (commit `fad2978`). Worker chained-shell preference no longer drops on
   successive YOLO mode workorders.
+
+### Tests
+- 17 new unit tests covering input-kind contract（T0340，4 個 input step 各自驗證 `kind: 'input'` + `awaiting-input` 流轉）。
+- 16 integration tests covering transition matrix + 6 mapped error panel renders（T0338 transitions matrix + T0334 docker-daemon visual snapshot + T0341 補完 5 個 mapped error visual snapshots）。
+- Total unit suite：326 tests across 26 files。
 
 ### Known issues
 - **BUG-061 — `CodexAgentPanel.tsx` baseline TypeScript errors** — pre-existing

@@ -523,6 +523,33 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
     vi.restoreAllMocks()
   })
 
+  // Helper for entries that match via Stage-1 errorCode (no regex pattern fallback).
+  function failingStepWithErrorCode(
+    id: string,
+    group: string,
+    label: string,
+    errorMessage: string,
+    errorCode: string,
+    opts: Partial<WizardStep> = {},
+  ): WizardStep {
+    return {
+      id,
+      title: `legacy-${id}`,
+      appliesTo: 'all',
+      retryable: true,
+      labelKey: `wizard.shared.step.${label}.label`,
+      descriptionKey: `wizard.shared.step.${label}.description`,
+      groupKey: `wizard.group.${group}`,
+      editableFromFailure: false,
+      async run() {
+        const err = new Error(errorMessage) as Error & { code?: string }
+        err.code = errorCode
+        throw err
+      },
+      ...opts,
+    }
+  }
+
   it('locks docker daemon mapped-error visual contract (title / body / raw / actions)', async () => {
     const rawMessage = 'error during connect: open //./pipe/docker_engine: not found'
     const steps = [
@@ -570,6 +597,255 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
         {
           "kind": "fixed-and-retry",
           "label": "我已啟動 Docker，重試",
+        },
+        {
+          "kind": "cancel",
+          "label": "取消",
+        },
+      ]
+    `)
+  })
+
+  // ---------------------------------------------------------------------
+  // T0341 (PLAN-032 Sprint 5): visual snapshot補完 — 5 entries to cover the
+  // remaining DEFAULT_WIZARD_ERROR_REGISTRY mapped-error panels (T0334 already
+  // locked docker-daemon-unavailable). Together = 6 entries fully covered.
+  // ---------------------------------------------------------------------
+
+  it('locks wsl-linger-failure mapped-error visual contract (T0341)', async () => {
+    const rawMessage = 'Could not enable linger: Failed to enable unit'
+    const steps = [
+      failingStepWithError('write-systemd-unit', 'deployment', 'fetchFingerprint', rawMessage),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'wsl-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
+
+    const title = panel.querySelector('h4') as HTMLElement
+    expect(title.textContent).toBe('無法自動啟用 systemd lingering')
+    expect(title.className).toContain('text-rose-200')
+
+    const body = panel.querySelector('p') as HTMLElement
+    expect(body.textContent).toContain('loginctl enable-linger')
+    expect(body.className).toContain('text-rose-100')
+
+    // append-raw mode: <pre> renders immediately without "Show details" gate.
+    const raw = panel.querySelector('pre.bat-wizard-mapped-error-raw') as HTMLElement
+    expect(raw).not.toBeNull()
+    expect(raw.textContent).toContain(rawMessage)
+
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    const fingerprint = Array.from(actions.querySelectorAll('button[data-action-kind]')).map((btn) => ({
+      kind: btn.getAttribute('data-action-kind'),
+      label: btn.textContent?.trim() ?? '',
+    }))
+    expect(fingerprint).toMatchInlineSnapshot(`
+      [
+        {
+          "kind": "fixed-and-retry",
+          "label": "我已執行命令，重試",
+        },
+        {
+          "kind": "skip",
+          "label": "略過此步驟",
+        },
+        {
+          "kind": "cancel",
+          "label": "取消",
+        },
+      ]
+    `)
+  })
+
+  it('locks wsl-service-start-timeout mapped-error visual contract (T0341)', async () => {
+    const rawMessage = 'Timed out waiting for bat-server.service to become active'
+    const steps = [
+      failingStepWithError('write-systemd-unit', 'deployment', 'fetchFingerprint', rawMessage),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'wsl-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
+
+    const title = panel.querySelector('h4') as HTMLElement
+    expect(title.textContent).toBe('BAT systemd 服務啟動逾時')
+
+    const body = panel.querySelector('p') as HTMLElement
+    expect(body.textContent).toContain('journalctl --user -u bat-server.service')
+
+    // append-raw: <pre> visible immediately.
+    const raw = panel.querySelector('pre.bat-wizard-mapped-error-raw') as HTMLElement
+    expect(raw).not.toBeNull()
+    expect(raw.textContent).toContain(rawMessage)
+
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    const fingerprint = Array.from(actions.querySelectorAll('button[data-action-kind]')).map((btn) => ({
+      kind: btn.getAttribute('data-action-kind'),
+      label: btn.textContent?.trim() ?? '',
+    }))
+    expect(fingerprint).toMatchInlineSnapshot(`
+      [
+        {
+          "kind": "fixed-and-retry",
+          "label": "我已檢查 journal，重試",
+        },
+        {
+          "kind": "skip",
+          "label": "略過此步驟（手動啟動）",
+        },
+        {
+          "kind": "cancel",
+          "label": "取消",
+        },
+      ]
+    `)
+  })
+
+  it('locks wsl-not-installed mapped-error visual contract (T0341, errorCode-only entry)', async () => {
+    // wsl-not-installed has no regex patterns — only Stage-1 errorCode match.
+    // This locks BUG-076 fix: SetupWizardShell preserves runner-shipped
+    // mappedError so pure-errorCode entries don't fall through to fallback.
+    const rawMessage = 'wsl.exe not found on PATH'
+    const steps = [
+      failingStepWithErrorCode(
+        'detect-env',
+        'detection',
+        'detectEnv',
+        rawMessage,
+        'wsl-not-installed',
+      ),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'wsl-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
+
+    const title = panel.querySelector('h4') as HTMLElement
+    expect(title.textContent).toBe('找不到 WSL2')
+
+    const body = panel.querySelector('p') as HTMLElement
+    expect(body.textContent).toContain('wsl --install')
+
+    // append-raw mode.
+    const raw = panel.querySelector('pre.bat-wizard-mapped-error-raw') as HTMLElement
+    expect(raw).not.toBeNull()
+    expect(raw.textContent).toContain(rawMessage)
+
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    const fingerprint = Array.from(actions.querySelectorAll('button[data-action-kind]')).map((btn) => ({
+      kind: btn.getAttribute('data-action-kind'),
+      label: btn.textContent?.trim() ?? '',
+    }))
+    expect(fingerprint).toMatchInlineSnapshot(`
+      [
+        {
+          "kind": "open-link",
+          "label": "安裝 WSL2 指南",
+        },
+        {
+          "kind": "fixed-and-retry",
+          "label": "我已安裝 WSL2，重試",
+        },
+        {
+          "kind": "cancel",
+          "label": "取消",
+        },
+      ]
+    `)
+  })
+
+  it('locks ssh-permission-denied mapped-error visual contract (T0341, hidden-by-default detail mode)', async () => {
+    const rawMessage = 'Permission denied (publickey).'
+    const steps = [
+      failingStepWithError('verify-ssh-auth', 'connection', 'connectTest', rawMessage),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'ssh-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
+
+    const title = panel.querySelector('h4') as HTMLElement
+    expect(title.textContent).toBe('SSH 認證失敗')
+
+    const body = panel.querySelector('p') as HTMLElement
+    expect(body.textContent).toContain('SSH key')
+
+    // hidden-by-default: <pre> NOT rendered until "Show details" click; instead
+    // a reveal button surfaces.
+    expect(panel.querySelector('pre.bat-wizard-mapped-error-raw')).toBeNull()
+    expect(within(panel).getByText('Show details')).toBeInTheDocument()
+
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    const fingerprint = Array.from(actions.querySelectorAll('button[data-action-kind]')).map((btn) => ({
+      kind: btn.getAttribute('data-action-kind'),
+      label: btn.textContent?.trim() ?? '',
+    }))
+    expect(fingerprint).toMatchInlineSnapshot(`
+      [
+        {
+          "kind": "edit-config",
+          "label": "修改 SSH 設定",
+        },
+        {
+          "kind": "retry",
+          "label": "重試",
+        },
+        {
+          "kind": "cancel",
+          "label": "取消",
+        },
+      ]
+    `)
+  })
+
+  it('locks ssh-configure-host-empty mapped-error visual contract (T0341, strict 2-action set)', async () => {
+    const rawMessage = 'SSH host is required'
+    const steps = [
+      failingStepWithError('configure-ssh-host', 'connection', 'detectEnv', rawMessage),
+    ]
+    const { container } = render(
+      <SetupWizardShell steps={steps} ctx={makeCtx({ targetOS: 'ssh-linux' })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
+
+    const title = panel.querySelector('h4') as HTMLElement
+    expect(title.textContent).toBe('SSH 主機名稱為必填')
+
+    const body = panel.querySelector('p') as HTMLElement
+    expect(body.textContent).toContain('~/.ssh/config')
+
+    // hidden-by-default: <pre> not visible at first paint.
+    expect(panel.querySelector('pre.bat-wizard-mapped-error-raw')).toBeNull()
+    expect(within(panel).getByText('Show details')).toBeInTheDocument()
+
+    // Strict action set: edit-config + cancel only (no retry / skip — empty
+    // value is a user mistake, not an environment error).
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    const fingerprint = Array.from(actions.querySelectorAll('button[data-action-kind]')).map((btn) => ({
+      kind: btn.getAttribute('data-action-kind'),
+      label: btn.textContent?.trim() ?? '',
+    }))
+    expect(fingerprint).toMatchInlineSnapshot(`
+      [
+        {
+          "kind": "edit-config",
+          "label": "修改 SSH 設定",
         },
         {
           "kind": "cancel",
