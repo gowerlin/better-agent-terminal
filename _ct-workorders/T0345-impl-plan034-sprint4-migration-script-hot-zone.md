@@ -261,4 +261,4 @@ node scripts/migrate-ct-frontmatter.mjs [--dry-run] [--verbose] [--file PATH]
 ### 回報時間 / commit
 
 - 回報時間：2026-04-28 20:04 (UTC+8)
-- commit：（見 git commit 訊息）
+- commit：`e24428b` — feat(ct): migrate hot-zone workorders to v1 frontmatter (PLAN-034 Sprint 4)
