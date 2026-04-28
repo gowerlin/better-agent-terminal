@@ -234,6 +234,10 @@ function shouldProcess(filename) {
   if (!base.endsWith('.md')) return false
 
   // Excludes — system / spec / draft / report / index files
+  // Note: workorder review/verification reports (e.g. T0292-review-report.md,
+  // T0298-verification-report.md) are *artifacts produced by* a workorder,
+  // not workorders themselves. They have the same T#### prefix but no status
+  // field, so we exclude by suffix pattern. (PLAN-034 Sprint 5 / T0346)
   const EXCLUDES = [
     /^_archive/,
     /^_spec-/, /^_draft-/, /^_report-/, /^_spike-/,
@@ -243,6 +247,8 @@ function shouldProcess(filename) {
     /^_tower-config\.yaml$/,
     /^_decision-log\.md$/, /^_bug-tracker\.md$/, /^_backlog\.md$/,
     /^examples?\//,
+    // Workorder artifacts (not workorders themselves):
+    /-(review|verification)-report\.md$/,
   ]
   if (EXCLUDES.some((re) => re.test(base))) return false
 

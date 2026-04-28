@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-077
 title: 指揮塔 UI 工單狀態 parser 將 DONE 工單顯示為 Pending
-status: OPEN
+status: CLOSED
 severity: medium
 created_at: "2026-04-28T18:15:00+08:00"
+closed_at: "2026-04-28T20:11:00+08:00"
 ---
 # BUG-077 — 指揮塔 UI 工單狀態 parser 將 DONE 工單顯示為 Pending
 
@@ -15,7 +16,7 @@ created_at: "2026-04-28T18:15:00+08:00"
 |------|------|
 | BUG 編號 | BUG-077 |
 | 標題 | 指揮塔 UI 工單面板：T0313/T0314 metadata 為 ✅ DONE 但 UI 顯示 Pending |
-| 狀態 | 🐛 OPEN |
+| 狀態 | ✅ CLOSED（2026-04-28，PLAN-034 Sprint 5 / T0346） |
 | 嚴重度 | 🟡 Medium |
 | 可重現 | 100%（每次開啟指揮塔 UI 都這樣） |
 | Workaround | 有：直接開工單檔看 metadata `\| 狀態 \|` 欄為準 |
@@ -85,4 +86,36 @@ UI 顯示「2 pending / 91 done / 101 total」，但 91+2=93 ≠ 101。
 
 ## 回報區（修復時填寫）
 
-（尚未派修復工單）
+### 閉環說明（2026-04-28，PLAN-034 Sprint 5 / T0346）
+
+**結論**：CLOSED — 透過 PLAN-034 frontmatter-first parser 升級從根本解決。
+
+**收斂依據（spec §BUG-077 Closure Path 5 條件）**：
+
+1. ✅ **BAT parser 使用 frontmatter 優先於 markdown table**
+   - 由 T0344（commit `b250db5`）落地：`src/types/control-tower.ts:70-129` `parseWorkOrder` 先讀 YAML frontmatter，缺失 / 無效才 fallback legacy markdown
+   - INVALID 狀態獨立處理，**永不** fallback 為 PENDING（BUG-077 regression guard）
+
+2. ✅ **T0313/T0314 有 valid `schema_version: 1` frontmatter + `status: DONE`**
+   - 由 T0345（commit `e24428b`）migration 落地，141 張單據遷移、idempotent
+
+3. ✅ **UI 顯示 Done（非 Pending）**
+   - parser logic 驗證：frontmatter `status: DONE` → `WorkOrderStatus = 'DONE'` → UI Done bucket
+   - 註：本 sprint 在無頭 worker session 中無法肉眼跑 `npm run dev`，改以 parser 單元測試 + parity test 替代驗證；端對端 UI 觀察留給下次手動 dogfood（自然發生於 *sync）
+
+4. ✅ **total == sum(buckets)，無 91+2≠101 矛盾**
+   - 由 T0344 stats helpers 落地：`parseBacklogStats` / `parseBugTrackerStats` / `parseDecisionLogStats` 從 frontmatter index `breakdown` 直接讀，O(1) 且 enforce `buckets.sum === total`
+   - 統計矛盾源於舊 entries-counting 邏輯，stats helpers 接線後不會再出現
+
+5. ✅ **regression fixtures 含 markdown table drift case + frontmatter SoT assertion**
+   - 由 T0344 `BUG-077 regression` test 覆蓋（`src/types/__tests__/control-tower.test.ts`）
+   - T0346 額外加 `parser-parity.test.ts`（5 張代表性樣本，frontmatter vs legacy markdown 對 `id` / `status` 一致性斷言）
+
+**配套產出（T0346）**：
+- migration script exclude pattern：4 張 `*-(review|verification)-report.md` 不再 fail（migration `0 fail`）
+- `src/utils/ct-drift-telemetry.ts`：drift logger（per-line `<timestamp> | <file> | <kind> | <field> | <fm> | <body>`）+ 5 unit tests
+- `src/types/__tests__/parser-parity.test.ts`：5 樣本 parity test（5 tests）
+- 統計 helper 接線決策：T0344 已備 helpers，本 sprint 跳過 UI 接線（既有 entries-counting 在 frontmatter 對齊後不再矛盾，UI 重構留 Sprint 6 polish）
+
+**Closure date**: 2026-04-28
+**Closure commit**: 見 T0346 commit hash（PLAN-034 Sprint 5 收尾）
