@@ -99,6 +99,8 @@ Work order statuses:
 - `INTERRUPTED`
 - `URGENT`
 
+`URGENT` is a priority signal-as-status special case produced by the interruption protocol. It is intentionally retained as a work order status during the transition and does not conflict with lifecycle terminal states such as `DONE`, `FIXED`, `FAILED`, or `PARTIAL`. A document may therefore carry both `priority: critical` and `status: URGENT`.
+
 Bug statuses:
 
 - `OPEN`
@@ -118,10 +120,11 @@ Plan statuses:
 
 Experiment statuses:
 
-- `PROPOSED`
-- `RUNNING`
+- `EXPLORING`
 - `CONCLUDED`
 - `ABANDONED`
+
+Reasoning: this enum follows the current Control Tower `bug-plan-system.md` templates and the active EXP-HEADLESS-001 convention. Keeping `EXPLORING / CONCLUDED / ABANDONED` avoids enum drift during the PLAN-034 migration window.
 
 Index statuses are not required; generated indexes use `index_kind` and statistics fields instead.
 
@@ -508,4 +511,3 @@ BUG-077 should not be closed by editing T0313/T0314 body metadata alone. Closure
 3. Workorder panel shows both as Done after refresh.
 4. Workorder statistics totals reconcile: visible status buckets sum to total or explicitly include hidden/other buckets.
 5. Regression fixtures cover markdown table drift and assert frontmatter remains SoT.
-
