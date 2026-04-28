@@ -4,10 +4,11 @@ schema_kind: workorder
 id: T0346
 title: Impl PLAN-034 Sprint 5 — Dogfood + BUG-077 收斂 + parser parity + drift telemetry
 type: impl
-status: IN_PROGRESS
+status: DONE
 sizing: M
 created_at: "2026-04-28T20:08:00+08:00"
 started_at: "2026-04-28T20:06:00+08:00"
+completed_at: "2026-04-28T20:14:00+08:00"
 project: PLAN-034
 depends_on:
   - T0342
@@ -241,5 +242,5 @@ T0344 已備 `parseBugTrackerStats` / `parseBacklogStats` / `parseDecisionLogSta
 
 ### 回報時間 / commit
 
-回報時間：2026-04-28 20:13 (UTC+8)
-Commit：見下方 commit hash（squash 一次收）
+回報時間：2026-04-28 20:14 (UTC+8)
+Commit：`1780976`
