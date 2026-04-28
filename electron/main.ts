@@ -89,6 +89,12 @@ import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
+import {
+  logDrift as ctDriftLog,
+  readRecentDrift as ctDriftReadRecent,
+  type DriftEntry as CtDriftEntry,
+} from './ct-drift-telemetry'
+import type { ParseWarning as CtParseWarning } from '../src/utils/ct-frontmatter'
 import * as dockerDetect from './docker-detect'
 import * as dockerLifecycle from './docker-lifecycle'
 import * as dockerValidate from './docker-validate'
@@ -3386,6 +3392,20 @@ function registerLocalHandlers() {
     })
   })
   registerSshSetupHandlers(ipcMain)
+
+  // T0348 / BUG-078 — Control Tower drift telemetry IPC.
+  // Renderer parses workorder frontmatter and produces ParseWarning[]; main
+  // process owns the log file (D090: no node:fs in renderer bundle).
+  ipcMain.handle('ctDrift:log', (_event, file: string, warnings: CtParseWarning[] | undefined): number => {
+    return ctDriftLog(file, warnings, { userDataDir: app.getPath('userData') })
+  })
+  ipcMain.handle('ctDrift:readRecent', (_event, options?: { days?: number }): CtDriftEntry[] => {
+    return ctDriftReadRecent({
+      userDataDir: app.getPath('userData'),
+      days: options?.days,
+    })
+  })
+
   ipcMain.handle('wsl-systemd:write-unit', (_event, distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
     wslSystemd.writeUnit(distro, unit))
   ipcMain.handle('wsl-systemd:enable-linger', (_event, distro: string) => wslSystemd.enableLinger(distro))

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { CreatePtyOptions } from '../src/types'
 import type { FileEntry, RawFileEntry } from '../src/types/file'
 import { withPathKeys } from '../src/utils/filePathKey'
+import type { ParseWarning } from '../src/utils/ct-frontmatter'
 import type {
   VoiceGpuStatus,
   VoiceModelInfo,
@@ -797,6 +798,21 @@ const electronAPI = {
       ipcRenderer.on('terminal-server:status', handler)
       return () => ipcRenderer.removeListener('terminal-server:status', handler)
     },
+  },
+  // T0348 / BUG-078 — Control Tower drift telemetry bridge. Renderer fires
+  // and forgets; IO + log path live in main process (D090 / BUG-069).
+  ctDrift: {
+    log: (file: string, warnings: ParseWarning[] | undefined) =>
+      ipcRenderer.invoke('ctDrift:log', file, warnings) as Promise<number>,
+    readRecent: (options?: { days?: number }) =>
+      ipcRenderer.invoke('ctDrift:readRecent', options) as Promise<{
+        timestamp: string
+        file: string
+        kind: string
+        field: string
+        fmValue: string
+        bodyValue: string
+      }[]>,
   },
   snippet: {
     getAll: () => ipcRenderer.invoke('snippet:getAll'),

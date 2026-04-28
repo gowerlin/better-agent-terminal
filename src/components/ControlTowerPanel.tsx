@@ -337,7 +337,14 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       for (const file of orderFiles) {
         const result = await window.electronAPI.fs.readFile(file.path)
         if (result.content != null) {
-          orders.push(parseWorkOrder(file.name, result.content))
+          const wo = parseWorkOrder(file.name, result.content)
+          orders.push(wo)
+          // T0348 / BUG-078 — silent fire-and-forget drift telemetry.
+          // IO + log path live in main process (D090). One caller is enough
+          // for Sprint 5 wiring; full ParseWarning fan-out is Sprint 6 polish.
+          if (wo.parseWarnings && wo.parseWarnings.length > 0 && window.electronAPI?.ctDrift) {
+            window.electronAPI.ctDrift.log(file.name, wo.parseWarnings).catch(() => {})
+          }
         }
       }
 

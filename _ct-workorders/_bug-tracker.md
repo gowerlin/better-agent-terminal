@@ -1,10 +1,10 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-28 20:15 (UTC+8) — Session 42 BUG-077 → CLOSED（PLAN-034 Sprint 5 收斂，T0346 commit `1780976`）。
+> 最後同步：2026-04-28 23:21 (UTC+8) — Session 42 BUG-078 新增 FIXING（T0348 派出，CI run 25060731646 D090 guard 攔到 T0346 漏網）。
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 3 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 20**
+- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 3 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 21**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -19,6 +19,7 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-078 | ct-drift-telemetry.ts 引用 node:fs/path/os 觸發 D090 guard，pre-release CI 三平台 build fail 阻塞 v0.5.0-pre.1（T0348 已派出，方案 A 搬到 electron/ + IPC） | 🔴 High | 2026-04-28 23:21 | [BUG-078](BUG-078-ct-drift-telemetry-renderer-node-imports-d090-violation.md) |
 
 ## ✅ 已修復
 

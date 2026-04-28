@@ -1,5 +1,6 @@
 /**
  * PLAN-034 Sprint 5 / T0346 — drift telemetry unit tests
+ * Relocated from src/utils/__tests__/ to electron/__tests__/ by T0348 (BUG-078).
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -7,8 +8,8 @@ import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { logDrift, readRecentDrift } from '../ct-drift-telemetry'
-import type { ParseWarning } from '../ct-frontmatter'
+import { logDrift, readRecentDrift, defaultDriftLogPath } from '../ct-drift-telemetry'
+import type { ParseWarning } from '../../src/utils/ct-frontmatter'
 
 let tmpDir: string
 let logFile: string
@@ -104,5 +105,19 @@ describe('ct-drift-telemetry', () => {
     expect(cells).toHaveLength(6)
     expect(cells[4]).toBe('DONE   suspicious')
     expect(cells[5]).toBe('IN PROGRESS')
+  })
+
+  it('defaultDriftLogPath uses userDataDir when provided', () => {
+    const p = defaultDriftLogPath('/tmp/fake-userdata')
+    expect(p).toMatch(/[\\\/]tmp[\\\/]fake-userdata[\\\/]ct-drift\.log$/)
+  })
+
+  it('logDrift writes under userDataDir when provided (no logFile override)', () => {
+    const userDataDir = join(tmpDir, 'userdata')
+    const written = logDrift('T2.md', [{ kind: 'unknown_status', field: 'status' }], {
+      userDataDir,
+    })
+    expect(written).toBe(1)
+    expect(existsSync(join(userDataDir, 'ct-drift.log'))).toBe(true)
   })
 })

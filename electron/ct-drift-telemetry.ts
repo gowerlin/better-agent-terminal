@@ -1,27 +1,29 @@
 /**
- * Control Tower Drift Telemetry (PLAN-034 Sprint 5 / T0346)
+ * Control Tower Drift Telemetry (PLAN-034 Sprint 5 / T0346, relocated by T0348)
  *
  * Lightweight logger that records parser drift / unknown-status warnings to
  * a per-user log file so we can later audit how often frontmatter and body
  * disagree. **Logger only** — no UI, no aggregation dashboards (those are
  * Sprint 6 polish).
  *
+ * Lives in `electron/` (not `src/utils/`) because it imports `node:fs/path/os`
+ * — those are forbidden in the renderer bundle (D090 / BUG-069 / BUG-078).
+ * Renderer access goes through the `ctDrift:log` / `ctDrift:readRecent` IPC
+ * channels exposed in preload.ts.
+ *
  * Log location:
- *   - Electron / Node:  <userData>/ct-drift.log  (when `userDataDir` provided)
- *   - Fallback:          ~/.bat-cache/ct-drift.log
+ *   - Electron:    <userDataDir>/ct-drift.log    (when `userDataDir` provided)
+ *   - Fallback:    ~/.bat-cache/ct-drift.log
  *
  * Format (one line per warning):
  *   <ISO timestamp> | <file> | <warning_kind> | <field> | <fm_value> | <body_value>
- *
- * Reader:
- *   readRecentDrift({ days = 7, file? }) → DriftEntry[]
  */
 
 import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 
-import type { ParseWarning } from './ct-frontmatter'
+import type { ParseWarning } from '../src/utils/ct-frontmatter'
 
 export interface DriftEntry {
   timestamp: string
@@ -37,10 +39,13 @@ export interface LogDriftOptions {
   logFile?: string
   /** override clock (tests) */
   now?: () => Date
+  /** Electron `app.getPath('userData')` — preferred over `~/.bat-cache/` when present */
+  userDataDir?: string
 }
 
-/** Default log file in `~/.bat-cache/ct-drift.log`. */
-export function defaultDriftLogPath(): string {
+/** Default log file path. Prefers `<userDataDir>/ct-drift.log` if provided. */
+export function defaultDriftLogPath(userDataDir?: string): string {
+  if (userDataDir) return join(userDataDir, 'ct-drift.log')
   return join(homedir(), '.bat-cache', 'ct-drift.log')
 }
 
@@ -61,7 +66,7 @@ export function logDrift(
 ): number {
   if (!warnings || warnings.length === 0) return 0
 
-  const logFile = options.logFile ?? defaultDriftLogPath()
+  const logFile = options.logFile ?? defaultDriftLogPath(options.userDataDir)
   const now = options.now ?? (() => new Date())
 
   try {
@@ -105,6 +110,8 @@ export interface ReadRecentOptions {
   logFile?: string
   /** override clock (tests) */
   now?: () => Date
+  /** Electron `app.getPath('userData')` — preferred over `~/.bat-cache/` when present */
+  userDataDir?: string
 }
 
 /**
@@ -112,7 +119,7 @@ export interface ReadRecentOptions {
  * absent or unreadable — drift telemetry must never throw upwards.
  */
 export function readRecentDrift(options: ReadRecentOptions = {}): DriftEntry[] {
-  const logFile = options.logFile ?? defaultDriftLogPath()
+  const logFile = options.logFile ?? defaultDriftLogPath(options.userDataDir)
   const days = options.days ?? 7
   const now = options.now ?? (() => new Date())
 

@@ -577,6 +577,23 @@ interface ElectronAPI {
     resetWatch: (dirPath: string) => Promise<boolean>
     onChanged: (callback: (dirPath: string) => void) => () => void
   }
+  // T0348 / BUG-078 — Control Tower drift telemetry. Renderer parses
+  // workorder frontmatter and forwards ParseWarning[] to main via IPC.
+  // Main owns the log file (D090 / BUG-069: no node:fs in renderer).
+  ctDrift: {
+    log: (
+      file: string,
+      warnings: import('../utils/ct-frontmatter').ParseWarning[] | undefined,
+    ) => Promise<number>
+    readRecent: (options?: { days?: number }) => Promise<{
+      timestamp: string
+      file: string
+      kind: string
+      field: string
+      fmValue: string
+      bodyValue: string
+    }[]>
+  }
   terminalServer: {
     /** Listen for recovery-available event from main process. Returns unsubscribe fn. */
     onRecoveryAvailable: (callback: (info: { ptyCount: number }) => void) => () => void
