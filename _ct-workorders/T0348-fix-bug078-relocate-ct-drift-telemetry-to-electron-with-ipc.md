@@ -4,11 +4,13 @@ schema_kind: workorder
 id: T0348
 title: Fix BUG-078 — 搬遷 ct-drift-telemetry 到 electron/ + IPC bridge（方案 A）
 type: fix
-status: IN_PROGRESS
+status: FIXED
 sizing: S
 created_at: "2026-04-28T23:21:00+08:00"
 started_at: "2026-04-28T23:30:05+08:00"
-updated_at: "2026-04-28T23:30:05+08:00"
+completed_at: "2026-04-28T23:36:00+08:00"
+updated_at: "2026-04-28T23:36:00+08:00"
+commit: "5e93b52"
 project: PLAN-034
 depends_on:
   - T0346
@@ -213,6 +215,6 @@ S（30-60 min Worker wall）
 
 ### Commit
 
-待 Step 8 commit 後填入 hash。
+`5e93b52` — `fix(ct): relocate ct-drift-telemetry to electron/ + IPC bridge (BUG-078 / T0348)`
 
 ---
