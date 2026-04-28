@@ -3000,3 +3000,92 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 
 **候選晉升**：📂 Project（BMad-Guide monorepo 結構專屬；通用「短鏈 sync 工單可省 branch」概念若再有其他 repo 證據可考慮晉升）
 
+
+---
+
+## L114 - 2026-04-28 — Session drift 修法不偽造歷史（git log 為 SoT）
+
+**觸發條件**：Session N 結束未寫收工快照（Tower context 中斷 / agent 異常 termination / 跨 session 接手），下個 session N+1 起手發現 `_tower-state.md` 與 git log drift
+
+**反面教訓**：誘惑是「重建 session N quick recovery 快照」假裝它正常結束，但 session N+1 沒有 session N 的真實時序 / 對話 / 決策記憶 — 重建必然偽造
+
+**修正規則**（最小入侵原則）：
+1. **不**新增「本 Session 收工快照 (第 N session)」—— 假紀錄汙染未來歸檔索引
+2. **更新 Quick Recovery（起手式）區段** —— 立即待辦 / 近期完成從 git log + workorder 回報區反向重建
+3. **更新頂部「最後更新」標 drift 註記** —— 明示 git log 為 single source of truth，本檔 session N 段落可能缺
+4. **編號起始修正** —— session N 用掉的工單號（如 T0330-T0337）必須反映在「編號起始」，否則 session N+1 開單撞號
+5. session N+1 正常收工時自然 archive session N-1（hygiene 規則自動運作，不必特殊處理）
+
+**Why**：
+- GP121（state hygiene）規則延伸應用，明文涵蓋「session 沒收工」這個邊緣案例
+- 偽造收工快照會讓 archive 索引帶假紀錄，未來 cross-session 追溯時遇到「明明 session N 寫了快照但對不上 git」的詭異狀況
+- git log 是不會說謊的時序（commits 帶完整 timestamp + author + message），用它當 SoT 永遠安全
+
+**證據**：本專案 session 41 起手發現 session 40 在 04-27 22:30 → 04-28 03:32 跑了 8 張工單（T0330-T0337）但沒寫收工。塔台採本規則：頂部加 drift 註記、Quick Recovery 立即待辦改寫為「smoke / push / Sprint 4-5 規劃」、編號起始 T0351 改為 T0338（session 39 快照預測錯）
+
+**搭配規則**：
+- GP121（state hygiene）：本規則是 GP121 的 edge case 補丁
+- L113（monorepo dev-main 直接 commit）：適用 chore commit 直接落地
+
+**候選晉升**：📂 Project（GP121 已是 Global，本規則是 BAT 專案 dogfood 案例；若多專案再現可考慮升 Global footnote）
+
+---
+
+## L115 - 2026-04-28 — Plugin hook ${CLAUDE_PLUGIN_ROOT} 在 BAT × Git Bash × Windows 三層疊加會 mangle
+
+**觸發條件**：Claude Code plugin hook 在 BAT 內部終端的 Worker session 撞 `[Errno 2] No such file or directory` + 路徑前綴看起來是 `D:\c\Users\...`（不是 `C:\Users\...`）
+
+**反面教訓**：以為是 plugin 本身爛掉（如 `unknown` 子資料夾名 → 假設 metadata 損毀），實際是路徑轉換 bug
+
+**Root cause（三層疊加）**：
+1. `${CLAUDE_PLUGIN_ROOT}` 展開為 POSIX 路徑（`/c/Users/Gower/.claude/plugins/cache/...`）
+2. Git Bash (MSYS) 把該變數值傳給 Windows 原生 python3.exe 時，**不**做完整 cygpath 轉換
+3. Windows python3 拿到 `/c/Users/...` 開頭的路徑 → 解釋為「相對於當前磁碟根」→ 因 cwd 在 D:\ 變成 `D:\c\Users\...`
+
+**降級鏈**（依嚴重度）：
+1. **治標**：`~/.claude/settings.json` 把該 plugin 改 `enabled: false`（影響範圍 = 整 plugin 停用，但通常該 hook 是輔助提醒非必需）
+2. **治本**（Plugin 端）：上游修 hook command，python 路徑用 absolute Windows 形式或包 pwsh 轉路徑
+3. **治本**（Claude Code 端）：環境變數展開時偵測 Windows + 自動轉 native 路徑
+4. **使用者端 patch**：settings.json `env` 區塊強制覆寫 `CLAUDE_PLUGIN_ROOT` 為 Windows 絕對路徑
+
+**規則**：
+- BAT × Windows × Git Bash 三層棧出現 plugin hook 失敗時，**先驗證路徑前綴**而非懷疑 plugin metadata
+- 維持 `enabled: false` 是合理短期對策，不必硬修
+- macOS / Linux / 純 PowerShell 終端不會踩這雷
+
+**證據**：本專案 session 41 派發 T0338 時 Worker 撞 `python3.exe: can't open file 'D:\c\Users\Gower\.claude\plugins\cache\claude-plugins-official\security-guidance\unknown\hooks\security_reminder_hook.py'`。實際檔案存在於 `C:\Users\Gower\.claude\plugins\cache\...`，`unknown` 子資料夾名是 plugin 正常結構（無版號 fallback）
+
+**搭配規則**：
+- 全局 CLAUDE.md「Windows Git Bash 禁止 `TZ='Asia/Taipei'`」同類問題（MSYS 路徑 / 環境變數展開歧異）
+
+**候選晉升**：📂 Project（BAT × Windows dev 環境特定；若 Anthropic 上游修了則 obsolete）
+
+---
+
+## L116 - 2026-04-28 — bat-terminal.mjs 派發成功與否的真實判定（stdout 不可靠）
+
+**觸發條件**：用 `node scripts/bat-terminal.mjs --notify-id ... --skill ct-exec --workorder T####` 派工單，stdout 印 `✓ Terminal created: null`
+
+**反面教訓**：「null」字面看似失敗信號，但 T0338-T0340 全程都印 null 卻 Worker 正常跑；T0341 第一次也印 null 但 Worker 沒跑 → stdout 與實際結果**沒有對應關係**
+
+**規則**（真實判定）：
+- ❌ **不要**只看 stdout 「`Terminal created: <id>` 或 `null`」
+- ✅ 同時驗證以下兩條至少一條：
+  1. **git working tree 變化**：`git status` 看是否在數秒內出現新 commit / 新 untracked 檔（worker 啟動會 update 工單檔狀態 IN_PROGRESS）
+  2. **BAT UI 觀察**：肉眼確認新終端分頁有出現 + 正確 prompt 已貼入
+
+**降級判定**：派發後 30 秒內 git working tree 完全沒動 → 視為派發失敗，立即走剪貼簿降級：
+
+```bash
+pwsh -Command "Set-Clipboard -Value '/ct-exec T####'"
+# 然後請使用者手動開新終端 + 貼上
+```
+
+**Why**：bat-terminal.mjs 經 WS RemoteServer 建 PTY，回應的 terminal id 不一定來自最新建立的終端（可能是 race condition / connection blip）。前端唯一可靠的「派發成功」訊號是 Worker 在新終端確實啟動、讀到工單、開始改 IN_PROGRESS。
+
+**證據**：本專案 session 41 連續 4 次派發（T0338/9/40/41）皆 stdout 印 `null`，前 3 次跑正常，第 4 次（T0341 首試）沒跑。事後檢查 git log 才確認，重試 + 剪貼簿降級才落地
+
+**搭配規則**：
+- L112（BUG-060 → BUG-075 同族再現史）：BAT 內部終端 / mjs 派發鏈專屬問題的延續觀察
+
+**候選晉升**：📂 Project（BAT 工具鏈 specific；若 BAT 修了 RemoteServer response API 則 obsolete）

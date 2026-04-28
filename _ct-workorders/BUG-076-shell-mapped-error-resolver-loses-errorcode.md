@@ -9,7 +9,7 @@
 | 嚴重度 | 🟡 Medium（單一 entry 觸雷；UX 降級但不阻塞功能；未來新增 pure-errorCode entry 都會踩同坑） |
 | 可重現 | 100%（trigger `wsl-not-installed` errorCode 即可） |
 | Workaround | 為觸雷 entry 補 `patterns` regex；治標不治本 |
-| 狀態 | 🐛 OPEN |
+| 狀態 | ✅ CLOSED（T0339 ✅ FIXED `f711baf` @2026-04-28 06:16；T0338 integration test case #4 unskipped 自動驗證通過 + #4b regression guard 已刪；304/304 全綠 0 regression — CLOSED 條件達成） |
 | 建立時間 | 2026-04-28 06:10 (UTC+8) |
 | 報告者 | T0338 整合測試實作（Worker 守 AC-5 不順手修，回報塔台） |
 | 影響範圍 | `src/components/setup-wizard/SetupWizardShell.tsx` (line 170-184, `resolveMappedErrorForSnapshot`) |

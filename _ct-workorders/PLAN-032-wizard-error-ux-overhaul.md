@@ -8,7 +8,7 @@
 | 標題 | Setup Wizard 三平台 (WSL / SSH / Docker) 錯誤訊息友善化、pre-flight 偵測層、Stepper 擴充 `awaiting-input` 狀態、統一 recovery action 設計 |
 | 優先級 | 🟡 Medium（不阻擋功能但 dogfood 三同族 BUG 揭露 wizard UX 不直觀；release 前修整體驗） |
 | 類型 | 技術改善 + UX 重構（涉及 Stepper 元件 / 三平台 wizard step / error mapping framework） |
-| 狀態 | 🔄 IN_PROGRESS（Sprint 2 ✅ 5/5 / Sprint 3 ✅ 3/3：T0335 `94733d7`（BUG-074→VERIFY）+ T0336 `a8b2363`（BUG-073→VERIFY）+ T0337 `57896e7`（BUG-072→VERIFY）；待 Sprint 4-5 + 三 BUG 人工 smoke） |
+| 狀態 | 🔄 IN_PROGRESS（**Sprint 2-5 全部工單 DONE**；Sprint 2 ✅ 5/5（T0330-T0334）/ Sprint 3 ✅ 3/3（T0335→BUG-074、T0336→BUG-073、T0337→BUG-072 全 VERIFY）/ Sprint 4 ✅ 1/1（T0340 input-kind rollout `58ec3bd`）/ Sprint 5 ✅ 3/3（T0338 integration tests `be40f7d` + T0339 BUG-076 fix `f711baf` + T0341 audit `0cadea0`）+ BUG-076 ✅ CLOSED；**僅待三 BUG 人工 smoke** → 全 CLOSED 後 PLAN → DONE） |
 | 建立時間 | 2026-04-27 12:58 (UTC+8) |
 | 報告者 | 使用者（PLAN-030 dogfood 三同族 BUG，screenshot #7/#8/#9） |
 | Release target | **v0.4.3 獨立 release**（wizard UX patch；不與 PLAN-031 v0.5.0 綁定） |
