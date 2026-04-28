@@ -1,3 +1,13 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0272
+title: impl-plan007-create-headless-server-factory
+type: impl
+status: DONE
+created_at: "2026-04-26T02:53:00+08:00"
+renew_count: 0
+---
 # T0272-impl-plan007-create-headless-server-factory
 
 ## 元資料

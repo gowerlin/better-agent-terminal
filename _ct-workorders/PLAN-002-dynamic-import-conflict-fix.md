@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-002
+title: 💡 PLAN-002：Dynamic Import 衝突修正
+status: DROPPED
+priority: low
+---
 # 💡 PLAN-002：Dynamic Import 衝突修正
 
 ## 元資料

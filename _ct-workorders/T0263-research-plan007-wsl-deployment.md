@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0263
+title: research-plan007-wsl-deployment
+type: research
+status: DONE
+created_at: "2026-04-25T22:35:00+08:00"
+started_at: "2026-04-25T22:26:00+08:00"
+completed_at: "2026-04-25T22:31:00+08:00"
+renew_count: 0
+---
 # T0263-research-plan007-wsl-deployment
 
 ## 元資料

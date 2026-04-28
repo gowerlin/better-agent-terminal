@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-069
+title: "v0.4.1 NSIS install renderer crash：`require is not defined` in bundled renderer (index-DiPLuJp3.js:127)"
+status: CLOSED
+severity: high
+created_at: "2026-04-26T20:12:00+08:00"
+---
 # BUG-069 — v0.4.1 NSIS install renderer crash：`require is not defined` in bundled renderer (index-DiPLuJp3.js:127)
 
 ## Metadata

@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0336
+title: "PLAN-032 Sprint 3: BUG-073 Docker detect-env errorCode 結構化 + Preflight 提前攔截"
+type: fix
+status: FIXED
+created_at: "2026-04-28T03:13:00+08:00"
+started_at: "2026-04-28T03:16:00+08:00"
+completed_at: "2026-04-28T03:21:00+08:00"
+renew_count: 0
+---
 # T0336 — PLAN-032 Sprint 3: BUG-073 Docker detect-env errorCode 結構化 + Preflight 提前攔截
 
 ## Metadata

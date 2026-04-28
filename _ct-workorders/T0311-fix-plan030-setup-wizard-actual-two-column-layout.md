@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0311
+title: Fix：T0309 Setup Wizard 兩欄式 layout regression（實際是 stacked）
+type: fix
+status: DONE
+sizing: S
+started_at: "2026-04-27T00:18:00+08:00"
+completed_at: "2026-04-27T00:21:00+08:00"
+renew_count: 0
+---
 # T0311 — Fix：T0309 Setup Wizard 兩欄式 layout regression（實際是 stacked）
 
 ## Metadata

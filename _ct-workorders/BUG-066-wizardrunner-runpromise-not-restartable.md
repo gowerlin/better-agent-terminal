@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-066
+title: "`WizardRunner.run()` 失敗後 runPromise 不會重置，無法在同實例上重新啟動"
+status: CLOSED
+severity: low
+created_at: "2026-04-26T17:18:00+08:00"
+---
 # BUG-066 — `WizardRunner.run()` 失敗後 runPromise 不會重置，無法在同實例上重新啟動
 
 ## Metadata

@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0294
+title: Fix PLAN-007 Path Translator Boundary + Degeneracy（F-001 + EC-001 合併修）
+type: fix
+status: DONE
+sizing: M
+created_at: "2026-04-26T17:20:00+08:00"
+completed_at: "2026-04-26T17:28:00+08:00"
+renew_count: 0
+workdir: "**main repo**（`D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal/`），branch **`release/v0.4.0`**"
+---
 # T0294 — Fix PLAN-007 Path Translator Boundary + Degeneracy（F-001 + EC-001 合併修）
 
 ## Metadata

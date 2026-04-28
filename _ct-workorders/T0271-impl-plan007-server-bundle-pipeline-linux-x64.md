@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0271
+title: impl-plan007-server-bundle-pipeline-linux-x64
+type: impl
+status: DONE
+created_at: "2026-04-26T02:26:00+08:00"
+started_at: "2026-04-26T21:00:00+08:00"
+completed_at: "2026-04-26T02:47:00+08:00"
+renew_count: 0
+---
 # T0271-impl-plan007-server-bundle-pipeline-linux-x64
 
 ## 元資料

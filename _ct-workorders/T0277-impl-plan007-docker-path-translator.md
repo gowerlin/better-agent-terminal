@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0277
+title: Impl PLAN-007 DockerPathTranslator (production-grade)
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T11:58:00+08:00"
+completed_at: "2026-04-26T12:10:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `43d6eea`)"
+---
 # T0277 — Impl PLAN-007 DockerPathTranslator (production-grade)
 
 ## Metadata

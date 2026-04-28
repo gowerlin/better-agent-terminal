@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0251
+title: 修：BAT spawn 注入 `DISABLE_AUTOUPDATER=1` 防止 embedded claude auto-update 破壞 binary
+type: fix
+status: DONE
+started_at: "2026-04-25T10:08:52+08:00"
+completed_at: "2026-04-25T10:15:26+08:00"
+renew_count: 0
+---
 # T0251 — 修：BAT spawn 注入 `DISABLE_AUTOUPDATER=1` 防止 embedded claude auto-update 破壞 binary
 
 ## 元資料

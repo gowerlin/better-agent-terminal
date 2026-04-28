@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-030
+title: ProfilePanel + Setup Wizard UI 整體改善（套用 BUG Report stepper 視覺語言）
+status: DONE
+priority: high
+completed_at: "2026-04-27T00:04:00+08:00"
+---
 # PLAN-030 — ProfilePanel + Setup Wizard UI 整體改善（套用 BUG Report stepper 視覺語言）
 
 ## Metadata

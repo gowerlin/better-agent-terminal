@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0298
+title: Review T0294-T0297 Fix Verification + v0.4.0 Release Readiness Sanity Check
+status: DONE
+sizing: M
+created_at: "2026-04-26T18:00:00+08:00"
+completed_at: "2026-04-26T18:08:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**"
+---
 # T0298 — Review T0294-T0297 Fix Verification + v0.4.0 Release Readiness Sanity Check
 
 ## Metadata

@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0334
+title: "PLAN-032 Sprint 2: 設計規範 + visual snapshot tests + i18n hook 整理（Sprint 2 收尾）"
+type: docs
+status: DONE
+created_at: "2026-04-27T23:32:00+08:00"
+started_at: "2026-04-27T23:33:00+08:00"
+completed_at: "2026-04-27T23:43:00+08:00"
+renew_count: 0
+---
 # T0334 — PLAN-032 Sprint 2: 設計規範 + visual snapshot tests + i18n hook 整理（Sprint 2 收尾）
 
 ## Metadata

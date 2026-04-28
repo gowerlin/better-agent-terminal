@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0257
+title: research-t0255-interruption-state
+type: research
+status: DONE
+created_at: "2026-04-25T20:15:00+08:00"
+started_at: "2026-04-25T20:15:00+08:00"
+completed_at: "2026-04-25T20:26:00+08:00"
+renew_count: 0
+---
 # T0257-research-t0255-interruption-state
 
 ## 元資料

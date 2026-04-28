@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0274
+title: Impl PLAN-007 WSL Setup Wizard (steps 1-4 + UI shell)
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-26T10:33:00+08:00"
+completed_at: "2026-04-26T10:50:00+08:00"
+workdir: "`../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `e569183`)"
+---
 # T0274 — Impl PLAN-007 WSL Setup Wizard (steps 1-4 + UI shell)
 
 ## Metadata

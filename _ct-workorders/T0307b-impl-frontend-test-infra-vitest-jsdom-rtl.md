@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0307
+title: T0307b — Impl：Frontend unit test infra（vitest + jsdom + RTL）+ 驗證 T0307 18 個 cases
+type: impl
+status: DONE
+sizing: S
+started_at: "2026-04-26T23:20:00+08:00"
+completed_at: "2026-04-26T23:25:00+08:00"
+renew_count: 0
+---
 # T0307b — Impl：Frontend unit test infra（vitest + jsdom + RTL）+ 驗證 T0307 18 個 cases
 
 ## Metadata

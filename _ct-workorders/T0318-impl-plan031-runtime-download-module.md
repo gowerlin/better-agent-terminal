@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0318
+title: Impl PLAN-031 BAT runtime download module（fetch + progress + retry + local cache）
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-27T02:25:00+08:00"
+started_at: "2026-04-27T02:30:00+08:00"
+completed_at: "2026-04-27T02:43:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0318 — Impl PLAN-031 BAT runtime download module（fetch + progress + retry + local cache）
 
 ## Metadata

@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0253
+title: upstream-sync-phase1-c1-remote-profile-polish
+status: DONE
+created_at: "2026-04-25T16:50:00+08:00"
+started_at: "2026-04-25T16:48:00+08:00"
+completed_at: "2026-04-25T17:03:00+08:00"
+renew_count: 0
+---
 # T0253-upstream-sync-phase1-c1-remote-profile-polish
 
 ## 元資料

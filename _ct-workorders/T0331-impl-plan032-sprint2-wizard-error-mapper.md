@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0331
+title: "PLAN-032 Sprint 2: WizardErrorMapper framework（registry + fallback resolver）"
+status: DONE
+created_at: "2026-04-27T22:50:00+08:00"
+started_at: "2026-04-27T22:51:00+08:00"
+completed_at: "2026-04-27T22:58:00+08:00"
+renew_count: 0
+---
 # T0331 — PLAN-032 Sprint 2: WizardErrorMapper framework（registry + fallback resolver）
 
 ## Metadata

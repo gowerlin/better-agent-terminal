@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0349
+title: "PLAN-033 Sprint 2: Quick Recovery hygiene 重構"
+type: refactor
+status: DONE
+created_at: "2026-04-27T18:08:00+08:00"
+started_at: "2026-04-27T21:23:00+08:00"
+completed_at: "2026-04-27T21:29:00+08:00"
+renew_count: 0
+---
 # T0349 — PLAN-033 Sprint 2: Quick Recovery hygiene 重構
 
 ## Metadata

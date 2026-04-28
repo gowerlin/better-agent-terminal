@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0310
+title: "Docs：PLAN-030 #5 BAT UI Stepper 設計規範文件"
+type: docs
+status: DONE
+sizing: S
+started_at: "2026-04-27T00:01:00+08:00"
+completed_at: "2026-04-27T00:04:00+08:00"
+renew_count: 0
+---
 # T0310 — Docs：PLAN-030 #5 BAT UI Stepper 設計規範文件
 
 ## Metadata

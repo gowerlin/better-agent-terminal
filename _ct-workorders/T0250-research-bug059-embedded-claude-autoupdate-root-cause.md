@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0250
+title: 研究：BUG-059 embedded `claude.exe` auto-update 失敗根因 + 修復方向
+type: research
+status: DONE
+started_at: "2026-04-25T09:40:00+08:00"
+completed_at: "2026-04-25T09:55:00+08:00"
+renew_count: 0
+---
 # T0250 — 研究：BUG-059 embedded `claude.exe` auto-update 失敗根因 + 修復方向
 
 ## 元資料

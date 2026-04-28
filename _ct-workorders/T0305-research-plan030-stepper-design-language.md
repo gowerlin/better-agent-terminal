@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0305
+title: Research：PLAN-030 Stepper 視覺語言 + ProfilePanel 群組化下拉 + Setup Wizard 重設計探索
+type: research
+status: DONE
+sizing: M
+started_at: "2026-04-26T22:25:00+08:00"
+completed_at: "2026-04-26T22:29:00+08:00"
+renew_count: 0
+---
 # T0305 — Research：PLAN-030 Stepper 視覺語言 + ProfilePanel 群組化下拉 + Setup Wizard 重設計探索
 
 ## Metadata

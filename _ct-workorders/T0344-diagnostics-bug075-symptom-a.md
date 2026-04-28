@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0344
+title: BUG-075 症狀 A diagnostics + regression guard（shell preference）
+type: test
+status: DONE
+sizing: S
+created_at: "2026-04-27T14:08:00+08:00"
+started_at: "2026-04-27T16:28:00+08:00"
+completed_at: "2026-04-27T16:34:00+08:00"
+workdir: main repo
+---
 # T0344 — BUG-075 症狀 A diagnostics + regression guard（shell preference）
 
 ## Metadata

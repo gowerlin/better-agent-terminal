@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0280
+title: Impl PLAN-007 Docker e2e + lifecycle scenarios (Phase 3 capstone)
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T13:02:00+08:00"
+completed_at: "2026-04-26T13:08:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `8ca2f34`)"
+---
 # T0280 — Impl PLAN-007 Docker e2e + lifecycle scenarios (Phase 3 capstone)
 
 ## Metadata

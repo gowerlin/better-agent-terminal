@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-073
+title: Docker setup wizard：Docker daemon 未運作時錯誤訊息純技術，無 actionable 引導
+status: VERIFY
+severity: medium
+---
 # BUG-073 — Docker setup wizard：Docker daemon 未運作時錯誤訊息純技術，無 actionable 引導
 
 ## Metadata

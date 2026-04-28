@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0279
+title: Impl PLAN-007 Docker setup wizard (lifecycle 模式 A + B + configure-mounts)
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-26T12:30:00+08:00"
+completed_at: "2026-04-26T12:58:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `b177d48`)"
+---
 # T0279 — Impl PLAN-007 Docker setup wizard (lifecycle 模式 A + B + configure-mounts)
 
 ## Metadata

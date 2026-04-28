@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0327
+title: Docs PLAN-031 Server bundle distribution 用戶文件 + CLAUDE.md 更新
+type: docs
+status: DONE
+sizing: S
+created_at: "2026-04-27T11:05:00+08:00"
+started_at: "2026-04-27T11:07:00+08:00"
+completed_at: "2026-04-27T11:11:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0327 — Docs PLAN-031 Server bundle distribution 用戶文件 + CLAUDE.md 更新
 
 ## Metadata

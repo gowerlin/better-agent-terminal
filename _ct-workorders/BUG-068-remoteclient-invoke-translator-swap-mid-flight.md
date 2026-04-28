@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-068
+title: "`RemoteClient.invoke` 中途 reconnect 換 translator，in-flight invoke 用 A 翻 args / 用 B 翻 result"
+status: CLOSED
+severity: low
+created_at: "2026-04-26T17:18:00+08:00"
+---
 # BUG-068 — `RemoteClient.invoke` 中途 reconnect 換 translator，in-flight invoke 用 A 翻 args / 用 B 翻 result
 
 ## Metadata

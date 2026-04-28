@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0343
+title: Impl PLAN-034 Sprint 2 — CT 模板 + skill 文件 + sync 邏輯（draft 雙軌：spec patch + upstream PR draft）
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-28T19:30:00+08:00"
+started_at: "2026-04-28T19:31:54+08:00"
+completed_at: "2026-04-28T19:38:18+08:00"
+renew_count: 0
+workdir: main repo（不需 worktree，純文件產出）
+---
 # T0343 — Impl PLAN-034 Sprint 2 — CT 模板 + skill 文件 + sync 邏輯（draft 雙軌：spec patch + upstream PR draft）
 
 ## Metadata
@@ -7,7 +21,7 @@
 | 工單編號 | T0343 |
 | 類型 | impl + docs（雙軌：本專案 spec patch + 上游 CT skill draft） |
 | 所屬 | PLAN-034 — Sprint 2 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-28 19:30 (UTC+8) |
 | Sizing | M-L（estimate 60-120 min wall：spec P1/P2 patch + 4-5 個 skill draft） |
 | 依賴 | T0342 ✅（spec + 5 範例已落地） |
@@ -17,6 +31,7 @@
 | 工作目錄 | main repo（不需 worktree，純文件產出） |
 | `affects_files` | `_ct-workorders/_spec-yaml-frontmatter-schema.md`（in-place patch P1/P2）+ `_ct-workorders/_draft-ct-frontmatter-sprint2-*.md`（多份 draft，人類手動上游 PR）+ 本工單回報區 |
 | 開始時間 | 2026-04-28 19:31:54 +08:00 |
+| 完成時間 | 2026-04-28 19:38:18 +08:00 |
 
 ---
 
@@ -200,4 +215,5 @@ Worker 產出以下 draft 檔（每個獨立檔），格式為「目標路徑 + 
   - `rg -n "PROPOSED|RUNNING" _ct-workorders --glob "_draft-ct-frontmatter-sprint2-*.md"`：無結果（exit 1）。
   - `git diff --check -- ...`：通過；僅顯示 `_spec-yaml-frontmatter-schema.md` LF/CRLF warning。
   - Draft consistency table：5 份 draft 均含套用步驟、SoT/body mirror、legacy fallback、drift warning。
-- commit：待 commit 後回填。
+- sprint-status.yaml：不適用（存在但無 T0343 / PLAN-034 frontmatter entry 可更新）。
+- commit：`b064a16`（`docs(ct): draft PLAN-034 frontmatter sprint 2 updates`）

@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0323
+title: Impl PLAN-031 Docker install-server-bundle 一致性對齊（image-baked source 標記）
+type: impl
+status: DONE
+sizing: XS
+created_at: "2026-04-27T10:30:00+08:00"
+started_at: "2026-04-27T10:33:00+08:00"
+completed_at: "2026-04-27T10:37:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0323 — Impl PLAN-031 Docker install-server-bundle 一致性對齊（image-baked source 標記）
 
 ## Metadata

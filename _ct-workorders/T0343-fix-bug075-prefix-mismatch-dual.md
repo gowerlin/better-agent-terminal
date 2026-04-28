@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0343
+title: Fix BUG-075 prefix mismatch：Tower skill + BAT app 雙修
+status: FIXED
+sizing: M
+created_at: "2026-04-27T14:08:00+08:00"
+started_at: "2026-04-27T14:27:10+08:00"
+completed_at: "2026-04-27T14:36:12+08:00"
+workdir: "main repo + Tower skill 路徑（`C:/Users/Gower/.codex/skills/control-tower/` + `C:/Users/Gower/.claude/skills/control-tower/`）"
+---
 # T0343 — Fix BUG-075 prefix mismatch：Tower skill + BAT app 雙修
 
 ## Metadata

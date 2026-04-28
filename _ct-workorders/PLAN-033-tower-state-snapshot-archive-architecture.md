@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-033
+title: Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR）
+status: PLANNED
+priority: high
+created_at: "2026-04-27T16:55:00+08:00"
+---
 # PLAN-033 — Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR）
 
 ## Metadata

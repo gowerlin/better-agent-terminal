@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0289
+title: Impl PLAN-007 Phase 5 Setup wizard rollback contract + cross-deployment test（落地 C-3 best-effort rollback）
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T16:00:00+08:00"
+completed_at: "2026-04-26T16:13:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`（worktree on `feature/plan-007-remote-dev`）"
+---
 # T0289 — Impl PLAN-007 Phase 5 Setup wizard rollback contract + cross-deployment test（落地 C-3 best-effort rollback）
 
 ## Metadata

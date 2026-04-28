@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0325
+title: QA PLAN-031 Offline / 網路 fail / GitHub rate limit e2e + 三平台 install-bundle 自動測試
+status: DONE
+sizing: M
+created_at: "2026-04-27T10:39:00+08:00"
+started_at: "2026-04-27T10:49:00+08:00"
+completed_at: "2026-04-27T11:03:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0325 — QA PLAN-031 Offline / 網路 fail / GitHub rate limit e2e + 三平台 install-bundle 自動測試
 
 ## Metadata

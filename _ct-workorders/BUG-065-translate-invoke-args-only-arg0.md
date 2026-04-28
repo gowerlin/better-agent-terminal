@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-065
+title: "`translateInvokeArgs` 預設只翻 args[0]，多 path arg channel（git:diff-files）跳過 args[1+]"
+status: CLOSED
+severity: medium
+created_at: "2026-04-26T17:18:00+08:00"
+---
 # BUG-065 — `translateInvokeArgs` 預設只翻 args[0]，多 path arg channel（git:diff-files）跳過 args[1+]
 
 ## Metadata

@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-014
+title: evaluate-vscode-extension-vs-git-gui
+status: PLANNED
+priority: medium
+created_at: "2026-04-17T22:00:00+08:00"
+---
 # PLAN-014-evaluate-vscode-extension-vs-git-gui
 
 ## 元資料

@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-071
+title: Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
+status: OPEN
+severity: high
+---
 # BUG-071 — Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
 
 ## Metadata

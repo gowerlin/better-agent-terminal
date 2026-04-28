@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0299
+title: Fix v0.4.1 SSH/Tunnel Lifecycle Hardening（BUG-063 + BUG-067）
+type: fix
+status: DONE
+sizing: L
+created_at: "2026-04-26T18:12:00+08:00"
+completed_at: "2026-04-26T18:32:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**（v0.4.1 patch 累積在同分支）"
+---
 # T0299 — Fix v0.4.1 SSH/Tunnel Lifecycle Hardening（BUG-063 + BUG-067）
 
 ## Metadata

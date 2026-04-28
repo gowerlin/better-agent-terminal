@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0337
+title: "PLAN-032 Sprint 3: BUG-072 WSL linger/systemd mapping + fixed-and-retry flow（Sprint 3 收尾）"
+type: fix
+status: FIXED
+created_at: "2026-04-28T03:24:00+08:00"
+started_at: "2026-04-28T03:26:00+08:00"
+completed_at: "2026-04-28T03:32:00+08:00"
+renew_count: 0
+---
 # T0337 — PLAN-032 Sprint 3: BUG-072 WSL linger/systemd mapping + fixed-and-retry flow（Sprint 3 收尾）
 
 ## Metadata

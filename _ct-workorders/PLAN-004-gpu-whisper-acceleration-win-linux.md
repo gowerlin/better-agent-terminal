@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-004
+title: 💡 PLAN-004：GPU/MLX Whisper 加速（Windows/Linux CUDA、Vulkan）
+status: DONE
+priority: medium
+---
 # 💡 PLAN-004：GPU/MLX Whisper 加速（Windows/Linux CUDA、Vulkan）
 
 ## 元資料

@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0333
+title: "PLAN-032 Sprint 2: Recovery actions schema + SetupWizardShell wiring"
+status: DONE
+created_at: "2026-04-27T23:11:00+08:00"
+started_at: "2026-04-27T23:13:00+08:00"
+completed_at: "2026-04-27T23:30:00+08:00"
+renew_count: 0
+---
 # T0333 — PLAN-032 Sprint 2: Recovery actions schema + SetupWizardShell wiring
 
 ## Metadata

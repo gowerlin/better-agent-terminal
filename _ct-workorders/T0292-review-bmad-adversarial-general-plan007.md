@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0292
+title: Review PLAN-007 (release/v0.4.0) — bmad 對抗式審查（adversarial-general）
+status: DONE
+sizing: L
+created_at: "2026-04-26T16:42:00+08:00"
+started_at: "2026-04-26T16:50:00+08:00"
+completed_at: "2026-04-26T17:01:00+08:00"
+renew_count: 0
+workdir: "**main repo**（`D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal/`）"
+---
 # T0292 — Review PLAN-007 (release/v0.4.0) — bmad 對抗式審查（adversarial-general）
 
 ## Metadata

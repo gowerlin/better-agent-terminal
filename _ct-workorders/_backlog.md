@@ -1,10 +1,10 @@
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-27 16:40 (UTC+8) — Session 36 PLAN-032 開立 + T0328 拍板；Session 37 BUG-075 三層 regression 收尾（不入 backlog，純 BUG path）。
+> 最後同步：2026-04-28 18:20 (UTC+8) — Session 42 *sync + PLAN-034 開立（YAML frontmatter schema 強制化，BUG-077 根因解）。
 
 ## 統計
-- 💡 Ideas: 2 | 📋 Planned: 2 | 🔄 In Progress: 2 | ✅ Done: 6 | 🚫 Dropped: 1 | **Total: 13**
+- 💡 Ideas: 2 | 📋 Planned: 3 | 🔄 In Progress: 2 | ✅ Done: 6 | 🚫 Dropped: 1 | **Total: 14**
 
 > 已歸檔 PLAN（`_archive/plans/`）：19 張
 
@@ -12,6 +12,7 @@
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
+| PLAN-034 | Workorder/Index 檔 YAML frontmatter metadata schema 強制化（BAT + CT 雙端，BUG-077 根因解） | 🔴 High | 📋 PLANNED | [PLAN-034](PLAN-034-yaml-frontmatter-metadata-schema-bat-ct.md) |
 | PLAN-031 | Server Bundle Distribution（含 ARM64 Linux）— Sprint 1-5 主體 11 工單已 DONE，剩 T0324 dogfood + T0326 升級 UI | 🔴 High | 🔄 IN_PROGRESS | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-032 | Wizard Error UX Overhaul（BUG-072/073/074 同族）— T0328 spec freeze + 11 工單拆單表 + 8 拍板項 D102-D109 | 🟡 Medium | 🔄 IN_PROGRESS | [PLAN-032](PLAN-032-wizard-error-ux-overhaul.md) |
 | PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR 候選）— _tower-state.md 已 264KB 撞 256KB Read 上限 | 🔴 High | 📋 PLANNED | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |

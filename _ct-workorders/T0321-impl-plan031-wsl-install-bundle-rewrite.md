@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0321
+title: Impl PLAN-031 WSL install-server-bundle step 改寫（消費 distributor）
+type: impl
+status: DONE
+sizing: S
+created_at: "2026-04-27T03:02:00+08:00"
+started_at: "2026-04-27T03:04:00+08:00"
+completed_at: "2026-04-27T03:12:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0321 — Impl PLAN-031 WSL install-server-bundle step 改寫（消費 distributor）
 
 ## Metadata

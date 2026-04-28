@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0259
+title: verify-t0255-phase1-c3-build-smoke
+status: DONE
+created_at: "2026-04-25T20:55:00+08:00"
+started_at: "2026-04-25T20:40:00+08:00"
+completed_at: "2026-04-25T20:46:00+08:00"
+renew_count: 0
+---
 # T0259-verify-t0255-phase1-c3-build-smoke
 
 ## 元資料

@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0283
+title: Impl PLAN-007 Server bundle pipeline (linux-arm64 + darwin-arm64) + 獨立 GitHub Actions workflow
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-26T14:14:00+08:00"
+completed_at: "2026-04-26T14:25:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`（worktree on `feature/plan-007-remote-dev`）"
+---
 # T0283 — Impl PLAN-007 Server bundle pipeline (linux-arm64 + darwin-arm64) + 獨立 GitHub Actions workflow
 
 ## Metadata

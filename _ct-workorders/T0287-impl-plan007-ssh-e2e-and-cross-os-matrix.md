@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0287
+title: Impl PLAN-007 SSH E2E + Cross-OS Matrix + ProfilePanel Integration（Phase 4 capstone）
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-26T15:18:00+08:00"
+completed_at: "2026-04-26T15:37:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`（worktree on `feature/plan-007-remote-dev`）"
+---
 # T0287 — Impl PLAN-007 SSH E2E + Cross-OS Matrix + ProfilePanel Integration（Phase 4 capstone）
 
 ## Metadata

@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-060
+title: YOLO 鏈式派發第二張工單起,BAT 終端 shell preference 未套用 Settings 配置
+status: CLOSED
+severity: medium
+created_at: "2026-04-26T13:08:00+08:00"
+---
 # BUG-060 — YOLO 鏈式派發第二張工單起,BAT 終端 shell preference 未套用 Settings 配置
 
 ## Metadata

@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0296
+title: Fix PLAN-007 SSH argv 一致性 + 控制字元防護 + BatchMode（F-004 + EC-002 + EC-003 三合一）
+type: fix
+status: DONE
+sizing: L
+created_at: "2026-04-26T17:35:00+08:00"
+started_at: "2026-04-26T17:40:00+08:00"
+completed_at: "2026-04-26T17:55:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**"
+---
 # T0296 — Fix PLAN-007 SSH argv 一致性 + 控制字元防護 + BatchMode（F-004 + EC-002 + EC-003 三合一）
 
 ## Metadata

@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-075
+title: BAT 內部終端 default shell preference 失效 + MSYS slash-command path rewrite 雙 regression（BUG-060 / L103 同族再現）
+status: CLOSED
+severity: high
+created_at: "2026-04-27T13:00:00+08:00"
+---
 # BUG-075 — BAT 內部終端 default shell preference 失效 + MSYS slash-command path rewrite 雙 regression（BUG-060 / L103 同族再現）
 
 ## Metadata

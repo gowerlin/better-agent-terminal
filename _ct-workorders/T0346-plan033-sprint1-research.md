@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0346
+title: "PLAN-033 Sprint 1: Tower State Snapshot Archive 規格收斂研究"
+type: research
+status: DONE
+created_at: "2026-04-27T17:14:00+08:00"
+started_at: "2026-04-27T17:17:00+08:00"
+completed_at: "2026-04-27T17:21:00+08:00"
+renew_count: 0
+---
 # T0346 — PLAN-033 Sprint 1: Tower State Snapshot Archive 規格收斂研究
 
 ## Metadata

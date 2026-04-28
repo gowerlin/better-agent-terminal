@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0312
+title: Impl：Setup Wizard Dialog 寬度放寬 2 倍（PLAN-030 polish）
+type: impl
+status: DONE
+sizing: XS
+started_at: "2026-04-27T00:27:00+08:00"
+completed_at: "2026-04-27T00:28:00+08:00"
+renew_count: 2
+---
 # T0312 — Impl：Setup Wizard Dialog 寬度放寬 2 倍（PLAN-030 polish）
 
 ## Metadata

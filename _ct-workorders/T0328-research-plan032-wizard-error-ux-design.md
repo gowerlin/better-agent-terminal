@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0328
+title: Research PLAN-032 Wizard Error UX 設計探索（Stepper 擴充 + error mapping + pre-flight framework）
+type: research
+status: DONE
+sizing: L
+created_at: "2026-04-27T12:58:00+08:00"
+started_at: "2026-04-27T13:27:00+08:00"
+completed_at: "2026-04-27T13:32:00+08:00"
+renew_count: 0
+workdir: main repo（不需 worktree，純讀取 + 文件產出）
+---
 # T0328 — Research PLAN-032 Wizard Error UX 設計探索（Stepper 擴充 + error mapping + pre-flight framework）
 
 ## Metadata

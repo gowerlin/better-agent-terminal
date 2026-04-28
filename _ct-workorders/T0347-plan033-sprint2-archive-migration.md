@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0347
+title: "PLAN-033 Sprint 2: Tower archive 規格落地 + 一次性遷移"
+status: DONE
+created_at: "2026-04-27T17:25:00+08:00"
+started_at: "2026-04-27T17:29:00+08:00"
+completed_at: "2026-04-27T17:42:00+08:00"
+renew_count: 0
+---
 # T0347 — PLAN-033 Sprint 2: Tower archive 規格落地 + 一次性遷移
 
 ## Metadata

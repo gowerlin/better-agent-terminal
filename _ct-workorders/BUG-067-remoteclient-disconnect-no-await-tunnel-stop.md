@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-067
+title: "`RemoteClient.disconnect` 不 await `tunnel.stop()`，disconnect→reconnect 間 ssh 子行程 overlap"
+status: CLOSED
+severity: medium
+created_at: "2026-04-26T17:18:00+08:00"
+---
 # BUG-067 — `RemoteClient.disconnect` 不 await `tunnel.stop()`，disconnect→reconnect 間 ssh 子行程 overlap
 
 ## Metadata

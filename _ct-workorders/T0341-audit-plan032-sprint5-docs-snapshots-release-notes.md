@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0341
+title: "PLAN-032 Sprint 5 audit: docs polish + visual snapshot 補完 + v0.4.2 release notes 草稿"
+type: docs
+status: DONE
+created_at: "2026-04-28T09:08:00+08:00"
+started_at: "2026-04-28T09:20:00+08:00"
+completed_at: "2026-04-28T09:27:00+08:00"
+renew_count: 0
+---
 # T0341 — PLAN-032 Sprint 5 audit: docs polish + visual snapshot 補完 + v0.4.2 release notes 草稿
 
 ## Metadata

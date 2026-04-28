@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0314
+title: Docs PLAN-031 Distribution spec freeze + arch normalize 純函數 + manifest schema
+type: docs
+status: DONE
+sizing: S
+started_at: "2026-04-27T01:25:00+08:00"
+completed_at: "2026-04-27T01:32:00+08:00"
+renew_count: 0
+workdir: main repo（純 docs + 純函數）
+---
 # T0314 — Docs PLAN-031 Distribution spec freeze + arch normalize 純函數 + manifest schema
 
 ## Metadata

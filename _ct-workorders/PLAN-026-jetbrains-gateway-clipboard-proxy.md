@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-026
+title: JetBrains Gateway Dev Container 剪貼簿 proxy(HTTP daemon via host.docker.internal)
+status: DONE
+priority: low
+created_at: "2026-04-20T00:00:00+08:00"
+---
 # PLAN-026 — JetBrains Gateway Dev Container 剪貼簿 proxy(HTTP daemon via host.docker.internal)
 
 | 欄位 | 內容 |

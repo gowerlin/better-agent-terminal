@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0308
+title: "Refactor：PLAN-030 #2 BugWorkflowIndicator 內化到 `<Stepper>` + 視覺回歸"
+type: refactor
+status: DONE
+sizing: S
+started_at: "2026-04-26T23:28:00+08:00"
+completed_at: "2026-04-26T23:36:00+08:00"
+renew_count: 0
+---
 # T0308 — Refactor：PLAN-030 #2 BugWorkflowIndicator 內化到 `<Stepper>` + 視覺回歸
 
 ## Metadata

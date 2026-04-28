@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0267
+title: research-plan007-spec-consolidation
+type: research
+status: DONE
+created_at: "2026-04-25T23:15:00+08:00"
+started_at: "2026-04-25T23:15:00+08:00"
+completed_at: "2026-04-25T23:25:00+08:00"
+renew_count: 0
+---
 # T0267-research-plan007-spec-consolidation
 
 ## 元資料

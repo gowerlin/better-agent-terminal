@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0339
+title: "Fix BUG-076: SetupWizardShell 改用 `snapshot.mappedError`，移除 redundant resolver"
+type: fix
+status: FIXED
+created_at: "2026-04-28T06:10:00+08:00"
+started_at: "2026-04-28T06:13:00+08:00"
+completed_at: "2026-04-28T06:16:00+08:00"
+renew_count: 0
+---
 # T0339 — Fix BUG-076: SetupWizardShell 改用 `snapshot.mappedError`，移除 redundant resolver
 
 ## Metadata

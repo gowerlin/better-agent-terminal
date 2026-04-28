@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0256
+title: ct-v441-codex-support-docs
+status: DONE
+created_at: "2026-04-25T18:10:00+08:00"
+started_at: "2026-04-25T18:14:00+08:00"
+completed_at: "2026-04-25T18:19:00+08:00"
+renew_count: 0
+---
 # T0256-ct-v441-codex-support-docs
 
 ## 元資料

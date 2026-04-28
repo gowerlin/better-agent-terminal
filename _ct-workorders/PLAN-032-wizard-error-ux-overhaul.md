@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-032
+title: Setup Wizard Error UX Overhaul（含 Stepper `awaiting-input` 擴充 + 通用 error mapping framework）
+status: IN_PROGRESS
+priority: medium
+created_at: "2026-04-27T12:58:00+08:00"
+---
 # PLAN-032 — Setup Wizard Error UX Overhaul（含 Stepper `awaiting-input` 擴充 + 通用 error mapping framework）
 
 ## Metadata

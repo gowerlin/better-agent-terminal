@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-064
+title: "`classifyStderr` 只認英文 ssh stderr 訊息（i18n 脆弱）"
+status: CLOSED
+severity: low
+created_at: "2026-04-26T17:18:00+08:00"
+---
 # BUG-064 — `classifyStderr` 只認英文 ssh stderr 訊息（i18n 脆弱）
 
 ## Metadata

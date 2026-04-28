@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0254
+title: upstream-sync-phase1-c2-codex-robustness
+status: DONE
+created_at: "2026-04-25T18:30:00+08:00"
+started_at: "2026-04-25T19:17:00+08:00"
+completed_at: "2026-04-25T19:33:00+08:00"
+renew_count: 0
+---
 # T0254-upstream-sync-phase1-c2-codex-robustness
 
 ## 元資料

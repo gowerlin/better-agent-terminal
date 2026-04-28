@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0281
+title: Fix BUG-060 YOLO 鏈式派發 shell preference 未套用
+status: DONE
+sizing: M
+created_at: "2026-04-26T13:12:00+08:00"
+completed_at: "2026-04-26T13:20:00+08:00"
+renew_count: 0
+workdir: "**主線 main**(不是 PLAN-007 worktree;此 bug 影響派發機制本身)"
+---
 # T0281 — Fix BUG-060 YOLO 鏈式派發 shell preference 未套用
 
 ## Metadata

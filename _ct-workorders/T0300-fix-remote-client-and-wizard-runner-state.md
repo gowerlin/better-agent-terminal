@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0300
+title: Fix v0.4.1 RemoteClient + WizardRunner State（BUG-062 + BUG-066 + BUG-068）
+type: fix
+status: DONE
+sizing: M
+created_at: "2026-04-26T18:35:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**"
+---
 # T0300 — Fix v0.4.1 RemoteClient + WizardRunner State（BUG-062 + BUG-066 + BUG-068）
 
 ## Metadata

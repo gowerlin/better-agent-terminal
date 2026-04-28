@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0344
+title: Impl PLAN-034 Sprint 3 — BAT UI parser frontmatter-first 改造
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-28T19:45:00+08:00"
+started_at: "2026-04-28T19:46:00+08:00"
+completed_at: "2026-04-28T19:56:00+08:00"
+renew_count: 0
+workdir: main repo（直接動 BAT source）
+---
 # T0344 — Impl PLAN-034 Sprint 3 — BAT UI parser frontmatter-first 改造
 
 ## Metadata
@@ -7,8 +21,10 @@
 | 工單編號 | T0344 |
 | 類型 | impl（BAT 端 source code 變更） |
 | 所屬 | PLAN-034 — Sprint 3 |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 開始時間 | 2026-04-28 19:46 (UTC+8) |
+| 完成時間 | 2026-04-28 19:56 (UTC+8) |
+| commit | b250db5 |
 | 建立時間 | 2026-04-28 19:45 (UTC+8) |
 | Sizing | L（estimate 90-150 min wall：5 面板 parser + types + tests） |
 | 依賴 | T0342 spec ✅ / T0343 drafts ✅（draft 內容供參考但不直接套用 upstream） |
@@ -233,4 +249,4 @@ Sprint 3 必須包含 regression test：
 ### 回報時間 / commit
 
 - 完成時間：2026-04-28 19:56 (UTC+8)
-- commit：見元資料區下方寫入後填
+- commit：b250db5 — `feat(ct): frontmatter-first parsers for CT panels (PLAN-034 Sprint 3)`

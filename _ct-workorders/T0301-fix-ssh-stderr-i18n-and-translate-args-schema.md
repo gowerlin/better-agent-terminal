@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0301
+title: Fix v0.4.1 SSH stderr i18n + translateInvokeArgs Schema-Driven（BUG-064 + BUG-065）
+type: fix
+status: FIXED
+sizing: M
+created_at: "2026-04-26T18:38:00+08:00"
+completed_at: "2026-04-26T18:56:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**"
+---
 # T0301 — Fix v0.4.1 SSH stderr i18n + translateInvokeArgs Schema-Driven（BUG-064 + BUG-065）
 
 ## Metadata

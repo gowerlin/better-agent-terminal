@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-061
+title: "`src/components/CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing）"
+status: OPEN
+severity: low
+created_at: "2026-04-26T14:10:00+08:00"
+---
 # BUG-061 — `src/components/CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing）
 
 ## Metadata

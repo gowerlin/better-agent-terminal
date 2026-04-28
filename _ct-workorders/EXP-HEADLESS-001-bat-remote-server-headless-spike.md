@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: experiment
+id: EXP-HEADLESS-001
+title: BAT remote server headless 啟動可行性 spike
+status: CONCLUDED
+created_at: "2026-04-25T21:45:00+08:00"
+---
 # EXP-HEADLESS-001 — BAT remote server headless 啟動可行性 spike
 
 ## 元資料

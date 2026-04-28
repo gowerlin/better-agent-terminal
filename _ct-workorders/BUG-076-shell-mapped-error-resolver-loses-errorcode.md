@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-076
+title: SetupWizardShell `resolveMappedErrorForSnapshot` 重 resolve 時遺失 errorCode，pure-errorCode registry entries 落 fallback
+status: CLOSED
+severity: medium
+created_at: "2026-04-28T06:10:00+08:00"
+---
 # BUG-076 — SetupWizardShell `resolveMappedErrorForSnapshot` 重 resolve 時遺失 errorCode，pure-errorCode registry entries 落 fallback
 
 ## Metadata

@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0315
+title: Impl PLAN-031 Server bundle manifest.json 產生 + GitHub Release publish 整合
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-27T01:35:00+08:00"
+started_at: "2026-04-27T01:38:00+08:00"
+completed_at: "2026-04-27T01:43:00+08:00"
+renew_count: 0
+workdir: main repo（worktree on `feature/plan-007-remote-dev`？評估後決定；本工單預設 main repo，因為 PLAN-031 已不在 PLAN-007 worktree 範圍）
+---
 # T0315 — Impl PLAN-031 Server bundle manifest.json 產生 + GitHub Release publish 整合
 
 ## Metadata

@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0276
+title: Impl PLAN-007 WSL E2E + 3 User Journeys + ProfilePanel Integration
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T11:14:00+08:00"
+completed_at: "2026-04-26T11:33:00+08:00"
+workdir: "`../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `5d75d4b`)"
+---
 # T0276 — Impl PLAN-007 WSL E2E + 3 User Journeys + ProfilePanel Integration
 
 ## Metadata

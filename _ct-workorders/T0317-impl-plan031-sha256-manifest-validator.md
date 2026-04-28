@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0317
+title: Impl PLAN-031 SHA256 manifest validator + 串流 hash 校驗純函數
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-27T01:44:00+08:00"
+started_at: "2026-04-27T01:48:00+08:00"
+completed_at: "2026-04-27T01:53:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0317 — Impl PLAN-031 SHA256 manifest validator + 串流 hash 校驗純函數
 
 ## Metadata

@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0332
+title: "PLAN-032 Sprint 2: WizardPreflight hook + per-session cache"
+status: DONE
+created_at: "2026-04-27T23:00:00+08:00"
+started_at: "2026-04-27T23:02:00+08:00"
+completed_at: "2026-04-27T23:09:00+08:00"
+renew_count: 0
+---
 # T0332 — PLAN-032 Sprint 2: WizardPreflight hook + per-session cache
 
 ## Metadata

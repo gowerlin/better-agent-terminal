@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0322
+title: Impl PLAN-031 SSH install-server-bundle step 改寫（消費 distributor，含 sshServerArch wire-up）
+type: impl
+status: DONE
+sizing: S
+created_at: "2026-04-27T03:14:00+08:00"
+started_at: "2026-04-27T03:16:00+08:00"
+completed_at: "2026-04-27T10:28:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0322 — Impl PLAN-031 SSH install-server-bundle step 改寫（消費 distributor，含 sshServerArch wire-up）
 
 ## Metadata

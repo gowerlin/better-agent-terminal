@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0320
+title: Impl PLAN-031 server-bundle-distributor 共用模組（baseline + cache + download 三路徑整合）
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-27T02:46:00+08:00"
+started_at: "2026-04-27T02:47:00+08:00"
+completed_at: "2026-04-27T03:00:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0320 — Impl PLAN-031 server-bundle-distributor 共用模組（baseline + cache + download 三路徑整合）
 
 ## Metadata

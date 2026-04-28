@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-028
+title: BAT dogfood 驗證 CT v4.4.x(CLT 對齊 6 項改良)
+status: DONE
+priority: medium
+created_at: "2026-04-22T00:00:00+08:00"
+---
 # PLAN-028 — BAT dogfood 驗證 CT v4.4.x(CLT 對齊 6 項改良)
 
 | 欄位 | 內容 |

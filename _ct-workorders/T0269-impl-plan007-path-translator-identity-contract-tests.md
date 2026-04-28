@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0269
+title: impl-plan007-path-translator-identity-contract-tests
+type: impl
+status: DONE
+created_at: "2026-04-26T00:53:00+08:00"
+started_at: "2026-04-26T00:56:00+08:00"
+completed_at: "2026-04-26T01:07:00+08:00"
+renew_count: 0
+---
 # T0269-impl-plan007-path-translator-identity-contract-tests
 
 ## 元資料

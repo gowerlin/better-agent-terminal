@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0307
+title: "Impl：PLAN-030 #1 共用 `<Stepper>` 元件抽出 + tests + a11y"
+type: impl
+status: DONE
+sizing: M
+started_at: "2026-04-26T22:58:00+08:00"
+completed_at: "2026-04-26T23:07:00+08:00"
+renew_count: 0
+---
 # T0307 — Impl：PLAN-030 #1 共用 `<Stepper>` 元件抽出 + tests + a11y
 
 ## Metadata

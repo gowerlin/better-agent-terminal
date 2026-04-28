@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0293
+title: Review PLAN-007 (release/v0.4.0) — bmad Edge Case Hunter
+status: DONE
+sizing: L
+created_at: "2026-04-26T17:05:00+08:00"
+completed_at: "2026-04-26T17:16:00+08:00"
+renew_count: 0
+workdir: "**main repo**（`D:/ForgejoGit/BMad-Guide/better-agent-terminal/better-agent-terminal/`），release/v0.4.0 branch"
+---
 # T0293 — Review PLAN-007 (release/v0.4.0) — bmad Edge Case Hunter
 
 ## Metadata

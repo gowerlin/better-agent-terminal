@@ -1,10 +1,10 @@
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-04-27 16:40 (UTC+8) — Session 37 BUG-075 三層 regression 收尾（T0341/T0343 fix + T0342/T0344/T0345 test）→ CLOSED。
+> 最後同步：2026-04-28 18:15 (UTC+8) — Session 42 *sync + BUG-077 開單（指揮塔 UI parser 誤報 DONE 為 Pending）。
 
 ## 統計
-- 🔴 Open: 5 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 18**
+- 🔴 Open: 3 | ⏳ Fixing: 0 | ✅ Fixed: 0 | 🧪 Verify: 3 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 20**
 
 > 已歸檔 BUG（`_archive/bugs/`）：57 張
 
@@ -12,9 +12,7 @@
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-072 | WSL wizard systemd linger 啟用失敗錯誤訊息不友善 + 連帶 service timeout | 🟡 Medium | 2026-04-27 | [BUG-072](BUG-072-wsl-systemd-linger-error-handling.md) |
-| BUG-073 | Docker wizard：daemon 未運作時錯誤純技術，無 actionable 引導 | 🟡 Medium | 2026-04-27 | [BUG-073](BUG-073-docker-wizard-daemon-not-running-error-handling.md) |
-| BUG-074 | SSH wizard：configure-host input step 在使用者還沒輸入前就顯示 failed 狀態 | 🟡 Medium | 2026-04-27 | [BUG-074](BUG-074-ssh-wizard-input-step-shows-failed-on-init.md) |
+| BUG-077 | 指揮塔 UI 工單狀態 parser：T0313/T0314 metadata DONE 但 UI 顯示 Pending（統計 91+2≠101 也漂移） | 🟡 Medium | 2026-04-28 18:15 | [BUG-077](BUG-077-control-tower-ui-status-parser-misreports-done-as-pending.md) |
 | BUG-071 | Setup Wizard install-server-bundle 硬性失敗（PLAN-031 T0321/T0322 已實作完成；等 T0324 DGX Spark dogfood VERIFY，工單 metadata 仍 OPEN） | 🔴 High | 2026-04-27 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 | BUG-061 | CodexAgentPanel.tsx baseline tsc errors（dev-only，非阻塞） | 🟢 Low | 2026-04-26 14:10 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
@@ -32,11 +30,15 @@
 
 | ID | 標題 | 嚴重度 | 驗證時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-072 | WSL wizard systemd linger 啟用失敗錯誤訊息不友善 + 連帶 service timeout（T0337 FIXED `57896e7` @2026-04-28 03:32 — 待 WSL 環境 smoke） | 🟡 Medium | 2026-04-27 | [BUG-072](BUG-072-wsl-systemd-linger-error-handling.md) |
+| BUG-073 | Docker wizard：daemon 未運作時錯誤純技術，無 actionable 引導（T0336 FIXED `a8b2363` @2026-04-28 03:21 — 待人工 smoke） | 🟡 Medium | 2026-04-27 | [BUG-073](BUG-073-docker-wizard-daemon-not-running-error-handling.md) |
+| BUG-074 | SSH wizard：configure-host input step 在使用者還沒輸入前就顯示 failed 狀態（T0335 FIXED `94733d7` @2026-04-28 03:10 — 待三平台 smoke） | 🟡 Medium | 2026-04-27 | [BUG-074](BUG-074-ssh-wizard-input-step-shows-failed-on-init.md) |
 
 ## 🚫 已關閉 (CLOSED)
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-076 | Shell mapped error resolver 遺失 errorCode（T0339 FIXED `f711baf` @2026-04-28 06:16；T0338 integration test case #4 unskipped 自動驗證；304/304 全綠 0 regression） | 🟡 Medium | 2026-04-28 | [BUG-076](BUG-076-shell-mapped-error-resolver-loses-errorcode.md) |
 | BUG-075 | BAT 內部終端 shell pref + MSYS path rewrite 雙 regression（T0341 MSYS env + T0343 prefix dual fix + T0342/T0344/T0345 三層 regression test） | 🔴 High | 2026-04-27 | [BUG-075](BUG-075-bat-terminal-shell-pref-and-msys-path-rewrite-regression.md) |
 | BUG-070 | Profile Dialog Add 按鈕橫向溢出（T0306 commit `014da72`，使用者實機驗收通過） | 🔴 High | 2026-04-27 | [BUG-070](BUG-070-profile-dialog-add-buttons-overflow.md) |
 | BUG-069 | v0.4.1 NSIS renderer `require is not defined`（T0303+T0304 commit `e8bb389`，使用者實機驗收通過） | 🔴 High | 2026-04-27 | [BUG-069](BUG-069-v041-nsis-renderer-require-not-defined.md) |

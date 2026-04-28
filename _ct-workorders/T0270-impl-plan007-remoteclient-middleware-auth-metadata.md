@@ -1,3 +1,13 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0270
+title: impl-plan007-remoteclient-middleware-auth-metadata
+type: impl
+status: DONE
+created_at: "2026-04-26T01:12:00+08:00"
+renew_count: 0
+---
 # T0270-impl-plan007-remoteclient-middleware-auth-metadata
 
 ## 元資料

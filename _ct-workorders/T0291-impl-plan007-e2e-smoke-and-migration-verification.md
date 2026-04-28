@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0291
+title: Impl PLAN-007 Phase 5 E2E Smoke + Profile Schema Migration Verification（PLAN-007 capstone）
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T16:25:00+08:00"
+completed_at: "2026-04-26T16:34:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`（worktree on `feature/plan-007-remote-dev`）"
+---
 # T0291 — Impl PLAN-007 Phase 5 E2E Smoke + Profile Schema Migration Verification（PLAN-007 capstone）
 
 ## Metadata

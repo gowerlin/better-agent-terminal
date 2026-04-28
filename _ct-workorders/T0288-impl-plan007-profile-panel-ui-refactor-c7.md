@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0288
+title: Impl PLAN-007 Phase 5 ProfilePanel UI 重構（C-7 落地：ProfileCard + per-env Details slot）
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-26T15:42:00+08:00"
+completed_at: "2026-04-26T15:56:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`（worktree on `feature/plan-007-remote-dev`）"
+---
 # T0288 — Impl PLAN-007 Phase 5 ProfilePanel UI 重構（C-7 落地：ProfileCard + per-env Details slot）
 
 ## Metadata

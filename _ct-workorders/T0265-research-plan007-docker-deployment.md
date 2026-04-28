@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0265
+title: research-plan007-docker-deployment
+type: research
+status: DONE
+created_at: "2026-04-25T22:46:00+08:00"
+started_at: "2026-04-25T22:46:00+08:00"
+completed_at: "2026-04-25T22:51:00+08:00"
+renew_count: 0
+---
 # T0265-research-plan007-docker-deployment
 
 ## 元資料

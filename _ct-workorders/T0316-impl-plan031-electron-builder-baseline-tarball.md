@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0316
+title: Impl PLAN-031 Electron-builder extraResources 整合 baseline tarball（C-narrow + Mac 雙 tarball）
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-27T01:54:00+08:00"
+started_at: "2026-04-27T01:59:00+08:00"
+completed_at: "2026-04-27T02:05:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0316 — Impl PLAN-031 Electron-builder extraResources 整合 baseline tarball（C-narrow + Mac 雙 tarball）
 
 ## Metadata

@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0278
+title: Impl PLAN-007 Docker base image + Dockerfile + multi-arch baseline (v1 local-only)
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T12:15:00+08:00"
+completed_at: "2026-04-26T12:25:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `43d6eea`)"
+---
 # T0278 — Impl PLAN-007 Docker base image + Dockerfile + multi-arch baseline (v1 local-only)
 
 ## Metadata

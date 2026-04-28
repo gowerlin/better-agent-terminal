@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0341
+title: Fix BUG-075 症狀 B：bat-terminal.mjs 注入 MSYS_NO_PATHCONV=1
+type: fix
+status: FIXED
+sizing: S
+created_at: "2026-04-27T14:08:00+08:00"
+started_at: "2026-04-27T14:22:00+08:00"
+completed_at: "2026-04-27T14:24:00+08:00"
+workdir: main repo
+---
 # T0341 — Fix BUG-075 症狀 B：bat-terminal.mjs 注入 MSYS_NO_PATHCONV=1
 
 ## Metadata

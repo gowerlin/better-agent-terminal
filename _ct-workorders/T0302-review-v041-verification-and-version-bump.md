@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0302
+title: Review v0.4.1 BUG Fix Verification + Version Bump 0.4.0→0.4.1 + CHANGELOG
+status: DONE
+sizing: M
+created_at: "2026-04-26T18:58:00+08:00"
+completed_at: "2026-04-26T19:09:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**（本工單會 bump version + CHANGELOG，但**不**做 git tag 也不 push；tag/push 留人工執行）"
+---
 # T0302 — Review v0.4.1 BUG Fix Verification + Version Bump 0.4.0→0.4.1 + CHANGELOG
 
 ## Metadata

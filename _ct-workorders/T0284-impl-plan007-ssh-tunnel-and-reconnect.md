@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0284
+title: Impl PLAN-007 SshTunnel class + RemoteClient reconnect 整合
+type: impl
+status: DONE
+sizing: L
+created_at: "2026-04-26T14:30:00+08:00"
+completed_at: "2026-04-26T14:45:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`（worktree on `feature/plan-007-remote-dev`）"
+---
 # T0284 — Impl PLAN-007 SshTunnel class + RemoteClient reconnect 整合
 
 ## Metadata

@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0303
+title: Research：BUG-069 renderer `require is not defined` 根因 + spike 2-3 修復方案 + Vite7/electron-builder26 wider audit
+type: research
+status: DONE
+sizing: M
+created_at: "2026-04-26T20:12:00+08:00"
+started_at: "2026-04-26T20:16:00+08:00"
+completed_at: "2026-04-26T20:38:00+08:00"
+renew_count: 0
+---
 # T0303 — Research：BUG-069 renderer `require is not defined` 根因 + spike 2-3 修復方案 + Vite7/electron-builder26 wider audit
 
 ## Metadata

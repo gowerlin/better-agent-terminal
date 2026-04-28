@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0304
+title: "Fix BUG-069：fetch-fingerprint `node:https` IPC 遷移（Spike A）+ ESLint 守衛（R2）"
+type: fix
+status: FIXED
+sizing: S
+created_at: "2026-04-26T20:42:00+08:00"
+started_at: "2026-04-26T20:37:00+08:00"
+completed_at: "2026-04-26T20:46:00+08:00"
+renew_count: 0
+---
 # T0304 — Fix BUG-069：fetch-fingerprint `node:https` IPC 遷移（Spike A）+ ESLint 守衛（R2）
 
 ## Metadata

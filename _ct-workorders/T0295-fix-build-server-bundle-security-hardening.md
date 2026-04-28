@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0295
+title: Fix PLAN-007 build-server-bundle 安全強化（F-002 + F-003 合併修）
+type: fix
+status: DONE
+sizing: M
+created_at: "2026-04-26T17:30:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**"
+---
 # T0295 — Fix PLAN-007 build-server-bundle 安全強化（F-002 + F-003 合併修）
 
 ## Metadata

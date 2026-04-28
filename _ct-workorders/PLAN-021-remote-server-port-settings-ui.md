@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-021
+title: remote-server-port-settings-ui
+status: DONE
+priority: low
+created_at: "2026-04-19T03:00:00+08:00"
+---
 # PLAN-021-remote-server-port-settings-ui
 
 ## 元資料

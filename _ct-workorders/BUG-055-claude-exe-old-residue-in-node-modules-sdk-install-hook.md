@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-055
+title: "`node_modules/@anthropic-ai/claude-code/bin/` 殘留 `claude.exe.old.XXX`(SDK install hook)"
+status: CLOSED
+severity: low
+created_at: "2026-04-22T20:32:00+08:00"
+---
 # BUG-055 — `node_modules/@anthropic-ai/claude-code/bin/` 殘留 `claude.exe.old.XXX`(SDK install hook)
 
 ## 元資料

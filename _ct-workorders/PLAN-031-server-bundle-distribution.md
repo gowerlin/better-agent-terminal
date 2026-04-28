@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-031
+title: Server Bundle Distribution（含 ARM64 Linux 支援）
+status: IN_PROGRESS
+priority: high
+created_at: "2026-04-27T00:53:00+08:00"
+---
 # PLAN-031 — Server Bundle Distribution（含 ARM64 Linux 支援）
 
 ## Metadata

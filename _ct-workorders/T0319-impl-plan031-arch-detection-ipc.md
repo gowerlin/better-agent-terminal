@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0319
+title: Impl PLAN-031 Arch detection IPC（WSL/Docker/SSH 統一接口）
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-27T02:06:00+08:00"
+started_at: "2026-04-27T02:13:00+08:00"
+completed_at: "2026-04-27T02:25:00+08:00"
+renew_count: 0
+workdir: main repo
+---
 # T0319 — Impl PLAN-031 Arch detection IPC（WSL/Docker/SSH 統一接口）
 
 ## Metadata

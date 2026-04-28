@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: CT-T001
+title: delegate-bat-routing-skill-update
+status: PENDING
+created_at: "2026-04-17T00:08:00+08:00"
+---
 # 工單 CT-T001-delegate-bat-routing-skill-update
 
 ## 元資料

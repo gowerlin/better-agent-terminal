@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0348
+title: "PLAN-033 Sprint 2: 收工流程規則 patch（_local-rules）"
+status: DONE
+created_at: "2026-04-27T17:45:00+08:00"
+started_at: "2026-04-27T17:59:00+08:00"
+completed_at: "2026-04-27T18:01:00+08:00"
+renew_count: 0
+---
 # T0348 — PLAN-033 Sprint 2: 收工流程規則 patch（_local-rules）
 
 ## Metadata

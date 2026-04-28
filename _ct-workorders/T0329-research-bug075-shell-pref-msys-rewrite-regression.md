@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0329
+title: Research BUG-075 Root Cause（shell pref 失效 + MSYS path rewrite 雙 regression）
+type: research
+status: DONE
+sizing: M
+created_at: "2026-04-27T13:05:00+08:00"
+started_at: "2026-04-27T13:58:00+08:00"
+completed_at: "2026-04-27T14:02:00+08:00"
+renew_count: 0
+workdir: main repo（純讀取 + git log）
+---
 # T0329 — Research BUG-075 Root Cause（shell pref 失效 + MSYS path rewrite 雙 regression）
 
 ## Metadata

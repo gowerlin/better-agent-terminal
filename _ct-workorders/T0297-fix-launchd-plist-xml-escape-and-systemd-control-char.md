@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0297
+title: Fix PLAN-007 launchd plist XML escape + systemd unit 控制字元防護（F-005）
+type: fix
+status: DONE
+sizing: S
+created_at: "2026-04-26T17:57:00+08:00"
+completed_at: "2026-04-26T17:59:00+08:00"
+renew_count: 0
+workdir: "**main repo**，branch **`release/v0.4.0`**"
+---
 # T0297 — Fix PLAN-007 launchd plist XML escape + systemd unit 控制字元防護（F-005）
 
 ## Metadata

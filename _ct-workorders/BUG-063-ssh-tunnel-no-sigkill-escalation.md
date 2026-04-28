@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-063
+title: SshTunnel.stop / start error path 只發 SIGTERM，無 SIGKILL escalation
+status: CLOSED
+severity: medium
+created_at: "2026-04-26T17:18:00+08:00"
+---
 # BUG-063 — SshTunnel.stop / start error path 只發 SIGTERM，無 SIGKILL escalation
 
 ## Metadata

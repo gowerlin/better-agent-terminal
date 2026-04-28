@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-074
+title: SSH setup wizard：configure-host input step 在使用者還沒輸入前就顯示為 failed 狀態
+status: VERIFY
+severity: medium
+---
 # BUG-074 — SSH setup wizard：configure-host input step 在使用者還沒輸入前就顯示為 failed 狀態
 
 ## Metadata

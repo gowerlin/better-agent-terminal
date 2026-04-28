@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0153
+title: poc-git-gui-feasibility-spike
+type: research
+status: PARTIAL
+created_at: "2026-04-17T22:30:00+08:00"
+started_at: "2026-04-17T22:29:00+08:00"
+completed_at: "2026-04-17T22:36:00+08:00"
+renew_count: 0
+---
 # T0153-poc-git-gui-feasibility-spike
 
 ## 元資料

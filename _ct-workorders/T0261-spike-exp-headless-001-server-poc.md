@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0261
+title: spike-exp-headless-001-server-poc
+type: spike
+status: DONE
+created_at: "2026-04-25T21:50:00+08:00"
+started_at: "2026-04-25T21:49:00+08:00"
+completed_at: "2026-04-25T22:18:00+08:00"
+renew_count: 0
+---
 # T0261-spike-exp-headless-001-server-poc
 
 ## 元資料

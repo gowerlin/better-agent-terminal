@@ -1,3 +1,13 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-007
+title: Remote Dev Support（BAT terminal client/server 跨環境部署）
+status: DONE
+priority: medium
+created_at: "2026-04-13T10:42:00+08:00"
+completed_at: "2026-04-26T16:34:00+08:00"
+---
 # PLAN-007 — Remote Dev Support（BAT terminal client/server 跨環境部署）
 
 ## 元資料

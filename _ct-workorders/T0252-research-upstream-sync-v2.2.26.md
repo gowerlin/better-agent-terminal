@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0252
+title: research-upstream-sync-v2.2.26
+type: research
+status: DONE
+created_at: "2026-04-25T16:30:00+08:00"
+started_at: "2026-04-25T16:33:00+08:00"
+completed_at: "2026-04-25T16:42:00+08:00"
+renew_count: 0
+---
 # T0252-research-upstream-sync-v2.2.26
 
 ## 元資料

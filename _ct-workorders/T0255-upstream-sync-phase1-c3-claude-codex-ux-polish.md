@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0255
+title: upstream-sync-phase1-c3-claude-codex-ux-polish
+status: DONE
+created_at: "2026-04-25T18:30:00+08:00"
+started_at: "2026-04-25T19:41:00+08:00"
+completed_at: "2026-04-25T20:50:00+08:00"
+renew_count: 0
+---
 # T0255-upstream-sync-phase1-c3-claude-codex-ux-polish
 
 ## 元資料

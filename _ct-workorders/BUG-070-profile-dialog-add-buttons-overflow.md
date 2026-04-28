@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-070
+title: Profile 配置 Dialog 的 Add 按鈕橫向溢出，建議改群組化下拉
+status: CLOSED
+severity: high
+---
 # BUG-070 — Profile 配置 Dialog 的 Add 按鈕橫向溢出，建議改群組化下拉
 
 ## Metadata

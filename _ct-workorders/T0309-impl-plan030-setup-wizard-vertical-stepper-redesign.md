@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0309
+title: "Impl：PLAN-030 #4 Setup Wizard vertical stepper 重設計（3 wizard 全套用 + PLAN-029 R5 chunk 切分）"
+type: impl
+status: DONE
+sizing: L
+started_at: "2026-04-26T23:42:00+08:00"
+completed_at: "2026-04-26T23:57:00+08:00"
+renew_count: 0
+---
 # T0309 — Impl：PLAN-030 #4 Setup Wizard vertical stepper 重設計（3 wizard 全套用 + PLAN-029 R5 chunk 切分）
 
 ## Metadata

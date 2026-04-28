@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0335
+title: "PLAN-032 Sprint 3: BUG-074 SSH input-step `awaiting-input` 完整落地（套用 Sprint 2 framework）"
+type: fix
+status: FIXED
+created_at: "2026-04-28T00:00:00+08:00"
+started_at: "2026-04-28T03:01:00+08:00"
+completed_at: "2026-04-28T03:10:00+08:00"
+renew_count: 0
+---
 # T0335 — PLAN-032 Sprint 3: BUG-074 SSH input-step `awaiting-input` 完整落地（套用 Sprint 2 framework）
 
 ## Metadata

@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-059
+title: Packaged BAT 內 embedded `claude.exe` 觸發 auto-update 失敗導致 binary missing
+status: CLOSED
+severity: high
+---
 # BUG-059 — Packaged BAT 內 embedded `claude.exe` 觸發 auto-update 失敗導致 binary missing
 
 ## 元資料

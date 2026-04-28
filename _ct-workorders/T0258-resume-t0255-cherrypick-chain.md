@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0258
+title: resume-t0255-cherrypick-chain
+status: DONE
+created_at: "2026-04-25T20:30:00+08:00"
+started_at: "2026-04-25T20:30:00+08:00"
+completed_at: "2026-04-25T20:50:00+08:00"
+renew_count: 0
+---
 # T0258-resume-t0255-cherrypick-chain
 
 ## 元資料

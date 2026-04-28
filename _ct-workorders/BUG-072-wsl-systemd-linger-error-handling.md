@@ -1,3 +1,11 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-072
+title: WSL setup wizard：systemd linger 啟用失敗時錯誤訊息不友善 + 連帶 bat-server.service timeout
+status: VERIFY
+severity: medium
+---
 # BUG-072 — WSL setup wizard：systemd linger 啟用失敗時錯誤訊息不友善 + 連帶 bat-server.service timeout
 
 ## Metadata

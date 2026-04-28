@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0260
+title: research-plan007-remote-server-scoping
+type: research
+status: DONE
+created_at: "2026-04-25T21:30:00+08:00"
+started_at: "2026-04-25T21:33:00+08:00"
+completed_at: "2026-04-25T21:39:00+08:00"
+renew_count: 0
+---
 # T0260-research-plan007-remote-server-scoping
 
 ## 元資料

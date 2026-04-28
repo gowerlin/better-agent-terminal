@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-015
+title: refactor-dual-render-path-shared-helper
+status: IDEA
+priority: low
+created_at: "2026-04-18T00:50:00+08:00"
+---
 # PLAN-015-refactor-dual-render-path-shared-helper
 
 ## 元資料

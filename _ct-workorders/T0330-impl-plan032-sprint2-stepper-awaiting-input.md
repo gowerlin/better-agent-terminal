@@ -1,3 +1,14 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0330
+title: "PLAN-032 Sprint 2: Stepper + WizardRunner `awaiting-input` 狀態擴充（keystone）"
+status: DONE
+created_at: "2026-04-27T22:30:00+08:00"
+started_at: "2026-04-27T22:30:00+08:00"
+completed_at: "2026-04-27T22:47:15+08:00"
+renew_count: 0
+---
 # T0330 — PLAN-032 Sprint 2: Stepper + WizardRunner `awaiting-input` 狀態擴充（keystone）
 
 ## Metadata

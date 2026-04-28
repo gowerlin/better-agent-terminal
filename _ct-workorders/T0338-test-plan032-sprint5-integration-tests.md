@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0338
+title: "PLAN-032 Sprint 5: Integration tests（transition matrix + mapped UX cases）"
+type: test
+status: DONE
+created_at: "2026-04-28T05:47:00+08:00"
+started_at: "2026-04-28T05:58:00+08:00"
+completed_at: "2026-04-28T06:08:00+08:00"
+renew_count: 0
+---
 # T0338 — PLAN-032 Sprint 5: Integration tests（transition matrix + mapped UX cases）
 
 ## Metadata

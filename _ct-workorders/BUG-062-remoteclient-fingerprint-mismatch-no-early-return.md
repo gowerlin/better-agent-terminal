@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-062
+title: RemoteClient fingerprint mismatch 後未 early-return（race window token leak）
+status: CLOSED
+severity: medium
+created_at: "2026-04-26T17:18:00+08:00"
+---
 # BUG-062 — RemoteClient fingerprint mismatch 後未 early-return（race window token leak）
 
 ## Metadata

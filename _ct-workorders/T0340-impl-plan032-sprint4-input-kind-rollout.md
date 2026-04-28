@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0340
+title: "PLAN-032 Sprint 4: Cross-platform `kind: 'input'` rollout（4 個 input-flavor steps）"
+type: refactor
+status: DONE
+created_at: "2026-04-28T06:18:00+08:00"
+started_at: "2026-04-28T08:55:00+08:00"
+completed_at: "2026-04-28T09:02:00+08:00"
+renew_count: 0
+---
 # T0340 — PLAN-032 Sprint 4: Cross-platform `kind: 'input'` rollout（4 個 input-flavor steps）
 
 ## Metadata

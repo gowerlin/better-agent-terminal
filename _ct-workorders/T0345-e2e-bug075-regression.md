@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0345
+title: BUG-075 e2e regression（Git Bash + codex argv probe + 3-shot shell consistency）
+type: test
+status: DONE
+sizing: M
+created_at: "2026-04-27T14:08:00+08:00"
+started_at: "2026-04-27T16:40:00+08:00"
+completed_at: "2026-04-27T16:48:00+08:00"
+workdir: main repo
+---
 # T0345 — BUG-075 e2e regression（Git Bash + codex argv probe + 3-shot shell consistency）
 
 ## Metadata

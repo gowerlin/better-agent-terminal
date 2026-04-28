@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0306
+title: "Impl：PLAN-030 #3 ProfilePanel 群組化下拉（收斂 BUG-070）"
+type: impl
+status: DONE
+sizing: S
+started_at: "2026-04-26T22:36:00+08:00"
+completed_at: "2026-04-26T22:45:00+08:00"
+renew_count: 0
+---
 # T0306 — Impl：PLAN-030 #3 ProfilePanel 群組化下拉（收斂 BUG-070）
 
 ## Metadata

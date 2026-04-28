@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0290
+title: Impl PLAN-007 Phase 5 Documentation + Release Checklist 更新
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T16:15:00+08:00"
+completed_at: "2026-04-26T16:20:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`（worktree on `feature/plan-007-remote-dev`）"
+---
 # T0290 — Impl PLAN-007 Phase 5 Documentation + Release Checklist 更新
 
 ## Metadata

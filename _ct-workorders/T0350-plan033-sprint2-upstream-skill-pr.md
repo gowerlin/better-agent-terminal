@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0350
+title: PLAN-033 Sprint 2 上游 SKILL.md 全量同步（含三段規則）
+type: chore
+status: DONE
+created_at: "2026-04-27T21:48:00+08:00"
+started_at: "2026-04-27T21:51:27+08:00"
+completed_at: "2026-04-27T21:54:29+08:00"
+renew_count: 0
+---
 # T0350 — PLAN-033 Sprint 2 上游 SKILL.md 全量同步（含三段規則）
 
 ## 元資料

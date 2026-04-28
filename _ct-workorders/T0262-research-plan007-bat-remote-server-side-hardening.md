@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0262
+title: research-plan007-bat-remote-server-side-hardening
+type: research
+status: DONE
+created_at: "2026-04-25T22:30:00+08:00"
+started_at: "2026-04-25T22:14:00+08:00"
+completed_at: "2026-04-25T22:20:00+08:00"
+renew_count: 0
+---
 # T0262-research-plan007-bat-remote-server-side-hardening
 
 ## 元資料

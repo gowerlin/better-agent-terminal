@@ -1,3 +1,17 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0342
+title: Research PLAN-034 YAML frontmatter metadata schema 設計（BAT + CT 雙端，YOLO 自主拍板）
+type: research
+status: DONE
+sizing: L
+created_at: "2026-04-28T18:25:00+08:00"
+started_at: "2026-04-28T19:16:49+08:00"
+completed_at: "2026-04-28T19:22:13+08:00"
+renew_count: 0
+workdir: main repo（純讀取 + 文件產出，不需 worktree）
+---
 # T0342 — Research PLAN-034 YAML frontmatter metadata schema 設計（BAT + CT 雙端，YOLO 自主拍板）
 
 ## Metadata
@@ -7,9 +21,10 @@
 | 工單編號 | T0342 |
 | 類型 | research（YOLO 自主拍板，6 大設計問題 + 雙端整合策略） |
 | 所屬 | PLAN-034 — Workorder/Index 檔 YAML frontmatter metadata schema 強制化 |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-28 18:25 (UTC+8) |
 | 開始時間 | 2026-04-28 19:16:49 +08:00 |
+| 完成時間 | 2026-04-28 19:22:13 +08:00 |
 | Sizing | L（estimate 60-120 min wall：6 設計問題 × 雙端整合 × spec + 範例檔產出） |
 | 依賴 | 無（PLAN-034 已備齊背景 + 範圍 + 設計問題） |
 | 後續 | 拍板後拆 Sprint 2-6 共 ~5-6 張實作工單（CT 先 → BAT 跟 → dogfood） |
@@ -236,6 +251,8 @@ Renew 歷程：無
 
 回報時間：2026-04-28 19:22:13 +08:00
 
-commit：待 commit 後補寫
+commit：6e80b45
 
 yaml：不適用（`sprint-status.yaml` 存在但未追蹤 T0342/PLAN-034）
+
+BAT 通知：`CT_MODE=yolo`，已透過 `bat-notify.mjs --submit` 自動送出 `T0342 完成`

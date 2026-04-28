@@ -1,3 +1,12 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-029
+title: Renderer hardening：R3 indexBench.ts 整理 + R5 setup-wizard chunk 切分（BUG-069 audit 衍生）
+status: IDEA
+priority: low
+created_at: "2026-04-26T20:42:00+08:00"
+---
 # PLAN-029 — Renderer hardening：R3 indexBench.ts 整理 + R5 setup-wizard chunk 切分（BUG-069 audit 衍生）
 
 ## Metadata

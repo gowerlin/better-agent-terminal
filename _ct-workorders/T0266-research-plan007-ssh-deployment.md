@@ -1,3 +1,15 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0266
+title: research-plan007-ssh-deployment
+type: research
+status: DONE
+created_at: "2026-04-25T22:55:00+08:00"
+started_at: "2026-04-25T22:55:00+08:00"
+completed_at: "2026-04-25T23:10:00+08:00"
+renew_count: 0
+---
 # T0266-research-plan007-ssh-deployment
 
 ## 元資料

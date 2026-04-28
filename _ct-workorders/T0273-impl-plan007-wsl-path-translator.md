@@ -1,3 +1,16 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0273
+title: Impl PLAN-007 WslPathTranslator + wsl-path 純函數整合
+type: impl
+status: DONE
+sizing: M
+created_at: "2026-04-26T10:21:00+08:00"
+completed_at: "2026-04-26T10:27:00+08:00"
+renew_count: 0
+workdir: "`../bat-plan-007`(worktree on `feature/plan-007-remote-dev`,HEAD `1fbb0bd`)"
+---
 # T0273 — Impl PLAN-007 WslPathTranslator + wsl-path 純函數整合
 
 ## Metadata
