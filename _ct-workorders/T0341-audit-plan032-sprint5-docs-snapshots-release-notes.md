@@ -8,9 +8,10 @@
 | 標題 | PLAN-032 Sprint 5 收尾：DESIGN.md / spec / FIELDGUIDE 對齊 + 6 個 mapped error visual snapshots + v0.4.2 release notes 草稿（不 bump） |
 | 類型 | audit + docs |
 | 優先級 | 🟢 Low（PLAN-032 收尾票，無功能影響） |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-04-28 09:08 (UTC+8) |
 | 開始時間 | 2026-04-28 09:20 (UTC+8) |
+| 完成時間 | 2026-04-28 09:27 (UTC+8) |
 | 派發模式 | `--mode yolo --no-interactive` |
 | 關聯 PLAN | PLAN-032（Sprint 5 收尾） |
 | 關聯 spec | `_ct-workorders/_spec-wizard-error-ux.md` |
@@ -179,41 +180,46 @@ PLAN-032 已完成 Sprint 2 (5 工單)、Sprint 3 (3 工單)、Sprint 4 (1 工�
 
 ### 實作摘要
 
-（描述 5 個 snapshots + docs 對齊範圍 + CHANGELOG 草稿）
+純 audit + docs 工單，無 production code 改動。
+
+1. **AC-1 visual snapshots (`SetupWizardShell.test.tsx`)**：在既有 T0334 describe 區塊後 append 5 個 `it` cases，沿用 T0334 fingerprint pattern（title text + body contains + raw render mode + actions array `toMatchInlineSnapshot`）。新增 `failingStepWithErrorCode` helper 以支援 errorCode-only entry（`wsl-not-installed`，throw `Error` with `.code` property）。
+2. **AC-2 `wizard-error-ux.md`**：補入 § 2.1（6-entry registry catalog 表）、§ 4.5（input-step contract，含 configure-mounts native-dialog 偏離 spec 說明）、Sprint 3-5 工單清單，更新 § 1 三層架構表（補 T0339 BUG-076 fix 與 T0340 input-kind rollout），更新 header status 與最後同步 footer。
+3. **AC-3 `bat-stepper-design-language.md`**：在 § 3 awaiting-input 段補 cross-link 到 `wizard-error-ux.md` § 2.1 / § 4，§ 7 Don't 補入新反例「不要在 input 等待期間 render 為 failed」（含跨檔 link）。
+4. **AC-4 CHANGELOG**：在 `## [Unreleased]` 頂部插入 v0.4.2 candidate 段落 — `Added`（PLAN-032 整 framework 高層次說明 + 6 個 baseline mappings）、`Changed`（4 input-flavor steps `kind: 'input'` rollout + configure-mounts 例外）、`Fixed`（BUG-072/073/074/076 4 條人話描述）、`Tests`（17 input-kind tests + 16 integration / snapshot tests + total 326）。**未** `npm version` bump。
 
 ### Visual snapshot 覆蓋表
 
 | # | Registry id | 平台 | snapshot 重點 |
 |---|-------------|------|-------------|
-| 1 | docker-daemon-unavailable | docker | T0334 既有 |
-| 2 | wsl-linger-failure | wsl | |
-| 3 | wsl-service-start-timeout | wsl | |
-| 4 | wsl-not-installed | wsl | |
-| 5 | ssh-permission-denied | ssh | |
-| 6 | ssh-configure-host-empty | ssh | |
+| 1 | docker-daemon-unavailable | docker | T0334 既有 — open-link / fixed-and-retry / cancel + append-raw |
+| 2 | wsl-linger-failure | wsl | T0341 — title「無法自動啟用 systemd lingering」、body 含 `loginctl enable-linger`、append-raw、actions = fixed-and-retry / skip / cancel |
+| 3 | wsl-service-start-timeout | wsl | T0341 — title「BAT systemd 服務啟動逾時」、body 含 `journalctl --user -u bat-server.service`、append-raw、actions = fixed-and-retry / skip / cancel |
+| 4 | wsl-not-installed | wsl | T0341 — **errorCode-only entry**（無 regex pattern，鎖 BUG-076 fix）、title「找不到 WSL2」、body 含 `wsl --install`、append-raw、actions = open-link / fixed-and-retry / cancel |
+| 5 | ssh-permission-denied | ssh | T0341 — title「SSH 認證失敗」、`hidden-by-default` detail mode（pre 不直接 render，需點 Show details）、actions = edit-config / retry / cancel |
+| 6 | ssh-configure-host-empty | ssh | T0341 — **嚴格 2-action set**（無 retry/skip）、title「SSH 主機名稱為必填」、`hidden-by-default`、actions = edit-config / cancel |
 
 ### docs 對齊報告
 
-- `wizard-error-ux.md`：（變動行數 + 主要更新點）
-- `bat-stepper-design-language.md`：（變動行數 / 「無需改動」）
+- `wizard-error-ux.md`：+82 / -18 行。新增 § 2.1（6-entry catalog）、§ 4.5（input contract + configure-mounts 偏離），擴 § 6 Sprint 3-5 工單表，更新 header / footer / § 1 三層架構表。
+- `bat-stepper-design-language.md`：+6 / 0 行。§ 3 awaiting-input 段補 cross-link，§ 7 Don't 補一條「input 等待期間不 render 為 failed」反例。
 
 ### CHANGELOG draft 行數
 
-（新增區段行數）
+`[Unreleased]` 頂部 +23 行（Added: PLAN-032 framework 6 bullet、Changed: input-kind rollout、Fixed: BUG-072/073/074/076、Tests: 326 total）。
 
 ### 偏離 spec 的決策
 
-（若有，列出並說明理由；若無填「無」）
+無新偏離。文件中明確記錄了 T0340 既有偏離（configure-mounts 採 native dialog 而非 `requestChoice`），並在 wizard-error-ux.md § 4.5 解釋 trade-off。
 
 ### 自檢結果
 
-- [ ] AC-1 5 snapshots
-- [ ] AC-2 wizard-error-ux.md
-- [ ] AC-3 stepper-design-language.md
-- [ ] AC-4 CHANGELOG draft
-- [ ] AC-5 `npm run test:unit` 全綠（總時間：__ s）
-- [ ] AC-6 單一 commit
-- [ ] AC-7 範圍守住
+- [x] AC-1 5 snapshots（全部 inline snapshot 由首次 run 自動產出，second run 通過驗證）
+- [x] AC-2 wizard-error-ux.md（6 點對齊：Sprint 2-4 落地、`awaiting-input` 含 T0335/T0340、6 entries 表、recovery 7 kinds、input-step 邊界含 configure-mounts、cross-link 雙向）
+- [x] AC-3 stepper-design-language.md（cross-link 補齊；§ 7 Don't 新增 input failed 反例）
+- [x] AC-4 CHANGELOG draft（人話用詞，無 jargon，無 `npm version` bump）
+- [x] AC-5 `npm run test:unit` 全綠（326 tests，duration 7.50s）
+- [x] AC-6 單一 commit `0cadea0`
+- [x] AC-7 範圍守住（無 errorCode 擴展、無版號 bump、無 e2e、無 production code 改動）
 
 ### Renew 歷程
 
@@ -221,8 +227,11 @@ PLAN-032 已完成 Sprint 2 (5 工單)、Sprint 3 (3 工單)、Sprint 4 (1 工�
 
 ### 後續建議
 
-（如執行中發現需獨立開單的 follow-up，列在這裡）
+1. **maintainer release engineering**：v0.4.2 release notes 草稿已就位，maintainer 跑 `npm version` bump + tag + push 即可走 pre-release pipeline（per workorder 的 Q2=A 範圍切割）。
+2. **WSL/Docker structured errorCode 補強**：T0340 P2 提過、本票 Q1=B 排除，可獨立開 PLAN（非阻塞）。建議優先序：WSL detect-env 系列（補 `wsl-distro-not-running` 等）> Docker `pick-container` 系列。
+3. **三 BUG smoke（BUG-072/073/074）**：由使用者親跑，本票範圍內已用 visual snapshots 鎖住 panel render contract。
+4. **e2e playwright tests**：本票 Q3=A 排除，建議納入 PLAN-032 完整收尾後新工單，覆蓋「mapped error → recovery action click → wizard 流程繼續」的端到端流。
 
 ### Commit hash
 
-`<填入>`
+`0cadea0` — `docs(setup-wizard): finalize PLAN-032 docs + visual snapshots + v0.4.2 release notes draft (T0341, Sprint 5)`
