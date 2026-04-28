@@ -1,8 +1,10 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-28 09:35 (UTC+8) — **第四十一 session 收工快照**:~4.4 hr wall,PLAN-032 Sprint 2-5 全收尾跨 5 sessions(本 session 派 4 張 T0338-T0341 YOLO 鏈式全綠 + 衍生 BUG-076 fix),drift fix(session 40 未收工 → 不偽造,git log 為 SoT,L114),plugin hook 災情處置(${CLAUDE_PLUGIN_ROOT} mangle,L115),bat-terminal.mjs stdout 不可靠(L116),萃取 GP126(Test-discovered bug 三步法)+ GP122 footnote。
+> 最後更新:2026-04-29 00:05 (UTC+8) — T0347 (PLAN-034 CT skill upstream v5.0.0 升版) 使用者驗收通過 → DONE。
 >
-> **下次起手**:三 BUG smoke(BUG-072/073/074)結果 → PLAN-032 → DONE,或 push ~10 commits,或 v0.4.2 release engineering,或 WSL/Docker structured errorCode PLAN。
+> **下次起手**:三 BUG smoke(BUG-072/073/074)結果 → PLAN-032 → DONE,或 push commits,或 v0.4.2 release engineering,或 WSL/Docker structured errorCode PLAN。
+>
+> **前次更新**:2026-04-28 09:35 — **第四十一 session 收工快照**:~4.4 hr wall,PLAN-032 Sprint 2-5 全收尾跨 5 sessions(派 T0338-T0341 YOLO 鏈式全綠 + 衍生 BUG-076 fix),drift fix(L114),plugin hook 災情處置(L115),bat-terminal.mjs stdout 不可靠(L116),萃取 GP126(Test-discovered bug 三步法)+ GP122 footnote。
 
 ---
 

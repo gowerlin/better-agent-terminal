@@ -4,10 +4,11 @@ schema_kind: workorder
 id: T0347
 title: Impl PLAN-034 CT skill upstream v5.0.0 升版（clone + apply 5 drafts + version bump）
 type: impl
-status: IN_PROGRESS
+status: DONE
 sizing: M
 created_at: "2026-04-28T20:25:00+08:00"
 started_at: "2026-04-28T22:42:29+08:00"
+completed_at: "2026-04-29T00:05:15+08:00"
 project: PLAN-034
 depends_on:
   - T0342
@@ -213,3 +214,5 @@ git commit -m "feat: bump to v5.0.0 — YAML frontmatter metadata SoT (PLAN-034)
 ### 遭遇問題 / 互動紀錄 / Renew
 
 ### 回報時間 / commit
+
+**塔台驗收備註**（2026-04-29 00:05）：使用者自驗收通過，工單直接 mark DONE，回報區明細未補填（fire-and-forget worker 模式 + 使用者已逐項目視驗收）。
