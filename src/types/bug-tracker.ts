@@ -7,6 +7,15 @@
  */
 
 import { parseMdTable } from '../utils/md-table-parser'
+import {
+  extractFrontmatterBlock,
+  parseFrontmatterYaml,
+  detectStatusDrift,
+  type ParseSource,
+  type ParseWarning,
+  type CtBugFrontmatterV1,
+  type CtIndexFrontmatterV1,
+} from '../utils/ct-frontmatter'
 
 export type BugSeverity = 'High' | 'Medium' | 'Low' | 'Unknown'
 
@@ -37,6 +46,26 @@ export interface BugEntry {
   isArchived: boolean
   /** Relative path from _ct-workorders/ for readFile calls */
   linkPath: string
+  /** PLAN-034: parser path */
+  parseSource?: ParseSource
+  /** PLAN-034: non-fatal warnings */
+  parseWarnings?: ParseWarning[]
+}
+
+/** PLAN-034 — bug status enum accepted from frontmatter (uppercase, no emoji). */
+const VALID_BUG_FM_STATUSES = new Set<BugStatus>([
+  'OPEN', 'FIXING', 'FIXED', 'VERIFY', 'CLOSED', 'WONTFIX',
+])
+
+const VALID_BUG_FM_SEVERITIES = new Set<string>(['low', 'medium', 'high', 'critical'])
+
+function severityFromFmEnum(raw: string | undefined): BugSeverity {
+  if (!raw) return 'Unknown'
+  const v = raw.toLowerCase()
+  if (v === 'critical' || v === 'high') return 'High'
+  if (v === 'medium') return 'Medium'
+  if (v === 'low') return 'Low'
+  return 'Unknown'
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -99,8 +128,11 @@ function sectionToStatus(heading: string): BugStatus {
 export function parseBugTracker(content: string): BugEntry[] {
   const entries: BugEntry[] = []
 
+  // PLAN-034: strip frontmatter so it never bleeds into the section walker.
+  const { body } = extractFrontmatterBlock(content)
+
   // Split content before each ## heading (lookahead, doesn't consume)
-  const sectionParts = content.split(/(?=^## )/m)
+  const sectionParts = body.split(/(?=^## )/m)
 
   for (const part of sectionParts) {
     const firstNewline = part.indexOf('\n')
@@ -210,28 +242,88 @@ function extractField(content: string, labels: string[]): string | null {
  */
 export function parseBugFile(content: string, linkPath: string): BugEntry | null {
   try {
+    const isArchived = linkPath.includes('_archive/')
+    const filename = linkPath.split('/').pop() ?? linkPath
+    const { raw: fmRaw, body } = extractFrontmatterBlock(content)
+    const warnings: ParseWarning[] = []
+
+    // ─── Frontmatter-first path ──────────────────────────────────────────
+    if (fmRaw != null) {
+      const { data: fm, warning } = parseFrontmatterYaml<CtBugFrontmatterV1>(fmRaw, 'bug')
+      if (fm) {
+        const rawStatus = (fm.status ?? '').toString().trim().toUpperCase()
+        const fmStatus = VALID_BUG_FM_STATUSES.has(rawStatus as BugStatus)
+          ? (rawStatus as BugStatus)
+          : null
+
+        if (!fmStatus) {
+          warnings.push({
+            kind: 'unknown_status',
+            field: 'status',
+            frontmatter_value: fm.status,
+            detail: `unknown bug frontmatter status ${JSON.stringify(fm.status)}`,
+          })
+        }
+
+        const bodyStatusRaw = extractField(body, ['狀態', 'Status']) ?? undefined
+        const drift = detectStatusDrift(fm.status, bodyStatusRaw)
+        if (drift) warnings.push(drift)
+
+        const severity = fm.severity && VALID_BUG_FM_SEVERITIES.has(String(fm.severity).toLowerCase())
+          ? severityFromFmEnum(fm.severity)
+          : extractSeverity(extractField(body, ['嚴重度', 'Severity']) ?? '')
+
+        // Spec: unknown status → keep null status semantically; archived
+        // bugs default to CLOSED so the panel still shows them in CLOSED bucket.
+        const status: BugStatus = fmStatus ?? (isArchived ? 'CLOSED' : 'OPEN')
+
+        const relatedFromLinks = (() => {
+          const rel = (fm.links?.related_workorders ?? fm.links?.related_workorder) as unknown
+          if (Array.isArray(rel) && rel.length > 0) return String(rel[0])
+          if (typeof rel === 'string') return rel
+          return undefined
+        })()
+
+        return {
+          id: fm.id || 'BUG-???',
+          filename,
+          title: fm.title ?? '',
+          severity,
+          status,
+          reportedAt: fm.created_at ?? '',
+          relatedWorkOrder: relatedFromLinks ?? extractField(body, ['修復工單', '相關工單']) ?? undefined,
+          isArchived,
+          linkPath,
+          parseSource: 'frontmatter',
+          parseWarnings: warnings.length > 0 ? warnings : undefined,
+        }
+      }
+      if (warning) warnings.push(warning)
+    } else {
+      warnings.push({ kind: 'missing_frontmatter' })
+    }
+
+    // ─── Legacy markdown fallback (unchanged behaviour) ──────────────────
     // Match first line starting with '# ... BUG-\d+'
     const headerRe = /^#\s*(?:[^\w\s]+\s*)?(BUG-\d+)\s*(?:[—\-:：]\s*)?(.*)$/m
-    const headerMatch = content.match(headerRe)
+    const headerMatch = body.match(headerRe)
     if (!headerMatch) return null
 
     const id = headerMatch[1]
     const title = headerMatch[2].trim()
 
-    const statusRaw = extractField(content, ['狀態', 'Status']) ?? ''
-    const status: BugStatus = mapStatusText(statusRaw) ?? 'CLOSED' // archived defaults to CLOSED
+    const statusRaw = extractField(body, ['狀態', 'Status']) ?? ''
+    const status: BugStatus = mapStatusText(statusRaw) ?? (isArchived ? 'CLOSED' : 'OPEN')
 
-    const severityRaw = extractField(content, ['嚴重度', 'Severity']) ?? ''
+    const severityRaw = extractField(body, ['嚴重度', 'Severity']) ?? ''
     const severity = extractSeverity(severityRaw)
 
     // Prefer closure/fix dates for archived items, fall back to report time
     const reportedAt =
-      extractField(content, ['結案日期', '關閉時間', '完成時間', '修復時間', '取消日期', '報修時間']) ?? ''
+      extractField(body, ['結案日期', '關閉時間', '完成時間', '修復時間', '取消日期', '報修時間']) ?? ''
 
     const relatedWorkOrder =
-      extractField(content, ['修復工單', '相關工單']) ?? undefined
-
-    const filename = linkPath.split('/').pop() ?? linkPath
+      extractField(body, ['修復工單', '相關工單']) ?? undefined
 
     return {
       id,
@@ -241,13 +333,77 @@ export function parseBugFile(content: string, linkPath: string): BugEntry | null
       status,
       reportedAt,
       relatedWorkOrder,
-      isArchived: true,
+      isArchived,
       linkPath,
+      parseSource: 'legacy_markdown',
+      parseWarnings: warnings.length > 0 ? warnings : undefined,
     }
   } catch (err) {
     console.warn('[parseBugFile] failed for', linkPath, err)
     return null
   }
+}
+
+// ─── Index frontmatter parser (PLAN-034 Sprint 3) ──────────────────────────
+
+export interface BugTrackerStats {
+  total: number
+  breakdown: Partial<Record<BugStatus, number>>
+  source: ParseSource
+  warnings: ParseWarning[]
+}
+
+/**
+ * Read `_bug-tracker.md` index frontmatter for stats panel.
+ *
+ * When frontmatter (schema_kind: index) carries `total` + `breakdown`, returns
+ * those numbers directly — O(1) without re-walking the body tables.
+ *
+ * Falls back to deriving counts from `parseBugTracker()` entries when the
+ * frontmatter is missing or invalid (back-compat with pre-PLAN-034 indexes).
+ *
+ * Spec invariant: total === sum(breakdown). Mismatch surfaces a drift warning
+ * but the breakdown wins (as per spec §`Error Handling Contract`).
+ */
+export function parseBugTrackerStats(content: string): BugTrackerStats {
+  const { raw: fmRaw } = extractFrontmatterBlock(content)
+  const warnings: ParseWarning[] = []
+
+  if (fmRaw != null) {
+    const { data: fm, warning } = parseFrontmatterYaml<CtIndexFrontmatterV1>(fmRaw, 'index')
+    if (fm) {
+      const breakdown: Partial<Record<BugStatus, number>> = {}
+      for (const [k, v] of Object.entries(fm.breakdown ?? {})) {
+        const key = k.toUpperCase() as BugStatus
+        if (VALID_BUG_FM_STATUSES.has(key) && typeof v === 'number') {
+          breakdown[key] = v
+        }
+      }
+      const sum = Object.values(breakdown).reduce<number>((a, b) => a + (b ?? 0), 0)
+      const total = typeof fm.total === 'number' ? fm.total : sum
+      if (total !== sum) {
+        warnings.push({
+          kind: 'metadata_drift',
+          field: 'total',
+          frontmatter_value: String(total),
+          detail: `breakdown sum (${sum}) ≠ total (${total}); breakdown wins per spec`,
+        })
+      }
+      return { total: sum, breakdown, source: 'frontmatter', warnings }
+    }
+    if (warning) warnings.push(warning)
+  } else {
+    warnings.push({ kind: 'missing_frontmatter' })
+  }
+
+  // Legacy fallback: derive from body entries.
+  const entries = parseBugTracker(content)
+  const breakdown: Partial<Record<BugStatus, number>> = {}
+  for (const e of entries) {
+    breakdown[e.status] = (breakdown[e.status] ?? 0) + 1
+  }
+  const total = entries.length
+  return { total, breakdown, source: 'legacy_markdown', warnings }
 }
 
 // ─── Display helpers ─────────────────────────────────────────────────────────

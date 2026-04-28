@@ -8,6 +8,13 @@
  */
 
 import { parseMdTable } from '../utils/md-table-parser'
+import {
+  extractFrontmatterBlock,
+  parseFrontmatterYaml,
+  type ParseSource,
+  type ParseWarning,
+  type CtIndexFrontmatterV1,
+} from '../utils/ct-frontmatter'
 
 export interface DecisionEntry {
   /** Decision identifier, e.g. 'D029' */
@@ -32,12 +39,46 @@ export interface DecisionEntry {
  * Falls back to heading-based extraction when the table yields no results.
  */
 export function parseDecisionLog(content: string): DecisionEntry[] {
+  // PLAN-034: strip optional frontmatter so legacy table/heading scanners see
+  // the body only. Decision entries themselves still live in the body table.
+  const { body } = extractFrontmatterBlock(content)
+
   // 1. Try parsing from the index table first
-  const entries = parseFromTable(content)
+  const entries = parseFromTable(body)
   if (entries.length > 0) return entries
 
   // 2. Fallback: extract from heading lines
-  return parseFromHeadings(content)
+  return parseFromHeadings(body)
+}
+
+// ─── Index frontmatter parser (PLAN-034 Sprint 3) ──────────────────────────
+
+export interface DecisionLogStats {
+  total: number
+  source: ParseSource
+  warnings: ParseWarning[]
+}
+
+/**
+ * Read `_decision-log.md` index frontmatter for stats panel.
+ * Decision indexes carry only `total` (no status breakdown).
+ * Falls back to counting entries when frontmatter is missing/invalid.
+ */
+export function parseDecisionLogStats(content: string): DecisionLogStats {
+  const { raw: fmRaw } = extractFrontmatterBlock(content)
+  const warnings: ParseWarning[] = []
+
+  if (fmRaw != null) {
+    const { data: fm, warning } = parseFrontmatterYaml<CtIndexFrontmatterV1>(fmRaw, 'index')
+    if (fm && typeof fm.total === 'number') {
+      return { total: fm.total, source: 'frontmatter', warnings }
+    }
+    if (warning) warnings.push(warning)
+  } else {
+    warnings.push({ kind: 'missing_frontmatter' })
+  }
+
+  return { total: parseDecisionLog(content).length, source: 'legacy_markdown', warnings }
 }
 
 /** Parse decision entries from the Markdown index table. */

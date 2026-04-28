@@ -6,6 +6,28 @@
  */
 
 import { parseMdTable } from '../utils/md-table-parser'
+import {
+  extractFrontmatterBlock,
+  parseFrontmatterYaml,
+  detectStatusDrift,
+  type ParseSource,
+  type ParseWarning,
+  type CtPlanFrontmatterV1,
+  type CtIndexFrontmatterV1,
+} from '../utils/ct-frontmatter'
+
+const VALID_PLAN_FM_STATUSES = new Set<string>([
+  'IDEA', 'PLANNED', 'IN_PROGRESS', 'DONE', 'DROPPED',
+])
+
+function priorityFromFmEnum(raw: string | undefined): PlanPriority {
+  if (!raw) return 'Unknown'
+  const v = raw.toLowerCase()
+  if (v === 'critical' || v === 'high') return 'High'
+  if (v === 'medium') return 'Medium'
+  if (v === 'low') return 'Low'
+  return 'Unknown'
+}
 
 export type PlanPriority = 'High' | 'Medium' | 'Low' | 'Unknown'
 
@@ -33,6 +55,10 @@ export interface BacklogEntry {
   isArchived: boolean
   /** Relative path from _ct-workorders/ for readFile calls */
   linkPath: string
+  /** PLAN-034: parser path */
+  parseSource?: ParseSource
+  /** PLAN-034: non-fatal warnings */
+  parseWarnings?: ParseWarning[]
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -105,7 +131,10 @@ function rowStatusToStatus(cell: string): PlanStatus | null {
 export function parseBacklog(content: string): BacklogEntry[] {
   const entries: BacklogEntry[] = []
 
-  const sectionParts = content.split(/(?=^## )/m)
+  // PLAN-034: strip frontmatter so it never bleeds into the section walker.
+  const { body } = extractFrontmatterBlock(content)
+
+  const sectionParts = body.split(/(?=^## )/m)
 
   for (const part of sectionParts) {
     const firstNewline = part.indexOf('\n')
@@ -205,32 +234,82 @@ function extractPlanField(content: string, labels: string[]): string | null {
  */
 export function parsePlanFile(content: string, linkPath: string): BacklogEntry | null {
   try {
+    const isArchived = linkPath.includes('_archive/')
+    const filename = linkPath.split('/').pop() ?? linkPath
+    const { raw: fmRaw, body } = extractFrontmatterBlock(content)
+    const warnings: ParseWarning[] = []
+
+    // ─── Frontmatter-first path ──────────────────────────────────────────
+    if (fmRaw != null) {
+      const { data: fm, warning } = parseFrontmatterYaml<CtPlanFrontmatterV1>(fmRaw, 'plan')
+      if (fm) {
+        const rawStatus = (fm.status ?? '').toString().trim().toUpperCase()
+        const isValidFmStatus = VALID_PLAN_FM_STATUSES.has(rawStatus)
+
+        if (!isValidFmStatus) {
+          warnings.push({
+            kind: 'unknown_status',
+            field: 'status',
+            frontmatter_value: fm.status,
+            detail: `unknown plan frontmatter status ${JSON.stringify(fm.status)}`,
+          })
+        }
+
+        const bodyStatusRaw = extractPlanField(body, ['狀態', 'Status']) ?? undefined
+        const drift = detectStatusDrift(fm.status, bodyStatusRaw)
+        if (drift) warnings.push(drift)
+
+        // Spec: unknown status → never PENDING / never IDEA bucket; archived
+        // plans default to DONE so panel still groups them.
+        const status: PlanStatus = isValidFmStatus
+          ? (rawStatus as PlanStatus)
+          : (isArchived ? 'DONE' : 'IDEA')
+
+        const priority = fm.priority
+          ? priorityFromFmEnum(fm.priority)
+          : extractPriorityFromPlanContent(body)
+
+        return {
+          id: fm.id || 'PLAN-???',
+          filename,
+          title: fm.title ?? '',
+          priority,
+          status,
+          createdAt: fm.created_at ?? '',
+          isArchived,
+          linkPath,
+          parseSource: 'frontmatter',
+          parseWarnings: warnings.length > 0 ? warnings : undefined,
+        }
+      }
+      if (warning) warnings.push(warning)
+    } else {
+      warnings.push({ kind: 'missing_frontmatter' })
+    }
+
+    // ─── Legacy markdown fallback (unchanged behaviour) ──────────────────
     // Match first line starting with '# ... PLAN-\d+'
     const headerRe = /^#\s*(?:[^\w\s]+\s*)?(PLAN-\d+)\s*(?:[—\-:：]\s*)?(.*)$/m
-    const headerMatch = content.match(headerRe)
+    const headerMatch = body.match(headerRe)
     if (!headerMatch) return null
 
     const id = headerMatch[1]
     let title = headerMatch[2].trim()
 
-    // Fall back to 標題 metadata field when header is kebab-case (e.g. PLAN-010-upstream-sync-...)
-    const titleField = extractPlanField(content, ['標題', 'Title'])
+    const titleField = extractPlanField(body, ['標題', 'Title'])
     if (titleField) {
       title = titleField
     } else if (!title || /^[a-z0-9-]+$/.test(title)) {
-      // Header was kebab slug with no separator — humanize it
       title = title.replace(/-/g, ' ')
     }
 
-    const priority = extractPriorityFromPlanContent(content)
+    const priority = extractPriorityFromPlanContent(body)
 
-    const statusRaw = extractPlanField(content, ['狀態', 'Status']) ?? ''
-    const status: PlanStatus = mapPlanStatusText(statusRaw) ?? 'DONE' // archived defaults to DONE
+    const statusRaw = extractPlanField(body, ['狀態', 'Status']) ?? ''
+    const status: PlanStatus = mapPlanStatusText(statusRaw) ?? (isArchived ? 'DONE' : 'IDEA')
 
     const createdAt =
-      extractPlanField(content, ['完成時間', '取消日期', '建立時間', '提出時間', '登記時間', '時間']) ?? ''
-
-    const filename = linkPath.split('/').pop() ?? linkPath
+      extractPlanField(body, ['完成時間', '取消日期', '建立時間', '提出時間', '登記時間', '時間']) ?? ''
 
     return {
       id,
@@ -239,13 +318,69 @@ export function parsePlanFile(content: string, linkPath: string): BacklogEntry |
       priority,
       status,
       createdAt,
-      isArchived: true,
+      isArchived,
       linkPath,
+      parseSource: 'legacy_markdown',
+      parseWarnings: warnings.length > 0 ? warnings : undefined,
     }
   } catch (err) {
     console.warn('[parsePlanFile] failed for', linkPath, err)
     return null
   }
+}
+
+// ─── Index frontmatter parser (PLAN-034 Sprint 3) ──────────────────────────
+
+export interface BacklogStats {
+  total: number
+  breakdown: Partial<Record<PlanStatus, number>>
+  source: ParseSource
+  warnings: ParseWarning[]
+}
+
+/**
+ * Read `_backlog.md` index frontmatter for stats panel (O(1)).
+ * Falls back to deriving counts from `parseBacklog()` entries when
+ * frontmatter is missing or invalid.
+ */
+export function parseBacklogStats(content: string): BacklogStats {
+  const { raw: fmRaw } = extractFrontmatterBlock(content)
+  const warnings: ParseWarning[] = []
+
+  if (fmRaw != null) {
+    const { data: fm, warning } = parseFrontmatterYaml<CtIndexFrontmatterV1>(fmRaw, 'index')
+    if (fm) {
+      const breakdown: Partial<Record<PlanStatus, number>> = {}
+      for (const [k, v] of Object.entries(fm.breakdown ?? {})) {
+        const key = k.toUpperCase() as PlanStatus
+        if (VALID_PLAN_FM_STATUSES.has(key) && typeof v === 'number') {
+          breakdown[key] = v
+        }
+      }
+      const sum = Object.values(breakdown).reduce<number>((a, b) => a + (b ?? 0), 0)
+      const total = typeof fm.total === 'number' ? fm.total : sum
+      if (total !== sum) {
+        warnings.push({
+          kind: 'metadata_drift',
+          field: 'total',
+          frontmatter_value: String(total),
+          detail: `breakdown sum (${sum}) ≠ total (${total}); breakdown wins per spec`,
+        })
+      }
+      return { total: sum, breakdown, source: 'frontmatter', warnings }
+    }
+    if (warning) warnings.push(warning)
+  } else {
+    warnings.push({ kind: 'missing_frontmatter' })
+  }
+
+  // Legacy fallback: derive from body entries.
+  const entries = parseBacklog(content)
+  const breakdown: Partial<Record<PlanStatus, number>> = {}
+  for (const e of entries) {
+    breakdown[e.status] = (breakdown[e.status] ?? 0) + 1
+  }
+  return { total: entries.length, breakdown, source: 'legacy_markdown', warnings }
 }
 
 // ─── Display helpers ─────────────────────────────────────────────────────────
