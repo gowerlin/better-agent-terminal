@@ -6,6 +6,9 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 > v0.4.2 候選草稿（T0341，PLAN-032 收尾）— 不 bump package.json 版號，待 maintainer release engineering 流程處理。
 
+### Fixed
+- fix(bat-terminal): clarify "Terminal created" stdout message; no longer prints "null" in --skill --workorder mode (refs: BMad-Guide T0110, 2026_Cooperative BUG-020)
+
 ### Added
 - **PLAN-032 — Setup Wizard 錯誤 UX 全面整修**
   Setup Wizard（WSL / Docker / SSH）的失敗處理從「丟一行紅字 + Retry」升級為結構化的可恢復 UX：

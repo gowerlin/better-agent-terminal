@@ -695,7 +695,7 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`✓ Terminal created: ${command}`)
+  console.log(`✓ Terminal created: ${terminalId}`)
   logEvent('bat-terminal', 'terminal-created', { result: 'ok', terminalId })
   logEvent('bat-terminal', 'exit', { code: 0 })
   ws.close()
