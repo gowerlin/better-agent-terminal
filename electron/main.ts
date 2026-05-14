@@ -579,10 +579,14 @@ async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; 
   let baseCommand = agentRegistry.buildLaunchCommand(agentId)
 
   // Claude CLI launch is normally routed through the integrated runtime helper
-  // in renderer-created terminals. BAT remote terminals only need a shell command,
-  // so use the system CLI name for this semantic helper.
+  // in renderer-created terminals (WorkspaceView.startClaudeCliPty → claude:get-cli-path).
+  // BAT remote terminals and bat-terminal.mjs auto-session build the command here, so we
+  // invoke the same runtime resolver to honour claudeRuntime.customPath / fallbackToEmbedded.
+  // Without this, a system-mode install with `claude` not on the BAT-spawned shell's PATH
+  // dies with "claude: command not found" (downstream 花見紅茶 BUG-005 / T0050-T0054).
   if (!baseCommand && (agentId === 'claude-cli' || agentId === 'claude-cli-worktree')) {
-    baseCommand = 'claude'
+    const { resolveClaudeBaseCommand } = await import('./resolve-claude-base-command')
+    baseCommand = await resolveClaudeBaseCommand()
   }
 
   if (!baseCommand) {
