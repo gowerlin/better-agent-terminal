@@ -4,11 +4,13 @@ schema_kind: workorder
 id: T0356
 title: Fix BUG-080 — Claude CLI PTY command shell-aware quoting（POSIX + PowerShell + cmd guard）
 type: fix
-status: IN_PROGRESS
+status: FIXED
 sizing: M
 created_at: "2026-05-15T12:42:00+08:00"
 started_at: "2026-05-15T12:47:55+08:00"
-updated_at: "2026-05-15T12:47:55+08:00"
+completed_at: "2026-05-15T12:53:20+08:00"
+updated_at: "2026-05-15T12:53:20+08:00"
+commit: b511faa
 renew_count: 0
 workdir: main repo
 affects_files:
@@ -32,7 +34,7 @@ affects_files:
 | 工單編號 | T0356 |
 | 類型 | fix（command rendering + shell-aware quoting helper + tests） |
 | 所屬 | BUG-080 — `resolveClaudeBaseCommand` shell quoting hardening |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | Sizing | M（兩條路徑改 quoting + 共用 helper + cross-shell tests） |
 | 依賴 | T0355 已 CLOSED（白名單已生效，本工單聚焦 quoting 一致性）/ T0354 D 區決策 |
 | 後續 | BUG-080 → VERIFY → CLOSED（兩條路徑驗收通過後） |
@@ -263,4 +265,4 @@ FIXED（修復已完成，等待塔台驗收）
 
 ### commit
 
-待 commit。
+b511faa
