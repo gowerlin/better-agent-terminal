@@ -4,11 +4,13 @@ schema_kind: workorder
 id: T0353
 title: Verify BUG-079 Fix — gh-resolver 落地後的靜態審核（讀取 only）
 type: verify
-status: PENDING
+status: DONE
 sizing: S
 created_at: "2026-05-15T11:20:00+08:00"
 started_at: "2026-05-15T11:24:04+08:00"
-updated_at: "2026-05-15T11:24:04+08:00"
+completed_at: "2026-05-15T11:27:20+08:00"
+updated_at: "2026-05-15T11:27:20+08:00"
+commit: 6f37402
 renew_count: 0
 affects_files:
   - _ct-workorders/T0353-verify-bug079-gh-resolver-fix-static-audit.md
@@ -23,9 +25,10 @@ affects_files:
 | 工單編號 | T0353 |
 | 類型 | verify（讀取 only：grep + diff 審視 + 邏輯驗證，不改 production code） |
 | 所屬 | BUG-079 — BAT GitHub 功能找不到 gh CLI |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-05-15 11:20 (UTC+8) |
 | 開始時間 | 2026-05-15 11:24 (UTC+8) |
+| 完成時間 | 2026-05-15 11:27 (UTC+8) |
 | Sizing | S（estimate 15-30 min wall；純靜態審核） |
 | 依賴 | T0352 commit `519c567` / `electron/gh-resolver.ts` / `electron/main.ts` / `electron/claude-resolver.ts`（對照樣本） |
 | 後續 | PASS → BUG-079 → CLOSED；FAIL → BUG 退回 FIXING，補修工單 |
@@ -220,7 +223,7 @@ FAIL -> 建議塔台將 BUG-079 退回 FIXING，派補修工單補齊 `src/local
 - 修改：`_ct-workorders/T0353-verify-bug079-gh-resolver-fix-static-audit.md`
 - production code：未修改
 - 驗證方式：靜態 grep、diff/line review、JSON key 對照
-- commit：待收尾 commit 後回填
+- commit：6f37402
 - 回報時間：2026-05-15 11:25 (UTC+8)
 
 ---
