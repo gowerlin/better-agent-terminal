@@ -4,11 +4,13 @@ schema_kind: workorder
 id: T0352
 title: Fix BUG-079 — 新增 gh-resolver + Settings Custom gh path + 改善錯誤 UX（方案 A+D+C 滿版）
 type: fix
-status: IN_PROGRESS
+status: FIXED
 sizing: M
 created_at: "2026-05-15T10:58:00+08:00"
 started_at: "2026-05-15T11:04:55+08:00"
-updated_at: "2026-05-15T11:04:55+08:00"
+updated_at: "2026-05-15T11:17:48+08:00"
+completed_at: "2026-05-15T11:17:48+08:00"
+commit: "519c567"
 renew_count: 0
 affects_files:
   - electron/gh-resolver.ts
@@ -33,9 +35,10 @@ affects_files:
 | 工單編號 | T0352 |
 | 類型 | fix |
 | 所屬 | BUG-079 — BAT GitHub 功能找不到 gh CLI |
-| 狀態 | 🔧 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 建立時間 | 2026-05-15 10:58 (UTC+8) |
 | 開始時間 | 2026-05-15 11:04 (UTC+8) |
+| 完成時間 | 2026-05-15 11:17 (UTC+8) |
 | Sizing | M（estimate 60-120 min wall；新 resolver + 7 handler + Settings 面板 + locale + tests） |
 | 依賴 | T0351 research 結論（DONE 2026-05-15 10:57）/ `electron/claude-resolver.ts` 作為 resolver pattern 參考 / `electron/claude-runtime-router.ts` 的 customPath 模式 |
 | 後續 | FIXED → 使用者驗收（VERIFY）或直接 CLOSED；可能衍生 unit test 加強工單 |
@@ -231,11 +234,11 @@ FIXED — 修復已完成，等待驗收。
 
 ### Commit
 
-待提交。
+519c567
 
 ### 回報時間
 
-2026-05-15 11:16 (UTC+8)
+2026-05-15 11:17 (UTC+8)
 
 ---
 

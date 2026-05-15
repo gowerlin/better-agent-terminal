@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-079
 title: BAT GitHub 功能找不到 gh CLI，但 gh 已安裝於 C:\Program Files\GitHub CLI\gh.exe (v2.92.0)
-status: FIXED
+status: CLOSED
 severity: medium
 created_at: "2026-05-15T10:40:00+08:00"
 ---
@@ -18,13 +18,14 @@ created_at: "2026-05-15T10:40:00+08:00"
 | 嚴重度 | 🟡 Medium（有 workaround：在 BAT 外部 shell 操作；GitHub 功能在 BAT 內無法直接使用） |
 | 可重現 | 100%（每次嘗試 BAT 內 GitHub PR / Issue 功能皆失敗） |
 | Workaround | 在外部 Windows Terminal / PowerShell 內手動執行 `gh` 指令 |
-| 狀態 | ✅ FIXED（T0352 修復完成，等待驗收） |
+| 狀態 | ✅ CLOSED（T0353 audit FAIL → 塔台補 zh-CN i18n `a3dfc84` → i18n test 22/22 PASS） |
 | 建立時間 | 2026-05-15 10:40 (UTC+8) |
 | 報告者 | 使用者（session 43 起手） |
 | 觸發情境 | PR / Issue 操作（如 `gh pr create`、`gh issue list` 等） |
 | 環境 | Windows 11 Pro Workstations, BAT_SESSION=1, GitHub CLI 2.92.0 (2026-04-28) |
 | 相關 BUG | （待調查，可能與 PATH 環境變數注入或 child_process spawn 設定有關，類似 BUG-059 模式） |
-| 相關工單 | T0351（research 根因偵察）/ T0352（fix A+D+C 滿版） |
+| 相關工單 | T0351（research）/ T0352（fix `519c567`）/ T0353（audit `6f37402`）/ 塔台 chore `a3dfc84`（zh-CN i18n 補齊） |
+| closed_at | 2026-05-15 11:35 (UTC+8) |
 
 ## 現象
 
