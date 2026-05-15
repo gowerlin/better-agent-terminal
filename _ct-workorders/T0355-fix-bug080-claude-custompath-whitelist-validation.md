@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0355
 title: Fix BUG-080 — Claude customPath 白名單校驗 + fail-closed/fallback 行為
 type: fix
-status: FIXED
+status: CLOSED
 sizing: S
 created_at: "2026-05-15T12:30:00+08:00"
 started_at: "2026-05-15T12:30:23+08:00"
 completed_at: "2026-05-15T12:36:32+08:00"
-updated_at: "2026-05-15T12:36:32+08:00"
+closed_at: "2026-05-15T12:42:00+08:00"
+updated_at: "2026-05-15T12:42:00+08:00"
 commit: dad16c6
+verified_by: tower (runtime smoke PASS — user verification)
 renew_count: 0
 workdir: main repo
 affects_files:
@@ -30,10 +32,12 @@ affects_files:
 | 工單編號 | T0355 |
 | 類型 | fix（main process validation + UI 同步校驗 + tests） |
 | 所屬 | BUG-080 — `resolveClaudeBaseCommand` shell quoting hardening |
-| 狀態 | ✅ FIXED |
+| 狀態 | ✅ CLOSED |
 | 開始時間 | 2026-05-15T12:30:23+08:00 |
 | 完成時間 | 2026-05-15T12:36:32+08:00 |
+| 關閉時間 | 2026-05-15T12:42:00+08:00 |
 | Commit | dad16c6 |
+| 驗收 | 使用者 runtime smoke PASS（fallback true/false 皆按預期；UI validation 紅字 + degraded toast 正常） |
 | Sizing | S（main process validation + unit tests）；若補 UI 即時校驗與 i18n 為 M |
 | 依賴 | T0354 D 區決策 / `electron/gh-resolver.ts isSafeCustomPath()` 樣板 / PR #18 已合入（`238ac3d`） |
 | 後續 | T0356（shell-aware quoting）依賴本工單先行 |
