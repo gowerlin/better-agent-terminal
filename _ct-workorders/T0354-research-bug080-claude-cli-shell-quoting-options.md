@@ -4,11 +4,13 @@ schema_kind: workorder
 id: T0354
 title: Research BUG-080 — `resolveClaudeBaseCommand` shell quoting 三選項可行性評估
 type: research
-status: PENDING
+status: DONE
 sizing: M
 created_at: "2026-05-15T12:13:00+08:00"
 started_at: "2026-05-15T12:15:56+08:00"
-updated_at: "2026-05-15T12:15:56+08:00"
+completed_at: "2026-05-15T12:20:37+08:00"
+updated_at: "2026-05-15T12:20:37+08:00"
+commit: a373c03
 renew_count: 0
 workdir: main repo（純讀取 + 跨平台 spec 評估）
 ---
@@ -21,9 +23,10 @@ workdir: main repo（純讀取 + 跨平台 spec 評估）
 | 工單編號 | T0354 |
 | 類型 | research（cross-platform quoting 規則調查 + 實作成本評估 + 拆單建議） |
 | 所屬 | BUG-080 — `resolveClaudeBaseCommand` 雙引號無法防止 shell variable expansion |
-| 狀態 | 🔄 IN_PROGRESS |
+| 狀態 | ✅ DONE |
 | 建立時間 | 2026-05-15 12:13 (UTC+8) |
 | 派發時間 | 2026-05-15 12:15 (UTC+8) |
+| 完成時間 | 2026-05-15 12:20 (UTC+8) |
 | Sizing | M（estimate 45-90 min wall；3 個選項 × 3 平台 quoting 規則 + 實作位置盤點） |
 | 依賴 | PR #18 merged `238ac3d8`、`electron/resolve-claude-base-command.ts`、`electron/claude-runtime-router.ts`、`electron/pty-manager.ts`（PTY shell 偵測位置） |
 | 後續 | 拍板後拆 fix 工單（POSIX quoting + 白名單）+ 可能 research/fix 工單（Windows PowerShell quoting） |
@@ -31,6 +34,7 @@ workdir: main repo（純讀取 + 跨平台 spec 評估）
 | Renew 次數 | 0 |
 | 工作目錄 | main repo（純讀取 + 跨平台 spec 評估，禁止改 code） |
 | `affects_files` | `_ct-workorders/T0354-*.md`（自身回報區）+ 可能更新 `BUG-080-*.md`（補實作細節） |
+| commit | `a373c03` |
 
 ## 背景
 
@@ -141,7 +145,8 @@ DONE（純研究完成；未修改產品程式碼；等待塔台依 D 區拆後�
 - 重要現況：目前 `main` 找不到 `electron/resolve-claude-base-command.ts`，且 `git show 238ac3d8` 失敗；工單/BUG 描述的 PR #18 helper 不存在於本地 repo 物件庫。
 - ad-hoc quoting probe：本機可用 `bash.exe`、`dash.exe`、`pwsh.exe`、`cmd.exe`；已用 Git Bash bash、dash、PowerShell 7 驗證 single-quote strong quote 文字化行為。未跑 build/test，符合工單約束。
 - 修改檔案：僅 `_ct-workorders/T0354-research-bug080-claude-cli-shell-quoting-options.md`。
-- commit：待收尾 commit 後回填。
+- commit：`a373c03`
+- sprint-status.yaml：存在但無 T0354/BUG-080 條目，且檔頭標示重要節點由 Tower 更新；本工單未改動該檔。
 
 ### 遭遇問題
 
