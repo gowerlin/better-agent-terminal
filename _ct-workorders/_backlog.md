@@ -3,29 +3,29 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-05-15T13:00:00+08:00"
+generated_at: "2026-05-15T13:10:00+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
-total: 14
+total: 6
 breakdown:
   IDEA: 2
   PLANNED: 2
   IN_PROGRESS: 2
-  DONE: 7
-  DROPPED: 1
+  DONE: 0
+  DROPPED: 0
 ---
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-05-15 13:00 (UTC+8) — Session 43 BUG-080 series 收尾，PLAN 無變化
+> 最後同步：2026-05-15 13:10 (UTC+8) — Session 43 收工：歸檔 8 張 DONE/DROPPED PLAN → `_archive/plans/`
 
 ## 統計
-- 💡 Ideas: 2 | 📋 Planned: 2 | 🔄 In Progress: 2 | ✅ Done: 7 | 🚫 Dropped: 1 | **Total: 14**
+- 💡 Ideas: 2 | 📋 Planned: 2 | 🔄 In Progress: 2 | ✅ Done: 0 | 🚫 Dropped: 0 | **Total: 6**
 
-> 已歸檔 PLAN（`_archive/plans/`）：19 張
+> 已歸檔 PLAN（`_archive/plans/`）：27 張（含本 session 新增 8 張）
 
 ## Active
 
@@ -42,22 +42,19 @@ breakdown:
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
-| PLAN-034 | Workorder/Index 檔 YAML frontmatter metadata schema 強制化（BAT + CT 雙端） | 2026-04-28 | [PLAN-034](PLAN-034-yaml-frontmatter-metadata-schema-bat-ct.md) |
-| PLAN-030 | ProfilePanel + Setup Wizard UI 整體改善（套用 BUG Report stepper 視覺語言） | 2026-04-27 | [PLAN-030](PLAN-030-profile-panel-setup-wizard-ui-overhaul.md) |
-| PLAN-028 | BAT dogfood 驗證 CT v4.4.x(CLT 對齊 6 項改良) | 2026-04-26 | [PLAN-028](PLAN-028-bat-dogfood-verify-ct-v44-clt-alignment.md) |
-| PLAN-026 | JetBrains Gateway Dev Container 剪貼簿 proxy(HTTP daemon via host.docker.internal) | - | [PLAN-026](PLAN-026-jetbrains-gateway-clipboard-proxy.md) |
-| PLAN-021 | remote-server-port-settings-ui | - | [PLAN-021](PLAN-021-remote-server-port-settings-ui.md) |
-| PLAN-007 | Remote Dev Support（BAT terminal client/server 跨環境部署） | 2026-04-27 | [PLAN-007](PLAN-007-remote-container-dev-support.md) |
-| PLAN-004 | 💡 PLAN-004：GPU/MLX Whisper 加速（Windows/Linux CUDA、Vulkan） | - | [PLAN-004](PLAN-004-gpu-whisper-acceleration-win-linux.md) |
+
+（已歸檔，見 `_archive/plans/`）
 
 ## Dropped
 
 | ~~ID~~ | ~~標題~~ | 原因 | 連結 |
 |--------|---------|------|------|
-| ~~PLAN-002~~ | ~~💡 PLAN-002：Dynamic Import 衝突修正~~ | dropped | [PLAN-002](PLAN-002-dynamic-import-conflict-fix.md) |
+
+（已歸檔，見 `_archive/plans/`）
 
 ## 🧪 EXP 實驗分支
 
 | ID | 標題 | 狀態 |
 |----|------|------|
-| EXP-HEADLESS-001 | BAT Remote Server Headless Spike | 📊 CONCLUDED |
+
+（無熱區實驗；已歸檔的見 `_archive/workorders/`）

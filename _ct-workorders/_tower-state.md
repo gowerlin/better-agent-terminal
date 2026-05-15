@@ -1,14 +1,85 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-04-29 00:05 (UTC+8) — T0347 (PLAN-034 CT skill upstream v5.0.0 升版) 使用者驗收通過 → DONE。
+> 最後更新:2026-05-15 13:15 (UTC+8) — **第四十三 session 收工** — BUG-080 全線收尾（PR #18 merged → T0354 research → T0355 + T0356 雙 fix → CLOSED），*sync + *archive 完成（130 檔案歸檔到冷區）。
 >
-> **下次起手**:三 BUG smoke(BUG-072/073/074)結果 → PLAN-032 → DONE,或 push commits,或 v0.4.2 release engineering,或 WSL/Docker structured errorCode PLAN。
+> **下次起手**:回到立即待辦:PLAN-032 三 BUG smoke(BUG-072/073/074)→ CLOSED → PLAN-032 → DONE,或 T0324 DGX Spark VERIFY,或 BUG-061 / BUG-071 / BUG-078 收尾。
 >
-> **前次更新**:2026-04-28 09:35 — **第四十一 session 收工快照**:~4.4 hr wall,PLAN-032 Sprint 2-5 全收尾跨 5 sessions(派 T0338-T0341 YOLO 鏈式全綠 + 衍生 BUG-076 fix),drift fix(L114),plugin hook 災情處置(L115),bat-terminal.mjs stdout 不可靠(L116),萃取 GP126(Test-discovered bug 三步法)+ GP122 footnote。
+> **前次更新**:2026-04-29 00:05 (UTC+8) — 第四十二 session 收工快照:T0347 (PLAN-034 CT skill upstream v5.0.0 升版) 使用者驗收通過 → DONE,~10 min wall,v0.5.0-pre.2 release。
 
 ---
 
-## 🛏 本 Session 收工快照 (第四十二 session, 2026-04-29 ~00:00 - 00:10, ~10 min wall, T0347 驗收 DONE + 使用者外部完成 push + v0.5.0-pre.2 release)
+## 🛏 本 Session 收工快照 (第四十三 session, 2026-05-15 12:03 - 13:15, ~72 min wall)
+
+### 主軸：BUG-080 全線收尾 + 環境校正
+
+#### 時間線
+
+1. **12:03 起手**：Fast Path 失效（快照過期 19 天，2026-04-26 → 05-15）→ Full Scan，發現 113 工單 / 21 BUG / 14 PLAN / 1 EXP
+2. **12:05 分析 PR #18**（gowerlin/better-agent-terminal）：外部貢獻者 RicoChen727，修復 BAT remote claude-cli 派發硬編碼 `'claude'` → 改用 `resolveClaudeRuntime()`。gemini-code-assist 評論指出雙引號 quoting 風險
+3. **12:08 決策 [A]**：直接 squash-merge → commit `238ac3d`；開 BUG-080 追蹤 gemini 指出的 hardening 缺口
+4. **12:13 派 T0354 research**：評估三選項（POSIX single-quote / 依 shell 切換 / customPath 白名單）→ Worker 5 min 完成，D 區推薦「選項 3 + 選項 2 窄版」
+5. **12:20 Worker 發現本地 repo 不含 PR #18 helper**：因本地 main 仍在 PR #18 merge 前的 `04ace47`
+6. **12:25 Rebase**（A 選項）：`git pull --rebase origin main`，零衝突（純文件 vs 純 code），本地線性合併
+7. **12:30 派 T0355 fix**（customPath 白名單）：S sizing → Worker 6 min 完成，48/48 + 435/435 unit tests PASS + UI 同步校驗 + 三語 toast i18n
+8. **12:38 push 4 commits**：origin/main `238ac3d → bbc0521`
+9. **12:42 使用者 runtime smoke PASS** → T0355 CLOSED；派 T0356（shell-aware quoting）
+10. **12:53 T0356 FIXED**：Worker 5 min，476/476 全套 tests PASS + 41 new cases + 三家 shell command-word smoke PASS（pwsh `& '...'` / git-bash `'...'` / cmd `"..."`）
+11. **12:58 使用者選 [1]+[A]**：T0356 直接 CLOSED + BUG-080 CLOSED → push `5f038a1`
+12. **13:00 *sync** 重建索引：發現編號 drift（快照記 T0349/BUG-077，實際 T0356/BUG-080/PLAN-034）→ `_bug-tracker.md` + `_backlog.md` 重建 → push `13e7b40`
+13. **13:10 *archive 收工**：批次 git mv 130 檔案到 `_archive/`（107 T + 15 BUG + 8 PLAN + 1 EXP），熱區精簡為 26 個活躍/驗收中工單
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 處理的 PR | 1 (gowerlin#18) | squash-merged `238ac3d` |
+| 新增 BUG | 1 (BUG-080) | OPEN → FIXING → CLOSED 全程 |
+| 派發工單 | 3 (T0354/T0355/T0356) | 全綠 |
+| 完成工單 | 3 | research + 2 fix，全部 1 round |
+| Worker 總時間 | ~16 min wall | T0354 (5) + T0355 (6) + T0356 (5) |
+| 新增測試 | 89 cases | T0355 48 + T0356 41（含 helper 30+） |
+| Code 改動 | +200 lines | shell-quote helper / customPath validation / shell-aware quoting |
+| Push commits | 8 | 含 PR #18 merge + 3 worker fix + 4 tower meta |
+| 歸檔檔案 | 130 | 107 T + 15 BUG + 8 PLAN + 1 EXP（_archive/）|
+
+### 熱區結構（收工後）
+
+- **T workorders**：13 張（4 review/verify reports + T0153 PARTIAL + 4 FIXED 等 BUG VERIFY + 3 BUG-080 series + T0348）
+- **BUG**：8 張（2 OPEN + 1 FIXED + 3 VERIFY + 2 CLOSED 今日）
+- **PLAN**：6 張（2 IN_PROGRESS + 2 PLANNED + 2 IDEA）
+- **EXP**：0（CONCLUDED 已歸檔）
+
+### 立即待辦（傳承自 session 42 + 新增）
+
+1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072 / BUG-073 / BUG-074 皆 🔍 VERIFY 待人工 smoke → CLOSED → PLAN-032 → DONE
+2. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
+3. 🟡 **BUG-071** server bundle download flow（OPEN, high）
+4. 🟢 **BUG-061** Codex panel tsc baseline errors（OPEN, low）
+5. 🟡 **T0324 DGX Spark dogfood VERIFY**（使用者親跑進行中 / 待回報）
+6. 🟢 **WSL/Docker structured errorCode PLAN**（T0340 P2 後續建議，獨立開 PLAN）
+
+### 重點觀察 / Learnings 候選
+
+- **L117**（候選）：PR 分析 → research 工單 → 雙 fix → CLOSED 一條龍適合 Low severity 外部報告的 hardening。1 hour 內完成完整 BUG 處理鏈
+- **L118**（候選）：當 PR 在 gh 端 merged 但本地 branch 尚未同步時，Worker 會誤判 helper 不存在 → 塔台應在派工單前先 `git fetch + log` 驗證本地 ancestry
+- **L119**（候選）：分流式選項決策（A/B/C/D 配 1/2/3）+ 使用者明確選擇可在 5 文字輪內完成完整 fix 鏈，比互動式對話快 3x
+- **L120**（候選）：T#### 編號重複問題（T0341-T0348 同號多檔）— 應在 *sync 增加 collision warning
+
+### 編號起始（下 session）
+
+- **T0357** / **BUG-081** / **PLAN-035** / **D110**（D 計數未深掃，建議下次 *sync 加 D### 校正）
+
+### 快速連結
+
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（8 張熱區 / 72 歸檔）
+- Backlog → [_backlog.md](_backlog.md)（6 張熱區 / 27 歸檔）
+- Decision Log → [_decision-log.md](_decision-log.md)
+- Learnings → [_learnings.md](_learnings.md)
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)
+
+---
+
+## 🛏 前 Session 收工快照 (第四十二 session, 2026-04-29 ~00:00 - 00:10, ~10 min wall, T0347 驗收 DONE + 使用者外部完成 push + v0.5.0-pre.2 release)
 
 ### 本輪時間線
 
