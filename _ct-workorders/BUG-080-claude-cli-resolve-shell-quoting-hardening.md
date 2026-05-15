@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-080
 title: resolveClaudeBaseCommand 雙引號包路徑無法防止 shell variable expansion（$、backtick）
-status: VERIFY
+status: CLOSED
 severity: low
 created_at: "2026-05-15T12:11:00+08:00"
+closed_at: "2026-05-15T12:58:00+08:00"
 ---
 # BUG-080 — `resolveClaudeBaseCommand` shell quoting hardening
 
@@ -18,14 +19,17 @@ created_at: "2026-05-15T12:11:00+08:00"
 | 嚴重度 | 🟢 Low（robustness 缺口；非安全漏洞，因 customPath 來源為本機 settings.json 而非外部輸入；預設安裝路徑無此風險） |
 | 可重現 | 100%（若使用者把 customPath 設成 `/tmp/$USER/claude` 之類含 `$` 的路徑，PTY bash 會展開變數） |
 | Workaround | 使用者避免在 customPath 用 `$`、`` ` ``、`!` 等字元；用預設安裝路徑 |
-| 狀態 | 🔍 VERIFY |
+| 狀態 | ✅ CLOSED |
 | 建立時間 | 2026-05-15 12:11 (UTC+8) |
+| 關閉時間 | 2026-05-15 12:58 (UTC+8) |
+| 修復方案 | T0355（customPath 白名單）+ T0356（shell-aware quoting）兩階段解決，覆蓋 `resolve-claude-base-command.ts` + `WorkspaceView.startClaudeCliPty()` 兩條路徑 |
+| 驗收 | 塔台選項 [1]（直接 CLOSED）：unit test 476/476 PASS + Worker cross-shell command-word smoke PASS（pwsh `& '...'` / Git Bash `'...'` / cmd `"..."`）|
 | 報告者 | gemini-code-assist on PR #18（gowerlin/better-agent-terminal） |
 | 觸發情境 | BAT remote terminal 派發 `claude-cli` agent，且 `claudeRuntime.customPath` 含 shell metachar |
 | 環境 | 跨平台（POSIX bash 內最明顯；Windows PowerShell quoting 規則不同需另行驗證） |
 | 相關 PR | gowerlin/better-agent-terminal#18（merged `238ac3d8`，引入此 helper） |
 | 相關 BUG | 無 |
-| 相關工單 | T0354（research）、T0355（customPath whitelist）、T0356（shell-aware quoting，FIXED 待驗收） |
+| 相關工單 | T0354（research, DONE）、T0355（customPath whitelist, CLOSED `dad16c6`）、T0356（shell-aware quoting, CLOSED `b511faa`） |
 | 上游 issue | gemini-code-assist review on PR #18 |
 
 ## 現象
