@@ -88,6 +88,7 @@ import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFi
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
+import type { ShellFamily } from '../src/utils/shell-quote'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
 import {
@@ -571,7 +572,7 @@ async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<strin
   return null
 }
 
-async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string }): Promise<{ command: string; agentId: string; prompt: string; prefixNormalized: boolean } | null> {
+async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string; shellFamily?: ShellFamily }): Promise<{ command: string; agentId: string; prompt: string; prefixNormalized: boolean } | null> {
   const settings = readPersistedSettingsSync()
   const workspaceAgent = opts.agent && opts.agent !== 'default'
     ? null
@@ -591,7 +592,7 @@ async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; 
   // dies with "claude: command not found" (downstream 花見紅茶 BUG-005 / T0050-T0054).
   if (!baseCommand && (agentId === 'claude-cli' || agentId === 'claude-cli-worktree')) {
     const { resolveClaudeBaseCommand } = await import('./resolve-claude-base-command')
-    baseCommand = await resolveClaudeBaseCommand()
+    baseCommand = await resolveClaudeBaseCommand(opts.shellFamily)
   }
 
   if (!baseCommand) {

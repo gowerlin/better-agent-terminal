@@ -10,17 +10,18 @@
  * string, which broke when `claude` is not on the BAT-spawned shell's PATH
  * (e.g. Windows installs to `~/.local/bin`, downstream 花見紅茶 BUG-005).
  *
- * Returns the quoted absolute path when the resolver succeeds, or the bare
+ * Returns the shell-quoted absolute path when the resolver succeeds, or the bare
  * `'claude'` string as a degraded fallback when the resolver throws — keeping
  * the previous behaviour for any caller running in a degraded environment.
  */
 import { logger } from './logger'
+import { quoteCommandPath, type ShellFamily } from '../src/utils/shell-quote'
 
-export async function resolveClaudeBaseCommand(): Promise<string> {
+export async function resolveClaudeBaseCommand(shell: ShellFamily = 'posix'): Promise<string> {
   try {
     const { resolveClaudeRuntime, getRuntimeSettingsSnapshot } = await import('./claude-runtime-router')
     const resolved = await resolveClaudeRuntime(getRuntimeSettingsSnapshot())
-    return resolved.path ? `"${resolved.path}"` : 'claude'
+    return resolved.path ? quoteCommandPath(resolved.path, shell) : 'claude'
   } catch (err) {
     logger.warn('[agent-command] claude-cli runtime resolution failed, falling back to bare claude:', err)
     return 'claude'

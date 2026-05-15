@@ -2,14 +2,12 @@
  * Unit tests for electron/resolve-claude-base-command.ts.
  *
  * Mocks the dynamic `await import('./claude-runtime-router')` call so the test
- * can drive the three branches deterministically:
- *   1. resolver returns a system / customPath binary → quoted absolute path
- *   2. resolver returns the embedded binary → quoted absolute path
- *   3. resolver throws → bare 'claude' fallback
+ * can drive shell-aware command rendering deterministically.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import type { ResolvedRuntime } from '../claude-runtime-router'
+import type { ShellFamily } from '../../src/utils/shell-quote'
 
 const mocks = vi.hoisted(() => ({
   resolveClaudeRuntime: vi.fn(),
@@ -40,9 +38,50 @@ beforeEach(() => {
 })
 
 describe('resolveClaudeBaseCommand', () => {
-  it('returns quoted customPath when resolver returns a system binary', async () => {
+  const customPath = 'C:\\Users\\u\\claude.exe'
+  const embeddedPath = 'C:\\Program Files\\BetterAgentTerminal\\resources\\claude.exe'
+
+  function mockRuntime(path: string, source: ResolvedRuntime['source'] = 'system') {
     const resolved: ResolvedRuntime = {
-      path: 'C:/custom/claude.exe',
+      path,
+      source,
+      healthStatus: 'healthy',
+      systemVersion: source === 'system' ? '2.1.113' : undefined,
+    }
+    mocks.resolveClaudeRuntime.mockResolvedValueOnce(resolved)
+  }
+
+  it.each([
+    ['posix', customPath, `'${customPath}'`],
+    ['pwsh', customPath, `& '${customPath}'`],
+    ['cmd', customPath, `"${customPath}"`],
+  ] satisfies Array<[ShellFamily, string, string]>)('returns %s-quoted customPath when resolver returns a system binary', async (shell, path, expected) => {
+    mockRuntime(path)
+
+    const { resolveClaudeBaseCommand } = await import('../resolve-claude-base-command')
+    const result = await resolveClaudeBaseCommand(shell)
+
+    expect(result).toBe(expected)
+    expect(mocks.resolveClaudeRuntime).toHaveBeenCalledTimes(1)
+    expect(mocks.getRuntimeSettingsSnapshot).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['posix', embeddedPath, `'${embeddedPath}'`],
+    ['pwsh', embeddedPath, `& '${embeddedPath}'`],
+    ['cmd', embeddedPath, `"${embeddedPath}"`],
+  ] satisfies Array<[ShellFamily, string, string]>)('returns %s-quoted embedded path when resolver returns embedded source', async (shell, path, expected) => {
+    mockRuntime(path, 'embedded')
+
+    const { resolveClaudeBaseCommand } = await import('../resolve-claude-base-command')
+    const result = await resolveClaudeBaseCommand(shell)
+
+    expect(result).toBe(expected)
+  })
+
+  it('defaults to POSIX quoting when shell is omitted', async () => {
+    const resolved: ResolvedRuntime = {
+      path: '/usr/local/bin/claude',
       source: 'system',
       healthStatus: 'healthy',
       systemVersion: '2.1.113',
@@ -52,23 +91,7 @@ describe('resolveClaudeBaseCommand', () => {
     const { resolveClaudeBaseCommand } = await import('../resolve-claude-base-command')
     const result = await resolveClaudeBaseCommand()
 
-    expect(result).toBe('"C:/custom/claude.exe"')
-    expect(mocks.resolveClaudeRuntime).toHaveBeenCalledTimes(1)
-    expect(mocks.getRuntimeSettingsSnapshot).toHaveBeenCalledTimes(1)
-  })
-
-  it('returns quoted embedded path when resolver returns embedded source', async () => {
-    const resolved: ResolvedRuntime = {
-      path: '/opt/bat/embedded/claude.exe',
-      source: 'embedded',
-      healthStatus: 'healthy',
-    }
-    mocks.resolveClaudeRuntime.mockResolvedValueOnce(resolved)
-
-    const { resolveClaudeBaseCommand } = await import('../resolve-claude-base-command')
-    const result = await resolveClaudeBaseCommand()
-
-    expect(result).toBe('"/opt/bat/embedded/claude.exe"')
+    expect(result).toBe("'/usr/local/bin/claude'")
   })
 
   it('falls back to bare "claude" and logs a warning when the resolver throws', async () => {

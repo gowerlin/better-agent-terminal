@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-080
 title: resolveClaudeBaseCommand 雙引號包路徑無法防止 shell variable expansion（$、backtick）
-status: FIXING
+status: VERIFY
 severity: low
 created_at: "2026-05-15T12:11:00+08:00"
 ---
@@ -18,14 +18,14 @@ created_at: "2026-05-15T12:11:00+08:00"
 | 嚴重度 | 🟢 Low（robustness 缺口；非安全漏洞，因 customPath 來源為本機 settings.json 而非外部輸入；預設安裝路徑無此風險） |
 | 可重現 | 100%（若使用者把 customPath 設成 `/tmp/$USER/claude` 之類含 `$` 的路徑，PTY bash 會展開變數） |
 | Workaround | 使用者避免在 customPath 用 `$`、`` ` ``、`!` 等字元；用預設安裝路徑 |
-| 狀態 | 🟡 FIXING |
+| 狀態 | 🔍 VERIFY |
 | 建立時間 | 2026-05-15 12:11 (UTC+8) |
 | 報告者 | gemini-code-assist on PR #18（gowerlin/better-agent-terminal） |
 | 觸發情境 | BAT remote terminal 派發 `claude-cli` agent，且 `claudeRuntime.customPath` 含 shell metachar |
 | 環境 | 跨平台（POSIX bash 內最明顯；Windows PowerShell quoting 規則不同需另行驗證） |
 | 相關 PR | gowerlin/better-agent-terminal#18（merged `238ac3d8`，引入此 helper） |
 | 相關 BUG | 無 |
-| 相關工單 | T0354（research）、T0355（customPath whitelist）、T0356（shell-aware quoting，待執行） |
+| 相關工單 | T0354（research）、T0355（customPath whitelist）、T0356（shell-aware quoting，FIXED 待驗收） |
 | 上游 issue | gemini-code-assist review on PR #18 |
 
 ## 現象
@@ -104,5 +104,7 @@ function shellQuotePosix(path: string): string {
 
 ## 後續處理
 
-- 待派 research 工單評估三個選項的實作成本
-- 預期切成 2 張：fix 工單（POSIX quoting）+ research 工單（Windows quoting 評估）
+- T0356 已完成 shell-aware command path quoting，BUG-080 進入 VERIFY
+- 待塔台安排 runtime smoke：Windows pwsh + Windows Git Bash + macOS/Linux POSIX shell
+
+- T0354 research、T0355 customPath whitelist、T0356 shell-aware quoting 均已交付

@@ -14,6 +14,7 @@ import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
+import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
 
@@ -688,7 +689,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     // BUG-051: cliPath 已為 native binary(bin/claude.exe),直接執行即可。
     // 加 'node' prefix 會讓 Node.js v25 拋 ERR_UNKNOWN_FILE_EXTENSION(.exe 非 .js/.mjs)。
     // 不 hardcode --continue / --dangerously-skip-permissions，使用者如需可從 Settings → agent custom args 自行加入。
-    const cmdParts = [`"${cliPath}"`]
+    const cmdParts = [quoteCommandPath(cliPath, detectShellFamily(shell ?? ''))]
     const presetId = isWorktree ? 'claude-cli-worktree' : 'claude-cli'
     const customArgs = settingsStore.getAgentCustomArgs(presetId)
     if (customArgs) {

@@ -1,4 +1,5 @@
 import { resolvePersistedShellPathWithDiagnostics, type PersistedShellSettings } from './shell-path-resolver'
+import { detectShellFamily, type ShellFamily } from '../src/utils/shell-quote'
 
 interface HandlerContext {
   windowId: string | null
@@ -59,7 +60,7 @@ export interface TerminalCommandHandlerDeps {
   getPtyManager(): TerminalPtyManager | null
   getAllWindows(): TerminalWindow[]
   readPersistedSettingsSync(): PersistedShellSettings | null
-  buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string }): Promise<BuiltAgentCommand | null>
+  buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string; shellFamily?: ShellFamily }): Promise<BuiltAgentCommand | null>
   pickWhitelistedEnv(env?: Record<string, string>): Record<string, string | undefined>
   mirrorToBatScripts(event: string, payload: Record<string, unknown>): void
   logger: {
@@ -213,12 +214,17 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       return false
     }
 
+    const settings = deps.readPersistedSettingsSync()
+    const shellResolution = resolveTerminalShell(opts.shell, settings, deps)
+    const shellFamily = detectShellFamily(shellResolution.shell ?? shellResolution.basename)
+
     const resolved = await deps.buildAgentPromptCommand({
       agent: opts.agent,
       prompt: opts.prompt,
       skill: opts.skill,
       workorder: opts.workorder,
       workspaceId: opts.workspaceId,
+      shellFamily,
     })
     if (!resolved) return false
 
