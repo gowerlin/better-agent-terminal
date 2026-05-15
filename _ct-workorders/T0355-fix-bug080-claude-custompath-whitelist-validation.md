@@ -4,11 +4,13 @@ schema_kind: workorder
 id: T0355
 title: Fix BUG-080 — Claude customPath 白名單校驗 + fail-closed/fallback 行為
 type: fix
-status: IN_PROGRESS
+status: FIXED
 sizing: S
 created_at: "2026-05-15T12:30:00+08:00"
 started_at: "2026-05-15T12:30:23+08:00"
-updated_at: "2026-05-15T12:30:23+08:00"
+completed_at: "2026-05-15T12:36:32+08:00"
+updated_at: "2026-05-15T12:36:32+08:00"
+commit: dad16c6
 renew_count: 0
 workdir: main repo
 affects_files:
@@ -28,8 +30,10 @@ affects_files:
 | 工單編號 | T0355 |
 | 類型 | fix（main process validation + UI 同步校驗 + tests） |
 | 所屬 | BUG-080 — `resolveClaudeBaseCommand` shell quoting hardening |
-| 狀態 | 🚧 IN_PROGRESS |
+| 狀態 | ✅ FIXED |
 | 開始時間 | 2026-05-15T12:30:23+08:00 |
+| 完成時間 | 2026-05-15T12:36:32+08:00 |
+| Commit | dad16c6 |
 | Sizing | S（main process validation + unit tests）；若補 UI 即時校驗與 i18n 為 M |
 | 依賴 | T0354 D 區決策 / `electron/gh-resolver.ts isSafeCustomPath()` 樣板 / PR #18 已合入（`238ac3d`） |
 | 後續 | T0356（shell-aware quoting）依賴本工單先行 |
@@ -181,6 +185,7 @@ FIXED — 修復已完成，等待驗收。
 
 - 工單點名的 `electron/__tests__/claude-runtime-router.test.ts` 原本不存在，已新增。
 - Repo 內未找到 `LEAN-CTX.md`；本次依使用者提供的 AGENTS 指令、`CLAUDE.md` 與工單內容執行。
+- `sprint-status.yaml` 存在但內容停在 2026-04-27 舊統計，未在本 Worker 工單中猜測全域計數。
 - BAT session 缺 `CT_MODE` 與 `BAT_TOWER_TERMINAL_ID`，收尾通知會走剪貼簿 fallback。
 
 ### 互動紀錄
@@ -193,7 +198,7 @@ FIXED — 修復已完成，等待驗收。
 
 ### Commit
 
-待 commit。
+dad16c6
 
 ### 回報時間
 
