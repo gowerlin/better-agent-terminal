@@ -121,6 +121,7 @@ const electronAPI = {
     getUserDataPath: () => ipcRenderer.invoke('app:get-user-data-path') as Promise<string>,
     getWindowIndex: () => ipcRenderer.invoke('app:get-window-index') as Promise<number>,
     newWindow: () => ipcRenderer.invoke('app:new-window') as Promise<string>,
+    restart: () => ipcRenderer.invoke('app:restart') as Promise<boolean>,
     setDockBadge: (count: number) => ipcRenderer.invoke('app:set-dock-badge', count),
   },
   update: {
@@ -379,7 +380,7 @@ const electronAPI = {
       ipcRenderer.invoke('worktree:rehydrate', sessionId, cwd, worktreePath, branchName) as Promise<{ success: boolean }>,
   },
   github: {
-    checkCli: () => ipcRenderer.invoke('github:check-cli') as Promise<{ installed: boolean; authenticated: boolean }>,
+    checkCli: (customPath?: string) => ipcRenderer.invoke('github:check-cli', customPath) as Promise<{ installed: boolean; authenticated: boolean; path?: string; source?: 'custom' | 'path' | 'common-location' | 'where'; attemptedPaths?: string[]; error?: string }>,
     listPRs: (cwd: string) => ipcRenderer.invoke('github:pr-list', cwd),
     listIssues: (cwd: string) => ipcRenderer.invoke('github:issue-list', cwd),
     viewPR: (cwd: string, number: number) => ipcRenderer.invoke('github:pr-view', cwd, number),

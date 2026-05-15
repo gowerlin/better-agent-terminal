@@ -6,6 +6,7 @@ import { execFileSync, spawnSync, fork } from 'child_process'
 import { WindowRegistry } from './window-registry'
 import { resolveShellPath } from './shell-path-resolver'
 import { registerTerminalCommandHandlers } from './terminal-command-handlers'
+import { resolveGhBinary, type GhResolveResult } from './gh-resolver'
 
 // Fix PATH for GUI-launched apps on macOS.
 // When launched via .dmg / Applications, macOS gives a minimal PATH that
@@ -458,7 +459,11 @@ interface PersistedSettings {
   agentCustomArgs?: Record<string, string>
   shell?: string
   customShellPath?: string
+  githubCliPath?: string
 }
+
+let cachedGhResolveResult: GhResolveResult | null = null
+let cachedGhCustomPath: string | undefined
 
 const REMOTE_PORT_MIN = 1024
 const REMOTE_PORT_MAX = 65535
@@ -1998,6 +2003,11 @@ function registerProxiedHandlers() {
     await fs.writeFile(configPath, data, 'utf-8')
     try {
       const parsed = JSON.parse(data) as PersistedSettings
+      const nextGhPath = parsed.githubCliPath?.trim() || undefined
+      if (nextGhPath !== cachedGhCustomPath) {
+        cachedGhResolveResult = null
+        cachedGhCustomPath = undefined
+      }
       logger.setConfig({
         loggingEnabled: parsed.loggingEnabled !== false,
         logLevel: normalizeLogLevel(parsed.logLevel),
@@ -2587,20 +2597,67 @@ function registerProxiedHandlers() {
   })
 
   // GitHub CLI (gh)
-  registerHandler('github:check-cli', async (_ctx) => {
+  const resolveConfiguredGh = async (): Promise<GhResolveResult> => {
+    const customPath = readPersistedSettingsSync()?.githubCliPath?.trim() || undefined
+    if (cachedGhResolveResult && cachedGhCustomPath === customPath) {
+      return cachedGhResolveResult
+    }
+    const resolved = await resolveGhBinary({ customPath })
+    cachedGhResolveResult = resolved
+    cachedGhCustomPath = customPath
+    return resolved
+  }
+
+  const resolveGhForRequest = async (customPath?: string): Promise<GhResolveResult> => {
+    if (typeof customPath === 'string') {
+      return resolveGhBinary({ customPath: customPath.trim() || undefined })
+    }
+    return resolveConfiguredGh()
+  }
+
+  registerHandler('github:check-cli', async (_ctx, customPath?: string) => {
+    const resolved = await resolveGhForRequest(customPath)
+    if (!resolved.found || !resolved.path) {
+      return {
+        installed: false,
+        authenticated: false,
+        attemptedPaths: resolved.attemptedPaths,
+        error: resolved.error,
+      }
+    }
+
     try {
-      const { execSync } = await import('child_process')
-      execSync('gh --version', { encoding: 'utf-8', timeout: 5000, shell: true, windowsHide: true })
-      try {
-        // gh auth status exits non-zero if ANY account has issues, even if the active account is fine.
-        // Use gh auth token which only checks the active account and returns 0 if authenticated.
-        execSync('gh auth token', { encoding: 'utf-8', timeout: 5000, shell: true, stdio: 'pipe', windowsHide: true })
-        return { installed: true, authenticated: true }
-      } catch {
-        return { installed: true, authenticated: false }
+      execFileSync(resolved.path, ['--version'], { encoding: 'utf-8', timeout: 5000, windowsHide: true })
+    } catch (e) {
+      return {
+        installed: false,
+        authenticated: false,
+        path: resolved.path,
+        source: resolved.source,
+        attemptedPaths: resolved.attemptedPaths,
+        error: e instanceof Error ? e.message : String(e),
+      }
+    }
+
+    try {
+      // gh auth status exits non-zero if ANY account has issues, even if the active account is fine.
+      // Use gh auth token which only checks the active account and returns 0 if authenticated.
+      execFileSync(resolved.path, ['auth', 'token'], { encoding: 'utf-8', timeout: 5000, stdio: 'pipe', windowsHide: true })
+      return {
+        installed: true,
+        authenticated: true,
+        path: resolved.path,
+        source: resolved.source,
+        attemptedPaths: resolved.attemptedPaths,
       }
     } catch {
-      return { installed: false, authenticated: false }
+      return {
+        installed: true,
+        authenticated: false,
+        path: resolved.path,
+        source: resolved.source,
+        attemptedPaths: resolved.attemptedPaths,
+      }
     }
   })
   // Helper: extract "owner/repo" from the git origin remote URL for the given cwd.
@@ -2619,10 +2676,11 @@ function registerProxiedHandlers() {
   }
   registerHandler('github:pr-list', async (_ctx, cwd: string) => {
     try {
-      const { execFileSync } = await import('child_process')
+      const resolved = await resolveConfiguredGh()
+      if (!resolved.found || !resolved.path) return { error: resolved.error || 'GitHub CLI not found', attemptedPaths: resolved.attemptedPaths }
       const repo = getGithubRepoFromOrigin(cwd)
       const repoArgs = repo ? ['--repo', repo] : []
-      const raw = execFileSync('gh', ['pr', 'list', ...repoArgs, '--json', 'number,title,state,author,createdAt,updatedAt,labels,headRefName,isDraft', '--limit', '50'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const raw = execFileSync(resolved.path, ['pr', 'list', ...repoArgs, '--json', 'number,title,state,author,createdAt,updatedAt,labels,headRefName,isDraft', '--limit', '50'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -2630,10 +2688,11 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:issue-list', async (_ctx, cwd: string) => {
     try {
-      const { execFileSync } = await import('child_process')
+      const resolved = await resolveConfiguredGh()
+      if (!resolved.found || !resolved.path) return { error: resolved.error || 'GitHub CLI not found', attemptedPaths: resolved.attemptedPaths }
       const repo = getGithubRepoFromOrigin(cwd)
       const repoArgs = repo ? ['--repo', repo] : []
-      const raw = execFileSync('gh', ['issue', 'list', ...repoArgs, '--json', 'number,title,state,author,createdAt,updatedAt,labels', '--limit', '50'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const raw = execFileSync(resolved.path, ['issue', 'list', ...repoArgs, '--json', 'number,title,state,author,createdAt,updatedAt,labels', '--limit', '50'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -2641,10 +2700,11 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:pr-view', async (_ctx, cwd: string, number: number) => {
     try {
-      const { execFileSync } = await import('child_process')
+      const resolved = await resolveConfiguredGh()
+      if (!resolved.found || !resolved.path) return { error: resolved.error || 'GitHub CLI not found', attemptedPaths: resolved.attemptedPaths }
       const repo = getGithubRepoFromOrigin(cwd)
       const repoArgs = repo ? ['--repo', repo] : []
-      const raw = execFileSync('gh', ['pr', 'view', String(number), ...repoArgs, '--json', 'number,title,state,author,body,comments,reviews,createdAt,headRefName,baseRefName,additions,deletions,files'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const raw = execFileSync(resolved.path, ['pr', 'view', String(number), ...repoArgs, '--json', 'number,title,state,author,body,comments,reviews,createdAt,headRefName,baseRefName,additions,deletions,files'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -2652,10 +2712,11 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:issue-view', async (_ctx, cwd: string, number: number) => {
     try {
-      const { execFileSync } = await import('child_process')
+      const resolved = await resolveConfiguredGh()
+      if (!resolved.found || !resolved.path) return { error: resolved.error || 'GitHub CLI not found', attemptedPaths: resolved.attemptedPaths }
       const repo = getGithubRepoFromOrigin(cwd)
       const repoArgs = repo ? ['--repo', repo] : []
-      const raw = execFileSync('gh', ['issue', 'view', String(number), ...repoArgs, '--json', 'number,title,state,author,body,comments,createdAt,labels'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
+      const raw = execFileSync(resolved.path, ['issue', 'view', String(number), ...repoArgs, '--json', 'number,title,state,author,body,comments,createdAt,labels'], { cwd, encoding: 'utf-8', timeout: 15000, maxBuffer: 5 * 1024 * 1024, windowsHide: true })
       return JSON.parse(raw)
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -2663,10 +2724,11 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:pr-comment', async (_ctx, cwd: string, number: number, body: string) => {
     try {
-      const { execFileSync } = await import('child_process')
+      const resolved = await resolveConfiguredGh()
+      if (!resolved.found || !resolved.path) return { error: resolved.error || 'GitHub CLI not found' }
       const repo = getGithubRepoFromOrigin(cwd)
       const repoArgs = repo ? ['--repo', repo] : []
-      execFileSync('gh', ['pr', 'comment', String(number), ...repoArgs, '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
+      execFileSync(resolved.path, ['pr', 'comment', String(number), ...repoArgs, '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
       return { success: true }
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -2674,10 +2736,11 @@ function registerProxiedHandlers() {
   })
   registerHandler('github:issue-comment', async (_ctx, cwd: string, number: number, body: string) => {
     try {
-      const { execFileSync } = await import('child_process')
+      const resolved = await resolveConfiguredGh()
+      if (!resolved.found || !resolved.path) return { error: resolved.error || 'GitHub CLI not found' }
       const repo = getGithubRepoFromOrigin(cwd)
       const repoArgs = repo ? ['--repo', repo] : []
-      execFileSync('gh', ['issue', 'comment', String(number), ...repoArgs, '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
+      execFileSync(resolved.path, ['issue', 'comment', String(number), ...repoArgs, '--body', body], { cwd, encoding: 'utf-8', timeout: 15000, windowsHide: true })
       return { success: true }
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) }
@@ -3456,6 +3519,12 @@ function registerLocalHandlers() {
     const entry = await windowRegistry.createEntry({ profileId })
     createWindow(entry.id)
     return entry.id
+  })
+
+  ipcMain.handle('app:restart', () => {
+    app.relaunch()
+    app.quit()
+    return true
   })
 
   // Open profile windows (focus existing if already open, otherwise restore all from snapshot)

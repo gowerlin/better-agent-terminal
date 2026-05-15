@@ -123,6 +123,7 @@ interface WorkspaceViewProps {
   onMaximizeToggle?: () => void
   dockedPanels?: DockablePanel[]
   onDockPanel?: (panel: DockablePanel, zone: DockZone) => void
+  onOpenSettings?: () => void
 }
 
 // Helper to get shell path from settings
@@ -160,7 +161,7 @@ export function clearInitializedWorkspaces(): void {
   initializedWorkspaces.clear()
 }
 
-export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isRemoteConnected, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel }: Readonly<WorkspaceViewProps>) {
+export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isRemoteConnected, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel, onOpenSettings }: Readonly<WorkspaceViewProps>) {
   const { t } = useTranslation()
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
@@ -1014,7 +1015,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       case 'github':
         return hasGithubRemote ? (
           <div className="workspace-tab-content">
-            <GitHubPanel workspaceFolderPath={workspace.folderPath} onSendToClaude={handleSendToClaude} />
+            <GitHubPanel workspaceFolderPath={workspace.folderPath} onSendToClaude={handleSendToClaude} onOpenSettings={onOpenSettings} />
           </div>
         ) : null
       case 'snippets':

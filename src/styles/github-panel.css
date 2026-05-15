@@ -220,6 +220,12 @@
   opacity: 0.85;
 }
 
+.github-send-btn.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
 .github-detail-meta {
   display: flex;
   flex-wrap: wrap;
@@ -424,6 +430,57 @@
   font-size: 13px;
   max-width: 400px;
   line-height: 1.5;
+}
+
+.github-cli-error {
+  width: min(640px, calc(100% - 32px));
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.github-cli-error h3 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.github-cli-error p {
+  margin: 0 0 12px;
+}
+
+.github-cli-attempts {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+
+.github-cli-attempts-title {
+  margin-bottom: 6px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.github-cli-attempts ul {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.github-cli-attempts li {
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.github-cli-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* Comment input */

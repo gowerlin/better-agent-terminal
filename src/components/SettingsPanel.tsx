@@ -74,6 +74,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [portSaving, setPortSaving] = useState(false)
   const [portSaveError, setPortSaveError] = useState<string>('')
   const [portSaveNotice, setPortSaveNotice] = useState<string>('')
+  const [githubCliTesting, setGithubCliTesting] = useState(false)
+  const [githubCliTestStatus, setGithubCliTestStatus] = useState<string>('')
+  const [githubCliCustomPathEnabled, setGithubCliCustomPathEnabled] = useState(Boolean(settings.githubCliPath?.trim()))
 
   // QR code state
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
@@ -110,6 +113,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       setSettings(settingsStore.getSettings())
     })
   }, [])
+
+  useEffect(() => {
+    if (settings.githubCliPath?.trim()) setGithubCliCustomPathEnabled(true)
+  }, [settings.githubCliPath])
 
   // T0218 (PLAN-021): When the effective server port changes (e.g. startup load
   // finishes, or user switches port), sync the edit buffer so the input
@@ -293,6 +300,25 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setPortSaveError('')
     setPortSaveNotice('')
   }, [])
+
+  const handleGithubCliTest = useCallback(async () => {
+    setGithubCliTesting(true)
+    setGithubCliTestStatus('')
+    try {
+      const result = await window.electronAPI.github.checkCli(settings.githubCliPath?.trim() || undefined)
+      if (!result.installed) {
+        setGithubCliTestStatus(result.error || t('settings.githubCli.testNotFound'))
+      } else if (!result.authenticated) {
+        setGithubCliTestStatus(t('settings.githubCli.testUnauthenticated', { path: result.path || 'gh' }))
+      } else {
+        setGithubCliTestStatus(t('settings.githubCli.testSuccess', { path: result.path || 'gh' }))
+      }
+    } catch (err) {
+      setGithubCliTestStatus(err instanceof Error ? err.message : String(err))
+    } finally {
+      setGithubCliTesting(false)
+    }
+  }, [settings.githubCliPath, t])
 
   const handleOpenLogsDir = useCallback(async () => {
     if (!loggingInfo?.logsDir) return
@@ -1000,6 +1026,50 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             runtime={settings.claudeRuntime ?? DEFAULT_CLAUDE_RUNTIME_SETTINGS}
             onRuntimeChange={(updates) => settingsStore.setClaudeRuntime(updates)}
           />
+          <div className="settings-section">
+            <h3>{t('settings.githubCli.title')}</h3>
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={githubCliCustomPathEnabled}
+                  onChange={e => {
+                    setGithubCliCustomPathEnabled(e.target.checked)
+                    if (!e.target.checked) settingsStore.setGithubCliPath('')
+                    setGithubCliTestStatus('')
+                  }}
+                />
+                {t('settings.githubCli.useCustomPath')}
+              </label>
+            </div>
+            {githubCliCustomPathEnabled && (
+              <div className="settings-group">
+                <label>{t('settings.githubCli.path')}</label>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    value={settings.githubCliPath || ''}
+                    placeholder={t('settings.githubCli.placeholder')}
+                    onChange={e => settingsStore.setGithubCliPath(e.target.value)}
+                    onBlur={e => {
+                      const v = e.target.value.trim().replace(/^["']+|["']+$/g, '')
+                      if (v !== e.target.value) settingsStore.setGithubCliPath(v)
+                    }}
+                    style={{ flex: 1, minWidth: 240, fontFamily: 'monospace', fontSize: 12 }}
+                  />
+                  <button
+                    type="button"
+                    className="profile-action-btn"
+                    onClick={handleGithubCliTest}
+                    disabled={githubCliTesting}
+                  >
+                    {githubCliTesting ? t('common.loading') : t('settings.githubCli.test')}
+                  </button>
+                </div>
+                {githubCliTestStatus && <p className="settings-hint">{githubCliTestStatus}</p>}
+              </div>
+            )}
+          </div>
           <div className="settings-section">
             <h3>Terminal Server</h3>
             <div className="settings-group">

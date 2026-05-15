@@ -41,6 +41,7 @@ const defaultSettings: AppSettings = {
   agentCustomArgs: {},
   remotePort: 9876,
   claudeRuntime: { ...DEFAULT_CLAUDE_RUNTIME_SETTINGS },
+  githubCliPath: '',
 }
 
 export const REMOTE_PORT_MIN = 1024
@@ -364,6 +365,12 @@ class SettingsStore {
       ...this.settings,
       claudeRuntime: { ...current, ...updates },
     }
+    this.notify()
+    this.save()
+  }
+
+  setGithubCliPath(path: string): void {
+    this.settings = { ...this.settings, githubCliPath: path }
     this.notify()
     this.save()
   }

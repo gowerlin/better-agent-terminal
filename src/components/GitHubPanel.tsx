@@ -8,6 +8,7 @@ import '../styles/github-panel.css'
 interface GitHubPanelProps {
   workspaceFolderPath: string
   onSendToClaude?: (content: string) => Promise<boolean>
+  onOpenSettings?: () => void
 }
 
 interface GitHubPR {
@@ -60,6 +61,14 @@ interface IssueDetail {
 }
 
 type SubTab = 'prs' | 'issues'
+type GitHubCliStatus = {
+  installed: boolean
+  authenticated: boolean
+  path?: string
+  source?: 'custom' | 'path' | 'common-location' | 'where'
+  attemptedPaths?: string[]
+  error?: string
+}
 
 function hasError(x: unknown): x is { error: string } {
   return typeof x === 'object' && x !== null && 'error' in x
@@ -88,12 +97,12 @@ function stateColor(state: string): string {
   }
 }
 
-export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<GitHubPanelProps>) {
+export function GitHubPanel({ workspaceFolderPath, onSendToClaude, onOpenSettings }: Readonly<GitHubPanelProps>) {
   const { t } = useTranslation()
   const [consentGiven, setConsentGiven] = useState(() => {
     try { return localStorage.getItem('bat-github-consent') === 'true' } catch { return false }
   })
-  const [cliStatus, setCliStatus] = useState<{ installed: boolean; authenticated: boolean } | null>(null)
+  const [cliStatus, setCliStatus] = useState<GitHubCliStatus | null>(null)
   const [subTab, setSubTab] = useState<SubTab>('prs')
   const [prs, setPrs] = useState<GitHubPR[]>([])
   const [issues, setIssues] = useState<GitHubIssue[]>([])
@@ -142,7 +151,7 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
       if (status.installed && status.authenticated) {
         loadData()
       }
-    }).catch(() => setCliStatus({ installed: false, authenticated: false }))
+    }).catch((e) => setCliStatus({ installed: false, authenticated: false, error: e instanceof Error ? e.message : String(e) }))
   }, [consentGiven, loadData])
 
   // Load detail when item selected
@@ -257,7 +266,31 @@ export function GitHubPanel({ workspaceFolderPath, onSendToClaude }: Readonly<Gi
   if (cliStatus && !cliStatus.installed) {
     return (
       <div className="github-panel github-error-screen">
-        <div className="github-error-message">{t('github.cliNotInstalled')}</div>
+        <div className="github-cli-error">
+          <h3>{t('github.cliNotFoundTitle')}</h3>
+          <p>{cliStatus.error || t('github.cliNotInstalled')}</p>
+          {cliStatus.attemptedPaths && cliStatus.attemptedPaths.length > 0 && (
+            <div className="github-cli-attempts">
+              <div className="github-cli-attempts-title">{t('github.attemptedPaths')}</div>
+              <ul>
+                {cliStatus.attemptedPaths.map(path => <li key={path}>{path}</li>)}
+              </ul>
+            </div>
+          )}
+          <div className="github-cli-actions">
+            <button className="github-send-btn" type="button" onClick={() => window.electronAPI.shell.openExternal('https://cli.github.com/')}>
+              {t('github.installGhCli')}
+            </button>
+            <button className="github-send-btn secondary" type="button" onClick={() => void window.electronAPI.app.restart()}>
+              {t('github.restartBat')}
+            </button>
+            {onOpenSettings && (
+              <button className="github-send-btn secondary" type="button" onClick={onOpenSettings}>
+                {t('github.setCustomPath')}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     )
   }

@@ -872,6 +872,7 @@ export default function App() {
               focusedTerminalId={state.focusedTerminalId}
               isActive={true}
               isRemoteConnected={isRemoteConnected}
+              onOpenSettings={() => setShowSettings(true)}
             />
           </div>
         </main>
@@ -1047,6 +1048,7 @@ export default function App() {
                 onMaximizeToggle={handleMaximizeToggle}
                 dockedPanels={mainDockedPanels}
                 onDockPanel={handleDockPanel}
+                onOpenSettings={() => setShowSettings(true)}
               />
             </div>
           ))

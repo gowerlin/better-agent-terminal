@@ -255,6 +255,7 @@ export interface AppSettings {
   agentCustomArgs?: Record<string, string>;  // 每個 agent preset 的自訂參數（key = preset id, value = 參數字串）
   remotePort?: number;             // RemoteServer port（PLAN-021，範圍 1024-65535，預設 9876，可被 BAT_REMOTE_PORT env 覆寫）
   claudeRuntime?: ClaudeRuntimeSettings;  // PLAN-027 #1：claude binary 來源選擇（embedded 或系統 PATH）
+  githubCliPath?: string;           // GitHub CLI gh 自訂完整路徑（空白 = 自動偵測）
 }
 
 // ============================================

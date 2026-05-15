@@ -121,6 +121,7 @@ interface ElectronAPI {
     getUserDataPath: () => Promise<string>
     getWindowIndex: () => Promise<number>
     newWindow: () => Promise<string>
+    restart: () => Promise<boolean>
     setDockBadge: (count: number) => Promise<void>
   }
   update: {
@@ -184,7 +185,7 @@ interface ElectronAPI {
     }>
   }
   github: {
-    checkCli: () => Promise<{ installed: boolean; authenticated: boolean }>
+    checkCli: (customPath?: string) => Promise<{ installed: boolean; authenticated: boolean; path?: string; source?: 'custom' | 'path' | 'common-location' | 'where'; attemptedPaths?: string[]; error?: string }>
     listPRs: (cwd: string) => Promise<unknown>
     listIssues: (cwd: string) => Promise<unknown>
     viewPR: (cwd: string, number: number) => Promise<unknown>

@@ -165,6 +165,16 @@
       },
       "fallbackToEmbedded": "Fall back to embedded if system fails",
       "hint": "Changes apply to new sessions and new terminals only. Existing sessions are unaffected. System mode may lack features added in 2.1.111 (Opus 4.7 / xhigh effort)."
+    },
+    "githubCli": {
+      "title": "GitHub CLI",
+      "useCustomPath": "Use custom gh path",
+      "path": "Custom gh path",
+      "placeholder": "C:\\Program Files\\GitHub CLI\\gh.exe",
+      "test": "Test",
+      "testSuccess": "gh is ready: {{path}}",
+      "testUnauthenticated": "gh was found at {{path}}, but GitHub authentication is missing.",
+      "testNotFound": "GitHub CLI was not found."
     }
   },
   "sidebar": {
@@ -270,6 +280,11 @@
     "consentMessage": "This feature uses the GitHub CLI (gh) to fetch pull requests and issues from GitHub.",
     "consentButton": "Enable GitHub Integration",
     "cliNotInstalled": "GitHub CLI (gh) is not installed. Install from cli.github.com",
+    "cliNotFoundTitle": "GitHub CLI not found",
+    "attemptedPaths": "Attempted paths",
+    "installGhCli": "Install GitHub CLI",
+    "restartBat": "Restart BAT",
+    "setCustomPath": "Set custom path",
     "notAuthenticated": "Not logged in to GitHub. Run 'gh auth login' in a terminal.",
     "noPRs": "No open pull requests",
     "noIssues": "No open issues",

@@ -165,6 +165,16 @@
       },
       "fallbackToEmbedded": "系统 claude 失败时自动退回 Embedded",
       "hint": "更改仅套用于新开的 session 与新终端，现有 session 不受影响。System 模式可能缺少 2.1.111 之后新增的功能（Opus 4.7 / xhigh effort）。"
+    },
+    "githubCli": {
+      "title": "GitHub CLI",
+      "useCustomPath": "使用自定义 gh 路径",
+      "path": "自定义 gh 路径",
+      "placeholder": "C:\\Program Files\\GitHub CLI\\gh.exe",
+      "test": "测试",
+      "testSuccess": "gh 可使用：{{path}}",
+      "testUnauthenticated": "已找到 gh：{{path}}，但尚未登录 GitHub。",
+      "testNotFound": "找不到 GitHub CLI。"
     }
   },
   "sidebar": {
@@ -270,6 +280,11 @@
     "consentMessage": "此功能使用 GitHub CLI (gh) 从 GitHub 获取 Pull Requests 和 Issues。",
     "consentButton": "启用 GitHub 集成",
     "cliNotInstalled": "未安装 GitHub CLI (gh)。请从 cli.github.com 安装",
+    "cliNotFoundTitle": "找不到 GitHub CLI",
+    "attemptedPaths": "尝试过的路径",
+    "installGhCli": "安装 GitHub CLI",
+    "restartBat": "重启 BAT",
+    "setCustomPath": "指定路径",
     "notAuthenticated": "尚未登录 GitHub。请在终端运行 'gh auth login'",
     "noPRs": "没有打开的 Pull Request",
     "noIssues": "没有打开的 Issue",
