@@ -21,6 +21,17 @@ interface DetectResult {
 
 const DEBOUNCE_MS = 500
 
+function isSafeClaudeCustomPath(candidate: string): boolean {
+  if (!candidate || candidate.length > 4096) return false
+  if (/[\x00-\x1F\x7F]/.test(candidate)) return false
+  const isAbsolute =
+    candidate.startsWith('/') ||
+    /^[a-zA-Z]:[\\/]/.test(candidate) ||
+    /^\\\\[^\\/]+\\[^\\/]+/.test(candidate)
+  if (!isAbsolute) return false
+  return /^[A-Za-z0-9 ._\-:()+/\\@]+$/.test(candidate)
+}
+
 function badgeClassName(status: HealthStatus): string {
   switch (status) {
     case 'healthy':
@@ -74,11 +85,21 @@ export function ClaudeRuntimeSection({
     void runDetect(runtime.customPath?.trim() || undefined)
   }, [runDetect, runtime.customPath])
 
+  const customPathError = useMemo(() => {
+    if (!useCustomPath) return null
+    const trimmed = customPathInput.trim()
+    if (!trimmed) return null
+    return isSafeClaudeCustomPath(trimmed)
+      ? null
+      : t('settings.claudeRuntime.customPath.unsafe')
+  }, [customPathInput, useCustomPath, t])
+
   // Debounced write-back + redetect for the custom-path text field.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (!useCustomPath) return
     const trimmed = customPathInput.trim()
+    if (customPathError) return
     if (trimmed === (runtime.customPath ?? '')) return
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -89,7 +110,7 @@ export function ClaudeRuntimeSection({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [customPathInput, useCustomPath, runtime.customPath, onRuntimeChange])
+  }, [customPathInput, customPathError, useCustomPath, runtime.customPath, onRuntimeChange])
 
   const handleModeChange = useCallback(
     (mode: ClaudeRuntimeMode) => {
@@ -117,7 +138,9 @@ export function ClaudeRuntimeSection({
         const picked = files[0]
         setUseCustomPath(true)
         setCustomPathInput(picked)
-        onRuntimeChange({ customPath: picked })
+        if (isSafeClaudeCustomPath(picked.trim())) {
+          onRuntimeChange({ customPath: picked.trim() })
+        }
       }
     } catch (err) {
       window.electronAPI.debug?.log?.('[ClaudeRuntimeSection] selectFiles failed:', err)
@@ -237,21 +260,30 @@ export function ClaudeRuntimeSection({
           </label>
 
           {useCustomPath && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                value={customPathInput}
-                onChange={e => setCustomPathInput(e.target.value)}
-                placeholder={t('settings.claudeRuntime.customPath.placeholder')}
-                style={{ flex: 1, minWidth: 240, fontFamily: 'monospace', fontSize: 12 }}
-              />
-              <button
-                type="button"
-                className="profile-action-btn"
-                onClick={handleBrowse}
-              >
-                {t('settings.claudeRuntime.customPath.browse')}
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={customPathInput}
+                  onChange={e => setCustomPathInput(e.target.value)}
+                  placeholder={t('settings.claudeRuntime.customPath.placeholder')}
+                  aria-invalid={customPathError ? true : undefined}
+                  aria-describedby={customPathError ? 'claude-custom-path-error' : undefined}
+                  style={{ flex: 1, minWidth: 240, fontFamily: 'monospace', fontSize: 12 }}
+                />
+                <button
+                  type="button"
+                  className="profile-action-btn"
+                  onClick={handleBrowse}
+                >
+                  {t('settings.claudeRuntime.customPath.browse')}
+                </button>
+              </div>
+              {customPathError && (
+                <span id="claude-custom-path-error" style={{ color: 'var(--error-color, #f85149)', fontSize: 12 }}>
+                  {customPathError}
+                </span>
+              )}
             </div>
           )}
         </div>

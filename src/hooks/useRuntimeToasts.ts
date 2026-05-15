@@ -4,7 +4,7 @@ import type { ToastMessage } from '../components/CtToast'
 
 type AddToast = (text: string, type?: ToastMessage['type'], duration?: number) => void
 
-type DegradedReason = 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'detect-threw'
+type DegradedReason = 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'unsafe-custom-path' | 'detect-threw'
 
 /**
  * Subscribes once (per mount) to the main-process runtime events fired from
@@ -46,6 +46,8 @@ function reasonKey(reason: DegradedReason): string {
       return 'systemUnhealthy'
     case 'system-too-old':
       return 'systemTooOld'
+    case 'unsafe-custom-path':
+      return 'unsafeCustomPath'
     case 'detect-threw':
       return 'detectThrew'
   }

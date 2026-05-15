@@ -283,6 +283,7 @@ export type ClaudeRuntimeDegradedReason =
   | 'system-not-found'
   | 'system-unhealthy'
   | 'system-too-old'
+  | 'unsafe-custom-path'
   | 'detect-threw';
 
 export interface ClaudeRuntimeDegradedEvent {

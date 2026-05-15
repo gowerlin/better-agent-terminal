@@ -292,7 +292,7 @@ interface ElectronAPI {
     onPromptSuggestion: (callback: (sessionId: string, suggestion: string) => void) => () => void
     onRuntimeDegraded: (callback: (event: {
       sessionId: string
-      reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'detect-threw'
+      reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'unsafe-custom-path' | 'detect-threw'
       detail?: string
     }) => void) => () => void
     onRuntimeWarning: (callback: (event: {

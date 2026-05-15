@@ -342,12 +342,12 @@ const electronAPI = {
     // system claude. Events are deduplicated per session in the main process.
     onRuntimeDegraded: (callback: (event: {
       sessionId: string
-      reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'detect-threw'
+      reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'unsafe-custom-path' | 'detect-threw'
       detail?: string
     }) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, payload: {
         sessionId: string
-        reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'detect-threw'
+        reason: 'system-not-found' | 'system-unhealthy' | 'system-too-old' | 'unsafe-custom-path' | 'detect-threw'
         detail?: string
       }) => callback(payload)
       ipcRenderer.on('claude:runtime-degraded', handler)

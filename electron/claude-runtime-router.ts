@@ -22,7 +22,7 @@ import * as pathModule from 'path'
 import { createRequire } from 'module'
 import type { ClaudeRuntimeSettings } from '../src/types'
 import { DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../src/types'
-import { detectSystemClaude, type ClaudeRuntimeInfo } from './claude-resolver'
+import { detectSystemClaude, isSafeClaudeCustomPath, type ClaudeRuntimeInfo } from './claude-resolver'
 import { logger } from './logger'
 
 // ----------------------------------------------------------------------------
@@ -38,6 +38,7 @@ export type DegradedReason =
   | 'system-not-found'
   | 'system-unhealthy'
   | 'system-too-old'
+  | 'unsafe-custom-path'
   | 'detect-threw'
 
 export interface ResolvedRuntime {
@@ -63,6 +64,13 @@ export class SystemClaudeUnavailableError extends Error {
     this.name = 'SystemClaudeUnavailableError'
     this.reason = reason
     this.detail = detail
+  }
+}
+
+export class SystemClaudeUnsafePathError extends SystemClaudeUnavailableError {
+  constructor(detail?: string) {
+    super('unsafe-custom-path', detail)
+    this.name = 'SystemClaudeUnsafePathError'
   }
 }
 
@@ -171,9 +179,23 @@ export async function resolveClaudeRuntime(
   }
 
   // System — detect + probe, with fallback branching.
+  const customPath = settings.customPath?.trim()
+  if (customPath && !isSafeClaudeCustomPath(customPath)) {
+    const detail = 'customPath rejected by whitelist'
+    if (settings.fallbackToEmbedded) {
+      return {
+        path: getEmbeddedPath(),
+        source: 'system-fallback-to-embedded',
+        healthStatus: 'healthy',
+        degraded: { reason: 'unsafe-custom-path', detail },
+      }
+    }
+    throw new SystemClaudeUnsafePathError(detail)
+  }
+
   let info: ClaudeRuntimeInfo | null
   try {
-    info = await detect(settings.customPath)
+    info = await detect(customPath || undefined)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     if (settings.fallbackToEmbedded) {

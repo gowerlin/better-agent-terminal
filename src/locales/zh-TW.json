@@ -161,7 +161,8 @@
       "customPath": {
         "toggle": "使用自訂路徑",
         "browse": "瀏覽...",
-        "placeholder": "/絕對路徑/to/claude"
+        "placeholder": "/絕對路徑/to/claude",
+        "unsafe": "路徑含不安全字元（$、`、;、| 等），請改用純路徑"
       },
       "fallbackToEmbedded": "系統 claude 失敗時自動退回 Embedded",
       "hint": "變更僅套用到新開的 session 與新開的終端，現有 session 不受影響。System 模式可能缺少 2.1.111 之後新增的功能（Opus 4.7 / xhigh effort）。"
@@ -601,6 +602,7 @@
         "systemNotFound": "系統 PATH 上找不到 claude,改用內附版本。",
         "systemUnhealthy": "系統 claude 健康檢查失敗,改用內附版本。",
         "systemTooOld": "系統 claude 版本低於最低需求（2.0.0）,改用內附版本。",
+        "unsafeCustomPath": "customPath 含不安全字元，已降級使用 embedded。",
         "detectThrew": "Runtime 偵測發生非預期錯誤,改用內附版本。"
       },
       "warning": {

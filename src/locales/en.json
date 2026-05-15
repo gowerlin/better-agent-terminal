@@ -161,7 +161,8 @@
       "customPath": {
         "toggle": "Use custom path",
         "browse": "Browse...",
-        "placeholder": "/absolute/path/to/claude"
+        "placeholder": "/absolute/path/to/claude",
+        "unsafe": "Path contains unsafe characters ($, `, ;, |, etc.). Use a plain path."
       },
       "fallbackToEmbedded": "Fall back to embedded if system fails",
       "hint": "Changes apply to new sessions and new terminals only. Existing sessions are unaffected. System mode may lack features added in 2.1.111 (Opus 4.7 / xhigh effort)."
@@ -601,6 +602,7 @@
         "systemNotFound": "System claude not found on PATH. Using embedded version.",
         "systemUnhealthy": "System claude failed health check. Using embedded version.",
         "systemTooOld": "System claude is below minimum version (2.0.0). Using embedded version.",
+        "unsafeCustomPath": "customPath contains unsafe characters. Using embedded version.",
         "detectThrew": "Runtime detection failed unexpectedly. Using embedded version."
       },
       "warning": {

@@ -96,13 +96,29 @@ function classifyVersion(version: string): ClaudeHealthStatus {
  *   - Legacy `npm install -g` users can still point `customPath` at the `.exe`
  *     inside `%APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\`.
  *
- * customPath is user-owned and bypasses this filter (see detectSystemClaude).
+ * customPath is user-owned and may point at an `.exe`, but callers must pass
+ * it through `isSafeClaudeCustomPath()` before using it in shell-rendered flows.
  */
 const WINDOWS_BIN_NAMES = ['claude.exe'] as const
 const UNIX_BIN_NAMES = ['claude'] as const
 
 function getBinaryNames(): readonly string[] {
   return process.platform === 'win32' ? WINDOWS_BIN_NAMES : UNIX_BIN_NAMES
+}
+
+function isAbsoluteClaudeCustomPath(candidate: string): boolean {
+  return (
+    candidate.startsWith('/') ||
+    /^[a-zA-Z]:[\\/]/.test(candidate) ||
+    /^\\\\[^\\/]+\\[^\\/]+/.test(candidate)
+  )
+}
+
+export function isSafeClaudeCustomPath(candidate: string): boolean {
+  if (!candidate || candidate.length > 4096) return false
+  if (/[\x00-\x1F\x7F]/.test(candidate)) return false
+  if (!isAbsoluteClaudeCustomPath(candidate)) return false
+  return /^[A-Za-z0-9 ._\-:()+/\\@]+$/.test(candidate)
 }
 
 /**
@@ -287,5 +303,6 @@ export async function detectSystemClaude(customPath?: string): Promise<ClaudeRun
 export const __test__ = {
   compareSemver,
   classifyVersion,
+  isAbsoluteClaudeCustomPath,
   VERSION_REGEX,
 }
