@@ -25,6 +25,10 @@
 //   node scripts/bat-notify.mjs --submit "T0133 完成"
 //   # (appends \r to trigger PTY read; mutually exclusive with --no-pty-write)
 //
+//   # Pre-fill AND ask the renderer/xterm layer to press Enter:
+//   node scripts/bat-notify.mjs --submit-keypress "T0133 完成"
+//   # (experimental Codex-friendly path; mutually exclusive with --submit)
+//
 // Options:
 //   --help, -h     Show help
 //   --version      Show version
@@ -80,6 +84,9 @@ Options:
   --no-pty-write     Skip PTY pre-fill (UI notification only)
   --submit           Pre-fill PTY and append \\r to auto-submit (mutually
                      exclusive with --no-pty-write)
+  --submit-keypress  Pre-fill PTY, then send Enter through the renderer/xterm
+                     keypress path (experimental; mutually exclusive with
+                     --submit and --no-pty-write)
   --help, -h         Show this help message
   --version          Show version
 
@@ -87,10 +94,11 @@ Examples:
   node scripts/bat-notify.mjs "T0133 完成"
   node scripts/bat-notify.mjs --target abc123 --source T0133 "T0133 完成"
   node scripts/bat-notify.mjs --submit "T0133 完成"
+  node scripts/bat-notify.mjs --submit-keypress "T0133 完成"
 `
 
 const KNOWN_FLAGS = [
-  '--target', '--source', '--no-pty-write', '--submit',
+  '--target', '--source', '--no-pty-write', '--submit', '--submit-keypress',
   '--help', '-h', '--version',
 ]
 
@@ -144,6 +152,7 @@ let target = process.env.BAT_TOWER_TERMINAL_ID || null
 let source = process.env.BAT_TERMINAL_ID || null
 let ptyWrite = true
 let submit = false
+let submitKeypress = false
 const messageParts = []
 
 let i = 0
@@ -180,6 +189,7 @@ while (i < rawArgs.length) {
 
   if (arg === '--no-pty-write') { ptyWrite = false; i++; continue }
   if (arg === '--submit')       { submit = true;   i++; continue }
+  if (arg === '--submit-keypress') { submitKeypress = true; i++; continue }
 
   // Unknown flag (help/version already consumed by fast-path)
   if (arg.startsWith('-')) {
@@ -193,10 +203,16 @@ while (i < rawArgs.length) {
   i++
 }
 
-// Mutual exclusion: --submit requires PTY write path
-if (submit && !ptyWrite) {
-  printUsageError('--submit and --no-pty-write are mutually exclusive')
+// Mutual exclusion: submit modes require the PTY pre-fill path
+if ((submit || submitKeypress) && !ptyWrite) {
+  printUsageError('--submit/--submit-keypress and --no-pty-write are mutually exclusive')
   logEvent('bat-notify', 'exit', { code: 1, reason: 'submit-vs-no-pty-write' })
+  process.exit(1)
+}
+
+if (submit && submitKeypress) {
+  printUsageError('--submit and --submit-keypress are mutually exclusive')
+  logEvent('bat-notify', 'exit', { code: 1, reason: 'submit-vs-submit-keypress' })
   process.exit(1)
 }
 
@@ -221,6 +237,7 @@ logEvent('bat-notify', 'parsed', {
   source,
   ptyWrite,
   submit,
+  submitKeypress,
   messageLength: message.length,
   // Preview keeps the leading portion of the message in clear text — these
   // are CT status strings like "T0192 完成", not secrets.
@@ -535,11 +552,15 @@ async function main() {
 
   // Step 2: PTY write (pre-fill text in target terminal).
   // With --submit, append \r to trigger PTY read (auto-submit).
-  // If message already ends with \r or \n, do not double-append.
+  // With --submit-keypress, keep the PTY payload as text-only and ask the
+  // renderer/xterm layer to synthesize an Enter keypress in Step 3.
+  // If message already ends with \r or \n, do not double-submit.
   if (ptyWrite) {
     const writeId = makeId()
-    const endsWithNewline = submit && /[\r\n]$/.test(message)
-    const payload = submit && !endsWithNewline ? message + '\r' : message
+    const shouldSubmit = submit || submitKeypress
+    const endsWithNewline = shouldSubmit && /[\r\n]$/.test(message)
+    const appendCR = submit && !endsWithNewline
+    const payload = appendCR ? message + '\r' : message
     ws.send(JSON.stringify({
       type: 'invoke',
       id: writeId,
@@ -565,7 +586,8 @@ async function main() {
         result: 'error',
         reason,
         submit,
-        appendedCR: submit && !endsWithNewline,
+        submitKeypress,
+        appendedCR: appendCR,
       })
       logEvent('bat-notify', 'exit', { code: 1, reason: `pty-write-${reason}` })
       ws.close()
@@ -575,9 +597,53 @@ async function main() {
       channel: 'pty:write',
       result: 'ok',
       submit,
-      appendedCR: submit && !endsWithNewline,
+      submitKeypress,
+      appendedCR: appendCR,
       error: null,
     })
+
+    // Step 3: Optional renderer/xterm keypress path for agents that treat a
+    // raw PTY newline as multiline input. This asks the active BAT renderer to
+    // feed Enter through xterm's user-input API instead of writing \r directly.
+    if (submitKeypress && !endsWithNewline) {
+      const keypressId = makeId()
+      ws.send(JSON.stringify({
+        type: 'invoke',
+        id: keypressId,
+        channel: 'terminal:keypress',
+        args: [{
+          targetId: target,
+          key: 'Enter',
+          code: 'Enter',
+          keyCode: 13,
+          source,
+          reason: 'submit-keypress',
+        }],
+      }))
+
+      const keypressResp = await waitForMessageById(ws, keypressId)
+      const keypressResult = keypressResp.result
+      const keypressFailed = keypressResp.error || (keypressResult && keypressResult.ok === false)
+      if (keypressFailed) {
+        const reason = keypressResp.error || keypressResult?.reason || 'unknown'
+        console.error(`Error: terminal keypress failed: ${reason}`)
+        logEvent('bat-notify', 'send', {
+          channel: 'terminal:keypress',
+          result: 'error',
+          reason,
+          submitKeypress,
+        })
+        logEvent('bat-notify', 'exit', { code: 1, reason: `terminal-keypress-${reason}` })
+        ws.close()
+        process.exit(1)
+      }
+      logEvent('bat-notify', 'send', {
+        channel: 'terminal:keypress',
+        result: 'ok',
+        submitKeypress,
+        error: null,
+      })
+    }
   }
 
   console.log(`✓ Notified ${target.slice(0, 8)}…: ${message}`)

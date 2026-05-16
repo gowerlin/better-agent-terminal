@@ -362,6 +362,14 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       window.electronAPI.pty.write(terminalId, data)
     })
 
+    const unsubscribeKeypress = window.electronAPI.pty.onTerminalKeypress((info) => {
+      if (info.targetId !== terminalId) return
+      const isEnter = info.key === 'Enter' || info.code === 'Enter' || info.keyCode === 13
+      if (!isEnter) return
+      dlog(`[terminal] remote keypress Enter terminal=${terminalId} source=${info.source ?? '?'} reason=${info.reason ?? '?'}`)
+      terminal.input('\r', true)
+    })
+
     // Track IME composition state on xterm's hidden textarea
     // to prevent CAPS LOCK and other keys from committing partial IME input
     let imeComposing = false
@@ -604,6 +612,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       window.removeEventListener('terminal-redraw', handleRedrawEvent)
       unsubscribeOutput()
       unsubscribeExit()
+      unsubscribeKeypress()
       unsubscribeSettings()
       bufferChangeDisposable.dispose()
       decorationManagerRef.current?.dispose()

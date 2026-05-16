@@ -1964,6 +1964,59 @@ function registerProxiedHandlers() {
     return true
   })
 
+  // Experimental submit path for terminal-driven agents: let the renderer/xterm
+  // layer synthesize Enter as user input instead of writing CR directly to PTY.
+  registerHandler('terminal:keypress', (_ctx, opts: { targetId: string; key?: string; code?: string; keyCode?: number; source?: string; reason?: string }) => {
+    const invokerWindowId = _ctx.windowId ?? null
+    logger.log(`[remote][terminal] ipc-invoke channel=terminal:keypress target=${opts?.targetId ?? 'n/a'} key=${opts?.key ?? 'n/a'} source=${opts?.source ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
+    mirrorToBatScripts('ipc-invoke', {
+      channel: 'terminal:keypress',
+      targetTerminalId: opts?.targetId,
+      key: opts?.key,
+      keyCode: opts?.keyCode,
+      sourceTerminalId: opts?.source,
+      reason: opts?.reason,
+      windowId: invokerWindowId,
+    })
+
+    const isEnter = opts?.key === 'Enter' || opts?.code === 'Enter' || opts?.keyCode === 13
+    if (!opts || !opts.targetId || !isEnter) {
+      logger.log('[remote][terminal] ipc-result channel=terminal:keypress result=false reason=invalid-payload')
+      mirrorToBatScripts('ipc-result', {
+        channel: 'terminal:keypress',
+        result: false,
+        reason: 'invalid-payload',
+      })
+      return { ok: false, reason: 'invalid-payload' }
+    }
+
+    let windowCount = 0
+    const payload = {
+      targetId: opts.targetId,
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      source: opts.source,
+      reason: opts.reason,
+    }
+    for (const win of BrowserWindow.getAllWindows()) {
+      try {
+        win.webContents.send('terminal:keypress', payload)
+        windowCount += 1
+      } catch { /* window closing */ }
+    }
+    logger.log(`[remote][terminal] ipc-result channel=terminal:keypress result=true target=${opts.targetId} broadcastWindows=${windowCount}`)
+    mirrorToBatScripts('ipc-result', {
+      channel: 'terminal:keypress',
+      targetTerminalId: opts.targetId,
+      sourceTerminalId: opts.source,
+      result: true,
+      broadcastWindows: windowCount,
+      windowId: invokerWindowId,
+    })
+    return { ok: true, broadcastWindows: windowCount }
+  })
+
   // Workspace persistence — save/load from window registry entry
   registerHandler('workspace:save', async (ctx, data: string) => {
     if (!ctx.windowId) return false

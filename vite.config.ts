@@ -24,6 +24,7 @@ export default defineConfig({
       'electron/__tests__/**/*.test.ts',
       // T0342 — Windows/MSYS regression guard for bat-terminal helper
       'tests/bat-terminal-msys.test.mjs',
+      'tests/bat-notify-submit-keypress.test.mjs',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'dist-electron/**', 'release/**'],
   },
