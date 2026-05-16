@@ -1,10 +1,20 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-05-15 13:15 (UTC+8) — **第四十三 session 收工** — BUG-080 全線收尾（PR #18 merged → T0354 research → T0355 + T0356 雙 fix → CLOSED），*sync + *archive 完成（130 檔案歸檔到冷區）。
+> 最後更新:2026-05-17 01:08 (UTC+8) — **第四十四 session 起手增量** — 登記 BUG-081（`bat-notify --submit` Enter/multiline regression）與技術報告；特別要求 Codex + Claude runtime smoke 後才可關閉。
 >
 > **下次起手**:回到立即待辦:PLAN-032 三 BUG smoke(BUG-072/073/074)→ CLOSED → PLAN-032 → DONE,或 T0324 DGX Spark VERIFY,或 BUG-061 / BUG-071 / BUG-078 收尾。
 >
 > **前次更新**:2026-04-29 00:05 (UTC+8) — 第四十二 session 收工快照:T0347 (PLAN-034 CT skill upstream v5.0.0 升版) 使用者驗收通過 → DONE,~10 min wall,v0.5.0-pre.2 release。
+
+---
+
+## 📝 本 Session 增量（第四十四 session, 2026-05-17 01:08）
+
+- 新增 **BUG-081**：`bat-notify --submit` 遠端 Enter 被目標 agent 視為換行而非送出。
+- 新增技術報告：`_ct-workorders/_report-bug081-bat-notify-submit-keypress-boundary.md`。
+- Tracker 更新：熱區 BUG `8 → 9`，OPEN `2 → 3`。
+- 驗收硬條件：即使 Codex unit/build 與 Codex runtime smoke 通過，仍需補 **Claude Worker `bat-notify --submit` regression smoke**；Claude 未驗證前 BUG-081 不得 CLOSED。
+- 編號更新：BUG-081 已占用；下張 BUG 建議從 **BUG-082** 起。
 
 ---
 
@@ -67,7 +77,7 @@
 
 ### 編號起始（下 session）
 
-- **T0357** / **BUG-081** / **PLAN-035** / **D110**（D 計數未深掃，建議下次 *sync 加 D### 校正）
+- **T0357** / **BUG-082** / **PLAN-035** / **D110**（BUG-081 已於 2026-05-17 01:08 登記；D 計數未深掃，建議下次 *sync 加 D### 校正）
 
 ### 快速連結
 

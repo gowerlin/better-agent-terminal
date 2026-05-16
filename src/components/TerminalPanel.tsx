@@ -9,10 +9,35 @@ import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { CanvasAddon } from '@xterm/addon-canvas'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
+import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
 const osc52DebugNoticeLine = /^sent \d+ chars via OSC 52 .*paste fails$/u
+
+interface RemoteKeypressTrace {
+  traceId: string
+  source?: string
+  reason?: string
+  dataEvents: number
+  dataBytes: number
+  dataControls: string[]
+}
+
+const describeTerminalInputData = (data: string): string => {
+  const parts: string[] = []
+  for (const ch of data) {
+    const code = ch.charCodeAt(0)
+    if (code === 13) parts.push('CR')
+    else if (code === 10) parts.push('LF')
+    else if (code === 9) parts.push('TAB')
+    else if (code === 27) parts.push('ESC')
+    else if (code === 3) parts.push('ETX')
+    else if (code < 32 || code === 127) parts.push(`0x${code.toString(16).padStart(2, '0')}`)
+    else parts.push('text')
+  }
+  return parts.join(',')
+}
 
 const filterTerminalOutputNoise = (data: string): string => {
   if (!data.includes('paste fails')) return data
@@ -61,6 +86,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const [terminalReady, setTerminalReady] = useState(false)
   const isActiveRef = useRef(isActive)
   const doResizeRef = useRef<(() => void) | null>(null)
+  const remoteKeypressTraceRef = useRef<RemoteKeypressTrace | null>(null)
 
   // Keep isActiveRef in sync with isActive prop
   useEffect(() => {
@@ -359,6 +385,13 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
     // Handle terminal input
     terminal.onData((data) => {
+      const trace = remoteKeypressTraceRef.current
+      if (trace) {
+        trace.dataEvents += 1
+        trace.dataBytes += data.length
+        trace.dataControls.push(describeTerminalInputData(data))
+        dlog(`[terminal-submit] xterm onData terminal=${terminalId} trace=${trace.traceId} bytes=${data.length} controls=${trace.dataControls.at(-1)}`)
+      }
       window.electronAPI.pty.write(terminalId, data)
     })
 
@@ -366,8 +399,36 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (info.targetId !== terminalId) return
       const isEnter = info.key === 'Enter' || info.code === 'Enter' || info.keyCode === 13
       if (!isEnter) return
-      dlog(`[terminal] remote keypress Enter terminal=${terminalId} source=${info.source ?? '?'} reason=${info.reason ?? '?'}`)
-      terminal.input('\r', true)
+      const traceId = info.traceId ?? `renderer-${Date.now().toString(36)}`
+      dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${traceId} source=${info.source ?? '?'} reason=${info.reason ?? '?'} path=dom-keydown`)
+
+      const textarea = containerRef.current?.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement | null
+      if (!textarea) {
+        dlog(`[terminal-submit] remote Enter aborted terminal=${terminalId} trace=${traceId} reason=missing-xterm-helper-textarea`)
+        return
+      }
+
+      const trace: RemoteKeypressTrace = {
+        traceId,
+        source: info.source,
+        reason: info.reason,
+        dataEvents: 0,
+        dataBytes: 0,
+        dataControls: [],
+      }
+      remoteKeypressTraceRef.current = trace
+
+      try {
+        terminal.focus()
+        textarea.focus({ preventScroll: true })
+        const result = dispatchSyntheticEnterKeydown(textarea)
+        dlog(`[terminal-submit] remote Enter dispatched terminal=${terminalId} trace=${traceId} dispatchReturned=${result.dispatchReturned} defaultPrevented=${result.defaultPrevented} dataEvents=${trace.dataEvents} dataBytes=${trace.dataBytes} controls=${trace.dataControls.join('|') || 'none'}`)
+        if (trace.dataEvents === 0) {
+          dlog(`[terminal-submit] remote Enter produced no xterm data terminal=${terminalId} trace=${traceId}`)
+        }
+      } finally {
+        remoteKeypressTraceRef.current = null
+      }
     })
 
     // Track IME composition state on xterm's hidden textarea

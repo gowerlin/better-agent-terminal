@@ -3,15 +3,15 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-05-15T13:10:00+08:00"
+generated_at: "2026-05-17T01:08:00+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
-total: 8
+total: 9
 breakdown:
-  OPEN: 2
+  OPEN: 3
   FIXING: 0
   FIXED: 1
   VERIFY: 3
@@ -21,10 +21,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-05-15 13:10 (UTC+8) — Session 43 收工：歸檔 15 張 CLOSED BUG → `_archive/bugs/`
+> 最後同步：2026-05-17 01:08 (UTC+8) — 手動登記 BUG-081：`bat-notify --submit` Enter/multiline regression tracking
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 3 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 8**
+- 🔴 Open: 3 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 3 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 9**
 
 > 已歸檔 BUG（`_archive/bugs/`）：72 張（含本 session 新增 15 張）
 
@@ -32,6 +32,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-081 | `bat-notify --submit` 遠端 Enter 被目標 agent 視為換行而非送出 | 🟡 medium | 2026-05-17 | [BUG-081](BUG-081-bat-notify-submit-enters-multiline-instead-of-submit.md) |
 | BUG-071 | Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作 | 🔴 high | 2026-04-26 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 | BUG-061 | `src/components/CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 

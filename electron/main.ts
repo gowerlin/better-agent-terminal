@@ -1966,9 +1966,9 @@ function registerProxiedHandlers() {
 
   // Submit path for terminal-driven agents: let the renderer/xterm
   // layer synthesize Enter as user input instead of writing CR directly to PTY.
-  registerHandler('terminal:keypress', (_ctx, opts: { targetId: string; key?: string; code?: string; keyCode?: number; source?: string; reason?: string }) => {
+  registerHandler('terminal:keypress', (_ctx, opts: { targetId: string; key?: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => {
     const invokerWindowId = _ctx.windowId ?? null
-    logger.log(`[remote][terminal] ipc-invoke channel=terminal:keypress target=${opts?.targetId ?? 'n/a'} key=${opts?.key ?? 'n/a'} source=${opts?.source ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
+    logger.log(`[remote][terminal] ipc-invoke channel=terminal:keypress target=${opts?.targetId ?? 'n/a'} key=${opts?.key ?? 'n/a'} source=${opts?.source ?? 'n/a'} trace=${opts?.traceId ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
     mirrorToBatScripts('ipc-invoke', {
       channel: 'terminal:keypress',
       targetTerminalId: opts?.targetId,
@@ -1976,6 +1976,8 @@ function registerProxiedHandlers() {
       keyCode: opts?.keyCode,
       sourceTerminalId: opts?.source,
       reason: opts?.reason,
+      traceId: opts?.traceId,
+      delivery: 'renderer-dom-keydown',
       windowId: invokerWindowId,
     })
 
@@ -1986,6 +1988,7 @@ function registerProxiedHandlers() {
         channel: 'terminal:keypress',
         result: false,
         reason: 'invalid-payload',
+        traceId: opts?.traceId,
       })
       return { ok: false, reason: 'invalid-payload' }
     }
@@ -1998,6 +2001,7 @@ function registerProxiedHandlers() {
       keyCode: 13,
       source: opts.source,
       reason: opts.reason,
+      traceId: opts.traceId,
     }
     for (const win of BrowserWindow.getAllWindows()) {
       try {
@@ -2005,12 +2009,14 @@ function registerProxiedHandlers() {
         windowCount += 1
       } catch { /* window closing */ }
     }
-    logger.log(`[remote][terminal] ipc-result channel=terminal:keypress result=true target=${opts.targetId} broadcastWindows=${windowCount}`)
+    logger.log(`[remote][terminal] ipc-result channel=terminal:keypress result=true target=${opts.targetId} trace=${opts.traceId ?? 'n/a'} broadcastWindows=${windowCount}`)
     mirrorToBatScripts('ipc-result', {
       channel: 'terminal:keypress',
       targetTerminalId: opts.targetId,
       sourceTerminalId: opts.source,
       result: true,
+      traceId: opts.traceId,
+      delivery: 'renderer-dom-keydown',
       broadcastWindows: windowCount,
       windowId: invokerWindowId,
     })

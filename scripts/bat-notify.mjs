@@ -206,8 +206,8 @@ if (!target) {
   process.exit(1)
 }
 
-const message = messageParts.join(' ').trim()
-if (!message) {
+const message = messageParts.join(' ')
+if (!/\S/u.test(message)) {
   printUsageError('Message is required')
   logEvent('bat-notify', 'exit', { code: 1, reason: 'no-message' })
   process.exit(1)
@@ -537,11 +537,21 @@ async function main() {
   // With --submit, keep the PTY payload as text-only and ask the renderer/xterm
   // layer to synthesize an Enter keypress in Step 3. Raw \r is not equivalent
   // for all terminal-driven agents because some treat it as a literal newline.
-  // If message already ends with \r or \n, do not double-submit.
+  // Payload line breaks remain text; submit is always a separate keypress action.
   if (ptyWrite) {
     const writeId = makeId()
-    const endsWithNewline = submit && /[\r\n]$/.test(message)
+    const payloadHasLineBreak = /[\r\n]/.test(message)
+    const payloadEndsWithLineBreak = /[\r\n]$/.test(message)
     const payload = message
+    logEvent('bat-notify', 'submit-boundary', {
+      target,
+      submit,
+      payloadLength: payload.length,
+      payloadHasLineBreak,
+      payloadEndsWithLineBreak,
+      textChannel: 'pty:write',
+      submitChannel: submit ? 'terminal:keypress' : null,
+    })
     ws.send(JSON.stringify({
       type: 'invoke',
       id: writeId,
@@ -576,14 +586,26 @@ async function main() {
       channel: 'pty:write',
       result: 'ok',
       submit,
+      payloadLength: payload.length,
+      payloadHasLineBreak,
+      payloadEndsWithLineBreak,
       error: null,
     })
 
     // Step 3: Optional renderer/xterm keypress path for agents that treat a
     // raw PTY newline as multiline input. This asks the active BAT renderer to
     // feed Enter through xterm's user-input API instead of writing \r directly.
-    if (submit && !endsWithNewline) {
+    if (submit) {
       const keypressId = makeId()
+      logEvent('bat-notify', 'submit-action', {
+        channel: 'terminal:keypress',
+        traceId: keypressId,
+        target,
+        source,
+        payloadLength: payload.length,
+        payloadHasLineBreak,
+        payloadEndsWithLineBreak,
+      })
       ws.send(JSON.stringify({
         type: 'invoke',
         id: keypressId,
@@ -595,6 +617,7 @@ async function main() {
           keyCode: 13,
           source,
           reason: 'submit',
+          traceId: keypressId,
         }],
       }))
 
@@ -609,6 +632,7 @@ async function main() {
           result: 'error',
           reason,
           submit,
+          traceId: keypressId,
         })
         logEvent('bat-notify', 'exit', { code: 1, reason: `terminal-keypress-${reason}` })
         ws.close()
@@ -618,6 +642,7 @@ async function main() {
         channel: 'terminal:keypress',
         result: 'ok',
         submit,
+        traceId: keypressId,
         error: null,
       })
     }

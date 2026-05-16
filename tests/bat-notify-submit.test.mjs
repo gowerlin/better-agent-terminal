@@ -151,7 +151,7 @@ async function startMockBatRemote() {
   }
 }
 
-function runBatNotify(port, certPath) {
+function runBatNotify(port, certPath, message = 'T9999 完成') {
   return new Promise((resolve) => {
     const child = spawn(
       process.execPath,
@@ -162,7 +162,7 @@ function runBatNotify(port, certPath) {
         '--source',
         'T9999',
         '--submit',
-        'T9999 完成',
+        message,
       ],
       {
         cwd: repoRoot,
@@ -203,13 +203,41 @@ describe('bat-notify submit mode', () => {
     ])
 
     expect(remote.invokes[1].args).toEqual(['tower-123', 'T9999 完成'])
-    expect(remote.invokes[2].args).toEqual([{
+    expect(remote.invokes[2].args[0]).toMatchObject({
       targetId: 'tower-123',
       key: 'Enter',
       code: 'Enter',
       keyCode: 13,
       source: 'T9999',
       reason: 'submit',
-    }])
+    })
+    expect(typeof remote.invokes[2].args[0].traceId).toBe('string')
+  }, 15000)
+
+  it('keeps submit as a separate keypress action when text payload ends with LF', async () => {
+    const remote = await startMockBatRemote()
+    try {
+      const run = await runBatNotify(remote.port, remote.certPath, 'T9999 完成\n')
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+    } finally {
+      await remote.close()
+    }
+
+    expect(remote.invokes.map((invoke) => invoke.channel)).toEqual([
+      'terminal:notify',
+      'pty:write',
+      'terminal:keypress',
+    ])
+
+    expect(remote.invokes[1].args).toEqual(['tower-123', 'T9999 完成\n'])
+    expect(remote.invokes[2].args[0]).toMatchObject({
+      targetId: 'tower-123',
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      source: 'T9999',
+      reason: 'submit',
+    })
+    expect(typeof remote.invokes[2].args[0].traceId).toBe('string')
   }, 15000)
 })

@@ -50,8 +50,8 @@ const electronAPI = {
       ipcRenderer.on('terminal:notified', handler)
       return () => ipcRenderer.removeListener('terminal:notified', handler)
     },
-    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string }) => callback(info)
+    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => callback(info)
       ipcRenderer.on('terminal:keypress', handler)
       return () => ipcRenderer.removeListener('terminal:keypress', handler)
     }

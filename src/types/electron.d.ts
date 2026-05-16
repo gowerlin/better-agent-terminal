@@ -74,7 +74,7 @@ interface ElectronAPI {
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
     onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; workspaceId?: string }) => void) => () => void
     onTerminalNotified: (callback: (info: { targetId: string; message: string; source?: string }) => void) => () => void
-    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string }) => void) => () => void
+    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => () => void
   }
   workspace: {
     save: (data: string) => Promise<boolean>
