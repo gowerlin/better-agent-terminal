@@ -1964,7 +1964,7 @@ function registerProxiedHandlers() {
     return true
   })
 
-  // Experimental submit path for terminal-driven agents: let the renderer/xterm
+  // Submit path for terminal-driven agents: let the renderer/xterm
   // layer synthesize Enter as user input instead of writing CR directly to PTY.
   registerHandler('terminal:keypress', (_ctx, opts: { targetId: string; key?: string; code?: string; keyCode?: number; source?: string; reason?: string }) => {
     const invokerWindowId = _ctx.windowId ?? null

@@ -80,7 +80,7 @@ async function startMockBatRemote() {
     },
   )
   const fingerprint = new X509Certificate(pems.cert).fingerprint256
-  const certDir = join(tmpdir(), `bat-notify-keypress-${process.pid}-${Date.now()}`)
+  const certDir = join(tmpdir(), `bat-notify-submit-${process.pid}-${Date.now()}`)
   mkdirSync(certDir, { recursive: true })
   const certPath = join(certDir, 'server-cert.json')
   writeFileSync(certPath, JSON.stringify({ fingerprint }), 'utf8')
@@ -161,7 +161,7 @@ function runBatNotify(port, certPath) {
         'tower-123',
         '--source',
         'T9999',
-        '--submit-keypress',
+        '--submit',
         'T9999 完成',
       ],
       {
@@ -186,7 +186,7 @@ function runBatNotify(port, certPath) {
   })
 }
 
-describe('bat-notify keypress submit mode', () => {
+describe('bat-notify submit mode', () => {
   it('prefills text without CR and sends Enter through terminal:keypress', async () => {
     const remote = await startMockBatRemote()
     try {
@@ -209,7 +209,7 @@ describe('bat-notify keypress submit mode', () => {
       code: 'Enter',
       keyCode: 13,
       source: 'T9999',
-      reason: 'submit-keypress',
+      reason: 'submit',
     }])
   }, 15000)
 })
