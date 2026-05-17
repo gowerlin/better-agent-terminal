@@ -10,8 +10,8 @@ priority: P1
 created_at: 2026-05-18T00:00:00+08:00
 started_at: "2026-05-18T03:00:08+08:00"
 completed_at: "2026-05-18T03:04:49+08:00"
-updated_at: "2026-05-18T03:04:49+08:00"
-commit: pending
+updated_at: "2026-05-18T03:07:25+08:00"
+commit: 7327c03
 verified_by: "installed BAT runtime smoke; Claude tower trace 2a068ad59f727726 produced xterm controls=CR"
 workdir: main repo
 plan_id: null
@@ -129,7 +129,7 @@ DONE
 
 ### commit
 
-pending
+7327c03
 
 ---
 
