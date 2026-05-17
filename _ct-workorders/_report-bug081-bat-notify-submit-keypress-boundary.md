@@ -4,7 +4,7 @@ schema_kind: report
 id: BUG-081-report
 title: BUG-081 bat-notify submit/key boundary technical report
 created_at: "2026-05-17T01:08:00+08:00"
-updated_at: "2026-05-17T15:49:00+08:00"
+updated_at: "2026-05-18T03:04:49+08:00"
 related_bug: BUG-081
 status: DRAFT
 ---
@@ -107,6 +107,20 @@ git diff --check -- . ":(exclude)AGENTS.md"
 - payload 以 LF 結尾時，仍會保留 LF 並額外送 `terminal:keypress`。
 - `pty:write` 與 `terminal:keypress` 之間至少有接近 250ms 的延遲，避免 Codex paste-burst suppression。
 - synthetic Enter 是 cancelable DOM keydown event，帶 `key=Enter`, `code=Enter`, `keyCode=13`, `which=13`。
+
+### Runtime smoke: T0358 Claude tower target
+
+2026-05-18 03:01 (UTC+8) 以安裝版 BAT helper 實測：
+
+```powershell
+node "C:\Program Files\BetterAgentTerminal\resources\scripts\bat-notify.mjs" --source T0358 --target $env:BAT_TOWER_TERMINAL_ID --submit "T0358 測試完成"
+```
+
+結果：PASS。
+
+- 目標 terminal `de780350-9ba3-4cfb-a47f-db3203083402` 的 process tree 為 `bash.exe -> bash.exe -> bash.exe -> claude.exe --dangerously-skip-permissions`。
+- `bat-scripts.log` trace `2a068ad59f727726` 顯示 `terminal:notify`、`pty:write`、`submit-delay delayMs=250`、`terminal:keypress` 均成功。
+- renderer debug log 同 trace 顯示 `remote Enter received`、`xterm onData ... controls=CR`、`remote Enter dispatched ... dataEvents=1 dataBytes=1 controls=CR`。
 
 ## Verification Still Required
 

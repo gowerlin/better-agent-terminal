@@ -7,7 +7,7 @@ status: OPEN
 severity: medium
 reproducibility: observed
 created_at: "2026-05-17T01:08:00+08:00"
-updated_at: "2026-05-17T15:49:00+08:00"
+updated_at: "2026-05-18T03:04:49+08:00"
 workaround: 塔台終端收到預填文字後，人工按 Enter 送出；或 Worker 改用非 --submit 預填路徑後由人工確認。
 impact:
   - bat-notify
@@ -104,6 +104,19 @@ Codex 已在工作區做出後續 patch（尚未提交），目前靜態驗證�
 - 新增測試確認 `pty:write` 與 `terminal:keypress` 之間至少有接近 250ms 的間隔。
 
 此結果**不可直接作為 CLOSED 依據**，因為 bug 發生在 packaged BAT runtime + agent input semantics。必須補 runtime smoke。
+
+## Runtime Smoke Evidence
+
+### 2026-05-18 T0358 Claude tower keypress smoke
+
+- 結論：PASS。
+- 目標 terminal：`de780350-9ba3-4cfb-a47f-db3203083402`。
+- 目標 process tree：`bash.exe -> bash.exe -> bash.exe -> claude.exe --dangerously-skip-permissions`，確認 keypress 目標為 Claude CLI tower。
+- 實測命令：`node "C:\Program Files\BetterAgentTerminal\resources\scripts\bat-notify.mjs" --source T0358 --target $env:BAT_TOWER_TERMINAL_ID --submit "T0358 測試完成"`。
+- `bat-scripts.log`：`terminal:notify` / `pty:write` / `submit-delay delayMs=250` / `terminal:keypress` 全部 result `ok`，trace `2a068ad59f727726`。
+- renderer debug log：同 trace 出現 `remote Enter received`, `xterm onData ... controls=CR`, `remote Enter dispatched ... dataEvents=1 dataBytes=1 controls=CR`。
+
+此 smoke 補上 Claude CLI 目標端的 runtime keypress 證據。BUG-081 是否 CLOSED 仍交由塔台依完整矩陣與發版狀態判定。
 
 ## Required Verification Before Close
 
