@@ -37,6 +37,8 @@ import { dirname, join } from 'path'
 import { logEvent, snapshotBatEnv } from './_bat-logger.mjs'
 import { loadTrustedFingerprint } from './_bat-cert.mjs'
 
+const SUBMIT_KEYPRESS_DELAY_MS = 250
+
 // T0192: Log entry point before parsing, so every invocation is recorded even
 // when args are malformed. Paired with bat-terminal.mjs's same event for
 // end-to-end chain tracing (terminal dispatch → worker → notify).
@@ -458,6 +460,10 @@ function makeId() {
   return randomBytes(8).toString('hex')
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 // ── Main ──
 
 async function main() {
@@ -596,6 +602,13 @@ async function main() {
     // raw PTY newline as multiline input. This asks the active BAT renderer to
     // feed Enter through xterm's user-input API instead of writing \r directly.
     if (submit) {
+      logEvent('bat-notify', 'submit-delay', {
+        delayMs: SUBMIT_KEYPRESS_DELAY_MS,
+        target,
+        source,
+      })
+      await sleep(SUBMIT_KEYPRESS_DELAY_MS)
+
       const keypressId = makeId()
       logEvent('bat-notify', 'submit-action', {
         channel: 'terminal:keypress',

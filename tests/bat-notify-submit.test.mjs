@@ -131,7 +131,7 @@ async function startMockBatRemote() {
         if (message.type === 'auth') {
           socket.write(createWsFrame({ id: message.id, result: true }))
         } else if (message.type === 'invoke') {
-          invokes.push(message)
+          invokes.push({ ...message, receivedAt: Date.now() })
           socket.write(createWsFrame({ id: message.id, result: { ok: true } }))
         }
       }
@@ -239,5 +239,22 @@ describe('bat-notify submit mode', () => {
       reason: 'submit',
     })
     expect(typeof remote.invokes[2].args[0].traceId).toBe('string')
+  }, 15000)
+
+  it('waits before sending Enter so Codex paste-burst handling can settle', async () => {
+    const remote = await startMockBatRemote()
+    try {
+      const run = await runBatNotify(remote.port, remote.certPath)
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+    } finally {
+      await remote.close()
+    }
+
+    const ptyWrite = remote.invokes.find((invoke) => invoke.channel === 'pty:write')
+    const keypress = remote.invokes.find((invoke) => invoke.channel === 'terminal:keypress')
+
+    expect(ptyWrite).toBeTruthy()
+    expect(keypress).toBeTruthy()
+    expect(keypress.receivedAt - ptyWrite.receivedAt).toBeGreaterThanOrEqual(240)
   }, 15000)
 })

@@ -7,6 +7,7 @@ status: OPEN
 severity: medium
 reproducibility: observed
 created_at: "2026-05-17T01:08:00+08:00"
+updated_at: "2026-05-17T15:49:00+08:00"
 workaround: 塔台終端收到預填文字後，人工按 Enter 送出；或 Worker 改用非 --submit 預填路徑後由人工確認。
 impact:
   - bat-notify
@@ -24,6 +25,7 @@ links:
     - electron/preload.ts
     - src/components/TerminalPanel.tsx
     - src/types/electron.d.ts
+    - tests/bat-notify-submit.test.mjs
 tags:
   - bat-notify
   - submit
@@ -79,6 +81,7 @@ tags:
 
 1. `bat-notify.mjs` 曾在 `--submit` 且 message 以 `\r` / `\n` 結尾時跳過 `terminal:keypress`，讓文字 payload 和 submit action 混在一起。
 2. Renderer `TerminalPanel` 收到 `terminal:keypress` 後直接呼叫 `terminal.input('\r', true)`，這會繞過 xterm 的 DOM `KeyboardEvent -> custom key handler -> evaluateKeyboardEvent -> onData` 正常鍵盤路徑。
+3. 2026-05-17 後續追蹤指出此問題在 Codex CLI 0.130.0 更容易重現：Codex TUI 有 paste-burst 偵測，快速文字輸入後緊接 Enter 時，Enter 可能被視為 paste/multiline 的換行，而不是 submit。Claude 的 `string + \n` 行為不代表 Codex 會相同。
 
 因此修正方向應是：
 
@@ -88,11 +91,17 @@ tags:
 
 ## Current Patch Status
 
-Codex 已在工作區做出一版 draft patch（尚未提交），目前靜態驗證通過：
+Codex 已在工作區做出後續 patch（尚未提交），目前靜態驗證通過：
 
 - `npm run test:unit -- tests/bat-notify-submit.test.mjs src/utils/__tests__/terminal-keyboard-event.test.ts`
 - `npm run compile`
-- `git diff --check -- . ":(exclude)AGENTS.md"`
+- `git diff --check -- scripts/bat-notify.mjs tests/bat-notify-submit.test.mjs`
+
+2026-05-17 15:49 (UTC+8) 後續 patch：
+
+- `scripts/bat-notify.mjs` 在 `pty:write` 成功後、`terminal:keypress` 前固定等待 250ms。
+- 新增 `submit-delay` log，記錄 `delayMs=250`。
+- 新增測試確認 `pty:write` 與 `terminal:keypress` 之間至少有接近 250ms 的間隔。
 
 此結果**不可直接作為 CLOSED 依據**，因為 bug 發生在 packaged BAT runtime + agent input semantics。必須補 runtime smoke。
 
@@ -102,6 +111,7 @@ Codex 已在工作區做出一版 draft patch（尚未提交），目前靜態�
 - [ ] Packaged / installed BAT 更新後，Claude Worker 使用同一條 `bat-notify --submit "T#### 完成"` 能自動送出，不停在 multiline。
 - [ ] 若 Codex PASS 但 Claude FAIL，BUG-081 不得 CLOSED；需拆出 Claude-specific follow-up 或退回 FIXING。
 - [ ] `bat-scripts.log` 可用同一 `traceId` 串起 `bat-notify submit-action -> remote-server terminal:keypress -> renderer terminal-submit`。
+- [ ] `bat-scripts.log` 可看到 `bat-notify submit-delay` 且 `delayMs=250`。
 - [ ] `terminal-submit` renderer log 顯示 remote Enter 有產生 xterm data event，且控制字元為 `CR`，不是只產生 `LF` 或無 data event。
 
 ## Report

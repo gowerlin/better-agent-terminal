@@ -4,6 +4,7 @@ schema_kind: report
 id: BUG-081-report
 title: BUG-081 bat-notify submit/key boundary technical report
 created_at: "2026-05-17T01:08:00+08:00"
+updated_at: "2026-05-17T15:49:00+08:00"
 related_bug: BUG-081
 status: DRAFT
 ---
@@ -18,6 +19,8 @@ status: DRAFT
 - **送出動作**：`terminal:keypress` / future `terminal:submit`，獨立 action，代表 Enter。
 
 目前 Codex draft patch 已讓 helper script、main/preload、renderer trace 串接起來，並把 renderer remote Enter 從 `terminal.input('\r')` 改為 DOM `KeyboardEvent('keydown', Enter)` path。但此 bug 的風險點在 agent runtime 行為，關閉前必須同時 smoke Codex 與 Claude。
+
+2026-05-17 後續追蹤確認此問題對 Codex CLI 更敏感：Codex 0.130.0 TUI source 有 paste-burst 偵測，快速文字 payload 後緊接 Enter 時，Enter 可能被納入 multiline paste/newline suppression，而不是 submit。因此本輪 patch 在 `pty:write` 成功後、`terminal:keypress` 前加入 250ms delay。
 
 ## Problem Statement
 
@@ -59,6 +62,12 @@ terminal.input('\r', true)
 
 另外 `bat-notify.mjs` 舊邏輯曾用 message 是否以 newline 結尾來決定是否跳過 submit，這會讓 payload 內容影響 submit action，違反邊界。
 
+### Codex-Specific Follow-up
+
+Codex CLI 0.130.0 的 TUI 有 non-bracketed paste-burst path：在 Windows 等環境中，快速文字輸入會先被當成 paste-like burst；burst 狀態與短暫 Enter suppression window 期間，Enter 會被視為 paste 內容中的 newline。BAT `bat-notify --submit` 原本在 `pty:write` 後立即送 `terminal:keypress`，在實測 log 中兩者間隔只有數毫秒，足以落入 Codex 的 suppress window。
+
+本輪選擇 250ms 作為折衷：對人類操作幾乎無感，但足以越過 Codex paste-burst 的短暫 idle/suppression window。
+
 ## Draft Fix Summary
 
 目前工作區 draft patch 採用以下方向：
@@ -68,6 +77,7 @@ terminal.input('\r', true)
    - payload 中的 `\r` / `\n` 保留為文字。
    - `--submit` 永遠送 `terminal:keypress`，不因 payload 結尾 newline 被跳過。
    - 新增 `submit-boundary` / `submit-action` log，記錄 payload 是否含 line break、submit channel、trace id。
+   - 2026-05-17 follow-up：`pty:write` 成功後等待 250ms，再送 `terminal:keypress`；新增 `submit-delay` log。
 
 2. `electron/main.ts` / `electron/preload.ts` / `src/types/electron.d.ts`
    - `terminal:keypress` payload 加 `traceId`。
@@ -95,6 +105,7 @@ git diff --check -- . ":(exclude)AGENTS.md"
 
 - `bat-notify --submit` 正常 payload 會依序呼叫 `terminal:notify`, `pty:write`, `terminal:keypress`。
 - payload 以 LF 結尾時，仍會保留 LF 並額外送 `terminal:keypress`。
+- `pty:write` 與 `terminal:keypress` 之間至少有接近 250ms 的延遲，避免 Codex paste-burst suppression。
 - synthetic Enter 是 cancelable DOM keydown event，帶 `key=Enter`, `code=Enter`, `keyCode=13`, `which=13`。
 
 ## Verification Still Required
@@ -113,8 +124,9 @@ git diff --check -- . ":(exclude)AGENTS.md"
 從 `%APPDATA%\BetterAgentTerminal\Logs\bat-scripts.log` 找同一個 `traceId`：
 
 1. `script=bat-notify event=submit-action`
-2. `script=remote-server event=ipc-invoke channel=terminal:keypress`
-3. `script=remote-server event=ipc-result channel=terminal:keypress`
+2. `script=bat-notify event=submit-delay delayMs=250`
+3. `script=remote-server event=ipc-invoke channel=terminal:keypress`
+4. `script=remote-server event=ipc-result channel=terminal:keypress`
 
 Renderer debug log 需有：
 
@@ -129,6 +141,7 @@ Renderer debug log 需有：
 - Codex runtime smoke PASS。
 - Claude runtime smoke PASS。
 - `bat-scripts.log` traceId 串接完整。
+- `bat-notify submit-delay` 顯示 `delayMs=250`。
 - Renderer debug log 證明 Enter 走 xterm keyboard path 並產生 submit data。
 - 若有任何一項失敗，BUG-081 保持 OPEN/FIXING，不得 CLOSED。
 
