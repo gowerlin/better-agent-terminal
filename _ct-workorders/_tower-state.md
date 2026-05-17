@@ -462,36 +462,37 @@ GP122（五件套節奏）+ GP123（drift 決策表）+ GP124（push gate）完�
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-04-26 19:36 (UTC+8) — *rescan + *sync(session 32 起手,session 31 PLAN-007 全收 + v0.4.1 GO 後首掃)
+> 最後掃描:2026-05-17 15:28 (UTC+8) — control-tower Full Scan（前次快照 2026-04-26 已超過 7 天）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| BMad-Method | ❌ | _bmad/ 不存在(專案自訂工作流程);commit cee4fbc 升 v6.5 但未啟用 |
+| BMad-Method | ✅ | _bmad/ 存在；版號未由 config.toml 明確標示 |
 | ECC 學習 | ✅ Level 1+ | ~/.claude/homunculus/ |
 | bmad-guide skill | ✅ | 可用 |
-| mem0 REST | ✅ | memsync healthy, updated 2026-04-26 19:35, queue_size:2 |
+| mem0 REST | ✅ | memsync binary 存在且 status 指令 exit 0；本次未回傳 JSON body |
 | 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal, WT_SESSION 空 |
 | BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-650f-4c98-aeaf-3c5b3ffcd053 |
 | BAT_TOWER_TERMINAL_ID | ❌ 空 | 本 session 未設,bat-notify Worker 回報需走降級 |
-| 平台 | Windows | MINGW64 (Git Bash, Msys),Win11 Pro WS (26200) |
+| 平台 | Windows | PowerShell shell；BAT terminal env |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
-| _archive/ | ✅ | **345 張歸檔**(workorders:269 / bugs:57 / plans:19;vs. 上次 304,session 26-31 累積 +41) |
-| _playbooks/ | ✅ 空 | 目錄存在,0 張 |
-| _decision-log | ✅ | 至 D089(PLAN-007 全案閉環);63 entries 含 D001-D012 collapsed |
-| 跨專案參照 | 📋 | 無 _cross-references.md |
-| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/learnings/ + 6 個 GP playbooks(GP076-080 + GP-COOP-001) |
+| _archive/ | ✅ | **483 張歸檔**(workorders:378 / bugs:72 / plans:27) |
+| _playbooks/ | 📋 | 熱區未偵測到 _playbooks/ 目錄 |
+| _decision-log | ✅ | 至 D118；78 unique D### hits |
+| 跨專案參照 | ✅ | _cross-references.md 存在 |
+| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/；local scan: patterns 2 / playbooks 20 |
 | Global 設定 | ❌ 無 | 僅 project 層 |
-| BUG/PLAN 追蹤 | ✅ | BUG:11 熱區(8 OPEN v0.4.1 backlog,3 historical)/ PLAN:8 熱區 |
-| 實驗追蹤 | ✅ | EXP:2 熱區(EXP-GPUWHIS-001 CONCLUDED + EXP-HEADLESS-001) |
-| 熱區工單 | **T:54 + 4 reports / BUG:11 / PLAN:8 / EXP:2** = 79 張(含 reports) | T0295/T0300 TODO,其餘 DONE |
-| 最大編號 | **T0302 / BUG-068 / PLAN-028 / EXP-HEADLESS-001 / D089** | session 31 收工後 |
+| BUG/PLAN 追蹤 | ✅ | BUG:9 熱區 / PLAN:6 熱區 |
+| 實驗追蹤 | ✅ | EXP:0 熱區 |
+| 熱區工單 | **T:12 / BUG:9 / PLAN:6 / EXP:0** | 另有 reports/ 與系統文件，不納入 T/BUG/PLAN/EXP 統計 |
+| 最大編號 | **T0356 / BUG-081 / PLAN-034 / D118** | PLAN-034 已在 archive；下張建議：T0357 / BUG-082 / PLAN-035 / D119 |
 | 設定來源 | project | _tower-config.yaml (auto-session: **on**, yolo_max_retries: **1**, auto_commit: on, archive_days: **2**) |
-| 塔台版本 | v4.4.0 | SKILL.md frontmatter |
+| 塔台版本 | v5.0.1 | control-tower skill frontmatter |
 | 能力等級 | Level 2 | ECC + mem0 + Layer 2 |
 
 > **Drift 狀態**:
-> 1. ✅ `_decision-log.md` D084-D088 body 已補入(2026-04-26 13:55,session 31)
-> 2. `_tower-state.md` 頂部「最後更新」仍標 2026-04-23 16:02 (session 23) — 待後續 session 退場快照時更新
+> 1. ⚠️ `_tower-state.md` 目前約 32 KB，超過 30 KB soft warning；下次收工建議跑 state hygiene archive。
+> 2. ⚠️ 工作區已有既有變更 `AGENTS.md`，本次塔台啟動未觸碰。
+> 3. ⚠️ BAT_TOWER_TERMINAL_ID 空；Worker 完成通知不得宣稱 bat-notify 成功，需用剪貼簿/手動回報降級。
 
 ---
 

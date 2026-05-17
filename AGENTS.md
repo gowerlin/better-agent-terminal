@@ -1,19 +1,15 @@
 <claude-mem-context>
 # Memory Context
 
-# [better-agent-terminal] recent context, 2026-05-15 12:56pm GMT+8
+# [better-agent-terminal] recent context, 2026-05-17 2:01am GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (26,278t read) | 381,903t work | 93% savings
+Stats: 50 obs (26,860t read) | 433,786t work | 94% savings
 
 ### Apr 27, 2026
-13273 10:38a ✅ T0323 workorder formally closed and tower notified via bat-notify
-13274 10:49a ✅ T0325 QA task started for PLAN-031 server bundle distribution testing
-13275 10:50a 🔵 Vite test config requires expansion to include electron/remote/__tests__ pattern
-13276 10:51a 🔵 Server bundle distribution implementation architecture analyzed for test coverage planning
 13277 10:52a 🔵 Test seam pattern discovered in arch-detect module for child_process isolation
 13278 " 🔵 Existing test directory pattern differs from T0325 workorder specification
 13280 10:53a 🔵 Three-tier test directory structure with playwright config pointing to e2e/ not tests/e2e/
@@ -55,37 +51,49 @@ Stats: 50 obs (26,278t read) | 381,903t work | 93% savings
 16215 11:21a 🟣 T0353 verification workorder created for BUG-079 fix static audit
 16216 " 🔵 T0353 static audit completed with FAIL verdict on zh-CN locale completeness
 16218 12:12p 🟣 BUG-080 tracking ticket created for shell quoting hardening
-**16219** 12:13p 🔵 **Actual workorder counter drift discovered: T0353 exists vs T0349 in state file**
-Filesystem scan discovered workorder counter drift between _tower-state.md baseline and actual ticket files. State snapshot from session 42 (2026-04-29) listed T0349 as next starting number, but filesystem contains T0353 as highest task ID indicating 4 tickets created since last state update. Task sequence T0349 through T0353 suggests session 43 created multiple tasks between environment scan and current checkpoint. This drift confirms state file staleness noted earlier (19-day gap, last environment scan 2026-04-26). Proper counter should advance to T0354 for next task creation, not T0349. *sync operation recommended to reconcile state file with filesystem reality before additional task creation.
-~324t 🔍 1,243
-
+16219 12:13p 🔵 Actual workorder counter drift discovered: T0353 exists vs T0349 in state file
 16220 " 🟣 T0354 research workorder created for BUG-080 shell quoting hardening options evaluation
-S7203 Control Tower T0354 research workorder completion review and PR #18 sync status verification for BUG-080 shell quoting hardening (May 15, 12:13 PM)
-S7201 T0354 research workorder creation completion and dispatch instruction provision for BUG-080 shell quoting evaluation (May 15, 12:15 PM)
-S7204 T0354 research completion review, PR #18 sync verification, and attempted rebase for BUG-080 shell quoting hardening (May 15, 12:15 PM)
-S7205 PR #18 sync completion via rebase and decision point for BUG-080 implementation workorder dispatch (T0355/T0356) (May 15, 12:23 PM)
-S7207 T0355 completion notification received - awaiting Worker completion report review for BUG-080 customPath whitelist validation (May 15, 12:26 PM)
 S7209 T0355 completion acceptance decision and T0356 parallel dispatch strategy for BUG-080 shell quoting hardening (May 15, 12:29 PM)
 S7206 T0355 workorder creation and dispatch preparation for BUG-080 customPath whitelist validation implementation (May 15, 12:29 PM)
 S7208 T0355 completion review and T0356 dispatch decision for BUG-080 customPath whitelist validation fix (May 15, 12:29 PM)
 S7211 T0355 manual verification hold point - awaiting user runtime smoke testing of unsafe customPath validation and fallback behavior (May 15, 12:40 PM)
-**16221** 12:41p 🔵 **T0355 workorder completion metadata synchronized**
-Control Tower performed post-completion metadata synchronization for T0355 workorder, updating status from IN_PROGRESS to FIXED and recording completion timestamp (2026-05-15T12:36:32+08:00) and commit hash (dad16c6) for audit trail. Git inspection revealed 3 commits ahead of origin/main: dad16c6 (T0355 implementation), 5100c8b (BUG-080 tracking ticket + T0354 frontmatter sync), and 2b43b67 (T0354 research completion rebased). The workorder file modification remains unstaged with 9 line insertions and 4 deletions, primarily updating frontmatter fields (status, completed_at, updated_at, commit). An untracked AGENTS.md file exists in repository root but is not part of the BUG-080 workflow. Tower is preparing for T0355 acceptance decision (CLOSED/VERIFY/AI-verification) and evaluating T0356 parallel dispatch strategy.
-~410t 🔍 6,086
-
-**16222** " ✅ **T0355 completion synchronized and pushed to origin/main**
-Control Tower committed T0355 frontmatter metadata synchronization (status FIXED, completion timestamp, commit hash) as bbc0521 and successfully pushed 4 accumulated commits to origin/main. The push operation synchronized all BUG-080 Phase 1 work to remote: 2b43b67 (T0354 research workorder completion), 5100c8b (BUG-080 tracking ticket creation + T0354 frontmatter sync), dad16c6 (T0355 customPath whitelist validation implementation), and bbc0521 (T0355 completion metadata). Push output confirmed successful update from 238ac3d (PR #18) to bbc0521. AGENTS.md file (16352 bytes) remains untracked and was not included in push - appears to be session memory context unrelated to BUG-080 workflow. Remote synchronization resolves earlier blocker for T0356 parallel dispatch - T0355 implementation (dad16c6) now available on origin/main for T0356 Worker to rebase against.
-~439t 🛠️ 2,920
-
-S7210 T0355 completion pushed to origin/main and manual runtime smoke testing instructions provided for acceptance decision (May 15, 12:42 PM)
-**16223** 12:44p ✅ **T0355 accepted and closed after successful user runtime smoke testing**
-Control Tower accepted T0355 workorder after successful user manual runtime smoke testing, updating status from FIXED to CLOSED at 2026-05-15T12:42:00+08:00. User verification confirmed all T0355 acceptance criteria: fallbackToEmbedded=true with unsafe customPath ($, backtick, etc.) correctly degraded to embedded runtime with appropriate toast notification; fallbackToEmbedded=false correctly threw SystemClaudeUnsafePathError preventing runtime startup; UI validation displayed red error messages for unsafe characters in customPath input field. Verification documented in frontmatter as "tower (runtime smoke PASS — user verification)" and in metadata table with detailed results summary. T0355 completed full lifecycle from creation (PENDING) through Worker implementation (IN_PROGRESS→FIXED) to Tower acceptance (CLOSED), delivering fail-closed security model for customPath whitelist validation. BUG-080 Phase 1 (whitelist validation) now complete and accepted; Phase 2 (T0356 shell-aware quoting) ready for dispatch.
-~515t 🛠️ 15,180
-
+16221 12:41p 🔵 T0355 workorder completion metadata synchronized
+16222 " ✅ T0355 completion synchronized and pushed to origin/main
+S7210 T0355 completion pushed to origin/main and manual runtime smoke testing instructions provided for acceptance decision (May 15, 12:41 PM)
+S7212 T0356 completion notification and acceptance decision for shell-aware command quoting implementation (BUG-080 Phase 2) (May 15, 12:42 PM)
+16223 12:44p ✅ T0355 accepted and closed after successful user runtime smoke testing
 **16224** 12:45p 🟣 **T0356 workorder created for BUG-080 Phase 2 shell-aware command quoting**
 Control Tower created T0356 workorder for BUG-080 Phase 2 implementation, addressing shell-aware command quoting across POSIX, PowerShell, and cmd.exe shells. Following T0355 closure (customPath whitelist validation), T0356 targets the remaining quoting consistency gap identified in T0354 research: two code paths still use weak double-quotes that fail PowerShell invocation semantics and differ from cmd.exe rules. Task implements T0354 Section D "Option 2 narrow version" recommendation with four-phase structure: (1) create shared shell-quote.ts utility exporting detectShellFamily() and quoteCommandPath() functions, (2) replace weak double-quotes in electron/resolve-claude-base-command.ts and src/components/WorkspaceView.tsx with shell-aware quoting, (3) expand unit tests from 3 to 30+ cases covering shell families × path types, (4) cross-platform smoke testing on Windows bash/pwsh/cmd and macOS bash. Shell-specific strategies documented: POSIX shells use single-quote with 'escape for direct command word invocation, PowerShell requires & 'path' call operator for spaced paths, cmd.exe uses double-quote relying on T0355 whitelist to filter %, !, metacharacters. M sizing accounts for two-path refactoring, shared utility creation, cross-shell test coverage, and terminal-command-handlers potential timing changes (shell resolution must precede buildAgentPromptCommand call). Risk list identifies PowerShell call operator requirement, cmd.exe conservative whitelist reliance, Git Bash MSYS2 path conversion concerns, and IPC caller impact assessment for shell resolution timing changes. Deliverables include shell-aware behavior comparison table, cross-shell smoke test logs, and BUG-080 status update FIXING→VERIFY after both paths implement quoting.
 ~827t 🛠️ 7,910
 
+**16225** 12:56p 🟣 **Shell-aware command quoting prevents injection in Claude CLI invocations**
+T0356 implemented shell-aware command quoting to address BUG-080 Phase 2, completing the two-phase fix strategy that began with T0355's whitelist validation. The implementation adds a new shell-quote.ts utility module with shell family detection and platform-specific quoting strategies. For POSIX shells (bash/zsh/sh/git-bash), paths are wrapped in single quotes with '\'' escape sequences for embedded quotes. For PowerShell, the call operator & precedes single-quoted paths with '' escape for embedded quotes. For cmd.exe, double-quotes are used, relying on T0355's whitelist to reject dangerous metacharacters. The solution replaces weak double-quote escaping in two critical code paths: electron/resolve-claude-base-command.ts (Claude CLI path resolution) and electron/terminal-command-handlers.ts (PTY shell command construction). Test coverage was significantly expanded with 33 new shell-quote test cases, 3 terminal-command-handlers cases, and resolve-claude-base-command tests growing from 3 to 8 cases. All 476 unit tests passed, and manual cross-shell smoke tests confirmed correct behavior on PowerShell 7, Git Bash, and cmd.exe with paths containing spaces and special characters. This completes BUG-080's hardening strategy, ensuring Claude CLI invocations are safe from shell injection across all supported platforms.
+~598t 🛠️ 1,290
 
-Access 382k tokens of past work via get_observations([IDs]) or mem-search skill.
+S7213 Complete BUG-080 closure and push final documentation updates to origin/main after T0356 acceptance (May 15, 12:56 PM)
+**16226** 12:58p ✅ **T0356 workorder accepted and closed via option [1] direct closure path**
+Control Tower completed T0356 acceptance using the direct closure path (option [1]) rather than requiring additional BAT UI PTY runtime smoke testing (option [2]). The acceptance decision was based on comprehensive test coverage: all 476 unit tests passing including 41 new test cases specifically for shell-aware quoting, plus Worker's successful cross-shell command-word smoke tests on PowerShell 7, Git Bash, and cmd.exe. The Worker had tested the quoting strategies by invoking node.exe with properly quoted paths, verifying that PowerShell's call operator syntax `& 'path'`, POSIX single-quote syntax `'path'`, and cmd.exe double-quote syntax `"path"` all worked correctly across their respective shells. The Tower judged that this combination of unit test coverage and command-word smoke testing provided sufficient confidence in the implementation without requiring the additional overhead of launching BAT UI terminals for runtime PTY verification. This decision reflects a pragmatic risk assessment: the shell quoting logic is pure utility functions with extensive test coverage, and the Worker's command-word smoke tests validated the core quoting behavior in isolation. The workorder was updated to CLOSED status with full documentation of the acceptance rationale and verification method.
+~581t 🛠️ 25,012
+
+**16227** " 🔴 **BUG-080 shell quoting vulnerability resolved via two-phase hardening strategy**
+BUG-080 was identified during gemini-code-assist review of PR #18, which introduced resolveClaudeBaseCommand helper using weak double-quote path wrapping. The vulnerability allowed bash shell expansion of special characters like $VAR, backticks, and ! (history expansion) when users configured customPath with metacharacters in settings.json. Although assessed as Low severity (robustness gap rather than security vulnerability since customPath source is local configuration not external input), the Tower elected to implement comprehensive hardening through a two-phase strategy. Phase 1 (T0355) implemented customPath whitelist validation rejecting dangerous metacharacters ($ ` ; | & > < * ? % ! ' and control characters) at the configuration level with fail-closed security (unsafe paths either degrade to embedded runtime or throw SystemClaudeUnsafePathError). Phase 2 (T0356) replaced weak double-quote wrapping with shell-aware quoting strategies: POSIX shells use single-quote with '\'' escape sequence, PowerShell uses call operator & with single-quote, and cmd.exe uses double-quote relying on whitelist filtering. The fix covers both code paths where Claude CLI commands are constructed: electron/resolve-claude-base-command.ts for BAT remote terminal agent command building, and src/components/WorkspaceView.tsx startClaudeCliPty() for renderer-side PTY spawning. The Tower closed BUG-080 via acceptance option [1] (direct closure without additional BAT UI runtime smoke testing) based on comprehensive evidence: all 476 unit tests passing including 41 new test cases for shell-aware quoting, plus Worker's successful cross-shell command-word smoke tests validating quoting behavior on PowerShell 7, Git Bash, and cmd.exe. The complete resolution addresses the original gemini-code-assist finding while maintaining cross-platform compatibility and providing defense-in-depth through both input validation and output escaping layers.
+~884t 🛠️ 14,543
+
+S7214 Control Tower *sync index rebuild after BUG-080 closure - regenerate _bug-tracker.md and _backlog.md with YAML frontmatter metadata schema (May 15, 12:59 PM)
+S7215 User requested *archive operation to clean up old DONE workorders and wrap up session 43 (May 15, 12:59 PM)
+**16228** 1:03p 🔴 **Control Tower *archive command failed due to PowerShell Get-Content parameter conflict**
+Control Tower attempted *archive operation to clean up DONE/CLOSED workorders from sessions 25-42, but the PowerShell archive script contained a parameter usage bug. The script attempted to read workorder YAML frontmatter using `Get-Content -TotalCount 15 -Raw`, which is invalid in PowerShell because -Raw reads the entire file as a single string while -TotalCount limits reading to N lines - these parameters are mutually exclusive. The error occurred repeatedly for every T*.md file scanned, preventing status detection and causing the entire archive operation to fail. No workorders were moved to archive directories. Fix requires removing either -Raw (to read line-by-line with -TotalCount 15) or -TotalCount (to read entire file with -Raw), depending on whether the status: field is guaranteed within first 15 lines.
+~451t 🛠️ 36,014
+
+S7216 Control Tower session 43 archive operation and session wrap-up (收工) - moving old DONE/CLOSED workorders to cold storage, regenerating index files, and documenting session summary (May 15, 2:19 PM)
+**Investigated**: Archive operation using PowerShell script to move closed workorders (age > archive_days=2) from hot zone to _archive/ subdirectories; encountered Get-Content parameter conflict (-Raw and -TotalCount are mutually exclusive); fixed by refactoring to separate function reading lines without -Raw; examined 131 candidate files (107 T + 15 BUG + 8 PLAN + 1 EXP) with status detection from YAML frontmatter; index files (_bug-tracker.md, _backlog.md) regenerated via *sync operation; _tower-state.md updated with comprehensive session 43 timeline and statistics
+
+**Learned**: PowerShell Get-Content gotcha: -Raw (read entire file as single string) and -TotalCount (limit to N lines) cannot be used together - must read lines separately then parse; archive operation is naturally idempotent via git mv (files already in archive stay there, safe to retry); keep lists successfully preserve active/recent workorders from archiving; session 43 completed BUG-080 full closure workflow in ~1 hour (PR #18 merged → T0354 research → T0355/T0356 dual fix → CLOSED with 89 new test cases); *sync operation correctly rebuilds index files with updated statistics and archive notes; tower hook warnings for archived files containing "password"/"api-key" keywords in design discussions are expected (false positives, not actual secrets)
+
+**Completed**: Archive operation successfully executed: 131 files moved to _archive/ subdirectories (107 T-workorders + 15 BUG + 8 PLAN + 1 EXP); hot zone reduced from ~210 files to 27 active/verify workorders; _bug-tracker.md updated (23→8 hot zone, 57→72 archived); _backlog.md updated (14→6 hot zone, 19→27 archived); _tower-state.md comprehensive session 43 summary added with timeline, statistics, hot zone structure, learning candidates (L117-L120), and next session priorities; final commit (0b64b20) and push to origin/main completed with tower hook warnings (3 false positive "sensitive content" detections in archived design documents, no actual secrets); session 43 收工 (wrap-up) complete; next session will start T0357/BUG-081/PLAN-035/D110
+
+**Next Steps**: Session 43 has concluded successfully. Next session will Fast Path load this snapshot (valid for 7 days) and resume with priority tasks: (1) PLAN-032 three BUG smoke tests (BUG-072/073/074 VERIFY → CLOSED), (2) BUG-078 CI reverification, (3) BUG-071 server bundle download flow, (4) T0324 DGX Spark dogfood VERIFY, (5) BUG-061 Codex panel tsc baseline errors
+
+
+Access 434k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
