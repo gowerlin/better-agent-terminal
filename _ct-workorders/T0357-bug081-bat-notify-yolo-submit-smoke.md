@@ -11,7 +11,7 @@ started_at: "2026-05-17T16:02:17+08:00"
 completed_at: "2026-05-17T16:04:06+08:00"
 closed_at: "2026-05-17T16:10:00+08:00"
 updated_at: "2026-05-17T16:10:00+08:00"
-commit: pending
+commit: 8c802c3
 verified_by: tower runtime smoke; auto-submit observed with trace c79021255a18868c
 workdir: main repo
 affects_files:
