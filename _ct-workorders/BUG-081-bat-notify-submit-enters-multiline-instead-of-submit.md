@@ -3,7 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-081
 title: bat-notify --submit 遠端 Enter 被目標 agent 視為換行而非送出
-status: OPEN
+status: CLOSED
+closed_at: "2026-05-18T03:08:00+08:00"
+closed_at: "2026-05-18T03:08:00+08:00"
 severity: medium
 reproducibility: observed
 created_at: "2026-05-17T01:08:00+08:00"
