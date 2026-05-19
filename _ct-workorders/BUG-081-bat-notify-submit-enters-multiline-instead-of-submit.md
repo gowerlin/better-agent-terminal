@@ -5,7 +5,8 @@ id: BUG-081
 title: bat-notify --submit 遠端 Enter 被目標 agent 視為換行而非送出
 status: CLOSED
 closed_at: "2026-05-18T03:08:00+08:00"
-closed_at: "2026-05-18T03:08:00+08:00"
+verified_at: "2026-05-19T14:38:00+08:00"
+verified_by: "使用者驗收通過（session 45 確認 Claude Worker bat-notify --submit regression smoke 硬條件滿足）"
 severity: medium
 reproducibility: observed
 created_at: "2026-05-17T01:08:00+08:00"
@@ -44,7 +45,7 @@ tags:
 |------|------|
 | BUG 編號 | BUG-081 |
 | 標題 | `bat-notify --submit` 預填塔台終端後，遠端 Enter 仍呈現換行而不是送出 |
-| 狀態 | 🐛 OPEN |
+| 狀態 | ✅ CLOSED（2026-05-18 修復；2026-05-19 使用者驗收通過） |
 | 嚴重度 | 🟡 Medium（YOLO / Worker closeout 自動送出不可靠；有人工 Enter workaround） |
 | 可重現 | 已觀察到（使用者回報：「仍然還是呈現換行而不是送出」）；需用 packaged BAT runtime 重新收斂成 always/intermittent |
 | Workaround | 塔台終端收到預填文字後人工按 Enter；或暫時不用 `--submit` 自動送出 |

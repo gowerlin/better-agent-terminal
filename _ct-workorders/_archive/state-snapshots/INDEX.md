@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-04-29 (Session 42 收工 — Session 38 archived per state hygiene)
-> Hot path retains: session 42 + session 41 + session 39 + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-05-19 (Session 45 收工 — Sessions 42 / 41 / 39 archived per state hygiene)
+> Hot path retains: session 45 (本) + session 43 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 58 (0 in Q1 / 58 in Q2)
+> Total archived entries: 61 (0 in Q1 / 58 in Q2-a/b / 3 in Q2-c)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -65,3 +65,6 @@
 | 56 | 第三十六 session | 2026-04-27 | 2026-Q2-b.md | 第三十六 session, 2026-04-27 12:36-13:51, ~75 min, *evolve 萃取 + PLAN-032 拍板 + BUG-075 識別 |
 | 57 | 第三十七 session | 2026-04-27 | 2026-Q2-b.md | 第三十七 session, 2026-04-27 16:21-16:50, ~30 min, BUG-075 三層防線收尾 + GP113-118/L112 |
 | 58 | 第三十八 session | 2026-04-27 | 2026-Q2-b.md | 第三十八 session, 2026-04-27 18:00-21:35, ~3.5 hr, PLAN-033 Sprint 2 完整四件套收尾 + GP119-121 |
+| 59 | 第四十二 session | 2026-04-29 | 2026-Q2-c.md | 第四十二 session, 2026-04-29 00:00-00:10, ~10 min, T0347 驗收 DONE + 使用者外部 push + v0.5.0-pre.2 release |
+| 60 | 第四十一 session | 2026-04-28 | 2026-Q2-c.md | 第四十一 session, 2026-04-28 05:11-09:35, ~4.4 hr, PLAN-032 Sprint 2-5 全收尾 + drift fix + GP126/L114-116 |
+| 61 | 第三十九 session | 2026-04-27 | 2026-Q2-c.md | 第三十九 session, 2026-04-27 21:38-22:08, ~30 min, PLAN-033 Sprint 2 上游 PR 收尾 + GP122-124/L113 |
