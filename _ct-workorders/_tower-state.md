@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-05-23 20:57 (UTC+8) — **第四十六 session 進行中** — T0359 FIXED；CP-T1148 兩份鏡像與 2026_Cooperative cross-reference 已回填 `d3f6580` / `17d43c1`。
+> 最後更新:2026-05-23 21:10 (UTC+8) — **第四十六 session 收工** — T0359 / CP-T1148 收尾完成；BAT 已換版至 `0.4.2`，commit `3224d08`。
 >
 > **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— CP-T1148 只剩 source-side installed BAT 驗證可選確認，主軸回到 PLAN-032 三 BUG smoke。
 >
@@ -133,7 +133,7 @@
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-05-23 20:57 UTC+8（第四十六 session 進行中 — T0359 FIXED，CP-T1148 target-side FIXED）
+> 最後更新：2026-05-23 21:10 UTC+8（第四十六 session 收工 — T0359/CP-T1148 target-side FIXED，BAT 0.4.2）
 
 ### 立即待辦
 1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072（WSL linger, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED → PLAN-032 → DONE
@@ -143,6 +143,7 @@
 5. 🟢 **T0324 DGX Spark dogfood / BUG-061 / WSL-Docker structured errorCode PLAN**：後續追蹤
 
 ### 近期完成（第四十五至第四十六 session）
+- **BAT 0.4.2 換版完成**：`package.json` / `package-lock.json` bump 至 `0.4.2`，`CHANGELOG.md` promoted `[0.4.2] — 2026-05-23`，commit `3224d08`; `npm run compile` PASS
 - **T0359 FIXED**：BAT 支援 workorder `status: ABANDONED`（parser / badge / inactive count / filter / CP-T#### fixture），commit `d3f6580`，unit 483/483 + compile PASS
 - **BUG-081 CLOSED + 使用者驗收通過**（Claude runtime regression smoke 硬條件滿足）
 - **frontmatter/body drift 校正**（BUG-081 重複 closed_at + body OPEN→CLOSED）
