@@ -1,8 +1,8 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-05-19 15:10 (UTC+8) — **第四十五 session 收工** — BUG-081 結案校正 + 使用者驗收通過；*sync 重建索引（編號 drift 修正）；*archive 6 檔；state hygiene archive sessions 42/41/39 → 2026-Q2-c.md。
+> 最後更新:2026-05-23 20:31 (UTC+8) — **第四十六 session 進行中** — T0359 FIXED：BAT 已支援 `ABANDONED` workorder status parsing（commit `d3f6580`）。
 >
-> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— 主軸 PLAN-032 三 BUG smoke(BUG-072/073/074)→ CLOSED → PLAN-032 → DONE。
+> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— 回填 CP-T1148 / 2026_Cooperative cross-reference 後，回到 PLAN-032 三 BUG smoke。
 >
 > **前次更新**:2026-05-15 13:15 (UTC+8) — 第四十三 session 收工:BUG-080 全線收尾 + 環境校正。
 
@@ -48,7 +48,7 @@
 
 ### 編號起始（下 session）
 
-- **T0359** / **BUG-082** / **PLAN-035** / **D119**
+- **T0360** / **BUG-082** / **PLAN-035** / **D119**
 
 ### 快速連結
 
@@ -133,16 +133,17 @@
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-05-19 15:10 UTC+8（第四十五 session 收工 — BUG-081 結案校正 + *sync + *archive + state hygiene）
+> 最後更新：2026-05-23 20:31 UTC+8（第四十六 session 進行中 — T0359 FIXED，CP-T1148 等待上游回填）
 
 ### 立即待辦
-1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072（WSL linger, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED → PLAN-032 → DONE
-2. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
-3. 🟡 **BUG-071** server bundle download flow（OPEN, high）
-4. 🟡 **T0324 DGX Spark dogfood VERIFY**（使用者親跑 / 待回報）
-5. 🟢 **BUG-061**（dev-only tsc）/ **WSL/Docker structured errorCode PLAN**（T0340 P2，獨立開）
+1. 🟡 **CP-T1148 回填**：T0359 已 FIXED（BAT commit `d3f6580`）；需回填 BMad-Guide / 2026_Cooperative cross-reference，並視需要安裝含此 commit 的 BAT build 驗證
+2. 🔴 **PLAN-032 三 BUG smoke**：BUG-072（WSL linger, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED → PLAN-032 → DONE
+3. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
+4. 🟡 **BUG-071** server bundle download flow（OPEN, high）
+5. 🟢 **T0324 DGX Spark dogfood / BUG-061 / WSL-Docker structured errorCode PLAN**：後續追蹤
 
-### 近期完成（第四十五 session）
+### 近期完成（第四十五至第四十六 session）
+- **T0359 FIXED**：BAT 支援 workorder `status: ABANDONED`（parser / badge / inactive count / filter / CP-T#### fixture），commit `d3f6580`，unit 483/483 + compile PASS
 - **BUG-081 CLOSED + 使用者驗收通過**（Claude runtime regression smoke 硬條件滿足）
 - **frontmatter/body drift 校正**（BUG-081 重複 closed_at + body OPEN→CLOSED）
 - **\*sync** 重建 _bug-tracker / _backlog（前次同步停在 05-17，已過期）
@@ -157,7 +158,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)
 
 ### 編號起始
-- **T0359** / **BUG-082** / **PLAN-035** / **D119** / **EXP-[TOPIC]-001**
+- **T0360** / **BUG-082** / **PLAN-035** / **D119** / **EXP-[TOPIC]-001**
 
 ---
 
