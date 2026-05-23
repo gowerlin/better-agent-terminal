@@ -4,7 +4,7 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
-> v0.4.2 候選草稿（T0341，PLAN-032 收尾）— 不 bump package.json 版號，待 maintainer release engineering 流程處理。
+## [0.4.2] — 2026-05-23 — Control Tower Status Parsing + Setup Wizard UX
 
 ### Fixed
 - fix(ct): support `ABANDONED` as a final/inactive workorder status for `T####` and `CP-T####` Control Tower workorders (refs: T0359, CP-T1148).
