@@ -16,7 +16,7 @@
 | CT-T008 | BMad-Guide | `61dec10` | DELEGATE(v4.3.2 release)| ✅ DONE |
 | CT-T009 | BMad-Guide | `2b1dd1c` | DELEGATE(v4.3.3 JB Gateway patch)| ✅ DONE |
 | CT-T010 | BMad-Guide | `e362ed1` | DELEGATE(CT v4.4.x meta-PLAN + Phase 1-4 骨架)| ✅ DONE |
-| T0359 | 2026_Cooperative | `CP-T1148` | COORDINATED(BAT commit `d3f6580` supports ABANDONED workorder status parsing)| ✅ FIXED |
+| T0359 | 2026_Cooperative | `CP-T1148` | COORDINATED(BAT commit `d3f6580`; closeout `17d43c1`; supports ABANDONED workorder status parsing)| ✅ FIXED |
 
 ## 對方 Repo 骨架(BMad-Guide T0098 主 PLAN 下)
 

@@ -1,8 +1,8 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-05-23 20:31 (UTC+8) — **第四十六 session 進行中** — T0359 FIXED：BAT 已支援 `ABANDONED` workorder status parsing（commit `d3f6580`）。
+> 最後更新:2026-05-23 20:57 (UTC+8) — **第四十六 session 進行中** — T0359 FIXED；CP-T1148 兩份鏡像與 2026_Cooperative cross-reference 已回填 `d3f6580` / `17d43c1`。
 >
-> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— 回填 CP-T1148 / 2026_Cooperative cross-reference 後，回到 PLAN-032 三 BUG smoke。
+> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— CP-T1148 只剩 source-side installed BAT 驗證可選確認，主軸回到 PLAN-032 三 BUG smoke。
 >
 > **前次更新**:2026-05-15 13:15 (UTC+8) — 第四十三 session 收工:BUG-080 全線收尾 + 環境校正。
 
@@ -133,13 +133,13 @@
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-05-23 20:31 UTC+8（第四十六 session 進行中 — T0359 FIXED，CP-T1148 等待上游回填）
+> 最後更新：2026-05-23 20:57 UTC+8（第四十六 session 進行中 — T0359 FIXED，CP-T1148 target-side FIXED）
 
 ### 立即待辦
-1. 🟡 **CP-T1148 回填**：T0359 已 FIXED（BAT commit `d3f6580`）；需回填 BMad-Guide / 2026_Cooperative cross-reference，並視需要安裝含此 commit 的 BAT build 驗證
-2. 🔴 **PLAN-032 三 BUG smoke**：BUG-072（WSL linger, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED → PLAN-032 → DONE
-3. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
-4. 🟡 **BUG-071** server bundle download flow（OPEN, high）
+1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072（WSL linger, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED → PLAN-032 → DONE
+2. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
+3. 🟡 **BUG-071** server bundle download flow（OPEN, high）
+4. 🟢 **CP-T1148**：target-side FIXED (`d3f6580` / `17d43c1`)；若 2026_Cooperative 要實機確認，需安裝含 `d3f6580` 的 BAT build
 5. 🟢 **T0324 DGX Spark dogfood / BUG-061 / WSL-Docker structured errorCode PLAN**：後續追蹤
 
 ### 近期完成（第四十五至第四十六 session）
