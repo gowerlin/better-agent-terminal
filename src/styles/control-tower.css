@@ -139,6 +139,7 @@
 .ct-order-card.ct-status-partial { border-left-color: #f97316; }
 .ct-order-card.ct-status-interrupted { border-left-color: #8b5cf6; }
 .ct-order-card.ct-status-urgent { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+.ct-order-card.ct-status-abandoned { border-left-color: #6b7280; opacity: 0.78; }
 
 /* Order header */
 .ct-order-header {
@@ -181,11 +182,13 @@
 .ct-status-badge.ct-status-partial { background: rgba(249, 115, 22, 0.15); color: #f97316; }
 .ct-status-badge.ct-status-interrupted { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
 .ct-status-badge.ct-status-urgent { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.ct-status-badge.ct-status-abandoned { background: rgba(107, 114, 128, 0.16); color: #9ca3af; }
 
 /* Summary badges */
 .ct-badge.ct-status-in-progress { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .ct-badge.ct-status-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .ct-badge.ct-status-done { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.ct-badge.ct-status-abandoned { background: rgba(107, 114, 128, 0.16); color: #9ca3af; }
 
 /* Order detail expand */
 .ct-order-detail {
@@ -395,6 +398,7 @@
 .ct-kanban-card.ct-status-failed,
 .ct-kanban-card.ct-status-blocked { border-left-color: #6b7280; }
 .ct-kanban-card.ct-status-urgent { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+.ct-kanban-card.ct-status-abandoned { border-left-color: #6b7280; opacity: 0.78; }
 
 .ct-kanban-card-id {
   font-family: var(--font-mono);

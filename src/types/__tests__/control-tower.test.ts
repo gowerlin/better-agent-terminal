@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseWorkOrder } from '../control-tower'
+import { isWorkOrderFile, parseWorkOrder, statusColor, statusLabel } from '../control-tower'
 
 const FRONTMATTER_DONE = `---
 schema_version: 1
@@ -71,6 +71,26 @@ created_at: "2026-04-28T18:25:00+08:00"
 | 狀態 | NEW |
 `
 
+const FRONTMATTER_ABANDONED = `---
+schema_version: 1
+schema_kind: workorder
+id: CP-T1148
+title: Cross-project abandoned fixture
+type: fix
+status: ABANDONED
+created_at: "2026-05-23T20:03:20+08:00"
+updated_at: "2026-05-23T20:13:40+08:00"
+---
+
+# CP-T1148 — Cross-project abandoned fixture
+
+## Metadata
+
+| 欄位 | 內容 |
+|------|------|
+| 狀態 | 🚫 ABANDONED |
+`
+
 const FRONTMATTER_BAD_YAML = `---
 schema_version: 1
 schema_kind: workorder
@@ -113,6 +133,30 @@ describe('parseWorkOrder — case C: frontmatter / body drift', () => {
     expect(driftWarning).toBeDefined()
     expect(driftWarning?.field).toBe('status')
     expect(driftWarning?.frontmatter_value).toBe('DONE')
+  })
+})
+
+describe('parseWorkOrder — ABANDONED final/inactive workorder status', () => {
+  it('accepts ABANDONED frontmatter for CP-T#### workorders', () => {
+    const wo = parseWorkOrder('CP-T1148-abandoned-fixture.md', FRONTMATTER_ABANDONED)
+    expect(wo.parseSource).toBe('frontmatter')
+    expect(wo.id).toBe('CP-T1148')
+    expect(wo.status).toBe('ABANDONED')
+    expect(wo.status).not.toBe('PENDING')
+    expect(wo.status).not.toBe('BLOCKED')
+    expect(wo.status).not.toBe('PARTIAL')
+    expect(wo.parseWarnings).toBeUndefined()
+  })
+
+  it('exposes a neutral abandoned badge class and label', () => {
+    expect(statusColor('ABANDONED')).toBe('ct-status-abandoned')
+    expect(statusLabel('ABANDONED')).toBe('🚫 Abandoned')
+  })
+
+  it('recognizes both T#### and CP-T#### markdown files as workorders', () => {
+    expect(isWorkOrderFile('T0001-normal-workorder.md')).toBe(true)
+    expect(isWorkOrderFile('CP-T1148-cross-project-workorder.md')).toBe(true)
+    expect(isWorkOrderFile('BUG-001-not-workorder.md')).toBe(false)
   })
 })
 

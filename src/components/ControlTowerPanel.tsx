@@ -307,7 +307,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const prevStatus = prevMap.get(wo.id)
       if (prevStatus && prevStatus !== wo.status) {
         // Status changed
-        if (wo.status === 'DONE' || wo.status === 'FIXED') {
+        if (wo.status === 'DONE' || wo.status === 'FIXED' || wo.status === 'ABANDONED') {
           addToast(`✅ ${wo.id} ${t('controlTower.toast.completed')}`, 'success', 6000)
         } else if (wo.status === 'IN_PROGRESS' && prevStatus === 'PENDING') {
           addToast(`🔄 ${wo.id} ${t('controlTower.toast.started')}`, 'info')
@@ -361,7 +361,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       // Sort: URGENT first, then IN_PROGRESS, PENDING, others, DONE last
       const priority: Record<string, number> = {
         URGENT: 0, IN_PROGRESS: 1, PENDING: 2, BLOCKED: 3,
-        PARTIAL: 4, INTERRUPTED: 5, FAILED: 6, FIXED: 7, DONE: 7,
+        PARTIAL: 4, INTERRUPTED: 5, FAILED: 6, FIXED: 7, DONE: 7, ABANDONED: 8,
       }
       uniqueOrders.sort((a, b) => {
         const statusOrder = (priority[a.status] ?? 99) - (priority[b.status] ?? 99)
@@ -496,6 +496,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const activeCount = workOrders.filter(o => o.status === 'IN_PROGRESS' || o.status === 'URGENT').length
   const pendingCount = workOrders.filter(o => o.status === 'PENDING').length
   const doneCount = workOrders.filter(o => o.status === 'DONE').length
+  const abandonedCount = workOrders.filter(o => o.status === 'ABANDONED').length
 
   if (!isVisible) return null
 
@@ -591,6 +592,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         {activeCount > 0 && <span className="ct-badge ct-status-in-progress">{activeCount} active</span>}
         {pendingCount > 0 && <span className="ct-badge ct-status-pending">{pendingCount} pending</span>}
         {doneCount > 0 && <span className="ct-badge ct-status-done">{doneCount} done</span>}
+        {abandonedCount > 0 && <span className="ct-badge ct-status-abandoned">{abandonedCount} inactive</span>}
         <span className="ct-badge ct-total">{workOrders.length} total</span>
         {activeTab === 'orders' && (
           <label className="ct-archive-toggle">
@@ -612,7 +614,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       <div className="ct-orders-tab" style={{ display: activeTab === 'orders' ? undefined : 'none' }}>
         {/* Filter bar */}
         <div className="ct-filter-bar">
-          {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'FIXED', 'DONE'] as const).map(s => (
+          {(['all', 'URGENT', 'IN_PROGRESS', 'PENDING', 'BLOCKED', 'FIXED', 'DONE', 'ABANDONED'] as const).map(s => (
             <button
               key={s}
               className={`ct-filter-btn${filterStatus === s ? ' active' : ''}`}

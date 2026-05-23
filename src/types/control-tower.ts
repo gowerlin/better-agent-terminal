@@ -27,6 +27,7 @@ export type WorkOrderStatus =
   | 'PARTIAL'
   | 'INTERRUPTED'
   | 'URGENT'
+  | 'ABANDONED'
   | 'INVALID'
 
 export interface WorkOrder {
@@ -48,11 +49,11 @@ export interface WorkOrder {
 }
 
 const STATUS_VALUES = new Set<WorkOrderStatus>([
-  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT', 'INVALID',
+  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT', 'ABANDONED', 'INVALID',
 ])
 
 const VALID_FRONTMATTER_STATUSES = new Set<WorkOrderStatus>([
-  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT',
+  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT', 'ABANDONED',
 ])
 
 /**
@@ -64,7 +65,7 @@ const VALID_FRONTMATTER_STATUSES = new Set<WorkOrderStatus>([
  *
  * 容錯設計：欄位缺失不報錯，返回 partial data
  *
- * Frontmatter status 僅接受 spec 定義的 9 個 enum；invalid value 標記為
+ * Frontmatter status 僅接受 spec 定義的 workorder enum；invalid value 標記為
  * 'INVALID'，**絕不** fallback 為 'PENDING'（BUG-077 regression guard）。
  */
 export function parseWorkOrder(filename: string, content: string): WorkOrder {
@@ -180,27 +181,27 @@ function extractFieldFromBody(content: string, label: string): string | undefine
 /** 從 raw 字串中提取第一個有效狀態關鍵字，忽略括號附加文字 */
 function extractStatusKeyword(raw: string | undefined): WorkOrderStatus | undefined {
   if (!raw) return undefined
-  const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|FIXED|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT)/)?.[1]
+  const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|FIXED|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT|ABANDONED)/)?.[1]
   return keyword && STATUS_VALUES.has(keyword as WorkOrderStatus) ? keyword as WorkOrderStatus : undefined
 }
 
-/** T0001-create-project-context.md → T0001 */
+/** T0001-create-project-context.md → T0001; CP-T1148-example.md → CP-T1148 */
 function filenameToId(filename: string): string {
-  const match = filename.match(/^(T\d+)/)
+  const match = filename.match(/^((?:CP-)?T\d+)/)
   return match?.[1] ?? filename.replace('.md', '')
 }
 
 /** T0001-create-project-context.md → create project context */
 function filenameToTitle(filename: string): string {
   return filename
-    .replace(/^T\d+-/, '')
+    .replace(/^(?:CP-)?T\d+-/, '')
     .replace(/\.md$/, '')
     .replace(/-/g, ' ')
 }
 
 /** 判斷檔案是否為工單（排除 _ 開頭的系統檔和 .yaml） */
 export function isWorkOrderFile(filename: string): boolean {
-  return filename.endsWith('.md') && !filename.startsWith('_') && /^T\d+/.test(filename)
+  return filename.endsWith('.md') && !filename.startsWith('_') && /^(?:CP-)?T\d+/.test(filename)
 }
 
 /** 依狀態返回色碼 class name */
@@ -215,6 +216,7 @@ export function statusColor(status: WorkOrderStatus): string {
     case 'PARTIAL': return 'ct-status-partial'
     case 'INTERRUPTED': return 'ct-status-interrupted'
     case 'URGENT': return 'ct-status-urgent'
+    case 'ABANDONED': return 'ct-status-abandoned'
     case 'INVALID': return 'ct-status-invalid'
     default: return 'ct-status-pending'
   }
@@ -232,6 +234,7 @@ export function statusLabel(status: WorkOrderStatus): string {
     case 'PARTIAL': return '⚠️ Partial'
     case 'INTERRUPTED': return '⏸️ Interrupted'
     case 'URGENT': return '🔥 Urgent'
+    case 'ABANDONED': return '🚫 Abandoned'
     case 'INVALID': return '⚠️ Invalid'
     default: return status
   }

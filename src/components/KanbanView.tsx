@@ -18,6 +18,7 @@ function workOrderToLane(status: string): KanbanLane {
     case 'IN_PROGRESS': return 'IN_PROGRESS'
     case 'DONE': return 'DONE'
     case 'FIXED': return 'DONE'
+    case 'ABANDONED': return 'DONE'
     case 'FAILED': return 'BLOCKED'
     case 'BLOCKED': return 'BLOCKED'
     case 'PARTIAL': return 'IN_PROGRESS'

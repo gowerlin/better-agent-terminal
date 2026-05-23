@@ -33,11 +33,11 @@ interface Sample {
 
 // Representative samples across kinds — chosen to span time / size.
 const SAMPLES: Sample[] = [
-  { filename: 'T0250-research-bug059-embedded-claude-autoupdate-root-cause.md', kind: 'workorder' },
-  { filename: 'T0312-impl-plan030-setup-wizard-dialog-width-2x.md',             kind: 'workorder' },
-  { filename: 'T0344-impl-plan034-sprint3-bat-parser-frontmatter-first.md',    kind: 'workorder' },
-  { filename: 'BUG-055-claude-exe-old-residue-in-node-modules-sdk-install-hook.md', kind: 'bug' },
-  { filename: 'PLAN-030-profile-panel-setup-wizard-ui-overhaul.md',            kind: 'plan' },
+  { filename: 'T0335-fix-bug074-ssh-input-step-awaiting-input.md',             kind: 'workorder' },
+  { filename: 'T0336-fix-bug073-docker-detect-env-mapping-preflight.md',       kind: 'workorder' },
+  { filename: 'T0337-fix-bug072-wsl-linger-systemd-mapping.md',                kind: 'workorder' },
+  { filename: 'BUG-081-bat-notify-submit-enters-multiline-instead-of-submit.md', kind: 'bug' },
+  { filename: 'PLAN-033-tower-state-snapshot-archive-architecture.md',          kind: 'plan' },
 ]
 
 function readSample(filename: string): string | null {
