@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseBugFile, parseBugTrackerStats } from '../bug-tracker'
+import { parseBugFile, parseBugTracker, parseBugTrackerStats } from '../bug-tracker'
 
 const BUG_FRONTMATTER = `---
 schema_version: 1
@@ -102,6 +102,51 @@ describe('parseBugFile — case D: invalid status', () => {
     const e = parseBugFile(BUG_INVALID, 'BUG-102-invalid.md')
     expect(e?.status).toBe('OPEN')
     expect(e?.parseWarnings?.find(w => w.kind === 'unknown_status')).toBeDefined()
+  })
+})
+
+describe('parseBugTracker', () => {
+  it('maps generated title-case section headings to bug statuses', () => {
+    const tracker = `# Bug Tracker
+
+## Open
+
+| ID | 標題 | 嚴重度 | 建立時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-200 | open case | 🟡 Medium | 2026-05-24 | [BUG-200.md](BUG-200.md) |
+
+## Fixed
+
+| ID | 標題 | 嚴重度 | 修復時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-201 | fixed case | 🟡 Medium | 2026-05-24 | [BUG-201.md](BUG-201.md) |
+
+## Verify
+
+| ID | 標題 | 嚴重度 | 驗證時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-202 | verify case | 🟡 Medium | 2026-05-24 | [BUG-202.md](BUG-202.md) |
+
+## Closed
+
+| ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-203 | closed case | 🟢 Low | 2026-05-24 | [BUG-203.md](BUG-203.md) |
+
+## Won't Fix
+
+| ID | 標題 | 嚴重度 | 標記時間 | 連結 |
+|----|------|--------|---------|------|
+| BUG-204 | wontfix case | 🔴 High | 2026-05-24 | [BUG-204.md](BUG-204.md) |
+`
+
+    const entries = parseBugTracker(tracker)
+
+    expect(entries.find(e => e.id === 'BUG-200')?.status).toBe('OPEN')
+    expect(entries.find(e => e.id === 'BUG-201')?.status).toBe('FIXED')
+    expect(entries.find(e => e.id === 'BUG-202')?.status).toBe('VERIFY')
+    expect(entries.find(e => e.id === 'BUG-203')?.status).toBe('CLOSED')
+    expect(entries.find(e => e.id === 'BUG-204')?.status).toBe('WONTFIX')
   })
 })
 

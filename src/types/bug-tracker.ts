@@ -104,17 +104,19 @@ function extractSeverity(cell: string): BugSeverity {
  * by treating it as CLOSED (the more common case).
  */
 function sectionToStatus(heading: string): BugStatus {
-  const hasWontfix = heading.includes('WONTFIX') || heading.includes('不修復')
-  const hasClosed  = heading.includes('CLOSED')  || heading.includes('已關閉')
+  const normalized = heading.toUpperCase()
+  const compact = normalized.replace(/[\s'’_-]/g, '')
+  const hasWontfix = compact.includes('WONTFIX') || heading.includes('不修復')
+  const hasClosed  = normalized.includes('CLOSED')  || heading.includes('已關閉')
 
   // Compound heading (legacy): '已關閉 / WONTFIX' → prefer CLOSED
   // Standalone WONTFIX section: '不修復 (WONTFIX)' without '已關閉' → WONTFIX
   if (hasWontfix && !hasClosed) return 'WONTFIX'
   if (hasClosed)  return 'CLOSED'
 
-  if (heading.includes('VERIFY')  || heading.includes('驗收'))  return 'VERIFY'
-  if (heading.includes('FIXED')   || heading.includes('已修復')) return 'FIXED'
-  if (heading.includes('FIXING')  || heading.includes('修復中')) return 'FIXING'
+  if (normalized.includes('VERIFY')  || heading.includes('驗收'))  return 'VERIFY'
+  if (normalized.includes('FIXED')   || heading.includes('已修復')) return 'FIXED'
+  if (normalized.includes('FIXING')  || heading.includes('修復中')) return 'FIXING'
   return 'OPEN'
 }
 
