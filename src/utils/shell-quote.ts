@@ -30,3 +30,27 @@ export function quoteCommandPath(path: string, shell: ShellFamily): string {
       return `'${path.replace(/'/g, "'\\''")}'`
   }
 }
+
+/**
+ * Quote a single argv-style argument for a target shell.
+ *
+ * Differs from `quoteCommandPath`:
+ *  - safe identifiers (alnum + `._-=:@/`) pass through unquoted (legacy behaviour
+ *    of the private POSIX-only helper in electron/main.ts)
+ *  - posix uses single-quote escape (`'\''`), same as bash convention
+ *  - pwsh uses single-quote double-up (`''`)
+ *  - cmd uses double-quote escape (`""`) AND `%` → `%%` to suppress %VAR%
+ *    expansion. Note: `!VAR!` delayed expansion is intentionally not handled
+ *    (out-of-scope; depends on shell setlocal state).
+ */
+export function quoteArgForShell(arg: string, shell: ShellFamily): string {
+  if (/^[a-zA-Z0-9._\-=:@/]+$/.test(arg)) return arg
+  switch (shell) {
+    case 'posix':
+      return `'${arg.replace(/'/g, "'\\''")}'`
+    case 'pwsh':
+      return `'${arg.replace(/'/g, "''")}'`
+    case 'cmd':
+      return `"${arg.replace(/%/g, '%%').replace(/"/g, '""')}"`
+  }
+}

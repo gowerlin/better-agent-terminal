@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectShellFamily, quoteCommandPath, type ShellFamily } from '../shell-quote'
+import { detectShellFamily, quoteArgForShell, quoteCommandPath, type ShellFamily } from '../shell-quote'
 
 describe('detectShellFamily', () => {
   it.each([
@@ -46,5 +46,26 @@ describe('quoteCommandPath', () => {
     ['cmd', '/usr/local/bin/claude', '"/usr/local/bin/claude"'],
   ] satisfies Array<[ShellFamily, string, string]>)('quotes %s path %s', (shell, path, expected) => {
     expect(quoteCommandPath(path, shell)).toBe(expected)
+  })
+})
+
+describe('quoteArgForShell', () => {
+  it.each([
+    ['posix', '/ct-exec T0056', "'/ct-exec T0056'"],
+    ['posix', 'say "hi"', `'say "hi"'`],
+    ['posix', '$ct-exec T0056', "'$ct-exec T0056'"],
+    ['posix', "it's me", "'it'\\''s me'"],
+    ['posix', 'say `whoami`', "'say `whoami`'"],
+    ['posix', 'ct-exec', 'ct-exec'],
+    ['pwsh', '/ct-exec T0056', "'/ct-exec T0056'"],
+    ['pwsh', '$ct-exec T0056', "'$ct-exec T0056'"],
+    ['pwsh', "it's me", "'it''s me'"],
+    ['cmd', '/ct-exec T0056', '"/ct-exec T0056"'],
+    ['cmd', 'say "hi"', '"say ""hi"""'],
+    ['cmd', '100% done', '"100%% done"'],
+    ['cmd', "it's me", '"it\'s me"'],
+    ['cmd', 'ct-exec', 'ct-exec'],
+  ] satisfies Array<[ShellFamily, string, string]>)('quotes %s arg %s', (shell, arg, expected) => {
+    expect(quoteArgForShell(arg, shell)).toBe(expected)
   })
 })

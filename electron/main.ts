@@ -88,7 +88,7 @@ import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFi
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import type { CustomCliDefinition } from './agent-runtime/types'
-import type { ShellFamily } from '../src/utils/shell-quote'
+import { quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
 import { registerVoiceHandlers } from './voice-handler'
 import { registerGitScaffoldHandlers } from './git/git-ipc'
 import {
@@ -520,11 +520,6 @@ function readLoggingConfigSync(): { loggingEnabled: boolean; logLevel: LogLevel 
   }
 }
 
-function shellQuoteForTerminalCommand(value: string): string {
-  if (/^[a-zA-Z0-9._\-\/=:@]+$/.test(value)) return value
-  return "'" + value.replace(/'/g, "'\\''") + "'"
-}
-
 function toTerminalDrivenAgentId(agentId: string): string {
   if (agentId === 'claude-code-worktree') return 'claude-cli-worktree'
   if (agentId === 'claude-code' || agentId === 'claude-code-v2') return 'claude-cli'
@@ -611,8 +606,9 @@ async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; 
   const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
   const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
   const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
+  const shellFamily: ShellFamily = opts.shellFamily ?? 'posix'
   return {
-    command: `${commandWithArgs} ${shellQuoteForTerminalCommand(normalized.prompt)}`,
+    command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, shellFamily)}`,
     agentId,
     prompt: normalized.prompt,
     prefixNormalized: normalized.normalized,
