@@ -1,14 +1,61 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-05-23 21:10 (UTC+8) — **第四十六 session 收工** — T0359 / CP-T1148 收尾完成；BAT 已換版至 `0.4.2`，commit `3224d08`。
+> 最後更新:2026-09-02 00:00 (UTC+8) — **第四十七 session 收工** — BUG-082 / T0360 / T0361 落地，pre-release `v0.5.9-pre.1` 已發布，**待使用者安裝後 runtime 驗收**。
 >
-> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— CP-T1148 只剩 source-side installed BAT 驗證可選確認，主軸回到 PLAN-032 三 BUG smoke。
+> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— 第一件事是確認安裝版是否真的換掉，再跑 CP-T#### smoke。
 >
-> **前次更新**:2026-05-15 13:15 (UTC+8) — 第四十三 session 收工:BUG-080 全線收尾 + 環境校正。
+> **前次更新**:2026-05-23 21:10 (UTC+8) — 第四十六 session 收工:T0359 / CP-T1148 收尾 + BAT 0.4.2 換版。
 
 ---
 
-## 🛏 本 Session 收工快照 (第四十五 session, 2026-05-19 14:38 - 15:10, ~32 min wall)
+## 🛏 本 Session 收工快照 (第四十七 session, 2026-09-01 22:05 - 2026-09-02 00:00, ~2h wall)
+
+### 主軸：跨塔台 ADVISORY 處置 → BUG-082 修復 → v0.5.9-pre.1 發布
+
+#### 起手狀態
+
+Fast Path 失效（快照 2026-05-23，距今 **101 天**）→ Full Scan。熱區 T:11 / BUG:7 / PLAN:6 / EXP:0 / CT-T:1。
+
+#### 時間線
+
+1. **22:05 Full Scan** — 面板顯示；state 19.6 KB 正常，起手式 31 行（觸軟警告）
+2. **22:05-22:40 ADVISORY 分析** — BMad-Guide 塔台來文 4 項（[1] `--workorder` 拒收跨專案前綴 / [2] B-1 workspace 預設 / [3] B-2 提示 / [4] 未知 workspaceId 行為）。塔台讀碼驗證，**發現問題比對方描述更大**：BAT 內部四個元件對工單 ID 格式有四種答案
+3. **22:42 建 BUG-082 + T0360**，commit `3250bc2`
+4. **22:45-22:55 T0360 FIXED**（Worker ~10 min）— commit `956c0f9`，9 files +557/-12
+5. **22:56 塔台複驗** — 507/507 tests、四處 regex 零殘留、helper 拒收/接受/B-2 提示皆實測。**發現 runtime 驗收阻塞：安裝版 BAT 仍為修復前**（`app.asar` + `resources/scripts/` 皆 2026-05-24 20:29）
+6. **23:20 發布路徑調查** — 揭露三個與既有認知不符的事實（見下「重點觀察」）
+7. **23:34 建 T0361 + 派發** — 項目 4（migrate script 第五處 regex）+ miss 訊號；使用者選擇**不含 B-1**
+8. **23:41 T0361 DONE**（Worker ~7 min）— commit `007adf8`；複驗 511/511
+9. **23:45 push + 觸發 workflow** — `gh workflow run pre-release.yml -R gowerlin/... -f version=0.5.9-pre.1`
+10. **00:00 build 全綠** — release `v0.5.9-pre.1` 發布（prerelease: true），5 個 artifact
+11. **00:00 package.json 版本漂移修復** — `0.4.2` → `0.5.9-pre.1`，commit `a650754`
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 新增 BUG | 1（BUG-082） | OPEN → FIXED（待 runtime 驗收） |
+| 派發工單 | 2（T0360 / T0361） | 全綠，各 1 round，共 ~17 min Worker wall |
+| 新增測試 | +28 cases | 483 → 511（T0360 +24 / T0361 +4） |
+| Code 改動 | +805 lines | 跨 helper / main / renderer 三層 |
+| Push commits | 8 | `a3a9489..a650754` |
+| Release | 1 | `v0.5.9-pre.1`（三平台 + server bundle × 3） |
+
+### 重點觀察 / Learnings 候選
+
+- **L122**（候選，🔴 高價值）：**本 repo 有三個 remote**（`origin`=gowerlin / `upstream`=tony1223 / `scandnavik`），`gh` 預設解析到 **upstream**。本次 `gh workflow run` 首發 HTTP 404 打到 tony1223。**所有 `gh` 指令必須顯式帶 `-R gowerlin/better-agent-terminal`**。本次是唯讀操作只是報錯；若是 `gh release create` / `gh pr` 等寫入操作解析錯 repo，後果嚴重。**已寫入 `_local-rules.md`**
+- **L123**（候選）：`pre-release.yml` 是 **`workflow_dispatch` only**，push tag 不會觸發它（push `v*` 會觸發 `release.yml` 正式版線）。CLAUDE.md 的「Release」節描述與此不符，需修
+- **L124**（候選）：workflow 自動遞增取 `git tag -l 'v*' --sort=-v:refname | head -1`，在**多版本線混雜**的 fork（v0.x / v2.2.x / v4.0.x 共 257 tag）會取到 `v4.0.3-pre.1` → 產出 `4.0.4-pre.1`。**必須顯式指定版本號**
+- **L125**（候選）：「source 已修但 installed bundle 落後」是 BAT 反覆出現的驗收陷阱（2026-05-24 bug tracker parser 修復時同款）。凡涉及 `app.asar` 或 `resources/scripts/` 的修復，**source lane 綠燈 ≠ runtime lane 可驗**，必須分兩條 lane 回報
+- **L126**（候選）：Worker 對工單原文的合理偏離（T0361「fallback 前發出 warn」→ 改為「前判定、後輸出」，因為要印 landed 值必須先解析 fallback）——工單寫死實作順序不如寫清楚**訊號要含哪些欄位**
+
+### 編號起始（下 session）
+
+- **T0362** / **BUG-083** / **PLAN-035** / **D119**
+
+---
+
+## 🛏 前 Session 收工快照 (第四十五 session, 2026-05-19 14:38 - 15:10, ~32 min wall)
 
 ### 主軸：BUG-081 結案校正 + *sync + *archive + state hygiene
 
@@ -60,106 +107,38 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第四十三 session, 2026-05-15 12:03 - 13:15, ~72 min wall)
-
-### 主軸：BUG-080 全線收尾 + 環境校正
-
-#### 時間線
-
-1. **12:03 起手**：Fast Path 失效（快照過期 19 天，2026-04-26 → 05-15）→ Full Scan，發現 113 工單 / 21 BUG / 14 PLAN / 1 EXP
-2. **12:05 分析 PR #18**（gowerlin/better-agent-terminal）：外部貢獻者 RicoChen727，修復 BAT remote claude-cli 派發硬編碼 `'claude'` → 改用 `resolveClaudeRuntime()`。gemini-code-assist 評論指出雙引號 quoting 風險
-3. **12:08 決策 [A]**：直接 squash-merge → commit `238ac3d`；開 BUG-080 追蹤 gemini 指出的 hardening 缺口
-4. **12:13 派 T0354 research**：評估三選項（POSIX single-quote / 依 shell 切換 / customPath 白名單）→ Worker 5 min 完成，D 區推薦「選項 3 + 選項 2 窄版」
-5. **12:20 Worker 發現本地 repo 不含 PR #18 helper**：因本地 main 仍在 PR #18 merge 前的 `04ace47`
-6. **12:25 Rebase**（A 選項）：`git pull --rebase origin main`，零衝突（純文件 vs 純 code），本地線性合併
-7. **12:30 派 T0355 fix**（customPath 白名單）：S sizing → Worker 6 min 完成，48/48 + 435/435 unit tests PASS + UI 同步校驗 + 三語 toast i18n
-8. **12:38 push 4 commits**：origin/main `238ac3d → bbc0521`
-9. **12:42 使用者 runtime smoke PASS** → T0355 CLOSED；派 T0356（shell-aware quoting）
-10. **12:53 T0356 FIXED**：Worker 5 min，476/476 全套 tests PASS + 41 new cases + 三家 shell command-word smoke PASS（pwsh `& '...'` / git-bash `'...'` / cmd `"..."`）
-11. **12:58 使用者選 [1]+[A]**：T0356 直接 CLOSED + BUG-080 CLOSED → push `5f038a1`
-12. **13:00 *sync** 重建索引：發現編號 drift（快照記 T0349/BUG-077，實際 T0356/BUG-080/PLAN-034）→ `_bug-tracker.md` + `_backlog.md` 重建 → push `13e7b40`
-13. **13:10 *archive 收工**：批次 git mv 130 檔案到 `_archive/`（107 T + 15 BUG + 8 PLAN + 1 EXP），熱區精簡為 26 個活躍/驗收中工單
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 處理的 PR | 1 (gowerlin#18) | squash-merged `238ac3d` |
-| 新增 BUG | 1 (BUG-080) | OPEN → FIXING → CLOSED 全程 |
-| 派發工單 | 3 (T0354/T0355/T0356) | 全綠 |
-| 完成工單 | 3 | research + 2 fix，全部 1 round |
-| Worker 總時間 | ~16 min wall | T0354 (5) + T0355 (6) + T0356 (5) |
-| 新增測試 | 89 cases | T0355 48 + T0356 41（含 helper 30+） |
-| Code 改動 | +200 lines | shell-quote helper / customPath validation / shell-aware quoting |
-| Push commits | 8 | 含 PR #18 merge + 3 worker fix + 4 tower meta |
-| 歸檔檔案 | 130 | 107 T + 15 BUG + 8 PLAN + 1 EXP（_archive/）|
-
-### 熱區結構（收工後）
-
-- **T workorders**：13 張（4 review/verify reports + T0153 PARTIAL + 4 FIXED 等 BUG VERIFY + 3 BUG-080 series + T0348）
-- **BUG**：8 張（2 OPEN + 1 FIXED + 3 VERIFY + 2 CLOSED 今日）
-- **PLAN**：6 張（2 IN_PROGRESS + 2 PLANNED + 2 IDEA）
-- **EXP**：0（CONCLUDED 已歸檔）
-
-### 立即待辦（傳承自 session 42 + 新增）
-
-1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072 / BUG-073 / BUG-074 皆 🔍 VERIFY 待人工 smoke → CLOSED → PLAN-032 → DONE
-2. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
-3. 🟡 **BUG-071** server bundle download flow（OPEN, high）
-4. 🟢 **BUG-061** Codex panel tsc baseline errors（OPEN, low）
-5. 🟡 **T0324 DGX Spark dogfood VERIFY**（使用者親跑進行中 / 待回報）
-6. 🟢 **WSL/Docker structured errorCode PLAN**（T0340 P2 後續建議，獨立開 PLAN）
-
-### 重點觀察 / Learnings 候選
-
-- **L117**（候選）：PR 分析 → research 工單 → 雙 fix → CLOSED 一條龍適合 Low severity 外部報告的 hardening。1 hour 內完成完整 BUG 處理鏈
-- **L118**（候選）：當 PR 在 gh 端 merged 但本地 branch 尚未同步時，Worker 會誤判 helper 不存在 → 塔台應在派工單前先 `git fetch + log` 驗證本地 ancestry
-- **L119**（候選）：分流式選項決策（A/B/C/D 配 1/2/3）+ 使用者明確選擇可在 5 文字輪內完成完整 fix 鏈，比互動式對話快 3x
-- **L120**（候選）：T#### 編號重複問題（T0341-T0348 同號多檔）— 應在 *sync 增加 collision warning
-
-### 編號起始（下 session）
-
-- **T0359** / **BUG-082** / **PLAN-035** / **D119**（2026-05-19 *sync 校正：實際最大 T0358 / BUG-081 / PLAN-034[archived] / D118；前記 T0357/D110 為 drift，已修正）
-
-### 快速連結
-
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（8 張熱區 / 72 歸檔）
-- Backlog → [_backlog.md](_backlog.md)（6 張熱區 / 27 歸檔）
-- Decision Log → [_decision-log.md](_decision-log.md)
-- Learnings → [_learnings.md](_learnings.md)
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-05-23 21:10 UTC+8（第四十六 session 收工 — T0359/CP-T1148 target-side FIXED，BAT 0.4.2）
+> 最後更新：2026-09-02 00:00 UTC+8（第四十七 session 收工 — v0.5.9-pre.1 已發布，待安裝驗收）
 
-### 立即待辦
-1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072（WSL linger, T0337）/ BUG-073（Docker daemon, T0336）/ BUG-074（SSH input-step, T0335）皆 🔍 VERIFY 待人工 smoke → 通過後 CLOSED → PLAN-032 → DONE
-2. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
-3. 🟡 **BUG-071** server bundle download flow（OPEN, high）
-4. 🟢 **CP-T1148**：target-side FIXED (`d3f6580` / `17d43c1`)；若 2026_Cooperative 要實機確認，需安裝含 `d3f6580` 的 BAT build
-5. 🟢 **T0324 DGX Spark dogfood / BUG-061 / WSL-Docker structured errorCode PLAN**：後續追蹤
+### 🔴 第一件事：v0.5.9-pre.1 安裝驗收（BUG-082 CLOSED 的唯一阻塞）
 
-### 近期完成（第四十五至第四十六 session）
-- **BAT 0.4.2 換版完成**：`package.json` / `package-lock.json` bump 至 `0.4.2`，`CHANGELOG.md` promoted `[0.4.2] — 2026-05-23`，commit `3224d08`; `npm run compile` PASS
-- **T0359 FIXED**：BAT 支援 workorder `status: ABANDONED`（parser / badge / inactive count / filter / CP-T#### fixture），commit `d3f6580`，unit 483/483 + compile PASS
-- **BUG-081 CLOSED + 使用者驗收通過**（Claude runtime regression smoke 硬條件滿足）
-- **frontmatter/body drift 校正**（BUG-081 重複 closed_at + body OPEN→CLOSED）
-- **\*sync** 重建 _bug-tracker / _backlog（前次同步停在 05-17，已過期）
-- **\*archive** 6 檔 → 冷區（T0354-57 + BUG-079/080），熱區 BUG 9→7
-- **state hygiene**：sessions 42/41/39 → 2026-Q2-c.md（INDEX 61 entries）
+使用者已下載 `BetterAgentTerminal.Setup.0.5.9-pre.1.exe`（535 MB，NSIS）。**用新版 BAT 重開後**依序：
+
+1. **確認安裝版真的換掉**（最關鍵，過去兩次都栽在這）：
+   `grep 'expected T followed by digits' "C:/Program Files/BetterAgentTerminal/resources/scripts/bat-terminal.mjs"`
+   → **應查無**（舊版才有此字串）。查得到代表安裝沒生效，勿往下走
+2. **runtime smoke**：實際派一張 `CP-T####` 走 `--skill` + `--workorder` 結構化模式（舊版會 exit 1）
+3. **查 `[T0361] Workspace miss`**：正常**不該出現**；若出現即 workspace 錯派實證，供 ADVISORY B-1 復議
+4. 全綠 → BUG-082 → CLOSED → **回函 BMad-Guide 塔台**（[1] 接受，v0.5.9-pre.1 已 runtime 驗證；[3] B-2 同版落地；[2] B-1 暫緩 + Part C 結論；[4] 已調查）
+
+### 其餘待辦
+1. 🟡 **PLAN-032 三 BUG smoke**：BUG-072 / BUG-073 / BUG-074 皆 VERIFY 待人工 smoke（本 session 未動）
+2. 🟡 **BUG-078** FIXED 待 VERIFY / **BUG-071** server bundle download flow（OPEN, high）
+3. 🟢 **ADVISORY B-1 復議**：待安裝後 miss 訊號有真實資料再決定，決定採納則須同批補 renderer 訊號
+4. 🟢 **CLAUDE.md「Release」節需修**：描述與實際 workflow 不符（見 L123/L124）
+5. 🟢 T0324 DGX Spark dogfood / BUG-061 / WSL-Docker structured errorCode PLAN
+
+### ⚠️ 本專案 gh 鐵則（L122）
+**所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`** —— 三個 remote，預設會解析到 upstream tony1223。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（7 熱區）
-- Backlog → [_backlog.md](_backlog.md)（6 熱區）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D118）
-- Learnings → [_learnings.md](_learnings.md)
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（8 熱區）｜ Backlog → [_backlog.md](_backlog.md)（6 熱區）
+- Decision Log → [_decision-log.md](_decision-log.md)｜ Learnings → [_learnings.md](_learnings.md)
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（62 entries）
 
 ### 編號起始
-- **T0360** / **BUG-082** / **PLAN-035** / **D119** / **EXP-[TOPIC]-001**
+- **T0362** / **BUG-083** / **PLAN-035** / **D119** / **EXP-[TOPIC]-001**
 
 ---
 
@@ -168,16 +147,18 @@
 | 欄位 | 內容 |
 |------|------|
 | **專案** | better-agent-terminal |
-| **Fork 上游** | tony1223/better-agent-terminal（lastSyncCommit: 079810025，上游版號 2.1.3） |
-| **Fork 版號** | 1.0.0（獨立版號，從 1.0.0 開始，D026） |
-| **目前里程碑** | Phase 1 — Voice Input（實作完成，收官驗收中） |
-| **工單最大編號** | T0251(session 25 完成:T0250→T0251 全綠,commit `426d6fc`,DISABLE_AUTOUPDATER env 注入 4 處) |
-| **BUG 最大編號** | BUG-059(🔴 High 🚫 CLOSED 2026-04-25,T0251 runtime 驗收通過;BUG-055 連帶 CLOSED,D088) |
-| **PLAN 最大編號** | PLAN-028 |
-| **EXP 最大編號** | EXP-GPUWHIS-001(session 21 新增,📊 CONCLUDED) |
-| **上游同步版本** | v2.1.42-pre.2(2026-04-16)— ⏸ 版號 bump 暫停待 BUG-056 CLOSED |
-| **決策最大編號** | D088(session 25:BUG-059 + BUG-055 一同 CLOSED,T0250→T0251 修復鏈閉環,L067-070 候選待 *evolve) |
-| **塔台版本** | Control Tower v4.3.0 |
+| **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
+| **目前版號** | **0.5.9-pre.1**（package.json + lock 已同步，commit `a650754`；前次漂移停在 0.4.2） |
+| **最新 release** | `v0.5.9-pre.1`（2026-09-01，prerelease，三平台 + server bundle × 3） |
+| **前一 tag** | `v0.5.8`（指向 `a3a9489`） |
+| **目前主軸** | BUG-082 跨專案工單前綴 — 待 runtime 驗收 |
+| **工單最大編號** | T0361（DONE，commit `007adf8`） |
+| **BUG 最大編號** | BUG-082（FIXED，待 runtime 驗收；fix commit `956c0f9`） |
+| **PLAN 最大編號** | PLAN-034（已 archive；熱區最大 PLAN-033） |
+| **決策最大編號** | D118 |
+| **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
+| **塔台版本** | Control Tower v5.0.5 |
+| **unit test 基線** | **511**（41 files） |
 
 ---
 
@@ -243,37 +224,29 @@
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-05-17 15:28 (UTC+8) — control-tower Full Scan（前次快照 2026-04-26 已超過 7 天）
+> 最後掃描:2026-09-01 22:05 (UTC+8) — control-tower Full Scan（前次快照 2026-05-17，距今 101 天已失效）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| BMad-Method | ✅ | _bmad/ 存在；版號未由 config.toml 明確標示 |
-| ECC 學習 | ✅ Level 1+ | ~/.claude/homunculus/ |
-| bmad-guide skill | ✅ | 可用 |
-| mem0 REST | ✅ | memsync binary 存在且 status 指令 exit 0；本次未回傳 JSON body |
-| 終端環境 | BAT | TERM_PROGRAM=better-agent-terminal, WT_SESSION 空 |
-| BAT 終端 | ✅ | BAT_SESSION=1, port:9876, workspace:0228e89a-650f-4c98-aeaf-3c5b3ffcd053 |
-| BAT_TOWER_TERMINAL_ID | ❌ 空 | 本 session 未設,bat-notify Worker 回報需走降級 |
-| 平台 | Windows | PowerShell shell；BAT terminal env |
+| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `2eda2f34-9f69-4704-895e-494d9ec0054b` |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備；本 session 成功派發 2 張（T0360 / T0361） |
+| BAT_HELPER_DIR | ✅ | `C:/Program Files/BetterAgentTerminal/resources/scripts` |
+| 平台 | Windows | PowerShell 主，Bash tool 並存 |
+| gh CLI | ✅ | 已登入 `gowerlin`（scopes: gist / read:org / repo）。⚠️ **必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
+| git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
-| _archive/ | ✅ | **483 張歸檔**(workorders:378 / bugs:72 / plans:27) |
-| _playbooks/ | 📋 | 熱區未偵測到 _playbooks/ 目錄 |
-| _decision-log | ✅ | 至 D118；78 unique D### hits |
-| 跨專案參照 | ✅ | _cross-references.md 存在 |
-| Global 學習 | ✅ ⭐ | ~/.claude/control-tower-data/；local scan: patterns 2 / playbooks 20 |
-| Global 設定 | ❌ 無 | 僅 project 層 |
-| BUG/PLAN 追蹤 | ✅ | BUG:9 熱區 / PLAN:6 熱區 |
-| 實驗追蹤 | ✅ | EXP:0 熱區 |
-| 熱區工單 | **T:12 / BUG:9 / PLAN:6 / EXP:0** | 另有 reports/ 與系統文件，不納入 T/BUG/PLAN/EXP 統計 |
-| 最大編號 | **T0356 / BUG-081 / PLAN-034 / D118** | PLAN-034 已在 archive；下張建議：T0357 / BUG-082 / PLAN-035 / D119 |
-| 設定來源 | project | _tower-config.yaml (auto-session: **on**, yolo_max_retries: **1**, auto_commit: on, archive_days: **2**) |
-| 塔台版本 | v5.0.1 | control-tower skill frontmatter |
-| 能力等級 | Level 2 | ECC + mem0 + Layer 2 |
+| 熱區工單 | **T:13 / BUG:8 / PLAN:6 / EXP:0 / CT-T:1** | 本 session 新增 T0360 / T0361 / BUG-082 |
+| 最大編號 | **T0361 / BUG-082 / PLAN-034(archived) / D118** | 下張：T0362 / BUG-083 / PLAN-035 / D119 |
+| unit test | ✅ **511 passed / 41 files** | 本 session 基線由 483 → 511 |
+| tsc --noEmit | ⚠️ 42 既有 error | 全落在 `CodexAgentPanel.tsx` / `agent-profiles.ts` 等未觸及檔案，為既有 baseline |
+| 設定來源 | project | `_tower-config.yaml`（auto-session **on**, yolo_max_retries 1, auto_commit on, archive_days 2） |
+| 塔台版本 | v5.0.5 | control-tower skill |
 
-> **Drift 狀態**:
-> 1. ⚠️ `_tower-state.md` 目前約 32 KB，超過 30 KB soft warning；下次收工建議跑 state hygiene archive。
-> 2. ⚠️ 工作區已有既有變更 `AGENTS.md`，本次塔台啟動未觸碰。
-> 3. ⚠️ BAT_TOWER_TERMINAL_ID 空；Worker 完成通知不得宣稱 bat-notify 成功，需用剪貼簿/手動回報降級。
+> **Drift / 注意事項**:
+> 1. ✅ `_tower-state.md` 18.8 KB（正常）；起手式 35 行（略超 30 行軟警告，內容全為可執行待辦，無歷史內嵌）
+> 2. ⚠️ 工作區長期存在 `AGENTS.md` dirty（claude-mem 自動產生的 context 區塊，非程式碼）。本 session 全程以 `git commit --only` 精確指定路徑，未觸碰
+> 3. 🔴 **安裝版 BAT 落後 source**：驗收前必先確認 `resources/scripts/bat-terminal.mjs` 已換新（見起手式第 1 步）
+> 4. ⚠️ CLAUDE.md「Release」節描述與實際 workflow 不符（pre-release 為 workflow_dispatch，非 tag 觸發），待修
 
 ---
 

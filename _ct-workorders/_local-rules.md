@@ -416,3 +416,71 @@ T0347 落地後實測：起手式內嵌 Session 31 收工快照大段（~234 行
 Step 0 額外掃 🌅 起手式區段行數：
 - > 30 行 → ⚠️ 軟警告
 - > 60 行 → 🔴 強制提示重構
+
+---
+
+## GitHub CLI 鐵則（L122，2026-09-01 第四十七 session）
+
+### 規則
+
+**本專案所有 `gh` 指令必須顯式帶 `-R gowerlin/better-agent-terminal`。**
+
+### 為什麼
+
+本 repo 有**三個 remote**：
+
+| remote | URL |
+|--------|-----|
+| `origin` | `https://github.com/gowerlin/better-agent-terminal.git` ← **我們的** |
+| `upstream` | `https://github.com/tony1223/better-agent-terminal.git` |
+| `scandnavik` | `https://github.com/scandnavik/better-agent-terminal.git` |
+
+`gh` 的預設 repo 解析在多 remote 情境下**會選到 `upstream`**。實測（2026-09-01）：
+
+```
+gh workflow run pre-release.yml -f version=0.5.9-pre.1
+→ HTTP 404: workflow pre-release.yml not found on the default branch
+  (https://api.github.com/repos/tony1223/better-agent-terminal/actions/workflows/pre-release.yml)
+```
+
+該次是**唯讀操作**，只是報錯。但 `gh release create` / `gh pr create` / `gh issue create`
+等**寫入操作**若解析錯 repo，會把內容送進上游或第三方 fork —— 後果不可逆。
+
+### 檢查點
+
+若你正要送出一個 `gh` 指令而指令中沒有 `-R`，**停下來補上**。
+
+---
+
+## Release 流程實況（L123 / L124，2026-09-01 修正）
+
+> ⚠️ CLAUDE.md「Release」節的描述**與實際 workflow 不符**，以本節為準。
+
+### 觸發方式
+
+| workflow | 觸發 | 說明 |
+|----------|------|------|
+| `pre-release.yml` | **`workflow_dispatch` only** | push tag **不會**觸發。用 `gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=<X.Y.Z-pre.N>` |
+| `release.yml` | `push` tag `v*` | 正式版線 |
+| `build-server-bundle.yml` | `workflow_dispatch` + tag `server-bundle-v*` | 與 desktop release 解耦 |
+
+### 版本號必須顯式指定
+
+`pre-release.yml` 的自動遞增邏輯是：
+
+```
+git tag -l 'v*' --sort=-v:refname | head -1
+```
+
+本 repo 有 **257 個 tag、三條混雜版本線**（`v0.x` 主線 / `v2.2.x` / `v4.0.x`），
+`-v:refname` 會取到 **`v4.0.3-pre.1`** → 產出 `4.0.4-pre.1`，與主線完全脫節。
+
+**留空版本號 = 版本號暴衝。一律顯式指定。**
+
+判定下一版的正確做法：找**本 fork 主線**的最新 tag（`v0.x` 那條），而非 `--sort=-v:refname` 的第一名。
+
+### package.json 版本
+
+CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > git tag > timestamp），
+所以 package.json 落後**不影響安裝檔**，但會讓本機 `npm run dev` 顯示錯誤版本。
+發布後順手同步：`npm version --no-git-tag-version --allow-same-version <version>`（同步 package.json + lock）。
