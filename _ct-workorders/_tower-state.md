@@ -120,7 +120,12 @@ Fast Path 失效（快照 2026-05-23，距今 **101 天**）→ Full Scan。熱�
    → **應查無**（舊版才有此字串）。查得到代表安裝沒生效，勿往下走
 2. **runtime smoke**：實際派一張 `CP-T####` 走 `--skill` + `--workorder` 結構化模式（舊版會 exit 1）
 3. **查 `[T0361] Workspace miss`**：正常**不該出現**；若出現即 workspace 錯派實證，供 ADVISORY B-1 復議
-4. 全綠 → BUG-082 → CLOSED → **回函 BMad-Guide 塔台**（[1] 接受，v0.5.9-pre.1 已 runtime 驗證；[3] B-2 同版落地；[2] B-1 暫緩 + Part C 結論；[4] 已調查）
+4. 全綠 → BUG-082 → CLOSED → **回函 BMad-Guide 塔台**（使用者已定案：**smoke 通過後才發**，讓回函能寫「已 runtime 驗證」而非只是「已 commit」）
+
+**回函五項**（前四項對應 ADVISORY，第 5 項是我方回饋的新發現）：
+[1] 接受，v0.5.9-pre.1 已 runtime 驗證 ｜ [2] B-1 暫緩 + Part C 結論（安全但不可觀測，採納須同批補 miss 訊號）｜ [3] B-2 同版落地（採用其建議文案）｜ [4] 已調查，見 Part C
+**[5] 回饋**：查證 CT v5.0.5（`references/auto-session.md:908-909` + v5.0.4/5.0.5 changelog）確認**其 `--prompt` 繞道並未寫進 skill**，故 CT 端零改動即可用新版 BAT。但建議補「最低 BAT 版本標註 + 舊版降級規則」——因為此限制的真正觸發面是 **`project-prefix` 設定**（`cross-project-coordination.md:164` 會自動替工單加前綴），比 ADVISORY 描述的跨專案場景大得多。
+⚠️ CT skill 屬 `~/.claude/skills/**`，塔台硬邊界禁止寫入，只能回函請對方處理。
 
 ### 其餘待辦
 1. 🟡 **PLAN-032 三 BUG smoke**：BUG-072 / BUG-073 / BUG-074 皆 VERIFY 待人工 smoke（本 session 未動）
