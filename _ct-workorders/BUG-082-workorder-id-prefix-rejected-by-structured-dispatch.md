@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-082
 title: 跨專案工單前綴（CP-/CT-）被結構化派工路徑拒收，且四處 ID 規則彼此不一致
-status: OPEN
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-09-01T22:42:56+08:00"
-updated_at: "2026-09-01T22:42:56+08:00"
+updated_at: "2026-09-01T22:56:52+08:00"
+fixed_at: "2026-09-01T22:56:52+08:00"
+fix_commit: 956c0f9
 workaround: |
   改用 --prompt 自由文字模式派工（已由 BMad-Guide 塔台實測 exit 0）：
   node "$BAT_HELPER_DIR\bat-terminal.mjs" --notify-id <id> --workspace <uuid> \
@@ -20,6 +22,7 @@ impact:
   - cross-project-dispatch
 links:
   source_advisory: "BMad-Guide 塔台跨塔台 ADVISORY（2026-09-01）— 存檔於上層 repo _ct-workorders/_handover-2026-09-01-bat-workspace-default-opinion.md（本 repo 無此檔）"
+  fix_workorder: T0360
   related_workorders:
     - T0359
     - T0137
@@ -44,7 +47,7 @@ tags:
 
 | 欄位 | 值 |
 |------|-----|
-| **狀態** | 📂 OPEN |
+| **狀態** | ✅ FIXED（待 runtime 驗收）|
 | **嚴重度** | high |
 | **重現性** | always |
 | **回報來源** | BMad-Guide 塔台跨塔台 ADVISORY（2026-09-01） |
@@ -100,3 +103,35 @@ node "$BAT_HELPER_DIR\bat-terminal.mjs" ... --skill ct-exec --workorder CP-T0113
 - 修復工單：T0360
 - 同批附帶：B-2 stderr 提示（`--workspace` 未帶時）+【4】renderer 未知 workspaceId 行為調查
 - 塔台裁決：B-1（漏帶 `--workspace` 時改取 `BAT_WORKSPACE_ID`）**暫緩**，綁定【4】調查結論
+
+---
+
+## 修復紀錄（2026-09-01 22:56 UTC+8）
+
+**T0360 FIXED** — commit `956c0f9`（9 files, +557/-12）。四處統一為 `^(?:[A-Z]{2,4}-)?T\d+$`。
+
+### 塔台獨立複驗（未採信 Worker 自述）
+
+| 項目 | 結果 |
+|------|------|
+| 四處 regex 統一 | ✅ 已確認；`grep '\^T\d'` 於四檔案 **零殘留** |
+| `npm run test:unit` | ✅ 40 files / **507 passed**（基線 483，+24） |
+| helper 拒收 | ✅ `cp-t1` / `TOOLONG-T1` → exit 1 + 新錯誤訊息 |
+| helper 接受 | ✅ `CP-T0113` 通過驗證並進入連線階段 |
+| B-2 提示 | ✅ 未帶 `--workspace` 時三行提示出現；帶了則消失 |
+
+### 🔴 runtime 驗收阻塞（CLOSED 前必解）
+
+安裝版 BAT 仍為**修復前**版本，故 runtime 派工 smoke 現在**必然失敗**：
+
+- `C:\Program Files\BetterAgentTerminal\resources\scripts\bat-terminal.mjs`（2026-05-24 20:29）仍含舊訊息 `(expected T followed by digits)` — A1 未生效
+- `resources\app.asar`（同時間）為修復前 bundle — A2 未生效
+
+⇒ **本 BUG 需 rebuild + reinstall 後才能 runtime 驗收**。此為 BAT 長期存在的
+「source 已修但 installed bundle 落後」情境（2026-05-24 曾於 bug tracker parser 修復時遇到同一問題）。
+
+### Part C 調查結論（供 ADVISORY B-1 決策）
+
+未知 workspaceId **安全但不可觀測**：renderer `workspace-store.ts:333-340` 靜默 fallback 到 active
+workspace，全鏈路零驗證；`App.tsx:458` 的 debug log 印的是請求值而非落點，會誤導。
+⇒ B-1 不被否決，但若採納應同批補 workspace miss 訊號（建議另開單）。
