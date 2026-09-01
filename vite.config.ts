@@ -25,6 +25,8 @@ export default defineConfig({
       // T0342 — Windows/MSYS regression guard for bat-terminal helper
       'tests/bat-terminal-msys.test.mjs',
       'tests/bat-notify-submit.test.mjs',
+      // T0360 / BUG-082 — work order ID grammar + --workspace hint guard
+      'tests/bat-terminal-workorder-id.test.mjs',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'dist-electron/**', 'release/**'],
   },

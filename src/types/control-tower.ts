@@ -185,23 +185,37 @@ function extractStatusKeyword(raw: string | undefined): WorkOrderStatus | undefi
   return keyword && STATUS_VALUES.has(keyword as WorkOrderStatus) ? keyword as WorkOrderStatus : undefined
 }
 
+/**
+ * T0360/BUG-082: 工單 ID 的選用前綴 —— CT 規範的「2–4 字元大寫英文前綴」
+ * （跨專案 `CP-`、委派 `CT-`、專案代號 `KEENBEST-` 等）。
+ * ⚠️ 以下三處為同一份文法的複本（helper/main/renderer 之間無共用模組路徑），
+ * 任一處放寬都必須同步其餘三處，否則失敗只是往後推一層：
+ *   - scripts/bat-terminal.mjs           WORKORDER_ID_PATTERN
+ *   - electron/main.ts                   WORKORDER_ID_PATTERN
+ *   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
+ */
+const WORKORDER_ID_PREFIX = '(?:[A-Z]{2,4}-)?'
+
+/** 完整工單 ID（錨定頭尾）：T0001 / CP-T1148 / CT-T001 */
+export const WORKORDER_ID_PATTERN = new RegExp(String.raw`^${WORKORDER_ID_PREFIX}T\d+$`)
+
 /** T0001-create-project-context.md → T0001; CP-T1148-example.md → CP-T1148 */
 function filenameToId(filename: string): string {
-  const match = filename.match(/^((?:CP-)?T\d+)/)
+  const match = filename.match(new RegExp(String.raw`^(${WORKORDER_ID_PREFIX}T\d+)`))
   return match?.[1] ?? filename.replace('.md', '')
 }
 
 /** T0001-create-project-context.md → create project context */
 function filenameToTitle(filename: string): string {
   return filename
-    .replace(/^(?:CP-)?T\d+-/, '')
+    .replace(new RegExp(String.raw`^${WORKORDER_ID_PREFIX}T\d+-`), '')
     .replace(/\.md$/, '')
     .replace(/-/g, ' ')
 }
 
 /** 判斷檔案是否為工單（排除 _ 開頭的系統檔和 .yaml） */
 export function isWorkOrderFile(filename: string): boolean {
-  return filename.endsWith('.md') && !filename.startsWith('_') && /^(?:CP-)?T\d+/.test(filename)
+  return filename.endsWith('.md') && !filename.startsWith('_') && new RegExp(String.raw`^${WORKORDER_ID_PREFIX}T\d+`).test(filename)
 }
 
 /** 依狀態返回色碼 class name */

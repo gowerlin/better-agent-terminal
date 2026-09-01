@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isWorkOrderFile, parseWorkOrder, statusColor, statusLabel } from '../control-tower'
+import { WORKORDER_ID_PATTERN, isWorkOrderFile, parseWorkOrder, statusColor, statusLabel } from '../control-tower'
 
 const FRONTMATTER_DONE = `---
 schema_version: 1
@@ -200,5 +200,51 @@ completed_at: "2026-04-26T11:30:00+08:00"
 `
     const wo = parseWorkOrder('T0314-hotzone.md', t0314Like)
     expect(wo.status).toBe('DONE')
+  })
+})
+
+describe('T0360/BUG-082 — 工單 ID 前綴文法統一', () => {
+  const LEGACY_BODY = `# CT-T001 — Delegate BAT routing skill update
+
+| 欄位 | 內容 |
+|------|------|
+| 狀態 | PENDING |
+`
+
+  it('accepts a bare T#### id and any 2-4 char uppercase prefix', () => {
+    for (const id of ['T0001', 'T1', 'CP-T0113', 'CP-T1148', 'CT-T001', 'KEEN-T0002']) {
+      expect(WORKORDER_ID_PATTERN.test(id), id).toBe(true)
+    }
+  })
+
+  it('still rejects malformed ids (G2 guard — the grammar was widened, not removed)', () => {
+    for (const id of ['T', 'X-T1', 'TOOLONG-T1', 'cp-t1', 'CP-T', '', 'T0001-extra', 'CP-CT-T1', 'BUG-001']) {
+      expect(WORKORDER_ID_PATTERN.test(id), id).toBe(false)
+    }
+  })
+
+  it('recognizes CT-T#### hot-zone files the panel previously ignored', () => {
+    expect(isWorkOrderFile('CT-T001-delegate-bat-routing-skill-update.md')).toBe(true)
+    expect(isWorkOrderFile('T0001-normal-workorder.md')).toBe(true)
+    expect(isWorkOrderFile('CP-T1148-cross-project-workorder.md')).toBe(true)
+  })
+
+  it('does not widen isWorkOrderFile into BUG / PLAN / EXP / system files', () => {
+    expect(isWorkOrderFile('BUG-082-something.md')).toBe(false)
+    expect(isWorkOrderFile('PLAN-031-something.md')).toBe(false)
+    expect(isWorkOrderFile('EXP-BUG012-001-something.md')).toBe(false)
+    expect(isWorkOrderFile('_tower-state.md')).toBe(false)
+    expect(isWorkOrderFile('CT-T001-something.yaml')).toBe(false)
+  })
+
+  it('derives id and title from a prefixed filename', () => {
+    const wo = parseWorkOrder('CT-T001-delegate-bat-routing-skill-update.md', LEGACY_BODY)
+    expect(wo.id).toBe('CT-T001')
+    expect(wo.title).toBe('delegate bat routing skill update')
+  })
+
+  it('keeps the CP- behaviour T0359 shipped', () => {
+    const wo = parseWorkOrder('CP-T1148-cross-project.md', LEGACY_BODY)
+    expect(wo.id).toBe('CP-T1148')
   })
 })

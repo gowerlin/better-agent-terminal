@@ -76,7 +76,7 @@ Options:
   --agent <id|default>   Agent definition for --prompt mode (default: default)
   --prompt <text>        Start the selected/default agent with this prompt
   --skill <name>         Agent-neutral Control Tower skill name (ct-exec|ct-done)
-  --workorder <T####>    Work order ID for --skill mode
+  --workorder <T####>    Work order ID for --skill mode (optional [A-Z]{2,4}- prefix, e.g. CP-T0113)
   --mode <value>         CT mode for Worker (yolo|ask|off|on); injects CT_MODE env
   --interactive          Force interactive mode; injects CT_INTERACTIVE=1 env
   --no-interactive       Force non-interactive mode; injects CT_INTERACTIVE=0 env
@@ -92,6 +92,16 @@ Examples:
   node scripts/bat-terminal.mjs --cwd /tmp echo hello
   node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --skill ct-exec --workorder T0001
 `
+
+// T0360/BUG-082: Work order ID grammar, shared across the whole dispatch chain.
+// Optional 2-4 char uppercase prefix (CT / CP / KEENBEST-style cross-project and
+// delegate work orders) followed by T + digits.
+// ⚠️ Three sibling copies must stay in sync — there is no module path shared
+// between this helper (.mjs), the main process and the renderer:
+//   - electron/main.ts             buildControlTowerSkillPrompt()
+//   - src/types/control-tower.ts   WORKORDER_ID_PREFIX / filenameToId / isWorkOrderFile
+//   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
+const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
 const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--help', '-h', '--version']
 
@@ -221,8 +231,8 @@ while (i < rawArgs.length) {
   if (arg === '--workorder') {
     if (!rawArgs[i + 1]) { printUsageError('--workorder requires a work order ID argument'); process.exit(1) }
     const value = rawArgs[i + 1]
-    if (!/^T\d+$/.test(value)) {
-      console.error(`Error: Invalid --workorder value: '${value}' (expected T followed by digits)`)
+    if (!WORKORDER_ID_PATTERN.test(value)) {
+      console.error(`Error: Invalid --workorder value: '${value}' (expected T followed by digits, with an optional 2-4 char uppercase prefix, e.g. T0001 or CP-T0113)`)
       process.exit(1)
     }
     workorder = value
@@ -322,6 +332,15 @@ if (!TOKEN) {
   console.error('Error: BAT_REMOTE_TOKEN not set')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-BAT_REMOTE_TOKEN' })
   process.exit(1)
+}
+
+// T0360 (ADVISORY B-2): Advisory only — behaviour is unchanged. Callers that
+// dispatch on behalf of a specific project frequently do not know this flag
+// exists, and silently land the PTY in whatever workspace happens to be active.
+if (!workspaceId) {
+  console.error('[bat-terminal] --workspace not specified; PTY will land in the currently ACTIVE workspace.')
+  console.error('               Callers dispatching for a specific project should pass')
+  console.error('               --workspace "$BAT_WORKSPACE_ID".')
 }
 
 // Shell-quote arguments containing special characters so the command

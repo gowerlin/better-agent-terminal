@@ -536,8 +536,17 @@ function isCodexAgentId(agentId: string): boolean {
   return agentId === 'codex-cli' || agentId === 'codex-agent' || agentId === 'codex-agent-worktree'
 }
 
+// T0360/BUG-082: Work order ID grammar — optional 2-4 char uppercase prefix
+// (cross-project / delegate work orders such as CP-T0113, CT-T001) + T + digits.
+// ⚠️ Sibling copies that must stay in sync (no shared module path across the
+// helper / main / renderer boundary):
+//   - scripts/bat-terminal.mjs           WORKORDER_ID_PATTERN
+//   - src/types/control-tower.ts         WORKORDER_ID_PREFIX
+//   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
+const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
+
 function buildControlTowerSkillPrompt(agentId: string, skill: string, workorder: string): string | null {
-  if (!/^(ct-exec|ct-done)$/.test(skill) || !/^T\d+$/.test(workorder)) return null
+  if (!/^(ct-exec|ct-done)$/.test(skill) || !WORKORDER_ID_PATTERN.test(workorder)) return null
   const prefix = isCodexAgentId(agentId) ? '$' : '/'
   return `${prefix}${skill} ${workorder}`
 }

@@ -4,6 +4,20 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- fix(ct): unify the work order ID grammar to `^(?:[A-Z]{2,4}-)?T\d+$` across the whole
+  dispatch chain, so cross-project / delegate work orders (`CP-T0113`, `CT-T001`) can be
+  dispatched through the structured `--skill` + `--workorder` path instead of only through
+  free-text `--prompt`. Four components previously disagreed on the format; `scripts/bat-terminal.mjs`,
+  `electron/main.ts` (`buildControlTowerSkillPrompt`) and `src/types/control-tower.ts`
+  (`filenameToId` / `filenameToTitle` / `isWorkOrderFile`) now share one grammar. The Control
+  Tower panel also stops ignoring `CT-T####` files. (refs: BUG-082, T0360)
+
+### Changed
+- `scripts/bat-terminal.mjs` now prints a stderr hint when `--workspace` is omitted, naming
+  `--workspace "$BAT_WORKSPACE_ID"` as the fix. Advisory only — allocation behaviour and exit
+  codes are unchanged. (refs: T0360)
+
 ## [0.4.2] — 2026-05-23 — Control Tower Status Parsing + Setup Wizard UX
 
 ### Fixed
