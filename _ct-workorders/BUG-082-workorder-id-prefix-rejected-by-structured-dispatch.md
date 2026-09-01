@@ -1,0 +1,102 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-082
+title: 跨專案工單前綴（CP-/CT-）被結構化派工路徑拒收，且四處 ID 規則彼此不一致
+status: OPEN
+severity: high
+reproducibility: always
+created_at: "2026-09-01T22:42:56+08:00"
+updated_at: "2026-09-01T22:42:56+08:00"
+workaround: |
+  改用 --prompt 自由文字模式派工（已由 BMad-Guide 塔台實測 exit 0）：
+  node "$BAT_HELPER_DIR\bat-terminal.mjs" --notify-id <id> --workspace <uuid> \
+       --cwd <repo root> --mode ask --agent default --prompt "/ct-exec CP-T0113"
+  代價：繞過結構化參數，Worker 收到自由文字而非 skill/workorder 欄位。
+impact:
+  - bat-terminal
+  - control-tower-panel
+  - agent-command
+  - cross-project-dispatch
+links:
+  source_advisory: "BMad-Guide 塔台跨塔台 ADVISORY（2026-09-01）— 存檔於上層 repo _ct-workorders/_handover-2026-09-01-bat-workspace-default-opinion.md（本 repo 無此檔）"
+  related_workorders:
+    - T0359
+    - T0137
+  related_bugs:
+    - BUG-031
+  related_files:
+    - scripts/bat-terminal.mjs
+    - electron/main.ts
+    - src/types/control-tower.ts
+    - src/utils/control-tower-launch.ts
+tags:
+  - cross-project
+  - workorder-id
+  - validation
+  - dispatch
+  - internal-inconsistency
+---
+
+# BUG-082 — 跨專案工單前綴被結構化派工路徑拒收
+
+## Metadata
+
+| 欄位 | 值 |
+|------|-----|
+| **狀態** | 📂 OPEN |
+| **嚴重度** | high |
+| **重現性** | always |
+| **回報來源** | BMad-Guide 塔台跨塔台 ADVISORY（2026-09-01） |
+| **建立時間** | 2026-09-01 22:42 (UTC+8) |
+
+## 現象
+
+### 預期
+
+Control Tower 的 `references/cross-project-coordination.md`「命名規則」明訂跨專案協調工單**強制**使用前綴（`CP-T0001-description.md`）。BAT 的結構化派工模式（`--skill` + `--workorder`）應能派發這類工單。
+
+### 實際
+
+```
+node "$BAT_HELPER_DIR\bat-terminal.mjs" ... --skill ct-exec --workorder CP-T0113
+→ Error: Invalid --workorder value: 'CP-T0113' (expected T followed by digits)
+→ EXITCODE=1
+```
+
+⇒ 整個 CT 生態的跨專案工單（COORDINATED / DELEGATE）都無法用結構化模式派工。
+
+## 根因：四個元件對「工單 ID 格式」有四種答案
+
+塔台 2026-09-01 讀碼驗證：
+
+| 位置 | 規則 | `CP-T1148` | `CT-T001` |
+|------|------|-----------|----------|
+| `scripts/bat-terminal.mjs:224` | `/^T\d+$/` | ❌ | ❌ |
+| `electron/main.ts:540` `buildControlTowerSkillPrompt` | `/^T\d+$/` | ❌ | ❌ |
+| `src/types/control-tower.ts:188,204` 面板 parser | `/^(?:CP-)?T\d+/` | ✅ | ❌ |
+| `src/utils/control-tower-launch.ts:49` 面板按鈕派工 | 無驗證 | ✅ | ✅ |
+| `scripts/migrate-ct-frontmatter.mjs:35` | 已處理 `CT-T###` | ✅ | ✅ |
+
+### 由此產生的三個可觀察症狀
+
+1. **同一顆 BAT，UI 按鈕能派、helper 不能派**
+   T0359 已讓面板 parser 支援 `CP-T####`（含 `CP-T1148` fixture 測試），但 CLI 結構化路徑仍拒收。
+
+2. **本 repo 熱區的 `CT-T001-delegate-bat-routing-skill-update.md` 面板不認**
+   `isWorkOrderFile('CT-T001-...')` 回 `false`（parser 硬編碼只認 `CP-`），該工單在 Control Tower 面板中不顯示。
+
+3. **只修 helper 會把失敗往後推一層（回報方讀不到的資訊）**
+   `bat-terminal.mjs` 放行後，main process `buildControlTowerSkillPrompt` 仍回 `null`
+   → `[agent-command] invalid prompt payload` warn → 終端建立失敗。
+   回報方僅讀 helper 原始碼，無法得知這層。**修復必須同時涵蓋兩層。**
+
+## 修復方向
+
+統一為 `^(?:[A-Z]{2,4}-)?T\d+$`（對齊 CT 的「2–4 字元大寫英文前綴」規則），四處對齊。
+
+## 相關
+
+- 修復工單：T0360
+- 同批附帶：B-2 stderr 提示（`--workspace` 未帶時）+【4】renderer 未知 workspaceId 行為調查
+- 塔台裁決：B-1（漏帶 `--workspace` 時改取 `BAT_WORKSPACE_ID`）**暫緩**，綁定【4】調查結論
