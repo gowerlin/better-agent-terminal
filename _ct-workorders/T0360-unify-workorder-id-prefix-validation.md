@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0360
 title: "BUG-082: 統一工單 ID 前綴驗證 + --workspace 缺漏提示 + 未知 workspaceId 行為調查"
 type: fix
-status: IN_PROGRESS
+status: FIXED
 priority: P1
 sizing: M
 created_at: "2026-09-01T22:42:56+08:00"
-updated_at: "2026-09-01T22:45:17+08:00"
+updated_at: "2026-09-01T22:55:13+08:00"
 started_at: "2026-09-01T22:45:17+08:00"
+completed_at: "2026-09-01T22:55:13+08:00"
 source_advisory: "BMad-Guide 塔台跨塔台 ADVISORY 2026-09-01（項目 [1] 接受 / [3] B-2 接受 / [4] 調查 / [2] B-1 暫緩）"
 target_version: v0.4.3
 depends_on: []
@@ -39,7 +40,7 @@ memory_overrides:
 
 # T0360 — 統一工單 ID 前綴驗證（BUG-082）
 
-- **狀態**：IN_PROGRESS
+- **狀態**：FIXED
 - **任務類型**：fix + 調查
 - **工作量預估**：M
 - **目標版本**：v0.4.3
@@ -260,6 +261,13 @@ if (!workspace)       return null
   否則 B-1 讓 `BAT_WORKSPACE_ID` 成為預設來源後，一個過期的環境變數會安靜地退回 active workspace，
   把今天「呼叫端不知道有這個參數」的問題換成「呼叫端以為指定成功了」——診斷成本更高。
   Worker 建議此為**另開工單**（非 T0360 範圍）。
+
+### Commit
+
+- `956c0f9` — `fix(ct): unify workorder ID prefix validation across dispatch chain (T0360/BUG-082)`
+- 9 files changed, 557 insertions(+), 12 deletions(-)
+- 以 `git commit --only` 精準指定路徑；工作區既有的髒檔 `AGENTS.md`（本 session 開始前即為 modified）**未納入**，維持原狀。
+- 未 push（工單未授權）。
 
 ### 偏離與未做事項
 
