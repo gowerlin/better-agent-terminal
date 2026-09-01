@@ -455,7 +455,10 @@ export default function App() {
     const unsubExternalTerminal = window.electronAPI.pty.onCreatedExternally((info) => {
       const added = workspaceStore.addExternalTerminal(info)
       if (added) {
-        window.electronAPI.debug.log(`[T0130] External terminal added: id=${info.id} cwd=${info.cwd} workspaceId=${info.workspaceId ?? '(active)'}`)
+        // T0361: 印「實際落點」而非請求值 —— 帶未知 workspaceId 時 addExternalTerminal
+        // 會靜默 fallback 到 active workspace，舊 log 只印請求值反而誤導診斷。
+        // requested 與 landed 並陳，兩者不同即為 workspace miss（另見 workspace-store 的 [T0361] warn）。
+        window.electronAPI.debug.log(`[T0130] External terminal added: id=${info.id} cwd=${info.cwd} workspaceId(landed)=${added.workspaceId} workspaceId(requested)=${info.workspaceId ?? '(active)'}`)
         workspaceStore.save()
       }
     })

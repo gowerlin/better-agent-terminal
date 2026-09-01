@@ -28,16 +28,26 @@ const SINGLE_FILE = fileFlagIdx >= 0 ? args[fileFlagIdx + 1] : null
 const ROOT = process.cwd()
 const CT_DIR = join(ROOT, '_ct-workorders')
 
+// ─── Work order ID grammar ──────────────────────────────────────────────────
+// T0360/BUG-082: 工單 ID 的選用前綴 —— CT 規範的「2–4 字元大寫英文前綴」
+// （跨專案 `CP-`、委派 `CT-`、專案代號 `KEEN-` 等）+ `T` + 數字。
+// ⚠️ 以下三處為同一份文法的複本（helper / main / renderer 之間無共用模組路徑），
+// 本檔（一次性 migration script）為第四份，任一處放寬都必須同步其餘三處：
+//   - scripts/bat-terminal.mjs           WORKORDER_ID_PATTERN
+//   - electron/main.ts                   WORKORDER_ID_PATTERN
+//   - src/types/control-tower.ts         WORKORDER_ID_PREFIX
+// 注意：BUG / PLAN / EXP 的 ID 規則與此無關，維持各自文法（T0361 範圍外）。
+const WORKORDER_ID_PREFIX = '(?:[A-Z]{2,4}-)?'
+
+/** 檔名開頭的工單 ID（前綴匹配，不錨定尾端）：T0001- / CP-T1148- / CT-T001- */
+const WORKORDER_ID_HEAD = new RegExp(String.raw`^(${WORKORDER_ID_PREFIX}T\d+)`)
+
 // ─── Filename → schema_kind / id ────────────────────────────────────────────
 function inferIdAndKind(filename) {
   const base = basename(filename, '.md')
 
-  // CT-T001-... → workorder, id=CT-T001
-  let m = base.match(/^(CT-T\d+)/)
-  if (m) return { id: m[1], kind: 'workorder' }
-
-  // T0001-... → workorder
-  m = base.match(/^(T\d+)/)
+  // T0001-... / CT-T001-... / CP-T1148-... → workorder
+  let m = base.match(WORKORDER_ID_HEAD)
   if (m) return { id: m[1], kind: 'workorder' }
 
   // BUG-077-... → bug
@@ -252,8 +262,9 @@ function shouldProcess(filename) {
   ]
   if (EXCLUDES.some((re) => re.test(base))) return false
 
-  // Hot-zone prefixes only
-  return /^(T\d+|BUG-\d+|PLAN-\d+|EXP-[A-Z0-9]+-\d+|CT-T\d+)/.test(base)
+  // Hot-zone prefixes only — workorder 部分沿用 WORKORDER_ID_HEAD（見檔頭），
+  // BUG / PLAN / EXP 文法不變。
+  return WORKORDER_ID_HEAD.test(base) || /^(BUG-\d+|PLAN-\d+|EXP-[A-Z0-9]+-\d+)/.test(base)
 }
 
 // ─── YAML emission ──────────────────────────────────────────────────────────

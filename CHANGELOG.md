@@ -12,11 +12,24 @@ All notable changes to Better Agent Terminal are documented in this file.
   `electron/main.ts` (`buildControlTowerSkillPrompt`) and `src/types/control-tower.ts`
   (`filenameToId` / `filenameToTitle` / `isWorkOrderFile`) now share one grammar. The Control
   Tower panel also stops ignoring `CT-T####` files. (refs: BUG-082, T0360)
+- fix(ct): `scripts/migrate-ct-frontmatter.mjs` was the fifth, previously-missed copy of the
+  work order ID grammar — it recognised only `CT-T####` and bare `T####`, so `CP-`/`KEEN-`
+  style prefixes were silently skipped during migration. It now shares the T0360 grammar
+  `(?:[A-Z]{2,4}-)?T\d+` via a single in-file `WORKORDER_ID_PREFIX` / `WORKORDER_ID_HEAD`
+  declaration, with sibling pointers to the other three sites. BUG / PLAN / EXP ID rules and
+  the script's CLI behaviour are unchanged. (refs: T0361, BUG-082, T0360)
 
 ### Changed
 - `scripts/bat-terminal.mjs` now prints a stderr hint when `--workspace` is omitted, naming
   `--workspace "$BAT_WORKSPACE_ID"` as the fix. Advisory only — allocation behaviour and exit
   codes are unchanged. (refs: T0360)
+- External terminals now leave a diagnosable trail when a requested workspace is not found.
+  `workspaceStore.addExternalTerminal()` emits a `[T0361] Workspace miss` debug log naming the
+  requested id, the workspace actually landed in, and the terminal id; the `[T0130] External
+  terminal added` log in `src/App.tsx` now prints the landed workspace alongside the requested
+  one instead of only the requested one, which previously made an unknown id look like it had
+  been honoured. Observation only — workspace resolution, the silent fallback to the active
+  workspace, and all return values are unchanged. (refs: T0361, T0360, T0137, BUG-031)
 
 ## [0.4.2] — 2026-05-23 — Control Tower Status Parsing + Setup Wizard UX
 

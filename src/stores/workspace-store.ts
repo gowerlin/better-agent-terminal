@@ -334,8 +334,17 @@ class WorkspaceStore {
     if (info.workspaceId) {
       workspace = this.state.workspaces.find(w => w.id === info.workspaceId)
     }
+    // T0361: 純觀測訊號 —— 帶了 workspaceId 卻查無時，原本會靜默 fallback 到 active
+    // workspace，且與「完全沒帶」在 log 上無法區分（T0360 Part C）。這裡只發 warn，
+    // 不驗證、不攔截、不改 fallback 語意。
+    const workspaceMiss = Boolean(info.workspaceId) && !workspace
     if (!workspace) {
       workspace = this.state.workspaces.find(w => w.id === this.state.activeWorkspaceId)
+    }
+    if (workspaceMiss) {
+      window.electronAPI?.debug?.log?.(
+        `[T0361] Workspace miss: requested=${info.workspaceId} landed=${workspace?.id ?? '(none)'} terminal=${info.id}`
+      )
     }
     if (!workspace) return null
 
