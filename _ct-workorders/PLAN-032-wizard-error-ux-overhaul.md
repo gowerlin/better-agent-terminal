@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-032
 title: Setup Wizard Error UX Overhaul（含 Stepper `awaiting-input` 擴充 + 通用 error mapping framework）
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-04-27T12:58:00+08:00"
+completed_at: "2026-09-02T15:49:04+08:00"
 ---
 # PLAN-032 — Setup Wizard Error UX Overhaul（含 Stepper `awaiting-input` 擴充 + 通用 error mapping framework）
 
@@ -17,7 +18,7 @@ created_at: "2026-04-27T12:58:00+08:00"
 | 標題 | Setup Wizard 三平台 (WSL / SSH / Docker) 錯誤訊息友善化、pre-flight 偵測層、Stepper 擴充 `awaiting-input` 狀態、統一 recovery action 設計 |
 | 優先級 | 🟡 Medium（不阻擋功能但 dogfood 三同族 BUG 揭露 wizard UX 不直觀；release 前修整體驗） |
 | 類型 | 技術改善 + UX 重構（涉及 Stepper 元件 / 三平台 wizard step / error mapping framework） |
-| 狀態 | 🔄 IN_PROGRESS（**Sprint 2-5 全部工單 DONE**；Sprint 2 ✅ 5/5（T0330-T0334）/ Sprint 3 ✅ 3/3（T0335→BUG-074、T0336→BUG-073、T0337→BUG-072 全 VERIFY）/ Sprint 4 ✅ 1/1（T0340 input-kind rollout `58ec3bd`）/ Sprint 5 ✅ 3/3（T0338 integration tests `be40f7d` + T0339 BUG-076 fix `f711baf` + T0341 audit `0cadea0`）+ BUG-076 ✅ CLOSED；**僅待三 BUG 人工 smoke** → 全 CLOSED 後 PLAN → DONE） |
+| 狀態 | ✅ **DONE**（2026-09-02 結案）— Sprint 2-5 全 12 張工單 DONE；三個 root-cause BUG（072/073/074）於 2026-09-02 以 field evidence 就地結案（非人工 smoke，見各 BUG 文末結案紀錄） |
 | 建立時間 | 2026-04-27 12:58 (UTC+8) |
 | 報告者 | 使用者（PLAN-030 dogfood 三同族 BUG，screenshot #7/#8/#9） |
 | Release target | **v0.4.3 獨立 release**（wizard UX patch；不與 PLAN-031 v0.5.0 綁定） |
@@ -183,3 +184,30 @@ T0328 ✅
 
 **狀態**：📐 PLANNED
 **下一步**：派發 T0328 研究工單
+
+---
+
+## 結案紀錄（2026-09-02 15:49 UTC+8）— DONE
+
+本 PLAN 的實作在 2026-04-28 即全數落地（Sprint 2-5 共 12 張工單全 DONE），
+唯一未閉合的閘門是 BUG-072 / 073 / 074 的**人工 smoke**。
+
+### 為什麼改以 field evidence 結案
+
+| 項目 | 內容 |
+|------|------|
+| 修復上線 | `v0.5.0-pre.x` 起，歷經 `v0.5.8`（2026-05-24）至 `v0.5.9-pre.2` |
+| 實際使用期 | 自 `v0.5.8` 起約 **101 天** |
+| 期間回饋 | **零** —— 除 `v0.5.9` 系列自身修的 BUG-082 外無相關回報 |
+| 使用者裁決 | 2026-09-02「版本差太多…可以就地結案，日後有發現 bug 另外再提」 |
+
+### ⚠️ 證據強度聲明
+
+三個 BUG 屬 setup wizard **錯誤路徑** UX（低頻但使用者可見）。本次結案依據為
+**負面訊號的缺席**，不等同工單原定的正面 smoke 驗收。此處誠實記錄，不將兩者混同。
+
+⇒ **PLAN-032 的 AC-4 / AC-5 / AC-6 未經人工實機確認**，僅有整合測試（T0338）與程式碼稽核（T0341）覆蓋。
+
+### 後續
+
+日後若實際踩到 wizard 錯誤路徑問題，**另開新 BUG 單**，不重開 BUG-072/073/074，亦不重開本 PLAN。

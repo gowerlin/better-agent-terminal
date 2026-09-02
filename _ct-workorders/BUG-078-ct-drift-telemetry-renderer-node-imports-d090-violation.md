@@ -3,7 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-078
 title: ct-drift-telemetry.ts 引用 node:fs/path/os 觸發 D090 guard，CI verify-renderer-imports fail 阻塞 v0.5.0-pre.1 release
-status: FIXED
+status: CLOSED
+closed_at: "2026-09-02T15:49:04+08:00"
+verified_at: "2026-09-02T15:49:04+08:00"
+verified_by: ci-evidence
 severity: high
 created_at: "2026-04-28T23:21:00+08:00"
 fixed_at: "2026-04-28T23:36:00+08:00"
@@ -20,7 +23,7 @@ fixed_by: T0348
 | 嚴重度 | 🔴 High（阻塞 v0.5.0-pre.1 release；CI fail 三平台 mac/win/linux 同樣症狀） |
 | 可重現 | 100%（`npm run build` 即可重現本機；CI run 25060731646 已實證） |
 | Workaround | 無（必修） |
-| 狀態 | ✅ FIXED（T0348 完成於 2026-04-28 23:36，方案 A 落地） |
+| 狀態 | 🚫 CLOSED（2026-09-02 — CI 正面證據：v0.5.9-pre.2 build 三平台全綠；見文末結案紀錄）|
 | 建立時間 | 2026-04-28 23:21 (UTC+8) |
 | 報告者 | GitHub Actions pre-release workflow run 25060731646 |
 | 影響範圍 | `src/utils/ct-drift-telemetry.ts` (line 20-22)；連帶 `src/utils/__tests__/ct-drift-telemetry.test.ts` |
@@ -122,3 +125,22 @@ T0346 工單寫了一個**邏輯上應該在 main process** 的 logger（寫 `~/
 ## 回報區
 
 待 T0348 完成後 backfill。
+
+---
+
+## 結案紀錄（2026-09-02 15:49 UTC+8）— CLOSED
+
+**結案依據：CI 正面證據（非僅無回饋）。**
+
+本 BUG 的驗收條件是「CI `verify-renderer-imports` 不再 fail」。
+
+| 項目 | 內容 |
+|------|------|
+| 修復落地 | 2026-04-28 23:36（見 fix commit） |
+| 守衛所在 | `package.json:24` — `build` script 鏈含 `node scripts/verify-renderer-imports.js`，位於 `vite build` 與 `electron-builder` 之前，fail 即 abort |
+| 最新佐證 | 2026-09-02 `v0.5.9-pre.2` release build（run `33603489235`）三平台 build job（win / mac / linux）**全綠** ⇒ 守衛通過 |
+| 期間佐證 | `v0.5.8`（2026-05-24）以降多次 release build 亦全綠 |
+
+⇒ 與 BUG-072/073/074 的「無回饋結案」不同，本單有**正面執行證據**：守衛實際跑過且通過。
+
+**後續**：日後若 CI 再現同類 D090 違規，另開新 BUG 單。

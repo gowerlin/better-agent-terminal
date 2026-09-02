@@ -3,7 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-074
 title: SSH setup wizard：configure-host input step 在使用者還沒輸入前就顯示為 failed 狀態
-status: VERIFY
+status: CLOSED
+closed_at: "2026-09-02T15:49:04+08:00"
+verified_at: "2026-09-02T15:49:04+08:00"
+verified_by: field-evidence
 severity: medium
 ---
 # BUG-074 — SSH setup wizard：configure-host input step 在使用者還沒輸入前就顯示為 failed 狀態
@@ -17,7 +20,7 @@ severity: medium
 | 嚴重度 | 🟡 Medium（UX 不直觀；使用者誤以為 wizard 已壞） |
 | 可重現 | 100%（任何使用者開 SSH wizard 都看到第 1 步是 failed 狀態） |
 | Workaround | 使用者點「重試」或自行理解這是 input prompt 而非 error（不直觀） |
-| 狀態 | 🔍 VERIFY（T0335 ✅ FIXED `94733d7` @2026-04-28 03:10 — 待 macOS/Linux/Windows 三平台 SSH wizard 開啟 smoke 驗證第一步顯示 awaiting-input；通過後 → CLOSED） |
+| 狀態 | 🚫 CLOSED（2026-09-02 就地結案 — field evidence，非人工 smoke；見文末結案紀錄）|
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
 | 報告者 | 使用者（PLAN-030 完工後實機跑 SSH wizard，screenshot #9） |
 | 影響範圍 | `src/components/setup-wizard/steps/ssh/configure-host.ts` 的 step state 邏輯 / SetupWizardShell 對 input step 的渲染 |
@@ -67,3 +70,27 @@ input step 應有專屬狀態（如 `awaiting-input` / `pending-user-input`）�
 ## 後續處理
 
 塔台建議：與 BUG-072 / BUG-073 一起派 **Wizard Error UX overhaul** 工單群（或 PLAN-031）統一處理。
+
+---
+
+## 結案紀錄（2026-09-02 15:49 UTC+8）— CLOSED
+
+**結案依據：現場實績（field evidence），非人工 smoke。**
+
+| 項目 | 內容 |
+|------|------|
+| 修復落地 | 2026-04-28（見上方 fix commit） |
+| 已上線版本 | `v0.5.0-pre.x` → `v0.5.8`（2026-05-24 發布）→ `v0.5.9-pre.1/2` |
+| 實際使用期 | 自 `v0.5.8` 起約 **101 天**（2026-05-24 → 2026-09-02） |
+| 期間回饋 | **零** —— 除 `v0.5.9` 系列自身修的問題（BUG-082）外，無任何相關回報 |
+| 使用者裁決 | 2026-09-02「版本差太多，v0.5.8 實際上線使用很久，除 0.5.9 修改的問題外沒有其他反應回饋，可以就地結案」 |
+
+### ⚠️ 證據強度聲明（誠實記錄）
+
+本次結案建立在**負面訊號的缺席**（沒有人回報問題），**不等同**工單原定的人工 smoke 驗收
+（正面確認修復行為符合預期）。兩者證據強度不同，本紀錄不將其混同。
+
+採納理由：修復已隨多個 release 上線逾三個月，屬 setup wizard 錯誤路徑（低頻但使用者可見），
+若修復無效或引入回歸，此期間應已出現回報。在無新訊號的情況下持續掛 VERIFY 只是帳面負債。
+
+**後續**：日後若實際踩到相關問題，**另開新 BUG 單**，不重開本單。
