@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-05-19 (Session 45 收工 — Sessions 42 / 41 / 39 archived per state hygiene)
-> Hot path retains: session 45 (本) + session 43 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-09-02 (Session 48 收工 — Session 45 archived per PLAN-033 auto-trigger)
+> Hot path retains: session 48 (本) + session 47 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 61 (0 in Q1 / 58 in Q2-a/b / 3 in Q2-c)
+> Total archived entries: 63 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c)  <!-- header 先前停在 61 但表列已到 62，本次一併校正 -->
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -78,3 +78,4 @@
 | 60 | 第四十一 session | 2026-04-28 | 2026-Q2-c.md | 第四十一 session, 2026-04-28 05:11-09:35, ~4.4 hr, PLAN-032 Sprint 2-5 全收尾 + drift fix + GP126/L114-116 |
 | 61 | 第三十九 session | 2026-04-27 | 2026-Q2-c.md | 第三十九 session, 2026-04-27 21:38-22:08, ~30 min, PLAN-033 Sprint 2 上游 PR 收尾 + GP122-124/L113 |
 | 62 | 第四十三 session | 2026-05-15 | 2026-Q2-c.md | 第四十三 session, 2026-05-15 12:03-13:15, ~72 min, BUG-080 全線收尾（PR #18 merge + T0354/55/56）+ 環境校正 |
+| 63 | 第四十五 session | 2026-05-19 | 2026-Q2-c.md | 第四十五 session, 2026-05-19 14:38-15:10, ~32 min, BUG-081 結案校正 + *sync + *archive + state hygiene |

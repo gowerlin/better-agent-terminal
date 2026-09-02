@@ -3,30 +3,30 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-05-19T15:02:00+08:00"
+generated_at: "2026-09-02T15:38:22+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 7
+total: 8
 breakdown:
   OPEN: 2
   FIXING: 0
   FIXED: 1
   VERIFY: 3
-  CLOSED: 1
+  CLOSED: 2
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-05-19 15:02 (UTC+8) — 第四十五 session *archive 後重建（BUG-079/080 移入冷區）
+> 最後同步：2026-09-02 15:38 (UTC+8) — 第四十八 session 收工 *sync（BUG-082 CLOSED 納入；前次同步停在 2026-05-19，已過期 105 天）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 3 | 🚫 Closed: 1 | ⛔ Won't Fix: 0 | **Total: 7**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 3 | 🚫 Closed: 2 | ⛔ Won't Fix: 0 | **Total: 8**
 
 ## 🔴 Open / 處理中
 
@@ -59,6 +59,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-082 | 跨專案工單前綴（CP-/CT-）被結構化派工路徑拒收，且四處 ID 規則彼此不一致 | 🔴 high | 2026-09-02 | [BUG-082](BUG-082-workorder-id-prefix-rejected-by-structured-dispatch.md) |
 | BUG-081 | `bat-notify --submit` 遠端 Enter 被目標 agent 視為換行而非送出 | 🟡 medium | 2026-05-18 | [BUG-081](BUG-081-bat-notify-submit-enters-multiline-instead-of-submit.md) |
 
 > 💡 BUG-079/080 已於 2026-05-19 歸檔至 [_archive/bugs/](_archive/bugs/)

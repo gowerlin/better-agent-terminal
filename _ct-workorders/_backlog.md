@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-05-19T14:58:45+08:00"
+generated_at: "2026-09-02T15:38:22+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
@@ -22,7 +22,7 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-05-19 14:58 (UTC+8) — 第四十五 session *sync 重建
+> 最後同步：2026-09-02 15:38 (UTC+8) — 第四十八 session 收工 *sync（PLAN 狀態本輪無變動，僅刷新時戳）
 
 ## 統計
 - 💡 Ideas: 2 | 📋 Planned: 2 | 🔄 In Progress: 2 | ✅ Done: 0 | 🚫 Dropped: 0

@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-04-26 13:55 (UTC+8)（補入 D084-D088 body 區段 — drift 修復：索引表已先記載但 body 缺，本次補齊 session 24 BUG-058 chain + v0.3.1 hotfix release + session 25 BUG-059/055 chain via T0250→T0251 修復鏈）
+> 最後更新：2026-09-02 15:38 (UTC+8)（第四十八 session 新增 D119）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D119 | 2026-09-02 | 社群 PR #19 不 merge，改在 main 取骨架重新實作 —— 其 `cmd` 分支有兩處經確認的缺陷（`%`→`%%` 為批次檔限定語意、`""` 非 `CommandLineToArgvW` 逃逸），bot review 三個月未回應且該 bot 已停止服務；posix/pwsh 與 `agentCustomArgs` 判斷沿用其設計，出處以 `Co-authored-by` 保留 | T0362 / PR #19 |
 | D118 | 2026-04-27 | T0333-D1：`ssh-permission-denied` registry entry 加 `patterns: [/permission denied/i]` regex fallback（spec 嚴格用 errorCode，但 Shell 從 snapshot 取 error 時無 errorCode 通道；後續若補 errorCode 通道可拿掉 pattern） | T0333 / PLAN-032 |
 | D117 | 2026-04-27 | T0332-D3：`WizardContext.preflightCache` 設為 optional 不破壞既有 callsite；runner constructor `??=` 注入預設 cache 後 runtime invariant always-defined | T0332 / PLAN-032 |
 | D116 | 2026-04-27 | T0332-D2：preflight hard fail 透過 throw 重用既有 catch 分支（不另開 error pipeline），避免兩條 pipeline drift；對外行為與 spec 等價 | T0332 / PLAN-032 |
@@ -1346,6 +1347,26 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D119 2026-09-02 — 社群 PR #19：取骨架重新實作，不直接 merge
+
+- **決定**：不 merge PR #19（`fix/prompt-argv-shell-quote`），改在 main 以 T0362 重新實作；
+  沿用其 `quoteArgForShell(arg, shell)` 介面、posix / pwsh 實作、安全字元直通、
+  以及「`agentCustomArgs` 不重新 quote」的判斷；`cmd` 分支整支重寫。
+- **理由**：
+  1. `gemini-code-assist` 對其 `cmd` 分支留了兩則 HIGH review，作者三個月未回應。塔台獨立複核**兩則都成立**：
+     `%` → `%%` 折疊僅發生於批次檔解析，互動式 / PTY 下會把 `100% done` 改成 `100%% done`
+     —— 為防罕見情況而在常見情況製造回歸；`""` 不是 `CommandLineToArgvW` 的逃逸，應為 `\"`。
+  2. bot 建議的 `\"` 天真替換**同樣不對** —— 反斜線串需在引號前與字串結尾加倍，
+     否則 `C:\path\` 這類輸入仍壞。⇒ 照 bot 建議修也不夠，需完整演算法。
+  3. 該 bot 已於 2026-07-17 停止服務，等作者修不會再有自動複驗。
+- **不採用的替代方案**：merge 後另開 follow-up 修 —— 會把已知缺陷帶進 main 再回頭修，
+  且 CHANGELOG 會出現「引入又修掉」的噪音。
+- **出處處置**：commit 帶 `Co-authored-by: RicoChen727 <ren.asus@gmail.com>`，
+  CHANGELOG 明記源自社群 PR #19；PR 上留言說明採用範圍與 cmd 分支修正理由後關閉。
+- **相關**：T0362（commit `a8ee6a1`）/ PR #19 / PR #18（`238ac3d`，引入 shellFamily 佈線）
 
 ---
 

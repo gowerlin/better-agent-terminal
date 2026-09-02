@@ -1,14 +1,62 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-09-02 00:00 (UTC+8) — **第四十七 session 收工** — BUG-082 / T0360 / T0361 落地，pre-release `v0.5.9-pre.1` 已發布，**待使用者安裝後 runtime 驗收**。
+> 最後更新:2026-09-02 15:38 (UTC+8) — **第四十八 session 收工** — BUG-082 runtime 驗收 CLOSED、跨塔台回函發出、社群 PR #19 處置完畢、pre-release `v0.5.9-pre.2` 已發布。
 >
-> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」— 第一件事是確認安裝版是否真的換掉，再跑 CP-T#### smoke。
+> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」。**本 session 無未結案阻塞**，起手可直接挑待辦。
 >
-> **前次更新**:2026-05-23 21:10 (UTC+8) — 第四十六 session 收工:T0359 / CP-T1148 收尾 + BAT 0.4.2 換版。
+> **前次更新**:2026-09-02 00:00 (UTC+8) — 第四十七 session 收工:BUG-082 / T0360 / T0361 落地，v0.5.9-pre.1 發布。
 
 ---
 
-## 🛏 本 Session 收工快照 (第四十七 session, 2026-09-01 22:05 - 2026-09-02 00:00, ~2h wall)
+## 🛏 本 Session 收工快照 (第四十八 session, 2026-09-02 12:51 - 15:38, ~2h45m wall)
+
+### 主軸：BUG-082 runtime 驗收閉環 → 跨塔台回函 → 社群 PR 處置 → v0.5.9-pre.2
+
+#### 起手狀態
+
+Fast Path 有效（快照 2026-09-01 22:05，距今 ~15h）。熱區 T:13 / BUG:8 / PLAN:6 / EXP:0 / CT-T:1。
+
+#### 時間線
+
+1. **12:51 起手** — 執行起手式第 1 步（確認安裝版換版）。**發現交接的判準是錯的**（見下 L127），改以 diff 驗證：`resources/scripts/bat-terminal.mjs` 與修復後 source **byte-identical** ⇒ 換版已生效，阻塞解除
+2. **12:53 建 CP-T0362 + 派發** — 刻意用 `CP-` 前綴工單作為 BUG-082 runtime 驗收載體，載荷為 CLAUDE.md Release 節校正（L123/L124）
+3. **12:55-12:58 CP-T0362 DONE**（Worker ~3.5 min）— commit `89921e2`；三層鏈路（helper / main / Worker）全綠
+4. **13:01 BUG-082 → CLOSED** — commit `46b712a`，附三層證據 + 換版判別法；同時補 Worker 漏掉的 `build-server-bundle.yml` 第三個 trigger
+5. **13:05 跨塔台回函** — `_reply-2026-09-02-bat-workspace-default-opinion.md`（245 行），commit `9dc986e`，ACKNOWLEDGED
+6. **15:09 PR #19 triage** — 外部貢獻者 RicoChen727，擱置 3 個月。塔台複核 gemini bot 兩則 HIGH review **皆成立** → **D119：取骨架自行實作**，建 T0362 派發
+7. **15:11-15:20 T0362 DONE**（Worker ~9 min）— commit `a8ee6a1`；塔台複驗 550 tests + vite build 皆綠
+8. **15:24 push + PR 回覆 + 關閉** — 9 commits push；PR #19 留言（issuecomment-5506015464）後 CLOSED
+9. **15:25 版號 bump + 觸發 workflow** — 先 bump `0.5.9-pre.2` 再觸發（避開上輪「release 完才補版號」漂移）
+10. **15:38 release `v0.5.9-pre.2` 發布** — 全 9 job 綠，5 artifact
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| BUG 結案 | 1（BUG-082 → CLOSED） | runtime 三層驗證 |
+| 派發工單 | 2（CP-T0362 / T0362） | 全綠，各 1 round，共 ~13 min Worker wall |
+| 新增測試 | +39 cases | 511 → **550** |
+| 跨塔台回函 | 1 | 245 行，含 1 項我方主動回饋 |
+| 社群 PR 處置 | 1（#19 CLOSED） | 取骨架重實作 + 出處保留 |
+| 新增決策 | 1（D119） | |
+| Push commits | 10 | `96a6a96..70dfec4` |
+| Release | 1 | `v0.5.9-pre.2` |
+
+### 重點觀察 / Learnings 候選
+
+- **L127**（🔴 高價值）：**以「字串存在與否」判斷版本，在錯誤訊息被擴寫時會反向誤判**。交接寫「grep `expected T followed by digits` 應查無」，但修復後訊息仍含該字串（只是後接新內容）。正確做法是 **diff / 雜湊比對**。本次差點誤判為「安裝沒生效」而停工
+- **L128**：BAT 的 debug log 實際在 `%APPDATA%\`**`better-agent-terminal`**`\Logs\debug-<stamp>.log`，但 `BAT_USER_DATA` 指向大小寫不同的 `BetterAgentTerminal\`（**兩目錄並存**），且 CLAUDE.md「Logging」節記的是 macOS 路徑、檔名 `debug.log` 也早已改為輪替式。照文件找必然落空 —— **CLAUDE.md Logging 節待修**
+- **L129**（Worker 回報）：**寫入含大量反斜線的檔案一律用 Write 工具**，bash heredoc 會把連續反斜線摺疊掉一層（兩個變一個）造成語法錯誤（T0362 首發即中）
+- **L130**（🔴 新，本次發現）：**D094「Mac installer size cap 280 MB」已連續三個 release 超標 2.6×**（v0.5.8 / pre.1 / pre.2 的 mac dmg 皆 ~724 MB）**且從未觸發過復議**。門檻與現實脫節 —— 該復議的是門檻本身，不是每次 release
+- **L131**：外部 PR 帶未處理 bot review 時的處置模式 —— 取骨架自實作 + `Co-authored-by` 保留出處 + PR 留言說明採用範圍，見 D119
+
+### 編號起始（下 session）
+
+- **T0363** / **BUG-083** / **PLAN-035** / **D120**
+
+---
+
+## 🛏 前 Session 收工快照 (第四十七 session, 2026-09-01 22:05 - 2026-09-02 00:00, ~2h wall)
 
 ### 主軸：跨塔台 ADVISORY 處置 → BUG-082 修復 → v0.5.9-pre.1 發布
 
@@ -55,95 +103,39 @@ Fast Path 失效（快照 2026-05-23，距今 **101 天**）→ Full Scan。熱�
 
 ---
 
-## 🛏 前 Session 收工快照 (第四十五 session, 2026-05-19 14:38 - 15:10, ~32 min wall)
-
-### 主軸：BUG-081 結案校正 + *sync + *archive + state hygiene
-
-#### 時間線
-
-1. **14:38 起手**：Fast Path 恢復（快照 2026-05-17，< 7 天）；面板 T:14 / BUG:9 / PLAN:6
-2. **14:38 BUG-081 驗收通過**（使用者確認）→ session 44 硬條件（Claude Worker `bat-notify --submit` regression smoke）滿足。BUG-081 實際早於 2026-05-18 已 CLOSED（T0357 修復 + T0358 Claude runtime smoke, commit `7327c03`），本 session 補登驗收
-3. **14:38 校正 BUG-081**：frontmatter 移除重複 `closed_at` + 補 `verified_at`/`verified_by`；body Metadata 表 `狀態` OPEN→CLOSED（PLAN-034 drift 修正）
-4. **14:58 *sync**：重建 `_bug-tracker.md`（前次同步停在 05-17 01:08，已過期）+ `_backlog.md`；編號 drift 修正 state 編號起始 T0357/D110 → T0359/D119
-5. **15:02 *archive**：6 檔 git mv 至冷區（T0354/T0355/T0356/T0357 + BUG-079/080），熱區 BUG 9→7；再 sync 重建 tracker
-6. **15:10 state hygiene**：sessions 42/41/39 → `2026-Q2-c.md`（-b 已 195KB 近 cap），INDEX +3（total 61），state 瘦身
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| BUG 結案校正 | 1（BUG-081） | drift 修正 + 使用者驗收補登 |
-| *sync | 2 次 | 重建 tracker/backlog，編號 drift 修正 |
-| 歸檔工單/BUG | 6 | T0354-57 + BUG-079/080 → _archive/ |
-| state 快照歸檔 | 3 | sessions 42/41/39 → 2026-Q2-c.md |
-| Worker 派發 | 0 | 純塔台維運 session |
-| 主線 commits | 0（塔台 chore；待使用者授權 push） | |
-
-### 立即待辦（傳承）
-
-1. 🔴 **PLAN-032 三 BUG smoke**：BUG-072/073/074 皆 🔍 VERIFY 待人工 smoke → CLOSED → PLAN-032 → DONE
-2. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
-3. 🟡 **BUG-071** server bundle download flow（OPEN, high）
-4. 🟡 **T0324 DGX Spark dogfood VERIFY**（使用者親跑 / 待回報）
-5. 🟢 **BUG-061** Codex panel tsc baseline errors（OPEN, low）
-6. 🟢 **WSL/Docker structured errorCode PLAN**（T0340 P2 後續，獨立開）
-
-### 重點觀察 / Learnings 候選
-
-- **L121**（候選）：frontmatter 重複欄位（duplicate `closed_at`）+ body/frontmatter status drift 應在 `*sync` 加 lint warning
-- 既有 drift：state 編號起始長期落後（snapshot D118 vs 起手式 D110）— *sync 編號校正應納入每次收工
-
-### 編號起始（下 session）
-
-- **T0360** / **BUG-082** / **PLAN-035** / **D119**
-
-### 快速連結
-
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（7 張熱區）
-- Backlog → [_backlog.md](_backlog.md)（6 張熱區）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D118）
-- Learnings → [_learnings.md](_learnings.md)
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（61 entries）
-
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-09-02 00:00 UTC+8（第四十七 session 收工 — v0.5.9-pre.1 已發布，待安裝驗收）
+> 最後更新：2026-09-02 15:38 UTC+8（第四十八 session 收工 — 無未結案阻塞）
 
-### 🔴 第一件事：v0.5.9-pre.1 安裝驗收（BUG-082 CLOSED 的唯一阻塞）
+### 本 session 已清空的項目
+BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校正 ✅ ｜ PR #19 已處置 ✅ ｜ v0.5.9-pre.2 已發布 ✅
 
-使用者已下載 `BetterAgentTerminal.Setup.0.5.9-pre.1.exe`（535 MB，NSIS）。**用新版 BAT 重開後**依序：
+### 待辦（依優先序）
 
-1. **確認安裝版真的換掉**（最關鍵，過去兩次都栽在這）：
-   `grep 'expected T followed by digits' "C:/Program Files/BetterAgentTerminal/resources/scripts/bat-terminal.mjs"`
-   → **應查無**（舊版才有此字串）。查得到代表安裝沒生效，勿往下走
-2. **runtime smoke**：實際派一張 `CP-T####` 走 `--skill` + `--workorder` 結構化模式（舊版會 exit 1）
-3. **查 `[T0361] Workspace miss`**：正常**不該出現**；若出現即 workspace 錯派實證，供 ADVISORY B-1 復議
-4. 全綠 → BUG-082 → CLOSED → **回函 BMad-Guide 塔台**（使用者已定案：**smoke 通過後才發**，讓回函能寫「已 runtime 驗證」而非只是「已 commit」）
-
-**回函五項**（前四項對應 ADVISORY，第 5 項是我方回饋的新發現）：
-[1] 接受，v0.5.9-pre.1 已 runtime 驗證 ｜ [2] B-1 暫緩 + Part C 結論（安全但不可觀測，採納須同批補 miss 訊號）｜ [3] B-2 同版落地（採用其建議文案）｜ [4] 已調查，見 Part C
-**[5] 回饋**：查證 CT v5.0.5（`references/auto-session.md:908-909` + v5.0.4/5.0.5 changelog）確認**其 `--prompt` 繞道並未寫進 skill**，故 CT 端零改動即可用新版 BAT。但建議補「最低 BAT 版本標註 + 舊版降級規則」——因為此限制的真正觸發面是 **`project-prefix` 設定**（`cross-project-coordination.md:164` 會自動替工單加前綴），比 ADVISORY 描述的跨專案場景大得多。
-⚠️ CT skill 屬 `~/.claude/skills/**`，塔台硬邊界禁止寫入，只能回函請對方處理。
-
-### 其餘待辦
-1. 🟡 **PLAN-032 三 BUG smoke**：BUG-072 / BUG-073 / BUG-074 皆 VERIFY 待人工 smoke（本 session 未動）
-2. 🟡 **BUG-078** FIXED 待 VERIFY / **BUG-071** server bundle download flow（OPEN, high）
-3. 🟢 **ADVISORY B-1 復議**：待安裝後 miss 訊號有真實資料再決定，決定採納則須同批補 renderer 訊號
-4. 🟢 **CLAUDE.md「Release」節需修**：描述與實際 workflow 不符（見 L123/L124）
-5. 🟢 T0324 DGX Spark dogfood / BUG-061 / WSL-Docker structured errorCode PLAN
+1. 🟡 **PLAN-032 三 BUG smoke**：BUG-072 / BUG-073 / BUG-074 皆 VERIFY 待人工 smoke → CLOSED → PLAN-032 → DONE（已擱置多輪）
+2. 🟡 **BUG-078** FIXED 待 VERIFY（CI 重跑後確認）
+3. 🟡 **BUG-071** server bundle download flow（OPEN, high）
+4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6×（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
+5. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到（正確路徑見本 session 快照）
+6. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號**至今零筆真實觸發**，待有資料再議（已回函告知對方）
+7. 🟢 T0324 DGX Spark dogfood VERIFY / BUG-061 Codex panel tsc baseline / WSL-Docker structured errorCode PLAN
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`** —— 三個 remote，預設會解析到 upstream tony1223。
 
+### ⚠️ 版本驗證鐵則（L127）
+**不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。錯誤訊息被擴寫時字串仍在。
+
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（8 熱區）｜ Backlog → [_backlog.md](_backlog.md)（6 熱區）
-- Decision Log → [_decision-log.md](_decision-log.md)｜ Learnings → [_learnings.md](_learnings.md)
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（62 entries）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D119）｜ Learnings → [_learnings.md](_learnings.md)
+- 跨塔台回函 → [_reply-2026-09-02-bat-workspace-default-opinion.md](_reply-2026-09-02-bat-workspace-default-opinion.md)
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0362** / **BUG-083** / **PLAN-035** / **D119** / **EXP-[TOPIC]-001**
+- **T0363** / **BUG-083** / **PLAN-035** / **D120** / **EXP-[TOPIC]-001**
 
 ---
 
@@ -153,17 +145,17 @@ Fast Path 失效（快照 2026-05-23，距今 **101 天**）→ Full Scan。熱�
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.5.9-pre.1**（package.json + lock 已同步，commit `a650754`；前次漂移停在 0.4.2） |
-| **最新 release** | `v0.5.9-pre.1`（2026-09-01，prerelease，三平台 + server bundle × 3） |
-| **前一 tag** | `v0.5.8`（指向 `a3a9489`） |
-| **目前主軸** | BUG-082 跨專案工單前綴 — 待 runtime 驗收 |
-| **工單最大編號** | T0361（DONE，commit `007adf8`） |
-| **BUG 最大編號** | BUG-082（FIXED，待 runtime 驗收；fix commit `956c0f9`） |
+| **目前版號** | **0.5.9-pre.2**（package.json + lock 已同步，commit `70dfec4`） |
+| **最新 release** | `v0.5.9-pre.2`（2026-09-02 15:38，prerelease，三平台 + server bundle × 3，5 artifact） |
+| **前一 tag** | `v0.5.9-pre.1`（2026-09-01） |
+| **目前主軸** | 無單一主軸；待辦以 PLAN-032 三 BUG smoke 為首 |
+| **工單最大編號** | T0362（DONE，commit `a8ee6a1`）；另有 CP-T0362（DONE，`89921e2`） |
+| **BUG 最大編號** | BUG-082（**CLOSED**，runtime 驗收通過 2026-09-02） |
 | **PLAN 最大編號** | PLAN-034（已 archive；熱區最大 PLAN-033） |
-| **決策最大編號** | D118 |
+| **決策最大編號** | D119 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.5 |
-| **unit test 基線** | **511**（41 files） |
+| **unit test 基線** | **550**（41 files） |
 
 ---
 
@@ -229,29 +221,35 @@ Fast Path 失效（快照 2026-05-23，距今 **101 天**）→ Full Scan。熱�
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-09-01 22:05 (UTC+8) — control-tower Full Scan（前次快照 2026-05-17，距今 101 天已失效）
+> 最後掃描:2026-09-02 15:38 (UTC+8) — 第四十八 session 收工更新（沿用 09-01 Full Scan 基礎，逐項複核）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `2eda2f34-9f69-4704-895e-494d9ec0054b` |
-| BAT 派發 | ✅ | 五項 dispatch env 齊備；本 session 成功派發 2 張（T0360 / T0361） |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備；本 session 成功派發 2 張（CP-T0362 / T0362） |
+| BAT 安裝版 | ✅ **已與 source 同步** | 2026-09-02 以 diff 驗證 `resources/scripts/bat-terminal.mjs` byte-identical；`app.asar` 由 `[T0130]` 新 log 格式佐證。⚠️ 驗證法見 L127 |
 | BAT_HELPER_DIR | ✅ | `C:/Program Files/BetterAgentTerminal/resources/scripts` |
+| BAT debug log | ⚠️ 路徑與文件不符 | 實際在 `%APPDATA%\better-agent-terminal\Logs\debug-<stamp>.log`（與 `BAT_USER_DATA` 指向的 `BetterAgentTerminal\` 為**兩個並存目錄**，大小寫不同）。CLAUDE.md Logging 節待修（L128） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存 |
-| gh CLI | ✅ | 已登入 `gowerlin`（scopes: gist / read:org / repo）。⚠️ **必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
+| gh CLI | ✅ | 已登入 `gowerlin`。⚠️ **必須帶 `-R gowerlin/better-agent-terminal`**（L122），本 session 三次 gh 操作皆遵守 |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
+| git 同步 | ✅ | `origin/main` = `70dfec4`，本地零領先 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
-| 熱區工單 | **T:13 / BUG:8 / PLAN:6 / EXP:0 / CT-T:1** | 本 session 新增 T0360 / T0361 / BUG-082 |
-| 最大編號 | **T0361 / BUG-082 / PLAN-034(archived) / D118** | 下張：T0362 / BUG-083 / PLAN-035 / D119 |
-| unit test | ✅ **511 passed / 41 files** | 本 session 基線由 483 → 511 |
-| tsc --noEmit | ⚠️ 42 既有 error | 全落在 `CodexAgentPanel.tsx` / `agent-profiles.ts` 等未觸及檔案，為既有 baseline |
+| 熱區工單 | **T:14 / BUG:8 / PLAN:6 / EXP:0 / CT-T:1** | 本 session 新增 CP-T0362 / T0362 |
+| 最大編號 | **T0362 / BUG-082 / PLAN-034(archived) / D119** | 下張：T0363 / BUG-083 / PLAN-035 / D120 |
+| unit test | ✅ **550 passed / 41 files** | 本 session 基線由 511 → 550（塔台親跑複驗） |
+| vite build | ✅ | 本 session 親跑複驗通過 |
+| tsc --noEmit | ⚠️ 42 既有 error | 全落在 `CodexAgentPanel.tsx` / `agent-profiles.ts` 等未觸及檔案，為既有 baseline（BUG-061） |
+| 開放 PR | **0** | PR #19 已於本 session 處置關閉（D119） |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**, yolo_max_retries 1, auto_commit on, archive_days 2） |
 | 塔台版本 | v5.0.5 | control-tower skill |
 
 > **Drift / 注意事項**:
-> 1. ✅ `_tower-state.md` 18.8 KB（正常）；起手式 35 行（略超 30 行軟警告，內容全為可執行待辦，無歷史內嵌）
-> 2. ⚠️ 工作區長期存在 `AGENTS.md` dirty（claude-mem 自動產生的 context 區塊，非程式碼）。本 session 全程以 `git commit --only` 精確指定路徑，未觸碰
-> 3. 🔴 **安裝版 BAT 落後 source**：驗收前必先確認 `resources/scripts/bat-terminal.mjs` 已換新（見起手式第 1 步）
-> 4. ⚠️ CLAUDE.md「Release」節描述與實際 workflow 不符（pre-release 為 workflow_dispatch，非 tag 觸發），待修
+> 1. ✅ `_tower-state.md` 19.5 KB（正常，< 30 KB 軟警告）；起手式無歷史內嵌
+> 2. ⚠️ 工作區長期存在 `AGENTS.md` dirty（claude-mem 自動產生，非程式碼）。本 session 全程以 `git commit --only` 精確指定路徑，10 個 commit 皆未觸碰
+> 3. ✅ CLAUDE.md「Release」節已於本 session 校正（CP-T0362），並補上 `build-server-bundle.yml` 第三個 trigger
+> 4. 🔴 **D094 mac installer 280 MB cap 已連三個 release 超標 2.6 倍**（v0.5.8 / pre.1 / pre.2 之 mac dmg 皆 ~724 MB）**且從未觸發復議** —— 門檻與現實脫節，見 L130
+> 5. ⚠️ CLAUDE.md「Logging」節路徑錯誤（L128），待修
 
 ---
 
