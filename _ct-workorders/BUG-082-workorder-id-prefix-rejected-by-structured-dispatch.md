@@ -3,13 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-082
 title: 跨專案工單前綴（CP-/CT-）被結構化派工路徑拒收，且四處 ID 規則彼此不一致
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-09-01T22:42:56+08:00"
-updated_at: "2026-09-01T22:56:52+08:00"
+updated_at: "2026-09-02T13:01:32+08:00"
 fixed_at: "2026-09-01T22:56:52+08:00"
 fix_commit: 956c0f9
+closed_at: "2026-09-02T13:01:32+08:00"
+verified_at: "2026-09-02T13:01:32+08:00"
+verified_by: tower
+verify_workorder: CP-T0362
 workaround: |
   改用 --prompt 自由文字模式派工（已由 BMad-Guide 塔台實測 exit 0）：
   node "$BAT_HELPER_DIR\bat-terminal.mjs" --notify-id <id> --workspace <uuid> \
@@ -47,7 +51,7 @@ tags:
 
 | 欄位 | 值 |
 |------|-----|
-| **狀態** | ✅ FIXED（待 runtime 驗收）|
+| **狀態** | 🚫 CLOSED（runtime 驗收通過 2026-09-02）|
 | **嚴重度** | high |
 | **重現性** | always |
 | **回報來源** | BMad-Guide 塔台跨塔台 ADVISORY（2026-09-01） |
@@ -135,3 +139,47 @@ node "$BAT_HELPER_DIR\bat-terminal.mjs" ... --skill ct-exec --workorder CP-T0113
 未知 workspaceId **安全但不可觀測**：renderer `workspace-store.ts:333-340` 靜默 fallback 到 active
 workspace，全鏈路零驗證；`App.tsx:458` 的 debug log 印的是請求值而非落點，會誤導。
 ⇒ B-1 不被否決，但若採納應同批補 workspace miss 訊號（建議另開單）。
+
+---
+
+## Runtime 驗收（2026-09-02 13:01 UTC+8）— CLOSED
+
+驗收載體：**CP-T0362**（刻意以 `CP-` 前綴工單走結構化派工，修復前的 BAT 會在此 `exit 1`）。
+驗收者：塔台（獨立複驗，未採信 Worker 自述）。
+
+### 換版確認（前次阻塞點）
+
+| 對象 | 方法 | 結果 |
+|------|------|------|
+| `resources/scripts/bat-terminal.mjs` | 與修復後 source `diff` | **byte-identical** |
+| `resources/app.asar`（renderer） | log 格式判別：`[T0130]` 印出 T0361 新增的 `workspaceId(landed)=` / `(requested)=` 並陳格式（舊版只印單一 `workspaceId=`） | **確認為新 bundle** |
+
+> ⚠️ **前次交接的判準是錯的**：原寫「grep `expected T followed by digits` 應查無」，但修復後訊息仍含該字串，
+> 只是後接 `, with an optional 2-4 char uppercase prefix, e.g. T0001 or CP-T0113`。
+> 以「字串存在性」判版本在錯誤訊息被**擴寫**時會反向誤判。正確做法是 diff / 雜湊比對。（L127）
+
+### 三層鏈路實證
+
+| 層 | 證據 | 來源 |
+|----|------|------|
+| **L1 helper** | `parsed` 事件記錄 `"workorder":"CP-T0362"` —— 即修復前 `exit 1` 的那一行 | `Logs/bat-scripts.log` |
+| **L2 main process** | `terminal:create-agent-command` 收到 `skill:"ct-exec"` + `workorder:"CP-T0362"` + `command:null`，`terminal-created result:"ok"`、exit 0 ⇒ `buildControlTowerSkillPrompt` **未回 `null`**，根因表第二列（回報方讀不到的那層）確認已修 | 同上 |
+| **L3 Worker** | Worker session 起始為結構化 slash-command（`<command-name>/ct-exec</command-name>` + `<command-args>CP-T0362</command-args>`），並以 `CP-T0362` 成功解析到工單檔、翻牌 IN_PROGRESS → DONE。ID **全程未被正規化為 `T0362`** | CP-T0362 回報區 Part A |
+
+### workspace 落點
+
+`workspaceId(landed) == (requested) == 2eda2f34-9f69-4704-895e-494d9ec0054b`，無錯派。
+**未**出現 `[T0361] Workspace miss` —— 屬預期：本次傳的是已知 workspace，miss 訊號僅在傳未知 ID 時觸發。
+⇒ 該訊號至今**尚未被真實觸發過**，ADVISORY B-1 復議仍缺實地資料。
+
+### 觀測性缺口（新發現，L128）
+
+T0361 的 miss 訊號經 `window.electronAPI.debug.log` 落盤，但實際路徑是
+`AppData\Roaming\`**`better-agent-terminal`**`\Logs\debug-<stamp>.log`，
+而 `BAT_USER_DATA` 指向大小寫不同的 `AppData\Roaming\`**`BetterAgentTerminal`**`\`（兩目錄並存）。
+CLAUDE.md「Logging」節記載的是 macOS 路徑（`~/Library/.../debug.log`），Windows 上依該路徑找**必然落空**。
+⇒ 回函 ADVISORY 談「miss 訊號可觀測性」時須帶上正確路徑，否則對方照文件找不到。
+
+### 結論
+
+**CLOSED**。source lane（511 tests）+ runtime lane（L1/L2/L3 三層）皆綠。
