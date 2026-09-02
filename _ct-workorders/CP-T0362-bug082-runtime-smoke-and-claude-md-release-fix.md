@@ -8,7 +8,7 @@ status: DONE
 priority: P1
 sizing: S
 created_at: "2026-09-02T12:53:28+08:00"
-updated_at: "2026-09-02T12:59:43+0800"
+updated_at: "2026-09-02T12:59:59+0800"
 started_at: "2026-09-02T12:55:34+0800"
 completed_at: "2026-09-02T12:58:52+0800"
 target_version: 0.5.9-pre.1
@@ -237,7 +237,7 @@ DONE
 
 ### Commit
 
-- commit：`6feeefd`（`git commit --only CLAUDE.md _ct-workorders/CP-T0362-*.md`，2 files changed, 139 insertions(+), 23 deletions(-)）
+- 內容 commit：**`89921e2`**（`git commit --only CLAUDE.md _ct-workorders/CP-T0362-*.md`，2 files changed, 150 insertions(+), 23 deletions(-)）；本行的 hash 由其後一個小 commit 補記（避免自我指涉）
 - **未 push**（工單未授權 push，`main` 領先 remote 1 個 commit）
 - commit 後 `git status --porcelain` 僅剩 ` M AGENTS.md`（既有 dirty，符合 AC-4）
 
@@ -245,7 +245,7 @@ DONE
 
 1. **commit message 首發格式瑕疵（已修，未外流）**：首次 commit 誤用 PowerShell here-string 語法
    （`-m @'...'@`）走 Bash tool，bash 未解析該語法，導致 subject 變成 `@ docs(ct): ...`、message 末尾多一個 `@`。
-   已於同一未 push 的 commit 上 `git commit --amend -F -`（bash heredoc）修正，最終 hash `6feeefd`。
+   已於同一未 push 的 commit 上 `git commit --amend -F -`（bash heredoc）修正。
    **候選學習**：Bash tool 寫多行 commit message 一律用 `-F -` + quoted heredoc，`@'...'@` 只在 PowerShell tool 內有效。
 
 其餘無。所有排除項皆遵守：
