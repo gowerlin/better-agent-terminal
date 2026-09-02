@@ -42,6 +42,7 @@ Fast Path 有效（快照 2026-09-01 22:05，距今 ~15h）。熱區 T:13 / BUG:
 | Push commits | 10 | `96a6a96..70dfec4` |
 | Release | 1 | `v0.5.9-pre.2` |
 | 就地結案 | BUG 4 + PLAN 1 | BUG-072/073/074（field evidence）+ BUG-078（CI 證據）+ PLAN-032 → DONE |
+| *archive | 7 張 | T0335/336/337/348/358/359 + BUG-081；熱區 T:14→8, BUG:8→7 |
 
 ### 重點觀察 / Learnings 候選
 
@@ -113,6 +114,7 @@ Fast Path 失效（快照 2026-05-23，距今 **101 天**）→ Full Scan。熱�
 ### 本 session 已清空的項目
 BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校正 ✅ ｜ PR #19 已處置 ✅ ｜ v0.5.9-pre.2 已發布 ✅
 **BUG-072/073/074/078 就地結案 ✅ ｜ PLAN-032 → DONE ✅**（使用者裁決：v0.5.8 上線 101 天零回饋）
+**`*archive` 7 張移入冷區 ✅**（T0335/336/337/348/358/359 + BUG-081）
 
 > ⚠️ **BUG-072/073/074 是 field evidence 結案，不是人工 smoke。** PLAN-032 的 AC-4/5/6
 > 未經實機確認，僅有整合測試（T0338）+ 程式碼稽核（T0341）覆蓋。日後踩到 wizard
@@ -126,7 +128,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 4. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號至今零筆真實觸發，待有資料再議（已回函告知對方）
 5. 🟢 **BUG-061** Codex panel tsc baseline errors（OPEN, low）
 6. 🟢 T0324 DGX Spark dogfood VERIFY / WSL-Docker structured errorCode PLAN
-7. 🟢 **`*archive` 候選已累積**：本輪結案 4 BUG + 1 PLAN，加上既有 DONE 工單，下次起手可跑 `*archive`
+7. 🟢 **下次起手可再跑一次 `*archive`**：本輪結案的 10 張（T0360/361/362、CP-T0362、BUG-072/073/074/078/082、PLAN-032）因 `archive_days: 2` 未到齡，下次 session 即全部可歸檔
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`** —— 三個 remote，預設會解析到 upstream tony1223。
@@ -135,7 +137,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。錯誤訊息被擴寫時字串仍在。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（8 熱區：Open 2 / Closed 6）｜ Backlog → [_backlog.md](_backlog.md)（6 熱區：Done 1）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（7 熱區：Open 2 / Closed 5）｜ Backlog → [_backlog.md](_backlog.md)（6 熱區：Done 1）
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D119）｜ Learnings → [_learnings.md](_learnings.md)
 - 跨塔台回函 → [_reply-2026-09-02-bat-workspace-default-opinion.md](_reply-2026-09-02-bat-workspace-default-opinion.md)
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
@@ -241,7 +243,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
 | git 同步 | ✅ | `origin/main` = `70dfec4`，本地零領先 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
-| 熱區工單 | **T:14 / BUG:8 / PLAN:6 / EXP:0 / CT-T:1** | 本 session 新增 CP-T0362 / T0362；BUG 全數為 Open 2 + Closed 6（無 FIXED/VERIFY 掛帳） |
+| 熱區工單 | **T:8 / CP-T:1 / BUG:7 / PLAN:6 / EXP:0 / CT-T:1** | `*archive` 後；BUG 為 Open 2 + Closed 5（無 FIXED/VERIFY 掛帳）。⚠️ T:8 中有 **4 張是報告檔非工單**（見 L132），實際工單數 4 |
 | 最大編號 | **T0362 / BUG-082 / PLAN-034(archived) / D119** | 下張：T0363 / BUG-083 / PLAN-035 / D120 |
 | unit test | ✅ **550 passed / 41 files** | 本 session 基線由 511 → 550（塔台親跑複驗） |
 | vite build | ✅ | 本 session 親跑複驗通過 |
@@ -257,7 +259,8 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 > 4. 🔴 **D094 mac installer 280 MB cap 已連三個 release 超標 2.6 倍**（v0.5.8 / pre.1 / pre.2 之 mac dmg 皆 ~724 MB）**且從未觸發復議** —— 門檻與現實脫節，見 L130
 > 5. ⚠️ CLAUDE.md「Logging」節路徑錯誤（L128），待修
 > 6. ⚠️ `_ct-workorders/T0293-review-report.md` 含 2 個 NUL 位元組（既有，非本 session 產生）；全庫其餘檔案控制字元掃描為零
-> 7. ⚠️ **L129 實證**：本 session 收工時以 bash heredoc 寫 python，反斜線被摺疊一層，導致 regex backreference 變成 SOH 控制字元寫進 4 個 BUG 檔（已修）。**含反斜線的內容一律走 Write 工具**
+> 7. ⚠️ **L132**：`T0292/T0293/T0298/T0302-*-report.md` 4 檔命名越界（報告卻掛工單前綴），落在 `*archive` F-24 排除規則的縫隙裡 —— 永不歸檔也永不判定。2026-09-02 使用者裁決 **A：維持現狀**，日後新報告一律用 `_report-` 前綴
+> 8. ⚠️ **L129 實證**：本 session 收工時以 bash heredoc 寫 python，反斜線被摺疊一層，導致 regex backreference 變成 SOH 控制字元寫進 4 個 BUG 檔（已修）。**含反斜線的內容一律走 Write 工具**
 
 ---
 

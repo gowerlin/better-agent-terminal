@@ -3089,3 +3089,37 @@ pwsh -Command "Set-Clipboard -Value '/ct-exec T####'"
 - L112（BUG-060 → BUG-075 同族再現史）：BAT 內部終端 / mjs 派發鏈專屬問題的延續觀察
 
 **候選晉升**：📂 Project（BAT 工具鏈 specific；若 BAT 修了 RemoteServer response API 則 obsolete）
+
+---
+
+## L132
+
+**報告類文件的命名越界會讓 `*archive` 的 F-24 排除規則失效**
+
+`references/archive-system.md` F-24 以 **`_report-` 前綴**判定「長期參考文件，不納入歸檔生命週期」。
+但本專案有 4 個報告檔掛的是**工單前綴**：
+
+| 檔案 | 實質內容 |
+|------|---------|
+| `T0292-review-report.md` | bmad adversarial-general review on PLAN-007 |
+| `T0293-review-report.md` | bmad edge-case-hunter review on PLAN-007 |
+| `T0298-verification-report.md` | v0.4.0 release readiness report |
+| `T0302-verification-report.md` | v0.4.1 verification + release readiness report |
+
+它們**無 frontmatter、無 `status`**，`*archive` 因此既無法判定為最終態（掃不到 → 不會歸檔），
+也不在 F-24 排除清單內（前綴不符）—— **落在規則的縫隙裡**，長期佔住熱區但沒有任何規則管得到。
+
+**Why 這是問題**：熱區檔案數是 `*sync` 的掃描成本基準。四個永不歸檔、也永不被判定的檔案
+會持續計入 `T:` 計數，讓熱區統計失真（本次 `*archive` 前熱區 T:14，其中 4 張根本不是工單）。
+
+**決策（2026-09-02，使用者選 A）**：**維持現狀不改名**。理由是改名會動到 `_cross-references.md`
+與各處引用，收益（熱區 -4）不抵風險；且這四份是 PLAN-007 / v0.4.x 的驗收史料，留在熱區可見反而合理。
+
+**How to apply**：
+- 日後新增報告類文件（review / verification / readiness / research）一律用 **`_report-` 前綴**，
+  不要沿用工單編號當檔名前綴 —— 見 `_local-rules.md` 既有的研究/Spec 文件命名慣例
+- 讀熱區 `T:` 計數時記得扣掉這 4 張（實際工單數 = T 計數 − 4）
+- 若日後 F-24 改為「無 frontmatter 即視為參考文件」，本條可 obsolete
+
+**候選晉升**：📂 Project（本專案歷史遺留；但「排除規則靠檔名前綴，遇到越界命名即失效」是通例，
+可考慮回饋上游改為 frontmatter 判定）
