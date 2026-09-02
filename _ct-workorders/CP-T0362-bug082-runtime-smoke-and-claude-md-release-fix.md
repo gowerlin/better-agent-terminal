@@ -4,13 +4,13 @@ schema_kind: workorder
 id: CP-T0362
 title: "BUG-082 runtime smoke 載體（跨專案前綴結構化派工）+ CLAUDE.md Release 節校正"
 type: fix
-status: PENDING
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-09-02T12:53:28+08:00"
-updated_at: "2026-09-02T12:53:28+08:00"
-started_at: ""
-completed_at: ""
+updated_at: "2026-09-02T12:59:43+0800"
+started_at: "2026-09-02T12:55:34+0800"
+completed_at: "2026-09-02T12:58:52+0800"
 target_version: 0.5.9-pre.1
 depends_on:
   - T0360
@@ -34,7 +34,7 @@ memory_overrides:
 
 # CP-T0362 — BUG-082 runtime smoke 載體 + CLAUDE.md Release 節校正
 
-- **狀態**：PENDING
+- **狀態**：DONE
 - **任務類型**：fix（文件）
 - **工作量預估**：S
 - **Context Window 風險**：低
@@ -125,11 +125,11 @@ BUG-082（跨專案工單前綴被結構化派工路徑拒收）由 T0360 / T036
 
 ## 驗收條件
 
-- [ ] AC-1 回報區含「Part A 證據」子節，四項觀察值皆有具體值（非「應該正常」這類推測）
-- [ ] AC-2 `CLAUDE.md` `## Release` 節已改寫，F1–F6 六項事實皆有對應敘述（或標明塔台事實有誤）
-- [ ] AC-3 改寫內容中的 workflow 觸發條件、prerelease 標記、Homebrew 行為，皆可回溯到實際 workflow 檔的行號
-- [ ] AC-4 `git diff --stat` 只動 `CLAUDE.md` 一檔（`AGENTS.md` 的既有 dirty 不計，且不得被 commit）
-- [ ] AC-5 commit 時使用 `git commit --only CLAUDE.md _ct-workorders/CP-T0362-*.md`（精確指定路徑，避免掃進 `AGENTS.md`）
+- [x] AC-1 回報區含「Part A 證據」子節，四項觀察值皆有具體值（非「應該正常」這類推測）
+- [x] AC-2 `CLAUDE.md` `## Release` 節已改寫，F1–F6 六項事實皆有對應敘述（或標明塔台事實有誤）
+- [x] AC-3 改寫內容中的 workflow 觸發條件、prerelease 標記、Homebrew 行為，皆可回溯到實際 workflow 檔的行號
+- [x] AC-4 `git diff --stat` 只動 `CLAUDE.md` 一檔（`AGENTS.md` 的既有 dirty 不計，且不得被 commit）
+- [x] AC-5 commit 時使用 `git commit --only CLAUDE.md _ct-workorders/CP-T0362-*.md`（精確指定路徑，避免掃進 `AGENTS.md`）
 
 ## Sub-session 執行指示
 
@@ -150,21 +150,123 @@ BUG-082（跨專案工單前綴被結構化派工路徑拒收）由 T0360 / T036
 
 ### 完成狀態
 
-（DONE / FAILED / BLOCKED / PARTIAL）
+DONE
+
+### Landing Zone Check
+
+| 檢查 | 結果 | 說明 |
+|------|------|------|
+| C-0 repo identity | ⚠️ WARN | frontmatter **無 `repo` 欄位**（`absent`）；實測 `basename(git rev-parse --show-toplevel)` = `better-agent-terminal`。依 skill v5.0.5 規則，欄位缺失本身不是 STOP，改由 C-3 + C-1 裁決 |
+| C-1 工單路徑 | ✅ PASS | 工單位於 `REPO_ROOT/_ct-workorders/` 下 |
+| C-3 affects_files | ✅ PASS | `affects_files` 唯一項 `CLAUDE.md` 實際存在（`-rw-r--r-- 17926 bytes`），testable & present |
+| C-2 branch | ℹ️ N/A | frontmatter 與 body 表格皆無 `branch` 欄位；實際 HEAD = `main` |
+
+`BAT_WORKSPACE_ID`（證據記錄用，不比對、不阻擋）：`2eda2f34-9f69-4704-895e-494d9ec0054b`
 
 ### Part A 證據
 
-1. payload 形式：
-2. 工單解析：
-3. cwd：
-4. notify env：
+1. **payload 形式**：**結構化 slash-command**，非自由文字。session 起始訊息帶
+   `<command-message>ct-exec</command-message>` / `<command-name>/ct-exec</command-name>` /
+   `<command-args>CP-T0362</command-args>`，並隨附完整 ct-exec skill body（`<!-- ct-exec-version: 5.0.5 -->`）。
+   ⇒ `buildControlTowerSkillPrompt` 正確處理了帶 `CP-` 前綴的 ID，**BUG-082 根因表第二列的 runtime lane 通過**。
+   修復前的 BAT 會在此路徑直接 `exit 1`，本 session 存在即為反證。
+
+2. **工單解析**：以 `ls _ct-workorders/ | grep -i "T0362"` 定位，單一命中
+   `_ct-workorders/CP-T0362-bug082-runtime-smoke-and-claude-md-release-fix.md`。
+   ID 從 `<command-args>` 到 Worker 全程維持 `CP-T0362`，**未被任何環節正規化為 `T0362`**；檔名未改動。
+
+3. **cwd**：
+   - `pwd`（Git Bash 形式）= `/d/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`
+   - `git rev-parse --show-toplevel` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`
+   - ⇒ **與工單期望值完全一致**。
+
+4. **notify env**：三項**齊備**（值不印出）
+   | 變數 | 有無 | 備註 |
+   |------|------|------|
+   | `BAT_TOWER_TERMINAL_ID` | ✅ 有 | UUID 形式 |
+   | `BAT_REMOTE_PORT` | ✅ 有 | `9876` |
+   | `BAT_REMOTE_TOKEN` | ✅ 有 | 長度 32，**值不記錄** |
+   | `BAT_HELPER_DIR` | ✅ 有 | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
+
+   補充：**無 shell env visibility mismatch** —— PowerShell (`Get-ChildItem Env:BAT*`) 與 Git Bash
+   (`env | grep -c '^BAT_'` → `10`) 皆看得到全部 10 個 `BAT_*` 變數。
 
 ### 產出摘要
 
+**唯一寫入檔**：`CLAUDE.md`，單一 hunk `@@ -191,10 +191,35 @@`，`+32 / -7`。
+原「## Release」9 行（`CLAUDE.md:192-200`）改寫為含 3 張表 + 1 個指令區塊 + 2 個子節的版本。
+
+改寫內容與行號可回溯性（AC-3）：
+
+| 主張 | 來源行號 | 核對結果 |
+|------|---------|---------|
+| `release.yml` 觸發 = `on: push: tags: ['v*']` | `release.yml:3-6` | 與 F1 相符 |
+| 正式版由 `GITHUB_REF` 反解版號 | `release.yml:15-23` | 新增（塔台未列） |
+| `pre-release.yml` **僅** `workflow_dispatch` | `pre-release.yml:3-9` | 與 F2 相符 |
+| 預覽版 tag 由 release step `tag_name` 建立（不需 push tag） | `pre-release.yml:252-257` | 新增（塔台未列） |
+| 留空自動遞增：`git tag -l 'v*' --sort=-v:refname \| head -n1` → patch+1 → 找未用 `-pre.N` | `pre-release.yml:34-55` | 與 F3 相符（F3 標 36-41，實際完整邏輯落在 34-55） |
+| 257 個 `v*` tag、排序第一名 `v4.0.3-pre.1` | 實測 `git tag -l 'v*' \| wc -l` = **257**；`--sort=-v:refname \| head -n5` 首項 = **`v4.0.3-pre.1`** | 與 F4 相符 |
+| 留空會產出 `4.0.4-pre.1` | F3 邏輯推演（`4.0.3` → strip `-pre` → patch+1 → `4.0.4` → `-pre.1`） | 與 F5 相符 |
+| 3 個 remote、`gh` 預設解到 upstream、必須帶 `-R gowerlin/better-agent-terminal` | 實測 `git remote -v`：`origin`=gowerlin / `upstream`=tony1223 / `scandnavik` | 與 F6 相符 |
+| `release.yml` prerelease = `contains(github.ref, '-pre')` | `release.yml:254` | 實讀（未沿用原文） |
+| `pre-release.yml` prerelease **恆為 `true`** | `pre-release.yml:264` | 實讀 |
+| Homebrew tap（`tonyq-org/homebrew-tap`）僅在 tag 不含 `-pre` 時 dispatch | `release.yml:258-265` | 實讀 |
+| `pre-release.yml` **完全沒有 Homebrew step** | `pre-release.yml` 全檔 grep 無 `repository-dispatch` / `homebrew` | 實讀 |
+| Chocolatey 亦僅正式版線，另有日期 gate | `release.yml:267-283` | 實讀（原文未提） |
+| server bundle 獨立線：`workflow_dispatch` + `server-bundle-v*` tag | `build-server-bundle.yml:3-9` | 實讀 |
+| server bundle release job 閘門 + 恆 `prerelease: true` | `build-server-bundle.yml:133` / `:160` | 實讀 |
+
+交叉指向（改寫要求 5）：新增「Server bundle 是獨立 tag 線」子節，明點回 CLAUDE.md 既有的
+「Server bundle baseline（PLAN-031）」節，並釐清「解耦」的精確語意 —— 見下方「塔台事實勘誤」第 2 點。
+
 ### 塔台事實勘誤
 
-（F1–F6 中若有與實際不符者列於此；無則填「無」）
+**F1–F6 全部與實際 workflow 相符，無勘誤。** 僅兩點補充（皆非塔台錯誤，是既有文件的不精確處）：
+
+1. **F3 行號範圍偏窄**：塔台標 `pre-release.yml:36-41`，實際自動遞增邏輯（含 `-pre.N` 探測迴圈）
+   落在 **`:34-55`**。已依實讀行號寫入。
+
+2. **CLAUDE.md 既有「Server bundle baseline」節的「完全解耦」說法不精確**（`CLAUDE.md:187`）：
+   `release.yml:25-70` 與 `pre-release.yml:60-105` 各自都有 `server-bundle` job，在 desktop 發布時
+   **就地重建** bundle 並打進安裝檔。「解耦」正確語意是 **baseline tarball 的獨立發佈線**，
+   不是 desktop 流程完全不碰 server bundle。已在新 Release 節末段補上此釐清（未改動既有 187 行，
+   避免超出本工單 scope）。若塔台認為 `:187` 該併同修正，請另開工單。
+
+3. **附帶觀察（非勘誤）**：本 repo 目前 `git tag -l 'server-bundle-v*'` 為 **0 個** ——
+   server bundle 獨立 tag 線至今尚未實際使用過。未寫入 CLAUDE.md（屬易變的當下狀態，非流程事實）。
+
+### Commit
+
+- commit：`6feeefd`（`git commit --only CLAUDE.md _ct-workorders/CP-T0362-*.md`，2 files changed, 139 insertions(+), 23 deletions(-)）
+- **未 push**（工單未授權 push，`main` 領先 remote 1 個 commit）
+- commit 後 `git status --porcelain` 僅剩 ` M AGENTS.md`（既有 dirty，符合 AC-4）
 
 ### 遭遇問題
 
+1. **commit message 首發格式瑕疵（已修，未外流）**：首次 commit 誤用 PowerShell here-string 語法
+   （`-m @'...'@`）走 Bash tool，bash 未解析該語法，導致 subject 變成 `@ docs(ct): ...`、message 末尾多一個 `@`。
+   已於同一未 push 的 commit 上 `git commit --amend -F -`（bash heredoc）修正，最終 hash `6feeefd`。
+   **候選學習**：Bash tool 寫多行 commit message 一律用 `-F -` + quoted heredoc，`@'...'@` 只在 PowerShell tool 內有效。
+
+其餘無。所有排除項皆遵守：
+
+- `.github/workflows/*.yml` 全程唯讀（僅 `cat -n` / `grep` / `sed -n`）
+- 未動 `package.json` / lock file
+- 未跑 `npm run build` / `electron-builder` / 任何發布動作
+- 未碰 `AGENTS.md`（工作區既有 dirty，`git diff --stat` 顯示 36 行變動，為 claude-mem 自動產生，**未 staged、未 commit**）
+- 未改 `_ct-workorders/**` 任何索引檔
+- 未更動 BUG-082 狀態
+
+**AC 對照**
+
+| AC | 結果 | 證據 |
+|----|------|------|
+| AC-1 四項觀察值皆具體 | ✅ | 見上「Part A 證據」，四項皆為實測值 |
+| AC-2 F1–F6 皆有對應敘述 | ✅ | 見「產出摘要」對照表；無勘誤，F3 行號已修正 |
+| AC-3 可回溯行號 | ✅ | 觸發條件 / prerelease / Homebrew / Chocolatey / server bundle 皆標 workflow 檔行號 |
+| AC-4 `git diff --stat` 只動 `CLAUDE.md` | ✅ | `CLAUDE.md 32+/7-`；`AGENTS.md` 為既有 dirty 不計，未 commit |
+| AC-5 精確路徑 commit | ✅ | 使用 `git commit --only CLAUDE.md _ct-workorders/CP-T0362-*.md` |
+
 ### 回報時間
+
+2026-09-02T12:58:46+0800

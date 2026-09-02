@@ -191,10 +191,35 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 
 ## Release
 
-- **正式版**: `release new tag version` → 基於最新 tag 遞增 patch 版號，建立 tag 並 push
-  - 例：目前 `v2.1.3` → 建立 `v2.1.4` tag
-- **預覽版**: `release new pre tag version` → 基於最新 tag 遞增 patch 版號，加 `-pre.1` 後綴
-  - 例：目前 `v2.1.3` → 建立 `v2.1.4-pre.1`
-  - 若已有 `v2.1.4-pre.1` → 建立 `v2.1.4-pre.2`
-- Tag 含 `-pre` 時 GitHub Release 自動標為 Pre-release，不更新 Homebrew tap
-- Tag 不含 `-pre` 時為正式版，更新 Homebrew tap
+> 以下依 `.github/workflows/*.yml` 實際內容核對（2026-09-02，CP-T0362）。行號皆指該 workflow 檔本身；
+> 與 `_ct-workorders/_local-rules.md`「Release 流程實況」同源。
+
+| 線 | workflow | 觸發 | tag 從哪來 |
+|----|----------|------|-----------|
+| 正式版 | `release.yml` | `on: push: tags: ['v*']`（:3-6） | 本機 `git tag vX.Y.Z && git push origin vX.Y.Z`；CI 由 `GITHUB_REF` 反解版號（:15-23） |
+| 預覽版 | `pre-release.yml` | **`workflow_dispatch` only**（:3-9）—— push tag **不會**觸發它 | 不 push tag；tag 由 release step 的 `tag_name` 建立（:252-257） |
+
+預覽版發布指令：
+
+```bash
+gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y.Z-pre.N
+```
+
+- 🔴 **`gh` 一律帶 `-R gowerlin/better-agent-terminal`**：本 repo 有 3 個 remote（`origin`=gowerlin / `upstream`=tony1223 / `scandnavik`），`gh` 預設解析到 **upstream**。不帶 `-R` 時唯讀操作報 404，寫入操作（`gh release create` / `gh pr create`）則是打到別人的 repo。
+- 🔴 **`-f version=` 不可留空**：留空會走自動遞增 —— `git tag -l 'v*' --sort=-v:refname | head -n1` → patch +1 → 找未使用的 `-pre.N`（`pre-release.yml:34-55`）。本 repo 有 **257 個 `v*` tag**，橫跨 `v0.x`（本 fork 主線）/ `v2.2.x` / `v4.0.x` 三條版本線，`-v:refname` 排序第一名是 **`v4.0.3-pre.1`**，留空即產出 `4.0.4-pre.1`，與主線完全脫節。判版方式：取**本 fork 主線（`v0.x`）**最新 tag 遞增，不要信排序第一名。
+
+### prerelease 標記與下游發佈
+
+| 行為 | `release.yml`（正式版線） | `pre-release.yml`（預覽版線） |
+|------|--------------------------|------------------------------|
+| GitHub Release `prerelease` | `contains(github.ref, '-pre')` —— tag 含 `-pre` 才標 Pre-release（:254） | **恆為 `true`**（:264） |
+| Homebrew tap（`tonyq-org/homebrew-tap`） | tag **不含** `-pre` 時才 `repository-dispatch`（:258-265） | **完全沒有此 step** |
+| Chocolatey push | tag **不含** `-pre` 時才跑，另有日期 gate（:267-283） | 無 |
+
+⇒ 走 `release.yml` 打 `v0.5.9-pre.1` 這種 tag 一樣會被標成 Pre-release 且不動 Homebrew；但預覽版的建議路徑仍是 `pre-release.yml`（免 push tag、版號可控）。
+
+### Server bundle 是獨立 tag 線
+
+`build-server-bundle.yml` 由 `workflow_dispatch` 或 `server-bundle-v*` tag 觸發（:3-9）；其 release job 另有 `if: startsWith(github.ref, 'refs/tags/server-bundle-v')` 閘門（:133），產出恆 `prerelease: true`（:160）。此即上方「Server bundle baseline（PLAN-031）」節所指的獨立線。
+
+注意「解耦」的精確意思：`release.yml` / `pre-release.yml` 內各自另有 `server-bundle` job（`release.yml:25-70`）在 desktop 發布時就地重建 bundle 並打進安裝檔。解耦指的是 **baseline tarball 的獨立發佈線**，不是 desktop 流程完全不碰 server bundle。
