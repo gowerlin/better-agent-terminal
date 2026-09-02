@@ -18,6 +18,19 @@ All notable changes to Better Agent Terminal are documented in this file.
   `(?:[A-Z]{2,4}-)?T\d+` via a single in-file `WORKORDER_ID_PREFIX` / `WORKORDER_ID_HEAD`
   declaration, with sibling pointers to the other three sites. BUG / PLAN / EXP ID rules and
   the script's CLI behaviour are unchanged. (refs: T0361, BUG-082, T0360)
+- fix(terminal): the agent prompt argument is now quoted with the rules of the target shell
+  instead of always POSIX. `ShellFamily` had been wired into `buildAgentPromptCommand` but was
+  only consumed by `resolveClaudeBaseCommand`; the prompt itself still went through a private
+  POSIX-only helper in `electron/main.ts`, so a prompt containing `'` was escaped as `'\''` —
+  not a valid escape in PowerShell, which is the common Windows case. The new
+  `quoteArgForShell()` in `src/utils/shell-quote.ts` handles posix (`'\''`), pwsh (doubled
+  quote) and cmd (`CommandLineToArgvW` backslash rules) separately. The safe-character fast
+  path is byte-identical to the removed helper, so existing dispatch prompts are unchanged, and
+  `agentCustomArgs` is still passed through without re-quoting. On cmd, `%` is deliberately left
+  alone: `%%` folds back to `%` only in batch files, so doubling it would corrupt ordinary text
+  such as `100% done`; escaping `%VAR%` on an interactive cmd.exe command line is not possible
+  and is documented as a cmd limitation. Design skeleton contributed by the community in PR #19;
+  its `cmd` branch was reimplemented here. (refs: T0362, PR #19, PR #18)
 
 ### Changed
 - `scripts/bat-terminal.mjs` now prints a stderr hint when `--workspace` is omitted, naming

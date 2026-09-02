@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectShellFamily, quoteCommandPath, type ShellFamily } from '../shell-quote'
+import { detectShellFamily, quoteArgForShell, quoteCommandPath, type ShellFamily } from '../shell-quote'
 
 describe('detectShellFamily', () => {
   it.each([
@@ -46,5 +46,97 @@ describe('quoteCommandPath', () => {
     ['cmd', '/usr/local/bin/claude', '"/usr/local/bin/claude"'],
   ] satisfies Array<[ShellFamily, string, string]>)('quotes %s path %s', (shell, path, expected) => {
     expect(quoteCommandPath(path, shell)).toBe(expected)
+  })
+})
+
+describe('quoteArgForShell', () => {
+  describe('safe-character fast path', () => {
+    // T0362 AC-4: this character set must stay byte-identical to the private
+    // POSIX-only helper it replaced (electron/main.ts shellQuoteForTerminalCommand),
+    // so existing Control Tower dispatch prompts keep the exact same wire format.
+    it.each([
+      ['posix', '/ct-exec'],
+      ['pwsh', '/ct-exec'],
+      ['cmd', '/ct-exec'],
+      ['posix', 'ct-done'],
+      ['pwsh', 'T0362'],
+      ['cmd', 'a.b_c-d/e=f:g@h'],
+    ] satisfies Array<[ShellFamily, string]>)('passes %s arg %s through unquoted', (shell, arg) => {
+      expect(quoteArgForShell(arg, shell)).toBe(arg)
+    })
+
+    it.each([
+      ['posix', '/ct-exec T0362'],
+      ['pwsh', '$ct-exec'],
+      ['cmd', 'a%b'],
+    ] satisfies Array<[ShellFamily, string]>)('does not fast-path %s arg %s', (shell, arg) => {
+      expect(quoteArgForShell(arg, shell)).not.toBe(arg)
+    })
+  })
+
+  describe('posix', () => {
+    it.each([
+      ['/ct-exec T0362', "'/ct-exec T0362'"],
+      ['$ct-exec T0362', "'$ct-exec T0362'"],
+      // POSIX single quotes cannot contain a quote; close, escape, reopen.
+      ["it's me", "'it'\\''s me'"],
+      ['say "hi"', '\'say "hi"\''],
+      ['100% done', "'100% done'"],
+      ['a & b | c ^ d', "'a & b | c ^ d'"],
+      ['C:\\path\\', "'C:\\path\\'"],
+    ] satisfies Array<[string, string]>)('quotes %s', (arg, expected) => {
+      expect(quoteArgForShell(arg, 'posix')).toBe(expected)
+    })
+  })
+
+  describe('pwsh', () => {
+    it.each([
+      ['/ct-exec T0362', "'/ct-exec T0362'"],
+      ['$ct-exec T0362', "'$ct-exec T0362'"],
+      // PowerShell escapes a single quote by doubling it, not with a backslash.
+      ["it's me", "'it''s me'"],
+      ["it's O'Brien's", "'it''s O''Brien''s'"],
+      ['say "hi"', '\'say "hi"\''],
+      ['100% done', "'100% done'"],
+      ['a & b | c ^ d', "'a & b | c ^ d'"],
+      // Backslashes are literal inside PowerShell single quotes.
+      ['C:\\path\\', "'C:\\path\\'"],
+    ] satisfies Array<[string, string]>)('quotes %s', (arg, expected) => {
+      expect(quoteArgForShell(arg, 'pwsh')).toBe(expected)
+    })
+  })
+
+  describe('cmd', () => {
+    it.each([
+      ['/ct-exec T0362', '"/ct-exec T0362"'],
+      ['$ct-exec T0362', '"$ct-exec T0362"'],
+      ["it's me", '"it\'s me"'],
+      ['a b', '"a b"'],
+      // T0362 B-2: a quote is escaped as \" (CommandLineToArgvW), never as "".
+      ['say "hi"', '"say \\"hi\\""'],
+      // One backslash before a quote -> doubled to two, plus one more to escape
+      // the quote = three backslashes.
+      ['a\\"b', '"a\\\\\\"b"'],
+      // Two backslashes before a quote -> doubled to four, plus one = five.
+      ['a\\\\"b', '"a\\\\\\\\\\"b"'],
+      // A trailing backslash run is doubled so it cannot escape the closing quote.
+      ['C:\\path\\', '"C:\\path\\\\"'],
+      ['C:\\path\\\\', '"C:\\path\\\\\\\\"'],
+      // Backslashes not adjacent to a quote are emitted verbatim.
+      ['C:\\path\\file.txt', '"C:\\path\\file.txt"'],
+      // T0362 B-1: % is passed through verbatim — %% folds only in batch files,
+      // so doubling it would corrupt ordinary prose.
+      ['100% done', '"100% done"'],
+      ['%USERPROFILE% is set', '"%USERPROFILE% is set"'],
+      // The surrounding double quotes already protect cmd metacharacters.
+      ['a & b | c ^ d', '"a & b | c ^ d"'],
+      ['a<b>c', '"a<b>c"'],
+    ] satisfies Array<[string, string]>)('quotes %s', (arg, expected) => {
+      expect(quoteArgForShell(arg, 'cmd')).toBe(expected)
+    })
+
+    it('never doubles a percent sign', () => {
+      expect(quoteArgForShell('50% + 50% = 100%', 'cmd')).not.toContain('%%')
+    })
   })
 })
