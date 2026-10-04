@@ -203,6 +203,13 @@ npm run deploy:headless:dev -- --target dir:/path/to/bat-server --yes
   `wsl.exe -d <distro> --exec bash <file>`, which avoids `$` escaping problems of
   `wsl.exe -- bash -c '...'` from PowerShell.
 - Staging output lands in `dist-server/dev-deploy-headless/` (gitignored).
+- The node helpers the server bundle ships (`serverBundleHelperScripts` in
+  `scripts/build-server-bundle.mjs`: `bat-terminal.mjs`, `bat-notify.mjs` and
+  their imports) are deployed too, into `<installRoot>/scripts/` (created when
+  missing; listed as `scripts/<name>`, same `.bak-<tag>` / `.absent` /
+  `--rollback` rules). Without them a remote PTY gets no helper env — see
+  [Remote Tower notification](#remote-tower-notification-plan-036-k). A
+  `scripts/` dir created by a deploy stays (empty) after `--rollback`.
 
 > ⚠️ **Re-running the WSL setup wizard reinstalls the baseline bundle and
 > overwrites a dev deploy.** Run the tool again afterwards if you still need the
@@ -239,6 +246,7 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
 | S10 | `remote-tools:detect` (the PLAN-037 AI toolchain probe; up to 30 s, the login-view probe loads the user's rc files) returns a schema v1 report with `env.osFamily = linux` and `git` = `ok` (fails with "server predates T0411" against older servers) |
 | S11 | `github:check-cli` (up to 20 s; the server runs `gh auth status`, a network check) answers `installed: true` with a boolean `authenticated` (the WSL test host is not logged in ⇒ `false`); then, through a second smoke PTY, the smoke creates its own temp repo `mktemp -d /tmp/bat-smoke-git.XXXXXX` with one empty commit, checks `git:getRoot` / `git:branch` / `git:log` / `git:status` / `git-scaffold:healthCheck` against it and `worktree:status` of an unknown session (`null`), then removes the repo and kills that PTY (fails with "server predates T0405" against older servers) |
 | S12 | the headless fs sandbox: through a third smoke PTY the smoke creates its own temp dir `mktemp -d /tmp/bat-smoke-fs.XXXXXX` holding `smoke.txt`; before any sync `fs:readdir` returns `[]` and `fs:readFile` is denied; `workspace:sync-roots(['/', dir])` accepts only the dir and rejects `/` as a filesystem root; then `fs:readdir` / `fs:readFile` / `fs:stat` read the dir while `fs:readdir('/etc')` and `fs:readFile('/etc/hostname')` stay denied. Cleanup clears this connection's roots, removes the dir and kills that PTY (fails with "server predates T0406" against older servers, after a read-only `fs:stat` probe — nothing is created) |
+| S13 | the remote Tower path (PLAN-036 K): in a fourth smoke PTY the `BAT_*` key names (values are never printed) are exactly the remote-tab set of [Remote Tower notification](#remote-tower-notification-plan-036-k), no env value equals the server token (compared as sha256 — the token itself is never typed) and `BAT_REMOTE_TOKEN` has a capability's length; then the real `bat-terminal.mjs` runs **inside that PTY** with its env (bundle node `$BAT_HELPER_DIR/../bin/node`, else `node`): a raw command must be refused with `Forbidden: channel-not-allowed`, and an agent id no server registers must reach `terminal:create-agent-command` with the tower role and create nothing (`Forbidden: agent-not-allowed` since T0450). No agent is ever started. A server without helper env (before T0433, or helpers not deployed) is a **SKIP that does not fail the run** |
 
 | Option | Meaning |
 |--------|---------|
@@ -246,10 +254,10 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
 | `--url` / `--token-file` / `--fingerprint` | Direct target. The token file may be a plaintext `server-token.json` record or a bare token; the fingerprint is accepted in any case, with or without colons. |
 | `--cwd <path>` | Smoke PTY working directory (default: WSL `$HOME`, else `/tmp`). |
 | `--timeout-ms <ms>` | Per-step timeout (default `10000`; S10 waits at least 30 s, S11's `github:check-cli` at least 20 s). |
-| `--json` | Machine-readable report. Exit code `0` = all PASS, `1` = a check failed or a smoke PTY was left behind, `2` = usage / connection-info error. |
+| `--json` | Machine-readable report. Exit code `0` = all PASS (a WARN, or a SKIP with `reason: "server-too-old"`, is reported but tolerated), `1` = a check failed / was skipped for a failed prerequisite or a smoke PTY was left behind, `2` = usage / connection-info error. |
 
 - The smoke only touches its own PTYs (`smoke-<timestamp>-<rand>`, and
-  `…-git` for S11, `…-fs` for S12), kills them on every exit path and finishes with an existence
+  `…-git` for S11, `…-fs` for S12, `…-tower` for S13), kills them on every exit path and finishes with an existence
   probe. Output of other PTYs on the same server (events are broadcast to every
   client) is ignored.
 - S11 writes git state only inside the temp repo it created under
@@ -267,6 +275,92 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
 - The frame format of `electron/remote/protocol.ts` is re-implemented in the
   script (`remote-client.ts` imports `electron`);
   `scripts/__tests__/smoke-remote-headless.test.mjs` fails if the two drift.
+
+## Remote Tower notification (PLAN-036 K)
+
+A Control Tower session running in a remote tab dispatches Workers
+(`bat-terminal.mjs`) and Workers report back (`bat-notify.mjs`: toast, tab
+badge, pre-filled text, `--submit`) exactly as on a local BAT. The helpers run
+**on the server** and talk to the headless bat-server over
+`wss://127.0.0.1:<port>`; they never reach the local BAT.
+
+**Per-PTY capabilities, never the server token.** The headless server issues
+each PTY its own capability token (in memory only; the registry keeps its
+SHA-256 digest) and injects it as `BAT_REMOTE_TOKEN`:
+
+| Key | Value |
+|-----|-------|
+| `BAT_SESSION` / `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` | as in every BAT PTY (`BAT_WORKSPACE_ID` = the client workspace) |
+| `BAT_REMOTE_PORT` | the headless server port |
+| `BAT_REMOTE_TOKEN` | **this PTY's capability** (`batcap.` + 43 chars since T0449) |
+| `BAT_SERVER_CERT_PATH` | `<dataDir>/server-cert.json` — the helpers pin this fingerprint |
+| `BAT_HELPER_DIR` | `<installRoot>/scripts` |
+| `BAT_HELPER_LOG_DIR` | `<dataDir>/Logs` (the helpers' `bat-scripts.log`) |
+| `BAT_TOWER_TERMINAL_ID`, `CT_MODE`, `CT_INTERACTIVE` | Worker tabs only (set by the dispatching Tower) |
+
+Inherited `BAT_*` variables are always scrubbed. When `<installRoot>/scripts`
+lacks the helpers (a bundle before T0433, or a JS-only dev deploy) nothing is
+injected or issued: the tab has `BAT_SESSION=1` but no helper env, and the
+skills fall back to the manual message.
+
+**Capability scope** (`electron/remote/helper-capability.ts`, default deny):
+
+- **Tower** (PTY without a notify target): only `terminal:create-agent-command`,
+  for a **new** terminal id whose notify target is the Tower itself, a registry
+  agent (unknown id → `agent-not-allowed`), the host's default shell and only the
+  `customEnv` keys bat-terminal sends; at most 8 live children and one creation
+  per second (T0450).
+- **Worker** (PTY with `BAT_TOWER_TERMINAL_ID`): only `terminal:notify`,
+  `pty:write` (printable text only — submitting is `terminal:keypress`) and
+  `terminal:keypress`, all targeting its own Tower.
+- Everything else (`pty:create`, `terminal:create-with-command`, `fs:*`,
+  `git:*`, `claude:*`, …) → `Forbidden: channel-not-allowed`. Helper
+  connections receive no broadcasts and do not count as clients for the orphan
+  PTY reclaim.
+- The PTY's exit / kill revokes its capability: frames already queued on an
+  authenticated socket run no handler and the socket is terminated (T0447);
+  a later auth gets `Authentication failed: Capability revoked`. Capability auth
+  failures never trigger the server-token IP ban (T0449). `pty:restart` keeps
+  the Worker / Tower role (T0448); a server restart invalidates every capability.
+
+**End to end** (`electron/remote/__tests__/headless-remote-tower-e2e.test.ts`
+runs this on a real headless server with real node-pty, the helpers executing
+inside the PTYs):
+
+1. Tower tab runs
+   `"$BAT_HELPER_DIR/../bin/node" "$BAT_HELPER_DIR/bat-terminal.mjs" --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" --skill ct-exec --workorder T####`
+2. The server creates the Worker PTY (with its own Worker capability) and
+   broadcasts `terminal:created-externally`; the client opens the tab in the
+   Tower's window and workspace (a remote event for an unknown workspace is
+   ignored, never redirected to the active one).
+3. The Worker finishes and runs `bat-notify.mjs --submit "T#### 完成"`:
+   `terminal:notified` (toast + badge), the text is pre-filled into the Tower
+   PTY, and `terminal:keypress` makes the client synthesize Enter on its xterm.
+
+**Limits**
+
+- Dispatch in **agent mode** (`--skill ct-exec --workorder T####`, or
+  `--prompt`). The raw-command form used locally,
+  `bat-terminal.mjs claude "/ct-exec T####"`, is
+  `terminal:create-with-command` and is always `Forbidden: channel-not-allowed`
+  for a capability.
+- `--submit` needs a connected BAT client (the Enter is synthesized by its
+  renderer). With none, `terminal:keypress` answers `no-client` and `bat-notify`
+  exits 1 — yolo mode never claims a submit that did not happen; the
+  pre-filled text is still in the Tower PTY.
+- `node` is not necessarily on the remote `PATH` (the WSL test host has none).
+  Use the bundle's own node, `"$BAT_HELPER_DIR/../bin/node"`, and fall back to
+  `node` only when that does not exist.
+- The server bundle ships no Codex: dispatching `codex-cli` where the server
+  cannot find codex returns `AGENT_UNAVAILABLE` (`AGENT_CHECK_PENDING` while
+  detection runs — retry).
+- The control-tower skills must be installed in the remote `~/.claude/skills`.
+- Only the window bound to the active remote profile receives remote events
+  (one global `remoteClient`).
+
+**Verify a deployed server:** `npm run smoke:remote:headless` S13 (above).
+Remote shell check (key names only):
+`env | grep ^BAT_ | cut -d= -f1 | sort`.
 
 ## Troubleshooting (cross-cutting)
 

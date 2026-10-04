@@ -5,16 +5,19 @@
  * bat-server. Connects as an ordinary remote client (TLS + SHA-256 fingerprint
  * pinning + token auth), walks the PTY lifecycle (S1-S8), the login-free
  * claude:* runtime channels (S9, T0401), the remote toolchain probe
- * (S10, T0411), the git / github / worktree channels (S11, T0405) and the
- * fs sandbox fed by workspace:sync-roots (S12, T0406).
+ * (S10, T0411), the git / github / worktree channels (S11, T0405), the
+ * fs sandbox fed by workspace:sync-roots (S12, T0406) and the remote Tower
+ * helper env + helper capability path (S13, T0434).
  *
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04 --json
  *   node scripts/smoke-remote-headless.mjs --url wss://127.0.0.1:9877 \
  *     --token-file ./server-token.json --fingerprint 22:3A:E4:...
  *
- * Exit code: 0 = every check PASS, 1 = at least one FAIL / SKIP or leftover
- * smoke PTY, 2 = bad arguments / connection info could not be resolved.
+ * Exit code: 0 = every check PASS (WARN, and SKIP because the server is too
+ * old for a check, are reported but tolerated), 1 = at least one FAIL / other
+ * SKIP or leftover smoke PTY, 2 = bad arguments / connection info could not be
+ * resolved.
  *
  * Ground rules (the server may be serving a real user at the same time):
  *   - client only: never restarts / stops / redeploys the server, and the
@@ -31,6 +34,11 @@
  *     `mktemp -d /tmp/bat-smoke-fs.XXXXXX` (through its own smoke PTY), syncs
  *     roots only for its own connection (cleared again; the server also drops
  *     them when the connection closes) and removes the directory;
+ *   - S13 runs bat-terminal inside its own smoke PTY with that PTY's helper env:
+ *     the server token is only ever typed as its sha256; one run asks for a raw
+ *     command (must be Forbidden), one for an agent no server registers
+ *     (T0450+: Forbidden agent-not-allowed; before: authorized, nothing created)
+ *     — no agent is ever started on the server;
  *   - never sends a wrong token: the server bans an IP after 5 failed auths and
  *     the user's own BAT client connects from the same loopback address. The
  *     negative check uses a wrong FINGERPRINT, which is rejected client-side
@@ -41,7 +49,7 @@
  * scripts/__tests__/smoke-remote-headless.test.mjs guards it against drift.
  */
 
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -118,6 +126,42 @@ export const GITHUB_CHECK_CLI_TIMEOUT_MS = 20_000
  * user's rc files) in parallel with the server-view probe, so the default 10 s is too short.
  */
 export const REMOTE_TOOLS_DETECT_TIMEOUT_MS = 30_000
+
+/**
+ * S13 (T0434, PLAN-036 K): `BAT_*` keys of a remote Tower tab once T0433 injects the helper
+ * env (`buildHeadlessHelperEnv` + PtyManager); a Worker tab additionally has `BAT_TOWER_TERMINAL_ID`.
+ */
+export const REMOTE_TOWER_ENV_KEYS = Object.freeze([
+  'BAT_HELPER_DIR',
+  'BAT_HELPER_LOG_DIR',
+  'BAT_REMOTE_PORT',
+  'BAT_REMOTE_TOKEN',
+  'BAT_SERVER_CERT_PATH',
+  'BAT_SESSION',
+  'BAT_TERMINAL_ID',
+  'BAT_WORKSPACE_ID',
+])
+/** S13: keys whose absence means "no helper env at all" — a server before T0433, or its `<installRoot>/scripts` helpers missing. */
+const HELPER_ENV_MARKER_KEYS = Object.freeze(['BAT_HELPER_DIR', 'BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN'])
+/**
+ * S13: length of a helper capability (electron/remote/helper-capability.ts): `randomBytes(32)` as
+ * base64url = 43 chars (T0432-T0448), `batcap.` + 43 = 50 chars since T0449.
+ */
+export const HELPER_CAPABILITY_LENGTHS = Object.freeze([43, 50])
+/**
+ * S13 agent probe: an agent id no server registers, so no agent is ever started on the server.
+ * The capability's role check comes first (a wrong role is `role-not-allowed`); then a server
+ * since T0450 refuses the unknown agent (`Forbidden: agent-not-allowed`), while T0433-T0449
+ * servers authorize it and create nothing (no launch command). Either proves the helper →
+ * capability (tower role) → create-agent-command path.
+ */
+export const S13_PROBE_AGENT = 'bat-smoke-unregistered-agent'
+/** S13: node + TLS + 3 s helper invoke timeout, plus the shell. */
+export const HELPER_PROBE_TIMEOUT_MS = 20_000
+/** Check status reason: the server is too old for the check; reported as SKIP, does not fail the run. */
+export const SERVER_TOO_OLD = 'server-too-old'
+/** S13: what a helper prints when its capability / connection is refused (never expected in S13). */
+const HELPER_REFUSED_RX = /Forbidden|Authentication failed|Cannot connect|Invalid token|Capability revoked|fingerprint-mismatch/
 
 /** Events this smoke listens to; every one must be in PROXIED_EVENTS. */
 export const SMOKE_EVENTS = Object.freeze({
@@ -665,6 +709,7 @@ export const CHECKS = Object.freeze([
   ['S10', 'remote-tools:detect returns a schema v1 report (linux, git ok)'],
   ['S11', 'github:check-cli answers; git / git-scaffold / worktree channels read a temp repo'],
   ['S12', 'fs:* denied before workspace:sync-roots; temp dir readable after it, / rejected, /etc still denied'],
+  ['S13', 'remote Tower tab: BAT_* helper env, no server token; bat-terminal reaches the server with its capability'],
 ])
 
 export function makeSmokeId(now = new Date(), rand = randomBytes(3).toString('hex')) {
@@ -820,20 +865,116 @@ export function checkFsSandboxAnswers({ dir, nonce, before, sync, readdir, readF
   }
 }
 
+/** S13: sha256 hex of the server token — the only form of the token the smoke ever types into a PTY. */
+export function tokenDigest(token) {
+  return createHash('sha256').update(String(token)).digest('hex')
+}
+
+/**
+ * S13 shell line (run in the smoke's own Tower PTY): the BAT_* key names (values never printed),
+ * how many env values hash to the server token (`x` without sha256sum), and the capability length.
+ * The echoed command shows `[$(`, only the executed one prints `[<keys>]:[<n>]:[<len>]`.
+ */
+export function buildHelperEnvProbe(nonce, digest) {
+  return `echo ${nonce}-s13-env:[$(env | sed -n 's/^\\(BAT_[A-Za-z0-9_]*\\)=.*/\\1/p' | sort | tr '\\n' ' ')]:[$(if command -v sha256sum >/dev/null 2>&1; then env | while IFS= read -r l; do printf '%s' "\${l#*=}" | sha256sum; done | grep -c '^${digest}'; else echo x; fi)]:[\${#BAT_REMOTE_TOKEN}]`
+}
+
+export function helperEnvProbeRx(nonce) {
+  return new RegExp(`${nonce}-s13-env:\\[([A-Z0-9_ ]*)\\]:\\[(\\d+|x)\\]:\\[(\\d+)\\]`)
+}
+
+/** S13: the bundle's own node (`<installRoot>/bin/node`, sibling of `scripts/`), else `node` on PATH. */
+const HELPER_NODE = 'n="$BAT_HELPER_DIR/../bin/node"; [ -x "$n" ] || n=node;'
+
+/** S13: a raw command through bat-terminal = `terminal:create-with-command`, never allowed for a capability. */
+export function buildHelperRawProbe(nonce) {
+  return `${HELPER_NODE} "$n" "$BAT_HELPER_DIR/bat-terminal.mjs" --cwd /tmp echo ${nonce}-s13-denied; echo ${nonce}-s13-raw:[$?]`
+}
+
+/** S13: `terminal:create-agent-command` for an agent the server does not know — authorized, creates nothing. */
+export function buildHelperAgentProbe(nonce, workspaceId) {
+  return `${HELPER_NODE} "$n" "$BAT_HELPER_DIR/bat-terminal.mjs" --agent ${S13_PROBE_AGENT} --prompt ${nonce}-s13 --workspace ${workspaceId} --cwd /tmp; echo ${nonce}-s13-agent:[$?]`
+}
+
+/**
+ * S13 (T0434): judge the env probe. `tokenMatches` is a number, or 'x' when the server has
+ * no sha256sum. No helper env at all → `tooOld` (SKIP, not a failure): the server predates
+ * T0433 or its helpers were never deployed.
+ */
+export function checkHelperEnvAnswer({ keys, tokenMatches, capabilityLength }) {
+  const sorted = [...keys].sort()
+  if (HELPER_ENV_MARKER_KEYS.every((k) => !sorted.includes(k))) {
+    return {
+      ok: false,
+      tooOld: true,
+      evidence: `remote PTY has no helper env (BAT_* = ${sorted.join(',') || 'none'}): server predates T0433, or <installRoot>/scripts has no helpers (dev deploy before T0434) — version insufficient`,
+    }
+  }
+  const problems = []
+  const missing = REMOTE_TOWER_ENV_KEYS.filter((k) => !sorted.includes(k))
+  const extra = sorted.filter((k) => !REMOTE_TOWER_ENV_KEYS.includes(k))
+  if (missing.length > 0) problems.push(`missing ${missing.join(',')}`)
+  if (extra.length > 0) problems.push(`unexpected ${extra.join(',')}`)
+  if (tokenMatches === 'x') problems.push('sha256sum not available on the server — server token check could not run')
+  else if (tokenMatches !== 0) problems.push(`${tokenMatches} env value(s) equal the server token`)
+  if (!HELPER_CAPABILITY_LENGTHS.includes(capabilityLength)) {
+    problems.push(`BAT_REMOTE_TOKEN is ${capabilityLength} chars (a capability is ${HELPER_CAPABILITY_LENGTHS.join(' or ')})`)
+  }
+  const keyList = `BAT_* = ${sorted.join(',')}`
+  return problems.length === 0
+    ? { ok: true, tooOld: false, evidence: `${keyList}; no env value equals the server token (sha256); BAT_REMOTE_TOKEN is a ${capabilityLength}-char capability` }
+    : { ok: false, tooOld: false, evidence: `${keyList}; ${problems.join('; ')}` }
+}
+
+/**
+ * S13 (T0434): judge the two bat-terminal runs inside the Tower PTY.
+ *   raw:   `{ code, text }` — must be refused with `Forbidden: channel-not-allowed`
+ *   agent: `{ code, text, createdId, cwdAfter }` — the tower role reached create-agent-command
+ *          and no terminal was created: T0450+ `Forbidden: agent-not-allowed` (exit 1), or on
+ *          T0433-T0449 an authorized `false` answer, which bat-terminal reports as created
+ *          (exit 0) — `cwdAfter` (pty:get-cwd of that id) must then be null. Any other
+ *          Forbidden / auth / connect error fails.
+ */
+export function checkHelperProbeAnswers({ raw, agent }) {
+  const problems = []
+  const notes = []
+  if (raw.code === 1 && /Forbidden: channel-not-allowed/.test(raw.text)) {
+    notes.push('raw command → Forbidden: channel-not-allowed')
+  } else {
+    problems.push(`raw command: exit ${raw.code}, ${JSON.stringify(excerpt(raw.text, 120))} (expected exit 1 + Forbidden: channel-not-allowed)`)
+  }
+  if (!agent) {
+    problems.push('agent probe not run')
+  } else if (agent.code === 1 && /Forbidden: agent-not-allowed/.test(agent.text)) {
+    notes.push(`create-agent-command reached with the tower role; ${S13_PROBE_AGENT} → Forbidden: agent-not-allowed (T0450+), nothing created`)
+  } else if (HELPER_REFUSED_RX.test(agent.text)) {
+    problems.push(`agent probe refused: exit ${agent.code}, ${JSON.stringify(excerpt(agent.text, 120))}`)
+  } else if (agent.createdId && agent.cwdAfter != null) {
+    problems.push(`agent probe created terminal ${agent.createdId} for an unregistered agent`)
+  } else if (agent.code === 0 || (agent.code === 1 && /Failed to create terminal/.test(agent.text))) {
+    notes.push(`create-agent-command authorized (bat-terminal exit ${agent.code}), no terminal created for ${S13_PROBE_AGENT}`)
+  } else {
+    problems.push(`agent probe: exit ${agent.code}, ${JSON.stringify(excerpt(agent.text, 120))}`)
+  }
+  return problems.length === 0
+    ? { ok: true, evidence: notes.join('; ') }
+    : { ok: false, evidence: [...problems, ...notes].join('; ') }
+}
+
 function excerpt(text, max = 160) {
   const flat = String(text).replace(/\r/g, '').replace(/\n+/g, '⏎').trim()
   return flat.length > max ? `…${flat.slice(flat.length - max)}` : flat
 }
 
 /**
- * Runs S1-S12 against one server. `deps.createClient` lets tests inject a fake;
+ * Runs S1-S13 against one server. `deps.createClient` lets tests inject a fake;
  * everything else talks to the real server.
  */
 export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, createClient, log = () => {} } = {}) {
   const make = createClient ?? ((overrides = {}) => new SmokeClient({ url: conn.url, token: conn.token, fingerprint: conn.fingerprint, timeoutMs, ...overrides }))
   const results = new Map(CHECKS.map(([id, name]) => [id, { id, name, status: 'SKIP', evidence: 'not run' }]))
-  const set = (id, status, evidence) => {
-    Object.assign(results.get(id), { status, evidence })
+  const set = (id, status, evidence, reason) => {
+    Object.assign(results.get(id), { status, evidence }, reason ? { reason } : {})
     log(results.get(id))
   }
   const ptyId = makeSmokeId()
@@ -860,6 +1001,10 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
   const gitPty = { id: `${ptyId}-git`, created: false, killed: false }
   // S12's own PTY (temp fs dir); killed in S12, re-checked in cleanup.
   const fsPty = { id: `${ptyId}-fs`, created: false, killed: false }
+  // S13's own Tower PTY (helper env); killed in S13, re-checked in cleanup.
+  const towerPty = { id: `${ptyId}-tower`, created: false, killed: false }
+  // A terminal the S13 agent probe must NOT create; killed in cleanup if it ever exists.
+  let s13Stray = null
 
   try {
     // ── S1 ──
@@ -1182,6 +1327,74 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       }
       set('S12', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
     }
+
+    // ── S13 ──
+    {
+      let outcome = null
+      let tooOld = false
+      try {
+        if (!client?.isOpen) throw new Error('no live connection for the remote Tower probe')
+        ownIds.add(towerPty.id)
+        const offset = tracker.mark(towerPty.id)
+        const workspaceId = `${ptyId}-ws`
+        const result = await client.invoke(SMOKE_CHANNELS.PTY_CREATE, { id: towerPty.id, cwd: ptyCwd, type: 'terminal', workspaceId, ...(shellPath ? { shell: shellPath } : {}) })
+        if (!ptyCreateOutcome(result).ok) throw new Error(`pty:create(${towerPty.id}) returned ${JSON.stringify(result)}`)
+        towerPty.created = true
+        await tracker.waitFor(() => tracker.since(towerPty.id, offset).length > 0 || undefined, timeoutMs, `first pty:output of ${towerPty.id}`)
+        const capture = async (command, regex) => {
+          const from = tracker.mark(towerPty.id)
+          const write = await client.invoke(SMOKE_CHANNELS.PTY_WRITE, towerPty.id, `${command}\r`)
+          if (!write || write.ok !== true) throw new Error(`pty:write returned ${JSON.stringify(write)}`)
+          const match = await tracker.waitForOutput(towerPty.id, regex, from, Math.max(timeoutMs, HELPER_PROBE_TIMEOUT_MS))
+          return { match, text: tracker.since(towerPty.id, from) }
+        }
+        const { match: envMatch } = await capture(buildHelperEnvProbe(nonce, tokenDigest(conn.token)), helperEnvProbeRx(nonce))
+        const envAnswer = checkHelperEnvAnswer({
+          keys: envMatch[1].trim().split(/\s+/).filter(Boolean),
+          tokenMatches: envMatch[2] === 'x' ? 'x' : Number(envMatch[2]),
+          capabilityLength: Number(envMatch[3]),
+        })
+        if (envAnswer.tooOld) {
+          tooOld = true
+          outcome = { ok: false, evidence: envAnswer.evidence }
+        } else if (!envAnswer.ok) {
+          outcome = envAnswer
+        } else {
+          const rawRun = await capture(buildHelperRawProbe(nonce), new RegExp(`${nonce}-s13-raw:\\[(\\d+)\\]`))
+          const raw = { code: Number(rawRun.match[1]), text: rawRun.text }
+          let agent = null
+          // A refused capability counts as a failed auth on the server: do not try twice.
+          if (!/Authentication failed|Cannot connect/.test(raw.text)) {
+            const agentRun = await capture(buildHelperAgentProbe(nonce, workspaceId), new RegExp(`${nonce}-s13-agent:\\[(\\d+)\\]`))
+            const createdId = /Terminal created: ([A-Za-z0-9._-]+)/.exec(agentRun.text)?.[1] ?? null
+            const cwdAfter = createdId ? await client.invoke(SMOKE_CHANNELS.PTY_GET_CWD, createdId) : null
+            if (createdId && cwdAfter != null) s13Stray = createdId
+            agent = { code: Number(agentRun.match[1]), text: agentRun.text, createdId, cwdAfter }
+          }
+          const probes = checkHelperProbeAnswers({ raw, agent })
+          outcome = { ok: probes.ok, evidence: `${envAnswer.evidence}; ${probes.evidence}` }
+        }
+      } catch (error) {
+        outcome = { ok: false, evidence: `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}` }
+      }
+      if (towerPty.created) {
+        try {
+          if (!client?.isOpen) {
+            client = make()
+            attach(client)
+            await client.connect()
+          }
+          // Killing the Tower PTY also revokes its capability on the server.
+          await client.invoke(SMOKE_CHANNELS.PTY_KILL, towerPty.id)
+          towerPty.killed = true
+        } catch (error) {
+          outcome = { ok: false, evidence: `${outcome.evidence}; S13 cleanup failed: ${error.message}` }
+          tooOld = false
+        }
+      }
+      if (tooOld) set('S13', 'SKIP', outcome.evidence, SERVER_TOO_OLD)
+      else set('S13', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
+    }
   } finally {
     // Kill our PTY on every path, then confirm it is gone (own id only).
     if (created) {
@@ -1242,18 +1455,41 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
         cleanup.evidence += `; S12 PTY cleanup failed: ${error instanceof Error ? error.message : String(error)}`
       }
     }
+    // T0434: S13's Tower PTY (S13 kills it; only re-checked here) and a stray agent-probe terminal.
+    for (const extra of [towerPty.created ? towerPty : null, s13Stray ? { id: s13Stray, killed: false } : null]) {
+      if (!extra) continue
+      try {
+        if (!client?.isOpen) {
+          client = make()
+          attach(client)
+          await client.connect()
+        }
+        if (!extra.killed) await client.invoke(SMOKE_CHANNELS.PTY_KILL, extra.id)
+        const probe = await client.invoke(SMOKE_CHANNELS.PTY_WRITE, extra.id, '\r')
+        const left = !(probe && probe.ok === false && probe.reason === 'pty-not-found')
+        cleanup.leftover = cleanup.leftover || left
+        cleanup.evidence += `; pty:write(${extra.id}) → ${JSON.stringify(probe)}`
+      } catch (error) {
+        cleanup.leftover = true
+        cleanup.evidence += `; S13 PTY cleanup failed: ${error instanceof Error ? error.message : String(error)}`
+      }
+    }
     await client?.close().catch(() => undefined)
   }
 
   return { checks: [...results.values()], cleanup, ptyId }
 }
 
-/** WARN (T0404) is reported but does not fail the run. */
+/**
+ * WARN (T0404) and a SKIP because the server is too old for the check (T0434, `reason:
+ * 'server-too-old'`) are reported but do not fail the run; any other SKIP (prerequisite failed) does.
+ */
 export function summarize(report) {
   const passed = report.checks.filter((c) => c.status === 'PASS').length
   const warned = report.checks.filter((c) => c.status === 'WARN').length
-  const ok = passed + warned === report.checks.length && report.cleanup.leftover === false
-  return { ok, passed, warned, total: report.checks.length }
+  const tooOld = report.checks.filter((c) => c.status === 'SKIP' && c.reason === SERVER_TOO_OLD).length
+  const ok = passed + warned + tooOld === report.checks.length && report.cleanup.leftover === false
+  return { ok, passed, warned, tooOld, total: report.checks.length }
 }
 
 // ---------------------------------------------------------------------------
@@ -1307,10 +1543,10 @@ export async function main(argv = process.argv.slice(2), io = { out: (s) => proc
     }, null, 2))
   } else {
     for (const check of report.checks.filter((c) => c.status === 'SKIP')) {
-      io.out(`SKIP ${check.id} ${check.name} — prerequisite failed`)
+      io.out(`SKIP ${check.id} ${check.name} — ${check.reason === SERVER_TOO_OLD ? 'server too old for this check (not a failure)' : 'prerequisite failed'}`)
     }
     io.out(`[smoke] cleanup: ${report.cleanup.leftover ? 'LEFTOVER smoke PTY' : 'no smoke PTY left'} (${report.cleanup.evidence})`)
-    io.out(`[smoke] RESULT: ${summary.passed}/${summary.total} PASS${summary.warned ? `, ${summary.warned} WARN` : ''}${summary.ok ? '' : ' — FAILED'}`)
+    io.out(`[smoke] RESULT: ${summary.passed}/${summary.total} PASS${summary.warned ? `, ${summary.warned} WARN` : ''}${summary.tooOld ? `, ${summary.tooOld} SKIP (server too old)` : ''}${summary.ok ? '' : ' — FAILED'}`)
   }
   return summary.ok ? 0 : 1
 }

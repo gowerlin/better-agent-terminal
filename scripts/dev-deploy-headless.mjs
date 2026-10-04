@@ -19,6 +19,13 @@
  * it always holds the pre-dev-deploy original). `--rollback --yes` restores
  * from those backups.
  *
+ * T0434: the node helpers the server bundle ships (`serverBundleHelperScripts`
+ * in build-server-bundle.mjs, T0433) are deployed the same way into
+ * `<installRoot>/scripts/` (created when missing; listed as `scripts/<name>`,
+ * same .bak-<tag> / .absent / --rollback rules). Without them a headless PTY
+ * gets no helper env (`buildHeadlessHelperEnv` checks the helpers exist).
+ * A `scripts/` dir created by a deploy stays (empty) after --rollback.
+ *
  * ⚠️ Re-running the WSL setup wizard reinstalls the baseline bundle and
  * overwrites anything deployed by this tool.
  */
@@ -40,6 +47,11 @@ export const DEFAULT_TAG = 'dev'
 export const DEFAULT_WSL_INSTALL_ROOT = '~/.local/bat-server'
 export const SERVICE_NAME = 'bat-server'
 const REMOTE_SUBDIR = ['electron', 'remote']
+/** T0434: `<installRoot>/scripts` — where the bundle ships the helpers (T0433). */
+export const HELPER_SUBDIR = ['scripts']
+/** T0434: plan / FILE-line name of a helper: `scripts/<name>`. */
+export const HELPER_PREFIX = `${HELPER_SUBDIR.join('/')}/`
+const STAGING_HELPERS = path.join(STAGING_ROOT, ...HELPER_SUBDIR)
 const WSL_TIMEOUT_MS = 30_000
 const WSL_RESTART_TIMEOUT_MS = 60_000
 
@@ -57,6 +69,9 @@ Options:
   --tag <name>             Backup suffix tag (default: ${DEFAULT_TAG}); [A-Za-z0-9._-]+
   --no-restart             WSL only: skip 'systemctl --user restart ${SERVICE_NAME}'
   --expect-string <text>   Marker that must appear in the deployed JS (repeatable)
+
+The helper scripts of the server bundle (serverBundleHelperScripts, T0433) are deployed
+too, into <installRoot>/scripts/ (created when missing), with the same backups / rollback.
   -h, --help               Show this help
 
 ${WIZARD_WARNING}`
@@ -254,6 +269,36 @@ export function loadBuildConfig(scriptPath = BUILD_SCRIPT) {
   return parseBuildConfig(readFileSync(scriptPath, 'utf8'))
 }
 
+/**
+ * T0434: `serverBundleHelperScripts` from build-server-bundle.mjs — the same SoT the bundle
+ * build (`copyHelperScripts`) and verify-helper-bundle.js use. Throws when it is gone or empty.
+ */
+export function parseHelperScripts(source) {
+  const decl = source.search(/const\s+serverBundleHelperScripts\s*=\s*\[/)
+  if (decl < 0) throw new Error('build-server-bundle.mjs: `const serverBundleHelperScripts = [...]` not found')
+  const names = quotedStrings(extractArrayLiteral(source, decl, 'serverBundleHelperScripts'))
+  if (names.length === 0) throw new Error('build-server-bundle.mjs: serverBundleHelperScripts is empty')
+  for (const name of names) {
+    if (!NAME_RX.test(name)) throw new Error(`build-server-bundle.mjs: invalid helper script name "${name}"`)
+  }
+  return names
+}
+
+export function loadHelperScripts(scriptPath = BUILD_SCRIPT) {
+  return parseHelperScripts(readFileSync(scriptPath, 'utf8'))
+}
+
+/** T0434: copy the helpers from `<repo>/scripts` into `stagingDir`; a missing one is an error. */
+export function stageHelperScripts(names, stagingDir, sourceDir = path.join(projectRoot, 'scripts')) {
+  rmSync(stagingDir, { recursive: true, force: true })
+  mkdirSync(stagingDir, { recursive: true })
+  for (const name of names) {
+    const src = path.join(sourceDir, name)
+    if (!existsSync(src)) throw new Error(`helper script missing ${src}`)
+    copyFileSync(src, path.join(stagingDir, name))
+  }
+}
+
 export function outputFileNames(entryPoints) {
   return entryPoints.map((entry) => path.posix.basename(entry).replace(/\.[cm]?tsx?$/, '.js'))
 }
@@ -312,13 +357,13 @@ const short = (sha) => (sha ? sha.slice(0, 12) : 'MISSING')
 
 export function formatDeployPlan(plan) {
   return plan
-    .map((p) => `  ${p.name.padEnd(20)} built=${short(p.builtSha)} installed=${short(p.installedSha)} action=${p.action} backup=${p.backup}`)
+    .map((p) => `  ${p.name.padEnd(26)} built=${short(p.builtSha)} installed=${short(p.installedSha)} action=${p.action} backup=${p.backup}`)
     .join('\n')
 }
 
 export function formatRollbackPlan(plan) {
   return plan
-    .map((p) => `  ${p.name.padEnd(20)} installed=${short(p.installedSha)} backup=${short(p.backupSha)} action=${p.action}`)
+    .map((p) => `  ${p.name.padEnd(26)} installed=${short(p.installedSha)} backup=${short(p.backupSha)} action=${p.action}`)
     .join('\n')
 }
 
@@ -358,69 +403,84 @@ export function renderListenCheck() {
 
 /**
  * @param mode 'inspect' | 'deploy' | 'rollback'
- * @param opts { installRoot, stagingDir, files, tag, restart, expectStrings }
+ * @param opts { installRoot, stagingDir, files, tag, restart, expectStrings, helpers? }
  *             installRoot / stagingDir are paths native to the shell running the script.
+ *             T0434 `helpers: { files, stagingDir }` adds the `<installRoot>/scripts` group:
+ *             created on deploy when missing (never required), FILE lines named `scripts/<f>`.
  */
 export function renderBashScript(mode, opts) {
   if (!['inspect', 'deploy', 'rollback'].includes(mode)) throw new Error(`Unknown mode ${mode}`)
   if (!NAME_RX.test(opts.tag)) throw new Error(`Invalid tag ${opts.tag}`)
-  for (const f of opts.files) {
-    if (!NAME_RX.test(f)) throw new Error(`Invalid file name ${f}`)
+  const groups = [{ subdir: REMOTE_SUBDIR, files: opts.files, stagingDir: opts.stagingDir, prefix: '', required: true, expect: true }]
+  if (opts.helpers?.files?.length) {
+    groups.push({ subdir: HELPER_SUBDIR, files: opts.helpers.files, stagingDir: opts.helpers.stagingDir, prefix: HELPER_PREFIX, required: false, expect: false })
+  }
+  for (const group of groups) {
+    for (const f of group.files) {
+      if (!NAME_RX.test(f)) throw new Error(`Invalid file name ${f}`)
+    }
   }
   const lines = [
     '#!/usr/bin/env bash',
     '# Generated by scripts/dev-deploy-headless.mjs (T0391). Safe to delete.',
     'set -u',
     `ROOT=${bashInstallRoot(opts.installRoot)}`,
-    `DEST="$ROOT/${REMOTE_SUBDIR.join('/')}"`,
     `TAG=${shq(opts.tag)}`,
-    `FILES=(${opts.files.map(shq).join(' ')})`,
     'sha() { if [ -f "$1" ]; then sha256sum < "$1" | cut -d" " -f1; else echo MISSING; fi; }',
-    'if [ ! -d "$DEST" ]; then echo "ERROR install-root-missing $DEST"; exit 3; fi',
-    'echo "DEST $DEST"',
   ]
-  if (mode === 'deploy') {
+  for (const group of groups) {
     lines.push(
-      `SRC=${shq(opts.stagingDir)}`,
-      'for f in "${FILES[@]}"; do',
-      '  if [ ! -f "$SRC/$f" ]; then echo "ERROR staged-missing $f"; exit 4; fi',
-      '  # First deploy for this tag records the original: a .bak copy, or an',
-      '  # .absent marker when the file did not exist. Later deploys keep it.',
-      '  if [ ! -e "$DEST/$f.bak-$TAG" ] && [ ! -e "$DEST/$f.bak-$TAG.absent" ]; then',
-      '    if [ -f "$DEST/$f" ]; then cp -p "$DEST/$f" "$DEST/$f.bak-$TAG" || exit 5',
-      '    else : > "$DEST/$f.bak-$TAG.absent" || exit 5; fi',
-      '  fi',
-      '  cp "$SRC/$f" "$DEST/$f" || exit 6',
-      'done'
+      `DEST="$ROOT/${group.subdir.join('/')}"`,
+      `FILES=(${group.files.map(shq).join(' ')})`,
     )
-  }
-  if (mode === 'rollback') {
-    lines.push(
-      'for f in "${FILES[@]}"; do',
-      '  if [ -f "$DEST/$f.bak-$TAG" ]; then',
-      '    cp -p "$DEST/$f.bak-$TAG" "$DEST/$f" || exit 6; echo "RESTORED $f"',
-      '  elif [ -e "$DEST/$f.bak-$TAG.absent" ]; then',
-      '    rm -f "$DEST/$f" "$DEST/$f.bak-$TAG.absent"; echo "REMOVED $f"',
-      '  else echo "SKIPPED $f"; fi',
-      'done'
-    )
-  }
-  lines.push(
-    'for f in "${FILES[@]}"; do',
-    '  b=MISSING; [ -f "$DEST/$f.bak-$TAG" ] && b=$(sha "$DEST/$f.bak-$TAG")',
-    '  a=no; [ -e "$DEST/$f.bak-$TAG.absent" ] && a=yes',
-    '  printf "FILE\\t%s\\t%s\\t%s\\t%s\\n" "$f" "$(sha "$DEST/$f")" "$b" "$a"',
-    'done'
-  )
-  if (mode !== 'inspect') {
-    for (const marker of opts.expectStrings ?? []) {
+    if (group.required) lines.push('if [ ! -d "$DEST" ]; then echo "ERROR install-root-missing $DEST"; exit 3; fi')
+    lines.push('echo "DEST $DEST"')
+    if (mode === 'deploy') {
+      lines.push(`SRC=${shq(group.stagingDir)}`)
+      if (!group.required) lines.push('mkdir -p "$DEST" || exit 7')
       lines.push(
         'for f in "${FILES[@]}"; do',
-        `  c=$(grep -c -F -- ${shq(marker)} "$DEST/$f" 2>/dev/null || true)`,
-        `  printf "EXPECT\\t%s\\t%s\\t%s\\n" "$f" ${shq(marker)} "\${c:-0}"`,
+        '  if [ ! -f "$SRC/$f" ]; then echo "ERROR staged-missing $f"; exit 4; fi',
+        '  # First deploy for this tag records the original: a .bak copy, or an',
+        '  # .absent marker when the file did not exist. Later deploys keep it.',
+        '  if [ ! -e "$DEST/$f.bak-$TAG" ] && [ ! -e "$DEST/$f.bak-$TAG.absent" ]; then',
+        '    if [ -f "$DEST/$f" ]; then cp -p "$DEST/$f" "$DEST/$f.bak-$TAG" || exit 5',
+        '    else : > "$DEST/$f.bak-$TAG.absent" || exit 5; fi',
+        '  fi',
+        '  cp "$SRC/$f" "$DEST/$f" || exit 6',
         'done'
       )
     }
+    if (mode === 'rollback') {
+      lines.push(
+        'for f in "${FILES[@]}"; do',
+        '  if [ -f "$DEST/$f.bak-$TAG" ]; then',
+        `    cp -p "$DEST/$f.bak-$TAG" "$DEST/$f" || exit 6; echo "RESTORED ${group.prefix}$f"`,
+        '  elif [ -e "$DEST/$f.bak-$TAG.absent" ]; then',
+        `    rm -f "$DEST/$f" "$DEST/$f.bak-$TAG.absent"; echo "REMOVED ${group.prefix}$f"`,
+        `  else echo "SKIPPED ${group.prefix}$f"; fi`,
+        'done'
+      )
+    }
+    lines.push(
+      'for f in "${FILES[@]}"; do',
+      '  b=MISSING; [ -f "$DEST/$f.bak-$TAG" ] && b=$(sha "$DEST/$f.bak-$TAG")',
+      '  a=no; [ -e "$DEST/$f.bak-$TAG.absent" ] && a=yes',
+      `  printf "FILE\\t%s\\t%s\\t%s\\t%s\\n" "${group.prefix}$f" "$(sha "$DEST/$f")" "$b" "$a"`,
+      'done'
+    )
+    if (mode !== 'inspect' && group.expect) {
+      for (const marker of opts.expectStrings ?? []) {
+        lines.push(
+          'for f in "${FILES[@]}"; do',
+          `  c=$(grep -c -F -- ${shq(marker)} "$DEST/$f" 2>/dev/null || true)`,
+          `  printf "EXPECT\\t%s\\t%s\\t%s\\n" "$f" ${shq(marker)} "\${c:-0}"`,
+          'done'
+        )
+      }
+    }
+  }
+  if (mode !== 'inspect') {
     if (opts.restart) {
       lines.push(
         `systemctl --user restart ${SERVICE_NAME}; echo "RESTART_EXIT $?"`,
@@ -482,10 +542,14 @@ function runWslScript(distro, scriptWinPath, timeout) {
 // dir target: plain Node fs (no shell, no service restart)
 // ---------------------------------------------------------------------------
 
-export function inspectDir(installRoot, files, tag) {
-  const dest = path.join(installRoot, ...REMOTE_SUBDIR)
+/**
+ * T0434 options: `subdir` (default electron/remote) and `allowMissing` — a missing dir then
+ * reads as "every file absent" instead of an error (the helpers' `scripts/` dir).
+ */
+export function inspectDir(installRoot, files, tag, { subdir = REMOTE_SUBDIR, allowMissing = false } = {}) {
+  const dest = path.join(installRoot, ...subdir)
   if (!existsSync(dest) || !statSync(dest).isDirectory()) {
-    throw new Error(`install root missing ${dest}`)
+    if (!allowMissing) throw new Error(`install root missing ${dest}`)
   }
   const fileSha = (p) => (existsSync(p) ? sha256(readFileSync(p)) : null)
   const result = new Map()
@@ -503,12 +567,14 @@ export function inspectDir(installRoot, files, tag) {
   return { dest, files: result }
 }
 
-export function deployDir(installRoot, stagingDir, files, tag) {
-  const dest = path.join(installRoot, ...REMOTE_SUBDIR)
+/** T0434 options: `subdir` (default electron/remote); `create` makes the dir when missing. */
+export function deployDir(installRoot, stagingDir, files, tag, { subdir = REMOTE_SUBDIR, create = false } = {}) {
+  const dest = path.join(installRoot, ...subdir)
   for (const name of files) {
     const src = path.join(stagingDir, name)
     if (!existsSync(src)) throw new Error(`staged file missing ${src}`)
   }
+  if (create) mkdirSync(dest, { recursive: true })
   for (const name of files) {
     const target = path.join(dest, name)
     const bak = `${target}.bak-${tag}`
@@ -522,21 +588,22 @@ export function deployDir(installRoot, stagingDir, files, tag) {
   }
 }
 
-export function rollbackDir(installRoot, files, tag) {
-  const dest = path.join(installRoot, ...REMOTE_SUBDIR)
+/** T0434 options: `subdir` (default electron/remote); `prefix` for the outcome lines. */
+export function rollbackDir(installRoot, files, tag, { subdir = REMOTE_SUBDIR, prefix = '' } = {}) {
+  const dest = path.join(installRoot, ...subdir)
   const outcome = []
   for (const name of files) {
     const target = path.join(dest, name)
     const bak = `${target}.bak-${tag}`
     if (existsSync(bak)) {
       copyFileSync(bak, target)
-      outcome.push(`RESTORED ${name}`)
+      outcome.push(`RESTORED ${prefix}${name}`)
     } else if (existsSync(`${bak}.absent`)) {
       rmSync(target, { force: true })
       rmSync(`${bak}.absent`, { force: true })
-      outcome.push(`REMOVED ${name}`)
+      outcome.push(`REMOVED ${prefix}${name}`)
     } else {
-      outcome.push(`SKIPPED ${name}`)
+      outcome.push(`SKIPPED ${prefix}${name}`)
     }
   }
   return outcome
@@ -587,18 +654,30 @@ export async function main(argv = process.argv.slice(2)) {
 
   const config = loadBuildConfig()
   const files = outputFileNames(config.entryPoints)
+  const helperScripts = loadHelperScripts()
+  const helperNames = helperScripts.map((name) => `${HELPER_PREFIX}${name}`)
+  const allNames = [...files, ...helperNames]
+  const helperDirOpts = { subdir: HELPER_SUBDIR, allowMissing: true }
+  // T0434: one Map over both groups, helpers keyed `scripts/<name>` like the bash FILE lines.
+  const inspectDirAll = (root) => new Map([
+    ...inspectDir(root, files, opts.tag).files,
+    ...[...inspectDir(root, helperScripts, opts.tag, helperDirOpts).files].map(([name, v]) => [`${HELPER_PREFIX}${name}`, v]),
+  ])
   const where = opts.target.kind === 'wsl' ? `wsl:${opts.target.distro} ${opts.installRoot}` : `dir:${opts.target.path}`
   const mode = opts.rollback ? 'rollback' : 'deploy'
   log(`target=${where} mode=${mode} tag=${opts.tag} ${opts.yes ? 'WRITE (--yes)' : 'DRY-RUN (pass --yes to write)'}`)
   log(`entryPoints (from build-server-bundle.mjs): ${config.entryPoints.join(', ')}`)
   log(`externals (from build-server-bundle.mjs): ${config.externals.length} packages`)
+  log(`helper scripts (serverBundleHelperScripts → <installRoot>/${HELPER_PREFIX}): ${helperScripts.join(', ')}`)
 
   let built = []
   let expectOk = true
   if (!opts.rollback) {
     await buildHeadlessJs(config, STAGING_ROOT)
     built = files.map((name) => ({ name, sha: sha256(readFileSync(path.join(STAGING_ROOT, name))) }))
-    log(`built into ${path.relative(projectRoot, STAGING_ROOT)}`)
+    stageHelperScripts(helperScripts, STAGING_HELPERS)
+    built.push(...helperScripts.map((name) => ({ name: `${HELPER_PREFIX}${name}`, sha: sha256(readFileSync(path.join(STAGING_HELPERS, name))) })))
+    log(`built into ${path.relative(projectRoot, STAGING_ROOT)} (helpers staged into ${path.relative(projectRoot, STAGING_HELPERS)})`)
     if (opts.expectStrings.length > 0) {
       expectOk = reportExpects(grepDir(STAGING_ROOT, files, opts.expectStrings), 'built')
     }
@@ -608,11 +687,11 @@ export async function main(argv = process.argv.slice(2)) {
   let installed
   let scriptPath = null
   if (opts.target.kind === 'dir') {
-    installed = inspectDir(opts.target.path, files, opts.tag).files
+    installed = inspectDirAll(opts.target.path)
   } else {
     mkdirSync(STAGING_ROOT, { recursive: true })
     scriptPath = path.join(STAGING_ROOT, 'inspect.sh')
-    writeFileSync(scriptPath, renderBashScript('inspect', { installRoot: opts.installRoot, files, tag: opts.tag }))
+    writeFileSync(scriptPath, renderBashScript('inspect', { installRoot: opts.installRoot, files, tag: opts.tag, helpers: { files: helperScripts } }))
     const res = runWslScript(opts.target.distro, scriptPath, WSL_TIMEOUT_MS)
     if (!res.ok) {
       throw new Error(`WSL inspect failed: ${(res.stdout || res.error.message).trim()}`)
@@ -620,7 +699,7 @@ export async function main(argv = process.argv.slice(2)) {
     installed = parseScriptOutput(res.stdout).files
   }
 
-  const before = opts.rollback ? planRollback(files, installed) : planDeploy(built, installed)
+  const before = opts.rollback ? planRollback(allNames, installed) : planDeploy(built, installed)
   log(`before (${opts.rollback ? 'rollback plan' : 'deploy plan'}):`)
   console.log(opts.rollback ? formatRollbackPlan(before) : formatDeployPlan(before))
 
@@ -635,10 +714,12 @@ export async function main(argv = process.argv.slice(2)) {
   if (opts.target.kind === 'dir') {
     if (opts.rollback) {
       for (const line of rollbackDir(opts.target.path, files, opts.tag)) log(line)
+      for (const line of rollbackDir(opts.target.path, helperScripts, opts.tag, { subdir: HELPER_SUBDIR, prefix: HELPER_PREFIX })) log(line)
     } else {
       deployDir(opts.target.path, STAGING_ROOT, files, opts.tag)
+      deployDir(opts.target.path, STAGING_HELPERS, helperScripts, opts.tag, { subdir: HELPER_SUBDIR, create: true })
     }
-    after = inspectDir(opts.target.path, files, opts.tag).files
+    after = inspectDirAll(opts.target.path)
     if (opts.expectStrings.length > 0) {
       const dest = path.join(opts.target.path, ...REMOTE_SUBDIR)
       expectOk = reportExpects(grepDir(dest, files, opts.expectStrings), 'installed') && expectOk
@@ -656,6 +737,7 @@ export async function main(argv = process.argv.slice(2)) {
         tag: opts.tag,
         restart: opts.restart,
         expectStrings: opts.expectStrings,
+        helpers: { files: helperScripts, stagingDir: `${stagingPosix}/${HELPER_SUBDIR.join('/')}` },
       })
     )
     const res = runWslScript(opts.target.distro, scriptPath, opts.restart ? WSL_RESTART_TIMEOUT_MS : WSL_TIMEOUT_MS)
@@ -668,7 +750,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   log('after:')
-  const afterPlan = opts.rollback ? planRollback(files, after) : planDeploy(built, after)
+  const afterPlan = opts.rollback ? planRollback(allNames, after) : planDeploy(built, after)
   console.log(opts.rollback ? formatRollbackPlan(afterPlan) : formatDeployPlan(afterPlan))
   if (!opts.rollback) {
     const mismatched = afterPlan.filter((p) => p.action !== 'unchanged').map((p) => p.name)

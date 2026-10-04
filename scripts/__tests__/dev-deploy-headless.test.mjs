@@ -1,5 +1,6 @@
 // @vitest-environment node
 // T0391 — scripts/dev-deploy-headless.mjs (PLAN-036 P0-D)
+// T0434 — helper scripts (serverBundleHelperScripts) deployed into <installRoot>/scripts
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -12,9 +13,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_TAG,
   DEFAULT_WSL_INSTALL_ROOT,
+  HELPER_PREFIX,
+  HELPER_SUBDIR,
   deployDir,
   inspectDir,
   loadBuildConfig,
+  loadHelperScripts,
+  parseHelperScripts,
+  stageHelperScripts,
   main,
   outputFileNames,
   parseArgs,
@@ -30,6 +36,8 @@ import {
 } from '../dev-deploy-headless.mjs'
 
 const FILES = ['server-entry.js', 'headless-entry.js', 'lockfile.js', 'dataDir.js']
+const HELPERS = ['bat-terminal.mjs', 'bat-notify.mjs', '_bat-cert.mjs', '_bat-logger.mjs']
+const REPO_SCRIPTS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 function makeInstallRoot() {
   const root = mkdtempSync(path.join(tmpdir(), 't0391-root-'))
@@ -174,6 +182,37 @@ async function bundleServerEntry() {
   })
 })
 
+describe('helper scripts parsed from build-server-bundle.mjs (T0434)', () => {
+  it('reads serverBundleHelperScripts from the real build script', () => {
+    expect(loadHelperScripts()).toEqual(HELPERS)
+    const source = readFileSync(fileURLToPath(new URL('../build-server-bundle.mjs', import.meta.url)), 'utf8')
+    const start = source.indexOf('const serverBundleHelperScripts')
+    const expected = [...source.slice(start, source.indexOf(']', start)).matchAll(/'([^']+)'/g)].map((m) => m[1])
+    expect(loadHelperScripts()).toEqual(expected)
+  })
+
+  it('fails fast when the list is gone, empty or holds an unsafe name', () => {
+    expect(parseHelperScripts(`const serverBundleHelperScripts = ['a.mjs', "b.mjs"]`)).toEqual(['a.mjs', 'b.mjs'])
+    expect(() => parseHelperScripts('const helpers = []')).toThrow(/serverBundleHelperScripts/)
+    expect(() => parseHelperScripts('const serverBundleHelperScripts = []')).toThrow(/empty/)
+    expect(() => parseHelperScripts(`const serverBundleHelperScripts = ['../x.mjs']`)).toThrow(/invalid helper script name/)
+  })
+
+  it('stages exactly the listed helpers from <repo>/scripts and refuses a missing one', () => {
+    const staging = mkdtempSync(path.join(tmpdir(), 't0434-helpers-'))
+    try {
+      stageHelperScripts(HELPERS, staging)
+      expect(readdirSync(staging).sort()).toEqual([...HELPERS].sort())
+      for (const name of HELPERS) {
+        expect(sha256(readFileSync(path.join(staging, name)))).toBe(sha256(readFileSync(path.join(REPO_SCRIPTS, name))))
+      }
+      expect(() => stageHelperScripts(['no-such-helper.mjs'], staging)).toThrow(/helper script missing/)
+    } finally {
+      rmSync(staging, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('planning', () => {
   it('classifies overwrite / create / unchanged and backup intent', () => {
     const installed = new Map([
@@ -260,6 +299,22 @@ describe('dir: target (local fs)', () => {
   it('refuses a missing install root', () => {
     expect(() => inspectDir(path.join(root, 'nope'), ['a.js'], 'dev')).toThrow(/install root missing/)
   })
+
+  it('T0434: helpers go into <root>/scripts (created when missing), with the same backup / rollback rules', () => {
+    const scriptsDir = path.join(root, ...HELPER_SUBDIR)
+    expect(() => inspectDir(root, ['h.mjs'], 'dev', { subdir: HELPER_SUBDIR })).toThrow(/install root missing/)
+    expect(inspectDir(root, ['h.mjs'], 'dev', { subdir: HELPER_SUBDIR, allowMissing: true }).files.get('h.mjs')).toEqual({ sha: null, backup: false, backupSha: null, absent: false })
+
+    writeFileSync(path.join(staging, 'h.mjs'), 'new h.mjs')
+    deployDir(root, staging, ['h.mjs'], 'dev', { subdir: HELPER_SUBDIR, create: true })
+    expect(readFileSync(path.join(scriptsDir, 'h.mjs'), 'utf8')).toBe('new h.mjs')
+    expect(existsSync(path.join(scriptsDir, 'h.mjs.bak-dev.absent'))).toBe(true)
+    // electron/remote is untouched by the helper group
+    expect(readFileSync(remote(root, 'a.js'), 'utf8')).toBe('orig a.js')
+
+    expect(rollbackDir(root, ['h.mjs'], 'dev', { subdir: HELPER_SUBDIR, prefix: HELPER_PREFIX })).toEqual(['REMOVED scripts/h.mjs'])
+    expect(existsSync(path.join(scriptsDir, 'h.mjs'))).toBe(false)
+  })
 })
 
 describe('main() dry-run never writes', () => {
@@ -285,6 +340,26 @@ describe('main() dry-run never writes', () => {
     const output = logSpy.mock.calls.flat().join('\n')
     expect(output).toMatch(/DRY-RUN/)
     expect(output).toMatch(/server-entry\.js\s+built=[0-9a-f]{12} installed=[0-9a-f]{12} action=overwrite backup=keep-existing/)
+    // T0434: the helpers are planned too (not installed yet → create); nothing written
+    expect(existsSync(path.join(root, ...HELPER_SUBDIR))).toBe(false)
+    for (const name of HELPERS) {
+      expect(output).toMatch(new RegExp(`scripts/${name.replace('.', '\\.')}\\s+built=[0-9a-f]{12} installed=MISSING action=create backup=absent-marker`))
+    }
+  }, 120_000)
+
+  it('T0434: --yes deploys JS + helpers into a dir target, --rollback --yes takes both back', async () => {
+    expect(await main(['--target', `dir:${root}`, '--yes', '--tag', 't0434'])).toBe(0)
+    for (const name of HELPERS) {
+      expect(sha256(readFileSync(path.join(root, 'scripts', name)))).toBe(sha256(readFileSync(path.join(REPO_SCRIPTS, name))))
+      expect(existsSync(path.join(root, 'scripts', `${name}.bak-t0434.absent`))).toBe(true)
+    }
+    expect(readFileSync(remote(root, 'server-entry.js.bak-t0434'), 'utf8')).toBe('orig server-entry.js')
+    expect(logSpy.mock.calls.flat().join('\n')).toMatch(/deployed sha256 matches built output/)
+
+    expect(await main(['--target', `dir:${root}`, '--rollback', '--yes', '--tag', 't0434'])).toBe(0)
+    for (const name of HELPERS) expect(existsSync(path.join(root, 'scripts', name))).toBe(false)
+    expect(readFileSync(remote(root, 'server-entry.js'), 'utf8')).toBe('orig server-entry.js')
+    expect(logSpy.mock.calls.flat().join('\n')).toContain('REMOVED scripts/bat-terminal.mjs')
   }, 120_000)
 
   it('rollback dry-run leaves the install root untouched', async () => {
@@ -330,6 +405,22 @@ describe('renderBashScript (WSL target)', () => {
   it('rejects unsafe tags / file names', () => {
     expect(() => renderBashScript('deploy', { ...base, tag: 'a;b' })).toThrow(/tag/)
     expect(() => renderBashScript('deploy', { ...base, files: ['a b.js'] })).toThrow(/file name/)
+    expect(() => renderBashScript('deploy', { ...base, helpers: { files: ['x;y.mjs'], stagingDir: '/s' } })).toThrow(/file name/)
+  })
+
+  it('T0434: the helper group targets <root>/scripts, is created only on deploy and never required', () => {
+    const helpers = { files: HELPERS, stagingDir: '/mnt/d/x/scripts' }
+    const deploy = renderBashScript('deploy', { ...base, helpers })
+    expect(deploy).toContain('DEST="$ROOT/scripts"')
+    expect(deploy).toContain(`SRC='/mnt/d/x/scripts'`)
+    expect(deploy.match(/mkdir -p "\$DEST" \|\| exit 7/g)).toHaveLength(1)
+    expect(deploy.match(/ERROR install-root-missing/g)).toHaveLength(1) // electron/remote only
+    expect(deploy).toContain('"scripts/$f" "$(sha "$DEST/$f")"')
+    const inspect = renderBashScript('inspect', { ...base, helpers })
+    expect(inspect).not.toMatch(/\bcp\b|\brm\b|mkdir|systemctl|: >/)
+    expect(inspect).toContain('DEST="$ROOT/scripts"')
+    // without helpers the script has a single group, as before T0434
+    expect(renderBashScript('deploy', base)).not.toContain('$ROOT/scripts')
   })
 
   // Execute the generated script for real with a local POSIX bash. On Windows
@@ -374,6 +465,39 @@ describe('renderBashScript (WSL target)', () => {
       expect(rolled.other).toEqual(expect.arrayContaining(['RESTORED a.js', 'REMOVED b.js']))
       expect(readFileSync(remote(root, 'a.js'), 'utf8')).toBe('orig a.js')
       expect(existsSync(remote(root, 'b.js'))).toBe(false)
+    } finally {
+      for (const d of [root, staging, scripts]) rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  it.skipIf(!localBash)('T0434: helper group round-trip — scripts/ created, FILE lines named scripts/<f>, rollback removes them', () => {
+    const root = makeInstallRoot()
+    const staging = mkdtempSync(path.join(tmpdir(), 't0434-staging-'))
+    const scripts = mkdtempSync(path.join(tmpdir(), 't0434-sh-'))
+    const posix = (p) => p.replace(/\\/g, '/')
+    try {
+      mkdirSync(path.join(staging, 'scripts'))
+      writeFileSync(path.join(staging, 'a.js'), 'new a.js')
+      writeFileSync(path.join(staging, 'scripts', 'h.mjs'), 'new h.mjs')
+      const opts = { installRoot: posix(root), stagingDir: posix(staging), files: ['a.js'], tag: 't0434', restart: false, expectStrings: [], helpers: { files: ['h.mjs'], stagingDir: posix(path.join(staging, 'scripts')) } }
+      const run = (mode) => {
+        const file = path.join(scripts, `${mode}.sh`)
+        writeFileSync(file, renderBashScript(mode, opts))
+        return parseScriptOutput(execFileSync(localBash, [posix(file)], { encoding: 'utf8', timeout: 30_000 }))
+      }
+
+      const inspected = run('inspect')
+      expect(inspected.files.get('scripts/h.mjs')).toEqual({ sha: null, backup: false, backupSha: null, absent: false })
+      expect(existsSync(path.join(root, 'scripts'))).toBe(false)
+
+      const deployed = run('deploy')
+      expect(readFileSync(path.join(root, 'scripts', 'h.mjs'), 'utf8')).toBe('new h.mjs')
+      expect(deployed.files.get('scripts/h.mjs')).toMatchObject({ sha: sha256(Buffer.from('new h.mjs')), absent: true })
+      expect(deployed.files.get('a.js')).toMatchObject({ sha: sha256(Buffer.from('new a.js')) })
+
+      const rolled = run('rollback')
+      expect(rolled.other).toEqual(expect.arrayContaining(['REMOVED a.js', 'REMOVED scripts/h.mjs']))
+      expect(existsSync(path.join(root, 'scripts', 'h.mjs'))).toBe(false)
     } finally {
       for (const d of [root, staging, scripts]) rmSync(d, { recursive: true, force: true })
     }

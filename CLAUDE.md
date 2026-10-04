@@ -159,6 +159,27 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 - **依賴套件**：`selfsigned@^5.x`（v5 是 async API；`await selfsigned.generate(...)`，v4 同步呼叫會回 Promise 導致 `.cert.replace` undefined）。
 - **降級情境**：若 `safeStorage.isEncryptionAvailable() === false`，`[Secrets]` warn log 會顯示一次；工單決策是「fallback 不阻擋啟動」，使用者可觀察 log 判斷是否需要切離 Linux 環境。
 
+## 遠端 Tower 通知（PLAN-036 K）
+
+遠端視窗（WSL / SSH / Docker profile）裡的 Tower 與本機一樣能派單（`bat-terminal.mjs`）、Worker 能回報（`bat-notify.mjs`，toast + badge + 預填 + `--submit`）。方案 A'（T0420 / D134）：headless bat-server 為**每個 PTY** 簽發範圍權杖，**server token 永不進 PTY env**。實作 T0431（`terminal:*` 上線）/ T0432（權杖）/ T0433（helper 隨 bundle + env 注入）/ T0447-T0450（安全修正）/ T0434（端到端驗收）。
+
+- **遠端 PTY 的 `BAT_*`**（`buildHeadlessHelperEnv`，`electron/remote/headless-entry.ts`）：`BAT_SESSION` / `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` + `BAT_REMOTE_PORT`（headless port）/ `BAT_REMOTE_TOKEN`（**= 該 PTY 的權杖**，`batcap.` 前綴，T0449）/ `BAT_SERVER_CERT_PATH`（`<dataDir>/server-cert.json`，helper 指紋釘選用）/ `BAT_HELPER_DIR`（`<installRoot>/scripts`）/ `BAT_HELPER_LOG_DIR`（`<dataDir>/Logs`）。Worker 分頁另有 `BAT_TOWER_TERMINAL_ID`（+ `CT_MODE` / `CT_INTERACTIVE`）。繼承來的 `BAT_*` 一律 scrub（`isHeadlessScrubbedEnvKey` 不變）。`<installRoot>/scripts` 缺 `bat-terminal.mjs` / `bat-notify.mjs`（T0433 前的 bundle、或只部署 JS 的 dev deploy）⇒ **不注入、不簽發**，回到「`BAT_SESSION=1` 但無 helper env」的降級狀態
+- **權杖範圍**（`electron/remote/helper-capability.ts`，預設拒絕）：
+  | 角色 | 允許 | 限制 |
+  |---|---|---|
+  | `tower`（無 notify target 的 PTY） | `terminal:create-agent-command` | 只能建**新** id；`BAT_TOWER_TERMINAL_ID` 只能是自己；`customEnv` 限 `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE` / `MSYS_NO_PATHCONV`；不得指定 `shell`；agent 必須是 registry 已知 id（T0450，未知 → `agent-not-allowed`）；同時存活子 PTY ≤ 8、建立間隔 ≥ 1 s、server 有 PTY 上限時保留 8 個名額給 client（T0450） |
+  | `worker`（帶 `BAT_TOWER_TERMINAL_ID` 的 PTY） | `terminal:notify` / `pty:write` / `terminal:keypress` | target 只能是綁定的 tower；`pty:write` 只收可列印文字（控制字元 → `control-character-not-allowed`，送出走 keypress，T0450） |
+  其餘 channel（`pty:create` / `terminal:create-with-command` / `fs:*` / `git:*` / `claude:*` …）一律 `Forbidden: channel-not-allowed`。helper 連線不收廣播、不計入 T0404 孤兒回收的 client 數
+- **生命週期**：權杖只在記憶體（registry 只存 SHA-256 digest）；PTY exit / kill 即撤銷（已認證 socket 上後續 frame 一律不執行、連線 terminate，T0447）；`pty:restart` 保留角色（T0448）；server 重啟全失效。撤銷 10 分鐘內再用 → `Authentication failed: Capability revoked`；權杖認證失敗**不**計入 server-token 暴力破解封鎖（T0449）
+- **限制**：
+  - **遠端 Tower 派單只能用 agent 模式**：`bat-terminal.mjs --skill ct-exec --workorder T#### --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID"`（或 `--prompt`）。本機慣用的 raw command 形式 `bat-terminal.mjs claude "/ct-exec T####"` 走 `terminal:create-with-command`，權杖一律 `Forbidden: channel-not-allowed`
+  - `--submit` 的 Enter 由 client renderer 合成：**沒有任何 BAT client 連著時** keypress 回 `no-client`，`bat-notify` exit 1（yolo 不會假裝已送出；預填文字仍寫進 Tower PTY）
+  - **遠端 PATH 不一定有 `node`**（WSL 測試機 smoke S10 實測 `node=missing`）：遠端呼叫 helper 優先用 bundle 自帶的 `"$BAT_HELPER_DIR/../bin/node"`（`scripts/` 與 `bin/` 同在 `<installRoot>`），不存在時才用 PATH 上的 `node`
+  - server bundle 不含 codex：server 上偵測不到 codex 時遠端派 codex 回 `AGENT_UNAVAILABLE`（偵測未完成為 `AGENT_CHECK_PENDING`，稍後重試），T0433
+  - 遠端 `~/.claude/skills` 須自行安裝 control-tower 系列 skill；全域只有一個 `remoteClient`，非當前綁定 profile 的視窗收不到事件（既有限制）
+  - 本機 Electron 的 PTY 仍注入全權 server token（A' 回移本機為另案）
+- **驗證**：`electron/remote/__tests__/headless-remote-tower-e2e.test.ts`（真 headless + 真 node-pty，helper 在 PTY 內執行：派單 → `created-externally` → `bat-notify --submit` → `notified` + `keypress` + 預填；越權與撤銷負向；no-client）；`npm run smoke:remote:headless` 的 **S13**（對已部署 server；server 無 helper env 時 SKIP 且不算失敗）；`npm run deploy:headless:dev` 自 T0434 起一併部署 `serverBundleHelperScripts` 到 `<installRoot>/scripts/`
+
 ## Control Tower 本專案規則
 
 - 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範

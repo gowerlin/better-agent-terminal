@@ -3,6 +3,7 @@
 // T0411 — S10 remote-tools:detect
 // T0405 — S11 git / github / worktree
 // T0406 — S12 fs sandbox / workspace:sync-roots
+// T0434 — S13 remote Tower helper env / helper capability path
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -12,8 +13,21 @@ import { describe, expect, it } from 'vitest'
 
 import { PROXIED_CHANNELS, PROXIED_EVENTS } from '../../electron/remote/protocol'
 import { HEADLESS_UNSUPPORTED } from '../../electron/remote/headless-channel-status'
+import { buildHeadlessHelperEnv } from '../../electron/remote/headless-entry'
+import { HelperCapabilityRegistry } from '../../electron/remote/helper-capability'
 import {
   CHECKS,
+  HELPER_CAPABILITY_LENGTHS,
+  REMOTE_TOWER_ENV_KEYS,
+  S13_PROBE_AGENT,
+  SERVER_TOO_OLD,
+  buildHelperAgentProbe,
+  buildHelperEnvProbe,
+  buildHelperRawProbe,
+  checkHelperEnvAnswer,
+  checkHelperProbeAnswers,
+  helperEnvProbeRx,
+  tokenDigest,
   FS_DENIED,
   FRAME_FIELDS,
   FRAME_TYPE,
@@ -388,8 +402,50 @@ function remoteToolsReport(overrides = {}) {
   }
 }
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, preFs = false, serverEnv = 'native' } = {}) {
+const FAKE_TOKEN = 'fake-server-token-t0434-0123456789abcdef'
+const STRAY_ID = 'fedcba9876543210'
+
+/**
+ * T0434 S13 helper env / bat-terminal runs in the Tower PTY.
+ *   helperEnv:   'full' | 'none' (server before T0433) | 'partial' | 'leak' (an env value is the server token) | 'nosha' (no sha256sum)
+ *   helperRaw:   'forbidden' | 'allowed'
+ *   helperAgent: 'false' (server answers false; bat-terminal prints created) | 'not-allowed' (T0450+ server) | 'refused' | 'created'
+ */
+function s13Reply(data, { helperEnv, helperRaw, helperAgent }, s13, ptys) {
+  const line = data.trim()
+  const env = /^echo (\S+)-s13-env:\[/.exec(line)
+  if (env) {
+    s13.envProbes += 1
+    const keys = helperEnv === 'none'
+      ? ['BAT_SESSION', 'BAT_TERMINAL_ID', 'BAT_WORKSPACE_ID']
+      : REMOTE_TOWER_ENV_KEYS.filter((k) => helperEnv !== 'partial' || k !== 'BAT_SERVER_CERT_PATH')
+    const matches = helperEnv === 'leak' ? '1' : helperEnv === 'nosha' ? 'x' : '0'
+    const length = helperEnv === 'none' ? 0 : 50
+    return `${env[1]}-s13-env:[${keys.join(' ')} ]:[${matches}]:[${length}]`
+  }
+  const raw = /echo (\S+)-s13-raw:\[\$\?\]$/.exec(line)
+  if (raw) {
+    s13.rawRuns += 1
+    return helperRaw === 'forbidden'
+      ? `Error: Failed to create terminal: Forbidden: channel-not-allowed\r\n${raw[1]}-s13-raw:[1]`
+      : `✓ Terminal created: 1111222233334444\r\n${raw[1]}-s13-raw:[0]`
+  }
+  const agent = /echo (\S+)-s13-agent:\[\$\?\]$/.exec(line)
+  if (agent) {
+    s13.agentRuns += 1
+    if (helperAgent === 'not-allowed') return `Error: Failed to create terminal: Forbidden: agent-not-allowed\r\n${agent[1]}-s13-agent:[1]`
+    if (helperAgent === 'refused') return `Error: Failed to create terminal: Forbidden: role-not-allowed\r\n${agent[1]}-s13-agent:[1]`
+    if (helperAgent === 'created') ptys.set(STRAY_ID, { pid: 999, rows: 30, cols: 120 })
+    return `✓ Terminal created: ${helperAgent === 'created' ? STRAY_ID : 'aaaabbbbccccdddd'}\r\n${agent[1]}-s13-agent:[0]`
+  }
+  return null
+}
+
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, preFs = false, serverEnv = 'native', helperEnv = 'full', helperRaw = 'forbidden', helperAgent = 'false' } = {}) {
   const ptys = new Map()
+  // T0434: S13 probe counters + every pty:write payload (the server token must never be typed)
+  const s13 = { envProbes: 0, rawRuns: 0, agentRuns: 0 }
+  const writes = []
   const s11 = { nonce: null, repoRemoved: false }
   // T0406: one fake connection's synced roots; fs answers like electron/handlers/fs.ts
   const s12 = { nonce: null, dirRemoved: false, roots: [], syncCalls: [] }
@@ -417,6 +473,12 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
     'pty:write': (id, data) => {
       const pty = ptys.get(id)
       if (!pty) return { ok: false, reason: 'pty-not-found' }
+      writes.push(data)
+      const helperReply = s13Reply(data, { helperEnv, helperRaw, helperAgent }, s13, ptys)
+      if (helperReply !== null) {
+        setTimeout(() => emit('pty:output', id, `${data}\r\n${helperReply}\r\n$ `), 1)
+        return { ok: true }
+      }
       const made = /(\S+)-s11-repo:\$d/.exec(data)
       if (made) s11.nonce = made[1].split(' ').pop()
       if (data.includes('rm -rf -- "$d"') && data.includes('bat-smoke-git')) s11.repoRemoved = true
@@ -515,30 +577,30 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
     }
   }
 
-  const conn = { url: 'wss://fake:1', token: 'tok', fingerprint: FP, cwd: '/home/u' }
+  const conn = { url: 'wss://fake:1', token: FAKE_TOKEN, fingerprint: FP, cwd: '/home/u' }
   const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
-  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts, s11, s12 }
+  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts, s11, s12, s13, writes }
 }
 
 describe('runSmoke (fake server)', () => {
-  it('passes S1-S12 and leaves no smoke PTY behind', async () => {
+  it('passes S1-S13 and leaves no smoke PTY behind', async () => {
     const fake = createFakeServer()
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(report.ptyId).toMatch(/^smoke-\d{14}-[0-9a-f]{6}$/)
     expect(fake.ptys.size).toBe(0)
-    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(3) // S7 + S11's and S12's own PTYs
+    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(4) // S7 + S11's, S12's and S13's own PTYs
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
-    expect(summarize(report)).toEqual({ ok: true, passed: 12, warned: 0, total: 12 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 13, warned: 0, tooOld: 0, total: 13 })
     expect(fake.probeArgs).toEqual([['smoke-probe', 'read-only']])
     // S10 waits for the 20 s login-view probe, not the 500 ms default
     expect(fake.invokeTimeouts).toEqual([['remote-tools:detect', REMOTE_TOOLS_DETECT_TIMEOUT_MS], ['github:check-cli', GITHUB_CHECK_CLI_TIMEOUT_MS]])
     expect(report.checks.find((c) => c.id === 'S10').evidence).toMatch(/schema v1; ubuntu 24\.04 x86_64 pkg=apt .*git=ok@2\.43\.0/)
   })
 
-  it('passes S1-S12 against a server before T0403 (pty:create answers a bare boolean)', async () => {
+  it('passes S1-S13 against a server before T0403 (pty:create answers a bare boolean)', async () => {
     const fake = createFakeServer({ legacyCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -568,7 +630,7 @@ describe('runSmoke (fake server)', () => {
     const fake = createFakeServer({ rejectCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
     const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
-    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS', S11: 'FAIL', S12: 'FAIL' })
+    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS', S11: 'FAIL', S12: 'FAIL', S13: 'FAIL' })
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(fake.log).not.toContain('pty:kill')
   })
@@ -580,7 +642,7 @@ describe('runSmoke (fake server)', () => {
     expect(s1.status).toBe('WARN')
     expect(s1.evidence).toMatch(/env=native but target is wsl/)
     expect(report.checks.filter((c) => c.id !== 'S1').every((c) => c.status === 'PASS')).toBe(true)
-    expect(summarize(report)).toEqual({ ok: true, passed: 11, warned: 1, total: 12 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 12, warned: 1, tooOld: 0, total: 13 })
   })
 
   it('T0404: S1 passes with env=wsl on a WSL target; non-WSL targets never WARN on env', async () => {
@@ -660,7 +722,7 @@ describe('runSmoke (fake server)', () => {
     const s11 = report.checks.find((c) => c.id === 'S11')
     expect(s11.status).toBe('FAIL')
     expect(s11.evidence).toMatch(/No handler for channel: github:check-cli — server predates T0405/)
-    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(3) // S3 + S5 + S12 only
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(4) // S3 + S5 + S12 + S13 only
     expect(report.checks.filter((c) => c.id !== 'S11').every((c) => c.status === 'PASS')).toBe(true)
     expect(summarize(report).ok).toBe(false)
   })
@@ -703,7 +765,7 @@ describe('runSmoke (fake server)', () => {
     const s12 = report.checks.find((c) => c.id === 'S12')
     expect(s12.status).toBe('FAIL')
     expect(s12.evidence).toMatch(/No handler for channel: fs:stat — server predates T0406/)
-    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(3) // S3 + S5 + S11 only
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(4) // S3 + S5 + S11 + S13 only
     expect(report.checks.filter((c) => c.id !== 'S12').every((c) => c.status === 'PASS')).toBe(true)
     expect(summarize(report).ok).toBe(false)
   })
@@ -721,6 +783,73 @@ describe('runSmoke (fake server)', () => {
       expect(report.checks.find((c) => c.id === 'S12').status).toBe('FAIL')
       expect(fake.s12.dirRemoved).toBe(true)
       expect(fake.ptys.size).toBe(0)
+    }
+  })
+
+  it('S13 probes the helper env and runs bat-terminal twice in its own Tower PTY, never typing the server token', async () => {
+    const fake = createFakeServer()
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s13 = report.checks.find((c) => c.id === 'S13')
+    expect(s13.status, s13.evidence).toBe('PASS')
+    expect(s13.evidence).toContain(`BAT_* = ${[...REMOTE_TOWER_ENV_KEYS].sort().join(',')}`)
+    expect(s13.evidence).toContain('no env value equals the server token (sha256)')
+    expect(s13.evidence).toContain('raw command → Forbidden: channel-not-allowed')
+    expect(s13.evidence).toContain(`create-agent-command authorized (bat-terminal exit 0), no terminal created for ${S13_PROBE_AGENT}`)
+    expect(fake.s13).toEqual({ envProbes: 1, rawRuns: 1, agentRuns: 1 })
+    expect(fake.writes.some((w) => w.includes(tokenDigest(FAKE_TOKEN)))).toBe(true)
+    expect(fake.writes.some((w) => w.includes(FAKE_TOKEN))).toBe(false)
+    expect(fake.ptys.size).toBe(0)
+    expect(report.cleanup.evidence).toContain(`pty:write(${report.ptyId}-tower)`)
+    expect(report.cleanup.leftover).toBe(false)
+  })
+
+  it('S13 passes against a T0450+ server that refuses the unregistered probe agent (agent-not-allowed)', async () => {
+    const fake = createFakeServer({ helperAgent: 'not-allowed' })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s13 = report.checks.find((c) => c.id === 'S13')
+    expect(s13.status, s13.evidence).toBe('PASS')
+    expect(s13.evidence).toContain(`${S13_PROBE_AGENT} → Forbidden: agent-not-allowed (T0450+), nothing created`)
+    expect(fake.ptys.size).toBe(0)
+  })
+
+  it('S13 is a tolerated SKIP against a server before T0433 (no helper env): the run still passes, no helper is run', async () => {
+    const fake = createFakeServer({ helperEnv: 'none' })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s13 = report.checks.find((c) => c.id === 'S13')
+    expect(s13).toMatchObject({ status: 'SKIP', reason: SERVER_TOO_OLD })
+    expect(s13.evidence).toMatch(/no helper env \(BAT_\* = BAT_SESSION,BAT_TERMINAL_ID,BAT_WORKSPACE_ID\): server predates T0433/)
+    expect(report.checks.filter((c) => c.id !== 'S13').every((c) => c.status === 'PASS')).toBe(true)
+    expect(summarize(report)).toEqual({ ok: true, passed: 12, warned: 0, tooOld: 1, total: 13 })
+    expect(fake.s13).toEqual({ envProbes: 1, rawRuns: 0, agentRuns: 0 })
+    expect(fake.ptys.size).toBe(0)
+  })
+
+  it('a SKIP for a failed prerequisite still fails the run; only server-too-old is tolerated', () => {
+    const checks = CHECKS.map(([id, name]) => ({ id, name, status: 'PASS', evidence: '' }))
+    checks[12] = { ...checks[12], status: 'SKIP', evidence: 'not run' }
+    expect(summarize({ checks, cleanup: { leftover: false } }).ok).toBe(false)
+    checks[12] = { ...checks[12], reason: SERVER_TOO_OLD }
+    expect(summarize({ checks, cleanup: { leftover: false } })).toMatchObject({ ok: true, tooOld: 1 })
+  })
+
+  it('S13 fails on a leaked server token, wrong keys, a missing sha256sum, an allowed raw command, or a refused / creating agent probe — and still cleans up', async () => {
+    const cases = [
+      [{ helperEnv: 'leak' }, /1 env value\(s\) equal the server token/],
+      [{ helperEnv: 'partial' }, /missing BAT_SERVER_CERT_PATH/],
+      [{ helperEnv: 'nosha' }, /sha256sum not available/],
+      [{ helperRaw: 'allowed' }, /raw command: exit 0/],
+      [{ helperAgent: 'refused' }, /agent probe refused: exit 1/],
+      [{ helperAgent: 'created' }, new RegExp(`agent probe created terminal ${STRAY_ID}`)],
+    ]
+    for (const [option, rx] of cases) {
+      const fake = createFakeServer(option)
+      const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+      const s13 = report.checks.find((c) => c.id === 'S13')
+      expect(s13.status, JSON.stringify(option)).toBe('FAIL')
+      expect(s13.evidence).toMatch(rx)
+      expect(fake.ptys.size, JSON.stringify(option)).toBe(0)
+      expect(report.cleanup.leftover).toBe(false)
+      expect(summarize(report).ok).toBe(false)
     }
   })
 
@@ -846,5 +975,65 @@ describe('checkFsSandboxAnswers (S12, T0406)', () => {
     expect(SMOKE_FS_DIR_RX.test('/tmp')).toBe(false)
     expect(SMOKE_FS_DIR_RX.test('/tmp/bat-smoke-fs.x/../..')).toBe(false)
     expect(SMOKE_FS_DIR_RX.test('/home/u/bat-smoke-fs.abc')).toBe(false)
+  })
+})
+
+describe('S13 helpers (T0434)', () => {
+  it('REMOTE_TOWER_ENV_KEYS = what buildHeadlessHelperEnv injects + the keys every PTY has', () => {
+    const registry = new HelperCapabilityRegistry()
+    const env = buildHeadlessHelperEnv({
+      id: 'tower-1',
+      customEnv: {},
+      capabilities: registry,
+      endpoint: { port: 9877, certPath: '/d/server-cert.json', logDir: '/d/Logs' },
+      helperDir: '/opt/bat/scripts',
+      exists: () => true,
+    })
+    expect([...Object.keys(env), 'BAT_SESSION', 'BAT_TERMINAL_ID', 'BAT_WORKSPACE_ID'].sort()).toEqual([...REMOTE_TOWER_ENV_KEYS].sort())
+    expect(HELPER_CAPABILITY_LENGTHS).toContain(env.BAT_REMOTE_TOKEN.length)
+  })
+
+  it('the env probe types only the token digest; its echo never matches the result pattern', () => {
+    const command = buildHelperEnvProbe('n1', tokenDigest(FAKE_TOKEN))
+    expect(command).toContain(tokenDigest(FAKE_TOKEN))
+    expect(command).not.toContain(FAKE_TOKEN)
+    expect(helperEnvProbeRx('n1').test(command)).toBe(false)
+    expect(helperEnvProbeRx('n1').exec('n1-s13-env:[BAT_A BAT_B ]:[0]:[43]').slice(1)).toEqual(['BAT_A BAT_B ', '0', '43'])
+    expect(helperEnvProbeRx('n1').exec('n1-s13-env:[]:[x]:[0]').slice(1)).toEqual(['', 'x', '0'])
+  })
+
+  it('the bat-terminal probes use the bundle node first and an agent id no server registers', () => {
+    for (const command of [buildHelperRawProbe('n1'), buildHelperAgentProbe('n1', 'smoke-ws')]) {
+      expect(command).toMatch(/^n="\$BAT_HELPER_DIR\/\.\.\/bin\/node"; \[ -x "\$n" \] \|\| n=node; "\$n" "\$BAT_HELPER_DIR\/bat-terminal\.mjs" /)
+    }
+    expect(buildHelperRawProbe('n1')).toMatch(/ echo n1-s13-denied; echo n1-s13-raw:\[\$\?\]$/)
+    expect(buildHelperAgentProbe('n1', 'smoke-ws')).toContain(`--agent ${S13_PROBE_AGENT} --prompt n1-s13 --workspace smoke-ws --cwd /tmp`)
+  })
+
+  it('checkHelperEnvAnswer: no helper env = too old; otherwise exact keys, no token, a capability-length token', () => {
+    const keys = [...REMOTE_TOWER_ENV_KEYS]
+    expect(checkHelperEnvAnswer({ keys, tokenMatches: 0, capabilityLength: 43 })).toMatchObject({ ok: true, tooOld: false })
+    expect(checkHelperEnvAnswer({ keys, tokenMatches: 0, capabilityLength: 50 })).toMatchObject({ ok: true, tooOld: false }) // T0449 `batcap.` prefix
+    expect(checkHelperEnvAnswer({ keys: ['BAT_SESSION', 'BAT_TERMINAL_ID'], tokenMatches: 0, capabilityLength: 0 })).toMatchObject({ ok: false, tooOld: true })
+    expect(checkHelperEnvAnswer({ keys: [...keys, 'BAT_TOWER_TERMINAL_ID'], tokenMatches: 0, capabilityLength: 43 }).evidence).toMatch(/unexpected BAT_TOWER_TERMINAL_ID/)
+    expect(checkHelperEnvAnswer({ keys, tokenMatches: 2, capabilityLength: 43 }).evidence).toMatch(/2 env value\(s\) equal the server token/)
+    expect(checkHelperEnvAnswer({ keys, tokenMatches: 0, capabilityLength: 32 }).evidence).toMatch(/BAT_REMOTE_TOKEN is 32 chars/)
+    // one helper key without the others is a broken injection, not an old server
+    expect(checkHelperEnvAnswer({ keys: ['BAT_HELPER_DIR', 'BAT_SESSION'], tokenMatches: 0, capabilityLength: 0 })).toMatchObject({ ok: false, tooOld: false })
+  })
+
+  it('checkHelperProbeAnswers: raw must be Forbidden; the agent probe must be authorized and create nothing', () => {
+    const raw = { code: 1, text: 'Error: Failed to create terminal: Forbidden: channel-not-allowed' }
+    const agent = { code: 0, text: '✓ Terminal created: abc', createdId: 'abc', cwdAfter: null }
+    expect(checkHelperProbeAnswers({ raw, agent }).ok).toBe(true)
+    expect(checkHelperProbeAnswers({ raw, agent: { code: 1, text: 'Error: Failed to create terminal (refused): x', createdId: null, cwdAfter: null } }).ok).toBe(true)
+    // T0450+: the unknown agent is refused after the role check passed
+    expect(checkHelperProbeAnswers({ raw, agent: { code: 1, text: 'Error: Failed to create terminal: Forbidden: agent-not-allowed', createdId: null, cwdAfter: null } }).ok).toBe(true)
+    // any other refusal (wrong role, spawn quota …) is a failure
+    expect(checkHelperProbeAnswers({ raw, agent: { code: 1, text: 'Error: Failed to create terminal: Forbidden: role-not-allowed', createdId: null, cwdAfter: null } }).ok).toBe(false)
+    expect(checkHelperProbeAnswers({ raw: { code: 1, text: 'Error: Authentication failed: Invalid token' }, agent: null }).ok).toBe(false)
+    expect(checkHelperProbeAnswers({ raw, agent: { ...agent, cwdAfter: '/tmp' } }).ok).toBe(false)
+    expect(checkHelperProbeAnswers({ raw, agent: { code: 1, text: 'Error: Cannot connect to BAT RemoteServer', createdId: null, cwdAfter: null } }).ok).toBe(false)
+    expect(checkHelperProbeAnswers({ raw, agent: { code: 127, text: 'node: not found', createdId: null, cwdAfter: null } }).ok).toBe(false)
   })
 })

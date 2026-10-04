@@ -128,3 +128,10 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 ## P3 進度
 
 - J DONE：T0422（`d800dea`）——`settings:get-logging-info` / `settings:cleanup-logs` / `snippet:*`（10）改 `ALWAYS_LOCAL_CHANNELS`；`HEADLESS_UNSUPPORTED` 18 → 6（P1 2 / P3 4）
+- K 程式部分完成（2026-10-05 07:03，T0434 回報）：方案 A'（每 PTY 範圍權杖，D134）
+  - T0431（`9fa2cc3`）`terminal:*` 上線 headless + `created-externally` / `keypress` 事件
+  - T0432（`aec20c0`）RemoteServer 每 PTY 範圍權杖；T0445 安全 review BLOCK → T0447（`2ed593f`）default-deny / frame 強化、T0448（`5bfeb08`）restart 保留角色、T0449（`c186c81`）權杖失敗與 server-token 節流分離、T0450（`7effa79`）收緊權杖（registry agent / 可列印 pty:write / spawn 配額）
+  - T0433（`ec4ca56`）helper 隨 server bundle + headless PTY env 注入
+  - T0434（commit 見 `git log`，`T0434` 開頭）vitest 端到端（helper 在 PTY 內執行：派單 → created-externally → bat-notify --submit → notified + keypress；越權 / 撤銷 / no-client 負向）+ smoke **S13**（舊 server SKIP 不算失敗）+ `deploy:headless:dev` 一併部署 helper + `CLAUDE.md`「遠端 Tower 通知」/ `docs/remote-dev-overview.md`
+  - smoke 對目前 WSL server（bundle 0.5.9-pre.4，T0406 期部署）：12/13 PASS + S13 SKIP（無 helper env），exit 0
+  - 待辦：WSL `deploy:headless:dev` 新版部署 + 真 BAT 遠端視窗實機派單（步驟見 T0434 回報區）；`_local-rules.md` 遠端分支由塔台套用（建議文字見 T0434 回報區）
