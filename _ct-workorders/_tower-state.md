@@ -121,7 +121,7 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（65 entries）
 
 ### 編號起始
-- **T0394** / **BUG-101** / **PLAN-037** / **D130** / **EXP-[TOPIC]-001** / **L138**
+- **T0394** / **BUG-102** / **PLAN-037** / **D130** / **EXP-[TOPIC]-001** / **L138**
 
 ---
 
@@ -135,13 +135,13 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 | **最新 release** | `v0.5.9-pre.4`（2026-10-04 17:10 驗證：9/9 success，5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
 | **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
 | **目前主軸** | 實機驗收（BUG-071 / 084 / 085）→ push + `v0.5.9-pre.5` → Phase 2 Claude SDK 0.3 |
-| **工單最大編號** | T0393（P0-E，接 T0390）；T0388 / T0391 / T0392 23:58 平行派發，T0389 00:04 派發（T0387 已 commit）；T0390（等 T0388+T0389）排隊；T0386 DONE（`3de9750`）；T0387 DONE（`a3717a5`，00:04 複驗）；T0392 DONE（`f72e177`，00:09 複驗）；T0388 DONE（`694771c`）/ T0391 DONE（`f102a55`）00:17 複驗；T0389 DONE（`566c6da`，00:20 複驗）；T0390 00:20 派發；T0385 DONE（`c4e82ba`）；T0380-T0384 全 DONE（PLAN-035 Phase 0-1）；BUG-093 由「T0385 後串行」改為 T0385 完成後與 T0386 平行（使用者裁決） |
-| **BUG 最大編號** | BUG-100；093 FIXED（T0387，待 SSH 實機）、095 FIXED（T0392，待下一版 build 實機）、096 / 097 / 098 / 099 / 100 OPEN；087/089/090/091/092/094 CLOSED（23:46 實機）；086（無發行版分支）/ 088（SSH）FIXED 待對應實機 |
+| **工單最大編號** | T0393（P0-E，接 T0390）；T0388 / T0391 / T0392 23:58 平行派發，T0389 00:04 派發（T0387 已 commit）；T0390（等 T0388+T0389）排隊；T0386 DONE（`3de9750`）；T0387 DONE（`a3717a5`，00:04 複驗）；T0392 DONE（`f72e177`，00:09 複驗）；T0388 DONE（`694771c`）/ T0391 DONE（`f102a55`）00:17 複驗；T0389 DONE（`566c6da`，00:20 複驗）；T0390 DONE（`f2b68ce`，00:41 複驗）；T0393 00:41 派發；T0385 DONE（`c4e82ba`）；T0380-T0384 全 DONE（PLAN-035 Phase 0-1）；BUG-093 由「T0385 後串行」改為 T0385 完成後與 T0386 平行（使用者裁決） |
+| **BUG 最大編號** | BUG-101（OPEN，本機 restart 失聯）；093 FIXED（T0387，待 SSH 實機）、095 FIXED（T0392，待下一版 build 實機）、096 / 097 / 098 / 099 / 100 OPEN；087/089/090/091/092/094 CLOSED（23:46 實機）；086（無發行版分支）/ 088（SSH）FIXED 待對應實機 |
 | **PLAN 最大編號** | PLAN-036（headless 功能 handler 層，IN_PROGRESS，P0 T0388-T0391，D129）；PLAN-035 IN_PROGRESS（Phase 1 實機通過；Phase 2 排在 PLAN-036 P0 之後，D129） |
 | **決策最大編號** | D129 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **1039**（73 files，HEAD `08e2f69` 乾淨工作樹）；tsc baseline 40 |
+| **unit test 基線** | **1051**（74 files，HEAD `f2b68ce`）；tsc baseline 40 |
 
 ---
 

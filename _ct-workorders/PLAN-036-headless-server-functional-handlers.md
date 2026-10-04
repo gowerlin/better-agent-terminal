@@ -6,7 +6,7 @@ title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），�
 status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-05T00:20:10+08:00"
+updated_at: "2026-10-05T00:41:57+08:00"
 links:
   research_workorder: T0386
   p0_workorders: [T0388, T0389, T0390, T0391, T0393]
@@ -60,9 +60,9 @@ T0385（BUG-094）盤點證實：headless bat-server（WSL / SSH / Docker 遠端
 |---|---|---|---|
 | T0388 | 共用骨架 `electron/handlers/types.ts` + channel parity test + electron-free guard + vitest headless harness | — | ✅ DONE（`694771c`，00:17 複驗） |
 | T0389 | claude-runtime-router 設定注入 + embedded resolver 合一（bundle `bin/claude`）+ PtyManager DI | T0387（`main.ts`） | ✅ DONE（`566c6da`，00:20 複驗：1039 tests / vite / tsc 40；本機 smoke 終端 / claude-cli / Agent 三項） |
-| T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | 執行中（00:20 派發） |
+| T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | ✅ DONE（`f2b68ce`，00:41 複驗：1051 tests / vite / tsc 40；HEADLESS_UNSUPPORTED 96 → 89） |
 | T0391 | `scripts/dev-deploy-headless.mjs`（JS-only 部署到 WSL / dir，dry-run 預設） | — | ✅ DONE（`f102a55`，00:17 複驗；`npm run deploy:headless:dev`） |
-| T0393 | 遠端視窗 shell 清單依遠端 OS 過濾 + WSL 工作區資料夾挑選預設 WSL home、`/mnt/c` 提示（使用者 2026-10-05 00:02 實機回報後裁決納入 P0） | T0390 | 排隊 |
+| T0393 | 遠端視窗 shell 清單依遠端 OS 過濾 + WSL 工作區資料夾挑選預設 WSL home、`/mnt/c` 提示（使用者 2026-10-05 00:02 實機回報後裁決納入 P0） | T0390 | 執行中（00:41 派發） |
 
 P0 可用定義：WSL profile 開出視窗 → 預設終端出現 bash prompt → 輸入 / resize / kill / restart / cwd 正確 → 關閉 BAT 重開後同 id 終端不重複 spawn → 設定可選 bash、新增工作區預設開在 WSL home（T0393）。
 
@@ -74,4 +74,12 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - T0391：`npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04`（預設 dry-run，`--yes` 寫入並 `.bak-<tag>` 備份，`--rollback` 還原）；WSL `--yes` + restart 段未實機（工單禁令），P0 實機驗收時首次使用
 - 待辦（非阻擋）：`dev-deploy-headless.mjs` 會隨安裝檔出貨（`extraResources` `*.mjs`，無害）；build 設定解析器兩份（`dev-deploy-headless.mjs` / `__tests__/helpers/server-bundle-config.ts`）宜合併；Windows 上 schema-only `build-server-bundle` 停在 `pruneAnthropicPackages`（既有）；tarball 內含 `electron/remote/*.ts` 原始碼（既有，無用負載）
 - 塔台驗證環境備註：scratchpad git worktree（`node_modules` 以 junction 共用）下 `scripts/__tests__/dev-deploy-headless.test.mjs` 載入即 `SyntaxError`（無堆疊），主工作區 27/27 pass；判定為驗證環境異常，未深追
+
+## P1 候選（T0390 回報，2026-10-05 00:41）
+
+- 斷線期間輸出回放：拉取式 `pty:get-buffer(id)`（結果只回呼叫者、不廣播；ring buffer 需避免切斷 VT escape）。P0 現況：重開 BAT 後還原的遠端終端畫面為空，按 Enter 出現 prompt
+- 孤兒 PTY 回收：無 client 閒置 N 小時（建議 24h）回收、client 對帳、每台 server PTY 上限（建議 64）；需 `RemoteServer` 提供 client 數 / 連線事件
+- `pty:create` 回傳「是否為新 spawn」：create 冪等後，還原 terminal-driven agent preset 時會把啟動指令再打進仍在跑 agent 的 shell（本機 Terminal Server 模式自 T0111 即如此）
+- 遠端 `BAT_SESSION=1` 但無 `BAT_HELPER_DIR`：遠端 Tower auto-session 會走 fallback（P3 / K 再決定）
+- 既有 bug 另案：BUG-101（本機 Terminal Server 模式 restart 失聯）
 
