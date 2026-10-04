@@ -5,7 +5,8 @@
  * bat-server. Connects as an ordinary remote client (TLS + SHA-256 fingerprint
  * pinning + token auth), walks the PTY lifecycle (S1-S8), the login-free
  * claude:* runtime channels (S9, T0401), the remote toolchain probe
- * (S10, T0411) and the git / github / worktree channels (S11, T0405).
+ * (S10, T0411), the git / github / worktree channels (S11, T0405) and the
+ * fs sandbox fed by workspace:sync-roots (S12, T0406).
  *
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04 --json
@@ -26,6 +27,10 @@
  *   - S11 writes git state only in a repo it creates itself with
  *     `mktemp -d /tmp/bat-smoke-git.XXXXXX` (through its own smoke PTY) and
  *     removes it again; the user's repos are never touched;
+ *   - S12 reads files only in a directory it creates itself with
+ *     `mktemp -d /tmp/bat-smoke-fs.XXXXXX` (through its own smoke PTY), syncs
+ *     roots only for its own connection (cleared again; the server also drops
+ *     them when the connection closes) and removes the directory;
  *   - never sends a wrong token: the server bans an IP after 5 failed auths and
  *     the user's own BAT client connects from the same loopback address. The
  *     negative check uses a wrong FINGERPRINT, which is rejected client-side
@@ -86,11 +91,25 @@ export const SMOKE_CHANNELS = Object.freeze({
   GIT_STATUS: 'git:status',
   GIT_SCAFFOLD_HEALTH: 'git-scaffold:healthCheck',
   WORKTREE_STATUS: 'worktree:status',
+  // T0406: fs sandbox (S12) — reads only the smoke's own temp dir; /etc must stay denied
+  WORKSPACE_SYNC_ROOTS: 'workspace:sync-roots',
+  FS_READDIR: 'fs:readdir',
+  FS_READ_FILE: 'fs:readFile',
+  FS_STAT: 'fs:stat',
 })
 
 /** S11 (T0405): template of the temp repo the smoke creates on the server — and the only path it removes. */
 export const SMOKE_GIT_REPO_TEMPLATE = '/tmp/bat-smoke-git.XXXXXX'
 export const SMOKE_GIT_REPO_RX = /^\/tmp\/bat-smoke-git\.[A-Za-z0-9]+$/
+/** S12 (T0406): template of the temp dir the smoke creates on the server — and the only path it removes. */
+export const SMOKE_FS_DIR_TEMPLATE = '/tmp/bat-smoke-fs.XXXXXX'
+export const SMOKE_FS_DIR_RX = /^\/tmp\/bat-smoke-fs\.[A-Za-z0-9]+$/
+/** S12: a directory / file outside every synced root that must stay denied. */
+export const SMOKE_FS_OUTSIDE_DIR = '/etc'
+export const SMOKE_FS_OUTSIDE_FILE = '/etc/hostname'
+/** Answer of a denied `fs:readFile` (electron/handlers/fs.ts). */
+export const FS_DENIED = Object.freeze({ error: 'Path access denied' })
+
 /** S11: `github:check-cli` runs `gh auth status` (network, 10 s server-side limit). */
 export const GITHUB_CHECK_CLI_TIMEOUT_MS = 20_000
 
@@ -645,6 +664,7 @@ export const CHECKS = Object.freeze([
   ['S9', 'claude:get-cli-path / detectRuntime / auth-status answer without a login'],
   ['S10', 'remote-tools:detect returns a schema v1 report (linux, git ok)'],
   ['S11', 'github:check-cli answers; git / git-scaffold / worktree channels read a temp repo'],
+  ['S12', 'fs:* denied before workspace:sync-roots; temp dir readable after it, / rejected, /etc still denied'],
 ])
 
 export function makeSmokeId(now = new Date(), rand = randomBytes(3).toString('hex')) {
@@ -763,13 +783,50 @@ export function checkGitAnswers({ repo, nonce, gh, root, branch, log, status, he
   }
 }
 
+const isDenied = (value) => !!value && typeof value === 'object' && value.error === FS_DENIED.error
+
+/**
+ * S12 (T0406): judge the fs sandbox answers. `dir` is the temp dir the smoke created
+ * with one file `smoke.txt` holding `<nonce>-s12` + newline.
+ *   - before any sync: fs:readdir(dir) → [] and fs:readFile → denied (fail closed)
+ *   - sync-roots(['/', dir]): ok, accepted exactly [dir], '/' rejected as a filesystem root
+ *   - after: readdir lists smoke.txt, readFile returns the content, stat its size
+ *   - outside: fs:readdir('/etc') → [] and fs:readFile('/etc/hostname') → denied
+ */
+export function checkFsSandboxAnswers({ dir, nonce, before, sync, readdir, readFile, stat, outside }) {
+  const problems = []
+  const content = `${nonce}-s12\n`
+  if (!Array.isArray(before?.readdir) || before.readdir.length !== 0) problems.push(`fs:readdir before sync → ${JSON.stringify(before?.readdir)?.slice(0, 160)} (expected [])`)
+  if (!isDenied(before?.readFile)) problems.push(`fs:readFile before sync → ${JSON.stringify(before?.readFile)?.slice(0, 160)} (expected denied)`)
+  const rejected = Array.isArray(sync?.rejected) ? sync.rejected : []
+  if (!sync || sync.ok !== true || !Array.isArray(sync.roots) || sync.roots.length !== 1 || sync.roots[0] !== dir) {
+    problems.push(`workspace:sync-roots(['/', dir]) → ${JSON.stringify(sync)?.slice(0, 200)} (expected roots [${dir}])`)
+  } else if (!rejected.some((r) => r && r.root === '/' && r.reason === 'filesystem root')) {
+    problems.push(`workspace:sync-roots did not reject '/' → ${JSON.stringify(rejected)?.slice(0, 160)}`)
+  }
+  const names = Array.isArray(readdir) ? readdir.map((e) => e?.name) : null
+  if (!names || names.length !== 1 || names[0] !== 'smoke.txt' || readdir[0].path !== `${dir}/smoke.txt`) {
+    problems.push(`fs:readdir after sync → ${JSON.stringify(readdir)?.slice(0, 200)} (expected [smoke.txt])`)
+  }
+  if (!readFile || readFile.content !== content) problems.push(`fs:readFile after sync → ${JSON.stringify(readFile)?.slice(0, 160)}`)
+  if (!stat || stat.size !== Buffer.byteLength(content)) problems.push(`fs:stat after sync → ${JSON.stringify(stat)}`)
+  if (!Array.isArray(outside?.readdir) || outside.readdir.length !== 0) problems.push(`fs:readdir(${SMOKE_FS_OUTSIDE_DIR}) → ${JSON.stringify(outside?.readdir)?.slice(0, 120)} (expected [])`)
+  if (!isDenied(outside?.readFile)) problems.push(`fs:readFile(${SMOKE_FS_OUTSIDE_FILE}) → ${JSON.stringify(outside?.readFile)?.slice(0, 120)} (expected denied)`)
+  if (problems.length > 0) return { ok: false, evidence: problems.join('; ') }
+  return {
+    ok: true,
+    evidence: `before sync: readdir [] + readFile denied; sync-roots → [${dir}], '/' rejected (filesystem root); ` +
+      `readdir [smoke.txt], readFile ${JSON.stringify(readFile.content.trim())}, stat ${stat.size} B; ${SMOKE_FS_OUTSIDE_DIR} readdir [] + ${SMOKE_FS_OUTSIDE_FILE} denied`,
+  }
+}
+
 function excerpt(text, max = 160) {
   const flat = String(text).replace(/\r/g, '').replace(/\n+/g, '⏎').trim()
   return flat.length > max ? `…${flat.slice(flat.length - max)}` : flat
 }
 
 /**
- * Runs S1-S11 against one server. `deps.createClient` lets tests inject a fake;
+ * Runs S1-S12 against one server. `deps.createClient` lets tests inject a fake;
  * everything else talks to the real server.
  */
 export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, createClient, log = () => {} } = {}) {
@@ -801,6 +858,8 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
   const runCmd = (command, regex) => runCmdIn(ptyId, command, regex)
   // S11's own PTY (temp git repo); killed in S11, re-checked in cleanup.
   const gitPty = { id: `${ptyId}-git`, created: false, killed: false }
+  // S12's own PTY (temp fs dir); killed in S12, re-checked in cleanup.
+  const fsPty = { id: `${ptyId}-fs`, created: false, killed: false }
 
   try {
     // ── S1 ──
@@ -1044,6 +1103,85 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       }
       set('S11', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
     }
+
+    // ── S12 ──
+    {
+      let dir = null
+      let synced = false
+      let outcome = null
+      try {
+        if (!client?.isOpen) throw new Error('no live connection for the fs probes')
+        // Read-only probe first: a server before T0406 answers `No handler` and nothing is created.
+        await client.invoke(SMOKE_CHANNELS.FS_STAT, '/tmp')
+        ownIds.add(fsPty.id)
+        const offset = tracker.mark(fsPty.id)
+        const result = await client.invoke(SMOKE_CHANNELS.PTY_CREATE, { id: fsPty.id, cwd: ptyCwd, type: 'terminal', ...(shellPath ? { shell: shellPath } : {}) })
+        if (!ptyCreateOutcome(result).ok) throw new Error(`pty:create(${fsPty.id}) returned ${JSON.stringify(result)}`)
+        fsPty.created = true
+        await tracker.waitFor(() => tracker.since(fsPty.id, offset).length > 0 || undefined, timeoutMs, `first pty:output of ${fsPty.id}`)
+        // The echoed command shows `:$d`; only the executed one prints the /tmp path.
+        const made = await runCmdIn(
+          fsPty.id,
+          `d=$(mktemp -d ${SMOKE_FS_DIR_TEMPLATE}) && printf '%s\\n' ${nonce}-s12 > "$d/smoke.txt" && echo ${nonce}-s12-dir:$d`,
+          new RegExp(`${nonce}-s12-dir:(/tmp/bat-smoke-fs\\.[A-Za-z0-9]+)`),
+        )
+        dir = made[1]
+        const file = `${dir}/smoke.txt`
+        const before = {
+          readdir: await client.invoke(SMOKE_CHANNELS.FS_READDIR, dir),
+          readFile: await client.invoke(SMOKE_CHANNELS.FS_READ_FILE, file),
+        }
+        const sync = await client.invoke(SMOKE_CHANNELS.WORKSPACE_SYNC_ROOTS, ['/', dir])
+        synced = true
+        outcome = checkFsSandboxAnswers({
+          dir,
+          nonce,
+          before,
+          sync,
+          readdir: await client.invoke(SMOKE_CHANNELS.FS_READDIR, dir),
+          readFile: await client.invoke(SMOKE_CHANNELS.FS_READ_FILE, file),
+          stat: await client.invoke(SMOKE_CHANNELS.FS_STAT, file),
+          outside: {
+            readdir: await client.invoke(SMOKE_CHANNELS.FS_READDIR, SMOKE_FS_OUTSIDE_DIR),
+            readFile: await client.invoke(SMOKE_CHANNELS.FS_READ_FILE, SMOKE_FS_OUTSIDE_FILE),
+          },
+        })
+      } catch (error) {
+        outcome = {
+          ok: false,
+          evidence: error.remote && UNSUPPORTED_ERROR_RX.test(error.message)
+            ? `${error.message} — server predates T0406 (fs:* / workspace:sync-roots not online)`
+            : `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}`,
+        }
+      }
+      if (fsPty.created) {
+        try {
+          if (!client?.isOpen) {
+            client = make()
+            attach(client)
+            await client.connect()
+          } else if (synced) {
+            // This connection's roots only; the server also drops them when the connection closes.
+            await client.invoke(SMOKE_CHANNELS.WORKSPACE_SYNC_ROOTS, [])
+            outcome.evidence += '; roots cleared'
+          }
+          if (dir && SMOKE_FS_DIR_RX.test(dir)) {
+            // `$((1+1))`: the echoed command never matches the marker, only the executed one.
+            await runCmdIn(
+              fsPty.id,
+              `case "$d" in /tmp/bat-smoke-fs.*) rm -rf -- "$d";; esac; test -e "$d" || echo ${nonce}-s12-gone-$((1+1))`,
+              new RegExp(`${nonce}-s12-gone-2`),
+            )
+            outcome.evidence += '; temp dir removed'
+          }
+          await client.invoke(SMOKE_CHANNELS.PTY_KILL, fsPty.id)
+          fsPty.killed = true
+        } catch (error) {
+          outcome = { ok: false, evidence: `${outcome.evidence}; S12 cleanup failed${dir ? ` (temp dir ${dir} may remain)` : ''}: ${error.message}` }
+        }
+      }
+      set('S12', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
+    }
   } finally {
     // Kill our PTY on every path, then confirm it is gone (own id only).
     if (created) {
@@ -1084,6 +1222,24 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       } catch (error) {
         cleanup.leftover = true
         cleanup.evidence += `; S11 PTY cleanup failed: ${error instanceof Error ? error.message : String(error)}`
+      }
+    }
+    // T0406: S12's PTY (S12 kills it; only re-checked here).
+    if (fsPty.created) {
+      try {
+        if (!client?.isOpen) {
+          client = make()
+          attach(client)
+          await client.connect()
+        }
+        if (!fsPty.killed) await client.invoke(SMOKE_CHANNELS.PTY_KILL, fsPty.id)
+        const probe = await client.invoke(SMOKE_CHANNELS.PTY_WRITE, fsPty.id, '\r')
+        const left = !(probe && probe.ok === false && probe.reason === 'pty-not-found')
+        cleanup.leftover = cleanup.leftover || left
+        cleanup.evidence += `; pty:write(${fsPty.id}) → ${JSON.stringify(probe)}`
+      } catch (error) {
+        cleanup.leftover = true
+        cleanup.evidence += `; S12 PTY cleanup failed: ${error instanceof Error ? error.message : String(error)}`
       }
     }
     await client?.close().catch(() => undefined)

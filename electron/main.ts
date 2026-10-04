@@ -8,6 +8,7 @@ import { registerTerminalCommandHandlers } from './terminal-command-handlers'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
 import { registerGitHandlers } from './handlers/git'
+import { registerFsHandlers } from './handlers/fs'
 import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
 import { createRemoteToolInstallIpc, PendingRemoteToolInstalls } from '../src/lib/remote-tools/install-request'
 
@@ -84,7 +85,7 @@ import { PROXIED_CHANNELS } from './remote/protocol'
 import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
-import { RemoteClient } from './remote/remote-client'
+import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -117,10 +118,8 @@ import { WslKeepAlive } from './wsl-keepalive'
 import { createWslFolderDefaultResolver, wslDistroForFolderDialog } from './wsl-workspace-folder'
 import { fetchTlsFingerprint, type FetchFingerprintResult } from './tls-fingerprint'
 import {
-  assertPathAllowed,
   isPathAllowed,
   rebuildWorkspaceAllowlist,
-  MAX_IMAGE_SIZE,
 } from './path-guard'
 import * as net from 'net'
 
@@ -1230,6 +1229,22 @@ async function syncPathGuardFromRegistry(): Promise<void> {
   }
 }
 
+// PLAN-036 T0406 — headless fs sandbox: a remote-profile connection hands its
+// server the workspace roots of every window bound to that profile (client form;
+// RemoteClient.invoke converts them with the profile's PathTranslator). Pushed
+// after every auth (RemoteClient) and after workspace:save / workspace:load of a
+// bound window. Local windows never push.
+function bindRemoteClient(client: RemoteClient, profileId: string | null): RemoteClient {
+  client.setWorkspaceRootsProvider(async () => collectWorkspaceRoots(await windowRegistry.readAll(), profileId))
+  return client
+}
+
+function syncRemoteWorkspaceRoots(windowProfileId: string | null | undefined): void {
+  const client = remoteClient
+  if (!client || !shouldSyncWorkspaceRoots(windowProfileId, remoteClientProfileId, client.isConnected)) return
+  void client.syncWorkspaceRoots()
+}
+
 type SnapshotLoadResult =
   | { kind: 'ok'; snapshot: ProfileSnapshot | null }
   | ({ kind: 'remote-unreachable' } & RemoteProfileFailure)
@@ -1254,7 +1269,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
     const label = profileEntry.name || profileId
     const task = remoteOpMutex.then(async () => {
       try {
-        const client = new RemoteClient(() => getWindowsForProfile(profileId), profileEntry)
+        const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(profileId), profileEntry), profileId)
         const result = await client.connect(
           host,
           port,
@@ -2134,6 +2149,8 @@ function registerProxiedHandlers() {
     // PLAN-018 T0183 — refresh path-guard allowlist after every save, so
     // add/remove/rename workspace propagates to the sandbox immediately.
     await syncPathGuardFromRegistry()
+    // T0406 — a remote-profile window: hand its server the new roots.
+    syncRemoteWorkspaceRoots(entry.profileId)
     // Also persist to profile snapshot so force-quit doesn't lose state
     if (entry.profileId) {
       profileManager.save(entry.profileId).catch(() => { /* ignore */ })
@@ -2145,6 +2162,9 @@ function registerProxiedHandlers() {
     if (!ctx.windowId) return null
     const entry = await windowRegistry.getEntry(ctx.windowId)
     if (!entry) return null
+    // T0406 — a remote window's workspaces reach the registry (applySnapshot) only
+    // after the connect-time push, so push again once the window loads them.
+    syncRemoteWorkspaceRoots(entry.profileId)
     return JSON.stringify({
       workspaces: entry.workspaces,
       activeWorkspaceId: entry.activeWorkspaceId,
@@ -2206,140 +2226,20 @@ function registerProxiedHandlers() {
     getGithubCliPath: () => readPersistedSettingsSync()?.githubCliPath,
   })
 
-  // File system
-  // File watcher for auto-refresh
-  const fileWatchers = new Map<string, ReturnType<typeof fsSync.watch>>()
-  registerHandler('fs:watch', (_ctx, _dirPath: string) => {
-    if (!isPathAllowed(_dirPath)) return false
-    if (fileWatchers.has(_dirPath)) return true
-    try {
-      let debounceTimer: ReturnType<typeof setTimeout> | null = null
-      const watcher = fsSync.watch(_dirPath, { recursive: true }, () => {
-        if (debounceTimer) clearTimeout(debounceTimer)
-        debounceTimer = setTimeout(() => {
-          for (const win of BrowserWindow.getAllWindows()) {
-            if (!win.isDestroyed()) {
-              try { win.webContents.send('fs:changed', _dirPath) } catch { /* window closing */ }
-            }
-          }
-          broadcastHub.broadcast('fs:changed', _dirPath)
-        }, 500)
-      })
-      watcher.on('error', () => {
-        fileWatchers.delete(_dirPath)
-      })
-      fileWatchers.set(_dirPath, watcher)
-      return true
-    } catch { return false }
-  })
-  // Force-destroy and re-create the watcher — used by CT panel refresh button
-  // to recover from broken watcher state (e.g. after git mv buffer overflow).
-  registerHandler('fs:reset-watch', (_ctx, _dirPath: string) => {
-    if (!isPathAllowed(_dirPath)) return false
-    const existing = fileWatchers.get(_dirPath)
-    if (existing) {
-      existing.close()
-      fileWatchers.delete(_dirPath)
-    }
-    // Re-create watcher (same logic as fs:watch)
-    try {
-      let debounceTimer: ReturnType<typeof setTimeout> | null = null
-      const watcher = fsSync.watch(_dirPath, { recursive: true }, () => {
-        if (debounceTimer) clearTimeout(debounceTimer)
-        debounceTimer = setTimeout(() => {
-          for (const win of BrowserWindow.getAllWindows()) {
-            if (!win.isDestroyed()) {
-              try { win.webContents.send('fs:changed', _dirPath) } catch { /* window closing */ }
-            }
-          }
-          broadcastHub.broadcast('fs:changed', _dirPath)
-        }, 500)
-      })
-      watcher.on('error', () => {
-        fileWatchers.delete(_dirPath)
-      })
-      fileWatchers.set(_dirPath, watcher)
-      return true
-    } catch { return false }
-  })
-
-  registerHandler('fs:unwatch', (_ctx, _dirPath: string) => {
-    if (!isPathAllowed(_dirPath)) return false
-    const watcher = fileWatchers.get(_dirPath)
-    if (watcher) {
-      watcher.close()
-      fileWatchers.delete(_dirPath)
-    }
-    return true
-  })
-
-  registerHandler('fs:readdir', async (_ctx, dirPath: string) => {
-    if (!isPathAllowed(dirPath)) return []
-    const IGNORED = new Set(['.git', 'node_modules', '.next', 'dist', 'dist-electron', '.cache', '__pycache__', '.DS_Store'])
-    try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true })
-      return entries
-        .filter(e => !IGNORED.has(e.name))
-        .sort((a, b) => { if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1; return a.name.localeCompare(b.name) })
-        .map(e => ({ name: e.name, path: path.join(dirPath, e.name), isDirectory: e.isDirectory() }))
-    } catch { return [] }
-  })
-  registerHandler('fs:readFile', async (_ctx, filePath: string) => {
-    if (!isPathAllowed(filePath)) return { error: 'Path access denied' }
-    try {
-      const stat = await fs.stat(filePath)
-      if (stat.size > 512 * 1024) return { error: 'File too large', size: stat.size }
-      const content = await fs.readFile(filePath, 'utf-8')
-      return { content }
-    } catch { return { error: 'Failed to read file' } }
-  })
-  registerHandler('fs:stat', async (_ctx, filePath: string) => {
-    if (!isPathAllowed(filePath)) return null
-    try {
-      const stat = await fs.stat(filePath)
-      return { mtimeMs: stat.mtimeMs, size: stat.size }
-    } catch { return null }
-  })
-  registerHandler('image:read-as-data-url', async (_ctx, filePath: string) => {
-    if (!isPathAllowed(filePath)) throw new Error('Path access denied')
-    try {
-      const stat = await fs.stat(filePath)
-      if (stat.size > MAX_IMAGE_SIZE) {
-        throw new Error(`Image too large (${stat.size} > ${MAX_IMAGE_SIZE} bytes)`)
-      }
-      const ext = path.extname(filePath).toLowerCase()
-      const mimeMap: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }
-      const mime = mimeMap[ext] || 'image/png'
-      const data = await fs.readFile(filePath)
-      return `data:${mime};base64,${data.toString('base64')}`
-    } catch (err) {
-      logger.warn('[image:read-as-data-url] failed:', err instanceof Error ? err.message : String(err))
-      throw err instanceof Error ? err : new Error(String(err))
-    }
-  })
-  registerHandler('fs:search', async (_ctx, dirPath: string, query: string) => {
-    // AC-7: starting point must be inside a workspace; recursive walk silently
-    // skips entries that fall outside (symlinks, `..` → never throw).
-    if (!isPathAllowed(dirPath)) return []
-    const IGNORED = new Set(['.git', 'node_modules', '.next', 'dist', 'dist-electron', '.cache', '__pycache__', '.DS_Store', 'release'])
-    const results: { name: string; path: string; isDirectory: boolean }[] = []
-    const lowerQuery = query.toLowerCase()
-    async function walk(dir: string, depth: number) {
-      if (depth > 8 || results.length >= 100) return
-      try {
-        const entries = await fs.readdir(dir, { withFileTypes: true })
-        for (const e of entries) {
-          if (results.length >= 100) return
-          if (IGNORED.has(e.name)) continue
-          const fullPath = path.join(dir, e.name)
-          if (!isPathAllowed(fullPath)) continue  // AC-7: symlink jumps out → skip, don't throw
-          if (e.name.toLowerCase().includes(lowerQuery)) results.push({ name: e.name, path: fullPath, isDirectory: e.isDirectory() })
-          if (e.isDirectory()) await walk(fullPath, depth + 1)
+  // fs:* / image:read-as-data-url / workspace:sync-roots — shared with headless bat-server
+  // (PLAN-036 T0406, electron/handlers/fs.ts). Local: the window-registry path-guard
+  // (rebuilt on startup and every workspace:save); fs:changed goes to every window +
+  // remote clients, as before. No workspaceRoots: synced roots never widen this host's sandbox.
+  registerFsHandlers(registerHandler, {
+    emit: (channel, ...args) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+          try { win.webContents.send(channel, ...args) } catch { /* window closing */ }
         }
-      } catch { /* skip */ }
-    }
-    await walk(dirPath, 0)
-    return results.sort((a, b) => { if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1; return a.name.localeCompare(b.name) })
+      }
+      broadcastHub.broadcast(channel, ...args)
+    },
+    pathGuard: { isPathAllowed },
   })
 
   // Snippets
@@ -2608,7 +2508,7 @@ function registerLocalHandlers() {
         const senderWindowId = getWindowIdByWebContents(event.sender)
         const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
         const boundProfileId = senderEntry?.profileId ?? null
-        const client = new RemoteClient(() => getWindowsForProfile(boundProfileId), senderEntry ? await profileManager.getProfile(boundProfileId ?? '') : null)
+        const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(boundProfileId), senderEntry ? await profileManager.getProfile(boundProfileId ?? '') : null), boundProfileId)
         const result = await client.connect(host, port, token, label, fingerprint)
         if (!result.ok) {
           remoteClient = null

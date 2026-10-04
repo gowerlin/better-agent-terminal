@@ -8,17 +8,22 @@
  *   - each PROXIED_CHANNELS entry is in PATH_ARG_SCHEMA xor PATH_FREE_CHANNELS
  *   - path-returning results are either rewritten (PATH_RETURNING_CHANNELS) or
  *     deliberately kept in server form (SERVER_PATH_RESULT_CHANNELS)
+ * T0406: the same for PROXIED_EVENTS (PATH_EVENT_CHANNELS xor PATH_FREE_EVENTS),
+ * and `workspace:sync-roots` (path-aware, converted once by RemoteClient.invoke).
  */
 import { describe, expect, it } from 'vitest'
-import { PROXIED_CHANNELS } from '../protocol'
+import { PROXIED_CHANNELS, PROXIED_EVENTS } from '../protocol'
 import {
   PATH_ARG_SCHEMA,
   PATH_AWARE_CHANNELS,
+  PATH_EVENT_CHANNELS,
   PATH_FREE_CHANNELS,
+  PATH_FREE_EVENTS,
   PATH_RETURNING_CHANNELS,
   SERVER_PATH_RESULT_CHANNELS,
   normalizePathsInResult,
   translateInvokeArgs,
+  translateRemoteEventArgs,
 } from '../path-aware-channels'
 import { IdentityTranslator, WslPathTranslator } from '../path-translator'
 
@@ -119,6 +124,7 @@ const ARG_FIXTURES: Record<string, (p: string) => unknown[]> = {
   'git-scaffold:listCommits': (p) => [p, { limit: 100, offset: 0 }],
   'terminal:create-with-command': (p) => [{ id: 't1', cwd: p, command: 'ls', shell: 'bash', customEnv: { HOME: 'C:\\keep' } }],
   'terminal:create-agent-command': (p) => [{ id: 't1', cwd: p, agent: 'claude', prompt: 'C:\\keep', workspaceId: 'w1' }],
+  'workspace:sync-roots': (p) => [[p, p]],
 }
 
 describe('T0416 request translation (WSL translator)', () => {
@@ -217,5 +223,58 @@ describe('T0416 result translation (WSL translator)', () => {
     for (const [channel, result] of Object.entries(results)) {
       expect(normalizePathsInResult(channel, result, wsl), channel).toBe(result)
     }
+  })
+})
+
+describe('T0406 guard: every proxied event has a path classification', () => {
+  it('each PROXIED_EVENTS entry is path-translated or path-free (exactly one)', () => {
+    const unclassified: string[] = []
+    const both: string[] = []
+    for (const event of Array.from(PROXIED_EVENTS)) {
+      const translated = PATH_EVENT_CHANNELS.has(event)
+      const free = PATH_FREE_EVENTS.has(event)
+      if (!translated && !free) unclassified.push(event)
+      if (translated && free) both.push(event)
+    }
+    expect(unclassified, 'add to PATH_EVENT_CHANNELS or PATH_FREE_EVENTS (with reason)').toEqual([])
+    expect(both).toEqual([])
+  })
+
+  it('no stale classification for an event that is not proxied', () => {
+    const stale = Array.from(PATH_EVENT_CHANNELS.keys()).concat(Array.from(PATH_FREE_EVENTS.keys()))
+      .filter((event) => !PROXIED_EVENTS.has(event))
+    expect(stale).toEqual([])
+  })
+
+  it('every event entry carries a reason', () => {
+    for (const [event, reason] of Array.from(PATH_EVENT_CHANNELS).concat(Array.from(PATH_FREE_EVENTS))) {
+      expect(reason.trim(), event).not.toBe('')
+    }
+  })
+
+  it('fs:changed comes back in client form; claude:worktree-info stays server form', () => {
+    expect(translateRemoteEventArgs('fs:changed', [SERVER_HOME], wsl)).toEqual([UNC_HOME])
+    expect(translateRemoteEventArgs('fs:changed', [SERVER_WIN_DIR], wsl)).toEqual([WIN_DIR])
+    expect(translateRemoteEventArgs('fs:changed', [SERVER_HOME], local)).toEqual([SERVER_HOME])
+    const info = ['s1', { worktreePath: '/home/x/repo/.worktrees/a', gitRoot: '/home/x/repo' }]
+    expect(translateRemoteEventArgs('claude:worktree-info', info, wsl)).toBe(info)
+  })
+
+  it('every path-free event is delivered untouched', () => {
+    for (const event of Array.from(PATH_FREE_EVENTS.keys())) {
+      const args = ['id-1', SERVER_HOME, { path: SERVER_HOME }]
+      expect(translateRemoteEventArgs(event, args, wsl), event).toBe(args)
+    }
+  })
+})
+
+describe('T0406 workspace:sync-roots request', () => {
+  it('is path-aware: client-form roots reach the server converted exactly once', () => {
+    expect(PROXIED_CHANNELS.has('workspace:sync-roots')).toBe(true)
+    expect(PATH_ARG_SCHEMA['workspace:sync-roots']).toBe('array-of-strings')
+    expect(translateInvokeArgs('workspace:sync-roots', [[UNC_HOME, WIN_DIR]], wsl)).toEqual([[SERVER_HOME, SERVER_WIN_DIR]])
+    // a server-form root (already converted) passes through unchanged
+    expect(translateInvokeArgs('workspace:sync-roots', [[SERVER_HOME]], wsl)).toEqual([[SERVER_HOME]])
+    expect(translateInvokeArgs('workspace:sync-roots', [[UNC_HOME]], local)).toEqual([[UNC_HOME]])
   })
 })

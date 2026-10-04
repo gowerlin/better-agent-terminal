@@ -51,15 +51,8 @@ export const HEADLESS_UNSUPPORTED: Readonly<Record<string, HeadlessPhase>> = Obj
   'claude:set-codex-sandbox-mode': 'P1',
   'claude:set-codex-approval-policy': 'P1',
 
-  // ── P2: repo / filesystem (T0386 H / I) — worktree:* / git:* / git-scaffold:* / github:* online since T0405 (electron/handlers/git.ts) ──
-  'fs:readdir': 'P2',
-  'fs:readFile': 'P2',
-  'fs:stat': 'P2',
-  'fs:search': 'P2',
-  'fs:watch': 'P2',
-  'fs:unwatch': 'P2',
-  'fs:reset-watch': 'P2',
-  'image:read-as-data-url': 'P2',
+  // ── P2: repo / filesystem (T0386 H / I) — worktree:* / git:* / git-scaffold:* / github:* online since T0405 (electron/handlers/git.ts);
+  //    fs:* / image:read-as-data-url / workspace:sync-roots online since T0406 (electron/handlers/fs.ts) ──
 
   // ── P3: secondary (T0386 J / K) ──
   'settings:get-logging-info': 'P3', // T0386 §1 B: always-local candidate

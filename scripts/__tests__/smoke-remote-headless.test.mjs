@@ -2,6 +2,7 @@
 // T0396 — scripts/smoke-remote-headless.mjs (PLAN-036 P0 protocol-level smoke)
 // T0411 — S10 remote-tools:detect
 // T0405 — S11 git / github / worktree
+// T0406 — S12 fs sandbox / workspace:sync-roots
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -13,6 +14,7 @@ import { PROXIED_CHANNELS, PROXIED_EVENTS } from '../../electron/remote/protocol
 import { HEADLESS_UNSUPPORTED } from '../../electron/remote/headless-channel-status'
 import {
   CHECKS,
+  FS_DENIED,
   FRAME_FIELDS,
   FRAME_TYPE,
   NAME_RX,
@@ -23,6 +25,8 @@ import {
   SMOKE_GIT_REPO_RX,
   SMOKE_GIT_REPO_TEMPLATE,
   SMOKE_EVENTS,
+  SMOKE_FS_DIR_RX,
+  SMOKE_FS_DIR_TEMPLATE,
   UNSUPPORTED_ERROR_RX,
   UNSUPPORTED_PROBE_ARGS,
   UNSUPPORTED_PROBE_CHANNEL,
@@ -30,6 +34,7 @@ import {
   buildAuthFrame,
   buildInvokeFrame,
   checkClaudeRuntimeAnswers,
+  checkFsSandboxAnswers,
   checkGitAnswers,
   checkRemoteToolsAnswer,
   corruptFingerprint,
@@ -335,6 +340,11 @@ function fakeShellEval(command, pty) {
   if (made) return `${made[1]}-s11-repo:${FAKE_REPO}`
   const gone = /echo (\S+)-s11-gone-\$\(\(1\+1\)\)$/.exec(command.trim())
   if (gone) return `${gone[1]}-s11-gone-2`
+  // T0406 S12: temp dir setup / removal lines
+  const fsMade = /echo (\S+)-s12-dir:\$d$/.exec(command.trim())
+  if (fsMade) return `${fsMade[1]}-s12-dir:${FAKE_FS_DIR}`
+  const fsGone = /echo (\S+)-s12-gone-\$\(\(1\+1\)\)$/.exec(command.trim())
+  if (fsGone) return `${fsGone[1]}-s12-gone-2`
   const echo = /^echo (.*)$/.exec(command.trim())
   if (!echo) return ''
   return echo[1]
@@ -345,6 +355,7 @@ function fakeShellEval(command, pty) {
 
 const CLI_PATH = '/home/u/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude'
 const FAKE_REPO = '/tmp/bat-smoke-git.Ab12Cd'
+const FAKE_FS_DIR = '/tmp/bat-smoke-fs.Ef34Gh'
 const GH_NOT_LOGGED_IN = { installed: true, authenticated: false, authState: 'unauthenticated', path: '/usr/bin/gh', source: 'path', attemptedPaths: ['/usr/local/bin/gh', '/usr/bin/gh'] }
 
 /** T0405: git channel answers for the S11 temp repo (`nonce` = the one smoke commit's message prefix). */
@@ -377,9 +388,12 @@ function remoteToolsReport(overrides = {}) {
   }
 }
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, serverEnv = 'native' } = {}) {
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, preFs = false, serverEnv = 'native' } = {}) {
   const ptys = new Map()
   const s11 = { nonce: null, repoRemoved: false }
+  // T0406: one fake connection's synced roots; fs answers like electron/handlers/fs.ts
+  const s12 = { nonce: null, dirRemoved: false, roots: [], syncCalls: [] }
+  const inRoots = (p) => typeof p === 'string' && s12.roots.some((r) => p === r || p.startsWith(`${r}/`))
   const clients = new Set()
   const log = []
   const probeArgs = []
@@ -405,7 +419,10 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       if (!pty) return { ok: false, reason: 'pty-not-found' }
       const made = /(\S+)-s11-repo:\$d/.exec(data)
       if (made) s11.nonce = made[1].split(' ').pop()
-      if (data.includes('rm -rf -- "$d"')) s11.repoRemoved = true
+      if (data.includes('rm -rf -- "$d"') && data.includes('bat-smoke-git')) s11.repoRemoved = true
+      const fsMade = /(\S+)-s12-dir:\$d/.exec(data)
+      if (fsMade) s12.nonce = fsMade[1].split(' ').pop()
+      if (data.includes('rm -rf -- "$d"') && data.includes('bat-smoke-fs')) s12.dirRemoved = true
       setTimeout(() => emit('pty:output', id, `${data}\r\n${fakeShellEval(data, pty)}\r\n$ `), 1)
       return { ok: true }
     },
@@ -439,6 +456,20 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       'git:status': () => [],
       'git-scaffold:healthCheck': (cwd) => (cwd === FAKE_REPO ? gitAnswers(s11.nonce).health : { ok: true, isRepo: false, gitRoot: null }),
       'worktree:status': () => null,
+    }),
+    ...(preFs ? {} : {
+      'workspace:sync-roots': (roots) => {
+        s12.syncCalls.push(roots)
+        const rejected = roots.filter((r) => r === '/').map((root) => ({ root, reason: 'filesystem root' }))
+        s12.roots = roots.filter((r) => r !== '/')
+        return { ok: true, roots: [...s12.roots], rejected }
+      },
+      'fs:stat': (p) => (inRoots(p) && p === `${FAKE_FS_DIR}/smoke.txt` ? { mtimeMs: 1, size: Buffer.byteLength(`${s12.nonce}-s12\n`) } : null),
+      'fs:readdir': (p) => (inRoots(p) && p === FAKE_FS_DIR ? [{ name: 'smoke.txt', path: `${FAKE_FS_DIR}/smoke.txt`, isDirectory: false }] : []),
+      'fs:readFile': (p) => {
+        if (!inRoots(p)) return { error: 'Path access denied' }
+        return p === `${FAKE_FS_DIR}/smoke.txt` ? { content: `${s12.nonce}-s12\n` } : { error: 'Failed to read file' }
+      },
     }),
   }
 
@@ -486,28 +517,28 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
 
   const conn = { url: 'wss://fake:1', token: 'tok', fingerprint: FP, cwd: '/home/u' }
   const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
-  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts, s11 }
+  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts, s11, s12 }
 }
 
 describe('runSmoke (fake server)', () => {
-  it('passes S1-S11 and leaves no smoke PTY behind', async () => {
+  it('passes S1-S12 and leaves no smoke PTY behind', async () => {
     const fake = createFakeServer()
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(report.ptyId).toMatch(/^smoke-\d{14}-[0-9a-f]{6}$/)
     expect(fake.ptys.size).toBe(0)
-    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(2) // S7 + S11's own PTY
+    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(3) // S7 + S11's and S12's own PTYs
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
-    expect(summarize(report)).toEqual({ ok: true, passed: 11, warned: 0, total: 11 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 12, warned: 0, total: 12 })
     expect(fake.probeArgs).toEqual([['smoke-probe', 'read-only']])
     // S10 waits for the 20 s login-view probe, not the 500 ms default
     expect(fake.invokeTimeouts).toEqual([['remote-tools:detect', REMOTE_TOOLS_DETECT_TIMEOUT_MS], ['github:check-cli', GITHUB_CHECK_CLI_TIMEOUT_MS]])
     expect(report.checks.find((c) => c.id === 'S10').evidence).toMatch(/schema v1; ubuntu 24\.04 x86_64 pkg=apt .*git=ok@2\.43\.0/)
   })
 
-  it('passes S1-S11 against a server before T0403 (pty:create answers a bare boolean)', async () => {
+  it('passes S1-S12 against a server before T0403 (pty:create answers a bare boolean)', async () => {
     const fake = createFakeServer({ legacyCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -537,7 +568,7 @@ describe('runSmoke (fake server)', () => {
     const fake = createFakeServer({ rejectCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
     const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
-    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS', S11: 'FAIL' })
+    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS', S11: 'FAIL', S12: 'FAIL' })
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(fake.log).not.toContain('pty:kill')
   })
@@ -549,7 +580,7 @@ describe('runSmoke (fake server)', () => {
     expect(s1.status).toBe('WARN')
     expect(s1.evidence).toMatch(/env=native but target is wsl/)
     expect(report.checks.filter((c) => c.id !== 'S1').every((c) => c.status === 'PASS')).toBe(true)
-    expect(summarize(report)).toEqual({ ok: true, passed: 10, warned: 1, total: 11 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 11, warned: 1, total: 12 })
   })
 
   it('T0404: S1 passes with env=wsl on a WSL target; non-WSL targets never WARN on env', async () => {
@@ -629,7 +660,7 @@ describe('runSmoke (fake server)', () => {
     const s11 = report.checks.find((c) => c.id === 'S11')
     expect(s11.status).toBe('FAIL')
     expect(s11.evidence).toMatch(/No handler for channel: github:check-cli — server predates T0405/)
-    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(2) // S3 + S5 only
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(3) // S3 + S5 + S12 only
     expect(report.checks.filter((c) => c.id !== 'S11').every((c) => c.status === 'PASS')).toBe(true)
     expect(summarize(report).ok).toBe(false)
   })
@@ -646,6 +677,49 @@ describe('runSmoke (fake server)', () => {
       const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
       expect(report.checks.find((c) => c.id === 'S11').status).toBe('FAIL')
       expect(fake.s11.repoRemoved).toBe(true)
+      expect(fake.ptys.size).toBe(0)
+    }
+  })
+
+  it('S12 syncs roots for its own temp dir only, clears them, removes the dir and kills its PTY', async () => {
+    const fake = createFakeServer()
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s12 = report.checks.find((c) => c.id === 'S12')
+    expect(s12.status, s12.evidence).toBe('PASS')
+    expect(s12.evidence).toContain(`sync-roots → [${FAKE_FS_DIR}], '/' rejected (filesystem root)`)
+    expect(s12.evidence).toMatch(/\/etc readdir \[\] \+ \/etc\/hostname denied/)
+    expect(s12.evidence).toMatch(/roots cleared; temp dir removed$/)
+    expect(fake.s12.syncCalls).toEqual([['/', FAKE_FS_DIR], []])
+    expect(fake.s12.roots).toEqual([])
+    expect(fake.s12.dirRemoved).toBe(true)
+    expect(fake.ptys.size).toBe(0)
+    expect(report.cleanup.evidence).toContain(`pty:write(${report.ptyId}-fs)`)
+    expect(report.cleanup.leftover).toBe(false)
+  })
+
+  it('S12 fails, naming the cause, against a server before T0406 — and creates no dir / PTY', async () => {
+    const fake = createFakeServer({ preFs: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+    const s12 = report.checks.find((c) => c.id === 'S12')
+    expect(s12.status).toBe('FAIL')
+    expect(s12.evidence).toMatch(/No handler for channel: fs:stat — server predates T0406/)
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(3) // S3 + S5 + S11 only
+    expect(report.checks.filter((c) => c.id !== 'S12').every((c) => c.status === 'PASS')).toBe(true)
+    expect(summarize(report).ok).toBe(false)
+  })
+
+  it('S12 fails when the sandbox is open before sync or /etc is readable, and still cleans up', async () => {
+    const breakages = [
+      (h) => { h['fs:readFile'] = () => ({ content: 'leaked' }) },
+      (h) => { const readdir = h['fs:readdir']; h['fs:readdir'] = (p) => (p === '/etc' ? [{ name: 'passwd', path: '/etc/passwd', isDirectory: false }] : readdir(p)) },
+      (h) => { const sync = h['workspace:sync-roots']; h['workspace:sync-roots'] = (roots) => ({ ...sync(roots), rejected: [] }) },
+    ]
+    for (const breakIt of breakages) {
+      const fake = createFakeServer()
+      breakIt(fake.handlers)
+      const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+      expect(report.checks.find((c) => c.id === 'S12').status).toBe('FAIL')
+      expect(fake.s12.dirRemoved).toBe(true)
       expect(fake.ptys.size).toBe(0)
     }
   })
@@ -733,5 +807,44 @@ describe('checkRemoteToolsAnswer (S10, T0411)', () => {
     expect(checkRemoteToolsAnswer(remoteToolsReport({ schemaVersion: 2 })).evidence).toMatch(/schemaVersion=2/)
     expect(checkRemoteToolsAnswer(remoteToolsReport({ env: { osFamily: 'darwin' } })).evidence).toMatch(/osFamily=darwin/)
     expect(checkRemoteToolsAnswer(remoteToolsReport({ tools: [] })).evidence).toMatch(/git status=absent/)
+  })
+})
+
+describe('checkFsSandboxAnswers (S12, T0406)', () => {
+  const dir = FAKE_FS_DIR
+  const good = (overrides = {}) => checkFsSandboxAnswers({
+    dir,
+    nonce: 'n1',
+    before: { readdir: [], readFile: { ...FS_DENIED } },
+    sync: { ok: true, roots: [dir], rejected: [{ root: '/', reason: 'filesystem root' }] },
+    readdir: [{ name: 'smoke.txt', path: `${dir}/smoke.txt`, isDirectory: false }],
+    readFile: { content: 'n1-s12\n' },
+    stat: { mtimeMs: 1, size: 7 },
+    outside: { readdir: [], readFile: { ...FS_DENIED } },
+    ...overrides,
+  })
+
+  it('accepts a fail-closed sandbox that opens exactly the synced dir', () => {
+    expect(good()).toMatchObject({ ok: true })
+  })
+
+  it('rejects an open sandbox, a missing / rejection, a wrong file, or a readable /etc', () => {
+    expect(good({ before: { readdir: [{ name: 'smoke.txt' }], readFile: { ...FS_DENIED } } }).ok).toBe(false)
+    expect(good({ before: { readdir: [], readFile: { content: 'n1-s12\n' } } }).ok).toBe(false)
+    expect(good({ sync: { ok: true, roots: ['/', dir], rejected: [] } }).ok).toBe(false)
+    expect(good({ sync: { ok: true, roots: [dir], rejected: [] } }).evidence).toMatch(/did not reject '\/'/)
+    expect(good({ sync: { ok: false, error: 'host-managed' } }).ok).toBe(false)
+    expect(good({ readFile: { content: 'other' } }).ok).toBe(false)
+    expect(good({ stat: null }).ok).toBe(false)
+    expect(good({ outside: { readdir: [{ name: 'passwd' }], readFile: { ...FS_DENIED } } }).ok).toBe(false)
+    expect(good({ outside: { readdir: [], readFile: { content: 'host' } } }).ok).toBe(false)
+  })
+
+  it('the temp dir template and the removal guard agree', () => {
+    expect(SMOKE_FS_DIR_TEMPLATE.startsWith('/tmp/bat-smoke-fs.')).toBe(true)
+    expect(SMOKE_FS_DIR_RX.test(FAKE_FS_DIR)).toBe(true)
+    expect(SMOKE_FS_DIR_RX.test('/tmp')).toBe(false)
+    expect(SMOKE_FS_DIR_RX.test('/tmp/bat-smoke-fs.x/../..')).toBe(false)
+    expect(SMOKE_FS_DIR_RX.test('/home/u/bat-smoke-fs.abc')).toBe(false)
   })
 })

@@ -67,6 +67,8 @@ export const PROXIED_CHANNELS = new Set([
   // FS
   'fs:readdir', 'fs:readFile', 'fs:stat', 'fs:search', 'fs:watch', 'fs:unwatch', 'fs:reset-watch',
   'image:read-as-data-url',
+  // T0406: client → server workspace roots for the headless fs sandbox (sent by main, not the renderer)
+  'workspace:sync-roots',
   // Snippet
   'snippet:getAll', 'snippet:getById', 'snippet:create', 'snippet:update',
   'snippet:delete', 'snippet:toggleFavorite', 'snippet:search',
@@ -79,7 +81,16 @@ export const PROXIED_CHANNELS = new Set([
   'remote-tools:detect',
 ])
 
-// Events pushed from host to remote clients
+/**
+ * T0406: the server's fs sandbox roots. Sent by Electron main's RemoteClient after
+ * every auth and after `workspace:save` / `workspace:load` of a bound window
+ * (electron/handlers/fs.ts answers it).
+ */
+export const WORKSPACE_SYNC_ROOTS_CHANNEL = 'workspace:sync-roots'
+
+// Events pushed from host to remote clients. T0406: each one is classified as
+// path-translated or not in path-aware-channels.ts (PATH_EVENT_CHANNELS /
+// PATH_FREE_EVENTS), guarded by path-aware-channels-coverage.test.ts.
 export const PROXIED_EVENTS = new Set([
   'pty:output', 'pty:exit',
   'claude:message', 'claude:tool-use', 'claude:tool-result',

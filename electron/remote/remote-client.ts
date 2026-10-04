@@ -3,7 +3,7 @@ import type { TLSSocket, PeerCertificate } from 'tls'
 import { randomBytes } from 'crypto'
 import { BrowserWindow } from 'electron'
 import { extractTargetOSMeta, type ProfileEntry } from '../profile-manager'
-import { PROXIED_EVENTS, type AuthResult, type AuthResultMetadata, type RemoteFrame } from './protocol'
+import { PROXIED_EVENTS, WORKSPACE_SYNC_ROOTS_CHANNEL, type AuthResult, type AuthResultMetadata, type RemoteFrame } from './protocol'
 import {
   normalizePathsInResult,
   translateInvokeArgs,
@@ -60,6 +60,42 @@ export function computeReconnectDelay(attempt: number, rand: () => number = Math
 const AUTH_TIMEOUT_MS = 6_000
 const DEFAULT_INVOKE_TIMEOUT_MS = 30_000
 
+/** T0406: client-form workspace roots of the windows bound to this connection. */
+export type WorkspaceRootsProvider = () => string[] | Promise<string[]>
+
+/**
+ * T0406: `folderPath` of every workspace of the windows bound to `profileId`
+ * (window registry entries), deduplicated, in registry order. Client form —
+ * `RemoteClient.invoke` converts them (`workspace:sync-roots` is path-aware).
+ */
+export function collectWorkspaceRoots(
+  entries: ReadonlyArray<{ profileId?: string | null; workspaces?: unknown }>,
+  profileId: string | null,
+): string[] {
+  if (!profileId) return []
+  const roots: string[] = []
+  for (const entry of entries) {
+    if (entry.profileId !== profileId || !Array.isArray(entry.workspaces)) continue
+    for (const ws of entry.workspaces as Array<{ folderPath?: unknown } | null>) {
+      const folderPath = ws?.folderPath
+      if (typeof folderPath === 'string' && folderPath && !roots.includes(folderPath)) roots.push(folderPath)
+    }
+  }
+  return roots
+}
+
+/**
+ * T0406: whether a window's workspace change must be pushed — only a window of the
+ * remote profile this client is bound to, while connected. Local windows never push.
+ */
+export function shouldSyncWorkspaceRoots(
+  windowProfileId: string | null | undefined,
+  boundProfileId: string | null | undefined,
+  connected: boolean,
+): boolean {
+  return connected && !!windowProfileId && windowProfileId === boundProfileId
+}
+
 export class RemoteClient {
   private ws: WebSocket | null = null
   private pending: Map<string, PendingInvoke> = new Map()
@@ -84,6 +120,10 @@ export class RemoteClient {
   private tunnel: SshTunnel | null = null
   private remoteServerPort = 0   // pre-tunnel destination port on the SSH host
   private tunnelRestartFailures = 0
+
+  // T0406: pushed after every successful auth (first connect and each reconnect —
+  // a new connection starts with no roots on the server, which fails closed).
+  private workspaceRootsProvider: WorkspaceRootsProvider | null = null
 
   constructor(getWindows: () => BrowserWindow[], profile?: ProfileEntry | null) {
     this.getWindows = getWindows
@@ -112,6 +152,39 @@ export class RemoteClient {
 
   setTranslator(translator: PathTranslator): void {
     this.translator = translator
+  }
+
+  /** T0406: source of this connection's workspace roots; null stops pushing. */
+  setWorkspaceRootsProvider(provider: WorkspaceRootsProvider | null): void {
+    this.workspaceRootsProvider = provider
+  }
+
+  /**
+   * T0406: hand the server the current workspace roots (headless fs sandbox,
+   * `workspace:sync-roots`). Roots go out in client form; `invoke` converts
+   * them with this connection's PathTranslator (path-aware `array-of-strings`),
+   * so they are converted exactly once. Best effort: failures are logged and
+   * resolve to null — the server stays fail-closed for this connection.
+   */
+  async syncWorkspaceRoots(): Promise<unknown> {
+    const provider = this.workspaceRootsProvider
+    if (!provider || !this.isConnected) return null
+    try {
+      const roots = await provider()
+      const result = await this.invoke(WORKSPACE_SYNC_ROOTS_CHANNEL, [roots])
+      const outcome = result as { ok?: boolean; roots?: unknown[]; rejected?: Array<{ root?: unknown; reason?: string }>; error?: string } | null
+      if (outcome?.ok === true) {
+        const rejected = Array.isArray(outcome.rejected) ? outcome.rejected : []
+        logger.log(`[RemoteClient] workspace roots synced: ${outcome.roots?.length ?? 0} accepted, ${rejected.length} rejected`)
+        for (const r of rejected) logger.warn(`[RemoteClient] server rejected workspace root ${JSON.stringify(r.root)}: ${r.reason}`)
+      } else {
+        logger.log(`[RemoteClient] workspace roots not applied by server: ${outcome?.error ?? JSON.stringify(result)}`)
+      }
+      return result
+    } catch (error) {
+      logger.warn('[RemoteClient] workspace:sync-roots failed:', error instanceof Error ? error.message : String(error))
+      return null
+    }
   }
 
   /**
@@ -325,6 +398,8 @@ export class RemoteClient {
                 `(fingerprint=${observedFingerprint.substring(0, 23)}...)`
             )
             settle({ ok: true, fingerprint: observedFingerprint })
+            // T0406: every (re)connect is a fresh server connection with no roots.
+            void this.syncWorkspaceRoots()
           }
           return
         }

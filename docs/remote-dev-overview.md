@@ -104,6 +104,29 @@ context attachments cross the boundary:
 Translators are pure functions over the profile metadata; tests cover each
 case in `tests/path-translator-*.test.ts`.
 
+### Headless fs sandbox (`workspace:sync-roots`, T0406)
+
+The file tree / file preview / search / image preview of a remote window run
+on the server (`fs:*`, `image:read-as-data-url`). Like the local app, the
+server only serves paths inside a workspace root — but the headless server has
+no window registry, so the client tells it the roots:
+
+- After every successful auth (first connect and every reconnect) and after
+  `workspace:save` / `workspace:load` of a window bound to the remote profile,
+  Electron main sends `workspace:sync-roots([folderPath, …])` with the
+  `folderPath` of every workspace of that profile's windows. The channel is
+  path-aware (`array-of-strings`), so `RemoteClient.invoke` converts each root
+  once with the profile's PathTranslator (`\\wsl.localhost\Ubuntu-24.04\home\x`
+  → `/home/x`). Local-profile windows never send it.
+- The server keeps roots **per connection** and allows the union; a closed
+  connection's roots are dropped. It accepts only absolute server paths and
+  rejects `/` (a filesystem root) and any root with a `..` segment.
+- **Fail closed**: until a connection pushes roots (or after an empty push),
+  every fs / image call is denied (`fs:readdir` → `[]`, `fs:readFile` →
+  `{ error: 'Path access denied' }`).
+- A desktop BAT acting as a server answers `workspace:sync-roots` with
+  `{ ok: false }`: its sandbox stays the one built from its own window registry.
+
 ### TLS fingerprint pinning (TOFU)
 
 Every BAT server (whether installed via WSL, Docker, or SSH wizard) generates
@@ -215,6 +238,7 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
 | S9 | `claude:get-cli-path` / `claude:detectRuntime` / `claude:auth-status` answer without a login (fails with "server predates T0401" against older servers) |
 | S10 | `remote-tools:detect` (the PLAN-037 AI toolchain probe; up to 30 s, the login-view probe loads the user's rc files) returns a schema v1 report with `env.osFamily = linux` and `git` = `ok` (fails with "server predates T0411" against older servers) |
 | S11 | `github:check-cli` (up to 20 s; the server runs `gh auth status`, a network check) answers `installed: true` with a boolean `authenticated` (the WSL test host is not logged in ⇒ `false`); then, through a second smoke PTY, the smoke creates its own temp repo `mktemp -d /tmp/bat-smoke-git.XXXXXX` with one empty commit, checks `git:getRoot` / `git:branch` / `git:log` / `git:status` / `git-scaffold:healthCheck` against it and `worktree:status` of an unknown session (`null`), then removes the repo and kills that PTY (fails with "server predates T0405" against older servers) |
+| S12 | the headless fs sandbox: through a third smoke PTY the smoke creates its own temp dir `mktemp -d /tmp/bat-smoke-fs.XXXXXX` holding `smoke.txt`; before any sync `fs:readdir` returns `[]` and `fs:readFile` is denied; `workspace:sync-roots(['/', dir])` accepts only the dir and rejects `/` as a filesystem root; then `fs:readdir` / `fs:readFile` / `fs:stat` read the dir while `fs:readdir('/etc')` and `fs:readFile('/etc/hostname')` stay denied. Cleanup clears this connection's roots, removes the dir and kills that PTY (fails with "server predates T0406" against older servers, after a read-only `fs:stat` probe — nothing is created) |
 
 | Option | Meaning |
 |--------|---------|
@@ -225,12 +249,19 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
 | `--json` | Machine-readable report. Exit code `0` = all PASS, `1` = a check failed or a smoke PTY was left behind, `2` = usage / connection-info error. |
 
 - The smoke only touches its own PTYs (`smoke-<timestamp>-<rand>`, and
-  `…-git` for S11), kills them on every exit path and finishes with an existence
+  `…-git` for S11, `…-fs` for S12), kills them on every exit path and finishes with an existence
   probe. Output of other PTYs on the same server (events are broadcast to every
   client) is ignored.
 - S11 writes git state only inside the temp repo it created under
   `/tmp/bat-smoke-git.*` and deletes only a path matching that pattern; it never
   runs a git command in the user's repos, and never logs in to gh or reads its token.
+- S12 reads files only inside the temp dir it created under `/tmp/bat-smoke-fs.*`
+  (and the denied `/etc` probes, which must return nothing) and deletes only a
+  path matching that pattern. The roots it syncs belong to its own connection
+  only — the user's BAT connection keeps its own — and are cleared afterwards.
+  Caveat: the server allows the union of every connection's roots, so S12's
+  "denied before sync" step would fail if the user's own workspace roots
+  contained the smoke's temp dir (a workspace at `/tmp` or `/`; `/` is rejected).
 - It never sends a wrong token on purpose: five failed auths ban the client IP
   for 10 minutes, and the user's own BAT connects from the same loopback address.
 - The frame format of `electron/remote/protocol.ts` is re-implemented in the

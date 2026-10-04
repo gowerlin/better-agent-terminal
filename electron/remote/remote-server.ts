@@ -22,6 +22,8 @@ interface AuthenticatedClient {
   ws: WebSocket
   label: string
   connectedAt: number
+  /** T0406: handed to handlers as `ctx.connectionId` (per-connection state, e.g. synced fs roots). */
+  connectionId: string
 }
 
 export interface StartServerResult {
@@ -223,6 +225,7 @@ export class RemoteServer {
   private readonly log: RemoteServerLogger
   private readonly detectEnv: () => ServerEnvInfo
   private clientCountListeners: Set<(count: number) => void> = new Set()
+  private clientDisconnectListeners: Set<(connectionId: string) => void> = new Set()
   private lastNotifiedClientCount = 0
   configDir: string = ''
 
@@ -275,6 +278,31 @@ export class RemoteServer {
     this.clientCountListeners.add(listener)
     return () => {
       this.clientCountListeners.delete(listener)
+    }
+  }
+
+  /**
+   * T0406: called with the `connectionId` of every authenticated client that
+   * goes away (close / error / heartbeat cleanup / stop). Returns an unsubscribe.
+   */
+  onClientDisconnect(listener: (connectionId: string) => void): () => void {
+    this.clientDisconnectListeners.add(listener)
+    return () => {
+      this.clientDisconnectListeners.delete(listener)
+    }
+  }
+
+  /** Removes an authenticated client (no-op if it is not one) and reports its connection id. */
+  private dropClient(ws: WebSocket): void {
+    const client = this.clients.get(ws)
+    if (!client) return
+    this.clients.delete(ws)
+    for (const listener of Array.from(this.clientDisconnectListeners)) {
+      try {
+        listener(client.connectionId)
+      } catch (e) {
+        this.log.warn('[RemoteServer] client disconnect listener failed:', e)
+      }
     }
   }
 
@@ -419,7 +447,8 @@ export class RemoteServer {
             this.clients.set(ws, {
               ws,
               label: (frame.args?.[0] as string) || 'Remote Client',
-              connectedAt: Date.now()
+              connectedAt: Date.now(),
+              connectionId: randomBytes(8).toString('hex'),
             })
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
             this.log.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
@@ -457,7 +486,7 @@ export class RemoteServer {
             while (args.length > 0 && args[args.length - 1] == null) {
               args = args.slice(0, -1)
             }
-            const result = await invokeHandler(frame.channel, args)
+            const result = await invokeHandler(frame.channel, args, null, this.clients.get(ws)?.connectionId)
             this.sendFrame(ws, { type: 'invoke-result', id: frame.id, result })
           } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err)
@@ -473,13 +502,13 @@ export class RemoteServer {
         if (client) {
           this.log.log(`[RemoteServer] Client disconnected: ${client.label}`)
         }
-        this.clients.delete(ws)
+        this.dropClient(ws)
         this.notifyClientCount()
       })
 
       ws.on('error', (err) => {
         this.log.error('[RemoteServer] WebSocket error:', err.message)
-        this.clients.delete(ws)
+        this.dropClient(ws)
         this.notifyClientCount()
       })
     })
@@ -506,7 +535,7 @@ export class RemoteServer {
       if (!this.wss) return
       for (const client of this.clients.values()) {
         if (client.ws.readyState !== WebSocket.OPEN) {
-          this.clients.delete(client.ws)
+          this.dropClient(client.ws)
           continue
         }
         client.ws.ping()
@@ -572,10 +601,10 @@ export class RemoteServer {
       this.broadcastListener = null
     }
 
-    for (const client of this.clients.values()) {
+    for (const client of Array.from(this.clients.values())) {
       client.ws.close()
+      this.dropClient(client.ws)
     }
-    this.clients.clear()
     this.notifyClientCount()
 
     if (this.wss) {

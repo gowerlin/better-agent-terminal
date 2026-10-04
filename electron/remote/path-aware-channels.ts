@@ -73,6 +73,9 @@ export const PATH_ARG_SCHEMA: Readonly<Record<string, PathArgSchema>> = {
   // ({ id, cwd, command | agent/prompt, ... })
   'terminal:create-with-command': { kind: 'object-fields', index: 0, fields: ['cwd'] },
   'terminal:create-agent-command': { kind: 'object-fields', index: 0, fields: ['cwd'] },
+  // T0406: ([roots]) — Electron main sends its windows' folderPaths in client form;
+  // this schema (RemoteClient.invoke) is the one and only toServer conversion.
+  'workspace:sync-roots': 'array-of-strings',
 }
 
 /** Client -> Server channels whose request payloads contain local paths. */
@@ -280,12 +283,55 @@ export function normalizePathsInResult(
   }
 }
 
+/**
+ * T0406: PROXIED_EVENTS whose payload carries a server path that is rewritten to
+ * client form on arrival (translateRemoteEventArgs). Every PROXIED_EVENTS entry
+ * is here or in PATH_FREE_EVENTS — path-aware-channels-coverage.test.ts.
+ */
+export const PATH_EVENT_CHANNELS: ReadonlyMap<string, string> = new Map([
+  ['fs:changed', 'args[0] = the watched dir (server form after fs:watch toServer); the renderer matches it against the client-form path it watched'],
+])
+
+/**
+ * T0406: PROXIED_EVENTS delivered as is, each with the reason. Some do carry
+ * server paths and deliberately keep them in server form.
+ */
+export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
+  ['pty:output', 'terminal id + output bytes (paths in it are shell text from the remote host)'],
+  ['pty:exit', 'terminal id + exit code'],
+  ['claude:message', 'agent transcript content; paths are what the remote agent saw and said (free text, not rewritten)'],
+  ['claude:tool-use', 'tool input as the remote agent issued it (server paths stay server form; see T0416 遭遇問題 2 for free-text paths)'],
+  ['claude:tool-result', 'tool output from the remote host (free text)'],
+  ['claude:stream', 'streamed agent text'],
+  ['claude:result', 'turn result (usage / cost / text)'],
+  ['claude:error', 'error text from the remote agent'],
+  ['claude:status', 'sessionId + status'],
+  ['claude:permission-request', 'tool permission request as the remote agent issued it (server paths shown as is)'],
+  ['claude:permission-resolved', 'sessionId + toolUseId'],
+  ['claude:ask-user', 'agent question + options (text)'],
+  ['claude:ask-user-resolved', 'sessionId + toolUseId'],
+  ['claude:modeChange', 'sessionId + permission mode enum'],
+  ['claude:history', 'resumed transcript items (same rule as claude:message)'],
+  ['claude:prompt-suggestion', 'suggestion text'],
+  ['claude:session-reset', 'sessionId only'],
+  ['claude:worktree-info', 'worktreePath / gitRoot stay server form: the panel embeds them in prompts to the remote agent (T0416, same as worktree:create)'],
+  ['claude:rate-limit', 'rate limit numbers'],
+  ['claude:turn-end', 'sessionId + { reason, error? } (codex; no codex on headless)'],
+  ['claude:runtime-degraded', 'sessionId + reason / detail text about the server claude runtime (display only)'],
+  ['claude:runtime-warning', 'sessionId + server claude version + message (display only)'],
+  ['workspace:detached', 'workspace id (Electron host only, sent to its own windows)'],
+  ['workspace:reattached', 'workspace id (Electron host only)'],
+  ['workspace:reload', 'workspace JSON of an Electron host window registry, in the form that host window saved; headless never emits it'],
+  ['system:resume', 'no payload'],
+  ['terminal:notified', '{ targetId, message, source } (terminal ids + message text)'],
+])
+
 export function translateRemoteEventArgs(
   channel: string,
   args: unknown[],
   translator: PathTranslator,
 ): unknown[] {
-  if (channel !== 'fs:changed' || args.length === 0) return args
+  if (!PATH_EVENT_CHANNELS.has(channel) || args.length === 0) return args
 
   const [payload, ...rest] = args
   if (typeof payload === 'string') {

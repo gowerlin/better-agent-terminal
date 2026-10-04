@@ -4,6 +4,7 @@ import * as os from 'os'
 import * as path from 'path'
 import type { HandlerModule, HandlerModuleDisposer, HandlerRegistrar, HostDeps } from '../handlers/types'
 import { registerClaudeHandlers } from '../handlers/claude'
+import { registerFsHandlers } from '../handlers/fs'
 import { registerGitHandlers, type GitHandlerDeps } from '../handlers/git'
 import { registerPtyHandlers } from '../handlers/pty'
 import { registerRemoteToolsHandlers, type RemoteToolsHandlerDeps } from '../handlers/remote-tools'
@@ -15,6 +16,7 @@ import {
 } from '../claude-runtime-router'
 import { resolveGitBinary } from '../gh-resolver'
 import { logger as defaultLogger } from '../logger'
+import { SyncedWorkspaceRoots } from '../path-guard'
 import { PtyManager } from '../pty-manager'
 import { worktreeManager } from '../worktree-manager'
 import { broadcastHub } from './broadcast-hub'
@@ -314,22 +316,42 @@ export function createHeadlessGitModule(overrides: HeadlessGitOverrides = {}): H
 }
 
 /**
+ * T0406 (PLAN-036 P2-I): `fs:*` / `image:read-as-data-url` / `workspace:sync-roots`
+ * on headless. The sandbox is a per-server `SyncedWorkspaceRoots`: each client
+ * connection pushes its windows' roots (server form), the allowlist is the union,
+ * and nothing is allowed before a push (fail closed). `onRoots` hands the store to
+ * the server, which drops a connection's roots when it closes. `fs:changed` goes
+ * out through `host.emit` (broadcastHub → clients, translated back by the client).
+ */
+export function createHeadlessFsModule(opts: { onRoots?: (roots: SyncedWorkspaceRoots) => void } = {}): HandlerModule {
+  return (register, host) => {
+    const roots = new SyncedWorkspaceRoots()
+    const dispose = registerFsHandlers(register, { emit: host.emit, pathGuard: roots, workspaceRoots: roots })
+    opts.onRoots?.(roots)
+    return dispose
+  }
+}
+
+/**
  * Shared domain modules for one headless server; `installRoot` overrides the bundle
  * location (tests). T0404: `pty` carries the PTY cap and the manager hand-off.
  * T0411: `remoteTools` overrides the probe's execFile / platform / env (tests).
  * T0405: `git` overrides the gh spawn / resolve (tests).
+ * T0406: `fs.onRoots` hands over the synced-roots store.
  */
 export function createHeadlessHandlerModules(opts: {
   installRoot?: string
   pty?: Parameters<typeof createHeadlessPtyModule>[0]
   remoteTools?: HeadlessRemoteToolsOverrides
   git?: HeadlessGitOverrides
+  fs?: Parameters<typeof createHeadlessFsModule>[0]
 } = {}): HandlerModule[] {
   return [
     opts.pty ? createHeadlessPtyModule(opts.pty) : registerHeadlessPtyHandlers, // T0390
     createHeadlessClaudeModule({ installRoot: opts.installRoot }), // T0401
     createHeadlessRemoteToolsModule(opts.remoteTools), // T0411
     createHeadlessGitModule(opts.git), // T0405
+    createHeadlessFsModule(opts.fs), // T0406
   ]
 }
 
@@ -345,8 +367,10 @@ export const HEADLESS_HANDLER_MODULES: readonly HandlerModule[] = createHeadless
 /**
  * Headless side of `HostDeps`: events go to connected remote clients only
  * (broadcastHub → RemoteServer → PROXIED_EVENTS filter); no helper dir, no
- * desktop notifier, no settings side effects, no fs path guard yet (fs
- * handlers fail closed until `workspace:sync-roots`, T0386 §4).
+ * desktop notifier, no settings side effects. No `pathGuard` here: the fs
+ * module builds its own per-server synced-roots guard (T0406,
+ * `createHeadlessFsModule`), fail-closed until a client pushes
+ * `workspace:sync-roots` (T0386 §4).
  */
 export function createHeadlessHostDeps(dataDir: string): HostDeps {
   return {
@@ -450,6 +474,7 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   const log = opts.logger ?? defaultLogger
   const ptyLimits = resolveHeadlessPtyLimits(opts, process.env, message => log.warn(message))
   let ptyManager: PtyManager | null = null
+  let fsRoots: SyncedWorkspaceRoots | null = null
 
   // T0385: built-ins first so caller-supplied handlers can override them.
   // T0388: shared domain modules sit between the two.
@@ -464,6 +489,7 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     pty: { maxPtys: ptyLimits.maxPtys, onManager: manager => { ptyManager = manager } },
     remoteTools: opts.remoteTools,
     git: opts.git,
+    fs: { onRoots: roots => { fsRoots = roots } },
   })
   for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)
@@ -480,6 +506,12 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     log: message => log.log(message),
   })
   const unsubscribeClientCount = remoteServer.onClientCountChange(count => reclaimer.update(count))
+  // T0406: a closed connection's synced fs roots stop counting toward the allowlist.
+  const unsubscribeClientDisconnect = remoteServer.onClientDisconnect(connectionId => {
+    if (fsRoots?.removeConnection(connectionId)) {
+      log.log(`[headless] fs roots of a closed connection dropped; ${fsRoots.getRoots().length} root(s) remain`)
+    }
+  })
   log.log(
     `[headless] orphan PTY reclaim: ${ptyLimits.idleReclaimMs > 0 ? `after ${formatDuration(ptyLimits.idleReclaimMs)} without a client` : 'disabled'}; ` +
       `PTY limit: ${ptyLimits.maxPtys > 0 ? ptyLimits.maxPtys : 'unlimited'}`,
@@ -536,6 +568,7 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
         unsubscribeClientCount()
         reclaimer.dispose()
         remoteServer.stop()
+        unsubscribeClientDisconnect()
         for (const dispose of moduleDisposers.splice(0)) {
           try {
             dispose()
