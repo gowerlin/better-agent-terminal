@@ -185,6 +185,51 @@ npm run deploy:headless:dev -- --target dir:/path/to/bat-server --yes
 > overwrites a dev deploy.** Run the tool again afterwards if you still need the
 > local JS.
 
+## Protocol smoke against a running headless server (contributors)
+
+`npm run smoke:remote:headless` connects to an already running headless
+bat-server **as an ordinary remote client** and walks the P0 PTY lifecycle. It
+never restarts, stops or redeploys the server, so it is safe to run while
+someone is using it.
+
+```bash
+# WSL: port / token / certificate fingerprint are read from the distro (read-only)
+npm run smoke:remote:headless -- --target wsl:Ubuntu-24.04
+npm run smoke:remote:headless -- --target wsl:Ubuntu-24.04 --json
+
+# Any reachable server (SSH tunnel, Docker, ...): pass the connection info
+npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
+  --token-file ./server-token.json --fingerprint 22:3A:E4:...:79:97
+```
+
+| Check | What it proves |
+|-------|----------------|
+| S1 | TLS + SHA-256 fingerprint pin + token auth; a wrong fingerprint is rejected before the token is sent |
+| S2 | `settings:get-shell-path('auto')` returns an absolute Linux shell |
+| S3 | `pty:create` emits output; a `pty:write` marker round-trips |
+| S4 | `pty:resize` 120x40 is what `stty size` reports |
+| S5 | a second `pty:create` with the same id keeps the same shell (`$$`) |
+| S6 | the PTY survives a WS disconnect; writes work after reconnect + auth |
+| S7 | `pty:kill` emits `pty:exit`; a later write returns `pty-not-found` and the connection stays usable |
+| S8 | an unsupported channel (`claude:get-supported-models`) returns `No handler for channel: …`, not a timeout |
+
+| Option | Meaning |
+|--------|---------|
+| `--target wsl:<distro>` | Reads `BAT_SERVER_PORT` / `BAT_SERVER_DATA_DIR` from the `bat-server` user unit (defaults: port `54321`, `~/.local/share/bat-server`), only the `fingerprint` field of `server-cert.json`, and `server-token.json`. Distro must match `[A-Za-z0-9._-]+`. `--host` (default `127.0.0.1`) / `--port` override. |
+| `--url` / `--token-file` / `--fingerprint` | Direct target. The token file may be a plaintext `server-token.json` record or a bare token; the fingerprint is accepted in any case, with or without colons. |
+| `--cwd <path>` | Smoke PTY working directory (default: WSL `$HOME`, else `/tmp`). |
+| `--timeout-ms <ms>` | Per-step timeout (default `10000`). |
+| `--json` | Machine-readable report. Exit code `0` = all PASS, `1` = a check failed or a smoke PTY was left behind, `2` = usage / connection-info error. |
+
+- The smoke only touches its own PTY (`smoke-<timestamp>-<rand>`), kills it on
+  every exit path and finishes with an existence probe. Output of other PTYs on
+  the same server (events are broadcast to every client) is ignored.
+- It never sends a wrong token on purpose: five failed auths ban the client IP
+  for 10 minutes, and the user's own BAT connects from the same loopback address.
+- The frame format of `electron/remote/protocol.ts` is re-implemented in the
+  script (`remote-client.ts` imports `electron`);
+  `scripts/__tests__/smoke-remote-headless.test.mjs` fails if the two drift.
+
 ## Troubleshooting (cross-cutting)
 
 For environment-specific troubleshooting see the per-env guides. The issues

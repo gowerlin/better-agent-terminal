@@ -16,6 +16,7 @@
     "build:server-bundle:all": "npm run build:server-bundle:linux-x64 && npm run build:server-bundle:linux-arm64 && npm run build:server-bundle:darwin-arm64",
     "build:docker-image": "node scripts/build-docker-image.mjs",
     "deploy:headless:dev": "node scripts/dev-deploy-headless.mjs",
+    "smoke:remote:headless": "node scripts/smoke-remote-headless.mjs",
     "verify:helpers": "node scripts/verify-helper-bundle.js",
     "verify:renderer-imports": "node scripts/verify-renderer-imports.js",
     "verify:server-bundle": "node scripts/verify-server-bundle.js",

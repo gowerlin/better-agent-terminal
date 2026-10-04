@@ -1,0 +1,461 @@
+// @vitest-environment node
+// T0396 — scripts/smoke-remote-headless.mjs (PLAN-036 P0 protocol-level smoke)
+
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { describe, expect, it } from 'vitest'
+
+import { PROXIED_CHANNELS, PROXIED_EVENTS } from '../../electron/remote/protocol'
+import { HEADLESS_UNSUPPORTED } from '../../electron/remote/headless-channel-status'
+import {
+  CHECKS,
+  FRAME_FIELDS,
+  FRAME_TYPE,
+  NAME_RX,
+  PtyTracker,
+  SMOKE_CHANNELS,
+  SMOKE_EVENTS,
+  UNSUPPORTED_ERROR_RX,
+  UNSUPPORTED_PROBE_CHANNEL,
+  UsageError,
+  buildAuthFrame,
+  buildInvokeFrame,
+  corruptFingerprint,
+  decodeTokenFile,
+  main,
+  makeSmokeId,
+  normalizeFingerprint,
+  parseArgs,
+  parseFingerprintField,
+  parseUnitEnvironment,
+  resolveWslTarget,
+  runSmoke,
+  stripAnsi,
+  summarize,
+} from '../smoke-remote-headless.mjs'
+
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+const readSource = (rel) => readFileSync(path.join(ROOT, rel), 'utf8')
+
+const FP = '22:3A:E4:C7:4F:4F:7C:D1:23:09:11:A1:DB:62:CD:82:A9:31:66:95:48:D0:34:CD:6C:42:9C:B7:0A:D1:79:97'
+
+// ---------------------------------------------------------------------------
+// Drift guard against electron/remote/protocol.ts
+// ---------------------------------------------------------------------------
+
+describe('frame format drift guard (protocol.ts)', () => {
+  const protocol = readSource('electron/remote/protocol.ts')
+
+  it('FRAME_TYPE equals the RemoteFrameType union', () => {
+    const union = /export type RemoteFrameType\s*=\s*([^\n]+)/.exec(protocol)
+    expect(union).not.toBeNull()
+    const types = [...union[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
+    expect(new Set(Object.values(FRAME_TYPE))).toEqual(new Set(types))
+    expect(Object.values(FRAME_TYPE)).toHaveLength(types.length)
+  })
+
+  it('FRAME_FIELDS equals the RemoteFrame interface fields', () => {
+    const body = /export interface RemoteFrame\s*\{([\s\S]*?)\n\}/.exec(protocol)
+    expect(body).not.toBeNull()
+    const fields = [...body[1].matchAll(/^\s*(\w+)\??\s*:/gm)].map((m) => m[1])
+    expect([...FRAME_FIELDS].sort()).toEqual([...fields].sort())
+  })
+
+  it('built frames only use RemoteFrame fields and known frame types', () => {
+    for (const frame of [buildAuthFrame('1', 'tok', 'label'), buildInvokeFrame('2', 'pty:kill', ['x'])]) {
+      for (const key of Object.keys(frame)) expect(FRAME_FIELDS).toContain(key)
+      expect(Object.values(FRAME_TYPE)).toContain(frame.type)
+    }
+  })
+
+  it('every invoke channel / event the smoke uses is proxied', () => {
+    for (const channel of Object.values(SMOKE_CHANNELS)) expect(PROXIED_CHANNELS.has(channel), channel).toBe(true)
+    for (const event of Object.values(SMOKE_EVENTS)) expect(PROXIED_EVENTS.has(event), event).toBe(true)
+  })
+
+  it('S8 probe is a headless-unsupported channel; the P0 channels are not', () => {
+    expect(PROXIED_CHANNELS.has(UNSUPPORTED_PROBE_CHANNEL)).toBe(true)
+    expect(HEADLESS_UNSUPPORTED[UNSUPPORTED_PROBE_CHANNEL]).toBeDefined()
+    for (const channel of Object.values(SMOKE_CHANNELS)) expect(HEADLESS_UNSUPPORTED[channel], channel).toBeUndefined()
+  })
+
+  it('UNSUPPORTED_ERROR_RX matches the handler-registry error text', () => {
+    const registry = readSource('electron/remote/handler-registry.ts')
+    const template = /throw new Error\(`(No handler for channel: )\$\{channel\}`\)/.exec(registry)
+    expect(template).not.toBeNull()
+    expect(UNSUPPORTED_ERROR_RX.test(`${template[1]}claude:x`)).toBe(true)
+  })
+
+  it('auth frame carries token + label where remote-server.ts reads them', () => {
+    const server = readSource('electron/remote/remote-server.ts')
+    expect(server).toContain('this.isTokenAccepted(frame.token)')
+    expect(server).toContain('frame.args?.[0]')
+    const frame = buildAuthFrame('7', 'secret', 'smoke')
+    expect(frame).toEqual({ type: 'auth', id: '7', token: 'secret', args: ['smoke'] })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Argument parsing
+// ---------------------------------------------------------------------------
+
+describe('parseArgs', () => {
+  it('accepts --target wsl:<distro> with defaults', () => {
+    const opts = parseArgs(['--target', 'wsl:Ubuntu-24.04'])
+    expect(opts.target).toEqual({ kind: 'wsl', distro: 'Ubuntu-24.04', host: '127.0.0.1', port: null })
+    expect(opts.json).toBe(false)
+    expect(opts.timeoutMs).toBe(10_000)
+    expect(opts.cwd).toBeNull()
+  })
+
+  it('accepts --host / --port / --json / --timeout-ms / --cwd for wsl', () => {
+    const opts = parseArgs(['--target', 'wsl:Debian', '--host', 'localhost', '--port', '9877', '--json', '--timeout-ms', '5000', '--cwd', '/tmp/x'])
+    expect(opts.target).toMatchObject({ host: 'localhost', port: 9877 })
+    expect(opts).toMatchObject({ json: true, timeoutMs: 5000, cwd: '/tmp/x' })
+  })
+
+  it.each([
+    'Ubuntu 24.04', 'Ubuntu;rm', 'a&b', '$(id)', 'x/y', '', 'Ubuntu"',
+  ])('rejects distro %j (whitelist)', (distro) => {
+    expect(() => parseArgs(['--target', `wsl:${distro}`])).toThrow(UsageError)
+  })
+
+  it('distro whitelist is /^[A-Za-z0-9._-]+$/', () => {
+    expect(String(NAME_RX)).toBe('/^[A-Za-z0-9._-]+$/')
+  })
+
+  it('rejects unknown target kinds', () => {
+    expect(() => parseArgs(['--target', 'ssh:host'])).toThrow(/Unsupported --target/)
+  })
+
+  it('accepts the direct --url form and normalizes the fingerprint', () => {
+    const opts = parseArgs(['--url', 'wss://127.0.0.1:9877', '--token-file', 'tok.json', '--fingerprint', FP.replace(/:/g, '').toLowerCase()])
+    expect(opts.target).toEqual({ kind: 'url', url: 'wss://127.0.0.1:9877', tokenFile: 'tok.json', fingerprint: FP })
+  })
+
+  it.each([
+    [['--url', 'ws://h:1', '--token-file', 't', '--fingerprint', FP], /wss:\/\//],
+    [['--url', 'wss://h', '--token-file', 't', '--fingerprint', FP], /explicit port/],
+    [['--url', 'wss://h:1/path', '--token-file', 't', '--fingerprint', FP], /no path/],
+    [['--url', 'wss://h:1', '--fingerprint', FP], /--token-file/],
+    [['--url', 'wss://h:1', '--token-file', 't'], /--fingerprint/],
+    [['--url', 'wss://h:1', '--token-file', 't', '--fingerprint', 'AB:CD'], /32 bytes/],
+    [['--target', 'wsl:U', '--url', 'wss://h:1'], /exactly one/],
+    [[], /exactly one/],
+    [['--target', 'wsl:U', '--fingerprint', FP], /only apply to --url/],
+    [['--url', 'wss://h:1', '--token-file', 't', '--fingerprint', FP, '--port', '2'], /only apply to --target/],
+    [['--target', 'wsl:U', '--port', '70000'], /Invalid --port/],
+    [['--target', 'wsl:U', '--port', '12a'], /Invalid --port/],
+    [['--target', 'wsl:U', '--host', 'h;x'], /Invalid --host/],
+    [['--target', 'wsl:U', '--timeout-ms', '10'], /Invalid --timeout-ms/],
+    [['--target', 'wsl:U', '--cwd', 'relative'], /--cwd/],
+    [['--target', 'wsl:U', '--cwd', '/a/../b'], /--cwd/],
+    [['--target', 'wsl:U', '--bogus'], /Unknown option/],
+  ])('rejects %j', (argv, message) => {
+    expect(() => parseArgs(argv)).toThrow(message)
+  })
+
+  it('--help short-circuits validation', () => {
+    expect(parseArgs(['-h']).help).toBe(true)
+  })
+
+  it('main returns 2 on usage errors and 0 on --help', async () => {
+    const out = []
+    const io = { out: (s) => out.push(s), err: (s) => out.push(s) }
+    expect(await main(['--target', 'wsl:bad name'], io)).toBe(2)
+    expect(await main(['--help'], io)).toBe(0)
+    expect(out.join('\n')).toContain('Usage:')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fingerprint / token / unit parsing
+// ---------------------------------------------------------------------------
+
+describe('normalizeFingerprint', () => {
+  it('normalizes case, colons, whitespace and a sha256 prefix', () => {
+    const bare = FP.replace(/:/g, '')
+    expect(normalizeFingerprint(bare.toLowerCase())).toBe(FP)
+    expect(normalizeFingerprint(`sha256:${FP.toLowerCase()}`)).toBe(FP)
+    expect(normalizeFingerprint(` ${FP} `)).toBe(FP)
+  })
+
+  it('rejects wrong length and non-hex input', () => {
+    expect(() => normalizeFingerprint(FP.slice(0, -3))).toThrow(/32 bytes/)
+    expect(() => normalizeFingerprint(`${FP}:00`)).toThrow(/32 bytes/)
+    expect(() => normalizeFingerprint(FP.replace('22', 'ZZ'))).toThrow(/non-hex/)
+    expect(() => normalizeFingerprint(undefined)).toThrow()
+  })
+
+  it('corruptFingerprint always yields a different valid fingerprint', () => {
+    expect(corruptFingerprint(FP)).not.toBe(FP)
+    expect(normalizeFingerprint(corruptFingerprint(FP))).toBe(corruptFingerprint(FP))
+    const zero = `00${FP.slice(2)}`
+    expect(corruptFingerprint(zero)).not.toBe(zero)
+  })
+})
+
+describe('decodeTokenFile', () => {
+  it('reads the plaintext secrets.ts record, the legacy shape and a bare token', () => {
+    expect(decodeTokenFile(JSON.stringify({ v: 1, encrypted: false, data: 'abcDEF123_-' }))).toBe('abcDEF123_-')
+    expect(decodeTokenFile('{"token":"legacy-token"}')).toBe('legacy-token')
+    expect(decodeTokenFile('  bare-token-123\n')).toBe('bare-token-123')
+  })
+
+  it('refuses encrypted, empty and garbage files', () => {
+    expect(() => decodeTokenFile(JSON.stringify({ v: 1, encrypted: true, data: 'x' }))).toThrow(/encrypted/)
+    expect(() => decodeTokenFile('')).toThrow(/empty/)
+    expect(() => decodeTokenFile('{"v":1}')).toThrow(/no usable token/)
+    expect(() => decodeTokenFile('not a token!')).toThrow(/neither JSON/)
+  })
+})
+
+describe('parseUnitEnvironment / parseFingerprintField', () => {
+  it('parses systemctl show Environment output, including quoted values', () => {
+    expect(parseUnitEnvironment('BAT_PORT=9877 BAT_SERVER_PORT=9877 BAT_SERVER_DATA_DIR=/home/u/.local/share/bat-server\n')).toEqual({
+      BAT_PORT: '9877',
+      BAT_SERVER_PORT: '9877',
+      BAT_SERVER_DATA_DIR: '/home/u/.local/share/bat-server',
+    })
+    expect(parseUnitEnvironment('A="x y" B=z')).toEqual({ A: 'x y', B: 'z' })
+    expect(parseUnitEnvironment('')).toEqual({})
+  })
+
+  it('extracts only the fingerprint field', () => {
+    expect(parseFingerprintField(`"fingerprint": "${FP.toLowerCase()}"\n`)).toBe(FP)
+    expect(() => parseFingerprintField('"cert": "..."')).toThrow(/no fingerprint/)
+  })
+})
+
+describe('resolveWslTarget (read-only, array args)', () => {
+  const fakeExec = (responses) => {
+    const calls = []
+    const exec = async (args) => {
+      calls.push(args)
+      const key = args[0]
+      const value = responses[key]
+      if (value instanceof Error) throw value
+      if (typeof value === 'function') return value(args)
+      if (value === undefined) throw new Error(`unexpected ${key}`)
+      return value
+    }
+    return { exec, calls }
+  }
+
+  it('uses the unit environment and reads only the fingerprint field', async () => {
+    const { exec, calls } = fakeExec({
+      systemctl: 'BAT_SERVER_PORT=9877 BAT_SERVER_DATA_DIR=/home/u/.local/share/bat-server\n',
+      printenv: '/home/u\n',
+      grep: `"fingerprint": "${FP}"\n`,
+      cat: JSON.stringify({ v: 1, encrypted: false, data: 'tok-123456' }),
+    })
+    const conn = await resolveWslTarget({ kind: 'wsl', distro: 'Ubuntu-24.04', host: '127.0.0.1', port: null }, { exec })
+    expect(conn).toMatchObject({ url: 'wss://127.0.0.1:9877', token: 'tok-123456', fingerprint: FP, cwd: '/home/u', label: 'wsl:Ubuntu-24.04' })
+    expect(calls).toEqual([
+      ['systemctl', '--user', 'show', '-p', 'Environment', '--value', 'bat-server'],
+      ['printenv', 'HOME'],
+      ['grep', '-o', '-E', '"fingerprint"[[:space:]]*:[[:space:]]*"[0-9A-Fa-f:]+"', '/home/u/.local/share/bat-server/server-cert.json'],
+      ['cat', '/home/u/.local/share/bat-server/server-token.json'],
+    ])
+    // server-cert.json (which holds the private key) is never cat'ed.
+    expect(calls.some((a) => a[0] === 'cat' && a[1].endsWith('server-cert.json'))).toBe(false)
+  })
+
+  it('falls back to bat-server defaults without a unit and honours --port', async () => {
+    const { exec } = fakeExec({
+      systemctl: new Error('Unit bat-server.service could not be found'),
+      printenv: '/home/u\n',
+      grep: `"fingerprint":"${FP}"`,
+      cat: '{"token":"legacy-token"}',
+    })
+    const noPort = await resolveWslTarget({ kind: 'wsl', distro: 'U', host: '127.0.0.1', port: null }, { exec })
+    expect(noPort.url).toBe('wss://127.0.0.1:54321')
+    expect(noPort.notes[0]).toMatch(/unavailable/)
+    const withPort = await resolveWslTarget({ kind: 'wsl', distro: 'U', host: 'localhost', port: 9000 }, { exec })
+    expect(withPort.url).toBe('wss://localhost:9000')
+  })
+
+  it('rejects a data dir with shell-special characters', async () => {
+    const { exec } = fakeExec({
+      systemctl: 'BAT_SERVER_DATA_DIR=/home/u/$(id)',
+      printenv: '/home/u\n',
+    })
+    await expect(resolveWslTarget({ kind: 'wsl', distro: 'U', host: '127.0.0.1', port: null }, { exec })).rejects.toThrow(/POSIX path/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Output tracking
+// ---------------------------------------------------------------------------
+
+describe('PtyTracker', () => {
+  it('records only own ids and strips ANSI escapes', async () => {
+    const tracker = new PtyTracker(new Set(['smoke-1']))
+    tracker.handle('pty:output', ['user-terminal', 'SECRET user output'])
+    tracker.handle('pty:output', ['smoke-1', '\x1b[1;32mhello\x1b[0m \x1b]0;title\x07world'])
+    expect(tracker.buffers.has('user-terminal')).toBe(false)
+    expect(tracker.since('smoke-1', 0)).toBe('hello world')
+    await expect(tracker.waitForOutput('smoke-1', /hello (\w+)/, 0, 100)).resolves.toMatchObject({ 1: 'world' })
+    await expect(tracker.waitForOutput('smoke-1', /nope/, 0, 50)).rejects.toThrow(/timed out/)
+    tracker.handle('pty:exit', ['user-terminal', 0])
+    tracker.handle('pty:exit', ['smoke-1', 0])
+    expect([...tracker.exits.keys()]).toEqual(['smoke-1'])
+  })
+
+  it('stripAnsi leaves plain text untouched', () => {
+    expect(stripAnsi('40 120\r\n')).toBe('40 120\r\n')
+  })
+
+  it('makeSmokeId uses the smoke- prefix and a timestamp', () => {
+    expect(makeSmokeId(new Date(2026, 9, 5, 1, 2, 3), 'abcdef')).toBe('smoke-20261005010203-abcdef')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// runSmoke against an in-memory fake server
+// ---------------------------------------------------------------------------
+
+/** Evaluates the handful of shell expansions the smoke types. */
+function fakeShellEval(command, pty) {
+  const echo = /^echo (.*)$/.exec(command.trim())
+  if (!echo) return ''
+  return echo[1]
+    .replace(/\$\(\((\d+)([+*])(\d+)\)\)/g, (_, a, op, b) => String(op === '+' ? Number(a) + Number(b) : Number(a) * Number(b)))
+    .replace(/\$\(stty size\)/g, `${pty.rows} ${pty.cols}`)
+    .replace(/\$\$/g, String(pty.pid))
+}
+
+function createFakeServer({ acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false } = {}) {
+  const ptys = new Map()
+  const clients = new Set()
+  const log = []
+  let nextPid = 100
+  let killCalls = 0
+  const emit = (channel, ...args) => {
+    for (const c of clients) if (c.isOpen) for (const l of c.listeners) l(channel, args)
+  }
+  const handlers = {
+    'settings:get-shell-path': () => '/bin/bash',
+    'pty:create': (opts) => {
+      if (rejectCreate) return false
+      if (!ptys.has(opts.id)) {
+        ptys.set(opts.id, { pid: nextPid++, rows: 30, cols: 120 })
+        setTimeout(() => emit('pty:output', opts.id, '\x1b[?2004h$ '), 1)
+      }
+      return true
+    },
+    'pty:write': (id, data) => {
+      const pty = ptys.get(id)
+      if (!pty) return { ok: false, reason: 'pty-not-found' }
+      setTimeout(() => emit('pty:output', id, `${data}\r\n${fakeShellEval(data, pty)}\r\n$ `), 1)
+      return { ok: true }
+    },
+    'pty:resize': (id, cols, rows) => {
+      const pty = ptys.get(id)
+      if (pty) Object.assign(pty, { cols, rows })
+      return undefined
+    },
+    'pty:kill': (id) => {
+      killCalls += 1
+      if (firstKillFails && killCalls === 1) throw Object.assign(new Error('kill exploded'), { remote: true })
+      if (!ptys.delete(id)) return false
+      setTimeout(() => emit('pty:exit', id, 0), 1)
+      return true
+    },
+    'pty:get-cwd': (id) => (ptys.has(id) ? '/home/u' : null),
+  }
+
+  class FakeClient {
+    constructor({ fingerprint }) {
+      this.fingerprint = fingerprint
+      this.listeners = new Set()
+      this.isOpen = false
+      this.authSent = false
+      this.observedFingerprint = FP
+    }
+    onEvent(l) { this.listeners.add(l) }
+    async connect() {
+      if (this.fingerprint !== FP && !acceptWrongFingerprint) {
+        throw Object.assign(new Error('fingerprint-mismatch: test'), { code: 'fingerprint-mismatch' })
+      }
+      this.isOpen = true
+      this.authSent = true
+      clients.add(this)
+      log.push('connect')
+      return { serverPlatform: 'linux', serverArch: 'x64', serverEnv: 'native', nodeVersion: '24', bundleVersion: 't' }
+    }
+    async close() {
+      this.isOpen = false
+      clients.delete(this)
+      log.push('close')
+    }
+    async invoke(channel, ...args) {
+      if (!this.isOpen) throw new Error('not connected')
+      log.push(channel)
+      if (channel === UNSUPPORTED_PROBE_CHANNEL) {
+        if (probeAnswers) return []
+        if (probeHangs) throw Object.assign(new Error('invoke timed out'), { timeout: true })
+      }
+      const handler = handlers[channel]
+      if (!handler) throw Object.assign(new Error(`No handler for channel: ${channel}`), { remote: true })
+      return handler(...args)
+    }
+  }
+
+  const conn = { url: 'wss://fake:1', token: 'tok', fingerprint: FP, cwd: '/home/u' }
+  const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
+  return { conn, createClient, ptys, log }
+}
+
+describe('runSmoke (fake server)', () => {
+  it('passes S1-S8 and leaves no smoke PTY behind', async () => {
+    const fake = createFakeServer()
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
+    expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
+    expect(report.ptyId).toMatch(/^smoke-\d{14}-[0-9a-f]{6}$/)
+    expect(fake.ptys.size).toBe(0)
+    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(1)
+    // S6 really reconnected: two successful connects before the probe.
+    expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
+    expect(summarize(report)).toEqual({ ok: true, passed: 8, total: 8 })
+  })
+
+  it('kills its PTY in cleanup when S7 fails to kill it', async () => {
+    const fake = createFakeServer({ firstKillFails: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+    const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
+    expect(status).toMatchObject({ S6: 'PASS', S7: 'FAIL', S8: 'PASS' })
+    expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: true })
+    expect(fake.ptys.size).toBe(0)
+    expect(summarize(report).ok).toBe(false)
+  })
+
+  it('skips S4-S7 when pty:create is refused and has nothing to clean up', async () => {
+    const fake = createFakeServer({ rejectCreate: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
+    const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
+    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS' })
+    expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
+    expect(fake.log).not.toContain('pty:kill')
+  })
+
+  it('fails S1 and stops when a wrong fingerprint is accepted', async () => {
+    const fake = createFakeServer({ acceptWrongFingerprint: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
+    expect(report.checks[0]).toMatchObject({ id: 'S1', status: 'FAIL' })
+    expect(report.checks[0].evidence).toMatch(/ACCEPTED/)
+    expect(report.checks.slice(1).every((c) => c.status === 'SKIP')).toBe(true)
+    expect(fake.ptys.size).toBe(0)
+  })
+
+  it('S8 fails on an answer or a timeout instead of an explicit error', async () => {
+    for (const option of [{ probeAnswers: true }, { probeHangs: true }]) {
+      const fake = createFakeServer(option)
+      const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+      expect(report.checks.find((c) => c.id === 'S8').status).toBe('FAIL')
+    }
+  })
+})
