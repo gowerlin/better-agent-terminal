@@ -23,16 +23,15 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 02:12 (UTC+8) — 第五十四 session：BUG-102 → CLOSED
+> 最後同步：2026-10-05 02:36 (UTC+8) — 第五十四 session：BUG-103 → FIXING（T0404）
 
 ## 統計
-- 🔴 Open: 7 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 18 | ⛔ Won't Fix: 0 | **Total: 28**
+- 🔴 Open: 6 | ⏳ Fixing: 1 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 18 | ⛔ Won't Fix: 0 | **Total: 28**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-103 | RemoteServer auth metadata `serverEnv` 寫死 `native`，WSL headless 也回 native 且缺 `wslDistro` / `serverHome` | 🟢 low | 2026-10-05 | [BUG-103](BUG-103-remote-server-auth-meta-server-env-hardcoded-native.md) |
 | BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告、preload / main 未實作 → SSH `start-server` 的 rollback 呼叫即拋錯 | 🟡 medium | 2026-10-05 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
 | BUG-099 | 設定精靈在失敗畫面按取消時，不會 rollback 正在失敗的步驟（只 rollback 已完成步驟） | 🟢 low | 2026-10-05 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
 | BUG-098 | SSH 精靈 direct 模式整條路徑不通：遠端 bat-server 固定綁 localhost、profile 固定寫 `remoteHost: localhost`、ssh config alias 不解析 HostName | 🟡 medium | 2026-10-05 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
@@ -44,7 +43,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-103 | RemoteServer auth metadata `serverEnv` 寫死 `native`，WSL headless 也回 native 且缺 `wslDistro` / `serverHome` | 🟢 low | 2026-10-05 | [BUG-103](BUG-103-remote-server-auth-meta-server-env-hardcoded-native.md) |
 
 ## ✅ 已修復
 

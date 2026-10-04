@@ -1360,6 +1360,15 @@
 
 ---
 
+### D132 2026-10-05 — `claude:auth-status` 在 exit≠0 時仍解析 stdout
+
+- **背景**：T0401 發現 `claude auth status` 未登入時 exit 1，stdout 仍為 `{"loggedIn": false, …}`；handler 走 err 分支回 `null`，無法區分「未登入」與「runtime 壞掉」，T0402 登入引導需要此區分
+- **決定**（使用者 02:34 裁決）：exit≠0 時若 stdout 為含 `loggedIn` 欄位的 JSON 就照實回傳，否則照舊 `null`；本機與遠端同一份實作（`electron/handlers/claude.ts`），本機 Claude 面板也受惠
+- **不採用**：維持 `null`（引導只能顯示模糊提示）
+- **相關**：T0401 / T0402 / PLAN-036 / D130
+
+---
+
 ### D131 2026-10-05 — 遠端 AI 工具套件：檢查＋一鍵安裝（PLAN-037）
 
 - **背景**：PLAN-036 讓遠端有功能 handler，但遠端機器上的 claude / codex CLI、git、gh 是否安裝無機制處理（WSL 實測無系統 claude、未登入；codex 不在 server bundle；T0405 git 上遠端依賴遠端 git / gh）
