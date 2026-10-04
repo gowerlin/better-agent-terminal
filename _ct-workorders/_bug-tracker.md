@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-04T20:21:50+08:00"
+generated_at: "2026-10-04T20:24:43+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 10
 breakdown:
   OPEN: 2
   FIXING: 0
-  FIXED: 3
+  FIXED: 2
   VERIFY: 0
-  CLOSED: 5
+  CLOSED: 6
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 20:21 (UTC+8) — 第五十 session：新增 BUG-085（OPEN）；frontmatter breakdown 漂移校正
+> 最後同步：2026-10-04 20:24 (UTC+8) — 第五十 session：新增 BUG-085（OPEN）；BUG-083 → CLOSED（實機驗收）；frontmatter breakdown 漂移校正
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 5 | ⛔ Won't Fix: 0 | **Total: 10**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 10**
 
 ## 🔴 Open / 處理中
 
@@ -45,7 +45,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-083 | Codex agent 出錯，測試者指稱需更新 codex 版本（內嵌 0.124.0，上游 0.160.0） | 🟡 medium | 2026-10-04 | [BUG-083](BUG-083-codex-agent-errors-outdated-bundled-cli.md) |
 | BUG-084 | 內嵌 Claude CLI 2.1.113 被服務端拒絕 Claude 5 主力模型（claude_code_version_too_old） | 🔴 high | 2026-10-04 | [BUG-084](BUG-084-embedded-claude-cli-too-old-for-claude-5.md) |
 | BUG-071 | Setup Wizard install-server-bundle 硬性失敗：server bundle tarball 自動取得未實作 | 🔴 high | 2026-10-04 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 
@@ -59,6 +58,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-083 | Codex agent 出錯，測試者指稱需更新 codex 版本（內嵌 0.124.0，上游 0.160.0） | 🟡 medium | 2026-10-04 | [BUG-083](BUG-083-codex-agent-errors-outdated-bundled-cli.md) |
 | BUG-082 | 跨專案工單前綴（CP-/CT-）被結構化派工路徑拒收，且四處 ID 規則彼此不一致 | 🔴 high | 2026-09-02 | [BUG-082](BUG-082-workorder-id-prefix-rejected-by-structured-dispatch.md) |
 | BUG-078 | ct-drift-telemetry.ts 引用 node:fs/path/os 觸發 D090 guard，CI verify-renderer-imports fail | 🔴 high | 2026-09-02 | [BUG-078](BUG-078-ct-drift-telemetry-renderer-node-imports-d090-violation.md) |
 | BUG-074 | SSH setup wizard：input step 在使用者輸入前就顯示 failed | 🟡 medium | 2026-09-02 | [BUG-074](BUG-074-ssh-wizard-input-step-shows-failed-on-init.md) |
