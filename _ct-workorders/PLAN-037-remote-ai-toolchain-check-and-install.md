@@ -61,7 +61,7 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 | T0411 | B | headless / main 接線：`remote-tools:detect` + `remote:detect-tools` + smoke S10（🔒 main / protocol / headless-entry） | T0408 | ✅ DONE（`49b1ca5`，03:22 聯合複驗：1514 tests / vite / e2e 0 failed / tsc 40；preload `remoteTools.detect(profileId)` / `detectHere()`；WSL 部署 + S10 待辦） |
 | T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | ✅ DONE（`e92e241` / `968fe3f`，03:43 聯合複驗：1614 tests / vite / e2e 0 failed / tsc 40） |
 | T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | ✅ DONE（`11d02f1`，03:31 塔台目標測試複驗 297/297；03:43 聯合複驗 PASS） |
-| T0414 | G | 實機驗收（首次允許實際安裝） | T0411-T0413 | 保留編號 |
+| T0414 | G | 實機驗收（首次允許實際安裝） | T0411-T0413 | 🔄 03:45 派發（使用者 03:44 同意在 WSL 實際安裝 claude / codex / uv / gh / rg；UI 點擊流程由使用者以新 build 另驗） |
 
 之後才是 PLAN-036 T0405（git 上遠端）→ T0406（fs）。
 - T0410 注意（T0409 備註）：install.sh 類食譜假設遠端有 `curl`；偵測到 `curl` missing 時停用 claude / codex / uv 安裝鈕並提示。i18n key 以 `INTEGRITY_KEYS` / `LOCATION_KEYS` / `NOTE_KEYS` / `UNSUPPORTED_REASONS`（→ `remoteTools.unsupported.<reason>`）為準
