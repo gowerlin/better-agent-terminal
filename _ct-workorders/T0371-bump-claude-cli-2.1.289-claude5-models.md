@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0371
 title: "BUG-084：內嵌 claude-code CLI 2.1.113 → 2.1.289 + Claude 5 模型清單 + getSupportedModels 帶 runtime 路徑"
 type: fix
-status: FIXED
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-10-04T16:09:22+08:00"

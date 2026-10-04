@@ -124,7 +124,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 
 1. 🟡 **BUG-071** ✅ FIXED（`a295ec7`；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 已發佈）—— **待使用者實機**：裝 pre.3 跑 WSL wizard（x64）；DGX Spark SSH（arm64）視時間 → 通過即 CLOSED
 2. 🟡 **BUG-083** FIXING（Codex 版本落後）—— D121 串行：T0367 T-A ✅ `c6214c2` → T0369 T-B ✅ `ca0d292` → T0370 T-D ✅ `30fcf45` → T-C 選最新 binary（排在 T0371 後）
-3. 🔴 **BUG-084** FIXING（內嵌 Claude CLI 2.1.113 → Opus 5.5 / Fable 5.1 回 400）—— D122：T0371 CLI 2.1.289 + Claude 5 模型（派發中）→ 錯誤分類/DISABLE_UPDATES → 計價表；Phase 2 SDK 0.3 + V2 preset 下架（D123）
+3. 🟡 **BUG-084** ✅ FIXED（`0d231b3` 內嵌 CLI 2.1.289，Opus 5.5 smoke=pong）—— 待實機；T0372 錯誤分類/DISABLE_UPDATES/CLAUDE.md（派發中）→ Codex T-C → 計價表 → Phase 2 SDK 0.3 + V2 下架（D123）
 4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6 倍（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
 5. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到
 6. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號至今零筆真實觸發，待有資料再議（已回函告知對方）
@@ -145,7 +145,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0372** / **BUG-085** / **PLAN-035** / **D123** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；BUG-083 FIXING：T0366 research DONE `aa970dc` → T0367（T-A）DONE `c6214c2` → T0369（T-B）DONE `ca0d292` → T0370（T-D）DONE `30fcf45` → 後續 T-C（D121，排在 T0371 後）；T0368 研究 DONE `22e8ddc` → BUG-084（Claude 內嵌 CLI 過舊，high）+ T0371 排隊（待 T0370 完成）；D120、D121、L133 新增）
+- **T0373** / **BUG-085** / **PLAN-035** / **D123** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；BUG-083 FIXING：T0366 research DONE `aa970dc` → T0367（T-A）DONE `c6214c2` → T0369（T-B）DONE `ca0d292` → T0370（T-D）DONE `30fcf45` → 後續 T-C（D121，排在 T0371 後）；T0368 研究 DONE `22e8ddc` → BUG-084（Claude 內嵌 CLI 過舊，high）→ T0371 DONE `0d231b3` → BUG-084 FIXED；T0372 後續派發；D120、D121、L133 新增）
 
 ---
 
@@ -290,6 +290,8 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - [決策] 2026-10-04 16:13 — 使用者裁決 `claude-code-v2` preset 下架（D123）
 - [完成] 2026-10-04 16:15 — T0370 DONE（`30fcf45`，Worker 寫 FIXED 已正規化為 DONE）塔台複驗 593 tests PASS
 - [派發] 2026-10-04 16:15 — T0371（BUG-084 Claude CLI 2.1.289）`--mode yolo --interactive`
+- [完成] 2026-10-04 16:24 — T0371 DONE（`0d231b3`，FIXED→DONE 正規化）塔台複驗 593 tests、`claude.exe --version`=2.1.289；BUG-084 → FIXED
+- [派發] 2026-10-04 16:24 — T0372（BUG-084 後續）`--mode yolo --no-interactive`
 - [發版] 2026-10-04 13:42 — run `37179875163` 9/9 success；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 發佈；runtime URL 下載 manifest 成功；BUG-071 → FIXED
 
 ### 前次 YOLO Session（2026-04-18 ~16:10 啟動，第三 session，收尾）

@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-084
 title: 內嵌 Claude CLI 2.1.113 被服務端拒絕 Claude 5 主力模型（claude_code_version_too_old）
-status: FIXING
+status: FIXED
 severity: high
+fix_commit: 0d231b3
+fixed_at: "2026-10-04T16:24:08+08:00"
 reproducibility: always
 created_at: "2026-10-04T16:09:22+08:00"
-updated_at: "2026-10-04T16:09:22+08:00"
+updated_at: "2026-10-04T16:24:08+08:00"
 impact:
   - claude-agent
   - claude-cli-terminal
@@ -15,6 +17,7 @@ links:
   research_workorder: T0368
   fix_workorders:
     - T0371
+    - T0372
 ---
 
 # BUG-084 — 內嵌 Claude CLI 2.1.113 被服務端拒絕 Claude 5 主力模型
@@ -23,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（預設 runtime = embedded；選 Opus 5.5 / Fable 5.1 必 400） |
 | 可重現 | 100%（T0368 實測，request id 見下） |
-| 狀態 | ⏳ FIXING（D122，T0371） |
+| 狀態 | ⏳ FIXING → ✅ FIXED（2026-10-04 `0d231b3`；待使用者實機選 Opus 5.5 驗收） |
 | 發現者 | 塔台 / T0368 研究（2026-10-04，由使用者詢問「SDK 是否最新」觸發） |
 | Workaround | Settings → Advanced → Claude Runtime 切 **system**（需系統另裝 claude ≥ 2.1.280） |
 
@@ -48,7 +51,7 @@ links:
 
 | 順序 | 工單 | 內容 |
 |------|------|------|
-| 1 | T0371 | CLI → 2.1.289 + Claude 5 模型清單 + `getSupportedModels()` 帶 runtime 路徑 + `release.yml` Node 24 |
-| 2 | 待開 | `claude_code_version_too_old` 錯誤分類 + `HEALTHY_MIN` → 2.1.280 + embedded 注入 `DISABLE_UPDATES=1` |
+| 1 | T0371 ✅ `0d231b3` | CLI → 2.1.289 + Claude 5 模型清單 + `getSupportedModels()` 帶 runtime 路徑 + `release.yml` Node 24（embedded + `claude-opus-5-5` smoke = `pong`） |
+| 2 | T0372 | `claude_code_version_too_old` 錯誤分類 + `HEALTHY_MIN` → 2.1.280 + embedded 注入 `DISABLE_UPDATES=1` + 模型下拉去重 + CLAUDE.md |
 | 3 | 待開 | 計價表（5 系列、cache-read 倍率、Claude/Codex 共用模組）—— 需等 BUG-083 T0370 收尾 |
 | 4 | 待開（Phase 2） | SDK 0.3.289 + **`claude-code-v2` preset 下架**（D123，含既有設定遷移至 `claude-code`）+ Task tools UI |
