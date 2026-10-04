@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0371
 title: "BUG-084：內嵌 claude-code CLI 2.1.113 → 2.1.289 + Claude 5 模型清單 + getSupportedModels 帶 runtime 路徑"
 type: fix
-status: IN_PROGRESS
+status: FIXED
 priority: P1
 sizing: S
 created_at: "2026-10-04T16:09:22+08:00"
-updated_at: "2026-10-04T16:16:16+08:00"
+updated_at: "2026-10-04T16:23:42+08:00"
 started_at: "2026-10-04T16:16:16+08:00"
-completed_at: null
+completed_at: "2026-10-04T16:23:42+08:00"
 target_version: next
 depends_on:
   - T0370
@@ -39,7 +39,7 @@ memory_overrides:
 
 # T0371 — BUG-084：內嵌 claude-code CLI → 2.1.289 + Claude 5 模型清單
 
-- **狀態**：IN_PROGRESS
+- **狀態**：FIXED
 - **任務類型**：fix（依賴升級 + 模型清單）
 - **工作量預估**：S
 - **Context Window 風險**：低
@@ -104,6 +104,7 @@ BUG-084：內嵌 CLI 2.1.113 選 `claude-opus-5-5` / `claude-fable-5-1` 必回 `
 
 - **Landing Zone**：WARN — C-0 `repo` 欄位 absent（觀察到 `basename(REPO_ROOT)` = `better-agent-terminal`）；C-1 PASS（工單位於 `REPO_ROOT/_ct-workorders/`）；C-3 PASS（4 筆 `affects_files` 全部存在）；C-2 無 `branch` 欄位（HEAD = `main`）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅作證據）。
 - **派發模式**：`CT_MODE=yolo`、`CT_INTERACTIVE=1`。
+- **Commit**：`0d231b3`（`git commit --only`，5 檔），未 push。
 - **未碰**：`AGENTS.md`（開工前既有 dirty）、CHANGELOG、`ClaudeAgentPanel.tsx`、計價表、`claude-resolver.ts`、`pty-manager.ts`、`@openai/*`、`claude-agent-sdk`。
 
 ### 互動紀錄
