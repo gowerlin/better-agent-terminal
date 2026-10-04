@@ -3,15 +3,15 @@ schema_version: 1
 schema_kind: bug
 id: BUG-093
 title: SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-10-04T22:31:33+08:00"
-updated_at: "2026-10-04T22:31:33+08:00"
+updated_at: "2026-10-04T23:34:17+08:00"
 impact:
   - setup-wizard-ssh
 links:
-  fix_workorder: null
+  fix_workorder: T0387
   related: [BUG-090, BUG-091, BUG-088, T0381]
 ---
 
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（SSH profile 會被 pin 上主機 BAT 自己的指紋；之後經 tunnel 連遠端時指紋不符被拒，或更糟——在本機無服務時驗證失敗） |
 | 可重現 | 推定 100%（程式碼閱讀；塔台 2026-10-04 22:31 複核） |
-| **狀態** | 📂 OPEN（修復單待開，排在 PLAN-035 Phase 1 之後或依塔台排程） |
+| **狀態** | 🔧 FIXING（T0387） |
 | 回報者 | T0381 Worker（回報區「SSH / Docker 實際取指紋路徑」） |
 
 ## 現象（程式碼證據）

@@ -121,7 +121,7 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（65 entries）
 
 ### 編號起始
-- **T0386** / **BUG-095** / **PLAN-036** / **D129** / **EXP-[TOPIC]-001** / **L138**
+- **T0388** / **BUG-095** / **PLAN-037** / **D129** / **EXP-[TOPIC]-001** / **L138**
 
 ---
 
@@ -135,9 +135,9 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 | **最新 release** | `v0.5.9-pre.4`（2026-10-04 17:10 驗證：9/9 success，5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
 | **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
 | **目前主軸** | 實機驗收（BUG-071 / 084 / 085）→ push + `v0.5.9-pre.5` → Phase 2 Claude SDK 0.3 |
-| **工單最大編號** | T0385 DONE（`c4e82ba`，23:31 複驗）；T0380-T0384 全 DONE（PLAN-035 Phase 0-1）；BUG-093 修復單排在 T0385 之後（串行，使用者裁決） |
-| **BUG 最大編號** | BUG-094；093 OPEN、094 FIXED（T0385；待 WSL 內 server 換新 JS 實機）；086-092 FIXED（待實機，WSL 精靈一次驗） |
-| **PLAN 最大編號** | PLAN-035（WSL 環境全自動化，IN_PROGRESS：Phase 1 完成） |
+| **工單最大編號** | T0387；T0386（PLAN-036 研究）/ T0387（BUG-093）23:34 平行派發；T0385 DONE（`c4e82ba`）；T0380-T0384 全 DONE（PLAN-035 Phase 0-1）；BUG-093 由「T0385 後串行」改為 T0385 完成後與 T0386 平行（使用者裁決） |
+| **BUG 最大編號** | BUG-094；093 FIXING（T0387）、094 FIXED（T0385；WSL 內 server 已由塔台 23:34 換新 JS，待使用者開 profile 驗收）；086-092 FIXED（待實機，WSL 精靈一次驗） |
+| **PLAN 最大編號** | PLAN-036（headless 功能 handler 層，PLANNED，研究 T0386）；PLAN-035 IN_PROGRESS（Phase 1 完成，Phase 2/3 與 PLAN-036 的先後待 T0386 建議） |
 | **決策最大編號** | D128 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
