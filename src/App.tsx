@@ -19,6 +19,7 @@ import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
 import { CtToast, useCtToast } from './components/CtToast'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
+import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from './utils/control-tower-launch'
 import { isWslWindowsDrivePath, winToWsl } from './utils/wsl-path'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
@@ -132,6 +133,8 @@ export default function App() {
   // PLAN-027 #3 (T0232): Claude runtime degraded / version-warning toasts.
   const { messages: runtimeToastMessages, addToast: addRuntimeToast, dismissToast: dismissRuntimeToast } = useCtToast()
   useRuntimeToasts(addRuntimeToast)
+  // T0412 (PLAN-037 E): remote-tool installs run in this window's terminal tabs.
+  useRemoteToolInstall({ addToast: addRuntimeToast })
   // Docking system
   const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
   const [leftPanelTab, setLeftPanelTab] = useState<'workspaces' | DockablePanel>('workspaces')

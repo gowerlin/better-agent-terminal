@@ -939,5 +939,32 @@
       "confirmInstall": "安装",
       "confirmUpdate": "更新"
     }
+  },
+  "remoteToolInstall": {
+    "tabTitle": {
+      "install": "安装 {{tool}}",
+      "update": "更新 {{tool}}"
+    },
+    "error": {
+      "detectFailed": "安装 {{tool}} 前无法检查远程主机：{{error}}",
+      "unsupported": "这台主机无法安装 {{tool}}：{{reason}}",
+      "invalidReport": "远程主机的检测结果无效，未安装 {{tool}}。",
+      "noWorkspace": "没有可打开安装标签页的工作区，也找不到远程主目录。请先添加工作区再重试。",
+      "ptyFailed": "无法打开终端标签页来安装 {{tool}}。"
+    },
+    "result": {
+      "installed": "{{tool}} 已安装并检测到。",
+      "updated": "{{tool}} 已更新。",
+      "tooOld": "{{tool}} 版本仍低于 BAT 所需，请查看终端输出。",
+      "notOnPath": "{{tool}} 已安装到 {{path}}，但目前还不在登录 shell 的 PATH 上。",
+      "notDetected": "命令已执行完毕，但未检测到 {{tool}}，请查看终端输出。",
+      "redetectFailed": "命令已执行完毕，但重新检查 {{tool}} 失败：{{error}}",
+      "failed": "{{tool}} 的命令执行失败（退出代码 {{code}}），请查看终端输出。",
+      "aborted": "{{tool}} 的终端标签页在命令完成前就关闭了。"
+    },
+    "hint": {
+      "reopenTabs": "已打开的其他终端标签页需重新打开，才能看到 ~/.local/bin。",
+      "posixShell": "{{shell}} 不是 POSIX shell，安装标签页改用 {{fallback}}。"
+    }
   }
 }

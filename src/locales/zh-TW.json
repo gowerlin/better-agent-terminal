@@ -939,5 +939,32 @@
       "confirmInstall": "安裝",
       "confirmUpdate": "更新"
     }
+  },
+  "remoteToolInstall": {
+    "tabTitle": {
+      "install": "安裝 {{tool}}",
+      "update": "更新 {{tool}}"
+    },
+    "error": {
+      "detectFailed": "安裝 {{tool}} 前無法檢查遠端主機：{{error}}",
+      "unsupported": "這台主機無法安裝 {{tool}}：{{reason}}",
+      "invalidReport": "遠端主機的偵測結果無效，未安裝 {{tool}}。",
+      "noWorkspace": "沒有可開啟安裝分頁的工作區，也找不到遠端家目錄。請先新增工作區再重試。",
+      "ptyFailed": "無法開啟終端分頁來安裝 {{tool}}。"
+    },
+    "result": {
+      "installed": "{{tool}} 已安裝並偵測到。",
+      "updated": "{{tool}} 已更新。",
+      "tooOld": "{{tool}} 版本仍低於 BAT 所需，請查看終端輸出。",
+      "notOnPath": "{{tool}} 已安裝到 {{path}}，但目前還不在登入 shell 的 PATH 上。",
+      "notDetected": "指令已執行完畢，但未偵測到 {{tool}}，請查看終端輸出。",
+      "redetectFailed": "指令已執行完畢，但重新檢查 {{tool}} 失敗：{{error}}",
+      "failed": "{{tool}} 的指令執行失敗（結束代碼 {{code}}），請查看終端輸出。",
+      "aborted": "{{tool}} 的終端分頁在指令完成前就關閉了。"
+    },
+    "hint": {
+      "reopenTabs": "已開啟的其他終端分頁需重開，才看得到 ~/.local/bin。",
+      "posixShell": "{{shell}} 不是 POSIX shell，安裝分頁改用 {{fallback}}。"
+    }
   }
 }

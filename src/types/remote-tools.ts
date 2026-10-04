@@ -164,3 +164,19 @@ export type RemoteToolsDetectErrorCode = typeof REMOTE_TOOLS_DETECT_ERROR_CODES[
 export type RemoteToolsDetectResult =
   | { ok: true; report: RemoteToolsReport }
   | { ok: false; errorCode: RemoteToolsDetectErrorCode; error: string }
+
+// T0412 (PLAN-037 E): install requests. A request names the tool and the kind only —
+// never a command: the window that runs it rebuilds the plan from its own
+// `detectHere()` report (`buildInstallPlan` / `buildUpdatePlan`).
+export const REMOTE_TOOL_INSTALL_KINDS = ['install', 'update'] as const
+export type RemoteToolInstallKind = typeof REMOTE_TOOL_INSTALL_KINDS[number]
+
+export interface RemoteToolInstallRequest {
+  /** Remote profile whose window runs the install. */
+  profileId: string
+  toolId: RemoteToolId
+  kind: RemoteToolInstallKind
+}
+
+/** `remoteTools.requestInstall` answer: queued and the profile window opened / focused, or why not. */
+export type RemoteToolInstallRequestResult = { ok: true } | { ok: false; error: string }

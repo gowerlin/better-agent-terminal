@@ -939,5 +939,32 @@
       "confirmInstall": "Install",
       "confirmUpdate": "Update"
     }
+  },
+  "remoteToolInstall": {
+    "tabTitle": {
+      "install": "Install {{tool}}",
+      "update": "Update {{tool}}"
+    },
+    "error": {
+      "detectFailed": "Could not check the remote host before installing {{tool}}: {{error}}",
+      "unsupported": "{{tool}} cannot be installed here: {{reason}}",
+      "invalidReport": "The remote host's detection report is invalid, so {{tool}} was not installed.",
+      "noWorkspace": "There is no workspace for the install tab and the remote home folder could not be found. Add a workspace, then try again.",
+      "ptyFailed": "Could not open a terminal tab to install {{tool}}."
+    },
+    "result": {
+      "installed": "{{tool}} is installed and detected.",
+      "updated": "{{tool}} is updated.",
+      "tooOld": "{{tool}} is still older than BAT needs. Check the terminal output.",
+      "notOnPath": "{{tool}} was installed at {{path}}, but it is not on the login PATH yet.",
+      "notDetected": "The command finished, but {{tool}} was not detected. Check the terminal output.",
+      "redetectFailed": "The command finished, but checking {{tool}} again failed: {{error}}",
+      "failed": "The {{tool}} command failed (exit code {{code}}). Check the terminal output.",
+      "aborted": "The {{tool}} terminal tab closed before the command finished."
+    },
+    "hint": {
+      "reopenTabs": "Terminal tabs that were already open must be reopened to see ~/.local/bin.",
+      "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
+    }
   }
 }
