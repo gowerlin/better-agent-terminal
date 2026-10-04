@@ -94,7 +94,7 @@ DONE
 12. 原 :84 `/health reports healthy` → `docker inspect --format '{{.State.Health.Status}}'` 回 `healthy`（註明無 `/health` 路由）；新增 `docker port` 僅 `127.0.0.1:<port>` 檢查項
 
 **驗收**
-- source/docs lane：`grep -n "/health\|BAT_PORT" docs/docker-deployment.md docs/plan-007-release-checklist.md` → 剩 7 處，全部為「無 `/health` 路由 / 已移除 / 舊 image 探測不存在路由」的說明，無過時操作指示 — PASS
+- source/docs lane：`grep -n "/health\|BAT_PORT\b" docs/docker-deployment.md docs/plan-007-release-checklist.md` → 剩 7 處，全部為「無 `/health` 路由 / 已移除 / 舊 image 探測不存在路由」的說明，無過時操作指示 — PASS
 - build / tests：純文件，依工單不跑 — N/A
 - runtime：未在 Docker 上實測文件中的指令（沿 T0418 runtime lane 待補驗）
 
