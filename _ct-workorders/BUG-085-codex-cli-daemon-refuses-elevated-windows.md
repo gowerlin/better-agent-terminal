@@ -3,13 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-085
 title: Codex CLI 0.160 在提權的 Windows 上拒絕啟動 daemon，Codex CLI 終端 preset 直接失敗
-status: FIXED
+status: CLOSED
 fix_commits: [71706c2]
 fixed_at: "2026-10-04T20:48:06+08:00"
 severity: medium
 reproducibility: conditional
 created_at: "2026-10-04T20:21:50+08:00"
-updated_at: "2026-10-04T20:48:06+08:00"
+updated_at: "2026-10-04T21:04:52+08:00"
+closed_at: "2026-10-04T21:04:52+08:00"
 impact:
   - codex-cli-terminal-preset
   - ct-dispatch-codex-cli（提權環境）
@@ -26,7 +27,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（T0375 確認：Codex Agent 面板不受影響，維持 medium） |
 | 可重現 | 條件式 100%：Windows + BAT 行程為提權（UAC 停用 `EnableLUA=0`，或使用者以系統管理員執行 BAT） |
-| **狀態** | ✅ FIXED（T0377 `71706c2`，20:48；待實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-10-04 21:04 實機驗收通過） |
 | 回報者 | 使用者（2026-10-04，實機截圖；介於 20:16 塔台起手與 20:22 開單之間，截圖無機器時間——原寫 20:19 為塔台推估，已更正，R-G001） |
 
 ## 現象
@@ -93,3 +94,9 @@ To work without the background server, rerun the same command with --no-daemon (
 - （可選）Tower 以 codex-cli 為 default agent 派發一張工單 → Worker 正常啟動
 - UAC 開啟機器的非提權 BAT：指令不應帶 `-c features.daemon_auto_start=false`（本機無法驗）
 
+## 實機驗收（2026-10-04 21:04 UTC+8）— CLOSED
+
+- **受測版本**：已安裝 BAT 本機 build `0.5.9-pre.4`（含 `71706c2`）；`C:\Program Files\BetterAgentTerminal\resources\app.asar` 與 `release\win-unpacked\resources\app.asar` SHA-256 一致（`518EE6CB…`，塔台雜湊比對，L127）
+- **環境**：Windows 11、UAC 停用（`EnableLUA=0`）
+- **結果**：使用者回報「驗收通過」（Codex CLI 分頁可進 TUI，不再被 daemon 提權檢查擋下）
+- **結論**：runtime lane 通過 → CLOSED
