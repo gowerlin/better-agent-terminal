@@ -22,6 +22,8 @@ export default defineConfig({
       'electron/remote/__tests__/**/*.test.ts',
       // T0348 / BUG-078 — drift telemetry relocated to electron/ (D090 guard)
       'electron/__tests__/**/*.test.ts',
+      // T0408 — PLAN-037 remote-tools probe / parse
+      'electron/remote-tools/__tests__/**/*.test.ts',
       // T0342 — Windows/MSYS regression guard for bat-terminal helper
       'tests/bat-terminal-msys.test.mjs',
       'tests/bat-notify-submit.test.mjs',

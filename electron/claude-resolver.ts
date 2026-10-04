@@ -52,12 +52,12 @@ export interface ClaudeHealthProbeResult {
 const HOME = process.env.HOME || process.env.USERPROFILE || ''
 // BUG-084 / T0372: the server rejects models the CLI is too old for (`claude_code_version_too_old`);
 // Opus 5.5 needs >= 2.1.280 (Fable 5.1 >= 2.1.251). Was 2.1.111 (Opus 4.7 / xhigh, T0165).
-const HEALTHY_MIN = '2.1.280'
+export const HEALTHY_MIN = '2.1.280'
 const TOO_OLD_MAX = '2.0.0'
 const PROBE_TIMEOUT_MS = 5000
 
 // Regex anchored at start; captures `X.Y.Z` or `X.Y.Z-prerelease`
-const VERSION_REGEX = /^(\d+\.\d+\.\d+(?:-[\w.]+)?)\s+\(Claude Code\)/
+export const VERSION_REGEX = /^(\d+\.\d+\.\d+(?:-[\w.]+)?)\s+\(Claude Code\)/
 
 // ----------------------------------------------------------------------------
 // Version helpers
@@ -67,7 +67,7 @@ const VERSION_REGEX = /^(\d+\.\d+\.\d+(?:-[\w.]+)?)\s+\(Claude Code\)/
  * Compare two semver strings (ignoring prerelease tags).
  * Returns >0 if a > b, <0 if a < b, 0 if equal.
  */
-function compareSemver(a: string, b: string): number {
+export function compareSemver(a: string, b: string): number {
   const parse = (v: string) => v.replace(/^v/, '').split('-')[0].split('.').map(Number)
   const pa = parse(a)
   const pb = parse(b)
