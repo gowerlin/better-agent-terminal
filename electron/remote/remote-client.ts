@@ -96,6 +96,21 @@ export function shouldSyncWorkspaceRoots(
   return connected && !!windowProfileId && windowProfileId === boundProfileId
 }
 
+/**
+ * T0425 (BUG-098, D134): ssh-* profiles always connect through an SSH tunnel.
+ * The remote bat-server binds to localhost and the profile's `remoteHost` is
+ * 'localhost', so connecting without the tunnel would reach this machine's own
+ * RemoteServer instead. `useSshTunnel: false` (written by the removed "direct"
+ * wizard option) is therefore treated as tunnel and reported as legacy;
+ * `undefined` follows the schema default (true). Non-ssh profiles: no tunnel.
+ */
+export function resolveSshTunnelUse(entry: ProfileEntry): { useTunnel: boolean; legacyDirect: boolean } {
+  if (entry.targetOS !== 'ssh-linux' && entry.targetOS !== 'ssh-darwin') {
+    return { useTunnel: false, legacyDirect: false }
+  }
+  return { useTunnel: true, legacyDirect: entry.useSshTunnel === false }
+}
+
 export class RemoteClient {
   private ws: WebSocket | null = null
   private pending: Map<string, PendingInvoke> = new Map()
@@ -115,8 +130,8 @@ export class RemoteClient {
   private shouldReconnect = false
 
   // PLAN-007 T0284: SSH tunnel state. Non-null only when the bound profile is
-  // ssh-linux/ssh-darwin with useSshTunnel === true. wss host/port are
-  // rewritten to 127.0.0.1:<localPort> once the tunnel is up.
+  // ssh-linux/ssh-darwin (always tunnelled since T0425, see resolveSshTunnelUse).
+  // wss host/port are rewritten to 127.0.0.1:<localPort> once the tunnel is up.
   private tunnel: SshTunnel | null = null
   private remoteServerPort = 0   // pre-tunnel destination port on the SSH host
   private tunnelRestartFailures = 0
@@ -231,7 +246,13 @@ export class RemoteClient {
     if (!this.profile) return
     const meta = extractTargetOSMeta(this.profile)
     if (meta.targetOS !== 'ssh-linux' && meta.targetOS !== 'ssh-darwin') return
-    if (!meta.useSshTunnel) return
+    const { useTunnel, legacyDirect } = resolveSshTunnelUse(this.profile)
+    if (!useTunnel) return
+    if (legacyDirect) {
+      logger.warn(
+        `[RemoteClient] profile ${this.profile.id} has useSshTunnel=false (removed SSH direct mode) — connecting through an SSH tunnel instead`,
+      )
+    }
     if (!meta.sshHost || !meta.sshUser) {
       logger.warn(
         '[RemoteClient] profile requests SSH tunnel but sshHost/sshUser are blank — skipping',

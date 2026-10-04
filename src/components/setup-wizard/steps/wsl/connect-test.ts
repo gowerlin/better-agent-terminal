@@ -24,7 +24,7 @@ export const connectTestStep: WizardStep = {
     // T0382 (BUG-091): same ctx.serverPort the unit and the profile use. No
     // 9876 fallback — that is the host RemoteServer's default port.
     // T0387 (BUG-093): the SSH flow overrides the target with its tunnel's
-    // local end (or the remote host in direct mode).
+    // local end (tunnel-only since T0425 / BUG-098).
     const endpoint = ctx.verifyEndpoint
     const host = endpoint ? endpoint.host : 'localhost'
     const port = endpoint ? endpoint.port : ctx.serverPort

@@ -2,7 +2,8 @@ export {
   configureSshHostStep,
   SshConfigureHostStep,
   sshConfigureHostInstallPathOptions,
-  sshConfigureHostTunnelModeOptions,
+  normalizeSshTunnelMode,
+  type SshTunnelMode,
 } from './configure-host'
 export { verifySshAuthStep, SshVerifyAuthStep } from './verify-auth'
 export { installSshServerBundleStep, SshInstallBundleStep } from './install-server-bundle'

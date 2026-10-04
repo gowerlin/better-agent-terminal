@@ -50,7 +50,6 @@ export const writeProfileStep: WizardStep = {
         sshPort?: number
         sshKeyPath?: string
         sshAlias?: string
-        sshTunnelMode?: 'tunnel' | 'direct'
         sshInstallPath?: string
         sshServerHome?: string
       }
@@ -70,16 +69,19 @@ export const writeProfileStep: WizardStep = {
       })
       ctx.createdProfileId = profile.id
 
-      // Map ctx state -> ProfileEntry schema: sshTunnelMode boolean, schema
-      // doesn't carry sshAlias / sshInstallPath (alias is resolved at connect
-      // time via ssh-config; install path is a runtime artifact, not a join key).
+      // Map ctx state -> ProfileEntry schema. Schema doesn't carry sshAlias /
+      // sshInstallPath (alias is resolved at connect time via ssh-config;
+      // install path is a runtime artifact, not a join key).
+      // T0425 (BUG-098): SSH profiles always use the tunnel — the remote
+      // bat-server binds to localhost and `remoteHost` is 'localhost', so a
+      // legacy `sshTunnelMode: 'direct'` in the state is not honoured.
       const updated = await window.electronAPI.profile.update(profile.id, {
         targetOS: ctx.targetOS,
         sshHost: sshState.sshHost,
         sshUser: sshState.sshUser,
         sshPort: sshState.sshPort,
         sshKeyPath: sshState.sshKeyPath,
-        useSshTunnel: sshState.sshTunnelMode !== 'direct',
+        useSshTunnel: true,
         serverHome,
         remoteHost: 'localhost',
         remotePort: port,

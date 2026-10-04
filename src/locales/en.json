@@ -776,7 +776,7 @@
       "step": {
         "configureHost": {
           "label": "Configure SSH host",
-          "description": "Pick host, user, port, identity, install path, and tunnel mode."
+          "description": "Pick host, user, port, identity, and install path. BAT connects through an SSH tunnel."
         },
         "verifyAuth": {
           "label": "Verify SSH authentication",

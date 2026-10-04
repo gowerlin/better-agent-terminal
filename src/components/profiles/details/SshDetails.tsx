@@ -5,9 +5,10 @@ import type { ProfileEntry } from '../types'
 export function SshDetails({ profile }: { profile: ProfileEntry }) {
   const isDarwin = profile.targetOS === 'ssh-darwin'
   const serviceLabel = isDarwin ? 'launchd' : 'systemd (user)'
-  const tunnelLabel = profile.useSshTunnel
-    ? `tunnel → localhost:${profile.tunnelLocalPort || 9876}`
-    : 'direct'
+  // T0425 (BUG-098): SSH profiles always connect through the tunnel; a legacy
+  // useSshTunnel=false (removed "direct" mode) is shown as such, not as direct.
+  const tunnelLabel = `tunnel → localhost:${profile.tunnelLocalPort || 9876}`
+    + (profile.useSshTunnel === false ? ' (legacy direct setting ignored)' : '')
   return (
     <dl className="profile-details" data-testid={isDarwin ? 'profile-details-ssh-darwin' : 'profile-details-ssh-linux'}>
       <div className="profile-details-row">

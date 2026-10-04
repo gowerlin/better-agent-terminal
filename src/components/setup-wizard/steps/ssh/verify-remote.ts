@@ -1,4 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import type { SshTunnelMode } from './configure-host'
 import { connectTestStep } from '../wsl/connect-test'
 import { fetchFingerprintStep } from '../wsl/fetch-fingerprint'
 
@@ -7,12 +8,10 @@ import { fetchFingerprintStep } from '../wsl/fetch-fingerprint'
  * `connect-test` steps. The shared steps used to hit `localhost:<serverPort>`,
  * i.e. this BAT's own RemoteServer, because nothing forwarded to the remote
  * host during the wizard. Here they are pointed at the remote bat-server via
- * `ctx.verifyEndpoint`:
- *
- *   - tunnel mode (default): main opens `ssh -L <local>:localhost:<serverPort>`
- *     (OS-assigned local port, never a host RemoteServer port) and both steps
- *     talk to `127.0.0.1:<local>`.
- *   - direct mode: both steps talk to `<sshHost>:<serverPort>`.
+ * `ctx.verifyEndpoint`: main opens `ssh -L <local>:localhost:<serverPort>`
+ * (OS-assigned local port, never a host RemoteServer port) and both steps talk
+ * to `127.0.0.1:<local>`. Tunnel is the only mode (T0425 / BUG-098 removed
+ * "direct"); a leftover `sshTunnelMode: 'direct'` in the state is ignored.
  *
  * The tunnel is closed when connect-test finishes (success, failure or skip
  * path), when fetch-fingerprint fails, and by either step's rollback (cancel /
@@ -30,7 +29,7 @@ interface SshVerifyState {
   sshUser?: string
   sshPort?: number
   sshKeyPath?: string
-  sshTunnelMode?: 'tunnel' | 'direct'
+  sshTunnelMode?: SshTunnelMode
   sshServerHome?: string
   sshVerifySessionId?: string
 }
@@ -60,11 +59,6 @@ export async function ensureSshVerifyEndpoint(ctx: WizardContext): Promise<void>
   }
   if (!state.sshHost || !state.sshUser) {
     throw new Error('SSH host and user must be configured before verifying the remote server.')
-  }
-
-  if (state.sshTunnelMode === 'direct') {
-    ctx.verifyEndpoint = { host: state.sshHost, port: remotePort }
-    return
   }
 
   const result = await window.electronAPI.ssh.openVerifyTunnel({

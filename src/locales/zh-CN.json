@@ -776,7 +776,7 @@
       "step": {
         "configureHost": {
           "label": "配置 SSH 主机信息",
-          "description": "选择主机、账号、端口、密钥、安装路径与通道模式。"
+          "description": "选择主机、账号、端口、密钥与安装路径；BAT 始终通过 SSH 通道连接。"
         },
         "verifyAuth": {
           "label": "验证 SSH 认证",

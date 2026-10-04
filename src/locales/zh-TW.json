@@ -776,7 +776,7 @@
       "step": {
         "configureHost": {
           "label": "設定 SSH 主機資訊",
-          "description": "選擇主機、帳號、port、金鑰、安裝路徑與通道模式。"
+          "description": "選擇主機、帳號、port、金鑰與安裝路徑；BAT 一律透過 SSH 通道連線。"
         },
         "verifyAuth": {
           "label": "驗證 SSH 認證",

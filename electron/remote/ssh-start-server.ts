@@ -187,6 +187,7 @@ function renderSystemdUnit(opts: StartServerOptions): string {
     '',
     '[Service]',
     'Type=simple',
+    // T0425 (BUG-098, D134): loopback only — BAT reaches it via `ssh -L`.
     'Environment=BAT_REMOTE_BIND=localhost',
     `Environment=BAT_REMOTE_PORT=${port}`,
     `ExecStart=${safeInstallPath}/bin/bat-server`,
@@ -222,6 +223,7 @@ function renderLaunchdPlist(opts: StartServerOptions): string {
     '  </array>',
     '  <key>EnvironmentVariables</key>',
     '  <dict>',
+    // T0425 (BUG-098, D134): loopback only — BAT reaches it via `ssh -L`.
     '    <key>BAT_REMOTE_BIND</key>',
     '    <string>localhost</string>',
     '    <key>BAT_REMOTE_PORT</key>',

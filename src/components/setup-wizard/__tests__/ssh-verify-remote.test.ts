@@ -1,7 +1,7 @@
 /**
  * T0387 (BUG-093): the SSH wizard's fetch-fingerprint / connect-test reach the
- * REMOTE bat-server — through the wizard's SSH tunnel (tunnel mode) or the
- * remote host (direct mode) — never this BAT's own `localhost:<serverPort>`.
+ * REMOTE bat-server through the wizard's SSH tunnel (the only mode since
+ * T0425 / BUG-098) — never this BAT's own `localhost:<serverPort>`.
  * Every wizard exit path closes the tunnel; WSL / Docker keep the shared
  * steps' localhost behaviour. All SSH access is mocked IPC.
  */
@@ -178,17 +178,19 @@ describe('tunnel mode (T0387 / BUG-093)', () => {
   })
 })
 
-describe('direct mode (T0387 / BUG-093)', () => {
-  it('fetch-fingerprint and connect-test target the remote host, no tunnel', async () => {
+describe('legacy direct mode (T0425 / BUG-098: removed)', () => {
+  it('a leftover sshTunnelMode=direct still verifies through the tunnel, never the remote host', async () => {
     const api = installApi()
     const ctx = makeSshCtx({}, { sshTunnelMode: 'direct' })
     await sshFetchFingerprintStep.run(ctx)
     await sshConnectTestStep.run(ctx)
 
-    expect(api.openVerifyTunnel).not.toHaveBeenCalled()
-    expect(api.fetchFingerprint).toHaveBeenCalledWith(REMOTE_PORT, 'devbox.example')
-    expect(api.testConnection).toHaveBeenCalledWith('devbox.example', REMOTE_PORT, 'remote-token', FP)
-    expect(ctx.verifyEndpoint).toBeUndefined()
+    expect(api.openVerifyTunnel).toHaveBeenCalled()
+    expect(api.fetchFingerprint).toHaveBeenCalledWith(TUNNEL_PORT, '127.0.0.1')
+    expect(api.testConnection).toHaveBeenCalledWith('127.0.0.1', TUNNEL_PORT, 'remote-token', FP)
+    expect(api.fetchFingerprint).not.toHaveBeenCalledWith(REMOTE_PORT, 'devbox.example')
+    expect(api.testConnection).not.toHaveBeenCalledWith('devbox.example', REMOTE_PORT, expect.anything(), expect.anything())
+    expect(api.openSessions.size).toBe(0)
   })
 })
 

@@ -5,10 +5,27 @@ const INSTALL_PATH_OPTIONS = [
   { label: '/opt/bat-server (advanced, requires sudo)', value: '/opt/bat-server', description: 'System-scope install. v1 SSH wizard installs sudo path in T0286.' },
 ] satisfies WizardChoiceOption[]
 
-const TUNNEL_MODE_OPTIONS = [
-  { label: 'Tunnel (recommended)', value: 'tunnel', description: 'BAT opens an ssh -L LocalForward to keep the BAT server bound to localhost on the remote host.' },
-  { label: 'Direct (advanced)', value: 'direct', description: 'Server binds directly on the remote host. Requires firewall rules and is opt-in.' },
-] satisfies WizardChoiceOption[]
+/**
+ * T0425 (BUG-098, D134): the SSH wizard only supports tunnel mode. The remote
+ * bat-server always binds to localhost (`ssh-start-server.ts`) and BAT reaches
+ * it through `ssh -L`; the former "direct" option could never connect and was
+ * removed rather than opened up to external interfaces.
+ */
+export type SshTunnelMode = 'tunnel'
+
+/**
+ * Pin `state.sshTunnelMode` to `'tunnel'`. Any other value (missing, or a
+ * legacy `'direct'` carried in from a prefilled / older wizard state) is
+ * treated as tunnel; a legacy `'direct'` is logged so the change is visible.
+ */
+export function normalizeSshTunnelMode(ctx: WizardContext): SshTunnelMode {
+  const current: unknown = (ctx.state as { sshTunnelMode?: unknown }).sshTunnelMode
+  if (current === 'direct') {
+    ctx.logger.warn('SSH direct mode is no longer supported; using an SSH tunnel instead.')
+  }
+  ;(ctx.state as { sshTunnelMode?: SshTunnelMode }).sshTunnelMode = 'tunnel'
+  return 'tunnel'
+}
 
 interface ConfigureSshHostState {
   sshAlias?: string
@@ -17,7 +34,7 @@ interface ConfigureSshHostState {
   sshPort?: number
   sshKeyPath?: string
   sshInstallPath?: string
-  sshTunnelMode?: 'tunnel' | 'direct'
+  sshTunnelMode?: SshTunnelMode
   sshHostsAvailable?: string[]
 }
 
@@ -107,9 +124,7 @@ export const configureSshHostStep: WizardStep = {
     if (typeof state.sshInstallPath !== 'string' || state.sshInstallPath.trim().length === 0) {
       writeState(ctx, { sshInstallPath: INSTALL_PATH_OPTIONS[0].value })
     }
-    if (state.sshTunnelMode !== 'tunnel' && state.sshTunnelMode !== 'direct') {
-      writeState(ctx, { sshTunnelMode: 'tunnel' })
-    }
+    normalizeSshTunnelMode(ctx)
 
     ctx.serverInstallPath = state.sshInstallPath ?? INSTALL_PATH_OPTIONS[0].value
     ctx.profileDraft = {
@@ -127,4 +142,3 @@ export const configureSshHostStep: WizardStep = {
 export const SshConfigureHostStep = configureSshHostStep
 
 export const sshConfigureHostInstallPathOptions = INSTALL_PATH_OPTIONS
-export const sshConfigureHostTunnelModeOptions = TUNNEL_MODE_OPTIONS
