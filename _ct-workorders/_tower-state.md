@@ -269,6 +269,8 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 06:22 — T0432 DONE（`aec20c0`）塔台複核 PASS：權杖只存 digest、`timingSafeEqual`、4 channel 白名單 + target 綁定、48 + 31 + 6 新測試、tsc 39；全套 1 failed 同 T0427（T0443 未提交 `main.ts`）
 - [斷點 C 裁決] 2026-10-05 06:22 — 開 T0445 安全 review（只出 findings）與 T0433 平行
 - [派發] 2026-10-05 06:22 — T0433 ∥ T0445（`--no-interactive`）
+- [完成] 2026-10-05 06:28 — T0443 DONE（`72ac25c`）塔台複核 PASS：fail-closed `REMOTE_NOT_CONNECTED`、狀態事件、init 路徑處理；`headless-always-local.test.ts` 轉綠；Worker 2230 tests / tsc 39；BUG-110 → FIXED。偏差接受（`remote-client.ts` listener、`src/lib/remote-not-connected.ts`）
+- [斷點 C 裁決] 2026-10-05 06:28 — detached workspace 視窗同類 fail-open → BUG-112（high）/ T0446
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 

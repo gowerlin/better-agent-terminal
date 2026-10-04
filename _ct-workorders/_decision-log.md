@@ -1404,6 +1404,7 @@
 | 27 | T0443 BUG-110 遠端視窗未連線 fail-closed 路由 + 狀態事件 | 本專案 | T0442 | M | 🟢 |
 | 28 | T0444 BUG-111 精靈 rollback 只清精靈自有資源 | 本專案 | T0427 | S | 🟢 |
 | 29 | T0445 安全 review：T0432 每 PTY 範圍權杖（只出 findings） | 本專案 | T0432 | M | 🟡 |
+| 30 | T0446 BUG-112 detached workspace 視窗綁回 profile（fail-closed） | 本專案 | T0443 | S | 🟢 |
 
 - **追加**（使用者 06:14 裁決）：多 remote profile 同時連線開 **PLAN-039**（PLANNED），**排在本批（D134 第 1-28 列）全部完成之後**，先開 Phase 0 研究單
 
