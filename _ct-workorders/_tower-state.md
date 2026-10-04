@@ -302,6 +302,8 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 07:03 — T0441 DONE（`5d8fd8f`）塔台複核 PASS：snippet 實為記憶體 store + `snippets.json` 僅啟動時 load ⇒ 舊流程全平台無效；改注入清單（無路徑）；**tsc 39 → 36**；BUG-109 → FIXED。全套紅屬 T0451 WIP（`remote-server.ts` `LOG_UNSAFE_CHARS` regex 含行分隔字元 → Unterminated regular expression，25 suite）與 T0434 WIP → **T0451 完成時必查**
 - [斷點 C 裁決] 2026-10-05 07:03 — 「agent 提案 → 一鍵套用 snippet」→ backlog
 - [派發] 2026-10-05 07:03 — T0437（`--no-interactive`）
+- [完成] 2026-10-05 07:05 — T0451 DONE（`283337a`）塔台複核 PASS：`LOG_UNSAFE_CHARS` 已改跳脫序列（塔台跑 `headless-electron-free` 4/4）、Worker 全套 2466 passed / **0 failed** / tsc 36。**T0445 九條 finding 全數修畢**
+- [斷點 C 裁決] 2026-10-05 07:05 — client heartbeat 不檢查 pong → T0455（連續 2 次未 pong 才 terminate）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 

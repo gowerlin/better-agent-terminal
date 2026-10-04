@@ -1413,6 +1413,7 @@
 | 36 | T0452 精靈重試路徑（Docker start 重試 / write-profile 孤兒） | 本專案 | T0444 | S | 🟢 |
 | 37 | T0453 BUG-113 detached workspace 載入（自 `512c118` 失效） | 本專案 | T0446 | M | 🟡 |
 | 38 | T0454 scripts 測試換行無關（CRLF checkout 4 檔失敗） | 本專案 | T0434 | S | 🟢 |
+| 39 | T0455 client heartbeat 檢查 pong（半開 client 不再計入回收） | 本專案 | T0451 | XS | 🟢 |
 
 - **追加**（塔台 06:32 依授權，T0445 BLOCK）：T0434 改依賴 T0447 + T0448（#1-#4 修完才進實機）；#6/#7 的設計裁決取**收緊**方向（`pty:write` 拒 C0 控制字元、tower 子 PTY ≤ 8 + 1 秒間隔 + client 保留 8 格、agent 限 registry），不擴大暴露面故未交使用者；#5 權杖失敗不計 IP ban、與 server token 失敗分開計數
 
