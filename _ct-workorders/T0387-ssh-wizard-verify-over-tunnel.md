@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0387
 title: "BUG-093 修復：SSH 精靈的「取得指紋 / 連線測試」改連遠端主機（tunnel 模式經 SSH tunnel，direct 模式直連），不再驗到本機 BAT"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: M
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-04T23:36:44+08:00"
+updated_at: "2026-10-05T00:03:23+08:00"
 started_at: "2026-10-04T23:36:44+08:00"
-completed_at: null
+completed_at: "2026-10-05T00:03:23+08:00"
 target_version: next
 depends_on: []
 related:
@@ -202,4 +202,4 @@ SSH 精靈直接共用 WSL 的 `fetchFingerprintStep` / `connectTestStep`，兩�
 
 ### Commit
 
-`git commit --only` 只包含上列檔案 + 本工單；未 push。hash 見 git log（`fix(wizard): T0387 ...`）。
+`git commit --only` 只包含上列檔案 + 本工單；未 push。實作 commit `a3717a5`（`fix(wizard): T0387 BUG-093 SSH wizard verifies the remote server via tunnel`）；結案 metadata 另一個 commit。
