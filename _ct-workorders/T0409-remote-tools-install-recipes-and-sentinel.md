@@ -95,7 +95,8 @@ DONE —— 4 項驗收條件全部 PASS（純邏輯，不接線）。
 - C-3：3 個 entry 皆不存在，但最近的上層目錄 `src/lib/` 存在 ⇒ present（本單新建 `src/lib/remote-tools/`）
 - C-2：工單未指定 branch；實際在 `main`
 - `BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅作紀錄）
-- 執行環境：`CT_MODE` / `CT_INTERACTIVE` 未設定，依 `mode_hint: on`、`interactive: false`
+- 執行環境：`CT_MODE=on`（不帶 `--submit` 通知塔台，已送達）；`CT_INTERACTIVE` 未設定，依 `interactive: false`
+- Commit：`ce27a82`
 
 ### 產出摘要
 
