@@ -6,9 +6,11 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  HELPER_CAPABILITY_TOKEN_PREFIX,
   HELPER_CHANNEL_ROLES,
   HelperCapabilityRegistry,
   authorizeHelperInvoke,
+  isCapabilityTokenShaped,
   safeTokenEqual,
   type HelperCapability,
 } from '../helper-capability'
@@ -51,11 +53,12 @@ function reason(decision: ReturnType<typeof authorizeHelperInvoke>): string | nu
 }
 
 describe('HelperCapabilityRegistry (T0432)', () => {
-  it('issues a 32-byte random token; verify returns the bound capability (tower / worker)', () => {
+  it('issues a prefixed 32-byte random token; verify returns the bound capability (tower / worker)', () => {
     const registry = new HelperCapabilityRegistry()
     const towerToken = registry.issue('tower-1')
     const workerToken = registry.issue('worker-1', { towerId: 'tower-1' })
-    expect(Buffer.from(towerToken, 'base64url')).toHaveLength(32)
+    expect(towerToken.startsWith(HELPER_CAPABILITY_TOKEN_PREFIX)).toBe(true)
+    expect(Buffer.from(towerToken.slice(HELPER_CAPABILITY_TOKEN_PREFIX.length), 'base64url')).toHaveLength(32)
     expect(towerToken).not.toBe(workerToken)
     expect(registry.verify(towerToken)?.capability).toEqual(TOWER)
     expect(registry.verify(workerToken)?.capability).toEqual(WORKER)
@@ -264,5 +267,62 @@ describe('authorizeHelperInvoke — prototype keys / non-string channels (T0447,
     for (const args of [{ 0: 'tower-1', length: 2 }, 'tower-1', null, 42]) {
       expect(reason(authorizeHelperInvoke(WORKER, 'pty:write', args as unknown as unknown[], ctx))).toBe('invalid-args')
     }
+  })
+})
+
+describe('HelperCapabilityRegistry revoked digests (T0449, T0445 #5)', () => {
+  it('isCapabilityTokenShaped: prefix only; a base64url / hex server token never matches', () => {
+    expect(isCapabilityTokenShaped(new HelperCapabilityRegistry().issue('tower-1'))).toBe(true)
+    expect(isCapabilityTokenShaped(`${HELPER_CAPABILITY_TOKEN_PREFIX}anything`)).toBe(true)
+    for (const candidate of ['a'.repeat(43), 'ab'.repeat(16), '', undefined, null, 42, {}, ['batcap.x']]) {
+      expect(isCapabilityTokenShaped(candidate)).toBe(false)
+    }
+  })
+
+  it('remembers revoked tokens (revokeTerminal / re-issue / clear); live and unknown tokens are not "revoked"', () => {
+    const registry = new HelperCapabilityRegistry()
+    const worker = registry.issue('worker-1', { towerId: 'tower-1' })
+    const first = registry.issue('tower-1')
+    const second = registry.issue('tower-1') // re-issue revokes `first`
+    expect(registry.isRecentlyRevoked(first)).toBe(true)
+    expect(registry.isRecentlyRevoked(second)).toBe(false)
+    expect(registry.isRecentlyRevoked(worker)).toBe(false)
+    registry.revokeTerminal('worker-1')
+    expect(registry.isRecentlyRevoked(worker)).toBe(true)
+    registry.clear()
+    expect(registry.isRecentlyRevoked(second)).toBe(true)
+    for (const candidate of [`${HELPER_CAPABILITY_TOKEN_PREFIX}never-issued`, '', undefined, null, 42]) {
+      expect(registry.isRecentlyRevoked(candidate)).toBe(false)
+    }
+    // Revoked is not live.
+    expect(registry.verify(first)).toBeNull()
+  })
+
+  it('forgets revoked digests after the TTL', () => {
+    let now = 1_000
+    const registry = new HelperCapabilityRegistry({ now: () => now, revokedTtlMs: 100 })
+    const token = registry.issue('tower-1')
+    registry.revokeTerminal('tower-1')
+    now += 99
+    expect(registry.isRecentlyRevoked(token)).toBe(true)
+    now += 1
+    expect(registry.isRecentlyRevoked(token)).toBe(false)
+  })
+
+  it('is bounded: the oldest revoked digest is evicted beyond the capacity', () => {
+    const registry = new HelperCapabilityRegistry({ revokedCapacity: 3 })
+    const tokens = ['t-0', 't-1', 't-2', 't-3'].map(id => registry.issue(id))
+    for (const id of ['t-0', 't-1', 't-2', 't-3']) registry.revokeTerminal(id)
+    expect(tokens.map(t => registry.isRecentlyRevoked(t))).toEqual([false, true, true, true])
+    expect((registry as unknown as { revoked: Map<string, number> }).revoked.size).toBe(3)
+  })
+
+  it('stores only digests of revoked tokens too', () => {
+    const registry = new HelperCapabilityRegistry()
+    const token = registry.issue('tower-1')
+    registry.revokeTerminal('tower-1')
+    const state = JSON.stringify([...(registry as unknown as { revoked: Map<string, number> }).revoked])
+    expect(state).not.toContain(token)
+    expect(state).not.toContain(token.slice(HELPER_CAPABILITY_TOKEN_PREFIX.length))
   })
 })

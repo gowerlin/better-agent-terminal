@@ -17,6 +17,7 @@ import {
 import { readSecretFile, writeSecretFile } from './secrets'
 import {
   authorizeHelperInvoke,
+  isCapabilityTokenShaped,
   safeTokenEqual,
   type HelperCapabilityRegistry,
   type HelperCapabilityRole,
@@ -133,6 +134,26 @@ export function recordAuthFailure(
     return true
   }
   return false
+}
+
+/**
+ * T0449 (T0445 #5): failed *capability* auths are counted apart from server-token failures
+ * and never ban — a capability is 256 random bits (guessing is not a threat), while a ban
+ * locks the BAT client out of a loopback / SSH-tunnelled server. Returns the failure count
+ * within the current window (the caller logs once when it reaches the threshold).
+ */
+export function recordCapabilityAuthFailure(
+  store: Map<string, AuthFailureEntry>,
+  ip: string,
+  now: number
+): number {
+  const existing = store.get(ip)
+  if (!existing || now - existing.firstFailAt > AUTH_FAIL_WINDOW_MS) {
+    store.set(ip, { count: 1, firstFailAt: now })
+    return 1
+  }
+  existing.count += 1
+  return existing.count
 }
 
 function resolveBindHost(
@@ -252,6 +273,8 @@ export class RemoteServer {
   private clients: Map<WebSocket, AuthenticatedClient> = new Map()
   private helpers: Map<WebSocket, HelperConnection> = new Map()
   private authFailures: Map<string, AuthFailureEntry> = new Map()
+  /** T0449: failed capability auths per IP — logged, never banned. */
+  private capabilityAuthFailures: Map<string, AuthFailureEntry> = new Map()
   private broadcastListener: ((...args: unknown[]) => void) | null = null
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
   private readonly certificateProvider?: CertificateProvider
@@ -523,8 +546,25 @@ export class RemoteServer {
           } else if (this.acceptHelper(ws, frame.token)) {
             authenticated = true
             clearTimeout(authTimeout)
-            if (clientIp) this.authFailures.delete(clientIp)
+            // T0449 (T0445 #8): a helper success does NOT clear the server-token failure count —
+            // otherwise interleaving one capability auth resets the brute-force throttle.
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
+          } else if (this.helperCapabilities?.isRecentlyRevoked(frame.token)) {
+            // T0449 (T0445 #5): a stale helper (its PTY exited) — say so, count nothing.
+            this.sendFrame(ws, { type: 'auth-result', id: frame.id, error: 'Capability revoked' })
+            ws.close()
+          } else if (this.isCapabilityAuthFailure(frame.token)) {
+            if (clientIp) {
+              const count = recordCapabilityAuthFailure(this.capabilityAuthFailures, clientIp, Date.now())
+              if (count === AUTH_FAIL_THRESHOLD) {
+                this.log.warn(
+                  `[RemoteServer] ${count} failed capability auths from ${clientIp} within ` +
+                    `${AUTH_FAIL_WINDOW_MS / 1000}s (not banned: capability failures do not throttle)`
+                )
+              }
+            }
+            this.sendFrame(ws, { type: 'auth-result', id: frame.id, error: 'Invalid token' })
+            ws.close()
           } else {
             if (clientIp) {
               const banned = recordAuthFailure(this.authFailures, clientIp, Date.now())
@@ -772,6 +812,18 @@ export class RemoteServer {
         )
       }
     }
+  }
+
+  /**
+   * T0449: a failed auth is a capability failure (not counted toward the IP ban) only when
+   * it cannot be a server-token guess: it has the capability prefix and no accepted server
+   * token does (a user-supplied server token might).
+   */
+  private isCapabilityAuthFailure(token: unknown): boolean {
+    if (!isCapabilityTokenShaped(token)) return false
+    if (isCapabilityTokenShaped(this.token)) return false
+    if (this.previousToken && isCapabilityTokenShaped(this.previousToken.token)) return false
+    return true
   }
 
   /** T0432: authenticates `ws` as a helper when `token` is a live capability. */

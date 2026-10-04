@@ -207,7 +207,8 @@ describe('helper capability — revocation (T0432)', () => {
 
     await bat.invoke('pty:kill', workerId)
     await expect(worker.invoke('terminal:notify', { targetId: towerId, message: 'after' })).rejects.toThrow('Capability revoked')
-    await expect(connectAs(workerToken)).rejects.toThrow('Invalid token')
+    // T0449 (T0445 #5): a recently revoked capability is named as such (and not counted as a failed auth).
+    await expect(connectAs(workerToken)).rejects.toThrow('Capability revoked')
   })
 
   it('a PTY that exits on its own revokes its capability too', async () => {
@@ -216,7 +217,7 @@ describe('helper capability — revocation (T0432)', () => {
     const workerToken = registry.issue(workerId, { towerId })
     await bat.invoke('pty:write', workerId, 'exit\r')
     await vi.waitFor(() => expect(registry.verify(workerToken)).toBeNull(), { timeout: 15_000, interval: 50 })
-    await expect(connectAs(workerToken)).rejects.toThrow('Invalid token')
+    await expect(connectAs(workerToken)).rejects.toThrow('Capability revoked')
   })
 
 })

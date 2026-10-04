@@ -11,9 +11,11 @@
  *   - role `worker` (PTY created with `BAT_TOWER_TERMINAL_ID`): `terminal:notify` /
  *     `pty:write` / `terminal:keypress`, target = that tower only
  *
- * Tokens are `randomBytes(32)` and live in memory only: the registry keeps their
- * SHA-256 digest (never the token), nothing is persisted or logged, the PTY's exit /
- * kill revokes its token, and a new server process starts with an empty registry.
+ * Tokens are `HELPER_CAPABILITY_TOKEN_PREFIX` + `randomBytes(32)` and live in memory only:
+ * the registry keeps their SHA-256 digest (never the token), nothing is persisted or
+ * logged, the PTY's exit / kill revokes its token, and a new server process starts with
+ * an empty registry. Revoked digests are remembered for a while (bounded, TTL) so a
+ * stale helper gets `Capability revoked` instead of counting as a failed auth (T0449).
  *
  * 🔴 No `electron` import here (headless-electron-free guard).
  */
@@ -32,6 +34,29 @@ export interface HelperCapability {
 export const HELPER_TERMINAL_ID_PATTERN = /^[a-zA-Z0-9._-]+$/
 
 const CAPABILITY_TOKEN_BYTES = 32
+
+/**
+ * T0449 (T0445 #5): every capability token starts with this. `.` is outside base64url /
+ * hex, so a generated server token never carries it: a failed auth with this prefix is a
+ * capability failure, not a server-token guess (see `isCapabilityTokenShaped`).
+ */
+export const HELPER_CAPABILITY_TOKEN_PREFIX = 'batcap.'
+
+/** T0449: how long / how many revoked capability digests are remembered. */
+export const REVOKED_CAPABILITY_TTL_MS = 10 * 60_000
+export const REVOKED_CAPABILITY_CAPACITY = 1024
+
+/** T0449: whether `token` has the capability token form (prefix), regardless of validity. */
+export function isCapabilityTokenShaped(token: unknown): token is string {
+  return typeof token === 'string' && token.startsWith(HELPER_CAPABILITY_TOKEN_PREFIX)
+}
+
+export interface HelperCapabilityRegistryOptions {
+  /** Clock for the revoked-digest TTL (tests). Default `Date.now`. */
+  now?: () => number
+  revokedTtlMs?: number
+  revokedCapacity?: number
+}
 
 interface CapabilityEntry {
   digest: Buffer
@@ -61,6 +86,17 @@ function isTerminalId(value: unknown): value is string {
 export class HelperCapabilityRegistry {
   /** digest (hex) → entry */
   private readonly entries = new Map<string, CapabilityEntry>()
+  /** T0449: revoked digest (hex) → forget-at time; insertion order = oldest first. */
+  private readonly revoked = new Map<string, number>()
+  private readonly now: () => number
+  private readonly revokedTtlMs: number
+  private readonly revokedCapacity: number
+
+  constructor(opts: HelperCapabilityRegistryOptions = {}) {
+    this.now = opts.now ?? Date.now
+    this.revokedTtlMs = opts.revokedTtlMs ?? REVOKED_CAPABILITY_TTL_MS
+    this.revokedCapacity = Math.max(0, opts.revokedCapacity ?? REVOKED_CAPABILITY_CAPACITY)
+  }
 
   get size(): number {
     return this.entries.size
@@ -76,7 +112,7 @@ export class HelperCapabilityRegistry {
     const towerId = opts.towerId || undefined
     if (towerId !== undefined && !isTerminalId(towerId)) throw new Error('helper capability: invalid tower id')
     this.revokeTerminal(terminalId)
-    const token = randomBytes(CAPABILITY_TOKEN_BYTES).toString('base64url')
+    const token = HELPER_CAPABILITY_TOKEN_PREFIX + randomBytes(CAPABILITY_TOKEN_BYTES).toString('base64url')
     const digest = digestOf(token)
     const capability: HelperCapability = towerId
       ? { terminalId, towerId, role: 'worker' }
@@ -104,12 +140,23 @@ export class HelperCapabilityRegistry {
     return entry ? { ...entry.capability } : null
   }
 
+  /**
+   * T0449: whether `token` is a capability revoked within the last `revokedTtlMs` (and not
+   * yet evicted by the capacity bound). Unknown / live / expired ⇒ false.
+   */
+  isRecentlyRevoked(token: unknown): boolean {
+    if (typeof token !== 'string' || !token) return false
+    this.pruneRevoked()
+    return this.revoked.has(digestOf(token).toString('hex'))
+  }
+
   /** Revokes every capability bound to PTY `terminalId`; returns how many were revoked. */
   revokeTerminal(terminalId: string): number {
     let revoked = 0
     for (const [key, entry] of this.entries) {
       if (entry.capability.terminalId === terminalId) {
         this.entries.delete(key)
+        this.rememberRevoked(key)
         revoked++
       }
     }
@@ -118,7 +165,29 @@ export class HelperCapabilityRegistry {
 
   /** Revokes everything (server stop). */
   clear(): void {
+    for (const key of this.entries.keys()) this.rememberRevoked(key)
     this.entries.clear()
+  }
+
+  private rememberRevoked(key: string): void {
+    if (this.revokedCapacity === 0) return
+    this.pruneRevoked()
+    this.revoked.delete(key)
+    this.revoked.set(key, this.now() + this.revokedTtlMs)
+    while (this.revoked.size > this.revokedCapacity) {
+      const oldest = this.revoked.keys().next().value
+      if (oldest === undefined) break
+      this.revoked.delete(oldest)
+    }
+  }
+
+  /** Drops expired revoked digests (insertion order ⇒ expiry order, TTL is constant). */
+  private pruneRevoked(): void {
+    const now = this.now()
+    for (const [key, forgetAt] of this.revoked) {
+      if (forgetAt > now) break
+      this.revoked.delete(key)
+    }
   }
 }
 
