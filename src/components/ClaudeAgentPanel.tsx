@@ -16,6 +16,7 @@ import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown'
 import { classifyClaudeError } from '../lib/claude-error-classify'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
+import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { droppedImageKey, readFileAsDataUrl } from '../lib/image-attachment'
 import { getModelPricing } from '../lib/model-pricing'
 import {
@@ -1428,24 +1429,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       try {
         const snippets = (query
           ? await window.electronAPI.snippet.search(query)
-          : await window.electronAPI.snippet.getByWorkspace(workspaceId)) as Array<{ id: number; title: string; workspaceId?: string }>
-        const snippetsJsonPath = '~/Library/Application Support/better-agent-terminal/snippets.json'
-        const snippetList = snippets.length === 0
-          ? 'No snippets exist yet.'
-          : snippets.map((s) => `- [${s.id}] ${s.title}${s.workspaceId ? ' (workspace)' : ''}`).join('\n')
-        const contextPrompt = [
-          `[BAT Snippets Context]`,
-          `Snippets file: ${snippetsJsonPath}`,
-          `JSON structure: { "snippets": [{ id, title, content, format ("plaintext"|"markdown"), category?, tags?, workspaceId?, isFavorite, createdAt, updatedAt }], "nextId": N }`,
-          workspaceId ? `Current workspaceId: "${workspaceId}"` : '',
-          ``,
-          `${snippets.length} snippet(s)${query ? ` matching "${query}"` : ''}:`,
-          snippetList,
-          ``,
-          `Use Read tool to see full content. Use Write/Edit tool to create/update/delete snippets in the JSON file.`,
-          `Set workspaceId on a snippet to scope it to a specific workspace, or omit for global visibility.`,
-          query ? '' : `How would you like to work with your snippets?`,
-        ].filter(Boolean).join('\n')
+          : await window.electronAPI.snippet.getByWorkspace(workspaceId)) as SnippetForContext[]
+        // T0441 / BUG-109: snippets travel inside the prompt (snippet:* is local-only); no file path.
+        const contextPrompt = buildSnippetContextPrompt({ snippets, query, workspaceId })
         // Show clean user message only for local sessions; remote sessions mirror from host.
         if (!isRemoteConnectedRef.current) {
           setMessages(prev => [...prev, {
