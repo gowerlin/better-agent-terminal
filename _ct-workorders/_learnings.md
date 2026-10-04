@@ -3194,3 +3194,38 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 收工檢查：grep 當日時間戳，任何晚於收工 `date` 的值都是手打的
 
 **候選晉升**：🌐 Global（補強 R-G001：高頻循環是手打時間的高風險情境）
+
+---
+
+## L136
+
+**來源**：第五十 session（2026-10-04），使用者本地打包失敗
+
+**現象**：`release.ps1` 第二次打包時 electron-builder 報 `remove ...\release\win-unpacked\resources\app.asar: The process cannot access the file because it is being used by another process`（`EnsureEmptyDir`）。沒有任何程序從 `release\` 執行。
+
+**根因**：以 Windows Restart Manager（`RmGetList`）查出持有者為 **VS Code Insiders**（主程序 + 子程序）。VS Code 本身是 Electron，碰過 `.asar` 後會保持 handle；上一次打包產出的 `app.asar` 被 IDE 開著，下一次打包就清不掉。
+
+**How to apply**：
+- 「檔案被占用」先查持有者再處置：Restart Manager（`rstrtmgr.dll` `RmGetList`，PowerShell `Add-Type` 可呼叫；腳本放 scratchpad 檔案執行，inline here-string 曾被 hook 誤判）或 Sysinternals `handle.exe`
+- 專案 `.vscode/settings.json` 對 build 輸出目錄設 `files.watcherExclude` / `search.exclude`（本專案 `d44b185`）
+- 打包前關閉 IDE 或在非 Electron 終端執行；不要強制結束使用者的 IDE 程序
+
+**候選晉升**：🌐 Global（任何 Electron 產品在 VS Code 內打包都適用）
+
+---
+
+## L137
+
+**來源**：第五十 session（2026-10-04），BUG-085 / T0375
+
+**現象**：Codex CLI 0.160 在提權 Windows 拒絕啟動 daemon，官方錯誤訊息建議加 `--no-daemon`。但 BAT 的終端 preset 是把指令打進 shell，**實際執行哪一版 codex 由 shell PATH 決定**（本機同時有 0.160 官方 installer 與 0.133 npm 版），舊版遇到 `--no-daemon` 直接 `unexpected argument` exit 2。
+
+**根因**：新版 CLI 新增的 argv flag 對舊版是未知參數，clap 類解析器一律拒絕；而 `-c key=value` 這類 config override 對未知鍵預設容忍。
+
+**How to apply**：
+- 對「版本不由我方控制」的第三方 CLI 注入行為開關時，優先用 config-override 形式（Codex `-c features.<name>=false`），其次才是新 flag；兩者都要在**新舊兩版**實測
+- 照抄錯誤訊息建議的修法前，先確認它在所有可能被解析到的版本上都成立
+- 注意例外：使用者若開 `--strict-config`，舊版對未知鍵也會拒絕（T0375 實測）
+
+**候選晉升**：📁 Project（BAT agent preset 注入），可泛化為 Global
+

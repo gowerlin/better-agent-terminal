@@ -1,14 +1,58 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-04 16:59 (UTC+8) — **第四十九 session 收工** — 12 張工單全 DONE；BUG-071 / BUG-083 / BUG-084 → FIXED；`v0.5.9-pre.3` 已發布、`v0.5.9-pre.4` 已發布（收工後 17:10 驗證）。
+> 最後更新:2026-10-04 20:58 (UTC+8) — **第五十 session 收工** — T0375-T0377 全 DONE；BUG-083 → CLOSED；BUG-085 新開 → FIXED；本地打包版號修正（T0376）runtime PASS。
 >
-> **下次起手**:Fast Path 載入;pre.4 CI 已於收工後驗證通過；**第一件事：收使用者實機驗收回報**（BUG-071 / 083 / 084）。
+> **下次起手**:Fast Path 載入;**第一件事：收實機驗收**（BUG-071 / 084 / 085），使用者收工時正安裝本機 build `0.5.9-pre.4`（含 T0377，**≠ CI 的 pre.4**）。
 >
-> **前次更新**:2026-09-02 15:52 (UTC+8) — 第四十八 session 收工:BUG-082 CLOSED、`v0.5.9-pre.2` 發布。
+> **前次更新**:2026-10-04 16:59 (UTC+8) — 第四十九 session 收工:12 張工單、`v0.5.9-pre.3` / `pre.4` 發布。
 
 ---
 
-## 🛏 本 Session 收工快照 (第四十九 session, 2026-10-04 11:08 - 16:59, ~5h50m wall)
+## 🛏 本 Session 收工快照 (第五十 session, 2026-10-04 20:16 - 20:58, ~42m wall)
+
+### 主軸：pre.4 實機驗收起手 → BUG-085（Codex daemon × 提權 Windows）研究 + 修復 → 本地打包版號修正
+
+#### 起手狀態
+
+Fast Path（快照同日 11:09）。git 0/0。發現**已安裝 BAT 為使用者本機 build `1.26.1004195815`**（`app.asar` 20:09；內嵌 claude-code 2.1.289 / codex-sdk 0.160.0，程式碼等同 pre.4），工作區 `package.json` / nuspec dirty 為該次打包副產物。
+
+#### 時間線（時間取自 git commit；使用者截圖無機器時間者不標時刻）
+
+1. 使用者截圖終端 Codex CLI `start the Windows daemon from a non-elevated terminal` → 塔台環境檢查：`EnableLUA=0`（UAC 停用）、BAT 子 shell 提權、分頁解析到使用者自裝 codex 0.160 → **20:22** BUG-085 + T0375 research（`16c36d5`）
+2. 使用者實測 Codex Agent 面板：首行 `0.160.0 (embedded)`、黃色 notice、對話成功 → **20:25** BUG-083 **CLOSED**（`0382101`）
+3. 使用者問「本地打包版號為何與 pre-release 不同」→ `release.ps1` `--exact-match` 失敗退回時間戳 `1.yy.MMddHHmmss`，另查出砍 `-pre.N`、留 dirty、繞過 verify-*、choco checksum pattern 永不命中
+4. **20:37** T0375 DONE（`e9e27ec`）：只影響互動 TUI 路徑（含 codex-cli 派發）；SDK 不受影響；`-c features.daemon_auto_start=false` 跨 0.133 / 0.160 相容
+5. **20:40** D124 / D125；dirty 依使用者裁決 A 還原；T0376 / T0377 平行派發（`dba9bf4`）
+6. **20:45** T0376（`efb5717`）/ **20:46** T0377（`71706c2`）DONE → 塔台總驗收 709 tests / vite build / tsc 40 → **20:48** BUG-085 **FIXED**（`4dfcbb7`）
+7. 使用者本地打包失敗：`release\win-unpacked\resources\app.asar` 被鎖 → Restart Manager（`RmGetList`）查出 **VS Code Insiders**（PID 25192 / 14028）持有 → **20:51** `.vscode/settings.json` 排除 build 輸出目錄（`d44b185`）
+8. 重新打包成功：`BetterAgentTerminal Setup 0.5.9-pre.4.exe`（20:55）；nupkg `checksum64` = Setup SHA-256（`21215084…`）；打包後與中途失敗後 `git status` 皆乾淨 → **T0376 runtime PASS**
+9. 20:58 收工；使用者安裝本機 build 更版
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | 3（T0375-T0377） | 全 DONE；1 research + 2 實作（平行） |
+| BUG | 新開 1（085 → FIXED）；CLOSED 1（083） | FIXED 待實機：071 / 084 / 085 |
+| 決策 | 2（D124 / D125） | |
+| Learnings | L136、L137 | |
+| unit test | ✅ **709 passed / 50 files** | 第五十 session 673 → 709（塔台親跑） |
+| 塔台直接改動 | 1（`.vscode/settings.json`） | 使用者授權 |
+| Commits | 11（含本收工），**未 push** | `0e43457..HEAD` |
+
+### 重點觀察 / Learnings
+
+- **L136**：Electron 系 IDE（VS Code）會持有 build 輸出內 `.asar` 的 handle，electron-builder 清 `win-unpacked` 失敗。以 Restart Manager 查持有者，不要猜
+- **L137**：注入參數給「版本未知」的第三方 CLI（終端 preset 走 shell PATH）時，優先用 config-override 形式（`-c key=value`，舊版容忍未知鍵），不用新增的 argv flag（舊版 exit 2）
+- R-G001 自查：BUG-085「回報者」欄原寫 `20:19` 為塔台推估值（截圖無機器時間），收工時已更正
+
+### 編號起始（下 session）
+
+- **T0378** / **BUG-086** / **PLAN-035** / **D126** / **L138**
+
+---
+
+## 🛏 前 Session 收工快照 (第四十九 session, 2026-10-04 11:08 - 16:59, ~5h50m wall)
 
 ### 主軸：T0215 debug 清理 → *archive 回歸修復 → BUG-071 發版閉環 → Codex / Claude 內嵌 CLI 落後雙修 → v0.5.9-pre.4
 
@@ -50,71 +94,20 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第四十八 session, 2026-09-02 12:51 - 15:38, ~2h45m wall)
-
-### 主軸：BUG-082 runtime 驗收閉環 → 跨塔台回函 → 社群 PR 處置 → v0.5.9-pre.2
-
-#### 起手狀態
-
-Fast Path 有效（快照 2026-09-01 22:05，距今 ~15h）。熱區 T:13 / BUG:8 / PLAN:6 / EXP:0 / CT-T:1。
-
-#### 時間線
-
-1. **12:51 起手** — 執行起手式第 1 步（確認安裝版換版）。**發現交接的判準是錯的**（見下 L127），改以 diff 驗證：`resources/scripts/bat-terminal.mjs` 與修復後 source **byte-identical** ⇒ 換版已生效，阻塞解除
-2. **12:53 建 CP-T0362 + 派發** — 刻意用 `CP-` 前綴工單作為 BUG-082 runtime 驗收載體，載荷為 CLAUDE.md Release 節校正（L123/L124）
-3. **12:55-12:58 CP-T0362 DONE**（Worker ~3.5 min）— commit `89921e2`；三層鏈路（helper / main / Worker）全綠
-4. **13:01 BUG-082 → CLOSED** — commit `46b712a`，附三層證據 + 換版判別法；同時補 Worker 漏掉的 `build-server-bundle.yml` 第三個 trigger
-5. **13:05 跨塔台回函** — `_reply-2026-09-02-bat-workspace-default-opinion.md`（245 行），commit `9dc986e`，ACKNOWLEDGED
-6. **15:09 PR #19 triage** — 外部貢獻者 RicoChen727，擱置 3 個月。塔台複核 gemini bot 兩則 HIGH review **皆成立** → **D119：取骨架自行實作**，建 T0362 派發
-7. **15:11-15:20 T0362 DONE**（Worker ~9 min）— commit `a8ee6a1`；塔台複驗 550 tests + vite build 皆綠
-8. **15:24 push + PR 回覆 + 關閉** — 9 commits push；PR #19 留言（issuecomment-5506015464）後 CLOSED
-9. **15:25 版號 bump + 觸發 workflow** — 先 bump `0.5.9-pre.2` 再觸發（避開上輪「release 完才補版號」漂移）
-10. **15:38 release `v0.5.9-pre.2` 發布** — 全 9 job 綠，5 artifact
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| BUG 結案 | 1（BUG-082 → CLOSED） | runtime 三層驗證 |
-| 派發工單 | 2（CP-T0362 / T0362） | 全綠，各 1 round，共 ~13 min Worker wall |
-| 新增測試 | +39 cases | 511 → **550** |
-| 跨塔台回函 | 1 | 245 行，含 1 項我方主動回饋 |
-| 社群 PR 處置 | 1（#19 CLOSED） | 取骨架重實作 + 出處保留 |
-| 新增決策 | 1（D119） | |
-| Push commits | 10 | `96a6a96..70dfec4` |
-| Release | 1 | `v0.5.9-pre.2` |
-| 就地結案 | BUG 4 + PLAN 1 | BUG-072/073/074（field evidence）+ BUG-078（CI 證據）+ PLAN-032 → DONE |
-| *archive | 7 張 | T0335/336/337/348/358/359 + BUG-081；熱區 T:14→8, BUG:8→7 |
-
-### 重點觀察 / Learnings 候選
-
-- **L127**（🔴 高價值）：**以「字串存在與否」判斷版本，在錯誤訊息被擴寫時會反向誤判**。交接寫「grep `expected T followed by digits` 應查無」，但修復後訊息仍含該字串（只是後接新內容）。正確做法是 **diff / 雜湊比對**。本次差點誤判為「安裝沒生效」而停工
-- **L128**：BAT 的 debug log 實際在 `%APPDATA%\`**`better-agent-terminal`**`\Logs\debug-<stamp>.log`，但 `BAT_USER_DATA` 指向大小寫不同的 `BetterAgentTerminal\`（**兩目錄並存**），且 CLAUDE.md「Logging」節記的是 macOS 路徑、檔名 `debug.log` 也早已改為輪替式。照文件找必然落空 —— **CLAUDE.md Logging 節待修**
-- **L129**（Worker 回報）：**寫入含大量反斜線的檔案一律用 Write 工具**，bash heredoc 會把連續反斜線摺疊掉一層（兩個變一個）造成語法錯誤（T0362 首發即中）
-- **L130**（🔴 新，本次發現）：**D094「Mac installer size cap 280 MB」已連續三個 release 超標 2.6×**（v0.5.8 / pre.1 / pre.2 的 mac dmg 皆 ~724 MB）**且從未觸發過復議**。門檻與現實脫節 —— 該復議的是門檻本身，不是每次 release
-- **L131**：外部 PR 帶未處理 bot review 時的處置模式 —— 取骨架自實作 + `Co-authored-by` 保留出處 + PR 留言說明採用範圍，見 D119
-
-### 編號起始（下 session）
-
-- **T0363** / **BUG-083** / **PLAN-035** / **D120**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-04 16:59 UTC+8（第四十九 session 收工）
+> 最後更新：2026-10-04 20:58 UTC+8（第五十 session 收工）
 
 ### 本 session 已清空的項目
-T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3` + 首個 `server-bundle-v*` ✅ ｜ unit test 550 → 673 ✅
+T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ ｜ 本地打包版號（D125）runtime PASS ✅ ｜ unit test 673 → 709 ✅
 
 ### 待辦（依優先序）
 
-1. ✅ **`v0.5.9-pre.4` CI 已驗（2026-10-04 17:10）**：run `37190475739` 9/9 success；`v0.5.9-pre.4` 5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產（target `17ad488`）。安裝檔 pre.3 → pre.4：Setup.exe 535 → 683 MB、win.zip 680 → 855、dmg 724 → 884、arm64.dmg 715 → 875、AppImage 777 → 1026 MB（+22~32%，主因 codex 套件翻倍）→ 併入 L130 D094 復議
-2. 🟡 **收實機驗收**（使用者收工時正在更新 BAT）：BUG-071 WSL wizard 第 4 步 ｜ BUG-083 Codex 分頁首行 `Codex CLI 0.160.0 (embedded)`、無紅色 `Codex is ignoring` / `Reconnecting` ｜ BUG-084 Claude 面板選 Opus 5.5 對話、下拉無 alias 重複 → 通過即 CLOSED
-3. 🟡 **BUG-084 Phase 2**：`claude-agent-sdk` 0.2.113 → 0.3.x + `claude-code-v2` preset **下架**（D123，含既有設定遷移至 `claude-code`）+ TodoWrite → Task tools；順手改 `src/types/index.ts:122` 過時註解（max = Opus only）
-4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 長期超標，pre.4 codex 翻倍後更需復議
-5. 🟢 **L128 CLAUDE.md Logging 節待修** ｜ **BUG-061** tsc baseline（42 → 40）｜ ADVISORY B-1 復議
-6. 🟢 **`*archive`**：上 session 10 張 + 本 session 工單已到齡候選（**先 grep 程式碼引用，L133**）
+1. 🟡 **收實機驗收**（使用者安裝本機 build `0.5.9-pre.4`，產出 20:55，含 `71706c2`；先以 `app.asar` 時間 / 雜湊比對 `release\win-unpacked` 確認裝到這版，L127）：BUG-085 Codex CLI 分頁進 TUI + 首次黃色 toast ｜ BUG-084 Claude 面板 Opus 5.5 對話、下拉無 alias 重複 ｜ BUG-071 WSL wizard 第 4 步 → 通過即 CLOSED
+2. 🟡 **push**（`0e43457..HEAD` 11 commits，未授權）→ 下一預覽版 `v0.5.9-pre.5`（T0376 / T0377 進 CI；發版前依 L134 查 `npm view` 版本）
+3. 🟡 **BUG-084 Phase 2**：`claude-agent-sdk` 0.3.x + `claude-code-v2` 下架（D123）+ `src/types/index.ts:122` 過時註解
+4. 🟢 L130 D094 門檻復議 ｜ L128 CLAUDE.md Logging 節 ｜ BUG-061 tsc baseline 40 ｜ `release/` 舊產出（`0.3.1` / `1.26.*`）由使用者清理
+5. 🟢 `*archive`：到齡候選（**先 grep 程式碼引用，L133**）
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`** —— 三個 remote，預設會解析到 upstream tony1223。
@@ -123,13 +116,12 @@ T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。錯誤訊息被擴寫時字串仍在。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（9 熱區：Open 1 / Fixed 3 / Closed 5）｜ Backlog → [_backlog.md](_backlog.md)（6 熱區：Done 1）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D123）｜ Learnings → [_learnings.md](_learnings.md)
-- 跨塔台回函 → [_reply-2026-09-02-bat-workspace-default-opinion.md](_reply-2026-09-02-bat-workspace-default-opinion.md)
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（64 entries）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（10 熱區：Open 1 / Fixed 3 / Closed 6）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D125）｜ Learnings → [_learnings.md](_learnings.md)（最大 L137）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（65 entries）
 
 ### 編號起始
-- **T0375** / **BUG-085** / **PLAN-035** / **D124** / **EXP-[TOPIC]-001** / **L136**
+- **T0378** / **BUG-086** / **PLAN-035** / **D126** / **EXP-[TOPIC]-001** / **L138**
 
 ---
 
@@ -139,17 +131,17 @@ T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.5.9-pre.4**（package.json + lock 已同步，commit `17ad488`；release CI 進行中） |
+| **目前版號** | **0.5.9-pre.4**（package.json + lock；T0376 後本地打包預設即取此值） |
 | **最新 release** | `v0.5.9-pre.4`（2026-10-04 17:10 驗證：9/9 success，5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
 | **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
-| **目前主軸** | 內嵌 CLI 追版（BUG-083 / BUG-084）收尾 → Phase 2 Claude SDK 0.3 |
-| **工單最大編號** | T0374（DONE，commit `5b8975f`） |
-| **BUG 最大編號** | BUG-084（FIXED，待實機） |
+| **目前主軸** | 實機驗收（BUG-071 / 084 / 085）→ push + `v0.5.9-pre.5` → Phase 2 Claude SDK 0.3 |
+| **工單最大編號** | T0377（DONE，commit `71706c2`） |
+| **BUG 最大編號** | BUG-085（FIXED，待實機） |
 | **PLAN 最大編號** | PLAN-034（已 archive；熱區最大 PLAN-033） |
-| **決策最大編號** | D123 |
+| **決策最大編號** | D125 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **673**（47 files）；tsc baseline 40 |
+| **unit test 基線** | **709**（50 files）；tsc baseline 40 |
 
 ---
 
@@ -215,26 +207,27 @@ T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-04 11:09 (UTC+8) 起手 Full Scan；2026-10-04 16:59 收工逐項更新
+> 最後掃描:2026-10-04 11:09 (UTC+8) 起手 Full Scan；2026-10-04 20:58 第五十 session 收工逐項更新
 > 複核結果：git 零漂移（`origin/main` = `7243ce2`，0/0）；熱區計數與最大編號與 09-02 收工一致；無新 release / 開放 PR / 開放 issue；BAT workspace ID 已換新（下列已更新）。
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（10-04 更新；舊值 `2eda2f34-…` 已失效） |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（10-04 PowerShell 複核） |
-| BAT 安裝版 | ⚠️ 收工時使用者更新中 | 收工前安裝版為 `v0.5.9-pre.2`（`app.asar` 2026-09-02）；使用者收工時更新 BAT（目標 pre.4，CI 當時未完成）——下次起手以雜湊 / `app.asar` 時間確認實際裝到哪版（L127） |
+| BAT 安裝版 | ⚠️ 收工時使用者更版中 | 起手時為本機 build `1.26.1004195815`（`app.asar` 20:09）。收工時使用者安裝本機 build `0.5.9-pre.4`（`release\` 20:55 產出，含 T0377，**非 CI 的 pre.4**）——下次起手以 `app.asar` 時間 / 雜湊確認（L127） |
 | BAT_HELPER_DIR | ✅ | `C:/Program Files/BetterAgentTerminal/resources/scripts` |
 | BAT debug log | ⚠️ 路徑與文件不符 | 實際在 `%APPDATA%\better-agent-terminal\Logs\debug-<stamp>.log`（與 `BAT_USER_DATA` 指向的 `BetterAgentTerminal\` 為**兩個並存目錄**，大小寫不同）。CLAUDE.md Logging 節待修（L128） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存 |
+| UAC | ⚠️ `EnableLUA=0` | 本機 UAC 停用 ⇒ BAT 與所有子 shell 皆提權。Codex 0.160 daemon 會拒絕（BUG-085）；T0377 後 BAT 自動對 codex-cli 注入 `-c features.daemon_auto_start=false` |
 | gh CLI | ✅ | 已登入 `gowerlin`。⚠️ **必須帶 `-R gowerlin/better-agent-terminal`**（L122），本 session 三次 gh 操作皆遵守 |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ⚠️ | `origin/main` = `17ad488`（pre.4 bump）；本地另有塔台紀錄 commit 未 push（`79f7314` 起） |
+| git 同步 | ⚠️ | `origin/main` = `0e43457`；本地領先 11 commits（第五十 session，未 push） |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
-| 熱區工單 | **T:8 / CP-T:1 / BUG:7 / PLAN:6 / EXP:0 / CT-T:1** | `*archive` 後；BUG 為 Open 2 + Closed 5（無 FIXED/VERIFY 掛帳）。⚠️ T:8 中有 **4 張是報告檔非工單**（見 L132），實際工單數 4 |
-| 最大編號 | **T0374 / BUG-084 / PLAN-034(archived) / D123** | 下張：T0375 / BUG-085 / PLAN-035 / D124 |
+| 熱區工單 | **T:23 / CP-T:1 / BUG:10 / PLAN:6 / EXP:0 / CT-T:1** | T:23 中 4 張為報告檔（L132），實際工單 19；BUG：Open 1 / Fixed 3 / Closed 6 |
+| 最大編號 | **T0377 / BUG-085 / PLAN-034(archived) / D125** | 下張：T0378 / BUG-086 / PLAN-035 / D126 / L138 |
 | unit test | ✅ **673 passed / 47 files** | 第四十九 session 550 → 673（塔台親跑） |
-| vite build | ✅ | 本 session 親跑複驗通過 |
-| tsc --noEmit | ⚠️ 40 既有 error | T0374 消掉 2 個 TS2345；其餘為既有 baseline（BUG-061） |
+| vite build | ✅ | 第五十 session 塔台親跑通過 |
+| tsc --noEmit | ⚠️ 40 既有 error | baseline 不變（BUG-061） |
 | 開放 PR | **0** | PR #19 已於本 session 處置關閉（D119） |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**, yolo_max_retries 1, auto_commit on, archive_days 2） |
 | 塔台版本 | v5.0.9 | control-tower skill |
@@ -248,6 +241,7 @@ T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3
 > 6. ⚠️ `_ct-workorders/T0293-review-report.md` 含 2 個 NUL 位元組（既有，非本 session 產生）；全庫其餘檔案控制字元掃描為零
 > 7. ⚠️ **L132**：`T0292/T0293/T0298/T0302-*-report.md` 4 檔命名越界（報告卻掛工單前綴），落在 `*archive` F-24 排除規則的縫隙裡 —— 永不歸檔也永不判定。2026-09-02 使用者裁決 **A：維持現狀**，日後新報告一律用 `_report-` 前綴
 > 8. ⚠️ **L129 實證**：本 session 收工時以 bash heredoc 寫 python，反斜線被摺疊一層，導致 regex backreference 變成 SOH 控制字元寫進 4 個 BUG 檔（已修）。**含反斜線的內容一律走 Write 工具**
+> 9. ⚠️ **L136**：VS Code Insiders（Electron）曾鎖住 `release\win-unpacked\resources\app.asar` 導致打包失敗；已於 `.vscode/settings.json` 排除 build 輸出目錄（`d44b185`），下次打包若再發生代表是擴充套件持有，以 Restart Manager 查
 
 ---
 
