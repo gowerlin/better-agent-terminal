@@ -3,5 +3,17 @@
     "task.quickOpen.showAll": false,
     "task.quickOpen.detail": false,
     "task.autoDetect": "off",
-    "task.showDecorations": false
+    "task.showDecorations": false,
+    "files.watcherExclude": {
+        "**/release/**": true,
+        "**/dist/**": true,
+        "**/dist-electron/**": true,
+        "**/dist-baseline/**": true
+    },
+    "search.exclude": {
+        "**/release": true,
+        "**/dist": true,
+        "**/dist-electron": true,
+        "**/dist-baseline": true
+    }
 }
