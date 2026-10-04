@@ -93,7 +93,7 @@ installer 未內建的 arch（如 Windows host → DGX Spark arm64 SSH）必走�
 |------|------|------|
 | source / test | ✅ | T0365 `a295ec7`；550 tests 塔台親跑；`anthropics/` 殘留 0 |
 | CI / release | ✅ | pre-release run `37179875163` 9/9 job success；`v0.5.9-pre.3`（5 安裝檔）+ `server-bundle-v0.5.9-pre.3`（7 資產，prerelease，target `37ce0b5`） |
-| runtime 下載網址 | ✅（manifest）/ ⏳（tarball sha256） | `https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v0.5.9-pre.3/manifest.json` 下載成功，內容版號 `0.5.9-pre.3`、三 arch 齊全 |
+| runtime 下載網址 | ✅ | 以 runtime 組出的 URL 下載 `manifest.json` + `bat-server-linux-arm64-v0.5.9-pre.3.tar.gz`（205 MB）：實際 sha256 = manifest = `.sha256` sidecar = `4869eb6a…6378561`；`tar -tzf` 可列出 `staging/bin/bat-server` 等內容 |
 | 實機 wizard | ⏳ 待使用者 | 裝 `v0.5.9-pre.3` → WSL wizard（x64，走內建 baseline）；DGX Spark SSH（arm64，走網路下載）視時間 |
 
 通過實機驗收 → CLOSED。
