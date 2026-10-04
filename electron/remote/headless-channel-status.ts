@@ -32,6 +32,12 @@ export const ALWAYS_LOCAL_CHANNELS: ReadonlySet<string> = new Set([
   'workspace:save', 'workspace:load',
   // T0401: renderer message-overflow cache in the user's own userData (T0386 §1 B).
   'claude:archive-messages', 'claude:load-archived', 'claude:clear-archive',
+  // T0422: this machine's BAT log (settings page shows it, shell:open-path opens it locally).
+  'settings:get-logging-info', 'settings:cleanup-logs',
+  // T0422: the user's snippets in the local userData (snippets.json), T0386 §1 B / J.
+  'snippet:getAll', 'snippet:getById', 'snippet:create', 'snippet:update', 'snippet:delete',
+  'snippet:toggleFavorite', 'snippet:search', 'snippet:getCategories', 'snippet:getFavorites',
+  'snippet:getByWorkspace',
 ])
 
 /**
@@ -55,18 +61,7 @@ export const HEADLESS_UNSUPPORTED: Readonly<Record<string, HeadlessPhase>> = Obj
   //    fs:* / image:read-as-data-url / workspace:sync-roots online since T0406 (electron/handlers/fs.ts) ──
 
   // ── P3: secondary (T0386 J / K) ──
-  'settings:get-logging-info': 'P3', // T0386 §1 B: always-local candidate
-  'settings:cleanup-logs': 'P3', // T0386 §1 B: always-local candidate
-  'snippet:getAll': 'P3', // snippet:* — T0386 §1 B: always-local candidate
-  'snippet:getById': 'P3',
-  'snippet:create': 'P3',
-  'snippet:update': 'P3',
-  'snippet:delete': 'P3',
-  'snippet:toggleFavorite': 'P3',
-  'snippet:search': 'P3',
-  'snippet:getCategories': 'P3',
-  'snippet:getFavorites': 'P3',
-  'snippet:getByWorkspace': 'P3',
+  // settings:get-logging-info / settings:cleanup-logs / snippet:* → ALWAYS_LOCAL since T0422
   'terminal:create-with-command': 'P3',
   'terminal:create-agent-command': 'P3',
   'terminal:notify': 'P3',

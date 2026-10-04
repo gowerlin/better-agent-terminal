@@ -212,7 +212,6 @@ describe('T0416 result translation (WSL translator)', () => {
       'claude:detectRuntime': { embedded: { path: '/home/x/bin/claude' }, system: { path: '/usr/bin/claude' } },
       'github:check-cli': { installed: true, path: '/usr/bin/gh' },
       'settings:get-shell-path': '/bin/bash',
-      'settings:get-logging-info': { logDir: '/home/x/.config/bat/logs' },
       'remote-tools:detect': { tools: [{ id: 'claude', path: '/home/x/.local/bin/claude' }] },
       'claude:get-session-meta': { cwd: '/home/x/repo', model: 'm' },
       'claude:get-worktree-status': { diff: '', worktreePath: '/home/x/repo/.worktrees/a', branchName: 'a', sourceBranch: 'main' },
