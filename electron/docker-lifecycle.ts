@@ -5,6 +5,28 @@ import { validateContainerName, type DockerMount } from './docker-validate'
 /** BUG-097: host interface the container's server port is published on. Never widen. */
 export const DOCKER_PUBLISH_HOST = '127.0.0.1'
 
+/** In-image bat-server port (docker/Dockerfile `ENV BAT_SERVER_PORT`). */
+const SERVER_CONTAINER_PORT_KEY = '9876/tcp'
+const BAT_SERVER_BIN = '/opt/bat-server/bin/bat-server'
+/** CLAUDE.md: synchronous detect probes time out at 5s. */
+const DETECT_TIMEOUT_MS = 5_000
+
+/**
+ * T0427 (BUG-097 follow-up): what a pre-fix container still carries. Never
+ * thrown — `ok:false` means detection could not run (docker unavailable,
+ * unknown container) and callers must carry on as before.
+ */
+export interface DockerContainerExposure {
+  ok: boolean
+  /** bat-server port is published on a non-loopback host interface. */
+  exposed: boolean
+  /** Offending `HostIp` values as docker reports them (`''` = all interfaces). */
+  hostIps: string[]
+  /** Image entrypoint predates `--bind-interface all`; the published port cannot reach the server. */
+  legacyImage: boolean
+  error?: string
+}
+
 interface ExecResult {
   stdout: string
   stderr: string
@@ -20,7 +42,7 @@ export function resetExecFileImplForTests(): void {
   execFileImpl = childProcess.execFile
 }
 
-function execDocker(args: string[], allowFailure = false): Promise<ExecResult> {
+function execDocker(args: string[], allowFailure = false, timeoutMs?: number): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     execFileImpl(
       'docker',
@@ -29,6 +51,7 @@ function execDocker(args: string[], allowFailure = false): Promise<ExecResult> {
         encoding: 'utf8',
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
+        ...(timeoutMs ? { timeout: timeoutMs } : {}),
       },
       (error: Error | null, stdout: string, stderr: string) => {
         if (error && !allowFailure) {
@@ -54,6 +77,59 @@ function parsePersistedToken(raw: string): string | null {
   return null
 }
 
+function isLoopbackHostIp(hostIp: string): boolean {
+  const ip = hostIp.trim().toLowerCase()
+  return ip === 'localhost' || ip === '::1' || ip === '[::1]' || /^127(?:\.\d{1,3}){3}$/.test(ip)
+}
+
+/**
+ * T0427: flag a container created before the BUG-097 fix. Reads structured
+ * `docker inspect` fields only: `HostConfig.PortBindings` (empty / `0.0.0.0` /
+ * `::` HostIp = published on every host interface) and the entrypoint/cmd
+ * (`--bind-interface` missing = pre-fix image). Read-only — never changes or
+ * removes the container. `hostPort` also counts bindings of that host port
+ * for containers that serve bat-server on another container port.
+ */
+export async function detectContainerExposure(
+  name: string,
+  options?: { hostPort?: number },
+): Promise<DockerContainerExposure> {
+  const unknown = { ok: false, exposed: false, hostIps: [], legacyImage: false }
+  const validation = validateContainerName(name)
+  if (!validation.ok) return { ...unknown, error: validation.error }
+
+  try {
+    const { stdout } = await execDocker(['inspect', '--type', 'container', name], false, DETECT_TIMEOUT_MS)
+    const parsed = JSON.parse(stdout) as unknown
+    const entry = (Array.isArray(parsed) ? parsed[0] : null) as Record<string, any> | null
+    if (!entry || typeof entry !== 'object') return { ...unknown, error: `No inspect data for container ${name}.` }
+
+    const bindings = (entry.HostConfig?.PortBindings ?? {}) as Record<string, unknown>
+    const hostPort = options?.hostPort ? String(options.hostPort) : null
+    const hostIps: string[] = []
+    for (const [containerPort, list] of Object.entries(bindings)) {
+      if (!Array.isArray(list)) continue
+      for (const binding of list as Array<Record<string, unknown>>) {
+        const relevant = containerPort === SERVER_CONTAINER_PORT_KEY
+          || (hostPort !== null && String(binding?.HostPort ?? '') === hostPort)
+        if (!relevant) continue
+        const hostIp = typeof binding?.HostIp === 'string' ? binding.HostIp : ''
+        if (!isLoopbackHostIp(hostIp) && !hostIps.includes(hostIp)) hostIps.push(hostIp)
+      }
+    }
+
+    const command = [
+      ...(Array.isArray(entry.Config?.Entrypoint) ? entry.Config.Entrypoint : []),
+      ...(Array.isArray(entry.Config?.Cmd) ? entry.Config.Cmd : []),
+    ].map((part: unknown) => String(part))
+    const legacyImage = command.includes(BAT_SERVER_BIN) && !command.includes('--bind-interface')
+
+    return { ok: true, exposed: hostIps.length > 0, hostIps, legacyImage }
+  } catch (error) {
+    return { ...unknown, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 export async function startContainer(
   name: string,
   options?: {
@@ -65,7 +141,7 @@ export async function startContainer(
     token?: string
     dataVolume?: string
   },
-): Promise<{ ok: boolean; token?: string; error?: string }> {
+): Promise<{ ok: boolean; token?: string; error?: string; exposure?: DockerContainerExposure }> {
   const validation = validateContainerName(name)
   if (!validation.ok) return { ok: false, error: validation.error }
 
@@ -94,9 +170,16 @@ export async function startContainer(
       return { ok: true, token }
     }
 
+    // T0427: an existing container may predate the BUG-097 fix. Detect before
+    // `docker start` and report it; detection failure never blocks the start.
+    const exposure = await detectContainerExposure(name, { hostPort: options?.port })
     await execDocker(['start', name])
     const tokenResult = await execDocker(['exec', name, 'cat', '/root/.local/share/bat-server/server-token.json'], true)
-    return { ok: true, token: parsePersistedToken(tokenResult.stdout) }
+    return {
+      ok: true,
+      token: parsePersistedToken(tokenResult.stdout),
+      ...(exposure.ok && (exposure.exposed || exposure.legacyImage) ? { exposure } : {}),
+    }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }

@@ -532,7 +532,7 @@ const electronAPI = {
     validateMounts: (mounts: Array<{ host: string; container: string }>) =>
       ipcRenderer.invoke('docker:validate-mounts', mounts) as Promise<{ ok: boolean; errors: string[] }>,
     startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
-      ipcRenderer.invoke('docker:start-container', name, options) as Promise<{ ok: boolean; token?: string; error?: string }>,
+      ipcRenderer.invoke('docker:start-container', name, options) as Promise<{ ok: boolean; token?: string; error?: string; exposure?: { ok: boolean; exposed: boolean; hostIps: string[]; legacyImage: boolean; error?: string } }>,
     stopContainer: (name: string, options?: { remove?: boolean }) =>
       ipcRenderer.invoke('docker:stop-container', name, options) as Promise<{ ok: boolean; error?: string }>,
     removeContainer: (name: string) =>

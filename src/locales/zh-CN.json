@@ -770,6 +770,10 @@
           "label": "启动 Docker 容器",
           "description": "启动容器并等待 healthy 状态。"
         }
+      },
+      "warning": {
+        "containerPortExposed": "容器 {{name}} 将 BAT 服务器端口发布在宿主机所有网络接口（{{hostIps}}），同一网络中的其他机器都能连入。此容器创建于 BAT 将 Docker 端口限定绑定 127.0.0.1 之前。修复方式：重新运行此向导并选择“新建”（新容器只发布在 127.0.0.1），确认不再需要旧容器的数据后，自行用 docker rm -f {{name}} 删除旧容器。BAT 不会修改或删除它。",
+        "containerLegacyImage": "容器 {{name}} 使用的 BAT 服务器镜像构建于 Docker 网络修复之前，服务器无法通过发布的端口连接。请重新构建镜像（npm run build:docker-image）并重新运行此向导选择“新建”。BAT 不会修改或删除旧容器。"
       }
     },
     "ssh": {

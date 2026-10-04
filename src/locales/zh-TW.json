@@ -770,6 +770,10 @@
           "label": "啟動 Docker 容器",
           "description": "啟動容器並等待 healthy 狀態。"
         }
+      },
+      "warning": {
+        "containerPortExposed": "容器 {{name}} 將 BAT 伺服器埠發布在主機所有網路介面（{{hostIps}}），同網路的其他機器都能連入。此容器建立於 BAT 將 Docker 埠限定綁 127.0.0.1 之前。修正方式：重新執行此精靈並選「建立新的」（新容器只發布在 127.0.0.1），確認不再需要舊容器的資料後，自行以 docker rm -f {{name}} 移除舊容器。BAT 不會修改或刪除它。",
+        "containerLegacyImage": "容器 {{name}} 使用的 BAT 伺服器映像建置於 Docker 網路修正之前，伺服器無法透過發布的埠連線。請重新建置映像（npm run build:docker-image）並重新執行此精靈選「建立新的」。BAT 不會修改或刪除舊容器。"
       }
     },
     "ssh": {

@@ -1,4 +1,5 @@
-import type { WizardStep } from '../../wizard-runner'
+import i18next from 'i18next'
+import type { WizardContext, WizardStep } from '../../wizard-runner'
 
 // BUG-097 (T0418): engines without HEALTHCHECK --start-interval run the first
 // probe only after the 30s interval (docker/Dockerfile), so the container stays
@@ -16,6 +17,29 @@ async function waitForHealthy(name: string): Promise<void> {
   }
 
   throw new Error(`Timed out waiting for Docker container ${name} to become healthy.`)
+}
+
+type DockerExposure = NonNullable<Awaited<ReturnType<typeof window.electronAPI.docker.startContainer>>['exposure']>
+
+function pushWarning(ctx: WizardContext, warning: string): void {
+  if (!ctx.warnings.includes(warning)) ctx.warnings.push(warning)
+}
+
+/**
+ * T0427 (BUG-097 follow-up): an existing container created before the fix is
+ * reported, never changed — recreating it is the user's call (it may hold
+ * data in volumes / mounts). Text guidance only; the wizard has no
+ * recreate action for existing containers.
+ */
+function warnLegacyContainer(ctx: WizardContext, name: string, exposure: DockerExposure): void {
+  if (exposure.exposed) {
+    // docker reports an unset HostIp as '' — that means every host interface.
+    const hostIps = exposure.hostIps.map((ip) => ip || '0.0.0.0').join(', ')
+    pushWarning(ctx, i18next.t('wizard.docker.warning.containerPortExposed', { name, hostIps }))
+  }
+  if (exposure.legacyImage) {
+    pushWarning(ctx, i18next.t('wizard.docker.warning.containerLegacyImage', { name }))
+  }
 }
 
 export const startDockerServerStep: WizardStep = {
@@ -47,10 +71,13 @@ export const startDockerServerStep: WizardStep = {
             token: typeof ctx.state.remoteToken === 'string' ? ctx.state.remoteToken : undefined,
             dataVolume: `bat-server-${containerName}-data`,
           }
-        : undefined,
+        : { port },
     )
 
     if (!startResult.ok) throw new Error(startResult.error ?? `Failed to start Docker container ${containerName}.`)
+    // Before the health wait: a pre-fix image never turns healthy, and the
+    // warning is what tells the user why.
+    if (startResult.exposure) warnLegacyContainer(ctx, containerName, startResult.exposure)
 
     ctx.remoteToken = startResult.token ?? (typeof ctx.state.remoteToken === 'string' ? ctx.state.remoteToken : undefined)
     ctx.state.remoteToken = ctx.remoteToken

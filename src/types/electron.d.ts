@@ -412,7 +412,7 @@ interface ElectronAPI {
       env: string[]
     }>
     validateMounts: (mounts: Array<{ host: string; container: string }>) => Promise<{ ok: boolean; errors: string[] }>
-    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) => Promise<{ ok: boolean; token?: string; error?: string }>
+    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) => Promise<{ ok: boolean; token?: string; error?: string; /** T0427: set when an existing container predates the BUG-097 fix. */ exposure?: { ok: boolean; exposed: boolean; hostIps: string[]; legacyImage: boolean; error?: string } }>
     stopContainer: (name: string, options?: { remove?: boolean }) => Promise<{ ok: boolean; error?: string }>
     removeContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
     restartContainer: (name: string) => Promise<{ ok: boolean; error?: string }>

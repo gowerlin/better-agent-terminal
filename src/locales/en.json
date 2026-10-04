@@ -770,6 +770,10 @@
           "label": "Start Docker container",
           "description": "Launch the container and wait for it to become healthy."
         }
+      },
+      "warning": {
+        "containerPortExposed": "Container {{name}} publishes the BAT server port on all host interfaces ({{hostIps}}), so other machines on your network can reach it. It was created before BAT bound Docker ports to 127.0.0.1 only. To fix it, run this wizard again with \"Create new\" (the new container is published on 127.0.0.1 only), then remove the old container yourself with docker rm -f {{name}} once you no longer need its data. BAT will not change or delete it.",
+        "containerLegacyImage": "Container {{name}} runs a BAT server image built before the Docker networking fix, so the server cannot be reached through the published port. Rebuild the image (npm run build:docker-image) and run this wizard again with \"Create new\". BAT will not change or delete the old container."
       }
     },
     "ssh": {
