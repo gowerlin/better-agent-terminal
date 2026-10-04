@@ -19,6 +19,8 @@ import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { droppedImageKey, readFileAsDataUrl } from '../lib/image-attachment'
 import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-paths'
+import { findClientPathsInPrompt, resolvePromptPathSuggestions, type PromptPathHintItem } from '../lib/prompt-client-paths'
+import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
 import { CtToast, useCtToast } from './CtToast'
 import { getModelPricing } from '../lib/model-pricing'
 import {
@@ -246,6 +248,10 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const [hasMoreArchived, setHasMoreArchived] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [cliCommandWarning, setCliCommandWarning] = useState<string | null>(null)
+  // T0440 (BUG-105): client-form paths typed into a prompt of a remote window — pointed out, never rewritten
+  const isRemoteWindow = useIsRemoteWindow()
+  const [promptPathHint, setPromptPathHint] = useState<PromptPathHintItem[] | null>(null)
+  const promptPathHintSeqRef = useRef(0)
   const archivedCountRef = useRef(0)
   const loadedFromArchiveRef = useRef(0)
   const archivingRef = useRef(false)
@@ -1472,6 +1478,17 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         return
       }
     }
+    // T0440: the prompt goes out as typed; the notice (with the host form when known) follows it
+    const hintSeq = ++promptPathHintSeqRef.current
+    const typedClientPaths = isRemoteWindow && settingsStore.getSettings().promptClientPathHint !== false
+      ? findClientPathsInPrompt(trimmed)
+      : []
+    setPromptPathHint(null)
+    if (typedClientPaths.length > 0) {
+      void resolvePromptPathSuggestions(typedClientPaths).then(items => {
+        if (promptPathHintSeqRef.current === hintSeq) setPromptPathHint(items)
+      })
+    }
     const imageDataUrls = attachedImages.map(i => i.dataUrl)
     clearInput()
     setAttachedImages([])
@@ -1515,7 +1532,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
       .catch(showRemoteUnsupported)
-  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast])
+  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast, isRemoteWindow])
+
+  const disablePromptPathHint = useCallback(() => {
+    settingsStore.setPromptClientPathHint(false)
+    setPromptPathHint(null)
+  }, [])
 
   const handleInterrupt = useCallback(() => {
     if (!isStreaming) return
@@ -3438,6 +3460,32 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         {cliCommandWarning && (
           <div className="claude-cli-warning">
             {cliCommandWarning}
+          </div>
+        )}
+        {promptPathHint && (
+          <div className="claude-cli-warning claude-path-hint" role="status">
+            <div className="claude-path-hint-body">
+              <div>{t('claude.promptClientPathHint')}</div>
+              {promptPathHint.slice(0, 3).map(item => (
+                <div key={item.path} className="claude-path-hint-item">
+                  <code>{item.path}</code>
+                  {item.serverPath && <> — {t('claude.promptClientPathHintRemote', { path: item.serverPath })}</>}
+                </div>
+              ))}
+              {promptPathHint.length > 3 && <div className="claude-path-hint-item">…(+{promptPathHint.length - 3})</div>}
+            </div>
+            <button type="button" className="claude-path-hint-action" onClick={disablePromptPathHint}>
+              {t('claude.promptClientPathHintDisable')}
+            </button>
+            <button
+              type="button"
+              className="claude-path-hint-close"
+              onClick={() => setPromptPathHint(null)}
+              title={t('claude.promptClientPathHintDismiss')}
+              aria-label={t('claude.promptClientPathHintDismiss')}
+            >
+              &times;
+            </button>
           </div>
         )}
         {(attachedImages.length > 0 || attachedFiles.length > 0) && (

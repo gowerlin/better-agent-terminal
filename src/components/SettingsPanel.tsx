@@ -577,6 +577,18 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
               <p className="settings-hint">{t('settings.collapseToolOutputsHint')}</p>
             </div>
 
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.promptClientPathHint !== false}
+                  onChange={e => settingsStore.setPromptClientPathHint(e.target.checked)}
+                />
+                {t('settings.promptClientPathHint')}
+              </label>
+              <p className="settings-hint">{t('settings.promptClientPathHintHint')}</p>
+            </div>
+
             <div className="settings-group">
               <label>{t('settings.defaultModel')}</label>
               <input

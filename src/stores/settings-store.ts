@@ -244,6 +244,12 @@ class SettingsStore {
     this.save()
   }
 
+  setPromptClientPathHint(enabled: boolean): void {
+    this.settings = { ...this.settings, promptClientPathHint: enabled }
+    this.notify()
+    this.save()
+  }
+
   setMinimizeToTray(minimize: boolean): void {
     this.settings = { ...this.settings, minimizeToTray: minimize }
     this.notify()

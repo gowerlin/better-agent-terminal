@@ -1166,6 +1166,44 @@
   white-space: pre-line;
 }
 
+/* T0440: local paths typed into a prompt of a remote window (notice only) */
+.claude-path-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  white-space: normal;
+}
+
+.claude-path-hint-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.claude-path-hint-item {
+  overflow-wrap: anywhere;
+}
+
+.claude-path-hint-action,
+.claude-path-hint-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  opacity: 0.8;
+}
+
+.claude-path-hint-action {
+  text-decoration: underline;
+}
+
+.claude-path-hint-action:hover,
+.claude-path-hint-close:hover {
+  opacity: 1;
+}
+
 /* Footer row inside the input box */
 .claude-input-footer {
   display: flex;

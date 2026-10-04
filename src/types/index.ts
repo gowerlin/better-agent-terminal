@@ -302,6 +302,7 @@ export interface AppSettings {
   logLevel?: LogLevel;                 // 除錯日誌等級（預設 debug）
   statuslineItems?: StatuslineItemConfig[];  // 自訂 statusline 項目排序和顯示
   collapseToolOutputs?: boolean;  // 預設折疊所有工具輸出（預設 false = 展開）
+  promptClientPathHint?: boolean;  // 遠端視窗 Claude prompt 含本機路徑時提示（T0440，預設 true；僅提示、不改內容）
   minimizeToTray?: boolean;  // 關閉視窗時最小化到系統匣（預設 false = 直接關閉）
   enableDevTools?: boolean;  // 允許在正式版中按 F12 開啟 DevTools（預設 false）
   checkForUpdates?: boolean;  // 是否自動檢查版本更新（預設 true）
