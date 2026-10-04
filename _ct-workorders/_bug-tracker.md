@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 00:50 (UTC+8) — 第五十三 session：BUG-101 → FIXING（T0394，與 T0393 平行）
+> 最後同步：2026-10-05 01:01 (UTC+8) — 第五十三 session：BUG-101 → FIXED（T0394 `ea52b03`）
 
 ## 統計
-- 🔴 Open: 6 | ⏳ Fixing: 1 | ✅ Fixed: 4 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 26**
+- 🔴 Open: 6 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 26**
 
 ## 🔴 Open / 處理中
 
@@ -43,12 +43,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-101 | 本機 Terminal Server 模式的終端「重新啟動」會讓終端失聯：舊 PTY 的 onExit 無條件刪掉同 id 的新 entry | 🔴 high | 2026-10-05 | [BUG-101](BUG-101-terminal-server-restart-loses-terminal.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-101 | 本機 Terminal Server 模式的終端「重新啟動」會讓終端失聯：舊 PTY 的 onExit 無條件刪掉同 id 的新 entry | 🔴 high | 2026-10-05 | [BUG-101](BUG-101-terminal-server-restart-loses-terminal.md) |
 | BUG-095 | `claude:abort-session` 只進 handler registry、未列入 `PROXIED_CHANNELS`，沒有 `ipcMain.handle` → Claude / Codex 面板的中止（abort）呼叫一律失敗 | 🔴 high | 2026-10-04 | [BUG-095](BUG-095-claude-abort-session-not-bound-to-ipc.md) |
 | BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 | BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |

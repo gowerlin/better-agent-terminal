@@ -6,7 +6,7 @@ title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），�
 status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-05T00:57:46+08:00"
+updated_at: "2026-10-05T01:01:44+08:00"
 links:
   research_workorder: T0386
   p0_workorders: [T0388, T0389, T0390, T0391, T0393]
@@ -82,4 +82,10 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - `pty:create` 回傳「是否為新 spawn」：create 冪等後，還原 terminal-driven agent preset 時會把啟動指令再打進仍在跑 agent 的 shell（本機 Terminal Server 模式自 T0111 即如此）
 - 遠端 `BAT_SESSION=1` 但無 `BAT_HELPER_DIR`：遠端 Tower auto-session 會走 fallback（P3 / K 再決定）
 - 既有 bug 另案：BUG-101（本機 Terminal Server 模式 restart 失聯）
+
+## P0 實機驗收準備（2026-10-05 01:01）
+
+- WSL 伺服器：塔台以 `npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --expect-string registerHeadlessPtyHandlers --yes` 部署 HEAD `ea52b03` 的 headless JS（備份 tag `dev`：`*.js.bak-dev` = T0385 版；另有 `*.bak-t0385` = baseline 版）。restart 後 `active`、`listening on 127.0.0.1:9877`、指紋 `22:3A:E4:…` 不變、`node-pty loaded successfully`
+- 工具小瑕疵：`LISTEN` 檢查顯示 `(none found)`，實際有在 9877 監聽（`ss` 的程序名是 `MainThread`，工具以名稱過濾而漏抓）→ 待修
+- BAT 本體：交使用者本機打包安裝（含 T0390 / T0392 / T0393 / T0394）
 
