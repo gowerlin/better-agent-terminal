@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-083
 title: Codex agent 出錯，測試者指稱需更新 codex 版本（內嵌 SDK/CLI 0.124.0，上游已 0.160.0）
-status: FIXING
+status: FIXED
 severity: medium
+fix_commits: [c6214c2, ca0d292, 30fcf45, 3d52a1d]
+fixed_at: "2026-10-04T16:46:35+08:00"
 reproducibility: conditional
 created_at: "2026-10-04T13:29:07+08:00"
-updated_at: "2026-10-04T15:52:52+08:00"
+updated_at: "2026-10-04T16:46:35+08:00"
 impact:
   - codex-agent
 links:
@@ -20,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（暫定；Codex agent 為次要 agent，但出錯即整個面板不可用。T0366 結論後重評） |
 | 可重現 | 條件式 100%（T0366）：H3 另裝新版 Codex 但 BAT 用內嵌 0.124；H1 選用新模型 |
-| 狀態 | 📂 OPEN → ⏳ FIXING（2026-10-04，D121） |
+| 狀態 | 📂 OPEN → ⏳ FIXING → ✅ FIXED（2026-10-04，D121 四張全 DONE；待實機開 Codex 分頁驗收） |
 | 回報者 | 外部測試者（2026-10-02 00:49，經使用者轉述） |
 
 ## 現象（原始回報，轉述）
@@ -52,5 +54,11 @@ links:
 | 1 | T0367 | T-A 錯誤分類 + config 警告誤報修正 | ✅ DONE `c6214c2`（561 tests） |
 | 2 | T0369 | T-B bump SDK 0.160 + 內嵌解析相容新目錄 + 體積量測 | ✅ DONE `ca0d292`（573 tests；win32-x64 213→430 MB） |
 | 3 | T0370 | T-D 模型清單（讀 `models_cache.json`、清下架、effort `max`/`ultra`）+ 連線重試誤報改 notice | ✅ DONE `30fcf45`（593 tests） |
-| 4 | T0373 | T-C 選最新 binary + 版本 notice + effort 依模型校正 | 派發中 |
+| 4 | T0373 | T-C 選最新 binary + 版本 notice + effort 依模型校正 | ✅ DONE `3d52a1d`（635 tests；本機選 embedded 0.160.0） |
 | — | 後排 | T-E Settings codex runtime 選擇（S3） | 未排 |
+
+## 待實機驗收（下次發版後）
+
+- 開 Codex 分頁：首行 notice 應為 `Codex CLI 0.160.0 (embedded)`（或更新的 installer / desktop-app 版本）
+- 正常對話不再出現 `Codex is ignoring …` / `Reconnecting …` 紅色 Error
+- 模型下拉含 `gpt-6-luna` / `gpt-5.6-terra` 等 cache 模型；換到 `gpt-5.5` 時 effort `max` 自動改為 `medium`
