@@ -11,6 +11,7 @@
  * usually runs first), so replay requests go through a small id → sink registry.
  */
 import { PTY_LIMIT_REACHED, type CreatePtyOptions, type PtyCreateResult, type PtyReplayBuffer } from '../types'
+import { rememberTerminalShell } from './terminal-drop'
 
 export function normalizePtyCreateResult(raw: unknown): PtyCreateResult {
   if (raw && typeof raw === 'object' && typeof (raw as { created?: unknown }).created === 'boolean') {
@@ -128,6 +129,8 @@ export async function createPtyWithReplay(
   options: CreatePtyOptions,
   api: PtyCreateApi = window.electronAPI.pty,
 ): Promise<PtyCreateResult> {
+  // T0439: terminal drag & drop quotes paths for this shell.
+  rememberTerminalShell(options.id, options.shell)
   let result: PtyCreateResult
   try {
     result = normalizePtyCreateResult(await api.create(options))

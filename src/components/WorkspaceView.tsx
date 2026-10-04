@@ -17,6 +17,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay } from '../lib/pty-replay'
+import { getShellFromSettings, rememberTerminalShell } from '../lib/terminal-drop'
 import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
 import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
 import { CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, openClaudeLoginTerminal, type ClaudeOpenLoginTerminalDetail } from '../lib/claude-login-guide'
@@ -131,15 +132,6 @@ interface WorkspaceViewProps {
   dockedPanels?: DockablePanel[]
   onDockPanel?: (panel: DockablePanel, zone: DockZone) => void
   onOpenSettings?: () => void
-}
-
-// Helper to get shell path from settings
-async function getShellFromSettings(): Promise<string | undefined> {
-  const settings = settingsStore.getSettings()
-  if (settings.shell === 'custom' && settings.customShellPath) {
-    return settings.customShellPath
-  }
-  return window.electronAPI.settings.getShellPath(settings.shell)
 }
 
 // T0443 (BUG-110): restore-time pty:create. A remote window that is not connected
@@ -928,6 +920,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         const cwd = await window.electronAPI.pty.getCwd(id) || terminal.cwd
         const shell = await getShellFromSettings()
         await window.electronAPI.pty.restart(id, cwd, shell)
+        rememberTerminalShell(id, shell)
         workspaceStore.updateTerminalCwd(id, cwd)
 
         // Re-run agent command on restart for terminal-driven agents

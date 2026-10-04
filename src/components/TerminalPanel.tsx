@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, memo } from 'react'
+import { useEffect, useRef, useState, memo, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { useMenuPosition } from '../hooks/useMenuPosition'
 import { Terminal } from '@xterm/xterm'
 import { TerminalDecorationManager } from '../utils/terminal-decoration-manager'
@@ -11,6 +12,9 @@ import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
 import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from '../lib/pty-replay'
+import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
+import { attachmentDisplayNames } from '../lib/client-paths'
+import { CtToast, useCtToast } from './CtToast'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -88,6 +92,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const isActiveRef = useRef(isActive)
   const doResizeRef = useRef<(() => void) | null>(null)
   const remoteKeypressTraceRef = useRef<RemoteKeypressTrace | null>(null)
+  const { t } = useTranslation()
+  const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
 
   // Keep isActiveRef in sync with isActive prop
   useEffect(() => {
@@ -145,6 +151,37 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       writeChunked(text)
     } else {
       terminalRef.current?.paste(text)
+    }
+  }
+
+  // T0439: dropping files types their quoted paths (host form in a remote window), no Enter.
+  // Electron 41 does not navigate on drop (navigateOnDragDrop defaults to false); taking the
+  // drop here also keeps it from ever reaching will-navigate → openExternal.
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (!dataTransferHasFiles(e.dataTransfer)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+    if (!dataTransferHasFiles(e.dataTransfer)) return
+    e.preventDefault()
+    e.stopPropagation()
+    const paths = droppedFilePaths(e.dataTransfer)
+    if (paths.length === 0) return
+    const shell = await terminalShellFamily(terminalId)
+    const { text, rejected } = await buildTerminalDropInsertion(paths, shell)
+    if (rejected.length > 0) {
+      addNoticeToast(t('claude.attachmentNotOnRemoteHost', { files: attachmentDisplayNames(rejected) }), 'warning', 8000)
+    }
+    if (!text) return
+    const terminal = terminalRef.current
+    if (terminal) {
+      // paste() honours bracketed paste mode, so TUIs (claude CLI) see a paste, not keystrokes.
+      terminal.paste(text)
+      terminal.focus()
+    } else {
+      window.electronAPI.pty.write(terminalId, text)
     }
   }
 
@@ -709,7 +746,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   }, [terminalId])
 
   return (
-    <div ref={containerRef} className="terminal-panel">
+    <div ref={containerRef} className="terminal-panel" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* Context Menu — Fix BUG-002: portal to body to avoid position:fixed offset from parent transforms */}
       {contextMenu && createPortal(
         <div
@@ -731,6 +768,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         </div>,
         document.body
       )}
+      <CtToast messages={noticeToasts} onDismiss={dismissNoticeToast} />
     </div>
   )
 })
