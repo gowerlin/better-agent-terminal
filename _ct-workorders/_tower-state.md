@@ -258,6 +258,11 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 06:08 — T0431 DONE（`9fa2cc3`）塔台複核 PASS：14 檔、HEADLESS_UNSUPPORTED 6 → 2、本機指令輸出 3×11 矩陣逐字比對、Worker 2004 tests / tsc 39；`main.ts` 以 `git apply --cached` 只 stage 本單 6 hunk（T0436 hunk 未夾帶）。規格內行為變更接受：Electron 端 `created-externally` / `notified` / `keypress` 也經 broadcastHub 送遠端 client
 - [斷點 C 裁決] 2026-10-05 06:08 — T0431 遭遇問題 4（headless 指定 codex → shell command not found）併入 T0433（回結構化錯誤 + i18n）
 - [派發] 2026-10-05 06:08 — T0432 ∥ T0442（`--no-interactive`）
+- [完成] 2026-10-05 06:12 — T0442 DONE（`ccffedb`）塔台複核 PASS：Worker 2087 tests / tsc 39；`main.ts` 以 `git apply --cached` 精準 stage
+- [斷點 C 裁決] 2026-10-05 06:12 — 塔台複核 `main.ts:2145`：遠端視窗未連線時 invoke 落本機（fail-open），單一槽位使兩個 remote profile 同時開窗時先開者靜默變本機 → BUG-110（high）/ T0443；多 profile 同時連線屬架構，交使用者
+- [完成] 2026-10-05 06:13 — T0426 DONE（`4caab48`）塔台複核 PASS：Worker 2077 tests / tsc 39（錯誤清單 diff 相同）；BUG-099 / 100 → FIXED；以暫存 index 精準 commit
+- [斷點 C 裁決] 2026-10-05 06:13 — T0426 遭遇問題 3：精靈 Docker rollback 可能刪 / 停使用者容器 → BUG-111（high）/ T0444（依賴 T0427）；白名單較嚴（遭遇問題 2）維持
+- [派發] 2026-10-05 06:13 — T0427 ∥ T0443（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
