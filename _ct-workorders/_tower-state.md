@@ -297,6 +297,11 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [斷點 C 裁決] 2026-10-05 06:55 — detached 視窗內終端變更不持久化（save no-op 取捨）→ backlog，不開單
 - [完成] 2026-10-05 06:57 — T0436 DONE（ct-done 補救，`6c26edc`）塔台複核 PASS：12 檔、`main.ts` +17 僅本單 3 hunk、無他單 hunk 夾帶；BUG-108 → FIXED（本機任何工作區外圖片附件皆被 path guard 擋，已修）
 - [派發] 2026-10-05 06:57 — T0441（`--no-interactive`）
+- [完成] 2026-10-05 06:58 — T0450 DONE（`7effa79`）塔台複核 PASS：Worker 全套 2427 passed / **0 failed** / tsc 39；`pty:write` 拒 C0 + DEL + C1（超出裁決，接受）、bat-notify 預填壓平控制字元（本機亦適用，接受）、tower 子 PTY ≤ 8 / 1 秒 / client 保留 8 / capacity 不明 fail-closed、agent 限 registry
+- [派發] 2026-10-05 06:58 — T0451（`--no-interactive`）
+- [完成] 2026-10-05 07:03 — T0441 DONE（`5d8fd8f`）塔台複核 PASS：snippet 實為記憶體 store + `snippets.json` 僅啟動時 load ⇒ 舊流程全平台無效；改注入清單（無路徑）；**tsc 39 → 36**；BUG-109 → FIXED。全套紅屬 T0451 WIP（`remote-server.ts` `LOG_UNSAFE_CHARS` regex 含行分隔字元 → Unterminated regular expression，25 suite）與 T0434 WIP → **T0451 完成時必查**
+- [斷點 C 裁決] 2026-10-05 07:03 — 「agent 提案 → 一鍵套用 snippet」→ backlog
+- [派發] 2026-10-05 07:03 — T0437（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
