@@ -4,12 +4,12 @@ schema_kind: workorder
 id: T0371
 title: "BUG-084：內嵌 claude-code CLI 2.1.113 → 2.1.289 + Claude 5 模型清單 + getSupportedModels 帶 runtime 路徑"
 type: fix
-status: PENDING
+status: IN_PROGRESS
 priority: P1
 sizing: S
 created_at: "2026-10-04T16:09:22+08:00"
-updated_at: "2026-10-04T16:09:22+08:00"
-started_at: null
+updated_at: "2026-10-04T16:16:16+08:00"
+started_at: "2026-10-04T16:16:16+08:00"
 completed_at: null
 target_version: next
 depends_on:
@@ -39,7 +39,7 @@ memory_overrides:
 
 # T0371 — BUG-084：內嵌 claude-code CLI → 2.1.289 + Claude 5 模型清單
 
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **任務類型**：fix（依賴升級 + 模型清單）
 - **工作量預估**：S
 - **Context Window 風險**：低
@@ -100,10 +100,92 @@ BUG-084：內嵌 CLI 2.1.113 選 `claude-opus-5-5` / `claude-fable-5-1` 必回 `
 
 ### 完成狀態
 
+**FIXED** — Part A/B/C 皆完成，AC-1 ~ AC-6 全部 PASS（含 AC-5 實際 smoke）。待塔台 / 使用者於 BAT 實機（dev 或打包版）驗收模型下拉與 Claude 5 對話。
+
+- **Landing Zone**：WARN — C-0 `repo` 欄位 absent（觀察到 `basename(REPO_ROOT)` = `better-agent-terminal`）；C-1 PASS（工單位於 `REPO_ROOT/_ct-workorders/`）；C-3 PASS（4 筆 `affects_files` 全部存在）；C-2 無 `branch` 欄位（HEAD = `main`）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅作證據）。
+- **派發模式**：`CT_MODE=yolo`、`CT_INTERACTIVE=1`。
+- **未碰**：`AGENTS.md`（開工前既有 dirty）、CHANGELOG、`ClaudeAgentPanel.tsx`、計價表、`claude-resolver.ts`、`pty-manager.ts`、`@openai/*`、`claude-agent-sdk`。
+
+### 互動紀錄
+
+| # | 問題 | 使用者回答 |
+|---|------|-----------|
+| Q1 | AC-5：是否允許把 `~/.claude/.credentials.json` 複製到 scratchpad 隔離的 `CLAUDE_CONFIG_DIR` 跑 1 次 `claude-opus-5-5` smoke（跑完刪除） | 允許隔離複本 smoke |
+
+auth 驗證：smoke 前後 `~/.claude/.credentials.json` sha256 前 16 碼皆為 `8169ed6e7b1ea452`、mtime 皆為 `2026-10-04 15:18:25.430503900 +0800`；隔離複本跑完 hash 相同（未觸發 token refresh），已刪除。
+
 ### 產出摘要
+
+**Part A — 依賴**
+- `npm view @anthropic-ai/claude-code dist-tags` → `{ stable: '2.1.285', latest: '2.1.289', next: '2.1.289' }`，`latest` = 2.1.289，未高於目標，照用。
+- `package.json`：`@anthropic-ai/claude-code` `^2.1.111` → `^2.1.289`；`@anthropic-ai/claude-agent-sdk` 維持 `^0.2.111`（實裝 0.2.113）。
+- `npm install "@anthropic-ai/claude-code@^2.1.289"`（npm 11.19.0 / Node v24.21.0）：`changed 2 packages`。出現 `install-scripts ... not yet covered by allowScripts` 警告（含 `@anthropic-ai/claude-code@2.1.289 (postinstall: node install.cjs)`），但 **postinstall 有執行**：`bin/claude.exe` 為 249,522,848 bytes、hardlink count 2（與平台套件同檔），非 stub，`--version` 可跑。
+- **dev 殘骸修復**：開工前 `bin/` 與 `claude-code-win32-x64/` 都只有 `claude.exe.old.1776856737641`（245,966,496 bytes）；重裝後：
+
+  ```
+  node_modules/@anthropic-ai/claude-code/bin:
+  -rwxr-xr-x 2 Gower 197121 249522848 Oct  4 16:16 claude.exe*
+  node_modules/@anthropic-ai/claude-code-win32-x64:
+  -rwxr-xr-x 2 Gower 197121 249522848 Oct  4 16:16 claude.exe*
+  -rw-r--r-- 1 Gower 197121       148 Oct  4 16:16 LICENSE.md
+  -rw-r--r-- 1 Gower 197121       272 Oct  4 16:16 package.json
+  -rw-r--r-- 1 Gower 197121       150 Oct  4 16:16 README.md
+  ```
+  `.old.*` 已不存在。
+- **lock 處理**（比照 T0369）：npm 原生產出的 lock 有 141 行變動，夾帶約 40 處 `peer` 旗標重排雜訊；改以 scratchpad `transplant.mjs` 從 HEAD lock 只移植 `node_modules/@anthropic-ai/claude-code` 與 `node_modules/@anthropic-ai/claude-code-*` 條目 + root `packages[""].dependencies` 那一行。結果 `package-lock.json | 86 ++++----`（49+/37−），變動全部落在 claude-code 條目內（`version`/`resolved`/`integrity`、`engines.node` `>=18.0.0` → `>=22.0.0`、linux 平台套件新增 `libc: ["glibc"|"musl"]`）。
+
+**Part B — 模型清單（`electron/claude-agent-manager.ts`）**
+- `BAT_BUILTIN_MODELS` 前插 `claude-opus-5-5`（Opus 5.5 (1M)）、`claude-fable-5-1`（Fable 5.1 (1M)）、`claude-sonnet-5-5`（Sonnet 5.5 (1M)），description 格式 `<id> · 1M context`；不加 `[1m]` 變體；既有 4.x 七項保留不動。
+- `getSupportedModels(sessionId)`：改用 `this.resolveRuntimeForSession(sessionId)`（與 `query()` 正式 spawn / `forkSession` 同一個 runtime router 入口）解出的 `path` 帶入 `pathToClaudeCodeExecutable`；`cwd: '/'` 移入 `options`。router 拋 `SystemClaudeUnavailableError`（fallback 關閉且 system 不可用）時落入既有 `catch` → 只回 builtins，行為與原本失敗路徑一致。參數 `_sessionId` → `sessionId`（IPC 呼叫端 `main.ts:2239` 本來就傳真實 session id，簽名不變）。
+- `thinking: { type: 'enabled' }` → `{ type: 'adaptive' }`（`query()` 主路徑，原 :717）。
+
+**Part C — CI**
+- `.github/workflows/release.yml:134`（desktop `build` job）`node-version: '20'` → `'24'`。
+- 其他 workflow 的 `node-version` 掃描：`release.yml:46/:81`、`pre-release.yml:81/116/168`、`build-server-bundle.yml:39/74/146` 全部已是 `'24'`，**沒有其他 Node 20 殘留**。
 
 ### 驗收條件逐項
 
+| AC | 結果 | 證據 |
+|----|------|------|
+| AC-1 | ✅ PASS | `node_modules/@anthropic-ai/claude-code/package.json` 與 `claude-code-win32-x64/package.json` = `2.1.289`；`bin/claude.exe --version` → `2.1.289 (Claude Code)`；`claude-code-win32-x64/claude.exe --version` → `2.1.289 (Claude Code)`（非 `.old.*`，見上方 `ls`）。lock：diff stat `86 (49+/37−)`，只動 `@anthropic-ai/claude-code*`。**重產比對**：把 `package.json` + 移植後 lock 複製到 scratchpad 跑 `npm install --package-lock-only --ignore-scripts`，以 `cmp.mjs` 逐 package 比對 → `metadata-only (peer/dev/optional flags) diffs: 43`、`substantive diffs: 0`（只容許 metadata 差異 ✅）。`claude-agent-sdk` 仍為 0.2.113 |
+| AC-2 | ✅ PASS | 開工基線 `Test Files 44 passed (44)` / `Tests 593 passed (593)`；完成後 `44 passed (44)` / `593 passed (593)`，數量未減。另跑 `npm run test:claude-code-path` → `4 passed, 0 failed`（含「resolved bin path exists on disk」，開工前此項在 dev 環境會因殘骸而失敗） |
+| AC-3 | ✅ PASS | `npx vite build` exit 0；`npx tsc --noEmit 2>&1 \| grep -c "error TS"` 基線 **42** → 完成後 **42**，且去掉行列號後的錯誤集合與基線完全相同（`diff` 無輸出） |
+| AC-4 | ✅ PASS | scratchpad `ac4.mjs`：以 `resolveClaudeCodePath()` / `resolveEmbeddedClaudePath()` 的 dev 分支同邏輯（`createRequire` 解 `@anthropic-ai/claude-code/package.json` → `bin/claude.exe`）取路徑，repo 的 SDK 0.2.113 呼叫 `query({ prompt: '', options: { cwd: '/', pathToClaudeCodeExecutable } }).supportedModels()`，`CLAUDE_CONFIG_DIR` = scratchpad 空目錄、`DISABLE_AUTOUPDATER=1`、未呼叫模型。輸出見下 |
+| AC-5 | ✅ PASS | 同一 embedded 路徑 + SDK 0.2.113，選項比照正式 spawn（`systemPrompt`/`tools` preset、`settingSources`、`thinking: adaptive`、`effort: high`、`canUseTool`、`pathToClaudeCodeExecutable`），`model: 'claude-opus-5-5'`、`maxTurns: 1`：`init: claude-opus-5-5 claude_code_version: 2.1.289` → `assistant: ["pong"]` → `result: success is_error: false text: "pong"`（`modelUsage` keys：`claude-haiku-4-5-20251001,claude-opus-5-5`，haiku 為 CLI 內部輔助呼叫）。共 1 次模型呼叫 |
+| AC-6 | ✅ PASS | `git diff --stat`：`.github/workflows/release.yml` 2、`electron/claude-agent-manager.ts` 18、`package-lock.json` 86、`package.json` 2 + 本工單檔；`AGENTS.md` 為開工前既有 dirty，未 stage、未 commit |
+
+AC-4 輸出（`supportedModels()` 原始回傳，每筆的 `value` 為 CLI alias，正式 model ID 在 `resolvedModel` 欄位）：
+
+```
+SDK version: 0.2.113
+pathToClaudeCodeExecutable: D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal\node_modules\@anthropic-ai\claude-code\bin\claude.exe
+  default    | Default (recommended) | Use the default model (currently Opus 5.5) · $4/$20 per Mtok
+  opus       | Opus | Opus 5.5 · Best for everyday, complex tasks · $4/$20 per Mtok
+  fable      | Fable | Fable 5.1 · Most capable for your hardest and longest-running tasks · $10/$50 per Mtok
+  sonnet     | Sonnet | Sonnet 5.5 · Efficient for routine tasks · $2/$10 per Mtok
+  haiku      | Haiku | Haiku 4.5 · Fastest for quick answers · $1/$5 per Mtok
+[{"value":"default","resolvedModel":"claude-opus-5-5",...},{"value":"opus","resolvedModel":"claude-opus-5-5",...},
+ {"value":"fable","resolvedModel":"claude-fable-5-1",...},{"value":"sonnet","resolvedModel":"claude-sonnet-5-5",...},
+ {"value":"haiku","resolvedModel":"claude-haiku-4-5-20251001"}]
+claude-opus-5-5: FOUND
+claude-fable-5-1: FOUND
+claude-sonnet-5-5: FOUND
+```
+
+（每筆另有 `supportsEffort` / `supportedEffortLevels` / `supportsAdaptiveThinking` / `supportsAutoMode` 欄位；opus/default 另有 `supportsFastMode`。）
+
 ### 遭遇問題
 
+- 無阻塞。
+- **觀察（非本單範圍，供後續工單）**：
+  1. `getSupportedModels()` 的 SDK 補充清單現在會回 `default` / `opus` / `fable` / `sonnet` / `haiku` 這些 **alias**（value 不是完整 ID），既有過濾只比對 `value` 與 `${value}[1m]`，所以下拉會同時出現 builtin 的 `claude-opus-5-5` 與 SDK 的 `opus`（指向同一模型）。這是既有行為（2.1.113 時也回 alias），若要去重可改比對 `resolvedModel`——建議併入 T-B/T-C 或另開小單。
+  2. `getSupportedModels()` 每次呼叫 `query({ prompt: '' })` 產生的 CLI 子行程沒有被明確關閉（既有行為，本單未動）。
+  3. `resolveRuntimeForSession()` 的 system `version-warning` toast 文案仍寫 `requires >= 2.1.111 for Opus 4.7 / xhigh effort`（`claude-agent-manager.ts` :290 一帶）——屬 T-C（`HEALTHY_MIN` → 2.1.280）範圍。
+  4. 未以 `getContextUsage()` 量測無 `[1m]` 後綴 5 系列 ID 的實際 context 上限（T0368 殘留項）；本單 description 依官方文件寫 1M。
+  5. npm `allowScripts` 警告持續出現；本次 postinstall 仍有跑。T-E 建議的「CI 驗 `bin/claude.exe --version`」仍值得做。
+- 未驗：BAT 實機 UI（下拉顯示、system runtime 下的 `getSupportedModels`）、macOS / Linux、打包後安裝檔。
+- CLAUDE.md「Claude Agent SDK / CLI」節的版本描述（`^2.1.111` / 實裝 2.1.113、Opus 4.7）已過時，依 T0368 清單由塔台收尾時更新（本單不改）。
+
 ### 回報時間
+
+2026-10-04T16:22:42+08:00

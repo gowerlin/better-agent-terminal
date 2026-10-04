@@ -26,6 +26,9 @@ import { broadcastHub } from './remote/broadcast-hub'
 
 // BAT built-in curated model list (always available, shown first)
 const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; description: string }> = [
+  { value: 'claude-opus-5-5',   displayName: 'Opus 5.5 (1M)',   description: 'claude-opus-5-5 · 1M context' },
+  { value: 'claude-fable-5-1',  displayName: 'Fable 5.1 (1M)',  description: 'claude-fable-5-1 · 1M context' },
+  { value: 'claude-sonnet-5-5', displayName: 'Sonnet 5.5 (1M)', description: 'claude-sonnet-5-5 · 1M context' },
   { value: 'claude-opus-4-7',     displayName: 'Opus 4.7 (200k)',  description: 'claude-opus-4-7 · 200k context' },
   { value: 'claude-opus-4-7[1m]', displayName: 'Opus 4.7 (1M)',   description: 'claude-opus-4-7 · 1M context · CLI recommended for better cache efficiency' },
   { value: 'claude-opus-4-6',     displayName: 'Opus 4.6 (200k)',  description: 'claude-opus-4-6 · 200k context' },
@@ -714,7 +717,7 @@ export class ClaudeAgentManager {
         includePartialMessages: true,
         promptSuggestions: true,
         settingSources: ['user', 'project', 'local'],
-        thinking: { type: 'enabled' },
+        thinking: { type: 'adaptive' },
         effort: session.effort,
         toolConfig: { askUserQuestion: { previewFormat: 'html' } },
         agentProgressSummaries: true,
@@ -1699,12 +1702,21 @@ export class ClaudeAgentManager {
     return true
   }
 
-  async getSupportedModels(_sessionId: string): Promise<Array<{ value: string; displayName: string; description: string; source: 'builtin' | 'sdk' }>> {
+  async getSupportedModels(sessionId: string): Promise<Array<{ value: string; displayName: string; description: string; source: 'builtin' | 'sdk' }>> {
     const builtinValues = new Set(BAT_BUILTIN_MODELS.map(m => m.value))
     const builtins = BAT_BUILTIN_MODELS.map(m => ({ ...m, source: 'builtin' as const }))
     try {
       const query = await getQuery()
-      const instance = query({ prompt: '', cwd: '/' })
+      // Use the same runtime router result as real spawns; without it the SDK falls back to
+      // its own bundled CLI binary, whose model list lags the embedded/system CLI (BUG-084).
+      const claudeCodePath = (await this.resolveRuntimeForSession(sessionId)).path
+      const instance = query({
+        prompt: '',
+        options: {
+          cwd: '/',
+          ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
+        },
+      })
       const sdkModels = await instance.supportedModels()
       // Exclude from SDK list any model already covered by builtins (including [1m] variants)
       const sdkFiltered = sdkModels
