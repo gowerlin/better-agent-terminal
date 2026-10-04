@@ -592,7 +592,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               >
                 {EFFORT_LEVELS.map(level => (
                   <option key={level} value={level}>
-                    {level}{level === 'max' ? ' (Opus only)' : ''}
+                    {level}
                   </option>
                 ))}
               </select>

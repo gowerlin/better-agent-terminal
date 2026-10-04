@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0374
 title: "BUG-084 後續：計價表抽共用模組 + Claude 5 系列 + cache-read 倍率 + Settings effort 標示"
 type: fix
-status: PENDING
+status: DONE
 priority: P2
 sizing: S
 created_at: "2026-10-04T16:46:35+08:00"
-updated_at: "2026-10-04T16:46:35+08:00"
-started_at: null
-completed_at: null
+updated_at: "2026-10-04T16:51:24+08:00"
+started_at: "2026-10-04T16:47:52+08:00"
+completed_at: "2026-10-04T16:51:24+08:00"
 target_version: next
 depends_on:
   - T0372
@@ -43,7 +43,7 @@ memory_overrides:
 
 # T0374 — 計價表共用模組 + Claude 5 系列 + cache-read 倍率
 
-- **狀態**：PENDING
+- **狀態**：DONE
 - **任務類型**：fix（重構 + 資料）
 - **工作量預估**：S
 - **Context Window 風險**：低
@@ -125,10 +125,71 @@ memory_overrides:
 
 ### 完成狀態
 
+**DONE** — Part A ~ D 全數完成，AC-1 ~ AC-5 全 PASS。
+
+**Landing Zone Check：WARN（可繼續）**
+- C-0：frontmatter 無 `repo` 欄位（`absent`）→ WARN「repo identity unavailable」；觀察到 `basename(REPO_ROOT)` = `better-agent-terminal`，REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`
+- C-1：PASS（工單位於 REPO_ROOT 下）
+- C-3：PASS（`src/lib/model-pricing.ts` 等 5 筆可測項的最近祖先 `src/lib/` / `src/components/` 皆存在；`CLAUDE.md` 存在）
+- C-2：工單無 `branch` 欄位，N/A（實際 `main`）
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 派發模式：`CT_MODE=yolo`、`CT_INTERACTIVE=0`
+
 ### 產出摘要
+
+**Part A — `src/lib/model-pricing.ts`（新，58 行）**
+- 匯出 `ModelPricing` interface、`P(input, output, opts?: { cacheReadMultiplier?: number })`（預設 0.1，cache write 1.25x / 2x 不變）、`MODEL_PRICING`、`getModelPricing(model): ModelPricing | null`
+- 執行順序依工單：**先**把兩個面板的內嵌邏輯逐字搬入模組 + 寫 legacy 鎖定測試 → 跑綠（29/29）→ **再**加 5 系列（38/38）
+- 5 系列判斷排在 4.x 之前，順序 `opus-5-5` → `opus-5` → `opus-4-8` → `fable-5-1` → `fable-5` → `sonnet-5-5` → `sonnet-5`；4.x / 3.x 判斷式與順序完全未動。已確認既有 4.x / 3.x ID 不含任何 5 系列子字串（如 `opus-4-5` 不含 `opus-5`），前插不改變既有命中
+
+**`src/lib/__tests__/model-pricing.test.ts`（新，38 tests）**
+- `P()` 預設倍率與 `cacheReadMultiplier` 2 筆
+- legacy 鎖定 21 個 ID（opus 4-7 / 4-7[1m] / 4-6 / 4-6[1m] / 4-5-dated / 4-1-dated / 4-20250514 / 4-0 / 4 / 3-opus；sonnet 4-6 / 4-6[1m] / 4-5-dated / 4-20250514 / 4-0 / 3-7 / 3-5；haiku 4-5-20251001 / 4-5 / 3-5 / 3）全部 5 個欄位逐一比對 + 6 個未知 ID → `null`（`default` / `opus` / `sonnet` / `gpt-5-codex` / `o3` / 空字串）
+- 5 系列 8 個 ID（含 `claude-opus-5-5[1m]`）全 5 欄位比對 + point release 不被 base model 遮蔽 1 筆
+
+**Part B — 面板改用共用模組**
+- `ClaudeAgentPanel.tsx`：刪除內嵌 `P` / `MODEL_PRICING` / `getModelPricing`（-26 行），加 `import { getModelPricing } from '../lib/model-pricing'`；成本計算其餘公式未動
+- `CodexAgentPanel.tsx`：同上（-27 行），`ReturnType<typeof P>` 改為 `ModelPricing`（型別等價）；`import { getModelPricing, type ModelPricing }`
+- `CodexAgentPanel.tsx` 兩處 `getSupportedModels(sessionId).then((models: ModelInfo[]) => ...)` 改為 T0373 寫法 `.then(result => { const models = result as ModelInfo[] | undefined ... })`，消除 2 個 TS2345
+
+**Part C — Settings effort 標示**
+- `SettingsPanel.tsx:595`：`{level}{level === 'max' ? ' (Opus only)' : ''}` → `{level}`
+- 周邊檢查：`src/locales/{en,zh-TW,zh-CN}.json` 的 `settings.defaultEffort` / `defaultEffortHint` 皆無 Opus 限定字樣，無需改。`src/` 全域 grep `Opus only` 只此一處
+- ⚠️ 範圍外未改：`src/types/index.ts:122` 註解「`max` maps to Opus-only extended thinking budget」同樣過時，但該檔不在 `affects_files`（且工單排除改 `EFFORT_LEVELS`），留給塔台決定（見遭遇問題 1）
+
+**Part D — 文件**
+- `CLAUDE.md`「Claude Agent SDK / CLI」節：`MODEL_PRICING` 尚未收錄 / `P()` 倍率問題段改為描述 `src/lib/model-pricing.ts` 現況與「point release 排在 base model 之前」規則；effort 段改為「不再標示 (Opus only)（T0374 移除）」
+- `CHANGELOG.md` `## [Unreleased]` → `### Fixed` 新增一筆 `fix(pricing): ...`（refs: BUG-084, T0374）
+
+**異動檔案**：`src/lib/model-pricing.ts`（新）、`src/lib/__tests__/model-pricing.test.ts`（新）、`src/components/ClaudeAgentPanel.tsx`、`src/components/CodexAgentPanel.tsx`、`src/components/SettingsPanel.tsx`、`CLAUDE.md`、`CHANGELOG.md`、本工單
 
 ### 驗收條件逐項
 
+- [x] **AC-1 PASS** — `npm run test:unit`：47 files / **673 passed**（基線 635 → 673，+38 = 本單新增測試數）；legacy 鎖定 21 ID 全過
+- [x] **AC-2 PASS** — `npx vite build` exit 0（renderer `✓ built in 4.54s`、electron 各 entry 皆 built）。`npx tsc --noEmit | grep -c "error TS"`：改動前 **42** → 改動後 **40**；去除行號後 diff 只少了 `CodexAgentPanel.tsx` 兩筆 `TS2345: Argument of type '(models: ModelInfo[]) => void' ...`（及其附帶說明行），無新增錯誤
+- [x] **AC-3 PASS** — `grep -rn "const MODEL_PRICING" src/components` → **0 筆**；全 `src` 僅剩 `src/lib/model-pricing.ts:20`
+- [x] **AC-4 PASS** — 5 系列與 T0368 第 4 節逐列對照（來源 ③ `https://platform.claude.com/docs/en/about-claude/pricing`，2026-10-04 擷取）：
+
+  | key | T0368 Input / Output | 本單 | T0368 5m / 1h write | 本單（1.25x / 2x） | T0368 cache read | 本單 | 一致 |
+  |-----|---------------------|------|---------------------|-------------------|------------------|------|------|
+  | `opus-5-5` | $4 / $20 | P(4, 20) | $5 / $8 | 5 / 8 | $0.20（0.05x） | 4 × 0.05 = 0.2 | ✅ |
+  | `fable-5-1` | $10 / $50 | P(10, 50) | $12.50 / $20 | 12.5 / 20 | $0.25（0.025x） | 10 × 0.025 = 0.25 | ✅ |
+  | `sonnet-5-5` | $2 / $10 | P(2, 10) | $2.50 / $4 | 2.5 / 4 | $0.20（0.1x） | 0.2 | ✅ |
+  | `opus-5` / `opus-4-8` | $5 / $25 | P(5, 25) | $6.25 / $10 | 6.25 / 10 | $0.50 | 0.5 | ✅ |
+  | `sonnet-5` | $2 / $10 | P(2, 10) | $2.50 / $4 | 2.5 / 4 | $0.20 | 0.2 | ✅ |
+  | `fable-5` | $10 / $50 | P(10, 50) | $12.50 / $20 | 12.5 / 20 | $1（0.1x） | 1 | ✅ |
+  | `haiku-4-5`（既有，對照） | $1 / $5 | P(1, 5)（未改） | $1.25 / $2 | 1.25 / 2 | $0.10 | 0.1 | ✅ |
+
+  cache write 全部與 `P()` 既有 1.25x / 2x 倍率一致，**無需 override**。每一列皆有對應單元測試鎖定全部 5 欄位。
+- [x] **AC-5 PASS** — `git diff --stat` / `git status`：除本單 `affects_files` 7 檔 + 本工單外，唯一其他異動為 `AGENTS.md`——為**開工前即存在**的使用者未提交變更（gitStatus 快照 `M AGENTS.md`），本單未觸碰，commit 以 `--only` 排除
+
 ### 遭遇問題
 
+1. **範圍外過時註解（未改，交塔台）**：`src/types/index.ts:122` 註解 `// \`max\` maps to Opus-only extended thinking budget; \`xhigh\` is the newest tier.` 與 T0368 結論不符。該檔不在 `affects_files`，依範圍守則不動；建議下次碰 `src/types/index.ts` 時順手改。
+2. 無其他阻礙。未 push、未 bump 版號、未碰 `AGENTS.md`；未新增 OpenAI / Codex 模型價格。
+
 ### 回報時間
+
+- started_at：2026-10-04T16:47:52+08:00
+- 回報完成：見 frontmatter `completed_at`
+- commit：與本回報同一個 commit（`git log --grep T0374`）

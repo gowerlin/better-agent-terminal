@@ -5,6 +5,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- fix(pricing): the Cache History cost view prices Claude 5 models. `claude-opus-5-5`,
+  `claude-fable-5-1`, `claude-sonnet-5-5` and the legacy `claude-opus-5` / `claude-opus-4-8` /
+  `claude-sonnet-5` / `claude-fable-5` matched no pricing rule and showed `—`; they now use the
+  official per-MTok prices, including the lower cache-read rate of Opus 5.5 (0.05x) and Fable 5.1
+  (0.025x) — the old fixed 0.1x would have overstated their cache-read cost 2x / 4x. The pricing
+  table moves from two inline copies (Claude and Codex panels) into `src/lib/model-pricing.ts`,
+  with unit tests locking every existing 4.x / 3.x price. Settings → default effort no longer
+  labels `max` as "(Opus only)" (CLI 2.1.289 supports `max` on all Claude 5 models).
+  (refs: BUG-084, T0374)
 - fix(claude): Claude panel explains "CLI too old" model rejections. The server rejects a model
   the Claude Code CLI is too old for with `API Error: 400 ... "error_code":"claude_code_version_too_old"`
   (e.g. `Claude Code 2.1.113 does not support this model; version 2.1.280 or newer is required`);
