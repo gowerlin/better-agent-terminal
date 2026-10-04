@@ -1,6 +1,5 @@
 import * as net from 'net'
 import * as path from 'path'
-import { app, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import type { CreatePtyOptions } from '../src/types'
 import { broadcastHub } from './remote/broadcast-hub'
@@ -35,13 +34,47 @@ interface PtyInstance {
   shellArgs?: string[] // Stored for heartbeat recovery rebuild (T0112)
 }
 
-// T0140: Absolute path to helper scripts directory (bat-terminal.mjs, bat-notify.mjs).
-// Resolves to dev mode <project-root>/scripts or packaged <install-root>/resources/scripts
-// (aligned with T0139 extraResources config in package.json).
-function resolveHelperDir(): string {
-  return app.isPackaged
-    ? path.join(process.resourcesPath, 'scripts')
-    : path.join(__dirname, '..', 'scripts')
+/**
+ * Host dependencies (PLAN-036 T0389). PtyManager does not import `electron`:
+ * Electron main builds these with `createElectronPtyDeps()` (main.ts), the
+ * headless bat-server with its own emit / dataDir.
+ */
+export interface PtyManagerDeps {
+  /** Deliver PTY events (`pty:output` / `pty:exit` / `terminal-server:status`) to subscribers. */
+  emit: (channel: string, ...args: unknown[]) => void
+  /** Data directory holding the Terminal Server PTY registry (Electron = userData). */
+  dataDir: string
+  /**
+   * T0140: absolute path to the helper scripts (bat-terminal.mjs, bat-notify.mjs),
+   * injected into PTY env as `BAT_HELPER_DIR`. Empty / undefined = not injected
+   * (headless: the helpers are not part of the server bundle).
+   */
+  helperDir?: string
+}
+
+/** Minimal window surface `createWindowBroadcastEmit` needs (structurally matches BrowserWindow). */
+export interface PtyEventWindow {
+  isDestroyed(): boolean
+  webContents: { send(channel: string, ...args: unknown[]): void }
+}
+
+/**
+ * Electron emit: send to every live window, then mirror to remote clients via
+ * broadcastHub (the pre-T0389 `PtyManager.broadcast` behaviour).
+ */
+export function createWindowBroadcastEmit(getWindows: () => PtyEventWindow[]): PtyManagerDeps['emit'] {
+  return (channel, ...args) => {
+    for (const win of getWindows()) {
+      if (!win.isDestroyed()) {
+        try {
+          win.webContents.send(channel, ...args)
+        } catch {
+          // Render frame may be disposed during window reload/close
+        }
+      }
+    }
+    broadcastHub.broadcast(channel, ...args)
+  }
 }
 
 // BUG-084 / T0372: a claude-cli terminal running the embedded binary also gets DISABLE_UPDATES
@@ -57,7 +90,7 @@ function claudeCliUpdateGuardEnv(agentPreset?: string): Record<string, string> {
 
 export class PtyManager {
   private instances: Map<string, PtyInstance> = new Map()
-  private getWindows: () => BrowserWindow[]
+  private readonly deps: PtyManagerDeps
 
   // PTY output batching: accumulate data over 16ms windows to reduce IPC overhead
   private outputBuffers: Map<string, string> = new Map()
@@ -91,8 +124,13 @@ export class PtyManager {
   /** Callback provided by main.ts to get RemoteServer port/token for env injection (T0129). */
   getRemoteServerInfo: (() => { port: number; token: string } | null) | null = null
 
-  constructor(getWindows: () => BrowserWindow[]) {
-    this.getWindows = getWindows
+  constructor(deps: PtyManagerDeps) {
+    this.deps = deps
+  }
+
+  /** T0140: `BAT_HELPER_DIR` env entry, omitted when the host has no helper dir. */
+  private helperDirEnv(): { BAT_HELPER_DIR?: string } {
+    return this.deps.helperDir ? { BAT_HELPER_DIR: this.deps.helperDir } : {}
   }
 
   /** Inject Terminal Server IPC reference; enables proxy mode for all future PTY operations. */
@@ -283,16 +321,7 @@ export class PtyManager {
   }
 
   private broadcast(channel: string, ...args: unknown[]) {
-    for (const win of this.getWindows()) {
-      if (!win.isDestroyed()) {
-        try {
-          win.webContents.send(channel, ...args)
-        } catch {
-          // Render frame may be disposed during window reload/close
-        }
-      }
-    }
-    broadcastHub.broadcast(channel, ...args)
+    this.deps.emit(channel, ...args)
   }
 
   /** Enqueue PTY output and flush in batched intervals */
@@ -441,7 +470,7 @@ export class PtyManager {
         BAT_WORKSPACE_ID: workspaceId ?? '',
         // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
         // Dev: <project-root>/scripts, packaged: <install-root>/resources/scripts.
-        BAT_HELPER_DIR: resolveHelperDir(),
+        ...this.helperDirEnv(),
         FORCE_COLOR: '3',
         CLAUDE_CODE_NO_FLICKER: '1',
         CI: '',
@@ -495,7 +524,7 @@ export class PtyManager {
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
           BAT_WORKSPACE_ID: workspaceId ?? '',
           // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
-          BAT_HELPER_DIR: resolveHelperDir(),
+          ...this.helperDirEnv(),
           // Force color output
           FORCE_COLOR: '3',
           // Suppress ED2-induced viewport flicker in Claude Code streaming
@@ -577,7 +606,7 @@ export class PtyManager {
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
           BAT_WORKSPACE_ID: workspaceId ?? '',
           // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
-          BAT_HELPER_DIR: resolveHelperDir(),
+          ...this.helperDirEnv(),
           FORCE_COLOR: '3',
           CI: '',
           // T0129: RemoteServer connection info for CLI tools
@@ -811,7 +840,7 @@ export class PtyManager {
 
       // T0113: Kill orphan PTY processes from registry before re-forking
       try {
-        const userDataPath = app.getPath('userData')
+        const userDataPath = this.deps.dataDir
         const registry = readRegistry(userDataPath)
         if (registry?.ptys.length) {
           for (const entry of registry.ptys) {

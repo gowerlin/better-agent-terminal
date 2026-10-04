@@ -1,5 +1,4 @@
 import { BrowserWindow, Notification, app } from 'electron'
-import { createRequire } from 'module'
 import * as fsSync from 'fs'
 import * as fsPromises from 'fs/promises'
 import * as pathModule from 'path'
@@ -15,6 +14,7 @@ import {
   getRuntimeSettingsSnapshot,
   shouldEmitRuntimeEvent,
   clearRuntimeEventHistory,
+  resolveEmbeddedClaudePath,
   type ResolvedRuntime,
 } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
@@ -98,41 +98,11 @@ function dataUrlToContentBlock(dataUrl: string): { type: 'image'; source: { type
   }
 }
 
-// Resolve the Claude Code CLI path at module level.
-// v2.1.113 ships only `bin/claude.exe` (no `cli.js`, no `main`/`exports`),
-// so we cannot `require.resolve('@anthropic-ai/claude-code/cli.js')` — it throws.
-// Strategy (BUG-047 fix, T0221):
-//   - packaged: hardcode `resources/app.asar.unpacked/node_modules/.../bin/<binary>`
-//   - dev:      resolve via `package.json` (stable) then join `bin/<binary>`
-function resolveClaudeCodePath(): string {
-  // BUG-052: install.cjs 證實 @anthropic-ai/claude-code 在所有平台都 ship bin/claude.exe
-  // (Unix 忽略副檔名),跨平台檔名永遠是 claude.exe,不需 platform 分支。
-  const binaryName = 'claude.exe'
-  if (app.isPackaged) {
-    return pathModule.join(
-      process.resourcesPath,
-      'app.asar.unpacked',
-      'node_modules',
-      '@anthropic-ai',
-      'claude-code',
-      'bin',
-      binaryName,
-    )
-  }
-  try {
-    const req = createRequire(import.meta.url ?? __filename)
-    const pkgPath = req.resolve('@anthropic-ai/claude-code/package.json')
-    return pathModule.join(pathModule.dirname(pkgPath), 'bin', binaryName)
-  } catch {
-    try {
-      const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
-      return pathModule.join(pathModule.dirname(pkgPath), 'bin', binaryName)
-    } catch {
-      return ''
-    }
-  }
-}
-
+// Resolve the Claude Code CLI path: single implementation in claude-runtime-router
+// (`resolveEmbeddedClaudePath`, BUG-047 / BUG-052 layout rules; PLAN-036 T0389
+// merged the three former copies). Packaged vs dev layout comes from the host
+// configuration wired in main.ts.
+//
 // BUG-047 startup assertion: if the resolved CLI path is missing on disk,
 // log a warning. This doesn't block startup (SDK will raise its own error
 // downstream) but surfaces "SDK silently removed the file" regressions early.
@@ -140,9 +110,9 @@ let _claudeCodePathAsserted = false
 function assertClaudeCodePathOnce(): void {
   if (_claudeCodePathAsserted) return
   _claudeCodePathAsserted = true
-  const resolvedPath = resolveClaudeCodePath()
+  const resolvedPath = resolveEmbeddedClaudePath()
   if (!resolvedPath || !fsSync.existsSync(resolvedPath)) {
-    logger.error('[ClaudeAgent] resolveClaudeCodePath returned invalid path:', resolvedPath || '(empty)')
+    logger.error('[ClaudeAgent] resolveEmbeddedClaudePath returned invalid path:', resolvedPath || '(empty)')
   }
 }
 

@@ -68,7 +68,8 @@ if (process.platform === 'win32') {
   } catch { /* ignore — console stays visible */ }
 }
 
-import { PtyManager } from './pty-manager'
+import { PtyManager, createWindowBroadcastEmit, type PtyManagerDeps } from './pty-manager'
+import { configureRuntimeRouter } from './claude-runtime-router'
 import { ClaudeAgentManager } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
 import { worktreeManager } from './worktree-manager'
@@ -160,6 +161,15 @@ if (runtimeId) {
 } else {
   console.log(`[runtime] default instance, userData=${app.getPath('userData')}`)
 }
+
+// PLAN-036 T0389: claude-runtime-router no longer imports electron — wire the
+// settings directory (userData) and embedded install layout from the host.
+configureRuntimeRouter({
+  getDataDir: () => app.getPath('userData'),
+  getEmbeddedLayout: () => app.isPackaged
+    ? { kind: 'electron-packaged', resourcesPath: process.resourcesPath }
+    : { kind: 'node-modules' },
+})
 
 // Set AppUserModelId for Windows taskbar pinning (must be before app.whenReady)
 if (process.platform === 'win32') {
@@ -782,6 +792,22 @@ function getAllWindows(): BrowserWindow[] {
 }
 
 /**
+ * PLAN-036 T0389: Electron host deps for PtyManager — the pre-DI behaviour:
+ * events go to every window + broadcastHub, the Terminal Server registry lives
+ * in userData, and `BAT_HELPER_DIR` is dev `<project-root>/scripts` or packaged
+ * `<install-root>/resources/scripts` (T0140, aligned with T0139 extraResources).
+ */
+function createElectronPtyDeps(): PtyManagerDeps {
+  return {
+    emit: createWindowBroadcastEmit(getAllWindows),
+    dataDir: app.getPath('userData'),
+    helperDir: app.isPackaged
+      ? path.join(process.resourcesPath, 'scripts')
+      : path.join(__dirname, '..', 'scripts'),
+  }
+}
+
+/**
  * BUG-054 (T0235): broadcast a runtime event from an IPC handler that lacks
  * sessionId context (e.g. claude:get-cli-path). Mirrors the `send()` helper
  * inside ClaudeAgentManager — fan out to every local BrowserWindow and push
@@ -972,7 +998,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   // Note: ptyManager is created in app.whenReady before startTerminalServer (T0108).
   // The guard below handles edge-case window creation before ready (should not occur normally).
   if (!ptyManager) {
-    ptyManager = new PtyManager(getAllWindows)
+    ptyManager = new PtyManager(createElectronPtyDeps())
   }
   if (!claudeManager) claudeManager = new ClaudeAgentManager(getAllWindows)
   if (!codexManager) codexManager = new CodexAgentManager(getAllWindows)
@@ -1335,7 +1361,7 @@ app.whenReady().then(async () => {
 
   // Initialize PtyManager before starting Terminal Server so TCP reconnect can use it (T0108)
   if (!ptyManager) {
-    ptyManager = new PtyManager(getAllWindows)
+    ptyManager = new PtyManager(createElectronPtyDeps())
     // T0112: Provide re-fork callback so PtyManager can restart the server after a crash
     ptyManager.onRequestNewServer = reforkTerminalServer
   }
@@ -2257,19 +2283,9 @@ function registerProxiedHandlers() {
   registerHandler('claude:detectRuntime', async (_ctx, customPath?: string) => {
     const { detectSystemClaude, probeClaudeHealth } = await import('./claude-resolver')
 
-    // Embedded resolver lives in the manager; we duplicate its tiny logic here
-    // to avoid pulling the whole agent-manager into the IPC entry point.
-    const binaryName = 'claude.exe'
-    const embeddedPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', 'claude-code', 'bin', binaryName)
-      : (() => {
-          try {
-            const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
-            return path.join(path.dirname(pkgPath), 'bin', binaryName)
-          } catch {
-            return ''
-          }
-        })()
+    // PLAN-036 T0389: single embedded resolver shared with the router / agent-manager.
+    const { resolveEmbeddedClaudePath } = await import('./claude-runtime-router')
+    const embeddedPath = resolveEmbeddedClaudePath()
 
     const embeddedProbe = embeddedPath ? await probeClaudeHealth(embeddedPath) : null
     const systemInfo = await detectSystemClaude(customPath)

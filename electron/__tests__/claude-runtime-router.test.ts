@@ -1,18 +1,22 @@
-import { describe, it, expect, vi } from 'vitest'
+import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
+import { afterAll, afterEach, describe, it, expect, vi } from 'vitest'
 
 import type { ClaudeRuntimeInfo } from '../claude-resolver'
 import { claudeUpdateGuardEnv, isSafeClaudeCustomPath } from '../claude-resolver'
 import {
+  configureRuntimeRouter,
+  getRuntimeSettingsSnapshot,
   resolveClaudeRuntime,
+  resolveEmbeddedClaudePath,
   SystemClaudeUnsafePathError,
 } from '../claude-runtime-router'
 
-vi.mock('electron', () => ({
-  app: {
-    isPackaged: false,
-    getPath: vi.fn(() => 'C:\\Users\\test\\AppData\\Roaming\\BetterAgentTerminal'),
-  },
-}))
+// PLAN-036 T0389: the router is host-configured and must not reach for electron.
+vi.mock('electron', () => {
+  throw new Error('claude-runtime-router must not import electron (PLAN-036 T0389)')
+})
 
 const embeddedPath = 'C:\\BAT\\embedded\\claude.exe'
 
@@ -203,5 +207,98 @@ describe('claudeUpdateGuardEnv by resolved runtime', () => {
     )
     expect(result.source).toBe('system-fallback-to-embedded')
     expect(claudeUpdateGuardEnv(result.source)).toEqual({ DISABLE_UPDATES: '1' })
+  })
+})
+
+// PLAN-036 T0389: settings source is injected by the host (Electron userData / headless dataDir).
+describe('configureRuntimeRouter settings source', () => {
+  const tempDirs: string[] = []
+
+  function dataDirWith(settings: unknown): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't0389-router-'))
+    tempDirs.push(dir)
+    if (settings !== undefined) fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(settings))
+    return dir
+  }
+
+  afterEach(() => configureRuntimeRouter({}))
+  afterAll(() => {
+    for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('returns defaults when no data directory is configured', () => {
+    configureRuntimeRouter({})
+    expect(getRuntimeSettingsSnapshot()).toEqual({ mode: 'embedded', fallbackToEmbedded: true })
+  })
+
+  it('reads claudeRuntime from the Electron userData getter', () => {
+    const userData = dataDirWith({ claudeRuntime: { mode: 'system', customPath: '/usr/local/bin/claude', fallbackToEmbedded: false } })
+    configureRuntimeRouter({ getDataDir: () => userData })
+    expect(getRuntimeSettingsSnapshot()).toEqual({ mode: 'system', customPath: '/usr/local/bin/claude', fallbackToEmbedded: false })
+  })
+
+  it('reads claudeRuntime from a headless dataDir, re-reading the getter on every snapshot', () => {
+    const first = dataDirWith({ claudeRuntime: { mode: 'system' } })
+    const second = dataDirWith({ claudeRuntime: { mode: 'embedded' } })
+    let current = first
+    configureRuntimeRouter({ getDataDir: () => current })
+    expect(getRuntimeSettingsSnapshot().mode).toBe('system')
+    current = second
+    expect(getRuntimeSettingsSnapshot().mode).toBe('embedded')
+  })
+
+  it('falls back to defaults when settings.json is missing or unparsable', () => {
+    configureRuntimeRouter({ getDataDir: () => dataDirWith(undefined) })
+    expect(getRuntimeSettingsSnapshot()).toEqual({ mode: 'embedded', fallbackToEmbedded: true })
+    const broken = dataDirWith(undefined)
+    fs.writeFileSync(path.join(broken, 'settings.json'), '{not json')
+    configureRuntimeRouter({ getDataDir: () => broken })
+    expect(getRuntimeSettingsSnapshot()).toEqual({ mode: 'embedded', fallbackToEmbedded: true })
+  })
+})
+
+// PLAN-036 T0389: one embedded resolver for router / agent-manager / claude:detectRuntime.
+describe('resolveEmbeddedClaudePath', () => {
+  const claudeCodeBin = ['node_modules', '@anthropic-ai', 'claude-code', 'bin']
+
+  afterEach(() => configureRuntimeRouter({}))
+
+  it.each(['win32', 'darwin', 'linux'] as const)('packaged Electron always uses bin/claude.exe (BUG-052) on %s', (platform) => {
+    const resourcesPath = path.join('C:', 'Program Files', 'BetterAgentTerminal', 'resources')
+    expect(resolveEmbeddedClaudePath({ kind: 'electron-packaged', resourcesPath }, platform))
+      .toBe(path.join(resourcesPath, 'app.asar.unpacked', ...claudeCodeBin, 'claude.exe'))
+  })
+
+  it.each(['linux', 'darwin'] as const)('server bundle on %s uses the POSIX wrapper bin/claude', (platform) => {
+    const installRoot = path.join('/home', 'u', '.local', 'bat-server')
+    expect(resolveEmbeddedClaudePath({ kind: 'server-bundle', installRoot }, platform))
+      .toBe(path.join(installRoot, ...claudeCodeBin, 'claude'))
+  })
+
+  it('server bundle on Windows uses bin/claude.exe', () => {
+    const installRoot = path.join('C:', 'bat-server')
+    expect(resolveEmbeddedClaudePath({ kind: 'server-bundle', installRoot }, 'win32'))
+      .toBe(path.join(installRoot, ...claudeCodeBin, 'claude.exe'))
+  })
+
+  it('node-modules layout resolves the installed package (dev / tests)', () => {
+    const resolved = resolveEmbeddedClaudePath({ kind: 'node-modules' })
+    expect(path.basename(resolved)).toBe('claude.exe')
+    expect(fs.existsSync(path.join(path.dirname(resolved), '..', 'package.json'))).toBe(true)
+  })
+
+  it('returns an empty path when the package cannot be found', () => {
+    const notFound = () => { throw new Error("Cannot find module '@anthropic-ai/claude-code/package.json'") }
+    expect(resolveEmbeddedClaudePath({ kind: 'node-modules' }, 'win32', notFound)).toBe('')
+  })
+
+  it('defaults to the configured layout, which resolveClaudeRuntime uses for embedded mode', async () => {
+    const installRoot = path.join('/srv', 'bat-server')
+    configureRuntimeRouter({ getEmbeddedLayout: () => ({ kind: 'server-bundle', installRoot }) })
+    const expected = resolveEmbeddedClaudePath({ kind: 'server-bundle', installRoot })
+    expect(resolveEmbeddedClaudePath()).toBe(expected)
+
+    const result = await resolveClaudeRuntime({ mode: 'embedded', fallbackToEmbedded: true }, { detectSystemClaude: vi.fn() })
+    expect(result).toEqual({ path: expected, source: 'embedded', healthStatus: 'healthy' })
   })
 })

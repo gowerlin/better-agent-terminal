@@ -15,8 +15,12 @@
  *                      fallbackToEmbedded=false → throw (caller surfaces)
  *                  - version-warning            → system + warning event
  *                  - healthy                    → system
+ *
+ * PLAN-036 T0389: this module does not import `electron`. The host wires the
+ * settings directory and the embedded install layout via
+ * `configureRuntimeRouter()` (Electron main = userData + packaged/dev layout;
+ * headless bat-server = dataDir + server-bundle layout).
  */
-import { app } from 'electron'
 import * as fsSync from 'fs'
 import * as pathModule from 'path'
 import { createRequire } from 'module'
@@ -75,34 +79,83 @@ export class SystemClaudeUnsafePathError extends SystemClaudeUnavailableError {
 }
 
 // ----------------------------------------------------------------------------
-// Embedded path resolver (duplicated from claude-agent-manager to avoid a
-// circular import; kept in sync with BUG-047 / BUG-052 logic).
+// Host configuration (PLAN-036 T0389)
 // ----------------------------------------------------------------------------
 
-function resolveEmbeddedClaudePath(): string {
-  const binaryName = 'claude.exe'
-  if (app.isPackaged) {
-    return pathModule.join(
-      process.resourcesPath,
-      'app.asar.unpacked',
-      'node_modules',
-      '@anthropic-ai',
-      'claude-code',
-      'bin',
-      binaryName,
-    )
-  }
+/**
+ * Where the embedded `@anthropic-ai/claude-code` package lives.
+ *   electron-packaged — `<resourcesPath>/app.asar.unpacked/node_modules/...`
+ *   node-modules      — resolve the package from the module graph (Electron dev, tests)
+ *   server-bundle     — headless bat-server tarball, `<installRoot>/node_modules/...`
+ */
+export type EmbeddedClaudeLayout =
+  | { kind: 'electron-packaged'; resourcesPath: string }
+  | { kind: 'node-modules' }
+  | { kind: 'server-bundle'; installRoot: string }
+
+export interface RuntimeRouterConfig {
+  /**
+   * Directory holding the persisted `settings.json` (Electron = userData,
+   * headless = dataDir). A getter so a late `app.setPath('userData')` is honoured.
+   */
+  getDataDir?: () => string
+  /** Embedded install layout; read on every resolve. Defaults to `node-modules`. */
+  getEmbeddedLayout?: () => EmbeddedClaudeLayout
+}
+
+let routerConfig: RuntimeRouterConfig = {}
+let warnedUnconfiguredDataDir = false
+
+/** Wire host-specific sources. Called once by the host before any spawn. */
+export function configureRuntimeRouter(config: RuntimeRouterConfig): void {
+  routerConfig = { ...config }
+  warnedUnconfiguredDataDir = false
+}
+
+// ----------------------------------------------------------------------------
+// Embedded path resolver — the single implementation shared by the router,
+// claude-agent-manager (BUG-047 startup assertion) and `claude:detectRuntime`.
+// ----------------------------------------------------------------------------
+
+const CLAUDE_CODE_PACKAGE_SEGMENTS = ['node_modules', '@anthropic-ai', 'claude-code'] as const
+
+/** `@anthropic-ai/claude-code/package.json` from the module graph; throws when absent. */
+function resolveClaudeCodePackageJson(): string {
   try {
     const req = createRequire(import.meta.url ?? __filename)
-    const pkgPath = req.resolve('@anthropic-ai/claude-code/package.json')
-    return pathModule.join(pathModule.dirname(pkgPath), 'bin', binaryName)
+    return req.resolve('@anthropic-ai/claude-code/package.json')
   } catch {
-    try {
-      const pkgPath = require.resolve('@anthropic-ai/claude-code/package.json')
-      return pathModule.join(pathModule.dirname(pkgPath), 'bin', binaryName)
-    } catch {
-      return ''
-    }
+    return require.resolve('@anthropic-ai/claude-code/package.json')
+  }
+}
+
+/**
+ * Resolve the embedded claude binary for a given install layout.
+ *
+ * Electron layouts (packaged / node-modules): BUG-052 — install.cjs ships
+ * `bin/claude.exe` on every platform (Unix ignores the extension), so the name
+ * is always `claude.exe`. The server bundle replaces it with a POSIX wrapper
+ * `bin/claude` (`scripts/build-server-bundle.mjs` pruneAnthropicPackages).
+ *
+ * Returns '' when the package cannot be located (node-modules layout only).
+ */
+export function resolveEmbeddedClaudePath(
+  layout: EmbeddedClaudeLayout = routerConfig.getEmbeddedLayout?.() ?? { kind: 'node-modules' },
+  platform: NodeJS.Platform = process.platform,
+  resolvePackageJson: () => string = resolveClaudeCodePackageJson,
+): string {
+  if (layout.kind === 'server-bundle') {
+    const binaryName = platform === 'win32' ? 'claude.exe' : 'claude'
+    return pathModule.join(layout.installRoot, ...CLAUDE_CODE_PACKAGE_SEGMENTS, 'bin', binaryName)
+  }
+  const binaryName = 'claude.exe'
+  if (layout.kind === 'electron-packaged') {
+    return pathModule.join(layout.resourcesPath, 'app.asar.unpacked', ...CLAUDE_CODE_PACKAGE_SEGMENTS, 'bin', binaryName)
+  }
+  try {
+    return pathModule.join(pathModule.dirname(resolvePackageJson()), 'bin', binaryName)
+  } catch {
+    return ''
   }
 }
 
@@ -111,16 +164,26 @@ function resolveEmbeddedClaudePath(): string {
 // ----------------------------------------------------------------------------
 
 /**
- * Read `claudeRuntime` from the persisted settings.json on the main process
- * side. Every spawn calls this — there is no in-memory cache because R2
- * requires next-spawn freshness without reactive plumbing.
+ * Read `claudeRuntime` from the persisted settings.json in the host data
+ * directory (see `configureRuntimeRouter`). Every spawn calls this — there is
+ * no in-memory cache because R2 requires next-spawn freshness without
+ * reactive plumbing.
  *
- * Returns DEFAULT_CLAUDE_RUNTIME_SETTINGS on any read/parse failure so that
- * a broken settings file never blocks session startup (degrades to embedded).
+ * Returns DEFAULT_CLAUDE_RUNTIME_SETTINGS on any read/parse failure (or when
+ * no data directory is configured) so that a broken settings file never
+ * blocks session startup (degrades to embedded).
  */
 export function getRuntimeSettingsSnapshot(): ClaudeRuntimeSettings {
   try {
-    const settingsPath = pathModule.join(app.getPath('userData'), 'settings.json')
+    const dataDir = routerConfig.getDataDir?.()
+    if (!dataDir) {
+      if (!warnedUnconfiguredDataDir) {
+        warnedUnconfiguredDataDir = true
+        logger.warn('[runtime-router] no data directory configured, using default runtime settings')
+      }
+      return { ...DEFAULT_CLAUDE_RUNTIME_SETTINGS }
+    }
+    const settingsPath = pathModule.join(dataDir, 'settings.json')
     if (!fsSync.existsSync(settingsPath)) {
       return { ...DEFAULT_CLAUDE_RUNTIME_SETTINGS }
     }
@@ -155,7 +218,7 @@ function classifyDegradedReason(info: ClaudeRuntimeInfo | null): DegradedReason 
 /**
  * Optional dependency injection for unit tests. Production callers pass nothing;
  * the defaults wire to the real detector and embedded resolver. Tests supply
- * stubs so they can run without electron `app` or a real claude binary present.
+ * stubs so they can run without a configured host or a real claude binary present.
  */
 export interface ResolveClaudeRuntimeDeps {
   detectSystemClaude?: (customPath?: string) => Promise<ClaudeRuntimeInfo | null>
@@ -167,7 +230,7 @@ export async function resolveClaudeRuntime(
   deps: ResolveClaudeRuntimeDeps = {},
 ): Promise<ResolvedRuntime> {
   const detect = deps.detectSystemClaude ?? detectSystemClaude
-  const getEmbeddedPath = deps.resolveEmbeddedClaudePath ?? resolveEmbeddedClaudePath
+  const getEmbeddedPath = deps.resolveEmbeddedClaudePath ?? (() => resolveEmbeddedClaudePath())
 
   // Embedded — trusted, no probe.
   if (settings.mode === 'embedded') {

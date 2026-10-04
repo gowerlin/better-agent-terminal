@@ -4,12 +4,12 @@ schema_kind: workorder
 id: T0389
 title: "PLAN-036 P0-B：去 Electron 化 —— claude-runtime-router 設定注入 + embedded resolver 合一（含 bundle `bin/claude`）+ PtyManager DI"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 priority: P1
 sizing: M
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-04T23:58:00+08:00"
-started_at: null
+updated_at: "2026-10-05T00:05:55+08:00"
+started_at: "2026-10-05T00:05:55+08:00"
 completed_at: null
 target_version: next
 depends_on: [T0387]
@@ -67,3 +67,74 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 執行摘要
+
+- **開始**：2026-10-05T00:05:55+08:00（Worker，`CT_MODE=on`、`CT_INTERACTIVE=0`）
+- **落點檢查**：WARN —— C-0 無法判定（frontmatter **無 `repo` 欄位**；`basename(REPO_ROOT)` = `better-agent-terminal`）；C-1 PASS（工單在 REPO_ROOT 下）；C-3 PASS（`affects_files` 前 5 項皆存在）；C-2 不適用（無 `branch` 欄位，HEAD=`main`）。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- **結果**：DONE。範圍 1-3 全部落地，未註冊任何 headless channel（範圍 4）；全部驗收閘門通過（含本機 smoke 三項）
+- **平行狀況**：執行期間 T0388（`694771c`）、T0391、T0392 由其他 Worker 在同一 working tree commit；與本單檔案無重疊，本單 commit 以 `git commit --only` 只收本單檔案
+
+### 1. claude-runtime-router 設定注入
+
+- 移除 `import { app } from 'electron'`；新增 `configureRuntimeRouter({ getDataDir?, getEmbeddedLayout? })`（`electron/claude-runtime-router.ts`）
+  - `getDataDir` 為 getter：Electron = `() => app.getPath('userData')`（保留 `--runtime` 的 `app.setPath('userData')` 時序語意）；headless = `() => dataDir`
+  - 未設定 → `getRuntimeSettingsSnapshot()` 回 `DEFAULT_CLAUDE_RUNTIME_SETTINGS` 並 warn 一次（與原「讀檔失敗 → 預設」同一降級路徑）
+- Electron 端於 `main.ts` 模組層、`--runtime` userData 決定之後呼叫 `configureRuntimeRouter`（packaged → `electron-packaged` + `process.resourcesPath`；dev → `node-modules`）
+- 既有 DI seam `ResolveClaudeRuntimeDeps` 不變（`resolve-claude-base-command.test.ts` 等既有測試照過）
+
+### 2. embedded resolver 合一
+
+- 單一實作 `resolveEmbeddedClaudePath(layout?, platform?, resolvePackageJson?)`，`EmbeddedClaudeLayout` 三型：
+  | layout | 路徑 | binary |
+  |---|---|---|
+  | `electron-packaged` | `<resourcesPath>/app.asar.unpacked/node_modules/@anthropic-ai/claude-code/bin/` | `claude.exe`（所有平台，BUG-052 原行為） |
+  | `node-modules` | 由 module graph 解析 `@anthropic-ai/claude-code/package.json` 的 `bin/` | `claude.exe`（原行為；找不到回 `''`） |
+  | `server-bundle` | `<installRoot>/node_modules/@anthropic-ai/claude-code/bin/` | POSIX `claude`（`build-server-bundle.mjs` 的 wrapper）；win32 → `claude.exe` |
+- 三處改呼叫同一函式：router（`resolveClaudeRuntime` 預設）、`claude-agent-manager.ts`（刪除 `resolveClaudeCodePath` 副本，BUG-047 assertion 改呼叫 router；順帶移除不再使用的 `createRequire` import）、`main.ts` `claude:detectRuntime`（刪除 inline 副本，改 dynamic import router，沿用該 handler 原本的 dynamic import 風格）
+- 未改 `claude-agent-manager.ts` 的其他 Electron 耦合（`Notification` / `webContents` / settings 讀取，屬 P1 工單 E）
+
+### 3. PtyManager DI
+
+- 建構子 `new PtyManager(deps: PtyManagerDeps)`，`PtyManagerDeps = { emit, dataDir, helperDir? }`；`pty-manager.ts` 不再 import `electron`
+  - `emit` 取代原 `broadcast` 內的 window 迴圈 + `broadcastHub`
+  - `dataDir` 取代 `handleServerDeath` 的 `app.getPath('userData')`（孤兒 PTY registry）
+  - `helperDir` 決定 `BAT_HELPER_DIR`：三個 env 區塊（Terminal Server proxy / node-pty / child_process）改 `...this.helperDirEnv()`，位置不變故覆蓋順序不變；空值 → 不注入
+- 匯出 `createWindowBroadcastEmit(getWindows)`（結構型別 `PtyEventWindow`，不依賴 electron 型別），即原 `broadcast` 行為（略過 destroyed、吞掉 disposed frame 例外、再送 broadcastHub）
+- `main.ts` 新增 `createElectronPtyDeps()`（emit = `createWindowBroadcastEmit(getAllWindows)`、dataDir = userData、helperDir = 原 `resolveHelperDir` 邏輯），兩個建構點（`createWindow` guard、`app.whenReady`）改用它；`getRemoteServerInfo` / `onRequestNewServer` 設定方式不變
+- 語意差異（記錄）：`dataDir` 由「server death 時才讀」改為「建構時讀一次」；兩個建構點都在 `app.setPath('userData')`（模組層）之後，值相同
+
+### 驗收證據
+
+| 證據道 | 結果 | 內容 |
+|---|---|---|
+| unit（新增） | PASS | `electron/__tests__/claude-runtime-router.test.ts` +13：設定來源（未設定 → 預設、Electron userData getter、headless dataDir 且 getter 每次重讀、settings 缺檔 / 壞檔 → 預設）、resolver（packaged 三平台皆 `claude.exe`、bundle linux/darwin `bin/claude`、bundle win32 `claude.exe`、node-modules 解到實際套件、找不到 → `''`、設定的 layout 被 `resolveClaudeRuntime` embedded 模式採用）。`electron` mock 改為「被 import 即 throw」 |
+| unit（新增） | PASS | `electron/__tests__/pty-manager-deps.test.ts` 5 項：真 node-pty 開 shell 驗 `helperDir` 未給 → 子行程無 `BAT_HELPER_DIR`、給值 → 等於該值，且 `emit` 收到 `pty:output` + `pty:exit`；`createWindowBroadcastEmit` 扇出行為；esbuild resolve 掃描 `pty-manager.ts` / `claude-runtime-router.ts` 傳遞依賴不含 `electron`。連跑 3 次穩定（~2.4s） |
+| `npm run test:unit` | PASS | **73 files / 1039 tests 全綠**（含本單新增 18：router 13 + pty-manager-deps 5；另含 T0388/T0391 平行新增之測試） |
+| `npx vite build` | PASS | exit 0（兩次：HEAD=`79c8698` 時與 T0388 `694771c` 入 HEAD 後） |
+| `npx tsc --noEmit` | PASS | **40**（≤ 40）；分佈 `CodexAgentPanel.tsx` 33、`terminal-keyboard-event.test.ts` 5、`agent-profiles.ts` 1、`integration.transitions.test.ts` 1，**本單觸及檔案 0 個** |
+| T0388 electron-free guard | PASS | T0388 於本單執行中 commit（`694771c`）。`headless-electron-free.test.ts` 4/4 通過；另以其 `loadServerBundleEsbuildConfig()` 真實 bundle 設定、entry = `pty-manager.ts` + `claude-runtime-router.ts` 跑同法 resolve 掃描（暫存測試，跑完已刪）→ 無任何 `electron` resolve |
+| 本機 smoke | PASS | Playwright `_electron` 啟動 build 後 app（獨立 `--runtime=t0389-smoke-*`，剝除 `BAT_*` env），經 preload `window.electronAPI`（與 UI 同一 IPC 路徑）：① 一般終端：`pty:create` → Terminal Server proxy 模式（log `pty:create … → Terminal Server`），env `BAT_HELPER_DIR=<repo>\scripts`、`DISABLE_AUTOUPDATER=1`、**無** `DISABLE_UPDATES`、`BAT_TERMINAL_ID` 正確，`getCwd` 正確，`exit` → `pty:exit` code 0；② claude-cli preset：`claude:get-cli-path` 與 `claude:detectRuntime` embedded 皆為 `node_modules\@anthropic-ai\claude-code\bin\claude.exe`（healthy 2.1.289），分頁 env `DISABLE_UPDATES=1`（T0372 規則維持）、執行 `--version` → `2.1.289 (Claude Code)`；③ Claude Agent：`claude:start-session` + `send-message` → `claude:result` subtype `success`、回覆 `T0389-SMOKE-OK`。關閉後 log 為 `beginShutdown` + `IPC exit during shutdown — skip re-fork`，Terminal Server pid 已不存在，無殘留行程；smoke 的 runtime userData 目錄已刪除 |
+| 未涵蓋 | — | 未點擊真實 UI 元件（smoke 走 preload API，非 DOM 操作）；packaged 安裝版路徑（`electron-packaged` layout）僅 unit 覆蓋，屬 release 驗收道 |
+
+### 偏差 / 風險 / 後續
+
+- `resolveEmbeddedClaudePath` 多一個可注入的 `resolvePackageJson` 參數（預設 = 原 createRequire → require.resolve 鏈），為了能測「找不到」；語意與原巢狀 try 相同
+- headless `helperDir` 空值時「不注入」，但**不會清除**從 server 行程 env 繼承來的 `BAT_HELPER_DIR`（例如 bat-server 從 BAT 終端內手動啟動時）。建議 T0390「env 隔離」一併決定是否 `delete`
+- `claude-agent-manager.ts` 仍 import `electron`（P1 工單 E 範圍）；本單只移除其 embedded resolver 副本
+- PTY 測試在 Windows 用 `cmd.exe`、POSIX 用 `/bin/bash`（不存在則丟錯）；CI 若在無 bash 的極簡 Linux 映像會失敗——目前 repo CI 三平台皆有 bash
+- 先前一度誤判「ConPTY 首次 spawn 的 `pty:exit` 不穩」而移除 exit 斷言，實為測試正規式標記格式錯誤（`M::E` vs `M:::E`）；已修正並恢復 exit 斷言
+
+### 變更檔案
+
+- `electron/claude-runtime-router.ts`
+- `electron/claude-agent-manager.ts`
+- `electron/pty-manager.ts`
+- `electron/main.ts`
+- `electron/__tests__/claude-runtime-router.test.ts`
+- `electron/__tests__/pty-manager-deps.test.ts`（新）
+- 本工單檔
+
+### Commit
+
+- `git commit --only` 僅上列檔案；未 push。hash 見 commit 後 `git log`（回報區寫入在 commit 之前，不自我引用）
