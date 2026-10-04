@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0423
 title: "headless git / gh 子行程套用 BAT_* env scrub（比照 PTY / remote-tools probe 的 isHeadlessScrubbedEnvKey）"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-036
 priority: P2
 sizing: S
 created_at: "2026-10-05T05:35:22+08:00"
 started_at: "2026-10-05T05:41:39+08:00"
-updated_at: "2026-10-05T05:41:39+08:00"
-completed_at: null
+updated_at: "2026-10-05T05:45:14+08:00"
+completed_at: "2026-10-05T05:45:14+08:00"
 target_version: next
 depends_on:
   - T0417
@@ -120,7 +120,7 @@ headless server 的 PTY（`electron/handlers/pty.ts`）與 remote-tools 偵測�
 - `npx tsc --noEmit`：**40** error（≤ 40 門檻），本單 4 檔 0 錯誤 — PASS
 - 未跑 `npx vite build` / `npm run test:e2e`（依 memory_overrides L141）；未部署 WSL（runtime smoke 未做）
 
-**Commit**：見下方 commit（`git commit --only` 本單 4 個產品 / 測試檔 + 本工單；不 push）
+**Commit**：`22bc3d0` fix(headless): scrub BAT_* from git / gh child env (T0423)（`git commit --only` 4 個產品 / 測試檔 + 本工單；不 push）
 
 ### 遭遇問題
 
