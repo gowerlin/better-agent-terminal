@@ -89,3 +89,4 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - 工具小瑕疵：`LISTEN` 檢查顯示 `(none found)`，實際有在 9877 監聽（`ss` 的程序名是 `MainThread`，工具以名稱過濾而漏抓）→ T0395 DONE（`452b346`，01:10 複驗；WSL 唯讀實測列出 `127.0.0.1:9877`）
 - BAT 本體：交使用者本機打包安裝（含 T0390 / T0392 / T0393 / T0394）
 - 自動驗收（使用者 01:12 裁決兩層都做）：T0396 協定層 smoke（打 WSL `127.0.0.1:9877`，S1-S8）∥ T0397 Playwright Electron e2e（E1 BUG-095 / E2 BUG-101 / E3-E4 T0393）。自動化後仍需人工：遠端終端實際操作手感、WSL 資料夾挑選對話框外觀
+- T0396 DONE（`59af340`）：`npm run smoke:remote:headless -- --target wsl:Ubuntu-24.04` 對 `ea52b03` server S1-S8 **8/8 PASS**（Worker 2 次 + 塔台 01:24 1 次），無殘留 PTY ⇒ **T0390 協定層 runtime PASS**。附帶發現 BUG-102（locale）/ BUG-103（serverEnv）

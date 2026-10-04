@@ -23,15 +23,17 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 01:01 (UTC+8) — 第五十三 session：BUG-101 → FIXED（T0394 `ea52b03`）
+> 最後同步：2026-10-05 01:24 (UTC+8) — 第五十四 session：開 BUG-102 / BUG-103（T0396 smoke 發現）
 
 ## 統計
-- 🔴 Open: 6 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 26**
+- 🔴 Open: 8 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 28**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-103 | RemoteServer auth metadata `serverEnv` 寫死 `native`，WSL headless 也回 native 且缺 `wslDistro` / `serverHome` | 🟢 low | 2026-10-05 | [BUG-103](BUG-103-remote-server-auth-meta-server-env-hardcoded-native.md) |
+| BUG-102 | PtyManager 強制 `LANG` / `LC_ALL=en_US.UTF-8`，WSL Ubuntu 無此 locale → 遠端終端開頭印 setlocale 警告並退回 C locale | 🟡 medium | 2026-10-05 | [BUG-102](BUG-102-pty-forces-en-us-locale-missing-on-wsl.md) |
 | BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告、preload / main 未實作 → SSH `start-server` 的 rollback 呼叫即拋錯 | 🟡 medium | 2026-10-05 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
 | BUG-099 | 設定精靈在失敗畫面按取消時，不會 rollback 正在失敗的步驟（只 rollback 已完成步驟） | 🟢 low | 2026-10-05 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
 | BUG-098 | SSH 精靈 direct 模式整條路徑不通：遠端 bat-server 固定綁 localhost、profile 固定寫 `remoteHost: localhost`、ssh config alias 不解析 HostName | 🟡 medium | 2026-10-05 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
