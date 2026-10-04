@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 21:28 (UTC+8) — 第五十一 session：BUG-084 / 085 / 071 → CLOSED；BUG-086 / 087 → FIXED（T0378 `4d814e9`，待實機）
+> 最後同步：2026-10-04 21:30 (UTC+8) — 第五十一 session：BUG-084 / 085 / 071 → CLOSED；BUG-086 / 087 → FIXED（T0378，待實機）；新增 BUG-088 → FIXING（T0379）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 12**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 13**
 
 ## 🔴 Open / 處理中
 
@@ -38,7 +38,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
 
 ## ✅ 已修復
 
