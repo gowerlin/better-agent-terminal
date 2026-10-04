@@ -57,7 +57,7 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 |---|---|---|---|---|
 | T0408 | A | 偵測核心：probe 腳本 + parse + `RemoteToolsReport` 型別 | T0407 | ✅ DONE（`ab30fff` / `6d7daab`，03:10 複驗 1442 tests / vite / tsc 40；WSL 唯讀實測與 T0407 §0 一致） |
 | T0409 | C | 安裝食譜 + 完成標記 + host 白名單 | T0407 | ✅ DONE（`ce27a82`，03:04 複驗 38/38；剩餘風險列入 T0414：`curl \| sh` 管線 `$?`、gh rpm GPG 自動匯入、RHEL rg 需 EPEL） |
-| T0410 | D | `RemoteToolsPanel` + `InstallConfirmDialog` + i18n | T0408、T0409 | 🔄 03:11 派發（與 T0411 平行：檔案不重疊） |
+| T0410 | D | `RemoteToolsPanel` + `InstallConfirmDialog` + i18n | T0408、T0409 | ✅ DONE（`8a17984`，03:22 塔台單檔複驗 67/67；**i18n 一一對應測試依賴 T0411 未 commit 的 errorCode**，全套 + vite build 待 T0411 commit 後聯合複驗） |
 | T0411 | B | headless / main 接線：`remote-tools:detect` + `remote:detect-tools` + smoke S10（🔒 main / protocol / headless-entry） | T0408 | 🔄 03:11 派發 |
 | T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | 保留編號 |
 | T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | 保留編號 |
@@ -68,3 +68,4 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 - T0412 注意：安裝分頁 shell 需 POSIX 系（gh apt 食譜用 `$(mktemp)`）
 - 波次調整（塔台 03:10）：T0410 與 T0411 檔案完全不重疊（UI vs electron 接線），改為平行；T0410 不跑 vite build 避免與 T0411 互相覆寫輸出
 - T0408 備註：從 Windows 經 `wsl.exe` 跑多行 probe 必須用 `--exec`（`--` 會經預設 shell 重新解析而吃掉參數）
+- T0410 UX 小注：確認框的確認鈕與列上「安裝」同文案，T0414 實機時評估是否改「確認安裝」
