@@ -38,4 +38,4 @@ links:
 
 - T0416（`e2daec1`）：現況確認 bug 存在（WSL / SSH 視窗工作區存 client 形式，經本機對話框選取）；`PROXIED_CHANNELS` 108 個全分類（`PATH_ARG_SCHEMA` 34 + `PATH_FREE_CHANNELS` 74）；新增 `arg-indices` / `object-fields` schema；補 claude:start-session / resume-session / list-sessions / scan-skills、worktree:create / rehydrate、github:*（6）、git-scaffold:*（3）、terminal:create-with-command / create-agent-command；`git-scaffold` 回傳 gitRoot 轉回 client；`claude:get-cli-path` 等明確不轉；守門 + 150 轉換測試
 - 2026-10-05 04:51 塔台複驗：1825 tests / vite / e2e 0 failed / tsc 40 / legacy node:test 11/11
-- 待實機：使用者以新 build 在 WSL 視窗用 `\wsl.localhost\…` 與 `C:\…` 兩種工作區開 Claude 面板（`pwd`）與 Git Graph
+- 待實機：使用者以新 build 在 WSL 視窗用 `\\wsl.localhost\…` 與 `C:\…` 兩種工作區開 Claude 面板（`pwd`）與 Git Graph
