@@ -104,4 +104,7 @@ export const PROXIED_EVENTS = new Set([
   'system:resume',
   // T0133: Worker→Tower auto-notify event
   'terminal:notified',
+  // T0431: auto-session dispatch (new Worker tab) + `bat-notify --submit` Enter, so a
+  // remote Tower's helpers reach the client window (electron/handlers/terminal.ts)
+  'terminal:created-externally', 'terminal:keypress',
 ])

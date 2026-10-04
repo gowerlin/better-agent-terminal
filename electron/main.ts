@@ -4,7 +4,8 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { execFileSync, spawnSync, fork } from 'child_process'
 import { WindowRegistry } from './window-registry'
-import { registerTerminalCommandHandlers } from './terminal-command-handlers'
+import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
+import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
 import { registerGitHandlers } from './handlers/git'
@@ -94,7 +95,6 @@ import {
   type RemoteProfileFailure,
 } from './remote/remote-profile-error'
 import { getConnectionInfo } from './remote/tunnel-manager'
-import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
 import { closeAllSshWizardTunnels, registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
@@ -102,7 +102,6 @@ import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { getWindowsElevation } from './windows-elevation'
 import type { CustomCliDefinition } from './agent-runtime/types'
-import { quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
 import { registerVoiceHandlers } from './voice-handler'
 import {
   logDrift as ctDriftLog,
@@ -546,43 +545,6 @@ function readLoggingConfigSync(): { loggingEnabled: boolean; logLevel: LogLevel 
   }
 }
 
-function toTerminalDrivenAgentId(agentId: string): string {
-  if (agentId === 'claude-code-worktree') return 'claude-cli-worktree'
-  if (agentId === 'claude-code' || agentId === 'claude-code-v2') return 'claude-cli'
-  if (agentId === 'codex-agent' || agentId === 'codex-agent-worktree') return 'codex-cli'
-  return agentId
-}
-
-function isCodexAgentId(agentId: string): boolean {
-  return agentId === 'codex-cli' || agentId === 'codex-agent' || agentId === 'codex-agent-worktree'
-}
-
-// T0360/BUG-082: Work order ID grammar — optional 2-4 char uppercase prefix
-// (cross-project / delegate work orders such as CP-T0113, CT-T001) + T + digits.
-// ⚠️ Sibling copies that must stay in sync (no shared module path across the
-// helper / main / renderer boundary):
-//   - scripts/bat-terminal.mjs           WORKORDER_ID_PATTERN
-//   - src/types/control-tower.ts         WORKORDER_ID_PREFIX
-//   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
-const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
-
-function buildControlTowerSkillPrompt(agentId: string, skill: string, workorder: string): string | null {
-  if (!/^(ct-exec|ct-done)$/.test(skill) || !WORKORDER_ID_PATTERN.test(workorder)) return null
-  const prefix = isCodexAgentId(agentId) ? '$' : '/'
-  return `${prefix}${skill} ${workorder}`
-}
-
-function normalizeControlTowerPromptForAgent(agentId: string, prompt: string): { prompt: string; normalized: boolean } {
-  if (!isCodexAgentId(agentId) || !prompt.startsWith('/ct-')) {
-    return { prompt, normalized: false }
-  }
-
-  return {
-    prompt: `$${prompt.slice(1)}`,
-    normalized: true,
-  }
-}
-
 async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<string | null> {
   if (!workspaceId) return null
   try {
@@ -617,53 +579,14 @@ function ensureElevationApplied(): Promise<void> {
   return elevationApplied
 }
 
-async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string; shellFamily?: ShellFamily }): Promise<{ command: string; agentId: string; prompt: string; prefixNormalized: boolean } | null> {
-  const settings = readPersistedSettingsSync()
-  const workspaceAgent = opts.agent && opts.agent !== 'default'
-    ? null
-    : await resolveWorkspaceDefaultAgent(opts.workspaceId)
-  const requestedAgent = opts.agent && opts.agent !== 'default'
-    ? opts.agent
-    : (workspaceAgent || settings?.defaultAgent || 'claude-code')
-  const agentId = toTerminalDrivenAgentId(requestedAgent)
-  const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
-
-  await ensureElevationApplied()
-  let baseCommand = agentRegistry.buildLaunchCommand(agentId, undefined, extraArgs)
-
-  // Claude CLI launch is normally routed through the integrated runtime helper
-  // in renderer-created terminals (WorkspaceView.startClaudeCliPty → claude:get-cli-path).
-  // BAT remote terminals and bat-terminal.mjs auto-session build the command here, so we
-  // invoke the same runtime resolver to honour claudeRuntime.customPath / fallbackToEmbedded.
-  // Without this, a system-mode install with `claude` not on the BAT-spawned shell's PATH
-  // dies with "claude: command not found" (downstream 花見紅茶 BUG-005 / T0050-T0054).
-  if (!baseCommand && (agentId === 'claude-cli' || agentId === 'claude-cli-worktree')) {
-    const { resolveClaudeBaseCommand } = await import('./resolve-claude-base-command')
-    baseCommand = await resolveClaudeBaseCommand(opts.shellFamily)
-  }
-
-  if (!baseCommand) {
-    logger.warn(`[agent-command] cannot build launch command for agent=${requestedAgent} resolved=${agentId}`)
-    return null
-  }
-
-  const prompt = opts.skill && opts.workorder
-    ? buildControlTowerSkillPrompt(agentId, opts.skill, opts.workorder)
-    : opts.prompt
-  if (!prompt) {
-    logger.warn(`[agent-command] invalid prompt payload for agent=${requestedAgent} resolved=${agentId} skill=${opts.skill ?? 'n/a'} workorder=${opts.workorder ?? 'n/a'}`)
-    return null
-  }
-
-  const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
-  const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
-  return {
-    command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, opts.shellFamily ?? 'posix')}`,
-    agentId,
-    prompt: normalized.prompt,
-    prefixNormalized: normalized.normalized,
-  }
-}
+// T0431: built in electron/terminal-command-handlers.ts (shared with headless); Electron supplies
+// userData settings, the window-registry workspace default agent and the elevation probe.
+const buildAgentPromptCommand = createAgentPromptCommandBuilder({
+  readSettings: readPersistedSettingsSync,
+  resolveWorkspaceDefaultAgent,
+  ensureElevationApplied,
+  logger,
+})
 
 /** Read minimizeToTray from persisted settings file (sync, for use in close handler) */
 function isMinimizeToTrayEnabled(): boolean {
@@ -2018,124 +1941,15 @@ function registerProxiedHandlers() {
   // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
   registerPtyHandlers(registerHandler, { getPtyManager: () => ptyManager })
 
-  // Terminal: create + immediately send a command (for Control Tower auto-session).
-  registerTerminalCommandHandlers({
-    registerHandler,
-    invokeHandler,
+  // terminal:create-with-command / create-agent-command / notify / keypress — shared with
+  // headless bat-server (PLAN-036 T0431, electron/handlers/terminal.ts). Events go to every
+  // window + broadcastHub (remote clients of this BAT).
+  registerTerminalHandlers(registerHandler, {
     getPtyManager: () => ptyManager,
-    getAllWindows: () => BrowserWindow.getAllWindows(),
-    readPersistedSettingsSync,
+    emit: createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload)),
+    readSettings: readPersistedSettingsSync,
     buildAgentPromptCommand,
-    pickWhitelistedEnv,
-    mirrorToBatScripts,
-    logger,
     existsSync: fsSync.existsSync,
-  })
-
-  // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.
-  // Invoked by bat-notify.mjs over WebSocket; renderer(s) show UI cues for targetId.
-  registerHandler('terminal:notify', (_ctx, opts: { targetId: string; message: string; source?: string }) => {
-    // T0193: Diagnostic logging — capture notify routing so we can correlate with
-    // bat-notify.mjs entries in the same NDJSON timeline.
-    const invokerWindowId = _ctx.windowId ?? null
-    logger.log(`[remote][terminal] ipc-invoke channel=terminal:notify target=${opts?.targetId ?? 'n/a'} source=${opts?.source ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
-    mirrorToBatScripts('ipc-invoke', {
-      channel: 'terminal:notify',
-      targetTerminalId: opts?.targetId,
-      sourceTerminalId: opts?.source,
-      messageLength: opts?.message ? opts.message.length : 0,
-      windowId: invokerWindowId,
-    })
-
-    if (!opts || !opts.targetId || !opts.message) {
-      logger.log('[remote][terminal] ipc-result channel=terminal:notify result=false reason=invalid-payload')
-      mirrorToBatScripts('ipc-result', {
-        channel: 'terminal:notify',
-        result: false,
-        reason: 'invalid-payload',
-      })
-      return false
-    }
-    let windowCount = 0
-    for (const win of BrowserWindow.getAllWindows()) {
-      try {
-        win.webContents.send('terminal:notified', {
-          targetId: opts.targetId,
-          message: opts.message,
-          source: opts.source,
-        })
-        windowCount += 1
-      } catch { /* window closing */ }
-    }
-    logger.log(`[remote][terminal] ipc-result channel=terminal:notify result=true target=${opts.targetId} broadcastWindows=${windowCount}`)
-    mirrorToBatScripts('ipc-result', {
-      channel: 'terminal:notify',
-      targetTerminalId: opts.targetId,
-      sourceTerminalId: opts.source,
-      result: true,
-      broadcastWindows: windowCount,
-      windowId: invokerWindowId,
-    })
-    return true
-  })
-
-  // Submit path for terminal-driven agents: let the renderer/xterm
-  // layer synthesize Enter as user input instead of writing CR directly to PTY.
-  registerHandler('terminal:keypress', (_ctx, opts: { targetId: string; key?: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => {
-    const invokerWindowId = _ctx.windowId ?? null
-    logger.log(`[remote][terminal] ipc-invoke channel=terminal:keypress target=${opts?.targetId ?? 'n/a'} key=${opts?.key ?? 'n/a'} source=${opts?.source ?? 'n/a'} trace=${opts?.traceId ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
-    mirrorToBatScripts('ipc-invoke', {
-      channel: 'terminal:keypress',
-      targetTerminalId: opts?.targetId,
-      key: opts?.key,
-      keyCode: opts?.keyCode,
-      sourceTerminalId: opts?.source,
-      reason: opts?.reason,
-      traceId: opts?.traceId,
-      delivery: 'renderer-dom-keydown',
-      windowId: invokerWindowId,
-    })
-
-    const isEnter = opts?.key === 'Enter' || opts?.code === 'Enter' || opts?.keyCode === 13
-    if (!opts || !opts.targetId || !isEnter) {
-      logger.log('[remote][terminal] ipc-result channel=terminal:keypress result=false reason=invalid-payload')
-      mirrorToBatScripts('ipc-result', {
-        channel: 'terminal:keypress',
-        result: false,
-        reason: 'invalid-payload',
-        traceId: opts?.traceId,
-      })
-      return { ok: false, reason: 'invalid-payload' }
-    }
-
-    let windowCount = 0
-    const payload = {
-      targetId: opts.targetId,
-      key: 'Enter',
-      code: 'Enter',
-      keyCode: 13,
-      source: opts.source,
-      reason: opts.reason,
-      traceId: opts.traceId,
-    }
-    for (const win of BrowserWindow.getAllWindows()) {
-      try {
-        win.webContents.send('terminal:keypress', payload)
-        windowCount += 1
-      } catch { /* window closing */ }
-    }
-    logger.log(`[remote][terminal] ipc-result channel=terminal:keypress result=true target=${opts.targetId} trace=${opts.traceId ?? 'n/a'} broadcastWindows=${windowCount}`)
-    mirrorToBatScripts('ipc-result', {
-      channel: 'terminal:keypress',
-      targetTerminalId: opts.targetId,
-      sourceTerminalId: opts.source,
-      result: true,
-      traceId: opts.traceId,
-      delivery: 'renderer-dom-keydown',
-      broadcastWindows: windowCount,
-      windowId: invokerWindowId,
-    })
-    return { ok: true, broadcastWindows: windowCount }
   })
 
   // Workspace persistence — save/load from window registry entry

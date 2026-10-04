@@ -1,8 +1,13 @@
 import { resolvePersistedShellPathWithDiagnostics, type PersistedShellSettings } from './shell-path-resolver'
-import { detectShellFamily, type ShellFamily } from '../src/utils/shell-quote'
+import { detectShellFamily, quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
+import { agentRegistry } from './agent-runtime/agent-registry'
+
+// 🔴 No `electron` import here: PLAN-036 T0431 registers these handlers on
+// headless bat-server too (electron/handlers/terminal.ts).
 
 interface HandlerContext {
   windowId: string | null
+  connectionId?: string | null
 }
 
 type Handler = (ctx: HandlerContext, ...args: unknown[]) => Promise<unknown> | unknown
@@ -56,11 +61,22 @@ export interface BuiltAgentCommand {
 
 export interface TerminalCommandHandlerDeps {
   registerHandler(channel: string, handler: Handler): void
-  invokeHandler(channel: string, args: unknown[], windowId?: string | null): Promise<unknown>
+  /**
+   * create-agent-command → create-with-command hop. Absent (T0431, shared module):
+   * the create-with-command handler registered here is called directly with the same ctx.
+   */
+  invokeHandler?(channel: string, args: unknown[], windowId?: string | null): Promise<unknown>
   getPtyManager(): TerminalPtyManager | null
-  getAllWindows(): TerminalWindow[]
+  /**
+   * T0431: event sink for `terminal:created-externally` (Electron: windows + broadcastHub;
+   * headless: broadcastHub). Absent: sent to `getAllWindows()` only (pre-T0431 behaviour).
+   */
+  emit?(channel: string, payload: unknown): unknown
+  getAllWindows?(): TerminalWindow[]
+  /** T0431 (headless): why a client-supplied `shell` is unacceptable, or null when fine. */
+  rejectShell?(shell: unknown): string | null
   readPersistedSettingsSync(): PersistedShellSettings | null
-  buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string; shellFamily?: ShellFamily }): Promise<BuiltAgentCommand | null>
+  buildAgentPromptCommand(opts: AgentPromptCommandOptions): Promise<BuiltAgentCommand | null>
   pickWhitelistedEnv(env?: Record<string, string>): Record<string, string | undefined>
   mirrorToBatScripts(event: string, payload: Record<string, unknown>): void
   logger: {
@@ -114,7 +130,7 @@ function resolveTerminalShell(
 export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps): void {
   const delay = deps.setTimeout ?? setTimeout
 
-  deps.registerHandler('terminal:create-with-command', (_ctx, opts: TerminalCommandOptions) => {
+  const createWithCommand = (_ctx: HandlerContext, opts: TerminalCommandOptions) => {
     const ptyManager = deps.getPtyManager()
     const reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
     const customEnv = deps.pickWhitelistedEnv(opts.customEnv)
@@ -141,6 +157,18 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         terminalId: opts.id,
         result: false,
         reason: 'no-pty-manager',
+      })
+      return false
+    }
+
+    const shellRejection = deps.rejectShell?.(opts.shell) ?? null
+    if (shellRejection) {
+      deps.logger.warn(`[remote][terminal] ipc-result channel=terminal:create-with-command result=false reason=invalid-shell (${shellRejection})`)
+      deps.mirrorToBatScripts('ipc-result', {
+        channel: 'terminal:create-with-command',
+        terminalId: opts.id,
+        result: false,
+        reason: 'invalid-shell',
       })
       return false
     }
@@ -173,16 +201,21 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       }, 500)
     }
     if (created && !_ctx.windowId) {
-      for (const win of deps.getAllWindows()) {
-        try {
-          win.webContents.send('terminal:created-externally', {
-            id: opts.id,
-            cwd: opts.cwd,
-            command: opts.command,
-            workspaceId: opts.workspaceId,
-          })
-        } catch {
-          // Window may be closing while remote terminal creation completes.
+      const payload = {
+        id: opts.id,
+        cwd: opts.cwd,
+        command: opts.command,
+        workspaceId: opts.workspaceId,
+      }
+      if (deps.emit) {
+        deps.emit('terminal:created-externally', payload)
+      } else {
+        for (const win of deps.getAllWindows?.() ?? []) {
+          try {
+            win.webContents.send('terminal:created-externally', payload)
+          } catch {
+            // Window may be closing while remote terminal creation completes.
+          }
         }
       }
     }
@@ -200,7 +233,8 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       windowId: invokerWindowId,
     })
     return created
-  })
+  }
+  deps.registerHandler('terminal:create-with-command', (ctx, opts) => createWithCommand(ctx, opts as TerminalCommandOptions))
 
   deps.registerHandler('terminal:create-agent-command', async (_ctx, opts: TerminalAgentCommandOptions) => {
     const hasPrompt = typeof opts?.prompt === 'string' && opts.prompt.length > 0
@@ -239,13 +273,150 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     }
 
     deps.logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId}`)
-    return deps.invokeHandler('terminal:create-with-command', [{
+    const commandOptions: TerminalCommandOptions = {
       id: opts.id,
       cwd: opts.cwd,
       command: resolved.command,
       shell: opts.shell,
       customEnv: opts.customEnv,
       workspaceId: opts.workspaceId,
-    }], _ctx.windowId)
+    }
+    if (deps.invokeHandler) {
+      return deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)
+    }
+    return createWithCommand(_ctx, commandOptions)
   })
+}
+
+// ── Agent launch command (moved from electron/main.ts in T0431, logic unchanged) ──
+
+export interface AgentPromptCommandOptions {
+  agent?: string
+  prompt?: string
+  skill?: string
+  workorder?: string
+  workspaceId?: string
+  shellFamily?: ShellFamily
+}
+
+/** Settings fields `buildAgentPromptCommand` reads. */
+export interface AgentCommandSettings {
+  defaultAgent?: string
+  agentCustomArgs?: Record<string, string>
+}
+
+/**
+ * Host-specific inputs of `buildAgentPromptCommand`.
+ *   - Electron: `<userData>/settings.json`, the workspace's `defaultAgent` from the
+ *     window registry, and the Windows elevation probe (T0377).
+ *   - headless: `<dataDir>/settings.json`, no workspace default agent (the client's
+ *     window registry is not on the server), no elevation.
+ */
+export interface AgentPromptCommandDeps {
+  readSettings(): AgentCommandSettings | null
+  resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<string | null>
+  /** Resolves once `agentRegistry.setElevated` has been applied (codex-cli launch args). */
+  ensureElevationApplied(): Promise<void>
+  /** Default: `agentRegistry.buildLaunchCommand(agentId, undefined, extraArgs)`. */
+  buildLaunchCommand?(agentId: string, extraArgs: string): string | null
+  /** Default: `resolveClaudeBaseCommand` (claude runtime router). */
+  resolveClaudeBaseCommand?(shellFamily?: ShellFamily): Promise<string>
+  logger: {
+    warn(...args: unknown[]): void
+  }
+}
+
+export function toTerminalDrivenAgentId(agentId: string): string {
+  if (agentId === 'claude-code-worktree') return 'claude-cli-worktree'
+  if (agentId === 'claude-code' || agentId === 'claude-code-v2') return 'claude-cli'
+  if (agentId === 'codex-agent' || agentId === 'codex-agent-worktree') return 'codex-cli'
+  return agentId
+}
+
+function isCodexAgentId(agentId: string): boolean {
+  return agentId === 'codex-cli' || agentId === 'codex-agent' || agentId === 'codex-agent-worktree'
+}
+
+// T0360/BUG-082: Work order ID grammar — optional 2-4 char uppercase prefix
+// (cross-project / delegate work orders such as CP-T0113, CT-T001) + T + digits.
+// ⚠️ Sibling copies that must stay in sync (no shared module path across the
+// helper / main / renderer boundary):
+//   - scripts/bat-terminal.mjs           WORKORDER_ID_PATTERN
+//   - src/types/control-tower.ts         WORKORDER_ID_PREFIX
+//   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
+const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
+
+function buildControlTowerSkillPrompt(agentId: string, skill: string, workorder: string): string | null {
+  if (!/^(ct-exec|ct-done)$/.test(skill) || !WORKORDER_ID_PATTERN.test(workorder)) return null
+  const prefix = isCodexAgentId(agentId) ? '$' : '/'
+  return `${prefix}${skill} ${workorder}`
+}
+
+function normalizeControlTowerPromptForAgent(agentId: string, prompt: string): { prompt: string; normalized: boolean } {
+  if (!isCodexAgentId(agentId) || !prompt.startsWith('/ct-')) {
+    return { prompt, normalized: false }
+  }
+
+  return {
+    prompt: `$${prompt.slice(1)}`,
+    normalized: true,
+  }
+}
+
+/** Builds the `buildAgentPromptCommand` that `terminal:create-agent-command` uses on this host. */
+export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (opts: AgentPromptCommandOptions) => Promise<BuiltAgentCommand | null> {
+  const buildLaunchCommand = deps.buildLaunchCommand
+    ?? ((agentId: string, extraArgs: string) => agentRegistry.buildLaunchCommand(agentId, undefined, extraArgs))
+  const resolveClaudeBase = deps.resolveClaudeBaseCommand
+    ?? (async (shellFamily?: ShellFamily) => {
+      const { resolveClaudeBaseCommand } = await import('./resolve-claude-base-command')
+      return resolveClaudeBaseCommand(shellFamily)
+    })
+
+  return async (opts) => {
+    const settings = deps.readSettings()
+    const workspaceAgent = opts.agent && opts.agent !== 'default'
+      ? null
+      : await deps.resolveWorkspaceDefaultAgent(opts.workspaceId)
+    const requestedAgent = opts.agent && opts.agent !== 'default'
+      ? opts.agent
+      : (workspaceAgent || settings?.defaultAgent || 'claude-code')
+    const agentId = toTerminalDrivenAgentId(requestedAgent)
+    const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
+
+    await deps.ensureElevationApplied()
+    let baseCommand = buildLaunchCommand(agentId, extraArgs)
+
+    // Claude CLI launch is normally routed through the integrated runtime helper
+    // in renderer-created terminals (WorkspaceView.startClaudeCliPty → claude:get-cli-path).
+    // BAT remote terminals and bat-terminal.mjs auto-session build the command here, so we
+    // invoke the same runtime resolver to honour claudeRuntime.customPath / fallbackToEmbedded.
+    // Without this, a system-mode install with `claude` not on the BAT-spawned shell's PATH
+    // dies with "claude: command not found" (downstream 花見紅茶 BUG-005 / T0050-T0054).
+    if (!baseCommand && (agentId === 'claude-cli' || agentId === 'claude-cli-worktree')) {
+      baseCommand = await resolveClaudeBase(opts.shellFamily)
+    }
+
+    if (!baseCommand) {
+      deps.logger.warn(`[agent-command] cannot build launch command for agent=${requestedAgent} resolved=${agentId}`)
+      return null
+    }
+
+    const prompt = opts.skill && opts.workorder
+      ? buildControlTowerSkillPrompt(agentId, opts.skill, opts.workorder)
+      : opts.prompt
+    if (!prompt) {
+      deps.logger.warn(`[agent-command] invalid prompt payload for agent=${requestedAgent} resolved=${agentId} skill=${opts.skill ?? 'n/a'} workorder=${opts.workorder ?? 'n/a'}`)
+      return null
+    }
+
+    const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
+    const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
+    return {
+      command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, opts.shellFamily ?? 'posix')}`,
+      agentId,
+      prompt: normalized.prompt,
+      prefixNormalized: normalized.normalized,
+    }
+  }
 }

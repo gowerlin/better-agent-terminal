@@ -288,7 +288,22 @@ export function normalizePathsInResult(
  */
 export const PATH_EVENT_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['fs:changed', 'args[0] = the watched dir (server form after fs:watch toServer); the renderer matches it against the client-form path it watched'],
+  ['terminal:created-externally', 'args[0].cwd = the server cwd of the new PTY; stored as the tab cwd next to the client-form workspace folder (T0431). Also stamped `remote: true` — see REMOTE_ORIGIN_EVENTS'],
 ])
+
+/** Object field holding the path in a PATH_EVENT_CHANNELS payload (default `path`; a string payload is the path itself). */
+const PATH_EVENT_FIELDS: Readonly<Record<string, string>> = {
+  'terminal:created-externally': 'cwd',
+}
+
+/**
+ * T0431: events whose object payload gets `remote: true` when it arrives through
+ * RemoteClient, so the renderer can tell a server's event from its own host's.
+ * `terminal:created-externally`: a remote event whose workspace is not in this
+ * window is ignored, never dropped into the active workspace (the BUG-031 / T0137
+ * fallback is for the local host only) — with two BATs on one server, both get it.
+ */
+export const REMOTE_ORIGIN_EVENTS: ReadonlySet<string> = new Set(['terminal:created-externally'])
 
 /**
  * T0406: PROXIED_EVENTS delivered as is, each with the reason. Some do carry
@@ -322,6 +337,7 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['workspace:reload', 'workspace JSON of an Electron host window registry, in the form that host window saved; headless never emits it'],
   ['system:resume', 'no payload'],
   ['terminal:notified', '{ targetId, message, source } (terminal ids + message text)'],
+  ['terminal:keypress', '{ targetId, key, code, keyCode, source, reason, traceId } (terminal ids + key enum)'],
 ])
 
 export function translateRemoteEventArgs(
@@ -335,9 +351,11 @@ export function translateRemoteEventArgs(
   if (typeof payload === 'string') {
     return [translator.toClient(payload), ...rest]
   }
-  if (payload && typeof payload === 'object') {
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const field = PATH_EVENT_FIELDS[channel] ?? 'path'
+    const translated = translatePathField(payload as Record<string, unknown>, field, (value) => translator.toClient(value))
     return [
-      translatePathField(payload as Record<string, unknown>, 'path', (value) => translator.toClient(value)),
+      REMOTE_ORIGIN_EVENTS.has(channel) ? { ...translated, remote: true } : translated,
       ...rest,
     ]
   }

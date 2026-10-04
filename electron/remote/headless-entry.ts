@@ -8,6 +8,10 @@ import { registerFsHandlers } from '../handlers/fs'
 import { registerGitHandlers, type GitHandlerDeps } from '../handlers/git'
 import { registerPtyHandlers } from '../handlers/pty'
 import { buildProbeEnv, registerRemoteToolsHandlers, type RemoteToolsHandlerDeps } from '../handlers/remote-tools'
+import { registerTerminalHandlers } from '../handlers/terminal'
+import type { HandlerContext } from '../handlers/types'
+import type { PersistedShellSettings } from '../shell-path-resolver'
+import { createAgentPromptCommandBuilder, type AgentCommandSettings } from '../terminal-command-handlers'
 import { ClaudeAgentManager } from '../claude-agent-manager'
 import {
   configureRuntimeRouter,
@@ -261,6 +265,61 @@ export function createHeadlessClaudeModule(opts: { installRoot?: string } = {}):
   }
 }
 
+/**
+ * T0431: the settings fields `terminal:*` reads from `<dataDir>/settings.json`,
+ * dropping values of the wrong type (the file is hand-editable on the server).
+ */
+export function readHeadlessTerminalSettings(raw: Record<string, unknown>): PersistedShellSettings & AgentCommandSettings {
+  const settings: PersistedShellSettings & AgentCommandSettings = {}
+  if (typeof raw.shell === 'string') settings.shell = raw.shell
+  if (typeof raw.customShellPath === 'string') settings.customShellPath = raw.customShellPath
+  if (typeof raw.defaultAgent === 'string') settings.defaultAgent = raw.defaultAgent
+  const customArgs = raw.agentCustomArgs
+  if (customArgs && typeof customArgs === 'object' && !Array.isArray(customArgs)) {
+    const args: Record<string, string> = {}
+    for (const [agentId, value] of Object.entries(customArgs)) {
+      if (typeof value === 'string') args[agentId] = value
+    }
+    settings.agentCustomArgs = args
+  }
+  return settings
+}
+
+/**
+ * T0431 (PLAN-036 P3 / K): `terminal:create-with-command` / `create-agent-command` /
+ * `notify` / `keypress` on headless (electron/handlers/terminal.ts). PTYs are created
+ * on the pty module's PtyManager; events go to the connected clients only. Agent
+ * command: `<dataDir>/settings.json` (`defaultAgent` / `agentCustomArgs`), no workspace
+ * default agent (the client's window registry is not here), no elevation; claude
+ * resolves through the runtime router the claude module configured (bundle `bin/claude`).
+ * `countRemoteReceivers`: clients that will get the keypress broadcast — without it,
+ * `terminal:keypress` never answers `no-client`.
+ */
+export function createHeadlessTerminalModule(opts: {
+  getPtyManager: () => PtyManager | null
+  countRemoteReceivers?: (ctx: HandlerContext) => number
+}): HandlerModule {
+  return (register, host) => {
+    const readSettings = () => readHeadlessTerminalSettings(host.getSettings())
+    registerTerminalHandlers(register, {
+      getPtyManager: opts.getPtyManager,
+      emit: (channel, payload) => {
+        host.emit(channel, payload)
+        return 0
+      },
+      readSettings,
+      buildAgentPromptCommand: createAgentPromptCommandBuilder({
+        readSettings,
+        resolveWorkspaceDefaultAgent: async () => null,
+        ensureElevationApplied: async () => {},
+        logger: defaultLogger,
+      }),
+      countRemoteReceivers: opts.countRemoteReceivers,
+      validateShell: true,
+    })
+  }
+}
+
 /** T0411: test seams for `remote-tools:detect` (fake execFile / platform / env). */
 export type HeadlessRemoteToolsOverrides = Omit<RemoteToolsHandlerDeps, 'isScrubbedEnvKey'>
 
@@ -346,6 +405,8 @@ export function createHeadlessFsModule(opts: { onRoots?: (roots: SyncedWorkspace
  * T0411: `remoteTools` overrides the probe's execFile / platform / env (tests).
  * T0405: `git` overrides the gh spawn / resolve (tests).
  * T0406: `fs.onRoots` hands over the synced-roots store.
+ * T0431: `terminal.countRemoteReceivers` feeds the keypress `no-client` check; the
+ * terminal module shares the pty module's PtyManager.
  */
 export function createHeadlessHandlerModules(opts: {
   installRoot?: string
@@ -353,10 +414,23 @@ export function createHeadlessHandlerModules(opts: {
   remoteTools?: HeadlessRemoteToolsOverrides
   git?: HeadlessGitOverrides
   fs?: Parameters<typeof createHeadlessFsModule>[0]
+  terminal?: { countRemoteReceivers?: (ctx: HandlerContext) => number }
 } = {}): HandlerModule[] {
+  let ptyManager: PtyManager | null = null
+  const ptyModule = createHeadlessPtyModule({
+    ...opts.pty,
+    onManager: manager => {
+      ptyManager = manager
+      opts.pty?.onManager?.(manager)
+    },
+  })
   return [
-    opts.pty ? createHeadlessPtyModule(opts.pty) : registerHeadlessPtyHandlers, // T0390
+    ptyModule, // T0390
     createHeadlessClaudeModule({ installRoot: opts.installRoot }), // T0401
+    createHeadlessTerminalModule({ // T0431
+      getPtyManager: () => ptyManager,
+      countRemoteReceivers: opts.terminal?.countRemoteReceivers,
+    }),
     createHeadlessRemoteToolsModule(opts.remoteTools), // T0411
     createHeadlessGitModule(opts.git), // T0405
     createHeadlessFsModule(opts.fs), // T0406
@@ -498,6 +572,9 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     remoteTools: opts.remoteTools,
     git: opts.git,
     fs: { onRoots: roots => { fsRoots = roots } },
+    // T0431: every authenticated client gets the broadcast except the invoking one
+    // (bat-notify itself is an authenticated client).
+    terminal: { countRemoteReceivers: ctx => remoteServer.getClientCount() - (ctx.connectionId ? 1 : 0) },
   })
   for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)

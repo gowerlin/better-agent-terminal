@@ -325,14 +325,24 @@ class WorkspaceStore {
    *    1. explicit `workspaceId` (from `--workspace` CLI flag) if it matches a known workspace
    *    2. fallback to current active workspace
    *  cwd-based matching was removed because it caused PTYs to land in a parent-folder
-   *  workspace rather than the user's currently-focused one. */
-  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string }): TerminalInstance | null {
+   *  workspace rather than the user's currently-focused one.
+   *  T0431: `remote: true` (stamped by RemoteClient on events from a server, see
+   *  REMOTE_ORIGIN_EVENTS in electron/remote/path-aware-channels.ts) — step 2 does not
+   *  apply: a remote event whose workspace is not in this window is ignored. Every BAT
+   *  connected to the server gets the event; only the one holding the workspace adds it. */
+  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string; remote?: boolean }): TerminalInstance | null {
     // Avoid duplicates — PTY already tracked
     if (this.state.terminals.some(t => t.id === info.id)) return null
 
     let workspace: Workspace | undefined
     if (info.workspaceId) {
       workspace = this.state.workspaces.find(w => w.id === info.workspaceId)
+    }
+    if (!workspace && info.remote) {
+      window.electronAPI?.debug?.log?.(
+        `[T0431] Remote external terminal ignored: workspace ${info.workspaceId ?? '(none)'} not in this window, terminal=${info.id}`
+      )
+      return null
     }
     // T0361: 純觀測訊號 —— 帶了 workspaceId 卻查無時，原本會靜默 fallback 到 active
     // workspace，且與「完全沒帶」在 log 上無法區分（T0360 Part C）。這裡只發 warn，

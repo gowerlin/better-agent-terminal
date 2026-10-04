@@ -62,10 +62,8 @@ export const HEADLESS_UNSUPPORTED: Readonly<Record<string, HeadlessPhase>> = Obj
 
   // ── P3: secondary (T0386 J / K) ──
   // settings:get-logging-info / settings:cleanup-logs / snippet:* → ALWAYS_LOCAL since T0422
-  'terminal:create-with-command': 'P3',
-  'terminal:create-agent-command': 'P3',
-  'terminal:notify': 'P3',
-  'terminal:keypress': 'P3', // T0386 §1 C: renderer-DOM only → remote-unsupported
+  // terminal:create-with-command / create-agent-command / notify / keypress online since T0431
+  // (electron/handlers/terminal.ts; keypress events reach the client renderer via PROXIED_EVENTS)
 })
 
 export function isHeadlessUnsupported(channel: string): boolean {

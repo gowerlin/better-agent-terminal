@@ -20,6 +20,7 @@ import {
   PATH_FREE_CHANNELS,
   PATH_FREE_EVENTS,
   PATH_RETURNING_CHANNELS,
+  REMOTE_ORIGIN_EVENTS,
   SERVER_PATH_RESULT_CHANNELS,
   normalizePathsInResult,
   translateInvokeArgs,
@@ -257,6 +258,25 @@ describe('T0406 guard: every proxied event has a path classification', () => {
     expect(translateRemoteEventArgs('fs:changed', [SERVER_HOME], local)).toEqual([SERVER_HOME])
     const info = ['s1', { worktreePath: '/home/x/repo/.worktrees/a', gitRoot: '/home/x/repo' }]
     expect(translateRemoteEventArgs('claude:worktree-info', info, wsl)).toBe(info)
+  })
+
+  it('T0431: terminal:created-externally cwd comes back in client form, stamped remote', () => {
+    const payload = { id: 't1', cwd: SERVER_HOME, command: 'claude x', workspaceId: 'ws-1' }
+    expect(translateRemoteEventArgs('terminal:created-externally', [payload], wsl))
+      .toEqual([{ id: 't1', cwd: UNC_HOME, command: 'claude x', workspaceId: 'ws-1', remote: true }])
+    expect(translateRemoteEventArgs('terminal:created-externally', [{ ...payload, cwd: SERVER_WIN_DIR }], wsl))
+      .toEqual([{ ...payload, cwd: WIN_DIR, remote: true }])
+    // local profile translator: path untouched, still stamped (it arrived through RemoteClient)
+    expect(translateRemoteEventArgs('terminal:created-externally', [payload], local)).toEqual([{ ...payload, remote: true }])
+    expect(payload.cwd).toBe(SERVER_HOME) // input not mutated
+  })
+
+  it('T0431: terminal:keypress is proxied and path-free; remote-origin events are path events', () => {
+    expect(PROXIED_EVENTS.has('terminal:created-externally')).toBe(true)
+    expect(PROXIED_EVENTS.has('terminal:keypress')).toBe(true)
+    expect(PATH_FREE_EVENTS.has('terminal:keypress')).toBe(true)
+    // the remote stamp is applied inside translateRemoteEventArgs' path-event branch only
+    for (const event of Array.from(REMOTE_ORIGIN_EVENTS)) expect(PATH_EVENT_CHANNELS.has(event), event).toBe(true)
   })
 
   it('every path-free event is delivered untouched', () => {
