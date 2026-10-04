@@ -47,6 +47,7 @@ interface ModelInfo {
   // 'cache' = Codex CLI's ~/.codex/models_cache.json (T0370)
   source?: 'builtin' | 'sdk' | 'cache'
   efforts?: string[]
+  defaultEffort?: string
 }
 
 interface PendingPermission {
@@ -114,6 +115,23 @@ type MessageItem = ClaudeMessage | ClaudeToolCall
 
 // Track sessions that have been started to prevent duplicate calls across StrictMode remounts
 const startedSessions = new Set<string>()
+
+// T0373: effort to switch to when `current` is not supported by `model`; undefined = keep it
+// (also when the model lists no efforts). Prefers the model's defaultEffort, else the supported
+// level closest to `medium` (on a tie the lower one).
+function codexEffortForModel(model: ModelInfo | undefined, current: string): string | undefined {
+  const supported = (model?.efforts ?? []).filter(e => CODEX_EFFORT_LEVELS.includes(e as CodexEffortLevel))
+  if (supported.length === 0 || supported.includes(current)) return undefined
+  const fallback = model?.defaultEffort
+  if (fallback && CODEX_EFFORT_LEVELS.includes(fallback as CodexEffortLevel)) return fallback
+  const rank = (e: string) => CODEX_EFFORT_LEVELS.indexOf(e as CodexEffortLevel)
+  const medium = rank('medium')
+  return supported.reduce((best, e) => {
+    const d = Math.abs(rank(e) - medium)
+    const bestD = Math.abs(rank(best) - medium)
+    return d < bestD || (d === bestD && rank(e) < rank(best)) ? e : best
+  })
+}
 
 export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose, isRemoteConnected, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<CodexAgentPanelProps>) {
   const { t } = useTranslation()
@@ -1118,6 +1136,16 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     }
   }, [isActive, sessionId, isCodexSession])
 
+  // T0373: prefetch the Codex model list on mount so the effort filter applies before the
+  // model menu is first opened (getSupportedModels does not need a running session).
+  useEffect(() => {
+    if (!isCodexSession) return
+    window.electronAPI.claude.getSupportedModels(sessionId).then(result => {
+      const models = result as ModelInfo[] | undefined
+      if (models && models.length > 0) setAvailableModels(prev => (prev.length > 0 ? prev : models))
+    }).catch(() => {})
+  }, [sessionId, isCodexSession])
+
   // Fetch supported models on demand when model list is opened (no session required)
   useEffect(() => {
     if (showModelList && availableModels.length === 0) {
@@ -1255,6 +1283,16 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     }
   }, [isActive])
 
+  // T0373: switching to a model that does not support the current effort resets it.
+  const autoCorrectCodexEffort = useCallback(async (modelValue: string) => {
+    const next = codexEffortForModel(availableModels.find(m => m.value === modelValue), effortLevel)
+    if (!next) return
+    window.electronAPI?.debug?.log(`[Codex:${sessionId.slice(0, 8)}] effort ${effortLevel} not supported by ${modelValue}, switching to ${next}`)
+    setEffortLevel(next)
+    workspaceStore.updateTerminalAgentParams(sessionId, { effortLevel: next })
+    await window.electronAPI.claude.setEffort(sessionId, next)
+  }, [sessionId, availableModels, effortLevel])
+
   const handleModelSelect = useCallback(async (modelValue: string) => {
     if (isCodexSession && modelValue !== currentModel) {
       const ok = await window.electronAPI.dialog.confirm(t('claude.codexModelChangeWarning'))
@@ -1276,6 +1314,8 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     await window.electronAPI.claude.setModel(sessionId, modelValue, settingsStore.getSettings().autoCompactWindow)
     workspaceStore.updateTerminalModel(sessionId, modelValue)
     if (isCodexSession && modelValue !== currentModel) {
+      // Before resetSession, which starts the new thread with the session's effort.
+      await autoCorrectCodexEffort(modelValue)
       setMessages([])
       setLoadedArchive([])
       archivedCountRef.current = 0
@@ -1289,7 +1329,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       setCacheCountdown(null)
       await window.electronAPI.claude.resetSession(sessionId)
     }
-  }, [sessionId, isCodexSession, isV2Session, currentModel, t])
+  }, [sessionId, isCodexSession, isV2Session, currentModel, t, autoCorrectCodexEffort])
 
   const handleResumeSelect = useCallback(async (sdkSessionId: string) => {
     console.log(`[Claude:${sessionId.slice(0, 8)}] handleResumeSelect sdkSessionId=${sdkSessionId.slice(0, 8)}`)
@@ -2008,7 +2048,8 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     setCurrentModel(next.value)
     await window.electronAPI.claude.setModel(sessionId, next.value, settingsStore.getSettings().autoCompactWindow)
     workspaceStore.updateTerminalModel(sessionId, next.value)
-  }, [sessionId, currentModel, availableModels])
+    if (isCodexSession) await autoCorrectCodexEffort(next.value)
+  }, [sessionId, currentModel, availableModels, isCodexSession, autoCorrectCodexEffort])
 
   // T0370: limit Codex effort options to what the selected model supports (when known); the
   // current value always stays selectable so the dropdown never shows a value it cannot render.

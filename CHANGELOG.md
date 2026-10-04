@@ -87,6 +87,20 @@ All notable changes to Better Agent Terminal are documented in this file.
   its `cmd` branch was reimplemented here. (refs: T0362, PR #19, PR #18)
 
 ### Changed
+- feat(codex): BAT now runs the newest Codex CLI it can find instead of preferring PATH. It
+  compares `codex --version` of the embedded binary, the official installer
+  (`%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`), every Codex Desktop App build
+  (`%LOCALAPPDATA%\OpenAI\Codex\bin\<hash>\codex.exe`) and `codex` executables on PATH (npm
+  `.cmd`/`.ps1` shims still skipped; installer / Desktop App locations are Windows-only), and on a
+  tie prefers the embedded one. A newer Codex can write `~/.codex/config.toml` values an older
+  binary fails to parse, which used to break sessions when BAT fell back to its embedded copy.
+  Candidates whose version cannot be read are skipped (all unreadable → embedded); versions are
+  cached per binary path + mtime for the life of the process. `BAT_CODEX_BIN` still overrides the
+  choice and is never compared. Each Codex session shows the chosen runtime once as a system
+  notice (`Codex CLI <version> (<source>)`), and all candidates are logged. The Codex panel now
+  loads the model list on mount so the effort filter applies immediately, and switching to a
+  model that does not support the current reasoning effort changes it to that model's default
+  effort (or the supported level closest to `medium`). (refs: BUG-083, T0373)
 - feat(codex): the Codex model list now comes from the Codex CLI's own
   `$CODEX_HOME/models_cache.json` (default `~/.codex`), read-only: entries with
   `visibility: "list"` in `priority` order, shown under "Codex Agent" in the model picker. If the

@@ -1,6 +1,5 @@
 import type { BrowserWindow } from 'electron'
 import { createRequire } from 'module'
-import { execSync } from 'child_process'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import * as pathModule from 'path'
@@ -15,6 +14,7 @@ import { wrapInterruptedPrompt } from './agent-prompt-utils'
 import { worktreeManager, type WorktreeInfo } from './worktree-manager'
 import { resolveBundledCodexLayout, prependPathDirs, type BundledCodexLayout } from './codex-bundled-path'
 import { loadCodexModels, type CodexModelInfo } from './codex-models'
+import { probeCodexVersion, resolveCodexRuntime, type CodexCandidateSource } from './codex-runtime-resolver'
 
 type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 type CodexApprovalPolicy = 'untrusted' | 'on-request' | 'never'
@@ -63,9 +63,27 @@ interface CodexSessionInstance {
   isRunning?: boolean
   startTime?: number
   lastEventAt?: number
+  /** `Codex CLI <version> (<source>)`, shown once as a system notice (T0373). */
+  runtimeNotice?: string
 }
 
 type HistoryItem = ClaudeMessage | ClaudeToolCall
+
+type CodexStartOptions = {
+  cwd: string
+  prompt?: string
+  permissionMode?: string
+  model?: string
+  effort?: string
+  apiVersion?: string
+  codexSandboxMode?: CodexSandboxMode
+  codexApprovalPolicy?: CodexApprovalPolicy
+  agentPreset?: string
+  useWorktree?: boolean
+  worktreePath?: string
+  worktreeBranch?: string
+  [key: string]: unknown
+}
 
 // Lazy SDK import
 let CodexClass: unknown = null
@@ -113,29 +131,6 @@ function codexTargetTriple(): string | undefined {
   return undefined
 }
 
-function findCodexOnPath(): string | undefined {
-  try {
-    const command = process.platform === 'win32'
-      ? 'where.exe codex'
-      : 'command -v codex || which codex'
-    const result = execSync(command, { encoding: 'utf-8', timeout: 3000 }).trim()
-    if (!result) return undefined
-    const candidates = result.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
-    for (const candidate of candidates) {
-      // Skip npm shims: .cmd/.bat/.ps1 wrappers and the extension-less shell
-      // script under node_modules/.bin — none can be spawn'd directly.
-      if (/\.(cmd|bat|ps1)$/i.test(candidate)) continue
-      if (/[\\/]node_modules[\\/]\.bin[\\/]/i.test(candidate)) continue
-      // On Windows, require a real executable extension.
-      if (process.platform === 'win32' && !/\.exe$/i.test(candidate)) continue
-      return candidate
-    }
-    return undefined
-  } catch {
-    return undefined
-  }
-}
-
 function findBundledCodex(): BundledCodexLayout | undefined {
   const exe = process.platform === 'win32' ? 'codex.exe' : 'codex'
   const triple = codexTargetTriple()
@@ -154,19 +149,33 @@ function findBundledCodex(): BundledCodexLayout | undefined {
   return undefined
 }
 
+interface CodexBinaryChoice extends BundledCodexLayout {
+  version?: string
+  source: CodexCandidateSource | 'BAT_CODEX_BIN'
+}
+
 // pathDirs is non-empty only for the bundled binary (helper dirs such as rg).
-function findCodexBinary(): BundledCodexLayout | undefined {
-  // 1. Explicit override wins.
+async function findCodexBinary(stag: string): Promise<CodexBinaryChoice | undefined> {
+  // 1. Explicit override wins and is never version-compared (escape hatch).
   const override = process.env.BAT_CODEX_BIN
-  if (override && existsSync(override)) return { binary: override, pathDirs: [] }
+  if (override && existsSync(override)) {
+    const version = await probeCodexVersion(override)
+    logger.log(`${stag} Codex binary: BAT_CODEX_BIN=${override} version=${version ?? 'unknown'}`)
+    return { binary: override, pathDirs: [], version, source: 'BAT_CODEX_BIN' }
+  }
 
-  // 2. Prefer user-installed codex on PATH — they may have a newer version than bundled
-  //    (e.g. to get gpt-5.5 before it lands in the @openai/codex-sdk bundle).
-  const onPath = findCodexOnPath()
-  if (onPath) return { binary: onPath, pathDirs: [] }
-
-  // 3. Fall back to the binary bundled with @openai/codex-sdk.
-  return findBundledCodex()
+  // 2. Newest of embedded / official installer / Desktop App / PATH (T0373). A newer
+  //    Codex may write config.toml values an older binary cannot parse (BUG-083 H3).
+  const { selected, candidates } = await resolveCodexRuntime(findBundledCodex())
+  for (const c of candidates) {
+    logger.log(`${stag} Codex candidate: ${c.source} ${c.path} version=${c.version ?? 'unknown'}`)
+  }
+  if (!selected) {
+    logger.log(`${stag} Codex binary: no candidate found`)
+    return undefined
+  }
+  logger.log(`${stag} Codex binary selected: ${selected.source} ${selected.path} version=${selected.version ?? 'unknown'}`)
+  return { binary: selected.path, pathDirs: selected.pathDirs, version: selected.version, source: selected.source }
 }
 
 // gpt-5.5 currently requires ChatGPT login (not available via API key auth).
@@ -297,6 +306,8 @@ function normalizeCodexEffort(value: unknown): CodexEffortLevel {
 
 export class CodexAgentManager {
   private sessions: Map<string, CodexSessionInstance> = new Map()
+  // findCodexBinary() is async (version probes): de-duplicate concurrent starts of one session.
+  private pendingStarts: Map<string, Promise<boolean>> = new Map()
   private getWindows: () => BrowserWindow[]
 
   constructor(getWindows: () => BrowserWindow[]) {
@@ -766,31 +777,39 @@ export class CodexAgentManager {
     }
   }
 
-  async startSession(sessionId: string, options: {
-    cwd: string
-    prompt?: string
-    permissionMode?: string
-    model?: string
-    effort?: string
-    apiVersion?: string
-    codexSandboxMode?: CodexSandboxMode
-    codexApprovalPolicy?: CodexApprovalPolicy
-    agentPreset?: string
-    useWorktree?: boolean
-    worktreePath?: string
-    worktreeBranch?: string
-    [key: string]: unknown
-  }): Promise<boolean> {
+  async startSession(sessionId: string, options: CodexStartOptions): Promise<boolean> {
+    if (this.sessions.has(sessionId)) return true
+    const pending = this.pendingStarts.get(sessionId)
+    if (pending) return pending
+    const start = this.doStartSession(sessionId, options).finally(() => this.pendingStarts.delete(sessionId))
+    this.pendingStarts.set(sessionId, start)
+    return start
+  }
+
+  private addRuntimeNotice(sessionId: string): void {
+    const session = this.sessions.get(sessionId)
+    if (!session?.runtimeNotice) return
+    if (session.state.messages.some(m => (m as ClaudeMessage).content === session.runtimeNotice)) return
+    this.addMessage(sessionId, {
+      id: `sys-codex-runtime-${sessionId}`,
+      sessionId,
+      role: 'system',
+      content: session.runtimeNotice,
+      timestamp: Date.now(),
+    })
+  }
+
+  private async doStartSession(sessionId: string, options: CodexStartOptions): Promise<boolean> {
     if (this.sessions.has(sessionId)) return true
 
-    const codexBinary = findCodexBinary()
+    const stag = `[codex:${sessionId.slice(0, 8)}]`
+    const codexBinary = await findCodexBinary(stag)
     if (!codexBinary) {
       this.send('claude:error', sessionId, `Codex CLI not found. Install with: ${getCodexInstallHint()}`)
       return false
     }
 
     const codexPath = codexBinary.binary
-    const stag = `[codex:${sessionId.slice(0, 8)}]`
     const effectiveModel = options.model || DEFAULT_CODEX_MODEL
     logger.log(`${stag} Starting session cwd=${options.cwd} model=${effectiveModel} codex=${codexPath}`)
 
@@ -831,6 +850,7 @@ export class CodexAgentManager {
       effort: normalizeCodexEffort(options.effort),
       messageQueue: [],
       startTime: Date.now(),
+      runtimeNotice: `Codex CLI ${codexBinary.version ?? 'unknown'} (${codexBinary.source})`,
       ...(worktreeInfo ? { worktreeInfo, originalCwd: options.cwd } : {}),
     }
 
@@ -844,6 +864,7 @@ export class CodexAgentManager {
       content: `Codex session started (sandbox: ${sandboxMode}, approval: ${approvalPolicy})`,
       timestamp: Date.now(),
     })
+    this.addRuntimeNotice(sessionId)
 
     if (options.useWorktree && worktreeInfo) {
       this.addMessage(sessionId, {
@@ -1464,6 +1485,8 @@ export class CodexAgentManager {
         logger.error(`[codex:${sessionId.slice(0, 8)}] Failed to load session history:`, err)
         this.replaceHistory(sessionId, [])
       })
+      // The loaded history replaced the start-up messages; show the runtime once more.
+      this.addRuntimeNotice(sessionId)
     }
     return result
   }
