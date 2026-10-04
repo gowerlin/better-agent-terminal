@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0451
 title: "T0445 #9：helper 連線衛生——拒絕 log 的 channel 限長跳脫、每權杖連線數上限、helper 拒絕節流、heartbeat 涵蓋 helper"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-036
 priority: P2
 sizing: XS
 created_at: "2026-10-05T06:32:48+08:00"
 started_at: "2026-10-05T06:59:03+08:00"
-updated_at: "2026-10-05T06:59:03+08:00"
-completed_at: null
+updated_at: "2026-10-05T07:04:47+08:00"
+completed_at: "2026-10-05T07:04:47+08:00"
 target_version: next
 depends_on:
   - T0450
@@ -73,7 +73,7 @@ memory_overrides:
 - **(c) helper 拒絕節流**：`HELPER_DENIAL_THRESHOLD = 30` / `HELPER_DENIAL_WINDOW_MS = 60_000`，per capability key（重連不會重置）。`recordHelperDenial` / `isHelperThrottled`（export）。第 31 次拒絕 → 回 `Forbidden: too-many-denials`（terminate 時不保證送達）、`dropHelper` + `ws.terminate()`，並寫**一行** `Helper throttled`；之後窗口內同權杖 auth → `Too many denied requests`（不 log）。connection-limit 拒絕也計入（擋重連迴圈灌 log）。窗口過期項目在 heartbeat 清除；`stop()` 清空
 - **(d) heartbeat 涵蓋 helper**：`HelperConnection.alive`；`ws.on('pong')` 標記存活；heartbeat 對 helper `ping()`，上一輪未回 pong 的 → warn `Helper missed a heartbeat; terminated` + `dropHelper` + `terminate()`。新增選項 `heartbeatIntervalMs`（預設 `HEARTBEAT_INTERVAL_MS = 30_000`，原硬編 `30000`），供測試縮短
 
-**Commit**：本單 commit（訊息含 `T0451`，`git commit --only` 精準提交 `remote-server.ts` + 新測試 + 本工單；未 push）
+**Commit**：`283337a`（訊息含 `T0451`，`git commit --only` 精準提交 `remote-server.ts` + 新測試 + 本工單；未 push）
 
 ### 遭遇問題
 
