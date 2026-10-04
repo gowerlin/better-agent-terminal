@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0370
 title: "BUG-083 T-D：Codex 模型清單改讀 models_cache.json + effort 擴充 + 連線重試訊息不再誤報為錯誤"
 type: fix
-status: IN_PROGRESS
+status: FIXED
 priority: P2
 sizing: S
 created_at: "2026-10-04T16:06:46+08:00"
-updated_at: "2026-10-04T16:08:17+08:00"
+updated_at: "2026-10-04T16:15:13+08:00"
 started_at: "2026-10-04T16:08:17+08:00"
-completed_at: null
+completed_at: "2026-10-04T16:15:13+08:00"
 target_version: next
 depends_on:
   - T0369
@@ -46,7 +46,7 @@ memory_overrides:
 
 # T0370 — BUG-083 T-D：Codex 模型清單 + effort 擴充 + 連線重試誤報
 
-- **狀態**：IN_PROGRESS
+- **狀態**：FIXED
 - **任務類型**：fix
 - **工作量預估**：S
 - **Context Window 風險**：低~中
@@ -190,7 +190,7 @@ memory_overrides:
 
 ### Commit
 
-單一 commit（訊息含 T0370，`git commit --only` 指定 9 檔）；不 push。
+`30fcf45` 單一 commit（訊息含 T0370，`git commit --only` 指定 9 檔）；不 push。
 
 ### 回報時間
 
