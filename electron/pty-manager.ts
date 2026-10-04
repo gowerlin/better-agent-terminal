@@ -8,6 +8,7 @@ import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
+import { resolvePtyLocaleEnv } from './pty-locale-env'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -155,6 +156,11 @@ export class PtyManager {
   /** T0140: `BAT_HELPER_DIR` env entry, omitted when the host has no helper dir. */
   private helperDirEnv(): { BAT_HELPER_DIR?: string } {
     return this.deps.helperDir ? { BAT_HELPER_DIR: this.deps.helperDir } : {}
+  }
+
+  /** BUG-102 (T0398): UTF-8 locale entries, spread after `customEnv`. */
+  private localeEnv(customEnv: Record<string, string>): Record<string, string> {
+    return resolvePtyLocaleEnv({ platform: process.platform, inheritedEnv: this.inheritedEnv(), customEnv })
   }
 
   /** Inject Terminal Server IPC reference; enables proxy mode for all future PTY operations. */
@@ -506,8 +512,8 @@ export class PtyManager {
       const envWithUtf8 = {
         ...this.inheritedEnv() as Record<string, string>,
         ...customEnv,
-        LANG: 'en_US.UTF-8',
-        LC_ALL: 'en_US.UTF-8',
+        // BUG-102 (T0398): per-platform UTF-8 locale; customEnv LANG / LC_* win
+        ...this.localeEnv(customEnv),
         PYTHONIOENCODING: 'utf-8',
         PYTHONUTF8: '1',
         TERM: 'xterm-256color',
@@ -566,9 +572,8 @@ export class PtyManager {
         const envWithUtf8 = {
           ...this.inheritedEnv(),
           ...customEnv,  // Merge custom environment variables
-          // UTF-8 encoding
-          LANG: 'en_US.UTF-8',
-          LC_ALL: 'en_US.UTF-8',
+          // UTF-8 encoding (BUG-102 / T0398: per-platform locale; customEnv LANG / LC_* win)
+          ...this.localeEnv(customEnv),
           PYTHONIOENCODING: 'utf-8',
           PYTHONUTF8: '1',
           // Terminal capabilities - let apps know we are a real PTY
@@ -647,9 +652,8 @@ export class PtyManager {
         const envWithUtf8 = {
           ...this.inheritedEnv(),
           ...customEnv,  // Merge custom environment variables
-          // UTF-8 encoding
-          LANG: 'en_US.UTF-8',
-          LC_ALL: 'en_US.UTF-8',
+          // UTF-8 encoding (BUG-102 / T0398: per-platform locale; customEnv LANG / LC_* win)
+          ...this.localeEnv(customEnv),
           PYTHONIOENCODING: 'utf-8',
           PYTHONUTF8: '1',
           // Terminal capabilities (limited in child_process mode)
