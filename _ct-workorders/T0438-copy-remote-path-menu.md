@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0438
 title: "遠端視窗新增「複製遠端路徑」選單項（FileTree / Sidebar / MarkdownPreviewPanel / PathLinker），原「複製路徑」維持 client 形式"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-105
 priority: P2
 sizing: S
 created_at: "2026-10-05T05:51:45+08:00"
 started_at: "2026-10-05T07:14:10+08:00"
-updated_at: "2026-10-05T07:14:10+08:00"
-completed_at: null
+updated_at: "2026-10-05T07:19:50+08:00"
+completed_at: "2026-10-05T07:19:50+08:00"
 target_version: next
 depends_on:
   - T0437
@@ -75,6 +75,7 @@ memory_overrides:
 - 驗收：
   - `npm run test:unit`：**159 files / 2528 passed / 1 skipped，全綠**
   - `npx tsc --noEmit`：**36**（≤ 39）；本單改動檔案 0 錯誤（剩餘皆既有 `CodexAgentPanel.tsx` 型別債）
+  - Commit：`3f912f9`（`git commit --only`，11 檔）；狀態收尾另一 commit
   - 未跑 `npx vite build` / `npm run test:e2e`（工單 L141）；未用 stash / reset / checkout / restore；未 push
   - i18n 三檔 `git diff` 確認各只含本單 1 行
 
