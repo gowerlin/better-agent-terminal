@@ -140,6 +140,10 @@ export class RemoteClient {
   // a new connection starts with no roots on the server, which fails closed).
   private workspaceRootsProvider: WorkspaceRootsProvider | null = null
 
+  // T0443 (BUG-110): pinged whenever isConnected / isReconnecting may have changed
+  // (auth ok, socket closed, reconnect scheduled or given up, disconnect()).
+  private statusChangeListener: (() => void) | null = null
+
   constructor(getWindows: () => BrowserWindow[], profile?: ProfileEntry | null) {
     this.getWindows = getWindows
     this.profile = profile ?? null
@@ -147,6 +151,11 @@ export class RemoteClient {
 
   get isConnected(): boolean {
     return this._connected && this.ws?.readyState === WebSocket.OPEN
+  }
+
+  /** T0443: not connected, but a reconnect is scheduled or in flight. */
+  get isReconnecting(): boolean {
+    return this.shouldReconnect && !this.isConnected
   }
 
   get connectionInfo(): { host: string; port: number; fingerprint: string } | null {
@@ -172,6 +181,19 @@ export class RemoteClient {
   /** T0406: source of this connection's workspace roots; null stops pushing. */
   setWorkspaceRootsProvider(provider: WorkspaceRootsProvider | null): void {
     this.workspaceRootsProvider = provider
+  }
+
+  /** T0443: main recomputes the bound windows' status on every ping. */
+  setStatusChangeListener(listener: (() => void) | null): void {
+    this.statusChangeListener = listener
+  }
+
+  private notifyStatusChange(): void {
+    try {
+      this.statusChangeListener?.()
+    } catch (err) {
+      logger.warn('[RemoteClient] status listener failed:', err instanceof Error ? err.message : String(err))
+    }
   }
 
   /**
@@ -419,6 +441,7 @@ export class RemoteClient {
                 `(fingerprint=${observedFingerprint.substring(0, 23)}...)`
             )
             settle({ ok: true, fingerprint: observedFingerprint })
+            this.notifyStatusChange()
             // T0406: every (re)connect is a fresh server connection with no roots.
             void this.syncWorkspaceRoots()
           }
@@ -482,6 +505,7 @@ export class RemoteClient {
         if (this.shouldReconnect && wasConnected) {
           this.scheduleReconnect()
         }
+        if (wasConnected) this.notifyStatusChange()
       })
 
       this.ws.on('error', (err) => {
@@ -513,6 +537,7 @@ export class RemoteClient {
           `failures=${this.tunnelRestartFailures}`,
       )
       this.shouldReconnect = false
+      this.notifyStatusChange()
       return
     }
     const delay = computeReconnectDelay(this.reconnectAttempts)
@@ -580,6 +605,7 @@ export class RemoteClient {
     }
 
     logger.log('[RemoteClient] Disconnected')
+    this.notifyStatusChange()
   }
 
   invoke(channel: string, args: unknown[], timeout = DEFAULT_INVOKE_TIMEOUT_MS): Promise<unknown> {

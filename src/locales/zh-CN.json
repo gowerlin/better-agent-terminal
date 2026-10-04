@@ -28,6 +28,8 @@
     "welcomeHint": "点击「+ 新增工作区」开始使用",
     "remoteConnectionFailed": "远程连接失败：{{error}}",
     "remoteConnectionFailedFallback": "远程连接失败：{{error}}\n正在切换回本地配置。",
+    "remoteNotConnected": "此远程窗口当前未连接，操作未执行（不会改在本机执行）。远程主机重新连接后即可继续。",
+    "remoteNotConnectedOtherProfile": "远程连接当前由另一个远程配置的窗口使用，此窗口未连接，操作未执行（不会改在本机执行）。请重新打开此配置的窗口以重新连接。",
     "remoteMissingInfo": "远程配置缺少连接信息。",
     "wslWindowsDriveWorkspaceHint": "工作区“{{path}}”位于 Windows 磁盘（在 WSL 内为 {{wslPath}}）。\n从 WSL 访问 /mnt 下的文件 I/O 较慢，git / npm 也可能遇到权限与换行问题，建议将项目放在 WSL 内部目录（例如 ~/projects）。\n工作区已添加，可继续使用。"
   },

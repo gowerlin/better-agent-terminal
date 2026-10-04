@@ -9,6 +9,7 @@ import type {
   VoiceModelDownloadProgress,
 } from './voice'
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from './remote-tools'
+import type { RemoteInvokeRefusedEvent, RemoteWindowStatusEvent } from '../lib/remote-not-connected'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
 // PLAN-007 T0268: targetOS schema (kept in sync with electron/profile-manager.ts)
@@ -519,6 +520,10 @@ interface ElectronAPI {
     connect: (host: string, port: number, token: string, label?: string, fingerprint?: string) => Promise<{ connected: boolean; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
     disconnect: () => Promise<boolean>
     clientStatus: () => Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>
+    /** T0443 (BUG-110): this window's remote connection state changed (connected / reconnecting / disconnected). */
+    onClientStatusChanged: (callback: (status: RemoteWindowStatusEvent) => void) => () => void
+    /** T0443: a proxied invoke from this window was refused with REMOTE_NOT_CONNECTED instead of running locally. */
+    onInvokeRefused: (callback: (info: RemoteInvokeRefusedEvent) => void) => () => void
     testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: RemoteAuthMetadata | null }>
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
     restartServer: (newPort: number) => Promise<

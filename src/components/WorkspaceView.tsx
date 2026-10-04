@@ -17,6 +17,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay } from '../lib/pty-replay'
+import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
 import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
 import { CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, openClaudeLoginTerminal, type ClaudeOpenLoginTerminalDetail } from '../lib/claude-login-guide'
 import { REMOTE_UNSUPPORTED_AGENT_PRESETS } from '../lib/remote-unsupported'
@@ -139,6 +140,14 @@ async function getShellFromSettings(): Promise<string | undefined> {
     return settings.customShellPath
   }
   return window.electronAPI.settings.getShellPath(settings.shell)
+}
+
+// T0443 (BUG-110): restore-time pty:create. A remote window that is not connected
+// has it refused (REMOTE_NOT_CONNECTED) instead of spawning a local shell; it is
+// sent once more after the window connects (init path only — new tabs are not retried).
+const restorePtyApi = {
+  create: (options: Parameters<typeof window.electronAPI.pty.create>[0]) =>
+    retryOnceWhenRemoteConnected(() => window.electronAPI.pty.create(options), window.electronAPI.remote),
 }
 
 // Helper to merge environment variables
@@ -473,7 +482,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
           }
           if (!agentPreset || agentPreset === 'none') {
-            void createPtyWithReplay(createOpts)
+            void createPtyWithReplay(createOpts, restorePtyApi)
             continue
           }
           // Auto-run agent command for non-Claude terminal-driven agents
@@ -506,7 +515,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 }
               }
             })
-          }).then((result) => {
+          }, restorePtyApi).then((result) => {
             if (!result.created) dlog(`[T0403] restore ${agentPreset} terminal=${terminal.id}: PTY already running, launch command skipped`)
           })
         }
@@ -580,7 +589,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       dlog(`[init] initTerminals total: ${(performance.now() - t0).toFixed(0)}ms, terminals=${terminals.length}`)
       dlog(`[startup] initTerminals done: +${Date.now() - htmlT0}ms from HTML`)
     }
-    initTerminals()
+    // T0443: the shell lookup (settings:get-shell-path) is the first proxied call and
+    // runs before any terminal is touched; refused → run init once more on connect.
+    void retryOnceWhenRemoteConnected(initTerminals, window.electronAPI.remote).catch((err: unknown) => {
+      window.electronAPI?.debug?.log(`[init] initTerminals failed for workspace ${workspace.id}: ${err instanceof Error ? err.message : String(err)}`)
+    })
   }, [isActive, workspace.id, terminals.length, workspace.defaultAgent, workspace.folderPath, workspace.envVars])
 
   // Set default focus - only for active workspace

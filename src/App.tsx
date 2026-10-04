@@ -22,6 +22,7 @@ import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from './utils/control-tower-launch'
 import { isWslWindowsDrivePath, winToWsl } from './utils/wsl-path'
+import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, subscribeRemoteWindowStatus } from './lib/remote-not-connected'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 
@@ -503,6 +504,7 @@ export default function App() {
     const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
     const htmlT0 = (window as unknown as { __t0?: number }).__t0 || Date.now()
     dlog(`[startup] App useEffect fired: +${Date.now() - htmlT0}ms from HTML`)
+    const onSettingsRetryError = (err: unknown) => dlog(`[init] deferred settingsStore.load failed: ${err instanceof Error ? err.message : String(err)}`)
     const initProfile = async () => {
       const t0 = performance.now()
       try {
@@ -510,7 +512,14 @@ export default function App() {
         dlog(`[init] getLaunchProfile: ${(performance.now() - t0).toFixed(0)}ms`)
 
         const t1 = performance.now()
-        const result = await window.electronAPI.profile.list()
+        // T0443 (BUG-110): a remote-profile window that is not connected yet has its
+        // proxied profile:list refused (it used to run locally). The local list is
+        // what identifies this window, so read it from the local-only channel.
+        const result = await window.electronAPI.profile.list().catch((err: unknown) => {
+          if (!isRemoteNotConnectedError(err)) throw err
+          dlog('[init] profile.list refused (REMOTE_NOT_CONNECTED) → profile.listLocal')
+          return window.electronAPI.profile.listLocal()
+        })
         dlog(`[init] profile.list: ${(performance.now() - t1).toFixed(0)}ms`)
 
         // Determine which profile this window should use:
@@ -557,9 +566,14 @@ export default function App() {
             // Main window: fall back to first local profile
             const localProfile = result.profiles.find(p => p.type !== 'remote')
             if (localProfile) {
-              await window.electronAPI.profile.load(localProfile.id)
+              // T0443: this window stays bound to the remote profile, so profile:load is
+              // refused instead of running locally — keep the remote name, nothing ran here.
+              const refused = await window.electronAPI.profile.load(localProfile.id).then(() => false, (err: unknown) => {
+                if (!isRemoteNotConnectedError(err)) throw err
+                return true
+              })
               const winIdx = await window.electronAPI.app.getWindowIndex()
-              setActiveProfileName(`${localProfile.name}:${winIdx}`)
+              setActiveProfileName(`${refused ? active.name : localProfile.name}:${winIdx}`)
             }
           } else {
             const winIdx = await window.electronAPI.app.getWindowIndex()
@@ -601,8 +615,10 @@ export default function App() {
 
         const tLoad = performance.now()
         // Load settings first (lightweight, no re-render), then workspaces (triggers heavy re-render)
-        await settingsStore.load()
-        dlog(`[init] settingsStore.load: ${(performance.now() - tLoad).toFixed(0)}ms`)
+        // T0443: refused while this remote window is not connected → defaults now, one
+        // reload once it connects (startup must not wait on the remote).
+        const settingsDeferred = await loadNowOrWhenRemoteConnected(() => settingsStore.load(), window.electronAPI.remote, onSettingsRetryError)
+        dlog(`[init] settingsStore.load: ${(performance.now() - tLoad).toFixed(0)}ms${settingsDeferred ? ' (deferred: REMOTE_NOT_CONNECTED)' : ''}`)
 
         // Sync i18n language with saved setting
         const savedLang = settingsStore.getSettings().language || 'en'
@@ -615,7 +631,7 @@ export default function App() {
       } catch (e) {
         console.error('Failed to initialize profile:', e)
         // Ensure workspaces still load even if profile init fails
-        await settingsStore.load()
+        await loadNowOrWhenRemoteConnected(() => settingsStore.load(), window.electronAPI.remote, onSettingsRetryError)
         const savedLang = settingsStore.getSettings().language || 'en'
         if (i18next.language !== savedLang) i18next.changeLanguage(savedLang)
         await workspaceStore.load()
@@ -697,6 +713,20 @@ export default function App() {
     const interval = setInterval(check, 3000)
     return () => clearInterval(interval)
   }, [])
+
+  // T0443 (BUG-110): main pushes this window's remote connection changes, and each
+  // proxied invoke it refused (REMOTE_NOT_CONNECTED, not run locally). One notice
+  // per outage — a disconnected window refuses every keystroke.
+  useEffect(() => subscribeRemoteWindowStatus(window.electronAPI.remote, {
+    onStatus: (status) => {
+      window.electronAPI.debug.log(`[T0443] remote status ${status.profileId}: ${status.state}${status.reason ? ` (${status.reason})` : ''}`)
+      setIsRemoteConnected(status.connected)
+    },
+    onNotice: (info) => {
+      window.electronAPI.debug.log(`[T0443] ${info.errorCode} profile=${info.profileId} reason=${info.reason} channel=${info.channel}`)
+      addRuntimeToast(t(info.reason === 'other-profile' ? 'app.remoteNotConnectedOtherProfile' : 'app.remoteNotConnected'), 'warning', 8000)
+    },
+  }), [addRuntimeToast, t])
 
   const handleAddWorkspace = useCallback(async () => {
     const folderPaths = await window.electronAPI.dialog.selectFolder()

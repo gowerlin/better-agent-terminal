@@ -640,6 +640,18 @@ const electronAPI = {
       ipcRenderer.invoke('remote:disconnect') as Promise<boolean>,
     clientStatus: () =>
       ipcRenderer.invoke('remote:client-status') as Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>,
+    // T0443 (BUG-110): pushed to the windows bound to a remote profile when its connection state changes.
+    onClientStatusChanged: (callback: (status: { profileId: string; connected: boolean; state: 'connected' | 'reconnecting' | 'disconnected'; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected' | null }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: { profileId: string; connected: boolean; state: 'connected' | 'reconnecting' | 'disconnected'; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected' | null }) => callback(status)
+      ipcRenderer.on('remote:client-status-changed', handler)
+      return () => ipcRenderer.removeListener('remote:client-status-changed', handler)
+    },
+    // T0443: a proxied invoke from this window was refused with REMOTE_NOT_CONNECTED (not run locally).
+    onInvokeRefused: (callback: (info: { errorCode: 'REMOTE_NOT_CONNECTED'; profileId: string; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected'; channel: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { errorCode: 'REMOTE_NOT_CONNECTED'; profileId: string; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected'; channel: string }) => callback(info)
+      ipcRenderer.on('remote:invoke-refused', handler)
+      return () => ipcRenderer.removeListener('remote:invoke-refused', handler)
+    },
     testConnection: (host: string, port: number, token: string, fingerprint?: string) =>
       ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: { serverPlatform: 'win32' | 'linux' | 'darwin'; serverArch: 'x64' | 'arm64'; serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'; wslDistro?: string; dockerMounts?: Array<{ host: string; container: string }>; serverHome?: string; nodeVersion: string; claudeVersion?: string; bundleVersion: string; glibcVersion?: string } | null }>,
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) =>

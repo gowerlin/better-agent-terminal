@@ -87,7 +87,7 @@ import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
-import { isRemoteFingerprintChange, planRemoteConnect, settleRemoteConnect, shouldDropClientOnProfileUpdate, type RemoteConnectTarget } from './remote/remote-connect-plan'
+import { formatRemoteNotConnectedError, isRemoteFingerprintChange, planProxiedInvokeRoute, planRemoteConnect, planRemoteStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, settleRemoteConnect, shouldDropClientOnProfileUpdate, type RemoteConnectTarget, type RemoteSlotState } from './remote/remote-connect-plan'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -1164,7 +1164,34 @@ async function syncPathGuardFromRegistry(): Promise<void> {
 // bound window. Local windows never push.
 function bindRemoteClient(client: RemoteClient, profileId: string | null): RemoteClient {
   client.setWorkspaceRootsProvider(async () => collectWorkspaceRoots(await windowRegistry.readAll(), profileId))
+  // T0443: status is computed from the slot, so a ping from a client that is not
+  // (or no longer) in the slot is harmless.
+  client.setStatusChangeListener(() => pushRemoteClientStatus(profileId))
   return client
+}
+
+// T0443 (BUG-110): the slot as the routing / status rules see it.
+function currentRemoteSlot(): RemoteSlotState {
+  const client = remoteClient
+  return {
+    profileId: client ? remoteClientProfileId : null,
+    isConnected: !!client?.isConnected,
+    isReconnecting: !!client?.isReconnecting,
+  }
+}
+
+// T0443: last status pushed per profile — identical pings (a client's own
+// disconnect() plus the slot change around it) are sent once.
+const lastPushedRemoteStatus = new Map<string, string>()
+
+/** T0443: push `remote:client-status-changed` to the windows bound to each profile. */
+function pushRemoteClientStatus(...profileIds: Array<string | null | undefined>): void {
+  for (const status of planRemoteStatusPushes(profileIds, currentRemoteSlot(), lastPushedRemoteStatus)) {
+    logger.log(`[remote-status] profile ${status.profileId} → ${status.state}${status.reason ? ` (${status.reason})` : ''}`)
+    for (const win of getWindowsForProfile(status.profileId)) {
+      win.webContents.send(REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, status)
+    }
+  }
 }
 
 function syncRemoteWorkspaceRoots(windowProfileId: string | null | undefined): void {
@@ -1200,6 +1227,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
       // T0442: same slot rule as remote:connect (T0430) — swap only on success; a
       // failed candidate is disconnected so its SSH tunnel / reconnect timer go too.
       const settleSlot = async (ok: boolean) => {
+        const previousProfileId = remoteClientProfileId
         const next = settleRemoteConnect({
           slot: { client: remoteClient, profileId: remoteClientProfileId },
           candidate,
@@ -1208,6 +1236,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
         })
         remoteClient = next.slot.client
         remoteClientProfileId = next.slot.profileId
+        pushRemoteClientStatus(previousProfileId, next.slot.profileId, profileId)
         if (ok) {
           for (const c of next.dispose) void c.disconnect().catch(() => { /* ignore */ })
         } else {
@@ -2141,10 +2170,19 @@ function bindProxiedHandlersToIpc() {
         }
       }
 
-      if (senderIsRemote && senderProfileId === remoteClientProfileId && remoteClient?.isConnected) {
-        return remoteClient.invoke(channel, args)
+      // T0443 (BUG-110): a remote-profile window that is not served by its own live
+      // connection (empty slot, reconnecting, slot owned by another profile) is
+      // refused, never run on this machine; each refusal is also pushed to the window
+      // (the renderer shows one notice per outage).
+      const route = planProxiedInvokeRoute({ senderIsRemote, senderProfileId, slot: currentRemoteSlot() })
+      if (route.kind === 'local') return invokeHandler(channel, args, windowId)
+      if (route.kind === 'remote' && remoteClient) return remoteClient.invoke(channel, args)
+      const profileId = route.kind === 'refuse' ? route.profileId : senderProfileId ?? ''
+      const reason = route.kind === 'refuse' ? route.reason : 'no-client'
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(REMOTE_INVOKE_REFUSED_CHANNEL, { errorCode: REMOTE_NOT_CONNECTED, profileId, reason, channel })
       }
-      return invokeHandler(channel, args, windowId)
+      throw Object.assign(new Error(formatRemoteNotConnectedError(channel, profileId, reason)), { code: REMOTE_NOT_CONNECTED, profileId, reason })
     })
   }
 }
@@ -2347,6 +2385,7 @@ function registerLocalHandlers() {
       // T0430: swap the slot only on success. A failed connect keeps the current
       // client referenced and tears down the candidate (SSH tunnel, reconnect timer).
       const settleSlot = async (ok: boolean, candidateProfileId: string | null) => {
+        const previousProfileId = remoteClientProfileId
         const next = settleRemoteConnect({
           slot: { client: remoteClient, profileId: remoteClientProfileId },
           candidate,
@@ -2355,6 +2394,7 @@ function registerLocalHandlers() {
         })
         remoteClient = next.slot.client
         remoteClientProfileId = next.slot.profileId
+        pushRemoteClientStatus(previousProfileId, next.slot.profileId, candidateProfileId)
         if (ok) {
           for (const c of next.dispose) void c.disconnect().catch(() => { /* ignore */ })
         } else {
@@ -2406,9 +2446,11 @@ function registerLocalHandlers() {
   })
   ipcMain.handle('remote:disconnect', async () => {
     const task = remoteOpMutex.then(async () => {
+      const previousProfileId = remoteClientProfileId
       remoteClient?.disconnect()
       remoteClient = null
       remoteClientProfileId = null
+      pushRemoteClientStatus(previousProfileId)
       return true
     })
     remoteOpMutex = task.catch(() => {})
@@ -2706,6 +2748,7 @@ function registerLocalHandlers() {
         const client = remoteClient
         remoteClient = null
         remoteClientProfileId = null
+        pushRemoteClientStatus(profileId)
         await client?.disconnect().catch(() => { /* ignore */ })
       })
       remoteOpMutex = task.catch(() => {})

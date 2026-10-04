@@ -8,13 +8,20 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   LEGACY_PROFILE_ERROR,
+  REMOTE_NOT_CONNECTED,
+  computeRemoteWindowStatus,
+  formatRemoteNotConnectedError,
   isRemoteFingerprintChange,
+  planProxiedInvokeRoute,
+  planRemoteStatusPushes,
   settleRemoteConnect,
   planRemoteConnect,
   shouldDropClientOnProfileUpdate,
   type RemoteConnectBoundProfile,
   type RemoteConnectCurrent,
+  type RemoteSlotState,
 } from '../remote/remote-connect-plan'
+import { REMOTE_NOT_CONNECTED as RENDERER_REMOTE_NOT_CONNECTED, isRemoteNotConnectedError } from '../../src/lib/remote-not-connected'
 
 const PIN = 'AB:CD:EF:01:23:45:67:89'
 const OTHER = '11:22:33:44:55:66:77:88'
@@ -272,5 +279,149 @@ describe('profile:update handler wiring (T0442 source guard)', () => {
     expect(guard).toBeGreaterThan(-1)
     expect(handler.indexOf('remoteClient = null')).toBeGreaterThan(guard)
     expect(handler).toMatch(/remoteOpMutex\.then\(/)
+  })
+})
+
+// ── T0443 (BUG-110): remote-window fail-closed routing ──
+
+const EMPTY_SLOT: RemoteSlotState = { profileId: null, isConnected: false, isReconnecting: false }
+const slotOf = (profileId: string, isConnected: boolean, isReconnecting = false): RemoteSlotState =>
+  ({ profileId, isConnected, isReconnecting })
+
+describe('planProxiedInvokeRoute (T0443 routing matrix)', () => {
+  const cases: Array<{ name: string; senderIsRemote: boolean; senderProfileId: string | null; slot: RemoteSlotState; expected: string; reason?: string }> = [
+    // local window (or no profile binding): always local, whatever the slot holds
+    { name: 'local window, empty slot', senderIsRemote: false, senderProfileId: 'local-1', slot: EMPTY_SLOT, expected: 'local' },
+    { name: 'local window, slot connected for a remote profile', senderIsRemote: false, senderProfileId: 'local-1', slot: slotOf('remote-P', true), expected: 'local' },
+    { name: 'local window, slot reconnecting', senderIsRemote: false, senderProfileId: 'local-1', slot: slotOf('remote-P', false, true), expected: 'local' },
+    { name: 'window without a registry entry', senderIsRemote: false, senderProfileId: null, slot: slotOf('remote-P', true), expected: 'local' },
+    // remote window
+    { name: 'remote window, own slot connected', senderIsRemote: true, senderProfileId: 'remote-P', slot: slotOf('remote-P', true), expected: 'remote' },
+    { name: 'remote window, own slot reconnecting', senderIsRemote: true, senderProfileId: 'remote-P', slot: slotOf('remote-P', false, true), expected: 'refuse', reason: 'reconnecting' },
+    { name: 'remote window, own slot disconnected (gave up)', senderIsRemote: true, senderProfileId: 'remote-P', slot: slotOf('remote-P', false), expected: 'refuse', reason: 'disconnected' },
+    { name: 'remote window, slot owned by another profile (connected)', senderIsRemote: true, senderProfileId: 'remote-P', slot: slotOf('remote-Q', true), expected: 'refuse', reason: 'other-profile' },
+    { name: 'remote window, empty slot (pin change / remote:disconnect)', senderIsRemote: true, senderProfileId: 'remote-P', slot: EMPTY_SLOT, expected: 'refuse', reason: 'no-client' },
+  ]
+
+  for (const c of cases) {
+    it(c.name, () => {
+      const route = planProxiedInvokeRoute({ senderIsRemote: c.senderIsRemote, senderProfileId: c.senderProfileId, slot: c.slot })
+      expect(route.kind).toBe(c.expected)
+      if (route.kind === 'refuse') {
+        expect(route).toEqual({ kind: 'refuse', errorCode: REMOTE_NOT_CONNECTED, profileId: c.senderProfileId, reason: c.reason })
+      }
+    })
+  }
+
+  it('a remote window is never routed local, for any slot state', () => {
+    const slots = [EMPTY_SLOT, slotOf('remote-P', true), slotOf('remote-P', false), slotOf('remote-P', false, true), slotOf('remote-Q', true), slotOf('remote-Q', false, true)]
+    for (const slot of slots) {
+      expect(planProxiedInvokeRoute({ senderIsRemote: true, senderProfileId: 'remote-P', slot }).kind).not.toBe('local')
+    }
+  })
+})
+
+describe('computeRemoteWindowStatus (T0443)', () => {
+  it('reports the state seen by the windows bound to the profile', () => {
+    expect(computeRemoteWindowStatus('P', slotOf('P', true))).toEqual({ profileId: 'P', connected: true, state: 'connected', reason: null })
+    expect(computeRemoteWindowStatus('P', slotOf('P', false, true))).toEqual({ profileId: 'P', connected: false, state: 'reconnecting', reason: 'reconnecting' })
+    expect(computeRemoteWindowStatus('P', slotOf('P', false))).toEqual({ profileId: 'P', connected: false, state: 'disconnected', reason: 'disconnected' })
+    expect(computeRemoteWindowStatus('P', slotOf('Q', true))).toEqual({ profileId: 'P', connected: false, state: 'disconnected', reason: 'other-profile' })
+    expect(computeRemoteWindowStatus('P', EMPTY_SLOT)).toEqual({ profileId: 'P', connected: false, state: 'disconnected', reason: 'no-client' })
+  })
+})
+
+describe('REMOTE_NOT_CONNECTED error (T0443)', () => {
+  it('leads the message, survives Electron IPC wrapping, and matches the renderer constant', () => {
+    const message = formatRemoteNotConnectedError('pty:create', 'remote-P', 'other-profile')
+    expect(message.startsWith(`${REMOTE_NOT_CONNECTED}:`)).toBe(true)
+    expect(message).toContain('remote-P')
+    expect(message).toContain('pty:create')
+    expect(RENDERER_REMOTE_NOT_CONNECTED).toBe(REMOTE_NOT_CONNECTED)
+    // ipcRenderer.invoke rejects with "Error invoking remote method '<ch>': Error: <message>"
+    expect(isRemoteNotConnectedError(new Error(`Error invoking remote method 'pty:create': Error: ${message}`))).toBe(true)
+  })
+})
+
+describe('planRemoteStatusPushes (T0443 push targets)', () => {
+  it('slot handover Q → P: both profiles are pushed, P connected and Q not connected (other-profile)', () => {
+    const last = new Map<string, string>()
+    const pushes = planRemoteStatusPushes(['remote-Q', 'remote-P', 'remote-P'], slotOf('remote-P', true), last)
+    expect(pushes).toEqual([
+      { profileId: 'remote-Q', connected: false, state: 'disconnected', reason: 'other-profile' },
+      { profileId: 'remote-P', connected: true, state: 'connected', reason: null },
+    ])
+  })
+
+  it('pin change / remote:disconnect clears the slot: the old owner is pushed no-client', () => {
+    const last = new Map<string, string>([['remote-P', 'connected:']])
+    expect(planRemoteStatusPushes(['remote-P'], EMPTY_SLOT, last))
+      .toEqual([{ profileId: 'remote-P', connected: false, state: 'disconnected', reason: 'no-client' }])
+  })
+
+  it('pushes only on change and skips null ids; a failed connect leaves the slot owner quiet', () => {
+    const last = new Map<string, string>()
+    expect(planRemoteStatusPushes(['remote-P', null, undefined], slotOf('remote-P', true), last)).toHaveLength(1)
+    // same state again (client ping + slot ping) → nothing
+    expect(planRemoteStatusPushes(['remote-P'], slotOf('remote-P', true), last)).toEqual([])
+    // socket dropped → reconnecting → connected again
+    expect(planRemoteStatusPushes(['remote-P'], slotOf('remote-P', false, true), last).map(s => s.state)).toEqual(['reconnecting'])
+    expect(planRemoteStatusPushes(['remote-P'], slotOf('remote-P', true), last).map(s => s.state)).toEqual(['connected'])
+    // a failed connect for Q keeps P in the slot: P unchanged (quiet), Q told it is not connected
+    expect(planRemoteStatusPushes(['remote-P', 'remote-P', 'remote-Q'], slotOf('remote-P', true), last))
+      .toEqual([{ profileId: 'remote-Q', connected: false, state: 'disconnected', reason: 'other-profile' }])
+  })
+})
+
+describe('bindProxiedHandlersToIpc wiring (T0443 source guard)', () => {
+  const src = readFileSync(resolve(__dirname, '../main.ts'), 'utf8')
+  const start = src.indexOf('function bindProxiedHandlersToIpc()')
+  const fn = src.slice(start, src.indexOf('// ── Renderer debug log', start))
+
+  it('keeps the ALWAYS_LOCAL short-circuit ahead of any routing', () => {
+    expect(start).toBeGreaterThan(-1)
+    const shortCircuit = fn.indexOf('if (ALWAYS_LOCAL_CHANNELS.has(channel))')
+    expect(shortCircuit).toBeGreaterThan(-1)
+    expect(fn.slice(shortCircuit, fn.indexOf('}', shortCircuit))).toMatch(/return invokeHandler\(channel, args, windowId\)/)
+    expect(shortCircuit).toBeLessThan(fn.indexOf('planProxiedInvokeRoute('))
+  })
+
+  it('routes through planProxiedInvokeRoute; the local handler runs only for the local route', () => {
+    expect(fn).not.toMatch(/senderProfileId === remoteClientProfileId/)
+    const afterRoute = fn.slice(fn.indexOf('planProxiedInvokeRoute('))
+    expect(afterRoute.match(/invokeHandler\(/g) ?? []).toHaveLength(1)
+    expect(afterRoute).toMatch(/if \(route\.kind === 'local'\) return invokeHandler\(/)
+    // anything that is neither local nor a live remote is refused with the code
+    expect(afterRoute).toMatch(/throw Object\.assign\(new Error\(formatRemoteNotConnectedError\(/)
+    expect(afterRoute).toMatch(/REMOTE_INVOKE_REFUSED_CHANNEL/)
+  })
+})
+
+describe('remote status push wiring (T0443 source guard)', () => {
+  const src = readFileSync(resolve(__dirname, '../main.ts'), 'utf8')
+  const section = (from: string, to: string) => {
+    const at = src.indexOf(from)
+    expect(at, from).toBeGreaterThan(-1)
+    return src.slice(at, src.indexOf(to, at))
+  }
+
+  it('every slot change pushes the status of the profiles it concerns', () => {
+    const snapshot = section('async function loadProfileSnapshotDetailed(', 'function showRemoteProfileFailureDialog(')
+    expect(snapshot).toMatch(/remoteClientProfileId = next\.slot\.profileId\s+pushRemoteClientStatus\(previousProfileId, next\.slot\.profileId, profileId\)/)
+    const connect = section("ipcMain.handle('remote:connect'", "ipcMain.handle('remote:disconnect'")
+    expect(connect).toMatch(/remoteClientProfileId = next\.slot\.profileId\s+pushRemoteClientStatus\(previousProfileId, next\.slot\.profileId, candidateProfileId\)/)
+    const disconnect = section("ipcMain.handle('remote:disconnect'", "ipcMain.handle('remote:client-status'")
+    expect(disconnect).toMatch(/remoteClientProfileId = null\s+pushRemoteClientStatus\(previousProfileId\)/)
+    const update = section("ipcMain.handle('profile:update'", "ipcMain.handle('profile:get'")
+    expect(update).toMatch(/remoteClientProfileId = null\s+pushRemoteClientStatus\(profileId\)/)
+  })
+
+  it('every bound client pings its own profile, and pushes go only to that profile\'s windows', () => {
+    const bind = section('function bindRemoteClient(', 'function currentRemoteSlot(')
+    expect(bind).toMatch(/setStatusChangeListener\(\(\) => pushRemoteClientStatus\(profileId\)\)/)
+    const push = section('function pushRemoteClientStatus(', 'type SnapshotLoadResult')
+    expect(push).toMatch(/planRemoteStatusPushes\(profileIds, currentRemoteSlot\(\), lastPushedRemoteStatus\)/)
+    expect(push).toMatch(/getWindowsForProfile\(status\.profileId\)/)
+    expect(push).toMatch(/REMOTE_CLIENT_STATUS_CHANGED_CHANNEL/)
   })
 })
