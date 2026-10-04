@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-101
 title: "本機 Terminal Server 模式的終端「重新啟動」會讓終端失聯：舊 PTY 的 onExit 無條件刪掉同 id 的新 entry"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-05T00:41:57+08:00"
-updated_at: "2026-10-05T01:01:44+08:00"
+updated_at: "2026-10-05T01:36:42+08:00"
 impact:
   - local-terminal
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（影響所有使用者的本機一般終端「重新啟動」按鈕） |
 | 可重現 | 100%（T0390 Worker 以 Playwright smoke 在 HEAD 基準 `090ca2a` 與修改後皆重現；塔台 00:41 複核程式碼） |
-| **狀態** | ✅ FIXED（T0394 `ea52b03`；待下一版 build 實機，需先結束舊 Terminal Server） |
+| **狀態** | 🚫 CLOSED（2026-10-05 01:36，T0397 e2e 自動驗收 + 使用者裁決結案） |
 | 回報者 | T0390 Worker（回報區「偏差 / 風險 / 後續」第 1 點） |
 
 ## 現象
@@ -48,3 +48,8 @@ links:
 - 塔台複驗：1083 tests / vite build exit 0（`dist-electron/terminal-server.js` 含 `stale exit ignored`）/ tsc 40
 - ⚠️ 已存活的舊版 Terminal Server 不吃新碼：驗收前關閉 BAT 時勾選「結束 Terminal Server」；正式發版是否在 release note 提示待定
 
+## 關閉原因
+
+- 2026-10-05 01:36 使用者裁決 CLOSED。證據：T0397 `e2e/plan036-p0.spec.ts`（`e5215c1`），Worker 2 次 + 塔台 01:34 複跑皆 4/4 PASS
+- E2：隔離 Terminal Server（pid / port 皆為 e2e runtime 所有）建 PTY → `pty.restart` → 4s 內 0 個 `pty:exit`、`getCwd` 正常、restart 後輸入仍有輸出；kill 後才收到 1 個 exit
+- 證據層：source build（`dist-electron/`）；使用者安裝版 build 自 `2e902de`，與測試時 HEAD 之產品程式碼相同（其後 commit 僅 `scripts/` / `e2e/` / `playwright.config.ts` / `_ct-workorders/`）

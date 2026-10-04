@@ -23,17 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 01:24 (UTC+8) — 第五十四 session：開 BUG-102 / BUG-103（T0396 smoke 發現）
+> 最後同步：2026-10-05 01:36 (UTC+8) — 第五十四 session：BUG-095 / BUG-101 → CLOSED（T0397 e2e）；開 BUG-102 / BUG-103
 
 ## 統計
-- 🔴 Open: 8 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 28**
+- 🔴 Open: 7 | ⏳ Fixing: 1 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 28**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-103 | RemoteServer auth metadata `serverEnv` 寫死 `native`，WSL headless 也回 native 且缺 `wslDistro` / `serverHome` | 🟢 low | 2026-10-05 | [BUG-103](BUG-103-remote-server-auth-meta-server-env-hardcoded-native.md) |
-| BUG-102 | PtyManager 強制 `LANG` / `LC_ALL=en_US.UTF-8`，WSL Ubuntu 無此 locale → 遠端終端開頭印 setlocale 警告並退回 C locale | 🟡 medium | 2026-10-05 | [BUG-102](BUG-102-pty-forces-en-us-locale-missing-on-wsl.md) |
 | BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告、preload / main 未實作 → SSH `start-server` 的 rollback 呼叫即拋錯 | 🟡 medium | 2026-10-05 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
 | BUG-099 | 設定精靈在失敗畫面按取消時，不會 rollback 正在失敗的步驟（只 rollback 已完成步驟） | 🟢 low | 2026-10-05 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
 | BUG-098 | SSH 精靈 direct 模式整條路徑不通：遠端 bat-server 固定綁 localhost、profile 固定寫 `remoteHost: localhost`、ssh config alias 不解析 HostName | 🟡 medium | 2026-10-05 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
@@ -45,14 +44,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-102 | PtyManager 強制 `LANG` / `LC_ALL=en_US.UTF-8`，WSL Ubuntu 無此 locale → 遠端終端開頭印 setlocale 警告並退回 C locale | 🟡 medium | 2026-10-05 | [BUG-102](BUG-102-pty-forces-en-us-locale-missing-on-wsl.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-101 | 本機 Terminal Server 模式的終端「重新啟動」會讓終端失聯：舊 PTY 的 onExit 無條件刪掉同 id 的新 entry | 🔴 high | 2026-10-05 | [BUG-101](BUG-101-terminal-server-restart-loses-terminal.md) |
-| BUG-095 | `claude:abort-session` 只進 handler registry、未列入 `PROXIED_CHANNELS`，沒有 `ipcMain.handle` → Claude / Codex 面板的中止（abort）呼叫一律失敗 | 🔴 high | 2026-10-04 | [BUG-095](BUG-095-claude-abort-session-not-bound-to-ipc.md) |
 | BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 | BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
 | BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-04 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
@@ -67,6 +64,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-101 | 本機 Terminal Server 模式的終端「重新啟動」會讓終端失聯：舊 PTY 的 onExit 無條件刪掉同 id 的新 entry | 🔴 high | 2026-10-05 | [BUG-101](BUG-101-terminal-server-restart-loses-terminal.md) |
+| BUG-095 | `claude:abort-session` 只進 handler registry、未列入 `PROXIED_CHANNELS`，沒有 `ipcMain.handle` → Claude / Codex 面板的中止（abort）呼叫一律失敗 | 🔴 high | 2026-10-05 | [BUG-095](BUG-095-claude-abort-session-not-bound-to-ipc.md) |
 | BUG-087 | WSL 精靈「寫入 systemd 使用者服務」失敗：linger 未帶使用者、unit 檔 `~` 不展開、失敗後 bundle 被回滾 | 🔴 high | 2026-10-04 | [BUG-087](BUG-087-wsl-wizard-systemd-step-linger-tilde-rollback.md) |
 | BUG-089 | WSL 精靈把 Mirrored 網路模式誤判為 NAT（default route 含 `via` 即判 NAT 的啟發式不成立） | 🟡 medium | 2026-10-04 | [BUG-089](BUG-089-wsl-network-mode-misdetected-as-nat.md) |
 | BUG-090 | 設定精靈「取得 TLS 指紋」永久卡住：伺服器沒有 `/fingerprint` HTTP handler，IPC 也沒有 timeout（WSL / SSH / Docker 共用） | 🔴 high | 2026-10-04 | [BUG-090](BUG-090-wizard-fetch-fingerprint-hangs-forever.md) |
