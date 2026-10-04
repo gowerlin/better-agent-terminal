@@ -121,7 +121,7 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（65 entries）
 
 ### 編號起始
-- **T0378** / **BUG-087** / **PLAN-035** / **D126** / **EXP-[TOPIC]-001** / **L138**
+- **T0379** / **BUG-088** / **PLAN-035** / **D127** / **EXP-[TOPIC]-001** / **L138**
 
 ---
 
@@ -135,10 +135,10 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 | **最新 release** | `v0.5.9-pre.4`（2026-10-04 17:10 驗證：9/9 success，5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
 | **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
 | **目前主軸** | 實機驗收（BUG-071 / 084 / 085）→ push + `v0.5.9-pre.5` → Phase 2 Claude SDK 0.3 |
-| **工單最大編號** | T0377（DONE，commit `71706c2`） |
-| **BUG 最大編號** | BUG-086（OPEN，low；WSL 精靈無發行版誤報） |
+| **工單最大編號** | T0378（派發中：BUG-086 + BUG-087） |
+| **BUG 最大編號** | BUG-087（FIXING，T0378）；BUG-086 FIXING（T0378） |
 | **PLAN 最大編號** | PLAN-034（已 archive；熱區最大 PLAN-033） |
-| **決策最大編號** | D125 |
+| **決策最大編號** | D126 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
 | **unit test 基線** | **709**（50 files）；tsc baseline 40 |

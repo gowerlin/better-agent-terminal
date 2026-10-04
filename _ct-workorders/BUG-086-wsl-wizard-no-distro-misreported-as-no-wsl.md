@@ -3,15 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-086
 title: WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-10-04T21:08:07+08:00"
-updated_at: "2026-10-04T21:08:07+08:00"
+updated_at: "2026-10-04T21:15:17+08:00"
 impact:
   - setup-wizard-wsl
 links:
-  related: [BUG-071, BUG-072]
+  fix_workorder: T0378
+  decision: D126
+  related: [BUG-071, BUG-072, BUG-087]
 ---
 
 # BUG-086 — WSL 精靈把「無發行版」誤報為「找不到 WSL2」
@@ -20,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（UX 引導錯誤；使用者照做 `wsl --install` 不會壞事，但不會解決問題） |
 | 可重現 | 100%：Windows 已安裝 WSL（Store 版）但未註冊任何發行版 |
-| **狀態** | 📂 OPEN |
+| **狀態** | ⏳ FIXING（T0378，與 BUG-087 合併修復，D126） |
 | 回報者 | 塔台（2026-10-04 第五十一 session，BUG-071 實機驗收時發現；使用者截圖 + 塔台環境檢查） |
 
 ## 現象

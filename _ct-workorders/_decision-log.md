@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 20:39 (UTC+8)（第五十 session 新增 D124、D125）
+> 最後更新：2026-10-04 21:15 (UTC+8)（第五十一 session 新增 D126）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D126 | 2026-10-04 | BUG-086 + BUG-087 合併為 T0378：linger 帶明確使用者名稱並以 `Linger=yes` 判定；systemd unit 改用解析出的絕對 `$HOME` 路徑（不留 `~`、預設不用 `%h`）；可重試的失敗不回滾前步；WSL 偵測以 exit code 區分「沒裝 WSL / 無發行版」 | T0378 / BUG-086 / BUG-087 |
 | D125 | 2026-10-04 | 本地打包（`release.ps1` / `build-version.js`）版號來源改為：顯式指定 → `package.json` → 時間戳（僅最後手段且不得大於真實版號）；保留 `-pre.N` 後綴、移除非 exact `git describe` fallback、打包不留 dirty、補齊 verify / fetch:baseline 前置檢查；CI `VERSION` env 路徑行為不變 | T0376 |
 | D124 | 2026-10-04 | BUG-085 採 T0375 方案 B'：Windows 提權時 `codex-cli` 啟動指令注入 `-c features.daemon_auto_start=false`（不用 `--no-daemon`，舊版 codex 會 exit 2）+ 一次性 i18n 提示；SDK 路徑不注入 | T0375 / T0377 / BUG-085 |
 | D123 | 2026-10-04 | BUG-084 Phase 2（SDK 0.3.289）：`claude-code-v2`「Claude Agent V2」preset **下架**（使用者裁決），不遷移成 `query()`。須含既有設定遷移：已存檔 workspace / terminal 指向 `claude-code-v2` 者自動改指 `claude-code` | BUG-084 / D122 |
@@ -1353,6 +1354,15 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D126 2026-10-04 — WSL 精靈 systemd 步驟與無發行版偵測合併修復
+
+- **背景**：BUG-071 實機驗收第 4 步通過後，第 5 步必失敗。塔台環境檢查：`loginctl enable-linger` 未帶使用者在 `wsl --` 非登入 session 回 ENXIO（帶 `gower` 即成功、不需 sudo）；unit 檔 `ExecStart="~/..."` 被 systemd 判 `bad-setting`；第 5 步失敗後 `~/.local/bat-server` 已被 `rm -rf`，但第 4 步仍顯示 ✓。另第 1 步在「有 WSL 無發行版」時誤報找不到 WSL2（BUG-086）
+- **決定**：一張實作單 T0378 修四項（同屬 WSL 精靈 / `wsl-detect` / `wsl-systemd`，affects_files 重疊，拆單會互相衝突）。linger 帶 `id -un` 使用者名稱、以 `loginctl show-user -p Linger` 判定；unit 用絕對 `$HOME`；可重試失敗不回滾前步（回滾只在取消）；WSL 狀態以 exit code 判斷
+- **不採用**：`%h` specifier 為預設（`escapeSystemdValue` 可能跳脫 `%`，Worker 確認後可改）；以 sudo 開 linger（不需要，polkit 允許自己）
+- **相關**：T0378 / BUG-086 / BUG-087 / BUG-071 / BUG-072
 
 ---
 

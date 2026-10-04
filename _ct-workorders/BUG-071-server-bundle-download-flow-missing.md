@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-071
 title: Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
-status: FIXED
+status: CLOSED
 severity: high
 fix_commit: a295ec7
 fixed_at: "2026-10-04T13:42:14+08:00"
 fix_workorder: T0365
+closed_at: "2026-10-04T21:15:17+08:00"
 ---
 # BUG-071 — Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
 
@@ -20,7 +21,7 @@ fix_workorder: T0365
 | 嚴重度 | 🔴 High（使用者無法用 wizard 完成 WSL/SSH/Docker remote profile 安裝；BAT remote feature 對普通使用者實質不可用） |
 | 可重現 | 100%（只要 `userData/bat-server-bundles/` 沒有 tarball 都會炸；installer 不含、無自動下載 → 100% 觸發） |
 | Workaround | 手動下載 `bat-server-linux-x64-v*.tar.gz` 放到 `userData/bat-server-bundles/`（普通使用者不知道做這事） |
-| 狀態 | 🐛 OPEN → ⏳ FIXING → ✅ FIXED（2026-10-04 `a295ec7`；待使用者實機 wizard） |
+| 狀態 | 🚫 CLOSED（2026-10-04 21:15 實機驗收通過：精靈第 4 步 ✓） |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
 | 報告者 | 使用者（PLAN-030 完工後實機跑 WSL wizard） |
 | 影響範圍 | `src/components/setup-wizard/steps/wsl/install-server-bundle.ts:36` / `src/components/setup-wizard/steps/ssh/install-server-bundle.ts`（同模式） / Docker 也類似（待確認） |
@@ -97,3 +98,11 @@ installer 未內建的 arch（如 Windows host → DGX Spark arm64 SSH）必走�
 | 實機 wizard | ⏳ 待使用者 | 裝 `v0.5.9-pre.3` → WSL wizard（x64，走內建 baseline）；DGX Spark SSH（arm64，走網路下載）視時間 |
 
 通過實機驗收 → CLOSED。
+
+## 實機驗收（2026-10-04 21:15 UTC+8）— CLOSED
+
+- **受測版本**：已安裝 BAT 本機 build `0.5.9-pre.4`（`app.asar` SHA-256 與 `release\win-unpacked` 一致，`518EE6CB…`，L127）
+- **環境**：Windows 11、WSL 2.7.13、塔台新建 `Ubuntu-24.04`（systemd 啟用，使用者 `gower`）
+- **結果**：WSL 精靈第 1-4 步 ✓，**第 4 步「安裝 BAT 伺服器套件」通過**（server bundle 自動取得並解壓），即本 BUG 的驗收標準
+- **後續**：第 5 步「寫入 systemd 使用者服務」失敗為另案 → **BUG-087**（linger / unit 檔 `~` / 回滾）；第 1 步無發行版誤報 → **BUG-086**。兩者由 T0378 修復（D126）
+- **結論**：下載流程 runtime lane 通過 → CLOSED（使用者裁決）
