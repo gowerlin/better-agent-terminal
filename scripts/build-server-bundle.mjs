@@ -29,7 +29,6 @@ const stagingRoot = path.join(distRoot, 'staging')
 const binDir = path.join(stagingRoot, 'bin')
 const nodeModulesDir = path.join(stagingRoot, 'node_modules')
 const remoteDir = path.join(stagingRoot, 'electron', 'remote')
-const handlersDir = path.join(stagingRoot, 'handlers')
 const VALID_TARGETS = ['linux-x64', 'linux-arm64', 'darwin-arm64']
 const TARGET_CONFIG = {
   'linux-x64': {
@@ -187,7 +186,6 @@ async function prepareDirs() {
   ensureDir(binDir)
   ensureDir(nodeModulesDir)
   ensureDir(remoteDir)
-  ensureDir(handlersDir)
   await removePath(bundlePath)
 }
 
@@ -359,12 +357,11 @@ async function copyServerSources() {
   log('5', 'Copying server source directories into staging')
   await copyRecursive(resolveProjectPath('electron', 'remote'), remoteDir)
   await copyFile(resolveProjectPath('scripts', 'bat-server.mjs'), path.join(binDir, 'bat-server.mjs'))
-  const handlersSource = resolveProjectPath('electron', 'handlers')
-  if (existsAndIsDirectory(handlersSource)) {
-    await copyRecursive(handlersSource, handlersDir)
-    return { handlersCopied: true }
-  }
-  return { handlersCopied: false }
+  // T0388 (PLAN-036): no separate electron/handlers/ copy. Shared handler
+  // modules reach the bundle through esbuild's import graph
+  // (headless-entry.ts → electron/handlers/*), like every other dependency.
+  // The old copy step silently skipped a missing directory, which hid that
+  // headless had no handlers at all (BUG-094).
 }
 
 async function writeLauncherAndReadme(nodeVersion) {
@@ -424,7 +421,7 @@ async function main() {
   const { nodeVersion, source } = await provisionNodeBinary()
   const copyResults = await copyNativeModules()
   await pruneAnthropicPackages()
-  const { handlersCopied } = await copyServerSources()
+  await copyServerSources()
   await writeLauncherAndReadme(nodeVersion)
   const { sha256 } = await packBundle(nodeVersion)
 
@@ -434,7 +431,6 @@ async function main() {
     target,
     nodeVersion,
     nodeSource: source,
-    handlersCopied,
     skippedPackages,
     sha256,
   }

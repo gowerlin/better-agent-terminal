@@ -1,6 +1,9 @@
 import { createHash, randomBytes } from 'crypto'
 import * as fs from 'fs'
+import * as os from 'os'
 import * as path from 'path'
+import type { HandlerModule, HandlerRegistrar, HostDeps } from '../handlers/types'
+import { broadcastHub } from './broadcast-hub'
 import {
   FileCertificateProvider,
   type CertificateProvider,
@@ -18,9 +21,37 @@ import {
   writeSecretFile,
 } from './secrets'
 import { acquireLock, releaseLock } from './lockfile'
-import { createHeadlessDefaultHandlers, type HeadlessHandlerRegistration } from './headless-handlers'
+import {
+  createHeadlessDefaultHandlers,
+  readHeadlessSettings,
+  type HeadlessHandlerRegistration,
+} from './headless-handlers'
 
 export type { HeadlessHandlerRegistration }
+
+/**
+ * PLAN-036 / D129 (T0388): shared domain modules (`electron/handlers/*.ts`)
+ * headless bat-server registers — the same modules Electron main registers
+ * with its own deps. Empty until T0390 (`pty:*`). A module going online here
+ * must delete its channels from `HEADLESS_UNSUPPORTED`
+ * (headless-channel-status.ts) in the same commit, or the parity test fails.
+ */
+export const HEADLESS_HANDLER_MODULES: readonly HandlerModule[] = []
+
+/**
+ * Headless side of `HostDeps`: events go to connected remote clients only
+ * (broadcastHub → RemoteServer → PROXIED_EVENTS filter); no helper dir, no
+ * desktop notifier, no settings side effects, no fs path guard yet (fs
+ * handlers fail closed until `workspace:sync-roots`, T0386 §4).
+ */
+export function createHeadlessHostDeps(dataDir: string): HostDeps {
+  return {
+    emit: (channel, ...args) => broadcastHub.broadcast(channel, ...args),
+    dataDir,
+    homeDir: os.homedir(),
+    getSettings: () => readHeadlessSettings(dataDir),
+  }
+}
 
 export interface HeadlessServerOptions {
   dataDir: string
@@ -98,8 +129,17 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   remoteServer.configDir = opts.dataDir
 
   // T0385: built-ins first so caller-supplied handlers can override them.
-  for (const registration of [...createHeadlessDefaultHandlers({ dataDir: opts.dataDir }), ...(opts.handlers ?? [])]) {
-    registerHandler(registration.channel, registration.handler)
+  // T0388: shared domain modules sit between the two.
+  const register: HandlerRegistrar = registerHandler
+  for (const registration of createHeadlessDefaultHandlers({ dataDir: opts.dataDir })) {
+    register(registration.channel, registration.handler)
+  }
+  const hostDeps = createHeadlessHostDeps(opts.dataDir)
+  for (const registerModule of HEADLESS_HANDLER_MODULES) {
+    registerModule(register, hostDeps)
+  }
+  for (const registration of opts.handlers ?? []) {
+    register(registration.channel, registration.handler)
   }
 
   let lockHeld = false

@@ -15,6 +15,7 @@
  *
  * Must stay free of `electron` imports — this runs under plain node.
  */
+import { readFileSync } from 'fs'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import type { HandlerContext } from './handler-registry'
@@ -29,8 +30,26 @@ export interface HeadlessDefaultHandlerOptions {
   dataDir: string
 }
 
+export function headlessSettingsPath(dataDir: string): string {
+  return path.join(dataDir, 'settings.json')
+}
+
+/**
+ * T0388: parsed `<dataDir>/settings.json` for `HostDeps.getSettings` — the
+ * same file `settings:load` / `settings:save` below read and write. `{}` when
+ * missing, unreadable or not a JSON object.
+ */
+export function readHeadlessSettings(dataDir: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(headlessSettingsPath(dataDir), 'utf-8'))
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
+  } catch {
+    return {}
+  }
+}
+
 export function createHeadlessDefaultHandlers(opts: HeadlessDefaultHandlerOptions): HeadlessHandlerRegistration[] {
-  const settingsPath = path.join(opts.dataDir, 'settings.json')
+  const settingsPath = headlessSettingsPath(opts.dataDir)
 
   return [
     // ── Profile (no profile store on headless) ──
