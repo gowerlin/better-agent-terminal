@@ -25,6 +25,7 @@ affects_files:
   - src/types/electron.d.ts
   - src/components/setup-wizard/steps/wsl/install-server-bundle.ts
   - src/components/setup-wizard/steps/wsl/connect-test.ts
+  - src/components/setup-wizard/steps/wsl/fetch-fingerprint.ts
   - src/locales/
   - electron/__tests__/
   - src/components/setup-wizard/__tests__/
@@ -58,11 +59,12 @@ memory_overrides:
    - `unknown`：不顯示或顯示中性說明（Worker 決定，寫回報區）
 4. 順手查 BUG-089 附帶 UX：右側面板「目前步驟...」佔位字。若是單純 i18n key / 佔位字問題且改動 ≤ 10 行，一併修（`affects_files` 外的檔案須在回報區列出）；否則寫回報區留給 Phase 2
 5. 不在本單：自動改 `.wslconfig`（Phase 2）
+6. **附帶（T0382 殘留）**：`steps/wsl/fetch-fingerprint.ts:57` 的 `ctx.serverPort ?? 9876` 改成跟 connect-test / write-profile 一樣不 fallback（未解析時明確報錯）；9876 正是主機 RemoteServer 埠，fallback 會連到主機 BAT 自己。補一個對應 unit test
 
 ## 驗收
 
 - unit：`wslinfo` 輸出解析（UTF-16 / 換行 / 未知值 / 指令不存在）；`.wslconfig` 解析（大小寫、缺檔、無 `[wsl2]`、註解）；警告選擇的 declared/actual 組合
-- `npm run test:unit` 全綠（基線 **822**；回報新數字）
+- `npm run test:unit` 全綠（基線 **853**；回報新數字）
 - `npx vite build` exit 0
 - `npx tsc --noEmit` error 數不得高於 baseline **40**
 - **本機 runtime**：對 `Ubuntu-24.04` 呼叫新 `detectNetworkMode` → `{ actual: 'mirrored', declared: 'mirrored' }`（會啟動發行版，唯讀即可）
