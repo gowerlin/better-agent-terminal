@@ -94,14 +94,21 @@ export const detectEnvStep: WizardStep = {
       throw new Error('WSL setup is only available from the Windows BAT client.')
     }
 
+    let result: Awaited<ReturnType<typeof window.electronAPI.wsl.list>> | undefined
     try {
-      await window.electronAPI.wsl.list()
+      result = await window.electronAPI.wsl.list()
     } catch (error) {
       throw new Error(
         `Unable to detect WSL. Install WSL2 first, then retry. ${error instanceof Error ? error.message : String(error)}`,
       )
     }
 
-    ctx.logger.info('WSL environment detected.')
+    // T0378 (BUG-086): an empty list means WSL is installed but no distro is
+    // registered yet; pick-wsl-distro surfaces the install-a-distro guidance.
+    ctx.logger.info(
+      result?.distros?.length === 0
+        ? 'WSL detected, but no distro is registered yet.'
+        : 'WSL environment detected.',
+    )
   },
 }

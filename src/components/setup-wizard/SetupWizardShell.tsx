@@ -78,10 +78,16 @@ function useSetupWizardController(targetOS: WizardTargetOS, onComplete: (profile
     close()
   }
 
+  // T0378 (BUG-087 C): `steps` MUST keep a stable identity. SetupWizardShell's
+  // runner effect depends on it, so a fresh array on every host re-render used
+  // to cancel the live runner (-> rollback of completed steps, e.g. the
+  // installed server bundle being rm -rf'd) and silently restart the wizard.
+  const steps = useMemo(() => resolveWizardSteps(targetOS), [targetOS])
+
   return {
     isOpen,
     key: instanceKey,
-    steps: resolveWizardSteps(targetOS),
+    steps,
     ctx,
     open,
     close,
@@ -390,18 +396,27 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       }),
     }
 
-    const runner = new WizardRunner(steps, runnerCtx, setStepStates)
+    // T0378 (BUG-087 C): once this effect is torn down the runner is cancelled
+    // and rolls back; its snapshots must not overwrite a newer runner's UI.
+    let disposed = false
+    const runner = new WizardRunner(steps, runnerCtx, (snapshots) => {
+      if (!disposed) setStepStates(snapshots)
+    })
     runnerRef.current = runner
     void runner.run()
       .then(() => {
+        if (disposed) return
         setComplete(true)
         if (runnerCtx.createdProfileId) {
           onComplete?.(runnerCtx.createdProfileId)
         }
       })
-      .catch((error) => setWizardError(error instanceof Error ? error.message : String(error)))
+      .catch((error) => {
+        if (!disposed) setWizardError(error instanceof Error ? error.message : String(error))
+      })
 
     return () => {
+      disposed = true
       void runner.cancel()
       runnerRef.current = null
     }

@@ -15,6 +15,7 @@
  * See spec: _ct-workorders/_spec-wizard-error-ux.md § 3 + § 5.
  */
 
+import i18next from 'i18next'
 import type { WizardTargetOS } from './wizard-runner'
 
 /**
@@ -141,8 +142,21 @@ const MESSAGE_DICT: Record<string, MessageDictEntry> = {
   },
 }
 
+/**
+ * T0378 (BUG-086): entries whose messageKey is an i18n key (`<key>.title` /
+ * `<key>.body` present in src/locales/*.json) resolve through i18next so they
+ * follow the UI language. Legacy keys keep using the zh-TW MESSAGE_DICT.
+ */
 function lookupMessage(key: string): MessageDictEntry {
-  return MESSAGE_DICT[key] ?? MESSAGE_DICT.fallback
+  const dict = MESSAGE_DICT[key]
+  if (dict) return dict
+  if (i18next.isInitialized && i18next.exists(`${key}.title`)) {
+    return {
+      title: i18next.t(`${key}.title`),
+      body: i18next.exists(`${key}.body`) ? i18next.t(`${key}.body`) : '',
+    }
+  }
+  return MESSAGE_DICT.fallback
 }
 
 function platformMatches(
@@ -352,6 +366,22 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       { kind: 'open-link', label: '安裝 WSL2 指南', href: 'https://learn.microsoft.com/en-us/windows/wsl/install' },
       { kind: 'fixed-and-retry', label: '我已安裝 WSL2，重試' },
       { kind: 'cancel', label: '取消' },
+    ],
+  },
+  // T0378 (BUG-086): WSL is installed but no distro is registered yet
+  // (`wsl -l -v` exits non-zero while `wsl --status` exits 0). Guide the user
+  // to install a distro instead of reinstalling WSL. i18n-backed message.
+  {
+    id: 'wsl-no-distro',
+    platforms: ['wsl'],
+    stepIds: ['pick-wsl-distro'],
+    errorCodes: ['wsl-no-distro'],
+    patterns: [/No WSL distros found/i],
+    messageKey: 'wizard.wsl.error.noDistro',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'fixed-and-retry' },
+      { kind: 'cancel' },
     ],
   },
 ]

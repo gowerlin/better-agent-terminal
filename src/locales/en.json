@@ -697,6 +697,12 @@
           "label": "Write systemd user service",
           "description": "Install and enable the bat-server systemd user unit."
         }
+      },
+      "error": {
+        "noDistro": {
+          "title": "No WSL distro installed",
+          "body": "WSL is installed, but no Linux distro is registered yet. In PowerShell run `wsl --install -d Ubuntu-24.04` (or `wsl --list --online` to see other distros), finish the first-run user setup, then retry."
+        }
       }
     },
     "docker": {

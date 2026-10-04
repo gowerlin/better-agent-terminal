@@ -19,7 +19,13 @@ export const pickWslDistroStep: WizardStep = {
     const v2Distros = result.distros.filter((distro) => distro.version === 2)
     if (v2Distros.length === 0) {
       if (result.distros.length === 0) {
-        throw new Error('No WSL distros found. Run `wsl --install -d Ubuntu` first.')
+        // T0378 (BUG-086): WSL itself is installed (wsl-detect returns an empty
+        // list instead of throwing) — map to the dedicated no-distro guidance.
+        const err = new Error(
+          'No WSL distros found. Run `wsl --install -d Ubuntu-24.04` first (see `wsl --list --online` for other distros).',
+        ) as Error & { code?: string }
+        err.code = 'wsl-no-distro'
+        throw err
       }
       const warning = 'BAT only supports WSL2. Run `wsl --set-version <distro> 2` before continuing.'
       if (!ctx.warnings.includes(warning)) {
@@ -27,6 +33,9 @@ export const pickWslDistroStep: WizardStep = {
       }
       throw new Error('BAT requires WSL2. Upgrade an existing distro to version 2 and retry.')
     }
+
+    // T0378: the cached $HOME belongs to the previously picked distro.
+    ctx.wslHome = undefined
 
     if (v2Distros.length === 1) {
       ctx.wslDistro = v2Distros[0].name
@@ -54,5 +63,6 @@ export const pickWslDistroStep: WizardStep = {
   },
   async rollback(ctx) {
     ctx.wslDistro = undefined
+    ctx.wslHome = undefined
   },
 }

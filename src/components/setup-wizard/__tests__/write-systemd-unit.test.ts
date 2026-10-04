@@ -44,6 +44,8 @@ beforeEach(() => {
   ;(globalThis as unknown as { window: unknown }).window = {
     electronAPI: {
       platform: 'win32',
+      // T0378: write-systemd-unit resolves the distro $HOME for absolute paths.
+      wsl: { resolveHome: vi.fn(async () => '/home/tester') },
       wslSystemd: {
         writeUnit: writeUnitMock,
         enableLinger: enableLingerMock,

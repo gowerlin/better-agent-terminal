@@ -26,6 +26,10 @@ const DEFAULT_DATA_DIR = '~/.local/share/bat-server'
 const DEFAULT_UNIT_PATH = '~/.config/systemd/user/bat-server.service'
 const STATUS_TIMEOUT_MS = 10_000
 const STATUS_POLL_MS = 500
+const PROBE_TIMEOUT_MS = 15_000
+// CLAUDE.md Child Process Spawning whitelist — applied to the WSL user name
+// before it is passed to loginctl (T0378, BUG-087 A).
+const UNIX_USER_PATTERN = /^[a-zA-Z0-9._-]+$/
 
 export function setExecFileImplForTests(execFile: (...args: any[]) => unknown): void {
   execFileImpl = execFile
@@ -51,7 +55,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function execFileBuffered(file: string, args: string[]): Promise<ExecResult> {
+function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number }): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     execFileImpl(
       file,
@@ -60,6 +64,7 @@ function execFileBuffered(file: string, args: string[]): Promise<ExecResult> {
         encoding: 'buffer',
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
+        ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
       },
       (error: Error | null, stdout: Buffer | string, stderr: Buffer | string) => {
         const out = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout ?? '')
@@ -76,10 +81,14 @@ function execFileBuffered(file: string, args: string[]): Promise<ExecResult> {
   })
 }
 
-async function runWsl(distro: string, command: string[], options?: { allowFailure?: boolean }): Promise<ExecResult> {
+async function runWsl(
+  distro: string,
+  command: string[],
+  options?: { allowFailure?: boolean; timeoutMs?: number },
+): Promise<ExecResult> {
   assertValidDistro(distro)
   try {
-    return await execFileBuffered('wsl', ['-d', distro, '--', ...command])
+    return await execFileBuffered('wsl', ['-d', distro, '--', ...command], { timeoutMs: options?.timeoutMs })
   } catch (error) {
     if (options?.allowFailure) {
       const execError = error as Error & { stdout?: Buffer; stderr?: Buffer }
@@ -120,7 +129,14 @@ export function renderSystemdUnit(opts: {
   description?: string
   environment?: Record<string, string>
 }): string {
-  assertValidUnixPath(opts.execStart, true)
+  // T0378 (BUG-087 B): systemd does not expand `~` — ExecStart must be an
+  // absolute path, and no Environment value may rely on tilde expansion.
+  assertValidUnixPath(opts.execStart, false)
+  for (const [key, value] of Object.entries(opts.environment ?? {})) {
+    if (value.startsWith('~')) {
+      throw new Error(`systemd does not expand "~"; use an absolute path for ${key}: ${value}`)
+    }
+  }
 
   const environmentLines = Object.entries(opts.environment ?? {})
     .map(([key, value]) => `Environment=${escapeSystemdValue(`${key}=${value}`)}`)
@@ -164,7 +180,8 @@ export async function writeUnit(
     environment: unit.environment,
   })
 
-  await runWsl(distro, ['mkdir', '-p', '~/.config/systemd/user'])
+  const unitDir = unitPath.slice(0, unitPath.lastIndexOf('/')) || '/'
+  await runWsl(distro, ['mkdir', '-p', unitDir])
 
   await new Promise<void>((resolve, reject) => {
     const child = spawnImpl('wsl', ['-d', distro, '--', 'tee', unitPath], {
@@ -188,15 +205,56 @@ export async function writeUnit(
   return { ok: true }
 }
 
+/** T0378 (BUG-087 A): default user of the distro (`id -un`), whitelisted. */
+export async function resolveDistroUser(distro: string): Promise<string> {
+  assertValidDistro(distro)
+  const result = await runWsl(distro, ['id', '-un'], { timeoutMs: PROBE_TIMEOUT_MS })
+  const user = result.stdout.toString('utf8').trim()
+  if (!UNIX_USER_PATTERN.test(user)) {
+    throw new Error(`Invalid WSL user name: ${JSON.stringify(user)}`)
+  }
+  return user
+}
+
+async function isLingerEnabled(distro: string, user: string): Promise<boolean> {
+  const result = await runWsl(distro, ['loginctl', 'show-user', user, '-p', 'Linger'], {
+    allowFailure: true,
+    timeoutMs: PROBE_TIMEOUT_MS,
+  })
+  return /^Linger=yes\s*$/m.test(result.stdout.toString('utf8'))
+}
+
+/**
+ * T0378 (BUG-087 A): `wsl -d X -- loginctl enable-linger` without a user name
+ * fails with ENXIO because `wsl --` is not a logind session, so name the user
+ * explicitly (polkit allows enabling linger for yourself without sudo).
+ * loginctl's exit code is unreliable on that error path, so success is judged
+ * only by `loginctl show-user <user> -p Linger` reporting `Linger=yes`.
+ */
 export async function enableLinger(distro: string): Promise<{ ok: boolean; error?: string }> {
   assertValidDistro(distro)
-  const result = await runWsl(distro, ['loginctl', 'enable-linger'], { allowFailure: true })
+  let user: string
+  try {
+    user = await resolveDistroUser(distro)
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+
+  if (await isLingerEnabled(distro, user)) {
+    return { ok: true }
+  }
+
+  const result = await runWsl(distro, ['loginctl', 'enable-linger', user], {
+    allowFailure: true,
+    timeoutMs: PROBE_TIMEOUT_MS,
+  })
+  if (await isLingerEnabled(distro, user)) {
+    return { ok: true }
+  }
+
   const stderr = result.stderr.toString('utf8').trim()
   const stdout = result.stdout.toString('utf8').trim()
-  if (stderr || stdout.toLowerCase().includes('failed')) {
-    return { ok: false, error: stderr || stdout }
-  }
-  return { ok: true }
+  return { ok: false, error: stderr || stdout || `Linger is still disabled for ${user}` }
 }
 
 export async function startService(

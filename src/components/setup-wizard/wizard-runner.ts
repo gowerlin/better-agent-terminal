@@ -63,6 +63,8 @@ export interface WizardContext {
   availableDistros?: Array<{ name: string; version: 1 | 2; state: 'Running' | 'Stopped' }>
   wslDistro?: string
   wslSystemdEnabled?: boolean
+  /** T0378 (BUG-087 B): absolute $HOME of the WSL distro user (systemd never expands `~`). */
+  wslHome?: string
   serverInstallPath?: string
   serverPort?: number
   remoteToken?: string

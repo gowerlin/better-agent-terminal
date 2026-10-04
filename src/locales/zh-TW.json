@@ -697,6 +697,12 @@
           "label": "寫入 systemd 使用者服務",
           "description": "安裝並啟用 bat-server systemd user unit。"
         }
+      },
+      "error": {
+        "noDistro": {
+          "title": "尚未安裝 WSL 發行版",
+          "body": "WSL 已安裝，但尚未註冊任何 Linux 發行版。請在 PowerShell 執行 `wsl --install -d Ubuntu-24.04`（可用 `wsl --list --online` 查看其他發行版），完成首次啟動的使用者設定後重試。"
+        }
       }
     },
     "docker": {

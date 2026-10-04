@@ -3506,6 +3506,8 @@ function registerLocalHandlers() {
   ipcMain.handle('wsl:list', () => wslDetect.list())
   ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
   ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))
+  // T0378 (BUG-087 B): absolute $HOME so the systemd unit never contains `~`.
+  ipcMain.handle('wsl:resolve-home', (_event, distro: string) => wslDetect.resolveHome(distro))
   ipcMain.handle('wsl:install-bundle', (_event, distro: string, tarballPath: string, installPath: string) =>
     wslDetect.installBundle(distro, tarballPath, installPath))
   ipcMain.handle('wsl:uninstall-bundle', async (_event, distro: string, installPath: string) => {

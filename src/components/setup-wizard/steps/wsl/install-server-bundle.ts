@@ -1,6 +1,21 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
 
-const INSTALL_PATH = '~/.local/bat-server'
+const INSTALL_SUBDIR = '.local/bat-server'
+
+/**
+ * T0378 (BUG-087 B): the install path ends up verbatim in the systemd unit's
+ * ExecStart, and systemd does not expand `~` — resolve the distro user's
+ * absolute $HOME once and cache it on ctx for later steps.
+ */
+export async function resolveWslHome(ctx: WizardContext, distro: string): Promise<string> {
+  if (ctx.wslHome) return ctx.wslHome
+  const home = await window.electronAPI.wsl.resolveHome(distro)
+  if (typeof home !== 'string' || !home.startsWith('/') || home.includes('~')) {
+    throw new Error(`Unable to resolve the home directory of the WSL user (got ${JSON.stringify(home)}).`)
+  }
+  ctx.wslHome = home
+  return home
+}
 
 function pushWarning(ctx: WizardContext, warning: string): void {
   if (!ctx.warnings.includes(warning)) {
@@ -32,6 +47,9 @@ export const installServerBundleStep: WizardStep = {
     if (!ctx.wslDistro) {
       throw new Error('Select a WSL distro before installing the server bundle.')
     }
+
+    // Resolve before downloading so a broken distro user fails fast.
+    const installPath = `${await resolveWslHome(ctx, ctx.wslDistro)}/${INSTALL_SUBDIR}`
 
     // PLAN-031 T0321 — delegate tarball lookup to T0320 distributor.
     // Profile is not yet persisted at this stage of the wizard (write-profile
@@ -70,13 +88,13 @@ export const installServerBundleStep: WizardStep = {
     const tarballPath = result.tarballPath
     ctx.logger.info(`${describeSource(result.source)}: ${tarballPath}`)
 
-    const installResult = await window.electronAPI.wsl.installBundle(ctx.wslDistro, tarballPath, INSTALL_PATH)
+    const installResult = await window.electronAPI.wsl.installBundle(ctx.wslDistro, tarballPath, installPath)
 
     if (!installResult.ok) {
       throw new Error(installResult.error)
     }
 
-    ctx.serverInstallPath = INSTALL_PATH
+    ctx.serverInstallPath = installPath
     ctx.state.bundleTarballPath = tarballPath
     ctx.state.bundleSha256Verified = true
     ctx.state.bundleSource = result.source

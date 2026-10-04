@@ -1,8 +1,38 @@
-import type { WizardStep } from '../../wizard-runner'
+import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { resolveWslHome } from './install-server-bundle'
 
 const SERVICE_NAME = 'bat-server.service'
-const DATA_DIR = '~/.local/share/bat-server'
-const UNIT_PATH = '~/.config/systemd/user/bat-server.service'
+// T0378 (BUG-087 B): relative to the distro user's absolute $HOME. systemd
+// never expands `~`, so ExecStart / Environment must be absolute paths.
+const DATA_SUBDIR = '.local/share/bat-server'
+const UNIT_SUBPATH = '.config/systemd/user/bat-server.service'
+const LEGACY_UNIT_PATH = '~/.config/systemd/user/bat-server.service'
+
+export interface WslServicePaths {
+  dataDir: string
+  unitPath: string
+}
+
+export function buildWslServicePaths(home: string): WslServicePaths {
+  if (!home.startsWith('/') || home.includes('~')) {
+    throw new Error(`Expected an absolute home directory, got ${JSON.stringify(home)}`)
+  }
+  const base = home.replace(/\/+$/, '')
+  return {
+    dataDir: `${base}/${DATA_SUBDIR}`,
+    unitPath: `${base}/${UNIT_SUBPATH}`,
+  }
+}
+
+function assertAbsoluteInstallPath(ctx: WizardContext): string {
+  const installPath = ctx.serverInstallPath ?? ''
+  if (!installPath.startsWith('/')) {
+    // A `~/...` path here means install-server-bundle did not run with the
+    // T0378 home resolution (e.g. ctx default) — systemd would reject it.
+    throw new Error(`BAT server install path must be absolute for systemd, got ${JSON.stringify(installPath)}. Re-run the install step.`)
+  }
+  return installPath
+}
 
 function profileName(ctxName: unknown): string {
   return typeof ctxName === 'string' && ctxName.trim() ? ctxName.trim() : 'WSL BAT Server'
@@ -35,16 +65,18 @@ export const writeSystemdUnitStep: WizardStep = {
       return
     }
 
-    const execStart = `${ctx.serverInstallPath}/bin/bat-server`
+    const installPath = assertAbsoluteInstallPath(ctx)
+    const { dataDir, unitPath } = buildWslServicePaths(await resolveWslHome(ctx, ctx.wslDistro))
+    const execStart = `${installPath}/bin/bat-server`
     const writeResult = await window.electronAPI.wslSystemd.writeUnit(ctx.wslDistro, {
-      path: UNIT_PATH,
+      path: unitPath,
       execStart,
       description: `BAT headless server for ${profileName(ctx.profileDraft.name)}`,
       environment: {
         BAT_PORT: String(port),
         BAT_SERVER_PORT: String(port),
-        BAT_DATA_DIR: DATA_DIR,
-        BAT_SERVER_DATA_DIR: DATA_DIR,
+        BAT_DATA_DIR: dataDir,
+        BAT_SERVER_DATA_DIR: dataDir,
       },
     })
 
@@ -68,7 +100,7 @@ export const writeSystemdUnitStep: WizardStep = {
     }
 
     const startResult = await window.electronAPI.wslSystemd.startService(ctx.wslDistro, SERVICE_NAME, {
-      dataDir: DATA_DIR,
+      dataDir,
     })
     if (!startResult.ok) {
       // T0337 (BUG-072): structured errorCode so ErrorMapper Stage 1 distinguishes
@@ -91,7 +123,8 @@ export const writeSystemdUnitStep: WizardStep = {
     if (!ctx.wslDistro) {
       return
     }
-    await window.electronAPI.wslSystemd.removeUnit(ctx.wslDistro, SERVICE_NAME, { path: UNIT_PATH })
+    const unitPath = ctx.wslHome ? buildWslServicePaths(ctx.wslHome).unitPath : LEGACY_UNIT_PATH
+    await window.electronAPI.wslSystemd.removeUnit(ctx.wslDistro, SERVICE_NAME, { path: unitPath })
     ctx.systemdServiceActive = false
   },
 }

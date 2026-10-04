@@ -26,7 +26,13 @@ export function resetExecFileImplForTests(): void {
   execFileImpl = childProcess.execFile
 }
 
-function execFileBuffered(file: string, args: string[]): Promise<ExecResult> {
+// T0378: bounded probes (WSL cold start of a stopped distro can take seconds).
+const PROBE_TIMEOUT_MS = 15_000
+// T0378 (BUG-087 B): the distro user's $HOME must be a plain absolute path so
+// it can be written verbatim into the systemd unit (systemd never expands `~`).
+const HOME_PATH_PATTERN = /^\/[A-Za-z0-9._/-]*$/
+
+function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number }): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     execFileImpl(
       file,
@@ -35,6 +41,7 @@ function execFileBuffered(file: string, args: string[]): Promise<ExecResult> {
         encoding: 'buffer',
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
+        ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
       },
       (error: Error | null, stdout: Buffer | string, stderr: Buffer | string) => {
         const out = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout ?? '')
@@ -118,10 +125,14 @@ export function validateWindowsAbsolutePath(filePath: string): string {
   return filePath
 }
 
-async function runWsl(distro: string, command: string[], options?: { allowFailure?: boolean }): Promise<ExecResult> {
+async function runWsl(
+  distro: string,
+  command: string[],
+  options?: { allowFailure?: boolean; timeoutMs?: number },
+): Promise<ExecResult> {
   const validatedDistro = validateDistroName(distro)
   try {
-    return await execFileBuffered('wsl', ['-d', validatedDistro, '--', ...command])
+    return await execFileBuffered('wsl', ['-d', validatedDistro, '--', ...command], { timeoutMs: options?.timeoutMs })
   } catch (error) {
     if (options?.allowFailure) {
       const execError = error as Error & { stdout?: Buffer; stderr?: Buffer }
@@ -134,9 +145,59 @@ async function runWsl(distro: string, command: string[], options?: { allowFailur
   }
 }
 
+async function exitsZero(args: string[]): Promise<boolean> {
+  try {
+    await execFileBuffered('wsl', args, { timeoutMs: PROBE_TIMEOUT_MS })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * T0378 (BUG-086): `wsl -l -v` exits non-zero both when WSL is missing and
+ * when WSL is installed but no distro is registered yet. Tell the two apart by
+ * exit code only — wsl.exe output is UTF-16LE and localized, so never match
+ * its text. Either `wsl --status` or `wsl --version` exiting 0 means WSL
+ * itself is present.
+ */
+export async function isWslInstalled(): Promise<boolean> {
+  if (await exitsZero(['--status'])) return true
+  return exitsZero(['--version'])
+}
+
+/**
+ * Three states:
+ *  - WSL missing                      -> throws (original `wsl -l -v` error)
+ *  - WSL installed, no distro         -> `{ distros: [], default: null }`
+ *  - WSL installed with distro(s)     -> parsed list
+ */
 export async function list(): Promise<{ distros: WslDistro[]; default: string | null }> {
-  const { stdout } = await execFileBuffered('wsl', ['-l', '-v'])
-  return parseWslListOutput(stdout)
+  try {
+    const { stdout } = await execFileBuffered('wsl', ['-l', '-v'])
+    return parseWslListOutput(stdout)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && await isWslInstalled()) {
+      return { distros: [], default: null }
+    }
+    throw error
+  }
+}
+
+/**
+ * T0378 (BUG-087 B): absolute $HOME of the distro's default user, e.g.
+ * `/home/gower`. Fixed command, no interpolated input.
+ */
+export async function resolveHome(distro: string): Promise<string> {
+  const validatedDistro = validateDistroName(distro)
+  const { stdout } = await runWsl(validatedDistro, ['printenv', 'HOME'], { timeoutMs: PROBE_TIMEOUT_MS })
+  const home = normalizeTextOutput(stdout).replace(/\/+$/, '')
+  if (!home || !HOME_PATH_PATTERN.test(home) || home.includes('..')) {
+    throw new Error(`Unable to resolve an absolute home directory in WSL distro ${validatedDistro}: ${JSON.stringify(home)}`)
+  }
+  assertValidUnixPath(home, false)
+  return home
 }
 
 export async function systemdEnabled(distro: string): Promise<boolean> {
