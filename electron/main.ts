@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage, crashReporter, Notification } from 'electron'
 import path from 'path'
+import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { execFileSync, spawnSync, fork } from 'child_process'
@@ -103,6 +104,7 @@ import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFi
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { getWindowsElevation } from './windows-elevation'
+import { decideNavigation, decideWindowOpen, urlSchemeForLog } from './navigation-guard'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import {
@@ -998,17 +1000,20 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
     win.loadFile(path.join(__dirname, '../dist/index.html'), { search: urlParam })
   }
 
-  // Open all external links in the system browser, never inside Electron
+  // Open http(s) links in the system browser, never inside Electron. Any other
+  // scheme (file: → ShellExecute would run a .bat / .exe) is dropped (T0457).
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    if (decideWindowOpen(url) === 'open-external') shell.openExternal(url)
+    else logger.warn(`[window-open] blocked ${urlSchemeForLog(url)} URL`)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {
-    const appUrl = VITE_DEV_SERVER_URL || `file://${path.join(__dirname, '../dist/index.html')}`
-    if (!url.startsWith(appUrl.split('?')[0])) {
-      event.preventDefault()
-      shell.openExternal(url)
-    }
+    const appUrl = VITE_DEV_SERVER_URL || pathToFileURL(path.join(__dirname, '../dist/index.html')).href
+    const decision = decideNavigation(url, appUrl)
+    if (decision === 'allow') return
+    event.preventDefault()
+    if (decision === 'open-external') shell.openExternal(url)
+    else logger.warn(`[will-navigate] blocked ${urlSchemeForLog(url)} URL`)
   })
 
   setupResizeThrottle(win, `window-${windowId.slice(0, 12)}`)
