@@ -8,6 +8,7 @@ import { registerTerminalCommandHandlers } from './terminal-command-handlers'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
 import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
+import { createRemoteToolInstallIpc, PendingRemoteToolInstalls } from '../src/lib/remote-tools/install-request'
 import { resolveGhBinary, type GhResolveResult } from './gh-resolver'
 
 // Fix PATH for GUI-launched apps on macOS.
@@ -3327,7 +3328,7 @@ function registerLocalHandlers() {
   })
 
   // Open profile windows (focus existing if already open, otherwise restore all from snapshot)
-  ipcMain.handle('app:open-new-instance', async (_event, profileId: string) => {
+  const openProfileWindows = async (profileId: string) => {
     const entries = await windowRegistry.readAll()
     const existingForProfile = entries.filter(e => e.profileId === profileId)
 
@@ -3376,6 +3377,30 @@ function registerLocalHandlers() {
     const entry = await windowRegistry.createEntry({ profileId })
     createWindow(entry.id)
     return { alreadyOpen: false, windowIds: [entry.id] }
+  }
+  ipcMain.handle('app:open-new-instance', async (_event, profileId: string) => openProfileWindows(profileId))
+
+  // PLAN-037 T0412 — cross-window remote-tool install (both local-only). A local window
+  // (wizard / ProfileCard) parks { profileId, toolId, kind } and the profile's window is
+  // opened or focused; only a connected window bound to that profile can take it (taking
+  // deletes it), then rebuilds the command from its own detection and runs it in a tab.
+  const pendingRemoteToolInstalls = new PendingRemoteToolInstalls()
+  const remoteToolInstallIpc = createRemoteToolInstallIpc(pendingRemoteToolInstalls, {
+    getProfile: id => profileManager.getProfile(id),
+    openProfileWindow: openProfileWindows,
+    notifyProfileWindows: (profileId) => {
+      for (const win of getWindowsForProfile(profileId)) win.webContents.send('remote-tools:install-pending')
+    },
+  })
+  ipcMain.handle('remote-tools:request-install', async (_event, request: unknown) =>
+    remoteToolInstallIpc.requestInstall(request))
+  ipcMain.handle('remote-tools:take-pending-install', async (event) => {
+    const senderWindowId = getWindowIdByWebContents(event.sender)
+    const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
+    const profileId = senderEntry?.profileId ?? null
+    // Same "is this window's remote connection live" rule as remote:client-status.
+    const connected = !!remoteClient?.isConnected && !!profileId && remoteClientProfileId === profileId
+    return remoteToolInstallIpc.takePendingInstall({ profileId, connected })
   })
 
   // Cross-window workspace move (re-index only, no session rebuild)

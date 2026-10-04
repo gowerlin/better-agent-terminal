@@ -13,7 +13,7 @@ import type {
   WhisperModelSize,
 } from '../src/types/voice'
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
-import type { RemoteToolsDetectResult } from '../src/types/remote-tools'
+import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from '../src/types/remote-tools'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -769,6 +769,18 @@ const electronAPI = {
     // on a bat-server before T0411 (see unsupportedRemoteChannel).
     detectHere: () =>
       ipcRenderer.invoke('remote-tools:detect') as Promise<RemoteToolsDetectResult>,
+    // T0412 — local-only cross-window install: main parks { profileId, toolId, kind } and opens /
+    // focuses the profile's window. No command string crosses windows.
+    requestInstall: (request: RemoteToolInstallRequest) =>
+      ipcRenderer.invoke('remote-tools:request-install', request) as Promise<RemoteToolInstallRequestResult>,
+    // T0412 — local-only: a connected window bound to the request's profile takes (and deletes) it.
+    takePendingInstall: () =>
+      ipcRenderer.invoke('remote-tools:take-pending-install') as Promise<{ toolId: RemoteToolId; kind: RemoteToolInstallKind } | null>,
+    onInstallPending: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('remote-tools:install-pending', handler)
+      return () => ipcRenderer.removeListener('remote-tools:install-pending', handler)
+    },
   },
   tunnel: {
     getConnection: () =>

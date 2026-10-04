@@ -121,6 +121,8 @@ export default function App() {
   const [showProfiles, setShowProfiles] = useState(false)
   const [activeProfileName, setActiveProfileName] = useState<string>('Default')
   const [isRemoteConnected, setIsRemoteConnected] = useState(false)
+  // T0412: profile + settings + workspaces loaded (initProfile done).
+  const [profileReady, setProfileReady] = useState(false)
   // T0393: remote profile this window is served by (null = local window). Its
   // targetOS decides the shell list; a WSL distro enables the /mnt/<drive> hint.
   const [windowRemoteTarget, setWindowRemoteTarget] = useState<{ targetOS?: string; wslDistro?: string } | null>(null)
@@ -133,8 +135,6 @@ export default function App() {
   // PLAN-027 #3 (T0232): Claude runtime degraded / version-warning toasts.
   const { messages: runtimeToastMessages, addToast: addRuntimeToast, dismissToast: dismissRuntimeToast } = useCtToast()
   useRuntimeToasts(addRuntimeToast)
-  // T0412 (PLAN-037 E): remote-tool installs run in this window's terminal tabs.
-  useRemoteToolInstall({ addToast: addRuntimeToast })
   // Docking system
   const [dockingConfig, setDockingConfig] = useState<DockingConfig>(loadDockingConfig)
   const [leftPanelTab, setLeftPanelTab] = useState<'workspaces' | DockablePanel>('workspaces')
@@ -161,6 +161,12 @@ export default function App() {
   const [panelSettings, setPanelSettings] = useState<PanelSettings>(loadPanelSettings)
   // Detached workspace support
   const [detachedWorkspaceId] = useState(() => window.electronAPI.workspace.getDetachedId())
+  // T0412 (PLAN-037 E): remote-tool installs run in this window's terminal tabs; parked
+  // cross-window requests are taken once this remote window is connected and loaded.
+  useRemoteToolInstall({
+    addToast: addRuntimeToast,
+    takePending: profileReady && isRemoteConnected && !detachedWorkspaceId,
+  })
   const [detachedIds, setDetachedIds] = useState<Set<string>>(new Set())
   // Track workspaces that have been visited (for lazy mounting)
   const [mountedWorkspaces, setMountedWorkspaces] = useState<Set<string>>(new Set())
@@ -602,6 +608,7 @@ export default function App() {
         const tWs = performance.now()
         await workspaceStore.load()
         dlog(`[init] workspaceStore.load: ${(performance.now() - tWs).toFixed(0)}ms`)
+        setProfileReady(true)
       } catch (e) {
         console.error('Failed to initialize profile:', e)
         // Ensure workspaces still load even if profile init fails
@@ -609,6 +616,7 @@ export default function App() {
         const savedLang = settingsStore.getSettings().language || 'en'
         if (i18next.language !== savedLang) i18next.changeLanguage(savedLang)
         await workspaceStore.load()
+        setProfileReady(true)
       }
       dlog(`[init] total initProfile: ${(performance.now() - t0).toFixed(0)}ms`)
       dlog(`[startup] app ready (initProfile done): +${Date.now() - htmlT0}ms from HTML`)

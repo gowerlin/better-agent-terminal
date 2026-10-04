@@ -8,7 +8,7 @@ import type {
   VoiceTranscribeResult,
   VoiceModelDownloadProgress,
 } from './voice'
-import type { RemoteToolsDetectResult } from './remote-tools'
+import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from './remote-tools'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
 // PLAN-007 T0268: targetOS schema (kept in sync with electron/profile-manager.ts)
@@ -170,6 +170,20 @@ interface ElectronAPI {
      * `No handler for channel: remote-tools:detect` on a bat-server before T0411.
      */
     detectHere: () => Promise<RemoteToolsDetectResult>
+    /**
+     * T0412 — local-only `remote-tools:request-install`. Validates (profileId whitelist, toolId ∈
+     * REMOTE_TOOL_IDS, kind install | update, remote profile), parks the request for that profile
+     * (a newer one replaces it) and opens / focuses the profile's window, which rebuilds the plan
+     * from its own `detectHere()` and runs it in a terminal tab. Only tool + kind are sent.
+     */
+    requestInstall: (request: RemoteToolInstallRequest) => Promise<RemoteToolInstallRequestResult>
+    /**
+     * T0412 — local-only `remote-tools:take-pending-install`: the parked request for this window's
+     * profile, removed on take; null unless this window is bound to that profile and connected.
+     */
+    takePendingInstall: () => Promise<{ toolId: RemoteToolId; kind: RemoteToolInstallKind } | null>
+    /** T0412 — main pings this profile's windows after `requestInstall`; call `takePendingInstall`. */
+    onInstallPending: (callback: () => void) => () => void
   }
   tunnel: {
     getConnection: () => Promise<{ url: string; token: string; fingerprint: string; mode: string; addresses: { ip: string; mode: string; label: string }[] } | { error: string }>

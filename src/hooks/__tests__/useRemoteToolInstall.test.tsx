@@ -49,13 +49,14 @@ interface Api {
 let api: Api
 let originalApi: unknown
 
-function emit(id: string, data: string) {
-  for (const cb of [...api.outputCbs]) cb(id, data)
+function emit(target: Api, id: string, data: string) {
+  for (const cb of [...target.outputCbs]) cb(id, data)
 }
 
 function installApi(detects: RemoteToolsDetectResult[], over: Partial<Pick<Api, 'shellPath' | 'home'>> = {}) {
   const queue = [...detects]
-  api = {
+  // Closures below use this test's `state`: a run left over from an earlier test cannot write into it.
+  const state: Api = api = {
     outputCbs: new Set(),
     creates: [],
     writes: [],
@@ -66,22 +67,22 @@ function installApi(detects: RemoteToolsDetectResult[], over: Partial<Pick<Api, 
     ...over,
   }
   ;(window as unknown as { electronAPI: unknown }).electronAPI = {
-    remoteTools: { detect: vi.fn(), detectHere: api.detectHere },
-    settings: { getShellPath: vi.fn(async () => api.shellPath) },
+    remoteTools: { detect: vi.fn(), detectHere: state.detectHere },
+    settings: { getShellPath: vi.fn(async () => state.shellPath) },
     workspace: { save: vi.fn(async () => undefined) },
     debug: { log: vi.fn() },
     pty: {
       create: vi.fn(async (opts: Record<string, unknown>) => {
-        api.creates.push(opts)
+        state.creates.push(opts)
         return { ok: true, created: true }
       }),
       write: vi.fn(async (id: string, data: string) => {
-        api.writes.push([id, data])
+        state.writes.push([id, data])
         const probe = /__BAT_HOME_%s__%s__END__\\n' '([0-9a-f]{16})'/.exec(data)
-        if (probe && api.home !== null) queueMicrotask(() => emit(id, `\r\n__BAT_HOME_${probe[1]}__${api.home}__END__\r\n`))
+        if (probe && state.home !== null) queueMicrotask(() => emit(state, id, `\r\n__BAT_HOME_${probe[1]}__${state.home}__END__\r\n`))
       }),
-      kill: vi.fn(async (id: string) => { api.kills.push(id); return true }),
-      onOutput: (cb: OutputCb) => { api.outputCbs.add(cb); return () => { api.outputCbs.delete(cb) } },
+      kill: vi.fn(async (id: string) => { state.kills.push(id); return true }),
+      onOutput: (cb: OutputCb) => { state.outputCbs.add(cb); return () => { state.outputCbs.delete(cb) } },
       onExit: () => () => undefined,
     },
   }
@@ -133,7 +134,7 @@ describe('useRemoteToolInstall — panel in this window (range 3)', () => {
     expect(api.creates[0]).toMatchObject({ id: termId, cwd: '/home/gower/proj', shell: '/bin/bash', workspaceId: ws.id })
     expect(workspaceStore.getState().focusedTerminalId).toBe(termId)
 
-    emit(termId, `\r\n__BAT_TOOL_DONE_${nonce}_0__\r\n`)
+    emit(api, termId, `\r\n__BAT_TOOL_DONE_${nonce}_0__\r\n`)
     await waitFor(() => expect(addToast).toHaveBeenCalledTimes(2))
     expect(addToast.mock.calls[0]).toEqual(['Claude Code is installed and detected.', 'success', 10_000])
     expect(addToast.mock.calls[1]).toEqual(['Terminal tabs that were already open must be reopened to see ~/.local/bin.', 'info', 10_000])
@@ -149,7 +150,7 @@ describe('useRemoteToolInstall — panel in this window (range 3)', () => {
     await waitFor(() => expect(installLine()).toBeDefined(), { timeout: 3000 })
     const [termId, line] = installLine()!
     const nonce = /' '([0-9a-f]{16})' "\$\?"/.exec(line)![1]
-    emit(termId, `__BAT_TOOL_DONE_${nonce}_0__`)
+    emit(api, termId, `__BAT_TOOL_DONE_${nonce}_0__`)
     await waitFor(() => expect(addToast).toHaveBeenCalledTimes(2))
     expect(addToast.mock.calls[0]).toEqual(['The command finished, but Claude Code was not detected. Check the terminal output.', 'warning', 10_000])
   })
@@ -192,6 +193,62 @@ describe('useRemoteToolInstall — panel in this window (range 3)', () => {
     await waitFor(() => expect(api.creates).toHaveLength(1), { timeout: 3000 })
     expect(api.creates[0].shell).toBe('/bin/sh')
     expect(addToast).toHaveBeenCalledWith('The install tab uses /bin/sh because /usr/bin/fish is not a POSIX shell.', 'info', 10_000)
+  })
+})
+
+describe('useRemoteToolInstall — cross-window queue (range 1)', () => {
+  function withQueue(pending: unknown) {
+    let ping: (() => void) | null = null
+    const take = vi.fn().mockResolvedValueOnce(pending).mockResolvedValue(null)
+    const remoteTools = (window as unknown as { electronAPI: { remoteTools: Record<string, unknown> } }).electronAPI.remoteTools
+    remoteTools.takePendingInstall = take
+    remoteTools.onInstallPending = vi.fn((cb: () => void) => { ping = cb; return () => { ping = null } })
+    return { take, ping: () => ping?.() }
+  }
+
+  it('takes once connected + loaded and runs the parked tool / kind', async () => {
+    installApi([MISSING])
+    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    const q = withQueue({ toolId: 'uv', kind: 'install' })
+    const { rerender } = renderHook((props: { takePending: boolean }) => useRemoteToolInstall({ addToast: vi.fn(), ...props }), {
+      initialProps: { takePending: false },
+    })
+    await new Promise(r => setTimeout(r, 20))
+    expect(q.take).not.toHaveBeenCalled()
+    rerender({ takePending: true })
+    await waitFor(() => expect(installLine()).toBeDefined(), { timeout: 3000 })
+    expect(q.take).toHaveBeenCalledTimes(1)
+    expect(installLine()![1]).toContain('https://astral.sh/uv/install.sh')
+    expect(api.creates[0]).not.toHaveProperty('agentPreset')
+  })
+
+  it('a ping from main (window already open) takes again; ignored while not ready', async () => {
+    installApi([MISSING])
+    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    const q = withQueue(null)
+    const { rerender } = renderHook((props: { takePending: boolean }) => useRemoteToolInstall({ addToast: vi.fn(), ...props }), {
+      initialProps: { takePending: false },
+    })
+    q.ping()
+    await new Promise(r => setTimeout(r, 20))
+    expect(q.take).not.toHaveBeenCalled()
+    rerender({ takePending: true })
+    await waitFor(() => expect(q.take).toHaveBeenCalledTimes(1))
+    q.take.mockResolvedValueOnce({ toolId: 'claude', kind: 'install' })
+    q.ping()
+    await waitFor(() => expect(installLine()).toBeDefined(), { timeout: 3000 })
+    expect(q.take).toHaveBeenCalledTimes(2)
+  })
+
+  it('a malformed queue answer runs nothing', async () => {
+    installApi([MISSING])
+    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    const q = withQueue({ toolId: 'claude', kind: 'install', command: 'x' })
+    q.take.mockReset().mockResolvedValue({ toolId: 'rm', kind: 'install' })
+    renderHook(() => useRemoteToolInstall({ addToast: vi.fn(), takePending: true }))
+    await waitFor(() => expect(q.take).toHaveBeenCalled())
+    await new Promise(r => setTimeout(r, 20))
+    expect(api.detectHere).not.toHaveBeenCalled()
   })
 })
 

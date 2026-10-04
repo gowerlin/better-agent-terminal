@@ -1,6 +1,10 @@
 /**
  * T0412 (PLAN-037 E): runs remote-tool installs in this window (mounted once, in App).
  *
+ * - Cross-window (range 1): a local window called `remoteTools.requestInstall`; main parked
+ *   { toolId, kind } for this window's profile. Once this remote window is connected and its
+ *   profile / workspaces are loaded (`takePending`), and on every `onInstallPending` ping, it
+ *   calls `takePendingInstall` — main hands the request out once, to a window of that profile.
  * - A `host: 'remote-window'` tools panel fires `REMOTE_TOOL_INSTALL_HERE_EVENT`
  *   (`requestRemoteToolInstallHere`) — the install runs here, main is not involved.
  *
@@ -85,7 +89,16 @@ async function ensureInstallWorkspace(): Promise<InstallWorkspace | null> {
   return workspace
 }
 
-export function useRemoteToolInstall({ addToast }: { addToast: AddToast }): {
+export interface UseRemoteToolInstallOptions {
+  addToast: AddToast
+  /**
+   * Take parked cross-window requests: true only in a remote-profile window that is connected
+   * and has loaded its profile + workspaces (a take before the load would race the restore).
+   */
+  takePending?: boolean
+}
+
+export function useRemoteToolInstall({ addToast, takePending = false }: UseRemoteToolInstallOptions): {
   runInstall(target: RemoteToolInstallTarget): void
 } {
   const { t } = useTranslation()
@@ -129,6 +142,30 @@ export function useRemoteToolInstall({ addToast }: { addToast: AddToast }): {
         window.electronAPI?.debug?.log(`[T0412] install ${target.toolId}/${target.kind} failed: ${err instanceof Error ? err.message : String(err)}`)
       })
   }, [])
+
+  // Range 1: requests parked by main for this window's profile.
+  const takePendingRef = useRef(takePending)
+  takePendingRef.current = takePending
+  const takeAndRun = useCallback(() => {
+    const api = window.electronAPI?.remoteTools
+    if (!takePendingRef.current || typeof api?.takePendingInstall !== 'function') return
+    api.takePendingInstall().then((pending) => {
+      const target = parseRemoteToolInstallTarget(pending)
+      if (target) runInstall(target)
+    }).catch((err: unknown) => {
+      window.electronAPI?.debug?.log(`[T0412] take-pending-install failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+  }, [runInstall])
+
+  useEffect(() => {
+    if (takePending) takeAndRun()
+  }, [takePending, takeAndRun])
+
+  useEffect(() => {
+    const api = window.electronAPI?.remoteTools
+    if (typeof api?.onInstallPending !== 'function') return
+    return api.onInstallPending(takeAndRun)
+  }, [takeAndRun])
 
   // Range 3: the tools panel inside this (remote) window.
   useEffect(() => {
