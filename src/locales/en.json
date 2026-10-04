@@ -165,7 +165,7 @@
         "unsafe": "Path contains unsafe characters ($, `, ;, |, etc.). Use a plain path."
       },
       "fallbackToEmbedded": "Fall back to embedded if system fails",
-      "hint": "Changes apply to new sessions and new terminals only. Existing sessions are unaffected. System mode may lack features added in 2.1.111 (Opus 4.7 / xhigh effort)."
+      "hint": "Changes apply to new sessions and new terminals only. Existing sessions are unaffected. A system claude older than 2.1.280 cannot use newer models such as Opus 5.5."
     },
     "githubCli": {
       "title": "GitHub CLI",
@@ -452,6 +452,8 @@
     "codexErrorHintConfigIncompatibleGeneric": "The Codex version BAT is using cannot read a setting in `~/.codex/config.toml`. This usually happens after a newer Codex was installed separately. Upgrade BAT, or set the `BAT_CODEX_BIN` environment variable to a newer `codex` executable.",
     "codexErrorHintCliTooOld": "Model `{{model}}` requires a newer Codex. Pick another model, upgrade BAT, or set `BAT_CODEX_BIN` to a newer `codex` executable.",
     "codexErrorHintCliTooOldGeneric": "This model requires a newer Codex. Pick another model, upgrade BAT, or set `BAT_CODEX_BIN` to a newer `codex` executable.",
+    "claudeErrorHintCliTooOld": "Claude Code {{current}} is too old; this model requires {{required}} or newer. Upgrade BAT, or go to Settings → Advanced → Claude Runtime, switch to system, and upgrade your system claude.",
+    "claudeErrorHintCliTooOldGeneric": "The Claude Code version in use is too old for this model. Upgrade BAT, or go to Settings → Advanced → Claude Runtime, switch to system, and upgrade your system claude.",
     "v2ModelChangeWarning": "Switching models in V2 will recreate the session and re-apply context, which may incur additional token costs. Continue?",
     "v1Model1mWarning": "1M context models in Claude Agent (V1) may cause significant unnecessary token consumption due to low cache efficiency (~25%). Consider using CLI or Claude Agent V2 for better cache performance. Continue?",
     "v2ModelListHint": "Switching model in V2 will recreate the session and re-apply context, which may consume additional tokens. Please switch with caution.",

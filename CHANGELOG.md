@@ -5,6 +5,29 @@ All notable changes to Better Agent Terminal are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- fix(claude): Claude panel explains "CLI too old" model rejections. The server rejects a model
+  the Claude Code CLI is too old for with `API Error: 400 ... "error_code":"claude_code_version_too_old"`
+  (e.g. `Claude Code 2.1.113 does not support this model; version 2.1.280 or newer is required`);
+  BAT showed only the raw JSON. The assistant text and the `claude:error` message now get a hint
+  naming both versions and the way out (upgrade BAT, or Settings → Advanced → Claude Runtime →
+  system and upgrade the system claude), at most once per turn. Classification is a pure renderer
+  helper (`src/lib/claude-error-classify.ts`); the `claude:error` channel is unchanged. Also:
+  the system-runtime health threshold `HEALTHY_MIN` is raised 2.1.111 → 2.1.280 (Opus 5.5
+  minimum), so an older system claude now triggers the `version-warning` toast; the embedded
+  runtime additionally gets `DISABLE_UPDATES=1` (CLI 2.1.289+ refuses even a manual
+  `claude update`, so the binary inside `app.asar.unpacked` cannot be renamed — BUG-059), for
+  Agent sessions resolved to embedded / fallback-to-embedded and for claude-cli terminals in
+  embedded mode, never for system runtime; and the model dropdown no longer lists SDK aliases
+  (`opus`, `fable`, `sonnet`, `haiku`) whose `resolvedModel` is already a built-in entry, and
+  closes the CLI process it spawns to read the model list. (refs: BUG-084, T0372)
+- fix(claude): the embedded Claude Code CLI is bumped to 2.1.289 (`@anthropic-ai/claude-code`
+  `^2.1.111` → `^2.1.289`; Agent SDK stays `^0.2.111`). The bundled 2.1.113 was rejected
+  server-side for `claude-opus-5-5` / `claude-fable-5-1` (`claude_code_version_too_old`). The
+  built-in model list now leads with `claude-opus-5-5`, `claude-fable-5-1` and
+  `claude-sonnet-5-5` (native 1M context, no `[1m]` variants); the SDK-supplied model list is
+  read from the embedded/system CLI instead of the SDK's own bundled binary; queries use
+  `thinking: { type: 'adaptive' }`; and the `release.yml` desktop build job moves from Node 20
+  to Node 24 (claude-code 2.1.289 requires node >= 22). (refs: BUG-084, T0371)
 - fix(codex): Codex connection retries no longer show up as errors. Codex 0.160 reports transport
   retries while the turn is still running — a top-level `error` event `Reconnecting... n/5 (...)`
   and an `item.type="error"` `Falling back from WebSockets to HTTPS transport...` — and BAT

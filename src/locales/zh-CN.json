@@ -165,7 +165,7 @@
         "unsafe": "路径含不安全字符（$、`、;、| 等），请改用纯路径"
       },
       "fallbackToEmbedded": "系统 claude 失败时自动退回 Embedded",
-      "hint": "更改仅套用于新开的 session 与新终端，现有 session 不受影响。System 模式可能缺少 2.1.111 之后新增的功能（Opus 4.7 / xhigh effort）。"
+      "hint": "更改仅套用于新开的 session 与新终端，现有 session 不受影响。System 模式的 claude 若低于 2.1.280，无法使用 Opus 5.5 等较新模型。"
     },
     "githubCli": {
       "title": "GitHub CLI",
@@ -452,6 +452,8 @@
     "codexErrorHintConfigIncompatibleGeneric": "BAT 当前使用的 Codex 版本无法识别 `~/.codex/config.toml` 中的设置，通常是另装了较新版 Codex 所致。可升级 BAT，或设置环境变量 `BAT_CODEX_BIN` 指向较新的 `codex` 可执行文件。",
     "codexErrorHintCliTooOld": "模型 `{{model}}` 需要较新的 Codex。可改选其他模型、升级 BAT，或通过 `BAT_CODEX_BIN` 指定较新的 `codex` 可执行文件。",
     "codexErrorHintCliTooOldGeneric": "此模型需要较新的 Codex。可改选其他模型、升级 BAT，或通过 `BAT_CODEX_BIN` 指定较新的 `codex` 可执行文件。",
+    "claudeErrorHintCliTooOld": "当前 Claude Code {{current}} 版本过旧，此模型需要 {{required}} 或更高版本。请升级 BAT，或到 Settings → Advanced → Claude Runtime 切换到 system 并升级系统 claude。",
+    "claudeErrorHintCliTooOldGeneric": "当前使用的 Claude Code 版本过旧，不支持此模型。请升级 BAT，或到 Settings → Advanced → Claude Runtime 切换到 system 并升级系统 claude。",
     "v2ModelChangeWarning": "在 V2 中切换模型将会重建 session 并重新应用 context，可能会产生额外的 token 成本。是否继续？",
     "v1Model1mWarning": "在 Claude Agent (V1) 中使用 1M context 模型，cache 效率仅约 25%，可能导致大量无意义的 token 消耗。建议改用 CLI 或 Claude Agent V2 窗口以获得更好的 cache 效率。是否继续？",
     "v2ModelListHint": "在 V2 中切换模型将会重建 session 并重新读取 context，可能会消耗额外的 token，请谨慎使用。",

@@ -96,17 +96,22 @@ test('ignores prerelease tags', () => {
 // === classifyVersion ===
 console.log('\nclassifyVersion:')
 
-test('2.1.113 → healthy', () => {
-  const got: ClaudeHealthStatus = classifyVersion('2.1.113')
+// T0372: HEALTHY_MIN raised 2.1.111 → 2.1.280 (Opus 5.5 server-side minimum, BUG-084)
+test('2.1.289 → healthy', () => {
+  const got: ClaudeHealthStatus = classifyVersion('2.1.289')
   assert.strictEqual(got, 'healthy')
 })
 
-test('2.1.111 (boundary) → healthy', () => {
-  assert.strictEqual(classifyVersion('2.1.111'), 'healthy')
+test('2.1.280 (boundary) → healthy', () => {
+  assert.strictEqual(classifyVersion('2.1.280'), 'healthy')
 })
 
-test('2.1.110 → version-warning', () => {
-  assert.strictEqual(classifyVersion('2.1.110'), 'version-warning')
+test('2.1.279 → version-warning', () => {
+  assert.strictEqual(classifyVersion('2.1.279'), 'version-warning')
+})
+
+test('2.1.113 (old embedded) → version-warning', () => {
+  assert.strictEqual(classifyVersion('2.1.113'), 'version-warning')
 })
 
 test('2.0.0 (boundary) → version-warning', () => {

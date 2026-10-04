@@ -17,6 +17,7 @@ import {
   clearRuntimeEventHistory,
   type ResolvedRuntime,
 } from './claude-runtime-router'
+import { claudeUpdateGuardEnv } from './claude-resolver'
 import type { ClaudeRuntimeDegradedEvent, ClaudeRuntimeWarningEvent } from '../src/types'
 
 // App-level permission mode extends SDK's PermissionMode with bypassPlan
@@ -38,6 +39,15 @@ const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; descriptio
   { value: 'claude-haiku-4-5-20251001', displayName: 'Haiku 4.5', description: 'claude-haiku-4-5 · fast & lightweight' },
 ]
 
+
+// BUG-084 / T0372: `DISABLE_UPDATES=1` only for the embedded binary (including system → embedded
+// fallback); a system claude keeps the default env so the user can still `claude update` it.
+// The SDK's `options.env` replaces `process.env` rather than merging, so the inherited env is spread
+// in — read at call time, after ELECTRON_RUN_AS_NODE may have been set for the spawn.
+function sdkSpawnEnv(runtime: ResolvedRuntime): { env?: Record<string, string | undefined> } {
+  const guard = claudeUpdateGuardEnv(runtime.source)
+  return Object.keys(guard).length > 0 ? { env: { ...process.env, ...guard } } : {}
+}
 
 // Lazy import the SDK (it's an ES module)
 let queryFn: typeof import('@anthropic-ai/claude-agent-sdk').query | null = null
@@ -292,7 +302,7 @@ export class ClaudeAgentManager {
         const payload: ClaudeRuntimeWarningEvent = {
           sessionId,
           version,
-          message: `System claude ${version} is older than recommended (requires >= 2.1.111 for Opus 4.7 / xhigh effort). SDK will still load, but some features may be unavailable.`,
+          message: `System claude ${version} is older than recommended (requires >= 2.1.280 for Claude 5 models such as Opus 5.5). SDK will still load, but newer models may be rejected by the server.`,
         }
         logger.log(`[runtime-router] version warning for session ${sessionId.slice(0, 8)}: ${version}`)
         this.send('claude:runtime-warning', payload)
@@ -725,6 +735,7 @@ export class ClaudeAgentManager {
         ...(installedPlugins.length > 0 ? { plugins: installedPlugins } : {}),
         canUseTool,
         ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
+        ...sdkSpawnEnv(resolvedRuntime),
         ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable } : {}),
         stderr: (data: string) => {
           logger.error('[Claude Code stderr]', data)
@@ -1406,6 +1417,7 @@ export class ClaudeAgentManager {
           permissionMode: sdkMode,
           canUseTool,
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
+          ...sdkSpawnEnv(resolvedRuntime),
           ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable } : {}),
         }
 
@@ -1705,27 +1717,39 @@ export class ClaudeAgentManager {
   async getSupportedModels(sessionId: string): Promise<Array<{ value: string; displayName: string; description: string; source: 'builtin' | 'sdk' }>> {
     const builtinValues = new Set(BAT_BUILTIN_MODELS.map(m => m.value))
     const builtins = BAT_BUILTIN_MODELS.map(m => ({ ...m, source: 'builtin' as const }))
+    let instance: Query | undefined
     try {
       const query = await getQuery()
       // Use the same runtime router result as real spawns; without it the SDK falls back to
       // its own bundled CLI binary, whose model list lags the embedded/system CLI (BUG-084).
-      const claudeCodePath = (await this.resolveRuntimeForSession(sessionId)).path
-      const instance = query({
+      const resolvedRuntime = await this.resolveRuntimeForSession(sessionId)
+      const claudeCodePath = resolvedRuntime.path
+      instance = query({
         prompt: '',
         options: {
           cwd: '/',
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
+          ...sdkSpawnEnv(resolvedRuntime),
         },
       })
-      const sdkModels = await instance.supportedModels()
-      // Exclude from SDK list any model already covered by builtins (including [1m] variants)
+      // CLI >= 2.1.289 also reports `resolvedModel` (e.g. alias `opus` → `claude-opus-5-5`); the
+      // 0.2.x SDK types do not declare it yet.
+      const sdkModels = await instance.supportedModels() as Array<Awaited<ReturnType<Query['supportedModels']>>[number] & { resolvedModel?: string }>
+      const coveredByBuiltin = (id: string) => builtinValues.has(id) || builtinValues.has(`${id}[1m]`)
+      // Exclude from SDK list any model already covered by builtins (including [1m] variants).
+      // T0372: aliases are matched by the model they resolve to; `default` is kept since it
+      // follows the account default rather than naming a fixed model.
       const sdkFiltered = sdkModels
-        .filter(m => !builtinValues.has(m.value) && !builtinValues.has(`${m.value}[1m]`))
+        .filter(m => !coveredByBuiltin(m.value)
+          && !(m.value !== 'default' && m.resolvedModel && coveredByBuiltin(m.resolvedModel)))
         .map(m => ({ ...m, source: 'sdk' as const }))
       return [...builtins, ...sdkFiltered]
     } catch (e) {
       logger.warn('getSupportedModels failed, returning builtins only:', e)
       return builtins
+    } finally {
+      // The model-list probe spawns its own CLI process; terminate it once the list is read.
+      try { instance?.close() } catch { /* ignore */ }
     }
   }
 
@@ -2315,6 +2339,7 @@ export class ClaudeAgentManager {
           forkSession: true,
           maxTurns: 1,
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
+          ...sdkSpawnEnv(resolvedRuntime),
           ...(nodeExecutable !== 'node' ? { executable: nodeExecutable } : {}),
         } as Parameters<typeof query>[0]['options'],
       })

@@ -12,20 +12,21 @@
  *
  * Health probe (T0229 R3 Level B):
  *   spawn(binary, ['--version'], 5s timeout) → parse `X.Y.Z (Claude Code)`
- *   → semver compat: >= 2.1.111 healthy / >= 2.0.0 warning / older too-old.
+ *   → semver compat: >= 2.1.280 healthy / >= 2.0.0 warning / older too-old.
  */
 
 import * as fs from 'fs'
 import * as path from 'path'
 import { spawn } from 'child_process'
+import type { ResolvedRuntimeSource } from './claude-runtime-router'
 
 // ----------------------------------------------------------------------------
 // Public types
 // ----------------------------------------------------------------------------
 
 export type ClaudeHealthStatus =
-  | 'healthy'           // >= 2.1.111 (full feature parity with embedded)
-  | 'version-warning'   // >= 2.0.0 < 2.1.111 (SDK loads, but no Opus 4.7 / xhigh)
+  | 'healthy'           // >= 2.1.280 (Claude 5 models incl. Opus 5.5 accepted by the server)
+  | 'version-warning'   // >= 2.0.0 < 2.1.280 (SDK loads, but the server rejects newer models)
   | 'version-too-old'   // < 2.0.0 (SDK may reject)
   | 'spawn-failed'      // ENOENT / timeout / parse failure
 
@@ -49,7 +50,9 @@ export interface ClaudeHealthProbeResult {
 // ----------------------------------------------------------------------------
 
 const HOME = process.env.HOME || process.env.USERPROFILE || ''
-const HEALTHY_MIN = '2.1.111'
+// BUG-084 / T0372: the server rejects models the CLI is too old for (`claude_code_version_too_old`);
+// Opus 5.5 needs >= 2.1.280 (Fable 5.1 >= 2.1.251). Was 2.1.111 (Opus 4.7 / xhigh, T0165).
+const HEALTHY_MIN = '2.1.280'
 const TOO_OLD_MAX = '2.0.0'
 const PROBE_TIMEOUT_MS = 5000
 
@@ -294,6 +297,22 @@ export async function detectSystemClaude(customPath?: string): Promise<ClaudeRun
     healthStatus: classifyVersion(probe.version),
     source,
   }
+}
+
+// ----------------------------------------------------------------------------
+// Spawn env
+// ----------------------------------------------------------------------------
+
+/**
+ * Extra env for spawning a claude binary (BUG-084 / T0372). CLI >= 2.1.289 honors
+ * `DISABLE_UPDATES`, which — unlike `DISABLE_AUTOUPDATER` — also refuses a manual
+ * `claude update`. The embedded binary (including system → embedded fallback) lives in
+ * app.asar.unpacked and must never update itself (BUG-059), so it gets the flag; a system
+ * claude must stay user-updatable, so it never does. `DISABLE_AUTOUPDATER=1` stays injected
+ * for both runtimes (BUG-059).
+ */
+export function claudeUpdateGuardEnv(source: ResolvedRuntimeSource): Record<string, string> {
+  return source === 'system' ? {} : { DISABLE_UPDATES: '1' }
 }
 
 // ----------------------------------------------------------------------------

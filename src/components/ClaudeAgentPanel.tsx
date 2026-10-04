@@ -14,6 +14,7 @@ import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown'
+import { classifyClaudeError } from '../lib/claude-error-classify'
 
 interface SessionMeta {
   model?: string
@@ -504,6 +505,16 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     const tag = `[Claude:${sessionId.slice(0, 8)}]`
     window.electronAPI?.debug?.log(`${tag} subscribing to IPC events`)
 
+    // BUG-084: actionable hint when the API rejects the model because the Claude Code CLI is too old.
+    // The raw error can surface as assistant text ("API Error: 400 ...") and/or on `claude:error`.
+    const cliTooOldHint = (text: string): string => {
+      const { kind, currentVersion, requiredVersion } = classifyClaudeError(text)
+      if (kind !== 'cli-too-old') return ''
+      return currentVersion && requiredVersion
+        ? t('claude.claudeErrorHintCliTooOld', { current: currentVersion, required: requiredVersion })
+        : t('claude.claudeErrorHintCliTooOldGeneric')
+    }
+
     const unsubs = [
       api.onMessage((sid: string, msg: unknown) => {
         if (sid !== sessionId) {
@@ -554,12 +565,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           setSubagentStreamingThinking(prev => { const n = new Map(prev); n.delete(message.parentToolUseId!); return n })
           return
         }
+        const tooOldHint = message.role === 'assistant' ? cliTooOldHint(message.content) : ''
+        const shownMsg = tooOldHint ? { ...message, content: `${message.content}\n\n💡 ${tooOldHint}` } : message
         // Deduplicate by id; for user messages also dedup by content+timestamp proximity
         // (the sender already adds the message locally, backend broadcasts it for other windows)
         setStreamingThinking(prevThinking => {
-          const finalMsg = (!message.thinking && prevThinking && message.role === 'assistant')
-            ? { ...message, thinking: prevThinking }
-            : message
+          const finalMsg = (!shownMsg.thinking && prevThinking && shownMsg.role === 'assistant')
+            ? { ...shownMsg, thinking: prevThinking }
+            : shownMsg
           setMessages(prev => {
             let nextPrev = prev
             const interruptedContinuation = finalMsg.role === 'user'
@@ -680,13 +693,21 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
       api.onError((sid: string, error: string) => {
         if (sid !== sessionId) return
-        setMessages(prev => [...prev, {
-          id: `err-${Date.now()}`,
-          sessionId: sid,
-          role: 'system' as const,
-          content: `Error: ${error}`,
-          timestamp: Date.now(),
-        }])
+        const hint = cliTooOldHint(error)
+        setMessages(prev => {
+          // Skip the hint if this turn's assistant text already carries it (same API error)
+          let lastUser = prev.length - 1
+          while (lastUser >= 0 && !(!isToolCall(prev[lastUser]) && (prev[lastUser] as ClaudeMessage).role === 'user')) lastUser--
+          const hintShown = !!hint && prev.slice(lastUser + 1).some(m =>
+            !isToolCall(m) && (m as ClaudeMessage).content.includes(hint))
+          return [...prev, {
+            id: `err-${Date.now()}`,
+            sessionId: sid,
+            role: 'system' as const,
+            content: hint && !hintShown ? `Error: ${error}\n\n💡 ${hint}` : `Error: ${error}`,
+            timestamp: Date.now(),
+          }]
+        })
         setIsStreaming(false)
         setIsInterrupted(false)
       }),

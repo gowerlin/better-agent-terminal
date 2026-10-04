@@ -2150,7 +2150,7 @@ function registerProxiedHandlers() {
             const payload = {
               sessionId: TERMINAL_EVENT_KEY,
               version,
-              message: `System claude ${version} is older than recommended (requires >= 2.1.111 for Opus 4.7 / xhigh effort). SDK will still load, but some features may be unavailable.`,
+              message: `System claude ${version} is older than recommended (requires >= 2.1.280 for Claude 5 models such as Opus 5.5). SDK will still load, but newer models may be rejected by the server.`,
             }
             logger.log(`[runtime-router] terminal version warning: ${version}`)
             broadcastRuntimeEvent('claude:runtime-warning', payload)

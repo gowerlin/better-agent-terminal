@@ -7,6 +7,8 @@ import { broadcastHub } from './remote/broadcast-hub'
 import { logger } from './logger'
 import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
+import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
+import { claudeUpdateGuardEnv } from './claude-resolver'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -40,6 +42,17 @@ function resolveHelperDir(): string {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'scripts')
     : path.join(__dirname, '..', 'scripts')
+}
+
+// BUG-084 / T0372: a claude-cli terminal running the embedded binary also gets DISABLE_UPDATES
+// (see claudeUpdateGuardEnv), so a manual `claude update` cannot rename the binary inside
+// app.asar.unpacked. Decided from the persisted runtime mode — the same snapshot
+// `claude:get-cli-path` resolves from right before the renderer creates this PTY. System mode,
+// including its async fallback-to-embedded case, and plain terminals are left updatable;
+// DISABLE_AUTOUPDATER still covers the background updater everywhere.
+function claudeCliUpdateGuardEnv(agentPreset?: string): Record<string, string> {
+  if (agentPreset !== 'claude-cli' && agentPreset !== 'claude-cli-worktree') return {}
+  return claudeUpdateGuardEnv(getRuntimeSettingsSnapshot().mode === 'embedded' ? 'embedded' : 'system')
 }
 
 export class PtyManager {
@@ -376,7 +389,8 @@ export class PtyManager {
   }
 
   create(options: CreatePtyOptions): boolean {
-    const { id, cwd, type, shell: shellOverride, customEnv = {}, workspaceId } = options
+    const { id, cwd, type, shell: shellOverride, customEnv = {}, workspaceId, agentPreset } = options
+    const updateGuardEnv = claudeCliUpdateGuardEnv(agentPreset)
 
     const shell = shellOverride || this.getDefaultShell()
     let args: string[] = []
@@ -419,6 +433,8 @@ export class PtyManager {
         BAT_SESSION: '1',
         // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
         DISABLE_AUTOUPDATER: '1',
+        // T0372: embedded claude-cli preset only (DISABLE_UPDATES=1)
+        ...updateGuardEnv,
         // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
         BAT_TERMINAL_ID: id,
         // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
@@ -472,6 +488,8 @@ export class PtyManager {
           BAT_SESSION: '1',
           // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
           DISABLE_AUTOUPDATER: '1',
+          // T0372: embedded claude-cli preset only (DISABLE_UPDATES=1)
+          ...updateGuardEnv,
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
@@ -552,6 +570,8 @@ export class PtyManager {
           BAT_SESSION: '1',
           // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
           DISABLE_AUTOUPDATER: '1',
+          // T0372: embedded claude-cli preset only (DISABLE_UPDATES=1)
+          ...updateGuardEnv,
           // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
           BAT_TERMINAL_ID: id,
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)

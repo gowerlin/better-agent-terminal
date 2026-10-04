@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 import type { ClaudeRuntimeInfo } from '../claude-resolver'
-import { isSafeClaudeCustomPath } from '../claude-resolver'
+import { claudeUpdateGuardEnv, isSafeClaudeCustomPath } from '../claude-resolver'
 import {
   resolveClaudeRuntime,
   SystemClaudeUnsafePathError,
@@ -171,5 +171,37 @@ describe('resolveClaudeRuntime customPath whitelist', () => {
     expect(detectSystemClaude).toHaveBeenCalledWith(customPath)
     expect(result.source).toBe('system')
     expect(result.path).toBe(customPath)
+  })
+})
+
+// BUG-084 / T0372: DISABLE_UPDATES follows the resolved runtime — embedded (incl. fallback) only.
+describe('claudeUpdateGuardEnv by resolved runtime', () => {
+  const systemPath = '/usr/local/bin/claude'
+
+  it('embedded mode gets DISABLE_UPDATES', async () => {
+    const result = await resolveClaudeRuntime(
+      { mode: 'embedded', fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(), resolveEmbeddedClaudePath: () => embeddedPath },
+    )
+    expect(result.source).toBe('embedded')
+    expect(claudeUpdateGuardEnv(result.source)).toEqual({ DISABLE_UPDATES: '1' })
+  })
+
+  it('healthy system claude does not get DISABLE_UPDATES', async () => {
+    const result = await resolveClaudeRuntime(
+      { mode: 'system', customPath: systemPath, fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(async () => healthyInfo(systemPath)), resolveEmbeddedClaudePath: () => embeddedPath },
+    )
+    expect(result.source).toBe('system')
+    expect(claudeUpdateGuardEnv(result.source)).toEqual({})
+  })
+
+  it('system mode falling back to embedded gets DISABLE_UPDATES', async () => {
+    const result = await resolveClaudeRuntime(
+      { mode: 'system', fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(async () => null), resolveEmbeddedClaudePath: () => embeddedPath },
+    )
+    expect(result.source).toBe('system-fallback-to-embedded')
+    expect(claudeUpdateGuardEnv(result.source)).toEqual({ DISABLE_UPDATES: '1' })
   })
 })
