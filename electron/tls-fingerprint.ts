@@ -19,6 +19,7 @@ import * as tls from 'tls'
 
 export type FingerprintErrorCode =
   | 'fingerprint-invalid-port'
+  | 'fingerprint-invalid-host'
   | 'fingerprint-timeout'
   | 'fingerprint-unreachable'
   | 'fingerprint-handshake-failed'
@@ -35,6 +36,8 @@ export interface FetchFingerprintOptions {
 export const DEFAULT_FINGERPRINT_HOST = '127.0.0.1'
 export const DEFAULT_FINGERPRINT_TIMEOUT_MS = 5_000
 
+/** T0387: hostname / IPv4 / IPv6 literal; no leading `-`, no whitespace. */
+const HOST_RE = /^[a-zA-Z0-9._:-]{1,253}$/
 const FINGERPRINT_RE = /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/
 const UNREACHABLE_CODES = new Set([
   'ECONNREFUSED',
@@ -79,6 +82,13 @@ export function fetchTlsFingerprint(
   }
 
   const host = options.host ?? DEFAULT_FINGERPRINT_HOST
+  if (typeof host !== 'string' || !HOST_RE.test(host) || host.startsWith('-')) {
+    return Promise.resolve({
+      ok: false,
+      errorCode: 'fingerprint-invalid-host',
+      error: `Invalid server host: ${JSON.stringify(host)}`,
+    })
+  }
   const timeoutMs = options.timeoutMs ?? DEFAULT_FINGERPRINT_TIMEOUT_MS
   const target = `${host}:${port}`
 

@@ -3,8 +3,7 @@ import { configureSshHostStep } from './steps/ssh/configure-host'
 import { verifySshAuthStep } from './steps/ssh/verify-auth'
 import { installSshServerBundleStep } from './steps/ssh/install-server-bundle'
 import { startServerStep } from './steps/ssh/start-server'
-import { connectTestStep } from './steps/wsl/connect-test'
-import { fetchFingerprintStep } from './steps/wsl/fetch-fingerprint'
+import { sshConnectTestStep, sshFetchFingerprintStep } from './steps/ssh/verify-remote'
 import { writeProfileStep } from './steps/wsl/write-profile'
 import { doneStep } from './steps/wsl/done'
 
@@ -17,8 +16,8 @@ const DEFAULT_INSTALL_PATH = '~/.local/bat-server'
  *   verify-ssh-auth       → BAT_AUTH_OK probe + uname/HOME parse
  *   install-server-bundle → ssh+tar pipe upload
  *   start-server          → T0286: systemd unit / launchd plist + enable + verify
- *   fetch-fingerprint     → existing PLAN-018 step
- *   connect-test          → existing PLAN-018 step
+ *   fetch-fingerprint     → PLAN-018 step, T0387: via SSH tunnel / remote host
+ *   connect-test          → PLAN-018 step, T0387: via SSH tunnel / remote host
  *   write-profile         → existing PLAN-018 step
  *   done                  → existing PLAN-018 step
  */
@@ -28,8 +27,8 @@ export function buildSshWizardSteps(): WizardStep[] {
     verifySshAuthStep,
     installSshServerBundleStep,
     startServerStep,
-    fetchFingerprintStep,
-    connectTestStep,
+    sshFetchFingerprintStep,
+    sshConnectTestStep,
     writeProfileStep,
     doneStep,
   ]

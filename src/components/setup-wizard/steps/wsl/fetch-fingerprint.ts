@@ -7,19 +7,23 @@
 // here with `code` so WizardErrorMapper resolves them at stage 1.
 import type { WizardStep } from '../../wizard-runner'
 
-type FetchFingerprintImpl = (port: number) => Promise<string>
+// T0387 (BUG-093): host is only passed when ctx.verifyEndpoint is set (SSH).
+type FetchFingerprintImpl = (port: number, host?: string) => Promise<string>
 
 /** Only "nothing listening yet" is worth retrying (service may still be starting). */
 const NON_RETRYABLE_CODES = new Set([
   'fingerprint-invalid-port',
+  'fingerprint-invalid-host',
   'fingerprint-timeout',
   'fingerprint-handshake-failed',
 ])
 const MAX_ATTEMPTS = 5
 const RETRY_DELAY_MS = 1_000
 
-const defaultImpl: FetchFingerprintImpl = async (port) => {
-  const result = await window.electronAPI.wsl.fetchFingerprint(port)
+const defaultImpl: FetchFingerprintImpl = async (port, host) => {
+  const result = host === undefined
+    ? await window.electronAPI.wsl.fetchFingerprint(port)
+    : await window.electronAPI.wsl.fetchFingerprint(port, host)
   if (result.ok) return result.fingerprint
   throw Object.assign(new Error(result.error), { code: result.errorCode })
 }
@@ -57,14 +61,18 @@ export const fetchFingerprintStep: WizardStep = {
     // T0383 (T0382 follow-up): no 9876 fallback — that is the host
     // RemoteServer's default port, so the handshake would pin this BAT's own
     // certificate. Same rule as connect-test / write-profile.
-    const port = ctx.serverPort
+    // T0387 (BUG-093): the SSH flow points this at its tunnel / remote host.
+    const endpoint = ctx.verifyEndpoint
+    const port = endpoint ? endpoint.port : ctx.serverPort
     if (typeof port !== 'number') {
       throw new Error('Server port was not resolved before fetching the TLS fingerprint; re-run the service step.')
     }
     let lastError: unknown = null
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       try {
-        ctx.fingerprint = await fetchFingerprintImpl(port)
+        ctx.fingerprint = endpoint
+          ? await fetchFingerprintImpl(port, endpoint.host)
+          : await fetchFingerprintImpl(port)
         return
       } catch (error) {
         lastError = error

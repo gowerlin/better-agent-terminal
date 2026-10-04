@@ -68,6 +68,13 @@ export interface WizardContext {
   wslHome?: string
   serverInstallPath?: string
   serverPort?: number
+  /**
+   * T0387 (BUG-093): where fetch-fingerprint / connect-test reach the server.
+   * Set only by the SSH flow (tunnel local end, or the remote host in direct
+   * mode). Unset = WSL / Docker default (`127.0.0.1` / `localhost` +
+   * `serverPort`).
+   */
+  verifyEndpoint?: { host: string; port: number }
   remoteToken?: string
   systemdServiceActive?: boolean
   fallbackStartHint?: string

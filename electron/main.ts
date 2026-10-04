@@ -88,7 +88,7 @@ import {
 } from './remote/remote-profile-error'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
-import { registerSshSetupHandlers } from './remote/ssh-setup-handlers'
+import { closeAllSshWizardTunnels, registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
@@ -1158,6 +1158,8 @@ async function syncWslKeepAlive(reason: string): Promise<void> {
 
 function cleanupAllProcesses() {
   try { wslKeepAlive.stopAll() } catch { /* ignore */ }
+  // T0387: never leave an SSH wizard verification tunnel (`ssh -L`) behind.
+  void closeAllSshWizardTunnels().catch(() => undefined)
   try { remoteClient?.disconnect() } catch { /* ignore */ }
   try { remoteServer.stop() } catch { /* ignore */ }
   try { claudeManager?.killAll() } catch { /* ignore */ }
@@ -1935,6 +1937,7 @@ app.on('before-quit', async (e) => {
 // an orphaned `wsl.exe` holder keeping a distro alive after BAT exits.
 app.on('will-quit', () => {
   try { wslKeepAlive.stopAll() } catch { /* ignore */ }
+  void closeAllSshWizardTunnels().catch(() => undefined)
 })
 
 app.on('window-all-closed', () => {
@@ -3589,8 +3592,11 @@ function registerLocalHandlers() {
   // builtins (D090). T0381 / BUG-090 (D128): the fingerprint is read from the
   // TLS handshake itself (the server has no HTTP handler), bounded by a 5s
   // timeout; failures come back as structured error codes for ErrorMapper.
-  ipcMain.handle('wsl:fetch-fingerprint', async (_event, port: number): Promise<FetchFingerprintResult> => {
-    const result = await fetchTlsFingerprint(port)
+  // T0387 / BUG-093: optional host — the SSH wizard targets its tunnel's local
+  // end (127.0.0.1) or, in direct mode, the remote host. WSL / Docker omit it
+  // and keep the 127.0.0.1 default. fetchTlsFingerprint validates the host.
+  ipcMain.handle('wsl:fetch-fingerprint', async (_event, port: number, host?: string): Promise<FetchFingerprintResult> => {
+    const result = await fetchTlsFingerprint(port, host === undefined ? {} : { host })
     if (!result.ok) {
       logger.warn(`[wizard] fetch-fingerprint ${result.errorCode}: ${result.error}`)
     }
@@ -3611,7 +3617,15 @@ function registerLocalHandlers() {
     }
     return result
   })
-  registerSshSetupHandlers(ipcMain)
+  // T0387: the SSH wizard tunnel's local end must avoid the host RemoteServer
+  // ports (same pair the WSL port picker excludes).
+  registerSshSetupHandlers(ipcMain, {
+    reservedPorts: () => {
+      const ports = [readRemotePortSync()]
+      if (remoteServer.port) ports.push(remoteServer.port)
+      return ports
+    },
+  })
 
   // T0348 / BUG-078 — Control Tower drift telemetry IPC.
   // Renderer parses workorder frontmatter and produces ParseWarning[]; main

@@ -9,6 +9,14 @@ import {
   type StartServerResult,
   type StartServerPhase,
 } from './ssh-start-server'
+import {
+  WizardTunnelRegistry,
+  readRemoteServerIdentity,
+  type RemoteServerIdentityRequest,
+  type RemoteServerIdentityResult,
+  type WizardTunnelOpenResult,
+  type WizardTunnelRequest,
+} from './ssh-wizard-verify'
 
 interface UploadIpcRequest {
   uploadId: string
@@ -20,6 +28,22 @@ interface StartServerIpcRequest {
   options: StartServerOptions
 }
 
+export interface SshSetupHandlerOptions {
+  /** T0387: host RemoteServer ports the wizard tunnel's local end must avoid. */
+  reservedPorts?: () => number[]
+}
+
+/**
+ * T0387 / BUG-093: SSH wizard verification tunnels. Module-level so main can
+ * close every one of them on quit (`closeAllSshWizardTunnels`).
+ */
+let wizardTunnels = new WizardTunnelRegistry()
+const hookedSenders = new Set<number>()
+
+export function closeAllSshWizardTunnels(): Promise<void> {
+  return wizardTunnels.closeAll()
+}
+
 /**
  * Registers the SSH setup wizard IPC channels.
  *
@@ -28,7 +52,9 @@ interface StartServerIpcRequest {
  * one-way events via `event.sender.send` — these are not `ipcMain.handle`
  * channels, so they don't count against the AC8 ≤3 budget.
  */
-export function registerSshSetupHandlers(ipcMain: IpcMain): void {
+export function registerSshSetupHandlers(ipcMain: IpcMain, options: SshSetupHandlerOptions = {}): void {
+  wizardTunnels = new WizardTunnelRegistry({ reservedPorts: options.reservedPorts })
+
   ipcMain.handle('ssh:list-hosts', async (): Promise<string[]> => {
     try {
       return await listSshHosts()
@@ -91,6 +117,45 @@ export function registerSshSetupHandlers(ipcMain: IpcMain): void {
         error: message,
         errorCode: 'unknown',
       }
+    }
+  })
+  // T0387 / BUG-093 — SSH wizard verification. tunnel mode: fetch-fingerprint
+  // and connect-test go through a short-lived `ssh -L` (closed by the wizard,
+  // when the renderer goes away, or on quit). read-server-identity reads the
+  // remote certificate fingerprint + token for the cross-check.
+  ipcMain.handle('ssh:verify-tunnel-open', async (event: IpcMainInvokeEvent, request: WizardTunnelRequest): Promise<WizardTunnelOpenResult> => {
+    const sender = event.sender
+    if (!hookedSenders.has(sender.id)) {
+      hookedSenders.add(sender.id)
+      const senderId = sender.id
+      sender.once('destroyed', () => {
+        hookedSenders.delete(senderId)
+        void wizardTunnels.closeOwnedBy(senderId)
+      })
+    }
+    try {
+      return await wizardTunnels.open(request, sender.id)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error(`[ssh-setup] verify-tunnel-open threw: ${message}`)
+      return { ok: false, errorCode: 'ssh-tunnel-failed', error: message }
+    }
+  })
+
+  ipcMain.handle('ssh:verify-tunnel-close', async (_event: IpcMainInvokeEvent, sessionId: string): Promise<{ ok: true }> => {
+    if (typeof sessionId === 'string') await wizardTunnels.close(sessionId)
+    return { ok: true }
+  })
+
+  ipcMain.handle('ssh:read-server-identity', async (_event: IpcMainInvokeEvent, request: RemoteServerIdentityRequest): Promise<RemoteServerIdentityResult> => {
+    try {
+      const result = await readRemoteServerIdentity(request)
+      if (!result.ok) logger.warn(`[ssh-setup] read-server-identity failed: ${result.error}`)
+      return result
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error(`[ssh-setup] read-server-identity threw: ${message}`)
+      return { ok: false, error: message }
     }
   })
 }

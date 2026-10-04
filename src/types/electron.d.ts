@@ -58,7 +58,7 @@ interface WslNetworkModeInfo {
 // T0381 / BUG-090 — mirrors `FetchFingerprintResult` in electron/tls-fingerprint.ts.
 type WslFetchFingerprintResult =
   | { ok: true; fingerprint: string }
-  | { ok: false; errorCode: 'fingerprint-invalid-port' | 'fingerprint-timeout' | 'fingerprint-unreachable' | 'fingerprint-handshake-failed'; error: string }
+  | { ok: false; errorCode: 'fingerprint-invalid-port' | 'fingerprint-invalid-host' | 'fingerprint-timeout' | 'fingerprint-unreachable' | 'fingerprint-handshake-failed'; error: string }
 
 // T0382 / BUG-091 (D128): WSL bat-server port picked on the Windows side.
 type WslPickServerPortResult =
@@ -357,7 +357,7 @@ interface ElectronAPI {
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     // T0304 / BUG-069 — IPC migrated from renderer (was direct `node:https` call).
     // T0381 / BUG-090 — TLS-handshake fingerprint (5s timeout) with structured errors.
-    fetchFingerprint: (port: number) => Promise<WslFetchFingerprintResult>
+    fetchFingerprint: (port: number, host?: string) => Promise<WslFetchFingerprintResult>
     // T0382 / BUG-091 — never returns the host RemoteServer port; preferredPort is validated as-is.
     pickServerPort: (preferredPort?: number) => Promise<WslPickServerPortResult>
     // T0384 / BUG-092 — wizard pin of the distro keep-alive holder; profiles are held by main.
@@ -458,6 +458,24 @@ interface ElectronAPI {
       targetOS: 'ssh-linux' | 'ssh-darwin'
       serverHome: string
     }) => Promise<{ ok: true } | { ok: false; error: string }>
+    // T0387 / BUG-093 — SSH wizard verification against the remote host.
+    openVerifyTunnel: (request: {
+      sessionId: string
+      sshHost: string
+      sshUser: string
+      sshPort?: number
+      sshKeyPath?: string
+      remotePort: number
+    }) => Promise<{ ok: true; localPort: number } | { ok: false; errorCode: 'ssh-tunnel-invalid-input' | 'ssh-tunnel-failed'; error: string }>
+    closeVerifyTunnel: (sessionId: string) => Promise<{ ok: true }>
+    readServerIdentity: (request: {
+      sshHost: string
+      sshUser: string
+      sshPort?: number
+      sshKeyPath?: string
+      targetOS: 'ssh-linux' | 'ssh-darwin'
+      serverHome: string
+    }) => Promise<{ ok: true; fingerprint: string | null; token: string | null } | { ok: false; error: string }>
   }
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: RemoteBindInterface) => Promise<{ port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string } | { error: string }>

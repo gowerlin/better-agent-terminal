@@ -62,10 +62,14 @@ afterEach(async () => {
 })
 
 describe('fetchFingerprintStep (T0381 / BUG-090)', () => {
-  it('is the same step in the WSL, SSH and Docker flows', () => {
-    for (const steps of [buildWslWizardSteps(), buildSshWizardSteps(), buildDockerWizardSteps()]) {
+  it('is the same step in the WSL and Docker flows; SSH wraps it under the same id (T0387)', () => {
+    for (const steps of [buildWslWizardSteps(), buildDockerWizardSteps()]) {
       expect(steps).toContain(fetchFingerprintStep)
     }
+    const ssh = buildSshWizardSteps().find((step) => step.id === 'fetch-fingerprint')
+    expect(ssh).toBeDefined()
+    expect(ssh).not.toBe(fetchFingerprintStep)
+    expect(ssh?.appliesTo).toBe('all')
   })
 
   it('stores the fingerprint from a successful IPC result', async () => {

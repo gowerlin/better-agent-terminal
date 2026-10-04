@@ -494,10 +494,11 @@ const electronAPI = {
     // T0304 / BUG-069: setup-wizard step delegates fingerprint fetch to main
     // process so renderer never needs Node builtins. T0381 / BUG-090: TLS
     // handshake with a 5s timeout; failures carry an errorCode.
-    fetchFingerprint: (port: number) =>
-      ipcRenderer.invoke('wsl:fetch-fingerprint', port) as Promise<
+    // T0387 / BUG-093: optional host (SSH wizard: tunnel local end / direct remote host).
+    fetchFingerprint: (port: number, host?: string) =>
+      ipcRenderer.invoke('wsl:fetch-fingerprint', port, host) as Promise<
         | { ok: true; fingerprint: string }
-        | { ok: false; errorCode: 'fingerprint-invalid-port' | 'fingerprint-timeout' | 'fingerprint-unreachable' | 'fingerprint-handshake-failed'; error: string }
+        | { ok: false; errorCode: 'fingerprint-invalid-port' | 'fingerprint-invalid-host' | 'fingerprint-timeout' | 'fingerprint-unreachable' | 'fingerprint-handshake-failed'; error: string }
       >,
     // T0382 / BUG-091: Windows-side port probe for the WSL bat-server; never
     // returns the host RemoteServer port. preferredPort is validated as-is.
@@ -595,6 +596,19 @@ const electronAPI = {
       ipcRenderer.on('ssh:start-progress', handler)
       return () => ipcRenderer.removeListener('ssh:start-progress', handler)
     },
+    // T0387 / BUG-093 — SSH wizard verification against the remote host.
+    openVerifyTunnel: (request: { sessionId: string; sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; remotePort: number }) =>
+      ipcRenderer.invoke('ssh:verify-tunnel-open', request) as Promise<
+        | { ok: true; localPort: number }
+        | { ok: false; errorCode: 'ssh-tunnel-invalid-input' | 'ssh-tunnel-failed'; error: string }
+      >,
+    closeVerifyTunnel: (sessionId: string) =>
+      ipcRenderer.invoke('ssh:verify-tunnel-close', sessionId) as Promise<{ ok: true }>,
+    readServerIdentity: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }) =>
+      ipcRenderer.invoke('ssh:read-server-identity', request) as Promise<
+        | { ok: true; fingerprint: string | null; token: string | null }
+        | { ok: false; error: string }
+      >,
   },
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
