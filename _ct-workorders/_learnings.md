@@ -3123,3 +3123,31 @@ pwsh -Command "Set-Clipboard -Value '/ct-exec T####'"
 
 **候選晉升**：📂 Project（本專案歷史遺留；但「排除規則靠檔名前綴，遇到越界命名即失效」是通例，
 可考慮回饋上游改為 frontmatter 判定）
+
+---
+
+## L133
+
+**來源**：第四十九 session（2026-10-04），T0363 Worker 回報「遭遇問題 1」→ 塔台複驗
+
+**現象**：第四十八 session 塔台 `*archive`（commit `7243ce2`）以 `git mv` 移走 7 張單據，其中
+`T0335/T0336/T0337/BUG-081` 是 `src/types/__tests__/parser-parity.test.ts` 寫死的**真實檔案樣本**。
+歸檔後 unit test 由 550 綠變 546/4 failed，且 `7243ce2` 已 push —— **`origin/main` 紅了一個月沒人發現**，
+直到下一張無關工單（T0363）跑全套測試才浮現。
+
+**根因**：`*archive` 把 `_ct-workorders/` 當成「純塔台私有文件區」，但本專案的產品測試
+**讀取該目錄的真實檔案**（parser 要對真實 CT 文件做 parity）。歸檔判定只看狀態 / 天數 / 引用欄位，
+不看程式碼引用。塔台收工時也沒有在 `*archive` 後跑測試 —— 「只搬 md 檔」被默認為零風險。
+
+**Why 重要**：塔台的 meta 操作（歸檔、改名、`*sync` 重建索引）在本專案**不是**與產品隔離的 ——
+BAT 本身就是 CT 文件的 parser / viewer，測試會吃這些檔。這違反了 CLAUDE.md「No Regressions Policy」，
+而且是塔台自己破的。
+
+**How to apply**：
+- `*archive` 執行前，對候選檔名做一次 `grep -rln "<filename>" src electron scripts`；有命中即視同「被引用」，
+  不歸檔或先開工單處理引用端
+- 塔台 commit 若搬動 `_ct-workorders/` 下檔案，commit 前跑 `npm run test:unit`（本專案特有，約 15 秒）
+- 測試端治本見 T0364：parser-parity 改為同時搜尋 `_archive/<kind>s/`，歸檔不再打破測試
+
+**候選晉升**：📂 Project（「產品測試讀取塔台文件」是 BAT 這種 dogfood 專案特有）；
+但「meta 操作前檢查程式碼引用」可回饋上游 `archive-system.md` 作為可選 hook

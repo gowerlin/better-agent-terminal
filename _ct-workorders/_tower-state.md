@@ -143,7 +143,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0364** / **BUG-083** / **PLAN-035** / **D120** / **EXP-[TOPIC]-001**（T0363 已於第四十九 session 2026-10-04 開出：T0215 debug log 清理）
+- **T0365** / **BUG-083** / **PLAN-035** / **D120** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 parser-parity 修復派發中；L133 新增）
 
 ---
 

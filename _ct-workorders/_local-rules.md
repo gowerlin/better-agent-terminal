@@ -202,6 +202,9 @@ OPEN → FIXING → FIXED → VERIFY → CLOSED
 - 被 active 工單的「相關單據」欄位引用
 - 塔台明確標記「保留」的單據
 - `_tower-state.md` 起手式提及的單據
+- 被產品程式碼 / 測試以檔名引用的單據（歸檔前 `grep -rln "<filename>" src electron scripts`，有命中即豁免；L133，2026-10-04 補）
+
+> ⚠️ 本專案產品測試會讀 `_ct-workorders/` 的真實檔案。塔台 commit 若搬動該目錄下檔案，commit 前跑 `npm run test:unit`（L133）。
 
 ### 歸檔目錄結構
 

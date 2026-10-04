@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0363
 title: "移除 [T0215-DEBUG-REMOVE] 三處除錯輸出（保留 writeWithResult {ok, reason} 邏輯）"
 type: chore
-status: PENDING
+status: DONE
 priority: P2
 sizing: XS
 created_at: "2026-10-04T11:10:00+08:00"
-updated_at: "2026-10-04T11:10:00+08:00"
-started_at: null
-completed_at: null
+updated_at: "2026-10-04T11:24:33+08:00"
+started_at: "2026-10-04T11:11:11+08:00"
+completed_at: "2026-10-04T11:12:53+08:00"
 target_version: next
 depends_on: []
 related:
@@ -36,7 +36,7 @@ memory_overrides:
 
 # T0363 — 移除 [T0215-DEBUG-REMOVE] 三處除錯輸出
 
-- **狀態**：PENDING
+- **狀態**：DONE（塔台 2026-10-04 11:24 裁決：Worker 回報 PARTIAL，唯一缺口 AC-3 經塔台複驗為 `7243ce2` *archive 移走 parser-parity 測試樣本所致的既有回歸，與本單改動無關 → gate 豁免，另開 T0364 修復）
 - **任務類型**：chore（純刪除除錯輸出）
 - **工作量預估**：XS
 - **Context Window 風險**：低（3 個檔，各刪 5-8 行）
@@ -107,10 +107,45 @@ T0215（BUG-050 階段 1）為了觀察 refork race，在 PTY 寫入鏈路三處
 
 ### 完成狀態
 
+**PARTIAL** — 範圍內的刪除與 CHANGELOG 全部完成並已 commit；唯一未達標的 gate 是 AC-3（測試非全綠），原因為**既有回歸**（`7243ce2` 歸檔移走了測試樣本），與本工單改動無關，且不在 `affects_files` 內，依範圍守則未修。
+
 ### 產出摘要
+
+- Commit：`36bf6f0` `chore(pty): remove T0215 debug diagnostics (T0363)`（`git commit --only` 四檔，未推送）
+- `scripts/bat-notify.mjs`：刪 570-575（writeResp dump，6 行）
+- `electron/pty-manager.ts`：刪 636-643 + 其後空行（writeWithResult entry log，9 行；整理後函式首行即 `// Manager-level check`）
+- `electron/terminal-server/server.ts`：刪 251-256 + 其後空行（writePty stderr，7 行）
+- `CHANGELOG.md`：`## [Unreleased]` → `### Changed` 末尾新增一筆 chore（屬噪音清理非 bug 修復，故選 Changed）
+- 行號與工單表格（`7243ce2`）完全一致，無差異
+- 三檔 CRLF 行尾保留（刪除前後所有行皆 CRLF）
+
+**Landing check**：WARN
+- C-0：frontmatter 無 `repo` 欄位 → WARN「repo identity unavailable」；observed `basename(REPO_ROOT)` = `better-agent-terminal`
+- C-1：PASS（工單位於 `REPO_ROOT/_ct-workorders/`）
+- C-3：PASS（4 個 testable entries 全部存在）
+- C-2：工單無 `branch` 欄位，HEAD = `main`
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 環境：`CT_MODE=on`、BAT vars 齊全
 
 ### 驗收條件逐項
 
+- [x] AC-1 `grep -rn "T0215-DEBUG" electron scripts src` → **0 筆** ✅ PASS
+- [x] AC-2 `grep -rn "T0215 (BUG-050" electron scripts` → **3 筆**（`main.ts:1898`、`pty-manager.ts:628`、`bat-notify.mjs:570`）✅ PASS
+- [ ] AC-3 `npm run test:unit` → **546 passed / 4 failed（共 550，總數未減少）** ⚠️ 非全綠，既有回歸
+  - 失敗皆在 `src/types/__tests__/parser-parity.test.ts`：`Sample <file> not found in ..._ct-workorders. Replace with another workorder/bug.`
+  - 缺失樣本：`T0335-…`、`T0336-…`、`T0337-…`、`BUG-081-…`——全部在 `7243ce2`（`*archive 7 items to cold zone`）被移到 `_archive/workorders/`、`_archive/bugs/`
+  - 與本工單三檔改動無任何依賴關係；本工單未觸及測試或樣本
+- [x] AC-4 `npx vite build` → exit 0 ✅ PASS（含 `dist-electron/terminal-server.js` 重建）
+- [x] AC-5 `git diff` 三程式檔 **0 行新增**、僅刪除；`writeWithResult(...): { ok: boolean; reason?: string }` 仍在（`pty-manager.ts:635`），`Error: PTY write failed: ${reason}` 仍在（`bat-notify.mjs:574`）✅ PASS
+- [x] AC-6 `36bf6f0` stat 僅 `CHANGELOG.md` / `electron/pty-manager.ts` / `electron/terminal-server/server.ts` / `scripts/bat-notify.mjs` 四檔（+6 / -22）✅ PASS
+
+驗證 lane：source ✅ / build ✅ / unit test ⚠️（既有失敗）/ runtime —（依工單說明由塔台於下次 release 處理，未改安裝目錄）
+
 ### 遭遇問題
 
+1. **parser-parity 測試因歸檔失效（既有，範圍外）**：`7243ce2` 歸檔時未同步更新 `src/types/__tests__/parser-parity.test.ts` 的樣本清單（:36-39 一帶）。建議塔台開一張 XS 工單：把 4 個樣本換成仍在 `_ct-workorders/` 的檔案，或讓測試也搜尋 `_archive/` 子目錄；並考慮在 `*archive` 流程加一道「是否被測試引用」檢查。
+2. `AGENTS.md` 既有 dirty 未觸碰；本工單檔本身未納入 commit（依步驟 7 只 commit 四檔），留待塔台同步。
+
 ### 回報時間
+
+2026-10-04T11:12:30+08:00
