@@ -1,14 +1,56 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-09-02 15:52 (UTC+8) — **第四十八 session 收工（含收工後補結案）** — BUG-082 runtime 驗收 CLOSED、跨塔台回函發出、社群 PR #19 處置完畢、`v0.5.9-pre.2` 已發布、**BUG-072/073/074/078 就地結案 + PLAN-032 → DONE**。
+> 最後更新:2026-10-04 16:59 (UTC+8) — **第四十九 session 收工** — 12 張工單全 DONE；BUG-071 / BUG-083 / BUG-084 → FIXED；`v0.5.9-pre.3` 已發布、`v0.5.9-pre.4` CI 收工時仍在跑。
 >
-> **下次起手**:Fast Path 載入;立即待辦見「🌅 起手式」。**本 session 無未結案阻塞**，起手可直接挑待辦。
+> **下次起手**:Fast Path 載入;**第一件事：驗 `v0.5.9-pre.4` CI 結果**（run `37190475739`），再收使用者實機驗收回報。
 >
-> **前次更新**:2026-09-02 00:00 (UTC+8) — 第四十七 session 收工:BUG-082 / T0360 / T0361 落地，v0.5.9-pre.1 發布。
+> **前次更新**:2026-09-02 15:52 (UTC+8) — 第四十八 session 收工:BUG-082 CLOSED、`v0.5.9-pre.2` 發布。
 
 ---
 
-## 🛏 本 Session 收工快照 (第四十八 session, 2026-09-02 12:51 - 15:38, ~2h45m wall)
+## 🛏 本 Session 收工快照 (第四十九 session, 2026-10-04 11:08 - 16:59, ~5h50m wall)
+
+### 主軸：T0215 debug 清理 → *archive 回歸修復 → BUG-071 發版閉環 → Codex / Claude 內嵌 CLI 落後雙修 → v0.5.9-pre.4
+
+#### 起手狀態
+
+快照 32 天（> 7 天）→ Full Scan 複核：git 零漂移、熱區與編號一致、BAT workspace ID 換新（`cc0afc4a-…`）。中途使用者 `*config auto-session yolo`（僅本 session）。
+
+#### 時間線（時間取自 git commit）
+
+1. **11:10** 跨塔台清理請求 → T0363（T0215 DEBUG log 三處）→ `36bf6f0`；Worker 回報 AC-3 失敗 → 塔台複驗為**自身上個 session `*archive`（`7243ce2`）移走 parser-parity 測試樣本**造成 → T0364 `ddef6b0` 修測試、L133 + `_local-rules` 歸檔豁免
+2. **13:14** BUG-071 複查：placeholder 早已移除，但 runtime 下載預設網址指向**不存在的 `anthropics/`**、gowerlin 0 個 `server-bundle-v*` → D120 → T0365 `a295ec7`
+3. **13:26** 首次 push + 發 `v0.5.9-pre.3`：9/9 job、首個 `server-bundle-v0.5.9-pre.3`、runtime URL 下載 sha256 三方一致 → BUG-071 FIXED
+4. **13:30** 測試者回報 Codex 需更新 → BUG-083 + T0366 research（H1/H3 證實、H2 誤報）→ D121 串行 T0367 / T0369 / T0370 / T0373 → FIXED
+5. **15:58** 使用者問「SDK 是否最新」→ T0368 research → **內嵌 Claude 2.1.113 被服務端擋 Opus 5.5 / Fable 5.1** → BUG-084（high）→ D122 → T0371 / T0372 / T0374 → FIXED；D123 使用者裁決 `claude-code-v2` 下架（Phase 2）
+6. **16:55** bump + push + 觸發 `v0.5.9-pre.4`（run `37190475739`）—— **收工時 CI 仍在跑，結果未驗**
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | 12（T0363-T0374） | 全 DONE；2 research + 10 實作；YOLO 串行 |
+| BUG | 新開 2（083/084）；FIXED 3（071/083/084） | 三張皆待使用者實機驗收 |
+| 決策 | 4（D120-D123） | |
+| Learnings | L133、L134、L135 | |
+| unit test | 550 → **673**（47 files） | tsc 42 → 40 |
+| Release | `v0.5.9-pre.3` ✅ / `v0.5.9-pre.4` ⏳ CI | 首次 server bundle release |
+| 依賴 | codex-sdk 0.124 → 0.160；claude-code 2.1.113 → 2.1.289 | claude-agent-sdk 仍 0.2.113（Phase 2） |
+
+### 重點觀察 / Learnings
+
+- **L133**：本專案產品測試讀 `_ct-workorders/` 真實檔，塔台 meta 操作（歸檔）可打破 main
+- **L134**：內嵌第三方 CLI 落後會被**服務端以版本門檻直接拒絕新模型**（Codex `requires a newer version`、Claude `claude_code_version_too_old`）——落後 = 功能故障，非「少新功能」。每次預覽版發布前檢查 `npm view` 版本
+- **L135**：塔台在快速連續作業中**又手打時間戳**（YOLO 歷程曾寫出比系統時間晚的 16:58 / 17:00），違反 R-G001；收工以 git commit 時間校正
+- Worker 兩次把工單 status 寫成 `FIXED`（BUG 狀態詞）—— 塔台正規化為 `DONE`；工單執行指示明寫「完成請寫 `DONE`」後未再發生
+
+### 編號起始（下 session）
+
+- **T0375** / **BUG-085** / **PLAN-035** / **D124** / **L136**
+
+---
+
+## 🛏 前 Session 收工快照 (第四十八 session, 2026-09-02 12:51 - 15:38, ~2h45m wall)
 
 ### 主軸：BUG-082 runtime 驗收閉環 → 跨塔台回函 → 社群 PR 處置 → v0.5.9-pre.2
 
@@ -58,79 +100,21 @@ Fast Path 有效（快照 2026-09-01 22:05，距今 ~15h）。熱區 T:13 / BUG:
 
 ---
 
-## 🛏 前 Session 收工快照 (第四十七 session, 2026-09-01 22:05 - 2026-09-02 00:00, ~2h wall)
-
-### 主軸：跨塔台 ADVISORY 處置 → BUG-082 修復 → v0.5.9-pre.1 發布
-
-#### 起手狀態
-
-Fast Path 失效（快照 2026-05-23，距今 **101 天**）→ Full Scan。熱區 T:11 / BUG:7 / PLAN:6 / EXP:0 / CT-T:1。
-
-#### 時間線
-
-1. **22:05 Full Scan** — 面板顯示；state 19.6 KB 正常，起手式 31 行（觸軟警告）
-2. **22:05-22:40 ADVISORY 分析** — BMad-Guide 塔台來文 4 項（[1] `--workorder` 拒收跨專案前綴 / [2] B-1 workspace 預設 / [3] B-2 提示 / [4] 未知 workspaceId 行為）。塔台讀碼驗證，**發現問題比對方描述更大**：BAT 內部四個元件對工單 ID 格式有四種答案
-3. **22:42 建 BUG-082 + T0360**，commit `3250bc2`
-4. **22:45-22:55 T0360 FIXED**（Worker ~10 min）— commit `956c0f9`，9 files +557/-12
-5. **22:56 塔台複驗** — 507/507 tests、四處 regex 零殘留、helper 拒收/接受/B-2 提示皆實測。**發現 runtime 驗收阻塞：安裝版 BAT 仍為修復前**（`app.asar` + `resources/scripts/` 皆 2026-05-24 20:29）
-6. **23:20 發布路徑調查** — 揭露三個與既有認知不符的事實（見下「重點觀察」）
-7. **23:34 建 T0361 + 派發** — 項目 4（migrate script 第五處 regex）+ miss 訊號；使用者選擇**不含 B-1**
-8. **23:41 T0361 DONE**（Worker ~7 min）— commit `007adf8`；複驗 511/511
-9. **23:45 push + 觸發 workflow** — `gh workflow run pre-release.yml -R gowerlin/... -f version=0.5.9-pre.1`
-10. **00:00 build 全綠** — release `v0.5.9-pre.1` 發布（prerelease: true），5 個 artifact
-11. **00:00 package.json 版本漂移修復** — `0.4.2` → `0.5.9-pre.1`，commit `a650754`
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 新增 BUG | 1（BUG-082） | OPEN → FIXED（待 runtime 驗收） |
-| 派發工單 | 2（T0360 / T0361） | 全綠，各 1 round，共 ~17 min Worker wall |
-| 新增測試 | +28 cases | 483 → 511（T0360 +24 / T0361 +4） |
-| Code 改動 | +805 lines | 跨 helper / main / renderer 三層 |
-| Push commits | 8 | `a3a9489..a650754` |
-| Release | 1 | `v0.5.9-pre.1`（三平台 + server bundle × 3） |
-
-### 重點觀察 / Learnings 候選
-
-- **L122**（候選，🔴 高價值）：**本 repo 有三個 remote**（`origin`=gowerlin / `upstream`=tony1223 / `scandnavik`），`gh` 預設解析到 **upstream**。本次 `gh workflow run` 首發 HTTP 404 打到 tony1223。**所有 `gh` 指令必須顯式帶 `-R gowerlin/better-agent-terminal`**。本次是唯讀操作只是報錯；若是 `gh release create` / `gh pr` 等寫入操作解析錯 repo，後果嚴重。**已寫入 `_local-rules.md`**
-- **L123**（候選）：`pre-release.yml` 是 **`workflow_dispatch` only**，push tag 不會觸發它（push `v*` 會觸發 `release.yml` 正式版線）。CLAUDE.md 的「Release」節描述與此不符，需修
-- **L124**（候選）：workflow 自動遞增取 `git tag -l 'v*' --sort=-v:refname | head -1`，在**多版本線混雜**的 fork（v0.x / v2.2.x / v4.0.x 共 257 tag）會取到 `v4.0.3-pre.1` → 產出 `4.0.4-pre.1`。**必須顯式指定版本號**
-- **L125**（候選）：「source 已修但 installed bundle 落後」是 BAT 反覆出現的驗收陷阱（2026-05-24 bug tracker parser 修復時同款）。凡涉及 `app.asar` 或 `resources/scripts/` 的修復，**source lane 綠燈 ≠ runtime lane 可驗**，必須分兩條 lane 回報
-- **L126**（候選）：Worker 對工單原文的合理偏離（T0361「fallback 前發出 warn」→ 改為「前判定、後輸出」，因為要印 landed 值必須先解析 fallback）——工單寫死實作順序不如寫清楚**訊號要含哪些欄位**
-
-### 編號起始（下 session）
-
-- **T0362** / **BUG-083** / **PLAN-035** / **D119**
-
----
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-09-02 15:38 UTC+8（第四十八 session 收工 — 無未結案阻塞）
+> 最後更新：2026-10-04 16:59 UTC+8（第四十九 session 收工）
 
 ### 本 session 已清空的項目
-BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校正 ✅ ｜ PR #19 已處置 ✅ ｜ v0.5.9-pre.2 已發布 ✅
-**BUG-072/073/074/078 就地結案 ✅ ｜ PLAN-032 → DONE ✅**（使用者裁決：v0.5.8 上線 101 天零回饋）
-**`*archive` 7 張移入冷區 ✅**（T0335/336/337/348/358/359 + BUG-081）
-
-> ⚠️ **BUG-072/073/074 是 field evidence 結案，不是人工 smoke。** PLAN-032 的 AC-4/5/6
-> 未經實機確認，僅有整合測試（T0338）+ 程式碼稽核（T0341）覆蓋。日後踩到 wizard
-> 錯誤路徑問題請**另開新 BUG**，不重開舊單。
+T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3` + 首個 `server-bundle-v*` ✅ ｜ unit test 550 → 673 ✅
 
 ### 待辦（依優先序）
 
-1. 🟡 **BUG-071** ✅ FIXED（`a295ec7`；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 已發佈）—— **待使用者實機**：裝 pre.3 跑 WSL wizard（x64）；DGX Spark SSH（arm64）視時間 → 通過即 CLOSED
-2. 🟡 **BUG-083** ✅ FIXED（Codex：`c6214c2` / `ca0d292` / `30fcf45` / `3d52a1d`，SDK 0.160 + 選最新 binary）—— 待實機開 Codex 分頁驗收
-3. 🟡 **BUG-084** ✅ FIXED（`0d231b3` / `79c349e`）—— 待實機選 Opus 5.5；T0374 計價表 ✅ `5b8975f` → 發 `v0.5.9-pre.4`（待使用者授權 push）→ Phase 2 SDK 0.3 + V2 下架（D123）
-4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6 倍（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
-5. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到
-6. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號至今零筆真實觸發，待有資料再議（已回函告知對方）
-7. 🟢 **BUG-061** Codex panel tsc baseline errors（OPEN, low）
-8. 🟢 T0324 DGX Spark dogfood VERIFY / WSL-Docker structured errorCode PLAN
-9. 🟢 **下次起手可再跑一次 `*archive`**：本輪結案的 10 張（T0360/361/362、CP-T0362、BUG-072/073/074/078/082、PLAN-032）因 `archive_days: 2` 未到齡，下次 session 即全部可歸檔
+1. 🔴 **驗 `v0.5.9-pre.4` CI**：`gh run view 37190475739 -R gowerlin/better-agent-terminal`；確認 9/9 job、`v0.5.9-pre.4`（5 檔）+ `server-bundle-v0.5.9-pre.4`（7 資產）、**記錄安裝檔大小 vs pre.3**（codex 套件 213→430 MB）。失敗則查因，不自動重跑
+2. 🟡 **收實機驗收**（使用者收工時正在更新 BAT）：BUG-071 WSL wizard 第 4 步 ｜ BUG-083 Codex 分頁首行 `Codex CLI 0.160.0 (embedded)`、無紅色 `Codex is ignoring` / `Reconnecting` ｜ BUG-084 Claude 面板選 Opus 5.5 對話、下拉無 alias 重複 → 通過即 CLOSED
+3. 🟡 **BUG-084 Phase 2**：`claude-agent-sdk` 0.2.113 → 0.3.x + `claude-code-v2` preset **下架**（D123，含既有設定遷移至 `claude-code`）+ TodoWrite → Task tools；順手改 `src/types/index.ts:122` 過時註解（max = Opus only）
+4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 長期超標，pre.4 codex 翻倍後更需復議
+5. 🟢 **L128 CLAUDE.md Logging 節待修** ｜ **BUG-061** tsc baseline（42 → 40）｜ ADVISORY B-1 復議
+6. 🟢 **`*archive`**：上 session 10 張 + 本 session 工單已到齡候選（**先 grep 程式碼引用，L133**）
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`** —— 三個 remote，預設會解析到 upstream tony1223。
@@ -139,13 +123,13 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。錯誤訊息被擴寫時字串仍在。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（7 熱區：Open 2 / Closed 5）｜ Backlog → [_backlog.md](_backlog.md)（6 熱區：Done 1）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D119）｜ Learnings → [_learnings.md](_learnings.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（9 熱區：Open 1 / Fixed 3 / Closed 5）｜ Backlog → [_backlog.md](_backlog.md)（6 熱區：Done 1）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D123）｜ Learnings → [_learnings.md](_learnings.md)
 - 跨塔台回函 → [_reply-2026-09-02-bat-workspace-default-opinion.md](_reply-2026-09-02-bat-workspace-default-opinion.md)
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（64 entries）
 
 ### 編號起始
-- **T0375** / **BUG-085** / **PLAN-035** / **D123** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；BUG-083 FIXING：T0366 research DONE `aa970dc` → T0367（T-A）DONE `c6214c2` → T0369（T-B）DONE `ca0d292` → T0370（T-D）DONE `30fcf45` → 後續 T-C（D121，排在 T0371 後）；T0368 研究 DONE `22e8ddc` → BUG-084（Claude 內嵌 CLI 過舊，high）→ T0371 DONE `0d231b3` → BUG-084 FIXED；T0372 後續派發；D120、D121、L133 新增）
+- **T0375** / **BUG-085** / **PLAN-035** / **D124** / **EXP-[TOPIC]-001** / **L136**
 
 ---
 
@@ -156,16 +140,16 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
 | **目前版號** | **0.5.9-pre.4**（package.json + lock 已同步，commit `17ad488`；release CI 進行中） |
-| **最新 release** | `v0.5.9-pre.3`（2026-10-04 13:35，prerelease，5 artifact）+ **`server-bundle-v0.5.9-pre.3`**（首個 server bundle release，7 資產，D120） |
-| **前一 tag** | `v0.5.9-pre.2`（2026-09-02） |
-| **目前主軸** | 無單一主軸；待辦以 PLAN-032 三 BUG smoke 為首 |
-| **工單最大編號** | T0362（DONE，commit `a8ee6a1`）；另有 CP-T0362（DONE，`89921e2`） |
-| **BUG 最大編號** | BUG-082（**CLOSED**，runtime 驗收通過 2026-09-02） |
+| **最新 release** | `v0.5.9-pre.4`（2026-10-04 觸發，**CI 收工時未完成**，run `37190475739`）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
+| **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
+| **目前主軸** | 內嵌 CLI 追版（BUG-083 / BUG-084）收尾 → Phase 2 Claude SDK 0.3 |
+| **工單最大編號** | T0374（DONE，commit `5b8975f`） |
+| **BUG 最大編號** | BUG-084（FIXED，待實機） |
 | **PLAN 最大編號** | PLAN-034（已 archive；熱區最大 PLAN-033） |
-| **決策最大編號** | D119 |
+| **決策最大編號** | D123 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower v5.0.5 |
-| **unit test 基線** | **550**（41 files） |
+| **塔台版本** | Control Tower v5.0.9 |
+| **unit test 基線** | **673**（47 files）；tsc baseline 40 |
 
 ---
 
@@ -231,29 +215,29 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-04 11:09 (UTC+8) — 第四十九 session 起手 Full Scan 複核（快照 32 天 > 7 天門檻）
+> 最後掃描:2026-10-04 11:09 (UTC+8) 起手 Full Scan；2026-10-04 16:59 收工逐項更新
 > 複核結果：git 零漂移（`origin/main` = `7243ce2`，0/0）；熱區計數與最大編號與 09-02 收工一致；無新 release / 開放 PR / 開放 issue；BAT workspace ID 已換新（下列已更新）。
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（10-04 更新；舊值 `2eda2f34-…` 已失效） |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（10-04 PowerShell 複核） |
-| BAT 安裝版 | ✅ **已與 source 同步** | 2026-10-04 雜湊複核：`bat-terminal.mjs` sha256 一致；`bat-notify.mjs` 僅 CRLF 差異（去 `\r` 後 diff 為空）。`app.asar` 2026-09-02 15:36。⚠️ 驗證法見 L127 |
+| BAT 安裝版 | ⚠️ 收工時使用者更新中 | 收工前安裝版為 `v0.5.9-pre.2`（`app.asar` 2026-09-02）；使用者收工時更新 BAT（目標 pre.4，CI 當時未完成）——下次起手以雜湊 / `app.asar` 時間確認實際裝到哪版（L127） |
 | BAT_HELPER_DIR | ✅ | `C:/Program Files/BetterAgentTerminal/resources/scripts` |
 | BAT debug log | ⚠️ 路徑與文件不符 | 實際在 `%APPDATA%\better-agent-terminal\Logs\debug-<stamp>.log`（與 `BAT_USER_DATA` 指向的 `BetterAgentTerminal\` 為**兩個並存目錄**，大小寫不同）。CLAUDE.md Logging 節待修（L128） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存 |
 | gh CLI | ✅ | 已登入 `gowerlin`。⚠️ **必須帶 `-R gowerlin/better-agent-terminal`**（L122），本 session 三次 gh 操作皆遵守 |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ✅ | `origin/main` = `70dfec4`，本地零領先 |
+| git 同步 | ⚠️ | `origin/main` = `17ad488`（pre.4 bump）；本地另有塔台紀錄 commit 未 push（`79f7314` 起） |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
 | 熱區工單 | **T:8 / CP-T:1 / BUG:7 / PLAN:6 / EXP:0 / CT-T:1** | `*archive` 後；BUG 為 Open 2 + Closed 5（無 FIXED/VERIFY 掛帳）。⚠️ T:8 中有 **4 張是報告檔非工單**（見 L132），實際工單數 4 |
-| 最大編號 | **T0362 / BUG-082 / PLAN-034(archived) / D119** | 下張：T0363 / BUG-083 / PLAN-035 / D120 |
-| unit test | ✅ **550 passed / 41 files** | 本 session 基線由 511 → 550（塔台親跑複驗） |
+| 最大編號 | **T0374 / BUG-084 / PLAN-034(archived) / D123** | 下張：T0375 / BUG-085 / PLAN-035 / D124 |
+| unit test | ✅ **673 passed / 47 files** | 第四十九 session 550 → 673（塔台親跑） |
 | vite build | ✅ | 本 session 親跑複驗通過 |
-| tsc --noEmit | ⚠️ 42 既有 error | 全落在 `CodexAgentPanel.tsx` / `agent-profiles.ts` 等未觸及檔案，為既有 baseline（BUG-061） |
+| tsc --noEmit | ⚠️ 40 既有 error | T0374 消掉 2 個 TS2345；其餘為既有 baseline（BUG-061） |
 | 開放 PR | **0** | PR #19 已於本 session 處置關閉（D119） |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**, yolo_max_retries 1, auto_commit on, archive_days 2） |
-| 塔台版本 | v5.0.5 | control-tower skill |
+| 塔台版本 | v5.0.9 | control-tower skill |
 
 > **Drift / 注意事項**:
 > 1. ✅ `_tower-state.md` 19.5 KB（正常，< 30 KB 軟警告）；起手式無歷史內嵌
@@ -272,34 +256,35 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 > 本區段依 `references/yolo-mode.md` § 「`_tower-state.md` 新增 `## YOLO 歷程` 區段」規格產生。
 > **Footnote**：本 session [斷點 C] 標記僅取狹義（Worker 跨 PLAN 建議）；使用者手動「停」暫不歸 A/B/C，列為 `[使用者中斷]` 自訂事件（待 L064 上游修正）。
 
-### 當前 Session（2026-10-04 13:25 啟動，第四十九 session）
+### 當前 Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
 - [啟動] 2026-10-04 13:25 — 使用者 `*config auto-session yolo`（**僅本 session**，未 `--save`；project 設定仍為 `on`），`yolo_max_retries: 1`
 - [完成] 2026-10-04 13:25 — T0365 DONE（`a295ec7`）塔台複驗 PASS：550 tests、0 處 `anthropics/` 殘留、CI log（run `33603489235`）證實 `artifacts/server-bundle-baseline/` 7 檔路徑與新 step `files:` 完全吻合
 - [外部動作閘] 2026-10-04 13:25 — 下一步為 bump `0.5.9-pre.3` + push + 觸發 `pre-release.yml`。YOLO 不涵蓋 push / release 授權（CLAUDE.md Hard Boundaries），交使用者決定
 - [授權] 2026-10-04 13:26 — 使用者核准全部執行：bump `0.5.9-pre.3`（`37ce0b5`）→ push `7243ce2..37ce0b5` → 觸發 pre-release run `37179875163`
 - [派發] 2026-10-04 13:30 — T0366 research（BUG-083 codex 版本）以 `--mode yolo --interactive` 派發
+- [發版] 2026-10-04 13:42 — run `37179875163` 9/9 success；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 發佈；runtime URL 下載 manifest 成功；BUG-071 → FIXED
 - [研究完成] 2026-10-04 15:52 — T0366 DONE（`aa970dc`）：H1/H3 證實、H2 誤報；D121 定 S1+S2 串行
-- [派發] 2026-10-04 15:53 — T0367（BUG-083 T-A）`--mode yolo --no-interactive`
+- [派發] 2026-10-04 15:54 — T0367（BUG-083 T-A）`--mode yolo --no-interactive`
 - [派發] 2026-10-04 15:58 — T0368（Claude SDK 0.3 升級研究）`--mode yolo --interactive`，與 T0367 並行（affects_files 不重疊）
 - [完成] 2026-10-04 15:59 — T0367 DONE（`c6214c2`）塔台複驗 561 tests PASS
 - [派發] 2026-10-04 15:59 — T0369（BUG-083 T-B）`--mode yolo --no-interactive`
 - [完成] 2026-10-04 16:06 — T0369 DONE（`ca0d292`）塔台複驗 573 tests PASS；手改 lock 經 `npm install --package-lock-only` 重產比對：僅 peer/optional metadata 差異、無版本差 → 一致
 - [派發] 2026-10-04 16:07 — T0370（BUG-083 T-D，併入 T0369 回報的 Reconnecting 誤報）`--mode yolo --no-interactive`
-- [研究完成] 2026-10-04 16:09 — T0368 DONE（`22e8ddc`）：內嵌 Claude 2.1.113 被擋 Opus 5.5/Fable 5.1 → BUG-084 high；D122；T0371 排隊等 T0370（避免 npm install 互擾）
+- [研究完成] 2026-10-04 16:10 — T0368 DONE（`22e8ddc`）：內嵌 Claude 2.1.113 被擋 Opus 5.5/Fable 5.1 → BUG-084 high；D122；T0371 排隊等 T0370（避免 npm install 互擾）
 - [決策] 2026-10-04 16:13 — 使用者裁決 `claude-code-v2` preset 下架（D123）
 - [完成] 2026-10-04 16:15 — T0370 DONE（`30fcf45`，Worker 寫 FIXED 已正規化為 DONE）塔台複驗 593 tests PASS
 - [派發] 2026-10-04 16:15 — T0371（BUG-084 Claude CLI 2.1.289）`--mode yolo --interactive`
-- [完成] 2026-10-04 16:24 — T0371 DONE（`0d231b3`，FIXED→DONE 正規化）塔台複驗 593 tests、`claude.exe --version`=2.1.289；BUG-084 → FIXED
-- [派發] 2026-10-04 16:24 — T0372（BUG-084 後續）`--mode yolo --no-interactive`
+- [完成] 2026-10-04 16:25 — T0371 DONE（`0d231b3`，FIXED→DONE 正規化）塔台複驗 593 tests、`claude.exe --version`=2.1.289；BUG-084 → FIXED
+- [派發] 2026-10-04 16:25 — T0372（BUG-084 後續）`--mode yolo --no-interactive`
 - [完成] 2026-10-04 16:36 — T0372 DONE（`79c349e`）塔台複驗 610 tests + resolver 18 tests；範圍偏差 D-1（測試檔，工單要求）/ D-2（main.ts 1 行文案）接受；O-3 保留 `default` 同意
 - [派發] 2026-10-04 16:37 — T0373（BUG-083 T-C）`--mode yolo --no-interactive`
 - [完成] 2026-10-04 16:46 — T0373 DONE（`3d52a1d`）塔台複驗 635 tests；BUG-083 → FIXED（D121 四張全 DONE）
 - [派發] 2026-10-04 16:47 — T0374（計價表共用模組 + Claude 5）`--mode yolo --no-interactive`
-- [完成] 2026-10-04 16:58 — T0374 DONE（`5b8975f`）；第一階段總驗收：673 tests、vite build exit 0、tsc 42→40
-- [外部動作閘] 2026-10-04 16:58 — 下一步 bump `0.5.9-pre.4` + push + 觸發 pre-release，交使用者決定
-- [授權] 2026-10-04 17:00 — 使用者核准：bump `0.5.9-pre.4`（`17ad488`）→ push `37ce0b5..17ad488` → 觸發 pre-release run `37190475739`
-- [發版] 2026-10-04 13:42 — run `37179875163` 9/9 success；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 發佈；runtime URL 下載 manifest 成功；BUG-071 → FIXED
+- [完成] 2026-10-04 16:52 — T0374 DONE（`5b8975f`）；第一階段總驗收：673 tests、vite build exit 0、tsc 42→40
+- [外部動作閘] 2026-10-04 16:52 — 下一步 bump `0.5.9-pre.4` + push + 觸發 pre-release，交使用者決定
+- [授權] 2026-10-04 16:55 — 使用者核准：bump `0.5.9-pre.4`（`17ad488`）→ push `37ce0b5..17ad488` → 觸發 pre-release run `37190475739`
+- [收工] 2026-10-04 16:59 — 使用者收工並更新 BAT；pre.4 CI 未完成。**本區時間戳已於收工時以 git commit 時間校正**（原 16:58 / 17:00 為手打、晚於系統時間，L135）
 
 ### 前次 YOLO Session（2026-04-18 ~16:10 啟動，第三 session，收尾）
 

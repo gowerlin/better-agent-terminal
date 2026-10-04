@@ -3151,3 +3151,46 @@ BAT 本身就是 CT 文件的 parser / viewer，測試會吃這些檔。這違�
 
 **候選晉升**：📂 Project（「產品測試讀取塔台文件」是 BAT 這種 dogfood 專案特有）；
 但「meta 操作前檢查程式碼引用」可回饋上游 `archive-system.md` 作為可選 hook
+
+---
+
+## L134
+
+**來源**：第四十九 session（2026-10-04），BUG-083（T0366）+ BUG-084（T0368）兩份研究
+
+**現象**：BAT 內嵌的兩支第三方 CLI 都停在 2026-04 的版本，半年後**同一天**被發現壞掉，而且壞法相同：
+
+| CLI | 內嵌版 | 上游 | 服務端回應 |
+|-----|-------|------|-----------|
+| Codex | 0.124.0 | 0.160.0 | `The 'gpt-5.6-terra' model requires a newer version of Codex` |
+| Claude Code | 2.1.113 | 2.1.289 | `400 claude_code_version_too_old`（Opus 5.5 需 ≥ 2.1.280） |
+
+Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口問「SDK 是不是最新」才發現——**沒有任何機制會主動告訴我們**。
+
+**根因**：把「內嵌 CLI 落後」當成「少了新功能」，以為舊版仍能穩定運作。實際上兩家廠商都在**服務端以 CLI 版本逐模型設門檻**，落後就是功能故障，而且故障面隨廠商推新模型而擴大（今天 Sonnet 5.5 還能用，明天可能也被擋）。
+
+**Why 重要**：預設 runtime 是內嵌版的使用者完全沒有退路（Claude 有 PLAN-027 system runtime 可切，Codex 在 T0373 前沒有），而錯誤訊息只叫使用者「run claude update」——在 BAT 內嵌情境下做不到。
+
+**How to apply**：
+- 每次發預覽版前跑 `npm view @anthropic-ai/claude-code version`、`npm view @anthropic-ai/claude-agent-sdk version`、`npm view @openai/codex-sdk version`，落後超過一個月或上游有新預設模型就開升級單
+- 升級前先查**目錄結構**有沒有變（Codex 0.160 改了 `vendor/<triple>/bin/`，寫死路徑會整個找不到內嵌 binary）
+- 錯誤分類要能辨識「版本過舊」並給出 BAT 情境下可行的指示（升級 BAT / 切 runtime），不要原樣轉述廠商的 `claude update`
+
+**候選晉升**：🌐 Global（任何內嵌第三方 CLI 的產品都適用）
+
+---
+
+## L135
+
+**來源**：第四十九 session（2026-10-04）收工
+
+**現象**：塔台在 YOLO 連續派工期間，YOLO 歷程與 state 記錄的時間戳大多是「依前一筆遞推」手打的。收工時以 `date` 取得系統時間 16:57，卻發現記錄裡已經有 **16:58、16:58、17:00** —— 比系統時間還晚。其餘十多筆在 ±2 分鐘內，同樣是估的。
+
+**根因**：全域 R-G001 已明文禁止，但在「每張工單收尾 → 寫紀錄 → 派下一張」的高頻循環裡，塔台把「上一筆 + 幾分鐘」當成取時間。正是 R-G001 原始案例（2026_Cooperative，誤差累積到 +3h57m）的同一機制，只是這次在 5 分鐘內就被抓到。
+
+**How to apply**：
+- 寫 YOLO 歷程 / state 的時間前，在同一個 tool call 內先 `date "+%Y-%m-%d %H:%M"`，或在 python 內用 `datetime.now()` 產生
+- 事後校正以 **git commit 時間**（`git log --date=format:%H:%M`）為準——塔台每個動作都有對應 commit，是可靠的機器時鐘
+- 收工檢查：grep 當日時間戳，任何晚於收工 `date` 的值都是手打的
+
+**候選晉升**：🌐 Global（補強 R-G001：高頻循環是手打時間的高風險情境）
