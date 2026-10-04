@@ -87,7 +87,7 @@ import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
-import { planRemoteConnect, settleRemoteConnect, type RemoteConnectTarget } from './remote/remote-connect-plan'
+import { isRemoteFingerprintChange, planRemoteConnect, settleRemoteConnect, shouldDropClientOnProfileUpdate, type RemoteConnectTarget } from './remote/remote-connect-plan'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -1196,8 +1196,27 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
     const port = profileEntry.remotePort || 9876
     const label = profileEntry.name || profileId
     const task = remoteOpMutex.then(async () => {
+      let candidate: RemoteClient | null = null
+      // T0442: same slot rule as remote:connect (T0430) — swap only on success; a
+      // failed candidate is disconnected so its SSH tunnel / reconnect timer go too.
+      const settleSlot = async (ok: boolean) => {
+        const next = settleRemoteConnect({
+          slot: { client: remoteClient, profileId: remoteClientProfileId },
+          candidate,
+          candidateProfileId: profileId,
+          ok,
+        })
+        remoteClient = next.slot.client
+        remoteClientProfileId = next.slot.profileId
+        if (ok) {
+          for (const c of next.dispose) void c.disconnect().catch(() => { /* ignore */ })
+        } else {
+          await Promise.all(next.dispose.map(c => c.disconnect().catch(() => { /* ignore */ })))
+        }
+      }
       try {
         const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(profileId), profileEntry), profileId)
+        candidate = client
         const result = await client.connect(
           host,
           port,
@@ -1208,12 +1227,11 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
         if (!result.ok) {
           const reason = classifyConnectFailure(result)
           logger.error(`[profile] remote connect failed for profile ${profileId} (${host}:${port}) [${reason}/${result.errorCode ?? 'unknown'}]: ${result.error ?? 'unknown'}`)
+          await settleSlot(false)
           return { kind: 'remote-unreachable', reason, host, port, label, error: result.error } as SnapshotLoadResult
         }
-        try { remoteClient?.disconnect() } catch { /* ignore */ }
-        remoteClient = client
-        remoteClientProfileId = profileId
         remoteClientTargets.set(client, { host, port, token: profileEntry.remoteToken, fingerprint: result.fingerprint ?? '' })
+        await settleSlot(true)
         const targetProfileId = profileEntry.remoteProfileId || 'default'
         try {
           const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
@@ -1228,6 +1246,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         logger.error(`[profile] remote profile ${profileId} connect threw:`, message)
+        await settleSlot(false)
         return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: message } as SnapshotLoadResult
       }
     })
@@ -2668,8 +2687,30 @@ function registerLocalHandlers() {
     return duplicated
   })
   ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; sshServerArch?: string }) => {
+    const previousFingerprint = (await profileManager.getProfile(profileId))?.remoteFingerprint
     const updated = await profileManager.update(profileId, updates)
     void syncWslKeepAlive('profile:update')
+    // T0442: a pin change fails closed — the slot's client was verified against the
+    // old pin. Queued on remoteOpMutex so a connect still in flight with the old pin
+    // settles first and is dropped here; the window reconnects with the new pin.
+    if (isRemoteFingerprintChange(previousFingerprint, updates.remoteFingerprint)) {
+      const task = remoteOpMutex.then(async () => {
+        if (!shouldDropClientOnProfileUpdate({
+          profileId,
+          applied: updated,
+          previousFingerprint,
+          nextFingerprint: updates.remoteFingerprint,
+          slotProfileId: remoteClientProfileId,
+        })) return
+        logger.warn(`[profile:update] remoteFingerprint changed for profile ${profileId}; disconnecting its remote client`)
+        const client = remoteClient
+        remoteClient = null
+        remoteClientProfileId = null
+        await client?.disconnect().catch(() => { /* ignore */ })
+      })
+      remoteOpMutex = task.catch(() => {})
+      await task
+    }
     return updated
   })
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))

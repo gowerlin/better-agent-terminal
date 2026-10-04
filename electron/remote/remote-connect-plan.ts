@@ -144,3 +144,31 @@ export function settleRemoteConnect<C>(input: {
     dispose: candidate && candidate !== slot.client ? [candidate] : [],
   }
 }
+
+/**
+ * T0442: `profile:update` changed the profile's pin. Compared normalized (case
+ * and separators ignored); `undefined` in the update means "field untouched".
+ */
+export function isRemoteFingerprintChange(previous: string | undefined, next: string | undefined): boolean {
+  if (next === undefined) return false
+  return normalizeFingerprint(previous ?? '') !== normalizeFingerprint(next)
+}
+
+/**
+ * T0442: fail closed when a profile's pin changes. The slot's client was
+ * verified against the old pin, so it is dropped when it is bound to that
+ * profile; the renderer's next `remote:connect` reconnects with the new pin.
+ * Updates that did not apply, leave the pin alone, or target another profile
+ * never touch the slot.
+ */
+export function shouldDropClientOnProfileUpdate(input: {
+  profileId: string
+  applied: boolean
+  previousFingerprint: string | undefined
+  nextFingerprint: string | undefined
+  slotProfileId: string | null
+}): boolean {
+  const { profileId, applied, previousFingerprint, nextFingerprint, slotProfileId } = input
+  if (!applied || slotProfileId === null || slotProfileId !== profileId) return false
+  return isRemoteFingerprintChange(previousFingerprint, nextFingerprint)
+}

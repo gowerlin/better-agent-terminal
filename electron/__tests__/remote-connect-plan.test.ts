@@ -8,8 +8,10 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   LEGACY_PROFILE_ERROR,
+  isRemoteFingerprintChange,
   settleRemoteConnect,
   planRemoteConnect,
+  shouldDropClientOnProfileUpdate,
   type RemoteConnectBoundProfile,
   type RemoteConnectCurrent,
 } from '../remote/remote-connect-plan'
@@ -198,5 +200,77 @@ describe('remote:connect handler wiring (T0430 source guard)', () => {
     const reject = handler.slice(handler.indexOf("plan.kind === 'reject'"), handler.indexOf("plan.kind === 'reuse'"))
     expect(reject).toMatch(/return \{ error: plan\.error/)
     expect(reject).not.toMatch(/settleSlot|remoteClient\s*=|remoteClientProfileId\s*=/)
+  })
+})
+
+describe('loadProfileSnapshotDetailed wiring (T0442 source guard)', () => {
+  const src = readFileSync(resolve(__dirname, '../main.ts'), 'utf8')
+  const start = src.indexOf('async function loadProfileSnapshotDetailed(')
+  const fn = src.slice(start, src.indexOf('function showRemoteProfileFailureDialog(', start))
+
+  it('settles the slot through settleRemoteConnect instead of assigning it', () => {
+    expect(start).toBeGreaterThan(-1)
+    expect(fn).toMatch(/settleRemoteConnect\(/)
+    expect(fn).not.toMatch(/remoteClient\s*=\s*client/)
+  })
+
+  it('a failed connect (result or throw) disposes the candidate before returning', () => {
+    const failed = fn.slice(fn.indexOf('if (!result.ok)'), fn.indexOf('remoteClientTargets.set(client'))
+    expect(failed).toMatch(/await settleSlot\(false\)[\s\S]*return \{ kind: 'remote-unreachable'/)
+    const threw = fn.slice(fn.indexOf('connect threw'))
+    expect(threw).toMatch(/await settleSlot\(false\)/)
+  })
+})
+
+describe('isRemoteFingerprintChange (T0442)', () => {
+  it('an update without remoteFingerprint is not a change', () => {
+    expect(isRemoteFingerprintChange(PIN, undefined)).toBe(false)
+  })
+
+  it('ignores case and separators', () => {
+    expect(isRemoteFingerprintChange(PIN, PIN.toLowerCase().replace(/:/g, ''))).toBe(false)
+  })
+
+  it('a different pin, or clearing / first-setting it, is a change', () => {
+    expect(isRemoteFingerprintChange(PIN, OTHER)).toBe(true)
+    expect(isRemoteFingerprintChange(PIN, '')).toBe(true)
+    expect(isRemoteFingerprintChange(undefined, PIN)).toBe(true)
+  })
+})
+
+describe('shouldDropClientOnProfileUpdate — pin change fails closed (T0442)', () => {
+  const base = { profileId: 'p1', applied: true, previousFingerprint: PIN, nextFingerprint: OTHER, slotProfileId: 'p1' as string | null }
+
+  it('drops the slot client bound to the profile whose pin changed', () => {
+    expect(shouldDropClientOnProfileUpdate(base)).toBe(true)
+  })
+
+  it('keeps the slot when the pin is unchanged (same value in another format, or not in the update)', () => {
+    expect(shouldDropClientOnProfileUpdate({ ...base, nextFingerprint: PIN.toLowerCase() })).toBe(false)
+    expect(shouldDropClientOnProfileUpdate({ ...base, nextFingerprint: undefined })).toBe(false)
+  })
+
+  it('keeps the slot when another profile is updated or the slot is empty', () => {
+    expect(shouldDropClientOnProfileUpdate({ ...base, slotProfileId: 'q' })).toBe(false)
+    expect(shouldDropClientOnProfileUpdate({ ...base, slotProfileId: null })).toBe(false)
+  })
+
+  it('keeps the slot when the update did not apply', () => {
+    expect(shouldDropClientOnProfileUpdate({ ...base, applied: false })).toBe(false)
+  })
+})
+
+describe('profile:update handler wiring (T0442 source guard)', () => {
+  const src = readFileSync(resolve(__dirname, '../main.ts'), 'utf8')
+  const start = src.indexOf("ipcMain.handle('profile:update'")
+  const handler = src.slice(start, src.indexOf("ipcMain.handle('profile:get'", start))
+
+  it('reads the old pin before updating and clears the slot only behind shouldDropClientOnProfileUpdate', () => {
+    expect(start).toBeGreaterThan(-1)
+    expect(handler.indexOf('previousFingerprint =')).toBeLessThan(handler.indexOf('profileManager.update('))
+    const guard = handler.indexOf('shouldDropClientOnProfileUpdate(')
+    expect(guard).toBeGreaterThan(-1)
+    expect(handler.indexOf('remoteClient = null')).toBeGreaterThan(guard)
+    expect(handler).toMatch(/remoteOpMutex\.then\(/)
   })
 })
