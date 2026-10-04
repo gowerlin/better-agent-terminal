@@ -52,6 +52,6 @@ links:
 | 順序 | 工單 | 內容 |
 |------|------|------|
 | 1 | T0371 ✅ `0d231b3` | CLI → 2.1.289 + Claude 5 模型清單 + `getSupportedModels()` 帶 runtime 路徑 + `release.yml` Node 24（embedded + `claude-opus-5-5` smoke = `pong`） |
-| 2 | T0372 | `claude_code_version_too_old` 錯誤分類 + `HEALTHY_MIN` → 2.1.280 + embedded 注入 `DISABLE_UPDATES=1` + 模型下拉去重 + CLAUDE.md |
+| 2 | T0372 ✅ `79c349e` | `claude_code_version_too_old` 錯誤分類 + `HEALTHY_MIN` → 2.1.280 + embedded 注入 `DISABLE_UPDATES=1` + 模型下拉去重 + CLAUDE.md |
 | 3 | 待開 | 計價表（5 系列、cache-read 倍率、Claude/Codex 共用模組）—— 需等 BUG-083 T0370 收尾 |
 | 4 | 待開（Phase 2） | SDK 0.3.289 + **`claude-code-v2` preset 下架**（D123，含既有設定遷移至 `claude-code`）+ Task tools UI |
