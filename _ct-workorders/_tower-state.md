@@ -312,6 +312,10 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [授權] 2026-10-05 07:09 — 使用者同意：T0456 完成後部署 WSL（`deploy:headless:dev`，備份 tag）+ smoke；失敗即 rollback
 - [完成] 2026-10-05 07:13 — T0437 DONE（`394add5`）塔台複核 PASS：`remote:resolve-client-paths`（ALWAYS_LOCAL，純規則換算無資源存取，接受）、detached 視窗走父 profile、本單範圍 984 tests 綠、tsc 36；全套 2 failed 屬 T0456 WIP（`BAT_HELPER_NODE`）→ T0456 完成時必查。**BUG-107 ↔ T0437 同版條件滿足**
 - [派發] 2026-10-05 07:13 — T0438（`--no-interactive`）
+- [完成] 2026-10-05 07:16 — T0456 DONE（`698a157`）塔台複核 PASS：塔台重跑 `headless-helper-env` + smoke 測試 104/104；Worker 2521 passed / tsc 36；`_local-rules.md` 範例改 `"${BAT_HELPER_NODE:-node}"`（login shell 可能重設 PATH）
+- [WSL 部署] 2026-10-05 07:16 — `deploy:headless:dev --yes --tag t0456 --expect-string batcap.`（使用者 07:09 授權）：server-entry / headless-entry 覆蓋 + 4 helper 新增，`IS_ACTIVE active`、`127.0.0.1:9877`、指紋 `22:3A:E4:…` 不變、sha256 一致、`batcap.` FOUND。回復：`--rollback --yes --tag t0456`
+- [WSL smoke] 2026-10-05 07:16 — **13/13 PASS**（exit 0）：S13 BAT_* 9 key（含 `BAT_HELPER_NODE`）、無 env 值等於 server token、權杖 50 字元、raw command → `channel-not-allowed`、未知 agent → `agent-not-allowed`。⇒ **K 協定層 runtime PASS**
+- [完成] 2026-10-05 07:16 — T0454 DONE（`4dab93f`）塔台複核 PASS：真因定位 Vite 7.3.2 `hashbangRE = /^#!.*\n/`（`.` 不匹配 `\r`）→ SSR hoist 插到 `#!` 前；修法 `vite.config.ts` 僅測試分支 `crlfHashbang()` plugin（`#!`→`//`，長度不變）+ regex `\r?\n`；CRLF worktree 負向對照重現 / 修後綠。上游 Vite bug 候選
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 

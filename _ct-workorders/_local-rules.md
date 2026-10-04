@@ -288,7 +288,7 @@ _ct-workorders/
 偵測 BAT_SESSION 環境變數？
 ├─ BAT_SESSION=1（BAT 終端：本機分頁，或遠端 WSL / SSH / Docker 視窗的分頁）
 │  ├─ BAT_HELPER_DIR + BAT_REMOTE_PORT + BAT_REMOTE_TOKEN 皆有
-│  │  └─ N="$BAT_HELPER_DIR/../bin/node"; [ -x "$N" ] || N=node   （本機無 ../bin/node → 用 node）
+│  │  └─ N="${BAT_HELPER_NODE:-node}"   （T0456：遠端 = bundle node；本機無此變數 → node。PATH 可能被 login shell 重設，勿依賴 PATH 尾端的 bundle bin）
 │  │     "$N" "$BAT_HELPER_DIR/bat-terminal.mjs" --skill ct-exec --workorder T#### \
 │  │       --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" [--mode yolo] [--no-interactive]
 │  │     → 本機：RemoteServer（全權 server token）；遠端：headless bat-server（每 PTY 權杖，PLAN-036 K）
