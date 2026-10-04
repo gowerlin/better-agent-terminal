@@ -12,6 +12,7 @@ import { logger } from './logger'
 import { broadcastHub } from './remote/broadcast-hub'
 import { wrapInterruptedPrompt } from './agent-prompt-utils'
 import { worktreeManager, type WorktreeInfo } from './worktree-manager'
+import { resolveBundledCodexLayout, prependPathDirs, type BundledCodexLayout } from './codex-bundled-path'
 
 type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 type CodexApprovalPolicy = 'untrusted' | 'on-request' | 'never'
@@ -98,7 +99,9 @@ async function getCodexClass(): Promise<unknown> {
 // neither can be passed directly to child_process.spawn without a shell
 // (Node 20+ refuses to spawn .cmd/.bat implicitly, and .js needs `node`).
 // The native exe lives in the per-platform optionalDependency:
-//   @openai/codex-<platform>-<arch>/vendor/<triple>/codex/codex[.exe]
+//   @openai/codex-<platform>-<arch>/vendor/<triple>/bin/codex[.exe]    (>= 0.160)
+//   @openai/codex-<platform>-<arch>/vendor/<triple>/codex/codex[.exe]  (legacy)
+// See resolveBundledCodexLayout() in ./codex-bundled-path.
 function codexTargetTriple(): string | undefined {
   const { platform, arch } = process
   if (platform === 'linux' && arch === 'x64') return 'x86_64-unknown-linux-musl'
@@ -133,7 +136,7 @@ function findCodexOnPath(): string | undefined {
   }
 }
 
-function findBundledCodex(): string | undefined {
+function findBundledCodex(): BundledCodexLayout | undefined {
   const exe = process.platform === 'win32' ? 'codex.exe' : 'codex'
   const triple = codexTargetTriple()
   if (!triple) return undefined
@@ -144,23 +147,23 @@ function findBundledCodex(): string | undefined {
     if (pkgJson.includes('app.asar') && !pkgJson.includes('app.asar.unpacked')) {
       pkgJson = pkgJson.replace('app.asar', 'app.asar.unpacked')
     }
-    const candidate = pathModule.join(pathModule.dirname(pkgJson), 'vendor', triple, 'codex', exe)
-    if (existsSync(candidate)) return candidate
+    return resolveBundledCodexLayout(pathModule.dirname(pkgJson), triple, exe, existsSync)
   } catch {
     // Platform package not installed — fall through.
   }
   return undefined
 }
 
-function findCodexBinary(): string | undefined {
+// pathDirs is non-empty only for the bundled binary (helper dirs such as rg).
+function findCodexBinary(): BundledCodexLayout | undefined {
   // 1. Explicit override wins.
   const override = process.env.BAT_CODEX_BIN
-  if (override && existsSync(override)) return override
+  if (override && existsSync(override)) return { binary: override, pathDirs: [] }
 
   // 2. Prefer user-installed codex on PATH — they may have a newer version than bundled
   //    (e.g. to get gpt-5.5 before it lands in the @openai/codex-sdk bundle).
   const onPath = findCodexOnPath()
-  if (onPath) return onPath
+  if (onPath) return { binary: onPath, pathDirs: [] }
 
   // 3. Fall back to the binary bundled with @openai/codex-sdk.
   return findBundledCodex()
@@ -743,12 +746,13 @@ export class CodexAgentManager {
   }): Promise<boolean> {
     if (this.sessions.has(sessionId)) return true
 
-    const codexPath = findCodexBinary()
-    if (!codexPath) {
+    const codexBinary = findCodexBinary()
+    if (!codexBinary) {
       this.send('claude:error', sessionId, `Codex CLI not found. Install with: ${getCodexInstallHint()}`)
       return false
     }
 
+    const codexPath = codexBinary.binary
     const stag = `[codex:${sessionId.slice(0, 8)}]`
     const effectiveModel = options.model || DEFAULT_CODEX_MODEL
     logger.log(`${stag} Starting session cwd=${options.cwd} model=${effectiveModel} codex=${codexPath}`)
@@ -831,9 +835,22 @@ export class CodexAgentManager {
     // Create Codex instance and thread
     try {
       const Codex = await getCodexClass() as new (opts: Record<string, unknown>) => unknown
-      const codex = new Codex({
+      const codexOpts: Record<string, unknown> = {
         codexPathOverride: codexPath,
-      })
+        // T0369: exec does not self-update today; keep it that way (BUG-059 class).
+        config: { check_for_update_on_startup: false },
+      }
+      if (codexBinary.pathDirs.length > 0) {
+        // The SDK only prepends the bundled helper dirs (rg) when it resolves the
+        // binary itself; with codexPathOverride we must do it. Passing env stops the
+        // SDK from inheriting process.env, so start from a full copy.
+        const baseEnv: Record<string, string> = {}
+        for (const [key, value] of Object.entries(process.env)) {
+          if (value !== undefined) baseEnv[key] = value
+        }
+        codexOpts.env = prependPathDirs(baseEnv, codexBinary.pathDirs)
+      }
+      const codex = new Codex(codexOpts)
       session.codexInstance = codex
 
       const threadOpts: Record<string, unknown> = {

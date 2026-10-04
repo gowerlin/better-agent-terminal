@@ -55,6 +55,18 @@ All notable changes to Better Agent Terminal are documented in this file.
   its `cmd` branch was reimplemented here. (refs: T0362, PR #19, PR #18)
 
 ### Changed
+- deps(codex): bump the embedded `@openai/codex-sdk` (and `@openai/codex` + platform packages)
+  from 0.124.0 to 0.160.0. The 0.160 platform packages moved the native binary to
+  `vendor/<triple>/bin/codex[.exe]` (plus `codex-package.json`, a `codex-path/` helper dir with
+  `rg`, and `codex-resources/`); BAT's embedded-binary lookup hard-coded the old
+  `vendor/<triple>/codex/` path and would have stopped finding it. Resolution now lives in a pure
+  helper (`electron/codex-bundled-path.ts`) that mirrors the SDK's `resolveNativePackage()` and
+  accepts both layouts. When the embedded binary is used, its helper dir is prepended to the
+  child `PATH` (the SDK only does this when it resolves the binary itself, and BAT always passes
+  `codexPathOverride`). Every Codex instance also passes `check_for_update_on_startup=false`.
+  Binary selection order (`BAT_CODEX_BIN` → PATH → embedded), the model list and effort levels
+  are unchanged. The win32-x64 platform package grows from ~213 MB to ~430 MB unpacked, so
+  installers get larger. (refs: BUG-083, T0369)
 - `scripts/bat-terminal.mjs` now prints a stderr hint when `--workspace` is omitted, naming
   `--workspace "$BAT_WORKSPACE_ID"` as the fix. Advisory only — allocation behaviour and exit
   codes are unchanged. (refs: T0360)

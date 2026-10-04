@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0369
 title: "BUG-083 T-B：@openai/codex-sdk 0.124 → 0.160 + 內嵌 binary 解析相容新目錄結構"
 type: fix
-status: PENDING
+status: DONE
 priority: P1
 sizing: M
 created_at: "2026-10-04T15:59:25+08:00"
-updated_at: "2026-10-04T15:59:25+08:00"
-started_at: null
-completed_at: null
+updated_at: "2026-10-04T16:05:59+08:00"
+started_at: "2026-10-04T16:00:35+08:00"
+completed_at: "2026-10-04T16:05:59+08:00"
 target_version: next
 depends_on:
   - T0367
@@ -41,7 +41,7 @@ memory_overrides:
 
 # T0369 — BUG-083 T-B：Codex SDK 0.124 → 0.160 + 內嵌 binary 解析相容新目錄
 
-- **狀態**：PENDING
+- **狀態**：DONE
 - **任務類型**：fix（依賴升級 + 相容層）
 - **工作量預估**：M
 - **Context Window 風險**：中
@@ -121,10 +121,94 @@ BUG-083 根因之一是內嵌 Codex 0.124 過舊（T0366 H1/H3）。T0366 已盤
 
 ### 完成狀態
 
+**DONE** — AC-1 ~ AC-7 全數 PASS（runtime smoke 以 dev tree `node_modules` 執行；安裝檔實測不在本單範圍，見「遭遇問題」）。
+
+### Landing Zone Check
+
+- 結果：**WARN**（僅 C-0 無資料，其餘 PASS）
+- C-0：frontmatter `repo` = `absent` → WARN「repo identity unavailable」；observed `basename(REPO_ROOT)` = `better-agent-terminal`，`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`
+- C-1：PASS（工單位於 `REPO_ROOT/_ct-workorders/`）
+- C-3：PASS（`package.json`、`package-lock.json`、`electron/codex-agent-manager.ts`、`CHANGELOG.md` 皆存在；新檔以祖先 `electron/` 判定 present）
+- C-2：工單無 `branch` 欄位，N/A（實際 `main`）
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（evidence only）
+- Mode：`CT_MODE=yolo`、`CT_INTERACTIVE=0`
+
 ### 產出摘要
+
+**Part A — 依賴**
+- `package.json`：`@openai/codex-sdk` `^0.124.0` → `^0.160.0`（`npm view @openai/codex-sdk version` 當下 = `0.160.0`）
+- 安裝後 `@openai/codex-sdk` / `@openai/codex` = `0.160.0`、`@openai/codex-win32-x64` = `0.160.0-win32-x64`
+- `package-lock.json`：本機 npm 安裝時除 `@openai/*` 外，還重排了約 50 處 `"peer": true` 旗標（純 metadata，無任何版本變動）。為符合 memory_overrides「lock 僅 `@openai/*` 變動」，以 scratchpad 腳本從 `HEAD` 的 lock 出發，**只移植** root `dependencies["@openai/codex-sdk"]` 與 8 個 `node_modules/@openai/*` 條目（`codex`、`codex-sdk`、6 個平台套件），最終 diff 為 32+/32-，全部是 `@openai/*` 的 `version` / `resolved` / `integrity` / alias。`npm ls @openai/codex-sdk @openai/codex` 確認樹一致。
+- `@anthropic-ai/*` 安裝前後版本比對無差異（`claude-agent-sdk 0.2.113`、`claude-code 2.1.113`、`sdk 0.81.0` 及兩個 win32 平台套件），未干擾 T0368。
+
+**Part B — 內嵌 binary 解析**
+- 新增 `electron/codex-bundled-path.ts`：
+  - `resolveBundledCodexLayout(pkgRoot, triple, exe, exists)` → `{ binary, pathDirs } | undefined`。依 SDK 0.160 `dist/index.js` `resolveNativePackage()` 實際邏輯對照實作：
+    - 新結構：`vendor/<triple>/bin/<exe>` **且** `vendor/<triple>/codex-package.json` 皆存在才成立（SDK 同樣要求兩者）；`pathDirs` = 存在的 `vendor/<triple>/codex-path`
+    - 舊結構：`vendor/<triple>/codex/<exe>`；`pathDirs` = 存在的 `vendor/<triple>/path`（SDK 對 legacy 用的是 `path/`，工單未提及，以原始碼為準）
+  - `prependPathDirs(env, pathDirs, platform)`：回傳新物件；Windows 下 PATH key 不分大小寫，只保留一個（優先 `Path`），去重後前置——與 SDK `prependPathDirs()` / `pathEnvKey()` 行為一致
+- `electron/codex-agent-manager.ts`：
+  - `findBundledCodex()` 改呼叫 `resolveBundledCodexLayout()`；`app.asar` → `app.asar.unpacked` 轉換保留在呼叫端（因此 `pathDirs` 也落在 unpacked 下）
+  - `findCodexBinary()` 回傳型別改為 `BundledCodexLayout`；`BAT_CODEX_BIN` / PATH 分支回 `pathDirs: []`。**候選優先序未變**（override → PATH → embedded）
+  - spawn：僅在 `pathDirs` 非空（= 選到內嵌 binary）時，以 `process.env` 完整拷貝 + `prependPathDirs()` 組 `env` 傳給 `new Codex({ env })`。SDK 0.160 `CodexOptions.env` 註明「提供時不再繼承 `process.env`」，故必須從完整拷貝起算。PATH / `BAT_CODEX_BIN` 分支不傳 `env`，行為與改動前相同
+  - Part B-3：SDK 0.160 `CodexOptions` 有 `config?: CodexConfigObject`（序列化為 `--config key=value`）與 `configOverrides?: string[]`（raw）。採用 `config: { check_for_update_on_startup: false }`，所有 binary 來源皆帶上（smoke 中 0.160 無 config 警告 / 錯誤；T0366 Q4 指出 0.124 binary 亦含此鍵字串）
+
+**Part C — 測試與 CHANGELOG**
+- vitest `include` 已有 `'electron/__tests__/**/*.test.ts'`（T0348 加入），故維持 `electron/__tests__/codex-bundled-path.test.ts`，**未**改放 `src/lib/`
+- 測試 12 個：新結構有/無 `codex-path`、舊結構、舊結構 `path/` helper、新舊並存取新、`bin/<exe>` 缺 `codex-package.json` 時退回舊結構、兩者皆無 → `undefined`；`prependPathDirs` posix 去重、不 mutate 輸入、Windows `Path`/`PATH` 合併、PATH 不存在時建立、空 dirs 回傳拷貝
+- `CHANGELOG.md` `## [Unreleased]` → `### Changed` 新增一筆 `deps(codex)`（refs: BUG-083, T0369）
+
+**變動檔案**（全在 `affects_files` 內）
+- `package.json`、`package-lock.json`、`electron/codex-agent-manager.ts`、`electron/codex-bundled-path.ts`（新）、`electron/__tests__/codex-bundled-path.test.ts`（新）、`CHANGELOG.md`、本工單
 
 ### 驗收條件逐項
 
+- [x] **AC-1 PASS** — `node_modules/@openai/codex-sdk` `0.160.0`、`@openai/codex` `0.160.0`、`@openai/codex-win32-x64` `0.160.0-win32-x64`。`git diff --stat package.json package-lock.json`：
+  ```
+  package-lock.json | 64 ++++++++++++++++++++++++++++----------------------------
+  package.json      |  2 +-
+  ```
+  lock 變動套件：`node_modules/@openai/codex`、`codex-sdk`、`codex-darwin-arm64`、`codex-darwin-x64`、`codex-linux-arm64`、`codex-linux-x64`、`codex-win32-arm64`、`codex-win32-x64` + root `@openai/codex-sdk` range。過濾 `resolved|integrity|"version"|@openai` 後無剩餘 `+/-` 行。
+- [x] **AC-2 PASS** — `npm run test:unit`：`Test Files 43 passed (43)`、`Tests 573 passed (573)`（基線 561 → 573，+12）
+- [x] **AC-3 PASS** — `npx vite build` exit 0；`npx tsc --noEmit 2>&1 | grep -c "error TS"`：改動前 **42** → 改動後 **42**（剩餘皆為既有 `CodexAgentPanel.tsx` 等錯誤；新檔與 `codex-agent-manager.ts` 無新增。`.at()` 因 tsconfig `lib: ES2020` 改用 index 存取以免新增 error）
+- [x] **AC-4 PASS** — scratchpad 腳本 `t0369-smoke.mts`（Node 24 type-stripping 直接 import `electron/codex-bundled-path.ts`），空 `CODEX_HOME`（scratchpad `codex-home/`，未複製 auth，未碰 `~/.codex/`，並移除 `OPENAI_API_KEY` / `CODEX_API_KEY`）：
+  ```
+  layout = { "binary": "...\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe",
+             "pathDirs": [ "...\vendor\x86_64-pc-windows-msvc\codex-path" ] }
+  --version => codex-cli 0.160.0
+  PATH keys = [ 'PATH' ] head = ...\vendor\x86_64-pc-windows-msvc\codex-path
+  event: {"type":"thread.started","thread_id":"01a105f0-b2a5-7db0-ae20-21614d5e6916"}
+  event: {"type":"turn.started"}
+  event: {"type":"error","message":"Reconnecting... 2/5 (unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: wss://api.openai.com/v1/responses, ...)"}
+  ... (WebSocket 重試 → item.completed type=error "Falling back from WebSockets to HTTPS transport..." → HTTPS 重試 5 次)
+  event: {"type":"turn.failed","error":{"message":"unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses, ..."}}
+  runStreamed threw: Codex Exec exited with code 1: WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir ...
+  ```
+  `new Codex({ codexPathOverride, env, config: { check_for_update_on_startup: false } })` → SDK spawn 0.160 binary 成功，CLI 回 401 未認證（預期結果）。`--config check_for_update_on_startup=false` 未觸發 config 錯誤或 `Codex is ignoring` 警告。
+- [x] **AC-5 PASS** — 舊結構（`vendor/<triple>/codex/<exe>`、`path/` helper、`bin/` 缺 `codex-package.json` 時的退回）由 AC-2 內 `codex-bundled-path.test.ts` 覆蓋
+- [x] **AC-6 PASS（記錄）** — `du -sh node_modules/@openai/*`：
+
+  | 套件 | 升級前（0.124） | 升級後（0.160） |
+  |------|----------------|----------------|
+  | `@openai/codex` | 20K | 20K |
+  | `@openai/codex-sdk` | 80K | 92K |
+  | `@openai/codex-win32-x64` | 213M | 430M |
+
+  安裝檔實際大小由下次 CI 發版量測（D121，不以 D094 擋單）
+- [x] **AC-7 PASS** — 本單變動僅 `affects_files` 6 檔 + 本工單；`AGENTS.md`、`T0368-*.md` 為開工前既有髒檔，未觸碰、未納入 commit
+
 ### 遭遇問題
 
+1. **lock 噪音**（已處理）：`npm install` 會重排與 `@openai/*` 無關的 `"peer": true` 旗標（本機 npm 版本與產生原 lock 的版本不同所致）。處理方式見產出摘要 Part A；`node_modules` 實際內容與新 lock 一致。
+2. **SDK legacy helper 目錄是 `path/`**：工單只描述新結構的 `codex-path/`；讀 SDK 原始碼發現 legacy 分支使用 `vendor/<triple>/path`，已照 SDK 實作。
+3. **後續建議（範圍外，未修改）**：0.160 在連線重試時會發出**頂層** `{"type":"error","message":"Reconnecting... n/5 (...)"}` 事件，以及 `item.type="error"` 的 `Falling back from WebSockets to HTTPS transport...`。BAT 目前的 `case 'error'`（`codex-agent-manager.ts` 約 :1289）與 `item.type === 'error'` 非 `Codex is ignoring` 分支都會送 `claude:error`。真實環境短暫網路抖動時，可能出現與 BUG-083 H2 同型的「回合仍在跑卻顯示紅色 Error」誤報。建議塔台評估另開工單，把 `Reconnecting...` / `Falling back from WebSockets` 歸類為 notice（類比 T0367）。本次 smoke 為未認證情境，最終仍以 `turn.failed` 正確收尾。
+4. **未驗證**：打包產物（`asarUnpack` 對新目錄的實際涵蓋、安裝檔大小、exec 是否依賴 `codex-resources/`）——依工單排除項不跑 `npm run build`。`asarUnpack` 的 `node_modules/@openai/codex-*/**/*` 字面上已涵蓋 `vendor/<triple>/{bin,codex-path,codex-resources}/` 與 `codex-package.json`，未發現需停下回報的情形。
+5. smoke 中 0.160 印出 `WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir`，僅因 smoke 的 `CODEX_HOME` 位於 `%TEMP%` 底下；BAT 實際使用 `~/.codex`，不受影響。
+
+### Commit
+
+單一 commit（訊息含 T0369，`git commit --only` 指定 7 檔）；不 push。
+
 ### 回報時間
+
+2026-10-04T16:04:27+08:00
