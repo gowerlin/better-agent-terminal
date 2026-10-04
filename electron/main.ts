@@ -87,6 +87,7 @@ import { logger, type LogLevel } from './logger'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
+import { getWindowsElevation } from './windows-elevation'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
 import { registerVoiceHandlers } from './voice-handler'
@@ -576,6 +577,21 @@ async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<strin
   return null
 }
 
+// T0377 / BUG-085: detect BAT's own Windows elevation once and feed it to the (sync)
+// agent registry, which then adds `-c features.daemon_auto_start=false` to codex-cli
+// launch commands. Every launch-command entry point awaits this so an early build
+// (restored terminals, Tower dispatch right after startup) never races the detection.
+let elevationApplied: Promise<void> | null = null
+function ensureElevationApplied(): Promise<void> {
+  if (!elevationApplied) {
+    elevationApplied = getWindowsElevation().then((elevated) => {
+      agentRegistry.setElevated(elevated)
+      logger.log(`[startup] windows elevation=${elevated}${elevated ? ' (codex-cli launches with daemon auto-start disabled)' : ''}`)
+    })
+  }
+  return elevationApplied
+}
+
 async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; skill?: string; workorder?: string; workspaceId?: string; shellFamily?: ShellFamily }): Promise<{ command: string; agentId: string; prompt: string; prefixNormalized: boolean } | null> {
   const settings = readPersistedSettingsSync()
   const workspaceAgent = opts.agent && opts.agent !== 'default'
@@ -585,8 +601,10 @@ async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; 
     ? opts.agent
     : (workspaceAgent || settings?.defaultAgent || 'claude-code')
   const agentId = toTerminalDrivenAgentId(requestedAgent)
+  const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
 
-  let baseCommand = agentRegistry.buildLaunchCommand(agentId)
+  await ensureElevationApplied()
+  let baseCommand = agentRegistry.buildLaunchCommand(agentId, undefined, extraArgs)
 
   // Claude CLI launch is normally routed through the integrated runtime helper
   // in renderer-created terminals (WorkspaceView.startClaudeCliPty → claude:get-cli-path).
@@ -613,7 +631,6 @@ async function buildAgentPromptCommand(opts: { agent?: string; prompt?: string; 
   }
 
   const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
-  const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
   const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
   return {
     command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, opts.shellFamily ?? 'posix')}`,
@@ -1282,6 +1299,9 @@ app.whenReady().then(async () => {
     // T0112: Provide re-fork callback so PtyManager can restart the server after a crash
     ptyManager.onRequestNewServer = reforkTerminalServer
   }
+
+  // T0377: kick off elevation detection early (non-blocking; launch-command builders await it)
+  void ensureElevationApplied()
 
   // Start Terminal Server (PLAN-008 Phase 2) as independent background process
   await startTerminalServer()
@@ -3747,8 +3767,12 @@ function registerLocalHandlers() {
     return agentRegistry.get(id) ?? null
   })
 
-  ipcMain.handle('agent:build-launch-command', (_event, definitionId: string, options?: Record<string, string | boolean>) => {
-    return agentRegistry.buildLaunchCommand(definitionId, options)
+  ipcMain.handle('agent:build-launch-command', async (_event, definitionId: string, options?: Record<string, string | boolean>) => {
+    await ensureElevationApplied()
+    // Renderer appends agentCustomArgs itself; pass the persisted copy only so the
+    // registry can skip flags the user already set (T0377 daemon opt-out dedup).
+    const extraArgs = readPersistedSettingsSync()?.agentCustomArgs?.[definitionId]
+    return agentRegistry.buildLaunchCommand(definitionId, options, extraArgs)
   })
 
   ipcMain.handle('agent:register-custom-cli', (_event, def: CustomCliDefinition) => {

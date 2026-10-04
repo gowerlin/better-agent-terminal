@@ -614,6 +614,9 @@
       "warning": {
         "title": "Claude {{version}} — version notice"
       }
+    },
+    "codexCli": {
+      "elevatedDaemonDisabled": "BAT is running with administrator privileges, so Codex CLI was launched with its background daemon disabled (-c features.daemon_auto_start=false) — Codex refuses to start the daemon from an elevated token. If you run codex manually in this terminal, add --no-daemon."
     }
   },
   "wizard": {

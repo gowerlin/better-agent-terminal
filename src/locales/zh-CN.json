@@ -614,6 +614,9 @@
       "warning": {
         "title": "Claude {{version}} — 版本提醒"
       }
+    },
+    "codexCli": {
+      "elevatedDaemonDisabled": "BAT 正以系统管理员权限运行，Codex CLI 已自动停用后台 daemon 启动（-c features.daemon_auto_start=false）——Codex 拒绝在提权令牌下启动 daemon。若在此终端手动运行 codex，请加上 --no-daemon。"
     }
   },
   "wizard": {

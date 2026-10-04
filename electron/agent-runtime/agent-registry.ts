@@ -263,11 +263,24 @@ const BUILTIN_DEFINITIONS: AgentDefinition[] = [
   },
 ]
 
+// T0377 / BUG-085: Codex CLI 0.160+ refuses to auto-start its Windows daemon from an
+// elevated token. `-c features.daemon_auto_start=false` (not `--no-daemon`) because the
+// shell may resolve an older codex on PATH: 0.133 exits 2 on `--no-daemon` but ignores
+// unknown `-c features.*` keys (T0375).
+export const CODEX_DISABLE_DAEMON_ARGS = ['-c', 'features.daemon_auto_start=false'] as const
+
+/** User-supplied args that already opt out of the daemon — skip injection to avoid duplicates. */
+function hasCodexDaemonOptOut(extraArgs?: string): boolean {
+  if (!extraArgs) return false
+  return extraArgs.includes('--no-daemon') || extraArgs.includes('daemon_auto_start')
+}
+
 // ── Agent Registry ─────────────────────────────────────────────────
 class AgentRegistry {
   private definitions: Map<string, AgentDefinition> = new Map()
   private providers: Map<string, AgentProvider> = new Map()
   private customClis: Map<string, CustomCliDefinition> = new Map()
+  private elevated = false
 
   constructor() {
     // Register all built-in definitions
@@ -401,8 +414,21 @@ class AgentRegistry {
     return def?.providerMode === 'terminal-driven'
   }
 
-  /** Build the CLI command string for a terminal-driven agent */
-  buildLaunchCommand(definitionId: string, options?: Record<string, string | boolean>): string | null {
+  /** Whether BAT runs with an elevated Windows token (set once at app ready, see windows-elevation.ts) */
+  setElevated(elevated: boolean): void {
+    this.elevated = elevated
+  }
+
+  isElevated(): boolean {
+    return this.elevated
+  }
+
+  /**
+   * Build the CLI command string for a terminal-driven agent.
+   * `extraArgs` (the user's agentCustomArgs) is NOT appended here — callers append it —
+   * it is only consulted to avoid injecting flags the user already supplies.
+   */
+  buildLaunchCommand(definitionId: string, options?: Record<string, string | boolean>, extraArgs?: string): string | null {
     const def = this.definitions.get(definitionId)
     if (!def || def.providerMode === 'integrated' || def.id === 'none') return null
 
@@ -419,6 +445,12 @@ class AgentRegistry {
     } else {
       if (def.defaultCommand) parts.push(def.defaultCommand)
       if (def.defaultArgs) parts.push(...def.defaultArgs)
+    }
+
+    // Global option, placed right after `codex` so it also precedes any
+    // `resume` / `fork` subcommand the user appends via customArgs.
+    if (definitionId === 'codex-cli' && this.elevated && !hasCodexDaemonOptOut(extraArgs)) {
+      parts.push(...CODEX_DISABLE_DAEMON_ARGS)
     }
 
     // Apply launch options

@@ -10,6 +10,7 @@ import { ThumbnailBar } from './ThumbnailBar'
 import { CloseConfirmDialog } from './CloseConfirmDialog'
 import { ResizeHandle } from './ResizeHandle'
 import { WorkerPanel } from './WorkerPanel'
+import { CtToast, useCtToast } from './CtToast'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
@@ -157,6 +158,11 @@ function mergeEnvVars(global: EnvVariable[] = [], workspace: EnvVariable[] = [])
 // Track which workspaces have been initialized (outside component to persist across renders)
 const initializedWorkspaces = new Set<string>()
 
+// T0377 / BUG-085: main adds this to codex-cli launch commands when BAT runs elevated on
+// Windows. Seeing it in a built command triggers a one-time notice (once per renderer run).
+const CODEX_DAEMON_DISABLED_ARG = 'features.daemon_auto_start=false'
+let codexDaemonNoticeShown = false
+
 // Allow clearing on profile switch so terminals re-initialize
 export function clearInitializedWorkspaces(): void {
   initializedWorkspaces.clear()
@@ -164,6 +170,14 @@ export function clearInitializedWorkspaces(): void {
 
 export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isRemoteConnected, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel, onOpenSettings }: Readonly<WorkspaceViewProps>) {
   const { t } = useTranslation()
+  const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
+  // Ref (not a callback dep) so the launch effects below keep their dependency lists unchanged.
+  const noticeCodexDaemonRef = useRef<(cmd: string | null) => void>(() => {})
+  noticeCodexDaemonRef.current = (cmd: string | null) => {
+    if (codexDaemonNoticeShown || !cmd?.includes(CODEX_DAEMON_DISABLED_ARG)) return
+    codexDaemonNoticeShown = true
+    addNoticeToast(t('toast.codexCli.elevatedDaemonDisabled'), 'warning', 12000)
+  }
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(loadWorkspaceTab)
@@ -451,6 +465,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             const appendArgs = (base: string) => extraArgs ? `${base} ${extraArgs}` : base
             window.electronAPI.agent?.buildLaunchCommand(terminal.agentPreset).then((cmd: string | null) => {
               if (cmd) {
+                noticeCodexDaemonRef.current(cmd)
                 setTimeout(() => {
                   window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
                 }, 500)
@@ -503,6 +518,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               const defAppendArgs = (base: string) => defExtraArgs ? `${base} ${defExtraArgs}` : base
               window.electronAPI.agent?.buildLaunchCommand(defaultAgent).then((cmd: string | null) => {
                 if (cmd) {
+                  noticeCodexDaemonRef.current(cmd)
                   setTimeout(() => {
                     window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(cmd) + '\r')
                   }, 500)
@@ -762,6 +778,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     try {
       const launchCmd = await window.electronAPI.agent.buildLaunchCommand(definitionId)
       if (launchCmd) {
+        noticeCodexDaemonRef.current(launchCmd)
         setTimeout(() => {
           window.electronAPI.pty.write(terminal.id, addAppendArgs(launchCmd) + '\r')
         }, 500)
@@ -847,6 +864,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           try {
             const launchCmd = await window.electronAPI.agent.buildLaunchCommand(terminal.agentPreset)
             if (launchCmd) {
+              noticeCodexDaemonRef.current(launchCmd)
               setTimeout(() => {
                 window.electronAPI.pty.write(id, restartAppendArgs(launchCmd) + '\r')
               }, 500)
@@ -1129,6 +1147,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           </button>
         )}
       </div>
+
+      {/* T0377: one-time Codex CLI elevation notice — portaled so hidden workspaces can show it too */}
+      {createPortal(<CtToast messages={noticeToasts} onDismiss={dismissNoticeToast} />, document.body)}
 
       {/* Tab context menu (pin left/right + dock to zone) */}
       {tabCtxMenu && createPortal(
