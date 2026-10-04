@@ -2119,7 +2119,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     setAttachedFiles(prev => {
       if (prev.length >= MAX_FILES) return prev
       if (prev.some(f => f.path === filePath)) return prev
-      const name = filePath.split('/').pop() || filePath
+      const name = filePath.split(/[\\/]/).pop() || filePath
       return [...prev, { path: filePath, name }]
     })
   }, [])
@@ -2153,8 +2153,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     e.preventDefault()
     setIsDragOver(false)
     for (const file of e.dataTransfer.files) {
-      // Electron augments DOM File with `path`; DOM lib does not declare it.
-      const filePath = (file as File & { path?: string }).path
+      const filePath = window.electronAPI.shell.getPathForFile(file)
       if (!filePath) continue
       if (file.type.startsWith('image/')) {
         await addImageByPath(filePath)

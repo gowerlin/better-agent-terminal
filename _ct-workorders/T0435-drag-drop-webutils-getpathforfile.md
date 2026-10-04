@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0435
 title: "BUG-107：preload 暴露 webUtils.getPathForFile（shell.getPathForFile），修復 Claude 面板 / Sidebar / Codex 面板拖放取路徑；檔名改以 /[\\\\/]/ 切"
 type: fix
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: BUG-107
 priority: P1
 sizing: S
 created_at: "2026-10-05T05:51:45+08:00"
-started_at: null
-updated_at: "2026-10-05T05:51:45+08:00"
-completed_at: null
+started_at: "2026-10-05T05:54:38+08:00"
+updated_at: "2026-10-05T05:59:28+08:00"
+completed_at: "2026-10-05T05:59:28+08:00"
 target_version: next
 depends_on: []
 related:
@@ -50,9 +50,9 @@ memory_overrides:
 
 ## 驗收條件
 
-- [ ] `npm run test:unit` 全綠；`npx tsc --noEmit` = 39（或說明差異）
-- [ ] 回報區附使用者實機步驟（本機：拖檔到 Claude 面板 / Sidebar / Codex 面板）
-- [ ] BUG-107 改 `FIXED`
+- [x] `npm run test:unit` 全綠；`npx tsc --noEmit` = 39（或說明差異）
+- [x] 回報區附使用者實機步驟（本機：拖檔到 Claude 面板 / Sidebar / Codex 面板）
+- [x] BUG-107 改 `FIXED`
 
 ## Sub-session 執行指示
 1. 讀本工單 + BUG-107 + T0421 回報區 §0
@@ -70,8 +70,62 @@ memory_overrides:
 
 ### 完成狀態
 
+**DONE**
+
+### Landing Zone Check
+
+- 結果：**PASS**
+- C-0：frontmatter `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal` → PASS
+- C-1：工單位於 `REPO_ROOT/_ct-workorders/` → PASS
+- C-3：`affects_files` 前 5 筆皆存在 → PASS（informational）
+- C-2：工單無 `branch` 欄位；HEAD = `main`
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 派發模式：`CT_MODE=yolo`、`CT_INTERACTIVE=0`
+
 ### 產出摘要
+
+| 檔案 | 改動 |
+|------|------|
+| `electron/preload.ts` | import `webUtils`；`shell.getPathForFile: (file) => webUtils.getPathForFile(file)`（只暴露函式，不暴露 `webUtils` 物件） |
+| `src/types/electron.d.ts` | `shell.getPathForFile: (file: File) => string` |
+| `src/components/ClaudeAgentPanel.tsx` | `handleDrop` 改用 `window.electronAPI.shell.getPathForFile(file)`；`addFileByPath` 檔名改 `split(/[\\/]/)` |
+| `src/components/CodexAgentPanel.tsx` | `addFileByPath` 檔名改 `split(/[\\/]/)`（拖放呼叫原本即用 `shell.getPathForFile`，現在 preload 有實作） |
+| `src/components/Sidebar.tsx` | 外部資料夾拖放改用 `shell.getPathForFile`（Sidebar 原本已用 `/[/\\]/` 切檔名） |
+| `src/__tests__/drag-drop-get-path-for-file.test.tsx`（新） | RTL：Claude / Codex 面板 drop → 附件 chip 的 `title` 為 mock 回傳的 Windows 路徑、檔名為 `report.txt`；圖片 drop 以回傳路徑呼叫 `image.readAsDataUrl`；空字串路徑略過。Sidebar drop → `workspaceStore.addWorkspace('my-project', 'D:\\code\\my-project')` + `save()`；空路徑不加入 |
+| `electron/__tests__/preload-get-path-for-file.test.ts`（新） | mock `electron` 載入 preload，驗證 `shell.getPathForFile` 委派 `webUtils.getPathForFile`，且 `electronAPI.webUtils` 不存在 |
+
+全庫 grep（`dataTransfer` / `getPathForFile` / `webUtils` / `File` 上下文的 `.path`）：DOM `File.path` 只有 Claude 面板與 Sidebar 兩處，已全數改掉；`ControlTowerPanel.tsx` 的 `file.path` 是 `fs.readdir` 的 `FileEntry`，非 DOM File，不動。`ThumbnailBar.tsx` 的 drag 為內部排序，不涉檔案。
+
+### 驗證
+
+| 閘 | 結果 | 證據 |
+|----|------|------|
+| 新測試 | PASS | `npx vitest run src/__tests__/drag-drop-get-path-for-file.test.tsx electron/__tests__/preload-get-path-for-file.test.ts` → 7 passed |
+| 反向驗證（mutation） | PASS | 暫時把 Claude 面板檔名切割改回 `split('/')`、Sidebar 改回 `(file as any).path` → 對應 2 項測試失敗；已還原（diff 確認） |
+| `npm run test:unit` | PASS | `Test Files 124 passed (124)`、`Tests 1961 passed \| 1 skipped (1962)` |
+| `npx tsc --noEmit` | **39**（前 40） | 剩餘：`CodexAgentPanel.tsx` 32、`terminal-keyboard-event.test.ts` 5、`integration.transitions.test.ts` 1、`agent-profiles.ts` 1；`getPathForFile` 相關 0 筆 |
+| `npx vite build` / `npm run test:e2e` | 未跑 | 依工單 memory_overrides（L141）不跑 |
+| 實機拖放 | 未做 | Worker 無法操作 GUI 拖放；見下方使用者實機步驟 |
+
+### 使用者實機步驟（本機視窗）
+
+1. 啟動含本修正的 BAT（`npm run dev` 或下一版安裝檔）
+2. **Claude 面板**：從檔案總管拖一個 `.txt`（例如 `C:\Users\<你>\Documents\a.txt`）到 Claude 面板 → 輸入區上方出現附件 chip，顯示 `a.txt`（不是整串路徑），滑鼠停留 title 為完整 `C:\…\a.txt`；再拖一張 `.png` → 出現圖片縮圖
+3. 送出訊息 → 訊息帶 `@C:\…\a.txt` 前綴，agent 可讀檔
+4. **Codex 面板**：同步驟 2（修正前會在 DevTools console 拋 `TypeError: window.electronAPI.shell.getPathForFile is not a function`，修正後正常）
+5. **Sidebar**：從檔案總管拖一個資料夾到左側工作區清單 → 新增以資料夾名稱命名的工作區
+6. ⚠️ 遠端視窗拖放附件會送出 client 路徑——已知，由 T0437 同版處理，本單不驗
 
 ### 遭遇問題
 
+1. **tsc TS6305**：preload 委派測試原寫在 `src/__tests__/`，從 `src` import `electron/preload.ts` 觸發 `TS6305`（preload 屬 `tsconfig.node.json` 參照專案）。改放 `electron/__tests__/`（vitest `include` 已收錄、不在 root `tsc --noEmit` 範圍）。**偏離**：`affects_files` 只列 `src/__tests__/`，多一個 `electron/__tests__/preload-get-path-for-file.test.ts`，純測試檔。
+2. **平行 Worker 干擾（已自行消失）**：第一次跑 `npm run test:unit` 有 3 項失敗、`tsc` 42 筆，全在 T0425 正在改的 SSH 檔（`ssh-verify-remote.test.ts`、未追蹤的 `remote-client-ssh-tunnel.test.ts` / `ssh-tunnel-only.test.ts`）；數分鐘後重跑全綠、tsc 39。本單未碰這些檔。
+3. 測試用的 `window.electronAPI` 採寬鬆 Proxy mock；Claude 面板 statusline 會無防護地存 `getStatuslineExtras()` 結果，mock 回 `undefined` 時 render 崩潰，故測試中 override 回 `{}`。實際 IPC 恆回物件，非產品問題，未改產品碼。
+
+### Commit
+
+- `git commit --only`：上表 5 個產品檔 + 2 個測試檔 + 本工單 + BUG-107；不 push。hash 見塔台 `git log`（本回報寫於 commit 前）。
+
 ### 回報時間
+
+2026-10-05T05:58:41+08:00

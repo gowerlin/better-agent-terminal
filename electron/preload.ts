@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { CreatePtyOptions } from '../src/types'
 import type { FileEntry, RawFileEntry } from '../src/types/file'
 import { withPathKeys } from '../src/utils/filePathKey'
@@ -119,6 +119,8 @@ const electronAPI = {
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
     openPath: (folderPath: string) => ipcRenderer.invoke('shell:open-path', folderPath),
     openInEditor: (folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => ipcRenderer.invoke('shell:open-in-editor', folderPath, editorType, customPath),
+    // Electron 32+ removed DOM File.path; webUtils is the replacement (BUG-107).
+    getPathForFile: (file: File) => webUtils.getPathForFile(file),
   },
   app: {
     openNewInstance: (profileId: string) => ipcRenderer.invoke('app:open-new-instance', profileId),

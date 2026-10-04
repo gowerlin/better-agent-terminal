@@ -200,6 +200,8 @@ interface ElectronAPI {
     openExternal: (url: string) => Promise<void>
     openPath: (folderPath: string) => Promise<void>
     openInEditor: (folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => Promise<{ success: boolean; error?: { type: string; executable: string; message: string } }>
+    /** Absolute path of a dropped File (`webUtils.getPathForFile`); '' when the File has no disk backing. */
+    getPathForFile: (file: File) => string
   }
   git: {
     getGithubUrl: (folderPath: string) => Promise<string | null>

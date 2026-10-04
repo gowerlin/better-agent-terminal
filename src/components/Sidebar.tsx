@@ -370,7 +370,7 @@ export function Sidebar({
           e.preventDefault()
           const files = Array.from(e.dataTransfer.files)
           for (const file of files) {
-            const filePath = (file as any).path as string
+            const filePath = window.electronAPI.shell.getPathForFile(file)
             if (filePath) {
               const name = filePath.split(/[/\\]/).pop() || 'Workspace'
               workspaceStore.addWorkspace(name, filePath)

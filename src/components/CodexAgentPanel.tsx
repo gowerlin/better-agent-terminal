@@ -2355,7 +2355,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     setAttachedFiles(prev => {
       if (prev.length >= MAX_FILES) return prev
       if (prev.some(f => f.path === filePath)) return prev
-      const name = filePath.split('/').pop() || filePath
+      const name = filePath.split(/[\\/]/).pop() || filePath
       return [...prev, { path: filePath, name }]
     })
   }, [])

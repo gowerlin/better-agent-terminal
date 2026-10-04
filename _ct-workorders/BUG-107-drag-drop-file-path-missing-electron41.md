@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-107
 title: "Electron 41 拖放檔案取不到路徑：DOM File.path 已移除（Electron 32+），Claude 面板 / Sidebar 拖放失效；Codex 面板呼叫不存在的 shell.getPathForFile"
-status: OPEN
+status: FIXED
 severity: medium
 reproducibility: always
 created_at: "2026-10-05T05:51:45+08:00"
-updated_at: "2026-10-05T05:51:45+08:00"
+updated_at: "2026-10-05T05:59:13+08:00"
 impact:
   - attachments
   - drag-drop
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（本機與遠端視窗皆受影響；拖放附件 / 拖放加入工作區失效） |
 | 可重現 | 推定 100%（程式碼證據；T0421 研究） |
-| **狀態** | 📂 OPEN |
+| **狀態** | ✅ FIXED |
 | 回報者 | T0421 Worker（研究回報區「調查結論 §0」） |
 
 ## 現象（程式碼證據，T0421）
@@ -35,3 +35,9 @@ links:
 ## 修復方向
 
 preload 暴露 `webUtils.getPathForFile`（對齊 Codex 既有呼叫名 `shell.getPathForFile`），三處呼叫端改用；檔名以 `/[\\/]/` 切。注意：修好後遠端視窗附件會開始送出 client 路徑 → 須與 T0437（遠端附件路徑轉換 / 不可達擋板）同版發佈。
+
+## 修復紀錄（T0435）
+
+- preload `shell.getPathForFile` → `webUtils.getPathForFile`；Claude 面板 / Sidebar 拖放改用此 API；Claude / Codex `addFileByPath` 檔名改 `/[\\/]/` 切
+- 測試：`src/__tests__/drag-drop-get-path-for-file.test.tsx`、`electron/__tests__/preload-get-path-for-file.test.ts`；`npm run test:unit` 全綠；`tsc --noEmit` 40 → 39
+- 待使用者實機驗收（步驟見 T0435 回報區）；遠端視窗附件路徑由 T0437 處理
