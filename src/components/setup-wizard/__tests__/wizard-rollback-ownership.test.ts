@@ -63,7 +63,7 @@ function installDocker(options: DockerFakeOptions = {}) {
         }
         if (options.startCreatesThenFails) {
           containers.set(name, { name, running: false })
-          return { ok: false, error: 'Bind for 127.0.0.1:19876 failed: port is already allocated' }
+          return { ok: false, token: 'tok-run', error: 'Bind for 127.0.0.1:19876 failed: port is already allocated' }
         }
         if (options.startError) return { ok: false, error: options.startError }
         containers.set(name, { name, running: true })
@@ -254,12 +254,16 @@ describe('start-server "Create new": removes only the container this run created
     expect(docker.removeContainer).not.toHaveBeenCalled()
   })
 
-  it('retry after this run already created it keeps ownership even though `docker run` now conflicts', async () => {
-    const { docker } = installDocker({ containers: [{ name: 'bat-new', running: true }] })
-    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new', [CREATED]: 'bat-new' })
+  it('retry after this run already created it `docker start`s that container and keeps ownership (T0452)', async () => {
+    const { docker } = installDocker({ containers: [{ name: 'bat-new', running: false }] })
+    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new', [CREATED]: 'bat-new', remoteToken: 'tok-first' })
 
-    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/already in use/)
+    await startDockerServerStep.run(ctx)
+    expect(docker.startContainer).toHaveBeenCalledTimes(1)
+    expect(docker.startContainer.mock.calls[0][1]).not.toHaveProperty('createIfMissing')
     expect(ctx.state[CREATED]).toBe('bat-new')
+    // Our container serves the `--token` it was created with.
+    expect(ctx.remoteToken).toBe('tok-first')
 
     await startDockerServerStep.rollback!(ctx)
     expect(docker.removeContainer).toHaveBeenCalledWith('bat-new')
@@ -281,6 +285,71 @@ describe('start-server "Create new": removes only the container this run created
     expect(docker.removeContainer).toHaveBeenCalledTimes(1)
     expect(ctx.state[CREATED]).toBeUndefined()
     expect(ctx.logger.warn).not.toHaveBeenCalled()
+  })
+})
+
+describe('start-server "Create new" retry reuses only the container this run created (T0452)', () => {
+  it('`docker run` created the container then failed → retry `docker start`s it with the same token and succeeds', async () => {
+    const { docker, containers } = installDocker({ startCreatesThenFails: true })
+    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new' })
+
+    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/port is already allocated/)
+    expect(ctx.state[CREATED]).toBe('bat-new')
+    expect(ctx.state.remoteToken).toBe('tok-run')
+
+    await startDockerServerStep.run(ctx)
+    expect(docker.startContainer).toHaveBeenCalledTimes(2)
+    expect(docker.startContainer.mock.calls[0][1]).toMatchObject({ createIfMissing: true })
+    expect(docker.startContainer.mock.calls[1][1]).toEqual({ port: 19876 })
+    expect(containers.get('bat-new')?.running).toBe(true)
+    expect(ctx.remoteToken).toBe('tok-run')
+    expect(ctx.state[CREATED]).toBe('bat-new')
+    expect(docker.removeContainer).not.toHaveBeenCalled()
+  })
+
+  it('created by this run but gone before the retry (e.g. `docker run` never created it) → `docker run` again', async () => {
+    const { docker, containers } = installDocker()
+    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new', [CREATED]: 'bat-new' })
+
+    await startDockerServerStep.run(ctx)
+    expect(docker.startContainer).toHaveBeenCalledTimes(1)
+    expect(docker.startContainer.mock.calls[0][1]).toMatchObject({ createIfMissing: true })
+    expect(containers.get('bat-new')?.running).toBe(true)
+    expect(ctx.state[CREATED]).toBe('bat-new')
+  })
+
+  it('gone before the retry, then the name is taken by someone else → claim dropped, nothing removed', async () => {
+    const { docker } = installDocker()
+    docker.startContainer.mockResolvedValueOnce({ ok: false, error: 'Conflict. The container name "/bat-new" is already in use by container "zzz".' })
+    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new', [CREATED]: 'bat-new' })
+
+    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/already in use/)
+    expect(ctx.state[CREATED]).toBeUndefined()
+
+    await startDockerServerStep.rollback!(ctx)
+    expect(docker.removeContainer).not.toHaveBeenCalled()
+  })
+
+  it('same-name container not created by this run → every retry still refuses it; never started or removed', async () => {
+    const { docker, containers } = installDocker({ containers: [{ name: 'bat-new', running: false }] })
+    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new' })
+
+    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/already exists and was not created by this setup run/)
+    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/already exists and was not created by this setup run/)
+    expect(docker.startContainer).not.toHaveBeenCalled()
+    expect(ctx.state[CREATED]).toBeUndefined()
+
+    await startDockerServerStep.rollback!(ctx)
+    expect(docker.removeContainer).not.toHaveBeenCalled()
+    expect(containers.get('bat-new')?.running).toBe(false)
+  })
+
+  it('a creation flag for a different container does not make a same-name container ours', async () => {
+    const { docker } = installDocker({ containers: [{ name: 'bat-new', running: false }] })
+    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new', [CREATED]: 'bat-other' })
+
+    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/already exists and was not created by this setup run/)
+    expect(docker.startContainer).not.toHaveBeenCalled()
   })
 })
 
@@ -498,6 +567,42 @@ describe('write-profile rollback deletes every profile this run created (T0444)'
     profile.update.mockResolvedValueOnce(true)
     await writeProfileStep.run(ctx)
     expect(ctx.createdProfileId).toBe('docker-2')
+
+    await writeProfileStep.rollback!(ctx)
+    expect(deleted).toEqual(['docker-1', 'docker-2'])
+  })
+
+  it('fails once, retry succeeds → the orphan is deleted at once and only the written profile remains (T0452)', async () => {
+    const ctx = profileCtx()
+    await expect(writeProfileStep.run(ctx)).rejects.toThrow()
+    profile.update.mockResolvedValueOnce(true)
+    await writeProfileStep.run(ctx)
+
+    expect(created).toEqual(['docker-1', 'docker-2'])
+    expect(deleted).toEqual(['docker-1'])
+    expect(ctx.createdProfileId).toBe('docker-2')
+    expect(ctx.createdProfileIds).toEqual(['docker-2'])
+  })
+
+  it('first-try success deletes nothing (T0452)', async () => {
+    const ctx = profileCtx()
+    profile.update.mockResolvedValueOnce(true)
+    await writeProfileStep.run(ctx)
+
+    expect(profile.delete).not.toHaveBeenCalled()
+    expect(ctx.createdProfileIds).toEqual(['docker-1'])
+  })
+
+  it('success-path cleanup that throws keeps the orphan recorded for rollback and warns (T0452)', async () => {
+    const ctx = profileCtx()
+    await expect(writeProfileStep.run(ctx)).rejects.toThrow()
+    profile.update.mockResolvedValueOnce(true)
+    profile.delete.mockImplementationOnce(async () => { throw new Error('disk full') })
+    await writeProfileStep.run(ctx)
+
+    expect(ctx.createdProfileIds).toEqual(['docker-1', 'docker-2'])
+    expect(ctx.createdProfileId).toBe('docker-2')
+    expect(ctx.logger.warn).toHaveBeenCalledWith('Failed to delete superseded remote profile docker-1: disk full')
 
     await writeProfileStep.rollback!(ctx)
     expect(deleted).toEqual(['docker-1', 'docker-2'])

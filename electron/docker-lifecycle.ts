@@ -166,7 +166,14 @@ export async function startContainer(
         args.push('-v', `${options.dataVolume}:/root/.local/share/bat-server`)
       }
       args.push(options.image, '--port', '9876', '--token', token)
-      await execDocker(args)
+      try {
+        await execDocker(args)
+      } catch (error) {
+        // T0452: `docker run` can create the container and then fail to start
+        // it (e.g. port already allocated). Hand the token back so a retry
+        // that `docker start`s that container still knows it.
+        return { ok: false, token, error: error instanceof Error ? error.message : String(error) }
+      }
       return { ok: true, token }
     }
 

@@ -83,6 +83,22 @@ describe('docker-lifecycle startContainer publish bind (BUG-097)', () => {
     expect(result.ok).toBe(false)
     expect(calls).toHaveLength(0)
   })
+
+  it('returns the token when `docker run` fails, so a retry can `docker start` the created container (T0452)', async () => {
+    setExecFileImplForTests((_file: string, _args: string[], _options: unknown, callback: (...cbArgs: unknown[]) => void) => {
+      callback(new Error('exit 125'), '', 'Bind for 127.0.0.1:9876 failed: port is already allocated')
+    })
+
+    expect(await startContainer('bat-dev', { createIfMissing: true, image: 'bat-server:latest', token: 'tok' })).toEqual({
+      ok: false,
+      token: 'tok',
+      error: 'Bind for 127.0.0.1:9876 failed: port is already allocated',
+    })
+
+    const generated = await startContainer('bat-dev', { createIfMissing: true, image: 'bat-server:latest' })
+    expect(generated.ok).toBe(false)
+    expect(generated.token).toMatch(/^[0-9a-f]{32}$/)
+  })
 })
 
 /**

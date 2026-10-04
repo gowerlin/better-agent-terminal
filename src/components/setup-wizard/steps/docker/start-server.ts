@@ -66,14 +66,19 @@ export const startDockerServerStep: WizardStep = {
     const port = typeof ctx.state.serverPort === 'number' ? ctx.state.serverPort : (ctx.serverPort ?? 9876)
     ctx.serverPort = port
 
-    // Re-run after an earlier attempt of this run created the container.
-    const createdEarlier = containerMode === 'new' && isContainerCreatedByWizard(ctx, containerName)
+    // T0452: a re-run after an earlier attempt of this run created the
+    // container `docker start`s that container — `docker run` again could
+    // only hit a name conflict. Only our own container: claimNewContainer
+    // still refuses a same-name container this run did not create.
+    const restartOwnContainer = containerMode === 'new'
+      && isContainerCreatedByWizard(ctx, containerName)
+      && await containerExists(containerName)
     if (containerMode === 'new') await claimNewContainer(ctx, containerName)
     else await recordExistingContainerState(ctx, containerName)
 
     const startResult = await window.electronAPI.docker.startContainer(
       containerName,
-      containerMode === 'new'
+      containerMode === 'new' && !restartOwnContainer
         ? {
             createIfMissing: true,
             image: typeof ctx.state.dockerImage === 'string' ? ctx.state.dockerImage : 'bat-server:latest',
@@ -87,9 +92,16 @@ export const startDockerServerStep: WizardStep = {
     )
 
     if (!startResult.ok) {
-      // Lost a race for the name: whatever holds it now is not ours.
-      if (containerMode === 'new' && !createdEarlier && isNameConflictError(startResult.error)) {
-        delete ctx.state[DOCKER_OWNERSHIP_KEYS.containerCreated]
+      if (containerMode === 'new' && !restartOwnContainer) {
+        // `docker run` only runs when no container of ours holds the name, so
+        // a name conflict means we lost a race: whatever holds it is not ours.
+        if (isNameConflictError(startResult.error)) {
+          delete ctx.state[DOCKER_OWNERSHIP_KEYS.containerCreated]
+        } else if (startResult.token && isContainerCreatedByWizard(ctx, containerName)) {
+          // T0452: the container may exist with this token (created, then
+          // failed to start); a retry `docker start`s it and needs the token.
+          ctx.state.remoteToken = startResult.token
+        }
       }
       throw new Error(startResult.error ?? `Failed to start Docker container ${containerName}.`)
     }
@@ -97,7 +109,9 @@ export const startDockerServerStep: WizardStep = {
     // warning is what tells the user why.
     if (startResult.exposure) warnLegacyContainer(ctx, containerName, startResult.exposure)
 
-    ctx.remoteToken = startResult.token ?? (typeof ctx.state.remoteToken === 'string' ? ctx.state.remoteToken : undefined)
+    const stateToken = typeof ctx.state.remoteToken === 'string' ? ctx.state.remoteToken : undefined
+    // T0452: our own container serves the `--token` it was created with.
+    ctx.remoteToken = restartOwnContainer ? (stateToken ?? startResult.token) : (startResult.token ?? stateToken)
     ctx.state.remoteToken = ctx.remoteToken
     ctx.systemdServiceActive = true
 
@@ -130,6 +144,11 @@ export const startDockerServerStep: WizardStep = {
   },
 }
 
+async function containerExists(name: string): Promise<boolean> {
+  const containers = await window.electronAPI.docker.listContainers()
+  return containers.some((container) => container.name === name)
+}
+
 /**
  * T0444 (BUG-111): "Create new" must create the container, never adopt one.
  * Re-check right before `docker run` (pick-container may have run long ago)
@@ -139,8 +158,7 @@ export const startDockerServerStep: WizardStep = {
  */
 async function claimNewContainer(ctx: WizardContext, name: string): Promise<void> {
   if (isContainerCreatedByWizard(ctx, name)) return
-  const containers = await window.electronAPI.docker.listContainers()
-  if (containers.some((container) => container.name === name)) {
+  if (await containerExists(name)) {
     throw new Error(
       `Docker container ${name} already exists and was not created by this setup run. BAT will not reuse or remove it — go back to "Choose Docker container mode" to pick another name or use the existing container.`,
     )

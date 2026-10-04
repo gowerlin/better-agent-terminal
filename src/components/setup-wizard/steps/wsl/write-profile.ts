@@ -12,6 +12,28 @@ function recordCreatedProfile(ctx: WizardContext, id: string): void {
   ctx.createdProfileIds = ids
 }
 
+/**
+ * T0452: on success, delete the profiles earlier attempts of this run left
+ * behind (created, then the step failed), keeping the one just written. Only
+ * ids from `createdProfileIds` — never a profile this run did not create. A
+ * delete that throws stays recorded (and warned) for rollback.
+ */
+async function pruneSupersededProfiles(ctx: WizardContext): Promise<void> {
+  const keep = ctx.createdProfileId
+  if (!keep) return
+  const failed: string[] = []
+  for (const id of ctx.createdProfileIds ?? []) {
+    if (id === keep) continue
+    try {
+      await window.electronAPI.profile.delete(id)
+    } catch (error) {
+      failed.push(id)
+      ctx.logger.warn(`Failed to delete superseded remote profile ${id}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  ctx.createdProfileIds = [...failed, keep]
+}
+
 function resolveProfileName(ctxName: unknown, distro: string): string {
   if (typeof ctxName === 'string' && ctxName.trim()) {
     return ctxName.trim()
@@ -103,6 +125,7 @@ export const writeProfileStep: WizardStep = {
       if (!updated) {
         throw new Error('Failed to persist SSH profile metadata.')
       }
+      await pruneSupersededProfiles(ctx)
       return
     }
 
@@ -139,6 +162,7 @@ export const writeProfileStep: WizardStep = {
       if (!updated) {
         throw new Error('Failed to persist Docker profile metadata.')
       }
+      await pruneSupersededProfiles(ctx)
       return
     }
 
@@ -169,6 +193,7 @@ export const writeProfileStep: WizardStep = {
     if (!updated) {
       throw new Error('Failed to persist WSL profile metadata.')
     }
+    await pruneSupersededProfiles(ctx)
   },
   // T0444 (BUG-111): delete every profile this run created. An id whose
   // delete throws is kept (and warned) so a later rollback can retry it;
