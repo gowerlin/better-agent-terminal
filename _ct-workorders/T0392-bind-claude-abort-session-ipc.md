@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0392
 title: "BUG-095 修復：`claude:abort-session` 綁上 IPC，並以測試守住「registerHandler 了卻沒有 IPC 綁定」的孤兒 channel"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-05T00:02:02+08:00"
+updated_at: "2026-10-05T00:07:29+08:00"
 started_at: "2026-10-05T00:02:02+08:00"
-completed_at: null
+completed_at: "2026-10-05T00:07:29+08:00"
 target_version: next
 depends_on: []
 related:
@@ -118,4 +118,11 @@ memory_overrides:
 
 ### Commit
 
-見下方 commit 紀錄（`git commit --only`：`electron/remote/protocol.ts`、新測試檔、本工單檔）。
+- `f72e177` fix(remote): bind claude:abort-session to IPC via PROXIED_CHANNELS (T0392, BUG-095) —— `git commit --only`：`electron/remote/protocol.ts`、新測試檔、本工單檔；未 push
+- 收尾 metadata（status / completed_at）另以 `chore(ct)` commit 落地
+
+### 平行工單交接（commit 後觀察）
+
+- commit 後工作樹出現 T0388 執行中改動（未 commit）：`electron/remote/headless-channel-status.ts` 為 `PROXIED_CHANNELS` 的 headless coverage ledger，其中有 `'claude:stop-session': 'P1'` 但**沒有** `claude:abort-session`。本單未動 T0388 檔案（memory_overrides 僅要求「T0388 已 commit」時同步）。
+- ⚠️ **請塔台轉知 T0388**：`claude:abort-session` 已進 `PROXIED_CHANNELS`（`f72e177`），ledger 需補分類（建議比照 `claude:stop-session` 列 `P1`），否則其 parity test 會紅。
+- 觀察時 `npm run test:unit` = 69 files / 997 tests passed（含 T0388 等平行未 commit 改動）。
