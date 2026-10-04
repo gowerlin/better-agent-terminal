@@ -337,6 +337,26 @@ function bashInstallRoot(root) {
 }
 
 /**
+ * Bash lines printing the LISTEN sockets owned by the service (T0395).
+ * `ss -p` shows the thread name (bat-server's socket owner is "MainThread"),
+ * so sockets are matched by the service's PIDs, not by process name: every PID
+ * in the service cgroup, falling back to MainPID when cgroup.procs is unreadable.
+ * `pid=<n>,` is compared as a whole token so pid=12 never matches pid=123.
+ */
+export function renderListenCheck() {
+  return [
+    `LP=$(systemctl --user show -p MainPID --value ${SERVICE_NAME} 2>/dev/null)`,
+    'if [ -z "$LP" ] || [ "$LP" = 0 ]; then echo \'LISTEN (service has no running PID)\'; else',
+    `  CG=$(systemctl --user show -p ControlGroup --value ${SERVICE_NAME} 2>/dev/null)`,
+    '  if [ -n "$CG" ] && [ -r "/sys/fs/cgroup$CG/cgroup.procs" ]; then LP=$(cat "/sys/fs/cgroup$CG/cgroup.procs"); fi',
+    '  L=$(ss -ltnp 2>/dev/null | awk -v pids="$LP" \'BEGIN { n = split(pids, a); for (i = 1; i <= n; i++) want["pid=" a[i] ","] = 1 }',
+    '    { s = $0; while (match(s, /pid=[0-9]+,/)) { if (substr(s, RSTART, RLENGTH) in want) { print; next }; s = substr(s, RSTART + RLENGTH) } }\')',
+    '  if [ -n "$L" ]; then printf \'%s\\n\' "$L" | sed \'s/^/LISTEN /\'; else echo "LISTEN (none found for pid $(echo $LP))"; fi',
+    'fi',
+  ]
+}
+
+/**
  * @param mode 'inspect' | 'deploy' | 'rollback'
  * @param opts { installRoot, stagingDir, files, tag, restart, expectStrings }
  *             installRoot / stagingDir are paths native to the shell running the script.
@@ -406,8 +426,7 @@ export function renderBashScript(mode, opts) {
         `systemctl --user restart ${SERVICE_NAME}; echo "RESTART_EXIT $?"`,
         'sleep 2',
         `echo "IS_ACTIVE $(systemctl --user is-active ${SERVICE_NAME})"`,
-        "L=$(ss -ltnp 2>/dev/null | grep -E 'node|bat-server')",
-        "if [ -n \"$L\" ]; then printf '%s\\n' \"$L\" | sed 's/^/LISTEN /'; else echo 'LISTEN (none found)'; fi",
+        ...renderListenCheck(),
         `journalctl --user -u ${SERVICE_NAME} -n 15 --no-pager 2>&1 | sed 's/^/JOURNAL /'`
       )
     }

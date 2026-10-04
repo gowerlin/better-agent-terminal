@@ -23,6 +23,7 @@ import {
   planDeploy,
   planRollback,
   renderBashScript,
+  renderListenCheck,
   rollbackDir,
   sha256,
   shq,
@@ -310,6 +311,16 @@ describe('renderBashScript (WSL target)', () => {
     expect(renderBashScript('deploy', { ...base, restart: false })).not.toContain('systemctl')
   })
 
+  it('checks LISTEN sockets by the service PID, not by process name', () => {
+    const script = renderBashScript('deploy', base)
+    expect(script).not.toContain("grep -E 'node|bat-server'")
+    expect(script).toContain('systemctl --user show -p MainPID --value bat-server')
+    expect(script).toContain('systemctl --user show -p ControlGroup --value bat-server')
+    for (const line of renderListenCheck()) expect(script).toContain(line)
+    expect(renderBashScript('deploy', { ...base, restart: false })).not.toMatch(/LISTEN|ss -ltnp/)
+    expect(renderBashScript('rollback', { ...base, restart: false })).not.toMatch(/LISTEN|ss -ltnp/)
+  })
+
   it('single-quotes untrusted values', () => {
     expect(shq(`it's $(id)`)).toBe(`'it'\\''s $(id)'`)
     const script = renderBashScript('deploy', { ...base, expectStrings: [`$(touch /tmp/pwn)'`] })
@@ -366,5 +377,43 @@ describe('renderBashScript (WSL target)', () => {
     } finally {
       for (const d of [root, staging, scripts]) rmSync(d, { recursive: true, force: true })
     }
+  })
+
+  // Run the LISTEN check with systemctl / ss stubbed as bash functions. The
+  // fake ControlGroup path does not exist, so the MainPID fallback is exercised.
+  const SS_SAMPLE = [
+    'State  Recv-Q Send-Q  Local Address:Port Peer Address:PortProcess',
+    'LISTEN 0      4096    127.0.0.53%lo:53        0.0.0.0:*',
+    'LISTEN 0      511         127.0.0.1:9877      0.0.0.0:*    users:(("MainThread",pid=1234,fd=21))',
+    'LISTEN 0      511           0.0.0.0:8080      0.0.0.0:*    users:(("node",pid=12345,fd=19))',
+    'LISTEN 0      511           0.0.0.0:3000      0.0.0.0:*    users:(("node",pid=123,fd=7),("node",pid=1234,fd=8))',
+  ].join('\n')
+  const runListenCheck = (mainPid) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 't0395-sh-'))
+    try {
+      writeFileSync(path.join(dir, 'ss.txt'), SS_SAMPLE + '\n')
+      const file = path.join(dir, 'listen.sh')
+      writeFileSync(
+        file,
+        [
+          `systemctl() { case "$*" in *MainPID*) echo ${shq(mainPid)} ;; *ControlGroup*) echo /t0395-no-such-cgroup ;; esac; }`,
+          `ss() { cat ${shq(path.join(dir, 'ss.txt').replace(/\\/g, '/'))}; }`,
+          ...renderListenCheck(),
+        ].join('\n') + '\n'
+      )
+      return execFileSync(localBash, [file.replace(/\\/g, '/')], { encoding: 'utf8', timeout: 30_000 }).trim().split('\n')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
+  it.skipIf(!localBash)('LISTEN check matches pid=<n>, exactly against an ss sample', () => {
+    expect(runListenCheck('1234')).toEqual([
+      'LISTEN LISTEN 0      511         127.0.0.1:9877      0.0.0.0:*    users:(("MainThread",pid=1234,fd=21))',
+      'LISTEN LISTEN 0      511           0.0.0.0:3000      0.0.0.0:*    users:(("node",pid=123,fd=7),("node",pid=1234,fd=8))',
+    ])
+    expect(runListenCheck('12')).toEqual(['LISTEN (none found for pid 12)'])
+    expect(runListenCheck('0')).toEqual(['LISTEN (service has no running PID)'])
+    expect(runListenCheck('')).toEqual(['LISTEN (service has no running PID)'])
   })
 })
