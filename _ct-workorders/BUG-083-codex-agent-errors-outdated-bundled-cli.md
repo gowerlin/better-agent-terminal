@@ -50,7 +50,7 @@ links:
 | 順序 | 工單 | 內容 | 狀態 |
 |------|------|------|------|
 | 1 | T0367 | T-A 錯誤分類 + config 警告誤報修正 | ✅ DONE `c6214c2`（561 tests） |
-| 2 | T0369 | T-B bump SDK 0.160 + 內嵌解析相容新目錄 + 體積量測 | 派發中 |
-| 3 | （待開） | T-D 模型清單（清下架、讀 `models_cache.json`、effort `max`） | — |
+| 2 | T0369 | T-B bump SDK 0.160 + 內嵌解析相容新目錄 + 體積量測 | ✅ DONE `ca0d292`（573 tests；win32-x64 213→430 MB） |
+| 3 | T0370 | T-D 模型清單（讀 `models_cache.json`、清下架、effort `max`）+ 連線重試誤報改 notice | 派發中 |
 | 4 | （待開） | T-C 選最新 binary + 版本 toast | — |
 | — | 後排 | T-E Settings codex runtime 選擇（S3） | 未排 |
