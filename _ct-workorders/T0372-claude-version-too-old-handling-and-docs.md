@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0372
 title: "BUG-084 後續：claude_code_version_too_old 錯誤分類 + HEALTHY_MIN 2.1.280 + embedded DISABLE_UPDATES + 模型下拉去重 + CLAUDE.md 更新"
 type: fix
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-10-04T16:24:08+08:00"
-updated_at: "2026-10-04T16:25:21+08:00"
+updated_at: "2026-10-04T16:36:12+08:00"
 started_at: "2026-10-04T16:25:21+08:00"
-completed_at: null
+completed_at: "2026-10-04T16:36:12+08:00"
 target_version: next
 depends_on:
   - T0371
@@ -47,7 +47,7 @@ memory_overrides:
 
 # T0372 — BUG-084 後續：版本過舊錯誤分類 + 防更新 + 文件
 
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **任務類型**：fix
 - **工作量預估**：S
 - **Context Window 風險**：低~中（CLAUDE.md 節段改寫）
@@ -125,7 +125,7 @@ API Error: 400 {"type":"error","error":{"type":"invalid_request_error","message"
 
 ### 完成狀態
 
-✅ **DONE**：Part A–D 全部完成，AC-1 ~ AC-6 PASS。AC-7 有兩處超出 `affects_files` 的改動，是依判斷執行的，見「遭遇問題」D-1 / D-2。
+✅ **DONE**（commit `79c349e`）：Part A–D 全部完成，AC-1 ~ AC-6 PASS。AC-7 有兩處超出 `affects_files` 的改動，是依判斷執行的，見「遭遇問題」D-1 / D-2。
 
 **落點檢查（Landing Zone）**：WARN
 - C-0：frontmatter **無 `repo` 欄位**（`absent`）→ WARN「repo identity unavailable」；觀察到 `basename(REPO_ROOT)` = `better-agent-terminal`，`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`
