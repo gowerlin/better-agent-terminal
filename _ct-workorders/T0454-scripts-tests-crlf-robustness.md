@@ -31,6 +31,7 @@ workdir: main repo
 memory_overrides:
   - "🔴 **重現方式**：在 scratchpad 建乾淨 worktree（`git -c core.longpaths=true worktree add --detach <scratchpad>/crlf-wt HEAD`，`node_modules` 以 junction 指向主工作區），確認檔案為 CRLF 後跑這 4 檔重現；修完在同一 worktree（以 `git -C <wt> checkout --detach <新 commit>` 更新）驗證綠，主工作區也綠。結束後 `git worktree remove` 該 worktree。"
   - "🔴 **查 SyntaxError 真因**（例如 CRLF 下某 `.mjs` 內多行 template / regex / shebang 處理、或測試以文字讀檔後 `eval` / `new Function` / `vm`），回報區附證據。修法以「測試與被測腳本對換行無關」為準（regex 用 `\\r?\\n`、讀檔後正規化換行等）；不得改變被測腳本的對外行為。"
+  - "🔴 **塔台 07:07 線索（T0434 遭遇問題 5）**：T0434 以 Python 文字模式寫檔產生 CRLF，**shebang 行帶 `\\r` 時 vitest 轉譯報 `SyntaxError: Invalid or unexpected token`**——高度疑似即三檔載入失敗的真因（被測 `.mjs` 首行 `#!/usr/bin/env node\\r`）。請先驗證此假設；若成立，修法可在測試載入端處理，或評估 vitest / 轉譯設定，回報區說明。"
   - "🔴 `.gitattributes`：**只評估、不新增**（會牽動全 repo 正規化，屬塔台 / 使用者決定）。回報區給建議內容與影響（哪些檔會被 renormalize、CI / 打包是否受影響）。"
   - "🔴 依賴 T0434（同改 `scripts/__tests__/`）。**只跑 `npm run test:unit` + `npx tsc --noEmit`；不跑 `npx vite build` / `npm run test:e2e`**（L141）。**禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`**（L138；worktree 的 `checkout --detach <commit>` 不在此限，因為只在 scratchpad worktree 內）；不 push。"
 ---

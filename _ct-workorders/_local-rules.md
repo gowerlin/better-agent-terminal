@@ -282,27 +282,34 @@ _ct-workorders/
 
 塔台派發工單後，依以下順序偵測環境決定執行方式：
 
+> 2026-10-05 第五十五 session 修訂（T0434 回報區第 6 節，PLAN-036 K）：舊版的 raw command 形式（`bat-terminal.mjs claude "/ct-exec T####"` = `terminal:create-with-command`）在遠端會被每 PTY 權杖拒絕（`Forbidden: channel-not-allowed`），一律改用 agent 模式（`--skill` / `--workorder`）。實際派發旗標以 control-tower `references/auto-session.md` 命令表為準（`--notify-id` / `--workspace` / `--cwd` / `--mode` / `--agent default` 等，本節只示意）。
+
 ```
 偵測 BAT_SESSION 環境變數？
-├─ BAT_SESSION=1（在 BAT 內部終端）
-│  └─ 使用 BAT 內部終端：
-│     node "$BAT_HELPER_DIR/bat-terminal.mjs" claude "/ct-exec T####"
-│     → WebSocket → RemoteServer → BAT 內建新終端分頁
-│     → 縮圖自動出現 + xterm 綁定 + 自動聚焦
+├─ BAT_SESSION=1（BAT 終端：本機分頁，或遠端 WSL / SSH / Docker 視窗的分頁）
+│  ├─ BAT_HELPER_DIR + BAT_REMOTE_PORT + BAT_REMOTE_TOKEN 皆有
+│  │  └─ N="$BAT_HELPER_DIR/../bin/node"; [ -x "$N" ] || N=node   （本機無 ../bin/node → 用 node）
+│  │     "$N" "$BAT_HELPER_DIR/bat-terminal.mjs" --skill ct-exec --workorder T#### \
+│  │       --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" [--mode yolo] [--no-interactive]
+│  │     → 本機：RemoteServer（全權 server token）；遠端：headless bat-server（每 PTY 權杖，PLAN-036 K）
+│  │     → 新分頁出現在 Tower 所在視窗 / workspace；成功判定只看 exit code
+│  └─ 任一缺少（遠端舊 server、helper 未部署）→ 直接走降級鏈；不要先嘗試 node "/bat-terminal.mjs"
 ├─ $WT_SESSION 存在（Windows Terminal）
 │  └─ wt -w 0 nt claude "/ct-exec T####"
 └─ 其他
    └─ 剪貼簿 / 文字提示降級鏈
 ```
 
+遠端補充：遠端分頁可由 `BAT_REMOTE_TOKEN` 以 `batcap.` 開頭辨識（T0449）；遠端 `--submit` 需有 BAT client 連著，否則 `bat-notify` exit 1（`no-client`）→ 走手動訊息；遠端 `~/.claude/skills` 需另裝 control-tower 系列 skill；遠端權杖只允許 agent 模式派單（tower）與 notify / 預填 / keypress（worker），細節見 `CLAUDE.md`「遠端 Tower 通知（PLAN-036 K）」。
+
 ### Bash 白名單擴充
 
-以下指令加入塔台 auto-session 白名單：
+以下指令加入塔台 auto-session 白名單（本機與遠端通用）：
 
 | 用途 | 指令 | 條件 |
 |------|------|------|
-| BAT 內部終端 | `node "$BAT_HELPER_DIR/bat-terminal.mjs" claude "/ct-exec T####"` | `BAT_SESSION=1` |
-| BAT 內部終端 | `node "$BAT_HELPER_DIR/bat-terminal.mjs" claude "/ct-done T####"` | `BAT_SESSION=1` |
+| BAT 終端（本機 / 遠端） | `"$N" "$BAT_HELPER_DIR/bat-terminal.mjs" --skill ct-exec --workorder T#### --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" …` | `BAT_SESSION=1` 且 helper env 齊全 |
+| 同上（ct-done） | `… --skill ct-done --workorder T#### …` | 同上 |
 
 ### Agent 自訂參數自動套用
 

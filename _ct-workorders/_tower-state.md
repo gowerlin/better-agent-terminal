@@ -304,6 +304,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 07:03 — T0437（`--no-interactive`）
 - [完成] 2026-10-05 07:05 — T0451 DONE（`283337a`）塔台複核 PASS：`LOG_UNSAFE_CHARS` 已改跳脫序列（塔台跑 `headless-electron-free` 4/4）、Worker 全套 2466 passed / **0 failed** / tsc 36。**T0445 九條 finding 全數修畢**
 - [斷點 C 裁決] 2026-10-05 07:05 — client heartbeat 不檢查 pong → T0455（連續 2 次未 pong 才 terminate）
+- [派發] 2026-10-05 07:05 — T0455（`--no-interactive`）
+- [完成] 2026-10-05 07:07 — T0434 DONE（`aeac517`）塔台複核 PASS：e2e harness 7 情境、smoke S13（對現 WSL server 12/13 PASS + S13 SKIP server-too-old，exit 0）、dev-deploy 部署 helper + rollback、CLAUDE.md / docs、Worker 全套 0 failed / tsc 36。**K（T0431-T0434）程式部分完成**，WSL 部署 + 真 BAT 遠端視窗實機待使用者同意
+- [斷點 C 裁決] 2026-10-05 07:07 — 套用 T0434 第 6 節 `_local-rules.md` 路由修訂（raw command → agent 模式 + 遠端分支）；T0456（遠端 PTY PATH 尾端加 bundle node + `BAT_HELPER_NODE`、bat-terminal `false` → exit 1）；T0454 補 shebang `\r` 線索
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
