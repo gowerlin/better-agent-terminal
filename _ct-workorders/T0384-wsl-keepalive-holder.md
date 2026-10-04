@@ -60,7 +60,7 @@ T0380 證實：沒有 `wsl.exe` 連線時，WSL 約 15 秒（`instanceIdleTimeou
 ## 驗收
 
 - unit：spawn mock（啟動、同 distro 不重複、profile 刪除時停止、意外結束 backoff、quit 時全部 kill、非 Windows no-op、distro 白名單拒絕）
-- `npm run test:unit` 全綠（基線 **794**；回報新數字）
+- `npm run test:unit` 全綠（基線 **822**；回報新數字）
 - `npx vite build` exit 0
 - `npx tsc --noEmit` error 數不得高於 baseline **40**
 - **本機 runtime**：對 `Ubuntu-24.04` 啟動 holder → 等 60 秒以上 `wsl -l -v` 仍 `Running` → 停止 holder → 約 15-20 秒後 `Stopped`；確認無殘留 `wsl.exe` holder 程序

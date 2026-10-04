@@ -62,7 +62,7 @@ memory_overrides:
 ## 驗收
 
 - unit：埠選擇（主機埠被排除、占用時往後找、使用者指定埠衝突報錯）；startService 穩定性（mock execFile：立即 active 後 NRestarts 增加 → 失敗；持續 active → 成功；journal 含 `EADDRINUSE` → `wsl-port-in-use`）
-- `npm run test:unit` 全綠（基線 **794**；回報新數字）
+- `npm run test:unit` 全綠（基線 **822**；回報新數字）
 - `npx vite build` exit 0
 - `npx tsc --noEmit` error 數不得高於 baseline **40**
 - **本機 runtime（建議）**：在 `Ubuntu-24.04` 以 transient unit 驗證穩定性判定不會把 crash-loop 判成功；驗完清乾淨（不得留下新 unit / 檔案，也不得刪除使用者既有的 bat-server unit）

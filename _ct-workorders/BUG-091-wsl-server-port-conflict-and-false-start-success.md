@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-091
 title: WSL bat-server 埠與主機 BAT RemoteServer 衝突（預設都是 9876），且 `startService` 把「啟動後立刻崩潰」誤判為成功
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-10-04T22:18:57+08:00"
-updated_at: "2026-10-04T22:18:57+08:00"
+updated_at: "2026-10-04T22:31:33+08:00"
 impact:
   - setup-wizard-wsl
 links:
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（Mirrored 模式下精靈裝好的服務必定起不來，但精靈顯示 ✓） |
 | 可重現 | 100%（Mirrored 模式 + 主機 BAT RemoteServer 在預設埠；T0380 journal 實測 `EADDRINUSE 127.0.0.1:9876`） |
-| **狀態** | 📂 OPEN（修復單 T0382，排在 T0381 之後） |
+| **狀態** | 🔧 FIXING（T0382） |
 | 回報者 | T0380 研究 |
 
 ## 現象

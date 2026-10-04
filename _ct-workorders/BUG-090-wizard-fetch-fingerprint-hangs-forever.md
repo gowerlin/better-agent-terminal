@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-090
 title: 設定精靈「取得 TLS 指紋」永久卡住：伺服器沒有 `/fingerprint` HTTP handler，IPC 也沒有 timeout（WSL / SSH / Docker 共用）
-status: FIXING
+status: FIXED
+fix_commits: [115de23]
+fixed_at: "2026-10-04T22:30:25+08:00"
 severity: high
 reproducibility: always
 created_at: "2026-10-04T22:18:57+08:00"
-updated_at: "2026-10-04T22:18:57+08:00"
+updated_at: "2026-10-04T22:31:33+08:00"
 impact:
   - setup-wizard-wsl
   - setup-wizard-ssh
@@ -16,7 +18,7 @@ links:
   fix_workorder: T0381
   research_workorder: T0380
   plan: PLAN-035
-  related: [BUG-087, BUG-088, BUG-091]
+  related: [BUG-087, BUG-088, BUG-091, BUG-093]
 ---
 
 # BUG-090 — 「取得 TLS 指紋」永久卡住
@@ -25,7 +27,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（三種遠端精靈都共用這一步，全部無法走到底） |
 | 可重現 | 100%（T0380 實測：TLS 握手 14ms 完成，之後 8 秒沒有任何 HTTP 回應） |
-| **狀態** | 🔧 FIXING（T0381） |
+| **狀態** | ✅ FIXED（T0381 `115de23`；待實機，建議與 T0382 合併驗收） |
 | 回報者 | 使用者截圖（WSL 精靈第 6 步一直「進行中」）；T0380 研究定位根因 |
 
 ## 現象
@@ -43,3 +45,11 @@ links:
 ## 修復方向（D128）
 
 改用 TLS 握手取對端憑證指紋（`tls.connect` + `getPeerCertificate().fingerprint256`），所有路徑都要有 timeout；見 T0381。
+
+## FIXED 證據（2026-10-04 22:31 UTC+8，塔台驗收 T0381）
+
+- 修復 commit：`115de23`（12 files）：新增 `electron/tls-fingerprint.ts`，以 `tls.connect` + `getPeerCertificate().fingerprint256` 取指紋，連線 + 握手合計 5s timeout，所有結束路徑都 `destroy()`；IPC `wsl:fetch-fingerprint` 改回傳結構化結果；4 個錯誤碼（`fingerprint-timeout` / `-unreachable` / `-handshake-failed` / `-invalid-port`）進 ErrorMapper + 三語 i18n；只對 `unreachable` 重試
+- 塔台複驗：`npm run test:unit` **822 passed / 59 files**（794 → 822）、`npx vite build` exit 0、`tsc --noEmit` **40**（= baseline）
+- Worker 本機 runtime：對主機 RemoteServer `127.0.0.1:9876` 8ms 取回指紋，與 `server-cert.json` 一致；probe 連線無殘留 ESTABLISHED
+- **尚未實機**：WSL 精靈第 6 步在目前 Mirrored + 埠衝突環境下會取到**主機 BAT 自己**的指紋（BUG-091 / T0382 範圍），實機驗收建議等 T0382
+- 衍生：SSH 精靈驗證階段不建 tunnel，同樣連到本機 → BUG-093

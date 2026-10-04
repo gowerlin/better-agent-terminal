@@ -62,7 +62,7 @@ memory_overrides:
 ## 驗收
 
 - unit：`wslinfo` 輸出解析（UTF-16 / 換行 / 未知值 / 指令不存在）；`.wslconfig` 解析（大小寫、缺檔、無 `[wsl2]`、註解）；警告選擇的 declared/actual 組合
-- `npm run test:unit` 全綠（基線 **794**；回報新數字）
+- `npm run test:unit` 全綠（基線 **822**；回報新數字）
 - `npx vite build` exit 0
 - `npx tsc --noEmit` error 數不得高於 baseline **40**
 - **本機 runtime**：對 `Ubuntu-24.04` 呼叫新 `detectNetworkMode` → `{ actual: 'mirrored', declared: 'mirrored' }`（會啟動發行版，唯讀即可）
