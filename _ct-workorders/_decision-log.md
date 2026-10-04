@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 13:12 (UTC+8)（第四十九 session 新增 D120）
+> 最後更新：2026-10-04 15:52 (UTC+8)（第四十九 session 新增 D120、D121）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D121 | 2026-10-04 | BUG-083 依 T0366 結論採 S1（bump SDK + 內嵌解析相容新目錄）+ S2（選最新 binary + 錯誤分類）；S3 Settings runtime 選擇後排。四張實作單共改 `codex-agent-manager.ts`，依序串行 T-A 誤報/錯誤分類 → T-B bump → T-D 模型清單 → T-C 選最新 binary | T0366 / T0367 / BUG-083 |
 | D120 | 2026-10-04 | BUG-071 runtime 下載來源：desktop release workflow（`release.yml` / `pre-release.yml`）建完 baseline 後**自動發佈** `server-bundle-v<版號>` prerelease 到 gowerlin；預設下載網址 owner 由不存在的 `anthropics` 改為 `gowerlin`；網址格式與 D093 tag 命名不變。驗收做到發 pre 版 + 實機 wizard | T0365 / BUG-071 / PLAN-031 |
 | D119 | 2026-09-02 | 社群 PR #19 不 merge，改在 main 取骨架重新實作 —— 其 `cmd` 分支有兩處經確認的缺陷（`%`→`%%` 為批次檔限定語意、`""` 非 `CommandLineToArgvW` 逃逸），bot review 三個月未回應且該 bot 已停止服務；posix/pwsh 與 `agentCustomArgs` 判斷沿用其設計，出處以 `Co-authored-by` 保留 | T0362 / PR #19 |
 | D118 | 2026-04-27 | T0333-D1：`ssh-permission-denied` registry entry 加 `patterns: [/permission denied/i]` regex fallback（spec 嚴格用 errorCode，但 Shell 從 snapshot 取 error 時無 errorCode 通道；後續若補 errorCode 通道可拿掉 pattern） | T0333 / PLAN-032 |
@@ -1348,6 +1349,20 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D121 2026-10-04 — BUG-083：Codex 版本落後的修復組合與排序
+
+- **依據**：T0366 研究（`aa970dc`）。根因 H1（服務端以 CLI 版本擋新模型）與 H3（較新 Codex 寫入 `service_tier = "default"`，內嵌 0.124 解析 `config.toml` 即 exit 1）皆本機 100% 重現；另有 H2 誤報（0.160 的 `Codex is ignoring …` 以 `item.type=error` 送出，BAT 當成錯誤並中斷 streaming 指示）
+- **決定**：S1 + S2 必做，S3 後排；不以 `-c` override 硬蓋單一 config 鍵（只解已知鍵，下一個新值又壞）
+- **排序**（四張皆改 `electron/codex-agent-manager.ts`，`affects_files` 重疊 ⇒ 串行）：
+  1. T-A（T0367）錯誤分類 + 誤報修正 —— 最快止血，不依賴升級
+  2. T-B bump `@openai/codex-sdk` → 0.160.x，**同步**改 `findBundledCodex()` 相容新目錄 `vendor/<triple>/bin/`（只 bump 會讓內嵌 binary 找不到）+ prepend `codex-path/` + 安裝檔大小實測
+  3. T-D 模型清單（清下架項、讀 `models_cache.json`、effort 加 `max`）
+  4. T-C 選最新 binary（`--version` 偵測，候選含 Desktop App 路徑）+ 版本 toast
+- **D094 註記**：T-B 會讓 codex 平台套件 unpackedSize 約翻倍（win 223→451 MB）。Mac dmg 已連三版 ~724 MB 遠超 280 MB cap（L130），T-B 只需實測並記錄，不以 D094 擋單
+- **相關**：T0366 / T0367 / BUG-083 / PLAN-027（runtime router 先例）
 
 ---
 
