@@ -6,10 +6,10 @@ title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），�
 status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-04T23:58:00+08:00"
+updated_at: "2026-10-05T00:02:55+08:00"
 links:
   research_workorder: T0386
-  p0_workorders: [T0388, T0389, T0390, T0391]
+  p0_workorders: [T0388, T0389, T0390, T0391, T0393]
   related: [BUG-094, T0385, PLAN-035, PLAN-031, PLAN-015, BUG-093]
 ---
 
@@ -62,7 +62,8 @@ T0385（BUG-094）盤點證實：headless bat-server（WSL / SSH / Docker 遠端
 | T0389 | claude-runtime-router 設定注入 + embedded resolver 合一（bundle `bin/claude`）+ PtyManager DI | T0387（`main.ts`） | 排隊 |
 | T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | 排隊 |
 | T0391 | `scripts/dev-deploy-headless.mjs`（JS-only 部署到 WSL / dir，dry-run 預設） | — | 派發 |
+| T0393 | 遠端視窗 shell 清單依遠端 OS 過濾 + WSL 工作區資料夾挑選預設 WSL home、`/mnt/c` 提示（使用者 2026-10-05 00:02 實機回報後裁決納入 P0） | T0390 | 排隊 |
 
-P0 可用定義：WSL profile 開出視窗 → 預設終端出現 bash prompt → 輸入 / resize / kill / restart / cwd 正確 → 關閉 BAT 重開後同 id 終端不重複 spawn。
+P0 可用定義：WSL profile 開出視窗 → 預設終端出現 bash prompt → 輸入 / resize / kill / restart / cwd 正確 → 關閉 BAT 重開後同 id 終端不重複 spawn → 設定可選 bash、新增工作區預設開在 WSL home（T0393）。
 
 P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
