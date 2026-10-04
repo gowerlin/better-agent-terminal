@@ -70,14 +70,14 @@ function setup(overrides: Partial<GitHandlerDeps> & { version?: string; versionT
 }
 
 describe('registerGitHandlers', () => {
-  it('registers the 22 worktree / git / git-scaffold / github channels', () => {
+  it('registers the 21 worktree / git / git-scaffold / github channels', () => {
     const { handlers } = setup({ spawn: fakeSpawn(0).spawn })
     expect([...handlers.keys()].sort()).toEqual([
       'git-scaffold:getRepoInfo', 'git-scaffold:healthCheck', 'git-scaffold:listCommits',
       'git:branch', 'git:diff', 'git:diff-files', 'git:get-github-url', 'git:getRoot', 'git:log', 'git:status',
       'github:check-cli', 'github:issue-comment', 'github:issue-list', 'github:issue-view',
       'github:pr-comment', 'github:pr-list', 'github:pr-view',
-      'worktree:create', 'worktree:merge', 'worktree:rehydrate', 'worktree:remove', 'worktree:status',
+      'worktree:create', 'worktree:rehydrate', 'worktree:remove', 'worktree:status',
     ])
   })
 

@@ -133,7 +133,6 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['claude:detectRuntime', 'customPath comes from the remote settings (settings:load is proxied): already a server path'],
   ['worktree:remove', 'sessionId + boolean'],
   ['worktree:status', 'sessionId only (result stays server-side, see SERVER_PATH_RESULT_CHANNELS)'],
-  ['worktree:merge', 'sessionId + strategy enum'],
   ['workspace:save', 'ALWAYS_LOCAL (never proxied); workspace JSON stays in the local window registry'],
   ['workspace:load', 'ALWAYS_LOCAL (never proxied); no args'],
   ['settings:save', 'remote settings JSON; paths in it are server paths for the remote host'],

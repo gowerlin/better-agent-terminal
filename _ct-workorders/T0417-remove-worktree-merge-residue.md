@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0417
 title: "BUG-106：移除 worktree:merge 殘留（channel / preload / 型別 / handler / 分類表 / 測試）"
 type: fix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-106
 priority: P2
 sizing: S
 created_at: "2026-10-05T05:35:22+08:00"
-started_at: null
-updated_at: "2026-10-05T05:35:22+08:00"
+started_at: "2026-10-05T05:39:34+08:00"
+updated_at: "2026-10-05T05:39:34+08:00"
 completed_at: null
 target_version: next
 depends_on: []
@@ -75,8 +75,44 @@ memory_overrides:
 
 ### 完成狀態
 
+**DONE**
+
 ### 產出摘要
+
+**Landing Zone Check：PASS**
+- C-0：frontmatter `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）→ PASS
+- C-1：工單位於 REPO_ROOT 下 → PASS；C-3：affects_files 皆存在 → PASS（informational）；C-2：工單無 `branch` 欄位（HEAD = `main`）
+- 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`；`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
+**移除清單（檔案 + 行為）**
+
+| 檔案 | 移除內容 | 行為變化 |
+|------|---------|---------|
+| `electron/handlers/git.ts` | `register('worktree:merge', …)` handler（含 `(worktreeManager as any).mergeWorktree` 呼叫、eslint-disable 與「Pre-existing」註解） | 本機與 headless 不再註冊此 channel；原本呼叫必 reject `TypeError` |
+| `electron/preload.ts` | `worktree.merge(sessionId, strategy)` | renderer 不再暴露此 API |
+| `src/types/electron.d.ts` | `ElectronAPI.worktree.merge` 型別 | 型別層同步移除 |
+| `electron/remote/protocol.ts` | `PROXIED_CHANNELS` 的 `'worktree:merge'` | remote client 不再 proxy 此 channel |
+| `electron/remote/path-aware-channels.ts` | `PATH_FREE_CHANNELS` 的 `['worktree:merge', 'sessionId + strategy enum']` | 分類表與 PROXIED_CHANNELS 對齊（全分類守門測試維持綠） |
+| `electron/__tests__/git-handlers.test.ts` | 註冊清單斷言移除 `'worktree:merge'`；標題 `22` → `21` | `toEqual` 完整清單斷言即等同「channel 不存在」 |
+| `electron/remote/__tests__/headless-git.test.ts` | `T0405_CHANNELS` 移除 `'worktree:merge'`；標題 `22` → `21` | 陣列實際 21 項 |
+
+- `electron/remote/headless-channel-status.ts`：`HEADLESS_UNSUPPORTED` 本就無 `worktree:merge` 條目（T0405 已上線 worktree:*，只剩註解泛稱 `worktree:*`），**無需改動**
+- renderer 呼叫端（`src/**`）：除型別外無任何 `worktree.merge` 呼叫、無 UI 入口、無 i18n key → 無需清理
+- 未恢復 `WorktreeManager.mergeWorktree`（遵 D134）
+
+**驗收**
+- [x] `git grep -e "worktree:merge" -e "mergeWorktree" -e "worktree\.merge"`（排除 `_ct-workorders/`）→ **0 筆**。未追蹤／ignored 區仍有命中：`dist-server/dev-deploy-headless/*.js`（gitignored 建置產物，下次 build 自然消失）與 `.kilo/worktrees/{crystal-boron,zesty-asiago}/`（他工具的舊 worktree 副本，非本庫追蹤檔），皆不在範圍、未動
+- [x] `npm run test:unit`：**112 files passed；1867 passed | 1 skipped（1868）** — 與基線 1867 相同。數字不變的原因：本單只刪陣列項目與改標題，未刪除任何 `it()` 案例
+- [x] `npx tsc --noEmit`：**40** 個 error（≤ 40）；其中與 merge / worktree 相關 0 筆
+- 未跑 `npx vite build` / `npm run test:e2e`（依 memory_overrides，塔台聯合複驗 L141）
+
+**Commit**：見下方 commit（`git commit --only` 7 個產品／測試檔 + 本工單 + BUG-106）；未 push
 
 ### 遭遇問題
 
+1. `npm run test:unit` 輸出夾帶既有雜訊（`AttachConsole failed`（node-pty conpty agent）、`fatal: not a git repository`、`No such remote 'origin'`），為測試 fixture 的 stderr，不影響結果（全綠），非本單引入
+2. 工作樹中有其他 Worker 的平行改動（`_ct-workorders/T0418`~`T0421`、`_tower-state.md`），未碰、未納入 commit
+
 ### 回報時間
+
+2026-10-05T05:40:32+08:00

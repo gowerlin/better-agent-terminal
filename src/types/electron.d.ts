@@ -362,7 +362,6 @@ interface ElectronAPI {
     create: (sessionId: string, cwd: string) => Promise<{ success: boolean; worktreePath?: string; branchName?: string; gitRoot?: string; sourceBranch?: string; error?: string }>
     remove: (sessionId: string, deleteBranch: boolean) => Promise<{ success: boolean; error?: string }>
     status: (sessionId: string) => Promise<{ diff: string; branchName: string; worktreePath: string; sourceBranch: string } | null>
-    merge: (sessionId: string, strategy: 'merge' | 'cherry-pick') => Promise<{ success: boolean; error?: string }>
     rehydrate: (sessionId: string, cwd: string, worktreePath: string, branchName: string) => Promise<{ success: boolean }>
   }
   profile: {

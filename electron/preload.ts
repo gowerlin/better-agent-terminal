@@ -381,8 +381,6 @@ const electronAPI = {
       ipcRenderer.invoke('worktree:remove', sessionId, deleteBranch) as Promise<{ success: boolean; error?: string }>,
     status: (sessionId: string) =>
       ipcRenderer.invoke('worktree:status', sessionId) as Promise<{ diff: string; branchName: string; worktreePath: string; sourceBranch: string } | null>,
-    merge: (sessionId: string, strategy: 'merge' | 'cherry-pick') =>
-      ipcRenderer.invoke('worktree:merge', sessionId, strategy) as Promise<{ success: boolean; error?: string }>,
     rehydrate: (sessionId: string, cwd: string, worktreePath: string, branchName: string) =>
       ipcRenderer.invoke('worktree:rehydrate', sessionId, cwd, worktreePath, branchName) as Promise<{ success: boolean }>,
   },

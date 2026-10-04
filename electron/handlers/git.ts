@@ -161,12 +161,6 @@ export function registerGitHandlers(register: HandlerRegistrar, deps: GitHandler
   register('worktree:status', async (_ctx, sessionId: string) => {
     return worktreeManager.getWorktreeStatus(sessionId)
   })
-  // Pre-existing (moved as is): WorktreeManager.mergeWorktree was removed in 3a470eb
-  // ("let users merge via CLI"), so this call rejects with a TypeError on both hosts.
-  register('worktree:merge', async (_ctx, sessionId: string, strategy: 'merge' | 'cherry-pick') => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (worktreeManager as any).mergeWorktree(sessionId, strategy)
-  })
   register('worktree:rehydrate', (_ctx, sessionId: string, cwd: string, worktreePath: string, branchName: string) => {
     worktreeManager.rehydrate(sessionId, cwd, worktreePath, branchName)
     return { success: true }

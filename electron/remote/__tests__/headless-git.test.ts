@@ -75,7 +75,7 @@ afterAll(async () => {
 })
 
 const T0405_CHANNELS = [
-  'worktree:create', 'worktree:remove', 'worktree:status', 'worktree:merge', 'worktree:rehydrate',
+  'worktree:create', 'worktree:remove', 'worktree:status', 'worktree:rehydrate',
   'github:check-cli', 'github:pr-list', 'github:issue-list', 'github:pr-view', 'github:issue-view',
   'github:pr-comment', 'github:issue-comment',
   'git:branch', 'git:log', 'git:diff', 'git:diff-files', 'git:status', 'git:get-github-url', 'git:getRoot',
@@ -83,7 +83,7 @@ const T0405_CHANNELS = [
 ]
 
 describe('git / github / worktree on headless (T0405)', () => {
-  it('all 22 channels are proxied and no longer listed unsupported', () => {
+  it('all 21 channels are proxied and no longer listed unsupported', () => {
     for (const channel of T0405_CHANNELS) {
       expect(PROXIED_CHANNELS.has(channel), channel).toBe(true)
       expect(HEADLESS_UNSUPPORTED[channel], channel).toBeUndefined()
