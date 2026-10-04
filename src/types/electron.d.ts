@@ -132,6 +132,8 @@ interface ElectronAPI {
     selectFolder: () => Promise<string[] | null>
     selectImages: () => Promise<string[]>
     selectFiles: () => Promise<string[]>
+    /** T0436: open dialog for panel attachments; images are read by main into data URLs. */
+    selectAttachments: () => Promise<{ files: string[]; images: Array<{ path: string; dataUrl: string }> }>
     confirm: (message: string, title?: string) => Promise<boolean>
   }
   image: {
@@ -139,6 +141,8 @@ interface ElectronAPI {
   }
   clipboard: {
     saveImage: () => Promise<string | null>
+    /** T0436: clipboard image as a data URL; null when the clipboard holds no image. */
+    readImageDataUrl: () => Promise<string | null>
     writeImage: (filePath: string) => Promise<boolean>
   }
   app: {

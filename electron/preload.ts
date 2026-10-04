@@ -110,6 +110,8 @@ const electronAPI = {
     selectFolder: () => ipcRenderer.invoke('dialog:select-folder') as Promise<string[] | null>,
     selectImages: () => ipcRenderer.invoke('dialog:select-images') as Promise<string[]>,
     selectFiles: () => ipcRenderer.invoke('dialog:select-files') as Promise<string[]>,
+    // T0436: panel attachments; images come back as data URLs read by main (no path argument).
+    selectAttachments: () => ipcRenderer.invoke('dialog:select-attachments') as Promise<{ files: string[]; images: Array<{ path: string; dataUrl: string }> }>,
     confirm: (message: string, title?: string) => ipcRenderer.invoke('dialog:confirm', message, title) as Promise<boolean>,
   },
   image: {
@@ -139,6 +141,8 @@ const electronAPI = {
   },
   clipboard: {
     saveImage: () => ipcRenderer.invoke('clipboard:saveImage'),
+    // T0436: clipboard image as a data URL (null when the clipboard has no image).
+    readImageDataUrl: () => ipcRenderer.invoke('clipboard:read-image-data-url') as Promise<string | null>,
     writeImage: (filePath: string) => ipcRenderer.invoke('clipboard:writeImage', filePath),
   },
   claude: {

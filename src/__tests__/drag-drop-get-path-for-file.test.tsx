@@ -94,7 +94,7 @@ describe.each([
     expect(chip.querySelector('.claude-attachment-file-name')).toHaveTextContent(/^report\.txt$/)
   })
 
-  test('image drop reads the resolved path; empty path is skipped', async () => {
+  test('image drop is read from the File (T0436, not by path); non-image without a path is skipped', async () => {
     getPathForFile.mockImplementation((f: File) => (f.name === 'shot.png' ? 'C:\\pics\\shot.png' : ''))
     const { container } = render(renderPanel(`t0435-img-${_name}`))
     const panel = container.querySelector('.claude-agent-panel')!
@@ -106,7 +106,8 @@ describe.each([
       ])
     })
 
-    await waitFor(() => expect(readAsDataUrl).toHaveBeenCalledWith('C:\\pics\\shot.png'))
+    await waitFor(() => expect(container.querySelector('.claude-attachment-thumb')).not.toBeNull())
+    expect(readAsDataUrl).not.toHaveBeenCalled()
     expect(container.querySelector('.claude-attachment-file')).toBeNull()
   })
 })

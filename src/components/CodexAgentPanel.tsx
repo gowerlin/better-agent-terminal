@@ -16,6 +16,7 @@ import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { classifyCodexError } from '../lib/codex-error-classify'
+import { droppedImageKey, readFileAsDataUrl } from '../lib/image-attachment'
 import { getModelPricing, type ModelPricing } from '../lib/model-pricing'
 
 interface SessionMeta {
@@ -2330,26 +2331,15 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const MAX_IMAGES = 5
   const MAX_FILES = 10
 
-  const addImageByPath = useCallback(async (filePath: string) => {
+  // T0436 / BUG-108: image attachments arrive as data URLs read on the client (dropped
+  // File / main's clipboard / main's dialog), never via the proxied image:read-as-data-url.
+  const addImage = useCallback((key: string, dataUrl: string) => {
     setAttachedImages(prev => {
       if (prev.length >= MAX_IMAGES) return prev
-      if (prev.some(img => img.path === filePath)) return prev
-      return prev // will be updated after async
+      if (prev.some(img => img.path === key)) return prev
+      return [...prev, { path: key, dataUrl }]
     })
-    // Check limit and dedup before reading
-    const current = attachedImages
-    if (current.length >= MAX_IMAGES || current.some(img => img.path === filePath)) return
-    try {
-      const dataUrl = await window.electronAPI.image.readAsDataUrl(filePath)
-      setAttachedImages(prev => {
-        if (prev.length >= MAX_IMAGES) return prev
-        if (prev.some(img => img.path === filePath)) return prev
-        return [...prev, { path: filePath, dataUrl }]
-      })
-    } catch (err) {
-      console.error('Failed to read image:', err)
-    }
-  }, [attachedImages])
+  }, [])
 
   const addFileByPath = useCallback((filePath: string) => {
     setAttachedFiles(prev => {
@@ -2366,14 +2356,16 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     for (const item of items) {
       if (item.type.startsWith('image/')) {
         e.preventDefault()
-        const filePath = await window.electronAPI.clipboard.saveImage()
-        if (filePath) {
-          await addImageByPath(filePath)
+        try {
+          const dataUrl = await window.electronAPI.clipboard.readImageDataUrl()
+          if (dataUrl) addImage(`clipboard:${Date.now()}`, dataUrl)
+        } catch (err) {
+          console.error('Failed to read clipboard image:', err)
         }
         return
       }
     }
-  }, [addImageByPath])
+  }, [addImage])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -2390,28 +2382,23 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     setIsDragOver(false)
     for (const file of e.dataTransfer.files) {
       const filePath = window.electronAPI.shell.getPathForFile(file)
-      if (!filePath) continue
       if (file.type.startsWith('image/')) {
-        await addImageByPath(filePath)
-      } else {
+        try {
+          addImage(droppedImageKey(file, filePath), await readFileAsDataUrl(file))
+        } catch (err) {
+          console.error('Failed to read image:', err)
+        }
+      } else if (filePath) {
         addFileByPath(filePath)
       }
     }
-  }, [addImageByPath, addFileByPath])
-
-  const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'])
+  }, [addImage, addFileByPath])
 
   const handleSelectAttachments = useCallback(async () => {
-    const paths = await window.electronAPI.dialog.selectFiles()
-    for (const p of paths) {
-      const ext = p.slice(p.lastIndexOf('.')).toLowerCase()
-      if (IMAGE_EXTENSIONS.has(ext)) {
-        await addImageByPath(p)
-      } else {
-        addFileByPath(p)
-      }
-    }
-  }, [addImageByPath, addFileByPath])
+    const { files, images } = await window.electronAPI.dialog.selectAttachments()
+    for (const img of images) addImage(img.path, img.dataUrl)
+    for (const p of files) addFileByPath(p)
+  }, [addImage, addFileByPath])
 
   const removeImage = useCallback((filePath: string) => {
     setAttachedImages(prev => prev.filter(img => img.path !== filePath))

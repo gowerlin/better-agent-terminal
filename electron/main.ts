@@ -78,6 +78,7 @@ import { configureRuntimeRouter } from './claude-runtime-router'
 import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
 import { checkForUpdates, UpdateCheckResult } from './update-checker'
+import { clipboardImageToDataUrl, readSelectedAttachments } from './image-attachments'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
 import { ProfileManager, type ProfileEntry, type ProfileSnapshot } from './profile-manager'
 import { registerHandler, invokeHandler } from './remote/handler-registry'
@@ -2347,6 +2348,18 @@ function registerLocalHandlers() {
     return result.canceled ? [] : result.filePaths
   })
 
+  // T0436 / BUG-108: Claude / Codex panel attachments. Images are read here, on the
+  // client, from the paths this dialog returned — the renderer passes no path. Local-only
+  // on purpose (not PROXIED_CHANNELS / registerHandler): see electron/image-attachments.ts.
+  ipcMain.handle('dialog:select-attachments', async (event) => {
+    const parentWin = BrowserWindow.fromWebContents(event.sender)
+    const result = await dialog.showOpenDialog(parentWin!, {
+      defaultPath: app.getPath('home'),
+      properties: ['openFile', 'multiSelections'],
+    })
+    return readSelectedAttachments(result.canceled ? [] : result.filePaths)
+  })
+
   ipcMain.handle('dialog:confirm', async (event, message: string, title?: string) => {
     const parentWin = BrowserWindow.fromWebContents(event.sender)
     const result = await dialog.showMessageBox(parentWin!, {
@@ -2416,6 +2429,10 @@ function registerLocalHandlers() {
     await fs.writeFile(filePath, image.toPNG())
     return filePath
   })
+  // T0436 / BUG-108: panel paste attachments take the image straight from this machine's
+  // clipboard (no temp file, no proxied image:read-as-data-url). clipboard:saveImage stays
+  // for PromptBox, which needs a file path for the terminal agent.
+  ipcMain.handle('clipboard:read-image-data-url', () => clipboardImageToDataUrl(clipboard.readImage()))
   ipcMain.handle('clipboard:writeImage', async (_event, filePath: string) => {
     const image = nativeImage.createFromPath(filePath)
     if (image.isEmpty()) return false
