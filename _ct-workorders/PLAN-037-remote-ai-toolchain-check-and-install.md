@@ -57,8 +57,8 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 |---|---|---|---|---|
 | T0408 | A | 偵測核心：probe 腳本 + parse + `RemoteToolsReport` 型別 | T0407 | ✅ DONE（`ab30fff` / `6d7daab`，03:10 複驗 1442 tests / vite / tsc 40；WSL 唯讀實測與 T0407 §0 一致） |
 | T0409 | C | 安裝食譜 + 完成標記 + host 白名單 | T0407 | ✅ DONE（`ce27a82`，03:04 複驗 38/38；剩餘風險列入 T0414：`curl \| sh` 管線 `$?`、gh rpm GPG 自動匯入、RHEL rg 需 EPEL） |
-| T0410 | D | `RemoteToolsPanel` + `InstallConfirmDialog` + i18n | T0408、T0409 | ✅ DONE（`8a17984`，03:22 塔台單檔複驗 67/67；**i18n 一一對應測試依賴 T0411 未 commit 的 errorCode**，全套 + vite build 待 T0411 commit 後聯合複驗） |
-| T0411 | B | headless / main 接線：`remote-tools:detect` + `remote:detect-tools` + smoke S10（🔒 main / protocol / headless-entry） | T0408 | 🔄 03:11 派發 |
+| T0410 | D | `RemoteToolsPanel` + `InstallConfirmDialog` + i18n | T0408、T0409 | ✅ DONE（`8a17984`，03:22 與 T0411 聯合複驗 PASS） |
+| T0411 | B | headless / main 接線：`remote-tools:detect` + `remote:detect-tools` + smoke S10（🔒 main / protocol / headless-entry） | T0408 | ✅ DONE（`49b1ca5`，03:22 聯合複驗：1514 tests / vite / e2e 0 failed / tsc 40；preload `remoteTools.detect(profileId)` / `detectHere()`；WSL 部署 + S10 待辦） |
 | T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | 保留編號 |
 | T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | 保留編號 |
 | T0414 | G | 實機驗收（首次允許實際安裝） | T0411-T0413 | 保留編號 |
