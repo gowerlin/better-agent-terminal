@@ -104,7 +104,7 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 | T0400 | E：ClaudeAgentManager HostDeps（去 Electron 化） | T0389 | ✅ DONE（`09f1e46`，01:53 複驗：1191 tests / vite / e2e 6 passed 0 failed / tsc 40；Agent 面板實機待新 build） |
 | T0401 | F：`claude:*` 共用註冊上線 headless；archive 三個改 always-local；codex / stub 列 unsupported + UI 降級；`PROXIED_EVENTS` 補 `claude:turn-end` / `runtime-degraded` / `runtime-warning`；embedded 注入 `DISABLE_UPDATES` | T0400、T0403 | 保留編號 |
 | T0402 | G：遠端 claude 未登入引導（i18n） | T0401 | 保留編號 |
-| T0403 | 遠端終端收尾 A：斷線輸出回放 `pty:get-buffer` + `pty:create` 回傳是否新 spawn（還原 agent preset 不重打指令） | T0398 | 🔄 01:54 派發 |
+| T0403 | 遠端終端收尾 A：斷線輸出回放 `pty:get-buffer` + `pty:create` 回傳是否新 spawn（還原 agent preset 不重打指令） | T0398 | ✅ DONE（`b24d89a`，02:09 複驗：1224 tests / vite / e2e 0 failed / tsc 40；新 smoke 對舊 WSL server 8/8 = 相容性 PASS；新 server 部署 + UI 實機待辦） |
 | T0404 | 遠端終端收尾 B：孤兒 PTY 回收（無 client N 小時 / 上限）+ BUG-103 | T0401、T0403 | 保留編號 |
 | T0405 | H：`git:*` / `github:*` / `worktree:*` / `git-scaffold:*` 上線 headless | T0404 | 保留編號 |
 | T0406 | I：`fs:*` / `image:read-as-data-url` + `workspace:sync-roots`（fail-closed） | T0405 | 保留編號 |
