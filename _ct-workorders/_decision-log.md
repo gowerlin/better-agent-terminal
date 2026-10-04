@@ -1360,6 +1360,35 @@
 
 ---
 
+### D134 2026-10-05 — 第五十五 session YOLO 排程：遠端收尾小單 + SSH / Docker 安全 BUG + 兩張設計研究
+
+- **背景**：第五十四 session 收工待辦第 3、4 項。使用者 05:33 裁決範圍為批 1（小單）+ 批 2（遠端安全）+ 批 3（設計研究）；批 4（BUG-084 Phase 2 SDK 0.3、PLAN-035 Phase 2）留待後續 session
+- **決定**（使用者 05:33 裁決）：
+  - BUG-106：**移除** `worktree:merge` 殘留（與 `3a470eb` 讓使用者以 CLI merge 的設計一致），不補回實作
+  - BUG-098：**移除 SSH 精靈 direct 模式**，只保留 tunnel（不為 direct 設計對外 bind 的暴露面）
+  - BUG-099 + BUG-100 合一張：runner 取消時 rollback 失敗中的步驟 + 實作 `ssh.stopServer` / `ssh.uninstallBundle`
+  - K（遠端 Tower 通知）與自由文字路徑轉換先開研究單，實作依研究結論另行決策
+  - 本 session `auto-session: yolo`（未 `--save`），研究單 `--interactive`、實作單 `--no-interactive`
+- **排程表**（依賴欄位為檔案鎖或邏輯前置；同工作樹平行，L141：Worker 只跑 unit test + tsc，vite build / e2e 由塔台每波聯合複驗）
+
+| # | 標題 | 專案 | 依賴 | 工時 | 🚦 |
+|---|------|------|------|------|-----|
+| 1 | T0417 BUG-106 移除 worktree:merge 殘留 | 本專案 | — | S | 🟢 |
+| 2 | T0418 BUG-097 Docker 埠綁 loopback + container bind + HEALTHCHECK | 本專案 | — | S | 🟢 |
+| 3 | T0419 BUG-096 renderer 遠端重連帶 fingerprint / 重用已驗證 client | 本專案 | — | S | 🟢 |
+| 4 | T0420 研究：K 遠端 Tower 通知（helper / token 注入設計） | 本專案 | — | M | 🟡 |
+| 5 | T0421 研究：自由文字中的 client 路徑轉換 | 本專案 | — | M | 🟡 |
+| 6 | T0422 J always-local 改分類（snippet / logging） | 本專案 | T0417 | S | 🟢 |
+| 7 | T0423 headless git / gh 子行程 `BAT_*` scrub | 本專案 | T0417 | S | 🟢 |
+| 8 | T0424 遠端 PTY 達上限 UI 提示 | 本專案 | T0419 | S | 🟢 |
+| 9 | T0425 BUG-098 移除 SSH direct 模式 | 本專案 | T0424 | S | 🟢 |
+| 10 | T0426 BUG-099 + BUG-100 精靈取消 rollback + SSH stop / uninstall IPC | 本專案 | T0425 | M | 🟢 |
+
+- **不採用**：批 4 同 session 一併跑（SDK 0.3 與 PLAN-035 Phase 2 各需專注、斷點機率高）；BUG-098 修通 direct（需對外 bind，與 BUG-097 同類暴露面）
+- **相關**：PLAN-036 P3（J / K）、T0386 建議清單 J / K、BUG-096-100 / 106、L141
+
+---
+
 ### D133 2026-10-05 — PLAN-037 拆單與波次（T0407 研究結論）
 
 - **背景**：T0407 研究完成，Worker 期間經使用者裁決 Q1（偵測在 server 端新共用模組）、Q2（確認框後自動執行 + 完成標記）、Q3（使用者空間優先）；建議 7 張單 A-G，其中 B / E 碰 D130 的串行檔案鎖（`main.ts` / `protocol.ts` / `headless-entry.ts`）
