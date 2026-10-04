@@ -13,6 +13,7 @@ import type {
   WhisperModelSize,
 } from '../src/types/voice'
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
+import type { RemoteToolsDetectResult } from '../src/types/remote-tools'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -756,6 +757,18 @@ const electronAPI = {
         | { port: number; token: string; fingerprint: string; bindInterface: 'localhost' | 'tailscale' | 'all'; host: string; restartError?: string }
         | { error: string }
       >,
+  },
+  // PLAN-037 T0411 — remote AI toolchain detection (RemoteToolsReport schema v1).
+  remoteTools: {
+    // Local-only short connection: connects to the profile's bat-server, detects, disconnects.
+    // For windows not bound to the profile (setup wizard, settings). Local profile → this machine.
+    detect: (profileId: string) =>
+      ipcRenderer.invoke('remote:detect-tools', profileId) as Promise<RemoteToolsDetectResult>,
+    // Proxied: the host this window is bound to (remote-profile window → its bat-server;
+    // local window → this machine). Rejects with `No handler for channel: remote-tools:detect`
+    // on a bat-server before T0411 (see unsupportedRemoteChannel).
+    detectHere: () =>
+      ipcRenderer.invoke('remote-tools:detect') as Promise<RemoteToolsDetectResult>,
   },
   tunnel: {
     getConnection: () =>

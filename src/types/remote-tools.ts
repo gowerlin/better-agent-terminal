@@ -153,6 +153,11 @@ export const REMOTE_TOOLS_DETECT_ERROR_CODES = [
   'spawn-failed', // the login shell could not be started
   'timeout', // the probe did not finish in time
   'no-markers', // output had no complete BEGIN/END block
+  // T0411: only from the local short connection `remote:detect-tools(profileId)` (never from the server).
+  'invalid-profile', // bad / unknown profileId, or a remote profile without host / token / pinned fingerprint
+  'connect-failed', // could not connect to the profile's bat-server (unreachable, auth, fingerprint)
+  'server-too-old', // the bat-server predates T0411 (`No handler for channel: remote-tools:detect`) — redeploy it
+  'invoke-failed', // connected, but the call failed or the answer was not a schema v1 result
 ] as const
 export type RemoteToolsDetectErrorCode = typeof REMOTE_TOOLS_DETECT_ERROR_CODES[number]
 

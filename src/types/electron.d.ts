@@ -8,6 +8,7 @@ import type {
   VoiceTranscribeResult,
   VoiceModelDownloadProgress,
 } from './voice'
+import type { RemoteToolsDetectResult } from './remote-tools'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
 // PLAN-007 T0268: targetOS schema (kept in sync with electron/profile-manager.ts)
@@ -153,6 +154,22 @@ interface ElectronAPI {
   update: {
     check: () => Promise<unknown>
     getVersion: () => Promise<string>
+  }
+  /** PLAN-037 T0411 — remote AI toolchain detection (RemoteToolsReport schema v1). */
+  remoteTools: {
+    /**
+     * Local-only short connection to the profile's bat-server (`remote:detect-tools`), for windows
+     * not bound to that profile (setup wizard, settings). A local profile detects this machine.
+     * Never rejects: failures are `ok: false` with `invalid-profile` / `connect-failed` /
+     * `server-too-old` (bat-server predates T0411) / `invoke-failed`, or the server's own code.
+     */
+    detect: (profileId: string) => Promise<RemoteToolsDetectResult>
+    /**
+     * Proxied `remote-tools:detect` on the host this window is bound to (remote-profile window →
+     * its bat-server; local window → this machine, `host-platform` on Windows). Rejects with
+     * `No handler for channel: remote-tools:detect` on a bat-server before T0411.
+     */
+    detectHere: () => Promise<RemoteToolsDetectResult>
   }
   tunnel: {
     getConnection: () => Promise<{ url: string; token: string; fingerprint: string; mode: string; addresses: { ip: string; mode: string; label: string }[] } | { error: string }>

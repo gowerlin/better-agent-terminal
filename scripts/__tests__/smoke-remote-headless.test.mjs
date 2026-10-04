@@ -1,5 +1,6 @@
 // @vitest-environment node
 // T0396 — scripts/smoke-remote-headless.mjs (PLAN-036 P0 protocol-level smoke)
+// T0411 — S10 remote-tools:detect
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -15,6 +16,7 @@ import {
   FRAME_TYPE,
   NAME_RX,
   PtyTracker,
+  REMOTE_TOOLS_DETECT_TIMEOUT_MS,
   SMOKE_CHANNELS,
   SMOKE_EVENTS,
   UNSUPPORTED_ERROR_RX,
@@ -24,6 +26,7 @@ import {
   buildAuthFrame,
   buildInvokeFrame,
   checkClaudeRuntimeAnswers,
+  checkRemoteToolsAnswer,
   corruptFingerprint,
   decodeTokenFile,
   main,
@@ -77,7 +80,7 @@ describe('frame format drift guard (protocol.ts)', () => {
     for (const event of Object.values(SMOKE_EVENTS)) expect(PROXIED_EVENTS.has(event), event).toBe(true)
   })
 
-  it('S8 probe is a headless-unsupported channel; the channels S2-S7 / S9 call are not', () => {
+  it('S8 probe is a headless-unsupported channel; the channels S2-S7 / S9 / S10 call are not', () => {
     expect(PROXIED_CHANNELS.has(UNSUPPORTED_PROBE_CHANNEL)).toBe(true)
     expect(HEADLESS_UNSUPPORTED[UNSUPPORTED_PROBE_CHANNEL]).toBeDefined()
     expect(UNSUPPORTED_PROBE_ARGS).toEqual(['smoke-probe', 'read-only'])
@@ -332,11 +335,30 @@ function fakeShellEval(command, pty) {
 
 const CLI_PATH = '/home/u/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude'
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, serverEnv = 'native' } = {}) {
+/** T0411: `remote-tools:detect` answer of a WSL Ubuntu server (trimmed RemoteToolsDetectResult). */
+function remoteToolsReport(overrides = {}) {
+  return {
+    ok: true,
+    report: {
+      schemaVersion: 1,
+      env: { osFamily: 'linux', osId: 'ubuntu', osVersion: '24.04', arch: 'x86_64', musl: false, pkgManager: 'apt', privilege: 'passwordless', isWsl: true, hasTimeout: true, authEnv: {} },
+      tools: [
+        { id: 'claude', status: 'missing', login: 'n/a', serverVisible: false },
+        { id: 'git', status: 'ok', path: '/usr/bin/git', version: '2.43.0', login: 'n/a', serverVisible: true },
+      ],
+      serverViewAvailable: true,
+      warnings: [],
+      ...overrides,
+    },
+  }
+}
+
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, serverEnv = 'native' } = {}) {
   const ptys = new Map()
   const clients = new Set()
   const log = []
   const probeArgs = []
+  const invokeTimeouts = []
   let nextPid = 100
   let killCalls = 0
   const emit = (channel, ...args) => {
@@ -380,6 +402,7 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       }),
       'claude:auth-status': () => null,
     }),
+    ...(preRemoteTools ? {} : { 'remote-tools:detect': () => remoteToolsReport() }),
   }
 
   class FakeClient {
@@ -418,15 +441,19 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       if (!handler) throw Object.assign(new Error(`No handler for channel: ${channel}`), { remote: true })
       return handler(...args)
     }
+    async invokeWithTimeout(timeoutMs, channel, ...args) {
+      invokeTimeouts.push([channel, timeoutMs])
+      return this.invoke(channel, ...args)
+    }
   }
 
   const conn = { url: 'wss://fake:1', token: 'tok', fingerprint: FP, cwd: '/home/u' }
   const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
-  return { conn, createClient, ptys, log, handlers, probeArgs }
+  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts }
 }
 
 describe('runSmoke (fake server)', () => {
-  it('passes S1-S9 and leaves no smoke PTY behind', async () => {
+  it('passes S1-S10 and leaves no smoke PTY behind', async () => {
     const fake = createFakeServer()
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -436,11 +463,14 @@ describe('runSmoke (fake server)', () => {
     expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(1)
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
-    expect(summarize(report)).toEqual({ ok: true, passed: 9, warned: 0, total: 9 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 10, warned: 0, total: 10 })
     expect(fake.probeArgs).toEqual([['smoke-probe', 'read-only']])
+    // S10 waits for the 20 s login-view probe, not the 500 ms default
+    expect(fake.invokeTimeouts).toEqual([['remote-tools:detect', REMOTE_TOOLS_DETECT_TIMEOUT_MS]])
+    expect(report.checks.find((c) => c.id === 'S10').evidence).toMatch(/schema v1; ubuntu 24\.04 x86_64 pkg=apt .*git=ok@2\.43\.0/)
   })
 
-  it('passes S1-S9 against a server before T0403 (pty:create answers a bare boolean)', async () => {
+  it('passes S1-S10 against a server before T0403 (pty:create answers a bare boolean)', async () => {
     const fake = createFakeServer({ legacyCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -470,7 +500,7 @@ describe('runSmoke (fake server)', () => {
     const fake = createFakeServer({ rejectCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
     const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
-    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS' })
+    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS' })
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(fake.log).not.toContain('pty:kill')
   })
@@ -482,7 +512,7 @@ describe('runSmoke (fake server)', () => {
     expect(s1.status).toBe('WARN')
     expect(s1.evidence).toMatch(/env=native but target is wsl/)
     expect(report.checks.filter((c) => c.id !== 'S1').every((c) => c.status === 'PASS')).toBe(true)
-    expect(summarize(report)).toEqual({ ok: true, passed: 8, warned: 1, total: 9 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 9, warned: 1, total: 10 })
   })
 
   it('T0404: S1 passes with env=wsl on a WSL target; non-WSL targets never WARN on env', async () => {
@@ -513,6 +543,31 @@ describe('runSmoke (fake server)', () => {
     expect(s9.status).toBe('FAIL')
     expect(s9.evidence).toMatch(/No handler for channel: claude:get-cli-path — server predates T0401/)
     expect(report.checks.filter((c) => c.id !== 'S9').every((c) => c.status === 'PASS')).toBe(true)
+  })
+
+  it('S10 fails, naming the cause, against a server before T0411 (remote-tools:detect not online)', async () => {
+    const fake = createFakeServer({ preRemoteTools: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+    const s10 = report.checks.find((c) => c.id === 'S10')
+    expect(s10.status).toBe('FAIL')
+    expect(s10.evidence).toMatch(/No handler for channel: remote-tools:detect — server predates T0411/)
+    expect(report.checks.filter((c) => c.id !== 'S10').every((c) => c.status === 'PASS')).toBe(true)
+    expect(summarize(report).ok).toBe(false)
+  })
+
+  it('S10 fails when the probe reports an error or a non-linux / git-less host', async () => {
+    const answers = [
+      { ok: false, errorCode: 'timeout', error: 'probe timed out after 20000 ms' },
+      remoteToolsReport({ schemaVersion: 2 }),
+      remoteToolsReport({ env: { osFamily: 'darwin', pkgManager: 'brew', privilege: 'password-required', isWsl: false } }),
+      remoteToolsReport({ tools: [{ id: 'git', status: 'missing', login: 'n/a', serverVisible: false }] }),
+    ]
+    for (const answer of answers) {
+      const fake = createFakeServer()
+      fake.handlers['remote-tools:detect'] = () => answer
+      const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+      expect(report.checks.find((c) => c.id === 'S10').status, JSON.stringify(answer)).toBe('FAIL')
+    }
   })
 
   it('S8 fails on an answer or a timeout instead of an explicit error', async () => {
@@ -547,5 +602,22 @@ describe('checkClaudeRuntimeAnswers (S9, T0401)', () => {
     expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: broken, auth: null }).evidence).toMatch(/spawn-failed/)
     expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: null, auth: null }).ok).toBe(false)
     expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: healthy, auth: 'yes' }).ok).toBe(false)
+  })
+})
+
+describe('checkRemoteToolsAnswer (S10, T0411)', () => {
+  it('accepts a schema v1 linux report with git ok', () => {
+    const outcome = checkRemoteToolsAnswer(remoteToolsReport())
+    expect(outcome.ok).toBe(true)
+    expect(outcome.evidence).toContain('claude=missing git=ok@2.43.0')
+    expect(outcome.evidence).toContain('wsl=true')
+  })
+
+  it('rejects non-objects, error results and each failed expectation by name', () => {
+    expect(checkRemoteToolsAnswer(null).ok).toBe(false)
+    expect(checkRemoteToolsAnswer({ ok: false, errorCode: 'no-markers', error: 'x' }).evidence).toMatch(/errorCode=no-markers/)
+    expect(checkRemoteToolsAnswer(remoteToolsReport({ schemaVersion: 2 })).evidence).toMatch(/schemaVersion=2/)
+    expect(checkRemoteToolsAnswer(remoteToolsReport({ env: { osFamily: 'darwin' } })).evidence).toMatch(/osFamily=darwin/)
+    expect(checkRemoteToolsAnswer(remoteToolsReport({ tools: [] })).evidence).toMatch(/git status=absent/)
   })
 })

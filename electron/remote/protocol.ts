@@ -75,6 +75,8 @@ export const PROXIED_CHANNELS = new Set([
   'profile:list', 'profile:load', 'profile:load-snapshot', 'profile:get-active-ids', 'profile:activate', 'profile:deactivate',
   // Terminal (T0133: Worker→Tower auto-notify; Control Tower auto-session)
   'terminal:create-with-command', 'terminal:create-agent-command', 'terminal:notify', 'terminal:keypress',
+  // Remote AI toolchain probe (T0411, PLAN-037 B; electron/handlers/remote-tools.ts)
+  'remote-tools:detect',
 ])
 
 // Events pushed from host to remote clients

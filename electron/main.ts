@@ -7,6 +7,7 @@ import { WindowRegistry } from './window-registry'
 import { registerTerminalCommandHandlers } from './terminal-command-handlers'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
+import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
 import { resolveGhBinary, type GhResolveResult } from './gh-resolver'
 
 // Fix PATH for GUI-launched apps on macOS.
@@ -81,6 +82,7 @@ import { registerHandler, invokeHandler } from './remote/handler-registry'
 import { broadcastHub } from './remote/broadcast-hub'
 import { PROXIED_CHANNELS } from './remote/protocol'
 import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
+import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import {
@@ -2203,6 +2205,10 @@ function registerProxiedHandlers() {
     messageArchiveDir: MESSAGE_ARCHIVE_DIR,
   })
 
+  // remote-tools:* — shared with headless bat-server (PLAN-037 T0411, electron/handlers/remote-tools.ts).
+  // Local window on macOS / Linux: this machine's toolchain; Windows: host-platform.
+  registerRemoteToolsHandlers(registerHandler, { isScrubbedEnvKey: isHeadlessScrubbedEnvKey })
+
   // Standalone worktree operations (for claude-cli preset, not tied to SDK session)
   registerHandler('worktree:create', async (_ctx, sessionId: string, cwd: string) => {
     try {
@@ -2927,6 +2933,18 @@ function registerLocalHandlers() {
     const { detectRemoteArch } = await import('./remote/arch-detect')
     return detectRemoteArch(profile)
   })
+
+  // PLAN-037 T0411 — remote toolchain detection for a profile from a window not
+  // bound to it (setup wizard, settings): short connection to the profile's
+  // bat-server → remote-tools:detect → disconnect. profileId validated like
+  // remote:detect-arch; connection parameters come from the stored profile.
+  ipcMain.handle('remote:detect-tools', async (_event, profileId: string) =>
+    detectRemoteToolsForProfile(profileId, {
+      getProfile: id => profileManager.getProfile(id),
+      createClient: profile => new RemoteClient(() => [], profile),
+      detectLocal: () => runRemoteToolsDetect({ isScrubbedEnvKey: isHeadlessScrubbedEnvKey }),
+    }),
+  )
 
   // PLAN-031 T0318 — server bundle download (manifest fetch + tarball + SHA verify).
   // Cancellation IPC deferred to T0320 distributor; current API is fire-and-resolve.

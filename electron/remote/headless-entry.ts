@@ -5,6 +5,7 @@ import * as path from 'path'
 import type { HandlerModule, HandlerModuleDisposer, HandlerRegistrar, HostDeps } from '../handlers/types'
 import { registerClaudeHandlers } from '../handlers/claude'
 import { registerPtyHandlers } from '../handlers/pty'
+import { registerRemoteToolsHandlers, type RemoteToolsHandlerDeps } from '../handlers/remote-tools'
 import { ClaudeAgentManager } from '../claude-agent-manager'
 import {
   configureRuntimeRouter,
@@ -255,17 +256,34 @@ export function createHeadlessClaudeModule(opts: { installRoot?: string } = {}):
   }
 }
 
+/** T0411: test seams for `remote-tools:detect` (fake execFile / platform / env). */
+export type HeadlessRemoteToolsOverrides = Omit<RemoteToolsHandlerDeps, 'isScrubbedEnvKey'>
+
+/**
+ * T0411 (PLAN-037 B): `remote-tools:detect` on headless — the T0408 probe on the
+ * server machine. Probe env is the server env minus `isHeadlessScrubbedEnvKey`
+ * (same rule as headless PTYs), so `BAT_*` never reaches the probe shell.
+ */
+export function createHeadlessRemoteToolsModule(overrides: HeadlessRemoteToolsOverrides = {}): HandlerModule {
+  return register => {
+    registerRemoteToolsHandlers(register, { ...overrides, isScrubbedEnvKey: isHeadlessScrubbedEnvKey })
+  }
+}
+
 /**
  * Shared domain modules for one headless server; `installRoot` overrides the bundle
  * location (tests). T0404: `pty` carries the PTY cap and the manager hand-off.
+ * T0411: `remoteTools` overrides the probe's execFile / platform / env (tests).
  */
 export function createHeadlessHandlerModules(opts: {
   installRoot?: string
   pty?: Parameters<typeof createHeadlessPtyModule>[0]
+  remoteTools?: HeadlessRemoteToolsOverrides
 } = {}): HandlerModule[] {
   return [
     opts.pty ? createHeadlessPtyModule(opts.pty) : registerHeadlessPtyHandlers, // T0390
     createHeadlessClaudeModule({ installRoot: opts.installRoot }), // T0401
+    createHeadlessRemoteToolsModule(opts.remoteTools), // T0411
   ]
 }
 
@@ -310,6 +328,8 @@ export interface HeadlessServerOptions {
   ptyIdleReclaimMs?: number
   /** T0404: most concurrent PTYs (0 = unlimited). Default: env `BAT_SERVER_MAX_PTYS`, else 64. */
   maxPtys?: number
+  /** T0411: `remote-tools:detect` test seams (fake execFile / platform / env). */
+  remoteTools?: HeadlessRemoteToolsOverrides
   /** BUG-103: server environment for auth metadata (tests). Default: `detectServerEnv()`. */
   detectServerEnv?: () => ServerEnvInfo
   logger?: {
@@ -394,6 +414,7 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   const handlerModules = createHeadlessHandlerModules({
     installRoot: opts.installRoot,
     pty: { maxPtys: ptyLimits.maxPtys, onManager: manager => { ptyManager = manager } },
+    remoteTools: opts.remoteTools,
   })
   for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)

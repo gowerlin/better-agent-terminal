@@ -3,8 +3,9 @@
 /**
  * T0396 (PLAN-036 P0) — protocol-level smoke test against a RUNNING headless
  * bat-server. Connects as an ordinary remote client (TLS + SHA-256 fingerprint
- * pinning + token auth), walks the PTY lifecycle (S1-S8) and the login-free
- * claude:* runtime channels (S9, T0401).
+ * pinning + token auth), walks the PTY lifecycle (S1-S8), the login-free
+ * claude:* runtime channels (S9, T0401) and the remote toolchain probe
+ * (S10, T0411).
  *
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04 --json
@@ -72,7 +73,15 @@ export const SMOKE_CHANNELS = Object.freeze({
   CLAUDE_CLI_PATH: 'claude:get-cli-path',
   CLAUDE_DETECT_RUNTIME: 'claude:detectRuntime',
   CLAUDE_AUTH_STATUS: 'claude:auth-status',
+  // T0411: remote AI toolchain probe (S10)
+  REMOTE_TOOLS_DETECT: 'remote-tools:detect',
 })
+
+/**
+ * S10 invoke timeout: the server runs the login-view probe (20 s limit, `-l -i` loads the
+ * user's rc files) in parallel with the server-view probe, so the default 10 s is too short.
+ */
+export const REMOTE_TOOLS_DETECT_TIMEOUT_MS = 30_000
 
 /** Events this smoke listens to; every one must be in PROXIED_EVENTS. */
 export const SMOKE_EVENTS = Object.freeze({
@@ -498,13 +507,18 @@ export class SmokeClient {
   }
 
   invoke(channel, ...args) {
+    return this.invokeWithTimeout(this.timeoutMs, channel, ...args)
+  }
+
+  /** `invoke` with its own timeout (T0411: S10 waits for the login-view probe). */
+  invokeWithTimeout(timeoutMs, channel, ...args) {
     if (!this.isOpen) return Promise.reject(new Error('not connected'))
     const id = this.nextId()
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        reject(Object.assign(new Error(`invoke ${channel} timed out after ${this.timeoutMs}ms`), { timeout: true }))
-      }, this.timeoutMs)
+        reject(Object.assign(new Error(`invoke ${channel} timed out after ${timeoutMs}ms`), { timeout: true }))
+      }, timeoutMs)
       this.pending.set(id, { resolve, reject, timer })
       this.ws.send(JSON.stringify(buildInvokeFrame(id, channel, args)))
     })
@@ -612,6 +626,7 @@ export const CHECKS = Object.freeze([
   ['S7', 'pty:kill emits pty:exit; later write does not break the server'],
   ['S8', 'unsupported channel returns an explicit error'],
   ['S9', 'claude:get-cli-path / detectRuntime / auth-status answer without a login'],
+  ['S10', 'remote-tools:detect returns a schema v1 report (linux, git ok)'],
 ])
 
 export function makeSmokeId(now = new Date(), rand = randomBytes(3).toString('hex')) {
@@ -667,13 +682,42 @@ export function checkClaudeRuntimeAnswers({ cliPath, runtime, auth }) {
   }
 }
 
+/**
+ * S10 (T0411): judge the `remote-tools:detect` answer (`RemoteToolsDetectResult`,
+ * src/types/remote-tools.ts): `ok: true`, `schemaVersion: 1`, `env.osFamily = linux`
+ * and `git` installed (`ok`) — every supported bat-server host ships git.
+ */
+export function checkRemoteToolsAnswer(result) {
+  if (!result || typeof result !== 'object') return { ok: false, evidence: `remote-tools:detect → ${JSON.stringify(result)}` }
+  if (result.ok !== true) {
+    return { ok: false, evidence: `remote-tools:detect → ok=false errorCode=${result.errorCode}: ${String(result.error ?? '').slice(0, 160)}` }
+  }
+  const report = result.report
+  const problems = []
+  if (!report || report.schemaVersion !== 1) problems.push(`schemaVersion=${report?.schemaVersion} (expected 1)`)
+  const env = report && typeof report.env === 'object' && report.env ? report.env : {}
+  if (env.osFamily !== 'linux') problems.push(`env.osFamily=${env.osFamily} (expected linux)`)
+  const tools = Array.isArray(report?.tools) ? report.tools : []
+  const git = tools.find((t) => t && t.id === 'git')
+  if (!git || git.status !== 'ok') problems.push(`git status=${git?.status ?? 'absent'} (expected ok)`)
+  if (problems.length > 0) return { ok: false, evidence: problems.join('; ') }
+
+  const statuses = tools.map((t) => `${t.id}=${t.status}${t.version ? `@${t.version}` : ''}`).join(' ')
+  const warnings = Array.isArray(report.warnings) && report.warnings.length > 0 ? `; warnings: ${report.warnings.length}` : ''
+  return {
+    ok: true,
+    evidence: `schema v1; ${env.osId ?? '?'} ${env.osVersion ?? ''} ${env.arch ?? ''} pkg=${env.pkgManager} priv=${env.privilege} wsl=${env.isWsl}; ` +
+      `serverView=${report.serverViewAvailable}; ${statuses}${warnings}`,
+  }
+}
+
 function excerpt(text, max = 160) {
   const flat = String(text).replace(/\r/g, '').replace(/\n+/g, '⏎').trim()
   return flat.length > max ? `…${flat.slice(flat.length - max)}` : flat
 }
 
 /**
- * Runs S1-S9 against one server. `deps.createClient` lets tests inject a fake;
+ * Runs S1-S10 against one server. `deps.createClient` lets tests inject a fake;
  * everything else talks to the real server.
  */
 export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, createClient, log = () => {} } = {}) {
@@ -867,6 +911,18 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
     } catch (error) {
       set('S9', 'FAIL', error.remote && UNSUPPORTED_ERROR_RX.test(error.message)
         ? `${error.message} — server predates T0401 (claude:* not online)`
+        : `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}`)
+    }
+
+    // ── S10 ──
+    try {
+      if (!client?.isOpen) throw new Error('no live connection for the remote-tools probe')
+      const timeout = Math.max(timeoutMs, REMOTE_TOOLS_DETECT_TIMEOUT_MS)
+      const outcome = checkRemoteToolsAnswer(await client.invokeWithTimeout(timeout, SMOKE_CHANNELS.REMOTE_TOOLS_DETECT))
+      set('S10', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
+    } catch (error) {
+      set('S10', 'FAIL', error.remote && UNSUPPORTED_ERROR_RX.test(error.message)
+        ? `${error.message} — server predates T0411 (remote-tools:detect not online)`
         : `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}`)
     }
   } finally {
