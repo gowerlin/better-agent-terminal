@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0391
 title: "PLAN-036 P0-D：本機 headless dev 部署工具（JS-only esbuild → install root；WSL 目標預設 dry-run，`--yes` 才覆寫並備份）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-05T00:02:24+08:00"
+updated_at: "2026-10-05T00:09:52+08:00"
 started_at: "2026-10-05T00:02:24+08:00"
-completed_at: null
+completed_at: "2026-10-05T00:09:52+08:00"
 target_version: next
 depends_on: []
 related:
@@ -182,3 +182,6 @@ exit=0
 
 ### Commit
 
+- `f102a55` feat(scripts): dev-deploy-headless tool for local headless JS deploy (T0391, PLAN-036 P0-D) — 6 檔（`git commit --only`，未含 T0388 / T0389 工作樹改動）
+- 本收尾 commit：工單 status → `DONE`、`completed_at`
+- 未 push
