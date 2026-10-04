@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0417
 title: "BUG-106：移除 worktree:merge 殘留（channel / preload / 型別 / handler / 分類表 / 測試）"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-106
 priority: P2
 sizing: S
 created_at: "2026-10-05T05:35:22+08:00"
 started_at: "2026-10-05T05:39:34+08:00"
-updated_at: "2026-10-05T05:39:34+08:00"
-completed_at: null
+updated_at: "2026-10-05T05:40:44+08:00"
+completed_at: "2026-10-05T05:40:44+08:00"
 target_version: next
 depends_on: []
 related:
@@ -106,7 +106,7 @@ memory_overrides:
 - [x] `npx tsc --noEmit`：**40** 個 error（≤ 40）；其中與 merge / worktree 相關 0 筆
 - 未跑 `npx vite build` / `npm run test:e2e`（依 memory_overrides，塔台聯合複驗 L141）
 
-**Commit**：見下方 commit（`git commit --only` 7 個產品／測試檔 + 本工單 + BUG-106）；未 push
+**Commit**：`7609229`（`git commit --only` 7 個產品／測試檔 + 本工單 + BUG-106）；未 push
 
 ### 遭遇問題
 
