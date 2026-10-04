@@ -65,3 +65,38 @@ export function decideWindowOpen(url: string): WindowOpenDecision {
 export function urlSchemeForLog(url: string): string {
   return parseUrl(url)?.protocol ?? '(unparseable)'
 }
+
+/** Minimal window surface installNavigationGuards needs (structurally matches BrowserWindow). */
+export interface GuardableWindow {
+  webContents: {
+    setWindowOpenHandler(handler: (details: { url: string }) => { action: 'deny' }): void
+    on(event: 'will-navigate', listener: (event: { preventDefault(): void }, url: string) => void): unknown
+  }
+}
+
+export interface NavigationGuardOptions {
+  appUrl: string
+  openExternal: (url: string) => void
+  warn: (message: string) => void
+}
+
+/**
+ * T0458: wire both guards onto a window. Every window that loads the preload
+ * needs them — an external page loaded there would see window.electronAPI.
+ * window.open is always denied (no child windows at all); only http(s) goes to
+ * the browser, and the window itself only navigates within the app page.
+ */
+export function installNavigationGuards(win: GuardableWindow, { appUrl, openExternal, warn }: NavigationGuardOptions): void {
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (decideWindowOpen(url) === 'open-external') openExternal(url)
+    else warn(`[window-open] blocked ${urlSchemeForLog(url)} URL`)
+    return { action: 'deny' }
+  })
+  win.webContents.on('will-navigate', (event, url) => {
+    const decision = decideNavigation(url, appUrl)
+    if (decision === 'allow') return
+    event.preventDefault()
+    if (decision === 'open-external') openExternal(url)
+    else warn(`[will-navigate] blocked ${urlSchemeForLog(url)} URL`)
+  })
+}

@@ -104,7 +104,7 @@ import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFi
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { getWindowsElevation } from './windows-elevation'
-import { decideNavigation, decideWindowOpen, urlSchemeForLog } from './navigation-guard'
+import { installNavigationGuards } from './navigation-guard'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import {
@@ -693,6 +693,20 @@ function rebuildTrayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate(entries))
 }
 
+/**
+ * Open http(s) links in the system browser, never inside Electron; any other
+ * scheme (file: → ShellExecute would run a .bat / .exe) is dropped (T0457).
+ * Every window that loads the preload needs this — an external page loaded
+ * there would see window.electronAPI (T0458).
+ */
+function guardWindowNavigation(win: BrowserWindow) {
+  installNavigationGuards(win, {
+    appUrl: VITE_DEV_SERVER_URL || pathToFileURL(path.join(__dirname, '../dist/index.html')).href,
+    openExternal: (url) => { shell.openExternal(url) },
+    warn: (message) => logger.warn(message),
+  })
+}
+
 /** Attach a will-resize throttle to a BrowserWindow to reduce DWM pressure on Windows. */
 function setupResizeThrottle(win: BrowserWindow, label: string) {
   let lastResizeTime = 0
@@ -1000,21 +1014,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
     win.loadFile(path.join(__dirname, '../dist/index.html'), { search: urlParam })
   }
 
-  // Open http(s) links in the system browser, never inside Electron. Any other
-  // scheme (file: → ShellExecute would run a .bat / .exe) is dropped (T0457).
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (decideWindowOpen(url) === 'open-external') shell.openExternal(url)
-    else logger.warn(`[window-open] blocked ${urlSchemeForLog(url)} URL`)
-    return { action: 'deny' }
-  })
-  win.webContents.on('will-navigate', (event, url) => {
-    const appUrl = VITE_DEV_SERVER_URL || pathToFileURL(path.join(__dirname, '../dist/index.html')).href
-    const decision = decideNavigation(url, appUrl)
-    if (decision === 'allow') return
-    event.preventDefault()
-    if (decision === 'open-external') shell.openExternal(url)
-    else logger.warn(`[will-navigate] blocked ${urlSchemeForLog(url)} URL`)
-  })
+  guardWindowNavigation(win)
 
   setupResizeThrottle(win, `window-${windowId.slice(0, 12)}`)
 
@@ -3238,6 +3238,7 @@ function registerLocalHandlers() {
       webPreferences: { preload: path.join(__dirname, 'preload.js'), nodeIntegration: false, contextIsolation: true },
       frame: true, titleBarStyle: 'default', icon: nativeImage.createFromPath(path.join(__dirname, process.platform === 'win32' ? '../assets/icon.ico' : '../assets/icon.png'))
     })
+    guardWindowNavigation(detachedWin)
     setupResizeThrottle(detachedWin, 'detached')
     detachedWindows.set(workspaceId, detachedWin)
     detachedWindowRecords.set(workspaceId, record)
