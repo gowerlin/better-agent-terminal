@@ -18,7 +18,10 @@ depends_on:
   - T0431
   - T0432
   - T0433
+  - T0447
+  - T0448
 related:
+  - "T0445 安全 review BLOCK（`2161b7e`）：#1-#4 修正（T0447 / T0448）後才可進實機；harness 端到端需含 T0447 的負向情境（撤銷後 pipelined frame 被拒）"
   - "T0420 研究回報區「各單內容」工單 4、§3 端到端流程"
   - "T0396 `npm run smoke:remote:headless`（S1-S12）；T0391 `deploy:headless:dev`"
   - "D134 追加（K 實作）"

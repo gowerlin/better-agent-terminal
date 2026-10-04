@@ -1405,6 +1405,13 @@
 | 28 | T0444 BUG-111 精靈 rollback 只清精靈自有資源 | 本專案 | T0427 | S | 🟢 |
 | 29 | T0445 安全 review：T0432 每 PTY 範圍權杖（只出 findings） | 本專案 | T0432 | M | 🟡 |
 | 30 | T0446 BUG-112 detached workspace 視窗綁回 profile（fail-closed） | 本專案 | T0443 | S | 🟢 |
+| 31 | T0447 🔴 RemoteServer 預設拒絕 + frame 強化（T0445 #1/#2/#3） | 本專案 | — | S | 🔴 |
+| 32 | T0448 restart 保留權杖角色（T0445 #4） | 本專案 | T0433 | XS | 🟡 |
+| 33 | T0449 auth 節流分流（T0445 #5/#8） | 本專案 | T0447 | S | 🟡 |
+| 34 | T0450 helper 能力收斂（T0445 #6/#7） | 本專案 | T0449 | M | 🟡 |
+| 35 | T0451 helper 連線衛生（T0445 #9） | 本專案 | T0450 | XS | 🟢 |
+
+- **追加**（塔台 06:32 依授權，T0445 BLOCK）：T0434 改依賴 T0447 + T0448（#1-#4 修完才進實機）；#6/#7 的設計裁決取**收緊**方向（`pty:write` 拒 C0 控制字元、tower 子 PTY ≤ 8 + 1 秒間隔 + client 保留 8 格、agent 限 registry），不擴大暴露面故未交使用者；#5 權杖失敗不計 IP ban、與 server token 失敗分開計數
 
 - **追加**（使用者 06:14 裁決）：多 remote profile 同時連線開 **PLAN-039**（PLANNED），**排在本批（D134 第 1-28 列）全部完成之後**，先開 Phase 0 研究單
 
