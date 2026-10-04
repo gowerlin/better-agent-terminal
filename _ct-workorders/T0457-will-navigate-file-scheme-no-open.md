@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0457
 title: "will-navigate / setWindowOpenHandler 對 file: 等本機 scheme 不 shell.openExternal（只 preventDefault）——避免導航到本機 .bat / .exe 時經 ShellExecute 執行"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-105
 priority: P1
 sizing: XS
 created_at: "2026-10-05T07:28:38+08:00"
 started_at: "2026-10-05T07:35:40+08:00"
-updated_at: "2026-10-05T07:35:40+08:00"
-completed_at: null
+updated_at: "2026-10-05T07:39:08+08:00"
+completed_at: "2026-10-05T07:39:08+08:00"
 target_version: next
 depends_on:
   - T0439
@@ -107,7 +107,7 @@ memory_overrides:
 
 ### Commit
 
-- `git commit --only`：`electron/navigation-guard.ts`、`electron/__tests__/navigation-guard.test.ts`、`electron/main.ts`、本工單；不 push。hash 見 `git log`（本回報寫於 commit 前）
+- `git commit --only`：`electron/navigation-guard.ts`、`electron/__tests__/navigation-guard.test.ts`、`electron/main.ts`、本工單；不 push。commit `443ba4e`
 
 ### 回報時間
 
