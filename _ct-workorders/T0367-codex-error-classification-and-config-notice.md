@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0367
 title: "BUG-083 T-A：Codex 錯誤分類（config 不相容 / CLI 過舊）+ 修正 config 警告誤報為錯誤"
 type: fix
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-10-04T15:52:52+08:00"
-updated_at: "2026-10-04T15:54:49+08:00"
+updated_at: "2026-10-04T15:58:48+08:00"
 started_at: "2026-10-04T15:54:49+08:00"
-completed_at: null
+completed_at: "2026-10-04T15:58:48+08:00"
 target_version: next
 depends_on: []
 related:
@@ -40,7 +40,7 @@ memory_overrides:
 
 # T0367 — BUG-083 T-A：Codex 錯誤分類 + config 警告誤報修正
 
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **任務類型**：fix
 - **工作量預估**：S
 - **Context Window 風險**：低
@@ -189,7 +189,7 @@ AC-4 diff 片段：
              }
 ```
 
-**Commit**：見本工單 close commit 前一筆 `fix(codex): classify config/version errors; stop treating config warnings as errors (T0367)`（未 push）
+**Commit**：`c6214c2` `fix(codex): classify config/version errors; stop treating config warnings as errors (T0367)`（未 push）
 
 ### 遭遇問題
 
