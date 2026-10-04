@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 23:19 (UTC+8) — 第五十三 session：開 BUG-094（headless 缺 `profile:load-snapshot`，PLAN-035 Phase 1 實機驗收發現）→ FIXING（T0385）
+> 最後同步：2026-10-04 23:19 (UTC+8) — 第五十三 session：開 BUG-094（headless 缺 `profile:load-snapshot`，PLAN-035 Phase 1 實機驗收發現）→ FIXED（T0385 `c4e82ba`，23:31 複驗）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 7 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 19**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 8 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 19**
 
 ## 🔴 Open / 處理中
 
@@ -39,12 +39,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-094 | WSL / SSH 遠端 profile 連得上 headless bat-server，但 `profile:load-snapshot` 無 handler，被錯報成「伺服器未執行或 6 秒未回應」 | 🔴 high | 2026-10-04 | [BUG-094](BUG-094-headless-server-missing-profile-load-snapshot.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-094 | WSL / SSH 遠端 profile 連得上 headless bat-server，但 `profile:load-snapshot` 無 handler，被錯報成「伺服器未執行或 6 秒未回應」 | 🔴 high | 2026-10-04 | [BUG-094](BUG-094-headless-server-missing-profile-load-snapshot.md) |
 | BUG-092 | 沒有 `wsl.exe` 連線時 WSL 約 15 秒就關閉發行版，bat-server 跟著停止，WSL profile 連不上 | 🔴 high | 2026-10-04 | [BUG-092](BUG-092-wsl-distro-idle-shutdown-stops-bat-server.md) |
 | BUG-089 | WSL 精靈把 Mirrored 網路模式誤判為 NAT（default route 含 `via` 即判 NAT 的啟發式不成立） | 🟡 medium | 2026-10-04 | [BUG-089](BUG-089-wsl-network-mode-misdetected-as-nat.md) |
 | BUG-091 | WSL bat-server 埠與主機 BAT RemoteServer 衝突（預設都是 9876），且 `startService` 把「啟動後立刻崩潰」誤判為成功 | 🔴 high | 2026-10-04 | [BUG-091](BUG-091-wsl-server-port-conflict-and-false-start-success.md) |

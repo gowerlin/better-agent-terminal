@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-094
 title: WSL / SSH 遠端 profile 連得上 headless bat-server，但 `profile:load-snapshot` 無 handler，被錯報成「伺服器未執行或 6 秒未回應」
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-10-04T23:19:15+08:00"
-updated_at: "2026-10-04T23:21:01+08:00"
+updated_at: "2026-10-04T23:31:32+08:00"
 impact:
   - remote-profile-headless
   - setup-wizard-wsl
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（WSL 精靈全程通過後，建出來的 profile **無法開啟**——PLAN-035 Phase 1 的最終目的不可用） |
 | 可重現 | 100%（2026-10-04 23:15 實機兩次：15:15:27Z / 15:15:46Z） |
-| **狀態** | 🔧 FIXING（T0385） |
+| **狀態** | ✅ FIXED（T0385 `c4e82ba`；待實機：WSL 內 server 需換新 JS，見 T0385 回報區 C） |
 | 回報者 | 使用者實機驗收（PLAN-035 Phase 1，安裝版 = 本機 build `0.5.9-pre.4`，`app.asar` SHA-256 前綴 `3FDFEA76…`，與 `release\win-unpacked` 一致，含 T0384） |
 
 ## 現象
@@ -52,3 +52,10 @@ links:
 - `remoteProfileId || 'default'` 對 headless 的語意
 - 其他遠端 profile 會用到、但 headless 未註冊的 channel（一併盤點，避免下一個 `No handler`）
 - 錯誤分類：連線失敗 / 認證或指紋失敗 / 協定（no handler）失敗應給不同訊息
+
+## 修復紀錄（T0385，`c4e82ba`，塔台 2026-10-04 23:31 複驗）
+
+- headless 內建 `profile:*` 子集 6 個 + `settings:load` / `settings:save`（`electron/remote/headless-handlers.ts`）；`profile:load-snapshot` 回 `null` → client 開空視窗
+- 遠端 profile 失敗分三類：`unreachable` / `trust` / `protocol`（`electron/remote/remote-profile-error.ts`），對話框不再把協定錯誤誤報為「未執行」
+- 塔台複驗：920 tests / vite build exit 0 / tsc 40；抽查 `scripts/bat-server.mjs:118` 不傳 `handlers`、`electron/handlers/` 不存在 → Worker「headless 功能 handler 為 0」屬實
+- ⚠️ 本 BUG 範圍（snapshot + 誤導訊息）已修；**headless 沒有 pty / claude / git / fs 等功能 handler** 是更大的缺口，另案追蹤（見 T0385 回報區 B-2）

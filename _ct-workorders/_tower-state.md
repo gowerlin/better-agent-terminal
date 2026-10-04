@@ -135,13 +135,13 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 | **最新 release** | `v0.5.9-pre.4`（2026-10-04 17:10 驗證：9/9 success，5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
 | **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
 | **目前主軸** | 實機驗收（BUG-071 / 084 / 085）→ push + `v0.5.9-pre.5` → Phase 2 Claude SDK 0.3 |
-| **工單最大編號** | T0385（BUG-094，23:21 派發）；T0380-T0384 全 DONE（PLAN-035 Phase 0-1）；BUG-093 修復單排在 T0385 之後（串行，使用者裁決） |
-| **BUG 最大編號** | BUG-094；093 OPEN、094 FIXING（T0385；Phase 1 實機驗收發現，23:19）；086-092 FIXED（待實機，WSL 精靈一次驗） |
+| **工單最大編號** | T0385 DONE（`c4e82ba`，23:31 複驗）；T0380-T0384 全 DONE（PLAN-035 Phase 0-1）；BUG-093 修復單排在 T0385 之後（串行，使用者裁決） |
+| **BUG 最大編號** | BUG-094；093 OPEN、094 FIXED（T0385；待 WSL 內 server 換新 JS 實機）；086-092 FIXED（待實機，WSL 精靈一次驗） |
 | **PLAN 最大編號** | PLAN-035（WSL 環境全自動化，IN_PROGRESS：Phase 1 完成） |
 | **決策最大編號** | D128 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **905**（63 files）；tsc baseline 40 |
+| **unit test 基線** | **920**（65 files）；tsc baseline 40 |
 
 ---
 
