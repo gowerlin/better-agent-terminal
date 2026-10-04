@@ -110,3 +110,4 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 | T0406 | I：`fs:*` / `image:read-as-data-url` + `workspace:sync-roots`（fail-closed） | T0405 | 保留編號 |
 
 - WSL server 01:52 重新部署 HEAD `09f1e46`（含 T0398 locale 修正；備份 tag `t0398`），smoke 8/8；T0395 的 LISTEN 檢查實機正確列出 `127.0.0.1:9877`
+- WSL server 02:12 重新部署 HEAD `b24d89a`（T0403；備份 tag `t0403`），smoke 8/8，S3 `{"ok":true,"created":true}`、S5 `{"ok":true,"created":false}`。UI 回放 / 不重打 agent 指令待新 BAT build 實機（T0403 回報區步驟 4-7）
