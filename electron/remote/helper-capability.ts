@@ -167,8 +167,13 @@ export function authorizeHelperInvoke(
   args: unknown[],
   ctx: HelperInvokeContext = {},
 ): HelperInvokeDecision {
+  // T0447 (T0445 #2): frame fields are attacker-controlled. Own keys only — `constructor` /
+  // `__proto__` / `toString` … must not resolve to Object.prototype members, and a non-string
+  // channel (e.g. `['pty:write']`) must not be coerced into a whitelisted key.
+  if (typeof channel !== 'string') return deny('channel-not-allowed')
+  if (!Object.prototype.hasOwnProperty.call(HELPER_CHANNEL_ROLES, channel)) return deny('channel-not-allowed')
+  if (!Array.isArray(args)) return deny('invalid-args')
   const roles = HELPER_CHANNEL_ROLES[channel]
-  if (!roles) return deny('channel-not-allowed')
   if (!roles.includes(capability.role)) return deny('role-not-allowed')
 
   switch (channel) {

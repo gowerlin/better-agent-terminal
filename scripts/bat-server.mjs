@@ -72,6 +72,10 @@ function resolvePort(portFlag) {
   return port
 }
 
+function formatError(error) {
+  return error instanceof Error ? (error.stack || error.message) : String(error)
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -114,6 +118,28 @@ async function main() {
 
   process.on('SIGINT', () => void stop())
   process.on('SIGTERM', () => void stop())
+
+  // T0447 (T0445 #3, defence in depth): one bad frame must not take every PTY / agent of the
+  // headless server down with it.
+  // - unhandledRejection: logged, the server keeps running. A rejection is a failed async
+  //   operation, not corrupted process state; RemoteServer already contains every frame.
+  // - uncaughtException: logged, then best-effort stop and exit(1). After an uncaught
+  //   exception the process state is undefined (Node's documented contract), so it is not
+  //   swallowed; the supervisor (systemd unit / launcher) restarts the server.
+  process.on('unhandledRejection', (reason) => {
+    console.error(`[bat-server] unhandledRejection (server keeps running): ${formatError(reason)}`)
+  })
+  process.on('uncaughtException', (error) => {
+    console.error(`[bat-server] uncaughtException (stopping, exit 1): ${formatError(error)}`)
+    if (stopping) return
+    stopping = true
+    setTimeout(() => process.exit(1), 5000).unref()
+    Promise.resolve(server?.stop())
+      .catch((stopError) => {
+        console.error(`[bat-server] stop after uncaughtException failed: ${formatError(stopError)}`)
+      })
+      .finally(() => process.exit(1))
+  })
 
   server = await serverEntry.createHeadlessServer({
     dataDir,

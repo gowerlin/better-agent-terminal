@@ -24,6 +24,12 @@ import {
 
 export type BindInterface = 'localhost' | 'tailscale' | 'all' | `ip:${string}`
 
+/** T0447 (T0445 #3): a parsed frame must be a non-null, non-array object with a string `type`. */
+function isFrameShape(value: unknown): value is RemoteFrame {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) &&
+    typeof (value as { type?: unknown }).type === 'string'
+}
+
 interface AuthenticatedClient {
   ws: WebSocket
   label: string
@@ -484,13 +490,19 @@ export class RemoteServer {
         }
       }, 5000)
 
-      ws.on('message', async (raw) => {
-        let frame: RemoteFrame
+      const handleMessage = async (raw: WebSocket.RawData): Promise<void> => {
+        let parsed: unknown
         try {
-          frame = JSON.parse(raw.toString())
+          parsed = JSON.parse(raw.toString())
         } catch {
           return
         }
+        // T0447 (T0445 #3): `null` / `1` / `"str"` / `[]` / a non-string `type` are not frames.
+        if (!isFrameShape(parsed)) {
+          ws.close()
+          return
+        }
+        const frame = parsed
 
         if (frame.type === 'auth') {
           if (this.isTokenAccepted(frame.token)) {
@@ -540,6 +552,16 @@ export class RemoteServer {
           return
         }
 
+        // T0447 (T0445 #1): default deny. An authenticated socket that is neither a live helper
+        // nor a client (e.g. its capability was revoked, or it was dropped) has no invoke path;
+        // falling through here used to hand a revoked helper the full client channel set.
+        if (!this.clients.has(ws)) {
+          this.log.warn('[RemoteServer] Frame from a connection that is neither client nor helper; terminated')
+          this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: 'Not authenticated' })
+          ws.terminate()
+          return
+        }
+
         if (frame.type === 'ping') {
           this.sendFrame(ws, { type: 'pong', id: frame.id })
           return
@@ -558,6 +580,20 @@ export class RemoteServer {
             this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: message })
           }
           return
+        }
+      }
+
+      ws.on('message', async (raw) => {
+        // T0447 (T0445 #3): nothing a peer sends may escape as an unhandled rejection — in the
+        // headless server that ends the process and every PTY / agent with it.
+        try {
+          await handleMessage(raw)
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err)
+          this.log.error(`[RemoteServer] Message handling failed; connection terminated: ${message}`)
+          this.dropHelper(ws)
+          this.dropClient(ws)
+          ws.terminate()
         }
       })
 
@@ -776,31 +812,37 @@ export class RemoteServer {
       this.log.warn(`[RemoteServer] Helper capability revoked: role=${helper.role} terminal=${helper.terminalId}`)
       this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: 'Capability revoked' })
       this.dropHelper(ws)
-      ws.close()
+      // T0447 (T0445 #1): terminate, not close — a close()d socket stays CLOSING (and keeps
+      // delivering frames) until the peer answers the close frame or `ws`'s 30 s timeout.
+      ws.terminate()
       return
     }
 
-    if (frame.type === 'ping') {
-      this.sendFrame(ws, { type: 'pong', id: frame.id })
-      return
-    }
-    if (frame.type !== 'invoke' || !frame.channel) return
-
-    let args = frame.args || []
-    while (args.length > 0 && args[args.length - 1] == null) {
-      args = args.slice(0, -1)
-    }
-    const decision = authorizeHelperInvoke(capability, frame.channel, args, { isTerminalAlive: this.isTerminalAlive })
-    if (!decision.ok) {
-      this.log.warn(
-        `[RemoteServer] Helper invoke denied: channel=${frame.channel} role=${capability.role} ` +
-          `terminal=${capability.terminalId} reason=${decision.reason}`
-      )
-      this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: `Forbidden: ${decision.reason}` })
-      return
-    }
+    // T0447 (T0445 #2): authorization and the handler share one try — a denial or a throw is
+    // an invoke-error, never an unhandled rejection.
     try {
-      const result = await invokeHandler(frame.channel, args, null, helper.connectionId)
+      if (frame.type === 'ping') {
+        this.sendFrame(ws, { type: 'pong', id: frame.id })
+        return
+      }
+      if (frame.type !== 'invoke' || !frame.channel) return
+
+      let args: unknown = frame.args ?? []
+      if (Array.isArray(args)) {
+        while (args.length > 0 && args[args.length - 1] == null) {
+          args = args.slice(0, -1)
+        }
+      }
+      const decision = authorizeHelperInvoke(capability, frame.channel, args as unknown[], { isTerminalAlive: this.isTerminalAlive })
+      if (!decision.ok) {
+        this.log.warn(
+          `[RemoteServer] Helper invoke denied: channel=${String(frame.channel)} role=${capability.role} ` +
+            `terminal=${capability.terminalId} reason=${decision.reason}`
+        )
+        this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: `Forbidden: ${decision.reason}` })
+        return
+      }
+      const result = await invokeHandler(frame.channel, args as unknown[], null, helper.connectionId)
       this.sendFrame(ws, { type: 'invoke-result', id: frame.id, result })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)

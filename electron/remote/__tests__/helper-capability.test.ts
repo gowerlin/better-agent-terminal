@@ -234,3 +234,35 @@ describe('authorizeHelperInvoke — tower create-agent-command (T0432)', () => {
     expect(reason(create('new-1'))).toBe('invalid-payload')
   })
 })
+
+describe('authorizeHelperInvoke — prototype keys / non-string channels (T0447, T0445 #2)', () => {
+  // `HELPER_CHANNEL_ROLES[channel]` used to resolve these to Object.prototype members
+  // (truthy, no `includes`) → TypeError → unhandled rejection in the headless server.
+  const PROTO_KEYS = ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf', 'isPrototypeOf', '__defineGetter__']
+
+  it.each(PROTO_KEYS)('%s → channel-not-allowed for both roles, without throwing', channel => {
+    for (const cap of [TOWER, WORKER]) {
+      expect(() => authorizeHelperInvoke(cap, channel, [], ctx)).not.toThrow()
+      expect(reason(authorizeHelperInvoke(cap, channel, ['tower-1'], ctx))).toBe('channel-not-allowed')
+    }
+  })
+
+  it.each([
+    ['number', 123],
+    ['object', {}],
+    ['array', ['pty:write']],
+    ['null', null],
+    ['undefined', undefined],
+    ['boolean', true],
+  ])('a %s channel → channel-not-allowed, without throwing', (_label, channel) => {
+    for (const cap of [TOWER, WORKER]) {
+      expect(reason(authorizeHelperInvoke(cap, channel as unknown as string, ['tower-1'], ctx))).toBe('channel-not-allowed')
+    }
+  })
+
+  it('non-array args → invalid-args, without throwing', () => {
+    for (const args of [{ 0: 'tower-1', length: 2 }, 'tower-1', null, 42]) {
+      expect(reason(authorizeHelperInvoke(WORKER, 'pty:write', args as unknown as unknown[], ctx))).toBe('invalid-args')
+    }
+  })
+})
