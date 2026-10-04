@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0366
 title: "研究：BUG-083 Codex agent 因版本過舊出錯的根因與修復方案"
 type: research
-status: IN_PROGRESS
+status: DONE
 priority: P2
 sizing: S
 created_at: "2026-10-04T13:29:07+08:00"
-updated_at: "2026-10-04T13:30:25+08:00"
+updated_at: "2026-10-04T15:52:18+08:00"
 started_at: "2026-10-04T13:30:25+08:00"
-completed_at: null
+completed_at: "2026-10-04T15:52:18+08:00"
 target_version: next
 depends_on: []
 related:
@@ -104,6 +104,7 @@ memory_overrides:
 
 - **Landing Zone**：WARN — C-0 `repo` 欄位 absent（觀察到 `basename(REPO_ROOT)` = `better-agent-terminal`）；C-1 PASS（工單位於 `REPO_ROOT/_ct-workorders/`）；C-3 not applicable（`affects_files: []`）；C-2 無 `branch` 欄位（HEAD = `main`）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a82b98b4b59b`（僅作證據）。
 - **派發模式**：`CT_MODE=yolo`、`CT_INTERACTIVE=1`。
+- **Commit**：報告 `aa970dc`；最終狀態另一筆 commit（僅本工單檔，未 push）。
 - **主工作樹**：除本工單檔外無改動（`AGENTS.md` 為開工前既有的 dirty，未碰）。`~/.codex/` 只讀；實驗一律以 scratchpad 隔離的 `CODEX_HOME` 執行，結束已刪除 auth 複本與下載的套件。
 
 ### 互動紀錄
