@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage, crashReporter } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage, crashReporter, Notification } from 'electron'
 import path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
@@ -70,7 +70,7 @@ if (process.platform === 'win32') {
 
 import { PtyManager, createWindowBroadcastEmit, type PtyManagerDeps } from './pty-manager'
 import { configureRuntimeRouter } from './claude-runtime-router'
-import { ClaudeAgentManager } from './claude-agent-manager'
+import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
 import { worktreeManager } from './worktree-manager'
 import { checkForUpdates, UpdateCheckResult } from './update-checker'
@@ -810,6 +810,27 @@ function createElectronPtyDeps(): PtyManagerDeps {
 }
 
 /**
+ * PLAN-036 T0400: Electron host deps for ClaudeAgentManager — the pre-DI
+ * behaviour: events go to every window + broadcastHub, completion notifications
+ * use Electron `Notification` (click focuses a window), and settings are read
+ * fresh from `userData/settings.json` on every notification.
+ */
+function createElectronClaudeDeps(): ClaudeAgentManagerDeps {
+  return {
+    emit: createElectronClaudeEmit(getAllWindows),
+    notifier: createElectronNotifier(Notification, getAllWindows),
+    getSettings: () => {
+      try {
+        const parsed: unknown = JSON.parse(fsSync.readFileSync(path.join(app.getPath('userData'), 'settings.json'), 'utf-8'))
+        return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {}
+      } catch {
+        return {} // settings file doesn't exist or is invalid
+      }
+    },
+  }
+}
+
+/**
  * BUG-054 (T0235): broadcast a runtime event from an IPC handler that lacks
  * sessionId context (e.g. claude:get-cli-path). Mirrors the `send()` helper
  * inside ClaudeAgentManager — fan out to every local BrowserWindow and push
@@ -1002,7 +1023,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   if (!ptyManager) {
     ptyManager = new PtyManager(createElectronPtyDeps())
   }
-  if (!claudeManager) claudeManager = new ClaudeAgentManager(getAllWindows)
+  if (!claudeManager) claudeManager = new ClaudeAgentManager(createElectronClaudeDeps())
   if (!codexManager) codexManager = new CodexAgentManager(getAllWindows)
 
   const urlParam = `?windowId=${encodeURIComponent(windowId)}`

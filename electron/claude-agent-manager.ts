@@ -1,4 +1,3 @@
-import { BrowserWindow, Notification, app } from 'electron'
 import * as fsSync from 'fs'
 import * as fsPromises from 'fs/promises'
 import * as pathModule from 'path'
@@ -19,6 +18,7 @@ import {
 } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
 import type { ClaudeRuntimeDegradedEvent, ClaudeRuntimeWarningEvent } from '../src/types'
+import type { HostDeps, HostEmit, HostNotification, HostNotifier } from './handlers/types'
 
 // App-level permission mode extends SDK's PermissionMode with bypassPlan
 // bypassPlan = plan mode (read-only exploration) + auto-approve all tool permissions
@@ -194,16 +194,86 @@ interface SessionInstance {
   originalCwd?: string         // Original workspace cwd before worktree redirect
 }
 
+/**
+ * Host dependencies (PLAN-036 T0400). ClaudeAgentManager does not import
+ * `electron`: Electron main builds these with `createElectronClaudeDeps()`
+ * (main.ts); a `HostDeps` satisfies this shape directly, so the headless
+ * bat-server can pass its own (no notifier ⇒ no completion notifications).
+ */
+export type ClaudeAgentManagerDeps = Pick<HostDeps, 'emit' | 'getSettings' | 'notifier'>
+
+/** Minimal window surface the Electron claude deps need (structurally matches BrowserWindow). */
+export interface ClaudeHostWindow {
+  isDestroyed(): boolean
+  isFocused(): boolean
+  show(): void
+  focus(): void
+  webContents: { send(channel: string, ...args: unknown[]): void }
+}
+
+/** Structural view of Electron's `Notification` class, so this module never imports it. */
+export interface DesktopNotificationApi {
+  isSupported(): boolean
+  new (options: { title: string; body: string; silent?: boolean }): {
+    on(event: 'click', listener: () => void): unknown
+    show(): void
+  }
+}
+
+/**
+ * Electron emit: send to every live window, then mirror to remote clients via
+ * broadcastHub (the pre-T0400 `ClaudeAgentManager.send` behaviour).
+ */
+export function createElectronClaudeEmit(getWindows: () => ClaudeHostWindow[]): HostEmit {
+  return (channel, ...args) => {
+    for (const win of getWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, ...args)
+      }
+    }
+    broadcastHub.broadcast(channel, ...args)
+  }
+}
+
+/**
+ * Electron desktop notifier (pre-T0400 `sendCompletionNotification` behaviour):
+ * no-op when the OS has no notification support; clicking focuses the first
+ * live window. `windowId` is not used — no caller targets a specific window.
+ */
+export function createElectronNotifier(
+  NotificationApi: DesktopNotificationApi,
+  getWindows: () => ClaudeHostWindow[],
+): HostNotifier {
+  return {
+    notify(n: HostNotification) {
+      if (!NotificationApi.isSupported()) return
+      const notification = new NotificationApi({ title: n.title, body: n.body, silent: n.silent })
+      notification.on('click', () => {
+        // Focus the main window when notification is clicked
+        for (const win of getWindows()) {
+          if (!win.isDestroyed()) {
+            win.show()
+            win.focus()
+            break
+          }
+        }
+      })
+      notification.show()
+    },
+    hasFocusedWindow: () => getWindows().some(w => !w.isDestroyed() && w.isFocused()),
+  }
+}
+
 // Persists SDK session IDs across stop/restart so we can resume conversations
 const sdkSessionIds = new Map<string, string>()
 
 export class ClaudeAgentManager {
   private sessions: Map<string, SessionInstance> = new Map()
-  private getWindows: () => BrowserWindow[]
+  private deps: ClaudeAgentManagerDeps
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null
 
-  constructor(getWindows: () => BrowserWindow[]) {
-    this.getWindows = getWindows
+  constructor(deps: ClaudeAgentManagerDeps) {
+    this.deps = deps
     // BUG-059: globally disable embedded claude auto-updater so SDK-spawned children
     // don't self-rename (claude.exe → claude.exe.old.<ts>) + npm install -g, which orphans
     // app.asar.unpacked/.../bin/claude.exe and breaks subsequent BAT spawns. See pty-manager.ts.
@@ -232,12 +302,7 @@ export class ClaudeAgentManager {
   }
 
   private send(channel: string, ...args: unknown[]) {
-    for (const win of this.getWindows()) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, ...args)
-      }
-    }
-    broadcastHub.broadcast(channel, ...args)
+    this.deps.emit(channel, ...args)
   }
 
   /**
@@ -284,26 +349,22 @@ export class ClaudeAgentManager {
 
   /**
    * Send a macOS/Windows/Linux system notification when Agent completes.
-   * Reads settings from settings.json to check if notifications are enabled.
+   * Reads settings via the host (settings.json) to check if notifications are enabled.
+   * Hosts without a notifier (headless) send nothing.
    */
   private sendCompletionNotification(session: { cwd: string }, result?: string) {
     try {
-      if (!Notification.isSupported()) return
+      const notifier = this.deps.notifier
+      if (!notifier) return
 
-      // Read settings directly from file (main process doesn't have settings store)
-      const settingsPath = pathModule.join(app.getPath('userData'), 'settings.json')
-      let settings: Record<string, unknown> = {}
-      try {
-        settings = JSON.parse(fsSync.readFileSync(settingsPath, 'utf-8'))
-      } catch { /* settings file doesn't exist or is invalid */ }
+      const settings = this.deps.getSettings()
 
       // Check if notifications are enabled (default: true)
       if (settings.notifyOnComplete === false) return
 
       // Check if only notify when window is not focused
       if (settings.notifyOnlyBackground !== false) {
-        const focused = this.getWindows().some(w => !w.isDestroyed() && w.isFocused())
-        if (focused) return
+        if (notifier.hasFocusedWindow?.()) return
       }
 
       const workspaceName = pathModule.basename(session.cwd)
@@ -311,24 +372,11 @@ export class ClaudeAgentManager {
         ? result.slice(0, 100) + (result.length > 100 ? '...' : '')
         : 'Task completed'
 
-      const notification = new Notification({
+      notifier.notify({
         title: `✅ ${workspaceName}`,
         body,
         silent: settings.notifySound === false,
       })
-
-      notification.on('click', () => {
-        // Focus the main window when notification is clicked
-        for (const win of this.getWindows()) {
-          if (!win.isDestroyed()) {
-            win.show()
-            win.focus()
-            break
-          }
-        }
-      })
-
-      notification.show()
     } catch (err) {
       logger.error('[notification] Failed to send:', err)
     }

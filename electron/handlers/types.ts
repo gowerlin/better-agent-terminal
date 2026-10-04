@@ -41,10 +41,17 @@ export interface HostNotification {
   body: string
   /** Window that should be focused when the notification is clicked, if any. */
   windowId?: string | null
+  /** No sound (settings `notifySound === false`). */
+  silent?: boolean
 }
 
 export interface HostNotifier {
   notify(notification: HostNotification): void
+  /**
+   * Whether a host window currently has focus — callers honouring
+   * `notifyOnlyBackground` skip notifying when true. Absent ⇒ never focused.
+   */
+  hasFocusedWindow?(): boolean
 }
 
 export interface HostPathGuard {
