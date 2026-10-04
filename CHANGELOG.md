@@ -43,6 +43,12 @@ All notable changes to Better Agent Terminal are documented in this file.
   one instead of only the requested one, which previously made an unknown id look like it had
   been honoured. Observation only — workspace resolution, the silent fallback to the active
   workspace, and all return values are unchanged. (refs: T0361, T0360, T0137, BUG-031)
+- chore: remove leftover `[T0215-DEBUG-REMOVE]` diagnostics from the PTY write path
+  (`scripts/bat-notify.mjs`, `electron/pty-manager.ts`, `electron/terminal-server/server.ts`).
+  The terminal server no longer writes a stderr line on every `pty:write`, and `bat-notify`
+  no longer dumps the `writeResp` payload on every notify. Error reporting via
+  `writeWithResult` `{ ok, reason }` and the `Error: PTY write failed: <reason>` path is
+  unchanged. (refs: T0363, BUG-050, T0215)
 
 ## [0.4.2] — 2026-05-23 — Control Tower Status Parsing + Setup Wizard UX
 

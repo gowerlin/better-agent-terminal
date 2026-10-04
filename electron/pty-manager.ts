@@ -633,15 +633,6 @@ export class PtyManager {
    * refork race(條件 #2/#6/#7)留給 PLAN-024 階段 2 的 correlation id 方案。
    */
   writeWithResult(id: string, data: string): { ok: boolean; reason?: string } {
-    // [T0215-DEBUG-REMOVE] writeWithResult entry — 供 refork race 假設產出真實資料
-    logger.log('[T0215-DEBUG-REMOVE] writeWithResult entry:', {
-      id,
-      hasInstance: this.instances.has(id),
-      useServer: this.useServer,
-      serverConnected: this.serverProcess?.connected ?? null,
-      dataLen: data.length,
-    })
-
     // Manager-level check
     if (!this.instances.has(id)) {
       return { ok: false, reason: 'pty-not-found' }

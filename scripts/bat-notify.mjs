@@ -567,12 +567,6 @@ async function main() {
 
     const writeResp = await waitForMessageById(ws, writeId)
     const writeResult = writeResp.result
-    // [T0215-DEBUG-REMOVE] writeResp dump — 供 refork race 分析
-    console.error(`[T0215-DEBUG-REMOVE] writeResp: ${JSON.stringify({
-      hasError: !!writeResp.error,
-      payload: writeResult,
-      target,
-    })}`)
     // T0215 (BUG-050 階段 1):嚴格 === false 避免舊 server undefined payload 誤觸發
     const failed = writeResp.error || (writeResult && writeResult.ok === false)
     if (failed) {
