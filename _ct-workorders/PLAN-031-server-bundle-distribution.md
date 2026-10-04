@@ -17,7 +17,7 @@ created_at: "2026-04-27T00:53:00+08:00"
 | 標題 | Setup Wizard install-server-bundle step 從 placeholder throw 補完整 distribution path（installer 內建 + runtime fallback download + 三平台 + ARM64 Linux + version pinning） |
 | 優先級 | 🔴 High（BUG-071 阻擋全部使用者實機跑 wizard） |
 | 類型 | 技術改善 + 架構調整（涉及 release pipeline / runtime download / wizard step 三子系統） |
-| 狀態 | 🔄 IN_PROGRESS（Sprint 1-5 主體 11 工單已 DONE @session 35；剩 T0324 user dogfood + T0326 升級 UI） |
+| 狀態 | 🔄 IN_PROGRESS（Sprint 1-5 主體 11 工單已 DONE @session 35；剩 T0324 user dogfood + T0326 升級 UI）。⚠️ 2026-10-04 塔台複查：T0324/T0326 **從未建立工單檔**；另發現 runtime 下載斷線（D120），修復於 T0365，dogfood 併入 BUG-071 實機驗收 |
 | 建立時間 | 2026-04-27 00:53 (UTC+8) |
 | 報告者 | 使用者（dogfood PLAN-030 完工後實機跑 WSL wizard） |
 | Release target | v0.5.0（從容做，配合 PLAN-032 wizard error UX 一起 ship） |

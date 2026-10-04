@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-071
 title: Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
-status: OPEN
+status: FIXING
 severity: high
 ---
 # BUG-071 — Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
@@ -17,7 +17,7 @@ severity: high
 | 嚴重度 | 🔴 High（使用者無法用 wizard 完成 WSL/SSH/Docker remote profile 安裝；BAT remote feature 對普通使用者實質不可用） |
 | 可重現 | 100%（只要 `userData/bat-server-bundles/` 沒有 tarball 都會炸；installer 不含、無自動下載 → 100% 觸發） |
 | Workaround | 手動下載 `bat-server-linux-x64-v*.tar.gz` 放到 `userData/bat-server-bundles/`（普通使用者不知道做這事） |
-| 狀態 | 🐛 OPEN |
+| 狀態 | 🐛 OPEN → ⏳ FIXING（2026-10-04 T0365，D120） |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
 | 報告者 | 使用者（PLAN-030 完工後實機跑 WSL wizard） |
 | 影響範圍 | `src/components/setup-wizard/steps/wsl/install-server-bundle.ts:36` / `src/components/setup-wizard/steps/ssh/install-server-bundle.ts`（同模式） / Docker 也類似（待確認） |
@@ -66,3 +66,20 @@ screenshot 顯示重試/跳過/編輯設定/取消 4 個按鈕**正確顯示** �
 3. 拆 1-3 張實作工單
 
 > 是否歸入新 PLAN（如 PLAN-031 server-bundle-distribution）由塔台下次評估
+
+## 第四十九 session 複查（2026-10-04，塔台）
+
+> 本 BUG 從 2026-04-27 起掛 OPEN，期間 PLAN-031 已落地主體，但 BUG 狀態從未對齊。本次複查結論：
+
+| 項目 | 狀態 | 證據 |
+|------|------|------|
+| placeholder throw | ✅ 已移除 | T0321（`ac7021d`）/ T0322 / T0323；`grep "Release download flow"` 於 `src` `electron` 零命中 |
+| installer 內建 baseline | ✅ | 安裝版 `resources/bat-server-baseline/` 含 `bat-server-linux-x64-v0.5.9-pre.2.tar.gz` + `.sha256` + `manifest.json` |
+| runtime fallback 下載 | 🔴 **斷線** | `DEFAULT_RELEASE_BASE_URL` 指向不存在的 `anthropics/better-agent-terminal`（404）；gowerlin 上 0 個 `server-bundle-v*` release |
+| 實機驗收 | ❌ 從未執行 | PLAN-031 狀態列提及的 T0324（dogfood）/ T0326（升級 UI）**從未建立工單檔**，git 歷史亦無 |
+
+**實際影響**：Windows host → x64 remote（典型 WSL）理論上靠內建 baseline 可過（未實機驗）；
+installer 未內建的 arch（如 Windows host → DGX Spark arm64 SSH）必走下載 → 必 404。
+
+**處置**：D120 —— desktop release workflow 自動發佈 `server-bundle-v<版號>`，修正預設網址 owner。
+修復工單 T0365；驗收 = 發 `v0.5.9-pre.3` + 使用者實機 WSL wizard（+ DGX Spark 視時間）。

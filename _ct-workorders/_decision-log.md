@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-09-02 15:38 (UTC+8)（第四十八 session 新增 D119）
+> 最後更新：2026-10-04 13:12 (UTC+8)（第四十九 session 新增 D120）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D120 | 2026-10-04 | BUG-071 runtime 下載來源：desktop release workflow（`release.yml` / `pre-release.yml`）建完 baseline 後**自動發佈** `server-bundle-v<版號>` prerelease 到 gowerlin；預設下載網址 owner 由不存在的 `anthropics` 改為 `gowerlin`；網址格式與 D093 tag 命名不變。驗收做到發 pre 版 + 實機 wizard | T0365 / BUG-071 / PLAN-031 |
 | D119 | 2026-09-02 | 社群 PR #19 不 merge，改在 main 取骨架重新實作 —— 其 `cmd` 分支有兩處經確認的缺陷（`%`→`%%` 為批次檔限定語意、`""` 非 `CommandLineToArgvW` 逃逸），bot review 三個月未回應且該 bot 已停止服務；posix/pwsh 與 `agentCustomArgs` 判斷沿用其設計，出處以 `Co-authored-by` 保留 | T0362 / PR #19 |
 | D118 | 2026-04-27 | T0333-D1：`ssh-permission-denied` registry entry 加 `patterns: [/permission denied/i]` regex fallback（spec 嚴格用 errorCode，但 Shell 從 snapshot 取 error 時無 errorCode 通道；後續若補 errorCode 通道可拿掉 pattern） | T0333 / PLAN-032 |
 | D117 | 2026-04-27 | T0332-D3：`WizardContext.preflightCache` 設為 optional 不破壞既有 callsite；runner constructor `??=` 注入預設 cache 後 runtime invariant always-defined | T0332 / PLAN-032 |
@@ -1347,6 +1348,31 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D120 2026-10-04 — BUG-071：server bundle 隨 desktop release 自動發佈 `server-bundle-v*`
+
+- **背景**：BUG-071 的 placeholder throw 已於 PLAN-031（T0321/T0322/T0323）移除，installer 也內建
+  linux-x64 baseline。但第四十九 session 塔台複查發現 runtime fallback 下載**整條斷線**：
+  1. 預設網址 `DEFAULT_RELEASE_BASE_URL` = `https://github.com/anthropics/better-agent-terminal/releases/download`
+     —— 該 repo **不存在**（`gh api` 404）。同樣寫死於 `scripts/fetch-baseline-tarball.mjs:217,319`
+  2. gowerlin 上 **0 個** `server-bundle-v*` release；desktop workflow 的 baseline 只走 Actions artifact，
+     `build-server-bundle.yml` 需手動推 tag 才發佈，從未被推過
+  3. ⇒ installer 未內建的 arch（Windows host 只帶 linux-x64，D092）一律 404。PLAN-031 AC-3
+     （DGX Spark arm64 SSH target）實質無法達成
+- **選項**：
+  - A：desktop workflow 自動發 `server-bundle-v<版號>` prerelease（網址格式不變）
+  - B：tarball 掛在 desktop `v<版號>` release 上、改網址格式（推翻 D093 tag 命名）
+  - C：只修 owner，server bundle release 靠手動推 tag
+- **決定**：**A**（使用者 2026-10-04 選定）
+- **理由**：網址 schema 與 D093 tag 命名、`BAT_SERVER_BUNDLE_BASE_URL` override（D095）全部不動；
+  bundle 版號本就等於 BAT 版號（`server-bundle-v${app.getVersion()}`），與 desktop 同 run 發佈才不會漏；
+  C 每次發版都要記得多推 tag，正是這次 0 個 release 的成因
+- **成本**：每次發版多一個 prerelease（3 arch × ~200 MB ≈ 580 MB）
+- **驗收範圍**（使用者選定）：修完發 `v0.5.9-pre.3`，確認 `server-bundle-v0.5.9-pre.3` release 存在且資產可下載，
+  再由使用者實機跑 WSL wizard（x64）；DGX Spark（arm64）視使用者時間追加。通過後 BUG-071 → CLOSED
+- **相關**：T0365 / BUG-071 / PLAN-031 / D092 / D093 / D095
 
 ---
 

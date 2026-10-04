@@ -122,7 +122,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 
 ### 待辦（依優先序）
 
-1. 🟡 **BUG-071** server bundle download flow 未實作（OPEN, high）—— 現為熱區唯一 high
+1. 🟡 **BUG-071** FIXING —— T0365 派發中（D120）；回報後塔台發 `v0.5.9-pre.3` → 確認 `server-bundle-v0.5.9-pre.3` release → 使用者實機 WSL wizard
 2. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6 倍（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
 3. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到
 4. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號至今零筆真實觸發，待有資料再議（已回函告知對方）
@@ -143,7 +143,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0365** / **BUG-083** / **PLAN-035** / **D120** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 parser-parity 修復派發中；L133 新增）
+- **T0366** / **BUG-083** / **PLAN-035** / **D121** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 BUG-071 修復派發中；D120、L133 新增）
 
 ---
 

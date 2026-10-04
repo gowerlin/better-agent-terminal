@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0364
 title: "parser-parity 測試樣本改為可在 _archive/ 找到（修 7243ce2 *archive 造成的 4 failed）"
 type: fix
-status: PENDING
+status: DONE
 priority: P1
 sizing: XS
 created_at: "2026-10-04T11:24:33+08:00"
-updated_at: "2026-10-04T11:24:33+08:00"
-started_at: null
-completed_at: null
+updated_at: "2026-10-04T11:27:25+08:00"
+started_at: "2026-10-04T11:26:03+08:00"
+completed_at: "2026-10-04T11:27:25+08:00"
 target_version: next
 depends_on: []
 related:
@@ -32,7 +32,7 @@ memory_overrides:
 
 # T0364 — parser-parity 測試樣本改為可在 `_archive/` 找到
 
-- **狀態**：PENDING
+- **狀態**：DONE
 - **任務類型**：fix（測試）
 - **工作量預估**：XS
 - **Context Window 風險**：低（單檔）
@@ -103,10 +103,44 @@ memory_overrides:
 
 ### 完成狀態
 
+✅ DONE — AC-1 ~ AC-5 全數 PASS。Commit `ddef6b0`（未 push）。
+
+**落點檢查**：WARN（僅 C-0 非 PASS）
+- C-0：frontmatter `repo` = `absent` → WARN「repo identity unavailable」；observed `basename(REPO_ROOT)` = `better-agent-terminal`
+- C-1：PASS（工單位於 `REPO_ROOT/_ct-workorders/`）
+- C-3：PASS（`src/types/__tests__/parser-parity.test.ts` 存在）
+- C-2：N/A（無 `branch` 欄位；HEAD = `main`）
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅紀錄）
+- `CT_MODE=on`、`CT_INTERACTIVE` 未設定
+
 ### 產出摘要
+
+只改 `src/types/__tests__/parser-parity.test.ts`（+30 / −11）：
+
+1. 新增 `ARCHIVE_SUBDIR`（`workorder→workorders` / `bug→bugs` / `plan→plans`）與 `samplePaths(sample)`，回傳查找順序：熱區 `_ct-workorders/<filename>` → 冷區 `_ct-workorders/_archive/<subdir>/<filename>`。
+2. `readSample()` 簽章改為接收 `Sample`，依序查找，兩處皆無才回 `null`（fail 邏輯不變，未改成 skip/pass）。
+3. 找不到時錯誤訊息列出兩個查找路徑，保留「Replace with another <kind>.」提示。
+4. 檔頭註解第 13-18 行改寫：樣本可在熱區或 `_archive/<kind>s/`，歸檔不需換樣本；只有改名或刪除才需替換。
+5. `SAMPLES` 清單未改（5 項原樣）。
 
 ### 驗收條件逐項
 
+- [x] **AC-1** PASS — `npx vitest run src/types/__tests__/parser-parity.test.ts` → `Tests  5 passed (5)`
+- [x] **AC-2** PASS — `npm run test:unit` → `Test Files  41 passed (41)` / `Tests  550 passed (550)`
+- [x] **AC-3** PASS — 暫時把 `T0337-fix-bug072-wsl-linger-systemd-mapping.md` 改成 `T0337-DOES-NOT-EXIST.md`，結果 `Tests  1 failed | 4 passed (5)`，訊息：
+  ```
+  Error: Sample T0337-DOES-NOT-EXIST.md not found in any of: D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal\_ct-workorders\T0337-DOES-NOT-EXIST.md, D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal\_ct-workorders\_archive\workorders\T0337-DOES-NOT-EXIST.md. Replace with another workorder.
+  ```
+  驗證後由備份還原（`grep -c DOES-NOT-EXIST` = 0），暫時修改未進 commit。
+- [x] **AC-4** PASS — `npx vite build` exit=0，4 個 bundle 皆 `✓ built`，log 無 error。
+- [x] **AC-5** PASS — commit `ddef6b0` 僅含 `src/types/__tests__/parser-parity.test.ts`（`1 file changed, 30 insertions(+), 11 deletions(-)`）。工作樹另有本工單檔（metadata/回報區，未 commit，留給塔台）與既有的 dirty `AGENTS.md`（未碰）。
+
 ### 遭遇問題
 
+無。
+
+- 本工單檔未隨 `ddef6b0` commit（工單步驟 7 僅指定 `--only` 測試檔），由塔台決定何時一併 commit。
+
 ### 回報時間
+
+2026-10-04T11:27:03+08:00
