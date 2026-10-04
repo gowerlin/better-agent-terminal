@@ -286,6 +286,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 06:41 — T0434 ∥ T0449（`--no-interactive`）
 - [完成] 2026-10-05 06:43 — T0446 DONE（`acc94f5`）塔台複核 PASS：detached 記錄 + `resolveDetachedProfileBinding`、無法解析 fail-closed、tsc 39；BUG-112 → FIXED。Worker 第 1 次全套 9 例失敗於 T0447 `headless-frame-hardening.test.ts`（之後 3 次綠）→ 塔台聯合複驗觀察是否 flaky
 - [斷點 C 裁決] 2026-10-05 06:43 — detached workspace 自 `512c118` 起 Workspace not found → BUG-113（medium）/ T0453
+- [派發] 2026-10-05 06:44 — T0453（`--no-interactive`）；聯合複驗（HEAD `e52f738`，乾淨 worktree）背景執行中，含 frame-hardening 3 次重跑
+- [聯合複驗] 2026-10-05 06:45 — HEAD `e52f738`：vite build exit 0、tsc 39、frame-hardening 單跑 3 次 20/20（**非 flaky**）；unit 2213 passed / 4 檔失敗皆 `scripts/__tests__/*.mjs`——**根因定位**：系統 gitconfig `core.autocrlf=true` + repo 無 `.gitattributes` → 新 checkout 為 CRLF（主工作區恰為 LF）；`server-bundle-helpers` regex 不容 `\r\n`，主工作區重跑 11/11 PASS。⇒ 新 clone 的 Windows 開發者會遇到
+- [斷點 C 裁決] 2026-10-05 06:46 — T0454（依賴 T0434，同改 `scripts/__tests__/`）；`.gitattributes` 只評估不套用
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
