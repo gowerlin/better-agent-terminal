@@ -271,3 +271,67 @@ export function planRemoteStatusPushes(
   }
   return pushes
 }
+
+/**
+ * T0446 (BUG-112): what main records when `workspace:detach` opens a workspace in
+ * a window of its own. That window is not in `windowMap` and has no registry
+ * entry; it carries its parent window's profile binding.
+ */
+export interface DetachedWindowRecord {
+  parentWindowId: string | null
+  /** The parent's profile binding when the workspace was detached (null = no binding). */
+  profileId: string | null
+  /** false when that binding could not be read at detach time. */
+  resolved: boolean
+}
+
+/** An IPC sender's profile binding (`profileId: null` = none, a local window). */
+export type SenderProfileBinding =
+  | { kind: 'bound'; profileId: string | null }
+  | { kind: 'unresolved' }
+
+/**
+ * T0446: the profile id an unresolved detached window routes under. It never
+ * matches a real profile, so the slot never serves it: every proxied call is
+ * refused, never run on this machine.
+ */
+export const UNRESOLVED_DETACHED_PROFILE_ID = '(unresolved-detached-window)'
+
+/**
+ * T0446 (BUG-112): a detached window's binding. `parentProfileId` is the parent's
+ * current binding (`undefined` = parent closed or its entry unreadable). The parent
+ * wins while it names a profile; otherwise the binding recorded at detach time. A
+ * known profile binding is never downgraded to "none" (that would be local), and
+ * when neither side is known the window is unresolved — fail closed.
+ */
+export function resolveDetachedProfileBinding(
+  record: DetachedWindowRecord | undefined,
+  parentProfileId: string | null | undefined,
+): SenderProfileBinding {
+  if (!record) return { kind: 'unresolved' }
+  if (parentProfileId) return { kind: 'bound', profileId: parentProfileId }
+  if (record.resolved && record.profileId) return { kind: 'bound', profileId: record.profileId }
+  if (parentProfileId === null || record.resolved) return { kind: 'bound', profileId: null }
+  return { kind: 'unresolved' }
+}
+
+/** T0446: the binding's profile id, `null` when unbound or unresolved (never "connected"). */
+export function senderBindingProfileId(binding: SenderProfileBinding): string | null {
+  return binding.kind === 'bound' ? binding.profileId : null
+}
+
+/**
+ * T0446 (BUG-112): `planProxiedInvokeRoute` input for a detached window.
+ * `profileType` is the bound profile's type now (`null` = profile not found).
+ * Unbound → local, same as its parent; a profile that cannot be looked up and an
+ * unresolved binding are treated as remote, so they are refused unless that
+ * profile's own client is live.
+ */
+export function detachedSenderRouteIdentity(
+  binding: SenderProfileBinding,
+  profileType: 'local' | 'remote' | null,
+): { senderIsRemote: boolean; senderProfileId: string | null } {
+  if (binding.kind === 'unresolved') return { senderIsRemote: true, senderProfileId: UNRESOLVED_DETACHED_PROFILE_ID }
+  if (!binding.profileId) return { senderIsRemote: false, senderProfileId: null }
+  return { senderIsRemote: profileType !== 'local', senderProfileId: binding.profileId }
+}

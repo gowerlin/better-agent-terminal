@@ -87,7 +87,7 @@ import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
-import { formatRemoteNotConnectedError, isRemoteFingerprintChange, planProxiedInvokeRoute, planRemoteConnect, planRemoteStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, settleRemoteConnect, shouldDropClientOnProfileUpdate, type RemoteConnectTarget, type RemoteSlotState } from './remote/remote-connect-plan'
+import { detachedSenderRouteIdentity, formatRemoteNotConnectedError, isRemoteFingerprintChange, planProxiedInvokeRoute, planRemoteConnect, planRemoteStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, settleRemoteConnect, shouldDropClientOnProfileUpdate, type DetachedWindowRecord, type RemoteConnectTarget, type RemoteSlotState, type SenderProfileBinding } from './remote/remote-connect-plan'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -472,6 +472,8 @@ let remoteClientProfileId: string | null = null
 // host/port to 127.0.0.1:<localPort>. Lets `remote:connect` reuse the pinned client.
 const remoteClientTargets = new WeakMap<RemoteClient, RemoteConnectTarget>()
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
+// T0446 (BUG-112): workspaceId → the detached window's parent and the profile binding it inherits.
+const detachedWindowRecords = new Map<string, DetachedWindowRecord>()
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
 let tray: Tray | null = null
 
@@ -766,8 +768,9 @@ function getWindowsForProfile(profileId: string | null): BrowserWindow[] {
   for (const [id, win] of windowMap) {
     if (matchIds.has(id) && !win.isDestroyed()) wins.push(win)
   }
-  for (const [id, win] of detachedWindows) {
-    if (matchIds.has(id) && !win.isDestroyed()) wins.push(win)
+  // T0446 (BUG-112): a detached window belongs to its parent's profile (keyed by workspaceId, not a registry id).
+  for (const [workspaceId, win] of detachedWindows) {
+    if (!win.isDestroyed() && senderBindingProfileId(resolveDetachedBindingSync(workspaceId)) === profileId) wins.push(win)
   }
   return wins
 }
@@ -778,6 +781,57 @@ function getWindowIdByWebContents(wc: Electron.WebContents): string | null {
     if (!win.isDestroyed() && win.webContents === wc) return id
   }
   return null
+}
+
+/** T0446 (BUG-112): workspaceId of the detached window owning `wc`, null for any other sender. */
+function getDetachedWorkspaceIdByWebContents(wc: Electron.WebContents): string | null {
+  for (const [workspaceId, win] of detachedWindows) {
+    if (!win.isDestroyed() && win.webContents === wc) return workspaceId
+  }
+  return null
+}
+
+function isLiveRegistryWindow(windowId: string | null): windowId is string {
+  const win = windowId ? windowMap.get(windowId) : undefined
+  return !!win && !win.isDestroyed()
+}
+
+/** T0446: a detached window's binding from the cached registry (sync, for event fan-out). */
+function resolveDetachedBindingSync(workspaceId: string): SenderProfileBinding {
+  const record = detachedWindowRecords.get(workspaceId)
+  const parentId = record?.parentWindowId ?? null
+  const parentEntry = isLiveRegistryWindow(parentId) ? windowRegistry.getCachedEntries().find(e => e.id === parentId) : undefined
+  return resolveDetachedProfileBinding(record, parentEntry ? parentEntry.profileId ?? null : undefined)
+}
+
+/** T0446: a detached window's binding — its parent's, or the one recorded at detach time once the parent is gone. */
+async function resolveDetachedBinding(workspaceId: string): Promise<SenderProfileBinding> {
+  const record = detachedWindowRecords.get(workspaceId)
+  const parentId = record?.parentWindowId ?? null
+  let parentProfileId: string | null | undefined
+  if (isLiveRegistryWindow(parentId)) {
+    try {
+      const parentEntry = await windowRegistry.getEntry(parentId)
+      parentProfileId = parentEntry ? parentEntry.profileId ?? null : undefined
+    } catch (err) {
+      logger.warn(`[detached] parent ${parentId} entry unreadable for ${workspaceId}:`, err)
+    }
+  }
+  return resolveDetachedProfileBinding(record, parentProfileId)
+}
+
+/**
+ * T0446 (BUG-112): profile binding of an IPC sender — a registry window's own entry,
+ * a detached workspace window's parent's (fail-closed `unresolved` when unknown).
+ * Other senders have none. Handlers still get `getWindowIdByWebContents` (null for
+ * a detached window); this only decides which profile the sender acts for.
+ */
+async function getSenderProfileBinding(wc: Electron.WebContents): Promise<SenderProfileBinding> {
+  const windowId = getWindowIdByWebContents(wc)
+  if (windowId) return { kind: 'bound', profileId: (await windowRegistry.getEntry(windowId))?.profileId ?? null }
+  const workspaceId = getDetachedWorkspaceIdByWebContents(wc)
+  if (workspaceId !== null) return resolveDetachedBinding(workspaceId)
+  return { kind: 'bound', profileId: null }
 }
 
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
@@ -1089,6 +1143,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
         if (!dw.isDestroyed()) dw.close()
       }
       detachedWindows.clear()
+      detachedWindowRecords.clear()
     }
   })
 
@@ -2168,6 +2223,17 @@ function bindProxiedHandlersToIpc() {
           const profile = await profileManager.getProfile(entry.profileId)
           senderIsRemote = profile?.type === 'remote'
         }
+      } else {
+        // T0446 (BUG-112): a detached workspace window routes as its parent window's
+        // profile (fail-closed when that cannot be resolved). Its handlers still get
+        // windowId null, so a local detached window behaves exactly as before.
+        const detachedWorkspaceId = getDetachedWorkspaceIdByWebContents(event.sender)
+        if (detachedWorkspaceId !== null) {
+          const binding = await resolveDetachedBinding(detachedWorkspaceId)
+          const boundProfileId = senderBindingProfileId(binding)
+          const profile = boundProfileId ? await profileManager.getProfile(boundProfileId).catch(() => null) : null
+          ;({ senderIsRemote, senderProfileId } = detachedSenderRouteIdentity(binding, profile ? profile.type : null))
+        }
       }
 
       // T0443 (BUG-110): a remote-profile window that is not served by its own live
@@ -2210,11 +2276,10 @@ const resolveWslFolderDefault = createWslFolderDefaultResolver({
 async function wslFolderDefaultForSender(sender: Electron.WebContents): Promise<string | null> {
   if (process.platform !== 'win32') return null
   try {
-    const windowId = getWindowIdByWebContents(sender)
-    if (!windowId) return null
-    const entry = await windowRegistry.getEntry(windowId)
-    if (!entry?.profileId || entry.profileId !== remoteClientProfileId || !remoteClient?.isConnected) return null
-    const distro = wslDistroForFolderDialog(await profileManager.getProfile(entry.profileId))
+    // T0446: a detached workspace window uses its parent window's binding.
+    const profileId = senderBindingProfileId(await getSenderProfileBinding(sender))
+    if (!profileId || profileId !== remoteClientProfileId || !remoteClient?.isConnected) return null
+    const distro = wslDistroForFolderDialog(await profileManager.getProfile(profileId))
     if (!distro) return null
     const defaultPath = await resolveWslFolderDefault(distro)
     logger.log(`[wsl-folder] select-folder default for ${distro}: ${defaultPath ?? '(fallback to home)'}`)
@@ -2402,10 +2467,15 @@ function registerLocalHandlers() {
         }
       }
       try {
-        const senderWindowId = getWindowIdByWebContents(event.sender)
-        const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
-        const boundProfileId = senderEntry?.profileId ?? null
-        const boundProfile = senderEntry ? await profileManager.getProfile(boundProfileId ?? '') : null
+        // T0446 (BUG-112): a detached workspace window connects as its parent window's
+        // profile; one whose binding cannot be resolved must not take the slot unpinned.
+        const senderBinding = await getSenderProfileBinding(event.sender)
+        if (senderBinding.kind === 'unresolved') {
+          logger.warn(`[remote:connect] refused for a detached window with an unresolved profile binding (${host}:${port})`)
+          return { error: 'Detached window profile binding could not be resolved', errorCode: 'binding-unresolved' }
+        }
+        const boundProfileId = senderBinding.profileId
+        const boundProfile = boundProfileId ? await profileManager.getProfile(boundProfileId) : null
         // T0419 (BUG-096): pin with the bound profile's fingerprint and reuse the
         // client loadProfileSnapshotDetailed already verified instead of replacing it.
         const plan = planRemoteConnect({
@@ -2457,9 +2527,8 @@ function registerLocalHandlers() {
     return task
   })
   ipcMain.handle('remote:client-status', async (event) => {
-    const senderWindowId = getWindowIdByWebContents(event.sender)
-    const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
-    const senderProfileId = senderEntry?.profileId ?? null
+    // T0446: a detached workspace window reports its parent window's connection.
+    const senderProfileId = senderBindingProfileId(await getSenderProfileBinding(event.sender))
     const connected = !!remoteClient?.isConnected && !!remoteClientProfileId && senderProfileId === remoteClientProfileId
     return {
       connected,
@@ -2866,12 +2935,9 @@ function registerLocalHandlers() {
   ipcMain.handle('app:get-launch-profile', () => launchProfileId)
   ipcMain.handle('app:get-window-id', (event) => getWindowIdByWebContents(event.sender))
   // Get the profile ID bound to this window's registry entry
-  ipcMain.handle('app:get-window-profile', async (event) => {
-    const windowId = getWindowIdByWebContents(event.sender)
-    if (!windowId) return null
-    const entry = await windowRegistry.getEntry(windowId)
-    return entry?.profileId ?? null
-  })
+  // (T0446: a detached workspace window reports its parent window's binding.)
+  ipcMain.handle('app:get-window-profile', async (event) =>
+    senderBindingProfileId(await getSenderProfileBinding(event.sender)))
   ipcMain.handle('app:get-user-data-path', () => app.getPath('userData'))
   // Get this window's index within its profile (1-based)
   ipcMain.handle('app:get-window-index', async (event) => {
@@ -2895,12 +2961,14 @@ function registerLocalHandlers() {
 
   // Open new empty window (Cmd+N) — inherits profileId from source window
   ipcMain.handle('app:new-window', async (event) => {
-    let profileId: string | undefined
-    const sourceWindowId = getWindowIdByWebContents(event.sender)
-    if (sourceWindowId) {
-      const sourceEntry = await windowRegistry.getEntry(sourceWindowId)
-      profileId = sourceEntry?.profileId
+    // T0446 (BUG-112): from a detached workspace window, inherit its parent's profile;
+    // an unresolved binding must not open an unbound (local) window.
+    const sourceBinding = await getSenderProfileBinding(event.sender)
+    if (sourceBinding.kind === 'unresolved') {
+      logger.warn('[app:new-window] refused: detached source window has an unresolved profile binding')
+      return null
     }
+    const profileId = sourceBinding.profileId ?? undefined
     const entry = await windowRegistry.createEntry({ profileId })
     createWindow(entry.id)
     return entry.id
@@ -2980,6 +3048,8 @@ function registerLocalHandlers() {
   ipcMain.handle('remote-tools:request-install', async (_event, request: unknown) =>
     remoteToolInstallIpc.requestInstall(request))
   ipcMain.handle('remote-tools:take-pending-install', async (event) => {
+    // T0446: registry windows only — a detached workspace window (no entry) takes
+    // nothing; its parent window takes the request.
     const senderWindowId = getWindowIdByWebContents(event.sender)
     const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
     const profileId = senderEntry?.profileId ?? null
@@ -3052,6 +3122,27 @@ function registerLocalHandlers() {
       if (!existing.isDestroyed()) existing.focus()
       return true
     }
+    // T0446 (BUG-112): the detached window acts for the parent's profile; record the
+    // parent and its binding now so routing still knows it once the parent is gone.
+    const parentRecord = event.sender.isDestroyed() ? null : getDetachedWorkspaceIdByWebContents(event.sender)
+    const record: DetachedWindowRecord = {
+      parentWindowId: parentRecord !== null
+        ? detachedWindowRecords.get(parentRecord)?.parentWindowId ?? null
+        : getWindowIdByWebContents(event.sender),
+      profileId: null,
+      resolved: false,
+    }
+    try {
+      const binding = await getSenderProfileBinding(event.sender)
+      if (binding.kind === 'bound') Object.assign(record, { profileId: binding.profileId, resolved: true })
+    } catch (err) {
+      logger.warn(`[detached] profile binding unreadable when detaching ${workspaceId}:`, err)
+    }
+    if (detachedWindows.has(workspaceId)) {
+      const existing = detachedWindows.get(workspaceId)!
+      if (!existing.isDestroyed()) existing.focus()
+      return true
+    }
     const parentWin = BrowserWindow.fromWebContents(event.sender)
     const detachedWin = new BrowserWindow({
       width: 900, height: 700, minWidth: 600, minHeight: 400,
@@ -3060,11 +3151,16 @@ function registerLocalHandlers() {
     })
     setupResizeThrottle(detachedWin, 'detached')
     detachedWindows.set(workspaceId, detachedWin)
+    detachedWindowRecords.set(workspaceId, record)
+    logger.log(`[detached] ${workspaceId} detached from window ${record.parentWindowId ?? '(none)'} profile=${record.resolved ? record.profileId ?? '(none)' : '(unresolved)'}`)
     const urlParam = `?detached=${encodeURIComponent(workspaceId)}`
     if (VITE_DEV_SERVER_URL) { detachedWin.loadURL(VITE_DEV_SERVER_URL + urlParam) }
     else { detachedWin.loadFile(path.join(__dirname, '../dist/index.html'), { search: urlParam }) }
     detachedWin.on('closed', () => {
-      detachedWindows.delete(workspaceId)
+      if (detachedWindows.get(workspaceId) === detachedWin) {
+        detachedWindows.delete(workspaceId)
+        detachedWindowRecords.delete(workspaceId)
+      }
       if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:reattached', workspaceId)
     })
     if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:detached', workspaceId)
@@ -3075,6 +3171,7 @@ function registerLocalHandlers() {
     const win = detachedWindows.get(workspaceId)
     if (win && !win.isDestroyed()) win.close()
     detachedWindows.delete(workspaceId)
+    detachedWindowRecords.delete(workspaceId)
     return true
   })
 
