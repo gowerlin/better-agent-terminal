@@ -1,18 +1,16 @@
-import { _electron as electron, test, expect } from '@playwright/test';
-import path from 'node:path';
+import { test, expect } from '@playwright/test';
+import { closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation';
+
+// Isolated runtime + env, and a teardown that answers the quit dialog (T0399).
+const log = testLogger('smoke');
 
 test('launches the Electron app and reads a non-empty window title', async () => {
-  const runtimeId = `e2e-smoke-${Date.now()}`;
-  const app = await electron.launch({
-    args: [path.resolve(__dirname, '..'), `--runtime=${runtimeId}`],
-  });
-
+  let inst: IsolatedInstance | undefined;
   try {
-    const window = await app.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
-    const title = await window.title();
+    inst = await launchIsolated('smoke', log);
+    const title = await inst.win.title();
     expect(title.trim().length).toBeGreaterThan(0);
   } finally {
-    await app.close();
+    await closeIsolated(inst, log);
   }
 });
