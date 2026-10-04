@@ -6,7 +6,7 @@ title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），�
 status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-05T00:41:57+08:00"
+updated_at: "2026-10-05T00:57:46+08:00"
 links:
   research_workorder: T0386
   p0_workorders: [T0388, T0389, T0390, T0391, T0393]
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-036 |
 | 優先級 | 🔴 High |
-| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0386 DONE；P0 T0388-T0391 已開，T0388 + T0391 平行派發） |
+| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0386 DONE；P0 T0388-T0391 + T0393 全 DONE（00:57），待 P0 實機驗收） |
 | 建立時間 | 2026-10-04 23:34 (UTC+8) |
 | 決策 | D129（架構：共用註冊模組 + DI；fs roots 由 client 推送；遠端 Agent 沿用遠端 router） |
 
@@ -62,7 +62,7 @@ T0385（BUG-094）盤點證實：headless bat-server（WSL / SSH / Docker 遠端
 | T0389 | claude-runtime-router 設定注入 + embedded resolver 合一（bundle `bin/claude`）+ PtyManager DI | T0387（`main.ts`） | ✅ DONE（`566c6da`，00:20 複驗：1039 tests / vite / tsc 40；本機 smoke 終端 / claude-cli / Agent 三項） |
 | T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | ✅ DONE（`f2b68ce`，00:41 複驗：1051 tests / vite / tsc 40；HEADLESS_UNSUPPORTED 96 → 89） |
 | T0391 | `scripts/dev-deploy-headless.mjs`（JS-only 部署到 WSL / dir，dry-run 預設） | — | ✅ DONE（`f102a55`，00:17 複驗；`npm run deploy:headless:dev`） |
-| T0393 | 遠端視窗 shell 清單依遠端 OS 過濾 + WSL 工作區資料夾挑選預設 WSL home、`/mnt/c` 提示（使用者 2026-10-05 00:02 實機回報後裁決納入 P0） | T0390 | 執行中（00:41 派發） |
+| T0393 | 遠端視窗 shell 清單依遠端 OS 過濾 + WSL 工作區資料夾挑選預設 WSL home、`/mnt/c` 提示（使用者 2026-10-05 00:02 實機回報後裁決納入 P0） | T0390 | ✅ DONE（`c58fc80`，00:57 複驗：乾淨 worktree 1047 + dev-deploy 27 = 1074 / vite / tsc 40） |
 
 P0 可用定義：WSL profile 開出視窗 → 預設終端出現 bash prompt → 輸入 / resize / kill / restart / cwd 正確 → 關閉 BAT 重開後同 id 終端不重複 spawn → 設定可選 bash、新增工作區預設開在 WSL home（T0393）。
 
