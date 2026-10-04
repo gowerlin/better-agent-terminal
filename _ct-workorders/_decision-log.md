@@ -1383,6 +1383,12 @@
 | 8 | T0424 遠端 PTY 達上限 UI 提示 | 本專案 | T0419 | S | 🟢 |
 | 9 | T0425 BUG-098 移除 SSH direct 模式 | 本專案 | T0424 | S | 🟢 |
 | 10 | T0426 BUG-099 + BUG-100 精靈取消 rollback + SSH stop / uninstall IPC | 本專案 | T0425 | M | 🟢 |
+| 11 | T0427 既有 Docker container 暴露偵測 + 引導重建 | 本專案 | T0426 | S | 🟢 |
+| 12 | T0428 Docker 文件同步（移除 `/health`、`BAT_SERVER_PORT`） | 本專案 | — | S | 🟢 |
+| 13 | T0429 headless worktree / git-scaffold env scrub | 本專案 | T0422 | S | 🟢 |
+| 14 | T0430 remote:connect 失敗分支舊 client 處理 | 本專案 | T0422 | S | 🟢 |
+
+- **追加**（使用者 05:46 斷點 C 合併裁決，全數納入）：第 11-14 列來自 T0418 / T0419 / T0423 回報區的 scope 外建議
 
 - **不採用**：批 4 同 session 一併跑（SDK 0.3 與 PLAN-035 Phase 2 各需專注、斷點機率高）；BUG-098 修通 direct（需對外 bind，與 BUG-097 同類暴露面）
 - **相關**：PLAN-036 P3（J / K）、T0386 建議清單 J / K、BUG-096-100 / 106、L141

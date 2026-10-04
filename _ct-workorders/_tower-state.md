@@ -232,6 +232,14 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 05:41 — T0423（`--no-interactive`）；T0422 待 T0419
 - [完成] 2026-10-05 05:44 — T0418 DONE（`b17b0ba`）塔台複核 PASS：7 檔、Worker 1889 tests / tsc 40；BUG-097 → FIXED；runtime lane 未驗證（本機 Docker daemon 未啟動）。範圍偏差接受：`scripts/verify-docker-image.mjs`（耦合契約）、`ENV BAT_PORT`→`BAT_SERVER_PORT`、wizard `waitForHealthy` 5s→45s
 - [斷點 C] 2026-10-05 05:44 — T0418 建議另開：docs `/health` 過時說明、既有 container 仍為全介面 publish 的偵測 / 重建引導；T0418 無下游，不阻擋其他派發
+- [完成] 2026-10-05 05:44 — T0419 DONE（`038c98e`）塔台複核 PASS：8 檔、`main.ts` 30 行皆本單 hunk、Worker 1889 tests / tsc 40；BUG-096 → FIXED。範圍偏差接受：新增純模組 `electron/remote/remote-connect-plan.ts`、`normalizeFingerprint` export。記錄：`remote:connect` 連線失敗分支不 `disconnect()` 舊 client（既有，未修，候選）
+- [派發] 2026-10-05 05:44 — T0422 ∥ T0424（`--no-interactive`）；overlap：T0422 / T0423 同碰 `headless-entry.ts`（hunk 隔離條款已在兩單）
+- [完成] 2026-10-05 05:45 — T0423 DONE（`22bc3d0`）塔台複核 PASS：4 檔、未動 `main.ts`、Worker 1893 tests / tsc 40；16 個 git / gh 呼叫點 headless scrub，Electron 不傳 env（測試鎖住）
+- [斷點 C] 2026-10-05 05:45 — T0423 建議另開：`worktree:*`（`worktree-manager.ts` env provider）、`git-scaffold:*`（simple-git `.env()` 會觸發 unsafe env 檢查，需同濾 `EDITOR` / `PAGER` / `GIT_*ASKPASS` 等）。與 T0418 / T0419 的候選合併請使用者裁決
+- [恢復] 2026-10-05 05:46 — 使用者斷點 C 合併裁決：4 項全納入 → T0427-T0430（D134 第 11-14 列）
+- [研究完成] 2026-10-05 05:48 — T0420 DONE（`7bb4692`）：K 採方案 A'（每 PTY 範圍權杖，使用者 Worker 期間裁決），拆 4 張 → 塔台開 T0431-T0434
+- [完成] 2026-10-05 05:48 — T0422 DONE（`d800dea`）塔台複核 PASS：4 檔、12 channel → ALWAYS_LOCAL（HEADLESS_UNSUPPORTED 18 → 6）、Worker 1899 tests / tsc 40；未改 `main.ts` / `headless-entry.ts`
+- [派發] 2026-10-05 05:49 — T0428 ∥ T0429 ∥ T0430（`--no-interactive`）；overlap 無（T0424 進行中：pty / Terminal / WorkspaceView）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
