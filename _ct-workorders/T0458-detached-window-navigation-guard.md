@@ -120,7 +120,7 @@ memory_overrides:
 
 ### Commit
 
-- `git commit --only`：`electron/navigation-guard.ts`、`electron/main.ts`、`electron/__tests__/navigation-guard-install.test.ts`、`e2e/navigation-guard.spec.ts`、本工單；不 push
+- `git commit --only`：`electron/navigation-guard.ts`、`electron/main.ts`、`electron/__tests__/navigation-guard-install.test.ts`、`e2e/navigation-guard.spec.ts`、本工單；不 push。commit `102d8e0`
 
 ### 回報時間
 
