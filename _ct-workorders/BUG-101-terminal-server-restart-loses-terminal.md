@@ -3,15 +3,15 @@ schema_version: 1
 schema_kind: bug
 id: BUG-101
 title: "本機 Terminal Server 模式的終端「重新啟動」會讓終端失聯：舊 PTY 的 onExit 無條件刪掉同 id 的新 entry"
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-10-05T00:41:57+08:00"
-updated_at: "2026-10-05T00:41:57+08:00"
+updated_at: "2026-10-05T00:50:08+08:00"
 impact:
   - local-terminal
 links:
-  fix_workorder: null
+  fix_workorder: T0394
   related: [T0390, PLAN-036]
 ---
 
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（影響所有使用者的本機一般終端「重新啟動」按鈕） |
 | 可重現 | 100%（T0390 Worker 以 Playwright smoke 在 HEAD 基準 `090ca2a` 與修改後皆重現；塔台 00:41 複核程式碼） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0394） |
 | 回報者 | T0390 Worker（回報區「偏差 / 風險 / 後續」第 1 點） |
 
 ## 現象
