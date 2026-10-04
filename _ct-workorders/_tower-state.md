@@ -307,6 +307,11 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 07:05 — T0455（`--no-interactive`）
 - [完成] 2026-10-05 07:07 — T0434 DONE（`aeac517`）塔台複核 PASS：e2e harness 7 情境、smoke S13（對現 WSL server 12/13 PASS + S13 SKIP server-too-old，exit 0）、dev-deploy 部署 helper + rollback、CLAUDE.md / docs、Worker 全套 0 failed / tsc 36。**K（T0431-T0434）程式部分完成**，WSL 部署 + 真 BAT 遠端視窗實機待使用者同意
 - [斷點 C 裁決] 2026-10-05 07:07 — 套用 T0434 第 6 節 `_local-rules.md` 路由修訂（raw command → agent 模式 + 遠端分支）；T0456（遠端 PTY PATH 尾端加 bundle node + `BAT_HELPER_NODE`、bat-terminal `false` → exit 1）；T0454 補 shebang `\r` 線索
+- [派發] 2026-10-05 07:08 — T0454 ∥ T0456（`--no-interactive`）
+- [完成] 2026-10-05 07:09 — T0455 DONE（`4f6b06b`）塔台複核 PASS：先紅（3 failed）後綠 5/5（遵守「不覆寫取紅燈」）、Worker 全套 2471 passed / 0 failed、tsc 36（+1 為 T0437 WIP `src/lib/client-paths.ts`）
+- [授權] 2026-10-05 07:09 — 使用者同意：T0456 完成後部署 WSL（`deploy:headless:dev`，備份 tag）+ smoke；失敗即 rollback
+- [完成] 2026-10-05 07:13 — T0437 DONE（`394add5`）塔台複核 PASS：`remote:resolve-client-paths`（ALWAYS_LOCAL，純規則換算無資源存取，接受）、detached 視窗走父 profile、本單範圍 984 tests 綠、tsc 36；全套 2 failed 屬 T0456 WIP（`BAT_HELPER_NODE`）→ T0456 完成時必查。**BUG-107 ↔ T0437 同版條件滿足**
+- [派發] 2026-10-05 07:13 — T0438（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
