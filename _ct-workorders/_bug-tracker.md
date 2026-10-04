@@ -23,21 +23,24 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 23:46 (UTC+8) — 第五十三 session：WSL 精靈 + 遠端 profile 實機通過 → BUG-087/089/090/091/092/094 CLOSED；086（無發行版分支）/ 088（SSH）維持 FIXED 待對應實機；BUG-093 FIXING（T0387）
+> 最後同步：2026-10-04 23:58 (UTC+8) — 第五十三 session：開 BUG-095（FIXING，T0392）/ 096 / 097（T0386 發現）；BUG-093 FIXING（T0387）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 19**
+- 🔴 Open: 3 | ⏳ Fixing: 2 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 22**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-097 | Docker 遠端：`-p` 未綁 host 127.0.0.1（全介面暴露）、container 內 bat-server 綁 127.0.0.1（推測連不上）、HEALTHCHECK `/health` 無路由 | 🔴 high | 2026-10-04 | [BUG-097](BUG-097-docker-server-port-exposed-and-unreachable.md) |
+| BUG-096 | `App.tsx` initProfile 的 `remote.connect` 不帶 fingerprint，以未 pin 驗證的新 client 取代 main 已驗證的連線 | 🟡 medium | 2026-10-04 | [BUG-096](BUG-096-app-remote-connect-without-fingerprint.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-095 | `claude:abort-session` 只進 handler registry、未列入 `PROXIED_CHANNELS`，沒有 `ipcMain.handle` → Claude / Codex 面板的中止（abort）呼叫一律失敗 | 🔴 high | 2026-10-04 | [BUG-095](BUG-095-claude-abort-session-not-bound-to-ipc.md) |
 | BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 
 ## ✅ 已修復

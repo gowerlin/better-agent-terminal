@@ -3229,3 +3229,19 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 
 **候選晉升**：📁 Project（BAT agent preset 注入），可泛化為 Global
 
+---
+
+## L138
+
+**來源**：第五十三 session（2026-10-04），T0386 回報「偏差 / 風險」；reflog `5ebf5a9 HEAD@{23:46:10}: reset: moving to HEAD`（另見 `cc3cc92 HEAD@{23:02:51}`）
+
+**現象**：T0386 Worker 23:36 寫入工單的 `status: IN_PROGRESS` / `started_at` 在 23:46 前後被還原回 HEAD 內容。reflog 在 23:46:10 有 `reset: moving to HEAD`（`git stash` 的特徵），當時塔台未執行 git；同時段平行執行的只有 T0387 Worker。stash 已不在 list（推定已 pop / drop），T0387 自身改動仍在，未造成永久遺失（T0386 收尾時重寫）。
+
+**根因（推定）**：Worker 為比對 baseline（tsc / test）使用 `git stash`，在**多 Worker 共用同一工作樹**時，stash 會把其他 session 未提交的修改一併收走；pop 前若其他 session 又寫了同檔或 pop 衝突，修改就可能遺失。
+
+**How to apply**：
+- 平行派發的工單一律在 `memory_overrides` 寫入：禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`；比對 baseline 用 `git show HEAD:<path>` 或 `git worktree add` 到 scratchpad
+- 塔台收到「工單被外部還原」類回報時，先查 `git reflog` 的 `reset: moving to HEAD`
+- 已套用：T0388-T0392
+
+**候選晉升**：🌐 Global（ct-exec Worker skill：平行 Worker 禁用 stash 類操作）

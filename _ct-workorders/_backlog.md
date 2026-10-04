@@ -22,16 +22,16 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 23:34 (UTC+8) — 第五十三 session：開 PLAN-036（headless 功能 handler 層，研究 T0386）
+> 最後同步：2026-10-04 23:58 (UTC+8) — 第五十三 session：PLAN-036 → IN_PROGRESS（T0386 DONE；P0 T0388-T0391 開單，D129）
 
 ## 統計
-- 💡 Ideas: 2 | 📋 Planned: 3 | 🔄 In Progress: 2 | ✅ Done: 1 | 🚫 Dropped: 0
+- 💡 Ideas: 2 | 📋 Planned: 2 | 🔄 In Progress: 3 | ✅ Done: 1 | 🚫 Dropped: 0
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
-| PLAN-036 | headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用 | 🔴 high | 📋 PLANNED | [PLAN-036](PLAN-036-headless-server-functional-handlers.md) |
+| PLAN-036 | headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用 | 🔴 high | 🔄 IN_PROGRESS | [PLAN-036](PLAN-036-headless-server-functional-handlers.md) |
 | PLAN-035 | WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-035](PLAN-035-wsl-environment-full-automation.md) |
 | PLAN-031 | Server Bundle Distribution（含 ARM64 Linux 支援） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 🔴 high | 📋 PLANNED | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |

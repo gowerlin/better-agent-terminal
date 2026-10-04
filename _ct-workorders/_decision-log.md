@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 22:18 (UTC+8)（第五十二 session 新增 D128）
+> 最後更新：2026-10-04 23:58 (UTC+8)（第五十三 session 新增 D129）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D129 | 2026-10-04 | PLAN-036 headless 功能 handler 層：共用註冊模組 + DI（Electron main 與 headless 同一份 `registerXxxHandlers`）；fs sandbox 由 client 推送 workspace roots（fail-closed）；遠端 Agent 沿用遠端 settings 的 runtime router；P0 先開 T0388-T0391，T0388+T0391 立即平行、T0389 等 T0387、T0390 接 T0388+T0389；P1-P3 待 P0 實機後開；PLAN-036 P0 優先於 PLAN-035 Phase 2 | PLAN-036 / T0386 / T0388-T0391 |
 | D128 | 2026-10-04 | PLAN-035 Phase 1 依 T0380 拆 4 張串行實作單：T0381 指紋改 TLS 握手 + timeout（BUG-090，三精靈共用）→ T0382 WSL 埠探測避開主機 RemoteServer + startService 穩定性（BUG-091）→ T0383 `wslinfo` 判網路模式（BUG-089）→ T0384 BAT 持有 `wsl.exe` 保活（BUG-092）；網路模式改為選用、預設不勾；保活不改全機 `instanceIdleTimeout` | T0380-T0384 / BUG-089~092 / PLAN-035 |
 | D127 | 2026-10-04 | WSL 環境全自動化立 PLAN-035，研究先行（T0380）；同意模型為「偵測 → 列清單 → 一次同意」；WSL 未安裝時全自動安裝含重開機後接續；BUG-089 網路模式誤判併入研究 | PLAN-035 / T0380 / BUG-089 |
 | D126 | 2026-10-04 | BUG-086 + BUG-087 合併為 T0378：linger 帶明確使用者名稱並以 `Linger=yes` 判定；systemd unit 改用解析出的絕對 `$HOME` 路徑（不留 `~`、預設不用 `%h`）；可重試的失敗不回滾前步；WSL 偵測以 exit code 區分「沒裝 WSL / 無發行版」 | T0378 / BUG-086 / BUG-087 |
@@ -1356,6 +1357,21 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D129 2026-10-04 — PLAN-036 headless 功能 handler 層（T0386 研究結論）
+
+- **背景**：T0385 / T0386 證實 headless bat-server 註冊的功能 handler 為 0（`scripts/bat-server.mjs:118` 不傳 `handlers`；spec §2.3 的 `electron/handlers/` 從未落地），WSL / SSH / Docker 遠端 profile 只能開空視窗。`PROXIED_CHANNELS` 105 個（實際代理 103）
+- **決定**（T0386 Worker 研究中經使用者選項式裁決 Q1-Q3；拆單由使用者於塔台裁決）：
+  - 架構：**共用註冊模組 + DI**（`electron/handlers/*.ts` 的 `registerXxxHandlers(register, deps)`，兩端各自組 `HostDeps`），不做 electron shim、不做 headless 專用實作；以 channel parity test + electron-free guard 防漂移
+  - fs sandbox：client 推送轉換後的 workspace roots（新 channel，未推送前 fail-closed）
+  - 遠端 Agent：沿用遠端 settings 的 runtime router；embedded resolver 合一並支援 bundle `bin/claude`
+  - 拆單：P0 = T0388（骨架 + 守門）/ T0389（router + PtyManager DI）/ T0390（pty 上線）/ T0391（dev 部署工具）；T0388 + T0391 立即平行，T0389 等 T0387（同改 `main.ts`），T0390 接 T0388 + T0389；P1-P3（T0386 清單 E-K）待 P0 實機驗收後開
+  - 排程：PLAN-036 P0 優先於 PLAN-035 Phase 2（無程式碼依賴，但沒有終端的遠端環境自動化沒有價值）
+  - 獨立 BUG：BUG-095（`claude:abort-session` 無 IPC，T0392 優先修）、BUG-096（renderer 遠端 connect 不帶 fingerprint）、BUG-097（Docker 埠暴露 / 可達性）
+- **不採用**：一次開完 11 張（P1 後內容可能因 P0 結果變動）；全串行
+- **相關**：PLAN-036 / T0386 / T0388-T0392 / BUG-095~097 / PLAN-035 / D128
 
 ---
 

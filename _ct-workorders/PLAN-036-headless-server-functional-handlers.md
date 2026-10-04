@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-036
 title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用
-status: PLANNED
+status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-04T23:34:17+08:00"
+updated_at: "2026-10-04T23:58:00+08:00"
 links:
   research_workorder: T0386
+  p0_workorders: [T0388, T0389, T0390, T0391]
   related: [BUG-094, T0385, PLAN-035, PLAN-031, PLAN-015, BUG-093]
 ---
 
@@ -20,9 +21,9 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-036 |
 | 優先級 | 🔴 High |
-| 狀態 | 📋 PLANNED（研究 T0386 派發中） |
+| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0386 DONE；P0 T0388-T0391 已開，T0388 + T0391 平行派發） |
 | 建立時間 | 2026-10-04 23:34 (UTC+8) |
-| 決策 | 使用者裁決：開 PLAN、研究先行（第五十三 session） |
+| 決策 | D129（架構：共用註冊模組 + DI；fs roots 由 client 推送；遠端 Agent 沿用遠端 router） |
 
 ## 背景與動機
 
@@ -52,3 +53,16 @@ T0385（BUG-094）盤點證實：headless bat-server（WSL / SSH / Docker 遠端
 
 - `App.tsx` initProfile 的 `remote.connect(host, port, token)` 不帶 fingerprint，會以新 client 取代 main 已做 pin 驗證的 client
 - 本機驗證 headless 改動缺工具：無 local-tarball override、manifest 產生器要求三 target、`fetch:baseline` 無 skip 旗標
+
+## P0 拆單（D129，2026-10-04 23:58）
+
+| 工單 | 內容 | 依賴 | 狀態 |
+|---|---|---|---|
+| T0388 | 共用骨架 `electron/handlers/types.ts` + channel parity test + electron-free guard + vitest headless harness | — | 派發 |
+| T0389 | claude-runtime-router 設定注入 + embedded resolver 合一（bundle `bin/claude`）+ PtyManager DI | T0387（`main.ts`） | 排隊 |
+| T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | 排隊 |
+| T0391 | `scripts/dev-deploy-headless.mjs`（JS-only 部署到 WSL / dir，dry-run 預設） | — | 派發 |
+
+P0 可用定義：WSL profile 開出視窗 → 預設終端出現 bash prompt → 輸入 / resize / kill / restart / cwd 正確 → 關閉 BAT 重開後同 id 終端不重複 spawn。
+
+P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
