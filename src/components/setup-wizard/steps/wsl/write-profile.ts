@@ -1,4 +1,16 @@
-import type { WizardStep } from '../../wizard-runner'
+import type { WizardContext, WizardStep } from '../../wizard-runner'
+
+/**
+ * T0444 (BUG-111): every profile this step creates is recorded, so a re-run
+ * after a create-then-update failure does not orphan the first profile.
+ * `createdProfileId` stays the latest one (what the shell opens on done).
+ */
+function recordCreatedProfile(ctx: WizardContext, id: string): void {
+  ctx.createdProfileId = id
+  const ids = ctx.createdProfileIds ?? []
+  if (!ids.includes(id)) ids.push(id)
+  ctx.createdProfileIds = ids
+}
 
 function resolveProfileName(ctxName: unknown, distro: string): string {
   if (typeof ctxName === 'string' && ctxName.trim()) {
@@ -67,7 +79,7 @@ export const writeProfileStep: WizardStep = {
         remoteToken: ctx.remoteToken,
         remoteFingerprint: fingerprint,
       })
-      ctx.createdProfileId = profile.id
+      recordCreatedProfile(ctx, profile.id)
 
       // Map ctx state -> ProfileEntry schema. Schema doesn't carry sshAlias /
       // sshInstallPath (alias is resolved at connect time via ssh-config;
@@ -113,7 +125,7 @@ export const writeProfileStep: WizardStep = {
         remoteToken: ctx.remoteToken,
         remoteFingerprint: fingerprint,
       })
-      ctx.createdProfileId = profile.id
+      recordCreatedProfile(ctx, profile.id)
 
       const updated = await window.electronAPI.profile.update(profile.id, {
         targetOS: 'docker-linux',
@@ -144,7 +156,7 @@ export const writeProfileStep: WizardStep = {
       remoteToken: ctx.remoteToken,
       remoteFingerprint: fingerprint,
     })
-    ctx.createdProfileId = profile.id
+    recordCreatedProfile(ctx, profile.id)
 
     const updated = await window.electronAPI.profile.update(profile.id, {
       targetOS: 'wsl-linux',
@@ -158,11 +170,25 @@ export const writeProfileStep: WizardStep = {
       throw new Error('Failed to persist WSL profile metadata.')
     }
   },
+  // T0444 (BUG-111): delete every profile this run created. An id whose
+  // delete throws is kept (and warned) so a later rollback can retry it;
+  // `false` means it is already gone.
   async rollback(ctx) {
-    if (!ctx.createdProfileId) {
+    const ids = [...(ctx.createdProfileIds ?? [])]
+    if (ctx.createdProfileId && !ids.includes(ctx.createdProfileId)) ids.push(ctx.createdProfileId)
+    if (ids.length === 0) {
       return
     }
-    await window.electronAPI.profile.delete(ctx.createdProfileId)
-    ctx.createdProfileId = undefined
+    const remaining: string[] = []
+    for (const id of ids) {
+      try {
+        await window.electronAPI.profile.delete(id)
+      } catch (error) {
+        remaining.push(id)
+        ctx.logger.warn(`Failed to delete remote profile ${id}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    ctx.createdProfileIds = remaining.length > 0 ? remaining : undefined
+    ctx.createdProfileId = remaining.length > 0 ? remaining[remaining.length - 1] : undefined
   },
 }

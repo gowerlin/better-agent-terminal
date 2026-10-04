@@ -115,18 +115,12 @@ const fixtures: CrossFixture[] = [
       return { runner, ctx, operationLog: harness.operationLog, profiles: harness.profiles }
     },
     assertInstallPathCleanedUp: (operationLog) => {
-      // pick-container rollback only acts in "new" mode, so for "existing" we
-      // expect zero remove calls there. install-server-bundle rollback should
-      // be the one cleaning /opt/bat-server via execCommand.
+      // T0444 (BUG-111): in "existing" mode the bundle is baked into the
+      // user's image — this run installed nothing, so rollback must not
+      // rm -rf /opt/bat-server in the user's container, nor remove it.
       const dockerExecCalls = operationLog.dockerExecCalls ?? []
-      const cleaned = dockerExecCalls.some(
-        (c) =>
-          c.name === 'my-existing' &&
-          c.command[0] === 'rm' &&
-          c.command.includes('-rf') &&
-          c.command.includes('/opt/bat-server'),
-      )
-      assert.equal(cleaned, true, 'docker.execCommand should run rm -rf on the install path')
+      assert.equal(dockerExecCalls.length, 0, 'docker.execCommand must not touch the user container')
+      assert.equal(operationLog.dockerRemoveCalls.length, 0, 'the user container must not be removed')
     },
   },
   {

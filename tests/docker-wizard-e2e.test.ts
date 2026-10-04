@@ -86,7 +86,7 @@ test('mode B start-server failure rolls back container creation and skips profil
   assert.equal(ctx.createdProfileId, undefined)
 })
 
-test('mount validation failure stops at configure-mounts and rolls back the managed container name', async () => {
+test('mount validation failure stops at configure-mounts and rolls back without removing any container', async () => {
   const harness = createMockElectronApi({
     remoteServerEnv: 'docker',
     dockerValidateErrors: ['Row 1: duplicate host path C:\\projects\\bat'],
@@ -107,7 +107,9 @@ test('mount validation failure stops at configure-mounts and rolls back the mana
   assert.equal(snapshots[1]?.status, WizardStepStatus.RolledBack)
   assert.equal(snapshots[2]?.status, WizardStepStatus.Failed)
   assert.equal(harness.operationLog.dockerStartCalls.length, 0)
-  assert.deepEqual(harness.operationLog.dockerRemoveCalls, ['bat-server-invalid-mounts'])
+  // T0444 (BUG-111): start-server never ran, so this run created no container
+  // and rollback must not `docker rm -f` the name (it may be the user's).
+  assert.deepEqual(harness.operationLog.dockerRemoveCalls, [])
 })
 
 test('detect-env stops the Docker wizard when the daemon is unavailable', async () => {

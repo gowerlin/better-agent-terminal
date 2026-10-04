@@ -93,6 +93,8 @@ export interface WizardContext {
   } | null
   connectTestSkipped?: boolean
   createdProfileId?: string
+  /** T0444 (BUG-111): every profile id write-profile created this run; rollback deletes them all. */
+  createdProfileIds?: string[]
   logger: WizardLogger
   requestChoice?: (request: WizardChoiceRequest) => Promise<string | null>
 }

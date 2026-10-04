@@ -1,4 +1,5 @@
 import type { WizardStep } from '../../wizard-runner'
+import { DOCKER_OWNERSHIP_KEYS } from './ownership'
 
 /**
  * Docker install-bundle step：image-based distribution（PLAN-031 D096）
@@ -26,6 +27,10 @@ export const installDockerServerBundleStep: WizardStep = {
     // rollback. Clear it so a failed re-run (e.g. after a jump back) is not
     // rolled back with the path from an earlier attempt.
     ctx.serverInstallPath = undefined
+    // T0444 (BUG-111): the bundle is baked into the image — this step only
+    // verifies it and never writes into the container, so it owns nothing
+    // that rollback could remove.
+    ctx.state[DOCKER_OWNERSHIP_KEYS.bundleInstalled] = false
     const mode = ctx.state.containerMode
     const image = typeof ctx.state.dockerImage === 'string' ? ctx.state.dockerImage : 'bat-server:latest'
     if (mode === 'new') {
@@ -47,12 +52,20 @@ export const installDockerServerBundleStep: WizardStep = {
     if (!ctx.warnings.includes(warning)) ctx.warnings.push(warning)
     ctx.state.bundleSource = 'image-baked'
   },
-  // PLAN-007 T0289 — RFC C-3 best-effort rollback. For "new" mode the
-  // pick-container rollback already removes the whole container so there is
-  // nothing to clean up here. For "existing" mode we attempt to remove the
-  // install path inside the user's container; failures warn-log only.
+  // PLAN-007 T0289 — RFC C-3 best-effort rollback, narrowed by T0444
+  // (BUG-111): remove the install path only when this run installed it
+  // (`dockerBundleInstalledByWizard === true`). run() never does today — the
+  // bundle comes from the image — so /opt/bat-server inside a user's existing
+  // container is never deleted. "new" mode needs nothing here: the container
+  // this run created is removed by start-server / pick-container rollback.
   async rollback(ctx) {
-    if (ctx.state.containerMode !== 'existing') return
+    const installed = ctx.state[DOCKER_OWNERSHIP_KEYS.bundleInstalled]
+    if (installed !== true) {
+      if (installed === undefined && ctx.state.containerMode === 'existing') {
+        ctx.logger.warn('Not removing the BAT install path: this setup run did not record installing it.')
+      }
+      return
+    }
     if (typeof ctx.state.dockerContainer !== 'string' || !ctx.serverInstallPath) return
     const result = await window.electronAPI.docker.execCommand(ctx.state.dockerContainer, [
       'rm',
@@ -64,5 +77,6 @@ export const installDockerServerBundleStep: WizardStep = {
       return
     }
     ctx.serverInstallPath = undefined
+    ctx.state[DOCKER_OWNERSHIP_KEYS.bundleInstalled] = false
   },
 }
