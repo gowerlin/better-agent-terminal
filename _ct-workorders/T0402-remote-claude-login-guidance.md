@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0402
 title: "PLAN-036 P1-G：Claude 面板未登入引導（遠端：開終端分頁執行登入）+ auth-status 在 exit≠0 時仍解析 stdout"
 type: impl
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-036
 priority: P1
 sizing: S
 created_at: "2026-10-05T02:35:05+08:00"
 started_at: "2026-10-05T02:36:32+08:00"
-updated_at: "2026-10-05T02:36:32+08:00"
+updated_at: "2026-10-05T02:44:13+08:00"
+completed_at: "2026-10-05T02:44:13+08:00"
 target_version: next
 depends_on:
   - T0401
@@ -47,7 +48,7 @@ memory_overrides:
 ## 元資料
 - **工單編號**：T0402
 - **任務名稱**：遠端 claude 登入引導
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-10-05 02:35 (UTC+8)
 - **intervention_type**：fire-and-forget
 
@@ -176,6 +177,9 @@ T0401 後遠端視窗的 Claude 面板可以開 session（WSL 實機 smoke S9 PA
 - R1：遠端 auth-status 新行為需重新部署 server bundle；未部署前遠端仍回 `null` ⇒ 遠端視窗不會顯示卡片（退化為現行行為，不會壞）。
 - R2：登入前已啟動的 SDK session 子行程是否會即時讀到新憑證未實測（不得送真實 API 對話）；若登入後仍失敗，`/new` 重開 session 可解。本單**未**在重新檢查成功時自動 reset session，避免清掉既有對話。
 - R3：`cmd` shell 的 `%VAR%` 無法跳脫（`shell-quote.ts` 既有已知限制），路徑含 `%` 時可能被展開；bundle / 安裝路徑實務上不含 `%`。
+
+### Commit
+`85916f8` feat(claude): not-logged-in guide card + auth-status parses stdout on exit≠0 (T0402)（`git commit --only`，未 push）
 
 ### 回報時間
 2026-10-05T02:43:10+08:00
