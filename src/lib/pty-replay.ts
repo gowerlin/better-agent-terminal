@@ -10,15 +10,26 @@
  * The view may mount before or after `pty:create` resolves (TerminalPanel's mount effect
  * usually runs first), so replay requests go through a small id → sink registry.
  */
-import type { CreatePtyOptions, PtyCreateResult, PtyReplayBuffer } from '../types'
+import { PTY_LIMIT_REACHED, type CreatePtyOptions, type PtyCreateResult, type PtyReplayBuffer } from '../types'
 
 export function normalizePtyCreateResult(raw: unknown): PtyCreateResult {
   if (raw && typeof raw === 'object' && typeof (raw as { created?: unknown }).created === 'boolean') {
-    const r = raw as { ok?: unknown; created: boolean }
-    return { ok: r.ok !== false, created: r.created }
+    const r = raw as { ok?: unknown; created: boolean; code?: unknown; limit?: unknown }
+    const result: PtyCreateResult = { ok: r.ok !== false, created: r.created }
+    // T0424: failure reason (only codes this renderer knows; an unknown one stays a plain failure).
+    if (!result.ok && r.code === PTY_LIMIT_REACHED) {
+      result.code = PTY_LIMIT_REACHED
+      if (typeof r.limit === 'number' && Number.isFinite(r.limit)) result.limit = r.limit
+    }
+    return result
   }
   // Pre-T0403 server: `true` / `false` / undefined. Always "created", as before.
   return { ok: raw !== false && raw != null, created: true }
+}
+
+/** T0424: the server refused `pty:create` because it already runs its PTY cap. */
+export function isPtyLimitResult(result: PtyCreateResult): boolean {
+  return !result.ok && result.code === PTY_LIMIT_REACHED
 }
 
 /** Agent launch command after pty:create — only into a freshly spawned shell. */
@@ -50,6 +61,64 @@ export function registerPtyReplaySink(id: string, sink: ReplaySink): () => void 
 export function resetPtyReplayRegistry(): void {
   pendingReplays.clear()
   replaySinks.clear()
+  pendingNotices.clear()
+  noticeSinks.clear()
+  refusalListeners.clear()
+}
+
+/**
+ * T0424: a line of text for one terminal view (e.g. why its PTY was not created), held
+ * until the view registers when it is not mounted yet — same shape as the replay registry.
+ */
+type NoticeSink = (text: string) => void
+const pendingNotices = new Map<string, string[]>()
+const noticeSinks = new Map<string, NoticeSink>()
+
+export function showPtyNotice(id: string, text: string): void {
+  const sink = noticeSinks.get(id)
+  if (sink) {
+    sink(text)
+    return
+  }
+  const queued = pendingNotices.get(id)
+  if (queued) queued.push(text)
+  else pendingNotices.set(id, [text])
+}
+
+/** Terminal view hook-up; notices sent before mount are written right away. Returns unregister. */
+export function registerPtyNoticeSink(id: string, sink: NoticeSink): () => void {
+  noticeSinks.set(id, sink)
+  const queued = pendingNotices.get(id)
+  if (queued) {
+    pendingNotices.delete(id)
+    for (const text of queued) sink(text)
+  }
+  return () => {
+    if (noticeSinks.get(id) === sink) noticeSinks.delete(id)
+  }
+}
+
+/**
+ * T0424: `pty:create` answered with a known failure code (today: `PTY_LIMIT_REACHED`).
+ * Listeners (WorkspaceView, filtered by `options.workspaceId`) turn it into a toast and a
+ * terminal notice; nothing retries.
+ */
+export type PtyCreateRefusalListener = (options: CreatePtyOptions, result: PtyCreateResult) => void
+const refusalListeners = new Set<PtyCreateRefusalListener>()
+
+export function onPtyCreateRefused(listener: PtyCreateRefusalListener): () => void {
+  refusalListeners.add(listener)
+  return () => { refusalListeners.delete(listener) }
+}
+
+function emitPtyCreateRefused(options: CreatePtyOptions, result: PtyCreateResult): void {
+  for (const listener of [...refusalListeners]) {
+    try {
+      listener(options, result)
+    } catch {
+      // A listener's failure must not turn into a pty:create failure.
+    }
+  }
 }
 
 type PtyCreateApi = { create: (options: CreatePtyOptions) => Promise<PtyCreateResult | boolean> }
@@ -67,6 +136,7 @@ export async function createPtyWithReplay(
     result = { ok: false, created: true }
   }
   if (result.ok && !result.created) requestPtyReplay(options.id)
+  if (isPtyLimitResult(result)) emitPtyCreateRefused(options, result)
   return result
 }
 

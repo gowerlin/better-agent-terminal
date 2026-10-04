@@ -10,7 +10,7 @@ import { CanvasAddon } from '@xterm/addon-canvas'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
-import { PtyOutputReplayer, registerPtyReplaySink } from '../lib/pty-replay'
+import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from '../lib/pty-replay'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -627,6 +627,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         .then((chars) => dlog(`[T0403] replay terminal=${terminalId} chars=${chars}`))
         .catch(() => { /* view disposed mid-replay */ })
     })
+    // T0424: why this terminal has no PTY (e.g. remote PTY limit) — one readable line.
+    const unregisterNotice = registerPtyNoticeSink(terminalId, (text) => {
+      terminal.write(`\r\n\x1b[33m${text}\x1b[0m\r\n`)
+    })
 
     // Handle terminal exit
     const unsubscribeExit = window.electronAPI.pty.onExit((id, exitCode) => {
@@ -685,6 +689,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     return () => {
       window.removeEventListener('terminal-redraw', handleRedrawEvent)
       unregisterReplay()
+      unregisterNotice()
       replayer.dispose()
       unsubscribeOutput()
       unsubscribeExit()

@@ -8,7 +8,8 @@
  *   - resolveHeadlessPtyLimits: defaults (24h / 64), option > env > default, invalid env.
  * Wire-level through the T0388 harness (real RemoteServer client count + real node-pty):
  *   - the last client leaving for the idle limit reclaims the PTY; a client staying keeps it
- *   - the PTY cap answers an explicit invoke-error, running PTYs survive, kill frees a slot
+ *   - the PTY cap answers a structured result (T0424: `code: 'PTY_LIMIT_REACHED'` + `limit`,
+ *     intact across the wire), running PTYs survive, kill frees a slot
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -194,12 +195,13 @@ describe('headless orphan reclaim + PTY cap (harness, real node-pty)', () => {
     await harness.invoke('pty:kill', id)
   })
 
-  it('refuses pty:create beyond the cap with an explicit error; running PTYs survive; kill frees a slot', { timeout: 30_000 }, async () => {
+  it('refuses pty:create beyond the cap with a structured result; running PTYs survive; kill frees a slot', { timeout: 30_000 }, async () => {
     harness = await startHeadlessHarness({ maxPtys: 2, logger })
     const [a, b, c] = [termId('cap-a'), termId('cap-b'), termId('cap-c')]
     expect(await harness.invoke('pty:create', ptyOpts(a))).toEqual(CREATED)
     expect(await harness.invoke('pty:create', ptyOpts(b))).toEqual(CREATED)
-    await expect(harness.invoke('pty:create', ptyOpts(c))).rejects.toThrow(/PTY limit reached.*max 2/)
+    // T0424: an invoke *result* (JSON over wss), not an invoke-error whose code would be lost.
+    expect(await harness.invoke('pty:create', ptyOpts(c))).toEqual({ ok: false, created: false, code: 'PTY_LIMIT_REACHED', limit: 2 })
 
     expect(await harness.invoke('pty:create', ptyOpts(a))).toEqual(EXISTING)
     expect(await harness.invoke('pty:create', ptyOpts(b))).toEqual(EXISTING)

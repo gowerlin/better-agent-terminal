@@ -7,11 +7,15 @@ import {
   createPtyThenLaunch,
   createPtyWithReplay,
   dropReplayedChunks,
+  isPtyLimitResult,
   normalizePtyCreateResult,
+  onPtyCreateRefused,
+  registerPtyNoticeSink,
   registerPtyReplaySink,
   requestPtyReplay,
   resetPtyReplayRegistry,
   shouldSendLaunchCommand,
+  showPtyNotice,
 } from '../pty-replay'
 
 const OPTS: CreatePtyOptions = { id: 't1', cwd: '/w', type: 'terminal', agentPreset: 'claude-cli' }
@@ -36,6 +40,70 @@ describe('normalizePtyCreateResult', () => {
     expect(shouldSendLaunchCommand(normalizePtyCreateResult(true))).toBe(true)
     expect(shouldSendLaunchCommand(normalizePtyCreateResult({ ok: true, created: true }))).toBe(true)
     expect(shouldSendLaunchCommand(normalizePtyCreateResult({ ok: true, created: false }))).toBe(false)
+  })
+})
+
+describe('PTY limit refusal (T0424)', () => {
+  const LIMIT = { ok: false, created: false, code: 'PTY_LIMIT_REACHED', limit: 2 }
+
+  it('normalize keeps code + limit of a known failure code', () => {
+    const result = normalizePtyCreateResult(LIMIT)
+    expect(result).toEqual(LIMIT)
+    expect(isPtyLimitResult(result)).toBe(true)
+  })
+
+  it('normalize drops an unknown code, a code on success, and a non-numeric limit', () => {
+    expect(normalizePtyCreateResult({ ok: false, created: false, code: 'SOMETHING_ELSE', limit: 2 })).toEqual({ ok: false, created: false })
+    expect(normalizePtyCreateResult({ ok: true, created: true, code: 'PTY_LIMIT_REACHED' })).toEqual({ ok: true, created: true })
+    expect(normalizePtyCreateResult({ ...LIMIT, limit: 'x' })).toEqual({ ok: false, created: false, code: 'PTY_LIMIT_REACHED' })
+    expect(isPtyLimitResult({ ok: false, created: false })).toBe(false)
+  })
+
+  it('a refused create is reported to listeners once, with the options; no launch, no replay', async () => {
+    const listener = vi.fn()
+    const off = onPtyCreateRefused(listener)
+    const launch = vi.fn()
+    const sink = vi.fn()
+    registerPtyReplaySink('t1', sink)
+    const theApi = { create: vi.fn(async () => LIMIT as never) }
+    const result = await createPtyThenLaunch(OPTS, launch, theApi)
+    expect(result).toEqual(LIMIT)
+    expect(theApi.create).toHaveBeenCalledTimes(1) // no retry
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith(OPTS, LIMIT)
+    expect(launch).not.toHaveBeenCalled()
+    expect(sink).not.toHaveBeenCalled()
+    off()
+    await createPtyWithReplay(OPTS, theApi)
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('other outcomes are not reported as refusals', async () => {
+    const listener = vi.fn()
+    onPtyCreateRefused(listener)
+    await createPtyWithReplay(OPTS, { create: async () => ({ ok: true, created: true }) })
+    await createPtyWithReplay(OPTS, { create: async () => ({ ok: false, created: false }) })
+    await createPtyWithReplay(OPTS, { create: async () => { throw new Error('PTY limit reached') } })
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('a throwing listener does not fail the create', async () => {
+    onPtyCreateRefused(() => { throw new Error('listener') })
+    await expect(createPtyWithReplay(OPTS, { create: async () => LIMIT as never })).resolves.toEqual(LIMIT)
+  })
+
+  it('notice registry: held until the view mounts (in order), then written directly', () => {
+    showPtyNotice('t1', 'first')
+    showPtyNotice('t1', 'second')
+    const sink = vi.fn()
+    const off = registerPtyNoticeSink('t1', sink)
+    expect(sink.mock.calls).toEqual([['first'], ['second']])
+    showPtyNotice('t1', 'third')
+    expect(sink).toHaveBeenLastCalledWith('third')
+    off()
+    const remount = vi.fn()
+    registerPtyNoticeSink('t1', remount)
+    expect(remount).not.toHaveBeenCalled() // consumed
   })
 })
 

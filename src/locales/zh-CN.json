@@ -310,6 +310,7 @@
     "showPromptBox": "显示提示输入框",
     "redrawTerminal": "重新绘制终端",
     "restartTerminal": "重新启动终端",
+    "ptyLimitNotice": "[BAT] 终端未启动：远程服务器已运行上限 {{limit}} 个终端。请先关闭其他终端（或在服务器上调高 BAT_SERVER_MAX_PTYS），再打开新终端。",
     "closeTerminal": "关闭终端",
     "terminals": "终端",
     "addTerminalOrAgent": "新增终端或 Agent",
@@ -629,6 +630,9 @@
     },
     "codexCli": {
       "elevatedDaemonDisabled": "BAT 正以系统管理员权限运行，Codex CLI 已自动停用后台 daemon 启动（-c features.daemon_auto_start=false）——Codex 拒绝在提权令牌下启动 daemon。若在此终端手动运行 codex，请加上 --no-daemon。"
+    },
+    "ptyLimit": {
+      "reached": "已达远程终端上限：服务器已运行 {{limit}} 个终端，新终端未启动。请关闭部分终端后再试。"
     }
   },
   "wizard": {

@@ -15,7 +15,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { CreatePtyOptions, PtyCreateResult } from '../../src/types'
 import { logger } from '../logger'
-import type { PtyManager } from '../pty-manager'
+import { PtyLimitError, type PtyManager } from '../pty-manager'
 import { resolveShellPath } from '../shell-path-resolver'
 import type { HandlerRegistrar } from './types'
 
@@ -58,10 +58,20 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   // (reload / reconnect), so it replays `pty:get-buffer` and does not retype an agent command.
   // Clients older than T0403 only test truthiness; `normalizePtyCreateResult` (renderer)
   // reads a bare boolean from an older server as "created".
+  // T0424: over the PTY cap (PtyLimitError) → `{ ok: false, created: false, code, limit }`.
+  // A thrown error crosses the remote WebSocket and Electron IPC as its message string only,
+  // so the renderer could not tell "limit reached" apart without English string matching.
   register('pty:create', (_ctx, options: unknown): PtyCreateResult => {
     const opts = options as CreatePtyOptions
     if (rejectShell('pty:create', opts?.shell)) return { ok: false, created: false }
-    return deps.getPtyManager()?.createWithResult(opts) ?? { ok: false, created: false }
+    const manager = deps.getPtyManager()
+    if (!manager) return { ok: false, created: false }
+    try {
+      return manager.createWithResult(opts)
+    } catch (err) {
+      if (err instanceof PtyLimitError) return { ok: false, created: false, code: err.code, limit: err.limit }
+      throw err
+    }
   })
   // T0215 (BUG-050 階段 1):改用 writeWithResult 回 `{ok, reason}`,讓 bat-notify 可據以 exit 1
   register('pty:write', (_ctx, id: string, data: string) =>

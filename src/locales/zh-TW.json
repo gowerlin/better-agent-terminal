@@ -310,6 +310,7 @@
     "showPromptBox": "顯示提示輸入框",
     "redrawTerminal": "重新繪製終端",
     "restartTerminal": "重新啟動終端",
+    "ptyLimitNotice": "[BAT] 終端未啟動：遠端伺服器已執行上限 {{limit}} 個終端。請先關閉其他終端（或在伺服器上調高 BAT_SERVER_MAX_PTYS），再開新終端。",
     "closeTerminal": "關閉終端",
     "terminals": "終端",
     "addTerminalOrAgent": "新增終端或 Agent",
@@ -629,6 +630,9 @@
     },
     "codexCli": {
       "elevatedDaemonDisabled": "BAT 正以系統管理員權限執行，Codex CLI 已自動停用背景 daemon 啟動（-c features.daemon_auto_start=false）——Codex 拒絕在提權權杖下啟動 daemon。若在此終端手動執行 codex，請加上 --no-daemon。"
+    },
+    "ptyLimit": {
+      "reached": "已達遠端終端上限：伺服器已執行 {{limit}} 個終端，新終端未啟動。請關閉部分終端後再試。"
     }
   },
   "wizard": {

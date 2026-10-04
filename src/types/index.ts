@@ -94,7 +94,19 @@ export interface CreatePtyOptions {
 export interface PtyCreateResult {
   ok: boolean;
   created: boolean;
+  /** T0424: why `ok: false`, when the server knows (absent = unspecified failure). */
+  code?: PtyCreateFailureCode;
+  /** T0424: with `code: 'PTY_LIMIT_REACHED'` — the server's PTY cap. */
+  limit?: number;
 }
+
+/**
+ * T0424: `pty:create` refused because the (headless) server already runs its PTY cap
+ * (`PtyLimitError`, T0404). Sent as an invoke *result* field, not a thrown error: an
+ * error crosses the remote WebSocket and Electron IPC as its message string only.
+ */
+export const PTY_LIMIT_REACHED = 'PTY_LIMIT_REACHED' as const;
+export type PtyCreateFailureCode = typeof PTY_LIMIT_REACHED;
 
 /**
  * T0403: `pty:get-buffer` result — the tail of the PTY's raw output (VT sequences

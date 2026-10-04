@@ -1,7 +1,7 @@
 import * as net from 'net'
 import * as path from 'path'
 import { spawn, ChildProcess } from 'child_process'
-import type { CreatePtyOptions, PtyCreateResult, PtyReplayBuffer } from '../src/types'
+import { PTY_LIMIT_REACHED, type CreatePtyOptions, type PtyCreateResult, type PtyReplayBuffer } from '../src/types'
 import { broadcastHub } from './remote/broadcast-hub'
 import { logger } from './logger'
 import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
@@ -74,7 +74,7 @@ export interface PtyManagerDeps {
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
 export class PtyLimitError extends Error {
-  readonly code = 'PTY_LIMIT_REACHED'
+  readonly code = PTY_LIMIT_REACHED
   constructor(readonly limit: number) {
     super(`PTY limit reached: this server already runs ${limit} terminals (max ${limit}). Close a terminal and try again.`)
     this.name = 'PtyLimitError'
@@ -554,6 +554,8 @@ export class PtyManager {
   /**
    * T0403: `pty:create` with whether a process was actually spawned. `created: false` = the
    * id was already running (idempotent re-create, T0111 / T0390) and was left untouched.
+   * Throws `PtyLimitError` over the cap; the `pty:create` handler turns it into result
+   * fields (T0424).
    */
   createWithResult(options: CreatePtyOptions): PtyCreateResult {
     const existed = this.instances.has(options.id)

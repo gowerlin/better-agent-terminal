@@ -310,6 +310,7 @@
     "showPromptBox": "Show prompt box",
     "redrawTerminal": "Redraw terminal",
     "restartTerminal": "Restart terminal",
+    "ptyLimitNotice": "[BAT] Terminal not started: the remote server is already running its maximum of {{limit}} terminals. Close a terminal (or raise BAT_SERVER_MAX_PTYS on the server), then open a new one.",
     "closeTerminal": "Close terminal",
     "terminals": "Terminals",
     "addTerminalOrAgent": "Add Terminal or Agent",
@@ -629,6 +630,9 @@
     },
     "codexCli": {
       "elevatedDaemonDisabled": "BAT is running with administrator privileges, so Codex CLI was launched with its background daemon disabled (-c features.daemon_auto_start=false) — Codex refuses to start the daemon from an elevated token. If you run codex manually in this terminal, add --no-daemon."
+    },
+    "ptyLimit": {
+      "reached": "Remote terminal limit reached: the server already runs {{limit}} terminals, so the new terminal was not started. Close a terminal and try again."
     }
   },
   "wizard": {

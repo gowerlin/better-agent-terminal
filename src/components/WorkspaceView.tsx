@@ -17,6 +17,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay } from '../lib/pty-replay'
+import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
 import { CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, openClaudeLoginTerminal, type ClaudeOpenLoginTerminalDetail } from '../lib/claude-login-guide'
 import { REMOTE_UNSUPPORTED_AGENT_PRESETS } from '../lib/remote-unsupported'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
@@ -185,6 +186,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     codexDaemonNoticeShown = true
     addNoticeToast(t('toast.codexCli.elevatedDaemonDisabled'), 'warning', 12000)
   }
+  // T0424: remote PTY cap refusals → terminal notice + toast (instead of a blank terminal).
+  usePtyLimitNotice(workspace.id, addNoticeToast)
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(loadWorkspaceTab)
@@ -520,7 +523,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           if (isClaudeCli(defaultAgent)) {
             startClaudeCliPty(agentTerminal.id, workspace.folderPath, isWorktreeAgent(defaultAgent))
           } else if (!isIntegrated(defaultAgent)) {
-            window.electronAPI.pty.create({
+            void createPtyWithReplay({
               id: agentTerminal.id,
               cwd: workspace.folderPath,
               type: 'terminal',
@@ -562,7 +565,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
         for (let i = 0; i < terminalCount; i++) {
           const terminal = workspaceStore.addTerminal(workspace.id)
-          window.electronAPI.pty.create({
+          void createPtyWithReplay({
             id: terminal.id,
             cwd: workspace.folderPath,
             type: 'terminal',
@@ -596,7 +599,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const shell = await getShellFromSettings()
     const settings = settingsStore.getSettings()
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
-    window.electronAPI.pty.create({
+    void createPtyWithReplay({
       id: terminal.id,
       cwd: workspace.folderPath,
       type: 'terminal',
@@ -614,7 +617,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const settings = settingsStore.getSettings()
     const shell = await window.electronAPI.settings.getShellPath(shellType)
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
-    window.electronAPI.pty.create({
+    void createPtyWithReplay({
       id: terminal.id,
       cwd: workspace.folderPath,
       type: 'terminal',
@@ -819,7 +822,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const settings = settingsStore.getSettings()
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
 
-    window.electronAPI.pty.create({
+    void createPtyWithReplay({
       id: terminal.id,
       cwd: workspace.folderPath,
       type: 'terminal',
