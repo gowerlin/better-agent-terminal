@@ -3,13 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-090
 title: 設定精靈「取得 TLS 指紋」永久卡住：伺服器沒有 `/fingerprint` HTTP handler，IPC 也沒有 timeout（WSL / SSH / Docker 共用）
-status: FIXED
+status: CLOSED
 fix_commits: [115de23]
 fixed_at: "2026-10-04T22:30:25+08:00"
 severity: high
 reproducibility: always
 created_at: "2026-10-04T22:18:57+08:00"
-updated_at: "2026-10-04T22:31:33+08:00"
+updated_at: "2026-10-04T23:46:46+08:00"
 impact:
   - setup-wizard-wsl
   - setup-wizard-ssh
@@ -27,7 +27,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（三種遠端精靈都共用這一步，全部無法走到底） |
 | 可重現 | 100%（T0380 實測：TLS 握手 14ms 完成，之後 8 秒沒有任何 HTTP 回應） |
-| **狀態** | ✅ FIXED（T0381 `115de23`；待實機，建議與 T0382 合併驗收） |
+| **狀態** | 🚫 CLOSED（2026-10-04 23:46 實機：WSL 精靈「取得 TLS 指紋」未卡住，指紋 `22:3A:E4:…`） |
 | 回報者 | 使用者截圖（WSL 精靈第 6 步一直「進行中」）；T0380 研究定位根因 |
 
 ## 現象

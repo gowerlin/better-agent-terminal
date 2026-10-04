@@ -3,13 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-087
 title: WSL 設定精靈「寫入 systemd 使用者服務」步驟失敗：linger 未帶使用者名稱、unit 檔 `~` 不被 systemd 展開、失敗後 bundle 被回滾刪除
-status: FIXED
+status: CLOSED
 fix_commits: [4d814e9]
 fixed_at: "2026-10-04T21:27:18+08:00"
 severity: high
 reproducibility: always
 created_at: "2026-10-04T21:15:17+08:00"
-updated_at: "2026-10-04T21:28:52+08:00"
+updated_at: "2026-10-04T23:46:46+08:00"
 impact:
   - setup-wizard-wsl
 links:
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（WSL 精靈無法完成，BAT WSL remote 對使用者實質不可用；BUG-071 修好後才浮現） |
 | 可重現 | 100%：乾淨的 `Ubuntu-24.04`（systemd 已啟用）+ 本機 build `0.5.9-pre.4` |
-| **狀態** | ✅ FIXED（T0378 `4d814e9`；待新 build 精靈 9/9 實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-10-04 23:46 實機：本機 build 0.5.9-pre.4 WSL 精靈全程通過、無警告，systemd 步驟成功） |
 | 回報者 | 使用者（2026-10-04 BUG-071 實機驗收時截圖）+ 塔台環境檢查 |
 
 ## 現象

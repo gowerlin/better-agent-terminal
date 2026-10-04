@@ -3,13 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-089
 title: WSL 精靈把 Mirrored 網路模式誤判為 NAT（default route 含 `via` 即判 NAT 的啟發式不成立）
-status: FIXED
+status: CLOSED
 fix_commits: [bf41706]
 fixed_at: "2026-10-04T22:55:27+08:00"
 severity: medium
 reproducibility: always
 created_at: "2026-10-04T22:04:14+08:00"
-updated_at: "2026-10-04T22:57:09+08:00"
+updated_at: "2026-10-04T23:46:46+08:00"
 impact:
   - setup-wizard-wsl
 links:
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（警告文字誤導使用者去改已正確的設定；連線測試若依此改用 distro IP 可能反而失敗） |
 | 可重現 | 100%（T0380 於發行版內實測證實） |
-| **狀態** | ✅ FIXED（T0383 `bf41706`；待打包版目視） |
+| **狀態** | 🚫 CLOSED（2026-10-04 23:46 實機：WSL 精靈第 6 步無 NAT 誤報，`wslinfo` = mirrored） |
 | 回報者 | 使用者截圖（2026-10-04，本機 build 0.5.9-pre.4 含 T0379，WSL 精靈第 6 步「取得 TLS 指紋」） |
 
 ## 現象

@@ -9,7 +9,7 @@ fixed_at: "2026-10-04T21:50:29+08:00"
 severity: high
 reproducibility: always
 created_at: "2026-10-04T21:30:23+08:00"
-updated_at: "2026-10-04T21:52:56+08:00"
+updated_at: "2026-10-04T23:46:46+08:00"
 impact:
   - setup-wizard-ssh
 links:
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（推定：預設 install path 下，SSH 精靈部署的 bat-server 服務永遠起不來；與 BUG-087 缺陷 B 同機制） |
 | 可重現 | 推定 100%：選預設 install path `~/.local/bat-server`。**由程式碼閱讀推定，未實機重現** |
-| **狀態** | ✅ FIXED（T0379 `a1ee31f`；待實際 SSH 主機驗收，macOS 未實機） |
+| **狀態** | ✅ FIXED（T0379 `a1ee31f`；待實際 SSH 主機驗收，macOS 未實機）（2026-10-04 23:46：未驗，SSH 精靈需實際 SSH 主機；可與 T0387 / BUG-093 一併驗收） |
 | 回報者 | T0378 Worker（回報區「殘餘風險 1」，讀碼發現）；塔台 2026-10-04 以 grep 複核 |
 
 ## 現象（程式碼證據）

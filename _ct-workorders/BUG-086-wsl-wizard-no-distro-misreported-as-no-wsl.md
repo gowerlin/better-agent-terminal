@@ -9,7 +9,7 @@ fixed_at: "2026-10-04T21:27:18+08:00"
 severity: low
 reproducibility: always
 created_at: "2026-10-04T21:08:07+08:00"
-updated_at: "2026-10-04T21:28:52+08:00"
+updated_at: "2026-10-04T23:46:46+08:00"
 impact:
   - setup-wizard-wsl
 links:
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（UX 引導錯誤；使用者照做 `wsl --install` 不會壞事，但不會解決問題） |
 | 可重現 | 100%：Windows 已安裝 WSL（Store 版）但未註冊任何發行版 |
-| **狀態** | ✅ FIXED（T0378 `4d814e9`；「無發行版」「沒裝 WSL」兩態僅 mock unit test 覆蓋，本機無法重現） |
+| **狀態** | ✅ FIXED（T0378 `4d814e9`；「無發行版」「沒裝 WSL」兩態僅 mock unit test 覆蓋，本機無法重現）（2026-10-04 23:46：有發行版路徑精靈全程通過＝無回歸；「無發行版」分支本機無法重現，留待 PLAN-035 P3-d 乾淨機器驗收） |
 | 回報者 | 塔台（2026-10-04 第五十一 session，BUG-071 實機驗收時發現；使用者截圖 + 塔台環境檢查） |
 
 ## 現象

@@ -6,7 +6,7 @@ title: WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，�
 status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T22:04:14+08:00"
-updated_at: "2026-10-04T22:18:57+08:00"
+updated_at: "2026-10-04T23:46:46+08:00"
 links:
   research_workorder: T0380
   phase1_workorders: [T0381, T0382, T0383, T0384]
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-035 |
 | 優先級 | 🔴 High |
-| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0380 DONE；Phase 1 T0381-T0384 全 DONE，待安裝版實機；Phase 2 / 3 待開單） |
+| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0380 DONE；Phase 1 T0381-T0384 全 DONE，**2026-10-04 23:46 安裝版實機通過**（精靈全程無警告 + profile 開啟，含 T0385 server JS）；Phase 2 / 3 待開單，先後待 PLAN-036 / T0386 建議） |
 | 建立時間 | 2026-10-04 22:04 (UTC+8) |
 | 決策 | D127、D128 |
 
