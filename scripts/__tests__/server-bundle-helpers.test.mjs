@@ -63,7 +63,8 @@ describe('server bundle helper copy (T0433)', () => {
   it('lists the four helpers and copies them in copyServerSources()', () => {
     expect(listed).toEqual(['bat-terminal.mjs', 'bat-notify.mjs', '_bat-cert.mjs', '_bat-logger.mjs'])
     const source = readFileSync(buildScript, 'utf8')
-    expect(source).toMatch(/async function copyServerSources\(\) \{[\s\S]*?\n {2}await copyHelperScripts\(\)\n\}/)
+    // \r?\n: a core.autocrlf=true checkout has CRLF sources (T0454).
+    expect(source).toMatch(/async function copyServerSources\(\) \{[\s\S]*?\r?\n {2}await copyHelperScripts\(\)\r?\n\}/)
     expect(source).toMatch(/const helperScriptsDir = path\.join\(stagingRoot, 'scripts'\)/)
   })
 

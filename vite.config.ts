@@ -10,6 +10,22 @@ import path from 'path'
 // vitest's pure-Node test runner — see T0317).
 const isTest = process.env.VITEST === 'true' || process.env.NODE_ENV === 'test'
 
+// vitest mode only (T0454): a CRLF checkout (core.autocrlf=true, no
+// .gitattributes) leaves `#!/usr/bin/env node\r` on line 1 of scripts/*.mjs.
+// Vite's SSR transform only recognises a hashbang ending in `\n`
+// (`/^#!.*\n/`, and `.` stops at `\r`), so it hoists the rewritten imports
+// above the `#!` and loading fails with `SyntaxError: Invalid or unexpected
+// token`. Turning the hashbang into a line comment keeps every offset, so no
+// source map is needed.
+const crlfHashbang = () => ({
+  name: 'bat:crlf-hashbang',
+  enforce: 'pre' as const,
+  transform(code: string) {
+    if (!/^#![^\n]*\r\n/.test(code)) return null
+    return { code: `//${code.slice(2)}`, map: null }
+  },
+})
+
 export default defineConfig({
   test: {
     environment: 'jsdom',
@@ -34,7 +50,7 @@ export default defineConfig({
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'dist-electron/**', 'release/**'],
   },
-  plugins: isTest ? [react()] : [
+  plugins: isTest ? [react(), crlfHashbang()] : [
     react(),
     electron([
       {
