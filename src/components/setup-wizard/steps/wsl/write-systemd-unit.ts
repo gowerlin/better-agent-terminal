@@ -51,6 +51,23 @@ async function resolveServerPort(ctx: WizardContext): Promise<number> {
   return result.port
 }
 
+/**
+ * T0384 (BUG-092, D128): WSL idle-stops a distro ~15s after its last
+ * `wsl.exe` connection, taking bat-server with it, so main holds one open from
+ * here on (fetch-fingerprint / connect-test run without any wsl.exe). Best
+ * effort: a failed pin is logged, never fails the step.
+ */
+async function holdDistro(ctx: WizardContext, distro: string): Promise<void> {
+  try {
+    const result = await window.electronAPI.wsl.keepAlive(distro)
+    if (!result.ok) {
+      ctx.logger.warn(`WSL keep-alive for ${distro} not started: ${result.error}`)
+    }
+  } catch (err) {
+    ctx.logger.warn(`WSL keep-alive for ${distro} not started: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
 function profileName(ctxName: unknown): string {
   return typeof ctxName === 'string' && ctxName.trim() ? ctxName.trim() : 'WSL BAT Server'
 }
@@ -100,6 +117,7 @@ export const writeSystemdUnitStep: WizardStep = {
     if (!writeResult.ok) {
       throw new Error('Failed to write BAT systemd unit')
     }
+    await holdDistro(ctx, ctx.wslDistro)
 
     const lingerResult = await window.electronAPI.wslSystemd.enableLinger(ctx.wslDistro)
     if (!lingerResult.ok && lingerResult.error) {
@@ -145,5 +163,11 @@ export const writeSystemdUnitStep: WizardStep = {
     const unitPath = ctx.wslHome ? buildWslServicePaths(ctx.wslHome).unitPath : LEGACY_UNIT_PATH
     await window.electronAPI.wslSystemd.removeUnit(ctx.wslDistro, SERVICE_NAME, { path: unitPath })
     ctx.systemdServiceActive = false
+    // T0384: drop the wizard pin; main keeps holding if a profile still uses the distro.
+    try {
+      await window.electronAPI.wsl.releaseKeepAlive(ctx.wslDistro)
+    } catch (err) {
+      ctx.logger.warn(`WSL keep-alive release for ${ctx.wslDistro} failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
   },
 }

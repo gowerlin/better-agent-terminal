@@ -103,6 +103,7 @@ import * as dockerLifecycle from './docker-lifecycle'
 import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
 import * as wslSystemd from './wsl-systemd'
+import { WslKeepAlive } from './wsl-keepalive'
 import { fetchTlsFingerprint, type FetchFingerprintResult } from './tls-fingerprint'
 import {
   assertPathAllowed,
@@ -435,6 +436,9 @@ let codexManager: CodexAgentManager | null = null
 const sessionManagerMap = new Map<string, 'claude' | 'codex'>()
 let updateCheckResult: UpdateCheckResult | null = null
 const profileManager = new ProfileManager()
+// T0384 (BUG-092, D128): one long-lived `wsl.exe` per WSL profile distro so
+// WSL does not idle-stop it (and bat-server with it) while BAT runs.
+const wslKeepAlive = new WslKeepAlive()
 const remoteServer = new RemoteServer()
 let remoteClient: RemoteClient | null = null
 // Serialise remote connect/disconnect handlers — rapid profile switching can
@@ -1131,7 +1135,23 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   return win
 }
 
+/** T0384: hold exactly the distros of the persisted WSL profiles (no-op off Windows). */
+async function syncWslKeepAlive(reason: string): Promise<void> {
+  if (process.platform !== 'win32') return
+  try {
+    const { profiles } = await profileManager.list()
+    const distros = profiles
+      .filter(p => p.targetOS === 'wsl-linux' && typeof p.wslDistro === 'string' && p.wslDistro.length > 0)
+      .map(p => p.wslDistro as string)
+    wslKeepAlive.sync(distros)
+    logger.log(`[wsl-keepalive] sync (${reason}): ${distros.length ? distros.join(', ') : 'none'}`)
+  } catch (err) {
+    logger.error(`[wsl-keepalive] sync (${reason}) failed: ${err}`)
+  }
+}
+
 function cleanupAllProcesses() {
+  try { wslKeepAlive.stopAll() } catch { /* ignore */ }
   try { remoteClient?.disconnect() } catch { /* ignore */ }
   try { remoteServer.stop() } catch { /* ignore */ }
   try { claudeManager?.killAll() } catch { /* ignore */ }
@@ -1572,6 +1592,10 @@ app.whenReady().then(async () => {
     }
   })
 
+  // T0384: start keep-alive holders at startup (not lazily on first connect) so
+  // the distro — and bat-server via linger — is already up when the user connects.
+  void syncWslKeepAlive('startup')
+
   // Listen for system resume from sleep/hibernate
   powerMonitor.on('resume', () => {
     logger.log('System resumed from sleep')
@@ -1887,6 +1911,12 @@ app.on('before-quit', async (e) => {
     _quitConfirmed = true
     app.quit()
   }
+})
+
+// T0384: belt-and-braces for quit paths that skip runCleanupOnce — never leave
+// an orphaned `wsl.exe` holder keeping a distro alive after BAT exits.
+app.on('will-quit', () => {
+  try { wslKeepAlive.stopAll() } catch { /* ignore */ }
 })
 
 app.on('window-all-closed', () => {
@@ -3485,12 +3515,28 @@ function registerLocalHandlers() {
   })
 
   // Profile handlers (local-only — list/load/activate/deactivate/get-active-ids are proxied)
-  ipcMain.handle('profile:create', async (_event, name: string, options?: { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => profileManager.create(name, options))
+  ipcMain.handle('profile:create', async (_event, name: string, options?: { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }) => {
+    const created = await profileManager.create(name, options)
+    void syncWslKeepAlive('profile:create')
+    return created
+  })
   ipcMain.handle('profile:save', async (_event, profileId: string) => profileManager.save(profileId))
-  ipcMain.handle('profile:delete', async (_event, profileId: string) => profileManager.delete(profileId))
+  ipcMain.handle('profile:delete', async (_event, profileId: string) => {
+    const deleted = await profileManager.delete(profileId)
+    void syncWslKeepAlive('profile:delete')
+    return deleted
+  })
   ipcMain.handle('profile:rename', async (_event, profileId: string, newName: string) => profileManager.rename(profileId, newName))
-  ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => profileManager.duplicate(profileId, newName))
-  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; sshServerArch?: string }) => profileManager.update(profileId, updates))
+  ipcMain.handle('profile:duplicate', async (_event, profileId: string, newName: string) => {
+    const duplicated = await profileManager.duplicate(profileId, newName)
+    void syncWslKeepAlive('profile:duplicate')
+    return duplicated
+  })
+  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; sshServerArch?: string }) => {
+    const updated = await profileManager.update(profileId, updates)
+    void syncWslKeepAlive('profile:update')
+    return updated
+  })
   ipcMain.handle('profile:get', async (_event, profileId: string) => profileManager.getProfile(profileId))
   ipcMain.handle('docker:status', () => dockerDetect.dockerStatus())
   ipcMain.handle('docker:list-containers', () => dockerDetect.listContainers())
@@ -3569,6 +3615,20 @@ function registerLocalHandlers() {
   // (stableMs / pollMs) stays at its main-side defaults.
   ipcMain.handle('wsl-systemd:start-service', (_event, distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
     wslSystemd.startService(distro, serviceName, { dataDir: options?.dataDir, timeoutMs: options?.timeoutMs }))
+  // T0384 (BUG-092): the wizard pins a holder right after writing the unit so
+  // the distro survives the fingerprint / connect-test steps; rollback unpins.
+  ipcMain.handle('wsl:keep-alive', (_event, distro: string) => {
+    try {
+      wslKeepAlive.pin(distro)
+      return { ok: true as const }
+    } catch (err) {
+      return { ok: false as const, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+  ipcMain.handle('wsl:release-keep-alive', (_event, distro: string) => {
+    wslKeepAlive.unpin(distro)
+    return { ok: true as const }
+  })
   ipcMain.handle('wsl-systemd:remove-unit', (_event, distro: string, serviceName: string, options?: { path?: string }) =>
     wslSystemd.removeUnit(distro, serviceName, options))
 

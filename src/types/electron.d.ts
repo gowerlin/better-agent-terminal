@@ -360,6 +360,9 @@ interface ElectronAPI {
     fetchFingerprint: (port: number) => Promise<WslFetchFingerprintResult>
     // T0382 / BUG-091 — never returns the host RemoteServer port; preferredPort is validated as-is.
     pickServerPort: (preferredPort?: number) => Promise<WslPickServerPortResult>
+    // T0384 / BUG-092 — wizard pin of the distro keep-alive holder; profiles are held by main.
+    keepAlive: (distro: string) => Promise<{ ok: true } | { ok: false; error: string }>
+    releaseKeepAlive: (distro: string) => Promise<{ ok: true }>
   }
   docker: {
     status: () => Promise<{ available: boolean; version?: string; error?: string }>

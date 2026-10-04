@@ -506,6 +506,12 @@ const electronAPI = {
         | { ok: true; port: number }
         | { ok: false; errorCode: 'wsl-port-in-use' | 'wsl-port-invalid'; error: string }
       >,
+    // T0384 / BUG-092: hold a long-lived `wsl.exe` so WSL does not idle-stop
+    // the distro during the wizard; release on rollback (profiles keep theirs).
+    keepAlive: (distro: string) =>
+      ipcRenderer.invoke('wsl:keep-alive', distro) as Promise<{ ok: true } | { ok: false; error: string }>,
+    releaseKeepAlive: (distro: string) =>
+      ipcRenderer.invoke('wsl:release-keep-alive', distro) as Promise<{ ok: true }>,
   },
   docker: {
     status: () => ipcRenderer.invoke('docker:status') as Promise<{ available: boolean; version?: string; error?: string }>,
