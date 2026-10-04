@@ -8,7 +8,7 @@ status: TODO
 priority: P1
 sizing: M
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-04T23:58:00+08:00"
+updated_at: "2026-10-05T00:20:00+08:00"
 started_at: null
 completed_at: null
 target_version: next
@@ -48,6 +48,11 @@ memory_overrides:
 4. headless env：不注入 helper dir、不注入 server token；`shell` 參數驗證
 5. `shell-path-resolver.ts` `auto` 在 Linux 無 `$SHELL` 時的 fallback 與 PtyManager（`/bin/bash`）對齊
 6. parity 清單（T0388）移除已上線 channel
+7. **T0388 交接**（`694771c`）：
+   - 共用 module 掛到 `electron/remote/headless-entry.ts` 的 `HEADLESS_HANDLER_MODULES`；HostDeps 由 `createHeadlessHostDeps(dataDir)` 組（型別見 `electron/handlers/types.ts`）
+   - 從 `electron/remote/headless-channel-status.ts` `HEADLESS_UNSUPPORTED` 移除 P0 的 7 個（`pty:*` 6 + `settings:get-shell-path`），parity test 會檢查
+   - `ALWAYS_LOCAL_CHANNELS` 目前兩份（`main.ts` 與 `headless-channel-status.ts`，parity test 讀 main.ts 原始碼比對）：本單會改 `main.ts`，順手改為 `main.ts` import `headless-channel-status.ts` 的那份，刪除重複
+   - 整合測試用 `electron/remote/__tests__/helpers/headless-harness.ts`（測試檔頭需 `// @vitest-environment node`）
 
 ## 驗收
 
