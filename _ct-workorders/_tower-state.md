@@ -318,7 +318,11 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 07:16 — T0454 DONE（`4dab93f`）塔台複核 PASS：真因定位 Vite 7.3.2 `hashbangRE = /^#!.*\n/`（`.` 不匹配 `\r`）→ SSR hoist 插到 `#!` 前；修法 `vite.config.ts` 僅測試分支 `crlfHashbang()` plugin（`#!`→`//`，長度不變）+ regex `\r?\n`；CRLF worktree 負向對照重現 / 修後綠。上游 Vite bug 候選
 - [完成] 2026-10-05 07:19 — T0438 DONE（`3f912f9`）塔台複核 PASS：4 處「複製遠端路徑」（只遠端視窗）、7 tests、Worker 2528 passed / tsc 36；偏差接受（`client-paths.ts` helper、新 hook `useIsRemoteWindow.ts`）。使用者手動通知早於 Worker commit 約 1 分鐘，Worker 自動通知 07:20 到達
 - [異常] 2026-10-05 07:19 — 使用者要求檢查 T0452：06:37 派發 `terminal-created result=ok`，但工單仍 PENDING / `started_at: null`、相關檔案最後修改 06:29（早於派發）⇒ Worker 分頁未實際執行 `/ct-exec`（第二次 Worker 靜默停滯，前次 T0436 停在 commit 前）
-- [派發] 2026-10-05 07:20 — T0452 重派 ∥ T0439（`--no-interactive`）
+- [派發] 2026-10-05 07:20 — T0452 重派 ∥ T0439（`--no-interactive`）；T0452 07:20:21 開始、T0439 07:20:43 開始
+- [使用者修正] 2026-10-05 07:21 — 塔台提議「派發 30 秒後查 `started_at`」被使用者否決（「30 秒太快」）。實測派發→開始 17-39 s ⇒ 改為 ≥ 3 分鐘才視為疑似未啟動，重派前先確認原 Worker 無活動（避免同單雙 Worker）；已存記憶。T0452 舊分頁 `69012c…` 可能仍在，請使用者關閉
+- [完成] 2026-10-05 07:25 — T0452 DONE（`3ef2703`）塔台複核 PASS：Docker start 重試走 start（自建容器）、write-profile 成功後清孤兒；Worker 全套 2537 passed / 0 failed、tsc 36、Docker tsx 測試全過
+- [完成] 2026-10-05 07:28 — T0439 DONE（`ea35f19`）塔台複核 PASS：現況拖檔到終端為 no-op（程式碼推論，未實機）、新增依 shell family 加引號插入路徑、15 tests、Worker 2552 passed / tsc 36
+- [斷點 C 裁決] 2026-10-05 07:28 — T0439 殘留風險：`will-navigate` 對 `file://` 一律 `openExternal`（ShellExecute 可執行本機 .bat / .exe）→ T0457（P1）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
