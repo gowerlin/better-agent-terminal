@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 01:36 (UTC+8) — 第五十四 session：BUG-095 / BUG-101 → CLOSED（T0397 e2e）；開 BUG-102 / BUG-103
+> 最後同步：2026-10-05 01:46 (UTC+8) — 第五十四 session：BUG-102 → FIXED（T0398 `f0d20c0`）
 
 ## 統計
-- 🔴 Open: 7 | ⏳ Fixing: 1 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 28**
+- 🔴 Open: 7 | ⏳ Fixing: 0 | ✅ Fixed: 4 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 28**
 
 ## 🔴 Open / 處理中
 
@@ -44,12 +44,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-102 | PtyManager 強制 `LANG` / `LC_ALL=en_US.UTF-8`，WSL Ubuntu 無此 locale → 遠端終端開頭印 setlocale 警告並退回 C locale | 🟡 medium | 2026-10-05 | [BUG-102](BUG-102-pty-forces-en-us-locale-missing-on-wsl.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-102 | PtyManager 強制 `LANG` / `LC_ALL=en_US.UTF-8`，WSL Ubuntu 無此 locale → 遠端終端開頭印 setlocale 警告並退回 C locale | 🟡 medium | 2026-10-05 | [BUG-102](BUG-102-pty-forces-en-us-locale-missing-on-wsl.md) |
 | BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 | BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
 | BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-04 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
