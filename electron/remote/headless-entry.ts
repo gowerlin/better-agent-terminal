@@ -7,11 +7,23 @@ import { registerClaudeHandlers } from '../handlers/claude'
 import { registerFsHandlers } from '../handlers/fs'
 import { registerGitHandlers, type GitHandlerDeps } from '../handlers/git'
 import { registerPtyHandlers } from '../handlers/pty'
-import { buildProbeEnv, registerRemoteToolsHandlers, type RemoteToolsHandlerDeps } from '../handlers/remote-tools'
+import {
+  buildProbeEnv,
+  REMOTE_TOOLS_DETECT_CHANNEL,
+  runRemoteToolsDetect,
+  type RemoteToolsHandlerDeps,
+} from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
 import type { HandlerContext } from '../handlers/types'
 import type { PersistedShellSettings } from '../shell-path-resolver'
-import { createAgentPromptCommandBuilder, type AgentCommandSettings } from '../terminal-command-handlers'
+import {
+  AGENT_CHECK_PENDING,
+  AGENT_UNAVAILABLE,
+  createAgentPromptCommandBuilder,
+  type AgentCommandSettings,
+  type AgentUnavailableResult,
+} from '../terminal-command-handlers'
+import type { RemoteToolId, RemoteToolsDetectResult } from '../../src/types/remote-tools'
 import { ClaudeAgentManager } from '../claude-agent-manager'
 import {
   configureRuntimeRouter,
@@ -57,8 +69,9 @@ export type { HeadlessHandlerRegistration }
  * BAT terminal: BAT_HELPER_DIR / BAT_REMOTE_PORT / BAT_REMOTE_TOKEN /
  * BAT_TERMINAL_ID / BAT_TOWER_TERMINAL_ID) or server configuration — never the
  * remote shell. PtyManager still sets its own per-PTY BAT_SESSION /
- * BAT_TERMINAL_ID / BAT_WORKSPACE_ID afterwards; headless never sets
- * BAT_REMOTE_* (no getRemoteServerInfo) or BAT_HELPER_DIR (no helperDir).
+ * BAT_TERMINAL_ID / BAT_WORKSPACE_ID afterwards, and (T0433) the per-PTY helper
+ * env from `buildHeadlessHelperEnv` — BAT_REMOTE_TOKEN there is the PTY's
+ * capability, never the server token (no getRemoteServerInfo on headless).
  */
 export function isHeadlessScrubbedEnvKey(key: string): boolean {
   return key.toUpperCase().startsWith('BAT_')
@@ -183,6 +196,63 @@ export class HeadlessOrphanPtyReclaimer {
   }
 }
 
+/** T0433: where a headless PTY's helpers reach this server. */
+export interface HeadlessHelperEndpoint {
+  /** The RemoteServer's bound port. */
+  port: number
+  /** `<dataDir>/server-cert.json` — the helpers pin this server's fingerprint (`_bat-cert.mjs`). */
+  certPath: string
+  /** Absolute dir for the helpers' `bat-scripts.log` (`_bat-logger.mjs`): `<dataDir>/Logs`. */
+  logDir: string
+}
+
+/** T0433: helpers `BAT_HELPER_DIR` must hold for the helper env to be injected at all. */
+export const HEADLESS_REQUIRED_HELPER_SCRIPTS = ['bat-terminal.mjs', 'bat-notify.mjs'] as const
+
+/**
+ * T0433 (PLAN-036 P3 / K): helper env of headless PTY `id` — issues its capability
+ * (worker when `customEnv.BAT_TOWER_TERMINAL_ID` names its tower, else tower) and returns
+ * `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` (= that capability) / `BAT_SERVER_CERT_PATH` /
+ * `BAT_HELPER_DIR` / `BAT_HELPER_LOG_DIR`. The server token is never an input.
+ *
+ * Returns `{}` and issues nothing when the helpers could not work anyway: server not
+ * listening yet, no helper dir / helpers missing from it (a bundle built before T0433),
+ * or an id the registry refuses. A remote shell then has no `BAT_REMOTE_*` /
+ * `BAT_HELPER_DIR`, i.e. the pre-T0433 state the skills already degrade from.
+ */
+export function buildHeadlessHelperEnv(opts: {
+  id: string
+  customEnv: Record<string, string>
+  capabilities: HelperCapabilityRegistry
+  endpoint: HeadlessHelperEndpoint | null
+  helperDir?: string
+  exists?: (p: string) => boolean
+  log?: (message: string) => void
+}): Record<string, string> {
+  const { id, customEnv, capabilities, endpoint, helperDir } = opts
+  const exists = opts.exists ?? fs.existsSync
+  if (!endpoint || !helperDir) return {}
+  if (!HEADLESS_REQUIRED_HELPER_SCRIPTS.every(name => exists(path.join(helperDir, name)))) {
+    opts.log?.(`[headless] helper env skipped: terminal=${id} (helpers missing from ${helperDir})`)
+    return {}
+  }
+  const towerId = typeof customEnv.BAT_TOWER_TERMINAL_ID === 'string' ? customEnv.BAT_TOWER_TERMINAL_ID : undefined
+  let token: string
+  try {
+    token = capabilities.issue(id, { towerId })
+  } catch (error) {
+    opts.log?.(`[headless] helper env skipped: terminal=${id} (${error instanceof Error ? error.message : String(error)})`)
+    return {}
+  }
+  return {
+    BAT_REMOTE_PORT: String(endpoint.port),
+    BAT_REMOTE_TOKEN: token,
+    BAT_SERVER_CERT_PATH: endpoint.certPath,
+    BAT_HELPER_DIR: helperDir,
+    BAT_HELPER_LOG_DIR: endpoint.logDir,
+  }
+}
+
 /**
  * T0390: `pty:*` + `settings:get-shell-path` on headless. One PtyManager per
  * server, direct spawn (no Terminal Server). PTYs outlive client disconnects —
@@ -193,20 +263,35 @@ export class HeadlessOrphanPtyReclaimer {
  * manager to the server for that reclaim.
  * T0432: `helperCapabilities` — a PTY that exits or is killed loses its helper
  * capability (revoked in the registry the RemoteServer authenticates against).
+ * T0433: with `helperCapabilities` + `helperEndpoint`, every spawned PTY gets its own
+ * capability and helper env (`buildHeadlessHelperEnv`); `helperDir` is the bundle's
+ * `<installRoot>/scripts`. `BAT_HELPER_DIR` comes only from there, never from `host`.
  */
 export function createHeadlessPtyModule(opts: {
   maxPtys?: number
   onManager?: (manager: PtyManager) => void
   helperCapabilities?: HelperCapabilityRegistry
+  helperDir?: string
+  helperEndpoint?: () => HeadlessHelperEndpoint | null
 } = {}): HandlerModule {
   return (register, host) => {
     const capabilities = opts.helperCapabilities
+    const getEndpoint = opts.helperEndpoint
     const manager = new PtyManager({
       emit: host.emit,
       dataDir: host.dataDir,
-      helperDir: host.helperDir,
       dropInheritedEnv: isHeadlessScrubbedEnvKey,
       maxInstances: opts.maxPtys ?? HEADLESS_MAX_PTYS_DEFAULT,
+      helperEnv: capabilities && getEndpoint
+        ? (id, customEnv) => buildHeadlessHelperEnv({
+            id,
+            customEnv,
+            capabilities,
+            endpoint: getEndpoint(),
+            helperDir: opts.helperDir,
+            log: message => defaultLogger.log(message),
+          })
+        : undefined,
       onPtyExit: capabilities
         ? id => {
             if (capabilities.revokeTerminal(id) > 0) defaultLogger.log(`[headless] helper capability revoked: terminal=${id}`)
@@ -311,6 +396,8 @@ export function readHeadlessTerminalSettings(raw: Record<string, unknown>): Pers
 export function createHeadlessTerminalModule(opts: {
   getPtyManager: () => PtyManager | null
   countRemoteReceivers?: (ctx: HandlerContext) => number
+  /** T0433: refuse agents this server cannot run (`createHeadlessAgentAvailabilityCheck`). */
+  checkAgentAvailable?: (agentId: string) => Promise<AgentUnavailableResult | null>
 }): HandlerModule {
   return (register, host) => {
     const readSettings = () => readHeadlessTerminalSettings(host.getSettings())
@@ -328,8 +415,129 @@ export function createHeadlessTerminalModule(opts: {
         logger: defaultLogger,
       }),
       countRemoteReceivers: opts.countRemoteReceivers,
+      checkAgentAvailable: opts.checkAgentAvailable,
       validateShell: true,
     })
+  }
+}
+
+/**
+ * T0433: the last `remote-tools:detect` result of this server, shared by the
+ * `remote-tools:detect` handler and the agent availability check. Concurrent callers
+ * share one in-flight probe.
+ */
+export class HeadlessRemoteToolsCache {
+  private last: { at: number; result: RemoteToolsDetectResult } | null = null
+  private inflight: Promise<RemoteToolsDetectResult> | null = null
+
+  constructor(private readonly opts: {
+    detect: () => Promise<RemoteToolsDetectResult>
+    now?: () => number
+  }) {}
+
+  detect(): Promise<RemoteToolsDetectResult> {
+    if (this.inflight) return this.inflight
+    const run = this.opts.detect().then(result => {
+      this.last = { at: (this.opts.now ?? Date.now)(), result }
+      return result
+    }).finally(() => {
+      if (this.inflight === run) this.inflight = null
+    })
+    this.inflight = run
+    return run
+  }
+
+  /** Last finished detection and when it finished, or null. */
+  peek(): { at: number; result: RemoteToolsDetectResult } | null {
+    return this.last
+  }
+}
+
+/**
+ * T0433: agents (terminal-driven ids) the server bundle does not ship, mapped to the
+ * remote tools detection entry that says whether the machine has them. Claude is bundled
+ * (always runnable); agents the detection has no entry for are not judged.
+ */
+export const HEADLESS_AGENT_TOOLS: Readonly<Record<string, RemoteToolId>> = {
+  'codex-cli': 'codex',
+}
+
+/** T0433: detection statuses under which the agent runs in a remote login shell. */
+const RUNNABLE_TOOL_STATUSES: ReadonlySet<string> = new Set(['ok', 'error'])
+/** A runnable result is trusted this long; a not-runnable one only briefly (just installed?). */
+export const HEADLESS_AGENT_CHECK_RUNNABLE_TTL_MS = 10 * 60 * 1000
+export const HEADLESS_AGENT_CHECK_MISSING_TTL_MS = 30 * 1000
+/** Under bat-terminal.mjs's 3 s invoke timeout. */
+export const HEADLESS_AGENT_CHECK_WAIT_MS = 2000
+
+/**
+ * T0433 (T0431 遭遇問題 4): `terminal:create-agent-command` for an agent this server cannot
+ * run answers `AGENT_UNAVAILABLE` instead of typing `codex …` into a shell that prints
+ * `command not found`. The decision reuses the PLAN-037 remote tools detection (no new
+ * probe): the cached result while fresh, else a detection bounded by `waitMs`. Still
+ * running ⇒ the last (stale) result when there is one, else `AGENT_CHECK_PENDING` (retry;
+ * the detection keeps going and fills the cache). A failed detection (Windows host, probe
+ * error) or an agent the detection has no entry for ⇒ not judged (null, launched as before).
+ */
+export function createHeadlessAgentAvailabilityCheck(
+  cache: HeadlessRemoteToolsCache,
+  opts: { now?: () => number; waitMs?: number } = {},
+): (agentId: string) => Promise<AgentUnavailableResult | null> {
+  const now = opts.now ?? Date.now
+  const waitMs = opts.waitMs ?? HEADLESS_AGENT_CHECK_WAIT_MS
+  const toolStatus = (result: RemoteToolsDetectResult, tool: RemoteToolId) =>
+    result.ok ? result.report.tools.find(t => t.id === tool)?.status : undefined
+  const isFresh = (cached: { at: number; result: RemoteToolsDetectResult }, tool: RemoteToolId) => {
+    const status = toolStatus(cached.result, tool)
+    const ttl = status && RUNNABLE_TOOL_STATUSES.has(status)
+      ? HEADLESS_AGENT_CHECK_RUNNABLE_TTL_MS
+      : HEADLESS_AGENT_CHECK_MISSING_TTL_MS
+    return now() - cached.at < ttl
+  }
+
+  return async agentId => {
+    const tool = HEADLESS_AGENT_TOOLS[agentId]
+    if (!tool) return null
+
+    const cached = cache.peek()
+    let result: RemoteToolsDetectResult | null = cached && isFresh(cached, tool) ? cached.result : null
+    if (!result) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const timedOut = Symbol('timed-out')
+      const outcome = await Promise.race([
+        cache.detect().catch(() => null),
+        new Promise<typeof timedOut>(resolve => { timer = setTimeout(() => resolve(timedOut), waitMs) }),
+      ])
+      if (timer) clearTimeout(timer)
+      if (outcome === timedOut) {
+        const stale = cache.peek()
+        if (!stale) {
+          return {
+            ok: false,
+            code: AGENT_CHECK_PENDING,
+            agentId,
+            tool,
+            error: `Checking whether ${tool} is installed on this server; retry in a few seconds.`,
+          }
+        }
+        result = stale.result
+      } else {
+        result = outcome
+      }
+    }
+    if (!result || !result.ok) return null
+
+    const status = toolStatus(result, tool)
+    if (!status || RUNNABLE_TOOL_STATUSES.has(status)) return null
+    return {
+      ok: false,
+      code: AGENT_UNAVAILABLE,
+      agentId,
+      tool,
+      status,
+      error: `${tool} is not available on this server (remote tools detection: ${status}). ` +
+        `The server bundle ships claude only; install ${tool} on the server (remote tools panel), or dispatch with --agent claude.`,
+    }
   }
 }
 
@@ -341,10 +549,21 @@ export type HeadlessRemoteToolsOverrides = Omit<RemoteToolsHandlerDeps, 'isScrub
  * server machine. Probe env is the server env minus `isHeadlessScrubbedEnvKey`
  * (same rule as headless PTYs), so `BAT_*` never reaches the probe shell.
  */
-export function createHeadlessRemoteToolsModule(overrides: HeadlessRemoteToolsOverrides = {}): HandlerModule {
+export function createHeadlessRemoteToolsModule(
+  overrides: HeadlessRemoteToolsOverrides = {},
+  cache: HeadlessRemoteToolsCache = createHeadlessRemoteToolsCache(overrides),
+): HandlerModule {
   return register => {
-    registerRemoteToolsHandlers(register, { ...overrides, isScrubbedEnvKey: isHeadlessScrubbedEnvKey })
+    // T0433: answered through the cache the agent availability check reads.
+    register(REMOTE_TOOLS_DETECT_CHANNEL, () => cache.detect())
   }
+}
+
+/** T0433: the T0408 probe on this server (`isHeadlessScrubbedEnvKey` env), behind a cache. */
+export function createHeadlessRemoteToolsCache(overrides: HeadlessRemoteToolsOverrides = {}): HeadlessRemoteToolsCache {
+  return new HeadlessRemoteToolsCache({
+    detect: () => runRemoteToolsDetect({ ...overrides, isScrubbedEnvKey: isHeadlessScrubbedEnvKey }),
+  })
 }
 
 /**
@@ -420,6 +639,9 @@ export function createHeadlessFsModule(opts: { onRoots?: (roots: SyncedWorkspace
  * T0406: `fs.onRoots` hands over the synced-roots store.
  * T0431: `terminal.countRemoteReceivers` feeds the keypress `no-client` check; the
  * terminal module shares the pty module's PtyManager.
+ * T0433: PTY helpers live in `<installRoot>/scripts`; `terminal:create-agent-command`
+ * checks the agent against the remote tools detection the `remote-tools:detect` handler
+ * shares (`HeadlessRemoteToolsCache`).
  */
 export function createHeadlessHandlerModules(opts: {
   installRoot?: string
@@ -430,7 +652,9 @@ export function createHeadlessHandlerModules(opts: {
   terminal?: { countRemoteReceivers?: (ctx: HandlerContext) => number }
 } = {}): HandlerModule[] {
   let ptyManager: PtyManager | null = null
+  const toolsCache = createHeadlessRemoteToolsCache(opts.remoteTools)
   const ptyModule = createHeadlessPtyModule({
+    helperDir: path.join(opts.installRoot ?? defaultHeadlessInstallRoot(), 'scripts'),
     ...opts.pty,
     onManager: manager => {
       ptyManager = manager
@@ -443,8 +667,9 @@ export function createHeadlessHandlerModules(opts: {
     createHeadlessTerminalModule({ // T0431
       getPtyManager: () => ptyManager,
       countRemoteReceivers: opts.terminal?.countRemoteReceivers,
+      checkAgentAvailable: createHeadlessAgentAvailabilityCheck(toolsCache), // T0433
     }),
-    createHeadlessRemoteToolsModule(opts.remoteTools), // T0411
+    createHeadlessRemoteToolsModule(opts.remoteTools, toolsCache), // T0411
     createHeadlessGitModule(opts.git), // T0405
     createHeadlessFsModule(opts.fs), // T0406
   ]
@@ -591,7 +816,23 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   const moduleDisposers: HandlerModuleDisposer[] = []
   const handlerModules = createHeadlessHandlerModules({
     installRoot: opts.installRoot,
-    pty: { maxPtys: ptyLimits.maxPtys, onManager: manager => { ptyManager = manager }, helperCapabilities },
+    pty: {
+      maxPtys: ptyLimits.maxPtys,
+      onManager: manager => { ptyManager = manager },
+      helperCapabilities,
+      // T0433: helpers in this server's PTYs reach it on its bound port with their own
+      // capability, pin <dataDir>/server-cert.json, and log under <dataDir>/Logs.
+      helperEndpoint: () => {
+        const port = remoteServer.port
+        return port
+          ? {
+              port,
+              certPath: path.join(opts.dataDir, 'server-cert.json'),
+              logDir: path.join(opts.dataDir, 'Logs'),
+            }
+          : null
+      },
+    },
     remoteTools: opts.remoteTools,
     git: opts.git,
     fs: { onRoots: roots => { fsRoots = roots } },

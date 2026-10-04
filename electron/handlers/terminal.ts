@@ -24,6 +24,7 @@ import { logger } from '../logger'
 import { mirrorToBatScripts, pickWhitelistedEnv } from '../remote/remote-logger'
 import {
   registerTerminalCommandHandlers,
+  type AgentUnavailableResult,
   type BuiltAgentCommand,
   type AgentPromptCommandOptions,
   type TerminalCommandHandlerDeps,
@@ -48,6 +49,11 @@ export interface TerminalHandlerDeps {
   /** Shell settings (`shell` / `customShellPath`) of this host. */
   readSettings(): PersistedShellSettings | null
   buildAgentPromptCommand(opts: AgentPromptCommandOptions): Promise<BuiltAgentCommand | null>
+  /**
+   * T0433 (headless): refuse `terminal:create-agent-command` for an agent that cannot run on
+   * this host (structured `AgentUnavailableResult`). Absent (Electron): no check.
+   */
+  checkAgentAvailable?(agentId: string): Promise<AgentUnavailableResult | null>
   /**
    * headless: authenticated clients that will receive a broadcast, not counting the
    * invoking connection. When set, `terminal:keypress` with 0 → `{ ok: false, reason: 'no-client' }`.
@@ -88,6 +94,7 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
     rejectShell: deps.validateShell ? shell => shellPathRejection(shell) : undefined,
     readPersistedSettingsSync: deps.readSettings,
     buildAgentPromptCommand: deps.buildAgentPromptCommand,
+    checkAgentAvailable: deps.checkAgentAvailable,
     pickWhitelistedEnv,
     mirrorToBatScripts,
     logger,

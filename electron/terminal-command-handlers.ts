@@ -52,6 +52,28 @@ interface TerminalAgentCommandOptions {
   workspaceId?: string
 }
 
+/** T0433: `terminal:create-agent-command` refused — the agent cannot run on this host. */
+export const AGENT_UNAVAILABLE = 'AGENT_UNAVAILABLE' as const
+/** T0433: refused for now — the host is still checking whether the agent can run; retry shortly. */
+export const AGENT_CHECK_PENDING = 'AGENT_CHECK_PENDING' as const
+
+/**
+ * T0433: what `terminal:create-agent-command` answers instead of creating a terminal that
+ * would only print `command not found` (headless: an agent the server bundle does not ship
+ * and the remote tools detection does not find). `error` is the English, human-readable text
+ * bat-terminal.mjs prints.
+ */
+export interface AgentUnavailableResult {
+  ok: false
+  code: typeof AGENT_UNAVAILABLE | typeof AGENT_CHECK_PENDING
+  agentId: string
+  /** Tool id of the remote tools detection (`codex`), when the decision came from it. */
+  tool?: string
+  /** Its detection status (`missing` / `not-on-path` / `interop-only`). */
+  status?: string
+  error: string
+}
+
 export interface BuiltAgentCommand {
   command: string
   agentId: string
@@ -77,6 +99,11 @@ export interface TerminalCommandHandlerDeps {
   rejectShell?(shell: unknown): string | null
   readPersistedSettingsSync(): PersistedShellSettings | null
   buildAgentPromptCommand(opts: AgentPromptCommandOptions): Promise<BuiltAgentCommand | null>
+  /**
+   * T0433 (headless): why the resolved agent cannot run on this host, or null when it can
+   * (or cannot be judged). Absent (Electron): every agent is launched as before.
+   */
+  checkAgentAvailable?(agentId: string): Promise<AgentUnavailableResult | null>
   pickWhitelistedEnv(env?: Record<string, string>): Record<string, string | undefined>
   mirrorToBatScripts(event: string, payload: Record<string, unknown>): void
   logger: {
@@ -261,6 +288,21 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       shellFamily,
     })
     if (!resolved) return false
+
+    const unavailable = await deps.checkAgentAvailable?.(resolved.agentId) ?? null
+    if (unavailable) {
+      deps.logger.warn(`[agent-command] refused agent=${resolved.agentId} code=${unavailable.code} tool=${unavailable.tool ?? 'n/a'} status=${unavailable.status ?? 'n/a'}`)
+      deps.mirrorToBatScripts('ipc-result', {
+        channel: 'terminal:create-agent-command',
+        terminalId: opts.id,
+        result: false,
+        reason: unavailable.code,
+        agentId: resolved.agentId,
+        tool: unavailable.tool,
+        status: unavailable.status,
+      })
+      return unavailable
+    }
 
     if (resolved.prefixNormalized) {
       deps.logger.log(`[agent-command] prefix-normalized agent=${resolved.agentId} prompt=${resolved.prompt}`)

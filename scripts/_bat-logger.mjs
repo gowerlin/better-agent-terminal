@@ -10,6 +10,9 @@
 //   Windows: %APPDATA%/BetterAgentTerminal[-runtime-<N>]/Logs/bat-scripts.log
 //   macOS:   $HOME/Library/Application Support/BetterAgentTerminal[-runtime-<N>]/Logs/bat-scripts.log
 //   Linux:   $HOME/.config/BetterAgentTerminal[-runtime-<N>]/logs/bat-scripts.log
+//   Override (T0433): $BAT_HELPER_LOG_DIR/bat-scripts.log when it is an absolute
+//   path. A headless bat-server sets it to <dataDir>/Logs for its PTYs — the
+//   remote machine has no Electron userData dir. Unset (local BAT) = as above.
 //
 // Format: newline-delimited JSON, one event per line.
 //
@@ -19,7 +22,7 @@
 //   - Never break business logic — this is diagnostic-only.
 
 import { appendFileSync, mkdirSync } from 'fs'
-import { join } from 'path'
+import { isAbsolute, join } from 'path'
 import { homedir } from 'os'
 
 // Electron app name matches electron/main.ts:121 → app.setName('BetterAgentTerminal')
@@ -63,6 +66,16 @@ function resolveUserDataDir() {
 }
 
 function resolveLogPath() {
+  // T0433: headless bat-server PTYs point the log at the server's data dir.
+  // Relative values are ignored so the log never lands in whatever cwd the
+  // helper runs from.
+  const overrideDir = process.env.BAT_HELPER_LOG_DIR
+  if (overrideDir && isAbsolute(overrideDir)) {
+    return {
+      dir: overrideDir,
+      file: join(overrideDir, 'bat-scripts.log'),
+    }
+  }
   const userData = resolveUserDataDir()
   if (!userData) return null
   // Electron's logger writes to <userData>/Logs (see electron/logger.ts:160 with

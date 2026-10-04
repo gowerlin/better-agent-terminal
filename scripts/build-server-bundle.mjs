@@ -29,6 +29,16 @@ const stagingRoot = path.join(distRoot, 'staging')
 const binDir = path.join(stagingRoot, 'bin')
 const nodeModulesDir = path.join(stagingRoot, 'node_modules')
 const remoteDir = path.join(stagingRoot, 'electron', 'remote')
+// T0433 (PLAN-036 P3 / K): helpers a headless PTY runs (BAT_HELPER_DIR =
+// <installRoot>/scripts). Every relative .mjs import of a listed helper must be
+// listed too — scripts/verify-helper-bundle.js enforces the closure (BUG-058).
+const helperScriptsDir = path.join(stagingRoot, 'scripts')
+const serverBundleHelperScripts = [
+  'bat-terminal.mjs',
+  'bat-notify.mjs',
+  '_bat-cert.mjs',
+  '_bat-logger.mjs',
+]
 const VALID_TARGETS = ['linux-x64', 'linux-arm64', 'darwin-arm64']
 const TARGET_CONFIG = {
   'linux-x64': {
@@ -186,6 +196,7 @@ async function prepareDirs() {
   ensureDir(binDir)
   ensureDir(nodeModulesDir)
   ensureDir(remoteDir)
+  ensureDir(helperScriptsDir)
   await removePath(bundlePath)
 }
 
@@ -362,6 +373,19 @@ async function copyServerSources() {
   // (headless-entry.ts → electron/handlers/*), like every other dependency.
   // The old copy step silently skipped a missing directory, which hid that
   // headless had no handlers at all (BUG-094).
+  await copyHelperScripts()
+}
+
+async function copyHelperScripts() {
+  // T0433: a missing helper is a build error, never a silent skip (BUG-058 / BUG-094).
+  log('5', `Copying ${serverBundleHelperScripts.length} helper scripts into staging/scripts`)
+  for (const name of serverBundleHelperScripts) {
+    const source = resolveProjectPath('scripts', name)
+    if (!existsAndIsFile(source)) {
+      throw new Error(`Missing helper script: scripts/${name} (listed in serverBundleHelperScripts)`)
+    }
+    await copyFile(source, path.join(helperScriptsDir, name))
+  }
 }
 
 async function writeLauncherAndReadme(nodeVersion) {

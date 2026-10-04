@@ -213,6 +213,79 @@ function checkServerBundleBaseline() {
 
 checkServerBundleBaseline();
 
+// ---------- T0433: helpers shipped inside the server bundle ----------
+//
+// scripts/build-server-bundle.mjs copies `serverBundleHelperScripts` into
+// <installRoot>/scripts/ — the BAT_HELPER_DIR of every headless PTY (PLAN-036
+// P3 / K). Same failure as BUG-058, other packager: a helper whose relative
+// .mjs import is not listed dies with ERR_MODULE_NOT_FOUND on the remote host.
+// Checked here (source parse; the build script runs main() at load and cannot
+// be imported):
+//   - the list exists and holds bat-terminal.mjs + bat-notify.mjs
+//   - every listed file exists in scripts/
+//   - the list is closed under static relative .mjs imports
+//   - the build actually copies it (copyHelperScripts() is called)
+
+const SERVER_BUNDLE_SCRIPT = path.join(projectRoot, 'scripts', 'build-server-bundle.mjs');
+const REQUIRED_SERVER_BUNDLE_HELPERS = ['bat-terminal.mjs', 'bat-notify.mjs'];
+
+function parseServerBundleHelperScripts(source) {
+  const listMatch = source.match(/const\s+serverBundleHelperScripts\s*=\s*\[([\s\S]*?)\]/);
+  if (!listMatch) return null;
+  return [...listMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+}
+
+function checkServerBundleHelpers() {
+  const scriptsDir = path.join(projectRoot, 'scripts');
+  const issues = [];
+  let source = null;
+  try {
+    source = fs.readFileSync(SERVER_BUNDLE_SCRIPT, 'utf8');
+  } catch (err) {
+    issues.push(`cannot read scripts/build-server-bundle.mjs: ${err.message}`);
+  }
+
+  const listed = source === null ? null : parseServerBundleHelperScripts(source);
+  if (source !== null && listed === null) {
+    issues.push('`const serverBundleHelperScripts = [...]` not found in scripts/build-server-bundle.mjs');
+  }
+  if (listed) {
+    if (!/\n\s*await\s+copyHelperScripts\(\)/.test(source)) {
+      issues.push('scripts/build-server-bundle.mjs no longer calls copyHelperScripts() — the helpers would not be copied');
+    }
+    for (const required of REQUIRED_SERVER_BUNDLE_HELPERS) {
+      if (!listed.includes(required)) issues.push(`serverBundleHelperScripts is missing ${required}`);
+    }
+    const listedSet = new Set(listed);
+    for (const name of listed) {
+      const full = path.join(scriptsDir, name);
+      if (!fs.existsSync(full) || !fs.statSync(full).isFile()) {
+        issues.push(`serverBundleHelperScripts lists ${name}, but scripts/${name} does not exist`);
+        continue;
+      }
+      for (const target of extractRelativeMjsImports(fs.readFileSync(full, 'utf8'))) {
+        if (!listedSet.has(target)) {
+          issues.push(`scripts/${name} imports './${target}', but serverBundleHelperScripts does not list it — add '${target}'`);
+        }
+      }
+    }
+  }
+
+  if (issues.length > 0) {
+    console.error('');
+    console.error('[verify-helper-bundle] T0433 server bundle helper check failed');
+    console.error('');
+    for (const issue of issues) console.error(`  - ${issue}`);
+    console.error('');
+    console.error('[verify-helper-bundle] Background: T0433 / PLAN-036 — headless PTYs run these helpers from <installRoot>/scripts (BUG-058 analogue).');
+    console.error('');
+    process.exit(1);
+  }
+  return listed.length;
+}
+
+const serverBundleHelperCount = checkServerBundleHelpers();
+
 if (problems.length > 0) {
   console.error('');
   console.error('[verify-helper-bundle] extraResources.filter does not cover every helper import');
@@ -250,4 +323,4 @@ const total = extraResources.reduce((acc, entry) => {
   return acc + fs.readdirSync(abs).filter((n) => n.endsWith('.mjs')).length;
 }, 0);
 
-console.log(`[verify-helper-bundle] OK — all ${total} helper .mjs files in extraResources are reachable via filter`);
+console.log(`[verify-helper-bundle] OK — all ${total} helper .mjs files in extraResources are reachable via filter; server bundle ships ${serverBundleHelperCount} helper(s) with a closed import set`);

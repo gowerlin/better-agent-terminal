@@ -54,7 +54,8 @@ export interface PtyManagerDeps {
   /**
    * T0140: absolute path to the helper scripts (bat-terminal.mjs, bat-notify.mjs),
    * injected into PTY env as `BAT_HELPER_DIR`. Empty / undefined = not injected
-   * (headless: the helpers are not part of the server bundle).
+   * (headless: not set — `helperEnv` supplies `BAT_HELPER_DIR` together with the PTY's
+   * capability, T0433).
    */
   helperDir?: string
   /**
@@ -72,11 +73,20 @@ export interface PtyManagerDeps {
   maxInstances?: number
   /**
    * T0432: called with the id of a PTY that is gone — killed (`kill` / `killAll` / restart's
-   * kill) or exited on its own. A stale exit of a replaced process is not reported. May be
+   * kill), exited on its own, or (T0433) failed to spawn. A stale exit of a replaced process is not reported. May be
    * called twice for one PTY (kill, then its exit); listeners must be idempotent. Headless
    * revokes the PTY's helper capability here. Undefined = no hook (Electron).
    */
   onPtyExit?: (id: string) => void
+  /**
+   * T0433: extra env for the helpers (`bat-terminal.mjs` / `bat-notify.mjs`) inside PTY `id`,
+   * spread last so neither `customEnv` nor the inherited env can override it. Called once
+   * per PTY actually spawned — never for an idempotent re-create of a running id, whose
+   * env (and helper capability) must stay valid. Headless issues the PTY's capability here
+   * (`BAT_REMOTE_TOKEN`); the server token never goes through it. Undefined = nothing
+   * extra (Electron: `getRemoteServerInfo` + `helperDir` as before).
+   */
+  helperEnv?: (id: string, customEnv: Record<string, string>) => Record<string, string>
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -206,6 +216,17 @@ export class PtyManager {
   /** T0140: `BAT_HELPER_DIR` env entry, omitted when the host has no helper dir. */
   private helperDirEnv(): { BAT_HELPER_DIR?: string } {
     return this.deps.helperDir ? { BAT_HELPER_DIR: this.deps.helperDir } : {}
+  }
+
+  /** T0433: `deps.helperEnv` for a PTY about to be spawned; a throwing host yields none. */
+  private helperEnvFor(id: string, customEnv: Record<string, string>): Record<string, string> {
+    if (!this.deps.helperEnv) return {}
+    try {
+      return this.deps.helperEnv(id, customEnv)
+    } catch (e) {
+      logger.warn(`[PtyManager] helperEnv failed id=${id}:`, e)
+      return {}
+    }
   }
 
   /** BUG-102 (T0398): UTF-8 locale entries, spread after `customEnv`. */
@@ -619,6 +640,7 @@ export class PtyManager {
       }
       // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
       const remoteInfo = this.getRemoteServerInfo?.() ?? null
+      const helperEnv = this.helperEnvFor(id, customEnv)
       const envWithUtf8 = {
         ...this.inheritedEnv() as Record<string, string>,
         ...customEnv,
@@ -646,6 +668,8 @@ export class PtyManager {
         CLAUDE_CODE_NO_FLICKER: '1',
         CI: '',
         ...(remoteInfo ? { BAT_REMOTE_PORT: String(remoteInfo.port), BAT_REMOTE_TOKEN: remoteInfo.token } : {}),
+        // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
+        ...helperEnv,
       }
       this.sendToServer({
         type: 'pty:create',
@@ -673,6 +697,8 @@ export class PtyManager {
 
     // Fallback: direct PTY spawn (node-pty or child_process)
     let usedPty = false
+    // T0433: once per spawned PTY (the child_process fallback reuses it)
+    const helperEnv = this.helperEnvFor(id, customEnv)
 
     if (ptyAvailable && pty) {
       try {
@@ -712,6 +738,8 @@ export class PtyManager {
           CI: '',
           // T0129: RemoteServer connection info for CLI tools
           ...(remoteInfoLocal ? { BAT_REMOTE_PORT: String(remoteInfoLocal.port), BAT_REMOTE_TOKEN: remoteInfoLocal.token } : {}),
+          // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
+          ...helperEnv,
         }
 
         // BUG-038: strip ELECTRON_RUN_AS_NODE so `npm run dev` / `npx electron .` inside BAT
@@ -787,6 +815,8 @@ export class PtyManager {
           CI: '',
           // T0129: RemoteServer connection info for CLI tools
           ...(remoteInfoFallback ? { BAT_REMOTE_PORT: String(remoteInfoFallback.port), BAT_REMOTE_TOKEN: remoteInfoFallback.token } : {}),
+          // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
+          ...helperEnv,
         }
 
         // BUG-038: strip ELECTRON_RUN_AS_NODE (same rationale as node-pty branch above).
@@ -824,6 +854,8 @@ export class PtyManager {
         logger.log('Created terminal using child_process fallback')
       } catch (error) {
         logger.error('Failed to create terminal:', error)
+        // T0433: nothing was spawned — revoke what `helperEnv` issued for it
+        this.notifyPtyExit(id)
         return false
       }
     }

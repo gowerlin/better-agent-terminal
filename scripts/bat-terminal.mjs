@@ -713,6 +713,25 @@ async function main() {
     ws.close()
     process.exit(1)
   }
+  // T0433: a structured refusal ({ ok: false, code, error }) — headless bat-server answers
+  // AGENT_UNAVAILABLE / AGENT_CHECK_PENDING for an agent it cannot run (e.g. codex not
+  // installed on the remote machine). A local BAT answers a boolean, handled as before.
+  const invokeResult = invokeResp.result
+  if (invokeResult && typeof invokeResult === 'object' && invokeResult.ok === false) {
+    const code = typeof invokeResult.code === 'string' ? invokeResult.code : 'refused'
+    const detail = typeof invokeResult.error === 'string' ? invokeResult.error : 'terminal was not created'
+    console.error(`Error: Failed to create terminal (${code}): ${detail}`)
+    logEvent('bat-terminal', 'terminal-created', {
+      result: 'refused',
+      code,
+      agentId: invokeResult.agentId,
+      tool: invokeResult.tool,
+      status: invokeResult.status,
+    })
+    logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-create-refused', refusal: code })
+    ws.close()
+    process.exit(1)
+  }
 
   console.log(`✓ Terminal created: ${terminalId}`)
   logEvent('bat-terminal', 'terminal-created', { result: 'ok', terminalId })

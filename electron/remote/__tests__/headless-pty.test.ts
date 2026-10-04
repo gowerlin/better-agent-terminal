@@ -9,6 +9,7 @@
  *     re-spawn: shell state survives, and a client disconnect does not kill it
  *   - restart: the old process's late exit does not delete / "exit" the new one
  *   - remote shell env carries no server token and no inherited BAT_* session vars
+ *     (T0433: BAT_REMOTE_* / BAT_HELPER_DIR are now the server's own per-PTY helper env)
  *   - client-supplied shell must be an absolute path to an existing file
  * Plus pure units: shell validation, BAT_* scrub predicate, `auto` shell fallback.
  */
@@ -223,8 +224,11 @@ describe('headless pty (T0390, real node-pty)', () => {
     expect(dump).not.toContain('inherited-secret-t0390')
     expect(dump).not.toContain('inherited-tower-id')
     expect(dump).not.toContain('inherited-terminal-id')
-    expect(dump).not.toMatch(/BAT_REMOTE_/)
-    expect(dump).not.toMatch(/BAT_HELPER_DIR=/)
+    // T0433: BAT_REMOTE_* / BAT_HELPER_DIR exist again, but are this server's per-PTY helper
+    // env (capability, not the server token — see headless-helper-env.test.ts), never inherited.
+    expect(dump).toContain(`BAT_REMOTE_PORT=${harness.port}`)
+    if (harness.port !== 9876) expect(dump).not.toContain('BAT_REMOTE_PORT=9876')
+    expect(dump).not.toContain('/inherited/helper/dir')
     expect(dump).not.toMatch(/BAT_TOWER_TERMINAL_ID=/)
 
     expect(await harness.invoke('pty:kill', id)).toBe(true)
