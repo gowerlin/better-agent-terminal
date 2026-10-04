@@ -4,12 +4,12 @@ schema_kind: workorder
 id: T0376
 title: "本地打包腳本版號來源修正：預設取 package.json、保留 -pre 後綴、不留 dirty、補齊 build 前置檢查"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 priority: P2
 sizing: S
 created_at: "2026-10-04T20:39:03+08:00"
-updated_at: "2026-10-04T20:39:03+08:00"
-started_at: null
+updated_at: "2026-10-04T20:41:35+08:00"
+started_at: "2026-10-04T20:41:35+08:00"
 completed_at: null
 target_version: next
 depends_on: []
@@ -92,3 +92,70 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 結果摘要（2026-10-04T20:44:42+08:00）
+
+**狀態：DONE**。P1–P7 全部處理；CI 路徑輸出值不變；DryRun 不寫任何檔。
+
+| # | 處理 |
+|---|------|
+| P1/P2 | 版號優先序改為 `VERSION` env → `package.json` → 顯式快照；時間戳 `1.yy.*` 移除 |
+| P3/P5 | git tag 不再作為版號來源（移除 `--exact-match` 與非 exact 的 `git describe --tags` fallback）；只用 `git tag --points-at HEAD --list v*` 做一致性警告，後綴保留比對 |
+| P4 | 版號 = package.json 時不寫檔；`build-version.js` 本地模式（非 `CI`）打包後還原原始 bytes；`release.ps1` finally 再以 bytes 比對還原（防 Ctrl+C / 例外） |
+| P6 | `release.ps1` 改呼叫 `npm run build:release`（= `fetch:baseline` + `build-version.js` 內 verify 三件 + `npm run build`），版號經 `VERSION` env 傳入，不重複計算 |
+| P7 | Setup exe 搜尋改 `*Setup*.exe` 並限定 `"* Setup $Version.exe"` / `"*.Setup.$Version.exe"`（避開 release/ 舊產出）；nuspec 版號與 checksum 改在 `%TEMP%\bat-choco-<guid>` 暫存複本內替換後 `choco pack <staged nuspec> --output-directory release/`，tracked `choco/**` 不動，finally 刪暫存 |
+
+### 設計選擇（工單要求說明者）
+
+1. **時間戳 fallback → 顯式 `-Snapshot`（`BAT_VERSION_SNAPSHOT=1`）才產生**，格式 `<pkg>-local.<yyMMddHHmmss>`；pkg 已有 prerelease 時以 `.` 延伸（`0.5.9-pre.4.local.261004204416`），因 semver 只允許單一 prerelease 段。排序低於下一個正式版 / 下一個 `-pre.N`，不會造成降級判定。package.json 無 version 且無 env 時 **throw**，不靜默退回時間戳。
+2. **HEAD 上 v* tag 與 package.json 不一致 → 警告 + 以 package.json 為準**（不 abort）。理由：D125 定 package.json 為 SoT；本 repo 三條 tag 線，HEAD 被他線 tag 指到時 abort 會擋掉正當打包；不一致的處置（同步 package.json）在警告文字中給出指令。HEAD 有多個 v* tag 時任一相符即不警告。
+3. **前置檢查改走既有 npm script**（`build:release`），不自行拼。代價：`fetch:baseline` 與 verify 三件會各跑兩次（`build:release` 一次 + `npm run build` 的 `prebuild`/內建 verify 一次）；`fetch:baseline` 有 SHA cache 會 skip，verify 為靜態掃描，成本可忽略，換得與 `npm run build` 完全一致。
+4. **單一解析來源**：`release.ps1` 不再自行算版號，改呼叫 `node scripts/build-version.js --resolve-only`（印 `{version, source, warnings}` JSON、不跑 guard、不寫檔、不 build），確保兩邊一致。解析出的版號再設回 `VERSION` env 給 `build:release`，快照時間戳不會被重算。
+5. `build-version.js` 加 `require.main === module` guard，verify 三件的 `require` 移入 `main()`（直接執行時順序與原本相同：verify → 解析 → 寫版號 → build）；匯出 `resolveVersion` / `formatSnapshotVersion` 供測試。
+
+### 變更檔案
+
+- `scripts/build-version.js` — 純函式 `resolveVersion({ env, pkgVersion, tags, now })` / `formatSnapshotVersion()`、`--resolve-only`、`execFileSync` + 5s timeout 讀 HEAD tag、版號相同不寫檔、本地還原
+- `.vscode/scripts/release.ps1` — 新增 `-Snapshot`；`.PARAMETER Version` 說明改寫；改走 `build:release`；DryRun 對 `-ChocoPackOnly` 也生效（原本 `-ChocoPackOnly -DryRun` 會真的跑 choco）；choco 暫存複本；`choco` 不存在時 warn skip；finally 還原 package.json 與 env
+- `electron/__tests__/build-version.test.ts`（新增，15 tests）
+- 未改：`choco/tools/chocolateyinstall.ps1`（URL 的 `BetterAgentTerminal.Setup.<ver>.exe` 對應 GitHub 上傳後空白轉點的資產名，正確；checksum 改在暫存複本替換，無需改 tracked 檔）、`.vscode/tasks.json`（無需改動）
+
+### 驗收證據
+
+| 項目 | 結果 | 證據 |
+|------|------|------|
+| vitest 解析函式 | ✅ PASS | `npx vitest run electron/__tests__/build-version.test.ts` → 15 passed（env 優先、`v` 前綴、空 env、pkg 次之含 `-pre.N`、tag 相符/不符/多 tag/非版號 tag、無版號 throw、快照格式與零填、env 勝過快照） |
+| 測試檔被 include 涵蓋 | ✅ | 放 `electron/__tests__/`（既有 glob `electron/__tests__/**/*.test.ts`），未動 `vite.config.ts` |
+| `release.ps1 -DryRun -SkipGitCheck` | ✅ PASS | 印 `版本號: 0.5.9-pre.4（來源: package.json）`，exit 0 |
+| `release.ps1 -DryRun -SkipGitCheck -Version 9.9.9-test.1` | ✅ PASS | 印 `版本號: 9.9.9-test.1（來源: env）`，exit 0 |
+| 額外：`-Snapshot` / `-ChocoPackOnly -DryRun` | ✅ | `0.5.9-pre.4.local.261004204416`；ChocoPackOnly DryRun 不執行 choco |
+| 執行後 `git status --porcelain` | ✅ PASS（以前後比對） | 4 次 DryRun 前後 porcelain 字串完全相同（`True`）。⚠️ 絕對值非空：並行 T0377 的 dirty 檔（`electron/main.ts` 等）與本單尚未 commit 的改動存在，故以「執行前 = 執行後」作為不留 dirty 的證據；`VERSION` env 未外洩 |
+| CI 不變 | ✅ PASS | 修改前（`git show HEAD:scripts/build-version.js` 抽 `getVersion`）：`0.5.9-pre.4`→`0.5.9-pre.4`、`v0.5.9-pre.4`→`0.5.9-pre.4`、`v1.2.3`→`1.2.3`；修改後 `resolveVersion` 與 `--resolve-only` 三組輸出完全相同。CI 仍會寫 package.json（不還原，供下一步 `npx electron-builder --win` 讀取）；唯一差異是 log 文字 `Using version from VERSION env:` → `Using version from env:`，以及版號相同時略過寫檔（內容結果相同） |
+| `npm run test:unit` | ✅ PASS | 49 files / **698 passed**（基線 673 + 本單 15 + 並行 T0377 新增測試） |
+| `npx vite build` | ⏭️ 未跑 | 依 memory_overrides 不跑 build（避免與 T0377 互擾）；本單改動不在 vite bundle 範圍（scripts/、.vscode/、測試） |
+| 實際完整打包 / choco pack / 非 DryRun 的還原路徑 | ⏭️ 範圍外 | 交使用者 runtime 驗收 |
+
+### Landing Zone
+
+- 結果：**WARN**（C-0 不可用）
+- C-0：frontmatter `repo` = absent；`basename(REPO_ROOT)` = `better-agent-terminal` → WARN "repo identity unavailable"
+- C-1：PASS（工單在 REPO_ROOT 下）
+- C-3：PASS（4 個 affects_files 皆存在）
+- C-2：無 `branch` 欄位，HEAD = `main`
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 工單原 `status: TODO`（非 PENDING），視為未開工直接轉 IN_PROGRESS
+
+### 給使用者的 runtime 驗收建議
+
+1. VS Code task「發行: 打包發行版」→ 產出應為 `BetterAgentTerminal Setup 0.5.9-pre.4.exe`，結束後 `git status` 不應出現 `package.json` / `choco/**`
+2. 「發行: 打包發行版 (指定版本)」輸入不同版號 → 產出該版號，結束後 `package.json` 已還原
+3. 若裝了 choco：`release/` 應出現 `better-agent-terminal.<ver>.nupkg`，且其 `chocolateyinstall.ps1` 的 `checksum64` 已非 `__CHECKSUM64__`
+
+### 後續建議（不在本單範圍）
+
+- `.vscode/tasks.json` 可加「發行: 打包快照版 (-Snapshot)」task（本單依「無需改動則不動」未加）
+- `[5/5] checksum` 仍對 `release/` 內所有檔案（含舊產出）計算，可考慮限定當前版號
+
+### Commit
+
+見下方 commit 紀錄。
