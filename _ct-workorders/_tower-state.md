@@ -122,7 +122,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 
 ### 待辦（依優先序）
 
-1. 🟡 **BUG-071** FIXING —— T0365 派發中（D120）；回報後塔台發 `v0.5.9-pre.3` → 確認 `server-bundle-v0.5.9-pre.3` release → 使用者實機 WSL wizard
+1. 🟡 **BUG-071** FIXING —— T0365 DONE `a295ec7`（D120）；待 push + 發 `v0.5.9-pre.3` → 確認 `server-bundle-v0.5.9-pre.3` release → 使用者實機 WSL wizard
 2. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6 倍（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
 3. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到
 4. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號至今零筆真實觸發，待有資料再議（已回函告知對方）
