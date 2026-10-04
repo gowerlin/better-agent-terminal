@@ -8,7 +8,7 @@ import * as path from 'path'
 import { invokeHandler } from './handler-registry'
 import { logger as defaultLogger } from '../logger'
 import { broadcastHub } from './broadcast-hub'
-import { PROXIED_EVENTS, type AuthResultMetadata, type RemoteFrame } from './protocol'
+import { PROXIED_EVENTS, type AuthResultMetadata, type AuthServerEnv, type RemoteFrame } from './protocol'
 import {
   FileCertificateProvider,
   type CertificateProvider,
@@ -53,6 +53,8 @@ interface RemoteServerLogger {
 interface RemoteServerOptions {
   certificateProvider?: CertificateProvider
   logger?: RemoteServerLogger
+  /** BUG-103: server environment reported in auth metadata. Default: `detectServerEnv()` per auth. */
+  detectServerEnv?: () => ServerEnvInfo
 }
 
 const TOKEN_FILENAME = 'server-token.json'
@@ -147,14 +149,61 @@ function resolveBundleVersion(): string {
   return '0.0.0'
 }
 
-function buildAuthMetadata(): AuthResultMetadata {
-  return {
+/** What `detectServerEnv` reads; every field defaults to the real process (tests inject). */
+export interface ServerEnvProbe {
+  platform: NodeJS.Platform
+  env: NodeJS.ProcessEnv
+  readProcVersion: () => string
+}
+
+export interface ServerEnvInfo {
+  serverEnv: Extract<AuthServerEnv, 'native' | 'wsl'>
+  /** Only when `WSL_DISTRO_NAME` is set; a systemd unit may not carry it (then `/proc/version` decides alone). */
+  wslDistro?: string
+}
+
+/**
+ * BUG-103 (T0404): WSL = Linux with `WSL_DISTRO_NAME` set, or `/proc/version`
+ * mentioning Microsoft (any case). Anything unreadable or unexpected falls back
+ * to `'native'` — this only feeds auth metadata and must never fail an auth.
+ */
+export function detectServerEnv(probe: Partial<ServerEnvProbe> = {}): ServerEnvInfo {
+  try {
+    if ((probe.platform ?? process.platform) !== 'linux') return { serverEnv: 'native' }
+    const distro = (probe.env ?? process.env).WSL_DISTRO_NAME?.trim()
+    if (distro) return { serverEnv: 'wsl', wslDistro: distro }
+    const readProcVersion = probe.readProcVersion ?? (() => fs.readFileSync('/proc/version', 'utf8'))
+    if (/microsoft/i.test(readProcVersion())) return { serverEnv: 'wsl' }
+  } catch {
+    // fall through to native
+  }
+  return { serverEnv: 'native' }
+}
+
+function safeHomedir(): string | undefined {
+  try {
+    return os.homedir() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function buildAuthMetadata(envInfo: ServerEnvInfo = detectServerEnv()): AuthResultMetadata {
+  const metadata: AuthResultMetadata = {
     serverPlatform: os.platform() as AuthResultMetadata['serverPlatform'],
     serverArch: os.arch() as AuthResultMetadata['serverArch'],
-    serverEnv: 'native',
+    serverEnv: envInfo.serverEnv,
     nodeVersion: process.versions.node,
     bundleVersion: resolveBundleVersion(),
   }
+  // BUG-103: WSL only — native keeps its pre-T0404 shape (the SSH wizard prefers
+  // `metadata.serverHome` over the home it probed, so a native server must not start sending one).
+  if (envInfo.serverEnv === 'wsl') {
+    if (envInfo.wslDistro) metadata.wslDistro = envInfo.wslDistro
+    const home = safeHomedir()
+    if (home) metadata.serverHome = home
+  }
+  return metadata
 }
 
 export class RemoteServer {
@@ -172,11 +221,15 @@ export class RemoteServer {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
   private readonly certificateProvider?: CertificateProvider
   private readonly log: RemoteServerLogger
+  private readonly detectEnv: () => ServerEnvInfo
+  private clientCountListeners: Set<(count: number) => void> = new Set()
+  private lastNotifiedClientCount = 0
   configDir: string = ''
 
   constructor(options: RemoteServerOptions = {}) {
     this.certificateProvider = options.certificateProvider
     this.log = options.logger ?? defaultLogger
+    this.detectEnv = options.detectServerEnv ?? (() => detectServerEnv())
   }
 
   get port(): number | null {
@@ -207,6 +260,35 @@ export class RemoteServer {
 
   get certificateExpiry(): number {
     return this.certificateExpiresAt
+  }
+
+  /** T0404: number of authenticated clients (unauthenticated sockets do not count). */
+  getClientCount(): number {
+    return this.clients.size
+  }
+
+  /**
+   * T0404: called with the new authenticated-client count whenever it changes
+   * (auth success, close / error / heartbeat cleanup, stop). Returns an unsubscribe.
+   */
+  onClientCountChange(listener: (count: number) => void): () => void {
+    this.clientCountListeners.add(listener)
+    return () => {
+      this.clientCountListeners.delete(listener)
+    }
+  }
+
+  private notifyClientCount(): void {
+    const count = this.clients.size
+    if (count === this.lastNotifiedClientCount) return
+    this.lastNotifiedClientCount = count
+    for (const listener of [...this.clientCountListeners]) {
+      try {
+        listener(count)
+      } catch (e) {
+        this.log.warn('[RemoteServer] client count listener failed:', e)
+      }
+    }
   }
 
   get connectedClients(): { label: string; connectedAt: number }[] {
@@ -339,8 +421,9 @@ export class RemoteServer {
               label: (frame.args?.[0] as string) || 'Remote Client',
               connectedAt: Date.now()
             })
-            this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata() })
+            this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
             this.log.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
+            this.notifyClientCount()
           } else {
             if (clientIp) {
               const banned = recordAuthFailure(this.authFailures, clientIp, Date.now())
@@ -391,11 +474,13 @@ export class RemoteServer {
           this.log.log(`[RemoteServer] Client disconnected: ${client.label}`)
         }
         this.clients.delete(ws)
+        this.notifyClientCount()
       })
 
       ws.on('error', (err) => {
         this.log.error('[RemoteServer] WebSocket error:', err.message)
         this.clients.delete(ws)
+        this.notifyClientCount()
       })
     })
 
@@ -426,6 +511,7 @@ export class RemoteServer {
         }
         client.ws.ping()
       }
+      this.notifyClientCount()
     }, 30000)
 
     this.persistToken(this.token)
@@ -490,6 +576,7 @@ export class RemoteServer {
       client.ws.close()
     }
     this.clients.clear()
+    this.notifyClientCount()
 
     if (this.wss) {
       this.wss.close()

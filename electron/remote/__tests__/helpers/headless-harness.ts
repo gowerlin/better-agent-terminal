@@ -39,6 +39,8 @@ export interface HeadlessEventFrame {
 }
 
 export interface HeadlessClient {
+  /** T0404: what the server answered to `auth` (AuthResultMetadata). */
+  readonly authResult: unknown
   invoke(channel: string, ...args: unknown[]): Promise<unknown>
   /** Every event frame received so far, in order. */
   readonly events: HeadlessEventFrame[]
@@ -133,9 +135,10 @@ export async function connectHeadlessClient(opts: {
     ws.once('error', err => { clearTimeout(timer); reject(err) })
   })
 
-  await send({ type: 'auth', id: `auth-${nextId++}`, token: opts.token, args: ['T0388 headless harness'] })
+  const authResult = await send({ type: 'auth', id: `auth-${nextId++}`, token: opts.token, args: ['T0388 headless harness'] })
 
   return {
+    authResult,
     events,
     invoke(channel, ...args) {
       return send({ type: 'invoke', id: `invoke-${nextId++}`, channel, args })

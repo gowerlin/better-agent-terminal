@@ -255,7 +255,7 @@ describe('resolveWslTarget (read-only, array args)', () => {
       cat: JSON.stringify({ v: 1, encrypted: false, data: 'tok-123456' }),
     })
     const conn = await resolveWslTarget({ kind: 'wsl', distro: 'Ubuntu-24.04', host: '127.0.0.1', port: null }, { exec })
-    expect(conn).toMatchObject({ url: 'wss://127.0.0.1:9877', token: 'tok-123456', fingerprint: FP, cwd: '/home/u', label: 'wsl:Ubuntu-24.04' })
+    expect(conn).toMatchObject({ url: 'wss://127.0.0.1:9877', token: 'tok-123456', fingerprint: FP, cwd: '/home/u', label: 'wsl:Ubuntu-24.04', expectedServerEnv: 'wsl' })
     expect(calls).toEqual([
       ['systemctl', '--user', 'show', '-p', 'Environment', '--value', 'bat-server'],
       ['printenv', 'HOME'],
@@ -332,7 +332,7 @@ function fakeShellEval(command, pty) {
 
 const CLI_PATH = '/home/u/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude'
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false } = {}) {
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, serverEnv = 'native' } = {}) {
   const ptys = new Map()
   const clients = new Set()
   const log = []
@@ -399,7 +399,7 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       this.authSent = true
       clients.add(this)
       log.push('connect')
-      return { serverPlatform: 'linux', serverArch: 'x64', serverEnv: 'native', nodeVersion: '24', bundleVersion: 't' }
+      return { serverPlatform: 'linux', serverArch: 'x64', serverEnv, nodeVersion: '24', bundleVersion: 't' }
     }
     async close() {
       this.isOpen = false
@@ -436,7 +436,7 @@ describe('runSmoke (fake server)', () => {
     expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(1)
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
-    expect(summarize(report)).toEqual({ ok: true, passed: 9, total: 9 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 9, warned: 0, total: 9 })
     expect(fake.probeArgs).toEqual([['smoke-probe', 'read-only']])
   })
 
@@ -473,6 +473,28 @@ describe('runSmoke (fake server)', () => {
     expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS' })
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(fake.log).not.toContain('pty:kill')
+  })
+
+  it('T0404: S1 shows env= and WARNs (does not fail) when a WSL target reports another serverEnv', async () => {
+    const fake = createFakeServer()
+    const report = await runSmoke({ ...fake.conn, expectedServerEnv: 'wsl' }, { createClient: fake.createClient, timeoutMs: 500 })
+    const s1 = report.checks.find((c) => c.id === 'S1')
+    expect(s1.status).toBe('WARN')
+    expect(s1.evidence).toMatch(/env=native but target is wsl/)
+    expect(report.checks.filter((c) => c.id !== 'S1').every((c) => c.status === 'PASS')).toBe(true)
+    expect(summarize(report)).toEqual({ ok: true, passed: 8, warned: 1, total: 9 })
+  })
+
+  it('T0404: S1 passes with env=wsl on a WSL target; non-WSL targets never WARN on env', async () => {
+    const wsl = createFakeServer({ serverEnv: 'wsl' })
+    const wslReport = await runSmoke({ ...wsl.conn, expectedServerEnv: 'wsl' }, { createClient: wsl.createClient, timeoutMs: 500 })
+    expect(wslReport.checks[0]).toMatchObject({ id: 'S1', status: 'PASS' })
+    expect(wslReport.checks[0].evidence).toMatch(/env=wsl/)
+
+    const url = createFakeServer()
+    const urlReport = await runSmoke(url.conn, { createClient: url.createClient, timeoutMs: 500 })
+    expect(urlReport.checks[0]).toMatchObject({ id: 'S1', status: 'PASS' })
+    expect(urlReport.checks[0].evidence).toMatch(/env=native/)
   })
 
   it('fails S1 and stops when a wrong fingerprint is accepted', async () => {

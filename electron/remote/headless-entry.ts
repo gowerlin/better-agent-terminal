@@ -11,6 +11,7 @@ import {
   resolveEmbeddedClaudePath,
   type EmbeddedClaudeLayout,
 } from '../claude-runtime-router'
+import { logger as defaultLogger } from '../logger'
 import { PtyManager } from '../pty-manager'
 import { broadcastHub } from './broadcast-hub'
 import {
@@ -21,6 +22,7 @@ import { registerHandler, type HandlerContext as RemoteHandlerContext } from './
 import {
   RemoteServer,
   type BindInterface,
+  type ServerEnvInfo,
 } from './remote-server'
 import {
   detectSecretStrategy,
@@ -51,22 +53,150 @@ export function isHeadlessScrubbedEnvKey(key: string): boolean {
   return key.toUpperCase().startsWith('BAT_')
 }
 
+/** T0404: no authenticated client for this long ⇒ every PTY is killed. */
+export const HEADLESS_PTY_IDLE_RECLAIM_DEFAULT_MS = 24 * 60 * 60 * 1000
+/** T0404: most PTYs one headless server runs at once. */
+export const HEADLESS_MAX_PTYS_DEFAULT = 64
+/** T0404: env overrides, read by `resolveHeadlessPtyLimits` (systemd: `Environment=` in a unit drop-in). */
+export const HEADLESS_PTY_IDLE_HOURS_ENV = 'BAT_SERVER_PTY_IDLE_HOURS'
+export const HEADLESS_MAX_PTYS_ENV = 'BAT_SERVER_MAX_PTYS'
+/** setTimeout fires immediately above 2^31-1 ms (~24.8 days); longer idle limits are clamped to it. */
+const MAX_TIMER_MS = 2_147_483_647
+const HOUR_MS = 60 * 60 * 1000
+
+export interface HeadlessPtyLimits {
+  /** 0 = never reclaim. */
+  idleReclaimMs: number
+  /** 0 = unlimited. */
+  maxPtys: number
+}
+
+/**
+ * T0404: options win over env, env over defaults. Env: `BAT_SERVER_PTY_IDLE_HOURS`
+ * (non-negative number, fractions allowed, 0 = never reclaim) and
+ * `BAT_SERVER_MAX_PTYS` (non-negative integer, 0 = unlimited). An invalid env
+ * value is reported through `warn` and the default is used.
+ */
+export function resolveHeadlessPtyLimits(
+  opts: { ptyIdleReclaimMs?: number; maxPtys?: number } = {},
+  env: NodeJS.ProcessEnv = process.env,
+  warn: (message: string) => void = () => {},
+): HeadlessPtyLimits {
+  let idleReclaimMs = HEADLESS_PTY_IDLE_RECLAIM_DEFAULT_MS
+  if (opts.ptyIdleReclaimMs !== undefined) {
+    idleReclaimMs = opts.ptyIdleReclaimMs
+  } else {
+    const raw = env[HEADLESS_PTY_IDLE_HOURS_ENV]?.trim()
+    if (raw) {
+      const hours = Number(raw)
+      if (Number.isFinite(hours) && hours >= 0) idleReclaimMs = Math.round(hours * HOUR_MS)
+      else warn(`[headless] ignoring ${HEADLESS_PTY_IDLE_HOURS_ENV}=${JSON.stringify(raw)} (expected hours >= 0); using ${HEADLESS_PTY_IDLE_RECLAIM_DEFAULT_MS / HOUR_MS}h`)
+    }
+  }
+  if (!Number.isFinite(idleReclaimMs) || idleReclaimMs < 0) idleReclaimMs = HEADLESS_PTY_IDLE_RECLAIM_DEFAULT_MS
+  if (idleReclaimMs > MAX_TIMER_MS) {
+    warn(`[headless] orphan PTY idle limit ${idleReclaimMs}ms exceeds the timer maximum; clamped to ${MAX_TIMER_MS}ms`)
+    idleReclaimMs = MAX_TIMER_MS
+  }
+
+  let maxPtys = HEADLESS_MAX_PTYS_DEFAULT
+  if (opts.maxPtys !== undefined) {
+    maxPtys = opts.maxPtys
+  } else {
+    const raw = env[HEADLESS_MAX_PTYS_ENV]?.trim()
+    if (raw) {
+      const parsed = Number(raw)
+      if (Number.isInteger(parsed) && parsed >= 0) maxPtys = parsed
+      else warn(`[headless] ignoring ${HEADLESS_MAX_PTYS_ENV}=${JSON.stringify(raw)} (expected an integer >= 0); using ${HEADLESS_MAX_PTYS_DEFAULT}`)
+    }
+  }
+  if (!Number.isInteger(maxPtys) || maxPtys < 0) maxPtys = HEADLESS_MAX_PTYS_DEFAULT
+
+  return { idleReclaimMs, maxPtys }
+}
+
+function formatDuration(ms: number): string {
+  if (ms % HOUR_MS === 0) return `${ms / HOUR_MS}h`
+  if (ms % 60_000 === 0) return `${ms / 60_000}min`
+  return `${ms}ms`
+}
+
+/**
+ * T0404: kills every PTY once no authenticated client has been connected for
+ * `idleMs`. Feed it the client count: 0 arms the timer (if not armed yet), any
+ * other count cancels it. A server that starts with no client is armed from the
+ * start. `idleMs <= 0` disables it.
+ */
+export class HeadlessOrphanPtyReclaimer {
+  private timer: ReturnType<typeof setTimeout> | null = null
+  private disposed = false
+
+  constructor(private readonly opts: {
+    idleMs: number
+    /** Kill every PTY; returns how many were killed. */
+    reclaim: () => number
+    log: (message: string) => void
+  }) {}
+
+  get armed(): boolean {
+    return this.timer !== null
+  }
+
+  update(clientCount: number): void {
+    if (this.disposed || this.opts.idleMs <= 0) return
+    if (clientCount > 0) {
+      this.cancel()
+      return
+    }
+    if (this.timer) return
+    this.timer = setTimeout(() => {
+      this.timer = null
+      const killed = this.opts.reclaim()
+      this.opts.log(
+        `[headless] no authenticated client for ${formatDuration(this.opts.idleMs)} — reclaimed ${killed} orphan PTY(s)`,
+      )
+    }, this.opts.idleMs)
+    this.timer.unref?.()
+  }
+
+  /** Final: later `update` calls are ignored (RemoteServer.stop() still reports its last count drop). */
+  dispose(): void {
+    this.disposed = true
+    this.cancel()
+  }
+
+  private cancel(): void {
+    if (!this.timer) return
+    clearTimeout(this.timer)
+    this.timer = null
+  }
+}
+
 /**
  * T0390: `pty:*` + `settings:get-shell-path` on headless. One PtyManager per
  * server, direct spawn (no Terminal Server). PTYs outlive client disconnects —
  * a reconnecting client re-sends `pty:create` with the same id, which is
- * idempotent — and are killed only by `pty:kill` or server `stop()`.
+ * idempotent — and are killed by `pty:kill`, server `stop()`, or (T0404) the
+ * orphan reclaim once no client has been connected for the idle limit.
+ * T0404: `maxPtys` caps concurrent PTYs (0 = unlimited); `onManager` hands the
+ * manager to the server for that reclaim.
  */
-export const registerHeadlessPtyHandlers: HandlerModule = (register, host) => {
-  const manager = new PtyManager({
-    emit: host.emit,
-    dataDir: host.dataDir,
-    helperDir: host.helperDir,
-    dropInheritedEnv: isHeadlessScrubbedEnvKey,
-  })
-  registerPtyHandlers(register, { getPtyManager: () => manager, validateShell: true })
-  return () => manager.dispose()
+export function createHeadlessPtyModule(opts: { maxPtys?: number; onManager?: (manager: PtyManager) => void } = {}): HandlerModule {
+  return (register, host) => {
+    const manager = new PtyManager({
+      emit: host.emit,
+      dataDir: host.dataDir,
+      helperDir: host.helperDir,
+      dropInheritedEnv: isHeadlessScrubbedEnvKey,
+      maxInstances: opts.maxPtys ?? HEADLESS_MAX_PTYS_DEFAULT,
+    })
+    registerPtyHandlers(register, { getPtyManager: () => manager, validateShell: true })
+    opts.onManager?.(manager)
+    return () => manager.dispose()
+  }
 }
+
+export const registerHeadlessPtyHandlers: HandlerModule = createHeadlessPtyModule()
 
 /**
  * T0401: install root of the running server bundle — `staging/` in the tarball,
@@ -125,11 +255,17 @@ export function createHeadlessClaudeModule(opts: { installRoot?: string } = {}):
   }
 }
 
-/** Shared domain modules for one headless server; `installRoot` overrides the bundle location (tests). */
-export function createHeadlessHandlerModules(opts: { installRoot?: string } = {}): HandlerModule[] {
+/**
+ * Shared domain modules for one headless server; `installRoot` overrides the bundle
+ * location (tests). T0404: `pty` carries the PTY cap and the manager hand-off.
+ */
+export function createHeadlessHandlerModules(opts: {
+  installRoot?: string
+  pty?: Parameters<typeof createHeadlessPtyModule>[0]
+} = {}): HandlerModule[] {
   return [
-    registerHeadlessPtyHandlers, // T0390
-    createHeadlessClaudeModule(opts), // T0401
+    opts.pty ? createHeadlessPtyModule(opts.pty) : registerHeadlessPtyHandlers, // T0390
+    createHeadlessClaudeModule({ installRoot: opts.installRoot }), // T0401
   ]
 }
 
@@ -167,6 +303,15 @@ export interface HeadlessServerOptions {
   handlers?: HeadlessHandlerRegistration[]
   /** T0401: server bundle install root (embedded claude lookup). Default: `defaultHeadlessInstallRoot()`. */
   installRoot?: string
+  /**
+   * T0404: kill every PTY after this long without an authenticated client (0 = never).
+   * Default: env `BAT_SERVER_PTY_IDLE_HOURS`, else 24h.
+   */
+  ptyIdleReclaimMs?: number
+  /** T0404: most concurrent PTYs (0 = unlimited). Default: env `BAT_SERVER_MAX_PTYS`, else 64. */
+  maxPtys?: number
+  /** BUG-103: server environment for auth metadata (tests). Default: `detectServerEnv()`. */
+  detectServerEnv?: () => ServerEnvInfo
   logger?: {
     log: (...args: unknown[]) => void
     warn: (...args: unknown[]) => void
@@ -231,8 +376,12 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   const remoteServer = new RemoteServer({
     certificateProvider,
     logger: opts.logger,
+    detectServerEnv: opts.detectServerEnv,
   })
   remoteServer.configDir = opts.dataDir
+  const log = opts.logger ?? defaultLogger
+  const ptyLimits = resolveHeadlessPtyLimits(opts, process.env, message => log.warn(message))
+  let ptyManager: PtyManager | null = null
 
   // T0385: built-ins first so caller-supplied handlers can override them.
   // T0388: shared domain modules sit between the two.
@@ -242,9 +391,10 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   }
   const hostDeps = createHeadlessHostDeps(opts.dataDir)
   const moduleDisposers: HandlerModuleDisposer[] = []
-  const handlerModules = opts.installRoot
-    ? createHeadlessHandlerModules({ installRoot: opts.installRoot })
-    : HEADLESS_HANDLER_MODULES
+  const handlerModules = createHeadlessHandlerModules({
+    installRoot: opts.installRoot,
+    pty: { maxPtys: ptyLimits.maxPtys, onManager: manager => { ptyManager = manager } },
+  })
   for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)
     if (dispose) moduleDisposers.push(dispose)
@@ -252,6 +402,18 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   for (const registration of opts.handlers ?? []) {
     register(registration.channel, registration.handler)
   }
+
+  // T0404: orphan PTY reclaim — headless only; Electron's PtyManager has neither cap nor timer.
+  const reclaimer = new HeadlessOrphanPtyReclaimer({
+    idleMs: ptyLimits.idleReclaimMs,
+    reclaim: () => ptyManager?.killAll() ?? 0,
+    log: message => log.log(message),
+  })
+  const unsubscribeClientCount = remoteServer.onClientCountChange(count => reclaimer.update(count))
+  log.log(
+    `[headless] orphan PTY reclaim: ${ptyLimits.idleReclaimMs > 0 ? `after ${formatDuration(ptyLimits.idleReclaimMs)} without a client` : 'disabled'}; ` +
+      `PTY limit: ${ptyLimits.maxPtys > 0 ? ptyLimits.maxPtys : 'unlimited'}`,
+  )
 
   let lockHeld = false
   let info: HeadlessServerInfo = {
@@ -284,6 +446,7 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
           fingerprint: started.fingerprint,
           startTime: Date.now(),
         }
+        reclaimer.update(remoteServer.getClientCount())
         return {
           port: started.port,
           fingerprint: started.fingerprint,
@@ -300,6 +463,8 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
 
     async stop() {
       try {
+        unsubscribeClientCount()
+        reclaimer.dispose()
         remoteServer.stop()
         for (const dispose of moduleDisposers.splice(0)) {
           try {

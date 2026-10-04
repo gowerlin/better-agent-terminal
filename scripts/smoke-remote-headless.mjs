@@ -357,6 +357,8 @@ export async function resolveWslTarget(target, { exec } = {}) {
     token,
     fingerprint,
     cwd: home,
+    // T0404 (BUG-103): S1 flags a WSL server that does not report serverEnv=wsl.
+    expectedServerEnv: 'wsl',
     notes: [unitNote, `data dir ${dataDir}`, `port ${port}${target.port ? ' (--port)' : unitEnv.BAT_SERVER_PORT ? ' (BAT_SERVER_PORT)' : ' (bat-server default)'}`],
   }
 }
@@ -722,10 +724,15 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       const summary = meta && typeof meta === 'object'
         ? `serverPlatform=${platform} arch=${meta.serverArch} env=${meta.serverEnv} node=${meta.nodeVersion} bundle=${meta.bundleVersion}`
         : `auth-result=${JSON.stringify(meta)}`
+      const serverEnv = meta && typeof meta === 'object' ? meta.serverEnv : undefined
+      const pinned = `pinned ${client.observedFingerprint.slice(0, 11)}…${client.observedFingerprint.slice(-5)}, auth ok (${summary})`
       if (platform !== undefined && platform !== 'linux') {
         set('S1', 'FAIL', `auth ok but serverPlatform=${platform} (expected linux); ${negativeEvidence}`)
+      } else if (conn.expectedServerEnv && serverEnv !== conn.expectedServerEnv) {
+        // T0404 (BUG-103): WARN, not FAIL — servers before T0404 always report native.
+        set('S1', 'WARN', `${pinned}; env=${serverEnv} but target is ${conn.expectedServerEnv} (server older than T0404 / BUG-103?); ${negativeEvidence}`)
       } else {
-        set('S1', 'PASS', `pinned ${client.observedFingerprint.slice(0, 11)}…${client.observedFingerprint.slice(-5)}, auth ok (${summary}); ${negativeEvidence}`)
+        set('S1', 'PASS', `${pinned}; ${negativeEvidence}`)
       }
     } catch (error) {
       set('S1', 'FAIL', error instanceof Error ? error.message : String(error))
@@ -892,10 +899,12 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
   return { checks: [...results.values()], cleanup, ptyId }
 }
 
+/** WARN (T0404) is reported but does not fail the run. */
 export function summarize(report) {
   const passed = report.checks.filter((c) => c.status === 'PASS').length
-  const ok = passed === report.checks.length && report.cleanup.leftover === false
-  return { ok, passed, total: report.checks.length }
+  const warned = report.checks.filter((c) => c.status === 'WARN').length
+  const ok = passed + warned === report.checks.length && report.cleanup.leftover === false
+  return { ok, passed, warned, total: report.checks.length }
 }
 
 // ---------------------------------------------------------------------------
@@ -952,7 +961,7 @@ export async function main(argv = process.argv.slice(2), io = { out: (s) => proc
       io.out(`SKIP ${check.id} ${check.name} — prerequisite failed`)
     }
     io.out(`[smoke] cleanup: ${report.cleanup.leftover ? 'LEFTOVER smoke PTY' : 'no smoke PTY left'} (${report.cleanup.evidence})`)
-    io.out(`[smoke] RESULT: ${summary.passed}/${summary.total} PASS${summary.ok ? '' : ' — FAILED'}`)
+    io.out(`[smoke] RESULT: ${summary.passed}/${summary.total} PASS${summary.warned ? `, ${summary.warned} WARN` : ''}${summary.ok ? '' : ' — FAILED'}`)
   }
   return summary.ok ? 0 : 1
 }

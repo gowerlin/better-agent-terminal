@@ -64,6 +64,21 @@ export interface PtyManagerDeps {
    * into remote shells. Undefined = inherit everything (Electron, pre-T0390 behaviour).
    */
   dropInheritedEnv?: (key: string) => boolean
+  /**
+   * T0404: most PTYs this manager runs at once; `pty:create` for a new id beyond it throws
+   * `PtyLimitError` (running PTYs are untouched). Headless only. Undefined / 0 = unlimited
+   * (Electron: local PTY lifetime is owned by the windows).
+   */
+  maxInstances?: number
+}
+
+/** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
+export class PtyLimitError extends Error {
+  readonly code = 'PTY_LIMIT_REACHED'
+  constructor(readonly limit: number) {
+    super(`PTY limit reached: this server already runs ${limit} terminals (max ${limit}). Close a terminal and try again.`)
+    this.name = 'PtyLimitError'
+  }
 }
 
 /** Minimal window surface `createWindowBroadcastEmit` needs (structurally matches BrowserWindow). */
@@ -548,6 +563,12 @@ export class PtyManager {
 
   create(options: CreatePtyOptions): boolean {
     const { id, cwd, type, shell: shellOverride, customEnv = {}, workspaceId, agentPreset } = options
+    // T0404: a re-sent create for a running id stays idempotent below; only new ids count.
+    const limit = this.deps.maxInstances
+    if (limit && limit > 0 && !this.instances.has(id) && this.instances.size >= limit) {
+      logger.warn(`[PtyManager] pty:create REFUSED id=${id} — PTY limit reached (${this.instances.size}/${limit})`)
+      throw new PtyLimitError(limit)
+    }
     const updateGuardEnv = claudeCliUpdateGuardEnv(agentPreset)
 
     const shell = shellOverride || this.getDefaultShell()
@@ -886,6 +907,15 @@ export class PtyManager {
       return true
     }
     return false
+  }
+
+  /** T0404: kill every PTY this manager runs; returns how many were killed. */
+  killAll(): number {
+    let killed = 0
+    for (const id of [...this.instances.keys()]) {
+      if (this.kill(id)) killed++
+    }
+    return killed
   }
 
   restart(id: string, cwd: string, shell?: string): boolean {
