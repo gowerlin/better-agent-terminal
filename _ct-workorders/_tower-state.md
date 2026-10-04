@@ -323,6 +323,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 07:25 — T0452 DONE（`3ef2703`）塔台複核 PASS：Docker start 重試走 start（自建容器）、write-profile 成功後清孤兒；Worker 全套 2537 passed / 0 failed、tsc 36、Docker tsx 測試全過
 - [完成] 2026-10-05 07:28 — T0439 DONE（`ea35f19`）塔台複核 PASS：現況拖檔到終端為 no-op（程式碼推論，未實機）、新增依 shell family 加引號插入路徑、15 tests、Worker 2552 passed / tsc 36
 - [斷點 C 裁決] 2026-10-05 07:28 — T0439 殘留風險：`will-navigate` 對 `file://` 一律 `openExternal`（ShellExecute 可執行本機 .bat / .exe）→ T0457（P1）
+- [派發] 2026-10-05 07:29 — T0440 ∥ T0457（`--no-interactive`）
+- [完成] 2026-10-05 07:35 — T0440 DONE（`7db5bbd`）塔台複核 PASS：遠端 prompt 本機路徑非阻斷提示（原文送出、只顯示建議）、39 tests（含誤報 15 例）、Worker 2591 passed / tsc 36；偏差接受（settings 欄位 / setter / SettingsPanel 回復入口 / CSS）
+- [異常] 2026-10-05 07:35 — T0457 派發 6 分鐘仍 PENDING（> 3 分鐘門檻）；確認原 Worker 無活動（工單 07:28:58 後未動、`main.ts` 07:11、無 dirty 檔；分頁 `910bc8cf…` `terminal-created result=ok`）⇒ 第三次 Worker 未執行 `/ct-exec`（T0452 / T0436 / T0457）→ 重派（新分頁 `e7646fa7…`）。BAT 端 agent 未收到預載指令的疑似缺陷，收工時評估開 BUG
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
