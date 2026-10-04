@@ -124,7 +124,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 
 1. 🟡 **BUG-071** ✅ FIXED（`a295ec7`；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 已發佈）—— **待使用者實機**：裝 pre.3 跑 WSL wizard（x64）；DGX Spark SSH（arm64）視時間 → 通過即 CLOSED
 2. 🟡 **BUG-083** ✅ FIXED（Codex：`c6214c2` / `ca0d292` / `30fcf45` / `3d52a1d`，SDK 0.160 + 選最新 binary）—— 待實機開 Codex 分頁驗收
-3. 🟡 **BUG-084** ✅ FIXED（`0d231b3` / `79c349e`）—— 待實機選 Opus 5.5；T0374 計價表（派發中）→ 發 `v0.5.9-pre.4`（需使用者授權 push）→ Phase 2 SDK 0.3 + V2 下架（D123）
+3. 🟡 **BUG-084** ✅ FIXED（`0d231b3` / `79c349e`）—— 待實機選 Opus 5.5；T0374 計價表 ✅ `5b8975f` → 發 `v0.5.9-pre.4`（待使用者授權 push）→ Phase 2 SDK 0.3 + V2 下架（D123）
 4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6 倍（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
 5. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到
 6. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號至今零筆真實觸發，待有資料再議（已回函告知對方）
@@ -296,6 +296,8 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - [派發] 2026-10-04 16:37 — T0373（BUG-083 T-C）`--mode yolo --no-interactive`
 - [完成] 2026-10-04 16:46 — T0373 DONE（`3d52a1d`）塔台複驗 635 tests；BUG-083 → FIXED（D121 四張全 DONE）
 - [派發] 2026-10-04 16:47 — T0374（計價表共用模組 + Claude 5）`--mode yolo --no-interactive`
+- [完成] 2026-10-04 16:58 — T0374 DONE（`5b8975f`）；第一階段總驗收：673 tests、vite build exit 0、tsc 42→40
+- [外部動作閘] 2026-10-04 16:58 — 下一步 bump `0.5.9-pre.4` + push + 觸發 pre-release，交使用者決定
 - [發版] 2026-10-04 13:42 — run `37179875163` 9/9 success；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 發佈；runtime URL 下載 manifest 成功；BUG-071 → FIXED
 
 ### 前次 YOLO Session（2026-04-18 ~16:10 啟動，第三 session，收尾）
