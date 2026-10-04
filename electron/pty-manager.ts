@@ -39,6 +39,13 @@ interface PtyInstance {
    * pty:exit for this id seen while this is set belongs to the process it replaced.
    */
   awaitingCreated?: boolean
+  /**
+   * T0448 (T0445 #4): the `customEnv` this process was spawned with. `restart` re-uses it when
+   * the host binds helper env to it (`deps.helperEnv`): a restarted worker keeps
+   * `BAT_TOWER_TERMINAL_ID`, so it is re-issued a worker capability for the same tower instead
+   * of being promoted to tower.
+   */
+  customEnv?: Record<string, string>
 }
 
 /**
@@ -762,7 +769,7 @@ export class PtyManager {
           this.handleDirectExit(id, ptyProcess, exitCode)
         })
 
-        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true })
+        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv })
         usedPty = true
         logger.log('Created terminal using node-pty')
       } catch (e) {
@@ -850,7 +857,7 @@ export class PtyManager {
         // Send initial message
         this.broadcast('pty:output', id, `[Terminal - child_process mode]\r\n`)
 
-        this.instances.set(id, { process: childProcess, type, cwd, usePty: false })
+        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv })
         logger.log('Created terminal using child_process fallback')
       } catch (error) {
         logger.error('Failed to create terminal:', error)
@@ -973,12 +980,19 @@ export class PtyManager {
     return killed
   }
 
+  /**
+   * Kill + create with the same id. T0448 (T0445 #4): with `deps.helperEnv` (headless) the new
+   * process gets the old one's `customEnv`, so its helper capability keeps the same role and
+   * tower binding (the kill revokes the old token; `helperEnv` issues the new one). Without it
+   * (Electron) the env is rebuilt from scratch, as before.
+   */
   restart(id: string, cwd: string, shell?: string): boolean {
     const instance = this.instances.get(id)
     if (instance) {
       const type = instance.type
+      const customEnv = this.deps.helperEnv && instance.customEnv ? { ...instance.customEnv } : undefined
       this.kill(id)
-      return this.create({ id, cwd, type, shell })
+      return this.create({ id, cwd, type, shell, ...(customEnv ? { customEnv } : {}) })
     }
     return false
   }

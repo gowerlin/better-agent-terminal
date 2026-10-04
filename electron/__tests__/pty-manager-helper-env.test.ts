@@ -9,6 +9,9 @@
  * - a throwing host still spawns the PTY, just without helper env
  * - a spawn that fails entirely reports the id through `onPtyExit` (revokes what was issued)
  * - no `helperEnv` (Electron) = env unchanged
+ * - T0448 (T0445 #4): `restart` re-uses the old process's `customEnv` when `helperEnv` is set,
+ *   so a restarted worker keeps its role / tower binding (old token revoked, new one issued);
+ *   without `helperEnv` (Electron) restart still rebuilds the env without it
  *
  * Same fake node-pty seeding as pty-manager-exit-hook.test.ts.
  */
@@ -36,6 +39,8 @@ vi.mock('child_process', async importOriginal => {
 
 import { logger } from '../logger'
 import type { PtyManager as PtyManagerType, PtyManagerDeps } from '../pty-manager'
+import type { buildHeadlessHelperEnv as BuildHeadlessHelperEnv } from '../remote/headless-entry'
+import { authorizeHelperInvoke, HelperCapabilityRegistry } from '../remote/helper-capability'
 
 class FakePty {
   onData = vi.fn()
@@ -48,12 +53,15 @@ class FakePty {
 const ptySpawn = vi.fn((_shell: string, _args: string[], _opts: { env: Record<string, string> }) => new FakePty())
 const CWD = os.tmpdir()
 let PtyManager: typeof PtyManagerType
+let buildHeadlessHelperEnv: typeof BuildHeadlessHelperEnv
 
 beforeAll(async () => {
   const req = createRequire(path.resolve(__dirname, '..', 'pty-manager.ts'))
   const resolved = req.resolve('@lydell/node-pty')
   req.cache[resolved] = { id: resolved, filename: resolved, loaded: true, exports: { spawn: ptySpawn } } as unknown as NodeJS.Module
   ;({ PtyManager } = await import('../pty-manager'))
+  // After the node-pty seed: headless-entry imports pty-manager too.
+  ;({ buildHeadlessHelperEnv } = await import('../remote/headless-entry'))
 })
 
 let managers: PtyManagerType[] = []
@@ -136,6 +144,74 @@ describe('PtyManager helperEnv (T0433)', () => {
     expect(env.BAT_REMOTE_TOKEN).toBe('local-server-token')
     expect(env.BAT_SERVER_CERT_PATH).toBeUndefined()
     expect(env.BAT_HELPER_LOG_DIR).toBeUndefined()
+  })
+
+  describe('restart keeps the helper capability role (T0448 / T0445 #4)', () => {
+    const TOWER = 'tower-1'
+
+    /** Headless wiring: real registry + `buildHeadlessHelperEnv`, revoked on exit / kill. */
+    function headlessManager(registry: HelperCapabilityRegistry): PtyManagerType {
+      return makeManager({
+        dropInheritedEnv: key => key.startsWith('BAT_'),
+        helperEnv: (id, customEnv) => buildHeadlessHelperEnv({
+          id,
+          customEnv,
+          capabilities: registry,
+          endpoint: { port: 9877, certPath: '/data/server-cert.json', logDir: '/data/Logs' },
+          helperDir: '/opt/bat/scripts',
+          exists: () => true,
+        }),
+        onPtyExit: id => { registry.revokeTerminal(id) },
+      })
+    }
+
+    const createAgentCommand = (capability: Parameters<typeof authorizeHelperInvoke>[0]) =>
+      authorizeHelperInvoke(capability, 'terminal:create-agent-command', [{ id: 'new-worker' }], { isTerminalAlive: () => false })
+
+    it('worker: still a worker bound to the same tower, cannot create-agent-command, old token revoked', () => {
+      const registry = new HelperCapabilityRegistry()
+      const manager = headlessManager(registry)
+      const customEnv = { BAT_TOWER_TERMINAL_ID: TOWER, CT_MODE: 'yolo', CT_INTERACTIVE: '0' }
+      expect(manager.create({ id: 'w-1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv })).toBe(true)
+      const oldToken = spawnedEnv(0).BAT_REMOTE_TOKEN
+      expect(registry.verify(oldToken)?.capability).toEqual({ terminalId: 'w-1', towerId: TOWER, role: 'worker' })
+
+      expect(manager.restart('w-1', CWD, '/bin/sh')).toBe(true)
+      expect(ptySpawn).toHaveBeenCalledTimes(2)
+      const env = spawnedEnv(1)
+      expect(env).toMatchObject({ BAT_TOWER_TERMINAL_ID: TOWER, CT_MODE: 'yolo', CT_INTERACTIVE: '0', BAT_TERMINAL_ID: 'w-1' })
+      expect(env.BAT_REMOTE_TOKEN).not.toBe(oldToken)
+      const capability = registry.verify(env.BAT_REMOTE_TOKEN)?.capability
+      expect(capability).toEqual({ terminalId: 'w-1', towerId: TOWER, role: 'worker' })
+      expect(createAgentCommand(capability!)).toEqual({ ok: false, reason: 'role-not-allowed' })
+      expect(registry.verify(oldToken)).toBeNull()
+      expect(registry.size).toBe(1)
+    })
+
+    it('tower: still a tower after restart, old token revoked', () => {
+      const registry = new HelperCapabilityRegistry()
+      const manager = headlessManager(registry)
+      expect(manager.create({ id: TOWER, cwd: CWD, type: 'terminal', shell: '/bin/sh' })).toBe(true)
+      const oldToken = spawnedEnv(0).BAT_REMOTE_TOKEN
+      expect(manager.restart(TOWER, CWD, '/bin/sh')).toBe(true)
+      const capability = registry.verify(spawnedEnv(1).BAT_REMOTE_TOKEN)?.capability
+      expect(capability).toEqual({ terminalId: TOWER, role: 'tower' })
+      expect(createAgentCommand(capability!)).toEqual({ ok: true })
+      expect(registry.verify(oldToken)).toBeNull()
+      expect(registry.size).toBe(1)
+    })
+
+    it('without helperEnv (Electron) restart still rebuilds the env without the old customEnv', () => {
+      const manager = makeManager()
+      manager.create({ id: 'e-1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_TOWER_TERMINAL_ID: TOWER, FOO: 'bar' } })
+      expect(spawnedEnv(0)).toMatchObject({ BAT_TOWER_TERMINAL_ID: TOWER, FOO: 'bar' })
+      const inheritedTower = process.env.BAT_TOWER_TERMINAL_ID
+      expect(manager.restart('e-1', CWD, '/bin/sh')).toBe(true)
+      const env = spawnedEnv(1)
+      expect(env.FOO).toBeUndefined()
+      expect(env.BAT_TOWER_TERMINAL_ID).toBe(inheritedTower)
+      expect(env.BAT_TERMINAL_ID).toBe('e-1')
+    })
   })
 
   // Last: a node-pty failure switches this module to the child_process fallback for good.
