@@ -732,6 +732,16 @@ async function main() {
     ws.close()
     process.exit(1)
   }
+  // T0456: `false` = the server did not create the terminal (no PTY manager, invalid shell,
+  // spawn failure, an agent / prompt it cannot build a command for). Tower auto-session
+  // trusts the exit code only, so this must not exit 0 as "created".
+  if (invokeResult === false) {
+    console.error(`Error: Failed to create terminal: ${terminalId} was not created (server answered false — see the BAT app log)`)
+    logEvent('bat-terminal', 'terminal-created', { result: 'false', terminalId })
+    logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-not-created' })
+    ws.close()
+    process.exit(1)
+  }
 
   console.log(`✓ Terminal created: ${terminalId}`)
   logEvent('bat-terminal', 'terminal-created', { result: 'ok', terminalId })

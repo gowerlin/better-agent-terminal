@@ -988,8 +988,12 @@ describe('S13 helpers (T0434)', () => {
       endpoint: { port: 9877, certPath: '/d/server-cert.json', logDir: '/d/Logs' },
       helperDir: '/opt/bat/scripts',
       exists: () => true,
+      inheritedEnv: { PATH: '/usr/bin' }, // T0456: not the runner's env (Windows may name it `Path`)
     })
-    expect([...Object.keys(env), 'BAT_SESSION', 'BAT_TERMINAL_ID', 'BAT_WORKSPACE_ID'].sort()).toEqual([...REMOTE_TOWER_ENV_KEYS].sort())
+    // T0456: the helper env also carries PATH (bundle bin appended) — not a BAT_* key
+    const batKeys = Object.keys(env).filter((k) => k.startsWith('BAT_'))
+    expect([...batKeys, 'BAT_SESSION', 'BAT_TERMINAL_ID', 'BAT_WORKSPACE_ID'].sort()).toEqual([...REMOTE_TOWER_ENV_KEYS].sort())
+    expect(Object.keys(env).filter((k) => !k.startsWith('BAT_'))).toEqual(['PATH'])
     expect(HELPER_CAPABILITY_LENGTHS).toContain(env.BAT_REMOTE_TOKEN.length)
   })
 
@@ -1016,6 +1020,10 @@ describe('S13 helpers (T0434)', () => {
     expect(checkHelperEnvAnswer({ keys, tokenMatches: 0, capabilityLength: 50 })).toMatchObject({ ok: true, tooOld: false }) // T0449 `batcap.` prefix
     expect(checkHelperEnvAnswer({ keys: ['BAT_SESSION', 'BAT_TERMINAL_ID'], tokenMatches: 0, capabilityLength: 0 })).toMatchObject({ ok: false, tooOld: true })
     expect(checkHelperEnvAnswer({ keys: [...keys, 'BAT_TOWER_TERMINAL_ID'], tokenMatches: 0, capabilityLength: 43 }).evidence).toMatch(/unexpected BAT_TOWER_TERMINAL_ID/)
+    // T0456: a server deployed before T0456 has no BAT_HELPER_NODE — a failure, with the redeploy hint
+    const preT0456 = checkHelperEnvAnswer({ keys: keys.filter((k) => k !== 'BAT_HELPER_NODE'), tokenMatches: 0, capabilityLength: 50 })
+    expect(preT0456).toMatchObject({ ok: false, tooOld: false })
+    expect(preT0456.evidence).toMatch(/missing BAT_HELPER_NODE \(server predates T0456/)
     expect(checkHelperEnvAnswer({ keys, tokenMatches: 2, capabilityLength: 43 }).evidence).toMatch(/2 env value\(s\) equal the server token/)
     expect(checkHelperEnvAnswer({ keys, tokenMatches: 0, capabilityLength: 32 }).evidence).toMatch(/BAT_REMOTE_TOKEN is 32 chars/)
     // one helper key without the others is a broken injection, not an old server

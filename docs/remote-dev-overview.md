@@ -296,12 +296,14 @@ SHA-256 digest) and injects it as `BAT_REMOTE_TOKEN`:
 | `BAT_SERVER_CERT_PATH` | `<dataDir>/server-cert.json` — the helpers pin this fingerprint |
 | `BAT_HELPER_DIR` | `<installRoot>/scripts` |
 | `BAT_HELPER_LOG_DIR` | `<dataDir>/Logs` (the helpers' `bat-scripts.log`) |
+| `BAT_HELPER_NODE` | `<installRoot>/bin/node`, the bundle's own node — only when it exists (T0456) |
+| `PATH` | the PTY's usual `PATH` with `<installRoot>/bin` **appended** (a node the user installed still wins; T0456) |
 | `BAT_TOWER_TERMINAL_ID`, `CT_MODE`, `CT_INTERACTIVE` | Worker tabs only (set by the dispatching Tower) |
 
 Inherited `BAT_*` variables are always scrubbed. When `<installRoot>/scripts`
 lacks the helpers (a bundle before T0433, or a JS-only dev deploy) nothing is
-injected or issued: the tab has `BAT_SESSION=1` but no helper env, and the
-skills fall back to the manual message.
+injected or issued: the tab has `BAT_SESSION=1` but no helper env (and its
+`PATH` is left alone), and the skills fall back to the manual message.
 
 **Capability scope** (`electron/remote/helper-capability.ts`, default deny):
 
@@ -328,7 +330,7 @@ runs this on a real headless server with real node-pty, the helpers executing
 inside the PTYs):
 
 1. Tower tab runs
-   `"$BAT_HELPER_DIR/../bin/node" "$BAT_HELPER_DIR/bat-terminal.mjs" --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" --skill ct-exec --workorder T####`
+   `"${BAT_HELPER_NODE:-node}" "$BAT_HELPER_DIR/bat-terminal.mjs" --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" --skill ct-exec --workorder T####`
 2. The server creates the Worker PTY (with its own Worker capability) and
    broadcasts `terminal:created-externally`; the client opens the tab in the
    Tower's window and workspace (a remote event for an unknown workspace is
@@ -349,8 +351,14 @@ inside the PTYs):
   exits 1 — yolo mode never claims a submit that did not happen; the
   pre-filled text is still in the Tower PTY.
 - `node` is not necessarily on the remote `PATH` (the WSL test host has none).
-  Use the bundle's own node, `"$BAT_HELPER_DIR/../bin/node"`, and fall back to
-  `node` only when that does not exist.
+  Use the bundle's own node, `"${BAT_HELPER_NODE:-node}"` (T0456; on a server
+  deployed before T0456, `"$BAT_HELPER_DIR/../bin/node"`). Since T0456
+  `<installRoot>/bin` is also appended to the PTY's `PATH`, so a bare `node`
+  works too — unless the login shell's profile resets `PATH` (e.g. Debian's
+  `/etc/profile`), which is why `BAT_HELPER_NODE` is the reliable form.
+- `bat-terminal.mjs` exits 1 whenever the terminal was not created — including
+  a plain `false` answer from the server (T0456; it used to print
+  `✓ Terminal created` and exit 0). The Tower trusts only the exit code.
 - The server bundle ships no Codex: dispatching `codex-cli` where the server
   cannot find codex returns `AGENT_UNAVAILABLE` (`AGENT_CHECK_PENDING` while
   detection runs — retry).

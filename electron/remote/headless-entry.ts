@@ -210,16 +210,45 @@ export interface HeadlessHelperEndpoint {
 /** T0433: helpers `BAT_HELPER_DIR` must hold for the helper env to be injected at all. */
 export const HEADLESS_REQUIRED_HELPER_SCRIPTS = ['bat-terminal.mjs', 'bat-notify.mjs'] as const
 
+/** T0456: key of `PATH` in `env` (`Path` on Windows), `undefined` when absent. */
+function findPathKey(env: Record<string, string | undefined>): string | undefined {
+  return Object.keys(env).find(key => key.toUpperCase() === 'PATH')
+}
+
+/**
+ * T0456 (T0434 遭遇問題 2): `PATH` of a headless PTY with `binDir` appended — the PATH the
+ * PTY would get otherwise (`customEnv` over the inherited env, as PtyManager merges them),
+ * so a `node` the user installed still wins. Already on it ⇒ unchanged.
+ */
+function headlessHelperPathEnv(
+  binDir: string,
+  customEnv: Record<string, string>,
+  inheritedEnv: NodeJS.ProcessEnv,
+  delimiter: string,
+): Record<string, string> {
+  const customKey = findPathKey(customEnv)
+  const inheritedKey = findPathKey(inheritedEnv)
+  const key = customKey ?? inheritedKey ?? 'PATH'
+  const current = (customKey !== undefined ? customEnv[customKey] : inheritedKey !== undefined ? inheritedEnv[inheritedKey] : '') ?? ''
+  const entries = current.split(delimiter).filter(entry => entry.length > 0)
+  if (entries.includes(binDir)) return { [key]: current }
+  return { [key]: [...entries, binDir].join(delimiter) }
+}
+
 /**
  * T0433 (PLAN-036 P3 / K): helper env of headless PTY `id` — issues its capability
  * (worker when `customEnv.BAT_TOWER_TERMINAL_ID` names its tower, else tower) and returns
  * `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` (= that capability) / `BAT_SERVER_CERT_PATH` /
  * `BAT_HELPER_DIR` / `BAT_HELPER_LOG_DIR`. The server token is never an input.
+ * T0456: also `PATH` with the bundle's `<installRoot>/bin` (sibling of `helperDir`)
+ * appended, and `BAT_HELPER_NODE=<installRoot>/bin/node` when that node exists — a remote
+ * PATH need not have `node` (WSL smoke S10 `node=missing`).
  *
  * Returns `{}` and issues nothing when the helpers could not work anyway: server not
  * listening yet, no helper dir / helpers missing from it (a bundle built before T0433),
  * or an id the registry refuses. A remote shell then has no `BAT_REMOTE_*` /
- * `BAT_HELPER_DIR`, i.e. the pre-T0433 state the skills already degrade from.
+ * `BAT_HELPER_DIR`, i.e. the pre-T0433 state the skills already degrade from — and its
+ * `PATH` is left alone.
  */
 export function buildHeadlessHelperEnv(opts: {
   id: string
@@ -229,6 +258,10 @@ export function buildHeadlessHelperEnv(opts: {
   helperDir?: string
   exists?: (p: string) => boolean
   log?: (message: string) => void
+  /** T0456: env the PTY inherits (PtyManager: `process.env` minus BAT_*); default `process.env`. */
+  inheritedEnv?: NodeJS.ProcessEnv
+  /** T0456: `PATH` separator; default `path.delimiter`. */
+  pathDelimiter?: string
 }): Record<string, string> {
   const { id, customEnv, capabilities, endpoint, helperDir } = opts
   const exists = opts.exists ?? fs.existsSync
@@ -245,12 +278,16 @@ export function buildHeadlessHelperEnv(opts: {
     opts.log?.(`[headless] helper env skipped: terminal=${id} (${error instanceof Error ? error.message : String(error)})`)
     return {}
   }
+  const binDir = path.join(path.dirname(helperDir), 'bin')
+  const helperNode = path.join(binDir, 'node')
   return {
     BAT_REMOTE_PORT: String(endpoint.port),
     BAT_REMOTE_TOKEN: token,
     BAT_SERVER_CERT_PATH: endpoint.certPath,
     BAT_HELPER_DIR: helperDir,
     BAT_HELPER_LOG_DIR: endpoint.logDir,
+    ...(exists(helperNode) ? { BAT_HELPER_NODE: helperNode } : {}),
+    ...headlessHelperPathEnv(binDir, customEnv, opts.inheritedEnv ?? process.env, opts.pathDelimiter ?? path.delimiter),
   }
 }
 

@@ -71,7 +71,8 @@ function parseClientFrame(buffer) {
   return { opcode, message: payload.toString('utf8'), rest: buffer.subarray(offset + length) }
 }
 
-async function startMockBatRemote() {
+// T0456: `invokeReply` = extra fields of the invoke response (e.g. `{ result: false }`).
+async function startMockBatRemote({ invokeReply = {} } = {}) {
   const pems = await selfsigned.generate(
     [{ name: 'commonName', value: '127.0.0.1' }],
     {
@@ -141,7 +142,7 @@ async function startMockBatRemote() {
           socket.write(createWsFrame({ id: message.id, ok: true }))
         } else if (message.type === 'invoke') {
           resolveInvoke(message)
-          socket.write(createWsFrame({ id: message.id, ok: true }))
+          socket.write(createWsFrame({ id: message.id, ok: true, ...invokeReply }))
         }
       }
     })
@@ -257,6 +258,48 @@ describe('bat-terminal --workspace omission hint (T0360 ADVISORY B-2)', () => {
 
       const payload = (await remote.invoke).args[0]
       expect(payload.workspaceId).toBe('ws-uuid-2')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+})
+
+// T0456: Tower auto-session trusts only the exit code, so a terminal the server did not
+// create must never exit 0 / print `✓ Terminal created`.
+describe('bat-terminal exit code for the invoke result (T0456)', () => {
+  const env = (remote) => ({ BAT_REMOTE_PORT: String(remote.port), BAT_REMOTE_TOKEN: 'test-token', BAT_SERVER_CERT_PATH: remote.certPath })
+  const args = ['--workspace', 'ws-uuid-3', '--skill', 'ct-exec', '--workorder', 'T0456']
+
+  it('result false (not created) → exit 1, no "Terminal created"', async () => {
+    const remote = await startMockBatRemote({ invokeReply: { result: false } })
+    try {
+      const run = await runBatTerminal(args, env(remote))
+      expect(run.code, run.stderr || run.stdout).toBe(1)
+      expect(run.stderr).toMatch(/Failed to create terminal: \S+ was not created \(server answered false/)
+      expect(run.stdout).not.toContain('Terminal created')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('result true → exit 0 with "✓ Terminal created"', async () => {
+    const remote = await startMockBatRemote({ invokeReply: { result: true } })
+    try {
+      const run = await runBatTerminal(args, env(remote))
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+      expect(run.stdout).toContain('✓ Terminal created')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('a structured refusal ({ ok: false }, T0433) still exits 1 with its code', async () => {
+    const remote = await startMockBatRemote({ invokeReply: { result: { ok: false, code: 'AGENT_UNAVAILABLE', error: 'codex is not available on this server' } } })
+    try {
+      const run = await runBatTerminal(args, env(remote))
+      expect(run.code, run.stderr || run.stdout).toBe(1)
+      expect(run.stderr).toContain('Failed to create terminal (AGENT_UNAVAILABLE): codex is not available on this server')
+      expect(run.stdout).not.toContain('Terminal created')
     } finally {
       await remote.close()
     }

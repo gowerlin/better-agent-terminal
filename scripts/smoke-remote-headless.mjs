@@ -130,10 +130,12 @@ export const REMOTE_TOOLS_DETECT_TIMEOUT_MS = 30_000
 /**
  * S13 (T0434, PLAN-036 K): `BAT_*` keys of a remote Tower tab once T0433 injects the helper
  * env (`buildHeadlessHelperEnv` + PtyManager); a Worker tab additionally has `BAT_TOWER_TERMINAL_ID`.
+ * T0456: `BAT_HELPER_NODE` (`<installRoot>/bin/node`, which every server bundle ships).
  */
 export const REMOTE_TOWER_ENV_KEYS = Object.freeze([
   'BAT_HELPER_DIR',
   'BAT_HELPER_LOG_DIR',
+  'BAT_HELPER_NODE',
   'BAT_REMOTE_PORT',
   'BAT_REMOTE_TOKEN',
   'BAT_SERVER_CERT_PATH',
@@ -913,7 +915,13 @@ export function checkHelperEnvAnswer({ keys, tokenMatches, capabilityLength }) {
   const problems = []
   const missing = REMOTE_TOWER_ENV_KEYS.filter((k) => !sorted.includes(k))
   const extra = sorted.filter((k) => !REMOTE_TOWER_ENV_KEYS.includes(k))
-  if (missing.length > 0) problems.push(`missing ${missing.join(',')}`)
+  if (missing.length > 0) {
+    // T0456: only the bundle node missing ⇒ a server deployed before T0456, or no <installRoot>/bin/node
+    const hint = missing.length === 1 && missing[0] === 'BAT_HELPER_NODE'
+      ? ' (server predates T0456, or <installRoot>/bin/node is missing — redeploy)'
+      : ''
+    problems.push(`missing ${missing.join(',')}${hint}`)
+  }
   if (extra.length > 0) problems.push(`unexpected ${extra.join(',')}`)
   if (tokenMatches === 'x') problems.push('sha256sum not available on the server — server token check could not run')
   else if (tokenMatches !== 0) problems.push(`${tokenMatches} env value(s) equal the server token`)
@@ -932,8 +940,9 @@ export function checkHelperEnvAnswer({ keys, tokenMatches, capabilityLength }) {
  *   agent: `{ code, text, createdId, cwdAfter }` — the tower role reached create-agent-command
  *          and no terminal was created: T0450+ `Forbidden: agent-not-allowed` (exit 1), or on
  *          T0433-T0449 an authorized `false` answer, which bat-terminal reports as created
- *          (exit 0) — `cwdAfter` (pty:get-cwd of that id) must then be null. Any other
- *          Forbidden / auth / connect error fails.
+ *          (exit 0; since T0456 as `Failed to create terminal`, exit 1) — `cwdAfter`
+ *          (pty:get-cwd of that id) must then be null. Any other Forbidden / auth / connect
+ *          error fails.
  */
 export function checkHelperProbeAnswers({ raw, agent }) {
   const problems = []

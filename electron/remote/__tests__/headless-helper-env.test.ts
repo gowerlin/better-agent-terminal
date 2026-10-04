@@ -41,8 +41,8 @@ describe('buildHeadlessHelperEnv (T0433)', () => {
 
   it('tower PTY: issues a tower capability and returns exactly the helper keys', () => {
     const registry = new HelperCapabilityRegistry()
-    const env = buildHeadlessHelperEnv({ id: 'tower-1', customEnv: {}, capabilities: registry, endpoint, helperDir: '/opt/bat/scripts', exists: all })
-    expect(Object.keys(env).sort()).toEqual([...HELPER_KEYS].sort())
+    const env = buildHeadlessHelperEnv({ id: 'tower-1', customEnv: {}, capabilities: registry, endpoint, helperDir: '/opt/bat/scripts', exists: all, inheritedEnv: { PATH: '/usr/bin' }, pathDelimiter: ':' })
+    expect(Object.keys(env).sort()).toEqual([...HELPER_KEYS, 'BAT_HELPER_NODE', 'PATH'].sort())
     expect(env).toMatchObject({
       BAT_REMOTE_PORT: '9877',
       BAT_SERVER_CERT_PATH: '/data/server-cert.json',
@@ -67,6 +67,55 @@ describe('buildHeadlessHelperEnv (T0433)', () => {
     expect(buildHeadlessHelperEnv({ ...base, id: 'bad id', endpoint })).toEqual({})
     expect(buildHeadlessHelperEnv({ ...base, id: 'd', endpoint, customEnv: { BAT_TOWER_TERMINAL_ID: '../x;rm' } })).toEqual({})
     expect(registry.size).toBe(0)
+  })
+
+  // T0456 (T0434 遭遇問題 2): a remote PATH need not have node (WSL smoke S10 `node=missing`)
+  describe('bundle node (T0456)', () => {
+    const helperDir = path.join('/opt', 'bat', 'scripts')
+    const binDir = path.join('/opt', 'bat', 'bin')
+    const helperNode = path.join(binDir, 'node')
+    const build = (extra: Partial<Parameters<typeof buildHeadlessHelperEnv>[0]>) => buildHeadlessHelperEnv({
+      id: `n-${seq++}`,
+      customEnv: {},
+      capabilities: new HelperCapabilityRegistry(),
+      endpoint,
+      helperDir,
+      exists: all,
+      inheritedEnv: { PATH: '/home/u/.nvm/bin:/usr/bin' },
+      pathDelimiter: ':',
+      ...extra,
+    })
+
+    it('appends <installRoot>/bin to the end of PATH, so a node the user installed still wins', () => {
+      const env = build({})
+      expect(env.PATH).toBe(`/home/u/.nvm/bin:/usr/bin:${binDir}`)
+      expect(env.PATH.endsWith(`:${binDir}`)).toBe(true)
+      expect(env.PATH.startsWith(binDir)).toBe(false)
+    })
+
+    it('BAT_HELPER_NODE = <installRoot>/bin/node, only when that node exists', () => {
+      expect(build({}).BAT_HELPER_NODE).toBe(helperNode)
+      const noNode = build({ exists: p => p !== helperNode })
+      expect(noNode).not.toHaveProperty('BAT_HELPER_NODE')
+      expect(noNode.PATH.endsWith(`:${binDir}`)).toBe(true)
+    })
+
+    it('starts from customEnv PATH over the inherited one (PtyManager merge order)', () => {
+      expect(build({ customEnv: { PATH: '/custom/bin' } }).PATH).toBe(`/custom/bin:${binDir}`)
+    })
+
+    it('keeps the PATH key the env already uses (Windows `Path`) and adds no duplicate entry', () => {
+      const win = build({ inheritedEnv: { Path: 'C:\\Windows' }, pathDelimiter: ';' })
+      expect(win).not.toHaveProperty('PATH')
+      expect(win.Path).toBe(`C:\\Windows;${binDir}`)
+      expect(build({ inheritedEnv: { PATH: `/usr/bin:${binDir}` } }).PATH).toBe(`/usr/bin:${binDir}`)
+      expect(build({ inheritedEnv: {} }).PATH).toBe(binDir)
+    })
+
+    it('no helper env ⇒ PATH untouched (nothing returned at all)', () => {
+      expect(build({ endpoint: null })).toEqual({})
+      expect(build({ exists: p => !p.endsWith('bat-terminal.mjs') })).toEqual({})
+    })
   })
 })
 
@@ -182,6 +231,9 @@ describe('headless PTY helper env (T0433)', () => {
     expect(towerEnv.BAT_SERVER_CERT_PATH).toBe(path.join(harness.dataDir, 'server-cert.json'))
     expect(fs.existsSync(towerEnv.BAT_SERVER_CERT_PATH)).toBe(true)
     expect(towerEnv.BAT_HELPER_LOG_DIR).toBe(path.join(harness.dataDir, 'Logs'))
+    // T0456: the bundle's bin dir is on the PTY's PATH (the repo has no bin/node, so no BAT_HELPER_NODE)
+    const pathKey = Object.keys(towerEnv).find(k => k.toUpperCase() === 'PATH') ?? 'PATH'
+    expect(towerEnv[pathKey].split(path.delimiter)).toContain(path.join(path.dirname(REPO_SCRIPTS), 'bin'))
 
     // 🔴 the server token is in no env value; the inherited BAT_REMOTE_TOKEN was scrubbed
     expect(Object.values(towerEnv).some(v => v.includes(harness.token))).toBe(false)
