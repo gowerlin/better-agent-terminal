@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-085
 title: Codex CLI 0.160 在提權的 Windows 上拒絕啟動 daemon，Codex CLI 終端 preset 直接失敗
-status: FIXING
+status: FIXED
+fix_commits: [71706c2]
+fixed_at: "2026-10-04T20:48:06+08:00"
 severity: medium
 reproducibility: conditional
 created_at: "2026-10-04T20:21:50+08:00"
-updated_at: "2026-10-04T20:39:03+08:00"
+updated_at: "2026-10-04T20:48:06+08:00"
 impact:
   - codex-cli-terminal-preset
   - ct-dispatch-codex-cli（提權環境）
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（T0375 確認：Codex Agent 面板不受影響，維持 medium） |
 | 可重現 | 條件式 100%：Windows + BAT 行程為提權（UAC 停用 `EnableLUA=0`，或使用者以系統管理員執行 BAT） |
-| **狀態** | ⏳ FIXING（T0377，2026-10-04 20:39） |
+| **狀態** | ✅ FIXED（T0377 `71706c2`，20:48；待實機驗收） |
 | 回報者 | 使用者（2026-10-04 20:19，實機截圖） |
 
 ## 現象
@@ -76,4 +78,18 @@ To work without the background server, rerun the same command with --no-daemon (
 
 - 停用 daemon 的手段：`--no-daemon`（舊版 0.133 exit 2）、`--disable daemon_auto_start`（舊版 exit 1）、**`-c features.daemon_auto_start=false`（0.160 / 0.133 皆可）**、`config.toml [features]`（侵入使用者設定）；**沒有 env 開關**
 - 修復方案見 D124 / T0377
+
+## 修復（T0377，`71706c2`）
+
+- 新增 `electron/windows-elevation.ts`：`whoami /groups`（System32 絕對路徑、timeout 5s）判 `S-1-16-12288`；非 Windows / 失敗 → `false`
+- `agent-registry.ts` `buildLaunchCommand()`：`codex-cli` + elevated 時於 `codex` 後注入 `-c features.daemon_auto_start=false`；customArgs 已含 `--no-daemon` / `daemon_auto_start` 去重；`codex-agent*` 不注入
+- `main.ts`：app ready 偵測並 `setElevated()`；IPC `agent:build-launch-command` 與 `buildAgentPromptCommand()`（Tower 派發）先 await 偵測，避免啟動競態
+- `WorkspaceView.tsx`：首次開 Codex CLI 分頁 12s warning toast（三語 i18n）
+- 塔台總驗收（與 T0376 合併後 HEAD）：709 tests PASS、vite build exit 0、tsc 40（= baseline）
+
+## 待實機驗收
+
+- 以含 `71706c2` 的新 build（本機提權環境）開 Codex CLI 分頁 → 應進 TUI，不再 exit；首次出現黃色 toast
+- （可選）Tower 以 codex-cli 為 default agent 派發一張工單 → Worker 正常啟動
+- UAC 開啟機器的非提權 BAT：指令不應帶 `-c features.daemon_auto_start=false`（本機無法驗）
 

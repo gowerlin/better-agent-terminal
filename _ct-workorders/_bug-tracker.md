@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-04T20:39:03+08:00"
+generated_at: "2026-10-04T20:48:06+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 10
 breakdown:
   OPEN: 1
-  FIXING: 1
-  FIXED: 2
+  FIXING: 0
+  FIXED: 3
   VERIFY: 0
   CLOSED: 6
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 20:39 (UTC+8) — 第五十 session：新增 BUG-085 → FIXING（T0377）；BUG-083 → CLOSED（實機驗收）；frontmatter breakdown 漂移校正
+> 最後同步：2026-10-04 20:48 (UTC+8) — 第五十 session：新增 BUG-085 → FIXED（T0377，待實機）；BUG-083 → CLOSED（實機驗收）；frontmatter breakdown 漂移校正
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 10**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 10**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-085 | Codex CLI 0.160 在提權的 Windows 上拒絕啟動 daemon，Codex CLI 終端 preset 直接失敗 | 🟡 medium | 2026-10-04 | [BUG-085](BUG-085-codex-cli-daemon-refuses-elevated-windows.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-085 | Codex CLI 0.160 在提權的 Windows 上拒絕啟動 daemon，Codex CLI 終端 preset 直接失敗 | 🟡 medium | 2026-10-04 | [BUG-085](BUG-085-codex-cli-daemon-refuses-elevated-windows.md) |
 | BUG-084 | 內嵌 Claude CLI 2.1.113 被服務端拒絕 Claude 5 主力模型（claude_code_version_too_old） | 🔴 high | 2026-10-04 | [BUG-084](BUG-084-embedded-claude-cli-too-old-for-claude-5.md) |
 | BUG-071 | Setup Wizard install-server-bundle 硬性失敗：server bundle tarball 自動取得未實作 | 🔴 high | 2026-10-04 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 
