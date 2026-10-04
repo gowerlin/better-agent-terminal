@@ -4,12 +4,12 @@ schema_kind: workorder
 id: T0367
 title: "BUG-083 T-A：Codex 錯誤分類（config 不相容 / CLI 過舊）+ 修正 config 警告誤報為錯誤"
 type: fix
-status: PENDING
+status: IN_PROGRESS
 priority: P1
 sizing: S
 created_at: "2026-10-04T15:52:52+08:00"
-updated_at: "2026-10-04T15:52:52+08:00"
-started_at: null
+updated_at: "2026-10-04T15:54:49+08:00"
+started_at: "2026-10-04T15:54:49+08:00"
 completed_at: null
 target_version: next
 depends_on: []
@@ -40,7 +40,7 @@ memory_overrides:
 
 # T0367 — BUG-083 T-A：Codex 錯誤分類 + config 警告誤報修正
 
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **任務類型**：fix
 - **工作量預估**：S
 - **Context Window 風險**：低
@@ -127,10 +127,77 @@ T0366 研究（請先讀 `_ct-workorders/T0366-research-bug083-codex-version-ske
 
 ### 完成狀態
 
+✅ DONE — AC-1 ~ AC-6 全數 PASS（source / unit / tsc / build lane）。runtime smoke 未跑（工單明文排除跑真實 codex 回合），面板實際呈現待 BUG-083 驗收時真人確認。
+
+**Landing Zone Check**：WARN
+- C-0：frontmatter `repo` = absent → WARN「repo identity unavailable」；observed `basename(REPO_ROOT)` = `better-agent-terminal`（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：PASS（工單位於 `REPO_ROOT/_ct-workorders/`）
+- C-3：PASS（`electron/codex-agent-manager.ts`、`src/components/CodexAgentPanel.tsx` 存在；新檔 `src/lib/...` 祖先 `src/lib/` 存在）
+- C-2：工單無 `branch` 欄位，N/A（HEAD = `main`）
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（evidence only）
+- 派發環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`
+
 ### 產出摘要
+
+**Part A — main**（`electron/codex-agent-manager.ts` `item.completed` / `itemType === 'error'` 分支）
+- 訊息 `trim()` 後以 `Codex is ignoring` 開頭（不分大小寫）→ `logger.log(\`${stag} Codex config warning (not an error): ...\`)`，**不送 `claude:error`**
+- 既有非錯誤通道可用：`addMessage()`（`role: 'system'` → `claude:message`，與 `sys-init` / worktree 提示同通道），renderer `onMessage` 對一般 system 訊息只 append、不動 `isStreaming` ⇒ 以 `⚠️ <原文>` 顯示為 notice。**每 session 只顯示一次**（以內容比對 `session.state.messages` 去重，因 0.160 每回合開頭都會送一次）
+- 其他 `item.type === 'error'` 行為不變；未新增 IPC channel
+
+**Part B — renderer**
+- 新增 `src/lib/codex-error-classify.ts`：`classifyCodexError(message)` → `{ kind: 'config-incompatible' | 'cli-too-old' | 'unknown', detail? }`
+  - `config-incompatible`：`/error loading config\.toml/i`；`detail` 先抓 `` in `<key>` ``，再抓 `` unknown|missing|invalid|duplicate field|key `<key>` ``，都沒有則省略
+  - `cli-too-old`：`/requires a newer version of codex/i`；`detail` 抓引號包住（`'` `"` `` ` `` 與彎引號）或裸字的模型名
+  - 空字串 / 非字串 → `unknown`
+- `CodexAgentPanel.tsx` `onError`：保留 `Error: <原文>`，`kind !== 'unknown'` 時同一則 system 訊息後接 `\n\n💡 <i18n 提示>`；有 `detail` 用帶參數 key，無則用 `*Generic` key
+
+**Part C**
+- `src/lib/__tests__/codex-error-classify.test.ts`：11 cases（T0366 三個原文 fixture、大小寫變體、`unknown field` 寫法、裸字 / 雙引號模型名、detail 擷取不到、無關錯誤〔含 T0366 附帶發現的 `not supported when using Codex with a ChatGPT account`〕、空字串）
+- `CHANGELOG.md` `## [Unreleased]` → `### Fixed` 新增一筆（refs: BUG-083, T0367）
+
+**改動檔案**：`electron/codex-agent-manager.ts`、`src/components/CodexAgentPanel.tsx`、`src/lib/codex-error-classify.ts`（新）、`src/lib/__tests__/codex-error-classify.test.ts`（新）、`src/locales/en.json`、`src/locales/zh-TW.json`、`src/locales/zh-CN.json`、`CHANGELOG.md`、本工單
 
 ### 驗收條件逐項
 
+| AC | 結果 | 證據 |
+|----|------|------|
+| AC-1 | ✅ PASS | `npm run test:unit` → `Test Files 42 passed (42)`、`Tests 561 passed (561)`；基線 550 → 561（+11 = 新檔 11 cases） |
+| AC-2 | ✅ PASS | `npx vite build` exit 0（renderer `✓ built in 4.59s`，electron main/preload 皆 built） |
+| AC-3 | ✅ PASS | #1 `Codex is ignoring 1 unrecognized ...` → `{ kind: 'unknown' }`；#2 `Codex Exec exited with code 1: Error loading config.toml: ... in \`service_tier\`` → `{ kind: 'config-incompatible', detail: 'service_tier' }`；#3 `The 'gpt-5.6-terra' model requires a newer version of Codex. ...` → `{ kind: 'cli-too-old', detail: 'gpt-5.6-terra' }` |
+| AC-4 | ✅ PASS | diff 片段見下 |
+| AC-5 | ✅ PASS | 三語 `claude.*` 新增 key 集合相同：`codexErrorHintConfigIncompatible`、`codexErrorHintConfigIncompatibleGeneric`、`codexErrorHintCliTooOld`、`codexErrorHintCliTooOldGeneric`（插在既有 `claude.codexModelChangeWarning` 之後；`i18n-completeness.test.ts` 同在 AC-1 全綠內） |
+| AC-6 | ✅ PASS | `git diff --stat` 僅 affects_files + 本工單（`AGENTS.md` 為既有 dirty，未動、不入 commit）；`npx tsc --noEmit 2>&1 \| grep -c "error TS"`：改動前 **42** → 改動後 **42**；去除行列號後兩份 error 清單逐行相同（無新增） |
+
+AC-4 diff 片段：
+
+```diff
+             } else if (itemType === 'error') {
+               const errMsg = stringifyCodexError(item?.message ?? item?.error)
+-              this.send('claude:error', sessionId, errMsg)
++              if (/^codex is ignoring/i.test(errMsg.trim())) {
++                // BUG-083: newer Codex CLIs report unrecognized config keys as item.type="error"
++                // while the turn keeps running. Treat as a notice, not claude:error (which ends streaming).
++                logger.log(`${stag} Codex config warning (not an error): ${errMsg}`)
++                const notice = `⚠️ ${errMsg}`
++                // Shown once per session; the warning repeats at the start of every turn.
++                if (!session.state.messages.some(m => (m as ClaudeMessage).content === notice)) {
++                  this.addMessage(sessionId, { id: `sys-codex-notice-${itemId}-${Date.now()}`, sessionId, role: 'system', content: notice, timestamp: Date.now() })
++                }
++              } else {
++                this.send('claude:error', sessionId, errMsg)
++              }
+             }
+```
+
+**Commit**：見本工單 close commit 前一筆 `fix(codex): classify config/version errors; stop treating config warnings as errors (T0367)`（未 push）
+
 ### 遭遇問題
 
+- 無阻塞。
+- 設計取捨（供塔台參考）：notice 去重以「內容相同」判斷，`MSG_BUFFER_CAP` 截斷後可能再顯示一次，屬可接受。
+- 未涵蓋（範圍外，屬 T-C）：`config-incompatible` 時自動改用其他候選 binary 重試；`cli-too-old` 提示中顯示目前 codex 版本 / 來源（需 T-C 的 `--version` 偵測）。
+- `turn.failed` 與頂層 `error` 事件仍照舊送 `claude:error`（分類在 renderer 端套用，兩條路徑都會得到提示）。
+
 ### 回報時間
+
+2026-10-04T15:58:04+08:00

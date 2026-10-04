@@ -5,6 +5,16 @@ All notable changes to Better Agent Terminal are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- fix(codex): the Codex panel no longer reports config warnings as errors. Newer Codex CLIs emit
+  `item.type="error"` for unrecognized `~/.codex/config.toml` keys (`Codex is ignoring ...`) while
+  the turn keeps running; BAT forwarded these as `claude:error`, so every turn opened with a red
+  `Error:` and the streaming indicator went out early. They are now logged and shown once per
+  session as a system notice. Two known Codex failures also get an actionable hint after the raw
+  error: `Error loading config.toml` (the Codex in use cannot read a value written by a newer
+  Codex — names the key, e.g. `service_tier`) and `requires a newer version of Codex` (names the
+  model); both suggest upgrading BAT or pointing `BAT_CODEX_BIN` at a newer `codex`. Classification
+  is a pure renderer helper (`src/lib/codex-error-classify.ts`); the `claude:error` channel is
+  unchanged. (refs: BUG-083, T0367)
 - fix(server-bundle): the setup wizard's runtime fallback download could never succeed. The
   default base URL (`DEFAULT_RELEASE_BASE_URL` in `src/lib/arch-normalize.ts`, and the two copies
   in `scripts/fetch-baseline-tarball.mjs`) used the owner `anthropics`, under which the repo

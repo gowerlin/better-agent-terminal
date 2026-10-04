@@ -1211,7 +1211,24 @@ export class CodexAgentManager {
               })
             } else if (itemType === 'error') {
               const errMsg = stringifyCodexError(item?.message ?? item?.error)
-              this.send('claude:error', sessionId, errMsg)
+              if (/^codex is ignoring/i.test(errMsg.trim())) {
+                // BUG-083: newer Codex CLIs report unrecognized config keys as item.type="error"
+                // while the turn keeps running. Treat as a notice, not claude:error (which ends streaming).
+                logger.log(`${stag} Codex config warning (not an error): ${errMsg}`)
+                const notice = `⚠️ ${errMsg}`
+                // Shown once per session; the warning repeats at the start of every turn.
+                if (!session.state.messages.some(m => (m as ClaudeMessage).content === notice)) {
+                  this.addMessage(sessionId, {
+                    id: `sys-codex-notice-${itemId}-${Date.now()}`,
+                    sessionId,
+                    role: 'system',
+                    content: notice,
+                    timestamp: Date.now(),
+                  })
+                }
+              } else {
+                this.send('claude:error', sessionId, errMsg)
+              }
             }
             break
           }

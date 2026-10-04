@@ -15,6 +15,7 @@ import { useVoicePopover } from '../hooks/useVoicePopover'
 import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
+import { classifyCodexError } from '../lib/codex-error-classify'
 
 interface SessionMeta {
   model?: string
@@ -787,11 +788,23 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
 
       api.onError((sid: string, error: string) => {
         if (sid !== sessionId) return
+        // BUG-083: keep the raw error, append an actionable hint for known Codex failure kinds
+        const { kind, detail } = classifyCodexError(error)
+        let hint = ''
+        if (kind === 'config-incompatible') {
+          hint = detail
+            ? t('claude.codexErrorHintConfigIncompatible', { key: detail })
+            : t('claude.codexErrorHintConfigIncompatibleGeneric')
+        } else if (kind === 'cli-too-old') {
+          hint = detail
+            ? t('claude.codexErrorHintCliTooOld', { model: detail })
+            : t('claude.codexErrorHintCliTooOldGeneric')
+        }
         setMessages(prev => [...prev, {
           id: `err-${Date.now()}`,
           sessionId: sid,
           role: 'system' as const,
-          content: `Error: ${error}`,
+          content: hint ? `Error: ${error}\n\n💡 ${hint}` : `Error: ${error}`,
           timestamp: Date.now(),
         }])
         setIsStreaming(false)
