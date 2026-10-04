@@ -70,6 +70,13 @@ export interface PtyManagerDeps {
    * (Electron: local PTY lifetime is owned by the windows).
    */
   maxInstances?: number
+  /**
+   * T0432: called with the id of a PTY that is gone — killed (`kill` / `killAll` / restart's
+   * kill) or exited on its own. A stale exit of a replaced process is not reported. May be
+   * called twice for one PTY (kill, then its exit); listeners must be idempotent. Headless
+   * revokes the PTY's helper capability here. Undefined = no hook (Electron).
+   */
+  onPtyExit?: (id: string) => void
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -411,6 +418,7 @@ export class PtyManager {
     }
     this.instances.delete(id)
     this.replayBuffers.delete(id)
+    this.notifyPtyExit(id)
     this.broadcast('pty:exit', id, exitCode)
   }
 
@@ -427,7 +435,18 @@ export class PtyManager {
     }
     this.instances.delete(id)
     this.replayBuffers.delete(id)
+    this.notifyPtyExit(id)
     this.broadcast('pty:exit', id, exitCode)
+  }
+
+  /** T0432: `deps.onPtyExit`; a throwing listener must not break exit / kill handling. */
+  private notifyPtyExit(id: string): void {
+    if (!this.deps.onPtyExit) return
+    try {
+      this.deps.onPtyExit(id)
+    } catch (e) {
+      logger.warn(`[PtyManager] onPtyExit listener failed id=${id}:`, e)
+    }
   }
 
   private broadcast(channel: string, ...args: unknown[]) {
@@ -886,6 +905,7 @@ export class PtyManager {
       this.sendToServer({ type: 'pty:kill', id })
       this.instances.delete(id)
       this.replayBuffers.delete(id)
+      this.notifyPtyExit(id)
       return true
     }
     const instance = this.instances.get(id)
@@ -906,6 +926,7 @@ export class PtyManager {
       }
       this.instances.delete(id)
       this.replayBuffers.delete(id)
+      this.notifyPtyExit(id)
       return true
     }
     return false

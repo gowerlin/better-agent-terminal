@@ -42,6 +42,7 @@ import {
   writeSecretFile,
 } from './secrets'
 import { acquireLock, releaseLock } from './lockfile'
+import { HelperCapabilityRegistry } from './helper-capability'
 import {
   createHeadlessDefaultHandlers,
   readHeadlessSettings,
@@ -190,15 +191,27 @@ export class HeadlessOrphanPtyReclaimer {
  * orphan reclaim once no client has been connected for the idle limit.
  * T0404: `maxPtys` caps concurrent PTYs (0 = unlimited); `onManager` hands the
  * manager to the server for that reclaim.
+ * T0432: `helperCapabilities` — a PTY that exits or is killed loses its helper
+ * capability (revoked in the registry the RemoteServer authenticates against).
  */
-export function createHeadlessPtyModule(opts: { maxPtys?: number; onManager?: (manager: PtyManager) => void } = {}): HandlerModule {
+export function createHeadlessPtyModule(opts: {
+  maxPtys?: number
+  onManager?: (manager: PtyManager) => void
+  helperCapabilities?: HelperCapabilityRegistry
+} = {}): HandlerModule {
   return (register, host) => {
+    const capabilities = opts.helperCapabilities
     const manager = new PtyManager({
       emit: host.emit,
       dataDir: host.dataDir,
       helperDir: host.helperDir,
       dropInheritedEnv: isHeadlessScrubbedEnvKey,
       maxInstances: opts.maxPtys ?? HEADLESS_MAX_PTYS_DEFAULT,
+      onPtyExit: capabilities
+        ? id => {
+            if (capabilities.revokeTerminal(id) > 0) defaultLogger.log(`[headless] helper capability revoked: terminal=${id}`)
+          }
+        : undefined,
     })
     registerPtyHandlers(register, { getPtyManager: () => manager, validateShell: true })
     opts.onManager?.(manager)
@@ -486,6 +499,12 @@ export interface HeadlessServerOptions {
   git?: HeadlessGitOverrides
   /** BUG-103: server environment for auth metadata (tests). Default: `detectServerEnv()`. */
   detectServerEnv?: () => ServerEnvInfo
+  /**
+   * T0432: per-PTY helper capabilities this server accepts. Default: a fresh registry per
+   * server (memory only — a restarted server accepts none of the old tokens). `stop()`
+   * clears it.
+   */
+  helperCapabilities?: HelperCapabilityRegistry
   logger?: {
     log: (...args: unknown[]) => void
     warn: (...args: unknown[]) => void
@@ -547,16 +566,20 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   let resolvedToken = opts.token ?? (await loadOrGenerateToken(opts.dataDir))
   const certificateProvider =
     opts.certificateProvider ?? new FileCertificateProvider(opts.dataDir)
+  let ptyManager: PtyManager | null = null
+  let fsRoots: SyncedWorkspaceRoots | null = null
+  const helperCapabilities = opts.helperCapabilities ?? new HelperCapabilityRegistry()
   const remoteServer = new RemoteServer({
     certificateProvider,
     logger: opts.logger,
     detectServerEnv: opts.detectServerEnv,
+    // T0432: helpers inside headless PTYs authenticate with their PTY's capability.
+    helperCapabilities,
+    isTerminalAlive: id => ptyManager?.isAlive(id) ?? false,
   })
   remoteServer.configDir = opts.dataDir
   const log = opts.logger ?? defaultLogger
   const ptyLimits = resolveHeadlessPtyLimits(opts, process.env, message => log.warn(message))
-  let ptyManager: PtyManager | null = null
-  let fsRoots: SyncedWorkspaceRoots | null = null
 
   // T0385: built-ins first so caller-supplied handlers can override them.
   // T0388: shared domain modules sit between the two.
@@ -568,13 +591,14 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   const moduleDisposers: HandlerModuleDisposer[] = []
   const handlerModules = createHeadlessHandlerModules({
     installRoot: opts.installRoot,
-    pty: { maxPtys: ptyLimits.maxPtys, onManager: manager => { ptyManager = manager } },
+    pty: { maxPtys: ptyLimits.maxPtys, onManager: manager => { ptyManager = manager }, helperCapabilities },
     remoteTools: opts.remoteTools,
     git: opts.git,
     fs: { onRoots: roots => { fsRoots = roots } },
-    // T0431: every authenticated client gets the broadcast except the invoking one
-    // (bat-notify itself is an authenticated client).
-    terminal: { countRemoteReceivers: ctx => remoteServer.getClientCount() - (ctx.connectionId ? 1 : 0) },
+    // T0431: every authenticated client gets the broadcast except the invoking one.
+    // T0432: helper (capability) connections are not clients — they neither receive
+    // broadcasts nor count, whether they invoke or merely stay connected.
+    terminal: { countRemoteReceivers: ctx => remoteServer.countBroadcastReceivers(ctx.connectionId) },
   })
   for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)
@@ -661,6 +685,8 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
             opts.logger?.warn('[headless] handler module dispose failed:', error)
           }
         }
+        // T0432: no helper capability outlives the server.
+        helperCapabilities.clear()
       } finally {
         if (lockHeld) {
           releaseLock(opts.dataDir)

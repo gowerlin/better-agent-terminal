@@ -15,6 +15,12 @@ import {
   type LoadedCertificateBundle,
 } from './certificate'
 import { readSecretFile, writeSecretFile } from './secrets'
+import {
+  authorizeHelperInvoke,
+  safeTokenEqual,
+  type HelperCapabilityRegistry,
+  type HelperCapabilityRole,
+} from './helper-capability'
 
 export type BindInterface = 'localhost' | 'tailscale' | 'all' | `ip:${string}`
 
@@ -23,6 +29,19 @@ interface AuthenticatedClient {
   label: string
   connectedAt: number
   /** T0406: handed to handlers as `ctx.connectionId` (per-connection state, e.g. synced fs roots). */
+  connectionId: string
+}
+
+/**
+ * T0432: a connection authenticated with a per-PTY capability (helper inside a PTY).
+ * Kept apart from `clients`: it gets no broadcasts and does not count as a client.
+ */
+interface HelperConnection {
+  ws: WebSocket
+  /** `HelperCapabilityRegistry.lookup` key — re-checked on every frame (revocation). */
+  capabilityKey: string
+  terminalId: string
+  role: HelperCapabilityRole
   connectionId: string
 }
 
@@ -57,6 +76,13 @@ interface RemoteServerOptions {
   logger?: RemoteServerLogger
   /** BUG-103: server environment reported in auth metadata. Default: `detectServerEnv()` per auth. */
   detectServerEnv?: () => ServerEnvInfo
+  /**
+   * T0432: per-PTY capabilities accepted at auth (headless). Absent = only the server
+   * token authenticates (Electron, unchanged).
+   */
+  helperCapabilities?: HelperCapabilityRegistry
+  /** T0432: PTY liveness for helper `terminal:create-agent-command` (absent ⇒ denied). */
+  isTerminalAlive?: (id: string) => boolean
 }
 
 const TOKEN_FILENAME = 'server-token.json'
@@ -218,12 +244,15 @@ export class RemoteServer {
   private currentBindInterface: BindInterface = 'localhost'
   private currentHost: string = '127.0.0.1'
   private clients: Map<WebSocket, AuthenticatedClient> = new Map()
+  private helpers: Map<WebSocket, HelperConnection> = new Map()
   private authFailures: Map<string, AuthFailureEntry> = new Map()
   private broadcastListener: ((...args: unknown[]) => void) | null = null
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
   private readonly certificateProvider?: CertificateProvider
   private readonly log: RemoteServerLogger
   private readonly detectEnv: () => ServerEnvInfo
+  private readonly helperCapabilities?: HelperCapabilityRegistry
+  private readonly isTerminalAlive?: (id: string) => boolean
   private clientCountListeners: Set<(count: number) => void> = new Set()
   private clientDisconnectListeners: Set<(connectionId: string) => void> = new Set()
   private lastNotifiedClientCount = 0
@@ -233,6 +262,8 @@ export class RemoteServer {
     this.certificateProvider = options.certificateProvider
     this.log = options.logger ?? defaultLogger
     this.detectEnv = options.detectServerEnv ?? (() => detectServerEnv())
+    this.helperCapabilities = options.helperCapabilities
+    this.isTerminalAlive = options.isTerminalAlive
   }
 
   get port(): number | null {
@@ -265,9 +296,30 @@ export class RemoteServer {
     return this.certificateExpiresAt
   }
 
-  /** T0404: number of authenticated clients (unauthenticated sockets do not count). */
+  /**
+   * T0404: number of authenticated clients (unauthenticated sockets do not count).
+   * T0432: helper (capability) connections do not count either — a helper kept
+   * connected must not hold off the orphan PTY reclaim.
+   */
   getClientCount(): number {
     return this.clients.size
+  }
+
+  /**
+   * T0432: clients that receive broadcasts, not counting `excludeConnectionId` (the
+   * invoker when it is a client). Helper connections never receive broadcasts.
+   */
+  countBroadcastReceivers(excludeConnectionId?: string | null): number {
+    let count = 0
+    for (const client of this.clients.values()) {
+      if (client.connectionId !== excludeConnectionId) count++
+    }
+    return count
+  }
+
+  /** T0432: open helper (capability) connections. */
+  getHelperConnectionCount(): number {
+    return this.helpers.size
   }
 
   /**
@@ -353,11 +405,12 @@ export class RemoteServer {
     this.certificateExpiresAt = bundle.expiresAt
   }
 
+  // T0432: constant-time comparison (`safeTokenEqual`: a length mismatch is false first).
   private isTokenAccepted(candidate?: string): boolean {
     if (!candidate) return false
-    if (candidate === this.token) return true
+    if (safeTokenEqual(candidate, this.token)) return true
     if (this.previousToken && Date.now() <= this.previousToken.validUntil) {
-      return candidate === this.previousToken.token
+      return safeTokenEqual(candidate, this.previousToken.token)
     }
     if (this.previousToken && Date.now() > this.previousToken.validUntil) {
       this.previousToken = null
@@ -441,6 +494,8 @@ export class RemoteServer {
 
         if (frame.type === 'auth') {
           if (this.isTokenAccepted(frame.token)) {
+            // T0432: a socket is a client or a helper, never both.
+            this.dropHelper(ws)
             authenticated = true
             clearTimeout(authTimeout)
             if (clientIp) this.authFailures.delete(clientIp)
@@ -453,6 +508,11 @@ export class RemoteServer {
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
             this.log.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
             this.notifyClientCount()
+          } else if (this.acceptHelper(ws, frame.token)) {
+            authenticated = true
+            clearTimeout(authTimeout)
+            if (clientIp) this.authFailures.delete(clientIp)
+            this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
           } else {
             if (clientIp) {
               const banned = recordAuthFailure(this.authFailures, clientIp, Date.now())
@@ -472,6 +532,11 @@ export class RemoteServer {
         if (!authenticated) {
           this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: 'Not authenticated' })
           ws.close()
+          return
+        }
+
+        if (this.helpers.has(ws)) {
+          await this.handleHelperFrame(ws, frame)
           return
         }
 
@@ -498,6 +563,7 @@ export class RemoteServer {
 
       ws.on('close', () => {
         clearTimeout(authTimeout)
+        this.dropHelper(ws)
         const client = this.clients.get(ws)
         if (client) {
           this.log.log(`[RemoteServer] Client disconnected: ${client.label}`)
@@ -508,6 +574,7 @@ export class RemoteServer {
 
       ws.on('error', (err) => {
         this.log.error('[RemoteServer] WebSocket error:', err.message)
+        this.dropHelper(ws)
         this.dropClient(ws)
         this.notifyClientCount()
       })
@@ -540,15 +607,19 @@ export class RemoteServer {
         }
         client.ws.ping()
       }
+      for (const helper of Array.from(this.helpers.values())) {
+        if (helper.ws.readyState !== WebSocket.OPEN) this.dropHelper(helper.ws)
+      }
       this.notifyClientCount()
     }, 30000)
 
     this.persistToken(this.token)
 
     const actualPort = this.port ?? port
+    // T0432: no part of the token is logged (T0420 out-of-scope ②).
     this.log.log(
       `[RemoteServer] Started on ${this.currentHost}:${actualPort} (bind=${bindInterface}), ` +
-        `fingerprint=${this.fingerprint.substring(0, 23)}..., token=${this.token.substring(0, 8)}...`
+        `fingerprint=${this.fingerprint.substring(0, 23)}...`
     )
     return {
       port: actualPort,
@@ -605,6 +676,10 @@ export class RemoteServer {
       client.ws.close()
       this.dropClient(client.ws)
     }
+    for (const helper of Array.from(this.helpers.values())) {
+      helper.ws.close()
+      this.dropHelper(helper.ws)
+    }
     this.notifyClientCount()
 
     if (this.wss) {
@@ -660,6 +735,76 @@ export class RemoteServer {
           `Failed to bind new port ${newPort} (${newErr}); rollback to old port ${oldPort} also failed (${recoverMsg})`
         )
       }
+    }
+  }
+
+  /** T0432: authenticates `ws` as a helper when `token` is a live capability. */
+  private acceptHelper(ws: WebSocket, token: unknown): boolean {
+    // A client socket cannot step down to a helper (it would keep its broadcasts).
+    if (this.clients.has(ws)) return false
+    const verified = this.helperCapabilities?.verify(token)
+    if (!verified) return false
+    const { terminalId, role } = verified.capability
+    this.helpers.set(ws, {
+      ws,
+      capabilityKey: verified.key,
+      terminalId,
+      role,
+      connectionId: randomBytes(8).toString('hex'),
+    })
+    this.log.log(`[RemoteServer] Helper authenticated: role=${role} terminal=${terminalId}`)
+    return true
+  }
+
+  private dropHelper(ws: WebSocket): void {
+    const helper = this.helpers.get(ws)
+    if (!helper) return
+    this.helpers.delete(ws)
+    this.log.log(`[RemoteServer] Helper disconnected: role=${helper.role} terminal=${helper.terminalId}`)
+  }
+
+  /**
+   * T0432: every frame of a helper connection. The capability is looked up again (the
+   * PTY exited ⇒ revoked ⇒ the connection is closed), then an invoke must pass
+   * `authorizeHelperInvoke` (channel whitelist + target binding) before any handler runs.
+   */
+  private async handleHelperFrame(ws: WebSocket, frame: RemoteFrame): Promise<void> {
+    const helper = this.helpers.get(ws)
+    if (!helper) return
+    const capability = this.helperCapabilities?.lookup(helper.capabilityKey) ?? null
+    if (!capability) {
+      this.log.warn(`[RemoteServer] Helper capability revoked: role=${helper.role} terminal=${helper.terminalId}`)
+      this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: 'Capability revoked' })
+      this.dropHelper(ws)
+      ws.close()
+      return
+    }
+
+    if (frame.type === 'ping') {
+      this.sendFrame(ws, { type: 'pong', id: frame.id })
+      return
+    }
+    if (frame.type !== 'invoke' || !frame.channel) return
+
+    let args = frame.args || []
+    while (args.length > 0 && args[args.length - 1] == null) {
+      args = args.slice(0, -1)
+    }
+    const decision = authorizeHelperInvoke(capability, frame.channel, args, { isTerminalAlive: this.isTerminalAlive })
+    if (!decision.ok) {
+      this.log.warn(
+        `[RemoteServer] Helper invoke denied: channel=${frame.channel} role=${capability.role} ` +
+          `terminal=${capability.terminalId} reason=${decision.reason}`
+      )
+      this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: `Forbidden: ${decision.reason}` })
+      return
+    }
+    try {
+      const result = await invokeHandler(frame.channel, args, null, helper.connectionId)
+      this.sendFrame(ws, { type: 'invoke-result', id: frame.id, result })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: message })
     }
   }
 
