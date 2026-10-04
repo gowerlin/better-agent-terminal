@@ -1,0 +1,244 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`recipe matrix invariants > snapshot of the Linux matrix (musl only on apk) 1`] = `
+"claude apt root → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude apt passwordless → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude apt password-required → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude apt sudo-missing → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude dnf root → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude dnf passwordless → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude dnf password-required → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude dnf sudo-missing → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude yum root → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude yum passwordless → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude yum password-required → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude yum sudo-missing → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude apk root → apk add bash curl libgcc libstdc++ ripgrep && curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude apk passwordless → sudo apk add bash curl libgcc libstdc++ ripgrep && curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude apk password-required → sudo apk add bash curl libgcc libstdc++ ripgrep && curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude apk sudo-missing → unsupported:needs-root-no-sudo
+claude brew root → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude brew passwordless → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude brew password-required → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude brew sudo-missing → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude none root → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude none passwordless → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude none password-required → curl -fsSL https://claude.ai/install.sh | bash -s stable
+claude none sudo-missing → curl -fsSL https://claude.ai/install.sh | bash -s stable
+git apt root → apt-get update && apt-get install -y git
+git apt passwordless → sudo apt-get update && sudo apt-get install -y git
+git apt password-required → sudo apt-get update && sudo apt-get install -y git
+git apt sudo-missing → unsupported:needs-root-no-sudo
+git dnf root → dnf install -y git
+git dnf passwordless → sudo dnf install -y git
+git dnf password-required → sudo dnf install -y git
+git dnf sudo-missing → unsupported:needs-root-no-sudo
+git yum root → yum install -y git
+git yum passwordless → sudo yum install -y git
+git yum password-required → sudo yum install -y git
+git yum sudo-missing → unsupported:needs-root-no-sudo
+git apk root → apk add git
+git apk passwordless → sudo apk add git
+git apk password-required → sudo apk add git
+git apk sudo-missing → unsupported:needs-root-no-sudo
+git brew root → unsupported:brew-as-root
+git brew passwordless → brew install git
+git brew password-required → brew install git
+git brew sudo-missing → brew install git
+git none root → unsupported:no-package-manager
+git none passwordless → unsupported:no-package-manager
+git none password-required → unsupported:no-package-manager
+git none sudo-missing → unsupported:no-package-manager
+gh apt root → (command -v wget >/dev/null 2>&1 || (apt-get update && apt-get install -y wget)) && mkdir -p -m 755 /etc/apt/keyrings && out=$(mktemp) && wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg && cat "$out" | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null && rm -f "$out" && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && mkdir -p -m 755 /etc/apt/sources.list.d && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null && apt-get update && apt-get install -y gh
+gh apt passwordless → (command -v wget >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y wget)) && sudo mkdir -p -m 755 /etc/apt/keyrings && out=$(mktemp) && wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg && cat "$out" | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null && rm -f "$out" && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && sudo mkdir -p -m 755 /etc/apt/sources.list.d && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt-get update && sudo apt-get install -y gh
+gh apt password-required → (command -v wget >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y wget)) && sudo mkdir -p -m 755 /etc/apt/keyrings && out=$(mktemp) && wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg && cat "$out" | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null && rm -f "$out" && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && sudo mkdir -p -m 755 /etc/apt/sources.list.d && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt-get update && sudo apt-get install -y gh
+gh apt sudo-missing → unsupported:needs-root-no-sudo
+gh dnf root → curl -fsSL -o /etc/yum.repos.d/gh-cli.repo https://cli.github.com/packages/rpm/gh-cli.repo && dnf install -y gh
+gh dnf passwordless → sudo curl -fsSL -o /etc/yum.repos.d/gh-cli.repo https://cli.github.com/packages/rpm/gh-cli.repo && sudo dnf install -y gh
+gh dnf password-required → sudo curl -fsSL -o /etc/yum.repos.d/gh-cli.repo https://cli.github.com/packages/rpm/gh-cli.repo && sudo dnf install -y gh
+gh dnf sudo-missing → unsupported:needs-root-no-sudo
+gh yum root → curl -fsSL -o /etc/yum.repos.d/gh-cli.repo https://cli.github.com/packages/rpm/gh-cli.repo && yum install -y gh
+gh yum passwordless → sudo curl -fsSL -o /etc/yum.repos.d/gh-cli.repo https://cli.github.com/packages/rpm/gh-cli.repo && sudo yum install -y gh
+gh yum password-required → sudo curl -fsSL -o /etc/yum.repos.d/gh-cli.repo https://cli.github.com/packages/rpm/gh-cli.repo && sudo yum install -y gh
+gh yum sudo-missing → unsupported:needs-root-no-sudo
+gh apk root → [unofficial] apk add github-cli
+gh apk passwordless → [unofficial] sudo apk add github-cli
+gh apk password-required → [unofficial] sudo apk add github-cli
+gh apk sudo-missing → unsupported:needs-root-no-sudo
+gh brew root → unsupported:brew-as-root
+gh brew passwordless → brew install gh
+gh brew password-required → brew install gh
+gh brew sudo-missing → brew install gh
+gh none root → unsupported:no-package-manager
+gh none passwordless → unsupported:no-package-manager
+gh none password-required → unsupported:no-package-manager
+gh none sudo-missing → unsupported:no-package-manager
+codex apt root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apt passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apt password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apt sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex dnf root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex dnf passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex dnf password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex dnf sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex yum root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex yum passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex yum password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex yum sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apk root → apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apk passwordless → sudo apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apk password-required → sudo apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apk sudo-missing → unsupported:needs-root-no-sudo
+codex brew root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex brew passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex brew password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex brew sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex none root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex none passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex none password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex none sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+curl apt root → unsupported:no-recipe
+curl apt passwordless → unsupported:no-recipe
+curl apt password-required → unsupported:no-recipe
+curl apt sudo-missing → unsupported:no-recipe
+curl dnf root → unsupported:no-recipe
+curl dnf passwordless → unsupported:no-recipe
+curl dnf password-required → unsupported:no-recipe
+curl dnf sudo-missing → unsupported:no-recipe
+curl yum root → unsupported:no-recipe
+curl yum passwordless → unsupported:no-recipe
+curl yum password-required → unsupported:no-recipe
+curl yum sudo-missing → unsupported:no-recipe
+curl apk root → unsupported:no-recipe
+curl apk passwordless → unsupported:no-recipe
+curl apk password-required → unsupported:no-recipe
+curl apk sudo-missing → unsupported:no-recipe
+curl brew root → unsupported:no-recipe
+curl brew passwordless → unsupported:no-recipe
+curl brew password-required → unsupported:no-recipe
+curl brew sudo-missing → unsupported:no-recipe
+curl none root → unsupported:no-recipe
+curl none passwordless → unsupported:no-recipe
+curl none password-required → unsupported:no-recipe
+curl none sudo-missing → unsupported:no-recipe
+bash apt root → unsupported:no-recipe
+bash apt passwordless → unsupported:no-recipe
+bash apt password-required → unsupported:no-recipe
+bash apt sudo-missing → unsupported:no-recipe
+bash dnf root → unsupported:no-recipe
+bash dnf passwordless → unsupported:no-recipe
+bash dnf password-required → unsupported:no-recipe
+bash dnf sudo-missing → unsupported:no-recipe
+bash yum root → unsupported:no-recipe
+bash yum passwordless → unsupported:no-recipe
+bash yum password-required → unsupported:no-recipe
+bash yum sudo-missing → unsupported:no-recipe
+bash apk root → unsupported:no-recipe
+bash apk passwordless → unsupported:no-recipe
+bash apk password-required → unsupported:no-recipe
+bash apk sudo-missing → unsupported:no-recipe
+bash brew root → unsupported:no-recipe
+bash brew passwordless → unsupported:no-recipe
+bash brew password-required → unsupported:no-recipe
+bash brew sudo-missing → unsupported:no-recipe
+bash none root → unsupported:no-recipe
+bash none passwordless → unsupported:no-recipe
+bash none password-required → unsupported:no-recipe
+bash none sudo-missing → unsupported:no-recipe
+rg apt root → apt-get update && apt-get install -y ripgrep
+rg apt passwordless → sudo apt-get update && sudo apt-get install -y ripgrep
+rg apt password-required → sudo apt-get update && sudo apt-get install -y ripgrep
+rg apt sudo-missing → unsupported:needs-root-no-sudo
+rg dnf root → dnf install -y ripgrep
+rg dnf passwordless → sudo dnf install -y ripgrep
+rg dnf password-required → sudo dnf install -y ripgrep
+rg dnf sudo-missing → unsupported:needs-root-no-sudo
+rg yum root → yum install -y ripgrep
+rg yum passwordless → sudo yum install -y ripgrep
+rg yum password-required → sudo yum install -y ripgrep
+rg yum sudo-missing → unsupported:needs-root-no-sudo
+rg apk root → apk add ripgrep
+rg apk passwordless → sudo apk add ripgrep
+rg apk password-required → sudo apk add ripgrep
+rg apk sudo-missing → unsupported:needs-root-no-sudo
+rg brew root → unsupported:brew-as-root
+rg brew passwordless → brew install ripgrep
+rg brew password-required → brew install ripgrep
+rg brew sudo-missing → brew install ripgrep
+rg none root → unsupported:no-package-manager
+rg none passwordless → unsupported:no-package-manager
+rg none password-required → unsupported:no-package-manager
+rg none sudo-missing → unsupported:no-package-manager
+uv apt root → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv apt passwordless → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv apt password-required → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv apt sudo-missing → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv dnf root → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv dnf passwordless → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv dnf password-required → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv dnf sudo-missing → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv yum root → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv yum passwordless → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv yum password-required → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv yum sudo-missing → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv apk root → apk add curl && curl -LsSf https://astral.sh/uv/install.sh | sh
+uv apk passwordless → sudo apk add curl && curl -LsSf https://astral.sh/uv/install.sh | sh
+uv apk password-required → sudo apk add curl && curl -LsSf https://astral.sh/uv/install.sh | sh
+uv apk sudo-missing → unsupported:needs-root-no-sudo
+uv brew root → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv brew passwordless → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv brew password-required → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv brew sudo-missing → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv none root → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv none passwordless → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv none password-required → curl -LsSf https://astral.sh/uv/install.sh | sh
+uv none sudo-missing → curl -LsSf https://astral.sh/uv/install.sh | sh
+python3 apt root → unsupported:no-recipe
+python3 apt passwordless → unsupported:no-recipe
+python3 apt password-required → unsupported:no-recipe
+python3 apt sudo-missing → unsupported:no-recipe
+python3 dnf root → unsupported:no-recipe
+python3 dnf passwordless → unsupported:no-recipe
+python3 dnf password-required → unsupported:no-recipe
+python3 dnf sudo-missing → unsupported:no-recipe
+python3 yum root → unsupported:no-recipe
+python3 yum passwordless → unsupported:no-recipe
+python3 yum password-required → unsupported:no-recipe
+python3 yum sudo-missing → unsupported:no-recipe
+python3 apk root → unsupported:no-recipe
+python3 apk passwordless → unsupported:no-recipe
+python3 apk password-required → unsupported:no-recipe
+python3 apk sudo-missing → unsupported:no-recipe
+python3 brew root → unsupported:no-recipe
+python3 brew passwordless → unsupported:no-recipe
+python3 brew password-required → unsupported:no-recipe
+python3 brew sudo-missing → unsupported:no-recipe
+python3 none root → unsupported:no-recipe
+python3 none passwordless → unsupported:no-recipe
+python3 none password-required → unsupported:no-recipe
+python3 none sudo-missing → unsupported:no-recipe
+node apt root → unsupported:no-recipe
+node apt passwordless → unsupported:no-recipe
+node apt password-required → unsupported:no-recipe
+node apt sudo-missing → unsupported:no-recipe
+node dnf root → unsupported:no-recipe
+node dnf passwordless → unsupported:no-recipe
+node dnf password-required → unsupported:no-recipe
+node dnf sudo-missing → unsupported:no-recipe
+node yum root → unsupported:no-recipe
+node yum passwordless → unsupported:no-recipe
+node yum password-required → unsupported:no-recipe
+node yum sudo-missing → unsupported:no-recipe
+node apk root → unsupported:no-recipe
+node apk passwordless → unsupported:no-recipe
+node apk password-required → unsupported:no-recipe
+node apk sudo-missing → unsupported:no-recipe
+node brew root → unsupported:no-recipe
+node brew passwordless → unsupported:no-recipe
+node brew password-required → unsupported:no-recipe
+node brew sudo-missing → unsupported:no-recipe
+node none root → unsupported:no-recipe
+node none passwordless → unsupported:no-recipe
+node none password-required → unsupported:no-recipe
+node none sudo-missing → unsupported:no-recipe"
+`;
