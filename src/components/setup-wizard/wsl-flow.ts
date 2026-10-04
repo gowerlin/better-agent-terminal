@@ -9,7 +9,6 @@ import { writeProfileStep } from './steps/wsl/write-profile'
 import { writeSystemdUnitStep } from './steps/wsl/write-systemd-unit'
 import { wslSystemdCheckStep } from './steps/wsl/wsl-systemd-check'
 
-const DEFAULT_SERVER_PORT = 9876
 const DEFAULT_INSTALL_PATH = '~/.local/bat-server'
 
 export function buildWslWizardSteps(): WizardStep[] {
@@ -33,12 +32,12 @@ export function createWslWizardContext(initial: { profileName: string }): Wizard
       name: initial.profileName,
     },
     warnings: [],
-    state: {
-      serverPort: DEFAULT_SERVER_PORT,
-    },
+    // T0382 (BUG-091, D128): no preset port. 9876 is the host BAT RemoteServer
+    // default and Mirrored mode shares localhost, so write-systemd-unit picks a
+    // free Windows-side port (state.serverPort, if set, is a user override).
+    state: {},
     networkMode: 'unknown',
     serverInstallPath: DEFAULT_INSTALL_PATH,
-    serverPort: DEFAULT_SERVER_PORT,
     logger: {
       info: (message: string) => console.info(`[wsl-wizard] ${message}`),
       warn: (message: string) => console.warn(`[wsl-wizard] ${message}`),

@@ -52,6 +52,15 @@ type WslFetchFingerprintResult =
   | { ok: true; fingerprint: string }
   | { ok: false; errorCode: 'fingerprint-invalid-port' | 'fingerprint-timeout' | 'fingerprint-unreachable' | 'fingerprint-handshake-failed'; error: string }
 
+// T0382 / BUG-091 (D128): WSL bat-server port picked on the Windows side.
+type WslPickServerPortResult =
+  | { ok: true; port: number }
+  | { ok: false; errorCode: 'wsl-port-in-use' | 'wsl-port-invalid'; error: string }
+
+type WslStartServiceResult =
+  | { ok: true; token: string | null }
+  | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed'; token?: string | null }
+
 interface RemoteAuthMetadata {
   serverPlatform: 'win32' | 'linux' | 'darwin'
   serverArch: 'x64' | 'arm64'
@@ -340,6 +349,8 @@ interface ElectronAPI {
     // T0304 / BUG-069 — IPC migrated from renderer (was direct `node:https` call).
     // T0381 / BUG-090 — TLS-handshake fingerprint (5s timeout) with structured errors.
     fetchFingerprint: (port: number) => Promise<WslFetchFingerprintResult>
+    // T0382 / BUG-091 — never returns the host RemoteServer port; preferredPort is validated as-is.
+    pickServerPort: (preferredPort?: number) => Promise<WslPickServerPortResult>
   }
   docker: {
     status: () => Promise<{ available: boolean; version?: string; error?: string }>
@@ -368,7 +379,8 @@ interface ElectronAPI {
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) => Promise<{ ok: true }>
     enableLinger: (distro: string) => Promise<{ ok: boolean; error?: string }>
-    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) => Promise<{ ok: true; token: string | null } | { ok: false; error: string; token?: string | null }>
+    // T0382 / BUG-091 — ok only after the unit stayed active (no auto-restart) for the stability window.
+    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) => Promise<WslStartServiceResult>
     removeUnit: (distro: string, serviceName: string, options?: { path?: string }) => Promise<{ ok: true }>
   }
   ssh: {

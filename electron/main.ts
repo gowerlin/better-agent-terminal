@@ -3532,6 +3532,21 @@ function registerLocalHandlers() {
     }
     return result
   })
+  // T0382 / BUG-091 (D128): pick the WSL bat-server port on the Windows side.
+  // Mirrored mode shares localhost, so the host RemoteServer's port — both the
+  // resolved startup port (env > settings > default) and the one actually
+  // running — must never be handed to the WSL server.
+  ipcMain.handle('wsl:pick-server-port', async (_event, preferredPort?: number): Promise<wslSystemd.PickServerPortResult> => {
+    const excludePorts = [readRemotePortSync()]
+    if (remoteServer.port) excludePorts.push(remoteServer.port)
+    const result = await wslSystemd.pickServerPort({ excludePorts, preferredPort })
+    if (result.ok) {
+      logger.log(`[wizard] pick-server-port -> ${result.port} (excluded host ports: ${excludePorts.join(', ')})`)
+    } else {
+      logger.warn(`[wizard] pick-server-port ${result.errorCode}: ${result.error}`)
+    }
+    return result
+  })
   registerSshSetupHandlers(ipcMain)
 
   // T0348 / BUG-078 — Control Tower drift telemetry IPC.
@@ -3550,8 +3565,10 @@ function registerLocalHandlers() {
   ipcMain.handle('wsl-systemd:write-unit', (_event, distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
     wslSystemd.writeUnit(distro, unit))
   ipcMain.handle('wsl-systemd:enable-linger', (_event, distro: string) => wslSystemd.enableLinger(distro))
+  // T0382 (BUG-091): only dataDir / timeoutMs cross IPC; the stability window
+  // (stableMs / pollMs) stays at its main-side defaults.
   ipcMain.handle('wsl-systemd:start-service', (_event, distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
-    wslSystemd.startService(distro, serviceName, options))
+    wslSystemd.startService(distro, serviceName, { dataDir: options?.dataDir, timeoutMs: options?.timeoutMs }))
   ipcMain.handle('wsl-systemd:remove-unit', (_event, distro: string, serviceName: string, options?: { path?: string }) =>
     wslSystemd.removeUnit(distro, serviceName, options))
 

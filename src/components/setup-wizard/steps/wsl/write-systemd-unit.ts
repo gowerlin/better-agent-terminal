@@ -34,6 +34,23 @@ function assertAbsoluteInstallPath(ctx: WizardContext): string {
   return installPath
 }
 
+/**
+ * T0382 (BUG-091, D128): the WSL server port is chosen on the Windows side so
+ * it never collides with the host BAT RemoteServer (Mirrored mode shares
+ * localhost -> EADDRINUSE crash-loop). `ctx.state.serverPort` is a port the
+ * user asked for and is validated as-is; otherwise main scans for a free one.
+ * The result lands in `ctx.serverPort`, which fetch-fingerprint, connect-test
+ * and write-profile all read.
+ */
+async function resolveServerPort(ctx: WizardContext): Promise<number> {
+  const preferred = typeof ctx.state.serverPort === 'number' ? ctx.state.serverPort : undefined
+  const result = await window.electronAPI.wsl.pickServerPort(preferred)
+  if (!result.ok) {
+    throw Object.assign(new Error(result.error), { code: result.errorCode })
+  }
+  return result.port
+}
+
 function profileName(ctxName: unknown): string {
   return typeof ctxName === 'string' && ctxName.trim() ? ctxName.trim() : 'WSL BAT Server'
 }
@@ -55,7 +72,7 @@ export const writeSystemdUnitStep: WizardStep = {
       throw new Error('Install the BAT server bundle before configuring the BAT service.')
     }
 
-    const port = typeof ctx.state.serverPort === 'number' ? ctx.state.serverPort : (ctx.serverPort ?? 9876)
+    const port = await resolveServerPort(ctx)
     ctx.serverPort = port
 
     if (ctx.wslSystemdEnabled === false) {
@@ -106,11 +123,13 @@ export const writeSystemdUnitStep: WizardStep = {
       // T0337 (BUG-072): structured errorCode so ErrorMapper Stage 1 distinguishes
       // service-start-timeout (recoverable, journalctl hint) from generic
       // service-start-failed (raw stderr fallback).
+      // T0382 (BUG-091): main now classifies the failure itself (journal
+      // EADDRINUSE -> wsl-port-in-use); the regex stays as a fallback.
       const rawError = startResult.error ?? 'Failed to start bat-server systemd service'
       const err = new Error(rawError) as Error & { code?: string }
-      err.code = /timed? out|timeout/i.test(rawError)
+      err.code = startResult.errorCode ?? (/timed? out|timeout/i.test(rawError)
         ? 'wsl-service-start-timeout'
-        : 'wsl-service-start-failed'
+        : 'wsl-service-start-failed')
       throw err
     }
 

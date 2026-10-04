@@ -720,6 +720,10 @@
         "noDistro": {
           "title": "尚未安裝 WSL 發行版",
           "body": "WSL 已安裝，但尚未註冊任何 Linux 發行版。請在 PowerShell 執行 `wsl --install -d Ubuntu-24.04`（可用 `wsl --list --online` 查看其他發行版），完成首次啟動的使用者設定後重試。"
+        },
+        "portInUse": {
+          "title": "BAT 伺服器埠已被占用",
+          "body": "WSL 內的 BAT 伺服器無法使用這個埠（EADDRINUSE）。Mirrored 網路模式下 Windows 與 WSL 共用 localhost，Windows 已在使用的埠（例如本機 BAT 自己的遠端伺服器）WSL 就無法使用。按「重試」會重新挑選一個 Windows 端空著的埠；若你指定了埠，請改用其他埠。"
         }
       }
     },

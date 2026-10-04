@@ -31,7 +31,12 @@ export const writeProfileStep: WizardStep = {
   groupKey: 'wizard.group.finalization',
   editableFromFailure: false,
   async run(ctx) {
-    const port = ctx.serverPort ?? 9876
+    // T0382 (BUG-091): same ctx.serverPort the unit and connect-test use. No
+    // 9876 fallback — that is the host RemoteServer's default port.
+    const port = ctx.serverPort
+    if (typeof port !== 'number') {
+      throw new Error('Server port was not resolved before writing the remote profile.')
+    }
     const fingerprint = ctx.fingerprint ?? undefined
 
     // T0287: SSH branch — wires ctx.targetOS=ssh-linux/ssh-darwin into a

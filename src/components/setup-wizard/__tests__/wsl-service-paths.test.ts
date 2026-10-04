@@ -49,6 +49,8 @@ beforeEach(() => {
         installBundle: installBundleMock,
         uninstallBundle: vi.fn(async () => ({ ok: true })),
         detectNetworkMode: vi.fn(async () => 'mirrored'),
+        // T0382: write-systemd-unit picks the port on the Windows side.
+        pickServerPort: vi.fn(async () => ({ ok: true, port: 9877 })),
       },
       wslSystemd: {
         writeUnit: writeUnitMock,

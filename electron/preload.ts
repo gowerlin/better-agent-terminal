@@ -494,6 +494,13 @@ const electronAPI = {
         | { ok: true; fingerprint: string }
         | { ok: false; errorCode: 'fingerprint-invalid-port' | 'fingerprint-timeout' | 'fingerprint-unreachable' | 'fingerprint-handshake-failed'; error: string }
       >,
+    // T0382 / BUG-091: Windows-side port probe for the WSL bat-server; never
+    // returns the host RemoteServer port. preferredPort is validated as-is.
+    pickServerPort: (preferredPort?: number) =>
+      ipcRenderer.invoke('wsl:pick-server-port', preferredPort) as Promise<
+        | { ok: true; port: number }
+        | { ok: false; errorCode: 'wsl-port-in-use' | 'wsl-port-invalid'; error: string }
+      >,
   },
   docker: {
     status: () => ipcRenderer.invoke('docker:status') as Promise<{ available: boolean; version?: string; error?: string }>,
@@ -584,7 +591,7 @@ const electronAPI = {
     enableLinger: (distro: string) =>
       ipcRenderer.invoke('wsl-systemd:enable-linger', distro) as Promise<{ ok: boolean; error?: string }>,
     startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
-      ipcRenderer.invoke('wsl-systemd:start-service', distro, serviceName, options) as Promise<{ ok: true; token: string | null } | { ok: false; error: string; token?: string | null }>,
+      ipcRenderer.invoke('wsl-systemd:start-service', distro, serviceName, options) as Promise<{ ok: true; token: string | null } | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed'; token?: string | null }>,
     removeUnit: (distro: string, serviceName: string, options?: { path?: string }) =>
       ipcRenderer.invoke('wsl-systemd:remove-unit', distro, serviceName, options) as Promise<{ ok: true }>,
   },

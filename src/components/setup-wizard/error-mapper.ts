@@ -333,6 +333,20 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       { kind: 'cancel', label: '取消' },
     ],
   },
+  // T0382 (BUG-091, D128): the WSL server port collides with a port Windows
+  // already uses (Mirrored mode shares localhost). Raised by the Windows-side
+  // port pick (user-specified port taken / no free port) and by startService
+  // when the journal of this start shows EADDRINUSE. Retry picks a new port.
+  {
+    id: 'wsl-port-in-use',
+    platforms: ['wsl'],
+    stepIds: ['write-systemd-unit'],
+    errorCodes: ['wsl-port-in-use'],
+    patterns: [/EADDRINUSE/],
+    messageKey: 'wizard.wsl.error.portInUse',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
   // T0337 (BUG-072, PLAN-032 Sprint 3): WSL systemd service start timeout.
   // Distinct from wsl-service-start-failed (generic) so the journalctl hint
   // only surfaces when timeout is the likely root cause.

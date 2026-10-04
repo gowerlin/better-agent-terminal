@@ -720,6 +720,10 @@
         "noDistro": {
           "title": "No WSL distro installed",
           "body": "WSL is installed, but no Linux distro is registered yet. In PowerShell run `wsl --install -d Ubuntu-24.04` (or `wsl --list --online` to see other distros), finish the first-run user setup, then retry."
+        },
+        "portInUse": {
+          "title": "BAT server port is already in use",
+          "body": "The BAT server inside WSL cannot use this port (EADDRINUSE). In Mirrored networking mode Windows and WSL share localhost, so a port Windows already uses (for example this BAT's own remote server) is unavailable to WSL. Retry picks another port that is free on Windows; if you specified the port, choose a different one."
         }
       }
     },
