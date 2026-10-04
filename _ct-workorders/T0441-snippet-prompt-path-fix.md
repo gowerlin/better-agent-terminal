@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0441
 title: "BUG-109：/snippet 情境 prompt 不再寫死 macOS snippets.json 路徑；改用實際儲存位置 / IPC，遠端視窗停用或改注入清單"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-109
 priority: P3
 sizing: S
 created_at: "2026-10-05T05:51:45+08:00"
 started_at: "2026-10-05T06:57:18+08:00"
-updated_at: "2026-10-05T06:57:18+08:00"
-completed_at: null
+updated_at: "2026-10-05T07:03:01+08:00"
+completed_at: "2026-10-05T07:03:01+08:00"
 target_version: next
 depends_on:
   - T0436
@@ -66,7 +66,7 @@ memory_overrides:
 
 ### 完成狀態
 
-**DONE**（product commit 見下方「Commit」）
+**DONE**（product commit `5d8fd8f`）
 
 Landing Zone：**PASS** —— C-0 `repo: better-agent-terminal` == `basename(REPO_ROOT)` `better-agent-terminal`；C-1 PASS（工單在 REPO_ROOT 下）；C-3 present（`src/components/ClaudeAgentPanel.tsx` 等皆存在）；無 `branch` 欄（C-2 N/A）。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。`CT_MODE=yolo` / `CT_INTERACTIVE=0`。
 依賴確認：`git log --oneline -5` 有 T0436 `6c26edc`（`ec131bb` 派發本單）；開工時 `ClaudeAgentPanel.tsx` 無他人未提交改動。
@@ -126,7 +126,7 @@ Landing Zone：**PASS** —— C-0 `repo: better-agent-terminal` == `basename(RE
 
 ### Commit
 
-（commit 後補）
+`5d8fd8f` fix(snippets): T0441 BUG-109 /snippet prompt carries snippets, no hard-coded path —— 7 files（含本工單與 BUG-109），`git commit --only`，未 push。工單 DONE 收尾另以 chore commit 提交。
 
 ### 回報時間
 
