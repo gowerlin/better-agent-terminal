@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 16:09 (UTC+8)（第四十九 session 新增 D120、D121、D122）
+> 最後更新：2026-10-04 16:09 (UTC+8)（第四十九 session 新增 D120、D121、D122、D123）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D123 | 2026-10-04 | BUG-084 Phase 2（SDK 0.3.289）：`claude-code-v2`「Claude Agent V2」preset **下架**（使用者裁決），不遷移成 `query()`。須含既有設定遷移：已存檔 workspace / terminal 指向 `claude-code-v2` 者自動改指 `claude-code` | BUG-084 / D122 |
 | D122 | 2026-10-04 | BUG-084（內嵌 Claude CLI 2.1.113 被服務端擋 Opus 5.5 / Fable 5.1）依 T0368 採分階段：Phase 1 只升 CLI 2.1.289（SDK 留 0.2，實測相容含 V2）+ Claude 5 模型清單；隨後錯誤分類 / DISABLE_UPDATES / 計價表；Phase 2 SDK 0.3 待使用者決定 V2 preset 去留。為避免主工作樹 `npm install` 與 T0370 測試互擾，T0371 排在 T0370 之後 | T0368 / T0371 / BUG-084 |
 | D121 | 2026-10-04 | BUG-083 依 T0366 結論採 S1（bump SDK + 內嵌解析相容新目錄）+ S2（選最新 binary + 錯誤分類）；S3 Settings runtime 選擇後排。四張實作單共改 `codex-agent-manager.ts`，依序串行 T-A 誤報/錯誤分類 → T-B bump → T-D 模型清單 → T-C 選最新 binary | T0366 / T0367 / BUG-083 |
 | D120 | 2026-10-04 | BUG-071 runtime 下載來源：desktop release workflow（`release.yml` / `pre-release.yml`）建完 baseline 後**自動發佈** `server-bundle-v<版號>` prerelease 到 gowerlin；預設下載網址 owner 由不存在的 `anthropics` 改為 `gowerlin`；網址格式與 D093 tag 命名不變。驗收做到發 pre 版 + 實機 wizard | T0365 / BUG-071 / PLAN-031 |
@@ -1350,6 +1351,20 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D123 2026-10-04 — `claude-code-v2` preset 下架（BUG-084 Phase 2）
+
+- **背景**：SDK 0.3.142 移除 `unstable_v2_createSession` / `unstable_v2_resumeSession` / `unstable_v2_prompt` / `SDKSession`（T0368），`claude-code-v2` preset 是唯一使用者，升 SDK 0.3 即編譯失敗
+- **選項**：A 下架；B 改寫成 `query()` + `AsyncIterable<SDKUserMessage>` thin wrapper 保留 preset
+- **決定**：**A 下架**（使用者 2026-10-04 裁決）
+- **實作要點**（Phase 2 工單需涵蓋）：
+  - 移除 preset 定義與 V2 send/stream 路徑（`claude-agent-manager.ts` `getV2Api` 與 V2 分支、`agent-registry.ts:55`、`agent-presets.ts` 等；現有引用共 9 檔：`ClaudeAgentPanel.tsx`、`CodexAgentPanel.tsx`、`WorkspaceView.tsx`、`workspace-store.ts`、`agent-presets.ts`、`agent-runtime.ts`、`control-tower-launch.ts`、`agent-registry.ts`、`main.ts`）
+  - **既有設定遷移**：已持久化的 workspace / terminal / default agent 若指向 `claude-code-v2`，載入時改指 `claude-code`，不得讓使用者開啟後出錯或分頁消失
+  - CHANGELOG 註明下架與自動遷移
+- **時程**：Phase 1（T0371 + 錯誤分類 + 計價）完成後
+- **相關**：BUG-084 / D122 / T0368
 
 ---
 

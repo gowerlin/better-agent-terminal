@@ -51,4 +51,4 @@ links:
 | 1 | T0371 | CLI → 2.1.289 + Claude 5 模型清單 + `getSupportedModels()` 帶 runtime 路徑 + `release.yml` Node 24 |
 | 2 | 待開 | `claude_code_version_too_old` 錯誤分類 + `HEALTHY_MIN` → 2.1.280 + embedded 注入 `DISABLE_UPDATES=1` |
 | 3 | 待開 | 計價表（5 系列、cache-read 倍率、Claude/Codex 共用模組）—— 需等 BUG-083 T0370 收尾 |
-| 4 | 待使用者決策 | SDK 0.3.289（V2 preset 下架或遷移、Task tools UI） |
+| 4 | 待開（Phase 2） | SDK 0.3.289 + **`claude-code-v2` preset 下架**（D123，含既有設定遷移至 `claude-code`）+ Task tools UI |
