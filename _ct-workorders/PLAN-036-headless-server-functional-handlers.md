@@ -115,3 +115,4 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - WSL server 02:34 重新部署 HEAD `ed1e2ac`（T0401；備份 tag `t0401`），smoke **9/9 PASS**：S9 `get-cli-path` = `/home/gower/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude`、embedded healthy、未登入
 - T0405 注意（T0407 §2）：既有 `github:check-cli`（`main.ts` 約 2325-2368）以 `gh auth token` 判斷登入，會把 token 印到 stdout；搬進共用模組時改用 `gh auth status` exit code
 - T0404 後續建議：遠端 PTY 達上限時 renderer `pty.create` 為 fire-and-forget，使用者只看到空白終端 → 另案 toast
+- WSL server 02:51 重新部署 HEAD `140ca87`（T0402 + T0404；備份 tag `t0404`），smoke **9/9 PASS**：S1 `env=wsl`、S9 `auth-status → loggedIn=false`；journal `orphan PTY reclaim: after 24h without a client; PTY limit: 64`

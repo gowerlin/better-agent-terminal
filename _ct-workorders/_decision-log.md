@@ -1360,6 +1360,16 @@
 
 ---
 
+### D133 2026-10-05 — PLAN-037 拆單與波次（T0407 研究結論）
+
+- **背景**：T0407 研究完成，Worker 期間經使用者裁決 Q1（偵測在 server 端新共用模組）、Q2（確認框後自動執行 + 完成標記）、Q3（使用者空間優先）；建議 7 張單 A-G，其中 B / E 碰 D130 的串行檔案鎖（`main.ts` / `protocol.ts` / `headless-entry.ts`）
+- **決定**（使用者 02:51 裁決「照研究建議」）：A = T0408、C = T0409（立即平行）→ D = T0410 → B = T0411 → E = T0412 ∥ F = T0413 → G = T0414 → PLAN-036 T0405 → T0406。符合 D131「實作在 T0405 前完成」
+- **附帶**：T0405 搬 `github:check-cli` 時改用 `gh auth status` exit code（現行 `gh auth token` 會把 token 印到 stdout）
+- **不採用**：T0405 提前到 B 之後（git 更早上遠端，但一鍵安裝延後）；先做完 PLAN-036
+- **相關**：PLAN-037 / T0407 / D131 / D130 / PLAN-036
+
+---
+
 ### D132 2026-10-05 — `claude:auth-status` 在 exit≠0 時仍解析 stdout
 
 - **背景**：T0401 發現 `claude auth status` 未登入時 exit 1，stdout 仍為 `{"loggedIn": false, …}`；handler 走 err 分支回 `null`，無法區分「未登入」與「runtime 壞掉」，T0402 登入引導需要此區分
