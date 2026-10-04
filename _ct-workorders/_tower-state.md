@@ -1,45 +1,99 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-04 20:58 (UTC+8) — **第五十 session 收工** — T0375-T0377 全 DONE；BUG-083 → CLOSED；BUG-085 新開 → FIXED；本地打包版號修正（T0376）runtime PASS。
+> 最後更新:2026-10-05 05:26 (UTC+8) — **第五十四 session 收工** — 22 張工單全 DONE；PLAN-036 程式部分完成（P0-P2，WSL smoke 12/12）；PLAN-037 開立並完成程式部分；**`v0.6.0-pre.1` 發布**（run `37234981573` 9/9）。
 >
-> **下次起手**:Fast Path 載入;**第一件事：收實機驗收**（BUG-071 / 084 / 085），使用者收工時正安裝本機 build `0.5.9-pre.4`（含 T0377，**≠ CI 的 pre.4**）。
+> **下次起手**:Fast Path 載入;**第一件事：使用者安裝 `v0.6.0-pre.1`（CI 安裝檔）做實機驗收**（清單見起手式）。安裝前後以 `app.asar` 雜湊確認版本（L127）。
 >
-> **前次更新**:2026-10-04 16:59 (UTC+8) — 第四十九 session 收工:12 張工單、`v0.5.9-pre.3` / `pre.4` 發布。
+> **前次更新**:2026-10-04 20:58 (UTC+8) — 第五十 session 收工；其後第五十一～五十三 session（21:05 – 01:01）未寫收工快照，本次以 git log 補記於「前 Session」段。
 
 ---
 
-<<NEW_SNAPSHOTS>>
+## 🛏 本 Session 收工快照 (第五十四 session, 2026-10-05 01:04 - 05:26, ~4h22m wall)
+
+### 主軸：PLAN-036 P0 自動驗收 → P1 / P2 全部完成 → 新開 PLAN-037（遠端 AI 工具套件）並完成程式部分 → `v0.6.0-pre.1`
+
+#### 起手狀態
+
+Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～五十三 session 未收工（檔頭停在第五十）。git 0/0、HEAD `2e902de`。安裝版 BAT = 本機 build（`app.asar` 01:03，與 `release\win-unpacked` 雜湊一致，含 T0390-T0394）。
+
+#### 時間線（時間取自 git commit / 系統時間）
+
+1. **01:06-01:10** T0395 dev-deploy LISTEN 檢查改以服務 PID 過濾（`452b346`）
+2. **01:13-01:34** 使用者問「實機驗收可否自動化」→ 兩層都做：T0396 協定層 smoke（WSL 8/8，`59af340`）∥ T0397 Playwright e2e（4/4，`e5215c1`）；`.kilo/worktrees` 被 Playwright 誤收 → 塔台修 `playwright.config.ts`（`a7b1f13`）；BUG-095 / 101 CLOSED；開 BUG-102（locale）/ 103（serverEnv）
+3. **01:37-01:53** T0398 locale（`f0d20c0`）∥ T0399 e2e fixture（`ac8132a`）∥ T0400 ClaudeAgentManager DI（`09f1e46`）；D130 P1 / P2 排程（檔案鎖串行）；WSL 部署 → BUG-102 CLOSED
+4. **01:54-02:51** T0403 回放 + create 結果（`b24d89a`）→ T0401 `claude:*` 上遠端（`53efb8e`）→ T0402 登入引導 + D132 auth-status（`85916f8`）∥ T0404 孤兒 PTY + BUG-103（`e4ad7cc`）；WSL 三次部署，smoke 8 → 9/9；BUG-103 CLOSED
+5. **02:28** 使用者提議遠端安裝 AI 工具 → PLAN-037 / D131 / T0407 研究（`79c6f32`，Q1-Q3 使用者裁決）→ D133 拆 7 張
+6. **02:52-04:16** T0408 ∥ T0409 → T0410 ∥ T0411 → T0412 ∥ T0413（精靈完成不再自動關閉，使用者接受）→ T0414 **WSL 實裝 5 工具**（使用者同意）→ BUG-104 / T0415（codex `CODEX_NON_INTERACTIVE=1`），WSL 重裝驗證 → CLOSED；smoke 10/10
+7. **04:18-05:09** T0405 git / github / worktree 上遠端（`28cdd6f`，smoke 11/11）→ 發現路徑轉換缺口 BUG-105（high）→ T0416 全分類守門（`e2daec1`）→ T0406 fs + `workspace:sync-roots`（`76b2c0d`，smoke **12/12**）；BUG-106（worktree:merge）OPEN
+8. **05:10** 使用者指示改 0.6.x 發預覽版 → bump `0.6.0-pre.1`（`c92faf7`）→ push `2e902de..c92faf7`（66 commits）→ run `37234981573` **9/9 success**（05:25）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | 22（T0395-T0416） | 全 DONE；1 research（T0407）；多次平行（同工作樹，檔案不重疊） |
+| BUG | 新開 5（102-106）；CLOSED 5（095 / 101 / 102 / 103 / 104） | 105 FIXED（待新 build 實機）；106 OPEN low |
+| PLAN | 新開 1（PLAN-037） | PLAN-036 程式部分完成；PLAN-037 程式部分完成 |
+| 決策 | 4（D130-D133） | |
+| Learnings | L139、L140、L141 | |
+| unit test | ✅ **1867 passed / 112 files** | 第五十四 session 1083 → 1867（塔台親跑） |
+| WSL 部署 | 7 次（dev-deploy，備份 tag `t0398`…`t0406`） | smoke 8 → 12 項 |
+| Release | `v0.6.0-pre.1` ✅ + `server-bundle-v0.6.0-pre.1` ✅ | Setup.exe 718 MB、mac dmg 920-929 MB、AppImage 1.08 GB |
+| 塔台直接改動 | 3 | `playwright.config.ts` testIgnore、`docs/remote-dev-overview.md` S8/S9、`remoteTools.installRequestFailed` 三語 |
+
+### 重點觀察 / Learnings
+
+- **L139**：觀測上下文 ≠ 執行上下文（wsl.exe 有 interop PATH，systemd 服務沒有）
+- **L140**：靜默 fallback 的白名單必配全分類守門（BUG-105）
+- **L141**：同工作樹平行 Worker——只讓一張跑 build、型別擁有者先 commit、塔台聯合複驗
+- 使用者在 CI 發佈 server-bundle 前跑本機 `release.ps1` → `fetch:baseline` 404（時序問題，非 bug；CI 完成後重跑即可）
+
+### 編號起始（下 session）
+
+- **T0417** / **BUG-107** / **PLAN-038** / **D134** / **L142**
+
+---
+
+## 🛏 前 Session 收工快照 (第五十一～五十三 session 補記, 2026-10-04 21:05 - 2026-10-05 01:01, 未收工)
+
+> 本段於第五十四 session 收工時依 git log（52 commits，`d44b185..2e902de`）補記，非當時塔台撰寫。
+
+- **21:05-21:53** BUG-084 / 085 / 071 CLOSED；BUG-086 / 087（T0378）、BUG-088（T0379）FIXED；D126
+- **22:05-23:08** PLAN-035（WSL 全自動化）+ T0380 研究；Phase 1 T0381-T0384：BUG-090 / 091 / 089 / 092 FIXED；D127 / D128
+- **23:19-23:47** BUG-094（headless 缺 `profile:load-snapshot`）→ T0385；實機 → BUG-087 / 089-092 / 094 CLOSED；PLAN-036 開立 + T0386 研究
+- **00:01-01:01** D129；PLAN-036 P0 T0388-T0391、T0393；BUG-093（T0387）/ 095（T0392）/ 101（T0394）FIXED；開 BUG-096-100；L138（平行 Worker 禁用 stash）；WSL 部署 `ea52b03`
+- 戰績：工單 T0378-T0394（17 張）；unit test 709 → 1083
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-04 20:58 UTC+8（第五十 session 收工）
+> 最後更新：2026-10-05 05:26 UTC+8（第五十四 session 收工）
 
 ### 本 session 已清空的項目
-T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ ｜ 本地打包版號（D125）runtime PASS ✅ ｜ unit test 673 → 709 ✅
+22 張工單（T0395-T0416）全 DONE ✅ ｜ PLAN-036 / PLAN-037 程式部分完成 ✅ ｜ BUG-095 / 101-104 CLOSED ✅ ｜ `v0.6.0-pre.1` 發布 ✅ ｜ unit test 1083 → 1867 ✅
 
 ### 待辦（依優先序）
 
-1. 🟡 **收實機驗收**（使用者安裝本機 build `0.5.9-pre.4`，產出 20:55，含 `71706c2`；先以 `app.asar` 時間 / 雜湊比對 `release\win-unpacked` 確認裝到這版，L127）：BUG-085 Codex CLI 分頁進 TUI + 首次黃色 toast ｜ BUG-084 Claude 面板 Opus 5.5 對話、下拉無 alias 重複 ｜ BUG-071 WSL wizard 第 4 步 → 通過即 CLOSED
-2. 🟡 **push**（`0e43457..HEAD` 11 commits，未授權）→ 下一預覽版 `v0.5.9-pre.5`（T0376 / T0377 進 CI；發版前依 L134 查 `npm view` 版本）
-3. 🟡 **BUG-084 Phase 2**：`claude-agent-sdk` 0.3.x + `claude-code-v2` 下架（D123）+ `src/types/index.ts:122` 過時註解
-4. 🟢 L130 D094 門檻復議 ｜ L128 CLAUDE.md Logging 節 ｜ BUG-061 tsc baseline 40 ｜ `release/` 舊產出（`0.3.1` / `1.26.*`）由使用者清理
-5. 🟢 `*archive`：到齡候選（**先 grep 程式碼引用，L133**）
+1. 🟡 **實機驗收（安裝 CI 的 `v0.6.0-pre.1`）**：WSL 遠端視窗——終端回放 / 不重打 agent 指令（T0403）、Claude 面板與未登入引導（T0401 / T0402）、檔案樹 / 預覽 / 搜尋（T0406）、Git / GitHub / Git Graph（T0405）、`\\wsl.localhost\…` 與 `C:\…` 兩種工作區（BUG-105）、精靈完成畫面 + 設定頁工具面板 + 跨視窗安裝（T0412 / T0413）。WSL 精靈第 4 步會以 `server-bundle-v0.6.0-pre.1` 覆蓋目前 dev-deploy 的 server
+2. 🟡 SSH 實機：BUG-088 / BUG-093；BUG-086（無發行版分支）
+3. 🟢 PLAN-036 P3（J always-local 改分類、K 遠端 Tower 通知）、自由文字中的路徑轉換、headless git / gh 子行程 `BAT_*` scrub、遠端 PTY 達上限的 UI 提示、BUG-106
+4. 🟢 BUG-084 Phase 2（claude-agent-sdk 0.3）｜ PLAN-035 Phase 2 ｜ BUG-096-100
+5. 🟢 L130 D094 門檻復議（mac dmg 已 ~920 MB）｜ L128 Logging 節 ｜ `*archive` 到齡候選（先 grep 程式碼引用，L133）
 
 ### ⚠️ 本專案 gh 鐵則（L122）
-**所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`** —— 三個 remote，預設會解析到 upstream tony1223。
+**所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**。
 
 ### ⚠️ 版本驗證鐵則（L127）
-**不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。錯誤訊息被擴寫時字串仍在。
+**不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（10 熱區：Open 1 / Fixed 3 / Closed 6）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D125）｜ Learnings → [_learnings.md](_learnings.md)（最大 L137）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（65 entries）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 7 / Fixed 4 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D133）｜ Learnings → [_learnings.md](_learnings.md)（最大 L141）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（67 entries）
 
 ### 編號起始
-- **T0417** / **BUG-107** / **PLAN-038** / **D134** / **EXP-[TOPIC]-001** / **L138**
+- **T0417** / **BUG-107** / **PLAN-038** / **D134** / **EXP-[TOPIC]-001** / **L142**
 
 ---
 
@@ -49,17 +103,17 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.5.9-pre.4**（package.json + lock；T0376 後本地打包預設即取此值） |
-| **最新 release** | `v0.5.9-pre.4`（2026-10-04 17:10 驗證：9/9 success，5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
-| **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
-| **目前主軸** | 實機驗收（BUG-071 / 084 / 085）→ push + `v0.5.9-pre.5` → Phase 2 Claude SDK 0.3 |
-| **工單最大編號** | T0406 DONE（`76b2c0d`，05:09 複驗 1867 tests；WSL smoke 12/12；PLAN-036 程式部分完成）；T0416 DONE（`e2daec1`，04:50 複驗 1825 tests）；T0405 DONE（`28cdd6f`，04:35 複驗；WSL smoke 11/11）；T0415 DONE（`1dd0647`，WSL 重裝驗證 PASS）；T0414 DONE（`0f3b5e8`，04:07 複驗 1640 tests / smoke 10/10）；T0413 DONE（`11d02f1`，精靈完成不再自動關閉，使用者接受）；T0412 DONE（`968fe3f`，03:43 聯合複驗 1614 tests / vite / e2e / tsc 40）；T0410 DONE（`8a17984`）/ T0411 DONE（`49b1ca5`），03:22 聯合複驗 1514 tests / vite / e2e / tsc 40；T0408 DONE（`6d7daab`，03:10 複驗）；T0409 DONE（`ce27a82`，03:04 複驗 38/38）；T0402 DONE（`85916f8`）/ T0404 DONE（`e4ad7cc`）/ T0407 DONE（`79c6f32`，PLAN-037 研究，建議 7 張 A-G），02:50 複驗 1309 tests / vite / e2e / tsc 40；T0401 DONE（`53efb8e`，02:33 複驗 1258 tests / vite / e2e / tsc 40）；T0403 DONE（`b24d89a`，02:09 複驗 1224 tests / vite / e2e / tsc 40；舊 server 相容 smoke 8/8）；T0400 DONE（`09f1e46`，01:53 複驗；T0401-T0406 保留給 P1/P2 佇列，D130）；T0399（T0398 DONE `f0d20c0` / T0399 DONE `ac8132a`，01:46 塔台複驗：1177 tests、vite build、e2e 6 passed / 8 skipped / 0 failed）；T0397（PLAN-036 P0 自動驗收：T0396 DONE `59af340`，01:24 塔台複驗 1141 tests + 實機 smoke 8/8 PASS∥ T0397 DONE `e5215c1`，01:34 塔台複驗 vite build exit 0 + `plan036-p0.spec.ts` 4/4 PASS + tsc 40（source build 層），01:13 開單平行派發，使用者裁決「兩層都做」）；T0395 DONE（`452b346`，01:10 複驗：1085 tests；dev-deploy LISTEN 檢查改以服務 cgroup / MainPID 過濾）；T0393（P0-E，接 T0390）；T0388 / T0391 / T0392 23:58 平行派發，T0389 00:04 派發（T0387 已 commit）；T0390（等 T0388+T0389）排隊；T0386 DONE（`3de9750`）；T0387 DONE（`a3717a5`，00:04 複驗）；T0392 DONE（`f72e177`，00:09 複驗）；T0388 DONE（`694771c`）/ T0391 DONE（`f102a55`）00:17 複驗；T0389 DONE（`566c6da`，00:20 複驗）；T0390 DONE（`f2b68ce`，00:41 複驗）；T0394 DONE（`ea52b03`，01:01 複驗）；WSL headless 已部署 `ea52b03`（01:01）；T0393 DONE（`c58fc80`，00:57 複驗；PLAN-036 P0 全 DONE，待實機）；T0394（BUG-101）00:50 平行派發；T0385 DONE（`c4e82ba`）；T0380-T0384 全 DONE（PLAN-035 Phase 0-1）；BUG-093 由「T0385 後串行」改為 T0385 完成後與 T0386 平行（使用者裁決） |
-| **BUG 最大編號** | BUG-106（105 FIXED T0416 待新 build 實機 / 106 OPEN low）；BUG-104 CLOSED；BUG-103（102 CLOSED（02:12） / 103 CLOSED（02:58））；BUG-095 / BUG-101 CLOSED（01:36，T0397 e2e + 使用者裁決）；093 FIXED（T0387，待 SSH 實機）、095 FIXED（T0392，待下一版 build 實機）、096 / 097 / 098 / 099 / 100 OPEN；087/089/090/091/092/094 CLOSED（23:46 實機）；086（無發行版分支）/ 088（SSH）FIXED 待對應實機 |
-| **PLAN 最大編號** | PLAN-037（遠端 AI 工具套件檢查＋一鍵安裝，IN_PROGRESS，D131 / D133）；PLAN-036（headless 功能 handler 層，IN_PROGRESS，P0 T0388-T0391，D129）；PLAN-035 IN_PROGRESS（Phase 1 實機通過；Phase 2 排在 PLAN-036 P0 之後，D129） |
+| **目前版號** | **0.6.0-pre.1**（package.json + lock，`c92faf7`） |
+| **最新 release** | `v0.6.0-pre.1`（2026-10-05 05:24，run `37234981573` 9/9 success；5 檔）+ `server-bundle-v0.6.0-pre.1`（7 資產）；前一版 `v0.5.9-pre.4` |
+| **前一 tag** | `v0.5.9-pre.4`（2026-10-04） |
+| **目前主軸** | `v0.6.0-pre.1` 實機驗收（遠端 WSL 全功能）→ PLAN-036 P3 / 後續小單 → BUG-084 Phase 2 |
+| **工單最大編號** | T0416（第五十四 session：T0395-T0416 全 DONE；T0405 / T0406 為 D130 保留編號，同 session 完成） |
+| **BUG 最大編號** | BUG-106（OPEN low）；105 FIXED（待 0.6.0-pre.1 實機）；102 / 103 / 104 / 095 / 101 CLOSED；086 / 088 / 093 FIXED 待對應實機；061 / 096-100 OPEN |
+| **PLAN 最大編號** | PLAN-037（IN_PROGRESS：程式部分完成，待 UI 實機；D131 / D133）；PLAN-036（IN_PROGRESS：P0-P2 完成，P3 未開）；PLAN-035（IN_PROGRESS：Phase 2 未開） |
 | **決策最大編號** | D133 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **1867**（112 files，HEAD `76b2c0d`）；e2e 6 passed / 8 skipped / 0 failed；tsc baseline 40 |
+| **unit test 基線** | **1867**（112 files，HEAD `c92faf7`）；e2e 6 passed / 8 skipped / 0 failed；tsc baseline 40 |
 
 ---
 
@@ -125,33 +179,33 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-04 11:09 (UTC+8) 起手 Full Scan；2026-10-04 20:58 第五十 session 收工逐項更新
+> 最後掃描:2026-10-04 11:09 (UTC+8) 起手 Full Scan；2026-10-05 05:26 第五十四 session 收工逐項更新
 > 複核結果：git 零漂移（`origin/main` = `7243ce2`，0/0）；熱區計數與最大編號與 09-02 收工一致；無新 release / 開放 PR / 開放 issue；BAT workspace ID 已換新（下列已更新）。
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（10-04 更新；舊值 `2eda2f34-…` 已失效） |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（10-04 PowerShell 複核） |
-| BAT 安裝版 | ⚠️ 收工時使用者更版中 | 起手時為本機 build `1.26.1004195815`（`app.asar` 20:09）。收工時使用者安裝本機 build `0.5.9-pre.4`（`release\` 20:55 產出，含 T0377，**非 CI 的 pre.4**）——下次起手以 `app.asar` 時間 / 雜湊確認（L127） |
+| BAT 安裝版 | ⚠️ 待更版 | 本機 build（`app.asar` 2026-10-05 01:03，`release\win-unpacked` 同雜湊，含 T0390-T0394）。下次：安裝 CI 的 `v0.6.0-pre.1`，以雜湊確認（L127） |
 | BAT_HELPER_DIR | ✅ | `C:/Program Files/BetterAgentTerminal/resources/scripts` |
 | BAT debug log | ⚠️ 路徑與文件不符 | 實際在 `%APPDATA%\better-agent-terminal\Logs\debug-<stamp>.log`（與 `BAT_USER_DATA` 指向的 `BetterAgentTerminal\` 為**兩個並存目錄**，大小寫不同）。CLAUDE.md Logging 節待修（L128） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存 |
 | UAC | ⚠️ `EnableLUA=0` | 本機 UAC 停用 ⇒ BAT 與所有子 shell 皆提權。Codex 0.160 daemon 會拒絕（BUG-085）；T0377 後 BAT 自動對 codex-cli 注入 `-c features.daemon_auto_start=false` |
 | gh CLI | ✅ | 已登入 `gowerlin`。⚠️ **必須帶 `-R gowerlin/better-agent-terminal`**（L122），本 session 三次 gh 操作皆遵守 |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ⚠️ | `origin/main` = `0e43457`；本地領先 11 commits（第五十 session，未 push） |
+| git 同步 | ✅ | `origin/main` = `c92faf7`（05:10 push，0/0）；收工快照 commit 另行 push 與否依使用者 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用 |
-| 熱區工單 | **T:23 / CP-T:1 / BUG:10 / PLAN:6 / EXP:0 / CT-T:1** | T:23 中 4 張為報告檔（L132），實際工單 19；BUG：Open 1 / Fixed 3 / Closed 6 |
-| 最大編號 | **T0377 / BUG-085 / PLAN-034(archived) / D125** | 下張：T0378 / BUG-086 / PLAN-035 / D126 / L138 |
+| 熱區工單 | **T:62 檔 / BUG:31 / PLAN:9** | T:62 含 4 個報告檔（L132）；BUG：Open 7 / Fixed 4 / Closed 20 |
+| 最大編號 | **T0416 / BUG-106 / PLAN-037 / D133 / L141** | 下張：T0417 / BUG-107 / PLAN-038 / D134 / L142 |
 | unit test | ✅ **673 passed / 47 files** | 第四十九 session 550 → 673（塔台親跑） |
-| vite build | ✅ | 第五十 session 塔台親跑通過 |
+| vite build | ✅ | 第五十四 session 塔台親跑通過；e2e 0 failed |
 | tsc --noEmit | ⚠️ 40 既有 error | baseline 不變（BUG-061） |
 | 開放 PR | **0** | PR #19 已於本 session 處置關閉（D119） |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**, yolo_max_retries 1, auto_commit on, archive_days 2） |
 | 塔台版本 | v5.0.9 | control-tower skill |
 
 > **Drift / 注意事項**:
-> 1. ✅ `_tower-state.md` 19.5 KB（正常，< 30 KB 軟警告）；起手式無歷史內嵌
+> 1. ✅ `_tower-state.md` 收工後約 24 KB（< 30 KB 軟警告）；第四十九 / 五十 session 已歸檔至 `2026-Q4.md`
 > 2. ⚠️ 工作區長期存在 `AGENTS.md` dirty（claude-mem 自動產生，非程式碼）。本 session 全程以 `git commit --only` 精確指定路徑，10 個 commit 皆未觸碰
 > 3. ✅ CLAUDE.md「Release」節已於本 session 校正（CP-T0362），並補上 `build-server-bundle.yml` 第三個 trigger
 > 4. 🔴 **D094 mac installer 280 MB cap 已連三個 release 超標 2.6 倍**（v0.5.8 / pre.1 / pre.2 之 mac dmg 皆 ~724 MB）**且從未觸發復議** —— 門檻與現實脫節，見 L130
@@ -160,6 +214,7 @@ T0375-T0377 全 DONE ✅ ｜ BUG-083 → CLOSED ✅ ｜ BUG-085 → FIXED ✅ �
 > 7. ⚠️ **L132**：`T0292/T0293/T0298/T0302-*-report.md` 4 檔命名越界（報告卻掛工單前綴），落在 `*archive` F-24 排除規則的縫隙裡 —— 永不歸檔也永不判定。2026-09-02 使用者裁決 **A：維持現狀**，日後新報告一律用 `_report-` 前綴
 > 8. ⚠️ **L129 實證**：本 session 收工時以 bash heredoc 寫 python，反斜線被摺疊一層，導致 regex backreference 變成 SOH 控制字元寫進 4 個 BUG 檔（已修）。**含反斜線的內容一律走 Write 工具**
 > 9. ⚠️ **L136**：VS Code Insiders（Electron）曾鎖住 `release\win-unpacked\resources\app.asar` 導致打包失敗；已於 `.vscode/settings.json` 排除 build 輸出目錄（`d44b185`），下次打包若再發生代表是擴充套件持有，以 Restart Manager 查
+> 10. ⚠️ **WSL server 為 dev-deploy 狀態**：`~/.local/bat-server/electron/remote/*.js` = HEAD `76b2c0d` 等價（備份 `*.bak-t0398`…`*.bak-t0406`）；WSL 另裝 claude 2.1.285 / uv / codex（`~/.local/bin`）、rg / gh（apt）（T0414，使用者同意）。重跑 WSL 精靈會以 release bundle 覆蓋
 
 ---
 
