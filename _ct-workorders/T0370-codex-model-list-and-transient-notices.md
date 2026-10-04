@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0370
 title: "BUG-083 T-D：Codex 模型清單改讀 models_cache.json + effort 擴充 + 連線重試訊息不再誤報為錯誤"
 type: fix
-status: FIXED
+status: DONE
 priority: P2
 sizing: S
 created_at: "2026-10-04T16:06:46+08:00"
