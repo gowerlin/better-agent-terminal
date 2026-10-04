@@ -327,7 +327,7 @@ function fakeShellEval(command, pty) {
     .replace(/\$\$/g, String(pty.pid))
 }
 
-function createFakeServer({ acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false } = {}) {
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false } = {}) {
   const ptys = new Map()
   const clients = new Set()
   const log = []
@@ -339,12 +339,13 @@ function createFakeServer({ acceptWrongFingerprint = false, rejectCreate = false
   const handlers = {
     'settings:get-shell-path': () => '/bin/bash',
     'pty:create': (opts) => {
-      if (rejectCreate) return false
-      if (!ptys.has(opts.id)) {
+      if (rejectCreate) return legacyCreate ? false : { ok: false, created: false }
+      const created = !ptys.has(opts.id)
+      if (created) {
         ptys.set(opts.id, { pid: nextPid++, rows: 30, cols: 120 })
         setTimeout(() => emit('pty:output', opts.id, '\x1b[?2004h$ '), 1)
       }
-      return true
+      return legacyCreate ? true : { ok: true, created }
     },
     'pty:write': (id, data) => {
       const pty = ptys.get(id)
@@ -406,7 +407,7 @@ function createFakeServer({ acceptWrongFingerprint = false, rejectCreate = false
 
   const conn = { url: 'wss://fake:1', token: 'tok', fingerprint: FP, cwd: '/home/u' }
   const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
-  return { conn, createClient, ptys, log }
+  return { conn, createClient, ptys, log, handlers }
 }
 
 describe('runSmoke (fake server)', () => {
@@ -421,6 +422,22 @@ describe('runSmoke (fake server)', () => {
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
     expect(summarize(report)).toEqual({ ok: true, passed: 8, total: 8 })
+  })
+
+  it('passes S1-S8 against a server before T0403 (pty:create answers a bare boolean)', async () => {
+    const fake = createFakeServer({ legacyCreate: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
+    expect(fake.ptys.size).toBe(0)
+  })
+
+  it('fails S5 when a T0403 server reports the re-sent pty:create as a new spawn', async () => {
+    const fake = createFakeServer()
+    const create = fake.handlers['pty:create']
+    fake.handlers['pty:create'] = (opts) => ({ ...create(opts), created: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
+    expect(status).toMatchObject({ S3: 'PASS', S5: 'FAIL' })
   })
 
   it('kills its PTY in cleanup when S7 fails to kill it', async () => {

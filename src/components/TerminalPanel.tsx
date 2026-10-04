@@ -10,6 +10,7 @@ import { CanvasAddon } from '@xterm/addon-canvas'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
+import { PtyOutputReplayer, registerPtyReplaySink } from '../lib/pty-replay'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -585,34 +586,46 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
     // Handle terminal output
     const PROMPT_MARKER_LIMIT = 100
-    const unsubscribeOutput = window.electronAPI.pty.onOutput((id, data) => {
-      if (id === terminalId) {
-        const filteredData = filterTerminalOutputNoise(data)
-        if (filteredData) {
-          terminal.write(filteredData)
-          // Optional: register marker on prompt detection (decoration pipeline demo)
-          // Only in normal buffer — alt buffer returns null gracefully
-          if (!altBufferRef.current && decorationManager.count < PROMPT_MARKER_LIMIT) {
-            const lines = filteredData.split('\n')
-            const lastLine = lines[lines.length - 1]?.trim()
-            if (lastLine && /[$>#]\s*$/.test(lastLine)) {
-              const markerId = `prompt-${Date.now()}`
-              const marker = decorationManager.addMarker(markerId)
-              if (marker) {
-                decorationManager.addDecoration(markerId, {
-                  anchor: 'left',
-                  width: 1,
-                  height: 1
-                }, (element) => {
-                  element.style.background = 'rgba(255, 255, 255, 0.08)'
-                  element.style.width = '3px'
-                  element.style.borderRadius = '1px'
-                })
-              }
+    const writeOutput = (data: string) => {
+      const filteredData = filterTerminalOutputNoise(data)
+      if (filteredData) {
+        terminal.write(filteredData)
+        // Optional: register marker on prompt detection (decoration pipeline demo)
+        // Only in normal buffer — alt buffer returns null gracefully
+        if (!altBufferRef.current && decorationManager.count < PROMPT_MARKER_LIMIT) {
+          const lines = filteredData.split('\n')
+          const lastLine = lines[lines.length - 1]?.trim()
+          if (lastLine && /[$>#]\s*$/.test(lastLine)) {
+            const markerId = `prompt-${Date.now()}`
+            const marker = decorationManager.addMarker(markerId)
+            if (marker) {
+              decorationManager.addDecoration(markerId, {
+                anchor: 'left',
+                width: 1,
+                height: 1
+              }, (element) => {
+                element.style.background = 'rgba(255, 255, 255, 0.08)'
+                element.style.width = '3px'
+                element.style.borderRadius = '1px'
+              })
             }
           }
         }
       }
+    }
+    // T0403: live output goes through the replayer so a pty:get-buffer replay (PTY was
+    // already running when pty:create was re-sent) lands before it, without duplicating it.
+    const replayer = new PtyOutputReplayer(terminalId, {
+      write: writeOutput,
+      reset: () => terminal.reset(),
+    }, (id) => window.electronAPI.pty.getBuffer(id))
+    const unsubscribeOutput = window.electronAPI.pty.onOutput((id, data) => {
+      if (id === terminalId) replayer.push(data)
+    })
+    const unregisterReplay = registerPtyReplaySink(terminalId, () => {
+      replayer.replay()
+        .then((chars) => dlog(`[T0403] replay terminal=${terminalId} chars=${chars}`))
+        .catch(() => { /* view disposed mid-replay */ })
     })
 
     // Handle terminal exit
@@ -671,6 +684,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
     return () => {
       window.removeEventListener('terminal-redraw', handleRedrawEvent)
+      unregisterReplay()
+      replayer.dispose()
       unsubscribeOutput()
       unsubscribeExit()
       unsubscribeKeypress()

@@ -16,6 +16,7 @@ import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../type
 import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
+import { createPtyThenLaunch, createPtyWithReplay } from '../lib/pty-replay'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
 
@@ -450,27 +451,34 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             startClaudeCliPty(terminal.id, terminal.cwd || workspace.folderPath, isWorktreeAgent(terminal.agentPreset || ''))
             continue
           }
-          window.electronAPI.pty.create({
+          // T0403: created:false = the PTY survived (reload / remote reconnect) → its output
+          // is replayed into the view and the agent launch command is not typed again.
+          const agentPreset = terminal.agentPreset
+          const createOpts = {
             id: terminal.id,
             cwd: terminal.cwd || workspace.folderPath,
-            type: 'terminal',
-            agentPreset: terminal.agentPreset,
+            type: 'terminal' as const,
+            agentPreset,
             shell,
             customEnv,
             workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
-          })
+          }
+          if (!agentPreset || agentPreset === 'none') {
+            void createPtyWithReplay(createOpts)
+            continue
+          }
           // Auto-run agent command for non-Claude terminal-driven agents
-          if (terminal.agentPreset && terminal.agentPreset !== 'none') {
-            const extraArgs = settingsStore.getAgentCustomArgs(terminal.agentPreset)
+          createPtyThenLaunch(createOpts, () => {
+            const extraArgs = settingsStore.getAgentCustomArgs(agentPreset)
             const appendArgs = (base: string) => extraArgs ? `${base} ${extraArgs}` : base
-            window.electronAPI.agent?.buildLaunchCommand(terminal.agentPreset).then((cmd: string | null) => {
+            window.electronAPI.agent?.buildLaunchCommand(agentPreset).then((cmd: string | null) => {
               if (cmd) {
                 noticeCodexDaemonRef.current(cmd)
                 setTimeout(() => {
                   window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
                 }, 500)
               } else if (settings.agentAutoCommand) {
-                const preset = getAgentPreset(terminal.agentPreset!)
+                const preset = getAgentPreset(agentPreset)
                 if (preset?.command) {
                   const cmd = preset.command
                   setTimeout(() => {
@@ -480,7 +488,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               }
             }).catch(() => {
               if (settings.agentAutoCommand) {
-                const preset = getAgentPreset(terminal.agentPreset!)
+                const preset = getAgentPreset(agentPreset)
                 if (preset?.command) {
                   const cmd = preset.command
                   setTimeout(() => {
@@ -489,7 +497,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 }
               }
             })
-          }
+          }).then((result) => {
+            if (!result.created) dlog(`[T0403] restore ${agentPreset} terminal=${terminal.id}: PTY already running, launch command skipped`)
+          })
         }
       } else {
         // No terminals: create defaults from settings
@@ -688,19 +698,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       }
     }
 
-    window.electronAPI.pty.create({
-      id: terminalId,
-      cwd: effectiveCwd,
-      type: 'terminal',
-      agentPreset: isWorktree ? 'claude-cli-worktree' as AgentPresetId : 'claude-cli' as AgentPresetId,
-      shell,
-      customEnv: {
-        ...customEnv,
-        CLAUDE_CODE_NO_FLICKER: '1',
-      },
-      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
-    })
-
     // Build CLI command using bundled CLI
     // BUG-051: cliPath 已為 native binary(bin/claude.exe),直接執行即可。
     // 加 'node' prefix 會讓 Node.js v25 拋 ERR_UNKNOWN_FILE_EXTENSION(.exe 非 .js/.mjs)。
@@ -713,9 +710,27 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     }
     const cmd = cmdParts.join(' ')
 
-    setTimeout(() => {
-      window.electronAPI.pty.write(terminalId, cmd + '\r')
-    }, 500)
+    // T0403: a restored tab whose PTY survived (reload / remote reconnect) still runs claude;
+    // typing the CLI path again would land in claude's prompt — launch only into a new shell.
+    const result = await createPtyThenLaunch({
+      id: terminalId,
+      cwd: effectiveCwd,
+      type: 'terminal',
+      agentPreset: isWorktree ? 'claude-cli-worktree' as AgentPresetId : 'claude-cli' as AgentPresetId,
+      shell,
+      customEnv: {
+        ...customEnv,
+        CLAUDE_CODE_NO_FLICKER: '1',
+      },
+      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
+    }, () => {
+      setTimeout(() => {
+        window.electronAPI.pty.write(terminalId, cmd + '\r')
+      }, 500)
+    })
+    if (!result.created) {
+      window.electronAPI?.debug?.log(`[T0403] claude-cli terminal=${terminalId}: PTY already running, launch command skipped`)
+    }
   }, [workspace.folderPath, workspace.envVars])
 
   const handleAddClaudeCli = useCallback(async () => {

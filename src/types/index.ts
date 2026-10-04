@@ -85,6 +85,27 @@ export interface CreatePtyOptions {
   workspaceId?: string;          // T0176: for BAT_WORKSPACE_ID env injection
 }
 
+/**
+ * T0403: `pty:create` result. `created: false` = the id already had a running PTY
+ * (renderer reload / BAT reopened against a surviving remote or Terminal Server PTY):
+ * nothing was spawned, so an agent launch command must not be typed again.
+ * Servers before T0403 answer a bare boolean — see `normalizePtyCreateResult`.
+ */
+export interface PtyCreateResult {
+  ok: boolean;
+  created: boolean;
+}
+
+/**
+ * T0403: `pty:get-buffer` result — the tail of the PTY's raw output (VT sequences
+ * intact), answered to the caller only. `total` = characters emitted since spawn,
+ * so `total - data.length` is where `data` starts in the stream.
+ */
+export interface PtyReplayBuffer {
+  data: string;
+  total: number;
+}
+
 export interface PtyOutput {
   id: string;
   data: string;

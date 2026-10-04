@@ -180,7 +180,7 @@ test.describe('PLAN-036 P0 — Electron UI layer (T0397)', () => {
 
       const created = await inst.win.evaluate(async ({ ptyId, cwd: dir, shell: sh }) =>
         (window as AnyApi).electronAPI.pty.create({ id: ptyId, cwd: dir, type: 'terminal', shell: sh }), { ptyId: id, cwd, shell })
-      expect(created).toBe(true)
+      expect(created).toEqual({ ok: true, created: true }) // T0403 shape
       await inst.win.evaluate(({ ptyId, data }) => (window as AnyApi).electronAPI.pty.write(ptyId, data), { ptyId: id, data: marker(1200, 34) })
       await expect.poll(async () => (await state()).out, { timeout: 20_000 }).toContain('1234')
 

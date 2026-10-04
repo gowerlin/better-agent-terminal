@@ -20,6 +20,7 @@ const electronAPI = {
   platform: process.platform as 'win32' | 'darwin' | 'linux',
   pty: {
     create: (options: CreatePtyOptions) => ipcRenderer.invoke('pty:create', options),
+    getBuffer: (id: string) => ipcRenderer.invoke('pty:get-buffer', id),
     write: (id: string, data: string) => ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),

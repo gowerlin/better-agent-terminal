@@ -13,7 +13,7 @@
  */
 import * as fs from 'fs'
 import * as path from 'path'
-import type { CreatePtyOptions } from '../../src/types'
+import type { CreatePtyOptions, PtyCreateResult } from '../../src/types'
 import { logger } from '../logger'
 import type { PtyManager } from '../pty-manager'
 import { resolveShellPath } from '../shell-path-resolver'
@@ -54,10 +54,14 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
     return true
   }
 
-  register('pty:create', (_ctx, options: unknown) => {
+  // T0403: `{ ok, created }` — `created: false` tells the renderer the PTY was already running
+  // (reload / reconnect), so it replays `pty:get-buffer` and does not retype an agent command.
+  // Clients older than T0403 only test truthiness; `normalizePtyCreateResult` (renderer)
+  // reads a bare boolean from an older server as "created".
+  register('pty:create', (_ctx, options: unknown): PtyCreateResult => {
     const opts = options as CreatePtyOptions
-    if (rejectShell('pty:create', opts?.shell)) return false
-    return deps.getPtyManager()?.create(opts)
+    if (rejectShell('pty:create', opts?.shell)) return { ok: false, created: false }
+    return deps.getPtyManager()?.createWithResult(opts) ?? { ok: false, created: false }
   })
   // T0215 (BUG-050 階段 1):改用 writeWithResult 回 `{ok, reason}`,讓 bat-notify 可據以 exit 1
   register('pty:write', (_ctx, id: string, data: string) =>
@@ -74,6 +78,8 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
     return deps.getPtyManager()?.restart(id, cwd, shellPath)
   })
   register('pty:get-cwd', (_ctx, id: string) => deps.getPtyManager()?.getCwd(id))
+  // T0403: replay buffer, answered to the caller only (an invoke result, never a broadcast).
+  register('pty:get-buffer', (_ctx, id: string) => deps.getPtyManager()?.getReplayBuffer(id) ?? null)
 
   const shellPathCache = new Map<string, string>()
   register('settings:get-shell-path', (_ctx, shellType: string) => {

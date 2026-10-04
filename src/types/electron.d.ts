@@ -1,4 +1,4 @@
-import type { CreatePtyOptions } from './index'
+import type { CreatePtyOptions, PtyCreateResult, PtyReplayBuffer } from './index'
 import type {
   WhisperModelSize,
   VoiceGpuStatus,
@@ -85,7 +85,10 @@ interface RemoteAuthMetadata {
 interface ElectronAPI {
   platform: 'win32' | 'darwin' | 'linux'
   pty: {
-    create: (options: CreatePtyOptions) => Promise<boolean>
+    /** T0403: `PtyCreateResult`; a server before T0403 answers a bare boolean (normalize with `normalizePtyCreateResult`). */
+    create: (options: CreatePtyOptions) => Promise<PtyCreateResult | boolean>
+    /** T0403: replay buffer; rejects with `No handler` on a remote server before T0403. */
+    getBuffer: (id: string) => Promise<PtyReplayBuffer | null>
     write: (id: string, data: string) => Promise<void>
     resize: (id: string, cols: number, rows: number) => Promise<void>
     kill: (id: string) => Promise<boolean>

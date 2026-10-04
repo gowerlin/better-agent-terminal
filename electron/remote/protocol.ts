@@ -36,6 +36,7 @@ export interface RemoteFrame {
 export const PROXIED_CHANNELS = new Set([
   // PTY
   'pty:create', 'pty:write', 'pty:resize', 'pty:kill', 'pty:restart', 'pty:get-cwd',
+  'pty:get-buffer', // T0403: replay buffer (result to the caller only)
   // Claude
   'claude:start-session', 'claude:send-message', 'claude:stop-session', 'claude:abort-session',
   'claude:set-permission-mode', 'claude:set-codex-sandbox-mode', 'claude:set-codex-approval-policy', 'claude:set-model', 'claude:set-effort', 'claude:reset-session',

@@ -42,7 +42,7 @@ export const ALWAYS_LOCAL_CHANNELS: ReadonlySet<string> = new Set([
  * orders, not here.
  */
 export const HEADLESS_UNSUPPORTED: Readonly<Record<string, HeadlessPhase>> = Object.freeze({
-  // ── P0: terminal — online since T0390 (electron/handlers/pty.ts) ──
+  // ── P0: terminal — online since T0390 (electron/handlers/pty.ts); pty:get-buffer since T0403 ──
 
   // ── P1: Agent (T0386 E / F) ──
   'claude:start-session': 'P1',

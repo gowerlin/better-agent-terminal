@@ -1,7 +1,7 @@
 import * as net from 'net'
 import * as path from 'path'
 import { spawn, ChildProcess } from 'child_process'
-import type { CreatePtyOptions } from '../src/types'
+import type { CreatePtyOptions, PtyCreateResult, PtyReplayBuffer } from '../src/types'
 import { broadcastHub } from './remote/broadcast-hub'
 import { logger } from './logger'
 import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
@@ -91,6 +91,30 @@ export function createWindowBroadcastEmit(getWindows: () => PtyEventWindow[]): P
   }
 }
 
+/**
+ * T0403: raw replay buffer cap per PTY, in UTF-16 code units (JS string length). Trimming
+ * runs once the buffer passes cap + slack, so a busy terminal does not re-copy 256K on
+ * every 16ms flush.
+ */
+export const REPLAY_BUFFER_MAX_CHARS = 256 * 1024
+const REPLAY_BUFFER_TRIM_SLACK = 64 * 1024
+
+/**
+ * T0403: keep at most `max` trailing chars of `buf`, starting the kept part where a replay
+ * into a fresh terminal is safe: right after a `\n`, else at an ESC (start of a sequence,
+ * never its middle), else at the plain cut point moved off a surrogate-pair half.
+ */
+export function trimReplayBuffer(buf: string, max: number): string {
+  if (buf.length <= max) return buf
+  const cut = buf.length - max
+  const nl = buf.indexOf('\n', cut)
+  if (nl !== -1) return buf.slice(nl + 1)
+  const esc = buf.indexOf('\x1b', cut)
+  if (esc !== -1) return buf.slice(esc)
+  const code = buf.charCodeAt(cut)
+  return buf.slice(code >= 0xdc00 && code <= 0xdfff ? cut + 1 : cut)
+}
+
 // BUG-084 / T0372: a claude-cli terminal running the embedded binary also gets DISABLE_UPDATES
 // (see claudeUpdateGuardEnv), so a manual `claude update` cannot rename the binary inside
 // app.asar.unpacked. Decided from the persisted runtime mode — the same snapshot
@@ -114,6 +138,10 @@ export class PtyManager {
   // Output ring buffer for supervisor queries (last N lines per terminal)
   private static readonly RING_BUFFER_LINES = 50
   private outputRingBuffers: Map<string, string[]> = new Map()
+
+  // T0403: raw output tail per PTY for `pty:get-buffer` replay (VT sequences intact, unlike
+  // the line ring buffer above). Appended in the same tick as the pty:output broadcast.
+  private replayBuffers: Map<string, PtyReplayBuffer> = new Map()
 
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
@@ -335,6 +363,10 @@ export class PtyManager {
     if (lines.length > 0) {
       // Re-join lines with \n to reconstruct the original output stream
       const data = lines.join('\n')
+      // T0403: a fresh main process (BAT reopened) has seen none of this PTY's output yet;
+      // seed its replay buffer so a later pty:get-buffer (e.g. View→Reload) still has it.
+      // A buffer that already holds output is left alone — it would duplicate the history.
+      if (!this.replayBuffers.get(id)?.total) this.appendToReplayBuffer(id, data)
       this.broadcast('pty:output', id, data)
       logger.log(`[PtyManager] replayed buffer for PTY ${id}: ${lines.length} lines`)
     }
@@ -363,6 +395,7 @@ export class PtyManager {
       return
     }
     this.instances.delete(id)
+    this.replayBuffers.delete(id)
     this.broadcast('pty:exit', id, exitCode)
   }
 
@@ -378,6 +411,7 @@ export class PtyManager {
       return
     }
     this.instances.delete(id)
+    this.replayBuffers.delete(id)
     this.broadcast('pty:exit', id, exitCode)
   }
 
@@ -401,8 +435,32 @@ export class PtyManager {
     for (const [id, data] of this.outputBuffers) {
       this.broadcast('pty:output', id, data)
       this.appendToRingBuffer(id, data)
+      // T0403: after the broadcast, same tick — pty:get-buffer can never return output that
+      // has not been broadcast yet. A late flush for an id that already exited is dropped.
+      if (this.instances.has(id)) this.appendToReplayBuffer(id, data)
     }
     this.outputBuffers.clear()
+  }
+
+  /** T0403: append raw output to the PTY's replay buffer, trimming past the cap. */
+  private appendToReplayBuffer(id: string, data: string) {
+    const prev = this.replayBuffers.get(id)
+    let buf = (prev?.data ?? '') + data
+    if (buf.length > REPLAY_BUFFER_MAX_CHARS + REPLAY_BUFFER_TRIM_SLACK) {
+      buf = trimReplayBuffer(buf, REPLAY_BUFFER_MAX_CHARS)
+    }
+    this.replayBuffers.set(id, { data: buf, total: (prev?.total ?? 0) + data.length })
+  }
+
+  /**
+   * T0403: `pty:get-buffer` — the PTY's recent raw output for replay into a terminal view
+   * that missed it (renderer reload, BAT reopened). Null when the id has no running PTY.
+   * Returned to the caller only; never broadcast.
+   */
+  getReplayBuffer(id: string): PtyReplayBuffer | null {
+    if (!this.instances.has(id)) return null
+    const buf = this.replayBuffers.get(id)
+    return buf ? { data: buf.data, total: buf.total } : { data: '', total: 0 }
   }
 
   /** Append raw data to the ring buffer (last N lines) for supervisor queries */
@@ -476,6 +534,16 @@ export class PtyManager {
         return '/bin/sh'
       }
     }
+  }
+
+  /**
+   * T0403: `pty:create` with whether a process was actually spawned. `created: false` = the
+   * id was already running (idempotent re-create, T0111 / T0390) and was left untouched.
+   */
+  createWithResult(options: CreatePtyOptions): PtyCreateResult {
+    const existed = this.instances.has(options.id)
+    const ok = this.create(options)
+    return { ok, created: ok && !existed }
   }
 
   create(options: CreatePtyOptions): boolean {
@@ -794,6 +862,7 @@ export class PtyManager {
     if (this.useServer && this.instances.has(id)) {
       this.sendToServer({ type: 'pty:kill', id })
       this.instances.delete(id)
+      this.replayBuffers.delete(id)
       return true
     }
     const instance = this.instances.get(id)
@@ -813,6 +882,7 @@ export class PtyManager {
         } catch { /* process may already be gone */ }
       }
       this.instances.delete(id)
+      this.replayBuffers.delete(id)
       return true
     }
     return false
@@ -986,6 +1056,7 @@ export class PtyManager {
       this.tcpSocket = null
       this.serverProcess = null
       this.instances.clear()
+      this.replayBuffers.clear()
       return
     }
     for (const [id] of this.instances) {

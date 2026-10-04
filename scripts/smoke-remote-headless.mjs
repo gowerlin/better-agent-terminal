@@ -614,6 +614,17 @@ export function corruptFingerprint(fp) {
   return bytes.join(':')
 }
 
+/**
+ * T0403: `pty:create` answers `{ ok, created }`; servers before T0403 answer a bare boolean.
+ * Smoke runs against both, so read either shape. `created` is null for the old shape.
+ */
+export function ptyCreateOutcome(result) {
+  if (result && typeof result === 'object' && typeof result.created === 'boolean') {
+    return { ok: result.ok !== false, created: result.created }
+  }
+  return { ok: result === true, created: null }
+}
+
 function excerpt(text, max = 160) {
   const flat = String(text).replace(/\r/g, '').replace(/\n+/g, '⏎').trim()
   return flat.length > max ? `…${flat.slice(flat.length - max)}` : flat
@@ -699,13 +710,14 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       const offset = tracker.mark(ptyId)
       const createOpts = { id: ptyId, cwd: ptyCwd, type: 'terminal', ...(shellPath ? { shell: shellPath } : {}) }
       const result = await client.invoke(SMOKE_CHANNELS.PTY_CREATE, createOpts)
-      if (result !== true) throw new Error(`pty:create returned ${JSON.stringify(result)}`)
+      const outcome = ptyCreateOutcome(result)
+      if (!outcome.ok || outcome.created === false) throw new Error(`pty:create returned ${JSON.stringify(result)}`)
       created = true
       await tracker.waitFor(() => tracker.since(ptyId, offset).length > 0 || undefined, timeoutMs, `first pty:output of ${ptyId}`)
       const firstOutput = tracker.since(ptyId, offset)
       // The typed command echoes `$((40+2))`; only the executed command prints 42.
       const match = await runCmd(`echo ${nonce}-s3-$((40+2))`, new RegExp(`${nonce}-s3-42`))
-      set('S3', 'PASS', `pty:create(${ptyId}, cwd=${ptyCwd}, shell=${shellPath ?? 'server default'}) → true; first output ${JSON.stringify(excerpt(firstOutput, 60))}; marker ${match[0]} seen`)
+      set('S3', 'PASS', `pty:create(${ptyId}, cwd=${ptyCwd}, shell=${shellPath ?? 'server default'}) → ${JSON.stringify(result)}; first output ${JSON.stringify(excerpt(firstOutput, 60))}; marker ${match[0]} seen`)
     } catch (error) {
       set('S3', 'FAIL', error.message)
     }
@@ -729,8 +741,10 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
         pidBefore = (await runCmd(`echo ${nonce}-s5a:$$`, new RegExp(`${nonce}-s5a:(\\d+)`)))[1]
         const again = await client.invoke(SMOKE_CHANNELS.PTY_CREATE, { id: ptyId, cwd: ptyCwd, type: 'terminal', ...(shellPath ? { shell: shellPath } : {}) })
         const pidAfter = (await runCmd(`echo ${nonce}-s5b:$$`, new RegExp(`${nonce}-s5b:(\\d+)`)))[1]
-        if (again === true && pidBefore === pidAfter) {
-          set('S5', 'PASS', `second pty:create → true; $$ ${pidBefore} → ${pidAfter} (same shell)`)
+        // T0403 server: must also report created:false (old server: bare true)
+        const outcome = ptyCreateOutcome(again)
+        if (outcome.ok && outcome.created !== true && pidBefore === pidAfter) {
+          set('S5', 'PASS', `second pty:create → ${JSON.stringify(again)}; $$ ${pidBefore} → ${pidAfter} (same shell)`)
         } else {
           set('S5', 'FAIL', `second pty:create → ${JSON.stringify(again)}; $$ ${pidBefore} → ${pidAfter}`)
         }

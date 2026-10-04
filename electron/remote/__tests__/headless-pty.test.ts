@@ -68,6 +68,11 @@ async function run(client: HeadlessClient, id: string, line: string, re: RegExp)
   return waitForOutput(client, id, re, from)
 }
 
+/** T0403 `pty:create` results. */
+const CREATED = { ok: true, created: true }
+const EXISTING = { ok: true, created: false }
+const REFUSED = { ok: false, created: false }
+
 let harness: HeadlessHarness
 let seq = 0
 const termId = (label: string) => `t0390-${label}-${process.pid}-${seq++}`
@@ -89,7 +94,7 @@ describe('headless pty (T0390, real node-pty)', () => {
 
   it('create → write → output → resize → get-cwd → kill → exit', { timeout: 30_000 }, async () => {
     const id = termId('lifecycle')
-    expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toBe(true)
+    expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toEqual(CREATED)
 
     await run(harness, id, cmd.marker('LIFE'), /LIFE:done:E/)
     expect(await harness.invoke('pty:resize', id, 100, 40)).toBeUndefined()
@@ -105,18 +110,18 @@ describe('headless pty (T0390, real node-pty)', () => {
     const id = termId('idempotent')
     const createOpts = { id, cwd: CWD, type: 'terminal', shell: SHELL }
     const first = await harness.connect()
-    expect(await first.invoke('pty:create', createOpts)).toBe(true)
+    expect(await first.invoke('pty:create', createOpts)).toEqual(CREATED)
     await run(first, id, cmd.setVar('T0390_STATE', 'alive'), /.*/)
     await run(first, id, cmd.printVar('ST1', 'T0390_STATE'), /ST1:alive:E/)
 
-    // Same client re-sends (renderer reload): same shell, state kept.
-    expect(await first.invoke('pty:create', createOpts)).toBe(true)
+    // Same client re-sends (renderer reload): same shell, state kept — T0403: reported as existing.
+    expect(await first.invoke('pty:create', createOpts)).toEqual(EXISTING)
     await run(first, id, cmd.printVar('ST2', 'T0390_STATE'), /ST2:alive:E/)
 
     // BAT closed (client disconnects) and reopened (new client re-sends create).
     await first.close()
     const second = await harness.connect()
-    expect(await second.invoke('pty:create', createOpts)).toBe(true)
+    expect(await second.invoke('pty:create', createOpts)).toEqual(EXISTING)
     await run(second, id, cmd.printVar('ST3', 'T0390_STATE'), /ST3:alive:E/)
 
     expect(await second.invoke('pty:kill', id)).toBe(true)
@@ -124,11 +129,51 @@ describe('headless pty (T0390, real node-pty)', () => {
     await second.close()
   })
 
-  it('restart: the old process exit neither removes nor "exits" the new terminal', { timeout: 40_000 }, async () => {
+  it('T0403: output produced while no client is connected is replayed by pty:get-buffer, to the caller only', { timeout: 40_000 }, async () => {
+    const id = termId('replay')
+    const createOpts = { id, cwd: CWD, type: 'terminal', shell: SHELL }
+    const first = await harness.connect()
+    expect(await first.invoke('pty:create', createOpts)).toEqual(CREATED)
+    await run(first, id, cmd.marker('RP1'), /RP1:done:E/)
+
+    // Typed now, printed ~2s later — after this client is gone (BAT closed).
+    const delayed = IS_WIN ? `ping -n 3 127.0.0.1 >nul & ${cmd.marker('RP2')}` : `sleep 2; ${cmd.marker('RP2')}`
+    expect(await first.invoke('pty:write', id, delayed + NL)).toEqual({ ok: true })
+    await first.close()
+    await new Promise(resolve => setTimeout(resolve, 4_000))
+
+    // BAT reopened: create reports the PTY as existing, the buffer has both markers.
+    const second = await harness.connect()
+    const observer = await harness.connect()
+    expect(await second.invoke('pty:create', createOpts)).toEqual(EXISTING)
+    const fromObserver = observer.events.length
+    const buffer = await second.invoke('pty:get-buffer', id) as { data: string; total: number }
+    expect(typeof buffer.data).toBe('string')
+    expect(buffer.total).toBeGreaterThanOrEqual(buffer.data.length)
+    expect(plain(buffer.data)).toMatch(/RP1:done:E/)
+    expect(plain(buffer.data)).toMatch(/RP2:done:E/)
+    // Raw output: VT sequences are kept for the replay (ConPTY / readline always emit some).
+    expect(buffer.data).toContain('\x1b')
+
+    // Not broadcast: the other client saw no event carrying the buffer.
+    await new Promise(resolve => setTimeout(resolve, 300))
+    const observed = observer.events.slice(fromObserver)
+    expect(observed.some(e => e.channel === 'pty:get-buffer')).toBe(false)
+    expect(observed.some(e => e.channel === 'pty:output' && plain(String(e.args[1])).includes('RP1:done:E'))).toBe(false)
+
+    // Released with the PTY.
+    expect(await second.invoke('pty:kill', id)).toBe(true)
+    await second.waitForEvent('pty:exit', args => args[0] === id, 15_000)
+    expect(await second.invoke('pty:get-buffer', id)).toBeNull()
+    await observer.close()
+    await second.close()
+  })
+
+  it('restart: the old process exit neither removes nor "exits" the new terminal',{ timeout: 40_000 }, async () => {
     const logSpy = vi.spyOn(logger, 'log')
     try {
       const id = termId('restart')
-      expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toBe(true)
+      expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toEqual(CREATED)
       await run(harness, id, cmd.marker('PRE'), /PRE:done:E/)
 
       const from = harness.events.length
@@ -159,7 +204,7 @@ describe('headless pty (T0390, real node-pty)', () => {
     process.env.BAT_TERMINAL_ID = 'inherited-terminal-id'
     const id = termId('env')
     try {
-      expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toBe(true)
+      expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toEqual(CREATED)
     } finally {
       for (const k of inheritedKeys) {
         if (saved[k] === undefined) delete process.env[k]
@@ -194,13 +239,13 @@ describe('headless pty (T0390, real node-pty)', () => {
     ]
     for (const shell of bad) {
       const id = termId('bad-shell')
-      expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell }), String(shell)).toBe(false)
+      expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell }), String(shell)).toEqual(REFUSED)
       expect(await harness.invoke('pty:get-cwd', id)).toBeNull()
     }
 
     // pty:restart with a bad shell is refused before the running shell is killed.
     const id = termId('restart-bad-shell')
-    expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toBe(true)
+    expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toEqual(CREATED)
     expect(await harness.invoke('pty:restart', id, CWD, IS_WIN ? 'cmd.exe' : 'bash')).toBe(false)
     expect(await harness.invoke('pty:get-cwd', id)).toBe(CWD)
     await run(harness, id, cmd.marker('ALIVE'), /ALIVE:done:E/)
