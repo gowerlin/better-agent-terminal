@@ -7,11 +7,11 @@ status: OPEN
 severity: medium
 reproducibility: always
 created_at: "2026-10-04T22:04:14+08:00"
-updated_at: "2026-10-04T22:04:14+08:00"
+updated_at: "2026-10-04T22:18:57+08:00"
 impact:
   - setup-wizard-wsl
 links:
-  fix_workorder: null
+  fix_workorder: T0383
   research_workorder: T0380
   plan: PLAN-035
   related: [BUG-087, BUG-071]
@@ -22,8 +22,8 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（警告文字誤導使用者去改已正確的設定；連線測試若依此改用 distro IP 可能反而失敗） |
-| 可重現 | 推定 100%（Mirrored 模式下 default route 一般帶 gateway）；**由程式碼閱讀 + 使用者環境推定，未在 distro 內實測 `ip route`** |
-| **狀態** | 📂 OPEN（併入 T0380 研究確認，修復隨 PLAN-035 實作單） |
+| 可重現 | 100%（T0380 於發行版內實測證實） |
+| **狀態** | 📂 OPEN（T0380 已證實；修復單 T0383） |
 | 回報者 | 使用者截圖（2026-10-04，本機 build 0.5.9-pre.4 含 T0379，WSL 精靈第 6 步「取得 TLS 指紋」） |
 
 ## 現象
@@ -57,3 +57,15 @@ links:
 
 - 右側面板「目前步驟」下方有一行 `目前步驟...`，疑似未替換的佔位字
 - 警告內容為英文，未走 i18n
+
+## T0380 證實（2026-10-04 22:10，發行版內實測）
+
+```
+$ wslinfo --networking-mode    → mirrored
+$ ip route show default        → default via 192.168.88.254 dev eth1 proto kernel metric 271
+```
+
+- Mirrored 會鏡像主機路由表，default route 一定帶閘道 ⇒ route 啟發式在 Mirrored 下必錯
+- 使用者的 Mirrored **已經生效**，純粹是判定錯誤
+- 可靠判定：`wslinfo --networking-mode`（WSL 2.0.4+）；另讀 `.wslconfig` 的 declared 值比對，區分「設了但沒生效」
+- NAT 模式不需要強制改成 Mirrored（`localhostForwarding` 預設開啟）；警告文字需改寫並走 i18n（`install-server-bundle.ts:302`、`connect-test.ts:369`）

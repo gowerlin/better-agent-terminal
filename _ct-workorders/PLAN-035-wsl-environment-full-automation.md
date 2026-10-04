@@ -6,10 +6,11 @@ title: WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，�
 status: PLANNED
 priority: high
 created_at: "2026-10-04T22:04:14+08:00"
-updated_at: "2026-10-04T22:04:14+08:00"
+updated_at: "2026-10-04T22:18:57+08:00"
 links:
   research_workorder: T0380
-  related: [BUG-086, BUG-087, BUG-089, BUG-071, PLAN-031, PLAN-032]
+  phase1_workorders: [T0381, T0382, T0383, T0384]
+  related: [BUG-086, BUG-087, BUG-089, BUG-090, BUG-091, BUG-092, BUG-071, PLAN-031, PLAN-032]
 ---
 
 # PLAN-035 — WSL 環境全自動化
@@ -20,9 +21,9 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-035 |
 | 優先級 | 🔴 High |
-| 狀態 | 📋 PLANNED（研究先行：T0380） |
+| 狀態 | 📋 PLANNED（T0380 研究 DONE；Phase 1 T0381-T0384 串行，D128） |
 | 建立時間 | 2026-10-04 22:04 (UTC+8) |
-| 決策 | D127 |
+| 決策 | D127、D128 |
 
 ## 背景與動機
 
@@ -74,3 +75,13 @@ links:
 
 - Docker / SSH 精靈（另議）
 - 非 Ubuntu 發行版的自動安裝（偵測既有發行版仍支援）
+
+## T0380 研究後修訂（2026-10-04 22:18，D128）
+
+- 研究結論見 T0380 回報區（`b762781`）。精靈在預設設定下無法完成的三個原因已分別開單：BUG-090（指紋永久卡住，WSL / SSH / Docker 共用）、BUG-091（埠衝突 + startService 誤判）、BUG-092（發行版閒置關閉）；BUG-089 證實
+- **範圍表修訂**：
+  - 環節 6（網路模式）：改為**選用、預設不勾**——NAT 下 `localhost` 經 localhostForwarding 仍可連，真正要處理的是 Windows 端埠必須空著
+  - 環節 7（常駐）：方案定為 BAT 持有長駐 `wsl.exe`（只在 BAT 執行時可用，使用者裁決）；`instanceIdleTimeout=-1` 僅作為 Phase 2 選用項目
+  - **新增環節：伺服器埠**（required）
+- **Phase 1（串行）**：T0381 指紋 → T0382 埠 + 啟動穩定性 → T0383 網路模式判定 → T0384 保活
+- **Phase 2 / 3**：沿用 T0380 目標 6（P2-a INI 編輯器、P2-b 事實收集 + 計畫建構、P2-c `requestConsent` + 清單 UI；P3-a 安裝與提權、P3-b 重開機接續（`wizard-resume.json` + HKCU RunOnce）、P3-c 發行版 + 非互動建立使用者、P3-d 乾淨機器實機驗收），Phase 1 實機驗收後開單

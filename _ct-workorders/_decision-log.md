@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 22:04 (UTC+8)（第五十二 session 新增 D127）
+> 最後更新：2026-10-04 22:18 (UTC+8)（第五十二 session 新增 D128）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D128 | 2026-10-04 | PLAN-035 Phase 1 依 T0380 拆 4 張串行實作單：T0381 指紋改 TLS 握手 + timeout（BUG-090，三精靈共用）→ T0382 WSL 埠探測避開主機 RemoteServer + startService 穩定性（BUG-091）→ T0383 `wslinfo` 判網路模式（BUG-089）→ T0384 BAT 持有 `wsl.exe` 保活（BUG-092）；網路模式改為選用、預設不勾；保活不改全機 `instanceIdleTimeout` | T0380-T0384 / BUG-089~092 / PLAN-035 |
 | D127 | 2026-10-04 | WSL 環境全自動化立 PLAN-035，研究先行（T0380）；同意模型為「偵測 → 列清單 → 一次同意」；WSL 未安裝時全自動安裝含重開機後接續；BUG-089 網路模式誤判併入研究 | PLAN-035 / T0380 / BUG-089 |
 | D126 | 2026-10-04 | BUG-086 + BUG-087 合併為 T0378：linger 帶明確使用者名稱並以 `Linger=yes` 判定；systemd unit 改用解析出的絕對 `$HOME` 路徑（不留 `~`、預設不用 `%h`）；可重試的失敗不回滾前步；WSL 偵測以 exit code 區分「沒裝 WSL / 無發行版」 | T0378 / BUG-086 / BUG-087 |
 | D125 | 2026-10-04 | 本地打包（`release.ps1` / `build-version.js`）版號來源改為：顯式指定 → `package.json` → 時間戳（僅最後手段且不得大於真實版號）；保留 `-pre.N` 後綴、移除非 exact `git describe` fallback、打包不留 dirty、補齊 verify / fetch:baseline 前置檢查；CI `VERSION` env 路徑行為不變 | T0376 |
@@ -1355,6 +1356,21 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D128 2026-10-04 — PLAN-035 Phase 1 拆單（T0380 研究結論）
+
+- **背景**：T0380 證實 WSL 精靈在預設設定下無法完成，有三個彼此獨立的原因：① 「取得 TLS 指紋」對沒有 HTTP handler 的伺服器發 GET 且無 timeout，永久卡住，WSL / SSH / Docker 共用（BUG-090，塔台複核程式碼屬實）；② WSL bat-server 預設埠 9876 與主機 RemoteServer 相同，Mirrored 下 `EADDRINUSE`，且 `startService` 把 crash-loop 判成功（BUG-091）；③ 沒有 `wsl.exe` 連線時發行版約 15 秒關閉（BUG-092）。另 BUG-089 證實為判定錯誤，使用者 Mirrored 已生效
+- **決定**：
+  - Phase 1 拆 4 張實作單，**串行** T0381 → T0382 → T0383 → T0384（四張都改 `electron/main.ts`，同一工作樹平行會互相污染 `git commit --only`）；先修指紋與埠，否則精靈走不到底、其他修正無法實機驗收
+  - 指紋改 TLS 握手取對端憑證指紋（`getPeerCertificate().fingerprint256`），全路徑 timeout
+  - WSL 伺服器埠改為 Windows 端探測可用埠，排除主機 RemoteServer 實際使用的埠
+  - 保活：使用者裁決「只需 BAT 執行時可用」⇒ BAT 持有長駐 `wsl.exe -d <distro> -- sleep infinity`，**不改**全機 `instanceIdleTimeout`；設定開關延後到 Phase 2 評估
+  - 網路模式：NAT 不必強制改 Mirrored（`localhostForwarding` 預設開啟）⇒ PLAN-035 環節 6 改為**選用、預設不勾**；Phase 1 只修判定與文案
+  - Phase 2 / 3 拆單沿用 T0380 目標 6 建議（P2-a~c、P3-a~d），Phase 1 驗收後再開
+- **不採用**：四張平行（`main.ts` 衝突）；改全機 `instanceIdleTimeout=-1`（影響所有發行版，超出使用者裁決範圍）；Windows 登入排程常駐
+- **相關**：T0380-T0384 / BUG-089~092 / PLAN-035 / D127
 
 ---
 

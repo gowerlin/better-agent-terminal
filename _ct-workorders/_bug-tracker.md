@@ -23,15 +23,17 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 22:04 (UTC+8) — 第五十二 session：新開 BUG-089（WSL 網路模式誤判 NAT，併入 T0380 研究）
+> 最後同步：2026-10-04 22:18 (UTC+8) — 第五十二 session：T0380 證實 BUG-089；新開 BUG-090（FIXING，T0381）/ 091 / 092
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 14**
+- 🔴 Open: 4 | ⏳ Fixing: 1 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 17**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-092 | 沒有 `wsl.exe` 連線時 WSL 約 15 秒就關閉發行版，bat-server 跟著停止，WSL profile 連不上 | 🔴 high | 2026-10-04 | [BUG-092](BUG-092-wsl-distro-idle-shutdown-stops-bat-server.md) |
+| BUG-091 | WSL bat-server 埠與主機 BAT RemoteServer 衝突（預設都是 9876），且 `startService` 把「啟動後立刻崩潰」誤判為成功 | 🔴 high | 2026-10-04 | [BUG-091](BUG-091-wsl-server-port-conflict-and-false-start-success.md) |
 | BUG-089 | WSL 精靈把 Mirrored 網路模式誤判為 NAT（default route 含 `via` 即判 NAT 的啟發式不成立） | 🟡 medium | 2026-10-04 | [BUG-089](BUG-089-wsl-network-mode-misdetected-as-nat.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
@@ -39,7 +41,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-090 | 設定精靈「取得 TLS 指紋」永久卡住：伺服器沒有 `/fingerprint` HTTP handler，IPC 也沒有 timeout（WSL / SSH / Docker 共用） | 🔴 high | 2026-10-04 | [BUG-090](BUG-090-wizard-fetch-fingerprint-hangs-forever.md) |
 
 ## ✅ 已修復
 
