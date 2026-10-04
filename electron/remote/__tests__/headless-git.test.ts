@@ -7,19 +7,53 @@
  * git is resolved by the headless resolver (`resolveGitBinary`, PATH first). gh is a
  * fake (path + `--version` + spawn) so the test does not depend on the machine's gh
  * install or login, and never runs gh at all.
+ * T0429: `execFile` (worktree-manager) and simple-git `.env()` are wrapped
+ * pass-through to record the env the worktree / git-scaffold git children get.
  */
 import { execFileSync } from 'child_process'
 import { EventEmitter } from 'events'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { GitResolveResult } from '../../gh-resolver'
 import type { GhAuthSpawn, GitExecFileSync } from '../../handlers/git'
 import { createHeadlessGitBinaryResolver } from '../headless-entry'
 import { HEADLESS_UNSUPPORTED } from '../headless-channel-status'
 import { PROXIED_CHANNELS } from '../protocol'
 import { startHeadlessHarness, type HeadlessHarness } from './helpers/headless-harness'
+import { SIMPLE_GIT_UNSAFE_ENV_KEYS } from '../../git/git-ipc'
+
+const { worktreeGitEnvs, scaffoldEnvs } = vi.hoisted(() => ({
+  worktreeGitEnvs: [] as Array<NodeJS.ProcessEnv | undefined>,
+  scaffoldEnvs: [] as unknown[],
+}))
+
+vi.mock('child_process', async importOriginal => {
+  const real = await importOriginal<typeof import('child_process')>()
+  const { promisify } = await import('util')
+  const realCustom = (real.execFile as unknown as Record<symbol, (...a: unknown[]) => unknown>)[promisify.custom]
+  const execFile = ((...a: unknown[]) => (real.execFile as (...b: unknown[]) => unknown)(...a)) as unknown as Record<symbol, unknown>
+  execFile[promisify.custom] = (file: string, args: string[], options: { env?: NodeJS.ProcessEnv }) => {
+    worktreeGitEnvs.push(options?.env)
+    return realCustom(file, args, options)
+  }
+  return { ...real, default: { ...real, execFile }, execFile }
+})
+
+vi.mock('simple-git', async importOriginal => {
+  const real = await importOriginal<typeof import('simple-git')>()
+  const wrapped = ((...args: Parameters<typeof real.default>) => {
+    const git = real.default(...args)
+    const env = git.env.bind(git) as (...a: unknown[]) => typeof git
+    git.env = ((...a: unknown[]) => {
+      scaffoldEnvs.push(a[0])
+      return env(...a)
+    }) as typeof git.env
+    return git
+  }) as typeof real.default
+  return { ...real, default: wrapped, simpleGit: wrapped }
+})
 
 const FAKE_GH = path.join(os.tmpdir(), 'bat-t0405-fake', 'gh')
 const SESSION = 't0405-harness-session'
@@ -70,9 +104,13 @@ beforeAll(async () => {
       spawn: ghSpawn,
       // T0423: the server env the children inherit: the real one (git needs PATH etc.)
       // with BAT_* keys planted, and without GH_HOST so the login check targets github.com.
+      // T0429: plus keys simple-git refuses in an env (a server started from a shell).
       getEnv: () => {
         const { GH_HOST: _ghHost, ...env } = process.env
-        return { ...env, BAT_REMOTE_TOKEN: 't0423-secret', BAT_TOWER_TERMINAL_ID: 't0423-tower', bat_t0423_lower: 'x' }
+        return {
+          ...env, BAT_REMOTE_TOKEN: 't0423-secret', BAT_TOWER_TERMINAL_ID: 't0423-tower', bat_t0423_lower: 'x',
+          EDITOR: 'vim', PAGER: 'less', GIT_SSH_COMMAND: 'ssh -o BatchMode=yes', GIT_ASKPASS: '/usr/bin/true',
+        }
       },
     },
     timeoutMs: 20_000,
@@ -173,6 +211,38 @@ describe('git / github / worktree on headless (T0405)', () => {
     for (const env of [...childEnvs.map(c => c.env), ...ghSpawnEnvs]) {
       expect(env).toBeDefined()
       expect(Object.keys(env!).filter(k => k.toUpperCase().startsWith('BAT_'))).toEqual([])
+      expect(Object.keys(env!).some(k => k.toUpperCase() === 'PATH')).toBe(true)
+    }
+  })
+})
+
+describe('worktree:* / git-scaffold:* child env on headless (T0429)', () => {
+  const batKeys = (env: object) => Object.keys(env).filter(k => k.toUpperCase().startsWith('BAT_'))
+
+  it('git-scaffold:* (Git Graph) works with EDITOR / PAGER in the server env; simple-git gets it scrubbed', async () => {
+    scaffoldEnvs.length = 0
+    expect(await harness.invoke('git-scaffold:healthCheck', repo)).toMatchObject({ ok: true, isRepo: true })
+    expect(await harness.invoke('git-scaffold:getRepoInfo', repo)).toMatchObject({ ok: true, branch: 'main' })
+    expect(await harness.invoke('git-scaffold:listCommits', repo, { limit: 1 })).toMatchObject({ ok: true })
+    expect(scaffoldEnvs).toHaveLength(3)
+    for (const env of scaffoldEnvs as Array<Record<string, string>>) {
+      expect(batKeys(env)).toEqual([])
+      expect(Object.keys(env).filter(k => SIMPLE_GIT_UNSAFE_ENV_KEYS.has(k.toLowerCase()))).toEqual([])
+      expect(Object.keys(env).some(k => k.toUpperCase() === 'PATH')).toBe(true)
+    }
+  })
+
+  it('worktree:* git children get the server env minus BAT_* (EDITOR etc. kept: plain execFile)', async () => {
+    worktreeGitEnvs.length = 0
+    const session = 't0429-harness-session'
+    const created = await harness.invoke('worktree:create', session, repo) as { success: boolean }
+    expect(created).toMatchObject({ success: true })
+    expect(await harness.invoke('worktree:remove', session, true)).toEqual({ success: true })
+    expect(worktreeGitEnvs.length).toBeGreaterThanOrEqual(5)
+    for (const env of worktreeGitEnvs) {
+      expect(env).toBeDefined()
+      expect(batKeys(env!)).toEqual([])
+      expect(env!.EDITOR).toBe('vim')
       expect(Object.keys(env!).some(k => k.toUpperCase() === 'PATH')).toBe(true)
     }
   })

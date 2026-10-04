@@ -60,9 +60,61 @@ const GIT_OPTS: Partial<SimpleGitOptions> = {
 export interface GitScaffoldDeps {
   /** git executable. Default `git` (Electron); headless passes its resolved path (T0405). */
   getGitBinary?: () => string
+  /**
+   * T0429: env for the git children, read per call. Headless passes the server env
+   * minus `BAT_*`; the keys simple-git refuses are dropped here
+   * (`stripSimpleGitUnsafeEnv`). Omitted or undefined (Electron) ⇒ `.env()` is never
+   * called and git inherits `process.env` unchanged.
+   */
+  getEnv?: () => NodeJS.ProcessEnv | undefined
 }
 
-function makeGit(cwd: string, binary = 'git'): SimpleGit {
+/**
+ * T0429: env keys simple-git's `blockUnsafeOperationsPlugin` rejects when they
+ * appear in an env given through `.env()` (`Use of "EDITOR" is not permitted without
+ * enabling allowUnsafeEditor`). Mirrors the `y` map of
+ * `@simple-git/argv-parser` 1.1.1 `dist/index.cjs` (simple-git 3.36.0), matched like
+ * its `parseEnv`: key lowercased and trimmed. Dropping `git_config_count` also
+ * disarms its `GIT_CONFIG_KEY_n` / `GIT_CONFIG_VALUE_n` config check (git ignores
+ * those keys without the count). 🔴 Do not turn on the `unsafe` options instead.
+ */
+export const SIMPLE_GIT_UNSAFE_ENV_KEYS: ReadonlySet<string> = new Set([
+  'editor',
+  'git_askpass',
+  'git_config_global',
+  'git_config_system',
+  'git_config_count',
+  'git_config',
+  'git_editor',
+  'git_exec_path',
+  'git_external_diff',
+  'git_pager',
+  'git_proxy_command',
+  'git_template_dir',
+  'git_sequence_editor',
+  'git_ssh',
+  'git_ssh_command',
+  'pager',
+  'prefix',
+  'ssh_askpass',
+])
+
+/** `env` without the keys simple-git refuses (and without undefined values). */
+export function stripSimpleGitUnsafeEnv(env: NodeJS.ProcessEnv): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined || SIMPLE_GIT_UNSAFE_ENV_KEYS.has(key.toLowerCase().trim())) continue
+    out[key] = value
+  }
+  return out
+}
+
+function makeGit(cwd: string, binary = 'git', env?: NodeJS.ProcessEnv): SimpleGit {
+  const git = createGit(cwd, binary)
+  return env ? git.env(stripSimpleGitUnsafeEnv(env)) : git
+}
+
+function createGit(cwd: string, binary: string): SimpleGit {
   if (binary === 'git') return simpleGit(cwd, GIT_OPTS)
   try {
     return simpleGit(cwd, { ...GIT_OPTS, binary })
@@ -77,8 +129,8 @@ function errMessage(err: unknown): string {
   return String(err)
 }
 
-async function resolveRepoRoot(cwd: string, binary?: string): Promise<{ isRepo: boolean; root: string | null; git: SimpleGit }> {
-  const git = makeGit(cwd, binary)
+async function resolveRepoRoot(cwd: string, binary?: string, env?: NodeJS.ProcessEnv): Promise<{ isRepo: boolean; root: string | null; git: SimpleGit }> {
+  const git = makeGit(cwd, binary, env)
   const isRepo = await git.checkIsRepo().catch(() => false)
   if (!isRepo) return { isRepo: false, root: null, git }
   const root = (await git.revparse(['--show-toplevel']).catch(() => '')).trim() || null
@@ -87,10 +139,11 @@ async function resolveRepoRoot(cwd: string, binary?: string): Promise<{ isRepo: 
 
 export function registerGitScaffoldHandlers(register: HandlerRegistrar, deps: GitScaffoldDeps = {}): void {
   const gitBinary = () => deps.getGitBinary?.() ?? 'git'
+  const repoRoot = (cwd: string) => resolveRepoRoot(cwd, gitBinary(), deps.getEnv?.())
 
   register('git-scaffold:healthCheck', async (_ctx, cwd: string) => {
     try {
-      const { isRepo, root } = await resolveRepoRoot(cwd, gitBinary())
+      const { isRepo, root } = await repoRoot(cwd)
       const result: GitScaffoldHealth = { ok: true, isRepo, gitRoot: root }
       return result
     } catch (err) {
@@ -103,7 +156,7 @@ export function registerGitScaffoldHandlers(register: HandlerRegistrar, deps: Gi
 
   register('git-scaffold:getRepoInfo', async (_ctx, cwd: string) => {
     try {
-      const { isRepo, root, git } = await resolveRepoRoot(cwd, gitBinary())
+      const { isRepo, root, git } = await repoRoot(cwd)
       if (!isRepo) {
         const result: GitScaffoldRepoInfo = {
           ok: false,
@@ -156,7 +209,7 @@ export function registerGitScaffoldHandlers(register: HandlerRegistrar, deps: Gi
     const limit = Math.max(1, Math.min(Math.floor(Number(options?.limit)) || 100, 10000))
     const offset = Math.max(0, Math.floor(Number(options?.offset)) || 0)
     try {
-      const { isRepo, git } = await resolveRepoRoot(cwd, gitBinary())
+      const { isRepo, git } = await repoRoot(cwd)
       if (!isRepo) {
         const result: GitScaffoldListCommitsResult = { ok: false, commits: [], error: 'Not a git repository' }
         return result

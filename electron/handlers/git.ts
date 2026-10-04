@@ -26,8 +26,9 @@
  *     probe use), so the git / gh children of this module get the server env
  *     minus `BAT_*`. Electron passes none and its children inherit
  *     `process.env` as before (no `env` option at all).
- *     Not covered here: `worktree:*` (spawns in worktree-manager.ts) and
- *     `git-scaffold:*` (simple-git, git-ipc.ts).
+ *     T0429: `git-scaffold:*` (simple-git, git-ipc.ts) gets the same scrubbed env,
+ *     minus the keys simple-git refuses; `worktree:*` spawns in worktree-manager.ts,
+ *     whose env headless sets with `worktreeManager.setEnvProvider`.
  *
  * 🔴 No `electron` import here (headless-electron-free guard).
  */
@@ -191,7 +192,7 @@ export function registerGitHandlers(register: HandlerRegistrar, deps: GitHandler
 
   // Git — legacy child_process handlers (retained for existing GitPanel)
   // Phase 3 Tα1 scaffold (T0155) — simple-git backed channels live under `git-scaffold:*`
-  registerGitScaffoldHandlers(register, { getGitBinary: deps.getGitBinary })
+  registerGitScaffoldHandlers(register, { getGitBinary: deps.getGitBinary, getEnv: childEnv })
 
   register('git:get-github-url', async (_ctx, folderPath: string) => {
     try {

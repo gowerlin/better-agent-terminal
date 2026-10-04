@@ -7,7 +7,7 @@ import { registerClaudeHandlers } from '../handlers/claude'
 import { registerFsHandlers } from '../handlers/fs'
 import { registerGitHandlers, type GitHandlerDeps } from '../handlers/git'
 import { registerPtyHandlers } from '../handlers/pty'
-import { registerRemoteToolsHandlers, type RemoteToolsHandlerDeps } from '../handlers/remote-tools'
+import { buildProbeEnv, registerRemoteToolsHandlers, type RemoteToolsHandlerDeps } from '../handlers/remote-tools'
 import { ClaudeAgentManager } from '../claude-agent-manager'
 import {
   configureRuntimeRouter,
@@ -301,12 +301,16 @@ export type HeadlessGitOverrides = Omit<GitHandlerDeps, 'getGithubCliPath' | 'is
  * module's ClaudeAgentManager) uses the same resolved git.
  * T0423: the git / gh children of `git:*` / `github:*` get the server env minus
  * `isHeadlessScrubbedEnvKey` (same rule as headless PTYs), so `BAT_*` never
- * reaches them. `worktree:*` / `git-scaffold:*` still inherit the full env.
+ * reaches them. T0429: so do `git-scaffold:*` (simple-git; the keys simple-git
+ * refuses are dropped too) and the worktree singleton's git children — the latter
+ * also for the claude module's (ClaudeAgentManager) worktree sessions.
  */
 export function createHeadlessGitModule(overrides: HeadlessGitOverrides = {}): HandlerModule {
   return (register, host) => {
     const getGitBinary = overrides.getGitBinary ?? createHeadlessGitBinaryResolver()
+    const getEnv = overrides.getEnv ?? (() => process.env)
     worktreeManager.setGitBinaryResolver(getGitBinary)
+    worktreeManager.setEnvProvider(() => buildProbeEnv(getEnv(), isHeadlessScrubbedEnvKey))
     registerGitHandlers(register, {
       ...overrides,
       getGitBinary,
