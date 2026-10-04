@@ -1,34 +1,5 @@
 import type { PathTranslator } from './path-translator'
 
-/** Client -> Server channels whose request payloads contain local paths. */
-export const PATH_AWARE_CHANNELS = new Set<string>([
-  'fs:readdir',
-  'fs:readFile',
-  'fs:stat',
-  'fs:search',
-  'fs:watch',
-  'fs:unwatch',
-  'fs:reset-watch',
-  'git:branch',
-  'git:log',
-  'git:diff',
-  'git:diff-files',
-  'git:status',
-  'git:get-github-url',
-  'git:getRoot',
-  'pty:create',
-  'pty:restart',
-  'image:read-as-data-url',
-])
-
-/** Server -> Client channels whose results contain absolute paths to rewrite. */
-export const PATH_RETURNING_CHANNELS = new Set<string>([
-  'fs:readdir',
-  'fs:search',
-  'git:getRoot',
-  'pty:get-cwd',
-])
-
 type PtyCreateLike = { cwd?: unknown }
 
 function translatePathField<T extends Record<string, unknown>>(
@@ -45,12 +16,23 @@ function translatePathField<T extends Record<string, unknown>>(
  * Per-channel schema for path translation (BUG-065 / T0301). Replaces the
  * prior default-args[0] assumption that skipped args[1+] on multi-path
  * channels like git:diff-files. Channels not listed default to 'first-string'.
+ *
+ * T0416 (BUG-105): 'arg-indices' translates the string args at the given
+ * positions; 'object-fields' translates the named string fields of the object
+ * at args[index].
  */
 type PathArgSchema =
   | 'first-string' | 'all-strings' | 'array-of-strings'
   | 'pty-create' | 'pty-restart' | 'none'
+  | { kind: 'arg-indices'; indices: readonly number[] }
+  | { kind: 'object-fields'; index: number; fields: readonly string[] }
 
-const PATH_ARG_SCHEMA: Record<string, PathArgSchema> = {
+/**
+ * Every PROXIED_CHANNELS entry is either listed here (its request carries a
+ * client-side path) or in PATH_FREE_CHANNELS — enforced by
+ * electron/remote/__tests__/path-aware-channels-coverage.test.ts (T0416).
+ */
+export const PATH_ARG_SCHEMA: Readonly<Record<string, PathArgSchema>> = {
   'fs:readdir': 'first-string',
   'fs:readFile': 'first-string',
   'fs:stat': 'first-string',
@@ -68,7 +50,143 @@ const PATH_ARG_SCHEMA: Record<string, PathArgSchema> = {
   'image:read-as-data-url': 'first-string',
   'pty:create': 'pty-create',
   'pty:restart': 'pty-restart',
+  // T0416 (BUG-105): channels brought online on headless by PLAN-036 (T0401 / T0405)
+  // (sessionId, { cwd, worktreePath?, ... })
+  'claude:start-session': { kind: 'object-fields', index: 1, fields: ['cwd', 'worktreePath'] },
+  // (sessionId, sdkSessionId, cwd, model?, apiVersion?, useWorktree?, worktreePath?, ...)
+  'claude:resume-session': { kind: 'arg-indices', indices: [2, 6] },
+  'claude:list-sessions': 'first-string',
+  'claude:scan-skills': 'first-string',
+  // (sessionId, cwd)
+  'worktree:create': { kind: 'arg-indices', indices: [1] },
+  // (sessionId, cwd, worktreePath, branchName)
+  'worktree:rehydrate': { kind: 'arg-indices', indices: [1, 2] },
+  'github:pr-list': 'first-string',
+  'github:issue-list': 'first-string',
+  'github:pr-view': 'first-string',
+  'github:issue-view': 'first-string',
+  'github:pr-comment': 'first-string',
+  'github:issue-comment': 'first-string',
+  'git-scaffold:healthCheck': 'first-string',
+  'git-scaffold:getRepoInfo': 'first-string',
+  'git-scaffold:listCommits': 'first-string',
+  // ({ id, cwd, command | agent/prompt, ... })
+  'terminal:create-with-command': { kind: 'object-fields', index: 0, fields: ['cwd'] },
+  'terminal:create-agent-command': { kind: 'object-fields', index: 0, fields: ['cwd'] },
 }
+
+/** Client -> Server channels whose request payloads contain local paths. */
+export const PATH_AWARE_CHANNELS = new Set<string>(Object.keys(PATH_ARG_SCHEMA))
+
+/**
+ * T0416 (BUG-105): proxied channels whose requests carry no client-side path,
+ * each with the reason. A new PROXIED_CHANNELS entry must land here or in
+ * PATH_ARG_SCHEMA, or the coverage test fails.
+ */
+export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
+  ['pty:write', 'id + terminal input bytes'],
+  ['pty:resize', 'id + cols/rows'],
+  ['pty:kill', 'id only'],
+  ['pty:get-cwd', 'id only (result is path-returning)'],
+  ['pty:get-buffer', 'id only'],
+  ['claude:send-message', 'sessionId + prompt text + images as data: URLs'],
+  ['claude:stop-session', 'sessionId only'],
+  ['claude:abort-session', 'sessionId only'],
+  ['claude:set-permission-mode', 'sessionId + enum'],
+  ['claude:set-codex-sandbox-mode', 'sessionId + enum'],
+  ['claude:set-codex-approval-policy', 'sessionId + enum'],
+  ['claude:set-model', 'sessionId + model id'],
+  ['claude:set-effort', 'sessionId + effort level'],
+  ['claude:reset-session', 'sessionId only'],
+  ['claude:get-supported-models', 'sessionId only'],
+  ['claude:get-account-info', 'sessionId only'],
+  ['claude:get-supported-commands', 'sessionId only'],
+  ['claude:get-supported-agents', 'sessionId only'],
+  ['claude:get-session-meta', 'sessionId only (result cwd stays server-side, see SERVER_PATH_RESULT_CHANNELS)'],
+  ['claude:get-worktree-status', 'sessionId only (result stays server-side, see SERVER_PATH_RESULT_CHANNELS)'],
+  ['claude:cleanup-worktree', 'sessionId + boolean'],
+  ['claude:resolve-permission', 'sessionId + toolUseId + tool decision'],
+  ['claude:resolve-ask-user', 'sessionId + toolUseId + answers'],
+  ['claude:fork-session', 'sessionId only'],
+  ['claude:rewind-to-prompt', 'not available in this build'],
+  ['claude:stop-task', 'sessionId + taskId'],
+  ['claude:rest-session', 'sessionId only'],
+  ['claude:wake-session', 'sessionId only'],
+  ['claude:is-resting', 'sessionId only'],
+  ['claude:archive-messages', 'ALWAYS_LOCAL (never proxied); sessionId + messages'],
+  ['claude:load-archived', 'ALWAYS_LOCAL (never proxied); sessionId + offset/limit'],
+  ['claude:clear-archive', 'ALWAYS_LOCAL (never proxied); sessionId only'],
+  ['claude:fetch-subagent-messages', 'sessionId + toolUseId'],
+  ['claude:scan-star-commands', 'no args (scans the server home)'],
+  ['claude:get-context-usage', 'sessionId only'],
+  ['claude:get-statusline-extras', 'no args (reads the server ~/.claude)'],
+  ['claude:auth-status', 'no args'],
+  ['claude:auth-login', 'no args'],
+  ['claude:auth-logout', 'no args'],
+  ['claude:account-list', 'no args'],
+  ['claude:account-import-current', 'no args'],
+  ['claude:account-switch', 'account id'],
+  ['claude:get-cli-path', 'no args (result stays server-side, see SERVER_PATH_RESULT_CHANNELS)'],
+  ['claude:detectRuntime', 'customPath comes from the remote settings (settings:load is proxied): already a server path'],
+  ['worktree:remove', 'sessionId + boolean'],
+  ['worktree:status', 'sessionId only (result stays server-side, see SERVER_PATH_RESULT_CHANNELS)'],
+  ['worktree:merge', 'sessionId + strategy enum'],
+  ['workspace:save', 'ALWAYS_LOCAL (never proxied); workspace JSON stays in the local window registry'],
+  ['workspace:load', 'ALWAYS_LOCAL (never proxied); no args'],
+  ['settings:save', 'remote settings JSON; paths in it are server paths for the remote host'],
+  ['settings:load', 'no args'],
+  ['settings:get-shell-path', 'shell type enum (result is a server shell path)'],
+  ['settings:get-logging-info', 'no args (result is the server log dir, display only)'],
+  ['settings:cleanup-logs', 'no args'],
+  ['github:check-cli', 'customPath comes from the remote settings: already a server path'],
+  ['snippet:getAll', 'no args'],
+  ['snippet:getById', 'snippet id'],
+  ['snippet:create', 'snippet record'],
+  ['snippet:update', 'snippet id + record'],
+  ['snippet:delete', 'snippet id'],
+  ['snippet:toggleFavorite', 'snippet id'],
+  ['snippet:search', 'search text'],
+  ['snippet:getCategories', 'no args'],
+  ['snippet:getFavorites', 'no args'],
+  ['snippet:getByWorkspace', 'workspace id'],
+  ['profile:list', 'no args'],
+  ['profile:load', 'profile id'],
+  ['profile:load-snapshot', 'profile id; snapshot workspaces keep the client form the window saved'],
+  ['profile:get-active-ids', 'no args'],
+  ['profile:activate', 'profile id'],
+  ['profile:deactivate', 'profile id'],
+  ['terminal:notify', '{ targetId, message, source }'],
+  ['terminal:keypress', '{ targetId, key, code, ... }'],
+  ['remote-tools:detect', 'no args (result lists server install paths)'],
+])
+
+/** Server -> Client channels whose results contain absolute paths to rewrite. */
+export const PATH_RETURNING_CHANNELS = new Set<string>([
+  'fs:readdir',
+  'fs:search',
+  'git:getRoot',
+  'pty:get-cwd',
+  // T0416: { gitRoot } — shown in the Git Graph panel, same as git:getRoot
+  'git-scaffold:healthCheck',
+  'git-scaffold:getRepoInfo',
+])
+
+/**
+ * T0416 (BUG-105): results that DO contain server paths but must stay in
+ * server form. Each entry says who consumes the path.
+ */
+export const SERVER_PATH_RESULT_CHANNELS: ReadonlyMap<string, string> = new Map([
+  ['claude:get-cli-path', 'typed into a terminal running on the remote host'],
+  ['claude:detectRuntime', 'server claude locations, shown in remote settings'],
+  ['github:check-cli', 'server gh location, shown in settings'],
+  ['settings:get-shell-path', 'shell spawned on the remote host'],
+  ['settings:get-logging-info', 'server log dir, display only'],
+  ['remote-tools:detect', 'server install locations, display only'],
+  ['claude:get-session-meta', 'cwd unused by the renderer'],
+  ['claude:get-worktree-status', 'only diff is read; worktreePath matches the claude:worktree-info event, which stays server form because the panel embeds it in prompts sent to the remote agent'],
+  ['worktree:create', 'worktreePath is persisted next to claude:worktree-info (server form) and only flows back into pty:create / worktree:rehydrate / git:*, whose toServer is a no-op on server paths'],
+  ['worktree:status', 'unused by the renderer; same form as worktree:create'],
+])
 
 export function translateInvokeArgs(
   channel: string,
@@ -78,6 +196,22 @@ export function translateInvokeArgs(
   if (!PATH_AWARE_CHANNELS.has(channel)) return args
 
   const schema: PathArgSchema = PATH_ARG_SCHEMA[channel] ?? 'first-string'
+  const toServer = (value: string) => translator.toServer(value)
+
+  if (typeof schema === 'object') {
+    if (schema.kind === 'arg-indices') {
+      return args.map((value, index) => (
+        typeof value === 'string' && schema.indices.includes(index) ? toServer(value) : value
+      ))
+    }
+    const target = args[schema.index]
+    if (!target || typeof target !== 'object' || Array.isArray(target)) return args
+    const translated = schema.fields.reduce(
+      (acc, field) => translatePathField(acc, field, toServer),
+      target as Record<string, unknown>,
+    )
+    return args.map((value, index) => (index === schema.index ? translated : value))
+  }
 
   switch (schema) {
     case 'none':
@@ -135,6 +269,11 @@ export function normalizePathsInResult(
     case 'git:getRoot':
     case 'pty:get-cwd':
       return typeof result === 'string' ? translator.toClient(result) : result
+
+    case 'git-scaffold:healthCheck':
+    case 'git-scaffold:getRepoInfo':
+      if (!result || typeof result !== 'object' || Array.isArray(result)) return result
+      return translatePathField(result as Record<string, unknown>, 'gitRoot', (value) => translator.toClient(value))
 
     default:
       return result
