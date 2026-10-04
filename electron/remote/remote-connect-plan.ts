@@ -111,3 +111,36 @@ export function planRemoteConnect(input: {
 
   return { kind: 'connect', expectedFingerprint: expected }
 }
+
+/** The single module-level client slot `remote:connect` writes. */
+export interface RemoteClientSlot<C> {
+  client: C | null
+  profileId: string | null
+}
+
+/**
+ * T0430: settle the slot after a `connect` plan ran. The slot only changes on
+ * success (the candidate takes over, the previous client is disposed); a failed
+ * connect leaves the slot untouched and disposes the candidate, which may hold a
+ * live SSH tunnel whose `tunnel-down` would otherwise schedule reconnects. Every
+ * client either stays in the slot or is returned in `dispose` — none is dropped
+ * unreferenced while still connected or reconnecting.
+ */
+export function settleRemoteConnect<C>(input: {
+  slot: RemoteClientSlot<C>
+  candidate: C | null
+  candidateProfileId: string | null
+  ok: boolean
+}): { slot: RemoteClientSlot<C>; dispose: C[] } {
+  const { slot, candidate, candidateProfileId, ok } = input
+  if (ok && candidate) {
+    return {
+      slot: { client: candidate, profileId: candidateProfileId },
+      dispose: slot.client && slot.client !== candidate ? [slot.client] : [],
+    }
+  }
+  return {
+    slot,
+    dispose: candidate && candidate !== slot.client ? [candidate] : [],
+  }
+}

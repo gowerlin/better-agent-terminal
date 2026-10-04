@@ -86,7 +86,7 @@ import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
-import { planRemoteConnect, type RemoteConnectTarget } from './remote/remote-connect-plan'
+import { planRemoteConnect, settleRemoteConnect, type RemoteConnectTarget } from './remote/remote-connect-plan'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -2510,6 +2510,24 @@ function registerLocalHandlers() {
   // Remote client handlers
   ipcMain.handle('remote:connect', async (event, host: string, port: number, token: string, label?: string, fingerprint?: string) => {
     const task = remoteOpMutex.then(async () => {
+      let candidate: RemoteClient | null = null
+      // T0430: swap the slot only on success. A failed connect keeps the current
+      // client referenced and tears down the candidate (SSH tunnel, reconnect timer).
+      const settleSlot = async (ok: boolean, candidateProfileId: string | null) => {
+        const next = settleRemoteConnect({
+          slot: { client: remoteClient, profileId: remoteClientProfileId },
+          candidate,
+          candidateProfileId,
+          ok,
+        })
+        remoteClient = next.slot.client
+        remoteClientProfileId = next.slot.profileId
+        if (ok) {
+          for (const c of next.dispose) void c.disconnect().catch(() => { /* ignore */ })
+        } else {
+          await Promise.all(next.dispose.map(c => c.disconnect().catch(() => { /* ignore */ })))
+        }
+      }
       try {
         const senderWindowId = getWindowIdByWebContents(event.sender)
         const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
@@ -2534,20 +2552,18 @@ function registerLocalHandlers() {
           return { connected: true, fingerprint: plan.fingerprint }
         }
         const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(boundProfileId), boundProfile), boundProfileId)
+        candidate = client
         const result = await client.connect(host, port, token, label, plan.expectedFingerprint)
         if (!result.ok) {
-          remoteClient = null
-          remoteClientProfileId = null
+          logger.warn(`[remote:connect] connect failed for profile ${boundProfileId} (${host}:${port}) [${result.errorCode ?? 'unknown'}]; keeping current client`)
+          await settleSlot(false, boundProfileId)
           return { error: result.error || 'Connection failed (auth rejected or unreachable)', errorCode: result.errorCode, fingerprint: result.fingerprint }
         }
-        try { remoteClient?.disconnect() } catch { /* ignore */ }
-        remoteClient = client
-        remoteClientProfileId = boundProfileId
         remoteClientTargets.set(client, { host, port, token, fingerprint: result.fingerprint ?? '' })
+        await settleSlot(true, boundProfileId)
         return { connected: true, fingerprint: result.fingerprint }
       } catch (err: unknown) {
-        remoteClient = null
-        remoteClientProfileId = null
+        await settleSlot(false, null)
         return { error: err instanceof Error ? err.message : String(err) }
       }
     })

@@ -3,9 +3,12 @@
  * fresh client without a fingerprint (TOFU accepts any cert) and replace the
  * client main had already connected with the profile's pinned fingerprint.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   LEGACY_PROFILE_ERROR,
+  settleRemoteConnect,
   planRemoteConnect,
   type RemoteConnectBoundProfile,
   type RemoteConnectCurrent,
@@ -122,5 +125,78 @@ describe('planRemoteConnect — windows not bound to a remote profile keep the o
     const unbound = { ...verified, profileId: null }
     expect(planRemoteConnect({ request: { ...request, fingerprint: PIN }, boundProfileId: null, boundProfile: null, current: unbound }).kind)
       .toBe('connect')
+  })
+})
+
+// T0430: a failed `connect` used to null the slot without disconnecting the
+// previous client, leaving it connected / auto-reconnecting with no reference.
+interface FakeClient { name: string }
+const oldClient: FakeClient = { name: 'old' }
+const candidate: FakeClient = { name: 'candidate' }
+
+/** No client may be dropped: each one is either still in the slot or disposed. */
+function expectNoOrphans(
+  before: { client: FakeClient | null },
+  cand: FakeClient | null,
+  out: { slot: { client: FakeClient | null }; dispose: FakeClient[] },
+) {
+  for (const c of [before.client, cand]) {
+    if (!c) continue
+    expect(out.slot.client === c || out.dispose.includes(c)).toBe(true)
+  }
+  if (out.slot.client) expect(out.dispose).not.toContain(out.slot.client)
+}
+
+describe('settleRemoteConnect — slot swaps only on success (T0430)', () => {
+  const slot = { client: oldClient, profileId: 'q' }
+
+  it('failed connect keeps the current client and its profile, disposes the candidate', () => {
+    const out = settleRemoteConnect({ slot, candidate, candidateProfileId: 'p1', ok: false })
+    expect(out.slot).toEqual({ client: oldClient, profileId: 'q' })
+    expect(out.dispose).toEqual([candidate])
+    expectNoOrphans(slot, candidate, out)
+  })
+
+  it('failed connect with an empty slot still disposes the candidate', () => {
+    const empty = { client: null, profileId: null }
+    const out = settleRemoteConnect({ slot: empty, candidate, candidateProfileId: 'p1', ok: false })
+    expect(out.slot).toEqual(empty)
+    expect(out.dispose).toEqual([candidate])
+  })
+
+  it('a throw before the candidate exists changes nothing', () => {
+    const out = settleRemoteConnect<FakeClient>({ slot, candidate: null, candidateProfileId: null, ok: false })
+    expect(out).toEqual({ slot, dispose: [] })
+  })
+
+  it('successful connect installs the candidate and disposes the previous client', () => {
+    const out = settleRemoteConnect({ slot, candidate, candidateProfileId: 'p1', ok: true })
+    expect(out.slot).toEqual({ client: candidate, profileId: 'p1' })
+    expect(out.dispose).toEqual([oldClient])
+    expectNoOrphans(slot, candidate, out)
+  })
+
+  it('successful connect into an empty slot disposes nothing', () => {
+    const out = settleRemoteConnect({ slot: { client: null, profileId: null }, candidate, candidateProfileId: 'p1', ok: true })
+    expect(out).toEqual({ slot: { client: candidate, profileId: 'p1' }, dispose: [] })
+  })
+})
+
+describe('remote:connect handler wiring (T0430 source guard)', () => {
+  const src = readFileSync(resolve(__dirname, '../main.ts'), 'utf8')
+  const start = src.indexOf("ipcMain.handle('remote:connect'")
+  const handler = src.slice(start, src.indexOf("ipcMain.handle('remote:disconnect'", start))
+
+  it('never nulls the slot directly; every outcome goes through settleRemoteConnect', () => {
+    expect(start).toBeGreaterThan(-1)
+    expect(handler).not.toMatch(/remoteClient\s*=\s*null/)
+    expect(handler).not.toMatch(/remoteClientProfileId\s*=\s*null/)
+    expect(handler).toMatch(/settleRemoteConnect\(/)
+  })
+
+  it('the reject branch returns before touching the slot', () => {
+    const reject = handler.slice(handler.indexOf("plan.kind === 'reject'"), handler.indexOf("plan.kind === 'reuse'"))
+    expect(reject).toMatch(/return \{ error: plan\.error/)
+    expect(reject).not.toMatch(/settleSlot|remoteClient\s*=|remoteClientProfileId\s*=/)
   })
 })
