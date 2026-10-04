@@ -3,41 +3,35 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-04T20:48:06+08:00"
+generated_at: "2026-10-05T07:46:23+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 10
+total: 38
 breakdown:
   OPEN: 1
   FIXING: 0
-  FIXED: 3
+  FIXED: 17
   VERIFY: 0
-  CLOSED: 6
+  CLOSED: 20
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 04:51 (UTC+8) — 第五十四 session：BUG-105 → FIXED（T0416）
+> 最後同步：2026-10-05 07:45 (UTC+8) — 第五十五 session：BUG-096-100 / 106-113 → FIXED（D134 T0417-T0458）
 
 ## 統計
-- 🔴 Open: 7 | ⏳ Fixing: 0 | ✅ Fixed: 4 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 31**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 38**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-106 | `worktree:merge` 呼叫已移除的 `WorktreeManager.mergeWorktree`（3a470eb），本機與遠端皆 TypeError | 🟢 low | 2026-10-05 | [BUG-106](BUG-106-worktree-merge-calls-removed-method.md) |
-| BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告、preload / main 未實作 → SSH `start-server` 的 rollback 呼叫即拋錯 | 🟡 medium | 2026-10-05 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
-| BUG-099 | 設定精靈在失敗畫面按取消時，不會 rollback 正在失敗的步驟（只 rollback 已完成步驟） | 🟢 low | 2026-10-05 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
-| BUG-098 | SSH 精靈 direct 模式整條路徑不通：遠端 bat-server 固定綁 localhost、profile 固定寫 `remoteHost: localhost`、ssh config alias 不解析 HostName | 🟡 medium | 2026-10-05 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
-| BUG-097 | Docker 遠端：`-p` 未綁 host 127.0.0.1（全介面暴露）、container 內 bat-server 綁 127.0.0.1（推測連不上）、HEALTHCHECK `/health` 無路由 | 🔴 high | 2026-10-04 | [BUG-097](BUG-097-docker-server-port-exposed-and-unreachable.md) |
-| BUG-096 | `App.tsx` initProfile 的 `remote.connect` 不帶 fingerprint，以未 pin 驗證的新 client 取代 main 已驗證的連線 | 🟡 medium | 2026-10-04 | [BUG-096](BUG-096-app-remote-connect-without-fingerprint.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
 ## ⏳ 修復中 (FIXING)
@@ -50,6 +44,19 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-113 | Detached workspace 視窗顯示 Workspace not found（自 `512c118` 多視窗重構起 detach 失效）（T0453） | 🟡 medium | 2026-10-05 | [BUG-113](BUG-113-detached-workspace-not-found.md) |
+| BUG-112 | 從 remote profile 視窗 detach 出的 workspace 視窗路由視為本機（fail-open）（T0446） | 🔴 high | 2026-10-05 | [BUG-112](BUG-112-detached-workspace-window-remote-fail-open.md) |
+| BUG-111 | 設定精靈 rollback 會刪 / 停使用者自己的 Docker 容器與資料（T0444） | 🔴 high | 2026-10-05 | [BUG-111](BUG-111-wizard-rollback-touches-user-owned-resources.md) |
+| BUG-110 | 遠端 profile 視窗未連線時 proxied channel 靜默改在本機執行（fail-open）（T0443） | 🔴 high | 2026-10-05 | [BUG-110](BUG-110-remote-window-falls-back-to-local-handlers.md) |
+| BUG-109 | `/snippet` prompt 寫死 macOS `snippets.json` 路徑（T0441） | 🟢 low | 2026-10-05 | [BUG-109](BUG-109-snippet-prompt-hardcoded-macos-path.md) |
+| BUG-108 | Claude 面板圖片附件走 proxied 讀檔：本機工作區外圖片被 path guard 擋、遠端讀錯檔案系統（T0436） | 🟡 medium | 2026-10-05 | [BUG-108](BUG-108-image-attachment-read-path-denied.md) |
+| BUG-107 | Electron 41 拖放檔案取不到路徑（`File.path` 已移除）（T0435；須與 T0437 同版） | 🟡 medium | 2026-10-05 | [BUG-107](BUG-107-drag-drop-file-path-missing-electron41.md) |
+| BUG-106 | `worktree:merge` 呼叫已移除的 `WorktreeManager.mergeWorktree`（T0417，移除殘留） | 🟢 low | 2026-10-05 | [BUG-106](BUG-106-worktree-merge-calls-removed-method.md) |
+| BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告（T0426，實作 IPC） | 🟡 medium | 2026-10-05 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
+| BUG-099 | 設定精靈取消時不 rollback 失敗中的步驟（T0426） | 🟢 low | 2026-10-05 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
+| BUG-098 | SSH 精靈 direct 模式整條路徑不通（T0425，移除 direct） | 🟡 medium | 2026-10-05 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
+| BUG-097 | Docker 遠端埠全介面暴露、container 內 bind 不可達、HEALTHCHECK 無路由（T0418 / T0427 / T0428） | 🔴 high | 2026-10-05 | [BUG-097](BUG-097-docker-server-port-exposed-and-unreachable.md) |
+| BUG-096 | renderer 遠端重連不帶 fingerprint，以未 pin 連線取代已驗證連線（T0419 / T0430 / T0442） | 🟡 medium | 2026-10-05 | [BUG-096](BUG-096-app-remote-connect-without-fingerprint.md) |
 | BUG-105 | 遠端路徑轉換只涵蓋 fs / git(7) / pty / image：claude:*（cwd）、github:*、git-scaffold:*、worktree:create 不轉 | 🔴 high | 2026-10-05 | [BUG-105](BUG-105-proxied-channels-missing-path-translation.md) |
 | BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 | BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
