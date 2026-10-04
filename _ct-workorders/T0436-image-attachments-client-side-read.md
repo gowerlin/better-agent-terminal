@@ -175,6 +175,8 @@ memory_overrides:
 
 本單程式碼 + 測試 + 本工單 + BUG-108 同一個 commit（訊息含 `T0436`；`git log --grep T0436`）。SHA 補記於下行。
 
+- `6c26edc` fix(attachments): T0436 BUG-108 read panel image attachments on the client
+
 ### 回報時間
 
 2026-10-05T06:56:06+08:00（ct-done 補救；原 Worker 回報區寫於 06:07 左右）

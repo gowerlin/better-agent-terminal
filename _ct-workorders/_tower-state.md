@@ -328,6 +328,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [異常] 2026-10-05 07:35 — T0457 派發 6 分鐘仍 PENDING（> 3 分鐘門檻）；確認原 Worker 無活動（工單 07:28:58 後未動、`main.ts` 07:11、無 dirty 檔；分頁 `910bc8cf…` `terminal-created result=ok`）⇒ 第三次 Worker 未執行 `/ct-exec`（T0452 / T0436 / T0457）→ 重派（新分頁 `e7646fa7…`）。BAT 端 agent 未收到預載指令的疑似缺陷，收工時評估開 BUG
 - [完成] 2026-10-05 07:39 — T0457 DONE（`443ba4e`，重派後 17 s 啟動）塔台複核 PASS：只 http(s) `openExternal`、其他 scheme block、app URL 以 URL 解析比較（修 Windows 反斜線）、42 tests（TDD 紅→綠）、Worker 2633 passed / tsc 36
 - [斷點 C 裁決] 2026-10-05 07:39 — T0457 遭遇問題 2 升級：detached 視窗無導航守門 ⇒ 外部頁面可能在帶 preload 的視窗載入、取得 `window.electronAPI` → T0458（P1，先實測可否觸發）；遭遇問題 1（`shell:open-external` 對 `file:` 走 `openPath`，點擊本機 `.bat` 即執行，既有功能需使用者點擊）→ backlog，收工請使用者決定是否加確認對話框
+- [派發] 2026-10-05 07:39 — T0458（`--no-interactive`）
+- [完成] 2026-10-05 07:45 — T0458 DONE（`102d8e0`）塔台複核 PASS：**風險實測可觸發**——修正前 detached 視窗 `location.href` 導向外部頁，外部頁 `window.electronAPI` 存在；`installNavigationGuards` 套用主視窗 + detached（全部 2 個帶 preload 的視窗）、e2e 紅→綠、13 單元含「新 BrowserWindow 必須 guard」分類守門、Worker 2646 passed / tsc 36。**T0453（detach 修復）與 T0458 必須同版發佈**
+- [排程完成] 2026-10-05 07:45 — D134 排程表第 1-42 列全數 DONE（T0417-T0458，共 42 張）。開始最終聯合驗證
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 

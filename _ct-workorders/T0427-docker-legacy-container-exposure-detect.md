@@ -80,6 +80,8 @@ T0418 修正後，**新建**的 container 以 `-p 127.0.0.1:<port>:9876` 發布�
 
 **DONE**（source / unit test / typecheck lane PASS；runtime lane **未驗證**——本機 Docker daemon 未啟動）
 
+**Commit**：`89c538c`（`fix(docker): T0427 BUG-097 detect pre-fix containers exposed on all host interfaces`；10 檔，未 push。本行為 commit 後補記，未入該 commit）
+
 #### Landing Zone Check
 
 - **PASS** — C-0：frontmatter `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 PASS；C-3 testable entries 皆 present（informational）；C-2 無 `branch` 欄位
