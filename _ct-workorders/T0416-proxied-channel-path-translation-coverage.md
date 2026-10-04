@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0416
 title: "BUG-105：proxied channel 路徑轉換全面盤點——claude:* / github:* / git-scaffold:* / worktree:* 等補 path-aware schema，加守門測試要求每個 proxied channel 都有明確路徑分類"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-105
 priority: P1
 sizing: M
 created_at: "2026-10-05T04:37:14+08:00"
 started_at: "2026-10-05T04:38:22+08:00"
-updated_at: "2026-10-05T04:38:22+08:00"
+updated_at: "2026-10-05T04:47:53+08:00"
+completed_at: "2026-10-05T04:47:53+08:00"
 target_version: next
 depends_on:
   - T0405
@@ -43,7 +44,7 @@ memory_overrides:
 ## 元資料
 - **工單編號**：T0416
 - **任務名稱**：path-aware 覆蓋補齊 + 守門
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-10-05 04:37 (UTC+8)
 - **intervention_type**：context-dependent（需要時可問使用者一次：例如實機上工作區資料夾長什麼樣）
 
