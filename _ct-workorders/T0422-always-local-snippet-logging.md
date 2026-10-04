@@ -16,6 +16,7 @@ completed_at: null
 target_version: next
 depends_on:
   - T0417
+  - T0419
 related:
   - "T0386 建議清單 J（回報區約 :262）；PLAN-036 P3"
   - "T0416（全分類守門）/ T0406（PROXIED_EVENTS 分類守門）"
@@ -37,7 +38,8 @@ renew_count: 0
 workdir: main repo
 memory_overrides:
   - "🔴 **先確認語意**：以程式碼證據說明 always-local 對遠端 profile 視窗的實際效果（呼叫在本機 Electron 執行、不代理到 headless）。snippet 是**本機 DB 的使用者片段**、logging info / cleanup 是**本機 BAT 的 log**——確認這正是使用者在遠端視窗應該看到的行為（遠端視窗的設定頁「日誌」顯示本機 log 路徑）。若發現某個 channel 改 always-local 會讓遠端視窗功能變差，該 channel 不改並在回報區說明。"
-  - "🔴 依賴 T0417（同改分類表）。派發時 T0417 應已 commit；開工前 `git log --oneline -3` 確認。"
+  - "🔴 依賴 T0417（同改分類表，✅ `7609229`）與 T0419（同改 `electron/main.ts`，塔台 05:41 補）。開工前 `git log --oneline -5` 確認兩者皆已 commit。"
+  - "🔴 **共用檔 hunk 隔離**：T0423 可能平行碰 `electron/main.ts` / `headless-entry.ts`。commit 前 `git diff <file>` 確認只含本單 hunk；混有他人未 commit 改動時不要 commit 該檔（`git commit --only <file>` 會提交整個檔案），等對方 commit 或回報塔台。"
   - "🔴 同工作樹有其他 Worker 平行。`electron/main.ts` 只改相關註冊段。**只跑 `npm run test:unit` + `npx tsc --noEmit`；不跑 `npx vite build` / `npm run test:e2e`**（L141）。"
   - "🔴 **禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`**（L138）；`git commit --only`；不 push；不部署 WSL。"
 ---

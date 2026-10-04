@@ -226,7 +226,12 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 ### 當前 Session（2026-10-05 05:33 啟動，第五十五 session）
 
 - [啟動] 2026-10-05 05:33 — 使用者 `*config auto-session yolo`（**僅本 session**，未 `--save`），`yolo_max_retries: 1`；Worker 互動：允許（研究單 `--interactive`、實作單 `--no-interactive`）；排程依據 **D134 排程表**（T0417-T0426）
-- [派發] 2026-10-05 05:44 — 第一波 T0417 ∥ T0418 ∥ T0419 ∥ T0420（research）∥ T0421（research）；overlap check：僅 `electron/__tests__/` 目錄層重疊（WARN，接受）
+- [派發] 2026-10-05 05:38 — 第一波（5 個 Worker 分頁 exit 0） T0417 ∥ T0418 ∥ T0419 ∥ T0420（research）∥ T0421（research）；overlap check：僅 `electron/__tests__/` 目錄層重疊（WARN，接受）
+- [完成] 2026-10-05 05:41 — T0417 DONE（`7609229`）塔台複核 PASS：9 檔、1867 tests、tsc 40；BUG-106 → FIXED
+- [調整] 2026-10-05 05:41 — T0422 加依賴 T0419（同改 `electron/main.ts`，`git commit --only` 會整檔提交）；T0422 / T0423 補「共用檔 hunk 隔離」條款
+- [派發] 2026-10-05 05:41 — T0423（`--no-interactive`）；T0422 待 T0419
+- [完成] 2026-10-05 05:44 — T0418 DONE（`b17b0ba`）塔台複核 PASS：7 檔、Worker 1889 tests / tsc 40；BUG-097 → FIXED；runtime lane 未驗證（本機 Docker daemon 未啟動）。範圍偏差接受：`scripts/verify-docker-image.mjs`（耦合契約）、`ENV BAT_PORT`→`BAT_SERVER_PORT`、wizard `waitForHealthy` 5s→45s
+- [斷點 C] 2026-10-05 05:44 — T0418 建議另開：docs `/health` 過時說明、既有 container 仍為全介面 publish 的偵測 / 重建引導；T0418 無下游，不阻擋其他派發
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 

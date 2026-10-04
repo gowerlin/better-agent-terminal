@@ -1378,7 +1378,7 @@
 | 3 | T0419 BUG-096 renderer 遠端重連帶 fingerprint / 重用已驗證 client | 本專案 | — | S | 🟢 |
 | 4 | T0420 研究：K 遠端 Tower 通知（helper / token 注入設計） | 本專案 | — | M | 🟡 |
 | 5 | T0421 研究：自由文字中的 client 路徑轉換 | 本專案 | — | M | 🟡 |
-| 6 | T0422 J always-local 改分類（snippet / logging） | 本專案 | T0417 | S | 🟢 |
+| 6 | T0422 J always-local 改分類（snippet / logging） | 本專案 | T0417, T0419 | S | 🟢 |
 | 7 | T0423 headless git / gh 子行程 `BAT_*` scrub | 本專案 | T0417 | S | 🟢 |
 | 8 | T0424 遠端 PTY 達上限 UI 提示 | 本專案 | T0419 | S | 🟢 |
 | 9 | T0425 BUG-098 移除 SSH direct 模式 | 本專案 | T0424 | S | 🟢 |
