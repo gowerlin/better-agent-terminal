@@ -8,7 +8,7 @@ status: TODO
 priority: P1
 sizing: M
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-05T00:20:00+08:00"
+updated_at: "2026-10-05T00:17:21+08:00"
 started_at: null
 completed_at: null
 target_version: next

@@ -6,7 +6,7 @@ title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），�
 status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-05T00:20:00+08:00"
+updated_at: "2026-10-05T00:17:21+08:00"
 links:
   research_workorder: T0386
   p0_workorders: [T0388, T0389, T0390, T0391, T0393]
@@ -58,17 +58,17 @@ T0385（BUG-094）盤點證實：headless bat-server（WSL / SSH / Docker 遠端
 
 | 工單 | 內容 | 依賴 | 狀態 |
 |---|---|---|---|
-| T0388 | 共用骨架 `electron/handlers/types.ts` + channel parity test + electron-free guard + vitest headless harness | — | ✅ DONE（`694771c`，00:20 複驗） |
+| T0388 | 共用骨架 `electron/handlers/types.ts` + channel parity test + electron-free guard + vitest headless harness | — | ✅ DONE（`694771c`，00:17 複驗） |
 | T0389 | claude-runtime-router 設定注入 + embedded resolver 合一（bundle `bin/claude`）+ PtyManager DI | T0387（`main.ts`） | 執行中（00:04 派發） |
 | T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | 排隊 |
-| T0391 | `scripts/dev-deploy-headless.mjs`（JS-only 部署到 WSL / dir，dry-run 預設） | — | ✅ DONE（`f102a55`，00:20 複驗；`npm run deploy:headless:dev`） |
+| T0391 | `scripts/dev-deploy-headless.mjs`（JS-only 部署到 WSL / dir，dry-run 預設） | — | ✅ DONE（`f102a55`，00:17 複驗；`npm run deploy:headless:dev`） |
 | T0393 | 遠端視窗 shell 清單依遠端 OS 過濾 + WSL 工作區資料夾挑選預設 WSL home、`/mnt/c` 提示（使用者 2026-10-05 00:02 實機回報後裁決納入 P0） | T0390 | 排隊 |
 
 P0 可用定義：WSL profile 開出視窗 → 預設終端出現 bash prompt → 輸入 / resize / kill / restart / cwd 正確 → 關閉 BAT 重開後同 id 終端不重複 spawn → 設定可選 bash、新增工作區預設開在 WSL home（T0393）。
 
 P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 
-## P0 進度備註（2026-10-05 00:20）
+## P0 進度備註（2026-10-05 00:17）
 
 - T0388：`HEADLESS_UNSUPPORTED` 初始 96（P0 7 / P1 43 / P2 30 / P3 16）+ headless 已支援 8 + ALWAYS_LOCAL 2 = `PROXIED_CHANNELS` 106；parity / electron-free 守門皆做負向驗證
 - T0391：`npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04`（預設 dry-run，`--yes` 寫入並 `.bak-<tag>` 備份，`--rollback` 還原）；WSL `--yes` + restart 段未實機（工單禁令），P0 實機驗收時首次使用
