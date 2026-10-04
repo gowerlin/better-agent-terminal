@@ -490,6 +490,7 @@
     "removeFile": "移除文件",
     "addFile": "附加文件",
     "attachFiles": "附加文件（最多 10 个）",
+    "attachmentNotOnRemoteHost": "此文件不在远程主机上，未附加：{{files}}",
     "effortLevel": "投入程度",
     "switchToV2": "升级至 V2",
     "switchToV1": "降级至 V1",

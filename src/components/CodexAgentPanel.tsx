@@ -17,6 +17,8 @@ import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { classifyCodexError } from '../lib/codex-error-classify'
 import { droppedImageKey, readFileAsDataUrl } from '../lib/image-attachment'
+import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-paths'
+import { CtToast, useCtToast } from './CtToast'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { getModelPricing, type ModelPricing } from '../lib/model-pricing'
 
@@ -138,6 +140,7 @@ function codexEffortForModel(model: ModelInfo | undefined, current: string): str
 
 export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose, isRemoteConnected, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<CodexAgentPanelProps>) {
   const { t } = useTranslation()
+  const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
   const isRemoteConnectedRef = useRef(!!isRemoteConnected)
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isCodexSession = true
@@ -1774,8 +1777,17 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       }
     }
 
+    // T0437 (BUG-105): attachments go out in the agent host's form; files it cannot read are
+    // dropped with a notice (SSH: every local file; WSL / Docker: outside the distro / mounts).
+    const { serverPaths: filePaths, rejected } = await resolveAttachmentPaths(attachedFiles.map(f => f.path))
+    if (rejected.length > 0) {
+      addNoticeToast(t('claude.attachmentNotOnRemoteHost', { files: attachmentDisplayNames(rejected) }), 'warning', 8000)
+      if (!trimmed && attachedImages.length === 0 && filePaths.length === 0) {
+        setAttachedFiles(prev => prev.filter(f => !rejected.includes(f.path)))
+        return
+      }
+    }
     const imageDataUrls = attachedImages.map(i => i.dataUrl)
-    const filePaths = attachedFiles.map(f => f.path)
     clearInput()
     setAttachedImages([])
     setAttachedFiles([])
@@ -1817,7 +1829,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     }
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
-  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput])
+  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast])
 
   const handleInterrupt = useCallback(() => {
     if (!isStreaming) return
@@ -3187,6 +3199,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      <CtToast messages={noticeToasts} onDismiss={dismissNoticeToast} />
       {cacheCountdown && (() => {
         const fmtMin = (ms: number) => {
           if (ms <= 0) return t('settings.cacheAlarmExpired')

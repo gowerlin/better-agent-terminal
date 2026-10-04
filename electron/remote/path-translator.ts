@@ -9,6 +9,11 @@ import {
   type DockerMount,
 } from '../../src/utils/docker-path'
 import { winToWsl, wslToWin } from '../../src/utils/wsl-path'
+import {
+  CLIENT_PATH_PURPOSES,
+  type ClientPathUnreachableReason,
+  type ResolvedClientPath,
+} from '../../src/lib/client-paths'
 
 export interface PathTranslator {
   /** Client-side absolute path -> server-side absolute path before IPC. */
@@ -201,6 +206,71 @@ export function runContract(
       })
     }
   })
+}
+
+/**
+ * T0437 (BUG-105): can the window's host read each client path, and under which path?
+ * Rules only — nothing is probed on the remote host (the headless fs sandbox denies
+ * paths outside the workspace roots anyway, T0421 §2):
+ *   - Identity (local window): always, unchanged
+ *   - WSL: only what `owns()` claims (drives, this distro's UNC); another distro's UNC
+ *     or a network share is not reachable
+ *   - Docker: only inside a bind mount
+ *   - SSH: a `local-file` never is (T0421 Q1: the home mapping is a workspace-path
+ *     convention, not proof the remote has that file)
+ * `workspace-entry` paths are server files in client form (from `toClient`), so `toServer`
+ * maps them back on every translator. `translator === null` (no usable translator for a
+ * remote window) rejects everything.
+ */
+export function resolveClientPaths(
+  translator: PathTranslator | null,
+  paths: unknown,
+  purpose: unknown,
+): ResolvedClientPath[] {
+  if (!Array.isArray(paths)) throw new Error('remote:resolve-client-paths: paths must be an array')
+  if (!(CLIENT_PATH_PURPOSES as readonly unknown[]).includes(purpose)) {
+    throw new Error(`remote:resolve-client-paths: unknown purpose ${JSON.stringify(purpose)}`)
+  }
+  return paths.map((input): ResolvedClientPath => {
+    if (typeof input !== 'string' || !input) return unreachable(typeof input === 'string' ? input : '', 'invalid-path')
+    if (!translator) return unreachable(input, 'no-translator')
+    if (purpose === 'workspace-entry' || translator instanceof IdentityTranslator) {
+      return { input, serverPath: translator.toServer(input), reachable: true }
+    }
+    if (translator instanceof SshPathTranslator) return unreachable(input, 'ssh-local-file')
+    if (!translator.owns(input)) {
+      return unreachable(input, translator instanceof DockerPathTranslator ? 'outside-docker-mounts' : 'outside-wsl-distro')
+    }
+    return { input, serverPath: translator.toServer(input), reachable: true }
+  })
+}
+
+function unreachable(input: string, reason: ClientPathUnreachableReason): ResolvedClientPath {
+  return { input, serverPath: null, reachable: false, reason }
+}
+
+/**
+ * T0437: the translator a remote-profile window's client paths resolve with. The live
+ * connection's (`liveTranslator`, what proxied invokes use) when this window's profile
+ * owns the connection, otherwise one built from the profile. A profile that needs a
+ * mapping (WSL / Docker / SSH) but only has Identity (the RemoteClient fallback before
+ * auth or for an incomplete profile) gets null: a client path must not pass as reachable
+ * unchanged.
+ */
+export function clientPathTranslatorForProfile(
+  profile: ProfileEntry,
+  liveTranslator: PathTranslator | null,
+): PathTranslator | null {
+  let translator = liveTranslator
+  if (!translator) {
+    try {
+      translator = createTranslator(profile)
+    } catch {
+      return null
+    }
+  }
+  const needsMapping = profile.targetOS !== undefined && profile.targetOS !== 'local'
+  return needsMapping && translator instanceof IdentityTranslator ? null : translator
 }
 
 export function createTranslator(profile: ProfileEntry): PathTranslator {

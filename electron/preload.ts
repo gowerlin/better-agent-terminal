@@ -14,6 +14,7 @@ import type {
 } from '../src/types/voice'
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from '../src/types/remote-tools'
+import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -656,6 +657,9 @@ const electronAPI = {
       ipcRenderer.on('remote:invoke-refused', handler)
       return () => ipcRenderer.removeListener('remote:invoke-refused', handler)
     },
+    // T0437 (BUG-105): ALWAYS_LOCAL — this window's host form of client paths (local window: unchanged).
+    resolveClientPaths: (paths: string[], purpose: ClientPathPurpose) =>
+      ipcRenderer.invoke('remote:resolve-client-paths', paths, purpose) as Promise<ResolvedClientPath[]>,
     testConnection: (host: string, port: number, token: string, fingerprint?: string) =>
       ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: { serverPlatform: 'win32' | 'linux' | 'darwin'; serverArch: 'x64' | 'arm64'; serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'; wslDistro?: string; dockerMounts?: Array<{ host: string; container: string }>; serverHome?: string; nodeVersion: string; claudeVersion?: string; bundleVersion: string; glibcVersion?: string } | null }>,
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) =>

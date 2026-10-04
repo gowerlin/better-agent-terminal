@@ -88,6 +88,7 @@ import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
+import { clientPathTranslatorForProfile, IdentityTranslator, resolveClientPaths, type PathTranslator } from './remote/path-translator'
 import { detachedSenderRouteIdentity, formatRemoteNotConnectedError, isRemoteFingerprintChange, planProxiedInvokeRoute, planRemoteConnect, planRemoteStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, settleRemoteConnect, shouldDropClientOnProfileUpdate, type DetachedWindowRecord, type RemoteConnectTarget, type RemoteSlotState, type SenderProfileBinding } from './remote/remote-connect-plan'
 import {
   classifyConnectFailure,
@@ -2178,6 +2179,13 @@ function registerProxiedHandlers() {
   registerHandler('snippet:getFavorites', (_ctx) => snippetDb.getFavorites())
   registerHandler('snippet:getByWorkspace', (_ctx, workspaceId?: string) => snippetDb.getByWorkspace(workspaceId))
 
+  // T0437 (BUG-105): attachment paths → the window's host form (ALWAYS_LOCAL; a detached
+  // window is routed in bindProxiedHandlersToIpc, its windowId is null here).
+  registerHandler('remote:resolve-client-paths', async (ctx, paths: unknown, purpose: unknown) => {
+    const profileId = ctx.windowId ? (await windowRegistry.getEntry(ctx.windowId))?.profileId ?? null : null
+    return resolveClientPaths(await clientPathTranslatorForBinding({ kind: 'bound', profileId }, 'local'), paths, purpose)
+  })
+
   // Profile (subset exposed to remote clients)
   registerHandler('profile:list', (_ctx) => profileManager.list())
   // Local-only profile list (never proxied to remote). Used by the renderer
@@ -2223,6 +2231,32 @@ async function invokeDetachedWorkspacePersistence(channel: string, workspaceId: 
   return data
 }
 
+/**
+ * T0437 (BUG-105): the translator deciding which client paths a sender's host can read.
+ * Unbound / local profile → Identity. A remote profile → the live connection's translator
+ * when the slot serves it, otherwise one built from the profile (null = reject all).
+ * `missingProfile`: a registry window whose profile is gone routes locally ('local'); a
+ * detached window in that state is refused ('refuse'), so it resolves nothing.
+ */
+async function clientPathTranslatorForBinding(
+  binding: SenderProfileBinding,
+  missingProfile: 'local' | 'refuse',
+): Promise<PathTranslator | null> {
+  if (binding.kind === 'unresolved') return null
+  if (!binding.profileId) return new IdentityTranslator()
+  const profile = await profileManager.getProfile(binding.profileId).catch(() => null)
+  if (!profile) return missingProfile === 'local' ? new IdentityTranslator() : null
+  if (profile.type !== 'remote') return new IdentityTranslator()
+  const live = remoteClient && remoteClientProfileId === profile.id ? remoteClient.pathTranslator : null
+  return clientPathTranslatorForProfile(profile, live)
+}
+
+/** T0437: `remote:resolve-client-paths` from a detached workspace window — its parent's profile. */
+async function resolveDetachedClientPaths(workspaceId: string, args: unknown[]): Promise<unknown> {
+  const translator = await clientPathTranslatorForBinding(await resolveDetachedBinding(workspaceId), 'refuse')
+  return resolveClientPaths(translator, args[0], args[1])
+}
+
 function bindProxiedHandlersToIpc() {
   for (const channel of PROXIED_CHANNELS) {
     ipcMain.handle(channel, async (event, ...args: unknown[]) => {
@@ -2232,6 +2266,12 @@ function bindProxiedHandlersToIpc() {
       if (!windowId && DETACHED_WORKSPACE_CHANNELS.has(channel)) {
         const detachedWorkspaceId = getDetachedWorkspaceIdByWebContents(event.sender)
         if (detachedWorkspaceId !== null) return invokeDetachedWorkspacePersistence(channel, detachedWorkspaceId)
+      }
+
+      // T0437: a detached workspace window resolves attachment paths as its parent's profile.
+      if (!windowId && channel === 'remote:resolve-client-paths') {
+        const detachedWorkspaceId = getDetachedWorkspaceIdByWebContents(event.sender)
+        if (detachedWorkspaceId !== null) return resolveDetachedClientPaths(detachedWorkspaceId, args)
       }
 
       // ALWAYS_LOCAL channels never proxy.

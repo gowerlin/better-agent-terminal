@@ -490,6 +490,7 @@
     "removeFile": "Remove file",
     "addFile": "Attach file",
     "attachFiles": "Attach files (max 10)",
+    "attachmentNotOnRemoteHost": "Not on the remote host, not attached: {{files}}",
     "effortLevel": "Effort level",
     "switchToV2": "Upgrade to V2",
     "switchToV1": "Downgrade to V1",

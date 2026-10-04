@@ -18,6 +18,8 @@ import { classifyClaudeError } from '../lib/claude-error-classify'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { droppedImageKey, readFileAsDataUrl } from '../lib/image-attachment'
+import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-paths'
+import { CtToast, useCtToast } from './CtToast'
 import { getModelPricing } from '../lib/model-pricing'
 import {
   CLAUDE_OPEN_LOGIN_TERMINAL_EVENT,
@@ -125,6 +127,7 @@ const startedSessions = new Set<string>()
 
 export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemoteConnected, showUserMsg = true, showAssistantMsg = true, showToolMsg = true, showThinkingMsg = true }: Readonly<ClaudeAgentPanelProps>) {
   const { t } = useTranslation()
+  const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
   const isRemoteConnectedRef = useRef(!!isRemoteConnected)
   // Determine if this is a V2 session based on agentPreset
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
@@ -1459,8 +1462,17 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       return
     }
 
+    // T0437 (BUG-105): attachments go out in the agent host's form; files it cannot read are
+    // dropped with a notice (SSH: every local file; WSL / Docker: outside the distro / mounts).
+    const { serverPaths: filePaths, rejected } = await resolveAttachmentPaths(attachedFiles.map(f => f.path))
+    if (rejected.length > 0) {
+      addNoticeToast(t('claude.attachmentNotOnRemoteHost', { files: attachmentDisplayNames(rejected) }), 'warning', 8000)
+      if (!trimmed && attachedImages.length === 0 && filePaths.length === 0) {
+        setAttachedFiles(prev => prev.filter(f => !rejected.includes(f.path)))
+        return
+      }
+    }
     const imageDataUrls = attachedImages.map(i => i.dataUrl)
-    const filePaths = attachedFiles.map(f => f.path)
     clearInput()
     setAttachedImages([])
     setAttachedFiles([])
@@ -1503,7 +1515,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
       .catch(showRemoteUnsupported)
-  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput])
+  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast])
 
   const handleInterrupt = useCallback(() => {
     if (!isStreaming) return
@@ -2874,6 +2886,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      <CtToast messages={noticeToasts} onDismiss={dismissNoticeToast} />
       {cacheCountdown && (() => {
         const fmtMin = (ms: number) => {
           if (ms <= 0) return t('settings.cacheAlarmExpired') || 'expired'

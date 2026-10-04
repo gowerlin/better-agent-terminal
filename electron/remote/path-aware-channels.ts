@@ -160,6 +160,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:notify', '{ targetId, message, source }'],
   ['terminal:keypress', '{ targetId, key, code, ... }'],
   ['remote-tools:detect', 'no args (result lists server install paths)'],
+  ['remote:resolve-client-paths', 'ALWAYS_LOCAL (never proxied); client paths are the input, the handler applies the window translator itself'],
 ])
 
 /** Server -> Client channels whose results contain absolute paths to rewrite. */

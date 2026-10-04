@@ -38,6 +38,9 @@ export const ALWAYS_LOCAL_CHANNELS: ReadonlySet<string> = new Set([
   'snippet:getAll', 'snippet:getById', 'snippet:create', 'snippet:update', 'snippet:delete',
   'snippet:toggleFavorite', 'snippet:search', 'snippet:getCategories', 'snippet:getFavorites',
   'snippet:getByWorkspace',
+  // T0437 (BUG-105): reachability of this machine's files from the window's host; the
+  // translator lives in this main process, the remote host has nothing to answer with.
+  'remote:resolve-client-paths',
 ])
 
 /**

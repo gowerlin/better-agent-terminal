@@ -178,6 +178,11 @@ export class RemoteClient {
     this.translator = translator
   }
 
+  /** T0437: the translator proxied invokes use right now (Identity before auth). */
+  get pathTranslator(): PathTranslator {
+    return this.translator
+  }
+
   /** T0406: source of this connection's workspace roots; null stops pushing. */
   setWorkspaceRootsProvider(provider: WorkspaceRootsProvider | null): void {
     this.workspaceRootsProvider = provider
