@@ -140,6 +140,51 @@ and exercised by the cross-deployment rollback test suite:
 The user can also re-run the wizard at any time; the rollback chain ensures
 the previous failed install does not leak state into the next attempt.
 
+## Dev deploy of headless server JS (contributors)
+
+The server inside WSL / SSH targets comes from the **baseline tarball**
+(GitHub Release `server-bundle-v<version>`), so a local BAT build does **not**
+carry local changes to `electron/remote/*` into the target. To test a headless
+change without rebuilding the tarball, `npm run deploy:headless:dev` rebuilds
+only the server JS and copies it into an existing install root. Native modules
+in the install root are left untouched.
+
+```bash
+# Dry-run (default): build, then list each file with built / installed sha256
+npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04
+
+# Write: back up each file to <file>.bak-<tag>, copy, restart bat-server,
+# then print is-active, LISTEN sockets and the journal tail
+npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --yes --expect-string MY_MARKER
+
+# Restore the originals from the backups (also needs --yes)
+npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --rollback --yes
+
+# Local install root (no service restart)
+npm run deploy:headless:dev -- --target dir:/path/to/bat-server --yes
+```
+
+| Option | Meaning |
+|--------|---------|
+| `--target wsl:<distro>` / `dir:<path>` | Where to deploy. WSL install root defaults to `~/.local/bat-server` (`--install-root` overrides). Distro must match `[A-Za-z0-9._-]+`. |
+| `--yes` | Actually write. Without it nothing in the install root is touched. |
+| `--tag <name>` | Backup suffix (default `dev`). The **first** deploy for a tag records the original (`.bak-<tag>`, or a `.bak-<tag>.absent` marker for files that did not exist); later deploys never overwrite it. |
+| `--rollback` | Restore from `.bak-<tag>` (and remove files that only exist because of the deploy). |
+| `--no-restart` | WSL only: skip `systemctl --user restart bat-server`. |
+| `--expect-string <text>` | Report whether a marker is present in the built and deployed JS (repeatable; exit code 2 if missing). |
+
+- esbuild entry points, externals and options are **parsed from**
+  `scripts/build-server-bundle.mjs` (never hand-copied); the tool fails fast if
+  that script's shape changes.
+- WSL commands run as a generated bash script file via
+  `wsl.exe -d <distro> --exec bash <file>`, which avoids `$` escaping problems of
+  `wsl.exe -- bash -c '...'` from PowerShell.
+- Staging output lands in `dist-server/dev-deploy-headless/` (gitignored).
+
+> ⚠️ **Re-running the WSL setup wizard reinstalls the baseline bundle and
+> overwrites a dev deploy.** Run the tool again afterwards if you still need the
+> local JS.
+
 ## Troubleshooting (cross-cutting)
 
 For environment-specific troubleshooting see the per-env guides. The issues

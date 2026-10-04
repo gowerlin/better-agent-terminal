@@ -27,6 +27,8 @@ export default defineConfig({
       'tests/bat-notify-submit.test.mjs',
       // T0360 / BUG-082 — work order ID grammar + --workspace hint guard
       'tests/bat-terminal-workorder-id.test.mjs',
+      // T0391 — dev-deploy-headless tool (arg parsing / build-config parse / dry-run)
+      'scripts/__tests__/**/*.test.mjs',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'dist-electron/**', 'release/**'],
   },
