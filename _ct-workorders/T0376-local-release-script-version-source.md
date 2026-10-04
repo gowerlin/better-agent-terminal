@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0376
 title: "本地打包腳本版號來源修正：預設取 package.json、保留 -pre 後綴、不留 dirty、補齊 build 前置檢查"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P2
 sizing: S
 created_at: "2026-10-04T20:39:03+08:00"
-updated_at: "2026-10-04T20:41:35+08:00"
+updated_at: "2026-10-04T20:45:30+08:00"
 started_at: "2026-10-04T20:41:35+08:00"
-completed_at: null
+completed_at: "2026-10-04T20:45:30+08:00"
 target_version: next
 depends_on: []
 related:
@@ -158,4 +158,5 @@ memory_overrides:
 
 ### Commit
 
-見下方 commit 紀錄。
+- `efb5717` fix(release): T0376 ...（`git commit --only`：release.ps1 / build-version.js / 新測試檔 / 本工單；未 push、未打 tag；並行 T0377 dirty 檔未碰）
+- 本行回填與 status 收尾為後續 chore commit
