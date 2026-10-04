@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0410
 title: "PLAN-037 D：RemoteToolsPanel + InstallConfirmDialog + i18n（API 以注入方式取得，先不接 preload）"
 type: impl
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-037
 priority: P2
 sizing: M
 created_at: "2026-10-05T03:10:44+08:00"
 started_at: "2026-10-05T03:12:18+08:00"
-updated_at: "2026-10-05T03:12:18+08:00"
+updated_at: "2026-10-05T03:20:56+08:00"
+completed_at: "2026-10-05T03:20:56+08:00"
 target_version: next
 depends_on:
   - T0408
@@ -45,7 +46,7 @@ memory_overrides:
 ## 元資料
 - **工單編號**：T0410
 - **任務名稱**：remote-tools 面板 UI
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **建立時間**：2026-10-05 03:10 (UTC+8)
 - **intervention_type**：fire-and-forget
 
@@ -98,6 +99,7 @@ DONE —— 5 項驗收全部 PASS（純 UI，未接 preload、未放進任何�
 - C-2：工單未指定 branch；實際在 `main`
 - `BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅作紀錄）
 - 執行環境：`CT_MODE=on`、`CT_INTERACTIVE=0`
+- Commit：`8a17984`（產品碼 + 測試 + locales + 本工單回報）
 
 **驗收**
 
