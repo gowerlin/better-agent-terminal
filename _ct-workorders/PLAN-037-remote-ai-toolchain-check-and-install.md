@@ -59,8 +59,8 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 | T0409 | C | 安裝食譜 + 完成標記 + host 白名單 | T0407 | ✅ DONE（`ce27a82`，03:04 複驗 38/38；剩餘風險列入 T0414：`curl \| sh` 管線 `$?`、gh rpm GPG 自動匯入、RHEL rg 需 EPEL） |
 | T0410 | D | `RemoteToolsPanel` + `InstallConfirmDialog` + i18n | T0408、T0409 | ✅ DONE（`8a17984`，03:22 與 T0411 聯合複驗 PASS） |
 | T0411 | B | headless / main 接線：`remote-tools:detect` + `remote:detect-tools` + smoke S10（🔒 main / protocol / headless-entry） | T0408 | ✅ DONE（`49b1ca5`，03:22 聯合複驗：1514 tests / vite / e2e 0 failed / tsc 40；preload `remoteTools.detect(profileId)` / `detectHere()`；WSL 部署 + S10 待辦） |
-| T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | 保留編號 |
-| T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | 保留編號 |
+| T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | 🔄 03:24 派發（與 T0413 平行） |
+| T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | 🔄 03:24 派發 |
 | T0414 | G | 實機驗收（首次允許實際安裝） | T0411-T0413 | 保留編號 |
 
 之後才是 PLAN-036 T0405（git 上遠端）→ T0406（fs）。
@@ -69,3 +69,5 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 - 波次調整（塔台 03:10）：T0410 與 T0411 檔案完全不重疊（UI vs electron 接線），改為平行；T0410 不跑 vite build 避免與 T0411 互相覆寫輸出
 - T0408 備註：從 Windows 經 `wsl.exe` 跑多行 probe 必須用 `--exec`（`--` 會經預設 shell 重新解析而吃掉參數）
 - T0410 UX 小注：確認框的確認鈕與列上「安裝」同文案，T0414 實機時評估是否改「確認安裝」
+- WSL server 03:23 重新部署 HEAD `e7b346e`（T0411；備份 tag `t0411`），smoke **10/10 PASS**：S10 `ubuntu 24.04 pkg=apt priv=passwordless wsl=true`、git / curl / bash / python3 ok，claude / gh / codex / rg / uv / node missing。註：server 端 probe 的 codex 為 `missing`（不是 interop-only）——systemd 服務環境沒有 WSL interop 附加的 `/mnt/*` PATH，與 BAT 遠端終端（同由 server spawn）的實際可見性一致
+- T0412 / T0413 API 契約（塔台 03:23 定）：`remoteTools.requestInstall({ profileId, toolId, kind })`，只帶 toolId + kind，遠端視窗自行重建指令
