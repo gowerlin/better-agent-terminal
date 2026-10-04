@@ -52,7 +52,12 @@ interface HelperConnection {
   terminalId: string
   role: HelperCapabilityRole
   connectionId: string
+  /** T0451 (T0445 #9): answered the last heartbeat ping (or just authenticated). */
+  alive: boolean
 }
+
+/** T0451: what `acceptHelper` made of a capability auth. */
+type HelperAcceptResult = 'accepted' | 'rejected' | 'connection-limit' | 'throttled'
 
 export interface StartServerResult {
   port: number
@@ -98,6 +103,8 @@ interface RemoteServerOptions {
   getPtyCapacity?: () => HelperPtyCapacity | null
   /** T0450: the tower creation quota (tests inject a clock). Default: a fresh one per server. */
   helperSpawnQuota?: HelperTowerSpawnQuota
+  /** T0451: heartbeat period (tests shorten it). Default `HEARTBEAT_INTERVAL_MS`. */
+  heartbeatIntervalMs?: number
 }
 
 const TOKEN_FILENAME = 'server-token.json'
@@ -106,6 +113,76 @@ export const AUTH_FAIL_WINDOW_MS = 60_000
 export const AUTH_FAIL_THRESHOLD = 5
 export const AUTH_BAN_DURATION_MS = 10 * 60_000
 const WS_MAX_PAYLOAD_BYTES = 32 * 1024 * 1024
+export const HEARTBEAT_INTERVAL_MS = 30_000
+
+/** T0451 (T0445 #9): the most of a helper's `channel` a denial log line carries. */
+export const HELPER_LOG_CHANNEL_MAX_CHARS = 64
+/** T0451: simultaneous connections one capability may hold. */
+export const HELPER_MAX_CONNECTIONS_PER_CAPABILITY = 4
+/**
+ * T0451: denials one capability may collect within `HELPER_DENIAL_WINDOW_MS`. Past it the
+ * connection is terminated and the capability refused (silently) until the window ends.
+ */
+export const HELPER_DENIAL_THRESHOLD = 30
+export const HELPER_DENIAL_WINDOW_MS = 60_000
+
+const LOG_UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\\]/g
+
+function escapeLogChar(ch: string): string {
+  if (ch === '\\') return '\\\\'
+  if (ch === '\n') return '\\n'
+  if (ch === '\r') return '\\r'
+  if (ch === '\t') return '\\t'
+  const code = ch.charCodeAt(0)
+  return code <= 0xff ? `\\x${code.toString(16).padStart(2, '0')}` : `\\u${code.toString(16).padStart(4, '0')}`
+}
+
+/**
+ * T0451 (T0445 #9): a helper's `channel` as a single log-safe token. Non-strings are named by
+ * type only (the value is never logged); strings are cut to `HELPER_LOG_CHANNEL_MAX_CHARS`
+ * and control characters / line separators / backslashes are escaped, so a channel cannot
+ * forge a log line or carry a 32 MiB payload into the log.
+ */
+export function formatLogChannel(channel: unknown): string {
+  if (typeof channel !== 'string') {
+    return `<${channel === null ? 'null' : Array.isArray(channel) ? 'array' : typeof channel}>`
+  }
+  let end = Math.min(channel.length, HELPER_LOG_CHANNEL_MAX_CHARS)
+  // Do not split a surrogate pair.
+  if (end < channel.length && /[\ud800-\udbff]/.test(channel.charAt(end - 1))) end--
+  const shown = channel.slice(0, end).replace(LOG_UNSAFE_CHARS, escapeLogChar)
+  return end < channel.length ? `${shown}…(+${channel.length - end} chars)` : shown
+}
+
+/** T0451: counts one helper denial for `key`; returns the count within the current window. */
+export function recordHelperDenial(
+  store: Map<string, AuthFailureEntry>,
+  key: string,
+  now: number
+): number {
+  const existing = store.get(key)
+  if (!existing || now - existing.firstFailAt > HELPER_DENIAL_WINDOW_MS) {
+    store.set(key, { count: 1, firstFailAt: now })
+    return 1
+  }
+  existing.count += 1
+  return existing.count
+}
+
+/** T0451: whether `key` is past the denial threshold within the current window. */
+export function isHelperThrottled(
+  store: Map<string, AuthFailureEntry>,
+  key: string,
+  now: number
+): boolean {
+  const entry = store.get(key)
+  if (!entry) return false
+  if (now - entry.firstFailAt > HELPER_DENIAL_WINDOW_MS) {
+    store.delete(key)
+    return false
+  }
+  return entry.count > HELPER_DENIAL_THRESHOLD
+}
 
 export function normalizeIp(raw: string): string {
   if (!raw) return ''
@@ -283,6 +360,9 @@ export class RemoteServer {
   private authFailures: Map<string, AuthFailureEntry> = new Map()
   /** T0449: failed capability auths per IP — logged, never banned. */
   private capabilityAuthFailures: Map<string, AuthFailureEntry> = new Map()
+  /** T0451: helper denials per capability key (`recordHelperDenial`). */
+  private helperDenials: Map<string, AuthFailureEntry> = new Map()
+  private readonly heartbeatIntervalMs: number
   private broadcastListener: ((...args: unknown[]) => void) | null = null
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
   private readonly certificateProvider?: CertificateProvider
@@ -307,6 +387,7 @@ export class RemoteServer {
     this.isKnownAgent = options.isKnownAgent
     this.getPtyCapacity = options.getPtyCapacity
     this.helperSpawnQuota = options.helperSpawnQuota ?? new HelperTowerSpawnQuota()
+    this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS
   }
 
   get port(): number | null {
@@ -542,7 +623,9 @@ export class RemoteServer {
         const frame = parsed
 
         if (frame.type === 'auth') {
-          if (this.isTokenAccepted(frame.token)) {
+          const tokenAccepted = this.isTokenAccepted(frame.token)
+          const helperAccept: HelperAcceptResult = tokenAccepted ? 'rejected' : this.acceptHelper(ws, frame.token)
+          if (tokenAccepted) {
             // T0432: a socket is a client or a helper, never both.
             this.dropHelper(ws)
             authenticated = true
@@ -557,12 +640,18 @@ export class RemoteServer {
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
             this.log.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
             this.notifyClientCount()
-          } else if (this.acceptHelper(ws, frame.token)) {
+          } else if (helperAccept === 'accepted') {
             authenticated = true
             clearTimeout(authTimeout)
             // T0449 (T0445 #8): a helper success does NOT clear the server-token failure count —
             // otherwise interleaving one capability auth resets the brute-force throttle.
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
+          } else if (helperAccept === 'connection-limit' || helperAccept === 'throttled') {
+            // T0451 (T0445 #9): a live capability, refused — not an auth failure, so nothing is
+            // counted toward the IP throttles (the denial throttle already saw it).
+            const error = helperAccept === 'throttled' ? 'Too many denied requests' : 'Too many helper connections'
+            this.sendFrame(ws, { type: 'auth-result', id: frame.id, error })
+            ws.close()
           } else if (this.helperCapabilities?.isRecentlyRevoked(frame.token)) {
             // T0449 (T0445 #5): a stale helper (its PTY exited) — say so, count nothing.
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, error: 'Capability revoked' })
@@ -651,6 +740,11 @@ export class RemoteServer {
         }
       })
 
+      ws.on('pong', () => {
+        const helper = this.helpers.get(ws)
+        if (helper) helper.alive = true
+      })
+
       ws.on('close', () => {
         clearTimeout(authTimeout)
         this.dropHelper(ws)
@@ -697,11 +791,31 @@ export class RemoteServer {
         }
         client.ws.ping()
       }
+      // T0451 (T0445 #9): helpers are pinged too, and one that did not answer the previous
+      // ping (a half-open connection) is terminated — it would otherwise count toward its
+      // capability's connection cap forever.
       for (const helper of Array.from(this.helpers.values())) {
-        if (helper.ws.readyState !== WebSocket.OPEN) this.dropHelper(helper.ws)
+        if (helper.ws.readyState !== WebSocket.OPEN) {
+          this.dropHelper(helper.ws)
+          continue
+        }
+        if (!helper.alive) {
+          this.log.warn(
+            `[RemoteServer] Helper missed a heartbeat; terminated: role=${helper.role} terminal=${helper.terminalId}`
+          )
+          this.dropHelper(helper.ws)
+          helper.ws.terminate()
+          continue
+        }
+        helper.alive = false
+        helper.ws.ping()
+      }
+      const now = Date.now()
+      for (const [key, entry] of this.helperDenials) {
+        if (now - entry.firstFailAt > HELPER_DENIAL_WINDOW_MS) this.helperDenials.delete(key)
       }
       this.notifyClientCount()
-    }, 30000)
+    }, this.heartbeatIntervalMs)
 
     this.persistToken(this.token)
 
@@ -770,6 +884,7 @@ export class RemoteServer {
       helper.ws.close()
       this.dropHelper(helper.ws)
     }
+    this.helperDenials.clear()
     this.notifyClientCount()
 
     if (this.wss) {
@@ -840,22 +955,53 @@ export class RemoteServer {
     return true
   }
 
-  /** T0432: authenticates `ws` as a helper when `token` is a live capability. */
-  private acceptHelper(ws: WebSocket, token: unknown): boolean {
+  /**
+   * T0432: authenticates `ws` as a helper when `token` is a live capability.
+   * T0451 (T0445 #9): unless that capability is past its denial threshold (`throttled`,
+   * silent) or already holds `HELPER_MAX_CONNECTIONS_PER_CAPABILITY` connections
+   * (`connection-limit`, counted as a denial so a reconnect loop is throttled too).
+   */
+  private acceptHelper(ws: WebSocket, token: unknown): HelperAcceptResult {
     // A client socket cannot step down to a helper (it would keep its broadcasts).
-    if (this.clients.has(ws)) return false
+    if (this.clients.has(ws)) return 'rejected'
     const verified = this.helperCapabilities?.verify(token)
-    if (!verified) return false
+    if (!verified) return 'rejected'
     const { terminalId, role } = verified.capability
+    if (isHelperThrottled(this.helperDenials, verified.key, Date.now())) return 'throttled'
+    let connections = 0
+    for (const helper of this.helpers.values()) {
+      if (helper.capabilityKey === verified.key && helper.ws !== ws) connections++
+    }
+    if (connections >= HELPER_MAX_CONNECTIONS_PER_CAPABILITY) {
+      const count = recordHelperDenial(this.helperDenials, verified.key, Date.now())
+      if (count <= HELPER_DENIAL_THRESHOLD) {
+        this.log.warn(
+          `[RemoteServer] Helper connection refused: role=${role} terminal=${terminalId} ` +
+            `reason=connection-limit (${HELPER_MAX_CONNECTIONS_PER_CAPABILITY} open)`
+        )
+      } else if (count === HELPER_DENIAL_THRESHOLD + 1) {
+        this.logHelperThrottled(role, terminalId)
+      }
+      return 'connection-limit'
+    }
     this.helpers.set(ws, {
       ws,
       capabilityKey: verified.key,
       terminalId,
       role,
       connectionId: randomBytes(8).toString('hex'),
+      alive: true,
     })
     this.log.log(`[RemoteServer] Helper authenticated: role=${role} terminal=${terminalId}`)
-    return true
+    return 'accepted'
+  }
+
+  private logHelperThrottled(role: HelperCapabilityRole, terminalId: string): void {
+    this.log.warn(
+      `[RemoteServer] Helper throttled: role=${role} terminal=${terminalId} — more than ` +
+        `${HELPER_DENIAL_THRESHOLD} denials within ${HELPER_DENIAL_WINDOW_MS / 1000}s; its connections are ` +
+        'terminated on the next denial and its auths refused, without logging, until the window ends'
+    )
   }
 
   private dropHelper(ws: WebSocket): void {
@@ -891,7 +1037,11 @@ export class RemoteServer {
         this.sendFrame(ws, { type: 'pong', id: frame.id })
         return
       }
-      if (frame.type !== 'invoke' || !frame.channel) return
+      // T0451 (T0445 #9): an invoke without a string channel is denied below
+      // (`channel-not-allowed`), not silently dropped.
+      if (frame.type !== 'invoke') return
+      // Typed `string`, but attacker-controlled: `authorizeHelperInvoke` checks it is one.
+      const channel = frame.channel as string
 
       let args: unknown = frame.args ?? []
       if (Array.isArray(args)) {
@@ -899,14 +1049,14 @@ export class RemoteServer {
           args = args.slice(0, -1)
         }
       }
-      const decision = authorizeHelperInvoke(capability, frame.channel, args as unknown[], {
+      const decision = authorizeHelperInvoke(capability, channel, args as unknown[], {
         isTerminalAlive: this.isTerminalAlive,
         isKnownAgent: this.isKnownAgent,
       })
       // T0450 (T0445 #7): a tower's creations also pass its quota (children / rate / client reserve).
       let settle: (() => void) | undefined
       let denied = decision.ok ? undefined : decision.reason
-      if (!denied && frame.channel === 'terminal:create-agent-command') {
+      if (!denied && channel === 'terminal:create-agent-command') {
         const isTerminalAlive = this.isTerminalAlive
         const childId = (args as Array<{ id: string }>)[0].id
         const reservation = isTerminalAlive
@@ -916,15 +1066,25 @@ export class RemoteServer {
         else denied = reservation.reason
       }
       if (denied) {
+        // T0451 (T0445 #9): denials are throttled per capability — past the threshold the
+        // connection is terminated and nothing more is logged until the window ends.
+        const count = recordHelperDenial(this.helperDenials, helper.capabilityKey, Date.now())
+        if (count > HELPER_DENIAL_THRESHOLD) {
+          if (count === HELPER_DENIAL_THRESHOLD + 1) this.logHelperThrottled(capability.role, capability.terminalId)
+          this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: 'Forbidden: too-many-denials' })
+          this.dropHelper(ws)
+          ws.terminate()
+          return
+        }
         this.log.warn(
-          `[RemoteServer] Helper invoke denied: channel=${String(frame.channel)} role=${capability.role} ` +
+          `[RemoteServer] Helper invoke denied: channel=${formatLogChannel(channel)} role=${capability.role} ` +
             `terminal=${capability.terminalId} reason=${denied}`
         )
         this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: `Forbidden: ${denied}` })
         return
       }
       try {
-        const result = await invokeHandler(frame.channel, args as unknown[], null, helper.connectionId)
+        const result = await invokeHandler(channel, args as unknown[], null, helper.connectionId)
         this.sendFrame(ws, { type: 'invoke-result', id: frame.id, result })
       } finally {
         settle?.()
