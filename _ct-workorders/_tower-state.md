@@ -143,7 +143,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0363** / **BUG-083** / **PLAN-035** / **D120** / **EXP-[TOPIC]-001**
+- **T0364** / **BUG-083** / **PLAN-035** / **D120** / **EXP-[TOPIC]-001**（T0363 已於第四十九 session 2026-10-04 開出：T0215 debug log 清理）
 
 ---
 
@@ -229,13 +229,14 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-09-02 15:38 (UTC+8) — 第四十八 session 收工更新（沿用 09-01 Full Scan 基礎，逐項複核）
+> 最後掃描:2026-10-04 11:09 (UTC+8) — 第四十九 session 起手 Full Scan 複核（快照 32 天 > 7 天門檻）
+> 複核結果：git 零漂移（`origin/main` = `7243ce2`，0/0）；熱區計數與最大編號與 09-02 收工一致；無新 release / 開放 PR / 開放 issue；BAT workspace ID 已換新（下列已更新）。
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `2eda2f34-9f69-4704-895e-494d9ec0054b` |
-| BAT 派發 | ✅ | 五項 dispatch env 齊備；本 session 成功派發 2 張（CP-T0362 / T0362） |
-| BAT 安裝版 | ✅ **已與 source 同步** | 2026-09-02 以 diff 驗證 `resources/scripts/bat-terminal.mjs` byte-identical；`app.asar` 由 `[T0130]` 新 log 格式佐證。⚠️ 驗證法見 L127 |
+| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（10-04 更新；舊值 `2eda2f34-…` 已失效） |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備（10-04 PowerShell 複核） |
+| BAT 安裝版 | ✅ **已與 source 同步** | 2026-10-04 雜湊複核：`bat-terminal.mjs` sha256 一致；`bat-notify.mjs` 僅 CRLF 差異（去 `\r` 後 diff 為空）。`app.asar` 2026-09-02 15:36。⚠️ 驗證法見 L127 |
 | BAT_HELPER_DIR | ✅ | `C:/Program Files/BetterAgentTerminal/resources/scripts` |
 | BAT debug log | ⚠️ 路徑與文件不符 | 實際在 `%APPDATA%\better-agent-terminal\Logs\debug-<stamp>.log`（與 `BAT_USER_DATA` 指向的 `BetterAgentTerminal\` 為**兩個並存目錄**，大小寫不同）。CLAUDE.md Logging 節待修（L128） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存 |
