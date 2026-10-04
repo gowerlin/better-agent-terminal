@@ -18,11 +18,9 @@ import {
   writeSecretFile,
 } from './secrets'
 import { acquireLock, releaseLock } from './lockfile'
+import { createHeadlessDefaultHandlers, type HeadlessHandlerRegistration } from './headless-handlers'
 
-export interface HeadlessHandlerRegistration {
-  channel: string
-  handler: (ctx: RemoteHandlerContext, ...args: unknown[]) => Promise<unknown> | unknown
-}
+export type { HeadlessHandlerRegistration }
 
 export interface HeadlessServerOptions {
   dataDir: string
@@ -99,7 +97,8 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   })
   remoteServer.configDir = opts.dataDir
 
-  for (const registration of opts.handlers ?? []) {
+  // T0385: built-ins first so caller-supplied handlers can override them.
+  for (const registration of [...createHeadlessDefaultHandlers({ dataDir: opts.dataDir }), ...(opts.handlers ?? [])]) {
     registerHandler(registration.channel, registration.handler)
   }
 

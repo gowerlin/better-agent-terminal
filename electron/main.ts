@@ -80,6 +80,12 @@ import { broadcastHub } from './remote/broadcast-hub'
 import { PROXIED_CHANNELS } from './remote/protocol'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
+import {
+  classifyConnectFailure,
+  classifyInvokeFailure,
+  describeRemoteProfileFailure,
+  type RemoteProfileFailure,
+} from './remote/remote-profile-error'
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { mirrorToBatScripts, pickWhitelistedEnv } from './remote/remote-logger'
 import { registerSshSetupHandlers } from './remote/ssh-setup-handlers'
@@ -1194,7 +1200,7 @@ async function syncPathGuardFromRegistry(): Promise<void> {
 
 type SnapshotLoadResult =
   | { kind: 'ok'; snapshot: ProfileSnapshot | null }
-  | { kind: 'remote-unreachable'; host: string; port: number; label: string }
+  | ({ kind: 'remote-unreachable' } & RemoteProfileFailure)
 
 async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotLoadResult> {
   const profileEntry = await profileManager.getProfile(profileId)
@@ -1203,9 +1209,11 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
       logger.warn(`[profile] remote profile ${profileId} is missing remoteFingerprint — refusing to connect (legacy plaintext setup, please re-pair)`)
       return {
         kind: 'remote-unreachable',
+        reason: 'trust',
         host: profileEntry.remoteHost,
         port: profileEntry.remotePort || 9876,
         label: profileEntry.name || profileId,
+        error: 'Profile has no pinned server fingerprint (legacy setup)',
       }
     }
 
@@ -1223,19 +1231,28 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
           profileEntry.remoteFingerprint,
         )
         if (!result.ok) {
-          logger.error(`[profile] remote connect failed for profile ${profileId} (${host}:${port}): ${result.error ?? 'unknown'}`)
-          return { kind: 'remote-unreachable', host, port, label } as SnapshotLoadResult
+          const reason = classifyConnectFailure(result)
+          logger.error(`[profile] remote connect failed for profile ${profileId} (${host}:${port}) [${reason}/${result.errorCode ?? 'unknown'}]: ${result.error ?? 'unknown'}`)
+          return { kind: 'remote-unreachable', reason, host, port, label, error: result.error } as SnapshotLoadResult
         }
         try { remoteClient?.disconnect() } catch { /* ignore */ }
         remoteClient = client
         remoteClientProfileId = profileId
         const targetProfileId = profileEntry.remoteProfileId || 'default'
-        const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
-        logger.log(`[profile] remote profile ${profileId} → got ${snapshot?.windows?.length ?? 0} window(s) from remote (target: ${targetProfileId})`)
-        return { kind: 'ok', snapshot } as SnapshotLoadResult
+        try {
+          const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
+          logger.log(`[profile] remote profile ${profileId} → got ${snapshot?.windows?.length ?? 0} window(s) from remote (target: ${targetProfileId})`)
+          return { kind: 'ok', snapshot } as SnapshotLoadResult
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          const reason = classifyInvokeFailure(err)
+          logger.error(`[profile] remote profile ${profileId} snapshot fetch failed [${reason}]: ${message}`)
+          return { kind: 'remote-unreachable', reason, host, port, label, error: message } as SnapshotLoadResult
+        }
       } catch (err) {
-        logger.error(`[profile] remote profile ${profileId} snapshot fetch failed:`, err instanceof Error ? err.message : String(err))
-        return { kind: 'remote-unreachable', host, port, label } as SnapshotLoadResult
+        const message = err instanceof Error ? err.message : String(err)
+        logger.error(`[profile] remote profile ${profileId} connect threw:`, message)
+        return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: message } as SnapshotLoadResult
       }
     })
     remoteOpMutex = task.catch(() => {})
@@ -1245,12 +1262,13 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
   return { kind: 'ok', snapshot: await profileManager.loadSnapshot(profileId) }
 }
 
-function showRemoteUnreachableDialog(host: string, port: number, label: string): void {
+function showRemoteProfileFailureDialog(failure: RemoteProfileFailure): void {
+  const { title, message, detail } = describeRemoteProfileFailure(failure)
   dialog.showMessageBox({
     type: 'warning',
-    title: 'Remote profile unreachable',
-    message: `Cannot connect to remote profile "${label}"`,
-    detail: `The remote server at ${host}:${port} is not running or did not respond within 6 seconds.`,
+    title,
+    message,
+    detail,
     buttons: ['OK'],
   }).catch(() => { /* ignore */ })
 }
@@ -1376,17 +1394,17 @@ app.whenReady().then(async () => {
   }
 
   // Helper: restore windows for a profile at startup
-  const restoreFromSnapshot = async (profileId: string): Promise<{ count: number; unreachable?: { host: string; port: number; label: string } }> => {
+  const restoreFromSnapshot = async (profileId: string): Promise<{ count: number; unreachable?: RemoteProfileFailure }> => {
     const result = await loadProfileSnapshotDetailed(profileId)
     if (result.kind === 'remote-unreachable') {
-      return { count: 0, unreachable: { host: result.host, port: result.port, label: result.label } }
+      return { count: 0, unreachable: { reason: result.reason, host: result.host, port: result.port, label: result.label, error: result.error } }
     }
     if (!result.snapshot) return { count: 0 }
     return { count: await applySnapshot(profileId, result.snapshot) }
   }
 
   // Track remote-unreachable failures so we can show a dialog once windows exist
-  const unreachableFailures: { host: string; port: number; label: string }[] = []
+  const unreachableFailures: RemoteProfileFailure[] = []
 
   if (launchProfileId) {
     // --profile= launch: restore that profile's windows
@@ -1536,7 +1554,7 @@ app.whenReady().then(async () => {
 
   // Show any remote-unreachable notifications after windows are created
   for (const fail of unreachableFailures) {
-    showRemoteUnreachableDialog(fail.host, fail.port, fail.label)
+    showRemoteProfileFailureDialog(fail)
   }
 
   // Second instance launched — open a new window in existing process
@@ -1561,7 +1579,7 @@ app.whenReady().then(async () => {
         await profileManager.activateProfile(profileId2)
         const result = await loadProfileSnapshotDetailed(profileId2)
         if (result.kind === 'remote-unreachable') {
-          showRemoteUnreachableDialog(result.host, result.port, result.label)
+          showRemoteProfileFailureDialog(result)
           await profileManager.deactivateProfile(profileId2).catch(() => { /* ignore */ })
           return
         }
@@ -3706,7 +3724,7 @@ function registerLocalHandlers() {
     // Load profile snapshot (handles both local and remote profiles)
     const result = await loadProfileSnapshotDetailed(profileId)
     if (result.kind === 'remote-unreachable') {
-      showRemoteUnreachableDialog(result.host, result.port, result.label)
+      showRemoteProfileFailureDialog(result)
       await profileManager.deactivateProfile(profileId).catch(() => { /* ignore */ })
       return { alreadyOpen: false, windowIds: [], error: 'remote-unreachable' }
     }
