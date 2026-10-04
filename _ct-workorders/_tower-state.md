@@ -155,7 +155,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.5.9-pre.3**（package.json + lock 已同步，commit `37ce0b5`） |
+| **目前版號** | **0.5.9-pre.4**（package.json + lock 已同步，commit `17ad488`；release CI 進行中） |
 | **最新 release** | `v0.5.9-pre.3`（2026-10-04 13:35，prerelease，5 artifact）+ **`server-bundle-v0.5.9-pre.3`**（首個 server bundle release，7 資產，D120） |
 | **前一 tag** | `v0.5.9-pre.2`（2026-09-02） |
 | **目前主軸** | 無單一主軸；待辦以 PLAN-032 三 BUG smoke 為首 |
@@ -298,6 +298,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - [派發] 2026-10-04 16:47 — T0374（計價表共用模組 + Claude 5）`--mode yolo --no-interactive`
 - [完成] 2026-10-04 16:58 — T0374 DONE（`5b8975f`）；第一階段總驗收：673 tests、vite build exit 0、tsc 42→40
 - [外部動作閘] 2026-10-04 16:58 — 下一步 bump `0.5.9-pre.4` + push + 觸發 pre-release，交使用者決定
+- [授權] 2026-10-04 17:00 — 使用者核准：bump `0.5.9-pre.4`（`17ad488`）→ push `37ce0b5..17ad488` → 觸發 pre-release run `37190475739`
 - [發版] 2026-10-04 13:42 — run `37179875163` 9/9 success；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 發佈；runtime URL 下載 manifest 成功；BUG-071 → FIXED
 
 ### 前次 YOLO Session（2026-04-18 ~16:10 啟動，第三 session，收尾）
