@@ -39,6 +39,10 @@ interface AuthenticatedClient {
   connectedAt: number
   /** T0406: handed to handlers as `ctx.connectionId` (per-connection state, e.g. synced fs roots). */
   connectionId: string
+  /** T0455: answered the last heartbeat ping (or just authenticated). */
+  alive: boolean
+  /** T0455: heartbeats in a row whose ping got no pong; any pong resets it. */
+  missedHeartbeats: number
 }
 
 /**
@@ -114,6 +118,11 @@ export const AUTH_FAIL_THRESHOLD = 5
 export const AUTH_BAN_DURATION_MS = 10 * 60_000
 const WS_MAX_PAYLOAD_BYTES = 32 * 1024 * 1024
 export const HEARTBEAT_INTERVAL_MS = 30_000
+/**
+ * T0455: heartbeats in a row a client may leave unanswered before it is terminated. More
+ * than one, so a short stall (SSH tunnel, slow link) does not cut a live client.
+ */
+export const CLIENT_MAX_MISSED_HEARTBEATS = 2
 
 /** T0451 (T0445 #9): the most of a helper's `channel` a denial log line carries. */
 export const HELPER_LOG_CHANNEL_MAX_CHARS = 64
@@ -636,6 +645,8 @@ export class RemoteServer {
               label: (frame.args?.[0] as string) || 'Remote Client',
               connectedAt: Date.now(),
               connectionId: randomBytes(8).toString('hex'),
+              alive: true,
+              missedHeartbeats: 0,
             })
             this.sendFrame(ws, { type: 'auth-result', id: frame.id, result: buildAuthMetadata(this.detectEnv()) })
             this.log.log(`[RemoteServer] Client authenticated: ${this.clients.get(ws)?.label}`)
@@ -743,6 +754,11 @@ export class RemoteServer {
       ws.on('pong', () => {
         const helper = this.helpers.get(ws)
         if (helper) helper.alive = true
+        const client = this.clients.get(ws)
+        if (client) {
+          client.alive = true
+          client.missedHeartbeats = 0
+        }
       })
 
       ws.on('close', () => {
@@ -784,11 +800,24 @@ export class RemoteServer {
 
     this.heartbeatInterval = setInterval(() => {
       if (!this.wss) return
-      for (const client of this.clients.values()) {
+      // T0455: a client that left `CLIENT_MAX_MISSED_HEARTBEATS` pings in a row unanswered
+      // (half-open) is terminated — it would otherwise keep counting toward the T0404 client
+      // count and hold off the orphan PTY reclaim.
+      for (const client of Array.from(this.clients.values())) {
         if (client.ws.readyState !== WebSocket.OPEN) {
           this.dropClient(client.ws)
           continue
         }
+        client.missedHeartbeats = client.alive ? 0 : client.missedHeartbeats + 1
+        if (client.missedHeartbeats >= CLIENT_MAX_MISSED_HEARTBEATS) {
+          this.log.warn(
+            `[RemoteServer] Client missed ${client.missedHeartbeats} heartbeats; terminated: ${client.label}`
+          )
+          this.dropClient(client.ws)
+          client.ws.terminate()
+          continue
+        }
+        client.alive = false
         client.ws.ping()
       }
       // T0451 (T0445 #9): helpers are pinged too, and one that did not answer the previous
