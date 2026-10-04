@@ -274,6 +274,10 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 06:29 — T0446（`--no-interactive`）
 - [完成] 2026-10-05 06:32 — T0445 DONE（`2161b7e`）安全 review **BLOCK**：#1 critical（撤銷後同連線落入 client 無限制 invoke，PoC）、#2 high（`constructor` channel → unhandled rejection 打掉 headless server）、#3 high（既有：未認證 `null` frame 同上，現可利用）、#4-#9 medium / low
 - [斷點 C 裁決] 2026-10-05 06:32 — 拆 T0447-T0451（D134 第 31-35 列）；T0434 加依賴 T0447 / T0448；#6/#7 取收緊方向
+- [派發] 2026-10-05 06:34 — T0447 🔴（`--no-interactive`）
+- [完成] 2026-10-05 06:36 — T0444 DONE（`bb24f33`）塔台複核 PASS：所有權旗標 + 32 案矩陣、setup-wizard 280 passed、tsc 39；BUG-111 → FIXED；`tests/` 兩檔斷言更新接受。全套 1 failed = `headless-pty.test.ts` BAT_* env 斷言，落在 T0433 未提交改動 → **T0433 完成時必查**
+- [斷點 C 裁決] 2026-10-05 06:36 — T0444 遭遇問題 3 前兩項 → T0452；jumpToStep 不 rollback（T0309 既有 TODO）記 backlog
+- [派發] 2026-10-05 06:36 — T0452（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
