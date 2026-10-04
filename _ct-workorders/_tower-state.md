@@ -284,6 +284,8 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 06:41 — T0448 DONE 塔台複核 PASS：headless restart 保留 `customEnv`（Electron 不變，測試鎖）、worker 角色 / towerId 不變、舊權杖撤銷；反向驗證移除修正即紅；Worker 2371 tests / tsc 39。T0434 尚待 T0447
 - [完成] 2026-10-05 06:41 — T0447 DONE（`2ed593f`）塔台複核 PASS：#1 預設拒絕閘門 + terminate、#2 typeof + hasOwnProperty + 全段 try、#3 frame shape 驗證 + handler try + bat-server 程序級 handler（uncaughtException → stop + exit 1）；紅 24 failed → 綠；額外修陣列 channel 字串化命中白名單；Worker 2371 tests / tsc 39。**T0445 BLOCK 解除（#1-#4 已修）**
 - [派發] 2026-10-05 06:41 — T0434 ∥ T0449（`--no-interactive`）
+- [完成] 2026-10-05 06:43 — T0446 DONE（`acc94f5`）塔台複核 PASS：detached 記錄 + `resolveDetachedProfileBinding`、無法解析 fail-closed、tsc 39；BUG-112 → FIXED。Worker 第 1 次全套 9 例失敗於 T0447 `headless-frame-hardening.test.ts`（之後 3 次綠）→ 塔台聯合複驗觀察是否 flaky
+- [斷點 C 裁決] 2026-10-05 06:43 — detached workspace 自 `512c118` 起 Workspace not found → BUG-113（medium）/ T0453
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
