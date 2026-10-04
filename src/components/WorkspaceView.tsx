@@ -17,6 +17,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay } from '../lib/pty-replay'
+import { CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, openClaudeLoginTerminal, type ClaudeOpenLoginTerminalDetail } from '../lib/claude-login-guide'
 import { REMOTE_UNSUPPORTED_AGENT_PRESETS } from '../lib/remote-unsupported'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
@@ -751,6 +752,42 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     workspaceStore.save()
     await startClaudeCliPty(terminal.id, workspace.folderPath, true)
   }, [workspace.id, workspace.folderPath, startClaudeCliPty])
+
+  // T0402: Claude panel "not logged in" guide → plain terminal tab in this window (a remote
+  // window's PTY is on the remote host) with `<cli> auth login` typed in, not submitted.
+  useEffect(() => {
+    const handleOpenLoginTerminal = (e: Event) => {
+      const detail = (e as CustomEvent<ClaudeOpenLoginTerminalDetail>).detail
+      if (detail?.workspaceId !== workspace.id) return
+      const settings = settingsStore.getSettings()
+      const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
+      void openClaudeLoginTerminal({
+        addTerminal: () => {
+          const terminal = workspaceStore.addTerminal(workspace.id)
+          workspaceStore.setFocusedTerminal(terminal.id)
+          workspaceStore.save()
+          return terminal.id
+        },
+        getShell: getShellFromSettings,
+        getCliPath: () => window.electronAPI.claude.getCliPath(),
+        createShell: (terminalId, shell, launch) => createPtyThenLaunch({
+          id: terminalId,
+          cwd: workspace.folderPath,
+          type: 'terminal',
+          shell,
+          customEnv,
+          workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
+        }, launch),
+        write: (terminalId, data) => window.electronAPI.pty.write(terminalId, data),
+      }).then(({ terminalId, command }) => {
+        window.electronAPI?.debug?.log(`[T0402] login terminal=${terminalId} typed: ${command}`)
+      }).catch(err => {
+        window.electronAPI?.debug?.log(`[T0402] login terminal failed: ${err instanceof Error ? err.message : String(err)}`)
+      })
+    }
+    window.addEventListener(CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, handleOpenLoginTerminal)
+    return () => window.removeEventListener(CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, handleOpenLoginTerminal)
+  }, [workspace.id, workspace.folderPath, workspace.envVars])
 
   /** Unified handler — routes through the agent registry to add any agent type */
   const handleAddAgent = useCallback(async (definitionId: string) => {

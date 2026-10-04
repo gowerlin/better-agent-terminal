@@ -17,6 +17,13 @@ import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown
 import { classifyClaudeError } from '../lib/claude-error-classify'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
 import { getModelPricing } from '../lib/model-pricing'
+import {
+  CLAUDE_OPEN_LOGIN_TERMINAL_EVENT,
+  getClaudeAuthStatus,
+  shouldShowClaudeLoginGuide,
+  type ClaudeOpenLoginTerminalDetail,
+} from '../lib/claude-login-guide'
+import { ClaudeLoginGuideCard } from './ClaudeLoginGuideCard'
 
 interface SessionMeta {
   model?: string
@@ -260,10 +267,42 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const [claudeFontSize, setClaudeFontSize] = useState(settingsStore.getSettings().fontSize)
   const userMsgRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
   const observerRef = useRef<IntersectionObserver | null>(null)
+  // T0402: "not logged in" guide — only on auth-status `loggedIn: false`; null (cannot
+  // tell) keeps the plain error display.
+  const [loginGuide, setLoginGuide] = useState<{ checking: boolean; stillLoggedOut: boolean } | null>(null)
+  const loginGuideShownRef = useRef(false)
 
   useEffect(() => {
     isRemoteConnectedRef.current = !!isRemoteConnected
   }, [isRemoteConnected])
+
+  const refreshLoginGuide = useCallback(async (force: boolean) => {
+    const status = await getClaudeAuthStatus(() => window.electronAPI.claude.authStatus(), { force })
+    const show = shouldShowClaudeLoginGuide(status)
+    loginGuideShownRef.current = show
+    setLoginGuide(show ? { checking: false, stillLoggedOut: false } : null)
+  }, [])
+
+  // Before the first message: a fresh panel checks once (shared across panels, see getClaudeAuthStatus).
+  useEffect(() => {
+    void refreshLoginGuide(false)
+  }, [sessionId, refreshLoginGuide])
+
+  const handleLoginRecheck = useCallback(async () => {
+    setLoginGuide(prev => prev && { ...prev, checking: true })
+    const status = await getClaudeAuthStatus(() => window.electronAPI.claude.authStatus(), { force: true })
+    const show = shouldShowClaudeLoginGuide(status)
+    loginGuideShownRef.current = show
+    setLoginGuide(show ? { checking: false, stillLoggedOut: true } : null)
+  }, [])
+
+  const handleOpenLoginTerminal = useCallback(() => {
+    const targetWorkspaceId = workspaceId ?? workspaceStore.getState().terminals.find(t => t.id === sessionId)?.workspaceId
+    if (!targetWorkspaceId) return
+    window.dispatchEvent(new CustomEvent<ClaudeOpenLoginTerminalDetail>(CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, {
+      detail: { workspaceId: targetWorkspaceId },
+    }))
+  }, [workspaceId, sessionId])
 
   // Check if scrolled near bottom (within 80px)
   const checkIfNearBottom = useCallback(() => {
@@ -712,6 +751,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         })
         setIsStreaming(false)
         setIsInterrupted(false)
+        // T0402: a failed message may mean "not logged in" — re-check unless already guiding.
+        if (!loginGuideShownRef.current) void refreshLoginGuide(true)
       }),
 
       api.onStream((sid: string, data: unknown) => {
@@ -2977,6 +3018,15 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
               <div className="claude-markdown"><LinkedText text={streamingText} /><span className="claude-cursor">|</span></div>
             </div>
           </div>
+        )}
+        {loginGuide && (
+          <ClaudeLoginGuideCard
+            isRemote={!!isRemoteConnected}
+            checking={loginGuide.checking}
+            stillLoggedOut={loginGuide.stillLoggedOut}
+            onOpenTerminal={handleOpenLoginTerminal}
+            onRecheck={handleLoginRecheck}
+          />
         )}
         <div ref={messagesEndRef} />
         {userScrolledUp && (

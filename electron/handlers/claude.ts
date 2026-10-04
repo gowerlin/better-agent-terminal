@@ -32,6 +32,32 @@ import type { HandlerRegistrar, HostDeps } from './types'
 /** Thrown when a codex preset reaches a host without codex (headless bat-server). */
 export const CODEX_UNSUPPORTED_MESSAGE = 'Codex agent is not available on this host (remote bat-server has no codex)'
 
+export interface ClaudeAuthStatus {
+  loggedIn: boolean
+  email?: string
+  subscriptionType?: string
+  authMethod?: string
+}
+
+/**
+ * T0402: map one `claude auth status` run to the `claude:auth-status` answer.
+ * The CLI exits 1 when logged out but still prints `{"loggedIn": false, ...}` on
+ * stdout, so a non-zero exit is not by itself "unknown": stdout that parses to a
+ * JSON object with a boolean `loggedIn` is returned as-is (exit 0 or not).
+ * Anything else (empty / non-JSON / no `loggedIn`) → null = cannot tell.
+ */
+export function parseClaudeAuthStatus(stdout: string | undefined): ClaudeAuthStatus | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stdout ?? '')
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  if (typeof (parsed as { loggedIn?: unknown }).loggedIn !== 'boolean') return null
+  return parsed as ClaudeAuthStatus
+}
+
 /** Which manager owns a session: decided at start / resume, read by every per-session channel. */
 export type ClaudeSessionKinds = Map<string, 'claude' | 'codex'>
 
@@ -184,6 +210,9 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
   // race. Now uses resolveClaudeRuntime() so the status always reflects the
   // binary BAT will actually spawn. Runtime resolution failure is treated as
   // "not logged in" (returning null) to preserve the existing API contract.
+  //
+  // T0402: a non-zero exit with a JSON `loggedIn` stdout (logged out) is answered
+  // as-is so the panel can tell "not logged in" from "runtime broken" (null).
   register('claude:auth-status', async () => {
     const { execFile } = await import('child_process')
     let resolvedPath: string
@@ -196,18 +225,15 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
       logger.error('[auth-status] runtime resolution failed', err)
       return null
     }
-    return new Promise<{ loggedIn: boolean; email?: string; subscriptionType?: string; authMethod?: string } | null>((resolve) => {
+    return new Promise<ClaudeAuthStatus | null>((resolve) => {
       execFile(resolvedPath, ['auth', 'status'], { timeout: 10000, windowsHide: true }, (err, stdout) => {
+        const status = parseClaudeAuthStatus(stdout)
         if (err) {
-          logger.error('[auth-status]', err)
-          resolve(null)
-        } else {
-          try {
-            resolve(JSON.parse(stdout))
-          } catch {
-            resolve(null)
-          }
+          const code = (err as NodeJS.ErrnoException).code ?? 'unknown'
+          if (status) logger.log(`[auth-status] exit ${code}, stdout reports loggedIn=${status.loggedIn}`)
+          else logger.error(`[auth-status] exit ${code}, stdout not a usable auth status`, err)
         }
+        resolve(status)
       })
     })
   })

@@ -7,7 +7,7 @@
  * model-list probe) and the embedded claude is a fake file in a temp install
  * root laid out like the server bundle (`node_modules/@anthropic-ai/claude-code/bin/claude`).
  *   - get-cli-path / detectRuntime / auth-status / get-supported-models answer
- *     without a login
+ *     without a login; auth-status reports a logged-out CLI as `{ loggedIn: false }` (T0402)
  *   - spawn env: embedded (incl. system → embedded fallback) carries
  *     DISABLE_UPDATES=1, a system claude does not
  *   - runtime-degraded / runtime-warning reach the remote client (PROXIED_EVENTS)
@@ -50,6 +50,25 @@ vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
 
 const system = vi.hoisted(() => ({ info: null as ClaudeRuntimeInfo | null }))
 
+// T0402: the fake embedded binary cannot print JSON on Windows (it is a copy of where.exe),
+// so its `auth status` reply is the real CLI's logged-out answer — exit 1 + JSON stdout —
+// injected at execFile. Every other spawn goes to the real child_process.
+const LOGGED_OUT_STATUS = { loggedIn: false, authMethod: 'none', apiProvider: 'firstParty' }
+const authCli = vi.hoisted(() => ({ path: '' }))
+
+vi.mock('child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('child_process')>()
+  const execFile = ((file: string, args: readonly string[], ...rest: unknown[]) => {
+    const cb = rest[rest.length - 1]
+    if (file === authCli.path && args[0] === 'auth' && args[1] === 'status' && typeof cb === 'function') {
+      setImmediate(() => cb(Object.assign(new Error('Command failed: claude auth status'), { code: 1 }), JSON.stringify(LOGGED_OUT_STATUS, null, 2), ''))
+      return undefined
+    }
+    return (actual.execFile as (...a: unknown[]) => unknown)(file, args, ...rest)
+  }) as typeof actual.execFile
+  return { ...actual, default: { ...actual, execFile }, execFile }
+})
+
 vi.mock('../../claude-resolver', async importOriginal => ({
   ...(await importOriginal<typeof import('../../claude-resolver')>()),
   detectSystemClaude: async () => system.info,
@@ -81,6 +100,7 @@ beforeAll(async () => {
   const binDir = path.join(installRoot, 'node_modules', '@anthropic-ai', 'claude-code', 'bin')
   fs.mkdirSync(binDir, { recursive: true })
   fakeEmbedded = path.join(binDir, BIN_NAME)
+  authCli.path = fakeEmbedded
   // A real executable that is not claude: every call (`--version`, `auth status`) exits
   // non-zero without printing a version, like a broken / logged-out runtime.
   if (process.platform === 'win32') {
@@ -119,10 +139,10 @@ describe('headless claude:* — no login needed', () => {
     expect(result.system).toBeNull()
   })
 
-  it('claude:auth-status answers null when the runtime cannot report a login', async () => {
-    // Same contract as Electron: `claude auth status` failing (incl. its exit 1 when
-    // logged out) → null, which the panel shows as "Not logged in".
-    await expect(harness.invoke('claude:auth-status')).resolves.toBeNull()
+  it('claude:auth-status reports a logged-out CLI as loggedIn:false, not null', async () => {
+    // Same contract as Electron (T0402): `claude auth status` exits 1 when logged out but
+    // its JSON stdout is answered as-is, so the panel can show the login guide.
+    await expect(harness.invoke('claude:auth-status')).resolves.toEqual(LOGGED_OUT_STATUS)
   })
 
   it('claude:get-supported-models returns builtins plus SDK-only models', async () => {
