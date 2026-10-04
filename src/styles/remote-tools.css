@@ -1,0 +1,235 @@
+/* T0410 (PLAN-037 D): remote AI toolchain panel + install confirm dialog. */
+
+.remote-tools-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.remote-tools-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.remote-tools-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.remote-tools-muted {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.remote-tools-error {
+  padding: 8px 10px;
+  border-left: 3px solid var(--danger-color);
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+.remote-tools-error-detail {
+  margin-top: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.remote-tools-env {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.remote-tools-chip {
+  padding: 0 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.remote-tools-group-title {
+  margin: 6px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.remote-tools-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.remote-tools-row {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+}
+.remote-tools-row-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.remote-tools-name {
+  font-weight: 600;
+  min-width: 120px;
+}
+.remote-tools-version,
+.remote-tools-path {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.remote-tools-path {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remote-tools-status,
+.remote-tools-login,
+.remote-tools-server {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.remote-tools-status--ok,
+.remote-tools-login--loggedIn {
+  color: #4caf50;
+}
+.remote-tools-status--missing,
+.remote-tools-status--error,
+.remote-tools-login--loggedOut {
+  color: var(--danger-color);
+}
+.remote-tools-status--interop-only,
+.remote-tools-status--not-on-path,
+.remote-tools-status--too-old {
+  color: #e6a700;
+}
+
+.remote-tools-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.remote-tools-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.remote-tools-hint--warn {
+  color: #e6a700;
+}
+
+.remote-tools-panel a,
+.remote-tools-confirm a {
+  color: var(--accent-color);
+}
+
+.remote-tools-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.remote-tools-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.remote-tools-btn.primary {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+.remote-tools-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Confirm dialog: extends the shared `.dialog` (panels.css). */
+.dialog.remote-tools-confirm {
+  max-width: 640px;
+  width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  font-size: 13px;
+}
+.remote-tools-confirm-warn {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-left: 3px solid #e6a700;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+.remote-tools-confirm-label {
+  margin: 8px 0 4px;
+  font-weight: 600;
+}
+.remote-tools-confirm-command {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.remote-tools-confirm-command pre {
+  flex: 1;
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}
+.remote-tools-confirm-list {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.remote-tools-confirm-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 12px 0;
+}
+.remote-tools-confirm-facts dt {
+  color: var(--text-secondary);
+}
+.remote-tools-confirm-facts dd {
+  margin: 0;
+}
+.remote-tools-confirm-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.dialog p.remote-tools-confirm-runs {
+  margin-bottom: 16px;
+}
+.dialog-btn.remote-tools-confirm-ok {
+  background: var(--accent-color);
+  color: white;
+}

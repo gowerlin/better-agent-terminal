@@ -788,5 +788,156 @@
         }
       }
     }
+  },
+  "remoteTools": {
+    "title": "Remote AI tools",
+    "checking": "Checking…",
+    "recheck": "Check again",
+    "install": "Install",
+    "update": "Update",
+    "docsLink": "Installation docs",
+    "tier": {
+      "required": "Required",
+      "recommended": "Recommended",
+      "optional": "Optional",
+      "prerequisite": "Prerequisites"
+    },
+    "tool": {
+      "claude": {
+        "name": "Claude Code"
+      },
+      "git": {
+        "name": "Git"
+      },
+      "gh": {
+        "name": "GitHub CLI (gh)"
+      },
+      "codex": {
+        "name": "Codex CLI"
+      },
+      "curl": {
+        "name": "curl"
+      },
+      "bash": {
+        "name": "bash"
+      },
+      "rg": {
+        "name": "ripgrep (rg)"
+      },
+      "uv": {
+        "name": "uv"
+      },
+      "python3": {
+        "name": "Python 3"
+      },
+      "node": {
+        "name": "Node.js"
+      }
+    },
+    "status": {
+      "ok": "Installed",
+      "missing": "Not installed",
+      "interop-only": "Windows version only",
+      "not-on-path": "Not on PATH",
+      "too-old": "Outdated",
+      "error": "Not responding"
+    },
+    "login": {
+      "loggedIn": "Logged in",
+      "loggedOut": "Not logged in",
+      "unknown": "Login unknown",
+      "button": "Log in",
+      "credentialFilePresent": "A credential file exists on the host.",
+      "credentialFileAbsent": "No credential file was found on the host."
+    },
+    "server": {
+      "visible": "Server: visible",
+      "hidden": "Server: not visible",
+      "tooltip": "Whether the BAT server process (Git / GitHub panels) can find this tool on its own PATH.",
+      "viewUnavailable": "Could not check what the BAT server process can see."
+    },
+    "env": {
+      "wsl": "WSL",
+      "musl": "musl",
+      "pkgManager": "Package manager: {{pm}}",
+      "pkgManagerNone": "No package manager",
+      "authEnv": "Auth variables set: {{names}}"
+    },
+    "privilege": {
+      "root": "root",
+      "passwordless": "sudo (no password)",
+      "password-required": "sudo (password required)",
+      "sudo-missing": "No sudo"
+    },
+    "hint": {
+      "interopOnly": "Only the Windows version was found (through WSL interop). It is not used here; install the Linux version.",
+      "notOnPath": "Installed, but not on the login PATH yet. Open a new terminal tab to pick it up.",
+      "tooOld": "This Claude Code is too old for newer models. Update it.",
+      "versionError": "Found on PATH, but it did not report a version.",
+      "curlMissing": "curl is not available on the host, so this installer cannot run. Install curl first."
+    },
+    "unsupported": {
+      "no-recipe": "No one-click install for this tool.",
+      "needs-root-no-sudo": "Installing needs root, but this account is not root and has no sudo.",
+      "no-package-manager": "No supported package manager was found on the host.",
+      "manual-only": "This can only be installed manually on the host.",
+      "brew-as-root": "Homebrew does not run as root.",
+      "musl-without-apk": "This musl-based host has no apk, so the required libraries cannot be installed."
+    },
+    "integrity": {
+      "claudeManifestSha256": "The installer checks the download against the SHA-256 in the release manifest.",
+      "codexSha256Sums": "The installer checks the download against the published SHA-256 sums.",
+      "uvEmbeddedSha256": "The installer checks the download against SHA-256 hashes embedded in the script.",
+      "distroRepo": "Package signed by the distribution repository.",
+      "ghRepoGpg": "Package from the official GitHub CLI repository, verified with its GPG key.",
+      "homebrew": "Verified by Homebrew."
+    },
+    "location": {
+      "userLocalBin": "Your home directory (~/.local/bin), no sudo",
+      "system": "System-wide (package manager)",
+      "homebrew": "Homebrew prefix"
+    },
+    "note": {
+      "reopenTerminalForPath": "Terminal tabs that are already open will not see ~/.local/bin until you open a new one.",
+      "codexEditsProfile": "The Codex installer adds a PATH entry to your shell profile.",
+      "alpineUseSystemRipgrep": "On Alpine, set USE_BUILTIN_RIPGREP=0 in the env section of Claude settings.json so it uses the system ripgrep.",
+      "rgNeedsEpel": "On RHEL-family systems ripgrep is in EPEL; enable EPEL first if the install fails.",
+      "claudeManualUpdate": "Background auto-update is off in BAT remote terminals; use Update here or run claude update."
+    },
+    "error": {
+      "host-platform": "Tool detection is not supported on this host.",
+      "spawn-failed": "Could not start a login shell on the host.",
+      "timeout": "Tool detection timed out.",
+      "no-markers": "Tool detection returned unreadable output.",
+      "invalid-profile": "This profile cannot be checked (missing host, token or pinned fingerprint).",
+      "connect-failed": "Could not connect to the remote BAT server.",
+      "server-too-old": "The remote BAT server is too old for tool detection. Redeploy it.",
+      "invoke-failed": "The remote BAT server could not run tool detection.",
+      "detectFailed": "Tool detection failed.",
+      "invalidReport": "The detection result is invalid; install actions are disabled."
+    },
+    "confirm": {
+      "titleInstall": "Install {{tool}}",
+      "titleUpdate": "Update {{tool}}",
+      "unofficial": "This package is maintained by the community, not by the vendor.",
+      "command": "Command",
+      "copy": "Copy",
+      "copied": "Copied",
+      "prerequisites": "Runs first",
+      "sudo": "Needs sudo",
+      "sudoYes": "Yes",
+      "sudoNo": "No",
+      "location": "Installs to",
+      "integrity": "Integrity",
+      "integrityScriptNote": "The install script itself is downloaded over HTTPS and is not pinned to a hash; the vendor changes it with every release.",
+      "sources": "Sources",
+      "docs": "Official docs",
+      "viewScript": "View script",
+      "runsHere": "The command will be typed into a new terminal tab in this window.",
+      "runsInRemoteWindow": "The remote profile window will open, and the command will be typed into a new terminal tab there.",
+      "sudoPasswordHint": "If sudo asks for a password, enter it in that tab.",
+      "confirmInstall": "Install",
+      "confirmUpdate": "Update"
+    }
   }
 }

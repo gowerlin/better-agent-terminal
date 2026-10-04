@@ -788,5 +788,156 @@
         }
       }
     }
+  },
+  "remoteTools": {
+    "title": "远程 AI 工具",
+    "checking": "检查中…",
+    "recheck": "重新检查",
+    "install": "安装",
+    "update": "更新",
+    "docsLink": "安装说明",
+    "tier": {
+      "required": "必要",
+      "recommended": "推荐",
+      "optional": "可选",
+      "prerequisite": "前置条件"
+    },
+    "tool": {
+      "claude": {
+        "name": "Claude Code"
+      },
+      "git": {
+        "name": "Git"
+      },
+      "gh": {
+        "name": "GitHub CLI (gh)"
+      },
+      "codex": {
+        "name": "Codex CLI"
+      },
+      "curl": {
+        "name": "curl"
+      },
+      "bash": {
+        "name": "bash"
+      },
+      "rg": {
+        "name": "ripgrep (rg)"
+      },
+      "uv": {
+        "name": "uv"
+      },
+      "python3": {
+        "name": "Python 3"
+      },
+      "node": {
+        "name": "Node.js"
+      }
+    },
+    "status": {
+      "ok": "已安装",
+      "missing": "未安装",
+      "interop-only": "仅有 Windows 版",
+      "not-on-path": "不在 PATH",
+      "too-old": "版本过旧",
+      "error": "无响应"
+    },
+    "login": {
+      "loggedIn": "已登录",
+      "loggedOut": "未登录",
+      "unknown": "登录状态未知",
+      "button": "登录",
+      "credentialFilePresent": "主机上有凭据文件。",
+      "credentialFileAbsent": "主机上找不到凭据文件。"
+    },
+    "server": {
+      "visible": "服务器：可见",
+      "hidden": "服务器：不可见",
+      "tooltip": "BAT 服务器进程（Git / GitHub 面板）能否在自己的 PATH 上找到此工具。",
+      "viewUnavailable": "无法检查 BAT 服务器进程能看到哪些工具。"
+    },
+    "env": {
+      "wsl": "WSL",
+      "musl": "musl",
+      "pkgManager": "包管理器：{{pm}}",
+      "pkgManagerNone": "没有包管理器",
+      "authEnv": "已设置的认证变量：{{names}}"
+    },
+    "privilege": {
+      "root": "root",
+      "passwordless": "sudo（免密码）",
+      "password-required": "sudo（需密码）",
+      "sudo-missing": "没有 sudo"
+    },
+    "hint": {
+      "interopOnly": "只找到 Windows 版（通过 WSL interop），这里不会使用它；请安装 Linux 版。",
+      "notOnPath": "已安装，但还不在登录 PATH 上。请打开一个新的终端标签页。",
+      "tooOld": "此 Claude Code 版本太旧，无法使用较新的模型。请更新。",
+      "versionError": "在 PATH 上找到，但没有报告版本。",
+      "curlMissing": "主机上没有可用的 curl，此安装程序无法运行。请先安装 curl。"
+    },
+    "unsupported": {
+      "no-recipe": "此工具没有一键安装。",
+      "needs-root-no-sudo": "安装需要 root，但此账户不是 root，也没有 sudo。",
+      "no-package-manager": "主机上找不到支持的包管理器。",
+      "manual-only": "只能在主机上手动安装。",
+      "brew-as-root": "Homebrew 不能以 root 运行。",
+      "musl-without-apk": "此 musl 主机没有 apk，无法安装必要的库。"
+    },
+    "integrity": {
+      "claudeManifestSha256": "安装程序会对照 release manifest 中的 SHA-256 校验下载内容。",
+      "codexSha256Sums": "安装程序会对照官方公布的 SHA-256 清单校验下载内容。",
+      "uvEmbeddedSha256": "安装程序会对照脚本内置的 SHA-256 校验下载内容。",
+      "distroRepo": "软件包由发行版软件源签名。",
+      "ghRepoGpg": "软件包来自 GitHub CLI 官方软件源，用其 GPG 密钥校验。",
+      "homebrew": "由 Homebrew 校验。"
+    },
+    "location": {
+      "userLocalBin": "用户主目录（~/.local/bin），不需要 sudo",
+      "system": "系统级（包管理器）",
+      "homebrew": "Homebrew 安装目录"
+    },
+    "note": {
+      "reopenTerminalForPath": "已打开的终端标签页要重新打开，才能看到 ~/.local/bin。",
+      "codexEditsProfile": "Codex 安装程序会在 shell profile 中加入 PATH 设置。",
+      "alpineUseSystemRipgrep": "在 Alpine 上，请在 Claude settings.json 的 env 中设置 USE_BUILTIN_RIPGREP=0，改用系统的 ripgrep。",
+      "rgNeedsEpel": "RHEL 系列的 ripgrep 在 EPEL 中；若安装失败，请先启用 EPEL。",
+      "claudeManualUpdate": "BAT 远程终端关闭了后台自动更新；请使用这里的“更新”或运行 claude update。"
+    },
+    "error": {
+      "host-platform": "此主机不支持工具检测。",
+      "spawn-failed": "无法在主机上启动登录 shell。",
+      "timeout": "工具检测超时。",
+      "no-markers": "工具检测的输出无法解读。",
+      "invalid-profile": "无法检查此 profile（缺少主机、token 或已固定的 fingerprint）。",
+      "connect-failed": "无法连接到远程 BAT 服务器。",
+      "server-too-old": "远程 BAT 服务器版本过旧，不支持工具检测。请重新部署。",
+      "invoke-failed": "远程 BAT 服务器无法执行工具检测。",
+      "detectFailed": "工具检测失败。",
+      "invalidReport": "检测结果无效，已禁用安装操作。"
+    },
+    "confirm": {
+      "titleInstall": "安装 {{tool}}",
+      "titleUpdate": "更新 {{tool}}",
+      "unofficial": "此软件包由社区维护，不是官方提供。",
+      "command": "命令",
+      "copy": "复制",
+      "copied": "已复制",
+      "prerequisites": "先运行",
+      "sudo": "需要 sudo",
+      "sudoYes": "是",
+      "sudoNo": "否",
+      "location": "安装位置",
+      "integrity": "完整性",
+      "integrityScriptNote": "安装脚本本身通过 HTTPS 下载，没有固定哈希；官方每次发版都会修改它。",
+      "sources": "来源",
+      "docs": "官方文档",
+      "viewScript": "查看脚本内容",
+      "runsHere": "命令会输入到此窗口新开的终端标签页。",
+      "runsInRemoteWindow": "会打开远程 profile 窗口，并把命令输入到该窗口新开的终端标签页。",
+      "sudoPasswordHint": "若 sudo 要求密码，请在该标签页输入。",
+      "confirmInstall": "安装",
+      "confirmUpdate": "更新"
+    }
   }
 }
