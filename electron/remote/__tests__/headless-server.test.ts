@@ -10,6 +10,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FileCertificateProvider, type LoadedCertificateBundle } from '../certificate'
+import { HEADLESS_UNSUPPORTED } from '../headless-channel-status'
 import { createHeadlessServer, type HeadlessServer } from '../headless-entry'
 import {
   connectHeadlessClient,
@@ -136,7 +137,9 @@ describe('createHeadlessServer — over the wire (headless harness)', { timeout:
 
   it('rejects an unregistered channel with the same error a remote window sees', async () => {
     const h = await harness()
-    await expect(h.invoke('pty:create', { id: 't0388' })).rejects.toThrow('No handler for channel: pty:create')
+    // Any channel headless still lacks (pty:create was the example until T0390 brought it online).
+    const channel = Object.keys(HEADLESS_UNSUPPORTED)[0]
+    await expect(h.invoke(channel)).rejects.toThrow(`No handler for channel: ${channel}`)
   })
 
   it('caller-supplied handlers are reachable and can override built-ins', async () => {

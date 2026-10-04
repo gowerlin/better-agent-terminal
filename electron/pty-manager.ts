@@ -50,6 +50,13 @@ export interface PtyManagerDeps {
    * (headless: the helpers are not part of the server bundle).
    */
   helperDir?: string
+  /**
+   * T0390: drop inherited `process.env` keys before the PTY env is built (true = drop).
+   * Headless passes a BAT_* filter so a bat-server started from inside a BAT terminal
+   * does not leak that session's `BAT_HELPER_DIR` / `BAT_REMOTE_TOKEN` / `BAT_TOWER_TERMINAL_ID`
+   * into remote shells. Undefined = inherit everything (Electron, pre-T0390 behaviour).
+   */
+  dropInheritedEnv?: (key: string) => boolean
 }
 
 /** Minimal window surface `createWindowBroadcastEmit` needs (structurally matches BrowserWindow). */
@@ -126,6 +133,17 @@ export class PtyManager {
 
   constructor(deps: PtyManagerDeps) {
     this.deps = deps
+  }
+
+  /** `process.env` minus the keys the host asked to drop (T0390). */
+  private inheritedEnv(): NodeJS.ProcessEnv {
+    const drop = this.deps.dropInheritedEnv
+    if (!drop) return process.env
+    const env: NodeJS.ProcessEnv = {}
+    for (const [key, value] of Object.entries(process.env)) {
+      if (!drop(key)) env[key] = value
+    }
+    return env
   }
 
   /** T0140: `BAT_HELPER_DIR` env entry, omitted when the host has no helper dir. */
@@ -320,6 +338,21 @@ export class PtyManager {
     this.broadcast('pty:exit', id, exitCode)
   }
 
+  /**
+   * T0390: exit of a directly spawned process. When the id already belongs to a newer
+   * process (restart = kill + create with the same id), the late exit of the old one must
+   * neither delete the new entry nor tell the renderer that the new terminal exited.
+   */
+  private handleDirectExit(id: string, proc: unknown, exitCode: number): void {
+    const current = this.instances.get(id)
+    if (current && current.process !== proc) {
+      logger.log(`[PtyManager] stale exit ignored id=${id} (replaced by a newer process)`)
+      return
+    }
+    this.instances.delete(id)
+    this.broadcast('pty:exit', id, exitCode)
+  }
+
   private broadcast(channel: string, ...args: unknown[]) {
     this.deps.emit(channel, ...args)
   }
@@ -449,7 +482,7 @@ export class PtyManager {
       // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
       const remoteInfo = this.getRemoteServerInfo?.() ?? null
       const envWithUtf8 = {
-        ...process.env as Record<string, string>,
+        ...this.inheritedEnv() as Record<string, string>,
         ...customEnv,
         LANG: 'en_US.UTF-8',
         LC_ALL: 'en_US.UTF-8',
@@ -492,6 +525,14 @@ export class PtyManager {
       return true
     }
 
+    // T0390: direct mode is idempotent too. A renderer reload / remote reconnect re-sends
+    // pty:create with the same id; spawning again would orphan the running shell (its output
+    // keeps arriving under the same id) and the old exit would later delete the new entry.
+    if (this.instances.has(id)) {
+      logger.log(`[PtyManager] pty:create SKIP (idempotent, direct) id=${id} — already running`)
+      return true
+    }
+
     // Fallback: direct PTY spawn (node-pty or child_process)
     let usedPty = false
 
@@ -501,7 +542,7 @@ export class PtyManager {
         // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
         const remoteInfoLocal = this.getRemoteServerInfo?.() ?? null
         const envWithUtf8 = {
-          ...process.env,
+          ...this.inheritedEnv(),
           ...customEnv,  // Merge custom environment variables
           // UTF-8 encoding
           LANG: 'en_US.UTF-8',
@@ -553,8 +594,7 @@ export class PtyManager {
         })
 
         ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
-          this.broadcast('pty:exit', id, exitCode)
-          this.instances.delete(id)
+          this.handleDirectExit(id, ptyProcess, exitCode)
         })
 
         this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true })
@@ -583,7 +623,7 @@ export class PtyManager {
         // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
         const remoteInfoFallback = this.getRemoteServerInfo?.() ?? null
         const envWithUtf8 = {
-          ...process.env,
+          ...this.inheritedEnv(),
           ...customEnv,  // Merge custom environment variables
           // UTF-8 encoding
           LANG: 'en_US.UTF-8',
@@ -633,8 +673,7 @@ export class PtyManager {
         })
 
         childProcess.on('exit', (exitCode: number | null) => {
-          this.broadcast('pty:exit', id, exitCode ?? 0)
-          this.instances.delete(id)
+          this.handleDirectExit(id, childProcess, exitCode ?? 0)
         })
 
         childProcess.on('error', (error) => {

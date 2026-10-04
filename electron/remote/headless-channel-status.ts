@@ -25,10 +25,8 @@ export type HeadlessPhase = 'P0' | 'P1' | 'P2' | 'P3'
 /**
  * Channels that never proxy, even from a remote-profile window.
  *
- * 🔴 Mirror of `ALWAYS_LOCAL_CHANNELS` in `electron/main.ts`
- * (bindProxiedHandlersToIpc). The parity test reads main.ts and fails if the
- * two sets differ. main.ts should import this constant instead of keeping its
- * own copy once a work order is allowed to touch main.ts (T0388 was not).
+ * Single source: `electron/main.ts` (bindProxiedHandlersToIpc) imports this
+ * set (T0390). The parity test fails if main.ts grows its own copy again.
  */
 export const ALWAYS_LOCAL_CHANNELS: ReadonlySet<string> = new Set([
   'workspace:save', 'workspace:load',
@@ -44,14 +42,7 @@ export const ALWAYS_LOCAL_CHANNELS: ReadonlySet<string> = new Set([
  * orders, not here.
  */
 export const HEADLESS_UNSUPPORTED: Readonly<Record<string, HeadlessPhase>> = Object.freeze({
-  // ── P0: terminal (T0390) ──
-  'pty:create': 'P0',
-  'pty:write': 'P0',
-  'pty:resize': 'P0',
-  'pty:kill': 'P0',
-  'pty:restart': 'P0',
-  'pty:get-cwd': 'P0',
-  'settings:get-shell-path': 'P0',
+  // ── P0: terminal — online since T0390 (electron/handlers/pty.ts) ──
 
   // ── P1: Agent (T0386 E / F) ──
   'claude:start-session': 'P1',

@@ -26,6 +26,16 @@ interface ResolveShellPathOptions {
 
 const DEFAULT_WINDOWS_GIT_BASH = 'C:\\Program Files\\Git\\bin\\bash.exe'
 
+/**
+ * Shell used when `$SHELL` is unset. Mirrors `PtyManager.getDefaultShell` (T0390):
+ * macOS → zsh; Linux → bash, or sh on images without bash (headless bat-server under
+ * systemd / docker may run without `$SHELL`).
+ */
+function posixDefaultShell(platform: NodeJS.Platform, exists: (path: string) => boolean): string {
+  if (platform === 'darwin') return '/bin/zsh'
+  return exists('/bin/bash') ? '/bin/bash' : '/bin/sh'
+}
+
 export function resolveShellPath(shellType: string, options: ResolveShellPathOptions): string {
   return resolveShellPathWithDiagnostics(shellType, options).shellPath
 }
@@ -35,7 +45,7 @@ export function resolveShellPathWithDiagnostics(shellType: string, options: Reso
   const env = options.env ?? process.env
 
   if (options.platform === 'darwin' || options.platform === 'linux') {
-    if (shellType === 'auto') return { shellPath: env.SHELL || '/bin/zsh', fallback: !env.SHELL, fallbackReason: env.SHELL ? undefined : 'missing-shell-env' }
+    if (shellType === 'auto') return { shellPath: env.SHELL || posixDefaultShell(options.platform, exists), fallback: !env.SHELL, fallbackReason: env.SHELL ? undefined : 'missing-shell-env' }
     if (shellType === 'zsh') return { shellPath: '/bin/zsh', fallback: false }
     if (shellType === 'bash') {
       if (exists('/opt/homebrew/bin/bash')) return { shellPath: '/opt/homebrew/bin/bash', fallback: false }
@@ -44,7 +54,7 @@ export function resolveShellPathWithDiagnostics(shellType: string, options: Reso
     }
     if (shellType === 'sh') return { shellPath: '/bin/sh', fallback: false }
     if (shellType === 'pwsh' || shellType === 'powershell' || shellType === 'cmd') {
-      return { shellPath: env.SHELL || '/bin/zsh', fallback: true, fallbackReason: env.SHELL ? 'unsupported-shell-on-platform' : 'missing-shell-env' }
+      return { shellPath: env.SHELL || posixDefaultShell(options.platform, exists), fallback: true, fallbackReason: env.SHELL ? 'unsupported-shell-on-platform' : 'missing-shell-env' }
     }
     return { shellPath: shellType, fallback: false }
   }

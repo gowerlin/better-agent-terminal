@@ -70,5 +70,12 @@ export interface HostDeps {
   pathGuard?: HostPathGuard
 }
 
-/** Signature every `electron/handlers/<domain>.ts` module exports. */
-export type HandlerModule = (register: HandlerRegistrar, deps: HostDeps) => void
+/** Releases what a module created at registration (T0390: headless PtyManager). */
+export type HandlerModuleDisposer = () => void
+
+/**
+ * Signature every `electron/handlers/<domain>.ts` module exports. A module that
+ * owns resources (processes, timers) returns a disposer; headless calls it on
+ * `stop()`.
+ */
+export type HandlerModule = (register: HandlerRegistrar, deps: HostDeps) => void | HandlerModuleDisposer

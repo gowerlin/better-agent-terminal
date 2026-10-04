@@ -2,7 +2,9 @@ import { createHash, randomBytes } from 'crypto'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import type { HandlerModule, HandlerRegistrar, HostDeps } from '../handlers/types'
+import type { HandlerModule, HandlerModuleDisposer, HandlerRegistrar, HostDeps } from '../handlers/types'
+import { registerPtyHandlers } from '../handlers/pty'
+import { PtyManager } from '../pty-manager'
 import { broadcastHub } from './broadcast-hub'
 import {
   FileCertificateProvider,
@@ -30,13 +32,45 @@ import {
 export type { HeadlessHandlerRegistration }
 
 /**
+ * T0390: inherited env keys a remote shell must not see. Everything BAT_*
+ * describes the session that launched bat-server (e.g. started by hand from a
+ * BAT terminal: BAT_HELPER_DIR / BAT_REMOTE_PORT / BAT_REMOTE_TOKEN /
+ * BAT_TERMINAL_ID / BAT_TOWER_TERMINAL_ID) or server configuration — never the
+ * remote shell. PtyManager still sets its own per-PTY BAT_SESSION /
+ * BAT_TERMINAL_ID / BAT_WORKSPACE_ID afterwards; headless never sets
+ * BAT_REMOTE_* (no getRemoteServerInfo) or BAT_HELPER_DIR (no helperDir).
+ */
+export function isHeadlessScrubbedEnvKey(key: string): boolean {
+  return key.toUpperCase().startsWith('BAT_')
+}
+
+/**
+ * T0390: `pty:*` + `settings:get-shell-path` on headless. One PtyManager per
+ * server, direct spawn (no Terminal Server). PTYs outlive client disconnects —
+ * a reconnecting client re-sends `pty:create` with the same id, which is
+ * idempotent — and are killed only by `pty:kill` or server `stop()`.
+ */
+export const registerHeadlessPtyHandlers: HandlerModule = (register, host) => {
+  const manager = new PtyManager({
+    emit: host.emit,
+    dataDir: host.dataDir,
+    helperDir: host.helperDir,
+    dropInheritedEnv: isHeadlessScrubbedEnvKey,
+  })
+  registerPtyHandlers(register, { getPtyManager: () => manager, validateShell: true })
+  return () => manager.dispose()
+}
+
+/**
  * PLAN-036 / D129 (T0388): shared domain modules (`electron/handlers/*.ts`)
  * headless bat-server registers — the same modules Electron main registers
- * with its own deps. Empty until T0390 (`pty:*`). A module going online here
- * must delete its channels from `HEADLESS_UNSUPPORTED`
- * (headless-channel-status.ts) in the same commit, or the parity test fails.
+ * with its own deps. A module going online here must delete its channels from
+ * `HEADLESS_UNSUPPORTED` (headless-channel-status.ts) in the same commit, or
+ * the parity test fails.
  */
-export const HEADLESS_HANDLER_MODULES: readonly HandlerModule[] = []
+export const HEADLESS_HANDLER_MODULES: readonly HandlerModule[] = [
+  registerHeadlessPtyHandlers, // T0390
+]
 
 /**
  * Headless side of `HostDeps`: events go to connected remote clients only
@@ -135,8 +169,10 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     register(registration.channel, registration.handler)
   }
   const hostDeps = createHeadlessHostDeps(opts.dataDir)
+  const moduleDisposers: HandlerModuleDisposer[] = []
   for (const registerModule of HEADLESS_HANDLER_MODULES) {
-    registerModule(register, hostDeps)
+    const dispose = registerModule(register, hostDeps)
+    if (dispose) moduleDisposers.push(dispose)
   }
   for (const registration of opts.handlers ?? []) {
     register(registration.channel, registration.handler)
@@ -190,6 +226,13 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     async stop() {
       try {
         remoteServer.stop()
+        for (const dispose of moduleDisposers.splice(0)) {
+          try {
+            dispose()
+          } catch (error) {
+            opts.logger?.warn('[headless] handler module dispose failed:', error)
+          }
+        }
       } finally {
         if (lockHeld) {
           releaseLock(opts.dataDir)

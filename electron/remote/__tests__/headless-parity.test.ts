@@ -15,13 +15,12 @@ import * as path from 'path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { hasHandler } from '../handler-registry'
 import {
-  ALWAYS_LOCAL_CHANNELS,
   HEADLESS_UNSUPPORTED,
   checkHeadlessParity,
   countHeadlessUnsupportedByPhase,
   type HeadlessParityViolation,
 } from '../headless-channel-status'
-import { createHeadlessServer, type HeadlessServer } from '../headless-entry'
+import { createHeadlessServer, HEADLESS_HANDLER_MODULES, type HeadlessServer } from '../headless-entry'
 import { createHeadlessDefaultHandlers } from '../headless-handlers'
 import { PROXIED_CHANNELS } from '../protocol'
 import { makeHeadlessDataDir, removeHeadlessDataDir } from './helpers/headless-harness'
@@ -64,12 +63,21 @@ describe('headless channel parity', () => {
     expect(extra).toEqual([])
   })
 
-  it('ALWAYS_LOCAL_CHANNELS mirrors the set main.ts bindProxiedHandlersToIpc uses', () => {
+  it('shared handler modules on headless only register proxied channels (T0390)', () => {
+    const registered: string[] = []
+    const disposers = HEADLESS_HANDLER_MODULES.map(registerModule => registerModule(
+      channel => { registered.push(channel) },
+      { emit: () => {}, dataDir, homeDir: dataDir, getSettings: () => ({}) },
+    ))
+    for (const dispose of disposers) if (dispose) dispose()
+    expect(registered.length).toBeGreaterThan(0)
+    expect(registered.filter(c => !PROXIED_CHANNELS.has(c))).toEqual([])
+  })
+
+  it('main.ts uses this ALWAYS_LOCAL_CHANNELS instead of its own copy (T0390)', () => {
     const mainSource = fs.readFileSync(path.join(PROJECT_ROOT, 'electron', 'main.ts'), 'utf8')
-    const match = mainSource.match(/const\s+ALWAYS_LOCAL_CHANNELS\s*=\s*new\s+Set\(\[([\s\S]*?)\]\)/)
-    expect(match, 'ALWAYS_LOCAL_CHANNELS literal not found in electron/main.ts').not.toBeNull()
-    const inMain = [...match![1].matchAll(/'([^']+)'/g)].map(m => m[1]).sort()
-    expect([...ALWAYS_LOCAL_CHANNELS].sort()).toEqual(inMain)
+    expect(mainSource).not.toMatch(/const\s+ALWAYS_LOCAL_CHANNELS\s*=/)
+    expect(mainSource).toMatch(/import\s*\{[^}]*\bALWAYS_LOCAL_CHANNELS\b[^}]*\}\s*from\s*'\.\/remote\/headless-channel-status'/)
   })
 
   it('HEADLESS_UNSUPPORTED phases are valid', () => {

@@ -4,8 +4,8 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { execFileSync, spawnSync, fork } from 'child_process'
 import { WindowRegistry } from './window-registry'
-import { resolveShellPath } from './shell-path-resolver'
 import { registerTerminalCommandHandlers } from './terminal-command-handlers'
+import { registerPtyHandlers } from './handlers/pty'
 import { resolveGhBinary, type GhResolveResult } from './gh-resolver'
 
 // Fix PATH for GUI-launched apps on macOS.
@@ -79,6 +79,7 @@ import { ProfileManager, type ProfileEntry, type ProfileSnapshot } from './profi
 import { registerHandler, invokeHandler } from './remote/handler-registry'
 import { broadcastHub } from './remote/broadcast-hub'
 import { PROXIED_CHANNELS } from './remote/protocol'
+import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient } from './remote/remote-client'
 import {
@@ -1990,19 +1991,8 @@ app.on('activate', async () => {
 function registerProxiedHandlers() {
   const MESSAGE_ARCHIVE_DIR = path.join(app.getPath('userData'), 'message-archives')
 
-  // PTY
-  registerHandler('pty:create', (_ctx, options: unknown) => ptyManager?.create(options as import('../src/types').CreatePtyOptions))
-  // T0215 (BUG-050 階段 1):改用 writeWithResult 回 `{ok, reason}`,讓 bat-notify 可據以 exit 1
-  registerHandler('pty:write', (_ctx, id: string, data: string) =>
-    ptyManager?.writeWithResult(id, data) ?? { ok: false, reason: 'manager-not-ready' }
-  )
-  registerHandler('pty:resize', (_ctx, id: string, cols: number, rows: number) => {
-    logger.log(`[resize] pty:resize id=${id} cols=${cols} rows=${rows}`)
-    return ptyManager?.resize(id, cols, rows)
-  })
-  registerHandler('pty:kill', (_ctx, id: string) => ptyManager?.kill(id))
-  registerHandler('pty:restart', (_ctx, id: string, cwd: string, shellPath?: string) => ptyManager?.restart(id, cwd, shellPath))
-  registerHandler('pty:get-cwd', (_ctx, id: string) => ptyManager?.getCwd(id))
+  // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
+  registerPtyHandlers(registerHandler, { getPtyManager: () => ptyManager })
 
   // Terminal: create + immediately send a command (for Control Tower auto-session).
   registerTerminalCommandHandlers({
@@ -2196,19 +2186,6 @@ function registerProxiedHandlers() {
   })
   registerHandler('settings:cleanup-logs', async () => {
     return { deletedCount: logger.cleanupOldLogs(10) }
-  })
-  const shellPathCache = new Map<string, string>()
-  registerHandler('settings:get-shell-path', (_ctx, shellType: string) => {
-    const cached = shellPathCache.get(shellType)
-    if (cached) return cached
-
-    const result = resolveShellPath(shellType, {
-      platform: process.platform,
-      env: process.env,
-      existsSync: fsSync.existsSync,
-    })
-    shellPathCache.set(shellType, result)
-    return result
   })
 
   // Get Claude CLI path for claude-cli preset.
@@ -3071,9 +3048,8 @@ function registerProxiedHandlers() {
 // forward; proxying them would return null and break the UI.
 // The snapshot data for workspaces is already replicated into the local
 // windowRegistry via applySnapshot() at startup, so reading locally works.
-const ALWAYS_LOCAL_CHANNELS = new Set([
-  'workspace:save', 'workspace:load',
-])
+// The set lives in remote/headless-channel-status.ts (ALWAYS_LOCAL_CHANNELS),
+// shared with the headless parity ledger (T0390).
 
 function bindProxiedHandlersToIpc() {
   for (const channel of PROXIED_CHANNELS) {
