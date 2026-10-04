@@ -124,3 +124,7 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - P0 + P1 + P2 全部 DONE；WSL smoke 12/12（終端 / Claude / 工具偵測 / git / fs sandbox）。P3（J always-local 改分類、K 遠端 Tower 通知）未開單
 - T0406 偏差（接受）：`workspace:load` 後也推 roots（開窗後 registry 才寫入）；改動 `handler-registry.ts` 加 `connectionId`；推送「該 profile 所有視窗」roots 聯集；Electron 當 server 時不採用 synced roots
 - 待使用者以新 build 實機：T0401-T0403、T0405、T0406、T0412、T0413、BUG-105 的 UI 流程
+
+## P3 進度
+
+- J DONE：T0422（`d800dea`）——`settings:get-logging-info` / `settings:cleanup-logs` / `snippet:*`（10）改 `ALWAYS_LOCAL_CHANNELS`；`HEADLESS_UNSUPPORTED` 18 → 6（P1 2 / P3 4）

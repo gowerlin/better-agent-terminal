@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0422
 title: "PLAN-036 P3 / J：snippet:*、settings:get-logging-info、settings:cleanup-logs 改列 always-local（ALWAYS_LOCAL_CHANNELS + parity / 分類表同步）"
 type: implementation
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-036
 priority: P2
 sizing: S
 created_at: "2026-10-05T05:35:22+08:00"
-started_at: null
-updated_at: "2026-10-05T05:35:22+08:00"
-completed_at: null
+started_at: "2026-10-05T05:45:03+08:00"
+updated_at: "2026-10-05T05:48:03+08:00"
+completed_at: "2026-10-05T05:48:03+08:00"
 target_version: next
 depends_on:
   - T0417
@@ -79,8 +79,55 @@ T0386 建議清單 J：`snippet:*`（better-sqlite3，本機 DB）、`settings:g
 
 ### 完成狀態
 
+**DONE**（product commit `d800dea`）
+
+Landing Zone：PASS —— C-0 `repo: better-agent-terminal` == `basename(REPO_ROOT)` `better-agent-terminal`；C-1 PASS；C-3 present（`electron/main.ts` 等皆存在）；無 `branch` 欄（C-2 N/A）。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。`CT_MODE=yolo` / `CT_INTERACTIVE=0`。
+依賴確認：`git log` 有 T0417 `7609229`、T0419 `038c98e`。開工時 T0423 已 commit（`22bc3d0` / `2457161`），`electron/main.ts` / `headless-entry.ts` 無他人未提交改動；本單最終也**未改**這兩檔。
+
+### 語意確認結論（memory_overrides 第 1 條）
+
+12 個 channel 全數改 always-local，無一保留。程式證據：
+
+- **路由**：`electron/main.ts` `bindProxiedHandlersToIpc()` 對每個 `PROXIED_CHANNELS` 先判 `if (ALWAYS_LOCAL_CHANNELS.has(channel)) return invokeHandler(channel, args, windowId)`，在 remote 分支（`remoteClient.invoke`）之前 ⇒ 遠端 profile 視窗的呼叫在本機 Electron 執行，不送 headless。本機 handler 仍由 `registerHandler('snippet:*' / 'settings:get-logging-info' / 'settings:cleanup-logs', …)`（`main.ts` 約 :2205-2261）提供，不需改 `main.ts`。
+- **snippet:\***：`electron/snippet-db.ts:45-46` 存於 `app.getPath('userData')/snippets.json`（工單寫 better-sqlite3，實為 JSON 檔；結論相同）——本機使用者片段。`getByWorkspace(workspaceId)` 用的 workspace id 來自 `workspace:load`（本就 ALWAYS_LOCAL，由本機 window registry 回）⇒ 與本機 snippet 庫一致。
+- **settings:get-logging-info / cleanup-logs**：`SettingsPanel.tsx:328-334`「開啟日誌資料夾」以 `shell.openPath(loggingInfo.logsDir)` 開路徑，而 `shell:open-path` 是 `main.ts:2420` 的純 `ipcMain.handle`（從不代理）⇒ 代理時拿到的 server 路徑本來就無法在本機開啟。改 always-local 後「顯示的路徑 / 開資料夾 / 清理」三者都指向同一份本機 BAT log，語意一致；headless 端原本也只回 unsupported，遠端視窗功能只會變好。
+- **對 Electron-host 遠端（非 headless）的行為差異**：以前遠端視窗會讀寫 host 那台的 snippets / logs，現在改讀本機。之前在遠端視窗建立、存在 host 端的 snippet 不會出現在遠端視窗（未搬遷資料）。判斷：snippet 是使用者個人文字片段，與 T0386 §1 B 的 always-local 建議一致，且 headless 本來就沒有，不視為功能變差；列為殘留風險。
+
 ### 產出摘要
+
+`d800dea` 改動檔：
+- `electron/remote/headless-channel-status.ts`：12 個 channel 從 `HEADLESS_UNSUPPORTED`（P3）移入 `ALWAYS_LOCAL_CHANNELS`（比照 T0401 archive 三個的寫法，附來源註解）
+- `electron/remote/path-aware-channels.ts`：`PATH_FREE_CHANNELS` 理由加 `ALWAYS_LOCAL (never proxied)` 前綴（比照 archive / workspace）；`settings:get-logging-info` 移出 `SERVER_PATH_RESULT_CHANNELS`（不再回 server 路徑）
+- `electron/remote/__tests__/path-aware-channels-coverage.test.ts`：同步移除 server-path 樣本
+- `electron/remote/__tests__/headless-always-local.test.ts`（新）：12 個 channel 為 ALWAYS_LOCAL + 仍在 `PROXIED_CHANNELS`（IPC 綁定）+ 不在 `HEADLESS_UNSUPPORTED`；`main.ts` 有本機 `registerHandler`；`bindProxiedHandlersToIpc` 的 ALWAYS_LOCAL 短路在 `remoteClient.invoke` 之前；path 表理由與非 server-path；headless harness 實際 invoke 皆回 `No handler for channel: <channel>`
+
+未改：`protocol.ts`（channel 仍需在 `PROXIED_CHANNELS` 才會被 `bindProxiedHandlersToIpc` 綁到 IPC，比照 T0401）、`main.ts`、`headless-entry.ts`、`handlers/claude.ts`（無需改動）。
+
+**`HEADLESS_UNSUPPORTED` 計數**：前 18（P1 2 / P3 16）→ 後 **6**（P1 2 / P3 4：`terminal:create-with-command` / `create-agent-command` / `notify` / `keypress`）。`ALWAYS_LOCAL_CHANNELS` 5 → 17。
+
+PLAN-036 新增「P3 進度」段，記 J DONE（T0422 / `d800dea`）。
+
+### 驗收
+
+| 閘門 | 結果 | 證據 |
+|---|---|---|
+| 語意確認 | PASS | 見上節 |
+| 目標測試 | PASS | parity / path-aware coverage / proxied-binding / headless-claude / 新測試：5 files、197 tests 全綠 |
+| `npm run test:unit` | PASS | 116 files；1899 passed / 1 skipped（stderr 的 `No such remote 'origin'` 為既有測試雜訊，不影響結果） |
+| `npx tsc --noEmit` | PASS | 40 errors（≤ 40）；本單 3 個改動檔 + 新測試 0 個 |
+| vite build / e2e | 未跑 | 依 memory_overrides 第 4 條刻意不跑 |
+| 實機（遠端 profile 視窗開設定頁「日誌」/ Snippet 面板） | 未做 | 需新 build，交使用者實機 |
 
 ### 遭遇問題
 
+- 第一次寫 `PATH_FREE_CHANNELS` 理由時，字串內的撇號跳脫錯誤造成語法錯誤，已改寫措辭修正，未進 commit。
+- 工作樹有其他 Worker 的未提交改動（`electron/handlers/pty.ts`、`electron/pty-manager.ts`、`src/types/index.ts`、其他工單、`_tower-state.md`），皆未觸碰；以 `git commit --only` 精準提交。
+
+### 殘留風險 / 後續
+
+- Electron-host 遠端模式下，過去存在 host 端的 snippet 不再出現在遠端視窗（無資料搬遷）。若使用者在意，可另開單評估搬遷或唯讀合併。
+- `HEADLESS_UNSUPPORTED` 剩 P3 / K 的 `terminal:*` 4 個 + codex 控制 2 個。
+
 ### 回報時間
+
+2026-10-05T05:48:03+08:00
