@@ -143,7 +143,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0366** / **BUG-083** / **PLAN-035** / **D121** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；D120、L133 新增）
+- **T0367** / **BUG-084** / **PLAN-035** / **D121** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；BUG-083 + T0366 research 派發；D120、L133 新增）
 
 ---
 
