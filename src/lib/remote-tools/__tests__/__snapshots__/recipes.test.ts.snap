@@ -73,30 +73,30 @@ gh none root → unsupported:no-package-manager
 gh none passwordless → unsupported:no-package-manager
 gh none password-required → unsupported:no-package-manager
 gh none sudo-missing → unsupported:no-package-manager
-codex apt root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex apt passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex apt password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex apt sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex dnf root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex dnf passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex dnf password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex dnf sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex yum root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex yum passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex yum password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex yum sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex apk root → apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex apk passwordless → sudo apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex apk password-required → sudo apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex apt root → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex apt passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex apt password-required → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex apt sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex dnf root → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex dnf passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex dnf password-required → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex dnf sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex yum root → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex yum passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex yum password-required → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex yum sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex apk root → apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex apk passwordless → sudo apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex apk password-required → sudo apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
 codex apk sudo-missing → unsupported:needs-root-no-sudo
-codex brew root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex brew passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex brew password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex brew sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex none root → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex none passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex none password-required → curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex none sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex brew root → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex brew passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex brew password-required → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex brew sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex none root → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex none passwordless → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex none password-required → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+codex none sudo-missing → curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
 curl apt root → unsupported:no-recipe
 curl apt passwordless → unsupported:no-recipe
 curl apt password-required → unsupported:no-recipe

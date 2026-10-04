@@ -221,7 +221,9 @@ const SCRIPT_RECIPES: Record<ScriptRecipe['toolId'], ScriptRecipe> = {
   },
   codex: {
     toolId: 'codex',
-    script: `curl -fsSL ${SCRIPT.codex} | sh`,
+    // install.sh reads `Start Codex now? [y/N]` from /dev/tty, which holds the sentinel until
+    // someone answers; CODEX_NON_INTERACTIVE=1 answers No to every prompt (BUG-104).
+    script: `curl -fsSL ${SCRIPT.codex} | CODEX_NON_INTERACTIVE=1 sh`,
     docsUrl: DOCS.codex,
     installPath: '~/.local/bin/codex',
     integrity: 'remoteTools.integrity.codexSha256Sums',

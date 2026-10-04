@@ -84,8 +84,17 @@ describe('buildInstallPlan — key cases', () => {
   })
 
   it('codex / uv: vendor install.sh into ~/.local/bin', () => {
-    expect(plan('codex', linux('apt', 'password-required')).command).toBe('curl -fsSL https://chatgpt.com/codex/install.sh | sh')
+    expect(plan('codex', linux('apt', 'password-required')).command).toBe('curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh')
     expect(plan('codex', linux('apt', 'password-required')).notes).toContain('remoteTools.note.codexEditsProfile')
+    expect(plan('uv', linux('apt', 'password-required')).command).not.toContain('CODEX_NON_INTERACTIVE')
+    expect(plan('codex', linux('apk', 'root', true)).command).toBe('apk add curl && curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh')
+  })
+
+  it('codex: installer never prompts, on every host that has a plan (BUG-104)', () => {
+    for (const env of allEnvs()) {
+      const result = buildInstallPlan('codex', env)
+      if (isInstallPlan(result)) expect(result.command).toMatch(/\| CODEX_NON_INTERACTIVE=1 sh$/)
+    }
     expect(plan('uv', linux('dnf', 'sudo-missing')).command).toBe('curl -LsSf https://astral.sh/uv/install.sh | sh')
     expect(plan('uv', { osFamily: 'darwin', pkgManager: 'none', privilege: 'passwordless', musl: false }).needsSudo).toBe(false)
   })
