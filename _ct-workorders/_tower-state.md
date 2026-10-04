@@ -250,6 +250,14 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 05:54 — T0431（`--no-interactive`）；overlap 無（T0425：ssh 精靈；T0435：preload / 面板）
 - [授權] 2026-10-05 05:55 — 使用者：「塔台給最佳建議, 直接決定」→ scope 內斷點 C 由塔台裁決、事後回報
 - [斷點 C 裁決] 2026-10-05 05:56 — T0430 兩項合併為 T0442（依賴 T0431）；聯合複驗改在 scratchpad 乾淨 worktree 對 HEAD 跑（不受平行 Worker dirty 檔影響）
+- [完成] 2026-10-05 05:59 — T0435 DONE（`c6c4e9e`）塔台複核 PASS：9 檔、Worker 1961 tests、**tsc 40 → 39**（新基線）；BUG-107 → FIXED；偏差接受（測試檔放 `electron/__tests__/` 避 TS6305）
+- [聯合複驗] 2026-10-05 06:00 — HEAD `49175ef` 乾淨 worktree：vite build exit 0、tsc 39、unit 1804 passed（3 個 `scripts/__tests__/*.mjs` worktree 載入 SyntaxError = 既有環境異常，主工作區重跑 136/136 PASS）；e2e 待平行度降低後補
+- [派發] 2026-10-05 06:00 — T0436（`--no-interactive`）；與 T0431 可能同碰 `main.ts` / 分類表（hunk 隔離條款已在工單）
+- [完成] 2026-10-05 06:01 — T0425 DONE（`a73caf9`）塔台複核 PASS：16 檔、Worker 1961 tests / tsc 39；BUG-098 → FIXED（移除 direct）。附帶修正既有缺陷：ssh profile `useSshTunnel` 為 `undefined` 時原本不開 tunnel、直連本機 RemoteServer → 一律 tunnel（`resolveSshTunnelUse`）。偏差接受（`remote-client.ts` / `SshDetails.tsx`）
+- [派發] 2026-10-05 06:01 — T0426（`--no-interactive`）；與 T0431 / T0436 可能同碰 `main.ts` / `preload.ts`（hunk 隔離條款已在工單）
+- [完成] 2026-10-05 06:08 — T0431 DONE（`9fa2cc3`）塔台複核 PASS：14 檔、HEADLESS_UNSUPPORTED 6 → 2、本機指令輸出 3×11 矩陣逐字比對、Worker 2004 tests / tsc 39；`main.ts` 以 `git apply --cached` 只 stage 本單 6 hunk（T0436 hunk 未夾帶）。規格內行為變更接受：Electron 端 `created-externally` / `notified` / `keypress` 也經 broadcastHub 送遠端 client
+- [斷點 C 裁決] 2026-10-05 06:08 — T0431 遭遇問題 4（headless 指定 codex → shell command not found）併入 T0433（回結構化錯誤 + i18n）
+- [派發] 2026-10-05 06:08 — T0432 ∥ T0442（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 

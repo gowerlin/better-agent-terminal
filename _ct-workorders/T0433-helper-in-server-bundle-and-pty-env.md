@@ -39,6 +39,7 @@ memory_overrides:
   - "🔴 遠端 PTY env **只**注入範圍權杖（`BAT_REMOTE_TOKEN=<capability>`）與 `BAT_REMOTE_PORT` / `BAT_SERVER_CERT_PATH` / `BAT_HELPER_DIR` / log 目錄覆寫；**server token 絕不進 env**——加 unit test 斷言 env 中不含 server token 值。`isHeadlessScrubbedEnvKey` 的規則不變（scrub 繼承的 `BAT_*`，再由 helperEnv 顯式注入）。"
   - "🔴 helper `.mjs` 修改需相容本機（本機 BAT 同一份 helper）：本機行為不變，以既有 helper 測試鎖住。`_bat-logger.mjs` 的 log 目錄在遠端改由 env 覆寫，不得寫到不存在或無權限的路徑。"
   - "🔴 bundle：`verify-helper-bundle.js` 擴充後，`npm run verify:helpers` 必須綠；只能用 Windows 可跑的方式驗證 build 腳本（T0391 備註：Windows 上 schema-only `build-server-bundle` 停在 `pruneAnthropicPackages` 是既有狀況，不要修，回報區註明你如何驗證複製步驟）。"
+  - "🔴 **塔台 06:08 追加（T0431 遭遇問題 4）**：headless `terminal:create-agent-command` 指定 codex（或其他 server bundle 未附帶、且遠端偵測不到的 agent）時，回傳明確錯誤（結構化 code，renderer 顯示 i18n 提示），而不是組出 `codex …` 打進 shell 得到 command not found。判斷依據沿用 PLAN-037 遠端工具偵測（`remote-tools:detect` 的結果或同等 server 端檢查），不要新寫偵測。"
   - "🔴 依賴 T0432。開工前 `git log --oneline -8` 確認；共用檔 commit 前 `git diff <file>` 確認只含本單 hunk。"
   - "🔴 **只跑 `npm run test:unit` + `npx tsc --noEmit` + `npm run verify:helpers`；不跑 `npx vite build` / `npm run test:e2e`**（L141）。**禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`**（L138）；`git commit --only`；不 push；不部署 WSL。"
 ---
