@@ -1404,6 +1404,8 @@
 | 27 | T0443 BUG-110 遠端視窗未連線 fail-closed 路由 + 狀態事件 | 本專案 | T0442 | M | 🟢 |
 | 28 | T0444 BUG-111 精靈 rollback 只清精靈自有資源 | 本專案 | T0427 | S | 🟢 |
 
+- **追加**（使用者 06:14 裁決）：多 remote profile 同時連線開 **PLAN-039**（PLANNED），**排在本批（D134 第 1-28 列）全部完成之後**，先開 Phase 0 研究單
+
 - **追加**（塔台 06:12 依授權決定）：BUG-110（high）—— T0430 / T0442 回報的「槽位空時 invoke 落本機」經塔台複核 `main.ts` `bindProxiedHandlersToIpc` 屬 fail-open，且單一 `remoteClient` 槽位導致兩個不同 remote profile 同時開窗時先開者靜默變本機。T0443 只做 fail-closed + 狀態事件；**多 profile 同時連線（per-profile client map）屬架構變更，交使用者決定**
 
 - **授權變更**（使用者 05:55「塔台給最佳建議，直接決定」）：本 session 起 scope 內的斷點 C / 排程選擇由塔台直接裁決、事後回報；push / release、破壞性操作、產品方向與擴大暴露面的安全取捨仍交使用者。第 26 列即據此由塔台決定（T0430 回報兩項合併）
