@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0384
 title: "BUG-092 修復：BAT 對 WSL profile 持有長駐 `wsl.exe` 保活，避免發行版閒置關閉"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: M
 created_at: "2026-10-04T22:18:57+08:00"
-updated_at: "2026-10-04T22:58:02+08:00"
+updated_at: "2026-10-04T23:06:35+08:00"
 started_at: "2026-10-04T22:58:02+08:00"
-completed_at: null
+completed_at: "2026-10-04T23:06:35+08:00"
 target_version: next
 depends_on: [T0383]
 related:
@@ -156,4 +156,7 @@ T0380 證實：沒有 `wsl.exe` 連線時，WSL 約 15 秒（`instanceIdleTimeou
 
 ### Commit
 
-見下方 commit hash（`git commit --only`，只含本單改動檔 + 新測試檔 + 本工單檔；BUG-092 檔未動，由塔台更新）。不 push。
+產品 commit `5fa7a03`（`git commit --only`，只含本單改動檔 + 新測試檔 + 本工單檔；BUG-092 檔未動，由塔台更新）。不 push。
+
+- 收尾 metadata commit：本工單檔狀態更新另以 `chore(ct): T0384 DONE` 提交。
+- 完成時間：2026-10-04T23:06:35+08:00
