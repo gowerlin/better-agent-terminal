@@ -3,16 +3,18 @@ schema_version: 1
 schema_kind: bug
 id: BUG-085
 title: Codex CLI 0.160 在提權的 Windows 上拒絕啟動 daemon，Codex CLI 終端 preset 直接失敗
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: conditional
 created_at: "2026-10-04T20:21:50+08:00"
-updated_at: "2026-10-04T20:21:50+08:00"
+updated_at: "2026-10-04T20:39:03+08:00"
 impact:
   - codex-cli-terminal-preset
-  - codex-agent（待確認）
+  - ct-dispatch-codex-cli（提權環境）
 links:
   research_workorder: T0375
+  fix_workorder: T0377
+  decision: D124
   related: [BUG-083]
 ---
 
@@ -20,9 +22,9 @@ links:
 
 | 欄位 | 內容 |
 |------|------|
-| 嚴重度 | 🟡 medium（暫定；Codex CLI 終端 preset 在提權環境整個不可用，有 `--no-daemon` 繞法。若 Codex Agent 面板同樣受影響則升 high） |
+| 嚴重度 | 🟡 medium（T0375 確認：Codex Agent 面板不受影響，維持 medium） |
 | 可重現 | 條件式 100%：Windows + BAT 行程為提權（UAC 停用 `EnableLUA=0`，或使用者以系統管理員執行 BAT） |
-| 狀態 | 📂 OPEN |
+| **狀態** | ⏳ FIXING（T0377，2026-10-04 20:39） |
 | 回報者 | 使用者（2026-10-04 20:19，實機截圖） |
 
 ## 現象
@@ -62,3 +64,16 @@ To work without the background server, rerun the same command with --no-daemon (
 
 - 終端分頁手動執行 `codex --yolo --no-daemon`
 - （影響全機，不建議為此變更）重新啟用 UAC：`EnableLUA=1` + 重開機
+
+## 研究結論（T0375，`e9e27ec`）
+
+| 路徑 | 結果 |
+|------|------|
+| 終端 Codex CLI preset / `codex resume` / `codex fork` | ❌ 受影響（ConPTY 實測 exit 1） |
+| Tower / remote 以 codex-cli 派發的 Worker 終端 | ❌ 受影響（同一個 `buildLaunchCommand()`，靜態推導） |
+| Codex Agent 面板（SDK → `codex exec`，含 resume） | ✅ 不受影響（隔離 CODEX_HOME smoke `pong` ×2；使用者 20:22 實機亦正常） |
+| `codex --version` / 模型清單 | ✅ 不受影響 |
+
+- 停用 daemon 的手段：`--no-daemon`（舊版 0.133 exit 2）、`--disable daemon_auto_start`（舊版 exit 1）、**`-c features.daemon_auto_start=false`（0.160 / 0.133 皆可）**、`config.toml [features]`（侵入使用者設定）；**沒有 env 開關**
+- 修復方案見 D124 / T0377
+

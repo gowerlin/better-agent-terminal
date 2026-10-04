@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 16:09 (UTC+8)（第四十九 session 新增 D120、D121、D122、D123）
+> 最後更新：2026-10-04 20:39 (UTC+8)（第五十 session 新增 D124、D125）
 
 ---
 
@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D125 | 2026-10-04 | 本地打包（`release.ps1` / `build-version.js`）版號來源改為：顯式指定 → `package.json` → 時間戳（僅最後手段且不得大於真實版號）；保留 `-pre.N` 後綴、移除非 exact `git describe` fallback、打包不留 dirty、補齊 verify / fetch:baseline 前置檢查；CI `VERSION` env 路徑行為不變 | T0376 |
+| D124 | 2026-10-04 | BUG-085 採 T0375 方案 B'：Windows 提權時 `codex-cli` 啟動指令注入 `-c features.daemon_auto_start=false`（不用 `--no-daemon`，舊版 codex 會 exit 2）+ 一次性 i18n 提示；SDK 路徑不注入 | T0375 / T0377 / BUG-085 |
 | D123 | 2026-10-04 | BUG-084 Phase 2（SDK 0.3.289）：`claude-code-v2`「Claude Agent V2」preset **下架**（使用者裁決），不遷移成 `query()`。須含既有設定遷移：已存檔 workspace / terminal 指向 `claude-code-v2` 者自動改指 `claude-code` | BUG-084 / D122 |
 | D122 | 2026-10-04 | BUG-084（內嵌 Claude CLI 2.1.113 被服務端擋 Opus 5.5 / Fable 5.1）依 T0368 採分階段：Phase 1 只升 CLI 2.1.289（SDK 留 0.2，實測相容含 V2）+ Claude 5 模型清單；隨後錯誤分類 / DISABLE_UPDATES / 計價表；Phase 2 SDK 0.3 待使用者決定 V2 preset 去留。為避免主工作樹 `npm install` 與 T0370 測試互擾，T0371 排在 T0370 之後 | T0368 / T0371 / BUG-084 |
 | D121 | 2026-10-04 | BUG-083 依 T0366 結論採 S1（bump SDK + 內嵌解析相容新目錄）+ S2（選最新 binary + 錯誤分類）；S3 Settings runtime 選擇後排。四張實作單共改 `codex-agent-manager.ts`，依序串行 T-A 誤報/錯誤分類 → T-B bump → T-D 模型清單 → T-C 選最新 binary | T0366 / T0367 / BUG-083 |
@@ -1351,6 +1353,25 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D125 2026-10-04 — 本地打包版號來源以 package.json 為準
+
+- **背景**：使用者本地 task「發行: 打包發行版」產出 `1.26.1004195815`（HEAD 不在 tag 上 → 退回時間戳），CI 為 `0.5.9-pre.4`。另發現 tag 取版會砍 `-pre.N`、打包後 `package.json` / nuspec 留 dirty、`release.ps1` 繞過 verify-* 與 fetch:baseline、choco checksum pattern 永不命中
+- **決定**：版號優先序 顯式指定 → `package.json`（`_local-rules` 規定發版後必同步，為 repo 版號 SoT）→ 時間戳（最後手段，不得大於真實版號）；保留 prerelease 後綴；移除非 exact `git describe --tags` fallback（三條 tag 線，L123）；打包不留 dirty；補齊前置檢查。CI 以 `VERSION` env 呼叫的行為不變
+- **不採用**：維持 tag 優先 —— tag 後常有塔台紀錄 commit，exact-match 經常失敗
+- **相關**：T0376 / BUG-056 / L123
+
+---
+
+### D124 2026-10-04 — BUG-085：提權 Windows 的 codex-cli 注入 daemon feature 旗標
+
+- **依據**：T0375（`e9e27ec`）。只有互動 TUI 路徑（終端 preset、resume/fork、codex-cli 派發）受影響；SDK 路徑正常
+- **決定**：方案 B' —— 偵測 BAT 行程提權（`whoami /groups` High Mandatory Level）時，`agent-registry.ts` `buildLaunchCommand()` 對 `codex-cli` 注入 `-c features.daemon_auto_start=false`；首次開分頁一次性 i18n 提示
+- **不採用**：A `--no-daemon`（PATH 上舊版 0.133 exit 2，BAT 無法得知 shell 解析到哪版）；改使用者 `config.toml`（侵入）；降權 token 啟動（`EnableLUA=0` 無 limited token）
+- **已知缺口**：「UAC 開啟 + 管理員執行 BAT + 已有非提權 daemon」情境效果無法判定，需 UAC 開啟機器驗收
+- **相關**：T0375 / T0377 / BUG-085
 
 ---
 

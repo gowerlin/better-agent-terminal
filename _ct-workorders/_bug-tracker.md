@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-04T20:24:43+08:00"
+generated_at: "2026-10-04T20:39:03+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 10
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 1
+  FIXING: 1
   FIXED: 2
   VERIFY: 0
   CLOSED: 6
@@ -23,23 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 20:24 (UTC+8) — 第五十 session：新增 BUG-085（OPEN）；BUG-083 → CLOSED（實機驗收）；frontmatter breakdown 漂移校正
+> 最後同步：2026-10-04 20:39 (UTC+8) — 第五十 session：新增 BUG-085 → FIXING（T0377）；BUG-083 → CLOSED（實機驗收）；frontmatter breakdown 漂移校正
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 10**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 6 | ⛔ Won't Fix: 0 | **Total: 10**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-085 | Codex CLI 0.160 在提權的 Windows 上拒絕啟動 daemon，Codex CLI 終端 preset 直接失敗 | 🟡 medium | 2026-10-04 | [BUG-085](BUG-085-codex-cli-daemon-refuses-elevated-windows.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-085 | Codex CLI 0.160 在提權的 Windows 上拒絕啟動 daemon，Codex CLI 終端 preset 直接失敗 | 🟡 medium | 2026-10-04 | [BUG-085](BUG-085-codex-cli-daemon-refuses-elevated-windows.md) |
 
 ## ✅ 已修復
 
