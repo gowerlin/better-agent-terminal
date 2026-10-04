@@ -2,6 +2,9 @@ import * as childProcess from 'child_process'
 import { randomBytes } from 'crypto'
 import { validateContainerName, type DockerMount } from './docker-validate'
 
+/** BUG-097: host interface the container's server port is published on. Never widen. */
+export const DOCKER_PUBLISH_HOST = '127.0.0.1'
+
 interface ExecResult {
   stdout: string
   stderr: string
@@ -72,7 +75,14 @@ export async function startContainer(
 
       const port = options.port ?? 9876
       const token = options.token ?? randomBytes(16).toString('hex')
-      const args = ['run', '-d', '--name', name, '--restart', options.restartPolicy ?? 'unless-stopped', '-p', `${port}:9876`]
+      // BUG-097: publish on host loopback only. The image binds bat-server to
+      // all container interfaces (Dockerfile `--bind-interface all`) so the
+      // docker forward can reach it; this host-side bind is what keeps the
+      // server (a container root shell via pty:create) off the LAN.
+      const args = [
+        'run', '-d', '--name', name, '--restart', options.restartPolicy ?? 'unless-stopped',
+        '-p', `${DOCKER_PUBLISH_HOST}:${port}:9876`,
+      ]
       for (const mount of options.mounts ?? []) {
         args.push('-v', `${mount.host}:${mount.container}`)
       }

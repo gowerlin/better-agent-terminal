@@ -1,12 +1,18 @@
 import type { WizardStep } from '../../wizard-runner'
 
+// BUG-097 (T0418): engines without HEALTHCHECK --start-interval run the first
+// probe only after the 30s interval (docker/Dockerfile), so the container stays
+// `starting` that long. Wait past interval + timeout instead of the old 5s.
+const HEALTH_POLL_INTERVAL_MS = 500
+const HEALTH_WAIT_MS = 45_000
+
 async function waitForHealthy(name: string): Promise<void> {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < HEALTH_WAIT_MS / HEALTH_POLL_INTERVAL_MS; attempt += 1) {
     const health = await window.electronAPI.docker.getContainerHealth(name)
     if (!health.ok) throw new Error(health.error ?? `Failed to read Docker health for ${name}.`)
     if (health.health === 'healthy' || health.health === 'none') return
     if (health.health === 'unhealthy') throw new Error(`Docker container ${name} reported unhealthy.`)
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, HEALTH_POLL_INTERVAL_MS))
   }
 
   throw new Error(`Timed out waiting for Docker container ${name} to become healthy.`)

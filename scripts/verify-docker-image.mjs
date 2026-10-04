@@ -10,7 +10,10 @@ const EXPECTED_HEALTHCHECK = {
   StartPeriod: 10_000_000_000,
   Retries: 3,
 }
-const EXPECTED_COMMAND = 'curl -fk https://127.0.0.1:${BAT_PORT}/health || exit 1'
+// BUG-097 (T0418): TLS-handshake probe via the bundled node; keep in sync with docker/Dockerfile.
+const EXPECTED_COMMAND =
+  `/opt/bat-server/bin/node -e 'const s=require("tls").connect({host:"127.0.0.1",port:Number(process.env.BAT_SERVER_PORT),rejectUnauthorized:false},()=>{s.end();process.exit(0)});s.setTimeout(4000,()=>process.exit(1));s.on("error",()=>process.exit(1))' || exit 1`
+const EXPECTED_ENTRYPOINT = ['/usr/bin/tini', '--', '/opt/bat-server/bin/bat-server', '--bind-interface', 'all']
 
 function run(command, args) {
   return execFileSync(command, args, {
@@ -31,6 +34,7 @@ function showHelp() {
 Verifies:
 - image size is below 300 MB
 - HEALTHCHECK matches the Dockerfile contract
+- ENTRYPOINT binds bat-server to all container interfaces
 - /opt/bat-server/bin contains node and bat-server`)
 }
 
@@ -61,6 +65,11 @@ function main() {
   const healthCommand = Array.isArray(healthcheck.Test) ? healthcheck.Test.at(-1) : ''
   if (healthCommand !== EXPECTED_COMMAND) {
     fail(`HEALTHCHECK command mismatch: expected "${EXPECTED_COMMAND}", got "${healthCommand}"`)
+  }
+
+  const entrypoint = JSON.parse(run('docker', ['image', 'inspect', tag, '--format', '{{json .Config.Entrypoint}}']))
+  if (JSON.stringify(entrypoint) !== JSON.stringify(EXPECTED_ENTRYPOINT)) {
+    fail(`ENTRYPOINT mismatch: expected ${JSON.stringify(EXPECTED_ENTRYPOINT)}, got ${JSON.stringify(entrypoint)}`)
   }
 
   const binListing = run('docker', ['run', '--rm', '--entrypoint', '/bin/sh', tag, '-lc', 'ls /opt/bat-server/bin'])
