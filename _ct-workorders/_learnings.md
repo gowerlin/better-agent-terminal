@@ -3245,3 +3245,50 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 已套用：T0388-T0392
 
 **候選晉升**：🌐 Global（ct-exec Worker skill：平行 Worker 禁用 stash 類操作）
+
+---
+
+## L139
+
+**來源**：第五十四 session（2026-10-05），T0407 研究 vs T0411 / T0414 實機
+
+**現象**：T0407 從 Windows 經 `wsl.exe` 唯讀實測，login PATH 有 57 個 `/mnt/*`，`codex` 解析到 Windows 版，於是設計了 `interop-only` 狀態。但 T0411 部署後 S10（由 bat-server 執行 probe）與 T0414 實裝都顯示：BAT 視角的 codex 是 `missing`，PATH 中 `/mnt/*` 為 0 項。
+
+**根因**：WSL 只對經 `wsl.exe` 啟動的程序附加 Windows PATH；systemd user service（bat-server）及其 spawn 的 PTY 不會繼承 interop PATH。研究時的觀測位置（wsl.exe）≠ 產品實際執行位置（systemd 服務）。
+
+**How to apply**：
+- 研究遠端環境時，**必須在產品實際執行的程序上下文觀測**（例如讀 service MainPID 的 `/proc/<pid>/environ`，或經 headless PTY 執行），不能只用 `wsl.exe` / ssh 互動 shell
+- 研究單的「已知資訊」若來自不同執行上下文，要標明上下文並列為待實機確認
+
+**候選晉升**：📁 Project（遠端 / WSL 偵測），可泛化為 Global（「觀測上下文 = 執行上下文」）
+
+---
+
+## L140
+
+**來源**：第五十四 session（2026-10-05），T0405 回報 → BUG-105 → T0416
+
+**現象**：PLAN-036 把 `claude:*`、`github:*`、`git-scaffold:*`、`worktree:*` 搬上 headless 時，WSL smoke 全綠（直接用 server 路徑），但遠端視窗的工作區是本機對話框選出的 client 形式路徑（`\wsl.localhost\…` / `C:\…`），新上線的 channel 都沒登錄 path-aware ⇒ 原樣送到 Linux server。
+
+**根因**：路徑轉換是「白名單登錄制」，未登錄即靜默不轉；channel parity 守門只檢查「有沒有 handler」，不檢查「參數需不需要轉換」。smoke 的測試輸入與真實使用者輸入形式不同，測不到。
+
+**How to apply**：
+- 任何「靜默 fallback」的白名單（不登錄 = 不處理）都要配一個**全分類守門**：每個成員必須明確落在某一類，新增未分類即 CI 紅（T0416 / T0406 已對 `PROXIED_CHANNELS` / `PROXIED_EVENTS` 建立）
+- 遠端 smoke 的輸入應包含真實 client 形式（UNC / 磁碟代號），而非只用 server 形式
+
+**候選晉升**：🌐 Global（守門設計原則）
+
+---
+
+## L141
+
+**來源**：第五十四 session（2026-10-05），T0410 ∥ T0411、T0412 ∥ T0413、T0398 ∥ T0399
+
+**現象**：同工作樹平行 Worker 時：T0410 的 i18n 一一對應測試依賴 T0411 尚未 commit 的 errorCode，單看 T0410 commit 會紅；T0399 跑 vite build 時打包進 T0398 未完成的 `pty-manager.ts`；兩個 Worker 同時 `vite build` 會互相覆寫 `dist*`。
+
+**How to apply**：
+- 平行派發時，指定**只有一張**跑 `vite build` / e2e，其他張寫明「不跑 build，由塔台複驗」
+- 共用型別 / 常數的單應讓「擁有者」先 commit 型別（T0408 先 commit `src/types/remote-tools.ts` 的做法有效）
+- 塔台對平行單做**聯合複驗**：兩張都 commit 後在 HEAD 跑全套，單張只做目標測試
+
+**候選晉升**：🌐 Global（ct 平行派發規則）
