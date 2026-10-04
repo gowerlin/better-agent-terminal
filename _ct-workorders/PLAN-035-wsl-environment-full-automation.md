@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-035
 title: WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正）
-status: PLANNED
+status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T22:04:14+08:00"
 updated_at: "2026-10-04T22:18:57+08:00"
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-035 |
 | 優先級 | 🔴 High |
-| 狀態 | 📋 PLANNED（T0380 研究 DONE；Phase 1 T0381-T0384 串行，D128） |
+| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0380 DONE；Phase 1 T0381-T0384 全 DONE，待安裝版實機；Phase 2 / 3 待開單） |
 | 建立時間 | 2026-10-04 22:04 (UTC+8) |
 | 決策 | D127、D128 |
 
@@ -85,3 +85,16 @@ links:
   - **新增環節：伺服器埠**（required）
 - **Phase 1（串行）**：T0381 指紋 → T0382 埠 + 啟動穩定性 → T0383 網路模式判定 → T0384 保活
 - **Phase 2 / 3**：沿用 T0380 目標 6（P2-a INI 編輯器、P2-b 事實收集 + 計畫建構、P2-c `requestConsent` + 清單 UI；P3-a 安裝與提權、P3-b 重開機接續（`wizard-resume.json` + HKCU RunOnce）、P3-c 發行版 + 非互動建立使用者、P3-d 乾淨機器實機驗收），Phase 1 實機驗收後開單
+
+## Phase 1 完成（2026-10-04 23:08）
+
+| 工單 | commit | BUG |
+|------|--------|-----|
+| T0381 指紋改 TLS 握手 + timeout | `115de23` | BUG-090 FIXED |
+| T0382 埠探測 + 啟動穩定性 | `af7d94f` | BUG-091 FIXED |
+| T0383 `wslinfo` 判網路模式 + i18n 警告 | `bf41706` | BUG-089 FIXED |
+| T0384 keep-alive holder | `5fa7a03` | BUG-092 FIXED |
+
+unit 794 → 905；tsc 40 不變。待：安裝版從頭跑 WSL 精靈實機驗收（同時驗 BUG-086 / 087）。
+
+**Phase 2 新增候選**（來自 Phase 1 回報）：keep-alive per-profile 開關或 lazy 模式（T0384）；BAT 被強制終止時的孤兒 `wsl.exe`（Job Object，T0384）；runner 層 step abort（T0381）；`docs/wsl-deployment.md:216`、`docs/plan-007-release-checklist.md:59` 措辭對齊「NAT 不需強制改」（T0383）
