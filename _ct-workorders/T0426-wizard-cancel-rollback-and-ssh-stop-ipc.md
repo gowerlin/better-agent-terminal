@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0426
 title: "BUG-099 + BUG-100：精靈取消時 rollback 失敗中的步驟；實作 ssh.stopServer / ssh.uninstallBundle IPC（preload + main）"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-099
 priority: P2
 sizing: M
 created_at: "2026-10-05T05:35:22+08:00"
 started_at: "2026-10-05T06:01:34+08:00"
-updated_at: "2026-10-05T06:01:34+08:00"
-completed_at: null
+updated_at: "2026-10-05T06:12:53+08:00"
+completed_at: "2026-10-05T06:12:53+08:00"
 target_version: next
 depends_on:
   - T0425
@@ -204,8 +204,10 @@ memory_overrides:
 
 ### Commit
 
-（commit 後補）
+- 實作 commit `4caab48`（`fix(wizard): T0426 BUG-099 BUG-100 cancel rolls back the failed step; ssh stop-server / uninstall-bundle IPC`，16 files，parent `ccffedb`）；以暫存 index 建立，只含本單檔案與 `preload.ts` / `electron.d.ts` 的本單 hunk
+- 結案 metadata 另一個 commit（只含本工單）
+- 未 push
 
 ### 回報時間
 
-（結案時補）
+`2026-10-05T06:12:53+08:00`（系統時間）
