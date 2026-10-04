@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0389
 title: "PLAN-036 P0-B：去 Electron 化 —— claude-runtime-router 設定注入 + embedded resolver 合一（含 bundle `bin/claude`）+ PtyManager DI"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: M
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-05T00:05:55+08:00"
+updated_at: "2026-10-05T00:19:02+08:00"
 started_at: "2026-10-05T00:05:55+08:00"
-completed_at: null
+completed_at: "2026-10-05T00:19:02+08:00"
 target_version: next
 depends_on: [T0387]
 related:
@@ -137,4 +137,5 @@ memory_overrides:
 
 ### Commit
 
-- `git commit --only` 僅上列檔案；未 push。hash 見 commit 後 `git log`（回報區寫入在 commit 之前，不自我引用）
+- `566c6da` refactor(electron): de-electronize runtime router + PtyManager DI（`git commit --only` 僅上列檔案；未 push）
+- 完成時間：2026-10-05T00:19:02+08:00（metadata 收尾另一 commit）
