@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useMenuPosition } from '../hooks/useMenuPosition'
+import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
+import { copyRemotePath } from '../lib/client-paths'
 import { useTranslation } from 'react-i18next'
 import type { Workspace } from '../types'
 import { WORKSPACE_COLORS } from '../types'
@@ -61,6 +63,7 @@ export function Sidebar({
   onCollapse,
 }: Readonly<SidebarProps>) {
   const { t } = useTranslation()
+  const isRemoteWindow = useIsRemoteWindow()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -591,6 +594,23 @@ export function Sidebar({
             </svg>
             {t('sidebar.copyPath')}
           </div>
+          {isRemoteWindow && (
+            <div
+              className="context-menu-item"
+              onClick={() => {
+                // T0438: folderPath is the client form; copy the path on the remote host
+                const ws = workspaces.find(w => w.id === contextMenu.workspaceId)
+                if (ws) void copyRemotePath(ws.folderPath)
+                setContextMenu(null)
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              {t('sidebar.copyRemotePath')}
+            </div>
+          )}
           {githubUrl && (
             <div
               className="context-menu-item"

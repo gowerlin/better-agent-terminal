@@ -72,3 +72,30 @@ export async function resolveAttachmentPaths(paths: readonly string[]): Promise<
 export function attachmentDisplayNames(paths: readonly string[]): string {
   return paths.map(p => p.split(/[\\/]/).pop() || p).join(', ')
 }
+
+/**
+ * T0438: a workspace path as shown in this window (client form, e.g. a file tree entry) →
+ * the path on the window's host. null when main gives no reachable answer (fail-closed).
+ */
+export async function resolveRemotePath(path: string): Promise<string | null> {
+  if (!path) return null
+  let results: unknown
+  try {
+    results = await window.electronAPI.remote.resolveClientPaths([path], 'workspace-entry')
+  } catch (err) {
+    window.electronAPI.debug?.log?.('[copy-remote-path] remote:resolve-client-paths failed:', err instanceof Error ? err.message : String(err))
+    return null
+  }
+  return splitResolvedPaths([path], results).serverPaths[0] ?? null
+}
+
+/** T0438 "Copy Remote Path": copies the host form of `path`; false when it cannot be resolved. */
+export async function copyRemotePath(path: string): Promise<boolean> {
+  const serverPath = await resolveRemotePath(path)
+  if (!serverPath) {
+    window.electronAPI.debug?.log?.('[copy-remote-path] no host path for', path)
+    return false
+  }
+  await navigator.clipboard.writeText(serverPath)
+  return true
+}

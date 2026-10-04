@@ -195,6 +195,7 @@
     "openInVscode": "Open in VS Code",
     "vscodeNotFound": "VS Code executable not found: {{executable}}\nPlease go to Settings → Shell to set the full path.",
     "copyPath": "Copy Path",
+    "copyRemotePath": "Copy Remote Path",
     "openOnGithub": "Open on GitHub",
     "setGroup": "Set Group...",
     "setColor": "Set Color",

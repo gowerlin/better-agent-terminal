@@ -195,6 +195,7 @@
     "openInVscode": "在 VS Code 中開啟",
     "vscodeNotFound": "找不到 VS Code 執行檔：{{executable}}\n請至設定 → Shell 指定完整路徑",
     "copyPath": "複製路徑",
+    "copyRemotePath": "複製遠端路徑",
     "openOnGithub": "在 GitHub 上開啟",
     "setGroup": "設定群組...",
     "setColor": "設定顏色",

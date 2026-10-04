@@ -195,6 +195,7 @@
     "openInVscode": "在 VS Code 中打开",
     "vscodeNotFound": "找不到 VS Code 可执行文件：{{executable}}\n请前往设置 → Shell 指定完整路径",
     "copyPath": "复制路径",
+    "copyRemotePath": "复制远程路径",
     "openOnGithub": "在 GitHub 上打开",
     "setGroup": "设置分组...",
     "setColor": "设置颜色",

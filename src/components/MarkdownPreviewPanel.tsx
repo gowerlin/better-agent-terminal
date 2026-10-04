@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MarkdownPreview } from './FileTree'
+import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
+import { copyRemotePath } from '../lib/client-paths'
 
 interface MarkdownPreviewPanelProps {
   filePath: string
@@ -9,6 +11,7 @@ interface MarkdownPreviewPanelProps {
 
 export function MarkdownPreviewPanel({ filePath, onClose }: MarkdownPreviewPanelProps) {
   const { t } = useTranslation()
+  const isRemoteWindow = useIsRemoteWindow()
   const [content, setContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const watchingDir = useRef<string | null>(null)
@@ -71,6 +74,16 @@ export function MarkdownPreviewPanel({ filePath, onClose }: MarkdownPreviewPanel
           >
             &#x2398;
           </button>
+          {isRemoteWindow && (
+            <button
+              className="md-preview-action-btn"
+              onClick={() => { void copyRemotePath(filePath) }}
+              title={t('sidebar.copyRemotePath')}
+              aria-label={t('sidebar.copyRemotePath')}
+            >
+              &#x29C9;
+            </button>
+          )}
           <button
             className="md-preview-action-btn"
             onClick={() => window.electronAPI.shell.openPath(filePath)}

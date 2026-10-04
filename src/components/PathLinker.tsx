@@ -32,6 +32,9 @@ import sql from 'highlight.js/lib/languages/sql'
 import graphql from 'highlight.js/lib/languages/graphql'
 import dockerfile from 'highlight.js/lib/languages/dockerfile'
 import makefile from 'highlight.js/lib/languages/makefile'
+import { useTranslation } from 'react-i18next'
+import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
+import { copyRemotePath } from '../lib/client-paths'
 hljs.registerLanguage('typescript', typescript)
 hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('json', json)
@@ -181,11 +184,14 @@ interface FilePreviewModalProps {
 }
 
 export function FilePreviewModal({ filePath, onClose }: FilePreviewModalProps) {
+  const { t } = useTranslation()
+  const isRemoteWindow = useIsRemoteWindow()
   const [content, setContent] = useState<string | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [copiedRemote, setCopiedRemote] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [matchCount, setMatchCount] = useState(0)
@@ -226,6 +232,16 @@ export function FilePreviewModal({ filePath, onClose }: FilePreviewModalProps) {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     })
+  }, [filePath])
+
+  // T0438: the path may be the client form (Ctrl+P) or already the server form (agent
+  // output); toServer is a no-op on the latter, so both copy the path on the remote host.
+  const handleCopyRemotePath = useCallback(() => {
+    copyRemotePath(filePath).then(ok => {
+      if (!ok) return
+      setCopiedRemote(true)
+      setTimeout(() => setCopiedRemote(false), 1500)
+    }, () => {})
   }, [filePath])
 
   // Search: highlight matches and navigate
@@ -328,6 +344,16 @@ export function FilePreviewModal({ filePath, onClose }: FilePreviewModalProps) {
           >
             {copied ? '\u2713' : '\u2398'}
           </button>
+          {isRemoteWindow && (
+            <button
+              className="path-preview-btn"
+              onClick={handleCopyRemotePath}
+              title={t('sidebar.copyRemotePath')}
+              aria-label={t('sidebar.copyRemotePath')}
+            >
+              {copiedRemote ? '\u2713' : '\u29c9'}
+            </button>
+          )}
           <button
             className="path-preview-btn"
             onClick={() => window.electronAPI.shell.openPath(filePath)}
