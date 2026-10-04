@@ -1360,6 +1360,19 @@
 
 ---
 
+### D130 2026-10-05 — PLAN-036 P0 自動驗收結案與 P1 開工排程
+
+- **背景**：P0（T0388-T0391、T0393）的實機驗收改為自動化（使用者 01:12 裁決兩層都做）：T0396 協定層 smoke 對 WSL `ea52b03` server 8/8 PASS；T0397 Playwright Electron e2e 4/4 PASS（source build）。使用者 01:36 裁決 BUG-095 / BUG-101 據此 CLOSED
+- **決定**（使用者 01:40 裁決 P1 範圍：Claude 面板上遠端 + 遠端終端收尾 + git / fs 上遠端）：
+  - 範圍與編號：T0400 E（ClaudeAgentManager DI）→ T0401 F（`claude:*` 上線 headless + UI 降級 + 事件補齊）→ T0402 G（遠端登入引導）；T0403 遠端終端收尾 A（斷線輸出回放 `pty:get-buffer` + `pty:create` 回傳是否新 spawn）；T0404 遠端終端收尾 B（孤兒 PTY 回收 + BUG-103 serverEnv）；T0405 H（git / github / worktree / git-scaffold）；T0406 I（fs / image + `workspace:sync-roots`）
+  - **排程以檔案鎖決定**（所有 Worker 共用同一個工作樹，同檔平行會讓 `git commit --only` 夾帶他人未完成的 hunk）：`main.ts`（E/F/H/I）、`protocol.ts`（F/I/T0403）、`pty-manager.ts`（T0398/T0403/T0404）、`headless-entry.ts`（F/H/I/T0404）各自串行
+  - 波次：① T0400（與 T0398 / T0399 平行）→ ② T0398 完成後 T0403 與 T0400 平行 → ③ T0400 + T0403 完成後 T0401 → ④ T0402 ∥ T0404 → ⑤ T0405 → ⑥ T0406
+  - 只先寫 T0400；T0401-T0406 編號保留，前一波完成後依實際結果撰寫（避免 E 的 DI 形狀未定就寫死 F）
+- **不採用**：git worktree 隔離平行（`main.ts` 大段搬移的 merge 成本與塔台合併負擔高於串行等待）；一次寫完 7 張
+- **相關**：PLAN-036 / D129 / T0396 / T0397 / BUG-095 / BUG-101 / BUG-102（T0398）/ BUG-103
+
+---
+
 ### D129 2026-10-04 — PLAN-036 headless 功能 handler 層（T0386 研究結論）
 
 - **背景**：T0385 / T0386 證實 headless bat-server 註冊的功能 handler 為 0（`scripts/bat-server.mjs:118` 不傳 `handlers`；spec §2.3 的 `electron/handlers/` 從未落地），WSL / SSH / Docker 遠端 profile 只能開空視窗。`PROXIED_CHANNELS` 105 個（實際代理 103）

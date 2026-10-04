@@ -91,3 +91,20 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - 自動驗收（使用者 01:12 裁決兩層都做）：T0396 協定層 smoke（打 WSL `127.0.0.1:9877`，S1-S8）∥ T0397 Playwright Electron e2e（E1 BUG-095 / E2 BUG-101 / E3-E4 T0393）。自動化後仍需人工：遠端終端實際操作手感、WSL 資料夾挑選對話框外觀
 - T0396 DONE（`59af340`）：`npm run smoke:remote:headless -- --target wsl:Ubuntu-24.04` 對 `ea52b03` server S1-S8 **8/8 PASS**（Worker 2 次 + 塔台 01:24 1 次），無殘留 PTY ⇒ **T0390 協定層 runtime PASS**。附帶發現 BUG-102（locale）/ BUG-103（serverEnv）
 - T0397 DONE（`e5215c1`）：`npx playwright test e2e/plan036-p0.spec.ts` **4/4 PASS**（Worker 2 次 + 塔台 01:34 1 次；source build 層，隔離 `--runtime`）——E1 BUG-095 綁定（43 個 `claude:*` 全綁定）/ E2 BUG-101 restart 不失聯 / E3 遠端 shell 清單 / E4 WSL 資料夾預設 + `/mnt/c` 提示。E3 / E4 為 loopback（profile 宣告 `wsl-linux`），連真 WSL server 的 UI 仍需人工。附帶：既有 `e2e/smoke.spec.ts` 因結束確認對話框卡 `app.close()` 逾時（既有問題，非回歸）
+
+## P0 驗收結論（2026-10-05 01:36）
+
+- 協定層 runtime PASS（T0396）＋ UI 層 source build PASS（T0397）；BUG-095 / BUG-101 CLOSED。剩人工項：真 WSL server 下的遠端視窗操作手感、資料夾對話框外觀
+- 附帶開單：BUG-102（locale，T0398 FIXING）、BUG-103（serverEnv，併入 T0404）、e2e 隔離 fixture（T0399）
+
+## P1 / P2 排程（D130，使用者 2026-10-05 01:40 裁決）
+
+| 工單 | 內容 | 前置 | 狀態 |
+|---|---|---|---|
+| T0400 | E：ClaudeAgentManager HostDeps（去 Electron 化） | T0389 | 🔄 01:46 派發 |
+| T0401 | F：`claude:*` 共用註冊上線 headless；archive 三個改 always-local；codex / stub 列 unsupported + UI 降級；`PROXIED_EVENTS` 補 `claude:turn-end` / `runtime-degraded` / `runtime-warning`；embedded 注入 `DISABLE_UPDATES` | T0400、T0403 | 保留編號 |
+| T0402 | G：遠端 claude 未登入引導（i18n） | T0401 | 保留編號 |
+| T0403 | 遠端終端收尾 A：斷線輸出回放 `pty:get-buffer` + `pty:create` 回傳是否新 spawn（還原 agent preset 不重打指令） | T0398 | 保留編號 |
+| T0404 | 遠端終端收尾 B：孤兒 PTY 回收（無 client N 小時 / 上限）+ BUG-103 | T0401、T0403 | 保留編號 |
+| T0405 | H：`git:*` / `github:*` / `worktree:*` / `git-scaffold:*` 上線 headless | T0404 | 保留編號 |
+| T0406 | I：`fs:*` / `image:read-as-data-url` + `workspace:sync-roots`（fail-closed） | T0405 | 保留編號 |
