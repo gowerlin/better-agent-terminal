@@ -22,6 +22,10 @@ export const installDockerServerBundleStep: WizardStep = {
   groupKey: 'wizard.group.deployment',
   editableFromFailure: false,
   async run(ctx) {
+    // T0426 (BUG-099): serverInstallPath is this step's own output and gates
+    // rollback. Clear it so a failed re-run (e.g. after a jump back) is not
+    // rolled back with the path from an earlier attempt.
+    ctx.serverInstallPath = undefined
     const mode = ctx.state.containerMode
     const image = typeof ctx.state.dockerImage === 'string' ? ctx.state.dockerImage : 'bat-server:latest'
     if (mode === 'new') {

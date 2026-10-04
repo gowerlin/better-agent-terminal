@@ -435,6 +435,168 @@ export async function startServerOnRemote(
   }
 }
 
+// ── T0426 (BUG-100): rollback teardown — stop-server / uninstall-bundle ─────
+
+export interface StopServerOptions {
+  sshHost: string
+  sshUser: string
+  sshPort?: number
+  sshKeyPath?: string
+  targetOS: 'ssh-linux' | 'ssh-darwin'
+  /** Remote `$HOME` (same rule as `StartServerOptions.serverHome`). */
+  serverHome: string
+}
+
+export interface UninstallBundleOptions {
+  sshHost: string
+  sshUser: string
+  sshPort?: number
+  sshKeyPath?: string
+  /**
+   * The directory the upload created: absolute (`/home/alice/.local/bat-server`,
+   * `/opt/bat-server`) or `~/...`. Its last segment must be `bat-server`.
+   */
+  installPath: string
+}
+
+export type SshTeardownResult = { ok: true } | { ok: false; error: string }
+
+/**
+ * Teardown whitelist (T0426, stricter than `validateSshIdentifier`). Host and
+ * user are spliced into argv only (`-- user@host`), never into the remote
+ * command, but rollback takes them straight from the renderer, so they are
+ * held to a closed charset: `[A-Za-z0-9._-]`, plus `:` for the host so IPv6
+ * literals (`fe80::1`) still work. `@` is rejected (user and host arrive as
+ * separate fields). Neither may start with `-` (would parse as an ssh option).
+ */
+const TEARDOWN_HOST_RE = /^(?!-)[A-Za-z0-9._:-]{1,253}$/
+const TEARDOWN_USER_RE = /^(?!-)[A-Za-z0-9._-]{1,64}$/
+const TEARDOWN_TARGETS = new Set(['ssh-linux', 'ssh-darwin'])
+/** Last path segment every SSH install path ends in (configure-host options). */
+const BUNDLE_DIR_NAME = 'bat-server'
+
+function validateTeardownConnect(opts: SshConnectFields): void {
+  if (typeof opts.sshHost !== 'string' || !TEARDOWN_HOST_RE.test(opts.sshHost)) {
+    throw new Error(`Invalid sshHost for teardown: ${JSON.stringify(opts.sshHost)}`)
+  }
+  if (typeof opts.sshUser !== 'string' || !TEARDOWN_USER_RE.test(opts.sshUser)) {
+    throw new Error(`Invalid sshUser for teardown: ${JSON.stringify(opts.sshUser)}`)
+  }
+  if (opts.sshPort !== undefined
+    && !(Number.isInteger(opts.sshPort) && opts.sshPort >= 1 && opts.sshPort <= 65535)) {
+    throw new Error(`Invalid sshPort for teardown: ${JSON.stringify(opts.sshPort)}`)
+  }
+  // sshKeyPath is a local (often Windows) path handed to `-i` as one argv
+  // element; buildBaseSshArgs runs validateSshIdentifier on it.
+}
+
+type SshConnectFields = Pick<StopServerOptions, 'sshHost' | 'sshUser' | 'sshPort' | 'sshKeyPath'>
+
+/**
+ * Remote command for `ssh:stop-server`. Built from constants plus the
+ * validated `$HOME` only. Idempotent: every teardown action ignores "not
+ * there" (unknown unit, unloaded job, missing file); only the final check —
+ * service gone and unit/plist file removed — decides the exit status.
+ * `loginctl enable-linger` is deliberately left alone (it may predate BAT).
+ */
+function buildStopServerCommand(opts: StopServerOptions): string {
+  if (!TEARDOWN_TARGETS.has(opts.targetOS)) {
+    throw new Error(`Invalid targetOS for teardown: ${JSON.stringify(opts.targetOS)}`)
+  }
+  const home = resolveServerHome(opts.serverHome)
+  if (opts.targetOS === 'ssh-linux') {
+    const unit = escapeSingleQuotes(systemdUnitPath(home).file)
+    return [
+      `systemctl --user disable --now ${SERVICE_NAME} >/dev/null 2>&1`,
+      `rm -f '${unit}'`,
+      'systemctl --user daemon-reload >/dev/null 2>&1',
+      `systemctl --user reset-failed ${SERVICE_NAME} >/dev/null 2>&1`,
+      `if systemctl --user is-active --quiet ${SERVICE_NAME}; then echo '${SERVICE_NAME} is still active' >&2; exit 1; fi`,
+      `test ! -e '${unit}' || { echo 'could not remove ${unit}' >&2; exit 1; }`,
+    ].join('; ')
+  }
+  const plist = escapeSingleQuotes(launchdPlistPath(home).file)
+  return [
+    `launchctl unload -w '${plist}' >/dev/null 2>&1`,
+    `launchctl remove ${LAUNCHD_LABEL} >/dev/null 2>&1`,
+    `rm -f '${plist}'`,
+    `test ! -e '${plist}' || { echo 'could not remove ${plist}' >&2; exit 1; }`,
+  ].join('; ')
+}
+
+/**
+ * Validate the install path for `rm -rf` (T0426). Accepts `~/<rel>` or an
+ * absolute path over `[A-Za-z0-9._/-]`, with no `.` / `..` / empty segment,
+ * whose last segment is `bat-server` — so a bad renderer value can never widen
+ * the delete to `$HOME`, `/` or an unrelated directory. Returns the shell
+ * operand: `"$HOME"/'<rel>'` (the remote shell expands `$HOME`, which is a
+ * constant here) or `'<abs>'`.
+ */
+function resolveUninstallTarget(installPath: unknown): string {
+  if (typeof installPath !== 'string') {
+    throw new Error('installPath must be a string')
+  }
+  const trimmed = installPath.replace(/\/+$/, '')
+  const fromHome = trimmed.startsWith('~/')
+  const rest = fromHome ? trimmed.slice(2) : trimmed.startsWith('/') ? trimmed.slice(1) : null
+  if (rest === null || !/^[A-Za-z0-9._/-]+$/.test(rest)) {
+    throw new Error(`installPath must be absolute or start with ~/ and use only [A-Za-z0-9._/-]: ${JSON.stringify(installPath)}`)
+  }
+  const segments = rest.split('/')
+  if (segments.some((s) => s === '' || s === '.' || s === '..')) {
+    throw new Error(`installPath must not contain empty, . or .. segments: ${JSON.stringify(installPath)}`)
+  }
+  if (segments[segments.length - 1] !== BUNDLE_DIR_NAME) {
+    throw new Error(`installPath must end in /${BUNDLE_DIR_NAME}: ${JSON.stringify(installPath)}`)
+  }
+  return fromHome ? `"$HOME"/'${escapeSingleQuotes(rest)}'` : `'${escapeSingleQuotes(`/${rest}`)}'`
+}
+
+/** Remote command for `ssh:uninstall-bundle`. `rm -rf` on a missing path is a no-op. */
+function buildUninstallBundleCommand(installPath: unknown): string {
+  const target = resolveUninstallTarget(installPath)
+  return `rm -rf -- ${target} && test ! -e ${target}`
+}
+
+async function runTeardown(
+  label: string,
+  opts: SshConnectFields,
+  buildCommand: () => string,
+  deps: StarterDeps,
+): Promise<SshTeardownResult> {
+  let connectArgs: string[]
+  let command: string
+  try {
+    validateTeardownConnect(opts)
+    connectArgs = buildSshConnectArgs(opts as StartServerOptions)
+    command = buildCommand()
+  } catch (error) {
+    return { ok: false, error: `${label}: ${error instanceof Error ? error.message : String(error)}` }
+  }
+  const spawn = deps.spawn ?? (await import('child_process')).spawn
+  const exec = await runSsh(spawn, connectArgs, command, deps.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+  if (!exec.ok) {
+    const err = summariseFailure(label, exec)
+    logger.warn(`[ssh-start-server] ${err}`)
+    return { ok: false, error: err }
+  }
+  return { ok: true }
+}
+
+/**
+ * T0426 (BUG-100): undo `startServerOnRemote` — stop + disable the service and
+ * delete the unit / plist. Safe to call when start-server only got halfway or
+ * never ran (rollback of a failed step).
+ */
+export function stopServerOnRemote(opts: StopServerOptions, deps: StarterDeps = {}): Promise<SshTeardownResult> {
+  return runTeardown('stop-server-failed', opts, () => buildStopServerCommand(opts), deps)
+}
+
+/** T0426 (BUG-100): undo the bundle upload — `rm -rf` the install directory. */
+export function uninstallBundleOnRemote(opts: UninstallBundleOptions, deps: StarterDeps = {}): Promise<SshTeardownResult> {
+  return runTeardown('uninstall-bundle-failed', opts, () => buildUninstallBundleCommand(opts.installPath), deps)
+}
+
 // re-exported so tests can render unit content directly without spawning ssh
 export const __internals = {
   renderSystemdUnit,
@@ -448,6 +610,9 @@ export const __internals = {
   expandHomePath,
   systemdUnitPath,
   launchdPlistPath,
+  buildStopServerCommand,
+  buildUninstallBundleCommand,
+  resolveUninstallTarget,
   SERVICE_NAME,
   LAUNCHD_LABEL,
   DEFAULT_SERVER_PORT,

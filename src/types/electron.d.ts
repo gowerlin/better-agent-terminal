@@ -475,9 +475,9 @@ interface ElectronAPI {
       errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
     }>
     onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => () => void
-    // PLAN-007 T0289 — best-effort rollback hooks (RFC C-3). Real IPC handlers
-    // land in a follow-up workorder; T0289 only declares the surface so wizard
-    // step rollback fns and cross-deployment tests can compile + mock cleanly.
+    // PLAN-007 T0289 — best-effort rollback hooks (RFC C-3). IPC handlers:
+    // T0426 / BUG-100 (`ssh:uninstall-bundle` / `ssh:stop-server`); both are
+    // idempotent and never reject (failures come back as `{ ok: false }`).
     uninstallBundle: (request: {
       sshHost: string
       sshUser: string

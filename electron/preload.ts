@@ -598,6 +598,11 @@ const electronAPI = {
       ipcRenderer.on('ssh:start-progress', handler)
       return () => ipcRenderer.removeListener('ssh:start-progress', handler)
     },
+    // T0426 / BUG-100 — rollback teardown (start-server / install-server-bundle).
+    uninstallBundle: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; installPath: string }) =>
+      ipcRenderer.invoke('ssh:uninstall-bundle', request) as Promise<{ ok: true } | { ok: false; error: string }>,
+    stopServer: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }) =>
+      ipcRenderer.invoke('ssh:stop-server', request) as Promise<{ ok: true } | { ok: false; error: string }>,
     // T0387 / BUG-093 — SSH wizard verification against the remote host.
     openVerifyTunnel: (request: { sessionId: string; sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; remotePort: number }) =>
       ipcRenderer.invoke('ssh:verify-tunnel-open', request) as Promise<

@@ -17,6 +17,12 @@ interface InstallSshBundleState {
   uploadTotalBytes?: number
   uploadSpeedBytesPerSec?: number
   uploadEtaSeconds?: number
+  /**
+   * T0426 (BUG-099): false until the upload starts. Rollback skips on false so
+   * a failure before the upload (e.g. bundle download) never deletes a bundle
+   * left by an earlier setup.
+   */
+  sshBundleUploadStarted?: boolean
 }
 
 function describeSource(source: 'cache' | 'baseline' | 'download'): string {
@@ -61,6 +67,7 @@ export const installSshServerBundleStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx) {
     const state = ctx.state as InstallSshBundleState
+    state.sshBundleUploadStarted = false
     if (!state.sshHost || !state.sshUser) {
       throw new Error('SSH host and user must be set before installing the server bundle.')
     }
@@ -135,6 +142,7 @@ export const installSshServerBundleStep: WizardStep = {
       state.uploadEtaSeconds = Number.isFinite(eta) ? eta : undefined
     })
 
+    state.sshBundleUploadStarted = true
     try {
       const result = await window.electronAPI.ssh.uploadBundle({
         uploadId,
@@ -158,8 +166,13 @@ export const installSshServerBundleStep: WizardStep = {
   // PLAN-007 T0289 — RFC C-3 best-effort rollback. Removes the install
   // directory the upload created (`ssh user@host "rm -rf <installPath>"`).
   // Failures are surfaced via warn log only; never throw.
+  // T0426: also runs for a failed install when the wizard is cancelled
+  // (`ssh:uninstall-bundle` is idempotent); skipped if the upload never started.
   async rollback(ctx) {
     const state = ctx.state as InstallSshBundleState
+    if (state.sshBundleUploadStarted === false) {
+      return
+    }
     if (!state.sshHost || !state.sshUser || !state.sshInstallPath) {
       return
     }

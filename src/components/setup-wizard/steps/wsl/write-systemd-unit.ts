@@ -82,6 +82,9 @@ export const writeSystemdUnitStep: WizardStep = {
   groupKey: 'wizard.group.deployment',
   editableFromFailure: false,
   async run(ctx) {
+    // T0426 (BUG-099): rollback skips while this is false, so a failure before
+    // the unit is written never disables a bat-server from an earlier setup.
+    ctx.state.wslUnitWriteStarted = false
     if (!ctx.wslDistro) {
       throw new Error('Select a WSL distro before configuring the BAT service.')
     }
@@ -102,6 +105,7 @@ export const writeSystemdUnitStep: WizardStep = {
     const installPath = assertAbsoluteInstallPath(ctx)
     const { dataDir, unitPath } = buildWslServicePaths(await resolveWslHome(ctx, ctx.wslDistro))
     const execStart = `${installPath}/bin/bat-server`
+    ctx.state.wslUnitWriteStarted = true
     const writeResult = await window.electronAPI.wslSystemd.writeUnit(ctx.wslDistro, {
       path: unitPath,
       execStart,
@@ -157,7 +161,7 @@ export const writeSystemdUnitStep: WizardStep = {
     }
   },
   async rollback(ctx) {
-    if (!ctx.wslDistro) {
+    if (!ctx.wslDistro || ctx.state.wslUnitWriteStarted === false) {
       return
     }
     const unitPath = ctx.wslHome ? buildWslServicePaths(ctx.wslHome).unitPath : LEGACY_UNIT_PATH

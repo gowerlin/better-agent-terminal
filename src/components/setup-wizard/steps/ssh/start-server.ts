@@ -13,6 +13,12 @@ interface StartServerState {
   sshStartServicePath?: string
   sshStartLastError?: string
   sshStartLastErrorCode?: string
+  /**
+   * T0426 (BUG-099): false while run() has not reached the remote yet, true
+   * once `ssh:start-server` was called. Rollback skips on false so a failure
+   * before any remote change never tears down a service from an earlier setup.
+   */
+  sshStartServerTouchedRemote?: boolean
 }
 
 function makeStartId(): string {
@@ -116,6 +122,7 @@ export const startServerStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx: WizardContext) {
     const state = ctx.state as StartServerState
+    state.sshStartServerTouchedRemote = false
     if (!state.sshHost || !state.sshUser) {
       throw new Error('SSH host and user must be configured before starting the server.')
     }
@@ -145,6 +152,7 @@ export const startServerStep: WizardStep = {
 
     try {
       ctx.logger.info(`Starting bat-server on ${state.sshUser}@${state.sshHost} (${ctx.targetOS})`)
+      state.sshStartServerTouchedRemote = true
       const result = await window.electronAPI.ssh.startServer({
         startId,
         options: {
@@ -182,8 +190,13 @@ export const startServerStep: WizardStep = {
   // PLAN-007 T0289 — RFC C-3 best-effort rollback. Tears down the unit/plist
   // we registered: systemd `disable --now` + remove unit (linux), or
   // `launchctl unload` + remove plist (darwin). Failures warn-log only.
+  // T0426: also runs for a failed start-server when the wizard is cancelled
+  // (`ssh:stop-server` is idempotent); skipped if run() never reached the remote.
   async rollback(ctx) {
     const state = ctx.state as StartServerState
+    if (state.sshStartServerTouchedRemote === false) {
+      return
+    }
     if (!state.sshHost || !state.sshUser || !state.sshServerHome) {
       return
     }

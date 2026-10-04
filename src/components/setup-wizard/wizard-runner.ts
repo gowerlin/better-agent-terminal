@@ -262,6 +262,9 @@ export class WizardRunner {
   private runPromise: Promise<void> | null = null
   private waitForRetry: (() => void) | null = null
   private waitForSkip: (() => void) | null = null
+  // T0426 (BUG-099): cancel() resolves the failure wait with 'cancel' (it used
+  // to reuse waitForRetry, so the failed step was never rolled back).
+  private waitForCancel: (() => void) | null = null
   // T0309: when set, the next "retry" decision in runInternal redirects the
   // loop to this index instead of re-running the same failed step.
   private pendingJumpTarget: number | null = null
@@ -381,9 +384,9 @@ export class WizardRunner {
   async cancel(): Promise<void> {
     this.cancelRequested = true
     if (this.currentStepIndex >= 0 && this.stepSnapshots[this.currentStepIndex].status === WizardStepStatus.Failed) {
-      this.waitForRetry?.()
+      this.waitForCancel?.()
+      this.waitForCancel = null
       this.waitForRetry = null
-      this.waitForSkip?.()
       this.waitForSkip = null
     }
   }
@@ -502,6 +505,12 @@ export class WizardRunner {
             this.completedStepIndexes.push(index)
             continue
           }
+          // T0426 (BUG-099): cancelled from the failure screen. The failed
+          // step may have got halfway (e.g. start-server wrote the unit), so
+          // roll it back first, then the completed steps in reverse order.
+          await this.rollbackFailedStep(step, index)
+          await this.rollbackCompletedSteps()
+          throw new Error('Wizard cancelled')
         }
 
         await this.rollbackFailedStep(step)
@@ -515,6 +524,7 @@ export class WizardRunner {
     return new Promise((resolve) => {
       this.waitForRetry = () => resolve('retry')
       this.waitForSkip = () => resolve('skip')
+      this.waitForCancel = () => resolve('cancel')
 
       if (this.cancelRequested) {
         resolve('cancel')
@@ -548,13 +558,22 @@ export class WizardRunner {
     }
   }
 
-  private async rollbackFailedStep(step: WizardStep): Promise<void> {
+  /**
+   * Roll back the step that failed. With `index` (cancel path, T0426) a
+   * successful rollback also marks the step rolled-back; without it (a
+   * non-retryable failure) the snapshot keeps showing the failure.
+   */
+  private async rollbackFailedStep(step: WizardStep, index?: number): Promise<void> {
     if (!step.rollback) {
       return
     }
 
     try {
       await step.rollback(this.ctx)
+      if (index !== undefined) {
+        this.transitionStatus(index, WizardStepStatus.RolledBack)
+        this.emitProgress()
+      }
     } catch (error) {
       this.ctx.logger.warn(
         `Rollback failed for failed step ${step.id}: ${error instanceof Error ? error.message : String(error)}`,

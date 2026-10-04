@@ -154,9 +154,9 @@ export const sshFetchFingerprintStep: WizardStep = {
       await fetchFingerprintStep.run(ctx)
       await crossCheckFingerprint(ctx)
     } catch (error) {
-      // Close on failure: cancelling from a failed step does not run that
-      // step's rollback (the runner only rolls back completed steps), and a
-      // retry reopens the tunnel anyway.
+      // Close on failure. Cancel now rolls the failed step back (T0426), but
+      // skip and jump-back from the failure screen still run no rollback for
+      // this step, and a retry reopens the tunnel anyway.
       await closeSshVerifyEndpoint(ctx)
       throw error
     }

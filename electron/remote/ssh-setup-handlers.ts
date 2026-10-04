@@ -5,9 +5,14 @@ import { probeSshAuth, type SshProbeOptions, type SshProbeResult } from './ssh-a
 import { uploadServerBundle, type UploadOptions } from './ssh-bundle-uploader'
 import {
   startServerOnRemote,
+  stopServerOnRemote,
+  uninstallBundleOnRemote,
+  type SshTeardownResult,
   type StartServerOptions,
   type StartServerResult,
   type StartServerPhase,
+  type StopServerOptions,
+  type UninstallBundleOptions,
 } from './ssh-start-server'
 import {
   WizardTunnelRegistry,
@@ -119,6 +124,30 @@ export function registerSshSetupHandlers(ipcMain: IpcMain, options: SshSetupHand
       }
     }
   })
+  // T0426 / BUG-100 — rollback teardown for start-server / install-server-bundle.
+  // Remote commands are fixed strings plus validated paths (ssh-start-server);
+  // both are idempotent, so the wizard may call them for a step that only got
+  // halfway. Never throws to the renderer.
+  ipcMain.handle('ssh:stop-server', async (_event: IpcMainInvokeEvent, request: StopServerOptions): Promise<SshTeardownResult> => {
+    try {
+      return await stopServerOnRemote(request ?? ({} as StopServerOptions))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error(`[ssh-setup] stop-server threw: ${message}`)
+      return { ok: false, error: message }
+    }
+  })
+
+  ipcMain.handle('ssh:uninstall-bundle', async (_event: IpcMainInvokeEvent, request: UninstallBundleOptions): Promise<SshTeardownResult> => {
+    try {
+      return await uninstallBundleOnRemote(request ?? ({} as UninstallBundleOptions))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error(`[ssh-setup] uninstall-bundle threw: ${message}`)
+      return { ok: false, error: message }
+    }
+  })
+
   // T0387 / BUG-093 — SSH wizard verification. tunnel mode: fetch-fingerprint
   // and connect-test go through a short-lived `ssh -L` (closed by the wizard,
   // when the renderer goes away, or on quit). read-server-identity reads the
