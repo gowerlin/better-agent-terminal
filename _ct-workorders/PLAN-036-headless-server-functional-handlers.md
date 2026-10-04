@@ -106,7 +106,7 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 | T0402 | G：遠端 claude 未登入引導（i18n）+ auth-status exit≠0 解析 stdout（D132） | T0401 | ✅ DONE（`85916f8`，02:50 複驗） |
 | T0403 | 遠端終端收尾 A：斷線輸出回放 `pty:get-buffer` + `pty:create` 回傳是否新 spawn（還原 agent preset 不重打指令） | T0398 | ✅ DONE（`b24d89a`，02:09 複驗：1224 tests / vite / e2e 0 failed / tsc 40；新 smoke 對舊 WSL server 8/8 = 相容性 PASS；新 server 部署 + UI 實機待辦） |
 | T0404 | 遠端終端收尾 B：孤兒 PTY 回收（無 client N 小時 / 上限）+ BUG-103 | T0401、T0403 | ✅ DONE（`e4ad7cc`，02:50 複驗：1309 tests / vite / e2e 0 failed / tsc 40；WSL 部署待辦） |
-| T0405 | H：`git:*` / `github:*` / `worktree:*` / `git-scaffold:*` 上線 headless | T0404 | 保留編號 |
+| T0405 | H：`git:*` / `github:*` / `worktree:*` / `git-scaffold:*` 上線 headless（+ `github:check-cli` 改 `gh auth status`） | T0404、PLAN-037 | 🔄 04:18 派發 |
 | T0406 | I：`fs:*` / `image:read-as-data-url` + `workspace:sync-roots`（fail-closed） | T0405 | 保留編號 |
 
 - WSL server 01:52 重新部署 HEAD `09f1e46`（含 T0398 locale 修正；備份 tag `t0398`），smoke 8/8；T0395 的 LISTEN 檢查實機正確列出 `127.0.0.1:9877`

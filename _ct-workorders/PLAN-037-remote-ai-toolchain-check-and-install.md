@@ -85,3 +85,4 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 - 新工具：`scripts/remote-tools-install-check.mjs`（dry-run 預設，`--yes` 實裝，`--shell-check`）
 - BUG-104：codex installer `Start Codex now? [y/N]` 卡住標記 → T0415 加 `CODEX_NON_INTERACTIVE=1`
 - 未涵蓋：sudo 需密碼、Docker root 無 sudo、`curl | sh` 斷網回 0（皆待其他環境）
+- T0415 DONE（`1dd0647`）：BUG-104 修復，04:16 WSL 重裝 codex 無提示 → **PLAN-037 程式部分全部完成**；剩使用者以新 build 驗 UI（精靈完成畫面、設定頁、跨視窗安裝）

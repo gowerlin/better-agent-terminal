@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 04:08 (UTC+8) — 第五十四 session：開 BUG-104（T0414 發現）→ FIXING（T0415）
+> 最後同步：2026-10-05 04:18 (UTC+8) — 第五十四 session：BUG-104 → FIXED（T0415，WSL 實機 PASS）
 
 ## 統計
-- 🔴 Open: 6 | ⏳ Fixing: 1 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 29**
+- 🔴 Open: 6 | ⏳ Fixing: 0 | ✅ Fixed: 4 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 29**
 
 ## 🔴 Open / 處理中
 
@@ -43,12 +43,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-104 | remote-tools 的 codex 安裝食譜卡在 installer 的「Start Codex now? [y/N]」互動提示 | 🟡 medium | 2026-10-05 | [BUG-104](BUG-104-codex-install-recipe-blocks-on-start-prompt.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-104 | remote-tools 的 codex 安裝食譜卡在 installer 的「Start Codex now? [y/N]」互動提示 | 🟡 medium | 2026-10-05 | [BUG-104](BUG-104-codex-install-recipe-blocks-on-start-prompt.md) |
 | BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 | BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
 | BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-04 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
