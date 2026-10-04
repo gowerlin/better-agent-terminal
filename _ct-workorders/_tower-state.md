@@ -143,7 +143,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0366** / **BUG-083** / **PLAN-035** / **D121** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 BUG-071 修復派發中；D120、L133 新增）
+- **T0366** / **BUG-083** / **PLAN-035** / **D121** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；D120、L133 新增）
 
 ---
 
@@ -270,7 +270,13 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 > 本區段依 `references/yolo-mode.md` § 「`_tower-state.md` 新增 `## YOLO 歷程` 區段」規格產生。
 > **Footnote**：本 session [斷點 C] 標記僅取狹義（Worker 跨 PLAN 建議）；使用者手動「停」暫不歸 A/B/C，列為 `[使用者中斷]` 自訂事件（待 L064 上游修正）。
 
-### 當前 Session（2026-04-18 ~16:10 啟動，第三 session，收尾）
+### 當前 Session（2026-10-04 13:25 啟動，第四十九 session）
+
+- [啟動] 2026-10-04 13:25 — 使用者 `*config auto-session yolo`（**僅本 session**，未 `--save`；project 設定仍為 `on`），`yolo_max_retries: 1`
+- [完成] 2026-10-04 13:25 — T0365 DONE（`a295ec7`）塔台複驗 PASS：550 tests、0 處 `anthropics/` 殘留、CI log（run `33603489235`）證實 `artifacts/server-bundle-baseline/` 7 檔路徑與新 step `files:` 完全吻合
+- [外部動作閘] 2026-10-04 13:25 — 下一步為 bump `0.5.9-pre.3` + push + 觸發 `pre-release.yml`。YOLO 不涵蓋 push / release 授權（CLAUDE.md Hard Boundaries），交使用者決定
+
+### 前次 YOLO Session（2026-04-18 ~16:10 啟動，第三 session，收尾）
 
 - [啟動] 2026-04-18 ~16:10 — 塔台 Fast Path 恢復，YOLO MODE ACTIVE 警語自動顯示（配置 `auto-session: yolo`, `yolo_max_retries: 1`）
 - [派發] 2026-04-18 ~16:12 — CT-T003 DELEGATE 派發指引已送出（跨專案，目標 `BMad-Control-Tower-v4.x.x/`），使用者選 [B] 手動切換；本端更新 CT-T003 狀態 TODO → DISPATCHED

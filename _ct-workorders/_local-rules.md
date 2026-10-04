@@ -465,7 +465,7 @@ gh workflow run pre-release.yml -f version=0.5.9-pre.1
 |----------|------|------|
 | `pre-release.yml` | **`workflow_dispatch` only** | push tag **不會**觸發。用 `gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=<X.Y.Z-pre.N>` |
 | `release.yml` | `push` tag `v*` | 正式版線 |
-| `build-server-bundle.yml` | `workflow_dispatch` + tag `server-bundle-v*` | 與 desktop release 解耦 |
+| `build-server-bundle.yml` | `workflow_dispatch` + tag `server-bundle-v*` | 手動備援線。自 D120（T0365）起 `pre-release.yml` / `release.yml` 發 desktop release 時**同時自動發** `server-bundle-v<版號>`，同版號不要兩線都發 |
 
 ### 版本號必須顯式指定
 

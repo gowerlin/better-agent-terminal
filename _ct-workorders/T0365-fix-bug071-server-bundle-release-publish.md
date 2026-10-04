@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0365
 title: "BUG-071：desktop release 自動發佈 server-bundle-v* + 修正預設下載網址 owner"
 type: fix
-status: PENDING
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-10-04T13:12:47+08:00"
-updated_at: "2026-10-04T13:12:47+08:00"
-started_at: null
-completed_at: null
+updated_at: "2026-10-04T13:19:58+08:00"
+started_at: "2026-10-04T13:15:13+08:00"
+completed_at: "2026-10-04T13:19:58+08:00"
 target_version: "0.5.9-pre.3"
 depends_on: []
 related:
@@ -42,7 +42,7 @@ memory_overrides:
 
 # T0365 — BUG-071：desktop release 自動發佈 `server-bundle-v*` + 修正預設下載網址 owner
 
-- **狀態**：PENDING
+- **狀態**：DONE
 - **任務類型**：fix（程式 + CI workflow + 文件）
 - **工作量預估**：S
 - **Context Window 風險**：低~中（8 檔，workflow 兩檔需讀全段 job）
@@ -128,10 +128,82 @@ action 沿用 repo 既有的 `softprops/action-gh-release@v1`，參數寫法參�
 
 ### 完成狀態
 
+**DONE**（source / build / test / YAML 靜態驗證 lane 全 PASS；CI / runtime lane 依工單說明由塔台發 `v0.5.9-pre.3` 後驗收）
+
+**落點檢查（Landing Zone）：WARN**
+- C-0：frontmatter `repo` = **absent** → WARN "repo identity unavailable"；觀測 `basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：PASS（工單位於 REPO_ROOT 下）
+- C-3：PASS（前 5 筆非萬用字元 entry 全部存在）
+- C-2：工單無 `branch` 欄位，N/A；HEAD = `main`
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 執行環境：`CT_MODE=on`，BAT vars 在 PowerShell 可見
+
 ### 產出摘要
+
+**Part A — 預設網址 owner**（`anthropics` → `gowerlin`，網址格式不變）
+- `src/lib/arch-normalize.ts:28` `DEFAULT_RELEASE_BASE_URL`
+- `scripts/fetch-baseline-tarball.mjs:30`（檔頭註解）、`:217`、`:319`
+- `src/lib/__tests__/server-bundle-download.test.ts:29`、`:58` 斷言
+
+**Part B — desktop workflow 自動發佈 `server-bundle-v<版號>`**
+- `.github/workflows/pre-release.yml:268-291`、`.github/workflows/release.yml:258-283`：在既有 `release` job 內、desktop release step **之後**新增 `Create server bundle release` step
+- 選「同 job 內接在 desktop release step 後」而非另開 job 的理由：`release.yml` 的 `release` job 在 desktop release 後還有 `Update Homebrew tap`（正式版才跑，依賴 `TAP_GITHUB_TOKEN`，目標是 upstream 的 `tonyq-org/homebrew-tap`）。若另開 `needs: release` 的 job，Homebrew dispatch 一失敗就會連帶跳過 server bundle 發佈。放在 desktop release 與 Homebrew **之間**可避開這個耦合；兩檔採同一寫法維持一致
+- 來源沿用 `release` job 既有的 `Download all artifacts`（不帶 name → 每個 artifact 落在 `artifacts/<artifact-name>/`），直接取 `artifacts/server-bundle-baseline/`，**不重建 tarball**
+- `fail_on_unmatched_files: true`：任一資產缺失即 fail，不會發出缺 arch 的 release
+
+**Part C — 文件**
+- `CLAUDE.md`：「Server bundle baseline（PLAN-031）」節的 `Server bundle release（獨立 tag）` 改寫，並新增「預設下載來源」條目；「Server bundle 是獨立 tag 線」節補 D120 段落（desktop 線自動發佈、GITHUB_TOKEN 建的 tag 不會觸發 `build-server-bundle.yml`、手動線保留為備援）；「prerelease 標記與下游發佈」表格新增 `server-bundle-v<版號>` 一列，並**修正因本次插入而位移的行號**（Homebrew `:258-265`→`:285-292`、Chocolatey `:267-283`→`:294-310`）
+- `docs/server-bundle-distribution.md`：Download 層補「發佈來源（D120）」條目（預設網址該文件原本即寫 gowerlin，無需改）
+- `CHANGELOG.md` `## [Unreleased]` → `### Fixed` 新增一筆（refs: BUG-071, T0365, D120）
+
+**Commit**：見下方「Commit」段
 
 ### 驗收條件逐項
 
+- [x] **AC-1** PASS — `grep -rn "anthropics/better-agent-terminal" . --exclude-dir={node_modules,_ct-workorders,dist,dist-electron,release,dist-server,dist-baseline,.git}` → **0 筆**（CHANGELOG 用語也刻意避開完整字串）
+- [x] **AC-2** PASS — `npm run test:unit`：`Test Files 41 passed (41)` / `Tests 550 passed (550)`（= 基線 550）
+- [x] **AC-3** PASS — `npx vite build` exit 0
+- [x] **AC-4** PASS — `js-yaml` 兩檔 parse 成功（pre-release jobs = `prepare,server-bundle,server-bundle-manifest,build,release`；release jobs 另含 `choco`）。另以 `go run github.com/rhysd/actionlint/cmd/actionlint@latest`（v1.7.12，`-shellcheck=`）掃描：**無語法 / 運算式錯誤**，僅 4 則 `the runner of "softprops/action-gh-release@v1" action is too old`——其中 2 則是既有 desktop release step（`pre-release.yml:253`、`release.yml:246`），屬既有狀況；工單明訂沿用 `@v1`，未升版（見遭遇問題）
+- [x] **AC-5** PASS — 對照如下
+- [x] **AC-6** PASS — `git diff --stat`（扣除既有 dirty 的 `AGENTS.md` 與本工單檔）僅 8 個 `affects_files`：`.github/workflows/pre-release.yml`、`.github/workflows/release.yml`、`CHANGELOG.md`、`CLAUDE.md`、`docs/server-bundle-distribution.md`、`scripts/fetch-baseline-tarball.mjs`、`src/lib/__tests__/server-bundle-download.test.ts`、`src/lib/arch-normalize.ts`
+
+#### AC-5 對照
+
+| 項目 | 內容 |
+|------|------|
+| 所在 job | `release`（兩檔同名；step 名 `Create server bundle release`） |
+| `needs` 鏈 | `prepare` → `server-bundle`（3 arch matrix）→ `server-bundle-manifest`（上傳 `server-bundle-baseline`）→ `build` → `release`（`needs: [prepare, build]`）；step 順序：`Create Pre-Release` / `Create Release` → **`Create server bundle release`**（→ release.yml 再接 `Update Homebrew tap`）。前面任一 job 失敗則 `release` job 不執行；desktop release step 失敗則後續 step 預設跳過 ⇒ 無孤兒 release |
+| tag 運算式 | `tag_name: server-bundle-v${{ needs.prepare.outputs.version }}`（`pre-release.yml:275`、`release.yml:267`）；`target_commitish: ${{ github.sha }}`（與 desktop release 同 commit）；`prerelease: true`；權限沿用 job 既有 `contents: write`（`pre-release.yml:240-241`、`release.yml:229-230`） |
+| `files:` | `artifacts/server-bundle-baseline/` 下：`bat-server-{linux-x64,linux-arm64,darwin-arm64}-v<ver>.tar.gz` + 各自 `.sha256`（共 6）+ `manifest.json`（以完整版號寫死，不用 `v*` 萬用字元） |
+
+**版號一致性**（為何 `needs.prepare.outputs.version` = runtime 用的 version）：
+- `prepare` output `version` 為不帶 `v` 的值：`pre-release.yml:56`（`VERSION=${VERSION}`）/ `release.yml:20-21`（`VERSION="${TAG#v}"`）
+- runtime version：`electron/remote/server-bundle-distributor.ts:249` `options.version ?? app.getVersion()`；`app.getVersion()` 來自 package.json，由 `scripts/build-version.js:20-21` 以 `VERSION` env 去掉前綴 `v` 寫入（`pre-release.yml:199` 傳 `v${version}`、`release.yml:160` 傳 `tag`）⇒ 與 `prepare.outputs.version` 相同
+- tarball 檔名的版號：`server-bundle` job 先 `npm version ... "${{ needs.prepare.outputs.version }}"`（`pre-release.yml:89`、`release.yml:54`），`scripts/build-server-bundle.mjs:125` 組 `bat-server-${target}-v${version}.tar.gz`；manifest 產生器強制所有 tarball 版號 = `--version`（`scripts/generate-server-bundle-manifest.mjs:21` `TARBALL_RE`、`:102-107`）
+
+**URL 對照**：
+
+| runtime 組出的 URL | 程式碼 | release 上的資產 |
+|---|---|---|
+| base = `https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v${version}` | `src/lib/arch-normalize.ts:27-28` + `src/lib/server-bundle-download-helpers.ts:28`（`buildBaseURL`，`:29` 去尾斜線） | tag `server-bundle-v<ver>` |
+| `${base}/manifest.json` | `electron/remote/server-bundle-download.ts:329-330` | `manifest.json` |
+| `${base}/${entry.filename}`，`entry = manifest.tarballs[arch]` | `electron/remote/server-bundle-download.ts:365`、`:402`（`buildTarballURL`，helpers `:35-38`） | `entry.filename` 由 `scripts/generate-server-bundle-manifest.mjs:130`（`filename: entry`，即 baseline 目錄中的實際檔名）寫入 ⇒ 必為 `bat-server-<arch>-v<ver>.tar.gz`，與上傳資產同名；亦與 `src/lib/arch-normalize.ts:77` `tarballNameForArch` 一致 |
+| `.sha256` | runtime 不另抓 sidecar，SHA 取自 manifest（`server-bundle-download.ts:472`） | 依工單規格仍上傳 3 份 `.sha256`（與 `build-server-bundle.yml:153-168` 一致） |
+
 ### 遭遇問題
 
+- 無阻斷。
+- ⚠️ **既有狀況（未處理，不在範圍）**：actionlint 指出 `softprops/action-gh-release@v1` 的 runner（node16）過舊。`pre-release.yml` 有 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`（:12）所以實際可跑；`release.yml` 沒有此 env，但既有 desktop release step 也同樣用 `@v1`，新 step 與它同命運。是否升 `@v2` 留給塔台決定。
+- ℹ️ **跟進建議（塔台）**：`_ct-workorders/_local-rules.md:468` 表格寫 `build-server-bundle.yml` 「與 desktop release 解耦」，D120 後已不完全正確；該檔不在本工單 `affects_files`，未改。
+- ℹ️ **發版時留意**：由 `GITHUB_TOKEN` 建立的 `server-bundle-v*` tag 依 GitHub 規則不會觸發 `build-server-bundle.yml`，不會重複發佈；若某次 server bundle step 失敗，可「Re-run failed jobs」重跑 `release` job（softprops 對既有 release 會更新），或改走手動 tag 備援線——同版號不要兩線都發。
+- ℹ️ 使用者介入：無（fire-and-forget）。
+
+### Commit
+
+- `a295ec7` fix(server-bundle): auto-publish server-bundle-v* with desktop release; fix default base URL owner (T0365)
+- 以 `git commit --only` 指定 8 個 affects_files；`AGENTS.md`（既有 dirty）與本工單檔未納入（工單檔留待塔台 close commit）
+- **未 push、未推 tag、未觸發 workflow、未建立 release**（遵守 memory_overrides）
+
 ### 回報時間
+
+2026-10-04T13:18:46+08:00
