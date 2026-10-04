@@ -289,6 +289,14 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 06:44 — T0453（`--no-interactive`）；聯合複驗（HEAD `e52f738`，乾淨 worktree）背景執行中，含 frame-hardening 3 次重跑
 - [聯合複驗] 2026-10-05 06:45 — HEAD `e52f738`：vite build exit 0、tsc 39、frame-hardening 單跑 3 次 20/20（**非 flaky**）；unit 2213 passed / 4 檔失敗皆 `scripts/__tests__/*.mjs`——**根因定位**：系統 gitconfig `core.autocrlf=true` + repo 無 `.gitattributes` → 新 checkout 為 CRLF（主工作區恰為 LF）；`server-bundle-helpers` regex 不容 `\r\n`，主工作區重跑 11/11 PASS。⇒ 新 clone 的 Windows 開發者會遇到
 - [斷點 C 裁決] 2026-10-05 06:46 — T0454（依賴 T0434，同改 `scripts/__tests__/`）；`.gitattributes` 只評估不套用
+- [完成] 2026-10-05 06:47 — T0449 DONE（`c186c81`）塔台複核 PASS：權杖失敗獨立計數永不 ban、revoked digest（TTL 10 min / 1024）、helper 成功不清 server token 計數；紅 4 failed → 綠；Worker 2382 tests / tsc 39。觀察：取紅燈證據時以 `git show HEAD:… >` 暫時覆寫自有檔再還原（未觸他人檔，L141 / L138 灰區，收工記 learning）
+- [派發] 2026-10-05 06:47 — T0450（`--no-interactive`）
+- [異常] 2026-10-05 06:54 — 使用者詢問 T0436 終端是否誤關。塔台查證：工單 06:07 後無更新、回報區已寫 DONE 但 Commit / 回報時間「待填」、frontmatter 仍 IN_PROGRESS、4 新檔 untracked、無 commit ⇒ Worker 停在 commit 前（誤關或卡住，無法分辨）。偏離 1（local-only `ipcMain.handle` 取代 ALWAYS_LOCAL，防遠端 client 讀本機剪貼簿 / 彈對話框）接受
+- [派發] 2026-10-05 06:54 — `/ct-done T0436` 補救（工單加「塔台補充」：共用檔 `git apply --cached` 精準 stage）
+- [完成] 2026-10-05 06:55 — T0453 DONE（`a94f1f4`）塔台複核 PASS：e2e 修正前 build 1 failed（「找不到工作區」）→ 修正後 1 passed（detach / 終端執行 / save no-op / reattach）、tsc 39、本單 4 檔 91 tests；全套 4 檔紅屬 T0434 / T0450 WIP；為 e2e 執行一次 `npx vite build`（工單允許）。BUG-113 → FIXED
+- [斷點 C 裁決] 2026-10-05 06:55 — detached 視窗內終端變更不持久化（save no-op 取捨）→ backlog，不開單
+- [完成] 2026-10-05 06:57 — T0436 DONE（ct-done 補救，`6c26edc`）塔台複核 PASS：12 檔、`main.ts` +17 僅本單 3 hunk、無他單 hunk 夾帶；BUG-108 → FIXED（本機任何工作區外圖片附件皆被 path guard 擋，已修）
+- [派發] 2026-10-05 06:57 — T0441（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
