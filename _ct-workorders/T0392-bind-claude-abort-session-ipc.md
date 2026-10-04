@@ -4,12 +4,12 @@ schema_kind: workorder
 id: T0392
 title: "BUG-095 修復：`claude:abort-session` 綁上 IPC，並以測試守住「registerHandler 了卻沒有 IPC 綁定」的孤兒 channel"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 priority: P1
 sizing: S
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-04T23:58:00+08:00"
-started_at: null
+updated_at: "2026-10-05T00:02:02+08:00"
+started_at: "2026-10-05T00:02:02+08:00"
 completed_at: null
 target_version: next
 depends_on: []
@@ -66,3 +66,56 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 執行摘要（2026-10-05T00:06:30+08:00）
+
+- **結果**：✅ DONE —— `claude:abort-session` 已加入 `PROXIED_CHANNELS`，由既有 `bindProxiedHandlersToIpc()` 綁上 `ipcMain.handle`；新增守門測試，日後再有孤兒 CI 會紅。
+- **Landing Zone**：WARN —— C-0 `repo` 欄位 absent（觀察到 `basename(REPO_ROOT)` = `better-agent-terminal`）→ 以 C-1 + C-3 判定；C-1 PASS（工單位於 REPO_ROOT 下）；C-3 PASS（`electron/remote/protocol.ts` 存在）；C-2 無 `branch` 欄位（HEAD = `main`）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+- **派發模式**：`CT_MODE=on`、`CT_INTERACTIVE=0`。
+
+### 孤兒盤點表
+
+掃描 `electron/**/*.ts`（排除 `__tests__`）所有字面 `registerHandler('<channel>'`（106 個 channel，來源：`electron/main.ts` 101、`electron/git/git-ipc.ts` 3、`electron/terminal-command-handlers.ts` 2 透過 `deps.registerHandler`），對照 `PROXIED_CHANNELS`（修復前 105 個）與獨立 `ipcMain.handle(…)`：
+
+| channel | 註冊位置 | renderer 呼叫點 | 影響 | 處置 |
+|---------|---------|----------------|------|------|
+| `claude:abort-session` | `electron/main.ts:2303` | `electron/preload.ts:147-148` → `src/components/ClaudeAgentPanel.tsx:1302` / `:1475`、`src/components/CodexAgentPanel.tsx:1560` / `:1848` | Claude / Codex 面板中止 invoke 必 reject（`No handler registered`），中止無效 | ✅ 加入 `PROXIED_CHANNELS` |
+
+- **唯一孤兒**。其餘 105 個 registered channel 全在 `PROXIED_CHANNELS`；無「registered 且另有獨立 `ipcMain.handle`」者；無「proxied 但未 registerHandler」者（headless 端另由 T0388 處理）。
+- **反向交叉驗證**：`electron/preload.ts` 191 個 `ipcRenderer.invoke` channel，對照 `PROXIED_CHANNELS` ∪ 全部 `ipcMain.handle`（含跨行呼叫），**唯一**無綁定者亦為 `claude:abort-session`。
+- `electron/remote/headless-entry.ts:102` 的 `registerHandler(registration.channel, …)` 為動態 channel（headless 預設 handler），不在靜態掃描範圍，亦不經 renderer IPC。
+
+### 改動檔案
+
+| 檔案 | 改動 |
+|------|------|
+| `electron/remote/protocol.ts` | `PROXIED_CHANNELS` Claude 段加 `'claude:abort-session'`；註解說明此 set 同時是 registerHandler channel 唯一的 IPC 綁定來源（BUG-095）並指向守門測試 |
+| `electron/remote/__tests__/proxied-channels-binding.test.ts`（新） | 守門測試 5 項：(1) 掃描器 sanity（>50 channel、命中三個來源檔的代表 channel，防 regex 失效）；(2) `claude:abort-session` 已 registered 且 proxied；(3) 每個 registered channel ∈ `PROXIED_CHANNELS` ∪ 獨立 `ipcMain.handle` ∪ `REGISTRY_ONLY_CHANNELS`（失敗訊息附 `檔案:行號`）；(4) `REGISTRY_ONLY_CHANNELS` 條目必須真實 registered、未 proxied、附理由（防殘留）；(5) 每個 preload `ipcRenderer.invoke` channel 都有 IPC 綁定 |
+
+- `REGISTRY_ONLY_CHANNELS` 目前為空 Map（盤點未發現「只供 remote server 內部使用」的 channel）。
+- 掃描採整檔 regex（非逐行）：初版逐行掃描漏抓 `main.ts:3339` / `:3389` 的跨行 `ipcMain.handle(\n 'server-bundle:…'`，已修正。
+- **未改** `electron/main.ts`、`electron/preload.ts`、renderer 呼叫端（符合 memory_overrides / 範圍 4）。
+
+### 驗收證據
+
+| lane | gate | 結果 | 證據 |
+|------|------|------|------|
+| tests | 守門測試 red/green | ✅ PASS | 有修復 5/5 pass；暫時移除 `'claude:abort-session'` 後 3 failed（訊息 `claude:abort-session (main.ts:2303)`），隨即還原，`git diff` 確認僅預期兩處改動 |
+| tests | `npm run test:unit` | ✅ PASS | **68 files / 970 tests passed**（含本單新增 5 項） |
+| build | `npx vite build` | ✅ PASS | exit 0 |
+| build | `npx tsc --noEmit` | ✅ PASS | **40** 個 error（≤ 40）；本單兩檔 0 error |
+| runtime | Claude Agent 面板長回應中按中止 / Esc | ⏳ 交使用者 | 未執行（需 GUI）。驗收點：回應停止、debug log 無 `No handler registered` reject |
+
+> ⚠️ 驗收時工作樹含 T0387 未 commit 改動（`electron/main.ts`、`preload.ts`、setup-wizard 等 + 未追蹤測試），test / build / tsc 數字為「含 T0387 dirty tree」之結果。
+
+### 偏差 / 備註
+
+- 工單原 `status: TODO`（非 `PENDING`），直接轉 `IN_PROGRESS`。
+- 守門測試第 5 項（preload invoke → 綁定）為範圍 3 的延伸：直接守住 BUG-095 的 renderer 端症狀，零額外 production 改動。
+- **T0388 同步**：本單執行時 T0388 仍 `TODO`、`HEADLESS_UNSUPPORTED` 尚不存在，故未同步。⚠️ T0388 建 parity test 時，`claude:abort-session` 已在 `PROXIED_CHANNELS`，需在 headless 有 handler 或列入 `HEADLESS_UNSUPPORTED`（與 `claude:stop-session` 同類處理）。
+- 副作用評估：加入 `PROXIED_CHANNELS` 後，remote profile 視窗的 abort 會 proxy 到遠端 server（與 `claude:stop-session` 一致）；BAT-hosted remote server 端 `main.ts:2303` 已有 handler。
+- 未 push。
+
+### Commit
+
+見下方 commit 紀錄（`git commit --only`：`electron/remote/protocol.ts`、新測試檔、本工單檔）。

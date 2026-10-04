@@ -29,12 +29,15 @@ export interface RemoteFrame {
   token?: string
 }
 
-// Channels proxied to remote host
+// Channels proxied to remote host. This set is also the only ipcMain.handle
+// binding for registerHandler() channels (main.ts bindProxiedHandlersToIpc):
+// a channel registered but missing here is unreachable from the renderer
+// (BUG-095). Guarded by electron/remote/__tests__/proxied-channels-binding.test.ts.
 export const PROXIED_CHANNELS = new Set([
   // PTY
   'pty:create', 'pty:write', 'pty:resize', 'pty:kill', 'pty:restart', 'pty:get-cwd',
   // Claude
-  'claude:start-session', 'claude:send-message', 'claude:stop-session',
+  'claude:start-session', 'claude:send-message', 'claude:stop-session', 'claude:abort-session',
   'claude:set-permission-mode', 'claude:set-codex-sandbox-mode', 'claude:set-codex-approval-policy', 'claude:set-model', 'claude:set-effort', 'claude:reset-session',
   'claude:get-supported-models', 'claude:get-account-info', 'claude:get-supported-commands', 'claude:get-supported-agents', 'claude:get-session-meta',
   'claude:get-worktree-status', 'claude:cleanup-worktree',
