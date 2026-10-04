@@ -1388,7 +1388,13 @@
 | 13 | T0429 headless worktree / git-scaffold env scrub | 本專案 | T0422 | S | 🟢 |
 | 14 | T0430 remote:connect 失敗分支舊 client 處理 | 本專案 | T0422 | S | 🟢 |
 
+| 15 | T0431 K-1 headless `terminal:*` + 事件 | 本專案 | T0429, T0430 | M | 🟢 |
+| 16 | T0432 K-2 每 PTY 範圍權杖（+ log 不印 token 前綴） | 本專案 | T0431, T0424 | M | 🟡 |
+| 17 | T0433 K-3 helper 隨 bundle + PTY env 注入 | 本專案 | T0432 | M | 🟢 |
+| 18 | T0434 K-4 端到端驗收 + 文件 | 本專案 | T0431, T0432, T0433 | M | 🟡 |
+
 - **追加**（使用者 05:46 斷點 C 合併裁決，全數納入）：第 11-14 列來自 T0418 / T0419 / T0423 回報區的 scope 外建議
+- **追加**（T0420 研究，K 採 A' 每 PTY 範圍權杖，使用者於 Worker 期間裁決）：第 15-18 列對應 T0420 拆單 1-4；T0420 範圍外 ②（`remote-server.ts` log 印 token 前 8 碼）併入 T0432；①（ct skill 降級判斷，非本 repo）③（本機回移 A'）記 backlog
 
 - **不採用**：批 4 同 session 一併跑（SDK 0.3 與 PLAN-035 Phase 2 各需專注、斷點機率高）；BUG-098 修通 direct（需對外 bind，與 BUG-097 同類暴露面）
 - **相關**：PLAN-036 P3（J / K）、T0386 建議清單 J / K、BUG-096-100 / 106、L141
