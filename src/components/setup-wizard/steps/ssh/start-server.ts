@@ -1,4 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { resolveSshInstallPath } from './remote-home'
 
 interface StartServerState {
   sshHost?: string
@@ -128,6 +129,10 @@ export const startServerStep: WizardStep = {
       throw new Error(`start-server step is not applicable to targetOS=${ctx.targetOS}`)
     }
 
+    // T0379 / BUG-088: hand the main process an absolute path (same rule the
+    // install step used for the upload). ssh-start-server re-validates it.
+    const installPath = resolveSshInstallPath(state.sshInstallPath, state.sshServerHome)
+
     const startId = makeStartId()
     const port = ctx.serverPort ?? 51820
 
@@ -148,7 +153,7 @@ export const startServerStep: WizardStep = {
           sshPort: state.sshPort,
           sshKeyPath: state.sshKeyPath,
           targetOS: ctx.targetOS,
-          installPath: state.sshInstallPath,
+          installPath,
           serverPort: port,
           serverHome: state.sshServerHome,
         },

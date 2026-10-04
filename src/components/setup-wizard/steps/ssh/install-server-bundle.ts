@@ -1,4 +1,5 @@
 import type { WizardStep } from '../../wizard-runner'
+import { resolveSshInstallPath } from './remote-home'
 
 interface InstallSshBundleState {
   sshHost?: string
@@ -6,6 +7,9 @@ interface InstallSshBundleState {
   sshPort?: number
   sshKeyPath?: string
   sshInstallPath?: string
+  /** T0379 — `sshInstallPath` resolved against `sshServerHome` (absolute). */
+  sshResolvedInstallPath?: string
+  sshServerHome?: string
   sshServerArch?: string
   bundleTarballPath?: string
   bundleSource?: 'cache' | 'baseline' | 'download'
@@ -66,6 +70,11 @@ export const installSshServerBundleStep: WizardStep = {
     if (!state.sshServerArch) {
       throw new Error('SSH server architecture not detected — re-run verify-ssh-auth before installing the server bundle.')
     }
+    // T0379 / BUG-088: the upload single-quotes the path (`mkdir -p '<path>'`),
+    // so a literal `~` would become a directory named `~` under $HOME. Resolve
+    // against the probed remote $HOME before downloading anything.
+    const installPath = resolveSshInstallPath(state.sshInstallPath, state.sshServerHome)
+    state.sshResolvedInstallPath = installPath
 
     // PLAN-031 T0322 — delegate tarball lookup to T0320 distributor via the
     // T0321 draftProfile pattern. ctx.targetOS was set by verify-auth based on
@@ -108,7 +117,7 @@ export const installSshServerBundleStep: WizardStep = {
     state.bundleTarballPath = tarballPath
     state.bundleSource = distributeResult.source
     ctx.logger.info(`${describeSource(distributeResult.source)}: ${tarballPath}`)
-    ctx.logger.info(`Uploading ${tarballPath} → ${state.sshUser}@${state.sshHost}:${state.sshInstallPath}`)
+    ctx.logger.info(`Uploading ${tarballPath} → ${state.sshUser}@${state.sshHost}:${installPath}`)
 
     const uploadId = makeUploadId()
     const startedAt = Date.now()
@@ -134,7 +143,7 @@ export const installSshServerBundleStep: WizardStep = {
           sshUser: state.sshUser,
           sshPort: state.sshPort,
           sshKeyPath: state.sshKeyPath,
-          installPath: state.sshInstallPath,
+          installPath,
           tarballPath,
         },
       })
@@ -143,8 +152,8 @@ export const installSshServerBundleStep: WizardStep = {
       unsubscribeUpload()
     }
 
-    ctx.serverInstallPath = state.sshInstallPath
-    ctx.logger.info(`✓ Server bundle installed at ${state.sshInstallPath}`)
+    ctx.serverInstallPath = installPath
+    ctx.logger.info(`✓ Server bundle installed at ${installPath}`)
   },
   // PLAN-007 T0289 — RFC C-3 best-effort rollback. Removes the install
   // directory the upload created (`ssh user@host "rm -rf <installPath>"`).
@@ -159,13 +168,15 @@ export const installSshServerBundleStep: WizardStep = {
       sshUser: state.sshUser,
       sshPort: state.sshPort,
       sshKeyPath: state.sshKeyPath,
-      installPath: state.sshInstallPath,
+      // T0379: remove what the upload actually created (absolute path).
+      installPath: state.sshResolvedInstallPath ?? state.sshInstallPath,
     })
     if (!result.ok) {
       ctx.logger.warn(`Failed to remove BAT server bundle over SSH: ${result.error}`)
       return
     }
     ctx.serverInstallPath = undefined
+    state.sshResolvedInstallPath = undefined
   },
 }
 

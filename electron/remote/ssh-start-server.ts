@@ -10,8 +10,10 @@ export interface StartServerOptions {
   sshKeyPath?: string
   targetOS: 'ssh-linux' | 'ssh-darwin'
   /**
-   * Where the server bundle was extracted (e.g. `~/.local/bat-server`). The
-   * service unit's ExecStart is `${installPath}/bin/bat-server`.
+   * Where the server bundle was extracted (e.g. `~/.local/bat-server` or the
+   * already-resolved `/home/alice/.local/bat-server`). A leading `~` / `~/` is
+   * expanded against `serverHome` before rendering (T0379 / BUG-088), so the
+   * service unit's ExecStart is always an absolute `${installPath}/bin/bat-server`.
    * v1 only supports `~/.local/bat-server`; sudo `/opt/bat-server` is excluded
    * (D-SSH-8) and not handled here.
    */
@@ -19,10 +21,12 @@ export interface StartServerOptions {
   /** Default 51820 (v1 hard-coded; out-of-scope to dynamic-pick per工單). */
   serverPort?: number
   /**
-   * Remote `$HOME` parsed by `verify-ssh-auth`. Currently informational; the
-   * unit/plist use `~` (systemd resolves `%h` itself; launchd resolves `~/Library`
-   * via the user's session). Captured here so the option surface mirrors
-   * spec §4 and downstream consumers can render `journalctl --user-unit` paths.
+   * Remote `$HOME` parsed by `verify-ssh-auth`. Required: every path written
+   * into the unit/plist (and the unit/plist file location itself) is made
+   * absolute from it (T0379 / BUG-088, D126). systemd does not expand `~` in
+   * `ExecStart`, launchd does not expand `~` in `ProgramArguments`, and bash
+   * does not expand `~` inside the single-quoted `mkdir` / `cat >` / `launchctl`
+   * arguments below. Must start with `/` and pass `resolveServerHome()`.
    */
   serverHome: string
 }
@@ -120,17 +124,51 @@ function validateSystemdValue(value: string, fieldName: string): string {
   return value
 }
 
-function systemdUnitPath(): { dir: string; file: string } {
+/**
+ * Validate the remote `$HOME` (T0379 / BUG-088). Same shape rule as the WSL
+ * `resolveHome()` (T0378): absolute, conservative charset, no `..` segment.
+ * Returned without trailing slash (`/` itself becomes `''` so joins stay
+ * `/<rest>`).
+ */
+function resolveServerHome(serverHome: unknown): string {
+  if (typeof serverHome !== 'string' || serverHome.length === 0) {
+    throw new Error('serverHome is required to build absolute service paths (verify-ssh-auth must resolve the remote $HOME first)')
+  }
+  if (!/^\/[A-Za-z0-9._/-]*$/.test(serverHome) || serverHome.split('/').includes('..')) {
+    throw new Error(`serverHome must be an absolute path without special characters: ${JSON.stringify(serverHome)}`)
+  }
+  return serverHome.replace(/\/+$/, '')
+}
+
+/**
+ * Expand a leading `~` / `~/` against the validated remote home (T0379 / D126).
+ * Absolute paths pass through unchanged. `~user/...` and relative paths are
+ * rejected: neither systemd `ExecStart` nor launchd `ProgramArguments` would
+ * resolve them, and guessing would write a unit that cannot start.
+ */
+function expandHomePath(path: string, home: string): string {
+  if (path === '~') return home || '/'
+  if (path.startsWith('~/')) return `${home}${path.slice(1)}`
+  if (path.startsWith('/')) return path
+  throw new Error(`installPath must be absolute or start with ~/ (got ${JSON.stringify(path)})`)
+}
+
+/** Absolute install path for the service definition (T0379). */
+function resolveInstallPath(opts: StartServerOptions): string {
+  return expandHomePath(opts.installPath, resolveServerHome(opts.serverHome))
+}
+
+function systemdUnitPath(home: string): { dir: string; file: string } {
   return {
-    dir: '~/.config/systemd/user',
-    file: '~/.config/systemd/user/bat-server.service',
+    dir: `${home}/.config/systemd/user`,
+    file: `${home}/.config/systemd/user/bat-server.service`,
   }
 }
 
-function launchdPlistPath(): { dir: string; file: string } {
+function launchdPlistPath(home: string): { dir: string; file: string } {
   return {
-    dir: '~/Library/LaunchAgents',
-    file: '~/Library/LaunchAgents/com.bat-server.plist',
+    dir: `${home}/Library/LaunchAgents`,
+    file: `${home}/Library/LaunchAgents/com.bat-server.plist`,
   }
 }
 
@@ -139,9 +177,9 @@ function renderSystemdUnit(opts: StartServerOptions): string {
   // T0297 F-005: reject structural chars in installPath before interpolating.
   // `\n` / `\r` already rejected upstream by escapeSingleQuotesStrict (T0296),
   // but `[ ] =` would still inject INI sections / key-value pairs.
-  const safeInstallPath = validateSystemdValue(opts.installPath, 'installPath')
-  // %h is resolved by systemd to the user's home; we keep installPath as
-  // literal `~/.local/bat-server` so the unit is portable when copied.
+  // T0379 / BUG-088 (D126): systemd does not expand `~` in ExecStart, so the
+  // path is made absolute from serverHome here. `%h` is deliberately not used.
+  const safeInstallPath = validateSystemdValue(resolveInstallPath(opts), 'installPath')
   return [
     '[Unit]',
     'Description=BAT remote server (PLAN-007)',
@@ -167,7 +205,9 @@ function renderLaunchdPlist(opts: StartServerOptions): string {
   // through escapeXml so attacker-controlled chars cannot terminate the
   // element early and inject siblings (e.g. `</string><key>RunAsUser</key>...`).
   const labelXml = escapeXml(LAUNCHD_LABEL)
-  const installPathXml = escapeXml(opts.installPath)
+  // T0379 / BUG-088: launchd hands ProgramArguments to execvp without `~`
+  // expansion (launchd.plist(5)), so the path is made absolute first.
+  const installPathXml = escapeXml(resolveInstallPath(opts))
   const portXml = escapeXml(String(port))
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -325,7 +365,11 @@ export async function startServerOnRemote(
   const connectArgs = buildSshConnectArgs(opts)
   const isLinux = opts.targetOS === 'ssh-linux'
   const method: 'systemd' | 'launchd' = isLinux ? 'systemd' : 'launchd'
-  const paths = isLinux ? systemdUnitPath() : launchdPlistPath()
+  // T0379: resolved before any ssh exec, so a bad serverHome throws here and no
+  // file is written. Paths must be absolute: the commands below single-quote
+  // them, and bash does not expand `~` inside quotes.
+  const home = resolveServerHome(opts.serverHome)
+  const paths = isLinux ? systemdUnitPath(home) : launchdPlistPath(home)
   const content = isLinux ? renderSystemdUnit(opts) : renderLaunchdPlist(opts)
   const escapedFile = escapeSingleQuotes(paths.file)
 
@@ -398,6 +442,8 @@ export const __internals = {
   escapeSingleQuotes,
   escapeXml,
   validateSystemdValue,
+  resolveServerHome,
+  expandHomePath,
   systemdUnitPath,
   launchdPlistPath,
   SERVICE_NAME,

@@ -93,7 +93,9 @@ test('test1: systemd unit content has all 7 required fields + 2 Environment vars
   assert.match(unit, /^Description=BAT remote server/m)
   assert.match(unit, /^After=network\.target/m)
   assert.match(unit, /^Type=simple/m)
-  assert.match(unit, /^ExecStart=~\/\.local\/bat-server\/bin\/bat-server/m)
+  // T0379 / BUG-088: `~` is expanded against serverHome (systemd won't).
+  assert.match(unit, /^ExecStart=\/home\/alice\/\.local\/bat-server\/bin\/bat-server$/m)
+  assert.ok(!unit.includes('~'), 'unit must not contain a literal ~')
   assert.match(unit, /^Restart=on-failure/m)
   assert.match(unit, /^RestartSec=5s/m)
   assert.match(unit, /^WantedBy=default\.target/m)
@@ -105,7 +107,8 @@ test('test2: launchd plist content has all 6 required keys (Label/ProgramArgumen
   const plist = renderLaunchdPlist(baseDarwin)
   assert.match(plist, /<key>Label<\/key>\s*<string>com\.bat-server<\/string>/)
   assert.match(plist, /<key>ProgramArguments<\/key>/)
-  assert.match(plist, /<string>~\/\.local\/bat-server\/bin\/bat-server<\/string>/)
+  assert.match(plist, /<string>\/Users\/alice\/\.local\/bat-server\/bin\/bat-server<\/string>/)
+  assert.ok(!plist.includes('~'), 'plist must not contain a literal ~')
   assert.match(plist, /<key>EnvironmentVariables<\/key>/)
   assert.match(plist, /<key>BAT_REMOTE_PORT<\/key>\s*<string>51820<\/string>/)
   assert.match(plist, /<key>RunAtLoad<\/key>\s*<true\/>/)
@@ -125,7 +128,7 @@ test('test3: systemd happy path runs 3 ssh execs in order (write → enable → 
   assert.equal(result.method, 'systemd')
   assert.equal(calls.length, 3)
   // last arg is the remote command
-  assert.match(String(calls[0].args[calls[0].args.length - 1]), /cat > '~\/\.config\/systemd\/user\/bat-server\.service' << 'EOF'/)
+  assert.match(String(calls[0].args[calls[0].args.length - 1]), /cat > '\/home\/alice\/\.config\/systemd\/user\/bat-server\.service' << 'EOF'/)
   assert.match(String(calls[1].args[calls[1].args.length - 1]), /loginctl enable-linger 'alice'.*systemctl --user enable --now bat-server/s)
   assert.match(String(calls[2].args[calls[2].args.length - 1]), /systemctl --user is-active bat-server/)
   // phase emit order
@@ -142,8 +145,9 @@ test('test4: launchd happy path runs 3 ssh execs in order (write → load → ve
   assert.equal(result.ok, true)
   assert.equal(result.method, 'launchd')
   assert.equal(calls.length, 3)
-  assert.match(String(calls[0].args[calls[0].args.length - 1]), /cat > '~\/Library\/LaunchAgents\/com\.bat-server\.plist' << 'EOF'/)
-  assert.match(String(calls[1].args[calls[1].args.length - 1]), /launchctl load -w '~\/Library\/LaunchAgents\/com\.bat-server\.plist'/)
+  assert.match(String(calls[0].args[calls[0].args.length - 1]), /cat > '\/Users\/alice\/Library\/LaunchAgents\/com\.bat-server\.plist' << 'EOF'/)
+  assert.match(String(calls[1].args[calls[1].args.length - 1]), /launchctl load -w '\/Users\/alice\/Library\/LaunchAgents\/com\.bat-server\.plist'/)
+  assert.equal(result.servicePath, '/Users/alice/Library/LaunchAgents/com.bat-server.plist')
   assert.match(String(calls[2].args[calls[2].args.length - 1]), /launchctl list \| grep com\.bat-server && pgrep -x bat-server/)
 })
 
@@ -336,7 +340,7 @@ test('test11e (T0297 F-005): validateSystemdValue happy path leaves benign value
 
 test('test11f (T0297 F-005): benign installPath produces no entity refs (escape is a no-op)', () => {
   const plist = renderLaunchdPlist(baseDarwin)
-  assert.match(plist, /<string>~\/\.local\/bat-server\/bin\/bat-server<\/string>/)
+  assert.match(plist, /<string>\/Users\/alice\/\.local\/bat-server\/bin\/bat-server<\/string>/)
   assert.ok(!/&amp;|&lt;|&gt;|&quot;|&apos;/.test(plist), 'benign plist contains entity refs')
 })
 
