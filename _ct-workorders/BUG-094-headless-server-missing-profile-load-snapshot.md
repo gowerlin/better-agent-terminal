@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: bug
 id: BUG-094
 title: WSL / SSH 遠端 profile 連得上 headless bat-server，但 `profile:load-snapshot` 無 handler，被錯報成「伺服器未執行或 6 秒未回應」
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-10-04T23:19:15+08:00"
-updated_at: "2026-10-04T23:19:15+08:00"
+updated_at: "2026-10-04T23:21:01+08:00"
 impact:
   - remote-profile-headless
   - setup-wizard-wsl
 links:
-  fix_workorder: null
+  fix_workorder: T0385
   related: [PLAN-035, BUG-092, BUG-091, BUG-090, BUG-093, PLAN-031]
 ---
 
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（WSL 精靈全程通過後，建出來的 profile **無法開啟**——PLAN-035 Phase 1 的最終目的不可用） |
 | 可重現 | 100%（2026-10-04 23:15 實機兩次：15:15:27Z / 15:15:46Z） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0385） |
 | 回報者 | 使用者實機驗收（PLAN-035 Phase 1，安裝版 = 本機 build `0.5.9-pre.4`，`app.asar` SHA-256 前綴 `3FDFEA76…`，與 `release\win-unpacked` 一致，含 T0384） |
 
 ## 現象
