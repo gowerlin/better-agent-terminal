@@ -239,7 +239,17 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [恢復] 2026-10-05 05:46 — 使用者斷點 C 合併裁決：4 項全納入 → T0427-T0430（D134 第 11-14 列）
 - [研究完成] 2026-10-05 05:48 — T0420 DONE（`7bb4692`）：K 採方案 A'（每 PTY 範圍權杖，使用者 Worker 期間裁決），拆 4 張 → 塔台開 T0431-T0434
 - [完成] 2026-10-05 05:48 — T0422 DONE（`d800dea`）塔台複核 PASS：4 檔、12 channel → ALWAYS_LOCAL（HEADLESS_UNSUPPORTED 18 → 6）、Worker 1899 tests / tsc 40；未改 `main.ts` / `headless-entry.ts`
-- [派發] 2026-10-05 05:49 — T0428 ∥ T0429 ∥ T0430（`--no-interactive`）；overlap 無（T0424 進行中：pty / Terminal / WorkspaceView）
+- [派發] 2026-10-05 05:48 — T0428 ∥ T0429 ∥ T0430（`--no-interactive`）；overlap 無（T0424 進行中：pty / Terminal / WorkspaceView）
+- [研究完成] 2026-10-05 05:50 — T0421 DONE（`ffb06f8`）；使用者 05:51 裁決拆單 1-6 全納入 + 開 BUG-109 / PLAN-038 → BUG-107 / 108 / 109、T0435-T0441（`d8416f1`）；T0420 拆單 → T0431-T0434（`bec52bf`）
+- [完成] 2026-10-05 05:53 — T0428 DONE（`376eaee` + `7d6ca6d`，純文件）
+- [完成] 2026-10-05 05:53 — T0424 DONE（`ef7beb8`）塔台複核 PASS：Worker 1915 tests / tsc 40；範圍偏差接受（`src/types/index.ts`、`TerminalPanel.tsx`、新 hook `usePtyLimitNotice.ts`、T0404 wire 測試同步）
+- [完成] 2026-10-05 05:53 — T0430 DONE（`a878b83`）塔台複核 PASS：失敗只拆 candidate、保留槽位；Worker 1922 tests / tsc 40
+- [斷點 C] 2026-10-05 05:53 — T0430 建議另開：`loadProfileSnapshotDetailed` 失敗 candidate 未 disconnect（SSH tunnel 殘留）、pin 變更時 fail-closed 拆既有 client。待使用者裁決（不阻擋派發）
+- [派發] 2026-10-05 05:54 — T0425 ∥ T0435（`--no-interactive`）
+- [完成] 2026-10-05 05:54 — T0429 DONE（`b968b9f`）塔台複核 PASS：simple-git 18 個 unsafe key 一併過濾（出處 `@simple-git/argv-parser` 1.1.1），未開 unsafe 旗標；Worker 1933 tests / tsc 40；範圍偏差接受（`handlers/git.ts` 1 行）
+- [派發] 2026-10-05 05:54 — T0431（`--no-interactive`）；overlap 無（T0425：ssh 精靈；T0435：preload / 面板）
+- [授權] 2026-10-05 05:55 — 使用者：「塔台給最佳建議, 直接決定」→ scope 內斷點 C 由塔台裁決、事後回報
+- [斷點 C 裁決] 2026-10-05 05:56 — T0430 兩項合併為 T0442（依賴 T0431）；聯合複驗改在 scratchpad 乾淨 worktree 對 HEAD 跑（不受平行 Worker dirty 檔影響）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
