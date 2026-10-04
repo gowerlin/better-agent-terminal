@@ -32,13 +32,22 @@ const WORKTREE_DIR = '.bat-worktrees'
 
 export class WorktreeManager {
   private activeWorktrees = new Map<string, WorktreeInfo>()
+  private gitBinary: () => string = () => 'git'
+
+  /**
+   * T0405: headless bat-server resolves git outside the service PATH (~/.local/bin).
+   * Electron never calls this and keeps spawning plain `git`.
+   */
+  setGitBinaryResolver(resolve: () => string): void {
+    this.gitBinary = resolve
+  }
 
   /**
    * Get the git root for a given directory.
    */
   async getGitRoot(cwd: string): Promise<string | null> {
     try {
-      const { stdout } = await execFileAsync('git', ['rev-parse', '--show-toplevel'], { cwd })
+      const { stdout } = await execFileAsync(this.gitBinary(), ['rev-parse', '--show-toplevel'], { cwd })
       return stdout.trim()
     } catch {
       return null
@@ -50,7 +59,7 @@ export class WorktreeManager {
    */
   private async getCurrentBranch(cwd: string): Promise<string> {
     try {
-      const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd })
+      const { stdout } = await execFileAsync(this.gitBinary(), ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd })
       return stdout.trim()
     } catch {
       return 'HEAD'
@@ -87,7 +96,7 @@ export class WorktreeManager {
     // Check if branch already exists, if so try with suffix
     let finalBranch = branch
     try {
-      await execFileAsync('git', ['rev-parse', '--verify', branch], { cwd: gitRoot })
+      await execFileAsync(this.gitBinary(), ['rev-parse', '--verify', branch], { cwd: gitRoot })
       // Branch exists, append timestamp suffix
       finalBranch = `${branch}-${Date.now().toString(36)}`
       logger.log(`[Worktree] Branch ${branch} exists, using ${finalBranch}`)
@@ -97,7 +106,7 @@ export class WorktreeManager {
 
     // Create the worktree with a new branch
     logger.log(`[Worktree] Creating worktree at ${worktreePath} on branch ${finalBranch}`)
-    await execFileAsync('git', ['worktree', 'add', worktreePath, '-b', finalBranch], { cwd: gitRoot })
+    await execFileAsync(this.gitBinary(), ['worktree', 'add', worktreePath, '-b', finalBranch], { cwd: gitRoot })
 
     // Link untracked .claude/ items
     await this.linkClaudeUntracked(gitRoot, worktreePath)
@@ -129,7 +138,7 @@ export class WorktreeManager {
     let untrackedItems: string[]
     try {
       const { stdout } = await execFileAsync(
-        'git', ['ls-files', '--others', '--exclude-standard', '.claude/'],
+        this.gitBinary(), ['ls-files', '--others', '--exclude-standard', '.claude/'],
         { cwd: gitRoot }
       )
       // Get unique top-level entries under .claude/ (directories and files)
@@ -231,12 +240,12 @@ export class WorktreeManager {
    */
   private async forceRemoveWorktree(gitRoot: string, worktreePath: string, branchToDelete?: string): Promise<void> {
     try {
-      await execFileAsync('git', ['worktree', 'remove', worktreePath, '--force'], { cwd: gitRoot })
+      await execFileAsync(this.gitBinary(), ['worktree', 'remove', worktreePath, '--force'], { cwd: gitRoot })
     } catch {
       // If git worktree remove fails, try manual cleanup
       try {
         await fsPromises.rm(worktreePath, { recursive: true, force: true })
-        await execFileAsync('git', ['worktree', 'prune'], { cwd: gitRoot })
+        await execFileAsync(this.gitBinary(), ['worktree', 'prune'], { cwd: gitRoot })
       } catch (err) {
         logger.warn(`[Worktree] Manual cleanup failed for ${worktreePath}: ${err}`)
       }
@@ -244,7 +253,7 @@ export class WorktreeManager {
 
     if (branchToDelete) {
       try {
-        await execFileAsync('git', ['branch', '-D', branchToDelete], { cwd: gitRoot })
+        await execFileAsync(this.gitBinary(), ['branch', '-D', branchToDelete], { cwd: gitRoot })
       } catch {
         // Branch may not exist or already deleted
       }
@@ -294,7 +303,7 @@ export class WorktreeManager {
 
     try {
       const { stdout } = await execFileAsync(
-        'git', ['diff', `${info.sourceBranch}...${info.branchName}`],
+        this.gitBinary(), ['diff', `${info.sourceBranch}...${info.branchName}`],
         { cwd: info.gitRoot, maxBuffer: 10 * 1024 * 1024 }
       )
       return stdout

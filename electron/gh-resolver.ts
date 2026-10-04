@@ -1,4 +1,5 @@
 import * as fs from 'fs'
+import * as os from 'os'
 import * as path from 'path'
 import { execFileSync } from 'child_process'
 
@@ -21,7 +22,16 @@ const WINDOWS_BIN_NAMES = ['gh.exe'] as const
 const UNIX_BIN_NAMES = ['gh'] as const
 
 function getHome(): string {
-  return process.env.HOME || process.env.USERPROFILE || ''
+  // os.homedir(): a headless bat-server started without HOME (T0405) still finds ~/.local/bin.
+  return process.env.HOME || process.env.USERPROFILE || safeHomedir()
+}
+
+function safeHomedir(): string {
+  try {
+    return os.homedir()
+  } catch {
+    return ''
+  }
 }
 
 function getBinaryNames(): readonly string[] {
@@ -55,12 +65,12 @@ function isExecutableFile(candidate: string): boolean {
   }
 }
 
-function scanPath(attemptedPaths: string[]): string | null {
+function scanPath(attemptedPaths: string[], names: readonly string[] = getBinaryNames()): string | null {
   const rawPath = process.env.PATH
   if (!rawPath) return null
 
   for (const dir of rawPath.split(path.delimiter).filter(Boolean)) {
-    for (const name of getBinaryNames()) {
+    for (const name of names) {
       const candidate = path.join(dir, name)
       pushAttempt(attemptedPaths, candidate)
       if (isExecutableFile(candidate)) return candidate
@@ -156,8 +166,53 @@ export async function resolveGhBinary(opts?: GhResolveOptions): Promise<GhResolv
   }
 }
 
+// ── git (T0405) ──────────────────────────────────────────────────────────────
+//
+// Same scan order as gh minus custom path / where: PATH, then the usual install
+// locations. Headless bat-server runs under a systemd user service whose PATH has
+// no ~/.local/bin (T0407 / T0414), so a git installed there is only found by the
+// common-location scan. Electron keeps spawning plain `git` (PATH lookup by the OS).
+
+export type GitResolveSource = 'path' | 'common-location'
+
+export interface GitResolveResult {
+  found: boolean
+  path?: string
+  source?: GitResolveSource
+  attemptedPaths: string[]
+}
+
+function getGitBinaryNames(): readonly string[] {
+  return process.platform === 'win32' ? ['git.exe'] : ['git']
+}
+
+function getGitCommonLocations(): string[] {
+  const home = getHome()
+  if (process.platform === 'win32') {
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files'
+    return [path.join(programFiles, 'Git', 'cmd', 'git.exe')]
+  }
+  const local = home ? path.join(home, '.local', 'bin', 'git') : ''
+  if (process.platform === 'darwin') {
+    return ['/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git', local].filter(Boolean)
+  }
+  return ['/usr/bin/git', '/usr/local/bin/git', local].filter(Boolean)
+}
+
+export function resolveGitBinary(): GitResolveResult {
+  const attemptedPaths: string[] = []
+  const pathHit = scanPath(attemptedPaths, getGitBinaryNames())
+  if (pathHit) return { found: true, path: pathHit, source: 'path', attemptedPaths }
+  for (const candidate of getGitCommonLocations()) {
+    pushAttempt(attemptedPaths, candidate)
+    if (isExecutableFile(candidate)) return { found: true, path: candidate, source: 'common-location', attemptedPaths }
+  }
+  return { found: false, attemptedPaths }
+}
+
 export const __test__ = {
   isSafeCustomPath,
   isExecutableFile,
   getCommonLocations,
+  getGitCommonLocations,
 }

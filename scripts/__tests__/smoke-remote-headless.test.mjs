@@ -1,6 +1,7 @@
 // @vitest-environment node
 // T0396 — scripts/smoke-remote-headless.mjs (PLAN-036 P0 protocol-level smoke)
 // T0411 — S10 remote-tools:detect
+// T0405 — S11 git / github / worktree
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -16,8 +17,11 @@ import {
   FRAME_TYPE,
   NAME_RX,
   PtyTracker,
+  GITHUB_CHECK_CLI_TIMEOUT_MS,
   REMOTE_TOOLS_DETECT_TIMEOUT_MS,
   SMOKE_CHANNELS,
+  SMOKE_GIT_REPO_RX,
+  SMOKE_GIT_REPO_TEMPLATE,
   SMOKE_EVENTS,
   UNSUPPORTED_ERROR_RX,
   UNSUPPORTED_PROBE_ARGS,
@@ -26,6 +30,7 @@ import {
   buildAuthFrame,
   buildInvokeFrame,
   checkClaudeRuntimeAnswers,
+  checkGitAnswers,
   checkRemoteToolsAnswer,
   corruptFingerprint,
   decodeTokenFile,
@@ -325,6 +330,11 @@ describe('PtyTracker', () => {
 
 /** Evaluates the handful of shell expansions the smoke types. */
 function fakeShellEval(command, pty) {
+  // T0405 S11: temp repo setup / removal lines
+  const made = /echo (\S+)-s11-repo:\$d$/.exec(command.trim())
+  if (made) return `${made[1]}-s11-repo:${FAKE_REPO}`
+  const gone = /echo (\S+)-s11-gone-\$\(\(1\+1\)\)$/.exec(command.trim())
+  if (gone) return `${gone[1]}-s11-gone-2`
   const echo = /^echo (.*)$/.exec(command.trim())
   if (!echo) return ''
   return echo[1]
@@ -334,6 +344,20 @@ function fakeShellEval(command, pty) {
 }
 
 const CLI_PATH = '/home/u/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude'
+const FAKE_REPO = '/tmp/bat-smoke-git.Ab12Cd'
+const GH_NOT_LOGGED_IN = { installed: true, authenticated: false, authState: 'unauthenticated', path: '/usr/bin/gh', source: 'path', attemptedPaths: ['/usr/local/bin/gh', '/usr/bin/gh'] }
+
+/** T0405: git channel answers for the S11 temp repo (`nonce` = the one smoke commit's message prefix). */
+function gitAnswers(nonce) {
+  return {
+    root: FAKE_REPO,
+    branch: 'master',
+    log: [{ hash: 'a'.repeat(40), author: 'bat-smoke', date: '2026-10-05 04:00:00 +0800', message: `${nonce}-s11` }],
+    status: [],
+    health: { ok: true, isRepo: true, gitRoot: FAKE_REPO },
+    worktree: null,
+  }
+}
 
 /** T0411: `remote-tools:detect` answer of a WSL Ubuntu server (trimmed RemoteToolsDetectResult). */
 function remoteToolsReport(overrides = {}) {
@@ -353,8 +377,9 @@ function remoteToolsReport(overrides = {}) {
   }
 }
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, serverEnv = 'native' } = {}) {
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, serverEnv = 'native' } = {}) {
   const ptys = new Map()
+  const s11 = { nonce: null, repoRemoved: false }
   const clients = new Set()
   const log = []
   const probeArgs = []
@@ -378,6 +403,9 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
     'pty:write': (id, data) => {
       const pty = ptys.get(id)
       if (!pty) return { ok: false, reason: 'pty-not-found' }
+      const made = /(\S+)-s11-repo:\$d/.exec(data)
+      if (made) s11.nonce = made[1].split(' ').pop()
+      if (data.includes('rm -rf -- "$d"')) s11.repoRemoved = true
       setTimeout(() => emit('pty:output', id, `${data}\r\n${fakeShellEval(data, pty)}\r\n$ `), 1)
       return { ok: true }
     },
@@ -403,6 +431,15 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       'claude:auth-status': () => null,
     }),
     ...(preRemoteTools ? {} : { 'remote-tools:detect': () => remoteToolsReport() }),
+    ...(preGit ? {} : {
+      'github:check-cli': () => GH_NOT_LOGGED_IN,
+      'git:getRoot': (cwd) => (cwd === FAKE_REPO ? FAKE_REPO : null),
+      'git:branch': (cwd) => (cwd === FAKE_REPO ? 'master' : null),
+      'git:log': (cwd) => (cwd === FAKE_REPO ? gitAnswers(s11.nonce).log : []),
+      'git:status': () => [],
+      'git-scaffold:healthCheck': (cwd) => (cwd === FAKE_REPO ? gitAnswers(s11.nonce).health : { ok: true, isRepo: false, gitRoot: null }),
+      'worktree:status': () => null,
+    }),
   }
 
   class FakeClient {
@@ -449,28 +486,28 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
 
   const conn = { url: 'wss://fake:1', token: 'tok', fingerprint: FP, cwd: '/home/u' }
   const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
-  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts }
+  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts, s11 }
 }
 
 describe('runSmoke (fake server)', () => {
-  it('passes S1-S10 and leaves no smoke PTY behind', async () => {
+  it('passes S1-S11 and leaves no smoke PTY behind', async () => {
     const fake = createFakeServer()
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(report.ptyId).toMatch(/^smoke-\d{14}-[0-9a-f]{6}$/)
     expect(fake.ptys.size).toBe(0)
-    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(1)
+    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(2) // S7 + S11's own PTY
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
-    expect(summarize(report)).toEqual({ ok: true, passed: 10, warned: 0, total: 10 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 11, warned: 0, total: 11 })
     expect(fake.probeArgs).toEqual([['smoke-probe', 'read-only']])
     // S10 waits for the 20 s login-view probe, not the 500 ms default
-    expect(fake.invokeTimeouts).toEqual([['remote-tools:detect', REMOTE_TOOLS_DETECT_TIMEOUT_MS]])
+    expect(fake.invokeTimeouts).toEqual([['remote-tools:detect', REMOTE_TOOLS_DETECT_TIMEOUT_MS], ['github:check-cli', GITHUB_CHECK_CLI_TIMEOUT_MS]])
     expect(report.checks.find((c) => c.id === 'S10').evidence).toMatch(/schema v1; ubuntu 24\.04 x86_64 pkg=apt .*git=ok@2\.43\.0/)
   })
 
-  it('passes S1-S10 against a server before T0403 (pty:create answers a bare boolean)', async () => {
+  it('passes S1-S11 against a server before T0403 (pty:create answers a bare boolean)', async () => {
     const fake = createFakeServer({ legacyCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -500,7 +537,7 @@ describe('runSmoke (fake server)', () => {
     const fake = createFakeServer({ rejectCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
     const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
-    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS' })
+    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS', S11: 'FAIL' })
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(fake.log).not.toContain('pty:kill')
   })
@@ -512,7 +549,7 @@ describe('runSmoke (fake server)', () => {
     expect(s1.status).toBe('WARN')
     expect(s1.evidence).toMatch(/env=native but target is wsl/)
     expect(report.checks.filter((c) => c.id !== 'S1').every((c) => c.status === 'PASS')).toBe(true)
-    expect(summarize(report)).toEqual({ ok: true, passed: 9, warned: 1, total: 10 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 10, warned: 1, total: 11 })
   })
 
   it('T0404: S1 passes with env=wsl on a WSL target; non-WSL targets never WARN on env', async () => {
@@ -570,6 +607,49 @@ describe('runSmoke (fake server)', () => {
     }
   })
 
+  it('S11 creates a /tmp temp repo through its own PTY, removes it and kills that PTY', async () => {
+    const fake = createFakeServer()
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s11 = report.checks.find((c) => c.id === 'S11')
+    expect(s11.status).toBe('PASS')
+    expect(s11.evidence).toMatch(/authenticated=false authState=unauthenticated/)
+    expect(s11.evidence).toContain(`temp repo ${FAKE_REPO}`)
+    expect(s11.evidence).toMatch(/temp repo removed$/)
+    expect(fake.s11.repoRemoved).toBe(true)
+    expect(fake.ptys.size).toBe(0)
+    expect(report.cleanup.evidence).toContain(`pty:write(${report.ptyId}-git)`)
+    expect(report.cleanup.leftover).toBe(false)
+    // gh auth status is a network round trip: S11 waits longer than the default
+    expect(fake.invokeTimeouts).toContainEqual(['github:check-cli', 20_000])
+  })
+
+  it('S11 fails, naming the cause, against a server before T0405 — and creates no repo / PTY', async () => {
+    const fake = createFakeServer({ preGit: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+    const s11 = report.checks.find((c) => c.id === 'S11')
+    expect(s11.status).toBe('FAIL')
+    expect(s11.evidence).toMatch(/No handler for channel: github:check-cli — server predates T0405/)
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(2) // S3 + S5 only
+    expect(report.checks.filter((c) => c.id !== 'S11').every((c) => c.status === 'PASS')).toBe(true)
+    expect(summarize(report).ok).toBe(false)
+  })
+
+  it('S11 fails when gh is missing or a git channel answers wrong, and still cleans up', async () => {
+    const breakages = [
+      (h) => { h['github:check-cli'] = () => ({ installed: false, authenticated: false, attemptedPaths: [] }) },
+      (h) => { h['git:log'] = () => [] },
+      (h) => { h['git:status'] = () => [{ status: '??', file: 'x' }] },
+    ]
+    for (const breakIt of breakages) {
+      const fake = createFakeServer()
+      breakIt(fake.handlers)
+      const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+      expect(report.checks.find((c) => c.id === 'S11').status).toBe('FAIL')
+      expect(fake.s11.repoRemoved).toBe(true)
+      expect(fake.ptys.size).toBe(0)
+    }
+  })
+
   it('S8 fails on an answer or a timeout instead of an explicit error', async () => {
     for (const option of [{ probeAnswers: true }, { probeHangs: true }]) {
       const fake = createFakeServer(option)
@@ -602,6 +682,40 @@ describe('checkClaudeRuntimeAnswers (S9, T0401)', () => {
     expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: broken, auth: null }).evidence).toMatch(/spawn-failed/)
     expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: null, auth: null }).ok).toBe(false)
     expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: healthy, auth: 'yes' }).ok).toBe(false)
+  })
+})
+
+describe('checkGitAnswers (S11, T0405)', () => {
+  const ok = (overrides = {}) => checkGitAnswers({ repo: FAKE_REPO, nonce: 'n1', gh: GH_NOT_LOGGED_IN, ...gitAnswers('n1'), ...overrides })
+
+  it('accepts an installed, not logged-in gh and the temp repo answers', () => {
+    const outcome = ok()
+    expect(outcome.ok).toBe(true)
+    expect(outcome.evidence).toContain('github:check-cli → installed /usr/bin/gh (path), authenticated=false authState=unauthenticated')
+    expect(outcome.evidence).toContain('branch master, log 1 commit aaaaaaa, status clean')
+  })
+
+  it('a logged-in gh passes too (authenticated is reported, not required to be false)', () => {
+    expect(ok({ gh: { ...GH_NOT_LOGGED_IN, authenticated: true, authState: 'authenticated' } }).ok).toBe(true)
+  })
+
+  it('rejects each wrong answer by name', () => {
+    expect(ok({ gh: { installed: false, authenticated: false } }).evidence).toMatch(/github:check-cli/)
+    expect(ok({ gh: { installed: true } }).evidence).toMatch(/github:check-cli/)
+    expect(ok({ root: null }).evidence).toMatch(/git:getRoot → null/)
+    expect(ok({ branch: null }).evidence).toMatch(/git:branch → null/)
+    expect(ok({ log: [{ message: 'other' }] }).evidence).toMatch(/git:log/)
+    expect(ok({ status: [{ status: 'M', file: 'a' }] }).evidence).toMatch(/git:status/)
+    expect(ok({ health: { ok: true, isRepo: false, gitRoot: null } }).evidence).toMatch(/git-scaffold:healthCheck/)
+    expect(ok({ worktree: { diff: '' } }).evidence).toMatch(/worktree:status/)
+  })
+
+  it('the temp repo pattern only matches what mktemp makes from the template', () => {
+    expect(SMOKE_GIT_REPO_TEMPLATE).toBe('/tmp/bat-smoke-git.XXXXXX')
+    expect(SMOKE_GIT_REPO_RX.test(FAKE_REPO)).toBe(true)
+    for (const bad of ['/tmp', '/tmp/', '/home/u/repo', '/tmp/bat-smoke-git.', '/tmp/bat-smoke-git.a/..', '/tmp/bat-smoke-git.a b']) {
+      expect(SMOKE_GIT_REPO_RX.test(bad), bad).toBe(false)
+    }
   })
 })
 

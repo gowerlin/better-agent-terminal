@@ -4,6 +4,7 @@ import * as os from 'os'
 import * as path from 'path'
 import type { HandlerModule, HandlerModuleDisposer, HandlerRegistrar, HostDeps } from '../handlers/types'
 import { registerClaudeHandlers } from '../handlers/claude'
+import { registerGitHandlers, type GitHandlerDeps } from '../handlers/git'
 import { registerPtyHandlers } from '../handlers/pty'
 import { registerRemoteToolsHandlers, type RemoteToolsHandlerDeps } from '../handlers/remote-tools'
 import { ClaudeAgentManager } from '../claude-agent-manager'
@@ -12,8 +13,10 @@ import {
   resolveEmbeddedClaudePath,
   type EmbeddedClaudeLayout,
 } from '../claude-runtime-router'
+import { resolveGitBinary } from '../gh-resolver'
 import { logger as defaultLogger } from '../logger'
 import { PtyManager } from '../pty-manager'
+import { worktreeManager } from '../worktree-manager'
 import { broadcastHub } from './broadcast-hub'
 import {
   FileCertificateProvider,
@@ -271,19 +274,62 @@ export function createHeadlessRemoteToolsModule(overrides: HeadlessRemoteToolsOv
 }
 
 /**
+ * T0405: git executable for headless. The systemd user service PATH has no
+ * ~/.local/bin (T0407 / T0414), so `resolveGitBinary` also scans the usual
+ * install locations. A hit is cached; a miss falls back to plain `git` and is
+ * retried on the next call (git installed while the server runs).
+ */
+export function createHeadlessGitBinaryResolver(resolve: typeof resolveGitBinary = resolveGitBinary): () => string {
+  let cached: string | null = null
+  return () => {
+    if (cached) return cached
+    const result = resolve()
+    if (result.found && result.path) cached = result.path
+    return result.path ?? 'git'
+  }
+}
+
+/** T0405: test seams for `github:check-cli` (fake spawn / execFileSync / gh resolve / env). */
+export type HeadlessGitOverrides = Omit<GitHandlerDeps, 'getGithubCliPath'>
+
+/**
+ * T0405: `worktree:*` / `git:*` / `git-scaffold:*` / `github:*` on headless —
+ * git and gh run on the server machine. `githubCliPath` comes from
+ * `<dataDir>/settings.json`. The worktree singleton (shared with the claude
+ * module's ClaudeAgentManager) uses the same resolved git.
+ */
+export function createHeadlessGitModule(overrides: HeadlessGitOverrides = {}): HandlerModule {
+  return (register, host) => {
+    const getGitBinary = overrides.getGitBinary ?? createHeadlessGitBinaryResolver()
+    worktreeManager.setGitBinaryResolver(getGitBinary)
+    registerGitHandlers(register, {
+      ...overrides,
+      getGitBinary,
+      getGithubCliPath: () => {
+        const value = host.getSettings().githubCliPath
+        return typeof value === 'string' ? value : undefined
+      },
+    })
+  }
+}
+
+/**
  * Shared domain modules for one headless server; `installRoot` overrides the bundle
  * location (tests). T0404: `pty` carries the PTY cap and the manager hand-off.
  * T0411: `remoteTools` overrides the probe's execFile / platform / env (tests).
+ * T0405: `git` overrides the gh spawn / resolve (tests).
  */
 export function createHeadlessHandlerModules(opts: {
   installRoot?: string
   pty?: Parameters<typeof createHeadlessPtyModule>[0]
   remoteTools?: HeadlessRemoteToolsOverrides
+  git?: HeadlessGitOverrides
 } = {}): HandlerModule[] {
   return [
     opts.pty ? createHeadlessPtyModule(opts.pty) : registerHeadlessPtyHandlers, // T0390
     createHeadlessClaudeModule({ installRoot: opts.installRoot }), // T0401
     createHeadlessRemoteToolsModule(opts.remoteTools), // T0411
+    createHeadlessGitModule(opts.git), // T0405
   ]
 }
 
@@ -330,6 +376,8 @@ export interface HeadlessServerOptions {
   maxPtys?: number
   /** T0411: `remote-tools:detect` test seams (fake execFile / platform / env). */
   remoteTools?: HeadlessRemoteToolsOverrides
+  /** T0405: `github:check-cli` / git test seams (fake gh spawn / resolve / env). */
+  git?: HeadlessGitOverrides
   /** BUG-103: server environment for auth metadata (tests). Default: `detectServerEnv()`. */
   detectServerEnv?: () => ServerEnvInfo
   logger?: {
@@ -415,6 +463,7 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     installRoot: opts.installRoot,
     pty: { maxPtys: ptyLimits.maxPtys, onManager: manager => { ptyManager = manager } },
     remoteTools: opts.remoteTools,
+    git: opts.git,
   })
   for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)

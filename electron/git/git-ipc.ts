@@ -3,8 +3,12 @@
  *
  * Scaffold-level Git backend for the new Git Graph panel. Uses simple-git
  * (MIT, per T0152 licensing review) and coexists with the legacy `git:*`
- * child_process handlers registered in main.ts. Naming is prefixed with
+ * child_process handlers in electron/handlers/git.ts. Naming is prefixed with
  * `git-scaffold:` so the two stacks do not clash.
+ *
+ * T0405 (PLAN-036): registered through `registerGitHandlers` (handlers/git.ts)
+ * on both Electron main and headless bat-server, with the host's `register`.
+ * 🔴 No `electron` import here (headless-electron-free guard).
  *
  * Future work orders (Tα2–Tα5) extend these channels — do not inline extra
  * logic here that belongs to graph / indexing / operations phases.
@@ -12,7 +16,7 @@
 
 import simpleGit, { type SimpleGit, type SimpleGitOptions } from 'simple-git'
 import { logger } from '../logger'
-import { registerHandler } from '../remote/handler-registry'
+import type { HandlerRegistrar } from '../handlers/types'
 
 export interface GitScaffoldHealth {
   ok: boolean
@@ -53,8 +57,19 @@ const GIT_OPTS: Partial<SimpleGitOptions> = {
   timeout: { block: 10000 },
 }
 
-function makeGit(cwd: string): SimpleGit {
-  return simpleGit(cwd, GIT_OPTS)
+export interface GitScaffoldDeps {
+  /** git executable. Default `git` (Electron); headless passes its resolved path (T0405). */
+  getGitBinary?: () => string
+}
+
+function makeGit(cwd: string, binary = 'git'): SimpleGit {
+  if (binary === 'git') return simpleGit(cwd, GIT_OPTS)
+  try {
+    return simpleGit(cwd, { ...GIT_OPTS, binary })
+  } catch {
+    // simple-git rejects binary paths with characters outside its allow-list; PATH lookup instead.
+    return simpleGit(cwd, GIT_OPTS)
+  }
 }
 
 function errMessage(err: unknown): string {
@@ -62,18 +77,20 @@ function errMessage(err: unknown): string {
   return String(err)
 }
 
-async function resolveRepoRoot(cwd: string): Promise<{ isRepo: boolean; root: string | null; git: SimpleGit }> {
-  const git = makeGit(cwd)
+async function resolveRepoRoot(cwd: string, binary?: string): Promise<{ isRepo: boolean; root: string | null; git: SimpleGit }> {
+  const git = makeGit(cwd, binary)
   const isRepo = await git.checkIsRepo().catch(() => false)
   if (!isRepo) return { isRepo: false, root: null, git }
   const root = (await git.revparse(['--show-toplevel']).catch(() => '')).trim() || null
   return { isRepo: true, root, git }
 }
 
-export function registerGitScaffoldHandlers(): void {
-  registerHandler('git-scaffold:healthCheck', async (_ctx, cwd: string) => {
+export function registerGitScaffoldHandlers(register: HandlerRegistrar, deps: GitScaffoldDeps = {}): void {
+  const gitBinary = () => deps.getGitBinary?.() ?? 'git'
+
+  register('git-scaffold:healthCheck', async (_ctx, cwd: string) => {
     try {
-      const { isRepo, root } = await resolveRepoRoot(cwd)
+      const { isRepo, root } = await resolveRepoRoot(cwd, gitBinary())
       const result: GitScaffoldHealth = { ok: true, isRepo, gitRoot: root }
       return result
     } catch (err) {
@@ -84,9 +101,9 @@ export function registerGitScaffoldHandlers(): void {
     }
   })
 
-  registerHandler('git-scaffold:getRepoInfo', async (_ctx, cwd: string) => {
+  register('git-scaffold:getRepoInfo', async (_ctx, cwd: string) => {
     try {
-      const { isRepo, root, git } = await resolveRepoRoot(cwd)
+      const { isRepo, root, git } = await resolveRepoRoot(cwd, gitBinary())
       if (!isRepo) {
         const result: GitScaffoldRepoInfo = {
           ok: false,
@@ -133,13 +150,13 @@ export function registerGitScaffoldHandlers(): void {
     }
   })
 
-  registerHandler('git-scaffold:listCommits', async (_ctx, cwd: string, options?: { limit?: number; offset?: number }) => {
+  register('git-scaffold:listCommits', async (_ctx, cwd: string, options?: { limit?: number; offset?: number }) => {
     // limit cap 於 T0156 自 2000 提升到 10000,以支援 Git Graph panel 單次載入 10k
     // commits 的初始策略。Tα3 後若需更大範圍,會改為真正的增量分頁。
     const limit = Math.max(1, Math.min(Math.floor(Number(options?.limit)) || 100, 10000))
     const offset = Math.max(0, Math.floor(Number(options?.offset)) || 0)
     try {
-      const { isRepo, git } = await resolveRepoRoot(cwd)
+      const { isRepo, git } = await resolveRepoRoot(cwd, gitBinary())
       if (!isRepo) {
         const result: GitScaffoldListCommitsResult = { ok: false, commits: [], error: 'Not a git repository' }
         return result

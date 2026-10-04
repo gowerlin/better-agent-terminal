@@ -214,18 +214,23 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
 | S8 | an unsupported channel (`claude:set-codex-sandbox-mode`; the server bundle ships no Codex) returns `No handler for channel: …`, not a timeout |
 | S9 | `claude:get-cli-path` / `claude:detectRuntime` / `claude:auth-status` answer without a login (fails with "server predates T0401" against older servers) |
 | S10 | `remote-tools:detect` (the PLAN-037 AI toolchain probe; up to 30 s, the login-view probe loads the user's rc files) returns a schema v1 report with `env.osFamily = linux` and `git` = `ok` (fails with "server predates T0411" against older servers) |
+| S11 | `github:check-cli` (up to 20 s; the server runs `gh auth status`, a network check) answers `installed: true` with a boolean `authenticated` (the WSL test host is not logged in ⇒ `false`); then, through a second smoke PTY, the smoke creates its own temp repo `mktemp -d /tmp/bat-smoke-git.XXXXXX` with one empty commit, checks `git:getRoot` / `git:branch` / `git:log` / `git:status` / `git-scaffold:healthCheck` against it and `worktree:status` of an unknown session (`null`), then removes the repo and kills that PTY (fails with "server predates T0405" against older servers) |
 
 | Option | Meaning |
 |--------|---------|
 | `--target wsl:<distro>` | Reads `BAT_SERVER_PORT` / `BAT_SERVER_DATA_DIR` from the `bat-server` user unit (defaults: port `54321`, `~/.local/share/bat-server`), only the `fingerprint` field of `server-cert.json`, and `server-token.json`. Distro must match `[A-Za-z0-9._-]+`. `--host` (default `127.0.0.1`) / `--port` override. |
 | `--url` / `--token-file` / `--fingerprint` | Direct target. The token file may be a plaintext `server-token.json` record or a bare token; the fingerprint is accepted in any case, with or without colons. |
 | `--cwd <path>` | Smoke PTY working directory (default: WSL `$HOME`, else `/tmp`). |
-| `--timeout-ms <ms>` | Per-step timeout (default `10000`; S10 waits at least 30 s). |
+| `--timeout-ms <ms>` | Per-step timeout (default `10000`; S10 waits at least 30 s, S11's `github:check-cli` at least 20 s). |
 | `--json` | Machine-readable report. Exit code `0` = all PASS, `1` = a check failed or a smoke PTY was left behind, `2` = usage / connection-info error. |
 
-- The smoke only touches its own PTY (`smoke-<timestamp>-<rand>`), kills it on
-  every exit path and finishes with an existence probe. Output of other PTYs on
-  the same server (events are broadcast to every client) is ignored.
+- The smoke only touches its own PTYs (`smoke-<timestamp>-<rand>`, and
+  `…-git` for S11), kills them on every exit path and finishes with an existence
+  probe. Output of other PTYs on the same server (events are broadcast to every
+  client) is ignored.
+- S11 writes git state only inside the temp repo it created under
+  `/tmp/bat-smoke-git.*` and deletes only a path matching that pattern; it never
+  runs a git command in the user's repos, and never logs in to gh or reads its token.
 - It never sends a wrong token on purpose: five failed auths ban the client IP
   for 10 minutes, and the user's own BAT connects from the same loopback address.
 - The frame format of `electron/remote/protocol.ts` is re-implemented in the

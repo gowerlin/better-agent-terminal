@@ -50,11 +50,17 @@ function scan(pattern: RegExp, dir = ELECTRON_DIR, found = new Map<string, strin
 }
 
 // Shared handler modules (electron/handlers/*.ts, PLAN-036) register through the
-// `register` parameter they are handed (= registerHandler on both hosts).
+// `register` parameter they are handed (= registerHandler on both hosts); so does
+// git-scaffold (electron/git/git-ipc.ts, called from handlers/git.ts since T0405).
+const SHARED_REGISTER = /(?<![\w.])register\(\s*['"`]([^'"`$]+)['"`]/g
 const registered = scan(
-  /(?<![\w.])register\(\s*['"`]([^'"`$]+)['"`]/g,
-  path.join(ELECTRON_DIR, 'handlers'),
-  scan(/registerHandler\(\s*['"`]([^'"`$]+)['"`]/g),
+  SHARED_REGISTER,
+  path.join(ELECTRON_DIR, 'git'),
+  scan(
+    SHARED_REGISTER,
+    path.join(ELECTRON_DIR, 'handlers'),
+    scan(/registerHandler\(\s*['"`]([^'"`$]+)['"`]/g),
+  ),
 )
 const directIpc = scan(/ipcMain\.handle(?:Once)?\(\s*['"`]([^'"`$]+)['"`]/g)
 

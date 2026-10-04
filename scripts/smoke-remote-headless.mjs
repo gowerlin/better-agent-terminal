@@ -4,8 +4,8 @@
  * T0396 (PLAN-036 P0) — protocol-level smoke test against a RUNNING headless
  * bat-server. Connects as an ordinary remote client (TLS + SHA-256 fingerprint
  * pinning + token auth), walks the PTY lifecycle (S1-S8), the login-free
- * claude:* runtime channels (S9, T0401) and the remote toolchain probe
- * (S10, T0411).
+ * claude:* runtime channels (S9, T0401), the remote toolchain probe
+ * (S10, T0411) and the git / github / worktree channels (S11, T0405).
  *
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04 --json
@@ -23,6 +23,9 @@
  *   - only touches PTYs it created itself (`smoke-<timestamp>-<rand>` ids) and
  *     kills all of them on every exit path; output of other PTYs (events are
  *     broadcast to every client) is ignored, never recorded;
+ *   - S11 writes git state only in a repo it creates itself with
+ *     `mktemp -d /tmp/bat-smoke-git.XXXXXX` (through its own smoke PTY) and
+ *     removes it again; the user's repos are never touched;
  *   - never sends a wrong token: the server bans an IP after 5 failed auths and
  *     the user's own BAT client connects from the same loopback address. The
  *     negative check uses a wrong FINGERPRINT, which is rejected client-side
@@ -75,7 +78,21 @@ export const SMOKE_CHANNELS = Object.freeze({
   CLAUDE_AUTH_STATUS: 'claude:auth-status',
   // T0411: remote AI toolchain probe (S10)
   REMOTE_TOOLS_DETECT: 'remote-tools:detect',
+  // T0405: git / github / worktree (S11) — read-only calls against the smoke's own temp repo
+  GITHUB_CHECK_CLI: 'github:check-cli',
+  GIT_GET_ROOT: 'git:getRoot',
+  GIT_BRANCH: 'git:branch',
+  GIT_LOG: 'git:log',
+  GIT_STATUS: 'git:status',
+  GIT_SCAFFOLD_HEALTH: 'git-scaffold:healthCheck',
+  WORKTREE_STATUS: 'worktree:status',
 })
+
+/** S11 (T0405): template of the temp repo the smoke creates on the server — and the only path it removes. */
+export const SMOKE_GIT_REPO_TEMPLATE = '/tmp/bat-smoke-git.XXXXXX'
+export const SMOKE_GIT_REPO_RX = /^\/tmp\/bat-smoke-git\.[A-Za-z0-9]+$/
+/** S11: `github:check-cli` runs `gh auth status` (network, 10 s server-side limit). */
+export const GITHUB_CHECK_CLI_TIMEOUT_MS = 20_000
 
 /**
  * S10 invoke timeout: the server runs the login-view probe (20 s limit, `-l -i` loads the
@@ -627,6 +644,7 @@ export const CHECKS = Object.freeze([
   ['S8', 'unsupported channel returns an explicit error'],
   ['S9', 'claude:get-cli-path / detectRuntime / auth-status answer without a login'],
   ['S10', 'remote-tools:detect returns a schema v1 report (linux, git ok)'],
+  ['S11', 'github:check-cli answers; git / git-scaffold / worktree channels read a temp repo'],
 ])
 
 export function makeSmokeId(now = new Date(), rand = randomBytes(3).toString('hex')) {
@@ -711,13 +729,47 @@ export function checkRemoteToolsAnswer(result) {
   }
 }
 
+/**
+ * S11 (T0405): judge the git / github answers. `repo` is the temp repo the smoke
+ * created (one empty commit with message `<nonce>-s11`).
+ *   - github:check-cli: `installed: true` with a boolean `authenticated` (WSL test
+ *     host: gh in /usr/bin, not logged in ⇒ false); `authState` marks a T0405 server
+ *   - git:getRoot / git-scaffold:healthCheck: the repo; git:branch: a name;
+ *     git:log: the one smoke commit; git:status: clean
+ *   - worktree:status of an unknown session: null
+ */
+export function checkGitAnswers({ repo, nonce, gh, root, branch, log, status, health, worktree }) {
+  const problems = []
+  const repoName = repo.split('/').pop()
+  const isRepoPath = (value) => typeof value === 'string' && value.split('/').pop() === repoName
+  if (!gh || typeof gh !== 'object' || gh.installed !== true || typeof gh.authenticated !== 'boolean') {
+    problems.push(`github:check-cli → ${JSON.stringify(gh)?.slice(0, 200)} (expected installed: true)`)
+  }
+  if (!isRepoPath(root)) problems.push(`git:getRoot → ${JSON.stringify(root)} (expected ${repo})`)
+  if (typeof branch !== 'string' || !branch) problems.push(`git:branch → ${JSON.stringify(branch)}`)
+  if (!Array.isArray(log) || log.length !== 1 || log[0]?.message !== `${nonce}-s11`) {
+    problems.push(`git:log → ${JSON.stringify(log)?.slice(0, 200)} (expected the one smoke commit)`)
+  }
+  if (!Array.isArray(status) || status.length !== 0) problems.push(`git:status → ${JSON.stringify(status)?.slice(0, 200)} (expected clean)`)
+  if (!health || health.ok !== true || health.isRepo !== true || !isRepoPath(health.gitRoot)) {
+    problems.push(`git-scaffold:healthCheck → ${JSON.stringify(health)?.slice(0, 200)}`)
+  }
+  if (worktree !== null) problems.push(`worktree:status(unknown session) → ${JSON.stringify(worktree)?.slice(0, 120)} (expected null)`)
+  if (problems.length > 0) return { ok: false, evidence: problems.join('; ') }
+  return {
+    ok: true,
+    evidence: `github:check-cli → installed ${gh.path} (${gh.source}), authenticated=${gh.authenticated}${gh.authState ? ` authState=${gh.authState}` : ''}; ` +
+      `temp repo ${repo}: getRoot ok, branch ${branch}, log 1 commit ${String(log[0].hash).slice(0, 7)}, status clean, git-scaffold isRepo; worktree:status → null`,
+  }
+}
+
 function excerpt(text, max = 160) {
   const flat = String(text).replace(/\r/g, '').replace(/\n+/g, '⏎').trim()
   return flat.length > max ? `…${flat.slice(flat.length - max)}` : flat
 }
 
 /**
- * Runs S1-S10 against one server. `deps.createClient` lets tests inject a fake;
+ * Runs S1-S11 against one server. `deps.createClient` lets tests inject a fake;
  * everything else talks to the real server.
  */
 export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, createClient, log = () => {} } = {}) {
@@ -740,12 +792,15 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
   const cleanup = { ptyId, killedInCleanup: false, leftover: null, evidence: '' }
 
   const attach = (c) => c.onEvent((channel, args) => tracker.handle(channel, args))
-  const runCmd = async (command, regex) => {
-    const offset = tracker.mark(ptyId)
-    const write = await client.invoke(SMOKE_CHANNELS.PTY_WRITE, ptyId, `${command}\r`)
+  const runCmdIn = async (id, command, regex) => {
+    const offset = tracker.mark(id)
+    const write = await client.invoke(SMOKE_CHANNELS.PTY_WRITE, id, `${command}\r`)
     if (!write || write.ok !== true) throw new Error(`pty:write returned ${JSON.stringify(write)}`)
-    return tracker.waitForOutput(ptyId, regex, offset, timeoutMs)
+    return tracker.waitForOutput(id, regex, offset, timeoutMs)
   }
+  const runCmd = (command, regex) => runCmdIn(ptyId, command, regex)
+  // S11's own PTY (temp git repo); killed in S11, re-checked in cleanup.
+  const gitPty = { id: `${ptyId}-git`, created: false, killed: false }
 
   try {
     // ── S1 ──
@@ -925,6 +980,70 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
         ? `${error.message} — server predates T0411 (remote-tools:detect not online)`
         : `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}`)
     }
+
+    // ── S11 ──
+    {
+      let repo = null
+      let outcome = null
+      try {
+        if (!client?.isOpen) throw new Error('no live connection for the git probes')
+        const gh = await client.invokeWithTimeout(Math.max(timeoutMs, GITHUB_CHECK_CLI_TIMEOUT_MS), SMOKE_CHANNELS.GITHUB_CHECK_CLI)
+        ownIds.add(gitPty.id)
+        const offset = tracker.mark(gitPty.id)
+        const result = await client.invoke(SMOKE_CHANNELS.PTY_CREATE, { id: gitPty.id, cwd: ptyCwd, type: 'terminal', ...(shellPath ? { shell: shellPath } : {}) })
+        if (!ptyCreateOutcome(result).ok) throw new Error(`pty:create(${gitPty.id}) returned ${JSON.stringify(result)}`)
+        gitPty.created = true
+        await tracker.waitFor(() => tracker.since(gitPty.id, offset).length > 0 || undefined, timeoutMs, `first pty:output of ${gitPty.id}`)
+        // The echoed command shows `:$d`; only the executed one prints the /tmp path.
+        const made = await runCmdIn(
+          gitPty.id,
+          `d=$(mktemp -d ${SMOKE_GIT_REPO_TEMPLATE}) && git -C "$d" init -q && git -C "$d" -c user.name=bat-smoke -c user.email=bat-smoke@localhost -c commit.gpgsign=false commit -q --no-verify --allow-empty -m ${nonce}-s11 && echo ${nonce}-s11-repo:$d`,
+          new RegExp(`${nonce}-s11-repo:(/tmp/bat-smoke-git\\.[A-Za-z0-9]+)`),
+        )
+        repo = made[1]
+        outcome = checkGitAnswers({
+          repo,
+          nonce,
+          gh,
+          root: await client.invoke(SMOKE_CHANNELS.GIT_GET_ROOT, repo),
+          branch: await client.invoke(SMOKE_CHANNELS.GIT_BRANCH, repo),
+          log: await client.invoke(SMOKE_CHANNELS.GIT_LOG, repo, 5),
+          status: await client.invoke(SMOKE_CHANNELS.GIT_STATUS, repo),
+          health: await client.invoke(SMOKE_CHANNELS.GIT_SCAFFOLD_HEALTH, repo),
+          worktree: await client.invoke(SMOKE_CHANNELS.WORKTREE_STATUS, `${ptyId}-no-session`),
+        })
+      } catch (error) {
+        outcome = {
+          ok: false,
+          evidence: error.remote && UNSUPPORTED_ERROR_RX.test(error.message)
+            ? `${error.message} — server predates T0405 (git / github / worktree not online)`
+            : `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}`,
+        }
+      }
+      if (gitPty.created) {
+        try {
+          if (!client?.isOpen) {
+            client = make()
+            attach(client)
+            await client.connect()
+          }
+          if (repo && SMOKE_GIT_REPO_RX.test(repo)) {
+            // `$((1+1))`: the echoed command never matches the marker, only the executed one.
+            await runCmdIn(
+              gitPty.id,
+              `case "$d" in /tmp/bat-smoke-git.*) rm -rf -- "$d";; esac; test -e "$d" || echo ${nonce}-s11-gone-$((1+1))`,
+              new RegExp(`${nonce}-s11-gone-2`),
+            )
+            outcome.evidence += '; temp repo removed'
+          }
+          await client.invoke(SMOKE_CHANNELS.PTY_KILL, gitPty.id)
+          gitPty.killed = true
+        } catch (error) {
+          outcome = { ok: false, evidence: `${outcome.evidence}; S11 cleanup failed${repo ? ` (temp repo ${repo} may remain)` : ''}: ${error.message}` }
+        }
+      }
+      set('S11', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
+    }
   } finally {
     // Kill our PTY on every path, then confirm it is gone (own id only).
     if (created) {
@@ -948,6 +1067,24 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
     } else {
       cleanup.leftover = false
       cleanup.evidence = 'no smoke PTY was created'
+    }
+    // T0405: S11's PTY (S11 kills it; only re-checked here).
+    if (gitPty.created) {
+      try {
+        if (!client?.isOpen) {
+          client = make()
+          attach(client)
+          await client.connect()
+        }
+        if (!gitPty.killed) await client.invoke(SMOKE_CHANNELS.PTY_KILL, gitPty.id)
+        const probe = await client.invoke(SMOKE_CHANNELS.PTY_WRITE, gitPty.id, '\r')
+        const left = !(probe && probe.ok === false && probe.reason === 'pty-not-found')
+        cleanup.leftover = cleanup.leftover || left
+        cleanup.evidence += `; pty:write(${gitPty.id}) → ${JSON.stringify(probe)}`
+      } catch (error) {
+        cleanup.leftover = true
+        cleanup.evidence += `; S11 PTY cleanup failed: ${error instanceof Error ? error.message : String(error)}`
+      }
     }
     await client?.close().catch(() => undefined)
   }

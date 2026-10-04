@@ -3,7 +3,7 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { execFileSync } from 'child_process'
 
-import { resolveGhBinary } from '../gh-resolver'
+import { resolveGhBinary, resolveGitBinary } from '../gh-resolver'
 
 const childProcessMocks = vi.hoisted(() => ({
   execFileSync: vi.fn(),
@@ -144,5 +144,52 @@ describe('resolveGhBinary', () => {
     expect(result.found).toBe(false)
     expect(result.attemptedPaths).toContain(path.join('C:\\Missing', 'gh.exe'))
     expect(result.error).toContain('not found')
+  })
+})
+
+describe('resolveGitBinary (T0405, headless git lookup)', () => {
+  it('prefers git on PATH', () => {
+    process.env.PATH = 'C:\Git\cmd'
+    const hit = path.join('C:\Git\cmd', 'git.exe')
+    mockExecutableFiles([hit])
+
+    expect(resolveGitBinary()).toMatchObject({ found: true, path: hit, source: 'path' })
+    expect(execFileSyncMock).not.toHaveBeenCalled()
+  })
+
+  it('linux: finds ~/.local/bin/git when the service PATH lacks it', () => {
+    setPlatform('linux')
+    process.env.PATH = ''
+    process.env.HOME = '/home/u'
+    const local = path.join('/home/u', '.local', 'bin', 'git')
+    mockExecutableFiles([local])
+
+    const result = resolveGitBinary()
+
+    expect(result).toMatchObject({ found: true, path: local, source: 'common-location' })
+    expect(result.attemptedPaths).toEqual(['/usr/bin/git', '/usr/local/bin/git', local])
+  })
+
+  it('linux: /usr/local/bin/git before ~/.local/bin', () => {
+    setPlatform('linux')
+    process.env.PATH = ''
+    process.env.HOME = '/home/u'
+    mockExecutableFiles(['/usr/local/bin/git', path.join('/home/u', '.local', 'bin', 'git')])
+
+    expect(resolveGitBinary()).toMatchObject({ found: true, path: '/usr/local/bin/git' })
+  })
+
+  it('not found: found=false with every attempted path, no where/which call', () => {
+    setPlatform('linux')
+    process.env.PATH = ''
+    process.env.HOME = '/home/u'
+    mockExecutableFiles([])
+
+    const result = resolveGitBinary()
+
+    expect(result.found).toBe(false)
+    expect(result.path).toBeUndefined()
+    expect(result.attemptedPaths).toHaveLength(3)
+    expect(execFileSyncMock).not.toHaveBeenCalled()
   })
 })
