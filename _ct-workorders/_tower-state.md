@@ -281,6 +281,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 06:37 — T0433 DONE（`ec4ca56`）塔台複核 PASS：Worker 2301 tests / **0 failed**（`headless-pty.test.ts` 依規格更新）、tsc 39、`verify:helpers` OK；真 bat-terminal / bat-notify 子行程 env 無 server token；codex `AGENT_UNAVAILABLE`
 - [斷點 C 裁決] 2026-10-05 06:38 — 不做 renderer toast（唯一呼叫者為 Tower PTY 內 bat-terminal，錯誤印在分頁已足）；dev-deploy 不部署 helper → 併入 T0434
 - [派發] 2026-10-05 06:38 — T0448（`--no-interactive`）
+- [完成] 2026-10-05 06:41 — T0448 DONE 塔台複核 PASS：headless restart 保留 `customEnv`（Electron 不變，測試鎖）、worker 角色 / towerId 不變、舊權杖撤銷；反向驗證移除修正即紅；Worker 2371 tests / tsc 39。T0434 尚待 T0447
+- [完成] 2026-10-05 06:41 — T0447 DONE（`2ed593f`）塔台複核 PASS：#1 預設拒絕閘門 + terminate、#2 typeof + hasOwnProperty + 全段 try、#3 frame shape 驗證 + handler try + bat-server 程序級 handler（uncaughtException → stop + exit 1）；紅 24 failed → 綠；額外修陣列 channel 字串化命中白名單；Worker 2371 tests / tsc 39。**T0445 BLOCK 解除（#1-#4 已修）**
+- [派發] 2026-10-05 06:41 — T0434 ∥ T0449（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
