@@ -86,6 +86,6 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 ## P0 實機驗收準備（2026-10-05 01:01）
 
 - WSL 伺服器：塔台以 `npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --expect-string registerHeadlessPtyHandlers --yes` 部署 HEAD `ea52b03` 的 headless JS（備份 tag `dev`：`*.js.bak-dev` = T0385 版；另有 `*.bak-t0385` = baseline 版）。restart 後 `active`、`listening on 127.0.0.1:9877`、指紋 `22:3A:E4:…` 不變、`node-pty loaded successfully`
-- 工具小瑕疵：`LISTEN` 檢查顯示 `(none found)`，實際有在 9877 監聽（`ss` 的程序名是 `MainThread`，工具以名稱過濾而漏抓）→ T0395（01:06 開單，改以服務 PID 過濾；WSL 只准唯讀，不影響 P0 實機驗收）
+- 工具小瑕疵：`LISTEN` 檢查顯示 `(none found)`，實際有在 9877 監聽（`ss` 的程序名是 `MainThread`，工具以名稱過濾而漏抓）→ T0395 DONE（`452b346`，01:10 複驗；WSL 唯讀實測列出 `127.0.0.1:9877`）
 - BAT 本體：交使用者本機打包安裝（含 T0390 / T0392 / T0393 / T0394）
 
