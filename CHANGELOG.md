@@ -5,6 +5,18 @@ All notable changes to Better Agent Terminal are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- fix(server-bundle): the setup wizard's runtime fallback download could never succeed. The
+  default base URL (`DEFAULT_RELEASE_BASE_URL` in `src/lib/arch-normalize.ts`, and the two copies
+  in `scripts/fetch-baseline-tarball.mjs`) used the owner `anthropics`, under which the repo
+  does not exist, and no `server-bundle-v*` release had ever been published — the desktop
+  workflows only kept the baseline as an Actions artifact. The owner is now `gowerlin`, and
+  `pre-release.yml` / `release.yml` publish the same run's `server-bundle-baseline` artifact
+  (3 arch tarballs + `.sha256` sidecars + `manifest.json`) as a `server-bundle-v<version>`
+  prerelease right after the desktop release step, on the same commit. URL format, manifest
+  schema, tarball naming and the `BAT_SERVER_BUNDLE_BASE_URL` override are unchanged;
+  `build-server-bundle.yml`'s manual tag line stays as a fallback. Arches the installer does not
+  embed (e.g. a Windows host targeting an arm64 SSH server) previously always hit a 404.
+  (refs: BUG-071, T0365, D120)
 - fix(ct): unify the work order ID grammar to `^(?:[A-Z]{2,4}-)?T\d+$` across the whole
   dispatch chain, so cross-project / delegate work orders (`CP-T0113`, `CT-T001`) can be
   dispatched through the structured `--skill` + `--workorder` path instead of only through

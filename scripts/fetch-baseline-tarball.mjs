@@ -27,7 +27,7 @@
  *   --host-arch  BUILD_HOST_ARCH env, else os.arch() (x64 / arm64)
  *   --version    package.json `version`
  *   --output-dir dist-baseline/
- *   --source-url https://github.com/anthropics/better-agent-terminal/releases/download/server-bundle-v${version}
+ *   --source-url https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v${version}
  *
  * Resilience:
  *   - Local cache by SHA: if tarball + sidecar exist and SHA matches, skip download.
@@ -214,7 +214,7 @@ function planTarballs({ hostOS, hostArch, version, sourceUrl, outputDir }) {
   }
   const baseUrl =
     sourceUrl ||
-    `https://github.com/anthropics/better-agent-terminal/releases/download/server-bundle-v${version}`
+    `https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v${version}`
   return targets.map((archTag) => {
     const tarballName = `bat-server-${archTag}-v${version}.tar.gz`
     const sidecarName = `${tarballName}.sha256`
@@ -316,7 +316,7 @@ async function main() {
   const outputDir = path.resolve(projectRoot, args.outputDir || 'dist-baseline')
   const baseUrl =
     args.sourceUrl ||
-    `https://github.com/anthropics/better-agent-terminal/releases/download/server-bundle-v${version}`
+    `https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v${version}`
 
   let plan
   try {

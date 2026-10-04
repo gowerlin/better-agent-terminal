@@ -25,7 +25,7 @@ const DARWIN_TARGETS: readonly TargetOS[] = ['ssh-darwin']
  * stays pure and does not read env directly).
  */
 export const DEFAULT_RELEASE_BASE_URL =
-  'https://github.com/anthropics/better-agent-terminal/releases/download'
+  'https://github.com/gowerlin/better-agent-terminal/releases/download'
 
 /**
  * Normalize raw `uname -m` output to canonical ServerBundleArch.

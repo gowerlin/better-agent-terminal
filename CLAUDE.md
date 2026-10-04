@@ -184,7 +184,8 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
   - Linux × x64 → `linux-x64`
   - Linux × arm64 → `linux-arm64`
 - **fail-fast**：`scripts/verify-helper-bundle.js` 已擴 server bundle 檢查（T0316 落地），dist-baseline 缺 tarball 即 abort with actionable msg
-- **Server bundle release（獨立 tag）**：`server-bundle-vX.Y.Z` tag push 觸發 `.github/workflows/build-server-bundle.yml`（與 desktop release `pre-release.yml` 完全解耦，spec §6 C-1 + D093）
+- **Server bundle release（獨立 tag）**：tag 命名 `server-bundle-vX.Y.Z`（D093）。自 D120（T0365）起 `pre-release.yml` / `release.yml` 發佈 desktop release 時**同時自動發佈** `server-bundle-v<版號>` prerelease（同 run 的 `server-bundle-baseline` artifact）；`build-server-bundle.yml` 手動推 tag 線保留為備援（見下方「Server bundle 是獨立 tag 線」）
+- **預設下載來源**：`https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v<版號>/`（`src/lib/arch-normalize.ts` `DEFAULT_RELEASE_BASE_URL`；D120 前誤指不存在的 `anthropics/...`）
 - **Mac installer size cap**：280 MB（D094）；超出觸發塔台復議
 - **私有 fork**：設 `BAT_SERVER_BUNDLE_BASE_URL` env override GitHub Release 預設（D095）
 - **詳細**：見 `docs/server-bundle-distribution.md`
@@ -213,8 +214,9 @@ gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y
 | 行為 | `release.yml`（正式版線） | `pre-release.yml`（預覽版線） |
 |------|--------------------------|------------------------------|
 | GitHub Release `prerelease` | `contains(github.ref, '-pre')` —— tag 含 `-pre` 才標 Pre-release（:254） | **恆為 `true`**（:264） |
-| Homebrew tap（`tonyq-org/homebrew-tap`） | tag **不含** `-pre` 時才 `repository-dispatch`（:258-265） | **完全沒有此 step** |
-| Chocolatey push | tag **不含** `-pre` 時才跑，另有日期 gate（:267-283） | 無 |
+| Homebrew tap（`tonyq-org/homebrew-tap`） | tag **不含** `-pre` 時才 `repository-dispatch`（:285-292） | **完全沒有此 step** |
+| Chocolatey push | tag **不含** `-pre` 時才跑，另有日期 gate（:294-310） | 無 |
+| `server-bundle-v<版號>` release（D120） | 恆發佈、恆 `prerelease: true`（:264-283，接在 desktop release step 後、Homebrew 前） | 恆發佈、恆 `prerelease: true`（:272-291） |
 
 ⇒ 走 `release.yml` 打 `v0.5.9-pre.1` 這種 tag 一樣會被標成 Pre-release 且不動 Homebrew；但預覽版的建議路徑仍是 `pre-release.yml`（免 push tag、版號可控）。
 
@@ -223,3 +225,7 @@ gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y
 `build-server-bundle.yml` 有**三個**觸發條件（:3-9）：`workflow_dispatch`、push 到 `feature/plan-007-remote-dev` 分支、以及 `server-bundle-v*` tag。但其 release job 另有 `if: startsWith(github.ref, 'refs/tags/server-bundle-v')` 閘門（:133），⇒ **只有 tag 那條會真的發佈**，分支 push 僅建置不發佈。產出恆 `prerelease: true`（:160）。此即上方「Server bundle baseline（PLAN-031）」節所指的獨立線。
 
 注意「解耦」的精確意思：`release.yml` / `pre-release.yml` 內各自另有 `server-bundle` job（`release.yml:25-70`）在 desktop 發布時就地重建 bundle 並打進安裝檔。解耦指的是 **baseline tarball 的獨立發佈線**，不是 desktop 流程完全不碰 server bundle。
+
+**自 D120（T0365）起，desktop 線也會發佈 `server-bundle-v<版號>`**：`release.yml` / `pre-release.yml` 的 `release` job 在 desktop release step 成功後，接一個 `Create server bundle release` step，把同 run 的 `server-bundle-baseline` artifact（3 arch × `.tar.gz` + `.sha256` + `manifest.json`）以 `server-bundle-v${{ needs.prepare.outputs.version }}` 發成 prerelease，target 為 `github.sha`（與 desktop release 同 commit）。build 失敗時 `release` job 不會跑，不會留下孤兒 server-bundle release。runtime 下載的預設來源為 `gowerlin/better-agent-terminal`。
+- 該 tag 由 `GITHUB_TOKEN` 建立，依 GitHub 規則**不會**再觸發 `build-server-bundle.yml` 的 `server-bundle-v*` tag 觸發條件，不會重複建置。
+- `build-server-bundle.yml` 手動推 tag 線**保留為備援**（例如 desktop run 的 server bundle step 失敗需補發）。同一版號不要兩條線都發。

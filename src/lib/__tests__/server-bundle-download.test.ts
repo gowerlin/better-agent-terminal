@@ -26,7 +26,7 @@ describe('buildBaseURL', () => {
 
   it('falls back to GitHub Release URL when no override given', () => {
     expect(buildBaseURL('0.5.0')).toBe(
-      'https://github.com/anthropics/better-agent-terminal/releases/download/server-bundle-v0.5.0',
+      'https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v0.5.0',
     )
   })
 
@@ -55,7 +55,7 @@ describe('buildBaseURL', () => {
 
   it('treats empty string override as missing (falls through to env/default)', () => {
     expect(buildBaseURL('0.5.0', '')).toBe(
-      'https://github.com/anthropics/better-agent-terminal/releases/download/server-bundle-v0.5.0',
+      'https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v0.5.0',
     )
   })
 

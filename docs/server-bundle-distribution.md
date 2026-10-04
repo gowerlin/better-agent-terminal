@@ -24,6 +24,9 @@ Root cause：三平台 wizard 的 `install-bundle` step 留 placeholder throw；
    - 命中即複製到 cache + verify SHA256
 3. **Download** — GitHub Release fallback
    - 預設端點：`https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v<ver>/`
+   - 發佈來源（D120）：`pre-release.yml` / `release.yml` 在 desktop release step 成功後，於同一 job 把同 run 的
+     `server-bundle-baseline` artifact（3 arch tarball + `.sha256` + `manifest.json`）發佈成 `server-bundle-v<ver>`
+     prerelease，與 desktop release 同一 commit。`build-server-bundle.yml` 手動推 `server-bundle-v*` tag 的線保留為備援
    - 私有部署可改 `BAT_SERVER_BUNDLE_BASE_URL`（見下方）
    - 下載後 verify SHA256 + 寫入 cache
 
