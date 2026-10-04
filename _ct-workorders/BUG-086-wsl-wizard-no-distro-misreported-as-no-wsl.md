@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-086
 title: WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL
-status: FIXING
+status: FIXED
+fix_commits: [4d814e9]
+fixed_at: "2026-10-04T21:27:18+08:00"
 severity: low
 reproducibility: always
 created_at: "2026-10-04T21:08:07+08:00"
-updated_at: "2026-10-04T21:15:17+08:00"
+updated_at: "2026-10-04T21:28:52+08:00"
 impact:
   - setup-wizard-wsl
 links:
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（UX 引導錯誤；使用者照做 `wsl --install` 不會壞事，但不會解決問題） |
 | 可重現 | 100%：Windows 已安裝 WSL（Store 版）但未註冊任何發行版 |
-| **狀態** | ⏳ FIXING（T0378，與 BUG-087 合併修復，D126） |
+| **狀態** | ✅ FIXED（T0378 `4d814e9`；「無發行版」「沒裝 WSL」兩態僅 mock unit test 覆蓋，本機無法重現） |
 | 回報者 | 塔台（2026-10-04 第五十一 session，BUG-071 實機驗收時發現；使用者截圖 + 塔台環境檢查） |
 
 ## 現象
@@ -62,3 +64,10 @@ Unable to detect WSL: Error invoking remote method 'wsl:list': Error: Command fa
 2. `error-mapper` 增加「無發行版」分類與對應 i18n 文案，引導 `wsl --install -d Ubuntu-24.04`
 3. 注意 `wsl.exe` 輸出為 **UTF-16LE**，判斷勿依賴本地化字串，以 exit code 為主
 4. 補 unit test（`error-mapper` / 偵測分類）
+
+## FIXED 證據（2026-10-04 21:28 UTC+8，塔台驗收 T0378）
+
+- 修復 commit：`4d814e9`（T0378，22 files）
+- 塔台重跑：`npm run test:unit` **55 files / 749 passed**（709 → 749）、`npx vite build` exit 0、`npx tsc --noEmit` **40**（= baseline）
+- Worker 本機 runtime（`Ubuntu-24.04`）：見 T0378 回報區
+- **待實機**：新 build 從頭跑 WSL 精靈 9/9

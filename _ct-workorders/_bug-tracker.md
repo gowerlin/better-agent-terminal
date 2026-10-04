@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 21:15 (UTC+8) — 第五十一 session：BUG-084 / 085 / 071 → CLOSED（實機驗收）；新增 BUG-086 / 087 → FIXING（T0378）
+> 最後同步：2026-10-04 21:28 (UTC+8) — 第五十一 session：BUG-084 / 085 / 071 → CLOSED；BUG-086 / 087 → FIXED（T0378 `4d814e9`，待實機）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 2 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 12**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 12**
 
 ## 🔴 Open / 處理中
 
@@ -38,14 +38,14 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-087 | WSL 精靈「寫入 systemd 使用者服務」失敗：linger 未帶使用者、unit 檔 `~` 不展開、失敗後 bundle 被回滾 | 🔴 high | 2026-10-04 | [BUG-087](BUG-087-wsl-wizard-systemd-step-linger-tilde-rollback.md) |
-| BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-04 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-087 | WSL 精靈「寫入 systemd 使用者服務」失敗：linger 未帶使用者、unit 檔 `~` 不展開、失敗後 bundle 被回滾 | 🔴 high | 2026-10-04 | [BUG-087](BUG-087-wsl-wizard-systemd-step-linger-tilde-rollback.md) |
+| BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-04 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
 
 ## 🧪 驗收中 (VERIFY)
 

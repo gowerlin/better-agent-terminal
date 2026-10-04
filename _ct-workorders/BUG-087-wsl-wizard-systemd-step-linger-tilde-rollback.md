@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-087
 title: WSL 設定精靈「寫入 systemd 使用者服務」步驟失敗：linger 未帶使用者名稱、unit 檔 `~` 不被 systemd 展開、失敗後 bundle 被回滾刪除
-status: FIXING
+status: FIXED
+fix_commits: [4d814e9]
+fixed_at: "2026-10-04T21:27:18+08:00"
 severity: high
 reproducibility: always
 created_at: "2026-10-04T21:15:17+08:00"
-updated_at: "2026-10-04T21:15:17+08:00"
+updated_at: "2026-10-04T21:28:52+08:00"
 impact:
   - setup-wizard-wsl
 links:
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（WSL 精靈無法完成，BAT WSL remote 對使用者實質不可用；BUG-071 修好後才浮現） |
 | 可重現 | 100%：乾淨的 `Ubuntu-24.04`（systemd 已啟用）+ 本機 build `0.5.9-pre.4` |
-| **狀態** | ⏳ FIXING（T0378） |
+| **狀態** | ✅ FIXED（T0378 `4d814e9`；待新 build 精靈 9/9 實機驗收） |
 | 回報者 | 使用者（2026-10-04 BUG-071 實機驗收時截圖）+ 塔台環境檢查 |
 
 ## 現象
@@ -76,3 +78,14 @@ Environment="BAT_SERVER_DATA_DIR=~/.local/share/bat-server"
 ## 修復
 
 見 T0378（與 BUG-086 合併修復，D126）。
+
+### 缺陷 C 根因（T0378 查證）
+
+`useSetupWizardController()` 每次 render 回傳新的 `steps` 陣列 → `SetupWizardShell` runner effect（deps `[ctx, steps]`）在宿主任何一次 re-render 時 cleanup → 舊 runner `cancel()` → `rollbackCompletedSteps()` → `uninstallBundle()`（`rm -rf`），同時新 runner 從第 1 步重跑。`WizardRunner` 本身對 retryable 失敗並不回滾。修法：`useMemo` 固定 `steps` 身分 + effect `disposed` 旗標。
+
+## FIXED 證據（2026-10-04 21:28 UTC+8，塔台驗收 T0378）
+
+- 修復 commit：`4d814e9`（T0378，22 files）
+- 塔台重跑：`npm run test:unit` **55 files / 749 passed**（709 → 749）、`npx vite build` exit 0、`npx tsc --noEmit` **40**（= baseline）
+- Worker 本機 runtime（`Ubuntu-24.04`）：見 T0378 回報區
+- **待實機**：新 build 從頭跑 WSL 精靈 9/9
