@@ -10,9 +10,12 @@
  * We sample a representative set across workorder / bug / plan; mismatches on
  * status imply migration normalization drift, which is the BUG-077 root cause.
  *
- * The samples are real files in `_ct-workorders/`. If a sample is renamed or
- * archived, swap it for another file with the same schema_kind — the test is
- * about parity, not specific files.
+ * The samples are real files, looked up in the hot zone `_ct-workorders/` first
+ * and then in the cold zone `_ct-workorders/_archive/<kind>s/` (workorders /
+ * bugs / plans). Tower `*archive` moves files there regularly, so archiving a
+ * sample needs no change here. Only if a sample is renamed or deleted, swap it
+ * for another file with the same schema_kind — the test is about parity, not
+ * specific files.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -40,10 +43,25 @@ const SAMPLES: Sample[] = [
   { filename: 'PLAN-033-tower-state-snapshot-archive-architecture.md',          kind: 'plan' },
 ]
 
-function readSample(filename: string): string | null {
-  const p = join(CT_DIR, filename)
-  if (!existsSync(p)) return null
-  return readFileSync(p, 'utf8')
+const ARCHIVE_SUBDIR: Record<Sample['kind'], string> = {
+  workorder: 'workorders',
+  bug: 'bugs',
+  plan: 'plans',
+}
+
+/** Lookup order: hot zone first, then the kind's archive subdir. */
+function samplePaths(sample: Sample): string[] {
+  return [
+    join(CT_DIR, sample.filename),
+    join(CT_DIR, '_archive', ARCHIVE_SUBDIR[sample.kind], sample.filename),
+  ]
+}
+
+function readSample(sample: Sample): string | null {
+  for (const p of samplePaths(sample)) {
+    if (existsSync(p)) return readFileSync(p, 'utf8')
+  }
+  return null
 }
 
 /** Strip frontmatter from content so we can re-parse legacy-only. */
@@ -55,12 +73,13 @@ function stripFrontmatter(content: string): string {
 describe('PLAN-034 parser parity (frontmatter vs legacy markdown)', () => {
   for (const sample of SAMPLES) {
     it(`${sample.filename}: frontmatter and legacy parsers agree`, () => {
-      const content = readSample(sample.filename)
+      const content = readSample(sample)
       if (content == null) {
-        // File renamed / archived — emit a clear failure with the filename so
-        // the maintainer can swap a replacement sample.
+        // Missing from both hot and cold zone — renamed / deleted. Emit a clear
+        // failure with every path tried so the maintainer can swap a sample.
         throw new Error(
-          `Sample ${sample.filename} not found in ${CT_DIR}. Replace with another ${sample.kind}.`,
+          `Sample ${sample.filename} not found in any of: ${samplePaths(sample).join(', ')}. ` +
+            `Replace with another ${sample.kind}.`,
         )
       }
 
