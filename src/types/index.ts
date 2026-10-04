@@ -123,7 +123,9 @@ export type FontType = 'system' | 'sf-mono' | 'menlo' | 'consolas' | 'monaco' | 
 export const EFFORT_LEVELS = ['low', 'medium', 'high', 'max', 'xhigh'] as const;
 export type EffortLevel = typeof EFFORT_LEVELS[number];
 
-export const CODEX_EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+// Codex reasoning effort. `max` is served for current models; `ultra` appears in models_cache.json
+// (gpt-5.6-terra). SDK `persistent` is omitted: no cached model lists it (T0370).
+export const CODEX_EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const;
 export type CodexEffortLevel = typeof CODEX_EFFORT_LEVELS[number];
 
 const isWindows = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');

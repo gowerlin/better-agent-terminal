@@ -44,7 +44,9 @@ interface ModelInfo {
   value: string
   displayName: string
   description: string
-  source?: 'builtin' | 'sdk'
+  // 'cache' = Codex CLI's ~/.codex/models_cache.json (T0370)
+  source?: 'builtin' | 'sdk' | 'cache'
+  efforts?: string[]
 }
 
 interface PendingPermission {
@@ -2008,6 +2010,14 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     workspaceStore.updateTerminalModel(sessionId, next.value)
   }, [sessionId, currentModel, availableModels])
 
+  // T0370: limit Codex effort options to what the selected model supports (when known); the
+  // current value always stays selectable so the dropdown never shows a value it cannot render.
+  const codexEffortOptions = useMemo<readonly string[]>(() => {
+    const supported = availableModels.find(m => m.value === currentModel)?.efforts
+    if (!supported || supported.length === 0) return CODEX_EFFORT_LEVELS
+    return CODEX_EFFORT_LEVELS.filter(level => supported.includes(level) || level === effortLevel)
+  }, [availableModels, currentModel, effortLevel])
+
   const handleEffortChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const next = e.target.value
     setEffortLevel(next)
@@ -3475,8 +3485,8 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           ) : (
             <div className="claude-resume-list">
               {(() => {
-                const builtins = availableModels.filter(m => m.source !== 'sdk')
-                const sdkModels = availableModels.filter(m => m.source === 'sdk')
+                const builtins = availableModels.filter(m => m.source !== 'sdk' && m.source !== 'cache')
+                const sdkModels = availableModels.filter(m => m.source === 'sdk' || m.source === 'cache')
                 const renderItem = (m: ModelInfo) => (
                   <div
                     key={m.value}
@@ -3814,7 +3824,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 onChange={handleEffortChange}
                 title={t('claude.effortLevel')}
               >
-                {(isCodexSession ? CODEX_EFFORT_LEVELS : EFFORT_LEVELS).map(level => (
+                {(isCodexSession ? codexEffortOptions : EFFORT_LEVELS).map(level => (
                   <option key={level} value={level}>{level}</option>
                 ))}
               </select>

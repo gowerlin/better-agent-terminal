@@ -6,13 +6,15 @@ import os from 'os'
 import * as pathModule from 'path'
 import type { ClaudeMessage, ClaudeToolCall, ClaudeSessionState } from '../src/types/claude-agent'
 import type { SessionSummary } from './claude-agent-manager'
-import type { CodexEffortLevel } from '../src/types'
+import { CODEX_EFFORT_LEVELS, type CodexEffortLevel } from '../src/types'
+import { codexTransientNoticeKind } from '../src/lib/codex-error-classify'
 import { prepareImageForApi } from './image-utils'
 import { logger } from './logger'
 import { broadcastHub } from './remote/broadcast-hub'
 import { wrapInterruptedPrompt } from './agent-prompt-utils'
 import { worktreeManager, type WorktreeInfo } from './worktree-manager'
 import { resolveBundledCodexLayout, prependPathDirs, type BundledCodexLayout } from './codex-bundled-path'
+import { loadCodexModels, type CodexModelInfo } from './codex-models'
 
 type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 type CodexApprovalPolicy = 'untrusted' | 'on-request' | 'never'
@@ -64,8 +66,6 @@ interface CodexSessionInstance {
 }
 
 type HistoryItem = ClaudeMessage | ClaudeToolCall
-
-const CODEX_EFFORT_LEVELS: readonly CodexEffortLevel[] = ['minimal', 'low', 'medium', 'high', 'xhigh']
 
 // Lazy SDK import
 let CodexClass: unknown = null
@@ -172,15 +172,19 @@ function findCodexBinary(): BundledCodexLayout | undefined {
 // gpt-5.5 currently requires ChatGPT login (not available via API key auth).
 export const DEFAULT_CODEX_MODEL = 'gpt-5.5'
 
-const CODEX_MODELS: Array<{ value: string; displayName: string; description: string }> = [
-  { value: 'gpt-5.5', displayName: 'GPT-5.5', description: 'Newest frontier · recommended (ChatGPT login)' },
-  { value: 'gpt-5.4', displayName: 'GPT-5.4', description: 'Flagship GPT-5.4' },
+// Fallback when `~/.codex/models_cache.json` is unavailable (see codex-models.ts). The first four
+// mirror the visible entries of a Codex 0.159 cache, in its priority order (T0370). `gpt-5.4` and
+// `o3` were dropped: ChatGPT accounts get "not supported when using Codex with a ChatGPT account" (T0366).
+const CODEX_MODELS: CodexModelInfo[] = [
+  { value: 'gpt-6-luna', displayName: 'GPT-6-Luna', description: 'Fast and affordable model for easier tasks.', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] },
+  { value: 'gpt-5.6-terra', displayName: 'GPT-5.6-Terra', description: 'Older balanced model for straightforward work.', efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] },
+  { value: 'gpt-5.6-luna', displayName: 'GPT-5.6-Luna', description: 'Older fast and efficient model.', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] },
+  { value: 'gpt-5.5', displayName: 'GPT-5.5', description: 'Legacy coding model · BAT default (ChatGPT login)', efforts: ['low', 'medium', 'high', 'xhigh'] },
   { value: 'gpt-5.4-mini', displayName: 'GPT-5.4 Mini', description: 'Fast GPT-5.4' },
   { value: 'gpt-5.3-codex', displayName: 'GPT-5.3 Codex', description: 'GPT-5.3 · codex variant' },
   { value: 'gpt-5.3-codex-spark', displayName: 'GPT-5.3 Codex Spark', description: 'GPT-5.3 · lightweight codex' },
   { value: 'codex-mini-latest', displayName: 'Codex Mini', description: 'codex-mini · optimized for code' },
   { value: 'o4-mini', displayName: 'o4-mini', description: 'OpenAI o4-mini · fast reasoning' },
-  { value: 'o3', displayName: 'o3', description: 'OpenAI o3 · reasoning model' },
   { value: 'gpt-4.1', displayName: 'GPT-4.1', description: 'OpenAI GPT-4.1' },
 ]
 
@@ -382,6 +386,39 @@ export class CodexAgentManager {
       }
     }
     this.send('claude:tool-result', sessionId, { id: toolId, ...updates })
+  }
+
+  // BUG-083: Codex reports config warnings and transport retries ("Reconnecting... n/m",
+  // "Falling back from WebSockets to HTTPS transport") as errors while the turn keeps running.
+  // Show them as a system notice instead of claude:error (which ends streaming).
+  // Returns false when the message is a real error the caller must still report.
+  private showCodexTransientNotice(
+    sessionId: string,
+    session: CodexSessionInstance,
+    errMsg: string,
+    shownThisTurn: Set<string>,
+    stag: string,
+  ): boolean {
+    const kind = codexTransientNoticeKind(errMsg)
+    if (!kind) return false
+    logger.log(`${stag} Codex ${kind} notice (not an error): ${errMsg}`)
+    const notice = `⚠️ ${errMsg}`
+    // Config warnings repeat at the start of every turn: shown once per session.
+    // Retry counters change on every attempt: only the first notice of each kind per turn.
+    const alreadyShown = kind === 'config-warning'
+      ? session.state.messages.some(m => (m as ClaudeMessage).content === notice)
+      : shownThisTurn.has(kind)
+    if (!alreadyShown) {
+      shownThisTurn.add(kind)
+      this.addMessage(sessionId, {
+        id: `sys-codex-notice-${kind}-${Date.now()}`,
+        sessionId,
+        role: 'system',
+        content: notice,
+        timestamp: Date.now(),
+      })
+    }
+    return true
   }
 
   private hasToolCall(sessionId: string, toolId: string): boolean {
@@ -964,6 +1001,8 @@ export class CodexAgentManager {
     let currentThinkingText = ''
     let currentItemId = ''
     let sawTurnCompleted = false
+    // Transient notice kinds already shown in this turn (see showCodexTransientNotice).
+    const noticesShownThisTurn = new Set<string>()
     let idleTimedOut = false
     let idleTimer: ReturnType<typeof setTimeout> | undefined
     const IDLE_TIMEOUT_MS = 300_000
@@ -1228,22 +1267,7 @@ export class CodexAgentManager {
               })
             } else if (itemType === 'error') {
               const errMsg = stringifyCodexError(item?.message ?? item?.error)
-              if (/^codex is ignoring/i.test(errMsg.trim())) {
-                // BUG-083: newer Codex CLIs report unrecognized config keys as item.type="error"
-                // while the turn keeps running. Treat as a notice, not claude:error (which ends streaming).
-                logger.log(`${stag} Codex config warning (not an error): ${errMsg}`)
-                const notice = `⚠️ ${errMsg}`
-                // Shown once per session; the warning repeats at the start of every turn.
-                if (!session.state.messages.some(m => (m as ClaudeMessage).content === notice)) {
-                  this.addMessage(sessionId, {
-                    id: `sys-codex-notice-${itemId}-${Date.now()}`,
-                    sessionId,
-                    role: 'system',
-                    content: notice,
-                    timestamp: Date.now(),
-                  })
-                }
-              } else {
+              if (!this.showCodexTransientNotice(sessionId, session, errMsg, noticesShownThisTurn, stag)) {
                 this.send('claude:error', sessionId, errMsg)
               }
             }
@@ -1289,6 +1313,7 @@ export class CodexAgentManager {
           case 'error': {
             // ThreadErrorEvent shape is { type: 'error', message: string }; older/alt payloads may nest under .error.
             const errMsg = stringifyCodexError((event as { message?: unknown }).message ?? event.error)
+            if (this.showCodexTransientNotice(sessionId, session, errMsg, noticesShownThisTurn, stag)) break
             logger.error(`${stag} Error: ${errMsg}`)
             this.send('claude:error', sessionId, errMsg)
             break
@@ -1452,8 +1477,10 @@ export class CodexAgentManager {
     return session ? { ...session.metadata } : null
   }
 
-  async getSupportedModels(_sessionId: string): Promise<Array<{ value: string; displayName: string; description: string; source: string }>> {
-    return CODEX_MODELS.map(m => ({ ...m, source: 'builtin' }))
+  async getSupportedModels(_sessionId: string): Promise<Array<CodexModelInfo & { source: 'cache' | 'builtin' }>> {
+    const cached = await loadCodexModels()
+    if (cached) return cached.map(m => ({ ...m, source: 'cache' as const }))
+    return CODEX_MODELS.map(m => ({ ...m, source: 'builtin' as const }))
   }
 
   setModel(sessionId: string, model: string): boolean {

@@ -3,7 +3,7 @@
 // Fixtures #1-#3 are the raw strings observed in T0366 experiments, verbatim.
 
 import { describe, it, expect } from 'vitest'
-import { classifyCodexError } from '../codex-error-classify'
+import { classifyCodexError, codexTransientNoticeKind, isCodexTransientNotice } from '../codex-error-classify'
 
 // #1 CLI 0.160 config warning (item.type="error"; main no longer forwards it as claude:error)
 const RAW_CONFIG_WARNING = 'Codex is ignoring 1 unrecognized configuration setting. ... `env` is ignored.'
@@ -80,5 +80,59 @@ describe('classifyCodexError — unrelated and empty input', () => {
 
   it('returns unknown for empty string', () => {
     expect(classifyCodexError('')).toEqual({ kind: 'unknown' })
+  })
+})
+
+// T0370 — fixtures #4-#6 are the CLI 0.160 strings recorded in T0369 AC-4 (unauthenticated smoke).
+// #4 top-level { type: 'error' } while the WebSocket transport retries
+const RAW_RECONNECTING = 'Reconnecting... 2/5 (unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: wss://api.openai.com/v1/responses, ...)'
+// #5 item.type="error" when switching transport
+const RAW_TRANSPORT_FALLBACK = 'Falling back from WebSockets to HTTPS transport...'
+// #6 turn.failed after the retries are exhausted — a real failure
+const RAW_TURN_FAILED_401 = 'unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses, ...'
+
+describe('isCodexTransientNotice — T0369 / T0366 raw fixtures', () => {
+  it('treats the three in-turn progress messages as notices', () => {
+    expect(isCodexTransientNotice(RAW_CONFIG_WARNING)).toBe(true)
+    expect(isCodexTransientNotice(RAW_RECONNECTING)).toBe(true)
+    expect(isCodexTransientNotice(RAW_TRANSPORT_FALLBACK)).toBe(true)
+  })
+
+  it('reports the notice kind', () => {
+    expect(codexTransientNoticeKind(RAW_CONFIG_WARNING)).toBe('config-warning')
+    expect(codexTransientNoticeKind(RAW_RECONNECTING)).toBe('reconnecting')
+    expect(codexTransientNoticeKind(RAW_TRANSPORT_FALLBACK)).toBe('transport-fallback')
+  })
+
+  it('keeps real failures as errors', () => {
+    expect(isCodexTransientNotice(RAW_TURN_FAILED_401)).toBe(false)
+    expect(isCodexTransientNotice(RAW_CONFIG_INCOMPATIBLE)).toBe(false)
+    expect(isCodexTransientNotice(RAW_CLI_TOO_OLD)).toBe(false)
+    expect(isCodexTransientNotice("The 'o3' model is not supported when using Codex with a ChatGPT account.")).toBe(false)
+  })
+})
+
+describe('isCodexTransientNotice — case, wording and empty input', () => {
+  it('matches case-insensitively', () => {
+    expect(isCodexTransientNotice(RAW_RECONNECTING.toUpperCase())).toBe(true)
+    expect(isCodexTransientNotice(RAW_TRANSPORT_FALLBACK.toLowerCase())).toBe(true)
+    expect(isCodexTransientNotice('  codex IS IGNORING 2 unrecognized configuration settings.')).toBe(true)
+  })
+
+  it('matches the reconnect counter with or without spaces, any position', () => {
+    expect(isCodexTransientNotice('Reconnecting... 5/5')).toBe(true)
+    expect(isCodexTransientNotice('stream error: Reconnecting... 1 / 5 (timeout)')).toBe(true)
+    expect(isCodexTransientNotice('Falling back from WebSocket to HTTPS transport. reason: 426')).toBe(true)
+  })
+
+  it('does not match partial phrases', () => {
+    expect(isCodexTransientNotice('Reconnecting failed')).toBe(false)
+    expect(isCodexTransientNotice('Error: Codex is ignoring nothing')).toBe(false)
+    expect(isCodexTransientNotice('Falling back to defaults')).toBe(false)
+  })
+
+  it('returns false for empty input', () => {
+    expect(isCodexTransientNotice('')).toBe(false)
+    expect(codexTransientNoticeKind('')).toBeUndefined()
   })
 })

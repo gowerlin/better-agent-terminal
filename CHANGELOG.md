@@ -5,6 +5,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- fix(codex): Codex connection retries no longer show up as errors. Codex 0.160 reports transport
+  retries while the turn is still running — a top-level `error` event `Reconnecting... n/5 (...)`
+  and an `item.type="error"` `Falling back from WebSockets to HTTPS transport...` — and BAT
+  forwarded both as `claude:error`, so a brief network hiccup showed a red `Error:` and turned off
+  the streaming indicator mid-turn. These messages (and the existing `Codex is ignoring ...` config
+  warning) are now matched by `isCodexTransientNotice()` in `src/lib/codex-error-classify.ts`,
+  logged, and shown as a system notice — the first reconnect / fallback notice of each turn only,
+  so the changing retry counter does not flood the chat. `turn.failed` and any other error still
+  go to `claude:error` unchanged. (refs: BUG-083, T0370)
 - fix(codex): the Codex panel no longer reports config warnings as errors. Newer Codex CLIs emit
   `item.type="error"` for unrecognized `~/.codex/config.toml` keys (`Codex is ignoring ...`) while
   the turn keeps running; BAT forwarded these as `claude:error`, so every turn opened with a red
@@ -55,6 +64,15 @@ All notable changes to Better Agent Terminal are documented in this file.
   its `cmd` branch was reimplemented here. (refs: T0362, PR #19, PR #18)
 
 ### Changed
+- feat(codex): the Codex model list now comes from the Codex CLI's own
+  `$CODEX_HOME/models_cache.json` (default `~/.codex`), read-only: entries with
+  `visibility: "list"` in `priority` order, shown under "Codex Agent" in the model picker. If the
+  file is missing or unreadable BAT silently falls back to its built-in list, which drops `gpt-5.4`
+  and `o3` (ChatGPT accounts get "not supported when using Codex with a ChatGPT account") and adds
+  `gpt-6-luna`, `gpt-5.6-terra` and `gpt-5.6-luna`; the default model stays `gpt-5.5`. Codex
+  reasoning effort gains `max` and `ultra` (`ultra` is listed by `gpt-5.6-terra` in the cache;
+  SDK `persistent` is left out because no model lists it), and the effort dropdown only offers
+  levels the selected model supports when that is known. (refs: BUG-083, T0370)
 - deps(codex): bump the embedded `@openai/codex-sdk` (and `@openai/codex` + platform packages)
   from 0.124.0 to 0.160.0. The 0.160 platform packages moved the native binary to
   `vendor/<triple>/bin/codex[.exe]` (plus `codex-package.json`, a `codex-path/` helper dir with

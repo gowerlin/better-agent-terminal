@@ -38,3 +38,30 @@ export function classifyCodexError(message: string): CodexErrorClassification {
 
   return { kind: 'unknown' }
 }
+
+// BUG-083 / T0370 — progress messages Codex emits while the turn keeps running. They arrive as
+// top-level `{ type: 'error' }` or `item.type="error"`, but are not failures: the final outcome
+// still comes from `turn.completed` / `turn.failed`.
+export type CodexTransientNoticeKind = 'config-warning' | 'reconnecting' | 'transport-fallback'
+
+const TRANSIENT_NOTICE_RES: ReadonlyArray<[CodexTransientNoticeKind, RegExp]> = [
+  // "Codex is ignoring 1 unrecognized configuration setting. ..." (T0367)
+  ['config-warning', /^\s*codex is ignoring\b/i],
+  // "Reconnecting... 2/5 (unexpected status 401 Unauthorized: ...)"
+  ['reconnecting', /\breconnecting\.{3}\s*\d+\s*\/\s*\d+/i],
+  // "Falling back from WebSockets to HTTPS transport. ..."
+  ['transport-fallback', /falling back from websockets? to https transport/i],
+]
+
+export function codexTransientNoticeKind(message: string): CodexTransientNoticeKind | undefined {
+  const text = typeof message === 'string' ? message : ''
+  if (!text) return undefined
+  for (const [kind, re] of TRANSIENT_NOTICE_RES) {
+    if (re.test(text)) return kind
+  }
+  return undefined
+}
+
+export function isCodexTransientNotice(message: string): boolean {
+  return codexTransientNoticeKind(message) !== undefined
+}
