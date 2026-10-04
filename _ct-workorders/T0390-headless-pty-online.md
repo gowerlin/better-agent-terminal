@@ -8,7 +8,7 @@ status: TODO
 priority: P1
 sizing: M
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-05T00:17:21+08:00"
+updated_at: "2026-10-05T00:20:10+08:00"
 started_at: null
 completed_at: null
 target_version: next
@@ -53,6 +53,10 @@ memory_overrides:
    - 從 `electron/remote/headless-channel-status.ts` `HEADLESS_UNSUPPORTED` 移除 P0 的 7 個（`pty:*` 6 + `settings:get-shell-path`），parity test 會檢查
    - `ALWAYS_LOCAL_CHANNELS` 目前兩份（`main.ts` 與 `headless-channel-status.ts`，parity test 讀 main.ts 原始碼比對）：本單會改 `main.ts`，順手改為 `main.ts` import `headless-channel-status.ts` 的那份，刪除重複
    - 整合測試用 `electron/remote/__tests__/helpers/headless-harness.ts`（測試檔頭需 `// @vitest-environment node`）
+8. **T0389 交接**（`566c6da`）：
+   - `new PtyManager({ emit, dataDir, helperDir? })`；headless 用 `createHeadlessHostDeps(dataDir)` 的 `emit` / `dataDir`，不給 `helperDir`
+   - ⚠️ `helperDir` 空值只是「不注入」，**不會清除**從 server 行程 env 繼承來的 `BAT_HELPER_DIR`（例如 bat-server 從 BAT 終端內手動啟動）。範圍 4 env 隔離一併處理：headless spawn 的 PTY env 需刪除 `BAT_HELPER_DIR` / `BAT_REMOTE_*` / `BAT_TERMINAL_ID` / `BAT_TOWER_TERMINAL_ID` 等繼承值，並以測試鎖定
+   - runtime router 已可 `configureRuntimeRouter({ getDataDir, getEmbeddedLayout })`（headless layout = `server-bundle`）；本單不需接 Agent，但若 `settings:get-shell-path` 需要設定來源，沿用 `createHeadlessHostDeps().getSettings`
 
 ## 驗收
 

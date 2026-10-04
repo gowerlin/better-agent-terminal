@@ -6,7 +6,7 @@ title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），�
 status: IN_PROGRESS
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-05T00:17:21+08:00"
+updated_at: "2026-10-05T00:20:10+08:00"
 links:
   research_workorder: T0386
   p0_workorders: [T0388, T0389, T0390, T0391, T0393]
@@ -59,8 +59,8 @@ T0385（BUG-094）盤點證實：headless bat-server（WSL / SSH / Docker 遠端
 | 工單 | 內容 | 依賴 | 狀態 |
 |---|---|---|---|
 | T0388 | 共用骨架 `electron/handlers/types.ts` + channel parity test + electron-free guard + vitest headless harness | — | ✅ DONE（`694771c`，00:17 複驗） |
-| T0389 | claude-runtime-router 設定注入 + embedded resolver 合一（bundle `bin/claude`）+ PtyManager DI | T0387（`main.ts`） | 執行中（00:04 派發） |
-| T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | 排隊 |
+| T0389 | claude-runtime-router 設定注入 + embedded resolver 合一（bundle `bin/claude`）+ PtyManager DI | T0387（`main.ts`） | ✅ DONE（`566c6da`，00:20 複驗：1039 tests / vite / tsc 40；本機 smoke 終端 / claude-cli / Agent 三項） |
+| T0390 | `pty:*` + `settings:get-shell-path` 上線 headless（冪等 create、斷線不 kill、env 隔離） | T0388、T0389 | 執行中（00:20 派發） |
 | T0391 | `scripts/dev-deploy-headless.mjs`（JS-only 部署到 WSL / dir，dry-run 預設） | — | ✅ DONE（`f102a55`，00:17 複驗；`npm run deploy:headless:dev`） |
 | T0393 | 遠端視窗 shell 清單依遠端 OS 過濾 + WSL 工作區資料夾挑選預設 WSL home、`/mnt/c` 提示（使用者 2026-10-05 00:02 實機回報後裁決納入 P0） | T0390 | 排隊 |
 
