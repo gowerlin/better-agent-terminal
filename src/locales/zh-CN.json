@@ -677,6 +677,24 @@
           "label": "完成",
           "description": "收尾并显示安装后提示。"
         }
+      },
+      "error": {
+        "fingerprintTimeout": {
+          "title": "获取 TLS 指纹超时",
+          "body": "服务器端口接受了连接，但 5 秒内没有完成 TLS 握手。可能有其他程序（例如本机 BAT 自己的远程服务器）占用了这个端口，或 BAT 服务器没有响应。请检查服务日志后重试。"
+        },
+        "fingerprintUnreachable": {
+          "title": "无法连接到 BAT 服务器",
+          "body": "服务器端口上没有任何程序在监听。请确认 BAT 服务器服务已成功启动（查看服务日志）后重试。"
+        },
+        "fingerprintHandshakeFailed": {
+          "title": "TLS 握手失败",
+          "body": "服务器端口上的程序没有提供 TLS 证书。请确认这个端口属于 BAT 服务器后重试。"
+        },
+        "fingerprintInvalidPort": {
+          "title": "服务器端口无效",
+          "body": "服务器端口必须是 1 到 65535 之间的整数。请返回修正端口后重新运行向导。"
+        }
       }
     },
     "wsl": {

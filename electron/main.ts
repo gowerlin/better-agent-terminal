@@ -103,6 +103,7 @@ import * as dockerLifecycle from './docker-lifecycle'
 import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
 import * as wslSystemd from './wsl-systemd'
+import { fetchTlsFingerprint, type FetchFingerprintResult } from './tls-fingerprint'
 import {
   assertPathAllowed,
   isPathAllowed,
@@ -110,7 +111,6 @@ import {
   MAX_IMAGE_SIZE,
 } from './path-guard'
 import * as net from 'net'
-import * as https from 'https'
 
 // Startup timing — capture module load time before anything else
 const _processStart = Number(process.env._BAT_T0 || Date.now())
@@ -3521,28 +3521,16 @@ function registerLocalHandlers() {
       }
     }
   })
-  // T0304 / BUG-069: moved from renderer to main to keep `node:https` out of the
-  // renderer bundle (D090). Connects to localhost:<port>/fingerprint over a
-  // self-signed TLS endpoint (rejectUnauthorized:false retained — local-only).
-  ipcMain.handle('wsl:fetch-fingerprint', async (_event, port: number): Promise<string> => {
-    return new Promise<string>((resolve, reject) => {
-      const request = https.get(
-        `https://localhost:${port}/fingerprint`,
-        { rejectUnauthorized: false },
-        (response) => {
-          const chunks: Buffer[] = []
-          response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
-          response.on('end', () => {
-            if ((response.statusCode ?? 500) >= 400) {
-              reject(new Error(`Fingerprint endpoint returned HTTP ${response.statusCode}`))
-              return
-            }
-            resolve(Buffer.concat(chunks).toString('utf8').trim())
-          })
-        },
-      )
-      request.on('error', reject)
-    })
+  // T0304 / BUG-069: runs in main so the renderer bundle never imports Node
+  // builtins (D090). T0381 / BUG-090 (D128): the fingerprint is read from the
+  // TLS handshake itself (the server has no HTTP handler), bounded by a 5s
+  // timeout; failures come back as structured error codes for ErrorMapper.
+  ipcMain.handle('wsl:fetch-fingerprint', async (_event, port: number): Promise<FetchFingerprintResult> => {
+    const result = await fetchTlsFingerprint(port)
+    if (!result.ok) {
+      logger.warn(`[wizard] fetch-fingerprint ${result.errorCode}: ${result.error}`)
+    }
+    return result
   })
   registerSshSetupHandlers(ipcMain)
 

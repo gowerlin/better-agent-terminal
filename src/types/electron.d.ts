@@ -47,6 +47,11 @@ interface WslDistroRecord {
   state: WslState
 }
 
+// T0381 / BUG-090 — mirrors `FetchFingerprintResult` in electron/tls-fingerprint.ts.
+type WslFetchFingerprintResult =
+  | { ok: true; fingerprint: string }
+  | { ok: false; errorCode: 'fingerprint-invalid-port' | 'fingerprint-timeout' | 'fingerprint-unreachable' | 'fingerprint-handshake-failed'; error: string }
+
 interface RemoteAuthMetadata {
   serverPlatform: 'win32' | 'linux' | 'darwin'
   serverArch: 'x64' | 'arm64'
@@ -333,7 +338,8 @@ interface ElectronAPI {
     installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     // T0304 / BUG-069 — IPC migrated from renderer (was direct `node:https` call).
-    fetchFingerprint: (port: number) => Promise<string>
+    // T0381 / BUG-090 — TLS-handshake fingerprint (5s timeout) with structured errors.
+    fetchFingerprint: (port: number) => Promise<WslFetchFingerprintResult>
   }
   docker: {
     status: () => Promise<{ available: boolean; version?: string; error?: string }>

@@ -677,6 +677,24 @@
           "label": "Finalize",
           "description": "Wrap up and surface any post-install hints."
         }
+      },
+      "error": {
+        "fingerprintTimeout": {
+          "title": "Timed out fetching the TLS fingerprint",
+          "body": "The server port accepted the connection but did not finish a TLS handshake within 5 seconds. Another program (possibly this BAT's own remote server) may be using that port, or the BAT server is not responding. Check the service log, then retry."
+        },
+        "fingerprintUnreachable": {
+          "title": "Cannot reach the BAT server",
+          "body": "Nothing is listening on the server port. Make sure the BAT server service started successfully (check its log), then retry."
+        },
+        "fingerprintHandshakeFailed": {
+          "title": "TLS handshake failed",
+          "body": "The program on the server port did not present a TLS certificate. Make sure the port belongs to the BAT server, then retry."
+        },
+        "fingerprintInvalidPort": {
+          "title": "Invalid server port",
+          "body": "The server port must be a whole number between 1 and 65535. Go back, fix the port, and run the wizard again."
+        }
       }
     },
     "wsl": {

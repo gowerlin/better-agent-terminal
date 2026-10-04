@@ -384,4 +384,43 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       { kind: 'cancel' },
     ],
   },
+  // T0381 (BUG-090): fetch-fingerprint now reads the certificate from the TLS
+  // handshake with a 5s timeout; main returns these codes and the step
+  // rethrows them with `code`. Shared by the WSL / SSH / Docker flows.
+  {
+    id: 'fingerprint-timeout',
+    platforms: 'all',
+    stepIds: ['fetch-fingerprint'],
+    errorCodes: ['fingerprint-timeout'],
+    messageKey: 'wizard.shared.error.fingerprintTimeout',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'fingerprint-unreachable',
+    platforms: 'all',
+    stepIds: ['fetch-fingerprint'],
+    errorCodes: ['fingerprint-unreachable'],
+    messageKey: 'wizard.shared.error.fingerprintUnreachable',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'fingerprint-handshake-failed',
+    platforms: 'all',
+    stepIds: ['fetch-fingerprint'],
+    errorCodes: ['fingerprint-handshake-failed'],
+    messageKey: 'wizard.shared.error.fingerprintHandshakeFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'fingerprint-invalid-port',
+    platforms: 'all',
+    stepIds: ['fetch-fingerprint'],
+    errorCodes: ['fingerprint-invalid-port'],
+    messageKey: 'wizard.shared.error.fingerprintInvalidPort',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'cancel' }],
+  },
 ]

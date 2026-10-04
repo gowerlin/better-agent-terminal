@@ -677,6 +677,24 @@
           "label": "完成",
           "description": "收尾並顯示安裝後提示。"
         }
+      },
+      "error": {
+        "fingerprintTimeout": {
+          "title": "取得 TLS 指紋逾時",
+          "body": "伺服器埠接受了連線，但 5 秒內沒有完成 TLS 握手。可能有其他程式（例如本機 BAT 自己的遠端伺服器）占用了這個埠，或 BAT 伺服器沒有回應。請檢查服務日誌後重試。"
+        },
+        "fingerprintUnreachable": {
+          "title": "無法連到 BAT 伺服器",
+          "body": "伺服器埠上沒有任何程式在監聽。請確認 BAT 伺服器服務已成功啟動（查看服務日誌）後重試。"
+        },
+        "fingerprintHandshakeFailed": {
+          "title": "TLS 握手失敗",
+          "body": "伺服器埠上的程式沒有提供 TLS 憑證。請確認這個埠屬於 BAT 伺服器後重試。"
+        },
+        "fingerprintInvalidPort": {
+          "title": "伺服器埠無效",
+          "body": "伺服器埠必須是 1 到 65535 之間的整數。請回到前面修正埠號後重新執行精靈。"
+        }
       }
     },
     "wsl": {
