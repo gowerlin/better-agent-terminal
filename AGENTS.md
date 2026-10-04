@@ -1,18 +1,15 @@
 <claude-mem-context>
 # Memory Context
 
-# [better-agent-terminal] recent context, 2026-05-24 8:15pm GMT+8
+# [better-agent-terminal] recent context, 2026-05-24 8:19pm GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (25,683t read) | 738,231t work | 97% savings
+Stats: 50 obs (25,289t read) | 689,430t work | 96% savings
 
 ### Apr 27, 2026
-13291 11:04a ✅ T0325 committed: PLAN-031 distribution integration tests and e2e scaffolding shipped
-13293 " ✅ T0325 work order closed with completion metadata
-13296 11:10a ✅ T0327 PLAN-031 server bundle distribution documentation delivered
 13297 11:11a ✅ T0327 validation passed - documentation changes verified
 13298 " ✅ T0327 worker report completed with comprehensive deliverable summaries
 13299 11:12a ✅ T0327 completed and committed - PLAN-031 server bundle distribution documentation shipped
@@ -65,21 +62,12 @@ S7351 BUG-081 closeout finalization - user acceptance logging and drift correcti
 16397 " 🔵 BUG-081 tracker entry confirmed present in _bug-tracker.md
 16398 2:58p 🔵 *sync metadata scan initiated - full workorder frontmatter extraction across 300+ files
 S7352 Control Tower session 45 *sync operation: rebuild bug tracker and backlog indices after BUG-081 closeout finalization, correct metadata drift (May 19, 2:59 PM)
-**16399** 3:00p ✅ **Control Tower *sync rebuilt bug tracker and backlog indices**
-The Control Tower *sync operation scanned 300+ workorder files via grep to extract frontmatter metadata (id, status, title, severity, priority, timestamps) and rebuild index files. The bug tracker was 3 days stale, missing BUG-080 and BUG-081 closures from 2026-05-15 and 2026-05-18. Sync corrected status breakdowns, moved BUG-081 from OPEN to CLOSED, and fixed BUG-071's creation date. The backlog was restructured with priority-based sorting (high priority items first) and populated the previously empty priority column. Both files received schema updates to exclude examples/** directories. This sync operation addresses drift between actual workorder states and index file representations, ensuring dashboard accuracy.
-~403t 🛠️ 31,191
-
-**16400** " 🔵 **Workorder numbering drift detected and corrected in tower state**
-The *sync operation discovered numbering drift in _tower-state.md where the recorded "next workorder" IDs didn't match actual maximums found via grep. The state file indicated T0357 as the next T workorder ID, but grep scan revealed T0358 already existed. Similarly, decision ID tracking showed D110 but _decision-log.md contained decisions up to D118. This +2 workorder drift and +9 decision drift suggests state updates lagged behind actual workorder creation. The correction updates the "編號起始（下 session）" section to reflect accurate next IDs: T0359/BUG-082/PLAN-035/D119, with documentation explaining the previous values were drift artifacts.
-~321t 🔍 31,191
-
+16399 3:00p ✅ Control Tower *sync rebuilt bug tracker and backlog indices
+16400 " 🔵 Workorder numbering drift detected and corrected in tower state
 16401 " 🔵 Decision log shows ID reuse patterns across 174 recorded decisions
 16402 " 🔵 BUG-071/072/073/074 contain placeholder timestamps indicating incomplete migration
 ### May 24, 2026
-**16728** 8:13p 🔵 **BAT installed version contains old bug tracker parser despite source code fix**
-Investigation revealed the bug tracker display issue stems from version mismatch rather than sync problems. The openusage repository's _bug-tracker.md is correctly synced, and the BAT source code has been patched to handle case-insensitive heading matching by calling toUpperCase() on headings before checking for "CLOSED" or "FIXED" patterns. However, the installed application bundle (app.asar) still contains the old parser implementation that performs case-sensitive string matching. When it encounters "## Closed" headings, the check e.includes("CLOSED") fails, causing bugs to fall back to the OPEN category. The discrepancy exists because the installed binary hasn't been rebuilt with the fixed source code. Resolution requires either rebuilding and reinstalling BAT from the updated source or running the development version directly.
-~412t 🔍 3,409
-
+16728 8:13p 🔵 BAT installed version contains old bug tracker parser despite source code fix
 **16729** 8:14p 🔵 **BAT bug tracker parser fix exists in source v0.4.2 but installed app.asar is pre-fix bundle**
 Investigation confirmed deployment state mismatch between BAT source repository and installed application. The source code at commit d3f6580 "fix(ct): support abandoned workorder status" includes the parser fix that normalizes section headings with toUpperCase() before matching status keywords, resolving the "## Closed" vs "CLOSED" case-sensitivity issue. The repository shows version 0.4.2 in package.json (commit 3224d08), and source file src/types/bug-tracker.ts contains the corrected sectionToStatus() function. However, the installed application bundle at C:\Program Files\BetterAgentTerminal\resources\app.asar is dated 2026-05-23 21:13:48 and does not reflect these source changes. Additionally, the release folder contains only 0.3.1 installer artifacts from April 26th, with no 0.4.2 build present. This confirms the user's diagnosis: openusage sync is working correctly, source code has been fixed, but the installed app.asar needs to be regenerated from current source via rebuild/reinstall or running from development source.
 ~485t 🔍 20,405
@@ -88,6 +76,18 @@ Investigation confirmed deployment state mismatch between BAT source repository 
 Fixed case-sensitivity bug in BAT bug tracker parser where title-case section headings like "## Closed" failed to match the expected CLOSED status. The sectionToStatus() function in src/types/bug-tracker.ts now normalizes headings with toUpperCase() before checking for status keywords. All status checks were updated from direct heading.includes() calls to normalized.includes() calls, enabling case-insensitive matching. Additionally, a compact whitespace-stripped variant handles "Won't Fix" format for WONTFIX detection. A new test case validates that generated title-case headings ("## Open", "## Fixed", "## Verify", "## Closed", "## Won't Fix") correctly map to their respective statuses (OPEN, FIXED, VERIFY, CLOSED, WONTFIX). All 9 tests in bug-tracker.test.ts pass, confirming the fix works correctly for both legacy uppercase and title-case heading formats. This resolves the issue where bugs under "## Closed" sections were incorrectly falling back to OPEN status.
 ~467t 🛠️ 6,532
 
+**16731** 8:16p ✅ **Bug tracker parser fix verified with full test suite passing**
+After implementing the bug tracker parser case-sensitivity fix, the session executed comprehensive verification before completion. The full test suite ran via npm run test:unit, covering 39 test files with 484 total tests, all passing with exit code 0. Test execution completed in 10.98 seconds with no failures, confirming the sectionToStatus() toUpperCase() normalization works correctly for both legacy uppercase headings and generated title-case headings. Git diff --check verified no whitespace errors exist (only expected CRLF line-ending warnings on Windows). The local main branch contains 2 unpushed commits: version bump to 0.4.2 and closeout record, advancing from origin/main's 0.4.1 version. Three files remain unstaged with the working tree changes: AGENTS.md, bug-tracker.test.ts, and bug-tracker.ts. This verification step follows the evidence-before-claims pattern, confirming the fix is complete and ready for commit.
+~414t 🛠️ 806
 
-Access 738k tokens of past work via get_observations([IDs]) or mem-search skill.
+**16732** 8:17p ✅ **Bug tracker parser case-sensitivity fix committed to main branch**
+Committed the bug tracker parser case-sensitivity fix to the main branch as commit 5b5fb85 "fix(ct): parse title-case bug tracker sections". The commit contains changes to two files: the parser implementation in src/types/bug-tracker.ts and corresponding test coverage in src/types/__tests__/bug-tracker.test.ts, totaling 53 insertions and 6 deletions. The fix adds toUpperCase() normalization to the sectionToStatus() function and includes a comprehensive test case validating title-case section headings. The local main branch is now 3 commits ahead of origin/main, with the sequence: 3224d08 (version bump to 0.4.2), 14a5976 (closeout record), and 5b5fb85 (parser fix). Only AGENTS.md remains modified in the working tree. This commit resolves the issue where "## Closed" headings failed to match the CLOSED status pattern, ensuring both legacy uppercase and generated title-case formats work correctly.
+~407t 🛠️ 2,564
+
+**16733** " ✅ **Bug tracker parser fix pushed to remote repository**
+Deployed the bug tracker parser fix to the remote repository by pushing 3 commits to origin/main at github.com/gowerlin/better-agent-terminal. The push advanced the remote from commit 1111d1f to 5b5fb85, including the version bump to 0.4.2 (3224d08), closeout record (14a5976), and the parser case-sensitivity fix (5b5fb85). The push completed successfully with exit code 0, synchronizing local and remote main branches. This deployment makes the source code fix available in the remote repository, enabling the next step: rebuilding the application to generate an updated app.asar bundle that includes the toUpperCase() normalization fix. Once rebuilt and reinstalled, the installed application will correctly parse title-case section headings like "## Closed" in bug tracker files.
+~342t 🛠️ 1,273
+
+
+Access 689k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
