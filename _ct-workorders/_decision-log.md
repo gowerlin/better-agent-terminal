@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 15:52 (UTC+8)（第四十九 session 新增 D120、D121）
+> 最後更新：2026-10-04 16:09 (UTC+8)（第四十九 session 新增 D120、D121、D122）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D122 | 2026-10-04 | BUG-084（內嵌 Claude CLI 2.1.113 被服務端擋 Opus 5.5 / Fable 5.1）依 T0368 採分階段：Phase 1 只升 CLI 2.1.289（SDK 留 0.2，實測相容含 V2）+ Claude 5 模型清單；隨後錯誤分類 / DISABLE_UPDATES / 計價表；Phase 2 SDK 0.3 待使用者決定 V2 preset 去留。為避免主工作樹 `npm install` 與 T0370 測試互擾，T0371 排在 T0370 之後 | T0368 / T0371 / BUG-084 |
 | D121 | 2026-10-04 | BUG-083 依 T0366 結論採 S1（bump SDK + 內嵌解析相容新目錄）+ S2（選最新 binary + 錯誤分類）；S3 Settings runtime 選擇後排。四張實作單共改 `codex-agent-manager.ts`，依序串行 T-A 誤報/錯誤分類 → T-B bump → T-D 模型清單 → T-C 選最新 binary | T0366 / T0367 / BUG-083 |
 | D120 | 2026-10-04 | BUG-071 runtime 下載來源：desktop release workflow（`release.yml` / `pre-release.yml`）建完 baseline 後**自動發佈** `server-bundle-v<版號>` prerelease 到 gowerlin；預設下載網址 owner 由不存在的 `anthropics` 改為 `gowerlin`；網址格式與 D093 tag 命名不變。驗收做到發 pre 版 + 實機 wizard | T0365 / BUG-071 / PLAN-031 |
 | D119 | 2026-09-02 | 社群 PR #19 不 merge，改在 main 取骨架重新實作 —— 其 `cmd` 分支有兩處經確認的缺陷（`%`→`%%` 為批次檔限定語意、`""` 非 `CommandLineToArgvW` 逃逸），bot review 三個月未回應且該 bot 已停止服務；posix/pwsh 與 `agentCustomArgs` 判斷沿用其設計，出處以 `Co-authored-by` 保留 | T0362 / PR #19 |
@@ -1349,6 +1350,19 @@
 - **決定**：選項 B（路線 2）
 - **理由**：T0005 程式碼層全通過，T0004 獨立不阻塞，T0009 一次測完整個鏈路比多次切換有效率
 - **相關工單**：T0005
+
+---
+
+### D122 2026-10-04 — BUG-084：Claude 內嵌 CLI 升級分階段
+
+- **依據**：T0368 研究（`22e8ddc`）。內嵌 2.1.113 選 `claude-opus-5-5` / `claude-fable-5-1` 回 `400 claude_code_version_too_old`（門檻 2.1.280 / 2.1.251）；SDK 0.2.113 + CLI 2.1.289 實測全通（含 V2 `unstable_v2_createSession`）；claude-code 2.1.289 binary 目錄結構不變
+- **決定**：
+  - Phase 1（P1）：T0371 只升 CLI + Claude 5 模型清單 + `getSupportedModels()` 帶 runtime 路徑 + `thinking: adaptive` + `release.yml` Node 24
+  - 隨後（P1）：`claude_code_version_too_old` 錯誤分類 + `HEALTHY_MIN` → 2.1.280 + embedded 注入 `DISABLE_UPDATES=1`（system 不注入）；計價表（5 系列、cache-read 倍率、共用模組，等 BUG-083 T0370 收尾避免 `CodexAgentPanel.tsx` 衝突）
+  - Phase 2（P2）：SDK 0.3.289 —— V2 API 已移除（`claude-code-v2` preset 下架或遷移）、TodoWrite → Task tools，**待使用者決策**
+- **不採用**：只補模型清單（C）—— Opus 5.5 / Fable 5.1 仍會 400
+- **排程**：T0371 需在主工作樹 `npm install`，與進行中的 T0370（vitest / vite build）並行有 `node_modules` 互擾風險 ⇒ T0370 完成後才派發
+- **相關**：T0368 / T0371 / BUG-084 / BUG-083（同型）/ PLAN-027
 
 ---
 

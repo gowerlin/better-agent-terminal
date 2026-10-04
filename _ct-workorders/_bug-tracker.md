@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 13:29 (UTC+8) — 第四十九 session：BUG-071 → FIXED、BUG-083 → FIXING
+> 最後同步：2026-10-04 13:29 (UTC+8) — 第四十九 session：BUG-071 → FIXED、BUG-083 / BUG-084 → FIXING
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 1 | 🧪 Verify: 0 | 🚫 Closed: 5 | ⛔ Won't Fix: 0 | **Total: 8**
+- 🔴 Open: 1 | ⏳ Fixing: 2 | ✅ Fixed: 1 | 🧪 Verify: 0 | 🚫 Closed: 5 | ⛔ Won't Fix: 0 | **Total: 9**
 
 ## 🔴 Open / 處理中
 
@@ -38,6 +38,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-084 | 內嵌 Claude CLI 2.1.113 被服務端拒絕 Claude 5 主力模型（claude_code_version_too_old） | 🔴 high | 2026-10-04 | [BUG-084](BUG-084-embedded-claude-cli-too-old-for-claude-5.md) |
 | BUG-083 | Codex agent 出錯，測試者指稱需更新 codex 版本（內嵌 0.124.0，上游 0.160.0） | 🟡 medium | 2026-10-04 | [BUG-083](BUG-083-codex-agent-errors-outdated-bundled-cli.md) |
 
 ## ✅ 已修復
