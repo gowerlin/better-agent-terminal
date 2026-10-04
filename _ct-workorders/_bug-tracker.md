@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 13:29 (UTC+8) — 第四十九 session：BUG-071 → FIXING、新增 BUG-083
+> 最後同步：2026-10-04 13:29 (UTC+8) — 第四十九 session：BUG-071 → FIXED、新增 BUG-083
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 0 | 🧪 Verify: 0 | 🚫 Closed: 5 | ⛔ Won't Fix: 0 | **Total: 8**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 0 | 🚫 Closed: 5 | ⛔ Won't Fix: 0 | **Total: 8**
 
 ## 🔴 Open / 處理中
 
@@ -39,13 +39,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-071 | Setup Wizard install-server-bundle 硬性失敗：server bundle tarball 自動取得未實作 | 🔴 high | 2026-04-27 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-071 | Setup Wizard install-server-bundle 硬性失敗：server bundle tarball 自動取得未實作 | 🔴 high | 2026-10-04 | [BUG-071](BUG-071-server-bundle-download-flow-missing.md) |
 
 ## 🧪 驗收中 (VERIFY)
 

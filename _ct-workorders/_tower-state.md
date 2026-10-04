@@ -122,7 +122,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 
 ### 待辦（依優先序）
 
-1. 🟡 **BUG-071** FIXING —— T0365 DONE `a295ec7`（D120）；待 push + 發 `v0.5.9-pre.3` → 確認 `server-bundle-v0.5.9-pre.3` release → 使用者實機 WSL wizard
+1. 🟡 **BUG-071** ✅ FIXED（`a295ec7`；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 已發佈）—— **待使用者實機**：裝 pre.3 跑 WSL wizard（x64）；DGX Spark SSH（arm64）視時間 → 通過即 CLOSED
 2. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6 倍（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
 3. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到
 4. 🟢 **ADVISORY B-1 復議**：`[T0361] Workspace miss` 訊號至今零筆真實觸發，待有資料再議（已回函告知對方）
@@ -153,9 +153,9 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.5.9-pre.2**（package.json + lock 已同步，commit `70dfec4`） |
-| **最新 release** | `v0.5.9-pre.2`（2026-09-02 15:38，prerelease，三平台 + server bundle × 3，5 artifact） |
-| **前一 tag** | `v0.5.9-pre.1`（2026-09-01） |
+| **目前版號** | **0.5.9-pre.3**（package.json + lock 已同步，commit `37ce0b5`） |
+| **最新 release** | `v0.5.9-pre.3`（2026-10-04 13:35，prerelease，5 artifact）+ **`server-bundle-v0.5.9-pre.3`**（首個 server bundle release，7 資產，D120） |
+| **前一 tag** | `v0.5.9-pre.2`（2026-09-02） |
 | **目前主軸** | 無單一主軸；待辦以 PLAN-032 三 BUG smoke 為首 |
 | **工單最大編號** | T0362（DONE，commit `a8ee6a1`）；另有 CP-T0362（DONE，`89921e2`） |
 | **BUG 最大編號** | BUG-082（**CLOSED**，runtime 驗收通過 2026-09-02） |
@@ -275,6 +275,9 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - [啟動] 2026-10-04 13:25 — 使用者 `*config auto-session yolo`（**僅本 session**，未 `--save`；project 設定仍為 `on`），`yolo_max_retries: 1`
 - [完成] 2026-10-04 13:25 — T0365 DONE（`a295ec7`）塔台複驗 PASS：550 tests、0 處 `anthropics/` 殘留、CI log（run `33603489235`）證實 `artifacts/server-bundle-baseline/` 7 檔路徑與新 step `files:` 完全吻合
 - [外部動作閘] 2026-10-04 13:25 — 下一步為 bump `0.5.9-pre.3` + push + 觸發 `pre-release.yml`。YOLO 不涵蓋 push / release 授權（CLAUDE.md Hard Boundaries），交使用者決定
+- [授權] 2026-10-04 13:26 — 使用者核准全部執行：bump `0.5.9-pre.3`（`37ce0b5`）→ push `7243ce2..37ce0b5` → 觸發 pre-release run `37179875163`
+- [派發] 2026-10-04 13:30 — T0366 research（BUG-083 codex 版本）以 `--mode yolo --interactive` 派發
+- [發版] 2026-10-04 13:42 — run `37179875163` 9/9 success；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 發佈；runtime URL 下載 manifest 成功；BUG-071 → FIXED
 
 ### 前次 YOLO Session（2026-04-18 ~16:10 啟動，第三 session，收尾）
 

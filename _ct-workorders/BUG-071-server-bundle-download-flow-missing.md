@@ -3,8 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-071
 title: Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
-status: FIXING
+status: FIXED
 severity: high
+fix_commit: a295ec7
+fixed_at: "2026-10-04T13:42:14+08:00"
+fix_workorder: T0365
 ---
 # BUG-071 — Setup Wizard install-server-bundle 步驟硬性失敗：server bundle tarball 自動取得流程未實作
 
@@ -17,7 +20,7 @@ severity: high
 | 嚴重度 | 🔴 High（使用者無法用 wizard 完成 WSL/SSH/Docker remote profile 安裝；BAT remote feature 對普通使用者實質不可用） |
 | 可重現 | 100%（只要 `userData/bat-server-bundles/` 沒有 tarball 都會炸；installer 不含、無自動下載 → 100% 觸發） |
 | Workaround | 手動下載 `bat-server-linux-x64-v*.tar.gz` 放到 `userData/bat-server-bundles/`（普通使用者不知道做這事） |
-| 狀態 | 🐛 OPEN → ⏳ FIXING（2026-10-04 T0365，D120） |
+| 狀態 | 🐛 OPEN → ⏳ FIXING → ✅ FIXED（2026-10-04 `a295ec7`；待使用者實機 wizard） |
 | 建立時間 | 2026-04-27 00:?? (UTC+8) |
 | 報告者 | 使用者（PLAN-030 完工後實機跑 WSL wizard） |
 | 影響範圍 | `src/components/setup-wizard/steps/wsl/install-server-bundle.ts:36` / `src/components/setup-wizard/steps/ssh/install-server-bundle.ts`（同模式） / Docker 也類似（待確認） |
@@ -83,3 +86,14 @@ installer 未內建的 arch（如 Windows host → DGX Spark arm64 SSH）必走�
 
 **處置**：D120 —— desktop release workflow 自動發佈 `server-bundle-v<版號>`，修正預設網址 owner。
 修復工單 T0365；驗收 = 發 `v0.5.9-pre.3` + 使用者實機 WSL wizard（+ DGX Spark 視時間）。
+
+## FIXED 證據（2026-10-04，塔台）
+
+| lane | 結果 | 證據 |
+|------|------|------|
+| source / test | ✅ | T0365 `a295ec7`；550 tests 塔台親跑；`anthropics/` 殘留 0 |
+| CI / release | ✅ | pre-release run `37179875163` 9/9 job success；`v0.5.9-pre.3`（5 安裝檔）+ `server-bundle-v0.5.9-pre.3`（7 資產，prerelease，target `37ce0b5`） |
+| runtime 下載網址 | ✅（manifest）/ ⏳（tarball sha256） | `https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v0.5.9-pre.3/manifest.json` 下載成功，內容版號 `0.5.9-pre.3`、三 arch 齊全 |
+| 實機 wizard | ⏳ 待使用者 | 裝 `v0.5.9-pre.3` → WSL wizard（x64，走內建 baseline）；DGX Spark SSH（arm64，走網路下載）視時間 |
+
+通過實機驗收 → CLOSED。
