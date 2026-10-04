@@ -123,7 +123,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 ### 待辦（依優先序）
 
 1. 🟡 **BUG-071** ✅ FIXED（`a295ec7`；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 已發佈）—— **待使用者實機**：裝 pre.3 跑 WSL wizard（x64）；DGX Spark SSH（arm64）視時間 → 通過即 CLOSED
-2. 🟡 **BUG-083** FIXING（Codex 版本落後）—— D121 串行：T0367 T-A 錯誤分類（派發中）→ T-B bump SDK 0.160 + 內嵌解析相容新目錄 → T-D 模型清單 → T-C 選最新 binary
+2. 🟡 **BUG-083** FIXING（Codex 版本落後）—— D121 串行：T0367 T-A ✅ `c6214c2` → T0369 T-B bump SDK 0.160（派發中）→ T-D 模型清單 → T-C 選最新 binary
 3. 🟡 **Claude SDK 落後**（0.2.113 → 0.3.289；CLI 2.1.113 → 2.1.289；模型清單無 Claude 5 系列）—— T0368 research 派發中，結論後定升級路徑
 4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 已連三個 release 超標 2.6 倍（~724 MB）且從未觸發復議 —— 建議開 PLAN 復議門檻本身
 5. 🟢 **L128 CLAUDE.md Logging 節待修**：記的是 macOS 路徑 + 舊檔名，Windows 上照著找不到
@@ -145,7 +145,7 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（63 entries）
 
 ### 編號起始
-- **T0369** / **BUG-084** / **PLAN-035** / **D122** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；BUG-083 FIXING：T0366 research DONE `aa970dc` → T0367（T-A）派發，後續 T-B/T-D/T-C 串行（D121）；T0368 Claude SDK 0.3 研究派發；D120、D121、L133 新增）
+- **T0370** / **BUG-084** / **PLAN-035** / **D122** / **EXP-[TOPIC]-001** / **L134**（第四十九 session：T0363 DONE `36bf6f0`；T0364 DONE `ddef6b0`；T0365 DONE `a295ec7`；BUG-083 FIXING：T0366 research DONE `aa970dc` → T0367（T-A）DONE `c6214c2` → T0369（T-B）派發，後續 T-D/T-C 串行（D121）；T0368 Claude SDK 0.3 研究派發；D120、D121、L133 新增）
 
 ---
 
@@ -282,6 +282,8 @@ BUG-082 CLOSED ✅ ｜ 跨塔台回函已發 ✅ ｜ CLAUDE.md Release 節已校
 - [研究完成] 2026-10-04 15:52 — T0366 DONE（`aa970dc`）：H1/H3 證實、H2 誤報；D121 定 S1+S2 串行
 - [派發] 2026-10-04 15:53 — T0367（BUG-083 T-A）`--mode yolo --no-interactive`
 - [派發] 2026-10-04 15:58 — T0368（Claude SDK 0.3 升級研究）`--mode yolo --interactive`，與 T0367 並行（affects_files 不重疊）
+- [完成] 2026-10-04 15:59 — T0367 DONE（`c6214c2`）塔台複驗 561 tests PASS
+- [派發] 2026-10-04 15:59 — T0369（BUG-083 T-B）`--mode yolo --no-interactive`
 - [發版] 2026-10-04 13:42 — run `37179875163` 9/9 success；`v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3` 發佈；runtime URL 下載 manifest 成功；BUG-071 → FIXED
 
 ### 前次 YOLO Session（2026-04-18 ~16:10 啟動，第三 session，收尾）
