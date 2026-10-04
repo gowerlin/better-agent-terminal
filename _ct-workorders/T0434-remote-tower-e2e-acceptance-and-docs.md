@@ -41,6 +41,7 @@ memory_overrides:
   - "🔴 **不部署 WSL、不 restart 服務**：WSL 部署與真 BAT 遠端視窗實機由塔台 / 使用者執行。本單產出 (a) vitest harness 端到端測試、(b) smoke 新增項目（對已部署 server 才會跑，本單只需對**目前 WSL server 跑時能正確 SKIP 或標示版本不足**，不得因舊 server 而紅）、(c) 文件、(d) 回報區的實機步驟。"
   - "🔴 `_ct-workorders/_local-rules.md` 為塔台私有檔，**不改**；需要更新的「Auto-Session 路由規則」遠端分支內容寫在回報區，由塔台套用。`CLAUDE.md` 可改（新增遠端 Tower 通知小節：權杖範圍、env key、限制）。"
   - "🔴 harness 測試跑真 node helper 子行程：Tower PTY → `bat-terminal.mjs` → `created-externally` → `bat-notify.mjs` → `notified` + `keypress`；以及負向：權杖越權呼叫被拒。測試需在 Windows 本機可跑（helper 子行程以 `process.execPath` + array args spawn）。"
+  - "🔴 **塔台 06:38 追加（T0433 遭遇問題 4）**：`scripts/dev-deploy-headless.mjs` 目前只替換 esbuild 產物、不部署 `scripts/` helper → `deploy:headless:dev` 後遠端 `<installRoot>/scripts/` 不存在、helper env 不注入（安全降級）。本單擴充 dev-deploy 一併複製 T0433 的 `serverBundleHelperScripts`（沿用其清單 SoT，含 dry-run / `.bak-<tag>` / `--rollback` 行為與測試），否則實機驗收無從進行。`affects_files` 視為含 `scripts/dev-deploy-headless.mjs`。"
   - "🔴 依賴 T0431 / T0432 / T0433。開工前 `git log --oneline -10` 確認。"
   - "🔴 **只跑 `npm run test:unit` + `npx tsc --noEmit`；不跑 `npx vite build` / `npm run test:e2e`**（L141）。**禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`**（L138）；`git commit --only`；不 push。"
 ---

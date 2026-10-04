@@ -278,6 +278,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 06:36 — T0444 DONE（`bb24f33`）塔台複核 PASS：所有權旗標 + 32 案矩陣、setup-wizard 280 passed、tsc 39；BUG-111 → FIXED；`tests/` 兩檔斷言更新接受。全套 1 failed = `headless-pty.test.ts` BAT_* env 斷言，落在 T0433 未提交改動 → **T0433 完成時必查**
 - [斷點 C 裁決] 2026-10-05 06:36 — T0444 遭遇問題 3 前兩項 → T0452；jumpToStep 不 rollback（T0309 既有 TODO）記 backlog
 - [派發] 2026-10-05 06:36 — T0452（`--no-interactive`）
+- [完成] 2026-10-05 06:37 — T0433 DONE（`ec4ca56`）塔台複核 PASS：Worker 2301 tests / **0 failed**（`headless-pty.test.ts` 依規格更新）、tsc 39、`verify:helpers` OK；真 bat-terminal / bat-notify 子行程 env 無 server token；codex `AGENT_UNAVAILABLE`
+- [斷點 C 裁決] 2026-10-05 06:38 — 不做 renderer toast（唯一呼叫者為 Tower PTY 內 bat-terminal，錯誤印在分頁已足）；dev-deploy 不部署 helper → 併入 T0434
+- [派發] 2026-10-05 06:38 — T0448（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
