@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0377
 title: "BUG-085 修復：提權 Windows 下 codex-cli 啟動指令注入 -c features.daemon_auto_start=false + 一次性提示"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P2
 sizing: M
 created_at: "2026-10-04T20:39:03+08:00"
-updated_at: "2026-10-04T20:41:02+08:00"
+updated_at: "2026-10-04T20:46:25+08:00"
 started_at: "2026-10-04T20:41:02+08:00"
-completed_at: null
+completed_at: "2026-10-04T20:46:25+08:00"
 target_version: next
 depends_on: [T0375]
 related:
@@ -153,4 +153,5 @@ Codex CLI 0.160 的 Windows daemon 拒絕在提權權杖下啟動，BAT 的 Code
 
 ### Commit
 
-見下方 commit 紀錄（`git commit --only`，不 push）。
+- 實作 commit：`71706c2`（`git commit --only`，10 files；不 push）
+- 收尾 commit：本工單 metadata `status: DONE` + 本行（僅工單檔）
