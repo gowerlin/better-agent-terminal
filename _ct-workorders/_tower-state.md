@@ -1,8 +1,8 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-04 16:59 (UTC+8) — **第四十九 session 收工** — 12 張工單全 DONE；BUG-071 / BUG-083 / BUG-084 → FIXED；`v0.5.9-pre.3` 已發布、`v0.5.9-pre.4` CI 收工時仍在跑。
+> 最後更新:2026-10-04 16:59 (UTC+8) — **第四十九 session 收工** — 12 張工單全 DONE；BUG-071 / BUG-083 / BUG-084 → FIXED；`v0.5.9-pre.3` 已發布、`v0.5.9-pre.4` 已發布（收工後 17:10 驗證）。
 >
-> **下次起手**:Fast Path 載入;**第一件事：驗 `v0.5.9-pre.4` CI 結果**（run `37190475739`），再收使用者實機驗收回報。
+> **下次起手**:Fast Path 載入;pre.4 CI 已於收工後驗證通過；**第一件事：收使用者實機驗收回報**（BUG-071 / 083 / 084）。
 >
 > **前次更新**:2026-09-02 15:52 (UTC+8) — 第四十八 session 收工:BUG-082 CLOSED、`v0.5.9-pre.2` 發布。
 
@@ -23,7 +23,7 @@
 3. **13:26** 首次 push + 發 `v0.5.9-pre.3`：9/9 job、首個 `server-bundle-v0.5.9-pre.3`、runtime URL 下載 sha256 三方一致 → BUG-071 FIXED
 4. **13:30** 測試者回報 Codex 需更新 → BUG-083 + T0366 research（H1/H3 證實、H2 誤報）→ D121 串行 T0367 / T0369 / T0370 / T0373 → FIXED
 5. **15:58** 使用者問「SDK 是否最新」→ T0368 research → **內嵌 Claude 2.1.113 被服務端擋 Opus 5.5 / Fable 5.1** → BUG-084（high）→ D122 → T0371 / T0372 / T0374 → FIXED；D123 使用者裁決 `claude-code-v2` 下架（Phase 2）
-6. **16:55** bump + push + 觸發 `v0.5.9-pre.4`（run `37190475739`）—— **收工時 CI 仍在跑，結果未驗**
+6. **16:55** bump + push + 觸發 `v0.5.9-pre.4`（run `37190475739`）→ 收工後 17:10 驗證 9/9 success、兩個 release 齊全；安裝檔 +22~32%
 
 ### 本輪戰績
 
@@ -34,7 +34,7 @@
 | 決策 | 4（D120-D123） | |
 | Learnings | L133、L134、L135 | |
 | unit test | 550 → **673**（47 files） | tsc 42 → 40 |
-| Release | `v0.5.9-pre.3` ✅ / `v0.5.9-pre.4` ⏳ CI | 首次 server bundle release |
+| Release | `v0.5.9-pre.3` ✅ / `v0.5.9-pre.4` ✅ | 首次 server bundle release |
 | 依賴 | codex-sdk 0.124 → 0.160；claude-code 2.1.113 → 2.1.289 | claude-agent-sdk 仍 0.2.113（Phase 2） |
 
 ### 重點觀察 / Learnings
@@ -109,7 +109,7 @@ T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3
 
 ### 待辦（依優先序）
 
-1. 🔴 **驗 `v0.5.9-pre.4` CI**：`gh run view 37190475739 -R gowerlin/better-agent-terminal`；確認 9/9 job、`v0.5.9-pre.4`（5 檔）+ `server-bundle-v0.5.9-pre.4`（7 資產）、**記錄安裝檔大小 vs pre.3**（codex 套件 213→430 MB）。失敗則查因，不自動重跑
+1. ✅ **`v0.5.9-pre.4` CI 已驗（2026-10-04 17:10）**：run `37190475739` 9/9 success；`v0.5.9-pre.4` 5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產（target `17ad488`）。安裝檔 pre.3 → pre.4：Setup.exe 535 → 683 MB、win.zip 680 → 855、dmg 724 → 884、arm64.dmg 715 → 875、AppImage 777 → 1026 MB（+22~32%，主因 codex 套件翻倍）→ 併入 L130 D094 復議
 2. 🟡 **收實機驗收**（使用者收工時正在更新 BAT）：BUG-071 WSL wizard 第 4 步 ｜ BUG-083 Codex 分頁首行 `Codex CLI 0.160.0 (embedded)`、無紅色 `Codex is ignoring` / `Reconnecting` ｜ BUG-084 Claude 面板選 Opus 5.5 對話、下拉無 alias 重複 → 通過即 CLOSED
 3. 🟡 **BUG-084 Phase 2**：`claude-agent-sdk` 0.2.113 → 0.3.x + `claude-code-v2` preset **下架**（D123，含既有設定遷移至 `claude-code`）+ TodoWrite → Task tools；順手改 `src/types/index.ts:122` 過時註解（max = Opus only）
 4. 🟢 **L130 D094 門檻復議**：mac installer 280 MB cap 長期超標，pre.4 codex 翻倍後更需復議
@@ -140,7 +140,7 @@ T0363-T0374 全 DONE ✅ ｜ BUG-071 / 083 / 084 → FIXED ✅ ｜ `v0.5.9-pre.3
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
 | **目前版號** | **0.5.9-pre.4**（package.json + lock 已同步，commit `17ad488`；release CI 進行中） |
-| **最新 release** | `v0.5.9-pre.4`（2026-10-04 觸發，**CI 收工時未完成**，run `37190475739`）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
+| **最新 release** | `v0.5.9-pre.4`（2026-10-04 17:10 驗證：9/9 success，5 檔 + `server-bundle-v0.5.9-pre.4` 7 資產）；前一版 `v0.5.9-pre.3` + `server-bundle-v0.5.9-pre.3`（首個 server bundle release，D120） |
 | **前一 tag** | `v0.5.9-pre.3`（2026-10-04） |
 | **目前主軸** | 內嵌 CLI 追版（BUG-083 / BUG-084）收尾 → Phase 2 Claude SDK 0.3 |
 | **工單最大編號** | T0374（DONE，commit `5b8975f`） |
