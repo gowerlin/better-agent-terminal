@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-092
 title: 沒有 `wsl.exe` 連線時 WSL 約 15 秒就關閉發行版，bat-server 跟著停止，WSL profile 連不上
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-10-04T22:18:57+08:00"
-updated_at: "2026-10-04T22:18:57+08:00"
+updated_at: "2026-10-04T22:57:09+08:00"
 impact:
   - remote-wsl-profile
   - setup-wizard-wsl
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（精靈完成後的 WSL profile 基本上連不上；BAT 的 TCP 連線不算 WSL 活動） |
 | 可重現 | 100%（T0380 實測，經使用者同意） |
-| **狀態** | 📂 OPEN（修復單 T0384） |
+| **狀態** | 🔧 FIXING（T0384） |
 | 回報者 | 塔台 21:58 發現 `Ubuntu-24.04` 為 `Stopped`；T0380 證實 |
 
 ## 證據（T0380）
