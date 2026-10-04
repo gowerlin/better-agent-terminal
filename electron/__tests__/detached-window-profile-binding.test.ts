@@ -148,7 +148,8 @@ describe('main.ts wiring (T0446 source guard)', () => {
 
   it('bindProxiedHandlersToIpc resolves a detached sender before routing; handlers keep windowId', () => {
     const fn = section('function bindProxiedHandlersToIpc()', '// ── Renderer debug log')
-    const detached = fn.indexOf('getDetachedWorkspaceIdByWebContents(event.sender)')
+    // T0453: anchored on the routing resolution — the detached workspace:load / save divert comes earlier.
+    const detached = fn.indexOf('await resolveDetachedBinding(detachedWorkspaceId)')
     expect(detached).toBeGreaterThan(fn.indexOf('if (ALWAYS_LOCAL_CHANNELS.has(channel))'))
     expect(detached).toBeLessThan(fn.indexOf('planProxiedInvokeRoute('))
     expect(fn).toMatch(/detachedSenderRouteIdentity\(binding, /)

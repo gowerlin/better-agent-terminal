@@ -2201,10 +2201,37 @@ function registerProxiedHandlers() {
 // The set lives in remote/headless-channel-status.ts (ALWAYS_LOCAL_CHANNELS),
 // shared with the headless parity ledger (T0390).
 
+const DETACHED_WORKSPACE_CHANNELS = new Set(['workspace:load', 'workspace:save'])
+
+/**
+ * T0453 (BUG-113): workspace:load / workspace:save from a detached workspace window,
+ * which has no registry entry of its own. Load returns the parent window's entry,
+ * read-only. Save is a no-op: the parent window owns that entry (its store holds every
+ * workspace and autosaves), so a second writer would overwrite it. Once the parent's
+ * entry is gone (window removed from the profile) load returns null → "Workspace not found".
+ */
+async function invokeDetachedWorkspacePersistence(channel: string, workspaceId: string): Promise<unknown> {
+  if (channel === 'workspace:save') return true
+  const parentWindowId = detachedWindowRecords.get(workspaceId)?.parentWindowId ?? null
+  if (!parentWindowId) {
+    logger.warn(`[detached] ${workspaceId}: no parent window recorded, workspace:load → null`)
+    return null
+  }
+  const data = await invokeHandler('workspace:load', [], parentWindowId)
+  if (data === null) logger.warn(`[detached] ${workspaceId}: parent window ${parentWindowId} has no registry entry, workspace:load → null`)
+  return data
+}
+
 function bindProxiedHandlersToIpc() {
   for (const channel of PROXIED_CHANNELS) {
     ipcMain.handle(channel, async (event, ...args: unknown[]) => {
       const windowId = getWindowIdByWebContents(event.sender)
+
+      // T0453 (BUG-113): a detached workspace window reads its parent's workspaces, never writes them.
+      if (!windowId && DETACHED_WORKSPACE_CHANNELS.has(channel)) {
+        const detachedWorkspaceId = getDetachedWorkspaceIdByWebContents(event.sender)
+        if (detachedWorkspaceId !== null) return invokeDetachedWorkspacePersistence(channel, detachedWorkspaceId)
+      }
 
       // ALWAYS_LOCAL channels never proxy.
       if (ALWAYS_LOCAL_CHANNELS.has(channel)) {
