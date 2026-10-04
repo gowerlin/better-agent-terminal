@@ -23,15 +23,18 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-04 23:58 (UTC+8) — 第五十三 session：開 BUG-095（FIXING，T0392）/ 096 / 097（T0386 發現）；BUG-093 FIXING（T0387）
+> 最後同步：2026-10-05 00:04 (UTC+8) — 第五十三 session：BUG-093 → FIXED（T0387 `a3717a5`）；開 BUG-098 / 099 / 100（T0387 發現的既有問題）
 
 ## 統計
-- 🔴 Open: 3 | ⏳ Fixing: 2 | ✅ Fixed: 2 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 22**
+- 🔴 Open: 6 | ⏳ Fixing: 1 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 15 | ⛔ Won't Fix: 0 | **Total: 25**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告、preload / main 未實作 → SSH `start-server` 的 rollback 呼叫即拋錯 | 🟡 medium | 2026-10-05 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
+| BUG-099 | 設定精靈在失敗畫面按取消時，不會 rollback 正在失敗的步驟（只 rollback 已完成步驟） | 🟢 low | 2026-10-05 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
+| BUG-098 | SSH 精靈 direct 模式整條路徑不通：遠端 bat-server 固定綁 localhost、profile 固定寫 `remoteHost: localhost`、ssh config alias 不解析 HostName | 🟡 medium | 2026-10-05 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
 | BUG-097 | Docker 遠端：`-p` 未綁 host 127.0.0.1（全介面暴露）、container 內 bat-server 綁 127.0.0.1（推測連不上）、HEALTHCHECK `/health` 無路由 | 🔴 high | 2026-10-04 | [BUG-097](BUG-097-docker-server-port-exposed-and-unreachable.md) |
 | BUG-096 | `App.tsx` initProfile 的 `remote.connect` 不帶 fingerprint，以未 pin 驗證的新 client 取代 main 已驗證的連線 | 🟡 medium | 2026-10-04 | [BUG-096](BUG-096-app-remote-connect-without-fingerprint.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
@@ -41,12 +44,12 @@ breakdown:
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-095 | `claude:abort-session` 只進 handler registry、未列入 `PROXIED_CHANNELS`，沒有 `ipcMain.handle` → Claude / Codex 面板的中止（abort）呼叫一律失敗 | 🔴 high | 2026-10-04 | [BUG-095](BUG-095-claude-abort-session-not-bound-to-ipc.md) |
-| BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
 | BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
 | BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-04 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
 

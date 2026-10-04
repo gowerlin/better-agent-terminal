@@ -3237,7 +3237,7 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 
 **現象**：T0386 Worker 23:36 寫入工單的 `status: IN_PROGRESS` / `started_at` 在 23:46 前後被還原回 HEAD 內容。reflog 在 23:46:10 有 `reset: moving to HEAD`（`git stash` 的特徵），當時塔台未執行 git；同時段平行執行的只有 T0387 Worker。stash 已不在 list（推定已 pop / drop），T0387 自身改動仍在，未造成永久遺失（T0386 收尾時重寫）。
 
-**根因（推定）**：Worker 為比對 baseline（tsc / test）使用 `git stash`，在**多 Worker 共用同一工作樹**時，stash 會把其他 session 未提交的修改一併收走；pop 前若其他 session 又寫了同檔或 pop 衝突，修改就可能遺失。
+**根因（已確認，T0387 回報區「過程事故」自述 23:47–23:51 執行未限定範圍的 `git stash`，指令卡住約 5 分鐘後 `stash pop`）**：Worker 為比對 baseline（tsc / test）使用 `git stash`，在**多 Worker 共用同一工作樹**時，stash 會把其他 session 未提交的修改一併收走；pop 前若其他 session 又寫了同檔或 pop 衝突，修改就可能遺失。
 
 **How to apply**：
 - 平行派發的工單一律在 `memory_overrides` 寫入：禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`；比對 baseline 用 `git show HEAD:<path>` 或 `git worktree add` 到 scratchpad
