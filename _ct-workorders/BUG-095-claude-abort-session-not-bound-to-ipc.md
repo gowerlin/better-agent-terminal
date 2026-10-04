@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-095
 title: "`claude:abort-session` 只進 handler registry、未列入 `PROXIED_CHANNELS`，沒有 `ipcMain.handle` → Claude / Codex 面板的中止（abort）呼叫一律失敗"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-04T23:58:00+08:00"
+updated_at: "2026-10-05T00:09:13+08:00"
 impact:
   - claude-agent-panel
   - codex-agent-panel
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（本機即壞，影響所有使用者的 Agent 中止操作；推定，待 runtime 確認） |
 | 可重現 | 推定 100%（程式碼證據；塔台 2026-10-04 23:56 複核） |
-| **狀態** | 🔧 FIXING（T0392） |
+| **狀態** | ✅ FIXED（T0392 `f72e177`；待實機：需含此 commit 的 build） |
 | 回報者 | T0386 Worker（研究目標 1 channel 盤點） |
 
 ## 現象（程式碼證據）
@@ -36,3 +36,12 @@ links:
 
 - runtime：Agent 面板執行中按中止 / Esc，DevTools 或 debug log 是否出現 reject；是否有其他路徑（例如 stop）掩蓋了症狀
 - 是否還有其他「`registerHandler` 了但不在 `PROXIED_CHANNELS`、也沒有獨立 `ipcMain.handle`」的孤兒 channel（T0392 一併盤點）
+
+## 修復紀錄（T0392，`f72e177`，塔台 2026-10-05 00:09 複驗）
+
+- `electron/remote/protocol.ts` `PROXIED_CHANNELS` 加 `'claude:abort-session'`（產品碼僅此 1 行）
+- 守門測試 `electron/remote/__tests__/proxied-channels-binding.test.ts`（5 項）：每個 `registerHandler` channel 必須在 `PROXIED_CHANNELS` ∪ 獨立 `ipcMain.handle` ∪ `REGISTRY_ONLY_CHANNELS`；每個 preload `ipcRenderer.invoke` 都有 IPC 綁定。盤點 106 個 registered channel，`claude:abort-session` 為**唯一**孤兒
+- 塔台複驗：守門測試 5/5 pass；Worker 全套 970 tests / vite build / tsc 40（含當時 T0387 dirty tree）
+- T0388 headless ledger 已將 `claude:abort-session` 列為 P1（`electron/remote/headless-channel-status.ts:60`）
+- runtime（交使用者，下一版 build）：Claude Agent 面板長回應中按中止 / Esc，回應停止、debug log 無 `No handler registered`
+
