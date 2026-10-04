@@ -80,6 +80,7 @@ describe('wizard.action.* i18n completeness (T0334)', () => {
  */
 const REMOTE_TOOLS_UI_KEYS = [
   'remoteTools.title',
+  'remoteTools.installRequestFailed',
   'remoteTools.checking',
   'remoteTools.recheck',
   'remoteTools.install',

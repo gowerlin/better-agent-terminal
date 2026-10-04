@@ -790,6 +790,7 @@
     }
   },
   "remoteTools": {
+    "installRequestFailed": "無法在遠端視窗啟動安裝。",
     "title": "遠端 AI 工具",
     "checking": "檢查中…",
     "recheck": "重新檢查",

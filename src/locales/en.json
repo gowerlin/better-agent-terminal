@@ -790,6 +790,7 @@
     }
   },
   "remoteTools": {
+    "installRequestFailed": "Could not start the install in the remote window.",
     "title": "Remote AI tools",
     "checking": "Checking…",
     "recheck": "Check again",

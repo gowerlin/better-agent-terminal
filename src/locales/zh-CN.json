@@ -790,6 +790,7 @@
     }
   },
   "remoteTools": {
+    "installRequestFailed": "无法在远端窗口启动安装。",
     "title": "远程 AI 工具",
     "checking": "检查中…",
     "recheck": "重新检查",
