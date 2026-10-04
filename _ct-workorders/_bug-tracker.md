@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 02:58 (UTC+8) — 第五十四 session：BUG-103 → CLOSED
+> 最後同步：2026-10-05 04:08 (UTC+8) — 第五十四 session：開 BUG-104（T0414 發現）→ FIXING（T0415）
 
 ## 統計
-- 🔴 Open: 6 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 28**
+- 🔴 Open: 6 | ⏳ Fixing: 1 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 29**
 
 ## 🔴 Open / 處理中
 
@@ -43,7 +43,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-104 | remote-tools 的 codex 安裝食譜卡在 installer 的「Start Codex now? [y/N]」互動提示 | 🟡 medium | 2026-10-05 | [BUG-104](BUG-104-codex-install-recipe-blocks-on-start-prompt.md) |
 
 ## ✅ 已修復
 

@@ -61,7 +61,7 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 | T0411 | B | headless / main 接線：`remote-tools:detect` + `remote:detect-tools` + smoke S10（🔒 main / protocol / headless-entry） | T0408 | ✅ DONE（`49b1ca5`，03:22 聯合複驗：1514 tests / vite / e2e 0 failed / tsc 40；preload `remoteTools.detect(profileId)` / `detectHere()`；WSL 部署 + S10 待辦） |
 | T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | ✅ DONE（`e92e241` / `968fe3f`，03:43 聯合複驗：1614 tests / vite / e2e 0 failed / tsc 40） |
 | T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | ✅ DONE（`11d02f1`，03:31 塔台目標測試複驗 297/297；03:43 聯合複驗 PASS） |
-| T0414 | G | 實機驗收（首次允許實際安裝） | T0411-T0413 | 🔄 03:45 派發（使用者 03:44 同意在 WSL 實際安裝 claude / codex / uv / gh / rg；UI 點擊流程由使用者以新 build 另驗） |
+| T0414 | G | 實機驗收（首次允許實際安裝） | T0411-T0413 | ✅ DONE（`0f3b5e8`，04:07 複驗 1640 tests + smoke 10/10）：5 個工具經 headless PTY 實裝 exit 0、偵測 ok；⑦ sudo 需密碼 / ⑧ Docker root 未涵蓋；發現 BUG-104 |
 
 之後才是 PLAN-036 T0405（git 上遠端）→ T0406（fs）。
 - T0410 注意（T0409 備註）：install.sh 類食譜假設遠端有 `curl`；偵測到 `curl` missing 時停用 claude / codex / uv 安裝鈕並提示。i18n key 以 `INTEGRITY_KEYS` / `LOCATION_KEYS` / `NOTE_KEYS` / `UNSUPPORTED_REASONS`（→ `remoteTools.unsupported.<reason>`）為準
@@ -75,3 +75,13 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 - ✅ 已補 locale（塔台 03:43 直接修）：`remoteTools.installRequestFailed`——zh-TW「無法在遠端視窗啟動安裝。」、zh-CN「无法在远端窗口启动安装。」、en「Could not start the install in the remote window.」
 - T0412 已知限制：全 app 單一遠端連線（同時開兩個遠端 profile 視窗只有最後連線者能取件）；安裝分頁加到 active 工作區但 WorkspaceView 子頁籤若停在 Files 需手動切回 Terminal；本機面板安裝完成後需手動「重新檢查」；`host="remote-window"` 面板尚未在任何畫面掛載（僅測試覆蓋）
 - T0414 實機步驟：見 T0412 回報區 13 項；**T0414 是首次允許實際安裝**，需使用者同意
+
+## T0414 實機結論（2026-10-05 04:05）
+
+- WSL 實裝：claude 2.1.285（stable 頻道，低於內嵌 2.1.289 但 ≥ HEALTHY_MIN）、uv 0.12.23、codex 0.160.0（`~/.local/bin`）；rg 14.1.0、gh 2.102.0（apt）。shell profile 未被修改
+- `DISABLE_AUTOUPDATER=1` 不擋 `claude install` / `claude update`（T0407 剩餘風險 1 解除）；`codex login status` 未登入 exit 1（剩餘風險 2 解除）
+- 修正認知：BAT 視角（systemd 啟動的 bat-server 及其 PTY）**沒有** WSL interop `/mnt/*` PATH，`interop-only` 只在 wsl.exe 開的 shell 出現
+- `~/.local/bin` 工具 `serverVisible:false`（systemd unit PATH 不含，屬 PLAN-035）
+- 新工具：`scripts/remote-tools-install-check.mjs`（dry-run 預設，`--yes` 實裝，`--shell-check`）
+- BUG-104：codex installer `Start Codex now? [y/N]` 卡住標記 → T0415 加 `CODEX_NON_INTERACTIVE=1`
+- 未涵蓋：sudo 需密碼、Docker root 無 sudo、`curl | sh` 斷網回 0（皆待其他環境）
