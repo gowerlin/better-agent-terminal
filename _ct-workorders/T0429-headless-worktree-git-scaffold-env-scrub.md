@@ -116,7 +116,7 @@ T0423 讓 headless `git:*` / `github:*` 的 16 個 git / gh 子行程改用 scru
 - `npx tsc --noEmit`：**40** error（≤ 40 門檻），本單檔案 0 錯誤 — PASS
 - 未跑 `npx vite build` / `npm run test:e2e`（依 memory_overrides L141）；未部署 WSL（runtime smoke 未做）
 
-**Commit**：見下方 commit（`git commit --only` 產品 / 測試檔 + 本工單；不 push）
+**Commit**：`b968b9f` fix(headless): scrub BAT_* from worktree and git-scaffold git children (T0429)（`git commit --only` 7 個產品 / 測試檔 + 本工單；不 push）
 
 ### 遭遇問題
 
