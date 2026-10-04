@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（WSL / 精簡 Linux 遠端每開一個終端都會看到警告；locale 退回 `C`/`POSIX` 可能影響非 ASCII 輸出） |
 | 可重現 | 100%（T0396 smoke 對 `wsl:Ubuntu-24.04` 兩次、塔台 01:24 重跑一次皆出現） |
-| **狀態** | ✅ FIXED（T0398 `f0d20c0`，01:46 塔台複驗 1177 tests / vite build；待 WSL 重新部署 + smoke 實機） |
+| **狀態** | ✅ FIXED（T0398 `f0d20c0`，01:46 塔台複驗 1177 tests / vite build；**WSL 實機 PASS**（01:52 部署 `09f1e46`，smoke 8/8，首段輸出為 prompt、無 setlocale 警告）） |
 | 回報者 | T0396 Worker（回報區「遭遇問題」第 1 點） |
 
 ## 現象
@@ -41,4 +41,4 @@ links:
 ## 修復紀錄
 
 - T0398（`f0d20c0`）：新增 `electron/pty-locale-env.ts` `resolvePtyLocaleEnv`，三個 spawn 路徑共用；win32 / darwin 輸出不變；linux 沿用可用的繼承 UTF-8 `LANG`，否則 `C.UTF-8` → `en_US.UTF-8`（`locale -a` 探測、快取），不設 `LC_ALL`；customEnv 的 locale key 一律不覆寫
-- 殘留風險（Worker 回報，未修）：linux 繼承的 `LC_ALL` / `LC_CTYPE` 本身指向未安裝 locale（如 SSH `SendEnv LC_*`）時仍可能出現警告
+- 殘留風險（Worker 回報，未修）：linux 繼承的 `LC_ALL` / `LC_CTYPE` 本身指向未安裝 locale（如 SSH `SendEnv LC_*`）時仍可能出現警告- 2026-10-05 01:52 塔台（使用者同意重啟）`deploy:headless:dev --tag t0398 --yes` 部署 HEAD `09f1e46` 到 WSL（備份 `*.bak-t0398`），smoke 8/8 PASS，S3 首段輸出 `gower@GXDEVPC02:~$`（修前為 `bash: warning: setlocale: LC_ALL ...`）
