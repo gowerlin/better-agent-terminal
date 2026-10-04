@@ -28,7 +28,8 @@
     "welcomeHint": "點擊「+ 新增工作區」開始使用",
     "remoteConnectionFailed": "遠端連線失敗：{{error}}",
     "remoteConnectionFailedFallback": "遠端連線失敗：{{error}}\n正在切換回本機配置。",
-    "remoteMissingInfo": "遠端配置缺少連線資訊。"
+    "remoteMissingInfo": "遠端配置缺少連線資訊。",
+    "wslWindowsDriveWorkspaceHint": "工作區「{{path}}」位於 Windows 磁碟（在 WSL 內為 {{wslPath}}）。\n從 WSL 存取 /mnt 下的檔案 I/O 較慢，git / npm 也可能遇到權限與換行問題，建議將專案放在 WSL 內部目錄（例如 ~/projects）。\n工作區已加入，可繼續使用。"
   },
   "settings": {
     "title": "設定",

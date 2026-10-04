@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import QRCode from 'qrcode'
 import type { AppSettings, ShellType, FontType, ColorPresetId, StatuslineItemConfig, LanguageCode, LogLevel, EffortLevel } from '../types'
-import { FONT_OPTIONS, COLOR_PRESETS, SHELL_OPTIONS, STATUSLINE_ITEMS, EFFORT_LEVELS } from '../types'
+import { FONT_OPTIONS, COLOR_PRESETS, STATUSLINE_ITEMS, EFFORT_LEVELS, shellPlatformForTargetOS, getShellOptionsForPlatform } from '../types'
 import { settingsStore, parseStatuslineTemplate, exportStatuslineTemplate, FONT_SIZE_MIN, FONT_SIZE_MAX, REMOTE_PORT_MIN, REMOTE_PORT_MAX, REMOTE_PORT_DEFAULT } from '../stores/settings-store'
 import { EnvVarEditor } from './EnvVarEditor'
 import { VoiceSettingsSection } from './voice/VoiceSettingsSection'
@@ -14,6 +14,8 @@ import type { CustomCliDefinition } from '../types/agent-runtime'
 
 interface SettingsPanelProps {
   onClose: () => void
+  /** T0393: targetOS of this window's remote profile; shells run there. Absent = local window. */
+  targetOS?: string | null
 }
 
 // Check if a font is available using CSS Font Loading API
@@ -53,7 +55,7 @@ interface LoggingInfo {
   crashesDir: string
 }
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
+export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
   const { t } = useTranslation()
   const [settings, setSettings] = useState<AppSettings>(settingsStore.getSettings())
   const [availableFonts, setAvailableFonts] = useState<Set<FontType>>(new Set())
@@ -106,7 +108,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   // Get current platform for filtering shell options
   const platform = window.electronAPI?.platform || 'darwin'
-  const platformShellOptions = SHELL_OPTIONS.filter(opt => opt.platforms.includes(platform))
+  // T0393: a remote profile window's shells run on the remote host
+  const shellPlatform = shellPlatformForTargetOS(targetOS, platform)
+  const platformShellOptions = getShellOptionsForPlatform(shellPlatform)
 
   useEffect(() => {
     return settingsStore.subscribe(() => {
@@ -435,7 +439,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   type="text"
                   value={settings.customShellPath}
                   onChange={e => handleCustomPathChange(e.target.value)}
-                  placeholder={platform === 'win32' ? 'C:\\path\\to\\shell.exe' : '/path/to/shell'}
+                  placeholder={shellPlatform === 'win32' ? 'C:\\path\\to\\shell.exe' : '/path/to/shell'}
                 />
               </div>
             )}

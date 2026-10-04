@@ -112,6 +112,7 @@ import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
 import * as wslSystemd from './wsl-systemd'
 import { WslKeepAlive } from './wsl-keepalive'
+import { createWslFolderDefaultResolver, wslDistroForFolderDialog } from './wsl-workspace-folder'
 import { fetchTlsFingerprint, type FetchFingerprintResult } from './tls-fingerprint'
 import {
   assertPathAllowed,
@@ -3095,11 +3096,38 @@ ipcMain.on('log:renderer-write', (_event, level: unknown, args: unknown[]) => {
 
 // ── Local-only IPC handlers (not proxied) ──
 
+// T0393 (PLAN-036 P0-E): a WSL profile window's folder dialog opens in the
+// distro user's home (`\\wsl.localhost\<distro>\home\<user>`). Same routing
+// condition as bindProxiedHandlersToIpc: only while the window is actually
+// served by its remote connection. Anything else → null (original default).
+const resolveWslFolderDefault = createWslFolderDefaultResolver({
+  log: (message) => logger.warn(message),
+})
+
+async function wslFolderDefaultForSender(sender: Electron.WebContents): Promise<string | null> {
+  if (process.platform !== 'win32') return null
+  try {
+    const windowId = getWindowIdByWebContents(sender)
+    if (!windowId) return null
+    const entry = await windowRegistry.getEntry(windowId)
+    if (!entry?.profileId || entry.profileId !== remoteClientProfileId || !remoteClient?.isConnected) return null
+    const distro = wslDistroForFolderDialog(await profileManager.getProfile(entry.profileId))
+    if (!distro) return null
+    const defaultPath = await resolveWslFolderDefault(distro)
+    logger.log(`[wsl-folder] select-folder default for ${distro}: ${defaultPath ?? '(fallback to home)'}`)
+    return defaultPath
+  } catch (err) {
+    logger.warn('[wsl-folder] select-folder default failed:', err)
+    return null
+  }
+}
+
 function registerLocalHandlers() {
   ipcMain.handle('dialog:select-folder', async (event) => {
     const parentWin = BrowserWindow.fromWebContents(event.sender)
+    const wslDefaultPath = await wslFolderDefaultForSender(event.sender)
     const result = await dialog.showOpenDialog(parentWin!, {
-      defaultPath: app.getPath('home'),
+      defaultPath: wslDefaultPath ?? app.getPath('home'),
       properties: ['openDirectory', 'createDirectory', 'multiSelections'],
     })
     return result.canceled ? null : result.filePaths

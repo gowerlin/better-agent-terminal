@@ -28,7 +28,8 @@
     "welcomeHint": "Click \"+ Add Workspace\" to get started",
     "remoteConnectionFailed": "Remote connection failed: {{error}}",
     "remoteConnectionFailedFallback": "Remote connection failed: {{error}}\nSwitching back to local profile.",
-    "remoteMissingInfo": "Remote profile is missing connection info."
+    "remoteMissingInfo": "Remote profile is missing connection info.",
+    "wslWindowsDriveWorkspaceHint": "The workspace \"{{path}}\" is on a Windows drive ({{wslPath}} inside WSL).\nFiles under /mnt are slow to access from WSL, and git / npm may run into permission and line-ending issues. Consider keeping projects inside the WSL filesystem (e.g. ~/projects).\nThe workspace has been added; you can keep using it."
   },
   "settings": {
     "title": "Settings",

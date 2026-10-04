@@ -116,6 +116,31 @@ export const SHELL_OPTIONS: { id: ShellType; name: string; platforms: ('win32' |
   { id: 'custom', name: 'Custom', platforms: ['win32', 'darwin', 'linux'] },
 ];
 
+export type ShellPlatform = 'win32' | 'darwin' | 'linux';
+
+/**
+ * T0393 (PLAN-036 P0-E): the platform a window's shells run on. A remote
+ * profile window runs its shells on the remote host (settings and `pty:*` are
+ * proxied), so its targetOS decides; a local window (or a legacy remote
+ * profile without targetOS) keeps the local platform.
+ */
+export function shellPlatformForTargetOS(targetOS: string | null | undefined, localPlatform: ShellPlatform): ShellPlatform {
+  switch (targetOS) {
+    case 'wsl-linux':
+    case 'docker-linux':
+    case 'ssh-linux':
+      return 'linux';
+    case 'ssh-darwin':
+      return 'darwin';
+    default:
+      return localPlatform;
+  }
+}
+
+export function getShellOptionsForPlatform(platform: ShellPlatform) {
+  return SHELL_OPTIONS.filter(opt => opt.platforms.includes(platform));
+}
+
 export type FontType = 'system' | 'sf-mono' | 'menlo' | 'consolas' | 'monaco' | 'fira-code' | 'jetbrains-mono' | 'cascadia-code' | 'custom';
 
 // Effort levels supported by Claude Code CLI (>= 2.1.111 adds xhigh).

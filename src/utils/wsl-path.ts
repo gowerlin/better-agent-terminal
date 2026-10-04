@@ -29,6 +29,18 @@ export function winToWsl(winPath: string, distro: string): string {
   return normalized
 }
 
+const WSL_DRIVE_MOUNT_PATTERN = /^\/mnt\/[a-zA-Z](?:\/|$)/
+
+/**
+ * T0393: whether a client-side folder lands on a Windows drive inside the
+ * distro (`C:\…` or `\\wsl.localhost\<distro>\mnt\c\…` → `/mnt/c/…`). Those
+ * paths go through drvfs: slow I/O and permission / line-ending surprises for
+ * git and npm.
+ */
+export function isWslWindowsDrivePath(clientPath: string, distro: string): boolean {
+  return WSL_DRIVE_MOUNT_PATTERN.test(winToWsl(clientPath, distro))
+}
+
 export function wslToWin(wslPath: string, distro: string): string {
   const mountMatch = wslPath.match(WSL_MOUNT_PATTERN)
   if (mountMatch) {

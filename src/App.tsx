@@ -20,6 +20,7 @@ import { RecoveryPrompt } from './components/RecoveryPrompt'
 import { CtToast, useCtToast } from './components/CtToast'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from './utils/control-tower-launch'
+import { isWslWindowsDrivePath, winToWsl } from './utils/wsl-path'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 
@@ -119,6 +120,9 @@ export default function App() {
   const [showProfiles, setShowProfiles] = useState(false)
   const [activeProfileName, setActiveProfileName] = useState<string>('Default')
   const [isRemoteConnected, setIsRemoteConnected] = useState(false)
+  // T0393: remote profile this window is served by (null = local window). Its
+  // targetOS decides the shell list; a WSL distro enables the /mnt/<drive> hint.
+  const [windowRemoteTarget, setWindowRemoteTarget] = useState<{ targetOS?: string; wslDistro?: string } | null>(null)
   const [appNotification, setAppNotification] = useState<string | null>(null)
   const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
   const [serverStatusToast, setServerStatusToast] = useState<string | null>(null)
@@ -549,6 +553,7 @@ export default function App() {
             const winIdx = await window.electronAPI.app.getWindowIndex()
             setActiveProfileName(`${active.name}:${winIdx}`)
             setIsRemoteConnected(true)
+            setWindowRemoteTarget({ targetOS: active.targetOS, wslDistro: active.wslDistro })
           }
         } else if (active?.type === 'remote') {
           // Remote profile missing connection info — fall back
@@ -687,8 +692,15 @@ export default function App() {
         workspaceStore.addWorkspace(name, folderPath)
       }
       workspaceStore.save()
+      // T0393: a WSL window's folder on a Windows drive runs as /mnt/<drive>/…
+      // inside the distro — hint only, the workspace is already added.
+      const distro = windowRemoteTarget?.targetOS === 'wsl-linux' ? windowRemoteTarget.wslDistro : undefined
+      const onWindowsDrive = distro ? folderPaths.find(p => isWslWindowsDrivePath(p, distro)) : undefined
+      if (distro && onWindowsDrive) {
+        setAppNotification(t('app.wslWindowsDriveWorkspaceHint', { path: onWindowsDrive, wslPath: winToWsl(onWindowsDrive, distro) }))
+      }
     }
-  }, [])
+  }, [windowRemoteTarget, t])
 
 
   const handleDetachWorkspace = useCallback(async (workspaceId: string) => {
@@ -1173,7 +1185,7 @@ export default function App() {
         document.body
       )}
       {showSettings && (
-        <SettingsPanel onClose={() => setShowSettings(false)} />
+        <SettingsPanel onClose={() => setShowSettings(false)} targetOS={windowRemoteTarget?.targetOS} />
       )}
       {showProfiles && (
         <ProfilePanel
