@@ -1360,6 +1360,18 @@
 
 ---
 
+### D131 2026-10-05 — 遠端 AI 工具套件：檢查＋一鍵安裝（PLAN-037）
+
+- **背景**：PLAN-036 讓遠端有功能 handler，但遠端機器上的 claude / codex CLI、git、gh 是否安裝無機制處理（WSL 實測無系統 claude、未登入；codex 不在 server bundle；T0405 git 上遠端依賴遠端 git / gh）
+- **決定**（使用者 02:28 裁決）：
+  - 範圍 **B**：偵測安裝 / 版本 / 登入狀態＋缺的工具以按鈕在**遠端終端分頁**打入官方安裝指令（sudo 在分頁內輸入；免 sudo 者裝 `~/.local/bin`）
+  - 入口：WSL / SSH 精靈最後一步「工具檢查」＋遠端 profile 設定頁隨時重跑
+  - 排程：開 PLAN-037 + 研究 T0407，與 PLAN-036 平行；實作在 T0405（git 上遠端）前完成
+- **不採用**：A 只檢查不安裝；C 打包進 server bundle（安裝檔變大、D094 已超標、版本綁死重演 BUG-083 / 084）
+- **相關**：PLAN-037 / T0407 / PLAN-036 / PLAN-035 / D130
+
+---
+
 ### D130 2026-10-05 — PLAN-036 P0 自動驗收結案與 P1 開工排程
 
 - **背景**：P0（T0388-T0391、T0393）的實機驗收改為自動化（使用者 01:12 裁決兩層都做）：T0396 協定層 smoke 對 WSL `ea52b03` server 8/8 PASS；T0397 Playwright Electron e2e 4/4 PASS（source build）。使用者 01:36 裁決 BUG-095 / BUG-101 據此 CLOSED
