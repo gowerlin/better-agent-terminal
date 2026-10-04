@@ -90,6 +90,18 @@ describe('fetchFingerprintStep (T0381 / BUG-090)', () => {
     expect(ipc).not.toHaveBeenCalled()
   })
 
+  it('T0383: fails without falling back to 9876 (host RemoteServer port) when the port is unresolved', async () => {
+    const ipc = vi.fn(async () => ({ ok: true, fingerprint: FP }))
+    installIpc(ipc)
+    const ctx = makeCtx({ serverPort: undefined })
+
+    const error = await runCatching(ctx)
+
+    expect(error?.message).toMatch(/Server port was not resolved/)
+    expect(ipc).not.toHaveBeenCalled()
+    expect(ctx.fingerprint).toBeUndefined()
+  })
+
   it.each(['fingerprint-timeout', 'fingerprint-handshake-failed', 'fingerprint-invalid-port'])(
     'fails once with code=%s (no retry loop)',
     async (errorCode) => {

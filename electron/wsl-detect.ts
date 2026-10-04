@@ -1,4 +1,6 @@
 import * as childProcess from 'child_process'
+import { promises as fsPromises } from 'fs'
+import os from 'os'
 import path from 'path'
 import { winToWsl } from '../src/utils/wsl-path'
 import { assertValidDistro, assertValidUnixPath } from './wsl-validate'
@@ -9,7 +11,20 @@ export interface WslDistro {
   state: 'Running' | 'Stopped'
 }
 
-export type WslNetworkMode = 'mirrored' | 'nat' | 'unknown'
+/**
+ * T0383 (BUG-089): values `wslinfo --networking-mode` reports. Anything else,
+ * or a failed / missing `wslinfo` (WSL < 2.0.4), is `'unknown'`.
+ */
+export type WslNetworkMode = 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
+
+export interface WslNetworkModeInfo {
+  /** What the running WSL VM actually uses (`wslinfo --networking-mode`). */
+  actual: WslNetworkMode
+  /** `%USERPROFILE%\.wslconfig` `[wsl2] networkingMode`; null when not declared. */
+  declared: WslNetworkMode | null
+  /** Mirrored needs Windows 11 22H2 (build 22621)+; null when not on Windows / unparsable. */
+  mirroredSupported: boolean | null
+}
 
 interface ExecResult {
   stdout: Buffer
@@ -217,25 +232,89 @@ export async function systemdEnabled(distro: string): Promise<boolean> {
   return /^\s*systemd\s*=\s*true\s*$/im.test(confText)
 }
 
-export async function detectNetworkMode(distro: string): Promise<WslNetworkMode> {
-  const validatedDistro = validateDistroName(distro)
-  const routeResult = await runWsl(validatedDistro, ['ip', 'route', 'show', 'default'], { allowFailure: true })
-  const routeText = normalizeTextOutput(routeResult.stdout)
-  const routeLower = routeText.toLowerCase()
-  if (!routeLower) {
-    return 'unknown'
-  }
+const KNOWN_NETWORK_MODES: ReadonlySet<string> = new Set(['mirrored', 'nat', 'virtioproxy', 'none'])
+// Windows 11 22H2 — first build with `networkingMode=mirrored`.
+const MIRRORED_MIN_WINDOWS_BUILD = 22621
 
-  // Best-effort heuristic:
-  // - a default route with an explicit gateway is typically WSL NAT
-  // - a direct default route (no "via") is typically mirrored mode
-  if (routeLower.includes(' via ')) {
-    return 'nat'
+function toNetworkMode(value: string): WslNetworkMode {
+  const lower = value.trim().toLowerCase()
+  return KNOWN_NETWORK_MODES.has(lower) ? (lower as WslNetworkMode) : 'unknown'
+}
+
+/** T0383: `wslinfo --networking-mode` stdout -> mode (UTF-8 or UTF-16, any line ending). */
+export function parseWslinfoNetworkingMode(buffer: Buffer): WslNetworkMode {
+  const lines = normalizeTextOutput(buffer)
+    .split(/\r?\n/)
+    .map((line) => line.trim().toLowerCase())
+    .filter((line) => line.length > 0)
+  // Tolerate stray diagnostic lines: take the last line that is a known mode.
+  const known = lines.filter((line) => KNOWN_NETWORK_MODES.has(line))
+  return known.length > 0 ? (known[known.length - 1] as WslNetworkMode) : 'unknown'
+}
+
+/**
+ * T0383: `.wslconfig` `[wsl2] networkingMode`. INI: section names, keys and
+ * values are case-insensitive, `#` / `;` start comments. Returns null when the
+ * key is not declared; an unrecognised value is `'unknown'` (WSL falls back to NAT).
+ */
+export function parseWslConfigNetworkingMode(text: string): WslNetworkMode | null {
+  let section = ''
+  let declared: WslNetworkMode | null = null
+  for (const rawLine of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+    const line = rawLine.replace(/[#;].*$/, '').trim()
+    if (!line) continue
+    const header = line.match(/^\[([^\]]*)\]$/)
+    if (header) {
+      section = header[1].trim().toLowerCase()
+      continue
+    }
+    if (section !== 'wsl2') continue
+    const entry = line.match(/^([^=]+)=(.*)$/)
+    if (!entry || entry[1].trim().toLowerCase() !== 'networkingmode') continue
+    declared = toNetworkMode(entry[2].trim().replace(/^(["'])(.*)\1$/, '$2'))
   }
-  if (routeLower.includes(' dev ')) {
-    return 'mirrored'
+  return declared
+}
+
+function defaultWslConfigPath(): string {
+  return path.join(process.env.USERPROFILE || os.homedir(), '.wslconfig')
+}
+
+/** T0383: read-only. Missing / unreadable file -> null. */
+export async function readDeclaredNetworkMode(configPath: string = defaultWslConfigPath()): Promise<WslNetworkMode | null> {
+  try {
+    return parseWslConfigNetworkingMode(normalizeTextOutput(await fsPromises.readFile(configPath)))
+  } catch {
+    return null
   }
-  return 'unknown'
+}
+
+/** T0383: `os.release()` on Windows is `10.0.<build>`. */
+export function windowsSupportsMirrored(release: string = os.release(), platform: NodeJS.Platform = process.platform): boolean | null {
+  if (platform !== 'win32') return null
+  const build = Number(release.split('.')[2])
+  return Number.isInteger(build) && build > 0 ? build >= MIRRORED_MIN_WINDOWS_BUILD : null
+}
+
+/**
+ * T0383 (BUG-089): the old `ip route show default` heuristic is gone — under
+ * Mirrored the distro mirrors the host routing table, so the default route
+ * always has a gateway and was misread as NAT. Fixed argv, distro whitelisted.
+ */
+export async function detectNetworkMode(distro: string): Promise<WslNetworkModeInfo> {
+  const validatedDistro = validateDistroName(distro)
+  let actual: WslNetworkMode = 'unknown'
+  try {
+    const { stdout } = await runWsl(validatedDistro, ['wslinfo', '--networking-mode'], { timeoutMs: PROBE_TIMEOUT_MS })
+    actual = parseWslinfoNetworkingMode(stdout)
+  } catch {
+    // wslinfo missing (WSL < 2.0.4) or the probe failed.
+  }
+  return {
+    actual,
+    declared: await readDeclaredNetworkMode(),
+    mirroredSupported: windowsSupportsMirrored(),
+  }
 }
 
 export async function installBundle(

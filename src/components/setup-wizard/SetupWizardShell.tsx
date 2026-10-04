@@ -282,7 +282,7 @@ function StepDetailPanel({
 
       <div className="bat-wizard-detail-body">
         {display.status === WizardStepStatus.Running && (
-          <p className="text-sm text-sky-300">{t('wizard.currentStep')}...</p>
+          <p className="text-sm text-sky-300">{t('wizard.running')}</p>
         )}
         {showMappedError && mappedError && (
           <div className="bat-wizard-mapped-error mt-2" role="alert">

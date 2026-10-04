@@ -1,6 +1,46 @@
+import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
 
 const INSTALL_SUBDIR = '.local/bat-server'
+
+type WslNetworkModeInfo = Awaited<ReturnType<typeof window.electronAPI.wsl.detectNetworkMode>>
+type WslNetworkMode = WslNetworkModeInfo['actual']
+
+const NETWORK_MODES: readonly WslNetworkMode[] = ['mirrored', 'nat', 'virtioproxy', 'none', 'unknown']
+
+function isNetworkMode(value: unknown): value is WslNetworkMode {
+  return typeof value === 'string' && (NETWORK_MODES as readonly string[]).includes(value)
+}
+
+export interface NetworkModeWarning {
+  key: string
+  params?: Record<string, string>
+}
+
+/**
+ * T0383 (BUG-089): pick the networking warning from the actual mode
+ * (`wslinfo`) and the declared one (`.wslconfig`).
+ *  - mirrored / unknown: none (unknown = WSL < 2.0.4 or probe failure; the
+ *    connection test is the real arbiter, so stay quiet instead of guessing)
+ *  - nat + declared mirrored: setting not applied — restart needed, or Windows
+ *    too old for Mirrored; say which when the host build tells us, else both
+ *  - nat: informational — localhost works via localhostForwarding
+ *  - none / virtioproxy: not verified with BAT
+ */
+export function selectNetworkModeWarning(info: WslNetworkModeInfo): NetworkModeWarning | null {
+  switch (info.actual) {
+    case 'mirrored':
+    case 'unknown':
+      return null
+    case 'nat':
+      if (info.declared !== 'mirrored') return { key: 'wizard.wsl.warning.networkNat' }
+      if (info.mirroredSupported === false) return { key: 'wizard.wsl.warning.networkMirroredUnsupported' }
+      if (info.mirroredSupported === true) return { key: 'wizard.wsl.warning.networkMirroredPendingRestart' }
+      return { key: 'wizard.wsl.warning.networkMirroredNotApplied' }
+    default:
+      return { key: 'wizard.wsl.warning.networkUnverified', params: { mode: info.actual } }
+  }
+}
 
 /**
  * T0378 (BUG-087 B): the install path ends up verbatim in the systemd unit's
@@ -100,22 +140,25 @@ export const installServerBundleStep: WizardStep = {
     ctx.state.bundleSource = result.source
 
     const presetNetworkMode = typeof ctx.state.networkMode === 'string' ? ctx.state.networkMode : null
-    if (presetNetworkMode === 'mirrored' || presetNetworkMode === 'nat' || presetNetworkMode === 'unknown') {
-      ctx.networkMode = presetNetworkMode
+    let networkInfo: WslNetworkModeInfo
+    if (isNetworkMode(presetNetworkMode)) {
+      networkInfo = { actual: presetNetworkMode, declared: null, mirroredSupported: null }
     } else {
       try {
-        ctx.networkMode = await window.electronAPI.wsl.detectNetworkMode(ctx.wslDistro)
+        networkInfo = await window.electronAPI.wsl.detectNetworkMode(ctx.wslDistro)
       } catch (error) {
-        ctx.networkMode = 'unknown'
+        networkInfo = { actual: 'unknown', declared: null, mirroredSupported: null }
         ctx.logger.warn(`Unable to detect WSL networking mode: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
+    ctx.networkMode = networkInfo.actual
+    ctx.logger.info(
+      `WSL networking mode: actual=${networkInfo.actual}, declared=${networkInfo.declared ?? 'none'}, mirroredSupported=${String(networkInfo.mirroredSupported)}`,
+    )
 
-    if (ctx.networkMode === 'nat') {
-      pushWarning(
-        ctx,
-        'WSL is using NAT networking. Switch to mirrored mode or be ready to replace localhost with the distro IP if connect-test fails.',
-      )
+    const warning = selectNetworkModeWarning(networkInfo)
+    if (warning) {
+      pushWarning(ctx, i18next.t(warning.key, warning.params))
     }
   },
   async rollback(ctx) {

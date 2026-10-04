@@ -631,6 +631,7 @@
       "complete": "設定精靈已完成。"
     },
     "currentStep": "目前步驟",
+    "running": "執行中…",
     "readonly": {
       "viewing": "正在檢視已完成的步驟（唯讀）",
       "back": "回到目前步驟"
@@ -725,6 +726,14 @@
           "title": "BAT 伺服器埠已被占用",
           "body": "WSL 內的 BAT 伺服器無法使用這個埠（EADDRINUSE）。Mirrored 網路模式下 Windows 與 WSL 共用 localhost，Windows 已在使用的埠（例如本機 BAT 自己的遠端伺服器）WSL 就無法使用。按「重試」會重新挑選一個 Windows 端空著的埠；若你指定了埠，請改用其他埠。"
         }
+      },
+      "warning": {
+        "networkNat": "WSL 目前使用 NAT 網路模式，不需要修改：Windows 會透過 WSL 的 localhostForwarding（預設開啟）以 localhost 連到 BAT 伺服器。只有在連線測試失敗時，才需要把 WSL 改成 Mirrored 模式，或改用發行版的 IP 位址連線。",
+        "networkMirroredPendingRestart": ".wslconfig 已設定 networkingMode=mirrored，但 WSL 仍以 NAT 模式執行，設定尚未生效。請在 PowerShell 執行 `wsl --shutdown`（會關閉所有執行中的 WSL 發行版）後重試。在此之前仍可用 NAT 模式繼續設定。",
+        "networkMirroredUnsupported": ".wslconfig 已設定 networkingMode=mirrored，但這個 Windows 版本不支援 Mirrored 模式（需要 Windows 11 22H2 以上），WSL 已退回 NAT。設定會以 NAT 模式繼續；localhost 仍可透過 localhostForwarding 連線。",
+        "networkMirroredNotApplied": ".wslconfig 已設定 networkingMode=mirrored，但 WSL 以 NAT 模式執行。可能是設定尚未生效（請在 PowerShell 執行 `wsl --shutdown`，會關閉所有執行中的 WSL 發行版），也可能是這個 Windows 版本不支援 Mirrored 模式（需要 Windows 11 22H2 以上）。仍可用 NAT 模式繼續設定。",
+        "networkUnverified": "WSL 回報的網路模式為「{{mode}}」。BAT 只在 NAT 與 Mirrored 模式下驗證過，這個模式下連線測試可能失敗。",
+        "connectFailedNat": "WSL 為 NAT 模式，且連到 localhost 失敗。請確認 .wslconfig 沒有停用 localhostForwarding、把 WSL 改成 Mirrored 模式（之後執行 `wsl --shutdown`），或改用發行版的 IP 位址連線。"
       }
     },
     "docker": {

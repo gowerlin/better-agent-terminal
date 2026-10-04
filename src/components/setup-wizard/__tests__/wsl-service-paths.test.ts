@@ -48,7 +48,7 @@ beforeEach(() => {
         resolveHome: resolveHomeMock,
         installBundle: installBundleMock,
         uninstallBundle: vi.fn(async () => ({ ok: true })),
-        detectNetworkMode: vi.fn(async () => 'mirrored'),
+        detectNetworkMode: vi.fn(async () => ({ actual: 'mirrored', declared: 'mirrored', mirroredSupported: true })),
         // T0382: write-systemd-unit picks the port on the Windows side.
         pickServerPort: vi.fn(async () => ({ ok: true, port: 9877 })),
       },

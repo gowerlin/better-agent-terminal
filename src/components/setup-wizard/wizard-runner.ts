@@ -59,7 +59,8 @@ export interface WizardContext {
   /** T0332: per-wizard-session preflight result cache. Runner injects createPreflightCache() if unset. */
   preflightCache?: WizardPreflightCache
   state: Record<string, unknown>
-  networkMode?: 'mirrored' | 'nat' | 'unknown'
+  /** T0383 (BUG-089): actual WSL networking mode from `wslinfo --networking-mode`. */
+  networkMode?: 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
   availableDistros?: Array<{ name: string; version: 1 | 2; state: 'Running' | 'Stopped' }>
   wslDistro?: string
   wslSystemdEnabled?: boolean

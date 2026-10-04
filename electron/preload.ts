@@ -480,7 +480,12 @@ const electronAPI = {
   wsl: {
     list: () => ipcRenderer.invoke('wsl:list') as Promise<{ distros: { name: string; version: 1 | 2; state: 'Running' | 'Stopped' }[]; default: string | null }>,
     systemdEnabled: (distro: string) => ipcRenderer.invoke('wsl:systemd-enabled', distro) as Promise<boolean>,
-    detectNetworkMode: (distro: string) => ipcRenderer.invoke('wsl:detect-network-mode', distro) as Promise<'mirrored' | 'nat' | 'unknown'>,
+    // T0383 / BUG-089: actual (`wslinfo`) + declared (`.wslconfig`) networking mode.
+    detectNetworkMode: (distro: string) => ipcRenderer.invoke('wsl:detect-network-mode', distro) as Promise<{
+      actual: 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
+      declared: 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown' | null
+      mirroredSupported: boolean | null
+    }>,
     resolveHome: (distro: string) => ipcRenderer.invoke('wsl:resolve-home', distro) as Promise<string>,
     installBundle: (distro: string, tarballPath: string, installPath: string) =>
       ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,

@@ -127,7 +127,8 @@ export function createMockElectronApi(options: MockOptions = {}) {
     wsl: {
       list: async () => ({ distros, default: defaultDistro }),
       systemdEnabled: async () => options.systemdEnabled ?? true,
-      detectNetworkMode: async () => options.networkMode ?? 'mirrored',
+      // T0383 (BUG-089): { actual, declared, mirroredSupported } shape.
+      detectNetworkMode: async () => ({ actual: options.networkMode ?? 'mirrored', declared: null, mirroredSupported: true }),
       installBundle: async (distro: string, tarballPath: string, installPath: string) => {
         operationLog.installCalls.push({ distro, tarballPath, installPath })
         return { ok: true as const }

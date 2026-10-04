@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
 
 export const connectTestStep: WizardStep = {
@@ -20,13 +21,6 @@ export const connectTestStep: WizardStep = {
       throw new Error('Remote server token was not available after starting the BAT service.')
     }
 
-    if (ctx.networkMode === 'nat') {
-      const warning = 'connect-test is running against localhost while WSL reports NAT mode; mirrored mode is recommended for the best BAT experience.'
-      if (!ctx.warnings.includes(warning)) {
-        ctx.warnings.push(warning)
-      }
-    }
-
     // T0382 (BUG-091): same ctx.serverPort the unit and the profile use. No
     // 9876 fallback — that is the host RemoteServer's default port.
     const port = ctx.serverPort
@@ -43,6 +37,15 @@ export const connectTestStep: WizardStep = {
       }
       lastError = result.error ?? 'Connection test failed'
       await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+
+    // T0383 (BUG-089): NAT is fine as long as localhostForwarding works; only
+    // suggest Mirrored / the distro IP once localhost has actually failed.
+    if (ctx.networkMode === 'nat') {
+      const warning = i18next.t('wizard.wsl.warning.connectFailedNat')
+      if (!ctx.warnings.includes(warning)) {
+        ctx.warnings.push(warning)
+      }
     }
 
     throw new Error(lastError ?? 'Connection test failed')

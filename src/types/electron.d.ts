@@ -47,6 +47,14 @@ interface WslDistroRecord {
   state: WslState
 }
 
+// T0383 / BUG-089 — mirrors `WslNetworkModeInfo` in electron/wsl-detect.ts.
+type WslNetworkModeValue = 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
+interface WslNetworkModeInfo {
+  actual: WslNetworkModeValue
+  declared: WslNetworkModeValue | null
+  mirroredSupported: boolean | null
+}
+
 // T0381 / BUG-090 — mirrors `FetchFingerprintResult` in electron/tls-fingerprint.ts.
 type WslFetchFingerprintResult =
   | { ok: true; fingerprint: string }
@@ -341,7 +349,8 @@ interface ElectronAPI {
   wsl: {
     list: () => Promise<{ distros: WslDistroRecord[]; default: string | null }>
     systemdEnabled: (distro: string) => Promise<boolean>
-    detectNetworkMode: (distro: string) => Promise<'mirrored' | 'nat' | 'unknown'>
+    // T0383 / BUG-089: `wslinfo --networking-mode` (actual) + `.wslconfig` (declared).
+    detectNetworkMode: (distro: string) => Promise<WslNetworkModeInfo>
     // T0378 (BUG-087 B): absolute $HOME of the distro's default user (e.g. /home/alice).
     resolveHome: (distro: string) => Promise<string>
     installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>

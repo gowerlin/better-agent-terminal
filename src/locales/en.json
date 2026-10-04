@@ -631,6 +631,7 @@
       "complete": "Wizard complete."
     },
     "currentStep": "Current step",
+    "running": "Running…",
     "readonly": {
       "viewing": "Viewing completed step (read-only)",
       "back": "Return to current step"
@@ -725,6 +726,14 @@
           "title": "BAT server port is already in use",
           "body": "The BAT server inside WSL cannot use this port (EADDRINUSE). In Mirrored networking mode Windows and WSL share localhost, so a port Windows already uses (for example this BAT's own remote server) is unavailable to WSL. Retry picks another port that is free on Windows; if you specified the port, choose a different one."
         }
+      },
+      "warning": {
+        "networkNat": "WSL is using NAT networking. No change is needed: Windows reaches the BAT server on localhost through WSL's localhostForwarding (on by default). Only if the connection test fails, switch WSL to Mirrored mode or connect with the distro's IP address instead.",
+        "networkMirroredPendingRestart": ".wslconfig sets networkingMode=mirrored, but WSL is still running in NAT mode — the setting has not taken effect yet. Run `wsl --shutdown` in PowerShell (this stops ALL running WSL distros) and retry. Setup can continue in NAT mode meanwhile.",
+        "networkMirroredUnsupported": ".wslconfig sets networkingMode=mirrored, but this Windows version does not support Mirrored mode (requires Windows 11 22H2 or later), so WSL fell back to NAT. Setup continues in NAT mode; localhost still works through localhostForwarding.",
+        "networkMirroredNotApplied": ".wslconfig sets networkingMode=mirrored, but WSL is running in NAT mode. Either the setting has not taken effect yet — run `wsl --shutdown` in PowerShell (this stops ALL running WSL distros) — or this Windows version does not support Mirrored mode (requires Windows 11 22H2 or later). Setup can continue in NAT mode.",
+        "networkUnverified": "WSL reports networking mode \"{{mode}}\". BAT has only been verified with NAT and Mirrored, so the connection test may fail in this mode.",
+        "connectFailedNat": "WSL is in NAT mode and connecting to localhost failed. Check that localhostForwarding is not disabled in .wslconfig, switch WSL to Mirrored mode (then run `wsl --shutdown`), or connect with the distro's IP address instead."
       }
     },
     "docker": {

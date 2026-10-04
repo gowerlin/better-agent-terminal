@@ -54,7 +54,13 @@ export const fetchFingerprintStep: WizardStep = {
       return
     }
 
-    const port = ctx.serverPort ?? 9876
+    // T0383 (T0382 follow-up): no 9876 fallback — that is the host
+    // RemoteServer's default port, so the handshake would pin this BAT's own
+    // certificate. Same rule as connect-test / write-profile.
+    const port = ctx.serverPort
+    if (typeof port !== 'number') {
+      throw new Error('Server port was not resolved before fetching the TLS fingerprint; re-run the service step.')
+    }
     let lastError: unknown = null
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       try {
