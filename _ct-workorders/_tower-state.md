@@ -316,6 +316,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [WSL 部署] 2026-10-05 07:16 — `deploy:headless:dev --yes --tag t0456 --expect-string batcap.`（使用者 07:09 授權）：server-entry / headless-entry 覆蓋 + 4 helper 新增，`IS_ACTIVE active`、`127.0.0.1:9877`、指紋 `22:3A:E4:…` 不變、sha256 一致、`batcap.` FOUND。回復：`--rollback --yes --tag t0456`
 - [WSL smoke] 2026-10-05 07:16 — **13/13 PASS**（exit 0）：S13 BAT_* 9 key（含 `BAT_HELPER_NODE`）、無 env 值等於 server token、權杖 50 字元、raw command → `channel-not-allowed`、未知 agent → `agent-not-allowed`。⇒ **K 協定層 runtime PASS**
 - [完成] 2026-10-05 07:16 — T0454 DONE（`4dab93f`）塔台複核 PASS：真因定位 Vite 7.3.2 `hashbangRE = /^#!.*\n/`（`.` 不匹配 `\r`）→ SSR hoist 插到 `#!` 前；修法 `vite.config.ts` 僅測試分支 `crlfHashbang()` plugin（`#!`→`//`，長度不變）+ regex `\r?\n`；CRLF worktree 負向對照重現 / 修後綠。上游 Vite bug 候選
+- [完成] 2026-10-05 07:19 — T0438 DONE（`3f912f9`）塔台複核 PASS：4 處「複製遠端路徑」（只遠端視窗）、7 tests、Worker 2528 passed / tsc 36；偏差接受（`client-paths.ts` helper、新 hook `useIsRemoteWindow.ts`）。使用者手動通知早於 Worker commit 約 1 分鐘，Worker 自動通知 07:20 到達
+- [異常] 2026-10-05 07:19 — 使用者要求檢查 T0452：06:37 派發 `terminal-created result=ok`，但工單仍 PENDING / `started_at: null`、相關檔案最後修改 06:29（早於派發）⇒ Worker 分頁未實際執行 `/ct-exec`（第二次 Worker 靜默停滯，前次 T0436 停在 commit 前）
+- [派發] 2026-10-05 07:20 — T0452 重派 ∥ T0439（`--no-interactive`）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）
 
