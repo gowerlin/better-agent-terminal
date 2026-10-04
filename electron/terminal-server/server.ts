@@ -217,11 +217,7 @@ export class TerminalServer {
       })
 
       ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
-        this.ptys.delete(req.id)
-        // T0113: Remove from registry
-        if (this._userDataPath) removePtyEntry(req.id, this._userDataPath)
-        // Broadcast PTY exit to all connected clients
-        this.broadcastToAll({ type: 'pty:exit', id: req.id, exitCode })
+        this.handlePtyExit(req.id, ptyProcess, exitCode)
       })
 
       this.ptys.set(req.id, {
@@ -245,6 +241,26 @@ export class TerminalServer {
     } catch (e) {
       this.sendToClient({ type: 'error', requestType: 'pty:create', message: String(e) }, via, socket)
     }
+  }
+
+  /**
+   * BUG-101 (T0394): exit of a spawned PTY. When the id already belongs to a newer PTY
+   * (restart = kill + create with the same id), the late exit of the old one must neither
+   * delete the new entry / registry row nor tell clients that the new terminal exited.
+   * A plain kill already removed the entry, so its exit is still broadcast.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private handlePtyExit(id: string, proc: any, exitCode: number): void {
+    const current = this.ptys.get(id)
+    if (current && current.pty !== proc) {
+      process.stderr.write(`[terminal-server] stale exit ignored id=${id} (replaced by a newer PTY)\n`)
+      return
+    }
+    this.ptys.delete(id)
+    // T0113: Remove from registry
+    if (this._userDataPath) removePtyEntry(id, this._userDataPath)
+    // Broadcast PTY exit to all connected clients
+    this.broadcastToAll({ type: 'pty:exit', id, exitCode })
   }
 
   private writePty(req: Extract<ServerRequest, { type: 'pty:write' }>): void {

@@ -32,6 +32,12 @@ interface PtyInstance {
   usePty: boolean
   shell?: string       // Stored for heartbeat recovery rebuild (T0112)
   shellArgs?: string[] // Stored for heartbeat recovery rebuild (T0112)
+  /**
+   * BUG-101 (T0394): pty:create was sent to the Terminal Server and its pty:created has not
+   * arrived yet. The server answers pty:created before any exit of the PTY it spawns, so a
+   * pty:exit for this id seen while this is set belongs to the process it replaced.
+   */
+  awaitingCreated?: boolean
 }
 
 /**
@@ -279,7 +285,7 @@ export class PtyManager {
       case 'pty:exit':
         this.handlePtyExit(msg.id, msg.exitCode); break
       case 'pty:created':
-        logger.log(`[PtyManager] server spawned PTY ${msg.id} (pid ${msg.pid})`); break
+        this.handlePtyCreated(msg.id, msg.pid); break
       case 'pty:list':
         this.handleReplayList(msg.ptys); break
       case 'pty:buffer':
@@ -333,7 +339,23 @@ export class PtyManager {
     this.enqueuePtyOutput(id, data)
   }
 
+  private handlePtyCreated(id: string, pid: number): void {
+    const instance = this.instances.get(id)
+    if (instance) instance.awaitingCreated = false
+    logger.log(`[PtyManager] server spawned PTY ${id} (pid ${pid})`)
+  }
+
+  /**
+   * Exit reported by the Terminal Server. BUG-101 (T0394): the server already drops the late
+   * exit of a restarted PTY; this covers the window where the old PTY exits between the server
+   * handling pty:kill and pty:create — that exit then arrives here after restart() registered
+   * the new instance, and must neither delete it nor reach the renderer.
+   */
   private handlePtyExit(id: string, exitCode: number): void {
+    if (this.instances.get(id)?.awaitingCreated) {
+      logger.log(`[PtyManager] stale exit ignored id=${id} (server has not confirmed the new PTY yet)`)
+      return
+    }
     this.instances.delete(id)
     this.broadcast('pty:exit', id, exitCode)
   }
@@ -520,7 +542,7 @@ export class PtyManager {
         env: envWithUtf8,
       })
       // T0112: Store shell/args so handleServerDeath() can rebuild after crash
-      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args })
+      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true })
       logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
       return true
     }
