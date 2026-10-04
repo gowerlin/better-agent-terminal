@@ -39,6 +39,15 @@ import { loadTrustedFingerprint } from './_bat-cert.mjs'
 
 const SUBMIT_KEYPRESS_DELAY_MS = 250
 
+// T0450 (T0445 #6): the server accepts printable text only in a helper's pty:write (C0
+// controls incl. \r / \n / \t, DEL and C1 are refused). The pre-fill flattens each run of
+// them into one space; the toast (terminal:notify) keeps the message as given.
+const PTY_PREFILL_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]+/g
+
+function toPtyPrefill(message) {
+  return message.replace(PTY_PREFILL_CONTROL_CHARS, ' ').trim()
+}
+
 // T0192: Log entry point before parsing, so every invocation is recorded even
 // when args are malformed. Paired with bat-terminal.mjs's same event for
 // end-to-end chain tracing (terminal dispatch → worker → notify).
@@ -543,18 +552,20 @@ async function main() {
   // With --submit, keep the PTY payload as text-only and ask the renderer/xterm
   // layer to synthesize an Enter keypress in Step 3. Raw \r is not equivalent
   // for all terminal-driven agents because some treat it as a literal newline.
-  // Payload line breaks remain text; submit is always a separate keypress action.
+  // T0450: line breaks / other control characters are flattened to spaces (`toPtyPrefill`);
+  // submit is always a separate keypress action.
   if (ptyWrite) {
     const writeId = makeId()
     const payloadHasLineBreak = /[\r\n]/.test(message)
     const payloadEndsWithLineBreak = /[\r\n]$/.test(message)
-    const payload = message
+    const payload = toPtyPrefill(message)
     logEvent('bat-notify', 'submit-boundary', {
       target,
       submit,
       payloadLength: payload.length,
       payloadHasLineBreak,
       payloadEndsWithLineBreak,
+      controlCharsFlattened: payload !== message,
       textChannel: 'pty:write',
       submitChannel: submit ? 'terminal:keypress' : null,
     })

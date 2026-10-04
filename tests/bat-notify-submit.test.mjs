@@ -214,7 +214,7 @@ describe('bat-notify submit mode', () => {
     expect(typeof remote.invokes[2].args[0].traceId).toBe('string')
   }, 15000)
 
-  it('keeps submit as a separate keypress action when text payload ends with LF', async () => {
+  it('keeps submit as a separate keypress action when text payload ends with LF (T0450: LF flattened out of the pre-fill)', async () => {
     const remote = await startMockBatRemote()
     try {
       const run = await runBatNotify(remote.port, remote.certPath, 'T9999 完成\n')
@@ -229,7 +229,10 @@ describe('bat-notify submit mode', () => {
       'terminal:keypress',
     ])
 
-    expect(remote.invokes[1].args).toEqual(['tower-123', 'T9999 完成\n'])
+    // T0450 (T0445 #6): a helper's pty:write takes printable text only — line breaks / control
+    // characters are flattened to spaces (trailing ones trimmed); the toast keeps the message.
+    expect(remote.invokes[0].args[0]).toMatchObject({ targetId: 'tower-123', message: 'T9999 完成\n' })
+    expect(remote.invokes[1].args).toEqual(['tower-123', 'T9999 完成'])
     expect(remote.invokes[2].args[0]).toMatchObject({
       targetId: 'tower-123',
       key: 'Enter',

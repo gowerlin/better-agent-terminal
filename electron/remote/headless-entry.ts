@@ -24,6 +24,7 @@ import {
   type AgentUnavailableResult,
 } from '../terminal-command-handlers'
 import type { RemoteToolId, RemoteToolsDetectResult } from '../../src/types/remote-tools'
+import { agentRegistry } from '../agent-runtime/agent-registry'
 import { ClaudeAgentManager } from '../claude-agent-manager'
 import {
   configureRuntimeRouter,
@@ -54,7 +55,7 @@ import {
   writeSecretFile,
 } from './secrets'
 import { acquireLock, releaseLock } from './lockfile'
-import { HelperCapabilityRegistry } from './helper-capability'
+import { HelperCapabilityRegistry, type HelperTowerSpawnQuota } from './helper-capability'
 import {
   createHeadlessDefaultHandlers,
   readHeadlessSettings,
@@ -730,6 +731,8 @@ export interface HeadlessServerOptions {
    * clears it.
    */
   helperCapabilities?: HelperCapabilityRegistry
+  /** T0450: tower helpers' terminal creation quota (tests inject a clock). Default: a fresh one per server. */
+  helperSpawnQuota?: HelperTowerSpawnQuota
   logger?: {
     log: (...args: unknown[]) => void
     warn: (...args: unknown[]) => void
@@ -801,6 +804,11 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     // T0432: helpers inside headless PTYs authenticate with their PTY's capability.
     helperCapabilities,
     isTerminalAlive: id => ptyManager?.isAlive(id) ?? false,
+    // T0450 (T0445 #7): a tower helper launches registry agents only, within its creation
+    // quota; helpers never take the last PTY slots the clients need.
+    isKnownAgent: agent => agentRegistry.getDefinition(agent) !== undefined,
+    getPtyCapacity: () => ptyManager?.getCapacity() ?? null,
+    helperSpawnQuota: opts.helperSpawnQuota,
   })
   remoteServer.configDir = opts.dataDir
   const log = opts.logger ?? defaultLogger

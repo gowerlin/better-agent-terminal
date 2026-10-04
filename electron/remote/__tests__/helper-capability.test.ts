@@ -8,7 +8,11 @@ import { describe, expect, it } from 'vitest'
 import {
   HELPER_CAPABILITY_TOKEN_PREFIX,
   HELPER_CHANNEL_ROLES,
+  HELPER_CLIENT_RESERVED_PTYS,
+  HELPER_TOWER_CREATE_INTERVAL_MS,
+  HELPER_TOWER_MAX_LIVE_CHILDREN,
   HelperCapabilityRegistry,
+  HelperTowerSpawnQuota,
   authorizeHelperInvoke,
   isCapabilityTokenShaped,
   safeTokenEqual,
@@ -18,7 +22,8 @@ import {
 const TOWER: HelperCapability = { terminalId: 'tower-1', role: 'tower' }
 const WORKER: HelperCapability = { terminalId: 'worker-1', towerId: 'tower-1', role: 'worker' }
 const alive = new Set(['tower-1', 'worker-1', 'other-1'])
-const ctx = { isTerminalAlive: (id: string) => alive.has(id) }
+const knownAgents = new Set(['claude-code', 'codex-cli', 'my-custom-cli'])
+const ctx = { isTerminalAlive: (id: string) => alive.has(id), isKnownAgent: (agent: string) => knownAgents.has(agent) }
 
 /** Channels of every domain a helper must never reach (T0432 memory_overrides #1). */
 const FORBIDDEN_FOR_ALL = [
@@ -186,6 +191,8 @@ describe('authorizeHelperInvoke — worker target binding (T0432)', () => {
   it('non-object payloads → invalid-payload', () => {
     expect(reason(authorizeHelperInvoke(WORKER, 'terminal:notify', ['tower-1'], ctx))).toBe('invalid-payload')
     expect(reason(authorizeHelperInvoke(WORKER, 'terminal:keypress', [], ctx))).toBe('invalid-payload')
+    expect(reason(authorizeHelperInvoke(WORKER, 'pty:write', ['tower-1'], ctx))).toBe('invalid-payload')
+    expect(reason(authorizeHelperInvoke(WORKER, 'pty:write', ['tower-1', { data: 'x' }], ctx))).toBe('invalid-payload')
   })
 })
 
@@ -213,6 +220,24 @@ describe('authorizeHelperInvoke — tower create-agent-command (T0432)', () => {
 
   it('without a liveness check → denied (fail closed)', () => {
     expect(reason(create({ id: 'new-1', prompt: 'p' }, {}))).toBe('terminal-liveness-unknown')
+  })
+
+  it('T0450 (T0445 #7): agent must be a registry id; default / omitted is the host default', () => {
+    expect(create({ id: 'new-1', prompt: 'p', agent: 'codex-cli' })).toEqual({ ok: true })
+    expect(create({ id: 'new-1', prompt: 'p', agent: 'my-custom-cli' })).toEqual({ ok: true })
+    expect(create({ id: 'new-1', prompt: 'p', agent: 'default' })).toEqual({ ok: true })
+    expect(create({ id: 'new-1', prompt: 'p', agent: '' })).toEqual({ ok: true })
+    expect(create({ id: 'new-1', prompt: 'p', agent: null })).toEqual({ ok: true })
+    expect(reason(create({ id: 'new-1', prompt: 'p', agent: 'evil-cli' }))).toBe('agent-not-allowed')
+    expect(reason(create({ id: 'new-1', prompt: 'p', agent: 'constructor' }))).toBe('agent-not-allowed')
+    expect(reason(create({ id: 'new-1', prompt: 'p', agent: ['claude-code'] }))).toBe('invalid-agent')
+    expect(reason(create({ id: 'new-1', prompt: 'p', agent: 1 }))).toBe('invalid-agent')
+  })
+
+  it('T0450: without a registry lookup an explicit agent is denied (fail closed)', () => {
+    const noRegistry = { isTerminalAlive: ctx.isTerminalAlive }
+    expect(reason(create({ id: 'new-1', prompt: 'p', agent: 'claude-code' }, noRegistry))).toBe('agent-registry-unknown')
+    expect(create({ id: 'new-1', prompt: 'p' }, noRegistry)).toEqual({ ok: true })
   })
 
   it('a worker bound to another tower → tower-not-bound', () => {
@@ -324,5 +349,138 @@ describe('HelperCapabilityRegistry revoked digests (T0449, T0445 #5)', () => {
     const state = JSON.stringify([...(registry as unknown as { revoked: Map<string, number> }).revoked])
     expect(state).not.toContain(token)
     expect(state).not.toContain(token.slice(HELPER_CAPABILITY_TOKEN_PREFIX.length))
+  })
+})
+
+describe('authorizeHelperInvoke — worker pty:write content (T0450, T0445 #6)', () => {
+  const write = (data: unknown) => authorizeHelperInvoke(WORKER, 'pty:write', ['tower-1', data], ctx)
+
+  it('printable text (incl. CJK / emoji / spaces) → allowed', () => {
+    expect(write('T0450 完成')).toEqual({ ok: true })
+    expect(write('T0450 部分完成 — see report ✓ 🚀')).toEqual({ ok: true })
+    expect(write('')).toEqual({ ok: true })
+  })
+
+  it('submit / interrupt / escape sequences → control-character-not-allowed', () => {
+    for (const data of [
+      'T0450 完成\r',
+      'T0450 完成\n',
+      'line1\r\nline2',
+      '\x03\x03rm -rf ~\r',
+      '\x1b[200~paste\x1b[201~',
+      '\x1b',
+      'a\tb',
+      '\x00',
+      '\x04',
+      'x\x7f',
+      'x\u009b31m',
+    ]) {
+      expect(reason(write(data)), JSON.stringify(data)).toBe('control-character-not-allowed')
+    }
+  })
+})
+
+describe('HelperTowerSpawnQuota (T0450, T0445 #7)', () => {
+  function setup(opts: { max?: number; count?: number } = {}) {
+    let now = 1_000_000
+    const running = new Set<string>()
+    const quota = new HelperTowerSpawnQuota({ now: () => now })
+    const spawnCtx = {
+      isTerminalAlive: (id: string) => running.has(id),
+      getPtyCapacity: () => ({ count: (opts.count ?? 0) + running.size, max: opts.max ?? 0 }),
+    }
+    /** Reserve, then "create" the PTY and settle, as RemoteServer does around the handler. */
+    const spawn = (tower: string, child: string) => {
+      const r = quota.reserve(tower, child, spawnCtx)
+      if (!r.ok) return r.reason
+      running.add(child)
+      r.settle()
+      return 'ok'
+    }
+    return { quota, running, spawnCtx, spawn, tick: (ms: number) => { now += ms } }
+  }
+
+  it('limits: 8 live children per tower, 1 s between creations, 8 slots kept for clients', () => {
+    expect(HELPER_TOWER_MAX_LIVE_CHILDREN).toBe(8)
+    expect(HELPER_TOWER_CREATE_INTERVAL_MS).toBe(1000)
+    expect(HELPER_CLIENT_RESERVED_PTYS).toBe(8)
+  })
+
+  it('the 9th live child of a tower is refused; a child exiting frees a slot', () => {
+    const { spawn, tick, running, quota, spawnCtx } = setup()
+    for (let i = 0; i < 8; i++) {
+      expect(spawn('tower-1', `c-${i}`)).toBe('ok')
+      tick(1000)
+    }
+    expect(spawn('tower-1', 'c-8')).toBe('too-many-children')
+    expect(quota.liveChildren('tower-1', spawnCtx.isTerminalAlive)).toBe(8)
+    // Another tower has its own quota.
+    expect(spawn('tower-2', 'd-0')).toBe('ok')
+    running.delete('c-3')
+    tick(1000)
+    expect(spawn('tower-1', 'c-8')).toBe('ok')
+  })
+
+  it('a second creation within 1 s is refused (also while the first is still in flight)', () => {
+    const { quota, spawnCtx, spawn, tick } = setup()
+    expect(quota.reserve('tower-1', 'c-0', spawnCtx).ok).toBe(true)
+    expect(spawn('tower-1', 'c-1')).toBe('create-rate-limited')
+    tick(999)
+    expect(spawn('tower-1', 'c-1')).toBe('create-rate-limited')
+    tick(1)
+    expect(spawn('tower-1', 'c-1')).toBe('ok')
+  })
+
+  it('in-flight creations count toward the live children', () => {
+    const { quota, spawnCtx, tick } = setup()
+    for (let i = 0; i < 8; i++) {
+      expect(quota.reserve('tower-1', `c-${i}`, spawnCtx).ok).toBe(true)
+      tick(1000)
+    }
+    expect(quota.reserve('tower-1', 'c-8', spawnCtx)).toEqual({ ok: false, reason: 'too-many-children' })
+  })
+
+  it('a failed creation (no PTY after settle) does not keep a slot', () => {
+    const { quota, spawnCtx, tick } = setup()
+    const r = quota.reserve('tower-1', 'c-0', spawnCtx)
+    if (!r.ok) throw new Error('expected ok')
+    r.settle()
+    expect(quota.liveChildren('tower-1', spawnCtx.isTerminalAlive)).toBe(0)
+    tick(1000)
+    expect(quota.reserve('tower-1', 'c-1', spawnCtx).ok).toBe(true)
+  })
+
+  it('client reserve: with a PTY cap, helpers stop 8 slots short of it (in-flight included)', () => {
+    // cap 20, 11 PTYs running → helpers may bring it to 12 (= 20 - 8), no further.
+    const { spawn, tick } = setup({ max: 20, count: 11 })
+    expect(spawn('tower-1', 'c-0')).toBe('ok')
+    tick(1000)
+    expect(spawn('tower-2', 'd-0')).toBe('pty-quota-reserved')
+    // An in-flight reservation counts before its PTY exists.
+    const fresh = setup({ max: 20, count: 11 })
+    expect(fresh.quota.reserve('tower-1', 'c-0', fresh.spawnCtx).ok).toBe(true)
+    expect(fresh.quota.reserve('tower-2', 'd-0', fresh.spawnCtx)).toEqual({ ok: false, reason: 'pty-quota-reserved' })
+  })
+
+  it('a cap at or below the reserve leaves helpers no slot; max 0 (unlimited) keeps no reserve', () => {
+    expect(setup({ max: 8 }).spawn('tower-1', 'c-0')).toBe('pty-quota-reserved')
+    expect(setup({ max: 0, count: 500 }).spawn('tower-1', 'c-0')).toBe('ok')
+  })
+
+  it('without the PTY capacity → denied (fail closed)', () => {
+    const quota = new HelperTowerSpawnQuota()
+    expect(quota.reserve('tower-1', 'c-0', { isTerminalAlive: () => false })).toEqual({ ok: false, reason: 'pty-capacity-unknown' })
+    expect(quota.reserve('tower-1', 'c-0', { isTerminalAlive: () => false, getPtyCapacity: () => null }))
+      .toEqual({ ok: false, reason: 'pty-capacity-unknown' })
+  })
+
+  it('forgets towers with no running child once the interval passed (bounded memory)', () => {
+    const { spawn, tick, running, quota } = setup()
+    expect(spawn('tower-1', 'c-0')).toBe('ok')
+    running.delete('c-0')
+    tick(1000)
+    expect(spawn('tower-2', 'd-0')).toBe('ok')
+    const towers = (quota as unknown as { towers: Map<string, unknown> }).towers
+    expect([...towers.keys()]).toEqual(['tower-2'])
   })
 })

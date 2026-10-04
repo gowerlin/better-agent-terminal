@@ -17,10 +17,12 @@ import {
 import { readSecretFile, writeSecretFile } from './secrets'
 import {
   authorizeHelperInvoke,
+  HelperTowerSpawnQuota,
   isCapabilityTokenShaped,
   safeTokenEqual,
   type HelperCapabilityRegistry,
   type HelperCapabilityRole,
+  type HelperPtyCapacity,
 } from './helper-capability'
 
 export type BindInterface = 'localhost' | 'tailscale' | 'all' | `ip:${string}`
@@ -90,6 +92,12 @@ interface RemoteServerOptions {
   helperCapabilities?: HelperCapabilityRegistry
   /** T0432: PTY liveness for helper `terminal:create-agent-command` (absent ⇒ denied). */
   isTerminalAlive?: (id: string) => boolean
+  /** T0450: agent registry lookup for helper `create-agent-command` `agent` (absent ⇒ explicit agents denied). */
+  isKnownAgent?: (agent: string) => boolean
+  /** T0450: PTY count / cap for the helper creation quota (absent / null ⇒ helper creations denied). */
+  getPtyCapacity?: () => HelperPtyCapacity | null
+  /** T0450: the tower creation quota (tests inject a clock). Default: a fresh one per server. */
+  helperSpawnQuota?: HelperTowerSpawnQuota
 }
 
 const TOKEN_FILENAME = 'server-token.json'
@@ -282,6 +290,9 @@ export class RemoteServer {
   private readonly detectEnv: () => ServerEnvInfo
   private readonly helperCapabilities?: HelperCapabilityRegistry
   private readonly isTerminalAlive?: (id: string) => boolean
+  private readonly isKnownAgent?: (agent: string) => boolean
+  private readonly getPtyCapacity?: () => HelperPtyCapacity | null
+  private readonly helperSpawnQuota: HelperTowerSpawnQuota
   private clientCountListeners: Set<(count: number) => void> = new Set()
   private clientDisconnectListeners: Set<(connectionId: string) => void> = new Set()
   private lastNotifiedClientCount = 0
@@ -293,6 +304,9 @@ export class RemoteServer {
     this.detectEnv = options.detectServerEnv ?? (() => detectServerEnv())
     this.helperCapabilities = options.helperCapabilities
     this.isTerminalAlive = options.isTerminalAlive
+    this.isKnownAgent = options.isKnownAgent
+    this.getPtyCapacity = options.getPtyCapacity
+    this.helperSpawnQuota = options.helperSpawnQuota ?? new HelperTowerSpawnQuota()
   }
 
   get port(): number | null {
@@ -885,17 +899,36 @@ export class RemoteServer {
           args = args.slice(0, -1)
         }
       }
-      const decision = authorizeHelperInvoke(capability, frame.channel, args as unknown[], { isTerminalAlive: this.isTerminalAlive })
-      if (!decision.ok) {
+      const decision = authorizeHelperInvoke(capability, frame.channel, args as unknown[], {
+        isTerminalAlive: this.isTerminalAlive,
+        isKnownAgent: this.isKnownAgent,
+      })
+      // T0450 (T0445 #7): a tower's creations also pass its quota (children / rate / client reserve).
+      let settle: (() => void) | undefined
+      let denied = decision.ok ? undefined : decision.reason
+      if (!denied && frame.channel === 'terminal:create-agent-command') {
+        const isTerminalAlive = this.isTerminalAlive
+        const childId = (args as Array<{ id: string }>)[0].id
+        const reservation = isTerminalAlive
+          ? this.helperSpawnQuota.reserve(capability.terminalId, childId, { isTerminalAlive, getPtyCapacity: this.getPtyCapacity })
+          : { ok: false as const, reason: 'terminal-liveness-unknown' }
+        if (reservation.ok) settle = reservation.settle
+        else denied = reservation.reason
+      }
+      if (denied) {
         this.log.warn(
           `[RemoteServer] Helper invoke denied: channel=${String(frame.channel)} role=${capability.role} ` +
-            `terminal=${capability.terminalId} reason=${decision.reason}`
+            `terminal=${capability.terminalId} reason=${denied}`
         )
-        this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: `Forbidden: ${decision.reason}` })
+        this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: `Forbidden: ${denied}` })
         return
       }
-      const result = await invokeHandler(frame.channel, args as unknown[], null, helper.connectionId)
-      this.sendFrame(ws, { type: 'invoke-result', id: frame.id, result })
+      try {
+        const result = await invokeHandler(frame.channel, args as unknown[], null, helper.connectionId)
+        this.sendFrame(ws, { type: 'invoke-result', id: frame.id, result })
+      } finally {
+        settle?.()
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       this.sendFrame(ws, { type: 'invoke-error', id: frame.id, error: message })

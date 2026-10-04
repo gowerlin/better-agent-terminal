@@ -7,9 +7,10 @@
  * to (`authorizeHelperInvoke`). Everything else is denied.
  *
  *   - role `tower`  (PTY without a notify target): `terminal:create-agent-command`,
- *     creating a NEW terminal whose notify target is the tower itself (or none)
+ *     creating a NEW terminal whose notify target is the tower itself (or none), with a
+ *     registry agent, within `HelperTowerSpawnQuota` (T0450)
  *   - role `worker` (PTY created with `BAT_TOWER_TERMINAL_ID`): `terminal:notify` /
- *     `pty:write` / `terminal:keypress`, target = that tower only
+ *     `pty:write` (printable text only, T0450) / `terminal:keypress`, target = that tower only
  *
  * Tokens are `HELPER_CAPABILITY_TOKEN_PREFIX` + `randomBytes(32)` and live in memory only:
  * the registry keeps their SHA-256 digest (never the token), nothing is persisted or
@@ -211,9 +212,23 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
   'terminal:keypress': ['worker'],
 }
 
+/**
+ * T0450 (T0445 #6): what a worker may `pty:write` into its tower — printable text only. C0
+ * controls (`\r` / `\n` / `\t` / `\x03` / ESC …), DEL and C1 controls are refused, so a worker
+ * capability can pre-fill a line but never submit, interrupt or drive the tower's terminal;
+ * submitting is `terminal:keypress` (Enter through the client's xterm).
+ */
+export const HELPER_PTY_WRITE_FORBIDDEN = /[\u0000-\u001f\u007f-\u009f]/
+
 export interface HelperInvokeContext {
   /** Whether a PTY with this id is running. Missing ⇒ creating a terminal is denied (fail closed). */
   isTerminalAlive?: (id: string) => boolean
+  /**
+   * T0450 (T0445 #7): whether `agent` is an agent registry id (builtin or a registered custom
+   * CLI). Missing ⇒ an explicit agent is denied (fail closed); `default` / omitted is the
+   * host's configured default agent.
+   */
+  isKnownAgent?: (agent: string) => boolean
 }
 
 export type HelperInvokeDecision = { ok: true } | { ok: false; reason: string }
@@ -256,6 +271,12 @@ export function authorizeHelperInvoke(
       if (ctx.isTerminalAlive(opts.id)) return deny('terminal-exists')
       // The host's default shell only; a client-chosen executable is not a helper's call.
       if (opts.shell !== undefined && opts.shell !== null && opts.shell !== '') return deny('shell-not-allowed')
+      // T0450 (T0445 #7): a registry agent only — an unknown id is not something to launch.
+      if (opts.agent !== undefined && opts.agent !== null && opts.agent !== '' && opts.agent !== 'default') {
+        if (typeof opts.agent !== 'string') return deny('invalid-agent')
+        if (!ctx.isKnownAgent) return deny('agent-registry-unknown')
+        if (!ctx.isKnownAgent(opts.agent)) return deny('agent-not-allowed')
+      }
       if (opts.customEnv !== undefined && opts.customEnv !== null) {
         const env = asRecord(opts.customEnv)
         if (!env) return deny('invalid-custom-env')
@@ -277,8 +298,129 @@ export function authorizeHelperInvoke(
       return opts.targetId === capability.towerId ? { ok: true } : deny('target-not-bound')
     }
     case 'pty:write':
-      return args[0] === capability.towerId ? { ok: true } : deny('target-not-bound')
+      if (args[0] !== capability.towerId) return deny('target-not-bound')
+      // T0450 (T0445 #6): pre-fill text only; submitting is terminal:keypress.
+      if (typeof args[1] !== 'string') return deny('invalid-payload')
+      return HELPER_PTY_WRITE_FORBIDDEN.test(args[1]) ? deny('control-character-not-allowed') : { ok: true }
     default:
       return deny('channel-not-allowed')
+  }
+}
+
+/** T0450 (T0445 #7): most child PTYs one tower may have running (created through its capability). */
+export const HELPER_TOWER_MAX_LIVE_CHILDREN = 8
+/** T0450: least time between two terminal creations of one tower. */
+export const HELPER_TOWER_CREATE_INTERVAL_MS = 1000
+/** T0450: PTY slots a helper may never take — kept for the clients (only when the server caps PTYs). */
+export const HELPER_CLIENT_RESERVED_PTYS = 8
+
+/** T0450: the server's PTY usage. `max` 0 = unlimited (no reserve is kept then). */
+export interface HelperPtyCapacity {
+  count: number
+  max: number
+}
+
+export interface HelperSpawnContext {
+  isTerminalAlive: (id: string) => boolean
+  /** Missing / null ⇒ the creation is denied (fail closed). */
+  getPtyCapacity?: () => HelperPtyCapacity | null
+}
+
+export interface HelperTowerSpawnQuotaOptions {
+  now?: () => number
+  maxLiveChildren?: number
+  createIntervalMs?: number
+  reservedForClients?: number
+}
+
+export type HelperSpawnReservation = { ok: true; settle: () => void } | { ok: false; reason: string }
+
+interface TowerSpawnEntry {
+  /** Child ids created (or being created) by this tower; pruned once their PTY is gone. */
+  children: Set<string>
+  /** Children whose creation is still in flight (not counted by the PTY manager yet). */
+  pending: Set<string>
+  lastCreateAt: number
+}
+
+/**
+ * T0450 (T0445 #7): limits on terminals a tower capability creates (`terminal:create-agent-command`),
+ * checked after `authorizeHelperInvoke` allowed the invoke:
+ *   - at most `maxLiveChildren` of its children running (in flight counts)
+ *   - at least `createIntervalMs` between two creations (every allowed attempt counts)
+ *   - with a PTY cap, helpers stop `reservedForClients` slots short of it, so a tower never
+ *     takes the last slots the BAT clients need to open terminals
+ * Keyed by the tower's terminal id (one live capability per PTY, so this is per token, and a
+ * restarted tower keeps its running children's count). Memory only, like the registry.
+ */
+export class HelperTowerSpawnQuota {
+  private readonly towers = new Map<string, TowerSpawnEntry>()
+  private readonly now: () => number
+  private readonly maxLiveChildren: number
+  private readonly createIntervalMs: number
+  private readonly reservedForClients: number
+
+  constructor(opts: HelperTowerSpawnQuotaOptions = {}) {
+    this.now = opts.now ?? Date.now
+    this.maxLiveChildren = opts.maxLiveChildren ?? HELPER_TOWER_MAX_LIVE_CHILDREN
+    this.createIntervalMs = opts.createIntervalMs ?? HELPER_TOWER_CREATE_INTERVAL_MS
+    this.reservedForClients = opts.reservedForClients ?? HELPER_CLIENT_RESERVED_PTYS
+  }
+
+  /**
+   * Checks the quota of tower `towerId` for creating `childId` and, when allowed, records the
+   * creation synchronously (so pipelined invokes see it). `settle()` once the creation is done.
+   */
+  reserve(towerId: string, childId: string, ctx: HelperSpawnContext): HelperSpawnReservation {
+    const capacity = ctx.getPtyCapacity?.() ?? null
+    if (!capacity) return { ok: false, reason: 'pty-capacity-unknown' }
+    const now = this.now()
+    this.prune(ctx.isTerminalAlive, now)
+
+    const entry = this.towers.get(towerId)
+    if (entry && now - entry.lastCreateAt < this.createIntervalMs) return { ok: false, reason: 'create-rate-limited' }
+    if (entry && entry.children.size >= this.maxLiveChildren) return { ok: false, reason: 'too-many-children' }
+    if (capacity.max > 0) {
+      // In-flight creations are not running PTYs yet; count them so a burst cannot overshoot.
+      let inFlight = 0
+      for (const tower of this.towers.values()) {
+        for (const id of tower.pending) if (!ctx.isTerminalAlive(id)) inFlight++
+      }
+      if (capacity.count + inFlight >= capacity.max - this.reservedForClients) {
+        return { ok: false, reason: 'pty-quota-reserved' }
+      }
+    }
+
+    const record = entry ?? { children: new Set<string>(), pending: new Set<string>(), lastCreateAt: now }
+    record.children.add(childId)
+    record.pending.add(childId)
+    record.lastCreateAt = now
+    this.towers.set(towerId, record)
+    let settled = false
+    return {
+      ok: true,
+      settle: () => {
+        if (settled) return
+        settled = true
+        record.pending.delete(childId)
+        if (!ctx.isTerminalAlive(childId)) record.children.delete(childId)
+      },
+    }
+  }
+
+  /** Running children of tower `towerId` (in flight included) — tests / diagnostics. */
+  liveChildren(towerId: string, isTerminalAlive: (id: string) => boolean): number {
+    this.prune(isTerminalAlive, this.now())
+    return this.towers.get(towerId)?.children.size ?? 0
+  }
+
+  /** Drops children whose PTY is gone, and towers with nothing left to limit. */
+  private prune(isTerminalAlive: (id: string) => boolean, now: number): void {
+    for (const [towerId, entry] of this.towers) {
+      for (const id of entry.children) {
+        if (!entry.pending.has(id) && !isTerminalAlive(id)) entry.children.delete(id)
+      }
+      if (entry.children.size === 0 && now - entry.lastCreateAt >= this.createIntervalMs) this.towers.delete(towerId)
+    }
   }
 }

@@ -568,6 +568,12 @@ export class PtyManager {
     return this.instances.has(id)
   }
 
+  /** T0450: running PTYs and the `maxInstances` cap (0 = unlimited) — the helper creation quota. */
+  getCapacity(): { count: number; max: number } {
+    const max = this.deps.maxInstances
+    return { count: this.instances.size, max: max && max > 0 ? max : 0 }
+  }
+
   private getDefaultShell(): string {
     if (process.platform === 'win32') {
       // Prefer PowerShell 7 (pwsh) over Windows PowerShell

@@ -23,7 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { agentRegistry } from '../../agent-runtime/agent-registry'
 import { PROBE_BEGIN_MARKER, PROBE_END_MARKER, type ProbeExecFile } from '../../remote-tools/probe-script'
 import { buildHeadlessHelperEnv, type HeadlessHelperEndpoint } from '../headless-entry'
-import { HelperCapabilityRegistry } from '../helper-capability'
+import { HelperCapabilityRegistry, HelperTowerSpawnQuota } from '../helper-capability'
 import { startHeadlessHarness, type HeadlessHarness } from './helpers/headless-harness'
 
 const REPO_SCRIPTS = path.resolve(__dirname, '..', '..', '..', 'scripts')
@@ -111,7 +111,13 @@ beforeAll(async () => {
   process.env.BAT_REMOTE_TOKEN = INHERITED_SECRET
   agentRegistry.registerCustomCli({ id: ECHO_AGENT, name: 'T0433 echo', icon: 'x', color: '#000', command: 'echo' })
   registry = new HelperCapabilityRegistry()
-  harness = await startHeadlessHarness({ helperCapabilities: registry, remoteTools: { execFile: fakeExecFile, platform: 'linux' } })
+  harness = await startHeadlessHarness({
+    helperCapabilities: registry,
+    remoteTools: { execFile: fakeExecFile, platform: 'linux' },
+    // T0450: the same tower dispatches back to back here; the 1 s creation interval is covered
+    // in headless-helper-narrowing.test.ts.
+    helperSpawnQuota: new HelperTowerSpawnQuota({ createIntervalMs: 0 }),
+  })
 })
 
 afterAll(async () => {
