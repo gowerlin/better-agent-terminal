@@ -30,6 +30,8 @@ export type HeadlessPhase = 'P0' | 'P1' | 'P2' | 'P3'
  */
 export const ALWAYS_LOCAL_CHANNELS: ReadonlySet<string> = new Set([
   'workspace:save', 'workspace:load',
+  // T0401: renderer message-overflow cache in the user's own userData (T0386 §1 B).
+  'claude:archive-messages', 'claude:load-archived', 'claude:clear-archive',
 ])
 
 /**
@@ -44,50 +46,10 @@ export const ALWAYS_LOCAL_CHANNELS: ReadonlySet<string> = new Set([
 export const HEADLESS_UNSUPPORTED: Readonly<Record<string, HeadlessPhase>> = Object.freeze({
   // ── P0: terminal — online since T0390 (electron/handlers/pty.ts); pty:get-buffer since T0403 ──
 
-  // ── P1: Agent (T0386 E / F) ──
-  'claude:start-session': 'P1',
-  'claude:send-message': 'P1',
-  'claude:stop-session': 'P1',
-  'claude:abort-session': 'P1', // T0392 / BUG-095
-  'claude:set-permission-mode': 'P1',
-  'claude:set-codex-sandbox-mode': 'P1', // T0386 §1 C: codex not in server bundle → remote-unsupported
-  'claude:set-codex-approval-policy': 'P1', // T0386 §1 C: codex not in server bundle → remote-unsupported
-  'claude:set-model': 'P1',
-  'claude:set-effort': 'P1',
-  'claude:reset-session': 'P1',
-  'claude:get-supported-models': 'P1',
-  'claude:get-account-info': 'P1',
-  'claude:get-supported-commands': 'P1',
-  'claude:get-supported-agents': 'P1',
-  'claude:get-session-meta': 'P1',
-  'claude:get-worktree-status': 'P1',
-  'claude:cleanup-worktree': 'P1',
-  'claude:resolve-permission': 'P1',
-  'claude:resolve-ask-user': 'P1',
-  'claude:list-sessions': 'P1',
-  'claude:resume-session': 'P1',
-  'claude:fork-session': 'P1',
-  'claude:rewind-to-prompt': 'P1', // stub locally too (main.ts)
-  'claude:stop-task': 'P1',
-  'claude:rest-session': 'P1',
-  'claude:wake-session': 'P1',
-  'claude:is-resting': 'P1',
-  'claude:archive-messages': 'P1', // T0386 §1 B: always-local candidate
-  'claude:load-archived': 'P1', // T0386 §1 B: always-local candidate
-  'claude:clear-archive': 'P1', // T0386 §1 B: always-local candidate
-  'claude:fetch-subagent-messages': 'P1',
-  'claude:scan-skills': 'P1',
-  'claude:scan-star-commands': 'P1',
-  'claude:get-context-usage': 'P1',
-  'claude:get-statusline-extras': 'P1',
-  'claude:auth-status': 'P1',
-  'claude:auth-login': 'P1', // stub locally too (main.ts)
-  'claude:auth-logout': 'P1',
-  'claude:account-list': 'P1', // stub locally too (main.ts)
-  'claude:account-import-current': 'P1', // stub locally too (main.ts)
-  'claude:account-switch': 'P1', // stub locally too (main.ts)
-  'claude:get-cli-path': 'P1',
-  'claude:detectRuntime': 'P1',
+  // ── P1: Agent — claude:* online since T0401 (electron/handlers/claude.ts); archive → ALWAYS_LOCAL ──
+  // Remote-unsupported for good: the server bundle has no codex (T0386 §1 C).
+  'claude:set-codex-sandbox-mode': 'P1',
+  'claude:set-codex-approval-policy': 'P1',
 
   // ── P2: repo / filesystem (T0386 H / I) ──
   'worktree:create': 'P2',

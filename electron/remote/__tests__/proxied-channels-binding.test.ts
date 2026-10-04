@@ -37,9 +37,8 @@ function listSourceFiles(dir: string): string[] {
 
 // Whole-file match (not per line): calls such as `ipcMain.handle(\n  'server-bundle:download',`
 // span lines.
-function scan(pattern: RegExp): Map<string, string[]> {
-  const found = new Map<string, string[]>()
-  for (const file of listSourceFiles(ELECTRON_DIR)) {
+function scan(pattern: RegExp, dir = ELECTRON_DIR, found = new Map<string, string[]>()): Map<string, string[]> {
+  for (const file of listSourceFiles(dir)) {
     const source = fs.readFileSync(file, 'utf8')
     for (const match of source.matchAll(pattern)) {
       const line = source.slice(0, match.index).split('\n').length
@@ -50,7 +49,13 @@ function scan(pattern: RegExp): Map<string, string[]> {
   return found
 }
 
-const registered = scan(/registerHandler\(\s*['"`]([^'"`$]+)['"`]/g)
+// Shared handler modules (electron/handlers/*.ts, PLAN-036) register through the
+// `register` parameter they are handed (= registerHandler on both hosts).
+const registered = scan(
+  /(?<![\w.])register\(\s*['"`]([^'"`$]+)['"`]/g,
+  path.join(ELECTRON_DIR, 'handlers'),
+  scan(/registerHandler\(\s*['"`]([^'"`$]+)['"`]/g),
+)
 const directIpc = scan(/ipcMain\.handle(?:Once)?\(\s*['"`]([^'"`$]+)['"`]/g)
 
 describe('registerHandler channels are bound to IPC (BUG-095 guard)', () => {

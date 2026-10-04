@@ -84,6 +84,8 @@ export const PROXIED_EVENTS = new Set([
   'claude:stream', 'claude:result', 'claude:error',
   'claude:status', 'claude:permission-request', 'claude:permission-resolved', 'claude:ask-user', 'claude:ask-user-resolved',
   'claude:modeChange', 'claude:history', 'claude:prompt-suggestion', 'claude:session-reset', 'claude:worktree-info', 'claude:rate-limit',
+  // T0401: codex turn end + claude runtime routing toasts (T0386 §1 event gaps)
+  'claude:turn-end', 'claude:runtime-degraded', 'claude:runtime-warning',
   'fs:changed',
   'workspace:detached', 'workspace:reattached', 'workspace:reload',
   'system:resume',

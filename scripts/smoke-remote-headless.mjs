@@ -3,7 +3,8 @@
 /**
  * T0396 (PLAN-036 P0) — protocol-level smoke test against a RUNNING headless
  * bat-server. Connects as an ordinary remote client (TLS + SHA-256 fingerprint
- * pinning + token auth) and walks the PTY lifecycle (S1-S8).
+ * pinning + token auth), walks the PTY lifecycle (S1-S8) and the login-free
+ * claude:* runtime channels (S9, T0401).
  *
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04 --json
@@ -67,6 +68,10 @@ export const SMOKE_CHANNELS = Object.freeze({
   PTY_RESIZE: 'pty:resize',
   PTY_KILL: 'pty:kill',
   PTY_GET_CWD: 'pty:get-cwd',
+  // T0401: claude:* runtime channels that need no login (S9)
+  CLAUDE_CLI_PATH: 'claude:get-cli-path',
+  CLAUDE_DETECT_RUNTIME: 'claude:detectRuntime',
+  CLAUDE_AUTH_STATUS: 'claude:auth-status',
 })
 
 /** Events this smoke listens to; every one must be in PROXIED_EVENTS. */
@@ -75,8 +80,13 @@ export const SMOKE_EVENTS = Object.freeze({
   PTY_EXIT: 'pty:exit',
 })
 
-/** S8 probe: a channel in HEADLESS_UNSUPPORTED (no side effects if it ever went online). */
-export const UNSUPPORTED_PROBE_CHANNEL = 'claude:get-supported-models'
+/**
+ * S8 probe: a channel in HEADLESS_UNSUPPORTED. T0401: `claude:set-codex-sandbox-mode` stays
+ * unsupported for good (the server bundle has no codex), and is unsupported on older servers too.
+ * Harmless if it ever answered: an unknown session id is a no-op.
+ */
+export const UNSUPPORTED_PROBE_CHANNEL = 'claude:set-codex-sandbox-mode'
+export const UNSUPPORTED_PROBE_ARGS = Object.freeze(['smoke-probe', 'read-only'])
 
 /** Error text of handler-registry.ts `invokeHandler` for an unregistered channel. */
 export const UNSUPPORTED_ERROR_RX = /No handler for channel: (\S+)/
@@ -599,6 +609,7 @@ export const CHECKS = Object.freeze([
   ['S6', 'PTY survives WS disconnect; write after reconnect + auth'],
   ['S7', 'pty:kill emits pty:exit; later write does not break the server'],
   ['S8', 'unsupported channel returns an explicit error'],
+  ['S9', 'claude:get-cli-path / detectRuntime / auth-status answer without a login'],
 ])
 
 export function makeSmokeId(now = new Date(), rand = randomBytes(3).toString('hex')) {
@@ -625,13 +636,42 @@ export function ptyCreateOutcome(result) {
   return { ok: result === true, created: null }
 }
 
+/**
+ * S9 (T0401): judge the login-free claude:* answers.
+ *   - get-cli-path: an absolute POSIX path (the claude terminal presets launch it)
+ *   - detectRuntime: the bundled embedded claude is present and runs (`--version` parses)
+ *   - auth-status: `null` (no login / `claude auth status` exits 1 when logged out) or `{ loggedIn: boolean }`
+ */
+export function checkClaudeRuntimeAnswers({ cliPath, runtime, auth }) {
+  const problems = []
+  if (typeof cliPath !== 'string' || !/^\/\S*$/.test(cliPath)) problems.push(`get-cli-path → ${JSON.stringify(cliPath)} (expected an absolute path)`)
+  const embedded = runtime && typeof runtime === 'object' ? runtime.embedded : undefined
+  if (!embedded || typeof embedded.path !== 'string' || !embedded.path) {
+    problems.push(`detectRuntime → ${JSON.stringify(runtime)?.slice(0, 160)} (no embedded path)`)
+  } else if (embedded.healthStatus !== 'healthy') {
+    problems.push(`detectRuntime embedded ${embedded.path} → ${embedded.healthStatus}`)
+  }
+  const authOk = auth === null || (auth && typeof auth === 'object' && typeof auth.loggedIn === 'boolean')
+  if (!authOk) problems.push(`auth-status → ${JSON.stringify(auth)?.slice(0, 160)}`)
+  if (problems.length > 0) return { ok: false, evidence: problems.join('; ') }
+
+  const system = runtime.system && typeof runtime.system === 'object'
+    ? `${runtime.system.path} ${runtime.system.version} (${runtime.system.healthStatus})`
+    : 'none'
+  const login = auth === null ? 'null (not logged in / no status)' : `loggedIn=${auth.loggedIn}${auth.authMethod ? ` (${auth.authMethod})` : ''}`
+  return {
+    ok: true,
+    evidence: `get-cli-path → ${cliPath}; embedded ${embedded.path} v${embedded.version} healthy; system ${system}; auth-status → ${login}`,
+  }
+}
+
 function excerpt(text, max = 160) {
   const flat = String(text).replace(/\r/g, '').replace(/\n+/g, '⏎').trim()
   return flat.length > max ? `…${flat.slice(flat.length - max)}` : flat
 }
 
 /**
- * Runs S1-S8 against one server. `deps.createClient` lets tests inject a fake;
+ * Runs S1-S9 against one server. `deps.createClient` lets tests inject a fake;
  * everything else talks to the real server.
  */
 export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, createClient, log = () => {} } = {}) {
@@ -798,7 +838,7 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
     // ── S8 ──
     try {
       if (!client?.isOpen) throw new Error('no live connection for the probe')
-      const result = await client.invoke(UNSUPPORTED_PROBE_CHANNEL)
+      const result = await client.invoke(UNSUPPORTED_PROBE_CHANNEL, ...UNSUPPORTED_PROBE_ARGS)
       set('S8', 'FAIL', `${UNSUPPORTED_PROBE_CHANNEL} unexpectedly answered ${JSON.stringify(result)?.slice(0, 120)}`)
     } catch (error) {
       if (error.remote && UNSUPPORTED_ERROR_RX.test(error.message)) {
@@ -806,6 +846,21 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       } else {
         set('S8', 'FAIL', `${UNSUPPORTED_PROBE_CHANNEL} → ${error.timeout ? 'TIMEOUT' : 'non-explicit failure'}: ${error.message}`)
       }
+    }
+
+    // ── S9 ──
+    try {
+      if (!client?.isOpen) throw new Error('no live connection for the claude probes')
+      const outcome = checkClaudeRuntimeAnswers({
+        cliPath: await client.invoke(SMOKE_CHANNELS.CLAUDE_CLI_PATH),
+        runtime: await client.invoke(SMOKE_CHANNELS.CLAUDE_DETECT_RUNTIME),
+        auth: await client.invoke(SMOKE_CHANNELS.CLAUDE_AUTH_STATUS),
+      })
+      set('S9', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
+    } catch (error) {
+      set('S9', 'FAIL', error.remote && UNSUPPORTED_ERROR_RX.test(error.message)
+        ? `${error.message} — server predates T0401 (claude:* not online)`
+        : `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}`)
     }
   } finally {
     // Kill our PTY on every path, then confirm it is gone (own id only).

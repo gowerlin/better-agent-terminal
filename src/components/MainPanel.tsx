@@ -11,6 +11,8 @@ import { workspaceStore } from '../stores/workspace-store'
 import { useVoicePopover } from '../hooks/useVoicePopover'
 import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
+import { RemoteAgentUnavailable } from './RemoteAgentUnavailable'
+import { isAgentPresetUnsupportedRemotely } from '../lib/remote-unsupported'
 
 // Lazy load Claude Agent SDK (~240KB chunk) — only needed for claude-code terminals
 const ClaudeAgentPanel = lazy(() => import('./ClaudeAgentPanel').then(m => ({ default: m.ClaudeAgentPanel })))
@@ -229,7 +231,9 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
       <div className="main-panel-content">
         {isClaudeCode ? (
           <Suspense fallback={<div className="loading-panel" />}>
-            {isCodexAgent ? (
+            {isCodexAgent && isRemoteConnected && isAgentPresetUnsupportedRemotely(terminal.agentPreset) ? (
+              <RemoteAgentUnavailable />
+            ) : isCodexAgent ? (
               <CodexAgentPanel
                 sessionId={terminal.id}
                 cwd={terminal.cwd}

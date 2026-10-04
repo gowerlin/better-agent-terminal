@@ -19,6 +19,8 @@ interface ThumbnailBarProps {
   onAddAgent?: (definitionId: string) => void
   /** Agent definitions to show in the add menu (fetched from registry) */
   agentDefinitions?: AgentDefinition[]
+  /** T0401: definition id → reason; shown disabled with the reason (e.g. codex in a remote window) */
+  unavailableAgents?: Readonly<Record<string, string>>
   // Legacy callbacks — kept for backward compat, remove when fully migrated
   onAddClaudeAgent?: () => void
   onAddClaudeAgentV2?: () => void
@@ -44,6 +46,7 @@ export function ThumbnailBar({
   onAddTerminalWithShell,
   onAddAgent,
   agentDefinitions = [],
+  unavailableAgents,
   onAddClaudeAgent,
   onAddClaudeAgentV2,
   onAddClaudeWorktree,
@@ -227,6 +230,21 @@ export function ThumbnailBar({
 
             if (onAddAgent && agentDefinitions.length > 0) {
               for (const def of agentDefinitions) {
+                const unavailableReason = unavailableAgents?.[def.id]
+                if (unavailableReason) {
+                  items.push(
+                    <div
+                      className="thumbnail-add-menu-item disabled"
+                      aria-disabled="true"
+                      title={unavailableReason}
+                    >
+                      <span className="thumbnail-add-menu-icon" style={{ color: def.color }}>{def.icon}</span>
+                      {def.name}
+                      <span className="thumbnail-add-menu-unavailable">{unavailableReason}</span>
+                    </div>
+                  )
+                  continue
+                }
                 items.push(
                   <div
                     className="thumbnail-add-menu-item"

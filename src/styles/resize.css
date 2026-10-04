@@ -154,6 +154,22 @@
   background: var(--bg-hover);
 }
 
+.thumbnail-add-menu-item.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.thumbnail-add-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.thumbnail-add-menu-unavailable {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .thumbnail-add-menu-item.has-submenu {
   position: relative;
 }

@@ -15,6 +15,7 @@ import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown'
 import { classifyClaudeError } from '../lib/claude-error-classify'
+import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
 import { getModelPricing } from '../lib/model-pricing'
 
 interface SessionMeta {
@@ -918,6 +919,21 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     }
   }, [sessionId])
 
+  // T0401: a remote bat-server without a handler for a channel → readable system message instead
+  // of a silent unhandled rejection. Any other failure is rethrown (unchanged behaviour).
+  const showRemoteUnsupported = (err: unknown): void => {
+    const text = remoteUnsupportedMessage(err, t)
+    if (!text) throw err
+    setMessages(prev => [...prev, {
+      id: `remote-unsupported-${Date.now()}`,
+      sessionId,
+      role: 'system' as const,
+      content: text,
+      timestamp: Date.now(),
+    }])
+    setIsStreaming(false)
+  }
+
   // Start session on mount (guarded against StrictMode double-mount)
   // If a saved sdkSessionId exists (from a previous /resume), auto-resume that session
   useEffect(() => {
@@ -949,13 +965,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         historyLoadedRef.current = true
         window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd, savedModel, apiVersion,
           useWorktree ? true : undefined, terminal?.worktreePath, terminal?.worktreeBranch)
+          .catch(showRemoteUnsupported)
       } else {
         dlog(`${stag} FRESH startSession`)
         window.electronAPI.claude.startSession(sessionId, {
           cwd, permissionMode, model: effectiveModel,
           effort: effectiveEffort as EffortLevel, apiVersion,
           ...(useWorktree ? { useWorktree: true, worktreePath: terminal?.worktreePath, worktreeBranch: terminal?.worktreeBranch } : {}),
-        })
+        }).catch(showRemoteUnsupported)
       }
     }
     return () => {
@@ -1457,6 +1474,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     }
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
+      .catch(showRemoteUnsupported)
   }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput])
 
   const handleInterrupt = useCallback(() => {

@@ -17,6 +17,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay } from '../lib/pty-replay'
+import { REMOTE_UNSUPPORTED_AGENT_PRESETS } from '../lib/remote-unsupported'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
 
@@ -171,6 +172,10 @@ export function clearInitializedWorkspaces(): void {
 
 export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isRemoteConnected, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel, onOpenSettings }: Readonly<WorkspaceViewProps>) {
   const { t } = useTranslation()
+  // T0401: a remote window's bat-server has no codex — show those agents disabled with the reason.
+  const remoteUnavailableAgents = Object.fromEntries(
+    [...REMOTE_UNSUPPORTED_AGENT_PRESETS].map(id => [id, t('claude.remoteCodexUnsupportedShort')]),
+  )
   const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
   // Ref (not a callback dep) so the launch effects below keep their dependency lists unchanged.
   const noticeCodexDaemonRef = useRef<(cmd: string | null) => void>(() => {})
@@ -1278,6 +1283,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         onAddTerminalWithShell={handleAddTerminalWithShell}
         onAddAgent={handleAddAgent}
         agentDefinitions={agentDefinitions.filter(d => d.id !== 'none').filter(d => !d.debug || isDebugMode).filter(d => !isWorktreeAgent(d.id) || (isDebugMode && isGitRepo))}
+        unavailableAgents={isRemoteConnected ? remoteUnavailableAgents : undefined}
         onAddClaudeAgent={handleAddClaudeAgent}
         onAddClaudeAgentV2={handleAddClaudeAgentV2}
         onAddClaudeWorktree={isDebugMode && isGitRepo ? handleAddClaudeWorktree : undefined}

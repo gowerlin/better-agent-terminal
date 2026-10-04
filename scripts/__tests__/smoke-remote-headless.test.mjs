@@ -18,10 +18,12 @@ import {
   SMOKE_CHANNELS,
   SMOKE_EVENTS,
   UNSUPPORTED_ERROR_RX,
+  UNSUPPORTED_PROBE_ARGS,
   UNSUPPORTED_PROBE_CHANNEL,
   UsageError,
   buildAuthFrame,
   buildInvokeFrame,
+  checkClaudeRuntimeAnswers,
   corruptFingerprint,
   decodeTokenFile,
   main,
@@ -75,9 +77,10 @@ describe('frame format drift guard (protocol.ts)', () => {
     for (const event of Object.values(SMOKE_EVENTS)) expect(PROXIED_EVENTS.has(event), event).toBe(true)
   })
 
-  it('S8 probe is a headless-unsupported channel; the P0 channels are not', () => {
+  it('S8 probe is a headless-unsupported channel; the channels S2-S7 / S9 call are not', () => {
     expect(PROXIED_CHANNELS.has(UNSUPPORTED_PROBE_CHANNEL)).toBe(true)
     expect(HEADLESS_UNSUPPORTED[UNSUPPORTED_PROBE_CHANNEL]).toBeDefined()
+    expect(UNSUPPORTED_PROBE_ARGS).toEqual(['smoke-probe', 'read-only'])
     for (const channel of Object.values(SMOKE_CHANNELS)) expect(HEADLESS_UNSUPPORTED[channel], channel).toBeUndefined()
   })
 
@@ -327,10 +330,13 @@ function fakeShellEval(command, pty) {
     .replace(/\$\$/g, String(pty.pid))
 }
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false } = {}) {
+const CLI_PATH = '/home/u/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude'
+
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false } = {}) {
   const ptys = new Map()
   const clients = new Set()
   const log = []
+  const probeArgs = []
   let nextPid = 100
   let killCalls = 0
   const emit = (channel, ...args) => {
@@ -366,6 +372,14 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       return true
     },
     'pty:get-cwd': (id) => (ptys.has(id) ? '/home/u' : null),
+    ...(preClaude ? {} : {
+      'claude:get-cli-path': () => CLI_PATH,
+      'claude:detectRuntime': () => ({
+        embedded: { path: CLI_PATH, version: '2.1.289', versionRaw: '2.1.289 (Claude Code)', healthStatus: 'healthy' },
+        system: null,
+      }),
+      'claude:auth-status': () => null,
+    }),
   }
 
   class FakeClient {
@@ -396,6 +410,7 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       if (!this.isOpen) throw new Error('not connected')
       log.push(channel)
       if (channel === UNSUPPORTED_PROBE_CHANNEL) {
+        probeArgs.push(args)
         if (probeAnswers) return []
         if (probeHangs) throw Object.assign(new Error('invoke timed out'), { timeout: true })
       }
@@ -407,11 +422,11 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
 
   const conn = { url: 'wss://fake:1', token: 'tok', fingerprint: FP, cwd: '/home/u' }
   const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
-  return { conn, createClient, ptys, log, handlers }
+  return { conn, createClient, ptys, log, handlers, probeArgs }
 }
 
 describe('runSmoke (fake server)', () => {
-  it('passes S1-S8 and leaves no smoke PTY behind', async () => {
+  it('passes S1-S9 and leaves no smoke PTY behind', async () => {
     const fake = createFakeServer()
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -421,10 +436,11 @@ describe('runSmoke (fake server)', () => {
     expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(1)
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
-    expect(summarize(report)).toEqual({ ok: true, passed: 8, total: 8 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 9, total: 9 })
+    expect(fake.probeArgs).toEqual([['smoke-probe', 'read-only']])
   })
 
-  it('passes S1-S8 against a server before T0403 (pty:create answers a bare boolean)', async () => {
+  it('passes S1-S9 against a server before T0403 (pty:create answers a bare boolean)', async () => {
     const fake = createFakeServer({ legacyCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -454,7 +470,7 @@ describe('runSmoke (fake server)', () => {
     const fake = createFakeServer({ rejectCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
     const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
-    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS' })
+    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS' })
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(fake.log).not.toContain('pty:kill')
   })
@@ -468,11 +484,46 @@ describe('runSmoke (fake server)', () => {
     expect(fake.ptys.size).toBe(0)
   })
 
+  it('S9 fails, naming the cause, against a server before T0401 (claude:* not online)', async () => {
+    const fake = createFakeServer({ preClaude: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
+    const s9 = report.checks.find((c) => c.id === 'S9')
+    expect(s9.status).toBe('FAIL')
+    expect(s9.evidence).toMatch(/No handler for channel: claude:get-cli-path — server predates T0401/)
+    expect(report.checks.filter((c) => c.id !== 'S9').every((c) => c.status === 'PASS')).toBe(true)
+  })
+
   it('S8 fails on an answer or a timeout instead of an explicit error', async () => {
     for (const option of [{ probeAnswers: true }, { probeHangs: true }]) {
       const fake = createFakeServer(option)
       const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 300 })
       expect(report.checks.find((c) => c.id === 'S8').status).toBe('FAIL')
     }
+  })
+})
+
+describe('checkClaudeRuntimeAnswers (S9, T0401)', () => {
+  const healthy = { embedded: { path: CLI_PATH, version: '2.1.289', healthStatus: 'healthy' }, system: null }
+
+  it('accepts the bundle claude with no login (auth-status null)', () => {
+    const outcome = checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: healthy, auth: null })
+    expect(outcome.ok).toBe(true)
+    expect(outcome.evidence).toContain(`get-cli-path → ${CLI_PATH}`)
+    expect(outcome.evidence).toContain('auth-status → null')
+  })
+
+  it('accepts a logged-in / logged-out status object', () => {
+    for (const loggedIn of [true, false]) {
+      expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: healthy, auth: { loggedIn, authMethod: 'none' } }).ok).toBe(true)
+    }
+  })
+
+  it('rejects an empty cli path, a broken embedded claude, or a malformed auth status', () => {
+    expect(checkClaudeRuntimeAnswers({ cliPath: '', runtime: healthy, auth: null }).ok).toBe(false)
+    expect(checkClaudeRuntimeAnswers({ cliPath: 'C:\\claude.exe', runtime: healthy, auth: null }).ok).toBe(false)
+    const broken = { embedded: { path: CLI_PATH, version: 'unknown', healthStatus: 'spawn-failed' }, system: null }
+    expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: broken, auth: null }).evidence).toMatch(/spawn-failed/)
+    expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: null, auth: null }).ok).toBe(false)
+    expect(checkClaudeRuntimeAnswers({ cliPath: CLI_PATH, runtime: healthy, auth: 'yes' }).ok).toBe(false)
   })
 })

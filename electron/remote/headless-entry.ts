@@ -3,7 +3,14 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import type { HandlerModule, HandlerModuleDisposer, HandlerRegistrar, HostDeps } from '../handlers/types'
+import { registerClaudeHandlers } from '../handlers/claude'
 import { registerPtyHandlers } from '../handlers/pty'
+import { ClaudeAgentManager } from '../claude-agent-manager'
+import {
+  configureRuntimeRouter,
+  resolveEmbeddedClaudePath,
+  type EmbeddedClaudeLayout,
+} from '../claude-runtime-router'
 import { PtyManager } from '../pty-manager'
 import { broadcastHub } from './broadcast-hub'
 import {
@@ -62,15 +69,78 @@ export const registerHeadlessPtyHandlers: HandlerModule = (register, host) => {
 }
 
 /**
+ * T0401: install root of the running server bundle — `staging/` in the tarball,
+ * i.e. two levels above the bundled `electron/remote/headless-entry.js`
+ * (same anchor as `resolveBundleVersion`). Running from source (tests, dev) it
+ * is the repo root.
+ */
+export function defaultHeadlessInstallRoot(): string {
+  return path.resolve(__dirname, '..', '..')
+}
+
+/**
+ * T0401: embedded claude for headless. The server bundle ships the POSIX
+ * wrapper `<installRoot>/node_modules/@anthropic-ai/claude-code/bin/claude`
+ * (build-server-bundle.mjs pruneAnthropicPackages). When it is not there —
+ * running from the repo, where npm installed `bin/claude.exe` — fall back to
+ * resolving the package from the module graph, like Electron dev.
+ */
+export function resolveHeadlessEmbeddedLayout(
+  installRoot: string,
+  exists: (p: string) => boolean = fs.existsSync,
+): EmbeddedClaudeLayout {
+  const bundleLayout: EmbeddedClaudeLayout = { kind: 'server-bundle', installRoot }
+  return exists(resolveEmbeddedClaudePath(bundleLayout)) ? bundleLayout : { kind: 'node-modules' }
+}
+
+/**
+ * T0401: `claude:*` on headless. One ClaudeAgentManager per server, built from
+ * the headless `HostDeps` (broadcastHub emit, no notifier ⇒ no completion
+ * notifications). The runtime router reads `claudeRuntime` from
+ * `<dataDir>/settings.json` and resolves embedded to the bundle's `bin/claude`.
+ * Spawn env: ClaudeAgentManager sets `DISABLE_AUTOUPDATER=1` process-wide and
+ * `sdkSpawnEnv` adds `DISABLE_UPDATES=1` for embedded only (never for system).
+ *
+ * No codex (`getCodexManager` omitted): `claude:set-codex-*` stay unregistered
+ * and a codex preset is rejected with CODEX_UNSUPPORTED_MESSAGE. No message
+ * archive (ALWAYS_LOCAL_CHANNELS — the client answers it).
+ */
+export function createHeadlessClaudeModule(opts: { installRoot?: string } = {}): HandlerModule {
+  return (register, host) => {
+    const installRoot = opts.installRoot ?? defaultHeadlessInstallRoot()
+    configureRuntimeRouter({
+      getDataDir: () => host.dataDir,
+      getEmbeddedLayout: () => resolveHeadlessEmbeddedLayout(installRoot),
+    })
+    const manager = new ClaudeAgentManager(host)
+    registerClaudeHandlers(register, {
+      emit: host.emit,
+      homeDir: host.homeDir,
+      getClaudeManager: () => manager,
+    })
+    return () => {
+      manager.killAll()
+      manager.dispose()
+    }
+  }
+}
+
+/** Shared domain modules for one headless server; `installRoot` overrides the bundle location (tests). */
+export function createHeadlessHandlerModules(opts: { installRoot?: string } = {}): HandlerModule[] {
+  return [
+    registerHeadlessPtyHandlers, // T0390
+    createHeadlessClaudeModule(opts), // T0401
+  ]
+}
+
+/**
  * PLAN-036 / D129 (T0388): shared domain modules (`electron/handlers/*.ts`)
  * headless bat-server registers — the same modules Electron main registers
  * with its own deps. A module going online here must delete its channels from
  * `HEADLESS_UNSUPPORTED` (headless-channel-status.ts) in the same commit, or
  * the parity test fails.
  */
-export const HEADLESS_HANDLER_MODULES: readonly HandlerModule[] = [
-  registerHeadlessPtyHandlers, // T0390
-]
+export const HEADLESS_HANDLER_MODULES: readonly HandlerModule[] = createHeadlessHandlerModules()
 
 /**
  * Headless side of `HostDeps`: events go to connected remote clients only
@@ -95,6 +165,8 @@ export interface HeadlessServerOptions {
   secretStrategy?: SecretStrategy
   certificateProvider?: CertificateProvider
   handlers?: HeadlessHandlerRegistration[]
+  /** T0401: server bundle install root (embedded claude lookup). Default: `defaultHeadlessInstallRoot()`. */
+  installRoot?: string
   logger?: {
     log: (...args: unknown[]) => void
     warn: (...args: unknown[]) => void
@@ -170,7 +242,10 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   }
   const hostDeps = createHeadlessHostDeps(opts.dataDir)
   const moduleDisposers: HandlerModuleDisposer[] = []
-  for (const registerModule of HEADLESS_HANDLER_MODULES) {
+  const handlerModules = opts.installRoot
+    ? createHeadlessHandlerModules({ installRoot: opts.installRoot })
+    : HEADLESS_HANDLER_MODULES
+  for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)
     if (dispose) moduleDisposers.push(dispose)
   }
