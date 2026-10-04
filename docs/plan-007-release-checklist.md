@@ -81,8 +81,11 @@ with a running daemon.
       `--restart unless-stopped`) reaches `done` without rollback.
 - [ ] Confirm BAT stores a profile with `targetOS: docker-linux` and the
       expected mount metadata.
-- [ ] `docker restart <container-name>` → BAT auto-reconnects and `/health`
-      reports healthy.
+- [ ] `docker restart <container-name>` → BAT auto-reconnects and
+      `docker inspect --format '{{.State.Health.Status}}' <container-name>`
+      reports `healthy` (TLS handshake probe; the server has no `/health` route).
+- [ ] `docker port <container-name>` shows `127.0.0.1:<port>` (host loopback
+      only, never `0.0.0.0` / `[::]`).
 - [ ] Stop the container (`docker stop`); confirm BAT surfaces the
       disconnect modal. Restart the container (`docker start`) and confirm
       reconnect succeeds with the same token.
