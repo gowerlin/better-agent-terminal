@@ -211,7 +211,8 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
 | S5 | a second `pty:create` with the same id keeps the same shell (`$$`) |
 | S6 | the PTY survives a WS disconnect; writes work after reconnect + auth |
 | S7 | `pty:kill` emits `pty:exit`; a later write returns `pty-not-found` and the connection stays usable |
-| S8 | an unsupported channel (`claude:get-supported-models`) returns `No handler for channel: …`, not a timeout |
+| S8 | an unsupported channel (`claude:set-codex-sandbox-mode`; the server bundle ships no Codex) returns `No handler for channel: …`, not a timeout |
+| S9 | `claude:get-cli-path` / `claude:detectRuntime` / `claude:auth-status` answer without a login (fails with "server predates T0401" against older servers) |
 
 | Option | Meaning |
 |--------|---------|

@@ -102,7 +102,7 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 | 工單 | 內容 | 前置 | 狀態 |
 |---|---|---|---|
 | T0400 | E：ClaudeAgentManager HostDeps（去 Electron 化） | T0389 | ✅ DONE（`09f1e46`，01:53 複驗：1191 tests / vite / e2e 6 passed 0 failed / tsc 40；Agent 面板實機待新 build） |
-| T0401 | F：`claude:*` 共用註冊上線 headless；archive 三個改 always-local；codex / stub 列 unsupported + UI 降級；`PROXIED_EVENTS` 補 `claude:turn-end` / `runtime-degraded` / `runtime-warning`；embedded 注入 `DISABLE_UPDATES` | T0400、T0403 | 🔄 02:13 派發 |
+| T0401 | F：`claude:*` 共用註冊上線 headless；archive 三個改 always-local；codex / stub 列 unsupported + UI 降級；`PROXIED_EVENTS` 補 `claude:turn-end` / `runtime-degraded` / `runtime-warning`；embedded 注入 `DISABLE_UPDATES` | T0400、T0403 | ✅ DONE（`53efb8e`，02:33 複驗：1258 tests / vite / e2e 0 failed（E1 43 個 claude:* 全綁定）/ tsc 40；WSL 部署 + S9 待辦） |
 | T0402 | G：遠端 claude 未登入引導（i18n） | T0401 | 保留編號 |
 | T0403 | 遠端終端收尾 A：斷線輸出回放 `pty:get-buffer` + `pty:create` 回傳是否新 spawn（還原 agent preset 不重打指令） | T0398 | ✅ DONE（`b24d89a`，02:09 複驗：1224 tests / vite / e2e 0 failed / tsc 40；新 smoke 對舊 WSL server 8/8 = 相容性 PASS；新 server 部署 + UI 實機待辦） |
 | T0404 | 遠端終端收尾 B：孤兒 PTY 回收（無 client N 小時 / 上限）+ BUG-103 | T0401、T0403 | 保留編號 |
@@ -111,3 +111,4 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 
 - WSL server 01:52 重新部署 HEAD `09f1e46`（含 T0398 locale 修正；備份 tag `t0398`），smoke 8/8；T0395 的 LISTEN 檢查實機正確列出 `127.0.0.1:9877`
 - WSL server 02:12 重新部署 HEAD `b24d89a`（T0403；備份 tag `t0403`），smoke 8/8，S3 `{"ok":true,"created":true}`、S5 `{"ok":true,"created":false}`。UI 回放 / 不重打 agent 指令待新 BAT build 實機（T0403 回報區步驟 4-7）
+- T0401 附帶：`claude auth status` 未登入時 exit 1，既有 handler 回 `null`，無法區分「未登入」與「runtime 壞掉」→ T0402 決定是否 exit≠0 仍 parse stdout（會改本機行為，需塔台裁決）
