@@ -59,8 +59,8 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 | T0409 | C | 安裝食譜 + 完成標記 + host 白名單 | T0407 | ✅ DONE（`ce27a82`，03:04 複驗 38/38；剩餘風險列入 T0414：`curl \| sh` 管線 `$?`、gh rpm GPG 自動匯入、RHEL rg 需 EPEL） |
 | T0410 | D | `RemoteToolsPanel` + `InstallConfirmDialog` + i18n | T0408、T0409 | ✅ DONE（`8a17984`，03:22 與 T0411 聯合複驗 PASS） |
 | T0411 | B | headless / main 接線：`remote-tools:detect` + `remote:detect-tools` + smoke S10（🔒 main / protocol / headless-entry） | T0408 | ✅ DONE（`49b1ca5`，03:22 聯合複驗：1514 tests / vite / e2e 0 failed / tsc 40；preload `remoteTools.detect(profileId)` / `detectHere()`；WSL 部署 + S10 待辦） |
-| T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | 🔄 03:24 派發（與 T0413 平行） |
-| T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | ✅ DONE（`11d02f1`，03:31 塔台目標測試複驗 297/297；全套 + vite build 待 T0412 後聯合複驗） |
+| T0412 | E | 跨視窗安裝執行（pending install 佇列、遠端視窗建分頁 + 標記掃描）（🔒 main） | T0409-T0411 | ✅ DONE（`e92e241` / `968fe3f`，03:43 聯合複驗：1614 tests / vite / e2e 0 failed / tsc 40） |
+| T0413 | F | 入口：精靈完成區塊 + `ProfileCard.expandedExtras` | T0410 | ✅ DONE（`11d02f1`，03:31 塔台目標測試複驗 297/297；03:43 聯合複驗 PASS） |
 | T0414 | G | 實機驗收（首次允許實際安裝） | T0411-T0413 | 保留編號 |
 
 之後才是 PLAN-036 T0405（git 上遠端）→ T0406（fs）。
@@ -72,4 +72,6 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 - WSL server 03:23 重新部署 HEAD `e7b346e`（T0411；備份 tag `t0411`），smoke **10/10 PASS**：S10 `ubuntu 24.04 pkg=apt priv=passwordless wsl=true`、git / curl / bash / python3 ok，claude / gh / codex / rg / uv / node missing。註：server 端 probe 的 codex 為 `missing`（不是 interop-only）——systemd 服務環境沒有 WSL interop 附加的 `/mnt/*` PATH，與 BAT 遠端終端（同由 server spawn）的實際可見性一致
 - T0412 / T0413 API 契約（塔台 03:23 定）：`remoteTools.requestInstall({ profileId, toolId, kind })`，只帶 toolId + kind，遠端視窗自行重建指令
 - T0413 範圍偏離（使用者 03:31 接受）：設定精靈完成後**不再自動關閉**（原本一完成就 `close()`，完成畫面從未被看見），停在完成畫面顯示工具面板，由使用者按 × / 遮罩關閉
-- 待補 locale（塔台於 T0412 完成後補，含 `i18n-completeness` 預期集合）：`remoteTools.installRequestFailed`——zh-TW「無法在遠端視窗啟動安裝。」、zh-CN「无法在远端窗口启动安装。」、en「Could not start the install in the remote window.」
+- ✅ 已補 locale（塔台 03:43 直接修）：`remoteTools.installRequestFailed`——zh-TW「無法在遠端視窗啟動安裝。」、zh-CN「无法在远端窗口启动安装。」、en「Could not start the install in the remote window.」
+- T0412 已知限制：全 app 單一遠端連線（同時開兩個遠端 profile 視窗只有最後連線者能取件）；安裝分頁加到 active 工作區但 WorkspaceView 子頁籤若停在 Files 需手動切回 Terminal；本機面板安裝完成後需手動「重新檢查」；`host="remote-window"` 面板尚未在任何畫面掛載（僅測試覆蓋）
+- T0414 實機步驟：見 T0412 回報區 13 項；**T0414 是首次允許實際安裝**，需使用者同意
