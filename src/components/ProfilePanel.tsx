@@ -5,6 +5,7 @@ import { SetupWizardShell, useDockerWizardController, useSshWizardController, us
 import { ProfileCard, EditRemoteProfileModal } from './profiles'
 import type { ProfileEntry, TargetOS } from './profiles'
 import { AddProfileMenu, type ProfileTypeOption } from './profiles/AddProfileMenu'
+import { RemoteToolsEntry } from './profiles/RemoteToolsEntry'
 
 // PLAN-007 T0268: targetOS choices for the legacy-remote inline prompt.
 const REMOTE_TARGET_OS_OPTIONS: TargetOS[] = ['wsl-linux', 'docker-linux', 'ssh-linux', 'ssh-darwin']
@@ -556,7 +557,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                   onClick={e => e.stopPropagation()}
                 />
               ) : undefined
-              const expandedExtras = profile.type === 'remote' && profile.targetOS === undefined ? (
+              const legacyTargetOsPrompt = profile.type === 'remote' && profile.targetOS === undefined ? (
                 <div
                   data-testid="legacy-remote-targetos-prompt"
                   className="profile-card-legacy-prompt"
@@ -595,6 +596,16 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                     ))}
                   </select>
                 </div>
+              ) : undefined
+              // T0413 (PLAN-037 F): expandedExtras only mounts while the card is expanded,
+              // so the remote tools probe runs on expand, never for the whole list.
+              const expandedExtras = profile.type === 'remote' ? (
+                <>
+                  {legacyTargetOsPrompt}
+                  <div style={{ marginBottom: 6 }}>
+                    <RemoteToolsEntry profileId={profile.id} host="profile" />
+                  </div>
+                </>
               ) : undefined
               const inlineActions = (
                 <>

@@ -21,6 +21,7 @@ import {
   type WizardRecoveryAction,
 } from './error-mapper'
 import { Stepper } from '../stepper/Stepper'
+import { RemoteToolsEntry } from '../profiles/RemoteToolsEntry'
 import type { StepDescriptor, StepStatus } from '../stepper/types'
 
 interface SetupWizardShellProps {
@@ -73,9 +74,10 @@ function useSetupWizardController(targetOS: WizardTargetOS, onComplete: (profile
     setCtx(null)
   }
 
+  // T0413 (PLAN-037 F): keep the wizard open on success so the completion block
+  // (remote AI tools check) stays visible; the user closes it from the header.
   const handleComplete = (profileId: string) => {
     onComplete(profileId)
-    close()
   }
 
   // T0378 (BUG-087 C): `steps` MUST keep a stable identity. SetupWizardShell's
@@ -383,6 +385,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
   const [activeChoice, setActiveChoice] = useState<WizardChoiceRequest | null>(null)
   const [wizardError, setWizardError] = useState<string | null>(null)
   const [complete, setComplete] = useState(false)
+  const [createdProfileId, setCreatedProfileId] = useState<string | null>(null)
   const [readOnlyStepId, setReadOnlyStepId] = useState<string | null>(null)
   const choiceResolverRef = useRef<((value: string | null) => void) | null>(null)
   const runnerRef = useRef<WizardRunner | null>(null)
@@ -408,6 +411,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
         if (disposed) return
         setComplete(true)
         if (runnerCtx.createdProfileId) {
+          setCreatedProfileId(runnerCtx.createdProfileId)
           onComplete?.(runnerCtx.createdProfileId)
         }
       })
@@ -646,6 +650,13 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       {complete && !wizardError && (
         <div className="mt-4 rounded-lg border border-emerald-700 bg-emerald-950/30 p-4 text-sm text-emerald-200">
           {t('wizard.progress.complete')}
+        </div>
+      )}
+
+      {/* T0413 (PLAN-037 F): remote AI toolchain check for the profile just created. */}
+      {complete && !wizardError && createdProfileId && (
+        <div className="bat-wizard-remote-tools mt-3" style={{ flexShrink: 0, maxHeight: '45vh', overflowY: 'auto' }}>
+          <RemoteToolsEntry profileId={createdProfileId} host="wizard" />
         </div>
       )}
     </section>
