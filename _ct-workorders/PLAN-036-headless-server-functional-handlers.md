@@ -106,8 +106,8 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 | T0402 | G：遠端 claude 未登入引導（i18n）+ auth-status exit≠0 解析 stdout（D132） | T0401 | ✅ DONE（`85916f8`，02:50 複驗） |
 | T0403 | 遠端終端收尾 A：斷線輸出回放 `pty:get-buffer` + `pty:create` 回傳是否新 spawn（還原 agent preset 不重打指令） | T0398 | ✅ DONE（`b24d89a`，02:09 複驗：1224 tests / vite / e2e 0 failed / tsc 40；新 smoke 對舊 WSL server 8/8 = 相容性 PASS；新 server 部署 + UI 實機待辦） |
 | T0404 | 遠端終端收尾 B：孤兒 PTY 回收（無 client N 小時 / 上限）+ BUG-103 | T0401、T0403 | ✅ DONE（`e4ad7cc`，02:50 複驗：1309 tests / vite / e2e 0 failed / tsc 40；WSL 部署待辦） |
-| T0405 | H：`git:*` / `github:*` / `worktree:*` / `git-scaffold:*` 上線 headless（+ `github:check-cli` 改 `gh auth status`） | T0404、PLAN-037 | 🔄 04:18 派發 |
-| T0406 | I：`fs:*` / `image:read-as-data-url` + `workspace:sync-roots`（fail-closed） | T0405 | 保留編號 |
+| T0405 | H：`git:*` / `github:*` / `worktree:*` / `git-scaffold:*` 上線 headless（+ `github:check-cli` 改 `gh auth status`） | T0404、PLAN-037 | ✅ DONE（`28cdd6f`，04:35 複驗 1675 tests / vite / e2e 0 failed / tsc 40；WSL 04:37 部署 smoke 11/11，暫存 repo 無殘留） |
+| T0406 | I：`fs:*` / `image:read-as-data-url` + `workspace:sync-roots`（fail-closed） | T0405、**T0416**（同改 `path-aware-channels.ts`） | 保留編號 |
 
 - WSL server 01:52 重新部署 HEAD `09f1e46`（含 T0398 locale 修正；備份 tag `t0398`），smoke 8/8；T0395 的 LISTEN 檢查實機正確列出 `127.0.0.1:9877`
 - WSL server 02:12 重新部署 HEAD `b24d89a`（T0403；備份 tag `t0403`），smoke 8/8，S3 `{"ok":true,"created":true}`、S5 `{"ok":true,"created":false}`。UI 回放 / 不重打 agent 指令待新 BAT build 實機（T0403 回報區步驟 4-7）
@@ -116,3 +116,4 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - T0405 注意（T0407 §2）：既有 `github:check-cli`（`main.ts` 約 2325-2368）以 `gh auth token` 判斷登入，會把 token 印到 stdout；搬進共用模組時改用 `gh auth status` exit code
 - T0404 後續建議：遠端 PTY 達上限時 renderer `pty.create` 為 fire-and-forget，使用者只看到空白終端 → 另案 toast
 - WSL server 02:51 重新部署 HEAD `140ca87`（T0402 + T0404；備份 tag `t0404`），smoke **9/9 PASS**：S1 `env=wsl`、S9 `auth-status → loggedIn=false`；journal `orphan PTY reclaim: after 24h without a client; PTY limit: 64`
+- T0405 發現：路徑轉換缺口 → **BUG-105（high）/ T0416**（使用者 04:36 裁決：先修再做 T0406）；`worktree:merge` 指向已移除方法 → BUG-106（low）；`github:check-cli` 改 `gh auth status --active` exit code（D133 落地，離線時判為未登入）；headless git / gh 子行程未套 `BAT_*` scrub（另案候選）
