@@ -292,13 +292,16 @@ export function createHeadlessGitBinaryResolver(resolve: typeof resolveGitBinary
 }
 
 /** T0405: test seams for `github:check-cli` (fake spawn / execFileSync / gh resolve / env). */
-export type HeadlessGitOverrides = Omit<GitHandlerDeps, 'getGithubCliPath'>
+export type HeadlessGitOverrides = Omit<GitHandlerDeps, 'getGithubCliPath' | 'isScrubbedEnvKey'>
 
 /**
  * T0405: `worktree:*` / `git:*` / `git-scaffold:*` / `github:*` on headless —
  * git and gh run on the server machine. `githubCliPath` comes from
  * `<dataDir>/settings.json`. The worktree singleton (shared with the claude
  * module's ClaudeAgentManager) uses the same resolved git.
+ * T0423: the git / gh children of `git:*` / `github:*` get the server env minus
+ * `isHeadlessScrubbedEnvKey` (same rule as headless PTYs), so `BAT_*` never
+ * reaches them. `worktree:*` / `git-scaffold:*` still inherit the full env.
  */
 export function createHeadlessGitModule(overrides: HeadlessGitOverrides = {}): HandlerModule {
   return (register, host) => {
@@ -307,6 +310,7 @@ export function createHeadlessGitModule(overrides: HeadlessGitOverrides = {}): H
     registerGitHandlers(register, {
       ...overrides,
       getGitBinary,
+      isScrubbedEnvKey: isHeadlessScrubbedEnvKey,
       getGithubCliPath: () => {
         const value = host.getSettings().githubCliPath
         return typeof value === 'string' ? value : undefined

@@ -25,13 +25,18 @@ const FAKE_GH = path.join(os.tmpdir(), 'bat-t0405-fake', 'gh')
 const SESSION = 't0405-harness-session'
 
 const ghSpawnCalls: string[][] = []
-const ghSpawn: GhAuthSpawn = (_file, args) => {
+const ghSpawnEnvs: Array<NodeJS.ProcessEnv | undefined> = []
+const ghSpawn: GhAuthSpawn = (_file, args, options) => {
   ghSpawnCalls.push(args)
+  ghSpawnEnvs.push(options.env)
   const child = Object.assign(new EventEmitter(), { kill: () => true })
   queueMicrotask(() => child.emit('exit', 1, null)) // gh installed, not logged in
   return child
 }
+/** T0423: env each git / gh child of `git:*` / `github:*` was given. */
+const childEnvs: Array<{ file: string; env: NodeJS.ProcessEnv | undefined }> = []
 const execWithFakeGh: GitExecFileSync = (file, args, options) => {
+  childEnvs.push({ file, env: options.env })
   if (file === FAKE_GH) return 'gh version 2.102.0 (2026-09-30)\n'
   return execFileSync(file, args, options)
 }
@@ -63,7 +68,12 @@ beforeAll(async () => {
       resolveGh: async () => ({ found: true, path: FAKE_GH, source: 'path', attemptedPaths: [FAKE_GH] }),
       execFileSync: execWithFakeGh,
       spawn: ghSpawn,
-      getEnv: () => ({}),
+      // T0423: the server env the children inherit: the real one (git needs PATH etc.)
+      // with BAT_* keys planted, and without GH_HOST so the login check targets github.com.
+      getEnv: () => {
+        const { GH_HOST: _ghHost, ...env } = process.env
+        return { ...env, BAT_REMOTE_TOKEN: 't0423-secret', BAT_TOWER_TERMINAL_ID: 't0423-tower', bat_t0423_lower: 'x' }
+      },
     },
     timeoutMs: 20_000,
   })
@@ -148,6 +158,23 @@ describe('git / github / worktree on headless (T0405)', () => {
       path: FAKE_GH, source: 'path', attemptedPaths: [FAKE_GH],
     })
     expect(ghSpawnCalls).toEqual([['auth', 'status', '--hostname', 'github.com', '--active']])
+  })
+
+  it('T0423: git / gh children get the server env minus BAT_* (isHeadlessScrubbedEnvKey)', async () => {
+    childEnvs.length = 0
+    ghSpawnEnvs.length = 0
+    expect(await harness.invoke('git:branch', repo)).toBe('main') // real git still works with the scrubbed env
+    await harness.invoke('github:check-cli')
+    await harness.invoke('github:pr-list', repo)
+    const files = childEnvs.map(c => c.file)
+    expect(files).toContain(FAKE_GH)
+    expect(files.some(f => f !== FAKE_GH)).toBe(true)
+    expect(ghSpawnEnvs).toHaveLength(1)
+    for (const env of [...childEnvs.map(c => c.env), ...ghSpawnEnvs]) {
+      expect(env).toBeDefined()
+      expect(Object.keys(env!).filter(k => k.toUpperCase().startsWith('BAT_'))).toEqual([])
+      expect(Object.keys(env!).some(k => k.toUpperCase() === 'PATH')).toBe(true)
+    }
   })
 })
 

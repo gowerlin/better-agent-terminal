@@ -21,6 +21,13 @@
  *     gh: `resolveGhBinary` already scans those on both hosts.
  *   - githubCliPath: Electron reads userData settings.json, headless the
  *     bat-server dataDir settings.json.
+ *   - child env (T0423): headless passes `isScrubbedEnvKey`
+ *     (`isHeadlessScrubbedEnvKey`, the rule headless PTYs and the remote-tools
+ *     probe use), so the git / gh children of this module get the server env
+ *     minus `BAT_*`. Electron passes none and its children inherit
+ *     `process.env` as before (no `env` option at all).
+ *     Not covered here: `worktree:*` (spawns in worktree-manager.ts) and
+ *     `git-scaffold:*` (simple-git, git-ipc.ts).
  *
  * 🔴 No `electron` import here (headless-electron-free guard).
  */
@@ -33,6 +40,7 @@ import {
 import { resolveGhBinary, type GhResolveResult } from '../gh-resolver'
 import { registerGitScaffoldHandlers } from '../git/git-ipc'
 import { worktreeManager } from '../worktree-manager'
+import { buildProbeEnv } from './remote-tools'
 import type { HandlerRegistrar } from './types'
 
 /** `gh auth status` makes a network round trip (token check); past this the answer is unknown. */
@@ -61,11 +69,18 @@ export interface GitHandlerDeps {
   getGithubCliPath(): string | undefined
   /** git executable. Default `git` (Electron, PATH lookup); headless passes its resolved path. */
   getGitBinary?: () => string
+  /**
+   * Inherited env keys the git / gh children must not see. Headless:
+   * `isHeadlessScrubbedEnvKey`. Omitted (Electron) ⇒ no `env` option, children
+   * inherit `process.env` unchanged.
+   */
+  isScrubbedEnvKey?: (key: string) => boolean
   /** Test seams. */
   execFileSync?: GitExecFileSync
   spawn?: GhAuthSpawn
   resolveGh?: typeof resolveGhBinary
   ghAuthTimeoutMs?: number
+  /** Default `process.env`: `GH_HOST` for the login check, and the base of the scrubbed child env. */
   getEnv?: () => NodeJS.ProcessEnv
 }
 
@@ -107,7 +122,7 @@ export function ghAuthStatusArgs(versionOutput: string, env: NodeJS.ProcessEnv =
 export function checkGhAuth(
   ghPath: string,
   args: string[],
-  opts: { spawn?: GhAuthSpawn; timeoutMs?: number } = {},
+  opts: { spawn?: GhAuthSpawn; timeoutMs?: number; env?: NodeJS.ProcessEnv } = {},
 ): Promise<GhAuthState> {
   const spawn = opts.spawn ?? (nodeSpawn as unknown as GhAuthSpawn)
   const timeoutMs = opts.timeoutMs ?? GH_AUTH_STATUS_TIMEOUT_MS
@@ -122,7 +137,7 @@ export function checkGhAuth(
     }
     let child: GhAuthChild
     try {
-      child = spawn(ghPath, args, { stdio: 'ignore', windowsHide: true })
+      child = spawn(ghPath, args, { stdio: 'ignore', windowsHide: true, ...(opts.env ? { env: opts.env } : {}) })
     } catch {
       finish('unknown')
       return
@@ -137,9 +152,17 @@ export function checkGhAuth(
 }
 
 export function registerGitHandlers(register: HandlerRegistrar, deps: GitHandlerDeps): void {
-  const execFileSync: GitExecFileSync = deps.execFileSync ?? nodeExecFileSync
+  const baseExecFileSync: GitExecFileSync = deps.execFileSync ?? nodeExecFileSync
   const resolveGh = deps.resolveGh ?? resolveGhBinary
   const git = () => deps.getGitBinary?.() ?? 'git'
+  const getEnv = deps.getEnv ?? (() => process.env)
+  /** Scrubbed env for one child, or undefined (Electron: inherit `process.env`). */
+  const childEnv = (): NodeJS.ProcessEnv | undefined =>
+    deps.isScrubbedEnvKey ? buildProbeEnv(getEnv(), deps.isScrubbedEnvKey) : undefined
+  const execFileSync: GitExecFileSync = (file, args, options) => {
+    const env = childEnv()
+    return baseExecFileSync(file, args, env ? { ...options, env } : options)
+  }
 
   // Standalone worktree operations (for claude-cli preset, not tied to SDK session)
   register('worktree:create', async (_ctx, sessionId: string, cwd: string) => {
@@ -281,8 +304,8 @@ export function registerGitHandlers(register: HandlerRegistrar, deps: GitHandler
     const timeoutMs = deps.ghAuthTimeoutMs ?? GH_AUTH_STATUS_TIMEOUT_MS
     const authState = await checkGhAuth(
       resolved.path,
-      ghAuthStatusArgs(String(versionOutput ?? ''), (deps.getEnv ?? (() => process.env))()),
-      { spawn: deps.spawn, timeoutMs },
+      ghAuthStatusArgs(String(versionOutput ?? ''), getEnv()),
+      { spawn: deps.spawn, timeoutMs, env: childEnv() },
     )
     return {
       installed: true,

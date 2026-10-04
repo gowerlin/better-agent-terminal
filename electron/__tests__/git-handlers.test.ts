@@ -107,6 +107,90 @@ describe('registerGitHandlers', () => {
   })
 })
 
+describe('child env (T0423: headless scrubs BAT_*, Electron unchanged)', () => {
+  const HOST_ENV: NodeJS.ProcessEnv = {
+    PATH: '/usr/bin',
+    HOME: '/home/u',
+    LANG: 'C.UTF-8',
+    GH_HOST: 'ghe.example.com',
+    GIT_TERMINAL_PROMPT: '0',
+    BAT_REMOTE_TOKEN: 'secret',
+    BAT_TOWER_TERMINAL_ID: 'tower',
+    bat_helper_dir: '/opt/bat',
+    UNSET: undefined,
+  }
+  const isBat = (key: string) => key.toUpperCase().startsWith('BAT_')
+  const EXPECTED: NodeJS.ProcessEnv = { PATH: '/usr/bin', HOME: '/home/u', LANG: 'C.UTF-8', GH_HOST: 'ghe.example.com', GIT_TERMINAL_PROMPT: '0' }
+
+  function recordingSetup(overrides: Partial<GitHandlerDeps>) {
+    const execOptions: Array<{ file: string; options: Record<string, unknown> }> = []
+    const { spawn, calls } = fakeSpawn(0)
+    const { invoke } = setup({
+      spawn,
+      getEnv: () => HOST_ENV,
+      execFileSync: (file, args, options) => {
+        execOptions.push({ file, options: options as unknown as Record<string, unknown> })
+        if (file === GH && args[0] === '--version') return 'gh version 2.102.0 (2026-09-30)\n'
+        if (file === GH) return '[]'
+        return 'git@github.com:o/r.git\n'
+      },
+      ...overrides,
+    })
+    return { invoke, execOptions, spawnCalls: calls }
+  }
+
+  async function invokeAll(invoke: (channel: string, ...args: unknown[]) => unknown) {
+    await invoke('git:get-github-url', '/repo')
+    await invoke('git:branch', '/repo')
+    await invoke('git:log', '/repo', 3)
+    await invoke('git:diff', '/repo', 'working')
+    await invoke('git:diff-files', '/repo', 'working')
+    await invoke('git:getRoot', '/repo')
+    await invoke('git:status', '/repo')
+    await invoke('github:check-cli')
+    await invoke('github:pr-list', '/repo')
+    await invoke('github:issue-list', '/repo')
+    await invoke('github:pr-view', '/repo', 1)
+    await invoke('github:issue-view', '/repo', 1)
+    await invoke('github:pr-comment', '/repo', 1, 'hi')
+    await invoke('github:issue-comment', '/repo', 1, 'hi')
+  }
+
+  it('with isScrubbedEnvKey every git / gh child gets the host env minus the scrubbed keys', async () => {
+    const { invoke, execOptions, spawnCalls } = recordingSetup({ isScrubbedEnvKey: isBat })
+    await invokeAll(invoke)
+    // 7 git:* + gh --version + 6 x (origin lookup + gh)
+    expect(execOptions).toHaveLength(7 + 1 + 6 * 2)
+    for (const { file, options } of execOptions) {
+      expect(options.env, file).toEqual(EXPECTED)
+      expect(options).toMatchObject({ windowsHide: true })
+    }
+    expect(spawnCalls).toHaveLength(1)
+    expect((spawnCalls[0].options as { env?: unknown }).env).toEqual(EXPECTED)
+    expect(spawnCalls[0].options).toMatchObject({ stdio: 'ignore', windowsHide: true })
+    // GH_HOST still reaches the login check
+    expect(spawnCalls[0].args.slice(2, 4)).toEqual(['--hostname', 'ghe.example.com'])
+  })
+
+  it('the env is read per call (not frozen at registration)', async () => {
+    let env: NodeJS.ProcessEnv = { PATH: '/a', BAT_X: '1' }
+    const { invoke, execOptions } = recordingSetup({ isScrubbedEnvKey: isBat, getEnv: () => env })
+    await invoke('git:branch', '/repo')
+    env = { PATH: '/b', BAT_X: '1' }
+    await invoke('git:branch', '/repo')
+    expect(execOptions.map(c => c.options.env)).toEqual([{ PATH: '/a' }, { PATH: '/b' }])
+  })
+
+  it('without isScrubbedEnvKey (Electron) no child gets an `env` option: process.env is inherited as before', async () => {
+    const { invoke, execOptions, spawnCalls } = recordingSetup({})
+    await invokeAll(invoke)
+    expect(execOptions).toHaveLength(7 + 1 + 6 * 2)
+    for (const { file, options } of execOptions) expect(options, file).not.toHaveProperty('env')
+    expect(spawnCalls).toHaveLength(1)
+    expect(spawnCalls[0].options).toEqual({ stdio: 'ignore', windowsHide: true })
+  })
+})
+
 describe('github:check-cli (D133: gh auth status exit code, never gh auth token)', () => {
   it('exit 0 → authenticated; spawn args are `auth status --hostname github.com --active`, output discarded', async () => {
     const { spawn, calls } = fakeSpawn(0)
