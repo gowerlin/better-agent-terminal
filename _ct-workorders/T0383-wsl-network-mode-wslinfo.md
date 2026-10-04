@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0383
 title: "BUG-089 修復：WSL 網路模式改用 `wslinfo --networking-mode` 判定 + declared/actual 比對 + 警告 i18n"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 priority: P1
 sizing: S
 created_at: "2026-10-04T22:18:57+08:00"
-updated_at: "2026-10-04T22:44:48+08:00"
+updated_at: "2026-10-04T22:55:34+08:00"
 started_at: "2026-10-04T22:44:48+08:00"
-completed_at: null
+completed_at: "2026-10-04T22:55:34+08:00"
 target_version: next
 depends_on: [T0382]
 related:
@@ -177,7 +177,7 @@ runtime 驗證只執行 `wslinfo --networking-mode`（唯讀）並讀取 `.wslco
 
 ### Commit
 
-- `git commit --only`：僅本單異動檔 + 新測試檔 + 本工單檔；未 push（hash 見塔台通知 / `git log`）
+- `git commit --only`：僅本單異動檔 + 新測試檔 + 本工單檔；未 push— 實作 commit `bf41706`
 
 ### 互動紀錄
 
