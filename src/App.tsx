@@ -536,12 +536,15 @@ export default function App() {
         }
 
         if (active?.type === 'remote' && active.remoteHost && active.remoteToken) {
-          // Try connecting to remote
+          // Try connecting to remote. T0419 (BUG-096): pass the pinned fingerprint;
+          // main also pins with the bound profile and reuses its verified client.
           const tRemote = performance.now()
           const connectResult = await window.electronAPI.remote.connect(
             active.remoteHost,
             active.remotePort || 9876,
-            active.remoteToken
+            active.remoteToken,
+            undefined,
+            active.remoteFingerprint
           )
           dlog(`[init] remote.connect: ${(performance.now() - tRemote).toFixed(0)}ms`)
           if ('error' in connectResult) {

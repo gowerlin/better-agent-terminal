@@ -86,6 +86,7 @@ import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
+import { planRemoteConnect, type RemoteConnectTarget } from './remote/remote-connect-plan'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -467,6 +468,10 @@ let remoteOpMutex: Promise<unknown> = Promise.resolve()
 // remote-event broadcasts so only windows on this remote profile receive
 // them — local-profile windows must not see foreign session traffic.
 let remoteClientProfileId: string | null = null
+// T0419 (BUG-096): what each client was asked to connect to (pre-tunnel host/port,
+// token, observed fingerprint). connectionInfo can't serve: an SSH tunnel rewrites
+// host/port to 127.0.0.1:<localPort>. Lets `remote:connect` reuse the pinned client.
+const remoteClientTargets = new WeakMap<RemoteClient, RemoteConnectTarget>()
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
 let tray: Tray | null = null
@@ -1285,6 +1290,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
         try { remoteClient?.disconnect() } catch { /* ignore */ }
         remoteClient = client
         remoteClientProfileId = profileId
+        remoteClientTargets.set(client, { host, port, token: profileEntry.remoteToken, fingerprint: result.fingerprint ?? '' })
         const targetProfileId = profileEntry.remoteProfileId || 'default'
         try {
           const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
@@ -2508,8 +2514,27 @@ function registerLocalHandlers() {
         const senderWindowId = getWindowIdByWebContents(event.sender)
         const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
         const boundProfileId = senderEntry?.profileId ?? null
-        const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(boundProfileId), senderEntry ? await profileManager.getProfile(boundProfileId ?? '') : null), boundProfileId)
-        const result = await client.connect(host, port, token, label, fingerprint)
+        const boundProfile = senderEntry ? await profileManager.getProfile(boundProfileId ?? '') : null
+        // T0419 (BUG-096): pin with the bound profile's fingerprint and reuse the
+        // client loadProfileSnapshotDetailed already verified instead of replacing it.
+        const plan = planRemoteConnect({
+          request: { host, port, token, fingerprint },
+          boundProfileId,
+          boundProfile,
+          current: remoteClient
+            ? { profileId: remoteClientProfileId, isConnected: remoteClient.isConnected, target: remoteClientTargets.get(remoteClient) ?? null }
+            : null,
+        })
+        if (plan.kind === 'reject') {
+          logger.warn(`[remote:connect] refused for profile ${boundProfileId} (${host}:${port}) [${plan.errorCode}]: ${plan.error}`)
+          return { error: plan.error, errorCode: plan.errorCode }
+        }
+        if (plan.kind === 'reuse') {
+          logger.log(`[remote:connect] reusing verified client for profile ${boundProfileId} (${host}:${port})`)
+          return { connected: true, fingerprint: plan.fingerprint }
+        }
+        const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(boundProfileId), boundProfile), boundProfileId)
+        const result = await client.connect(host, port, token, label, plan.expectedFingerprint)
         if (!result.ok) {
           remoteClient = null
           remoteClientProfileId = null
@@ -2518,6 +2543,7 @@ function registerLocalHandlers() {
         try { remoteClient?.disconnect() } catch { /* ignore */ }
         remoteClient = client
         remoteClientProfileId = boundProfileId
+        remoteClientTargets.set(client, { host, port, token, fingerprint: result.fingerprint ?? '' })
         return { connected: true, fingerprint: result.fingerprint }
       } catch (err: unknown) {
         remoteClient = null

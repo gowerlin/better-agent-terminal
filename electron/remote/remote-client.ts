@@ -36,7 +36,7 @@ export interface ConnectResult {
     | 'unknown'
 }
 
-function normalizeFingerprint(fp: string): string {
+export function normalizeFingerprint(fp: string): string {
   // Accept both lower/upper case, with or without colons, and render as
   // upper-case colon-separated hex — matches certificate.ts.
   return fp.replace(/[^0-9a-fA-F]/g, '').toUpperCase().match(/.{2}/g)?.join(':') || ''
