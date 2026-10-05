@@ -22,6 +22,9 @@ related:
 affects_files:
   - electron/main.ts
   - electron/remote/remote-connection-registry.ts
+  - electron/remote/remote-connect-plan.ts
+  - electron/preload.ts
+  - src/types/electron.d.ts
   - src/App.tsx
   - src/lib/remote-not-connected.ts
   - src/locales/en.json
@@ -54,6 +57,16 @@ memory_overrides:
 2. 填 `started_at`、`status: IN_PROGRESS`（`date "+%Y-%m-%dT%H:%M:%S%z"`，R-G001）
 3. 實作 → 驗收；填回報區；完成寫 **`DONE`**
 4. commit 實際改動檔 + 本工單；不 push；依派發 mode 通知塔台
+
+### 塔台補充（第五十六 session，派發前）
+
+- **T0463（`8604daa`）已先做了部分接線，本單在其上補完，不要重做**：視窗 / detached `closed` 已呼叫 `noteRemoteWindowClosed()` → registry 15 s 寬限 + 到期重算；connect 後無 live 視窗會排 60 s 首窗保護；`cleanupAllProcesses` 目前 `void remoteConnections.disconnectAll()`。T0463 刻意**不**採「關窗立即 release」（會打斷 `loadProfileSnapshotDetailed` 連上後、建窗前的空窗），維持此設計。
+- **本單剩餘範圍**（T0463 回報區「遭遇問題」第 2 點）：
+  1. quit 全量 await（`runCleanupOnce` 目前同步；上限 2 s，`Promise.allSettled`）
+  2. `'limit'` 專屬 reason（目前 `remote-unreachable` + 錯誤文字 / `remote:connect` `errorCode: 'remote-limit'`）+ 三語對話框 / 提示；reason 型別若需擴充，同步 `remote-connect-plan.ts` / `preload.ts` / `src/lib/remote-not-connected.ts` / `src/types/electron.d.ts`（已加入 `affects_files`）
+  3. 同 target warn log（`connected` outcome 已帶 `sameTargetProfileIds`，未接）
+  4. 寬限期 / tray（縮到 tray 的視窗算 live）的 main 層測試
+- `npx tsc --noEmit` 只涵蓋 `src/`。改 `electron/**` 時比照 T0463，在 scratchpad 以 extends `tsconfig.node.json` 的 tsconfig 補檢 electron 型別，回報「本單觸及檔案 0 個新錯誤」（不留檔於 repo）。
 
 ---
 
