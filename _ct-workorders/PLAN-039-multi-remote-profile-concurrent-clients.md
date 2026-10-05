@@ -3,12 +3,12 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-039
 title: 多個 remote profile 同時連線（per-profile RemoteClient 取代單一槽位）
-status: PLANNED
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-05T06:14:47+08:00"
-updated_at: "2026-10-05T12:21:11+08:00"
+updated_at: "2026-10-05T12:22:24+08:00"
 links:
-  research_workorder: null
+  research_workorder: T0459
   related: [BUG-110, T0443, T0442, T0430, T0419, BUG-096, PLAN-036, D134]
 ---
 
@@ -20,7 +20,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-039 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 📋 PLANNED（使用者 2026-10-05 06:14 裁決開 PLAN，排在 D134 這批之後） |
+| 狀態 | 🔄 IN_PROGRESS（2026-10-05 12:22 程式完成 T0462-T0466，待 WSL + SSH 實機驗收後轉 DONE）；原 📋 PLANNED（使用者 2026-10-05 06:14 裁決開 PLAN） |
 | 建立時間 | 2026-10-05 06:14 (UTC+8) |
 | 來源 | BUG-110 塔台複核（`electron/main.ts` `bindProxiedHandlersToIpc` 單一 `remoteClient` / `remoteClientProfileId` 槽位） |
 

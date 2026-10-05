@@ -112,7 +112,7 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 
 ### 待辦（依優先序）
 
-1. 🟡 **PLAN-039 起派**（D135）：T0462 ∥ T0465 → T0463（🔴 改 `main.ts`，執行期間不派其他改 main / preload / d.ts 的單）→ T0464 → T0466
+1. ✅ ~~PLAN-039 起派~~（第五十六 session 12:22 T0462-T0466 全 DONE，聯合複驗綠；PLAN-039 IN_PROGRESS 待實機，步驟見 `docs/remote-dev-overview.md`「Several remote profiles at once」）
 2. 🟡 **本批實機驗收**（需重打包本機 build；Fixed 17 張 BUG）：遠端視窗 fail-closed（BUG-110 / 112）、拖放 / 附件 / 複製遠端路徑 / 終端拖放 / prompt 路徑提示（BUG-107 / 108、T0437-T0440）、detach（BUG-113）、可執行檔確認（T0460 / T0461）、SSH 精靈（BUG-098-100）、Docker（BUG-097 / 111，需 Docker daemon）、真 BAT 遠端視窗 Tower 派單（K，WSL `~/.claude/skills` 需裝 ct skill）。**發版綁定**：T0435 ↔ T0437、T0453 ↔ T0458
 3. 🟢 BUG-114 研究（派工分頁未執行 `/ct-exec`）；`.gitattributes` 是否套用（T0454 建議）；Vite `hashbangRE` 上游回報
 4. 🟢 backlog：jumpToStep 不 rollback（T0309）、detached 視窗終端變更不持久化、snippet「agent 提案 → 一鍵套用」、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2
@@ -270,12 +270,16 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - 12:02 **T0463 DONE** `8604daa`（+ `911c77f`）：main.ts 單一槽位 → `RemoteConnectionRegistry`（§1 #1-#24 逐點）；`remote:connect` 無綁定拒絕、`remote:disconnect` sender-scoped；`other-profile` 自 main / preload / renderer / 三語移除；+ two-servers 整合測試；unit 167 files / 2826；tsc 36；electron 型別以 scratchpad tsconfig 補檢 0 新錯。塔台補跑 `npx vite build` exit 0。斷點 C 裁決：範圍延伸 `remote-connect-plan.ts`（移除 other-profile 必改）→ 接受；關窗採 registry 寬限而非立即 release → 接受。T0464 前補「塔台補充」（剩餘 4 項範圍 + affects_files 加 `remote-connect-plan.ts` / `preload.ts` / `electron.d.ts`）
 - 12:03 派 T0464（exit 0；12:06 確認 IN_PROGRESS）
 - 12:14 **T0464 DONE** `48cba04`（+ `82a9da7`）：quit 全量 await（`settleWithin` ≤ 2 s）、`'limit'` reason + 三語對話框 / notice、同 target warn、lifecycle 測試 17 + guard；registry 修正首窗保護被無關關窗降為 15 s；unit 168 files / 2861；tsc 36；electron 型別 0 新錯。塔台補跑 `npx vite build` exit 0。斷點 C 裁決：範圍延伸 `remote-profile-error.ts` → 接受；`window-all-closed` force exit 最壞 2 → 4 s → 接受；其他 remote 失敗對話框仍英文 → 不擴範圍，記 backlog 候選（非 BUG）。T0466 前補「塔台補充」（原生 dialog 不可卡測試、不改產品常數、PLAN-039 檔名入 affects_files）
+- 12:14 派 T0466（exit 0；12:18 確認 IN_PROGRESS）
+- 12:22 **T0466 DONE** `6bd81f6`（+ `26db914`）：`e2e/plan039-multi-remote.spec.ts` 兩個 isolated 實例互為 server（P → A 自身、Q → B），M1-M4 4/4（雙視窗 connected、`pty:create` 路由、第 9 個 `remote-limit` + stub dialog、關 P 15.2 s 後才斷且 Q 不受影響、名額回收）；CLAUDE.md 新節「多 remote profile 同時連線（PLAN-039）」+ docs 實機步驟。斷點 C 裁決：M2 拓撲限制（P 為 A 本機 PTY，本機廣播到 A 所有視窗，只斷言 B → P 方向）→ 接受，不擴第三實例
+- 12:22-12:30 **塔台聯合複驗 @ `26db914`**：vite build ✅；unit **168 files / 2861 passed / 1 skipped** ✅；e2e 全套首輪 10 passed / 1 failed / 8 skipped（緊接 unit 之後跑，未保留失敗名）→ 再跑 3 輪皆 **12 passed / 8 skipped / 0 failed**；判定偶發，觀察項（未開 BUG，無可重現證據）
+- **PLAN-039 → IN_PROGRESS**（程式完成；待 WSL + SSH 實機驗收後 DONE）；`_backlog.md` 同步。D135 全 5 列完成 → YOLO 本 PLAN 流程結束
 
 ### 計數器（第五十六 session）
 
 - 連續 FAILED: 0 / 1
-- 本 session yolo 派發：2
-- 斷點觸發：A×0, B×0, C×0、使用者中斷×0
+- 本 session yolo 派發：5（T0462-T0466 全 DONE，皆一次啟動成功）
+- 斷點觸發：A×0, B×0, C×8（scope 內，塔台直接裁決）、使用者中斷×0
 
 ### 計數器（第五十五 session，已收工）
 

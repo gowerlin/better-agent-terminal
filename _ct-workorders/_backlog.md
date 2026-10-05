@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 07:46 (UTC+8) — 第五十五 session：新增 PLAN-038（IDEA）/ PLAN-039（PLANNED，排在 D134 之後）
+> 最後同步：2026-10-05 12:22 (UTC+8) — 第五十六 session：PLAN-039 PLANNED → IN_PROGRESS（T0462-T0466 程式完成，待實機）
 
 ## 統計
-- 💡 Ideas: 3 | 📋 Planned: 3 | 🔄 In Progress: 4 | ✅ Done: 1 | 🚫 Dropped: 0
+- 💡 Ideas: 3 | 📋 Planned: 2 | 🔄 In Progress: 5 | ✅ Done: 1 | 🚫 Dropped: 0
 
 ## Active
 
@@ -35,7 +35,7 @@ breakdown:
 | PLAN-035 | WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-035](PLAN-035-wsl-environment-full-automation.md) |
 | PLAN-031 | Server Bundle Distribution（含 ARM64 Linux 支援） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-037 | 遠端（WSL / SSH / Docker）AI 工具套件檢查與一鍵安裝（claude / codex CLI、git、gh 等） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-037](PLAN-037-remote-ai-toolchain-check-and-install.md) |
-| PLAN-039 | 多個 remote profile 同時連線（per-profile RemoteClient 取代單一槽位） | 🟡 medium | 📋 PLANNED | [PLAN-039](PLAN-039-multi-remote-profile-concurrent-clients.md) |
+| PLAN-039 | 多個 remote profile 同時連線（per-profile RemoteClient 取代單一槽位） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-039](PLAN-039-multi-remote-profile-concurrent-clients.md) |
 | PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 🔴 high | 📋 PLANNED | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |
 | PLAN-014 | evaluate-vscode-extension-vs-git-gui | 🟡 medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
