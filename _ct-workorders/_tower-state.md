@@ -332,6 +332,8 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [完成] 2026-10-05 07:45 — T0458 DONE（`102d8e0`）塔台複核 PASS：**風險實測可觸發**——修正前 detached 視窗 `location.href` 導向外部頁，外部頁 `window.electronAPI` 存在；`installNavigationGuards` 套用主視窗 + detached（全部 2 個帶 preload 的視窗）、e2e 紅→綠、13 單元含「新 BrowserWindow 必須 guard」分類守門、Worker 2646 passed / tsc 36。**T0453（detach 修復）與 T0458 必須同版發佈**
 - [排程完成] 2026-10-05 07:45 — D134 排程表第 1-42 列全數 DONE（T0417-T0458，共 42 張）。開始最終聯合驗證
 - [聯合複驗] 2026-10-05 07:46 — HEAD `2f8237d`：乾淨 worktree（CRLF checkout）vite build exit 0、tsc **36**、unit **163 files / 2646 passed / 0 failed**（T0454 修正實證：CRLF 下 scripts 測試全綠）；主工作區 vite build exit 0、**e2e 8 passed / 8 skipped / 0 failed**（基線 6 passed，+T0453 / T0458 spec）
+- [授權] 2026-10-05 11:19 — 使用者：開 PLAN-039 研究單、現在 push、可執行副檔名加確認對話框
+- [push] 2026-10-05 11:19 — `git push origin main`：`e11a2f6..6286c11`（86 commits；origin = gowerlin），0/0；未觸發 release
 - [*sync] 2026-10-05 07:46 — `_bug-tracker.md` 重建（Open 1 / Fixed 17 / Closed 20 / Total 38）；`_backlog.md` 加 PLAN-038 / PLAN-039（Ideas 3 / Planned 3 / In Progress 4 / Done 1）
 
 ### 前次 YOLO Session（2026-10-04 13:25 啟動，第四十九 session，已收工）

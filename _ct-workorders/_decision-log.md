@@ -1417,6 +1417,10 @@
 | 40 | T0456 遠端 PTY PATH 尾端加 bundle node + `BAT_HELPER_NODE`；bat-terminal `false` → exit 1 | 本專案 | T0434 | S | 🟢 |
 | 41 | T0457 `will-navigate` 對 `file:` 等不 `openExternal`（防 ShellExecute 執行本機檔） | 本專案 | T0439 | XS | 🟢 |
 | 42 | T0458 所有帶 preload 的視窗（含 detached）套用導航守門 | 本專案 | T0457 | S | 🟡 |
+| 43 | T0459 研究：PLAN-039 多 remote profile 同時連線 | 本專案 | — | M | 🟡 |
+| 44 | T0460 `shell:open-external` 可執行副檔名確認對話框 | 本專案 | — | S | 🟢 |
+
+- **追加**（使用者 11:19 裁決）：第 1-42 列完成並通過最終聯合驗證後，push `e11a2f6..6286c11`（86 commits，不發版）；開 PLAN-039 研究單 T0459；T0457 遭遇問題 1 → 可執行副檔名開啟前確認（T0460，其他檔案照舊）
 
 - **追加**（塔台 06:32 依授權，T0445 BLOCK）：T0434 改依賴 T0447 + T0448（#1-#4 修完才進實機）；#6/#7 的設計裁決取**收緊**方向（`pty:write` 拒 C0 控制字元、tower 子 PTY ≤ 8 + 1 秒間隔 + client 保留 8 格、agent 限 registry），不擴大暴露面故未交使用者；#5 權杖失敗不計 IP ban、與 server token 失敗分開計數
 
