@@ -646,14 +646,14 @@ const electronAPI = {
     clientStatus: () =>
       ipcRenderer.invoke('remote:client-status') as Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>,
     // T0443 (BUG-110): pushed to the windows bound to a remote profile when its connection state changes.
-    onClientStatusChanged: (callback: (status: { profileId: string; connected: boolean; state: 'connected' | 'reconnecting' | 'disconnected'; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected' | null }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, status: { profileId: string; connected: boolean; state: 'connected' | 'reconnecting' | 'disconnected'; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected' | null }) => callback(status)
+    onClientStatusChanged: (callback: (status: { profileId: string; connected: boolean; state: 'connected' | 'reconnecting' | 'disconnected'; reason: 'no-client' | 'reconnecting' | 'disconnected' | null }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: { profileId: string; connected: boolean; state: 'connected' | 'reconnecting' | 'disconnected'; reason: 'no-client' | 'reconnecting' | 'disconnected' | null }) => callback(status)
       ipcRenderer.on('remote:client-status-changed', handler)
       return () => ipcRenderer.removeListener('remote:client-status-changed', handler)
     },
     // T0443: a proxied invoke from this window was refused with REMOTE_NOT_CONNECTED (not run locally).
-    onInvokeRefused: (callback: (info: { errorCode: 'REMOTE_NOT_CONNECTED'; profileId: string; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected'; channel: string }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: { errorCode: 'REMOTE_NOT_CONNECTED'; profileId: string; reason: 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected'; channel: string }) => callback(info)
+    onInvokeRefused: (callback: (info: { errorCode: 'REMOTE_NOT_CONNECTED'; profileId: string; reason: 'no-client' | 'reconnecting' | 'disconnected'; channel: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { errorCode: 'REMOTE_NOT_CONNECTED'; profileId: string; reason: 'no-client' | 'reconnecting' | 'disconnected'; channel: string }) => callback(info)
       ipcRenderer.on('remote:invoke-refused', handler)
       return () => ipcRenderer.removeListener('remote:invoke-refused', handler)
     },

@@ -1,8 +1,9 @@
 /**
  * T0443 (BUG-110): renderer side of the remote-window fail-closed routing.
  *
- * A remote-profile window whose connection is not live (empty slot, reconnecting,
- * slot owned by another remote profile) gets its proxied invokes refused by main
+ * A remote-profile window whose own profile's connection is not live (no client,
+ * reconnecting, gave up; T0463: each remote profile has its own connection, so
+ * another profile never takes it away) gets its proxied invokes refused by main
  * with `REMOTE_NOT_CONNECTED` instead of having them run on this machine. Main
  * also pushes `remote:client-status-changed` when the state changes and
  * `remote:invoke-refused` for each refusal (electron/remote/remote-connect-plan.ts).
@@ -13,7 +14,7 @@
 /** Same literal as electron/remote/remote-connect-plan.ts (guarded by a test). */
 export const REMOTE_NOT_CONNECTED = 'REMOTE_NOT_CONNECTED'
 
-export type RemoteNotConnectedReason = 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected'
+export type RemoteNotConnectedReason = 'no-client' | 'reconnecting' | 'disconnected'
 
 export interface RemoteWindowStatusEvent {
   profileId: string

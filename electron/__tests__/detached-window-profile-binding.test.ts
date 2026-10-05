@@ -12,36 +12,40 @@ import { describe, expect, it } from 'vitest'
 import {
   UNRESOLVED_DETACHED_PROFILE_ID,
   detachedSenderRouteIdentity,
-  planProxiedInvokeRoute,
+  planProfileProxiedInvokeRoute,
   resolveDetachedProfileBinding,
   senderBindingProfileId,
   type DetachedWindowRecord,
-  type RemoteSlotState,
+  type RemoteProfileConnState,
   type SenderProfileBinding,
 } from '../remote/remote-connect-plan'
 
 const P = 'remote-P'
 const L = 'local-L'
 
-const slots: Record<string, RemoteSlotState> = {
-  'P connected': { profileId: P, isConnected: true, isReconnecting: false },
-  'P reconnecting': { profileId: P, isConnected: false, isReconnecting: true },
-  'P gave up': { profileId: P, isConnected: false, isReconnecting: false },
-  'other profile': { profileId: 'remote-Q', isConnected: true, isReconnecting: false },
-  'empty': { profileId: null, isConnected: false, isReconnecting: false },
+/** T0463 (PLAN-039): the registry's entries (profile id → its own client's state). */
+type Conns = Record<string, RemoteProfileConnState>
+const slots: Record<string, Conns> = {
+  'P connected': { [P]: { isConnected: true, isReconnecting: false } },
+  'P reconnecting': { [P]: { isConnected: false, isReconnecting: true } },
+  'P gave up': { [P]: { isConnected: false, isReconnecting: false } },
+  'only Q connected': { 'remote-Q': { isConnected: true, isReconnecting: false } },
+  'empty': {},
 }
 
 const recorded = (profileId: string | null, resolved = true): DetachedWindowRecord => ({ parentWindowId: 'win-1', profileId, resolved })
 
-/** The whole detached-window decision: binding → identity → T0443 route. */
+/** The whole detached-window decision: binding → identity → T0443 route on the bound profile's own entry. */
 function routeDetached(
   record: DetachedWindowRecord | undefined,
   parentProfileId: string | null | undefined,
   profileType: 'local' | 'remote' | null,
-  slot: RemoteSlotState,
+  conns: Conns,
 ) {
   const binding = resolveDetachedProfileBinding(record, parentProfileId)
-  return planProxiedInvokeRoute({ ...detachedSenderRouteIdentity(binding, profileType), slot })
+  const identity = detachedSenderRouteIdentity(binding, profileType)
+  const conn = identity.senderProfileId ? conns[identity.senderProfileId] ?? null : null
+  return planProfileProxiedInvokeRoute({ ...identity, conn })
 }
 
 describe('resolveDetachedProfileBinding (T0446)', () => {
@@ -81,7 +85,7 @@ describe('detachedSenderRouteIdentity (T0446)', () => {
   it('profile not found → treated as remote (fail closed)', () => {
     expect(detachedSenderRouteIdentity({ kind: 'bound', profileId: P }, null)).toEqual({ senderIsRemote: true, senderProfileId: P })
   })
-  it('unresolved → remote under a profile id no slot ever holds', () => {
+  it('unresolved → remote under a profile id no registry entry ever has', () => {
     expect(detachedSenderRouteIdentity({ kind: 'unresolved' }, null)).toEqual({ senderIsRemote: true, senderProfileId: UNRESOLVED_DETACHED_PROFILE_ID })
   })
 })
@@ -94,13 +98,13 @@ describe('detached window routing matrix (T0446 × T0443)', () => {
   it.each([
     ['P reconnecting', 'reconnecting'],
     ['P gave up', 'disconnected'],
-    ['other profile', 'other-profile'],
+    ['only Q connected', 'no-client'],
     ['empty', 'no-client'],
   ] as const)('remote-profile detached window, %s → refused (%s), not local', (slot, reason) => {
     expect(routeDetached(recorded(P), P, 'remote', slots[slot])).toEqual({ kind: 'refuse', errorCode: 'REMOTE_NOT_CONNECTED', profileId: P, reason })
   })
 
-  it('local-profile / unbound detached window stays local whatever the slot holds', () => {
+  it('local-profile / unbound detached window stays local whatever the registry holds', () => {
     for (const slot of Object.values(slots)) {
       expect(routeDetached(recorded(L), L, 'local', slot)).toEqual({ kind: 'local' })
       expect(routeDetached(recorded(null), null, null, slot)).toEqual({ kind: 'local' })
@@ -109,18 +113,19 @@ describe('detached window routing matrix (T0446 × T0443)', () => {
 
   it('parent closed: the recorded remote binding still routes remote / refused, never local', () => {
     expect(routeDetached(recorded(P), undefined, 'remote', slots['P connected'])).toEqual({ kind: 'remote' })
-    for (const slot of ['P reconnecting', 'P gave up', 'other profile', 'empty']) {
+    for (const slot of ['P reconnecting', 'P gave up', 'only Q connected', 'empty']) {
       expect(routeDetached(recorded(P), undefined, 'remote', slots[slot]).kind, slot).toBe('refuse')
     }
   })
 
   it('parent closed and the profile deleted: refused unless P\'s own client is live', () => {
     expect(routeDetached(recorded(P), undefined, null, slots['empty']).kind).toBe('refuse')
-    expect(routeDetached(recorded(P), undefined, null, slots['other profile']).kind).toBe('refuse')
+    expect(routeDetached(recorded(P), undefined, null, slots['only Q connected']).kind).toBe('refuse')
   })
 
-  it('unresolved detached window is refused in every slot state', () => {
-    for (const [label, slot] of Object.entries(slots)) {
+  it('unresolved detached window is refused in every registry state', () => {
+    const all: Conns = Object.assign({}, ...Object.values(slots))
+    for (const [label, slot] of [...Object.entries(slots), ['every profile connected', all] as const]) {
       const route = routeDetached(recorded(null, false), undefined, null, slot)
       expect(route.kind, label).toBe('refuse')
       expect(routeDetached(undefined, undefined, null, slot).kind, label).toBe('refuse')
@@ -151,7 +156,7 @@ describe('main.ts wiring (T0446 source guard)', () => {
     // T0453: anchored on the routing resolution — the detached workspace:load / save divert comes earlier.
     const detached = fn.indexOf('await resolveDetachedBinding(detachedWorkspaceId)')
     expect(detached).toBeGreaterThan(fn.indexOf('if (ALWAYS_LOCAL_CHANNELS.has(channel))'))
-    expect(detached).toBeLessThan(fn.indexOf('planProxiedInvokeRoute('))
+    expect(detached).toBeLessThan(fn.indexOf('planProfileProxiedInvokeRoute('))
     expect(fn).toMatch(/detachedSenderRouteIdentity\(binding, /)
     expect(fn).toMatch(/if \(route\.kind === 'local'\) return invokeHandler\(channel, args, windowId\)/)
   })

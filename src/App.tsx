@@ -724,7 +724,7 @@ export default function App() {
     },
     onNotice: (info) => {
       window.electronAPI.debug.log(`[T0443] ${info.errorCode} profile=${info.profileId} reason=${info.reason} channel=${info.channel}`)
-      addRuntimeToast(t(info.reason === 'other-profile' ? 'app.remoteNotConnectedOtherProfile' : 'app.remoteNotConnected'), 'warning', 8000)
+      addRuntimeToast(t('app.remoteNotConnected'), 'warning', 8000)
     },
   }), [addRuntimeToast, t])
 

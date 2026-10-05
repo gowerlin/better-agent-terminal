@@ -112,15 +112,15 @@ export function planRemoteConnect(input: {
   return { kind: 'connect', expectedFingerprint: expected }
 }
 
-/** The single module-level client slot `remote:connect` writes. */
+/** A client slot: one registry entry's client (T0463: was main.ts's single module-level slot). */
 export interface RemoteClientSlot<C> {
   client: C | null
   profileId: string | null
 }
 
 /**
- * T0430: settle the slot after a `connect` plan ran. The slot only changes on
- * success (the candidate takes over, the previous client is disposed); a failed
+ * T0430: settle the slot after a `connect` plan ran (T0462: one registry entry's
+ * client). The slot only changes on success (the candidate takes over, the previous client is disposed); a failed
  * connect leaves the slot untouched and disposes the candidate, which may hold a
  * live SSH tunnel whose `tunnel-down` would otherwise schedule reconnects. Every
  * client either stays in the slot or is returned in `dispose` — none is dropped
@@ -155,25 +155,6 @@ export function isRemoteFingerprintChange(previous: string | undefined, next: st
 }
 
 /**
- * T0442: fail closed when a profile's pin changes. The slot's client was
- * verified against the old pin, so it is dropped when it is bound to that
- * profile; the renderer's next `remote:connect` reconnects with the new pin.
- * Updates that did not apply, leave the pin alone, or target another profile
- * never touch the slot.
- */
-export function shouldDropClientOnProfileUpdate(input: {
-  profileId: string
-  applied: boolean
-  previousFingerprint: string | undefined
-  nextFingerprint: string | undefined
-  slotProfileId: string | null
-}): boolean {
-  const { profileId, applied, previousFingerprint, nextFingerprint, slotProfileId } = input
-  if (!applied || slotProfileId === null || slotProfileId !== profileId) return false
-  return isRemoteFingerprintChange(previousFingerprint, nextFingerprint)
-}
-
-/**
  * T0443 (BUG-110): error code a remote-profile window gets when its proxied
  * invoke is refused because the window's remote connection is not live.
  * Electron only carries an IPC error's `message` to the renderer, so the code
@@ -187,17 +168,10 @@ export const REMOTE_CLIENT_STATUS_CHANGED_CHANNEL = 'remote:client-status-change
 /** T0443: main → renderer push when a proxied invoke was refused (REMOTE_NOT_CONNECTED). */
 export const REMOTE_INVOKE_REFUSED_CHANNEL = 'remote:invoke-refused'
 
-/** What the single client slot holds right now (`profileId: null` = empty slot). */
-export interface RemoteSlotState {
-  profileId: string | null
-  isConnected: boolean
-  isReconnecting: boolean
-}
-
 export type RemoteWindowState = 'connected' | 'reconnecting' | 'disconnected'
 
 /** Why a remote-profile window is not served right now. */
-export type RemoteNotConnectedReason = 'no-client' | 'other-profile' | 'reconnecting' | 'disconnected'
+export type RemoteNotConnectedReason = 'no-client' | 'reconnecting' | 'disconnected'
 
 export interface RemoteWindowStatus {
   profileId: string
@@ -206,70 +180,9 @@ export interface RemoteWindowStatus {
   reason: RemoteNotConnectedReason | null
 }
 
-/**
- * T0443: connection state as seen by the windows bound to `profileId`. Only the
- * slot's own client serves them: an empty slot or a slot owned by another
- * remote profile means "not connected", whatever that other client is doing.
- */
-export function computeRemoteWindowStatus(profileId: string, slot: RemoteSlotState): RemoteWindowStatus {
-  if (slot.profileId === null) return { profileId, connected: false, state: 'disconnected', reason: 'no-client' }
-  if (slot.profileId !== profileId) return { profileId, connected: false, state: 'disconnected', reason: 'other-profile' }
-  if (slot.isConnected) return { profileId, connected: true, state: 'connected', reason: null }
-  if (slot.isReconnecting) return { profileId, connected: false, state: 'reconnecting', reason: 'reconnecting' }
-  return { profileId, connected: false, state: 'disconnected', reason: 'disconnected' }
-}
-
-export type ProxiedInvokeRoute =
-  | { kind: 'local' }
-  | { kind: 'remote' }
-  | { kind: 'refuse'; errorCode: typeof REMOTE_NOT_CONNECTED; profileId: string; reason: RemoteNotConnectedReason }
-
-/**
- * T0443 (BUG-110): where `bindProxiedHandlersToIpc` sends a non-ALWAYS_LOCAL
- * channel (ALWAYS_LOCAL channels short-circuit to the local handler before this
- * runs). A local window — or one with no profile binding — stays local. A
- * remote-profile window goes to its remote server only while the slot is its
- * own and connected; otherwise it is refused, never run on this machine.
- */
-export function planProxiedInvokeRoute(input: {
-  senderIsRemote: boolean
-  senderProfileId: string | null
-  slot: RemoteSlotState
-}): ProxiedInvokeRoute {
-  const { senderIsRemote, senderProfileId, slot } = input
-  if (!senderIsRemote || !senderProfileId) return { kind: 'local' }
-  const status = computeRemoteWindowStatus(senderProfileId, slot)
-  if (status.connected) return { kind: 'remote' }
-  return { kind: 'refuse', errorCode: REMOTE_NOT_CONNECTED, profileId: senderProfileId, reason: status.reason ?? 'disconnected' }
-}
-
 /** T0443: the refused invoke's error message; starts with the error code. */
 export function formatRemoteNotConnectedError(channel: string, profileId: string, reason: RemoteNotConnectedReason): string {
   return `${REMOTE_NOT_CONNECTED}: remote profile ${profileId} is not connected (${reason}); ${channel} was not run on this machine`
-}
-
-/**
- * T0443: which profiles get a `remote:client-status-changed` push after a slot
- * change or a client status ping. `profileIds` names every profile the change
- * may concern (previous slot owner, new owner, the candidate's profile); each is
- * pushed once, only when its status differs from the last one pushed
- * (`lastPushed` is updated in place).
- */
-export function planRemoteStatusPushes(
-  profileIds: ReadonlyArray<string | null | undefined>,
-  slot: RemoteSlotState,
-  lastPushed: Map<string, string>,
-): RemoteWindowStatus[] {
-  const pushes: RemoteWindowStatus[] = []
-  for (const profileId of new Set(profileIds)) {
-    if (!profileId) continue
-    const status = computeRemoteWindowStatus(profileId, slot)
-    const key = `${status.state}:${status.reason ?? ''}`
-    if (lastPushed.get(profileId) === key) continue
-    lastPushed.set(profileId, key)
-    pushes.push(status)
-  }
-  return pushes
 }
 
 /**
@@ -292,8 +205,8 @@ export type SenderProfileBinding =
 
 /**
  * T0446: the profile id an unresolved detached window routes under. It never
- * matches a real profile, so the slot never serves it: every proxied call is
- * refused, never run on this machine.
+ * matches a real profile, so no registry entry ever serves it: every proxied
+ * call is refused, never run on this machine.
  */
 export const UNRESOLVED_DETACHED_PROFILE_ID = '(unresolved-detached-window)'
 
@@ -321,7 +234,7 @@ export function senderBindingProfileId(binding: SenderProfileBinding): string | 
 }
 
 /**
- * T0446 (BUG-112): `planProxiedInvokeRoute` input for a detached window.
+ * T0446 (BUG-112): `planProfileProxiedInvokeRoute` input for a detached window.
  * `profileType` is the bound profile's type now (`null` = profile not found).
  * Unbound → local, same as its parent; a profile that cannot be looked up and an
  * unresolved binding are treated as remote, so they are refused unless that
@@ -340,8 +253,8 @@ export function detachedSenderRouteIdentity(
  * T0462 (PLAN-039): profile-keyed variants for the per-profile connection
  * registry (`remote-connection-registry.ts`). Each profile has its own entry,
  * so a window is only ever served — or refused — by its own profile's client
- * and `'other-profile'` no longer occurs. The slot-based functions above stay
- * until main.ts moves to the registry (T0463).
+ * and `'other-profile'` no longer occurs. T0463 moved main.ts to the registry
+ * and removed the single-slot functions.
  */
 
 export const BINDING_MISSING_ERROR = 'Window is not bound to a profile'
@@ -396,7 +309,7 @@ export interface RemoteProfileConnState {
   isReconnecting: boolean
 }
 
-export type RemoteProfileNotConnectedReason = Exclude<RemoteNotConnectedReason, 'other-profile'>
+export type RemoteProfileNotConnectedReason = RemoteNotConnectedReason
 
 export interface RemoteProfileWindowStatus extends RemoteWindowStatus {
   reason: RemoteProfileNotConnectedReason | null
@@ -416,8 +329,12 @@ export type ProfileProxiedInvokeRoute =
   | { kind: 'refuse'; errorCode: typeof REMOTE_NOT_CONNECTED; profileId: string; reason: RemoteProfileNotConnectedReason }
 
 /**
- * T0462: `planProxiedInvokeRoute` with the sender profile's own entry (`conn`,
- * looked up by the caller with `senderProfileId`).
+ * T0443 / T0462: where `bindProxiedHandlersToIpc` sends a non-ALWAYS_LOCAL
+ * channel (ALWAYS_LOCAL channels short-circuit to the local handler before this
+ * runs). A local window — or one with no profile binding — stays local. A
+ * remote-profile window goes to its remote server only while its own profile's
+ * entry (`conn`, looked up by the caller with `senderProfileId`) is connected;
+ * otherwise it is refused, never run on this machine.
  */
 export function planProfileProxiedInvokeRoute(input: {
   senderIsRemote: boolean
@@ -431,7 +348,12 @@ export function planProfileProxiedInvokeRoute(input: {
   return { kind: 'refuse', errorCode: REMOTE_NOT_CONNECTED, profileId: senderProfileId, reason: status.reason ?? 'disconnected' }
 }
 
-/** T0462: `planRemoteStatusPushes` where each profile is computed from its own entry. */
+/**
+ * T0443 / T0462: which profiles get a `remote:client-status-changed` push.
+ * `profileIds` names every profile the change may concern; each is computed from
+ * its own entry and pushed once, only when its status differs from the last one
+ * pushed (`lastPushed` is updated in place).
+ */
 export function planProfileStatusPushes(
   profileIds: ReadonlyArray<string | null | undefined>,
   getConn: (profileId: string) => RemoteProfileConnState | null,

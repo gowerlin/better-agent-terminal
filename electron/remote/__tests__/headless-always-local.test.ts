@@ -57,7 +57,7 @@ describe('T0422: snippet / logging channels are always-local', () => {
   it('bindProxiedHandlersToIpc answers ALWAYS_LOCAL locally before the remote branch', () => {
     const bind = mainSource.slice(mainSource.indexOf('function bindProxiedHandlersToIpc'))
     const localShortCircuit = bind.search(/if \(ALWAYS_LOCAL_CHANNELS\.has\(channel\)\) \{\s*return invokeHandler\(channel, args, windowId\)/)
-    const remoteInvoke = bind.indexOf('remoteClient.invoke(channel, args)')
+    const remoteInvoke = bind.indexOf('senderClient.invoke(channel, args)')
     expect(localShortCircuit).toBeGreaterThan(-1)
     expect(remoteInvoke).toBeGreaterThan(localShortCircuit)
   })

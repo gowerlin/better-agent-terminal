@@ -90,7 +90,8 @@ import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
 import { clientPathTranslatorForProfile, IdentityTranslator, resolveClientPaths, type PathTranslator } from './remote/path-translator'
-import { detachedSenderRouteIdentity, formatRemoteNotConnectedError, isRemoteFingerprintChange, planProxiedInvokeRoute, planRemoteConnect, planRemoteStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, settleRemoteConnect, shouldDropClientOnProfileUpdate, type DetachedWindowRecord, type RemoteConnectTarget, type RemoteSlotState, type SenderProfileBinding } from './remote/remote-connect-plan'
+import { detachedSenderRouteIdentity, formatRemoteNotConnectedError, planProfileProxiedInvokeRoute, planProfileStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, shouldDropProfileConnectionOnUpdate, type DetachedWindowRecord, type SenderProfileBinding } from './remote/remote-connect-plan'
+import { RemoteConnectionRegistry } from './remote/remote-connection-registry'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -464,18 +465,25 @@ const profileManager = new ProfileManager()
 // WSL does not idle-stop it (and bat-server with it) while BAT runs.
 const wslKeepAlive = new WslKeepAlive()
 const remoteServer = new RemoteServer()
-let remoteClient: RemoteClient | null = null
-// Serialise remote connect/disconnect handlers — rapid profile switching can
-// otherwise interleave handshake state with teardown (PLAN-018 T0184).
-let remoteOpMutex: Promise<unknown> = Promise.resolve()
-// profileId currently bound to the active remoteClient. Used to filter
-// remote-event broadcasts so only windows on this remote profile receive
-// them — local-profile windows must not see foreign session traffic.
-let remoteClientProfileId: string | null = null
-// T0419 (BUG-096): what each client was asked to connect to (pre-tunnel host/port,
-// token, observed fingerprint). connectionInfo can't serve: an SSH tunnel rewrites
-// host/port to 127.0.0.1:<localPort>. Lets `remote:connect` reuse the pinned client.
-const remoteClientTargets = new WeakMap<RemoteClient, RemoteConnectTarget>()
+// T0463 (PLAN-039): one RemoteClient per remote profile — replaces the single
+// module-level slot, so opening a second remote profile no longer pushes the
+// first one out. Keyed by the bound profile id:
+// - each profile's connect / pin change / disconnect is serialised on its own
+//   mutex (PLAN-018 T0184, T0430, T0442); different profiles run in parallel
+// - a client sends remote events only to its own profile's windows
+//   (`getWindowsForProfile(profileId)`) — local-profile windows never see them
+// - the entry records what its client was asked to connect to (pre-tunnel
+//   host/port, token, observed fingerprint; T0419 reuse) — connectionInfo can't
+//   serve: an SSH tunnel rewrites host/port to 127.0.0.1:<localPort>
+// Every teardown goes through `client.disconnect()` (T0465 tunnel port claims).
+const remoteConnections = new RemoteConnectionRegistry<RemoteClient, ProfileEntry>({
+  createClient: (profileId, profile) => bindRemoteClient(new RemoteClient(() => getWindowsForProfile(profileId), profile), profileId),
+  countLiveWindows: (profileId) => getWindowsForProfile(profileId).length,
+  onReleased: (profileId, reason) => {
+    logger.log(`[remote] released the connection of profile ${profileId} (${reason}: no window left)`)
+    pushRemoteClientStatus(profileId)
+  },
+})
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
 // T0446 (BUG-112): workspaceId → the detached window's parent and the profile binding it inherits.
 const detachedWindowRecords = new Map<string, DetachedWindowRecord>()
@@ -1143,6 +1151,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
 
   win.on('closed', () => {
     windowMap.delete(windowId)
+    noteRemoteWindowClosed()
     rebuildTrayMenu()
     // Close detached windows that were opened from this window
     // (for now close all detached — same as before)
@@ -1180,15 +1189,14 @@ function cleanupAllProcesses() {
   try { wslKeepAlive.stopAll() } catch { /* ignore */ }
   // T0387: never leave an SSH wizard verification tunnel (`ssh -L`) behind.
   void closeAllSshWizardTunnels().catch(() => undefined)
-  try { remoteClient?.disconnect() } catch { /* ignore */ }
+  // T0463: every profile's client (and its SSH tunnel). Awaiting it at quit is T0464.
+  void remoteConnections.disconnectAll().catch(() => undefined)
   try { remoteServer.stop() } catch { /* ignore */ }
   try { claudeManager?.killAll() } catch { /* ignore */ }
   try { claudeManager?.dispose() } catch { /* ignore */ }
   try { codexManager?.killAll() } catch { /* ignore */ }
   try { codexManager?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
-  remoteClient = null
-  remoteClientProfileId = null
   claudeManager = null
   codexManager = null
   sessionManagerMap.clear()
@@ -1225,31 +1233,38 @@ async function syncPathGuardFromRegistry(): Promise<void> {
 // RemoteClient.invoke converts them with the profile's PathTranslator). Pushed
 // after every auth (RemoteClient) and after workspace:save / workspace:load of a
 // bound window. Local windows never push.
-function bindRemoteClient(client: RemoteClient, profileId: string | null): RemoteClient {
+function bindRemoteClient(client: RemoteClient, profileId: string): RemoteClient {
   client.setWorkspaceRootsProvider(async () => collectWorkspaceRoots(await windowRegistry.readAll(), profileId))
-  // T0443: status is computed from the slot, so a ping from a client that is not
-  // (or no longer) in the slot is harmless.
+  // T0443: status is computed from the profile's registry entry, so a ping from a
+  // candidate that is not (or no longer) the entry's client is harmless.
   client.setStatusChangeListener(() => pushRemoteClientStatus(profileId))
   return client
 }
 
-// T0443 (BUG-110): the slot as the routing / status rules see it.
-function currentRemoteSlot(): RemoteSlotState {
-  const client = remoteClient
-  return {
-    profileId: client ? remoteClientProfileId : null,
-    isConnected: !!client?.isConnected,
-    isReconnecting: !!client?.isReconnecting,
-  }
+/**
+ * T0463 (PLAN-039): a window closed. A profile left without any live window
+ * (getWindowsForProfile: registry and detached windows; a window hidden to the
+ * tray still counts) has its connection released by the registry after the idle
+ * grace, counted again at expiry. The closed window's registry entry may already
+ * be gone, so every profile with a connection is checked.
+ */
+function noteRemoteWindowClosed(): void {
+  for (const profileId of remoteConnections.profileIds()) remoteConnections.noteWindowClosed(profileId)
+}
+
+/** T0463: the profile's own client while it is connected (null otherwise). */
+function liveRemoteClient(profileId: string | null | undefined): RemoteClient | null {
+  if (!profileId || !remoteConnections.isProfileLive(profileId)) return null
+  return remoteConnections.get(profileId)?.client ?? null
 }
 
 // T0443: last status pushed per profile — identical pings (a client's own
-// disconnect() plus the slot change around it) are sent once.
+// disconnect() plus the entry change around it) are sent once.
 const lastPushedRemoteStatus = new Map<string, string>()
 
 /** T0443: push `remote:client-status-changed` to the windows bound to each profile. */
 function pushRemoteClientStatus(...profileIds: Array<string | null | undefined>): void {
-  for (const status of planRemoteStatusPushes(profileIds, currentRemoteSlot(), lastPushedRemoteStatus)) {
+  for (const status of planProfileStatusPushes(profileIds, (profileId) => remoteConnections.connectionState(profileId), lastPushedRemoteStatus)) {
     logger.log(`[remote-status] profile ${status.profileId} → ${status.state}${status.reason ? ` (${status.reason})` : ''}`)
     for (const win of getWindowsForProfile(status.profileId)) {
       win.webContents.send(REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, status)
@@ -1258,8 +1273,9 @@ function pushRemoteClientStatus(...profileIds: Array<string | null | undefined>)
 }
 
 function syncRemoteWorkspaceRoots(windowProfileId: string | null | undefined): void {
-  const client = remoteClient
-  if (!client || !shouldSyncWorkspaceRoots(windowProfileId, remoteClientProfileId, client.isConnected)) return
+  const entry = windowProfileId ? remoteConnections.get(windowProfileId) : undefined
+  const client = entry?.client
+  if (!entry || !client || !shouldSyncWorkspaceRoots(windowProfileId, entry.profileId, client.isConnected)) return
   void client.syncWorkspaceRoots()
 }
 
@@ -1285,65 +1301,57 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
     const host = profileEntry.remoteHost
     const port = profileEntry.remotePort || 9876
     const label = profileEntry.name || profileId
-    const task = remoteOpMutex.then(async () => {
-      let candidate: RemoteClient | null = null
-      // T0442: same slot rule as remote:connect (T0430) — swap only on success; a
-      // failed candidate is disconnected so its SSH tunnel / reconnect timer go too.
-      const settleSlot = async (ok: boolean) => {
-        const previousProfileId = remoteClientProfileId
-        const next = settleRemoteConnect({
-          slot: { client: remoteClient, profileId: remoteClientProfileId },
-          candidate,
-          candidateProfileId: profileId,
-          ok,
-        })
-        remoteClient = next.slot.client
-        remoteClientProfileId = next.slot.profileId
-        pushRemoteClientStatus(previousProfileId, next.slot.profileId, profileId)
-        if (ok) {
-          for (const c of next.dispose) void c.disconnect().catch(() => { /* ignore */ })
-        } else {
-          await Promise.all(next.dispose.map(c => c.disconnect().catch(() => { /* ignore */ })))
-        }
-      }
-      try {
-        const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(profileId), profileEntry), profileId)
-        candidate = client
-        const result = await client.connect(
-          host,
-          port,
-          profileEntry.remoteToken,
-          undefined,
-          profileEntry.remoteFingerprint,
-        )
-        if (!result.ok) {
-          const reason = classifyConnectFailure(result)
-          logger.error(`[profile] remote connect failed for profile ${profileId} (${host}:${port}) [${reason}/${result.errorCode ?? 'unknown'}]: ${result.error ?? 'unknown'}`)
-          await settleSlot(false)
-          return { kind: 'remote-unreachable', reason, host, port, label, error: result.error } as SnapshotLoadResult
-        }
-        remoteClientTargets.set(client, { host, port, token: profileEntry.remoteToken, fingerprint: result.fingerprint ?? '' })
-        await settleSlot(true)
-        const targetProfileId = profileEntry.remoteProfileId || 'default'
-        try {
-          const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
-          logger.log(`[profile] remote profile ${profileId} → got ${snapshot?.windows?.length ?? 0} window(s) from remote (target: ${targetProfileId})`)
-          return { kind: 'ok', snapshot } as SnapshotLoadResult
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err)
-          const reason = classifyInvokeFailure(err)
-          logger.error(`[profile] remote profile ${profileId} snapshot fetch failed [${reason}]: ${message}`)
-          return { kind: 'remote-unreachable', reason, host, port, label, error: message } as SnapshotLoadResult
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
+    const token = profileEntry.remoteToken
+    // T0463 (PLAN-039): the profile's own registry entry. A live client for the same
+    // target + pin is reused (no second handshake); otherwise a candidate connects
+    // pinned and only replaces the entry's client on success (T0430 / T0442) — a
+    // failed candidate is disconnected so its SSH tunnel / reconnect timer go too.
+    // Other profiles' connections are never touched.
+    const outcome = await remoteConnections.connect({
+      profileId,
+      profile: profileEntry,
+      request: { host, port, token },
+      run: (client, expectedFingerprint) => client.connect(host, port, token, undefined, expectedFingerprint),
+    }).catch((err: unknown) => ({ kind: 'threw' as const, err }))
+    pushRemoteClientStatus(profileId)
+    switch (outcome.kind) {
+      case 'threw': {
+        const message = outcome.err instanceof Error ? outcome.err.message : String(outcome.err)
         logger.error(`[profile] remote profile ${profileId} connect threw:`, message)
-        await settleSlot(false)
-        return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: message } as SnapshotLoadResult
+        return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: message }
       }
-    })
-    remoteOpMutex = task.catch(() => {})
-    return task
+      case 'reject':
+        logger.warn(`[profile] remote connect refused for profile ${profileId} (${host}:${port}) [${outcome.errorCode}]: ${outcome.error}`)
+        return { kind: 'remote-unreachable', reason: 'trust', host, port, label, error: outcome.error }
+      case 'limit':
+        logger.warn(`[profile] remote connect refused for profile ${profileId} (${host}:${port}): ${outcome.cap} remote profiles already connected`)
+        return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: `Too many remote profiles connected at once (limit ${outcome.cap})` }
+      case 'aborted':
+        return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: 'Connection was torn down while connecting' }
+      case 'failed': {
+        const result = outcome.result
+        const reason = classifyConnectFailure(result)
+        logger.error(`[profile] remote connect failed for profile ${profileId} (${host}:${port}) [${reason}/${result.errorCode ?? 'unknown'}]: ${result.error ?? 'unknown'}`)
+        return { kind: 'remote-unreachable', reason, host, port, label, error: result.error }
+      }
+      case 'reuse':
+        logger.log(`[profile] remote profile ${profileId} → reusing its verified client (${host}:${port})`)
+        break
+      case 'connected':
+        break
+    }
+    const client = outcome.client
+    const targetProfileId = profileEntry.remoteProfileId || 'default'
+    try {
+      const snapshot = await client.invoke('profile:load-snapshot', [targetProfileId]) as ProfileSnapshot | null
+      logger.log(`[profile] remote profile ${profileId} → got ${snapshot?.windows?.length ?? 0} window(s) from remote (target: ${targetProfileId})`)
+      return { kind: 'ok', snapshot }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      const reason = classifyInvokeFailure(err)
+      logger.error(`[profile] remote profile ${profileId} snapshot fetch failed [${reason}]: ${message}`)
+      return { kind: 'remote-unreachable', reason, host, port, label, error: message }
+    }
   }
 
   return { kind: 'ok', snapshot: await profileManager.loadSnapshot(profileId) }
@@ -2253,7 +2261,7 @@ async function clientPathTranslatorForBinding(
   const profile = await profileManager.getProfile(binding.profileId).catch(() => null)
   if (!profile) return missingProfile === 'local' ? new IdentityTranslator() : null
   if (profile.type !== 'remote') return new IdentityTranslator()
-  const live = remoteClient && remoteClientProfileId === profile.id ? remoteClient.pathTranslator : null
+  const live = remoteConnections.get(profile.id)?.client?.pathTranslator ?? null
   return clientPathTranslatorForProfile(profile, live)
 }
 
@@ -2311,12 +2319,15 @@ function bindProxiedHandlersToIpc() {
       }
 
       // T0443 (BUG-110): a remote-profile window that is not served by its own live
-      // connection (empty slot, reconnecting, slot owned by another profile) is
-      // refused, never run on this machine; each refusal is also pushed to the window
-      // (the renderer shows one notice per outage).
-      const route = planProxiedInvokeRoute({ senderIsRemote, senderProfileId, slot: currentRemoteSlot() })
+      // connection (no client, reconnecting, gave up) is refused, never run on this
+      // machine; each refusal is also pushed to the window (the renderer shows one
+      // notice per outage). T0463: only the sender profile's own registry entry
+      // counts — another profile's connection never serves (or blocks) it.
+      const conn = senderProfileId ? remoteConnections.connectionState(senderProfileId) : null
+      const route = planProfileProxiedInvokeRoute({ senderIsRemote, senderProfileId, conn })
       if (route.kind === 'local') return invokeHandler(channel, args, windowId)
-      if (route.kind === 'remote' && remoteClient) return remoteClient.invoke(channel, args)
+      const senderClient = route.kind === 'remote' ? liveRemoteClient(senderProfileId) : null
+      if (senderClient) return senderClient.invoke(channel, args)
       const profileId = route.kind === 'refuse' ? route.profileId : senderProfileId ?? ''
       const reason = route.kind === 'refuse' ? route.reason : 'no-client'
       if (!event.sender.isDestroyed()) {
@@ -2352,7 +2363,7 @@ async function wslFolderDefaultForSender(sender: Electron.WebContents): Promise<
   try {
     // T0446: a detached workspace window uses its parent window's binding.
     const profileId = senderBindingProfileId(await getSenderProfileBinding(sender))
-    if (!profileId || profileId !== remoteClientProfileId || !remoteClient?.isConnected) return null
+    if (!profileId || !liveRemoteClient(profileId)) return null
     const distro = wslDistroForFolderDialog(await profileManager.getProfile(profileId))
     if (!distro) return null
     const defaultPath = await resolveWslFolderDefault(distro)
@@ -2550,94 +2561,68 @@ function registerLocalHandlers() {
 
   // Remote client handlers
   ipcMain.handle('remote:connect', async (event, host: string, port: number, token: string, label?: string, fingerprint?: string) => {
-    const task = remoteOpMutex.then(async () => {
-      let candidate: RemoteClient | null = null
-      // T0430: swap the slot only on success. A failed connect keeps the current
-      // client referenced and tears down the candidate (SSH tunnel, reconnect timer).
-      const settleSlot = async (ok: boolean, candidateProfileId: string | null) => {
-        const previousProfileId = remoteClientProfileId
-        const next = settleRemoteConnect({
-          slot: { client: remoteClient, profileId: remoteClientProfileId },
-          candidate,
-          candidateProfileId,
-          ok,
-        })
-        remoteClient = next.slot.client
-        remoteClientProfileId = next.slot.profileId
-        pushRemoteClientStatus(previousProfileId, next.slot.profileId, candidateProfileId)
-        if (ok) {
-          for (const c of next.dispose) void c.disconnect().catch(() => { /* ignore */ })
-        } else {
-          await Promise.all(next.dispose.map(c => c.disconnect().catch(() => { /* ignore */ })))
-        }
+    let boundProfileId: string | null = null
+    try {
+      // T0446 (BUG-112): a detached workspace window connects as its parent window's
+      // profile; one whose binding cannot be resolved must not connect unpinned.
+      const senderBinding = await getSenderProfileBinding(event.sender)
+      if (senderBinding.kind === 'unresolved') {
+        logger.warn(`[remote:connect] refused for a detached window with an unresolved profile binding (${host}:${port})`)
+        return { error: 'Detached window profile binding could not be resolved', errorCode: 'binding-unresolved' }
       }
-      try {
-        // T0446 (BUG-112): a detached workspace window connects as its parent window's
-        // profile; one whose binding cannot be resolved must not take the slot unpinned.
-        const senderBinding = await getSenderProfileBinding(event.sender)
-        if (senderBinding.kind === 'unresolved') {
-          logger.warn(`[remote:connect] refused for a detached window with an unresolved profile binding (${host}:${port})`)
-          return { error: 'Detached window profile binding could not be resolved', errorCode: 'binding-unresolved' }
-        }
-        const boundProfileId = senderBinding.profileId
-        const boundProfile = boundProfileId ? await profileManager.getProfile(boundProfileId) : null
-        // T0419 (BUG-096): pin with the bound profile's fingerprint and reuse the
-        // client loadProfileSnapshotDetailed already verified instead of replacing it.
-        const plan = planRemoteConnect({
-          request: { host, port, token, fingerprint },
-          boundProfileId,
-          boundProfile,
-          current: remoteClient
-            ? { profileId: remoteClientProfileId, isConnected: remoteClient.isConnected, target: remoteClientTargets.get(remoteClient) ?? null }
-            : null,
-        })
-        if (plan.kind === 'reject') {
-          logger.warn(`[remote:connect] refused for profile ${boundProfileId} (${host}:${port}) [${plan.errorCode}]: ${plan.error}`)
-          return { error: plan.error, errorCode: plan.errorCode }
-        }
-        if (plan.kind === 'reuse') {
+      boundProfileId = senderBinding.profileId
+      const boundProfile = boundProfileId ? await profileManager.getProfile(boundProfileId) : null
+      // T0463 (PLAN-039): keyed by the bound profile — a window without a binding has
+      // no registry key and is refused (binding-missing). T0419 (BUG-096): pin with the
+      // bound profile's fingerprint and reuse the client loadProfileSnapshotDetailed
+      // already verified. T0430: a failed connect keeps the entry's current client and
+      // tears down the candidate (SSH tunnel, reconnect timer).
+      const outcome = await remoteConnections.connect({
+        profileId: boundProfileId,
+        profile: boundProfile,
+        request: { host, port, token, fingerprint },
+        run: (client, expectedFingerprint) => client.connect(host, port, token, label, expectedFingerprint),
+      })
+      pushRemoteClientStatus(boundProfileId)
+      switch (outcome.kind) {
+        case 'reject':
+          logger.warn(`[remote:connect] refused for profile ${boundProfileId} (${host}:${port}) [${outcome.errorCode}]: ${outcome.error}`)
+          return { error: outcome.error, errorCode: outcome.errorCode }
+        case 'limit':
+          logger.warn(`[remote:connect] refused for profile ${boundProfileId} (${host}:${port}): ${outcome.cap} remote profiles already connected`)
+          return { error: `Too many remote profiles connected at once (limit ${outcome.cap})`, errorCode: 'remote-limit' }
+        case 'aborted':
+          return { error: 'Connection was torn down while connecting', errorCode: 'aborted' }
+        case 'failed':
+          logger.warn(`[remote:connect] connect failed for profile ${boundProfileId} (${host}:${port}) [${outcome.result.errorCode ?? 'unknown'}]; keeping current client`)
+          return { error: outcome.result.error || 'Connection failed (auth rejected or unreachable)', errorCode: outcome.result.errorCode, fingerprint: outcome.result.fingerprint }
+        case 'reuse':
           logger.log(`[remote:connect] reusing verified client for profile ${boundProfileId} (${host}:${port})`)
-          return { connected: true, fingerprint: plan.fingerprint }
-        }
-        const client = bindRemoteClient(new RemoteClient(() => getWindowsForProfile(boundProfileId), boundProfile), boundProfileId)
-        candidate = client
-        const result = await client.connect(host, port, token, label, plan.expectedFingerprint)
-        if (!result.ok) {
-          logger.warn(`[remote:connect] connect failed for profile ${boundProfileId} (${host}:${port}) [${result.errorCode ?? 'unknown'}]; keeping current client`)
-          await settleSlot(false, boundProfileId)
-          return { error: result.error || 'Connection failed (auth rejected or unreachable)', errorCode: result.errorCode, fingerprint: result.fingerprint }
-        }
-        remoteClientTargets.set(client, { host, port, token, fingerprint: result.fingerprint ?? '' })
-        await settleSlot(true, boundProfileId)
-        return { connected: true, fingerprint: result.fingerprint }
-      } catch (err: unknown) {
-        await settleSlot(false, null)
-        return { error: err instanceof Error ? err.message : String(err) }
+          return { connected: true, fingerprint: outcome.fingerprint }
+        case 'connected':
+          return { connected: true, fingerprint: outcome.result.fingerprint }
       }
-    })
-    // Keep chain alive even if a prior op rejected.
-    remoteOpMutex = task.catch(() => {})
-    return task
+    } catch (err: unknown) {
+      pushRemoteClientStatus(boundProfileId)
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
   })
-  ipcMain.handle('remote:disconnect', async () => {
-    const task = remoteOpMutex.then(async () => {
-      const previousProfileId = remoteClientProfileId
-      remoteClient?.disconnect()
-      remoteClient = null
-      remoteClientProfileId = null
-      pushRemoteClientStatus(previousProfileId)
-      return true
-    })
-    remoteOpMutex = task.catch(() => {})
-    return task
+  ipcMain.handle('remote:disconnect', async (event) => {
+    // T0463: sender-scoped — only the connection of the profile the sender window is
+    // bound to (a detached window: its parent's, T0446); other profiles are untouched.
+    const profileId = senderBindingProfileId(await getSenderProfileBinding(event.sender))
+    if (!profileId) return true
+    await remoteConnections.dropProfile(profileId)
+    pushRemoteClientStatus(profileId)
+    return true
   })
   ipcMain.handle('remote:client-status', async (event) => {
     // T0446: a detached workspace window reports its parent window's connection.
-    const senderProfileId = senderBindingProfileId(await getSenderProfileBinding(event.sender))
-    const connected = !!remoteClient?.isConnected && !!remoteClientProfileId && senderProfileId === remoteClientProfileId
+    // T0463: the sender profile's own registry entry.
+    const client = liveRemoteClient(senderBindingProfileId(await getSenderProfileBinding(event.sender)))
     return {
-      connected,
-      info: connected ? remoteClient?.connectionInfo ?? null : null,
+      connected: !!client,
+      info: client?.connectionInfo ?? null,
     }
   })
   ipcMain.handle('remote:test-connection', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
@@ -2906,27 +2891,19 @@ function registerLocalHandlers() {
     const previousFingerprint = (await profileManager.getProfile(profileId))?.remoteFingerprint
     const updated = await profileManager.update(profileId, updates)
     void syncWslKeepAlive('profile:update')
-    // T0442: a pin change fails closed — the slot's client was verified against the
-    // old pin. Queued on remoteOpMutex so a connect still in flight with the old pin
-    // settles first and is dropped here; the window reconnects with the new pin.
-    if (isRemoteFingerprintChange(previousFingerprint, updates.remoteFingerprint)) {
-      const task = remoteOpMutex.then(async () => {
-        if (!shouldDropClientOnProfileUpdate({
-          profileId,
-          applied: updated,
-          previousFingerprint,
-          nextFingerprint: updates.remoteFingerprint,
-          slotProfileId: remoteClientProfileId,
-        })) return
-        logger.warn(`[profile:update] remoteFingerprint changed for profile ${profileId}; disconnecting its remote client`)
-        const client = remoteClient
-        remoteClient = null
-        remoteClientProfileId = null
-        pushRemoteClientStatus(profileId)
-        await client?.disconnect().catch(() => { /* ignore */ })
-      })
-      remoteOpMutex = task.catch(() => {})
-      await task
+    // T0442: a pin change fails closed — the profile's client was verified against the
+    // old pin. dropProfile queues on that profile's mutex, so a connect still in flight
+    // with the old pin settles first and is dropped here (its entry already exists);
+    // the window reconnects with the new pin. T0463: only this profile's connection.
+    if (shouldDropProfileConnectionOnUpdate({
+      applied: updated,
+      previousFingerprint,
+      nextFingerprint: updates.remoteFingerprint,
+      hasConnection: remoteConnections.has(profileId),
+    })) {
+      logger.warn(`[profile:update] remoteFingerprint changed for profile ${profileId}; disconnecting its remote client`)
+      await remoteConnections.dropProfile(profileId)
+      pushRemoteClientStatus(profileId)
     }
     return updated
   })
@@ -3159,7 +3136,7 @@ function registerLocalHandlers() {
     const senderEntry = senderWindowId ? await windowRegistry.getEntry(senderWindowId) : null
     const profileId = senderEntry?.profileId ?? null
     // Same "is this window's remote connection live" rule as remote:client-status.
-    const connected = !!remoteClient?.isConnected && !!profileId && remoteClientProfileId === profileId
+    const connected = !!liveRemoteClient(profileId)
     return remoteToolInstallIpc.takePendingInstall({ profileId, connected })
   })
 
@@ -3267,6 +3244,7 @@ function registerLocalHandlers() {
         detachedWindows.delete(workspaceId)
         detachedWindowRecords.delete(workspaceId)
       }
+      noteRemoteWindowClosed()
       if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:reattached', workspaceId)
     })
     if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:detached', workspaceId)

@@ -525,6 +525,7 @@ interface ElectronAPI {
     stopServer: () => Promise<boolean>
     serverStatus: () => Promise<{ running: boolean; port: number | null; bindInterface: RemoteBindInterface; host: string; fingerprint: string; clients: { label: string; connectedAt: number }[] }>
     connect: (host: string, port: number, token: string, label?: string, fingerprint?: string) => Promise<{ connected: boolean; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
+    /** T0463 (PLAN-039): disconnects only the connection of this window's own profile. */
     disconnect: () => Promise<boolean>
     clientStatus: () => Promise<{ connected: boolean; info: { host: string; port: number; fingerprint: string } | null }>
     /** T0443 (BUG-110): this window's remote connection state changed (connected / reconnecting / disconnected). */
