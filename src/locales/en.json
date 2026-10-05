@@ -28,6 +28,12 @@
     "open": "Open",
     "cancel": "Cancel"
   },
+  "remoteProfileLimit": {
+    "title": "Remote profile limit reached",
+    "message": "Cannot open remote profile \"{{label}}\"",
+    "detail": "{{limit}} remote profiles are already connected, which is the maximum. Close every window of a remote profile you no longer need (its connection is released {{seconds}} seconds later), then try again. Existing connections were not affected.",
+    "notice": "Remote connection refused: {{limit}} remote profiles are already connected, which is the maximum. Close every window of a remote profile you no longer need, then try again."
+  },
   "app": {
     "workspaceNotFound": "Workspace not found",
     "workspaceNotFoundDesc": "This detached workspace may have been removed.",

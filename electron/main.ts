@@ -90,8 +90,8 @@ import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
 import { clientPathTranslatorForProfile, IdentityTranslator, resolveClientPaths, type PathTranslator } from './remote/path-translator'
-import { detachedSenderRouteIdentity, formatRemoteNotConnectedError, planProfileProxiedInvokeRoute, planProfileStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, shouldDropProfileConnectionOnUpdate, type DetachedWindowRecord, type SenderProfileBinding } from './remote/remote-connect-plan'
-import { RemoteConnectionRegistry } from './remote/remote-connection-registry'
+import { describeSameTargetWarning, detachedSenderRouteIdentity, formatRemoteNotConnectedError, planProfileProxiedInvokeRoute, planProfileStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, shouldDropProfileConnectionOnUpdate, type DetachedWindowRecord, type SenderProfileBinding } from './remote/remote-connect-plan'
+import { collectProfileWindows, DISCONNECT_ALL_TIMEOUT_MS, IDLE_GRACE_MS, RemoteConnectionRegistry, settleWithin } from './remote/remote-connection-registry'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
@@ -788,18 +788,16 @@ function createElectronClaudeDeps(): ClaudeAgentManagerDeps {
 /** Sync filter: windows whose registry entry's profileId matches `profileId`.
  *  Used to scope remote event broadcasts to the correct profile's windows. */
 function getWindowsForProfile(profileId: string | null): BrowserWindow[] {
-  if (!profileId) return []
-  const entries = windowRegistry.getCachedEntries()
-  const matchIds = new Set(entries.filter(e => e.profileId === profileId).map(e => e.id))
-  const wins: BrowserWindow[] = []
-  for (const [id, win] of windowMap) {
-    if (matchIds.has(id) && !win.isDestroyed()) wins.push(win)
-  }
-  // T0446 (BUG-112): a detached window belongs to its parent's profile (keyed by workspaceId, not a registry id).
-  for (const [workspaceId, win] of detachedWindows) {
-    if (!win.isDestroyed() && senderBindingProfileId(resolveDetachedBindingSync(workspaceId)) === profileId) wins.push(win)
-  }
-  return wins
+  // T0464: shared with the lifecycle tests — a window hidden to the tray stays in
+  // windowMap and counts as live (the remote registry's countLiveWindows).
+  return collectProfileWindows({
+    profileId,
+    registryEntries: windowRegistry.getCachedEntries(),
+    windows: windowMap,
+    // T0446 (BUG-112): a detached window belongs to its parent's profile (keyed by workspaceId, not a registry id).
+    detachedWindows,
+    detachedProfileId: (workspaceId) => senderBindingProfileId(resolveDetachedBindingSync(workspaceId)),
+  })
 }
 
 /** Reverse lookup: find windowId from a WebContents (for IPC sender context) */
@@ -1185,12 +1183,17 @@ async function syncWslKeepAlive(reason: string): Promise<void> {
   }
 }
 
-function cleanupAllProcesses() {
+/**
+ * Resolves once the SSH subprocesses it started tearing down (wizard tunnels, every
+ * remote profile's client and tunnel) exited, at most DISCONNECT_ALL_TIMEOUT_MS
+ * (T0464); the synchronous teardown below runs meanwhile. Never rejects.
+ */
+async function cleanupAllProcesses(): Promise<void> {
   try { wslKeepAlive.stopAll() } catch { /* ignore */ }
   // T0387: never leave an SSH wizard verification tunnel (`ssh -L`) behind.
-  void closeAllSshWizardTunnels().catch(() => undefined)
-  // T0463: every profile's client (and its SSH tunnel). Awaiting it at quit is T0464.
-  void remoteConnections.disconnectAll().catch(() => undefined)
+  const wizardTunnelsClosed = Promise.resolve().then(() => closeAllSshWizardTunnels())
+  // T0463 / T0464: every profile's client (and its SSH tunnel), all at once.
+  const remoteClientsClosed = remoteConnections.disconnectAll(DISCONNECT_ALL_TIMEOUT_MS)
   try { remoteServer.stop() } catch { /* ignore */ }
   try { claudeManager?.killAll() } catch { /* ignore */ }
   try { claudeManager?.dispose() } catch { /* ignore */ }
@@ -1201,6 +1204,9 @@ function cleanupAllProcesses() {
   codexManager = null
   sessionManagerMap.clear()
   ptyManager = null
+  const t0 = Date.now()
+  const settled = await settleWithin([wizardTunnelsClosed, remoteClientsClosed], DISCONNECT_ALL_TIMEOUT_MS)
+  logger.log(`[quit] ssh subprocesses ${settled ? 'exited' : `still running after ${DISCONNECT_ALL_TIMEOUT_MS}ms — not waiting longer`} (${Date.now() - t0}ms)`)
 }
 
 // Handle launch arguments (kept for backward compat but no longer spawns processes)
@@ -1249,7 +1255,15 @@ function bindRemoteClient(client: RemoteClient, profileId: string): RemoteClient
  * be gone, so every profile with a connection is checked.
  */
 function noteRemoteWindowClosed(): void {
-  for (const profileId of remoteConnections.profileIds()) remoteConnections.noteWindowClosed(profileId)
+  for (const [profileId, result] of remoteConnections.noteAnyWindowClosed()) {
+    if (result === 'scheduled' && remoteConnections.pendingRelease(profileId) === 'idle') logger.log(`[remote] profile ${profileId} has no window left — releasing its connection in ${IDLE_GRACE_MS / 1000}s unless a window returns`)
+  }
+}
+
+/** T0464 (T0459 Q3): two profiles on one server are allowed, but logged. */
+function warnSameTargetProfiles(profileId: string | null, outcome: { target: { host: string; port: number }; sameTargetProfileIds: string[] }): void {
+  const warning = describeSameTargetWarning(profileId ?? '(unbound)', outcome.target, outcome.sameTargetProfileIds)
+  if (warning) logger.warn(warning)
 }
 
 /** T0463: the profile's own client while it is connected (null otherwise). */
@@ -1325,7 +1339,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
         return { kind: 'remote-unreachable', reason: 'trust', host, port, label, error: outcome.error }
       case 'limit':
         logger.warn(`[profile] remote connect refused for profile ${profileId} (${host}:${port}): ${outcome.cap} remote profiles already connected`)
-        return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: `Too many remote profiles connected at once (limit ${outcome.cap})` }
+        return { kind: 'remote-unreachable', reason: 'limit', host, port, label, limit: outcome.cap, error: `Too many remote profiles connected at once (limit ${outcome.cap})` }
       case 'aborted':
         return { kind: 'remote-unreachable', reason: 'unreachable', host, port, label, error: 'Connection was torn down while connecting' }
       case 'failed': {
@@ -1338,6 +1352,7 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
         logger.log(`[profile] remote profile ${profileId} → reusing its verified client (${host}:${port})`)
         break
       case 'connected':
+        warnSameTargetProfiles(profileId, outcome)
         break
     }
     const client = outcome.client
@@ -1358,7 +1373,8 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
 }
 
 function showRemoteProfileFailureDialog(failure: RemoteProfileFailure): void {
-  const { title, message, detail } = describeRemoteProfileFailure(failure)
+  // T0464: the `limit` dialog follows the UI language (main has no i18next).
+  const { title, message, detail } = describeRemoteProfileFailure(failure, { lang: readPersistedSettingsSync()?.language, idleGraceMs: IDLE_GRACE_MS })
   dialog.showMessageBox({
     type: 'warning',
     title,
@@ -1492,7 +1508,7 @@ app.whenReady().then(async () => {
   const restoreFromSnapshot = async (profileId: string): Promise<{ count: number; unreachable?: RemoteProfileFailure }> => {
     const result = await loadProfileSnapshotDetailed(profileId)
     if (result.kind === 'remote-unreachable') {
-      return { count: 0, unreachable: { reason: result.reason, host: result.host, port: result.port, label: result.label, error: result.error } }
+      return { count: 0, unreachable: { reason: result.reason, host: result.host, port: result.port, label: result.label, error: result.error, limit: result.limit } }
     }
     if (!result.snapshot) return { count: 0 }
     return { count: await applySnapshot(profileId, result.snapshot) }
@@ -1744,12 +1760,11 @@ app.whenReady().then(async () => {
 
 // Cleanup runs once: before-quit covers cmd+Q / File→Quit paths,
 // window-all-closed covers the user closing the last window.
-// Guard with a flag to avoid running twice.
-let _cleanupDone = false
-function runCleanupOnce() {
-  if (_cleanupDone) return
-  _cleanupDone = true
-  cleanupAllProcesses()
+// Runs once; every caller gets the same promise (T0464: quit awaits it).
+let _cleanupPromise: Promise<void> | null = null
+function runCleanupOnce(): Promise<void> {
+  if (!_cleanupPromise) _cleanupPromise = cleanupAllProcesses().catch(() => undefined)
+  return _cleanupPromise
 }
 
 // PLAN-012 / T0144: Quit confirmation dialog state.
@@ -2020,7 +2035,9 @@ app.on('before-quit', async (e) => {
       }
     }
 
-    runCleanupOnce()
+    // T0464: wait (at most DISCONNECT_ALL_TIMEOUT_MS) for remote clients and their
+    // ssh subprocesses to exit before the real quit.
+    await runCleanupOnce()
     _quitConfirmed = true
     app.quit()
   }
@@ -2037,11 +2054,13 @@ app.on('window-all-closed', () => {
   // If minimizeToTray is active and windows are just hidden, don't quit
   if (isMinimizeToTrayEnabled() && !isAppQuitting) return
 
-  runCleanupOnce()
+  const cleanup = runCleanupOnce()
   app.quit()
   // Force exit — child processes (PTY shells, Claude CLI) may keep the event loop alive.
+  // T0464: the countdown starts once the ssh subprocesses exited (cleanup waits at
+  // most DISCONNECT_ALL_TIMEOUT_MS), so the force exit never cuts that wait short.
   if (process.platform !== 'darwin') {
-    setTimeout(() => process.exit(0), 2000)
+    void cleanup.finally(() => setTimeout(() => process.exit(0), 2000))
   }
 })
 
@@ -2590,7 +2609,7 @@ function registerLocalHandlers() {
           return { error: outcome.error, errorCode: outcome.errorCode }
         case 'limit':
           logger.warn(`[remote:connect] refused for profile ${boundProfileId} (${host}:${port}): ${outcome.cap} remote profiles already connected`)
-          return { error: `Too many remote profiles connected at once (limit ${outcome.cap})`, errorCode: 'remote-limit' }
+          return { error: `Too many remote profiles connected at once (limit ${outcome.cap})`, errorCode: 'remote-limit', limit: outcome.cap }
         case 'aborted':
           return { error: 'Connection was torn down while connecting', errorCode: 'aborted' }
         case 'failed':
@@ -2600,6 +2619,7 @@ function registerLocalHandlers() {
           logger.log(`[remote:connect] reusing verified client for profile ${boundProfileId} (${host}:${port})`)
           return { connected: true, fingerprint: outcome.fingerprint }
         case 'connected':
+          warnSameTargetProfiles(boundProfileId, outcome)
           return { connected: true, fingerprint: outcome.result.fingerprint }
       }
     } catch (err: unknown) {
@@ -3088,7 +3108,8 @@ function registerLocalHandlers() {
     if (result.kind === 'remote-unreachable') {
       showRemoteProfileFailureDialog(result)
       await profileManager.deactivateProfile(profileId).catch(() => { /* ignore */ })
-      return { alreadyOpen: false, windowIds: [], error: 'remote-unreachable' }
+      // T0464: the cap refusal has its own code (the dialog above already explained it).
+      return { alreadyOpen: false, windowIds: [], error: result.reason === 'limit' ? 'remote-limit' : 'remote-unreachable' }
     }
     const snapshot = result.snapshot
     if (snapshot && snapshot.windows.length > 0) {

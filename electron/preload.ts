@@ -640,7 +640,7 @@ const electronAPI = {
     serverStatus: () =>
       ipcRenderer.invoke('remote:server-status') as Promise<{ running: boolean; port: number | null; bindInterface: 'localhost' | 'tailscale' | 'all'; host: string; fingerprint: string; clients: { label: string; connectedAt: number }[] }>,
     connect: (host: string, port: number, token: string, label?: string, fingerprint?: string) =>
-      ipcRenderer.invoke('remote:connect', host, port, token, label, fingerprint) as Promise<{ connected: boolean; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>,
+      ipcRenderer.invoke('remote:connect', host, port, token, label, fingerprint) as Promise<{ connected: boolean; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string; limit?: number }>,
     disconnect: () =>
       ipcRenderer.invoke('remote:disconnect') as Promise<boolean>,
     clientStatus: () =>

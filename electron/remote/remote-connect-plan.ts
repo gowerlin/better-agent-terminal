@@ -412,3 +412,17 @@ export function findSameTargetProfiles(
   }
   return matches
 }
+
+/**
+ * T0464 (T0459 Q3): the warn line for a connect whose server is also the target of
+ * other profiles' connections (`connected` outcome's `sameTargetProfileIds`), or
+ * null when there are none. The token is never logged.
+ */
+export function describeSameTargetWarning(
+  profileId: string,
+  target: { host: string; port: number },
+  sameTargetProfileIds: readonly string[],
+): string | null {
+  if (sameTargetProfileIds.length === 0) return null
+  return `[remote] profile ${profileId} connected to ${target.host}:${target.port}, which profile(s) ${sameTargetProfileIds.join(', ')} are also connected to — both connections receive that server's events (allowed, T0459 Q3)`
+}

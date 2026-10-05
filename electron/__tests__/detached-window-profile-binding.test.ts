@@ -162,9 +162,13 @@ describe('main.ts wiring (T0446 source guard)', () => {
   })
 
   it('getWindowsForProfile matches detached windows by their resolved binding', () => {
+    // T0464: the matching itself lives in collectProfileWindows (behaviour covered in
+    // electron/remote/__tests__/remote-connection-lifecycle.test.ts).
     const fn = section('function getWindowsForProfile(', '/** Reverse lookup')
-    expect(fn).toMatch(/for \(const \[workspaceId, win\] of detachedWindows\)/)
-    expect(fn).toMatch(/senderBindingProfileId\(resolveDetachedBindingSync\(workspaceId\)\) === profileId/)
+    expect(fn).toMatch(/return collectProfileWindows\(\{/)
+    expect(fn).toMatch(/windows: windowMap,/)
+    expect(fn).toMatch(/^\s*detachedWindows,$/m)
+    expect(fn).toMatch(/detachedProfileId: \(workspaceId\) => senderBindingProfileId\(resolveDetachedBindingSync\(workspaceId\)\)/)
     expect(fn).not.toMatch(/matchIds\.has\(workspaceId\)/)
   })
 

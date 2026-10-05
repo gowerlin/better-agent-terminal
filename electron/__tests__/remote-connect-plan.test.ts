@@ -15,6 +15,7 @@ import {
   LEGACY_PROFILE_ERROR,
   REMOTE_NOT_CONNECTED,
   computeProfileWindowStatus,
+  describeSameTargetWarning,
   findSameTargetProfiles,
   planConnectionAdmission,
   planIdleRelease,
@@ -30,7 +31,7 @@ import {
   type RemoteConnectBoundProfile,
   type RemoteConnectCurrent,
 } from '../remote/remote-connect-plan'
-import { REMOTE_NOT_CONNECTED as RENDERER_REMOTE_NOT_CONNECTED, isRemoteNotConnectedError } from '../../src/lib/remote-not-connected'
+import { REMOTE_LIMIT_ERROR_CODE, REMOTE_NOT_CONNECTED as RENDERER_REMOTE_NOT_CONNECTED, isRemoteNotConnectedError } from '../../src/lib/remote-not-connected'
 
 const PIN = 'AB:CD:EF:01:23:45:67:89'
 const OTHER = '11:22:33:44:55:66:77:88'
@@ -230,8 +231,8 @@ describe('main.ts holds one connection per remote profile (T0463 source guard)',
   })
 
   it('app quit tears down every profile\'s client', () => {
-    const cleanup = mainSection('function cleanupAllProcesses()', '// Handle launch arguments')
-    expect(cleanup).toMatch(/remoteConnections\.disconnectAll\(\)/)
+    const cleanup = mainSection('async function cleanupAllProcesses()', '// Handle launch arguments')
+    expect(cleanup).toMatch(/remoteConnections\.disconnectAll\(DISCONNECT_ALL_TIMEOUT_MS\)/)
   })
 
   it('a closed registry / detached window lets the registry release profiles left without a window', () => {
@@ -241,7 +242,8 @@ describe('main.ts holds one connection per remote profile (T0463 source guard)',
     const detachedClosed = detach.slice(detach.indexOf("detachedWin.on('closed'"))
     expect(detachedClosed.indexOf('noteRemoteWindowClosed()')).toBeGreaterThan(detachedClosed.indexOf('detachedWindows.delete(workspaceId)'))
     const note = mainSection('function noteRemoteWindowClosed()', '/** T0463: the profile\'s own client')
-    expect(note).toMatch(/for \(const profileId of remoteConnections\.profileIds\(\)\) remoteConnections\.noteWindowClosed\(profileId\)/)
+    // T0464: every profile with an entry is checked (registry noteAnyWindowClosed).
+    expect(note).toMatch(/of remoteConnections\.noteAnyWindowClosed\(\)/)
   })
 })
 
@@ -258,7 +260,7 @@ describe('remote:connect handler wiring (T0430 / T0463 source guard)', () => {
   it('a refused, capped or failed connect returns an error and never reports connected', () => {
     const between = (from: string, to: string) => handler.slice(handler.indexOf(from), handler.indexOf(to))
     expect(between("case 'reject':", "case 'limit':")).toMatch(/return \{ error: outcome\.error, errorCode: outcome\.errorCode \}/)
-    expect(between("case 'limit':", "case 'aborted':")).toMatch(/return \{ error: [^\n]*errorCode: 'remote-limit' \}/)
+    expect(between("case 'limit':", "case 'aborted':")).toMatch(/return \{ error: [^\n]*errorCode: 'remote-limit', limit: outcome\.cap \}/)
     expect(between("case 'failed':", "case 'reuse':")).toMatch(/return \{ error: outcome\.result\.error/)
     expect(handler.match(/connected: true/g) ?? []).toHaveLength(2)
   })
@@ -592,5 +594,68 @@ describe('findSameTargetProfiles — two profiles, one server', () => {
     expect(findSameTargetProfiles(entries, target)).toEqual(['P', 'Q'])
     expect(findSameTargetProfiles(entries, target, 'P')).toEqual(['Q'])
     expect(findSameTargetProfiles(entries, { ...target, port: 1 })).toEqual([])
+  })
+})
+
+describe('describeSameTargetWarning (T0464, T0459 Q3)', () => {
+  it('is silent when no other profile targets the server', () => {
+    expect(describeSameTargetWarning('P', { host: 'h', port: 1 }, [])).toBeNull()
+  })
+
+  it('names the profile, the server and the other profiles, never the token', () => {
+    const warning = describeSameTargetWarning('Q', { host: 'wsl.local', port: 9876, token: 'secret-token' } as { host: string; port: number }, ['P', 'R'])
+    expect(warning).toContain('profile Q')
+    expect(warning).toContain('wsl.local:9876')
+    expect(warning).toContain('P, R')
+    expect(warning).not.toContain('secret-token')
+  })
+})
+
+describe('main.ts lifecycle wiring (T0464 source guard)', () => {
+  it('both connect paths warn when another profile targets the same server', () => {
+    const load = mainSection('async function loadProfileSnapshotDetailed(', 'function showRemoteProfileFailureDialog(')
+    expect(load.slice(load.indexOf("case 'connected':"))).toMatch(/^case 'connected':\s*warnSameTargetProfiles\(profileId, outcome\)/)
+    const handler = mainSection("ipcMain.handle('remote:connect'", "ipcMain.handle('remote:disconnect'")
+    expect(handler.slice(handler.indexOf("case 'connected':"))).toMatch(/^case 'connected':\s*warnSameTargetProfiles\(boundProfileId, outcome\)/)
+    const warn = mainSection('function warnSameTargetProfiles(', '/** T0463: the profile\'s own client')
+    expect(warn).toMatch(/describeSameTargetWarning\(/)
+    expect(warn).toMatch(/logger\.warn\(warning\)/)
+  })
+
+  it('a capped profile reports reason limit (its own dialog) and code remote-limit', () => {
+    const load = mainSection('async function loadProfileSnapshotDetailed(', 'function showRemoteProfileFailureDialog(')
+    const limit = load.slice(load.indexOf("case 'limit':"), load.indexOf("case 'aborted':"))
+    expect(limit).toMatch(/reason: 'limit'[^\n]*limit: outcome\.cap/)
+    expect(mainSection('function showRemoteProfileFailureDialog(', 'async function pickFallbackProfileId(')).toMatch(/describeRemoteProfileFailure\(failure, \{ lang: readPersistedSettingsSync\(\)\?\.language, idleGraceMs: IDLE_GRACE_MS \}\)/)
+    expect(mainSection('const restoreFromSnapshot = async', '// Track remote-unreachable failures')).toMatch(/limit: result\.limit/)
+    expect(mainSection('const openProfileWindows = async', "ipcMain.handle('app:open-new-instance'")).toMatch(/result\.reason === 'limit' \? 'remote-limit' : 'remote-unreachable'/)
+    // The renderer matches the same literal.
+    expect(REMOTE_LIMIT_ERROR_CODE).toBe('remote-limit')
+  })
+
+  it('quit waits for the ssh subprocesses, at most DISCONNECT_ALL_TIMEOUT_MS', () => {
+    const cleanup = mainSection('async function cleanupAllProcesses()', '// Handle launch arguments')
+    expect(cleanup).not.toMatch(/void remoteConnections\.disconnectAll/)
+    expect(cleanup).not.toMatch(/void closeAllSshWizardTunnels/)
+    expect(cleanup).toMatch(/await settleWithin\(\[wizardTunnelsClosed, remoteClientsClosed\], DISCONNECT_ALL_TIMEOUT_MS\)/)
+    const once = mainSection('function runCleanupOnce()', '// PLAN-012 / T0144: Quit confirmation dialog state.')
+    expect(once).toMatch(/if \(!_cleanupPromise\) _cleanupPromise = cleanupAllProcesses\(\)/)
+    expect(once).toMatch(/return _cleanupPromise/)
+    const beforeQuit = mainSection("app.on('before-quit'", "app.on('will-quit'")
+    const awaited = beforeQuit.indexOf('await runCleanupOnce()')
+    expect(awaited).toBeGreaterThan(-1)
+    expect(beforeQuit.indexOf('_quitConfirmed = true')).toBeGreaterThan(awaited)
+    const allClosed = mainSection("app.on('window-all-closed'", "app.on('activate'")
+    expect(allClosed).toMatch(/void cleanup\.finally\(\(\) => setTimeout\(\(\) => process\.exit\(0\), 2000\)\)/)
+  })
+
+  it('a window hidden to the tray stays in windowMap, so it keeps its profile live', () => {
+    const close = mainSection("win.on('close', ", "win.on('closed', () => {")
+    // Every hide path keeps the window (no windowMap.delete / noteRemoteWindowClosed there).
+    expect(close).toMatch(/win\.hide\(\)/)
+    expect(close).not.toMatch(/windowMap\.delete/)
+    expect(close).not.toMatch(/noteRemoteWindowClosed/)
+    expect(mainSection('function getWindowsForProfile(', '/** Reverse lookup')).toMatch(/windows: windowMap,/)
+    expect(mainSrc).toMatch(/countLiveWindows: \(profileId\) => getWindowsForProfile\(profileId\)\.length/)
   })
 })

@@ -7,8 +7,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  REMOTE_LIMIT_ERROR_CODE,
   REMOTE_NOT_CONNECTED,
   isRemoteNotConnectedError,
+  remoteConnectFailureNotice,
   loadNowOrWhenRemoteConnected,
   retryOnceWhenRemoteConnected,
   subscribeRemoteWindowStatus,
@@ -191,5 +193,34 @@ describe('init path call sites (source guard)', () => {
     expect(workspaceView).toMatch(/createPtyWithReplay\(createOpts, restorePtyApi\)/)
     expect(workspaceView).toMatch(/\}, restorePtyApi\)\.then\(/)
     expect(workspaceView.match(/restorePtyApi\)/g) ?? []).toHaveLength(2)
+  })
+})
+
+describe('remoteConnectFailureNotice (T0464, PLAN-039)', () => {
+  it('gives the remote profile cap its own notice with the cap filled in', () => {
+    expect(remoteConnectFailureNotice({ error: 'Too many remote profiles connected at once (limit 8)', errorCode: REMOTE_LIMIT_ERROR_CODE, limit: 8 }))
+      .toEqual({ key: 'remoteProfileLimit.notice', params: { limit: 8 } })
+  })
+
+  it('keeps every other failure on app.remoteConnectionFailed with the raw error', () => {
+    expect(remoteConnectFailureNotice({ error: 'Invalid token', errorCode: 'auth-failed' }))
+      .toEqual({ key: 'app.remoteConnectionFailed', params: { error: 'Invalid token' } })
+    expect(remoteConnectFailureNotice({ error: 'boom' }))
+      .toEqual({ key: 'app.remoteConnectionFailed', params: { error: 'boom' } })
+  })
+
+  it.each(['en.json', 'zh-TW.json', 'zh-CN.json'])('%s has the notice with a {{limit}} placeholder', (file) => {
+    const locale = JSON.parse(readFileSync(join(__dirname, '..', 'locales', file), 'utf8'))
+    expect(locale.remoteProfileLimit.notice).toContain('{{limit}}')
+  })
+
+  it('App initProfile shows the notice for a failed remote.connect (launch window and the cap on the main window)', () => {
+    const app = readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')
+    const at = app.indexOf("if ('error' in connectResult) {")
+    expect(at).toBeGreaterThan(-1)
+    const block = app.slice(at, app.indexOf('// Main window: fall back to first local profile', at))
+    expect(block).toMatch(/const notice = remoteConnectFailureNotice\(connectResult\)/)
+    expect(block.match(/setAppNotification\(t\(notice\.key, notice\.params\)\)/g) ?? []).toHaveLength(2)
+    expect(block).toMatch(/connectResult\.errorCode === REMOTE_LIMIT_ERROR_CODE/)
   })
 })

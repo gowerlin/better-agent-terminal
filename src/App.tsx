@@ -22,7 +22,7 @@ import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from './utils/control-tower-launch'
 import { isWslWindowsDrivePath, winToWsl } from './utils/wsl-path'
-import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, subscribeRemoteWindowStatus } from './lib/remote-not-connected'
+import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, REMOTE_LIMIT_ERROR_CODE, remoteConnectFailureNotice, subscribeRemoteWindowStatus } from './lib/remote-not-connected'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 
@@ -557,12 +557,15 @@ export default function App() {
           )
           dlog(`[init] remote.connect: ${(performance.now() - tRemote).toFixed(0)}ms`)
           if ('error' in connectResult) {
+            // T0464: the remote profile cap (errorCode 'remote-limit') has its own notice.
+            const notice = remoteConnectFailureNotice(connectResult)
             if (launchProfileId) {
               // New window launch failed — show error and close instead of corrupting shared state
-              setAppNotification(t('app.remoteConnectionFailed', { error: connectResult.error }))
+              setAppNotification(t(notice.key, notice.params))
               setTimeout(() => window.close(), 3000)
               return
             }
+            if (connectResult.errorCode === REMOTE_LIMIT_ERROR_CODE) setAppNotification(t(notice.key, notice.params))
             // Main window: fall back to first local profile
             const localProfile = result.profiles.find(p => p.type !== 'remote')
             if (localProfile) {

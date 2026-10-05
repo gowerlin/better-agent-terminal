@@ -3,11 +3,14 @@
  * "not running or did not respond within 6 seconds". These cover the three
  * classes main.ts now distinguishes.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   classifyConnectFailure,
   classifyInvokeFailure,
   describeRemoteProfileFailure,
+  getRemoteProfileLimitStrings,
 } from '../remote-profile-error'
 
 const base = { host: 'localhost', port: 9877, label: 'WSL Ubuntu-24.04' }
@@ -68,5 +71,41 @@ describe('describeRemoteProfileFailure', () => {
   it('omits the error suffix when no error text is available', () => {
     const d = describeRemoteProfileFailure({ ...base, reason: 'unreachable' })
     expect(d.detail).not.toContain('Error:')
+  })
+})
+
+describe('limit (T0464, PLAN-039)', () => {
+  const limit = { ...base, reason: 'limit' as const, limit: 8, error: 'Too many remote profiles connected at once (limit 8)' }
+
+  it('has its own dialog, not "unreachable", with the cap and the idle grace filled in', () => {
+    const d = describeRemoteProfileFailure(limit, { idleGraceMs: 15_000 })
+    expect(d.title).toBe('Remote profile limit reached')
+    expect(d.message).toBe('Cannot open remote profile "WSL Ubuntu-24.04"')
+    expect(d.detail).toContain('8 remote profiles are already connected')
+    expect(d.detail).toContain('15 seconds')
+    expect(d.detail).not.toContain('not running')
+    expect(d.detail).not.toMatch(/\{\{\w+\}\}/)
+  })
+
+  it('follows the UI language', () => {
+    expect(describeRemoteProfileFailure(limit, { lang: 'zh-TW' }).message).toBe('無法開啟遠端配置「WSL Ubuntu-24.04」')
+    expect(describeRemoteProfileFailure(limit, { lang: 'zh-CN' }).message).toBe('无法打开远程配置“WSL Ubuntu-24.04”')
+    expect(describeRemoteProfileFailure(limit, { lang: 'ja' }).title).toBe('Remote profile limit reached')
+    // The other reasons keep their English text whatever the language.
+    expect(describeRemoteProfileFailure({ ...base, reason: 'trust' }, { lang: 'zh-TW' }).title).toBe('Remote profile not trusted')
+  })
+
+  it('does not choke on a label that looks like a placeholder', () => {
+    const d = describeRemoteProfileFailure({ ...limit, label: '{{limit}} $& x' }, { lang: 'en' })
+    expect(d.message).toBe('Cannot open remote profile "{{limit}} $& x"')
+  })
+
+  it.each([
+    ['en', 'en.json'],
+    ['zh-TW', 'zh-TW.json'],
+    ['zh-CN', 'zh-CN.json'],
+  ])('main-side strings for %s match src/locales/%s', (lang, file) => {
+    const locale = JSON.parse(readFileSync(resolve(__dirname, '../../../src/locales', file), 'utf8'))
+    expect(getRemoteProfileLimitStrings(lang)).toEqual(locale.remoteProfileLimit)
   })
 })

@@ -28,6 +28,12 @@
     "open": "開啟",
     "cancel": "取消"
   },
+  "remoteProfileLimit": {
+    "title": "遠端配置已達上限",
+    "message": "無法開啟遠端配置「{{label}}」",
+    "detail": "已有 {{limit}} 個遠端配置同時連線（上限）。請先關閉不再需要的遠端配置的所有視窗（其連線會在 {{seconds}} 秒後釋放），再重試。既有連線不受影響。",
+    "notice": "遠端連線被拒：已有 {{limit}} 個遠端配置同時連線（上限）。請先關閉不再需要的遠端配置的所有視窗，再重試。"
+  },
   "app": {
     "workspaceNotFound": "找不到工作區",
     "workspaceNotFoundDesc": "此分離的工作區可能已被移除。",

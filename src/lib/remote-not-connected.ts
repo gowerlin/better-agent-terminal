@@ -149,3 +149,31 @@ export async function loadNowOrWhenRemoteConnected(
     return true
   }
 }
+
+/**
+ * T0464 (PLAN-039): `remote:connect` refused the profile because the concurrent
+ * remote profile cap was reached (main: registry `limit` outcome). Same literal
+ * as electron/main.ts's `remote:connect` handler (guarded by a test).
+ */
+export const REMOTE_LIMIT_ERROR_CODE = 'remote-limit'
+
+/** A failed `remote.connect` result as the renderer sees it. */
+export interface RemoteConnectFailure {
+  error: string
+  errorCode?: string
+  limit?: number
+}
+
+/**
+ * The i18n notice for a failed `remote.connect`: the cap refusal gets its own text
+ * (`remoteProfileLimit.notice`); anything else stays `app.remoteConnectionFailed`.
+ */
+export function remoteConnectFailureNotice(result: RemoteConnectFailure): {
+  key: 'remoteProfileLimit.notice' | 'app.remoteConnectionFailed'
+  params: Record<string, string | number>
+} {
+  if (result.errorCode === REMOTE_LIMIT_ERROR_CODE) {
+    return { key: 'remoteProfileLimit.notice', params: { limit: result.limit ?? '?' } }
+  }
+  return { key: 'app.remoteConnectionFailed', params: { error: result.error } }
+}

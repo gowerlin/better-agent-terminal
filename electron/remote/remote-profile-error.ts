@@ -12,8 +12,10 @@ import type { ConnectResult } from './remote-client'
  * - `trust`: reached the server but the pinned fingerprint or token was rejected
  * - `protocol`: connected and authenticated, but the remote call itself failed
  *   (e.g. `No handler for channel: …` from an older/incompatible bat-server)
+ * - `limit`: refused before connecting — `MAX_CONCURRENT_REMOTE_PROFILES` other
+ *   remote profiles are already connected (T0464 / PLAN-039); none was pushed out
  */
-export type RemoteProfileFailureReason = 'unreachable' | 'trust' | 'protocol'
+export type RemoteProfileFailureReason = 'unreachable' | 'trust' | 'protocol' | 'limit'
 
 export interface RemoteProfileFailure {
   reason: RemoteProfileFailureReason
@@ -22,6 +24,8 @@ export interface RemoteProfileFailure {
   label: string
   /** Original error text, surfaced verbatim in the dialog detail. */
   error?: string
+  /** `limit` only: the concurrent remote profile cap that refused this profile. */
+  limit?: number
 }
 
 /** Errors RemoteClient.invoke raises when the transport — not the server — failed. */
@@ -47,7 +51,53 @@ export function classifyInvokeFailure(err: unknown): RemoteProfileFailureReason 
   return TRANSPORT_INVOKE_ERRORS.some(re => re.test(message)) ? 'unreachable' : 'protocol'
 }
 
-export function describeRemoteProfileFailure(failure: RemoteProfileFailure): {
+/**
+ * T0464 (PLAN-039): strings for the remote profile cap. Electron main has no i18next
+ * instance (same as the quit dialog, PLAN-012 / T0144), so they live here; keep them
+ * in sync with src/locales/{en,zh-TW,zh-CN}.json `remoteProfileLimit.*` (a unit test
+ * checks). `title` / `message` / `detail` build main's dialog, `notice` is the
+ * renderer's notification when `remote:connect` answers `errorCode: 'remote-limit'`.
+ */
+export function getRemoteProfileLimitStrings(lang: string | undefined) {
+  const code = (lang || '').toLowerCase()
+  if (code.startsWith('zh-tw') || code === 'zh' || code.startsWith('zh-hant')) {
+    return {
+      title: '遠端配置已達上限',
+      message: '無法開啟遠端配置「{{label}}」',
+      detail: '已有 {{limit}} 個遠端配置同時連線（上限）。請先關閉不再需要的遠端配置的所有視窗（其連線會在 {{seconds}} 秒後釋放），再重試。既有連線不受影響。',
+      notice: '遠端連線被拒：已有 {{limit}} 個遠端配置同時連線（上限）。請先關閉不再需要的遠端配置的所有視窗，再重試。',
+    }
+  }
+  if (code.startsWith('zh-cn') || code.startsWith('zh-hans')) {
+    return {
+      title: '远程配置已达上限',
+      message: '无法打开远程配置“{{label}}”',
+      detail: '已有 {{limit}} 个远程配置同时连接（上限）。请先关闭不再需要的远程配置的所有窗口（其连接会在 {{seconds}} 秒后释放），再重试。现有连接不受影响。',
+      notice: '远程连接被拒绝：已有 {{limit}} 个远程配置同时连接（上限）。请先关闭不再需要的远程配置的所有窗口，再重试。',
+    }
+  }
+  return {
+    title: 'Remote profile limit reached',
+    message: 'Cannot open remote profile "{{label}}"',
+    detail: '{{limit}} remote profiles are already connected, which is the maximum. Close every window of a remote profile you no longer need (its connection is released {{seconds}} seconds later), then try again. Existing connections were not affected.',
+    notice: 'Remote connection refused: {{limit}} remote profiles are already connected, which is the maximum. Close every window of a remote profile you no longer need, then try again.',
+  }
+}
+
+/** Replaces `{{name}}` placeholders; unknown names are left as they are. */
+function fillPlaceholders(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) => (name in values ? String(values[name]) : match))
+}
+
+/**
+ * `lang` (persisted settings `language`) only localizes the `limit` dialog; the other
+ * reasons keep their English text. `idleGraceMs` is the registry's idle grace, named
+ * in the `limit` detail.
+ */
+export function describeRemoteProfileFailure(
+  failure: RemoteProfileFailure,
+  options: { lang?: string; idleGraceMs?: number } = {},
+): {
   title: string
   message: string
   detail: string
@@ -55,6 +105,19 @@ export function describeRemoteProfileFailure(failure: RemoteProfileFailure): {
   const { host, port, label, error } = failure
   const suffix = error ? `\n\nError: ${error}` : ''
   switch (failure.reason) {
+    case 'limit': {
+      const s = getRemoteProfileLimitStrings(options.lang)
+      const values = {
+        label,
+        limit: failure.limit ?? '?',
+        seconds: Math.round((options.idleGraceMs ?? 15_000) / 1000),
+      }
+      return {
+        title: s.title,
+        message: fillPlaceholders(s.message, values),
+        detail: fillPlaceholders(s.detail, values),
+      }
+    }
     case 'trust':
       return {
         title: 'Remote profile not trusted',

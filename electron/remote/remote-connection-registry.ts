@@ -24,7 +24,8 @@
  *   warn (T0459 Q3).
  *
  * No electron import: the client factory, the live window count and the release
- * callback are injected (main.ts wires them in T0463 / T0464).
+ * callback are injected (main.ts wires them in T0463 / T0464; the live window
+ * count is `collectProfileWindows`, the quit wait `settleWithin`).
  */
 import {
   BINDING_MISSING_ERROR,
@@ -101,6 +102,56 @@ interface Entry<C> {
   releaseKind: RemoteReleaseReason | null
   /** Bumped on every schedule / cancel; a fired timer only acts on its own generation. */
   releaseGeneration: number
+}
+
+/**
+ * Waits until every promise settled (`Promise.allSettled`) or `timeoutMs` passed,
+ * whichever comes first; never rejects. Resolves `true` when all settled in time.
+ * T0464: the quit path waits for remote clients / SSH tunnels with it.
+ */
+export async function settleWithin(promises: Iterable<Promise<unknown>>, timeoutMs: number): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const settled = await Promise.race([
+    Promise.allSettled(promises).then(() => true),
+    new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), timeoutMs) }),
+  ])
+  if (timer) clearTimeout(timer)
+  return settled
+}
+
+/** The part of `BrowserWindow` the live window count relies on. */
+export interface ProfileWindowLike {
+  isDestroyed(): boolean
+}
+
+/**
+ * T0464: the windows bound to a profile — main.ts `getWindowsForProfile`, which is
+ * also the registry's `countLiveWindows`. Registry windows match by their entry's
+ * `profileId`; a detached window belongs to its parent's profile (T0446). Only a
+ * destroyed window is left out: a window hidden to the tray (minimize-to-tray close)
+ * stays in `windows` and counts as live, so hiding never starts an idle release.
+ */
+export function collectProfileWindows<W extends ProfileWindowLike>(input: {
+  profileId: string | null
+  registryEntries: Iterable<{ id: string; profileId?: string | null }>
+  windows: Iterable<[string, W]>
+  detachedWindows: Iterable<[string, W]>
+  detachedProfileId: (workspaceId: string) => string | null
+}): W[] {
+  const { profileId } = input
+  if (!profileId) return []
+  const matchIds = new Set<string>()
+  for (const entry of input.registryEntries) {
+    if (entry.profileId === profileId) matchIds.add(entry.id)
+  }
+  const wins: W[] = []
+  for (const [id, win] of input.windows) {
+    if (matchIds.has(id) && !win.isDestroyed()) wins.push(win)
+  }
+  for (const [workspaceId, win] of input.detachedWindows) {
+    if (!win.isDestroyed() && input.detachedProfileId(workspaceId) === profileId) wins.push(win)
+  }
+  return wins
 }
 
 async function disconnectQuietly(client: RegistryClient | null): Promise<void> {
@@ -216,8 +267,22 @@ export class RemoteConnectionRegistry<C extends RegistryClient, P extends Remote
       this.clearRelease(entry)
       return 'kept'
     }
+    // T0464: a connection still waiting for its first window keeps the longer
+    // first-window guard — another window closing must not cut it to the idle grace.
+    if (entry.releaseKind === 'first-window') return 'scheduled'
     this.scheduleRelease(entry, 'idle', this.idleGraceMs)
     return 'scheduled'
+  }
+
+  /**
+   * T0464: some window closed and its profile may no longer be known (main.ts: the
+   * closed window's registry entry can already be gone), so every profile with an
+   * entry is checked — `noteWindowClosed` for each.
+   */
+  noteAnyWindowClosed(): Map<string, 'none' | 'kept' | 'scheduled'> {
+    const results = new Map<string, 'none' | 'kept' | 'scheduled'>()
+    for (const profileId of [...this.entries.keys()]) results.set(profileId, this.noteWindowClosed(profileId))
+    return results
   }
 
   /** Cancels the profile's pending release, including one whose timer already fired. */
@@ -249,12 +314,7 @@ export class RemoteConnectionRegistry<C extends RegistryClient, P extends Remote
     for (const entry of entries) this.clearRelease(entry)
     const clients = entries.map(e => e.client).filter((c): c is C => c !== null)
     if (clients.length > 0) {
-      let timer: ReturnType<typeof setTimeout> | null = null
-      await Promise.race([
-        Promise.allSettled(clients.map(c => Promise.resolve().then(() => c.disconnect()))),
-        new Promise<void>(resolve => { timer = setTimeout(resolve, timeoutMs) }),
-      ])
-      if (timer) clearTimeout(timer)
+      await settleWithin(clients.map(c => Promise.resolve().then(() => c.disconnect())), timeoutMs)
     }
     return entries.length
   }
