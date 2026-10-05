@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0463
 title: "PLAN-039 工單 2：main.ts 以 connection registry 取代單一 remoteClient 槽位（T0459 §1 表 #1-#21 全部使用點）；remote:connect 拒絕無綁定、remote:disconnect sender-scoped；移除 other-profile + renderer / preload / i18n 清理；遷移單一槽位前提的測試"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-039
 priority: P2
 sizing: L
 created_at: "2026-10-05T11:29:43+08:00"
 started_at: "2026-10-05T11:50:49+08:00"
-updated_at: "2026-10-05T11:50:49+08:00"
-completed_at: null
+updated_at: "2026-10-05T12:02:08+08:00"
+completed_at: "2026-10-05T12:02:08+08:00"
 target_version: next
 depends_on:
   - T0462
@@ -150,6 +150,8 @@ memory_overrides:
 | `npx tsc --noEmit` | ✅ PASS | 36 errors（= 門檻 36）。注意此 gate 只涵蓋 `src/` |
 | electron 型別（補充） | ✅ | scratchpad tsconfig（extends `tsconfig.node.json`，ES2022）檢查 `electron/**`：本單觸及檔案 0 個新錯誤（`main.ts` 殘留皆為既有：`Handler` 簽章、`app.dock`、`fs.promises`、`ShortcutDetails`）；`remote-connection-registry.test.ts`（T0462）有 2 個既有型別錯誤，非本單 |
 | build / runtime / 實機 | — | 依工單只跑上兩項（L141）；WSL + SSH 實機同開驗收屬工單 5 |
+
+**Commit**：`8604daa`（本單 13 檔 + 本工單）；未 push。
 
 ### 遭遇問題
 
