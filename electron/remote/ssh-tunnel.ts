@@ -39,6 +39,22 @@ export interface SshTunnelDeps {
 const DEFAULT_READY_TIMEOUT_MS = 10_000
 const DEFAULT_POLL_INTERVAL_MS = 200
 
+// T0465: OpenSSH's messages when the local end of `-L` cannot be bound, e.g.
+// `bind [127.0.0.1]:51234: Address already in use` followed by
+// `channel_setup_fwd_listener_tcpip: cannot listen to port: 51234` and
+// `Could not request local forwarding.` Fallback signal only (see
+// isLocalBindFailure).
+const LOCAL_BIND_FAILURE_RE =
+  /Address already in use|cannot listen to port|Could not request local forwarding/i
+
+/** Internal: the dynamically picked local port was taken before ssh bound it. */
+class LocalPortInUseError extends Error {
+  constructor(readonly port: number) {
+    super(`local port ${port} already in use`)
+    this.name = 'LocalPortInUseError'
+  }
+}
+
 export type SshTunnelWarningKind =
   | 'permission-denied'
   | 'connection-refused'
@@ -109,7 +125,40 @@ export class SshTunnel extends EventEmitter {
       return { localPort: this.actualLocalPort }
     }
     this.stopRequested = false
-    const localPort = this.options.localPort ?? (await this.pickFreePort())
+    if (this.options.localPort !== undefined) {
+      // Fixed port: no retry — a bind conflict on a user-chosen port would
+      // just repeat, so it takes the existing error path (T0465).
+      return this.startOnPort(this.options.localPort, false)
+    }
+    try {
+      return await this.startOnPort(await this.pickFreePort(), true)
+    } catch (err) {
+      if (!(err instanceof LocalPortInUseError)) throw err
+      // T0465: pickFreePort() releases the port before `ssh -L` binds it, so
+      // another process can take it in between. Pick a fresh port and retry
+      // exactly once; a second failure takes the existing error path.
+      logger.warn(
+        `[SshTunnel] local port ${err.port} was taken before ssh could bind it; retrying once on a new port`,
+      )
+      this.stopRequested = false
+      const retryPort = await this.pickFreePort()
+      if (this.stopRequested) {
+        throw new Error('ssh tunnel start aborted')
+      }
+      return this.startOnPort(retryPort, false)
+    }
+  }
+
+  /**
+   * One spawn + readiness attempt on `localPort`. With `retryOnBindFailure`,
+   * an ssh exit caused by the local port being taken rejects with
+   * `LocalPortInUseError` and does not emit `tunnel-down` (start() retries
+   * instead); every other outcome behaves exactly as a non-retry attempt.
+   */
+  private async startOnPort(
+    localPort: number,
+    retryOnBindFailure: boolean,
+  ): Promise<{ localPort: number }> {
     this.actualLocalPort = localPort
 
     const spawn = this.deps.spawn ?? (await import('child_process')).spawn
@@ -121,9 +170,16 @@ export class SshTunnel extends EventEmitter {
     })
     this.process = proc
 
+    let starting = true
+    let stderrReportsBindFailure = false
+    // Set when an unsolicited exit happened during a retry-eligible start; its
+    // tunnel-down is held back until we know whether start() will retry.
+    let deferredExit: { code: number | null; signal: NodeJS.Signals | null } | null = null
+
     const stderr = (proc as { stderr?: NodeJS.EventEmitter }).stderr
     stderr?.on('data', (chunk: Buffer | string) => {
       const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+      if (LOCAL_BIND_FAILURE_RE.test(text)) stderrReportsBindFailure = true
       const warning = classifyStderr(text)
       if (warning) {
         logger.warn(`[SshTunnel] stderr (${warning.kind}): ${text.trim()}`)
@@ -133,22 +189,26 @@ export class SshTunnel extends EventEmitter {
 
     proc.on('exit', (code, signal) => {
       const wasStopped = this.stopRequested
-      this.process = null
+      if (this.process === proc) this.process = null
       if (!wasStopped) {
-        logger.warn(
-          `[SshTunnel] ssh exited unexpectedly (code=${code}, signal=${signal}); emitting tunnel-down`,
-        )
-        this.emit('tunnel-down')
+        if (retryOnBindFailure && starting) {
+          deferredExit = { code, signal }
+          return
+        }
+        this.emitTunnelDown(code, signal)
       }
     })
 
     try {
       await this.waitUntilReady(localPort)
+      starting = false
       logger.log(
         `[SshTunnel] ready on 127.0.0.1:${localPort} → ${this.options.sshUser}@${this.options.sshHost}:${this.options.remotePort}`,
       )
       return { localPort }
     } catch (err) {
+      starting = false
+      const abortedByCaller = this.stopRequested
       // start() failed — escalate SIGTERM → SIGKILL via the shared helper so
       // the subprocess doesn't linger (BUG-063) and its eventual exit doesn't
       // fire tunnel-down on the next event loop.
@@ -156,9 +216,58 @@ export class SshTunnel extends EventEmitter {
       await shutdownSshProcess(proc, { logger }).catch(() => {
         /* helper already swallowed kill races; never throw out of stop path */
       })
-      this.process = null
+      if (this.process === proc) this.process = null
+      const exit = deferredExit as { code: number | null; signal: NodeJS.Signals | null } | null
+      if (exit) {
+        if (
+          !abortedByCaller
+          && (await this.isLocalBindFailure(localPort, exit.code, stderrReportsBindFailure))
+        ) {
+          throw new LocalPortInUseError(localPort)
+        }
+        this.emitTunnelDown(exit.code, exit.signal)
+      }
       throw err
     }
+  }
+
+  private emitTunnelDown(code: number | null, signal: NodeJS.Signals | null): void {
+    logger.warn(
+      `[SshTunnel] ssh exited unexpectedly (code=${code}, signal=${signal}); emitting tunnel-down`,
+    )
+    this.emit('tunnel-down')
+  }
+
+  /**
+   * T0465: did ssh exit because `localPort` was already bound? Structured
+   * signals decide: OpenSSH exits 255 when a forward fails under
+   * `ExitOnForwardFailure=yes`, and a probe bind of the port failing with
+   * `EADDRINUSE` confirms the conflict. ssh's stderr bind message is only the
+   * fallback, for when the other process released the port before the probe.
+   */
+  private async isLocalBindFailure(
+    localPort: number,
+    exitCode: number | null,
+    stderrReportsBindFailure: boolean,
+  ): Promise<boolean> {
+    if (exitCode !== 255) return false
+    if (await this.isPortInUse(localPort)) return true
+    return stderrReportsBindFailure
+  }
+
+  private async isPortInUse(port: number): Promise<boolean> {
+    const createServer =
+      this.deps.createServer ?? (await import('net')).createServer
+    return new Promise((resolve) => {
+      const srv = createServer()
+      srv.once('error', (err: NodeJS.ErrnoException) => {
+        try { srv.close() } catch { /* ignore */ }
+        resolve(err.code === 'EADDRINUSE')
+      })
+      srv.listen(port, '127.0.0.1', () => {
+        srv.close(() => resolve(false))
+      })
+    })
   }
 
   async stop(): Promise<void> {

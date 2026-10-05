@@ -111,6 +111,34 @@ export function resolveSshTunnelUse(entry: ProfileEntry): { useTunnel: boolean; 
   return { useTunnel: true, legacyDirect: entry.useSshTunnel === false }
 }
 
+/**
+ * T0465: fixed `tunnelLocalPort` values held by live SSH tunnels, as
+ * port → profileId → number of clients. Two profiles sharing one fixed port
+ * cannot both bind `ssh -L`, so the later connect warns (it is not blocked).
+ */
+const fixedTunnelPortClaims = new Map<number, Map<string, number>>()
+
+/** Records the claim and returns the other profiles already holding `port`. */
+export function claimFixedTunnelPort(port: number, profileId: string): string[] {
+  let owners = fixedTunnelPortClaims.get(port)
+  if (!owners) {
+    owners = new Map()
+    fixedTunnelPortClaims.set(port, owners)
+  }
+  const others = Array.from(owners.keys()).filter(id => id !== profileId)
+  owners.set(profileId, (owners.get(profileId) ?? 0) + 1)
+  return others
+}
+
+export function releaseFixedTunnelPort(port: number, profileId: string): void {
+  const owners = fixedTunnelPortClaims.get(port)
+  const count = owners?.get(profileId)
+  if (!owners || count === undefined) return
+  if (count > 1) owners.set(profileId, count - 1)
+  else owners.delete(profileId)
+  if (owners.size === 0) fixedTunnelPortClaims.delete(port)
+}
+
 export class RemoteClient {
   private ws: WebSocket | null = null
   private pending: Map<string, PendingInvoke> = new Map()
@@ -135,6 +163,7 @@ export class RemoteClient {
   private tunnel: SshTunnel | null = null
   private remoteServerPort = 0   // pre-tunnel destination port on the SSH host
   private tunnelRestartFailures = 0
+  private fixedTunnelPortClaim: { port: number; profileId: string } | null = null
 
   // T0406: pushed after every successful auth (first connect and each reconnect —
   // a new connection starts with no roots on the server, which fails closed).
@@ -295,6 +324,7 @@ export class RemoteClient {
       remotePort: this.remoteServerPort,
       localPort: meta.tunnelLocalPort,
     })
+    this.claimFixedTunnelPortOf(this.profile.id, meta.tunnelLocalPort)
 
     this.tunnel.on('tunnel-down', () => {
       logger.warn('[RemoteClient] SshTunnel reported tunnel-down — closing wss to trigger reconnect')
@@ -307,6 +337,18 @@ export class RemoteClient {
         this.scheduleReconnect()
       }
     })
+  }
+
+  private claimFixedTunnelPortOf(profileId: string, port: number | undefined): void {
+    if (!port) return   // unset → dynamic port; 0 is never a shareable fixed port
+    const others = claimFixedTunnelPort(port, profileId)
+    this.fixedTunnelPortClaim = { port, profileId }
+    if (others.length > 0) {
+      logger.warn(
+        `[RemoteClient] profile ${profileId} uses fixed tunnelLocalPort ${port}, which connected profile(s) ${others.join(', ')} also use — ` +
+          'only one ssh -L can bind it; clear tunnelLocalPort on one of them to use a dynamic port',
+      )
+    }
   }
 
   /**
@@ -599,6 +641,10 @@ export class RemoteClient {
       const t = this.tunnel
       this.tunnel = null
       this.tunnelRestartFailures = 0
+      if (this.fixedTunnelPortClaim) {
+        releaseFixedTunnelPort(this.fixedTunnelPortClaim.port, this.fixedTunnelPortClaim.profileId)
+        this.fixedTunnelPortClaim = null
+      }
       try {
         await t.stop()
       } catch (err) {
