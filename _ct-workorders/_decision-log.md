@@ -1419,6 +1419,7 @@
 | 42 | T0458 所有帶 preload 的視窗（含 detached）套用導航守門 | 本專案 | T0457 | S | 🟡 |
 | 43 | T0459 研究：PLAN-039 多 remote profile 同時連線 | 本專案 | — | M | 🟡 |
 | 44 | T0460 `shell:open-external` 可執行副檔名確認對話框 | 本專案 | — | S | 🟢 |
+| 45 | T0461 IPC `shell:open-external` scheme 白名單（擋 `ms-msdt:` 等）+ `shell:open-path` 可執行確認 | 本專案 | T0460 | S | 🟢 |
 
 - **追加**（使用者 11:19 裁決）：第 1-42 列完成並通過最終聯合驗證後，push `e11a2f6..6286c11`（86 commits，不發版）；開 PLAN-039 研究單 T0459；T0457 遭遇問題 1 → 可執行副檔名開啟前確認（T0460，其他檔案照舊）
 

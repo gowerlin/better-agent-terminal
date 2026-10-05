@@ -333,6 +333,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [排程完成] 2026-10-05 07:45 — D134 排程表第 1-42 列全數 DONE（T0417-T0458，共 42 張）。開始最終聯合驗證
 - [聯合複驗] 2026-10-05 07:46 — HEAD `2f8237d`：乾淨 worktree（CRLF checkout）vite build exit 0、tsc **36**、unit **163 files / 2646 passed / 0 failed**（T0454 修正實證：CRLF 下 scripts 測試全綠）；主工作區 vite build exit 0、**e2e 8 passed / 8 skipped / 0 failed**（基線 6 passed，+T0453 / T0458 spec）
 - [授權] 2026-10-05 11:19 — 使用者：開 PLAN-039 研究單、現在 push、可執行副檔名加確認對話框
+- [派發] 2026-10-05 11:20 — T0459（research，`--interactive`）∥ T0460（`--no-interactive`）
+- [完成] 2026-10-05 11:25 — T0460 DONE（`380cecf`）塔台複核 PASS：可執行副檔名確認（預設 / Esc 取消、判斷在 main）、修 `FILE:///` / `file://localhost/` 繞過、67 tests（TDD）、三語字串對 locale JSON 守門、Worker 2713 passed / tsc 36
+- [斷點 C 裁決] 2026-10-05 11:25 — T0460 遭遇問題 2：IPC `shell:open-external` 任意 scheme（`ms-msdt:` 為 Follina 類路徑，來源可能是 agent 輸出 / Markdown）+ `shell:open-path` 無確認 → T0461（P1，收緊）
 - [push] 2026-10-05 11:19 — `git push origin main`：`e11a2f6..6286c11`（86 commits；origin = gowerlin），0/0；未觸發 release
 - [*sync] 2026-10-05 07:46 — `_bug-tracker.md` 重建（Open 1 / Fixed 17 / Closed 20 / Total 38）；`_backlog.md` 加 PLAN-038 / PLAN-039（Ideas 3 / Planned 3 / In Progress 4 / Done 1）
 
