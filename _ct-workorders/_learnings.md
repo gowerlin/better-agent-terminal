@@ -3356,3 +3356,18 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 修安全邊界時先寫「越權嘗試」負向測試（紅→綠），並加分類守門讓新增成員未分類即紅（L140 延伸）
 
 **候選晉升**：🌐 Global（塔台驗收原則）
+
+---
+
+## L146
+
+**來源**：第五十六 session（2026-10-05），T0463 / T0464（PLAN-039）
+
+**現象**：工單驗收 gate 寫「`npx tsc --noEmit` ≤ 36」，但 `tsconfig.json` 的 `include` 只有 `src/`——`electron/main.ts`、`preload.ts`、`electron/remote/**` 的型別錯誤**完全不在 gate 內**。vite build（esbuild）只轉譯不做型別檢查，vitest 亦同。T0463 Worker 自行發現，以 scratchpad tsconfig（extends `tsconfig.node.json`、`typeRoots` 指向 repo `node_modules/@types`）補檢，electron 端既有約 76 個錯誤，本單觸及檔案 0 新錯。
+
+**How to apply**：
+- 改 `electron/**` 的工單，驗收條件加「electron 型別補檢：本單觸及檔案 0 個新錯誤」，並寫明補檢方式（scratchpad tsconfig，不留檔於 repo）
+- 回報 tsc 數字時註明涵蓋範圍（`src/` only），避免把 `tsc 36` 讀成全專案型別健康
+- backlog 候選：新增 `typecheck:electron` script 與 electron baseline 數字，讓 gate 可機械化
+
+**候選晉升**：📁 Project（本專案 tsconfig 結構）；「確認 gate 實際涵蓋範圍」可泛化為 Global
