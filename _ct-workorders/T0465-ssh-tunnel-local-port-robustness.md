@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0465
 title: "PLAN-039 工單 4：SSH tunnel 本機埠健壯性——pickFreePort 後 EADDRINUSE 換埠重試一次；固定 tunnelLocalPort 被多個 profile 重複使用時 warn"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-039
 priority: P3
 sizing: S
 created_at: "2026-10-05T11:29:43+08:00"
 started_at: "2026-10-05T11:43:01+08:00"
-updated_at: "2026-10-05T11:43:01+08:00"
-completed_at: null
+updated_at: "2026-10-05T11:49:24+08:00"
+completed_at: "2026-10-05T11:49:24+08:00"
 target_version: next
 depends_on: []
 related:
@@ -54,7 +54,7 @@ memory_overrides:
 
 ### 完成狀態
 
-**DONE**（commit 見下方「Commit」）
+**DONE**（commit `b677e71`）
 
 ### 產出摘要
 
@@ -94,7 +94,7 @@ memory_overrides:
 | `npx tsc --noEmit` | PASS | 36 errors（基線 36，≤ 36，無新增） |
 | 實際 SSH | 未執行 | 依工單禁止對實際 SSH 主機執行 |
 
-**Commit**：見本工單 commit（只含 `ssh-tunnel.ts` / `remote-client.ts` / 新測試檔 / 本工單）；未 push。
+**Commit**：`b677e71`（只含 `ssh-tunnel.ts` / `remote-client.ts` / 新測試檔 / 本工單）；未 push。
 
 ### 遭遇問題
 
