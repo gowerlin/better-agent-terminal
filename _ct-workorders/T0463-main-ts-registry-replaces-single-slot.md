@@ -59,6 +59,11 @@ memory_overrides:
 3. 盤點 → 實作 → 驗收；填回報區；完成寫 **`DONE`**
 4. commit 實際改動檔 + 本工單；不 push；依派發 mode 通知塔台
 
+### 塔台補充（第五十六 session，派發前）
+
+- T0462 已落地 `470f81a`：回報區「遭遇問題」末段有**給工單 2 / 3 的接線備註**（`run` 由呼叫端執行 `client.connect(...)`；log / `pushRemoteClientStatus` 依 outcome 在外層做；`settle` 成功時舊 client `void` disconnect）——照此接線。
+- T0465 已落地 `b677e71`：`remote-client.ts` 有模組層 `fixedTunnelPortClaims`，於 `maybeCreateTunnel()` claim、`disconnect()` release。registry 經 `dropProfile` / 寬限期釋放 / `disconnectAll` 拆 client 時都必須走 `client.disconnect()`，claim 才會釋放；不要繞過 `disconnect()` 直接丟棄 client。
+
 ---
 
 ## 回報區

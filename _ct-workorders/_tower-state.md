@@ -260,6 +260,19 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 
 > 本區段依 `references/yolo-mode.md` § 「`_tower-state.md` 新增 `## YOLO 歷程` 區段」規格產生。逐筆紀錄已歸檔至 `_archive/state-snapshots/2026-Q4.md`（INDEX 69 / 70）。
 
+### 當前 Session（第五十六 session，2026-10-05 11:40 起，session-only yolo，Worker 互動：不允許）
+
+- 11:42 派 T0462 ∥ T0465（D135；PLAN-039 第 1 / 4 列）— 兩張 exit 0（terminal `92dff1c9…` / `0eff417f…`）；11:45 確認兩張 IN_PROGRESS（started_at 11:42:43 / 11:43:01）
+- 11:49 **T0465 DONE** `b677e71`（+ `4f17932`）：動態埠 bind 失敗（exit 255 且 probe EADDRINUSE 或 stderr）換埠重試一次；固定 `tunnelLocalPort` 與已連線 profile 重複 → warn；新測試 11；unit 全綠（排除 T0462 WIP 紅燈檔）；tsc 36。塔台核對 commit 只含 4 檔 ✅。裁決：「未連線 profile 同埠」不納入 warn（需 main.ts ProfileManager，且不實際撞埠）→ 接受；殘留風險（占用者為 listener 時 ready 誤判）由 fingerprint pin fail-closed 兜底 → 不開 BUG
+- 11:50 **T0462 DONE** `470f81a`（+ `0193a5e`）：`remote-connection-registry.ts`（上限 8 / 寬限 15 s / 開窗保護 60 s / per-profile mutex / disconnectAll 2 s）+ `remote-connect-plan.ts` profile 鍵純函式；+45 tests；unit 166 files / 2824 passed（含 T0465 已 commit 內容，視同聯合複驗）；tsc 36。commit 5 檔 ✅
+- 派 T0463 前塔台在工單補「塔台補充」：T0462 接線備註 + T0465 `fixedTunnelPortClaims` 必經 `client.disconnect()` 釋放
+
+### 計數器（第五十六 session）
+
+- 連續 FAILED: 0 / 1
+- 本 session yolo 派發：2
+- 斷點觸發：A×0, B×0, C×0、使用者中斷×0
+
 ### 計數器（第五十五 session，已收工）
 
 - 連續 FAILED: 0 / 1
