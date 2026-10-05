@@ -335,3 +335,158 @@ export function detachedSenderRouteIdentity(
   if (!binding.profileId) return { senderIsRemote: false, senderProfileId: null }
   return { senderIsRemote: profileType !== 'local', senderProfileId: binding.profileId }
 }
+
+/*
+ * T0462 (PLAN-039): profile-keyed variants for the per-profile connection
+ * registry (`remote-connection-registry.ts`). Each profile has its own entry,
+ * so a window is only ever served — or refused — by its own profile's client
+ * and `'other-profile'` no longer occurs. The slot-based functions above stay
+ * until main.ts moves to the registry (T0463).
+ */
+
+export const BINDING_MISSING_ERROR = 'Window is not bound to a profile'
+
+/** A profile's registry entry as `planProfileRemoteConnect` sees it. */
+export interface RemoteProfileConnectEntry {
+  isConnected: boolean
+  target: RemoteConnectTarget | null
+}
+
+export type RemoteProfileConnectPlan =
+  | RemoteConnectPlan
+  | { kind: 'reject'; error: string; errorCode: 'binding-missing' }
+
+/**
+ * T0462: `planRemoteConnect` keyed by the bound profile. `entry` is that
+ * profile's own registry entry, so a reuse never depends on who else is
+ * connected. A window without a profile binding has no registry key and is
+ * refused.
+ */
+export function planProfileRemoteConnect(input: {
+  request: RemoteConnectRequest
+  boundProfileId: string | null
+  boundProfile: RemoteConnectBoundProfile | null
+  entry: RemoteProfileConnectEntry | null
+}): RemoteProfileConnectPlan {
+  const { request, boundProfileId, boundProfile, entry } = input
+  if (boundProfileId === null) return { kind: 'reject', error: BINDING_MISSING_ERROR, errorCode: 'binding-missing' }
+  return planRemoteConnect({
+    request,
+    boundProfileId,
+    boundProfile,
+    current: entry ? { profileId: boundProfileId, isConnected: entry.isConnected, target: entry.target } : null,
+  })
+}
+
+/** T0462: a profile's pin changed — drop that profile's entry, if it has one. */
+export function shouldDropProfileConnectionOnUpdate(input: {
+  applied: boolean
+  previousFingerprint: string | undefined
+  nextFingerprint: string | undefined
+  hasConnection: boolean
+}): boolean {
+  const { applied, previousFingerprint, nextFingerprint, hasConnection } = input
+  if (!applied || !hasConnection) return false
+  return isRemoteFingerprintChange(previousFingerprint, nextFingerprint)
+}
+
+/** What a profile's registry entry holds right now (`null` = no client). */
+export interface RemoteProfileConnState {
+  isConnected: boolean
+  isReconnecting: boolean
+}
+
+export type RemoteProfileNotConnectedReason = Exclude<RemoteNotConnectedReason, 'other-profile'>
+
+export interface RemoteProfileWindowStatus extends RemoteWindowStatus {
+  reason: RemoteProfileNotConnectedReason | null
+}
+
+/** T0462: connection state as seen by the windows bound to `profileId`. */
+export function computeProfileWindowStatus(profileId: string, conn: RemoteProfileConnState | null): RemoteProfileWindowStatus {
+  if (!conn) return { profileId, connected: false, state: 'disconnected', reason: 'no-client' }
+  if (conn.isConnected) return { profileId, connected: true, state: 'connected', reason: null }
+  if (conn.isReconnecting) return { profileId, connected: false, state: 'reconnecting', reason: 'reconnecting' }
+  return { profileId, connected: false, state: 'disconnected', reason: 'disconnected' }
+}
+
+export type ProfileProxiedInvokeRoute =
+  | { kind: 'local' }
+  | { kind: 'remote' }
+  | { kind: 'refuse'; errorCode: typeof REMOTE_NOT_CONNECTED; profileId: string; reason: RemoteProfileNotConnectedReason }
+
+/**
+ * T0462: `planProxiedInvokeRoute` with the sender profile's own entry (`conn`,
+ * looked up by the caller with `senderProfileId`).
+ */
+export function planProfileProxiedInvokeRoute(input: {
+  senderIsRemote: boolean
+  senderProfileId: string | null
+  conn: RemoteProfileConnState | null
+}): ProfileProxiedInvokeRoute {
+  const { senderIsRemote, senderProfileId, conn } = input
+  if (!senderIsRemote || !senderProfileId) return { kind: 'local' }
+  const status = computeProfileWindowStatus(senderProfileId, conn)
+  if (status.connected) return { kind: 'remote' }
+  return { kind: 'refuse', errorCode: REMOTE_NOT_CONNECTED, profileId: senderProfileId, reason: status.reason ?? 'disconnected' }
+}
+
+/** T0462: `planRemoteStatusPushes` where each profile is computed from its own entry. */
+export function planProfileStatusPushes(
+  profileIds: ReadonlyArray<string | null | undefined>,
+  getConn: (profileId: string) => RemoteProfileConnState | null,
+  lastPushed: Map<string, string>,
+): RemoteProfileWindowStatus[] {
+  const pushes: RemoteProfileWindowStatus[] = []
+  for (const profileId of new Set(profileIds)) {
+    if (!profileId) continue
+    const status = computeProfileWindowStatus(profileId, getConn(profileId))
+    const key = `${status.state}:${status.reason ?? ''}`
+    if (lastPushed.get(profileId) === key) continue
+    lastPushed.set(profileId, key)
+    pushes.push(status)
+  }
+  return pushes
+}
+
+export type ConnectionAdmission =
+  | { kind: 'existing' }
+  | { kind: 'admit' }
+  | { kind: 'reject'; reason: 'limit'; cap: number }
+
+/**
+ * T0462 (T0459 Q2): may a profile take a registry entry? Entries count while
+ * connecting or reconnecting; a profile that already has one is never refused.
+ * At the cap a new profile is refused — no existing connection is pushed out.
+ */
+export function planConnectionAdmission(input: { entryCount: number; hasEntry: boolean; cap: number }): ConnectionAdmission {
+  if (input.hasEntry) return { kind: 'existing' }
+  if (input.entryCount >= input.cap) return { kind: 'reject', reason: 'limit', cap: input.cap }
+  return { kind: 'admit' }
+}
+
+/**
+ * T0462 (T0459 Q1): after a window of the profile closed (and again when the
+ * grace runs out), release its entry only when no live window is left.
+ */
+export function planIdleRelease(input: { liveWindowCount: number; hasEntry: boolean }): { kind: 'none' | 'keep' | 'release' } {
+  if (!input.hasEntry) return { kind: 'none' }
+  return { kind: input.liveWindowCount > 0 ? 'keep' : 'release' }
+}
+
+/**
+ * T0462 (T0459 Q3): profiles whose entry targets the same server (host + port
+ * + token). Allowed, but logged: both connections receive that server's events.
+ */
+export function findSameTargetProfiles(
+  entries: Iterable<{ profileId: string; target: { host: string; port: number; token: string } | null }>,
+  target: { host: string; port: number; token: string },
+  excludeProfileId?: string,
+): string[] {
+  const matches: string[] = []
+  for (const entry of entries) {
+    if (entry.profileId === excludeProfileId || !entry.target) continue
+    if (sameTarget(entry.target, target)) matches.push(entry.profileId)
+  }
+  return matches
+}

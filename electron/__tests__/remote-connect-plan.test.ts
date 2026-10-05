@@ -7,9 +7,19 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  BINDING_MISSING_ERROR,
   LEGACY_PROFILE_ERROR,
   REMOTE_NOT_CONNECTED,
+  computeProfileWindowStatus,
   computeRemoteWindowStatus,
+  findSameTargetProfiles,
+  planConnectionAdmission,
+  planIdleRelease,
+  planProfileProxiedInvokeRoute,
+  planProfileRemoteConnect,
+  planProfileStatusPushes,
+  shouldDropProfileConnectionOnUpdate,
+  type RemoteProfileConnState,
   formatRemoteNotConnectedError,
   isRemoteFingerprintChange,
   planProxiedInvokeRoute,
@@ -423,5 +433,129 @@ describe('remote status push wiring (T0443 source guard)', () => {
     expect(push).toMatch(/planRemoteStatusPushes\(profileIds, currentRemoteSlot\(\), lastPushedRemoteStatus\)/)
     expect(push).toMatch(/getWindowsForProfile\(status\.profileId\)/)
     expect(push).toMatch(/REMOTE_CLIENT_STATUS_CHANGED_CHANNEL/)
+  })
+})
+
+/**
+ * T0462 (PLAN-039): profile-keyed variants for the per-profile connection
+ * registry. Every remote profile has its own entry, so there is no slot to lose
+ * to another profile and no `'other-profile'` reason.
+ */
+describe('planProfileRemoteConnect — keyed by the bound profile', () => {
+  const entry = { isConnected: true, target: verified.target }
+
+  it('refuses a window without a profile binding (the registry has no key for it)', () => {
+    expect(planProfileRemoteConnect({ request, boundProfileId: null, boundProfile: null, entry: null }))
+      .toEqual({ kind: 'reject', error: BINDING_MISSING_ERROR, errorCode: 'binding-missing' })
+    expect(planProfileRemoteConnect({ request, boundProfileId: null, boundProfile: profile, entry }).kind).toBe('reject')
+  })
+
+  it('reuses the profile\'s own live entry for the same target + pin', () => {
+    expect(planProfileRemoteConnect({ request, boundProfileId: 'p1', boundProfile: profile, entry }))
+      .toEqual({ kind: 'reuse', fingerprint: PIN })
+  })
+
+  it('connects pinned without an entry, with a dead entry, or when the entry targets something else', () => {
+    expect(planProfileRemoteConnect({ request, boundProfileId: 'p1', boundProfile: profile, entry: null }))
+      .toEqual({ kind: 'connect', expectedFingerprint: PIN })
+    expect(planProfileRemoteConnect({ request, boundProfileId: 'p1', boundProfile: profile, entry: { ...entry, isConnected: false } }).kind)
+      .toBe('connect')
+    expect(planProfileRemoteConnect({ request, boundProfileId: 'p1', boundProfile: profile, entry: { ...entry, target: null } }).kind)
+      .toBe('connect')
+    expect(planProfileRemoteConnect({
+      request, boundProfileId: 'p1', boundProfile: profile, entry: { ...entry, target: { ...entry.target!, fingerprint: OTHER } },
+    })).toEqual({ kind: 'connect', expectedFingerprint: PIN })
+  })
+
+  it('keeps the T0419 pin rules', () => {
+    expect(planProfileRemoteConnect({ request, boundProfileId: 'p1', boundProfile: { ...profile, remoteFingerprint: undefined }, entry: null }).kind)
+      .toBe('reject')
+    expect(planProfileRemoteConnect({ request: { ...request, fingerprint: OTHER }, boundProfileId: 'p1', boundProfile: profile, entry }))
+      .toMatchObject({ kind: 'reject', errorCode: 'fingerprint-mismatch' })
+  })
+})
+
+describe('computeProfileWindowStatus / planProfileProxiedInvokeRoute — each profile on its own', () => {
+  const connected: RemoteProfileConnState = { isConnected: true, isReconnecting: false }
+  const reconnecting: RemoteProfileConnState = { isConnected: false, isReconnecting: true }
+  const dead: RemoteProfileConnState = { isConnected: false, isReconnecting: false }
+
+  it('maps the profile\'s own entry; no entry is no-client and other-profile never appears', () => {
+    expect(computeProfileWindowStatus('p1', null)).toEqual({ profileId: 'p1', connected: false, state: 'disconnected', reason: 'no-client' })
+    expect(computeProfileWindowStatus('p1', connected)).toEqual({ profileId: 'p1', connected: true, state: 'connected', reason: null })
+    expect(computeProfileWindowStatus('p1', reconnecting)).toEqual({ profileId: 'p1', connected: false, state: 'reconnecting', reason: 'reconnecting' })
+    expect(computeProfileWindowStatus('p1', dead)).toEqual({ profileId: 'p1', connected: false, state: 'disconnected', reason: 'disconnected' })
+  })
+
+  it('P connected × Q reconnecting route independently', () => {
+    const conns: Record<string, RemoteProfileConnState | null> = { P: connected, Q: reconnecting }
+    const route = (senderProfileId: string | null, senderIsRemote = true) =>
+      planProfileProxiedInvokeRoute({ senderIsRemote, senderProfileId, conn: senderProfileId ? conns[senderProfileId] ?? null : null })
+    expect(route('P')).toEqual({ kind: 'remote' })
+    expect(route('Q')).toEqual({ kind: 'refuse', errorCode: REMOTE_NOT_CONNECTED, profileId: 'Q', reason: 'reconnecting' })
+    expect(route('R')).toEqual({ kind: 'refuse', errorCode: REMOTE_NOT_CONNECTED, profileId: 'R', reason: 'no-client' })
+    expect(route(null)).toEqual({ kind: 'local' })
+    expect(route('P', false)).toEqual({ kind: 'local' })
+  })
+
+  it('pushes each profile\'s own status, once per change', () => {
+    const conns = new Map<string, RemoteProfileConnState | null>([['P', connected], ['Q', reconnecting]])
+    const lastPushed = new Map<string, string>()
+    const getConn = (id: string) => conns.get(id) ?? null
+    expect(planProfileStatusPushes(['P', 'Q', 'P', null, undefined], getConn, lastPushed).map(s => [s.profileId, s.state]))
+      .toEqual([['P', 'connected'], ['Q', 'reconnecting']])
+    expect(planProfileStatusPushes(['P', 'Q'], getConn, lastPushed)).toEqual([])
+    conns.set('Q', connected)
+    expect(planProfileStatusPushes(['P', 'Q'], getConn, lastPushed).map(s => [s.profileId, s.state])).toEqual([['Q', 'connected']])
+    conns.delete('P')
+    expect(planProfileStatusPushes(['P'], getConn, lastPushed)).toEqual([{ profileId: 'P', connected: false, state: 'disconnected', reason: 'no-client' }])
+  })
+})
+
+describe('shouldDropProfileConnectionOnUpdate — only the updated profile\'s entry', () => {
+  const base = { applied: true, previousFingerprint: PIN, nextFingerprint: OTHER, hasConnection: true }
+
+  it('drops the entry when its pin changed', () => {
+    expect(shouldDropProfileConnectionOnUpdate(base)).toBe(true)
+  })
+
+  it('keeps it when nothing changed, the update failed, or there is no entry', () => {
+    expect(shouldDropProfileConnectionOnUpdate({ ...base, nextFingerprint: PIN.toLowerCase() })).toBe(false)
+    expect(shouldDropProfileConnectionOnUpdate({ ...base, nextFingerprint: undefined })).toBe(false)
+    expect(shouldDropProfileConnectionOnUpdate({ ...base, applied: false })).toBe(false)
+    expect(shouldDropProfileConnectionOnUpdate({ ...base, hasConnection: false })).toBe(false)
+  })
+})
+
+describe('planConnectionAdmission — concurrent remote profile cap', () => {
+  it('admits under the cap, rejects at the cap, and never counts an existing entry twice', () => {
+    expect(planConnectionAdmission({ entryCount: 0, hasEntry: false, cap: 8 })).toEqual({ kind: 'admit' })
+    expect(planConnectionAdmission({ entryCount: 7, hasEntry: false, cap: 8 })).toEqual({ kind: 'admit' })
+    expect(planConnectionAdmission({ entryCount: 8, hasEntry: false, cap: 8 })).toEqual({ kind: 'reject', reason: 'limit', cap: 8 })
+    expect(planConnectionAdmission({ entryCount: 8, hasEntry: true, cap: 8 })).toEqual({ kind: 'existing' })
+  })
+})
+
+describe('planIdleRelease — last window closed', () => {
+  it('releases only an existing entry with no live window left', () => {
+    expect(planIdleRelease({ liveWindowCount: 0, hasEntry: true })).toEqual({ kind: 'release' })
+    expect(planIdleRelease({ liveWindowCount: 1, hasEntry: true })).toEqual({ kind: 'keep' })
+    expect(planIdleRelease({ liveWindowCount: 0, hasEntry: false })).toEqual({ kind: 'none' })
+  })
+})
+
+describe('findSameTargetProfiles — two profiles, one server', () => {
+  const target = { host: 'h', port: 9876, token: 't', fingerprint: PIN }
+  const entries = [
+    { profileId: 'P', target },
+    { profileId: 'Q', target: { ...target, fingerprint: OTHER } },
+    { profileId: 'R', target: { ...target, token: 'other' } },
+    { profileId: 'S', target: null },
+  ]
+
+  it('matches host + port + token (not the fingerprint) and skips the asking profile', () => {
+    expect(findSameTargetProfiles(entries, target)).toEqual(['P', 'Q'])
+    expect(findSameTargetProfiles(entries, target, 'P')).toEqual(['Q'])
+    expect(findSameTargetProfiles(entries, { ...target, port: 1 })).toEqual([])
   })
 })
