@@ -336,6 +336,9 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - [派發] 2026-10-05 11:20 — T0459（research，`--interactive`）∥ T0460（`--no-interactive`）
 - [完成] 2026-10-05 11:25 — T0460 DONE（`380cecf`）塔台複核 PASS：可執行副檔名確認（預設 / Esc 取消、判斷在 main）、修 `FILE:///` / `file://localhost/` 繞過、67 tests（TDD）、三語字串對 locale JSON 守門、Worker 2713 passed / tsc 36
 - [斷點 C 裁決] 2026-10-05 11:25 — T0460 遭遇問題 2：IPC `shell:open-external` 任意 scheme（`ms-msdt:` 為 Follina 類路徑，來源可能是 agent 輸出 / Markdown）+ `shell:open-path` 無確認 → T0461（P1，收緊）
+- [派發] 2026-10-05 11:25 — T0461（`--no-interactive`）；T0459 已於 11:20:22 啟動（研究中）
+- [研究完成] 2026-10-05 11:27 — T0459 DONE（`49d71f9`）：Q1-Q3 使用者於 Worker 期間裁決（寬限期 15 s / 上限 8 / 同 target 允許 + warn）；拆 5 張
+- [決策] 2026-10-05 11:29 — 使用者：PLAN-039 實作下 session 做 → D135；開 T0462-T0466（PENDING，不派發）
 - [push] 2026-10-05 11:19 — `git push origin main`：`e11a2f6..6286c11`（86 commits；origin = gowerlin），0/0；未觸發 release
 - [*sync] 2026-10-05 07:46 — `_bug-tracker.md` 重建（Open 1 / Fixed 17 / Closed 20 / Total 38）；`_backlog.md` 加 PLAN-038 / PLAN-039（Ideas 3 / Planned 3 / In Progress 4 / Done 1）
 

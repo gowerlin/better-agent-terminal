@@ -40,3 +40,9 @@ links:
 ## 不在範圍
 
 - 同一 profile 多條連線
+
+## T0459 研究結論與拆單（D135，2026-10-05 11:29）
+
+- 研究 DONE（`49d71f9`）；使用者裁決：最後視窗關閉 + 15 s 寬限期再斷、同時上限 8（超過拒絕）、同 target 兩 profile 允許 + warn
+- 設計：新模組 `electron/remote/remote-connection-registry.ts`（`Map<profileId, …>`、per-profile mutex），`remote-connect-plan.ts` 純函式改以 profile 為鍵；移除 `other-profile` 提示
+- 拆單（下 session 起派）：T0462 registry 模組 ∥ T0465 SSH tunnel 埠 → T0463 main.ts 取代單一槽位（🔴 L）→ T0464 生命週期 → T0466 e2e + 實機
