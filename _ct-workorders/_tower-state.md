@@ -113,7 +113,7 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 ### 待辦（依優先序）
 
 1. ✅ ~~PLAN-039 起派~~（第五十六 session 12:22 T0462-T0466 全 DONE，聯合複驗綠；PLAN-039 IN_PROGRESS 待實機，步驟見 `docs/remote-dev-overview.md`「Several remote profiles at once」）
-2. 🟡 **本批實機驗收**（需重打包本機 build；Fixed 17 張 BUG）：遠端視窗 fail-closed（BUG-110 / 112）、拖放 / 附件 / 複製遠端路徑 / 終端拖放 / prompt 路徑提示（BUG-107 / 108、T0437-T0440）、detach（BUG-113）、可執行檔確認（T0460 / T0461）、SSH 精靈（BUG-098-100）、Docker（BUG-097 / 111，需 Docker daemon）、真 BAT 遠端視窗 Tower 派單（K，WSL `~/.claude/skills` 需裝 ct skill）。**發版綁定**：T0435 ↔ T0437、T0453 ↔ T0458
+2. 🟡 **本批實機驗收**（第五十六 session 12:30 已重打包 @ `0d03fc7`，新 `app.asar` SHA-256 `8D76B219…16AA6`；安裝後先比對雜湊；含 PLAN-039 WSL + SSH 同開；Fixed 17 張 BUG）：遠端視窗 fail-closed（BUG-110 / 112）、拖放 / 附件 / 複製遠端路徑 / 終端拖放 / prompt 路徑提示（BUG-107 / 108、T0437-T0440）、detach（BUG-113）、可執行檔確認（T0460 / T0461）、SSH 精靈（BUG-098-100）、Docker（BUG-097 / 111，需 Docker daemon）、真 BAT 遠端視窗 Tower 派單（K，WSL `~/.claude/skills` 需裝 ct skill）。**發版綁定**：T0435 ↔ T0437、T0453 ↔ T0458
 3. 🟢 BUG-114 研究（派工分頁未執行 `/ct-exec`）；`.gitattributes` 是否套用（T0454 建議）；Vite `hashbangRE` 上游回報
 4. 🟢 backlog：jumpToStep 不 rollback（T0309）、detached 視窗終端變更不持久化、snippet「agent 提案 → 一鍵套用」、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2
 5. 🟢 L130 D094 門檻復議｜L128 Logging 節｜`*archive` 到齡候選（先 grep 程式碼引用，L133）
@@ -274,6 +274,8 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - 12:22 **T0466 DONE** `6bd81f6`（+ `26db914`）：`e2e/plan039-multi-remote.spec.ts` 兩個 isolated 實例互為 server（P → A 自身、Q → B），M1-M4 4/4（雙視窗 connected、`pty:create` 路由、第 9 個 `remote-limit` + stub dialog、關 P 15.2 s 後才斷且 Q 不受影響、名額回收）；CLAUDE.md 新節「多 remote profile 同時連線（PLAN-039）」+ docs 實機步驟。斷點 C 裁決：M2 拓撲限制（P 為 A 本機 PTY，本機廣播到 A 所有視窗，只斷言 B → P 方向）→ 接受，不擴第三實例
 - 12:22-12:30 **塔台聯合複驗 @ `26db914`**：vite build ✅；unit **168 files / 2861 passed / 1 skipped** ✅；e2e 全套首輪 10 passed / 1 failed / 8 skipped（緊接 unit 之後跑，未保留失敗名）→ 再跑 3 輪皆 **12 passed / 8 skipped / 0 failed**；判定偶發，觀察項（未開 BUG，無可重現證據）
 - **PLAN-039 → IN_PROGRESS**（程式完成；待 WSL + SSH 實機驗收後 DONE）；`_backlog.md` 同步。D135 全 5 列完成 → YOLO 本 PLAN 流程結束
+- 12:28 使用者選「push + 重打包」→ push `6286c11..0d03fc7` ✅；`release.ps1 -Snapshot` 失敗 → **開 BUG-115**（low，prebuild 以 snapshot 版號重跑 fetch:baseline 404）；改不帶 `-Snapshot` 重打包（`0.6.0-pre.1`，雜湊驗換新）
+- 12:30 **重打包完成** @ `0d03fc7`：`release\BetterAgentTerminal Setup 0.6.0-pre.1.exe`（12:30:37）；新 `app.asar` SHA-256 `8D76B219…16AA6`（12:29:17）≠ 安裝版 `F81C9FF4…1F67`（05:28）→ 待使用者安裝（安裝會關閉 BAT，本塔台 session 隨之結束；重開後 `/control-tower` Fast Path 復原，先以雜湊確認安裝版 = `8D76B219…`）
 
 ### 計數器（第五十六 session）
 
