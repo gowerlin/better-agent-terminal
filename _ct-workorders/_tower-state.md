@@ -5,6 +5,8 @@
 > **下次起手**:Fast Path 載入;**第一件事：確認使用者是否已安裝新 build**——以雜湊比對安裝版 `app.asar` = `8D76B219…16AA6`（L127），再陪使用者做本批實機驗收（PLAN-039 WSL + SSH 同開 + Fixed 17 張 BUG）。
 >
 > **前次更新**:2026-10-05 11:34 (UTC+8) — 第五十五 session 收工。
+>
+> **第五十七 session 進行中**（2026-10-05 13:08）：已發佈 **`v0.6.0-pre.2`**（@ `9cb7cd4`）。實機驗收可改用 release 安裝檔；安裝版仍為 `F81C9FF4…`（舊）。
 
 ---
 
@@ -141,9 +143,9 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.0-pre.1**（package.json + lock，`c92faf7`） |
-| **最新 release** | `v0.6.0-pre.1`（2026-10-05 05:24）+ `server-bundle-v0.6.0-pre.1`；第五十五 / 五十六 session 未發版（push only） |
-| **前一 tag** | `v0.5.9-pre.4`（2026-10-04） |
+| **目前版號** | **0.6.0-pre.2**（package.json + lock，`9cb7cd4`） |
+| **最新 release** | `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
+| **前一 tag** | `v0.6.0-pre.1`（2026-10-05 05:24，`c92faf7`） |
 | **目前主軸** | 安裝新 build → 本批實機驗收（PLAN-039 + Fixed 17）→ 下一預覽版 |
 | **工單最大編號** | T0466（第五十六 session：T0462-T0466 全 DONE） |
 | **BUG 最大編號** | BUG-115（OPEN low，`release.ps1 -Snapshot`）；BUG-114 OPEN medium；BUG-061 OPEN；096-100 / 105-113 / 086 / 088 / 093 FIXED 待實機 |
