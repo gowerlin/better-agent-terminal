@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-10-05 (Session 54 收工 — Sessions 49 / 50 archived per PLAN-033 auto-trigger)
-> Hot path retains: session 54 (本) + sessions 51-53 補記 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-10-05 (Session 55 收工 — Sessions 51-53 補記 + YOLO 歷程（49 / 55 詳細）archived per PLAN-033 auto-trigger)
+> Hot path retains: session 55 (本) + session 54 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 67 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 2 in Q4)
+> Total archived entries: 70 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 5 in Q4)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -83,3 +83,6 @@
 | 65 | 第四十八 session | 2026-09-02 | 2026-Q3.md | 第四十八 session, 2026-09-02 12:51-15:38, ~2h45m, BUG-082 CLOSED + PR #19 處置 + v0.5.9-pre.2 |
 | 66 | 第四十九 session | 2026-10-04 | 2026-Q4.md | 第四十九 session, 2026-10-04 11:08-16:59, ~5h50m, T0363-T0374 + v0.5.9-pre.3 / pre.4 |
 | 67 | 第五十 session | 2026-10-04 | 2026-Q4.md | 第五十 session, 2026-10-04 20:16-20:58, ~42m, BUG-085 + 本地打包版號（T0375-T0377） |
+| 68 | 第五十一～五十三 session 補記 | 2026-10-04 | 2026-Q4.md | 2026-10-04 21:05 - 10-05 01:01，未收工，以 git log 補記；T0378-T0394 |
+| 69 | 第五十五 session YOLO 歷程（詳細） | 2026-10-05 | 2026-Q4.md | 05:33 - 11:31，D134 / D135，T0417-T0466 派發 / 完成 / 斷點 C 逐筆 |
+| 70 | 第四十九 session YOLO 歷程（詳細） | 2026-10-04 | 2026-Q4.md | 13:25 - 16:59，T0365-T0374 YOLO 逐筆 |

@@ -3292,3 +3292,67 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 塔台對平行單做**聯合複驗**：兩張都 commit 後在 HEAD 跑全套，單張只做目標測試
 
 **候選晉升**：🌐 Global（ct 平行派發規則）
+
+---
+
+## L142
+
+**來源**：第五十五 session（2026-10-05），塔台聯合複驗（乾淨 worktree）→ T0454（`4dab93f`）
+
+**現象**：scratchpad 乾淨 worktree 下 `scripts/__tests__` 有 3 檔載入即 `SyntaxError: Invalid or unexpected token`、1 檔原始碼 regex 斷言失敗；主工作區全綠。PLAN-036 備註早已記為「worktree 環境異常、未深追」。
+
+**根因**：系統 gitconfig `core.autocrlf=true` + repo **無 `.gitattributes`** → 任何新 checkout（新 clone / worktree）為 CRLF，主工作區恰為 LF。Vite 7.3.2 SSR 轉譯以 `/^#!.*\n/` 偵測 shebang，`.` 不匹配 `\r` ⇒ CRLF shebang 漏判，hoist 碼插到 `#!` 之前 ⇒ 語法錯誤。測試的原始碼 regex 寫死 `\n` 亦不容 CRLF。
+
+**How to apply**：
+- 「只在某環境壞」不要以「環境異常」結案——先比對該環境與主環境的差異（換行、路徑長度、權限），找到可重現的根因再判
+- Windows 專案應有 `.gitattributes` 固定換行（T0454 已給建議，待決定是否套用）；測試讀原始碼的 regex 一律 `\r?\n`
+- 以 Python 文字模式寫檔會產生 CRLF（T0434 實證），寫產品檔改用二進位模式或 Write 工具
+
+**候選晉升**：🌐 Global（Windows 換行 / 「環境異常」不結案原則）
+
+---
+
+## L143
+
+**來源**：第五十五 session（2026-10-05），T0436 / T0452 / T0457；BUG-114；使用者修正「30 秒太快」
+
+**現象**：約 46 次 BAT 派發中 3 次 Worker 沒做完卻無任何訊號：T0452、T0457 分頁已建立（`terminal-created result=ok`、exit 0）但 `/ct-exec` 從未執行；T0436 寫完回報區後停在 commit 前。塔台原本只信 exit code，直到使用者問「是否誤關」才發現。塔台提議「派發 30 秒後檢查」被使用者否決——實測啟動延遲 17-39 s。
+
+**How to apply**：
+- `bat-terminal` exit 0 只證明「分頁存在」，不證明 Worker 已啟動；塔台在處理其他回報時順手檢查進行中工單的 `started_at` / 檔案活動
+- 疑似未啟動門檻 **≥ 3 分鐘**；重派前先確認原 Worker 無活動，並請使用者關閉舊分頁（避免同單雙 Worker）
+- Worker 寫完回報卻無 commit：用 `/ct-done T####` 補救，工單加「塔台補充」寫明精準 stage 步驟
+- 根因追查見 BUG-114
+
+**候選晉升**：🌐 Global（ct 派發健康檢查）
+
+---
+
+## L144
+
+**來源**：第五十五 session（2026-10-05），T0419 / T0431 / T0436 / T0442 / T0443 / T0446 等同時改 `electron/main.ts` / `preload.ts` / `electron.d.ts`
+
+**現象**：同工作樹最多 5 個 Worker 平行，多張單同時改同一熱點檔。`git commit --only <file>` 提交的是**整個檔案**，會夾帶他單未完成的 hunk；工單初版只寫「commit --only」，T0422 / T0423 前塔台才發現並補「共用檔 hunk 隔離」條款。Worker 實際做法：`git diff <file>` 擷取本單 hunk → `git apply --cached` 精準 stage（或暫存 `GIT_INDEX_FILE` + `update-index --cacheinfo`），全程未用 stash / reset。
+
+**How to apply**：
+- 派發會碰共用檔的平行工單，工單必寫：commit 前 `git diff <shared file>` 確認只含本單 hunk；混有他人 hunk 時用 `git apply --cached` 精準 stage，不得整檔提交
+- 聯合複驗改在 scratchpad 乾淨 worktree 對 HEAD 跑（不受他單 dirty 檔影響）；e2e 才在主工作區跑
+- 取紅燈證據不得以 `git show HEAD:… >` 覆寫工作檔（T0449 灰區），改「先寫測試看紅」
+- 大範圍改熱點檔的單（如 T0463）執行期間不派其他改同檔的單
+
+**候選晉升**：🌐 Global（同工作樹平行 Worker 的 commit 規則；補強 L138 / L141）
+
+---
+
+## L145
+
+**來源**：第五十五 session（2026-10-05），T0426 → BUG-111、T0430 / T0442 → BUG-110、T0443 → BUG-112、T0457 → T0458、T0460 → T0461
+
+**現象**：本 session 6 個 high 級安全 / 資料遺失問題中，有 5 個最初出現在 Worker 回報區的「遭遇問題 / 範圍外 / 殘留風險」低調段落，Worker 自評常為「既有、範圍外、建議評估」。塔台逐條複核才發現實際嚴重度：例如「detached 視窗無 will-navigate（既有行為差異）」實為外部頁面取得 `window.electronAPI`（T0458 e2e 證實可觸發）；「rollback 會 docker rm -f」實為刪除使用者容器。
+
+**How to apply**：
+- 驗收每張單時，「遭遇問題 / 範圍外」段落與主要產出同等重要；對其中每一條問「最壞情況是什麼」，涉及本機執行、權限邊界、使用者資料者立即開單（不等收工）
+- 安全相關實作單完成後安排獨立對抗式 review 單（T0445 找到 1 critical + 2 high，含實作者未察覺者）
+- 修安全邊界時先寫「越權嘗試」負向測試（紅→綠），並加分類守門讓新增成員未分類即紅（L140 延伸）
+
+**候選晉升**：🌐 Global（塔台驗收原則）
