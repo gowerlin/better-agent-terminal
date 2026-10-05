@@ -24,6 +24,7 @@ affects_files:
   - e2e/
   - docs/remote-dev-overview.md
   - CLAUDE.md
+  - _ct-workorders/PLAN-039-multi-remote-profile-concurrent-clients.md
 interaction:
   mode_hint: yolo
   interactive: false
@@ -49,6 +50,13 @@ memory_overrides:
 2. 填 `started_at`、`status: IN_PROGRESS`（`date "+%Y-%m-%dT%H:%M:%S%z"`，R-G001）
 3. 實作 → 驗收；填回報區；完成寫 **`DONE`**
 4. commit 實際改動檔 + 本工單 + PLAN-039；不 push；依派發 mode 通知塔台
+
+### 塔台補充（第五十六 session，派發前）
+
+- T0464（`48cba04`）已落地：第 9 個 profile 被拒時 main 端彈**原生** `dialog`（`showRemoteProfileFailureDialog`，`reason: 'limit'`）+ renderer `remoteProfileLimit.notice`；e2e 驗上限拒絕時請以 main 端 log / `openProfileWindows` 回傳 `error: 'remote-limit'` / 不建立第 9 條連線判定，必要時 stub `dialog`，不要讓原生對話框卡住測試。
+- 寬限期 15 s（`IDLE_GRACE_MS`）、首窗保護 60 s 為 registry 常數；e2e 若需縮短等待，只能用既有可注入點（不要為測試改產品常數），找不到注入點就照實等 15 s 並在回報區說明。
+- T0464 已把 `getWindowsForProfile` 邏輯抽為 `collectProfileWindows()`（縮到 tray 的 hidden 視窗算 live）。
+- PLAN-039 實際檔名：`PLAN-039-multi-remote-profile-concurrent-clients.md`（已加入 `affects_files`）。
 
 ---
 

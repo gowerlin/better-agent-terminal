@@ -268,6 +268,8 @@ Fast Path（快照 10-04 11:09，< 7 天）。狀態檔漂移：第五十一～�
 - 派 T0463 前塔台在工單補「塔台補充」：T0462 接線備註 + T0465 `fixedTunnelPortClaims` 必經 `client.disconnect()` 釋放
 - 11:50 派 T0463（exit 0；11:53 確認 IN_PROGRESS）
 - 12:02 **T0463 DONE** `8604daa`（+ `911c77f`）：main.ts 單一槽位 → `RemoteConnectionRegistry`（§1 #1-#24 逐點）；`remote:connect` 無綁定拒絕、`remote:disconnect` sender-scoped；`other-profile` 自 main / preload / renderer / 三語移除；+ two-servers 整合測試；unit 167 files / 2826；tsc 36；electron 型別以 scratchpad tsconfig 補檢 0 新錯。塔台補跑 `npx vite build` exit 0。斷點 C 裁決：範圍延伸 `remote-connect-plan.ts`（移除 other-profile 必改）→ 接受；關窗採 registry 寬限而非立即 release → 接受。T0464 前補「塔台補充」（剩餘 4 項範圍 + affects_files 加 `remote-connect-plan.ts` / `preload.ts` / `electron.d.ts`）
+- 12:03 派 T0464（exit 0；12:06 確認 IN_PROGRESS）
+- 12:14 **T0464 DONE** `48cba04`（+ `82a9da7`）：quit 全量 await（`settleWithin` ≤ 2 s）、`'limit'` reason + 三語對話框 / notice、同 target warn、lifecycle 測試 17 + guard；registry 修正首窗保護被無關關窗降為 15 s；unit 168 files / 2861；tsc 36；electron 型別 0 新錯。塔台補跑 `npx vite build` exit 0。斷點 C 裁決：範圍延伸 `remote-profile-error.ts` → 接受；`window-all-closed` force exit 最壞 2 → 4 s → 接受；其他 remote 失敗對話框仍英文 → 不擴範圍，記 backlog 候選（非 BUG）。T0466 前補「塔台補充」（原生 dialog 不可卡測試、不改產品常數、PLAN-039 檔名入 affects_files）
 
 ### 計數器（第五十六 session）
 
