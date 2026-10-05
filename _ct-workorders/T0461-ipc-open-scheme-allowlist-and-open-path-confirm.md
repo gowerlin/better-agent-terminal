@@ -60,7 +60,7 @@ memory_overrides:
 
 ### 完成狀態
 
-**DONE** — 驗收條件 3/3 達成。
+**DONE** — 驗收條件 3/3 達成。Commit：`0061e3d`（未 push）。
 
 **Landing check：PASS**
 - C-0：frontmatter `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal` → PASS（`REPO_ROOT=D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
