@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0462
 title: "PLAN-039 工單 1：per-profile connection registry 模組（remote-connection-registry.ts）+ remote-connect-plan.ts 純函式改以 profile 為鍵；上限 8、閒置寬限 15 s、同 target 偵測；只單元測試，不接 main.ts"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-039
 priority: P2
 sizing: M
 created_at: "2026-10-05T11:29:43+08:00"
 started_at: "2026-10-05T11:42:43+08:00"
-updated_at: "2026-10-05T11:42:43+08:00"
-completed_at: null
+updated_at: "2026-10-05T11:49:50+08:00"
+completed_at: "2026-10-05T11:49:50+08:00"
 target_version: next
 depends_on: []
 related:
@@ -95,7 +95,7 @@ memory_overrides:
 | `npx tsc --noEmit` | ✅ PASS | 36 errors（= 門檻 36），本單 3 檔 0 error |
 | build / runtime | — | 依工單只跑上兩項（L141）；模組未接 `main.ts`，無 runtime 面 |
 
-**Commit**：見下方 commit hash（只含本單 4 檔 + 本工單）；未 push。
+**Commit**：`470f81a`（只含本單 4 檔 + 本工單）；未 push。
 
 ### 遭遇問題
 
