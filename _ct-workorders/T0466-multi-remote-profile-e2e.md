@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0466
 title: "PLAN-039 工單 5：e2e 兩個 isolated BAT 實例互為 server（P→A 自身、Q→B）：雙視窗 connected、pty:create 落在正確 server、關 P 寬限期後斷線且 Q 不受影響、第 9 個 profile 被拒；附 WSL + SSH 同開實機驗收步驟"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-039
 priority: P2
 sizing: M
 created_at: "2026-10-05T11:29:43+08:00"
 started_at: "2026-10-05T12:15:09+08:00"
-updated_at: "2026-10-05T12:15:09+08:00"
-completed_at: null
+updated_at: "2026-10-05T12:22:03+08:00"
+completed_at: "2026-10-05T12:22:03+08:00"
 target_version: next
 depends_on:
   - T0464
@@ -118,7 +118,7 @@ memory_overrides:
 | build | — 未重跑 | `dist-electron/` 建於 12:14:28，晚於最後一次 `electron/` / `src/` 變更 commit `48cba04`（12:14:05），且 bundle 內含 `remote-limit` 等 T0464 字串 → 沿用現有產物，未跑 `npx vite build`；未跑全套 `npm run test:e2e` / `npm run test:unit`（L141，本單只動 e2e 新檔與文件） |
 | 實機（WSL + SSH） | ⏳ 待使用者 | 上方 4. |
 
-**Commit**：見下方 commit 欄（本單 spec + CLAUDE.md + docs + PLAN-039 + 本工單）；未 push。
+**Commit**：`6bd81f6`（本單 spec + CLAUDE.md + docs + PLAN-039 + 本工單）；未 push。
 
 ### 遭遇問題
 
