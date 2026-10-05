@@ -276,6 +276,64 @@ npm run smoke:remote:headless -- --url wss://127.0.0.1:9877 \
   script (`remote-client.ts` imports `electron`);
   `scripts/__tests__/smoke-remote-headless.test.mjs` fails if the two drift.
 
+## Several remote profiles at once (PLAN-039)
+
+Each remote profile (WSL, SSH, Docker, …) has its **own** connection, kept in
+`RemoteConnectionRegistry` (`electron/remote/remote-connection-registry.ts`,
+T0462–T0464). Opening a second remote profile no longer takes the connection
+away from the first one: before PLAN-039 there was a single `remoteClient`
+slot, and the window of the profile that lost it showed "not connected".
+
+- **Routing**: a window's IPC goes to the server of the profile it is bound to
+  (a detached workspace window: its parent window's profile); remote events are
+  sent only to that profile's windows. A window whose profile has no live
+  connection is refused (`no-client` / `reconnecting`), never served locally.
+- **Lifetime**: the connection stays while the profile has a window — a window
+  hidden to the tray counts. When its last window closes the connection is
+  released **15 s** later (`IDLE_GRACE_MS`), re-checked at expiry, so reopening
+  the profile within the grace reuses it without a new handshake. A profile
+  that connected but never got a window is released after 60 s
+  (`FIRST_WINDOW_GRACE_MS`).
+- **Cap: 8 remote profiles at once** (`MAX_CONCURRENT_REMOTE_PROFILES`,
+  counting connections still connecting or reconnecting). Opening a 9th shows a
+  "Remote profile limit reached" dialog (`openProfileWindows` returns
+  `error: 'remote-limit'`); existing connections are not touched. Close every
+  window of a profile you no longer need, wait 15 s, then retry. Temporary
+  connections (Test connection, the profile list fetch) do not count.
+- **Same server, two profiles**: allowed, logged as a warning (see the double
+  Enter limitation under [Remote Tower notification](#remote-tower-notification-plan-036-k)).
+- **SSH tunnels**: each SSH profile runs its own `ssh -L`. A dynamic local port
+  that turns out to be taken is retried once on a new port; two profiles with
+  the same fixed `tunnelLocalPort` get a warning (only one can bind it; T0465).
+- **Quit** waits up to 2 s for every connection (and its ssh process) to close.
+
+**Automated check:** `e2e/plan039-multi-remote.spec.ts` (T0466) launches two
+isolated BAT instances from the source build that serve each other: profile P
+points at instance A itself, profile Q at instance B. It checks that both
+windows are connected to their own server, that `pty:create` from each window
+lands on that window's server, that a 9th profile is refused without evicting
+anyone, and that closing P's window releases P after the grace while Q keeps
+working. Run it alone after `npx vite build`:
+`npx playwright test e2e/plan039-multi-remote.spec.ts` (about 25 s).
+
+**Manual acceptance (real WSL + SSH):**
+
+1. Have a WSL profile and an SSH profile that each connect on their own.
+2. From the local window's ProfilePanel open both. Both windows connect and
+   neither shows the "not connected" notice.
+3. In each window open a terminal and run a command; start a Claude Agent
+   session in each and send a prompt.
+4. In each window run a Tower → Worker round trip (the agent-mode dispatch
+   from [Remote Tower notification](#remote-tower-notification-plan-036-k)),
+   ending with `bat-notify.mjs --submit`: the toast, badge and Enter land in
+   the window that dispatched it, never in the other one.
+5. Close the SSH window (its only window). Within the first ~10 s the debug log
+   shows `profile <id> has no window left — releasing its connection in 15s`;
+   after ~15 s it shows `released the connection of profile <id> (idle: no
+   window left)`. The WSL window stays connected throughout and its terminal,
+   Agent and `bat-notify --submit` keep working.
+6. Repeat with the roles swapped (close the WSL window, keep SSH).
+
 ## Remote Tower notification (PLAN-036 K)
 
 A Control Tower session running in a remote tab dispatches Workers
@@ -363,8 +421,13 @@ inside the PTYs):
   cannot find codex returns `AGENT_UNAVAILABLE` (`AGENT_CHECK_PENDING` while
   detection runs — retry).
 - The control-tower skills must be installed in the remote `~/.claude/skills`.
-- Only the window bound to the active remote profile receives remote events
-  (one global `remoteClient`).
+- Remote events reach only the windows of the profile whose connection
+  received them. Since PLAN-039 every remote profile keeps its own connection,
+  so a WSL and an SSH window opened together both get their Tower / Worker
+  events (see [Several remote profiles at once](#several-remote-profiles-at-once-plan-039)).
+  Two profiles pointing at the **same** server each hold a connection, so a
+  Worker's `--submit` reaches both windows' renderers and the Tower PTY can get
+  the Enter twice (known limitation; BAT logs a warning when such a pair connects).
 
 **Verify a deployed server:** `npm run smoke:remote:headless` S13 (above).
 Remote shell check (key names only):

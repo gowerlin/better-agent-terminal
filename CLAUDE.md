@@ -177,9 +177,21 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
   - **遠端 PATH 不一定有 `node`**（WSL 測試機 smoke S10 實測 `node=missing`）：遠端呼叫 helper 用 `"${BAT_HELPER_NODE:-node}"`（T0456；T0456 前部署的 server 無此變數，改用 `"$BAT_HELPER_DIR/../bin/node"`，`scripts/` 與 `bin/` 同在 `<installRoot>`）。T0456 起 `PATH` 尾端也有 `<installRoot>/bin`，但 login shell 的 profile 可能重設 `PATH`（如 Debian `/etc/profile`），`BAT_HELPER_NODE` 才是可靠寫法
   - **`bat-terminal.mjs` 未建立即 exit 1**：server 回 `{ ok:false }`（T0433）或單純 `false`（T0456 起；之前會印 `✓ Terminal created` 並 exit 0）都 exit 1。本機 `false` 情境：無 PtyManager（`no-pty-manager`）、`shell` 被拒（`invalid-shell`，headless `validateShell`）、node-pty 與 child_process 皆 spawn 失敗、`create-agent-command` 同時/皆未給 prompt 與 skill+workorder、或無法為該 agent 組出啟動命令。塔台 auto-session 只信 exit code
   - server bundle 不含 codex：server 上偵測不到 codex 時遠端派 codex 回 `AGENT_UNAVAILABLE`（偵測未完成為 `AGENT_CHECK_PENDING`，稍後重試），T0433
-  - 遠端 `~/.claude/skills` 須自行安裝 control-tower 系列 skill；全域只有一個 `remoteClient`，非當前綁定 profile 的視窗收不到事件（既有限制）
+  - 遠端 `~/.claude/skills` 須自行安裝 control-tower 系列 skill
+  - 遠端事件只送到收到它的那條連線所屬 profile 的視窗。PLAN-039 起每個 remote profile 各自持有連線（`RemoteConnectionRegistry`，`electron/remote/remote-connection-registry.ts`），WSL + SSH 同時開窗兩邊的 Tower / Worker 通知都正常（T0463 前的「全域只有一個 `remoteClient`、非當前綁定 profile 收不到事件」限制已解除）。已知限制：兩個 profile 指向**同一** server 會各持一條連線，Worker `--submit` 會到兩邊 renderer，Tower PTY 可能收到兩次 Enter（連上時 `logger.warn`）
   - 本機 Electron 的 PTY 仍注入全權 server token（A' 回移本機為另案）
 - **驗證**：`electron/remote/__tests__/headless-remote-tower-e2e.test.ts`（真 headless + 真 node-pty，helper 在 PTY 內執行：派單 → `created-externally` → `bat-notify --submit` → `notified` + `keypress` + 預填；越權與撤銷負向；no-client）；`npm run smoke:remote:headless` 的 **S13**（對已部署 server；server 無 helper env 時 SKIP 且不算失敗）；`npm run deploy:headless:dev` 自 T0434 起一併部署 `serverBundleHelperScripts` 到 `<installRoot>/scripts/`
+
+## 多 remote profile 同時連線（PLAN-039）
+
+`main.ts` 以 `RemoteConnectionRegistry`（T0462 模組、T0463 接線、T0464 生命週期）取代單一 `remoteClient` 槽位：`Map<profileId, entry>`，每個 profile 一把 mutex（同 profile 的 connect / pin 變更 / release 串行，不同 profile 並行）。
+
+- **路由**：proxied IPC 以 sender 綁定的 profile（detached 視窗用父視窗的）查自己的 entry；無 live 連線 → 拒絕（`no-client` / `reconnecting`），不 fallback 本機。`'other-profile'` 已移除（T0463）。每個 client 的事件只送 `getWindowsForProfile(profileId)`；本機來源事件（本機 PTY 輸出、Claude emit、`system:resume`）仍送所有視窗，renderer 以 id 過濾
+- **生命週期**：最後一個視窗關閉後寬限 `IDLE_GRACE_MS = 15 s`，到期在 mutex 內重算仍無視窗才斷；縮到 tray 的 hidden 視窗算 live（`collectProfileWindows()`）；連上但沒建出視窗 → `FIRST_WINDOW_GRACE_MS = 60 s`；quit 全量 `disconnectAll` 等 ≤ 2 s（`DISCONNECT_ALL_TIMEOUT_MS`）。常數皆無注入點，測試不得為縮短等待改產品常數
+- **上限 `MAX_CONCURRENT_REMOTE_PROFILES = 8`**（含連線中 / 重連中；`remote:test-connection` / `remote:list-profiles` 的暫時 client 不計）：第 9 個 → main 端原生對話框（`showRemoteProfileFailureDialog`，`reason: 'limit'`，三語）、`openProfileWindows` 回 `error: 'remote-limit'`、`remote:connect` 回 `errorCode: 'remote-limit'`，**不擠掉既有連線**
+- **同 target 兩 profile**：允許 + `logger.warn`（見上方雙 Enter 限制）；SSH 動態本機埠 bind 失敗換埠重試一次、固定 `tunnelLocalPort` 重複 warn（T0465）
+- **驗證**：單元 / 整合見 `electron/remote/__tests__/remote-connection-*.test.ts`；e2e `e2e/plan039-multi-remote.spec.ts`（T0466）起兩個 isolated 實例互為 server（P → A 自身、Q → B），驗雙視窗 connected、`pty:create` 落在正確 server、第 9 個被拒、關 P 15 s 後才斷且 Q 不受影響、釋放後名額回收；單獨跑 `npx playwright test e2e/plan039-multi-remote.spec.ts`（需先 `npx vite build`，約 25 s）。P 是 loopback 到 A 自身，故 P 的 PTY 是 A 本機 PTY、會經本機廣播送到 A 所有視窗（含 Q 視窗）——spec 只斷言「B 上的 PTY 輸出不進 P 視窗」這個方向
+- **實機驗收**（WSL + SSH，AI 無法代驗）步驟見 `docs/remote-dev-overview.md`「Several remote profiles at once (PLAN-039)」
 
 ## Control Tower 本專案規則
 
