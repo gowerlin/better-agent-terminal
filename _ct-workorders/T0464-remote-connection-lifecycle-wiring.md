@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0464
 title: "PLAN-039 工單 3：連線生命週期接線——視窗 / detached closed → release + 15 s 寬限期（到期重算）、開窗保護 60 s、quit 全量 await（上限 2 s）、上限拒絕 'limit' reason + 對話框 i18n、同 target warn log"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-039
 priority: P2
 sizing: M
 created_at: "2026-10-05T11:29:43+08:00"
 started_at: "2026-10-05T12:03:30+08:00"
-updated_at: "2026-10-05T12:03:30+08:00"
-completed_at: null
+updated_at: "2026-10-05T12:14:10+08:00"
+completed_at: "2026-10-05T12:14:10+08:00"
 target_version: next
 depends_on:
   - T0463
@@ -128,7 +128,7 @@ memory_overrides:
 | electron 型別（補充） | ✅ | scratchpad tsconfig（extends `tsconfig.node.json`、`typeRoots` 指向 repo `node_modules/@types`，未留檔於 repo）：總數 76，與本單新增測試檔前相同；本單觸及檔案 0 個新錯誤（`main.ts` 殘留皆為 T0463 已記錄的既有類別：`Handler` 簽章、`app.dock`、`fs.promises`、`ShortcutDetails`） |
 | build / runtime / 實機 | — | 依工單只跑上兩項（L141）；WSL + SSH 實機同開、quit 實測 ssh 子行程退出屬工單 5 |
 
-**Commit**：見下方「遭遇問題」後的 commit 紀錄；未 push。
+**Commit**：`48cba04`（本單 16 檔 + 本工單）；未 push。
 
 ### 遭遇問題
 
