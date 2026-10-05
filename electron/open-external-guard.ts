@@ -2,7 +2,11 @@
  * T0460 / BUG-105: shell:open-external opens a local file: URL with shell.openPath —
  * the OS "open" verb, which runs a .bat / .exe / .sh instead of showing it. Executable
  * files now need a main-side confirm (Cancel is the default); every other file still
- * opens directly, and every non-file URL still goes to shell.openExternal unchanged.
+ * opens directly.
+ * T0461: a non-file URL reaches shell.openExternal only for http: / https: / mailto: —
+ * openExternal hands any scheme to its Windows protocol handler (ms-msdt:, search-ms:,
+ * ms-*:, ...). shell:open-path takes absolute local paths only and asks before an
+ * executable, the same way.
  */
 import path from 'path'
 
@@ -92,7 +96,40 @@ function isFileUrl(url: string): boolean {
   }
 }
 
-export type OpenExternalResult = 'opened' | 'cancelled' | 'not-found' | 'invalid' | 'failed'
+/**
+ * Schemes shell:open-external may hand to the OS. Every renderer caller sends http(s)
+ * (terminal / chat / Markdown links, settings / About / GitHub / wizard links) or
+ * mailto (chat Markdown); file: has its own branch above.
+ */
+export const EXTERNAL_URL_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:'])
+
+/**
+ * True for an http: / https: / mailto: URL. The scheme must also open the raw string:
+ * URL parsing strips leading whitespace / control characters, and the string that
+ * reaches the OS is the raw one.
+ */
+export function isAllowedExternalUrl(url: string): boolean {
+  if (typeof url !== 'string') return false
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  return EXTERNAL_URL_PROTOCOLS.has(parsed.protocol)
+    && url.slice(0, parsed.protocol.length).toLowerCase() === parsed.protocol
+}
+
+/** The scheme alone, for logging a refused URL without its payload. */
+function schemeForLog(url: string): string {
+  try {
+    return new URL(url).protocol
+  } catch {
+    return '(unparseable)'
+  }
+}
+
+export type OpenExternalResult = 'opened' | 'cancelled' | 'not-found' | 'invalid' | 'blocked' | 'failed'
 
 export interface OpenExternalDeps {
   platform: NodeJS.Platform
@@ -110,10 +147,14 @@ export interface OpenExternalDeps {
 /**
  * shell:open-external. file: URLs open with openPath (shell.openExternal treats file://
  * as a URL and relies on protocol handlers, which silently fails for many file types);
- * an executable asks first. Everything else goes to openExternal as before.
+ * an executable asks first. Other URLs go to openExternal only for an allowed scheme.
  */
 export async function handleOpenExternal(url: string, deps: OpenExternalDeps): Promise<OpenExternalResult> {
-  if (!isFileUrl(url)) {
+  if (typeof url !== 'string' || !isFileUrl(url)) {
+    if (!isAllowedExternalUrl(url)) {
+      deps.logError(`[shell:open-external] refused scheme ${typeof url === 'string' ? schemeForLog(url) : `(${typeof url})`}`)
+      return 'blocked'
+    }
     await deps.openExternal(url)
     return 'opened'
   }
@@ -132,6 +173,52 @@ export async function handleOpenExternal(url: string, deps: OpenExternalDeps): P
   const err = await deps.openPath(filePath)
   if (err) {
     deps.logError(`[shell:open-external] openPath failed for ${filePath}: ${err}`)
+    return 'failed'
+  }
+  return 'opened'
+}
+
+export type OpenPathResult = 'opened' | 'cancelled' | 'invalid' | 'failed'
+
+export interface OpenPathDeps {
+  platform: NodeJS.Platform
+  openPath: (filePath: string) => Promise<string>
+  /** null when the path cannot be stat-ed (missing / unreadable). */
+  stat: (filePath: string) => FileModeInfo | null
+  /** Resolves true only when the user chose Open. */
+  confirmExecutable: (filePath: string) => Promise<boolean>
+  logError: (message: string) => void
+}
+
+/**
+ * True when opening `targetPath` (a file, a folder, or something that cannot be
+ * stat-ed) may run it. A folder opens in the file manager whatever its name — except
+ * a macOS .app bundle, which the OS launches.
+ */
+function openPathMayExecute(targetPath: string, platform: NodeJS.Platform, stat: FileModeInfo | null): boolean {
+  if (stat && !stat.isFile) {
+    return platform === 'darwin' && effectiveExtension(targetPath, platform) === '.app'
+  }
+  return isExecutablePath(targetPath, platform, platform === 'win32' ? null : stat)
+}
+
+/**
+ * shell:open-path (open a folder / file with the OS default app). Only an absolute
+ * local path is accepted — ShellExecute would hand a `scheme:` string to its protocol
+ * handler — and an executable asks first, as shell:open-external does.
+ */
+export async function handleOpenPath(targetPath: string, deps: OpenPathDeps): Promise<OpenPathResult> {
+  const pathApi = deps.platform === 'win32' ? path.win32 : path.posix
+  if (typeof targetPath !== 'string' || !pathApi.isAbsolute(targetPath)) {
+    deps.logError('[shell:open-path] refused a path that is not absolute')
+    return 'invalid'
+  }
+  if (openPathMayExecute(targetPath, deps.platform, deps.stat(targetPath))) {
+    if (!(await deps.confirmExecutable(targetPath))) return 'cancelled'
+  }
+  const err = await deps.openPath(targetPath)
+  if (err) {
+    deps.logError(`[shell:open-path] openPath failed for ${targetPath}: ${err}`)
     return 'failed'
   }
   return 'opened'

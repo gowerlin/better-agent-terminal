@@ -105,7 +105,7 @@ import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { getWindowsElevation } from './windows-elevation'
 import { installNavigationGuards } from './navigation-guard'
-import { buildExecutableConfirmDialog, EXECUTABLE_CONFIRM_OPEN_INDEX, handleOpenExternal } from './open-external-guard'
+import { buildExecutableConfirmDialog, EXECUTABLE_CONFIRM_OPEN_INDEX, handleOpenExternal, handleOpenPath } from './open-external-guard'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import {
@@ -2420,32 +2420,41 @@ function registerLocalHandlers() {
   })
 
   // T0460 / BUG-105: file: URLs open with openPath; an executable asks first (main-side
-  // dialog, Cancel is the default). Non-file URLs still go to shell.openExternal.
+  // dialog, Cancel is the default). T0461: other URLs reach shell.openExternal only for
+  // http / https / mailto, and shell:open-path asks before an executable too.
+  const statForOpen = (filePath: string) => {
+    try {
+      const st = fsSync.statSync(filePath)
+      return { isFile: st.isFile(), mode: st.mode }
+    } catch {
+      return null
+    }
+  }
+  const confirmExecutableFor = (sender: Electron.WebContents) => async (filePath: string) => {
+    const options = buildExecutableConfirmDialog(filePath, process.platform, readPersistedSettingsSync()?.language)
+    const parentWin = BrowserWindow.fromWebContents(sender)
+    const result = parentWin ? await dialog.showMessageBox(parentWin, options) : await dialog.showMessageBox(options)
+    return result.response === EXECUTABLE_CONFIRM_OPEN_INDEX
+  }
   ipcMain.handle('shell:open-external', async (event, url: string) => handleOpenExternal(url, {
     platform: process.platform,
     openPath: (filePath) => shell.openPath(filePath),
     openExternal: (target) => shell.openExternal(target),
     exists: (filePath) => fsSync.existsSync(filePath),
-    stat: (filePath) => {
-      try {
-        const st = fsSync.statSync(filePath)
-        return { isFile: st.isFile(), mode: st.mode }
-      } catch {
-        return null
-      }
-    },
-    confirmExecutable: async (filePath) => {
-      const options = buildExecutableConfirmDialog(filePath, process.platform, readPersistedSettingsSync()?.language)
-      const parentWin = BrowserWindow.fromWebContents(event.sender)
-      const result = parentWin ? await dialog.showMessageBox(parentWin, options) : await dialog.showMessageBox(options)
-      return result.response === EXECUTABLE_CONFIRM_OPEN_INDEX
-    },
+    stat: statForOpen,
+    confirmExecutable: confirmExecutableFor(event.sender),
     notifyNotFound: (filePath) => {
       dialog.showMessageBox({ type: 'warning', title: 'File not found', message: `File does not exist:\n${filePath}` })
     },
     logError: (message) => logger.error(message),
   }))
-  ipcMain.handle('shell:open-path', async (_event, folderPath: string) => { await shell.openPath(folderPath) })
+  ipcMain.handle('shell:open-path', async (event, folderPath: string) => handleOpenPath(folderPath, {
+    platform: process.platform,
+    openPath: (filePath) => shell.openPath(filePath),
+    stat: statForOpen,
+    confirmExecutable: confirmExecutableFor(event.sender),
+    logError: (message) => logger.error(message),
+  }))
   ipcMain.handle('shell:open-in-editor', async (_event, folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => {
     const { execFile } = await import('child_process')
     const defaultCmd = editorType === 'code-insiders' ? 'code-insiders' : 'code'

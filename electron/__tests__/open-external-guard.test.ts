@@ -2,6 +2,8 @@
 /**
  * T0460 / BUG-105: shell:open-external opens local file: paths with shell.openPath,
  * which runs .bat / .exe / .sh files. Executable files now need a main-side confirm.
+ * T0461: non-file URLs reach openExternal only for http / https / mailto, and
+ * shell:open-path asks before opening an executable too.
  */
 import { describe, expect, it, vi } from 'vitest'
 import fs from 'fs'
@@ -13,8 +15,11 @@ import {
   fileUrlToLocalPath,
   getExecutableConfirmStrings,
   handleOpenExternal,
+  handleOpenPath,
+  isAllowedExternalUrl,
   isExecutablePath,
   type OpenExternalDeps,
+  type OpenPathDeps,
 } from '../open-external-guard'
 
 describe('isExecutablePath', () => {
@@ -191,6 +196,145 @@ describe('handleOpenExternal', () => {
     expect(deps.openPath).not.toHaveBeenCalled()
     expect(deps.confirmExecutable).not.toHaveBeenCalled()
   })
+
+  it.each([
+    'ms-msdt:/id PCWDiagnostic /skip force',
+    'MS-MSDT:/id PCWDiagnostic',
+    'search-ms:query=x&crumb=location:\\\\attacker\\share',
+    'ms-settings:privacy',
+    'javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'vbscript:msgbox(1)',
+    'tel:+15551234',
+    'unknown-scheme://payload',
+    ' https://example.com/',
+    'not a url',
+  ])('refuses %s without opening anything, logging only the scheme', async (url) => {
+    const deps = fakeDeps()
+    const result = await handleOpenExternal(url, deps)
+    expect(['blocked', 'invalid']).toContain(result)
+    expect(deps.openExternal).not.toHaveBeenCalled()
+    expect(deps.openPath).not.toHaveBeenCalled()
+    expect(deps.logError).toHaveBeenCalledTimes(1)
+    const logged = deps.logError.mock.calls[0][0] as string
+    expect(logged).not.toContain('PCWDiagnostic')
+    expect(logged).not.toContain('attacker')
+    expect(logged).not.toContain('payload')
+  })
+
+  it('reports a disallowed scheme as blocked', async () => {
+    const deps = fakeDeps()
+    await expect(handleOpenExternal('ms-msdt:/id x', deps)).resolves.toBe('blocked')
+    expect(deps.logError.mock.calls[0][0]).toContain('ms-msdt:')
+  })
+
+  it.each(['HTTPS://Example.com/Docs', 'mailto:a@b.c?subject=hi'])('keeps opening %s', async (url) => {
+    const deps = fakeDeps()
+    await expect(handleOpenExternal(url, deps)).resolves.toBe('opened')
+    expect(deps.openExternal).toHaveBeenCalledWith(url)
+  })
+})
+
+describe('isAllowedExternalUrl', () => {
+  it.each(['https://example.com', 'http://localhost:5173/', 'HTTP://x.y', 'mailto:a@b.c'])('allows %s', (url) => {
+    expect(isAllowedExternalUrl(url)).toBe(true)
+  })
+
+  it.each([
+    'ms-msdt:/id x', 'MS-MSDT:/id x', 'search-ms:query=x', 'ms-appinstaller:?source=x', 'javascript:alert(1)',
+    'data:text/html,hi', 'vbscript:x', 'file:///C:/x.bat', 'tel:123', 'ftp://x.y/', 'x-unknown:1',
+    '\thttps://example.com', ' https://example.com', 'https:', '', 'nonsense',
+  ])('refuses %s', (url) => {
+    expect(isAllowedExternalUrl(url)).toBe(false)
+  })
+
+  it('refuses a non-string', () => {
+    expect(isAllowedExternalUrl(undefined as unknown as string)).toBe(false)
+    expect(isAllowedExternalUrl(42 as unknown as string)).toBe(false)
+  })
+})
+
+function fakePathDeps(overrides: Partial<OpenPathDeps> = {}) {
+  return {
+    platform: 'win32' as NodeJS.Platform,
+    openPath: vi.fn(async (_p: string) => ''),
+    stat: vi.fn((_p: string) => ({ isFile: true, mode: 0o100644 }) as { isFile: boolean; mode: number } | null),
+    confirmExecutable: vi.fn(async (_p: string) => false),
+    logError: vi.fn((_m: string) => {}),
+    ...overrides,
+  }
+}
+
+describe('handleOpenPath', () => {
+  it('asks before opening an executable file and does not open it on cancel', async () => {
+    const deps = fakePathDeps()
+    await expect(handleOpenPath('C:\\tmp\\x.bat', deps)).resolves.toBe('cancelled')
+    expect(deps.confirmExecutable).toHaveBeenCalledWith('C:\\tmp\\x.bat')
+    expect(deps.openPath).not.toHaveBeenCalled()
+  })
+
+  it('opens an executable file once the user chooses Open', async () => {
+    const deps = fakePathDeps({ confirmExecutable: vi.fn(async () => true) })
+    await expect(handleOpenPath('C:\\tmp\\setup.EXE', deps)).resolves.toBe('opened')
+    expect(deps.openPath).toHaveBeenCalledWith('C:\\tmp\\setup.EXE')
+  })
+
+  it('asks for an extensionless POSIX file with an execute bit', async () => {
+    const deps = fakePathDeps({ platform: 'linux', stat: vi.fn(() => ({ isFile: true, mode: 0o100755 })) })
+    await expect(handleOpenPath('/home/u/run-me', deps)).resolves.toBe('cancelled')
+    expect(deps.openPath).not.toHaveBeenCalled()
+  })
+
+  it('opens an ordinary file directly', async () => {
+    const deps = fakePathDeps()
+    await expect(handleOpenPath('C:\\tmp\\notes.txt', deps)).resolves.toBe('opened')
+    expect(deps.confirmExecutable).not.toHaveBeenCalled()
+    expect(deps.openPath).toHaveBeenCalledWith('C:\\tmp\\notes.txt')
+  })
+
+  it.each([
+    ['win32', 'C:\\work\\three.js'],
+    ['win32', 'D:\\ForgejoGit\\repo'],
+    ['win32', '/home/u/remote-workspace'],
+    ['linux', '/home/u/project.sh'],
+    ['darwin', '/Users/u/logs'],
+  ] as const)('opens a %s folder %s directly, whatever its name', async (platform, dir) => {
+    const deps = fakePathDeps({ platform, stat: vi.fn(() => ({ isFile: false, mode: 0o40755 })) })
+    await expect(handleOpenPath(dir, deps)).resolves.toBe('opened')
+    expect(deps.confirmExecutable).not.toHaveBeenCalled()
+    expect(deps.openPath).toHaveBeenCalledWith(dir)
+  })
+
+  it('asks before opening a macOS .app bundle (a folder the OS launches)', async () => {
+    const deps = fakePathDeps({ platform: 'darwin', stat: vi.fn(() => ({ isFile: false, mode: 0o40755 })) })
+    await expect(handleOpenPath('/Users/u/Downloads/Evil.app', deps)).resolves.toBe('cancelled')
+    expect(deps.openPath).not.toHaveBeenCalled()
+  })
+
+  it('asks by extension when the path cannot be stat-ed', async () => {
+    const deps = fakePathDeps({ stat: vi.fn(() => null) })
+    await expect(handleOpenPath('\\\\server\\share\\x.cmd', deps)).resolves.toBe('cancelled')
+    expect(deps.openPath).not.toHaveBeenCalled()
+  })
+
+  it.each(['ms-msdt:/id x', 'search-ms:query=x', 'https://example.com', 'relative\\x.txt', '', '   '])('refuses %s (not an absolute local path)', async (p) => {
+    const deps = fakePathDeps()
+    await expect(handleOpenPath(p, deps)).resolves.toBe('invalid')
+    expect(deps.openPath).not.toHaveBeenCalled()
+    expect(deps.confirmExecutable).not.toHaveBeenCalled()
+  })
+
+  it('refuses a non-string path', async () => {
+    const deps = fakePathDeps()
+    await expect(handleOpenPath(undefined as unknown as string, deps)).resolves.toBe('invalid')
+    expect(deps.openPath).not.toHaveBeenCalled()
+  })
+
+  it('logs and reports an openPath failure', async () => {
+    const deps = fakePathDeps({ openPath: vi.fn(async () => 'no app') })
+    await expect(handleOpenPath('C:\\tmp\\notes.txt', deps)).resolves.toBe('failed')
+    expect(deps.logError).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('executable confirm dialog', () => {
@@ -234,5 +378,11 @@ describe('main.ts wiring', () => {
     const handler = mainSource.slice(mainSource.indexOf("ipcMain.handle('shell:open-external'"))
     expect(handler.length).toBeGreaterThan(0)
     expect(handler.slice(0, 400)).toContain('handleOpenExternal(')
+  })
+
+  it('shell:open-path delegates to handleOpenPath', () => {
+    const handler = mainSource.slice(mainSource.indexOf("ipcMain.handle('shell:open-path'"))
+    expect(handler.length).toBeGreaterThan(0)
+    expect(handler.slice(0, 200)).toContain('handleOpenPath(')
   })
 })

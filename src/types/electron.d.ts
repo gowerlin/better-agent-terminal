@@ -203,8 +203,10 @@ interface ElectronAPI {
     isDebugMode: boolean
   }
   shell: {
-    openExternal: (url: string) => Promise<void>
-    openPath: (folderPath: string) => Promise<void>
+    /** file: URLs open locally (executables ask first); other URLs only for http / https / mailto (T0461). */
+    openExternal: (url: string) => Promise<'opened' | 'cancelled' | 'not-found' | 'invalid' | 'blocked' | 'failed'>
+    /** Absolute local paths only; an executable file asks first (T0461). */
+    openPath: (folderPath: string) => Promise<'opened' | 'cancelled' | 'invalid' | 'failed'>
     openInEditor: (folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => Promise<{ success: boolean; error?: { type: string; executable: string; message: string } }>
     /** Absolute path of a dropped File (`webUtils.getPathForFile`); '' when the File has no disk backing. */
     getPathForFile: (file: File) => string
