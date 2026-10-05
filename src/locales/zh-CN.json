@@ -21,6 +21,13 @@
       "cancel": "取消"
     }
   },
+  "openExecutableConfirm": {
+    "title": "打开可执行文件",
+    "message": "要打开“{{name}}”吗？",
+    "detail": "此文件可能会被当作程序运行。请只打开你信任的文件。\n\n{{path}}",
+    "open": "打开",
+    "cancel": "取消"
+  },
   "app": {
     "workspaceNotFound": "找不到工作区",
     "workspaceNotFoundDesc": "此分离的工作区可能已被移除。",

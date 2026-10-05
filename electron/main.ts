@@ -105,6 +105,7 @@ import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { getWindowsElevation } from './windows-elevation'
 import { installNavigationGuards } from './navigation-guard'
+import { buildExecutableConfirmDialog, EXECUTABLE_CONFIRM_OPEN_INDEX, handleOpenExternal } from './open-external-guard'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import {
@@ -2418,26 +2419,32 @@ function registerLocalHandlers() {
     return result.response === 0
   })
 
-  ipcMain.handle('shell:open-external', async (_event, url: string) => {
-    if (url.startsWith('file:///')) {
-      let filePath = decodeURIComponent(new URL(url).pathname)
-      // On Windows, URL.pathname gives "/C:/foo" — strip the leading slash before
-      // the drive letter so fs/shell APIs accept it.
-      if (process.platform === 'win32' && /^\/[A-Za-z]:\//.test(filePath)) filePath = filePath.slice(1)
-      const { existsSync } = await import('fs')
-      if (!existsSync(filePath)) {
-        const { dialog } = await import('electron')
-        dialog.showMessageBox({ type: 'warning', title: 'File not found', message: `File does not exist:\n${filePath}` })
-        return
+  // T0460 / BUG-105: file: URLs open with openPath; an executable asks first (main-side
+  // dialog, Cancel is the default). Non-file URLs still go to shell.openExternal.
+  ipcMain.handle('shell:open-external', async (event, url: string) => handleOpenExternal(url, {
+    platform: process.platform,
+    openPath: (filePath) => shell.openPath(filePath),
+    openExternal: (target) => shell.openExternal(target),
+    exists: (filePath) => fsSync.existsSync(filePath),
+    stat: (filePath) => {
+      try {
+        const st = fsSync.statSync(filePath)
+        return { isFile: st.isFile(), mode: st.mode }
+      } catch {
+        return null
       }
-      // shell.openExternal treats file:// as a URL and relies on protocol handlers,
-      // which silently fails for many file types. openPath uses the OS "open" verb.
-      const err = await shell.openPath(filePath)
-      if (err) logger.error(`[shell:open-external] openPath failed for ${filePath}: ${err}`)
-      return
-    }
-    await shell.openExternal(url)
-  })
+    },
+    confirmExecutable: async (filePath) => {
+      const options = buildExecutableConfirmDialog(filePath, process.platform, readPersistedSettingsSync()?.language)
+      const parentWin = BrowserWindow.fromWebContents(event.sender)
+      const result = parentWin ? await dialog.showMessageBox(parentWin, options) : await dialog.showMessageBox(options)
+      return result.response === EXECUTABLE_CONFIRM_OPEN_INDEX
+    },
+    notifyNotFound: (filePath) => {
+      dialog.showMessageBox({ type: 'warning', title: 'File not found', message: `File does not exist:\n${filePath}` })
+    },
+    logError: (message) => logger.error(message),
+  }))
   ipcMain.handle('shell:open-path', async (_event, folderPath: string) => { await shell.openPath(folderPath) })
   ipcMain.handle('shell:open-in-editor', async (_event, folderPath: string, editorType: 'code' | 'code-insiders', customPath?: string) => {
     const { execFile } = await import('child_process')

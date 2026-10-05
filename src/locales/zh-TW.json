@@ -21,6 +21,13 @@
       "cancel": "取消"
     }
   },
+  "openExecutableConfirm": {
+    "title": "開啟可執行檔",
+    "message": "要開啟「{{name}}」嗎？",
+    "detail": "這個檔案可能會被當成程式執行。只開啟你信任的檔案。\n\n{{path}}",
+    "open": "開啟",
+    "cancel": "取消"
+  },
   "app": {
     "workspaceNotFound": "找不到工作區",
     "workspaceNotFoundDesc": "此分離的工作區可能已被移除。",

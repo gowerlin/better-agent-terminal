@@ -21,6 +21,13 @@
       "cancel": "Cancel"
     }
   },
+  "openExecutableConfirm": {
+    "title": "Open executable file",
+    "message": "Open \"{{name}}\"?",
+    "detail": "This file may run as a program. Only open files you trust.\n\n{{path}}",
+    "open": "Open",
+    "cancel": "Cancel"
+  },
   "app": {
     "workspaceNotFound": "Workspace not found",
     "workspaceNotFoundDesc": "This detached workspace may have been removed.",
