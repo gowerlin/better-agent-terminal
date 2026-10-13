@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-14 03:17 (UTC+8) — **第五十九 session 收工** — pre.5 自動化實機驗收（T0510）→ SSH 精靈修正（T0511，BUG-120 / 121）∥ Profile 對話框版面（T0512，BUG-122）→ **`v0.6.0-pre.6` 已發佈**；BUG-114 / 119 CLOSED。
+> 最後更新:2026-10-14 03:40 (UTC+8) — **第六十 session 進行中**（BUG-122 CLOSED；BUG-123 開單 → T0513 DONE `90b35ee`，未發版）。以下為第五十九 session 收工摘要 — pre.5 自動化實機驗收（T0510）→ SSH 精靈修正（T0511，BUG-120 / 121）∥ Profile 對話框版面（T0512，BUG-122）→ **`v0.6.0-pre.6` 已發佈**；BUG-114 / 119 CLOSED。
 >
 > **下次起手**:Fast Path 載入;確認使用者已安裝 `v0.6.0-pre.6`（FileVersion）→ 看 Profile 對話框（BUG-122）、真實 SSH 主機精靈（BUG-120 / 121）；Gary mac 驗收改用 pre.6 arm64 dmg。
 
@@ -89,7 +89,8 @@
 ### 近期完成
 - `v0.6.0-pre.6` 已發佈（10-14 03:15，@ `79b1275`）：SSH 精靈安裝 / 啟動修正（BUG-120 / 121，自 v0.4.1 起從未能完成）、Profile 對話框加寬（BUG-122）
 - pre.5 自動化實機驗收 T0510（opt-in e2e：`pre5-acceptance` / `pre5-ssh-alias`）；BUG-114 / 119 CLOSED
-- BUG Open 0 / Fixed 25（待實機）/ Closed 22；typecheck 雙 0；unit 3474 / 206 files
+- 第六十 session：BUG-122 CLOSED（使用者 pre.6 確認）；BUG-123（headless remote 狀態燈恆紅）→ T0513 DONE `90b35ee`（未發版，待 pre.7）
+- BUG Open 0 / Fixed 25（待實機）/ Closed 23；typecheck 雙 0；unit 3501 / 209 files
 
 ### 待辦（依優先序）
 
@@ -106,12 +107,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 25 / Closed 22）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 25 / Closed 23）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L148）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（75 entries）
 
 ### 編號起始
-- **T0513** / **BUG-123** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L149**
+- **T0514** / **BUG-124** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L149**
 
 ---
 
@@ -125,13 +126,13 @@
 | **最新 release** | `v0.6.0-pre.6`（2026-10-14 03:16，run `38450958394`，target `79b1275`，T0510-T0512：SSH 精靈安裝 / 啟動修正、Profile 對話框加寬）+ `server-bundle-v0.6.0-pre.6`（7 assets）。前一版 `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
 | **前一 tag** | `v0.6.0-pre.5`（2026-10-14 01:38，`7a6fb9c`） |
 | **目前主軸** | pre.6 實機（Profile 版面、真實 SSH 主機）+ Gary mac 驗收 → 依結果 CLOSE Fixed 25 張 |
-| **工單最大編號** | T0512（T0510 PARTIAL；T0511 / T0512 DONE） |
-| **BUG 最大編號** | **BUG-122**；Open 0 / Fixing 0 / Fixed 25（120-122 待 pre.6 + 待實機 22）/ Closed 22 |
+| **工單最大編號** | T0513（T0513 DONE `90b35ee`，未發版） |
+| **BUG 最大編號** | **BUG-123**；Open 0 / Fixing 0 / Fixed 25（123 待 pre.7）/ Closed 23 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **3474 passed / 206 files** / 1 skipped（塔台聯合複驗 2026-10-14 02:56 @ `3df6218`）；typecheck 0 / typecheck:electron 0 |
+| **unit test 基線** | **3501 passed / 209 files** / 1 skipped（塔台聯合複驗 2026-10-14 03:40 @ `90b35ee`）；typecheck 0 / typecheck:electron 0 |
 
 ---
 

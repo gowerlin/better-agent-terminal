@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T03:31:50+0800"
+generated_at: "2026-10-14T03:40:12+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 48
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 24
+  FIXING: 0
+  FIXED: 25
   VERIFY: 0
   CLOSED: 23
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 03:31 (UTC+8) — 第六十 session：BUG-122 CLOSED（使用者 pre.6 實機確認）；BUG-123 FIXING（T0513）
+> 最後同步：2026-10-14 03:40 (UTC+8) — 第六十 session：BUG-122 CLOSED；BUG-123 FIXED（T0513 `90b35ee`，塔台聯合複驗全綠）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 23 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 23 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅 Disconnected（headless `profile:list` stub 回空 `activeProfileIds`） | 🟢 low | — | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 | BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
 | BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
 | BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（T0488 修：baseline 取基底版號） | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
