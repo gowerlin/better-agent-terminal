@@ -13,8 +13,8 @@ exclude_globs:
 total: 43
 breakdown:
   OPEN: 3
-  FIXING: 2
-  FIXED: 18
+  FIXING: 0
+  FIXED: 20
   VERIFY: 0
   CLOSED: 20
   WONTFIX: 0
@@ -26,7 +26,7 @@ breakdown:
 > 最後同步：2026-10-13 15:43 (UTC+8) — 第五十八 session：新開 BUG-116（mac 啟動崩潰，whisper addon）→ 根因確認 → FIXED（T0468 `78e3bc9`，待 mac 實機）
 
 ## 統計
-- 🔴 Open: 3 | ⏳ Fixing: 2 | ✅ Fixed: 18 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 43**
+- 🔴 Open: 3 | ⏳ Fixing: 0 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 43**
 
 ## 🔴 Open / 處理中
 
@@ -40,13 +40,14 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
-| BUG-117 | mac x64 dmg 內嵌 arm64 原生 binary（已證實：claude / codex / node-pty / whisper 等）→ Intel Mac 內嵌 claude、codex、語音不可用、PTY 降級 | 🔴 high | 2026-10-13 | [BUG-117](BUG-117-mac-x64-dmg-ships-arm64-native-binaries.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
+| BUG-117 | mac x64 dmg 內嵌 arm64 原生 binary（已證實：claude / codex / node-pty / whisper 等）→ Intel Mac 內嵌 claude、codex、語音不可用、PTY 降級 | 🔴 high | 2026-10-13 | [BUG-117](BUG-117-mac-x64-dmg-ships-arm64-native-binaries.md) |
 | BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
 | BUG-113 | Detached workspace 視窗顯示 Workspace not found（自 `512c118` 多視窗重構起 detach 失效）（T0453） | 🟡 medium | 2026-10-05 | [BUG-113](BUG-113-detached-workspace-not-found.md) |
 | BUG-112 | 從 remote profile 視窗 detach 出的 workspace 視窗路由視為本機（fail-open）（T0446） | 🔴 high | 2026-10-05 | [BUG-112](BUG-112-detached-workspace-window-remote-fail-open.md) |
