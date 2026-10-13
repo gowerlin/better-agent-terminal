@@ -7,7 +7,7 @@ status: OPEN
 severity: medium
 reproducibility: always
 created_at: "2026-10-13T22:19:21+08:00"
-updated_at: "2026-10-13T22:19:21+08:00"
+updated_at: "2026-10-13T22:20:44+08:00"
 impact:
   - data-location
   - snippets
@@ -15,6 +15,7 @@ impact:
   - multi-runtime
 links:
   discovered_in: T0478
+  research_workorder: T0479
   related: [BUG-116, T0478]
 ---
 
@@ -43,3 +44,7 @@ links:
 - 讓 `setName` 早於任何 `getPath('userData')`（例如 `snippetDb` lazy 初始化，或 `setName` 移到所有 import 之前的入口模組），統一到 `BetterAgentTerminal/`
 - **必須同時設計搬移**：舊 `better-agent-terminal/snippets.json` → 新位置（不覆蓋既有、只搬一次、留紀錄）；`Logs/` 可不搬；runtime 實例另議
 - 同步確認 helper scripts 的目錄假設與實際一致
+
+## 處置
+
+2026-10-13 22:20：使用者裁決「先研究再修」→ 研究單 **T0479**（呼叫時序盤點、runtime 實測、統一方案比較、搬移規則、實作單拆分）。
