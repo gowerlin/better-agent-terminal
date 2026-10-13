@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0512
 title: "Profile（配置）對話框版面：remote 卡片展開內容不留空白左欄、善用寬度，對話框加寬（BUG-122）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: D139
 priority: P2
 sizing: S
 created_at: "2026-10-14T02:41:26+0800"
 started_at: "2026-10-14T02:42:35+0800"
-updated_at: "2026-10-14T02:42:35+0800"
+updated_at: "2026-10-14T02:51:03+0800"
+completed_at: "2026-10-14T02:51:03+0800"
 target_version: "0.6.0-pre.6"
 related:
   - BUG-122
@@ -60,11 +61,11 @@ memory_overrides:
 
 ## 驗收條件
 
-- [ ] 左欄空白消失，展開內容用滿寬度
-- [ ] 對話框加寬且窄視窗不出現水平捲軸
-- [ ] wizard 完成頁呈現不變（截圖）
-- [ ] 未改 T0511 範圍檔案；commit 只含本單檔案
-- [ ] BUG-122：`status: FIXED`、`fixed_at`、body 狀態列同步
+- [x] 左欄空白消失，展開內容用滿寬度
+- [x] 對話框加寬且窄視窗不出現水平捲軸
+- [x] wizard 完成頁呈現不變（截圖）
+- [x] 未改 T0511 範圍檔案；commit 只含本單檔案
+- [x] BUG-122：`status: FIXED`、`fixed_at`、body 狀態列同步
 
 ## Sub-session 執行指示
 
@@ -139,4 +140,4 @@ PASS — C-0：`repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-age
 
 #### 6. Commit
 
-見 git log（`fix(profiles): T0512 …`）；不 push。
+`277b369` fix(profiles): T0512 profile dialog uses full width (BUG-122)（7 檔，`git commit --only`）；本收尾 metadata 另一筆 chore commit；不 push。
