@@ -105,14 +105,17 @@ function isRuntimeUserData(userData: string, runtimeId: string): boolean {
  * `opts.env` (T0467): extra variables for the app, see `isolatedEnv`.
  * `opts.beforeLaunch` (T0480): runs with the runtime id before the app starts, e.g. to
  * seed a legacy userData directory.
+ * `opts.runtimeId` (T0491): relaunch an earlier instance's runtime (closed with
+ * `closeIsolated(inst, log, { keepUserData: true })`) to check what survives a restart.
  */
 export async function launchIsolated(
   name: string,
   log: Log = defaultLog,
-  opts: { env?: Record<string, string>; beforeLaunch?: (runtimeId: string) => void | Promise<void> } = {},
+  opts: { env?: Record<string, string>; beforeLaunch?: (runtimeId: string) => void | Promise<void>; runtimeId?: string } = {},
 ): Promise<IsolatedInstance> {
   if (!/^[a-zA-Z0-9._-]+$/.test(name)) throw new Error(`invalid runtime name: ${name}`)
-  const runtimeId = `e2e-${name}-${Date.now()}`
+  if (opts.runtimeId !== undefined && !/^e2e-[a-zA-Z0-9._-]+$/.test(opts.runtimeId)) throw new Error(`invalid runtime id: ${opts.runtimeId}`)
+  const runtimeId = opts.runtimeId ?? `e2e-${name}-${Date.now()}`
   await opts.beforeLaunch?.(runtimeId)
   const remotePort = await freePort()
   const app = await electron.launch({
@@ -167,6 +170,7 @@ export async function commandLineOf(pid: number): Promise<string> {
 export async function closeIsolated(
   inst: Pick<IsolatedInstance, 'app' | 'runtimeId' | 'userData'> | undefined,
   log: Log = defaultLog,
+  opts: { keepUserData?: boolean } = {},
 ): Promise<void> {
   if (!inst) return
   const { app, userData, runtimeId } = inst
@@ -207,6 +211,10 @@ export async function closeIsolated(
 
   if (!userData || !isRuntimeUserData(userData, runtimeId)) {
     log(`userData ${JSON.stringify(userData)} is not this runtime's directory — not removed`)
+    return
+  }
+  if (opts.keepUserData) {
+    log(`runtime userData kept for a relaunch: ${userData}`)
     return
   }
   for (let i = 0; i < 10; i++) {

@@ -34,6 +34,25 @@
     "detail": "{{limit}} remote profiles are already connected, which is the maximum. Close every window of a remote profile you no longer need (its connection is released {{seconds}} seconds later), then try again. Existing connections were not affected.",
     "notice": "Remote connection refused: {{limit}} remote profiles are already connected, which is the maximum. Close every window of a remote profile you no longer need, then try again."
   },
+  "remoteProfileFailure": {
+    "unreachable": {
+      "title": "Remote profile unreachable",
+      "message": "Cannot connect to remote profile \"{{label}}\"",
+      "detail": "The remote server at {{host}}:{{port}} is not running or did not respond within 6 seconds."
+    },
+    "trust": {
+      "title": "Remote profile not trusted",
+      "message": "Cannot authenticate to remote profile \"{{label}}\"",
+      "detail": "The remote server at {{host}}:{{port}} is reachable, but its certificate fingerprint or access token was rejected. Re-pair the profile (pin the expected fingerprint / update the token) and try again."
+    },
+    "protocol": {
+      "title": "Remote server incompatible",
+      "message": "Remote profile \"{{label}}\" connected, but the server could not handle the request",
+      "detail": "The remote server at {{host}}:{{port}} is running and accepted the connection, but the request failed. The server version may be incompatible with this BAT version, or the feature is not supported by the server. Update the remote server bundle."
+    },
+    "error": "Error: {{error}}",
+    "ok": "OK"
+  },
   "app": {
     "workspaceNotFound": "Workspace not found",
     "workspaceNotFoundDesc": "This detached workspace may have been removed.",

@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Workspace, TerminalInstance, AppState } from '../types'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { normalizeAgentParams } from '../types/agent-profiles'
+import { isIntegrated } from '../types/agent-runtime'
+import { requestPtyReplay } from '../lib/pty-replay'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { settingsStore } from './settings-store'
 
@@ -78,6 +80,31 @@ function restoreLayoutSnapshot(layout: LayoutSnapshot): void {
       localStorage.setItem(LAYOUT_KEYS.rightPanelTab, layout.rightPanel.activeTab)
     }
   } catch { /* ignore */ }
+}
+
+/** A persisted terminal → store instance; null when its workspace is gone. */
+function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<string, Workspace>): TerminalInstance | null {
+  const ws = t.workspaceId ? workspaceMap.get(t.workspaceId) : undefined
+  if (!ws?.folderPath) {
+    window.electronAPI?.debug?.log?.(`[workspace-store] Warning: terminal ${t.id} has no valid workspace, skipping`)
+    return null
+  }
+  const cwd = ws.folderPath
+  return {
+    id: t.id || '',
+    workspaceId: t.workspaceId || '',
+    type: 'terminal' as const,
+    agentPreset: t.agentPreset,
+    title: t.title || 'Terminal',
+    alias: t.alias,
+    cwd,
+    sdkSessionId: t.sdkSessionId,
+    model: t.model,
+    agentParams: normalizeAgentParams(t.agentPreset, t.agentParams),
+    sessionMeta: t.sessionMeta,
+    scrollbackBuffer: [],
+    pid: undefined,
+  }
 }
 
 const AUTO_SAVE_INTERVAL_MS = 30_000
@@ -727,7 +754,7 @@ class WorkspaceStore {
   }
 
   listenForReload(): () => void {
-    return window.electronAPI.workspace.onReload((data?: string) => {
+    const unsubReload = window.electronAPI.workspace.onReload((data?: string) => {
       if (data) {
         this.applySerializedData(data)
         this.save()
@@ -735,6 +762,87 @@ class WorkspaceStore {
       }
       this.load()
     })
+    // T0491: a detached window of this window closed — show the terminals it left behind.
+    const unsubReattached = window.electronAPI.workspace.onReattached((workspaceId: string) => {
+      this.adoptDetachedWorkspaceTerminals(workspaceId).then((adoptedIds) => {
+        const adopted = this.state.terminals.filter(t => adoptedIds.includes(t.id))
+        // Terminals opened in the detached window already run; replay their output once mounted.
+        for (const t of adopted) {
+          if (!isIntegrated(t.agentPreset || '')) requestPtyReplay(t.id)
+        }
+      }).catch(e => {
+        window.electronAPI?.debug?.log?.(`[workspace-store] adopt detached ${workspaceId} failed: ${e}`)
+      })
+    })
+    return () => {
+      unsubReload()
+      unsubReattached()
+    }
+  }
+
+  /**
+   * T0491: replace `workspaceId`'s terminals with the list its detached window persisted
+   * into this window's entry (main: `workspace:adopt-detached`). Runs in the save queue: a
+   * save requested earlier is sent first (main still keeps the detached list for it), every
+   * later save already carries the adopted list. Terminals this store already had keep their
+   * runtime state. Returns the ids that are new to this window.
+   */
+  adoptDetachedWorkspaceTerminals(workspaceId: string): Promise<string[]> {
+    const run = this._savePromise.then(async () => {
+      const result = await window.electronAPI.workspace.adoptDetached(workspaceId)
+      if (!result) return []
+      return this.replaceWorkspaceTerminals(workspaceId, result.terminals as Partial<TerminalInstance>[])
+    })
+    this._savePromise = run.then(() => undefined, () => undefined)
+    return run
+  }
+
+  private replaceWorkspaceTerminals(workspaceId: string, persisted: Partial<TerminalInstance>[]): string[] {
+    const workspaceMap = new Map(this.state.workspaces.map(w => [w.id, w]))
+    const current = new Map(this.state.terminals.map(t => [t.id, t]))
+    const adoptedIds: string[] = []
+    const incoming = persisted
+      .filter(t => t.workspaceId === workspaceId)
+      .map(t => {
+        const restored = toTerminalInstance(t, workspaceMap)
+        if (!restored) return null
+        const existing = current.get(restored.id)
+        if (!existing) {
+          adoptedIds.push(restored.id)
+          return restored
+        }
+        return {
+          ...existing,
+          agentPreset: restored.agentPreset,
+          title: restored.title,
+          alias: restored.alias,
+          sdkSessionId: restored.sdkSessionId,
+          model: restored.model,
+          agentParams: restored.agentParams,
+          sessionMeta: restored.sessionMeta,
+        }
+      })
+      .filter((t): t is TerminalInstance => t !== null)
+
+    const removedIds = new Set(this.state.terminals.filter(t => t.workspaceId === workspaceId).map(t => t.id))
+    for (const t of incoming) removedIds.delete(t.id)
+    removedIds.forEach(id => clearPreviewCache(id))
+
+    const at = this.state.terminals.findIndex(t => t.workspaceId === workspaceId)
+    const rest = this.state.terminals.filter(t => t.workspaceId !== workspaceId)
+    const terminals = at < 0 ? [...rest, ...incoming] : [...rest.slice(0, at), ...incoming, ...rest.slice(at)]
+    const stillThere = (id: string | null) => id !== null && terminals.some(t => t.id === id)
+
+    this.state = {
+      ...this.state,
+      terminals,
+      focusedTerminalId: stillThere(this.state.focusedTerminalId)
+        ? this.state.focusedTerminalId
+        : (terminals[0]?.id ?? null),
+      activeTerminalId: stillThere(this.state.activeTerminalId) ? this.state.activeTerminalId : null,
+    }
+    this.notify()
+    return adoptedIds
   }
 
   // Persistence — serialized to prevent concurrent writes from corrupting the file
@@ -790,29 +898,9 @@ class WorkspaceStore {
       const parsed = JSON.parse(data)
       const workspaces: Workspace[] = parsed.workspaces || []
       const workspaceMap = new Map(workspaces.map((w: Workspace) => [w.id, w]))
-      const terminals = (parsed.terminals || []).map((t: Partial<TerminalInstance>): TerminalInstance | null => {
-        const ws = t.workspaceId ? workspaceMap.get(t.workspaceId) : undefined
-        if (!ws?.folderPath) {
-          window.electronAPI?.debug?.log?.(`[workspace-store] Warning: terminal ${t.id} has no valid workspace, skipping`)
-          return null
-        }
-        const cwd = ws.folderPath
-        return {
-          id: t.id || '',
-          workspaceId: t.workspaceId || '',
-          type: 'terminal' as const,
-          agentPreset: t.agentPreset,
-          title: t.title || 'Terminal',
-          alias: t.alias,
-          cwd,
-          sdkSessionId: t.sdkSessionId,
-          model: t.model,
-          agentParams: normalizeAgentParams(t.agentPreset, t.agentParams),
-          sessionMeta: t.sessionMeta,
-          scrollbackBuffer: [],
-          pid: undefined,
-        }
-      }).filter((t: TerminalInstance | null): t is TerminalInstance => t !== null)
+      const terminals = (parsed.terminals || [])
+        .map((t: Partial<TerminalInstance>) => toTerminalInstance(t, workspaceMap))
+        .filter((t: TerminalInstance | null): t is TerminalInstance => t !== null)
       this.state = {
         ...this.state,
         workspaces,

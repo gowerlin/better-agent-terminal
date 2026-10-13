@@ -67,6 +67,10 @@ export class WindowRegistry {
   }
 
   async saveEntry(entry: WindowEntry): Promise<void> {
+    return this.exclusive(() => this.saveEntryUnlocked(entry))
+  }
+
+  private async saveEntryUnlocked(entry: WindowEntry): Promise<void> {
     const entries = await this.readAll()
     const idx = entries.findIndex(e => e.id === entry.id)
     if (idx >= 0) {
@@ -78,9 +82,45 @@ export class WindowRegistry {
   }
 
   async removeEntry(windowId: string): Promise<void> {
-    const entries = await this.readAll()
-    const filtered = entries.filter(e => e.id !== windowId)
-    await this.writeAll(filtered)
+    return this.exclusive(async () => {
+      const entries = await this.readAll()
+      const filtered = entries.filter(e => e.id !== windowId)
+      await this.writeAll(filtered)
+    })
+  }
+
+  /**
+   * T0491: read-modify-write of one entry, serialized with every other `saveEntry` /
+   * `removeEntry` / `updateEntry` / `withEntry`, so two writers of the same entry (a parent
+   * window's save and its detached window's save) can never interleave read and write.
+   * The call is queued synchronously. Returns null (nothing written) when the entry is gone.
+   */
+  updateEntry<T>(windowId: string, mutate: (entry: WindowEntry) => T): Promise<{ entry: WindowEntry; result: T } | null> {
+    return this.exclusive(async () => {
+      const entry = (await this.readAll()).find(e => e.id === windowId)
+      if (!entry) return null
+      const result = mutate(entry)
+      await this.saveEntryUnlocked(entry)
+      return { entry, result }
+    })
+  }
+
+  /** T0491: read one entry in the same queue as `updateEntry` (sees every write queued before it). */
+  withEntry<T>(windowId: string, read: (entry: WindowEntry | null) => T): Promise<T> {
+    return this.exclusive(async () => read((await this.readAll()).find(e => e.id === windowId) ?? null))
+  }
+
+  /** T0491: resolves once every entry mutation queued so far has been written. */
+  whenIdle(): Promise<void> {
+    return this.exclusive(async () => undefined)
+  }
+
+  private mutationQueue: Promise<unknown> = Promise.resolve()
+
+  private exclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.mutationQueue.then(fn, fn)
+    this.mutationQueue = run.catch(() => undefined)
+    return run
   }
 
   async clear(): Promise<void> {
@@ -215,4 +255,112 @@ export class WindowRegistry {
     await this.writeQueue
     this.cachedEntries = entries
   }
+}
+
+// ── T0491: terminals of a detached workspace (BUG-113 known limitation) ──
+//
+// A detached workspace window has no registry entry; its parent window's entry holds the
+// workspace. Before T0491 the detached window's save was a no-op, so terminals opened or
+// closed there were lost. Now, while a workspace is detached, its terminal list in the
+// parent's entry belongs to the detached window: the detached window's save replaces only
+// that workspace's terminals, and the parent's own save keeps them as persisted (its
+// in-memory copy is the one from before the detach). The parent gives the list back up
+// only after it adopted it (`workspace:adopt-detached`) or reloaded the whole entry.
+
+function persistedTerminalWorkspaceId(terminal: unknown): unknown {
+  return terminal && typeof terminal === 'object' ? (terminal as { workspaceId?: unknown }).workspaceId : undefined
+}
+
+/** Terminals of `workspaceId` in `terminals`, in order. */
+export function workspaceTerminals(terminals: unknown[], workspaceId: string): unknown[] {
+  return terminals.filter(t => persistedTerminalWorkspaceId(t) === workspaceId)
+}
+
+/**
+ * `terminals` with `workspaceId`'s terminals replaced by those of `replacement` (other
+ * workspaces' terminals in `replacement` are ignored). The new list takes the place of the
+ * first old one, or goes last; every other terminal keeps its position.
+ */
+export function replaceWorkspaceTerminals(terminals: unknown[], workspaceId: string, replacement: unknown[]): unknown[] {
+  const own = workspaceTerminals(replacement, workspaceId)
+  const at = terminals.findIndex(t => persistedTerminalWorkspaceId(t) === workspaceId)
+  const rest = terminals.filter(t => persistedTerminalWorkspaceId(t) !== workspaceId)
+  if (at < 0) return [...rest, ...own]
+  return [...rest.slice(0, at), ...own, ...rest.slice(at)]
+}
+
+/** parent windowId → workspaces whose terminal list a detached window owns (in memory only). */
+export class DetachedTerminalOwners {
+  private owners = new Map<string, Set<string>>()
+
+  claim(parentWindowId: string, workspaceId: string): void {
+    const set = this.owners.get(parentWindowId) ?? new Set<string>()
+    set.add(workspaceId)
+    this.owners.set(parentWindowId, set)
+  }
+
+  release(parentWindowId: string, workspaceId: string): void {
+    const set = this.owners.get(parentWindowId)
+    if (!set) return
+    set.delete(workspaceId)
+    if (set.size === 0) this.owners.delete(parentWindowId)
+  }
+
+  /** Releases every workspace of `parentWindowId` for which `keep` is false. */
+  releaseUnless(parentWindowId: string, keep: (workspaceId: string) => boolean): void {
+    for (const workspaceId of this.owned(parentWindowId)) {
+      if (!keep(workspaceId)) this.release(parentWindowId, workspaceId)
+    }
+  }
+
+  owned(parentWindowId: string): string[] {
+    return [...(this.owners.get(parentWindowId) ?? [])]
+  }
+}
+
+/** Fields of a `workspace:save` payload the registry persists. */
+export interface WorkspaceSavePayload {
+  workspaces?: unknown[]
+  activeWorkspaceId?: string | null
+  activeGroup?: string | null
+  terminals?: unknown[]
+  activeTerminalId?: string | null
+  layout?: WindowLayout
+}
+
+/**
+ * A registry window's own `workspace:save`. Terminals of `ownedWorkspaceIds` (workspaces
+ * detached from this window) keep what the entry holds instead of the window's copy.
+ */
+export function saveWindowWorkspaces(
+  registry: WindowRegistry,
+  windowId: string,
+  payload: WorkspaceSavePayload,
+  ownedWorkspaceIds: () => string[],
+): Promise<WindowEntry | null> {
+  return registry.updateEntry(windowId, entry => {
+    let terminals = payload.terminals || []
+    for (const workspaceId of ownedWorkspaceIds()) {
+      terminals = replaceWorkspaceTerminals(terminals, workspaceId, entry.terminals || [])
+    }
+    entry.workspaces = payload.workspaces || []
+    entry.activeWorkspaceId = payload.activeWorkspaceId || null
+    entry.activeGroup = payload.activeGroup || null
+    entry.terminals = terminals
+    entry.activeTerminalId = payload.activeTerminalId || null
+    entry.layout = payload.layout || undefined
+    entry.lastActiveAt = Date.now()
+  }).then(r => r?.entry ?? null)
+}
+
+/** A detached window's `workspace:save`: only `workspaceId`'s terminals reach the parent entry. */
+export function saveDetachedWorkspaceTerminals(
+  registry: WindowRegistry,
+  parentWindowId: string,
+  workspaceId: string,
+  payload: WorkspaceSavePayload,
+): Promise<WindowEntry | null> {
+  return registry.updateEntry(parentWindowId, entry => {
+    entry.terminals = replaceWorkspaceTerminals(entry.terminals || [], workspaceId, payload.terminals || [])
+  }).then(r => r?.entry ?? null)
 }

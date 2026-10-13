@@ -34,6 +34,25 @@
     "detail": "已有 {{limit}} 个远程配置同时连接（上限）。请先关闭不再需要的远程配置的所有窗口（其连接会在 {{seconds}} 秒后释放），再重试。现有连接不受影响。",
     "notice": "远程连接被拒绝：已有 {{limit}} 个远程配置同时连接（上限）。请先关闭不再需要的远程配置的所有窗口，再重试。"
   },
+  "remoteProfileFailure": {
+    "unreachable": {
+      "title": "无法连接远程配置",
+      "message": "无法连接到远程配置“{{label}}”",
+      "detail": "位于 {{host}}:{{port}} 的远程服务器未运行，或未在 6 秒内响应。"
+    },
+    "trust": {
+      "title": "远程配置不受信任",
+      "message": "无法通过远程配置“{{label}}”的验证",
+      "detail": "可以连接到位于 {{host}}:{{port}} 的远程服务器，但其证书指纹或访问令牌被拒绝。请重新配对此配置（钉选预期的指纹/更新令牌）后重试。"
+    },
+    "protocol": {
+      "title": "远程服务器不兼容",
+      "message": "已连接到远程配置“{{label}}”，但服务器无法处理请求",
+      "detail": "位于 {{host}}:{{port}} 的远程服务器正在运行并已接受连接，但请求失败。服务器版本可能与此 BAT 版本不兼容，或服务器不支持此功能。请更新远程服务器包（server bundle）。"
+    },
+    "error": "错误：{{error}}",
+    "ok": "确定"
+  },
   "app": {
     "workspaceNotFound": "找不到工作区",
     "workspaceNotFoundDesc": "此分离的工作区可能已被移除。",

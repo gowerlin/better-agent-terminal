@@ -10,6 +10,7 @@ import {
   classifyConnectFailure,
   classifyInvokeFailure,
   describeRemoteProfileFailure,
+  getRemoteProfileFailureStrings,
   getRemoteProfileLimitStrings,
 } from '../remote-profile-error'
 
@@ -91,8 +92,6 @@ describe('limit (T0464, PLAN-039)', () => {
     expect(describeRemoteProfileFailure(limit, { lang: 'zh-TW' }).message).toBe('無法開啟遠端配置「WSL Ubuntu-24.04」')
     expect(describeRemoteProfileFailure(limit, { lang: 'zh-CN' }).message).toBe('无法打开远程配置“WSL Ubuntu-24.04”')
     expect(describeRemoteProfileFailure(limit, { lang: 'ja' }).title).toBe('Remote profile limit reached')
-    // The other reasons keep their English text whatever the language.
-    expect(describeRemoteProfileFailure({ ...base, reason: 'trust' }, { lang: 'zh-TW' }).title).toBe('Remote profile not trusted')
   })
 
   it('does not choke on a label that looks like a placeholder', () => {
@@ -107,5 +106,53 @@ describe('limit (T0464, PLAN-039)', () => {
   ])('main-side strings for %s match src/locales/%s', (lang, file) => {
     const locale = JSON.parse(readFileSync(resolve(__dirname, '../../../src/locales', file), 'utf8'))
     expect(getRemoteProfileLimitStrings(lang)).toEqual(locale.remoteProfileLimit)
+  })
+})
+
+describe('unreachable / trust / protocol follow the UI language (T0491)', () => {
+  const rawError = 'No handler for channel: profile:load-snapshot {{label}} $&'
+  const reasons = ['unreachable', 'trust', 'protocol'] as const
+  const langs = [
+    ['en', 'Error: '],
+    ['zh-TW', '錯誤：'],
+    ['zh-CN', '错误：'],
+  ] as const
+
+  it.each(reasons.flatMap(reason => langs.map(([lang, prefix]) => [reason, lang, prefix] as const)))(
+    '%s in %s: localized text, host / label filled, raw error kept verbatim',
+    (reason, lang, prefix) => {
+      const d = describeRemoteProfileFailure({ ...base, reason, error: rawError }, { lang })
+      const s = getRemoteProfileFailureStrings(lang)[reason]
+      expect(d.title).toBe(s.title)
+      expect(d.title.length).toBeGreaterThan(0)
+      expect(d.message).toContain('WSL Ubuntu-24.04')
+      expect(d.detail).toContain('localhost:9877')
+      expect(d.detail.endsWith(`\n\n${prefix}${rawError}`)).toBe(true)
+      expect(d.ok).toBe(getRemoteProfileFailureStrings(lang).ok)
+      // Only the error text may still carry braces.
+      expect(d.detail.replace(rawError, '')).not.toMatch(/\{\{\w+\}\}/)
+      expect(d.message).not.toMatch(/\{\{\w+\}\}/)
+    },
+  )
+
+  it('picks each language and differs from English', () => {
+    expect(describeRemoteProfileFailure({ ...base, reason: 'trust' }, { lang: 'zh-TW' }).title).toBe('遠端配置未受信任')
+    expect(describeRemoteProfileFailure({ ...base, reason: 'protocol' }, { lang: 'zh-CN' }).title).toBe('远程服务器不兼容')
+    expect(describeRemoteProfileFailure({ ...base, reason: 'unreachable' }, { lang: 'zh-TW' }).message).toBe('無法連線到遠端配置「WSL Ubuntu-24.04」')
+    expect(describeRemoteProfileFailure({ ...base, reason: 'unreachable' }, { lang: 'ja' }).title).toBe('Remote profile unreachable')
+    expect(describeRemoteProfileFailure({ ...base, reason: 'limit', limit: 8 }, { lang: 'zh-TW' }).ok).toBe('確定')
+  })
+
+  it('omits the localized error line when no error text is available', () => {
+    expect(describeRemoteProfileFailure({ ...base, reason: 'trust' }, { lang: 'zh-TW' }).detail).not.toContain('錯誤：')
+  })
+
+  it.each([
+    ['en', 'en.json'],
+    ['zh-TW', 'zh-TW.json'],
+    ['zh-CN', 'zh-CN.json'],
+  ])('main-side strings for %s match src/locales/%s', (lang, file) => {
+    const locale = JSON.parse(readFileSync(resolve(__dirname, '../../../src/locales', file), 'utf8'))
+    expect(getRemoteProfileFailureStrings(lang)).toEqual(locale.remoteProfileFailure)
   })
 })

@@ -64,6 +64,8 @@ const electronAPI = {
     load: () => ipcRenderer.invoke('workspace:load'),
     detach: (workspaceId: string) => ipcRenderer.invoke('workspace:detach', workspaceId),
     reattach: (workspaceId: string) => ipcRenderer.invoke('workspace:reattach', workspaceId),
+    /** T0491: after 'workspace:reattached', take back the workspace's terminals its detached window saved. */
+    adoptDetached: (workspaceId: string) => ipcRenderer.invoke('workspace:adopt-detached', workspaceId),
     getDetachedId: () => new URLSearchParams(window.location.search).get('detached'),
     onDetached: (callback: (workspaceId: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, workspaceId: string) => callback(workspaceId)

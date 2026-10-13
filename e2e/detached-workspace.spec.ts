@@ -6,8 +6,9 @@
 // Flow: seed the main window's registry entry with two workspaces (Beta has one
 // terminal) → reload → detach Beta → the detached window shows Beta (not
 // "Workspace not found") and its terminal answers input → a save from the
-// detached window does not touch the parent entry → reattach closes the window
-// and Beta is back in the main window's sidebar.
+// detached window changes only Beta's terminal list in the parent entry (T0491;
+// before it was a no-op) → reattach closes the window and Beta is back in the main
+// window's sidebar. e2e/detached-terminal-persistence.spec.ts covers T0491 in full.
 
 import { test, expect, type Page } from '@playwright/test'
 import fs from 'node:fs'
@@ -37,7 +38,7 @@ async function loadEntry(page: Page): Promise<SavedEntry | null> {
   return raw ? JSON.parse(raw) as SavedEntry : null
 }
 
-test('detached workspace window loads the parent entry, never writes it, and reattaches', async () => {
+test('detached workspace window loads the parent entry, writes back only its terminals, and reattaches', async () => {
   let inst: IsolatedInstance | undefined
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 't0453-'))
   try {
@@ -112,15 +113,18 @@ test('detached workspace window loads the parent entry, never writes it, and rea
     expect(output).toContain('T0453_MARKER_OK')
     log('detached window terminal ran a command')
 
-    // A save from the detached window never touches the parent entry.
+    // A save from the detached window never touches the parent's workspaces (T0491: only Beta's terminals).
     const before = await loadEntry(win)
-    const wipe = JSON.stringify({ workspaces: [], activeWorkspaceId: null, activeGroup: null, terminals: [], activeTerminalId: null })
+    const wipe = JSON.stringify({ workspaces: [], activeWorkspaceId: null, activeGroup: null, terminals: [{ id: 'e2e-t0453-foreign', workspaceId: WS_ALPHA }], activeTerminalId: null })
     expect(await detached.evaluate(async (data) => (window as AnyApi).electronAPI.workspace.save(data), wipe)).toBe(true)
     const after = await loadEntry(win)
     expect(after?.workspaces.map(w => w.id)).toEqual([WS_ALPHA, WS_BETA])
     expect(after?.workspaces).toEqual(before?.workspaces)
-    expect(after?.terminals.some(t => t.id === TERM_BETA && t.workspaceId === WS_BETA)).toBe(true)
-    log('detached workspace:save is a no-op on the parent entry')
+    // Beta's terminal list is what the detached window saved (empty); its terminal for another workspace is ignored.
+    expect(after?.terminals.filter(t => t.workspaceId === WS_BETA)).toEqual([])
+    expect(after?.terminals.some(t => t.id === 'e2e-t0453-foreign')).toBe(false)
+    expect(after?.terminals.filter(t => t.workspaceId !== WS_BETA)).toEqual(before?.terminals.filter(t => t.workspaceId !== WS_BETA))
+    log('detached workspace:save changed only Beta\'s terminals in the parent entry')
 
     // Reattach: the detached window closes and Beta returns to the main sidebar.
     const closed = detached.waitForEvent('close', { timeout: 15_000 })

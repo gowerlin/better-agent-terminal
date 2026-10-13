@@ -7,7 +7,7 @@ import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { spawnSync, fork } from 'child_process'
-import { WindowRegistry } from './window-registry'
+import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { registerPtyHandlers } from './handlers/pty'
@@ -444,6 +444,8 @@ const remoteConnections = new RemoteConnectionRegistry<RemoteClient, ProfileEntr
 const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → BrowserWindow
 // T0446 (BUG-112): workspaceId → the detached window's parent and the profile binding it inherits.
 const detachedWindowRecords = new Map<string, DetachedWindowRecord>()
+// T0491: parent windowId → detached workspaces whose terminal list the detached window owns.
+const detachedTerminalOwners = new DetachedTerminalOwners()
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
 let tray: Tray | null = null
 
@@ -763,6 +765,12 @@ function getWindowIdByWebContents(wc: Electron.WebContents): string | null {
     if (!win.isDestroyed() && win.webContents === wc) return id
   }
   return null
+}
+
+/** T0491: a live detached window still shows `workspaceId`. */
+function isWorkspaceDetached(workspaceId: string): boolean {
+  const win = detachedWindows.get(workspaceId)
+  return !!win && !win.isDestroyed()
 }
 
 /** T0446 (BUG-112): workspaceId of the detached window owning `wc`, null for any other sender. */
@@ -1330,14 +1338,14 @@ async function loadProfileSnapshotDetailed(profileId: string): Promise<SnapshotL
 }
 
 function showRemoteProfileFailureDialog(failure: RemoteProfileFailure): void {
-  // T0464: the `limit` dialog follows the UI language (main has no i18next).
-  const { title, message, detail } = describeRemoteProfileFailure(failure, { lang: readPersistedSettingsSync()?.language, idleGraceMs: IDLE_GRACE_MS })
+  // T0464 / T0491: every reason follows the UI language (main has no i18next).
+  const { title, message, detail, ok } = describeRemoteProfileFailure(failure, { lang: readPersistedSettingsSync()?.language, idleGraceMs: IDLE_GRACE_MS })
   dialog.showMessageBox({
     type: 'warning',
     title,
     message,
     detail,
-    buttons: ['OK'],
+    buttons: [ok],
   }).catch(() => { /* ignore */ })
 }
 
@@ -1962,7 +1970,8 @@ app.on('before-quit', async (e) => {
     // Notify all renderer windows to flush their latest state (workspace + layout)
     try {
       const savePromises: Promise<void>[] = []
-      for (const [, win] of windowMap) {
+      // T0491: detached windows save their workspace's terminals into the parent's entry too.
+      for (const win of [...windowMap.values(), ...detachedWindows.values()]) {
         if (!win.isDestroyed() && win.webContents) {
           const p = new Promise<void>((resolve) => {
             // Give renderer 2s max to save, then proceed anyway
@@ -2064,17 +2073,11 @@ function registerProxiedHandlers() {
   // Workspace persistence — save/load from window registry entry
   registerHandler('workspace:save', async (ctx, data: string) => {
     if (!ctx.windowId) return false
-    const parsed = JSON.parse(data)
-    const entry = await windowRegistry.getEntry(ctx.windowId)
+    const windowId = ctx.windowId
+    const parsed = JSON.parse(data) as WorkspaceSavePayload
+    // T0491: a workspace detached from this window keeps the terminals its detached window saved.
+    const entry = await saveWindowWorkspaces(windowRegistry, windowId, parsed, () => detachedTerminalOwners.owned(windowId))
     if (!entry) return false
-    entry.workspaces = parsed.workspaces || []
-    entry.activeWorkspaceId = parsed.activeWorkspaceId || null
-    entry.activeGroup = parsed.activeGroup || null
-    entry.terminals = parsed.terminals || []
-    entry.activeTerminalId = parsed.activeTerminalId || null
-    entry.layout = parsed.layout || undefined
-    entry.lastActiveAt = Date.now()
-    await windowRegistry.saveEntry(entry)
     // PLAN-018 T0183 — refresh path-guard allowlist after every save, so
     // add/remove/rename workspace propagates to the sandbox immediately.
     await syncPathGuardFromRegistry()
@@ -2089,7 +2092,12 @@ function registerProxiedHandlers() {
   })
   registerHandler('workspace:load', async (ctx) => {
     if (!ctx.windowId) return null
-    const entry = await windowRegistry.getEntry(ctx.windowId)
+    const windowId = ctx.windowId
+    // T0491: a full load is in sync with the entry, so a reattached workspace's terminals go back to this window.
+    const entry = await windowRegistry.withEntry(windowId, (e) => {
+      if (e) detachedTerminalOwners.releaseUnless(windowId, isWorkspaceDetached)
+      return e
+    })
     if (!entry) return null
     // T0406 — a remote window's workspaces reach the registry (applySnapshot) only
     // after the connect-time push, so push again once the window loads them.
@@ -2218,13 +2226,32 @@ const DETACHED_WORKSPACE_CHANNELS = new Set(['workspace:load', 'workspace:save']
 
 /**
  * T0453 (BUG-113): workspace:load / workspace:save from a detached workspace window,
- * which has no registry entry of its own. Load returns the parent window's entry,
- * read-only. Save is a no-op: the parent window owns that entry (its store holds every
- * workspace and autosaves), so a second writer would overwrite it. Once the parent's
- * entry is gone (window removed from the profile) load returns null → "Workspace not found".
+ * which has no registry entry of its own. Load returns the parent window's entry.
+ * T0491: save is no longer a no-op, but it never stores the detached window's copy of the
+ * entry: only the terminal list of its own workspace is merged into the parent's entry
+ * (`saveDetachedWorkspaceTerminals`); every other field stays the parent's. Once the
+ * parent's entry is gone (window removed from the profile) load returns null → "Workspace
+ * not found" and save returns false.
  */
-async function invokeDetachedWorkspacePersistence(channel: string, workspaceId: string): Promise<unknown> {
-  if (channel === 'workspace:save') return true
+function invokeDetachedWorkspacePersistence(channel: string, workspaceId: string, args: unknown[]): Promise<unknown> {
+  if (channel === 'workspace:save') return saveDetachedWorkspace(workspaceId, args[0])
+  return loadDetachedWorkspace(workspaceId)
+}
+
+/** T0491: the detached window's terminals of `workspaceId` → its parent's entry. Queued synchronously (see `whenIdle`). */
+async function saveDetachedWorkspace(workspaceId: string, data: unknown): Promise<boolean> {
+  const parentWindowId = detachedWindowRecords.get(workspaceId)?.parentWindowId ?? null
+  if (!parentWindowId || typeof data !== 'string') return false
+  const entry = await saveDetachedWorkspaceTerminals(windowRegistry, parentWindowId, workspaceId, JSON.parse(data) as WorkspaceSavePayload)
+  if (!entry) {
+    logger.warn(`[detached] ${workspaceId}: parent window ${parentWindowId} has no registry entry, workspace:save dropped`)
+    return false
+  }
+  if (entry.profileId) profileManager.save(entry.profileId).catch(() => { /* ignore */ })
+  return true
+}
+
+async function loadDetachedWorkspace(workspaceId: string): Promise<unknown> {
   const parentWindowId = detachedWindowRecords.get(workspaceId)?.parentWindowId ?? null
   if (!parentWindowId) {
     logger.warn(`[detached] ${workspaceId}: no parent window recorded, workspace:load → null`)
@@ -2266,10 +2293,11 @@ function bindProxiedHandlersToIpc() {
     ipcMain.handle(channel, async (event, ...args: unknown[]) => {
       const windowId = getWindowIdByWebContents(event.sender)
 
-      // T0453 (BUG-113): a detached workspace window reads its parent's workspaces, never writes them.
+      // T0453 (BUG-113): a detached workspace window reads its parent's workspaces; T0491: it
+      // writes back only its own workspace's terminal list.
       if (!windowId && DETACHED_WORKSPACE_CHANNELS.has(channel)) {
         const detachedWorkspaceId = getDetachedWorkspaceIdByWebContents(event.sender)
-        if (detachedWorkspaceId !== null) return invokeDetachedWorkspacePersistence(channel, detachedWorkspaceId)
+        if (detachedWorkspaceId !== null) return invokeDetachedWorkspacePersistence(channel, detachedWorkspaceId, args)
       }
 
       // T0437: a detached workspace window resolves attachment paths as its parent's profile.
@@ -3227,6 +3255,8 @@ function registerLocalHandlers() {
     setupResizeThrottle(detachedWin, 'detached')
     detachedWindows.set(workspaceId, detachedWin)
     detachedWindowRecords.set(workspaceId, record)
+    // T0491: from now on the detached window owns this workspace's terminal list in the parent's entry.
+    if (record.parentWindowId) detachedTerminalOwners.claim(record.parentWindowId, workspaceId)
     logger.log(`[detached] ${workspaceId} detached from window ${record.parentWindowId ?? '(none)'} profile=${record.resolved ? record.profileId ?? '(none)' : '(unresolved)'}`)
     const urlParam = `?detached=${encodeURIComponent(workspaceId)}`
     if (VITE_DEV_SERVER_URL) { detachedWin.loadURL(VITE_DEV_SERVER_URL + urlParam) }
@@ -3237,10 +3267,27 @@ function registerLocalHandlers() {
         detachedWindowRecords.delete(workspaceId)
       }
       noteRemoteWindowClosed()
-      if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:reattached', workspaceId)
+      // T0491: the detached window's last save is already queued; let it land before the
+      // parent adopts the workspace's terminals (workspace:adopt-detached).
+      void windowRegistry.whenIdle().then(() => {
+        if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:reattached', workspaceId)
+      })
     })
     if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:detached', workspaceId)
     return true
+  })
+
+  // T0491: after 'workspace:reattached' the parent takes back the workspace's terminal list
+  // as persisted (what its detached window saved last) and gives up the detached ownership
+  // in the same registry step, so no parent save can slip in between with its stale copy.
+  ipcMain.handle('workspace:adopt-detached', async (event, workspaceId: string) => {
+    const windowId = getWindowIdByWebContents(event.sender)
+    if (!windowId || typeof workspaceId !== 'string' || isWorkspaceDetached(workspaceId)) return null
+    return windowRegistry.withEntry(windowId, (entry) => {
+      if (!entry) return null
+      detachedTerminalOwners.release(windowId, workspaceId)
+      return { terminals: workspaceTerminals(entry.terminals || [], workspaceId) }
+    })
   })
 
   ipcMain.handle('workspace:reattach', async (_event, workspaceId: string) => {

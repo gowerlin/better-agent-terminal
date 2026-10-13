@@ -109,6 +109,8 @@ interface ElectronAPI {
     load: () => Promise<string | null>
     detach: (workspaceId: string) => Promise<unknown>
     reattach: (workspaceId: string) => Promise<unknown>
+    /** T0491: null while the workspace is still detached (or the window has no registry entry). */
+    adoptDetached: (workspaceId: string) => Promise<{ terminals: unknown[] } | null>
     getDetachedId: () => string | null
     onDetached: (callback: (workspaceId: string) => void) => () => void
     onReattached: (callback: (workspaceId: string) => void) => () => void
