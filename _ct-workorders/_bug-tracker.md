@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T02:56:53+0800"
+generated_at: "2026-10-14T03:27:58+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 47
+total: 48
 breakdown:
   OPEN: 0
-  FIXING: 0
+  FIXING: 1
   FIXED: 25
   VERIFY: 0
   CLOSED: 22
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 02:56 (UTC+8) — 第五十九 session：BUG-120 / 121 FIXED（T0511 `3df6218`）、BUG-122 FIXED（T0512）；pre.6 批次聯合複驗全綠
+> 最後同步：2026-10-14 03:27 (UTC+8) — 第六十 session：BUG-123 開單 FIXING（T0513，headless remote profile 狀態燈恆紅）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 22 | ⛔ Won't Fix: 0 | **Total: 47**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 22 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅 Disconnected（headless `profile:list` stub 回空 `activeProfileIds`） | 🟢 low | — | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 
 ## ✅ 已修復
 
