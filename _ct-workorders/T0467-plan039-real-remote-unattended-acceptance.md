@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0467
 title: "PLAN-039 實機驗收自動化（無人值守）：source build + 真 WSL bat-server + WSL 內 Docker 容器（sshd + 獨立 bat-server）當 SSH profile，跑 docs 實機 6 步（不含 Claude Agent）"
 type: implementation
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-039
 priority: P2
 sizing: M
 created_at: "2026-10-13T15:53:34+08:00"
-started_at: "2026-10-13T15:54:39+08:00"
-updated_at: "2026-10-13T15:59:01+08:00"
-completed_at: null
+started_at: "2026-10-13T15:59:39+08:00"
+updated_at: "2026-10-13T16:14:41+08:00"
+completed_at: "2026-10-13T16:14:41+08:00"
 target_version: next
 depends_on:
   - T0466
@@ -130,6 +130,73 @@ Windows host
 ## 回報區
 
 > 以下由 sub-session 填寫
+
+### 完成狀態（Renew #1）
+
+✅ **DONE** — 依 Renew #1 授權在 WSL 安裝 Docker 後，opt-in 實機驗收 spec + 一鍵環境腳本完成，docs 實機步驟 1-6（3 不含 Agent）**全 PASS**，且 `down` → `up` 重建後再跑仍 5/5。回歸 `e2e/plan039-multi-remote.spec.ts` 4/4。驗收中**未發現產品缺陷**。未改 `electron/**` / `src/**`。
+
+**Landing Zone Check：PASS**（C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`；C-1 ✅；C-3 informational ✅；C-2 無 `branch` 欄位，實際 `main`）。`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+
+### 產出摘要（Renew #1）
+
+| 檔案 | 內容 |
+|---|---|
+| `e2e/plan039-real-remote.spec.ts`（新） | R1-R5 對應 docs 步驟 1-6；預設 skip（需 `BAT_E2E_REAL_REMOTE=1` + `%TEMP%\bat-t0467\connection.json`，可用 `BAT_E2E_REAL_REMOTE_CONFIG` 指定） |
+| `e2e/real-remote/plan039-real-remote-env.mjs`（新） | `up` / `status` / `down [--rmi]`：前置檢查 → 臨時 ed25519 金鑰 → build context（`dist-baseline` 最新 linux-x64 tarball + `dev-deploy-headless` dry-run staging 的 headless JS 與 helpers）→ `docker build` → `docker run` → 等容器 server 憑證 / token / LISTEN → Git ssh 登入探測 → 唯讀讀取 WSL server 連線資訊（重用 `smoke-remote-headless.mjs` 的 `resolveWslTarget`）→ 寫 `connection.json`。只動帶 `bat.t0467=1` 標籤且名為 `bat-t0467-sshd` 的容器；同名但無標籤的容器 → 拒絕動作 |
+| `e2e/real-remote/Dockerfile`、`entrypoint.sh`（新） | `debian:bookworm-slim` + `openssh-server`（僅金鑰、`AllowUsers bat`、`AllowTcpForwarding local`）+ bundle 在 `/home/bat/.local/bat-server`；entrypoint 以 `bat` 身分起 `bat-server --port 9876 --bind-interface localhost`，再前景跑 sshd；`/etc/bat-t0467-marker` 當 S 端標記。entrypoint 由 env 腳本轉 LF（repo `core.autocrlf=true`、無 `.gitattributes`） |
+| `e2e/fixtures/electron-isolation.ts` | `launchIsolated(name, log, { env })` 與 `isolatedEnv(port, extra)` 可加額外 env，同名不分大小寫的既有 key（Windows `Path`）會被取代。預設行為不變，既有 spec 不受影響（回歸 4/4） |
+| `docs/remote-dev-overview.md` | PLAN-039 節新增「Automated real-remote acceptance」：指令、前置條件、會建立 / 清除什麼、與人工步驟的差異 |
+| `_ct-workorders/PLAN-039-…md` | 補一行 T0467 結果（狀態未改） |
+
+**拓撲（實際）**：isolated BAT（source build）→ profile W `wsl-linux`（`localhost:9877`，WSL 既有 server，hostname `GXDEVPC02`）＋ profile S `ssh-linux`（`bat@127.0.0.1:22467` → 容器 `bat-t0467-sshd` sshd → `ssh -N -L <動態埠>:localhost:9876` → 容器內 bat-server，hostname `bat-t0467-s`）。WSL 是 `networkingMode=Mirrored`，所以 docker 的 `-p 127.0.0.1:22467:22` 從 Windows 直接可達。
+
+### 實跑結果（Renew #1，每步 PASS / FAIL + 證據）
+
+第 1 輪 2026-10-13 16:10（5 passed，39.0 s），第 2 輪 `down` → `up` 重建後 16:11-16:12（5 passed，38.9 s）。以下證據取自第 2 輪；截圖在 `e2e-results/<test>/`（Playwright `outputDir`，下一次跑 Playwright 時會被清掉）。
+
+| docs 步驟 | 結果 | 證據 |
+|---|---|---|
+| 1-2 兩 profile 各自連上、同時開窗 | ✅ PASS | W `clientStatus` = `localhost:9877` fp `22:3A:E4:C7…`，S = `127.0.0.1:62537`（tunnel 動態埠）fp `44:8E:DD:88…`，兩者都 connected。開 S 後 W 仍 connected；本機視窗 `connected:false`；兩視窗 body 都沒有 `app.remoteNotConnected`（en / zh-TW / zh-CN）文字；S tunnel 只有 1 個 ssh，`C:\Program Files\Git\usr\bin\ssh.exe`；兩窗開啟各約 0.4 s。截圖 `r1-connected-{W,S}.png` |
+| 3 各視窗終端跑指令（不含 Agent） | ✅ PASS | W PTY 印出 `T0467-R2-W-GXDEVPC02-1234`，S PTY 印出 `T0467-R2-S-bat-t0467-s-4321`（主機名與算式結果都由各自 server 的 shell 算出）。兩邊 server 對另一視窗 PTY 的 `pty:get-cwd` 都回 null；兩視窗都收不到對方 PTY 的輸出 |
+| 4 Tower → Worker `bat-notify --submit` | ✅ PASS | 每個視窗都有一個 seed 的 Tower 分頁（真 TerminalPanel / xterm）。Worker PTY 帶 `customEnv.BAT_TOWER_TERMINAL_ID`，在 shell 內執行 `"${BAT_HELPER_NODE:-node}" "$BAT_HELPER_DIR/bat-notify.mjs" --submit 'echo T0467-SUBMIT-<tag>-$((40+2))'`，exit 0。W1 與 S2 各自：`terminal:notified` ×1、`terminal:keypress` ×1、toast `📨 T0467-W1: …` / `📨 T0467-S2: …`、`.notification-badge` ×1，Tower 印出 `T0467-SUBMIT-W1-42` / `-S2-42`（證明預填 + Enter，約 0.4 s）。另一視窗沒有 notify、keypress、toast，也沒有 Tower / Worker 輸出。截圖 `r3-notified-{W,S}.png`（W 圖可見 toast、縮圖紅點、`T0467-SUBMIT-W1-42`） |
+| 5 關 S 視窗 | ✅ PASS | 關窗後 119 ms：`[remote] profile t0467-s-ssh has no window left — releasing its connection in 15s unless a window returns`。648 ms 時 W 終端與 W3 notify round trip 都正常，且 S 尚未釋放。grace 期間每 500 ms 取樣 W，28 次都 connected。15054 ms：`released the connection of profile t0467-s-ssh (idle: no window left)`（兩行順序正確）；釋放後 W 終端仍正常；S tunnel ssh 已結束 |
+| 6 角色互換 | ✅ PASS | 重開 S（新視窗 0.4 s 連上，W 不受影響），S4 round trip 不外漏到 W。關 W 後 110 ms 出現 `profile t0467-w-wsl has no window left …`；634 ms 時 S 終端與 S5 notify 正常；S 28 次取樣都 connected；15028 ms 出現 `released the connection of profile t0467-w-wsl …`；之後 S 仍正常。截圖 `r5-after-w-released-S.png` |
+| 回歸 `e2e/plan039-multi-remote.spec.ts` | ✅ PASS | 4 passed（23.6 s），未設 `BAT_E2E_REAL_REMOTE` |
+| 預設 skip | ✅ PASS | env 未設：`npx playwright test e2e/plan039-real-remote.spec.ts` → 5 skipped、0 failed |
+| 一鍵重跑 / 收尾 | ✅ PASS | `down` → `up` 5 s（image 已有快取；首次 build 約 45 s）。最終 `down` 後 `docker ps -a` 空、沒有 `bat.t0467=1` network / volume、`%TEMP%\bat-t0467` 已刪 |
+
+驗收條件：5 項全達成。
+
+**與 docs 原步驟的差異（memory_overrides 要求說明）**
+- 步驟 3 沒有 Agent session（使用者裁決）。
+- 步驟 4 不經 `bat-terminal.mjs`：它走 `terminal:create-agent-command`，一定會啟動 agent（在 W 會耗 Claude token）。改由視窗以 `pty:create` 加 `customEnv.BAT_TOWER_TERMINAL_ID=<Tower 分頁 id>` 建立 Worker PTY，server 會照 `buildHeadlessHelperEnv` 發 worker capability，等同被派發的 Worker。驗到的是 notify → toast / badge / 預填 / `terminal:keypress` → renderer 合成 Enter 這段；server 端 `create-agent-command` → `terminal:created-externally` 開新分頁那段沒驗到（`headless-remote-tower-e2e.test.ts` 已涵蓋）。
+- S 的 ssh 是 Git for Windows `usr\bin\ssh.exe`，`PATH` 前插，`HOME`=`%TEMP%\bat-t0467\home`。known_hosts 寫在隔離目錄（`[127.0.0.1]:22467` 三筆），使用者 `~/.ssh/known_hosts` 沒有 22467 的條目。實際安裝的 BAT 用 System32 OpenSSH，這條沒驗到。
+- W server 是 `0.5.9-pre.4` dev deploy（tag `t0456`），容器 server 是 `0.6.0-pre.1` baseline 疊上目前 source 的 headless JS。兩者版本不同，但沒有造成任何失敗。
+
+**環境變更紀錄**
+- WSL 系統（Renew #1 授權範圍內）：`apt-get install -y docker.io`、`usermod -aG docker gower`、`systemctl enable --now docker`。沒有 `wsl --shutdown`；新開的 `wsl -d` 行程已帶 docker 群組（`groups=…,108(docker)`），不需要 sudo。`dpkg -l`：`docker.io 29.1.3-0ubuntu3~24.04.2`、`containerd 2.2.1-0ubuntu1~24.04.3`、`runc 1.3.4-0ubuntu1~24.04.1`（相依：`iptables` 改用 nft alternatives、`dnsmasq-base`、`ubuntu-fan`，皆由 apt 自動帶入）。Docker engine 保留安裝。
+- 保留的 image：`bat-t0467-sshd:local`（2.44 GB）、`debian:bookworm-slim`（116 MB，本單 pull）。`sonarsource/sonarqube-mcp:latest` 不是本單建立的，未動。刪除：`node e2e/real-remote/plan039-real-remote-env.mjs down --rmi` 及 `docker rmi debian:bookworm-slim`。
+- `~/.local/bat-server`：只讀取 token、cert、unit env 並連線使用。pid 318 從 14:43:22 起持續運行，`electron/remote/*.js` 的 mtime 仍是 2026-10-05，沒有重部署、重啟或改設定。W 上本單建立的 PTY 在關 W 視窗前全部 kill（R5：6 個），收尾後 pid 318 下沒有任何 `BAT_TERMINAL_ID=e2e-t0467*` 子行程。
+- 🟡 **repo `node_modules` 修復**：開工時 `node_modules` 只剩 52 個套件（mtime 2026-10-09，沒有 vite / ws / esbuild / playwright），`npx vite build` 跑不起來。處理方式：`npm ci`（依 lock，`package-lock.json` 未改）。npm 12.2.0 預設擋 install scripts（electron、esbuild、sharp、better-sqlite3、claude-code、electron-winstaller），所以手動補跑 `node_modules/electron/install.js`、`node_modules/esbuild/install.js`、`node_modules/sharp/install/check.js`、`npx electron-rebuild -f -w better-sqlite3`。沒有執行 `npm install-scripts approve`（會改 `package.json`）。`@anthropic-ai/claude-code` 的 `install.cjs` 沒有補跑，若本機 dev 需要 embedded claude 要另外處理。這是給塔台的獨立發現：本機 dev 環境在 npm 12 下 `npm ci` 不會自動完成 native 準備，`postinstall` 的 `npm rebuild better-sqlite3` 也可能被擋（未驗證）。
+
+### 遭遇問題（Renew #1）
+
+- `node_modules` 殘缺與 npm 12 擋 install scripts（見上）：已就地修復，未改任何 tracked 檔。
+- `down` 後立刻 `up` 時，`127.0.0.1:22467` 短暫仍被占用（mirrored 網路下 docker-proxy 延遲釋放）。已讓 `up` 等最多 15 s。
+- 同一 repo 有另一個 Worker 正在做 T0468（`electron/voice-handler.ts`、`scripts/verify-native-modules.js`、T0468 工單有未 commit 的改動）。本單 commit 只精準 staging 本單檔案，未碰那些改動。
+- 容器內 R2 / R3 的 S PTY 在關 S 視窗時刻意不 kill（模擬使用者直接關窗），會隨容器刪除，不影響使用者環境。
+
+### Commit
+
+見下方 commit 紀錄（本單檔案精準 staging；不 push）。
+
+### 回報時間（Renew #1）
+
+2026-10-13T16:13:45+08:00（取自 `date`）
+
+---
+
+## 前輪回報（Renew #1 前，BLOCKED，保留作歷史）
 
 ### 完成狀態
 

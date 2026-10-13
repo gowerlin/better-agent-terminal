@@ -71,13 +71,23 @@ export async function freePort(): Promise<number> {
   }
 }
 
-export function isolatedEnv(remotePort: number): Record<string, string> {
+/**
+ * `extra` (T0467) overrides inherited variables; a key matching an inherited one
+ * case-insensitively (Windows `Path` vs `PATH`) replaces it instead of duplicating it.
+ */
+export function isolatedEnv(remotePort: number, extra: Record<string, string> = {}): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue
     // Inherited BAT_* (tower terminal id, remote port/token, workspace id, …)
     // belong to the BAT this test runs inside — never hand them to the app.
     if (key.startsWith('BAT_') || key.startsWith('CT_') || key === 'ELECTRON_RUN_AS_NODE') continue
+    env[key] = value
+  }
+  for (const [key, value] of Object.entries(extra)) {
+    for (const existing of Object.keys(env)) {
+      if (existing !== key && existing.toLowerCase() === key.toLowerCase()) delete env[existing]
+    }
     env[key] = value
   }
   env.BAT_REMOTE_PORT = String(remotePort)
@@ -92,14 +102,15 @@ function isRuntimeUserData(userData: string, runtimeId: string): boolean {
 /**
  * Launches the source build with `--runtime=e2e-<name>-<timestamp>` and an isolated env.
  * `name` becomes part of the runtime id, e.g. `plan036-e1` → `e2e-plan036-e1-<ts>`.
+ * `opts.env` (T0467): extra variables for the app, see `isolatedEnv`.
  */
-export async function launchIsolated(name: string, log: Log = defaultLog): Promise<IsolatedInstance> {
+export async function launchIsolated(name: string, log: Log = defaultLog, opts: { env?: Record<string, string> } = {}): Promise<IsolatedInstance> {
   if (!/^[a-zA-Z0-9._-]+$/.test(name)) throw new Error(`invalid runtime name: ${name}`)
   const runtimeId = `e2e-${name}-${Date.now()}`
   const remotePort = await freePort()
   const app = await electron.launch({
     args: [REPO_ROOT, `--runtime=${runtimeId}`],
-    env: isolatedEnv(remotePort),
+    env: isolatedEnv(remotePort, opts.env),
   })
   let userData = ''
   try {

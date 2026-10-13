@@ -334,6 +334,43 @@ working. Run it alone after `npx vite build`:
    Agent and `bat-notify --submit` keep working.
 6. Repeat with the roles swapped (close the WSL window, keep SSH).
 
+**Automated real-remote acceptance (T0467, opt-in, Windows only):**
+`e2e/plan039-real-remote.spec.ts` runs steps 1-6 above unattended against the
+source build, with a real WSL server and a real SSH server. It is skipped unless
+`BAT_E2E_REAL_REMOTE=1`, so CI and `npm run test:e2e` never run it.
+
+```powershell
+node e2e/real-remote/plan039-real-remote-env.mjs up     # ~1 min first time (image build)
+npx vite build
+$env:BAT_E2E_REAL_REMOTE=1; npx playwright test e2e/plan039-real-remote.spec.ts   # ~40 s
+node e2e/real-remote/plan039-real-remote-env.mjs down   # add --rmi to drop the image too
+```
+
+- **Prerequisites**: WSL `Ubuntu-24.04` with its bat-server running on
+  `localhost:9877` (profile W, only read and connected to: the env script reads
+  its token / fingerprint like `smoke:remote:headless`, the spec kills every PTY
+  it created there), Docker Engine inside that distro (`docker.io`, user in the
+  `docker` group), Git for Windows (`usr\bin\ssh.exe`), and a linux-x64 tarball
+  in `dist-baseline/` (`npm run fetch:baseline`).
+- **What `up` creates** (all marked `bat-t0467` / label `bat.t0467=1`): image
+  `bat-t0467-sshd:local` (`e2e/real-remote/Dockerfile`: the baseline bundle plus
+  the current source's headless JS and helpers from `dev-deploy-headless`
+  staging), container `bat-t0467-sshd` (hostname `bat-t0467-s`; sshd with key
+  login for user `bat` on `127.0.0.1:22467`, its own bat-server on the
+  container's localhost — profile S reaches it through the usual `ssh -L`), and
+  `%TEMP%\bat-t0467` (temporary key, isolated `HOME`, `connection.json` for the
+  spec). No network or volume is created. `down` removes the container (only one
+  carrying the label) and the state dir; the image is kept for reruns.
+- **Differences from the manual steps**: no Claude Agent session (step 3), and
+  step 4's Worker is a PTY the window creates with
+  `customEnv.BAT_TOWER_TERMINAL_ID` = the Tower tab (the worker capability a
+  dispatched Worker gets) running `bat-notify.mjs --submit` itself, instead of a
+  `bat-terminal.mjs` dispatch that would start an agent. The pre-filled text is a
+  shell command, so its output in the Tower tab proves the Enter. The S
+  instance's `ssh` is Git for Windows' with an isolated `HOME` (prepended to
+  `PATH`), because System32 OpenSSH ignores `HOME` and would add the container's
+  host key to the user's `~/.ssh/known_hosts`; an installed BAT uses System32 ssh.
+
 ## Remote Tower notification (PLAN-036 K)
 
 A Control Tower session running in a remote tab dispatches Workers

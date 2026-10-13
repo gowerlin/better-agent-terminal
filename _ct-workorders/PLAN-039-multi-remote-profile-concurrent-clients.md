@@ -55,3 +55,4 @@ links:
 - 🟡 **待使用者實機驗收**：WSL + SSH 同時開窗（終端 / Agent / `bat-notify --submit`）、關其中一個 15 s 後斷線另一個不受影響——步驟見 docs 該節；AI 無法代驗。PLAN 狀態轉 DONE 由塔台於實機驗收後決定
 - 已知限制（D135 Q3）：同 target 兩 profile 的雙 Enter
 - ⛔ T0467（實機驗收自動化，2026-10-13T15:57:09+08:00）**BLOCKED**：本機沒有 Docker engine（WSL `Ubuntu-24.04` 內沒有 docker，Windows `docker.exe` 只有 client），SSH 端容器拓撲無法建立，待塔台裁決（推薦：使用者在 WSL 安裝 `docker.io` 後原單重派）。詳見 T0467 回報區
+- ✅ T0467 Renew #1（2026-10-13T16:13:01+08:00）**實機驗收自動化全綠**：WSL 裝 `docker.io` 29.1.3 後，opt-in `e2e/plan039-real-remote.spec.ts`（真 WSL server `localhost:9877` + WSL Docker 容器 `bat-t0467-sshd` 內獨立 bat-server 經 `ssh -L`）docs 實機步驟 1-6 全 PASS（步驟 3 不含 Agent；步驟 4 以 Worker PTY 直接執行 `bat-notify --submit`、不經 `bat-terminal.mjs` 與 LLM），`down`→`up` 重建後再跑仍 5/5；回歸 `plan039-multi-remote.spec.ts` 4/4。未發現產品缺陷。仍未涵蓋：Claude Agent 對話、System32 OpenSSH（spec 用 Git ssh 隔離 known_hosts）。PLAN 狀態未改，由塔台裁決
