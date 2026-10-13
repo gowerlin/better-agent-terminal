@@ -7,7 +7,7 @@ on:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.resolve.outputs.VERSION }}
       tag: ${{ steps.resolve.outputs.TAG }}
@@ -38,10 +38,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -60,7 +60,7 @@ jobs:
         run: node scripts/verify-server-bundle.js --target=${{ matrix.target }}
 
       - name: Upload server bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-bundle-${{ matrix.target }}
           if-no-files-found: error
@@ -73,15 +73,15 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
       - name: Download server bundle artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: server-bundle-*
           merge-multiple: true
@@ -101,7 +101,7 @@ jobs:
             --output dist-server/manifest.json
 
       - name: Upload baseline bundle (tarballs + sidecars + manifest)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-bundle-baseline
           if-no-files-found: error
@@ -119,17 +119,17 @@ jobs:
             platform: win
           - os: macos-latest
             platform: mac
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: linux
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -146,7 +146,7 @@ jobs:
         run: npx --yes @electron/rebuild
 
       - name: Download server bundle baselines into dist-baseline/
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: server-bundle-baseline
           path: dist-baseline
@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload Windows artifact
         if: matrix.platform == 'win'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-win
           path: |
@@ -224,27 +224,27 @@ jobs:
 
       - name: Upload macOS artifact
         if: matrix.platform == 'mac'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-mac
           path: release/*.dmg
 
       - name: Upload Linux artifact
         if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-linux
           path: release/*.AppImage
 
   release:
     needs: [prepare, build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -256,7 +256,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             artifacts/release-win/*
@@ -275,7 +275,7 @@ jobs:
       # before the Homebrew dispatch so a tap failure cannot skip it. Always a prerelease
       # so it never becomes the repo's Latest release.
       - name: Create server bundle release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: server-bundle-v${{ needs.prepare.outputs.version }}
           target_commitish: ${{ github.sha }}
@@ -300,7 +300,7 @@ jobs:
       # TAP_GITHUB_TOKEN secret with access to that tap repo.
       - name: Update Homebrew tap
         if: ${{ !contains(github.ref, '-pre') && vars.HOMEBREW_TAP_REPO != '' }}
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.TAP_GITHUB_TOKEN }}
           repository: ${{ vars.HOMEBREW_TAP_REPO }}
@@ -317,10 +317,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-win
           path: artifacts
