@@ -19,9 +19,13 @@ export function P(input: number, output: number, opts?: { cacheReadMultiplier?: 
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   // Claude 5 — T0368 §4 (pricing page, 2026-10-04). Opus 5.5 / Fable 5.1 cache read is 0.05x / 0.025x.
+  // T0483 (pricing page, 2026-10-13): Sonnet 5.5 cache read is now 0.05x too (was 0.1x).
   'opus-5-5':  P(4, 20, { cacheReadMultiplier: 0.05 }),
   'fable-5-1': P(10, 50, { cacheReadMultiplier: 0.025 }),
-  'sonnet-5-5': P(2, 10),
+  'sonnet-5-5': P(2, 10, { cacheReadMultiplier: 0.05 }),
+  // Haiku 5.5 is priced by prompt length: a request whose prompt (all input tokens, cache reads
+  // and writes included) is over 100,000 tokens pays the `-long` prices (T0483, pricing page).
+  'haiku-5-5': P(0.10, 0.50), 'haiku-5-5-long': P(0.50, 2.50),
   'opus-5':    P(5, 25),    'opus-4-8':  P(5, 25),
   'sonnet-5':  P(2, 10),    'fable-5':   P(10, 50),
   'opus-4-7':  P(5, 25),    'opus-4-6':  P(5, 25),    'opus-4-5':  P(5, 25),
@@ -31,8 +35,15 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
   'haiku-4-5': P(1, 5),     'haiku-3-5': P(0.80, 4),  'haiku-3': P(0.25, 1.25),
 }
 
-export function getModelPricing(model: string): ModelPricing | null {
+export const HAIKU_5_5_LONG_PROMPT_THRESHOLD = 100_000
+
+// `promptTokens` only matters for Haiku 5.5; without it the up-to-100K prices are returned.
+export function getModelPricing(model: string, opts?: { promptTokens?: number }): ModelPricing | null {
   // `includes` is a prefix trap: the point releases must be checked before their base model.
+  if (model.includes('haiku-5-5')) {
+    const long = (opts?.promptTokens ?? 0) > HAIKU_5_5_LONG_PROMPT_THRESHOLD
+    return MODEL_PRICING[long ? 'haiku-5-5-long' : 'haiku-5-5']
+  }
   if (model.includes('opus-5-5')) return MODEL_PRICING['opus-5-5']
   if (model.includes('opus-5')) return MODEL_PRICING['opus-5']
   if (model.includes('opus-4-8')) return MODEL_PRICING['opus-4-8']

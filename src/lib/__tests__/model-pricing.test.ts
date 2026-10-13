@@ -2,10 +2,11 @@
 //
 // The "legacy" block locks the ID → price mapping that ClaudeAgentPanel /
 // CodexAgentPanel had inline before the shared module existed; it must not change.
-// Claude 5 prices come only from T0368 report §4 (platform.claude.com pricing page).
+// Claude 5 prices come only from T0368 report §4 (platform.claude.com pricing page);
+// T0483 re-read that page on 2026-10-13 for Haiku 5.5 and the Sonnet 5.5 cache-read change.
 
 import { describe, it, expect } from 'vitest'
-import { P, getModelPricing, type ModelPricing } from '../model-pricing'
+import { P, getModelPricing, HAIKU_5_5_LONG_PROMPT_THRESHOLD, type ModelPricing } from '../model-pricing'
 
 function expectPricing(actual: ModelPricing | null, expected: ModelPricing) {
   expect(actual).not.toBeNull()
@@ -78,7 +79,10 @@ describe('getModelPricing — Claude 5 (T0368 §4)', () => {
     ['claude-opus-5-5', price(4, 20, 0.2, 5, 8)],
     ['claude-opus-5-5[1m]', price(4, 20, 0.2, 5, 8)],
     ['claude-fable-5-1', price(10, 50, 0.25, 12.5, 20)],
-    ['claude-sonnet-5-5', price(2, 10, 0.2, 2.5, 4)],
+    // T0483: Sonnet 5.5 cache read dropped to $0.10 (0.05x), pricing page 2026-10-13
+    ['claude-sonnet-5-5', price(2, 10, 0.1, 2.5, 4)],
+    // T0483: Haiku 5.5, prompts up to 100,000 tokens
+    ['claude-haiku-5-5', price(0.1, 0.5, 0.01, 0.125, 0.2)],
     ['claude-opus-5', price(5, 25, 0.5, 6.25, 10)],
     ['claude-opus-4-8', price(5, 25, 0.5, 6.25, 10)],
     ['claude-sonnet-5', price(2, 10, 0.2, 2.5, 4)],
@@ -94,5 +98,32 @@ describe('getModelPricing — Claude 5 (T0368 §4)', () => {
     expect(getModelPricing('claude-opus-5')!.input).toBe(5)
     expect(getModelPricing('claude-fable-5-1')!.cacheRead).toBeCloseTo(0.25, 10)
     expect(getModelPricing('claude-fable-5')!.cacheRead).toBeCloseTo(1, 10)
+  })
+
+  it('Haiku 5.5 is not matched by the Haiku 4 / 3 rules', () => {
+    expect(getModelPricing('claude-haiku-5-5')!.input).toBeCloseTo(0.1, 10)
+    expect(getModelPricing('claude-haiku-4-5')!.input).toBe(1)
+  })
+})
+
+describe('getModelPricing — Haiku 5.5 prompt-length tiers (T0483)', () => {
+  const SHORT = price(0.1, 0.5, 0.01, 0.125, 0.2)
+  const LONG = price(0.5, 2.5, 0.05, 0.625, 1)
+
+  it('uses the up-to-100K prices when the prompt length is unknown', () => {
+    expectPricing(getModelPricing('claude-haiku-5-5'), SHORT)
+  })
+
+  it('100,000 tokens exactly is still the lower tier', () => {
+    expect(HAIKU_5_5_LONG_PROMPT_THRESHOLD).toBe(100_000)
+    expectPricing(getModelPricing('claude-haiku-5-5', { promptTokens: 100_000 }), SHORT)
+  })
+
+  it('over 100,000 tokens uses the long-prompt prices', () => {
+    expectPricing(getModelPricing('claude-haiku-5-5', { promptTokens: 100_001 }), LONG)
+  })
+
+  it('promptTokens does not affect other models', () => {
+    expectPricing(getModelPricing('claude-sonnet-5-5', { promptTokens: 900_000 }), price(2, 10, 0.1, 2.5, 4))
   })
 })
