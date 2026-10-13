@@ -32,9 +32,9 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404 | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
-| BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號 | 🟡 medium | 2026-10-05 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
-| BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
+| BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（→ T0488，D139） | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
+| BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號（→ T0490 研究，D139） | 🟡 medium | 2026-10-05 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
+| BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing；→ T0486，D139） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 
 ## ⏳ 修復中 (FIXING)
 

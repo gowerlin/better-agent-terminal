@@ -1361,6 +1361,20 @@
 
 ---
 
+### D139 2026-10-13 — 已知問題一次開單（T0484-T0493），分波並行，整批完成並聯合複驗後才發 v0.6.0-pre.5
+
+- **背景**：使用者 23:11 指示「Haiku 5.5 成本低估也開單修，還有發現甚麼問題請一次開單，不要每次改一個發布一次」
+- **決定**（範圍與分組由塔台依 breakpoint C 決定）：
+  - 納入（缺陷 / 技術債）：T0484 Claude 面板成本分段計價 + `setModel()` 5 系列上限；T0485 提早日誌 / early crash handler / macOS PATH 修正提前；T0486 tsc 基線清零（含 BUG-061）+ typecheck scripts；T0487 Actions 原生 Node 24 + 釘 ubuntu runner；T0488 BUG-115；T0489 wizard jumpToStep rollback（T0309 TODO）；T0490 BUG-114 研究；T0491 remote 失敗對話框三語化 + detached 視窗終端持久化（BUG-113 已知限制）；T0492 移除未使用 better-sqlite3；T0493 文件收尾 + `.gitattributes`（採 T0454 建議，renormalize 須 0 檔才 commit）
+  - fsevents：比照 electron-winstaller **不列入** `allowScripts`（寫 `false` 會改變 npm 11 / CI 行為），由 T0493 記入 CLAUDE.md
+  - 分波：第一波 T0484 / T0485 / T0486 / T0487 / T0490（檔案不重疊）；名額空出後 T0488 / T0489；第二波 T0491（依 T0485 + T0486，皆改 main / preload）、T0492（依 T0486 + T0487 + T0488，皆改 package.json / workflows / scripts）；最後 T0493
+  - 並行規則：`git commit --only` 本單檔案；除 T0492 / T0493 外不改 CLAUDE.md（建議文字寫回報區由 T0493 套用）；tsc 以檔案為單位不增加
+  - 發版：T0493 後塔台聯合複驗全綠才提 pre.5（仍需使用者確認發版）
+- **不納入**：功能性工作（snippet「agent 提案 → 一鍵套用」、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2）；Haiku 5.5 CLI 版本門檻（無證據）；Vite `hashbangRE` 上游回報（外部）；實機驗收項目；D094 門檻復議 / archive
+- **相關**：T0483 / T0479 / T0464 / BUG-113 / BUG-114 / BUG-115 / BUG-061 / T0454 / L146
+
+---
+
 ### D138 2026-10-13 — BUG-119 userData 統一：採 T0479 推薦 (a)+(c)+(b)，統一到 `BetterAgentTerminal[-runtime-<N>]/`，拆 A / B / C 三張
 
 - **背景**：T0479 研究完成。`snippet-db` import 期 `getPath('userData')` 把小寫路徑寫進 PathService 快取，`Local State`（safeStorage 金鑰）/ lock / Logs / Crashes / `message-archives` / mirror `bat-scripts.log` 落小寫，設定與 sessionData 落大寫；runtime 實例整個在 `better-agent-terminal-runtime-N`。衍生：啟動時日誌設定被忽略。🔴 統一時若未在 ready 前複製 `Local State`，`server-token.json` 解不開 → 遠端全部重配（probe 實證）
