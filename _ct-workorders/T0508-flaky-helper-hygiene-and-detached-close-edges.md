@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0508
 title: "收尾：helper-connection-hygiene 計時敏感測試改為確定性 + detached 關窗兩個邊界（flush 中再 detach、quit 對話框取消後的 rename 遺失）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: D139
 priority: P3
 sizing: S
 created_at: "2026-10-14T00:38:51+08:00"
 started_at: "2026-10-14T00:39:42+08:00"
-updated_at: "2026-10-14T00:39:42+08:00"
-completed_at: null
+updated_at: "2026-10-14T00:59:49+08:00"
+completed_at: "2026-10-14T00:59:49+08:00"
 target_version: v0.6.0-pre.5
 depends_on:
   - "T0504"
@@ -164,4 +164,4 @@ e2e 皆以 isolated `--runtime=e2e-…` 執行，結束時 fixture 刪除 userDa
 
 ### Commit
 
-`git commit --only` 本單檔案（工單、`electron/renderer-flush.ts`、`electron/main.ts`、三個測試檔、`e2e/detached-close-edges.spec.ts`）；未 push、未觸發 workflow；`_ct-workorders/T0507-*`、`tmp/` 未納入。hash 見 git log（`fix: T0508 …`）。
+`git commit --only` 本單檔案（工單、`electron/renderer-flush.ts`、`electron/main.ts`、三個測試檔、`e2e/detached-close-edges.spec.ts`）= `7c86f2c`；未 push、未觸發 workflow；`_ct-workorders/T0507-*`、`tmp/` 未納入。hash 見 git log（`fix: T0508 …`）。
