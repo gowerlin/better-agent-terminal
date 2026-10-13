@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 04:19 (UTC+8) — 第六十 session：BUG-124 FIXED（T0517）；pre.7 批次（123-126）塔台聯合複驗全綠 @ `5599ab1`
+> 最後同步：2026-10-14 05:07 (UTC+8) — 第六十 session：BUG-124 / 125 / 126 CLOSED（T0520 pre.7 已安裝版自動化驗收 PASS）；BUG-123 自動化 PASS，待真實 WSL 目視
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 11 | 🧪 Verify: 0 | 🚫 Closed: 40 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 8 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -42,9 +42,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0517 `213f587`：偵測 ssh `administratively prohibited`，三語提示 `AllowTcpForwarding`） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |
-| BUG-126 | scan-skills / star commands：frontmatter 無 description 時 fallback 恆空字串（T0519 `aa26c76`：改用 `parseCommandDescription`） | 🟢 low | 2026-10-14 | [BUG-126](BUG-126-skill-description-fallback-never-leaves-frontmatter.md) |
-| BUG-125 | claude:scan-skills：commands 以第一行當 description，帶 frontmatter 顯示 "---"（T0518 `b66b525`：commands 先讀 frontmatter description） | 🟢 low | 2026-10-14 | [BUG-125](BUG-125-scan-skills-command-description-frontmatter.md) |
 | BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
 | BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
@@ -64,6 +61,9 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0517 `213f587`：偵測 ssh `administratively prohibited`，三語提示 `AllowTcpForwarding`） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |
+| BUG-126 | scan-skills / star commands：frontmatter 無 description 時 fallback 恆空字串（T0519 `aa26c76`：改用 `parseCommandDescription`） | 🟢 low | 2026-10-14 | [BUG-126](BUG-126-skill-description-fallback-never-leaves-frontmatter.md) |
+| BUG-125 | claude:scan-skills：commands 以第一行當 description，帶 frontmatter 顯示 "---"（T0518 `b66b525`：commands 先讀 frontmatter description） | 🟢 low | 2026-10-14 | [BUG-125](BUG-125-scan-skills-command-description-frontmatter.md) |
 | BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-14 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
 | BUG-109 | `/snippet` prompt 寫死 macOS `snippets.json` 路徑（T0441） | 🟢 low | 2026-10-14 | [BUG-109](BUG-109-snippet-prompt-hardcoded-macos-path.md) |
 | BUG-106 | `worktree:merge` 呼叫已移除的 `WorktreeManager.mergeWorktree`（T0417，移除殘留） | 🟢 low | 2026-10-14 | [BUG-106](BUG-106-worktree-merge-calls-removed-method.md) |

@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-126
 title: "claude:scan-skills / scan-star-commands：frontmatter 沒有 description 時 fallback 永遠拿到空字串（結束行 `---` 被當成開頭行）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-14T04:09:11+0800"
-updated_at: "2026-10-14T04:12:07+0800"
+updated_at: "2026-10-14T05:07:56+0800"
 fixed_at: "2026-10-14T04:12:07+0800"
+closed_at: "2026-10-14T05:07:56+0800"
 impact:
   - claude-panel
   - skills-list
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（frontmatter 無 description 的 skill 描述空白） |
 | 可重現 | 必現 |
-| **狀態** | ✅ FIXED（T0519，待驗收） |
+| **狀態** | 🚫 CLOSED（pre.7 已安裝版自動化實機驗收 T0520 PASS，`a4fe1f5`，2026-10-14T05:07:56+0800；修復 T0519） |
 | 回報者 | T0518 Worker（塔台確認程式碼） |
 
 ## 現象

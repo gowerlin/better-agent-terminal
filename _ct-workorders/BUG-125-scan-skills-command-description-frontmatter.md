@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-125
 title: "claude:scan-skills：`.claude/commands/*.md` 以檔案第一行當 description，帶 YAML frontmatter 的 command 顯示成 \"---\""
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-14T04:03:26+0800"
-updated_at: "2026-10-14T04:08:17+0800"
+updated_at: "2026-10-14T05:07:56+0800"
 fixed_at: "2026-10-14T04:08:17+0800"
+closed_at: "2026-10-14T05:07:56+0800"
 impact:
   - claude-panel
   - skills-list
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（清單描述錯誤；功能正常） |
 | 可重現 | 必現（任一帶 frontmatter 的 `.claude/commands/*.md`） |
-| **狀態** | ✅ FIXED（T0518，2026-10-14T04:08:17+0800） |
+| **狀態** | 🚫 CLOSED（pre.7 已安裝版自動化實機驗收 T0520 PASS，`a4fe1f5`，2026-10-14T05:07:56+0800；修復 T0518） |
 | 回報者 | T0514 Worker（塔台開單、程式碼確認） |
 
 ## 現象
