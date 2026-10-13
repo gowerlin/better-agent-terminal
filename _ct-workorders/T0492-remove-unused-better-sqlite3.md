@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0492
 title: "移除未使用的 better-sqlite3：dependencies / @types / allowScripts / postinstall rebuild / verify-native-modules / server bundle nativePackages / CI rebuild / 文件"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: D139
 priority: P2
 sizing: M
 created_at: "2026-10-13T23:13:05+08:00"
 started_at: "2026-10-13T23:37:00+08:00"
-updated_at: "2026-10-13T23:37:00+08:00"
-completed_at: null
+updated_at: "2026-10-13T23:53:57+08:00"
+completed_at: "2026-10-13T23:53:57+08:00"
 target_version: v0.6.0-pre.5
 depends_on:
   - "T0486"
@@ -225,5 +225,5 @@ memory_overrides:
 
 ### Commit
 
-見下方 commit（`git commit --only` 本單檔案）；不 push。
+`cf74b99` `chore: T0492 remove unused better-sqlite3, harden server bundle`（`git commit --only` 本單 15 個檔，未含其他 Worker 的 WIP）；結案 metadata 另一筆 commit。不 push。
 
