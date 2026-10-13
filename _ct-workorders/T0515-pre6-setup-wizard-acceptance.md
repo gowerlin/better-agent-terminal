@@ -151,6 +151,7 @@ node e2e/real-remote/t0515-wizard-env.mjs down      # 預設保留 image；--rmi
 - `e2e/pre6-wizard-acceptance.spec.ts`（新）：opt-in spec，5 個 serial test（W1–W6 / W6+W7(a) / W7(b)+W8 / W10 / W9）；失敗情境由測試側製造（sshd `AllowTcpForwarding no`、使用者 `nc` 占埠），取消後以 stepper class（`bat-stepper-status-rolled-back`）與遠端狀態雙重判定；prompt 記錄會把使用者自己的 `~/.ssh/config` alias 遮成 `<user alias>`
 - `e2e/real-remote/t0515-wizard-env.mjs`（新）：`up` / `status` / `apply-ssh-config` / `restore-ssh-config` / `docker-check` / `down`；全部資源 `bat-t0515-*` + label `bat.t0515=1`，刪除前再核對 label；`~/.ssh/config` 標記區塊 + 備份 / SHA-256 還原沿用 T0510 做法
 - `e2e/real-remote/t0515-sshd.Dockerfile`（新）：沿用 T0510 形狀（systemd PID 1 + sshd），label `bat.t0515`、不設 `AllowUsers`（W10 需第二個帳號）、加 `netcat-openbsd`
+- commit：`9917445 test(e2e): T0515 pre.6 setup-wizard acceptance lane (opt-in)`（`git commit --only` 4 個檔案；未 push）
 - 未改 T0510 既有腳本、`e2e/fixtures/electron-isolation.ts` 與任何產品程式碼（`electron/**`、`src/**`、`scripts/**`、`package.json` 皆未動）
 
 ### 驗收條件
