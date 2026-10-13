@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T04:03:26+0800"
+generated_at: "2026-10-14T04:09:11+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 50
+total: 51
 breakdown:
   OPEN: 0
   FIXING: 2
-  FIXED: 22
+  FIXED: 23
   VERIFY: 0
   CLOSED: 26
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 04:03 (UTC+8) — 第六十 session：T0514-T0516 自動化驗收完成；BUG-124 / 125 FIXING（T0517 / T0518）
+> 最後同步：2026-10-14 04:09 (UTC+8) — 第六十 session：BUG-125 FIXED（T0518）；BUG-124 / 126 FIXING（T0517 / T0519）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 50**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -37,13 +37,14 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-126 | scan-skills / star commands：frontmatter 無 description 時 fallback 恆空字串（T0518 遺留；T0519） | 🟢 low | — | [BUG-126](BUG-126-skill-description-fallback-never-leaves-frontmatter.md) |
 | BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0515 觀察；T0517） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |
-| BUG-125 | claude:scan-skills：commands 以第一行當 description，帶 frontmatter 顯示 "---"（T0514 觀察；T0518） | 🟢 low | 2026-10-14 | [BUG-125](BUG-125-scan-skills-command-description-frontmatter.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-125 | claude:scan-skills：commands 以第一行當 description，帶 frontmatter 顯示 "---"（T0518 `b66b525`：commands 先讀 frontmatter description） | 🟢 low | 2026-10-14 | [BUG-125](BUG-125-scan-skills-command-description-frontmatter.md) |
 | BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 | BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
 | BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
