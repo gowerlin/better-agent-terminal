@@ -73,6 +73,25 @@ describe('detached workspace persistence (T0453 source guard)', () => {
     expect(adopt).toMatch(/windowRegistry\.withEntry\(windowId, \(entry\) => \{[\s\S]*detachedTerminalOwners\.release\(windowId, workspaceId\)[\s\S]*workspaceTerminals\(entry\.terminals/)
   })
 
+  it('T0504: a detached window flushes before it closes; it stays registered until closed; quit flushes per renderer', () => {
+    const detach = section("ipcMain.handle('workspace:detach'", "ipcMain.handle('workspace:adopt-detached'")
+    const flush = detach.search(/flushBeforeClose\(detachedWin, \{\s*skip: \(\) => isAppQuitting,\s*flush: \(\) => requestRendererFlush\(detachedWin\.webContents, ipcMain, DETACHED_CLOSE_FLUSH_TIMEOUT_MS\),/)
+    expect(flush).toBeGreaterThan(-1)
+    // Installed before the window can load (and close), and before the 'closed' → whenIdle → reattached chain.
+    expect(flush).toBeLessThan(detach.indexOf('detachedWin.loadFile('))
+    expect(flush).toBeLessThan(detach.indexOf("detachedWin.on('closed'"))
+    // workspace:reattach must not unregister a live window: its flush-save would no longer be recognised as detached.
+    const reattach = section("ipcMain.handle('workspace:reattach'", '// ── Agent Runtime IPC')
+    expect(reattach).toMatch(/if \(win && !win\.isDestroyed\(\)\) \{\s*win\.close\(\)\s*return true\s*\}/)
+    const lastWindowClosed = section("win.on('closed', () => {\n    windowMap.delete(windowId)", '// Rebuild tray menu')
+    expect(lastWindowClosed).not.toMatch(/detachedWindows\.clear\(\)/)
+    // Quit: each renderer's own ack, bounded; detached windows included.
+    const quit = section('// Notify all renderer windows to flush their latest state', "// Save all open windows' profiles before quitting")
+    expect(quit).toMatch(/for \(const win of \[\.\.\.windowMap\.values\(\), \.\.\.detachedWindows\.values\(\)\]\)/)
+    expect(quit).toMatch(/requestRendererFlush\(win\.webContents, ipcMain, QUIT_FLUSH_TIMEOUT_MS\)/)
+    expect(quit).not.toMatch(/ipcMain\.once\('workspace:flush-save-done'/)
+  })
+
   it('the registry handlers still require a registry window (remote clients / unknown senders unchanged)', () => {
     expect(section("registerHandler('workspace:save'", "registerHandler('workspace:load'")).toMatch(/if \(!ctx\.windowId\) return false/)
     expect(section("registerHandler('workspace:load'", '// Settings persistence')).toMatch(/if \(!ctx\.windowId\) return null/)

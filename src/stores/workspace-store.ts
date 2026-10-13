@@ -847,8 +847,9 @@ class WorkspaceStore {
 
   // Persistence — serialized to prevent concurrent writes from corrupting the file
   async save(): Promise<void> {
-    // If a save is already queued, skip — the queued save will capture the latest state
-    if (this._savePending) return
+    // If a save is already queued, skip — the queued save will capture the latest state.
+    // T0504: still hand back that save's promise, so a flush-save waits until it was sent.
+    if (this._savePending) return this._savePromise
     this._savePending = true
 
     // Wait for any in-flight save to finish, then perform ours

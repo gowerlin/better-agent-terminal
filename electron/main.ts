@@ -8,6 +8,7 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { spawnSync, fork } from 'child_process'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
+import { DETACHED_CLOSE_FLUSH_TIMEOUT_MS, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, requestRendererFlush } from './renderer-flush'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { registerPtyHandlers } from './handlers/pty'
@@ -1119,11 +1120,15 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
     // Close detached windows that were opened from this window
     // (for now close all detached — same as before)
     if (windowMap.size === 0) {
-      for (const [, dw] of detachedWindows) {
-        if (!dw.isDestroyed()) dw.close()
+      // T0504: a live detached window stays registered until its own 'closed' (after its flush-save).
+      for (const [workspaceId, dw] of [...detachedWindows]) {
+        if (!dw.isDestroyed()) {
+          dw.close()
+        } else {
+          detachedWindows.delete(workspaceId)
+          detachedWindowRecords.delete(workspaceId)
+        }
       }
-      detachedWindows.clear()
-      detachedWindowRecords.clear()
     }
   })
 
@@ -1969,24 +1974,17 @@ app.on('before-quit', async (e) => {
 
     // Notify all renderer windows to flush their latest state (workspace + layout)
     try {
-      const savePromises: Promise<void>[] = []
+      const savePromises: Promise<string>[] = []
       // T0491: detached windows save their workspace's terminals into the parent's entry too.
       for (const win of [...windowMap.values(), ...detachedWindows.values()]) {
         if (!win.isDestroyed() && win.webContents) {
-          const p = new Promise<void>((resolve) => {
-            // Give renderer 2s max to save, then proceed anyway
-            const timeout = setTimeout(resolve, 2000)
-            win.webContents.send('workspace:flush-save')
-            ipcMain.once('workspace:flush-save-done', () => {
-              clearTimeout(timeout)
-              resolve()
-            })
-          })
-          savePromises.push(p)
+          // T0504: each renderer's own ack (one window's ack used to release every wait), 2s max each.
+          savePromises.push(requestRendererFlush(win.webContents, ipcMain, QUIT_FLUSH_TIMEOUT_MS))
         }
       }
-      await Promise.all(savePromises)
-      logger.log(`[quit] flushed ${savePromises.length} renderer(s)`)
+      const results = await Promise.all(savePromises)
+      const notDone = results.filter(r => r !== 'done').length
+      logger.log(`[quit] flushed ${savePromises.length} renderer(s)${notDone ? ` (${notDone} timed out / gone)` : ''}`)
     } catch (err) {
       logger.error(`[quit] failed to flush renderers: ${err}`)
     }
@@ -3256,6 +3254,17 @@ function registerLocalHandlers() {
     })
     guardWindowNavigation(detachedWin)
     setupResizeThrottle(detachedWin, 'detached')
+    // T0504: save once more before the window goes (a rename / sdkSessionId otherwise waits for
+    // the 30 s autosave); 'closed' — and with it 'workspace:reattached' — only follows the flush.
+    // Quitting skips it: the quit path flushed every window already.
+    flushBeforeClose(detachedWin, {
+      skip: () => isAppQuitting,
+      flush: () => requestRendererFlush(detachedWin.webContents, ipcMain, DETACHED_CLOSE_FLUSH_TIMEOUT_MS),
+      onResult: (result, ms) => {
+        if (result === 'done') logger.log(`[detached] ${workspaceId}: flush-save before close done in ${ms}ms`)
+        else logger.warn(`[detached] ${workspaceId}: flush-save before close ${result} after ${ms}ms, closing anyway`)
+      },
+    })
     detachedWindows.set(workspaceId, detachedWin)
     detachedWindowRecords.set(workspaceId, record)
     // T0491: from now on the detached window owns this workspace's terminal list in the parent's entry.
@@ -3295,7 +3304,12 @@ function registerLocalHandlers() {
 
   ipcMain.handle('workspace:reattach', async (_event, workspaceId: string) => {
     const win = detachedWindows.get(workspaceId)
-    if (win && !win.isDestroyed()) win.close()
+    // T0504: a live window stays registered until 'closed' (its flush-save must still be
+    // recognised as the detached window's); 'closed' removes it.
+    if (win && !win.isDestroyed()) {
+      win.close()
+      return true
+    }
     detachedWindows.delete(workspaceId)
     detachedWindowRecords.delete(workspaceId)
     return true

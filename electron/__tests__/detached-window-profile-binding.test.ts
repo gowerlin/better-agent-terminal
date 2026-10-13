@@ -187,6 +187,8 @@ describe('main.ts wiring (T0446 source guard)', () => {
     expect(detach).toMatch(/on\('closed'[\s\S]*detachedWindowRecords\.delete\(workspaceId\)/)
     const reattach = section("ipcMain.handle('workspace:reattach'", '// ── Agent Runtime IPC')
     expect(reattach).toMatch(/detachedWindowRecords\.delete\(workspaceId\)/)
-    expect(src).toMatch(/detachedWindows\.clear\(\)\s+detachedWindowRecords\.clear\(\)/)
+    // T0504: the last registry window closing closes live detached windows (their own 'closed'
+    // drops the record, after their flush-save) and drops the records of destroyed ones at once.
+    expect(src).toMatch(/if \(!dw\.isDestroyed\(\)\) \{\s*dw\.close\(\)\s*\} else \{\s*detachedWindows\.delete\(workspaceId\)\s*detachedWindowRecords\.delete\(workspaceId\)\s*\}/)
   })
 })
