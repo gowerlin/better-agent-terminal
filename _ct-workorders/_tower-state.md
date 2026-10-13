@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-14 03:40 (UTC+8) — **第六十 session 進行中**（BUG-122 CLOSED；BUG-123 開單 → T0513 DONE `90b35ee`，未發版）。以下為第五十九 session 收工摘要 — pre.5 自動化實機驗收（T0510）→ SSH 精靈修正（T0511，BUG-120 / 121）∥ Profile 對話框版面（T0512，BUG-122）→ **`v0.6.0-pre.6` 已發佈**；BUG-114 / 119 CLOSED。
+> 最後更新:2026-10-14 03:40 (UTC+8) — **第六十 session 進行中**：**`v0.6.0-pre.7` 已發佈**（04:43，run `38461996096` @ `b77f3cc`，BUG-123-126）；T0514-T0516 自動化驗收結案 18 張。以下為第五十九 session 收工摘要 — pre.5 自動化實機驗收（T0510）→ SSH 精靈修正（T0511，BUG-120 / 121）∥ Profile 對話框版面（T0512，BUG-122）→ **`v0.6.0-pre.6` 已發佈**；BUG-114 / 119 CLOSED。
 >
 > **下次起手**:Fast Path 載入;確認使用者已安裝 `v0.6.0-pre.6`（FileVersion）→ 看 Profile 對話框（BUG-122）、真實 SSH 主機精靈（BUG-120 / 121）；Gary mac 驗收改用 pre.6 arm64 dmg。
 
@@ -122,10 +122,10 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.0-pre.6**（package.json + lock，2026-10-14 03:16 同步） |
-| **最新 release** | `v0.6.0-pre.6`（2026-10-14 03:16，run `38450958394`，target `79b1275`，T0510-T0512：SSH 精靈安裝 / 啟動修正、Profile 對話框加寬）+ `server-bundle-v0.6.0-pre.6`（7 assets）。前一版 `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
-| **前一 tag** | `v0.6.0-pre.5`（2026-10-14 01:38，`7a6fb9c`） |
-| **目前主軸** | pre.6 實機（Profile 版面、真實 SSH 主機）+ Gary mac 驗收 → 依結果 CLOSE Fixed 25 張 |
+| **目前版號** | **0.6.0-pre.7**（package.json + lock，2026-10-14 04:47 同步） |
+| **最新 release** | `v0.6.0-pre.7`（2026-10-14 04:43，run `38461996096`，target `b77f3cc`，T0513 / T0517-T0519：遠端狀態燈、SSH forwarding 被拒訊息、commands / skills 描述；10 job 全綠）+ `server-bundle-v0.6.0-pre.7`（7 assets）。前一版 `v0.6.0-pre.6`（2026-10-14 03:16，run `38450958394`，target `79b1275`，T0510-T0512：SSH 精靈安裝 / 啟動修正、Profile 對話框加寬）+ `server-bundle-v0.6.0-pre.6`（7 assets）。前一版 `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
+| **前一 tag** | `v0.6.0-pre.6`（2026-10-14 03:16，`79b1275`） |
+| **目前主軸** | pre.7 實機（BUG-123 WSL 燈號）+ 真人 5 分鐘項（105 / 107 / 108）+ Docker 精靈（097 / 111）+ Gary mac（116 / 118） |
 | **工單最大編號** | T0519（T0513-T0519 全 DONE；T0514-T0516 為驗收單；T0513 / T0517-T0519 待 pre.7） |
 | **BUG 最大編號** | **BUG-126**；Open 0 / Fixing 0 / Fixed 11（123-126 待 pre.7；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 40 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
