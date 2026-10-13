@@ -2,7 +2,10 @@
  * T0413 (PLAN-037 F): RemoteToolsPanel entry points outside the remote window.
  *  - RemoteToolsEntry: detect(profileId) wiring + T0412 requestInstall present / absent / failing
  *  - ProfilePanel: panel only on remote profiles, probe only on expand, coexists with the legacy targetOS prompt
+ *  - T0512 (BUG-122): card body below the header (full width), widened dialog, profile-host tool grid
  */
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import i18n from '../../i18n'
@@ -191,6 +194,37 @@ describe('ProfilePanel remote tools entry', () => {
     expect(within(legacy).getByTestId('legacy-remote-targetos-prompt')).toBeInTheDocument()
     expect(within(legacy).getByTestId('remote-tools-entry-profile')).toBeInTheDocument()
     await waitFor(() => expect(api.remoteTools.detect).toHaveBeenCalledWith('r-legacy'))
+  })
+
+  // T0512 (BUG-122): jsdom does not lay out, so the structure + the CSS rules that place it are pinned.
+  test('expanded remote card: panel sits in the card body after the header row, dialog is the profile panel', async () => {
+    renderPanel([LOCAL, REMOTE_WSL])
+    await expand('r-wsl')
+    const entry = await within(card('r-wsl')).findByTestId('remote-tools-entry-profile')
+    const children = Array.from(card('r-wsl').children)
+    expect(children.map((el) => el.className)).toEqual(['profile-card-header', 'profile-card-body'])
+    expect(entry.closest('.profile-card-body')).toBe(children[1])
+    expect(entry.querySelector('.remote-tools-panel')).toHaveClass('remote-tools-panel--profile')
+    expect(card('r-wsl').closest('.settings-panel')).toHaveClass('profile-panel')
+  })
+
+  test('CSS: card stacks header above body, dialog widened, tool grid scoped to the profile host', () => {
+    const css = (file: string) => readFileSync(path.resolve(__dirname, '../../styles', file), 'utf8')
+    const rule = (source: string, selector: string) => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const match = new RegExp(`(^|\\n)${escaped} \\{([^}]*)\\}`).exec(source.replace(/\r\n/g, '\n'))
+      if (!match) throw new Error(`rule ${selector} not found`)
+      return match[2]
+    }
+    const settings = css('settings.css')
+    expect(rule(settings, '.profile-card')).toMatch(/flex-direction:\s*column/)
+    expect(rule(settings, '.profile-card-header')).toMatch(/display:\s*flex/)
+    expect(rule(settings, '.settings-panel.profile-panel')).toMatch(/width:\s*min\(1040px,\s*90vw\)/)
+    const tools = css('remote-tools.css')
+    expect(rule(tools, '.remote-tools-panel--profile .remote-tools-list')).toMatch(/display:\s*grid/)
+    // The wizard host keeps the shared single-column list.
+    expect(tools).not.toMatch(/remote-tools-panel--wizard/)
+    expect(rule(tools, '.remote-tools-list')).toMatch(/flex-direction:\s*column/)
   })
 
   test('collapsing unmounts the panel; re-expanding probes again', async () => {

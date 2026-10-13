@@ -390,7 +390,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
 
   return (
     <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+      <div className="settings-panel profile-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('profiles.title')}</h2>
           <button className="settings-close" onClick={onClose}>&times;</button>

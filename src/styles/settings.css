@@ -429,6 +429,129 @@
   opacity: 1;
 }
 
+/* T0512 (BUG-122): the profiles dialog. Twice the old 520px cap, shrinking with the window. */
+.settings-panel.profile-panel {
+  width: min(1040px, 90vw);
+}
+
+/*
+ * T0512 (BUG-122): ProfileCard (T0288) reuses `.profile-item`, which lays its children out
+ * in a row. A card stacks its header row above the expanded body, so the body (remote tools
+ * panel, details) spans the full card width instead of sitting in a second column.
+ */
+.profile-card {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.profile-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.profile-card-toggle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.profile-card-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.profile-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-card-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.profile-card-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-card-status {
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.profile-card-body {
+  min-width: 0;
+  cursor: default;
+}
+
+/* Per-env details slot (T0288): label / value rows under the remote tools panel. */
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.profile-details-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.profile-details-row dt {
+  color: var(--text-secondary);
+}
+
+.profile-details-row dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-details-hint {
+  color: var(--text-secondary);
+}
+
+.profile-details-warn dd {
+  color: #d29922;
+}
+
+.profile-details-mounts {
+  border-collapse: collapse;
+  font-family: monospace;
+}
+
+.profile-details-mounts th,
+.profile-details-mounts td {
+  padding: 1px 12px 1px 0;
+  text-align: left;
+  font-weight: 400;
+}
+
+.profile-details-mounts th {
+  color: var(--text-secondary);
+}
+
 .profile-icon-btn {
   background: none;
   border: none;
