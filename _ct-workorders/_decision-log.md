@@ -1361,6 +1361,17 @@
 
 ---
 
+### D136 2026-10-13 — v0.6.0-pre.3 範圍：BUG-116 + BUG-118 一併修、BUG-117 採 B3 停發 Intel Mac（x64）dmg
+
+- **背景**：BUG-116（所有 mac 啟動崩潰，T0468 已修）待發 pre.3；T0474 以 pre.2 實物證實 BUG-117（x64 dmg 84 個 binary 中 55 個為 arm64：內嵌 claude / codex / node-pty / whisper 皆 arm64，上游 whisper `mac-x64` 實為 arm64）並發現 BUG-118（electron-builder 非 Windows 目標排除 node_modules 內 `.exe` → mac / Linux 打包版無 `claude-code/bin/claude.exe`，內嵌 claude 不可用）
+- **決定**（使用者 2026-10-13 17:02 裁決）：
+  - **BUG-118 放進 pre.3**：採 T0474 方案 A1（非 win32 的 electron-packaged 版面改指 `claude-code-<platform>-<arch>[-musl]/claude`，`bin/claude.exe` 為 fallback，加 existsSync）＋ 擴充 `verify-packaged-native.js` 檢查打包產物內嵌 claude 存在且 arch 正確
+  - **BUG-117 採 B3**：`mac.target.arch` 只留 `arm64`，停發 Intel Mac dmg；release notes 寫明不支援 Intel Mac。D057（不改回 universal）仍有效，雙 arch dmg 的部分由本決策取代
+- **不採用**：B1（Intel runner 分 job：CI 時間約加倍、Intel runner label 存續不確定，且 Intel 上語音仍因上游無 x64 binary 無解）；B2（同 host 換子套件：子套件清單 whack-a-mole）；BUG-118 延到下一版（pre.3 主要受益者 mac 使用者仍無內嵌 claude）
+- **相關**：BUG-116 / BUG-117 / BUG-118 / T0468 / T0470 / T0474 / T0475 / D057
+
+---
+
 ### D135 2026-10-05 — PLAN-039 多 remote profile 同時連線：拆單與時程（T0459 研究結論）
 
 - **背景**：T0459 研究完成（`49d71f9`），Worker 期間使用者裁決 Q1（最後視窗關閉 + 15 s 寬限期再斷）、Q2（同時連線上限 8，超過拒絕）、Q3（兩 profile 同 target 允許 + warn）；建議 5 張單，其中工單 2 為 🔴 L（大範圍改 `main.ts` 熱點並遷移 T0419 / T0430 / T0442 / T0443 / T0446 守門）

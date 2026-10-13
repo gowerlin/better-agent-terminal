@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-117
 title: "mac x64 dmg 內嵌 arm64 原生 binary（T0474 證實）：macOS CI 只有 arm64 host，npm ci 只裝 host 平台 optional 子套件，build.npmRebuild=false 下 x64 / arm64 兩個 .app 打包同一份 node_modules → Intel Mac 內嵌 claude 等原生元件不可用"
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-10-13T16:47:18+08:00"
@@ -15,7 +15,7 @@ impact:
   - macos-x64-voice-input
   - macos-x64-embedded-codex
 links:
-  fix_workorder: null
+  fix_workorder: T0475
   research_workorder: T0474
   related: [BUG-116, T0470, T0472, T0473, D057]
 ---
@@ -26,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（T0474 建議由 medium 上調：x64 dmg 內嵌 claude 不可用的升級條件已成立；待塔台確認） |
 | 可重現 | 必現（T0474 以 v0.6.0-pre.2 release 產物靜態證實；未在 Intel Mac 實機執行） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0475，D136） |
 | 回報者 | 塔台（第五十八 session；T0472 Worker 回報區「待查」段提出） |
 
 ## 推論

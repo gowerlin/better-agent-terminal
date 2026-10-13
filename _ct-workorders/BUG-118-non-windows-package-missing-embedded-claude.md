@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-118
 title: "非 Windows 打包版（mac 兩種 arch、Linux AppImage）缺 claude-code/bin/claude.exe：electron-builder 在非 Windows 目標排除 node_modules 內 .exe → 預設 embedded runtime 的 Agent / claude-cli 分頁無法啟動"
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-10-13T16:59:31+08:00"
@@ -14,7 +14,7 @@ impact:
   - embedded-claude
   - packaging
 links:
-  fix_workorder: null
+  fix_workorder: T0475
   research_workorder: T0474
   related: [BUG-117, BUG-116, BUG-052, T0470, T0472]
 ---
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（mac / Linux 使用者在預設 embedded runtime 下 Agent 與 claude-cli 分頁不可用） |
 | 可重現 | 必現（靜態證據：pre.2 x64 / arm64 dmg、AppImage；mac / Linux 實機未驗） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0475，D136） |
 | 回報者 | 塔台（T0474 研究附帶發現 E4） |
 
 ## 證據（T0474 E4，`v0.6.0-pre.2` release 產物靜態檢查）
