@@ -3371,3 +3371,18 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - backlog 候選：新增 `typecheck:electron` script 與 electron baseline 數字，讓 gate 可機械化
 
 **候選晉升**：📁 Project（本專案 tsconfig 結構）；「確認 gate 實際涵蓋範圍」可泛化為 Global
+
+---
+
+## L147
+
+**來源**：第五十八 session（2026-10-13），T0490（BUG-114 研究）
+
+**現象**：`bat-terminal.mjs` 等回應時取「下一個任意 frame」，本機全權 token 連線會收到所有 `pty:output` 廣播；廣播搶先抵達時 helper 印 `✓ Terminal created`、exit 0，並在伺服器讀到 invoke 前退出 → 派發遺失（2026-09-25 起 471 次中 8 次，T0452 / T0457 即此）。塔台「只信 exit code」的規則在此缺陷下失效，L143 的 3 分鐘門檻只能事後發現。
+
+**How to apply**：
+- T0497（pre.5）裝上前：每次 `bat-terminal` exit 0 後，立即在主程序 mirror `bat-scripts.log`（T0480 前安裝版：`%APPDATA%\better-agent-terminal\Logs\`；T0480 起：`%APPDATA%\BetterAgentTerminal\Logs\`）找 `"script":"remote-server","event":"terminal-created"` 且 `terminalId` = 剛印出的 id；找不到即判定遺失、立即重派，不必等 3 分鐘
+- 多 Worker 並行、剛建的新分頁在啟動時誤判機率最高；成對派發之間留幾秒
+- 撰寫任何 WS helper：等待回應一律以 frame id 比對（範本 `bat-notify.mjs` `waitForMessageById`）
+
+**候選晉升**：📁 Project（BAT helper 協定）；「成功訊號要與請求關聯」可泛化為 Global
