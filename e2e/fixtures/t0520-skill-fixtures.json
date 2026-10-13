@@ -1,0 +1,39 @@
+{
+  "_comment": "T0520 (BUG-125 / BUG-126) skill / command description fixtures. `project` files are written under a temp project dir (local, e2e/pre7-acceptance.spec.ts) and under /work in the bat-t0520-srv container (e2e/real-remote/t0520-env.mjs). `home` files only go into the container's /home/bat (the local home is the user's and is only read). `expect` = description per name after the pre.7 fixes; the `before` notes show what the pre.7-and-earlier code returned.",
+  "project": {
+    ".claude/commands/t0520-cmd-desc.md": "---\ndescription: T0520 command from frontmatter\nargument-hint: <arg>\n---\n# T0520 command heading (not the description)\nbody\n",
+    ".claude/commands/t0520-cmd-nodesc.md": "---\nargument-hint: <arg>\n---\n\n# T0520 command line after frontmatter\nbody\n",
+    ".claude/commands/t0520-cmd-plain.md": "# T0520 plain command title\n\nbody\n",
+    ".claude/commands/t0520-cmd-crlf.md": "---\r\nargument-hint: <arg>\r\n---\r\n\r\n# T0520 CRLF command after frontmatter\r\nbody\r\n",
+    ".claude/skills/t0520-skill-desc/SKILL.md": "---\nname: t0520-skill-desc\ndescription: \"T0520 skill from frontmatter\"\n---\n# T0520 skill heading (not the description)\n",
+    ".claude/skills/t0520-skill-nodesc/SKILL.md": "---\nname: t0520-skill-nodesc\n---\n\n# T0520 skill line after frontmatter\nbody\n",
+    ".claude/skills/t0520-skill-crlf/SKILL.md": "---\r\nname: t0520-skill-crlf\r\n---\r\n\r\n# T0520 CRLF skill after frontmatter\r\nbody\r\n",
+    ".claude/skills/t0520-skill-unclosed/SKILL.md": "---\nname: t0520-skill-unclosed\n# T0520 unclosed frontmatter body\n"
+  },
+  "home": {
+    ".claude/skills/ct-help/SKILL.md": "---\nname: ct-help\n---\n\n# T0520 remote ct-help line after frontmatter\nbody\n",
+    ".claude/skills/ct-t0520crlf/SKILL.md": "---\r\nname: ct-t0520crlf\r\n---\r\n\r\nT0520 remote CRLF star line\r\n"
+  },
+  "expect": {
+    "commands": {
+      "t0520-cmd-desc": "T0520 command from frontmatter",
+      "t0520-cmd-nodesc": "T0520 command line after frontmatter",
+      "t0520-cmd-plain": "T0520 plain command title",
+      "t0520-cmd-crlf": "T0520 CRLF command after frontmatter"
+    },
+    "skills": {
+      "t0520-skill-desc": "T0520 skill from frontmatter",
+      "t0520-skill-nodesc": "T0520 skill line after frontmatter",
+      "t0520-skill-crlf": "T0520 CRLF skill after frontmatter",
+      "t0520-skill-unclosed": ""
+    },
+    "homeStar": {
+      "help": "T0520 remote ct-help line after frontmatter",
+      "t0520crlf": "T0520 remote CRLF star line"
+    }
+  },
+  "before": {
+    "commands": "BUG-125: every command whose file starts with frontmatter returned \"---\"",
+    "skills": "BUG-126: frontmatter without description returned \"\" (the closing --- equals lines[0], so the frontmatter never ended)"
+  }
+}

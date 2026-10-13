@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0520
 title: "pre.7 已安裝版自動化實機驗收：BUG-123 遠端狀態燈、BUG-124 SSH forwarding 被拒訊息、BUG-125 / 126 commands / skills 描述"
 type: implementation
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: BUG-verify-pre7
 priority: P1
 sizing: M
 created_at: "2026-10-14T04:52:55+0800"
-started_at: null
-updated_at: "2026-10-14T04:52:55+0800"
-completed_at: null
+started_at: "2026-10-14T04:54:04+0800"
+updated_at: "2026-10-14T05:07:27+0800"
+completed_at: "2026-10-14T05:07:27+0800"
 target_version: "0.6.0-pre.7（驗收，不發版）"
 related:
   - "BUG-123 / T0513（`e2e/t0513-profile-status-light.spec.ts`，source build 版；回報區『真實 WSL profile 實機驗收 需真人』）"
@@ -90,4 +90,96 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 結果摘要
+
+**DONE**。V1–V6 全部有結論：17 項 PASS、0 FAIL，1 項 NEEDS-HUMAN（`V1.wsl-real`，依工單規定不碰真實 WSL profile）。已安裝的 pre.7 對 BUG-123 / 124 / 125 / 126 的修正都有效，包含遠端容器內 pre.7 server bundle 的 T0518 / T0519 修正。沒有發現產品缺陷。
+
+- 開工 `2026-10-14T04:54:04+0800`（系統時間）；派發 `CT_MODE=yolo`、`CT_INTERACTIVE=0`；執行期間沒有使用者中途指示
+- 最終完整執行（env up 之後，兩條 lane 一起跑）：`5 passed (1.3m)`，exit 0，開始於 `2026-10-14T05:04:39+0800`
+- 未設 `BAT_E2E_PRE7` 時：`5 skipped`
+
+| # | BUG | 判定 | 主要證據 |
+|---|---|---|---|
+| ENV | — | ✅ PASS | 受測 exe `C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe` FileVersion `0.6.0-pre.7`，隔離實例 `app.getVersion()` = `0.6.0-pre.7`；baseline `resources\bat-server-baseline\bat-server-linux-x64-v0.6.0-pre.7.tar.gz`，manifest version `0.6.0-pre.7`，sha256 `67af2584d0091d806c69bc7212ee949b4d618aaa39f93abf3b99db82f4f2e36b`（env script 實際重算，與 manifest 相符）；容器內 bundle `package.json` version `0.6.0-pre.7` |
+| V1 | BUG-123 | ✅ PASS（`V1.wsl-real` NEEDS-HUMAN） | 目標是 WSL Docker 內**真的** pre.7 headless bat-server（`bat-t0520-srv`），它的 `profile:list` 回 `{"profiles":[],"activeProfileIds":[]}`，也就是 BUG 的觸發條件。(a) profile 視窗開著 → `data-status=connected`，tooltip「已連線：本機持有此 profile 的連線」；(b) 關掉視窗、對話框保持開著不重開 → **15132 ms** 後直接 `connected → idle`，期間沒有出現 `disconnected`，tooltip「未連線：未開視窗（未檢查伺服器）」；(c) 埠已關閉的 WSL 型 profile → `disconnected`，tooltip「連線失敗：無法連線 (connect ECONNREFUSED 127.0.0.1:<port>)」；(d) 沒開過的 SSH 卡片 → `idle`，tooltip「未連線：未開視窗（未檢查伺服器）」。另外加測：指向同一台 headless server、但沒開視窗的 profile → `idle`，tooltip「未連線：未開視窗，伺服器可連線」 |
+| V2 | BUG-124 | ✅ PASS（zh-TW、en 兩種語言） | sshd `AllowTcpForwarding no` → `fetch-fingerprint` failed（`start-server` completed）。畫面顯示 zh-TW「SSH 伺服器不允許 port forwarding」/ en「The SSH server does not allow port forwarding」，加上 body（含 `AllowTcpForwarding`）與 ssh 原文 `channel 2: open failed: administratively prohibited: open failed`。舊訊息「TLS 握手失敗 / 伺服器埠上的程式沒有提供 TLS 憑證…」（en 版亦同）**沒有出現**；`ssh:verify-tunnel-status` 回 `{"forwardingDenied":true,…}`。按 Cancel 後 stepper 的 `fetch-fingerprint` / `start-server` / `install-server-bundle` 皆為 `rolled-back`；遠端 `state=inactive`、unit 與 `~/.local/bat-server` 皆 `No such file`、`listen9876=0`；沒有建立 profile、沒有 rollback 警告 |
+| V3 | BUG-124 回歸 | ✅ PASS | 拿掉 drop-in 後（`allowtcpforwarding yes`），乾淨目標上的精靈 13.9 s 完成。`~/.local/bat-server` = `README.md bin electron node_modules package.json scripts`，`bin/bat-server` 可執行，bundle `0.6.0-pre.7`；`ExecStart=/home/bat/.local/bat-server/bin/bat-server --port 9876 --bind-interface localhost`；MainPID 自己 `LISTEN 127.0.0.1:9876`（無 0.0.0.0 / `*`）；profile 指紋 = 容器 `server-cert.json` 指紋（`71:5F:1C:49:…:B5:76:D1`）；log 有 `✓ TLS fingerprint matches the remote server-cert.json`。**成功路徑 `ssh:verify-tunnel-status` 呼叫 0 次**，T0517 的查詢只在失敗時觸發。新 profile `useSshTunnel: true`，開視窗後遠端 shell 回 `T0520-bat@bat-t0520-sshd-25` |
+| V4 | BUG-125 | ✅ PASS | 本機 fixture 專案的 `claude:scan-skills` 與 Claude 面板 `/t0520` 選單結果一致：有 description → `T0520 command from frontmatter`；frontmatter 無 description → `T0520 command line after frontmatter`；無 frontmatter（`# Title`）→ `T0520 plain command title`；另加 CRLF 無 description → `T0520 CRLF command after frontmatter`。scan 結果（共 74 筆，含使用者 `~/.claude` 的 66 筆 global）與選單中都**沒有** `---` |
+| V5 | BUG-126 | ✅ PASS | skills：有 description → `T0520 skill from frontmatter`；無 description → `T0520 skill line after frontmatter`（不是 `''`）；CRLF 無 description → `T0520 CRLF skill after frontmatter`；frontmatter 未關閉 → `''`（T0519 規格：未關閉回空字串，選單顯示空描述）。star commands：使用者 `~/.claude/skills/ct-help` 存在且有 description（只讀），`*help` 與 scan 結果 = frontmatter description（非空）。fallback 情境（ct-help 沒有 description）由 V6 容器 fixture 涵蓋 |
+| V6 | 連帶 | ✅ PASS | 從 docker-linux 遠端視窗（mount `C:\bat-t0520-virt\work` ↔ `/work`，Windows 上這個路徑不存在）呼叫：`claude:scan-skills` 的 8 個 fixture 結果都與 V4 / V5 預期相同；`claude:scan-star-commands` 掃容器 `/home/bat/.claude/skills`，`help`（ct-help **無 description**）→ `T0520 remote ct-help line after frontmatter`，`t0520crlf`（CRLF）→ `T0520 remote CRLF star line`；遠端 Claude 面板 `/` 與 `*` 選單顯示相同。對照組：本機視窗以同一路徑掃描，t0520 項目 0 筆，可見結果出自容器內 pre.7 bundle（0.6.0-pre.7）的程式碼 |
+
+### Landing zone
+
+**PASS**。C-0：frontmatter `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）。C-1 PASS。C-3（informational）：`e2e/real-remote/`、`e2e/fixtures/` 存在，`e2e/pre7-acceptance.spec.ts` 為新檔，祖先 `e2e/` 存在。C-2：沒有 `branch` 欄位，HEAD 在 `main`。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+
+### 做法
+
+- **隔離實例**：沿用 `e2e/fixtures/electron-isolation.ts`（未修改），以 `BAT_E2E_EXECUTABLE` 啟動已安裝的 pre.7 exe。每次都是獨立的 `--runtime=e2e-t0520-*`、獨立 userData，RemoteServer 用空閒埠，繼承的 `BAT_*` / `CT_*` 一律剔除。UI lane 共用 1 個實例；V2 zh-TW、V2 en、V3 各用 1 個實例。
+- **不耗 token**：UI lane 實例在任何 Claude 面板掛載前，就把 37 個 `claude:*` ipcMain handler 換成 recorder（T0514 做法）。只有 `scan-skills` / `scan-star-commands` / `list-sessions` 與 archive 三個保留真實 handler。recorder 實際收到的是 `auth-status` / `start-session` / `get-session-meta` / `get-statusline-extras`（本機與遠端面板各 1 組），沒有任何呼叫到達 CLI 或 API。選單只輸入文字、不送出。
+- **語言**：用 `settings.save` 寫入 `language`，reload 後以「+ 更多 ▾ / + More ▾」按鈕文字確認語言已切換。
+- **V2 / V3 觀測**：在隔離實例 main 行程內，把 `ssh:verify-tunnel-status` 包成 pass-through recorder（先執行原 handler，再記錄參數與回傳）。這是測試側攔截，沒有改產品。
+- **遠端環境**（`e2e/real-remote/t0520-env.mjs`，WSL `Ubuntu-24.04` 的 Docker 29.1.3）：
+  - `bat-t0520-srv`：`t0520-server.Dockerfile` + 安裝檔內建的 pre.7 linux-x64 baseline（無 overlay），並放入 fixture。對 Windows 只發佈 `127.0.0.1:29520`
+  - `bat-t0520-sshd`：`t0520-sshd.Dockerfile`，systemd + sshd，帳號 `bat`，只發佈 `127.0.0.1:22520`
+  - 兩者都有 label `bat.t0520=1`；沒有建立 network / volume。V2 以 `00-t0520-noforward.conf` drop-in 關閉 forwarding，結束時在 `finally` 移除
+
+### 產出（皆為新檔，未改既有檔）
+
+```
+e2e/pre7-acceptance.spec.ts              opt-in spec（BAT_E2E_PRE7=1 + BAT_E2E_EXECUTABLE + connection.json；預設 skip）
+e2e/real-remote/t0520-env.mjs            up / status / apply-ssh-config / restore-ssh-config / down [--rmi]
+e2e/real-remote/t0520-server.Dockerfile  pre.7 headless bat-server + fixture
+e2e/real-remote/t0520-sshd.Dockerfile    SSH 精靈目標
+e2e/fixtures/t0520-skill-fixtures.json   commands / skills fixture 與預期值（本機 spec 與容器共用）
+```
+
+T0514 / T0515 的腳本與 Dockerfile 都沒有改動，也沒有被 import。`t0520-env.mjs` 只 import `scripts/smoke-remote-headless.mjs` 的 `decodeTokenFile` / `normalizeFingerprint` / `parseFingerprintField`（與 T0514 相同）。
+
+### 執行方式
+
+```powershell
+node e2e/real-remote/t0520-env.mjs up        # 約 1–2 分鐘（首次 build）；寫 %TEMP%\bat-t0520\env\connection.json
+$env:BAT_E2E_PRE7='1'; $env:BAT_E2E_EXECUTABLE='C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe'
+npx playwright test e2e/pre7-acceptance.spec.ts     # 約 80 s；wizard lane 的 beforeAll / afterAll 會套用並還原 ~/.ssh/config
+node e2e/real-remote/t0520-env.mjs down      # 刪容器與 state（保留 evidence/）；--rmi 會連 image 一起刪
+```
+
+- 開發期間另外分 lane 跑過 1 次：UI lane `2 passed (19.7s)`、wizard lane `3 passed (59.4s)`，兩次都一次通過（log 在 `evidence\dev-runs\`）
+- **證據目錄** `%TEMP%\bat-t0520\evidence\`：
+  - `results.json`：每項判定與證據
+  - `final-run.log`、`env-up.log`、`env-down.log`
+  - V1：`v1-dialog-window-open.png`、`v1-unreachable-tooltip.png`、`v1-dialog-after-idle-release.png`
+  - V2：`v2-{zh-TW,en}-failed.png`、`v2-{zh-TW,en}-after-cancel.png`、`v2-*-failure-detail.txt`、`v2-*-wizard-log.txt`
+  - V3：`v3-wizard-complete.png`、`v3-profile-connected.png`、`v3-install-evidence.txt`、`v3-wizard-log.txt`
+  - V4 / V5 / V6：`v4-v5-local-slash-menu.png`、`v5-local-star-menu.png`、`v6-remote-{slash,star}-menu.png`、`v4-v5-local-scan-skills.json`、`v6-remote-scan-{skills,star-commands}.json`
+  - 各隔離實例的 main log：`instance-*.log`
+
+### 環境清理與隔離
+
+- **Docker**：`down` 之後，label `bat.t0520=1` 的 containers / networks / volumes 皆為 `none`，WSL `docker ps -a` 為空。保留 image 供重跑：`bat-t0520-srv:local`（`9dbf102fd355`，2.35GB）、`bat-t0520-sshd:local`（`1e87066b3129`，184MB），用 `down --rmi` 可刪。沒有動其他 container / image（含 `bat-t0514-*` / `bat-t0515-*`），沒有 prune，也沒有 `wsl --shutdown` / `--terminate`。
+- **`~/.ssh/config`**：開工前 sha256 `00aab1cda8667c85db60b35f406a785bd9a909b87df7cf49aa78450ca03c58a2`。套用標記區塊後為 `f6a56ffc…`，每次 afterAll 都還原（`backup copied back … match=true`）。收尾再跑 `sha256sum` = `00aab1cd…c58a2`，與開工前相同。真實的 `known_hosts` / 金鑰沒有被讀寫，測試金鑰放在 `%TEMP%\bat-t0520\env`，已隨 `down` 刪除。
+- **隔離實例**：每次執行的 Terminal Server 都是 `alive after teardown: false`，`runtime userData removed: true`；`%APPDATA%` 下沒有殘留 `runtime-e2e-t0520*`。fixture 暫存目錄已刪。
+- **使用者環境**：使用者的 BAT（9876）從未連線；WSL bat-server（9877、`~/.local/bat-server`）從未讀取或連線；沒有對 Ubuntu-24.04 跑 WSL 精靈。真實 `~/.claude` 只讀（`ct-help/SKILL.md` 與 global skills 的掃描）。沒有消耗 Claude token。
+- **產品程式碼**：未改。`electron/**`、`src/**`、`scripts/**`、`package.json`、`e2e/fixtures/electron-isolation.ts` 都沒有變動。BUG 檔與 `_bug-tracker.md` 也沒有動。`src/styles/settings.css` 的既有 M 狀態沒有碰，也不在本單 commit 中。
+
+### 偏差 / 說明
+
+1. **V1 的 (a)(b) 用 docker-linux profile，不用 wsl-linux**：wsl-linux profile 開視窗時，path translator 需要 `wslDistro`（`electron/remote/path-translator.ts`）；一旦填了 distro，WSL keep-alive 就會對該 distro spawn `wsl.exe`。填真實的 `Ubuntu-24.04` 違反本單規則，填假名則有未知副作用。BUG-123 的觸發條件是 headless `profile:list` 的空 stub，與 targetOS 無關，因此改用 docker-linux 指向同一台 headless server。(c) 的 WSL 型卡片沒有填 `wslDistro`、也不開視窗（T0513 做法），keep-alive 會跳過它。真實 WSL profile 列為 `V1.wsl-real` NEEDS-HUMAN。
+2. **V1 (b) 的 idle tooltip 是「未檢查伺服器」**：釋放連線後不會重新探測，這是 T0513 回報區已記錄的已知限制，不屬於 FAIL。燈號是 ⚪ idle，不是 🔴。
+3. **V5 frontmatter 未關閉的預期值是 `''`**：依 BUG-126 / T0519 的規格（「frontmatter 未關閉回 `''`」），選單中該列顯示空描述，屬預期行為。
+4. **V5 star commands 本機部分**：使用者 `~/.claude` 已有 ct-help，依工單規定只讀它（它有 description）。「ct-help 沒有 description」的 fallback 由 V6 容器 fixture 驗證。
+
+### 仍需真人
+
+1. `V1.wsl-real`：在 pre.7 開啟使用者自己的 WSL Ubuntu-24.04 profile 視窗，再打開配置對話框，該卡片應為 🟢；關掉視窗 15 秒後應轉為 ⚪，不能是 🔴。
+
+### 驗收條件對照
+
+- [x] V1-V6 各有 PASS / FAIL / NEEDS-HUMAN 與證據（17 PASS、1 NEEDS-HUMAN、0 FAIL）
+- [x] 受測 exe FileVersion = `0.6.0-pre.7`；baseline tarball 版號 = `0.6.0-pre.7`（manifest 與容器內 `package.json` 一致）
+- [x] 未改產品程式碼；未碰使用者 BAT / WSL bat-server / 真實 `~/.claude`（只讀）；未耗 Claude token
+- [x] `~/.ssh/config` 已還原（雜湊證明）、環境清理完成（image 保留並列出）
+
+### Commit
+
+以 `git add` 加入 5 個新檔，再用 `git commit --only` 提交這 5 個檔與本工單，不含 `src/styles/settings.css`；未 push。hash 見 `git log`（commit message 含 `T0520`）。
