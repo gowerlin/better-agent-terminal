@@ -9,6 +9,11 @@
 // `✓ Terminal created` (exit 0) and the helper exited before the server had read
 // the invoke, so the dispatch was lost (T0490). The mock server below behaves like
 // the real one: it keeps broadcasting after auth and answers the invoke late.
+//
+// T0501: a banned IP is rejected on connect, before the helper has sent (or awaits)
+// its auth frame, and the rejection usually shares a chunk with the 101. MinimalWS
+// dropped text frames drained before onMessage() was set, so that surfaced as
+// `auth-timeout` 3 s later instead of `auth-failed`.
 
 import { createHash, X509Certificate } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -72,6 +77,8 @@ function parseClientFrame(buffer) {
   return { opcode, message: payload.toString('utf8'), rest: buffer.subarray(offset + length) }
 }
 
+const CLOSE_FRAME = Buffer.from([0x88, 0x00])
+
 // Same shape as RemoteServer.broadcastHub (electron/remote/remote-server.ts).
 function broadcastFrame(n) {
   return createWsFrame({ type: 'event', id: '0', channel: 'pty:output', args: ['other-pty', `output ${n}\r\n`] })
@@ -79,6 +86,7 @@ function broadcastFrame(n) {
 
 /**
  * @param {object} opts
+ * @param {object|null} [opts.rejectOnConnect] frame sent with the 101 in ONE chunk, then close (banned IP)
  * @param {number} [opts.broadcastEveryMs]  keep sending `event` frames after auth-result
  * @param {boolean} [opts.coalesceAuth]     write event + auth-result + event in ONE chunk
  * @param {object|null} [opts.authReply]    replaces the auth-result frame (id included)
@@ -86,6 +94,7 @@ function broadcastFrame(n) {
  * @param {object|null} [opts.invokeReply]  fields of the invoke-result; null = never answer
  */
 async function startMockBatRemote({
+  rejectOnConnect = null,
   broadcastEveryMs = 0,
   coalesceAuth = false,
   authReply = undefined,
@@ -107,10 +116,11 @@ async function startMockBatRemote({
   const certPath = join(dir, 'server-cert.json')
   writeFileSync(certPath, JSON.stringify({ fingerprint }), 'utf8')
 
-  const state = { invoke: null, invokeResultSentAt: null, broadcastsSent: 0 }
+  const state = { invoke: null, invokeResultSentAt: null, broadcastsSent: 0, authFrames: 0 }
 
   const server = tls.createServer({ key: pems.private, cert: pems.cert }, (socket) => {
     let upgraded = false
+    let closed = false
     let buffer = Buffer.alloc(0)
     let broadcastTimer = null
     const stop = () => { if (broadcastTimer) clearInterval(broadcastTimer) }
@@ -120,6 +130,7 @@ async function startMockBatRemote({
     }
 
     socket.on('data', (chunk) => {
+      if (closed) return
       buffer = Buffer.concat([buffer, chunk])
 
       if (!upgraded) {
@@ -137,12 +148,20 @@ async function startMockBatRemote({
           .update(`${keyMatch[1].trim()}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
           .digest('base64')
 
-        socket.write(
+        const head = Buffer.from(
           'HTTP/1.1 101 Switching Protocols\r\n' +
           'Upgrade: websocket\r\n' +
           'Connection: Upgrade\r\n' +
           `Sec-WebSocket-Accept: ${accept}\r\n\r\n`,
+          'utf8',
         )
+        if (rejectOnConnect) {
+          // One socket.write: the 101, the rejection and the close frame share a chunk.
+          closed = true
+          socket.end(Buffer.concat([head, createWsFrame(rejectOnConnect), CLOSE_FRAME]))
+          return
+        }
+        socket.write(head)
         buffer = buffer.subarray(headerEnd + 4)
         upgraded = true
       }
@@ -159,6 +178,7 @@ async function startMockBatRemote({
 
         const message = JSON.parse(frame.message)
         if (message.type === 'auth') {
+          state.authFrames++
           const reply = createWsFrame(authReply === undefined
             ? { type: 'auth-result', id: message.id, result: { platform: 'test' } }
             : authReply)
@@ -180,7 +200,8 @@ async function startMockBatRemote({
       }
     })
 
-    // The helper exits with unread broadcasts in its socket (RST) — expected here.
+    // The helper exits with unread broadcasts in its socket (RST), or writes its auth
+    // frame after a reject-on-connect close — expected here.
     socket.on('error', stop)
     socket.on('close', stop)
   })
@@ -343,6 +364,26 @@ describe('bat-terminal matches the invoke reply by frame id (T0497 / BUG-114)', 
       expect(run.stderr).toContain('Authentication failed: Too many failed attempts')
       expect(remote.state.invoke).toBeNull()
       expect(lastEvent(remote, 'exit')).toMatchObject({ code: 1, reason: 'auth-failed' })
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('banned IP rejected on connect, in the same chunk as the 101 → exit 1 auth-failed (T0501)', async () => {
+    const remote = await startMockBatRemote({
+      rejectOnConnect: { type: 'auth-result', id: '0', error: 'Too many failed attempts' },
+    })
+    try {
+      const run = await runBatTerminal(remote)
+      expect(run.code, run.stderr || run.stdout).toBe(1)
+      expect(run.stderr).toContain('Authentication failed: Too many failed attempts')
+      expect(run.stderr).not.toContain('Auth response timeout')
+      expect(run.stdout).not.toContain('Terminal created')
+      // Reported straight away, not after the 3000 ms auth wait.
+      expect(run.exitedAt - run.startedAt).toBeLessThan(3000)
+      expect(remote.state.authFrames).toBe(0)
+      expect(remote.state.invoke).toBeNull()
+      expect(lastEvent(remote, 'exit')).toMatchObject({ code: 1, reason: 'auth-failed', error: 'Too many failed attempts' })
     } finally {
       await remote.close()
     }

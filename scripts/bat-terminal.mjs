@@ -362,6 +362,10 @@ class MinimalWS {
   #upgraded = false
   #msgHandler = null
   #errHandler = null
+  // T0501 (as T0499 did for bat-notify.mjs): text frames drained before the first
+  // onMessage() handler is set, e.g. a banned IP's `auth-result` that the server sends
+  // on connect, in the same chunk as the 101. Empty in the normal flow.
+  #pending = []
 
   connect(host, port, timeoutMs = 3000) {
     return new Promise((resolve, reject) => {
@@ -499,7 +503,10 @@ class MinimalWS {
     this.#socket.write(Buffer.concat([header, masked]))
   }
 
-  onMessage(fn) { this.#msgHandler = fn }
+  onMessage(fn) {
+    this.#msgHandler = fn
+    for (const raw of this.#pending.splice(0)) fn(raw)
+  }
   onError(fn) { this.#errHandler = fn }
 
   close() {
@@ -537,8 +544,9 @@ class MinimalWS {
       const payload = this.#buffer.subarray(off, off + len)
       this.#buffer = this.#buffer.subarray(off + len)
 
-      if (opcode === 0x01 && this.#msgHandler) {
-        this.#msgHandler(payload.toString('utf-8'))
+      if (opcode === 0x01) {
+        if (this.#msgHandler) this.#msgHandler(payload.toString('utf-8'))
+        else this.#pending.push(payload.toString('utf-8'))
       } else if (opcode === 0x08) {
         this.close()
         return
