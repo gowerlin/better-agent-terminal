@@ -20,7 +20,8 @@
 - **Frontend (renderer)**: Use `window.electronAPI.debug.log(...)` instead of `console.log()`. This sends logs to the electron main process logger, which writes to disk.
 - **Backend (electron)**: Use `logger.log(...)` / `logger.error(...)` from `./logger`.
 - Do NOT use `console.log()` for debugging — use the logger so logs are persisted and visible in the log file.
-- **Log file location**: `~/Library/Application Support/better-agent-terminal/debug.log`
+- **Log file location**: `<appData>/better-agent-terminal/Logs/debug-<YYYYMMDD-HHMMSS>.log`（每次啟動一檔，保留最近 10 個；`electron/logger.ts`）。`<appData>`：Windows `%APPDATA%`、macOS `~/Library/Application Support`、Linux `~/.config`。磁碟日誌**預設開啟**（Settings → Advanced → Debug Logging 可關 / 調等級），與 `BAT_DEBUG` 無關（`BAT_DEBUG` 只控制 `isDebugMode` 的 debug UI，`electron/preload.ts`）。舊版留在 `<appData>/better-agent-terminal/` 根部的 `debug.log` 會在啟動時搬到 `Logs/debug-legacy-<stamp>.log`。
+- **注意日誌與設定不在同一目錄**（T0478 實測 Electron 41）：`settings.json` / `windows.json` / `profiles/` 等在 `<appData>/BetterAgentTerminal/`，但 `Logs/`、`Crashes/`、`snippets.json` 在 `<appData>/better-agent-terminal/`（`package.json` `name`）。原因：`electron/snippet-db.ts` 的 `snippetDb` 單例在 import 時（早於 `main.ts` 的 `app.setName('BetterAgentTerminal')`）呼叫 `app.getPath('userData')`，Chromium PathService 把 userData 快取成 package name；`logger.init()` 在 whenReady 時拿到的仍是快取值，接著 `app.setPath('crashDumps', ...)` 觸發 PathService 清快取，之後的 `getPath('userData')` 才變成 `BetterAgentTerminal`。調整 import 順序、`setName` 位置或 `setPath` 呼叫時，資料路徑會跟著變，須另案評估搬移。`--runtime=<N>` / `BAT_RUNTIME=<N>` 實例的資料與日誌皆在 `<appData>/better-agent-terminal-runtime-<N>/`（`snippets.json` 除外）。
 
 ## Child Process Spawning
 

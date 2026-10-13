@@ -170,7 +170,7 @@ better-agent-terminal/
 │   ├── claude-agent-manager.ts        # Claude SDK 工作階段管理
 │   ├── worktree-manager.ts            # Git worktree 生命週期
 │   ├── agent-runtime/                 # 通用 Agent 運行層
-│   ├── logger.ts                      # 磁碟日誌（BAT_DEBUG=1 啟用）
+│   ├── logger.ts                      # 磁碟日誌（預設開啟，Settings 可關）
 │   ├── snippet-db.ts                  # Snippet 儲存（snippets.json）
 │   ├── profile-manager.ts             # 設定檔 CRUD
 │   ├── update-checker.ts              # GitHub Release 更新檢查
@@ -193,7 +193,7 @@ better-agent-terminal/
 | 框架 | Electron 41 |
 | AI | `@anthropic-ai/claude-agent-sdk`（內嵌 `@anthropic-ai/claude-code` CLI）+ `@openai/codex-sdk` |
 | 建置 | Vite 7 + electron-builder 26 |
-| 儲存 | JSON 檔（設定目錄下的 `settings.json`、`workspaces.json`、`snippets.json` 等） |
+| 儲存 | JSON 檔（`settings.json`、`windows.json`、`profiles/`、`snippets.json` 等，位置見「設定」） |
 | 遠端 | ws（WebSocket，`wss://` + `selfsigned` 自簽憑證）+ qrcode |
 | Git | simple-git |
 | Markdown 預覽 | marked + mermaid |
@@ -237,17 +237,26 @@ git push origin v0.6.0
 
 ## 設定
 
-工作區、設定與工作階段資料儲存位置：
+BAT 的資料分在兩個目錄（打包版與 `npm run dev` 相同）：
 
-| 平台 | 路徑 |
-|------|------|
-| Windows | `%APPDATA%/better-agent-terminal/` |
-| macOS | `~/Library/Application Support/better-agent-terminal/` |
-| Linux | `~/.config/better-agent-terminal/` |
+| 平台 | 資料目錄（`BetterAgentTerminal`） | 日誌目錄（`better-agent-terminal`） |
+|------|------|------|
+| Windows | `%APPDATA%\BetterAgentTerminal\` | `%APPDATA%\better-agent-terminal\` |
+| macOS | `~/Library/Application Support/BetterAgentTerminal/` | `~/Library/Application Support/better-agent-terminal/` |
+| Linux | `~/.config/BetterAgentTerminal/` | `~/.config/better-agent-terminal/` |
+
+- **資料目錄**：`settings.json`、`windows.json`（視窗與工作區）、`profiles/`、`server-cert.json` / `server-token.json`（遠端存取）、`whisper-models/` 等
+- **日誌目錄**：`Logs/`（除錯日誌）、`Crashes/`（crash dump）、`snippets.json`
+
+會分成兩處，是因為主程序有一部分路徑在 `app.setName('BetterAgentTerminal')` 生效前就已取得，仍沿用 `package.json` 的 `name`（`better-agent-terminal`）。
+
+**多實例**：以 `--runtime=<N>` 或環境變數 `BAT_RUNTIME=<N>` 啟動，可另開一個資料獨立的實例（各自的單一實例鎖），資料與日誌都放在 `better-agent-terminal-runtime-<N>/`（與上表同一個上層目錄，例如 Windows 的 `%APPDATA%\better-agent-terminal-runtime-<N>\`）；只有 `snippets.json` 仍在預設實例的日誌目錄。
 
 ### 除錯日誌
 
-設定環境變數 `BAT_DEBUG=1` 啟用磁碟日誌。日誌寫入設定目錄下的 `debug.log`。
+除錯日誌**預設開啟**，不需要環境變數。日誌寫在日誌目錄下的 `Logs/debug-<YYYYMMDD-HHMMSS>.log`，每次啟動一個檔案，保留最近 10 個。可在 BAT 的 **設定 > 進階 > 除錯日誌** 關閉、調整等級（預設 `debug`），或按「開啟日誌資料夾」直接開啟目錄；回報 bug 時請附上最新的日誌檔。
+
+`BAT_DEBUG=1` 與磁碟日誌無關，它只開啟僅供除錯的 UI（debug 用 Agent preset、worktree 選項等）。
 
 ### 語音輸入 — 跨平台麥克風權限
 

@@ -194,21 +194,8 @@
       }
     },
     // ═══════════════ CI/CD ═══════════════
-    {
-      "label": "CI/CD: 觸發 Pre-Release (GitHub Actions)",
-      "type": "process",
-      "command": "pwsh",
-      "args": [
-        "-ExecutionPolicy", "Bypass",
-        "-File", "${workspaceFolder}/.vscode/scripts/trigger-prerelease.ps1"
-      ],
-      "group": "none",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared",
-        "group": "CI/CD"
-      }
-    },
+    // 預覽版必須指定版號：不帶版號時 pre-release.yml 會自動遞增出脫節版號（見 CLAUDE.md「Release」），
+    // 故不提供「不帶版號」的觸發 task（T0478）。
     {
       "label": "CI/CD: 觸發 Pre-Release (指定版本)",
       "type": "process",
@@ -255,12 +242,12 @@
     {
       "id": "releaseVersion",
       "type": "promptString",
-      "description": "輸入發行版本號 (e.g. 2.1.4)"
+      "description": "輸入發行版本號（例如 0.6.0 或 0.6.0-pre.4，可帶 v）"
     },
     {
       "id": "prereleaseVersion",
       "type": "promptString",
-      "description": "輸入 Pre-Release 版本號 (e.g. 2.1.4-pre.1)"
+      "description": "輸入 Pre-Release 版本號：X.Y.Z-pre.N（不帶 v，例如 0.6.0-pre.4）"
     }
   ]
 }
