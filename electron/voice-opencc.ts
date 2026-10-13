@@ -1,16 +1,19 @@
 // OpenCC simplified-to-traditional Chinese converter (lazy singleton)
 //
-// Dictionary is loaded once on first use. If opencc-js fails to initialize
-// (missing package, corrupt dictionary), we log a warning and fall back to
-// returning the original text — never throw.
+// opencc-js and its dictionary are loaded once, on first use. If opencc-js fails
+// to load or initialize (missing package, corrupt dictionary), we log an error
+// once and fall back to returning the original text — never throw.
+//
+// The require stays inside ensureConverter(): this module is imported at
+// main.ts top level (via voice-handler), so a top-level require of a missing
+// package would crash app startup (BUG-116 / T0469).
 
 import { logger } from './logger'
 
 // opencc-js ships without TypeScript declarations.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const openccJs: {
+type OpenccJs = {
   Converter: (opts: { from: string; to: string }) => (text: string) => string
-} = require('opencc-js')
+}
 
 let converter: ((text: string) => string) | null = null
 let initAttempted = false
@@ -20,6 +23,8 @@ function ensureConverter(): ((text: string) => string) | null {
   if (initAttempted) return null
   initAttempted = true
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const openccJs: OpenccJs = require('opencc-js')
     converter = openccJs.Converter({ from: 'cn', to: 'tw' })
     logger.log('[voice] OpenCC s2t converter initialized')
     return converter
