@@ -28,7 +28,7 @@
     "build": "node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder",
     "build:dir": "npm run fetch:baseline && node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder --dir",
     "build:release": "npm run fetch:baseline && node scripts/build-version.js",
-    "postinstall": "node -e \"if(process.platform==='darwin'){const p=require('path').join('node_modules/electron/dist/Electron.app/Contents/Info.plist');try{require('child_process').execSync('plutil -replace CFBundleName -string BetterAgentTerminal '+p+' && plutil -replace CFBundleDisplayName -string BetterAgentTerminal '+p)}catch(e){}}\" && node -e \"if(process.env.CI){console.log('postinstall: CI is set, skipping electron-rebuild of better-sqlite3 (the workflow runs @electron/rebuild itself)')}else{require('child_process').execFileSync(process.execPath,[require('path').join('node_modules','@electron','rebuild','lib','cli.js'),'-f','-w','better-sqlite3'],{stdio:'inherit',timeout:600000})}\" && echo 'postinstall done'",
+    "postinstall": "node -e \"if(process.platform==='darwin'){const p=require('path').join('node_modules/electron/dist/Electron.app/Contents/Info.plist');try{require('child_process').execSync('plutil -replace CFBundleName -string BetterAgentTerminal '+p+' && plutil -replace CFBundleDisplayName -string BetterAgentTerminal '+p)}catch(e){}}\" && echo 'postinstall done'",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:ui": "vitest --ui",
@@ -55,7 +55,6 @@
     "@xterm/addon-unicode11": "^0.8.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
-    "better-sqlite3": "^12.5.0",
     "dompurify": "^3.3.3",
     "highlight.js": "^11.11.1",
     "i18next": "^25.8.18",
@@ -84,7 +83,6 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
@@ -236,7 +234,6 @@
     ]
   },
   "allowScripts": {
-    "better-sqlite3": true,
     "electron": true,
     "esbuild": true,
     "sharp": true,

@@ -141,6 +141,38 @@ function listArchiveFiles(tarball) {
   }
 }
 
+// T0492: `tar -tv` lines for symlinks start with "l" and end in "<path> -> <target>"
+// (GNU tar and bsdtar alike). Returns the links whose target is an absolute path:
+// they point into the build machine (e.g. /Users/runner/work/...) and dangle anywhere else.
+function findAbsoluteSymlinks(verboseLines) {
+  const absolute = []
+  for (const line of verboseLines) {
+    if (!line.startsWith('l')) continue
+    const arrow = line.lastIndexOf(' -> ')
+    if (arrow === -1) continue
+    const linkTarget = line.slice(arrow + 4).trim()
+    if (linkTarget.startsWith('/') || /^[A-Za-z]:[\\/]/.test(linkTarget)) {
+      absolute.push(line.trim())
+    }
+  }
+  return absolute
+}
+
+function listArchiveVerbose(tarball) {
+  try {
+    return execFileSync('tar', ['-tvzf', path.basename(tarball)], {
+      cwd: path.dirname(tarball),
+      encoding: 'utf8',
+      windowsHide: true,
+      maxBuffer: 1024 * 1024 * 40,
+    })
+      .split(/\r?\n/)
+      .filter(Boolean)
+  } catch (error) {
+    fail(`[verify-server-bundle] ❌ Failed to inspect tarball: ${error.message}`)
+  }
+}
+
 function extractArchive(tarball) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bat-server-verify-'))
   const extractDir = path.join(tempRoot, 'extract')
@@ -203,6 +235,17 @@ for (const tarball of tarballs) {
     process.exit(1)
   }
 
+  const absoluteSymlinks = findAbsoluteSymlinks(listArchiveVerbose(tarball))
+  if (absoluteSymlinks.length > 0) {
+    console.error('')
+    console.error(`[verify-server-bundle] ❌ Absolute-path symlinks found in bundle for ${target} (they dangle outside the build machine)`)
+    for (const line of absoluteSymlinks) {
+      console.error(`  - ${line}`)
+    }
+    console.error('')
+    process.exit(1)
+  }
+
   const extractRoot = extractArchive(tarball)
   try {
     const stagingRoot = path.join(extractRoot, 'extract', 'staging')
@@ -211,7 +254,6 @@ for (const tarball of tarballs) {
     requirePath(stagingRoot, path.join('bin', 'bat-server'))
     requirePath(stagingRoot, path.join('bin', 'bat-server.mjs'))
     requirePath(stagingRoot, path.join('node_modules', '@lydell', 'node-pty', 'package.json'))
-    requirePath(stagingRoot, path.join('node_modules', 'better-sqlite3', 'package.json'))
   } finally {
     fs.rmSync(extractRoot, { recursive: true, force: true })
   }

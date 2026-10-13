@@ -30,6 +30,7 @@ import {
   type TarballEntry,
 } from '../../src/lib/server-bundle-manifest'
 import { type ServerBundleArch } from '../../src/lib/arch-normalize'
+import { stripSnapshotSuffix } from '../../src/lib/snapshot-version'
 import {
   classifyDistributeError,
   expectedTarballFilename,
@@ -57,7 +58,7 @@ export interface DistributeOptions {
    * The distributor IPC handler does the resolution from `profileId`.
    */
   profile: ProfileEntry
-  /** BAT version (default: app.getVersion()). */
+  /** BAT version (default: app.getVersion()); a local snapshot suffix is stripped (T0492). */
   version?: string
   /** Cache dir override (default: app.getPath('userData') + '/bat-server-bundles'). */
   cacheDir?: string
@@ -246,7 +247,11 @@ export async function distributeServerBundle(
   }
 
   // ── Resolve defaults ───────────────────────────────────────────────────
-  const version = options.version ?? app.getVersion()
+  // T0492: a local snapshot build (0.6.0-pre.4.local.<stamp>) ships the base
+  // version's baseline and has no server-bundle release of its own, so cache
+  // filenames and the download URL use the base version. The setup wizard passes
+  // app.getVersion() explicitly, so both sources are stripped.
+  const version = stripSnapshotSuffix(options.version ?? app.getVersion())
   const defaults = resolveDefaultPaths({
     userDataDir: app.getPath('userData'),
     resourcesPath: process.resourcesPath,

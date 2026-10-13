@@ -59,12 +59,9 @@ function formatSnapshotVersion(baseVersion, now) {
 // Inverse of formatSnapshotVersion: 0.5.9-pre.4.local.261004204034 -> 0.5.9-pre.4.
 // Anything else is returned unchanged. A snapshot never has a server-bundle release
 // of its own, so fetch-baseline-tarball.mjs uses this to pick the base version's
-// baseline (BUG-115 / T0488).
-const SNAPSHOT_SUFFIX_RE = /[-.]local\.\d{12}$/;
-
-function stripSnapshotSuffix(version) {
-  return String(version).replace(SNAPSHOT_SUFFIX_RE, '');
-}
+// baseline (BUG-115 / T0488). The rule lives in src/lib/snapshot-version.ts, shared
+// with the runtime download fallback (T0492); Node 24 strips its types on require.
+const { stripSnapshotSuffix } = require('../src/lib/snapshot-version.ts');
 
 // v* tags pointing exactly at HEAD (no nearest-tag fallback).
 function readHeadTags() {

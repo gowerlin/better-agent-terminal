@@ -13,11 +13,11 @@
  * runtime loader uses (electron/whisper-addon-loader.ts).
  *
  * T0472: a package directory can also exist while its install script never ran
- * (npm 12 `allowScripts`, `--ignore-scripts`, see T0471). Two such holes ship
- * broken installers under `build.npmRebuild: false`, so they are checked too:
- *   - the embedded claude `bin/claude.exe` must be the native executable, not the
- *     ~500-byte placeholder stub that @anthropic-ai/claude-code publishes;
- *   - better-sqlite3 must have its compiled `build/Release/better_sqlite3.node`.
+ * (npm 12 `allowScripts`, `--ignore-scripts`, see T0471). That hole ships a broken
+ * installer under `build.npmRebuild: false`, so it is checked too: the embedded
+ * claude `bin/claude.exe` must be the native executable, not the ~500-byte
+ * placeholder stub that @anthropic-ai/claude-code publishes. (T0492 removed the
+ * unused better-sqlite3 dependency and with it the `.node` check T0472 added.)
  *
  * Run locally via `npm run build`, `npm run build:release`, or directly:
  *   node scripts/verify-native-modules.js
@@ -35,7 +35,6 @@ const path = require('path');
 const REQUIRED_NATIVE_MODULES = [
   '@kutalia/whisper-node-addon',
   '@lydell/node-pty',
-  'better-sqlite3',
 ];
 
 const WHISPER_ADDON_PACKAGE = '@kutalia/whisper-node-addon';
@@ -49,8 +48,7 @@ const DESKTOP_PACKAGE_HOSTS = ['win32-x64', 'linux-x64', 'darwin-arm64'];
 // runtime loader leaves voice input disabled instead of crashing (BUG-116 fail-soft).
 const WHISPER_ADDON_REQUIRED_HOSTS = DESKTOP_PACKAGE_HOSTS;
 
-// T0472: the embedded claude / better-sqlite3 checks block on desktop package hosts
-// only. Elsewhere (the linux-arm64 server-bundle runner, which never builds an
+// T0472: the embedded claude check blocks on desktop package hosts only. Elsewhere (the linux-arm64 server-bundle runner, which never builds an
 // installer and skips `@electron/rebuild`) they warn.
 const EMBEDDED_RUNTIME_REQUIRED_HOSTS = DESKTOP_PACKAGE_HOSTS;
 
@@ -66,8 +64,6 @@ const CLAUDE_STUB_MARKER = 'claude native binary not installed';
 // Size is only a tie-breaker: a non-executable file this small is the stub even if
 // its wording changes upstream. install.cjs treats < 4 KiB as stub-sized too.
 const CLAUDE_STUB_MAX_BYTES = 4096;
-
-const BETTER_SQLITE3_NODE_SEGMENTS = ['node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node'];
 
 const INSTALL_SCRIPTS_DOC = 'CLAUDE.md section "本機開發：npm 12 install scripts（T0471）"';
 
@@ -151,7 +147,7 @@ function classifyEmbeddedClaude(filePath, platform) {
 }
 
 /**
- * T0472: embedded claude + better-sqlite3 binaries. Returns the problems found and
+ * T0472: embedded claude binary. Returns the problems found and
  * whether they block this host (desktop package hosts) or only warn.
  */
 function verifyEmbeddedRuntime(projectRoot, platform, arch) {
@@ -176,18 +172,6 @@ function verifyEmbeddedRuntime(projectRoot, platform, arch) {
         'node node_modules/@anthropic-ai/claude-code/install.cjs',
         'node_modules/@anthropic-ai/claude-code/bin/claude.exe --version   (expect "<version> (Claude Code)")',
       ],
-    });
-  }
-
-  const sqlitePath = path.join(projectRoot, ...BETTER_SQLITE3_NODE_SEGMENTS);
-  if (!fs.existsSync(sqlitePath)) {
-    problems.push({
-      id: 'better-sqlite3',
-      status: 'missing',
-      summary: `better-sqlite3 is installed but its native module was never built (host ${host})`,
-      details: [`expected: ${sqlitePath}`],
-      cause: 'An installer built now would ship without a working database. Likely cause: the better-sqlite3 install script did not run (npm 12 allowScripts, --ignore-scripts).',
-      fix: ['npx electron-rebuild -f -w better-sqlite3   (local; CI runs `npm ci` + `npx --yes @electron/rebuild`)'],
     });
   }
 
@@ -246,7 +230,7 @@ function main() {
     }
   }
 
-  // Embedded claude + better-sqlite3 binaries (T0472).
+  // Embedded claude binary (T0472).
   const runtime = verifyEmbeddedRuntime(projectRoot, process.platform, process.arch);
   if (runtime.blocking) {
     console.error('');
@@ -271,7 +255,7 @@ function main() {
   }
 
   const whisperNote = found ? `, whisper binary: ${path.relative(projectRoot, found)}` : '';
-  const runtimeNote = runtime.problems.length === 0 ? ', embedded claude: native, better-sqlite3: .node present' : '';
+  const runtimeNote = runtime.problems.length === 0 ? ', embedded claude: native' : '';
   console.log(`[verify-native-modules] ✅ All ${REQUIRED_NATIVE_MODULES.length} required native modules present${whisperNote}${runtimeNote}`);
 }
 

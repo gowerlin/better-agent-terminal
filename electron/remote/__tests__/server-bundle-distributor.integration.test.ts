@@ -22,9 +22,12 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 
+// T0492: switchable so the snapshot-version cases can drive app.getVersion().
+const appVersion = vi.hoisted(() => ({ value: '0.5.0' }))
+
 vi.mock('electron', () => ({
   app: {
-    getVersion: () => '0.5.0',
+    getVersion: () => appVersion.value,
     getPath: () => os.tmpdir(),
   },
 }))
@@ -147,6 +150,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks()
+  appVersion.value = VERSION
   if (ORIGINAL_RESOURCES_PATH === undefined) {
     delete (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath
   } else {
@@ -340,6 +344,59 @@ describe('distributeServerBundle integration', () => {
     expect(callArgs.arch).toBe(ARCH)
     expect(callArgs.version).toBe(VERSION)
     expect(callArgs.cacheDir).toBe(cacheDir)
+  })
+
+  // T0492: a local snapshot build has no server-bundle release of its own.
+  const SNAPSHOT = `${VERSION}-local.261013234500`
+
+  it('snapshot version passed explicitly (setup wizard) → download uses the base version', async () => {
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.mkdir(baselineDir, { recursive: true })
+
+    const result = await distributeServerBundle({
+      profile: makeProfile(),
+      version: SNAPSHOT,
+      cacheDir,
+      baselineDir,
+    })
+
+    expect(result.ok).toBe(true)
+    expect(downloadServerBundle).toHaveBeenCalledOnce()
+    expect(vi.mocked(downloadServerBundle).mock.calls[0][0].version).toBe(VERSION)
+  })
+
+  it('snapshot app.getVersion() default → download uses the base version', async () => {
+    appVersion.value = '0.6.0-pre.4.local.261013234500'
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.mkdir(baselineDir, { recursive: true })
+
+    const result = await distributeServerBundle({
+      profile: makeProfile(),
+      cacheDir,
+      baselineDir,
+    })
+
+    expect(result.ok).toBe(true)
+    expect(vi.mocked(downloadServerBundle).mock.calls[0][0].version).toBe('0.6.0-pre.4')
+  })
+
+  it('snapshot version + base-version baseline → baseline hit, cached under the base filename', async () => {
+    const fix = makeBaselineFixture(VERSION)
+    await writeBaseline(baselineDir, fix)
+
+    const result = await distributeServerBundle({
+      profile: makeProfile(),
+      version: SNAPSHOT,
+      cacheDir,
+      baselineDir,
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.source).toBe('baseline')
+    const cached = await fs.readFile(path.join(cacheDir, `bat-server-${ARCH}-v${VERSION}.tar.gz`))
+    expect(cached.equals(fix.tarballs[ARCH])).toBe(true)
+    expect(downloadServerBundle).not.toHaveBeenCalled()
   })
 
   it('arch detection failed: profile missing sshServerArch → arch-detection-failed', async () => {

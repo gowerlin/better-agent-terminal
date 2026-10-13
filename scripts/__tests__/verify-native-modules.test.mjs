@@ -1,5 +1,5 @@
 // T0472 — verify-native-modules.js: embedded claude must be the native binary (not the
-// npm placeholder stub) and better-sqlite3 must have its compiled .node.
+// npm placeholder stub). T0492 removed better-sqlite3 and its .node check.
 //
 // Fake node_modules trees are built in a temp dir. Executables are faked with their
 // magic bytes only: the check reads the head of the file, never runs it.
@@ -59,7 +59,6 @@ function writeFile(root, rel, content) {
 }
 
 const CLAUDE_REL = 'node_modules/@anthropic-ai/claude-code/bin/claude.exe'
-const SQLITE_REL = 'node_modules/better-sqlite3/build/Release/better_sqlite3.node'
 
 /** A fake executable: magic bytes + padding past the stub-size threshold. */
 function fakeExecutable(format, size = 64 * 1024) {
@@ -159,21 +158,19 @@ describe('verifyEmbeddedRuntime', () => {
     writeClaude(root, STUB)
     const result = verifyEmbeddedRuntime(root, 'darwin', 'x64')
     expect(result.host).toBe('darwin-x64')
-    expect(result.problems.map((p) => p.id)).toEqual(['embedded-claude', 'better-sqlite3'])
+    expect(result.problems.map((p) => p.id)).toEqual(['embedded-claude'])
     expect(result.blocking).toBe(false)
   })
 
   it('complete tree: no problems', () => {
     const root = makeRoot()
     writeClaude(root, fakeExecutable('pe'))
-    writeFile(root, SQLITE_REL, '')
     expect(verifyEmbeddedRuntime(root, 'win32', 'x64')).toEqual({ host: 'win32-x64', problems: [], blocking: false })
   })
 
   it('stub claude blocks a desktop host and points at install.cjs', () => {
     const root = makeRoot()
     writeClaude(root, STUB)
-    writeFile(root, SQLITE_REL, '')
     const result = verifyEmbeddedRuntime(root, 'win32', 'x64')
     expect(result.blocking).toBe(true)
     expect(result.problems).toHaveLength(1)
@@ -181,25 +178,18 @@ describe('verifyEmbeddedRuntime', () => {
     expect(result.problems[0].fix[0]).toBe('node node_modules/@anthropic-ai/claude-code/install.cjs')
   })
 
-  it('missing claude.exe and missing better_sqlite3.node are both reported', () => {
+  it('missing claude.exe blocks a desktop host', () => {
     const root = makeRoot()
-    mkdirSync(path.join(root, 'node_modules', 'better-sqlite3'), { recursive: true })
     const result = verifyEmbeddedRuntime(root, 'linux', 'x64')
     expect(result.blocking).toBe(true)
-    expect(result.problems.map((p) => [p.id, p.status])).toEqual([
-      ['embedded-claude', 'missing'],
-      ['better-sqlite3', 'missing'],
-    ])
-    expect(result.problems[1].details[0]).toBe(`expected: ${path.join(root, ...SQLITE_REL.split('/'))}`)
-    expect(result.problems[1].fix[0]).toContain('electron-rebuild -f -w better-sqlite3')
+    expect(result.problems.map((p) => [p.id, p.status])).toEqual([['embedded-claude', 'missing']])
   })
 
-  it('missing better_sqlite3.node alone blocks a desktop host', () => {
+  it('a better-sqlite3 tree is no longer checked (T0492)', () => {
     const root = makeRoot()
     writeClaude(root, fakeExecutable('macho'))
-    const result = verifyEmbeddedRuntime(root, 'darwin', 'arm64')
-    expect(result.blocking).toBe(true)
-    expect(result.problems.map((p) => p.id)).toEqual(['better-sqlite3'])
+    mkdirSync(path.join(root, 'node_modules', 'better-sqlite3'), { recursive: true })
+    expect(verifyEmbeddedRuntime(root, 'darwin', 'arm64')).toEqual({ host: 'darwin-arm64', problems: [], blocking: false })
   })
 
   it('non-desktop host (linux-arm64 server-bundle runner): problems warn, never block', () => {
@@ -207,7 +197,7 @@ describe('verifyEmbeddedRuntime', () => {
     writeClaude(root, STUB)
     const result = verifyEmbeddedRuntime(root, 'linux', 'arm64')
     expect(result.host).toBe('linux-arm64')
-    expect(result.problems.map((p) => p.id)).toEqual(['embedded-claude', 'better-sqlite3'])
+    expect(result.problems.map((p) => p.id)).toEqual(['embedded-claude'])
     expect(result.blocking).toBe(false)
   })
 })
@@ -215,17 +205,16 @@ describe('verifyEmbeddedRuntime', () => {
 describe('CLI on a fake project tree', () => {
   // The script resolves the project root from its own location, so it is copied into
   // <root>/scripts/ and run there.
-  function makeProject({ claude, sqlite = true }) {
+  function makeProject({ claude }) {
     const root = makeRoot()
     mkdirSync(path.join(root, 'scripts'))
     copyFileSync(SCRIPT, path.join(root, 'scripts', 'verify-native-modules.js'))
-    for (const mod of ['@kutalia/whisper-node-addon', '@lydell/node-pty', 'better-sqlite3']) {
+    for (const mod of ['@kutalia/whisper-node-addon', '@lydell/node-pty']) {
       writeFile(root, `node_modules/${mod}/package.json`, '{}')
     }
     const whisperDir = whisperAddonDirCandidates(process.platform, process.arch)[0]
     if (whisperDir) writeFile(root, `node_modules/@kutalia/whisper-node-addon/dist/${whisperDir}/whisper.node`, '')
     if (claude !== undefined) writeClaude(root, claude)
-    if (sqlite) writeFile(root, SQLITE_REL, '')
     return root
   }
 
@@ -246,10 +235,12 @@ describe('CLI on a fake project tree', () => {
   const desktopHost = EMBEDDED_RUNTIME_REQUIRED_HOSTS.includes(host)
   const hostFormat = HOST_FORMAT[process.platform] ?? 'elf'
 
-  it('exits 0 with a native claude and better_sqlite3.node', () => {
+  it('exits 0 with a native claude (no better-sqlite3 in the tree)', () => {
     const { code, stdout } = runCli(makeProject({ claude: fakeExecutable(hostFormat) }))
     expect(code).toBe(0)
-    expect(stdout).toContain('embedded claude: native, better-sqlite3: .node present')
+    expect(stdout).toContain('All 2 required native modules present')
+    expect(stdout).toContain('embedded claude: native')
+    expect(stdout).not.toContain('sqlite')
   })
 
   it.runIf(desktopHost)('exits 1 on the stub with an actionable message', () => {
@@ -259,12 +250,5 @@ describe('CLI on a fake project tree', () => {
     expect(stderr).toContain('npm placeholder stub')
     expect(stderr).toContain('node node_modules/@anthropic-ai/claude-code/install.cjs')
     expect(stderr).toContain('本機開發：npm 12 install scripts（T0471）')
-  })
-
-  it.runIf(desktopHost)('exits 1 when better_sqlite3.node is missing', () => {
-    const { code, stderr } = runCli(makeProject({ claude: fakeExecutable(hostFormat), sqlite: false }))
-    expect(code).toBe(1)
-    expect(stderr).toContain('better-sqlite3 is installed but its native module was never built')
-    expect(stderr).toContain('npx electron-rebuild -f -w better-sqlite3')
   })
 })

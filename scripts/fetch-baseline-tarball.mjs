@@ -38,6 +38,9 @@
  *
  * Resilience:
  *   - Local cache by SHA: if tarball + sidecar exist and SHA matches, skip download.
+ *   - Stale versions (T0492): once the current version is in place, baseline
+ *     tarballs / sidecars of other versions are removed from the output dir
+ *     (electron-builder would otherwise pack them all into the installer).
  *   - Network retries: exponential backoff 500ms / 1500ms / 3000ms.
  *   - GitHub rate limit: HTTP 403 + X-RateLimit-Remaining: 0 → actionable hint
  *     (retry after X-RateLimit-Reset, or set GITHUB_TOKEN env).
@@ -156,6 +159,39 @@ export function manifestMatchesVersion(manifestText, version) {
     return typeof manifest.version === 'string' && manifest.version.replace(/^v/, '') === version
   } catch {
     return false
+  }
+}
+
+// T0492: electron-builder packs every `bat-server-<arch>-v*.tar.gz` in dist-baseline/
+// (`build.*.extraResources[].filter`), so a tarball left over from an earlier version
+// (~240 MB each) rides along in every local installer. Returns the names of baseline
+// tarballs / sidecars whose version is not `version`. Only names matching the release
+// naming rule are considered; other files and other arches of the same version (the
+// Linux package carries linux-arm64 too) are never touched.
+const BASELINE_FILE_RE = /^bat-server-(?:linux-x64|linux-arm64|darwin-arm64)-v(.+)\.tar\.gz(?:\.sha256)?$/
+
+export function staleBaselineFiles(fileNames, version) {
+  return fileNames.filter((name) => {
+    const match = BASELINE_FILE_RE.exec(name)
+    return match !== null && match[1] !== version
+  })
+}
+
+function pruneStaleBaselines({ outputDir, version, dryRun }) {
+  const stale = staleBaselineFiles(fs.readdirSync(outputDir), version)
+  for (const name of stale) {
+    if (dryRun) {
+      console.log(`[fetch-baseline] [dry-run] would remove stale baseline ${name} (not v${version})`)
+      continue
+    }
+    try {
+      fs.rmSync(path.join(outputDir, name), { force: true })
+      console.log(`[fetch-baseline] removed stale baseline ${name} (not v${version})`)
+    } catch (err) {
+      // Not fatal: the current version's files are in place. The leftover only
+      // makes the local installer bigger.
+      console.warn(`[fetch-baseline] could not remove stale baseline ${name}: ${err.message}`)
+    }
   }
 }
 
@@ -426,6 +462,10 @@ async function main() {
     console.error(`[fetch-baseline] failed to obtain manifest.json: ${err.message}`)
     process.exit(1)
   }
+
+  // Only after the current version is complete, so a failed fetch never leaves
+  // dist-baseline/ empty.
+  pruneStaleBaselines({ outputDir, version, dryRun: args.dryRun })
 
   console.log(
     `[fetch-baseline] OK — host=${hostOS}×${hostArch}, ${plan.length} tarball(s) ready in ${path.relative(projectRoot, outputDir) || '.'}/`,

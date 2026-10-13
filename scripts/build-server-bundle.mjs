@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from 'fs'
+import { readdirSync, readFileSync, writeFileSync } from 'fs'
 import { chmod, copyFile, readFile, unlink, writeFile } from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -50,7 +50,6 @@ const TARGET_CONFIG = {
     nativePackages: [
       '@lydell/node-pty',
       '@lydell/node-pty-linux-x64',
-      'better-sqlite3',
       'sharp',
       '@img/sharp-linux-x64',
       '@img/sharp-libvips-linux-x64',
@@ -71,7 +70,6 @@ const TARGET_CONFIG = {
     nativePackages: [
       '@lydell/node-pty',
       '@lydell/node-pty-linux-arm64',
-      'better-sqlite3',
       'sharp',
       '@img/sharp-linux-arm64',
       '@img/sharp-libvips-linux-arm64',
@@ -88,11 +86,11 @@ const TARGET_CONFIG = {
     nodeArchiveBase: 'darwin-arm64',
     nodeBinarySubpath: ['bin', 'node'],
     runtimeBinaryName: 'node',
-    readmeRuntimeLine: '- glibc lower bound: n/a (darwin)',
+    // T0494: set by the minos (LC_BUILD_VERSION) of Node 24's official bin/node.
+    readmeRuntimeLine: '- macOS lower bound: 13.5 (arm64)',
     nativePackages: [
       '@lydell/node-pty',
       '@lydell/node-pty-darwin-arm64',
-      'better-sqlite3',
       'sharp',
       '@img/sharp-darwin-arm64',
       '@img/sharp-libvips-darwin-arm64',
@@ -107,7 +105,6 @@ const TARGET_CONFIG = {
 }
 const externalPackages = [
   'electron',
-  'better-sqlite3',
   'sharp',
   '@anthropic-ai/claude-code',
   '@anthropic-ai/claude-agent-sdk',
@@ -324,6 +321,7 @@ async function copyNativeModules() {
   for (const packageName of targetConfig.nativePackages) {
     results.push(await copyPackage(packageName))
   }
+  await pruneBinDirs(nodeModulesDir)
 
   const forbiddenMatches = []
   const stagedEntries = listRelativeFiles(nodeModulesDir)
@@ -336,6 +334,31 @@ async function copyNativeModules() {
     throw new Error(`Forbidden package patterns leaked into staged node_modules: ${forbiddenMatches.join(', ')}`)
   }
   return results
+}
+
+// T0492: drop every node_modules/**/.bin/ from the staged packages. fs.cp (copyRecursive)
+// rewrites relative symlinks to absolute ones, so e.g. sharp/node_modules/.bin/semver
+// pointed at /Users/runner/work/... and broke on any other machine (T0494). Nothing in
+// the bundle runs a package through .bin: bat-server and the helpers spawn bin/node and
+// explicit package paths, and claude-code gets its own bin/claude wrapper below.
+async function pruneBinDirs(dir) {
+  const removed = []
+  const walk = async (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const absolute = path.join(current, entry.name)
+      if (entry.name === '.bin') {
+        await removePath(absolute)
+        removed.push(path.relative(stagingRoot, absolute).replace(/\\/g, '/'))
+        continue
+      }
+      await walk(absolute)
+    }
+  }
+  await walk(dir)
+  log('4', removed.length > 0
+    ? `Removed ${removed.length} node_modules .bin dir(s): ${removed.join(', ')}`
+    : 'No node_modules .bin dirs to remove')
 }
 
 async function pruneAnthropicPackages() {
