@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: bug
 id: BUG-116
 title: "macOS（0.6.0-pre.2）啟動即崩潰：main process 載入 @kutalia/whisper-node-addon 找不到 darwin-arm64/whisper.node → Uncaught Exception，整個 app 無法開啟"
-status: OPEN
+status: FIXING
 severity: high
-reproducibility: unknown
+reproducibility: always
 created_at: "2026-10-13T15:43:35+08:00"
-updated_at: "2026-10-13T15:45:38+08:00"
+updated_at: "2026-10-13T16:05:05+08:00"
 impact:
   - app-launch
   - voice-input
   - macos-arm64
   - local-packaging
 links:
-  fix_workorder: null
+  fix_workorder: T0468
   related: [BUG-056]
 ---
 
@@ -23,8 +23,8 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🔴 high（使用者端 app 完全無法開啟） |
-| 可重現 | 未知（目前單一回報；等回報者環境資料） |
-| **狀態** | 📂 OPEN |
+| 可重現 | 必現（macOS 任一 arch；根因見下） |
+| **狀態** | 🔧 FIXING（T0468） |
 | 回報者 | 外部使用者 Gary（2026-10-13 15:38 轉述，附截圖） |
 | 版本 | `0.6.0-pre.2`（macOS；回報者稱「前兩天還能開」） |
 
@@ -62,6 +62,29 @@ at Object.<anonymous> (.../whisper-node-addon/dist/js/index.js:36:22)
 
 已請回報者提供：機器架構、app 執行檔架構、`app.asar.unpacked` 下 whisper `dist/` 列表、codesign 結果、`CFBundleShortVersionString` / `app.asar` mtime、`~/Library/Application Support/better-agent-terminal/Logs/` 最新 log；以及下載的 dmg 檔名、近兩天是否重裝 / 用清理工具。
 
+## 根因（2026-10-13 16:05，回報者資料 + 上游套件確認）
+
+回報者（Gary）資料：`uname -m` = `arm64`（Apple M2 Pro）；app 執行檔 `Mach-O 64-bit executable arm64`（確為 arm64 dmg）；`codesign --verify --deep --strict` 無輸出（通過）；`CFBundleShortVersionString` = `0.6.0-pre.2`；`app.asar` mtime `Oct 5 13:01:35 2026`（10-05 安裝後未被改動）；`~/Library/Application Support/better-agent-terminal/Logs/` 不存在。
+
+`app.asar.unpacked/node_modules/@kutalia/whisper-node-addon/dist/` 內容：`js/`、`linux-x64/`、**`mac-arm64/`**、**`mac-x64/`**、`win32-x64/` —— **沒有 `darwin-arm64/`**。
+
+塔台以 `npm pack @kutalia/whisper-node-addon@1.1.0`（lock 鎖定版本，2025-07-18 發佈，至今最新）確認上游套件本身即如此：
+
+- `dist/js/index.js` 的 `PLATFORM_MAPPING = { darwin: 'darwin', win32: 'win32', linux: 'linux' }`，以 `${platform}-${arch}` 組路徑 → macOS 找 `darwin-arm64` / `darwin-x64`
+- 但套件實際出貨目錄為 `mac-arm64` / `mac-x64` ⇒ **上游套件在 macOS 永遠載入失敗**（win32 / linux 命名一致不受影響）
+- `loadAddon()` 在**模組頂層**執行（`const whisperAsync = loadAddon()`），只要 import 就 throw
+- BAT `electron/voice-handler.ts:33` 頂層 `import { transcribe } from '@kutalia/whisper-node-addon'`，`main.ts` 頂層 import `registerVoiceHandlers` ⇒ **macOS（arm64 與 x64）啟動即崩潰**
+
+⇒ 假說 A（裝錯 dmg）與 B（bundle 損毀）**排除**；根因為 C 的變形：**不是漏打包，而是上游套件的平台目錄命名與自身 loader 不一致**，加上 BAT 頂層 eager import 放大為整個 app 無法啟動。影響面：**所有 macOS 使用者**（自 `cb65614` 2026-04-23 改用 `@kutalia/whisper-node-addon` 起的程式碼路徑；回報者稱「前兩天還能開」與此不符，可能是 10-05 安裝時舊版 process 仍在執行、直到近日重啟才載入新版——待修復工單順帶查證，不阻塞修復）。
+
+嚴重度維持 🔴 high（實際影響全部 mac 使用者，若確認自 pre.2 起必現則等同 critical）。
+
+**回報者臨時解法**（不需重裝；app 目錄屬回報者自己，無需 sudo）：
+
+```bash
+cd "/Applications/BetterAgentTerminal.app/Contents/Resources/app.asar.unpacked/node_modules/@kutalia/whisper-node-addon/dist" && ln -s mac-arm64 darwin-arm64
+```
+
 ## 修復方向（不論根因皆需）
 
 1. **韌性（主修）**：whisper addon 改為延遲 / 隔離載入（try/catch 或動態 `require` 於首次使用語音時），失敗僅停用語音 + logger 記錄 + UI 提示，app 照常啟動；同步檢查其他 optional 原生模組是否有同樣頂層載入風險
@@ -80,3 +103,5 @@ at Object.<anonymous> (.../whisper-node-addon/dist/js/index.js:36:22)
 ## 處置
 
 塔台決策（2026-10-13 15:43，使用者指示）：**先開單，等 Gary 回報環境資料後再派修復工單**。
+
+2026-10-13 16:05：Gary 回報到齊、根因確認 → 派 **T0468**（自有 loader 繞過上游 index.js + 延遲載入 fail-soft + verify-native-modules 加深）；狀態 → FIXING。本機 node_modules 還原待 T0467 / T0468 結束後由塔台執行。
