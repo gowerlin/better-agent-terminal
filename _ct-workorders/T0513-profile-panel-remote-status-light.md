@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0513
 title: "Profile（配置）對話框 remote 卡片狀態燈：headless profile 永遠紅燈修正，並區分已連線 / 閒置 / 連線失敗（BUG-123）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-123
 priority: P2
 sizing: S
 created_at: "2026-10-14T03:27:58+0800"
 started_at: "2026-10-14T03:29:15+0800"
-updated_at: "2026-10-14T03:29:15+0800"
+updated_at: "2026-10-14T03:38:53+0800"
+completed_at: "2026-10-14T03:38:53+0800"
 target_version: "0.6.0-pre.7"
 related:
   - BUG-123
@@ -163,4 +164,4 @@ memory_overrides:
 
 ### Commit
 
-見下方 commit hash（不 push）。
+`90b35ee` fix(profiles): T0513 remote card status light from local connection state (BUG-123)；未 push。
