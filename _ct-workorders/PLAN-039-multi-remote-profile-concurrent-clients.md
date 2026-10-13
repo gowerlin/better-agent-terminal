@@ -54,3 +54,4 @@ links:
 - 文件：`CLAUDE.md` 新增「多 remote profile 同時連線（PLAN-039）」節並改寫「遠端 Tower 通知」的單一 `remoteClient` 限制；`docs/remote-dev-overview.md` 新增「Several remote profiles at once (PLAN-039)」節（含實機驗收步驟）
 - 🟡 **待使用者實機驗收**：WSL + SSH 同時開窗（終端 / Agent / `bat-notify --submit`）、關其中一個 15 s 後斷線另一個不受影響——步驟見 docs 該節；AI 無法代驗。PLAN 狀態轉 DONE 由塔台於實機驗收後決定
 - 已知限制（D135 Q3）：同 target 兩 profile 的雙 Enter
+- ⛔ T0467（實機驗收自動化，2026-10-13T15:57:09+08:00）**BLOCKED**：本機沒有 Docker engine（WSL `Ubuntu-24.04` 內沒有 docker，Windows `docker.exe` 只有 client），SSH 端容器拓撲無法建立，待塔台裁決（推薦：使用者在 WSL 安裝 `docker.io` 後原單重派）。詳見 T0467 回報區

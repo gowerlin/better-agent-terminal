@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0467
 title: "PLAN-039 實機驗收自動化（無人值守）：source build + 真 WSL bat-server + WSL 內 Docker 容器（sshd + 獨立 bat-server）當 SSH profile，跑 docs 實機 6 步（不含 Claude Agent）"
 type: implementation
-status: PENDING
+status: BLOCKED
 repo: better-agent-terminal
 project: PLAN-039
 priority: P2
 sizing: M
 created_at: "2026-10-13T15:53:34+08:00"
-started_at: null
-updated_at: "2026-10-13T15:53:34+08:00"
+started_at: "2026-10-13T15:54:39+08:00"
+updated_at: "2026-10-13T15:58:00+08:00"
 completed_at: null
 target_version: next
 depends_on:
@@ -109,10 +109,65 @@ Windows host
 
 ### 完成狀態
 
+⛔ **BLOCKED** — 執行指示第 3 步的環境可行性探測不通過：**本機沒有任何 Docker engine**（WSL `Ubuntu-24.04` 內沒有 docker，Windows 端的 `docker.exe` 只是 client，沒有 daemon）。工單裁決的拓撲（SSH profile → WSL 內 Docker 容器）前提不成立。各替代路線都得在使用者的 WSL 安裝系統套件，超出 memory_overrides 授權，依工單指示**不硬改方案**，停在探測階段。未寫 spec / 腳本，未改任何產品或文件檔。
+
+**Landing Zone Check：PASS**
+- C-0：frontmatter `repo: better-agent-terminal` 與 `basename(REPO_ROOT)` `better-agent-terminal` 一致 ✅（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單在 REPO_ROOT 下 ✅；C-3：`e2e/`、`scripts/`、`docs/remote-dev-overview.md` 都存在（informational）；C-2：工單無 `branch` 欄位，實際分支為 `main`
+- 派發 mode：`CT_MODE=yolo`、`CT_INTERACTIVE=0`；`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
 ### 產出摘要
+
+本單只產出環境探測結果（下表），沒有程式 / 文件改動；commit 只含本工單檔，以及 PLAN-039 補的一行 T0467 結果（PLAN 狀態未改）。
+
+**環境探測（2026-10-13，Worker 實測）**
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| WSL distro | 只有 `Ubuntu-24.04`（Running，WSL2）| `wsl -l -v` |
+| WSL 內 docker | ❌ **未安裝** | `/usr/bin/docker*`、`/usr/local/bin/docker*`、`/snap/bin/docker*` 都不存在；`systemctl is-active docker` → `inactive`；沒有 `/var/run/docker.sock`；`dpkg -l` 查無 docker / containerd / podman；沒有 `~/.docker` |
+| Windows docker | ❌ 只有 client | `C:\ProgramData\chocolatey\bin\docker.exe`（Client 29.9.0）；`docker version` → `failed to connect to the docker API at npipe:////./pipe/docker_engine ... The system cannot find the file specified.`；context `desktop-linux` 也指向不存在的 Docker Desktop pipe |
+| apt 可裝 docker | 可（未裝）| `apt-cache policy docker.io` → Candidate `29.1.3-0ubuntu3~24.04.2`；`sudo -n true` 成功（passwordless sudo）|
+| WSL 內 sshd | ❌ 未安裝 | 沒有 `/usr/sbin/sshd`；`systemctl is-active ssh` → `inactive` |
+| WSL 既有 server | ✅ 可連（只讀探測，未動）| pid 318 `/home/gower/.local/bat-server/bin/node .../bat-server.mjs` 監聽 `127.0.0.1:9877`；`package.json` version `0.5.9-pre.4`；Windows `Test-NetConnection localhost -Port 9877` → True（IPv4，`::1` 失敗）；使用者已安裝的 BAT profile `wsl-ubuntu-24-04` 為 `remoteHost: localhost` / `remotePort: 9877` / `targetOS: wsl-linux` |
+| 免安裝隔離 | ✅ 可用 | `unshare -Ur --uts sh -c "hostname bat-probe && hostname"` → `bat-probe`（user + UTS namespace 可給第二個 server 獨立 hostname）|
+
+**對下一輪實作有用的發現（Docker 就緒後仍適用）**
+
+1. **known_hosts 隔離**：BAT 的 ssh 呼叫一律帶 `-o StrictHostKeyChecking=accept-new`（`electron/remote/ssh-args.ts` `buildBaseSshArgs`），首次連線會寫 known_hosts。Windows 內建 `C:\Windows\System32\OpenSSH\ssh.exe`（`OpenSSH_for_Windows_9.5p2`）**不吃 `HOME` / `USERPROFILE`**：兩者都改成暫存目錄後 `ssh -G localhost` 仍是 `userknownhostsfile C:\Users\Gower/.ssh/known_hosts`。Git for Windows 的 `C:\Program Files\Git\usr\bin\ssh.exe` 會吃 `HOME`（`nsswitch.conf` `db_home: env windows ...`），`HOME` 指到暫存目錄後是 `/tmp/.../.ssh/known_hosts`。⇒ spec 要給 S 實例的 env 在 `PATH` 前面插入 Git `usr\bin`，並把 `HOME` 設成 isolated 目錄，才不會寫到使用者的 `~/.ssh/known_hosts`。這和實際 BAT（從 Explorer 啟動時用 System32 ssh）不一樣，回報時要註明。
+2. **金鑰路徑不可含空白**：`validateSshIdentifier` 拒絕空白與控制字元，所以 `sshKeyPath` 要放在沒有空白的 isolated 目錄（scratchpad / `%TEMP%` 路徑可以）。
+3. **S profile 形狀**：`targetOS: 'ssh-linux'` 一律走 tunnel（T0425），`ssh -N -L <動態埠>:localhost:<remotePort>`，wss 改連 `127.0.0.1:<動態埠>`；`remoteToken` / `remoteFingerprint` 要用容器內 server 的值。
+4. **W profile**：連 `localhost:9877`；token / fingerprint 可從 WSL server 的 data dir 讀取（`~/.local/share/bat-server`，本次未讀取內容）。
 
 ### 實跑結果（每步 PASS / FAIL + 證據）
 
+| docs 步驟 | 結果 | 說明 |
+|---|---|---|
+| 1-2 兩 profile 各自連上、同時開窗 | ⛔ BLOCKED | 沒有 Docker engine，S 端 server 起不來 |
+| 3 終端指令（不含 Agent）| ⛔ BLOCKED | 同上 |
+| 4 Tower → Worker `bat-notify --submit` | ⛔ BLOCKED | 同上 |
+| 5 關 S 視窗 | ⛔ BLOCKED | 同上 |
+| 6 角色互換 | ⛔ BLOCKED | 同上 |
+| 回歸 `e2e/plan039-multi-remote.spec.ts` | — 未跑 | 本單沒有改動任何檔案，沒有回歸面 |
+
+驗收條件：全部未達成（spec / 腳本未建立）。`electron/**` / `src/**` 未改；`~/.local/bat-server` 只做唯讀探測（`ls`、`ss`、`ps`、讀 `package.json`），未重部署、未停止、未改設定；沒有建立或刪除任何容器（也無法建立）。
+
 ### 遭遇問題
 
+**阻塞點**：工單假設「`docker` CLI 只在 WSL `Ubuntu-24.04` 內」，實測 WSL 內沒有 docker。所有可行路線都要安裝系統套件，超出本單授權（memory_overrides 只授權操作「本單建立的容器」，不含改動 WSL 系統）。
+
+**給塔台的選項**（推薦 A）
+
+| 選項 | 做法 | 代價 / 風險 |
+|---|---|---|
+| **A（推薦）** | 使用者在 WSL 自行裝 Docker Engine，例如 `sudo apt install -y docker.io && sudo usermod -aG docker gower`，然後 `wsl --shutdown` 重開（或 `sudo systemctl enable --now docker`，`/etc/wsl.conf` 已有 `systemd=true`）。裝好後**原工單不改**重派 | 使用者動手一次；拓撲與裁決完全照原樣 |
+| B | 塔台明確授權 Worker 執行選項 A 的安裝（sudo 是 passwordless，技術上可以無人值守完成）| 會改使用者的 WSL 系統：新增 daemon、iptables 規則、docker group。不容易完整還原，所以需要使用者明確同意 |
+| C | 不用 Docker：在 WSL 內以 `unshare -Ur --uts` 起「獨立 hostname + 本單專用 install root / data dir / port」的第二個 bat-server，加上非 root 的 user-level `sshd`（高埠、本單專用 host key 與 `AuthorizedKeysFile`）| 一樣要裝 `openssh-server`（WSL 內沒有 `sshd`）；而且違反工單拓撲「不得在 WSL 主機多起一個 server」，要先改裁決 |
+
+**殘留風險**：選項 A / B 完成後，下一輪仍有 known_hosts 隔離的偏差要處理（見產出摘要第 1 點，改用 Git msys ssh），回報區需註明。
+
+**其他**：未使用 stash / reset / checkout / restore；未 push；探測用的暫存目錄 `%TEMP%\t0467probe` 已刪除。
+
 ### 回報時間
+
+2026-10-13T15:57:09+08:00（取自 `Get-Date`）
