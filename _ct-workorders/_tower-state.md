@@ -6,7 +6,9 @@
 >
 > **前次更新**:2026-10-05 11:34 (UTC+8) — 第五十五 session 收工。
 >
-> **第五十七 session 進行中**（2026-10-05 13:08）：已發佈 **`v0.6.0-pre.2`**（@ `9cb7cd4`）。實機驗收可改用 release 安裝檔；安裝版仍為 `F81C9FF4…`（舊）。
+> **第五十七 session**（2026-10-05 13:08）：已發佈 **`v0.6.0-pre.2`**（@ `9cb7cd4`）。
+>
+> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。git `main` = `origin/main` = `b5a689d`，乾淨。
 
 ---
 
@@ -219,20 +221,20 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-04 11:09 (UTC+8) 起手 Full Scan；2026-10-05 12:33 第五十六 session 收工逐項更新
+> 最後掃描:2026-10-13 15:40 (UTC+8) 第五十八 session 起手 Full Scan（前次 2026-10-04 11:09）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b` |
-| BAT 派發 | ✅ | 五項 dispatch env 齊備（10-05 11:40 PowerShell 複核）；第五十六 session 5 次派發皆啟動（started_at 17-23 s）；⚠️ BUG-114 仍 OPEN（L143） |
-| BAT 安裝版 | ⚠️ 待換新 | 安裝版仍為 `app.asar` 2026-10-05 05:28 SHA-256 `F81C9FF4…1F67`；**新 build 已打包未安裝**：`release\BetterAgentTerminal Setup 0.6.0-pre.1.exe` @ `0d03fc7`，`release\win-unpacked\resources\app.asar` SHA-256 `8D76B219…16AA6`（12:29）。安裝後以雜湊確認（L127） |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備（10-13 15:40 PowerShell 複核，terminal `66447ea9…`）；⚠️ BUG-114 仍 OPEN（L143） |
+| BAT 安裝版 | ✅ `v0.6.0-pre.2` release | exe FileVersion `0.6.0-pre.2`；`app.asar` 2026-10-05 13:05:30 SHA-256 `639351C4…18A27`（非本機 `release\win-unpacked` 的 `8D76B219…16AA6`——後者為 `0.6.0-pre.1` 版號的本機 build @ `0d03fc7`，已無需安裝） |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ⚠️ 路徑與文件不符 | 實際在 `%APPDATA%\better-agent-terminal\Logs\debug-<stamp>.log`；`bat-scripts.log` 在 `%APPDATA%\BetterAgentTerminal\Logs\`。CLAUDE.md Logging 節待修（L128） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存；系統 gitconfig `core.autocrlf=true`、repo 無 `.gitattributes`（L142） |
 | UAC | ⚠️ `EnableLUA=0` | BAT 與子 shell 皆提權（BUG-085 背景） |
 | gh CLI | ✅ | 已登入 `gowerlin`；**必須帶 `-R gowerlin/better-agent-terminal`**（L122）；本 session 未用 gh |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ⚠️ 本機領先 | `origin/main` = `0d03fc7`（12:28 push）；其後 BUG-115 + 收工 commits 未 push |
+| git 同步 | ✅ | `main` = `origin/main` = `b5a689d`（10-13 15:40 fetch 後），working tree 乾淨 |
 | WSL server | dev-deploy | `~/.local/bat-server`：tag `t0456`（JS = HEAD `698a157` 等價 + 4 helper `scripts/`）；smoke 13/13；回復 `npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --rollback --yes --tag t0456`；重跑 WSL 精靈會以 release bundle 覆蓋 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用（本 session 用 ct-done 補救 T0436） |
 | 熱區工單 | **T:112 檔 / BUG:39 / PLAN:11** | T 含 4 個報告檔（L132）；`archive_days: 2` 下大量到齡候選，下 session 可 `*archive`（先 grep 程式碼引用，L133） |
