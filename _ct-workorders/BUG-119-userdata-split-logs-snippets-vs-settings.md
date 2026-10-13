@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-119
 title: "userData 分裂：snippet-db 在 import 時取 getPath('userData')（早於 app.setName），日誌 / Crashes / snippets.json 落在 better-agent-terminal/，設定落在 BetterAgentTerminal/；runtime 實例共用 snippets、helper 找錯 runtime 目錄"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: always
 created_at: "2026-10-13T22:19:21+08:00"
-updated_at: "2026-10-13T22:32:56+08:00"
+updated_at: "2026-10-13T22:49:21+08:00"
 impact:
   - data-location
   - snippets
@@ -26,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（使用者找不到日誌 / 備份不完整；runtime 實例 snippets 互相干擾；改動牽涉既有資料搬移） |
 | 可重現 | 必現（Windows 本機實證；mac / Linux 依 Electron PathService 語意推導） |
-| **狀態** | ⏳ FIXING（T0480 / T0481 / T0482，D138） |
+| **狀態** | ✅ FIXED（T0480 / T0481 / T0482，D138；待 pre.4 實機：Windows server-token 不變、mac / Linux Keychain） |
 | 回報者 | 塔台（T0478 Worker 查證時發現） |
 
 ## 證據（T0478 回報區）
@@ -62,4 +62,5 @@ links:
 
 - T0481 DONE（`33044c0`）：本機 PTY 注入 `BAT_USER_DATA`，helper 以 env 解析
 - T0480 DONE（`95739d0`）：bootstrap + ready 前 migration + 顯式 setPath + snippetDb lazy；e2e 2/2
-- T0482（文件）派發中；全部完成後 → FIXED，待 Windows / mac 實機（server-token 不變、Keychain）
+- T0482 DONE（`14f06e3`）：README / CLAUDE.md / docs/plan-027 改回單一目錄 + 升版搬移 / 降版說明
+- → **FIXED**。待 pre.4 實機：Windows 升版後 server-token 不變、新 Logs 位置、舊目錄不變、關日誌重啟有效；mac / Linux Keychain / libsecret 殘餘風險。pre.4 release notes 須寫：userData 統一與搬移、runtime 實例 snippets 改各自一份、不要同時執行新舊版
