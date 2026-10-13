@@ -494,3 +494,7 @@ git tag -l 'v*' --sort=-v:refname | head -1
 CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > git tag > timestamp），
 所以 package.json 落後**不影響安裝檔**，但會讓本機 `npm run dev` 顯示錯誤版本。
 發布後順手同步：`npm version --no-git-tag-version --allow-same-version <version>`（同步 package.json + lock）。
+
+### 下游發佈（D137 / T0476）
+
+`release.yml` 的 Homebrew tap dispatch 與 Chocolatey push 皆為 **opt-in、預設跳過**：分別需 repo variable `HOMEBREW_TAP_REPO`（tap `owner/name`，+ secret `TAP_GITHUB_TOKEN`）與 `CHOCOLATEY_PUBLISH == 'true'`（+ secret `CHOCO_API_KEY`），且 tag 不含 `-pre`。本 fork 目前未設定，正式版不會動上游 `tonyq-org/homebrew-tap` 或 chocolatey.org 上的 `better-agent-terminal`（該 package id 與 `choco/better-agent-terminal.nuspec` 的 authors / owners 屬上游，自發 choco 前需另案處理）。`pre-release.yml` 無此兩 step。
