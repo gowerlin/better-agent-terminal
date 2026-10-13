@@ -120,9 +120,28 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 ## Electron Runtime
 
 - 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。
-- native modules 依 ABI 145 建置；`package.json` 的 `postinstall` 已自動跑 `npm rebuild better-sqlite3`。若手動安裝後 app 啟動異常（例如 `NODE_MODULE_VERSION mismatch`），先執行 `npm rebuild better-sqlite3`。
+- native modules 依 ABI 145 建置；`package.json` 的 `postinstall` 已自動跑 `npm rebuild better-sqlite3`。若手動安裝後 app 啟動異常（例如 `NODE_MODULE_VERSION mismatch`），先執行 `npm rebuild better-sqlite3`（npm 12 下此步被擋成 no-op，改用下節的 `electron-rebuild`）。
 - BAT 內執行 `npm run dev` 需確認 `ELECTRON_RUN_AS_NODE` 未被污染（見 BUG-038 / T0161）。若 renderer 無法啟動且 log 出現 `ELECTRON_RUN_AS_NODE=1`，清除該環境變數後重試。
 - electron-builder 26.x（2026-04-18 PLAN-005 / EXP-BUILDER26-001 CONCLUDED，原 24.13.3 → 26.8.1，清除 9 個 Group A CVE，見 PLAN-003 Group A）。
+
+## 本機開發：npm 12 install scripts（T0471）
+
+- **症狀**：本機 npm 12（`npm -v` ≥ 12）預設擋**相依套件**的 install scripts（`allowScripts` 政策）。`npm ci` / `npm install` 結尾只印 `npm warn ... install scripts blocked because they are not covered by allowScripts`，exit 0。結果：`electron` 無 `dist/`、`esbuild` 無原生 binary、`better-sqlite3` 無 `.node`、內嵌 claude 的 `bin/claude.exe` 是 500 bytes 的 stub（執行即 `Error: claude native binary not installed.`）。
+- **根專案 `postinstall` 會跑，但沒效**：根專案的 lifecycle script 不受 `allowScripts` 管制，可它呼叫的 `npm rebuild better-sqlite3` 走同一套政策 → better-sqlite3 的 `install` 被擋，binary 不變（T0471 以 sha256 前後比對確認）。
+- **被擋清單**（`npm install-scripts ls`，唯讀；本 repo 的 `package.json` 無 `allowScripts`）：
+
+  | 套件 | 被擋的 script | 本機處置（repo 根目錄執行） |
+  |---|---|---|
+  | `electron` | `postinstall: node install.js` | `node node_modules/electron/install.js` |
+  | `esbuild` | `postinstall: node install.js` | `node node_modules/esbuild/install.js` |
+  | `sharp` | `install: node install/check.js \|\| npm run build` | `node node_modules/sharp/install/check.js` |
+  | `better-sqlite3` | `install: prebuild-install \|\| node-gyp rebuild --release` | `npx electron-rebuild -f -w better-sqlite3`（建 Electron ABI 145；Node 下 `require` 失敗屬正常） |
+  | `@anthropic-ai/claude-code` | `postinstall: node install.cjs` | `node node_modules/@anthropic-ai/claude-code/install.cjs`（把 `@anthropic-ai/claude-code-win32-x64` 的 binary 放到 `bin/claude.exe`）；驗證 `node_modules/@anthropic-ai/claude-code/bin/claude.exe --version` = `2.1.289 (Claude Code)` |
+  | `electron-winstaller` | `install: node ./script/select-7z-arch.js` | **不需要**：只供 Squirrel.Windows target，本專案 `build.win.target` 為 `nsis` + `zip` |
+
+- **本機打包也依賴上表**：`build.npmRebuild` 為 `false`，electron-builder 直接打包 `node_modules` 現況（`asarUnpack` 含 `@anthropic-ai/claude-code`）。沒補跑就跑 `.vscode/scripts/release.ps1` / `npm run build`，產出的安裝檔內嵌 claude 是 stub、better-sqlite3 缺 `.node`。`scripts/verify-native-modules.js` 只檢查套件目錄與 whisper binary，**抓不到**這兩種情況。
+- **不要**為了消除警告執行 `npm install-scripts approve`：它會寫 `allowScripts` 進 `package.json`（變更政策需塔台決策）。
+- **CI 不受影響**：workflow 用 `actions/setup-node` `node-version: '24'`，用 Node 隨附的 npm（Node 24.21.0 隨附 npm 11.19.0，nodejs.org `dist/index.json`），且沒有升級 npm 的 step；本機的 npm 12 是另外全域升級的。若哪天 CI 改用 npm 12，`npm ci` 後的 `npx --yes @electron/rebuild` 只會修好 native module，claude-code / electron / esbuild 一樣要處理。
 
 ## Build Toolchain
 
