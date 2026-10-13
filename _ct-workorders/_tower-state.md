@@ -100,8 +100,8 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 
 ### 待辦（依優先序）
 
-0. 🟡 **pre.6 待發**：T0510（PARTIAL，驗收工具）+ T0511 DONE（`3df6218`，BUG-120 / 121：SSH wizard 自 v0.4.1 起在 Linux 目標從未能完成）+ T0512 DONE（`277b369`，BUG-122）；塔台聯合複驗 2026-10-14 02:56 @ `3df6218` 全綠（vite / typecheck 雙 0 / unit 206 files 3474 passed / verify-native / verify:helpers / e2e 4 spec 6 passed）；待使用者同意 push + 發 `v0.6.0-pre.6`
-1. 🟡 **pre.5 實機驗收（Windows）**：T0510 PARTIAL（`8994fff`）——A1 Custom CLI / A2 detached / A3 BUG-119 runtime 路徑 / A4 BUG-119 真環境（間接證據）/ A5 BUG-114 22 次 0 遺失 全 PASS（BUG-114 / BUG-119 已 CLOSED，使用者確認遠端 client 不必重新配對）；A6 SSH stock install FAIL → BUG-120 / 121。仍需真人：BUG-119 升版後 server-token 不變 + 新 Logs 目錄；BUG-114 派單 Worker 確實啟動；Custom CLI Agents 新增後重啟仍在（T0496）；detached rename → 關窗 → 重啟仍在（T0504）；SSH alias（無 User、含 ProxyJump）精靈 6 項（T0505 / T0506）；其餘 Fixed BUG（拖放 / 附件 / 遠端視窗 fail-closed / Docker / 精靈）
+0. ✅ **`v0.6.0-pre.6` 已發佈**（2026-10-14 03:16，run `38450958394` @ `79b1275`，10 job 全綠；mac 52 Mach-O arm64 + 內嵌 claude ✅、linux ELF x86-64 ✅、bundle 頂層 `staging/` ✅；4 assets + `server-bundle-v0.6.0-pre.6` 7 assets；release notes 更正 pre.5 SSH 說法）。內容：T0511（BUG-120 / 121）+ T0512（BUG-122）+ T0510 驗收工具
+1. 🟡 **pre.6 實機**：安裝 pre.6 後看 Profile 對話框版面（BUG-122）；有真實 SSH 主機時跑一次精靈（BUG-120 / 121）。**pre.5 實機驗收（Windows）**：T0510 PARTIAL（`8994fff`）——A1 Custom CLI / A2 detached / A3 BUG-119 runtime 路徑 / A4 BUG-119 真環境（間接證據）/ A5 BUG-114 22 次 0 遺失 全 PASS（BUG-114 / BUG-119 已 CLOSED，使用者確認遠端 client 不必重新配對）；A6 SSH stock install FAIL → BUG-120 / 121。仍需真人：BUG-119 升版後 server-token 不變 + 新 Logs 目錄；BUG-114 派單 Worker 確實啟動；Custom CLI Agents 新增後重啟仍在（T0496）；detached rename → 關窗 → 重啟仍在（T0504）；SSH alias（無 User、含 ProxyJump）精靈 6 項（T0505 / T0506）；其餘 Fixed BUG（拖放 / 附件 / 遠端視窗 fail-closed / Docker / 精靈）
 2. 🟡 **mac 實機（Gary）**：BUG-116 / 117 / 118 + BUG-119 殘餘風險（升版後 server-token 不變 = Keychain，arm64 dmg）
 3. 🟢 backlog：`*archive` 到齡候選（先 grep 程式碼引用，L133）、Codex 面板 Cache History 改用 `cache-history.ts`、server-bundle `ubuntu-22.04` 2027-04-17 停用（2027-03 前決定）、Haiku 5.5 CLI 版本門檻、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2、Vite `hashbangRE` 上游回報
 4. 🟢 L130 D094 mac 280 MB 門檻復議；舊單 T0153（PARTIAL）/ T0360（`FIXED` 非標準狀態）待清理
@@ -128,10 +128,10 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.0-pre.5**（package.json + lock，2026-10-14 01:40 同步） |
-| **最新 release** | `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
-| **前一 tag** | `v0.6.0-pre.4`（2026-10-13 23:04，`da787a7`） |
-| **目前主軸** | pre.5 實機驗收（Windows 本機 + Gary mac）→ 依結果 CLOSE Fixed 24 張 |
+| **目前版號** | **0.6.0-pre.6**（package.json + lock，2026-10-14 03:16 同步） |
+| **最新 release** | `v0.6.0-pre.6`（2026-10-14 03:16，run `38450958394`，target `79b1275`，T0510-T0512：SSH 精靈安裝 / 啟動修正、Profile 對話框加寬）+ `server-bundle-v0.6.0-pre.6`（7 assets）。前一版 `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
+| **前一 tag** | `v0.6.0-pre.5`（2026-10-14 01:38，`7a6fb9c`） |
+| **目前主軸** | pre.6 實機（Profile 版面、真實 SSH 主機）+ Gary mac 驗收 → 依結果 CLOSE Fixed 25 張 |
 | **工單最大編號** | T0512（T0510 PARTIAL；T0511 / T0512 DONE） |
 | **BUG 最大編號** | **BUG-122**；Open 0 / Fixing 0 / Fixed 25（120-122 待 pre.6 + 待實機 22）/ Closed 22 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
