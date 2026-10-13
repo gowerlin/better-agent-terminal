@@ -22,7 +22,7 @@ import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-pa
 import { findClientPathsInPrompt, resolvePromptPathSuggestions, type PromptPathHintItem } from '../lib/prompt-client-paths'
 import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
 import { CtToast, useCtToast } from './CtToast'
-import { getModelPricing } from '../lib/model-pricing'
+import { estimateCallCost, estimateModelUsageCost, type ModelUsageTokens } from '../lib/model-pricing'
 import {
   CLAUDE_OPEN_LOGIN_TERMINAL_EVENT,
   getClaudeAuthStatus,
@@ -50,7 +50,7 @@ interface SessionMeta {
   lastQueryCalls?: number
   lastRequestDurationMs?: number
   permissionMode?: string
-  modelUsage?: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }>
+  modelUsage?: Record<string, ModelUsageTokens & { costUSD: number }>
   cacheWrite5mTokens?: number
   cacheWrite1hTokens?: number
 }
@@ -3712,37 +3712,19 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           if (hasModelUsage) {
             const models: { model: string; cacheRead: number; cacheWrite: number; input: number; output: number; readCost: number | null; writeCost: number | null; totalCost: number | null }[] = []
             for (const [model, stats] of Object.entries(h.modelUsage!)) {
-              const p = getModelPricing(model)
               const totalIn = stats.inputTokens + stats.cacheReadInputTokens + stats.cacheCreationInputTokens
-              if (!p) { models.push({ model, cacheRead: stats.cacheReadInputTokens, cacheWrite: stats.cacheCreationInputTokens, input: totalIn, output: stats.outputTokens, readCost: null, writeCost: null, totalCost: null }); continue }
-              let writePrice = p.cacheWrite5m
-              if (h.cacheWrite5mTokens !== undefined && h.cacheWrite1hTokens !== undefined) {
-                const total5m1h = h.cacheWrite5mTokens + h.cacheWrite1hTokens
-                if (total5m1h > 0) writePrice = (h.cacheWrite5mTokens * p.cacheWrite5m + h.cacheWrite1hTokens * p.cacheWrite1h) / total5m1h
-              }
-              const readCost = (stats.cacheReadInputTokens / 1_000_000) * p.cacheRead
-              const writeCost = (stats.cacheCreationInputTokens / 1_000_000) * writePrice
-              const inputCost = (stats.inputTokens / 1_000_000) * p.input
-              const outputCost = (stats.outputTokens / 1_000_000) * p.output
-              models.push({ model, cacheRead: stats.cacheReadInputTokens, cacheWrite: stats.cacheCreationInputTokens, input: totalIn, output: stats.outputTokens, readCost, writeCost, totalCost: readCost + writeCost + inputCost + outputCost })
+              // T0484: summed over the turn's calls; the `longPrompt` part is priced at the long-prompt tier
+              const cost = estimateModelUsageCost(model, stats, h)
+              models.push({ model, cacheRead: stats.cacheReadInputTokens, cacheWrite: stats.cacheCreationInputTokens, input: totalIn, output: stats.outputTokens, readCost: cost?.readCost ?? null, writeCost: cost?.writeCost ?? null, totalCost: cost?.totalCost ?? null })
             }
             return models
           }
           if (h.model) {
-            const p = getModelPricing(h.model)
             const output = h.outputTokens || 0
-            if (!p) return [{ model: h.model, cacheRead: h.cacheRead, cacheWrite: h.cacheCreate, input: h.totalInput, output, readCost: null, writeCost: null, totalCost: null }]
-            let writePrice = p.cacheWrite5m
-            if (h.cacheWrite5mTokens !== undefined && h.cacheWrite1hTokens !== undefined) {
-              const total5m1h = h.cacheWrite5mTokens + h.cacheWrite1hTokens
-              if (total5m1h > 0) writePrice = (h.cacheWrite5mTokens * p.cacheWrite5m + h.cacheWrite1hTokens * p.cacheWrite1h) / total5m1h
-            }
-            const readCost = (h.cacheRead / 1_000_000) * p.cacheRead
-            const writeCost = (h.cacheCreate / 1_000_000) * writePrice
             const uncachedInput = Math.max(0, h.totalInput - h.cacheRead - h.cacheCreate)
-            const inputCost = (uncachedInput / 1_000_000) * p.input
-            const outputCost = (output / 1_000_000) * p.output
-            return [{ model: h.model, cacheRead: h.cacheRead, cacheWrite: h.cacheCreate, input: h.totalInput, output, readCost, writeCost, totalCost: readCost + writeCost + inputCost + outputCost }]
+            // T0484: a single call — its own prompt length (input + cache read + cache write) picks the tier
+            const cost = estimateCallCost(h.model, { inputTokens: uncachedInput, outputTokens: output, cacheReadInputTokens: h.cacheRead, cacheCreationInputTokens: h.cacheCreate }, h)
+            return [{ model: h.model, cacheRead: h.cacheRead, cacheWrite: h.cacheCreate, input: h.totalInput, output, readCost: cost?.readCost ?? null, writeCost: cost?.writeCost ?? null, totalCost: cost?.totalCost ?? null }]
           }
           return null
         }

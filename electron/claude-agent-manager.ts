@@ -17,6 +17,7 @@ import {
   type ResolvedRuntime,
 } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
+import { HAIKU_5_5_LONG_PROMPT_THRESHOLD } from '../src/lib/model-pricing'
 import type { ClaudeRuntimeDegradedEvent, ClaudeRuntimeWarningEvent } from '../src/types'
 import type { HostDeps, HostEmit, HostNotification, HostNotifier } from './handlers/types'
 
@@ -39,6 +40,94 @@ const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; descriptio
   { value: 'claude-sonnet-4-6[1m]', displayName: 'Sonnet 4.6 (1M)',   description: 'claude-sonnet-4-6 · 1M context · CLI recommended for better cache efficiency' },
   { value: 'claude-haiku-4-5-20251001', displayName: 'Haiku 4.5', description: 'claude-haiku-4-5 · fast & lightweight' },
 ]
+
+// T0484: context window / max output shown right after a model switch, until the next query's
+// `modelUsage` reports the real values. Source: platform.claude.com/docs/en/models/overview
+// (read 2026-10-13) — Opus 5.5 / Fable 5.1 / Sonnet 5.5 / Haiku 5.5 are all 1M context, 128K max
+// output (synchronous Messages API). Models not listed there keep the pre-T0484 estimate.
+const MODEL_LIMITS: Array<{ match: string; contextWindow: number; maxOutputTokens: number }> = [
+  { match: 'opus-5-5',   contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  { match: 'fable-5-1',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  { match: 'sonnet-5-5', contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  { match: 'haiku-5-5',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+]
+
+export function estimateModelLimits(model: string): { contextWindow: number; maxOutputTokens: number } {
+  const known = MODEL_LIMITS.find(m => model.includes(m.match))
+  if (known) return { contextWindow: known.contextWindow, maxOutputTokens: known.maxOutputTokens }
+  return {
+    contextWindow: model.includes('[1m]') ? 1000000 : 200000,
+    maxOutputTokens: model.includes('haiku') ? 8192 : 64000,
+  }
+}
+
+// T0484: per-API-call usage of the running query, keyed by API message id, so the renderer can
+// price Haiku 5.5 calls by their own prompt length (the SDK's `modelUsage` is summed per model).
+type CallTokenUsage = { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number }
+type ApiUsage = { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
+
+export interface QueryCallTracker {
+  calls: Map<string, CallTokenUsage & { model: string }>
+  /** stream origin (`parent_tool_use_id`, '' for the main agent) → id of the message being streamed */
+  current: Map<string, string>
+}
+
+export function createQueryCallTracker(): QueryCallTracker {
+  return { calls: new Map(), current: new Map() }
+}
+
+/** Stream events and assistant messages both report a call's usage; keep the largest value seen. */
+export function recordCallUsage(tracker: QueryCallTracker, id: string | undefined, model: string | undefined, usage: ApiUsage | undefined): void {
+  if (!id || !usage) return
+  const prev = tracker.calls.get(id)
+  tracker.calls.set(id, {
+    model: model || prev?.model || '',
+    inputTokens: Math.max(prev?.inputTokens ?? 0, usage.input_tokens ?? 0),
+    outputTokens: Math.max(prev?.outputTokens ?? 0, usage.output_tokens ?? 0),
+    cacheReadInputTokens: Math.max(prev?.cacheReadInputTokens ?? 0, usage.cache_read_input_tokens ?? 0),
+    cacheCreationInputTokens: Math.max(prev?.cacheCreationInputTokens ?? 0, usage.cache_creation_input_tokens ?? 0),
+  })
+}
+
+/** `message_start` names the call; `message_delta` (no id) belongs to the last call started on that origin. */
+export function trackStreamEventUsage(
+  tracker: QueryCallTracker,
+  origin: string,
+  event: { type?: string; usage?: ApiUsage; message?: { id?: string; model?: string; usage?: ApiUsage } },
+): void {
+  if (event.type === 'message_start' && event.message?.id) {
+    tracker.current.set(origin, event.message.id)
+    recordCallUsage(tracker, event.message.id, event.message.model, event.message.usage)
+  } else if (event.type === 'message_delta') {
+    recordCallUsage(tracker, tracker.current.get(origin), undefined, event.usage)
+  }
+}
+
+/**
+ * Adds `longPrompt` to the matching `modelUsage` entries: the usage of the calls whose prompt
+ * (input + cache read + cache write) is over HAIKU_5_5_LONG_PROMPT_THRESHOLD. A call model that
+ * matches no entry is dropped (that call stays at the base price, the pre-T0484 behaviour).
+ */
+export function attachLongPromptUsage(
+  modelUsage: Record<string, CallTokenUsage & { longPrompt?: CallTokenUsage }>,
+  tracker: QueryCallTracker | undefined,
+): void {
+  if (!tracker) return
+  const keys = Object.keys(modelUsage)
+  for (const call of tracker.calls.values()) {
+    const prompt = call.inputTokens + call.cacheReadInputTokens + call.cacheCreationInputTokens
+    if (prompt <= HAIKU_5_5_LONG_PROMPT_THRESHOLD || !call.model) continue
+    const key = call.model in modelUsage ? call.model : keys.find(k => k.includes(call.model) || call.model.includes(k))
+    if (!key) continue
+    const lp = modelUsage[key].longPrompt ?? { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0 }
+    modelUsage[key].longPrompt = {
+      inputTokens: lp.inputTokens + call.inputTokens,
+      outputTokens: lp.outputTokens + call.outputTokens,
+      cacheReadInputTokens: lp.cacheReadInputTokens + call.cacheReadInputTokens,
+      cacheCreationInputTokens: lp.cacheCreationInputTokens + call.cacheCreationInputTokens,
+    }
+  }
+}
 
 
 // BUG-084 / T0372: `DISABLE_UPDATES=1` only for the embedded binary (including system → embedded
@@ -148,7 +237,8 @@ interface SessionMetadata {
   callCacheWrite: number
   lastQueryCalls: number  // Number of API calls in the last query/turn
   // Per-model usage breakdown (from SDK modelUsage)
-  modelUsage?: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }>
+  // `longPrompt` (T0484): the part from calls with a prompt over 100K tokens (Haiku 5.5 tier)
+  modelUsage?: Record<string, CallTokenUsage & { costUSD: number; longPrompt?: CallTokenUsage }>
   // Ephemeral cache write breakdown (aggregate, not per-model)
   cacheWrite5mTokens?: number
   cacheWrite1hTokens?: number
@@ -193,6 +283,7 @@ interface SessionInstance {
   v2SessionModel?: string // Model the V2 session was created with (to detect changes)
   worktreeInfo?: WorktreeInfo  // Set when running in worktree isolation
   originalCwd?: string         // Original workspace cwd before worktree redirect
+  callUsage?: QueryCallTracker // T0484: per-call usage of the running query
 }
 
 /**
@@ -800,6 +891,7 @@ export class ClaudeAgentManager {
 
       // Clear per-query fields so renderer can distinguish streaming vs result
       session.metadata.modelUsage = undefined
+      session.callUsage = createQueryCallTracker()
       session.metadata.cacheWrite5mTokens = undefined
       session.metadata.cacheWrite1hTokens = undefined
 
@@ -916,6 +1008,9 @@ export class ClaudeAgentManager {
       }
     }
     if (message.type === 'assistant') {
+      // T0484: covers calls whose stream events are not forwarded (same id as `message_start`)
+      const apiMsg = (message as { message?: { id?: string; model?: string; usage?: ApiUsage } }).message
+      recordCallUsage(session.callUsage ??= createQueryCallTracker(), apiMsg?.id, apiMsg?.model, apiMsg?.usage)
       const blocks = (message as { message?: { content?: unknown[] } }).message?.content
       if (Array.isArray(blocks)) {
         const toolBlocks = blocks.filter((b: unknown) => (b as { type?: string }).type === 'tool_use')
@@ -1074,8 +1169,10 @@ export class ClaudeAgentManager {
         delta?: { text?: string; thinking?: string }
         content_block?: { type?: string; id?: string; name?: string; input?: string }
         usage?: { input_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number }
-        message?: { usage?: { input_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number } }
+        message?: { id?: string; model?: string; usage?: { input_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number } }
       }
+      // T0484: every call, sub-agents included — the cost view needs each call's prompt length
+      trackStreamEventUsage(session.callUsage ??= createQueryCallTracker(), message.parent_tool_use_id || '', event)
       const eventUsage = event.usage || event.message?.usage
       if (eventUsage && (event.type === 'message_delta' || event.type === 'message_start') && !message.parent_tool_use_id) {
         const contextTokens = (eventUsage.input_tokens || 0)
@@ -1270,7 +1367,7 @@ export class ClaudeAgentManager {
         session.metadata.cacheReadTokens = totalCacheRead
         session.metadata.cacheCreationTokens = totalCacheCreate
         // Pass per-model breakdown to renderer for cost calculation
-        const mu: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }> = {}
+        const mu: NonNullable<SessionMetadata['modelUsage']> = {}
         for (const [model, stats] of Object.entries(resultMsg.modelUsage)) {
           mu[model] = {
             inputTokens: (stats as { inputTokens?: number }).inputTokens || 0,
@@ -1280,6 +1377,7 @@ export class ClaudeAgentManager {
             costUSD: (stats as { costUSD?: number }).costUSD || 0,
           }
         }
+        attachLongPromptUsage(mu, session.callUsage)
         session.metadata.modelUsage = mu
         // Ephemeral cache write breakdown (aggregate)
         if (resultMsg.usage?.cache_creation) {
@@ -1298,6 +1396,7 @@ export class ClaudeAgentManager {
         session.metadata.cacheReadTokens = cacheRead
         session.metadata.cacheCreationTokens = cacheCreate
       }
+      session.callUsage = createQueryCallTracker()
 
       if (resultMsg.usage?.input_tokens) {
         session.metadata.contextTokens = resultMsg.usage.input_tokens
@@ -1486,6 +1585,7 @@ export class ClaudeAgentManager {
         await session.v2Session.send(prompt || ' ')
       }
 
+      session.callUsage = createQueryCallTracker()
       // Stream messages — reuse shared processMessage()
       for await (const message of session.v2Session.stream()) {
         if (session.abortController.signal.aborted) {
@@ -1695,9 +1795,9 @@ export class ClaudeAgentManager {
 
     // Sync contextWindow / maxOutputTokens to match the new model so the UI label
     // ("(1M)" vs "(200k)") updates immediately, not on next query response.
-    const isOneMil = model.includes('[1m]')
-    session.metadata.contextWindow = isOneMil ? 1000000 : 200000
-    session.metadata.maxOutputTokens = model.includes('haiku') ? 8192 : 64000
+    const limits = estimateModelLimits(model)
+    session.metadata.contextWindow = limits.contextWindow
+    session.metadata.maxOutputTokens = limits.maxOutputTokens
 
 
     if (session.apiVersion === 'v2') {
