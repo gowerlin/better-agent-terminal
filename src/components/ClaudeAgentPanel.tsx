@@ -22,7 +22,8 @@ import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-pa
 import { findClientPathsInPrompt, resolvePromptPathSuggestions, type PromptPathHintItem } from '../lib/prompt-client-paths'
 import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
 import { CtToast, useCtToast } from './CtToast'
-import { estimateCallCost, estimateModelUsageCost, type ModelUsageTokens } from '../lib/model-pricing'
+import { type ModelUsageTokens } from '../lib/model-pricing'
+import { applyStatusToCacheHistory, cacheHistoryGrandTotal, cacheHistoryRowCosts, type CacheHistoryEntry, type LastCallUsage } from '../lib/cache-history'
 import {
   CLAUDE_OPEN_LOGIN_TERMINAL_EVENT,
   getClaudeAuthStatus,
@@ -53,6 +54,7 @@ interface SessionMeta {
   modelUsage?: Record<string, ModelUsageTokens & { costUSD: number }>
   cacheWrite5mTokens?: number
   cacheWrite1hTokens?: number
+  lastCall?: LastCallUsage | null
 }
 
 interface ModelInfo {
@@ -205,7 +207,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   })
   const [promptSuggestion, setPromptSuggestion] = useState<string | null>(null)
   // Cache efficiency history — last 20 readings for smoothed display
-  const cacheHistoryRef = useRef<{ pct: number; cacheRead: number; cacheCreate: number; totalInput: number; contextSize: number; callCacheRead: number; callCacheWrite: number; calls: number; isResult?: boolean; modelUsage?: SessionMeta['modelUsage']; model?: string; outputTokens?: number; cacheWrite5mTokens?: number; cacheWrite1hTokens?: number; timestamp?: number; messageCount?: number; turnStartMsgId?: string | null; apiTotalCost?: number }[]>([])
+  const cacheHistoryRef = useRef<CacheHistoryEntry[]>([])
   // Track last result for cache expiry warning (timestamp + total input tokens)
   const lastResultRef = useRef<{ timestamp: number; totalInput: number } | null>(null)
   const [showCacheHistory, setShowCacheHistory] = useState(false)
@@ -801,26 +803,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         dlog(`${tag} onStatus sdkSessionId=${((meta as SessionMeta).sdkSessionId || '').slice(0, 8)}`)
         const m = meta as SessionMeta
         setSessionMeta(m)
-        // Track cache efficiency history (only push when values change)
-        if (m.inputTokens > 0 && m.cacheReadTokens !== undefined) {
-          const hist = cacheHistoryRef.current
-          const lastEntry = hist[hist.length - 1]
-          const hasModelUsage = m.modelUsage && Object.keys(m.modelUsage).length > 0
-          const isResult = !!hasModelUsage
-          if (!lastEntry || lastEntry.cacheRead !== m.cacheReadTokens || lastEntry.totalInput !== m.inputTokens || (isResult !== lastEntry.isResult)) {
-            const pct = Math.round((m.cacheReadTokens / m.inputTokens) * 100)
-            const entry = { pct, cacheRead: m.cacheReadTokens, cacheCreate: m.cacheCreationTokens || 0, totalInput: m.inputTokens, contextSize: m.contextTokens || 0, callCacheRead: m.callCacheRead || 0, callCacheWrite: m.callCacheWrite || 0, calls: isResult ? (m.lastQueryCalls || 0) : 1, isResult, modelUsage: m.modelUsage ? { ...m.modelUsage } : undefined, model: m.model, outputTokens: m.outputTokens || 0, cacheWrite5mTokens: m.cacheWrite5mTokens, cacheWrite1hTokens: m.cacheWrite1hTokens, timestamp: Date.now(), messageCount: messageCountRef.current, turnStartMsgId: currentTurnMsgIdRef.current, apiTotalCost: m.totalCost || 0 }
-            hist.push(entry)
-            // Update last result ref for cache expiry warning
-            if (isResult) {
-              lastResultRef.current = { timestamp: Date.now(), totalInput: m.inputTokens }
-            }
-            // Trim: keep max 20 non-result entries; result entries are extra
-            while (hist.filter(h => !h.isResult).length > 20) {
-              const idx = hist.findIndex(h => !h.isResult)
-              if (idx >= 0) hist.splice(idx, 1); else break
-            }
-          }
+        // Track cache efficiency history (T0498: one row per main-agent call, one R row per result)
+        const histKind = applyStatusToCacheHistory(cacheHistoryRef.current, m, { timestamp: Date.now(), messageCount: messageCountRef.current, turnStartMsgId: currentTurnMsgIdRef.current })
+        // Update last result ref for cache expiry warning
+        if (histKind === 'result') {
+          lastResultRef.current = { timestamp: Date.now(), totalInput: m.inputTokens }
         }
         if (m.model) setCurrentModel(prev => prev || m.model!)
         // Persist session metadata for status line restoration on next app launch
@@ -3707,34 +3694,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         const significant = hist.filter(h => h.totalInput >= 50000)
         const belowCount = significant.filter(h => h.pct < 50).length
         const fmtCost = (v: number | null) => v === null ? '—' : `$${v.toFixed(4)}`
-        const calcModelCosts = (h: typeof hist[0]) => {
-          const hasModelUsage = h.modelUsage && Object.keys(h.modelUsage).length > 0
-          if (hasModelUsage) {
-            const models: { model: string; cacheRead: number; cacheWrite: number; input: number; output: number; readCost: number | null; writeCost: number | null; totalCost: number | null }[] = []
-            for (const [model, stats] of Object.entries(h.modelUsage!)) {
-              const totalIn = stats.inputTokens + stats.cacheReadInputTokens + stats.cacheCreationInputTokens
-              // T0484: summed over the turn's calls; the `longPrompt` part is priced at the long-prompt tier
-              const cost = estimateModelUsageCost(model, stats, h)
-              models.push({ model, cacheRead: stats.cacheReadInputTokens, cacheWrite: stats.cacheCreationInputTokens, input: totalIn, output: stats.outputTokens, readCost: cost?.readCost ?? null, writeCost: cost?.writeCost ?? null, totalCost: cost?.totalCost ?? null })
-            }
-            return models
-          }
-          if (h.model) {
-            const output = h.outputTokens || 0
-            const uncachedInput = Math.max(0, h.totalInput - h.cacheRead - h.cacheCreate)
-            // T0484: a single call — its own prompt length (input + cache read + cache write) picks the tier
-            const cost = estimateCallCost(h.model, { inputTokens: uncachedInput, outputTokens: output, cacheReadInputTokens: h.cacheRead, cacheCreationInputTokens: h.cacheCreate }, h)
-            return [{ model: h.model, cacheRead: h.cacheRead, cacheWrite: h.cacheCreate, input: h.totalInput, output, readCost: cost?.readCost ?? null, writeCost: cost?.writeCost ?? null, totalCost: cost?.totalCost ?? null }]
-          }
-          return null
-        }
-        let grandTotal = 0
-        let hasAnyCost = false
-        for (let i = 0; i < hist.length; i++) {
-          if (!hist[i].isResult && i + 1 < hist.length && hist[i + 1].isResult) continue
-          const models = calcModelCosts(hist[i])
-          if (models) { for (const m of models) { if (m.totalCost !== null) { grandTotal += m.totalCost; hasAnyCost = true } } }
-        }
+        // T0498: a result row already includes its query's per-call rows, so they are not added again
+        const { total: grandTotal, hasAnyCost } = cacheHistoryGrandTotal(hist)
         return (
           <div className="claude-plan-overlay" onClick={() => setShowCacheHistory(false)}>
             <div className="claude-plan-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 1060 }}>
@@ -3773,7 +3734,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                     const isSkip = h.totalInput < 50000
                     const pctColor = h.pct >= 70 ? '#89ca78' : h.pct >= 40 ? '#e6a700' : '#e05252'
                     const realTurnCost = h.isResult && h.modelUsage ? Object.values(h.modelUsage).reduce((s, m) => s + (m.costUSD || 0), 0) : null
-                    const models = calcModelCosts(h)
+                    const models = cacheHistoryRowCosts(h)
                     const turnReadCost = models?.reduce((s, m) => m.readCost !== null ? s + m.readCost : s, 0) ?? null
                     const turnWriteCost = models?.reduce((s, m) => m.writeCost !== null ? s + m.writeCost : s, 0) ?? null
                     const turnTotalCost = models?.reduce((s, m) => m.totalCost !== null ? s + m.totalCost : s, 0) ?? null

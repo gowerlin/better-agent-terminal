@@ -70,10 +70,23 @@ export interface QueryCallTracker {
   calls: Map<string, CallTokenUsage & { model: string }>
   /** stream origin (`parent_tool_use_id`, '' for the main agent) → id of the message being streamed */
   current: Map<string, string>
+  /** T0498: distinct per tracker, i.e. per query — tells the renderer which calls a result row covers */
+  seq: number
 }
 
+let queryCallTrackerSeq = 0
+
 export function createQueryCallTracker(): QueryCallTracker {
-  return { calls: new Map(), current: new Map() }
+  return { calls: new Map(), current: new Map(), seq: ++queryCallTrackerSeq }
+}
+
+/** T0498: the main agent's latest API call, sent with `claude:status` as the Cache History per-call row. */
+export type LastCallUsage = CallTokenUsage & { id: string; model: string; query: number }
+
+export function mainAgentCall(tracker: QueryCallTracker): LastCallUsage | undefined {
+  const id = tracker.current.get('')
+  const call = id ? tracker.calls.get(id) : undefined
+  return id && call ? { id, query: tracker.seq, ...call } : undefined
 }
 
 /** Stream events and assistant messages both report a call's usage; keep the largest value seen. */
@@ -239,6 +252,9 @@ interface SessionMetadata {
   // Per-model usage breakdown (from SDK modelUsage)
   // `longPrompt` (T0484): the part from calls with a prompt over 100K tokens (Haiku 5.5 tier)
   modelUsage?: Record<string, CallTokenUsage & { costUSD: number; longPrompt?: CallTokenUsage }>
+  // T0498: the main agent's latest call of the running query; null when there is none (query
+  // start, result). Null rather than absent so the renderer can tell this server from an older one.
+  lastCall?: LastCallUsage | null
   // Ephemeral cache write breakdown (aggregate, not per-model)
   cacheWrite5mTokens?: number
   cacheWrite1hTokens?: number
@@ -582,6 +598,7 @@ export class ClaudeAgentManager {
           callCacheRead: 0,
           callCacheWrite: 0,
           lastQueryCalls: 0,
+          lastCall: null,
         },
         pendingPermissions: new Map(),
         pendingAskUser: new Map(),
@@ -889,11 +906,7 @@ export class ClaudeAgentManager {
         }
       }
 
-      // Clear per-query fields so renderer can distinguish streaming vs result
-      session.metadata.modelUsage = undefined
-      session.callUsage = createQueryCallTracker()
-      session.metadata.cacheWrite5mTokens = undefined
-      session.metadata.cacheWrite1hTokens = undefined
+      this.resetQueryUsage(session)
 
       const generator = query({
         prompt: promptArg as Parameters<typeof query>[0]['prompt'],
@@ -983,6 +996,16 @@ export class ClaudeAgentManager {
         }
       }
     }
+  }
+
+  // Clear per-query fields so renderer can distinguish streaming vs result (V1 and V2 —
+  // T0498: V2 used to keep the last result's modelUsage, so its streaming statuses looked like results)
+  private resetQueryUsage(session: SessionInstance) {
+    session.metadata.modelUsage = undefined
+    session.metadata.lastCall = null
+    session.callUsage = createQueryCallTracker()
+    session.metadata.cacheWrite5mTokens = undefined
+    session.metadata.cacheWrite1hTokens = undefined
   }
 
   // Shared message processing for both V1 and V2 streams
@@ -1172,9 +1195,11 @@ export class ClaudeAgentManager {
         message?: { id?: string; model?: string; usage?: { input_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number } }
       }
       // T0484: every call, sub-agents included — the cost view needs each call's prompt length
-      trackStreamEventUsage(session.callUsage ??= createQueryCallTracker(), message.parent_tool_use_id || '', event)
+      const tracker = session.callUsage ??= createQueryCallTracker()
+      trackStreamEventUsage(tracker, message.parent_tool_use_id || '', event)
       const eventUsage = event.usage || event.message?.usage
       if (eventUsage && (event.type === 'message_delta' || event.type === 'message_start') && !message.parent_tool_use_id) {
+        session.metadata.lastCall = mainAgentCall(tracker) ?? null
         const contextTokens = (eventUsage.input_tokens || 0)
           + (eventUsage.cache_creation_input_tokens || 0)
           + (eventUsage.cache_read_input_tokens || 0)
@@ -1397,6 +1422,7 @@ export class ClaudeAgentManager {
         session.metadata.cacheCreationTokens = cacheCreate
       }
       session.callUsage = createQueryCallTracker()
+      session.metadata.lastCall = null
 
       if (resultMsg.usage?.input_tokens) {
         session.metadata.contextTokens = resultMsg.usage.input_tokens
@@ -1589,7 +1615,7 @@ export class ClaudeAgentManager {
         await session.v2Session.send(prompt || ' ')
       }
 
-      session.callUsage = createQueryCallTracker()
+      this.resetQueryUsage(session)
       // Stream messages — reuse shared processMessage()
       for await (const message of session.v2Session.stream()) {
         if (session.abortController.signal.aborted) {
