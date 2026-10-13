@@ -16,6 +16,7 @@ completed_at: null
 target_version: v0.6.0-pre.5
 depends_on:
   - "T0500"
+  - "T0491"
 related:
   - "T0500 回報區「觀察」1：第一次執行 `pick-container` 選「Use existing」但沒有容器 → 失敗後 retry 因 `containerMode` 已存成 `'existing'` 不再詢問，一直失敗，只能 cancel"
   - "T0500 回報區「觀察」2：`configure-ssh-host.ts:123` 錯誤訊息寫「or type host」，但 UI 沒有手動輸入 host 的管道，`~/.ssh/config` 無 alias 時無法完成"
@@ -35,6 +36,7 @@ interaction:
 memory_overrides:
   - "🔴 不改任何 rollback 語意（T0444 / T0489 / T0500）；`containerMode` 延後寫入不得讓 rollback 失去判斷本次建立容器所需的資訊（測試證明）"
   - "🔴 手動輸入 host：若 wizard context 沒有文字輸入能力，可新增（例如 `ctx.requestText`）並在 Shell 實作；需三語 i18n；輸入以 SSH host 合法字元白名單驗證（CLAUDE.md 外部輸入規則：`/^[a-zA-Z0-9._-]+$/`，user@host / port 是否支援依既有 profile 欄位決定並說明）"
+  - "🔴 排在 T0491 之後：兩者都改 `src/locales/`，避免同檔並行"
   - "🔴 不改 `integration.transitions.test.ts`；新測試放新檔"
   - "🔴 批次並行（D139）：`git commit --only` 本單檔案；不改 CLAUDE.md；`npm run typecheck` 維持 0"
   - "🔴 不 push、不觸發 workflow；禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`；換行維持各檔現況"
