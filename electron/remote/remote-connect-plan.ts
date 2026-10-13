@@ -323,6 +323,45 @@ export function computeProfileWindowStatus(profileId: string, conn: RemoteProfil
   return { profileId, connected: false, state: 'disconnected', reason: 'disconnected' }
 }
 
+/** T0513 (BUG-123): main → every renderer, so an open Profile dialog can re-read the connection states. */
+export const REMOTE_PROFILE_CONNECTIONS_CHANGED_CHANNEL = 'remote:profile-connections-changed'
+
+/** T0513: this machine's link to one remote profile (`connecting` = registry entry, first connect still running). */
+export type RemoteProfileLinkState = 'connecting' | RemoteWindowState
+
+export interface RemoteProfileConnectionSnapshot {
+  profileId: string
+  /** null = no registry entry (no connection held on this machine). */
+  state: RemoteProfileLinkState | null
+  /** Live windows bound to the profile (`collectProfileWindows`: detached and tray-hidden ones count). */
+  windows: number
+}
+
+/**
+ * T0513 (BUG-123): the Profile dialog's status light, from this machine's facts
+ * only — the registry entry and the profile's live windows. `profileIds` names
+ * every profile worth reporting (registry entries + profiles with a window);
+ * duplicates and empty ids are skipped.
+ */
+export function planProfileConnectionSnapshots(
+  profileIds: Iterable<string | null | undefined>,
+  hasEntry: (profileId: string) => boolean,
+  getConn: (profileId: string) => RemoteProfileConnState | null,
+  countWindows: (profileId: string) => number,
+): RemoteProfileConnectionSnapshot[] {
+  const out: RemoteProfileConnectionSnapshot[] = []
+  for (const profileId of new Set(profileIds)) {
+    if (!profileId) continue
+    let state: RemoteProfileLinkState | null = null
+    if (hasEntry(profileId)) {
+      const conn = getConn(profileId)
+      state = conn ? computeProfileWindowStatus(profileId, conn).state : 'connecting'
+    }
+    out.push({ profileId, state, windows: countWindows(profileId) })
+  }
+  return out
+}
+
 export type ProfileProxiedInvokeRoute =
   | { kind: 'local' }
   | { kind: 'remote' }

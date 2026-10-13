@@ -666,6 +666,14 @@ const electronAPI = {
       ipcRenderer.invoke('remote:test-connection', host, port, token, fingerprint) as Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: { serverPlatform: 'win32' | 'linux' | 'darwin'; serverArch: 'x64' | 'arm64'; serverEnv?: 'native' | 'wsl' | 'docker' | 'ssh'; wslDistro?: string; dockerMounts?: Array<{ host: string; container: string }>; serverHome?: string; nodeVersion: string; claudeVersion?: string; bundleVersion: string; glibcVersion?: string } | null }>,
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) =>
       ipcRenderer.invoke('remote:list-profiles', host, port, token, fingerprint) as Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>,
+    // T0513 (BUG-123): ALWAYS local — the Profile dialog's status light (registry entry + live windows per profile).
+    profileConnectionStates: () =>
+      ipcRenderer.invoke('remote:profile-connection-states') as Promise<Array<{ profileId: string; state: 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | null; windows: number }>>,
+    onProfileConnectionsChanged: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('remote:profile-connections-changed', handler)
+      return () => ipcRenderer.removeListener('remote:profile-connections-changed', handler)
+    },
     // PLAN-031 T0319 — detect remote server architecture (WSL/Docker/SSH dispatch).
     detectArch: (profileId: string) =>
       ipcRenderer.invoke('remote:detect-arch', profileId) as Promise<

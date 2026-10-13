@@ -2,6 +2,7 @@
 // Handles common layout (name + type badge + connection status); per-env
 // details rendering is delegated to <ProfileCardDetails>.
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ProfileEntry, ConnectionStatus } from './types'
 import { selectDetailsVariant } from './types'
 import { ProfileCardDetails } from './ProfileCardDetails'
@@ -12,6 +13,8 @@ export interface ProfileCardProps {
   isRunning: boolean
   isExpanded: boolean
   connectionStatus?: ConnectionStatus
+  /** T0513: tooltip of the status light (defaults to the status label). */
+  connectionStatusTitle?: string
   onToggleExpand: () => void
   onSwitch: () => void
   onEdit?: () => void
@@ -44,16 +47,26 @@ const TYPE_BADGE_LABEL: Record<ReturnType<typeof selectDetailsVariant>, string> 
   'remote-legacy': 'Remote',
 }
 
-function StatusDot({ status }: { status: ConnectionStatus }) {
-  const dot = status === 'connected' ? '🟢' : status === 'disconnected' ? '🔴' : '⚪'
-  const title =
-    status === 'connected' ? 'Connected' : status === 'disconnected' ? 'Disconnected' : 'Idle'
+const STATUS_DOT: Record<ConnectionStatus, string> = {
+  connected: '🟢',
+  connecting: '🟡',
+  disconnected: '🔴',
+  idle: '⚪',
+}
+
+// T0513 (BUG-123): own component so the translation hook stays out of ProfileCard's body
+// (tests/profile-card.test.ts calls ProfileCard as a plain function).
+function StatusDot({ status, title: titleOverride }: { status: ConnectionStatus; title?: string }) {
+  const { t } = useTranslation()
+  const dot = STATUS_DOT[status]
+  const title = titleOverride ?? t(`profiles.status.${status}`)
   return (
     <span
       className={`profile-card-status profile-card-status-${status}`}
       title={title}
       aria-label={title}
       data-testid="profile-card-status"
+      data-status={status}
     >
       {dot}
     </span>
@@ -66,6 +79,7 @@ export function ProfileCard({
   isRunning,
   isExpanded,
   connectionStatus,
+  connectionStatusTitle,
   onToggleExpand,
   onSwitch,
   onEdit,
@@ -76,8 +90,9 @@ export function ProfileCard({
 }: ProfileCardProps) {
   const variant = selectDetailsVariant(profile)
   const badge = TYPE_BADGE_LABEL[variant] ?? 'Profile'
-  const status: ConnectionStatus =
-    connectionStatus ?? (isRunning ? 'connected' : profile.type === 'remote' ? 'disconnected' : 'idle')
+  // T0513 (BUG-123): red means a failed connection, never just "not open" — the caller
+  // passes connectionStatus for remote cards (ProfilePanel → computeRemoteCardStatus).
+  const status: ConnectionStatus = connectionStatus ?? (isRunning ? 'connected' : 'idle')
 
   return (
     <div
@@ -124,7 +139,7 @@ export function ProfileCard({
             </>
           )}
         </div>
-        <StatusDot status={status} />
+        <StatusDot status={status} title={connectionStatusTitle} />
         <div
           className="profile-card-actions profile-item-actions"
           onClick={(e) => e.stopPropagation()}

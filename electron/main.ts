@@ -53,7 +53,7 @@ import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
 import { clientPathTranslatorForProfile, IdentityTranslator, resolveClientPaths, type PathTranslator } from './remote/path-translator'
-import { describeSameTargetWarning, detachedSenderRouteIdentity, formatRemoteNotConnectedError, planProfileProxiedInvokeRoute, planProfileStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, shouldDropProfileConnectionOnUpdate, type DetachedWindowRecord, type SenderProfileBinding } from './remote/remote-connect-plan'
+import { describeSameTargetWarning, detachedSenderRouteIdentity, formatRemoteNotConnectedError, planProfileConnectionSnapshots, planProfileProxiedInvokeRoute, planProfileStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_PROFILE_CONNECTIONS_CHANGED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, shouldDropProfileConnectionOnUpdate, type DetachedWindowRecord, type SenderProfileBinding } from './remote/remote-connect-plan'
 import { collectProfileWindows, DISCONNECT_ALL_TIMEOUT_MS, IDLE_GRACE_MS, RemoteConnectionRegistry, settleWithin } from './remote/remote-connection-registry'
 import {
   classifyConnectFailure,
@@ -1264,12 +1264,33 @@ const lastPushedRemoteStatus = new Map<string, string>()
 
 /** T0443: push `remote:client-status-changed` to the windows bound to each profile. */
 function pushRemoteClientStatus(...profileIds: Array<string | null | undefined>): void {
-  for (const status of planProfileStatusPushes(profileIds, (profileId) => remoteConnections.connectionState(profileId), lastPushedRemoteStatus)) {
+  const pushes = planProfileStatusPushes(profileIds, (profileId) => remoteConnections.connectionState(profileId), lastPushedRemoteStatus)
+  for (const status of pushes) {
     logger.log(`[remote-status] profile ${status.profileId} → ${status.state}${status.reason ? ` (${status.reason})` : ''}`)
     for (const win of getWindowsForProfile(status.profileId)) {
       win.webContents.send(REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, status)
     }
   }
+  // T0513 (BUG-123): an open Profile dialog (any window) re-reads `remote:profile-connection-states`.
+  if (pushes.length > 0) {
+    for (const win of getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(REMOTE_PROFILE_CONNECTIONS_CHANGED_CHANNEL)
+    }
+  }
+}
+
+/** T0513 (BUG-123): this machine's connection + live windows per profile, for the Profile dialog's status light. */
+function getProfileConnectionSnapshots() {
+  const profileIds = [
+    ...remoteConnections.profileIds(),
+    ...windowRegistry.getCachedEntries().map(e => e.profileId),
+  ]
+  return planProfileConnectionSnapshots(
+    profileIds,
+    (profileId) => remoteConnections.has(profileId),
+    (profileId) => remoteConnections.connectionState(profileId),
+    (profileId) => getWindowsForProfile(profileId).length,
+  )
 }
 
 function syncRemoteWorkspaceRoots(windowProfileId: string | null | undefined): void {
@@ -2660,6 +2681,9 @@ function registerLocalHandlers() {
       info: client?.connectionInfo ?? null,
     }
   })
+  // T0513 (BUG-123): ALWAYS local — the Profile dialog's status light reads this machine's facts, not the
+  // target's `profile:list` (a headless bat-server answers that with an empty stub).
+  ipcMain.handle('remote:profile-connection-states', () => getProfileConnectionSnapshots())
   ipcMain.handle('remote:test-connection', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const testClient = new RemoteClient(() => [])
     try {

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SetupWizardShell, useDockerWizardController, useSshWizardController, useWslWizardController } from './setup-wizard/SetupWizardShell'
 // PLAN-007 T0288 — RFC C-7 ProfileCard + per-env Details slot.
-import { ProfileCard, EditRemoteProfileModal } from './profiles'
-import type { ProfileEntry, TargetOS } from './profiles'
+import { ProfileCard, EditRemoteProfileModal, computeRemoteCardStatus, formatRemoteStatusTitle, needsRemoteProbe } from './profiles'
+import type { ProfileEntry, RemoteProbeResult, RemoteProfileConnectionSnapshot, TargetOS } from './profiles'
 import { AddProfileMenu, type ProfileTypeOption } from './profiles/AddProfileMenu'
 import { RemoteToolsEntry } from './profiles/RemoteToolsEntry'
 
@@ -80,7 +80,11 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
   const createInputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
 
-  const [remoteActiveByLocalId, setRemoteActiveByLocalId] = useState<Record<string, boolean>>({})
+  // T0513 (BUG-123): the remote card's light — this machine's connection / windows per profile,
+  // plus a probe of the target for profiles with neither (idle vs connection failed).
+  const [connByProfileId, setConnByProfileId] = useState<Record<string, RemoteProfileConnectionSnapshot>>({})
+  const [probeByProfileId, setProbeByProfileId] = useState<Record<string, RemoteProbeResult>>({})
+  const loadGeneration = useRef(0)
   // PLAN-007 T0288 — RFC C-7: track per-card expansion (auto-expand the card
   // currently being remote-edited so the legacy targetOS prompt remains visible).
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
@@ -93,24 +97,35 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
     })
   }, [])
 
+  const readConnectionStates = useCallback(async (): Promise<Record<string, RemoteProfileConnectionSnapshot>> => {
+    try {
+      const list = await window.electronAPI.remote.profileConnectionStates()
+      return Object.fromEntries(list.map(c => [c.profileId, c]))
+    } catch (err) {
+      window.electronAPI.debug?.log?.('[ProfilePanel] remote:profile-connection-states failed', err instanceof Error ? err.message : String(err))
+      return {}
+    }
+  }, [])
+
   const loadProfiles = useCallback(async () => {
+    const generation = ++loadGeneration.current
     const result = await window.electronAPI.profile.listLocal()
     setProfiles(result.profiles)
     setActiveProfileIds(result.activeProfileIds)
     const wpId = await window.electronAPI.app.getWindowProfile()
     setWindowProfileId(wpId)
 
-    // Fan out: query each unique remote target for its active profile ids,
-    // so remote-alias entries reflect their REAL state on the target server.
-    const remoteEntries = result.profiles.filter(p =>
-      p.type === 'remote' && p.remoteHost && p.remoteToken && p.remoteFingerprint
-    )
-    if (remoteEntries.length === 0) {
-      setRemoteActiveByLocalId({})
-      return
-    }
-    const targetMap = new Map<string, { host: string; port: number; token: string; fingerprint: string; profiles: typeof remoteEntries }>()
-    for (const p of remoteEntries) {
+    const conns = await readConnectionStates()
+    if (generation !== loadGeneration.current) return
+    setConnByProfileId(conns)
+
+    // T0513 (BUG-123): probe only the remote profiles this machine has nothing to say about
+    // (no connection, no window). The target's `profile:list` used to decide the light, but a
+    // headless bat-server answers it with an empty stub, so WSL / SSH / Docker cards stayed red.
+    // ssh-* profiles are never probed: without their tunnel the address is the server's localhost.
+    const probeEntries = result.profiles.filter(p => needsRemoteProbe(p, conns[p.id]))
+    const targetMap = new Map<string, { host: string; port: number; token: string; fingerprint: string; profiles: ProfileEntry[] }>()
+    for (const p of probeEntries) {
       const key = `${p.remoteHost}|${p.remotePort || 9876}|${p.remoteToken}|${p.remoteFingerprint}`
       const entry = targetMap.get(key)
       if (entry) entry.profiles.push(p)
@@ -122,28 +137,46 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
         profiles: [p],
       })
     }
-    const settled = await Promise.allSettled(
-      Array.from(targetMap.values()).map(async target => {
-        const res = await window.electronAPI.remote.listProfiles(target.host, target.port, target.token, target.fingerprint)
-        if ('error' in res) return { profiles: target.profiles, activeIds: [] as string[] }
-        return { profiles: target.profiles, activeIds: res.activeProfileIds }
-      })
-    )
-    const map: Record<string, boolean> = {}
-    for (const s of settled) {
-      if (s.status !== 'fulfilled') continue
-      const { profiles: ps, activeIds } = s.value
-      for (const p of ps) {
-        const targetId = p.remoteProfileId || 'default'
-        map[p.id] = activeIds.includes(targetId)
-      }
+    if (targetMap.size === 0) {
+      setProbeByProfileId({})
+      return
     }
-    setRemoteActiveByLocalId(map)
-  }, [])
+    const settled = await Promise.allSettled(
+      Array.from(targetMap.values()).map(target =>
+        window.electronAPI.remote.listProfiles(target.host, target.port, target.token, target.fingerprint),
+      ),
+    )
+    if (generation !== loadGeneration.current) return
+    const targets = Array.from(targetMap.values())
+    const probes: Record<string, RemoteProbeResult> = {}
+    settled.forEach((s, i) => {
+      for (const p of targets[i].profiles) {
+        if (s.status === 'rejected') {
+          probes[p.id] = { ok: false, error: s.reason instanceof Error ? s.reason.message : String(s.reason) }
+        } else if ('error' in s.value) {
+          probes[p.id] = { ok: false, errorCode: s.value.errorCode, error: s.value.error }
+        } else {
+          // A full BAT reports which of its own profiles are open there (legacy remote alias);
+          // that is the target's state, not this machine's connection — tooltip only.
+          probes[p.id] = { ok: true, remoteActive: s.value.activeProfileIds.includes(p.remoteProfileId || 'default') }
+        }
+      }
+    })
+    setProbeByProfileId(probes)
+  }, [readConnectionStates])
 
   useEffect(() => {
     loadProfiles()
   }, [loadProfiles])
+
+  // T0513: follow connects / disconnects / idle releases while the dialog is open.
+  useEffect(() => {
+    const subscribe = window.electronAPI.remote.onProfileConnectionsChanged
+    if (typeof subscribe !== 'function') return
+    return subscribe(() => {
+      void readConnectionStates().then(setConnByProfileId)
+    })
+  }, [readConnectionStates])
 
   useEffect(() => {
     if (creating && createInputRef.current) {
@@ -530,16 +563,15 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
           {(() => {
             const localList = profiles.filter(p => p.type !== 'remote')
             const remoteList = profiles.filter(p => p.type === 'remote')
-            const isProfileRunning = (p: ProfileEntry) =>
-              p.type === 'remote'
-                ? !!remoteActiveByLocalId[p.id]
-                : activeProfileIds.includes(p.id)
+            const remoteStatusOf = (p: ProfileEntry) =>
+              computeRemoteCardStatus({ profile: p, conn: connByProfileId[p.id], probe: probeByProfileId[p.id] })
 
             // PLAN-007 T0288 — RFC C-7: render each row via <ProfileCard>. The
             // legacy targetOS prompt rides into expandedExtras; rename input
             // overrides the header; remote-edit moves to a modal (see below).
             const renderCard = (profile: ProfileEntry) => {
-              const isRunning = isProfileRunning(profile)
+              const remoteStatus = profile.type === 'remote' ? remoteStatusOf(profile) : null
+              const isRunning = remoteStatus ? remoteStatus.status === 'connected' : activeProfileIds.includes(profile.id)
               const isActive = profile.id === windowProfileId
               const isExpanded = expandedIds.has(profile.id) || editingRemoteId === profile.id
               const headerOverride = editingId === profile.id ? (
@@ -659,6 +691,8 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                   profile={profile}
                   isActive={isActive}
                   isRunning={isRunning}
+                  connectionStatus={remoteStatus?.status}
+                  connectionStatusTitle={remoteStatus ? formatRemoteStatusTitle(t, remoteStatus) : undefined}
                   isExpanded={isExpanded}
                   onToggleExpand={() => toggleExpanded(profile.id)}
                   onSwitch={() => handleSwitchRequest(profile.id)}

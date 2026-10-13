@@ -267,6 +267,30 @@
     "testConnection": "测试连接",
     "connected": "已连接",
     "connectionFailed": "连接失败",
+    "status": {
+      "connected": "已连接",
+      "connecting": "连接中",
+      "disconnected": "连接失败",
+      "idle": "未连接"
+    },
+    "statusReason": {
+      "linked": "已连接：本机持有此 profile 的连接",
+      "connecting": "连接中…",
+      "reconnecting": "重新连接中…",
+      "linkLost": "连接中断：profile 窗口已打开但未连接",
+      "fingerprintMissing": "连接失败：未固定服务器指纹（请重新配对）",
+      "probeFailed": "连接失败：{{reason}}",
+      "reachable": "未连接：未打开窗口，服务器可连接",
+      "reachableRemoteActive": "未连接：未打开窗口，服务器可连接；远程 BAT 上此 profile 正在使用",
+      "notChecked": "未连接：未打开窗口（未检查服务器）"
+    },
+    "statusProbeError": {
+      "authFailed": "令牌验证失败",
+      "fingerprintMismatch": "指纹不符",
+      "timeout": "超时",
+      "network": "无法连接",
+      "unknown": "错误"
+    },
     "editConnection": "编辑连接",
     "rename": "重命名",
     "duplicate": "复制",

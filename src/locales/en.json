@@ -267,6 +267,30 @@
     "testConnection": "Test connection",
     "connected": "Connected",
     "connectionFailed": "Connection failed",
+    "status": {
+      "connected": "Connected",
+      "connecting": "Connecting",
+      "disconnected": "Connection failed",
+      "idle": "Not connected"
+    },
+    "statusReason": {
+      "linked": "Connected — this machine holds a live connection",
+      "connecting": "Connecting…",
+      "reconnecting": "Reconnecting…",
+      "linkLost": "Connection lost — the profile window is open but not connected",
+      "fingerprintMissing": "Connection failed: no server fingerprint pinned (pair again)",
+      "probeFailed": "Connection failed: {{reason}}",
+      "reachable": "Not connected — no window open; server reachable",
+      "reachableRemoteActive": "Not connected — no window open; server reachable, and this profile is open on the remote BAT",
+      "notChecked": "Not connected — no window open (server not checked)"
+    },
+    "statusProbeError": {
+      "authFailed": "token rejected",
+      "fingerprintMismatch": "fingerprint mismatch",
+      "timeout": "timed out",
+      "network": "unreachable",
+      "unknown": "error"
+    },
     "editConnection": "Edit connection",
     "rename": "Rename",
     "duplicate": "Duplicate",

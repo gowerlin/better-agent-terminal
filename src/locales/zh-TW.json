@@ -267,6 +267,30 @@
     "testConnection": "測試連線",
     "connected": "已連線",
     "connectionFailed": "連線失敗",
+    "status": {
+      "connected": "已連線",
+      "connecting": "連線中",
+      "disconnected": "連線失敗",
+      "idle": "未連線"
+    },
+    "statusReason": {
+      "linked": "已連線：本機持有此 profile 的連線",
+      "connecting": "連線中…",
+      "reconnecting": "重新連線中…",
+      "linkLost": "連線中斷：profile 視窗開著但未連線",
+      "fingerprintMissing": "連線失敗：未釘選伺服器指紋（請重新配對）",
+      "probeFailed": "連線失敗：{{reason}}",
+      "reachable": "未連線：未開視窗，伺服器可連線",
+      "reachableRemoteActive": "未連線：未開視窗，伺服器可連線；遠端 BAT 上此 profile 使用中",
+      "notChecked": "未連線：未開視窗（未檢查伺服器）"
+    },
+    "statusProbeError": {
+      "authFailed": "權杖驗證失敗",
+      "fingerprintMismatch": "指紋不符",
+      "timeout": "逾時",
+      "network": "無法連線",
+      "unknown": "錯誤"
+    },
     "editConnection": "編輯連線",
     "rename": "重新命名",
     "duplicate": "複製",

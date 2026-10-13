@@ -27,7 +27,8 @@ export interface ProfileEntry {
   tunnelLocalPort?: number
 }
 
-export type ConnectionStatus = 'connected' | 'disconnected' | 'idle'
+// T0513 (BUG-123): 'disconnected' = connection failed (red); 'connecting' = connecting / reconnecting (yellow).
+export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'idle'
 
 // Dispatcher key — kept as a plain enum-like union so the pick logic can be
 // unit-tested without React.

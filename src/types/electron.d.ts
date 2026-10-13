@@ -11,6 +11,7 @@ import type {
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from './remote-tools'
 import type { RemoteInvokeRefusedEvent, RemoteWindowStatusEvent } from '../lib/remote-not-connected'
 import type { ClientPathPurpose, ResolvedClientPath } from '../lib/client-paths'
+import type { RemoteProfileConnectionSnapshot } from '../components/profiles/remote-status'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
 // PLAN-007 T0268: targetOS schema (kept in sync with electron/profile-manager.ts)
@@ -545,6 +546,10 @@ interface ElectronAPI {
     resolveClientPaths: (paths: string[], purpose: ClientPathPurpose) => Promise<ResolvedClientPath[]>
     testConnection: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ ok: boolean; fingerprint?: string; errorCode?: string; error?: string; metadata?: RemoteAuthMetadata | null }>
     listProfiles: (host: string, port: number, token: string, fingerprint?: string) => Promise<{ profiles: { id: string; name: string; type: string }[]; activeProfileIds: string[]; fingerprint?: string } | { error: string; errorCode?: string; fingerprint?: string }>
+    /** T0513 (BUG-123): this machine's connection + live windows per profile (registry entries + profiles with a window). */
+    profileConnectionStates: () => Promise<RemoteProfileConnectionSnapshot[]>
+    /** T0513: some profile's connection state changed; re-read `profileConnectionStates`. */
+    onProfileConnectionsChanged: (callback: () => void) => () => void
     restartServer: (newPort: number) => Promise<
       | { port: number; token: string; fingerprint: string; bindInterface: RemoteBindInterface; host: string; restartError?: string }
       | { error: string }
