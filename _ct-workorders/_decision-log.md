@@ -1361,6 +1361,19 @@
 
 ---
 
+### D137 2026-10-13 — fork 的 release.yml 下游發佈（Homebrew tap / Chocolatey）改為 opt-in、預設關閉；README 移除指向上游套件的安裝方式；`DESKTOP_PACKAGE_HOSTS` 移除 `darwin-x64`
+
+- **背景**：T0475 發現 `release.yml` 正式版 tag 會 `repository-dispatch` 到 upstream 的 `tonyq-org/homebrew-tap`（本 fork 的 v0.x 版號送進上游 tap）；塔台複查另見 `choco` job 的日期 gate（2026-04-10）已過期，正式版會 `choco push` package id `better-agent-terminal`（chocolatey.org 上 owner 為 tonyq），installer 檔名規則亦與本 fork 不符。README「快速開始」方式一 / 二指向上游 tap 與上游 choco 套件，安裝到的是上游版本線。D136 後 Intel Mac 不再是打包 host
+- **決定**（使用者 2026-10-13 指示「另外發現也安排修正」，細節由塔台依 breakpoint C 決定）：
+  - `Update Homebrew tap` 改為 opt-in：tap repo 改讀 repo variable（`vars.HOMEBREW_TAP_REPO`），未設定即跳過；不再寫死 `tonyq-org/homebrew-tap`
+  - `choco` job 改為 opt-in：`vars.CHOCOLATEY_PUBLISH == 'true'` 才跑，移除過期日期 gate
+  - README 移除 Homebrew / Chocolatey 安裝方式（本 fork 未發佈這兩個通道），只留直接下載
+  - `verify-native-modules.js` `DESKTOP_PACKAGE_HOSTS` 移除 `darwin-x64`（Intel Mac host 改為 warn-only）
+- **不採用**：整段刪除 step（日後 fork 自建 tap / choco 時要重寫）；以 `github.repository` 判斷（換 owner / 轉移 repo 時會靜默失效）；保留 README 方式一 / 二僅加註（使用者仍會裝到上游版本）
+- **相關**：T0475 / T0476 / D136 / BUG-117
+
+---
+
 ### D136 2026-10-13 — v0.6.0-pre.3 範圍：BUG-116 + BUG-118 一併修、BUG-117 採 B3 停發 Intel Mac（x64）dmg
 
 - **背景**：BUG-116（所有 mac 啟動崩潰，T0468 已修）待發 pre.3；T0474 以 pre.2 實物證實 BUG-117（x64 dmg 84 個 binary 中 55 個為 arm64：內嵌 claude / codex / node-pty / whisper 皆 arm64，上游 whisper `mac-x64` 實為 arm64）並發現 BUG-118（electron-builder 非 Windows 目標排除 node_modules 內 `.exe` → mac / Linux 打包版無 `claude-code/bin/claude.exe`，內嵌 claude 不可用）

@@ -120,7 +120,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 
 1. 🟡 **安裝新 build + 本批實機驗收**（`release\BetterAgentTerminal Setup 0.6.0-pre.1.exe` @ `0d03fc7`，`app.asar` SHA-256 `8D76B219…16AA6`；安裝後先比對雜湊）：**PLAN-039** WSL + SSH 同開、關一窗 15 s 後只斷該 profile（`docs/remote-dev-overview.md`「Several remote profiles at once」，通過 → PLAN-039 DONE）；Fixed 17 張 BUG：遠端視窗 fail-closed（BUG-110 / 112）、拖放 / 附件 / 複製遠端路徑 / 終端拖放 / prompt 路徑提示（BUG-107 / 108、T0437-T0440）、detach（BUG-113）、可執行檔確認（T0460 / T0461）、SSH 精靈（BUG-098-100）、Docker（BUG-097 / 111，需 Docker daemon）、真 BAT 遠端視窗 Tower 派單（K，WSL `~/.claude/skills` 需裝 ct skill）。**發版綁定**：T0435 ↔ T0437、T0453 ↔ T0458
 2. 🟢 BUG-115（`release.ps1 -Snapshot` 404，low）；BUG-114 研究（派工分頁未執行 `/ct-exec`，本 session 5 次派發未復現）；`.gitattributes` 是否套用（T0454 建議）；Vite `hashbangRE` 上游回報
-3. 🟢 backlog：`release.yml` Homebrew dispatch 指向 upstream 的 `tonyq-org/homebrew-tap`（正式版 tag 會送本 fork 版號進上游 tap；確認 `TAP_GITHUB_TOKEN` / 是否移除，T0475）、`verify-native-modules.js` `DESKTOP_PACKAGE_HOSTS` 仍含 `darwin-x64`（D136 後可移除）、移除未使用的 `better-sqlite3` 相依（T0473 發現無任何 import；連帶 REQUIRED_NATIVE_MODULES / server bundle nativePackages / T0472 檢查 / postinstall）、`typecheck:electron` script（L146）、其他 remote 失敗對話框三語化（T0464）、jumpToStep 不 rollback（T0309）、detached 視窗終端變更不持久化、snippet「agent 提案 → 一鍵套用」、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2
+3. 🟢 backlog：T0476 已開（D137：Homebrew / Chocolatey opt-in、README、`darwin-x64`；pre.3 CI 完成後派發）、移除未使用的 `better-sqlite3` 相依（T0473 發現無任何 import；連帶 REQUIRED_NATIVE_MODULES / server bundle nativePackages / T0472 檢查 / postinstall）、`typecheck:electron` script（L146）、其他 remote 失敗對話框三語化（T0464）、jumpToStep 不 rollback（T0309）、detached 視窗終端變更不持久化、snippet「agent 提案 → 一鍵套用」、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2
 4. 🟢 L130 D094 門檻復議｜L128 Logging 節｜`*archive` 到齡候選（先 grep 程式碼引用，L133）
 
 ### ⚠️ 本專案 gh 鐵則（L122）
@@ -135,7 +135,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（72 entries）
 
 ### 編號起始
-- **T0476** / **BUG-119** / **PLAN-040** / **D137** / **EXP-[TOPIC]-001** / **L147**
+- **T0477** / **BUG-119** / **PLAN-040** / **D138** / **EXP-[TOPIC]-001** / **L147**
 
 ---
 
@@ -238,7 +238,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 | WSL server | dev-deploy | `~/.local/bat-server`：tag `t0456`（JS = HEAD `698a157` 等價 + 4 helper `scripts/`）；smoke 13/13；回復 `npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --rollback --yes --tag t0456`；重跑 WSL 精靈會以 release bundle 覆蓋 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用（本 session 用 ct-done 補救 T0436） |
 | 熱區工單 | **T:112 檔 / BUG:39 / PLAN:11** | T 含 4 個報告檔（L132）；`archive_days: 2` 下大量到齡候選，下 session 可 `*archive`（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0475 / BUG-118 / PLAN-039 / D136 / L146** | 下張：T0476 / BUG-119 / PLAN-040 / D137 / L147 |
+| 最大編號 | **T0476 / BUG-118 / PLAN-039 / D137 / L146** | 下張：T0477 / BUG-119 / PLAN-040 / D138 / L147 |
 | unit test | ✅ **2861 passed / 168 files**（塔台聯合複驗 @ `26db914`，主工作區） | |
 | vite build | ✅ | 主工作區 exit 0（@ `26db914`）；`release.ps1` 完整打包 exit 0（@ `0d03fc7`） |
 | e2e | ✅ **12 passed / 8 skipped / 0 failed** | 主工作區全套 ×3；首輪（緊接 unit 後）偶發 1 failed 未重現 |
