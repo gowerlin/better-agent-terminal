@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T03:27:58+0800"
+generated_at: "2026-10-14T03:31:50+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 48
 breakdown:
   OPEN: 0
   FIXING: 1
-  FIXED: 25
+  FIXED: 24
   VERIFY: 0
-  CLOSED: 22
+  CLOSED: 23
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 03:27 (UTC+8) — 第六十 session：BUG-123 開單 FIXING（T0513，headless remote profile 狀態燈恆紅）
+> 最後同步：2026-10-14 03:31 (UTC+8) — 第六十 session：BUG-122 CLOSED（使用者 pre.6 實機確認）；BUG-123 FIXING（T0513）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 22 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 23 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
@@ -45,7 +45,6 @@ breakdown:
 |----|------|--------|---------|------|
 | BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
 | BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
-| BUG-122 | Profile（配置）對話框 remote 卡片展開後「遠端 AI 工具」只佔右半、左欄空白；對話框偏窄（T0512：`profile-card*` 補 CSS、對話框 `min(1040px, 90vw)`、profile 端工具卡片 grid） | 🟢 low | 2026-10-14 | [BUG-122](BUG-122-profile-panel-remote-card-empty-left-column.md) |
 | BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（T0488 修：baseline 取基底版號） | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only；T0486 清零 36 → 0） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
@@ -79,6 +78,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-122 | Profile（配置）對話框 remote 卡片展開後「遠端 AI 工具」只佔右半、左欄空白；對話框偏窄（T0512：`profile-card*` 補 CSS、對話框 `min(1040px, 90vw)`、profile 端工具卡片 grid） | 🟢 low | 2026-10-14 | [BUG-122](BUG-122-profile-panel-remote-card-empty-left-column.md) |
 | BUG-119 | userData 分裂：`snippet-db` import 時取 userData（早於 `setName`）→ 日誌 / Crashes / snippets 在 `better-agent-terminal/`、設定在 `BetterAgentTerminal/`；runtime 實例共用 snippets | 🟡 medium | 2026-10-14 | [BUG-119](BUG-119-userdata-split-logs-snippets-vs-settings.md) |
 | BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號（T0490 根因 / T0497 修：bat-terminal 以 frame id 比對回應；裝 pre.5 後生效） | 🟡 medium | 2026-10-14 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
 | BUG-104 | remote-tools 的 codex 安裝食譜卡在 installer 的「Start Codex now? [y/N]」互動提示 | 🟡 medium | 2026-10-05 | [BUG-104](BUG-104-codex-install-recipe-blocks-on-start-prompt.md) |
