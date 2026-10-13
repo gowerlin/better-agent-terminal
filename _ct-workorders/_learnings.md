@@ -3400,3 +3400,16 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 
 **候選晉升**：📁 Project（遠端精靈驗收規則）；「單元測試對字串、未對消費端」可泛化為 Global
 
+
+## L149
+
+**來源**：第六十 session（2026-10-14），T0516（pre.6 建置產物驗收，B1 BUG-115）
+
+**現象**：在 Claude Code scratchpad（`%TEMP%\claude\<專案長名>\<session uuid>\scratchpad\…`）下建 worktree 跑 `release.ps1 -Snapshot`，NSIS（32-bit `makensis.exe`）`!include` 的 `node_modules\app-builder-lib\templates\nsis\include\allowOnlyOneInstallerInstance.nsh` 完整路徑 264 字元 > MAX_PATH 260 → `could not open file`、打包失敗。檔案存在；與產品無關。
+
+**How to apply**：
+- Windows 上的隔離打包（worktree + electron-builder NSIS）把 worktree 放在短路徑（如 `%TEMP%\t####-wt`，根路徑 ≤ 約 100 字元），不要放在 scratchpad
+- 工單若建議 scratchpad 當打包 worktree，派發前改寫路徑建議
+- 看到 NSIS `could not open file` 但檔案存在時，先量完整路徑長度
+
+**候選晉升**：📁 Project（Windows 打包環境）
