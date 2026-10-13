@@ -309,16 +309,18 @@ export class RemoteClient {
         `[RemoteClient] profile ${this.profile.id} has useSshTunnel=false (removed SSH direct mode) — connecting through an SSH tunnel instead`,
       )
     }
-    if (!meta.sshHost || !meta.sshUser) {
+    // T0505: a blank sshUser is valid — the profile was set up from an
+    // ~/.ssh/config alias and ssh takes the user from the config.
+    if (!meta.sshHost) {
       logger.warn(
-        '[RemoteClient] profile requests SSH tunnel but sshHost/sshUser are blank — skipping',
+        '[RemoteClient] profile requests SSH tunnel but sshHost is blank — skipping',
       )
       return
     }
 
     this.tunnel = new SshTunnel({
       sshHost: meta.sshHost,
-      sshUser: meta.sshUser,
+      sshUser: meta.sshUser ?? '',
       sshPort: meta.sshPort,
       sshKeyPath: meta.sshKeyPath,
       remotePort: this.remoteServerPort,

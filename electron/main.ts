@@ -2798,7 +2798,7 @@ function registerLocalHandlers() {
             }
           }
         } else if (draft.targetOS === 'ssh-linux' || draft.targetOS === 'ssh-darwin') {
-          // T0322 — SSH path requires sshHost + sshUser + cached sshServerArch
+          // T0322 — SSH path requires sshHost + cached sshServerArch (sshUser optional since T0505)
           // (verify-auth step writes ctx.state.sshServerArch from `uname -sm`).
           // Distributor's arch-detect reads profile.sshServerArch directly with
           // no SSH re-fetch, so it must be present in the draftProfile.
@@ -2809,7 +2809,10 @@ function registerLocalHandlers() {
               error: 'draftProfile.sshHost missing or invalid',
             }
           }
-          if (!draft.sshUser || !NAME_RX.test(draft.sshUser)) {
+          // T0505: an empty user is allowed (ssh config decides it); a set
+          // one must still pass the whitelist.
+          if (draft.sshUser !== undefined && draft.sshUser !== ''
+            && (typeof draft.sshUser !== 'string' || !NAME_RX.test(draft.sshUser))) {
             return {
               ok: false as const,
               errorCode: 'arch-detection-failed' as const,

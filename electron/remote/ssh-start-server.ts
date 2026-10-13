@@ -5,6 +5,7 @@ import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface StartServerOptions {
   sshHost: string
+  /** Empty: the user comes from ~/.ssh/config (T0505). */
   sshUser: string
   sshPort?: number
   sshKeyPath?: string
@@ -264,7 +265,7 @@ function buildSshConnectArgs(opts: StartServerOptions): string[] {
   // forbidden here for legacy reasons — it would still parse but is almost
   // certainly garbage. Errors mirror the historic message format so existing
   // test7's guard regex (and any future log-grep) keeps working.
-  if (opts.sshUser.includes('@')) {
+  if (typeof opts.sshUser === 'string' && opts.sshUser.includes('@')) {
     throw new Error(`Invalid sshUser: ${opts.sshUser}`)
   }
   return buildBaseSshArgs(opts)
@@ -389,7 +390,10 @@ export async function startServerOnRemote(
   onProgress('enabling')
   const enableCmd = isLinux
     ? [
-        `loginctl enable-linger '${escapeSingleQuotes(opts.sshUser)}'`,
+        // T0505: no user (ssh config picked it) -> linger the login user.
+        opts.sshUser
+          ? `loginctl enable-linger '${escapeSingleQuotes(opts.sshUser)}'`
+          : 'loginctl enable-linger "$(id -un)"',
         'systemctl --user daemon-reload',
         `systemctl --user enable --now ${SERVICE_NAME}`,
       ].join(' && ')
@@ -468,6 +472,8 @@ export type SshTeardownResult = { ok: true } | { ok: false; error: string }
  * held to a closed charset: `[A-Za-z0-9._-]`, plus `:` for the host so IPv6
  * literals (`fe80::1`) still work. `@` is rejected (user and host arrive as
  * separate fields). Neither may start with `-` (would parse as an ssh option).
+ * T0505: the user may be empty / missing (ssh config decides it); the host is
+ * then the whole target, which `buildBaseSshArgs` holds to the same charset.
  */
 const TEARDOWN_HOST_RE = /^(?!-)[A-Za-z0-9._:-]{1,253}$/
 const TEARDOWN_USER_RE = /^(?!-)[A-Za-z0-9._-]{1,64}$/
@@ -479,7 +485,8 @@ function validateTeardownConnect(opts: SshConnectFields): void {
   if (typeof opts.sshHost !== 'string' || !TEARDOWN_HOST_RE.test(opts.sshHost)) {
     throw new Error(`Invalid sshHost for teardown: ${JSON.stringify(opts.sshHost)}`)
   }
-  if (typeof opts.sshUser !== 'string' || !TEARDOWN_USER_RE.test(opts.sshUser)) {
+  const noUser = opts.sshUser === undefined || opts.sshUser === ''
+  if (!noUser && (typeof opts.sshUser !== 'string' || !TEARDOWN_USER_RE.test(opts.sshUser))) {
     throw new Error(`Invalid sshUser for teardown: ${JSON.stringify(opts.sshUser)}`)
   }
   if (opts.sshPort !== undefined

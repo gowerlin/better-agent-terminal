@@ -239,7 +239,10 @@ describe('uninstallBundleOnRemote (T0426 / BUG-100)', () => {
   it('rejects a bad host / user without spawning', async () => {
     const { calls, spawn } = fakeSpawn()
     expect((await uninstallBundleOnRemote({ ...uninstall, sshHost: 'a b' }, { spawn })).ok).toBe(false)
-    expect((await uninstallBundleOnRemote({ ...uninstall, sshUser: '' }, { spawn })).ok).toBe(false)
+    // T0505: an empty user is valid now (ssh config decides it, see
+    // ssh-alias-target.test.ts); a malformed one is still rejected.
+    expect((await uninstallBundleOnRemote({ ...uninstall, sshUser: '-oProxyCommand=x' }, { spawn })).ok).toBe(false)
+    expect((await uninstallBundleOnRemote({ ...uninstall, sshUser: 'al ice' }, { spawn })).ok).toBe(false)
     expect(calls).toHaveLength(0)
   })
 

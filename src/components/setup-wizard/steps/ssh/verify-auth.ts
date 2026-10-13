@@ -1,4 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { describeSshTarget } from './ssh-target'
 
 interface VerifyAuthState {
   sshHost?: string
@@ -62,14 +63,15 @@ export const verifySshAuthStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx) {
     const state = readState(ctx)
-    if (!state.sshHost || !state.sshUser) {
-      throw new Error('SSH host and user must be configured before verifying authentication.')
+    // T0505: the user may be empty (ssh config decides it).
+    if (!state.sshHost) {
+      throw new Error('SSH host must be configured before verifying authentication.')
     }
 
-    ctx.logger.info(`Probing ${state.sshUser}@${state.sshHost}${state.sshPort ? ':' + state.sshPort : ''}…`)
+    ctx.logger.info(`Probing ${describeSshTarget(state.sshUser, state.sshHost)}${state.sshPort ? ':' + state.sshPort : ''}…`)
     const result = await window.electronAPI.ssh.probeAuth({
       sshHost: state.sshHost,
-      sshUser: state.sshUser,
+      sshUser: state.sshUser ?? '',
       sshPort: state.sshPort,
       sshKeyPath: state.sshKeyPath,
     })

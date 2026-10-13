@@ -205,6 +205,16 @@ export const configureSshHostStep: WizardStep = {
         if (choice === MANUAL_HOST_VALUE) {
           await askManualHost(ctx)
         } else if (typeof choice === 'string' && choice.length > 0) {
+          // T0505: the alias becomes the whole ssh target (`ssh -- <alias>`,
+          // ssh config supplies the user), so it gets the same whitelist as
+          // a typed host. Nothing is written when it fails.
+          if (!isSshName(choice, 253)) {
+            const err = new Error(
+              `SSH alias ${JSON.stringify(choice)} cannot be used. Aliases may only use letters, digits, ".", "_" or "-" and must not start with "-".`,
+            ) as Error & { code?: string }
+            err.code = 'configure-host-invalid'
+            throw err
+          }
           // T0502: user / port typed with an earlier manual host do not
           // belong to the alias.
           if (state.sshHostManual) {
@@ -231,8 +241,10 @@ export const configureSshHostStep: WizardStep = {
       err.code = 'configure-host-empty'
       throw err
     }
+    // T0505: no user (alias, or a typed host without `user@`) is stored as ''
+    // and later steps run `ssh -- <host>`, so ~/.ssh/config decides the user.
     if (!state.sshUser || state.sshUser.trim().length === 0) {
-      writeState(ctx, { sshUser: state.sshAlias ? '' : '' })
+      writeState(ctx, { sshUser: '' })
     }
 
     if (typeof state.sshInstallPath !== 'string' || state.sshInstallPath.trim().length === 0) {

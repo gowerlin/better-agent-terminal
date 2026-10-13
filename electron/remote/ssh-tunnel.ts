@@ -2,12 +2,12 @@ import { EventEmitter } from 'events'
 import type { ChildProcess } from 'child_process'
 import type { Server, Socket } from 'net'
 import { logger } from '../logger'
-import { buildBaseSshArgs, buildBaseSshSpawnEnv } from './ssh-args'
+import { buildBaseSshArgs, buildBaseSshSpawnEnv, describeSshTarget } from './ssh-args'
 import { shutdownSshProcess } from './ssh-process-lifecycle'
 
 export interface SshTunnelOptions {
   sshHost: string
-  sshUser: string
+  sshUser: string        // '' -> ~/.ssh/config decides the user (T0505)
   sshPort?: number       // default 22; only emitted as -p when not 22
   sshKeyPath?: string    // when undefined, OpenSSH default key search applies
   remotePort: number     // BAT server bind port on the SSH host
@@ -203,7 +203,7 @@ export class SshTunnel extends EventEmitter {
       await this.waitUntilReady(localPort)
       starting = false
       logger.log(
-        `[SshTunnel] ready on 127.0.0.1:${localPort} → ${this.options.sshUser}@${this.options.sshHost}:${this.options.remotePort}`,
+        `[SshTunnel] ready on 127.0.0.1:${localPort} → ${describeSshTarget(this.options.sshUser, this.options.sshHost)}:${this.options.remotePort}`,
       )
       return { localPort }
     } catch (err) {

@@ -1,5 +1,6 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
 import type { SshTunnelMode } from './configure-host'
+import { describeSshTarget } from './ssh-target'
 import { connectTestStep } from '../wsl/connect-test'
 import { fetchFingerprintStep } from '../wsl/fetch-fingerprint'
 
@@ -57,14 +58,15 @@ export async function ensureSshVerifyEndpoint(ctx: WizardContext): Promise<void>
   if (typeof remotePort !== 'number') {
     throw new Error('Server port was not resolved before verifying the SSH server; re-run the start-server step.')
   }
-  if (!state.sshHost || !state.sshUser) {
-    throw new Error('SSH host and user must be configured before verifying the remote server.')
+  // T0505: the user may be empty (ssh config decides it).
+  if (!state.sshHost) {
+    throw new Error('SSH host must be configured before verifying the remote server.')
   }
 
   const result = await window.electronAPI.ssh.openVerifyTunnel({
     sessionId: sessionIdOf(state),
     sshHost: state.sshHost,
-    sshUser: state.sshUser,
+    sshUser: state.sshUser ?? '',
     sshPort: state.sshPort,
     sshKeyPath: state.sshKeyPath,
     remotePort,
@@ -74,7 +76,7 @@ export async function ensureSshVerifyEndpoint(ctx: WizardContext): Promise<void>
     throw codedError(result.error, result.errorCode)
   }
   ctx.verifyEndpoint = { host: TUNNEL_HOST, port: result.localPort }
-  ctx.logger.info(`SSH tunnel ready: ${TUNNEL_HOST}:${result.localPort} → ${state.sshUser}@${state.sshHost}:${remotePort}`)
+  ctx.logger.info(`SSH tunnel ready: ${TUNNEL_HOST}:${result.localPort} → ${describeSshTarget(state.sshUser, state.sshHost)}:${remotePort}`)
 }
 
 export async function closeSshVerifyEndpoint(ctx: WizardContext): Promise<void> {
@@ -98,7 +100,7 @@ async function crossCheckFingerprint(ctx: WizardContext): Promise<void> {
   const handshake = ctx.fingerprint
   if (!handshake) return
   const state = readState(ctx)
-  if (!state.sshHost || !state.sshUser || !state.sshServerHome
+  if (!state.sshHost || !state.sshServerHome
     || (ctx.targetOS !== 'ssh-linux' && ctx.targetOS !== 'ssh-darwin')) {
     ctx.logger.warn('Remote server details are incomplete; using the TLS handshake fingerprint without cross-checking.')
     return
@@ -108,7 +110,7 @@ async function crossCheckFingerprint(ctx: WizardContext): Promise<void> {
   try {
     identity = await window.electronAPI.ssh.readServerIdentity({
       sshHost: state.sshHost,
-      sshUser: state.sshUser,
+      sshUser: state.sshUser ?? '',
       sshPort: state.sshPort,
       sshKeyPath: state.sshKeyPath,
       targetOS: ctx.targetOS,
@@ -133,7 +135,7 @@ async function crossCheckFingerprint(ctx: WizardContext): Promise<void> {
     ctx.fingerprint = null
     throw codedError(
       `TLS fingerprint ${handshake} does not match the remote bat-server certificate ${identity.fingerprint} `
-      + `on ${state.sshUser}@${state.sshHost}. The verification reached a different server `
+      + `on ${describeSshTarget(state.sshUser, state.sshHost)}. The verification reached a different server `
       + '(for example this BAT\'s own remote server); check the SSH host and server port, then retry.',
       'fingerprint-mismatch',
     )

@@ -26,6 +26,8 @@ import { SshTunnel, type SshTunnelOptions, type SshTunnelWarning } from './ssh-t
 import {
   buildBaseSshArgs,
   buildBaseSshSpawnEnv,
+  buildSshTarget,
+  describeSshTarget,
   escapeSingleQuotesStrict,
   validateSshIdentifier,
 } from './ssh-args'
@@ -87,8 +89,9 @@ function validateTunnelRequest(request: WizardTunnelRequest): string | null {
     return `invalid SSH port: ${String(request.sshPort)}`
   }
   try {
-    validateSshIdentifier(request.sshHost, 'sshHost')
-    validateSshIdentifier(request.sshUser, 'sshUser')
+    // T0505: user may be empty (ssh config decides it); host-only targets get
+    // the stricter alias whitelist.
+    buildSshTarget(request.sshUser, request.sshHost)
     if (typeof request.sshKeyPath === 'string' && request.sshKeyPath.trim().length > 0) {
       validateSshIdentifier(request.sshKeyPath, 'sshKeyPath')
     }
@@ -148,7 +151,7 @@ export class WizardTunnelRegistry {
     }
     if (existing) await this.close(request.sessionId)
 
-    const target = `${request.sshUser}@${request.sshHost}`
+    const target = describeSshTarget(request.sshUser, request.sshHost)
     const tunnel = this.createTunnel({
       sshHost: request.sshHost,
       sshUser: request.sshUser,

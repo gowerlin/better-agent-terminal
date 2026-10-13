@@ -1,5 +1,6 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
 import { resolveSshInstallPath } from './remote-home'
+import { describeSshTarget } from './ssh-target'
 
 interface StartServerState {
   sshHost?: string
@@ -123,8 +124,9 @@ export const startServerStep: WizardStep = {
   async run(ctx: WizardContext) {
     const state = ctx.state as StartServerState
     state.sshStartServerTouchedRemote = false
-    if (!state.sshHost || !state.sshUser) {
-      throw new Error('SSH host and user must be configured before starting the server.')
+    // T0505: the user may be empty (ssh config decides it).
+    if (!state.sshHost) {
+      throw new Error('SSH host must be configured before starting the server.')
     }
     if (!state.sshInstallPath) {
       throw new Error('Install path must be selected before starting the server.')
@@ -151,13 +153,13 @@ export const startServerStep: WizardStep = {
     })
 
     try {
-      ctx.logger.info(`Starting bat-server on ${state.sshUser}@${state.sshHost} (${ctx.targetOS})`)
+      ctx.logger.info(`Starting bat-server on ${describeSshTarget(state.sshUser, state.sshHost)} (${ctx.targetOS})`)
       state.sshStartServerTouchedRemote = true
       const result = await window.electronAPI.ssh.startServer({
         startId,
         options: {
           sshHost: state.sshHost,
-          sshUser: state.sshUser,
+          sshUser: state.sshUser ?? '',
           sshPort: state.sshPort,
           sshKeyPath: state.sshKeyPath,
           targetOS: ctx.targetOS,
@@ -197,7 +199,7 @@ export const startServerStep: WizardStep = {
     if (state.sshStartServerTouchedRemote === false) {
       return
     }
-    if (!state.sshHost || !state.sshUser || !state.sshServerHome) {
+    if (!state.sshHost || !state.sshServerHome) {
       return
     }
     if (ctx.targetOS !== 'ssh-linux' && ctx.targetOS !== 'ssh-darwin') {
@@ -205,7 +207,7 @@ export const startServerStep: WizardStep = {
     }
     const result = await window.electronAPI.ssh.stopServer({
       sshHost: state.sshHost,
-      sshUser: state.sshUser,
+      sshUser: state.sshUser ?? '',
       sshPort: state.sshPort,
       sshKeyPath: state.sshKeyPath,
       targetOS: ctx.targetOS,

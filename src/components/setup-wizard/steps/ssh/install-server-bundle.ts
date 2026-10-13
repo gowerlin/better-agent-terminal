@@ -1,5 +1,6 @@
 import type { WizardStep } from '../../wizard-runner'
 import { resolveSshInstallPath } from './remote-home'
+import { describeSshTarget } from './ssh-target'
 
 interface InstallSshBundleState {
   sshHost?: string
@@ -68,8 +69,9 @@ export const installSshServerBundleStep: WizardStep = {
   async run(ctx) {
     const state = ctx.state as InstallSshBundleState
     state.sshBundleUploadStarted = false
-    if (!state.sshHost || !state.sshUser) {
-      throw new Error('SSH host and user must be set before installing the server bundle.')
+    // T0505: the user may be empty (ssh config decides it).
+    if (!state.sshHost) {
+      throw new Error('SSH host must be set before installing the server bundle.')
     }
     if (!state.sshInstallPath) {
       throw new Error('Install path must be selected before installing the server bundle.')
@@ -102,7 +104,7 @@ export const installSshServerBundleStep: WizardStep = {
         draftProfile: {
           targetOS: ctx.targetOS as 'ssh-linux' | 'ssh-darwin',
           sshHost: state.sshHost,
-          sshUser: state.sshUser,
+          sshUser: state.sshUser ?? '',
           sshPort: state.sshPort,
           sshKeyPath: state.sshKeyPath,
           sshServerArch: state.sshServerArch,
@@ -124,7 +126,7 @@ export const installSshServerBundleStep: WizardStep = {
     state.bundleTarballPath = tarballPath
     state.bundleSource = distributeResult.source
     ctx.logger.info(`${describeSource(distributeResult.source)}: ${tarballPath}`)
-    ctx.logger.info(`Uploading ${tarballPath} → ${state.sshUser}@${state.sshHost}:${installPath}`)
+    ctx.logger.info(`Uploading ${tarballPath} → ${describeSshTarget(state.sshUser, state.sshHost)}:${installPath}`)
 
     const uploadId = makeUploadId()
     const startedAt = Date.now()
@@ -148,7 +150,7 @@ export const installSshServerBundleStep: WizardStep = {
         uploadId,
         options: {
           sshHost: state.sshHost,
-          sshUser: state.sshUser,
+          sshUser: state.sshUser ?? '',
           sshPort: state.sshPort,
           sshKeyPath: state.sshKeyPath,
           installPath,
@@ -173,12 +175,12 @@ export const installSshServerBundleStep: WizardStep = {
     if (state.sshBundleUploadStarted === false) {
       return
     }
-    if (!state.sshHost || !state.sshUser || !state.sshInstallPath) {
+    if (!state.sshHost || !state.sshInstallPath) {
       return
     }
     const result = await window.electronAPI.ssh.uninstallBundle({
       sshHost: state.sshHost,
-      sshUser: state.sshUser,
+      sshUser: state.sshUser ?? '',
       sshPort: state.sshPort,
       sshKeyPath: state.sshKeyPath,
       // T0379: remove what the upload actually created (absolute path).
