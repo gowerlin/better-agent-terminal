@@ -8,7 +8,7 @@
 >
 > **第五十七 session**（2026-10-05 13:08）：已發佈 **`v0.6.0-pre.2`**（@ `9cb7cd4`）。
 >
-> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。15:43 外部使用者回報 mac 啟動崩潰 → 開 **BUG-116**（high），等 Gary 回報環境資料再派單。15:53 開 **T0467**（PLAN-039 實機驗收自動化：source build + WSL + WSL 內 Docker 當 SSH，無 Agent），per-dispatch `--mode yolo --no-interactive`；15:58 BLOCKED（WSL 無 Docker）→ 使用者授權 Worker 安裝 → Renew #1 重派。16:05 Gary 資料到齊、BUG-116 根因確認 → 派 **T0468**（與 T0467 並行；T0468 禁動 node_modules）。16:14 **T0467 DONE**（`8fab37a`，docs 步驟 1-6 全 PASS）→ **PLAN-039 DONE**；T0467 Worker 為跑 vite 已 `npm ci` 修復本機 node_modules（npm 12.2.0 擋 install scripts，已手補 electron / esbuild / sharp / better-sqlite3；claude-code `install.cjs` 未補）；WSL 新裝 `docker.io` 29.1.3（保留）。git `main` = `origin/main` = `b5a689d`，乾淨。
+> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。15:43 外部使用者回報 mac 啟動崩潰 → 開 **BUG-116**（high），等 Gary 回報環境資料再派單。15:53 開 **T0467**（PLAN-039 實機驗收自動化：source build + WSL + WSL 內 Docker 當 SSH，無 Agent），per-dispatch `--mode yolo --no-interactive`；15:58 BLOCKED（WSL 無 Docker）→ 使用者授權 Worker 安裝 → Renew #1 重派。16:05 Gary 資料到齊、BUG-116 根因確認 → 派 **T0468**（與 T0467 並行；T0468 禁動 node_modules）。16:14 **T0467 DONE**（`8fab37a`，docs 步驟 1-6 全 PASS）→ **PLAN-039 DONE**；T0467 Worker 為跑 vite 已 `npm ci` 修復本機 node_modules（npm 12.2.0 擋 install scripts，已手補 electron / esbuild / sharp / better-sqlite3；claude-code `install.cjs` 未補）；WSL 新裝 `docker.io` 29.1.3（保留）。16:15 **T0468 DONE**（`78e3bc9`，自有 loader + fail-soft + verify 加深；自 `v0.2.5-pre.1` 起所有 mac 版必崩）→ BUG-116 FIXED（待 mac 實機）。塔台聯合複驗 @ `98ee7fc`：vite ✅、unit **170 files / 2888 passed** / 1 skipped ✅、verify-native-modules ✅、e2e plan039 4 passed / 5 skipped（opt-in）✅。git `main` = `origin/main` = `b5a689d`，乾淨。
 
 ---
 
@@ -130,7 +130,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 4 / Fixed 17 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 3 / Fixed 18 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D135）｜ Learnings → [_learnings.md](_learnings.md)（最大 L146）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（72 entries）
 
@@ -150,7 +150,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 | **前一 tag** | `v0.6.0-pre.1`（2026-10-05 05:24，`c92faf7`） |
 | **目前主軸** | 安裝新 build → 本批實機驗收（PLAN-039 + Fixed 17）→ 下一預覽版 |
 | **工單最大編號** | T0466（第五十六 session：T0462-T0466 全 DONE） |
-| **BUG 最大編號** | **BUG-116**（FIXING high，mac 啟動崩潰：上游 whisper addon `mac-*` 目錄 vs loader `darwin-*` + 頂層 import；修復 T0468）；BUG-115（OPEN low，`release.ps1 -Snapshot`）；BUG-114 OPEN medium；BUG-061 OPEN；096-100 / 105-113 / 086 / 088 / 093 FIXED 待實機 |
+| **BUG 最大編號** | **BUG-116**（FIXED high，T0468 `78e3bc9`，待 mac 實機）；BUG-115（OPEN low，`release.ps1 -Snapshot`）；BUG-114 OPEN medium；BUG-061 OPEN；096-100 / 105-113 / 086 / 088 / 093 FIXED 待實機 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13，T0467 實機驗收自動化）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D135 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |

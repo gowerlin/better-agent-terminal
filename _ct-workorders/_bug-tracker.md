@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-13T15:43:35+08:00"
+generated_at: "2026-10-13T16:16:35+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 41
 breakdown:
   OPEN: 3
-  FIXING: 1
-  FIXED: 17
+  FIXING: 0
+  FIXED: 18
   VERIFY: 0
   CLOSED: 20
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-13 15:43 (UTC+8) — 第五十八 session：新開 BUG-116（mac 啟動崩潰，whisper addon）→ 根因確認 → FIXING（T0468）
+> 最後同步：2026-10-13 15:43 (UTC+8) — 第五十八 session：新開 BUG-116（mac 啟動崩潰，whisper addon）→ 根因確認 → FIXED（T0468 `78e3bc9`，待 mac 實機）
 
 ## 統計
-- 🔴 Open: 3 | ⏳ Fixing: 1 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 41**
+- 🔴 Open: 3 | ⏳ Fixing: 0 | ✅ Fixed: 18 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 41**
 
 ## 🔴 Open / 處理中
 
@@ -40,12 +40,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
+| _（無）_ | | | | |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
 | BUG-113 | Detached workspace 視窗顯示 Workspace not found（自 `512c118` 多視窗重構起 detach 失效）（T0453） | 🟡 medium | 2026-10-05 | [BUG-113](BUG-113-detached-workspace-not-found.md) |
 | BUG-112 | 從 remote profile 視窗 detach 出的 workspace 視窗路由視為本機（fail-open）（T0446） | 🔴 high | 2026-10-05 | [BUG-112](BUG-112-detached-workspace-window-remote-fail-open.md) |
 | BUG-111 | 設定精靈 rollback 會刪 / 停使用者自己的 Docker 容器與資料（T0444） | 🔴 high | 2026-10-05 | [BUG-111](BUG-111-wizard-rollback-touches-user-owned-resources.md) |
