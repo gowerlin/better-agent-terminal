@@ -1085,6 +1085,7 @@
   - `npm run build` 產物 = Windows NSIS installer，封裝 electron 41.2.1
   - 使用者手動重裝測試通過，BAT 內 terminal 可正常啟動 Electron app（BUG-038 修復生效）
   - `postinstall` 的 `npm rebuild better-sqlite3`（T0160 新增）自動為 ABI 145 重 build，啟動無 NODE_MODULE_VERSION mismatch
+    - ⚠️ **2026-10-13 更正（T0473 實測）**：`npm rebuild better-sqlite3` 依 prebuild-install 預設 `runtime=node` 產出 **Node ABI 137**，不是 Electron ABI 145；當時「無 mismatch」實因 better-sqlite3 不在任何執行路徑上（repo 無程式 import）。postinstall 已改為非 CI 時跑 `@electron/rebuild -f -w better-sqlite3`（`eaa8cca`）
 - **狀態轉移**：
   - **T0160** DONE（repo 層） + runtime 驗收通過 → 閉環完成
   - **T0161** FIXED → **DONE**（runtime 驗收通過，回報區補執行期驗證結果）
