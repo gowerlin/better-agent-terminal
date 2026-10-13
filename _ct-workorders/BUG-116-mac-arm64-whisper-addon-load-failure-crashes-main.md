@@ -7,11 +7,12 @@ status: OPEN
 severity: high
 reproducibility: unknown
 created_at: "2026-10-13T15:43:35+08:00"
-updated_at: "2026-10-13T15:43:35+08:00"
+updated_at: "2026-10-13T15:45:38+08:00"
 impact:
   - app-launch
   - voice-input
   - macos-arm64
+  - local-packaging
 links:
   fix_workorder: null
   related: [BUG-056]
@@ -65,6 +66,16 @@ at Object.<anonymous> (.../whisper-node-addon/dist/js/index.js:36:22)
 
 1. **韌性（主修）**：whisper addon 改為延遲 / 隔離載入（try/catch 或動態 `require` 於首次使用語音時），失敗僅停用語音 + logger 記錄 + UI 提示，app 照常啟動；同步檢查其他 optional 原生模組是否有同樣頂層載入風險
 2. **依根因追加**：A → 安裝說明 / dmg 命名標示 Intel vs Apple Silicon，或 addon 架構選擇修正；C → CI 加 mac 產物內 `.node` 存在性驗證
+
+## 併入範圍：本機開發環境 whisper addon 殘缺 + 原生模組驗證過淺（2026-10-13 塔台觀察，使用者指示併入修復工單）
+
+- 本機 Windows 開發環境 `node_modules/@kutalia/whisper-node-addon/` 只剩 `node_modules/node-addon-api/`（套件目錄 mtime 2026-10-09 18:10），**無 `package.json`、無 `dist/`**；`package-lock.json` 仍列 `^1.1.0`。成因未知（10-09 某次 install / 清理中斷？）
+- `scripts/verify-native-modules.js` 檢查 `node_modules/<mod>/package.json` 存在 → 目前狀態**會被擋下**（本機打包 fail-fast 正常）；但它**不檢查當前 host 平台的 `.node` binary**（如 `dist/<platform>-<arch>/whisper.node`），「package.json 在、binary 缺」的情境（假說 C 的打包端形態）會漏網
+
+修復工單需含：
+
+3. **本機環境**：Worker 開工前 `npm install` 還原 whisper addon，確認 `dist/win32-x64/` 有 `.node`；記錄是否能重現 10-09 的殘缺成因（不強求）
+4. **驗證加深**：`verify-native-modules.js` 對 `REQUIRED_NATIVE_MODULES` 加 host 平台原生 binary 存在性檢查（至少 whisper addon 的 `dist/<process.platform>-<process.arch>/*.node`）；CI mac job 對兩個 arch 產物檢查 `app.asar.unpacked` 內對應 `.node`（若根因為 C 則必做）
 
 ## 處置
 
