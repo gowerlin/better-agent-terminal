@@ -8,7 +8,7 @@
 >
 > **第五十七 session**（2026-10-05 13:08）：已發佈 **`v0.6.0-pre.2`**（@ `9cb7cd4`）。
 >
-> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。15:43 外部使用者回報 mac 啟動崩潰 → 開 **BUG-116**（high），等 Gary 回報環境資料再派單。15:53 開 **T0467**（PLAN-039 實機驗收自動化：source build + WSL + WSL 內 Docker 當 SSH，無 Agent），per-dispatch `--mode yolo --no-interactive`；15:58 BLOCKED（WSL 無 Docker）→ 使用者授權 Worker 安裝 → Renew #1 重派。16:05 Gary 資料到齊、BUG-116 根因確認 → 派 **T0468**（與 T0467 並行；T0468 禁動 node_modules）。16:14 **T0467 DONE**（`8fab37a`，docs 步驟 1-6 全 PASS）→ **PLAN-039 DONE**；T0467 Worker 為跑 vite 已 `npm ci` 修復本機 node_modules（npm 12.2.0 擋 install scripts，已手補 electron / esbuild / sharp / better-sqlite3；claude-code `install.cjs` 未補）；WSL 新裝 `docker.io` 29.1.3（保留）。16:15 **T0468 DONE**（`78e3bc9`，自有 loader + fail-soft + verify 加深；自 `v0.2.5-pre.1` 起所有 mac 版必崩）→ BUG-116 FIXED（待 mac 實機）。塔台聯合複驗 @ `98ee7fc`：vite ✅、unit **170 files / 2888 passed** / 1 skipped ✅、verify-native-modules ✅、e2e plan039 4 passed / 5 skipped（opt-in）✅。git `main` = `origin/main` = `b5a689d`，乾淨。
+> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。15:43 外部使用者回報 mac 啟動崩潰 → 開 **BUG-116**（high），等 Gary 回報環境資料再派單。15:53 開 **T0467**（PLAN-039 實機驗收自動化：source build + WSL + WSL 內 Docker 當 SSH，無 Agent），per-dispatch `--mode yolo --no-interactive`；15:58 BLOCKED（WSL 無 Docker）→ 使用者授權 Worker 安裝 → Renew #1 重派。16:05 Gary 資料到齊、BUG-116 根因確認 → 派 **T0468**（與 T0467 並行；T0468 禁動 node_modules）。16:14 **T0467 DONE**（`8fab37a`，docs 步驟 1-6 全 PASS）→ **PLAN-039 DONE**；T0467 Worker 為跑 vite 已 `npm ci` 修復本機 node_modules（npm 12.2.0 擋 install scripts，已手補 electron / esbuild / sharp / better-sqlite3；claude-code `install.cjs` 未補）；WSL 新裝 `docker.io` 29.1.3（保留）。16:15 **T0468 DONE**（`78e3bc9`，自有 loader + fail-soft + verify 加深；自 `v0.2.5-pre.1` 起所有 mac 版必崩）→ BUG-116 FIXED（待 mac 實機）。塔台聯合複驗 @ `98ee7fc`：vite ✅、unit **170 files / 2888 passed** / 1 skipped ✅、verify-native-modules ✅、e2e plan039 4 passed / 5 skipped（opt-in）✅。16:18 使用者裁決：**先補 mac CI 檢查再發 pre.3**；開 T0469（opencc 延遲載入）∥ T0470（mac CI 兩 arch whisper.node 檢查）→ T0471（本機 npm 12 install scripts，CLAUDE.md 與 T0470 重疊故排後）。git `main` = `origin/main` = `b5a689d`，乾淨。
 
 ---
 
@@ -135,7 +135,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（72 entries）
 
 ### 編號起始
-- **T0469** / **BUG-117** / **PLAN-040** / **D136** / **EXP-[TOPIC]-001** / **L147**
+- **T0472** / **BUG-117** / **PLAN-040** / **D136** / **EXP-[TOPIC]-001** / **L147**
 
 ---
 
@@ -238,7 +238,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 | WSL server | dev-deploy | `~/.local/bat-server`：tag `t0456`（JS = HEAD `698a157` 等價 + 4 helper `scripts/`）；smoke 13/13；回復 `npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --rollback --yes --tag t0456`；重跑 WSL 精靈會以 release bundle 覆蓋 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用（本 session 用 ct-done 補救 T0436） |
 | 熱區工單 | **T:112 檔 / BUG:39 / PLAN:11** | T 含 4 個報告檔（L132）；`archive_days: 2` 下大量到齡候選，下 session 可 `*archive`（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0468 / BUG-116 / PLAN-039 / D135 / L146** | 下張：T0469 / BUG-117 / PLAN-040 / D136 / L147 |
+| 最大編號 | **T0471 / BUG-116 / PLAN-039 / D135 / L146** | 下張：T0472 / BUG-117 / PLAN-040 / D136 / L147 |
 | unit test | ✅ **2861 passed / 168 files**（塔台聯合複驗 @ `26db914`，主工作區） | |
 | vite build | ✅ | 主工作區 exit 0（@ `26db914`）；`release.ps1` 完整打包 exit 0（@ `0d03fc7`） |
 | e2e | ✅ **12 passed / 8 skipped / 0 failed** | 主工作區全套 ×3；首輪（緊接 unit 後）偶發 1 failed 未重現 |
