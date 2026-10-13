@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0473
 title: "package.json 加 npm 12 allowScripts（approve 5 個、處理 electron-winstaller）+ 查證並修正 postinstall / CLAUDE.md 的 npm rebuild better-sqlite3 是否產出 Electron ABI（T0471 建議 1、3）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: dev-env
 priority: P1
 sizing: M
 created_at: "2026-10-13T16:39:22+08:00"
 started_at: "2026-10-13T16:46:49+08:00"
-updated_at: "2026-10-13T16:46:49+08:00"
-completed_at: null
+updated_at: "2026-10-13T16:57:59+08:00"
+completed_at: "2026-10-13T16:57:59+08:00"
 target_version: v0.6.0-pre.3
 depends_on:
   - T0472
@@ -163,7 +163,7 @@ Landing Zone Check：**PASS**
 - **待塔台決策**：
   1. better-sqlite3 是沒有任何程式使用的相依，是否移除（見產出摘要第 2 點末段）。
   2. `_decision-log.md:1087`（T0160）對 postinstall 的描述與實測不符，是否補註。
-- Commit：只 commit 本工單檔、`package.json`、`CLAUDE.md`（`node_modules` 不進 git）；不 push。
+- Commit：`eaa8cca`（本工單檔、`package.json`、`CLAUDE.md`；`node_modules` 不進 git）＋ closeout metadata commit；不 push。
 
 ### 回報時間
 
