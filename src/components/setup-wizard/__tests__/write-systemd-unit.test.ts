@@ -4,6 +4,7 @@
  * failure, end-to-end mappedError snapshots from WizardRunner.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import '../../../i18n' // T0507: mapped error copy resolves through i18next
 import {
   WizardRunner,
   WizardStepStatus,

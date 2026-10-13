@@ -718,7 +718,16 @@
       "fixedAndRetry": "已修复，重试",
       "showDetails": "显示详细",
       "submitText": "确定",
-      "cancelText": "取消"
+      "cancelText": "取消",
+      "downloadDockerDesktop": "下载 Docker Desktop",
+      "dockerStartedRetry": "我已启动 Docker，重试",
+      "commandRunRetry": "我已运行命令，重试",
+      "skipStep": "跳过此步骤",
+      "journalCheckedRetry": "我已检查 journal，重试",
+      "skipStepManualStart": "跳过此步骤（手动启动）",
+      "wslInstallGuide": "安装 WSL2 指南",
+      "wslInstalledRetry": "我已安装 WSL2，重试",
+      "editSshSettings": "修改 SSH 设置"
     },
     "shared": {
       "step": {
@@ -759,6 +768,9 @@
         "fingerprintInvalidPort": {
           "title": "服务器端口无效",
           "body": "服务器端口必须是 1 到 65535 之间的整数。请返回修正端口后重新运行向导。"
+        },
+        "stepFailed": {
+          "title": "步骤发生错误"
         }
       }
     },
@@ -789,6 +801,18 @@
         "portInUse": {
           "title": "BAT 服务器端口已被占用",
           "body": "WSL 内的 BAT 服务器无法使用这个端口（EADDRINUSE）。Mirrored 网络模式下 Windows 与 WSL 共用 localhost，Windows 已在使用的端口（例如本机 BAT 自己的远程服务器）WSL 就无法使用。点击“重试”会重新挑选一个 Windows 端空闲的端口；如果你指定了端口，请改用其他端口。"
+        },
+        "lingerFailure": {
+          "title": "无法自动启用 systemd lingering",
+          "body": "WSL2 distro 限制可能导致此情况。可手动运行 sudo loginctl enable-linger $USER 后重试。"
+        },
+        "serviceStartTimeout": {
+          "title": "BAT systemd 服务启动超时",
+          "body": "请在 WSL 内运行 `journalctl --user -u bat-server.service -n 50` 查看服务启动日志；linger 未启用是常见原因。"
+        },
+        "notInstalled": {
+          "title": "找不到 WSL2",
+          "body": "请先安装 WSL2，然后重试。Windows 11 / 10 22H2 可在 PowerShell 运行 `wsl --install`。"
         }
       },
       "warning": {
@@ -822,6 +846,12 @@
       "warning": {
         "containerPortExposed": "容器 {{name}} 将 BAT 服务器端口发布在宿主机所有网络接口（{{hostIps}}），同一网络中的其他机器都能连入。此容器创建于 BAT 将 Docker 端口限定绑定 127.0.0.1 之前。修复方式：重新运行此向导并选择“新建”（新容器只发布在 127.0.0.1），确认不再需要旧容器的数据后，自行用 docker rm -f {{name}} 删除旧容器。BAT 不会修改或删除它。",
         "containerLegacyImage": "容器 {{name}} 使用的 BAT 服务器镜像构建于 Docker 网络修复之前，服务器无法通过发布的端口连接。请重新构建镜像（npm run build:docker-image）并重新运行此向导选择“新建”。BAT 不会修改或删除旧容器。"
+      },
+      "error": {
+        "daemonUnavailable": {
+          "title": "未检测到 Docker daemon",
+          "body": "请确认 Docker Desktop 已安装并启动。详细错误可展开查看。"
+        }
       }
     },
     "ssh": {
@@ -853,6 +883,14 @@
         "hostInvalid": {
           "title": "SSH 主机名无效",
           "body": "SSH 主机或 ~/.ssh/config alias 只能包含英文字母、数字、“.”、“_”与“-”，且不得以“-”开头。请改选其他 alias，或以 host、user@host 或 user@host:port 格式手动输入主机。"
+        },
+        "permissionDenied": {
+          "title": "SSH 认证失败",
+          "body": "请检查 SSH key 是否正确设置，或确认账号密码。"
+        },
+        "hostEmpty": {
+          "title": "SSH 主机名为必填",
+          "body": "请选择 ~/.ssh/config 中的 alias 或手动输入主机名。"
         }
       }
     }

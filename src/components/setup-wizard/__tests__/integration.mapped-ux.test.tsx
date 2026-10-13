@@ -7,9 +7,9 @@
  *
  * Companion suite: integration.transitions.test.ts (runner-only AC-1).
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, waitFor, within } from '@testing-library/react'
-import '../../../i18n' // initialize i18next once
+import i18n from '../../../i18n' // initialize i18next once
 import { SetupWizardShell } from '../SetupWizardShell'
 import {
   WizardRunner,
@@ -56,6 +56,16 @@ function failingStep(
     ...opts,
   }
 }
+
+// T0507: mapped error copy and action labels resolve through i18next; this
+// suite asserts the zh-TW wording (unchanged from the pre-i18n dictionary).
+beforeAll(async () => {
+  await i18n.changeLanguage('zh-TW')
+})
+
+afterAll(async () => {
+  await i18n.changeLanguage('en')
+})
 
 beforeEach(() => {
   ;(window as unknown as { electronAPI: unknown }).electronAPI = {
@@ -146,7 +156,7 @@ describe('integration.mapped-ux (T0338) — 6 registry entries × Shell render �
     expect(skipBtn).not.toBeNull()
     fireEvent.click(skipBtn)
     // Skipped note surfaces in detail panel.
-    expect(await findByText('Skipped by user')).toBeInTheDocument()
+    expect(await findByText(i18n.t('wizard.skippedNote'))).toBeInTheDocument()
   })
 
   // ─────────────────────────────────────────────────────────────────────
@@ -208,7 +218,7 @@ describe('integration.mapped-ux (T0338) — 6 registry entries × Shell render �
 
     // detailMode hidden-by-default — raw error pre block must NOT render initially.
     expect(container.querySelector('.bat-wizard-mapped-error-raw')).toBeNull()
-    fireEvent.click(getByText('Show details'))
+    fireEvent.click(getByText(i18n.t('wizard.action.showDetails')))
     await waitFor(() => {
       expect(container.querySelector('.bat-wizard-mapped-error-raw')).not.toBeNull()
     })

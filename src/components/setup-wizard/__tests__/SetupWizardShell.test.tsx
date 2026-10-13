@@ -13,9 +13,9 @@
  * Tests inject controlled WizardStep[] so we never touch electronAPI.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import '../../../i18n' // initialize i18next once
+import i18n from '../../../i18n' // initialize i18next once
 import { SetupWizardShell } from '../SetupWizardShell'
 import type { WizardContext, WizardStep } from '../wizard-runner'
 import { WizardRunner } from '../wizard-runner'
@@ -398,8 +398,8 @@ describe('<SetupWizardShell> recovery actions (T0333)', () => {
     expect(actions.querySelector('[data-action-kind="open-link"]')).not.toBeNull()
     expect(actions.querySelector('[data-action-kind="fixed-and-retry"]')).not.toBeNull()
     expect(actions.querySelector('[data-action-kind="cancel"]')).not.toBeNull()
-    // Mapped title must surface in the detail panel.
-    expect(screen.getAllByText('未偵測到 Docker daemon').length).toBeGreaterThanOrEqual(1)
+    // Mapped title must surface in the detail panel (default en locale, T0507).
+    expect(screen.getAllByText('Docker daemon not detected').length).toBeGreaterThanOrEqual(1)
   })
 
   it('open-link click invokes window.electronAPI.shell.openExternal with href', async () => {
@@ -489,6 +489,17 @@ describe('<SetupWizardShell> recovery actions (T0333)', () => {
 // =====================================================================
 
 describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
+  // T0507: title / body / action labels resolve through i18next. This suite
+  // locks the zh-TW output, which must stay identical to the pre-i18n
+  // dictionary; en / zh-CN are locked by the T0507 suite below.
+  beforeAll(async () => {
+    await i18n.changeLanguage('zh-TW')
+  })
+
+  afterAll(async () => {
+    await i18n.changeLanguage('en')
+  })
+
   function failingStepWithError(
     id: string,
     group: string,
@@ -786,7 +797,7 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
     // hidden-by-default: <pre> NOT rendered until "Show details" click; instead
     // a reveal button surfaces.
     expect(panel.querySelector('pre.bat-wizard-mapped-error-raw')).toBeNull()
-    expect(within(panel).getByText('Show details')).toBeInTheDocument()
+    expect(within(panel).getByText('顯示詳細')).toBeInTheDocument()
 
     const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
     const fingerprint = Array.from(actions.querySelectorAll('button[data-action-kind]')).map((btn) => ({
@@ -832,7 +843,7 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
 
     // hidden-by-default: <pre> not visible at first paint.
     expect(panel.querySelector('pre.bat-wizard-mapped-error-raw')).toBeNull()
-    expect(within(panel).getByText('Show details')).toBeInTheDocument()
+    expect(within(panel).getByText('顯示詳細')).toBeInTheDocument()
 
     // Strict action set: edit-config + cancel only (no retry / skip — empty
     // value is a user mistake, not an environment error).
@@ -856,3 +867,150 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
   })
 })
 
+// =====================================================================
+// T0507: the same six mapped-error panels in en and zh-CN. Kinds and order
+// match the zh-TW contract above; only the language changes.
+// =====================================================================
+
+describe('<SetupWizardShell> mapped error visual contract in en / zh-CN (T0507)', () => {
+  interface Case {
+    entry: string
+    targetOS: WizardContext['targetOS']
+    stepId: string
+    rawMessage: string
+    errorCode?: string
+    hiddenByDefault: boolean
+    kinds: string[]
+    en: { title: string; labels: string[] }
+    'zh-CN': { title: string; labels: string[] }
+  }
+
+  const CASES: Case[] = [
+    {
+      entry: 'docker-daemon-unavailable',
+      targetOS: 'docker-linux',
+      stepId: 'detect-env',
+      rawMessage: 'error during connect: open //./pipe/docker_engine: not found',
+      hiddenByDefault: false,
+      kinds: ['open-link', 'fixed-and-retry', 'cancel'],
+      en: { title: 'Docker daemon not detected', labels: ['Download Docker Desktop', "I've started Docker, retry", 'Cancel'] },
+      'zh-CN': { title: '未检测到 Docker daemon', labels: ['下载 Docker Desktop', '我已启动 Docker，重试', '取消'] },
+    },
+    {
+      entry: 'wsl-linger-failure',
+      targetOS: 'wsl-linux',
+      stepId: 'write-systemd-unit',
+      rawMessage: 'Could not enable linger: Failed to enable unit',
+      hiddenByDefault: false,
+      kinds: ['fixed-and-retry', 'skip', 'cancel'],
+      en: { title: 'Could not enable systemd lingering automatically', labels: ["I've run the command, retry", 'Skip this step', 'Cancel'] },
+      'zh-CN': { title: '无法自动启用 systemd lingering', labels: ['我已运行命令，重试', '跳过此步骤', '取消'] },
+    },
+    {
+      entry: 'wsl-service-start-timeout',
+      targetOS: 'wsl-linux',
+      stepId: 'write-systemd-unit',
+      rawMessage: 'Timed out waiting for bat-server.service to become active',
+      hiddenByDefault: false,
+      kinds: ['fixed-and-retry', 'skip', 'cancel'],
+      en: { title: 'BAT systemd service start timed out', labels: ["I've checked the journal, retry", 'Skip this step (start manually)', 'Cancel'] },
+      'zh-CN': { title: 'BAT systemd 服务启动超时', labels: ['我已检查 journal，重试', '跳过此步骤（手动启动）', '取消'] },
+    },
+    {
+      entry: 'wsl-not-installed',
+      targetOS: 'wsl-linux',
+      stepId: 'detect-env',
+      rawMessage: 'wsl.exe not found on PATH',
+      errorCode: 'wsl-not-installed',
+      hiddenByDefault: false,
+      kinds: ['open-link', 'fixed-and-retry', 'cancel'],
+      en: { title: 'WSL2 not found', labels: ['WSL2 install guide', "I've installed WSL2, retry", 'Cancel'] },
+      'zh-CN': { title: '找不到 WSL2', labels: ['安装 WSL2 指南', '我已安装 WSL2，重试', '取消'] },
+    },
+    {
+      entry: 'ssh-permission-denied',
+      targetOS: 'ssh-linux',
+      stepId: 'verify-ssh-auth',
+      rawMessage: 'Permission denied (publickey).',
+      hiddenByDefault: true,
+      kinds: ['edit-config', 'retry', 'cancel'],
+      en: { title: 'SSH authentication failed', labels: ['Edit SSH settings', 'Retry', 'Cancel'] },
+      'zh-CN': { title: 'SSH 认证失败', labels: ['修改 SSH 设置', '重试', '取消'] },
+    },
+    {
+      entry: 'ssh-configure-host-empty',
+      targetOS: 'ssh-linux',
+      stepId: 'configure-ssh-host',
+      rawMessage: 'SSH host is required',
+      hiddenByDefault: true,
+      kinds: ['edit-config', 'cancel'],
+      en: { title: 'SSH host is required', labels: ['Edit SSH settings', 'Cancel'] },
+      'zh-CN': { title: 'SSH 主机名为必填', labels: ['修改 SSH 设置', '取消'] },
+    },
+  ]
+
+  const SHOW_DETAILS = { en: 'Show details', 'zh-CN': '显示详细' } as const
+
+  function failingStep(c: Case): WizardStep {
+    return {
+      id: c.stepId,
+      title: `legacy-${c.stepId}`,
+      appliesTo: 'all',
+      retryable: true,
+      labelKey: 'wizard.shared.step.detectEnv.label',
+      descriptionKey: 'wizard.shared.step.detectEnv.description',
+      groupKey: 'wizard.group.detection',
+      editableFromFailure: false,
+      async run() {
+        const err = new Error(c.rawMessage) as Error & { code?: string }
+        if (c.errorCode) err.code = c.errorCode
+        throw err
+      },
+    }
+  }
+
+  beforeEach(() => {
+    ;(window as unknown as { electronAPI: unknown }).electronAPI = {
+      shell: { openExternal: vi.fn() },
+    }
+  })
+
+  afterEach(() => {
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI
+    vi.restoreAllMocks()
+  })
+
+  afterAll(async () => {
+    await i18n.changeLanguage('en')
+  })
+
+  const matrix = (['en', 'zh-CN'] as const).flatMap((lng) => CASES.map((c) => [lng, c.entry, c] as const))
+
+  it.each(matrix)('%s: %s panel and action labels follow the UI language', async (lng, _entry, c) => {
+    await i18n.changeLanguage(lng)
+    const { container } = render(
+      <SetupWizardShell steps={[failingStep(c)]} ctx={makeCtx({ targetOS: c.targetOS })} />,
+    )
+    await waitFor(() => {
+      expect(container.querySelector('.bat-wizard-mapped-error')).not.toBeNull()
+    })
+    const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
+
+    expect((panel.querySelector('h4') as HTMLElement).textContent).toBe(c[lng].title)
+    const body = (panel.querySelector('p') as HTMLElement).textContent ?? ''
+    expect(body.length).toBeGreaterThan(0)
+    expect(body).not.toBe(c.rawMessage)
+
+    if (c.hiddenByDefault) {
+      expect(panel.querySelector('pre.bat-wizard-mapped-error-raw')).toBeNull()
+      expect(within(panel).getByText(SHOW_DETAILS[lng])).toBeInTheDocument()
+    } else {
+      expect(panel.querySelector('pre.bat-wizard-mapped-error-raw')?.textContent).toContain(c.rawMessage)
+    }
+
+    const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
+    const buttons = Array.from(actions.querySelectorAll('button[data-action-kind]'))
+    expect(buttons.map((btn) => btn.getAttribute('data-action-kind'))).toEqual(c.kinds)
+    expect(buttons.map((btn) => btn.textContent?.trim() ?? '')).toEqual(c[lng].labels)
+  })
+})

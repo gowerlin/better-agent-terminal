@@ -5,6 +5,7 @@
  * structured errorCode reaches WizardErrorMapper.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import i18n from '../../../i18n'
 import { configureSshHostStep } from '../steps/ssh/configure-host'
 import {
   DEFAULT_WIZARD_ERROR_REGISTRY,
@@ -180,7 +181,9 @@ describe('configure-ssh-host (T0335 / BUG-074)', () => {
     expect(requestChoice).not.toHaveBeenCalled()
   })
 
-  it('AC-3 errorCode mapping: configure-host-empty resolves to ssh-configure-host-empty entry with edit-config + cancel actions', () => {
+  it('AC-3 errorCode mapping: configure-host-empty resolves to ssh-configure-host-empty entry with edit-config + cancel actions', async () => {
+    // T0507: copy comes from the locale; zh-TW keeps the original wording.
+    await i18n.changeLanguage('zh-TW')
     const mapped = resolveWizardError(
       {
         platform: 'ssh',
@@ -196,6 +199,7 @@ describe('configure-ssh-host (T0335 / BUG-074)', () => {
     const kinds = mapped.actions.map((a) => a.kind)
     expect(kinds).toContain('edit-config')
     expect(kinds).toContain('cancel')
+    await i18n.changeLanguage('en')
   })
 
   it('AC-3 regex fallback: missing errorCode but matching pattern still resolves to ssh-configure-host-empty', () => {

@@ -20,6 +20,7 @@ import {
 } from '../wizard-runner'
 import { configureSshHostStep, parseManualSshHost } from '../steps/ssh/configure-host'
 import { DEFAULT_WIZARD_ERROR_REGISTRY, resolveWizardError } from '../error-mapper'
+import i18n from '../../../i18n'
 import en from '../../../locales/en.json'
 import zhTW from '../../../locales/zh-TW.json'
 import zhCN from '../../../locales/zh-CN.json'
@@ -211,7 +212,13 @@ describe('configure-ssh-host: no alias -> typed host (T0502)', () => {
     await runner.cancel()
   })
 
-  it('the empty-host error names typing as an option, which the UI now offers', () => {
+  // T0507: the body comes from the locale, so check every UI language.
+  it.each([
+    ['zh-TW', /手動輸入/],
+    ['en', /enter the host name manually/],
+    ['zh-CN', /手动输入/],
+  ] as const)('the empty-host error names typing as an option, which the UI now offers (%s)', async (lng, typing) => {
+    await i18n.changeLanguage(lng)
     const mapped = resolveWizardError(
       {
         platform: 'ssh',
@@ -221,7 +228,8 @@ describe('configure-ssh-host: no alias -> typed host (T0502)', () => {
       },
       DEFAULT_WIZARD_ERROR_REGISTRY,
     )
-    expect(mapped.body).toMatch(/手動輸入/)
+    expect(mapped.body).toMatch(typing)
+    await i18n.changeLanguage('en')
   })
 })
 

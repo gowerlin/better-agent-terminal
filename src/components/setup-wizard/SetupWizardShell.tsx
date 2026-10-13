@@ -206,12 +206,15 @@ function resolveMappedErrorForSnapshot(
 /**
  * T0333: default labels per action kind when registry omits an explicit
  * `label`. open-link / custom kinds always carry their own label by type.
+ * T0507: registry entries name their labels by i18n key (`labelKey`), so the
+ * buttons follow the UI language.
  */
 function defaultActionLabel(
   action: WizardRecoveryAction,
   t: TFunction,
 ): string {
-  if ('label' in action && action.label) return action.label
+  if (action.labelKey) return t(action.labelKey, action.label ?? action.kind)
+  if (action.label) return action.label
   switch (action.kind) {
     case 'retry':
       return t('wizard.action.retry')

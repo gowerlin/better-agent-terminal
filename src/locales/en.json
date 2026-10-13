@@ -718,7 +718,16 @@
       "fixedAndRetry": "Already fixed, retry",
       "showDetails": "Show details",
       "submitText": "OK",
-      "cancelText": "Cancel"
+      "cancelText": "Cancel",
+      "downloadDockerDesktop": "Download Docker Desktop",
+      "dockerStartedRetry": "I've started Docker, retry",
+      "commandRunRetry": "I've run the command, retry",
+      "skipStep": "Skip this step",
+      "journalCheckedRetry": "I've checked the journal, retry",
+      "skipStepManualStart": "Skip this step (start manually)",
+      "wslInstallGuide": "WSL2 install guide",
+      "wslInstalledRetry": "I've installed WSL2, retry",
+      "editSshSettings": "Edit SSH settings"
     },
     "shared": {
       "step": {
@@ -759,6 +768,9 @@
         "fingerprintInvalidPort": {
           "title": "Invalid server port",
           "body": "The server port must be a whole number between 1 and 65535. Go back, fix the port, and run the wizard again."
+        },
+        "stepFailed": {
+          "title": "Step failed"
         }
       }
     },
@@ -789,6 +801,18 @@
         "portInUse": {
           "title": "BAT server port is already in use",
           "body": "The BAT server inside WSL cannot use this port (EADDRINUSE). In Mirrored networking mode Windows and WSL share localhost, so a port Windows already uses (for example this BAT's own remote server) is unavailable to WSL. Retry picks another port that is free on Windows; if you specified the port, choose a different one."
+        },
+        "lingerFailure": {
+          "title": "Could not enable systemd lingering automatically",
+          "body": "WSL2 distro restrictions can cause this. Run sudo loginctl enable-linger $USER manually, then retry."
+        },
+        "serviceStartTimeout": {
+          "title": "BAT systemd service start timed out",
+          "body": "Inside WSL, run `journalctl --user -u bat-server.service -n 50` to see the service start log; lingering not being enabled is a common cause."
+        },
+        "notInstalled": {
+          "title": "WSL2 not found",
+          "body": "Install WSL2 first, then retry. On Windows 11 / 10 22H2 you can run `wsl --install` in PowerShell."
         }
       },
       "warning": {
@@ -822,6 +846,12 @@
       "warning": {
         "containerPortExposed": "Container {{name}} publishes the BAT server port on all host interfaces ({{hostIps}}), so other machines on your network can reach it. It was created before BAT bound Docker ports to 127.0.0.1 only. To fix it, run this wizard again with \"Create new\" (the new container is published on 127.0.0.1 only), then remove the old container yourself with docker rm -f {{name}} once you no longer need its data. BAT will not change or delete it.",
         "containerLegacyImage": "Container {{name}} runs a BAT server image built before the Docker networking fix, so the server cannot be reached through the published port. Rebuild the image (npm run build:docker-image) and run this wizard again with \"Create new\". BAT will not change or delete the old container."
+      },
+      "error": {
+        "daemonUnavailable": {
+          "title": "Docker daemon not detected",
+          "body": "Make sure Docker Desktop is installed and running. Expand the details to see the full error."
+        }
       }
     },
     "ssh": {
@@ -853,6 +883,14 @@
         "hostInvalid": {
           "title": "Invalid SSH host",
           "body": "The SSH host or ~/.ssh/config alias may only use letters, digits, \".\", \"_\" and \"-\", and must not start with \"-\". Pick another alias, or enter the host manually as host, user@host or user@host:port."
+        },
+        "permissionDenied": {
+          "title": "SSH authentication failed",
+          "body": "Check that your SSH key is set up correctly, or confirm the username and password."
+        },
+        "hostEmpty": {
+          "title": "SSH host is required",
+          "body": "Pick an alias from ~/.ssh/config or enter the host name manually."
         }
       }
     }

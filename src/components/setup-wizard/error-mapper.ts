@@ -46,15 +46,30 @@ export function targetOSToErrorPlatform(target: WizardTargetOS): WizardErrorPlat
  * The first 6 kinds (retry / fixed-and-retry / open-link / edit-config /
  * skip / cancel) are dispatched by SetupWizardShell against WizardRunner +
  * Electron shell APIs. `custom` is an extension point for future kinds.
+ *
+ * T0507: a label is either an i18n key (`labelKey`, translated by the Shell
+ * so it follows the UI language) or a literal `label`. `labelKey` wins when
+ * both are set; with neither, the Shell uses the generic `wizard.action.*`
+ * label for the kind.
  */
+interface WizardActionLabel {
+  label?: string
+  labelKey?: string
+}
+
+/** open-link / custom have no generic per-kind label, so one of the two is required. */
+type WizardRequiredActionLabel =
+  | { label: string; labelKey?: string }
+  | { label?: string; labelKey: string }
+
 export type WizardRecoveryAction =
-  | { kind: 'retry'; label?: string }
-  | { kind: 'fixed-and-retry'; label?: string }
-  | { kind: 'open-link'; label: string; href: string }
-  | { kind: 'edit-config'; label?: string; targetStepId?: string }
-  | { kind: 'skip'; label?: string }
-  | { kind: 'cancel'; label?: string }
-  | { kind: 'custom'; label: string; run: () => Promise<void> | void }
+  | ({ kind: 'retry' } & WizardActionLabel)
+  | ({ kind: 'fixed-and-retry' } & WizardActionLabel)
+  | ({ kind: 'open-link'; href: string } & WizardRequiredActionLabel)
+  | ({ kind: 'edit-config'; targetStepId?: string } & WizardActionLabel)
+  | ({ kind: 'skip' } & WizardActionLabel)
+  | ({ kind: 'cancel' } & WizardActionLabel)
+  | ({ kind: 'custom'; run: () => Promise<void> | void } & WizardRequiredActionLabel)
 
 /**
  * Backwards-compat alias kept so T0331/T0332 callsites compile without
@@ -73,7 +88,7 @@ export interface WizardErrorMatch {
   errorCodes?: string[]
   /** Regex patterns matched against error.message for stage-2/3. */
   patterns?: RegExp[]
-  /** i18n key. T0334 wires up real lookup; today resolved via MESSAGE_DICT. */
+  /** i18n key prefix; `<messageKey>.title` / `<messageKey>.body` live in src/locales/*.json. */
   messageKey: string
   /** How the UI should expose the raw error string. */
   detailMode?: 'append-raw' | 'hidden-by-default'
@@ -99,64 +114,39 @@ export interface WizardErrorContext {
   error: Error
 }
 
-interface MessageDictEntry {
+interface ResolvedMessage {
   title: string
+  /** Empty when the key has no body; callers then show the raw error. */
   body: string
 }
 
-/**
- * Sprint-2 zh-TW dictionary. T0334 will replace this with i18n lookup; until
- * then, registry entries reference these keys directly.
- */
-const MESSAGE_DICT: Record<string, MessageDictEntry> = {
-  'docker.daemon.unavailable': {
-    title: '未偵測到 Docker daemon',
-    body: '請確認 Docker Desktop 已安裝並啟動。詳細錯誤可展開查看。',
-  },
-  'wsl.linger.failure': {
-    title: '無法自動啟用 systemd lingering',
-    body: 'WSL2 distro 限制可能導致此情況。可手動執行 sudo loginctl enable-linger $USER 後重試。',
-  },
-  // T0337 (BUG-072): WSL systemd service start timeout dictionary entry.
-  'wsl.service.start-timeout': {
-    title: 'BAT systemd 服務啟動逾時',
-    body: '請在 WSL 內執行 `journalctl --user -u bat-server.service -n 50` 查看服務啟動日誌；linger 未啟用是常見原因。',
-  },
-  // T0337 (BUG-072): WSL not installed (Windows-only) dictionary entry.
-  'wsl.not-installed': {
-    title: '找不到 WSL2',
-    body: '請先安裝 WSL2，然後重試。Windows 11 / 10 22H2 可在 PowerShell 執行 `wsl --install`。',
-  },
-  'ssh.auth.permission-denied': {
-    title: 'SSH 認證失敗',
-    body: '請檢查 SSH key 是否正確設定，或確認帳號密碼。',
-  },
-  // T0335 (BUG-074): empty-host validation message.
-  'ssh.configure-host.empty': {
-    title: 'SSH 主機名稱為必填',
-    body: '請選擇 ~/.ssh/config 中的 alias 或手動輸入主機名稱。',
-  },
-  fallback: {
-    title: '步驟發生錯誤',
-    body: '', // body falls back to ctx.error.message
-  },
-}
+/** T0507: title of unmatched errors (no body: the raw error message is shown). */
+export const FALLBACK_MESSAGE_KEY = 'wizard.shared.error.stepFailed'
 
 /**
- * T0378 (BUG-086): entries whose messageKey is an i18n key (`<key>.title` /
- * `<key>.body` present in src/locales/*.json) resolve through i18next so they
- * follow the UI language. Legacy keys keep using the zh-TW MESSAGE_DICT.
+ * Last resort when i18next is not initialized (e.g. a test that never imports
+ * src/i18n) or the fallback key itself is missing.
  */
-function lookupMessage(key: string): MessageDictEntry {
-  const dict = MESSAGE_DICT[key]
-  if (dict) return dict
-  if (i18next.isInitialized && i18next.exists(`${key}.title`)) {
-    return {
-      title: i18next.t(`${key}.title`),
-      body: i18next.exists(`${key}.body`) ? i18next.t(`${key}.body`) : '',
+const UNINITIALIZED_FALLBACK_TITLE = 'Step failed'
+
+/**
+ * T0378 (BUG-086) / T0507: every messageKey is an i18n key (`<key>.title` /
+ * `<key>.body` in src/locales/*.json) resolved through i18next, so mapped
+ * errors follow the UI language. The zh-TW-only MESSAGE_DICT was removed in
+ * T0507; its copy now lives verbatim in zh-TW.json. Unknown keys resolve to
+ * the fallback title.
+ */
+function lookupMessage(key: string): ResolvedMessage {
+  if (i18next.isInitialized) {
+    for (const candidate of [key, FALLBACK_MESSAGE_KEY]) {
+      if (!i18next.exists(`${candidate}.title`)) continue
+      return {
+        title: i18next.t(`${candidate}.title`),
+        body: i18next.exists(`${candidate}.body`) ? i18next.t(`${candidate}.body`) : '',
+      }
     }
   }
-  return MESSAGE_DICT.fallback
+  return { title: UNINITIALIZED_FALLBACK_TITLE, body: '' }
 }
 
 function platformMatches(
@@ -195,7 +185,7 @@ function buildMapped(
  * this change.
  */
 function buildFallback(ctx: WizardErrorContext): WizardMappedError {
-  const dict = MESSAGE_DICT.fallback
+  const dict = lookupMessage(FALLBACK_MESSAGE_KEY)
   const rawError = ctx.error.message
   return {
     matchId: null,
@@ -273,12 +263,12 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       /cannot connect to.*docker daemon/i,
       /error during connect/i,
     ],
-    messageKey: 'docker.daemon.unavailable',
+    messageKey: 'wizard.docker.error.daemonUnavailable',
     detailMode: 'append-raw',
     actions: [
-      { kind: 'open-link', label: '下載 Docker Desktop', href: 'https://www.docker.com/products/docker-desktop/' },
-      { kind: 'fixed-and-retry', label: '我已啟動 Docker，重試' },
-      { kind: 'cancel', label: '取消' },
+      { kind: 'open-link', labelKey: 'wizard.action.downloadDockerDesktop', href: 'https://www.docker.com/products/docker-desktop/' },
+      { kind: 'fixed-and-retry', labelKey: 'wizard.action.dockerStartedRetry' },
+      { kind: 'cancel' },
     ],
   },
   {
@@ -292,12 +282,12 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       /Could not enable linger/i,
       /No such device or address/i,
     ],
-    messageKey: 'wsl.linger.failure',
+    messageKey: 'wizard.wsl.error.lingerFailure',
     detailMode: 'append-raw',
     actions: [
-      { kind: 'fixed-and-retry', label: '我已執行命令，重試' },
-      { kind: 'skip', label: '略過此步驟' },
-      { kind: 'cancel', label: '取消' },
+      { kind: 'fixed-and-retry', labelKey: 'wizard.action.commandRunRetry' },
+      { kind: 'skip', labelKey: 'wizard.action.skipStep' },
+      { kind: 'cancel' },
     ],
   },
   {
@@ -309,12 +299,12 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     // construct WizardErrorContext without an explicit errorCode (Shell
     // currently only forwards error.message from the snapshot).
     patterns: [/permission denied/i],
-    messageKey: 'ssh.auth.permission-denied',
+    messageKey: 'wizard.ssh.error.permissionDenied',
     detailMode: 'hidden-by-default',
     actions: [
-      { kind: 'edit-config', label: '修改 SSH 設定', targetStepId: 'configure-ssh-host' },
-      { kind: 'retry', label: '重試' },
-      { kind: 'cancel', label: '取消' },
+      { kind: 'edit-config', labelKey: 'wizard.action.editSshSettings', targetStepId: 'configure-ssh-host' },
+      { kind: 'retry' },
+      { kind: 'cancel' },
     ],
   },
   // T0335 (BUG-074, PLAN-032 Sprint 3): empty-host throw fires only after
@@ -326,11 +316,11 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     stepIds: ['configure-ssh-host'],
     errorCodes: ['configure-host-empty'],
     patterns: [/SSH host is required/i],
-    messageKey: 'ssh.configure-host.empty',
+    messageKey: 'wizard.ssh.error.hostEmpty',
     detailMode: 'hidden-by-default',
     actions: [
-      { kind: 'edit-config', label: '修改 SSH 設定', targetStepId: 'configure-ssh-host' },
-      { kind: 'cancel', label: '取消' },
+      { kind: 'edit-config', labelKey: 'wizard.action.editSshSettings', targetStepId: 'configure-ssh-host' },
+      { kind: 'cancel' },
     ],
   },
   // T0506: a typed host (T0502) or an ~/.ssh/config alias (T0505) failed the
@@ -375,12 +365,12 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       /Timed out waiting for.*service to become active/i,
       /service.*start.*timeout/i,
     ],
-    messageKey: 'wsl.service.start-timeout',
+    messageKey: 'wizard.wsl.error.serviceStartTimeout',
     detailMode: 'append-raw',
     actions: [
-      { kind: 'fixed-and-retry', label: '我已檢查 journal，重試' },
-      { kind: 'skip', label: '略過此步驟（手動啟動）' },
-      { kind: 'cancel', label: '取消' },
+      { kind: 'fixed-and-retry', labelKey: 'wizard.action.journalCheckedRetry' },
+      { kind: 'skip', labelKey: 'wizard.action.skipStepManualStart' },
+      { kind: 'cancel' },
     ],
   },
   // T0337 (BUG-072): WSL not installed on Windows host. open-link to MSFT
@@ -390,12 +380,12 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     platforms: ['wsl'],
     stepIds: ['detect-env'],
     errorCodes: ['wsl-not-installed', 'wsl-not-on-windows'],
-    messageKey: 'wsl.not-installed',
+    messageKey: 'wizard.wsl.error.notInstalled',
     detailMode: 'append-raw',
     actions: [
-      { kind: 'open-link', label: '安裝 WSL2 指南', href: 'https://learn.microsoft.com/en-us/windows/wsl/install' },
-      { kind: 'fixed-and-retry', label: '我已安裝 WSL2，重試' },
-      { kind: 'cancel', label: '取消' },
+      { kind: 'open-link', labelKey: 'wizard.action.wslInstallGuide', href: 'https://learn.microsoft.com/en-us/windows/wsl/install' },
+      { kind: 'fixed-and-retry', labelKey: 'wizard.action.wslInstalledRetry' },
+      { kind: 'cancel' },
     ],
   },
   // T0378 (BUG-086): WSL is installed but no distro is registered yet
