@@ -63,6 +63,10 @@ export interface PtyManagerDeps {
    * injected into PTY env as `BAT_HELPER_DIR`. Empty / undefined = not injected
    * (headless: not set — `helperEnv` supplies `BAT_HELPER_DIR` together with the PTY's
    * capability, T0433).
+   * T0481 (BUG-119): with it, `dataDir` is injected as `BAT_USER_DATA` too — the helpers find
+   * `server-cert.json` / `Logs` there instead of guessing the directory from the app name
+   * (a `--runtime=N` instance has no `BAT_RUNTIME` in its PTYs). Same name and value the
+   * Terminal Server's PTYs already inherit from its process env (main.ts fork).
    */
   helperDir?: string
   /**
@@ -220,9 +224,17 @@ export class PtyManager {
     return env
   }
 
-  /** T0140: `BAT_HELPER_DIR` env entry, omitted when the host has no helper dir. */
-  private helperDirEnv(): { BAT_HELPER_DIR?: string } {
-    return this.deps.helperDir ? { BAT_HELPER_DIR: this.deps.helperDir } : {}
+  /**
+   * T0140: `BAT_HELPER_DIR` env entry, omitted when the host has no helper dir.
+   * T0481: plus `BAT_USER_DATA` (the helpers' data dir) under the same condition, so headless
+   * — no `helperDir`; its helper paths come from `helperEnv` — is unchanged.
+   */
+  private localHelperEnv(): { BAT_HELPER_DIR?: string; BAT_USER_DATA?: string } {
+    if (!this.deps.helperDir) return {}
+    return {
+      BAT_HELPER_DIR: this.deps.helperDir,
+      ...(this.deps.dataDir ? { BAT_USER_DATA: this.deps.dataDir } : {}),
+    }
   }
 
   /** T0433: `deps.helperEnv` for a PTY about to be spawned; a throwing host yields none. */
@@ -676,7 +688,9 @@ export class PtyManager {
         BAT_WORKSPACE_ID: workspaceId ?? '',
         // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
         // Dev: <project-root>/scripts, packaged: <install-root>/resources/scripts.
-        ...this.helperDirEnv(),
+        // T0481: + BAT_USER_DATA, overriding the one the Terminal Server inherited (stale once
+        // a long-lived server outlives a userData move).
+        ...this.localHelperEnv(),
         FORCE_COLOR: '3',
         CLAUDE_CODE_NO_FLICKER: '1',
         CI: '',
@@ -740,8 +754,8 @@ export class PtyManager {
           BAT_TERMINAL_ID: id,
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
           BAT_WORKSPACE_ID: workspaceId ?? '',
-          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
-          ...this.helperDirEnv(),
+          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs). T0481: + BAT_USER_DATA.
+          ...this.localHelperEnv(),
           // Force color output
           FORCE_COLOR: '3',
           // Suppress ED2-induced viewport flicker in Claude Code streaming
@@ -822,8 +836,8 @@ export class PtyManager {
           BAT_TERMINAL_ID: id,
           // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
           BAT_WORKSPACE_ID: workspaceId ?? '',
-          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
-          ...this.helperDirEnv(),
+          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs). T0481: + BAT_USER_DATA.
+          ...this.localHelperEnv(),
           FORCE_COLOR: '3',
           CI: '',
           // T0129: RemoteServer connection info for CLI tools

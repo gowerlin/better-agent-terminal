@@ -12,7 +12,7 @@
 // structured events with consistent reasons.
 
 import { readFileSync } from 'fs'
-import { join } from 'path'
+import { isAbsolute, join } from 'path'
 import { homedir } from 'os'
 
 // Electron app name matches electron/main.ts → app.setName('BetterAgentTerminal').
@@ -20,7 +20,16 @@ import { homedir } from 'os'
 const APP_NAME = 'BetterAgentTerminal'
 const CERT_FILENAME = 'server-cert.json'
 
+// Resolve BAT's userData directory (T0481 / BUG-119):
+//   1. $BAT_USER_DATA when absolute — local BAT injects app.getPath('userData') into every
+//      PTY (electron/pty-manager.ts), so this is exact for any instance, including one
+//      started with --runtime=N (its PTYs carry no BAT_RUNTIME). Relative = ignored.
+//   2. Legacy guess: APP_NAME + BAT_RUNTIME under the platform's appData dir (PTYs of a BAT
+//      that predates T0481, or a helper run outside a BAT terminal).
 function resolveUserDataDir() {
+  const injected = process.env.BAT_USER_DATA
+  if (injected && isAbsolute(injected)) return injected
+
   const runtimeId = process.env.BAT_RUNTIME
   const suffix = runtimeId ? `-runtime-${runtimeId}` : ''
   const dirName = `${APP_NAME}${suffix}`
@@ -41,8 +50,10 @@ function resolveUserDataDir() {
 /**
  * Read BAT app's persisted server certificate fingerprint.
  *
- * Override path with env BAT_SERVER_CERT_PATH (used by smoke test for
- * mismatch scenario without touching the real cert file).
+ * Resolution order: env BAT_SERVER_CERT_PATH (full file path; set by a headless
+ * bat-server for its PTYs, and by the smoke test for the mismatch scenario without
+ * touching the real cert file) → <userData>/server-cert.json, userData as resolved
+ * by resolveUserDataDir() above.
  *
  * Returns:
  *   - { ok: true,  fingerprint, certPath }

@@ -13,6 +13,9 @@
 //     whose list misses an import / bat-notify / a file, or whose build no longer copies
 //   - _bat-logger.mjs: BAT_HELPER_LOG_DIR (absolute) moves the log; unset or relative keeps
 //     the userData path (local BAT unchanged)
+//   - T0481 (BUG-119): _bat-cert.mjs / _bat-logger.mjs resolve userData from BAT_USER_DATA
+//     (absolute) before the APP_NAME + BAT_RUNTIME guess; the explicit overrides
+//     (BAT_SERVER_CERT_PATH / BAT_HELPER_LOG_DIR, headless) still win
 
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -176,5 +179,87 @@ describe('_bat-logger.mjs BAT_HELPER_LOG_DIR (T0433)', () => {
       expect(existsSync(paths.file)).toBe(true)
       expect(existsSync(join(repoRoot, 'relative'))).toBe(false)
     }
+  })
+})
+
+describe('helper userData resolution (T0481 / BUG-119)', () => {
+  const certUrl = new URL('../_bat-cert.mjs', import.meta.url).href
+  const loggerUrl = new URL('../_bat-logger.mjs', import.meta.url).href
+  const probe = `import { loadTrustedFingerprint } from ${JSON.stringify(certUrl)}
+` +
+    `import { getLogPaths } from ${JSON.stringify(loggerUrl)}
+` +
+    `process.stdout.write(JSON.stringify({ cert: loadTrustedFingerprint(), log: getLogPaths() }))
+`
+
+  /** Where the legacy guess puts `<dirName>` for this platform, given runHelpers' env. */
+  function legacyDir(home, dirName) {
+    if (process.platform === 'win32') return join(home, 'AppData', dirName)
+    if (process.platform === 'darwin') return join(home, 'Library', 'Application Support', dirName)
+    return join(home, '.config', dirName)
+  }
+
+  function writeCert(dir, fingerprint) {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'server-cert.json'), JSON.stringify({ fingerprint }))
+  }
+
+  /** A home with the default instance's cert and runtime 3's cert at the legacy locations. */
+  function makeHome() {
+    const home = makeTmp('userdata-home')
+    writeCert(legacyDir(home, 'BetterAgentTerminal'), 'DEFAULT')
+    writeCert(legacyDir(home, 'BetterAgentTerminal-runtime-3'), 'LEGACY-RUNTIME-3')
+    return home
+  }
+
+  function runHelpers(home, extraEnv) {
+    const env = { ...cleanEnv(), HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config'), ...extraEnv }
+    const r = runNode(['--input-type=module', '-e', probe], { env })
+    expect(r.stderr).toBe('')
+    expect(r.status).toBe(0)
+    return JSON.parse(r.stdout)
+  }
+
+  it('--runtime=N (no BAT_RUNTIME): BAT_USER_DATA picks that instance, not the default one', () => {
+    const home = makeHome()
+    // The pre-T0480 runtime dir name: the guess could never find it.
+    const userData = join(makeTmp('userdata'), 'better-agent-terminal-runtime-3')
+    writeCert(userData, 'RUNTIME-3')
+    const { cert, log } = runHelpers(home, { BAT_USER_DATA: userData })
+    expect(cert).toEqual({ ok: true, fingerprint: 'RUNTIME-3', certPath: join(userData, 'server-cert.json') })
+    expect(log).toEqual({ dir: join(userData, 'Logs'), file: join(userData, 'Logs', 'bat-scripts.log') })
+  })
+
+  it('BAT_RUNTIME only (BAT before T0481): the legacy APP_NAME + runtime guess', () => {
+    const home = makeHome()
+    const dir = legacyDir(home, 'BetterAgentTerminal-runtime-3')
+    const { cert, log } = runHelpers(home, { BAT_RUNTIME: '3' })
+    expect(cert).toEqual({ ok: true, fingerprint: 'LEGACY-RUNTIME-3', certPath: join(dir, 'server-cert.json') })
+    expect(log.dir).toBe(join(dir, 'Logs'))
+  })
+
+  it('BAT_USER_DATA wins over BAT_RUNTIME; a relative BAT_USER_DATA is ignored', () => {
+    const home = makeHome()
+    const userData = makeTmp('userdata-abs')
+    writeCert(userData, 'INJECTED')
+    expect(runHelpers(home, { BAT_USER_DATA: userData, BAT_RUNTIME: '3' }).cert.fingerprint).toBe('INJECTED')
+    const relative = runHelpers(home, { BAT_USER_DATA: 'relative/userdata' })
+    expect(relative.cert.fingerprint).toBe('DEFAULT')
+    expect(relative.log.dir).toBe(join(legacyDir(home, 'BetterAgentTerminal'), 'Logs'))
+  })
+
+  it('headless env: BAT_SERVER_CERT_PATH / BAT_HELPER_LOG_DIR still win over BAT_USER_DATA', () => {
+    const home = makeHome()
+    const dataDir = makeTmp('headless-data')
+    writeCert(dataDir, 'HEADLESS')
+    const userData = makeTmp('userdata-stray')
+    writeCert(userData, 'STRAY')
+    const { cert, log } = runHelpers(home, {
+      BAT_SERVER_CERT_PATH: join(dataDir, 'server-cert.json'),
+      BAT_HELPER_LOG_DIR: join(dataDir, 'Logs'),
+      BAT_USER_DATA: userData,
+    })
+    expect(cert).toEqual({ ok: true, fingerprint: 'HEADLESS', certPath: join(dataDir, 'server-cert.json') })
+    expect(log).toEqual({ dir: join(dataDir, 'Logs'), file: join(dataDir, 'Logs', 'bat-scripts.log') })
   })
 })

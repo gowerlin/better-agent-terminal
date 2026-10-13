@@ -9,12 +9,17 @@
  * - a throwing host still spawns the PTY, just without helper env
  * - a spawn that fails entirely reports the id through `onPtyExit` (revokes what was issued)
  * - no `helperEnv` (Electron) = env unchanged
+ * - T0481 (BUG-119): a host with `helperDir` (Electron) also gets `BAT_USER_DATA` = `dataDir` on
+ *   all three env builders (Terminal Server, node-pty, child_process), overriding an inherited /
+ *   client-supplied value; without `helperDir` (headless) it is not injected
  * - T0448 (T0445 #4): `restart` re-uses the old process's `customEnv` when `helperEnv` is set,
  *   so a restarted worker keeps its role / tower binding (old token revoked, new one issued);
  *   without `helperEnv` (Electron) restart still rebuilds the env without it
  *
  * Same fake node-pty seeding as pty-manager-exit-hook.test.ts.
  */
+import type { ChildProcess } from 'child_process'
+import { EventEmitter } from 'events'
 import { createRequire } from 'module'
 import * as os from 'os'
 import * as path from 'path'
@@ -24,14 +29,20 @@ vi.mock('electron', () => {
   throw new Error('pty-manager must not import electron (PLAN-036 T0389)')
 })
 
-// child_process fallback spawn: real unless a test forces it to throw.
-const cpSpawn = vi.hoisted(() => ({ fail: false }))
+// child_process fallback spawn: real unless a test forces it to throw, or (T0481) to return a
+// fake child whose spawn env is recorded.
+const cpSpawn = vi.hoisted(() => ({ fail: false, fake: false, envs: [] as Record<string, string>[] }))
 vi.mock('child_process', async importOriginal => {
   const actual = await importOriginal<typeof import('child_process')>()
+  const { EventEmitter: Emitter } = await import('events')
   return {
     ...actual,
     spawn: (...args: Parameters<typeof actual.spawn>) => {
       if (cpSpawn.fail) throw new Error('spawn failed')
+      if (cpSpawn.fake) {
+        cpSpawn.envs.push((args[2] as { env: Record<string, string> }).env)
+        return Object.assign(new Emitter(), { stdout: new Emitter(), stderr: new Emitter(), kill: () => true })
+      }
       return actual.spawn(...args)
     },
   }
@@ -74,7 +85,18 @@ function makeManager(extra: Partial<PtyManagerDeps> = {}): PtyManagerType {
 
 const spawnedEnv = (call = 0): Record<string, string> => ptySpawn.mock.calls[call][2].env
 
-const SAVED_KEYS = ['BAT_REMOTE_TOKEN', 'BAT_HELPER_DIR'] as const
+/** T0481: Terminal Server IPC stand-in (as in pty-manager-locale-env.test.ts). */
+class FakeServer extends EventEmitter {
+  connected = true
+  sent: Array<{ type: string; env?: Record<string, string> }> = []
+  send = (msg: { type: string; env?: Record<string, string> }) => { this.sent.push(msg); return true }
+}
+
+/** T0481: Electron host deps — `helperDir` + `dataDir` = userData. */
+const USER_DATA = path.join(CWD, 'BetterAgentTerminal-runtime-7')
+const HELPER_DIR = path.join(CWD, 'bat-scripts')
+
+const SAVED_KEYS = ['BAT_REMOTE_TOKEN', 'BAT_HELPER_DIR', 'BAT_USER_DATA'] as const
 const saved: Record<string, string | undefined> = {}
 
 beforeEach(() => {
@@ -144,6 +166,48 @@ describe('PtyManager helperEnv (T0433)', () => {
     expect(env.BAT_REMOTE_TOKEN).toBe('local-server-token')
     expect(env.BAT_SERVER_CERT_PATH).toBeUndefined()
     expect(env.BAT_HELPER_LOG_DIR).toBeUndefined()
+  })
+
+  describe('BAT_USER_DATA for the local helpers (T0481 / BUG-119)', () => {
+    it('node-pty: helperDir host gets BAT_USER_DATA = dataDir, over inherited and customEnv values', () => {
+      process.env.BAT_USER_DATA = path.join(CWD, 'parent-bat-userdata')
+      const manager = makeManager({ dataDir: USER_DATA, helperDir: HELPER_DIR })
+      manager.getRemoteServerInfo = () => ({ port: 9876, token: 'local-server-token' })
+      manager.create({ id: 'u1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_USER_DATA: '/client/value' } })
+      const env = spawnedEnv()
+      expect(env.BAT_USER_DATA).toBe(USER_DATA)
+      expect(env.BAT_HELPER_DIR).toBe(HELPER_DIR)
+      // The explicit helper overrides stay headless-only: the helpers derive both paths from userData.
+      expect(env.BAT_SERVER_CERT_PATH).toBeUndefined()
+      expect(env.BAT_HELPER_LOG_DIR).toBeUndefined()
+      // No new grant: the only credential is still the local server token it already had.
+      expect(env.BAT_REMOTE_TOKEN).toBe('local-server-token')
+    })
+
+    it('Terminal Server: the pty:create env carries BAT_USER_DATA = dataDir', () => {
+      const manager = makeManager({ dataDir: USER_DATA, helperDir: HELPER_DIR })
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      expect(manager.create({ id: 'u2', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_USER_DATA: '/client/value' } })).toBe(true)
+      const create = server.sent.find(msg => msg.type === 'pty:create')
+      expect(create?.env?.BAT_USER_DATA).toBe(USER_DATA)
+      expect(create?.env?.BAT_HELPER_DIR).toBe(HELPER_DIR)
+      expect(ptySpawn).not.toHaveBeenCalled()
+    })
+
+    it('without helperDir (headless) BAT_USER_DATA is not injected; helperEnv paths are untouched', () => {
+      const manager = makeManager({
+        dataDir: USER_DATA,
+        dropInheritedEnv: key => key.startsWith('BAT_'),
+        helperEnv: () => ({ BAT_SERVER_CERT_PATH: '/data/server-cert.json', BAT_HELPER_LOG_DIR: '/data/Logs' }),
+      })
+      process.env.BAT_USER_DATA = path.join(CWD, 'parent-bat-userdata')
+      manager.create({ id: 'u3', cwd: CWD, type: 'terminal', shell: '/bin/sh' })
+      const env = spawnedEnv()
+      expect(env.BAT_USER_DATA).toBeUndefined()
+      expect(env.BAT_SERVER_CERT_PATH).toBe('/data/server-cert.json')
+      expect(env.BAT_HELPER_LOG_DIR).toBe('/data/Logs')
+    })
   })
 
   describe('restart keeps the helper capability role (T0448 / T0445 #4)', () => {
@@ -229,5 +293,21 @@ describe('PtyManager helperEnv (T0433)', () => {
     // Issued once for the attempt (shared by the fallback), revoked once nothing ran.
     expect(helperEnv).toHaveBeenCalledTimes(1)
     expect(onPtyExit).toHaveBeenCalledWith('p5')
+  })
+
+  // After the test above: node-pty is off for this module, so create() takes the child_process path.
+  it('T0481: the child_process fallback carries BAT_USER_DATA = dataDir too', () => {
+    const manager = makeManager({ dataDir: USER_DATA, helperDir: HELPER_DIR })
+    cpSpawn.fake = true
+    cpSpawn.envs.length = 0
+    try {
+      expect(manager.create({ id: 'u4', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_USER_DATA: '/client/value' } })).toBe(true)
+    } finally {
+      cpSpawn.fake = false
+    }
+    expect(ptySpawn).not.toHaveBeenCalled()
+    expect(cpSpawn.envs).toHaveLength(1)
+    expect(cpSpawn.envs[0].BAT_USER_DATA).toBe(USER_DATA)
+    expect(cpSpawn.envs[0].BAT_HELPER_DIR).toBe(HELPER_DIR)
   })
 })

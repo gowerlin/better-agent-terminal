@@ -6,13 +6,19 @@
 //   full argv, BAT_* env, and parse/send results. Used to diagnose BUG-043
 //   (yolo banner / notify-id propagation chain failures) when they recur.
 //
-// Log location (mirrors Electron's app.getPath('userData') + '/Logs'):
-//   Windows: %APPDATA%/BetterAgentTerminal[-runtime-<N>]/Logs/bat-scripts.log
-//   macOS:   $HOME/Library/Application Support/BetterAgentTerminal[-runtime-<N>]/Logs/bat-scripts.log
-//   Linux:   $HOME/.config/BetterAgentTerminal[-runtime-<N>]/logs/bat-scripts.log
-//   Override (T0433): $BAT_HELPER_LOG_DIR/bat-scripts.log when it is an absolute
-//   path. A headless bat-server sets it to <dataDir>/Logs for its PTYs — the
-//   remote machine has no Electron userData dir. Unset (local BAT) = as above.
+// Log location, first match wins (relative env values are ignored):
+//   1. Override (T0433): $BAT_HELPER_LOG_DIR/bat-scripts.log. A headless bat-server
+//      sets it to <dataDir>/Logs for its PTYs — the remote machine has no Electron
+//      userData dir.
+//   2. T0481 (BUG-119): $BAT_USER_DATA/Logs/bat-scripts.log. Local BAT injects
+//      app.getPath('userData') into every PTY (electron/pty-manager.ts), so this is
+//      exact for any instance, including one started with --runtime=N (its PTYs
+//      carry no BAT_RUNTIME).
+//   3. Legacy guess (BAT before T0481, or a helper run outside a BAT terminal),
+//      mirroring Electron's app.getPath('userData') + '/Logs':
+//      Windows: %APPDATA%/BetterAgentTerminal[-runtime-<N>]/Logs/bat-scripts.log
+//      macOS:   $HOME/Library/Application Support/BetterAgentTerminal[-runtime-<N>]/Logs/bat-scripts.log
+//      Linux:   ${XDG_CONFIG_HOME:-$HOME/.config}/BetterAgentTerminal[-runtime-<N>]/Logs/bat-scripts.log
 //
 // Format: newline-delimited JSON, one event per line.
 //
@@ -25,7 +31,7 @@ import { appendFileSync, mkdirSync } from 'fs'
 import { isAbsolute, join } from 'path'
 import { homedir } from 'os'
 
-// Electron app name matches electron/main.ts:121 → app.setName('BetterAgentTerminal')
+// Electron app name matches electron/main.ts → app.setName('BetterAgentTerminal')
 const APP_NAME = 'BetterAgentTerminal'
 
 // BAT_* env whitelist (avoid leaking PATH/secrets). Keep alphabetical.
@@ -35,6 +41,7 @@ const ENV_WHITELIST = [
   'BAT_SESSION',
   'BAT_TERMINAL_ID',
   'BAT_TOWER_TERMINAL_ID',
+  'BAT_USER_DATA',
   'BAT_WORKSPACE_ID',
   'CT_INTERACTIVE',
   'CT_MODE',
@@ -44,9 +51,13 @@ const ENV_WHITELIST = [
 
 let warnedOnce = false
 
-// Resolve the userData directory Electron would choose for this BAT instance.
-// Mirrors electron/main.ts handling of BAT_RUNTIME / --runtime=N (lines 120-135).
+// Resolve the userData directory of this BAT instance: the injected $BAT_USER_DATA
+// (T0481) when absolute, else the legacy guess from APP_NAME + BAT_RUNTIME (mirrors
+// electron/main.ts handling of BAT_RUNTIME / --runtime=N). Same order as _bat-cert.mjs.
 function resolveUserDataDir() {
+  const injected = process.env.BAT_USER_DATA
+  if (injected && isAbsolute(injected)) return injected
+
   const runtimeId = process.env.BAT_RUNTIME
   const suffix = runtimeId ? `-runtime-${runtimeId}` : ''
   const dirName = `${APP_NAME}${suffix}`
@@ -59,8 +70,7 @@ function resolveUserDataDir() {
   if (process.platform === 'darwin') {
     return join(homedir(), 'Library', 'Application Support', dirName)
   }
-  // Linux / other POSIX: Electron uses $XDG_CONFIG_HOME or ~/.config, with
-  // the product name lowercased when no explicit name is set.
+  // Linux / other POSIX: Electron uses $XDG_CONFIG_HOME or ~/.config.
   const xdgConfig = process.env.XDG_CONFIG_HOME || join(homedir(), '.config')
   return join(xdgConfig, dirName)
 }
@@ -78,8 +88,8 @@ function resolveLogPath() {
   }
   const userData = resolveUserDataDir()
   if (!userData) return null
-  // Electron's logger writes to <userData>/Logs (see electron/logger.ts:160 with
-  // LOGS_DIR_NAME = 'Logs'). We co-locate our diagnostic log there.
+  // Electron's logger writes to <userData>/Logs (electron/logger.ts, LOGS_DIR_NAME =
+  // 'Logs'). We co-locate our diagnostic log there.
   return {
     dir: join(userData, 'Logs'),
     file: join(userData, 'Logs', 'bat-scripts.log'),
