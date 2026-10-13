@@ -4,14 +4,16 @@ schema_kind: workorder
 id: T0519
 title: "claude:scan-skills / scan-star-commands：frontmatter 無 description 時正確 fallback（BUG-126）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-126
 priority: P4
 sizing: XS
 created_at: "2026-10-14T04:09:11+0800"
 started_at: "2026-10-14T04:10:11+0800"
-updated_at: "2026-10-14T04:10:11+0800"
+updated_at: "2026-10-14T04:12:47+0800"
+completed_at: "2026-10-14T04:12:47+0800"
+commit: aa26c76
 target_version: "0.6.0-pre.7"
 related:
   - BUG-126
@@ -105,7 +107,7 @@ skills（`claude:scan-skills` 第 2 段）與 `claude:scan-star-commands` 刪除
 
 ### Commit
 
-- 以 `git commit --only` 提交本單 4 個檔案（T0517 的 WIP 不納入）；hash 見下方收尾段。不 push。
+- `aa26c76` fix(claude): T0519 skills / star commands fall back to the line after frontmatter (BUG-126)——`git commit --only` 提交本單 4 個檔案（T0517 的 WIP 不納入）。收尾 metadata（`status: DONE`、`completed_at`、`commit`）另以 chore commit 提交。不 push。
 
 ### 偏差 / 備註
 
