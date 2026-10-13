@@ -187,7 +187,7 @@ After both automated and manual verification are green, prepare the release.
       ```
       For a pre-release candidate, use `v0.4.0-pre.N` instead; GitHub
       Actions auto-marks the release as Pre-release and skips the Homebrew
-      tap update.
+      tap update and the Chocolatey push.
 - [ ] **Artifact verification** — wait for all CI jobs to publish artifacts;
       then download and inspect:
   - [ ] Windows NSIS installer (`.exe`) + zip
@@ -196,8 +196,11 @@ After both automated and manual verification are green, prepare the release.
   - [ ] Linux AppImage
   - [ ] Server bundles for `linux-x64`, `linux-arm64`, `darwin-arm64`
   - Confirm each artifact unpacks cleanly and the version string matches.
-- [ ] **Homebrew tap update** — if this is a non-prerelease, confirm the tap
-      auto-update workflow ran. If it failed, run it manually.
+- [ ] **Homebrew tap update** — only when the repo variable
+      `HOMEBREW_TAP_REPO` is set (opt-in, D137; unset = the step is skipped):
+      for a non-prerelease, confirm the tap auto-update workflow ran. If it
+      failed, run it manually. The same opt-in applies to the Chocolatey push
+      (`CHOCOLATEY_PUBLISH == 'true'`).
 
 ## Post-release smoke
 

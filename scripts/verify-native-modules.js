@@ -40,8 +40,9 @@ const REQUIRED_NATIVE_MODULES = [
 
 const WHISPER_ADDON_PACKAGE = '@kutalia/whisper-node-addon';
 
-// Hosts that build a desktop package (win x64, mac x64 + arm64, linux x64).
-const DESKTOP_PACKAGE_HOSTS = ['win32-x64', 'linux-x64', 'darwin-x64', 'darwin-arm64'];
+// Hosts that build a desktop package (win x64, mac arm64, linux x64). darwin-x64 is not
+// one: the mac build ships arm64 only (D136), so an Intel Mac host only warns (D137).
+const DESKTOP_PACKAGE_HOSTS = ['win32-x64', 'linux-x64', 'darwin-arm64'];
 
 // Desktop hosts are also those for which upstream ships a whisper binary. Other
 // hosts — e.g. the linux-arm64 server-bundle runner — get a warning only: there the

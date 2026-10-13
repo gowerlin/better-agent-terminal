@@ -234,7 +234,7 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 ## Packaging / Release 前置檢查
 
 - **Squash merge 後打包前必做**：在 main repo 根目錄跑 `npm install`（CI 跑 `npm ci`）確保 `node_modules/` 與 `package-lock.json` 一致。Squash merge 只更新 lock file，不同步實際 `node_modules/`，遺漏此步會導致 native module 缺失（見 BUG-056 / T0242 / T0243）。
-- **Build fail-fast**：`npm run build` / `npm run build:release` / `npm run build:dir` 會先執行 `scripts/verify-native-modules.js`，檢查 `@kutalia/whisper-node-addon`、`@lydell/node-pty`、`better-sqlite3` 等關鍵 native modules 是否存在於 `node_modules/`。缺失即 abort，不會進 vite build 或 electron-builder。新增關鍵 native module（特別是 `build.asarUnpack` 內的）時請同步更新 `REQUIRED_NATIVE_MODULES` 清單。`verify-native-modules.js` 也檢查 **host 平台**的 whisper binary（`@kutalia/whisper-node-addon/dist/<dir>/whisper.node`，`<dir>` 規則與 `electron/whisper-addon-loader.ts` 同步：macOS 為 `mac-<arch>` 優先、`darwin-<arch>` fallback；T0468 / BUG-116）。T0472 起另檢查內嵌 claude 與 better-sqlite3：`@anthropic-ai/claude-code/bin/claude.exe` 必須是 host 格式的原生執行檔（PE / ELF / Mach-O），不能是 npm 的 500 bytes stub；`better-sqlite3/build/Release/better_sqlite3.node` 必須存在（只查存在，不載入、不驗 ABI）。desktop host（`win32-x64` / `linux-x64` / `darwin-x64` / `darwin-arm64`）缺失即 exit 1，其他 host 只 warn。
+- **Build fail-fast**：`npm run build` / `npm run build:release` / `npm run build:dir` 會先執行 `scripts/verify-native-modules.js`，檢查 `@kutalia/whisper-node-addon`、`@lydell/node-pty`、`better-sqlite3` 等關鍵 native modules 是否存在於 `node_modules/`。缺失即 abort，不會進 vite build 或 electron-builder。新增關鍵 native module（特別是 `build.asarUnpack` 內的）時請同步更新 `REQUIRED_NATIVE_MODULES` 清單。`verify-native-modules.js` 也檢查 **host 平台**的 whisper binary（`@kutalia/whisper-node-addon/dist/<dir>/whisper.node`，`<dir>` 規則與 `electron/whisper-addon-loader.ts` 同步：macOS 為 `mac-<arch>` 優先、`darwin-<arch>` fallback；T0468 / BUG-116）。T0472 起另檢查內嵌 claude 與 better-sqlite3：`@anthropic-ai/claude-code/bin/claude.exe` 必須是 host 格式的原生執行檔（PE / ELF / Mach-O），不能是 npm 的 500 bytes stub；`better-sqlite3/build/Release/better_sqlite3.node` 必須存在（只查存在，不載入、不驗 ABI）。desktop host（`win32-x64` / `linux-x64` / `darwin-arm64`）缺失即 exit 1，其他 host（含 `darwin-x64`：mac 只打 arm64，D136 / D137）只 warn。
 - **打包產物檢查**（`scripts/verify-packaged-native.js`，T0470 → T0475）：`verify-native-modules.js` 只看打包前 host 的 `node_modules`，看不到 electron-builder 實際打進去的東西（BUG-117 的 x64 `.app` 帶 arm64 binary、BUG-118 的非 Windows 包缺 `claude-code/bin/claude.exe` 都曾讓它假綠燈）。`pre-release.yml` / `release.yml` 在打包之後、上傳 artifact 之前執行，只讀檔頭、不執行產物內任何程式：
   - **mac**（`--platform mac --out release --arch arm64`，`Package for macOS` 之後）：對 `release/mac-arm64/*.app`（x64 會是 `release/mac/`）檢查 (a) `Contents/MacOS/<exe>` 的 cputype 符合 `--arch`，作為基準；(b) `Contents/Resources/app.asar.unpacked` 下所有 Mach-O（含 fat）都是基準 cputype 或 fat 內含基準，ELF / PE 不查，允許清單只有 whisper `dist/{mac,darwin}-<其他 arch>/`（`isCrossArchAllowed`）；(c) 內嵌 claude 依 runtime 規則找到且 cputype 符合；(d) whisper `dist/{mac,darwin}-<arch>/whisper.node` 存在。缺 `.app` 也算失敗
   - **Linux**（`--platform linux --out release --arch x64`，`Package for Linux` 之後）：`release/linux-unpacked/resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-code-linux-x64/claude`（或 fallback `claude-code/bin/claude.exe`）必須存在且為 ELF x86-64
@@ -281,12 +281,12 @@ gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y
 
 | 行為 | `release.yml`（正式版線） | `pre-release.yml`（預覽版線） |
 |------|--------------------------|------------------------------|
-| GitHub Release `prerelease` | `contains(github.ref, '-pre')` —— tag 含 `-pre` 才標 Pre-release（:254） | **恆為 `true`**（:264） |
-| Homebrew tap（`tonyq-org/homebrew-tap`） | tag **不含** `-pre` 時才 `repository-dispatch`（:285-292） | **完全沒有此 step** |
-| Chocolatey push | tag **不含** `-pre` 時才跑，另有日期 gate（:294-310） | 無 |
-| `server-bundle-v<版號>` release（D120） | 恆發佈、恆 `prerelease: true`（:264-283，接在 desktop release step 後、Homebrew 前） | 恆發佈、恆 `prerelease: true`（:272-291） |
+| GitHub Release `prerelease` | `contains(github.ref, '-pre')` —— tag 含 `-pre` 才標 Pre-release（:267） | **恆為 `true`**（:277） |
+| Homebrew tap | **opt-in，預設跳過**（D137）：repo variable `HOMEBREW_TAP_REPO`（tap repo `owner/name`）有值**且** tag **不含** `-pre` 時才 `repository-dispatch` 到該 repo，需 secret `TAP_GITHUB_TOKEN`（:298-308）。T0476 前寫死上游 `tonyq-org/homebrew-tap` | **完全沒有此 step** |
+| Chocolatey push | **opt-in，預設跳過**（D137）：repo variable `CHOCOLATEY_PUBLISH == 'true'` **且** tag **不含** `-pre` 時才跑 `choco` job，需 secret `CHOCO_API_KEY`（:310-369）。chocolatey.org 上 package id `better-agent-terminal` 的 owner 為上游；T0476 已移除過期的日期 gate | 無 |
+| `server-bundle-v<版號>` release（D120） | 恆發佈、恆 `prerelease: true`（:277-296，接在 desktop release step 後、Homebrew 前） | 恆發佈、恆 `prerelease: true`（:285-304） |
 
-⇒ 走 `release.yml` 打 `v0.5.9-pre.1` 這種 tag 一樣會被標成 Pre-release 且不動 Homebrew；但預覽版的建議路徑仍是 `pre-release.yml`（免 push tag、版號可控）。
+⇒ 走 `release.yml` 打 `v0.5.9-pre.1` 這種 tag 一樣會被標成 Pre-release 且不動 Homebrew / Chocolatey；正式版 tag 在未設定上述 repo variable 時同樣不動這兩個下游通道；但預覽版的建議路徑仍是 `pre-release.yml`（免 push tag、版號可控）。
 
 ### Server bundle 是獨立 tag 線
 

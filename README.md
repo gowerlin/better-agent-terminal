@@ -101,19 +101,7 @@
 
 ## 快速開始
 
-### 方式一：Homebrew (macOS)
-
-```bash
-brew install tonyq-org/tap/better-agent-terminal
-```
-
-### 方式二：Chocolatey (Windows)
-
-```powershell
-choco install better-agent-terminal
-```
-
-### 方式三：直接下載
+### 方式一：直接下載
 
 從 [Releases](https://github.com/gowerlin/better-agent-terminal/releases/latest) 下載對應平台安裝包：
 
@@ -125,7 +113,7 @@ choco install better-agent-terminal
 
 > macOS 首次執行可能會被阻擋 — 前往 **系統設定 > 隱私與安全性**，下滑點選 **仍要打開**。
 
-### 方式四：從原始碼建置
+### 方式二：從原始碼建置
 
 **前置需求：**
 - [Node.js](https://nodejs.org/) 18+
@@ -147,7 +135,7 @@ npm run dev
 npm run build
 ```
 
-### 方式五：快速安裝腳本
+### 方式三：快速安裝腳本
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gowerlin/better-agent-terminal/main/install.sh | bash

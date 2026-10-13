@@ -149,8 +149,18 @@ describe('classifyEmbeddedClaude', () => {
 
 describe('verifyEmbeddedRuntime', () => {
   it('blocks on the same desktop hosts as the whisper check', () => {
-    expect(EMBEDDED_RUNTIME_REQUIRED_HOSTS).toEqual(['win32-x64', 'linux-x64', 'darwin-x64', 'darwin-arm64'])
+    expect(EMBEDDED_RUNTIME_REQUIRED_HOSTS).toEqual(['win32-x64', 'linux-x64', 'darwin-arm64'])
     expect(EMBEDDED_RUNTIME_REQUIRED_HOSTS).toEqual(WHISPER_ADDON_REQUIRED_HOSTS)
+  })
+
+  it('darwin-x64 is not a desktop package host (D136 / D137): whisper and runtime only warn', () => {
+    expect(WHISPER_ADDON_REQUIRED_HOSTS).not.toContain('darwin-x64')
+    const root = makeRoot()
+    writeClaude(root, STUB)
+    const result = verifyEmbeddedRuntime(root, 'darwin', 'x64')
+    expect(result.host).toBe('darwin-x64')
+    expect(result.problems.map((p) => p.id)).toEqual(['embedded-claude', 'better-sqlite3'])
+    expect(result.blocking).toBe(false)
   })
 
   it('complete tree: no problems', () => {

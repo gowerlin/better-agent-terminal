@@ -295,52 +295,42 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # D137 / T0476: opt-in. Runs only when the repo variable HOMEBREW_TAP_REPO names the
+      # tap repo (owner/name) to dispatch `update-cask` to; unset = skipped. Requires the
+      # TAP_GITHUB_TOKEN secret with access to that tap repo.
       - name: Update Homebrew tap
-        if: ${{ !contains(github.ref, '-pre') }}
+        if: ${{ !contains(github.ref, '-pre') && vars.HOMEBREW_TAP_REPO != '' }}
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.TAP_GITHUB_TOKEN }}
-          repository: tonyq-org/homebrew-tap
+          repository: ${{ vars.HOMEBREW_TAP_REPO }}
           event-type: update-cask
           client-payload: '{"version": "${{ needs.prepare.outputs.version }}"}'
 
+  # D137 / T0476: opt-in. Runs only when the repo variable CHOCOLATEY_PUBLISH is 'true';
+  # unset = skipped. Requires the CHOCO_API_KEY secret for the owner of the
+  # `better-agent-terminal` package id on chocolatey.org.
   choco:
     needs: [build, release]
     runs-on: windows-latest
-    if: ${{ !contains(github.ref, '-pre') }}
+    if: ${{ !contains(github.ref, '-pre') && vars.CHOCOLATEY_PUBLISH == 'true' }}
 
     steps:
-      - name: Check if Chocolatey publish is enabled
-        id: gate
-        shell: bash
-        run: |
-          # Chocolatey package pending review — skip until 2026-04-10
-          if [[ "$(date -u +%Y%m%d)" -lt "20260410" ]]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "Skipping: Chocolatey package not yet approved"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Checkout code
-        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
 
       - name: Download Windows artifact
-        if: steps.gate.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           name: release-win
           path: artifacts
 
       - name: Extract version from tag
-        if: steps.gate.outputs.skip != 'true'
         id: version
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Find installer and compute checksum
-        if: steps.gate.outputs.skip != 'true'
         id: checksum
         shell: pwsh
         run: |
@@ -354,7 +344,6 @@ jobs:
           echo "EXE_NAME=$($exe.Name)" >> $env:GITHUB_OUTPUT
 
       - name: Prepare Chocolatey package
-        if: steps.gate.outputs.skip != 'true'
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
@@ -371,7 +360,6 @@ jobs:
           Set-Content choco/tools/chocolateyinstall.ps1 $install
 
       - name: Pack and push
-        if: steps.gate.outputs.skip != 'true'
         shell: pwsh
         run: |
           choco pack choco/better-agent-terminal.nuspec --output-directory .
