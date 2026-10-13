@@ -19,6 +19,7 @@ depends_on:
   - "T0487"
   - "T0488"
   - "T0494"
+  - "T0495"
 related:
   - "T0473（app 無任何 import）、T0477（`git grep -l -F better-sqlite3 -- electron src` = 0 筆）、T0472（verify-native-modules 的 `.node` 檢查）"
   - "CLAUDE.md「本機開發：npm 12 install scripts」「Electron Runtime」「Packaging / Release 前置檢查」「Server bundle baseline」"
