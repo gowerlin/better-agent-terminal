@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T03:52:42+0800"
+generated_at: "2026-10-14T04:00:58+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 48
+total: 49
 breakdown:
-  OPEN: 0
+  OPEN: 1
   FIXING: 0
   FIXED: 22
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 03:52 (UTC+8) — 第六十 session：BUG-122 / 061 / 115 / 117 CLOSED；BUG-123 FIXED（T0513）；T0514 / T0515 自動化驗收進行中
+> 最後同步：2026-10-14 04:00 (UTC+8) — 第六十 session：BUG-122 / 061 / 115 / 117 CLOSED；BUG-123 FIXED；BUG-124 OPEN（T0515 觀察）；T0514 進行中
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 49**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0515 觀察） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |
 
 ## ⏳ 修復中 (FIXING)
 
