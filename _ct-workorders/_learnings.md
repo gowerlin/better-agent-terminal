@@ -3386,3 +3386,17 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 撰寫任何 WS helper：等待回應一律以 frame id 比對（範本 `bat-notify.mjs` `waitForMessageById`）
 
 **候選晉升**：📁 Project（BAT helper 協定）；「成功訊號要與請求關聯」可泛化為 Global
+
+## L148
+
+**來源**：第五十九 session（2026-10-14），T0510（pre.5 自動化實機驗收）→ BUG-120 / BUG-121
+
+**現象**：SSH 精靈的「上傳 bundle」與「啟動 server」自 `v0.4.1`（T0285 / T0286）起就有缺陷——解壓多一層 `staging/`、unit 傳錯 port 設定名稱、verify 用永遠比對不到的 `pgrep -x bat-server`——任何發佈版都無法在 Linux 目標完成。期間多張單（BUG-098-100、T0505 / T0506）都以單元測試驗收（測試斷言的就是錯誤的指令字串），pre.5 release notes 甚至宣稱 alias 可完整走完。T0510 用 WSL Docker 起 systemd + sshd 容器跑真精靈，一次抓出。
+
+**How to apply**：
+- 遠端安裝 / 啟動類流程（SSH / WSL / Docker 精靈）的修正單，驗收條件至少要有一次「對真目標（容器即可）跑完整流程」；只有單元測試時，回報與 release notes 要寫明「未經真流程驗證」，不得寫成可用
+- 重跑真流程：`node e2e/real-remote/t0510-ssh-alias-env.mjs up` → `BAT_E2E_PRE5_SSH=1 npx playwright test e2e/pre5-ssh-alias.spec.ts` → `down`（會暫改 `~/.ssh/config`，有備份與雜湊還原）
+- 單元測試斷言「產生的指令字串」時，至少另有一處斷言消費端（例：`bat-server.mjs` 實際讀的參數名）與之一致
+
+**候選晉升**：📁 Project（遠端精靈驗收規則）；「單元測試對字串、未對消費端」可泛化為 Global
+

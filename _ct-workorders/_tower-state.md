@@ -1,12 +1,52 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-14 01:58 (UTC+8) — **第五十九 session 起手整理**：第五十八 session（10-13 15:40 - 10-14 01:40）補收工快照；第五十五 session 快照與第五十七～五十八 session 詳細時間線歸檔至 `_archive/state-snapshots/2026-Q4.md`（INDEX 73-74）；起手式改寫為 pre.5 後狀態。
+> 最後更新:2026-10-14 03:17 (UTC+8) — **第五十九 session 收工** — pre.5 自動化實機驗收（T0510）→ SSH 精靈修正（T0511，BUG-120 / 121）∥ Profile 對話框版面（T0512，BUG-122）→ **`v0.6.0-pre.6` 已發佈**；BUG-114 / 119 CLOSED。
 >
-> **下次起手**:Fast Path 載入;安裝版應為 `v0.6.0-pre.5`；進行 pre.5 實機驗收（見起手式待辦 1）。
+> **下次起手**:Fast Path 載入;確認使用者已安裝 `v0.6.0-pre.6`（FileVersion）→ 看 Profile 對話框（BUG-122）、真實 SSH 主機精靈（BUG-120 / 121）；Gary mac 驗收改用 pre.6 arm64 dmg。
 
 ---
 
-## 🛏 本 Session 收工快照 (第五十八 session, 2026-10-13 15:40 - 2026-10-14 01:40, ~10h wall)
+## 🛏 本 Session 收工快照 (第五十九 session, 2026-10-14 01:55 - 03:17, ~1h22m wall)
+
+### 主軸：塔台狀態整理 → pre.5 自動化實機驗收（T0510）→ 發現 SSH 精靈自 v0.4.1 起從未能完成 → T0511 ∥ T0512 → 聯合複驗 → `v0.6.0-pre.6`
+
+#### 時間線（時間取自系統 / git）
+
+1. **01:55** Fast Path 起手；安裝版確認為 pre.5（FileVersion、`BAT_USER_DATA`、新 Logs + migration marker）
+2. **01:58** 第 2 項：補第五十八 session 快照、歸檔第五十五 session（INDEX 73-74），state 42.5 KB → 18 KB（`afcb116`）
+3. **02:00** 開 / 派 **T0510**（安裝版 exe 隔離實例自動化實機驗收；`~/.ssh/config` 使用者裁決：先隔離、失敗再暫改）
+4. **02:35** T0510 **PARTIAL**（`8994fff`）：A1-A5 PASS、A6-0 FAIL → 開 **BUG-120**（bundle `staging/`）/ **BUG-121**（port / bind 設定名稱 + verify）→ 派 **T0511**
+5. **02:41** 使用者回報 Profile 對話框左欄空白 → 開 **BUG-122** → 派 **T0512**（與 T0511 並行，`--only` commit 隔離 WIP）
+6. **02:48** 使用者：BUG-114 結案、遠端 client 不必重新配對 → **BUG-114 / BUG-119 CLOSED**
+7. **02:51** **T0512 DONE**（`277b369`，根因：`profile-card*` 從未有 CSS）→ 塔台目視截圖確認
+8. **02:55** **T0511 DONE**（`3df6218`）→ 塔台聯合複驗全綠（unit 206 files / 3474 passed、typecheck 雙 0、e2e 6 passed）
+9. **02:57** 使用者同意 → push（`3718be9..79b1275`）+ run `38450958394` → **03:15 `v0.6.0-pre.6` 已發佈**；release notes 更正 pre.5 SSH 說法；`package.json` 同步（`3343a51`）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **3**（T0510-T0512） | T0510 PARTIAL（驗收工具，缺陷轉 BUG）、T0511 / T0512 DONE；皆一次啟動，mirror log 皆 `invoke-result` |
+| 發版 | 1（`v0.6.0-pre.6`） | 10 job 全綠 |
+| BUG | 新開 3（120-122）→ 皆 FIXED；CLOSED 2（114、119） | Open 0 / Fixed 25 / Closed 22 |
+| 決策 | 0 | 使用者裁決記於 T0510 |
+| Learnings | L148 | |
+| unit test | 3455 → **3474 passed / 206 files** | |
+| e2e | +`pre5-acceptance` / `pre5-ssh-alias`（opt-in）/ `t0512-profile-panel-layout` | |
+
+### 重點觀察
+
+- **L148**：只靠單元測試驗收的遠端安裝流程，可以多個版本「全綠但從未真的能用」；pre.5 release notes 還宣稱 alias 可走完。容器化的真流程 e2e（T0510）一次抓出兩個 v0.4.1 起的缺陷
+- Playwright 可直接驅動安裝版 exe（fuses 未鎖），`executablePath` 在 Windows 要用正斜線
+- Windows OpenSSH 不吃隔離 `USERPROFILE` / `HOME`，ssh config 隔離不可行 → 標記區塊 + 備份 / 雜湊還原可行
+
+### 編號起始（下 session）
+
+- **T0513** / **BUG-123** / **PLAN-040** / **D140** / **L149**
+
+---
+
+## 🛏 前 Session 收工快照 (第五十八 session, 2026-10-13 15:40 - 2026-10-14 01:40, ~10h wall)
 
 > 第五十八 session 未寫收工快照，第五十九 session 起手時補記；詳細逐筆時間線見 `_archive/state-snapshots/2026-Q4.md`（INDEX 74）。第五十七 session（2026-10-05 13:08）僅發佈 `v0.6.0-pre.2`（@ `9cb7cd4`），一併記於該時間線。
 
@@ -42,61 +82,14 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第五十六 session, 2026-10-05 11:40 - 12:33, ~53m wall)
-
-### 主軸：PLAN-039 多 remote profile 同時連線——YOLO 自主派發 T0462-T0466 全 DONE → 聯合複驗 → push → 本機重打包待安裝
-
-#### 起手狀態
-
-Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 收工 commits 未 push）；BAT 安裝版 `F81C9FF4…`（05:28，不含第五十五 session 改動）。使用者選「派 T0462 ∥ T0465 + YOLO（session-only）」、Worker 互動「不允許」（`--no-interactive`）。
-
-#### 時間線（時間取自系統 / git）
-
-1. **11:42** 派 T0462 ∥ T0465（D135 第 1 / 4 列；`affects_files` 僅 `electron/remote/__tests__/` 目錄重疊，新檔不同 → 可平行）
-2. **11:49-11:50** T0465 DONE（`b677e71`，SSH tunnel 動態埠 bind 失敗換埠重試一次 + 固定埠重複 warn）、T0462 DONE（`470f81a`，`RemoteConnectionRegistry` 模組）→ 派 T0463 前補「塔台補充」（T0462 接線備註、T0465 port claim 必經 `client.disconnect()`）
-3. **11:50-12:02** T0463 DONE（`8604daa`，`main.ts` 單一 `remoteClient` 槽位 → registry；`other-profile` 移除；two-servers 整合測試）→ 塔台補跑 vite build
-4. **12:03-12:14** T0464 DONE（`48cba04`，quit await ≤ 2 s、`'limit'` reason + 三語對話框、同 target warn、lifecycle 測試；修正首窗保護被降級）→ 塔台補跑 vite build
-5. **12:14-12:22** T0466 DONE（`6bd81f6`，e2e 兩個 isolated 實例互為 server，M1-M4 4/4；CLAUDE.md 新節 + docs 實機步驟）→ PLAN-039 → IN_PROGRESS（待實機）
-6. **12:22-12:28** 塔台聯合複驗 @ `26db914`：vite ✅、unit 168 files / 2861 ✅、e2e 首輪 1 failed（偶發，未保留名）→ 再跑 3 輪 12 passed / 8 skipped / 0 failed
-7. **12:28-12:30** 使用者選「push + 重打包」→ push `6286c11..0d03fc7`；`release.ps1 -Snapshot` 失敗 → **BUG-115**；改不帶 `-Snapshot` 重打包成功（新 `app.asar` `8D76B219…16AA6`），待使用者安裝
-8. **12:33** 使用者「收工」
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **5**（T0462-T0466） | 全 DONE；皆一次啟動成功（BUG-114 未復現）；平行 1 組（T0462 ∥ T0465） |
-| BUG | 新開 1（BUG-115 low） | Open：061 / 114 / 115；Fixed 17 待實機 |
-| PLAN | PLAN-039 PLANNED → **IN_PROGRESS**（程式完成） | 待 WSL + SSH 同開實機驗收後 DONE |
-| 決策 | 0（沿用 D135） | 斷點 C × 8 由塔台裁決，記於 YOLO 歷程 |
-| Learnings | L146 | |
-| unit test | 2646（@ `2f8237d`）→ **2861 passed / 168 files**（塔台聯合複驗 @ `26db914`） | 0 failed |
-| tsc | **36**（不變） | ⚠️ 只涵蓋 `src/`（L146）；electron 型別由 Worker 以 scratchpad tsconfig 補檢 0 新錯 |
-| e2e | 8 → **12 passed** / 8 skipped / 0 failed | +`e2e/plan039-multi-remote.spec.ts`（4）；首輪偶發 1 failed 未重現 |
-| push | `6286c11..0d03fc7` | BUG-115 / 收工 commits 未 push |
-| 本機打包 | `release\BetterAgentTerminal Setup 0.6.0-pre.1.exe` @ `0d03fc7` | **未安裝**；新 `app.asar` SHA-256 `8D76B219…16AA6` |
-| 塔台直接改動 | T0463 / T0464 / T0466 工單「塔台補充」+ `affects_files` 補列；PLAN-039 狀態；`_backlog.md` / `_bug-tracker.md` 同步；BUG-115 開單 | |
-
-### 重點觀察 / Learnings
-
-- **L146**：`npx tsc --noEmit` gate 只涵蓋 `src/`（`tsconfig.json` include），改 `electron/**` 的單需另檢 electron 型別
-- 派發前把前序工單回報區的「接線備註 / 剩餘範圍」轉寫進下一張工單的「塔台補充」，T0463 / T0464 / T0466 皆零返工
-- `release.ps1 -Snapshot` 不可用（BUG-115）；本機打包暫以 package.json 版號 + 雜湊驗換新
-
-### 編號起始（下 session）
-
-- **T0467** / **BUG-116** / **PLAN-040** / **D136** / **L147**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-14 01:58 UTC+8（第五十九 session 起手整理）
+> 最後更新：2026-10-14 03:17 UTC+8（第五十九 session 收工）
 
 ### 近期完成
-- `v0.6.0-pre.5` 已發佈（10-14 01:38，@ `7a6fb9c`），本機已安裝（FileVersion `0.6.0-pre.5`）
-- D139 整批 T0483-T0509 全 DONE；BUG Open 0 / Fixed 24（待實機）
-- typecheck src / electron 皆 0；unit 3455 / 204 files；e2e 14 passed
+- `v0.6.0-pre.6` 已發佈（10-14 03:15，@ `79b1275`）：SSH 精靈安裝 / 啟動修正（BUG-120 / 121，自 v0.4.1 起從未能完成）、Profile 對話框加寬（BUG-122）
+- pre.5 自動化實機驗收 T0510（opt-in e2e：`pre5-acceptance` / `pre5-ssh-alias`）；BUG-114 / 119 CLOSED
+- BUG Open 0 / Fixed 25（待實機）/ Closed 22；typecheck 雙 0；unit 3474 / 206 files
 
 ### 待辦（依優先序）
 
@@ -114,11 +107,11 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 25 / Closed 22）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L147）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（74 entries）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L148）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（75 entries）
 
 ### 編號起始
-- **T0513** / **BUG-123** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L148**
+- **T0513** / **BUG-123** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L149**
 
 ---
 
@@ -210,18 +203,18 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…` |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核）；BUG-114 已於 pre.5 修正，待實機確認 |
-| BAT 安裝版 | ✅ `v0.6.0-pre.5` release | 執行中 FileVersion `0.6.0-pre.5`；`app.asar` mtime 2026-10-14 01:34；PTY 帶 `BAT_USER_DATA`（T0481） |
+| BAT 安裝版 | ✅ `v0.6.0-pre.5`（收工時）| pre.6 已發佈，使用者收工後更版；下 session 以 FileVersion 確認 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-<stamp>.log`（10-14 01:54 新檔）；`.userdata-migration.json` marker 存在（BUG-119） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存；repo 已有 `.gitattributes`（`* text=auto eol=lf`，T0493） |
 | UAC | ⚠️ `EnableLUA=0` | BAT 與子 shell 皆提權（BUG-085 背景） |
 | gh CLI | ✅ | 已登入 `gowerlin`；**必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ✅ | `main` = `origin/main` = `3718be9`（10-14 01:55 fetch 後），working tree 乾淨 |
+| git 同步 | ✅ | 收工 push 後 `main` = `origin/main`（2026-10-14 03:17） |
 | WSL | dev-deploy + docker | `~/.local/bat-server` tag `t0456`（舊）；WSL 內 `docker.io` 29.1.3（T0467 安裝，保留） |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | |
 | 熱區工單 | **T:155 檔 / BUG:44 / PLAN:11** | `archive_days: 2` 下大量到齡候選（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0512 / BUG-122 / PLAN-039 / D139 / L147** | 下張：T0513 / BUG-123 / PLAN-040 / D140 / L148 |
+| 最大編號 | **T0512 / BUG-122 / PLAN-039 / D139 / L148** | 下張：T0513 / BUG-123 / PLAN-040 / D140 / L149 |
 | unit test | ✅ **3455 passed / 204 files** | 塔台聯合複驗 @ `9085cfe` |
 | typecheck | ✅ src 0 / electron 0 | CI gate |
 | e2e | ✅ 9 spec 14 passed | 需先 `npx vite build` |
@@ -258,6 +251,7 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 
 ### 歷史 Session（摘要）
 
+- 2026-10-14 第五十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0510-T0512（T0510 PARTIAL、T0511 / T0512 DONE），皆一次啟動；pre.6 發佈
 - 2026-10-13 第五十八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0467-T0509 全 DONE；pre.3 / pre.4 / pre.5；逐筆見 2026-Q4.md「第五十七～五十八 session 時間線」
 - 2026-10-05 第五十六 session：session-only yolo（Worker 互動不允許）；D135 PLAN-039 T0462-T0466 全 DONE、皆一次啟動；斷點 C×8 由塔台裁決；逐筆見 2026-Q4.md「YOLO 歷程（第五十六 session）」
 - 2026-10-05 第五十五 session：session-only yolo；D134（45 列）全 DONE；斷點 C 由塔台裁決；派工未啟動 2 次 + commit 前停住 1 次（BUG-114）；逐筆見 2026-Q4.md「YOLO 歷程（第五十五 session）」
