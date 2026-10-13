@@ -38,6 +38,91 @@ interface ConfigureSshHostState {
   sshHostsAvailable?: string[]
   /** T0500: set by resetForEdit; the next run asks for the host even if one is stored. */
   sshHostEditRequested?: boolean
+  /** T0502: host / user / port came from the manual entry, not an alias. */
+  sshHostManual?: boolean
+}
+
+/**
+ * T0502: choice value for "Enter host manually…". NUL cannot occur in an
+ * ~/.ssh/config alias, so it never collides with one.
+ */
+const MANUAL_HOST_VALUE = '\u0000manual-host'
+const MANUAL_HOST_INVALID_KEY = 'wizard.ssh.manualHost.invalid'
+
+/** CLAUDE.md external-input whitelist; a leading `-` would parse as an ssh option. */
+const SSH_NAME_RE = /^[a-zA-Z0-9._-]+$/
+const MANUAL_HOST_RE = /^(?:([^@]+)@)?([^@:]+)(?::(\d{1,5}))?$/
+
+export interface ManualSshHost {
+  host: string
+  user?: string
+  port?: number
+}
+
+function isSshName(value: string, maxLength: number): boolean {
+  return value.length <= maxLength && SSH_NAME_RE.test(value) && !value.startsWith('-')
+}
+
+/**
+ * T0502: parse a typed SSH target — `host`, `user@host`, `host:port` or
+ * `user@host:port` (the profile keeps user and port in their own fields).
+ * Host and user must pass the whitelist; IPv6 literals are not accepted.
+ * Returns null for anything else.
+ */
+export function parseManualSshHost(raw: string): ManualSshHost | null {
+  const match = MANUAL_HOST_RE.exec(raw.trim())
+  if (!match) return null
+  const [, user, host, portText] = match
+  if (!isSshName(host, 253)) return null
+  if (user !== undefined && !isSshName(user, 64)) return null
+  if (portText === undefined) return { host, user }
+  const port = Number(portText)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return null
+  return { host, user, port }
+}
+
+function formatManualSshHost(state: ConfigureSshHostState): string {
+  if (!state.sshHost) return ''
+  const user = state.sshUser ? `${state.sshUser}@` : ''
+  const port = typeof state.sshPort === 'number' ? `:${state.sshPort}` : ''
+  return `${user}${state.sshHost}${port}`
+}
+
+/**
+ * T0502: ask for a typed host. Returns false when the user cancels; throws
+ * `configure-host-invalid` when the value fails validation (the Shell
+ * already blocks that, so this guards other callers). A manual entry sets
+ * host, user and port together and drops the alias.
+ */
+async function askManualHost(ctx: WizardContext): Promise<boolean> {
+  const value = await ctx.requestText!({
+    stepId: 'configure-ssh-host',
+    title: 'Enter SSH host',
+    titleKey: 'wizard.ssh.manualHost.title',
+    description: 'Host name or IP address, optionally as user@host or user@host:port.',
+    descriptionKey: 'wizard.ssh.manualHost.description',
+    placeholder: 'user@example.com:22',
+    initialValue: formatManualSshHost(readState(ctx)),
+    validate: (input) => (parseManualSshHost(input) ? null : MANUAL_HOST_INVALID_KEY),
+  })
+  if (typeof value !== 'string') return false
+  const parsed = parseManualSshHost(value)
+  if (!parsed) {
+    const err = new Error(
+      `SSH host ${JSON.stringify(value)} is invalid. Use host, user@host or user@host:port with letters, digits, ".", "_" or "-".`,
+    ) as Error & { code?: string }
+    err.code = 'configure-host-invalid'
+    throw err
+  }
+  const state = readState(ctx)
+  delete state.sshAlias
+  writeState(ctx, {
+    sshHost: parsed.host,
+    sshUser: parsed.user ?? '',
+    sshPort: parsed.port,
+    sshHostManual: true,
+  })
+  return true
 }
 
 async function loadAliasOptions(ctx: WizardContext): Promise<string[]> {
@@ -95,26 +180,47 @@ export const configureSshHostStep: WizardStep = {
     // resolver runs again afterwards and only throws (with a structured
     // errorCode) if the host is still empty.
     // T0500: after a jump back, ask again even though a host is stored.
+    // T0502: when the UI can take typed input (ctx.requestText), the alias
+    // list gets an "Enter host manually…" option, and with no alias at all
+    // the host is typed directly.
     const hostMissing = !state.sshHost || state.sshHost.trim().length === 0
+    const canType = typeof ctx.requestText === 'function'
     if (
       (hostMissing || editRequested)
-      && typeof ctx.requestChoice === 'function'
+      && (typeof ctx.requestChoice === 'function' || canType)
     ) {
       const aliases = readState(ctx).sshHostsAvailable ?? []
-      if (aliases.length === 0 && !hostMissing) {
-        ctx.logger.info(`No ~/.ssh/config aliases to choose from; keeping SSH host ${state.sshHost}.`)
-      }
-      if (aliases.length > 0) {
+      if (aliases.length > 0 && typeof ctx.requestChoice === 'function') {
+        const options: WizardChoiceOption[] = aliases.map((alias) => ({ label: alias, value: alias }))
+        if (canType) {
+          options.push({ label: 'Enter host manually…', labelKey: 'wizard.ssh.manualHost.option', value: MANUAL_HOST_VALUE })
+        }
         const choice = await ctx.requestChoice({
           stepId: 'configure-ssh-host',
           title: 'Select SSH host',
           description: 'Pick an alias from ~/.ssh/config to connect to.',
-          options: aliases.map((alias) => ({ label: alias, value: alias })),
+          options,
           allowSkip: false,
         })
-        if (typeof choice === 'string' && choice.length > 0) {
+        if (choice === MANUAL_HOST_VALUE) {
+          await askManualHost(ctx)
+        } else if (typeof choice === 'string' && choice.length > 0) {
+          // T0502: user / port typed with an earlier manual host do not
+          // belong to the alias.
+          if (state.sshHostManual) {
+            delete state.sshUser
+            delete state.sshPort
+            delete state.sshHostManual
+          }
           writeState(ctx, { sshAlias: choice, sshHost: choice })
         }
+      } else if (canType) {
+        const entered = await askManualHost(ctx)
+        if (!entered && !hostMissing) {
+          ctx.logger.info(`No SSH host entered; keeping SSH host ${state.sshHost}.`)
+        }
+      } else if (!hostMissing) {
+        ctx.logger.info(`No ~/.ssh/config aliases to choose from; keeping SSH host ${state.sshHost}.`)
       }
     }
 

@@ -711,7 +711,9 @@
       "cancel": "取消",
       "skipChoice": "跳過",
       "fixedAndRetry": "已修復，重試",
-      "showDetails": "顯示詳細"
+      "showDetails": "顯示詳細",
+      "submitText": "確定",
+      "cancelText": "取消"
     },
     "shared": {
       "step": {
@@ -835,6 +837,12 @@
           "label": "啟動 bat-server（SSH）",
           "description": "安裝並啟用 systemd unit（Linux）或 launchd plist（macOS）。"
         }
+      },
+      "manualHost": {
+        "option": "手動輸入主機…",
+        "title": "輸入 SSH 主機",
+        "description": "主機名稱或 IP 位址。可一併指定使用者與連接埠：user@host 或 user@host:2222（連接埠預設 22）。",
+        "invalid": "主機格式不正確。請使用 host、user@host 或 user@host:port（連接埠 1–65535）；只能包含英文字母、數字、「.」、「_」與「-」，且各部分不得以「-」開頭。不支援 IPv6 位址。"
       }
     }
   },

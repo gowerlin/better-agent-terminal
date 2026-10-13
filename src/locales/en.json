@@ -711,7 +711,9 @@
       "cancel": "Cancel",
       "skipChoice": "Skip",
       "fixedAndRetry": "Already fixed, retry",
-      "showDetails": "Show details"
+      "showDetails": "Show details",
+      "submitText": "OK",
+      "cancelText": "Cancel"
     },
     "shared": {
       "step": {
@@ -835,6 +837,12 @@
           "label": "Start bat-server (SSH)",
           "description": "Install and enable systemd unit (Linux) or launchd plist (macOS)."
         }
+      },
+      "manualHost": {
+        "option": "Enter host manually…",
+        "title": "Enter SSH host",
+        "description": "Host name or IP address. Add the user and port as user@host or user@host:2222 (port defaults to 22).",
+        "invalid": "Invalid host. Use host, user@host or user@host:port (port 1–65535). Only letters, digits, \".\", \"_\" and \"-\" are allowed, and no part may start with \"-\". IPv6 addresses are not supported."
       }
     }
   },

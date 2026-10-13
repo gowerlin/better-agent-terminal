@@ -36,6 +36,8 @@ export interface WizardChoiceOption {
   label: string
   value: string
   description?: string
+  /** T0502: i18n key for the button text; `label` is the fallback. */
+  labelKey?: string
 }
 
 export interface WizardChoiceRequest {
@@ -44,6 +46,24 @@ export interface WizardChoiceRequest {
   description?: string
   options: WizardChoiceOption[]
   allowSkip?: boolean
+}
+
+/**
+ * T0502: free-text prompt (e.g. typing an SSH host). Text fields are i18n
+ * keys the Shell translates, with the plain strings as fallbacks. The Shell
+ * blocks submit while `validate` returns an i18n error key; the step must
+ * still validate what it gets back. Resolves `null` when the user cancels.
+ */
+export interface WizardTextRequest {
+  stepId: string
+  title: string
+  titleKey?: string
+  description?: string
+  descriptionKey?: string
+  placeholder?: string
+  initialValue?: string
+  /** Returns an i18n error key for an invalid value, `null` when valid. */
+  validate?: (value: string) => string | null
 }
 
 export interface WizardLogger {
@@ -97,6 +117,8 @@ export interface WizardContext {
   createdProfileIds?: string[]
   logger: WizardLogger
   requestChoice?: (request: WizardChoiceRequest) => Promise<string | null>
+  /** T0502: free-text prompt; unset when the UI cannot take typed input. */
+  requestText?: (request: WizardTextRequest) => Promise<string | null>
 }
 
 /**
@@ -470,14 +492,14 @@ export class WizardRunner {
           }
         }
 
-        // T0330: input-kind steps get a wrapped requestChoice so the runner
-        // can flip status to AwaitingInput while the prompt is pending and
-        // back to Running once resolved.
-        const restoreRequestChoice = this.maybeWrapRequestChoice(step, index)
+        // T0330: input-kind steps get a wrapped requestChoice (T0502: and
+        // requestText) so the runner can flip status to AwaitingInput while
+        // the prompt is pending and back to Running once resolved.
+        const restoreInputRequests = this.maybeWrapInputRequests(step, index)
         try {
           await step.run(this.ctx)
         } finally {
-          restoreRequestChoice()
+          restoreInputRequests()
         }
         if (!snapshot.skipped) {
           this.transitionStatus(index, WizardStepStatus.Succeeded)
@@ -678,36 +700,44 @@ export class WizardRunner {
 
   /**
    * T0330: when the active step is `kind: 'input'`, swap ctx.requestChoice
-   * with a wrapped version that flips the step status between Running and
-   * AwaitingInput. Returns a restore() that the caller MUST invoke (in a
-   * finally block) to put the original requestChoice back. No-op when the
-   * step is not input-kind or when ctx.requestChoice is unset.
+   * (T0502: and ctx.requestText) with wrapped versions that flip the step
+   * status between Running and AwaitingInput. Returns a restore() that the
+   * caller MUST invoke (in a finally block) to put the originals back. No-op
+   * when the step is not input-kind; an unset request function stays unset.
    */
-  private maybeWrapRequestChoice(step: WizardStep, index: number): () => void {
+  private maybeWrapInputRequests(step: WizardStep, index: number): () => void {
     if (step.kind !== 'input') return () => undefined
-    const original = this.ctx.requestChoice
-    if (typeof original !== 'function') return () => undefined
+    const originalChoice = this.ctx.requestChoice
+    const originalText = this.ctx.requestText
 
-    this.ctx.requestChoice = async (request) => {
-      // running -> awaiting-input
-      this.transitionStatus(index, WizardStepStatus.AwaitingInput)
-      this.emitProgress()
-      try {
-        return await original(request)
-      } finally {
-        // awaiting-input -> running (regardless of whether user chose or skipped)
-        // Only flip back if step is still in awaiting-input — guards against
-        // concurrent transitions (e.g. cancel during input).
-        const snap = this.stepSnapshots[index]
-        if (snap && snap.status === WizardStepStatus.AwaitingInput) {
-          this.transitionStatus(index, WizardStepStatus.Running)
-          this.emitProgress()
-        }
-      }
+    if (typeof originalChoice === 'function') {
+      this.ctx.requestChoice = (request) => this.awaitInput(index, () => originalChoice(request))
+    }
+    if (typeof originalText === 'function') {
+      this.ctx.requestText = (request) => this.awaitInput(index, () => originalText(request))
     }
 
     return () => {
-      this.ctx.requestChoice = original
+      this.ctx.requestChoice = originalChoice
+      this.ctx.requestText = originalText
+    }
+  }
+
+  private async awaitInput<T>(index: number, ask: () => Promise<T>): Promise<T> {
+    // running -> awaiting-input
+    this.transitionStatus(index, WizardStepStatus.AwaitingInput)
+    this.emitProgress()
+    try {
+      return await ask()
+    } finally {
+      // awaiting-input -> running (regardless of whether user chose or skipped)
+      // Only flip back if step is still in awaiting-input — guards against
+      // concurrent transitions (e.g. cancel during input).
+      const snap = this.stepSnapshots[index]
+      if (snap && snap.status === WizardStepStatus.AwaitingInput) {
+        this.transitionStatus(index, WizardStepStatus.Running)
+        this.emitProgress()
+      }
     }
   }
 

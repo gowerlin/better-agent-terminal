@@ -711,7 +711,9 @@
       "cancel": "取消",
       "skipChoice": "跳过",
       "fixedAndRetry": "已修复，重试",
-      "showDetails": "显示详细"
+      "showDetails": "显示详细",
+      "submitText": "确定",
+      "cancelText": "取消"
     },
     "shared": {
       "step": {
@@ -835,6 +837,12 @@
           "label": "启动 bat-server（SSH）",
           "description": "安装并启用 systemd unit（Linux）或 launchd plist（macOS）。"
         }
+      },
+      "manualHost": {
+        "option": "手动输入主机…",
+        "title": "输入 SSH 主机",
+        "description": "主机名或 IP 地址。可一并指定用户与端口：user@host 或 user@host:2222（端口默认 22）。",
+        "invalid": "主机格式不正确。请使用 host、user@host 或 user@host:port（端口 1–65535）；只能包含英文字母、数字、“.”、“_”与“-”，且各部分不得以“-”开头。不支持 IPv6 地址。"
       }
     }
   },

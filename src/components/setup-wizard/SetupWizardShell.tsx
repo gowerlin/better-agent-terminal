@@ -9,6 +9,7 @@ import {
   type WizardStep,
   type WizardStepSnapshot,
   type WizardTargetOS,
+  type WizardTextRequest,
 } from './wizard-runner'
 import { buildDockerWizardSteps, createDockerWizardContext } from './docker-flow'
 import { buildSshWizardSteps, createSshWizardContext } from './ssh-flow'
@@ -232,6 +233,8 @@ interface StepDetailPanelProps {
   readOnly: WizardStepSnapshot | null
   activeChoice: WizardChoiceRequest | null
   onChoiceSelect: (value: string | null) => void
+  activeText: WizardTextRequest | null
+  onTextSubmit: (value: string | null) => void
   onBackToCurrent: () => void
   ctx: WizardContext
   mappedError: WizardMappedError | null
@@ -242,6 +245,8 @@ function StepDetailPanel({
   readOnly,
   activeChoice,
   onChoiceSelect,
+  activeText,
+  onTextSubmit,
   onBackToCurrent,
   ctx,
   mappedError,
@@ -337,7 +342,7 @@ function StepDetailPanel({
                 onClick={() => onChoiceSelect(option.value)}
                 type="button"
               >
-                {option.label}
+                {option.labelKey ? t(option.labelKey, option.label) : option.label}
               </button>
             ))}
             {activeChoice.allowSkip && (
@@ -351,6 +356,10 @@ function StepDetailPanel({
             )}
           </div>
         </div>
+      )}
+
+      {!isReadOnly && activeText && (
+        <TextPrompt key={activeText.stepId} request={activeText} onSubmit={onTextSubmit} />
       )}
 
       {isReadOnly && (
@@ -379,15 +388,90 @@ function StepDetailPanel({
   )
 }
 
+interface TextPromptProps {
+  request: WizardTextRequest
+  onSubmit: (value: string | null) => void
+}
+
+/** T0502: free-text prompt for ctx.requestText; blocks submit while `validate` fails. */
+function TextPrompt({ request, onSubmit }: TextPromptProps) {
+  const { t } = useTranslation()
+  const [value, setValue] = useState(request.initialValue ?? '')
+  const [errorKey, setErrorKey] = useState<string | null>(null)
+  const title = request.titleKey ? t(request.titleKey, request.title) : request.title
+  const description = request.descriptionKey
+    ? t(request.descriptionKey, request.description ?? '')
+    : request.description
+  const inputId = `${PROMPT_REGION_ID}-text`
+  const errorId = `${inputId}-error`
+
+  const submit = () => {
+    const trimmed = value.trim()
+    const invalid = request.validate?.(trimmed) ?? null
+    setErrorKey(invalid)
+    if (!invalid) onSubmit(trimmed)
+  }
+
+  return (
+    <form
+      id={PROMPT_REGION_ID}
+      className="mt-3 rounded-lg border border-sky-700 bg-sky-950/40 p-4"
+      aria-label={title}
+      onSubmit={(event) => {
+        event.preventDefault()
+        submit()
+      }}
+    >
+      <label htmlFor={inputId} className="font-medium text-sky-100">{title}</label>
+      {description && <p className="mt-1 text-sm text-sky-200">{description}</p>}
+      <input
+        id={inputId}
+        className="mt-3 w-full rounded-md border border-sky-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100"
+        value={value}
+        placeholder={request.placeholder}
+        onChange={(event) => {
+          setValue(event.target.value)
+          setErrorKey(null)
+        }}
+        aria-invalid={errorKey !== null}
+        aria-describedby={errorKey ? errorId : undefined}
+        autoFocus
+        spellCheck={false}
+        autoComplete="off"
+      />
+      {errorKey && (
+        <p id={errorId} className="mt-2 text-sm text-rose-300" role="alert">{t(errorKey)}</p>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          className="rounded-md border border-sky-600 px-3 py-2 text-sm text-sky-100 transition hover:bg-sky-900"
+          type="submit"
+        >
+          {t('wizard.action.submitText')}
+        </button>
+        <button
+          className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition hover:bg-neutral-800"
+          onClick={() => onSubmit(null)}
+          type="button"
+        >
+          {t('wizard.action.cancelText')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellProps) {
   const { t } = useTranslation()
   const [stepStates, setStepStates] = useState<WizardStepSnapshot[]>([])
   const [activeChoice, setActiveChoice] = useState<WizardChoiceRequest | null>(null)
+  const [activeText, setActiveText] = useState<WizardTextRequest | null>(null)
   const [wizardError, setWizardError] = useState<string | null>(null)
   const [complete, setComplete] = useState(false)
   const [createdProfileId, setCreatedProfileId] = useState<string | null>(null)
   const [readOnlyStepId, setReadOnlyStepId] = useState<string | null>(null)
   const choiceResolverRef = useRef<((value: string | null) => void) | null>(null)
+  const textResolverRef = useRef<((value: string | null) => void) | null>(null)
   const runnerRef = useRef<WizardRunner | null>(null)
 
   useEffect(() => {
@@ -396,6 +480,11 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       requestChoice: (request) => new Promise<string | null>((resolve) => {
         choiceResolverRef.current = resolve
         setActiveChoice(request)
+      }),
+      // T0502: typed input (e.g. an SSH host that is not an alias).
+      requestText: (request) => new Promise<string | null>((resolve) => {
+        textResolverRef.current = resolve
+        setActiveText(request)
       }),
     }
 
@@ -468,6 +557,12 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
     choiceResolverRef.current?.(value)
     choiceResolverRef.current = null
     setActiveChoice(null)
+  }
+
+  const handleTextSubmit = (value: string | null) => {
+    textResolverRef.current?.(value)
+    textResolverRef.current = null
+    setActiveText(null)
   }
 
   const handleStepClick = (step: StepDescriptor, _index: number) => {
@@ -631,6 +726,8 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
             readOnly={readOnlyStep}
             activeChoice={activeChoice}
             onChoiceSelect={handleChoiceSelect}
+            activeText={activeText}
+            onTextSubmit={handleTextSubmit}
             onBackToCurrent={handleBackToCurrent}
             ctx={ctx}
             mappedError={activeMappedError}

@@ -47,29 +47,36 @@ export const pickContainerStep: WizardStep = {
         )
 
     const mode = selectedMode === 'existing' ? 'existing' : 'new'
-    ctx.state.containerMode = mode
     // T0500: a container picked under the other mode is not carried over
     // (an existing container is never the "new" name, and vice versa).
     const keepContainer = !editRequested || mode === previousMode
 
+    // T0502: containerMode / dockerContainer are written only once the choice
+    // checks out. A failed pick leaves the stored mode as it was, so a retry
+    // asks again (no stored mode) instead of repeating the failing choice, and
+    // this step's rollback still sees the mode and container of the earlier
+    // run that may have created one.
     if (mode === 'existing') {
       if (containers.length === 0) throw new Error('No Docker containers found. Create one first or switch to "Create new".')
       const selectedContainer = keepContainer && typeof ctx.state.dockerContainer === 'string' && ctx.state.dockerContainer
         ? ctx.state.dockerContainer
         : containers[0].name
+      ctx.state.containerMode = mode
       ctx.state.dockerContainer = selectedContainer
       delete ctx.state[EDIT_REQUESTED_KEY]
       return
     }
 
     const existingName = keepContainer && typeof ctx.state.dockerContainer === 'string' ? ctx.state.dockerContainer : ''
-    ctx.state.dockerImage = typeof ctx.state.dockerImage === 'string' && ctx.state.dockerImage ? ctx.state.dockerImage : 'bat-server:latest'
-    ctx.state.dockerContainer = resolveNewContainerName(
+    const containerName = resolveNewContainerName(
       ctx,
       existingName,
       `bat-server-${slugifyProfileId(ctx.profileDraft.name)}`,
       new Set(containers.map((container) => container.name)),
     )
+    ctx.state.containerMode = mode
+    ctx.state.dockerImage = typeof ctx.state.dockerImage === 'string' && ctx.state.dockerImage ? ctx.state.dockerImage : 'bat-server:latest'
+    ctx.state.dockerContainer = containerName
     delete ctx.state[EDIT_REQUESTED_KEY]
   },
   // T0500: jumped back to -> ask for the mode again. containerMode and
