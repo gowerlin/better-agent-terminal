@@ -333,6 +333,22 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       { kind: 'cancel', label: '取消' },
     ],
   },
+  // T0506: a typed host (T0502) or an ~/.ssh/config alias (T0505) failed the
+  // ssh-name whitelist. Same shape as ssh-configure-host-empty; action labels
+  // come from wizard.action.* so they follow the UI language.
+  {
+    id: 'ssh-configure-host-invalid',
+    platforms: ['ssh'],
+    stepIds: ['configure-ssh-host'],
+    errorCodes: ['configure-host-invalid'],
+    patterns: [/SSH host .* is invalid/i, /SSH alias .* cannot be used/i],
+    messageKey: 'wizard.ssh.error.hostInvalid',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'edit-config', targetStepId: 'configure-ssh-host' },
+      { kind: 'cancel' },
+    ],
+  },
   // T0382 (BUG-091, D128): the WSL server port collides with a port Windows
   // already uses (Mirrored mode shares localhost). Raised by the Windows-side
   // port pick (user-specified port taken / no free port) and by startService

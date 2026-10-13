@@ -282,7 +282,12 @@
     "fetchingProfiles": "Fetching...",
     "currentTarget": "Current target",
     "localSection": "Local",
-    "remoteSection": "Remote"
+    "remoteSection": "Remote",
+    "sshDetails": {
+      "userFromConfig": "user from ~/.ssh/config",
+      "portFromConfig": "port from ~/.ssh/config",
+      "userAndPortFromConfig": "user and port from ~/.ssh/config"
+    }
   },
   "workspace": {
     "terminal": "Terminal",
@@ -843,6 +848,12 @@
         "title": "Enter SSH host",
         "description": "Host name or IP address. Add the user and port as user@host or user@host:2222 (port defaults to 22).",
         "invalid": "Invalid host. Use host, user@host or user@host:port (port 1–65535). Only letters, digits, \".\", \"_\" and \"-\" are allowed, and no part may start with \"-\". IPv6 addresses are not supported."
+      },
+      "error": {
+        "hostInvalid": {
+          "title": "Invalid SSH host",
+          "body": "The SSH host or ~/.ssh/config alias may only use letters, digits, \".\", \"_\" and \"-\", and must not start with \"-\". Pick another alias, or enter the host manually as host, user@host or user@host:port."
+        }
       }
     }
   },

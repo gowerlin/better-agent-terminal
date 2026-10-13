@@ -167,3 +167,38 @@ describe('remoteTools.* i18n completeness (T0410)', () => {
     }
   })
 })
+
+// T0506: the SSH host error (WizardErrorMapper `ssh-configure-host-invalid`)
+// and the SSH profile details note resolve through i18next, so every locale
+// needs them.
+const T0506_KEYS = [
+  'wizard.ssh.error.hostInvalid.title',
+  'wizard.ssh.error.hostInvalid.body',
+  'profiles.sshDetails.userFromConfig',
+  'profiles.sshDetails.portFromConfig',
+  'profiles.sshDetails.userAndPortFromConfig',
+] as const
+
+describe('SSH host error + details note i18n completeness (T0506)', () => {
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s contains every key as a non-empty string', (_name, locale) => {
+    for (const key of T0506_KEYS) {
+      const value = getNested(locale, key)
+      expect(value, `missing "${key}"`).toBeTypeOf('string')
+      expect((value as string).trim().length).toBeGreaterThan(0)
+    }
+  })
+
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s ships the same wizard.ssh.error and profiles.sshDetails key sets as en', (_name, locale) => {
+    for (const root of ['wizard.ssh.error', 'profiles.sshDetails']) {
+      expect(flattenKeys(getNested(locale, root), root).sort()).toEqual(flattenKeys(getNested(en, root), root).sort())
+    }
+  })
+})

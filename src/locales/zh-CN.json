@@ -282,7 +282,12 @@
     "fetchingProfiles": "获取中...",
     "currentTarget": "当前目标",
     "localSection": "本地",
-    "remoteSection": "远程"
+    "remoteSection": "远程",
+    "sshDetails": {
+      "userFromConfig": "用户由 ~/.ssh/config 决定",
+      "portFromConfig": "端口由 ~/.ssh/config 决定",
+      "userAndPortFromConfig": "用户与端口由 ~/.ssh/config 决定"
+    }
   },
   "workspace": {
     "terminal": "终端",
@@ -843,6 +848,12 @@
         "title": "输入 SSH 主机",
         "description": "主机名或 IP 地址。可一并指定用户与端口：user@host 或 user@host:2222（端口默认 22）。",
         "invalid": "主机格式不正确。请使用 host、user@host 或 user@host:port（端口 1–65535）；只能包含英文字母、数字、“.”、“_”与“-”，且各部分不得以“-”开头。不支持 IPv6 地址。"
+      },
+      "error": {
+        "hostInvalid": {
+          "title": "SSH 主机名无效",
+          "body": "SSH 主机或 ~/.ssh/config alias 只能包含英文字母、数字、“.”、“_”与“-”，且不得以“-”开头。请改选其他 alias，或以 host、user@host 或 user@host:port 格式手动输入主机。"
+        }
       }
     }
   },

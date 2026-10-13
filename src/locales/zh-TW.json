@@ -282,7 +282,12 @@
     "fetchingProfiles": "取得中...",
     "currentTarget": "目前目標",
     "localSection": "本機",
-    "remoteSection": "遠端"
+    "remoteSection": "遠端",
+    "sshDetails": {
+      "userFromConfig": "使用者由 ~/.ssh/config 決定",
+      "portFromConfig": "連接埠由 ~/.ssh/config 決定",
+      "userAndPortFromConfig": "使用者與連接埠由 ~/.ssh/config 決定"
+    }
   },
   "workspace": {
     "terminal": "終端",
@@ -843,6 +848,12 @@
         "title": "輸入 SSH 主機",
         "description": "主機名稱或 IP 位址。可一併指定使用者與連接埠：user@host 或 user@host:2222（連接埠預設 22）。",
         "invalid": "主機格式不正確。請使用 host、user@host 或 user@host:port（連接埠 1–65535）；只能包含英文字母、數字、「.」、「_」與「-」，且各部分不得以「-」開頭。不支援 IPv6 位址。"
+      },
+      "error": {
+        "hostInvalid": {
+          "title": "SSH 主機名稱無效",
+          "body": "SSH 主機或 ~/.ssh/config alias 只能包含英文字母、數字、「.」、「_」與「-」，且不得以「-」開頭。請改選其他 alias，或以 host、user@host 或 user@host:port 格式手動輸入主機。"
+        }
       }
     }
   },
