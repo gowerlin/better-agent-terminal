@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-039
 title: 多個 remote profile 同時連線（per-profile RemoteClient 取代單一槽位）
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-10-05T06:14:47+08:00"
-updated_at: "2026-10-05T12:22:24+08:00"
+updated_at: "2026-10-13T16:15:32+08:00"
 links:
   research_workorder: T0459
   related: [BUG-110, T0443, T0442, T0430, T0419, BUG-096, PLAN-036, D134]
@@ -20,7 +20,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-039 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（2026-10-05 12:22 程式完成 T0462-T0466，待 WSL + SSH 實機驗收後轉 DONE）；原 📋 PLANNED（使用者 2026-10-05 06:14 裁決開 PLAN） |
+| 狀態 | ✅ DONE（2026-10-13 16:15 塔台裁決：T0467 實機驗收自動化 docs 步驟 1-6 全 PASS）；原 🔄 IN_PROGRESS（2026-10-05 12:22 程式完成 T0462-T0466）；原 📋 PLANNED（使用者 2026-10-05 06:14 裁決開 PLAN） |
 | 建立時間 | 2026-10-05 06:14 (UTC+8) |
 | 來源 | BUG-110 塔台複核（`electron/main.ts` `bindProxiedHandlersToIpc` 單一 `remoteClient` / `remoteClientProfileId` 槽位） |
 
@@ -56,3 +56,9 @@ links:
 - 已知限制（D135 Q3）：同 target 兩 profile 的雙 Enter
 - ⛔ T0467（實機驗收自動化，2026-10-13T15:57:09+08:00）**BLOCKED**：本機沒有 Docker engine（WSL `Ubuntu-24.04` 內沒有 docker，Windows `docker.exe` 只有 client），SSH 端容器拓撲無法建立，待塔台裁決（推薦：使用者在 WSL 安裝 `docker.io` 後原單重派）。詳見 T0467 回報區
 - ✅ T0467 Renew #1（2026-10-13T16:13:01+08:00）**實機驗收自動化全綠**：WSL 裝 `docker.io` 29.1.3 後，opt-in `e2e/plan039-real-remote.spec.ts`（真 WSL server `localhost:9877` + WSL Docker 容器 `bat-t0467-sshd` 內獨立 bat-server 經 `ssh -L`）docs 實機步驟 1-6 全 PASS（步驟 3 不含 Agent；步驟 4 以 Worker PTY 直接執行 `bat-notify --submit`、不經 `bat-terminal.mjs` 與 LLM），`down`→`up` 重建後再跑仍 5/5；回歸 `plan039-multi-remote.spec.ts` 4/4。未發現產品缺陷。仍未涵蓋：Claude Agent 對話、System32 OpenSSH（spec 用 Git ssh 隔離 known_hosts）。PLAN 狀態未改，由塔台裁決
+
+## 結案（塔台，2026-10-13T16:15:32+08:00，第五十八 session）
+
+- **DONE**：T0467 以真 WSL bat-server + WSL Docker 容器內獨立 bat-server（真 `ssh -L` tunnel）跑 docs 實機步驟 1-6 全 PASS（兩輪 5/5）、回歸 4/4、未發現產品缺陷 → 視為實機驗收通過
+- 殘留未涵蓋（低風險，不阻擋結案）：Claude Agent 對話路由（使用者裁決跳過；IPC 路由已覆蓋）、System32 OpenSSH（spec 用 Git ssh 隔離 known_hosts）、已安裝 NSIS build（spec 跑 source build）、server 端 `create-agent-command` 開分頁（`headless-remote-tower-e2e.test.ts` 已涵蓋）
+- 重跑：`node e2e/real-remote/plan039-real-remote-env.mjs up` → `BAT_E2E_REAL_REMOTE=1 npx playwright test e2e/plan039-real-remote.spec.ts` → `… down`（見 `docs/remote-dev-overview.md`「Automated real-remote acceptance」）
