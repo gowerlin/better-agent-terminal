@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-115
 title: "release.ps1 -Snapshot 必定失敗：build-version.js 把 package.json 改成 snapshot 版號後，npm run build 的 prebuild 再跑 fetch:baseline，以 snapshot 版號下載 server-bundle → 404"
-status: OPEN
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-10-05T12:29:00+08:00"
@@ -45,3 +45,9 @@ log：`%TEMP%\bat-release-20261005122832.log`
 ## 暫行對策
 
 不帶 `-Snapshot` 打包（以 package.json 版號，baseline 快取命中）；安裝後以雜湊確認換新（L127）。
+
+## 修復（T0488，2026-10-13）
+
+- `fetch-baseline-tarball.mjs` 版號解析 `--version` → `BAT_BASELINE_VERSION` → package.json，一律去 snapshot 後綴（`build-version.js` `stripSnapshotSuffix`，同檔 SoT）；`release.ps1` 以 `BAT_BASELINE_VERSION` 讓兩次 fetch 同版號；`-Version X` 無 release 時明確錯誤 + 提示；manifest 版號不符即重下
+- 實證：隔離 worktree `release.ps1 -Snapshot` 完整跑完 exit 0（兩次 fetch 皆 `v0.6.0-pre.4`，第二次 cache hit）；20 個新測試
+- 後續（併入 T0492）：dist-baseline 舊版累積、distributor runtime fallback 用 snapshot 版號

@@ -36,6 +36,8 @@ affects_files:
   - "CLAUDE.md"
   - "README.md"
   - "docs/"
+  - "scripts/fetch-baseline-tarball.mjs"
+  - "scripts/verify-helper-bundle.js"
 renew_count: 0
 workdir: main repo
 interaction:
@@ -68,11 +70,17 @@ memory_overrides:
 6. server bundle tarball 內有指向 CI runner 絕對路徑的 symlink（例：`staging/node_modules/sharp/node_modules/.bin/semver` → `/Users/runner/work/...`）：`copyRecursive` 排除 `node_modules/**/.bin/`（runtime 不使用；先確認 bundle 內無任何程式經 `.bin` 呼叫），或改寫為相對 symlink（擇一並說明）；linux / darwin 都要涵蓋，`verify-server-bundle.js` 加檢查「bundle 內無絕對路徑 symlink」
 7. `build-server-bundle.mjs:91` darwin `readmeRuntimeLine` 改為 `- macOS lower bound: 13.5 (arm64)`（T0494 查證：由 Node 24 `bin/node` minos 13.5 決定）
 
+## 追加範圍（T0488 範圍外發現）
+
+8. `dist-baseline/` 累積舊版 tarball 且全部被打進本機安裝檔（Windows `extraResources.filter` = `bat-server-linux-x64-v*.tar.gz`；主工作樹現有 `v0.5.9-pre.4`、`v0.6.0-pre.1` 各約 240 MB）：`scripts/fetch-baseline-tarball.mjs` 在 fetch 成功後清掉 `dist-baseline/` 內非目前 baseline 版號的 `bat-server-*` / `.sha256`（只刪符合命名規則的檔，留 log），或 `verify-helper-bundle.js` 對多版本 fail / warn（擇一並說明）；CI 乾淨目錄不受影響
+9. runtime 下載 fallback 用 snapshot 版號：`electron/remote/server-bundle-distributor.ts` `version = app.getVersion()`，baseline / cache 皆缺時會下載 `server-bundle-v<snapshot>`（必 404）→ 套用 `build-version.js` `stripSnapshotSuffix` 同規則取基底版號（renderer / main 可用的共用實作，避免兩份 regex；附測試）
+
 ## 驗收條件
 
 - [ ] 無使用證據表；lock 移除清單（只含 better-sqlite3 專屬相依）
 - [ ] `npm ci` 乾淨（npm 12 結尾警告只剩預期項目）；verify-native-modules ✅；`npm run verify:helpers` ✅
 - [ ] `npm run test:unit`、`npx vite build`、`npx tsc --noEmit -p .`；server bundle 建置 / 驗證結果
+- [ ] 追加 8 / 9：dist-baseline 只留目前版號（或 verify 擋多版本）；distributor snapshot fallback 取基底版號
 - [ ] 追加 6 / 7：bundle 無絕對路徑 symlink（檢查已加入 verify）、darwin README 下限行
 - [ ] CI 影響說明（pre.5 CI 由塔台觀察）
 
