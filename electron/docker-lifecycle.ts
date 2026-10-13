@@ -141,7 +141,7 @@ export async function startContainer(
     token?: string
     dataVolume?: string
   },
-): Promise<{ ok: boolean; token?: string; error?: string; exposure?: DockerContainerExposure }> {
+): Promise<{ ok: boolean; token?: string | null; error?: string; exposure?: DockerContainerExposure }> {
   const validation = validateContainerName(name)
   if (!validation.ok) return { ok: false, error: validation.error }
 

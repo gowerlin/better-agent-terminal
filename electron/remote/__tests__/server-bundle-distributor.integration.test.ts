@@ -137,7 +137,7 @@ beforeEach(async () => {
   // resolveDefaultPaths even when caller overrides cacheDir/baselineDir.
   ;(process as NodeJS.Process & { resourcesPath?: string }).resourcesPath = os.tmpdir()
   // Default: arch detection succeeds, returns linux-x64.
-  vi.mocked(detectRemoteArch).mockResolvedValue({ ok: true, arch: ARCH })
+  vi.mocked(detectRemoteArch).mockResolvedValue({ ok: true, arch: ARCH, rawUname: 'x86_64' })
   // Default: download fallback returns success — overridden per-test as needed.
   vi.mocked(downloadServerBundle).mockResolvedValue({
     ok: true,
@@ -152,7 +152,7 @@ afterEach(async () => {
   vi.clearAllMocks()
   appVersion.value = VERSION
   if (ORIGINAL_RESOURCES_PATH === undefined) {
-    delete (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath
+    delete (process as { resourcesPath?: string }).resourcesPath
   } else {
     ;(process as NodeJS.Process & { resourcesPath?: string }).resourcesPath =
       ORIGINAL_RESOURCES_PATH

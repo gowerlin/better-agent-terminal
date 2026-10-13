@@ -216,7 +216,7 @@ describe('handleOpenExternal', () => {
     expect(deps.openExternal).not.toHaveBeenCalled()
     expect(deps.openPath).not.toHaveBeenCalled()
     expect(deps.logError).toHaveBeenCalledTimes(1)
-    const logged = deps.logError.mock.calls[0][0] as string
+    const logged = vi.mocked(deps.logError).mock.calls[0][0] as string
     expect(logged).not.toContain('PCWDiagnostic')
     expect(logged).not.toContain('attacker')
     expect(logged).not.toContain('payload')
@@ -225,7 +225,7 @@ describe('handleOpenExternal', () => {
   it('reports a disallowed scheme as blocked', async () => {
     const deps = fakeDeps()
     await expect(handleOpenExternal('ms-msdt:/id x', deps)).resolves.toBe('blocked')
-    expect(deps.logError.mock.calls[0][0]).toContain('ms-msdt:')
+    expect(vi.mocked(deps.logError).mock.calls[0][0]).toContain('ms-msdt:')
   })
 
   it.each(['HTTPS://Example.com/Docs', 'mailto:a@b.c?subject=hi'])('keeps opening %s', async (url) => {

@@ -17,7 +17,7 @@ export function prepareImageForApi(dataUrl: string): PreparedImage | null {
   if (!match) return null
 
   const origMime = match[1].toLowerCase()
-  let buf = Buffer.from(match[2], 'base64')
+  let buf: Buffer = Buffer.from(match[2], 'base64')
 
   // Lazy-require so headless bat-server (ELECTRON_RUN_AS_NODE) doesn't pull
   // 'electron' at server-cli startup — image upload only happens via the UI.

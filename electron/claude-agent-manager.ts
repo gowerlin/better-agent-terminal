@@ -3,7 +3,7 @@ import * as fsPromises from 'fs/promises'
 import * as pathModule from 'path'
 import type { ClaudeMessage, ClaudeToolCall, ClaudeSessionState } from '../src/types/claude-agent'
 import type { EffortLevel } from '../src/types'
-import type { Query, PermissionMode, CanUseTool, SlashCommand, SDKSession } from '@anthropic-ai/claude-agent-sdk'
+import type { Query, PermissionMode, PermissionResult, CanUseTool, SlashCommand, SDKSession, SDKSessionOptions, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { logger } from './logger'
 import { getNodeExecutable, isElectronFallback } from './node-resolver'
 import { worktreeManager } from './worktree-manager'
@@ -245,7 +245,7 @@ interface SessionMetadata {
 }
 
 interface PendingRequest {
-  resolve: (value: unknown) => void
+  resolve: (value: PermissionResult) => void
 }
 
 interface QueuedMessage {
@@ -690,7 +690,7 @@ export class ClaudeAgentManager {
     return true
   }
 
-  private async runQuery(sessionId: string, prompt: string, images?: string[]) {
+  private async runQuery(sessionId: string, prompt: string, images?: string[]): Promise<void> {
     const session = this.sessions.get(sessionId)
     if (!session) return
 
@@ -737,7 +737,7 @@ export class ClaudeAgentManager {
           if (toolName === 'ExitPlanMode') {
             return new Promise((resolve) => {
               session.pendingPermissions.set(opts.toolUseID, {
-                resolve: (result: unknown) => {
+                resolve: (result: PermissionResult) => {
                   if ((result as { behavior: string }).behavior === 'allow') {
                     // bypassPlan + Yes → bypassPermissions (user chose bypass path)
                     session.permissionMode = 'bypassPermissions'
@@ -777,7 +777,7 @@ export class ClaudeAgentManager {
         // For all other tools, send permission request to frontend
         return new Promise((resolve) => {
           const wrappedResolve = toolName === 'ExitPlanMode'
-            ? (result: unknown) => {
+            ? (result: PermissionResult) => {
                 if ((result as { behavior: string }).behavior === 'allow') {
                   if ((result as { dontAskAgain?: boolean }).dontAskAgain) {
                     session.permissionMode = 'acceptEdits'
@@ -1432,7 +1432,7 @@ export class ClaudeAgentManager {
   }
 
   // V2 session-based query — persistent session, multi-turn without process restart
-  private async runQueryV2(sessionId: string, prompt: string, _images?: string[]) {
+  private async runQueryV2(sessionId: string, prompt: string, _images?: string[]): Promise<void> {
     const session = this.sessions.get(sessionId)
     if (!session) return
 
@@ -1466,7 +1466,7 @@ export class ClaudeAgentManager {
           if (toolName === 'ExitPlanMode') {
             return new Promise((resolve) => {
               session.pendingPermissions.set(opts.toolUseID, {
-                resolve: (result: unknown) => {
+                resolve: (result: PermissionResult) => {
                   if ((result as { behavior: string }).behavior === 'allow') {
                     session.permissionMode = 'bypassPermissions'
                     this.send('claude:modeChange', sessionId, 'bypassPermissions')
@@ -1496,7 +1496,7 @@ export class ClaudeAgentManager {
         }
         return new Promise((resolve) => {
           const wrappedResolve = toolName === 'ExitPlanMode'
-            ? (result: unknown) => {
+            ? (result: PermissionResult) => {
                 if ((result as { behavior: string }).behavior === 'allow') {
                   if ((result as { dontAskAgain?: boolean }).dontAskAgain) {
                     session.permissionMode = 'acceptEdits'
@@ -1530,13 +1530,15 @@ export class ClaudeAgentManager {
       }
       if (!session.v2Session) {
         const { createSession, resumeSession } = await getV2Api()
-        const v2Options = {
+        const v2Options: SDKSessionOptions = {
           model: effectiveModel,
           permissionMode: sdkMode,
           canUseTool,
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
           ...sdkSpawnEnv(resolvedRuntime),
-          ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable } : {}),
+          // SDKSessionOptions types `executable` as a runtime name ('node' | 'bun'), but the SDK
+          // spawns the value as the command, so an absolute node / Electron path works (same as v1).
+          ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable as SDKSessionOptions['executable'] } : {}),
         }
 
         // Only resume if the sdkSessionId was created by a V2 session
@@ -1574,7 +1576,9 @@ export class ClaudeAgentManager {
             type: 'user' as const,
             message: {
               role: 'user' as const,
-              content: contentBlocks,
+              // media_type is whatever the data URL declared (not narrowed here, same as v1);
+              // the API rejects unsupported image types.
+              content: contentBlocks as SDKUserMessage['message']['content'],
             },
             parent_tool_use_id: null,
           })
@@ -1945,7 +1949,8 @@ export class ClaudeAgentManager {
         }
       }
     }
-    pending.resolve(result)
+    // The renderer's decision is handed to the SDK as-is (allow / deny shape from the permission UI).
+    pending.resolve(result as PermissionResult)
     session.pendingPermissions.delete(toolUseId)
     // Notify all windows to dismiss the permission UI
     this.send('claude:permission-resolved', sessionId, toolUseId)
@@ -2124,6 +2129,7 @@ export class ClaudeAgentManager {
     for (const key of orderedKeys) {
       const obj = entriesByUuid.get(key) as {
         type: string; uuid?: string; message?: { role?: string; content?: unknown }; timestamp?: string
+        parent_tool_use_id?: string | null
       }
       const ts = obj.timestamp ? new Date(obj.timestamp).getTime() : Date.now()
 
@@ -2354,7 +2360,10 @@ export class ClaudeAgentManager {
       const items: (ClaudeMessage | ClaudeToolCall)[] = []
       const toolIndexMap = new Map<string, number>()
 
-      for (const msg of messages) {
+      // Transcript entries carry fields the SDK's SessionMessage type leaves out
+      // (`timestamp`; `message` is typed `unknown`).
+      type SubagentEntry = { type: string; timestamp?: string; message?: { content?: unknown } }
+      for (const msg of messages as SubagentEntry[]) {
         const ts = msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()
 
         if (msg.type === 'user') {

@@ -12,13 +12,13 @@
 import { EventEmitter } from 'events'
 import * as os from 'os'
 import type { ChildProcess } from 'child_process'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('electron', () => {
   throw new Error('pty-manager must not import electron (PLAN-036 T0389)')
 })
 
-import { PtyManager, REPLAY_BUFFER_MAX_CHARS, trimReplayBuffer } from '../pty-manager'
+import { PtyManager, REPLAY_BUFFER_MAX_CHARS, trimReplayBuffer, type PtyManagerDeps } from '../pty-manager'
 import { registerPtyHandlers } from '../handlers/pty'
 import type { HandlerRegistrar } from '../handlers/types'
 import { logger } from '../logger'
@@ -76,7 +76,7 @@ describe('trimReplayBuffer', () => {
 describe('PtyManager replay buffer (Terminal Server mode)', () => {
   let server: FakeServer
   let manager: PtyManager
-  let emit: ReturnType<typeof vi.fn>
+  let emit: Mock<PtyManagerDeps['emit']>
 
   const flush = () => vi.advanceTimersByTime(20) // > BATCH_INTERVAL_MS (16)
   const data = (id: string, text: string) => server.reply({ type: 'pty:data', id, data: text })
@@ -85,7 +85,7 @@ describe('PtyManager replay buffer (Terminal Server mode)', () => {
     vi.useFakeTimers()
     vi.spyOn(logger, 'log').mockImplementation(() => {})
     server = new FakeServer()
-    emit = vi.fn()
+    emit = vi.fn<PtyManagerDeps['emit']>()
     manager = new PtyManager({ emit, dataDir: CWD })
     manager.setServerProcess(server as unknown as ChildProcess)
   })

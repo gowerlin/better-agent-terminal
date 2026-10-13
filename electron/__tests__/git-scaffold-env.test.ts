@@ -98,7 +98,7 @@ describe('SIMPLE_GIT_UNSAFE_ENV_KEYS / stripSimpleGitUnsafeEnv (T0429)', () => {
 
   it('a stripped server env passes the simple-git check; PATH / HOME / GIT_DIR / BAT_* are left alone', () => {
     const env = { ...UNSAFE_SERVER_ENV, Editor: 'nano', PATH: '/usr/bin', HOME: '/home/u', GIT_DIR: '.git', BAT_X: '1', UNDEF: undefined }
-    expect(parseEnv(env as Record<string, string>).vulnerabilities.length).toBeGreaterThan(0)
+    expect(parseEnv(env).vulnerabilities.length).toBeGreaterThan(0)
     const stripped = stripSimpleGitUnsafeEnv(env)
     expect(parseEnv(stripped).vulnerabilities).toEqual([])
     expect(stripped).toEqual({

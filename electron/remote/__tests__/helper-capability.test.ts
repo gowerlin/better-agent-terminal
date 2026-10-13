@@ -17,6 +17,7 @@ import {
   isCapabilityTokenShaped,
   safeTokenEqual,
   type HelperCapability,
+  type HelperInvokeContext,
 } from '../helper-capability'
 
 const TOWER: HelperCapability = { terminalId: 'tower-1', role: 'tower' }
@@ -197,7 +198,7 @@ describe('authorizeHelperInvoke — worker target binding (T0432)', () => {
 })
 
 describe('authorizeHelperInvoke — tower create-agent-command (T0432)', () => {
-  const create = (opts: unknown, c = ctx) => authorizeHelperInvoke(TOWER, 'terminal:create-agent-command', [opts], c)
+  const create = (opts: unknown, c: HelperInvokeContext = ctx) => authorizeHelperInvoke(TOWER, 'terminal:create-agent-command', [opts], c)
 
   it('a new terminal reporting back to this tower (bat-terminal payload) → allowed', () => {
     expect(create({

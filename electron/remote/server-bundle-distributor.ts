@@ -338,8 +338,9 @@ export async function distributeServerBundle(
     return { ok: false, errorCode: cls.errorCode, error: cls.error }
   }
 
-  // baselineLookup.state in { 'missing-manifest', 'missing-tarball' } → fall through to download
-  if (!shouldFallbackToDownload(baselineLookup.state)) {
+  // baselineLookup.state in { 'missing-manifest', 'missing-tarball' } → fall through to download.
+  // 'ok' only gets here without an entry / tarball path, and also falls through to download.
+  if (baselineLookup.state !== 'ok' && !shouldFallbackToDownload(baselineLookup.state)) {
     // Defensive: shouldFallbackToDownload returns false only for 'corrupted',
     // which is handled above. Kept for future expansion of baselineState union.
     return {

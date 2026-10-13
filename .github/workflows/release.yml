@@ -22,9 +22,10 @@ jobs:
           echo "TAG=${TAG}" >> $GITHUB_OUTPUT
           echo "Resolved version: ${VERSION} (tag: ${TAG})"
 
-  # T0495: tsc baseline for src/ is 0 (T0486). Runs in parallel with server-bundle and
-  # gates build (and so release). Types only need the packages' .d.ts files, so install
-  # scripts (electron download, native rebuilds) are skipped to keep this job light.
+  # T0495 / T0496: tsc baseline is 0 for src/ (T0486) and electron/ (T0496). Runs in
+  # parallel with server-bundle and gates build (and so release). Types only need the
+  # packages' .d.ts files, so install scripts (electron download, native rebuilds) are
+  # skipped to keep this job light.
   typecheck:
     runs-on: ubuntu-24.04
     steps:
@@ -42,6 +43,9 @@ jobs:
 
       - name: Typecheck (src/)
         run: npm run typecheck
+
+      - name: Typecheck (electron/)
+        run: npm run typecheck:electron
 
   server-bundle:
     needs: prepare
@@ -158,12 +162,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Rebuild @lydell/node-pty for Electron (Windows)
-        if: matrix.platform == 'win'
-        run: npx --yes @electron/rebuild
-
-      - name: Rebuild @lydell/node-pty for Electron (macOS/Linux)
-        if: matrix.platform != 'win'
+      - name: Rebuild native modules for Electron
         run: npx --yes @electron/rebuild
 
       - name: Download server bundle baselines into dist-baseline/

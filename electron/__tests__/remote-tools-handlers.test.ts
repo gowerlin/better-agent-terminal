@@ -22,6 +22,7 @@ import {
 import { isHeadlessScrubbedEnvKey } from '../remote/headless-entry'
 import { PROBE_BEGIN_MARKER, PROBE_END_MARKER, type ProbeExecFile, type ProbeInvocation } from '../remote-tools/probe-script'
 import type { RemoteToolsDetectResult } from '../../src/types/remote-tools'
+import type { SharedHandler } from '../handlers/types'
 
 const LOGIN_OK = [PROBE_BEGIN_MARKER, 'env.uname_s=Linux', 'tool.git.state=found', 'tool.git.path=/usr/bin/git', 'tool.git.version=git version 2.43.0', PROBE_END_MARKER].join('\n')
 const SERVER_OK = [PROBE_BEGIN_MARKER, 'tool.git.state=found', 'tool.git.path=/usr/bin/git', PROBE_END_MARKER].join('\n')
@@ -82,11 +83,11 @@ describe('remote-tools:detect (shared module)', () => {
 
   it('the registered handler runs the same detection', async () => {
     const { impl } = fakeExecFile()
-    let handler: ((...args: unknown[]) => unknown) | undefined
+    let handler: SharedHandler | undefined
     registerRemoteToolsHandlers((_channel, h) => { handler = h }, {
       isScrubbedEnvKey: isHeadlessScrubbedEnvKey, platform: 'darwin', execFile: impl, getEnv: () => HOST_ENV,
     })
-    const r = await handler?.({}) as RemoteToolsDetectResult
+    const r = await handler?.({ windowId: null }) as RemoteToolsDetectResult
     expect(r.ok).toBe(true)
   })
 

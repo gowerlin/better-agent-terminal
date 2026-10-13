@@ -1,4 +1,4 @@
-import type { ChildProcess } from 'child_process'
+import type { ChildProcess, StdioOptions } from 'child_process'
 import { logger } from '../logger'
 import { buildBaseSshArgs, buildBaseSshSpawnEnv, escapeSingleQuotesStrict } from './ssh-args'
 import { shutdownSshProcess } from './ssh-process-lifecycle'
@@ -54,7 +54,7 @@ export type StartServerProgress = (phase: StartServerPhase) => void
 type SpawnFn = (
   command: string,
   args: readonly string[],
-  options?: { stdio?: unknown; windowsHide?: boolean; env?: NodeJS.ProcessEnv },
+  options: { stdio?: StdioOptions; windowsHide?: boolean; env?: NodeJS.ProcessEnv },
 ) => ChildProcess
 
 /**

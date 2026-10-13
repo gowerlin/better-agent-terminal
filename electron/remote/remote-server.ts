@@ -1074,9 +1074,11 @@ export class RemoteServer {
 
       let args: unknown = frame.args ?? []
       if (Array.isArray(args)) {
-        while (args.length > 0 && args[args.length - 1] == null) {
-          args = args.slice(0, -1)
+        let list: unknown[] = args
+        while (list.length > 0 && list[list.length - 1] == null) {
+          list = list.slice(0, -1)
         }
+        args = list
       }
       const decision = authorizeHelperInvoke(capability, channel, args as unknown[], {
         isTerminalAlive: this.isTerminalAlive,

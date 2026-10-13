@@ -57,7 +57,7 @@ function runExecFile(file: string, args: string[]): Promise<ExecResult> {
       file,
       args,
       { encoding: 'utf8', timeout: EXEC_TIMEOUT_MS, windowsHide: true, maxBuffer: 1024 * 1024 },
-      (error, stdout, stderr) => {
+      (error, stdout: string | Buffer, stderr: string | Buffer) => {
         const out = typeof stdout === 'string' ? stdout : (stdout?.toString?.() ?? '')
         const errOut = typeof stderr === 'string' ? stderr : (stderr?.toString?.() ?? '')
         if (error) {

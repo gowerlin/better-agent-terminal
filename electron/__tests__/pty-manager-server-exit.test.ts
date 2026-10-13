@@ -14,13 +14,13 @@
 import { EventEmitter } from 'events'
 import * as os from 'os'
 import type { ChildProcess } from 'child_process'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('electron', () => {
   throw new Error('pty-manager must not import electron (PLAN-036 T0389)')
 })
 
-import { PtyManager } from '../pty-manager'
+import { PtyManager, type PtyManagerDeps } from '../pty-manager'
 import { logger } from '../logger'
 import type { ServerRequest, ServerResponse } from '../terminal-server/protocol'
 
@@ -36,7 +36,7 @@ class FakeServer extends EventEmitter {
 
 let server: FakeServer
 let manager: PtyManager
-let emit: ReturnType<typeof vi.fn>
+let emit: Mock<PtyManagerDeps['emit']>
 
 function exitEvents() {
   return emit.mock.calls.filter(([channel]) => channel === 'pty:exit')
@@ -45,7 +45,7 @@ function exitEvents() {
 beforeEach(() => {
   vi.spyOn(logger, 'log').mockImplementation(() => {})
   server = new FakeServer()
-  emit = vi.fn()
+  emit = vi.fn<PtyManagerDeps['emit']>()
   manager = new PtyManager({ emit, dataDir: os.tmpdir() })
   manager.setServerProcess(server as unknown as ChildProcess)
   expect(manager.create({ id: ID, cwd: CWD, type: 'terminal', shell: 'test-shell' })).toBe(true)

@@ -174,7 +174,7 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
 
   // Integrated Agent SDKs. Codex intentionally shares the existing claude:* renderer
   // event surface so the chat panels can reuse the mature Claude UI plumbing.
-  register('claude:start-session', async (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'; codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never' }) => {
+  register('claude:start-session', async (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: PermissionMode | 'bypassPlan'; model?: string; effort?: EffortLevel; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'; codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never' }) => {
     if (options.agentPreset === 'codex-agent' || options.agentPreset === 'codex-agent-worktree') {
       const codexManager = codex() // throws before recording the session on a host without codex
       sessionKinds.set(sessionId, 'codex')

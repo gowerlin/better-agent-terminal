@@ -156,7 +156,7 @@ if (process.platform === 'win32') {
       if (fsSync.existsSync(shortcutPath)) {
         const shortcut = shell.readShortcutLink(shortcutPath)
         if (shortcut.appUserModelId !== appModelId) {
-          shell.writeShortcutLink(shortcutPath, 'update', { appUserModelId: appModelId })
+          shell.writeShortcutLink(shortcutPath, 'update', { target: shortcut.target, appUserModelId: appModelId })
         }
       }
     } catch { /* non-critical — notification may not work but app still runs */ }
@@ -966,7 +966,7 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
 
   if (process.platform === 'darwin') {
     const dockIcon = nativeImage.createFromPath(path.join(__dirname, '../assets/icon.png'))
-    app.dock.setIcon(dockIcon)
+    app.dock?.setIcon(dockIcon)
   }
 
   // Create managers once (shared across all windows)
@@ -1437,7 +1437,7 @@ app.whenReady().then(async () => {
   // Load user-defined custom CLIs from disk
   try {
     const dataPath = path.join(app.getPath('userData'), 'custom-clis.json')
-    const data = await fs.promises.readFile(dataPath, 'utf-8')
+    const data = await fs.readFile(dataPath, 'utf-8')
     const clis = JSON.parse(data) as CustomCliDefinition[]
     for (const cli of clis) {
       agentRegistry.registerCustomCli(cli)
@@ -3054,7 +3054,7 @@ function registerLocalHandlers() {
   // Dock badge count (macOS/Linux)
   ipcMain.handle('app:set-dock-badge', (_event, count: number) => {
     if (process.platform === 'darwin') {
-      app.dock.setBadge(count > 0 ? String(count) : '')
+      app.dock?.setBadge(count > 0 ? String(count) : '')
     } else if (process.platform === 'linux') {
       app.setBadgeCount(count)
     }
@@ -3332,7 +3332,7 @@ function registerLocalHandlers() {
     try {
       const customClis = agentRegistry.listCustomClis()
       const dataPath = path.join(app.getPath('userData'), 'custom-clis.json')
-      await fs.promises.writeFile(dataPath, JSON.stringify(customClis, null, 2), 'utf-8')
+      await fs.writeFile(dataPath, JSON.stringify(customClis, null, 2), 'utf-8')
       return true
     } catch (err) {
       console.error('[agent] Failed to save custom CLIs:', err)
@@ -3343,7 +3343,7 @@ function registerLocalHandlers() {
   ipcMain.handle('agent:load-custom-clis', async () => {
     try {
       const dataPath = path.join(app.getPath('userData'), 'custom-clis.json')
-      const data = await fs.promises.readFile(dataPath, 'utf-8')
+      const data = await fs.readFile(dataPath, 'utf-8')
       const clis = JSON.parse(data) as CustomCliDefinition[]
       for (const cli of clis) {
         agentRegistry.registerCustomCli(cli)

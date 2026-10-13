@@ -201,7 +201,7 @@ describe('cap — MAX_CONCURRENT_REMOTE_PROFILES', () => {
 
   it('two admissions racing for the last slot never exceed the cap', async () => {
     const { registry, connect, created } = setup()
-    const gates: Array<ReturnType<typeof deferred>> = []
+    const gates: Array<ReturnType<typeof deferred<void>>> = []
     const gatedRun = async (client: FakeClient) => {
       const gate = deferred()
       gates.push(gate)

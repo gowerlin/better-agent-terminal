@@ -3,7 +3,7 @@
  * Manages git worktree lifecycle for isolated agent sessions.
  */
 
-import { execFile, type ExecFileOptions } from 'child_process'
+import { execFile, type ExecFileOptionsWithStringEncoding } from 'child_process'
 import { promisify } from 'util'
 import * as fs from 'fs'
 import * as fsPromises from 'fs/promises'
@@ -11,12 +11,9 @@ import * as path from 'path'
 import { logger } from './logger'
 
 const _execFileAsync = promisify(execFile)
-const execFileAsync: typeof _execFileAsync = (file, args?, options?) => {
-  const opts = typeof args === 'object' && !Array.isArray(args) ? args : (options || {})
-  return Array.isArray(args)
-    ? _execFileAsync(file, args, { ...opts, windowsHide: true } as any)
-    : _execFileAsync(file, { ...opts, windowsHide: true } as any)
-}
+// Only caller is runGit (always an args array, string encoding → stdout / stderr are strings).
+const execFileAsync = (file: string, args: string[], options: ExecFileOptionsWithStringEncoding) =>
+  _execFileAsync(file, args, { ...options, windowsHide: true })
 
 export interface WorktreeInfo {
   sessionId: string
@@ -52,7 +49,7 @@ export class WorktreeManager {
     this.childEnv = provide
   }
 
-  private runGit(args: string[], options: ExecFileOptions) {
+  private runGit(args: string[], options: ExecFileOptionsWithStringEncoding) {
     const env = this.childEnv()
     return execFileAsync(this.gitBinary(), args, env ? { ...options, env } : options)
   }

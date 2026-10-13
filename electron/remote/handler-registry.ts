@@ -11,8 +11,15 @@ type Handler = (ctx: HandlerContext, ...args: unknown[]) => Promise<unknown> | u
 
 const handlers = new Map<string, Handler>()
 
-export function registerHandler(channel: string, handler: Handler): void {
-  handlers.set(channel, handler)
+/**
+ * `A` lets a handler declare the argument types it expects. IPC / remote frames are not
+ * validated against them at runtime; each handler is responsible for its own narrowing.
+ */
+export function registerHandler<A extends unknown[]>(
+  channel: string,
+  handler: (ctx: HandlerContext, ...args: A) => Promise<unknown> | unknown,
+): void {
+  handlers.set(channel, handler as Handler)
 }
 
 export function invokeHandler(channel: string, args: unknown[], windowId?: string | null, connectionId?: string | null): Promise<unknown> {

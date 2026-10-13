@@ -26,6 +26,8 @@ export interface CertificateProvider {
   renew(): Promise<LoadedCertificateBundle>
 }
 
+type SelfsignedOptions = NonNullable<Parameters<typeof selfsigned.generate>[1]>
+
 const CERT_FILENAME = 'server-cert.json'
 const TEN_YEARS_DAYS = 365 * 10
 // Renew when less than 90 days remain
@@ -48,9 +50,13 @@ export async function generateSelfSignedCert(
   days: number = TEN_YEARS_DAYS
 ): Promise<CertificateBundle> {
   const attrs = [{ name: 'commonName', value: 'better-agent-terminal' }]
-  const options = {
+  // selfsigned v5 dropped the `days` option (it silently fell back to 365 days);
+  // validity is set with notAfterDate instead.
+  const notBeforeDate = new Date()
+  const options: SelfsignedOptions = {
     keySize: 2048,
-    days,
+    notBeforeDate,
+    notAfterDate: new Date(notBeforeDate.getTime() + days * 24 * 60 * 60 * 1000),
     algorithm: 'sha256',
     extensions: [
       { name: 'basicConstraints', cA: false },

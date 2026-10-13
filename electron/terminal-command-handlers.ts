@@ -263,7 +263,8 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
   }
   deps.registerHandler('terminal:create-with-command', (ctx, opts) => createWithCommand(ctx, opts as TerminalCommandOptions))
 
-  deps.registerHandler('terminal:create-agent-command', async (_ctx, opts: TerminalAgentCommandOptions) => {
+  deps.registerHandler('terminal:create-agent-command', async (_ctx, rawOpts) => {
+    const opts = rawOpts as TerminalAgentCommandOptions
     const hasPrompt = typeof opts?.prompt === 'string' && opts.prompt.length > 0
     const hasSkillPayload = typeof opts?.skill === 'string' && typeof opts?.workorder === 'string'
     if (!hasPrompt && !hasSkillPayload) {
