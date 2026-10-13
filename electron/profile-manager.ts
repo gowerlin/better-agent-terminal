@@ -307,6 +307,52 @@ async function readIndex(): Promise<ProfileIndex | null> {
   }
 }
 
+// ── T0509: index.json read-modify-write is serialized ──
+//
+// Every ProfileManager method that touches index.json runs its whole read → modify → write
+// inside withIndexLock(), so two concurrent `profile:create` calls can neither lose each
+// other's entry nor race on the shared `index.json.tmp` / the rename over `index.json`
+// (Windows answers a rename onto a file another call is still reading or copying with EPERM).
+// Reads are queued too: a read during the rename can make that rename fail on Windows, and
+// ensureInitialized() may write on first run. 🔴 Code holding the lock must not call a public
+// ProfileManager method (the queue is not reentrant — it would wait for itself).
+
+let indexQueue: Promise<unknown> = Promise.resolve()
+
+function withIndexLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = indexQueue.then(fn, fn)
+  indexQueue = run.catch(() => undefined)
+  return run
+}
+
+// Even serialized, an antivirus / indexer may briefly hold index.json open on Windows.
+// The rename is retried after each of these delays (7 attempts, ~1.6 s in all), then the
+// last error is thrown. EACCES is included because Windows reports the same lock as either
+// code depending on the API path (graceful-fs retries the same three).
+export const INDEX_RENAME_RETRY_DELAYS_MS: readonly number[] = [25, 50, 100, 200, 400, 800]
+const INDEX_RENAME_RETRY_CODES: ReadonlySet<string> = new Set(['EPERM', 'EBUSY', 'EACCES'])
+
+let sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
+async function renameWithRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.rename(from, to)
+      return
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (!code || !INDEX_RENAME_RETRY_CODES.has(code)) throw err
+      const delay = INDEX_RENAME_RETRY_DELAYS_MS[attempt]
+      if (delay === undefined) {
+        logger.error(`[profile] rename ${from} -> ${to} still failing (${code}) after ${attempt} retries`)
+        throw err
+      }
+      logger.warn(`[profile] rename ${path.basename(from)} -> ${path.basename(to)} failed (${code}), retry ${attempt + 1}/${INDEX_RENAME_RETRY_DELAYS_MS.length} in ${delay} ms`)
+      await sleep(delay)
+    }
+  }
+}
+
 async function writeIndex(index: ProfileIndex): Promise<void> {
   await ensureDir()
   const indexPath = getIndexPath()
@@ -322,7 +368,7 @@ async function writeIndex(index: ProfileIndex): Promise<void> {
 
   // Atomic write: write to temp, then rename. Crash mid-write leaves old file intact.
   await fs.writeFile(tmpPath, JSON.stringify(index, null, 2), 'utf-8')
-  await fs.rename(tmpPath, indexPath)
+  await renameWithRetry(tmpPath, indexPath)
 }
 
 function migrateSnapshot(raw: ProfileSnapshotV1 | ProfileSnapshot): ProfileSnapshot {
@@ -362,6 +408,7 @@ async function writeSnapshot(snapshot: ProfileSnapshot): Promise<void> {
 // Only runs when index.json is genuinely missing — NEVER overwrites an existing index,
 // even one that parses to an empty profile list, since that would destroy user data
 // on any transient read issue.
+// T0509: caller must hold the index lock (withIndexLock).
 async function ensureInitialized(): Promise<ProfileIndex> {
   const existing = await readIndex()
   if (existing) return existing
@@ -419,6 +466,49 @@ async function ensureInitialized(): Promise<ProfileIndex> {
   return newIndex
 }
 
+type CreateProfileOptions = { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }
+
+// Adds a new entry to `index` (and the empty snapshot of a local profile). Caller holds the
+// index lock and writes the index afterwards.
+async function addProfileEntry(index: ProfileIndex, name: string, options?: CreateProfileOptions): Promise<ProfileEntry> {
+  let id = toSlug(name)
+  // Ensure unique ID
+  if (index.profiles.some(p => p.id === id)) {
+    // T0509: creates are serialized now, so several same-name creates can land in one ms.
+    const base = `${id}-${Date.now()}`
+    id = base
+    for (let n = 2; index.profiles.some(p => p.id === id); n++) id = `${base}-${n}`
+  }
+
+  const now = Date.now()
+  const entry: ProfileEntry = {
+    id,
+    name,
+    type: options?.type || 'local',
+    remoteHost: options?.remoteHost,
+    remotePort: options?.remotePort,
+    remoteToken: options?.remoteToken,
+    remoteProfileId: options?.remoteProfileId,
+    remoteFingerprint: options?.remoteFingerprint,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  // Only create snapshot for local profiles
+  if (entry.type === 'local') {
+    const snapshot: ProfileSnapshot = {
+      id,
+      name,
+      version: 2,
+      windows: [],
+    }
+    await writeSnapshot(snapshot)
+  }
+
+  index.profiles.push(entry)
+  return entry
+}
+
 export class ProfileManager {
   private windowRegistry: WindowRegistry | null = null
 
@@ -426,159 +516,151 @@ export class ProfileManager {
     this.windowRegistry = registry
   }
 
-  async list(): Promise<{ profiles: ProfileEntry[]; activeProfileIds: string[] }> {
-    const index = await ensureInitialized()
-    return { profiles: index.profiles, activeProfileIds: index.activeProfileIds }
+  list(): Promise<{ profiles: ProfileEntry[]; activeProfileIds: string[] }> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      return { profiles: index.profiles, activeProfileIds: index.activeProfileIds }
+    })
   }
 
-  async create(name: string, options?: { type?: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string }): Promise<ProfileEntry> {
-    const index = await ensureInitialized()
-    let id = toSlug(name)
-    // Ensure unique ID
-    if (index.profiles.some(p => p.id === id)) {
-      id = `${id}-${Date.now()}`
-    }
-
-    const now = Date.now()
-    const entry: ProfileEntry = {
-      id,
-      name,
-      type: options?.type || 'local',
-      remoteHost: options?.remoteHost,
-      remotePort: options?.remotePort,
-      remoteToken: options?.remoteToken,
-      remoteProfileId: options?.remoteProfileId,
-      remoteFingerprint: options?.remoteFingerprint,
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    // Only create snapshot for local profiles
-    if (entry.type === 'local') {
-      const snapshot: ProfileSnapshot = {
-        id,
-        name,
-        version: 2,
-        windows: [],
-      }
-      await writeSnapshot(snapshot)
-    }
-
-    index.profiles.push(entry)
-    await writeIndex(index)
-    return entry
+  create(name: string, options?: CreateProfileOptions): Promise<ProfileEntry> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      const entry = await addProfileEntry(index, name, options)
+      await writeIndex(index)
+      return entry
+    })
   }
 
   // Save all windows belonging to this profile into its snapshot
-  async save(profileId: string): Promise<boolean> {
-    const index = await ensureInitialized()
-    const entry = index.profiles.find(p => p.id === profileId)
-    if (!entry) return false
-    if (!this.windowRegistry) return false
+  save(profileId: string): Promise<boolean> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      const entry = index.profiles.find(p => p.id === profileId)
+      if (!entry) return false
+      if (!this.windowRegistry) return false
 
-    const allWindows = await this.windowRegistry.readAll()
-    const profileWindows = allWindows.filter(w => w.profileId === profileId)
+      const allWindows = await this.windowRegistry.readAll()
+      const profileWindows = allWindows.filter(w => w.profileId === profileId)
 
-    // If no windows are currently open for this profile, keep existing snapshot
-    if (profileWindows.length === 0) return false
+      // If no windows are currently open for this profile, keep existing snapshot
+      if (profileWindows.length === 0) return false
 
-    const windowSnapshots: ProfileWindowSnapshot[] = profileWindows.map(w => ({
-      workspaces: w.workspaces,
-      activeWorkspaceId: w.activeWorkspaceId,
-      activeGroup: w.activeGroup,
-      terminals: w.terminals,
-      activeTerminalId: w.activeTerminalId,
-      bounds: w.bounds,
-    }))
+      const windowSnapshots: ProfileWindowSnapshot[] = profileWindows.map(w => ({
+        workspaces: w.workspaces,
+        activeWorkspaceId: w.activeWorkspaceId,
+        activeGroup: w.activeGroup,
+        terminals: w.terminals,
+        activeTerminalId: w.activeTerminalId,
+        bounds: w.bounds,
+      }))
 
-    const snapshot: ProfileSnapshot = {
-      id: profileId,
-      name: entry.name,
-      version: 2,
-      windows: windowSnapshots,
-    }
+      const snapshot: ProfileSnapshot = {
+        id: profileId,
+        name: entry.name,
+        version: 2,
+        windows: windowSnapshots,
+      }
 
-    await writeSnapshot(snapshot)
-    entry.updatedAt = Date.now()
-    await writeIndex(index)
-    return true
+      await writeSnapshot(snapshot)
+      entry.updatedAt = Date.now()
+      await writeIndex(index)
+      return true
+    })
   }
 
   // Load a profile snapshot (pure read, no side effects)
-  async loadSnapshot(profileId: string): Promise<ProfileSnapshot | null> {
-    const index = await ensureInitialized()
-    if (!index.profiles.some(p => p.id === profileId)) return null
-    return readSnapshot(profileId)
+  loadSnapshot(profileId: string): Promise<ProfileSnapshot | null> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      if (!index.profiles.some(p => p.id === profileId)) return null
+      return readSnapshot(profileId)
+    })
   }
 
   // Load a profile: mark as active and return snapshot (window creation handled by caller)
-  async load(profileId: string): Promise<ProfileSnapshot | null> {
-    const snapshot = await this.loadSnapshot(profileId)
-    if (!snapshot) return null
+  load(profileId: string): Promise<ProfileSnapshot | null> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      if (!index.profiles.some(p => p.id === profileId)) return null
+      const snapshot = await readSnapshot(profileId)
+      if (!snapshot) return null
 
-    // Add to active profiles
-    await this.activateProfile(profileId)
+      // Add to active profiles
+      if (!index.activeProfileIds.includes(profileId)) {
+        index.activeProfileIds.push(profileId)
+        await writeIndex(index)
+      }
 
-    return snapshot
+      return snapshot
+    })
   }
 
   async delete(profileId: string): Promise<boolean> {
     if (profileId === 'default') return false // Cannot delete default
 
-    const index = await ensureInitialized()
-    const idx = index.profiles.findIndex(p => p.id === profileId)
-    if (idx === -1) return false
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      const idx = index.profiles.findIndex(p => p.id === profileId)
+      if (idx === -1) return false
 
-    index.profiles.splice(idx, 1)
+      index.profiles.splice(idx, 1)
 
-    // Remove from active profiles if present
-    index.activeProfileIds = index.activeProfileIds.filter(id => id !== profileId)
+      // Remove from active profiles if present
+      index.activeProfileIds = index.activeProfileIds.filter(id => id !== profileId)
 
-    await writeIndex(index)
+      await writeIndex(index)
 
-    // Remove snapshot file
-    try { await fs.unlink(getProfilePath(profileId)) } catch { /* ignore */ }
+      // Remove snapshot file
+      try { await fs.unlink(getProfilePath(profileId)) } catch { /* ignore */ }
 
-    return true
+      return true
+    })
   }
 
-  async rename(profileId: string, newName: string): Promise<boolean> {
-    const index = await ensureInitialized()
-    const entry = index.profiles.find(p => p.id === profileId)
-    if (!entry) return false
+  rename(profileId: string, newName: string): Promise<boolean> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      const entry = index.profiles.find(p => p.id === profileId)
+      if (!entry) return false
 
-    entry.name = newName
-    entry.updatedAt = Date.now()
-    await writeIndex(index)
+      entry.name = newName
+      entry.updatedAt = Date.now()
+      await writeIndex(index)
 
-    // Also update snapshot name
-    const snapshot = await readSnapshot(profileId)
-    if (snapshot) {
-      snapshot.name = newName
-      await writeSnapshot(snapshot)
-    }
+      // Also update snapshot name
+      const snapshot = await readSnapshot(profileId)
+      if (snapshot) {
+        snapshot.name = newName
+        await writeSnapshot(snapshot)
+      }
 
-    return true
+      return true
+    })
   }
 
-  async duplicate(profileId: string, newName: string): Promise<ProfileEntry | null> {
-    const snapshot = await readSnapshot(profileId)
-    if (!snapshot) return null
+  duplicate(profileId: string, newName: string): Promise<ProfileEntry | null> {
+    return withIndexLock(async () => {
+      const snapshot = await readSnapshot(profileId)
+      if (!snapshot) return null
 
-    const entry = await this.create(newName)
+      const index = await ensureInitialized()
+      const entry = await addProfileEntry(index, newName)
+      await writeIndex(index)
 
-    // Copy workspace data from source
-    const newSnapshot: ProfileSnapshot = {
-      ...snapshot,
-      id: entry.id,
-      name: newName,
-    }
-    await writeSnapshot(newSnapshot)
+      // Copy workspace data from source
+      const newSnapshot: ProfileSnapshot = {
+        ...snapshot,
+        id: entry.id,
+        name: newName,
+      }
+      await writeSnapshot(newSnapshot)
 
-    return entry
+      return entry
+    })
   }
 
-  async update(profileId: string, updates: {
+  update(profileId: string, updates: {
     remoteHost?: string
     remotePort?: number
     remoteToken?: string
@@ -598,54 +680,80 @@ export class ProfileManager {
     serverHome?: string
     sshServerArch?: string
   }): Promise<boolean> {
-    const index = await ensureInitialized()
-    const entry = index.profiles.find(p => p.id === profileId)
-    if (!entry) return false
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      const entry = index.profiles.find(p => p.id === profileId)
+      if (!entry) return false
 
-    if (updates.remoteHost !== undefined) entry.remoteHost = updates.remoteHost
-    if (updates.remotePort !== undefined) entry.remotePort = updates.remotePort
-    if (updates.remoteToken !== undefined) entry.remoteToken = updates.remoteToken
-    if (updates.remoteProfileId !== undefined) entry.remoteProfileId = updates.remoteProfileId
-    if (updates.remoteFingerprint !== undefined) entry.remoteFingerprint = updates.remoteFingerprint
-    if (updates.targetOS !== undefined) entry.targetOS = updates.targetOS
-    if (updates.wslDistro !== undefined) entry.wslDistro = updates.wslDistro
-    if (updates.dockerContainer !== undefined) entry.dockerContainer = updates.dockerContainer
-    if (updates.dockerHost !== undefined) entry.dockerHost = updates.dockerHost
-    if (updates.dockerMounts !== undefined) entry.dockerMounts = updates.dockerMounts
-    if (updates.sshHost !== undefined) entry.sshHost = updates.sshHost
-    if (updates.sshUser !== undefined) entry.sshUser = updates.sshUser
-    if (updates.sshPort !== undefined) entry.sshPort = updates.sshPort
-    if (updates.sshKeyPath !== undefined) entry.sshKeyPath = updates.sshKeyPath
-    if (updates.useSshTunnel !== undefined) entry.useSshTunnel = updates.useSshTunnel
-    if (updates.tunnelLocalPort !== undefined) entry.tunnelLocalPort = updates.tunnelLocalPort
-    if (updates.serverHome !== undefined) entry.serverHome = updates.serverHome
-    if (updates.sshServerArch !== undefined) entry.sshServerArch = updates.sshServerArch
-    entry.updatedAt = Date.now()
-    await writeIndex(index)
-    return true
-  }
-
-  async getProfile(profileId: string): Promise<ProfileEntry | null> {
-    const index = await ensureInitialized()
-    return index.profiles.find(p => p.id === profileId) || null
-  }
-
-  async getActiveProfileIds(): Promise<string[]> {
-    const index = await ensureInitialized()
-    return index.activeProfileIds
-  }
-
-  async activateProfile(profileId: string): Promise<void> {
-    const index = await ensureInitialized()
-    if (!index.activeProfileIds.includes(profileId)) {
-      index.activeProfileIds.push(profileId)
+      if (updates.remoteHost !== undefined) entry.remoteHost = updates.remoteHost
+      if (updates.remotePort !== undefined) entry.remotePort = updates.remotePort
+      if (updates.remoteToken !== undefined) entry.remoteToken = updates.remoteToken
+      if (updates.remoteProfileId !== undefined) entry.remoteProfileId = updates.remoteProfileId
+      if (updates.remoteFingerprint !== undefined) entry.remoteFingerprint = updates.remoteFingerprint
+      if (updates.targetOS !== undefined) entry.targetOS = updates.targetOS
+      if (updates.wslDistro !== undefined) entry.wslDistro = updates.wslDistro
+      if (updates.dockerContainer !== undefined) entry.dockerContainer = updates.dockerContainer
+      if (updates.dockerHost !== undefined) entry.dockerHost = updates.dockerHost
+      if (updates.dockerMounts !== undefined) entry.dockerMounts = updates.dockerMounts
+      if (updates.sshHost !== undefined) entry.sshHost = updates.sshHost
+      if (updates.sshUser !== undefined) entry.sshUser = updates.sshUser
+      if (updates.sshPort !== undefined) entry.sshPort = updates.sshPort
+      if (updates.sshKeyPath !== undefined) entry.sshKeyPath = updates.sshKeyPath
+      if (updates.useSshTunnel !== undefined) entry.useSshTunnel = updates.useSshTunnel
+      if (updates.tunnelLocalPort !== undefined) entry.tunnelLocalPort = updates.tunnelLocalPort
+      if (updates.serverHome !== undefined) entry.serverHome = updates.serverHome
+      if (updates.sshServerArch !== undefined) entry.sshServerArch = updates.sshServerArch
+      entry.updatedAt = Date.now()
       await writeIndex(index)
-    }
+      return true
+    })
   }
 
-  async deactivateProfile(profileId: string): Promise<void> {
-    const index = await ensureInitialized()
-    index.activeProfileIds = index.activeProfileIds.filter(id => id !== profileId)
-    await writeIndex(index)
+  getProfile(profileId: string): Promise<ProfileEntry | null> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      return index.profiles.find(p => p.id === profileId) || null
+    })
   }
+
+  getActiveProfileIds(): Promise<string[]> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      return index.activeProfileIds
+    })
+  }
+
+  activateProfile(profileId: string): Promise<void> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      if (!index.activeProfileIds.includes(profileId)) {
+        index.activeProfileIds.push(profileId)
+        await writeIndex(index)
+      }
+    })
+  }
+
+  deactivateProfile(profileId: string): Promise<void> {
+    return withIndexLock(async () => {
+      const index = await ensureInitialized()
+      index.activeProfileIds = index.activeProfileIds.filter(id => id !== profileId)
+      await writeIndex(index)
+    })
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Test-only exports
+// ----------------------------------------------------------------------------
+
+export const __test__ = {
+  /** The unlocked primitives, for the control group (read-modify-write without the lock). */
+  readIndex,
+  writeIndex,
+  /** Replaces the rename-retry back-off sleep; returns the previous one. */
+  setSleep(fn: (ms: number) => Promise<void>): (ms: number) => Promise<void> {
+    const previous = sleep
+    sleep = fn
+    return previous
+  },
 }
