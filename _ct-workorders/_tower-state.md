@@ -8,7 +8,7 @@
 >
 > **第五十七 session**（2026-10-05 13:08）：已發佈 **`v0.6.0-pre.2`**（@ `9cb7cd4`）。
 >
-> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。15:43 外部使用者回報 mac 啟動崩潰 → 開 **BUG-116**（high），等 Gary 回報環境資料再派單。15:53 開 **T0467**（PLAN-039 實機驗收自動化：source build + WSL + WSL 內 Docker 當 SSH，無 Agent），per-dispatch `--mode yolo --no-interactive`；15:58 BLOCKED（WSL 無 Docker）→ 使用者授權 Worker 安裝 → Renew #1 重派。16:05 Gary 資料到齊、BUG-116 根因確認 → 派 **T0468**（與 T0467 並行；T0468 禁動 node_modules）。16:14 **T0467 DONE**（`8fab37a`，docs 步驟 1-6 全 PASS）→ **PLAN-039 DONE**；T0467 Worker 為跑 vite 已 `npm ci` 修復本機 node_modules（npm 12.2.0 擋 install scripts，已手補 electron / esbuild / sharp / better-sqlite3；claude-code `install.cjs` 未補）；WSL 新裝 `docker.io` 29.1.3（保留）。16:15 **T0468 DONE**（`78e3bc9`，自有 loader + fail-soft + verify 加深；自 `v0.2.5-pre.1` 起所有 mac 版必崩）→ BUG-116 FIXED（待 mac 實機）。塔台聯合複驗 @ `98ee7fc`：vite ✅、unit **170 files / 2888 passed** / 1 skipped ✅、verify-native-modules ✅、e2e plan039 4 passed / 5 skipped（opt-in）✅。16:18 使用者裁決：**先補 mac CI 檢查再發 pre.3**；開 T0469（opencc 延遲載入）∥ T0470（mac CI 兩 arch whisper.node 檢查）→ T0471（本機 npm 12 install scripts，CLAUDE.md 與 T0470 重疊故排後）。16:21 **T0469 DONE**（`01e6082`，opencc 延遲載入；unit 171 files / 2890 passed）。16:22 **T0470 DONE**（`a8c18f3`，`scripts/verify-packaged-native.js` + pre-release / release mac job 步驟；unit 172 files / 2900 passed；CI 實跑待 pre.3）→ 派 T0471。16:26 **T0471 DONE**（`a48aa95`，claude-code `install.cjs` 補跑 → 內嵌 claude `2.1.289`；`electron-winstaller` 不需要；根 `postinstall` 的 `npm rebuild better-sqlite3` 在 npm 12 下為 no-op；CLAUDE.md 新節）。塔台聯合複驗 @ `a48aa95`：vite ✅、unit **172 files / 2900 passed** ✅、verify-native-modules ✅、verify-helper-bundle ✅。16:39 使用者：T0471 三項建議一併處理後再發 pre.3 → 開 T0472（verify 加 claude stub / better-sqlite3 .node）→ T0473（allowScripts + postinstall ABI，可能 `npm ci`，故串行在後）。git `main` = `origin/main` = `b5a689d`，乾淨。
+> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。15:43 外部使用者回報 mac 啟動崩潰 → 開 **BUG-116**（high），等 Gary 回報環境資料再派單。15:53 開 **T0467**（PLAN-039 實機驗收自動化：source build + WSL + WSL 內 Docker 當 SSH，無 Agent），per-dispatch `--mode yolo --no-interactive`；15:58 BLOCKED（WSL 無 Docker）→ 使用者授權 Worker 安裝 → Renew #1 重派。16:05 Gary 資料到齊、BUG-116 根因確認 → 派 **T0468**（與 T0467 並行；T0468 禁動 node_modules）。16:14 **T0467 DONE**（`8fab37a`，docs 步驟 1-6 全 PASS）→ **PLAN-039 DONE**；T0467 Worker 為跑 vite 已 `npm ci` 修復本機 node_modules（npm 12.2.0 擋 install scripts，已手補 electron / esbuild / sharp / better-sqlite3；claude-code `install.cjs` 未補）；WSL 新裝 `docker.io` 29.1.3（保留）。16:15 **T0468 DONE**（`78e3bc9`，自有 loader + fail-soft + verify 加深；自 `v0.2.5-pre.1` 起所有 mac 版必崩）→ BUG-116 FIXED（待 mac 實機）。塔台聯合複驗 @ `98ee7fc`：vite ✅、unit **170 files / 2888 passed** / 1 skipped ✅、verify-native-modules ✅、e2e plan039 4 passed / 5 skipped（opt-in）✅。16:18 使用者裁決：**先補 mac CI 檢查再發 pre.3**；開 T0469（opencc 延遲載入）∥ T0470（mac CI 兩 arch whisper.node 檢查）→ T0471（本機 npm 12 install scripts，CLAUDE.md 與 T0470 重疊故排後）。16:21 **T0469 DONE**（`01e6082`，opencc 延遲載入；unit 171 files / 2890 passed）。16:22 **T0470 DONE**（`a8c18f3`，`scripts/verify-packaged-native.js` + pre-release / release mac job 步驟；unit 172 files / 2900 passed；CI 實跑待 pre.3）→ 派 T0471。16:26 **T0471 DONE**（`a48aa95`，claude-code `install.cjs` 補跑 → 內嵌 claude `2.1.289`；`electron-winstaller` 不需要；根 `postinstall` 的 `npm rebuild better-sqlite3` 在 npm 12 下為 no-op；CLAUDE.md 新節）。塔台聯合複驗 @ `a48aa95`：vite ✅、unit **172 files / 2900 passed** ✅、verify-native-modules ✅、verify-helper-bundle ✅。16:39 使用者：T0471 三項建議一併處理後再發 pre.3 → 開 T0472（verify 加 claude stub / better-sqlite3 .node）→ T0473（allowScripts + postinstall ABI，可能 `npm ci`，故串行在後）。16:46 **T0472 DONE**（`verify-native-modules` 加 claude stub / better-sqlite3 `.node`；unit 173 files / 2920 passed）→ 派 T0473；T0472 提出 mac x64 dmg 可能內嵌 arm64 原生 binary → 開 **BUG-117** + 研究 **T0474**（下載 pre.2 x64 dmg 靜態檢查）。git `main` = `origin/main` = `b5a689d`，乾淨。
 
 ---
 
@@ -130,12 +130,12 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 3 / Fixed 18 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 4 / Fixed 18 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D135）｜ Learnings → [_learnings.md](_learnings.md)（最大 L146）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（72 entries）
 
 ### 編號起始
-- **T0474** / **BUG-117** / **PLAN-040** / **D136** / **EXP-[TOPIC]-001** / **L147**
+- **T0475** / **BUG-118** / **PLAN-040** / **D136** / **EXP-[TOPIC]-001** / **L147**
 
 ---
 
@@ -150,7 +150,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 | **前一 tag** | `v0.6.0-pre.1`（2026-10-05 05:24，`c92faf7`） |
 | **目前主軸** | 安裝新 build → 本批實機驗收（PLAN-039 + Fixed 17）→ 下一預覽版 |
 | **工單最大編號** | T0466（第五十六 session：T0462-T0466 全 DONE） |
-| **BUG 最大編號** | **BUG-116**（FIXED high，T0468 `78e3bc9`，待 mac 實機）；BUG-115（OPEN low，`release.ps1 -Snapshot`）；BUG-114 OPEN medium；BUG-061 OPEN；096-100 / 105-113 / 086 / 088 / 093 FIXED 待實機 |
+| **BUG 最大編號** | **BUG-117**（OPEN medium，疑似 mac x64 dmg 內嵌 arm64 原生 binary，T0474 研究）；**BUG-116**（FIXED high，T0468 `78e3bc9`，待 mac 實機）；BUG-115（OPEN low，`release.ps1 -Snapshot`）；BUG-114 OPEN medium；BUG-061 OPEN；096-100 / 105-113 / 086 / 088 / 093 FIXED 待實機 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13，T0467 實機驗收自動化）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D135 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
@@ -238,7 +238,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 | WSL server | dev-deploy | `~/.local/bat-server`：tag `t0456`（JS = HEAD `698a157` 等價 + 4 helper `scripts/`）；smoke 13/13；回復 `npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --rollback --yes --tag t0456`；重跑 WSL 精靈會以 release bundle 覆蓋 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用（本 session 用 ct-done 補救 T0436） |
 | 熱區工單 | **T:112 檔 / BUG:39 / PLAN:11** | T 含 4 個報告檔（L132）；`archive_days: 2` 下大量到齡候選，下 session 可 `*archive`（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0473 / BUG-116 / PLAN-039 / D135 / L146** | 下張：T0474 / BUG-117 / PLAN-040 / D136 / L147 |
+| 最大編號 | **T0474 / BUG-117 / PLAN-039 / D135 / L146** | 下張：T0475 / BUG-118 / PLAN-040 / D136 / L147 |
 | unit test | ✅ **2861 passed / 168 files**（塔台聯合複驗 @ `26db914`，主工作區） | |
 | vite build | ✅ | 主工作區 exit 0（@ `26db914`）；`release.ps1` 完整打包 exit 0（@ `0d03fc7`） |
 | e2e | ✅ **12 passed / 8 skipped / 0 failed** | 主工作區全套 ×3；首輪（緊接 unit 後）偶發 1 failed 未重現 |
