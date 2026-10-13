@@ -103,10 +103,17 @@ function isRuntimeUserData(userData: string, runtimeId: string): boolean {
  * Launches the source build with `--runtime=e2e-<name>-<timestamp>` and an isolated env.
  * `name` becomes part of the runtime id, e.g. `plan036-e1` → `e2e-plan036-e1-<ts>`.
  * `opts.env` (T0467): extra variables for the app, see `isolatedEnv`.
+ * `opts.beforeLaunch` (T0480): runs with the runtime id before the app starts, e.g. to
+ * seed a legacy userData directory.
  */
-export async function launchIsolated(name: string, log: Log = defaultLog, opts: { env?: Record<string, string> } = {}): Promise<IsolatedInstance> {
+export async function launchIsolated(
+  name: string,
+  log: Log = defaultLog,
+  opts: { env?: Record<string, string>; beforeLaunch?: (runtimeId: string) => void | Promise<void> } = {},
+): Promise<IsolatedInstance> {
   if (!/^[a-zA-Z0-9._-]+$/.test(name)) throw new Error(`invalid runtime name: ${name}`)
   const runtimeId = `e2e-${name}-${Date.now()}`
+  await opts.beforeLaunch?.(runtimeId)
   const remotePort = await freePort()
   const app = await electron.launch({
     args: [REPO_ROOT, `--runtime=${runtimeId}`],

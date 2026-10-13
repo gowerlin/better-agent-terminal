@@ -1,3 +1,6 @@
+// BUG-119 / T0480: must stay the first import — it fixes userData (setName + runtime +
+// migration + setPath) before any other module body runs. See app-paths-bootstrap.ts.
+import { migrationReport, resolvedUserData, runtimeId } from './app-paths-bootstrap'
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage, crashReporter, Notification } from 'electron'
 import path from 'path'
 import { pathToFileURL } from 'url'
@@ -101,6 +104,7 @@ import {
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { closeAllSshWizardTunnels, registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
+import { describeMigrationReport } from './userdata-migration'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
@@ -154,21 +158,12 @@ app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 // causes Chromium to block the renderer for 4+ seconds on Windows during I/O recovery.
 app.commandLine.appendSwitch('disable-features', 'ServiceWorker')
 
-// Set app name (shown in dock/taskbar instead of "Electron" during dev)
-app.setName('BetterAgentTerminal')
-
-// --runtime=N or BAT_RUNTIME=N: allow multiple independent instances with separate data directories
-// Each runtime gets its own user data path and single-instance lock
-// CLI arg takes precedence over env var; env var works reliably in dev mode (vite-plugin-electron)
-const runtimeArg = process.argv.find(a => a.startsWith('--runtime='))
-const runtimeId = runtimeArg ? runtimeArg.split('=')[1] : (process.env.BAT_RUNTIME || undefined)
+// App name, --runtime=N / BAT_RUNTIME=N and the userData directory are resolved in
+// app-paths-bootstrap (first import). Each runtime gets its own userData and single-instance lock.
 if (runtimeId) {
-  const basePath = app.getPath('userData')
-  const runtimePath = path.join(path.dirname(basePath), `${path.basename(basePath)}-runtime-${runtimeId}`)
-  app.setPath('userData', runtimePath)
-  console.log(`[runtime] BAT_RUNTIME=${runtimeId}, userData=${runtimePath}`)
+  console.log(`[runtime] BAT_RUNTIME=${runtimeId}, userData=${resolvedUserData}`)
 } else {
-  console.log(`[runtime] default instance, userData=${app.getPath('userData')}`)
+  console.log(`[runtime] default instance, userData=${resolvedUserData}`)
 }
 
 // PLAN-036 T0389: claude-runtime-router no longer imports electron — wire the
@@ -1397,6 +1392,12 @@ async function pickFallbackProfileId(excludeProfileId: string): Promise<string |
 app.whenReady().then(async () => {
   const t0 = Date.now()
   logger.init(app.getPath('userData'), readLoggingConfigSync())
+  for (const line of describeMigrationReport(migrationReport)) {
+    const text = `[userdata-migration] ${line.message}`
+    if (line.level === 'error') logger.error(text)
+    else if (line.level === 'warn') logger.warn(text)
+    else logger.log(text)
+  }
   logger.log(`[startup] ═══════════════════════════════════════`)
   logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from IPC reg, +${t0 - _processStart}ms from process`)
   app.setPath('crashDumps', getCrashesDir())
@@ -1406,6 +1407,11 @@ app.whenReady().then(async () => {
     compress: false,
   })
   logger.log(`[startup] crashDumps path: ${app.getPath('crashDumps')}`)
+  // BUG-119: setPath('crashDumps') clears Chromium's path cache — userData must still be
+  // the directory app-paths-bootstrap chose.
+  if (app.getPath('userData') !== resolvedUserData) {
+    logger.error(`[userdata-migration] userData drifted: getPath('userData')=${app.getPath('userData')} expected=${resolvedUserData}`)
+  }
 
   app.on('render-process-gone', (_event, _webContents, details) => {
     logger.error(`[CRASH] render-process-gone reason=${details.reason} exitCode=${details.exitCode}`)

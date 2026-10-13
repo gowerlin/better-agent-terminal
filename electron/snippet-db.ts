@@ -38,12 +38,23 @@ interface SnippetData {
 }
 
 class SnippetDatabase {
-    private readonly dataPath: string
+    private resolvedDataPath: string | null = null
+    private loaded = false
     private data: SnippetData = { snippets: [], nextId: 1 }
 
-    constructor() {
-        const userDataPath = app.getPath('userData')
-        this.dataPath = path.join(userDataPath, 'snippets.json')
+    // BUG-119 / T0480: resolved on first use, never at import time. Reading
+    // userData while main.ts's imports are still being evaluated made Chromium
+    // cache the wrong directory (snippets / logs / crashes ended up split from settings).
+    private get dataPath(): string {
+        if (!this.resolvedDataPath) {
+            this.resolvedDataPath = path.join(app.getPath('userData'), 'snippets.json')
+        }
+        return this.resolvedDataPath
+    }
+
+    private ensureLoaded() {
+        if (this.loaded) return
+        this.loaded = true
         this.load()
     }
 
@@ -81,6 +92,7 @@ class SnippetDatabase {
     }
 
     create(input: CreateSnippetInput): Snippet {
+        this.ensureLoaded()
         const now = Date.now()
         const snippet: Snippet = {
             id: this.data.nextId++,
@@ -101,26 +113,31 @@ class SnippetDatabase {
     }
 
     getById(id: number): Snippet | null {
+        this.ensureLoaded()
         return this.data.snippets.find(s => s.id === id) || null
     }
 
     getAll(): Snippet[] {
+        this.ensureLoaded()
         return [...this.data.snippets].sort((a, b) => b.updatedAt - a.updatedAt)
     }
 
     getFavorites(): Snippet[] {
+        this.ensureLoaded()
         return this.data.snippets
             .filter(s => s.isFavorite)
             .sort((a, b) => b.updatedAt - a.updatedAt)
     }
 
     getByCategory(category: string): Snippet[] {
+        this.ensureLoaded()
         return this.data.snippets
             .filter(s => s.category === category)
             .sort((a, b) => b.updatedAt - a.updatedAt)
     }
 
     search(query: string): Snippet[] {
+        this.ensureLoaded()
         const term = query.toLowerCase()
         return this.data.snippets
             .filter(s =>
@@ -132,6 +149,7 @@ class SnippetDatabase {
     }
 
     update(id: number, updates: Partial<CreateSnippetInput>): Snippet | null {
+        this.ensureLoaded()
         const index = this.data.snippets.findIndex(s => s.id === id)
         if (index === -1) return null
 
@@ -154,6 +172,7 @@ class SnippetDatabase {
     }
 
     delete(id: number): boolean {
+        this.ensureLoaded()
         const index = this.data.snippets.findIndex(s => s.id === id)
         if (index === -1) return false
         this.data.snippets.splice(index, 1)
@@ -162,18 +181,21 @@ class SnippetDatabase {
     }
 
     toggleFavorite(id: number): Snippet | null {
+        this.ensureLoaded()
         const snippet = this.getById(id)
         if (!snippet) return null
         return this.update(id, { isFavorite: !snippet.isFavorite })
     }
 
     getByWorkspace(workspaceId?: string): Snippet[] {
+        this.ensureLoaded()
         return this.data.snippets
             .filter(s => !s.workspaceId || s.workspaceId === workspaceId)
             .sort((a, b) => b.updatedAt - a.updatedAt)
     }
 
     getCategories(): string[] {
+        this.ensureLoaded()
         const categories = new Set<string>()
         for (const s of this.data.snippets) {
             if (s.category) categories.add(s.category)
