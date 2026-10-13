@@ -1361,6 +1361,22 @@
 
 ---
 
+### D138 2026-10-13 — BUG-119 userData 統一：採 T0479 推薦 (a)+(c)+(b)，統一到 `BetterAgentTerminal[-runtime-<N>]/`，拆 A / B / C 三張
+
+- **背景**：T0479 研究完成。`snippet-db` import 期 `getPath('userData')` 把小寫路徑寫進 PathService 快取，`Local State`（safeStorage 金鑰）/ lock / Logs / Crashes / `message-archives` / mirror `bat-scripts.log` 落小寫，設定與 sessionData 落大寫；runtime 實例整個在 `better-agent-terminal-runtime-N`。衍生：啟動時日誌設定被忽略。🔴 統一時若未在 ready 前複製 `Local State`，`server-token.json` 解不開 → 遠端全部重配（probe 實證）
+- **決定**（使用者 22:20 裁決先研究再修；細節塔台依 breakpoint C 決定）：
+  - 統一到大寫（設定 / whisper 模型 / sessionData 已在此，反向需搬 GB 級資料）
+  - **T0480（A，P1）**：`app-paths-bootstrap.ts` 為 `main.ts` 第一個 import：`setName` → runtime → ready 前同步 migration（`Local State` 缺才複製、snippets 複製 / 合併、`message-archives` 單檔 rename、runtime 目錄整個改名、marker 只跑一次、一律複製不刪舊、失敗不阻擋）→ 顯式 `setPath('userData')`；`snippetDb` lazy；whenReady 自檢；單元 + 產物順序 + e2e
+  - **T0481（B，P2，與 A 並行）**：本機 PTY 注入 userData env，helper 以 env 為準
+  - **T0482（C，文件）**：A / B 完成後
+  - runtime 實例 snippets 改為各自一份（不從預設實例複製）
+- **不採用**：單獨 (b)（日後任一 import 期 getPath 即靜默回歸）；單獨 (c)（setPath 仍晚於 import 期取值）；統一到小寫；搬走 / 刪除舊目錄（降版不安全）
+- **另案**：T0479 選配 D（提早 logger.init / early uncaughtException，BUG-116 可診斷性）；macOS PATH 修正實際晚於 import（範圍外發現 4）
+- **殘餘風險**：mac Keychain / Linux libsecret 與 `Local State` 關係未驗證，需 mac 實機確認升版後 server-token 不變
+- **相關**：BUG-119 / T0478 / T0479 / T0480 / T0481 / T0482
+
+---
+
 ### D137 2026-10-13 — fork 的 release.yml 下游發佈（Homebrew tap / Chocolatey）改為 opt-in、預設關閉；README 移除指向上游套件的安裝方式；`DESKTOP_PACKAGE_HOSTS` 移除 `darwin-x64`
 
 - **背景**：T0475 發現 `release.yml` 正式版 tag 會 `repository-dispatch` 到 upstream 的 `tonyq-org/homebrew-tap`（本 fork 的 v0.x 版號送進上游 tap）；塔台複查另見 `choco` job 的日期 gate（2026-04-10）已過期，正式版會 `choco push` package id `better-agent-terminal`（chocolatey.org 上 owner 為 tonyq），installer 檔名規則亦與本 fork 不符。README「快速開始」方式一 / 二指向上游 tap 與上游 choco 套件，安裝到的是上游版本線。D136 後 Intel Mac 不再是打包 host
