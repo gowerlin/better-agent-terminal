@@ -3,7 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-061
 title: "`src/components/CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing）"
-status: FIXED
+status: CLOSED
+updated_at: "2026-10-14T03:45:25+0800"
+closed_at: "2026-10-14T03:45:25+0800"
 severity: low
 created_at: "2026-04-26T14:10:00+08:00"
 ---
@@ -18,7 +20,7 @@ created_at: "2026-04-26T14:10:00+08:00"
 | 嚴重度 | 🟢 Low |
 | 可重現 | 100%（main + worktree 皆中） |
 | Workaround | 無需 — vite build 不依賴 tsc strict，runtime 不受影響 |
-| 狀態 | ✅ FIXED（T0486 `d7e78c0`，tsc 36 → 0；D139） |
+| 狀態 | 🚫 CLOSED（2026-10-14T03:45:25+0800；修復 T0486 `d7e78c0`） |
 | 建立時間 | 2026-04-26 14:10 (UTC+8) |
 | 報告者 | T0282 Worker AC8 驗收觀察（塔台補開） |
 | 影響範圍 | dev-time tsc 顯示髒、PR 過程 type-check gate（如未來開啟） |
@@ -62,3 +64,7 @@ T0282 Worker 跑 `npx tsc --noEmit -p tsconfig.json` 卡 AC8（自願 PARTIAL）
 
 - `npx tsc --noEmit -p .` 36 → 0（`CodexAgentPanel.tsx` 29 + 其他 7）；`src/types/electron.d.ts` 補齊 preload 既有 API 型別，無死呼叫；行為不變
 - 新增 `npm run typecheck` / `typecheck:electron`（electron 基線 77 → T0496 清零）；CI gate → T0495
+
+## 結案
+
+- 2026-10-14T03:45:25+0800 使用者同意結案。證據：CI `typecheck` job（`pre-release.yml`，T0495 / T0496）為發版 gate，`v0.6.0-pre.6`（run `38450958394`）通過；塔台 2026-10-14 03:40 聯合複驗 @ `90b35ee` `npm run typecheck` = 0、`typecheck:electron` = 0
