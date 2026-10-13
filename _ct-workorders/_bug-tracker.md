@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T02:37:43+0800"
+generated_at: "2026-10-14T02:48:41+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 47
 breakdown:
   OPEN: 0
   FIXING: 3
-  FIXED: 24
+  FIXED: 22
   VERIFY: 0
-  CLOSED: 20
+  CLOSED: 22
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 02:37 (UTC+8) — 第五十九 session：T0510 自動化實機驗收發現 SSH wizard 安裝 / 啟動兩個缺陷 → 新開 BUG-120 / BUG-121（high，FIXING，T0511）；BUG-122（low，Profile 對話框左欄空白，T0512）
+> 最後同步：2026-10-14 02:48 (UTC+8) — 第五十九 session：BUG-114 / BUG-119 CLOSED（pre.5 實機驗收）；BUG-120 / 121（T0511）、BUG-122（T0512）FIXING
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 3 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 47**
+- 🔴 Open: 0 | ⏳ Fixing: 3 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 22 | ⛔ Won't Fix: 0 | **Total: 47**
 
 ## 🔴 Open / 處理中
 
@@ -46,9 +46,7 @@ breakdown:
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（T0488 修：baseline 取基底版號） | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
-| BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號（T0490 根因 / T0497 修：bat-terminal 以 frame id 比對回應；裝 pre.5 後生效） | 🟡 medium | 2026-10-05 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only；T0486 清零 36 → 0） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
-| BUG-119 | userData 分裂：`snippet-db` import 時取 userData（早於 `setName`）→ 日誌 / Crashes / snippets 在 `better-agent-terminal/`、設定在 `BetterAgentTerminal/`；runtime 實例共用 snippets | 🟡 medium | 2026-10-13 | [BUG-119](BUG-119-userdata-split-logs-snippets-vs-settings.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
 | BUG-117 | mac x64 dmg 內嵌 arm64 原生 binary（已證實：claude / codex / node-pty / whisper 等）→ Intel Mac 內嵌 claude、codex、語音不可用、PTY 降級 | 🔴 high | 2026-10-13 | [BUG-117](BUG-117-mac-x64-dmg-ships-arm64-native-binaries.md) |
 | BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
@@ -80,6 +78,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-119 | userData 分裂：`snippet-db` import 時取 userData（早於 `setName`）→ 日誌 / Crashes / snippets 在 `better-agent-terminal/`、設定在 `BetterAgentTerminal/`；runtime 實例共用 snippets | 🟡 medium | 2026-10-14 | [BUG-119](BUG-119-userdata-split-logs-snippets-vs-settings.md) |
+| BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號（T0490 根因 / T0497 修：bat-terminal 以 frame id 比對回應；裝 pre.5 後生效） | 🟡 medium | 2026-10-14 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
 | BUG-104 | remote-tools 的 codex 安裝食譜卡在 installer 的「Start Codex now? [y/N]」互動提示 | 🟡 medium | 2026-10-05 | [BUG-104](BUG-104-codex-install-recipe-blocks-on-start-prompt.md) |
 | BUG-103 | RemoteServer auth metadata `serverEnv` 寫死 `native`，WSL headless 也回 native 且缺 `wslDistro` / `serverHome` | 🟢 low | 2026-10-05 | [BUG-103](BUG-103-remote-server-auth-meta-server-env-hardcoded-native.md) |
 | BUG-102 | PtyManager 強制 `LANG` / `LC_ALL=en_US.UTF-8`，WSL Ubuntu 無此 locale → 遠端終端開頭印 setlocale 警告並退回 C locale | 🟡 medium | 2026-10-05 | [BUG-102](BUG-102-pty-forces-en-us-locale-missing-on-wsl.md) |

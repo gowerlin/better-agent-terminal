@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-114
 title: "bat-terminal.mjs 派工回報 terminal-created result=ok、exit 0，但新分頁的 agent 未執行預載的 /ct-exec（工單維持 PENDING）；或 Worker 中途靜默停住——塔台無「Worker 已啟動」訊號"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: intermittent
 created_at: "2026-10-05T11:32:35+08:00"
-updated_at: "2026-10-13T23:31:43+08:00"
+updated_at: "2026-10-14T02:48:41+0800"
+closed_at: "2026-10-14T02:48:41+0800"
 fixed_at: "2026-10-13T23:31:43+08:00"
 impact:
   - auto-session
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（YOLO 鏈式派發會無聲卡住；第五十五 session 約 46 次派發中 3 次） |
 | 可重現 | 間歇（T0490：派發當下有任一 PTY 輸出廣播搶先抵達即觸發；2026-09-25 起 471 次中 8 次遺失） |
-| **狀態** | ✅ FIXED（T0497，安裝 v0.6.0-pre.5 後生效，待實機驗收） |
+| **狀態** | 🚫 CLOSED（pre.5 實機驗收通過，2026-10-14） |
 | 回報者 | 塔台（第五十五 session 觀察） |
 
 ## 現象（第五十五 session 證據）
@@ -70,3 +71,9 @@ links:
 ## 不在本修復範圍
 
 - **T0436 型（Worker 寫完回報、停在 commit 前且不通知）屬不同根因**：推測為共用檔 commit 範圍矛盾 / 權限提示讓 Worker 停住，而 ct-exec 中途停住時不會通知塔台。屬 skill 層（`~/.claude/skills/ct-exec`）另案，見 T0490 第 5 節、第 6 節 F
+
+## 驗收結案（2026-10-14 02:48，第五十九 session）
+
+- T0510 A5：隔離實例以**安裝版** pre.5 helper 派發 22 次（10 單發 + 6 組成對），全部 exit 0、`responseType: invoke-result`、helper 略過 26 個搶先到達的廣播 frame，實例 22 筆 `remote-server terminal-created result:true`，0 遺失
+- 真環境：第五十九 session 塔台派發 T0510 / T0511 / T0512 皆 `invoke-result` 且伺服器端有對應 `terminal-created`（T0510 那次 `ignoredFrames: 2`）
+- 使用者裁決結案。T0436 型（ct-exec 中途停住不通知）屬 skill 層另案，不在本 BUG

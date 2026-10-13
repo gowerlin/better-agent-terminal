@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-119
 title: "userData 分裂：snippet-db 在 import 時取 getPath('userData')（早於 app.setName），日誌 / Crashes / snippets.json 落在 better-agent-terminal/，設定落在 BetterAgentTerminal/；runtime 實例共用 snippets、helper 找錯 runtime 目錄"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-13T22:19:21+08:00"
-updated_at: "2026-10-13T22:49:21+08:00"
+updated_at: "2026-10-14T02:48:41+0800"
+closed_at: "2026-10-14T02:48:41+0800"
 impact:
   - data-location
   - snippets
@@ -26,7 +27,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（使用者找不到日誌 / 備份不完整；runtime 實例 snippets 互相干擾；改動牽涉既有資料搬移） |
 | 可重現 | 必現（Windows 本機實證；mac / Linux 依 Electron PathService 語意推導） |
-| **狀態** | ✅ FIXED（T0480 / T0481 / T0482，D138；待 pre.4 實機：Windows server-token 不變、mac / Linux Keychain） |
+| **狀態** | 🚫 CLOSED（Windows 實機驗收通過，2026-10-14；mac / Linux Keychain 殘餘風險併入 Gary mac 驗收清單） |
 | 回報者 | 塔台（T0478 Worker 查證時發現） |
 
 ## 證據（T0478 回報區）
@@ -64,3 +65,10 @@ links:
 - T0480 DONE（`95739d0`）：bootstrap + ready 前 migration + 顯式 setPath + snippetDb lazy；e2e 2/2
 - T0482 DONE（`14f06e3`）：README / CLAUDE.md / docs/plan-027 改回單一目錄 + 升版搬移 / 降版說明
 - → **FIXED**。待 pre.4 實機：Windows 升版後 server-token 不變、新 Logs 位置、舊目錄不變、關日誌重啟有效；mac / Linux Keychain / libsecret 殘餘風險。pre.4 release notes 須寫：userData 統一與搬移、runtime 實例 snippets 改各自一份、不要同時執行新舊版
+
+## 驗收結案（2026-10-14 02:48，第五十九 session）
+
+- T0510 A3 / A4：runtime 實例搬移、日誌等級重啟後有效、真環境 `[userdata-migration] Local State: copied` 等 7 行、兩目錄 `Local State` 位元相同、舊目錄 0 個 entry 晚於 marker
+- 使用者確認：升到 pre.5 後既有遠端 client **不必重新配對**（server-token 解密沿用，T0480 回報區人工驗收第 1 點）
+- 未涵蓋：預設實例的 snippets 合併 / message-archives 移動（本機皆 `no-legacy`）；mac safeStorage（Keychain）/ Linux libsecret 殘餘風險 → 列入 Gary mac 驗收清單，如有問題另開新 BUG
+- 使用者裁決結案

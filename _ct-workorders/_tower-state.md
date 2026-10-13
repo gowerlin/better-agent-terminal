@@ -101,8 +101,8 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 ### 待辦（依優先序）
 
 0. 🔴 **T0511**（BUG-120 / 121，SSH wizard 安裝 / 啟動；2026-10-14 02:37 派發）→ 完成後併入 pre.6 批次；**T0512**（BUG-122，Profile 對話框版面，與 T0511 並行）
-1. 🟡 **pre.5 實機驗收（Windows）**：T0510 PARTIAL（`8994fff`）——A1 Custom CLI / A2 detached / A3 BUG-119 runtime 路徑 / A4 BUG-119 真環境（間接證據）/ A5 BUG-114 22 次 0 遺失 全 PASS；A6 SSH stock install FAIL → BUG-120 / 121。仍需真人：BUG-119 升版後 server-token 不變 + 新 Logs 目錄；BUG-114 派單 Worker 確實啟動；Custom CLI Agents 新增後重啟仍在（T0496）；detached rename → 關窗 → 重啟仍在（T0504）；SSH alias（無 User、含 ProxyJump）精靈 6 項（T0505 / T0506）；其餘 Fixed BUG（拖放 / 附件 / 遠端視窗 fail-closed / Docker / 精靈）
-2. 🟡 **mac 實機（Gary）**：BUG-116 / 117 / 118 + Keychain（arm64 dmg）
+1. 🟡 **pre.5 實機驗收（Windows）**：T0510 PARTIAL（`8994fff`）——A1 Custom CLI / A2 detached / A3 BUG-119 runtime 路徑 / A4 BUG-119 真環境（間接證據）/ A5 BUG-114 22 次 0 遺失 全 PASS（BUG-114 / BUG-119 已 CLOSED，使用者確認遠端 client 不必重新配對）；A6 SSH stock install FAIL → BUG-120 / 121。仍需真人：BUG-119 升版後 server-token 不變 + 新 Logs 目錄；BUG-114 派單 Worker 確實啟動；Custom CLI Agents 新增後重啟仍在（T0496）；detached rename → 關窗 → 重啟仍在（T0504）；SSH alias（無 User、含 ProxyJump）精靈 6 項（T0505 / T0506）；其餘 Fixed BUG（拖放 / 附件 / 遠端視窗 fail-closed / Docker / 精靈）
+2. 🟡 **mac 實機（Gary）**：BUG-116 / 117 / 118 + BUG-119 殘餘風險（升版後 server-token 不變 = Keychain，arm64 dmg）
 3. 🟢 backlog：`*archive` 到齡候選（先 grep 程式碼引用，L133）、Codex 面板 Cache History 改用 `cache-history.ts`、server-bundle `ubuntu-22.04` 2027-04-17 停用（2027-03 前決定）、Haiku 5.5 CLI 版本門檻、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2、Vite `hashbangRE` 上游回報
 4. 🟢 L130 D094 mac 280 MB 門檻復議；舊單 T0153（PARTIAL）/ T0360（`FIXED` 非標準狀態）待清理
 
@@ -113,7 +113,7 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 3 / Fixed 24 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 3 / Fixed 22 / Closed 22）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L147）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（74 entries）
 
@@ -133,7 +133,7 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 | **前一 tag** | `v0.6.0-pre.4`（2026-10-13 23:04，`da787a7`） |
 | **目前主軸** | pre.5 實機驗收（Windows 本機 + Gary mac）→ 依結果 CLOSE Fixed 24 張 |
 | **工單最大編號** | T0512（T0510 PARTIAL；T0511 SSH wizard ∥ T0512 Profile 版面） |
-| **BUG 最大編號** | **BUG-122**；Open 0 / Fixing 3（120、121 → T0511；122 → T0512）/ Fixed 24（待實機）/ Closed 20 |
+| **BUG 最大編號** | **BUG-122**；Open 0 / Fixing 3（120、121 → T0511；122 → T0512）/ Fixed 22（待實機）/ Closed 22（114、119 於 10-14 結案） |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
