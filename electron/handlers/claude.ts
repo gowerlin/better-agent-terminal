@@ -61,8 +61,9 @@ export function parseClaudeAuthStatus(stdout: string | undefined): ClaudeAuthSta
 /**
  * `description:` from a leading YAML frontmatter block (`lines` = file split on
  * '\n'), or '' when there is no frontmatter or no description in it. One pair
- * of surrounding double quotes is dropped. Shared by `claude:scan-skills`
- * (commands + skills) and `claude:scan-star-commands` (BUG-125 / T0518).
+ * of surrounding double quotes is dropped. Used by `parseCommandDescription`,
+ * which `claude:scan-skills` (commands + skills) and `claude:scan-star-commands`
+ * share (BUG-125 / T0518, BUG-126 / T0519).
  */
 export function frontmatterDescription(lines: string[]): string {
   if (lines[0]?.trim() !== '---') return ''
@@ -75,10 +76,10 @@ export function frontmatterDescription(lines: string[]): string {
 }
 
 /**
- * Description for a `.claude/commands/*.md` file (BUG-125 / T0518): frontmatter
- * `description:` when present, otherwise the first non-empty line after the
- * frontmatter (or of the file when there is none) without a leading `#`.
- * Frontmatter that is never closed yields ''.
+ * Description for a `.claude/commands/*.md` file (BUG-125 / T0518) or a skill's
+ * `SKILL.md` (BUG-126 / T0519): frontmatter `description:` when present,
+ * otherwise the first non-empty line after the frontmatter (or of the file when
+ * there is none) without a leading `#`. Frontmatter that is never closed yields ''.
  */
 export function parseCommandDescription(content: string): string {
   const lines = content.split('\n')
@@ -359,22 +360,7 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
           seen.add(name)
           try {
             const content = fs.readFileSync(skillFile, 'utf-8')
-            // Extract description from YAML frontmatter or first heading
-            const lines = content.split('\n')
-            const hasFrontmatter = lines[0]?.trim() === '---'
-            let description = frontmatterDescription(lines)
-            if (!description) {
-              // Fallback: first non-empty, non-frontmatter line
-              let inFrontmatter = hasFrontmatter
-              for (const line of lines) {
-                const trimmed = line.trim()
-                if (inFrontmatter) { if (trimmed === '---' && line !== lines[0]) inFrontmatter = false; continue }
-                if (!trimmed) continue
-                description = trimmed.replace(/^#\s*/, '').trim()
-                break
-              }
-            }
-            results.push({ name, description, scope })
+            results.push({ name, description: parseCommandDescription(content), scope })
           } catch {
             results.push({ name, description: '', scope })
           }
@@ -417,20 +403,7 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
           seen.add(dirName)
           try {
             const content = fs.readFileSync(skillFile, 'utf-8')
-            const lines = content.split('\n')
-            const hasFrontmatter = lines[0]?.trim() === '---'
-            let description = frontmatterDescription(lines)
-            if (!description) {
-              let inFrontmatter = hasFrontmatter
-              for (const line of lines) {
-                const trimmed = line.trim()
-                if (inFrontmatter) { if (trimmed === '---' && line !== lines[0]) inFrontmatter = false; continue }
-                if (!trimmed) continue
-                description = trimmed.replace(/^#\s*/, '').trim()
-                break
-              }
-            }
-            results.push({ name: shortName, description, prefix })
+            results.push({ name: shortName, description: parseCommandDescription(content), prefix })
           } catch {
             results.push({ name: shortName, description: '', prefix })
           }

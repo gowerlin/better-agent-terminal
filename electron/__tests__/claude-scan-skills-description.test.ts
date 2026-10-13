@@ -3,6 +3,10 @@
  * from the first non-empty line, so a command with YAML frontmatter showed "---".
  * Commands now use frontmatter `description:` like skills; skills and star commands
  * share the same frontmatter parser and must keep their previous results.
+ *
+ * BUG-126 (T0519): skills and star commands without a frontmatter `description:`
+ * never left the frontmatter in their fallback (the closing `---` equals
+ * `lines[0]`), so they showed ''. They now use `parseCommandDescription` too.
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -102,34 +106,39 @@ describe('claude:scan-skills / claude:scan-star-commands', () => {
     ]))
   })
 
-  it('keeps skill descriptions unchanged', async () => {
+  it('reads skill descriptions (BUG-126 fallback)', async () => {
     const skills = path.join(cwd, '.claude', 'skills')
     write(path.join(skills, 'quoted', 'SKILL.md'), '---\nname: quoted\ndescription: "Quoted skill"\n---\n# Heading\n')
     write(path.join(skills, 'crlf', 'SKILL.md'), '---\r\nname: crlf\r\ndescription: CRLF skill\r\n---\r\n')
     write(path.join(skills, 'heading', 'SKILL.md'), '\n# Heading skill\n')
-    // Pre-T0518 behaviour kept as-is: the fallback never leaves the frontmatter, so ''.
     write(path.join(skills, 'nodesc', 'SKILL.md'), '---\nname: nodesc\n---\n# After frontmatter\n')
+    write(path.join(skills, 'nodesc-crlf', 'SKILL.md'), '---\r\nname: nodesc-crlf\r\n---\r\n\r\nCRLF body line\r\n')
+    write(path.join(skills, 'unclosed', 'SKILL.md'), '---\nname: unclosed\n# Never closed\n')
 
     const result = await handlersFor(home).get('claude:scan-skills')!({}, cwd)
     expect(result).toEqual(expect.arrayContaining([
       { name: 'quoted', description: 'Quoted skill', scope: 'project' },
       { name: 'crlf', description: 'CRLF skill', scope: 'project' },
       { name: 'heading', description: 'Heading skill', scope: 'project' },
-      { name: 'nodesc', description: '', scope: 'project' },
+      { name: 'nodesc', description: 'After frontmatter', scope: 'project' },
+      { name: 'nodesc-crlf', description: 'CRLF body line', scope: 'project' },
+      { name: 'unclosed', description: '', scope: 'project' },
     ]))
   })
 
-  it('keeps star command descriptions unchanged', async () => {
+  it('reads star command descriptions (BUG-126 fallback)', async () => {
     const skills = path.join(home, '.claude', 'skills')
     write(path.join(skills, 'ct-exec', 'SKILL.md'), '---\nname: ct-exec\ndescription: "Execute a work order"\n---\n')
     write(path.join(skills, 'gsd-do', 'SKILL.md'), '# Do the thing\n')
+    write(path.join(skills, 'ct-help', 'SKILL.md'), '---\nname: ct-help\n---\n\n# Help for the tower\n')
     write(path.join(skills, 'other', 'SKILL.md'), '---\ndescription: ignored\n---\n')
 
     const result = await handlersFor(home).get('claude:scan-star-commands')!({})
-    expect(result).toHaveLength(2)
+    expect(result).toHaveLength(3)
     expect(result).toEqual(expect.arrayContaining([
       { name: 'do', description: 'Do the thing', prefix: 'gsd' },
       { name: 'exec', description: 'Execute a work order', prefix: 'ct' },
+      { name: 'help', description: 'Help for the tower', prefix: 'ct' },
     ]))
   })
 })
