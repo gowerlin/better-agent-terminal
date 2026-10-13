@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0480
 title: "BUG-119 修復 A：app-paths bootstrap（setName + runtime + ready 前同步搬移 + 顯式 setPath userData）+ snippetDb lazy + 自檢 + 單元 / 順序 / e2e 測試"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-119
 priority: P1
 sizing: M
 created_at: "2026-10-13T22:32:56+08:00"
 started_at: "2026-10-13T22:34:45+08:00"
-updated_at: "2026-10-13T22:34:45+08:00"
-completed_at: null
+updated_at: "2026-10-13T22:44:36+08:00"
+completed_at: "2026-10-13T22:44:36+08:00"
 target_version: v0.6.0-pre.4
 depends_on:
   - T0479
@@ -303,4 +303,4 @@ exit 0
 
 ### Commit
 
-依工單 commit 本單檔案與改動。只精準 stage 本單相關檔案，不含其他檔案；未 push。commit hash 見 `git log --grep T0480`。
+依工單 commit 本單檔案與改動。只精準 stage 本單相關檔案，不含其他檔案；未 push。commit `95739d0`（程式與回報）；狀態收尾另一個 commit。
