@@ -226,3 +226,10 @@ T0510 以自動化實機驗收發現：pre.5 的 SSH wizard 在乾淨 Linux 目�
 ### Commit
 
 - 本單改動檔精準 stage（不含 T0512），不 push；hash 見 `git log`（本回報寫於 commit 前）
+
+## 塔台裁決（2026-10-14 02:56，第五十九 session）
+
+- 接受 DONE：commit `3df6218` 13 檔與回報一致；偏差（`electron/__tests__/ssh-start-server.test.ts` 同步、enable 改 `restart` / launchd `unload`+`load`）合理，採納
+- 塔台聯合複驗 @ `3df6218`（含 T0512）：`npx vite build` 0、`typecheck` 0、`typecheck:electron` 0、`verify-native-modules` 0、`verify:helpers` 0、unit **206 files / 3474 passed** / 1 skipped、e2e `smoke` / `t0512-profile-panel-layout` / `detached-flush-on-close` / `bug119-userdata-unification` **6 passed**
+- release notes 要點：SSH wizard 自 `v0.4.1` 起在 Linux（推定含 macOS）目標從未能完成，pre.6 修正；pre.5 留下 `staging/` 的主機重跑 wizard 即自動修復
+- 仍需真人：macOS SSH 目標、真實 SSH 主機一次

@@ -100,7 +100,7 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 
 ### 待辦（依優先序）
 
-0. 🔴 **T0511**（BUG-120 / 121，SSH wizard 安裝 / 啟動；2026-10-14 02:37 派發）→ 完成後併入 pre.6 批次；**T0512 DONE**（`277b369`，BUG-122 FIXED，Profile 對話框 1040px + 卡片全寬 + 工具 grid；wizard 截圖 sha256 不變）
+0. 🟡 **pre.6 待發**：T0510（PARTIAL，驗收工具）+ T0511 DONE（`3df6218`，BUG-120 / 121：SSH wizard 自 v0.4.1 起在 Linux 目標從未能完成）+ T0512 DONE（`277b369`，BUG-122）；塔台聯合複驗 2026-10-14 02:56 @ `3df6218` 全綠（vite / typecheck 雙 0 / unit 206 files 3474 passed / verify-native / verify:helpers / e2e 4 spec 6 passed）；待使用者同意 push + 發 `v0.6.0-pre.6`
 1. 🟡 **pre.5 實機驗收（Windows）**：T0510 PARTIAL（`8994fff`）——A1 Custom CLI / A2 detached / A3 BUG-119 runtime 路徑 / A4 BUG-119 真環境（間接證據）/ A5 BUG-114 22 次 0 遺失 全 PASS（BUG-114 / BUG-119 已 CLOSED，使用者確認遠端 client 不必重新配對）；A6 SSH stock install FAIL → BUG-120 / 121。仍需真人：BUG-119 升版後 server-token 不變 + 新 Logs 目錄；BUG-114 派單 Worker 確實啟動；Custom CLI Agents 新增後重啟仍在（T0496）；detached rename → 關窗 → 重啟仍在（T0504）；SSH alias（無 User、含 ProxyJump）精靈 6 項（T0505 / T0506）；其餘 Fixed BUG（拖放 / 附件 / 遠端視窗 fail-closed / Docker / 精靈）
 2. 🟡 **mac 實機（Gary）**：BUG-116 / 117 / 118 + BUG-119 殘餘風險（升版後 server-token 不變 = Keychain，arm64 dmg）
 3. 🟢 backlog：`*archive` 到齡候選（先 grep 程式碼引用，L133）、Codex 面板 Cache History 改用 `cache-history.ts`、server-bundle `ubuntu-22.04` 2027-04-17 停用（2027-03 前決定）、Haiku 5.5 CLI 版本門檻、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2、Vite `hashbangRE` 上游回報
@@ -113,7 +113,7 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 2 / Fixed 23 / Closed 22）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 25 / Closed 22）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L147）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（74 entries）
 
@@ -132,13 +132,13 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 | **最新 release** | `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
 | **前一 tag** | `v0.6.0-pre.4`（2026-10-13 23:04，`da787a7`） |
 | **目前主軸** | pre.5 實機驗收（Windows 本機 + Gary mac）→ 依結果 CLOSE Fixed 24 張 |
-| **工單最大編號** | T0512（T0510 PARTIAL；T0511 SSH wizard ∥ T0512 Profile 版面） |
-| **BUG 最大編號** | **BUG-122**；Open 0 / Fixing 2（120、121 → T0511）/ Fixed 23（122 + 待實機 22）/ Closed 22（114、119 於 10-14 結案） |
+| **工單最大編號** | T0512（T0510 PARTIAL；T0511 / T0512 DONE） |
+| **BUG 最大編號** | **BUG-122**；Open 0 / Fixing 0 / Fixed 25（120-122 待 pre.6 + 待實機 22）/ Closed 22 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **3455 passed / 204 files** / 1 skipped（塔台聯合複驗 @ `9085cfe`）；e2e 9 spec 14 passed；**typecheck 0 / typecheck:electron 0** |
+| **unit test 基線** | **3474 passed / 206 files** / 1 skipped（塔台聯合複驗 2026-10-14 02:56 @ `3df6218`）；typecheck 0 / typecheck:electron 0 |
 
 ---
 
