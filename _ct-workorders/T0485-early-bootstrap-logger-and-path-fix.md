@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0485
 title: "啟動韌性：bootstrap 階段提早初始化磁碟日誌 + early uncaughtException / unhandledRejection 落地 + macOS PATH 修正移到所有 import 之前"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: D139
 priority: P2
 sizing: M
 created_at: "2026-10-13T23:13:05+08:00"
 started_at: "2026-10-13T23:17:15+08:00"
-updated_at: "2026-10-13T23:17:15+08:00"
-completed_at: null
+updated_at: "2026-10-13T23:41:41+08:00"
+completed_at: "2026-10-13T23:41:41+08:00"
 target_version: v0.6.0-pre.5
 depends_on:
   - "T0480"
@@ -268,7 +268,9 @@ exit 0
 
 ### 8. Commit
 
-只用 `git commit --only` 提交本單的檔案。沒有 push、沒有觸發 workflow、沒有建 tag。commit hash 見下方 Commit 紀錄。
+- `6867d3a` fix: T0485 early disk log + crash capture in bootstrap, macOS PATH fix before all module bodies（`git commit --only`，12 個檔案，只有本單的檔案）
+- 收尾 commit：本工單 status / `completed_at`
+- 沒有 push、沒有觸發 workflow、沒有建 tag
 
 ### 9. 暫存物清理
 
