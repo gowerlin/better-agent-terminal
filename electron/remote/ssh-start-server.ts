@@ -173,8 +173,34 @@ function launchdPlistPath(home: string): { dir: string; file: string } {
   }
 }
 
-function renderSystemdUnit(opts: StartServerOptions): string {
+/**
+ * Port the service listens on (T0511 / BUG-121). Rendered into the unit /
+ * plist and the verify script, so it must be a plain integer.
+ */
+function resolveServerPort(opts: Pick<StartServerOptions, 'serverPort'>): number {
   const port = opts.serverPort ?? DEFAULT_SERVER_PORT
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`serverPort must be an integer in 1-65535 (got ${JSON.stringify(opts.serverPort)})`)
+  }
+  return port
+}
+
+/**
+ * bat-server arguments (T0511 / BUG-121). bat-server reads the port from
+ * `--port` / `BAT_SERVER_PORT` and the bind address only from
+ * `--bind-interface` (scripts/bat-server.mjs); both flags exist since the
+ * first bundle (T0272), so every deployed bundle accepts them. Before T0511
+ * the unit / plist set `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`, which bat-server
+ * never reads (it listened on its 54321 default). Flags also win over any
+ * `BAT_SERVER_PORT` the service manager might pass down.
+ * T0425 (BUG-098, D134): loopback only — BAT reaches it via `ssh -L`.
+ */
+function serverArgs(port: number): string[] {
+  return ['--port', String(port), '--bind-interface', 'localhost']
+}
+
+function renderSystemdUnit(opts: StartServerOptions): string {
+  const port = resolveServerPort(opts)
   // T0297 F-005: reject structural chars in installPath before interpolating.
   // `\n` / `\r` already rejected upstream by escapeSingleQuotesStrict (T0296),
   // but `[ ] =` would still inject INI sections / key-value pairs.
@@ -188,10 +214,7 @@ function renderSystemdUnit(opts: StartServerOptions): string {
     '',
     '[Service]',
     'Type=simple',
-    // T0425 (BUG-098, D134): loopback only — BAT reaches it via `ssh -L`.
-    'Environment=BAT_REMOTE_BIND=localhost',
-    `Environment=BAT_REMOTE_PORT=${port}`,
-    `ExecStart=${safeInstallPath}/bin/bat-server`,
+    `ExecStart=${safeInstallPath}/bin/bat-server ${serverArgs(port).join(' ')}`,
     'Restart=on-failure',
     'RestartSec=5s',
     '',
@@ -202,7 +225,7 @@ function renderSystemdUnit(opts: StartServerOptions): string {
 }
 
 function renderLaunchdPlist(opts: StartServerOptions): string {
-  const port = opts.serverPort ?? DEFAULT_SERVER_PORT
+  const port = resolveServerPort(opts)
   // T0297 F-005: every value interpolated into `<string>...</string>` runs
   // through escapeXml so attacker-controlled chars cannot terminate the
   // element early and inject siblings (e.g. `</string><key>RunAsUser</key>...`).
@@ -210,7 +233,7 @@ function renderLaunchdPlist(opts: StartServerOptions): string {
   // T0379 / BUG-088: launchd hands ProgramArguments to execvp without `~`
   // expansion (launchd.plist(5)), so the path is made absolute first.
   const installPathXml = escapeXml(resolveInstallPath(opts))
-  const portXml = escapeXml(String(port))
+  const argStrings = serverArgs(port).map((arg) => `    <string>${escapeXml(arg)}</string>`)
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
@@ -221,15 +244,8 @@ function renderLaunchdPlist(opts: StartServerOptions): string {
     '  <key>ProgramArguments</key>',
     '  <array>',
     `    <string>${installPathXml}/bin/bat-server</string>`,
+    ...argStrings,
     '  </array>',
-    '  <key>EnvironmentVariables</key>',
-    '  <dict>',
-    // T0425 (BUG-098, D134): loopback only — BAT reaches it via `ssh -L`.
-    '    <key>BAT_REMOTE_BIND</key>',
-    '    <string>localhost</string>',
-    '    <key>BAT_REMOTE_PORT</key>',
-    `    <string>${portXml}</string>`,
-    '  </dict>',
     '  <key>RunAtLoad</key>',
     '  <true/>',
     '  <key>KeepAlive</key>',
@@ -257,6 +273,56 @@ function buildWriteUnitCommand(dir: string, file: string, content: string): stri
     content,
     'EOF',
   ].join('\n')
+}
+
+/** Verify polls once a second (bat-server may still be generating its TLS cert). */
+const VERIFY_ATTEMPTS = 20
+
+/**
+ * Remote verify script (T0511 / BUG-121). Passes only when the service's own
+ * process has a TCP socket listening on `port`:
+ *   - systemd: `is-active` = active, then the unit's MainPID must own a LISTEN
+ *     socket on the port (/proc/net/tcp{,6} inode ↔ /proc/<pid>/fd). Another
+ *     process holding the port does not count.
+ *   - launchd: the job's PID from `launchctl list` must hold the LISTEN
+ *     socket (`lsof -a -p <pid> -iTCP:<port> -sTCP:LISTEN`).
+ * It polls up to VERIFY_ATTEMPTS seconds. Before T0511 the probe fell back to
+ * `pgrep -x bat-server`, which never matches (the process is node; its
+ * name is `MainThread`), and grepped `ss` output for the port without
+ * checking the owner. Runs under `sh -c` so the loop does not depend on the
+ * login shell.
+ */
+function buildVerifyCommand(targetOS: StartServerOptions['targetOS'], port: number): string {
+  const loop = (probe: string, failure: string): string => [
+    'i=0',
+    `while :; do ${probe}; i=$((i+1)); if [ "$i" -ge ${VERIFY_ATTEMPTS} ]; then break; fi; sleep 1; done`,
+    `echo "${failure}" >&2`,
+    'exit 1',
+  ].join('; ')
+  let script: string
+  if (targetOS === 'ssh-linux') {
+    const portHex = port.toString(16).toUpperCase().padStart(4, '0')
+    const probe = [
+      `state=$(systemctl --user is-active ${SERVICE_NAME} 2>/dev/null)`,
+      `pid=$(systemctl --user show -p MainPID ${SERVICE_NAME} 2>/dev/null | cut -d= -f2)`,
+      'if [ "$state" = active ] && [ -n "$pid" ] && [ "$pid" != 0 ]; then'
+        + ` for n in $(awk '$4 == "0A" && $2 ~ /:${portHex}$/ { print $10 }' /proc/net/tcp /proc/net/tcp6 2>/dev/null); do`
+        + ' if ls -l "/proc/$pid/fd" 2>/dev/null | grep -qF "socket:[$n]"; then'
+        + ` echo "${SERVICE_NAME} active (pid $pid), listening on port ${port}"; exit 0;`
+        + ' fi; done; fi',
+    ].join('; ')
+    script = loop(probe, `${SERVICE_NAME}.service is \${state:-unknown} (MainPID \${pid:-?}); no socket of that process listens on port ${port}`)
+  } else {
+    const probe = [
+      `pid=$(launchctl list 2>/dev/null | awk '$3 == "${LAUNCHD_LABEL}" { print $1 }')`,
+      'case "$pid" in ""|-|*[!0-9]*) ;; *)'
+        + ` if lsof -nP -a -p "$pid" -iTCP:${port} -sTCP:LISTEN >/dev/null 2>&1; then`
+        + ` echo "${LAUNCHD_LABEL} running (pid $pid), listening on port ${port}"; exit 0;`
+        + ' fi ;; esac',
+    ].join('; ')
+    script = loop(probe, `${LAUNCHD_LABEL} pid \${pid:--}; no socket of that process listens on port ${port}`)
+  }
+  return `sh -c '${escapeSingleQuotes(script)}'`
 }
 
 function buildSshConnectArgs(opts: StartServerOptions): string[] {
@@ -363,7 +429,7 @@ export async function startServerOnRemote(
 ): Promise<StartServerResult> {
   const spawn = deps.spawn ?? (await import('child_process')).spawn
   const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS
-  const port = opts.serverPort ?? DEFAULT_SERVER_PORT
+  const port = resolveServerPort(opts)
 
   const connectArgs = buildSshConnectArgs(opts)
   const isLinux = opts.targetOS === 'ssh-linux'
@@ -395,9 +461,13 @@ export async function startServerOnRemote(
           ? `loginctl enable-linger '${escapeSingleQuotes(opts.sshUser)}'`
           : 'loginctl enable-linger "$(id -un)"',
         'systemctl --user daemon-reload',
-        `systemctl --user enable --now ${SERVICE_NAME}`,
+        // T0511: restart, not `enable --now` — a service that is already up
+        // (re-run of the wizard) must pick up the new bundle and unit args.
+        `systemctl --user enable ${SERVICE_NAME}`,
+        `systemctl --user restart ${SERVICE_NAME}`,
       ].join(' && ')
-    : `launchctl load -w '${escapedFile}'`
+    // T0511: unload first (ignored when not loaded) so a re-run reloads the plist.
+    : `launchctl unload '${escapedFile}' >/dev/null 2>&1; launchctl load -w '${escapedFile}'`
   const enableExec = await runSsh(spawn, connectArgs, enableCmd, timeoutMs)
   if (!enableExec.ok) {
     const err = summariseFailure('enable-failed', enableExec)
@@ -418,11 +488,9 @@ export async function startServerOnRemote(
 
   // ── Stage 3: verify ──────────────────────────────────────────────────────
   // 'starting' is a UI-only beat between enable success and the verify probe;
-  // the actual `start` happened inside Stage 2's `enable --now` / `load -w`.
+  // the actual `start` happened inside Stage 2's `restart` / `load -w`.
   onProgress('starting')
-  const verifyCmd = isLinux
-    ? `systemctl --user is-active ${SERVICE_NAME} && (ss -tnlp 2>/dev/null | grep ':${port}' || pgrep -x ${SERVICE_NAME})`
-    : `launchctl list | grep ${LAUNCHD_LABEL} && pgrep -x ${SERVICE_NAME}`
+  const verifyCmd = buildVerifyCommand(opts.targetOS, port)
   onProgress('verifying')
   const verifyExec = await runSsh(spawn, connectArgs, verifyCmd, timeoutMs)
   if (!verifyExec.ok) {
@@ -609,6 +677,9 @@ export const __internals = {
   renderSystemdUnit,
   renderLaunchdPlist,
   buildWriteUnitCommand,
+  buildVerifyCommand,
+  resolveServerPort,
+  serverArgs,
   buildSshConnectArgs,
   escapeSingleQuotes,
   escapeXml,

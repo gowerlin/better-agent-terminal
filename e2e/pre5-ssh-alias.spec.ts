@@ -1,41 +1,57 @@
-// T0510 A6 — SSH wizard with ~/.ssh/config aliases (T0505 §7 items 1-3, 5, 6; T0506), on the
-// installed build, against real sshd containers. OPT-IN: skipped unless BAT_E2E_PRE5_SSH=1 and
-// the environment from `node e2e/real-remote/t0510-ssh-alias-env.mjs up` exists. Windows only;
-// the ssh under test is Windows' built-in OpenSSH (PATH-prepended for the isolated instance).
+// T0510 A6 — SSH wizard with ~/.ssh/config aliases (T0505 §7 items 1-3, 5, 6; T0506), against
+// real sshd containers, on the installed build or a source build. OPT-IN: skipped unless
+// BAT_E2E_PRE5_SSH=1 and the environment from `node e2e/real-remote/t0510-ssh-alias-env.mjs up`
+// exists. Windows only; the ssh under test is Windows' built-in OpenSSH (PATH-prepended for the
+// isolated instance).
 //
 //   node e2e/real-remote/t0510-ssh-alias-env.mjs up        # fresh containers every run
 //   $env:BAT_E2E_PRE5_SSH='1'
+//   # installed build (optional; without it the source build in dist-electron runs, `npx vite build` first)
 //   $env:BAT_E2E_EXECUTABLE='C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe'
 //   npx playwright test e2e/pre5-ssh-alias.spec.ts
 //   node e2e/real-remote/t0510-ssh-alias-env.mjs down
+//
+// Server bundle (T0511): a source build has no bat-server-baseline next to its electron binary,
+// so the wizard would download the release tarball for every isolated instance. For a source
+// build the spec serves a local bundle directory (manifest.json + tarballs) over HTTP and points
+// the instance at it with BAT_SERVER_BUNDLE_BASE_URL. Directory: BAT_E2E_PRE5_SSH_BUNDLE_DIR, else
+// the installed BAT's resources\bat-server-baseline. The installed build uses its own baseline.
 //
 // Windows OpenSSH ignores USERPROFILE / HOME for `~`, so the aliases go into the REAL
 // ~/.ssh/config: beforeAll runs `apply-ssh-config` (original copied aside, SHA-256 recorded,
 // one marked block appended), afterAll runs `restore-ssh-config` (hash-checked). See the env
 // script header for the block and the manual restore command.
 //
-// A6-0  stock install on a clean target (alias without Port): the wizard must finish.
+// A6-0  stock install on a clean target (alias without Port): the wizard must finish, the bundle
+//       sits at ~/.local/bat-server/bin (no staging/, BUG-120) and the service's process listens
+//       on 127.0.0.1:9876 (BUG-121).
 // A6-1  alias with HostName + User + IdentityFile, no Port            → bat-t0510-jump
 // A6-2  same with a custom Port                                         → bat-t0510-jump
+//       (T0511: the target first gets a pre-fix `~/.local/bat-server/staging/`; the wizard
+//       must remove it)
 // A6-3  alias through ProxyJump (the target has no route from Windows)  → bat-t0510-target
 // A6-4  alias without User (Windows login ≠ `bat`): verify-ssh-auth fails with
-//       permission-denied, "Edit SSH settings" jumps back, a typed bat@127.0.0.1:<port> succeeds
+//       permission-denied, the mapped "Edit SSH settings" action (T0511) jumps back, a typed
+//       bat@127.0.0.1:<port> succeeds
 // A6-5  restart the instance; every profile above reconnects (the typed one is item 6) through
 //       C:\Windows\System32\OpenSSH\ssh.exe, and a remote shell reports the expected host
 //
-// pre.5 cannot finish A6-0 (see the T0510 report): the uploaded tarball keeps its `staging/`
-// top directory, and the systemd unit passes BAT_REMOTE_PORT while bat-server reads
-// BAT_SERVER_PORT. While A6-0 fails, A6-1..4 prepare each target first (symlinks
-// ~/.local/bat-server/<entry> → staging/<entry>, a unit drop-in with BAT_SERVER_PORT=9876) so the
-// alias handling behind those defects can still be checked. Set BAT_E2E_PRE5_SSH_WORKAROUND=0
-// to skip that preparation (or once A6-0 passes, it is skipped automatically).
+// pre.5 cannot finish A6-0 (T0510 report; BUG-120 / BUG-121, fixed in T0511): the uploaded
+// tarball kept its `staging/` top directory, and the systemd unit passed BAT_REMOTE_PORT while
+// bat-server reads --port / BAT_SERVER_PORT. To check the alias handling on such a build anyway,
+// set BAT_E2E_PRE5_SSH_WORKAROUND=1: A6-1..4 then prepare each target first (symlinks
+// ~/.local/bat-server/<entry> → staging/<entry>, a unit drop-in with BAT_SERVER_PORT=9876). It is
+// off by default since T0511, and the T0511 staging / mapped-action checks are skipped with it.
 
 import { test, expect, type Locator, type Page } from '@playwright/test'
 import { execFile } from 'node:child_process'
 import fs from 'node:fs'
+import http from 'node:http'
+import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import {
+  E2E_EXECUTABLE,
   REPO_ROOT,
   closeIsolated,
   launchIsolated,
@@ -89,6 +105,10 @@ const ADD_MORE = oneOf(any(l => l.profiles.addMore))
 // The ssh-permission-denied mapper entry labels it 'Edit SSH settings'; the generic failure
 // actions call the same jump 'Edit config'. Either one is the way back to configure-ssh-host.
 const EDIT_SSH = oneOf([...any(l => l.wizard.action.editSshSettings), ...any(l => l.wizard.action.editConfig)])
+// T0511: with the fix only the mapper's own label is acceptable.
+const EDIT_SSH_MAPPED = oneOf(any(l => l.wizard.action.editSshSettings))
+const PERMISSION_DENIED_TITLE = any(l => l.wizard.ssh.error.permissionDenied.title)
+const SHOW_DETAILS = oneOf(any(l => l.wizard.action.showDetails))
 const MANUAL_HOST = oneOf(any(l => l.wizard.ssh.manualHost.option))
 const SUBMIT = oneOf(any(l => l.wizard.action.submitText))
 const HINT_USER_AND_PORT = any(l => l.profiles.sshDetails.userAndPortFromConfig)
@@ -129,16 +149,73 @@ async function prepareTarget(container: string): Promise<void> {
   log(`WORKAROUND on ${container} (test-side, not a product change): ~/.local/bat-server → ${out.trim()}; drop-in BAT_SERVER_PORT=9876`)
 }
 
-// A6-0 records its verdict here; a failing test restarts the Playwright worker, so module state
-// does not survive into the next test.
+// A6-0 records its verdict here (evidence only since T0511).
 const STOCK_RESULT = path.join(EVIDENCE_DIR, 'a6-0-stock-result.json')
+/** Opt-in since T0511 (see the header): only for builds with BUG-120 / BUG-121. */
 function workaroundWanted(): boolean {
-  if (process.env.BAT_E2E_PRE5_SSH_WORKAROUND === '0') return false
-  try {
-    return JSON.parse(fs.readFileSync(STOCK_RESULT, 'utf8')).complete !== true
-  } catch {
-    return true
+  return process.env.BAT_E2E_PRE5_SSH_WORKAROUND === '1'
+}
+
+/** T0511 (A2): an install left by a pre-fix wizard keeps the bundle under staging/. */
+async function seedLegacyStaging(container: string): Promise<void> {
+  const out = await dockerExec(container, [
+    'mkdir -p ~/.local/bat-server/staging/bin',
+    'printf "#!/bin/sh\\nexit 1\\n" > ~/.local/bat-server/staging/bin/bat-server',
+    'chmod +x ~/.local/bat-server/staging/bin/bat-server',
+    'ls -A ~/.local/bat-server | tr "\\n" " "',
+  ].join(' && '), 'bat')
+  log(`seeded a pre-fix staging/ on ${container}: ~/.local/bat-server → ${out.trim()}`)
+}
+
+/** BUG-120 / BUG-121 evidence: bundle layout, unit, and who listens on 9876. */
+async function installEvidence(container: string): Promise<string> {
+  return dockerExec(container, [
+    'echo "## ls ~/.local/bat-server"; ls -A /home/bat/.local/bat-server',
+    'echo "## ExecStart"; grep ^ExecStart /home/bat/.config/systemd/user/bat-server.service',
+    `echo "## status"; ${USER_SYSTEMCTL} status bat-server --no-pager -l" 2>&1 | head -12`,
+    'echo "## listening"; ss -tlnp | tail -n +2',
+    `echo "## journal"; journalctl --no-pager -q _UID=$(id -u bat) 2>/dev/null | grep "listening on" | tail -2`,
+  ].join('; '))
+}
+
+// ── server bundle for source builds (T0511, see the header) ─────────────────────
+
+const BUNDLE_DIR = E2E_EXECUTABLE
+  ? ''
+  : process.env.BAT_E2E_PRE5_SSH_BUNDLE_DIR || 'C:\\Program Files\\BetterAgentTerminal\\resources\\bat-server-baseline'
+let bundleServer: http.Server | undefined
+let bundleBaseUrl = ''
+
+/** Serves manifest.json and the tarballs it lists from BUNDLE_DIR on 127.0.0.1. */
+async function startBundleServer(): Promise<void> {
+  if (!BUNDLE_DIR) return
+  const manifestPath = path.join(BUNDLE_DIR, 'manifest.json')
+  if (!fs.existsSync(manifestPath)) {
+    log(`bundle server: no ${manifestPath}; the instance downloads the release bundle instead`)
+    return
   }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { version?: string; tarballs: Record<string, { filename: string }> }
+  const served = new Set(['manifest.json', ...Object.values(manifest.tarballs).map(t => t.filename)])
+  bundleServer = http.createServer((req, res) => {
+    const name = decodeURIComponent((req.url ?? '/').split('?')[0].replace(/^\/+/, ''))
+    const file = path.join(BUNDLE_DIR, name)
+    if (req.method !== 'GET' || !served.has(name) || !fs.existsSync(file)) {
+      res.writeHead(404).end()
+      return
+    }
+    res.writeHead(200, { 'Content-Length': fs.statSync(file).size, 'Content-Type': 'application/octet-stream' })
+    fs.createReadStream(file).pipe(res)
+  })
+  await new Promise<void>(resolve => bundleServer!.listen(0, '127.0.0.1', resolve))
+  bundleBaseUrl = `http://127.0.0.1:${(bundleServer.address() as AddressInfo).port}`
+  log(`bundle server: ${BUNDLE_DIR} (version ${manifest.version}) at ${bundleBaseUrl}`)
+}
+
+async function stopBundleServer(): Promise<void> {
+  if (!bundleServer) return
+  await new Promise<void>(resolve => bundleServer!.close(() => resolve()))
+  bundleServer = undefined
+  bundleBaseUrl = ''
 }
 
 // ── UI helpers ───────────────────────────────────────────────────────────────
@@ -237,7 +314,10 @@ async function wizardForAlias(win: Page, alias: string, container: string, tag: 
 }
 
 function isolatedSshEnv(): Record<string, string> {
-  return { Path: `${WINDOWS_OPENSSH_DIR};${process.env.PATH ?? process.env.Path ?? ''}` }
+  return {
+    Path: `${WINDOWS_OPENSSH_DIR};${process.env.PATH ?? process.env.Path ?? ''}`,
+    ...(bundleBaseUrl ? { BAT_SERVER_BUNDLE_BASE_URL: bundleBaseUrl } : {}),
+  }
 }
 
 async function sshProcesses(needle: string): Promise<string[]> {
@@ -252,6 +332,7 @@ let configApplied = false
 
 test.beforeAll(async () => {
   test.setTimeout(120_000)
+  await startBundleServer()
   log(await envScript('apply-ssh-config'))
   configApplied = true
   // Windows OpenSSH reads the real file: `ssh -G` resolves every alias as written.
@@ -264,6 +345,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (configApplied) log(await envScript('restore-ssh-config'))
   configApplied = false
+  await stopBundleServer()
 })
 
 // ── tests ────────────────────────────────────────────────────────────────────
@@ -281,35 +363,40 @@ test('A6-0 stock wizard install on a clean target starts bat-server', async () =
   }
   let inst: IsolatedInstance | undefined
   let complete = false
+  let evidence = ''
   try {
     inst = await launchIsolated('t0510-a6-0', log, { env: isolatedSshEnv() })
     const { win } = inst
     await openSshWizard(win)
+    const started = Date.now()
     const outcome = await driveWizard(win, pickAlias(direct))
     complete = outcome.result === 'complete'
-    log(`A6-0: wizard ${outcome.result}`)
+    log(`A6-0: wizard ${outcome.result} in ${Date.now() - started} ms`)
     await shot(win, `a6-0-stock-${outcome.result}`)
-    if (!complete) {
-      log(`A6-0 failed step: ${outcome.text.replace(/\s+/g, ' ').slice(0, 500)}`)
-      const evidence = await dockerExec(jump, [
-        'echo "## ls ~/.local/bat-server"; ls -A /home/bat/.local/bat-server',
-        'echo "## unit"; cat /home/bat/.config/systemd/user/bat-server.service',
-        `echo "## status"; ${USER_SYSTEMCTL} status bat-server --no-pager -l" 2>&1 | head -12`,
-        'echo "## listening"; ss -tlnp | tail -n +2',
-      ].join('; '))
-      for (const line of evidence.split(/\r?\n/)) log(`A6-0 ${jump}: ${line}`)
-    }
+    if (!complete) log(`A6-0 failed step: ${outcome.text.replace(/\s+/g, ' ').slice(0, 500)}`)
+    evidence = await installEvidence(jump)
+    for (const line of evidence.split(/\r?\n/)) log(`A6-0 ${jump}: ${line}`)
     await closeWizard(win)
-    // T0505 §7 item 4, second half: cancelling the failed wizard rolls back (T0426), asynchronously.
-    const rolledBack = async () => (await dockerExec(jump, 'ls -A /home/bat/.local/bat-server /home/bat/.config/systemd/user/bat-server.service 2>/dev/null | head -3; true')).trim() === ''
-    await expect.poll(rolledBack, { timeout: 60_000, intervals: [2_000] }).toBe(true).catch(() => log('A6-0: rollback not finished within 60 s'))
-    const after = await dockerExec(jump, 'echo "bundle: $(ls -A /home/bat/.local/bat-server 2>&1 | head -3)"; echo "unit: $(ls /home/bat/.config/systemd/user/bat-server.service 2>&1)"; echo "linger: $(ls /var/lib/systemd/linger)"')
-    log(`A6-0 after closing the wizard (rollback): ${after.replace(/\s+/g, ' ')}`)
+    if (!complete) {
+      // T0505 §7 item 4, second half: cancelling the failed wizard rolls back (T0426), asynchronously.
+      const rolledBack = async () => (await dockerExec(jump, 'ls -A /home/bat/.local/bat-server /home/bat/.config/systemd/user/bat-server.service 2>/dev/null | head -3; true')).trim() === ''
+      await expect.poll(rolledBack, { timeout: 60_000, intervals: [2_000] }).toBe(true).catch(() => log('A6-0: rollback not finished within 60 s'))
+      const after = await dockerExec(jump, 'echo "bundle: $(ls -A /home/bat/.local/bat-server 2>&1 | head -3)"; echo "unit: $(ls /home/bat/.config/systemd/user/bat-server.service 2>&1)"; echo "linger: $(ls /var/lib/systemd/linger)"')
+      log(`A6-0 after closing the wizard (rollback): ${after.replace(/\s+/g, ' ')}`)
+    }
   } finally {
     fs.writeFileSync(STOCK_RESULT, JSON.stringify({ complete, at: new Date().toISOString() }))
     await closeIsolated(inst, log)
   }
   expect(complete, 'the stock SSH wizard install must finish (see the A6-0 evidence above)').toBe(true)
+  // BUG-120: bundle at ~/.local/bat-server/bin, no staging/ level.
+  const listing = evidence.split('## ExecStart')[0]
+  expect(listing).toMatch(/^bin$/m)
+  expect(listing).not.toMatch(/^staging$/m)
+  // BUG-121: --port / --bind-interface on ExecStart, and the server listens on 127.0.0.1:9876.
+  expect(evidence).toMatch(/^ExecStart=\/home\/bat\/\.local\/bat-server\/bin\/bat-server --port 9876 --bind-interface localhost$/m)
+  expect(evidence).toMatch(/LISTEN\s+\S+\s+\S+\s+127\.0\.0\.1:9876\s/)
+  expect(evidence).not.toMatch(/:54321\s/)
 })
 
 test('A6-1..5 aliases (no Port / Port / ProxyJump / no User → typed) then reconnect after a restart', async () => {
@@ -352,7 +439,14 @@ test('A6-1..5 aliases (no Port / Port / ProxyJump / no User → typed) then reco
     await attempt('A6-2 alias: custom Port', async () => {
       const alias = conn!.aliases.port
       const container = conn!.containers.jump.name
+      if (!workaroundWanted()) await seedLegacyStaging(container)
       const profile = await wizardForAlias(inst!.win, alias, container, '2-port')
+      if (!workaroundWanted()) {
+        const listing = await dockerExec(container, 'ls -A ~/.local/bat-server | tr "\\n" " "', 'bat')
+        log(`A6-2 (T0511 A2): ~/.local/bat-server after the wizard → ${listing.trim()}`)
+        expect(listing.split(/\s+/)).not.toContain('staging')
+        expect(listing.split(/\s+/)).toContain('bin')
+      }
       expect(profile).toMatchObject({ targetOS: 'ssh-linux', sshHost: alias, sshUser: '' })
       expect(profile.sshPort ?? null).toBeNull()
       const shown = await sshTarget(inst!.win, profile.name)
@@ -393,10 +487,25 @@ test('A6-1..5 aliases (no Port / Port / ProxyJump / no User → typed) then reco
       log(`A6-4: first outcome ${first.result}: ${failedText.slice(0, 400)}`)
       await shot(win, 'a6-4-permission-denied')
       expect(first.result).toBe('failed')
-      expect(failedText).toMatch(/permission-denied/)
+      if (workaroundWanted()) {
+        expect(failedText).toMatch(/permission-denied/)
+      } else {
+        // T0511 (C): the ssh-permission-denied entry renders (detail hidden by default); the raw
+        // probe error sits behind "Show details".
+        expect(PERMISSION_DENIED_TITLE.some(t => failedText.includes(t))).toBe(true)
+        await win.locator('.bat-wizard-mapped-error').getByRole('button', { name: SHOW_DETAILS }).click()
+        await expect(win.locator('.bat-wizard-mapped-error-raw')).toContainText('permission-denied', { timeout: 10_000 })
+      }
 
-      const edit = win.locator('.bat-stepper-failed-actions').getByRole('button', { name: EDIT_SSH })
-      log(`A6-4: failed-step actions: ${JSON.stringify(await win.locator('.bat-stepper-failed-actions button').allInnerTexts())}; mapped error shown: ${await win.locator('.bat-wizard-mapped-error').count() > 0}`)
+      const actionTexts = await win.locator('.bat-stepper-failed-actions button').allInnerTexts()
+      log(`A6-4: failed-step actions: ${JSON.stringify(actionTexts)}; mapped error shown: ${await win.locator('.bat-wizard-mapped-error').count() > 0}`)
+      // T0511 (C): the ssh-permission-denied entry's own actions, not the generic set.
+      if (!workaroundWanted()) {
+        expect(actionTexts.some(t => EDIT_SSH_MAPPED.test(t.trim()))).toBe(true)
+        expect(await win.locator('.bat-stepper-failed-actions [data-action-kind]').evaluateAll(
+          els => els.map(e => e.getAttribute('data-action-kind')))).toEqual(['edit-config', 'retry', 'cancel'])
+      }
+      const edit = win.locator('.bat-stepper-failed-actions').getByRole('button', { name: workaroundWanted() ? EDIT_SSH : EDIT_SSH_MAPPED })
       await edit.first().click()
       const second = await driveWizard(win, async (prompt) => {
         const manual = prompt.getByRole('button', { name: MANUAL_HOST })

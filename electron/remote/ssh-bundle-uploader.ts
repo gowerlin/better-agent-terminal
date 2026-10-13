@@ -36,6 +36,27 @@ export interface UploaderDeps {
   stat?: StatFn
 }
 
+/**
+ * Remote extract command (T0511 / BUG-120). Release tarballs
+ * (`scripts/build-server-bundle.mjs` `tar -czf <bundle> staging`) have a
+ * single top-level `staging/`; it is stripped so the bundle lands at
+ * `<installPath>/bin/bat-server`, where the systemd unit / launchd plist point
+ * (same as WSL `installBundle` and docker/Dockerfile). An install left by a
+ * pre-fix wizard keeps its files under `<installPath>/staging/`: that directory
+ * is removed first, but only when it holds a bundle launcher
+ * (`staging/bin/bat-server`). The final `test -x` fails the upload loudly if a
+ * tarball with any other layout was extracted.
+ */
+function buildExtractCommand(safePath: string): string {
+  return [
+    `mkdir -p '${safePath}'`,
+    `cd '${safePath}'`,
+    '{ if [ -f staging/bin/bat-server ]; then rm -rf -- staging; fi; }',
+    'tar xz --strip-components=1',
+    `{ test -x bin/bat-server || { echo 'server bundle layout unexpected: bin/bat-server missing after extract' >&2; exit 1; }; }`,
+  ].join(' && ')
+}
+
 function buildSshArgs(opts: UploadOptions): string[] {
   // Single-quote rejection is preserved (test5 contract: installPath with `'`
   // must throw a /forbidden character/i message). escapeSingleQuotesStrict
@@ -44,7 +65,7 @@ function buildSshArgs(opts: UploadOptions): string[] {
     throw new Error(`installPath contains forbidden character: ${opts.installPath}`)
   }
   const safePath = escapeSingleQuotesStrict(opts.installPath, 'installPath')
-  const remoteCommand = `mkdir -p '${safePath}' && cd '${safePath}' && tar xz`
+  const remoteCommand = buildExtractCommand(safePath)
   // user@host validation (F-004) + BatchMode/ConnectTimeout/StrictHostKeyChecking
   // prefix (EC-003) live in buildBaseSshArgs.
   const args = buildBaseSshArgs(opts)
@@ -151,4 +172,5 @@ export async function uploadServerBundle(
 
 export const __internals = {
   buildSshArgs,
+  buildExtractCommand,
 }

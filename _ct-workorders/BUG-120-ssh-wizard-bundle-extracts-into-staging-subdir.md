@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-120
 title: "SSH wizard 上傳 server bundle 時沒有 --strip-components=1，解出 <installPath>/staging/…，systemd unit / launchd plist 的 <installPath>/bin/bat-server 不存在（203/EXEC）"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-10-14T02:36:13+0800"
-updated_at: "2026-10-14T02:36:13+0800"
+updated_at: "2026-10-14T02:52:53+0800"
+fixed_at: "2026-10-14T02:52:53+0800"
 impact:
   - remote-ssh
   - setup-wizard
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（pre.5 的 SSH wizard 在 Linux 目標上無法完成，與 BUG-121 合併擋住整條 SSH 安裝流程） |
 | 可重現 | 必現（T0510 A6-0，乾淨 Debian 12 + systemd 容器） |
-| **狀態** | 🔧 FIXING（T0511） |
+| **狀態** | ✅ FIXED（T0511） |
 | 回報者 | 塔台（T0510 Worker 自動化實機驗收發現） |
 
 ## 證據（T0510 回報區「發現的產品缺陷」1）
@@ -38,3 +39,12 @@ links:
 
 - 預期：bundle 解在 `<installPath>/bin/…`，unit 啟動成功
 - 實際：多一層 `staging/`，unit 203/EXEC
+
+## 修正摘要（T0511）
+
+- `electron/remote/ssh-bundle-uploader.ts` `buildExtractCommand()`：遠端指令改為 `mkdir -p '<p>' && cd '<p>' && { if [ -f staging/bin/bat-server ]; then rm -rf -- staging; fi; } && tar xz --strip-components=1 && { test -x bin/bat-server || { echo '…' >&2; exit 1; }; }`
+  - 與 WSL `installBundle`（`electron/wsl-detect.ts`）、`docker/Dockerfile`、`e2e/real-remote/Dockerfile` 一致：release tarball 頂層恆為 `staging/`（`scripts/build-server-bundle.mjs` 自 T0271 起 `tar -czf <bundle> staging`）
+  - 既有壞安裝：只在 `<installPath>/staging/bin/bat-server` 存在時刪 `<installPath>/staging`（本工具建立的路徑），重跑 wizard 即得正確佈局
+  - 頂層不是 `staging/` 的 tarball：解完 `test -x bin/bat-server` 失敗 → 上傳步驟明確報錯（不靜默寫出不能啟動的 unit）
+- 起源：T0285（`0a89800`，2026-04-26）即無 strip；首個含此 commit 的發佈版 `v0.4.1`
+- 驗證：單元 `electron/remote/__tests__/ssh-bundle-layout-and-port.test.ts`（HEAD 上 red）；e2e `e2e/pre5-ssh-alias.spec.ts` A6-0（`ls ~/.local/bat-server` = `README.md bin electron node_modules package.json scripts`）、A6-2（預置 `staging/` 後重跑 wizard 被清除）

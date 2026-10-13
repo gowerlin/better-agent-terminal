@@ -298,7 +298,8 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     // T0333: regex fallback so the entry still matches when callers
     // construct WizardErrorContext without an explicit errorCode (Shell
     // currently only forwards error.message from the snapshot).
-    patterns: [/permission denied/i],
+    // T0511: the step's own message reads `permission-denied: ...` (hyphen).
+    patterns: [/permission[- ]denied/i],
     messageKey: 'wizard.ssh.error.permissionDenied',
     detailMode: 'hidden-by-default',
     actions: [

@@ -54,19 +54,19 @@ function recordingSpawn(): { commands: string[]; spawn: NonNullable<StarterDeps[
 describe('renderSystemdUnit — absolute paths (T0379 / BUG-088)', () => {
   it('expands ~/ against serverHome; unit contains no ~', () => {
     const unit = renderSystemdUnit(linux)
-    expect(unit).toMatch(/^ExecStart=\/home\/alice\/\.local\/bat-server\/bin\/bat-server$/m)
+    expect(unit).toMatch(/^ExecStart=\/home\/alice\/\.local\/bat-server\/bin\/bat-server --port 51820 --bind-interface localhost$/m)
     expect(unit).not.toContain('~')
     expect(unit).not.toContain('%h')
   })
 
   it('leaves an absolute installPath unchanged', () => {
     const unit = renderSystemdUnit({ ...linux, installPath: '/opt/bat-server' })
-    expect(unit).toMatch(/^ExecStart=\/opt\/bat-server\/bin\/bat-server$/m)
+    expect(unit).toMatch(/^ExecStart=\/opt\/bat-server\/bin\/bat-server --port 51820 --bind-interface localhost$/m)
   })
 
   it('accepts a serverHome with a trailing slash without doubling it', () => {
     const unit = renderSystemdUnit({ ...linux, serverHome: '/home/alice/' })
-    expect(unit).toMatch(/^ExecStart=\/home\/alice\/\.local\/bat-server\/bin\/bat-server$/m)
+    expect(unit).toMatch(/^ExecStart=\/home\/alice\/\.local\/bat-server\/bin\/bat-server --port 51820 --bind-interface localhost$/m)
   })
 
   it('still rejects systemd structural chars after expansion (T0297 F-005)', () => {
@@ -157,6 +157,6 @@ describe('startServerOnRemote — written file locations are absolute (T0379)', 
     expect(result.servicePath).toBe('/Users/alice/Library/LaunchAgents/com.bat-server.plist')
     expect(commands[0]).toContain("cat > '/Users/alice/Library/LaunchAgents/com.bat-server.plist' << 'EOF'")
     expect(commands[0]).not.toContain('~')
-    expect(commands[1]).toBe("launchctl load -w '/Users/alice/Library/LaunchAgents/com.bat-server.plist'")
+    expect(commands[1]).toBe("launchctl unload '/Users/alice/Library/LaunchAgents/com.bat-server.plist' >/dev/null 2>&1; launchctl load -w '/Users/alice/Library/LaunchAgents/com.bat-server.plist'")
   })
 })

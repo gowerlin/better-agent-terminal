@@ -89,7 +89,12 @@ export const verifySshAuthStep: WizardStep = {
         sshLastProbeError: hint,
         sshLastProbeErrorCode: code,
       })
-      throw new Error(`${code}: ${hint}`)
+      // T0511: carry the probe code so the runner's stage-1 errorCode lookup
+      // finds `ssh-permission-denied` (and its "Edit SSH settings" action).
+      // The message alone does not match: it reads `permission-denied: ...`.
+      const err = new Error(`${code}: ${hint}`) as Error & { code?: string }
+      err.code = code
+      throw err
     }
 
     // Auto-fill targetOS based on the remote uname result. Spec frozen in

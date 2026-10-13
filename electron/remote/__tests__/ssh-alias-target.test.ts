@@ -145,7 +145,7 @@ describe('alias path argv at every call site (T0505)', () => {
   it('install-server-bundle upload', () => {
     const argv = uploaderInternals.buildSshArgs({ ...alias, installPath: '/home/alice/.local/bat-server', tarballPath: 'x.tar.gz' })
     expectTargetAfterDoubleDash(argv, 'devbox')
-    expect(argv[argv.length - 1]).toBe("mkdir -p '/home/alice/.local/bat-server' && cd '/home/alice/.local/bat-server' && tar xz")
+    expect(argv[argv.length - 1]).toBe(uploaderInternals.buildExtractCommand('/home/alice/.local/bat-server'))
   })
 
   it('start-server: every exec targets the alias; linger falls back to the login user', async () => {
