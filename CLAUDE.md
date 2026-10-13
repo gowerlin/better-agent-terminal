@@ -120,28 +120,30 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 ## Electron Runtime
 
 - 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。
-- native modules 依 ABI 145 建置；`package.json` 的 `postinstall` 已自動跑 `npm rebuild better-sqlite3`。若手動安裝後 app 啟動異常（例如 `NODE_MODULE_VERSION mismatch`），先執行 `npm rebuild better-sqlite3`（npm 12 下此步被擋成 no-op，改用下節的 `electron-rebuild`）。
+- native modules 依 ABI 145 建置。`package.json` 的 `postinstall` 在非 CI 環境跑 `electron-rebuild -f -w better-sqlite3`（repo 既有的 `@electron/rebuild`，經 electron-builder 間接安裝，非直接 devDependency），產出 Electron ABI 145；環境變數 `CI` 有值時跳過，原因見下節「CI」（T0473）。若 app 啟動出現 `NODE_MODULE_VERSION mismatch`（例如 shell 裡殘留 `CI`，或用 `--ignore-scripts` 安裝），執行 `npx electron-rebuild -f -w better-sqlite3`。**不要**用 `npm rebuild better-sqlite3`：它重跑 better-sqlite3 的 install script，`prebuild-install` 預設 `runtime=node`，下載的是 Node ABI 137 的 prebuilt，反而造成 mismatch（T0473 以 npm 11.19.0 實測：Electron ABI 的 binary 被覆蓋成 Node ABI）。
 - BAT 內執行 `npm run dev` 需確認 `ELECTRON_RUN_AS_NODE` 未被污染（見 BUG-038 / T0161）。若 renderer 無法啟動且 log 出現 `ELECTRON_RUN_AS_NODE=1`，清除該環境變數後重試。
 - electron-builder 26.x（2026-04-18 PLAN-005 / EXP-BUILDER26-001 CONCLUDED，原 24.13.3 → 26.8.1，清除 9 個 Group A CVE，見 PLAN-003 Group A）。
 
-## 本機開發：npm 12 install scripts（T0471）
+## 本機開發：npm 12 install scripts（T0471 / T0473）
 
-- **症狀**：本機 npm 12（`npm -v` ≥ 12）預設擋**相依套件**的 install scripts（`allowScripts` 政策）。`npm ci` / `npm install` 結尾只印 `npm warn ... install scripts blocked because they are not covered by allowScripts`，exit 0。結果：`electron` 無 `dist/`、`esbuild` 無原生 binary、`better-sqlite3` 無 `.node`、內嵌 claude 的 `bin/claude.exe` 是 500 bytes 的 stub（執行即 `Error: claude native binary not installed.`）。
-- **根專案 `postinstall` 會跑，但沒效**：根專案的 lifecycle script 不受 `allowScripts` 管制，可它呼叫的 `npm rebuild better-sqlite3` 走同一套政策 → better-sqlite3 的 `install` 被擋，binary 不變（T0471 以 sha256 前後比對確認）。
-- **被擋清單**（`npm install-scripts ls`，唯讀；本 repo 的 `package.json` 無 `allowScripts`）：
+- **背景**：npm 12（`npm -v` ≥ 12）預設擋**相依套件**的 install scripts，只放行 `package.json` `allowScripts` 列為 `true` 的套件。未放行時 `npm ci` / `npm install` 仍 exit 0，只在結尾印 `npm warn ... install scripts blocked because they are not covered by allowScripts`。T0471 時本 repo 沒有 `allowScripts`，結果 `electron` 無 `dist/`、`esbuild` 無原生 binary、`better-sqlite3` 無 `.node`、內嵌 claude 的 `bin/claude.exe` 是 500 bytes 的 stub（執行即 `Error: claude native binary not installed.`）。
+- **`allowScripts`（T0473）**：放行 `better-sqlite3`、`electron`、`esbuild`、`sharp`、`@anthropic-ai/claude-code`，用不綁版本的 name-only entry（`"<pkg>": true`，等同 `npm install-scripts approve --no-allow-scripts-pin <pkg>`），升版不必重新 approve。本機 npm 12 跑 `npm ci` 後**不需任何手動補跑**：`node scripts/verify-native-modules.js` exit 0、內嵌 claude `--version` = `2.1.289 (Claude Code)`、better-sqlite3 在 Electron 下可開 `:memory:`。
+- **`electron-winstaller` 刻意不列入**（不寫 `false`）：它只供 Squirrel.Windows target，本專案 `build.win.target` 為 `nsis` + `zip`，用不到。本機 npm 12 會擋它，`npm ci` 結尾與 `npm install-scripts ls` 會列出這一個套件，屬預期。不寫 `false` 是因為 npm 11.19.0（CI）也會遵守 `false` 而不跑它的 script（T0473 實測少了 `electron-winstaller/vendor/7z.dll`、`7z.exe`），CI 行為就變了；不列入時 npm 11 照跑，只多一行警告。
+- **npm 11 也認得 `allowScripts`**：npm 11.19.0 對未列入的套件只警告、照跑；對 `false` 則跳過。T0473 以 `npx -y npm@11.19.0 ci`（`CI=true`）比對改動前後的 `package.json`，`node_modules` 內容完全相同（只有 `.package-lock.json` 換行不同）。
+- **`allowScripts` 是政策**：新增帶 install script 的相依時，npm 12 會在 `npm ci` 結尾列出它。要放行（加 `true`）或拒絕（加 `false`）需塔台決策；不要用 `npm install-scripts approve --all` 或 `--dangerously-allow-all-scripts` 一次放行。
+- **根 `postinstall`**：根專案自己的 lifecycle script 不受 `allowScripts` 管制。它在非 CI 環境直接以 `node node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3` 重建 Electron ABI 145（不經 `npm rebuild`，所以也不經 allowScripts gate）；mac 的 `plutil` 段不變。T0473 前用的 `npm rebuild better-sqlite3` 已移除：npm 12 未放行時被擋成 no-op（T0471），放行後或在 npm 11 下則產出 Node ABI（見「Electron Runtime」）。
+- **手動補跑**：只在用 `--ignore-scripts` 安裝、`allowScripts` 被改掉、或單一套件損壞時才需要（repo 根目錄執行）：
 
-  | 套件 | 被擋的 script | 本機處置（repo 根目錄執行） |
+  | 套件 | install script | 手動補跑 |
   |---|---|---|
   | `electron` | `postinstall: node install.js` | `node node_modules/electron/install.js` |
   | `esbuild` | `postinstall: node install.js` | `node node_modules/esbuild/install.js` |
   | `sharp` | `install: node install/check.js \|\| npm run build` | `node node_modules/sharp/install/check.js` |
   | `better-sqlite3` | `install: prebuild-install \|\| node-gyp rebuild --release` | `npx electron-rebuild -f -w better-sqlite3`（建 Electron ABI 145；Node 下 `require` 失敗屬正常） |
   | `@anthropic-ai/claude-code` | `postinstall: node install.cjs` | `node node_modules/@anthropic-ai/claude-code/install.cjs`（把 `@anthropic-ai/claude-code-win32-x64` 的 binary 放到 `bin/claude.exe`）；驗證 `node_modules/@anthropic-ai/claude-code/bin/claude.exe --version` = `2.1.289 (Claude Code)` |
-  | `electron-winstaller` | `install: node ./script/select-7z-arch.js` | **不需要**：只供 Squirrel.Windows target，本專案 `build.win.target` 為 `nsis` + `zip` |
 
-- **本機打包也依賴上表**：`build.npmRebuild` 為 `false`，electron-builder 直接打包 `node_modules` 現況（`asarUnpack` 含 `@anthropic-ai/claude-code`）。沒補跑就跑 `.vscode/scripts/release.ps1` / `npm run build`，產出的安裝檔內嵌 claude 是 stub、better-sqlite3 缺 `.node`。`scripts/verify-native-modules.js` 只檢查套件目錄與 whisper binary，**抓不到**這兩種情況。
-- **不要**為了消除警告執行 `npm install-scripts approve`：它會寫 `allowScripts` 進 `package.json`（變更政策需塔台決策）。
-- **CI 不受影響**：workflow 用 `actions/setup-node` `node-version: '24'`，用 Node 隨附的 npm（Node 24.21.0 隨附 npm 11.19.0，nodejs.org `dist/index.json`），且沒有升級 npm 的 step；本機的 npm 12 是另外全域升級的。若哪天 CI 改用 npm 12，`npm ci` 後的 `npx --yes @electron/rebuild` 只會修好 native module，claude-code / electron / esbuild 一樣要處理。
+- **本機打包**：`build.npmRebuild` 為 `false`，electron-builder 直接打包 `node_modules` 現況（`asarUnpack` 含 `@anthropic-ai/claude-code`）。`scripts/verify-native-modules.js` 自 T0472 起會擋內嵌 claude stub 與缺 better-sqlite3 `.node`，`node_modules` 不完整時 `npm run build` / `release.ps1` 在打包前就失敗。
+- **CI**：workflow 用 `actions/setup-node` `node-version: '24'`，用 Node 隨附的 npm（Node 24.21.0 隨附 npm 11.19.0，nodejs.org `dist/index.json`），沒有升級 npm 的 step；本機的 npm 12 是另外全域升級的。GitHub Actions 會設 `CI=true`，postinstall 因此不跑 electron-rebuild：桌面 build job 隨後的 `npx --yes @electron/rebuild` 負責 Electron ABI（不重複 rebuild），server-bundle job 只跑 `npm ci`，better-sqlite3 維持 install script 產出的 Node ABI（bundle 以 Node 24 執行）。若 CI 改用 npm 12，`allowScripts` 已涵蓋所需套件。
 
 ## Build Toolchain
 
@@ -230,7 +232,7 @@ BAT 對 embedded 與 system 兩種 runtime 的 spawn 都注入 `DISABLE_AUTOUPDA
 ## Packaging / Release 前置檢查
 
 - **Squash merge 後打包前必做**：在 main repo 根目錄跑 `npm install`（CI 跑 `npm ci`）確保 `node_modules/` 與 `package-lock.json` 一致。Squash merge 只更新 lock file，不同步實際 `node_modules/`，遺漏此步會導致 native module 缺失（見 BUG-056 / T0242 / T0243）。
-- **Build fail-fast**：`npm run build` / `npm run build:release` / `npm run build:dir` 會先執行 `scripts/verify-native-modules.js`，檢查 `@kutalia/whisper-node-addon`、`@lydell/node-pty`、`better-sqlite3` 等關鍵 native modules 是否存在於 `node_modules/`。缺失即 abort，不會進 vite build 或 electron-builder。新增關鍵 native module（特別是 `build.asarUnpack` 內的）時請同步更新 `REQUIRED_NATIVE_MODULES` 清單。`verify-native-modules.js` 也檢查 **host 平台**的 whisper binary（`@kutalia/whisper-node-addon/dist/<dir>/whisper.node`，`<dir>` 規則與 `electron/whisper-addon-loader.ts` 同步：macOS 為 `mac-<arch>` 優先、`darwin-<arch>` fallback；T0468 / BUG-116）。
+- **Build fail-fast**：`npm run build` / `npm run build:release` / `npm run build:dir` 會先執行 `scripts/verify-native-modules.js`，檢查 `@kutalia/whisper-node-addon`、`@lydell/node-pty`、`better-sqlite3` 等關鍵 native modules 是否存在於 `node_modules/`。缺失即 abort，不會進 vite build 或 electron-builder。新增關鍵 native module（特別是 `build.asarUnpack` 內的）時請同步更新 `REQUIRED_NATIVE_MODULES` 清單。`verify-native-modules.js` 也檢查 **host 平台**的 whisper binary（`@kutalia/whisper-node-addon/dist/<dir>/whisper.node`，`<dir>` 規則與 `electron/whisper-addon-loader.ts` 同步：macOS 為 `mac-<arch>` 優先、`darwin-<arch>` fallback；T0468 / BUG-116）。T0472 起另檢查內嵌 claude 與 better-sqlite3：`@anthropic-ai/claude-code/bin/claude.exe` 必須是 host 格式的原生執行檔（PE / ELF / Mach-O），不能是 npm 的 500 bytes stub；`better-sqlite3/build/Release/better_sqlite3.node` 必須存在（只查存在，不載入、不驗 ABI）。desktop host（`win32-x64` / `linux-x64` / `darwin-x64` / `darwin-arm64`）缺失即 exit 1，其他 host 只 warn。
 - **mac 打包產物檢查**：macOS CI 只有一台 arm64 host 卻產出 x64 + arm64 兩個 dmg，host 檢查看不到 x64。`pre-release.yml` / `release.yml` 的 mac job 在 `Package for macOS` 之後、上傳 artifact 之前跑 `node scripts/verify-packaged-native.js --out release --arch x64,arm64`，檢查 `release/mac/*.app`（x64）與 `release/mac-arm64/*.app`（arm64）的 `Contents/Resources/app.asar.unpacked/node_modules/@kutalia/whisper-node-addon/dist/{mac,darwin}-<arch>/whisper.node`；任一 arch 缺 binary 或缺 `.app` 即 exit 1（T0470）。改 `build.mac.target` arch 或 whisper 目錄規則時同步改此腳本。
 - **Helper bundle fail-fast**：同一條 pipeline 也會跑 `scripts/verify-helper-bundle.js`，靜態掃描 `scripts/*.mjs` 的 relative `.mjs` import，比對 `package.json` `build.extraResources[].filter` 是否涵蓋所有 import target。若有 helper 被 filter 漏掉即 abort，錯誤訊息會指出漏了哪個檔 + 建議加什麼 pattern（見 BUG-058 / T0247 / T0248）。新增 `scripts/_bat-*.mjs` helper 或修改 `extraResources.filter` 時，先跑 `npm run verify:helpers` 確認配對。範圍刻意縮小到 top-level `.mjs` + static import；子目錄 / 動態 `import()` 不在掃描內。
 - **CI pipeline**：`.github/workflows/pre-release.yml` 三平台 build job 依序為 `npm ci` → `@electron/rebuild` → `verify-native-modules.js` → `verify-helper-bundle.js`（在 `build-version.js` 開頭自動 require） → `build-version.js` → `electron-builder` →（mac job）`verify-packaged-native.js` → 上傳 artifact。新增 CI job 時請沿用相同順序。

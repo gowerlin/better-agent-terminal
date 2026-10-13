@@ -26,7 +26,7 @@
     "build": "node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder",
     "build:dir": "npm run fetch:baseline && node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder --dir",
     "build:release": "npm run fetch:baseline && node scripts/build-version.js",
-    "postinstall": "node -e \"if(process.platform==='darwin'){const p=require('path').join('node_modules/electron/dist/Electron.app/Contents/Info.plist');try{require('child_process').execSync('plutil -replace CFBundleName -string BetterAgentTerminal '+p+' && plutil -replace CFBundleDisplayName -string BetterAgentTerminal '+p)}catch(e){}}\" && npm rebuild better-sqlite3 && echo 'postinstall done'",
+    "postinstall": "node -e \"if(process.platform==='darwin'){const p=require('path').join('node_modules/electron/dist/Electron.app/Contents/Info.plist');try{require('child_process').execSync('plutil -replace CFBundleName -string BetterAgentTerminal '+p+' && plutil -replace CFBundleDisplayName -string BetterAgentTerminal '+p)}catch(e){}}\" && node -e \"if(process.env.CI){console.log('postinstall: CI is set, skipping electron-rebuild of better-sqlite3 (the workflow runs @electron/rebuild itself)')}else{require('child_process').execFileSync(process.execPath,[require('path').join('node_modules','@electron','rebuild','lib','cli.js'),'-f','-w','better-sqlite3'],{stdio:'inherit',timeout:600000})}\" && echo 'postinstall done'",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:ui": "vitest --ui",
@@ -233,5 +233,12 @@
         ]
       }
     ]
+  },
+  "allowScripts": {
+    "better-sqlite3": true,
+    "electron": true,
+    "esbuild": true,
+    "sharp": true,
+    "@anthropic-ai/claude-code": true
   }
 }
