@@ -72,10 +72,6 @@
     "ws": "^8.19.0"
   },
   "optionalDependencies": {
-    "@img/sharp-darwin-arm64": "^0.34.5",
-    "@img/sharp-darwin-x64": "^0.34.5",
-    "@img/sharp-libvips-darwin-arm64": "^1.2.4",
-    "@img/sharp-libvips-darwin-x64": "^1.2.4",
     "@lydell/node-pty": "^1.1.0"
   },
   "devDependencies": {
@@ -219,7 +215,6 @@
       "node_modules/@openai/codex-*/**/*",
       "node_modules/@lydell/node-pty/**/*",
       "node_modules/@lydell/node-pty-*/**/*",
-      "node_modules/@img/**/*",
       "node_modules/@kutalia/whisper-node-addon/**/*",
       "dist-electron/terminal-server.js"
     ],

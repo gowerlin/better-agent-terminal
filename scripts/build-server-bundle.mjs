@@ -50,9 +50,6 @@ const TARGET_CONFIG = {
     nativePackages: [
       '@lydell/node-pty',
       '@lydell/node-pty-linux-x64',
-      'sharp',
-      '@img/sharp-linux-x64',
-      '@img/sharp-libvips-linux-x64',
       '@anthropic-ai/claude-code',
       '@anthropic-ai/claude-code-linux-x64',
       '@anthropic-ai/claude-agent-sdk',
@@ -70,9 +67,6 @@ const TARGET_CONFIG = {
     nativePackages: [
       '@lydell/node-pty',
       '@lydell/node-pty-linux-arm64',
-      'sharp',
-      '@img/sharp-linux-arm64',
-      '@img/sharp-libvips-linux-arm64',
       '@anthropic-ai/claude-code',
       '@anthropic-ai/claude-code-linux-arm64',
       '@anthropic-ai/claude-agent-sdk',
@@ -91,9 +85,6 @@ const TARGET_CONFIG = {
     nativePackages: [
       '@lydell/node-pty',
       '@lydell/node-pty-darwin-arm64',
-      'sharp',
-      '@img/sharp-darwin-arm64',
-      '@img/sharp-libvips-darwin-arm64',
       '@anthropic-ai/claude-code',
       '@anthropic-ai/claude-code-darwin-arm64',
       '@anthropic-ai/claude-agent-sdk',
@@ -105,7 +96,6 @@ const TARGET_CONFIG = {
 }
 const externalPackages = [
   'electron',
-  'sharp',
   '@anthropic-ai/claude-code',
   '@anthropic-ai/claude-agent-sdk',
   '@kutalia/whisper-node-addon',
@@ -113,12 +103,6 @@ const externalPackages = [
   '@lydell/node-pty-linux-x64',
   '@lydell/node-pty-linux-arm64',
   '@lydell/node-pty-darwin-arm64',
-  '@img/sharp-linux-x64',
-  '@img/sharp-libvips-linux-x64',
-  '@img/sharp-linux-arm64',
-  '@img/sharp-libvips-linux-arm64',
-  '@img/sharp-darwin-arm64',
-  '@img/sharp-libvips-darwin-arm64',
   '@anthropic-ai/claude-code-linux-x64',
   '@anthropic-ai/claude-code-linux-arm64',
   '@anthropic-ai/claude-code-darwin-arm64',
@@ -338,7 +322,8 @@ async function copyNativeModules() {
 
 // T0492: drop every node_modules/**/.bin/ from the staged packages. fs.cp (copyRecursive)
 // rewrites relative symlinks to absolute ones, so e.g. sharp/node_modules/.bin/semver
-// pointed at /Users/runner/work/... and broke on any other machine (T0494). Nothing in
+// (sharp was bundled until T0503) pointed at /Users/runner/work/... and broke on any
+// other machine (T0494). Nothing in
 // the bundle runs a package through .bin: bat-server and the helpers spawn bin/node and
 // explicit package paths, and claude-code gets its own bin/claude wrapper below.
 async function pruneBinDirs(dir) {

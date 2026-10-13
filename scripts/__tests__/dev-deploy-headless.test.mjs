@@ -152,7 +152,7 @@ describe('build config parsed from build-server-bundle.mjs', () => {
       sourcemap: 'inline',
     })
     // The hand-copied list in T0385 missed these; they must come from the script.
-    for (const pkg of ['@kutalia/whisper-node-addon', '@img/sharp-linux-x64', '@lydell/node-pty-linux-x64']) {
+    for (const pkg of ['@kutalia/whisper-node-addon', '@anthropic-ai/claude-agent-sdk-linux-x64', '@lydell/node-pty-linux-x64']) {
       expect(config.externals).toContain(pkg)
     }
   })

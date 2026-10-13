@@ -16,9 +16,6 @@ const targetConfigs = {
       'node-pty-darwin',
       'node-pty-win32',
       'node-pty-linux-arm64',
-      'sharp-darwin',
-      'sharp-win32',
-      'sharp-linux-arm64',
       'claude-code-darwin',
       'claude-code-win32',
       'claude-code-linux-arm64',
@@ -34,9 +31,6 @@ const targetConfigs = {
       'node-pty-darwin',
       'node-pty-win32',
       'node-pty-linux-x64',
-      'sharp-darwin',
-      'sharp-win32',
-      'sharp-linux-x64',
       'claude-code-darwin',
       'claude-code-win32',
       'claude-code-linux-x64',
@@ -51,8 +45,6 @@ const targetConfigs = {
       '@kutalia/whisper-node-addon',
       'node-pty-linux',
       'node-pty-win32',
-      'sharp-linux',
-      'sharp-win32',
       'claude-code-linux',
       'claude-code-win32',
       'claude-agent-sdk-linux',
@@ -212,7 +204,8 @@ function verifyExecutable(filePath, relativePath) {
 }
 
 const tarballs = resolveTarballs()
-const forbiddenPatterns = ['whisper', '@kutalia/whisper-node-addon']
+// T0503: sharp / @img are build-time only (scripts/generate-icons.js); no target ships them.
+const forbiddenPatterns = ['whisper', '@kutalia/whisper-node-addon', 'sharp', '@img/']
 for (const tarball of tarballs) {
   if (!fs.existsSync(tarball)) {
     fail(`[verify-server-bundle] ❌ Tarball not found: ${tarball}`)

@@ -194,7 +194,7 @@ describe('verifyPackagedMac', () => {
   it('an x86_64 Mach-O mixed into the arm64 .app → fail (exit 1) naming the file', () => {
     const out = makeOutDir()
     const app = makeApp(out, 'arm64')
-    const intruder = unpacked(app, 'node_modules', '@img', 'sharp-darwin-x64', 'lib', 'sharp.node')
+    const intruder = unpacked(app, 'node_modules', '@lydell', 'node-pty-darwin-x64', 'prebuilds', 'darwin-x64', 'pty.node')
     writeFile(intruder, thinMachO('x64'))
 
     const result = verifyPackagedMac(out)
