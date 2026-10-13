@@ -10,10 +10,10 @@ source_globs:
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 46
+total: 47
 breakdown:
   OPEN: 0
-  FIXING: 2
+  FIXING: 3
   FIXED: 24
   VERIFY: 0
   CLOSED: 20
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 02:37 (UTC+8) — 第五十九 session：T0510 自動化實機驗收發現 SSH wizard 安裝 / 啟動兩個缺陷 → 新開 BUG-120 / BUG-121（high，FIXING，T0511）
+> 最後同步：2026-10-14 02:37 (UTC+8) — 第五十九 session：T0510 自動化實機驗收發現 SSH wizard 安裝 / 啟動兩個缺陷 → 新開 BUG-120 / BUG-121（high，FIXING，T0511）；BUG-122（low，Profile 對話框左欄空白，T0512）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 46**
+- 🔴 Open: 0 | ⏳ Fixing: 3 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 47**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-122 | Profile（配置）對話框 remote 卡片展開後「遠端 AI 工具」只佔右半、左欄空白；對話框偏窄 | 🟢 low | 2026-10-14 | [BUG-122](BUG-122-profile-panel-remote-card-empty-left-column.md) |
 | BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
 | BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
 
