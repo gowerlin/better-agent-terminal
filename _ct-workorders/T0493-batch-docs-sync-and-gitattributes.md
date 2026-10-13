@@ -48,6 +48,8 @@ affects_files:
   - "project-context.md"
   - "scripts/verify-native-modules.js"
   - "scripts/__tests__/verify-native-modules.test.mjs"
+  - "src/types/electron.d.ts"
+  - "electron/preload.ts"
 renew_count: 0
 workdir: main repo
 interaction:
@@ -74,6 +76,9 @@ memory_overrides:
 4. 全 repo grep 確認本批改動後無過期描述（tsc 基線數字、better-sqlite3、Actions 版本、runner、Haiku 計價等）
 
 5. T0492 範圍外發現：`project-context.md:42`、`:84`（better-sqlite3 / 本地 SQLite 描述）改寫或刪除；`scripts/verify-native-modules.js` `INSTALL_SCRIPTS_DOC` 與 CLAUDE.md 實際標題「本機開發：npm 12 install scripts（T0471 / T0473）」對齊（含其測試斷言）；CLAUDE.md「Server bundle baseline」補 T0492 三項（dist-baseline 清理、bundle 不含 `.bin` + 絕對 symlink 檢查、snapshot 版號 fallback）
+
+6. T0496 範圍外：`src/types/electron.d.ts` / `electron/preload.ts` 的 `docker.startContainer` 回傳型別 `token?: string` 改為 `token?: string | null`（main 端實際可能回 `null`；renderer 用法對 null 安全，`npm run typecheck` 維持 0）
+7. Custom CLI Agents 持久化（T0496 修 `fs.promises` 誤用）：CLAUDE.md 若有相關描述則補註；實機驗收清單（pre.5）列入「Settings 新增 custom CLI → 重啟仍在」
 
 ## 驗收條件
 

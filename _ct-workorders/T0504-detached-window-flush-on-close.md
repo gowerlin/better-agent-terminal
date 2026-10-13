@@ -17,6 +17,7 @@ target_version: v0.6.0-pre.5
 depends_on:
   - "T0491"
   - "T0496"
+  - "T0498"
 related:
   - "T0491 回報區「偏差 / 殘餘風險」：detached 視窗的非增刪變更（rename、sdkSessionId 等）靠 30 秒 autosave / quit flush；detached 視窗直接關閉時最後 30 秒內的這類變更可能遺失"
   - "T0491 設計：`saveDetachedWorkspaceTerminals`、`DetachedTerminalOwners`、closed → `whenIdle` → `workspace:reattached` → `workspace:adopt-detached`（save 佇列內）"
@@ -36,6 +37,7 @@ interaction:
   intervention_type: fire-and-forget
 memory_overrides:
   - "🔴 不得破壞 T0491 的順序保證：detached 最後一次 save 必須在 `whenIdle()` → `workspace:reattached` 之前進入 registry 佇列；flush 失敗或逾時不得阻擋視窗關閉（設上限並記 log）"
+  - "🔴 排在 T0498 之後：兩者都可能改 `electron/preload.ts` / `src/types/electron.d.ts`"
   - "🔴 不得回到「detached store 覆寫父 entry」：flush 仍走 `saveDetachedWorkspaceTerminals`"
   - "🔴 批次並行（D139）：`git commit --only` 本單檔案；不改 CLAUDE.md（建議文字寫回報區由 T0493 套用）；`npm run typecheck` / `npm run typecheck:electron` 維持 0（T0496 後）"
   - "🔴 不得以預設實例（無 `--runtime`）啟動 source build；e2e 一律 isolated runtime"
