@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0518
 title: "claude:scan-skills：commands 描述解析 YAML frontmatter（BUG-125）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-125
 priority: P3
 sizing: XS
 created_at: "2026-10-14T04:03:26+0800"
 started_at: "2026-10-14T04:05:18+0800"
-updated_at: "2026-10-14T04:08:51+0800"
+updated_at: "2026-10-14T04:08:56+0800"
+completed_at: "2026-10-14T04:08:56+0800"
 target_version: "0.6.0-pre.7"
 related:
   - BUG-125
@@ -120,4 +121,4 @@ DONE。`.claude/commands/*.md` 的描述改為先讀 YAML frontmatter 的 `descr
 
 ### Commit
 
-- 用 `git commit --only` 只提交本單 4 個檔（`electron/handlers/claude.ts`、新測試、T0518、BUG-125），不含 T0517 與 `src/styles/settings.css` 的未提交變更。未 push
+- `b66b525`：用 `git commit --only` 只提交本單 4 個檔（`electron/handlers/claude.ts`、新測試、T0518、BUG-125），不含 T0517 與 `src/styles/settings.css` 的未提交變更。未 push
