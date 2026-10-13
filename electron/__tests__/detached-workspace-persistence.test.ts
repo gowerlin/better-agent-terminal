@@ -67,7 +67,8 @@ describe('detached workspace persistence (T0453 source guard)', () => {
     const detach = section("ipcMain.handle('workspace:detach'", "ipcMain.handle('workspace:reattach'")
     expect(detach).toMatch(/if \(record\.parentWindowId\) detachedTerminalOwners\.claim\(record\.parentWindowId, workspaceId\)/)
     // 'workspace:reattached' goes out only after the queued registry writes landed.
-    expect(detach).toMatch(/void windowRegistry\.whenIdle\(\)\.then\(\(\) => \{\s*if \(parentWin && !parentWin\.isDestroyed\(\)\) parentWin\.webContents\.send\('workspace:reattached', workspaceId\)/)
+    // (T0508: wrapped in detachedTeardowns.reattachPending, guarded below.)
+    expect(detach).toMatch(/windowRegistry\.whenIdle\(\)\.then\(\(\) => \{\s*if \(parentWin && !parentWin\.isDestroyed\(\)\) parentWin\.webContents\.send\('workspace:reattached', workspaceId\)/)
     const adopt = section("ipcMain.handle('workspace:adopt-detached'", "ipcMain.handle('workspace:reattach'")
     expect(adopt).toMatch(/isWorkspaceDetached\(workspaceId\)\) return null/)
     expect(adopt).toMatch(/windowRegistry\.withEntry\(windowId, \(entry\) => \{[\s\S]*detachedTerminalOwners\.release\(windowId, workspaceId\)[\s\S]*workspaceTerminals\(entry\.terminals/)
@@ -75,7 +76,8 @@ describe('detached workspace persistence (T0453 source guard)', () => {
 
   it('T0504: a detached window flushes before it closes; it stays registered until closed; quit flushes per renderer', () => {
     const detach = section("ipcMain.handle('workspace:detach'", "ipcMain.handle('workspace:adopt-detached'")
-    const flush = detach.search(/flushBeforeClose\(detachedWin, \{\s*skip: \(\) => isAppQuitting,\s*flush: \(\) => requestRendererFlush\(detachedWin\.webContents, ipcMain, DETACHED_CLOSE_FLUSH_TIMEOUT_MS\),/)
+    // T0508: skips only once the quit flush started; one flush per renderer (flushRenderer).
+    const flush = detach.search(/const closeGuard = flushBeforeClose\(detachedWin, \{\s*skip: \(\) => quitFlushStarted,\s*flush: \(\) => flushRenderer\(detachedWin\.webContents, DETACHED_CLOSE_FLUSH_TIMEOUT_MS\),/)
     expect(flush).toBeGreaterThan(-1)
     // Installed before the window can load (and close), and before the 'closed' → whenIdle → reattached chain.
     expect(flush).toBeLessThan(detach.indexOf('detachedWin.loadFile('))
@@ -88,8 +90,37 @@ describe('detached workspace persistence (T0453 source guard)', () => {
     // Quit: each renderer's own ack, bounded; detached windows included.
     const quit = section('// Notify all renderer windows to flush their latest state', "// Save all open windows' profiles before quitting")
     expect(quit).toMatch(/for \(const win of \[\.\.\.windowMap\.values\(\), \.\.\.detachedWindows\.values\(\)\]\)/)
-    expect(quit).toMatch(/requestRendererFlush\(win\.webContents, ipcMain, QUIT_FLUSH_TIMEOUT_MS\)/)
+    expect(quit).toMatch(/flushRenderer\(win\.webContents, QUIT_FLUSH_TIMEOUT_MS\)/)
     expect(quit).not.toMatch(/ipcMain\.once\('workspace:flush-save-done'/)
+  })
+
+  it('T0508: a cancelled quit dialog loses nothing; the quit flush joins a running close flush; detach waits for a closing window', () => {
+    // quitFlushStarted is set only after the dialog was confirmed, right before the quit flush.
+    const beforeQuit = section("app.on('before-quit'", '// T0384: belt-and-braces')
+    const cancelled = beforeQuit.indexOf('isAppQuitting = false')
+    const started = beforeQuit.indexOf('quitFlushStarted = true')
+    expect(cancelled).toBeGreaterThan(-1)
+    expect(started).toBeGreaterThan(cancelled)
+    expect(started).toBeLessThan(beforeQuit.indexOf('for (const win of [...windowMap.values(), ...detachedWindows.values()])'))
+    expect(src.match(/quitFlushStarted = /g)).toHaveLength(2) // the declaration and the quit path; never reset
+    // Both flush paths share one flusher (a renderer is never asked twice at once).
+    expect(src).toMatch(/const flushRenderer = createRendererFlusher\(ipcMain\)/)
+    expect(src).not.toMatch(/requestRendererFlush\(/)
+
+    const detach = section("ipcMain.handle('workspace:detach'", "ipcMain.handle('workspace:adopt-detached'")
+    // Fast path focuses only a window that is not going away.
+    expect(detach).toMatch(/if \(detachedWindows\.has\(workspaceId\) && !detachedTeardownPending\(workspaceId\)\) \{\s*const existing = detachedWindows\.get\(workspaceId\)!\s*if \(!existing\.isDestroyed\(\)\) existing\.focus\(\)/)
+    // Then it waits for a closing window / a pending reattach, and nothing awaits between the
+    // last check and registering the new window.
+    const wait = detach.search(/for \(let pending = detachedTeardownPending\(workspaceId\); pending; pending = detachedTeardownPending\(workspaceId\)\) \{[\s\S]*?await pending\s*\}/)
+    expect(wait).toBeGreaterThan(detach.indexOf('await getSenderProfileBinding(event.sender)'))
+    const registered = detach.indexOf('detachedWindows.set(workspaceId, detachedWin)')
+    expect(registered).toBeGreaterThan(wait)
+    const afterWait = detach.slice(detach.indexOf('await pending', wait) + 'await pending'.length, registered)
+    expect(afterWait).not.toMatch(/await/)
+    expect(detach).toMatch(/detachedCloseGuards\.set\(detachedWin, closeGuard\)\s*detachedWindows\.set\(workspaceId, detachedWin\)/)
+    // 'closed' records the pending reattach (whenIdle → 'workspace:reattached').
+    expect(detach).toMatch(/detachedTeardowns\.reattachPending\(workspaceId, windowRegistry\.whenIdle\(\)\.then\(\(\) => \{\s*if \(parentWin && !parentWin\.isDestroyed\(\)\) parentWin\.webContents\.send\('workspace:reattached', workspaceId\)/)
   })
 
   it('the registry handlers still require a registry window (remote clients / unknown senders unchanged)', () => {

@@ -29,7 +29,15 @@ import {
 } from '../remote-server'
 import type { RemoteFrame } from '../protocol'
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+/**
+ * T0508: the heartbeat tests drive the server's `setInterval` by hand. With a real 100 ms
+ * interval a no-pong helper is terminated 100–200 ms after it authenticated, so a loaded
+ * machine (full suite) could lose the first helpers before the test filled the cap. Only
+ * setInterval / clearInterval are faked: sockets, the auth timeout and `vi.waitFor` stay real.
+ */
+const HEARTBEAT_MS = 100
+const useManualHeartbeat = () => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+const heartbeat = () => vi.advanceTimersByTime(HEARTBEAT_MS)
 
 interface Started {
   server: RemoteServer
@@ -41,6 +49,7 @@ interface Started {
 let current: { server: RemoteServer; dir: string; sockets: WebSocket[] } | null = null
 
 afterEach(() => {
+  vi.useRealTimers()
   if (!current) return
   for (const ws of current.sockets) ws.terminate()
   current.server.stop()
@@ -70,6 +79,8 @@ interface Conn {
   frames: RemoteFrame[]
   closed: Promise<number>
   isClosed(): boolean
+  /** Heartbeat pings this socket received from the server. */
+  pings(): number
 }
 
 async function open(s: Started, wsOpts: WebSocket.ClientOptions = {}): Promise<Conn> {
@@ -77,7 +88,9 @@ async function open(s: Started, wsOpts: WebSocket.ClientOptions = {}): Promise<C
   current?.sockets.push(ws)
   const frames: RemoteFrame[] = []
   let closedFlag = false
+  let pings = 0
   ws.on('error', () => {})
+  ws.on('ping', () => { pings++ })
   ws.on('message', raw => {
     try { frames.push(JSON.parse(raw.toString())) } catch { /* ignore */ }
   })
@@ -86,17 +99,41 @@ async function open(s: Started, wsOpts: WebSocket.ClientOptions = {}): Promise<C
     ws.once('open', () => resolve())
     ws.once('error', reject)
   })
-  return { ws, frames, closed, isClosed: () => closedFlag }
+  return { ws, frames, closed, isClosed: () => closedFlag, pings: () => pings }
 }
 
-async function waitForFrame(conn: Conn, id: string): Promise<RemoteFrame> {
-  let found: RemoteFrame | undefined
-  await vi.waitFor(() => {
-    found = conn.frames.find(f => f.id === id)
-    expect(found).toBeDefined()
-  }, { timeout: 5_000, interval: 10 })
-  return found!
+/**
+ * Resolves with `check()` once it is defined, re-checked on every frame / ping this socket
+ * receives. T0508: event-driven on purpose — `vi.waitFor` advances fake timers on each poll,
+ * which would run extra heartbeats in the tests that drive them by hand.
+ */
+function until<T>(conn: Conn, check: () => T | undefined, what: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const settle = (fn: () => void) => {
+      clearTimeout(timer)
+      conn.ws.off('message', onEvent)
+      conn.ws.off('ping', onEvent)
+      conn.ws.off('close', onClose)
+      fn()
+    }
+    const onEvent = () => {
+      const value = check()
+      if (value !== undefined) settle(() => resolve(value))
+    }
+    const onClose = () => {
+      const value = check()
+      settle(() => value !== undefined ? resolve(value) : reject(new Error(`socket closed while waiting for ${what}`)))
+    }
+    const timer = setTimeout(() => settle(() => reject(new Error(`timed out waiting for ${what}`))), 5_000)
+    conn.ws.on('message', onEvent)
+    conn.ws.on('ping', onEvent)
+    conn.ws.on('close', onClose)
+    onEvent()
+  })
 }
+
+const waitForFrame = (conn: Conn, id: string): Promise<RemoteFrame> =>
+  until(conn, () => conn.frames.find(f => f.id === id), `frame ${id}`)
 
 /** Opens a connection and authenticates; resolves with the conn and the auth-result error (undefined = accepted). */
 async function auth(s: Started, token: string, wsOpts?: WebSocket.ClientOptions): Promise<{ conn: Conn; error: string | undefined }> {
@@ -110,6 +147,18 @@ async function authOk(s: Started, token: string, wsOpts?: WebSocket.ClientOption
   const { conn, error } = await auth(s, token, wsOpts)
   expect(error).toBeUndefined()
   return conn
+}
+
+/**
+ * T0508: resolves once the server has this socket's answer to heartbeat ping number `n`: the
+ * client got the ping (`ws` queues the pong before it emits 'ping'), then a frame sent after
+ * that pong comes back — the server reads a socket in order, so it has seen the pong.
+ */
+async function heartbeatAnswered(conn: Conn, n: number): Promise<void> {
+  await until(conn, () => conn.pings() >= n || undefined, `heartbeat ping ${n}`)
+  const id = `hb-${n}`
+  conn.ws.send(JSON.stringify({ type: 'ping', id }))
+  expect(await waitForFrame(conn, id)).toMatchObject({ type: 'pong' })
 }
 
 const invoke = (conn: Conn, id: string, channel: unknown, args: unknown = []) =>
@@ -280,30 +329,49 @@ describe('T0445 #9 — helper denial throttle', () => {
 
 describe('T0445 #9 — heartbeat covers helpers', () => {
   it('a half-open helper (never answers ping) is terminated; a live one survives', async () => {
-    const s = await startServer({ heartbeatIntervalMs: 100 })
+    useManualHeartbeat()
+    const s = await startServer({ heartbeatIntervalMs: HEARTBEAT_MS })
     const silent = await authOk(s, s.registry.issue('t0451-silent'), { autoPong: false })
     const live = await authOk(s, s.registry.issue('t0451-live'))
     expect(s.server.getHelperConnectionCount()).toBe(2)
 
+    // 1st beat pings both; only the live one answers.
+    heartbeat()
+    await heartbeatAnswered(live, 1)
+    expect(silent.isClosed()).toBe(false)
+
+    // 2nd beat: the silent one left its ping unanswered → terminated; the live one is pinged again.
+    heartbeat()
     expect(await silent.closed).toBe(1006)
-    await vi.waitFor(() => expect(s.server.getHelperConnectionCount()).toBe(1))
+    expect(s.server.getHelperConnectionCount()).toBe(1)
     expect(s.logs.some(l => l.includes('Helper missed a heartbeat') && l.includes('terminal=t0451-silent'))).toBe(true)
 
-    await sleep(400)
+    // More beats, each answered: the live one stays.
+    await heartbeatAnswered(live, 2)
+    heartbeat()
+    await heartbeatAnswered(live, 3)
+    heartbeat()
+    await heartbeatAnswered(live, 4)
     expect(live.isClosed()).toBe(false)
     expect(s.server.getHelperConnectionCount()).toBe(1)
+    expect(s.logs.filter(l => l.includes('Helper missed a heartbeat'))).toHaveLength(1)
     invoke(live, 'p-1', 'fs:readdir')
     expect(await waitForFrame(live, 'p-1')).toMatchObject({ error: 'Forbidden: channel-not-allowed' })
   })
 
   it('a half-open helper frees its slot under the connection cap', async () => {
-    const s = await startServer({ heartbeatIntervalMs: 100 })
+    useManualHeartbeat()
+    const s = await startServer({ heartbeatIntervalMs: HEARTBEAT_MS })
     const token = s.registry.issue('t0451-tower')
     const conns: Conn[] = []
     for (let i = 0; i < HELPER_MAX_CONNECTIONS_PER_CAPABILITY; i++) conns.push(await authOk(s, token, { autoPong: false }))
     expect((await auth(s, token)).error).toBe('Too many helper connections')
-    await Promise.all(conns.map(c => c.closed))
-    await vi.waitFor(() => expect(s.server.getHelperConnectionCount()).toBe(0))
+
+    heartbeat()
+    expect(s.server.getHelperConnectionCount()).toBe(HELPER_MAX_CONNECTIONS_PER_CAPABILITY)
+    heartbeat()
+    expect(s.server.getHelperConnectionCount()).toBe(0)
+    expect(await Promise.all(conns.map(c => c.closed))).toEqual(conns.map(() => 1006))
     await authOk(s, token)
   })
 })

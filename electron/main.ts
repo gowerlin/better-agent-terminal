@@ -8,7 +8,7 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { spawnSync, fork } from 'child_process'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
-import { DETACHED_CLOSE_FLUSH_TIMEOUT_MS, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, requestRendererFlush } from './renderer-flush'
+import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { registerPtyHandlers } from './handlers/pty'
@@ -447,7 +447,17 @@ const detachedWindows = new Map<string, BrowserWindow>() // workspaceId → Brow
 const detachedWindowRecords = new Map<string, DetachedWindowRecord>()
 // T0491: parent windowId → detached workspaces whose terminal list the detached window owns.
 const detachedTerminalOwners = new DetachedTerminalOwners()
+// T0508: a detached window's flush-before-close guard, and the workspaces whose detached window
+// is still going away (closing, or closed but its parent not yet told 'workspace:reattached').
+const detachedCloseGuards = new WeakMap<BrowserWindow, CloseGuard>()
+const detachedTeardowns = new DetachedTeardowns()
+// T0504 / T0508: one flush per renderer at a time (the quit flush joins a detached close flush).
+const flushRenderer = createRendererFlusher(ipcMain)
 let isAppQuitting = false // Distinguishes Cmd+Q (preserve) from Cmd+W (remove window)
+// T0508: set when the quit path starts flushing every renderer (after the quit dialog was
+// confirmed). Until then — the dialog may still be cancelled — a detached window closing
+// flushes itself; `isAppQuitting` is already true while the dialog is open.
+let quitFlushStarted = false
 let tray: Tray | null = null
 
 interface PersistedSettings {
@@ -772,6 +782,12 @@ function getWindowIdByWebContents(wc: Electron.WebContents): string | null {
 function isWorkspaceDetached(workspaceId: string): boolean {
   const win = detachedWindows.get(workspaceId)
   return !!win && !win.isDestroyed()
+}
+
+/** T0508: what a detach of `workspaceId` has to wait for (its previous window still going away), or null. */
+function detachedTeardownPending(workspaceId: string): Promise<void> | null {
+  const win = detachedWindows.get(workspaceId)
+  return detachedTeardowns.pending(workspaceId, win && detachedCloseGuards.get(win))
 }
 
 /** T0446 (BUG-112): workspaceId of the detached window owning `wc`, null for any other sender. */
@@ -1973,13 +1989,15 @@ app.on('before-quit', async (e) => {
     }
 
     // Notify all renderer windows to flush their latest state (workspace + layout)
+    quitFlushStarted = true
     try {
       const savePromises: Promise<string>[] = []
       // T0491: detached windows save their workspace's terminals into the parent's entry too.
       for (const win of [...windowMap.values(), ...detachedWindows.values()]) {
         if (!win.isDestroyed() && win.webContents) {
           // T0504: each renderer's own ack (one window's ack used to release every wait), 2s max each.
-          savePromises.push(requestRendererFlush(win.webContents, ipcMain, QUIT_FLUSH_TIMEOUT_MS))
+          // T0508: a detached window still flushing before its close is joined, not asked twice.
+          savePromises.push(flushRenderer(win.webContents, QUIT_FLUSH_TIMEOUT_MS))
         }
       }
       const results = await Promise.all(savePromises)
@@ -3220,7 +3238,8 @@ function registerLocalHandlers() {
 
   // Workspace detach/reattach (local window management)
   ipcMain.handle('workspace:detach', async (event, workspaceId: string) => {
-    if (detachedWindows.has(workspaceId)) {
+    // T0508: a window still closing is not focused; it is waited for below.
+    if (detachedWindows.has(workspaceId) && !detachedTeardownPending(workspaceId)) {
       const existing = detachedWindows.get(workspaceId)!
       if (!existing.isDestroyed()) existing.focus()
       return true
@@ -3241,6 +3260,14 @@ function registerLocalHandlers() {
     } catch (err) {
       logger.warn(`[detached] profile binding unreadable when detaching ${workspaceId}:`, err)
     }
+    // T0508: the workspace's previous window may still be going away — flushing before its close
+    // (≤ DETACHED_CLOSE_FLUSH_TIMEOUT_MS), then 'closed' → whenIdle → 'workspace:reattached'. Wait
+    // for that: neither focus a closing window nor open a new one before the parent took the
+    // workspace back. No await between the last check and detachedWindows.set() below.
+    for (let pending = detachedTeardownPending(workspaceId); pending; pending = detachedTeardownPending(workspaceId)) {
+      logger.log(`[detached] ${workspaceId}: previous window still closing, detach waits for it`)
+      await pending
+    }
     if (detachedWindows.has(workspaceId)) {
       const existing = detachedWindows.get(workspaceId)!
       if (!existing.isDestroyed()) existing.focus()
@@ -3256,15 +3283,17 @@ function registerLocalHandlers() {
     setupResizeThrottle(detachedWin, 'detached')
     // T0504: save once more before the window goes (a rename / sdkSessionId otherwise waits for
     // the 30 s autosave); 'closed' — and with it 'workspace:reattached' — only follows the flush.
-    // Quitting skips it: the quit path flushed every window already.
-    flushBeforeClose(detachedWin, {
-      skip: () => isAppQuitting,
-      flush: () => requestRendererFlush(detachedWin.webContents, ipcMain, DETACHED_CLOSE_FLUSH_TIMEOUT_MS),
+    // Quitting skips it once the quit flush started (it flushed every window already); while the
+    // quit dialog is open it still flushes, so a cancelled quit loses nothing (T0508).
+    const closeGuard = flushBeforeClose(detachedWin, {
+      skip: () => quitFlushStarted,
+      flush: () => flushRenderer(detachedWin.webContents, DETACHED_CLOSE_FLUSH_TIMEOUT_MS),
       onResult: (result, ms) => {
         if (result === 'done') logger.log(`[detached] ${workspaceId}: flush-save before close done in ${ms}ms`)
         else logger.warn(`[detached] ${workspaceId}: flush-save before close ${result} after ${ms}ms, closing anyway`)
       },
     })
+    detachedCloseGuards.set(detachedWin, closeGuard)
     detachedWindows.set(workspaceId, detachedWin)
     detachedWindowRecords.set(workspaceId, record)
     // T0491: from now on the detached window owns this workspace's terminal list in the parent's entry.
@@ -3281,9 +3310,10 @@ function registerLocalHandlers() {
       noteRemoteWindowClosed()
       // T0491: the detached window's last save is already queued; let it land before the
       // parent adopts the workspace's terminals (workspace:adopt-detached).
-      void windowRegistry.whenIdle().then(() => {
+      // T0508: a detach of the same workspace waits until the parent was told.
+      detachedTeardowns.reattachPending(workspaceId, windowRegistry.whenIdle().then(() => {
         if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:reattached', workspaceId)
-      })
+      }))
     })
     if (parentWin && !parentWin.isDestroyed()) parentWin.webContents.send('workspace:detached', workspaceId)
     return true

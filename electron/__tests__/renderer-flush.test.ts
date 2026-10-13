@@ -4,6 +4,9 @@
  * before 'closed' → whenIdle() → 'workspace:reattached'. A flush that times out or fails
  * never keeps the window open. The quit path uses the same per-renderer flush.
  * main.ts wiring is guarded in detached-workspace-persistence.test.ts.
+ * T0508: one flush per renderer at a time (a quit confirmed while a detached window flushes
+ * joins that flush), the quit dialog no longer skips the close flush, and a detach of a
+ * workspace whose window is still going away waits for it instead of focusing it.
  */
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -16,7 +19,9 @@ vi.mock('electron', () => ({ app: { getPath: () => paths.userData } }))
 vi.mock('../logger', () => ({ logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn() } }))
 
 import {
+  createRendererFlusher,
   DETACHED_CLOSE_FLUSH_TIMEOUT_MS,
+  DetachedTeardowns,
   FLUSH_SAVE_CHANNEL,
   FLUSH_SAVE_DONE_CHANNEL,
   flushBeforeClose,
@@ -275,5 +280,235 @@ describe('detached close order on a real registry: flush save → closed → whe
     await d.reattached
     expect(d.events).toEqual(['flush:timeout', 'closed', 'reattached'])
     expect(d.reattachedTitle()).toBe('old name')
+  })
+})
+
+describe('T0508: createRendererFlusher — one flush per renderer at a time', () => {
+  it('a second request while one runs gets the same promise; the renderer is asked once', async () => {
+    const flushRenderer = createRendererFlusher(ipc)
+    const wc = new FakeWebContents()
+    const first = flushRenderer(wc, DETACHED_CLOSE_FLUSH_TIMEOUT_MS)
+    const second = flushRenderer(wc, QUIT_FLUSH_TIMEOUT_MS)
+    expect(second).toBe(first)
+    expect(wc.sent).toEqual([FLUSH_SAVE_CHANNEL])
+    ack(wc)
+    await expect(first).resolves.toBe('done')
+    expect(ipc.listenerCount(FLUSH_SAVE_DONE_CHANNEL)).toBe(0)
+
+    // Once it settled, the next request asks again.
+    const third = flushRenderer(wc, QUIT_FLUSH_TIMEOUT_MS)
+    expect(third).not.toBe(first)
+    expect(wc.sent).toEqual([FLUSH_SAVE_CHANNEL, FLUSH_SAVE_CHANNEL])
+    ack(wc)
+    await expect(third).resolves.toBe('done')
+  })
+
+  it('renderers are independent, and a timed-out flush frees the slot', async () => {
+    vi.useFakeTimers()
+    const flushRenderer = createRendererFlusher(ipc)
+    const a = new FakeWebContents()
+    const b = new FakeWebContents()
+    const pa = flushRenderer(a, 500)
+    const pb = flushRenderer(b, 500)
+    expect(pb).not.toBe(pa)
+    ack(b)
+    await expect(pb).resolves.toBe('done')
+    await vi.advanceTimersByTimeAsync(500)
+    await expect(pa).resolves.toBe('timeout')
+    expect(flushRenderer(a, 500)).not.toBe(pa)
+    expect(a.sent).toEqual([FLUSH_SAVE_CHANNEL, FLUSH_SAVE_CHANNEL])
+  })
+})
+
+describe('T0508: flushBeforeClose close guard', () => {
+  it('closing() is null until the flush starts, then resolves on closed', async () => {
+    const win = new FakeWindow()
+    let release!: (r: FlushResult) => void
+    const guard = flushBeforeClose(win, { skip: () => false, flush: () => new Promise<FlushResult>(r => { release = r }) })
+    expect(guard.closing()).toBeNull()
+    win.close()
+    const closing = guard.closing()
+    expect(closing).not.toBeNull()
+    let settled = false
+    void closing!.then(() => { settled = true })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    release('done')
+    await closing
+    expect(win.isDestroyed()).toBe(true)
+    expect(guard.closing()).toBe(closing)
+  })
+
+  it('a skipped close (quit flush running) is not a flush-before-close: closing() stays null', () => {
+    const win = new FakeWindow()
+    const guard = flushBeforeClose(win, { skip: () => true, flush: async () => 'done' })
+    win.close()
+    expect(win.isDestroyed()).toBe(true)
+    expect(guard.closing()).toBeNull()
+  })
+})
+
+describe('T0508: quit dialog — close a detached window, then cancel or confirm the quit', () => {
+  /** main.ts: `skip: () => quitFlushStarted`, both paths through one `flushRenderer`. */
+  function setup() {
+    const quit = { flushStarted: false }
+    const flushRenderer = createRendererFlusher(ipc)
+    const win = new FakeWindow()
+    const events: string[] = []
+    win.webContents.onSend = (channel) => { if (channel === FLUSH_SAVE_CHANNEL) events.push('flush-save') }
+    win.on('closed', () => events.push('closed'))
+    flushBeforeClose(win, {
+      skip: () => quit.flushStarted,
+      flush: () => flushRenderer(win.webContents, DETACHED_CLOSE_FLUSH_TIMEOUT_MS),
+      onResult: (result) => events.push(`flush:${result}`),
+    })
+    /** before-quit once the dialog was confirmed: set the flag, then flush every renderer still around. */
+    const quitFlush = (): Promise<FlushResult> => {
+      quit.flushStarted = true
+      return win.isDestroyed() ? Promise.resolve('gone') : flushRenderer(win.webContents, QUIT_FLUSH_TIMEOUT_MS)
+    }
+    return { win, events, quitFlush }
+  }
+
+  it('closed while the dialog is open: it flushes (a cancelled quit loses nothing)', async () => {
+    const d = setup()
+    d.win.close() // dialog open: isAppQuitting is true, but the quit flush has not started
+    expect(d.events).toEqual(['flush-save'])
+    expect(d.win.isDestroyed()).toBe(false)
+    ack(d.win.webContents) // the renderer saved
+    await vi.waitFor(() => expect(d.events).toEqual(['flush-save', 'flush:done', 'closed']))
+    // Cancel: nothing else to do — the save landed before the window closed.
+  })
+
+  it('confirmed while that flush still runs: the quit flush joins it, the renderer is asked once', async () => {
+    const d = setup()
+    d.win.close()
+    const quitResult = d.quitFlush()
+    expect(d.events).toEqual(['flush-save'])
+    ack(d.win.webContents)
+    await expect(quitResult).resolves.toBe('done')
+    await vi.waitFor(() => expect(d.events).toEqual(['flush-save', 'flush:done', 'closed']))
+  })
+
+  it('closed after the quit flush started (app.quit() closing windows): no second flush', async () => {
+    const d = setup()
+    const quitResult = d.quitFlush()
+    ack(d.win.webContents)
+    await expect(quitResult).resolves.toBe('done')
+    d.win.close()
+    expect(d.win.isDestroyed()).toBe(true)
+    expect(d.events).toEqual(['flush-save', 'closed'])
+  })
+})
+
+describe('T0508: detach again while the workspace window is still going away', () => {
+  /**
+   * main.ts's 'workspace:detach' / 'closed' wiring: detachedWindows + close guards +
+   * DetachedTeardowns; the parent is told 'workspace:reattached' after the registry's
+   * whenIdle (here `idle`, which a test can hold).
+   */
+  function setup() {
+    const flushRenderer = createRendererFlusher(ipc)
+    const windows = new Map<string, FakeWindow>()
+    const guards = new WeakMap<FakeWindow, ReturnType<typeof flushBeforeClose>>()
+    const teardowns = new DetachedTeardowns()
+    const events: string[] = []
+    let releaseIdle: () => void = () => {}
+    let idle = Promise.resolve()
+    const holdIdle = () => { idle = new Promise<void>(r => { releaseIdle = r }) }
+    const pending = (ws: string) => {
+      const win = windows.get(ws)
+      return teardowns.pending(ws, win && guards.get(win))
+    }
+    let opened = 0
+    const open = (ws: string) => {
+      const win = new FakeWindow()
+      const name = `win${++opened}`
+      win.webContents.onSend = (channel) => { if (channel === FLUSH_SAVE_CHANNEL) events.push(`${name}:flush-save`) }
+      guards.set(win, flushBeforeClose(win, {
+        skip: () => false,
+        flush: () => flushRenderer(win.webContents, DETACHED_CLOSE_FLUSH_TIMEOUT_MS),
+      }))
+      windows.set(ws, win)
+      win.on('closed', () => {
+        events.push(`${name}:closed`)
+        if (windows.get(ws) === win) windows.delete(ws)
+        teardowns.reattachPending(ws, idle.then(() => { events.push(`${name}:reattached`) }))
+      })
+      events.push(`${name}:opened`)
+      return win
+    }
+    const focus = (win: FakeWindow) => events.push(`focus:${win.isDestroyed() ? 'destroyed' : 'live'}`)
+    /** The 'workspace:detach' handler. */
+    const detach = async (ws: string) => {
+      if (windows.has(ws) && !pending(ws)) { focus(windows.get(ws)!); return }
+      await Promise.resolve() // getSenderProfileBinding
+      for (let p = pending(ws); p; p = pending(ws)) await p
+      if (windows.has(ws)) { focus(windows.get(ws)!); return }
+      open(ws)
+    }
+    return { windows, events, detach, open, holdIdle, releaseIdle: () => releaseIdle() }
+  }
+
+  it('a detach during the flush waits for closed and reattached, then opens a new window', async () => {
+    const t = setup()
+    const first = t.open('D')
+    t.holdIdle()
+    first.close()
+    const detached = t.detach('D')
+    await new Promise(r => setTimeout(r, 0))
+    expect(t.events).toEqual(['win1:opened', 'win1:flush-save'])
+    ack(first.webContents)
+    await vi.waitFor(() => expect(t.events).toContain('win1:closed'))
+    await new Promise(r => setTimeout(r, 0))
+    expect(t.events).not.toContain('win2:opened') // the parent was not told it reattached yet
+    t.releaseIdle()
+    await detached
+    expect(t.events).toEqual(['win1:opened', 'win1:flush-save', 'win1:closed', 'win1:reattached', 'win2:opened'])
+    expect(t.windows.get('D')).not.toBe(first)
+  })
+
+  it('two detach clicks during the flush open one window (the second focuses it)', async () => {
+    const t = setup()
+    const first = t.open('D')
+    first.close()
+    const a = t.detach('D')
+    const b = t.detach('D')
+    ack(first.webContents)
+    await Promise.all([a, b])
+    expect(t.events.filter(e => e.endsWith(':opened'))).toEqual(['win1:opened', 'win2:opened'])
+    expect(t.events.at(-1)).toBe('focus:live')
+    expect(t.events).not.toContain('focus:destroyed')
+  })
+
+  it('a hung renderer delays the new window by at most the close-flush timeout', async () => {
+    vi.useFakeTimers()
+    const t = setup()
+    const first = t.open('D')
+    first.close()
+    const detached = t.detach('D')
+    await vi.advanceTimersByTimeAsync(DETACHED_CLOSE_FLUSH_TIMEOUT_MS - 1)
+    expect(t.events).not.toContain('win2:opened')
+    await vi.advanceTimersByTimeAsync(1)
+    await detached
+    expect(t.events).toEqual(['win1:opened', 'win1:flush-save', 'win1:closed', 'win1:reattached', 'win2:opened'])
+  })
+
+  it('an open window that is not closing is focused right away', async () => {
+    const t = setup()
+    t.open('D')
+    await t.detach('D')
+    expect(t.events).toEqual(['win1:opened', 'focus:live'])
+  })
+
+  it('a pending reattach is forgotten once the parent was told, also when that failed', async () => {
+    const teardowns = new DetachedTeardowns()
+    let fail: (e: Error) => void = () => {}
+    teardowns.reattachPending('D', new Promise((_resolve, reject) => { fail = reject }))
+    const waiting = teardowns.pending('D', undefined)
+    expect(waiting).not.toBeNull()
+    fail(new Error('whenIdle failed'))
+    await expect(waiting).resolves.toBeUndefined()
+    expect(teardowns.pending('D', undefined)).toBeNull()
   })
 })
