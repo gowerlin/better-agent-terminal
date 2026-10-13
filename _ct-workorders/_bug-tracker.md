@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-13T23:24:58+08:00"
+generated_at: "2026-10-13T23:33:27+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,9 +12,9 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 44
 breakdown:
-  OPEN: 2
+  OPEN: 1
   FIXING: 0
-  FIXED: 22
+  FIXED: 23
   VERIFY: 0
   CLOSED: 20
   WONTFIX: 0
@@ -26,14 +26,13 @@ breakdown:
 > 最後同步：2026-10-13 15:43 (UTC+8) — 第五十八 session：新開 BUG-116（mac 啟動崩潰，whisper addon）→ 根因確認 → FIXED（T0468 `78e3bc9`，待 mac 實機）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（→ T0488，D139） | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
-| BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號（T0490 根因：bat-terminal 不比對 frame id，廣播誤判成功 → T0497） | 🟡 medium | 2026-10-05 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
 
 ## ⏳ 修復中 (FIXING)
 
@@ -45,6 +44,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號（T0490 根因 / T0497 修：bat-terminal 以 frame id 比對回應；裝 pre.5 後生效） | 🟡 medium | 2026-10-05 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only；T0486 清零 36 → 0） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 | BUG-119 | userData 分裂：`snippet-db` import 時取 userData（早於 `setName`）→ 日誌 / Crashes / snippets 在 `better-agent-terminal/`、設定在 `BetterAgentTerminal/`；runtime 實例共用 snippets | 🟡 medium | 2026-10-13 | [BUG-119](BUG-119-userdata-split-logs-snippets-vs-settings.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
