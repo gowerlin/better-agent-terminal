@@ -36,6 +36,8 @@ interface ConfigureSshHostState {
   sshInstallPath?: string
   sshTunnelMode?: SshTunnelMode
   sshHostsAvailable?: string[]
+  /** T0500: set by resetForEdit; the next run asks for the host even if one is stored. */
+  sshHostEditRequested?: boolean
 }
 
 async function loadAliasOptions(ctx: WizardContext): Promise<string[]> {
@@ -77,6 +79,7 @@ export const configureSshHostStep: WizardStep = {
   editableFromFailure: true,
   async run(ctx) {
     const state = readState(ctx)
+    const editRequested = state.sshHostEditRequested === true
 
     if (!Array.isArray(state.sshHostsAvailable)) {
       const hosts = await loadAliasOptions(ctx)
@@ -91,11 +94,16 @@ export const configureSshHostStep: WizardStep = {
     // submits via ctx.requestChoice. Picking an alias = submit; the
     // resolver runs again afterwards and only throws (with a structured
     // errorCode) if the host is still empty.
+    // T0500: after a jump back, ask again even though a host is stored.
+    const hostMissing = !state.sshHost || state.sshHost.trim().length === 0
     if (
-      (!state.sshHost || state.sshHost.trim().length === 0)
+      (hostMissing || editRequested)
       && typeof ctx.requestChoice === 'function'
     ) {
       const aliases = readState(ctx).sshHostsAvailable ?? []
+      if (aliases.length === 0 && !hostMissing) {
+        ctx.logger.info(`No ~/.ssh/config aliases to choose from; keeping SSH host ${state.sshHost}.`)
+      }
       if (aliases.length > 0) {
         const choice = await ctx.requestChoice({
           stepId: 'configure-ssh-host',
@@ -136,6 +144,14 @@ export const configureSshHostStep: WizardStep = {
       sshAlias: state.sshAlias,
       sshTunnelMode: state.sshTunnelMode,
     }
+    delete state.sshHostEditRequested
+  },
+  // T0500: jumped back to (e.g. after verify-ssh-auth fails) -> re-read
+  // ~/.ssh/config and offer the alias picker again. The stored host stays as
+  // the fallback when there is nothing to pick from (it may not be an alias).
+  // Cleared once the step succeeds, so a retry asks again.
+  resetForEdit(ctx) {
+    writeState(ctx, { sshHostsAvailable: undefined, sshHostEditRequested: true })
   },
 }
 

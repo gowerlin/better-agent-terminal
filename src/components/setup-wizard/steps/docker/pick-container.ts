@@ -7,6 +7,9 @@ function slugifyProfileId(name: unknown): string {
     : 'profile'
 }
 
+/** T0500: set by resetForEdit; the next run asks for the mode even if one is stored. */
+const EDIT_REQUESTED_KEY = 'pickContainerEditRequested'
+
 export const pickContainerStep: WizardStep = {
   id: 'pick-container',
   title: 'Choose Docker container mode',
@@ -22,8 +25,13 @@ export const pickContainerStep: WizardStep = {
   async run(ctx) {
     const containers = await window.electronAPI.docker.listContainers()
     const defaultMode = containers.length > 0 ? 'existing' : 'new'
-    const selectedMode = typeof ctx.state.containerMode === 'string' && ctx.state.containerMode !== 'unknown'
-      ? ctx.state.containerMode
+    const previousMode = ctx.state.containerMode
+    const hasPreviousMode = typeof previousMode === 'string' && previousMode !== 'unknown'
+    // T0500: after a jump back the stored mode is the fallback only when there
+    // is no prompt to ask with.
+    const editRequested = ctx.state[EDIT_REQUESTED_KEY] === true && typeof ctx.requestChoice === 'function'
+    const selectedMode = !editRequested && hasPreviousMode
+      ? previousMode
       : (
           ctx.requestChoice
             ? await ctx.requestChoice({
@@ -40,17 +48,21 @@ export const pickContainerStep: WizardStep = {
 
     const mode = selectedMode === 'existing' ? 'existing' : 'new'
     ctx.state.containerMode = mode
+    // T0500: a container picked under the other mode is not carried over
+    // (an existing container is never the "new" name, and vice versa).
+    const keepContainer = !editRequested || mode === previousMode
 
     if (mode === 'existing') {
       if (containers.length === 0) throw new Error('No Docker containers found. Create one first or switch to "Create new".')
-      const selectedContainer = typeof ctx.state.dockerContainer === 'string' && ctx.state.dockerContainer
+      const selectedContainer = keepContainer && typeof ctx.state.dockerContainer === 'string' && ctx.state.dockerContainer
         ? ctx.state.dockerContainer
         : containers[0].name
       ctx.state.dockerContainer = selectedContainer
+      delete ctx.state[EDIT_REQUESTED_KEY]
       return
     }
 
-    const existingName = typeof ctx.state.dockerContainer === 'string' ? ctx.state.dockerContainer : ''
+    const existingName = keepContainer && typeof ctx.state.dockerContainer === 'string' ? ctx.state.dockerContainer : ''
     ctx.state.dockerImage = typeof ctx.state.dockerImage === 'string' && ctx.state.dockerImage ? ctx.state.dockerImage : 'bat-server:latest'
     ctx.state.dockerContainer = resolveNewContainerName(
       ctx,
@@ -58,6 +70,15 @@ export const pickContainerStep: WizardStep = {
       `bat-server-${slugifyProfileId(ctx.profileDraft.name)}`,
       new Set(containers.map((container) => container.name)),
     )
+    delete ctx.state[EDIT_REQUESTED_KEY]
+  },
+  // T0500: jumped back to -> ask for the mode again. containerMode and
+  // dockerContainer stay until the re-run replaces them: this step's rollback
+  // (cancel before the re-run) still needs them to find a container this run
+  // created. The flag is cleared only once the step succeeds, so a retry
+  // after a failed re-run asks again.
+  resetForEdit(ctx) {
+    ctx.state[EDIT_REQUESTED_KEY] = true
   },
   // T0444 (BUG-111): this step creates nothing; start-server does. Remove the
   // container only if this run created it (start-server's rollback normally

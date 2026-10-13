@@ -127,6 +127,15 @@ export interface WizardStep {
   preflight?(ctx: WizardContext): Promise<WizardPreflightResult>
   run(ctx: WizardContext): Promise<void>
   rollback?(ctx: WizardContext): Promise<void>
+  /**
+   * T0500: called on the jump target (after the jump-back rollback chain,
+   * before it re-runs) so an `editableFromFailure` step asks for its input
+   * again instead of reusing the value it stored last time. Steps mark the
+   * input for re-entry rather than deleting it: the target is not rolled back
+   * on a jump, so its rollback (and ownership checks) may still need the old
+   * values until the re-run replaces them. Never called on retry / skip.
+   */
+  resetForEdit?(ctx: WizardContext): void | Promise<void>
   retryable?: boolean
   // T0309 (PLAN-030 #4): user-facing metadata. SetupWizardShell prefers
   // labelKey over the legacy `title`; keys are resolved via i18next at
@@ -344,7 +353,8 @@ export class WizardRunner {
    * runner rolls back what the steps after it did — the failed step first,
    * then completed (or skipped) steps after the target in reverse order, the
    * same chain cancel() walks. The target step itself is not rolled back: it
-   * re-runs and replaces its own output. Each step's rollback only undoes what
+   * re-runs and replaces its own output; T0500: its resetForEdit() runs first
+   * so it asks for its input again. Each step's rollback only undoes what
    * this wizard run owns (T0444), and a rollback that throws is logged, added
    * to ctx.warnings and does not block the jump (best-effort, like cancel).
    *
@@ -546,7 +556,8 @@ export class WizardRunner {
   /**
    * T0489: jump-back rollback chain. Rolls back the failed step (when it lies
    * after the target), then completed / skipped steps after the target in
-   * reverse completion order, then resets [target .. failed] to Pending. The
+   * reverse completion order, then calls the target's resetForEdit (T0500),
+   * then resets [target .. failed] to Pending. The
    * statuses go straight to Pending (not RolledBack, which is terminal) since
    * those steps re-run. Rollback errors never block the jump: they are logged
    * and surfaced on ctx.warnings because the wizard keeps going.
@@ -564,6 +575,7 @@ export class WizardRunner {
           this.completedStepIndexes.splice(i, 1)
         }
       }
+      await this.resetTargetForEdit(targetIndex)
       for (let i = targetIndex; i <= failedIndex; i += 1) {
         this.transitionStatus(i, WizardStepStatus.Pending)
         const snap = this.stepSnapshots[i]
@@ -590,6 +602,23 @@ export class WizardRunner {
       const warning = `Could not undo "${step.title}" before going back: ${message}`
       if (!this.ctx.warnings.includes(warning)) this.ctx.warnings.push(warning)
       this.emitProgress()
+    }
+  }
+
+  /**
+   * T0500: let the jump target ask for its input again. Runs after the
+   * rollback chain so the rolled-back steps still saw the old values. A throw
+   * is logged and does not block the jump; the step then re-runs with its
+   * stored input, as before T0500.
+   */
+  private async resetTargetForEdit(targetIndex: number): Promise<void> {
+    const step = this.activeSteps[targetIndex]
+    if (!step.resetForEdit) return
+    try {
+      await step.resetForEdit(this.ctx)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.ctx.logger.warn(`resetForEdit failed for ${step.id}: ${message}`)
     }
   }
 
