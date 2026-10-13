@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0475
 title: "BUG-118 修復（非 Windows 打包版內嵌 claude 改指平台子套件 binary）+ BUG-117 B3（mac 只打 arm64 dmg）+ verify-packaged-native 擴充（內嵌 claude 存在 / arch、Mach-O cputype 全掃、Linux 產物）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-118
 priority: P0
 sizing: M
 created_at: "2026-10-13T17:03:12+08:00"
 started_at: "2026-10-13T17:04:28+08:00"
-updated_at: "2026-10-13T17:04:28+08:00"
-completed_at: null
+updated_at: "2026-10-13T17:20:04+08:00"
+completed_at: "2026-10-13T17:20:04+08:00"
 target_version: v0.6.0-pre.3
 depends_on:
   - T0474
@@ -266,4 +266,4 @@ memory_overrides:
 
 - 開始：2026-10-13T17:04:28+08:00
 - 完成：見 frontmatter `completed_at`
-- commit：見 closeout commit
+- commit：`0d39b53`（實作 + 回報）；本 closeout commit 只改 frontmatter 狀態
