@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-05T11:35:34+08:00"
+generated_at: "2026-10-13T15:43:35+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 39
+total: 41
 breakdown:
-  OPEN: 2
+  OPEN: 4
   FIXING: 0
   FIXED: 17
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-05 11:35 (UTC+8) — 第五十五 session 收工：BUG-096-100 / 106-113 → FIXED（D134 T0417-T0461）；新開 BUG-114
+> 最後同步：2026-10-13 15:43 (UTC+8) — 第五十八 session：新開 BUG-116（mac 啟動崩潰，whisper addon）
 
 ## 統計
-- 🔴 Open: 3 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 40**
+- 🔴 Open: 4 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 41**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
 | BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404 | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
 | BUG-114 | 派工分頁 `terminal-created result=ok` 但 Worker 未執行 `/ct-exec`（或 commit 前停住），塔台無啟動訊號 | 🟡 medium | 2026-10-05 | [BUG-114](BUG-114-dispatched-worker-never-runs-ct-exec.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only，pre-existing） | 🟢 low | 2026-04-26 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |

@@ -8,7 +8,7 @@
 >
 > **第五十七 session**（2026-10-05 13:08）：已發佈 **`v0.6.0-pre.2`**（@ `9cb7cd4`）。
 >
-> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。git `main` = `origin/main` = `b5a689d`，乾淨。
+> **第五十八 session 起手**（2026-10-13 15:40）：快照 8 天 → Full Scan。**安裝版已換為 `v0.6.0-pre.2` release**（exe FileVersion `0.6.0-pre.2`，`app.asar` 2026-10-05 13:05，SHA-256 `639351C4…18A27`，含第五十五 / 五十六 session 全部改動）→ 可直接進實機驗收。15:43 外部使用者回報 mac 啟動崩潰 → 開 **BUG-116**（high），等 Gary 回報環境資料再派單。git `main` = `origin/main` = `b5a689d`，乾淨。
 
 ---
 
@@ -130,12 +130,12 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 3 / Fixed 17 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 4 / Fixed 17 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D135）｜ Learnings → [_learnings.md](_learnings.md)（最大 L146）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（72 entries）
 
 ### 編號起始
-- **T0467** / **BUG-116** / **PLAN-040** / **D136** / **EXP-[TOPIC]-001** / **L147**
+- **T0467** / **BUG-117** / **PLAN-040** / **D136** / **EXP-[TOPIC]-001** / **L147**
 
 ---
 
@@ -150,7 +150,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 | **前一 tag** | `v0.6.0-pre.1`（2026-10-05 05:24，`c92faf7`） |
 | **目前主軸** | 安裝新 build → 本批實機驗收（PLAN-039 + Fixed 17）→ 下一預覽版 |
 | **工單最大編號** | T0466（第五十六 session：T0462-T0466 全 DONE） |
-| **BUG 最大編號** | BUG-115（OPEN low，`release.ps1 -Snapshot`）；BUG-114 OPEN medium；BUG-061 OPEN；096-100 / 105-113 / 086 / 088 / 093 FIXED 待實機 |
+| **BUG 最大編號** | **BUG-116**（OPEN high，mac 0.6.0-pre.2 啟動崩潰 whisper addon，等回報者資料再派單）；BUG-115（OPEN low，`release.ps1 -Snapshot`）；BUG-114 OPEN medium；BUG-061 OPEN；096-100 / 105-113 / 086 / 088 / 093 FIXED 待實機 |
 | **PLAN 最大編號** | PLAN-039（IN_PROGRESS，程式完成待實機）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D135 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
@@ -238,7 +238,7 @@ PLAN-039 T0462-T0466 全 DONE ✅ ｜ 聯合複驗 unit 2861 / e2e 12 passed ✅
 | WSL server | dev-deploy | `~/.local/bat-server`：tag `t0456`（JS = HEAD `698a157` 等價 + 4 helper `scripts/`）；smoke 13/13；回復 `npm run deploy:headless:dev -- --target wsl:Ubuntu-24.04 --rollback --yes --tag t0456`；重跑 WSL 精靈會以 release bundle 覆蓋 |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | 全套可用（本 session 用 ct-done 補救 T0436） |
 | 熱區工單 | **T:112 檔 / BUG:39 / PLAN:11** | T 含 4 個報告檔（L132）；`archive_days: 2` 下大量到齡候選，下 session 可 `*archive`（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0466 / BUG-115 / PLAN-039 / D135 / L146** | 下張：T0467 / BUG-116 / PLAN-040 / D136 / L147 |
+| 最大編號 | **T0466 / BUG-116 / PLAN-039 / D135 / L146** | 下張：T0467 / BUG-117 / PLAN-040 / D136 / L147 |
 | unit test | ✅ **2861 passed / 168 files**（塔台聯合複驗 @ `26db914`，主工作區） | |
 | vite build | ✅ | 主工作區 exit 0（@ `26db914`）；`release.ps1` 完整打包 exit 0（@ `0d03fc7`） |
 | e2e | ✅ **12 passed / 8 skipped / 0 failed** | 主工作區全套 ×3；首輪（緊接 unit 後）偶發 1 failed 未重現 |
