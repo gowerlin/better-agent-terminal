@@ -28,10 +28,19 @@ const LOGS_DIR_NAME = 'Logs'
 const MAX_LOG_FILES = 10
 
 let initialized = false
+let initializedUserDataPath: string | null = null
 let logsDirPath: string | null = null
 let logFilePath: string | null = null
 let loggingEnabled = true
 let activeLogLevel: LogLevel = 'debug'
+// T0485: true while logger.error() itself writes to console.error, so the
+// console.error mirror does not log the same entry twice.
+let echoingConsoleError = false
+let consoleErrorMirror: {
+  original: (...args: unknown[]) => void
+  active: boolean
+  mirror: (...args: unknown[]) => void
+} | null = null
 
 function pad(num: number): string {
   return String(num).padStart(2, '0')
@@ -151,11 +160,37 @@ function applySettings(options: LoggerOptions): void {
   }
 }
 
-/** Initialize logger with proper userData path. Call inside app.whenReady(). */
+/**
+ * Logging settings from `<userData>/settings.json` (Settings → Advanced → Debug Logging).
+ * Missing or unreadable file → defaults (enabled, level debug).
+ */
+function readSettings(userDataPath: string): Required<LoggerOptions> {
+  let parsed: { loggingEnabled?: unknown; logLevel?: unknown } | null = null
+  try {
+    parsed = JSON.parse(fs.readFileSync(path.join(userDataPath, 'settings.json'), 'utf-8'))
+  } catch {
+    parsed = null
+  }
+  return {
+    loggingEnabled: parsed?.loggingEnabled !== false,
+    logLevel: normalizeLogLevel(parsed?.logLevel),
+  }
+}
+
+/**
+ * Initialize the disk log under `<userDataPath>/Logs`. Idempotent (T0485): the first
+ * successful call opens the log file and rotates old ones; later calls only apply the
+ * settings. app-paths-bootstrap calls it right after userData is fixed; the call in
+ * app.whenReady() is then a settings refresh.
+ */
 function init(userDataPath: string, options: LoggerOptions = {}): void {
   applySettings(options)
-  if (initialized) return
-  initialized = true
+  if (initialized) {
+    if (initializedUserDataPath !== userDataPath) {
+      writeToFile('warn', [`[logger] init called again with a different userData (${userDataPath}); keeping ${initializedUserDataPath}`])
+    }
+    return
+  }
 
   logsDirPath = path.join(userDataPath, LOGS_DIR_NAME)
   try {
@@ -165,6 +200,8 @@ function init(userDataPath: string, options: LoggerOptions = {}): void {
     console.error('[logger] Failed to create log directory:', error)
     return
   }
+  initialized = true
+  initializedUserDataPath = userDataPath
 
   moveLegacyDebugLog(userDataPath)
   if (loggingEnabled) ensureLogFilePath()
@@ -200,8 +237,42 @@ function warn(...args: unknown[]): void {
 }
 
 function error(...args: unknown[]): void {
-  console.error(...args)
+  echoingConsoleError = true
+  try {
+    console.error(...args)
+  } finally {
+    echoingConsoleError = false
+  }
   writeToFile('error', args)
+}
+
+/**
+ * T0485: also write every console.error call to the disk log while enabled. Used during
+ * startup only: Electron reports an exception thrown while the main bundle loads with
+ * console.error('App threw an error during load') — no uncaughtException is emitted —
+ * and Node prints unhandled-rejection warnings the same way.
+ */
+function mirrorConsoleErrors(enabled: boolean): void {
+  if (enabled) {
+    if (consoleErrorMirror) return
+    const state = {
+      original: console.error,
+      active: true,
+      mirror: function (this: Console, ...args: unknown[]) {
+        if (state.active && !echoingConsoleError) writeToFile('error', ['[console.error]', ...args])
+        return state.original.apply(this, args)
+      },
+    }
+    consoleErrorMirror = state
+    console.error = state.mirror
+    return
+  }
+  if (!consoleErrorMirror) return
+  consoleErrorMirror.active = false
+  // If something wrapped console.error on top of the mirror, leave the chain alone —
+  // the inactive mirror is a plain pass-through.
+  if (console.error === consoleErrorMirror.mirror) console.error = consoleErrorMirror.original
+  consoleErrorMirror = null
 }
 
 function writeRenderer(level: unknown, args: unknown[]): void {
@@ -224,6 +295,8 @@ function getInfo(): LoggingInfo {
 
 export const logger = {
   init,
+  readSettings,
+  mirrorConsoleErrors,
   setConfig,
   cleanupOldLogs,
   writeRenderer,

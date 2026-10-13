@@ -6,13 +6,18 @@
 // app name of that moment (package.json `name` = better-agent-terminal), so a
 // module reading it at import time used to split the data across two directories.
 //
-// Keep the imports to electron / path / ./userdata-migration — importing anything
-// else from electron/ risks pulling in a module that reads getPath at import time.
-// Order: setName -> runtime id -> sync migration -> explicit setPath('userData').
+// Keep the imports to electron / path / ./userdata-migration / ./logger / ./early-* —
+// importing anything else from electron/ risks pulling in a module that reads getPath
+// (or PATH) at import time.
+// Order: setName -> runtime id -> sync migration -> explicit setPath('userData')
+// -> disk log + early crash capture (T0485) -> macOS PATH fix (T0485).
 // The migration runs before app ready on purpose: `Local State` (safeStorage key)
 // must be in place before Chromium reads it.
 import { app } from 'electron'
 import * as path from 'path'
+import { installEarlyCrashCapture } from './early-crash-log'
+import { applyGuiLaunchPathFix } from './early-path-fix'
+import { logger } from './logger'
 import {
   migrateUserData,
   parseRuntimeId,
@@ -48,3 +53,13 @@ function resolveUserData(): MigrationReport {
 export const migrationReport: MigrationReport = resolveUserData()
 app.setPath('userData', migrationReport.userData)
 export const resolvedUserData: string = migrationReport.userData
+
+// T0485: the disk log only needs fs, so it starts here instead of in app.whenReady()
+// (where logger.init is now a settings refresh). A crash in any later module body —
+// a native addon failing to load, for example — then ends up in Logs/ (BUG-116).
+logger.init(resolvedUserData, logger.readSettings(resolvedUserData))
+installEarlyCrashCapture()
+
+// T0485: before every other module body, so nothing sees the minimal GUI-launch PATH.
+const pathFixSource = applyGuiLaunchPathFix()
+if (pathFixSource) logger.log(`[startup] PATH fixed for GUI launch (source=${pathFixSource})`)

@@ -6,7 +6,7 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
-import { execFileSync, spawnSync, fork } from 'child_process'
+import { spawnSync, fork } from 'child_process'
 import { WindowRegistry } from './window-registry'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
@@ -17,51 +17,10 @@ import { registerFsHandlers } from './handlers/fs'
 import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
 import { createRemoteToolInstallIpc, PendingRemoteToolInstalls } from '../src/lib/remote-tools/install-request'
 
-// Fix PATH for GUI-launched apps on macOS.
-// When launched via .dmg / Applications, macOS gives a minimal PATH that
-// doesn't include Homebrew (/opt/homebrew/bin), NVM, etc.
-// We source the user's login shell to get the real PATH.
-if (process.platform === 'darwin') {
-  try {
-    const shell = process.env.SHELL || '/bin/zsh'
-    // fish stores PATH as a list; use string join to get colon-separated output
-    const isFish = shell.endsWith('/fish') || shell === 'fish'
-    const cmd = isFish ? 'string join : $PATH' : 'echo $PATH'
-    const rawPath = execFileSync(shell, ['-l', '-c', cmd], {
-      timeout: 3000,
-      encoding: 'utf8',
-      windowsHide: true,
-    }).trim()
-    if (rawPath) {
-      process.env.PATH = rawPath
-    }
-  } catch {
-    // Fallback: prepend the most common node locations
-    const extraPaths = [
-      '/opt/homebrew/bin',
-      '/usr/local/bin',
-      `${process.env.HOME}/.volta/bin`,
-    ]
-    // Resolve nvm: find the latest installed version's bin directory.
-    // NOTE: This intentionally duplicates the semver sort from node-resolver.ts
-    // because this code runs at the top level before any ES module imports,
-    // and importing node-resolver here would break the PATH fix ordering.
-    try {
-      const nvmDir = `${process.env.HOME}/.nvm/versions/node`
-      const versions = fsSync.readdirSync(nvmDir).filter((v: string) => v.startsWith('v'))
-      if (versions.length > 0) {
-        versions.sort((a: string, b: string) => {
-          const pa = a.replace(/^v/, '').split('.').map(Number)
-          const pb = b.replace(/^v/, '').split('.').map(Number)
-          for (let i = 0; i < 3; i++) { const d = (pa[i]||0) - (pb[i]||0); if (d !== 0) return d; }
-          return 0
-        })
-        extraPaths.push(`${nvmDir}/${versions[versions.length - 1]}/bin`)
-      }
-    } catch { /* nvm not installed */ }
-    process.env.PATH = `${extraPaths.join(':')}:${process.env.PATH || ''}`
-  }
-}
+import { endEarlyCrashCapture, handOffEarlyCrashCapture } from './early-crash-log'
+
+// The macOS PATH fix for GUI-launched apps lives in early-path-fix.ts and runs from
+// app-paths-bootstrap (T0485): code written here runs after every imported module body.
 
 // Hide the console window on Windows.
 // electron.exe is a console-subsystem app, so Windows allocates a visible
@@ -137,7 +96,9 @@ import * as net from 'net'
 const _processStart = Number(process.env._BAT_T0 || Date.now())
 console.log(`[startup] main.ts module loaded: +${Date.now() - _processStart}ms from process start`)
 
-// Global error handlers — prevent silent crashes in main process
+// Global error handlers — prevent silent crashes in main process.
+// Before this point, app-paths-bootstrap's early capture (early-crash-log.ts, T0485)
+// writes crashes to the disk log; it stops its monitor here so nothing is logged twice.
 process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
   // EPIPE errors are expected when writing to pipes of killed subprocesses (e.g. Claude agent)
   // They are harmless and should not pollute logs.
@@ -147,6 +108,7 @@ process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
 process.on('unhandledRejection', (reason) => {
   logger.error(`[CRASH] unhandledRejection: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`)
 })
+handOffEarlyCrashCapture()
 
 // GPU disk cache: set dedicated path to avoid "Unable to move the cache" errors on Windows.
 // These errors block GPU compositing and can add seconds to first paint.
@@ -1391,7 +1353,10 @@ async function pickFallbackProfileId(excludeProfileId: string): Promise<string |
 
 app.whenReady().then(async () => {
   const t0 = Date.now()
+  // Already initialized by app-paths-bootstrap (T0485) — this only re-applies the settings.
   logger.init(app.getPath('userData'), readLoggingConfigSync())
+  // The bundle has loaded: stop mirroring console.error into the disk log.
+  endEarlyCrashCapture()
   for (const line of describeMigrationReport(migrationReport)) {
     const text = `[userdata-migration] ${line.message}`
     if (line.level === 'error') logger.error(text)
