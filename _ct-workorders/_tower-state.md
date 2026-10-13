@@ -107,12 +107,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 22 / Closed 26）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 2 / Fixed 22 / Closed 26）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L148）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（75 entries）
 
 ### 編號起始
-- **T0517** / **BUG-125** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L149**
+- **T0519** / **BUG-126** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L149**
 
 ---
 

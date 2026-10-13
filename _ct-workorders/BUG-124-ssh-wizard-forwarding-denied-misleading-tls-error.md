@@ -3,16 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-124
 title: "SSH 精靈：目標 sshd 禁止 port forwarding（AllowTcpForwarding no）時，錯誤顯示成「伺服器埠上的程式沒有提供 TLS 憑證」，未指出真正原因"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-10-14T04:00:58+0800"
-updated_at: "2026-10-14T04:00:58+0800"
+updated_at: "2026-10-14T04:03:26+0800"
 impact:
   - ssh-wizard
   - error-message
 links:
   discovered_in: "T0515 W7(a) 觀察（pre.6 自動化驗收）"
+  fix_workorder: T0517
   related: [BUG-093, BUG-099, T0515]
 ---
 
@@ -22,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（訊息精準度；流程與 rollback 正確） |
 | 可重現 | 必現（目標 sshd 設 `AllowTcpForwarding no`） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0517） |
 | 回報者 | T0515 Worker（塔台開單） |
 
 ## 現象
