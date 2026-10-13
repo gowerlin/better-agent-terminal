@@ -100,7 +100,8 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 
 ### 待辦（依優先序）
 
-1. 🟡 **pre.5 實機驗收（Windows）**：BUG-119 升版後 server-token 不變 + 新 Logs 目錄；BUG-114 派單 Worker 確實啟動；Custom CLI Agents 新增後重啟仍在（T0496）；detached rename → 關窗 → 重啟仍在（T0504）；SSH alias（無 User、含 ProxyJump）精靈 6 項（T0505 / T0506）；其餘 Fixed BUG（拖放 / 附件 / 遠端視窗 fail-closed / Docker / 精靈）
+0. 🔴 **T0511**（BUG-120 / 121，SSH wizard 安裝 / 啟動；2026-10-14 02:37 派發）→ 完成後併入 pre.6 批次
+1. 🟡 **pre.5 實機驗收（Windows）**：T0510 PARTIAL（`8994fff`）——A1 Custom CLI / A2 detached / A3 BUG-119 runtime 路徑 / A4 BUG-119 真環境（間接證據）/ A5 BUG-114 22 次 0 遺失 全 PASS；A6 SSH stock install FAIL → BUG-120 / 121。仍需真人：BUG-119 升版後 server-token 不變 + 新 Logs 目錄；BUG-114 派單 Worker 確實啟動；Custom CLI Agents 新增後重啟仍在（T0496）；detached rename → 關窗 → 重啟仍在（T0504）；SSH alias（無 User、含 ProxyJump）精靈 6 項（T0505 / T0506）；其餘 Fixed BUG（拖放 / 附件 / 遠端視窗 fail-closed / Docker / 精靈）
 2. 🟡 **mac 實機（Gary）**：BUG-116 / 117 / 118 + Keychain（arm64 dmg）
 3. 🟢 backlog：`*archive` 到齡候選（先 grep 程式碼引用，L133）、Codex 面板 Cache History 改用 `cache-history.ts`、server-bundle `ubuntu-22.04` 2027-04-17 停用（2027-03 前決定）、Haiku 5.5 CLI 版本門檻、PLAN-038、BUG-084 Phase 2、PLAN-035 Phase 2、Vite `hashbangRE` 上游回報
 4. 🟢 L130 D094 mac 280 MB 門檻復議；舊單 T0153（PARTIAL）/ T0360（`FIXED` 非標準狀態）待清理
@@ -112,12 +113,12 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixed 24 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 2 / Fixed 24 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L147）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（74 entries）
 
 ### 編號起始
-- **T0510** / **BUG-120** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L148**
+- **T0512** / **BUG-122** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L148**
 
 ---
 
@@ -131,8 +132,8 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 | **最新 release** | `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
 | **前一 tag** | `v0.6.0-pre.4`（2026-10-13 23:04，`da787a7`） |
 | **目前主軸** | pre.5 實機驗收（Windows 本機 + Gary mac）→ 依結果 CLOSE Fixed 24 張 |
-| **工單最大編號** | T0509（第五十八 session：T0467-T0509 全 DONE） |
-| **BUG 最大編號** | **BUG-119**；Open 0 / Fixed 24（061、086、088、093、096-100、105-119，待實機）/ Closed 20 |
+| **工單最大編號** | T0511（T0510 PARTIAL 自動化實機驗收；T0511 修 SSH wizard） |
+| **BUG 最大編號** | **BUG-121**；Open 0 / Fixing 2（120、121，T0511）/ Fixed 24（待實機）/ Closed 20 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
@@ -220,7 +221,7 @@ Fast Path（快照 11:34，6 分鐘前）。git 領先 9（第五十五 session 
 | WSL | dev-deploy + docker | `~/.local/bat-server` tag `t0456`（舊）；WSL 內 `docker.io` 29.1.3（T0467 安裝，保留） |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | |
 | 熱區工單 | **T:155 檔 / BUG:44 / PLAN:11** | `archive_days: 2` 下大量到齡候選（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0509 / BUG-119 / PLAN-039 / D139 / L147** | 下張：T0510 / BUG-120 / PLAN-040 / D140 / L148 |
+| 最大編號 | **T0511 / BUG-121 / PLAN-039 / D139 / L147** | 下張：T0512 / BUG-122 / PLAN-040 / D140 / L148 |
 | unit test | ✅ **3455 passed / 204 files** | 塔台聯合複驗 @ `9085cfe` |
 | typecheck | ✅ src 0 / electron 0 | CI gate |
 | e2e | ✅ 9 spec 14 passed | 需先 `npx vite build` |

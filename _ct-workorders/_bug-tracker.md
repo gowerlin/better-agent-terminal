@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-13T23:36:30+08:00"
+generated_at: "2026-10-14T02:37:43+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 44
+total: 46
 breakdown:
   OPEN: 0
-  FIXING: 0
+  FIXING: 2
   FIXED: 24
   VERIFY: 0
   CLOSED: 20
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-13 15:43 (UTC+8) — 第五十八 session：新開 BUG-116（mac 啟動崩潰，whisper addon）→ 根因確認 → FIXED（T0468 `78e3bc9`，待 mac 實機）
+> 最後同步：2026-10-14 02:37 (UTC+8) — 第五十九 session：T0510 自動化實機驗收發現 SSH wizard 安裝 / 啟動兩個缺陷 → 新開 BUG-120 / BUG-121（high，FIXING，T0511）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 46**
 
 ## 🔴 Open / 處理中
 
@@ -35,9 +35,10 @@ breakdown:
 
 ## ⏳ 修復中 (FIXING)
 
-| ID | 標題 | 嚴重度 | 建立時間 | 連結 |
+| ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| _（無）_ | | | | |
+| BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
+| BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
 
 ## ✅ 已修復
 

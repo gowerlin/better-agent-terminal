@@ -298,3 +298,10 @@ ok 7 detached-workspace.spec.ts:41     › detached workspace window loads the p
 ### Commit
 
 - `git commit --only` 本單 6 個檔案；不 push。hash 見 `git log`（本回報寫於 commit 前）。
+
+## 塔台裁決（2026-10-14 02:37，第五十九 session）
+
+- 接受 PARTIAL：A1-A5 PASS；A6-0 FAIL 為兩個產品缺陷，已開 **BUG-120**（bundle `staging/` 層）/ **BUG-121**（port / bind 設定名稱 + verify fallback），由 **T0511** 修正並以本單 `e2e/pre5-ssh-alias.spec.ts`（workaround 關閉）驗證
+- A4 判準偏離（token 每次啟動重寫）採納；token 明文不變留待真人以既有遠端 client 確認
+- 其他觀察 1（permission-denied 動作按鈕）併入 T0511 C；觀察 2（容器內環境偵測顯示 WSL）、3（error 等級延遲建檔）不開單
+- commit `8994fff` 範圍核對：6 檔，與回報一致
