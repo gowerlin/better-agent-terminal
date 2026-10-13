@@ -50,6 +50,7 @@ memory_overrides:
 1. 重新量測 `npm run typecheck:electron`，逐檔修正到 0（最大宗：`electron/main.ts`、`electron/claude-agent-manager.ts`）
 2. 測試檔的型別錯誤以正確型別 / fixture 修正
 3. 在 T0495 的 `typecheck` job 加第三步 `npm run typecheck:electron`（依賴鏈不用改；先以 `npm ci --ignore-scripts` 驗證 `tsconfig.node.json` 的 include 不需要 postinstall 產物），失敗阻擋 release
+   - 順手：`release.yml:161,165` step 名稱「Rebuild @lydell/node-pty for Electron」改為與 pre-release.yml 一致的「Rebuild native modules for Electron」（實際為全量 `@electron/rebuild`，T0492 範圍外發現 3）
    - 順手：T0487 後所有 action 皆原生 node24，評估移除 `pre-release.yml` 頂層 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`（`release.yml` 本來就沒有）；移除前確認 actionlint / 版本表無仍為 node20 的 action
 4. 驗證：`npm run typecheck` = 0、`npm run typecheck:electron` = 0；`npm run test:unit` 全綠；`npx vite build` exit 0；e2e `smoke` / `detached-workspace` / `plan039-multi-remote` 回歸（isolated runtime）；actionlint 0 筆
 

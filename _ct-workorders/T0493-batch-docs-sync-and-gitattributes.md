@@ -33,6 +33,7 @@ depends_on:
   - "T0500"
   - "T0501"
   - "T0502"
+  - "T0503"
 related:
   - "T0484-T0492 回報區「CLAUDE.md 建議文字」"
   - "T0454 回報區 `.gitattributes` 評估（index 全 LF、renormalize 預期 0 檔；建議 `* text=auto eol=lf`、`*.png binary`、`*.ico binary`）"
@@ -42,6 +43,9 @@ affects_files:
   - "README.md"
   - "docs/"
   - ".gitattributes"
+  - "project-context.md"
+  - "scripts/verify-native-modules.js"
+  - "scripts/__tests__/verify-native-modules.test.mjs"
 renew_count: 0
 workdir: main repo
 interaction:
@@ -66,6 +70,8 @@ memory_overrides:
 2. `.gitattributes`（T0454 建議內容）+ renormalize 檢查（見 memory_overrides）
 3. CLAUDE.md「本機開發：npm 12 install scripts」補 fsevents：mac 上 npm 12 會擋 `fsevents` install script，刻意不列入 `allowScripts`（理由比照 electron-winstaller：寫 `false` 會改變 npm 11 / CI 行為；fsevents 為 optional、mac 開發一般不受影響）
 4. 全 repo grep 確認本批改動後無過期描述（tsc 基線數字、better-sqlite3、Actions 版本、runner、Haiku 計價等）
+
+5. T0492 範圍外發現：`project-context.md:42`、`:84`（better-sqlite3 / 本地 SQLite 描述）改寫或刪除；`scripts/verify-native-modules.js` `INSTALL_SCRIPTS_DOC` 與 CLAUDE.md 實際標題「本機開發：npm 12 install scripts（T0471 / T0473）」對齊（含其測試斷言）；CLAUDE.md「Server bundle baseline」補 T0492 三項（dist-baseline 清理、bundle 不含 `.bin` + 絕對 symlink 檢查、snapshot 版號 fallback）
 
 ## 驗收條件
 
