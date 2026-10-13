@@ -521,6 +521,8 @@ interface ElectronAPI {
       remotePort: number
     }) => Promise<{ ok: true; localPort: number } | { ok: false; errorCode: 'ssh-tunnel-invalid-input' | 'ssh-tunnel-failed'; error: string }>
     closeVerifyTunnel: (sessionId: string) => Promise<{ ok: true }>
+    /** T0517 (BUG-124): did the SSH server refuse to forward the verify tunnel? */
+    verifyTunnelStatus: (sessionId: string) => Promise<{ forwardingDenied: boolean; detail: string | null }>
     readServerIdentity: (request: {
       sshHost: string
       sshUser: string

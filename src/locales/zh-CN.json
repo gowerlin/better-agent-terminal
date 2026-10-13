@@ -915,6 +915,10 @@
         "hostEmpty": {
           "title": "SSH 主机名为必填",
           "body": "请选择 ~/.ssh/config 中的 alias 或手动输入主机名。"
+        },
+        "forwardingDenied": {
+          "title": "SSH 服务器不允许 port forwarding",
+          "body": "BAT 通过 SSH tunnel 连接 BAT 服务器，但目标主机的 sshd 拒绝转发（AllowTcpForwarding）。请主机管理员为这个账号开放 TCP forwarding（sshd_config 设置 AllowTcpForwarding local 或 yes，含 Match 块），重新加载 sshd 后重试。"
         }
       }
     }

@@ -53,6 +53,20 @@ export type WizardTunnelOpenResult =
   | { ok: true; localPort: number }
   | { ok: false; errorCode: WizardTunnelErrorCode; error: string }
 
+/**
+ * T0517 (BUG-124): whether the SSH server refused to forward the tunnel's
+ * connections (`AllowTcpForwarding no` and friends). `detail` is ssh's own
+ * stderr line, kept verbatim for the wizard's raw-error detail.
+ */
+export interface WizardTunnelStatus {
+  forwardingDenied: boolean
+  detail: string | null
+}
+
+/** How long `status()` waits for a refusal ssh has not printed yet. */
+const FORWARDING_DENIED_WAIT_MS = 1_000
+const FORWARDING_DENIED_POLL_MS = 50
+
 /** Subset of `SshTunnel` the registry relies on (tests inject fakes). */
 export interface WizardTunnelHandle {
   start(): Promise<{ localPort: number }>
@@ -73,6 +87,8 @@ interface TunnelEntry {
   tunnel: WizardTunnelHandle
   localPort: number
   owner?: number
+  /** T0517: ssh's stderr line of a forwarding refusal; null until one is seen. */
+  forwardingDenied: { detail: string | null }
 }
 
 function isPort(value: unknown): value is number {
@@ -109,6 +125,8 @@ function describeWarning(warning: SshTunnelWarning | null): string {
       return 'SSH host key verification failed'
     case 'connection-refused':
       return 'the SSH host refused the connection'
+    case 'forwarding-denied':
+      return 'the SSH server does not allow port forwarding (AllowTcpForwarding)'
     default:
       return ''
   }
@@ -161,8 +179,15 @@ export class WizardTunnelRegistry {
       // localPort omitted: OS-assigned free loopback port.
     })
     let lastWarning: SshTunnelWarning | null = null
+    // T0517 (BUG-124): the server refuses forwarding per connection, i.e. only
+    // once the readiness probe / TLS handshake goes through the tunnel; ssh
+    // stays up, so remember the refusal for status().
+    const forwardingDenied: TunnelEntry['forwardingDenied'] = { detail: null }
     tunnel.on('warning', (warning) => {
       lastWarning = warning
+      if (warning.kind === 'forwarding-denied' && forwardingDenied.detail === null) {
+        forwardingDenied.detail = firstMatchingLine(warning.text, /administratively prohibited/i)
+      }
     })
     tunnel.on('tunnel-down', () => {
       const entry = this.entries.get(request.sessionId)
@@ -193,9 +218,29 @@ export class WizardTunnelRegistry {
       }
     }
 
-    this.entries.set(request.sessionId, { key, tunnel, localPort, owner })
+    this.entries.set(request.sessionId, { key, tunnel, localPort, owner, forwardingDenied })
+    if (forwardingDenied.detail !== null) {
+      logger.warn(`[ssh-wizard-verify] tunnel ${request.sessionId}: ${target} refused port forwarding`)
+    }
     logger.log(`[ssh-wizard-verify] tunnel ${request.sessionId}: 127.0.0.1:${localPort} → ${target}:${request.remotePort}`)
     return { ok: true, localPort }
+  }
+
+  /**
+   * T0517 (BUG-124): did the SSH server refuse to forward this session's
+   * tunnel? Called by the wizard after a verification step failed through the
+   * tunnel. ssh may print the refusal slightly after the local socket closed,
+   * so wait up to `waitMs` for it while the tunnel is still up.
+   */
+  async status(sessionId: string, waitMs = FORWARDING_DENIED_WAIT_MS): Promise<WizardTunnelStatus> {
+    const entry = this.entries.get(sessionId)
+    if (!entry) return { forwardingDenied: false, detail: null }
+    const deadline = Date.now() + Math.max(0, waitMs)
+    while (entry.forwardingDenied.detail === null && entry.tunnel.isAlive() && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, FORWARDING_DENIED_POLL_MS))
+    }
+    const detail = entry.forwardingDenied.detail
+    return detail === null ? { forwardingDenied: false, detail: null } : { forwardingDenied: true, detail }
   }
 
   async close(sessionId: string): Promise<void> {
@@ -214,6 +259,11 @@ export class WizardTunnelRegistry {
   async closeAll(): Promise<void> {
     await Promise.all([...this.entries.keys()].map((id) => this.close(id)))
   }
+}
+
+function firstMatchingLine(text: string, pattern: RegExp): string {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  return lines.find((line) => pattern.test(line)) ?? lines[0] ?? text.trim()
 }
 
 // ── Remote server identity ────────────────────────────────────────────────

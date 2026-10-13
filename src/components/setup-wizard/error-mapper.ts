@@ -340,6 +340,22 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
       { kind: 'cancel' },
     ],
   },
+  // T0517 (BUG-124): the target sshd refuses port forwarding
+  // (`AllowTcpForwarding no`), so verification through the wizard's tunnel
+  // fails with a TLS reset. The SSH verify steps detect it from ssh's stderr
+  // and rethrow with this code; the original error stays in the raw detail.
+  {
+    id: 'ssh-forwarding-denied',
+    platforms: ['ssh'],
+    stepIds: ['fetch-fingerprint', 'connect-test'],
+    errorCodes: ['ssh-forwarding-denied'],
+    messageKey: 'wizard.ssh.error.forwardingDenied',
+    detailMode: 'append-raw',
+    actions: [
+      { kind: 'fixed-and-retry' },
+      { kind: 'cancel' },
+    ],
+  },
   // T0382 (BUG-091, D128): the WSL server port collides with a port Windows
   // already uses (Mirrored mode shares localhost). Raised by the Windows-side
   // port pick (user-specified port taken / no free port) and by startService

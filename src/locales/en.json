@@ -915,6 +915,10 @@
         "hostEmpty": {
           "title": "SSH host is required",
           "body": "Pick an alias from ~/.ssh/config or enter the host name manually."
+        },
+        "forwardingDenied": {
+          "title": "The SSH server does not allow port forwarding",
+          "body": "BAT reaches the BAT server through an SSH tunnel, but the target's sshd refused to forward it (AllowTcpForwarding). Ask the host's administrator to allow TCP forwarding for this account (AllowTcpForwarding local or yes in sshd_config, including any Match block), reload sshd, then retry."
         }
       }
     }

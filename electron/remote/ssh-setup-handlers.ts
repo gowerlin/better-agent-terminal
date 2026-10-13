@@ -21,6 +21,7 @@ import {
   type RemoteServerIdentityResult,
   type WizardTunnelOpenResult,
   type WizardTunnelRequest,
+  type WizardTunnelStatus,
 } from './ssh-wizard-verify'
 
 interface UploadIpcRequest {
@@ -168,6 +169,19 @@ export function registerSshSetupHandlers(ipcMain: IpcMain, options: SshSetupHand
       const message = error instanceof Error ? error.message : String(error)
       logger.error(`[ssh-setup] verify-tunnel-open threw: ${message}`)
       return { ok: false, errorCode: 'ssh-tunnel-failed', error: message }
+    }
+  })
+
+  // T0517 (BUG-124): after fetch-fingerprint / connect-test failed through the
+  // tunnel, the wizard asks whether the SSH server refused to forward it.
+  ipcMain.handle('ssh:verify-tunnel-status', async (_event: IpcMainInvokeEvent, sessionId: string): Promise<WizardTunnelStatus> => {
+    if (typeof sessionId !== 'string') return { forwardingDenied: false, detail: null }
+    try {
+      return await wizardTunnels.status(sessionId)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error(`[ssh-setup] verify-tunnel-status threw: ${message}`)
+      return { forwardingDenied: false, detail: null }
     }
   })
 

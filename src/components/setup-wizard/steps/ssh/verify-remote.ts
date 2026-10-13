@@ -79,6 +79,40 @@ export async function ensureSshVerifyEndpoint(ctx: WizardContext): Promise<void>
   ctx.logger.info(`SSH tunnel ready: ${TUNNEL_HOST}:${result.localPort} → ${describeSshTarget(state.sshUser, state.sshHost)}:${remotePort}`)
 }
 
+/**
+ * T0517 (BUG-124): a target sshd with `AllowTcpForwarding no` still lets the
+ * tunnel start (`ExitOnForwardFailure` only covers the local listen); it
+ * refuses each forwarded connection, so the TLS handshake just sees a reset
+ * and the error read as "the port has no TLS certificate". When main saw ssh
+ * report the refusal, replace the error with one that names the real cause;
+ * the original error and ssh's line stay in the message (raw detail).
+ * Must run before the tunnel is closed. Any lookup failure keeps `error`.
+ */
+async function explainForwardingDenied(ctx: WizardContext, error: unknown): Promise<unknown> {
+  const sessionId = readState(ctx).sshVerifySessionId
+  if (!sessionId || !ctx.verifyEndpoint) return error
+  const lookup = window.electronAPI.ssh.verifyTunnelStatus
+  if (typeof lookup !== 'function') return error
+  let status: Awaited<ReturnType<typeof lookup>>
+  try {
+    status = await lookup(sessionId)
+  } catch {
+    return error
+  }
+  if (!status?.forwardingDenied) return error
+
+  const state = readState(ctx)
+  const target = state.sshHost ? describeSshTarget(state.sshUser, state.sshHost) : 'The SSH host'
+  const original = error instanceof Error ? error.message : String(error)
+  ctx.logger.warn(`The SSH server refused to forward the verification tunnel: ${status.detail ?? 'administratively prohibited'}`)
+  return codedError(
+    `${target} does not allow SSH port forwarding `
+    + `(sshd AllowTcpForwarding), so the tunnel to remote port ${String(ctx.serverPort)} cannot reach the BAT server. `
+    + `ssh: ${status.detail ?? 'open failed: administratively prohibited'}. Original error: ${original}`,
+    'ssh-forwarding-denied',
+  )
+}
+
 export async function closeSshVerifyEndpoint(ctx: WizardContext): Promise<void> {
   ctx.verifyEndpoint = undefined
   const sessionId = readState(ctx).sshVerifySessionId
@@ -153,7 +187,11 @@ export const sshFetchFingerprintStep: WizardStep = {
     }
     try {
       await ensureSshVerifyEndpoint(ctx)
-      await fetchFingerprintStep.run(ctx)
+      try {
+        await fetchFingerprintStep.run(ctx)
+      } catch (error) {
+        throw await explainForwardingDenied(ctx, error)
+      }
       await crossCheckFingerprint(ctx)
     } catch (error) {
       // Close on failure. Cancel (T0426) and jump-back (T0489) roll the failed
@@ -178,7 +216,11 @@ export const sshConnectTestStep: WizardStep = {
         // reopens it on retry after a previous close.
         await ensureSshVerifyEndpoint(ctx)
       }
-      await connectTestStep.run(ctx)
+      try {
+        await connectTestStep.run(ctx)
+      } catch (error) {
+        throw await explainForwardingDenied(ctx, error)
+      }
     } finally {
       await closeSshVerifyEndpoint(ctx)
     }

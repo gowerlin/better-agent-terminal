@@ -618,6 +618,9 @@ const electronAPI = {
       >,
     closeVerifyTunnel: (sessionId: string) =>
       ipcRenderer.invoke('ssh:verify-tunnel-close', sessionId) as Promise<{ ok: true }>,
+    // T0517 (BUG-124): did the SSH server refuse to forward the verify tunnel?
+    verifyTunnelStatus: (sessionId: string) =>
+      ipcRenderer.invoke('ssh:verify-tunnel-status', sessionId) as Promise<{ forwardingDenied: boolean; detail: string | null }>,
     readServerIdentity: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }) =>
       ipcRenderer.invoke('ssh:read-server-identity', request) as Promise<
         | { ok: true; fingerprint: string | null; token: string | null }

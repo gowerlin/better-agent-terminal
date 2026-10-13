@@ -12,6 +12,8 @@
 //   node e2e/real-remote/t0515-wizard-env.mjs down
 //
 // The installed build uploads its own resources\bat-server-baseline (no BAT_SERVER_BUNDLE_BASE_URL).
+// T0517: BAT_E2E_SOURCE_BUILD=1 without BAT_E2E_EXECUTABLE runs the source build instead (`npx vite
+// build` first; the bundle comes from dist-baseline / the release download like any dev run).
 // beforeAll appends the env script's marked block to the REAL ~/.ssh/config (Windows OpenSSH
 // ignores USERPROFILE / HOME; original copied aside + SHA-256), afterAll restores it (hash-checked).
 //
@@ -21,7 +23,8 @@
 //          isolated instance's own), no direct-mode prompt + the profile connects through the
 //          tunnel, then ssh.stopServer / ssh.uninstallBundle called directly
 //   W6/W7  sshd stops forwarding (AllowTcpForwarding no) → fetch-fingerprint fails after
-//          start-server → Cancel → the failed step and every completed step roll back
+//          start-server → Cancel → the failed step and every completed step roll back; the failure
+//          names the refused forwarding (BUG-124, fixed in T0517 — builds before it FAIL this check)
 //   W7/W8  a "user-owned" listener holds port 9876 → start-server itself fails (verify only counts
 //          the service's own socket) → Cancel → start-server rolled back (unit gone), bundle gone,
 //          and the user's listener / directory / linger untouched
@@ -51,6 +54,7 @@ import {
 type AnyApi = any
 
 const ENABLED = process.env.BAT_E2E_PRE6_WIZARD === '1'
+const SOURCE_BUILD = process.env.BAT_E2E_SOURCE_BUILD === '1'
 const ENV_SCRIPT = path.join(REPO_ROOT, 'e2e', 'real-remote', 't0515-wizard-env.mjs')
 const CONNECTION = path.join(os.tmpdir(), 'bat-t0515', 'ssh-env', 'connection.json')
 const EVIDENCE_DIR = process.env.BAT_E2E_PRE6_EVIDENCE_DIR || path.join(os.tmpdir(), 'bat-t0515', 'evidence')
@@ -82,7 +86,7 @@ function loadConnection(): Connection | null {
 const conn = loadConnection()
 test.skip(!ENABLED, 'opt-in: set BAT_E2E_PRE6_WIZARD=1 (T0515)')
 test.skip(process.platform !== 'win32', 'Windows host only (Windows OpenSSH + WSL Docker)')
-test.skip(ENABLED && !E2E_EXECUTABLE, 'set BAT_E2E_EXECUTABLE to the installed BetterAgentTerminal.exe under test')
+test.skip(ENABLED && !E2E_EXECUTABLE && !SOURCE_BUILD, 'set BAT_E2E_EXECUTABLE to the installed BetterAgentTerminal.exe under test (or BAT_E2E_SOURCE_BUILD=1)')
 test.skip(ENABLED && !conn, `no ${CONNECTION} — run \`node e2e/real-remote/t0515-wizard-env.mjs up\` first`)
 
 const log = testLogger('t0515')
@@ -96,6 +100,7 @@ const oneOf = (values: string[]) => new RegExp(`^(${[...new Set(values)].map(esc
 const COMPLETE = any(l => l.wizard.progress.complete)
 const ADD_MORE = oneOf(any(l => l.profiles.addMore))
 const HINT_USER_AND_PORT = any(l => l.profiles.sshDetails.userAndPortFromConfig)
+const FORWARDING_DENIED_TITLES = any(l => l.wizard.ssh.error.forwardingDenied.title)
 
 // ── verdicts ─────────────────────────────────────────────────────────────────
 
@@ -347,12 +352,16 @@ let configApplied = false
 test.beforeAll(async () => {
   test.setTimeout(120_000)
   fs.mkdirSync(EVIDENCE_DIR, { recursive: true })
-  log(`executable under test: ${E2E_EXECUTABLE}`)
-  const version = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-    `(Get-Item '${E2E_EXECUTABLE.replace(/'/g, "''")}').VersionInfo.FileVersion`], 20_000).catch(() => '?')
-  log(`FileVersion ${version.trim()}`)
-  const baseline = path.join(path.dirname(E2E_EXECUTABLE), 'resources', 'bat-server-baseline', 'manifest.json')
-  log(`bundle source (installed baseline): ${baseline} → version ${(() => { try { return (JSON.parse(fs.readFileSync(baseline, 'utf8')) as { version?: string }).version } catch { return 'unreadable' } })()}`)
+  if (E2E_EXECUTABLE) {
+    log(`executable under test: ${E2E_EXECUTABLE}`)
+    const version = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      `(Get-Item '${E2E_EXECUTABLE.replace(/'/g, "''")}').VersionInfo.FileVersion`], 20_000).catch(() => '?')
+    log(`FileVersion ${version.trim()}`)
+    const baseline = path.join(path.dirname(E2E_EXECUTABLE), 'resources', 'bat-server-baseline', 'manifest.json')
+    log(`bundle source (installed baseline): ${baseline} → version ${(() => { try { return (JSON.parse(fs.readFileSync(baseline, 'utf8')) as { version?: string }).version } catch { return 'unreadable' } })()}`)
+  } else {
+    log(`source build under test: ${REPO_ROOT} (dist-electron)`)
+  }
   log(await envScript('apply-ssh-config'))
   configApplied = true
   for (const alias of Object.values(conn!.aliases)) {
@@ -525,6 +534,11 @@ test('W6/W7 failure after start-server (verify tunnel refused) → Cancel rolls 
       && statusOf(rolled, 'fetch-fingerprint') === 'rolled-back'
       && statusOf(rolled, 'start-server') === 'rolled-back' && statusOf(rolled, 'install-server-bundle') === 'rolled-back',
     [`failed step: ${JSON.stringify(failedStatuses)}`, `before cancel: is-active ${section(beforeCancel, 'is-active')}, ls ${section(beforeCancel, 'ls ').replace(/\s+/g, ' ')}`, `after cancel: ${JSON.stringify(rolled)}`]))
+    // BUG-124 (T0517): the failure names the refused forwarding, not "no TLS certificate".
+    const detailText = outcome.text.replace(/\s+/g, ' ')
+    ok.push(record('BUG-124.message', failedAtVerify && FORWARDING_DENIED_TITLES.some(t => detailText.includes(t))
+      && detailText.includes('AllowTcpForwarding') && /administratively prohibited/.test(detailText),
+    [`failure detail: ${detailText.slice(0, 900)}`]))
     ok.push(record('W6.rollback', failedAtVerify && wasInstalled && !/state=active/.test(afterCancel)
       && /unit=.*No such file/.test(afterCancel) && /bundle=.*No such file/.test(afterCancel) && /listen9876=0/.test(afterCancel)
       && rollbackWarnings.length === 0 && created.length === 0,

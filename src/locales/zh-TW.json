@@ -915,6 +915,10 @@
         "hostEmpty": {
           "title": "SSH 主機名稱為必填",
           "body": "請選擇 ~/.ssh/config 中的 alias 或手動輸入主機名稱。"
+        },
+        "forwardingDenied": {
+          "title": "SSH 伺服器不允許 port forwarding",
+          "body": "BAT 透過 SSH tunnel 連到 BAT 伺服器，但目標主機的 sshd 拒絕轉送（AllowTcpForwarding）。請主機管理員為這個帳號開放 TCP forwarding（sshd_config 設 AllowTcpForwarding local 或 yes，含 Match 區塊），重新載入 sshd 後重試。"
         }
       }
     }

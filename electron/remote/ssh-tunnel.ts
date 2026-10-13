@@ -59,6 +59,7 @@ export type SshTunnelWarningKind =
   | 'permission-denied'
   | 'connection-refused'
   | 'host-key-verification'
+  | 'forwarding-denied'
   | 'unknown'
 
 export interface SshTunnelWarning {
@@ -348,7 +349,17 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
+// T0517 (BUG-124): the SSH server refused to open the forwarded channel, e.g.
+// `AllowTcpForwarding no` → `channel 2: open failed: administratively
+// prohibited: open failed`. `ExitOnForwardFailure=yes` does not cover this
+// (the refusal only happens per connection), so ssh keeps running and the
+// local side just sees its socket closed.
+const FORWARDING_DENIED_RE = /open failed: administratively prohibited/i
+
 function classifyStderr(text: string): SshTunnelWarning | null {
+  if (FORWARDING_DENIED_RE.test(text)) {
+    return { kind: 'forwarding-denied', text }
+  }
   if (text.includes('Permission denied')) {
     return { kind: 'permission-denied', text }
   }
