@@ -127,7 +127,7 @@
 | **前一 tag** | `v0.6.0-pre.5`（2026-10-14 01:38，`7a6fb9c`） |
 | **目前主軸** | pre.6 實機（Profile 版面、真實 SSH 主機）+ Gary mac 驗收 → 依結果 CLOSE Fixed 25 張 |
 | **工單最大編號** | T0513（T0513 DONE `90b35ee`，未發版） |
-| **BUG 最大編號** | **BUG-124**；Open 1（124） / Fixing 0 / Fixed 22（123 待 pre.7）/ Closed 26 |
+| **BUG 最大編號** | **BUG-125**；Open 0 / Fixing 2（124 / 125 → T0517 / T0518） / Fixed 22（123 待 pre.7）/ Closed 26 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
