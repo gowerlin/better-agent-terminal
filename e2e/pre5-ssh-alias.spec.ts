@@ -1,0 +1,480 @@
+// T0510 A6 — SSH wizard with ~/.ssh/config aliases (T0505 §7 items 1-3, 5, 6; T0506), on the
+// installed build, against real sshd containers. OPT-IN: skipped unless BAT_E2E_PRE5_SSH=1 and
+// the environment from `node e2e/real-remote/t0510-ssh-alias-env.mjs up` exists. Windows only;
+// the ssh under test is Windows' built-in OpenSSH (PATH-prepended for the isolated instance).
+//
+//   node e2e/real-remote/t0510-ssh-alias-env.mjs up        # fresh containers every run
+//   $env:BAT_E2E_PRE5_SSH='1'
+//   $env:BAT_E2E_EXECUTABLE='C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe'
+//   npx playwright test e2e/pre5-ssh-alias.spec.ts
+//   node e2e/real-remote/t0510-ssh-alias-env.mjs down
+//
+// Windows OpenSSH ignores USERPROFILE / HOME for `~`, so the aliases go into the REAL
+// ~/.ssh/config: beforeAll runs `apply-ssh-config` (original copied aside, SHA-256 recorded,
+// one marked block appended), afterAll runs `restore-ssh-config` (hash-checked). See the env
+// script header for the block and the manual restore command.
+//
+// A6-0  stock install on a clean target (alias without Port): the wizard must finish.
+// A6-1  alias with HostName + User + IdentityFile, no Port            → bat-t0510-jump
+// A6-2  same with a custom Port                                         → bat-t0510-jump
+// A6-3  alias through ProxyJump (the target has no route from Windows)  → bat-t0510-target
+// A6-4  alias without User (Windows login ≠ `bat`): verify-ssh-auth fails with
+//       permission-denied, "Edit SSH settings" jumps back, a typed bat@127.0.0.1:<port> succeeds
+// A6-5  restart the instance; every profile above reconnects (the typed one is item 6) through
+//       C:\Windows\System32\OpenSSH\ssh.exe, and a remote shell reports the expected host
+//
+// pre.5 cannot finish A6-0 (see the T0510 report): the uploaded tarball keeps its `staging/`
+// top directory, and the systemd unit passes BAT_REMOTE_PORT while bat-server reads
+// BAT_SERVER_PORT. While A6-0 fails, A6-1..4 prepare each target first (symlinks
+// ~/.local/bat-server/<entry> → staging/<entry>, a unit drop-in with BAT_SERVER_PORT=9876) so the
+// alias handling behind those defects can still be checked. Set BAT_E2E_PRE5_SSH_WORKAROUND=0
+// to skip that preparation (or once A6-0 passes, it is skipped automatically).
+
+import { test, expect, type Locator, type Page } from '@playwright/test'
+import { execFile } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import {
+  REPO_ROOT,
+  closeIsolated,
+  launchIsolated,
+  run,
+  testLogger,
+  type IsolatedInstance,
+} from './fixtures/electron-isolation'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyApi = any
+
+const ENABLED = process.env.BAT_E2E_PRE5_SSH === '1'
+const ENV_SCRIPT = path.join(REPO_ROOT, 'e2e', 'real-remote', 't0510-ssh-alias-env.mjs')
+const CONNECTION = path.join(os.tmpdir(), 'bat-t0510', 'ssh-env', 'connection.json')
+const EVIDENCE_DIR = process.env.BAT_E2E_PRE5_EVIDENCE_DIR || path.join(os.tmpdir(), 'bat-t0510', 'evidence')
+const WINDOWS_OPENSSH_DIR = 'C:\\Windows\\System32\\OpenSSH'
+const WIZARD_TIMEOUT_MS = 240_000
+
+interface Connection {
+  distro: string
+  sshPort: number
+  sshUser: string
+  windowsUser: string
+  aliases: { direct: string; port: string; jumphost: string; viaJump: string; noUser: string }
+  containers: { jump: { name: string; ip: string }; target: { name: string; ip: string } }
+}
+
+function loadConnection(): Connection | null {
+  try {
+    return JSON.parse(fs.readFileSync(CONNECTION, 'utf8')) as Connection
+  } catch {
+    return null
+  }
+}
+
+const conn = loadConnection()
+test.skip(!ENABLED, 'opt-in: set BAT_E2E_PRE5_SSH=1 (T0510)')
+test.skip(process.platform !== 'win32', 'Windows host only (Windows OpenSSH + WSL Docker)')
+test.skip(ENABLED && !conn, `no ${CONNECTION} — run \`node e2e/real-remote/t0510-ssh-alias-env.mjs up\` first`)
+
+const log = testLogger('t0510-a6')
+
+// Localised labels (the isolated instance follows the OS language).
+const LOCALES = ['en', 'zh-TW', 'zh-CN'].map(lang =>
+  JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'src', 'locales', `${lang}.json`), 'utf8')) as AnyApi)
+const any = (pick: (l: AnyApi) => string) => LOCALES.map(pick)
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const oneOf = (values: string[]) => new RegExp(`^(${[...new Set(values)].map(escape).join('|')})$`)
+const COMPLETE = any(l => l.wizard.progress.complete)
+const ADD_MORE = oneOf(any(l => l.profiles.addMore))
+// The ssh-permission-denied mapper entry labels it 'Edit SSH settings'; the generic failure
+// actions call the same jump 'Edit config'. Either one is the way back to configure-ssh-host.
+const EDIT_SSH = oneOf([...any(l => l.wizard.action.editSshSettings), ...any(l => l.wizard.action.editConfig)])
+const MANUAL_HOST = oneOf(any(l => l.wizard.ssh.manualHost.option))
+const SUBMIT = oneOf(any(l => l.wizard.action.submitText))
+const HINT_USER_AND_PORT = any(l => l.profiles.sshDetails.userAndPortFromConfig)
+const HINT_USER = any(l => l.profiles.sshDetails.userFromConfig)
+
+// ── environment helpers ──────────────────────────────────────────────────────
+
+function envScript(command: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(process.execPath, [ENV_SCRIPT, command], { timeout: 60_000, windowsHide: true }, (err, stdout, stderr) => {
+      const out = `${stdout}${stderr}`.trim()
+      if (err) reject(new Error(`${command} failed: ${out}`))
+      else resolve(out)
+    })
+  })
+}
+
+function dockerExec(container: string, script: string, user?: string): Promise<string> {
+  const args = ['-d', conn!.distro, '--exec', 'docker', 'exec', ...(user ? ['-u', user] : []), container, 'sh', '-c', script]
+  return run('wsl.exe', args, 60_000).catch((err: AnyApi) => `ERR ${String(err?.stdout ?? '')}${String(err?.stderr ?? err?.message ?? '')}`)
+}
+
+const USER_SYSTEMCTL = 'su - bat -c "XDG_RUNTIME_DIR=/run/user/$(id -u bat) systemctl --user'
+
+async function serviceState(container: string): Promise<string> {
+  return (await dockerExec(container, `${USER_SYSTEMCTL} is-active bat-server" 2>&1; true`)).trim()
+}
+
+/** Test-side preparation for the two pre.5 defects A6-0 documents (see the header). */
+async function prepareTarget(container: string): Promise<void> {
+  const out = await dockerExec(container, [
+    'mkdir -p ~/.local/bat-server && cd ~/.local/bat-server',
+    'for e in bin electron node_modules scripts package.json README.md; do [ -e "$e" ] || [ -L "$e" ] || ln -s "staging/$e" "$e"; done',
+    'mkdir -p ~/.config/systemd/user/bat-server.service.d',
+    'printf "[Service]\\nEnvironment=BAT_SERVER_PORT=9876\\n" > ~/.config/systemd/user/bat-server.service.d/t0510-port.conf',
+    'ls -1 ~/.local/bat-server | tr "\\n" " "',
+  ].join(' && '), 'bat')
+  log(`WORKAROUND on ${container} (test-side, not a product change): ~/.local/bat-server → ${out.trim()}; drop-in BAT_SERVER_PORT=9876`)
+}
+
+// A6-0 records its verdict here; a failing test restarts the Playwright worker, so module state
+// does not survive into the next test.
+const STOCK_RESULT = path.join(EVIDENCE_DIR, 'a6-0-stock-result.json')
+function workaroundWanted(): boolean {
+  if (process.env.BAT_E2E_PRE5_SSH_WORKAROUND === '0') return false
+  try {
+    return JSON.parse(fs.readFileSync(STOCK_RESULT, 'utf8')).complete !== true
+  } catch {
+    return true
+  }
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────────
+
+async function shot(page: Page, name: string): Promise<string> {
+  fs.mkdirSync(EVIDENCE_DIR, { recursive: true })
+  const file = path.join(EVIDENCE_DIR, `${name}.png`)
+  await page.screenshot({ path: file })
+  log(`screenshot ${file}`)
+  return file
+}
+
+async function openProfiles(win: Page): Promise<void> {
+  if (await win.locator('.profile-card').count() > 0) return
+  await win.locator('.sidebar-footer-buttons .settings-btn').nth(0).click()
+  await expect(win.locator('.profile-card').first()).toBeVisible({ timeout: 15_000 })
+}
+
+async function openSshWizard(win: Page): Promise<void> {
+  await openProfiles(win)
+  await win.getByRole('button', { name: ADD_MORE }).click()
+  await win.locator('.thumbnail-add-menu-item', { hasText: 'SSH' }).click()
+  await expect(win.locator('.bat-wizard-shell')).toBeVisible({ timeout: 15_000 })
+}
+
+async function closeWizard(win: Page): Promise<void> {
+  // The SSH wizard overlay sits on top of the profiles panel: its close button is the last one.
+  await win.locator('.settings-panel .settings-close').last().click()
+  await expect(win.locator('.bat-wizard-shell')).toHaveCount(0, { timeout: 30_000 })
+}
+
+type Outcome = { result: 'complete'; text: string } | { result: 'failed'; text: string } | { result: 'timeout'; text: string }
+
+/**
+ * Runs the open wizard until it completes or a step fails. `onPrompt` answers whatever prompt
+ * is showing (it is called again while a prompt stays up, so it must be idempotent per prompt).
+ */
+async function driveWizard(win: Page, onPrompt: (prompt: Locator) => Promise<void>): Promise<Outcome> {
+  const shell = win.locator('.bat-wizard-shell')
+  const prompt = win.locator('#bat-wizard-active-prompt')
+  const end = Date.now() + WIZARD_TIMEOUT_MS
+  while (Date.now() < end) {
+    const text = await shell.innerText().catch(() => '')
+    if (COMPLETE.some(c => text.includes(c))) return { result: 'complete', text }
+    if (await win.locator('.bat-stepper-failed-actions').count() > 0) {
+      return { result: 'failed', text: await win.locator('.bat-wizard-detail').innerText().catch(() => text) }
+    }
+    if (await prompt.isVisible().catch(() => false)) await onPrompt(prompt)
+    await win.waitForTimeout(500)
+  }
+  return { result: 'timeout', text: await shell.innerText().catch(() => '') }
+}
+
+const pickAlias = (alias: string) => async (prompt: Locator) => {
+  const button = prompt.getByRole('button', { name: alias, exact: true })
+  if (await button.count() > 0) {
+    log(`wizard: pick alias ${alias}`)
+    await button.click()
+    await expect(button).toHaveCount(0, { timeout: 15_000 })
+  }
+}
+
+interface ProfileRow { id: string; name: string; targetOS?: string; sshHost?: string; sshUser?: string; sshPort?: number; remotePort?: number; remoteFingerprint?: string }
+
+async function profiles(win: Page): Promise<ProfileRow[]> {
+  return (await win.evaluate(async () => (window as AnyApi).electronAPI.profile.list())).profiles as ProfileRow[]
+}
+
+async function sshTarget(win: Page, profileName: string): Promise<string> {
+  await openProfiles(win)
+  const card = win.locator('.profile-card', { hasText: profileName })
+  if (await card.locator('[data-testid="ssh-target"]').count() === 0) await card.locator('.profile-card-toggle').click()
+  const target = card.locator('[data-testid="ssh-target"]')
+  await expect(target).toBeVisible({ timeout: 10_000 })
+  await card.scrollIntoViewIfNeeded()
+  return (await target.innerText()).trim()
+}
+
+/** Runs a wizard for `alias` to completion and returns the profile it wrote. */
+async function wizardForAlias(win: Page, alias: string, container: string, tag: string): Promise<ProfileRow> {
+  if (workaroundWanted()) await prepareTarget(container)
+  const before = new Set((await profiles(win)).map(p => p.id))
+  await openSshWizard(win)
+  const started = Date.now()
+  const outcome = await driveWizard(win, pickAlias(alias))
+  log(`${tag}: wizard ${outcome.result} in ${Date.now() - started} ms`)
+  await shot(win, `a6-${tag}-wizard-${outcome.result}`)
+  if (outcome.result !== 'complete') log(`${tag}: ${outcome.text.replace(/\s+/g, ' ').slice(0, 600)}`)
+  expect(outcome.result).toBe('complete')
+  await closeWizard(win)
+  const created = (await profiles(win)).filter(p => !before.has(p.id))
+  log(`${tag}: new profile ${JSON.stringify(created.map(({ remoteFingerprint, ...rest }) => ({ ...rest, fingerprint: Boolean(remoteFingerprint) })))}`)
+  expect(created).toHaveLength(1)
+  log(`${tag}: ${container} bat-server after the wizard closed: ${await serviceState(container)}`)
+  return created[0]
+}
+
+function isolatedSshEnv(): Record<string, string> {
+  return { Path: `${WINDOWS_OPENSSH_DIR};${process.env.PATH ?? process.env.Path ?? ''}` }
+}
+
+async function sshProcesses(needle: string): Promise<string[]> {
+  const out = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    `Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" | Where-Object { $_.CommandLine -like '*${needle}*' } | ForEach-Object { "$($_.ProcessId) $($_.ExecutablePath) :: $($_.CommandLine)" }`,
+  ], 20_000).catch(() => '')
+  return out.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+}
+
+// The temporary ~/.ssh/config block lives exactly as long as this file's tests (per worker).
+let configApplied = false
+
+test.beforeAll(async () => {
+  test.setTimeout(120_000)
+  log(await envScript('apply-ssh-config'))
+  configApplied = true
+  // Windows OpenSSH reads the real file: `ssh -G` resolves every alias as written.
+  for (const alias of Object.values(conn!.aliases)) {
+    const g = await run(path.join(WINDOWS_OPENSSH_DIR, 'ssh.exe'), ['-G', alias], 15_000)
+    log(`ssh -G ${alias}: ${g.split(/\r?\n/).filter(l => /^(user|hostname|port|proxyjump) /.test(l)).join(', ')}`)
+  }
+})
+
+test.afterAll(async () => {
+  if (configApplied) log(await envScript('restore-ssh-config'))
+  configApplied = false
+})
+
+// ── tests ────────────────────────────────────────────────────────────────────
+
+test('A6-0 stock wizard install on a clean target starts bat-server', async () => {
+  test.setTimeout(WIZARD_TIMEOUT_MS + 120_000)
+  const { direct } = conn!.aliases
+  const jump = conn!.containers.jump.name
+  fs.mkdirSync(EVIDENCE_DIR, { recursive: true })
+  fs.rmSync(STOCK_RESULT, { force: true })
+  // Clean targets: nothing from an earlier run (re-run `up` otherwise).
+  for (const c of [jump, conn!.containers.target.name]) {
+    const left = (await dockerExec(c, 'ls -A /home/bat/.local/bat-server /home/bat/.local/share/bat-server /home/bat/.config/systemd/user 2>/dev/null | head -3; true')).trim()
+    expect(left, `${c} still has a bat-server from an earlier run — run the env script's up again`).toBe('')
+  }
+  let inst: IsolatedInstance | undefined
+  let complete = false
+  try {
+    inst = await launchIsolated('t0510-a6-0', log, { env: isolatedSshEnv() })
+    const { win } = inst
+    await openSshWizard(win)
+    const outcome = await driveWizard(win, pickAlias(direct))
+    complete = outcome.result === 'complete'
+    log(`A6-0: wizard ${outcome.result}`)
+    await shot(win, `a6-0-stock-${outcome.result}`)
+    if (!complete) {
+      log(`A6-0 failed step: ${outcome.text.replace(/\s+/g, ' ').slice(0, 500)}`)
+      const evidence = await dockerExec(jump, [
+        'echo "## ls ~/.local/bat-server"; ls -A /home/bat/.local/bat-server',
+        'echo "## unit"; cat /home/bat/.config/systemd/user/bat-server.service',
+        `echo "## status"; ${USER_SYSTEMCTL} status bat-server --no-pager -l" 2>&1 | head -12`,
+        'echo "## listening"; ss -tlnp | tail -n +2',
+      ].join('; '))
+      for (const line of evidence.split(/\r?\n/)) log(`A6-0 ${jump}: ${line}`)
+    }
+    await closeWizard(win)
+    // T0505 §7 item 4, second half: cancelling the failed wizard rolls back (T0426), asynchronously.
+    const rolledBack = async () => (await dockerExec(jump, 'ls -A /home/bat/.local/bat-server /home/bat/.config/systemd/user/bat-server.service 2>/dev/null | head -3; true')).trim() === ''
+    await expect.poll(rolledBack, { timeout: 60_000, intervals: [2_000] }).toBe(true).catch(() => log('A6-0: rollback not finished within 60 s'))
+    const after = await dockerExec(jump, 'echo "bundle: $(ls -A /home/bat/.local/bat-server 2>&1 | head -3)"; echo "unit: $(ls /home/bat/.config/systemd/user/bat-server.service 2>&1)"; echo "linger: $(ls /var/lib/systemd/linger)"')
+    log(`A6-0 after closing the wizard (rollback): ${after.replace(/\s+/g, ' ')}`)
+  } finally {
+    fs.writeFileSync(STOCK_RESULT, JSON.stringify({ complete, at: new Date().toISOString() }))
+    await closeIsolated(inst, log)
+  }
+  expect(complete, 'the stock SSH wizard install must finish (see the A6-0 evidence above)').toBe(true)
+})
+
+test('A6-1..5 aliases (no Port / Port / ProxyJump / no User → typed) then reconnect after a restart', async () => {
+  test.setTimeout(WIZARD_TIMEOUT_MS * 6)
+  const created: Record<string, { profile: ProfileRow; container: string; sshNeedle: string }> = {}
+  const failures: string[] = []
+  let inst: IsolatedInstance | undefined
+  const attempt = async (name: string, body: () => Promise<void>) => {
+    await test.step(name, async () => {
+      try {
+        await body()
+        log(`${name}: PASS`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message.split('\n').slice(0, 6).join(' ') : String(err)
+        failures.push(`${name}: ${msg}`)
+        log(`${name}: FAIL ${msg}`)
+        // Leave no wizard open for the next step.
+        if (inst && await inst.win.locator('.bat-wizard-shell').count() > 0) await closeWizard(inst.win).catch(() => { /* ignore */ })
+      }
+    })
+  }
+  log(`workaround for the A6-0 defects: ${workaroundWanted() ? 'ON' : 'off'}`)
+  inst = await launchIsolated('t0510-a6', log, { env: isolatedSshEnv() })
+  const runtimeId = inst.runtimeId
+  try {
+    await attempt('A6-1 alias: HostName + User + IdentityFile, no Port', async () => {
+      const alias = conn!.aliases.direct
+      const container = conn!.containers.jump.name
+      const profile = await wizardForAlias(inst!.win, alias, container, '1-direct')
+      expect(profile).toMatchObject({ targetOS: 'ssh-linux', sshHost: alias, sshUser: '' })
+      expect(profile.sshPort ?? null).toBeNull()
+      const shown = await sshTarget(inst!.win, profile.name)
+      log(`A6-1 SshDetails Host: "${shown}"`)
+      await shot(inst!.win, 'a6-1-sshdetails')
+      expect(HINT_USER_AND_PORT.some(h => shown === `${alias} (${h})`)).toBe(true)
+      created.direct = { profile, container, sshNeedle: `-- ${alias}` }
+      log(`A6-1 linger (T0505 §7 item 4): ${(await dockerExec(container, 'loginctl show-user bat -p Linger; ls /var/lib/systemd/linger')).replace(/\s+/g, ' ')}`)
+    })
+
+    await attempt('A6-2 alias: custom Port', async () => {
+      const alias = conn!.aliases.port
+      const container = conn!.containers.jump.name
+      const profile = await wizardForAlias(inst!.win, alias, container, '2-port')
+      expect(profile).toMatchObject({ targetOS: 'ssh-linux', sshHost: alias, sshUser: '' })
+      expect(profile.sshPort ?? null).toBeNull()
+      const shown = await sshTarget(inst!.win, profile.name)
+      log(`A6-2 SshDetails Host: "${shown}"`)
+      await shot(inst!.win, 'a6-2-sshdetails')
+      expect(HINT_USER_AND_PORT.some(h => shown === `${alias} (${h})`)).toBe(true)
+      created.port = { profile, container, sshNeedle: `-- ${alias}` }
+    })
+
+    await attempt('A6-3 alias: ProxyJump to a target Windows cannot route to', async () => {
+      const alias = conn!.aliases.viaJump
+      const container = conn!.containers.target.name
+      const profile = await wizardForAlias(inst!.win, alias, container, '3-proxyjump')
+      expect(profile).toMatchObject({ targetOS: 'ssh-linux', sshHost: alias, sshUser: '' })
+      const shown = await sshTarget(inst!.win, profile.name)
+      log(`A6-3 SshDetails Host: "${shown}"`)
+      await shot(inst!.win, 'a6-3-sshdetails')
+      expect(HINT_USER_AND_PORT.some(h => shown === `${alias} (${h})`)).toBe(true)
+      // Every login on the target came from the jump container's address.
+      const accepted = (await dockerExec(container, 'journalctl -u ssh --no-pager | grep "Accepted publickey"')).trim().split(/\r?\n/).filter(Boolean)
+      log(`A6-3 target sshd: ${accepted.length} accepted login(s); last: ${accepted.at(-1)}`)
+      expect(accepted.length).toBeGreaterThan(0)
+      expect(accepted.every(l => l.includes(`from ${conn!.containers.jump.ip} `))).toBe(true)
+      created.viaJump = { profile, container, sshNeedle: `-- ${alias}` }
+    })
+
+    await attempt('A6-4 alias without User → permission-denied → edit → typed user@host:port', async () => {
+      const { win } = inst!
+      const alias = conn!.aliases.noUser
+      const container = conn!.containers.jump.name
+      const typed = `${conn!.sshUser}@127.0.0.1:${conn!.sshPort}`
+      log(`A6-4: Windows login "${conn!.windowsUser}" ≠ remote account "${conn!.sshUser}"`)
+      if (workaroundWanted()) await prepareTarget(container)
+      const before = new Set((await profiles(win)).map(p => p.id))
+      await openSshWizard(win)
+      const first = await driveWizard(win, pickAlias(alias))
+      const failedText = first.text.replace(/\s+/g, ' ')
+      log(`A6-4: first outcome ${first.result}: ${failedText.slice(0, 400)}`)
+      await shot(win, 'a6-4-permission-denied')
+      expect(first.result).toBe('failed')
+      expect(failedText).toMatch(/permission-denied/)
+
+      const edit = win.locator('.bat-stepper-failed-actions').getByRole('button', { name: EDIT_SSH })
+      log(`A6-4: failed-step actions: ${JSON.stringify(await win.locator('.bat-stepper-failed-actions button').allInnerTexts())}; mapped error shown: ${await win.locator('.bat-wizard-mapped-error').count() > 0}`)
+      await edit.first().click()
+      const second = await driveWizard(win, async (prompt) => {
+        const manual = prompt.getByRole('button', { name: MANUAL_HOST })
+        if (await manual.count() > 0) {
+          log('wizard: choose "Enter host manually…"')
+          await manual.click()
+          return
+        }
+        const input = prompt.locator('input')
+        if (await input.count() > 0) {
+          log(`wizard: type ${typed}`)
+          await input.fill(typed)
+          await prompt.getByRole('button', { name: SUBMIT }).click()
+          await expect(input).toHaveCount(0, { timeout: 15_000 })
+        }
+      })
+      log(`A6-4: after edit → ${second.result}`)
+      await shot(win, `a6-4-typed-${second.result}`)
+      if (second.result !== 'complete') log(`A6-4: ${second.text.replace(/\s+/g, ' ').slice(0, 600)}`)
+      expect(second.result).toBe('complete')
+      await closeWizard(win)
+      const fresh = (await profiles(win)).filter(p => !before.has(p.id))
+      log(`A6-4: new profile ${JSON.stringify(fresh.map(({ remoteFingerprint, ...rest }) => ({ ...rest, fingerprint: Boolean(remoteFingerprint) })))}`)
+      expect(fresh).toHaveLength(1)
+      expect(fresh[0]).toMatchObject({ targetOS: 'ssh-linux', sshHost: '127.0.0.1', sshUser: conn!.sshUser, sshPort: conn!.sshPort })
+      const shown = await sshTarget(win, fresh[0].name)
+      log(`A6-4 SshDetails Host: "${shown}"`)
+      await shot(win, 'a6-4-sshdetails')
+      expect(shown).toBe(typed)
+      created.typed = { profile: fresh[0], container, sshNeedle: `-- ${conn!.sshUser}@127.0.0.1` }
+    })
+
+    await attempt('A6-5 restart: every profile reconnects through Windows OpenSSH', async () => {
+      const keys = Object.keys(created)
+      expect(keys.length, 'profiles from A6-1..4').toBeGreaterThan(0)
+      await closeIsolated(inst, log, { keepUserData: true })
+      inst = undefined
+      inst = await launchIsolated('t0510-a6', log, { env: isolatedSshEnv(), runtimeId })
+      const owner = inst
+      const results: string[] = []
+      for (const key of keys) {
+        const { profile, container, sshNeedle } = created[key]
+        const opened = await owner.win.evaluate(async (id) => (window as AnyApi).electronAPI.app.openNewInstance(id), profile.id)
+        expect(opened.error, `${key}: openNewInstance`).toBeUndefined()
+        const windowId = opened.windowIds[0]
+        let page: Page | undefined
+        await expect.poll(() => (page = owner.app.windows().find(p => p.url().includes(`windowId=${encodeURIComponent(windowId)}`))) !== undefined,
+          { timeout: 30_000, message: `${key}: window` }).toBe(true)
+        await page!.waitForLoadState('domcontentloaded')
+        const t0 = Date.now()
+        await expect.poll(async () => (await page!.evaluate(async () => (window as AnyApi).electronAPI.remote.clientStatus())).connected,
+          { timeout: 60_000, message: `${key}: connected` }).toBe(true)
+        // A remote shell proves which machine the tunnel reached.
+        const ptyId = `t0510-a6-${key}-${Date.now()}`
+        await page!.evaluate((id) => {
+          const w = window as AnyApi
+          w.__t0510 = w.__t0510 ?? {}
+          w.__t0510[id] = ''
+          w.electronAPI.pty.onOutput((pid: string, data: string) => { if (pid === id) w.__t0510[id] += data })
+        }, ptyId)
+        await page!.evaluate(async (id) => (window as AnyApi).electronAPI.pty.create({ id, cwd: '/tmp', type: 'terminal' }), ptyId)
+        await page!.evaluate((id) => (window as AnyApi).electronAPI.pty.write(id, 'echo "T0510-$(id -un)@$(uname -n)-$((20+5))"\n'), ptyId)
+        const marker = `T0510-${conn!.sshUser}@${container}-25`
+        await expect.poll(() => page!.evaluate((id) => (window as AnyApi).__t0510[id] as string, ptyId), { timeout: 30_000, message: `${key}: remote shell` }).toContain(marker)
+        const procs = await sshProcesses(sshNeedle)
+        log(`A6-5 ${key}: connected in ${Date.now() - t0} ms, remote shell "${marker}"; ssh: ${procs.join(' | ') || '(none found)'}`)
+        await shot(page!, `a6-5-${key}-connected`)
+        expect(procs.length).toBeGreaterThan(0)
+        expect(procs.every(p => p.toLowerCase().includes('\\windows\\system32\\openssh\\ssh.exe'))).toBe(true)
+        await page!.evaluate(async (id) => (window as AnyApi).electronAPI.pty.kill(id), ptyId).catch(() => { /* gone */ })
+        results.push(`${key}=${marker}`)
+      }
+      log(`A6-5: ${results.join(', ')}`)
+      // The tunnels' ssh sessions come and go; the user services keep running (linger).
+      for (const c of new Set(keys.map(k => created[k].container))) log(`A6-5 ${c}: bat-server ${await serviceState(c)}`)
+    })
+  } finally {
+    await closeIsolated(inst, log)
+  }
+  expect(failures).toEqual([])
+})

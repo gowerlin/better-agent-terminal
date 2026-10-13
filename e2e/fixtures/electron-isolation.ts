@@ -14,6 +14,9 @@
 //     Terminal Server" — otherwise `app.close()` hangs forever — then only kills
 //     a leftover Terminal Server whose command line is this repo's
 //     dist-electron/terminal-server.js, then deletes the runtime userData.
+//
+// T0510: BAT_E2E_EXECUTABLE=<path to an installed BetterAgentTerminal.exe> launches that
+// packaged build instead (same runtime / env isolation). Unset: the source build, as above.
 
 import { _electron as electron, test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { execFile } from 'node:child_process'
@@ -23,7 +26,12 @@ import path from 'node:path'
 
 export const REPO_ROOT = path.resolve(__dirname, '..', '..')
 export const MAIN_BUNDLE = path.join(REPO_ROOT, 'dist-electron', 'main.js')
-export const TERMINAL_SERVER_SCRIPT = path.join(REPO_ROOT, 'dist-electron', 'terminal-server.js')
+/** T0510: packaged executable under test; '' = the source build. */
+export const E2E_EXECUTABLE = process.env.BAT_E2E_EXECUTABLE ?? ''
+// A packaged app forks the Terminal Server from inside app.asar.
+export const TERMINAL_SERVER_SCRIPT = E2E_EXECUTABLE
+  ? path.join(path.dirname(E2E_EXECUTABLE), 'resources', 'app.asar', 'dist-electron', 'terminal-server.js')
+  : path.join(REPO_ROOT, 'dist-electron', 'terminal-server.js')
 const USER_REMOTE_PORTS = new Set([9876, 9877])
 const CLOSE_TIMEOUT_MS = 20_000
 
@@ -118,10 +126,12 @@ export async function launchIsolated(
   const runtimeId = opts.runtimeId ?? `e2e-${name}-${Date.now()}`
   await opts.beforeLaunch?.(runtimeId)
   const remotePort = await freePort()
-  const app = await electron.launch({
-    args: [REPO_ROOT, `--runtime=${runtimeId}`],
-    env: isolatedEnv(remotePort, opts.env),
-  })
+  const env = isolatedEnv(remotePort, opts.env)
+  const app = await electron.launch(E2E_EXECUTABLE
+    // Playwright starts the executable through a shell on Windows, which drops the
+    // backslashes of an unquoted-looking path; forward slashes survive.
+    ? { executablePath: E2E_EXECUTABLE.replace(/\\/g, '/'), args: [`--runtime=${runtimeId}`], env }
+    : { args: [REPO_ROOT, `--runtime=${runtimeId}`], env })
   let userData = ''
   try {
     userData = await app.evaluate(({ app: electronApp }) => electronApp.getPath('userData'))
@@ -129,7 +139,7 @@ export async function launchIsolated(
     expect(path.basename(userData)).toContain(`-runtime-${runtimeId}`)
     const win = await app.firstWindow()
     await win.waitForLoadState('domcontentloaded')
-    log(`launched runtime=${runtimeId} userData=${userData} remotePort=${remotePort}`)
+    log(`launched runtime=${runtimeId} userData=${userData} remotePort=${remotePort}${E2E_EXECUTABLE ? ` executable=${E2E_EXECUTABLE}` : ''}`)
     return { app, win, runtimeId, userData, remotePort }
   } catch (err) {
     // Do not leave a half-started instance behind. The userData is only removed
