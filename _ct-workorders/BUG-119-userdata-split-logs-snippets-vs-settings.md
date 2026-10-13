@@ -57,3 +57,9 @@ links:
 - 衍生症狀補記：啟動時日誌設定被忽略（`readLoggingConfigSync` 讀小寫目錄的 `settings.json`）；`message-archives/` 落小寫；`bat-scripts.log` 分成兩份（main mirror 小寫、helper 大寫）
 - runtime 實例整個在 `better-agent-terminal-runtime-N`（R2 實證，不分裂）；helper 在 `--runtime=N` 時找錯 cert（PTY 無 `BAT_RUNTIME`）
 - 修復拆單：T0480（A 核心）∥ T0481（B helper env）→ T0482（C 文件）
+
+## 修復進度
+
+- T0481 DONE（`33044c0`）：本機 PTY 注入 `BAT_USER_DATA`，helper 以 env 解析
+- T0480 DONE（`95739d0`）：bootstrap + ready 前 migration + 顯式 setPath + snippetDb lazy；e2e 2/2
+- T0482（文件）派發中；全部完成後 → FIXED，待 Windows / mac 實機（server-token 不變、Keychain）
