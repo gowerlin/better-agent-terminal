@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0467
 title: "PLAN-039 實機驗收自動化（無人值守）：source build + 真 WSL bat-server + WSL 內 Docker 容器（sshd + 獨立 bat-server）當 SSH profile，跑 docs 實機 6 步（不含 Claude Agent）"
 type: implementation
-status: BLOCKED
+status: PENDING
 repo: better-agent-terminal
 project: PLAN-039
 priority: P2
 sizing: M
 created_at: "2026-10-13T15:53:34+08:00"
 started_at: "2026-10-13T15:54:39+08:00"
-updated_at: "2026-10-13T15:58:00+08:00"
+updated_at: "2026-10-13T15:59:01+08:00"
 completed_at: null
 target_version: next
 depends_on:
@@ -31,7 +31,7 @@ interaction:
   mode_hint: yolo
   interactive: false
   intervention_type: fire-and-forget
-renew_count: 0
+renew_count: 1
 workdir: main repo
 memory_overrides:
   - "🔴 **只寫測試 / 驗收工具，不改產品程式碼**（`electron/**`、`src/**` 不動）。驗收中發現產品缺陷 → 回報區記錄證據（log 片段、步驟、預期 vs 實際），狀態 PARTIAL，**不自行修**（由塔台開 BUG）。"
@@ -100,6 +100,30 @@ Windows host
 3. 先做環境可行性探測（WSL docker 可用、容器內 sshd 可從 Windows 連到、容器內 server 可起）；不可行 → 回報區說明阻塞點，狀態 BLOCKED，不硬改方案違反 memory_overrides
 4. 實作 → 實跑 → 填回報區；全 PASS 寫 **`DONE`**，否則 `PARTIAL` / `BLOCKED`
 5. commit 實際改動檔 + 本工單 + PLAN-039；不 push；依派發 mode 通知塔台
+
+## 塔台補充（Renew #1，2026-10-13 15:59，第五十八 session）
+
+前一輪 BLOCKED（WSL 無 Docker engine，見回報區）。**使用者裁決 B：授權 Worker 在 WSL `Ubuntu-24.04` 安裝 Docker 後繼續原工單**。本補充覆寫 memory_overrides 第 3 條「不動使用者既有遠端環境」中關於 WSL 系統的部分，僅限下列範圍：
+
+**授權的系統變更（只限這些）**
+1. `sudo apt-get update && sudo apt-get install -y docker.io`（不加裝 docker-compose / buildx 以外非必要套件；若 build 需要 buildx 才裝 `docker-buildx`）
+2. `sudo usermod -aG docker gower`
+3. `sudo systemctl enable --now docker`
+4. 回報區列出實際安裝的套件與版本（`dpkg -l | grep -E 'docker|containerd|runc'`）
+
+**仍禁止**
+- 🔴 **不得 `wsl --shutdown` / `wsl --terminate`**（會中斷使用者 WSL 上既有 bat-server 與其他 session）。docker group 尚未生效時改用 `sudo docker …` 或 `sg docker -c "…"`
+- 不得在 WSL **主機**裝 `openssh-server` / 起 sshd（sshd 只裝在本單容器內）
+- 不得改 `/etc/wsl.conf`、iptables 手動規則、`~/.local/bat-server`、使用者 `~/.ssh`
+- 其餘 memory_overrides（不改產品碼、不耗 Claude token、只動本單標記容器、git 禁令、不 push）不變
+
+**塔台採納 Worker 前輪發現**
+- known_hosts 隔離：S 實例改用 Git for Windows `usr\bin\ssh.exe` + isolated `HOME`（PATH 前插），**同意**；回報區註明與實際 BAT（System32 ssh）的差異
+- `sshKeyPath` 放無空白的 isolated 目錄
+- W profile 連 `localhost:9877`；token / fingerprint 可從 WSL server data dir 讀取（只讀，不得改）
+- 容器內 bat-server 用目前 source 的 headless bundle；WSL 主機 server 為 `0.5.9-pre.4` 版號的 dev deploy（tag `t0456`）——PLAN-039 主要是 client 端改動，可接受；若因 server 版本差異導致失敗，回報區說明，不得重部署主機 server
+
+**收尾**：本單容器 / network / volume 刪除；Docker engine 本身**保留安裝**（使用者已同意，日後重跑 spec 用）。
 
 ---
 
