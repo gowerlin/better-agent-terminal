@@ -3,13 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-088
 title: SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版）
-status: FIXED
+status: CLOSED
 fix_commits: [a1ee31f]
 fixed_at: "2026-10-04T21:50:29+08:00"
 severity: high
 reproducibility: always
 created_at: "2026-10-04T21:30:23+08:00"
-updated_at: "2026-10-04T23:46:46+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 impact:
   - setup-wizard-ssh
 links:
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（推定：預設 install path 下，SSH 精靈部署的 bat-server 服務永遠起不來；與 BUG-087 缺陷 B 同機制） |
 | 可重現 | 推定 100%：選預設 install path `~/.local/bat-server`。**由程式碼閱讀推定，未實機重現** |
-| **狀態** | ✅ FIXED（T0379 `a1ee31f`；待實際 SSH 主機驗收，macOS 未實機）（2026-10-04 23:46：未驗，SSH 精靈需實際 SSH 主機；可與 T0387 / BUG-093 一併驗收） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | T0378 Worker（回報區「殘餘風險 1」，讀碼發現）；塔台 2026-10-04 以 grep 複核 |
 
 ## 現象（程式碼證據）
@@ -65,3 +66,7 @@ launchd 結論（T0379 查 `launchd.plist(5)`）：`ProgramArguments` 對應 `ex
 ## ⚠️ 給曾用舊版跑過 SSH 精靈的使用者
 
 遠端 `$HOME` 下可能殘留字面 `~` 目錄（內含 bundle 與 unit）。手動清理：`rm -rf "$HOME/~"` —— **務必加引號**；裸 `rm -rf ~` 會刪除整個家目錄。
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0515 自動化驗收（已安裝 pre.6 隔離實例 + 容器化 sshd 真精靈流程，`e2e/pre6-wizard-acceptance.spec.ts`，`9917445`） W3：systemd unit 無字面 `~`，服務 `active`

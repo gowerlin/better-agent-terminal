@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-098
 title: "SSH 精靈 direct 模式整條路徑不通：遠端 bat-server 固定綁 localhost、profile 固定寫 `remoteHost: localhost`、ssh config alias 不解析 HostName"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-05T00:04:10+08:00"
-updated_at: "2026-10-05T06:00:36+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 impact:
   - setup-wizard-ssh
 links:
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（預設 tunnel 模式不受影響；選 direct 必失敗） |
 | 可重現 | 推定 100%（程式碼證據；既有問題，非 T0387 引入） |
-| **狀態** | ✅ FIXED（處理方式：移除 direct 模式，T0425 / D134） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | T0387 Worker（回報區「已知限制」）；塔台 2026-10-05 00:04 抽查 |
 
 ## 現象（程式碼證據）
@@ -41,3 +42,7 @@ links:
 - 相容：精靈殘留 `sshTunnelMode: 'direct'` → 視為 tunnel 並 warn；既有 profile `useSshTunnel: false` → `RemoteClient` 照樣走 SSH tunnel 並 warn，profile 詳情標示 `(legacy direct setting ignored)`；磁碟上的 profile 不改寫
 - 驗收：`npm run test:unit` 124 files／1961 passed；`npx tsc --noEmit` 39（≤ 40）。詳見 T0425 回報區
 - 修復時間：`2026-10-05T06:00:36+08:00`
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0515 自動化驗收（已安裝 pre.6 隔離實例 + 容器化 sshd 真精靈流程，`e2e/pre6-wizard-acceptance.spec.ts`，`9917445`） W5：精靈無 direct 選項，tunnel 連線 7 ms 連上

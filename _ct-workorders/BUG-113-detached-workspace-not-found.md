@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-113
 title: "Detached workspace 視窗顯示 Workspace not found：workspace:load / save 以 ctx.windowId 讀寫 registry，detached 視窗不在 windowMap（windowId null）→ load 回 null、save 回 false；自 512c118 多視窗重構起 detach 功能失效（本機 / 遠端皆然）"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-05T06:43:42+08:00"
-updated_at: "2026-10-05T06:54:02+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 impact:
   - detached-workspace
 links:
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（detach 功能整個不可用；T0453 e2e 實機確認） |
 | 可重現 | 必現（T0453 e2e：detached 視窗顯示「找不到工作區」） |
-| **狀態** | ✅ FIXED |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | T0446 Worker（遭遇問題 1） |
 
 ## 現象（T0446 回報）
@@ -44,3 +45,7 @@ detached 視窗唯讀載入父視窗 entry（T0446 的 `detachedWindowRecords` �
 - remote detached 視窗：`workspace:*` 本就 ALWAYS_LOCAL（讀本機 registry 的複本），T0446 的 proxied 路由不變。
 - **已知限制**：在 detached 視窗內新增 / 關閉的終端不會持久化到父視窗 entry（save 為 no-op）；reattach 後父視窗顯示的是 detach 當時的終端清單。
 - **驗證**：e2e 1 passed（detach → 視窗顯示 Beta、終端執行 `echo` 回 `T0453_MARKER_OK` → detached 視窗送出清空 payload 的 save 後父視窗 entry 不變 → reattach 關窗、Beta 回到主視窗側欄）；unit source guard `electron/__tests__/detached-workspace-persistence.test.ts`。
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0514 自動化驗收（已安裝 pre.6 隔離實例 + pre.6 headless server 容器，`e2e/pre6-ui-remote-acceptance.spec.ts`，`e009817`） U1：本機 detach 視窗正常載入、終端可執行、reattach 正常

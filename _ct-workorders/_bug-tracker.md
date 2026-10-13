@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T04:09:11+0800"
+generated_at: "2026-10-14T04:10:17+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 51
 breakdown:
   OPEN: 0
   FIXING: 2
-  FIXED: 23
+  FIXED: 9
   VERIFY: 0
-  CLOSED: 26
+  CLOSED: 40
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 04:09 (UTC+8) — 第六十 session：BUG-125 FIXED（T0518）；BUG-124 / 126 FIXING（T0517 / T0519）
+> 最後同步：2026-10-14 04:10 (UTC+8) — 第六十 session：T0514 / T0515 證據 + BUG-086 依 unit 證據，14 張 CLOSED；BUG-124 / 126 FIXING
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 9 | 🧪 Verify: 0 | 🚫 Closed: 40 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -46,27 +46,13 @@ breakdown:
 |----|------|--------|---------|------|
 | BUG-125 | claude:scan-skills：commands 以第一行當 description，帶 frontmatter 顯示 "---"（T0518 `b66b525`：commands 先讀 frontmatter description） | 🟢 low | 2026-10-14 | [BUG-125](BUG-125-scan-skills-command-description-frontmatter.md) |
 | BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
-| BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
-| BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
 | BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
-| BUG-113 | Detached workspace 視窗顯示 Workspace not found（自 `512c118` 多視窗重構起 detach 失效）（T0453） | 🟡 medium | 2026-10-05 | [BUG-113](BUG-113-detached-workspace-not-found.md) |
-| BUG-112 | 從 remote profile 視窗 detach 出的 workspace 視窗路由視為本機（fail-open）（T0446） | 🔴 high | 2026-10-05 | [BUG-112](BUG-112-detached-workspace-window-remote-fail-open.md) |
 | BUG-111 | 設定精靈 rollback 會刪 / 停使用者自己的 Docker 容器與資料（T0444） | 🔴 high | 2026-10-05 | [BUG-111](BUG-111-wizard-rollback-touches-user-owned-resources.md) |
-| BUG-110 | 遠端 profile 視窗未連線時 proxied channel 靜默改在本機執行（fail-open）（T0443） | 🔴 high | 2026-10-05 | [BUG-110](BUG-110-remote-window-falls-back-to-local-handlers.md) |
-| BUG-109 | `/snippet` prompt 寫死 macOS `snippets.json` 路徑（T0441） | 🟢 low | 2026-10-05 | [BUG-109](BUG-109-snippet-prompt-hardcoded-macos-path.md) |
 | BUG-108 | Claude 面板圖片附件走 proxied 讀檔：本機工作區外圖片被 path guard 擋、遠端讀錯檔案系統（T0436） | 🟡 medium | 2026-10-05 | [BUG-108](BUG-108-image-attachment-read-path-denied.md) |
 | BUG-107 | Electron 41 拖放檔案取不到路徑（`File.path` 已移除）（T0435；須與 T0437 同版） | 🟡 medium | 2026-10-05 | [BUG-107](BUG-107-drag-drop-file-path-missing-electron41.md) |
-| BUG-106 | `worktree:merge` 呼叫已移除的 `WorktreeManager.mergeWorktree`（T0417，移除殘留） | 🟢 low | 2026-10-05 | [BUG-106](BUG-106-worktree-merge-calls-removed-method.md) |
-| BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告（T0426，實作 IPC） | 🟡 medium | 2026-10-05 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
-| BUG-099 | 設定精靈取消時不 rollback 失敗中的步驟（T0426） | 🟢 low | 2026-10-05 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
-| BUG-098 | SSH 精靈 direct 模式整條路徑不通（T0425，移除 direct） | 🟡 medium | 2026-10-05 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
 | BUG-097 | Docker 遠端埠全介面暴露、container 內 bind 不可達、HEALTHCHECK 無路由（T0418 / T0427 / T0428） | 🔴 high | 2026-10-05 | [BUG-097](BUG-097-docker-server-port-exposed-and-unreachable.md) |
-| BUG-096 | renderer 遠端重連不帶 fingerprint，以未 pin 連線取代已驗證連線（T0419 / T0430 / T0442） | 🟡 medium | 2026-10-05 | [BUG-096](BUG-096-app-remote-connect-without-fingerprint.md) |
 | BUG-105 | 遠端路徑轉換只涵蓋 fs / git(7) / pty / image：claude:*（cwd）、github:*、git-scaffold:*、worktree:create 不轉 | 🔴 high | 2026-10-05 | [BUG-105](BUG-105-proxied-channels-missing-path-translation.md) |
-| BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-04 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
-| BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-04 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
-| BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-04 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
 
 ## 🧪 驗收中 (VERIFY)
 
@@ -78,6 +64,20 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-086 | WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL | 🟢 low | 2026-10-14 | [BUG-086](BUG-086-wsl-wizard-no-distro-misreported-as-no-wsl.md) |
+| BUG-109 | `/snippet` prompt 寫死 macOS `snippets.json` 路徑（T0441） | 🟢 low | 2026-10-14 | [BUG-109](BUG-109-snippet-prompt-hardcoded-macos-path.md) |
+| BUG-106 | `worktree:merge` 呼叫已移除的 `WorktreeManager.mergeWorktree`（T0417，移除殘留） | 🟢 low | 2026-10-14 | [BUG-106](BUG-106-worktree-merge-calls-removed-method.md) |
+| BUG-096 | renderer 遠端重連不帶 fingerprint，以未 pin 連線取代已驗證連線（T0419 / T0430 / T0442） | 🟡 medium | 2026-10-14 | [BUG-096](BUG-096-app-remote-connect-without-fingerprint.md) |
+| BUG-110 | 遠端 profile 視窗未連線時 proxied channel 靜默改在本機執行（fail-open）（T0443） | 🔴 high | 2026-10-14 | [BUG-110](BUG-110-remote-window-falls-back-to-local-handlers.md) |
+| BUG-112 | 從 remote profile 視窗 detach 出的 workspace 視窗路由視為本機（fail-open）（T0446） | 🔴 high | 2026-10-14 | [BUG-112](BUG-112-detached-workspace-window-remote-fail-open.md) |
+| BUG-113 | Detached workspace 視窗顯示 Workspace not found（自 `512c118` 多視窗重構起 detach 失效）（T0453） | 🟡 medium | 2026-10-14 | [BUG-113](BUG-113-detached-workspace-not-found.md) |
+| BUG-100 | `ssh.stopServer` / `ssh.uninstallBundle` 只有型別宣告（T0426，實作 IPC） | 🟡 medium | 2026-10-14 | [BUG-100](BUG-100-ssh-stop-server-uninstall-bundle-ipc-missing.md) |
+| BUG-099 | 設定精靈取消時不 rollback 失敗中的步驟（T0426） | 🟢 low | 2026-10-14 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
+| BUG-098 | SSH 精靈 direct 模式整條路徑不通（T0425，移除 direct） | 🟡 medium | 2026-10-14 | [BUG-098](BUG-098-ssh-wizard-direct-mode-unreachable.md) |
+| BUG-093 | SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的 | 🔴 high | 2026-10-14 | [BUG-093](BUG-093-ssh-wizard-verifies-local-host-not-remote.md) |
+| BUG-088 | SSH 設定精靈寫出的 systemd unit / launchd plist 含字面 `~`，服務無法啟動（BUG-087 缺陷 B 的 SSH 版） | 🔴 high | 2026-10-14 | [BUG-088](BUG-088-ssh-wizard-service-unit-literal-tilde.md) |
+| BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
+| BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
 | BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（T0488 修：baseline 取基底版號） | 🟢 low | 2026-10-14 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
 | BUG-117 | mac x64 dmg 內嵌 arm64 原生 binary（已證實：claude / codex / node-pty / whisper 等）→ Intel Mac 內嵌 claude、codex、語音不可用、PTY 降級 | 🔴 high | 2026-10-14 | [BUG-117](BUG-117-mac-x64-dmg-ships-arm64-native-binaries.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only；T0486 清零 36 → 0） | 🟢 low | 2026-10-14 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |

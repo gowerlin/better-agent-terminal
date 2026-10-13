@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-110
 title: "遠端 profile 視窗在遠端未連線時，proxied channel 靜默改在本機執行（fail-open）：槽位空 / 重連中 / 槽位屬他 profile 時 pty:create、fs:*、git:* 等落到本機 invokeHandler"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-05T06:12:22+08:00"
-updated_at: "2026-10-05T06:25:28+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 fixed_at: "2026-10-05T06:25:28+08:00"
 impact:
   - remote-profile-trust
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（遠端視窗在使用者不知情下開本機 shell、讀寫本機檔案、跑本機 git） |
 | 可重現 | always（程式碼證據，塔台 06:12 複核） |
-| **狀態** | 🔧 FIXED（T0443，待實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | T0430 / T0442 Worker（遭遇問題）；塔台複核擴大範圍 |
 
 ## 現象（程式碼證據）
@@ -51,3 +52,7 @@ links:
 - **多 remote profile 同時連線仍不支援**：主程式仍只有單一 `remoteClient` 槽位；後開的 remote profile 佔走槽位，先開的視窗改為「未連線」（提示 `app.remoteNotConnectedOtherProfile`，操作被拒，不再落本機）。需重開該 profile 視窗才會換回。per-profile client map 見 PLAN-039。
 - **Detached workspace 視窗**（`workspace:detach`）不在 `windowMap`，`getWindowIdByWebContents` 回 `null` → 路由視為無 profile 綁定 → 照舊本機（既有行為，T0443 未改；見 T0443 回報區「遭遇問題」）。
 - claude-cli preset（`terminal:create-with-command`）與整合式 Agent 面板（`claude:start-session`）在未連線時被拒後不自動重試，需連線後重開分頁。
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0514 自動化驗收（已安裝 pre.6 隔離實例 + pre.6 headless server 容器，`e2e/pre6-ui-remote-acceptance.spec.ts`，`e009817`） U3：容器停止後兩個 remote 視窗 5 種 proxied 呼叫皆 `REMOTE_NOT_CONNECTED` 拒絕，未在本機執行

@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-109
 title: "/snippet 情境 prompt 寫死 macOS 路徑 ~/Library/Application Support/better-agent-terminal/snippets.json；Windows / Linux / 遠端視窗皆錯（snippet 已改 ALWAYS_LOCAL，遠端 agent 讀不到本機 DB）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-05T05:51:45+08:00"
-updated_at: "2026-10-05T07:01:31+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 impact:
   - snippets
   - claude-panel
@@ -22,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low |
 | 可重現 | always（程式碼證據） |
-| **狀態** | ✅ FIXED |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | T0421 Worker（「遭遇問題」1） |
 
 ## 現象
@@ -42,3 +43,7 @@ prompt 改為注入 snippet 清單 / 經 IPC 操作，不叫 agent 直接改檔�
 - **遠端視窗**：清單在本機 renderer 取得後以文字送給遠端 agent，行為與本機視窗一致，不需停用。
 - `ClaudeAgentPanel.tsx` 與 `CodexAgentPanel.tsx`（同段重複碼，該分支因 `isCodexSession = true` 實為 dead code）皆改呼叫 helper。
 - 測試：`src/lib/__tests__/snippet-context.test.ts`、`src/__tests__/snippet-prompt-no-path.test.tsx`（本機 / 遠端視窗、兩個 panel 原始碼不含 `~/Library` / `snippets.json`）。
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0514 自動化驗收（已安裝 pre.6 隔離實例 + pre.6 headless server 容器，`e2e/pre6-ui-remote-acceptance.spec.ts`，`e009817`） U9：`/snippet` prompt 注入 snippet 內容、不含任何 snippets 路徑

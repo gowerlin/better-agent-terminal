@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-120
 title: "SSH wizard 上傳 server bundle 時沒有 --strip-components=1，解出 <installPath>/staging/…，systemd unit / launchd plist 的 <installPath>/bin/bat-server 不存在（203/EXEC）"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-14T02:36:13+0800"
-updated_at: "2026-10-14T02:52:53+0800"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 fixed_at: "2026-10-14T02:52:53+0800"
 impact:
   - remote-ssh
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（pre.5 的 SSH wizard 在 Linux 目標上無法完成，與 BUG-121 合併擋住整條 SSH 安裝流程） |
 | 可重現 | 必現（T0510 A6-0，乾淨 Debian 12 + systemd 容器） |
-| **狀態** | ✅ FIXED（T0511） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | 塔台（T0510 Worker 自動化實機驗收發現） |
 
 ## 證據（T0510 回報區「發現的產品缺陷」1）
@@ -48,3 +49,7 @@ links:
   - 頂層不是 `staging/` 的 tarball：解完 `test -x bin/bat-server` 失敗 → 上傳步驟明確報錯（不靜默寫出不能啟動的 unit）
 - 起源：T0285（`0a89800`，2026-04-26）即無 strip；首個含此 commit 的發佈版 `v0.4.1`
 - 驗證：單元 `electron/remote/__tests__/ssh-bundle-layout-and-port.test.ts`（HEAD 上 red）；e2e `e2e/pre5-ssh-alias.spec.ts` A6-0（`ls ~/.local/bat-server` = `README.md bin electron node_modules package.json scripts`）、A6-2（預置 `staging/` 後重跑 wizard 被清除）
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0515 自動化驗收（已安裝 pre.6 隔離實例 + 容器化 sshd 真精靈流程，`e2e/pre6-wizard-acceptance.spec.ts`，`9917445`） W1：bundle 落在 `<installPath>/bin/bat-server`，無 `staging/`

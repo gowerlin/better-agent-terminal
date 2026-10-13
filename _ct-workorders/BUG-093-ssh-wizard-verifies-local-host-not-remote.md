@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-093
 title: SSH 精靈驗證階段沒有建 SSH tunnel，「取得 TLS 指紋」與「連線測試」連到本機 `localhost:9876`（主機 BAT 自己），pin 進 profile 的指紋是錯的
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-04T22:31:33+08:00"
-updated_at: "2026-10-05T00:04:10+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 impact:
   - setup-wizard-ssh
 links:
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（SSH profile 會被 pin 上主機 BAT 自己的指紋；之後經 tunnel 連遠端時指紋不符被拒，或更糟——在本機無服務時驗證失敗） |
 | 可重現 | 推定 100%（程式碼閱讀；塔台 2026-10-04 22:31 複核） |
-| **狀態** | ✅ FIXED（T0387 `a3717a5`；待實機：需可 SSH 的 Linux 主機，步驟見 T0387 回報區） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | T0381 Worker（回報區「SSH / Docker 實際取指紋路徑」） |
 
 ## 現象（程式碼證據）
@@ -49,3 +50,6 @@ links:
 - 塔台複驗：965 tests / vite build exit 0 / tsc 40
 - 衍生：BUG-098（direct 模式）、BUG-099（runner 取消不 rollback 失敗步驟）、BUG-100（`ssh.stopServer` / `uninstallBundle` 未實作）；新錯誤碼未加 ErrorMapper / i18n（走 fallback）；`tests/ssh-flow-journeys.test.ts` / `tests/ssh-wizard-e2e.test.ts`（不在 vitest include）HEAD 基線即失敗
 
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0515 自動化驗收（已安裝 pre.6 隔離實例 + 容器化 sshd 真精靈流程，`e2e/pre6-wizard-acceptance.spec.ts`，`9917445`） W4：pin 進 profile 的指紋 = 容器 bat-server `server-cert.json`（≠ 本機 9876、≠ 隔離實例）

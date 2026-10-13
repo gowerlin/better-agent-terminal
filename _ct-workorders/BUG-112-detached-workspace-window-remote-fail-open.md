@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-112
 title: "從 remote profile 視窗 detach 出的 workspace 視窗不在 windowMap → 路由視為無 profile 綁定 → 所有 proxied 呼叫在本機執行（BUG-110 同類 fail-open）；也收不到 remote 事件"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-05T06:28:31+08:00"
-updated_at: "2026-10-05T06:40:47+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 fixed_at: "2026-10-05T06:40:47+08:00"
 impact:
   - remote-profile-trust
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（與 BUG-110 同類：遠端工作區在本機執行 shell / fs / git） |
 | 可重現 | always（程式碼證據；T0443 回報） |
-| **狀態** | 🔧 FIXED（T0446，待實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | T0443 Worker（遭遇問題） |
 
 ## 現象（T0443 回報）
@@ -45,3 +46,7 @@ detach 時記錄 `workspaceId → parentWindowId`（或直接記 profileId），
 ## 已知限制
 
 - **Detached 視窗目前載不到 workspace（既有，自 `512c118` 多視窗重構起）**：`workspace:load`（ALWAYS_LOCAL）以 `ctx.windowId` 讀 registry，detached 視窗為 null → 回 `null` → 畫面顯示「Workspace not found」，不會建立 WorkspaceView / PTY。本修復讓 detached 視窗的路由、連線狀態、事件綁對 profile，但 detached 視窗本身能否顯示 workspace 屬另案（見 T0446 回報區「遭遇問題」）。
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0514 自動化驗收（已安裝 pre.6 隔離實例 + pre.6 headless server 容器，`e2e/pre6-ui-remote-acceptance.spec.ts`，`e009817`） U2：remote 視窗 detach 出的視窗 `pty:create` / `fs:readdir` 落在容器

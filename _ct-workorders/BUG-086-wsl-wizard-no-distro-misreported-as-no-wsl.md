@@ -3,13 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-086
 title: WSL 設定精靈把「已裝 WSL 但無發行版」誤判為「找不到 WSL2」，引導使用者重裝 WSL
-status: FIXED
+status: CLOSED
 fix_commits: [4d814e9]
 fixed_at: "2026-10-04T21:27:18+08:00"
 severity: low
 reproducibility: always
 created_at: "2026-10-04T21:08:07+08:00"
-updated_at: "2026-10-04T23:46:46+08:00"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 impact:
   - setup-wizard-wsl
 links:
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（UX 引導錯誤；使用者照做 `wsl --install` 不會壞事，但不會解決問題） |
 | 可重現 | 100%：Windows 已安裝 WSL（Store 版）但未註冊任何發行版 |
-| **狀態** | ✅ FIXED（T0378 `4d814e9`；「無發行版」「沒裝 WSL」兩態僅 mock unit test 覆蓋，本機無法重現）（2026-10-04 23:46：有發行版路徑精靈全程通過＝無回歸；「無發行版」分支本機無法重現，留待 PLAN-035 P3-d 乾淨機器驗收） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | 塔台（2026-10-04 第五十一 session，BUG-071 實機驗收時發現；使用者截圖 + 塔台環境檢查） |
 
 ## 現象
@@ -71,3 +72,7 @@ Unable to detect WSL: Error invoking remote method 'wsl:list': Error: Command fa
 - 塔台重跑：`npm run test:unit` **55 files / 749 passed**（709 → 749）、`npx vite build` exit 0、`npx tsc --noEmit` **40**（= baseline）
 - Worker 本機 runtime（`Ubuntu-24.04`）：見 T0378 回報區
 - **待實機**：新 build 從頭跑 WSL 精靈 9/9
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：依單元測試證據結案（T0378 mock unit test 覆蓋「無發行版」/「沒裝 WSL」兩態）；本機實機重現需移除 WSL 發行版，不執行

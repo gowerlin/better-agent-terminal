@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-121
 title: "SSH systemd unit / launchd plist 以 BAT_REMOTE_PORT / BAT_REMOTE_BIND 傳設定，但 bat-server 只讀 --port / BAT_SERVER_PORT 與 --bind-interface → 監聽 54321，wizard verify（:9876 / pgrep -x bat-server）失敗"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-14T02:36:13+0800"
-updated_at: "2026-10-14T02:52:53+0800"
+updated_at: "2026-10-14T04:10:17+0800"
+closed_at: "2026-10-14T04:10:17+0800"
 fixed_at: "2026-10-14T02:52:53+0800"
 impact:
   - remote-ssh
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（BUG-120 繞過後仍擋住 SSH wizard 的 start-server 驗證；runtime tunnel 預期 remote 9876） |
 | 可重現 | 必現（T0510 A6-0，繞過 BUG-120 後） |
-| **狀態** | ✅ FIXED（T0511） |
+| **狀態** | 🚫 CLOSED（2026-10-14T04:10:17+0800，使用者同意） |
 | 回報者 | 塔台（T0510 Worker 自動化實機驗收發現） |
 
 ## 證據（T0510 回報區「發現的產品缺陷」2）
@@ -48,3 +49,7 @@ links:
   - verify：`sh -c` 迴圈最多 20 秒；systemd 要求 `is-active` = active 且 MainPID 擁有 `/proc/net/tcp{,6}` 上該埠的 LISTEN socket；launchd 要求 `launchctl list` 的 PID 以 `lsof -a -p <pid> -iTCP:<port> -sTCP:LISTEN` 監聽。移除 `pgrep -x bat-server`（行程是 node / `MainThread`，永遠比對不到）與不看擁有者的 `ss | grep`
 - 起源：T0286（`70417d4`，2026-04-26）即寫 `BAT_REMOTE_PORT`、verify 用 `pgrep -x`；首個發佈版 `v0.4.1`
 - 驗證：單元 `electron/remote/__tests__/ssh-bundle-layout-and-port.test.ts`（HEAD 上 red）；e2e A6-0：`ExecStart=… --port 9876 --bind-interface localhost`、`LISTEN … 127.0.0.1:9876 … users:(("MainThread",pid=178,fd=21))`、journal `[bat-server] listening on 127.0.0.1:9876`
+
+## 結案
+
+- 2026-10-14T04:10:17+0800 使用者同意結案。證據：T0515 自動化驗收（已安裝 pre.6 隔離實例 + 容器化 sshd 真精靈流程，`e2e/pre6-wizard-acceptance.spec.ts`，`9917445`） W2：`ExecStart=… --port 9876 --bind-interface localhost`，僅 `127.0.0.1:9876` LISTEN，verify 通過
