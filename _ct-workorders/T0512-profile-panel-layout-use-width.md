@@ -141,3 +141,8 @@ PASS — C-0：`repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-age
 #### 6. Commit
 
 `277b369` fix(profiles): T0512 profile dialog uses full width (BUG-122)（7 檔，`git commit --only`）；本收尾 metadata 另一筆 chore commit；不 push。
+
+## 塔台裁決（2026-10-14 02:51，第五十九 session）
+
+- 接受 DONE：commit `277b369` 7 檔與回報一致、未含 T0511 WIP；塔台目視 `after-wide-wsl-expanded.png` 確認左欄空白消失、工具卡片 grid
+- 全套 unit / typecheck:electron 未在本單跑（只跑相關 91 tests + typecheck src）→ 併入 T0511 完成後的塔台聯合複驗
