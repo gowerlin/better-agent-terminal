@@ -49,11 +49,6 @@ function waitFor(states: WizardStepStatus[][], predicate: (last: WizardStepStatu
   })
 }
 
-function captureStates(runner: WizardRunner, states: WizardStepStatus[][]) {
-  // Initial snapshot already emitted in constructor.
-  states.push(runner.getSnapshots().map((s) => s.status))
-}
-
 describe('integration.transitions (T0338) — runner × ErrorMapper × Preflight', () => {
   // ─────────────────────────────────────────────────────────────────────
   // Path 1: normal task path — pending → running → succeeded

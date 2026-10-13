@@ -56,7 +56,7 @@ function getAgentParamDefinitions(agentPreset?: AgentPresetId | null): AgentPara
   return []
 }
 
-function isValidAgentParamValue(definition: AgentParamDefinition, value: AgentParamValue | undefined): boolean {
+function isValidAgentParamValue(definition: AgentParamDefinition, value: AgentParamValue | undefined): value is AgentParamValue {
   if (value === undefined) return false
   if (definition.type === 'boolean') return typeof value === 'boolean'
   if (definition.type === 'select') return !!definition.options?.some(option => option.value === value)

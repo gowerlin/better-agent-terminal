@@ -32,13 +32,13 @@ interface SessionMeta {
   durationMs: number
   numTurns: number
   contextWindow: number
-  maxOutputTokens: number
-  contextTokens: number
-  cacheReadTokens: number
-  cacheCreationTokens: number
-  callCacheRead: number
-  callCacheWrite: number
-  lastQueryCalls: number
+  maxOutputTokens?: number
+  contextTokens?: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
+  callCacheRead?: number
+  callCacheWrite?: number
+  lastQueryCalls?: number
   permissionMode?: string
   modelUsage?: Record<string, { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number; costUSD: number }>
   cacheWrite5mTokens?: number
@@ -200,8 +200,8 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     if (typeof globalDefault === 'string' && CODEX_EFFORT_LEVELS.includes(globalDefault as CodexEffortLevel)) return globalDefault
     return 'high'
   })
-  const [claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
-  const [usageAccount, setUsageAccount] = useState(workspaceStore.usageAccount)
+  const [_claudeUsage, setClaudeUsage] = useState(workspaceStore.claudeUsage)
+  const [_usageAccount, setUsageAccount] = useState(workspaceStore.usageAccount)
   const [rateLimits, setRateLimits] = useState<Record<string, { resetsAt: number; utilization: number | null; isUsingOverage: boolean }>>({})
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null)
@@ -1129,9 +1129,10 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     if (isActive) {
       window.electronAPI.claude.getSessionMeta(sessionId).then(meta => {
         if (meta) {
-          setSessionMeta(meta as SessionMeta)
-          if ((meta as SessionMeta).model) {
-            const nextModel = (meta as SessionMeta).model!
+          const m = meta as unknown as SessionMeta
+          setSessionMeta(m)
+          if (m.model) {
+            const nextModel = m.model
             setCurrentModel(prev => isCodexSession ? nextModel : (prev || nextModel))
             if (isCodexSession) {
               workspaceStore.updateTerminalModel(sessionId, nextModel)
@@ -1540,7 +1541,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       setResumeLoading(true)
       setShowResumeList(true)
       try {
-        const sessions = await window.electronAPI.claude.listSessions(cwd, 'codex-agent')
+        const sessions = await window.electronAPI.claude.listSessions(cwd, 'codex-agent') as SessionSummary[] | null
         setResumeSessions(sessions || [])
       } catch {
         setResumeSessions([])
@@ -1881,10 +1882,11 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
 
   const handlePermissionModeCycle = useCallback(async () => {
     const allowBypass = settingsStore.getSettings().allowBypassPermissions
-    const availableModes = allowBypass
+    type AgentPermissionMode = typeof permissionModes[number]
+    const availableModes: ReadonlyArray<AgentPermissionMode> = allowBypass
       ? permissionModes
       : permissionModes.filter(m => m !== 'bypassPermissions' && m !== 'bypassPlan')
-    const idx = availableModes.indexOf(permissionMode as typeof availableModes[number])
+    const idx = availableModes.indexOf(permissionMode as AgentPermissionMode)
     const nextMode = availableModes[(idx + 1) % availableModes.length]
     setPermissionMode(nextMode)
     await window.electronAPI.claude.setPermissionMode(sessionId, nextMode)
@@ -2042,16 +2044,6 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       handleSend()
     }
   }, [handleSend, handlePermissionModeCycle, setInputValue, showSlashMenu, filteredSlashCommands, slashMenuIndex, handleSlashSelect, promptSuggestion])
-
-  const handleModelCycle = useCallback(async () => {
-    if (availableModels.length === 0) return
-    const idx = availableModels.findIndex(m => m.value === currentModel)
-    const next = availableModels[(idx + 1) % availableModels.length]
-    setCurrentModel(next.value)
-    await window.electronAPI.claude.setModel(sessionId, next.value, settingsStore.getSettings().autoCompactWindow)
-    workspaceStore.updateTerminalModel(sessionId, next.value)
-    if (isCodexSession) await autoCorrectCodexEffort(next.value)
-  }, [sessionId, currentModel, availableModels, isCodexSession, autoCorrectCodexEffort])
 
   // T0370: limit Codex effort options to what the selected model supports (when known); the
   // current value always stays selectable so the dropdown never shows a value it cannot render.
@@ -2676,7 +2668,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
             <div className="tl-content">
               <div className="claude-tool-header" onClick={() => toggleTool(item.id)}>
                 <span className="claude-tool-name">{item.toolName === 'Agent' ? 'Agent' : 'Task'}</span>
-                {item.input.subagent_type && <span className="claude-tool-badge">{String(item.input.subagent_type)}</span>}
+                {!!item.input.subagent_type && <span className="claude-tool-badge">{String(item.input.subagent_type)}</span>}
                 {desc && <span className="claude-tool-desc">{desc}</span>}
                 {item.status === 'running' && item.timestamp > 0 && (
                   <span className="claude-task-tag claude-task-elapsed">{formatElapsed(item.timestamp)}</span>
@@ -2912,7 +2904,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
             <div className="tl-content">
               <div className="claude-tool-header" onClick={() => toggleTool(item.id)}>
                 <span className="claude-tool-name">TaskOutput</span>
-                {parentTask?.input.subagent_type && (
+                {!!parentTask?.input.subagent_type && (
                   <span className="claude-tool-badge">{String(parentTask.input.subagent_type)}</span>
                 )}
                 {parentTask && (
@@ -3253,7 +3245,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 {progressDesc && !isStalled && <span className="claude-active-task-progress">{progressDesc}</span>}
                 {isStalled && <span className="claude-active-task-stalled">{t('claude.stalled')}</span>}
                 <span className="claude-active-task-time">{formatElapsed(task.timestamp)}</span>
-                {task.input.run_in_background && <span className="claude-task-tag">{t('claude.bg')}</span>}
+                {!!task.input.run_in_background && <span className="claude-task-tag">{t('claude.bg')}</span>}
                 <button className="claude-task-stop-btn" onClick={(e) => {
                   e.stopPropagation()
                   window.electronAPI.claude.stopTask(sessionId, task.id)
@@ -3366,7 +3358,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
               {pendingPermission.decisionReason}
             </div>
           )}
-          {pendingPermission.input.description && (
+          {!!pendingPermission.input.description && (
             <div className="claude-permission-desc">
               {String(pendingPermission.input.description)}
             </div>
@@ -4399,7 +4391,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
             <span key="sessionId" className="claude-statusline-item claude-statusline-clickable"
               onClick={async () => {
                 setResumeLoading(true); setShowResumeList(true)
-                try { setResumeSessions(await window.electronAPI.claude.listSessions(cwd, 'codex-agent') || []) }
+                try { setResumeSessions((await window.electronAPI.claude.listSessions(cwd, 'codex-agent') as SessionSummary[] | null) || []) }
                 catch { setResumeSessions([]) }
                 finally { setResumeLoading(false) }
               }}
@@ -4415,7 +4407,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           ),
           tokens: () => {
             if (!sessionMeta) return null
-            if (isCodexSession && sessionMeta.contextTokens <= 0) return null
+            if (isCodexSession && sessionMeta.contextTokens !== undefined && sessionMeta.contextTokens <= 0) return null
             return (
               <span key="tokens" className="claude-statusline-item claude-statusline-clickable" title={`context: ${(sessionMeta.contextTokens || 0).toLocaleString()} tok\ncumulative in: ${sessionMeta.inputTokens.toLocaleString()} / out: ${sessionMeta.outputTokens.toLocaleString()}\nclick to show context breakdown`}
                 onClick={() => { window.electronAPI.claude.getContextUsage(sessionId).then(u => { if (u) setContextUsagePopup(u) }).catch(() => {}) }}>
@@ -4431,7 +4423,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           ),
           contextPct: () => {
             if (!sessionMeta || sessionMeta.contextWindow <= 0) return null
-            if (isCodexSession && sessionMeta.contextTokens <= 0) return null
+            if (isCodexSession && sessionMeta.contextTokens !== undefined && sessionMeta.contextTokens <= 0) return null
             const ctxTokens = sessionMeta.contextTokens || (sessionMeta.inputTokens + sessionMeta.outputTokens)
             const pct = Math.round((ctxTokens / sessionMeta.contextWindow) * 100)
             const ctxColor = pct >= 80 ? '#e05252' : pct >= 50 ? '#e6a700' : '#89ca78'

@@ -8,6 +8,8 @@
     "dev": "cross-env BAT_DEBUG=1 vite",
     "dev-runtime": "cross-env BAT_DEBUG=1 BAT_RUNTIME=1 vite",
     "compile": "vite build",
+    "typecheck": "tsc --noEmit -p .",
+    "typecheck:electron": "tsc --noEmit -p tsconfig.node.json --composite false --target ES2022",
     "start": "electron .",
     "build:server-bundle": "node scripts/build-server-bundle.mjs",
     "build:server-bundle:linux-x64": "node scripts/build-server-bundle.mjs --target=linux-x64",
