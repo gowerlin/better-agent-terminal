@@ -65,7 +65,7 @@ const CLAUDE_STUB_MARKER = 'claude native binary not installed';
 // its wording changes upstream. install.cjs treats < 4 KiB as stub-sized too.
 const CLAUDE_STUB_MAX_BYTES = 4096;
 
-const INSTALL_SCRIPTS_DOC = 'CLAUDE.md section "本機開發：npm 12 install scripts（T0471）"';
+const INSTALL_SCRIPTS_DOC = 'CLAUDE.md section "本機開發：npm 12 install scripts（T0471 / T0473）"';
 
 /**
  * `dist/` sub-directories that may hold `whisper.node`, in lookup order.

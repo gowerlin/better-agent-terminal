@@ -249,6 +249,6 @@ describe('CLI on a fake project tree', () => {
     expect(stderr).toContain('Embedded claude (@anthropic-ai/claude-code) is not the native binary')
     expect(stderr).toContain('npm placeholder stub')
     expect(stderr).toContain('node node_modules/@anthropic-ai/claude-code/install.cjs')
-    expect(stderr).toContain('本機開發：npm 12 install scripts（T0471）')
+    expect(stderr).toContain('本機開發：npm 12 install scripts（T0471 / T0473）')
   })
 })

@@ -111,7 +111,8 @@ export const startDockerServerStep: WizardStep = {
 
     const stateToken = typeof ctx.state.remoteToken === 'string' ? ctx.state.remoteToken : undefined
     // T0452: our own container serves the `--token` it was created with.
-    ctx.remoteToken = restartOwnContainer ? (stateToken ?? startResult.token) : (startResult.token ?? stateToken)
+    // T0493: main may answer `token: null`; keep ctx.remoteToken string | undefined.
+    ctx.remoteToken = (restartOwnContainer ? (stateToken ?? startResult.token) : (startResult.token ?? stateToken)) ?? undefined
     ctx.state.remoteToken = ctx.remoteToken
     ctx.systemdServiceActive = true
 

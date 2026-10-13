@@ -39,7 +39,6 @@
 | 語音辨識 | whisper-node-addon | 1.0.2 | 離線支援，CPU/GPU 加速，隱私優先 |
 | AI SDK | @anthropic-ai/claude-code | ^2.1.97 | Claude Code CLI 整合 |
 | AI SDK | @anthropic-ai/claude-agent-sdk | ^0.2.104 | Agent 任務追蹤 |
-| 資料庫 | better-sqlite3 | ^12.5.0 | 本地持久化（session、偏好設定） |
 | Markdown | marked + highlight.js + mermaid | 最新 | 訊息渲染 |
 | 國際化 | i18next | ^25.x | 中文（繁）/ 英文支援 |
 | E2E 測試 | Playwright | ^1.59.1 | 自動化 UI 測試 |
@@ -81,7 +80,7 @@
 - Claude Agent SDK 整合（active tasks bar、/login 攔截）
 - 佈局持久化（30s auto-save，PLAN-008 Phase 1）
 - 工單系統（Control Tower T####、BUG-###、PLAN-### 管理）
-- 本地 SQLite 儲存
+- 本地 JSON 持久化（`settings.json` / `windows.json` / `profiles/` 等，皆在 userData；不使用資料庫）
 - macOS Metal GPU 加速語音辨識
 
 ### 🔜 暫未支援（Phase 2+ 計畫）
