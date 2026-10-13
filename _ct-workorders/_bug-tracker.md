@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T04:10:17+0800"
+generated_at: "2026-10-14T04:13:09+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 51
 breakdown:
   OPEN: 0
-  FIXING: 2
-  FIXED: 9
+  FIXING: 1
+  FIXED: 10
   VERIFY: 0
   CLOSED: 40
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 04:10 (UTC+8) — 第六十 session：T0514 / T0515 證據 + BUG-086 依 unit 證據，14 張 CLOSED；BUG-124 / 126 FIXING
+> 最後同步：2026-10-14 04:13 (UTC+8) — 第六十 session：BUG-126 FIXED（T0519）；BUG-124 FIXING（T0517）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 9 | 🧪 Verify: 0 | 🚫 Closed: 40 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 10 | 🧪 Verify: 0 | 🚫 Closed: 40 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -37,13 +37,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-126 | scan-skills / star commands：frontmatter 無 description 時 fallback 恆空字串（T0518 遺留；T0519） | 🟢 low | — | [BUG-126](BUG-126-skill-description-fallback-never-leaves-frontmatter.md) |
 | BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0515 觀察；T0517） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-126 | scan-skills / star commands：frontmatter 無 description 時 fallback 恆空字串（T0519 `aa26c76`：改用 `parseCommandDescription`） | 🟢 low | 2026-10-14 | [BUG-126](BUG-126-skill-description-fallback-never-leaves-frontmatter.md) |
 | BUG-125 | claude:scan-skills：commands 以第一行當 description，帶 frontmatter 顯示 "---"（T0518 `b66b525`：commands 先讀 frontmatter description） | 🟢 low | 2026-10-14 | [BUG-125](BUG-125-scan-skills-command-description-frontmatter.md) |
 | BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |

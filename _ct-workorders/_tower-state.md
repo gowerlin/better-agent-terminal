@@ -107,7 +107,7 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 2 / Fixed 9 / Closed 40）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 1 / Fixed 10 / Closed 40）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L148）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（75 entries）
 
@@ -127,7 +127,7 @@
 | **前一 tag** | `v0.6.0-pre.5`（2026-10-14 01:38，`7a6fb9c`） |
 | **目前主軸** | pre.6 實機（Profile 版面、真實 SSH 主機）+ Gary mac 驗收 → 依結果 CLOSE Fixed 25 張 |
 | **工單最大編號** | T0513（T0513 DONE `90b35ee`，未發版） |
-| **BUG 最大編號** | **BUG-126**；Open 0 / Fixing 2（124 / 126 → T0517 / T0519） / Fixed 9（123 / 125 待 pre.7；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 40 |
+| **BUG 最大編號** | **BUG-126**；Open 0 / Fixing 1（124 → T0517） / Fixed 10（123 / 125 / 126 待 pre.7；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 40 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
