@@ -84,6 +84,11 @@ export const installServerBundleStep: WizardStep = {
   groupKey: 'wizard.group.deployment',
   editableFromFailure: false,
   async run(ctx) {
+    // T0489: rollback skips while this is false. ctx.serverInstallPath starts
+    // as the default `~/.local/bat-server`, so it cannot gate rollback: a
+    // failure before the install (then cancel, or a jump back from the failure
+    // screen) would `rm -rf` a bundle an earlier setup left in the distro.
+    ctx.state.wslBundleInstallStarted = false
     if (!ctx.wslDistro) {
       throw new Error('Select a WSL distro before installing the server bundle.')
     }
@@ -128,6 +133,7 @@ export const installServerBundleStep: WizardStep = {
     const tarballPath = result.tarballPath
     ctx.logger.info(`${describeSource(result.source)}: ${tarballPath}`)
 
+    ctx.state.wslBundleInstallStarted = true
     const installResult = await window.electronAPI.wsl.installBundle(ctx.wslDistro, tarballPath, installPath)
 
     if (!installResult.ok) {
@@ -162,7 +168,7 @@ export const installServerBundleStep: WizardStep = {
     }
   },
   async rollback(ctx) {
-    if (!ctx.wslDistro || !ctx.serverInstallPath) {
+    if (!ctx.wslDistro || !ctx.serverInstallPath || ctx.state.wslBundleInstallStarted === false) {
       return
     }
     const result = await window.electronAPI.wsl.uninstallBundle(ctx.wslDistro, ctx.serverInstallPath)

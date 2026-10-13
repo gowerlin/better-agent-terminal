@@ -15,7 +15,7 @@ import { fetchFingerprintStep } from '../wsl/fetch-fingerprint'
  *
  * The tunnel is closed when connect-test finishes (success, failure or skip
  * path), when fetch-fingerprint fails, and by either step's rollback (cancel /
- * failure rollback of completed steps); main also
+ * jump-back / failure rollback of completed steps); main also
  * closes it when the renderer goes away or BAT quits. Step ids, metadata and
  * `appliesTo` are inherited unchanged, and WSL / Docker keep using the shared
  * steps directly (no `verifyEndpoint`).
@@ -154,9 +154,10 @@ export const sshFetchFingerprintStep: WizardStep = {
       await fetchFingerprintStep.run(ctx)
       await crossCheckFingerprint(ctx)
     } catch (error) {
-      // Close on failure. Cancel now rolls the failed step back (T0426), but
-      // skip and jump-back from the failure screen still run no rollback for
-      // this step, and a retry reopens the tunnel anyway.
+      // Close on failure. Cancel (T0426) and jump-back (T0489) roll the failed
+      // step back, but skip runs no rollback for it, a retry reopens the
+      // tunnel anyway, and closing here keeps the tunnel from staying open
+      // while the failure screen waits for the user.
       await closeSshVerifyEndpoint(ctx)
       throw error
     }

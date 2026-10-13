@@ -267,9 +267,13 @@ export class WizardRunner {
   // T0426 (BUG-099): cancel() resolves the failure wait with 'cancel' (it used
   // to reuse waitForRetry, so the failed step was never rolled back).
   private waitForCancel: (() => void) | null = null
-  // T0309: when set, the next "retry" decision in runInternal redirects the
-  // loop to this index instead of re-running the same failed step.
+  // T0309 / T0489: jumpToStep resolves the failure wait with 'jump'; runInternal
+  // rolls back (target, failed] and then re-enters the loop at this index.
+  private waitForJump: (() => void) | null = null
   private pendingJumpTarget: number | null = null
+  // T0489: set while the jump-back rollback chain runs; retry / skip are ignored.
+  private jumpInProgress = false
+  private jumpSettled: (() => void) | null = null
 
   constructor(
     steps: WizardStep[],
@@ -323,7 +327,7 @@ export class WizardRunner {
 
   async skipCurrentStep(): Promise<void> {
     const current = this.currentStepIndex >= 0 ? this.stepSnapshots[this.currentStepIndex] : null
-    if (!current || current.status !== WizardStepStatus.Failed) {
+    if (!current || current.status !== WizardStepStatus.Failed || this.jumpInProgress) {
       return
     }
     this.transitionStatus(this.currentStepIndex, WizardStepStatus.Succeeded)
@@ -336,14 +340,17 @@ export class WizardRunner {
 
   /**
    * T0309: jump back to an earlier `editableFromFailure` step from a
-   * downstream failure. Basic version (PARTIAL of full DOD): resets the
-   * snapshot statuses for steps in [targetIndex, currentStepIndex] back to
-   * Pending and unblocks the failure-await loop with a "retry" decision so
-   * the runner re-enters the loop at targetIndex on the next iteration.
+   * downstream failure. T0489: before re-running from `targetIndex`, the
+   * runner rolls back what the steps after it did — the failed step first,
+   * then completed (or skipped) steps after the target in reverse order, the
+   * same chain cancel() walks. The target step itself is not rolled back: it
+   * re-runs and replaces its own output. Each step's rollback only undoes what
+   * this wizard run owns (T0444), and a rollback that throws is logged, added
+   * to ctx.warnings and does not block the jump (best-effort, like cancel).
    *
-   * Limitation (deferred): does NOT walk `rollback()` for the steps in
-   * between — see workorder Step 5 note "TODO: jumpToStep with full
-   * rollback chain (basic version landed)".
+   * Only valid while the current step waits on a failure decision (failed and
+   * retryable); otherwise it warns and does nothing. Resolves once the
+   * rollback chain has finished and the snapshots are reset to Pending.
    */
   async jumpToStep(targetIndex: number): Promise<void> {
     if (targetIndex < 0 || targetIndex >= this.activeSteps.length) {
@@ -357,40 +364,37 @@ export class WizardRunner {
       )
       return
     }
-
-    // Reset snapshots for [targetIndex .. currentStepIndex]. Preserve
-    // metadata (labelKey/groupKey/etc) but clear runtime state so the
-    // re-run starts clean.
-    for (let i = targetIndex; i <= this.currentStepIndex; i += 1) {
-      this.transitionStatus(i, WizardStepStatus.Pending)
-      const snap = this.stepSnapshots[i]
-      snap.error = undefined
-      snap.skipped = false
+    const current = this.stepSnapshots[this.currentStepIndex]
+    const resolveJump = this.waitForJump
+    if (current.status !== WizardStepStatus.Failed || !resolveJump || this.jumpInProgress) {
+      this.ctx.logger.warn(`jumpToStep: step ${current.id} is not waiting on a failure decision`)
+      return
     }
-    // Drop completed-step bookkeeping for the same range so retry/skip
-    // accounting stays consistent on re-execution.
-    for (let i = this.completedStepIndexes.length - 1; i >= 0; i -= 1) {
-      if (this.completedStepIndexes[i] >= targetIndex) {
-        this.completedStepIndexes.splice(i, 1)
-      }
-    }
-    this.emitProgress()
 
-    // Set pendingJumpTarget so the failure-loop's "retry" branch redirects
-    // index = targetIndex - 1 instead of re-running the same failed step.
     this.pendingJumpTarget = targetIndex
-    this.waitForRetry?.()
-    this.waitForRetry = null
+    this.jumpInProgress = true
+    const settled = new Promise<void>((resolve) => {
+      this.jumpSettled = resolve
+    })
+    this.clearFailureWaiters()
+    resolveJump()
+    await settled
   }
 
   async cancel(): Promise<void> {
     this.cancelRequested = true
     if (this.currentStepIndex >= 0 && this.stepSnapshots[this.currentStepIndex].status === WizardStepStatus.Failed) {
-      this.waitForCancel?.()
-      this.waitForCancel = null
-      this.waitForRetry = null
-      this.waitForSkip = null
+      const resolveCancel = this.waitForCancel
+      this.clearFailureWaiters()
+      resolveCancel?.()
     }
+  }
+
+  private clearFailureWaiters(): void {
+    this.waitForRetry = null
+    this.waitForSkip = null
+    this.waitForCancel = null
+    this.waitForJump = null
   }
 
   private async runInternal(): Promise<void> {
@@ -403,6 +407,9 @@ export class WizardRunner {
       this.currentStepIndex = index
       const step = this.activeSteps[index]
       const snapshot = this.stepSnapshots[index]
+      // T0489: a jump target stays in the completed list until it re-runs, so
+      // a cancel during the jump-back rollback still rolls it back.
+      this.forgetCompletedStep(index)
 
       this.transitionStatus(index, WizardStepStatus.Running)
       snapshot.error = undefined
@@ -492,14 +499,15 @@ export class WizardRunner {
 
         if (snapshot.retryable && !this.cancelRequested) {
           const decision = await this.waitForRetryOrSkip()
+          if (decision === 'jump') {
+            const jumpTarget = this.pendingJumpTarget ?? index
+            this.pendingJumpTarget = null
+            await this.rollbackForJump(index, jumpTarget)
+            // Set index = jumpTarget - 1 so the for-loop increment lands on jumpTarget.
+            index = jumpTarget - 1
+            continue
+          }
           if (decision === 'retry') {
-            if (this.pendingJumpTarget !== null) {
-              const jumpTarget = this.pendingJumpTarget
-              this.pendingJumpTarget = null
-              // Set index = jumpTarget - 1 so the for-loop increment lands on jumpTarget.
-              index = jumpTarget - 1
-              continue
-            }
             index -= 1
             continue
           }
@@ -522,16 +530,72 @@ export class WizardRunner {
     }
   }
 
-  private waitForRetryOrSkip(): Promise<'retry' | 'skip' | 'cancel'> {
+  private waitForRetryOrSkip(): Promise<'retry' | 'skip' | 'cancel' | 'jump'> {
     return new Promise((resolve) => {
       this.waitForRetry = () => resolve('retry')
       this.waitForSkip = () => resolve('skip')
       this.waitForCancel = () => resolve('cancel')
+      this.waitForJump = () => resolve('jump')
 
       if (this.cancelRequested) {
         resolve('cancel')
       }
     })
+  }
+
+  /**
+   * T0489: jump-back rollback chain. Rolls back the failed step (when it lies
+   * after the target), then completed / skipped steps after the target in
+   * reverse completion order, then resets [target .. failed] to Pending. The
+   * statuses go straight to Pending (not RolledBack, which is terminal) since
+   * those steps re-run. Rollback errors never block the jump: they are logged
+   * and surfaced on ctx.warnings because the wizard keeps going.
+   */
+  private async rollbackForJump(failedIndex: number, targetIndex: number): Promise<void> {
+    try {
+      if (failedIndex > targetIndex) {
+        await this.rollbackStepForJump(failedIndex)
+      }
+      for (const index of [...this.completedStepIndexes].reverse()) {
+        if (index > targetIndex) await this.rollbackStepForJump(index)
+      }
+      for (let i = this.completedStepIndexes.length - 1; i >= 0; i -= 1) {
+        if (this.completedStepIndexes[i] > targetIndex) {
+          this.completedStepIndexes.splice(i, 1)
+        }
+      }
+      for (let i = targetIndex; i <= failedIndex; i += 1) {
+        this.transitionStatus(i, WizardStepStatus.Pending)
+        const snap = this.stepSnapshots[i]
+        snap.error = undefined
+        snap.mappedError = undefined
+        snap.skipped = false
+      }
+      this.emitProgress()
+    } finally {
+      this.jumpInProgress = false
+      this.jumpSettled?.()
+      this.jumpSettled = null
+    }
+  }
+
+  private async rollbackStepForJump(index: number): Promise<void> {
+    const step = this.activeSteps[index]
+    if (!step.rollback) return
+    try {
+      await step.rollback(this.ctx)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.ctx.logger.warn(`Rollback failed for ${step.id} while jumping back: ${message}`)
+      const warning = `Could not undo "${step.title}" before going back: ${message}`
+      if (!this.ctx.warnings.includes(warning)) this.ctx.warnings.push(warning)
+      this.emitProgress()
+    }
+  }
+
+  private forgetCompletedStep(index: number): void {
+    const position = this.completedStepIndexes.indexOf(index)
+    if (position >= 0) this.completedStepIndexes.splice(position, 1)
   }
 
   private async rollbackCompletedSteps(): Promise<void> {
