@@ -25,7 +25,7 @@ jobs:
             runs_on: ubuntu-22.04-arm
             artifact_name: server-bundle-linux-arm64
           - target: darwin-arm64
-            runs_on: macos-14
+            runs_on: macos-15
             artifact_name: server-bundle-darwin-arm64
     runs-on: ${{ matrix.runs_on }}
 

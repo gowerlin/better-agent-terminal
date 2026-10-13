@@ -43,7 +43,7 @@ const WHISPER_ADDON_BINARY = 'whisper.node';
 
 // package.json build.mac.target = dmg × [arm64] (D136 — Intel Mac dropped; D057 — never universal).
 const DEFAULT_MAC_ARCHS = ['arm64'];
-// The CI linux job builds one AppImage on ubuntu-latest (x64).
+// The CI linux job builds one AppImage on ubuntu-24.04 (x64).
 const DEFAULT_LINUX_ARCHS = ['x64'];
 
 const PLATFORMS = ['mac', 'linux'];
