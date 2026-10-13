@@ -196,15 +196,22 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npx electron-builder --mac --publish never
 
-      # BUG-116 / T0470: verify-native-modules.js only sees the host arch (arm64);
-      # check the whisper binary inside both packaged .app (x64 + arm64).
-      - name: Verify packaged whisper binary (macOS x64 + arm64)
+      # BUG-116 / T0470 + BUG-117 / BUG-118 / T0475: verify-native-modules.js only sees
+      # node_modules on the host; check the packaged .app itself (arm64 only, D136):
+      # main-executable cputype, every Mach-O in app.asar.unpacked, embedded claude, whisper.
+      - name: Verify packaged native binaries (macOS arm64)
         if: matrix.platform == 'mac'
-        run: node scripts/verify-packaged-native.js --out release --arch x64,arm64
+        run: node scripts/verify-packaged-native.js --platform mac --out release --arch arm64
 
       - name: Package for Linux
         if: matrix.platform == 'linux'
         run: npx electron-builder --linux --publish never
+
+      # BUG-118 / T0475: electron-builder drops node_modules .exe for non-Windows targets;
+      # the embedded claude must be claude-code-linux-x64/claude (ELF x86-64) in linux-unpacked.
+      - name: Verify packaged embedded claude (Linux x64)
+        if: matrix.platform == 'linux'
+        run: node scripts/verify-packaged-native.js --platform linux --out release --arch x64
 
       - name: Upload Windows artifact
         if: matrix.platform == 'win'

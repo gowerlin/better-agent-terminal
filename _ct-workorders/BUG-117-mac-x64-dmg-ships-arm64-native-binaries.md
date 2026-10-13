@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-117
 title: "mac x64 dmg 內嵌 arm64 原生 binary（T0474 證實）：macOS CI 只有 arm64 host，npm ci 只裝 host 平台 optional 子套件，build.npmRebuild=false 下 x64 / arm64 兩個 .app 打包同一份 node_modules → Intel Mac 內嵌 claude 等原生元件不可用"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-10-13T16:47:18+08:00"
-updated_at: "2026-10-13T16:59:11+08:00"
+updated_at: "2026-10-13T17:16:52+08:00"
 impact:
   - macos-x64
   - embedded-claude
@@ -26,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（T0474 建議由 medium 上調：x64 dmg 內嵌 claude 不可用的升級條件已成立；待塔台確認） |
 | 可重現 | 必現（T0474 以 v0.6.0-pre.2 release 產物靜態證實；未在 Intel Mac 實機執行） |
-| **狀態** | 🔧 FIXING（T0475，D136） |
+| **狀態** | ✅ FIXED（T0475，D136 B3：停發 x64 dmg；待 pre.3 CI 驗收） |
 | 回報者 | 塔台（第五十八 session；T0472 Worker 回報區「待查」段提出） |
 
 ## 推論
@@ -84,3 +84,23 @@ links:
 - **不建議 B2**：同 host 替換子套件，脆弱
 - 不論選哪個，都同時擴充 `verify-packaged-native.js`：檢查每個 `.app` 內 Mach-O 的 cputype 與內嵌 claude 是否存在
 - whisper 另外處理：向上游回報，或在 `darwin-x64` 明確顯示不支援
+
+## 修復（T0475）
+
+採 **B3**（D136）：停發 Intel Mac（x64）dmg。
+
+- **打包設定**：`package.json` 的 `build.mac.target[0].arch` 改為 `["arm64"]`。產出只剩 `BetterAgentTerminal-<v>-arm64.dmg`，不再有無後綴的 x64 `BetterAgentTerminal-<v>.dmg`。
+- **CI 檢查**：`pre-release.yml` / `release.yml` 的 mac verify 步驟改為 `--platform mac --out release --arch arm64`。上傳與收集都用 `release/*.dmg` / `artifacts/release-mac/*` glob，沒有綁定 x64 檔名，所以不用改。
+- **打包產物檢查擴充**：`scripts/verify-packaged-native.js` 對每個 `.app` 檢查以下四項：
+  - (a) 以 `Contents/MacOS/<exe>` 的 cputype 作為基準
+  - (b) `app.asar.unpacked` 下所有 Mach-O（含 fat）都要是基準 cputype，或 fat 內含基準
+  - (c) 內嵌 claude 存在，且 cputype 正確
+  - (d) whisper 存在
+
+  pre.2 那種 x64 `.app` 會在 (b) 失敗，列出 55 個 arm64 檔；單元測試以假樹覆蓋這個情境。
+- **文件**：
+  - CLAUDE.md：D057 雙 arch 條改寫為 arm64-only（保留「不要改回 universal」的理由）；打包產物檢查段同步更新
+  - README 下載表改為「Apple Silicon / arm64；自 v0.6.0-pre.3 起不支援 Intel Mac（D136）」
+  - `docs/plan-007-release-checklist.md`、`docs/plan-027-cross-platform-verification.md` 同步
+- **Homebrew**：`release.yml` 的 dispatch payload 只有 `{"version"}`，沒有引用 x64 dmg。下游的 `tonyq-org/homebrew-tap` cask 追蹤的是 upstream `tony1223` 的 release（URL 為 `…-x64.lightweight.dmg` / `…-arm64.lightweight.dmg`，版本 3.2.15），本 fork 的 dmg 命名與它無關。詳見 T0475 回報區。
+- **whisper 上游缺陷**：`mac-x64/` 的內容其實是 arm64。這個問題在 B3 之後不再影響產品，未另外處理。

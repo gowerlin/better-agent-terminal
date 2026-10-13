@@ -11,7 +11,7 @@
 
 ---
 
-## macOS(Intel / Apple Silicon)
+## macOS(Apple Silicon；自 v0.6.0-pre.3 起 BAT 不支援 Intel Mac，D136)
 
 ### 環境準備
 

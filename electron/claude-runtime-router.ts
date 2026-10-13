@@ -8,7 +8,8 @@
  *
  * Logic (T0231 § "邏輯"):
  *   embedded     → use embedded path directly (no health probe; embedded is
- *                  shipped with BAT and assumed always present)
+ *                  shipped with BAT). T0475 / BUG-118: the file must exist,
+ *                  else EmbeddedClaudeMissingError names the paths looked for
  *   system       → detectSystemClaude(customPath?)
  *                  - not found / spawn-failed / version-too-old:
  *                      fallbackToEmbedded=true  → embedded + degraded event
@@ -78,6 +79,18 @@ export class SystemClaudeUnsafePathError extends SystemClaudeUnavailableError {
   }
 }
 
+// BUG-118 / T0475: embedded mode with no embedded binary on disk. Thrown instead
+// of handing the SDK a missing path (its ENOENT message does not say what to do).
+// The message lists every path looked for; callers surface it as-is.
+export class EmbeddedClaudeMissingError extends Error {
+  readonly lookedFor: string[]
+  constructor(lookedFor: string[]) {
+    super(`Embedded claude binary not found (looked for: ${lookedFor.join(', ')}). Reinstall BetterAgentTerminal, or switch Settings → Advanced → Claude Runtime to system and install claude.`)
+    this.name = 'EmbeddedClaudeMissingError'
+    this.lookedFor = lookedFor
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Host configuration (PLAN-036 T0389)
 // ----------------------------------------------------------------------------
@@ -119,6 +132,34 @@ export function configureRuntimeRouter(config: RuntimeRouterConfig): void {
 
 const CLAUDE_CODE_PACKAGE_SEGMENTS = ['node_modules', '@anthropic-ai', 'claude-code'] as const
 
+let cachedMusl: boolean | undefined
+
+/**
+ * Same rule as `detectMusl()` in @anthropic-ai/claude-code `install.cjs`: on musl
+ * the process report has no `glibcVersionRuntime`. Linux only; cached per process.
+ */
+function detectMusl(): boolean {
+  if (process.platform !== 'linux') return false
+  if (cachedMusl === undefined) {
+    try {
+      const report = process.report?.getReport?.() as { header?: { glibcVersionRuntime?: string } } | undefined
+      cachedMusl = report != null && report.header?.glibcVersionRuntime === undefined
+    } catch {
+      cachedMusl = false
+    }
+  }
+  return cachedMusl
+}
+
+export interface EmbeddedClaudeHostOptions {
+  /** Defaults to `process.arch`. */
+  arch?: string
+  /** Linux libc; defaults to the install.cjs detection on this process. */
+  musl?: boolean
+  /** Existence check used to pick between candidates; defaults to `fs.existsSync`. */
+  exists?: (filePath: string) => boolean
+}
+
 /** `@anthropic-ai/claude-code/package.json` from the module graph; throws when absent. */
 function resolveClaudeCodePackageJson(): string {
   try {
@@ -130,12 +171,54 @@ function resolveClaudeCodePackageJson(): string {
 }
 
 /**
- * Resolve the embedded claude binary for a given install layout.
+ * Candidate paths for the embedded claude binary, most preferred first.
  *
  * Electron layouts (packaged / node-modules): BUG-052 — install.cjs ships
  * `bin/claude.exe` on every platform (Unix ignores the extension), so the name
  * is always `claude.exe`. The server bundle replaces it with a POSIX wrapper
  * `bin/claude` (`scripts/build-server-bundle.mjs` pruneAnthropicPackages).
+ *
+ * BUG-118 / T0475: electron-builder drops `.exe` files from node_modules for
+ * non-Windows targets (app-builder-lib `getNodeModuleExcludedExts`), so a mac /
+ * Linux package has no `bin/claude.exe`. There the platform package that
+ * install.cjs copies from — `@anthropic-ai/claude-code-<platform>-<arch>[-musl]/claude`,
+ * which `build.asarUnpack` keeps — comes first, with `bin/claude.exe` as fallback.
+ * scripts/verify-packaged-native.js mirrors this rule (parity test in
+ * electron/__tests__/claude-runtime-router.test.ts).
+ *
+ * Returns [] when the package cannot be located (node-modules layout only).
+ */
+export function embeddedClaudeCandidates(
+  layout: EmbeddedClaudeLayout = routerConfig.getEmbeddedLayout?.() ?? { kind: 'node-modules' },
+  platform: NodeJS.Platform = process.platform,
+  resolvePackageJson: () => string = resolveClaudeCodePackageJson,
+  host: Omit<EmbeddedClaudeHostOptions, 'exists'> = {},
+): string[] {
+  if (layout.kind === 'server-bundle') {
+    const binaryName = platform === 'win32' ? 'claude.exe' : 'claude'
+    return [pathModule.join(layout.installRoot, ...CLAUDE_CODE_PACKAGE_SEGMENTS, 'bin', binaryName)]
+  }
+  const binaryName = 'claude.exe'
+  if (layout.kind === 'electron-packaged') {
+    const anthropicDir = pathModule.join(layout.resourcesPath, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
+    const wrapperBinary = pathModule.join(anthropicDir, 'claude-code', 'bin', binaryName)
+    if (platform === 'win32') return [wrapperBinary]
+    const arch = host.arch ?? process.arch
+    const musl = platform === 'linux' && (host.musl ?? detectMusl())
+    const platformPackage = `claude-code-${platform}-${arch}${musl ? '-musl' : ''}`
+    return [pathModule.join(anthropicDir, platformPackage, 'claude'), wrapperBinary]
+  }
+  try {
+    return [pathModule.join(pathModule.dirname(resolvePackageJson()), 'bin', binaryName)]
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Resolve the embedded claude binary for a given install layout: the first
+ * candidate that exists, else the most preferred one (so callers and error
+ * messages name the path that should have been there).
  *
  * Returns '' when the package cannot be located (node-modules layout only).
  */
@@ -143,20 +226,12 @@ export function resolveEmbeddedClaudePath(
   layout: EmbeddedClaudeLayout = routerConfig.getEmbeddedLayout?.() ?? { kind: 'node-modules' },
   platform: NodeJS.Platform = process.platform,
   resolvePackageJson: () => string = resolveClaudeCodePackageJson,
+  host: EmbeddedClaudeHostOptions = {},
 ): string {
-  if (layout.kind === 'server-bundle') {
-    const binaryName = platform === 'win32' ? 'claude.exe' : 'claude'
-    return pathModule.join(layout.installRoot, ...CLAUDE_CODE_PACKAGE_SEGMENTS, 'bin', binaryName)
-  }
-  const binaryName = 'claude.exe'
-  if (layout.kind === 'electron-packaged') {
-    return pathModule.join(layout.resourcesPath, 'app.asar.unpacked', ...CLAUDE_CODE_PACKAGE_SEGMENTS, 'bin', binaryName)
-  }
-  try {
-    return pathModule.join(pathModule.dirname(resolvePackageJson()), 'bin', binaryName)
-  } catch {
-    return ''
-  }
+  const candidates = embeddedClaudeCandidates(layout, platform, resolvePackageJson, host)
+  if (candidates.length <= 1) return candidates[0] ?? ''
+  const exists = host.exists ?? fsSync.existsSync
+  return candidates.find((candidate) => exists(candidate)) ?? candidates[0]
 }
 
 // ----------------------------------------------------------------------------
@@ -223,16 +298,59 @@ function classifyDegradedReason(info: ClaudeRuntimeInfo | null): DegradedReason 
 export interface ResolveClaudeRuntimeDeps {
   detectSystemClaude?: (customPath?: string) => Promise<ClaudeRuntimeInfo | null>
   resolveEmbeddedClaudePath?: () => string
+  /** Existence check for the resolved embedded binary (T0475); defaults to `fs.existsSync`. */
+  embeddedClaudeExists?: (filePath: string) => boolean
 }
+
+const loggedMissingEmbedded = new Set<string>()
 
 export async function resolveClaudeRuntime(
   settings: ClaudeRuntimeSettings,
   deps: ResolveClaudeRuntimeDeps = {},
 ): Promise<ResolvedRuntime> {
   const detect = deps.detectSystemClaude ?? detectSystemClaude
-  const getEmbeddedPath = deps.resolveEmbeddedClaudePath ?? (() => resolveEmbeddedClaudePath())
+  const embeddedExists = deps.embeddedClaudeExists ?? fsSync.existsSync
 
-  // Embedded — trusted, no probe.
+  /**
+   * Embedded path, or EmbeddedClaudeMissingError when it is not on disk (BUG-118 /
+   * T0475). '' (node-modules layout without the package) passes through unchanged:
+   * callers then omit `pathToClaudeCodeExecutable`, as before.
+   */
+  const getEmbeddedPath = (): string => {
+    const resolved = deps.resolveEmbeddedClaudePath ? deps.resolveEmbeddedClaudePath() : resolveEmbeddedClaudePath()
+    if (!resolved || embeddedExists(resolved)) return resolved
+    const lookedFor = deps.resolveEmbeddedClaudePath ? [resolved] : embeddedClaudeCandidates()
+    const error = new EmbeddedClaudeMissingError(lookedFor.length > 0 ? lookedFor : [resolved])
+    const logKey = error.lookedFor.join('\n')
+    if (!loggedMissingEmbedded.has(logKey)) {
+      loggedMissingEmbedded.add(logKey)
+      logger.error(`[runtime-router] ${error.message}`)
+    }
+    throw error
+  }
+
+  /**
+   * The fallback target is gone too: the system failure stands, with the missing
+   * embedded paths appended so the existing degraded toast names them.
+   */
+  const embeddedFallback = (reason: DegradedReason, detail: string): ResolvedRuntime => {
+    try {
+      return {
+        path: getEmbeddedPath(),
+        source: 'system-fallback-to-embedded',
+        healthStatus: 'healthy',
+        degraded: { reason, detail },
+      }
+    } catch (err) {
+      if (!(err instanceof EmbeddedClaudeMissingError)) throw err
+      const combined = `${detail}; embedded fallback unavailable: ${err.lookedFor.join(', ')} not found`
+      throw reason === 'unsafe-custom-path'
+        ? new SystemClaudeUnsafePathError(combined)
+        : new SystemClaudeUnavailableError(reason, combined)
+    }
+  }
+
+  // Embedded — trusted, no probe (existence is checked).
   if (settings.mode === 'embedded') {
     return {
       path: getEmbeddedPath(),
@@ -246,12 +364,7 @@ export async function resolveClaudeRuntime(
   if (customPath && !isSafeClaudeCustomPath(customPath)) {
     const detail = 'customPath rejected by whitelist'
     if (settings.fallbackToEmbedded) {
-      return {
-        path: getEmbeddedPath(),
-        source: 'system-fallback-to-embedded',
-        healthStatus: 'healthy',
-        degraded: { reason: 'unsafe-custom-path', detail },
-      }
+      return embeddedFallback('unsafe-custom-path', detail)
     }
     throw new SystemClaudeUnsafePathError(detail)
   }
@@ -262,12 +375,7 @@ export async function resolveClaudeRuntime(
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     if (settings.fallbackToEmbedded) {
-      return {
-        path: getEmbeddedPath(),
-        source: 'system-fallback-to-embedded',
-        healthStatus: 'healthy',
-        degraded: { reason: 'detect-threw', detail },
-      }
+      return embeddedFallback('detect-threw', detail)
     }
     throw new SystemClaudeUnavailableError('detect-threw', detail)
   }
@@ -278,12 +386,7 @@ export async function resolveClaudeRuntime(
       ? `${info.path}${info.version ? ` (${info.version})` : ''}`
       : 'no candidate found'
     if (settings.fallbackToEmbedded) {
-      return {
-        path: getEmbeddedPath(),
-        source: 'system-fallback-to-embedded',
-        healthStatus: 'healthy',
-        degraded: { reason: degradedReason, detail },
-      }
+      return embeddedFallback(degradedReason, detail)
     }
     throw new SystemClaudeUnavailableError(degradedReason, detail)
   }
@@ -338,6 +441,8 @@ export function clearRuntimeEventHistory(sessionId: string): void {
 // Test-only: expose the dedup map for unit tests to reset between cases.
 export const __test__ = {
   resolveEmbeddedClaudePath,
+  embeddedClaudeCandidates,
+  loggedMissingEmbedded,
   classifyDegradedReason,
   emittedEvents,
 }

@@ -16,7 +16,8 @@ These items are gated by GitHub Actions. They must all be green before any
 manual checks are attempted.
 
 - [ ] **Desktop release workflow green** — `.github/workflows/pre-release.yml`
-      passes on Windows, macOS (x64 + arm64 dmg), and Linux. Look for green
+      passes on Windows, macOS (arm64 dmg only — Intel Mac unsupported since
+      v0.6.0-pre.3, D136), and Linux. Look for green
       checkmarks on every job in the matrix.
 - [ ] **Server bundle workflow green** —
       `.github/workflows/build-server-bundle.yml` passes for the three
@@ -190,8 +191,8 @@ After both automated and manual verification are green, prepare the release.
 - [ ] **Artifact verification** — wait for all CI jobs to publish artifacts;
       then download and inspect:
   - [ ] Windows NSIS installer (`.exe`) + zip
-  - [ ] macOS dmg — both `x64` and `arm64` (the build is intentionally **not**
-        universal; see `CLAUDE.md` D057)
+  - [ ] macOS dmg — `arm64` only (Intel Mac unsupported since v0.6.0-pre.3,
+        D136; never universal, see `CLAUDE.md` D057)
   - [ ] Linux AppImage
   - [ ] Server bundles for `linux-x64`, `linux-arm64`, `darwin-arm64`
   - Confirm each artifact unpacks cleanly and the version string matches.
@@ -221,7 +222,6 @@ Release date: _______ (UTC+8)
 Platforms verified manually:
   [ ] Windows 11 + WSL2
   [ ] macOS arm64 (Apple Silicon)
-  [ ] macOS x64 (Intel) — optional, if you still ship x64 dmg
   [ ] Linux (Ubuntu 22.04 LTS or equivalent)
   [ ] SSH cross-OS (Windows client → linux server) — REQUIRED
   [ ] SSH darwin-arm64 server — required if shipping darwin-arm64 server bundle

@@ -1,17 +1,23 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
+import { createRequire } from 'module'
 import { afterAll, afterEach, describe, it, expect, vi } from 'vitest'
 
 import type { ClaudeRuntimeInfo } from '../claude-resolver'
 import { claudeUpdateGuardEnv, isSafeClaudeCustomPath } from '../claude-resolver'
 import {
+  __test__,
   configureRuntimeRouter,
+  EmbeddedClaudeMissingError,
+  embeddedClaudeCandidates,
   getRuntimeSettingsSnapshot,
   resolveClaudeRuntime,
   resolveEmbeddedClaudePath,
+  SystemClaudeUnavailableError,
   SystemClaudeUnsafePathError,
 } from '../claude-runtime-router'
+import { logger } from '../logger'
 
 // PLAN-036 T0389: the router is host-configured and must not reach for electron.
 vi.mock('electron', () => {
@@ -95,7 +101,7 @@ describe('resolveClaudeRuntime customPath whitelist', () => {
 
     const result = await resolveClaudeRuntime(
       { mode: 'system', customPath, fallbackToEmbedded },
-      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )
 
     expect(detectSystemClaude).toHaveBeenCalledWith(customPath)
@@ -121,7 +127,7 @@ describe('resolveClaudeRuntime customPath whitelist', () => {
 
     const result = await resolveClaudeRuntime(
       { mode: 'system', customPath, fallbackToEmbedded: true },
-      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )
 
     expect(detectSystemClaude).not.toHaveBeenCalled()
@@ -138,7 +144,7 @@ describe('resolveClaudeRuntime customPath whitelist', () => {
 
     await expect(resolveClaudeRuntime(
       { mode: 'system', customPath: '/home/$USER/claude', fallbackToEmbedded: false },
-      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )).rejects.toBeInstanceOf(SystemClaudeUnsafePathError)
 
     expect(detectSystemClaude).not.toHaveBeenCalled()
@@ -149,7 +155,7 @@ describe('resolveClaudeRuntime customPath whitelist', () => {
 
     const result = await resolveClaudeRuntime(
       { mode: 'system', customPath: '', fallbackToEmbedded: true },
-      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )
 
     expect(detectSystemClaude).toHaveBeenCalledWith(undefined)
@@ -169,7 +175,7 @@ describe('resolveClaudeRuntime customPath whitelist', () => {
 
     const result = await resolveClaudeRuntime(
       { mode: 'system', customPath, fallbackToEmbedded: true },
-      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )
 
     expect(detectSystemClaude).toHaveBeenCalledWith(customPath)
@@ -185,7 +191,7 @@ describe('claudeUpdateGuardEnv by resolved runtime', () => {
   it('embedded mode gets DISABLE_UPDATES', async () => {
     const result = await resolveClaudeRuntime(
       { mode: 'embedded', fallbackToEmbedded: true },
-      { detectSystemClaude: vi.fn(), resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude: vi.fn(), resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )
     expect(result.source).toBe('embedded')
     expect(claudeUpdateGuardEnv(result.source)).toEqual({ DISABLE_UPDATES: '1' })
@@ -194,7 +200,7 @@ describe('claudeUpdateGuardEnv by resolved runtime', () => {
   it('healthy system claude does not get DISABLE_UPDATES', async () => {
     const result = await resolveClaudeRuntime(
       { mode: 'system', customPath: systemPath, fallbackToEmbedded: true },
-      { detectSystemClaude: vi.fn(async () => healthyInfo(systemPath)), resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude: vi.fn(async () => healthyInfo(systemPath)), resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )
     expect(result.source).toBe('system')
     expect(claudeUpdateGuardEnv(result.source)).toEqual({})
@@ -203,7 +209,7 @@ describe('claudeUpdateGuardEnv by resolved runtime', () => {
   it('system mode falling back to embedded gets DISABLE_UPDATES', async () => {
     const result = await resolveClaudeRuntime(
       { mode: 'system', fallbackToEmbedded: true },
-      { detectSystemClaude: vi.fn(async () => null), resolveEmbeddedClaudePath: () => embeddedPath },
+      { detectSystemClaude: vi.fn(async () => null), resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true },
     )
     expect(result.source).toBe('system-fallback-to-embedded')
     expect(claudeUpdateGuardEnv(result.source)).toEqual({ DISABLE_UPDATES: '1' })
@@ -260,13 +266,47 @@ describe('configureRuntimeRouter settings source', () => {
 // PLAN-036 T0389: one embedded resolver for router / agent-manager / claude:detectRuntime.
 describe('resolveEmbeddedClaudePath', () => {
   const claudeCodeBin = ['node_modules', '@anthropic-ai', 'claude-code', 'bin']
+  const resourcesPath = path.join('C:', 'Program Files', 'BetterAgentTerminal', 'resources')
+  const anthropicDir = path.join(resourcesPath, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
+  const wrapperBinary = path.join(anthropicDir, 'claude-code', 'bin', 'claude.exe')
+  const packaged = { kind: 'electron-packaged', resourcesPath } as const
+  const everything = () => true
+  const nothing = () => false
 
   afterEach(() => configureRuntimeRouter({}))
 
-  it.each(['win32', 'darwin', 'linux'] as const)('packaged Electron always uses bin/claude.exe (BUG-052) on %s', (platform) => {
-    const resourcesPath = path.join('C:', 'Program Files', 'BetterAgentTerminal', 'resources')
-    expect(resolveEmbeddedClaudePath({ kind: 'electron-packaged', resourcesPath }, platform))
-      .toBe(path.join(resourcesPath, 'app.asar.unpacked', ...claudeCodeBin, 'claude.exe'))
+  it('packaged Electron on Windows keeps bin/claude.exe (BUG-052), whatever exists', () => {
+    expect(embeddedClaudeCandidates(packaged, 'win32', undefined, { arch: 'x64' })).toEqual([wrapperBinary])
+    for (const exists of [everything, nothing]) {
+      expect(resolveEmbeddedClaudePath(packaged, 'win32', undefined, { arch: 'x64', exists })).toBe(wrapperBinary)
+    }
+  })
+
+  // BUG-118 / T0475: electron-builder drops node_modules .exe for non-Windows targets.
+  it.each([
+    ['darwin', 'arm64', false, 'claude-code-darwin-arm64'],
+    ['linux', 'x64', false, 'claude-code-linux-x64'],
+    ['linux', 'x64', true, 'claude-code-linux-x64-musl'],
+    ['linux', 'arm64', true, 'claude-code-linux-arm64-musl'],
+  ] as const)('packaged Electron on %s-%s (musl=%s) prefers the %s platform package', (platform, arch, musl, pkg) => {
+    const platformBinary = path.join(anthropicDir, pkg, 'claude')
+    expect(embeddedClaudeCandidates(packaged, platform, undefined, { arch, musl })).toEqual([platformBinary, wrapperBinary])
+    expect(resolveEmbeddedClaudePath(packaged, platform, undefined, { arch, musl, exists: everything })).toBe(platformBinary)
+  })
+
+  it('packaged Electron falls back to bin/claude.exe when the platform package binary is missing', () => {
+    const exists = (p: string) => p === wrapperBinary
+    expect(resolveEmbeddedClaudePath(packaged, 'darwin', undefined, { arch: 'arm64', exists })).toBe(wrapperBinary)
+  })
+
+  it('packaged Electron names the platform package binary when neither candidate exists', () => {
+    expect(resolveEmbeddedClaudePath(packaged, 'linux', undefined, { arch: 'x64', musl: false, exists: nothing }))
+      .toBe(path.join(anthropicDir, 'claude-code-linux-x64', 'claude'))
+  })
+
+  it('musl only applies on Linux', () => {
+    expect(embeddedClaudeCandidates(packaged, 'darwin', undefined, { arch: 'arm64', musl: true })[0])
+      .toBe(path.join(anthropicDir, 'claude-code-darwin-arm64', 'claude'))
   })
 
   it.each(['linux', 'darwin'] as const)('server bundle on %s uses the POSIX wrapper bin/claude', (platform) => {
@@ -287,6 +327,21 @@ describe('resolveEmbeddedClaudePath', () => {
     expect(fs.existsSync(path.join(path.dirname(resolved), '..', 'package.json'))).toBe(true)
   })
 
+  // Dev layout is unchanged by T0475: bin/claude.exe on every platform, no platform package.
+  it.each([
+    ['darwin', 'arm64', false],
+    ['linux', 'x64', false],
+    ['linux', 'x64', true],
+    ['win32', 'x64', false],
+  ] as const)('node-modules layout on %s-%s (musl=%s) keeps bin/claude.exe', (platform, arch, musl) => {
+    const pkgDir = path.join('/repo', 'node_modules', '@anthropic-ai', 'claude-code')
+    const packageJson = () => path.join(pkgDir, 'package.json')
+    expect(embeddedClaudeCandidates({ kind: 'node-modules' }, platform, packageJson, { arch, musl }))
+      .toEqual([path.join(pkgDir, 'bin', 'claude.exe')])
+    expect(resolveEmbeddedClaudePath({ kind: 'node-modules' }, platform, packageJson, { arch, musl, exists: nothing }))
+      .toBe(path.join(pkgDir, 'bin', 'claude.exe'))
+  })
+
   it('returns an empty path when the package cannot be found', () => {
     const notFound = () => { throw new Error("Cannot find module '@anthropic-ai/claude-code/package.json'") }
     expect(resolveEmbeddedClaudePath({ kind: 'node-modules' }, 'win32', notFound)).toBe('')
@@ -298,7 +353,107 @@ describe('resolveEmbeddedClaudePath', () => {
     const expected = resolveEmbeddedClaudePath({ kind: 'server-bundle', installRoot })
     expect(resolveEmbeddedClaudePath()).toBe(expected)
 
-    const result = await resolveClaudeRuntime({ mode: 'embedded', fallbackToEmbedded: true }, { detectSystemClaude: vi.fn() })
+    const result = await resolveClaudeRuntime(
+      { mode: 'embedded', fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(), embeddedClaudeExists: (p) => p === expected },
+    )
     expect(result).toEqual({ path: expected, source: 'embedded', healthStatus: 'healthy' })
+  })
+
+  // scripts/verify-packaged-native.js re-implements the packaged rule (a .js script cannot import .ts).
+  it.each([
+    ['darwin', 'arm64', false],
+    ['darwin', 'x64', false],
+    ['linux', 'x64', false],
+    ['linux', 'x64', true],
+    ['linux', 'arm64', false],
+    ['win32', 'x64', false],
+  ] as const)('matches scripts/verify-packaged-native.js on %s-%s (musl=%s)', (platform, arch, musl) => {
+    const req = createRequire(import.meta.url)
+    const script = req('../../scripts/verify-packaged-native.js') as {
+      packagedEmbeddedClaudeCandidates: (resourcesPath: string, platform: string, arch: string, musl?: boolean) => string[]
+    }
+    expect(script.packagedEmbeddedClaudeCandidates(resourcesPath, platform, arch, musl))
+      .toEqual(embeddedClaudeCandidates(packaged, platform, undefined, { arch, musl }))
+  })
+})
+
+// BUG-118 / T0475: the embedded binary must exist; the SDK's ENOENT does not say what to do.
+describe('resolveClaudeRuntime embedded existence check', () => {
+  const missingPath = '/opt/BAT/resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-code-linux-x64/claude'
+
+  afterEach(() => {
+    __test__.loggedMissingEmbedded.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('embedded mode throws EmbeddedClaudeMissingError naming the missing file, logged once', async () => {
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+    const deps = { detectSystemClaude: vi.fn(), resolveEmbeddedClaudePath: () => missingPath, embeddedClaudeExists: () => false }
+
+    for (let i = 0; i < 2; i++) {
+      const err = await resolveClaudeRuntime({ mode: 'embedded', fallbackToEmbedded: true }, deps).catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(EmbeddedClaudeMissingError)
+      expect((err as EmbeddedClaudeMissingError).lookedFor).toEqual([missingPath])
+      expect((err as Error).message).toContain(missingPath)
+    }
+    expect(deps.detectSystemClaude).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(String(errorSpy.mock.calls[0][0])).toContain(missingPath)
+  })
+
+  it('lists every packaged candidate when the configured layout has none on disk', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {})
+    const resourcesPath = path.join(os.tmpdir(), 't0475-no-such-resources')
+    configureRuntimeRouter({ getEmbeddedLayout: () => ({ kind: 'electron-packaged', resourcesPath }) })
+    try {
+      const err = await resolveClaudeRuntime({ mode: 'embedded', fallbackToEmbedded: true }, { detectSystemClaude: vi.fn() })
+        .catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(EmbeddedClaudeMissingError)
+      expect((err as EmbeddedClaudeMissingError).lookedFor).toEqual(embeddedClaudeCandidates())
+      expect((err as EmbeddedClaudeMissingError).lookedFor.length).toBe(process.platform === 'win32' ? 1 : 2)
+    } finally {
+      configureRuntimeRouter({})
+    }
+  })
+
+  it('an empty embedded path (package not installed, dev) passes through unchanged', async () => {
+    const result = await resolveClaudeRuntime(
+      { mode: 'embedded', fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(), resolveEmbeddedClaudePath: () => '', embeddedClaudeExists: () => false },
+    )
+    expect(result).toEqual({ path: '', source: 'embedded', healthStatus: 'healthy' })
+  })
+
+  it('system fallback with embedded missing keeps the system reason and names the missing file', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {})
+    const err = await resolveClaudeRuntime(
+      { mode: 'system', fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(async () => null), resolveEmbeddedClaudePath: () => missingPath, embeddedClaudeExists: () => false },
+    ).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(SystemClaudeUnavailableError)
+    expect(err).not.toBeInstanceOf(SystemClaudeUnsafePathError)
+    expect((err as SystemClaudeUnavailableError).reason).toBe('system-not-found')
+    expect((err as SystemClaudeUnavailableError).detail).toContain(missingPath)
+  })
+
+  it('unsafe customPath with embedded missing stays a SystemClaudeUnsafePathError', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {})
+    const err = await resolveClaudeRuntime(
+      { mode: 'system', customPath: '/home/$USER/claude', fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(), resolveEmbeddedClaudePath: () => missingPath, embeddedClaudeExists: () => false },
+    ).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(SystemClaudeUnsafePathError)
+    expect((err as SystemClaudeUnavailableError).detail).toContain(missingPath)
+  })
+
+  it('a healthy system claude never looks at the embedded binary', async () => {
+    const embeddedClaudeExists = vi.fn(() => false)
+    const result = await resolveClaudeRuntime(
+      { mode: 'system', customPath: '/usr/local/bin/claude', fallbackToEmbedded: true },
+      { detectSystemClaude: vi.fn(async () => healthyInfo('/usr/local/bin/claude')), resolveEmbeddedClaudePath: () => missingPath, embeddedClaudeExists },
+    )
+    expect(result.source).toBe('system')
+    expect(embeddedClaudeExists).not.toHaveBeenCalled()
   })
 })

@@ -120,7 +120,7 @@ choco install better-agent-terminal
 | 平台 | 檔案格式 |
 |------|---------|
 | Windows | `.exe` 安裝檔 或 `.zip` 免安裝版 |
-| macOS | `.dmg` (Universal: Intel + Apple Silicon) |
+| macOS | `.dmg`（Apple Silicon / arm64；自 v0.6.0-pre.3 起不支援 Intel Mac，D136） |
 | Linux | `.AppImage` |
 
 > macOS 首次執行可能會被阻擋 — 前往 **系統設定 > 隱私與安全性**，下滑點選 **仍要打開**。
