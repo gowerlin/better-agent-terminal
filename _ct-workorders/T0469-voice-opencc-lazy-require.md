@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0469
 title: "voice-opencc.ts 頂層 require('opencc-js') 改為 ensureConverter() 內延遲載入（BUG-116 同型風險，T0468 掃描發現）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-116
 priority: P2
 sizing: S
 created_at: "2026-10-13T16:17:57+08:00"
 started_at: "2026-10-13T16:19:12+08:00"
-updated_at: "2026-10-13T16:19:12+08:00"
-completed_at: null
+updated_at: "2026-10-13T16:21:40+08:00"
+completed_at: "2026-10-13T16:21:40+08:00"
 target_version: next
 depends_on:
   - T0468
@@ -91,7 +91,7 @@ memory_overrides:
 
 ### Commit
 
-- 只 `git add` 本單 3 檔：`electron/voice-opencc.ts`、`electron/__tests__/voice-opencc-lazy-require.test.ts`、本工單。未 push。
+- Commit `01e6082`：只 `git add` 本單 3 檔：`electron/voice-opencc.ts`、`electron/__tests__/voice-opencc-lazy-require.test.ts`、本工單。未 push。
 - 工作區另有並行 T0470 的 `CLAUDE.md` / T0470 工單等變更，未納入。
 
 ### 偏離 / 備註
