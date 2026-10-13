@@ -29,8 +29,14 @@ import type {
 import { DEFAULT_VOICE_PREFERENCES } from '../src/types/voice'
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
 
-// @kutalia/whisper-node-addon has its own .d.ts (Vulkan + OpenBLAS prebuilt fork)
-import { transcribe as whisperTranscribe } from '@kutalia/whisper-node-addon'
+// @kutalia/whisper-node-addon (Vulkan + OpenBLAS prebuilt fork) is loaded lazily through
+// BAT's own loader: importing the package throws at module load when its `.node` is
+// missing (always on macOS, BUG-116), which used to crash the main process.
+import {
+  loadWhisperAddon,
+  transcribe as whisperTranscribe,
+  WhisperAddonUnavailableError,
+} from './whisper-addon-loader'
 
 // --- Constants ---------------------------------------------------------------
 
@@ -418,6 +424,14 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
         `[voice] transcribe bytes=${byteLength} sampleRate=${sampleRate} ` +
         `modelSize=${modelSize} language=${language} convertToTraditional=${convertToTrad}`
       )
+
+      // BUG-116: fail soft — without the native addon only voice input is unavailable.
+      // The loader logs the full load error once; here we only reject the request.
+      const addon = loadWhisperAddon()
+      if (!addon.ok) {
+        logger.warn('[voice] transcribe rejected: whisper addon unavailable')
+        throw new WhisperAddonUnavailableError(addon.error.message)
+      }
 
       // Check model exists
       const modelPath = getVoiceModelFilePath(modelSize)

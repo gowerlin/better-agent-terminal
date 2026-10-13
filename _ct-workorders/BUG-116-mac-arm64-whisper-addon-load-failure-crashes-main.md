@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-116
 title: "macOS（0.6.0-pre.2）啟動即崩潰：main process 載入 @kutalia/whisper-node-addon 找不到 darwin-arm64/whisper.node → Uncaught Exception，整個 app 無法開啟"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-10-13T15:43:35+08:00"
-updated_at: "2026-10-13T16:05:05+08:00"
+updated_at: "2026-10-13T16:15:06+08:00"
 impact:
   - app-launch
   - voice-input
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（使用者端 app 完全無法開啟） |
 | 可重現 | 必現（macOS 任一 arch；根因見下） |
-| **狀態** | 🔧 FIXING（T0468） |
+| **狀態** | ✅ FIXED（T0468，待 mac 實機驗收） |
 | 回報者 | 外部使用者 Gary（2026-10-13 15:38 轉述，附截圖） |
 | 版本 | `0.6.0-pre.2`（macOS；回報者稱「前兩天還能開」） |
 
@@ -105,3 +105,11 @@ cd "/Applications/BetterAgentTerminal.app/Contents/Resources/app.asar.unpacked/n
 塔台決策（2026-10-13 15:43，使用者指示）：**先開單，等 Gary 回報環境資料後再派修復工單**。
 
 2026-10-13 16:05：Gary 回報到齊、根因確認 → 派 **T0468**（自有 loader 繞過上游 index.js + 延遲載入 fail-soft + verify-native-modules 加深）；狀態 → FIXING。本機 node_modules 還原待 T0467 / T0468 結束後由塔台執行。
+
+## 修復（T0468，2026-10-13）
+
+- **自有 loader** `electron/whisper-addon-loader.ts`：不 require 上游 `dist/js/index.js`，直接 require `dist/<dir>/whisper.node`；目錄規則 `win32-<arch>` / `linux-<arch>` / macOS 依序 `mac-<arch>`、`darwin-<arch>`；`app.asar` 路徑改寫為 `app.asar.unpacked`；**首次轉寫才載入**、成功或失敗皆快取；`transcribe()` 參數合併與驗證逐字複製上游 1.1.0
+- **fail-soft**：`voice-handler.ts` 不再頂層 import 上游套件；載入失敗只 `logger.error` 一次，`voice:transcribe` 回 `Voice recognition module (whisper) is unavailable: …`（renderer 既有 `⚠ 辨識失敗: …` 顯示），**app 照常啟動**
+- **驗證加深**：`scripts/verify-native-modules.js` 以同一規則檢查 host 平台 `whisper.node`（桌面包 host win32-x64 / linux-x64 / darwin-x64 / darwin-arm64 缺即 fail-fast；其他 host 如 linux-arm64 server-bundle runner 只 warn）
+- **影響面查證**：`main.ts` 自 `882be11`（04-11）頂層 import voice-handler、voice-handler 自 `cb65614`（04-23）頂層 import 上游，lock 一直是 1.1.0 ⇒ **自 `v0.2.5-pre.1` 起所有 macOS 版本啟動必崩**（靜態推論）
+- 待辦：mac 實機驗收（新版不需 symlink workaround 即可啟動 + 語音可用）；CI mac job 對兩個 arch 產物檢查 `.node`（未做）；`voice-opencc.ts` 頂層 `require('opencc-js')` 同型風險（建議另案）。詳見 T0468 回報區
