@@ -4,9 +4,9 @@
 
 <img src="assets/icon.png" width="128" height="128" alt="Better Agent Terminal">
 
-![Version](https://img.shields.io/badge/version-2.1.3-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Windows%20|%20macOS%20|%20Linux-lightgrey.svg)
-![Electron](https://img.shields.io/badge/electron-28.3.3-47848F.svg)
+[![Version](https://img.shields.io/github/v/release/gowerlin/better-agent-terminal?include_prereleases&filter=v*&label=version)](https://github.com/gowerlin/better-agent-terminal/releases)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%28Apple%20Silicon%29%20%7C%20Linux-lightgrey.svg)
+![Electron](https://img.shields.io/github/package-json/dependency-version/gowerlin/better-agent-terminal/dev/electron?color=47848F)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 **跨平台終端機聚合器，支援多工作區管理與內建 AI Agent 整合**
@@ -116,7 +116,7 @@
 ### 方式二：從原始碼建置
 
 **前置需求：**
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) 20.19+（Vite 7 的最低需求；CI 使用 Node 24）
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) 或 [Codex CLI](https://developers.openai.com/codex/) 至少其一已安裝並驗證
 
 ```bash
@@ -171,7 +171,7 @@ better-agent-terminal/
 │   ├── worktree-manager.ts            # Git worktree 生命週期
 │   ├── agent-runtime/                 # 通用 Agent 運行層
 │   ├── logger.ts                      # 磁碟日誌（BAT_DEBUG=1 啟用）
-│   ├── snippet-db.ts                  # SQLite Snippet 儲存
+│   ├── snippet-db.ts                  # Snippet 儲存（snippets.json）
 │   ├── profile-manager.ts             # 設定檔 CRUD
 │   ├── update-checker.ts              # GitHub Release 更新檢查
 │   └── remote/                        # 遠端存取模組
@@ -188,14 +188,19 @@ better-agent-terminal/
 
 | 類別 | 技術 |
 |------|------|
-| 前端 | React 18 + TypeScript |
-| 終端機 | xterm.js + node-pty |
-| 框架 | Electron 28 |
-| AI | @anthropic-ai/claude-agent-sdk |
-| 建置 | Vite 5 + electron-builder |
-| 儲存 | better-sqlite3 |
-| 遠端 | ws (WebSocket) + qrcode |
+| 前端 | React 18 + TypeScript 5 |
+| 終端機 | xterm.js 5（`@xterm/xterm`）+ node-pty（`@lydell/node-pty`） |
+| 框架 | Electron 41 |
+| AI | `@anthropic-ai/claude-agent-sdk`（內嵌 `@anthropic-ai/claude-code` CLI）+ `@openai/codex-sdk` |
+| 建置 | Vite 7 + electron-builder 26 |
+| 儲存 | JSON 檔（設定目錄下的 `settings.json`、`workspaces.json`、`snippets.json` 等） |
+| 遠端 | ws（WebSocket，`wss://` + `selfsigned` 自簽憑證）+ qrcode |
+| Git | simple-git |
+| Markdown 預覽 | marked + mermaid |
 | 語法標示 | highlight.js |
+| 語音輸入 | `@kutalia/whisper-node-addon`（whisper.cpp） |
+| 多語系 | i18next + react-i18next |
+| 測試 | Vitest + Playwright |
 
 ---
 
@@ -203,20 +208,30 @@ better-agent-terminal/
 
 ### 版本格式
 
-遵循語意化版號：`vMAJOR.MINOR.PATCH`（例如 `v2.1.3`）
+遵循語意化版號：`vMAJOR.MINOR.PATCH`（例如 `v0.6.0`）
 
-預覽版使用 `-pre.N` 後綴（例如 `v2.1.4-pre.1`）。含 `-pre` 的 tag 自動標記為 GitHub Pre-release。
+預覽版使用 `-pre.N` 後綴（例如 `v0.6.0-pre.3`），GitHub Release 標記為 Pre-release。
 
-### 自動發行 (GitHub Actions)
+### 預覽版（`pre-release.yml`）
 
-推送 tag 以觸發所有平台建置：
+只能以 `workflow_dispatch` 手動觸發（push tag 不會觸發）。版號必須顯式指定、不帶 `v`：
 
 ```bash
-git tag v2.1.4
-git push origin v2.1.4
+gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y.Z-pre.N
 ```
 
-或透過 VSCode Task「CI/CD: 觸發 Pre-Release」手動觸發 `workflow_dispatch`。
+> 版號留空會走自動遞增，而 repo 內混有上游的 `v2.x` / `v4.x` tag，會遞增出與本 fork 主線（`v0.x`）脫節的版號。請以 `v0.x` 主線最新 tag 判定下一版。`gh` 請一律帶 `-R gowerlin/better-agent-terminal`。
+
+### 正式版（`release.yml`）
+
+推送 `vX.Y.Z` tag 觸發三平台建置與發行：
+
+```bash
+git tag v0.6.0
+git push origin v0.6.0
+```
+
+兩條線都會同時發佈對應的 `server-bundle-v<版號>` release。
 
 ---
 
@@ -239,7 +254,7 @@ git push origin v2.1.4
 #### macOS
 - 首次使用語音輸入時會彈出系統權限對話框
 - 拒絕後可至「系統設定 > 隱私與安全性 > 麥克風」重新授權
-- 要求 macOS 10.14 (Mojave) 以上
+- 要求 macOS 12 (Monterey) 以上（Electron 41 的最低需求）與 Apple Silicon
 - App 的 Info.plist 已包含 `NSMicrophoneUsageDescription`，打包後可正常觸發系統權限提示
 
 #### Windows
