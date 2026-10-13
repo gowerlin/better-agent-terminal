@@ -4,9 +4,10 @@ schema_kind: workorder
 id: T0517
 title: "SSH 精靈：目標 sshd 禁止 port forwarding 時給出正確錯誤訊息（BUG-124）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 started_at: "2026-10-14T04:04:54+0800"
-updated_at: "2026-10-14T04:04:54+0800"
+updated_at: "2026-10-14T04:17:29+0800"
+completed_at: "2026-10-14T04:17:29+0800"
 repo: better-agent-terminal
 project: BUG-124
 priority: P3
@@ -130,5 +131,5 @@ forwarding 被拒時，精靈改顯示「SSH 伺服器不允許 port forwarding�
 
 ### Commit
 
-- 見下方 commit（`git commit --only`，只含本單檔案；未含並行中的 `src/styles/settings.css`、`electron/handlers/claude.ts`；未 push）
+- `213f587 fix(ssh-wizard): name refused port forwarding in verify failures (T0517, BUG-124)`（`git commit --only`，只含本單檔案；未含並行中的 `src/styles/settings.css`、`electron/handlers/claude.ts`；未 push）
 
