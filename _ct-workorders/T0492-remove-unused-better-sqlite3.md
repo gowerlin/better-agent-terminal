@@ -63,11 +63,17 @@ memory_overrides:
 4. server bundle：本機建置一次（依 repo 既有 script）並跑 `verify-server-bundle`（不可行則說明）
 5. 文件：CLAUDE.md 相關段落、README 技術堆疊（若仍提及）、docs
 
+## 追加範圍（T0494 範圍外發現，同檔 `scripts/build-server-bundle.mjs`）
+
+6. server bundle tarball 內有指向 CI runner 絕對路徑的 symlink（例：`staging/node_modules/sharp/node_modules/.bin/semver` → `/Users/runner/work/...`）：`copyRecursive` 排除 `node_modules/**/.bin/`（runtime 不使用；先確認 bundle 內無任何程式經 `.bin` 呼叫），或改寫為相對 symlink（擇一並說明）；linux / darwin 都要涵蓋，`verify-server-bundle.js` 加檢查「bundle 內無絕對路徑 symlink」
+7. `build-server-bundle.mjs:91` darwin `readmeRuntimeLine` 改為 `- macOS lower bound: 13.5 (arm64)`（T0494 查證：由 Node 24 `bin/node` minos 13.5 決定）
+
 ## 驗收條件
 
 - [ ] 無使用證據表；lock 移除清單（只含 better-sqlite3 專屬相依）
 - [ ] `npm ci` 乾淨（npm 12 結尾警告只剩預期項目）；verify-native-modules ✅；`npm run verify:helpers` ✅
 - [ ] `npm run test:unit`、`npx vite build`、`npx tsc --noEmit -p .`；server bundle 建置 / 驗證結果
+- [ ] 追加 6 / 7：bundle 無絕對路徑 symlink（檢查已加入 verify）、darwin README 下限行
 - [ ] CI 影響說明（pre.5 CI 由塔台觀察）
 
 ## Sub-session 執行指示
