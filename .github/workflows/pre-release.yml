@@ -207,6 +207,12 @@ jobs:
         if: matrix.platform == 'mac'
         run: npx electron-builder --mac --publish never
 
+      # BUG-116 / T0470: verify-native-modules.js only sees the host arch (arm64);
+      # check the whisper binary inside both packaged .app (x64 + arm64).
+      - name: Verify packaged whisper binary (macOS x64 + arm64)
+        if: matrix.platform == 'mac'
+        run: node scripts/verify-packaged-native.js --out release --arch x64,arm64
+
       - name: Package for Linux
         if: matrix.platform == 'linux'
         run: npx electron-builder --linux --publish never
