@@ -25,9 +25,16 @@
  * Defaults:
  *   --host-os    BUILD_HOST_OS env, else os.platform() mapped (darwin→mac, win32→win, *→linux)
  *   --host-arch  BUILD_HOST_ARCH env, else os.arch() (x64 / arm64)
- *   --version    package.json `version`
+ *   --version    BAT_BASELINE_VERSION env, else package.json `version`
  *   --output-dir dist-baseline/
  *   --source-url https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v${version}
+ *
+ * Baseline version (BUG-115 / T0488): a local snapshot version
+ * (`<base>-local.<yyMMddHHmmss>` / `<base>.local.<…>`, scripts/build-version.js)
+ * never has a server-bundle release of its own, so the snapshot suffix is
+ * stripped and the base version's baseline is used. `npm run build`'s prebuild
+ * hook runs after build-version.js has rewritten package.json to the snapshot,
+ * and must resolve the same version as the first fetch in `build:release`.
  *
  * Resilience:
  *   - Local cache by SHA: if tarball + sidecar exist and SHA matches, skip download.
@@ -44,11 +51,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import crypto from 'node:crypto'
-import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.join(__dirname, '..')
+// Snapshot format SoT lives next to formatSnapshotVersion.
+const { stripSnapshotSuffix } = createRequire(import.meta.url)('./build-version.js')
 
 // ---------- baseline matrix ----------
 
@@ -103,6 +113,52 @@ function readPackageVersion() {
   return pkg.version
 }
 
+// Priority: --version → BAT_BASELINE_VERSION env → package.json. VERSION env is
+// deliberately not read: `npm run build` / `build:dir` package package.json's
+// version, and a stray VERSION in the shell must not change their baseline.
+export function resolveBaselineVersion({ argVersion, env = {}, pkgVersion } = {}) {
+  let raw = argVersion
+  let source = '--version'
+  if (!raw && env.BAT_BASELINE_VERSION) {
+    raw = env.BAT_BASELINE_VERSION
+    source = 'BAT_BASELINE_VERSION'
+  }
+  if (!raw) {
+    raw = pkgVersion
+    source = 'package.json'
+  }
+  const requested = raw ? String(raw).trim().replace(/^v/, '') : ''
+  if (!requested) {
+    throw new Error('no baseline version: package.json has no "version"; pass --version or set BAT_BASELINE_VERSION')
+  }
+  const version = stripSnapshotSuffix(requested)
+  return { version, requested, source, snapshot: version !== requested }
+}
+
+// HTTP 404 on the tarball means server-bundle-v<version> has not been released
+// (e.g. `release.ps1 -Version X` before X is published). Bundling another
+// version's server silently would ship a server that does not match the app,
+// so fail with the ways out instead.
+export function baselineNotFoundHint(version) {
+  return (
+    `server-bundle-v${version} does not exist (or lacks this tarball). ` +
+    `The baseline must come from a published server-bundle release. ` +
+    `Package a version that has one (release.ps1 without -Version uses package.json; -Snapshot uses its base version), ` +
+    `or set BAT_BASELINE_VERSION=<published version> to bundle that version's baseline deliberately.`
+  )
+}
+
+// manifest.json is the distributor's SHA source of truth for the bundled
+// tarball, so a manifest left over from another version must be replaced.
+export function manifestMatchesVersion(manifestText, version) {
+  try {
+    const manifest = JSON.parse(manifestText)
+    return typeof manifest.version === 'string' && manifest.version.replace(/^v/, '') === version
+  } catch {
+    return false
+  }
+}
+
 function printHelp() {
   console.log(`fetch-baseline-tarball.mjs — PLAN-031 baseline tarball pre-fetcher
 
@@ -112,7 +168,8 @@ Usage:
 Options:
   --host-os <win|mac|linux>      Build target host OS (default: detect)
   --host-arch <x64|arm64>        Build target host arch (default: detect)
-  --version <semver>             BAT version (default: package.json)
+  --version <semver>             BAT version (default: BAT_BASELINE_VERSION, else package.json;
+                                 a -local.<stamp> snapshot suffix is stripped)
   --output-dir <path>            Output dir (default: dist-baseline/)
   --source-url <url>             Override release URL prefix
   --dry-run                      Plan only, no download
@@ -120,7 +177,8 @@ Options:
 
 Env:
   BUILD_HOST_OS / BUILD_HOST_ARCH   Override default detection
-  GITHUB_TOKEN                      Used as Bearer token to lift rate limit
+  BAT_BASELINE_VERSION              Baseline version when --version is not given
+  GITHUB_TOKEN                     Used as Bearer token to lift rate limit
 `)
 }
 
@@ -277,11 +335,14 @@ async function ensureTarball(item, { dryRun }) {
   return { from: 'download', sha: hash }
 }
 
-async function ensureManifest({ outputDir, baseUrl, dryRun }) {
+async function ensureManifest({ outputDir, baseUrl, version, dryRun }) {
   const manifestPath = path.join(outputDir, 'manifest.json')
   if (fs.existsSync(manifestPath)) {
-    console.log(`[fetch-baseline] manifest.json already present, skipping`)
-    return
+    if (manifestMatchesVersion(fs.readFileSync(manifestPath, 'utf8'), version)) {
+      console.log(`[fetch-baseline] manifest.json already present for v${version}, skipping`)
+      return
+    }
+    console.warn(`[fetch-baseline] manifest.json is not for v${version}, will re-download`)
   }
   const manifestUrl = `${baseUrl}/manifest.json`
   if (dryRun) {
@@ -312,7 +373,23 @@ async function main() {
     )
     process.exit(1)
   }
-  const version = args.version || readPackageVersion()
+  let version
+  try {
+    const resolved = resolveBaselineVersion({
+      argVersion: args.version,
+      env: process.env,
+      pkgVersion: readPackageVersion(),
+    })
+    version = resolved.version
+    if (resolved.snapshot) {
+      console.log(
+        `[fetch-baseline] snapshot version ${resolved.requested} (from ${resolved.source}) → baseline v${version}`,
+      )
+    }
+  } catch (err) {
+    console.error(`[fetch-baseline] ${err.message}`)
+    process.exit(1)
+  }
   const outputDir = path.resolve(projectRoot, args.outputDir || 'dist-baseline')
   const baseUrl =
     args.sourceUrl ||
@@ -338,12 +415,13 @@ async function main() {
       await ensureTarball(item, { dryRun: args.dryRun })
     } catch (err) {
       console.error(`[fetch-baseline] failed to obtain ${item.tarballName}: ${err.message}`)
+      if (/\bHTTP 404\b/.test(err.message)) console.error(`[fetch-baseline] ${baselineNotFoundHint(version)}`)
       process.exit(1)
     }
   }
 
   try {
-    await ensureManifest({ outputDir, baseUrl, dryRun: args.dryRun })
+    await ensureManifest({ outputDir, baseUrl, version, dryRun: args.dryRun })
   } catch (err) {
     console.error(`[fetch-baseline] failed to obtain manifest.json: ${err.message}`)
     process.exit(1)
@@ -354,7 +432,10 @@ async function main() {
   )
 }
 
-main().catch((err) => {
-  console.error(`[fetch-baseline] unexpected error: ${err && err.stack ? err.stack : err}`)
-  process.exit(1)
-})
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(`[fetch-baseline] unexpected error: ${err && err.stack ? err.stack : err}`)
+    process.exit(1)
+  })
+}

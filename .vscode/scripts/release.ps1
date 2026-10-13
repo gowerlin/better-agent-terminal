@@ -11,8 +11,11 @@
     省略時依序：package.json 的 version（repo 版號 SoT）→ 加 -Snapshot 時產生 <version>-local.<yyMMddHHmmss>。
     git tag 不作為版號來源；HEAD 上的 v* tag 與 package.json 不一致時只印警告，以 package.json 為準。
     解析邏輯與 scripts/build-version.js 共用（node scripts/build-version.js --resolve-only）。
+    安裝檔內建的 server bundle baseline 取同一版號（BAT_BASELINE_VERSION），該版號須已有 server-bundle-v<版號> release，
+    否則 fetch:baseline 中止並提示；要刻意內建其他已發佈版號的 baseline，先設 $env:BAT_BASELINE_VERSION（BUG-115 / T0488）。
 .PARAMETER Snapshot
     產生本地快照版號 <package.json version>-local.<yyMMddHHmmss>（排序低於下一個正式版，不會造成之後安裝官方版被判為降級）。
+    server bundle baseline 取基底版號（去掉 -local.<stamp> 後綴），快照版號本身沒有 server-bundle release。
     與 -Version 同時指定時以 -Version 為準。
 .PARAMETER SkipGitCheck
     跳過 Git 工作區乾淨度檢查
@@ -38,7 +41,7 @@ Push-Location $Root
 
 $pkgPath = Join-Path $Root 'package.json'
 $pkgOriginalBytes = [System.IO.File]::ReadAllBytes($pkgPath)
-$envOriginal = @{ VERSION = $env:VERSION; BAT_VERSION_SNAPSHOT = $env:BAT_VERSION_SNAPSHOT }
+$envOriginal = @{ VERSION = $env:VERSION; BAT_VERSION_SNAPSHOT = $env:BAT_VERSION_SNAPSHOT; BAT_BASELINE_VERSION = $env:BAT_BASELINE_VERSION }
 $chocoStage = $null
 
 try {
@@ -74,10 +77,18 @@ try {
     # 傳給 build:release → build-version.js，避免重新計算（快照時間戳）
     $env:VERSION = $Version
     $env:BAT_VERSION_SNAPSHOT = $null
+    # build:release 的 fetch:baseline 與 npm run build 的 prebuild fetch:baseline 取同一版號
+    # （後者執行時 package.json 已被 build-version.js 改成 $Version）；快照後綴由
+    # fetch-baseline-tarball.mjs 去除。使用者預先設定的值優先（BUG-115 / T0488）。
+    if (-not $envOriginal.BAT_BASELINE_VERSION) { $env:BAT_BASELINE_VERSION = $Version }
+    if ($env:BAT_BASELINE_VERSION -ne $Version) {
+        Write-Host "  baseline 版號: $env:BAT_BASELINE_VERSION（BAT_BASELINE_VERSION）" -ForegroundColor Yellow
+    }
 
     if ($DryRun) {
         if (-not $ChocoPackOnly) {
             Write-Host "`n[DryRun] 將執行: npm run build:release（VERSION=$Version）" -ForegroundColor Magenta
+            Write-Host "[DryRun]   fetch:baseline 版號: BAT_BASELINE_VERSION=$env:BAT_BASELINE_VERSION（快照後綴會去除）" -ForegroundColor Magenta
             Write-Host "[DryRun]   = fetch:baseline → verify-native-modules / verify-helper-bundle / verify-renderer-imports → vite build → electron-builder" -ForegroundColor Magenta
             if ($Version -ne $pkgVersion) {
                 Write-Host "[DryRun] package.json 會暫時改為 $Version，打包後還原" -ForegroundColor Magenta
@@ -181,5 +192,6 @@ finally {
     }
     $env:VERSION = $envOriginal.VERSION
     $env:BAT_VERSION_SNAPSHOT = $envOriginal.BAT_VERSION_SNAPSHOT
+    $env:BAT_BASELINE_VERSION = $envOriginal.BAT_BASELINE_VERSION
     Pop-Location
 }
