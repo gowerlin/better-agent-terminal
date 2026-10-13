@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T04:13:09+0800"
+generated_at: "2026-10-14T04:19:04+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 51
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 10
+  FIXING: 0
+  FIXED: 11
   VERIFY: 0
   CLOSED: 40
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 04:13 (UTC+8) — 第六十 session：BUG-126 FIXED（T0519）；BUG-124 FIXING（T0517）
+> 最後同步：2026-10-14 04:19 (UTC+8) — 第六十 session：BUG-124 FIXED（T0517）；pre.7 批次（123-126）塔台聯合複驗全綠 @ `5599ab1`
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 10 | 🧪 Verify: 0 | 🚫 Closed: 40 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 11 | 🧪 Verify: 0 | 🚫 Closed: 40 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0515 觀察；T0517） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0517 `213f587`：偵測 ssh `administratively prohibited`，三語提示 `AllowTcpForwarding`） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |
 | BUG-126 | scan-skills / star commands：frontmatter 無 description 時 fallback 恆空字串（T0519 `aa26c76`：改用 `parseCommandDescription`） | 🟢 low | 2026-10-14 | [BUG-126](BUG-126-skill-description-fallback-never-leaves-frontmatter.md) |
 | BUG-125 | claude:scan-skills：commands 以第一行當 description，帶 frontmatter 顯示 "---"（T0518 `b66b525`：commands 先讀 frontmatter description） | 🟢 low | 2026-10-14 | [BUG-125](BUG-125-scan-skills-command-description-frontmatter.md) |
 | BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
