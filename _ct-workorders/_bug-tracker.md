@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T03:45:25+0800"
+generated_at: "2026-10-14T03:52:42+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 48
 breakdown:
   OPEN: 0
   FIXING: 0
-  FIXED: 24
+  FIXED: 22
   VERIFY: 0
-  CLOSED: 24
+  CLOSED: 26
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 03:45 (UTC+8) — 第六十 session：BUG-122 / BUG-061 CLOSED；BUG-123 FIXED（T0513）；T0514-T0516 自動化驗收進行中
+> 最後同步：2026-10-14 03:52 (UTC+8) — 第六十 session：BUG-122 / 061 / 115 / 117 CLOSED；BUG-123 FIXED（T0513）；T0514 / T0515 自動化驗收進行中
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 24 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
@@ -45,9 +45,7 @@ breakdown:
 | BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 | BUG-121 | SSH unit / plist 傳 `BAT_REMOTE_PORT` / `BAT_REMOTE_BIND`，bat-server 只讀 `--port` / `BAT_SERVER_PORT` → 監聽 54321、wizard verify 失敗 | 🔴 high | 2026-10-14 | [BUG-121](BUG-121-ssh-service-unit-wrong-port-env-name.md) |
 | BUG-120 | SSH wizard 解 bundle 沒 `--strip-components=1` → `<installPath>/staging/…`，unit `bin/bat-server` 203/EXEC | 🔴 high | 2026-10-14 | [BUG-120](BUG-120-ssh-wizard-bundle-extracts-into-staging-subdir.md) |
-| BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（T0488 修：baseline 取基底版號） | 🟢 low | 2026-10-05 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
-| BUG-117 | mac x64 dmg 內嵌 arm64 原生 binary（已證實：claude / codex / node-pty / whisper 等）→ Intel Mac 內嵌 claude、codex、語音不可用、PTY 降級 | 🔴 high | 2026-10-13 | [BUG-117](BUG-117-mac-x64-dmg-ships-arm64-native-binaries.md) |
 | BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
 | BUG-113 | Detached workspace 視窗顯示 Workspace not found（自 `512c118` 多視窗重構起 detach 失效）（T0453） | 🟡 medium | 2026-10-05 | [BUG-113](BUG-113-detached-workspace-not-found.md) |
 | BUG-112 | 從 remote profile 視窗 detach 出的 workspace 視窗路由視為本機（fail-open）（T0446） | 🔴 high | 2026-10-05 | [BUG-112](BUG-112-detached-workspace-window-remote-fail-open.md) |
@@ -77,6 +75,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-115 | `release.ps1 -Snapshot` 必定失敗：prebuild 以 snapshot 版號重跑 fetch:baseline → 404（T0488 修：baseline 取基底版號） | 🟢 low | 2026-10-14 | [BUG-115](BUG-115-release-ps1-snapshot-prebuild-fetch-baseline-404.md) |
+| BUG-117 | mac x64 dmg 內嵌 arm64 原生 binary（已證實：claude / codex / node-pty / whisper 等）→ Intel Mac 內嵌 claude、codex、語音不可用、PTY 降級 | 🔴 high | 2026-10-14 | [BUG-117](BUG-117-mac-x64-dmg-ships-arm64-native-binaries.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only；T0486 清零 36 → 0） | 🟢 low | 2026-10-14 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
 | BUG-122 | Profile（配置）對話框 remote 卡片展開後「遠端 AI 工具」只佔右半、左欄空白；對話框偏窄（T0512：`profile-card*` 補 CSS、對話框 `min(1040px, 90vw)`、profile 端工具卡片 grid） | 🟢 low | 2026-10-14 | [BUG-122](BUG-122-profile-panel-remote-card-empty-left-column.md) |
 | BUG-119 | userData 分裂：`snippet-db` import 時取 userData（早於 `setName`）→ 日誌 / Crashes / snippets 在 `better-agent-terminal/`、設定在 `BetterAgentTerminal/`；runtime 實例共用 snippets | 🟡 medium | 2026-10-14 | [BUG-119](BUG-119-userdata-split-logs-snippets-vs-settings.md) |

@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-115
 title: "release.ps1 -Snapshot 必定失敗：build-version.js 把 package.json 改成 snapshot 版號後，npm run build 的 prebuild 再跑 fetch:baseline，以 snapshot 版號下載 server-bundle → 404"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-05T12:29:00+08:00"
-updated_at: "2026-10-05T12:29:00+08:00"
+updated_at: "2026-10-14T03:52:42+0800"
+closed_at: "2026-10-14T03:52:42+0800"
 impact:
   - local-packaging
 links:
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響本機 `-Snapshot` 打包；不帶 `-Snapshot` 可正常打包，CI 不受影響） |
 | 可重現 | 必現 |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🚫 CLOSED（2026-10-14T03:52:42+0800，使用者同意；證據 T0516） |
 | 回報者 | 塔台（第五十六 session，2026-10-05 12:28 本機重打包） |
 
 ## 現象
@@ -51,3 +52,7 @@ log：`%TEMP%\bat-release-20261005122832.log`
 - `fetch-baseline-tarball.mjs` 版號解析 `--version` → `BAT_BASELINE_VERSION` → package.json，一律去 snapshot 後綴（`build-version.js` `stripSnapshotSuffix`，同檔 SoT）；`release.ps1` 以 `BAT_BASELINE_VERSION` 讓兩次 fetch 同版號；`-Version X` 無 release 時明確錯誤 + 提示；manifest 版號不符即重下
 - 實證：隔離 worktree `release.ps1 -Snapshot` 完整跑完 exit 0（兩次 fetch 皆 `v0.6.0-pre.4`，第二次 cache hit）；20 個新測試
 - 後續（併入 T0492）：dist-baseline 舊版累積、distributor runtime fallback 用 snapshot 版號
+
+## 結案
+
+- 2026-10-14T03:52:42+0800 使用者同意結案。證據：T0516 B1：隔離 worktree `release.ps1 -Snapshot` exit 0，兩次 `fetch:baseline` 皆解析 `v0.6.0-pre.6`（下載 + cache hit），無 404，產出 Setup exe / zip / nupkg

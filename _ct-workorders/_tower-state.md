@@ -90,7 +90,7 @@
 - `v0.6.0-pre.6` 已發佈（10-14 03:15，@ `79b1275`）：SSH 精靈安裝 / 啟動修正（BUG-120 / 121，自 v0.4.1 起從未能完成）、Profile 對話框加寬（BUG-122）
 - pre.5 自動化實機驗收 T0510（opt-in e2e：`pre5-acceptance` / `pre5-ssh-alias`）；BUG-114 / 119 CLOSED
 - 第六十 session：BUG-122 CLOSED（使用者 pre.6 確認）；BUG-123（headless remote 狀態燈恆紅）→ T0513 DONE `90b35ee`（未發版，待 pre.7）
-- BUG Open 0 / Fixed 25（待實機）/ Closed 24（+BUG-061）；typecheck 雙 0；unit 3501 / 209 files
+- BUG Open 0 / Fixed 25（待實機）/ Closed 26（+BUG-061 / 115 / 117）；typecheck 雙 0；unit 3501 / 209 files
 
 ### 待辦（依優先序）
 
@@ -107,7 +107,7 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 24 / Closed 24）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 22 / Closed 26）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L148）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（75 entries）
 
@@ -127,7 +127,7 @@
 | **前一 tag** | `v0.6.0-pre.5`（2026-10-14 01:38，`7a6fb9c`） |
 | **目前主軸** | pre.6 實機（Profile 版面、真實 SSH 主機）+ Gary mac 驗收 → 依結果 CLOSE Fixed 25 張 |
 | **工單最大編號** | T0513（T0513 DONE `90b35ee`，未發版） |
-| **BUG 最大編號** | **BUG-123**；Open 0 / Fixing 0 / Fixed 24（123 待 pre.7）/ Closed 24 |
+| **BUG 最大編號** | **BUG-123**；Open 0 / Fixing 0 / Fixed 22（123 待 pre.7）/ Closed 26 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
