@@ -47,7 +47,7 @@
 
 在各 checklist 旁記錄:
 - 期望 vs 實際
-- `logger.log` 相關片段(`~/Library/Application Support/better-agent-terminal/debug.log`)
+- `logger.log` 相關片段(`~/Library/Application Support/BetterAgentTerminal/Logs/debug-<YYYYMMDD-HHMMSS>.log`,取最新一檔)
 - 系統資訊:`uname -a` + `echo $PATH`
 
 ---
@@ -89,7 +89,7 @@
 ### 失敗如何回報
 
 - `uname -a` + `echo $PATH`
-- logger 位置:`~/.config/better-agent-terminal/debug.log`
+- logger 位置:`~/.config/BetterAgentTerminal/Logs/debug-<YYYYMMDD-HHMMSS>.log`(取最新一檔)
 - 如果是 AppImage,附加 `APPIMAGE=<path>` 環境輸出
 
 ---

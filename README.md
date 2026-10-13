@@ -237,24 +237,42 @@ git push origin v0.6.0
 
 ## 設定
 
-BAT 的資料分在兩個目錄（打包版與 `npm run dev` 相同）：
+BAT 的所有資料都在同一個目錄（打包版與 `npm run dev` 相同）：
 
-| 平台 | 資料目錄（`BetterAgentTerminal`） | 日誌目錄（`better-agent-terminal`） |
-|------|------|------|
-| Windows | `%APPDATA%\BetterAgentTerminal\` | `%APPDATA%\better-agent-terminal\` |
-| macOS | `~/Library/Application Support/BetterAgentTerminal/` | `~/Library/Application Support/better-agent-terminal/` |
-| Linux | `~/.config/BetterAgentTerminal/` | `~/.config/better-agent-terminal/` |
+| 平台 | 資料目錄 |
+|------|------|
+| Windows | `%APPDATA%\BetterAgentTerminal\` |
+| macOS | `~/Library/Application Support/BetterAgentTerminal/` |
+| Linux | `~/.config/BetterAgentTerminal/` |
 
-- **資料目錄**：`settings.json`、`windows.json`（視窗與工作區）、`profiles/`、`server-cert.json` / `server-token.json`（遠端存取）、`whisper-models/` 等
-- **日誌目錄**：`Logs/`（除錯日誌）、`Crashes/`（crash dump）、`snippets.json`
+其中包含 `settings.json`、`windows.json`（視窗與工作區）、`profiles/`、`server-cert.json` / `server-token.json`（遠端存取）、`whisper-models/`、`snippets.json`，以及 `Logs/`（除錯日誌）、`Crashes/`（crash dump）。
 
-會分成兩處，是因為主程序有一部分路徑在 `app.setName('BetterAgentTerminal')` 生效前就已取得，仍沿用 `package.json` 的 `name`（`better-agent-terminal`）。
+**多實例**：以 `--runtime=<N>` 或環境變數 `BAT_RUNTIME=<N>` 啟動，可另開一個資料獨立的實例（各自的單一實例鎖），所有資料（含 `snippets.json`、`Logs/`、`Crashes/`）都在 `BetterAgentTerminal-runtime-<N>/`（與上表同一個上層目錄，例如 Windows 的 `%APPDATA%\BetterAgentTerminal-runtime-<N>\`）。
 
-**多實例**：以 `--runtime=<N>` 或環境變數 `BAT_RUNTIME=<N>` 啟動，可另開一個資料獨立的實例（各自的單一實例鎖），資料與日誌都放在 `better-agent-terminal-runtime-<N>/`（與上表同一個上層目錄，例如 Windows 的 `%APPDATA%\better-agent-terminal-runtime-<N>\`）；只有 `snippets.json` 仍在預設實例的日誌目錄。
+#### 從舊版升級（v0.6.0-pre.3 以前）
+
+舊版把一部分資料放在小寫的 `better-agent-terminal/`（與上表同一個上層目錄）：`Logs/`、`Crashes/`、`snippets.json`、`message-archives/` 與 `Local State`（Chromium 狀態檔；Windows 上用來解開遠端存取權杖的加密金鑰存在這裡）；`--runtime=<N>` 實例則整個在 `better-agent-terminal-runtime-<N>/`。新版第一次啟動時會自動整理，只執行一次（完成後在資料目錄寫入 `.userdata-migration.json`）：
+
+| 項目 | 處理方式 |
+|------|------|
+| `Local State` | 資料目錄還沒有時才**複製**過來，遠端存取權杖不變、遠端 client 不需重新配對（macOS / Linux 的加密金鑰在系統 Keychain / libsecret，升級後權杖不變尚待實機確認）。若複製失敗，權杖會重新產生，遠端 client 需要重新配對（日誌中有 `[userdata-migration]` 紀錄） |
+| `snippets.json` | 資料目錄沒有時**複製**；兩邊都有時合併（以資料目錄為主，舊檔中不重複的項目附加在後，合併前先備份成 `snippets.json.pre-merge-<時間>.bak`） |
+| `message-archives/*.jsonl` | 資料目錄沒有同名檔時**移動**過來（這是對話訊息的快取） |
+| `Logs/`、`Crashes/` | **不搬**。新日誌寫到資料目錄的 `Logs/`；舊日誌留在 `better-agent-terminal/Logs/` |
+| `better-agent-terminal-runtime-<N>/` | 整個目錄**改名**為 `BetterAgentTerminal-runtime-<N>/`。若該實例的 terminal server 仍在執行或改名失敗，這次先沿用舊目錄，下次啟動再試。runtime 實例的 snippets 各自一份，不會從預設實例複製 |
+
+舊的 `better-agent-terminal/` **保留不刪除、也不會自動清理**（舊日誌在那裡），確認不再需要降版後可自行刪除。
+
+**降版回舊版**：
+
+- 預設實例：舊版照舊讀寫 `better-agent-terminal/` 與 `BetterAgentTerminal/`，設定與遠端存取權杖都可沿用。但新版新增或修改的 snippets 舊版看不到；在舊版期間修改的 snippets，再次升級時**不會**重新搬移（只執行一次）
+- runtime 實例：目錄已改名，舊版會建立一個全新的空目錄；資料仍在 `BetterAgentTerminal-runtime-<N>/`，可手動改名回 `better-agent-terminal-runtime-<N>/`
+
+⚠️ **不要同時執行新舊兩個版本**：兩者的單一實例鎖在不同目錄、無法互斥，會同時寫入同一份 `settings.json`。
 
 ### 除錯日誌
 
-除錯日誌**預設開啟**，不需要環境變數。日誌寫在日誌目錄下的 `Logs/debug-<YYYYMMDD-HHMMSS>.log`，每次啟動一個檔案，保留最近 10 個。可在 BAT 的 **設定 > 進階 > 除錯日誌** 關閉、調整等級（預設 `debug`），或按「開啟日誌資料夾」直接開啟目錄；回報 bug 時請附上最新的日誌檔。
+除錯日誌**預設開啟**，不需要環境變數。日誌寫在資料目錄下的 `Logs/debug-<YYYYMMDD-HHMMSS>.log`，每次啟動一個檔案，保留最近 10 個。可在 BAT 的 **設定 > 進階 > 除錯日誌** 關閉、調整等級（預設 `debug`），或按「開啟日誌資料夾」直接開啟目錄；回報 bug 時請附上最新的日誌檔。
 
 `BAT_DEBUG=1` 與磁碟日誌無關，它只開啟僅供除錯的 UI（debug 用 Agent preset、worktree 選項等）。
 
