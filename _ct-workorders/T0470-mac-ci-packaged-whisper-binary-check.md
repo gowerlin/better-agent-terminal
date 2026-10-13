@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0470
 title: "mac CI 打包後檢查兩個 arch 產物的 app.asar.unpacked 內 whisper.node（BUG-116 修復方向 4 CI 部分），pre-release.yml + release.yml"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-116
 priority: P1
 sizing: S
 created_at: "2026-10-13T16:17:57+08:00"
 started_at: "2026-10-13T16:19:08+08:00"
-updated_at: "2026-10-13T16:19:08+08:00"
-completed_at: null
+updated_at: "2026-10-13T16:22:31+08:00"
+completed_at: "2026-10-13T16:22:31+08:00"
 target_version: next
 depends_on:
   - T0468
@@ -115,7 +115,7 @@ DONE — 打包後檢查腳本、兩個 workflow mac 步驟、單元測試、CLA
 | CLI smoke | PASS | 對不存在目錄執行 → 兩 arch 皆報 `no .app found in ...`，exit=1 |
 | CI 實跑 | 未執行（依工單） | 不 push、不觸發 workflow；塔台於 v0.6.0-pre.3 run 觀察本步驟 |
 
-**Commit**：見下方 commit hash（只 `git add` 本單 5 個檔案 + 工單；T0469 的 `electron/voice-opencc.ts` / T0469 工單未納入）。未 push。
+**Commit**：`a8c18f3`（只 `git add` 本單 5 個檔案 + 工單；T0469 的 `electron/voice-opencc.ts` / T0469 工單未納入）。未 push。
 
 ### 回報時間
 
