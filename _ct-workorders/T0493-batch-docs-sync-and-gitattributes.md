@@ -24,6 +24,7 @@ depends_on:
   - "T0490"
   - "T0491"
   - "T0492"
+  - "T0494"
 related:
   - "T0484-T0492 回報區「CLAUDE.md 建議文字」"
   - "T0454 回報區 `.gitattributes` 評估（index 全 LF、renormalize 預期 0 檔；建議 `* text=auto eol=lf`、`*.png binary`、`*.ico binary`）"
