@@ -550,13 +550,29 @@ class MinimalWS {
 
 // ── Helpers ──
 
-function waitForMessage(ws, timeoutMs = 3000) {
+// T0497/BUG-114: A local BAT PTY authenticates with the full server token, so this
+// connection is an ordinary client and receives every PROXIED_EVENTS broadcast
+// (`{ type: 'event', id: '0' }`, including each PTY's pty:output). Taking the next
+// arbitrary frame as the reply let a broadcast pass for `✓ Terminal created`, and the
+// helper then exited before the server had read the invoke (T0490). Only a frame
+// carrying the id we sent is the reply (template: bat-notify.mjs waitForMessageById).
+// `acceptType` also accepts that frame type whatever its id: the server rejects a
+// banned IP / auth timeout with `{ type: 'auth-result', id: '0', error }`.
+let ignoredFrames = 0
+
+function waitForMessage(ws, expectedId, timeoutMs = 3000, acceptType = null) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Response timeout')), timeoutMs)
     ws.onMessage((raw) => {
+      let frame
+      try { frame = JSON.parse(raw) }
+      catch { ignoredFrames++; return } // Ignore non-JSON frames
+      if (frame?.id !== expectedId && !(acceptType && frame?.type === acceptType)) {
+        ignoredFrames++ // Ignore unrelated frames (broadcasts)
+        return
+      }
       clearTimeout(timer)
-      try { resolve(JSON.parse(raw)) }
-      catch { reject(new Error('Invalid JSON response')) }
+      resolve(frame)
     })
   })
 }
@@ -604,9 +620,10 @@ async function main() {
   }
 
   // Auth
+  const authId = makeId()
   ws.send(JSON.stringify({
     type: 'auth',
-    id: makeId(),
+    id: authId,
     token: TOKEN,
     args: ['bat-terminal-cli'],
   }))
@@ -618,7 +635,7 @@ async function main() {
   logEvent('bat-terminal', 'await-auth-response', { timeoutMs: 3000 })
   let authResp
   try {
-    authResp = await waitForMessage(ws)
+    authResp = await waitForMessage(ws, authId, 3000, 'auth-result')
   } catch (err) {
     const msg = err?.message || String(err)
     console.error(`Error: Auth response timeout: ${msg}`)
@@ -677,9 +694,10 @@ async function main() {
     customEnv: invokePayload.customEnv ?? null,
   })
 
+  const invokeId = makeId()
   ws.send(JSON.stringify({
     type: 'invoke',
-    id: makeId(),
+    id: invokeId,
     channel,
     args: [invokePayload],
   }))
@@ -688,7 +706,7 @@ async function main() {
   logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000 })
   let invokeResp
   try {
-    invokeResp = await waitForMessage(ws)
+    invokeResp = await waitForMessage(ws, invokeId)
   } catch (err) {
     const msg = err?.message || String(err)
     const logPath = process.platform === 'win32'
@@ -702,13 +720,16 @@ async function main() {
       reason: 'invoke-timeout',
       error: msg,
       hint,
+      ignoredFrames,
     })
     ws.close()
     process.exit(1)
   }
+  // T0497: which frame answered, and how many broadcasts went past while waiting.
+  const responseDiag = { responseType: invokeResp.type, ignoredFrames }
   if (invokeResp.error) {
     console.error(`Error: Failed to create terminal: ${invokeResp.error}`)
-    logEvent('bat-terminal', 'terminal-created', { result: 'error', error: invokeResp.error })
+    logEvent('bat-terminal', 'terminal-created', { result: 'error', error: invokeResp.error, ...responseDiag })
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-create-failed' })
     ws.close()
     process.exit(1)
@@ -727,6 +748,7 @@ async function main() {
       agentId: invokeResult.agentId,
       tool: invokeResult.tool,
       status: invokeResult.status,
+      ...responseDiag,
     })
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-create-refused', refusal: code })
     ws.close()
@@ -737,14 +759,14 @@ async function main() {
   // trusts the exit code only, so this must not exit 0 as "created".
   if (invokeResult === false) {
     console.error(`Error: Failed to create terminal: ${terminalId} was not created (server answered false — see the BAT app log)`)
-    logEvent('bat-terminal', 'terminal-created', { result: 'false', terminalId })
+    logEvent('bat-terminal', 'terminal-created', { result: 'false', terminalId, ...responseDiag })
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-not-created' })
     ws.close()
     process.exit(1)
   }
 
   console.log(`✓ Terminal created: ${terminalId}`)
-  logEvent('bat-terminal', 'terminal-created', { result: 'ok', terminalId })
+  logEvent('bat-terminal', 'terminal-created', { result: 'ok', terminalId, ...responseDiag })
   logEvent('bat-terminal', 'exit', { code: 0 })
   ws.close()
   process.exit(0)

@@ -163,11 +163,21 @@ async function startMockBatRemote({ invokeReply = {} } = {}) {
   }
 }
 
+// T0497: keep the helper's NDJSON log out of the user's real bat-scripts.log. Run
+// inside a BAT PTY, the inherited BAT_USER_DATA would otherwise point it there and
+// leave `invoke` records carrying that Worker's BAT_TERMINAL_ID (T0490).
+const helperUserData = join(tmpdir(), `bat-terminal-workorder-userdata-${process.pid}`)
+
 function runBatTerminal(args, env = {}) {
   return new Promise((resolve) => {
     // Strip inherited BAT_* wiring: this suite must not talk to the real BAT
     // instance the test runner may be hosted inside.
-    const childEnv = { ...process.env, ...env }
+    const childEnv = {
+      ...process.env,
+      BAT_HELPER_LOG_DIR: join(helperUserData, 'Logs'),
+      BAT_USER_DATA: helperUserData,
+      ...env,
+    }
     if (!('BAT_REMOTE_PORT' in env)) delete childEnv.BAT_REMOTE_PORT
     if (!('BAT_REMOTE_TOKEN' in env)) delete childEnv.BAT_REMOTE_TOKEN
     if (!('BAT_SERVER_CERT_PATH' in env)) delete childEnv.BAT_SERVER_CERT_PATH

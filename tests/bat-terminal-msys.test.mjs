@@ -192,6 +192,9 @@ async function startMockBatRemote() {
   }
 }
 
+// T0497: keep the helper's NDJSON log out of the user's real bat-scripts.log (T0490).
+const helperUserData = join(tmpdir(), `bat-terminal-msys-userdata-${process.pid}`)
+
 function runBatTerminal(port, certPath) {
   return new Promise((resolve) => {
     const child = spawn(
@@ -201,6 +204,8 @@ function runBatTerminal(port, certPath) {
         cwd: repoRoot,
         env: {
           ...process.env,
+          BAT_HELPER_LOG_DIR: join(helperUserData, 'Logs'),
+          BAT_USER_DATA: helperUserData,
           BAT_REMOTE_PORT: String(port),
           BAT_REMOTE_TOKEN: 'test-token',
           BAT_SERVER_CERT_PATH: certPath,
