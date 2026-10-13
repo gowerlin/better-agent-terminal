@@ -146,12 +146,14 @@ async function startMockBatRemote() {
   return {
     port: server.address().port,
     certPath,
+    logDir: join(certDir, 'Logs'),
+    userData: certDir,
     invokes,
     close: () => new Promise((resolve) => server.close(resolve)),
   }
 }
 
-function runBatNotify(port, certPath, message = 'T9999 完成') {
+function runBatNotify(remote, message = 'T9999 完成') {
   return new Promise((resolve) => {
     const child = spawn(
       process.execPath,
@@ -168,9 +170,12 @@ function runBatNotify(port, certPath, message = 'T9999 完成') {
         cwd: repoRoot,
         env: {
           ...process.env,
-          BAT_REMOTE_PORT: String(port),
+          BAT_REMOTE_PORT: String(remote.port),
           BAT_REMOTE_TOKEN: 'test-token',
-          BAT_SERVER_CERT_PATH: certPath,
+          BAT_SERVER_CERT_PATH: remote.certPath,
+          // T0499: keep the helper's NDJSON log in this test's temp dir, not the user's real log.
+          BAT_HELPER_LOG_DIR: remote.logDir,
+          BAT_USER_DATA: remote.userData,
           BAT_TOWER_TERMINAL_ID: 'tower-123',
           BAT_TERMINAL_ID: 'worker-456',
         },
@@ -190,7 +195,7 @@ describe('bat-notify submit mode', () => {
   it('prefills text without CR and sends Enter through terminal:keypress', async () => {
     const remote = await startMockBatRemote()
     try {
-      const run = await runBatNotify(remote.port, remote.certPath)
+      const run = await runBatNotify(remote)
       expect(run.code, run.stderr || run.stdout).toBe(0)
     } finally {
       await remote.close()
@@ -217,7 +222,7 @@ describe('bat-notify submit mode', () => {
   it('keeps submit as a separate keypress action when text payload ends with LF (T0450: LF flattened out of the pre-fill)', async () => {
     const remote = await startMockBatRemote()
     try {
-      const run = await runBatNotify(remote.port, remote.certPath, 'T9999 完成\n')
+      const run = await runBatNotify(remote, 'T9999 完成\n')
       expect(run.code, run.stderr || run.stdout).toBe(0)
     } finally {
       await remote.close()
@@ -247,7 +252,7 @@ describe('bat-notify submit mode', () => {
   it('waits before sending Enter so Codex paste-burst handling can settle', async () => {
     const remote = await startMockBatRemote()
     try {
-      const run = await runBatNotify(remote.port, remote.certPath)
+      const run = await runBatNotify(remote)
       expect(run.code, run.stderr || run.stdout).toBe(0)
     } finally {
       await remote.close()

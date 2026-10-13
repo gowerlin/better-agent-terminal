@@ -262,6 +262,9 @@ class MinimalWS {
   #upgraded = false
   #msgHandler = null
   #errHandler = null
+  // T0499: text frames drained before the first onMessage() handler is set, e.g. a banned
+  // IP's `auth-result` that the server sends on connect, in the same chunk as the 101.
+  #pending = []
 
   connect(host, port, timeoutMs = 3000) {
     return new Promise((resolve, reject) => {
@@ -403,7 +406,10 @@ class MinimalWS {
     this.#socket.write(Buffer.concat([header, masked]))
   }
 
-  onMessage(fn) { this.#msgHandler = fn }
+  onMessage(fn) {
+    this.#msgHandler = fn
+    for (const raw of this.#pending.splice(0)) fn(raw)
+  }
   onError(fn) { this.#errHandler = fn }
 
   close() {
@@ -439,8 +445,9 @@ class MinimalWS {
       const payload = this.#buffer.subarray(off, off + len)
       this.#buffer = this.#buffer.subarray(off + len)
 
-      if (opcode === 0x01 && this.#msgHandler) {
-        this.#msgHandler(payload.toString('utf-8'))
+      if (opcode === 0x01) {
+        if (this.#msgHandler) this.#msgHandler(payload.toString('utf-8'))
+        else this.#pending.push(payload.toString('utf-8'))
       } else if (opcode === 0x08) {
         this.close()
         return
@@ -451,14 +458,17 @@ class MinimalWS {
 
 // ── Helpers ──
 
-function waitForMessageById(ws, expectedId, timeoutMs = 3000) {
+// `acceptType` also accepts that frame type whatever its id: the server rejects a banned
+// IP / auth timeout with `{ type: 'auth-result', id: '0', error }` (T0499, as T0497 did
+// for bat-terminal.mjs). Broadcasts are `type: 'event'` and stay ignored.
+function waitForMessageById(ws, expectedId, timeoutMs = 3000, acceptType = null) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Response timeout')), timeoutMs)
     ws.onMessage((raw) => {
       let frame
       try { frame = JSON.parse(raw) }
       catch { return } // Ignore non-JSON frames
-      if (frame.id !== expectedId) return // Ignore unrelated frames
+      if (frame?.id !== expectedId && !(acceptType && frame?.type === acceptType)) return // Ignore unrelated frames
       clearTimeout(timer)
       resolve(frame)
     })
@@ -520,7 +530,7 @@ async function main() {
     args: ['bat-notify-cli'],
   }))
 
-  const authResp = await waitForMessageById(ws, authId)
+  const authResp = await waitForMessageById(ws, authId, 3000, 'auth-result')
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
     logEvent('bat-notify', 'exit', { code: 1, reason: 'auth-failed', error: authResp.error })

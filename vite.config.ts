@@ -43,6 +43,8 @@ export default defineConfig({
       // T0342 — Windows/MSYS regression guard for bat-terminal helper
       'tests/bat-terminal-msys.test.mjs',
       'tests/bat-notify-submit.test.mjs',
+      // T0499 — bat-notify reports the server's id-less auth rejection as auth-failed
+      'tests/bat-notify-auth-reject.test.mjs',
       // T0360 / BUG-082 — work order ID grammar + --workspace hint guard
       'tests/bat-terminal-workorder-id.test.mjs',
       // T0497 / BUG-114 — auth / invoke reply matched by frame id (broadcasts ignored)
