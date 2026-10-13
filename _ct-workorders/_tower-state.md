@@ -112,7 +112,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（75 entries）
 
 ### 編號起始
-- **T0520** / **BUG-127** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L149**
+- **T0521** / **BUG-127** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L149**（T0520 pre.7 自動化驗收已派）
 
 ---
 
