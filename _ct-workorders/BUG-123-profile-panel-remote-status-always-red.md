@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-123
 title: "配置（Profile）對話框：WSL / SSH / Docker（headless bat-server）profile 的狀態燈永遠紅燈 Disconnected，即使該 profile 視窗已開且連線正常"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-14T03:27:58+0800"
-updated_at: "2026-10-14T03:38:40+0800"
+updated_at: "2026-10-14T05:10:55+0800"
 fixed_at: "2026-10-14T03:38:40+0800"
+closed_at: "2026-10-14T05:10:55+0800"
 impact:
   - ui-status
   - profiles
@@ -25,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（狀態誤導，使用者以為伺服器掛了；功能正常） |
 | 可重現 | 必現（使用者 pre.6，WSL Ubuntu-24.04 profile） |
-| **狀態** | ✅ FIXED（T0513；T0520 pre.7 已安裝版自動化驗收 PASS（docker headless 四態），僅剩真實 WSL Ubuntu-24.04 卡片目視） |
+| **狀態** | 🚫 CLOSED（使用者 pre.7 真實 WSL Ubuntu-24.04 卡片 🟢 截圖確認 + T0520 自動化四態 PASS，2026-10-14T05:10:55+0800；修復 T0513） |
 | 回報者 | 使用者 |
 
 ## 現象
