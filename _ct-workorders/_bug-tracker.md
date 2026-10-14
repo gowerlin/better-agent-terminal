@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 17:19 (UTC+8) — 第六十二 session：BUG-132 FIXED（T0527 `a371ce5`，塔台複驗 typecheck 雙 0 + 相關測試 68 passed）
+> 最後同步：2026-10-14 18:09 (UTC+8) — 第六十二 session：BUG-133 FIXING（T0530，T0529 範圍外發現）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 13 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 57**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 13 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 58**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-133 | detached 視窗「開啟設定」無反應（T0530） | 🟢 low | 2026-10-14 18:09 | [BUG-133](BUG-133-detached-window-open-settings-noop.md) |
 
 ## ✅ 已修復
 
