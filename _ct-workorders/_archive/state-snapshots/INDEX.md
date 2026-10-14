@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-10-14 (Session 61 收工 — Session 59 快照 archived per PLAN-033)
-> Hot path retains: session 60 (本) + session 59 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-10-15 (Session 63 補記 Session 62 — Session 60 快照 archived per PLAN-033)
+> Hot path retains: session 62 (本) + session 61 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 76 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 11 in Q4)
+> Total archived entries: 77 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 12 in Q4)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -93,3 +93,4 @@
 | 75 | 第五十六 session | 2026-10-05 | 2026-Q4.md | 第五十六 session, 2026-10-05 11:40-12:33, ~53m, PLAN-039 T0462-T0466 YOLO + 聯合複驗 + 重打包 |
 | 76 | 第五十八 session | 2026-10-13 | 2026-Q4.md | 第五十八 session, 2026-10-13 15:40 - 10-14 01:40, ~10h, T0467-T0509, pre.3 / pre.4 / pre.5 |
 | 77 | 第五十九 session | 2026-10-14 | 2026-Q4.md | 第五十九 session, 2026-10-14 01:55-03:17, ~1h22m, T0510-T0512, pre.6 |
+| 78 | 第六十 session | 2026-10-14 | 2026-Q4.md | 第六十 session, 2026-10-14 03:20-05:13, ~1h53m, T0513-T0520, pre.7 |

@@ -1,12 +1,45 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-14 14:47 (UTC+8) — **第六十一 session 收工**：Gary / 使用者回報 → BUG-127-131 → T0521-T0525 全 DONE → **`v0.6.0-pre.8` 已發佈**（14:20）→ D140 / PLAN-040 / L150。
+> 最後更新:2026-10-15 01:21 (UTC+8) — **第六十三 session 進行中**：補第六十二 session 快照（pre.9 / pre.10 已發佈）；連國盛回報 → **BUG-134** → **T0531** 已派（01:17）。
 >
-> **下次起手**:Fast Path 載入；等 Gary pre.8 回饋（127-130 + 116 / 118 + BUG-129 日誌與 `echo $BAT_WORKSPACE_ID` 比對）→ 結案 + 與 PLAN-040 一起排下一批。
+> **下次起手**:Fast Path 載入；收 T0531 回報（DONE → 聯合複驗；PARTIAL → 向連國盛要 log）；等 Gary pre.10 回饋。
 
 ---
 
-## 🛏 本 Session 收工快照 (第六十一 session, 2026-10-14 13:17 - 14:47, ~1h30m wall)
+## 🛏 本 Session 收工快照 (第六十二 session, 2026-10-14 16:55 - 18:38, ~1h43m wall)
+
+> 本段於 2026-10-15 01:21 第六十三 session 補寫（第六十二 session 未寫收工快照）；時間取自 git commit / gh run。
+
+### 主軸：Gary pre.8 日誌 → BUG-132（cwd 檢查）→ **`v0.6.0-pre.9`** → PLAN-040 擴大實作 + BUG-133 → **`v0.6.0-pre.10`**
+
+#### 時間線（時間取自 git / gh）
+
+1. **16:55** 開 **T0526**（BUG-129 Gary 日誌分診，研究）→ 17:02 DONE（`050b12b`）：判定 T0523 §1 **#11**（agent CLI 沿用別的分頁的 `BAT_*`）；開成 Claude 是另一個原因（Settings 未設預設 Agent）
+2. **17:05** **D141** → 開 **BUG-132** / 派 **T0527**（派工 cwd 與落點工作區一致性檢查、`--agent` 簡寫）→ 17:18 DONE（`a371ce5`），BUG-132 FIXED；PID 鏈根治入 backlog
+3. **17:23** 開 **T0528**（研究：Codex CLI 在 BAT 終端貼圖）→ 17:34 DONE：可用（Ctrl+V → Alt+V），不改產品
+4. **17:36** **`v0.6.0-pre.9` 已發佈**（run `38541740029` @ `7b0322a`）；17:37 package.json 同步（`c1d44f3`）
+5. **17:51** **D142**：PLAN-040 擴大為工作區層級 Agent ＋ 啟動參數 → 派 **T0529** → 18:08 DONE（`c89be6c`），PLAN-040 DONE
+6. **18:09** T0529 範圍外發現 → 開 **BUG-133** / 派 **T0530**（detached 視窗開設定）→ 18:17 DONE（`5bacb58`），BUG-133 FIXED；CLAUDE.md 補 detached 不渲染 SettingsPanel 規則（`e524867`）
+7. **18:36** **`v0.6.0-pre.10` 已發佈**（run `38548961092` @ `e524867`）；18:38 package.json 同步（`65cda7a`）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **5**（T0526-T0530） | 全 DONE；T0526 / T0528 為研究單 |
+| 發版 | 2（`v0.6.0-pre.9` / `pre.10`） | 兩次 run 皆 success，各附 `server-bundle-v<版號>`；發布說明已寫 |
+| BUG | 新開 2（132 / 133）→ 皆 FIXED | Open 0 / Fixed 14 / Closed 44 |
+| 決策 | D141 / D142 | |
+| PLAN | PLAN-040 DONE | |
+| unit test | ✅ **3713 passed / 223 files** | T0530 回報 @ `5bacb58` |
+
+### 編號起始（下 session）
+
+- **T0531** / **BUG-134** / **PLAN-041** / **D143** / **L151**
+
+---
+
+## 🛏 前 Session 收工快照 (第六十一 session, 2026-10-14 13:17 - 14:47, ~1h30m wall)
 
 ### 主軸：Gary（mac）與使用者回報 → BUG-127-131 → T0521-T0525 → 聯合複驗 → **`v0.6.0-pre.8`** → PLAN-040
 
@@ -47,63 +80,23 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第六十 session, 2026-10-14 03:20 - 05:13, ~1h53m wall)
-
-### 主軸：pre.6 實機 → 已修待驗 BUG 自動化驗收三線（T0514-T0516）→ pre.7 批次（T0513 / T0517-T0519）→ **`v0.6.0-pre.7`** → 已安裝版驗收（T0520）→ pre.7 批次全結
-
-#### 時間線（時間取自 git / 系統）
-
-1. **03:28** 使用者 pre.6 回報遠端狀態燈恆紅 → 開 **BUG-123** / 派 **T0513**；03:32 **BUG-122 CLOSED**（使用者 pre.6 確認）
-2. **03:38** T0513 DONE（`90b35ee`）
-3. **03:43** 開 / 並行派 **T0514**（UI / 遠端路由）、**T0515**（設定精靈）、**T0516**（建置產物）三條 pre.6 已安裝版自動化驗收線
-4. **03:51-04:10** T0516 / T0515 / T0514 DONE → 依證據結 **18 張** BUG（含 061 / 086 / 115 / 117 等）；驗收觀察開出 **BUG-124**（forwarding 被拒訊息誤導）/ **BUG-125**（commands 描述 `---`）/ **BUG-126**（skills fallback 恆空）；L149（NSIS MAX_PATH）
-5. **04:08-04:17** T0518（`b66b525`）/ T0519（`aa26c76`）/ T0517（`213f587`）DONE；04:19 塔台聯合複驗全綠（unit 3534 / 212 files、typecheck 雙 0、e2e 7 passed）
-6. **04:43** **`v0.6.0-pre.7` 已發佈**（run `38461996096` @ `b77f3cc`）；04:47 package.json 同步（`6a871d8`）
-7. **04:51** 塔台 context 重啟（Fast Path）；使用者已裝 pre.7 → 04:53 派 **T0520**（pre.7 已安裝版自動化驗收）
-8. **05:07** T0520 DONE（`a4fe1f5`，17 PASS / 0 FAIL / 1 NEEDS-HUMAN）→ **BUG-124 / 125 / 126 CLOSED**
-9. **05:10-05:12** 使用者真實 WSL 卡片 🟢 + 關窗 15 s 轉 ⚪ 確認 → **BUG-123 CLOSED**；05:12 push（`6a871d8..3aa06d5`）
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **8**（T0513-T0520） | 全 DONE；T0514-T0516 / T0520 為驗收單（只寫 opt-in spec，不改產品）；皆一次啟動 |
-| 發版 | 1（`v0.6.0-pre.7`） | 10 job 全綠 + `server-bundle-v0.6.0-pre.7` |
-| BUG | 新開 4（123-126）→ 皆 CLOSED；本 session 共結 **23 張** | Open 0 / Fixed 7 / Closed 44 |
-| 決策 | 0 | |
-| Learnings | L149 | |
-| unit test | 3474 → **3534 passed / 212 files** | |
-| e2e（opt-in） | +`pre6-ui-remote-acceptance` / `pre6-wizard-acceptance` / `pre7-acceptance`、`t0513-profile-status-light` | 環境腳本 `e2e/real-remote/t0514-*` / `t0515-*` / `t0520-*` |
-
-### 重點觀察
-
-- 「已修待實機」BUG 改走**已安裝版 exe + 容器化真環境**的自動化驗收後，一個 session 內結 23 張；剩下 7 張都是 AI 依規則不能碰的（真實 Claude session、Docker Desktop 未啟動、mac）
-- 驗收單的「觀察」節是新 BUG 的主要來源（124 / 125 / 126 都來自 T0514 / T0515），延續 L145
-- T0520 偏差：wsl-linux profile 需要真實 `wslDistro` 才能開視窗，自動化改用 docker-linux 指向同一台 headless server；真實 WSL 由使用者目視補齊
-
-### 編號起始（下 session）
-
-- **T0521** / **BUG-127** / **PLAN-040** / **D140** / **L150**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-14 14:47 UTC+8（第六十一 session 收工）
+> 最後更新：2026-10-15 01:21 UTC+8（第六十三 session 進行中）
 
 ### 近期完成
-- `v0.6.0-pre.8` 已發佈（10-14 14:20，run `38520403729` @ `887ff20`，發布說明已補）：終端貼上統一規則（BUG-128 / 130）、塔台派工落點（BUG-129）、指揮塔切換工作區 toast（BUG-127）、PTY 重建保留 env（BUG-131）
-- T0521-T0525 全 DONE；聯合複驗 @ `b00c4f9` 全綠（typecheck 雙 0、unit 3642 / 216 files、e2e 6 passed）
-- D140：`--agent default` 語意不變（A）；工作區層級預設 Agent 無 UI → PLAN-040（PLANNED）
-- BUG Open 0 / Fixed 12 / Closed 44；`main` = `origin/main`（收工 push）
+- `v0.6.0-pre.10` 已發佈（10-14 18:36，run `38548961092` @ `e524867`）：工作區設定（預設 Agent + 啟動參數，PLAN-040 / D142）、detached 開設定（BUG-133）
+- `v0.6.0-pre.9` 已發佈（10-14 17:36，run `38541740029` @ `7b0322a`）：派工 cwd 檢查、`--agent` 簡寫（BUG-132 / D141）
+- T0526-T0530 全 DONE；unit 3713 passed / 223 files；使用者本機安裝版 = pre.10
+- BUG Open 0 / Fixing 1（BUG-134）/ Fixed 14 / Closed 44
 
 ### 待辦（依優先序）
 
-1. 🟡 **Gary pre.8 回饋**（arm64 dmg）：BUG-127 / 128 / 129 / 130 驗收 + BUG-116 / 118；BUG-129 要日誌（`[T0130] External terminal added`、`[agent-command] resolved agent=`、`bat-scripts.log` invoke env）與「SCB Codex 內 vs 一般分頁 `echo $BAT_WORKSPACE_ID`」比對 → 若證實 Codex shell snapshot，開根治單（PID 鏈辨識呼叫者，T0523 §7-1）
-2. 🟡 **PLAN-040** 拆單：與 Gary 回饋一起排下一批（detached 視窗持久化邊界先決定）
-3. 🟡 **使用者 Windows**：BUG-130 間歇性，再失效時查 `[terminal-paste]` log；真人 5 分鐘項 BUG-105 / 107 / 108；Docker 精靈 BUG-097 / 111（需 Docker Desktop）
-4. 🟢 清理：T0514 / T0515 / T0520 保留的 docker image（`node e2e/real-remote/t0520-env.mjs down --rmi` 等）
-5. 🟢 backlog：recovery 重建 T0108 重登記 PTY 的 `shellArgs` 為空（T0525 §5-2）、Windows 檔案總管拷貝 → 路徑（`CF_HDROP`，T0524）、`*archive` 到齡候選（L133）、Codex 面板 Cache History、server-bundle `ubuntu-22.04` 2027-04-17 停用、PLAN-038、BUG-084 / PLAN-035 Phase 2、D094 復議、T0153 / T0360 清理
+1. 🔴 **T0531**（BUG-134 空工作區殘留終端畫面，連國盛回報）進行中：DONE → 塔台聯合複驗；PARTIAL → 依回報區向連國盛要 log
+2. 🟡 **Gary pre.10 回饋**（arm64 dmg）：BUG-127-133 + BUG-116 / 118 驗收
+3. 🟡 **使用者 Windows**：BUG-130 間歇性（再失效查 `[terminal-paste]`）；真人項 BUG-105 / 107 / 108；Docker 精靈 BUG-097 / 111（需 Docker Desktop）
+4. 🟢 清理：T0514 / T0515 / T0520 保留的 docker image
+5. 🟢 backlog：PID 鏈辨識呼叫者（D141）、遠端派工 cwd 檢查、recovery `shellArgs` 為空（T0525 §5-2）、Windows `CF_HDROP` 路徑貼上、`*archive` 到齡候選（L133）、Codex 面板 Cache History、server-bundle `ubuntu-22.04` 2027-04-17 停用、PLAN-038、BUG-084 / PLAN-035 Phase 2、D094 復議
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**。
@@ -112,12 +105,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。發版 run 完成後同一步 `gh release edit --notes-file` 寫發布說明。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 12 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D140）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（77 entries）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 1 / Fixed 14 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D142）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（78 entries）
 
 ### 編號起始
-- **T0526** / **BUG-132** / **PLAN-041** / **D141** / **EXP-[TOPIC]-001** / **L151**
+- **T0532** / **BUG-135** / **PLAN-041** / **D143** / **EXP-[TOPIC]-001** / **L151**
 
 ---
 
@@ -127,17 +120,17 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.0-pre.8**（package.json + lock，2026-10-14 14:23 同步） |
-| **最新 release** | `v0.6.0-pre.8`（2026-10-14 14:20，run `38520403729`，target `887ff20`，T0521-T0525：BUG-127-131；10 job 全綠）+ `server-bundle-v0.6.0-pre.8`（7 assets）。前一版 `v0.6.0-pre.7`（2026-10-14 04:43，run `38461996096`，target `b77f3cc`，T0513 / T0517-T0519：遠端狀態燈、SSH forwarding 被拒訊息、commands / skills 描述；10 job 全綠）+ `server-bundle-v0.6.0-pre.7`（7 assets）。前一版 `v0.6.0-pre.6`（2026-10-14 03:16，run `38450958394`，target `79b1275`，T0510-T0512：SSH 精靈安裝 / 啟動修正、Profile 對話框加寬）+ `server-bundle-v0.6.0-pre.6`（7 assets）。前一版 `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
-| **前一 tag** | `v0.6.0-pre.7`（2026-10-14 04:43，`b77f3cc`） |
-| **目前主軸** | pre.8 已發佈（BUG-127-131 FIXED）；等 Gary pre.8 回饋 → 結案 + PLAN-040 下一批 |
-| **工單最大編號** | T0525（T0521-T0525 全 DONE；T0513-T0520 全 DONE；T0514-T0516 / T0520 為驗收單；T0520 pre.7 已安裝版驗收 17 PASS / 0 FAIL `a4fe1f5`） |
-| **BUG 最大編號** | **BUG-131**（127-129 FIXED、130 / 131 FIXED）；Open 0 / Fixing 0 / Fixed 12（123-126 CLOSED：T0520 + 使用者 WSL 目視；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
-| **PLAN 最大編號** | **PLAN-040**（PLANNED，工作區層級預設 Agent，下一批）；PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
-| **決策最大編號** | D140 |
+| **目前版號** | **0.6.0-pre.10**（package.json + lock，2026-10-14 18:38 同步） |
+| **最新 release** | `v0.6.0-pre.10`（2026-10-14 18:36，run `38548961092`，target `e524867`，T0529 / T0530：工作區設定、BUG-133）+ `server-bundle-v0.6.0-pre.10`。前一版 `v0.6.0-pre.9`（2026-10-14 17:36，run `38541740029`，target `7b0322a`，T0527：BUG-132）+ `server-bundle-v0.6.0-pre.9`。再前 `v0.6.0-pre.8`（2026-10-14 14:20，run `38520403729`，target `887ff20`，BUG-127-131）。更早版本見 `_archive/state-snapshots/2026-Q4.md` |
+| **前一 tag** | `v0.6.0-pre.9`（2026-10-14 17:36，`7b0322a`） |
+| **目前主軸** | pre.10 已發佈；BUG-134 修正中（T0531）；等 Gary pre.10 回饋 |
+| **工單最大編號** | T0531（已派，BUG-134）；T0521-T0530 全 DONE |
+| **BUG 最大編號** | **BUG-134**（FIXING，T0531）；Open 0 / Fixing 1 / Fixed 14（127-133 待 Gary / 使用者驗收；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
+| **PLAN 最大編號** | **PLAN-040**（**DONE** 2026-10-14，T0529）；PLAN-039 DONE；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
+| **決策最大編號** | D142 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **3642 passed / 216 files**（塔台聯合複驗 2026-10-14 13:58 @ `b00c4f9`；e2e smoke / t0512 / t0513 / t0523 / t0524 6 passed）；前次 3534 passed / 212 files / 1 skipped（塔台聯合複驗 2026-10-14 04:19 @ `5599ab1`；e2e smoke / navigation-guard / bug119 / t0512 / t0513 7 passed）；typecheck 0 / typecheck:electron 0 |
+| **unit test 基線** | **3713 passed / 223 files / 1 skipped**（T0530 回報 2026-10-14 18:17 @ `5bacb58`）；typecheck 0 / typecheck:electron 0 |
 
 ---
 
@@ -203,24 +196,24 @@
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-14 14:47 (UTC+8) 第六十一 session 收工（Fast Path 局部更新；前次 Full Scan 2026-10-13 15:40）
+> 最後掃描:2026-10-15 01:21 (UTC+8) 第六十三 session（Fast Path 局部更新；前次 Full Scan 2026-10-13 15:40）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…` |
-| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核）；BUG-114 已於 pre.5 修正，待實機確認 |
-| BAT 安裝版 | ✅ `v0.6.0-pre.7` | FileVersion 確認（2026-10-14 13:17）；pre.8 已發佈，使用者尚未確認換裝 |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 01:15）；T0531 派工 exit 0 |
+| BAT 安裝版 | ✅ `v0.6.0-pre.10` | FileVersion 確認（2026-10-15 01:15） |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-<stamp>.log`（10-14 01:54 新檔）；`.userdata-migration.json` marker 存在（BUG-119） |
 | 平台 | Windows | PowerShell 主，Bash tool 並存；repo 已有 `.gitattributes`（`* text=auto eol=lf`，T0493） |
 | UAC | ⚠️ `EnableLUA=0` | BAT 與子 shell 皆提權（BUG-085 背景） |
 | gh CLI | ✅ | 已登入 `gowerlin`；**必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ✅ | 收工 push 後 `main` = `origin/main`（2026-10-14 14:47）；`src/styles/settings.css` 顯示 M 但內容無差異（未處理） |
+| git 同步 | ⚠️ | `main` 領先 `origin/main`（第六十三 session 塔台 commit 未 push）；`src/styles/settings.css` 顯示 M 但內容無差異（未處理） |
 | WSL | dev-deploy + docker | `~/.local/bat-server` tag `t0456`（舊）；WSL 內 `docker.io` 29.1.3（T0467 安裝，保留） |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | |
-| 熱區工單 | **T:171 檔 / BUG:56 / PLAN:12** | `archive_days: 2` 下大量到齡候選（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0525 / BUG-131 / PLAN-040 / D140 / L150** | 下張：T0526 / BUG-132 / PLAN-041 / D141 / L151 |
+| 熱區工單 | **T:177 檔 / BUG:59 / PLAN:12** | `archive_days: 2` 下大量到齡候選（先 grep 程式碼引用，L133） |
+| 最大編號 | **T0531 / BUG-134 / PLAN-040 / D142 / L150** | 下張：T0532 / BUG-135 / PLAN-041 / D143 / L151 |
 | unit test | ✅ **3642 passed / 216 files** | 塔台聯合複驗 @ `b00c4f9` |
 | typecheck | ✅ src 0 / electron 0 | CI gate |
 | e2e | ✅ smoke / t0512 / t0513 / t0523 / t0524 6 passed | 需先 `npx vite build` |
@@ -257,6 +250,7 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-14 第六十二 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0526-T0530 全 DONE；pre.9 / pre.10 發佈（第六十三 session 補記）
 - 2026-10-14 第六十一 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0521-T0525 全 DONE，皆一次啟動（最多 2 張並行）；pre.8 發佈
 - 2026-10-14 第六十 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0513-T0520 全 DONE，皆一次啟動；pre.7 發佈
 - 2026-10-14 第五十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0510-T0512（T0510 PARTIAL、T0511 / T0512 DONE），皆一次啟動；pre.6 發佈
