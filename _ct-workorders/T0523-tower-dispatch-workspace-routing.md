@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0523
 title: "塔台派工落到錯的工作區 / --agent default 解析錯：讓派工落點與 agent 以塔台終端「目前所屬工作區」為準（BUG-129）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-129
 priority: P1
 sizing: M
 created_at: "2026-10-14T13:31:24+0800"
 started_at: "2026-10-14T13:33:09+0800"
-updated_at: "2026-10-14T13:33:09+0800"
-completed_at: null
+updated_at: "2026-10-14T13:48:40+0800"
+completed_at: "2026-10-14T13:48:40+0800"
 target_version: "0.6.0-pre.8"
 related:
   - BUG-129
@@ -219,4 +219,5 @@ Gary 預期 Codex：就算落點正確（SCB），只要 SCB 工作區和全域�
 
 ### Commit
 
-見下方 commit 記錄（`git commit --only`，不 push）。
+- `dcdfffe` fix(dispatch): land Tower dispatches in the --notify-id terminal's workspace (T0523, BUG-129)（`git commit --only`，19 files；不 push）
+- closeout metadata commit 接在其後
