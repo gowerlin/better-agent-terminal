@@ -7,7 +7,7 @@ status: FIXED
 severity: medium
 reproducibility: always
 created_at: "2026-10-14T13:36:40+0800"
-updated_at: "2026-10-14T13:56:08+0800"
+updated_at: "2026-10-14T14:07:18+0800"
 fixed_at: "2026-10-14T13:56:08+0800"
 impact:
   - terminal
@@ -64,3 +64,7 @@ links:
 - 不再用 `navigator.platform`，改用 `window.electronAPI.platform`。沒有改到 electron 檔案（main / preload / types）
 
 **驗證**：單元測試（3 平台 × {圖片, 檔案, 檔案+圖示, 文字, 讀取失敗} × {Ctrl+V, Command+V}，加上 Ctrl+C / Ctrl+Shift+C / V / 右鍵選單），共 54 tests；Windows 隔離實例 e2e `e2e/t0524-terminal-image-paste.spec.ts` PASS（PTY 收到 `1b76`、文字原樣）；typecheck 0 / typecheck:electron 0 / vite build 0；`test:unit` 216 files 全過。mac 實機驗收交 Gary
+
+## 使用者後續（2026-10-14 14:07）
+
+- 使用者回報 pre.7 上 Ctrl+V 貼圖「現在又好了，可能不明原因會暫時失效」⇒ **間歇性**，與 T0524 推定根因（舊程式讀剪貼簿失敗時靜默退回文字）一致。pre.8 起每次判斷寫 `[terminal-paste]` log，再發生時以 log 判定

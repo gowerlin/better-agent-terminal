@@ -1376,6 +1376,15 @@
 
 ---
 
+### D140 2026-10-14 — `--agent default` 維持現有語意（落點工作區 defaultAgent → Settings defaultAgent → claude-code）；T0521-T0525 批次發 v0.6.0-pre.8
+
+- **背景**：BUG-129（Gary 的 Codex 塔台派工開成 Claude）。T0523 修正落點後，`default` 以落點工作區解析；Gary 的 SCB 工作區與全域推定未設 Codex，所以仍會開 Claude。T0523 §4 提出選項 B：工作區 / 全域都未設時改用塔台終端自己的 agent preset
+- **決定**：使用者選 **A**（2026-10-14 14:07）。不改 `default` 語意；請 Gary 在 SCB 工作區設預設 agent = Codex（或塔台派工帶 `--agent codex`）。選項 B 不做
+- **發版**：BUG-127-131（T0521-T0525）聯合複驗全綠（13:58 @ `b00c4f9`）後，使用者同意發 `v0.6.0-pre.8`
+- **相關**：BUG-129 / T0523 / D139（整批修完再發版）
+
+---
+
 ### D138 2026-10-13 — BUG-119 userData 統一：採 T0479 推薦 (a)+(c)+(b)，統一到 `BetterAgentTerminal[-runtime-<N>]/`，拆 A / B / C 三張
 
 - **背景**：T0479 研究完成。`snippet-db` import 期 `getPath('userData')` 把小寫路徑寫進 PathService 快取，`Local State`（safeStorage 金鑰）/ lock / Logs / Crashes / `message-archives` / mirror `bat-scripts.log` 落小寫，設定與 sessionData 落大寫；runtime 實例整個在 `better-agent-terminal-runtime-N`。衍生：啟動時日誌設定被忽略。🔴 統一時若未在 ready 前複製 `Local State`，`server-token.json` 解不開 → 遠端全部重配（probe 實證）
