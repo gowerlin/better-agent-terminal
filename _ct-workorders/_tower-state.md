@@ -116,8 +116,8 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（76 entries）
 
 ### 編號起始
-- **T0526** / **BUG-132** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L150**
-- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523 DONE（`dcdfffe`，BUG-129；Gary 情境推論為 Codex shell_snapshot 帶入舊 env，日誌待 Gary 確認）；T0525 DONE（`d4ee455`，BUG-131，unit 3642 / 216 files）；T0524 DONE（`7ac0d0a`，BUG-130；Windows 回歸本機未重現，加固 + `[terminal-paste]` log）；塔台聯合複驗 13:58 @ `b00c4f9` 全綠（typecheck 雙 0、build 0、unit 3642 / 216 files、e2e 6 passed）；CLAUDE.md 已補（T0523 / T0525）；**`v0.6.0-pre.8` 已發佈**（14:20）；D140 選 A（工作區層級預設 agent 無 UI，待使用者決定是否開 PLAN-040）；BUG-127-131 待 Gary mac / 使用者實機；backlog：recovery 重建 T0108 重登記 PTY 的 `shellArgs` 為空；待使用者決策：`--agent default` 是否沿用塔台終端自己的 agent（T0523 §4）
+- **T0526** / **BUG-132** / **PLAN-041** / **D141** / **EXP-[TOPIC]-001** / **L150**
+- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523 DONE（`dcdfffe`，BUG-129；Gary 情境推論為 Codex shell_snapshot 帶入舊 env，日誌待 Gary 確認）；T0525 DONE（`d4ee455`，BUG-131，unit 3642 / 216 files）；T0524 DONE（`7ac0d0a`，BUG-130；Windows 回歸本機未重現，加固 + `[terminal-paste]` log）；塔台聯合複驗 13:58 @ `b00c4f9` 全綠（typecheck 雙 0、build 0、unit 3642 / 216 files、e2e 6 passed）；CLAUDE.md 已補（T0523 / T0525）；**`v0.6.0-pre.8` 已發佈**（14:20）；D140 選 A；工作區層級預設 agent 無 UI → **PLAN-040**（PLANNED，排下一批）；BUG-127-131 待 Gary mac / 使用者實機；backlog：recovery 重建 T0108 重登記 PTY 的 `shellArgs` 為空；待使用者決策：`--agent default` 是否沿用塔台終端自己的 agent（T0523 §4）
 
 ---
 
@@ -133,8 +133,8 @@
 | **目前主軸** | pre.7 批次已全結（BUG-123-126 CLOSED）；真人 5 分鐘項（105 / 107 / 108）+ Docker 精靈（097 / 111）+ Gary mac（116 / 118） |
 | **工單最大編號** | T0525（T0521-T0525 全 DONE；T0513-T0520 全 DONE；T0514-T0516 / T0520 為驗收單；T0520 pre.7 已安裝版驗收 17 PASS / 0 FAIL `a4fe1f5`） |
 | **BUG 最大編號** | **BUG-131**（127-129 FIXED、130 / 131 FIXED）；Open 0 / Fixing 0 / Fixed 12（123-126 CLOSED：T0520 + 使用者 WSL 目視；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
-| **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
-| **決策最大編號** | D139 |
+| **PLAN 最大編號** | **PLAN-040**（PLANNED，工作區層級預設 Agent，下一批）；PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
+| **決策最大編號** | D140 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
 | **unit test 基線** | **3534 passed / 212 files** / 1 skipped（塔台聯合複驗 2026-10-14 04:19 @ `5599ab1`；e2e smoke / navigation-guard / bug119 / t0512 / t0513 7 passed）；typecheck 0 / typecheck:electron 0 |
