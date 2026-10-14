@@ -496,6 +496,8 @@ git tag -l 'v*' --sort=-v:refname | head -1
 
 判定下一版的正確做法：找**本 fork 主線**的最新 tag（`v0.x` 那條），而非 `--sort=-v:refname` 的第一名。
 
+**版號線（D143，2026-10-15）**：預覽版自 `v0.6.1-pre.1` 起走 `0.6.1-pre.N`（`v0.6.0-pre.10` / `pre.11` 的兩位數 `-pre.N` 在字串排序列表中會排到 `pre.9` 之後）。下一版 = `0.6.1-pre.<N+1>`；`-pre.N` 再逼近兩位數前，先與使用者確認是否換到下一個 patch 線。
+
 ### package.json 版本
 
 CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > git tag > timestamp），
