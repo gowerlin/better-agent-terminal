@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0522
 title: "macOS：Finder 拷貝的項目在終端 Command+V 貼不上（只有 Ctrl+V 可以）（BUG-128）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-128
 priority: P2
 sizing: S
 created_at: "2026-10-14T13:19:21+0800"
 started_at: "2026-10-14T13:21:31+0800"
-updated_at: "2026-10-14T13:21:31+0800"
-completed_at: null
+updated_at: "2026-10-14T13:31:03+0800"
+completed_at: "2026-10-14T13:31:03+0800"
 target_version: "0.6.0-pre.8"
 related:
   - BUG-128
@@ -172,4 +172,4 @@ Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Com
 
 ### 9. Commit
 
-- 見下方 commit hash（`git commit --only` 本單檔案；未 push）
+- `43c9073` fix(terminal): macOS Command+V pastes Finder-copied items as paths（`git commit --only` 本單 14 檔；未 push）。本 closeout（status DONE / completed_at）另 commit
