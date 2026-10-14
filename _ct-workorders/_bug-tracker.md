@@ -10,10 +10,10 @@ source_globs:
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 59
+total: 60
 breakdown:
   OPEN: 0
-  FIXING: 0
+  FIXING: 1
   FIXED: 15
   VERIFY: 0
   CLOSED: 44
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-15 01:16 (UTC+8) — 第六十三 session：BUG-134 FIXED（T0531），塔台聯合複驗全綠
+> 最後同步：2026-10-15 01:16 (UTC+8) — 第六十三 session：BUG-134 FIXED（T0531）；開 BUG-135（FIXING，T0532）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 15 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 59**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 15 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 60**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-135 | adoptDetached focus fallback 取全域 `terminals[0]`，可能指向其他工作區 | 🟢 low | — | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 
 ## ✅ 已修復
 
