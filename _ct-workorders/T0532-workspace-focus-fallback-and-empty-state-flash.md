@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0532
 title: "BUG-134 後續：adoptDetached focus 不跨工作區（BUG-135）＋ 新工作區預設終端建立中不閃空狀態"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-135
 priority: P3
 sizing: S
 created_at: "2026-10-15T01:32:28+0800"
 started_at: "2026-10-15T01:33:28+0800"
-updated_at: "2026-10-15T01:33:28+0800"
-completed_at: null
+updated_at: "2026-10-15T01:44:18+0800"
+completed_at: "2026-10-15T01:44:18+0800"
 target_version: "0.6.0-pre.12"
 related:
   - BUG-135
@@ -63,10 +63,10 @@ T0531（`d41280ae`，BUG-134）修正後留下兩件事（見 T0531 回報區「
 
 ## 驗收條件
 
-- [ ] focus fallback 全面不跨工作區，回報區列出改動的每個位置與語意
-- [ ] 新工作區首次開啟不閃空狀態，且不透出其他工作區
-- [ ] BUG-134 行為（關掉最後一個終端 → 空狀態）不回歸
-- [ ] BUG-135：`status: FIXED`、`fixed_at`、body 狀態列同步
+- [x] focus fallback 全面不跨工作區，回報區列出改動的每個位置與語意
+- [x] 新工作區首次開啟不閃空狀態，且不透出其他工作區
+- [x] BUG-134 行為（關掉最後一個終端 → 空狀態）不回歸
+- [x] BUG-135：`status: FIXED`、`fixed_at`、body 狀態列同步
 
 ## Sub-session 執行指示
 
@@ -139,3 +139,4 @@ T0531（`d41280ae`，BUG-134）修正後留下兩件事（見 T0531 回報區「
 
 ### Commit
 
+- `8b5251a8` fix(workspace): T0532 keep focus fallback in the active workspace, no empty-state flash (BUG-135)（`--only`，未含 `src/styles/settings.css`；未 push）
