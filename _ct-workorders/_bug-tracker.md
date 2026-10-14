@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T13:31:24+0800"
+generated_at: "2026-10-14T13:36:40+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 54
+total: 55
 breakdown:
   OPEN: 0
-  FIXING: 1
+  FIXING: 2
   FIXED: 9
   VERIFY: 0
   CLOSED: 44
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127 FIXED（T0521）/ BUG-128 FIXED（T0522 `43c9073`）/ BUG-129 FIXING（T0523）
+> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127 FIXED（T0521）/ BUG-128 FIXED（T0522 `43c9073`）/ BUG-129 FIXING（T0523）/ BUG-130 FIXING（T0524）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 9 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 54**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 9 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 55**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-130 | 終端分頁貼圖失效（Windows 回歸）+ mac 終端無法貼圖 | 🟡 medium | T0524 進行中 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
 | BUG-129 | 塔台派工落到錯的工作區 / `--agent default` 解析錯（Gary） | 🟡 medium | T0523 進行中 | [BUG-129](BUG-129-tower-dispatch-lands-in-wrong-workspace.md) |
 
 ## ✅ 已修復
