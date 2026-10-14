@@ -25,7 +25,7 @@ breakdown:
 > 最後同步：2026-10-14 14:23 (UTC+8) — 第六十一 session：新增 PLAN-040（工作區層級預設 Agent，PLANNED，排下一批）
 
 ## 統計
-- 💡 Ideas: 3 | 📋 Planned: 3 | 🔄 In Progress: 4 | ✅ Done: 2 | 🚫 Dropped: 0
+- 💡 Ideas: 3 | 📋 Planned: 2 | 🔄 In Progress: 5 | ✅ Done: 2 | 🚫 Dropped: 0
 
 ## Active
 
@@ -35,7 +35,7 @@ breakdown:
 | PLAN-035 | WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-035](PLAN-035-wsl-environment-full-automation.md) |
 | PLAN-031 | Server Bundle Distribution（含 ARM64 Linux 支援） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-037 | 遠端（WSL / SSH / Docker）AI 工具套件檢查與一鍵安裝（claude / codex CLI、git、gh 等） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-037](PLAN-037-remote-ai-toolchain-check-and-install.md) |
-| PLAN-040 | 工作區層級預設 Agent 設定（補上 `Workspace.defaultAgent` 的設定入口） | 🟡 medium | 📋 PLANNED | [PLAN-040](PLAN-040-workspace-default-agent-setting.md) |
+| PLAN-040 | 工作區層級預設 Agent ＋ Agent 啟動參數設定（T0529） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-040](PLAN-040-workspace-default-agent-setting.md) |
 | PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 🔴 high | 📋 PLANNED | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |
 | PLAN-014 | evaluate-vscode-extension-vs-git-gui | 🟡 medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |

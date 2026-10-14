@@ -2,12 +2,13 @@
 schema_version: 1
 schema_kind: plan
 id: PLAN-040
-title: 工作區層級預設 Agent 設定（補上 `Workspace.defaultAgent` 的設定入口）
-status: PLANNED
+title: 工作區層級預設 Agent ＋ Agent 啟動參數設定（補上 `Workspace.defaultAgent` 的設定入口，新增工作區 `agentCustomArgs` 覆寫）
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-14T14:23:48+0800"
-updated_at: "2026-10-14T14:23:48+0800"
-target_batch: "pre.8 之後的下一批"
+updated_at: "2026-10-14T17:50:29+0800"
+target_batch: "0.6.0-pre.10"
+workorders: [T0529]
 links:
   related: [BUG-129, T0523, D140]
 ---
@@ -20,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-040 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 📋 PLANNED（使用者 2026-10-14 14:23 指示排進下一批） |
+| 狀態 | 🔄 IN_PROGRESS（2026-10-14 17:50 派 T0529；使用者決定範圍擴大納入啟動參數、現在開工，D142） |
 | 來源 | BUG-129 / D140 更正：使用者指出「目前預設 Agent 只有全域設定，沒有可針對個別工作區」 |
 
 ## 背景與動機
@@ -39,6 +40,13 @@ links:
    - profile snapshot / 匯出入、多視窗（同 profile 另一視窗的 store 何時看到新值）
 5. **生效範圍**：本機派工按鈕、新建 Agent 終端、外部 helper 派工（`--agent default`，T0523 起以塔台所屬工作區解析）。遠端 headless 沒有工作區預設（`terminal-command-handlers.ts` 註解：headless 用 `<dataDir>/settings.json`），是否由 client 帶入另議
 6. **文件**：Settings 預設 Agent 的提示文字（`settings.defaultAgentHint`）補一句「可在工作區設定覆寫」；CLAUDE.md 補查找順序
+
+## 範圍擴大（D142，2026-10-14 17:50）
+
+- 新增工作區層級 **Agent 啟動參數**覆寫：`Workspace.agentCustomArgs?: Record<presetId, string>`，以 preset 為單位取代全域 `settings.agentCustomArgs`（無 key = 跟隨全域；有 key 含空字串 = 取代）
+- 外部 helper `--agent` 派工套用落點工作區的生效參數（與 UI 按鈕一致）；raw command 模式不加
+- detached 視窗設定入口只讀（第 4 點持久化邊界的決定）
+- 實作工單：**T0529**
 
 ## 不在範圍
 

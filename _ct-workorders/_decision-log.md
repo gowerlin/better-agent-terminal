@@ -1376,6 +1376,22 @@
 
 ---
 
+### D142 2026-10-14 — PLAN-040 擴大為「工作區層級 Agent ＋ 啟動參數」，現在開工（T0529）；以 preset 為單位覆寫全域、detached 只讀、helper `--agent` 派工套用生效參數
+
+- **背景**：`v0.6.0-pre.9` 發佈後使用者詢問是否已含「各 workspace 獨立設定 Agent 與啟動參數」—— 未含：PLAN-040 尚未開工，且原範圍只有 Agent，沒有啟動參數（全域 `settings.agentCustomArgs`，T0128）
+- **決定**（使用者 17:4x 選「一起做」「現在拆單派工」；以下細節塔台裁決）：
+  - `Workspace.agentCustomArgs?: Record<presetId, string>`；以 preset 為單位：無 key = 跟隨全域，有 key（含空字串）= 整串取代，不串接
+  - `defaultAgent` 未設 = 跟隨全域；D140 查找順序不變
+  - 生效值解析集中單一函式
+  - detached 視窗設定入口只讀（不動 `saveDetachedWorkspaceTerminals` 語意）
+  - 外部 helper `--agent` 模式（含 `default`）套用落點工作區的生效參數，與 UI 按鈕一致；raw command 模式不加
+  - 遠端 headless 不做
+  - 不等 Gary pre.9 回饋；回饋若帶出新 BUG 併入同批，整批完成後發 pre.10（D139）
+- **不採用**：工作區參數與全域串接（無法表達「這個工作區不要某個全域旗標」）；detached 視窗經 main `updateEntry` 寫入（成本高，先只讀）
+- **相關**：PLAN-040 / T0529 / D140 / T0128 / T0523 / T0527
+
+---
+
 ### D141 2026-10-14 — BUG-129 Gary 情境判定 #11 → 開 BUG-132；先做 cwd 一致性檢查（T0527，T0526 建議 [B]），PID 鏈根治入 backlog
 
 - **背景**：T0526 以 Gary 日誌判定 BUG-129 為 T0523 §1 #11：Gary 的 Codex 在 SCB 分頁看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 整天都是土銀塔台分頁的值（agent CLI 自行保存的環境），`--notify-id` 與 `--workspace` 都錯，pre.8 的「塔台終端優先」救不回；yolo 時 Worker 完成訊息會送進土銀塔台。開成 Claude 是另一個原因（當時全域 Settings 未存、工作區層級無 UI → PLAN-040）
