@@ -3413,3 +3413,16 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 看到 NSIS `could not open file` 但檔案存在時，先量完整路徑長度
 
 **候選晉升**：📁 Project（Windows 打包環境）
+
+## L150
+
+**來源**：第六十一 session（2026-10-14），`v0.6.0-pre.8`（run `38520403729`）
+
+**現象**：`pre-release.yml` 建立的 GitHub Release 內文只有自動產生的一行 `**Full Changelog**`，而且比對起點是最近的 tag `server-bundle-v0.6.0-pre.7`（server-bundle 線，不是 desktop 前一版）。塔台發版後沒補發布說明，使用者在 Release Page 才發現。
+
+**How to apply**：
+- 發版流程完成（run success + assets 核對）後，**同一步**用 `gh release edit v<版號> -R gowerlin/better-agent-terminal --notes-file <檔>` 寫入發布說明（格式比照前一版：重點 / 修正 / 已知事項 / 平台說明），內容只寫已驗證的事實，未實機驗證的平台明講
+- Full Changelog 連結手動改成 `v<前一 desktop 版>...v<本版>`
+- 收工 / 回報「已發佈」前，`gh release view` 確認 body 不只一行
+
+**候選晉升**：📁 Project（Release 流程）

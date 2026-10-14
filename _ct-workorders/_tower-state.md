@@ -112,12 +112,12 @@
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 7 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L149）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D139）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（76 entries）
 
 ### 編號起始
-- **T0526** / **BUG-132** / **PLAN-041** / **D141** / **EXP-[TOPIC]-001** / **L150**
-- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523 DONE（`dcdfffe`，BUG-129；Gary 情境推論為 Codex shell_snapshot 帶入舊 env，日誌待 Gary 確認）；T0525 DONE（`d4ee455`，BUG-131，unit 3642 / 216 files）；T0524 DONE（`7ac0d0a`，BUG-130；Windows 回歸本機未重現，加固 + `[terminal-paste]` log）；塔台聯合複驗 13:58 @ `b00c4f9` 全綠（typecheck 雙 0、build 0、unit 3642 / 216 files、e2e 6 passed）；CLAUDE.md 已補（T0523 / T0525）；**`v0.6.0-pre.8` 已發佈**（14:20）；D140 選 A；工作區層級預設 agent 無 UI → **PLAN-040**（PLANNED，等 Gary pre.8 回饋後與其一起排，使用者 14:27 指示）；BUG-127-131 待 Gary mac / 使用者實機；backlog：recovery 重建 T0108 重登記 PTY 的 `shellArgs` 為空
+- **T0526** / **BUG-132** / **PLAN-041** / **D141** / **EXP-[TOPIC]-001** / **L151**
+- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523 DONE（`dcdfffe`，BUG-129；Gary 情境推論為 Codex shell_snapshot 帶入舊 env，日誌待 Gary 確認）；T0525 DONE（`d4ee455`，BUG-131，unit 3642 / 216 files）；T0524 DONE（`7ac0d0a`，BUG-130；Windows 回歸本機未重現，加固 + `[terminal-paste]` log）；塔台聯合複驗 13:58 @ `b00c4f9` 全綠（typecheck 雙 0、build 0、unit 3642 / 216 files、e2e 6 passed）；CLAUDE.md 已補（T0523 / T0525）；**`v0.6.0-pre.8` 已發佈**（14:20；發布說明 14:3x 補寫，L150）；D140 選 A；工作區層級預設 agent 無 UI → **PLAN-040**（PLANNED，等 Gary pre.8 回饋後與其一起排，使用者 14:27 指示）；BUG-127-131 待 Gary mac / 使用者實機；backlog：recovery 重建 T0108 重登記 PTY 的 `shellArgs` 為空
 
 ---
 
