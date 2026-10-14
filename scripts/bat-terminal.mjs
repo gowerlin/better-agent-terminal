@@ -15,6 +15,8 @@
 //   node scripts/bat-terminal.mjs --workspace <workspace-id> --prompt "/ct-exec T0137"
 //     └─ Explicitly allocate the new PTY to the given workspace tab list.
 //        Omitted → PTY lands in the currently active workspace (T0137/BUG-031).
+//        T0523/BUG-129: when BAT knows the --notify-id terminal, its workspace wins
+//        (the Tower shell's BAT_WORKSPACE_ID can be stale); --workspace is the fallback.
 //
 // Options:
 //   --help, -h     Show help
@@ -72,7 +74,8 @@ Open a new BAT terminal and run either a raw command or the selected/default age
 Options:
   --cwd <path>           Working directory for the new terminal
   --notify-id <id>       Target terminal ID for Worker→Tower notification binding
-  --workspace <id>       Explicit workspace allocation target
+  --workspace <id>       Explicit workspace allocation target (the --notify-id
+                         terminal's own workspace wins when BAT knows it)
   --agent <id|default>   Agent definition for --prompt mode (default: default)
   --prompt <text>        Start the selected/default agent with this prompt
   --skill <name>         Agent-neutral Control Tower skill name (ct-exec|ct-done)
@@ -589,6 +592,43 @@ function makeId() {
   return randomBytes(8).toString('hex')
 }
 
+const AGENT_SOURCE_TEXT = {
+  explicit: 'from --agent',
+  workspace: "the workspace's default agent",
+  settings: 'Settings default agent',
+  builtin: 'built-in default',
+}
+
+/**
+ * T0523/BUG-129: the lines printed after `✓ Terminal created` from a T0523+ BAT's
+ * `{ ok: true, workspace, agent }` answer (a bare `true` from older BAT prints nothing extra).
+ * Informational only: success is still decided by the exit code.
+ */
+function describeLanding(result) {
+  const out = { lines: [], warnings: [], workspace: null, agent: null }
+  if (!result || typeof result !== 'object') return out
+  const ws = result.workspace && typeof result.workspace === 'object' ? result.workspace : null
+  if (ws) {
+    out.workspace = ws
+    const label = ws.id ? (ws.name ? `${ws.name} (${ws.id})` : ws.id) : 'the active workspace of the BAT window'
+    const how = ws.source === 'tower-terminal'
+      ? "the Tower terminal's workspace (--notify-id)"
+      : ws.source === 'requested' ? 'from --workspace' : 'no --notify-id match, no --workspace'
+    out.lines.push(`  workspace: ${label} — ${how}`)
+    if (ws.mismatch) {
+      out.warnings.push(`[bat-terminal] --workspace ${ws.requestedId} is not the Tower terminal's workspace; the terminal went to the Tower's workspace.`)
+      out.warnings.push("               The Tower shell's BAT_WORKSPACE_ID is stale (see BUG-129).")
+    }
+  }
+  const agent = result.agent && typeof result.agent === 'object' ? result.agent : null
+  if (agent) {
+    out.agent = agent
+    const source = AGENT_SOURCE_TEXT[agent.source] ?? agent.source ?? 'unknown'
+    out.lines.push(`  agent: ${agent.id} (--agent ${agent.requested}: ${source})`)
+  }
+  return out
+}
+
 // ── Main ──
 
 async function main() {
@@ -674,6 +714,9 @@ async function main() {
   if (notifyId) invokePayload.customEnv = { ...invokePayload.customEnv, BAT_TOWER_TERMINAL_ID: notifyId }
   // T0137/BUG-031: Forward explicit workspace allocation target
   if (workspaceId) invokePayload.workspaceId = workspaceId
+  // T0523/BUG-129: ask for where the terminal landed and which agent it runs (BAT before
+  // T0523 ignores this and answers `true`)
+  invokePayload.reportLanding = true
   // T0180/BUG-041 Phase 2.2: Inject CT_MODE / CT_INTERACTIVE env when explicitly specified.
   // Unset values are NOT injected (strict stateless — Worker falls back to workorder rules).
   if (mode) {
@@ -774,7 +817,16 @@ async function main() {
   }
 
   console.log(`✓ Terminal created: ${terminalId}`)
-  logEvent('bat-terminal', 'terminal-created', { result: 'ok', terminalId, ...responseDiag })
+  const landing = describeLanding(invokeResult)
+  for (const line of landing.lines) console.log(line)
+  for (const line of landing.warnings) console.error(line)
+  logEvent('bat-terminal', 'terminal-created', {
+    result: 'ok',
+    terminalId,
+    ...(landing.workspace ? { landing: landing.workspace } : {}),
+    ...(landing.agent ? { agent: landing.agent } : {}),
+    ...responseDiag,
+  })
   logEvent('bat-terminal', 'exit', { code: 0 })
   ws.close()
   process.exit(0)

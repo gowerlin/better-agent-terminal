@@ -10,6 +10,7 @@ import { spawnSync, fork } from 'child_process'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
+import { resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
@@ -548,6 +549,12 @@ async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<strin
     logger.warn('[agent-command] failed to resolve workspace default agent:', error)
   }
   return null
+}
+
+// T0523 / BUG-129: a helper-dispatched terminal lands in the workspace its `--notify-id` Tower
+// terminal belongs to (persisted window registry), not whatever `--workspace` the Tower shell sent.
+async function resolveDispatchWorkspace(request: DispatchWorkspaceRequest): Promise<DispatchWorkspaceResolution> {
+  return resolveDispatchWorkspaceFromEntries(await windowRegistry.readAll(), request)
 }
 
 // T0377 / BUG-085: detect BAT's own Windows elevation once and feed it to the (sync)
@@ -2105,6 +2112,7 @@ function registerProxiedHandlers() {
     emit: createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload)),
     readSettings: readPersistedSettingsSync,
     buildAgentPromptCommand,
+    resolveDispatchWorkspace,
     existsSync: fsSync.existsSync,
   })
 

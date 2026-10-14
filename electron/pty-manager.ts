@@ -46,6 +46,11 @@ interface PtyInstance {
    * of being promoted to tower.
    */
   customEnv?: Record<string, string>
+  /**
+   * T0523 / BUG-129: the workspace this PTY was created for (its `BAT_WORKSPACE_ID`). `restart`
+   * passes it on; before T0523 a restarted PTY got `BAT_WORKSPACE_ID=''`.
+   */
+  workspaceId?: string
 }
 
 /**
@@ -661,6 +666,9 @@ export class PtyManager {
       // sending to server would overwrite the running PTY and clear its ring buffer.
       if (this.instances.has(id)) {
         logger.log(`[PtyManager] pty:create SKIP (idempotent) id=${id} — already registered`)
+        // T0523: a PTY re-registered from the server's list (T0108) does not know its workspace
+        const existing = this.instances.get(id)
+        if (existing && !existing.workspaceId && workspaceId) existing.workspaceId = workspaceId
         return true
       }
       // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
@@ -709,7 +717,7 @@ export class PtyManager {
         env: envWithUtf8,
       })
       // T0112: Store shell/args so handleServerDeath() can rebuild after crash
-      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true })
+      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true, workspaceId })
       logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
       return true
     }
@@ -789,7 +797,7 @@ export class PtyManager {
           this.handleDirectExit(id, ptyProcess, exitCode)
         })
 
-        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv })
+        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId })
         usedPty = true
         logger.log('Created terminal using node-pty')
       } catch (e) {
@@ -877,7 +885,7 @@ export class PtyManager {
         // Send initial message
         this.broadcast('pty:output', id, `[Terminal - child_process mode]\r\n`)
 
-        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv })
+        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId })
         logger.log('Created terminal using child_process fallback')
       } catch (error) {
         logger.error('Failed to create terminal:', error)
@@ -1004,15 +1012,17 @@ export class PtyManager {
    * Kill + create with the same id. T0448 (T0445 #4): with `deps.helperEnv` (headless) the new
    * process gets the old one's `customEnv`, so its helper capability keeps the same role and
    * tower binding (the kill revokes the old token; `helperEnv` issues the new one). Without it
-   * (Electron) the env is rebuilt from scratch, as before.
+   * (Electron) the env is rebuilt from scratch, as before. T0523: both keep the workspace
+   * (`BAT_WORKSPACE_ID`).
    */
   restart(id: string, cwd: string, shell?: string): boolean {
     const instance = this.instances.get(id)
     if (instance) {
       const type = instance.type
       const customEnv = this.deps.helperEnv && instance.customEnv ? { ...instance.customEnv } : undefined
+      const workspaceId = instance.workspaceId
       this.kill(id)
-      return this.create({ id, cwd, type, shell, ...(customEnv ? { customEnv } : {}) })
+      return this.create({ id, cwd, type, shell, ...(customEnv ? { customEnv } : {}), ...(workspaceId ? { workspaceId } : {}) })
     }
     return false
   }

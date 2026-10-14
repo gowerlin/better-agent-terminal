@@ -96,3 +96,40 @@ describe('addExternalTerminal — workspace miss signal (T0361)', () => {
     expect(missLogs()).toHaveLength(0)
   })
 })
+
+describe('addExternalTerminal — tower terminal decides the workspace (T0523 / BUG-129)', () => {
+  it('tower tab is in `other`, workspaceId names `active` → lands next to the tower', () => {
+    const { other, active } = seedWorkspaces()
+    const tower = workspaceStore.addTerminal(other.id)
+
+    const added = workspaceStore.addExternalTerminal({ id: 'worker-1', cwd: '/tmp/x', workspaceId: active.id, towerTerminalId: tower.id })
+
+    expect(added!.workspaceId).toBe(other.id)
+    expect(logSpy.mock.calls.map(c => String(c[0])).some(m => m.includes('[T0523] External terminal follows its tower'))).toBe(true)
+  })
+
+  it('remote event: the tower tab is in this window → lands there even when workspaceId is unknown', () => {
+    const { other } = seedWorkspaces()
+    const tower = workspaceStore.addTerminal(other.id)
+
+    const added = workspaceStore.addExternalTerminal({ id: 'worker-2', cwd: '/tmp/x', workspaceId: 'stale-ws', towerTerminalId: tower.id, remote: true })
+
+    expect(added!.workspaceId).toBe(other.id)
+  })
+
+  it('tower not in this window → workspaceId / active fallback as before', () => {
+    const { other, active } = seedWorkspaces()
+
+    expect(workspaceStore.addExternalTerminal({ id: 'worker-3', cwd: '/tmp/x', workspaceId: other.id, towerTerminalId: 'elsewhere' })!.workspaceId).toBe(other.id)
+    expect(workspaceStore.addExternalTerminal({ id: 'worker-4', cwd: '/tmp/x', workspaceId: 'no-such', towerTerminalId: 'elsewhere' })!.workspaceId).toBe(active.id)
+  })
+
+  it('workspaceResolved (main found the tower in another window) and the workspace is not here → ignored', () => {
+    seedWorkspaces()
+
+    const added = workspaceStore.addExternalTerminal({ id: 'worker-5', cwd: '/tmp/x', workspaceId: 'ws-of-other-window', towerTerminalId: 'tower-elsewhere', workspaceResolved: true })
+
+    expect(added).toBeNull()
+    expect(workspaceStore.getState().terminals.some(t => t.id === 'worker-5')).toBe(false)
+  })
+})

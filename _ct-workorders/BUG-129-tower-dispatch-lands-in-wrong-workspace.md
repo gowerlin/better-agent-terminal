@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-129
 title: "塔台派工落到錯的工作區：Gary 在 SCB 工作區的 Codex 塔台用 bat-terminal.mjs --workspace \"$BAT_WORKSPACE_ID\" --agent default 派 T0001，Worker 分頁出現在另一個工作區（土銀），而且用 Claude Code 開（預期 Codex）"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-14T13:31:24+0800"
-updated_at: "2026-10-14T13:31:24+0800"
+updated_at: "2026-10-14T13:48:23+0800"
+fixed_at: "2026-10-14T13:48:23+0800"
 impact:
   - control-tower
   - bat-terminal-helper
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（Worker 在錯的工作區 / 錯的 agent 執行；cwd 正確所以改的是對的專案，但使用者看不到、Tower 通知可能送錯地方） |
 | 可重現 | 待確認（Gary 日誌待補） |
-| **狀態** | 🔧 FIXING（T0523） |
+| **狀態** | ✅ FIXED（T0523；Gary 情境待日誌 / 實機確認，見下方殘留風險） |
 | 回報者 | Gary（mac） |
 
 ## 現象（Gary 原話與截圖）
@@ -51,4 +52,22 @@ links:
 
 ## 根因與修正
 
-（T0523 回填）
+（T0523 回填，詳見 T0523 回報區第 1–3、7 節）
+
+**BAT 端的根因**：派工的落點與 `--agent default` 的解析，完全取決於塔台 shell 送來的 `--workspace "$BAT_WORKSPACE_ID"`。這個值在 PTY 建立時注入，之後不會再核對，而且有幾條路徑會讓它過期或錯置：
+- `pty:restart`：Electron 重啟後 `BAT_WORKSPACE_ID=''`
+- Terminal Server 重接後再重啟：同樣是空值
+- Terminal Server heartbeat 復原：重建時不帶 env（未修）
+- 同一程序內有多個視窗時：本機 `created-externally` 會送到所有視窗，沒有該工作區的視窗會把分頁加進自己的 active 工作區
+- agent CLI 自己還原舊 env（例如 Codex 的 `shell_snapshot` 或 resume 別的分頁開的 thread）：BAT 外部因素
+
+**修正（T0523）**：
+- 本機：落點與 `default` agent 改以「`--notify-id` 塔台終端在 window registry 中所屬的工作區」為準（`electron/dispatch-workspace.ts`）。`--workspace` 退為 fallback，不一致時記 `[T0523] dispatch workspace mismatch`
+- 遠端：client renderer 的 `addExternalTerminal` 在這個視窗有該塔台終端時，用塔台的工作區（headless 權杖範圍沒動）
+- `pty:restart` 保留 `workspaceId`
+- 多視窗：registry 認得該工作區時，payload 標 `workspaceResolved`，沒有它的視窗略過
+- `bat-terminal.mjs` 成功時印出實際落點工作區與 agent（含來源），並寫進 `bat-scripts.log`
+
+**Gary 情境（推論，日誌未到）**：helper exit 0 代表 `--workspace` 不是空值；BAT 自己的路徑不會把「非空但屬於別的工作區」的 id 注入 SCB 分頁。最吻合的是 agent CLI 還原了舊 env：Codex 狀態列的 thread 名稱是「套用2025_土銀客服中心建置案規則」，若此 thread 是從土銀分頁 resume 來的，`BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 會**都**指向土銀。🔴 若屬實，T0523 的「塔台終端優先」也會落在土銀（因為 `--notify-id` 同樣錯），只能讓塔台從 helper 輸出看到錯誤。判定方式見 T0523 回報區第 3 節，根治方案（不依賴 env 辨識呼叫者 PTY）見第 7 節。
+
+**agent**：`default` = 落點工作區的 `defaultAgent` → `settings.defaultAgent` → `claude-code`（語意未改）。如果 SCB 工作區與全域都沒設 codex，修正後依然會開 Claude。「沿用塔台自己的 agent」這個 UX 建議留給塔台決策。

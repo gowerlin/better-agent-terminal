@@ -278,6 +278,39 @@ describe('PtyManager helperEnv (T0433)', () => {
     })
   })
 
+  describe('restart keeps BAT_WORKSPACE_ID (T0523 / BUG-129)', () => {
+    it('node-pty (Electron): the restarted PTY has the same workspace (was empty before T0523)', () => {
+      const manager = makeManager()
+      manager.create({ id: 'ws-1', cwd: CWD, type: 'terminal', shell: '/bin/sh', workspaceId: 'workspace-b' })
+      expect(spawnedEnv(0).BAT_WORKSPACE_ID).toBe('workspace-b')
+      expect(manager.restart('ws-1', CWD, '/bin/sh')).toBe(true)
+      expect(spawnedEnv(1).BAT_WORKSPACE_ID).toBe('workspace-b')
+    })
+
+    it('Terminal Server: restart re-sends pty:create with the same workspace', () => {
+      const manager = makeManager()
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      manager.create({ id: 'ws-2', cwd: CWD, type: 'terminal', shell: '/bin/sh', workspaceId: 'workspace-b' })
+      expect(manager.restart('ws-2', CWD, '/bin/sh')).toBe(true)
+      const creates = server.sent.filter(msg => msg.type === 'pty:create')
+      expect(creates.map(msg => msg.env?.BAT_WORKSPACE_ID)).toEqual(['workspace-b', 'workspace-b'])
+    })
+
+    it('Terminal Server reconnect (T0108): the renderer\'s idempotent re-create supplies the workspace for a later restart', () => {
+      const manager = makeManager()
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      ;(manager as unknown as { handleReplayList(p: Array<{ id: string; pid: number; cwd: string }>): void })
+        .handleReplayList([{ id: 'ws-3', pid: 1, cwd: CWD }])
+      // initTerminals re-sends pty:create for the surviving PTY: skipped, but the workspace is kept
+      expect(manager.create({ id: 'ws-3', cwd: CWD, type: 'terminal', shell: '/bin/sh', workspaceId: 'workspace-b' })).toBe(true)
+      expect(server.sent.filter(msg => msg.type === 'pty:create')).toEqual([])
+      expect(manager.restart('ws-3', CWD, '/bin/sh')).toBe(true)
+      expect(server.sent.find(msg => msg.type === 'pty:create')?.env?.BAT_WORKSPACE_ID).toBe('workspace-b')
+    })
+  })
+
   // Last: a node-pty failure switches this module to the child_process fallback for good.
   it('a spawn that fails entirely reports the id through onPtyExit (revokes what was issued)', () => {
     ptySpawn.mockImplementationOnce(() => { throw new Error('node-pty down') })

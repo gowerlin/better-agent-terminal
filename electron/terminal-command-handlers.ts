@@ -1,6 +1,11 @@
 import { resolvePersistedShellPathWithDiagnostics, type PersistedShellSettings } from './shell-path-resolver'
 import { detectShellFamily, quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
 import { agentRegistry } from './agent-runtime/agent-registry'
+import {
+  passThroughDispatchWorkspace,
+  type DispatchWorkspaceRequest,
+  type DispatchWorkspaceResolution,
+} from './dispatch-workspace'
 
 // 🔴 No `electron` import here: PLAN-036 T0431 registers these handlers on
 // headless bat-server too (electron/handlers/terminal.ts).
@@ -38,6 +43,8 @@ interface TerminalCommandOptions {
   shell?: string
   customEnv?: Record<string, string>
   workspaceId?: string
+  /** T0523: answer `TerminalCreatedReport` instead of `true` (bat-terminal.mjs sends it). */
+  reportLanding?: boolean
 }
 
 interface TerminalAgentCommandOptions {
@@ -50,6 +57,31 @@ interface TerminalAgentCommandOptions {
   shell?: string
   customEnv?: Record<string, string>
   workspaceId?: string
+  reportLanding?: boolean
+}
+
+/**
+ * T0523: what a created terminal answers when the caller asked for `reportLanding` (instead
+ * of `true`). bat-terminal.mjs prints it; older helpers treat any non-`false`,
+ * non-`{ ok: false }` result as success, so they keep working against this.
+ */
+export interface TerminalCreatedReport {
+  ok: true
+  terminalId: string
+  workspace: {
+    /** Absent: the active workspace of the window (the renderer decides). */
+    id?: string
+    name?: string
+    source: DispatchWorkspaceResolution['source']
+    requestedId?: string
+    mismatch: boolean
+  }
+  /** create-agent-command only. */
+  agent?: {
+    requested: string
+    id: string
+    source: BuiltAgentCommand['agentSource']
+  }
 }
 
 /** T0433: `terminal:create-agent-command` refused — the agent cannot run on this host. */
@@ -79,6 +111,11 @@ export interface BuiltAgentCommand {
   agentId: string
   prompt: string
   prefixNormalized: boolean
+  /**
+   * T0523: where the agent came from — `explicit` (`--agent <id>`), `workspace` (the
+   * workspace's defaultAgent), `settings` (settings.defaultAgent) or `builtin` (claude-code).
+   */
+  agentSource?: 'explicit' | 'workspace' | 'settings' | 'builtin'
 }
 
 export interface TerminalCommandHandlerDeps {
@@ -104,6 +141,14 @@ export interface TerminalCommandHandlerDeps {
    * (or cannot be judged). Absent (Electron): every agent is launched as before.
    */
   checkAgentAvailable?(agentId: string): Promise<AgentUnavailableResult | null>
+  /**
+   * T0523 / BUG-129: the workspace a helper-dispatched terminal (no invoking window) lands
+   * in — Electron: the `--notify-id` Tower terminal's workspace from the window registry.
+   * Absent (headless: the client's workspaces are not on the server): `--workspace` as given;
+   * the client renderer then prefers the Tower terminal's workspace (`towerTerminalId` in
+   * `terminal:created-externally`).
+   */
+  resolveDispatchWorkspace?(request: DispatchWorkspaceRequest): Promise<DispatchWorkspaceResolution>
   pickWhitelistedEnv(env?: Record<string, string>): Record<string, string | undefined>
   mirrorToBatScripts(event: string, payload: Record<string, unknown>): void
   logger: {
@@ -154,15 +199,45 @@ function resolveTerminalShell(
   }
 }
 
+/** T0523: `undefined` → `(active)` etc. for one-line logs. */
+function describeWorkspace(resolution: DispatchWorkspaceResolution): string {
+  if (!resolution.workspaceId) return '(active)'
+  return resolution.workspaceName ? `${resolution.workspaceId} (${resolution.workspaceName})` : resolution.workspaceId
+}
+
 export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps): void {
   const delay = deps.setTimeout ?? setTimeout
 
-  const createWithCommand = (_ctx: HandlerContext, opts: TerminalCommandOptions) => {
+  /**
+   * T0523 / BUG-129: the workspace of a terminal a helper creates (no invoking window). A
+   * terminal a window creates keeps the `workspaceId` the window sent — the window adds the
+   * tab itself and never sees `terminal:created-externally`.
+   */
+  const resolveWorkspace = async (ctx: HandlerContext, opts: { workspaceId?: string; customEnv?: Record<string, string> }): Promise<DispatchWorkspaceResolution> => {
+    const request: DispatchWorkspaceRequest = {
+      towerTerminalId: opts.customEnv?.BAT_TOWER_TERMINAL_ID,
+      requestedWorkspaceId: opts.workspaceId,
+    }
+    if (ctx.windowId || !deps.resolveDispatchWorkspace) return passThroughDispatchWorkspace(request)
+    try {
+      const resolution = await deps.resolveDispatchWorkspace(request)
+      if (resolution.mismatch) {
+        deps.logger.warn(`[T0523] dispatch workspace mismatch: tower=${resolution.towerTerminalId} belongs to workspace=${describeWorkspace(resolution)}, --workspace=${resolution.requestedWorkspaceId} → using the tower's workspace`)
+      }
+      return resolution
+    } catch (error) {
+      deps.logger.warn('[T0523] dispatch workspace resolution failed, using --workspace as given:', error)
+      return passThroughDispatchWorkspace(request)
+    }
+  }
+
+  const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution) => {
     const ptyManager = deps.getPtyManager()
     const reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
     const customEnv = deps.pickWhitelistedEnv(opts.customEnv)
     const sourceTerminalId = opts.customEnv?.BAT_TERMINAL_ID
-    const workspaceId = opts.workspaceId ?? opts.customEnv?.BAT_WORKSPACE_ID
+    const landing = resolved ?? await resolveWorkspace(_ctx, opts)
+    const workspaceId = landing.workspaceId ?? opts.customEnv?.BAT_WORKSPACE_ID
     const invokerWindowId = _ctx.windowId ?? null
 
     deps.logger.log(`[remote][terminal] ipc-invoke channel=terminal:create-with-command id=${opts.id} reused=${reusedExisting} source=${sourceTerminalId ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
@@ -220,7 +295,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       type: 'terminal',
       shell: shellResolution.shell,
       customEnv: opts.customEnv,
-      workspaceId: opts.workspaceId,
+      workspaceId: landing.workspaceId,
     })
     if (created && opts.command) {
       delay(() => {
@@ -232,7 +307,13 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         id: opts.id,
         cwd: opts.cwd,
         command: opts.command,
-        workspaceId: opts.workspaceId,
+        workspaceId: landing.workspaceId,
+        // T0523: the renderer lands the tab next to the Tower terminal when it holds it
+        // (headless has no registry to resolve this on the server).
+        ...(landing.towerTerminalId ? { towerTerminalId: landing.towerTerminalId } : {}),
+        // T0523: the registry has this workspace (a window of this BAT holds it), so a window
+        // without it skips the event instead of adding the tab to its active workspace.
+        ...(landing.known ? { workspaceResolved: true } : {}),
       }
       if (deps.emit) {
         deps.emit('terminal:created-externally', payload)
@@ -248,7 +329,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     }
 
     const outcomeEvent = reusedExisting ? 'terminal-reused' : 'terminal-created'
-    deps.logger.log(`[remote][terminal] ${outcomeEvent} id=${opts.id} result=${created} workspaceId=${workspaceId ?? 'n/a'}`)
+    deps.logger.log(`[remote][terminal] ${outcomeEvent} id=${opts.id} result=${created} workspaceId=${workspaceId ?? 'n/a'} workspaceSource=${landing.source} requestedWorkspaceId=${landing.requestedWorkspaceId ?? 'n/a'}`)
     deps.mirrorToBatScripts(outcomeEvent, {
       channel: 'terminal:create-with-command',
       terminalId: opts.id,
@@ -257,8 +338,26 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       customEnv,
       sourceTerminalId,
       workspaceId,
+      workspaceName: landing.workspaceName,
+      workspaceSource: landing.source,
+      requestedWorkspaceId: landing.requestedWorkspaceId,
+      workspaceMismatch: landing.mismatch,
       windowId: invokerWindowId,
     })
+    if (created && opts.reportLanding) {
+      const report: TerminalCreatedReport = {
+        ok: true,
+        terminalId: opts.id,
+        workspace: {
+          ...(landing.workspaceId ? { id: landing.workspaceId } : {}),
+          ...(landing.workspaceName ? { name: landing.workspaceName } : {}),
+          source: landing.source,
+          ...(landing.requestedWorkspaceId ? { requestedId: landing.requestedWorkspaceId } : {}),
+          mismatch: landing.mismatch,
+        },
+      }
+      return report
+    }
     return created
   }
   deps.registerHandler('terminal:create-with-command', (ctx, opts) => createWithCommand(ctx, opts as TerminalCommandOptions))
@@ -279,13 +378,15 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     const settings = deps.readPersistedSettingsSync()
     const shellResolution = resolveTerminalShell(opts.shell, settings, deps)
     const shellFamily = detectShellFamily(shellResolution.shell ?? shellResolution.basename)
+    // T0523 / BUG-129: `--agent default` follows the workspace the terminal lands in.
+    const landing = await resolveWorkspace(_ctx, opts)
 
     const resolved = await deps.buildAgentPromptCommand({
       agent: opts.agent,
       prompt: opts.prompt,
       skill: opts.skill,
       workorder: opts.workorder,
-      workspaceId: opts.workspaceId,
+      workspaceId: landing.workspaceId,
       shellFamily,
     })
     if (!resolved) return false
@@ -315,19 +416,32 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       })
     }
 
-    deps.logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId}`)
+    deps.logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId} source=${resolved.agentSource ?? 'n/a'} workspace=${describeWorkspace(landing)} workspaceSource=${landing.source}`)
     const commandOptions: TerminalCommandOptions = {
       id: opts.id,
       cwd: opts.cwd,
       command: resolved.command,
       shell: opts.shell,
       customEnv: opts.customEnv,
-      workspaceId: opts.workspaceId,
+      workspaceId: landing.workspaceId,
+      ...(opts.reportLanding ? { reportLanding: true } : {}),
     }
-    if (deps.invokeHandler) {
-      return deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)
+    const result = deps.invokeHandler
+      ? await deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)
+      : await createWithCommand(_ctx, commandOptions, landing)
+    if (result && typeof result === 'object' && (result as { ok?: unknown }).ok === true) {
+      const report = result as TerminalCreatedReport
+      // Through invokeHandler the second resolution saw the already-resolved id: keep the first.
+      report.workspace = {
+        ...report.workspace,
+        source: landing.source,
+        ...(landing.requestedWorkspaceId ? { requestedId: landing.requestedWorkspaceId } : {}),
+        mismatch: landing.mismatch,
+      }
+      report.agent = { requested: opts.agent || 'default', id: resolved.agentId, source: resolved.agentSource }
+      return report
     }
-    return createWithCommand(_ctx, commandOptions)
+    return result
   })
 }
 
@@ -424,6 +538,9 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
     const requestedAgent = opts.agent && opts.agent !== 'default'
       ? opts.agent
       : (workspaceAgent || settings?.defaultAgent || 'claude-code')
+    const agentSource: BuiltAgentCommand['agentSource'] = opts.agent && opts.agent !== 'default'
+      ? 'explicit'
+      : workspaceAgent ? 'workspace' : settings?.defaultAgent ? 'settings' : 'builtin'
     const agentId = toTerminalDrivenAgentId(requestedAgent)
     const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
 
@@ -460,6 +577,7 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
       agentId,
       prompt: normalized.prompt,
       prefixNormalized: normalized.normalized,
+      agentSource,
     }
   }
 }

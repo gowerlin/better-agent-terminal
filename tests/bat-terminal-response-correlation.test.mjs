@@ -389,3 +389,43 @@ describe('bat-terminal matches the invoke reply by frame id (T0497 / BUG-114)', 
     }
   }, 20000)
 })
+
+// T0523 / BUG-129 — the helper asks for the landing (`reportLanding`) and prints where the
+// terminal went and which agent it runs. Success is still decided by the exit code only.
+describe('bat-terminal prints the landing workspace and agent (T0523 / BUG-129)', () => {
+  it('a pre-T0523 BAT answers true → same output as before, reportLanding was sent', async () => {
+    const remote = await startMockBatRemote({ invokeDelayMs: 5 })
+    try {
+      const run = await runBatTerminal(remote)
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+      expect(remote.state.invoke?.args?.[0]).toMatchObject({ reportLanding: true, workspaceId: 'ws-uuid-t0497' })
+      expect(run.stdout.trim().split('\n')).toEqual([expect.stringMatching(/^✓ Terminal created: [0-9a-f]{32}$/)])
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('{ ok, workspace, agent } → workspace / agent lines, mismatch warning on stderr, logged', async () => {
+    const workspace = { id: 'ws-scb', name: 'SCB專案資料', source: 'tower-terminal', requestedId: 'ws-uuid-t0497', mismatch: true }
+    const agent = { requested: 'default', id: 'codex-cli', source: 'workspace' }
+    const remote = await startMockBatRemote({
+      broadcastEveryMs: 2,
+      invokeDelayMs: 30,
+      invokeReply: { result: { ok: true, terminalId: 'x', workspace, agent } },
+    })
+    try {
+      const run = await runBatTerminal(remote)
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+      const lines = run.stdout.trim().split('\n')
+      expect(lines[0]).toMatch(/^✓ Terminal created: [0-9a-f]{32}$/)
+      expect(lines.slice(1)).toEqual([
+        "  workspace: SCB專案資料 (ws-scb) — the Tower terminal's workspace (--notify-id)",
+        "  agent: codex-cli (--agent default: the workspace's default agent)",
+      ])
+      expect(run.stderr).toContain("--workspace ws-uuid-t0497 is not the Tower terminal's workspace")
+      expect(lastEvent(remote, 'terminal-created')).toMatchObject({ result: 'ok', landing: workspace, agent })
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+})

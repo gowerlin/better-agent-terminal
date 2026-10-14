@@ -66,7 +66,8 @@ describe('headless terminal:* (T0431)', () => {
     expect(result).toBe(true)
 
     const [payload] = await bat.waitForEvent('terminal:created-externally', args => (args[0] as { id?: string })?.id === id)
-    expect(payload).toEqual({ id, cwd: CWD, command: 'echo T0431MARK', workspaceId: 'client-ws-1' })
+    // T0523: + towerTerminalId (the client lands the tab next to the Tower terminal)
+    expect(payload).toEqual({ id, cwd: CWD, command: 'echo T0431MARK', workspaceId: 'client-ws-1', towerTerminalId: 'tower-1' })
 
     await vi.waitFor(() => expect(outputOf(bat, id)).toContain('T0431MARK'), { timeout: 15_000, interval: 50 })
     await harness.invoke('pty:kill', id)

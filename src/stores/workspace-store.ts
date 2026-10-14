@@ -356,18 +356,38 @@ class WorkspaceStore {
    *  T0431: `remote: true` (stamped by RemoteClient on events from a server, see
    *  REMOTE_ORIGIN_EVENTS in electron/remote/path-aware-channels.ts) — step 2 does not
    *  apply: a remote event whose workspace is not in this window is ignored. Every BAT
-   *  connected to the server gets the event; only the one holding the workspace adds it. */
-  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string; remote?: boolean }): TerminalInstance | null {
+   *  connected to the server gets the event; only the one holding the workspace adds it.
+   *  T0523/BUG-129: before step 1, the workspace of `towerTerminalId` (`--notify-id`) when
+   *  this window holds that terminal — the Tower shell's `BAT_WORKSPACE_ID` can be stale. */
+  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
     // Avoid duplicates — PTY already tracked
     if (this.state.terminals.some(t => t.id === info.id)) return null
 
     let workspace: Workspace | undefined
-    if (info.workspaceId) {
+    const tower = info.towerTerminalId ? this.state.terminals.find(t => t.id === info.towerTerminalId) : undefined
+    if (tower) {
+      workspace = this.state.workspaces.find(w => w.id === tower.workspaceId)
+      if (workspace && info.workspaceId && info.workspaceId !== workspace.id) {
+        window.electronAPI?.debug?.log?.(
+          `[T0523] External terminal follows its tower: tower=${tower.id} workspace=${workspace.id} requested=${info.workspaceId} terminal=${info.id}`
+        )
+      }
+    }
+    if (!workspace && info.workspaceId) {
       workspace = this.state.workspaces.find(w => w.id === info.workspaceId)
     }
     if (!workspace && info.remote) {
       window.electronAPI?.debug?.log?.(
         `[T0431] Remote external terminal ignored: workspace ${info.workspaceId ?? '(none)'} not in this window, terminal=${info.id}`
+      )
+      return null
+    }
+    // T0523: main found the workspace in the window registry, so another window holds it
+    // (every window gets the event); falling back to this window's active workspace would
+    // duplicate the tab in the wrong place.
+    if (!workspace && info.workspaceResolved) {
+      window.electronAPI?.debug?.log?.(
+        `[T0523] External terminal ignored: workspace ${info.workspaceId ?? '(none)'} is in another window, tower=${info.towerTerminalId ?? 'n/a'} terminal=${info.id}`
       )
       return null
     }

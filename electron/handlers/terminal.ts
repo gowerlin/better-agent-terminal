@@ -55,6 +55,11 @@ export interface TerminalHandlerDeps {
    */
   checkAgentAvailable?(agentId: string): Promise<AgentUnavailableResult | null>
   /**
+   * T0523 / BUG-129 (Electron): the workspace a helper-dispatched terminal lands in, from the
+   * window registry. Absent (headless): `--workspace` as given.
+   */
+  resolveDispatchWorkspace?: TerminalCommandHandlerDeps['resolveDispatchWorkspace']
+  /**
    * headless: authenticated clients that will receive a broadcast, not counting the
    * invoking connection. When set, `terminal:keypress` with 0 → `{ ok: false, reason: 'no-client' }`.
    */
@@ -95,6 +100,7 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
     readPersistedSettingsSync: deps.readSettings,
     buildAgentPromptCommand: deps.buildAgentPromptCommand,
     checkAgentAvailable: deps.checkAgentAvailable,
+    resolveDispatchWorkspace: deps.resolveDispatchWorkspace,
     pickWhitelistedEnv,
     mirrorToBatScripts,
     logger,

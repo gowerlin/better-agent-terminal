@@ -126,10 +126,23 @@ describe('createAgentPromptCommandBuilder — Electron output unchanged (T0431)'
       const deps = electronLikeDeps(settings, { 'ws-codex': 'codex-agent' })
       const build = createAgentPromptCommandBuilder(deps)
       for (const opts of OPTS_MATRIX) {
-        expect(await build(opts), JSON.stringify(opts)).toEqual(await legacyBuildAgentPromptCommand(deps, opts))
+        // T0523: `agentSource` is new (observability only); everything else is unchanged.
+        const built = await build(opts)
+        const { agentSource: _agentSource, ...rest } = built ?? { agentSource: undefined }
+        expect(built ? rest : null, JSON.stringify(opts)).toEqual(await legacyBuildAgentPromptCommand(deps, opts))
       }
     })
   }
+
+  it.each([
+    [{ prompt: 'p', agent: 'codex-cli' }, { defaultAgent: 'claude-code' }, 'explicit'],
+    [{ prompt: 'p', agent: 'default', workspaceId: 'ws-codex' }, { defaultAgent: 'claude-code' }, 'workspace'],
+    [{ prompt: 'p', workspaceId: 'ws-unknown' }, { defaultAgent: 'codex-cli' }, 'settings'],
+    [{ prompt: 'p' }, null, 'builtin'],
+  ] as Array<[AgentPromptCommandOptions, AgentCommandSettings | null, string]>)('T0523: agentSource %#', async (opts, settings, source) => {
+    const build = createAgentPromptCommandBuilder(electronLikeDeps(settings, { 'ws-codex': 'codex-agent' }))
+    expect((await build(opts))?.agentSource).toBe(source)
+  })
 
   it.each([
     [{ skill: 'ct-exec', workorder: 'T0431' }, `${CLAUDE_BASE} --dangerously-skip-permissions '/ct-exec T0431'`, false],
