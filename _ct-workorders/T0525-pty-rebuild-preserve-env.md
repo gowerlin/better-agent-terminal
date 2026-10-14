@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0525
 title: "本機 PTY 重建 / 重啟保留完整 env：Terminal Server heartbeat 復原 + Electron pty:restart 的 customEnv（BUG-131）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-131
 priority: P2
 sizing: S
 created_at: "2026-10-14T13:48:52+0800"
 started_at: "2026-10-14T13:50:10+0800"
-updated_at: "2026-10-14T13:50:10+0800"
-completed_at: null
+updated_at: "2026-10-14T13:55:57+0800"
+completed_at: "2026-10-14T13:55:57+0800"
 target_version: "0.6.0-pre.8"
 related:
   - BUG-131
@@ -60,9 +60,9 @@ T0523 調查塔台派工落點時，發現本機 PTY 有兩條重建路徑會掉
 
 ## 驗收條件
 
-- [ ] restart / recovery 後的 PTY env 與第一次建立時一致（helper 值為當下有效值）
-- [ ] 遠端權杖語意不變
-- [ ] BUG-131：`status: FIXED`、`fixed_at`、body 狀態列與「根因與修正」段同步
+- [x] restart / recovery 後的 PTY env 與第一次建立時一致（helper 值為當下有效值）
+- [x] 遠端權杖語意不變
+- [x] BUG-131：`status: FIXED`、`fixed_at`、body 狀態列與「根因與修正」段同步
 
 ## Sub-session 執行指示
 
@@ -146,4 +146,5 @@ T0448 回報區與工單的 `memory_overrides` 寫的是「本機 Electron resta
 
 ### Commit
 
-（commit 後回填）
+- `d4ee455` fix(pty): keep the full env on restart and Terminal Server recovery (T0525, BUG-131)（`git commit --only`，4 files；不 push）
+- closeout metadata commit 接在其後
