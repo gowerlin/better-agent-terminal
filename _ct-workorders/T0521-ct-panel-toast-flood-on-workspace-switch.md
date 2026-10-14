@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0521
 title: "指揮塔面板：切換工作區不再把既有工單當成新工單 / 狀態變更跳 toast（BUG-127）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-127
 priority: P2
 sizing: S
 created_at: "2026-10-14T13:19:21+0800"
 started_at: "2026-10-14T13:21:25+0800"
-updated_at: "2026-10-14T13:21:25+0800"
-completed_at: null
+updated_at: "2026-10-14T13:27:27+0800"
+completed_at: "2026-10-14T13:27:27+0800"
 target_version: "0.6.0-pre.8"
 related:
   - BUG-127
@@ -151,7 +151,7 @@ Gary（mac）回報，在兩個工作區之間切換時，右側指揮塔面板�
 
 ### Commit
 
-見下方 commit 紀錄（`git commit --only`，只含本單 4 個檔案；`src/styles/settings.css` 與 T0522 檔案未納入）。未 push。
+`5962450` `fix(control-tower): no work-order toasts on workspace switch (T0521, BUG-127)`（`git commit --only`，只含本單 4 個檔案；`src/styles/settings.css` 與 T0522 檔案未納入）。未 push。
 
 ### 偏差 / 後續
 
