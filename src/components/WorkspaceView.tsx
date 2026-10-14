@@ -164,6 +164,8 @@ function mergeEnvVars(global: EnvVariable[] = [], workspace: EnvVariable[] = [])
 
 // Track which workspaces have been initialized (outside component to persist across renders)
 const initializedWorkspaces = new Set<string>()
+// T0532: workspaces whose default terminals are still being created (the shell lookup is async)
+const creatingDefaultTerminals = new Set<string>()
 
 // T0377 / BUG-085: main adds this to codex-cli launch commands when BAT runs elevated on
 // Windows. Seeing it in a built command triggers a one-time notice (once per renderer run).
@@ -203,6 +205,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   // Track which tabs have been visited — lazy mount to preserve state via CSS hidden
   const [mountedTabs, setMountedTabs] = useState<Set<WorkspaceTab>>(() => new Set([loadWorkspaceTab()]))
+  const [isCreatingDefaults, setIsCreatingDefaults] = useState(() => creatingDefaultTerminals.has(workspace.id))
 
   // Fetch agent definitions from the registry
   useEffect(() => {
@@ -435,6 +438,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // Categorize terminals
   const agentTerminal = terminals.find(t => t.agentPreset && t.agentPreset !== 'none')
   const focusedTerminal = terminals.find(t => t.id === focusedTerminalId)
+  // T0532: also true on the first render of a workspace becoming active, before the init effect runs
+  const awaitingDefaultTerminals = isCreatingDefaults || (isActive && !initializedWorkspaces.has(workspace.id))
 
   // Initialize terminals when workspace becomes active
   // If terminals were restored from a saved profile, start their PTY/agent processes
@@ -442,6 +447,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   useEffect(() => {
     if (!isActive || initializedWorkspaces.has(workspace.id)) return
     initializedWorkspaces.add(workspace.id)
+    // T0532: until the default terminals exist (or creating them failed) the terminal tab shows
+    // an opaque placeholder, not the empty state with its "add terminal" button.
+    const createsDefaults = terminals.length === 0
+    if (createsDefaults) {
+      creatingDefaultTerminals.add(workspace.id)
+      setIsCreatingDefaults(true)
+    }
 
     const initTerminals = async () => {
       const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -587,6 +599,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     // runs before any terminal is touched; refused → run init once more on connect.
     void retryOnceWhenRemoteConnected(initTerminals, window.electronAPI.remote).catch((err: unknown) => {
       window.electronAPI?.debug?.log(`[init] initTerminals failed for workspace ${workspace.id}: ${err instanceof Error ? err.message : String(err)}`)
+    }).finally(() => {
+      if (!createsDefaults) return
+      creatingDefaultTerminals.delete(workspace.id)
+      setIsCreatingDefaults(false)
     })
   }, [isActive, workspace.id, terminals.length, workspace.defaultAgent, workspace.folderPath, workspace.envVars])
 
@@ -1065,8 +1081,12 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 />
               </div>
             ))}
+            {/* T0532: default terminals still being created — opaque (BUG-134), no empty state yet */}
+            {terminals.length === 0 && awaitingDefaultTerminals && (
+              <div className="terminals-pending-state" data-testid="terminals-pending-state" />
+            )}
             {/* BUG-134 / T0531: a workspace with no terminals shows an opaque empty state */}
-            {terminals.length === 0 && (
+            {terminals.length === 0 && !awaitingDefaultTerminals && (
               <div className="terminals-empty-state" data-testid="terminals-empty-state">
                 <p>{t('terminal.emptyWorkspace')}</p>
                 <button className="btn-primary" onClick={handleAddTerminal}>
@@ -1159,7 +1179,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       default:
         return null
     }
-  }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote, handleAddTerminal,
+  }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote, handleAddTerminal, awaitingDefaultTerminals,
       handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude,
       handleSnippetPasteToTerminal, handleSnippetSendToAgent, handleExecWorkOrder, handleDoneWorkOrder, focusedTerminalId])
 

@@ -87,7 +87,8 @@ describe('empty workspace does not show another workspace (BUG-134 source guard)
 
   it('the terminal tab renders an opaque empty state when the workspace has no terminals', () => {
     const view = read('../../components/WorkspaceView.tsx')
-    expect(view).toMatch(/\{terminals\.length === 0 && \(\s*<div className="terminals-empty-state" data-testid="terminals-empty-state">/)
+    // T0532: `!awaitingDefaultTerminals` holds it back only while the default terminals are created
+    expect(view).toMatch(/\{terminals\.length === 0 && !awaitingDefaultTerminals && \(\s*<div className="terminals-empty-state" data-testid="terminals-empty-state">/)
     const css = read('../../styles/layout.css')
     expect(css).toMatch(/\.terminals-empty-state \{[^}]*position: absolute;[^}]*inset: 0;[^}]*background: var\(--bg-primary\);/)
   })

@@ -169,14 +169,20 @@ class WorkspaceStore {
   removeWorkspace(id: string): void {
     const terminals = this.state.terminals.filter(t => t.workspaceId !== id)
     const workspaces = this.state.workspaces.filter(w => w.id !== id)
+    const activeWorkspaceId = this.state.activeWorkspaceId === id
+      ? (workspaces[0]?.id ?? null)
+      : this.state.activeWorkspaceId
+    const focusKept = activeWorkspaceId === this.state.activeWorkspaceId
+      && terminals.some(t => t.id === this.state.focusedTerminalId)
 
+    // BUG-135 / T0532: like setActiveWorkspace, a new active workspace starts without focus
+    // (WorkspaceView picks its default terminal); the focus never stays on a removed terminal.
     this.state = {
       ...this.state,
       workspaces,
       terminals,
-      activeWorkspaceId: this.state.activeWorkspaceId === id
-        ? (workspaces[0]?.id ?? null)
-        : this.state.activeWorkspaceId
+      activeWorkspaceId,
+      focusedTerminalId: focusKept ? this.state.focusedTerminalId : null
     }
 
     this.notify()
@@ -464,10 +470,12 @@ class WorkspaceStore {
       lastActivityTime: Date.now()
     }
 
+    // BUG-135 / T0532: a terminal that lands in a workspace the user is not looking at (T0523:
+    // the tower's workspace) does not take the focus away from the active workspace.
     this.state = {
       ...this.state,
       terminals: [...this.state.terminals, terminal],
-      focusedTerminalId: terminal.id
+      focusedTerminalId: workspace.id === this.state.activeWorkspaceId ? terminal.id : this.state.focusedTerminalId
     }
 
     this.notify()
@@ -692,12 +700,15 @@ class WorkspaceStore {
       ? this.state.workspaces.find(w => w.id !== id && !w.archived)?.id ?? null
       : this.state.activeWorkspaceId
 
+    // BUG-135 / T0532: switching away from the archived workspace clears the focus, as
+    // setActiveWorkspace does, instead of leaving it on the archived workspace's terminal.
     this.state = {
       ...this.state,
       workspaces: this.state.workspaces.map(w =>
         w.id === id ? { ...w, archived: true } : w
       ),
       activeWorkspaceId: nextActive,
+      focusedTerminalId: nextActive === this.state.activeWorkspaceId ? this.state.focusedTerminalId : null,
     }
     this.notify()
     this.save()
@@ -906,12 +917,14 @@ class WorkspaceStore {
     const terminals = at < 0 ? [...rest, ...incoming] : [...rest.slice(0, at), ...incoming, ...rest.slice(at)]
     const stillThere = (id: string | null) => id !== null && terminals.some(t => t.id === id)
 
+    // BUG-135 / T0532: the fallback focus is a terminal of the active workspace, or null.
+    // terminals[0] could be another workspace's terminal.
     this.state = {
       ...this.state,
       terminals,
       focusedTerminalId: stillThere(this.state.focusedTerminalId)
         ? this.state.focusedTerminalId
-        : (terminals[0]?.id ?? null),
+        : (terminals.find(t => t.workspaceId === this.state.activeWorkspaceId)?.id ?? null),
       activeTerminalId: stillThere(this.state.activeTerminalId) ? this.state.activeTerminalId : null,
     }
     this.notify()
@@ -972,15 +985,19 @@ class WorkspaceStore {
       const parsed = JSON.parse(data)
       const workspaces: Workspace[] = parsed.workspaces || []
       const workspaceMap = new Map(workspaces.map((w: Workspace) => [w.id, w]))
-      const terminals = (parsed.terminals || [])
+      const terminals: TerminalInstance[] = (parsed.terminals || [])
         .map((t: Partial<TerminalInstance>) => toTerminalInstance(t, workspaceMap))
         .filter((t: TerminalInstance | null): t is TerminalInstance => t !== null)
+      const activeWorkspaceId: string | null = parsed.activeWorkspaceId || null
+      // BUG-135 / T0532: a reload keeps the focus only on a terminal of the active workspace.
+      const focusKept = terminals.some(t => t.id === this.state.focusedTerminalId && t.workspaceId === activeWorkspaceId)
       this.state = {
         ...this.state,
         workspaces,
-        activeWorkspaceId: parsed.activeWorkspaceId || null,
+        activeWorkspaceId,
         terminals,
         activeTerminalId: parsed.activeTerminalId || null,
+        focusedTerminalId: focusKept ? this.state.focusedTerminalId : null,
       }
       this.activeGroup = parsed.activeGroup || null
 

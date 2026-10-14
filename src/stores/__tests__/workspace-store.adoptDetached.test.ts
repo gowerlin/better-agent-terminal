@@ -88,9 +88,10 @@ describe('adoptDetachedWorkspaceTerminals (T0491)', () => {
     expect(kept.alias).toBe('x')
     expect(kept.scrollbackBuffer).toEqual(['kept output'])
     expect(workspaceStore.getState().terminals.find(t => t.id === 'd3')).toMatchObject({ workspaceId: d.id, cwd: '/tmp/d' })
-    // d1 was closed in the detached window and had the focus.
+    // d1 was closed in the detached window and had the focus. BUG-135 / T0532: the fallback is
+    // the active workspace's (d) first terminal, not the first terminal overall (a1).
     expect(ids()).not.toContain(d1.id)
-    expect(workspaceStore.getState().focusedTerminalId).toBe(a1.id)
+    expect(workspaceStore.getState().focusedTerminalId).toBe(d2.id)
   })
 
   it('changes nothing while main still sees the workspace detached (null)', async () => {

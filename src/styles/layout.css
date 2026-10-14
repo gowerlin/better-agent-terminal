@@ -518,6 +518,13 @@
   margin: 0;
 }
 
+/* T0532: default terminals still being created — opaque like the empty state, without its button */
+.terminals-pending-state {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary);
+}
+
 /* Split View - side-by-side panes (terminals, files, git, github) */
 .split-container {
   display: flex;
