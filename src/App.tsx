@@ -169,6 +169,28 @@ export default function App() {
     takePending: profileReady && isRemoteConnected && !detachedWorkspaceId,
   })
   const [detachedIds, setDetachedIds] = useState<Set<string>>(new Set())
+
+  // T0530 (BUG-133): a detached window renders no SettingsPanel (Settings are global and every
+  // renderer saves its whole copy — one more editor would overwrite or be overwritten). Its
+  // "open settings" brings the parent main window to the front and opens Settings there.
+  const handleDetachedOpenSettings = useCallback(() => {
+    window.electronAPI.workspace.openSettingsInParent().then((result) => {
+      if (!result.ok) {
+        window.electronAPI.debug.log(`[T0530] open settings from detached window failed: ${result.reason}`)
+        setAppNotification(t('app.openSettingsNoMainWindow'))
+      }
+    }).catch((err: unknown) => {
+      window.electronAPI.debug.log(`[T0530] open settings from detached window threw: ${String(err)}`)
+      setAppNotification(t('app.openSettingsNoMainWindow'))
+    })
+  }, [t])
+
+  // T0530: main window — main asks it to open Settings on behalf of one of its detached windows.
+  useEffect(() => {
+    if (detachedWorkspaceId) return
+    return window.electronAPI.workspace.onOpenSettingsRequested(() => setShowSettings(true))
+  }, [detachedWorkspaceId])
+
   // Track workspaces that have been visited (for lazy mounting)
   const [mountedWorkspaces, setMountedWorkspaces] = useState<Set<string>>(new Set())
 
@@ -934,11 +956,19 @@ export default function App() {
               focusedTerminalId={state.focusedTerminalId}
               isActive={true}
               isRemoteConnected={isRemoteConnected}
-              onOpenSettings={() => setShowSettings(true)}
+              onOpenSettings={handleDetachedOpenSettings}
               onOpenWorkspaceSettings={() => setEnvDialogWorkspaceId(ws.id)}
             />
           </div>
         </main>
+        {appNotification && (
+          <div className="app-notification-overlay" onClick={() => setAppNotification(null)}>
+            <div className="app-notification" onClick={e => e.stopPropagation()}>
+              <div className="app-notification-message">{appNotification}</div>
+              <button className="app-notification-close" onClick={() => setAppNotification(null)}>{t('common.ok')}</button>
+            </div>
+          </div>
+        )}
         {/* T0529 / D142: read-only — a detached window's workspace:save only merges its terminal list */}
         {envDialogWorkspace && (
           <WorkspaceEnvDialog

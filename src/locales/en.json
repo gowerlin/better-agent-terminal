@@ -56,6 +56,7 @@
   "app": {
     "workspaceNotFound": "Workspace not found",
     "workspaceNotFoundDesc": "This detached workspace may have been removed.",
+    "openSettingsNoMainWindow": "Settings open in a main window, but no main window of this workspace's profile is open. Open one for that profile and try again.",
     "welcome": "Welcome to Better Agent Terminal",
     "welcomeHint": "Click \"+ Add Workspace\" to get started",
     "remoteConnectionFailed": "Remote connection failed: {{error}}",

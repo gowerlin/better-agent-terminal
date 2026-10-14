@@ -56,6 +56,7 @@
   "app": {
     "workspaceNotFound": "找不到工作区",
     "workspaceNotFoundDesc": "此分离的工作区可能已被移除。",
+    "openSettingsNoMainWindow": "设置在主窗口打开，但此工作区所属配置文件目前没有打开的主窗口。请先打开该配置文件的主窗口再试一次。",
     "welcome": "欢迎使用 Better Agent Terminal",
     "welcomeHint": "点击「+ 新增工作区」开始使用",
     "remoteConnectionFailed": "远程连接失败：{{error}}",

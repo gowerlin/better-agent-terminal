@@ -115,6 +115,12 @@ interface ElectronAPI {
     getDetachedId: () => string | null
     onDetached: (callback: (workspaceId: string) => void) => () => void
     onReattached: (callback: (workspaceId: string) => void) => () => void
+    /** T0530 (BUG-133): detached window only — the parent (or another main window of the profile) opens Settings. */
+    openSettingsInParent: () => Promise<
+      | { ok: true; windowId: string; viaParent: boolean }
+      | { ok: false; reason: 'not-detached' | 'no-main-window' }
+    >
+    onOpenSettingsRequested: (callback: () => void) => () => void
     moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) => Promise<boolean>
     onReload: (callback: (data?: string) => void) => () => void
     onFlushSave: (callback: () => Promise<void>) => () => void

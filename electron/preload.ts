@@ -78,6 +78,14 @@ const electronAPI = {
       ipcRenderer.on('workspace:reattached', handler)
       return () => ipcRenderer.removeListener('workspace:reattached', handler)
     },
+    /** T0530 (BUG-133): from a detached window — its parent main window comes to the front and opens Settings. */
+    openSettingsInParent: () => ipcRenderer.invoke('workspace:open-settings-in-parent'),
+    /** T0530: main window — main asks it to open Settings for one of its detached windows. */
+    onOpenSettingsRequested: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('app:open-settings', handler)
+      return () => ipcRenderer.removeListener('app:open-settings', handler)
+    },
     moveToWindow: (sourceWindowId: string, targetWindowId: string, workspaceId: string, insertIndex: number) =>
       ipcRenderer.invoke('workspace:move-to-window', sourceWindowId, targetWindowId, workspaceId, insertIndex),
     onReload: (callback: (data?: string) => void) => {

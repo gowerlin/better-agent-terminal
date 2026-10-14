@@ -9,6 +9,7 @@ import * as fsSync from 'fs'
 import { spawnSync, fork } from 'child_process'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
+import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
@@ -3389,6 +3390,29 @@ function registerLocalHandlers() {
     detachedWindows.delete(workspaceId)
     detachedWindowRecords.delete(workspaceId)
     return true
+  })
+
+  // T0530 (BUG-133): a detached window has no SettingsPanel; its parent (or another main window
+  // of the same profile) opens Settings instead, so settings.json gets no extra writer.
+  ipcMain.handle('workspace:open-settings-in-parent', async (event): Promise<OpenSettingsInParentResult> => {
+    const workspaceId = event.sender.isDestroyed() ? null : getDetachedWorkspaceIdByWebContents(event.sender)
+    if (workspaceId === null) return { ok: false, reason: 'not-detached' }
+    const parentWindowId = detachedWindowRecords.get(workspaceId)?.parentWindowId ?? null
+    const binding = await resolveDetachedBinding(workspaceId)
+    const target = pickSettingsWindow({
+      parentWindowId,
+      profileId: binding.kind === 'bound' ? binding.profileId : undefined,
+      windows: windowMap,
+      registryEntries: windowRegistry.getCachedEntries(),
+    })
+    if (!target) {
+      logger.warn(`[detached] ${workspaceId}: open settings — no live main window (parent ${parentWindowId ?? '(none)'})`)
+      return { ok: false, reason: 'no-main-window' }
+    }
+    openSettingsInWindow(target.win)
+    const viaParent = target.windowId === parentWindowId
+    logger.log(`[detached] ${workspaceId}: open settings in window ${target.windowId}${viaParent ? ' (parent)' : ` (parent ${parentWindowId ?? '(none)'} gone)`}`)
+    return { ok: true, windowId: target.windowId, viaParent }
   })
 
   // ── Agent Runtime IPC ──
