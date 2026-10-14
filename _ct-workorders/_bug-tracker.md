@@ -13,8 +13,8 @@ exclude_globs:
 total: 60
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 15
+  FIXING: 0
+  FIXED: 16
   VERIFY: 0
   CLOSED: 44
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-15 01:16 (UTC+8) — 第六十三 session：BUG-134 FIXED（T0531）；開 BUG-135（FIXING，T0532）
+> 最後同步：2026-10-15 01:16 (UTC+8) — 第六十三 session：BUG-134 FIXED（T0531）；BUG-135 FIXED（T0532），塔台聯合複驗全綠
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 15 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 60**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 16 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 60**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-135 | adoptDetached focus fallback 取全域 `terminals[0]`，可能指向其他工作區 | 🟢 low | — | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |
 | BUG-133 | detached 視窗「開啟設定」無反應（T0530 `5bacb583`：改由父主視窗開 Settings） | 🟢 low | 2026-10-14 18:16 | [BUG-133](BUG-133-detached-window-open-settings-noop.md) |
 | BUG-132 | agent CLI 沿用別的分頁的 `BAT_*` → 派工落點 / 完成通知送錯塔台（T0527 `a371ce5`：cwd 一致性檢查、yolo 拒派、`--agent` 簡寫；遠端與 PID 鏈根治未做） | 🟡 medium | 2026-10-14 17:17 | [BUG-132](BUG-132-agent-cli-stale-bat-env-misroutes-dispatch.md) |

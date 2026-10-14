@@ -31,7 +31,7 @@
 | BUG | 新開 2（132 / 133）→ 皆 FIXED | Open 0 / Fixed 14 / Closed 44 |
 | 決策 | D141 / D142 | |
 | PLAN | PLAN-040 DONE | |
-| unit test | ✅ **3718 passed / 224 files** | 塔台聯合複驗 @ `63444628` |
+| unit test | ✅ **3730 passed / 225 files** | 塔台聯合複驗 @ `a27904f7` |
 
 ### 編號起始（下 session）
 
@@ -88,11 +88,11 @@
 - `v0.6.0-pre.10` 已發佈（10-14 18:36，run `38548961092` @ `e524867`）：工作區設定（預設 Agent + 啟動參數，PLAN-040 / D142）、detached 開設定（BUG-133）
 - `v0.6.0-pre.9` 已發佈（10-14 17:36，run `38541740029` @ `7b0322a`）：派工 cwd 檢查、`--agent` 簡寫（BUG-132 / D141）
 - T0526-T0530 全 DONE；unit 3713 passed / 223 files；使用者本機安裝版 = pre.10
-- BUG Open 0 / Fixing 0 / Fixed 15（含 BUG-134） / Closed 44
+- BUG Open 0 / Fixing 0 / Fixed 16（含 BUG-134 / 135） / Closed 44
 
 ### 待辦（依優先序）
 
-1. 🟡 **BUG-134**（連國盛）T0531 DONE（`d41280ae`）、塔台聯合複驗全綠（typecheck 雙 0、unit 3718 / 224 files、e2e t0531 / smoke / detached-workspace 3 passed）→ 待發 pre.11 + 使用者 / 連國盛驗收；backlog：`adoptDetached()` focus fallback 同為全域 `terminals[0]`（T0531 建議）
+1. 🟡 **pre.11**（BUG-134，run `38607028430` 進行中）→ 發布說明 + package.json 同步；**pre.12 批次**：T0532（BUG-135 focus 不跨工作區 + 空狀態不閃，`8b5251a8`，聯合複驗全綠：unit 3730 / 225 files、e2e 4 passed）+ Gary pre.10 回饋
 2. 🟡 **Gary pre.10 回饋**（arm64 dmg）：BUG-127-133 + BUG-116 / 118 驗收
 3. 🟡 **使用者 Windows**：BUG-130 間歇性（再失效查 `[terminal-paste]`）；真人項 BUG-105 / 107 / 108；Docker 精靈 BUG-097 / 111（需 Docker Desktop）
 4. 🟢 清理：T0514 / T0515 / T0520 保留的 docker image
@@ -105,12 +105,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。發版 run 完成後同一步 `gh release edit --notes-file` 寫發布說明。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 15 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 16 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D142）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（78 entries）
 
 ### 編號起始
-- **T0532** / **BUG-135** / **PLAN-041** / **D143** / **EXP-[TOPIC]-001** / **L151**
+- **T0533** / **BUG-136** / **PLAN-041** / **D143** / **EXP-[TOPIC]-001** / **L151**
 
 ---
 
@@ -124,13 +124,13 @@
 | **最新 release** | `v0.6.0-pre.10`（2026-10-14 18:36，run `38548961092`，target `e524867`，T0529 / T0530：工作區設定、BUG-133）+ `server-bundle-v0.6.0-pre.10`。前一版 `v0.6.0-pre.9`（2026-10-14 17:36，run `38541740029`，target `7b0322a`，T0527：BUG-132）+ `server-bundle-v0.6.0-pre.9`。再前 `v0.6.0-pre.8`（2026-10-14 14:20，run `38520403729`，target `887ff20`，BUG-127-131）。更早版本見 `_archive/state-snapshots/2026-Q4.md` |
 | **前一 tag** | `v0.6.0-pre.9`（2026-10-14 17:36，`7b0322a`） |
 | **目前主軸** | pre.10 已發佈；BUG-134 修正中（T0531）；等 Gary pre.10 回饋 |
-| **工單最大編號** | T0531（DONE `d41280ae`，BUG-134）；T0521-T0531 全 DONE |
-| **BUG 最大編號** | **BUG-134**（FIXED，T0531）；Open 0 / Fixing 0 / Fixed 15（127-134 待 Gary / 使用者驗收；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
+| **工單最大編號** | T0532（DONE `8b5251a8`，BUG-135）；T0521-T0532 全 DONE |
+| **BUG 最大編號** | **BUG-135**（FIXED，T0532）；Open 0 / Fixing 0 / Fixed 16（127-135 待 Gary / 使用者驗收；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
 | **PLAN 最大編號** | **PLAN-040**（**DONE** 2026-10-14，T0529）；PLAN-039 DONE；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D142 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **3718 passed / 224 files / 1 skipped**（塔台聯合複驗 2026-10-15 @ `63444628`）；typecheck 0 / typecheck:electron 0 |
+| **unit test 基線** | **3730 passed / 225 files / 1 skipped**（塔台聯合複驗 2026-10-15 @ `a27904f7`）；typecheck 0 / typecheck:electron 0 |
 
 ---
 
@@ -213,7 +213,7 @@
 | WSL | dev-deploy + docker | `~/.local/bat-server` tag `t0456`（舊）；WSL 內 `docker.io` 29.1.3（T0467 安裝，保留） |
 | ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | |
 | 熱區工單 | **T:177 檔 / BUG:59 / PLAN:12** | `archive_days: 2` 下大量到齡候選（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0531 / BUG-134 / PLAN-040 / D142 / L150** | 下張：T0532 / BUG-135 / PLAN-041 / D143 / L151 |
+| 最大編號 | **T0532 / BUG-135 / PLAN-040 / D142 / L150** | 下張：T0533 / BUG-136 / PLAN-041 / D143 / L151 |
 | unit test | ✅ **3642 passed / 216 files** | 塔台聯合複驗 @ `b00c4f9` |
 | typecheck | ✅ src 0 / electron 0 | CI gate |
 | e2e | ✅ smoke / t0512 / t0513 / t0523 / t0524 6 passed | 需先 `npx vite build` |
