@@ -643,20 +643,21 @@
 
 .ct-toast-fade { opacity: 0; transition: opacity 0.3s; }
 
+/* Tint over an opaque base: a translucent toast let the panel text show through (BUG-127) */
 .ct-toast-success {
-  background: rgba(16, 185, 129, 0.15);
+  background: linear-gradient(rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.15)), var(--bg-secondary);
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #10b981;
 }
 
 .ct-toast-info {
-  background: rgba(59, 130, 246, 0.15);
+  background: linear-gradient(rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.15)), var(--bg-secondary);
   border: 1px solid rgba(59, 130, 246, 0.3);
   color: #3b82f6;
 }
 
 .ct-toast-warning {
-  background: rgba(245, 158, 11, 0.15);
+  background: linear-gradient(rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.15)), var(--bg-secondary);
   border: 1px solid rgba(245, 158, 11, 0.3);
   color: #f59e0b;
 }

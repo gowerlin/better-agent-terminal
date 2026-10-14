@@ -39,6 +39,58 @@ interface ControlTowerPanelProps {
 /** Statuses eligible for ct-done remedial close */
 const DONE_ELIGIBLE: ReadonlySet<WorkOrderStatus> = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PARTIAL', 'BLOCKED', 'FAILED'])
 
+/**
+ * Last seen work order statuses, tagged with the `_ct-workorders/` dir they came from (BUG-127).
+ * The right-sidebar panel is one instance whose `workspaceFolderPath` changes on workspace switch,
+ * so the baseline must belong to a workspace, not to the panel.
+ */
+export interface WorkOrderBaseline {
+  ctDir: string
+  statuses: Map<string, WorkOrderStatus>
+}
+
+export type WorkOrderNotice =
+  | { kind: 'new'; id: string }
+  | { kind: 'completed' | 'started' | 'attention'; id: string; status: WorkOrderStatus }
+
+/** More new orders than this in one load are merged into a single toast. */
+export const MAX_NEW_ORDER_TOASTS = 3
+/** Toasts kept on screen at once; the oldest are dismissed first. */
+export const MAX_VISIBLE_CT_TOASTS = 5
+
+/**
+ * Compare a fresh load against the baseline. A load for a dir the baseline does not belong to
+ * (first load, or after a workspace switch) only becomes the new baseline: switching workspaces
+ * never notifies, and changes made while another workspace was shown are absorbed silently.
+ */
+export function diffWorkOrders(
+  baseline: WorkOrderBaseline | null,
+  ctDir: string,
+  orders: readonly WorkOrder[],
+): { baseline: WorkOrderBaseline; notices: WorkOrderNotice[] } {
+  const statuses = new Map<string, WorkOrderStatus>()
+  for (const wo of orders) statuses.set(wo.id, wo.status)
+  const next = { ctDir, statuses }
+  if (!baseline || baseline.ctDir !== ctDir) return { baseline: next, notices: [] }
+
+  const notices: WorkOrderNotice[] = []
+  for (const wo of orders) {
+    const prevStatus = baseline.statuses.get(wo.id)
+    if (prevStatus && prevStatus !== wo.status) {
+      if (wo.status === 'DONE' || wo.status === 'FIXED' || wo.status === 'ABANDONED') {
+        notices.push({ kind: 'completed', id: wo.id, status: wo.status })
+      } else if (wo.status === 'IN_PROGRESS' && prevStatus === 'PENDING') {
+        notices.push({ kind: 'started', id: wo.id, status: wo.status })
+      } else if (wo.status === 'BLOCKED' || wo.status === 'FAILED') {
+        notices.push({ kind: 'attention', id: wo.id, status: wo.status })
+      }
+    } else if (!prevStatus) {
+      notices.push({ kind: 'new', id: wo.id })
+    }
+  }
+  return { baseline: next, notices }
+}
+
 /** Format file mtime to YYYY-MM-DD HH:mm */
 function formatMtime(mtimeMs: number): string {
   const d = new Date(mtimeMs)
@@ -69,17 +121,38 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [archivedBacklog, setArchivedBacklog] = useState<BacklogEntry[]>([])
   const ctDirRef = useRef<string | null>(null)
   const bmadOutputRef = useRef<string | null>(null)
-  const prevOrdersRef = useRef<Map<string, WorkOrderStatus>>(new Map())
+  const orderBaselineRef = useRef<WorkOrderBaseline | null>(null)
+  const orderLoadSeqRef = useRef(0)
+  const appliedOrderLoadSeqRef = useRef(0)
   const sprintStatusRef = useRef<SprintStatus | null>(null)
   const { messages: toastMessages, addToast, dismissToast } = useCtToast()
+  const toastMessagesRef = useRef(toastMessages)
+  toastMessagesRef.current = toastMessages
 
   // Build paths
   const ctDirPath = workspaceFolderPath ? `${workspaceFolderPath}/_ct-workorders` : null
   const bmadOutputPath = workspaceFolderPath ? `${workspaceFolderPath}/_bmad-output` : null
 
+  // Loads are async; a result for a workspace that is no longer shown is dropped (BUG-127)
+  const currentWorkspaceRef = useRef(workspaceFolderPath)
+  currentWorkspaceRef.current = workspaceFolderPath
+  const isStale = useCallback((folder: string | null) => currentWorkspaceRef.current !== folder, [])
+
+  // Toasts belong to the workspace that raised them: clear them on switch
+  useEffect(() => {
+    for (const m of toastMessagesRef.current) dismissToast(m.id)
+  }, [workspaceFolderPath, dismissToast])
+
+  // Cap the stack; the oldest toasts go first
+  useEffect(() => {
+    if (toastMessages.length <= MAX_VISIBLE_CT_TOASTS) return
+    for (const m of toastMessages.slice(0, toastMessages.length - MAX_VISIBLE_CT_TOASTS)) dismissToast(m.id)
+  }, [toastMessages, dismissToast])
+
   // Load BMad workflow by checking artifact file existence
   const loadBmadWorkflow = useCallback(async () => {
     if (!bmadOutputPath) return
+    const folder = workspaceFolderPath
     const fileExistsMap: Record<string, boolean> = {}
 
     const dirs = ['planning-artifacts', 'implementation-artifacts'] as const
@@ -105,17 +178,20 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       }
     }
 
+    if (isStale(folder)) return
     setBmadWorkflow(buildBmadWorkflow(fileExistsMap))
-  }, [bmadOutputPath])
+  }, [bmadOutputPath, workspaceFolderPath, isStale])
 
   // Load Epic/Story data from _bmad-output/planning-artifacts/epics.md
   // Uses ref for sprintStatus to keep callback reference stable and avoid infinite loop
   const loadEpics = useCallback(async () => {
     if (!bmadOutputPath) return
     const epicsPath = `${bmadOutputPath}/planning-artifacts/epics.md`
+    const folder = workspaceFolderPath
 
     try {
       const result = await window.electronAPI.fs.readFile(epicsPath)
+      if (isStale(folder)) return
       if (!result.content) { setBmadEpics([]); return }
 
       // Build sprint story map for status cross-reference (read from ref)
@@ -130,13 +206,14 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const parsed = parseEpicsFile(result.content, storyMap)
       setBmadEpics(parsed)
     } catch {
-      setBmadEpics([])
+      if (!isStale(folder)) setBmadEpics([])
     }
-  }, [bmadOutputPath])
+  }, [bmadOutputPath, workspaceFolderPath, isStale])
 
   // Load sprint-status.yaml from multiple possible locations
   const loadSprintStatus = useCallback(async () => {
     if (!workspaceFolderPath) return
+    const folder = workspaceFolderPath
     const paths = getSprintYamlPaths(workspaceFolderPath)
 
     for (const yamlPath of paths) {
@@ -146,6 +223,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
           const parsed = parseSprintStatus(result.content)
           if (parsed) {
             const stat = await window.electronAPI.fs.stat(yamlPath)
+            if (isStale(folder)) return
             const withMtime = stat?.mtimeMs
               ? { ...parsed, lastUpdated: formatMtime(stat.mtimeMs) }
               : parsed
@@ -157,8 +235,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         // Try next path
       }
     }
-    setSprintStatus(null)
-  }, [workspaceFolderPath])
+    if (!isStale(folder)) setSprintStatus(null)
+  }, [workspaceFolderPath, isStale])
 
   // Keep sprintStatus ref in sync and reload epics when sprint data changes
   useEffect(() => {
@@ -171,19 +249,22 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   // Load bug entries from _bug-tracker.md
   const loadBugs = useCallback(async () => {
     if (!ctDirPath) return
+    const folder = workspaceFolderPath
     try {
       const bugTrackerPath = `${ctDirPath}/_bug-tracker.md`
       const result = await window.electronAPI.fs.readFile(bugTrackerPath)
+      if (isStale(folder)) return
       // Always update state: parse content if available, clear if error/empty
       setBugEntries(result.content != null ? parseBugTracker(result.content) : [])
     } catch {
-      setBugEntries([])
+      if (!isStale(folder)) setBugEntries([])
     }
-  }, [ctDirPath])
+  }, [ctDirPath, workspaceFolderPath, isStale])
 
   // Load backlog entries from _backlog.md
   const loadBacklog = useCallback(async () => {
     if (!ctDirPath) return
+    const folder = workspaceFolderPath
     try {
       const backlogPath = `${ctDirPath}/_backlog.md`
       const result = await window.electronAPI.fs.readFile(backlogPath)
@@ -206,30 +287,35 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         }),
       )
 
+      if (isStale(folder)) return
       setBacklogEntries(enriched)
     } catch {
-      setBacklogEntries([])
+      if (!isStale(folder)) setBacklogEntries([])
     }
-  }, [ctDirPath])
+  }, [ctDirPath, workspaceFolderPath, isStale])
 
   // Load decision log from _decision-log.md
   const loadDecisions = useCallback(async () => {
     if (!ctDirPath) return
+    const folder = workspaceFolderPath
     try {
       const decisionPath = `${ctDirPath}/_decision-log.md`
       const result = await window.electronAPI.fs.readFile(decisionPath)
+      if (isStale(folder)) return
       const content = result.content ?? ''
       setDecisions(result.content != null ? parseDecisionLog(content) : [])
       setDecisionRawContent(content)
     } catch {
+      if (isStale(folder)) return
       setDecisions([])
       setDecisionRawContent('')
     }
-  }, [ctDirPath])
+  }, [ctDirPath, workspaceFolderPath, isStale])
 
   // Load archived work orders from _archive/workorders/
   const loadArchivedOrders = useCallback(async () => {
     if (!workspaceFolderPath) return
+    const folder = workspaceFolderPath
     const archivePath = `${workspaceFolderPath}/_ct-workorders/_archive/workorders`
     try {
       const entries = await window.electronAPI.fs.readdir(archivePath)
@@ -242,15 +328,17 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         }
       }
       orders.sort((a, b) => b.id.localeCompare(a.id)) // newest first
+      if (isStale(folder)) return
       setArchivedOrders(orders)
     } catch {
-      setArchivedOrders([])
+      if (!isStale(folder)) setArchivedOrders([])
     }
-  }, [workspaceFolderPath])
+  }, [workspaceFolderPath, isStale])
 
   // Load archived bugs from _archive/bugs/ — lazy on toggle flip
   const loadArchivedBugs = useCallback(async () => {
     if (!workspaceFolderPath) return
+    const folder = workspaceFolderPath
     const archivePath = `${workspaceFolderPath}/_ct-workorders/_archive/bugs`
     try {
       const entries = await window.electronAPI.fs.readdir(archivePath)
@@ -264,15 +352,17 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         }
       }
       bugs.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
+      if (isStale(folder)) return
       setArchivedBugs(bugs)
     } catch {
-      setArchivedBugs([])
+      if (!isStale(folder)) setArchivedBugs([])
     }
-  }, [workspaceFolderPath])
+  }, [workspaceFolderPath, isStale])
 
   // Load archived plans from _archive/plans/ — lazy on toggle flip
   const loadArchivedBacklog = useCallback(async () => {
     if (!workspaceFolderPath) return
+    const folder = workspaceFolderPath
     const archivePath = `${workspaceFolderPath}/_ct-workorders/_archive/plans`
     try {
       const entries = await window.electronAPI.fs.readdir(archivePath)
@@ -286,48 +376,43 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         }
       }
       plans.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
+      if (isStale(folder)) return
       setArchivedBacklog(plans)
     } catch {
-      setArchivedBacklog([])
+      if (!isStale(folder)) setArchivedBacklog([])
     }
-  }, [workspaceFolderPath])
+  }, [workspaceFolderPath, isStale])
 
   // Detect work order status changes → toast notification
-  const detectStatusChanges = useCallback((newOrders: WorkOrder[]) => {
-    const prevMap = prevOrdersRef.current
-    if (prevMap.size === 0) {
-      // First load, just populate the map
-      const newMap = new Map<string, WorkOrderStatus>()
-      for (const wo of newOrders) newMap.set(wo.id, wo.status)
-      prevOrdersRef.current = newMap
-      return
-    }
+  const detectStatusChanges = useCallback((ctDir: string, newOrders: WorkOrder[]) => {
+    const { baseline, notices } = diffWorkOrders(orderBaselineRef.current, ctDir, newOrders)
+    orderBaselineRef.current = baseline
 
-    for (const wo of newOrders) {
-      const prevStatus = prevMap.get(wo.id)
-      if (prevStatus && prevStatus !== wo.status) {
-        // Status changed
-        if (wo.status === 'DONE' || wo.status === 'FIXED' || wo.status === 'ABANDONED') {
-          addToast(`✅ ${wo.id} ${t('controlTower.toast.completed')}`, 'success', 6000)
-        } else if (wo.status === 'IN_PROGRESS' && prevStatus === 'PENDING') {
-          addToast(`🔄 ${wo.id} ${t('controlTower.toast.started')}`, 'info')
-        } else if (wo.status === 'BLOCKED' || wo.status === 'FAILED') {
-          addToast(`⚠️ ${wo.id} → ${statusLabel(wo.status)}`, 'warning')
-        }
-      } else if (!prevStatus) {
-        // New work order
-        addToast(`📋 ${t('controlTower.toast.newOrder')}: ${wo.id}`, 'info')
+    const newIds = notices.filter(n => n.kind === 'new').map(n => n.id)
+    if (newIds.length > MAX_NEW_ORDER_TOASTS) {
+      const shown = newIds.slice(0, MAX_NEW_ORDER_TOASTS).join(', ')
+      addToast(`📋 ${t('controlTower.toast.newOrder')}: ${shown} +${newIds.length - MAX_NEW_ORDER_TOASTS}`, 'info')
+    }
+    for (const n of notices) {
+      if (n.kind === 'completed') {
+        addToast(`✅ ${n.id} ${t('controlTower.toast.completed')}`, 'success', 6000)
+      } else if (n.kind === 'started') {
+        addToast(`🔄 ${n.id} ${t('controlTower.toast.started')}`, 'info')
+      } else if (n.kind === 'attention') {
+        addToast(`⚠️ ${n.id} → ${statusLabel(n.status)}`, 'warning')
+      } else if (newIds.length <= MAX_NEW_ORDER_TOASTS) {
+        addToast(`📋 ${t('controlTower.toast.newOrder')}: ${n.id}`, 'info')
       }
     }
-
-    const newMap = new Map<string, WorkOrderStatus>()
-    for (const wo of newOrders) newMap.set(wo.id, wo.status)
-    prevOrdersRef.current = newMap
   }, [addToast, t])
 
   // Load work orders from _ct-workorders/
   const loadWorkOrders = useCallback(async () => {
     if (!ctDirPath) return
+    const folder = workspaceFolderPath
+    const seq = ++orderLoadSeqRef.current
+    // A newer load already applied, or the workspace changed while reading (BUG-127)
+    const superseded = () => isStale(folder) || seq < appliedOrderLoadSeqRef.current
     setLoading(true)
     try {
       const entries = await window.electronAPI.fs.readdir(ctDirPath)
@@ -369,16 +454,22 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         return b.id.localeCompare(a.id, undefined, { numeric: true })
       })
 
-      detectStatusChanges(uniqueOrders)
+      if (superseded()) return
+      appliedOrderLoadSeqRef.current = seq
+      detectStatusChanges(ctDirPath, uniqueOrders)
       setWorkOrders(uniqueOrders)
       setHasCtDir(true)
     } catch {
+      if (superseded()) return
+      appliedOrderLoadSeqRef.current = seq
+      // No readable dir: the next successful load starts a fresh, silent baseline
+      orderBaselineRef.current = null
       setWorkOrders([])
       setHasCtDir(false)
     } finally {
-      setLoading(false)
+      if (!isStale(folder) && seq === orderLoadSeqRef.current) setLoading(false)
     }
-  }, [ctDirPath, detectStatusChanges])
+  }, [ctDirPath, workspaceFolderPath, isStale, detectStatusChanges])
 
   // Reload all CT data (used by auto-refresh and initial load)
   const reloadAll = useCallback(() => {

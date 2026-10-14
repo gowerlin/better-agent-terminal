@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-127
 title: "指揮塔面板：在兩個工作區之間切換時，右上角疊出一整排「新工單: T000x」toast（Gary 稱「殘影」），蓋住面板分頁與標題"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-10-14T13:19:21+0800"
-updated_at: "2026-10-14T13:19:21+0800"
+updated_at: "2026-10-14T13:27:16+0800"
+fixed_at: "2026-10-14T13:27:16+0800"
 impact:
   - control-tower-panel
   - ui-notification
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（誤導 + 遮擋面板；功能未壞） |
 | 可重現 | 推定必現（兩個工作區都有 `_ct-workorders/` 時） |
-| **狀態** | 🔧 FIXING（T0521） |
+| **狀態** | ✅ FIXED（T0521，待 mac 實機驗收） |
 | 回報者 | Gary（mac） |
 
 ## 現象
@@ -46,4 +47,11 @@ links:
 
 ## 根因與修正
 
-（T0521 回填）
+**根因（T0521 複核確認）**：右側邊欄的指揮塔面板是單一 instance（`src/App.tsx` `key={panel}`），切換工作區只換 `workspaceFolderPath`、不 remount。`prevOrdersRef` 只在 `size === 0` 時靜默建基準線、切換時不重設 ⇒ 新工作區的工單全被當成新工單 / 狀態變更。主窗格 docked 的面板每個工作區各一個 instance，不受影響。「殘影」來自 toast 背景 `rgba(..., 0.15)` 半透明，底下面板文字透出，9 則疊加後看起來像殘影；與 mac 合成層無關（可由截圖完整解釋，AI 無法實機驗證）。
+
+**修正（T0521）**：
+- `diffWorkOrders()`：基準線帶所屬 `_ct-workorders/` 路徑；載入目錄與基準線不同（首次、切換後）只靜默建基準線，同目錄才比對。切回工作區不補提示（取捨見 T0521 回報區）
+- 非同步競態：舊工作區晚到的載入結果整筆丟棄（所有 loader）；工單載入另以序號擋亂序
+- 切換工作區清除面板 toast；單次 > 3 張新工單合併為一則；面板最多同時 5 則
+- `.ct-toast-*` 背景改為 tint 疊在 `var(--bg-secondary)` 上的不透明底色
+- 驗證：`src/components/__tests__/control-tower-panel-toasts.test.tsx`（8 案）、`npm run typecheck` = 0、`npm run test:unit` 全綠、`npx vite build` exit 0
