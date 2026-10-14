@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127 FIXED（T0521）/ BUG-128 FIXED（T0522 `43c9073`）/ BUG-129 FIXED（T0523 `dcdfffe`）/ BUG-130 FIXED（T0524 `7ac0d0a`）/ BUG-131 FIXED（T0525 `d4ee455`）
+> 最後同步：2026-10-14 17:04 (UTC+8) — 第六十二 session：T0526 判定 BUG-129 = #11 → 開 BUG-132 FIXING（T0527）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 12 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 56**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 12 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 57**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-132 | agent CLI 沿用別的分頁的 `BAT_*` → 派工落點 / 完成通知送錯塔台（Gary Codex，T0526 判定 #11；T0527） | 🟡 medium | 2026-10-14 17:04 | [BUG-132](BUG-132-agent-cli-stale-bat-env-misroutes-dispatch.md) |
 
 ## ✅ 已修復
 

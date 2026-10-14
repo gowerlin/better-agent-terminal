@@ -1376,6 +1376,21 @@
 
 ---
 
+### D141 2026-10-14 — BUG-129 Gary 情境判定 #11 → 開 BUG-132；先做 cwd 一致性檢查（T0527，T0526 建議 [B]），PID 鏈根治入 backlog
+
+- **背景**：T0526 以 Gary 日誌判定 BUG-129 為 T0523 §1 #11：Gary 的 Codex 在 SCB 分頁看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 整天都是土銀塔台分頁的值（agent CLI 自行保存的環境），`--notify-id` 與 `--workspace` 都錯，pre.8 的「塔台終端優先」救不回；yolo 時 Worker 完成訊息會送進土銀塔台。開成 Claude 是另一個原因（當時全域 Settings 未存、工作區層級無 UI → PLAN-040）
+- **決定**（yolo 授權，塔台依 breakpoint C 裁決）：
+  - 開 **BUG-132**（#11）；BUG-129 維持 FIXED（BAT 端 #4 / #5 / #10 已在 pre.8 修），待 Gary pre.8 回饋後結案
+  - **T0527**：派工 cwd 與落點工作區 `folderPath` 一致性檢查。不一致 → 警告；**只有** yolo 且 cwd 明確屬於另一個工作區時拒派（cwd 不屬於任何工作區時不擋，保留跨專案派工）；併做 `--agent codex` 簡寫與未知 agent id 提示
+  - [A] PID 祖先鏈辨識呼叫者 PTY：backlog，#11 反覆發生或其他 agent CLI 出現同類情況時提高優先
+  - [C] codex-cli preset 關 shell snapshot：等 Gary 確認機制再評估
+  - T0527 併入下一批（與 PLAN-040 一起），不單獨發版（D139 / 整批再發）
+- **不採用**：yolo 下 cwd 不一致一律拒派（會誤擋跨專案派工）；直接做 [A]（Windows 取祖先鏈成本高、daemon 執行時鏈會斷，先用便宜檢核擋住實害）
+- **待辦**：control-tower skill `references/auto-session.md` 補「派工前核對 `$BAT_WORKSPACE_ID` 工作區是否涵蓋 cwd」屬 skill 上游修改，塔台不寫安裝版 skill，記入 backlog
+- **相關**：BUG-129 / BUG-132 / T0523 / T0526 / T0527 / PLAN-040 / D140
+
+---
+
 ### D140 2026-10-14 — `--agent default` 維持現有語意（落點工作區 defaultAgent → Settings defaultAgent → claude-code）；T0521-T0525 批次發 v0.6.0-pre.8
 
 - **背景**：BUG-129（Gary 的 Codex 塔台派工開成 Claude）。T0523 修正落點後，`default` 以落點工作區解析；Gary 的 SCB 工作區與全域推定未設 Codex，所以仍會開 Claude。T0523 §4 提出選項 B：工作區 / 全域都未設時改用塔台終端自己的 agent preset

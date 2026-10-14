@@ -7,7 +7,7 @@ status: FIXED
 severity: medium
 reproducibility: conditional
 created_at: "2026-10-14T13:31:24+0800"
-updated_at: "2026-10-14T17:02:37+0800"
+updated_at: "2026-10-14T17:04:00+0800"
 fixed_at: "2026-10-14T13:48:23+0800"
 impact:
   - control-tower
@@ -95,3 +95,9 @@ links:
 **殘留缺口**：Codex 內部是哪種機制（shell snapshot 或 resume 舊 thread）還沒確認；`1ba6042a` ∈ `faff6af2` 是推得的。給 Gary 的確認清單見 T0526 回報區「給 Gary 的補充要求」。
 
 `status` 維持 FIXED（結案與否由塔台決定）。
+
+## 塔台處置（D141，2026-10-14 17:04）
+
+- #11 另開 **BUG-132**（修正單 T0527：cwd 一致性檢查，yolo 且 cwd 明確屬於另一個工作區時拒派）
+- 本 BUG 維持 FIXED（BAT 端 #4 / #5 / #10 已於 pre.8 修正），待 Gary pre.8 回饋後結案
+- agent 開成 Claude：當時全域 Settings 未設、工作區層級無 UI → PLAN-040
