@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0531
 title: "空工作區主畫面殘留其他 / 已關閉終端畫面（BUG-134）：找根因並修正"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-134
 priority: P2
 sizing: M
 created_at: "2026-10-15T01:16:21+0800"
 started_at: "2026-10-15T01:17:39+0800"
-updated_at: "2026-10-15T01:17:39+0800"
-completed_at: null
+updated_at: "2026-10-15T01:27:22+0800"
+completed_at: "2026-10-15T01:27:22+0800"
 target_version: "0.6.0-pre.11"
 related:
   - BUG-134
@@ -143,4 +143,4 @@ memory_overrides:
 
 ### Commit
 
-（commit 後補）
+- `d41280ae` fix(workspace): T0531 keep hidden workspaces from showing through an empty one (BUG-134)（`--only`，未含 `src/styles/settings.css`；未 push）
