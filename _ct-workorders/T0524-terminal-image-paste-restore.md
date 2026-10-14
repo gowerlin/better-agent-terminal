@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0524
 title: "終端分頁貼圖修復：Windows 回歸 + mac 讓 claude CLI 能貼圖，同時保留標準複製貼上（BUG-130）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-130
 priority: P1
 sizing: S
 created_at: "2026-10-14T13:36:40+0800"
 started_at: "2026-10-14T13:37:57+0800"
-updated_at: "2026-10-14T13:37:57+0800"
-completed_at: null
+updated_at: "2026-10-14T13:57:37+0800"
+completed_at: "2026-10-14T13:57:37+0800"
 target_version: "0.6.0-pre.8"
 related:
   - BUG-130
@@ -169,4 +169,4 @@ T0522（`43c9073`）剛改過同一段：mac 的 Command+V / Ctrl+V / 右鍵 Pas
 
 ### 6. Commit
 
-- 見下方（`git commit --only` 只含本單檔案；未 push）
+- `7ac0d0a` fix(terminal): image paste sends the claude CLI key on every platform（`git commit --only` 本單 6 檔；未 push）。本 closeout（status DONE / completed_at）另 commit
