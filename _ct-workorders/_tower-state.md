@@ -117,7 +117,7 @@
 
 ### 編號起始
 - **T0526** / **BUG-132** / **PLAN-041** / **D141** / **EXP-[TOPIC]-001** / **L150**
-- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523 DONE（`dcdfffe`，BUG-129；Gary 情境推論為 Codex shell_snapshot 帶入舊 env，日誌待 Gary 確認）；T0525 DONE（`d4ee455`，BUG-131，unit 3642 / 216 files）；T0524 DONE（`7ac0d0a`，BUG-130；Windows 回歸本機未重現，加固 + `[terminal-paste]` log）；塔台聯合複驗 13:58 @ `b00c4f9` 全綠（typecheck 雙 0、build 0、unit 3642 / 216 files、e2e 6 passed）；CLAUDE.md 已補（T0523 / T0525）；**`v0.6.0-pre.8` 已發佈**（14:20）；D140 選 A；工作區層級預設 agent 無 UI → **PLAN-040**（PLANNED，排下一批）；BUG-127-131 待 Gary mac / 使用者實機；backlog：recovery 重建 T0108 重登記 PTY 的 `shellArgs` 為空；待使用者決策：`--agent default` 是否沿用塔台終端自己的 agent（T0523 §4）
+- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523 DONE（`dcdfffe`，BUG-129；Gary 情境推論為 Codex shell_snapshot 帶入舊 env，日誌待 Gary 確認）；T0525 DONE（`d4ee455`，BUG-131，unit 3642 / 216 files）；T0524 DONE（`7ac0d0a`，BUG-130；Windows 回歸本機未重現，加固 + `[terminal-paste]` log）；塔台聯合複驗 13:58 @ `b00c4f9` 全綠（typecheck 雙 0、build 0、unit 3642 / 216 files、e2e 6 passed）；CLAUDE.md 已補（T0523 / T0525）；**`v0.6.0-pre.8` 已發佈**（14:20）；D140 選 A；工作區層級預設 agent 無 UI → **PLAN-040**（PLANNED，排下一批）；BUG-127-131 待 Gary mac / 使用者實機；backlog：recovery 重建 T0108 重登記 PTY 的 `shellArgs` 為空
 
 ---
 
