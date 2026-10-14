@@ -40,10 +40,12 @@ interface PtyInstance {
    */
   awaitingCreated?: boolean
   /**
-   * T0448 (T0445 #4): the `customEnv` this process was spawned with. `restart` re-uses it when
-   * the host binds helper env to it (`deps.helperEnv`): a restarted worker keeps
-   * `BAT_TOWER_TERMINAL_ID`, so it is re-issued a worker capability for the same tower instead
-   * of being promoted to tower.
+   * T0448 (T0445 #4): the `customEnv` this process was spawned with. `restart` re-uses it: a
+   * restarted worker keeps `BAT_TOWER_TERMINAL_ID`, so headless re-issues it a worker capability
+   * for the same tower instead of promoting it to tower. T0525 (BUG-131): recorded on every
+   * spawn path (Terminal Server too) and re-used by Electron's restart and the Terminal Server
+   * recovery rebuild as well — workspace / global env vars and `CT_MODE` / `CT_INTERACTIVE`
+   * survive them.
    */
   customEnv?: Record<string, string>
   /**
@@ -51,6 +53,15 @@ interface PtyInstance {
    * passes it on; before T0523 a restarted PTY got `BAT_WORKSPACE_ID=''`.
    */
   workspaceId?: string
+  /** T0525 (BUG-131): the `agentPreset` it was created with (decides `claudeCliUpdateGuardEnv`). */
+  agentPreset?: string
+}
+
+/** T0525 (BUG-131): what a PTY's env is built from; recorded on the instance for rebuilds. */
+interface PtyEnvSpec {
+  customEnv: Record<string, string>
+  workspaceId?: string
+  agentPreset?: string
 }
 
 /**
@@ -256,6 +267,62 @@ export class PtyManager {
   /** BUG-102 (T0398): UTF-8 locale entries, spread after `customEnv`. */
   private localeEnv(customEnv: Record<string, string>): Record<string, string> {
     return resolvePtyLocaleEnv({ platform: process.platform, inheritedEnv: this.inheritedEnv(), customEnv })
+  }
+
+  /**
+   * T0525 (BUG-131): the env of PTY `id` — one builder for the first `pty:create` (all three
+   * spawn paths), `restart` and the Terminal Server recovery rebuild, so none of them drops part
+   * of it again. Helper values (`BAT_REMOTE_*` from `getRemoteServerInfo`, `localHelperEnv`,
+   * `helperEnv`) are read at call time, never copied from the previous process.
+   * `noFlicker: false` = the child_process fallback, which has never set CLAUDE_CODE_NO_FLICKER.
+   */
+  private buildPtyEnv(
+    id: string,
+    spec: PtyEnvSpec,
+    helperEnv: Record<string, string>,
+    { noFlicker = true }: { noFlicker?: boolean } = {},
+  ): Record<string, string> {
+    const { customEnv, workspaceId, agentPreset } = spec
+    // T0129: RemoteServer connection info so PTY children (CLI tools) can connect back via WebSocket
+    const remoteInfo = this.getRemoteServerInfo?.() ?? null
+    return {
+      ...this.inheritedEnv() as Record<string, string>,
+      ...customEnv,  // Merge custom environment variables
+      // UTF-8 encoding (BUG-102 / T0398: per-platform locale; customEnv LANG / LC_* win)
+      ...this.localeEnv(customEnv),
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8: '1',
+      // Terminal capabilities - let apps know we are a real PTY
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      TERM_PROGRAM: 'better-agent-terminal',
+      TERM_PROGRAM_VERSION: '1.0',
+      // BAT session identification (for Control Tower auto-session detection)
+      BAT_SESSION: '1',
+      // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
+      DISABLE_AUTOUPDATER: '1',
+      // T0372: embedded claude-cli preset only (DISABLE_UPDATES=1)
+      ...claudeCliUpdateGuardEnv(agentPreset),
+      // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
+      BAT_TERMINAL_ID: id,
+      // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
+      BAT_WORKSPACE_ID: workspaceId ?? '',
+      // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
+      // Dev: <project-root>/scripts, packaged: <install-root>/resources/scripts.
+      // T0481: + BAT_USER_DATA, overriding the one the Terminal Server inherited (stale once
+      // a long-lived server outlives a userData move).
+      ...this.localHelperEnv(),
+      // Force color output
+      FORCE_COLOR: '3',
+      // Suppress ED2-induced viewport flicker in Claude Code streaming
+      // (xterm.js issue #5801: ED2 inside DEC 2026 sync blocks resets viewportY)
+      ...(noFlicker ? { CLAUDE_CODE_NO_FLICKER: '1' } : {}),
+      // Ensure not detected as CI environment
+      CI: '',
+      ...(remoteInfo ? { BAT_REMOTE_PORT: String(remoteInfo.port), BAT_REMOTE_TOKEN: remoteInfo.token } : {}),
+      // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
+      ...helperEnv,
+    }
   }
 
   /** Inject Terminal Server IPC reference; enables proxy mode for all future PTY operations. */
@@ -641,7 +708,7 @@ export class PtyManager {
       logger.warn(`[PtyManager] pty:create REFUSED id=${id} — PTY limit reached (${this.instances.size}/${limit})`)
       throw new PtyLimitError(limit)
     }
-    const updateGuardEnv = claudeCliUpdateGuardEnv(agentPreset)
+    const envSpec: PtyEnvSpec = { customEnv, workspaceId, agentPreset }
 
     const shell = shellOverride || this.getDefaultShell()
     let args: string[] = []
@@ -666,45 +733,14 @@ export class PtyManager {
       // sending to server would overwrite the running PTY and clear its ring buffer.
       if (this.instances.has(id)) {
         logger.log(`[PtyManager] pty:create SKIP (idempotent) id=${id} — already registered`)
-        // T0523: a PTY re-registered from the server's list (T0108) does not know its workspace
+        // T0523: a PTY re-registered from the server's list (T0108) does not know its workspace.
+        // T0525: nor its customEnv / agentPreset — kept from the same re-create for a later
+        // restart / recovery. The running PTY itself is left untouched.
         const existing = this.instances.get(id)
         if (existing && !existing.workspaceId && workspaceId) existing.workspaceId = workspaceId
+        if (existing && !existing.customEnv && options.customEnv) existing.customEnv = { ...options.customEnv }
+        if (existing && !existing.agentPreset && agentPreset) existing.agentPreset = agentPreset
         return true
-      }
-      // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
-      const remoteInfo = this.getRemoteServerInfo?.() ?? null
-      const helperEnv = this.helperEnvFor(id, customEnv)
-      const envWithUtf8 = {
-        ...this.inheritedEnv() as Record<string, string>,
-        ...customEnv,
-        // BUG-102 (T0398): per-platform UTF-8 locale; customEnv LANG / LC_* win
-        ...this.localeEnv(customEnv),
-        PYTHONIOENCODING: 'utf-8',
-        PYTHONUTF8: '1',
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
-        TERM_PROGRAM: 'better-agent-terminal',
-        TERM_PROGRAM_VERSION: '1.0',
-        BAT_SESSION: '1',
-        // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
-        DISABLE_AUTOUPDATER: '1',
-        // T0372: embedded claude-cli preset only (DISABLE_UPDATES=1)
-        ...updateGuardEnv,
-        // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
-        BAT_TERMINAL_ID: id,
-        // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
-        BAT_WORKSPACE_ID: workspaceId ?? '',
-        // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs).
-        // Dev: <project-root>/scripts, packaged: <install-root>/resources/scripts.
-        // T0481: + BAT_USER_DATA, overriding the one the Terminal Server inherited (stale once
-        // a long-lived server outlives a userData move).
-        ...this.localHelperEnv(),
-        FORCE_COLOR: '3',
-        CLAUDE_CODE_NO_FLICKER: '1',
-        CI: '',
-        ...(remoteInfo ? { BAT_REMOTE_PORT: String(remoteInfo.port), BAT_REMOTE_TOKEN: remoteInfo.token } : {}),
-        // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
-        ...helperEnv,
       }
       this.sendToServer({
         type: 'pty:create',
@@ -714,10 +750,11 @@ export class PtyManager {
         cwd,
         cols: 120,
         rows: 30,
-        env: envWithUtf8,
+        env: this.buildPtyEnv(id, envSpec, this.helperEnvFor(id, customEnv)),
       })
-      // T0112: Store shell/args so handleServerDeath() can rebuild after crash
-      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true, workspaceId })
+      // T0112: Store shell/args so handleServerDeath() can rebuild after crash.
+      // T0525: + what the env was built from, so the rebuild can build it again.
+      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true, customEnv, workspaceId, agentPreset })
       logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
       return true
     }
@@ -737,45 +774,8 @@ export class PtyManager {
 
     if (ptyAvailable && pty) {
       try {
-        // Set UTF-8 and terminal environment variables, merge custom env
-        // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
-        const remoteInfoLocal = this.getRemoteServerInfo?.() ?? null
-        const envWithUtf8 = {
-          ...this.inheritedEnv(),
-          ...customEnv,  // Merge custom environment variables
-          // UTF-8 encoding (BUG-102 / T0398: per-platform locale; customEnv LANG / LC_* win)
-          ...this.localeEnv(customEnv),
-          PYTHONIOENCODING: 'utf-8',
-          PYTHONUTF8: '1',
-          // Terminal capabilities - let apps know we are a real PTY
-          TERM: 'xterm-256color',
-          COLORTERM: 'truecolor',
-          TERM_PROGRAM: 'better-agent-terminal',
-          TERM_PROGRAM_VERSION: '1.0',
-          // BAT session identification (for Control Tower auto-session detection)
-          BAT_SESSION: '1',
-          // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
-          DISABLE_AUTOUPDATER: '1',
-          // T0372: embedded claude-cli preset only (DISABLE_UPDATES=1)
-          ...updateGuardEnv,
-          // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
-          BAT_TERMINAL_ID: id,
-          // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
-          BAT_WORKSPACE_ID: workspaceId ?? '',
-          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs). T0481: + BAT_USER_DATA.
-          ...this.localHelperEnv(),
-          // Force color output
-          FORCE_COLOR: '3',
-          // Suppress ED2-induced viewport flicker in Claude Code streaming
-          // (xterm.js issue #5801: ED2 inside DEC 2026 sync blocks resets viewportY)
-          CLAUDE_CODE_NO_FLICKER: '1',
-          // Ensure not detected as CI environment
-          CI: '',
-          // T0129: RemoteServer connection info for CLI tools
-          ...(remoteInfoLocal ? { BAT_REMOTE_PORT: String(remoteInfoLocal.port), BAT_REMOTE_TOKEN: remoteInfoLocal.token } : {}),
-          // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
-          ...helperEnv,
-        }
+        // Set UTF-8 and terminal environment variables, merge custom env (T0525: buildPtyEnv)
+        const envWithUtf8 = this.buildPtyEnv(id, envSpec, helperEnv)
 
         // BUG-038: strip ELECTRON_RUN_AS_NODE so `npm run dev` / `npx electron .` inside BAT
         // terminals don't inherit Node-only mode from the Claude SDK fallback (claude-agent-manager.ts:511,1233).
@@ -797,7 +797,7 @@ export class PtyManager {
           this.handleDirectExit(id, ptyProcess, exitCode)
         })
 
-        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId })
+        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId, agentPreset })
         usedPty = true
         logger.log('Created terminal using node-pty')
       } catch (e) {
@@ -820,39 +820,7 @@ export class PtyManager {
         }
 
         // Set UTF-8 and terminal environment variables, merge custom env (child_process fallback)
-        // T0129: Inject RemoteServer port/token so PTY children can connect back via WebSocket
-        const remoteInfoFallback = this.getRemoteServerInfo?.() ?? null
-        const envWithUtf8 = {
-          ...this.inheritedEnv(),
-          ...customEnv,  // Merge custom environment variables
-          // UTF-8 encoding (BUG-102 / T0398: per-platform locale; customEnv LANG / LC_* win)
-          ...this.localeEnv(customEnv),
-          PYTHONIOENCODING: 'utf-8',
-          PYTHONUTF8: '1',
-          // Terminal capabilities (limited in child_process mode)
-          TERM: 'xterm-256color',
-          COLORTERM: 'truecolor',
-          TERM_PROGRAM: 'better-agent-terminal',
-          TERM_PROGRAM_VERSION: '1.0',
-          // BAT session identification (for Control Tower auto-session detection)
-          BAT_SESSION: '1',
-          // BUG-059: prevent embedded claude self-rename + global npm install which orphans app.asar.unpacked binary
-          DISABLE_AUTOUPDATER: '1',
-          // T0372: embedded claude-cli preset only (DISABLE_UPDATES=1)
-          ...updateGuardEnv,
-          // T0133: Each PTY knows its own terminal ID (for Worker→Tower auto-notify)
-          BAT_TERMINAL_ID: id,
-          // T0176: Each PTY knows its own workspace ID (for Worker cwd routing)
-          BAT_WORKSPACE_ID: workspaceId ?? '',
-          // T0140: Absolute path to helper scripts (bat-terminal.mjs, bat-notify.mjs). T0481: + BAT_USER_DATA.
-          ...this.localHelperEnv(),
-          FORCE_COLOR: '3',
-          CI: '',
-          // T0129: RemoteServer connection info for CLI tools
-          ...(remoteInfoFallback ? { BAT_REMOTE_PORT: String(remoteInfoFallback.port), BAT_REMOTE_TOKEN: remoteInfoFallback.token } : {}),
-          // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
-          ...helperEnv,
-        }
+        const envWithUtf8 = this.buildPtyEnv(id, envSpec, helperEnv, { noFlicker: false })
 
         // BUG-038: strip ELECTRON_RUN_AS_NODE (same rationale as node-pty branch above).
         delete (envWithUtf8 as Record<string, string | undefined>).ELECTRON_RUN_AS_NODE
@@ -885,7 +853,7 @@ export class PtyManager {
         // Send initial message
         this.broadcast('pty:output', id, `[Terminal - child_process mode]\r\n`)
 
-        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId })
+        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId, agentPreset })
         logger.log('Created terminal using child_process fallback')
       } catch (error) {
         logger.error('Failed to create terminal:', error)
@@ -1009,20 +977,27 @@ export class PtyManager {
   }
 
   /**
-   * Kill + create with the same id. T0448 (T0445 #4): with `deps.helperEnv` (headless) the new
-   * process gets the old one's `customEnv`, so its helper capability keeps the same role and
-   * tower binding (the kill revokes the old token; `helperEnv` issues the new one). Without it
-   * (Electron) the env is rebuilt from scratch, as before. T0523: both keep the workspace
-   * (`BAT_WORKSPACE_ID`).
+   * Kill + create with the same id. The new process gets the old one's `customEnv`, workspace
+   * (T0523, `BAT_WORKSPACE_ID`) and `agentPreset`; `create` builds the rest of the env anew
+   * (`buildPtyEnv`), so helper values are the current ones.
+   * T0448 (T0445 #4): headless — the restarted helper capability keeps the same role and tower
+   * binding (the kill revokes the old token; `helperEnv` issues the new one).
+   * T0525 (BUG-131): Electron too — before it the env was rebuilt without `customEnv`, losing
+   * workspace / global env vars and a Worker's `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE`.
    */
   restart(id: string, cwd: string, shell?: string): boolean {
     const instance = this.instances.get(id)
     if (instance) {
       const type = instance.type
-      const customEnv = this.deps.helperEnv && instance.customEnv ? { ...instance.customEnv } : undefined
-      const workspaceId = instance.workspaceId
+      const customEnv = instance.customEnv ? { ...instance.customEnv } : undefined
+      const { workspaceId, agentPreset } = instance
       this.kill(id)
-      return this.create({ id, cwd, type, shell, ...(customEnv ? { customEnv } : {}), ...(workspaceId ? { workspaceId } : {}) })
+      return this.create({
+        id, cwd, type, shell,
+        ...(customEnv ? { customEnv } : {}),
+        ...(workspaceId ? { workspaceId } : {}),
+        ...(agentPreset ? { agentPreset } : {}),
+      })
     }
     return false
   }
@@ -1135,12 +1110,21 @@ export class PtyManager {
       // setServerProcess also starts a new heartbeat
       this.setServerProcess(newServer)
 
-      // Rebuild all PTYs that were running before the crash
+      // Rebuild all PTYs that were running before the crash.
+      // T0525 (BUG-131): with the same env a first pty:create builds (before it: none, so the
+      // PTY got the new server's inherited env — BAT_* missing or stale, customEnv gone).
+      // Helper values are the current ones; customEnv / workspace / preset are the recorded ones.
       const oldInstances = new Map(this.instances)
       this.instances.clear()
       for (const [id, inst] of oldInstances) {
         const shell = inst.shell || this.getDefaultShell()
         const args = inst.shellArgs || []
+        const customEnv = inst.customEnv ?? {}
+        const env = this.buildPtyEnv(
+          id,
+          { customEnv, workspaceId: inst.workspaceId, agentPreset: inst.agentPreset },
+          this.helperEnvFor(id, customEnv),
+        )
         this.sendToServer({
           type: 'pty:create',
           id,
@@ -1149,6 +1133,7 @@ export class PtyManager {
           cwd: inst.cwd,
           cols: 120,
           rows: 30,
+          env,
         })
         this.instances.set(id, { ...inst, process: null })
       }

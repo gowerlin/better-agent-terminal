@@ -13,14 +13,17 @@
  *   all three env builders (Terminal Server, node-pty, child_process), overriding an inherited /
  *   client-supplied value; without `helperDir` (headless) it is not injected
  * - T0448 (T0445 #4): `restart` re-uses the old process's `customEnv` when `helperEnv` is set,
- *   so a restarted worker keeps its role / tower binding (old token revoked, new one issued);
- *   without `helperEnv` (Electron) restart still rebuilds the env without it
+ *   so a restarted worker keeps its role / tower binding (old token revoked, new one issued)
+ * - T0525 (BUG-131): Electron's `restart` keeps `customEnv` too, and the Terminal Server
+ *   recovery rebuild (T0112) sends the full env; both use the helper values current at rebuild
+ *   time (a changed server token is the new one)
  *
  * Same fake node-pty seeding as pty-manager-exit-hook.test.ts.
  */
 import type { ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import { createRequire } from 'module'
+import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -88,8 +91,8 @@ const spawnedEnv = (call = 0): Record<string, string> => ptySpawn.mock.calls[cal
 /** T0481: Terminal Server IPC stand-in (as in pty-manager-locale-env.test.ts). */
 class FakeServer extends EventEmitter {
   connected = true
-  sent: Array<{ type: string; env?: Record<string, string> }> = []
-  send = (msg: { type: string; env?: Record<string, string> }) => { this.sent.push(msg); return true }
+  sent: Array<{ type: string; id?: string; env?: Record<string, string> }> = []
+  send = (msg: { type: string; id?: string; env?: Record<string, string> }) => { this.sent.push(msg); return true }
 }
 
 /** T0481: Electron host deps — `helperDir` + `dataDir` = userData. */
@@ -265,16 +268,146 @@ describe('PtyManager helperEnv (T0433)', () => {
       expect(registry.size).toBe(1)
     })
 
-    it('without helperEnv (Electron) restart still rebuilds the env without the old customEnv', () => {
-      const manager = makeManager()
-      manager.create({ id: 'e-1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_TOWER_TERMINAL_ID: TOWER, FOO: 'bar' } })
-      expect(spawnedEnv(0)).toMatchObject({ BAT_TOWER_TERMINAL_ID: TOWER, FOO: 'bar' })
-      const inheritedTower = process.env.BAT_TOWER_TERMINAL_ID
-      expect(manager.restart('e-1', CWD, '/bin/sh')).toBe(true)
+  })
+
+  describe('rebuilds keep the full env (T0525 / BUG-131)', () => {
+    const WORKER_ENV = { BAT_TOWER_TERMINAL_ID: 'tower-1', CT_MODE: 'yolo', CT_INTERACTIVE: '0', FOO: 'bar' }
+    let dataDir: string
+
+    beforeEach(() => {
+      // handleServerDeath clears the PTY registry in dataDir: never let it touch a shared dir
+      dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 't0525-pty-'))
+    })
+
+    afterEach(() => {
+      fs.rmSync(dataDir, { recursive: true, force: true })
+    })
+
+    /** Electron host: helperDir + userData + a RemoteServer whose token can change. */
+    function electronManager(remote: { port: number; token: string }): PtyManagerType {
+      const manager = makeManager({ dataDir, helperDir: HELPER_DIR })
+      manager.getRemoteServerInfo = () => ({ ...remote })
+      return manager
+    }
+
+    const ptyCreates = (server: FakeServer) => server.sent.filter(msg => msg.type === 'pty:create')
+
+    it('node-pty (Electron): restart keeps customEnv + workspace; env equals the first one', () => {
+      const manager = electronManager({ port: 9876, token: 'token-1' })
+      manager.create({ id: 'r-1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: WORKER_ENV, workspaceId: 'workspace-b' })
+      expect(manager.restart('r-1', CWD, '/bin/sh')).toBe(true)
+      expect(spawnedEnv(1)).toMatchObject({ ...WORKER_ENV, BAT_WORKSPACE_ID: 'workspace-b', BAT_TERMINAL_ID: 'r-1' })
+      expect(spawnedEnv(1)).toEqual(spawnedEnv(0))
+    })
+
+    it('node-pty (Electron): restart uses the current server token / port, not the old ones', () => {
+      const remote = { port: 9876, token: 'token-1' }
+      const manager = electronManager(remote)
+      manager.create({ id: 'r-2', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: WORKER_ENV, workspaceId: 'workspace-b' })
+      remote.port = 9877
+      remote.token = 'token-2'
+      expect(manager.restart('r-2', CWD, '/bin/sh')).toBe(true)
       const env = spawnedEnv(1)
-      expect(env.FOO).toBeUndefined()
-      expect(env.BAT_TOWER_TERMINAL_ID).toBe(inheritedTower)
-      expect(env.BAT_TERMINAL_ID).toBe('e-1')
+      expect(env).toMatchObject({ BAT_REMOTE_PORT: '9877', BAT_REMOTE_TOKEN: 'token-2', BAT_HELPER_DIR: HELPER_DIR, BAT_USER_DATA: dataDir })
+      expect(Object.values(env)).not.toContain('token-1')
+      expect(env).toMatchObject(WORKER_ENV)
+    })
+
+    it('Terminal Server: restart re-sends pty:create with customEnv + workspace + current token', () => {
+      const remote = { port: 9876, token: 'token-1' }
+      const manager = electronManager(remote)
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      manager.create({ id: 'r-3', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: WORKER_ENV, workspaceId: 'workspace-b' })
+      remote.token = 'token-2'
+      expect(manager.restart('r-3', CWD, '/bin/sh')).toBe(true)
+      const [first, second] = ptyCreates(server)
+      expect(second.env).toMatchObject({ ...WORKER_ENV, BAT_WORKSPACE_ID: 'workspace-b', BAT_REMOTE_TOKEN: 'token-2' })
+      expect({ ...second.env, BAT_REMOTE_TOKEN: 'token-1' }).toEqual(first.env)
+    })
+
+    it('Terminal Server reconnect (T0108): the idempotent re-create supplies customEnv / preset for a later restart', () => {
+      const manager = electronManager({ port: 9876, token: 'token-1' })
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      ;(manager as unknown as { handleReplayList(p: Array<{ id: string; pid: number; cwd: string }>): void })
+        .handleReplayList([{ id: 'r-4', pid: 1, cwd: CWD }])
+      const opts = { id: 'r-4', cwd: CWD, type: 'terminal' as const, shell: '/bin/sh', customEnv: WORKER_ENV, workspaceId: 'workspace-b', agentPreset: 'claude-cli' }
+      // The running PTY is left alone (T0108 / T0111): nothing is sent
+      expect(manager.create(opts)).toBe(true)
+      expect(ptyCreates(server)).toEqual([])
+      expect(manager.restart('r-4', CWD, '/bin/sh')).toBe(true)
+      const fresh = makeManager({ dataDir, helperDir: HELPER_DIR })
+      fresh.getRemoteServerInfo = () => ({ port: 9876, token: 'token-1' })
+      const freshServer = new FakeServer()
+      fresh.setServerProcess(freshServer as unknown as ChildProcess)
+      fresh.create(opts)
+      expect(ptyCreates(server)[0].env).toEqual(ptyCreates(freshServer)[0].env)
+    })
+
+    /** Kill the fake Terminal Server; `onRequestNewServer` hands out `next`. Resolves after the rebuild. */
+    async function recover(manager: PtyManagerType, dead: FakeServer, next: FakeServer): Promise<void> {
+      manager.onRequestNewServer = async () => next as unknown as ChildProcess
+      dead.connected = false
+      await (manager as unknown as { handleServerDeath(): Promise<void> }).handleServerDeath()
+    }
+
+    it('recovery (T0112): every rebuilt pty:create carries the full env a first create builds', async () => {
+      const manager = electronManager({ port: 9876, token: 'token-1' })
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      manager.create({ id: 'v-1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: WORKER_ENV, workspaceId: 'workspace-b' })
+      manager.create({ id: 'v-2', cwd: CWD, type: 'terminal', shell: '/bin/sh', workspaceId: 'workspace-c', agentPreset: 'claude-cli' })
+      const firstEnvs = Object.fromEntries(ptyCreates(server).map(msg => [msg.id, msg.env]))
+
+      const next = new FakeServer()
+      await recover(manager, server, next)
+      const rebuilt = ptyCreates(next)
+      expect(rebuilt).toHaveLength(2)
+      for (const msg of rebuilt) {
+        const id = msg.id!
+        expect(msg.env).toEqual(firstEnvs[id])
+      }
+      const v1 = rebuilt.find(msg => msg.id === 'v-1')!.env!
+      expect(v1).toMatchObject({
+        ...WORKER_ENV, BAT_SESSION: '1', BAT_TERMINAL_ID: 'v-1', BAT_WORKSPACE_ID: 'workspace-b',
+        BAT_HELPER_DIR: HELPER_DIR, BAT_USER_DATA: dataDir, BAT_REMOTE_PORT: '9876', BAT_REMOTE_TOKEN: 'token-1',
+        DISABLE_AUTOUPDATER: '1',
+      })
+      // claude-cli preset: the rebuild applies the same update guard the first create did
+      const v2 = rebuilt.find(msg => msg.id === 'v-2')!.env!
+      // (no runtime-router data dir here → default `embedded` mode → DISABLE_UPDATES=1)
+      expect(firstEnvs['v-2']!.DISABLE_UPDATES).toBe('1')
+      expect(v2.DISABLE_UPDATES).toBe('1')
+      expect(v1.DISABLE_UPDATES).toBeUndefined()
+      expect(v2.BAT_WORKSPACE_ID).toBe('workspace-c')
+    })
+
+    it('recovery (T0112): uses the server token current at rebuild time', async () => {
+      const remote = { port: 9876, token: 'token-1' }
+      const manager = electronManager(remote)
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      manager.create({ id: 'v-3', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: WORKER_ENV, workspaceId: 'workspace-b' })
+      remote.port = 9877
+      remote.token = 'token-2'
+      const next = new FakeServer()
+      await recover(manager, server, next)
+      const env = ptyCreates(next)[0].env!
+      expect(env).toMatchObject({ ...WORKER_ENV, BAT_REMOTE_PORT: '9877', BAT_REMOTE_TOKEN: 'token-2' })
+      expect(Object.values(env)).not.toContain('token-1')
+    })
+
+    it('recovery (T0112): a PTY re-registered from the server list (T0108) rebuilds with what the renderer re-sent', async () => {
+      const manager = electronManager({ port: 9876, token: 'token-1' })
+      const server = new FakeServer()
+      manager.setServerProcess(server as unknown as ChildProcess)
+      ;(manager as unknown as { handleReplayList(p: Array<{ id: string; pid: number; cwd: string }>): void })
+        .handleReplayList([{ id: 'v-4', pid: 1, cwd: CWD }])
+      manager.create({ id: 'v-4', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: WORKER_ENV, workspaceId: 'workspace-b' })
+      const next = new FakeServer()
+      await recover(manager, server, next)
+      expect(ptyCreates(next)[0].env).toMatchObject({ ...WORKER_ENV, BAT_TERMINAL_ID: 'v-4', BAT_WORKSPACE_ID: 'workspace-b', BAT_REMOTE_TOKEN: 'token-1' })
     })
   })
 
