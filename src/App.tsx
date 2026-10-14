@@ -852,8 +852,8 @@ export default function App() {
           onExecWorkOrder={async (workOrderId: string) => {
             const terminal = workspaceStore.addTerminal(activeWorkspace.id)
             const settings = settingsStore.getSettings()
-            const runtime = resolveControlTowerAgentRuntime(activeWorkspace.defaultAgent || settings.defaultAgent)
-            const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+            const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(activeWorkspace.id).agent)
+            const ctArgs = workspaceStore.getEffectiveAgentArgs(activeWorkspace.id, runtime.argsPresetId)
             const command = buildControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs)
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
@@ -872,8 +872,8 @@ export default function App() {
           onDoneWorkOrder={async (workOrderId: string) => {
             const terminal = workspaceStore.addTerminal(activeWorkspace.id)
             const settings = settingsStore.getSettings()
-            const runtime = resolveControlTowerAgentRuntime(activeWorkspace.defaultAgent || settings.defaultAgent)
-            const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+            const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(activeWorkspace.id).agent)
+            const ctArgs = workspaceStore.getEffectiveAgentArgs(activeWorkspace.id, runtime.argsPresetId)
             const command = buildControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs)
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
@@ -935,9 +935,21 @@ export default function App() {
               isActive={true}
               isRemoteConnected={isRemoteConnected}
               onOpenSettings={() => setShowSettings(true)}
+              onOpenWorkspaceSettings={() => setEnvDialogWorkspaceId(ws.id)}
             />
           </div>
         </main>
+        {/* T0529 / D142: read-only — a detached window's workspace:save only merges its terminal list */}
+        {envDialogWorkspace && (
+          <WorkspaceEnvDialog
+            workspace={envDialogWorkspace}
+            readOnly
+            onAdd={() => {}}
+            onRemove={() => {}}
+            onUpdate={() => {}}
+            onClose={() => setEnvDialogWorkspaceId(null)}
+          />
+        )}
       </div>
     )
   }
@@ -1253,6 +1265,8 @@ export default function App() {
           onAdd={(envVar: EnvVariable) => workspaceStore.addWorkspaceEnvVar(envDialogWorkspaceId!, envVar)}
           onRemove={(key: string) => workspaceStore.removeWorkspaceEnvVar(envDialogWorkspaceId!, key)}
           onUpdate={(key: string, updates: Partial<EnvVariable>) => workspaceStore.updateWorkspaceEnvVar(envDialogWorkspaceId!, key, updates)}
+          onSetDefaultAgent={(agent) => workspaceStore.setWorkspaceDefaultAgent(envDialogWorkspaceId!, agent)}
+          onSetAgentArg={(presetId, args) => workspaceStore.setWorkspaceAgentCustomArg(envDialogWorkspaceId!, presetId, args)}
           onClose={() => setEnvDialogWorkspaceId(null)}
         />
       )}

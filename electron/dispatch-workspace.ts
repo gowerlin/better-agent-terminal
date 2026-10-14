@@ -163,6 +163,26 @@ export function resolveDispatchWorkspaceFromEntries(
   return { source: 'active', known: false, towerTerminalId, mismatch: false }
 }
 
+/**
+ * T0529 (PLAN-040): the agent fields of a workspace as the renderer last saved them, for
+ * `--agent` dispatch (default agent + launch args). Raw values — validated by
+ * `src/lib/agent-launch-settings.ts`. Null when the registry does not know the workspace.
+ */
+export function findWorkspaceAgentSettings(
+  entries: DispatchRegistryEntry[],
+  workspaceId: string | undefined,
+): { defaultAgent?: unknown; agentCustomArgs?: unknown } | null {
+  const id = nonEmpty(workspaceId)
+  if (!id) return null
+  for (const entry of entries) {
+    for (const raw of Array.isArray(entry.workspaces) ? entry.workspaces : []) {
+      const ws = asRecord(raw)
+      if (ws?.id === id) return { defaultAgent: ws.defaultAgent, agentCustomArgs: ws.agentCustomArgs }
+    }
+  }
+  return null
+}
+
 /** The resolution without a registry (headless bat-server): `--workspace` as given. */
 export function passThroughDispatchWorkspace(request: DispatchWorkspaceRequest): DispatchWorkspaceResolution {
   return resolveDispatchWorkspaceFromEntries([], request)

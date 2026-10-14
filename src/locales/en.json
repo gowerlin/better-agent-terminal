@@ -79,13 +79,13 @@
     "createAgentTerminalByDefault": "Create Agent Terminal by default",
     "createAgentTerminalHint": "When enabled, new workspaces will include an Agent Terminal.",
     "defaultAgent": "Default Agent",
-    "defaultAgentHint": "Used for new Agent terminals and Control Tower worker dispatch. If an integrated Claude Agent is selected, BAT workers automatically use the matching CLI.",
+    "defaultAgentHint": "Used for new Agent terminals and Control Tower worker dispatch. If an integrated Claude Agent is selected, BAT workers automatically use the matching CLI. Each workspace can override this in Workspace Settings (right-click the workspace).",
     "autoRunAgentCommand": "Auto-run agent command",
     "autoRunAgentCommandHint": "Automatically execute the agent command (e.g., `claude`) when creating an Agent Terminal.",
     "allowBypassPermissions": "Allow bypass permissions without confirmation",
     "allowBypassPermissionsHint": "When enabled, switching to bypassPermissions mode in Claude Agent Panel will not show a confirmation dialog. Use with caution.",
     "agentCustomArgs": "Agent Custom Arguments",
-    "agentCustomArgsHint": "Add custom CLI arguments for each agent. These are appended to the agent command when launching terminals or executing work orders.",
+    "agentCustomArgsHint": "Add custom CLI arguments for each agent. These are appended to the agent command when launching terminals or executing work orders. Each workspace can override them per agent in Workspace Settings.",
     "collapseToolOutputs": "Collapse all tool outputs by default",
     "collapseToolOutputsHint": "When enabled, all tool outputs are collapsed by default. Click to expand. Read-only tools (Read, Glob, Grep) are always collapsed regardless of this setting.",
     "promptClientPathHint": "Point out local paths in Claude prompts of remote windows",
@@ -242,7 +242,8 @@
     "unarchiveWorkspace": "Restore Workspace",
     "archived": "Archived",
     "collapseSidebar": "Collapse Sidebar",
-    "expandSidebar": "Expand Sidebar"
+    "expandSidebar": "Expand Sidebar",
+    "workspaceSettings": "Workspace Settings…"
   },
   "profiles": {
     "title": "Profiles",
@@ -467,6 +468,27 @@
     "duplicateKey": "Environment variable name already exists",
     "variableName": "Variable name",
     "value": "Value"
+  },
+  "workspaceSettings": {
+    "title": "Workspace Settings",
+    "agentSection": "Agent",
+    "defaultAgent": "Default Agent",
+    "followGlobal": "Follow global setting (currently {{agent}})",
+    "effectiveAgent": "In effect: {{agent}} — from {{source}}",
+    "launchArgs": "Agent launch arguments",
+    "launchArgsHint": "Tick “Override” to replace the global arguments of that agent in this workspace (an empty box means no arguments). Unticked rows follow Settings. Control Tower dispatch uses the Claude CLI / Codex CLI rows.",
+    "override": "Override",
+    "overrideHint": "Replace the global arguments of this agent in this workspace",
+    "emptyOverride": "(no arguments in this workspace)",
+    "globalNone": "(no global arguments)",
+    "noArgs": "(none)",
+    "effectiveArgs": "In effect: {{args}} — from {{source}}",
+    "source": {
+      "workspace": "this workspace",
+      "settings": "global Settings",
+      "builtin": "built-in default"
+    },
+    "detachedReadOnly": "This workspace is open in a detached window, so its settings are read-only here. Close this window to return the workspace to the main window, then change them there (right-click the workspace → Workspace Settings)."
   },
   "git": {
     "commits": "Commits",

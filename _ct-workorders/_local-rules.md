@@ -313,14 +313,20 @@ _ct-workorders/
 
 ### Agent 自訂參數自動套用
 
-T0128 實作了 Settings 中的 Agent 自訂參數（`agentCustomArgs`）。塔台派發時需套用：
+> 2026-10-14 T0529（PLAN-040 / D142）改寫：舊版寫「直接呼叫 `bat-terminal.mjs` 暫不支援、依賴 UI 按鈕」，與實況不符 —— agent 模式（`terminal:create-agent-command`）自 `3abfb98`（2026-04-25）起就會套用全域 `agentCustomArgs`；T0529 再加上工作區層級。
 
-```
-# 假設 claude-code preset 設定了 --dangerously-skip-permissions
-node "$BAT_HELPER_DIR/bat-terminal.mjs" claude "/ct-exec T####" --dangerously-skip-permissions
-```
+Agent 自訂參數有兩層（T0128 全域 + T0529 工作區）：Settings `agentCustomArgs`，以及工作區設定（工作區右鍵 → 工作區設定）以 preset 為單位的覆寫（有覆寫即整串取代全域，空字串 = 不帶參數）。預設 agent 同理：工作區 → Settings → `claude-code`（D140）。
 
-塔台不需手動拼接參數 — BAT UI 的按鈕已自動套用。但若塔台直接呼叫 `bat-terminal.mjs`，需自行從 Settings 讀取（目前暫不支援，依賴 UI 按鈕觸發）。
+**塔台不需手動拼接參數**：
+
+| 派工方式 | 套用的 agent / 參數 |
+|---|---|
+| BAT UI 按鈕（ct-exec / ct-done、新建 Agent 終端） | 該工作區的生效值 |
+| helper agent 模式 `bat-terminal.mjs --skill ct-exec --workorder T#### [--agent default\|<id>] …` | **落點工作區**（T0523：`--notify-id` 塔台終端所屬工作區優先）的生效值，與 UI 按鈕一致 |
+| helper raw command 模式 `bat-terminal.mjs claude "/ct-exec T####" …` | 不加任何參數（命令照原樣執行；遠端權杖也不允許此模式） |
+| 遠端 Tower（headless bat-server） | 只有 server 的 `<dataDir>/settings.json`，沒有工作區層級 |
+
+細節見 `CLAUDE.md`「工作區層級 Agent / 啟動參數」。
 
 ### 依賴的基礎設施
 
@@ -331,6 +337,7 @@ node "$BAT_HELPER_DIR/bat-terminal.mjs" claude "/ct-exec T####" --dangerously-sk
 | 外部終端 UI 同步 | T0130 | ✅ |
 | CLI helper (bat-terminal.mjs) | T0131 | ✅ |
 | Agent 自訂參數 | T0128 | ✅ |
+| 工作區層級 Agent / 啟動參數 | T0529 | ✅ |
 
 ---
 

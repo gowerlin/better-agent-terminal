@@ -79,13 +79,13 @@
     "createAgentTerminalByDefault": "預設建立 Agent 終端",
     "createAgentTerminalHint": "啟用後，新工作區將自動包含一個 Agent 終端。",
     "defaultAgent": "預設 Agent",
-    "defaultAgentHint": "用於新建 Agent 終端與 Control Tower Worker 派工。若選擇整合式 Claude Agent，BAT 內部 Worker 會自動改用對應 CLI。",
+    "defaultAgentHint": "用於新建 Agent 終端與 Control Tower Worker 派工。若選擇整合式 Claude Agent，BAT 內部 Worker 會自動改用對應 CLI。各工作區可在「工作區設定」（工作區右鍵選單）覆寫。",
     "autoRunAgentCommand": "自動執行 Agent 指令",
     "autoRunAgentCommandHint": "建立 Agent 終端時自動執行 Agent 指令（例如 `claude`）。",
     "allowBypassPermissions": "允許跳過權限確認",
     "allowBypassPermissionsHint": "啟用後，在 Claude Agent 面板中切換至 bypassPermissions 模式時不會顯示確認對話框。請謹慎使用。",
     "agentCustomArgs": "Agent 自訂參數",
-    "agentCustomArgsHint": "為每個 Agent 新增自訂 CLI 參數。這些參數會在啟動終端或執行工單時自動附加到 Agent 指令後方。",
+    "agentCustomArgsHint": "為每個 Agent 新增自訂 CLI 參數。這些參數會在啟動終端或執行工單時自動附加到 Agent 指令後方。各工作區可在「工作區設定」逐一覆寫。",
     "collapseToolOutputs": "預設折疊所有工具輸出",
     "collapseToolOutputsHint": "啟用後，所有工具輸出預設為折疊狀態，點擊可展開。唯讀工具（Read、Glob、Grep）不受此設定影響，一律折疊。",
     "promptClientPathHint": "遠端視窗的 Claude prompt 含本機路徑時提示",
@@ -242,7 +242,8 @@
     "unarchiveWorkspace": "恢復工作區",
     "archived": "已歸檔",
     "collapseSidebar": "收合側邊欄",
-    "expandSidebar": "展開側邊欄"
+    "expandSidebar": "展開側邊欄",
+    "workspaceSettings": "工作區設定…"
   },
   "profiles": {
     "title": "配置",
@@ -467,6 +468,27 @@
     "duplicateKey": "環境變數名稱已存在",
     "variableName": "變數名稱",
     "value": "值"
+  },
+  "workspaceSettings": {
+    "title": "工作區設定",
+    "agentSection": "Agent",
+    "defaultAgent": "預設 Agent",
+    "followGlobal": "跟隨全域設定（目前：{{agent}}）",
+    "effectiveAgent": "目前生效：{{agent}}（來源：{{source}}）",
+    "launchArgs": "Agent 啟動參數",
+    "launchArgsHint": "勾選「覆寫」後，此工作區改用這裡的參數，整串取代全域設定（留空 = 不帶任何參數）；未勾選的列跟隨全域 Settings。Control Tower 派工使用 Claude CLI / Codex CLI 兩列。",
+    "override": "覆寫",
+    "overrideHint": "在此工作區以這裡的參數取代全域參數",
+    "emptyOverride": "（此工作區不帶參數）",
+    "globalNone": "（全域未設定參數）",
+    "noArgs": "（無）",
+    "effectiveArgs": "目前生效：{{args}}（來源：{{source}}）",
+    "source": {
+      "workspace": "此工作區",
+      "settings": "全域設定",
+      "builtin": "內建預設"
+    },
+    "detachedReadOnly": "此工作區開在獨立視窗中，這裡只能檢視設定。請關閉此視窗讓工作區回到主視窗，再於主視窗修改（工作區右鍵 → 工作區設定）。"
   },
   "git": {
     "commits": "提交紀錄",

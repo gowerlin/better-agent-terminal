@@ -15,7 +15,8 @@ export interface Workspace {
   alias?: string;
   folderPath: string;
   createdAt: number;
-  defaultAgent?: AgentPresetId;  // Workspace 預設 Agent
+  defaultAgent?: AgentPresetId;  // Workspace 預設 Agent（未設定 = 跟隨全域 Settings，PLAN-040）
+  agentCustomArgs?: Record<string, string>;  // Workspace Agent 啟動參數覆寫（key = preset id；有 key 即整串取代全域，空字串 = 不帶參數；T0529）
   envVars?: EnvVariable[];       // Workspace 專屬環境變數
   group?: string;                // Workspace 分組
   color?: string;                // Workspace 顏色標籤

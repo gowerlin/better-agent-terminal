@@ -844,8 +844,10 @@ const electronAPI = {
       ipcRenderer.invoke('agent:list-definitions') as Promise<unknown[]>,
     getDefinition: (id: string) =>
       ipcRenderer.invoke('agent:get-definition', id) as Promise<unknown | null>,
-    buildLaunchCommand: (definitionId: string, options?: Record<string, string | boolean>) =>
-      ipcRenderer.invoke('agent:build-launch-command', definitionId, options) as Promise<string | null>,
+    // T0529: `extraArgs` = the effective custom args the renderer will append (workspace override
+    // or Settings); only used to skip flags the user already set. Omitted → persisted Settings.
+    buildLaunchCommand: (definitionId: string, options?: Record<string, string | boolean>, extraArgs?: string) =>
+      ipcRenderer.invoke('agent:build-launch-command', definitionId, options, extraArgs) as Promise<string | null>,
     registerCustomCli: (def: { id: string; name: string; icon: string; color: string; command: string; args?: string[]; supportsWorktree?: boolean; sandboxFlag?: string; yoloFlag?: string }) =>
       ipcRenderer.invoke('agent:register-custom-cli', def) as Promise<unknown>,
     removeCustomCli: (id: string) =>

@@ -132,6 +132,8 @@ interface WorkspaceViewProps {
   dockedPanels?: DockablePanel[]
   onDockPanel?: (panel: DockablePanel, zone: DockZone) => void
   onOpenSettings?: () => void
+  /** T0529: detached windows have no sidebar — open the (read-only) Workspace Settings from the tab bar. */
+  onOpenWorkspaceSettings?: () => void
 }
 
 // T0443 (BUG-110): restore-time pty:create. A remote window that is not connected
@@ -173,7 +175,7 @@ export function clearInitializedWorkspaces(): void {
   initializedWorkspaces.clear()
 }
 
-export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isRemoteConnected, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel, onOpenSettings }: Readonly<WorkspaceViewProps>) {
+export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActive, isRemoteConnected, isMaximized, onMaximizeToggle, dockedPanels, onDockPanel, onOpenSettings, onOpenWorkspaceSettings }: Readonly<WorkspaceViewProps>) {
   const { t } = useTranslation()
   // T0401: a remote window's bat-server has no codex — show those agents disabled with the reason.
   const remoteUnavailableAgents = Object.fromEntries(
@@ -479,9 +481,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           }
           // Auto-run agent command for non-Claude terminal-driven agents
           createPtyThenLaunch(createOpts, () => {
-            const extraArgs = settingsStore.getAgentCustomArgs(agentPreset)
+            const extraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, agentPreset)
             const appendArgs = (base: string) => extraArgs ? `${base} ${extraArgs}` : base
-            window.electronAPI.agent?.buildLaunchCommand(agentPreset).then((cmd: string | null) => {
+            window.electronAPI.agent?.buildLaunchCommand(agentPreset, undefined, extraArgs).then((cmd: string | null) => {
               if (cmd) {
                 noticeCodexDaemonRef.current(cmd)
                 setTimeout(() => {
@@ -516,7 +518,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         const terminalCount = settings.defaultTerminalCount || 1
         const createAgentTerminal = settings.createDefaultAgentTerminal === true
         const defaultAgent = createAgentTerminal
-          ? (workspace.defaultAgent || settings.defaultAgent || 'claude-code')
+          ? workspaceStore.getEffectiveDefaultAgent(workspace.id).agent
           : 'none'
 
         if (createAgentTerminal) {
@@ -534,9 +536,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
             })
             if (settings.agentAutoCommand) {
-              const defExtraArgs = settingsStore.getAgentCustomArgs(defaultAgent)
+              const defExtraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, defaultAgent)
               const defAppendArgs = (base: string) => defExtraArgs ? `${base} ${defExtraArgs}` : base
-              window.electronAPI.agent?.buildLaunchCommand(defaultAgent).then((cmd: string | null) => {
+              window.electronAPI.agent?.buildLaunchCommand(defaultAgent, undefined, defExtraArgs).then((cmd: string | null) => {
                 if (cmd) {
                   noticeCodexDaemonRef.current(cmd)
                   setTimeout(() => {
@@ -638,8 +640,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const handleExecWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
     const settings = settingsStore.getSettings()
-    const runtime = resolveControlTowerAgentRuntime(workspace.defaultAgent || settings.defaultAgent)
-    const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+    const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(workspace.id).agent)
+    const ctArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, runtime.argsPresetId)
     const command = buildControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs)
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
@@ -659,8 +661,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   const handleDoneWorkOrder = useCallback(async (workOrderId: string) => {
     const terminal = workspaceStore.addTerminal(workspace.id)
     const settings = settingsStore.getSettings()
-    const runtime = resolveControlTowerAgentRuntime(workspace.defaultAgent || settings.defaultAgent)
-    const ctArgs = settingsStore.getAgentCustomArgs(runtime.argsPresetId)
+    const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(workspace.id).agent)
+    const ctArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, runtime.argsPresetId)
     const command = buildControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs)
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
     await window.electronAPI.pty.createWithCommand({
@@ -718,7 +720,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     // 不 hardcode --continue / --dangerously-skip-permissions，使用者如需可從 Settings → agent custom args 自行加入。
     const cmdParts = [quoteCommandPath(cliPath, detectShellFamily(shell ?? ''))]
     const presetId = isWorktree ? 'claude-cli-worktree' : 'claude-cli'
-    const customArgs = settingsStore.getAgentCustomArgs(presetId)
+    const customArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, presetId)
     if (customArgs) {
       cmdParts.push(customArgs)
     }
@@ -838,10 +840,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     })
 
     // Auto-run agent command
-    const addExtraArgs = settingsStore.getAgentCustomArgs(definitionId)
+    const addExtraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, definitionId)
     const addAppendArgs = (base: string) => addExtraArgs ? `${base} ${addExtraArgs}` : base
     try {
-      const launchCmd = await window.electronAPI.agent.buildLaunchCommand(definitionId)
+      const launchCmd = await window.electronAPI.agent.buildLaunchCommand(definitionId, undefined, addExtraArgs)
       if (launchCmd) {
         noticeCodexDaemonRef.current(launchCmd)
         setTimeout(() => {
@@ -925,10 +927,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
         // Re-run agent command on restart for terminal-driven agents
         if (terminal.agentPreset && terminal.agentPreset !== 'none') {
-          const restartExtraArgs = settingsStore.getAgentCustomArgs(terminal.agentPreset)
+          const restartExtraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, terminal.agentPreset)
           const restartAppendArgs = (base: string) => restartExtraArgs ? `${base} ${restartExtraArgs}` : base
           try {
-            const launchCmd = await window.electronAPI.agent.buildLaunchCommand(terminal.agentPreset)
+            const launchCmd = await window.electronAPI.agent.buildLaunchCommand(terminal.agentPreset, undefined, restartExtraArgs)
             if (launchCmd) {
               noticeCodexDaemonRef.current(launchCmd)
               setTimeout(() => {
@@ -1182,6 +1184,19 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           </button>
         ))}
         <div className="workspace-tab-spacer" />
+        {onOpenWorkspaceSettings && (
+          <button
+            className="workspace-tab-action"
+            onClick={onOpenWorkspaceSettings}
+            title={t('workspaceSettings.title')}
+            data-testid="open-workspace-settings"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+            </svg>
+          </button>
+        )}
         {isSplit && (
           <button
             className="workspace-tab-action active"

@@ -1,5 +1,11 @@
 import { resolvePersistedShellPathWithDiagnostics, type PersistedShellSettings } from './shell-path-resolver'
 import { detectShellFamily, quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
+import {
+  resolveEffectiveAgentArgs,
+  resolveEffectiveDefaultAgent,
+  type AgentLaunchSource,
+  type WorkspaceAgentLaunchFields,
+} from '../src/lib/agent-launch-settings'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import {
   passThroughDispatchWorkspace,
@@ -148,6 +154,11 @@ export interface BuiltAgentCommand {
    * workspace's defaultAgent), `settings` (settings.defaultAgent) or `builtin` (claude-code).
    */
   agentSource?: 'explicit' | 'workspace' | 'settings' | 'builtin'
+  /**
+   * T0529: where the appended custom args came from — `workspace` (the landing workspace's
+   * agentCustomArgs override), `settings` (settings.agentCustomArgs) or `builtin` (none).
+   */
+  argsSource?: AgentLaunchSource
 }
 
 export interface TerminalCommandHandlerDeps {
@@ -587,7 +598,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       })
     }
 
-    deps.logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId} source=${resolved.agentSource ?? 'n/a'} workspace=${describeWorkspace(landing)} workspaceSource=${landing.source}`)
+    deps.logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId} source=${resolved.agentSource ?? 'n/a'} workspace=${describeWorkspace(landing)} workspaceSource=${landing.source} argsSource=${resolved.argsSource ?? 'n/a'}`)
     const commandOptions: TerminalCommandOptions = {
       id: opts.id,
       cwd: opts.cwd,
@@ -635,14 +646,18 @@ export interface AgentCommandSettings {
 
 /**
  * Host-specific inputs of `buildAgentPromptCommand`.
- *   - Electron: `<userData>/settings.json`, the workspace's `defaultAgent` from the
- *     window registry, and the Windows elevation probe (T0377).
- *   - headless: `<dataDir>/settings.json`, no workspace default agent (the client's
+ *   - Electron: `<userData>/settings.json`, the workspace's `defaultAgent` / `agentCustomArgs`
+ *     from the window registry (T0529), and the Windows elevation probe (T0377).
+ *   - headless: `<dataDir>/settings.json`, no workspace settings (the client's
  *     window registry is not on the server), no elevation.
  */
 export interface AgentPromptCommandDeps {
   readSettings(): AgentCommandSettings | null
-  resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<string | null>
+  /**
+   * T0529: the landing workspace's agent fields (`defaultAgent`, `agentCustomArgs`), or null
+   * (no workspace id / not found). Replaces T0523's `resolveWorkspaceDefaultAgent`.
+   */
+  resolveWorkspaceAgentSettings(workspaceId?: string): Promise<WorkspaceAgentLaunchFields | null>
   /** Resolves once `agentRegistry.setElevated` has been applied (codex-cli launch args). */
   ensureElevationApplied(): Promise<void>
   /** Default: `agentRegistry.buildLaunchCommand(agentId, undefined, extraArgs)`. */
@@ -703,17 +718,16 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
 
   return async (opts) => {
     const settings = deps.readSettings()
-    const workspaceAgent = opts.agent && opts.agent !== 'default'
-      ? null
-      : await deps.resolveWorkspaceDefaultAgent(opts.workspaceId)
-    const requestedAgent = opts.agent && opts.agent !== 'default'
-      ? opts.agent
-      : (workspaceAgent || settings?.defaultAgent || 'claude-code')
-    const agentSource: BuiltAgentCommand['agentSource'] = opts.agent && opts.agent !== 'default'
-      ? 'explicit'
-      : workspaceAgent ? 'workspace' : settings?.defaultAgent ? 'settings' : 'builtin'
+    // T0529 / D142: the landing workspace supplies both the default agent (D140 order:
+    // workspace → Settings → claude-code) and the custom args — for `--agent <id>` as well.
+    const workspace = await deps.resolveWorkspaceAgentSettings(opts.workspaceId)
+    const explicitAgent = opts.agent && opts.agent !== 'default' ? opts.agent : null
+    const defaultAgent = resolveEffectiveDefaultAgent(workspace, settings)
+    const requestedAgent = explicitAgent ?? defaultAgent.agent
+    const agentSource: BuiltAgentCommand['agentSource'] = explicitAgent ? 'explicit' : defaultAgent.source
     const agentId = toTerminalDrivenAgentId(requestedAgent)
-    const extraArgs = settings?.agentCustomArgs?.[agentId] || settings?.agentCustomArgs?.[requestedAgent] || ''
+    const effectiveArgs = resolveEffectiveAgentArgs(workspace, settings, [agentId, requestedAgent])
+    const extraArgs = effectiveArgs.args
 
     await deps.ensureElevationApplied()
     let baseCommand = buildLaunchCommand(agentId, extraArgs)
@@ -749,6 +763,7 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
       prompt: normalized.prompt,
       prefixNormalized: normalized.normalized,
       agentSource,
+      argsSource: effectiveArgs.source,
     }
   }
 }

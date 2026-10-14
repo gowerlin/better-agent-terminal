@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-040
 title: 工作區層級預設 Agent ＋ Agent 啟動參數設定（補上 `Workspace.defaultAgent` 的設定入口，新增工作區 `agentCustomArgs` 覆寫）
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-10-14T14:23:48+0800"
-updated_at: "2026-10-14T17:50:29+0800"
+updated_at: "2026-10-14T18:06:22+0800"
 target_batch: "0.6.0-pre.10"
 workorders: [T0529]
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-040 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（2026-10-14 17:50 派 T0529；使用者決定範圍擴大納入啟動參數、現在開工，D142） |
+| 狀態 | ✅ DONE（2026-10-14 18:06 T0529 實作完成；實機驗收隨 0.6.0-pre.10。17:50 派 T0529，使用者決定範圍擴大納入啟動參數，D142） |
 | 來源 | BUG-129 / D140 更正：使用者指出「目前預設 Agent 只有全域設定，沒有可針對個別工作區」 |
 
 ## 背景與動機
@@ -47,6 +47,17 @@ links:
 - 外部 helper `--agent` 派工套用落點工作區的生效參數（與 UI 按鈕一致）；raw command 模式不加
 - detached 視窗設定入口只讀（第 4 點持久化邊界的決定）
 - 實作工單：**T0529**
+
+## 實作（T0529，2026-10-14）
+
+- 解析集中於 `src/lib/agent-launch-settings.ts`（`resolveEffectiveDefaultAgent` / `resolveEffectiveAgentArgs`），renderer 與 main（`electron/terminal-command-handlers.ts`）共用同一份
+- 設定入口：工作區右鍵 →「工作區設定…」（`WorkspaceEnvDialog.tsx` 改為工作區設定，環境變數成為其中一區）：預設 Agent 下拉（跟隨全域（目前：X）+ preset）、各 preset「覆寫」勾選 + 參數欄（未勾選顯示全域值唯讀）、目前生效值與來源（此工作區 / 全域設定 / 內建預設）；Settings 兩處提示補「可在工作區設定覆寫」；三語
+- store：`setWorkspaceDefaultAgent` / `setWorkspaceAgentCustomArg`（每次變更立即 save）+ `getEffectiveDefaultAgent` / `getEffectiveAgentArgs`
+- consumer：`App.tsx` CT 按鈕、`WorkspaceView.tsx` 全部 Agent 啟動點；`agent:build-launch-command` 帶生效參數；helper `--agent` 派工（含 `default` 與指定 id）以落點工作區解析，raw command 模式不變
+- 查證：helper agent 模式自 `3abfb98`（2026-04-25）起即套用全域 `agentCustomArgs`，`_local-rules.md` 舊記載「暫不支援」有誤，已更正
+- 持久化邊界（第 4 點）：detached 視窗只讀（分頁列齒輪按鈕開唯讀對話框）；主視窗 sidebar 不列 detached 工作區，detach 期間無法修改；profile / 匯出入沿用整個工作區物件，不另處理
+- 遠端 headless 不做（server 只讀 `<dataDir>/settings.json`）；遠端視窗的 UI 按鈕在 client 端算生效值，照樣生效
+- 文件：CLAUDE.md「工作區層級 Agent / 啟動參數」、`_local-rules.md`「Agent 自訂參數自動套用」
 
 ## 不在範圍
 

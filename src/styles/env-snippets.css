@@ -606,3 +606,110 @@
   margin: 0 0 16px 0;
   line-height: 1.5;
 }
+
+/* Workspace Settings dialog (PLAN-040 / T0529) */
+.workspace-settings-dialog {
+  width: 640px;
+  max-width: calc(100vw - 32px);
+}
+
+.workspace-settings-section + .workspace-settings-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.workspace-settings-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.workspace-settings-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 6px 0;
+}
+
+.workspace-settings-section select {
+  width: 100%;
+  font-size: 12px;
+}
+
+.workspace-settings-effective {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 6px 0 16px 0;
+}
+
+.workspace-settings-readonly {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+  padding: 8px 10px;
+  border-radius: 4px;
+  color: var(--warning-color, #e8a838);
+  background: rgba(232, 168, 56, 0.1);
+  border: 1px solid rgba(232, 168, 56, 0.3);
+}
+
+.workspace-args-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-args-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-args-name {
+  min-width: 140px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.workspace-args-override {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.workspace-args-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.workspace-args-input.inherited {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.workspace-args-source {
+  min-width: 64px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.workspace-args-source.source-workspace {
+  color: var(--accent-color);
+}
+
+.workspace-env-readonly {
+  font-size: 12px;
+  padding: 4px 0;
+  word-break: break-all;
+}
+
+.workspace-env-readonly.disabled {
+  opacity: 0.5;
+  text-decoration: line-through;
+}

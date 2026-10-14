@@ -48,6 +48,18 @@
 - **quit 對話框與再 detach（T0508）**：detached 關窗 flush 只在 quit flush **已開始**後跳過（`quitFlushStarted`，`before-quit` 確認對話框之後才設；quit flush 已對全部視窗含 detached flush，每個 renderer 各等自己的 ack，各 2 s），所以對話框開著時關窗照常 flush，取消 quit 不會遺失。quit flush 與關窗 flush 共用 `createRendererFlusher`（`electron/renderer-flush.ts`），同一 renderer 同時只有一個 flush，確認 quit 時會併入進行中的關窗 flush，不重送。`workspace:detach` 遇到同 workspace 的視窗還在關閉（flush 中，或已 `closed` 但 `workspace:reattached` 尚未送出，`DetachedTeardowns`）時，會等它結束再開新視窗，不會 focus 正在關閉的視窗；🔴 等待迴圈最後一次檢查到 `detachedWindows.set()` 之間不得有 await。
 - 驗證：`electron/__tests__/window-registry-detached-terminals.test.ts`、`electron/__tests__/renderer-flush.test.ts`、`electron/__tests__/detached-workspace-persistence.test.ts`（T0508 source guard）、`src/stores/__tests__/workspace-store.adoptDetached.test.ts`、`src/stores/__tests__/workspace-store.flushSave.test.ts`；e2e `e2e/detached-terminal-persistence.spec.ts`、`e2e/detached-flush-on-close.spec.ts`、`e2e/detached-close-edges.spec.ts`（需先 `npx vite build`）。
 
+## 工作區層級 Agent / 啟動參數（PLAN-040 / T0529，D142）
+
+- **資料**：`Workspace.defaultAgent` / `Workspace.agentCustomArgs?: Record<presetId, string>`（`src/types/index.ts`），隨工作區物件整個存進 window registry。設定入口：工作區右鍵 →「工作區設定…」（`src/components/WorkspaceEnvDialog.tsx`，環境變數為其中一區）；store `setWorkspaceDefaultAgent(id, agent | undefined)` / `setWorkspaceAgentCustomArg(id, presetId, args | undefined)`，每次變更立即 `save()`，main 下一次讀 registry 即看得到。下拉與參數列沿用 Settings 的 `getVisiblePresets()`（不含自訂 CLI，與 Settings 一致）。
+- **查找順序**（唯一實作 `src/lib/agent-launch-settings.ts`，renderer 與 main 共用，不要在 consumer 內聯）：
+  - 預設 agent：工作區 `defaultAgent` → Settings `defaultAgent` → `claude-code`（D140，不得改成沿用塔台自己的 agent）
+  - 啟動參數以 preset 為單位：工作區 `agentCustomArgs` **有** key（含空字串）→ 整串取代全域，不串接；空字串 = 此工作區不帶參數；**沒有** key → Settings `agentCustomArgs[preset]`。helper 以 `[terminal-driven id, 指定 id]` 兩個候選查（例 `claude-code` → `claude-cli`），工作區層全部候選先於全域層
+- **consumer**：`App.tsx` CT 派工按鈕、`WorkspaceView.tsx`（新建 / 還原 / 重啟 Agent 終端、claude-cli、CT 派工）一律經 `workspaceStore.getEffectiveDefaultAgent()` / `getEffectiveAgentArgs()`（讀最新 state，避開 memo 過的 closure）。🔴 不要再直接用 `settingsStore.getAgentCustomArgs` 或 `workspace.defaultAgent || settings.defaultAgent`（`src/components/__tests__/workspace-settings-dialog.test.tsx` source guard）。`agent:build-launch-command` 第三參數帶生效參數（只供 codex daemon opt-out 去重，T0377），未帶時退回 Settings。
+- **helper 派工**：`terminal:create-agent-command`（`--agent default` 與 `--agent <id>`）套用落點工作區（T0523 規則）的生效參數，與 UI 按鈕一致；主行程日誌 `[agent-command] resolved … argsSource=workspace|settings|builtin`。raw command 模式（`bat-terminal.mjs codex …` = `terminal:create-with-command`）不加參數。T0529 前 helper 已會套全域 `agentCustomArgs`，只是不看工作區。main 讀工作區欄位：`findWorkspaceAgentSettings`（`electron/dispatch-workspace.ts`）。
+- **detached 視窗**：設定入口唯讀（分頁列齒輪按鈕 → 唯讀工作區設定，提示回主視窗修改），因為 detached 的 `workspace:save` 只合併終端清單（見上節，`saveDetachedWorkspaceTerminals` 語意不變）。主視窗 sidebar 不列 detached 中的工作區，所以 detach 期間兩邊都改不了；detached 視窗開啟時讀父 entry，值與 detach 當下一致，派工 / 新建終端讀得到。
+- **遠端**：遠端視窗的 UI consumer 在 client 端算生效值（工作區存在 client 的 registry），照樣生效；遠端 Tower 經 headless bat-server 的 helper 派工**沒有**工作區層級（server 只讀 `<dataDir>/settings.json`，`resolveWorkspaceAgentSettings: async () => null`）。
+- 驗證：`src/lib/__tests__/agent-launch-settings.test.ts`、`src/stores/__tests__/workspace-store.agentSettings.test.ts`、`src/components/__tests__/workspace-settings-dialog.test.tsx`、`electron/__tests__/workspace-agent-launch-dispatch.test.ts`；e2e `e2e/t0529-workspace-agent-launch.spec.ts`（隔離實例，自訂 CLI 跑 node 腳本記錄 argv，不耗 token；需先 `npx vite build`）。
+
 ## Child Process Spawning
 
 新增涉及 child_process 的程式碼（特別是 IPC handler / wizard step / shell 互動）：

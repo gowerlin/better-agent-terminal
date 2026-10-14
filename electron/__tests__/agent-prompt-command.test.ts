@@ -44,11 +44,12 @@ function legacyNormalizeControlTowerPromptForAgent(agentId: string, prompt: stri
   }
   return { prompt: `$${prompt.slice(1)}`, normalized: true }
 }
-async function legacyBuildAgentPromptCommand(deps: Required<AgentPromptCommandDeps>, opts: AgentPromptCommandOptions): Promise<BuiltAgentCommand | null> {
+// T0529: the pre-T0431 `resolveWorkspaceDefaultAgent` dep is now the `workspaceAgents` lookup.
+async function legacyBuildAgentPromptCommand(deps: Required<AgentPromptCommandDeps>, opts: AgentPromptCommandOptions, workspaceAgents: Record<string, string>): Promise<BuiltAgentCommand | null> {
   const settings = deps.readSettings()
   const workspaceAgent = opts.agent && opts.agent !== 'default'
     ? null
-    : await deps.resolveWorkspaceDefaultAgent(opts.workspaceId)
+    : ((opts.workspaceId && workspaceAgents[opts.workspaceId]) || null)
   const requestedAgent = opts.agent && opts.agent !== 'default'
     ? opts.agent
     : (workspaceAgent || settings?.defaultAgent || 'claude-code')
@@ -89,7 +90,7 @@ async function legacyBuildAgentPromptCommand(deps: Required<AgentPromptCommandDe
 function electronLikeDeps(settings: AgentCommandSettings | null, workspaceAgents: Record<string, string> = {}): Required<AgentPromptCommandDeps> {
   return {
     readSettings: () => settings,
-    resolveWorkspaceDefaultAgent: async (workspaceId) => (workspaceId && workspaceAgents[workspaceId]) || null,
+    resolveWorkspaceAgentSettings: async (workspaceId) => (workspaceId && workspaceAgents[workspaceId]) ? { defaultAgent: workspaceAgents[workspaceId] } : null,
     ensureElevationApplied: async () => {},
     buildLaunchCommand: (agentId, extraArgs) => agentRegistry.buildLaunchCommand(agentId, undefined, extraArgs),
     resolveClaudeBaseCommand: async () => CLAUDE_BASE,
@@ -123,13 +124,14 @@ const OPTS_MATRIX: AgentPromptCommandOptions[] = [
 describe('createAgentPromptCommandBuilder — Electron output unchanged (T0431)', () => {
   for (const [label, settings] of SETTINGS_MATRIX) {
     it(`matches the pre-T0431 main.ts implementation: ${label}`, async () => {
-      const deps = electronLikeDeps(settings, { 'ws-codex': 'codex-agent' })
+      const workspaceAgents = { 'ws-codex': 'codex-agent' }
+      const deps = electronLikeDeps(settings, workspaceAgents)
       const build = createAgentPromptCommandBuilder(deps)
       for (const opts of OPTS_MATRIX) {
-        // T0523: `agentSource` is new (observability only); everything else is unchanged.
+        // T0523 `agentSource` / T0529 `argsSource` are new (observability only); everything else is unchanged.
         const built = await build(opts)
-        const { agentSource: _agentSource, ...rest } = built ?? { agentSource: undefined }
-        expect(built ? rest : null, JSON.stringify(opts)).toEqual(await legacyBuildAgentPromptCommand(deps, opts))
+        const { agentSource: _agentSource, argsSource: _argsSource, ...rest } = built ?? { agentSource: undefined, argsSource: undefined }
+        expect(built ? rest : null, JSON.stringify(opts)).toEqual(await legacyBuildAgentPromptCommand(deps, opts, workspaceAgents))
       }
     })
   }
@@ -172,7 +174,7 @@ describe('createAgentPromptCommandBuilder — Electron output unchanged (T0431)'
   it('defaults: real agentRegistry launch command (codex-cli → codex)', async () => {
     const build = createAgentPromptCommandBuilder({
       readSettings: () => null,
-      resolveWorkspaceDefaultAgent: async () => null,
+      resolveWorkspaceAgentSettings: async () => null,
       ensureElevationApplied: async () => {},
       logger: { warn: () => {} },
     })
@@ -188,7 +190,7 @@ describe('headless agent command inputs (T0431)', () => {
         agentCustomArgs: { 'claude-cli': '--dangerously-skip-permissions', broken: 42 },
         shell: 'auto',
       }),
-      resolveWorkspaceDefaultAgent: async () => null,
+      resolveWorkspaceAgentSettings: async () => null,
       ensureElevationApplied: async () => {},
       resolveClaudeBaseCommand: async () => '/opt/bat/node_modules/@anthropic-ai/claude-code/bin/claude',
       logger: { warn: () => {} },

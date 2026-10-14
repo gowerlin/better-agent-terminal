@@ -268,7 +268,7 @@ interface ElectronAPI {
   agent: {
     listDefinitions: () => Promise<import('./agent-runtime').AgentDefinition[]>
     getDefinition: (id: string) => Promise<import('./agent-runtime').AgentDefinition | null>
-    buildLaunchCommand: (definitionId: string, options?: Record<string, string | boolean>) => Promise<string | null>
+    buildLaunchCommand: (definitionId: string, options?: Record<string, string | boolean>, extraArgs?: string) => Promise<string | null>
     registerCustomCli: (def: import('./agent-runtime').CustomCliDefinition) => Promise<import('./agent-runtime').AgentDefinition>
     removeCustomCli: (id: string) => Promise<boolean>
     listCustomClis: () => Promise<import('./agent-runtime').CustomCliDefinition[]>

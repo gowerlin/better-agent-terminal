@@ -4,6 +4,7 @@ import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { normalizeAgentParams } from '../types/agent-profiles'
 import { isIntegrated } from '../types/agent-runtime'
 import { requestPtyReplay } from '../lib/pty-replay'
+import { resolveEffectiveAgentArgs, resolveEffectiveDefaultAgent, type EffectiveDefaultAgent } from '../lib/agent-launch-settings'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { settingsStore } from './settings-store'
 
@@ -229,6 +230,54 @@ class WorkspaceStore {
     }
     this.notify()
     this.save()
+  }
+
+  // PLAN-040 / T0529: workspace default agent; undefined = follow the global Settings value.
+  setWorkspaceDefaultAgent(id: string, agent: AgentPresetId | undefined): void {
+    this.state = {
+      ...this.state,
+      workspaces: this.state.workspaces.map(w => {
+        if (w.id !== id) return w
+        const next = { ...w }
+        if (agent) next.defaultAgent = agent
+        else delete next.defaultAgent
+        return next
+      })
+    }
+    this.notify()
+    this.save()
+  }
+
+  // T0529: per-preset launch args override. A string (empty included) replaces the global
+  // args of that preset; undefined removes the override (follow Settings again).
+  setWorkspaceAgentCustomArg(id: string, presetId: string, args: string | undefined): void {
+    this.state = {
+      ...this.state,
+      workspaces: this.state.workspaces.map(w => {
+        if (w.id !== id) return w
+        const updated = { ...(w.agentCustomArgs || {}) }
+        if (args === undefined) delete updated[presetId]
+        else updated[presetId] = args
+        const next = { ...w }
+        if (Object.keys(updated).length > 0) next.agentCustomArgs = updated
+        else delete next.agentCustomArgs
+        return next
+      })
+    }
+    this.notify()
+    this.save()
+  }
+
+  // T0529: effective values read from the latest store state (not a render-time snapshot),
+  // so callbacks memoized before a settings change still launch with the current values.
+  getEffectiveDefaultAgent(workspaceId: string): EffectiveDefaultAgent {
+    const workspace = this.state.workspaces.find(w => w.id === workspaceId)
+    return resolveEffectiveDefaultAgent(workspace, settingsStore.getSettings())
+  }
+
+  getEffectiveAgentArgs(workspaceId: string, presetId: string): string {
+    const workspace = this.state.workspaces.find(w => w.id === workspaceId)
+    return resolveEffectiveAgentArgs(workspace, settingsStore.getSettings(), presetId).args
   }
 
   addWorkspaceEnvVar(id: string, envVar: import('../types').EnvVariable): void {

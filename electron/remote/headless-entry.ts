@@ -449,7 +449,7 @@ export function createHeadlessTerminalModule(opts: {
       readSettings,
       buildAgentPromptCommand: createAgentPromptCommandBuilder({
         readSettings,
-        resolveWorkspaceDefaultAgent: async () => null,
+        resolveWorkspaceAgentSettings: async () => null,
         ensureElevationApplied: async () => {},
         logger: defaultLogger,
       }),

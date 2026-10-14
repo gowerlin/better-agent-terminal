@@ -10,7 +10,7 @@ import { spawnSync, fork } from 'child_process'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
-import { checkDispatchCwd, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
+import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
@@ -18,6 +18,7 @@ import { registerGitHandlers } from './handlers/git'
 import { registerFsHandlers } from './handlers/fs'
 import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
 import { createRemoteToolInstallIpc, PendingRemoteToolInstalls } from '../src/lib/remote-tools/install-request'
+import type { WorkspaceAgentLaunchFields } from '../src/lib/agent-launch-settings'
 
 import { endEarlyCrashCapture, handOffEarlyCrashCapture } from './early-crash-log'
 
@@ -532,21 +533,14 @@ function readLoggingConfigSync(): { loggingEnabled: boolean; logLevel: LogLevel 
   }
 }
 
-async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<string | null> {
+// T0529: the workspace's `defaultAgent` / `agentCustomArgs` as the renderer last saved them
+// (every setter saves at once). Values are validated by `src/lib/agent-launch-settings.ts`.
+async function resolveWorkspaceAgentSettings(workspaceId?: string): Promise<WorkspaceAgentLaunchFields | null> {
   if (!workspaceId) return null
   try {
-    const entries = await windowRegistry.readAll()
-    for (const entry of entries) {
-      const workspaces = Array.isArray(entry.workspaces) ? entry.workspaces : []
-      const workspace = workspaces.find((w: unknown) => {
-        return typeof w === 'object' && w !== null && (w as { id?: unknown }).id === workspaceId
-      }) as { defaultAgent?: unknown } | undefined
-      if (typeof workspace?.defaultAgent === 'string' && workspace.defaultAgent) {
-        return workspace.defaultAgent
-      }
-    }
+    return findWorkspaceAgentSettings(await windowRegistry.readAll(), workspaceId)
   } catch (error) {
-    logger.warn('[agent-command] failed to resolve workspace default agent:', error)
+    logger.warn('[agent-command] failed to resolve workspace agent settings:', error)
   }
   return null
 }
@@ -590,10 +584,10 @@ function ensureElevationApplied(): Promise<void> {
 }
 
 // T0431: built in electron/terminal-command-handlers.ts (shared with headless); Electron supplies
-// userData settings, the window-registry workspace default agent and the elevation probe.
+// userData settings, the window-registry workspace agent settings and the elevation probe.
 const buildAgentPromptCommand = createAgentPromptCommandBuilder({
   readSettings: readPersistedSettingsSync,
-  resolveWorkspaceDefaultAgent,
+  resolveWorkspaceAgentSettings,
   ensureElevationApplied,
   logger,
 })
@@ -3407,11 +3401,14 @@ function registerLocalHandlers() {
     return agentRegistry.get(id) ?? null
   })
 
-  ipcMain.handle('agent:build-launch-command', async (_event, definitionId: string, options?: Record<string, string | boolean>) => {
+  ipcMain.handle('agent:build-launch-command', async (_event, definitionId: string, options?: Record<string, string | boolean>, rendererExtraArgs?: unknown) => {
     await ensureElevationApplied()
-    // Renderer appends agentCustomArgs itself; pass the persisted copy only so the
-    // registry can skip flags the user already set (T0377 daemon opt-out dedup).
-    const extraArgs = readPersistedSettingsSync()?.agentCustomArgs?.[definitionId]
+    // Renderer appends agentCustomArgs itself; the args are passed only so the registry can
+    // skip flags the user already set (T0377 daemon opt-out dedup). T0529: the renderer sends
+    // the effective (workspace or Settings) args; older callers fall back to the persisted copy.
+    const extraArgs = typeof rendererExtraArgs === 'string'
+      ? rendererExtraArgs
+      : readPersistedSettingsSync()?.agentCustomArgs?.[definitionId]
     return agentRegistry.buildLaunchCommand(definitionId, options, extraArgs)
   })
 
