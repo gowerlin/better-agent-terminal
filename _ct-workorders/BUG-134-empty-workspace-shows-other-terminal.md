@@ -5,7 +5,7 @@ id: BUG-134
 title: "工作區的終端全部關閉後，主畫面殘留顯示另一個工作區（或已關閉）的 Agent 終端畫面，無法操作、看起來像當機"
 status: FIXING
 severity: medium
-reproducibility: unknown
+reproducibility: always
 created_at: "2026-10-15T01:16:21+0800"
 updated_at: "2026-10-15T01:16:21+0800"
 impact:
@@ -22,7 +22,7 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（看起來像當機，使用者誤判程式掛掉；新增終端可恢復） |
-| 可重現 | 未確認（回報者偶然觸發：把該工作區的終端含塔台全部關掉） |
+| 可重現 | 必現（使用者 pre.10 本機重現，2026-10-15 01:22） |
 | **狀態** | 🔧 FIXING（T0531） |
 | 回報者 | 連國盛（使用者轉述，2026-10-15 01:06），Windows；BAT 版本未知（推測 pre.8 以後） |
 
@@ -36,6 +36,10 @@ links:
 6. 按 `+` 新增終端後，新終端蓋過去，顯示恢復正常
 
 截圖：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\3f162c76-5cbd-4d39-b2bf-bc54787fedd6\images\2.png`（視窗標題 `Better Agent Terminal - Default:1`，側欄 active = 臺灣土地銀行；工作區另有 BMAD、better-agent-terminal）
+
+### 使用者本機重現（2026-10-15 01:22，pre.10）
+
+使用者在自己的 BAT（安裝版 pre.10）重現成功，**情境 (a) 確認**：active 工作區 = `2026_LandBank`，主畫面顯示的是 **better-agent-terminal 工作區的塔台 Claude CLI 分頁**（本塔台 session），下方縮圖列為空。截圖：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\3f162c76-5cbd-4d39-b2bf-bc54787fedd6\images\3.png`
 
 ## 預期
 
