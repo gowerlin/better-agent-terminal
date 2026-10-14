@@ -3,30 +3,30 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T04:19:04+0800"
+generated_at: "2026-10-14T13:19:21+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 51
+total: 53
 breakdown:
   OPEN: 0
-  FIXING: 0
-  FIXED: 11
+  FIXING: 2
+  FIXED: 7
   VERIFY: 0
-  CLOSED: 40
+  CLOSED: 44
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 05:10 (UTC+8) — 第六十 session：pre.7 批次 BUG-123-126 全 CLOSED（T0520 自動化 + 使用者 WSL 目視）
+> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127（T0521）/ BUG-128（T0522）FIXING
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 7 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 7 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 53**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-127 | 指揮塔面板切換工作區時 toast 洪水（「殘影」） | 🟢 low | T0521 進行中 | [BUG-127](BUG-127-ct-panel-toast-flood-on-workspace-switch.md) |
+| BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | T0522 進行中 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
 
 ## ✅ 已修復
 
