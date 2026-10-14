@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T13:58:58+0800"
+generated_at: "2026-10-15T01:16:21+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 56
+total: 59
 breakdown:
   OPEN: 0
-  FIXING: 0
-  FIXED: 12
+  FIXING: 1
+  FIXED: 14
   VERIFY: 0
   CLOSED: 44
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 18:20 (UTC+8) — 第六十二 session：BUG-133 FIXED（T0530），T0529 / T0530 聯合複驗全綠
+> 最後同步：2026-10-15 01:16 (UTC+8) — 第六十三 session：開 BUG-134（FIXING，T0531）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 14 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 58**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 14 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 59**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-134 | 工作區終端全部關閉後主畫面殘留其他 / 已關閉終端畫面，無法操作（連國盛） | 🟡 medium | — | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |
 
 ## ✅ 已修復
 
