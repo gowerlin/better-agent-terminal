@@ -1379,7 +1379,8 @@
 ### D140 2026-10-14 — `--agent default` 維持現有語意（落點工作區 defaultAgent → Settings defaultAgent → claude-code）；T0521-T0525 批次發 v0.6.0-pre.8
 
 - **背景**：BUG-129（Gary 的 Codex 塔台派工開成 Claude）。T0523 修正落點後，`default` 以落點工作區解析；Gary 的 SCB 工作區與全域推定未設 Codex，所以仍會開 Claude。T0523 §4 提出選項 B：工作區 / 全域都未設時改用塔台終端自己的 agent preset
-- **決定**：使用者選 **A**（2026-10-14 14:07）。不改 `default` 語意；請 Gary 在 SCB 工作區設預設 agent = Codex（或塔台派工帶 `--agent codex`）。選項 B 不做
+- **決定**：使用者選 **A**（2026-10-14 14:07，14:17 確認）。不改 `default` 語意；選項 B 不做
+- **更正（14:21，使用者指出）**：工作區層級的預設 agent **沒有 UI 可設**。`Workspace.defaultAgent` 欄位存在且被讀取（`src/types/index.ts:18`、`App.tsx:855`、`WorkspaceView.tsx:519/641`、`electron/main.ts:543`），但 store 與 UI 都沒有寫入點，實務上恆為空 ⇒ 查找順序第 ① 層目前形同不存在。Gary 現在可用的做法：全域 Settings → 預設 Agent 設 Codex（他兩個工作區都用 Codex），或塔台派工帶 `--agent codex`（他的 Codex 塔台已自行改用）。工作區層級設定 UI 另案評估
 - **發版**：BUG-127-131（T0521-T0525）聯合複驗全綠（13:58 @ `b00c4f9`）後，使用者同意發 `v0.6.0-pre.8`
 - **相關**：BUG-129 / T0523 / D139（整批修完再發版）
 
