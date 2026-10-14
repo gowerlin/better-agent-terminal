@@ -130,4 +130,4 @@ T0529 發現：detached 視窗中的 `onOpenSettings`（GitHub 面板等）只�
 
 ### Commit
 
-見下方 commit（`git commit --only`，不含 `src/styles/settings.css`；未 push）。
+`5bacb583` fix(workspace): T0530 open Settings from a detached window via its parent (BUG-133)（`git commit --only`，13 files，不含 `src/styles/settings.css`；未 push）。
