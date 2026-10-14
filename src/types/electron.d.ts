@@ -147,6 +147,8 @@ interface ElectronAPI {
     saveImage: () => Promise<string | null>
     /** T0436: clipboard image as a data URL; null when the clipboard holds no image. */
     readImageDataUrl: () => Promise<string | null>
+    /** T0522: absolute paths of file / folder items on the clipboard (macOS Finder copy); [] otherwise. */
+    readFilePaths: () => Promise<string[]>
     writeImage: (filePath: string) => Promise<boolean>
   }
   app: {

@@ -17,7 +17,7 @@ import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown
 import { classifyClaudeError } from '../lib/claude-error-classify'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
-import { droppedImageKey, readFileAsDataUrl } from '../lib/image-attachment'
+import { droppedImageKey, pastedDiskFiles, readFileAsDataUrl } from '../lib/image-attachment'
 import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-paths'
 import { findClientPathsInPrompt, resolvePromptPathSuggestions, type PromptPathHintItem } from '../lib/prompt-client-paths'
 import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
@@ -2121,7 +2121,30 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     })
   }, [])
 
+  // A dropped (or Finder-pasted, T0522) file: images by data URL, other files by path.
+  const attachFile = useCallback(async (file: File, filePath: string) => {
+    if (file.type.startsWith('image/')) {
+      try {
+        addImage(droppedImageKey(file, filePath), await readFileAsDataUrl(file))
+      } catch (err) {
+        console.error('Failed to read image:', err)
+      }
+    } else if (filePath) {
+      addFileByPath(filePath)
+    }
+  }, [addImage, addFileByPath])
+
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    // T0522 / BUG-128: Finder-copied items (macOS) attach like a drop instead of pasting
+    // nothing / the file's icon.
+    if (window.electronAPI.platform === 'darwin') {
+      const diskFiles = pastedDiskFiles(e.clipboardData)
+      if (diskFiles.length > 0) {
+        e.preventDefault()
+        for (const { file, path } of diskFiles) await attachFile(file, path)
+        return
+      }
+    }
     const items = e.clipboardData?.items
     if (!items) return
     for (const item of items) {
@@ -2136,7 +2159,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         return
       }
     }
-  }, [addImage])
+  }, [addImage, attachFile])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -2152,18 +2175,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     e.preventDefault()
     setIsDragOver(false)
     for (const file of e.dataTransfer.files) {
-      const filePath = window.electronAPI.shell.getPathForFile(file)
-      if (file.type.startsWith('image/')) {
-        try {
-          addImage(droppedImageKey(file, filePath), await readFileAsDataUrl(file))
-        } catch (err) {
-          console.error('Failed to read image:', err)
-        }
-      } else if (filePath) {
-        addFileByPath(filePath)
-      }
+      await attachFile(file, window.electronAPI.shell.getPathForFile(file))
     }
-  }, [addImage, addFileByPath])
+  }, [attachFile])
 
   const handleSelectAttachments = useCallback(async () => {
     const { files, images } = await window.electronAPI.dialog.selectAttachments()

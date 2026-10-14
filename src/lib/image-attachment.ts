@@ -28,3 +28,18 @@ export function readFileAsDataUrl(file: File): Promise<string> {
 export function droppedImageKey(file: File, diskPath: string): string {
   return diskPath || `dropped:${file.name}:${file.size}:${file.lastModified}`
 }
+
+/**
+ * T0522 / BUG-128: the Finder-copied items in a panel `paste` event (macOS), attached the way
+ * a drop attaches them. Only disk-backed Files count (`getPathForFile` non-empty), so a
+ * screenshot or a copied web image — a File with no path — keeps the main-clipboard image
+ * route (T0436). Read synchronously: clipboardData is emptied once the handler returns.
+ */
+export function pastedDiskFiles(clipboardData: DataTransfer | null | undefined): { file: File; path: string }[] {
+  const out: { file: File; path: string }[] = []
+  for (const file of Array.from(clipboardData?.files ?? [])) {
+    const path = window.electronAPI.shell.getPathForFile(file)
+    if (path) out.push({ file, path })
+  }
+  return out
+}

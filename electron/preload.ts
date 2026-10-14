@@ -146,6 +146,8 @@ const electronAPI = {
     saveImage: () => ipcRenderer.invoke('clipboard:saveImage'),
     // T0436: clipboard image as a data URL (null when the clipboard has no image).
     readImageDataUrl: () => ipcRenderer.invoke('clipboard:read-image-data-url') as Promise<string | null>,
+    // T0522: paths of Finder-copied items (macOS); [] when none / other platforms.
+    readFilePaths: () => ipcRenderer.invoke('clipboard:read-file-paths') as Promise<string[]>,
     writeImage: (filePath: string) => ipcRenderer.invoke('clipboard:writeImage', filePath),
   },
   claude: {

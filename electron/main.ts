@@ -43,6 +43,7 @@ import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, t
 import { CodexAgentManager } from './codex-agent-manager'
 import { checkForUpdates, UpdateCheckResult } from './update-checker'
 import { clipboardImageToDataUrl, readSelectedAttachments } from './image-attachments'
+import { readClipboardFilePaths } from './clipboard-file-paths'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
 import { ProfileManager, type ProfileEntry, type ProfileSnapshot } from './profile-manager'
 import { registerHandler, invokeHandler } from './remote/handler-registry'
@@ -2560,6 +2561,8 @@ function registerLocalHandlers() {
   // clipboard (no temp file, no proxied image:read-as-data-url). clipboard:saveImage stays
   // for PromptBox, which needs a file path for the terminal agent.
   ipcMain.handle('clipboard:read-image-data-url', () => clipboardImageToDataUrl(clipboard.readImage()))
+  // T0522 / BUG-128: Finder-copied items as paths for Command+V in a terminal (macOS; [] elsewhere).
+  ipcMain.handle('clipboard:read-file-paths', () => readClipboardFilePaths(clipboard, process.platform))
   ipcMain.handle('clipboard:writeImage', async (_event, filePath: string) => {
     const image = nativeImage.createFromPath(filePath)
     if (image.isEmpty()) return false

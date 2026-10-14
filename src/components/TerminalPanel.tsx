@@ -13,6 +13,7 @@ import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
 import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from '../lib/pty-replay'
 import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
+import { isMacCommandPaste, readMacTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
 import { CtToast, useCtToast } from './CtToast'
 import '@xterm/xterm/css/xterm.css'
@@ -169,6 +170,11 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     e.stopPropagation()
     const paths = droppedFilePaths(e.dataTransfer)
     if (paths.length === 0) return
+    await insertFilePaths(paths)
+  }
+
+  // Shared by file drop and the macOS Finder-copy paste (T0522): quoted paths, no Enter.
+  const insertFilePaths = async (paths: string[]) => {
     const shell = await terminalShellFamily(terminalId)
     const { text, rejected } = await buildTerminalDropInsertion(paths, shell)
     if (rejected.length > 0) {
@@ -182,6 +188,17 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       terminal.focus()
     } else {
       window.electronAPI.pty.write(terminalId, text)
+    }
+  }
+
+  // T0522 / BUG-128: macOS Command+V / Ctrl+V / context-menu Paste — Finder-copied items are
+  // typed as paths (like a drop), anything else pastes as text.
+  const pasteClipboardMac = async () => {
+    const content = await readMacTerminalClipboard(undefined, dlog)
+    if (content.kind === 'paths') {
+      await insertFilePaths(content.paths)
+    } else {
+      await handlePasteText(content.text)
     }
   }
 
@@ -199,6 +216,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
   const handlePaste = async () => {
     try {
+      if (window.electronAPI.platform === 'darwin') {
+        await pasteClipboardMac()
+        return
+      }
       const text = await navigator.clipboard.readText()
       if (text) {
         await handlePasteText(text)
@@ -478,6 +499,18 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       xtermTextarea.addEventListener('compositionend', () => { imeComposing = false })
     }
 
+    // T0522: Command+V is pasted by pasteClipboardMac. Should a native paste (Edit menu
+    // role) still follow it, swallow it before xterm sees it so text never lands twice.
+    let suppressNativePasteUntil = 0
+    const handleNativePaste = (e: Event) => {
+      if (performance.now() > suppressNativePasteUntil) return
+      suppressNativePasteUntil = 0
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      dlog(`[terminal-paste] swallowed native paste after Command+V terminal=${terminalId}`)
+    }
+    containerRef.current?.addEventListener('paste', handleNativePaste, { capture: true })
+
     // Handle copy and paste shortcuts
     terminal.attachCustomKeyEventHandler((event) => {
       // Only handle keydown events to prevent duplicate actions
@@ -513,6 +546,15 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         })
         return false
       }
+      // Command+V on macOS (T0522 / BUG-128): handled here instead of xterm's DOM paste
+      // event, which reads only text/plain and so typed nothing for a Finder copy.
+      // preventDefault keeps the native paste (Edit menu role) from pasting a second time.
+      if (isMacCommandPaste(event, window.electronAPI.platform)) {
+        event.preventDefault()
+        suppressNativePasteUntil = performance.now() + 1000
+        pasteClipboardMac().catch(err => dlog('[terminal-paste] Command+V paste failed', err))
+        return false
+      }
       // Ctrl+V for paste (standard shortcut)
       if (event.ctrlKey && !event.shiftKey && event.key === 'v') {
         event.preventDefault()
@@ -541,8 +583,11 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
               handlePasteText(text)
             })
           })
+        } else if (window.electronAPI.platform === 'darwin') {
+          // On macOS, same as Command+V (T0522)
+          pasteClipboardMac().catch(err => dlog('[terminal-paste] Ctrl+V paste failed', err))
         } else {
-          // On macOS/Linux, just paste text directly
+          // On Linux, just paste text directly
           navigator.clipboard.readText().then((text) => {
             handlePasteText(text)
           })
@@ -740,6 +785,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       resizeObserver.disconnect()
       observer.disconnect()
       containerRef.current?.removeEventListener('wheel', handleWheel, { capture: true })
+      containerRef.current?.removeEventListener('paste', handleNativePaste, { capture: true })
       doResizeRef.current = null
       terminal.dispose()
     }
