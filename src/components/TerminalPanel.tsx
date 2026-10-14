@@ -13,7 +13,7 @@ import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
 import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from '../lib/pty-replay'
 import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
-import { isMacCommandPaste, readMacTerminalClipboard } from '../lib/terminal-paste'
+import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
 import { CtToast, useCtToast } from './CtToast'
 import '@xterm/xterm/css/xterm.css'
@@ -191,12 +191,16 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     }
   }
 
-  // T0522 / BUG-128: macOS Command+V / Ctrl+V / context-menu Paste — Finder-copied items are
-  // typed as paths (like a drop), anything else pastes as text.
-  const pasteClipboardMac = async () => {
-    const content = await readMacTerminalClipboard(undefined, dlog)
+  // Ctrl+V / macOS Command+V / context-menu Paste (T0522, T0524): Finder-copied items are typed
+  // as paths (like a drop); an image sends the claude CLI's image-paste key so the CLI reads the
+  // clipboard itself; anything else pastes as text.
+  const pasteClipboard = async (source: string) => {
+    const content = await readTerminalClipboard(undefined, dlog)
+    dlog(`[terminal-paste] ${source} → ${content.kind} terminal=${terminalId}`)
     if (content.kind === 'paths') {
       await insertFilePaths(content.paths)
+    } else if (content.kind === 'image') {
+      window.electronAPI.pty.write(terminalId, imagePasteKey(window.electronAPI.platform))
     } else {
       await handlePasteText(content.text)
     }
@@ -216,14 +220,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
   const handlePaste = async () => {
     try {
-      if (window.electronAPI.platform === 'darwin') {
-        await pasteClipboardMac()
-        return
-      }
-      const text = await navigator.clipboard.readText()
-      if (text) {
-        await handlePasteText(text)
-      }
+      await pasteClipboard('context-menu Paste')
     } catch (err) {
       dlog('Failed to read clipboard for context-menu paste', err)
     } finally {
@@ -499,7 +496,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       xtermTextarea.addEventListener('compositionend', () => { imeComposing = false })
     }
 
-    // T0522: Command+V is pasted by pasteClipboardMac. Should a native paste (Edit menu
+    // T0522: Command+V is pasted by pasteClipboard. Should a native paste (Edit menu
     // role) still follow it, swallow it before xterm sees it so text never lands twice.
     let suppressNativePasteUntil = 0
     const handleNativePaste = (e: Event) => {
@@ -552,46 +549,14 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (isMacCommandPaste(event, window.electronAPI.platform)) {
         event.preventDefault()
         suppressNativePasteUntil = performance.now() + 1000
-        pasteClipboardMac().catch(err => dlog('[terminal-paste] Command+V paste failed', err))
+        pasteClipboard('Command+V').catch(err => dlog('[terminal-paste] Command+V paste failed', err))
         return false
       }
-      // Ctrl+V for paste (standard shortcut)
+      // Ctrl+V for paste (standard shortcut). An image on the clipboard sends the claude CLI's
+      // image-paste key instead (T0524: Alt+V on Windows, Ctrl+V on macOS / Linux).
       if (event.ctrlKey && !event.shiftKey && event.key === 'v') {
         event.preventDefault()
-        // On Windows, check if clipboard contains an image and send Alt+V
-        const isWindows = navigator.platform.toLowerCase().includes('win')
-        if (isWindows) {
-          navigator.clipboard.read().then(async (items) => {
-            let hasImage = false
-            for (const item of items) {
-              if (item.types.some(type => type.startsWith('image/'))) {
-                hasImage = true
-                break
-              }
-            }
-            if (hasImage) {
-              // Send Alt+V (ESC + v) to terminal for image paste handling
-              window.electronAPI.pty.write(terminalId, '\x1bv')
-            } else {
-              // Normal text paste
-              const text = await navigator.clipboard.readText()
-              handlePasteText(text)
-            }
-          }).catch(() => {
-            // Fallback to text paste if clipboard.read() fails
-            navigator.clipboard.readText().then((text) => {
-              handlePasteText(text)
-            })
-          })
-        } else if (window.electronAPI.platform === 'darwin') {
-          // On macOS, same as Command+V (T0522)
-          pasteClipboardMac().catch(err => dlog('[terminal-paste] Ctrl+V paste failed', err))
-        } else {
-          // On Linux, just paste text directly
-          navigator.clipboard.readText().then((text) => {
-            handlePasteText(text)
-          })
-        }
+        pasteClipboard('Ctrl+V').catch(err => dlog('[terminal-paste] Ctrl+V paste failed', err))
         return false
       }
       // Ctrl+C for copy when there's a selection
