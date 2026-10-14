@@ -12,10 +12,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createTerminalWindowEmit, registerTerminalHandlers, type TerminalHandlerDeps } from '../handlers/terminal'
 import type { HandlerContext, SharedHandler } from '../handlers/types'
-import { resolveDispatchWorkspaceFromEntries } from '../dispatch-workspace'
+import { checkDispatchCwd, resolveDispatchWorkspaceFromEntries, type DispatchRegistryEntry, type DispatchWorkspaceRequest } from '../dispatch-workspace'
+import { logger } from '../logger'
 
+const mirrored = vi.hoisted(() => [] as Array<{ event: string; payload: Record<string, unknown> }>)
 vi.mock('../remote/remote-logger', () => ({
-  mirrorToBatScripts: () => {},
+  mirrorToBatScripts: (event: string, payload: Record<string, unknown>) => { mirrored.push({ event, payload }) },
   pickWhitelistedEnv: () => ({}),
 }))
 
@@ -184,6 +186,178 @@ describe('registerTerminalHandlers (T0431)', () => {
       const t = setup({ resolveDispatchWorkspace: async () => { throw new Error('registry unreadable') } })
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({ BAT_TOWER_TERMINAL_ID: 'tower-b' }, { workspaceId: 'ws-a' }))
       expect(t.created[0].workspaceId).toBe('ws-a')
+    })
+  })
+
+  describe('dispatch cwd vs. the landing workspace folderPath (T0527 / BUG-132)', () => {
+    // 土銀 tower tab in ws-bank; SCB has its own folder; Gary's case: cwd = SCB, env = 土銀 tower.
+    const ENTRIES: DispatchRegistryEntry[] = [{
+      workspaces: [
+        { id: 'ws-bank', name: '土銀', folderPath: '/work/bank' },
+        { id: 'ws-scb', name: 'SCB', folderPath: '/work/scb' },
+        { id: 'ws-bare', name: 'Bare' },
+      ],
+      terminals: [{ id: 'tower-bank', workspaceId: 'ws-bank' }, { id: 'tower-bare', workspaceId: 'ws-bare' }],
+    }]
+
+    function cwdSetup() {
+      mirrored.length = 0
+      const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+      const agents: Array<string | undefined> = []
+      const t = setup({
+        // The Electron resolver (electron/main.ts), without realpath.
+        resolveDispatchWorkspace: async (request: DispatchWorkspaceRequest) => {
+          const resolution = resolveDispatchWorkspaceFromEntries(ENTRIES, request)
+          resolution.cwdCheck = await checkDispatchCwd(ENTRIES, resolution, request.cwd, { platform: 'linux' })
+          return resolution
+        },
+        buildAgentPromptCommand: async (opts) => {
+          agents.push(opts.agent)
+          const agentId = opts.agent && opts.agent !== 'default' ? opts.agent : 'codex-cli'
+          return { command: `${agentId} go`, agentId, prompt: 'go', prefixNormalized: false, agentSource: opts.agent && opts.agent !== 'default' ? 'explicit' : 'settings' }
+        },
+      })
+      return { ...t, warn, agents }
+    }
+    const dispatch = (cwd: string, customEnv: Record<string, string>, extra: Record<string, unknown> = {}) => ({
+      id: 'worker-1', cwd, skill: 'ct-exec', workorder: 'T0001', agent: 'default', customEnv, workspaceId: 'ws-bank', reportLanding: true, ...extra,
+    })
+    const cwdEvents = () => mirrored.filter(m => m.event === 'dispatch-cwd-check').map(m => m.payload)
+
+    it('cwd under the landing workspace → created, no warning', async () => {
+      const t = cwdSetup()
+      try {
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/bank/sub', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }))
+        expect(result).toMatchObject({ ok: true, workspace: { id: 'ws-bank' } })
+        expect((result as { workspace: Record<string, unknown> }).workspace.cwdCheck).toBeUndefined()
+        expect(t.created).toHaveLength(1)
+        expect(t.warn.mock.calls.filter(c => String(c[0]).includes('[BUG-132]'))).toEqual([])
+        expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'inside', action: 'proceed', workspaceId: 'ws-bank' })])
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('cwd in another workspace, not yolo → created in the landing workspace with a warning', async () => {
+      const t = cwdSetup()
+      try {
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'ask' }))
+        expect(result).toMatchObject({
+          ok: true,
+          workspace: { id: 'ws-bank', source: 'tower-terminal', cwdCheck: { status: 'other-workspace', cwd: '/work/scb', folderPath: '/work/bank', cwdWorkspace: { id: 'ws-scb', name: 'SCB' } } },
+        })
+        expect(t.created).toEqual([expect.objectContaining({ id: 'worker-1', workspaceId: 'ws-bank' })])
+        expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('[BUG-132] dispatch cwd outside the landing workspace: cwd=/work/scb landing=ws-bank (土銀) folderPath=/work/bank workspaceSource=tower-terminal cwdWorkspace=ws-scb (SCB) mode=ask → created with a warning'))
+        expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'other-workspace', action: 'warn', cwdWorkspaceId: 'ws-scb', mode: 'ask' })])
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('cwd in another workspace, yolo → refused, nothing created, agent never built', async () => {
+      const t = cwdSetup()
+      try {
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }))
+        expect(result).toMatchObject({
+          ok: false,
+          code: 'DISPATCH_CWD_OTHER_WORKSPACE',
+          cwd: '/work/scb',
+          landingWorkspace: { id: 'ws-bank', name: '土銀' },
+          cwdWorkspace: { id: 'ws-scb', name: 'SCB' },
+        })
+        const error = (result as { error: string }).error
+        expect(error).toContain('belongs to workspace "SCB" (ws-scb)')
+        expect(error).toContain('the --notify-id terminal tower-bank')
+        expect(error).toContain('may come from another tab')
+        expect(t.created).toEqual([])
+        expect(t.emitted).toEqual([])
+        expect(t.agents).toEqual([])
+        expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('→ refused (yolo)'))
+        expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'other-workspace', action: 'refuse', mode: 'yolo' })])
+        expect(mirrored).toContainEqual({ event: 'ipc-result', payload: expect.objectContaining({ channel: 'terminal:create-agent-command', result: false, reason: 'DISPATCH_CWD_OTHER_WORKSPACE' }) })
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('cwd under no workspace, yolo → created with a warning (cross-project dispatch is not blocked)', async () => {
+      const t = cwdSetup()
+      try {
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/tmp/elsewhere', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }))
+        expect(result).toMatchObject({ ok: true, workspace: { cwdCheck: { status: 'outside', cwd: '/tmp/elsewhere', folderPath: '/work/bank' } } })
+        expect(t.created).toHaveLength(1)
+        expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('cwdWorkspace=none mode=yolo → created with a warning'))
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('landing workspace without folderPath → check skipped, created', async () => {
+      const t = cwdSetup()
+      try {
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bare', CT_MODE: 'yolo' }))
+        expect(result).toMatchObject({ ok: true, workspace: { id: 'ws-bare' } })
+        expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'skipped', reason: 'no-folder-path', action: 'proceed' })])
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('create-with-command (raw command mode): yolo refused, not yolo warned', async () => {
+      const t = cwdSetup()
+      try {
+        const raw = (id: string, mode: string) => ({ id, cwd: '/work/scb', command: 'ls', customEnv: { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: mode }, workspaceId: 'ws-bank', reportLanding: true })
+        expect(await t.invoke('terminal:create-with-command', REMOTE, raw('raw-1', 'yolo'))).toMatchObject({ ok: false, code: 'DISPATCH_CWD_OTHER_WORKSPACE' })
+        expect(t.created).toEqual([])
+        expect(await t.invoke('terminal:create-with-command', REMOTE, raw('raw-2', 'on'))).toMatchObject({ ok: true, workspace: { cwdCheck: { status: 'other-workspace' } } })
+        expect(t.created.map(c => c.id)).toEqual(['raw-2'])
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('a terminal a local window creates is not checked (resolver not consulted)', async () => {
+      const t = cwdSetup()
+      try {
+        expect(await t.invoke('terminal:create-with-command', LOCAL_WINDOW, { id: 'w9', cwd: '/work/scb', command: 'ls', customEnv: { CT_MODE: 'yolo' }, workspaceId: 'ws-bank' })).toBe(true)
+        expect(cwdEvents()).toEqual([])
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('headless (no resolver): no cwd check, created as before', async () => {
+      mirrored.length = 0
+      const t = setup()
+      expect(await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }, { reportLanding: false }))).toBe(true)
+      expect(mirrored.filter(m => m.event === 'dispatch-cwd-check')).toEqual([])
+    })
+
+    it('--agent codex → codex-cli reaches the builder; the report keeps what was asked', async () => {
+      const t = cwdSetup()
+      try {
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/bank', { BAT_TOWER_TERMINAL_ID: 'tower-bank' }, { agent: 'codex' }))
+        expect(t.agents).toEqual(['codex-cli'])
+        expect(result).toMatchObject({ ok: true, agent: { requested: 'codex', id: 'codex-cli', source: 'explicit' } })
+      } finally {
+        t.warn.mockRestore()
+      }
+    })
+
+    it('unknown --agent → AGENT_UNKNOWN with the known ids, nothing created', async () => {
+      const t = cwdSetup()
+      try {
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/bank', { BAT_TOWER_TERMINAL_ID: 'tower-bank' }, { agent: 'codx' }))
+        expect(result).toMatchObject({ ok: false, code: 'AGENT_UNKNOWN', agentId: 'codx' })
+        const refusal = result as { knownAgents: string[]; error: string }
+        expect(refusal.knownAgents).toEqual(expect.arrayContaining(['claude-cli', 'codex-cli']))
+        expect(refusal.knownAgents).not.toContain('none')
+        expect(refusal.error).toContain("Unknown agent id 'codx'. Known agent ids: ")
+        expect(t.agents).toEqual([])
+        expect(t.created).toEqual([])
+      } finally {
+        t.warn.mockRestore()
+      }
     })
   })
 

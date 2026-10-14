@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-132
 title: "agent CLI 自行保存的 BAT_* 環境不是自己 PTY 的值（Gary 的 Codex：SCB 分頁一整天看到土銀塔台的 BAT_TERMINAL_ID / BAT_WORKSPACE_ID）→ 塔台派工落到別的工作區，Worker 完成通知送進別的專案塔台"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: sometimes
 created_at: "2026-10-14T17:04:00+0800"
-updated_at: "2026-10-14T17:04:00+0800"
+updated_at: "2026-10-14T17:16:45+0800"
+fixed_at: "2026-10-14T17:16:45+0800"
 impact:
   - control-tower
   - bat-terminal-helper
@@ -25,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（Worker 落在別的工作區；yolo 時完成訊息會**送進**別的專案塔台並觸發它的流程） |
 | 可重現 | 有時（取決於 agent CLI 的環境保存機制；Gary 的 Codex 一整天持續） |
-| **狀態** | ⏳ FIXING（T0527：cwd 一致性檢查，治標 + 擋 yolo 誤送） |
+| **狀態** | ✅ FIXED（T0527：cwd 一致性檢查，治標 + 擋 yolo 誤送；遠端 headless 未涵蓋，根治 [A] 仍在 backlog） |
 | 回報者 | T0526（Gary 日誌） |
 
 ## 現象

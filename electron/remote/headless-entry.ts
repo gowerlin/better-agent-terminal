@@ -20,6 +20,7 @@ import {
   AGENT_CHECK_PENDING,
   AGENT_UNAVAILABLE,
   createAgentPromptCommandBuilder,
+  normalizeAgentAlias,
   type AgentCommandSettings,
   type AgentUnavailableResult,
 } from '../terminal-command-handlers'
@@ -843,7 +844,9 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     isTerminalAlive: id => ptyManager?.isAlive(id) ?? false,
     // T0450 (T0445 #7): a tower helper launches registry agents only, within its creation
     // quota; helpers never take the last PTY slots the clients need.
-    isKnownAgent: agent => agentRegistry.getDefinition(agent) !== undefined,
+    // T0527: a shorthand (`codex` → `codex-cli`) counts only once normalized to a registry id;
+    // the terminal handler normalizes the same way before launching (normalizeAgentAlias).
+    isKnownAgent: agent => agentRegistry.getDefinition(normalizeAgentAlias(agent)) !== undefined,
     getPtyCapacity: () => ptyManager?.getCapacity() ?? null,
     helperSpawnQuota: opts.helperSpawnQuota,
   })

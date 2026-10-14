@@ -221,7 +221,7 @@ async function startMockBatRemote({
   }
 }
 
-function runBatTerminal(remote) {
+function runBatTerminal(remote, args = ARGS) {
   return new Promise((resolve) => {
     const childEnv = {
       ...process.env,
@@ -234,7 +234,7 @@ function runBatTerminal(remote) {
     }
 
     const startedAt = Date.now()
-    const child = spawn(process.execPath, [batTerminalScript, ...ARGS], {
+    const child = spawn(process.execPath, [batTerminalScript, ...args], {
       cwd: repoRoot,
       env: childEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -424,6 +424,143 @@ describe('bat-terminal prints the landing workspace and agent (T0523 / BUG-129)'
       ])
       expect(run.stderr).toContain("--workspace ws-uuid-t0497 is not the Tower terminal's workspace")
       expect(lastEvent(remote, 'terminal-created')).toMatchObject({ result: 'ok', landing: workspace, agent })
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+})
+
+// T0527 / BUG-132: what the helper prints for the cwd check and the --agent refusals
+// (the server side is electron/__tests__/terminal-handlers.test.ts).
+describe('bat-terminal dispatch cwd check and --agent refusals (T0527 / BUG-132)', () => {
+  const YOLO_ARGS = ['--notify-id', 'tower-a', '--workspace', 'ws-a', '--mode', 'yolo', '--skill', 'ct-exec', '--workorder', 'T0527']
+
+  it('yolo refusal (cwd in another workspace) → exit 1, both workspaces named', async () => {
+    const remote = await startMockBatRemote({
+      broadcastEveryMs: 2,
+      invokeReply: {
+        result: {
+          ok: false,
+          code: 'DISPATCH_CWD_OTHER_WORKSPACE',
+          error: 'cwd /scb belongs to workspace "SCB" (ws-b), but this dispatch would land in workspace "Bank" (ws-a)',
+          cwd: '/scb',
+          landingWorkspace: { id: 'ws-a', name: 'Bank' },
+          cwdWorkspace: { id: 'ws-b', name: 'SCB' },
+        },
+      },
+    })
+    try {
+      const run = await runBatTerminal(remote, YOLO_ARGS)
+      expect(run.code, run.stderr || run.stdout).toBe(1)
+      expect(run.stderr).toContain('Failed to create terminal (DISPATCH_CWD_OTHER_WORKSPACE): cwd /scb belongs to workspace "SCB" (ws-b)')
+      expect(run.stderr).toContain('cwd workspace:     "SCB" (ws-b)')
+      expect(run.stderr).toContain('landing workspace: "Bank" (ws-a)')
+      expect(run.stdout).not.toContain('Terminal created')
+      expect(remote.state.invoke.args[0].customEnv).toMatchObject({ CT_MODE: 'yolo', BAT_TOWER_TERMINAL_ID: 'tower-a' })
+      expect(lastEvent(remote, 'terminal-created')).toMatchObject({
+        result: 'refused',
+        code: 'DISPATCH_CWD_OTHER_WORKSPACE',
+        cwd: '/scb',
+        cwdWorkspace: { id: 'ws-b', name: 'SCB' },
+        landingWorkspace: { id: 'ws-a', name: 'Bank' },
+      })
+      expect(lastEvent(remote, 'exit')).toMatchObject({ code: 1, reason: 'terminal-create-refused', refusal: 'DISPATCH_CWD_OTHER_WORKSPACE' })
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('created with a cwd warning (not yolo) → exit 0, warning on stderr', async () => {
+    const remote = await startMockBatRemote({
+      invokeReply: {
+        result: {
+          ok: true,
+          terminalId: 'x',
+          workspace: {
+            id: 'ws-a', name: 'Bank', source: 'tower-terminal', mismatch: false,
+            cwdCheck: { status: 'other-workspace', cwd: '/scb', folderPath: '/bank', cwdWorkspace: { id: 'ws-b', name: 'SCB' } },
+          },
+          agent: { requested: 'default', id: 'codex-cli', source: 'settings' },
+        },
+      },
+    })
+    try {
+      const run = await runBatTerminal(remote)
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+      expect(run.stdout).toContain("workspace: Bank (ws-a) — the Tower terminal's workspace (--notify-id)")
+      expect(run.stderr).toContain("cwd /scb is not under the landing workspace's folder /bank.")
+      expect(run.stderr).toContain('It belongs to workspace "SCB" (ws-b).')
+      expect(lastEvent(remote, 'terminal-created')).toMatchObject({ result: 'ok', landing: { cwdCheck: { status: 'other-workspace' } } })
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('cwd under no workspace → exit 0, cross-project warning', async () => {
+    const remote = await startMockBatRemote({
+      invokeReply: {
+        result: {
+          ok: true,
+          terminalId: 'x',
+          workspace: { id: 'ws-a', name: 'Bank', source: 'requested', mismatch: false, cwdCheck: { status: 'outside', cwd: '/tmp/x', folderPath: '/bank' } },
+        },
+      },
+    })
+    try {
+      const run = await runBatTerminal(remote)
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+      expect(run.stderr).toContain('It is under no workspace of this BAT (cross-project dispatch?).')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('T0523 landing output without a cwd check is unchanged (no cwd warning)', async () => {
+    const remote = await startMockBatRemote({
+      invokeReply: {
+        result: { ok: true, terminalId: 'x', workspace: { id: 'ws-a', name: 'Bank', source: 'requested', mismatch: false }, agent: { requested: 'codex', id: 'codex-cli', source: 'explicit' } },
+      },
+    })
+    try {
+      const run = await runBatTerminal(remote)
+      expect(run.code, run.stderr || run.stdout).toBe(0)
+      expect(run.stdout).toContain('workspace: Bank (ws-a) — from --workspace')
+      expect(run.stdout).toContain('agent: codex-cli (--agent codex: from --agent)')
+      expect(run.stderr).not.toContain('cwd ')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('unknown --agent (AGENT_UNKNOWN) → exit 1 with the known ids', async () => {
+    const remote = await startMockBatRemote({
+      invokeReply: {
+        result: {
+          ok: false,
+          code: 'AGENT_UNKNOWN',
+          agentId: 'codx',
+          knownAgents: ['claude-cli', 'codex-cli'],
+          error: "Unknown agent id 'codx'. Known agent ids: claude-cli, codex-cli (or 'default' for the workspace / Settings default agent).",
+        },
+      },
+    })
+    try {
+      const run = await runBatTerminal(remote, ['--agent', 'codx', '--skill', 'ct-exec', '--workorder', 'T0527'])
+      expect(run.code, run.stderr || run.stdout).toBe(1)
+      expect(run.stderr).toContain("Failed to create terminal (AGENT_UNKNOWN): Unknown agent id 'codx'. Known agent ids: claude-cli, codex-cli")
+      expect(lastEvent(remote, 'terminal-created')).toMatchObject({ result: 'refused', code: 'AGENT_UNKNOWN', knownAgents: ['claude-cli', 'codex-cli'] })
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('remote capability refusal agent-not-allowed → exit 1 with an --agent hint', async () => {
+    const remote = await startMockBatRemote({ invokeReply: { error: 'Forbidden: agent-not-allowed' } })
+    try {
+      const run = await runBatTerminal(remote, ['--agent', 'codx', '--skill', 'ct-exec', '--workorder', 'T0527'])
+      expect(run.code, run.stderr || run.stdout).toBe(1)
+      expect(run.stderr).toContain('Failed to create terminal: Forbidden: agent-not-allowed')
+      expect(run.stderr).toContain("Hint: --agent 'codx' is not an agent id this BAT server knows.")
     } finally {
       await remote.close()
     }

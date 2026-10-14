@@ -76,7 +76,8 @@ Options:
   --notify-id <id>       Target terminal ID for Worker→Tower notification binding
   --workspace <id>       Explicit workspace allocation target (the --notify-id
                          terminal's own workspace wins when BAT knows it)
-  --agent <id|default>   Agent definition for --prompt mode (default: default)
+  --agent <id|default>   Agent definition for --prompt mode (default: default);
+                         shorthands such as codex / claude map to codex-cli / claude-cli
   --prompt <text>        Start the selected/default agent with this prompt
   --skill <name>         Agent-neutral Control Tower skill name (ct-exec|ct-done)
   --workorder <T####>    Work order ID for --skill mode (optional [A-Z]{2,4}- prefix, e.g. CP-T0113)
@@ -599,6 +600,10 @@ const AGENT_SOURCE_TEXT = {
   builtin: 'built-in default',
 }
 
+function describeNamed(ws) {
+  return ws.name ? `"${ws.name}" (${ws.id})` : String(ws.id)
+}
+
 /**
  * T0523/BUG-129: the lines printed after `✓ Terminal created` from a T0523+ BAT's
  * `{ ok: true, workspace, agent }` answer (a bare `true` from older BAT prints nothing extra).
@@ -618,6 +623,17 @@ function describeLanding(result) {
     if (ws.mismatch) {
       out.warnings.push(`[bat-terminal] --workspace ${ws.requestedId} is not the Tower terminal's workspace; the terminal went to the Tower's workspace.`)
       out.warnings.push("               The Tower shell's BAT_WORKSPACE_ID is stale (see BUG-129).")
+    }
+    // BUG-132: the cwd is not under the landing workspace's folder (created anyway).
+    const check = ws.cwdCheck && typeof ws.cwdCheck === 'object' ? ws.cwdCheck : null
+    if (check) {
+      out.warnings.push(`[bat-terminal] cwd ${check.cwd} is not under the landing workspace's folder ${check.folderPath}.`)
+      if (check.status === 'other-workspace' && check.cwdWorkspace) {
+        out.warnings.push(`               It belongs to workspace ${describeNamed(check.cwdWorkspace)}. The Tower shell's BAT_* may come`)
+        out.warnings.push('               from another tab (see BUG-132); with --mode yolo this dispatch is refused.')
+      } else {
+        out.warnings.push('               It is under no workspace of this BAT (cross-project dispatch?).')
+      }
     }
   }
   const agent = result.agent && typeof result.agent === 'object' ? result.agent : null
@@ -780,6 +796,11 @@ async function main() {
   const responseDiag = { responseType: invokeResp.type, ignoredFrames }
   if (invokeResp.error) {
     console.error(`Error: Failed to create terminal: ${invokeResp.error}`)
+    // T0527: a remote (headless) tower capability refuses an agent id the server's registry
+    // does not know before the terminal handler sees it.
+    if (String(invokeResp.error).includes('agent-not-allowed')) {
+      console.error(`Hint: --agent '${agent}' is not an agent id this BAT server knows. Use a registry id such as claude-cli or codex-cli, or --agent default.`)
+    }
     logEvent('bat-terminal', 'terminal-created', { result: 'error', error: invokeResp.error, ...responseDiag })
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-create-failed' })
     ws.close()
@@ -793,12 +814,19 @@ async function main() {
     const code = typeof invokeResult.code === 'string' ? invokeResult.code : 'refused'
     const detail = typeof invokeResult.error === 'string' ? invokeResult.error : 'terminal was not created'
     console.error(`Error: Failed to create terminal (${code}): ${detail}`)
+    // BUG-132 (T0527): yolo dispatch from a cwd that belongs to another workspace.
+    if (code === 'DISPATCH_CWD_OTHER_WORKSPACE' && invokeResult.cwdWorkspace && invokeResult.landingWorkspace) {
+      console.error(`  cwd workspace:     ${describeNamed(invokeResult.cwdWorkspace)}`)
+      console.error(`  landing workspace: ${describeNamed(invokeResult.landingWorkspace)}`)
+    }
     logEvent('bat-terminal', 'terminal-created', {
       result: 'refused',
       code,
       agentId: invokeResult.agentId,
       tool: invokeResult.tool,
       status: invokeResult.status,
+      ...(invokeResult.knownAgents ? { knownAgents: invokeResult.knownAgents } : {}),
+      ...(invokeResult.cwdWorkspace ? { cwd: invokeResult.cwd, cwdWorkspace: invokeResult.cwdWorkspace, landingWorkspace: invokeResult.landingWorkspace } : {}),
       ...responseDiag,
     })
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'terminal-create-refused', refusal: code })

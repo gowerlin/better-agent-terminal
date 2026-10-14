@@ -3,6 +3,7 @@ import { detectShellFamily, quoteArgForShell, type ShellFamily } from '../src/ut
 import { agentRegistry } from './agent-runtime/agent-registry'
 import {
   passThroughDispatchWorkspace,
+  type DispatchCwdCheck,
   type DispatchWorkspaceRequest,
   type DispatchWorkspaceResolution,
 } from './dispatch-workspace'
@@ -75,6 +76,8 @@ export interface TerminalCreatedReport {
     source: DispatchWorkspaceResolution['source']
     requestedId?: string
     mismatch: boolean
+    /** BUG-132: present when the cwd is not under the landing workspace's folderPath. */
+    cwdCheck?: DispatchCwdReport
   }
   /** create-agent-command only. */
   agent?: {
@@ -82,6 +85,35 @@ export interface TerminalCreatedReport {
     id: string
     source: BuiltAgentCommand['agentSource']
   }
+}
+
+/** BUG-132: what the helper prints when the cwd is not under the landing workspace's folderPath. */
+export interface DispatchCwdReport {
+  status: 'outside' | 'other-workspace'
+  cwd: string
+  /** The landing workspace's folderPath. */
+  folderPath: string
+  cwdWorkspace?: { id: string; name?: string }
+}
+
+/**
+ * BUG-132: yolo dispatch refused — the cwd belongs to another workspace than the one the
+ * terminal would land in (the Tower shell's `BAT_*` can come from another tab).
+ */
+export const DISPATCH_CWD_OTHER_WORKSPACE = 'DISPATCH_CWD_OTHER_WORKSPACE' as const
+/** T0527: `--agent <id>` is not an agent registry id (nor a shorthand of one). */
+export const AGENT_UNKNOWN = 'AGENT_UNKNOWN' as const
+
+export interface DispatchRefusal {
+  ok: false
+  code: typeof DISPATCH_CWD_OTHER_WORKSPACE | typeof AGENT_UNKNOWN
+  /** English, human-readable; bat-terminal.mjs prints it. */
+  error: string
+  cwd?: string
+  landingWorkspace?: { id: string; name?: string }
+  cwdWorkspace?: { id: string; name?: string }
+  agentId?: string
+  knownAgents?: string[]
 }
 
 /** T0433: `terminal:create-agent-command` refused — the agent cannot run on this host. */
@@ -149,6 +181,10 @@ export interface TerminalCommandHandlerDeps {
    * `terminal:created-externally`).
    */
   resolveDispatchWorkspace?(request: DispatchWorkspaceRequest): Promise<DispatchWorkspaceResolution>
+  /** T0527: agent registry lookup for `--agent`. Default: `agentRegistry`. */
+  isKnownAgent?(agentId: string): boolean
+  /** T0527: ids listed when `--agent` is unknown. Default: `agentRegistry` definitions. */
+  listAgentIds?(): string[]
   pickWhitelistedEnv(env?: Record<string, string>): Record<string, string | undefined>
   mirrorToBatScripts(event: string, payload: Record<string, unknown>): void
   logger: {
@@ -205,6 +241,49 @@ function describeWorkspace(resolution: DispatchWorkspaceResolution): string {
   return resolution.workspaceName ? `${resolution.workspaceId} (${resolution.workspaceName})` : resolution.workspaceId
 }
 
+function describeNamed(ws: { id: string; name?: string }): string {
+  return ws.name ? `${ws.id} (${ws.name})` : ws.id
+}
+
+function quotedNamed(ws: { id: string; name?: string }): string {
+  return ws.name ? `"${ws.name}" (${ws.id})` : ws.id
+}
+
+function isKnownRegistryAgent(agentId: string): boolean {
+  return agentRegistry.getDefinition(agentId) !== undefined
+}
+
+/**
+ * T0527 (T0526): `--agent codex` / `--agent claude` → the registry id `codex-cli` /
+ * `claude-cli`. Maps only to an id `isKnownAgent` accepts: the id itself, its lower-case
+ * form, or `<id>-cli`. Anything else comes back unchanged (and stays unknown), so a
+ * registry-agent check of the result (headless helper capability, T0450) still refuses it.
+ */
+export function normalizeAgentAlias(agent: string, isKnownAgent: (agentId: string) => boolean = isKnownRegistryAgent): string {
+  if (isKnownAgent(agent)) return agent
+  const lower = agent.trim().toLowerCase()
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(lower)) return agent
+  if (isKnownAgent(lower)) return lower
+  if (isKnownAgent(`${lower}-cli`)) return `${lower}-cli`
+  return agent
+}
+
+/** T0527: the `customEnv.CT_MODE` the helper injects for `--mode yolo`. */
+function isYoloDispatch(customEnv?: Record<string, string>): boolean {
+  return customEnv?.CT_MODE === 'yolo'
+}
+
+/** BUG-132: the report part of a cwd check, only when it warns. */
+function cwdReport(check: DispatchCwdCheck | undefined): DispatchCwdReport | undefined {
+  if (!check || (check.status !== 'outside' && check.status !== 'other-workspace') || !check.cwd || !check.folderPath) return undefined
+  return {
+    status: check.status,
+    cwd: check.cwd,
+    folderPath: check.folderPath,
+    ...(check.cwdWorkspace ? { cwdWorkspace: { id: check.cwdWorkspace.id, ...(check.cwdWorkspace.name ? { name: check.cwdWorkspace.name } : {}) } } : {}),
+  }
+}
+
 export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps): void {
   const delay = deps.setTimeout ?? setTimeout
 
@@ -213,10 +292,11 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
    * terminal a window creates keeps the `workspaceId` the window sent — the window adds the
    * tab itself and never sees `terminal:created-externally`.
    */
-  const resolveWorkspace = async (ctx: HandlerContext, opts: { workspaceId?: string; customEnv?: Record<string, string> }): Promise<DispatchWorkspaceResolution> => {
+  const resolveWorkspace = async (ctx: HandlerContext, opts: { cwd?: string; workspaceId?: string; customEnv?: Record<string, string> }): Promise<DispatchWorkspaceResolution> => {
     const request: DispatchWorkspaceRequest = {
       towerTerminalId: opts.customEnv?.BAT_TOWER_TERMINAL_ID,
       requestedWorkspaceId: opts.workspaceId,
+      ...(typeof opts.cwd === 'string' ? { cwd: opts.cwd } : {}),
     }
     if (ctx.windowId || !deps.resolveDispatchWorkspace) return passThroughDispatchWorkspace(request)
     try {
@@ -228,6 +308,84 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     } catch (error) {
       deps.logger.warn('[T0523] dispatch workspace resolution failed, using --workspace as given:', error)
       return passThroughDispatchWorkspace(request)
+    }
+  }
+
+  /**
+   * BUG-132: act on the cwd check main attached to the landing (helper dispatches only).
+   * cwd under another workspace → refused in yolo (the Tower's `BAT_*` may come from another
+   * tab and the Worker would report to the wrong Tower), warned otherwise; cwd under no
+   * workspace → warned (cross-project dispatch). Returns the refusal, or null to go on.
+   */
+  const applyCwdCheck = (channel: string, opts: { id: string; customEnv?: Record<string, string> }, landing: DispatchWorkspaceResolution): DispatchRefusal | null => {
+    const check = landing.cwdCheck
+    if (!check) return null
+    const yolo = isYoloDispatch(opts.customEnv)
+    const refuse = check.status === 'other-workspace' && yolo
+    const action = refuse ? 'refuse' : check.status === 'outside' || check.status === 'other-workspace' ? 'warn' : 'proceed'
+    deps.mirrorToBatScripts('dispatch-cwd-check', {
+      channel,
+      terminalId: opts.id,
+      status: check.status,
+      reason: check.reason,
+      cwd: check.cwd,
+      workspaceId: landing.workspaceId,
+      workspaceName: landing.workspaceName,
+      workspaceSource: landing.source,
+      folderPath: check.folderPath,
+      cwdWorkspaceId: check.cwdWorkspace?.id,
+      cwdWorkspaceName: check.cwdWorkspace?.name,
+      mode: opts.customEnv?.CT_MODE,
+      action,
+    })
+    if (action === 'proceed') return null
+    const cwdOwner = check.cwdWorkspace ? describeNamed(check.cwdWorkspace) : 'none'
+    deps.logger.warn(`[BUG-132] dispatch cwd outside the landing workspace: cwd=${check.cwd} landing=${describeWorkspace(landing)} folderPath=${check.folderPath} workspaceSource=${landing.source} cwdWorkspace=${cwdOwner} mode=${opts.customEnv?.CT_MODE ?? 'n/a'} → ${refuse ? 'refused (yolo)' : 'created with a warning'}`)
+    if (!refuse || !check.cwdWorkspace || !landing.workspaceId) return null
+    deps.mirrorToBatScripts('ipc-result', { channel, terminalId: opts.id, result: false, reason: DISPATCH_CWD_OTHER_WORKSPACE })
+    const landingWorkspace = { id: landing.workspaceId, ...(landing.workspaceName ? { name: landing.workspaceName } : {}) }
+    const cwdWorkspace = { id: check.cwdWorkspace.id, ...(check.cwdWorkspace.name ? { name: check.cwdWorkspace.name } : {}) }
+    const via = landing.source === 'tower-terminal'
+      ? `the workspace of the --notify-id terminal ${landing.towerTerminalId}`
+      : 'the --workspace workspace'
+    return {
+      ok: false,
+      code: DISPATCH_CWD_OTHER_WORKSPACE,
+      error: `cwd ${check.cwd} belongs to workspace ${quotedNamed(cwdWorkspace)}, but this dispatch would land in workspace ${quotedNamed(landingWorkspace)} (${via}). `
+        + "The Tower shell's BAT_TERMINAL_ID / BAT_WORKSPACE_ID may come from another tab (an environment the agent CLI saved), "
+        + 'so the Worker would report to that tab. Not created in yolo mode: check which workspace this Tower runs in, '
+        + 'then dispatch again with the right --notify-id / --workspace (or without --mode yolo to create it with a warning).',
+      cwd: check.cwd,
+      landingWorkspace,
+      cwdWorkspace,
+    }
+  }
+
+  /** T0527: an explicit `--agent` the registry does not know (after shorthand normalization). */
+  const unknownAgent = (opts: { id: string; agent?: string }): { agent?: string; refusal: DispatchRefusal | null } => {
+    if (typeof opts.agent !== 'string' || opts.agent === '' || opts.agent === 'default') return { agent: opts.agent, refusal: null }
+    const isKnown = deps.isKnownAgent ?? isKnownRegistryAgent
+    const agent = normalizeAgentAlias(opts.agent, isKnown)
+    if (agent !== opts.agent) deps.logger.log(`[agent-command] agent shorthand ${opts.agent} → ${agent}`)
+    if (isKnown(agent)) return { agent, refusal: null }
+    const knownAgents = (deps.listAgentIds?.() ?? agentRegistry.getAllDefinitions().map(def => def.id)).filter(id => id !== 'none')
+    deps.logger.warn(`[agent-command] unknown agent=${opts.agent}`)
+    deps.mirrorToBatScripts('ipc-result', {
+      channel: 'terminal:create-agent-command',
+      terminalId: opts.id,
+      result: false,
+      reason: AGENT_UNKNOWN,
+      agentId: opts.agent,
+    })
+    return {
+      agent,
+      refusal: {
+        ok: false,
+        code: AGENT_UNKNOWN,
+        agentId: opts.agent,
+        knownAgents,
+        error: `Unknown agent id '${opts.agent}'. Known agent ids: ${knownAgents.join(', ')} (or 'default' for the workspace / Settings default agent).`,
+      },
     }
   }
 
@@ -251,6 +409,10 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       windowId: invokerWindowId,
       hasCommand: Boolean(opts.command),
     })
+
+    // BUG-132: create-agent-command already checked the landing it passes in.
+    const cwdRefusal = resolved ? null : applyCwdCheck('terminal:create-with-command', opts, landing)
+    if (cwdRefusal) return cwdRefusal
 
     if (!ptyManager) {
       deps.logger.log('[remote][terminal] ipc-result channel=terminal:create-with-command result=false reason=no-pty-manager')
@@ -345,6 +507,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       windowId: invokerWindowId,
     })
     if (created && opts.reportLanding) {
+      const cwdCheck = cwdReport(landing.cwdCheck)
       const report: TerminalCreatedReport = {
         ok: true,
         terminalId: opts.id,
@@ -354,6 +517,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
           source: landing.source,
           ...(landing.requestedWorkspaceId ? { requestedId: landing.requestedWorkspaceId } : {}),
           mismatch: landing.mismatch,
+          ...(cwdCheck ? { cwdCheck } : {}),
         },
       }
       return report
@@ -375,14 +539,21 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       return false
     }
 
+    // T0527: `--agent codex` → codex-cli; an id the registry does not know is refused with the
+    // known ids (it used to fail later as a bare `false`).
+    const agentCheck = unknownAgent(opts)
+    if (agentCheck.refusal) return agentCheck.refusal
+
     const settings = deps.readPersistedSettingsSync()
     const shellResolution = resolveTerminalShell(opts.shell, settings, deps)
     const shellFamily = detectShellFamily(shellResolution.shell ?? shellResolution.basename)
     // T0523 / BUG-129: `--agent default` follows the workspace the terminal lands in.
     const landing = await resolveWorkspace(_ctx, opts)
+    const cwdRefusal = applyCwdCheck('terminal:create-agent-command', opts, landing)
+    if (cwdRefusal) return cwdRefusal
 
     const resolved = await deps.buildAgentPromptCommand({
-      agent: opts.agent,
+      agent: agentCheck.agent,
       prompt: opts.prompt,
       skill: opts.skill,
       workorder: opts.workorder,

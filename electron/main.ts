@@ -10,7 +10,7 @@ import { spawnSync, fork } from 'child_process'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
-import { resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
+import { checkDispatchCwd, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
@@ -553,8 +553,25 @@ async function resolveWorkspaceDefaultAgent(workspaceId?: string): Promise<strin
 
 // T0523 / BUG-129: a helper-dispatched terminal lands in the workspace its `--notify-id` Tower
 // terminal belongs to (persisted window registry), not whatever `--workspace` the Tower shell sent.
+// BUG-132: plus where the dispatch cwd sits relative to the landing workspace's folderPath.
 async function resolveDispatchWorkspace(request: DispatchWorkspaceRequest): Promise<DispatchWorkspaceResolution> {
-  return resolveDispatchWorkspaceFromEntries(await windowRegistry.readAll(), request)
+  const entries = await windowRegistry.readAll()
+  const resolution = resolveDispatchWorkspaceFromEntries(entries, request)
+  resolution.cwdCheck = await checkDispatchCwd(entries, resolution, request.cwd, { realpath: realpathWithin })
+  return resolution
+}
+
+// BUG-132: symlinks resolved for the cwd check; a slow network / cloud-drive path gives up
+// after DISPATCH_REALPATH_TIMEOUT_MS and is compared as given (the helper waits 3 s in all).
+const DISPATCH_REALPATH_TIMEOUT_MS = 300
+function realpathWithin(target: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), DISPATCH_REALPATH_TIMEOUT_MS)
+    fs.realpath(target).then(
+      (real) => { clearTimeout(timer); resolve(real) },
+      () => { clearTimeout(timer); resolve(null) },
+    )
+  })
 }
 
 // T0377 / BUG-085: detect BAT's own Windows elevation once and feed it to the (sync)

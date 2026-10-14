@@ -102,18 +102,52 @@ test('dispatch from a Tower tab in B with --workspace A lands in B and uses B\'s
     log(`plain dispatch: exit=${plain.code}\n${plain.stdout}${plain.stderr}`)
     expect(plain.code, plain.stderr).toBe(0)
     expect(plain.stdout).toContain(`workspace: T0523-A (${WS_A}) — from --workspace`)
+    // T0527 / BUG-132: both ran from inside their landing workspace's folder → no cwd warning.
+    expect(stale.stderr).not.toContain('is not under the landing workspace')
+    expect(plain.stderr).not.toContain('is not under the landing workspace')
+
+    // 3) T0527 / BUG-132: Tower in B, but the helper runs from A's folder (the agent CLI kept
+    //    another tab's BAT_*), not yolo → still lands in B, with a warning naming A.
+    const crossAsk = await runHelper(env, ['--notify-id', TOWER, '--workspace', WS_B, '--mode', 'ask', '--skill', 'ct-exec', '--workorder', 'T0527'], folderA)
+    log(`cross-cwd ask dispatch: exit=${crossAsk.code}\n${crossAsk.stdout}${crossAsk.stderr}`)
+    expect(crossAsk.code, crossAsk.stderr).toBe(0)
+    expect(crossAsk.stdout).toContain(`workspace: T0523-B (${WS_B}) — the Tower terminal's workspace (--notify-id)`)
+    expect(crossAsk.stderr).toContain(`cwd ${folderA} is not under the landing workspace's folder ${folderB}.`)
+    expect(crossAsk.stderr).toContain(`It belongs to workspace "T0523-A" (${WS_A}).`)
+
+    // 4) Same in yolo → refused, exit 1, nothing created.
+    const crossYolo = await runHelper(env, ['--notify-id', TOWER, '--workspace', WS_B, '--mode', 'yolo', '--skill', 'ct-exec', '--workorder', 'T0527'], folderA)
+    log(`cross-cwd yolo dispatch: exit=${crossYolo.code}\n${crossYolo.stdout}${crossYolo.stderr}`)
+    expect(crossYolo.code).toBe(1)
+    expect(crossYolo.stdout).not.toContain('Terminal created')
+    expect(crossYolo.stderr).toContain(`Failed to create terminal (DISPATCH_CWD_OTHER_WORKSPACE): cwd ${folderA} belongs to workspace "T0523-A" (${WS_A})`)
+    expect(crossYolo.stderr).toContain(`landing workspace: "T0523-B" (${WS_B})`)
+
+    // 5) T0527: an unknown --agent says so (it used to be a bare terminal-not-created).
+    const unknownAgent = await runHelper(env, ['--notify-id', TOWER, '--agent', 'no-such-agent-t0527', '--skill', 'ct-exec', '--workorder', 'T0527'], folderB)
+    expect(unknownAgent.code).toBe(1)
+    expect(unknownAgent.stderr).toContain("Failed to create terminal (AGENT_UNKNOWN): Unknown agent id 'no-such-agent-t0527'. Known agent ids: ")
+    expect(unknownAgent.stderr).toContain(ECHO_AGENT)
 
     // The renderer put each tab where main said, and saved it.
     await expect.poll(async () => {
       const raw = await win.evaluate(async () => (window as AnyApi).electronAPI.workspace.load())
       const entry = raw ? JSON.parse(raw) as { terminals: { id: string; workspaceId: string }[] } : null
-      return [stale.terminalId, plain.terminalId].map(id => entry?.terminals.find(t => t.id === id)?.workspaceId ?? null)
-    }, { timeout: 20_000 }).toEqual([WS_B, WS_A])
+      return [stale.terminalId, plain.terminalId, crossAsk.terminalId].map(id => entry?.terminals.find(t => t.id === id)?.workspaceId ?? null)
+    }, { timeout: 20_000 }).toEqual([WS_B, WS_A, WS_B])
 
     const debug = readDebugLogs(userData)
     expect(debug).toContain(`[T0523] dispatch workspace mismatch: tower=${TOWER} belongs to workspace=${WS_B} (T0523-B), --workspace=${WS_A}`)
     expect(debug).toContain(`[agent-command] resolved agent=default to ${ECHO_AGENT} source=workspace workspace=${WS_B} (T0523-B) workspaceSource=tower-terminal`)
     expect(debug).toContain(`External terminal added: id=${stale.terminalId} cwd=${folderB} workspaceId(landed)=${WS_B} workspaceId(requested)=${WS_B} tower=${TOWER}`)
+    expect(debug).toContain(`[BUG-132] dispatch cwd outside the landing workspace: cwd=${folderA} landing=${WS_B} (T0523-B) folderPath=${folderB} workspaceSource=tower-terminal cwdWorkspace=${WS_A} (T0523-A) mode=ask → created with a warning`)
+    expect(debug).toContain(`cwdWorkspace=${WS_A} (T0523-A) mode=yolo → refused (yolo)`)
+    // bat-scripts.log (temp BAT_USER_DATA of this test) records the check and the refusal.
+    const scriptsLog = path.join(userData, 'Logs', 'bat-scripts.log')
+    const checks = fs.existsSync(scriptsLog)
+      ? fs.readFileSync(scriptsLog, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)).filter(e => e.event === 'dispatch-cwd-check')
+      : []
+    expect(checks.map(e => [e.status, e.action])).toEqual(expect.arrayContaining([['inside', 'proceed'], ['other-workspace', 'warn'], ['other-workspace', 'refuse']]))
   } finally {
     await closeIsolated(inst, log)
     fs.rmSync(tmp, { recursive: true, force: true })
