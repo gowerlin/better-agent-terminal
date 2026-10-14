@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T13:19:21+0800"
+generated_at: "2026-10-14T13:31:24+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 53
+total: 54
 breakdown:
   OPEN: 0
   FIXING: 1
-  FIXED: 8
+  FIXED: 9
   VERIFY: 0
   CLOSED: 44
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127 FIXED（T0521 `5962450`）/ BUG-128 FIXING（T0522）
+> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127 FIXED（T0521）/ BUG-128 FIXED（T0522 `43c9073`）/ BUG-129 FIXING（T0523）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 8 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 53**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 9 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 54**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | T0522 進行中 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
+| BUG-129 | 塔台派工落到錯的工作區 / `--agent default` 解析錯（Gary） | 🟡 medium | T0523 進行中 | [BUG-129](BUG-129-tower-dispatch-lands-in-wrong-workspace.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | 2026-10-14 13:29 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
 | BUG-127 | 指揮塔面板切換工作區時 toast 洪水（「殘影」） | 🟢 low | 2026-10-14 13:27 | [BUG-127](BUG-127-ct-panel-toast-flood-on-workspace-switch.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |
 | BUG-116 | macOS 0.6.0-pre.2 啟動即崩潰：main 載入 whisper addon 找不到 `darwin-arm64/whisper.node` → uncaught exception | 🔴 high | 2026-10-13 | [BUG-116](BUG-116-mac-arm64-whisper-addon-load-failure-crashes-main.md) |
