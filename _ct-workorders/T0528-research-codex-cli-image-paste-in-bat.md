@@ -11,7 +11,7 @@ priority: P2
 sizing: S
 created_at: "2026-10-14T17:22:38+0800"
 started_at: "2026-10-14T17:23:26+0800"
-updated_at: "2026-10-14T17:34:46+0800"
+updated_at: "2026-10-14T17:50:48+0800"
 completed_at: "2026-10-14T17:34:46+0800"
 related:
   - BUG-130
@@ -146,7 +146,7 @@ memory_overrides:
 
 ### 遭遇問題
 
-- **對使用者資料的副作用（已揭露，沒有清除）**：前兩個 L1 案例（17:25:32 / 17:25:47）結束時，直接用 Ctrl+C 清掉含 `[Image #1]` 的草稿。Codex 會把被清掉的草稿寫進 `~/.codex/history.jsonl`，所以多了 2 筆 `"[Image #1]"`（10 字元）的紀錄。這兩筆**不是送出的 prompt**，Codex log 沒有 `turn/start`。因為那是使用者的檔案，我沒有刪除。之後的案例都先清空草稿再離開，沒有再新增紀錄
+- **對使用者資料的副作用（已揭露，已依使用者要求清除）**：前兩個 L1 案例（17:25:32 / 17:25:47）結束時，直接用 Ctrl+C 清掉含 `[Image #1]` 的草稿。Codex 會把被清掉的草稿寫進 `~/.codex/history.jsonl`，所以多了 2 筆 `"[Image #1]"`（10 字元）的紀錄。這兩筆**不是送出的 prompt**，Codex log 沒有 `turn/start`。因為那是使用者的檔案，我沒有刪除。之後的案例都先清空草稿再離開，沒有再新增紀錄。**2026-10-14T17:50:48+0800 使用者要求刪除**：已以 `ts` + `session_id` 精確比對，只移除這 2 行（4662 → 4660 行），使用者自己其他日期的 `[Image #1]` 紀錄不動；刪除前的備份在 session scratchpad `t0528/history.jsonl.bak`
 - 隔離 BAT 的 PowerShell 裡，`codex` 先解析到 npm 全域的 `codex` 0.160.0（`%APPDATA%\npm\codex.ps1`）。目前 session 是**以系統管理員權限執行**，它報錯 `start the Windows daemon from a non-elevated terminal …`，所以 L2 改用 0.162.1 的完整路徑。這個錯誤和貼圖無關（`electron/windows-elevation.ts` 已處理 `codex-cli` preset 在權限提升時的情況），只記錄
 - `AttachConsole failed`（`conpty_console_list_agent.js`）是 node-pty 在 kill 時的既有雜訊，不影響結果
 - 剪貼簿：測前備份原本的文字（9 字元，`UnicodeText`），測完還原，確認 `textLen=9`、formats `UnicodeText,System.String,Text`。隔離實例已收掉：Terminal Server `alive after teardown: false`，`runtime userData removed: true`。scratch 裡的 `node_modules` junction 已先拆除（repo `node_modules` 完好）
