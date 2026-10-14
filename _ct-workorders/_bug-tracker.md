@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-14T13:36:40+0800"
+generated_at: "2026-10-14T13:48:52+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 55
+total: 56
 breakdown:
   OPEN: 0
   FIXING: 2
-  FIXED: 9
+  FIXED: 10
   VERIFY: 0
   CLOSED: 44
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127 FIXED（T0521）/ BUG-128 FIXED（T0522 `43c9073`）/ BUG-129 FIXING（T0523）/ BUG-130 FIXING（T0524）
+> 最後同步：2026-10-14 13:19 (UTC+8) — 第六十一 session：Gary mac 回報 → BUG-127 FIXED（T0521）/ BUG-128 FIXED（T0522 `43c9073`）/ BUG-129 FIXED（T0523 `dcdfffe`）/ BUG-130 FIXING（T0524）/ BUG-131 FIXING（T0525）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 9 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 55**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 10 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 56**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,13 @@ breakdown:
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-130 | 終端分頁貼圖失效（Windows 回歸）+ mac 終端無法貼圖 | 🟡 medium | T0524 進行中 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
-| BUG-129 | 塔台派工落到錯的工作區 / `--agent default` 解析錯（Gary） | 🟡 medium | T0523 進行中 | [BUG-129](BUG-129-tower-dispatch-lands-in-wrong-workspace.md) |
+| BUG-131 | 本機 PTY 重建路徑掉 env（heartbeat 復原 / restart customEnv） | 🟡 medium | T0525 進行中 | [BUG-131](BUG-131-pty-rebuild-drops-env.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-129 | 塔台派工落到錯的工作區 / `--agent default` 解析錯（Gary） | 🟡 medium | 2026-10-14 13:48 | [BUG-129](BUG-129-tower-dispatch-lands-in-wrong-workspace.md) |
 | BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | 2026-10-14 13:29 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
 | BUG-127 | 指揮塔面板切換工作區時 toast 洪水（「殘影」） | 🟢 low | 2026-10-14 13:27 | [BUG-127](BUG-127-ct-panel-toast-flood-on-workspace-switch.md) |
 | BUG-118 | 非 Windows 打包版（mac 兩 arch、Linux AppImage）缺 `claude-code/bin/claude.exe`（electron-builder 非 Windows 排除 `.exe`）→ 內嵌 claude 不可用 | 🔴 high | 2026-10-13 | [BUG-118](BUG-118-non-windows-package-missing-embedded-claude.md) |

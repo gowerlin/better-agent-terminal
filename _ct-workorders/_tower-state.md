@@ -116,8 +116,8 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（76 entries）
 
 ### 編號起始
-- **T0525** / **BUG-131** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L150**
-- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523（BUG-129 Gary 塔台派工落錯工作區，日誌待 Gary）∥ T0524（BUG-130 終端貼圖 Windows 回歸 + mac）進行中
+- **T0526** / **BUG-132** / **PLAN-040** / **D140** / **EXP-[TOPIC]-001** / **L150**
+- 進行中（第六十一 session）：T0521 DONE（`5962450`，BUG-127）、T0522 DONE（`43c9073`，BUG-128，unit 3574 / 216 files）；T0523 DONE（`dcdfffe`，BUG-129；Gary 情境推論為 Codex shell_snapshot 帶入舊 env，日誌待 Gary 確認）；T0524（BUG-130 終端貼圖）∥ T0525（BUG-131 PTY 重建掉 env）進行中；待使用者決策：`--agent default` 是否沿用塔台終端自己的 agent（T0523 §4）
 
 ---
 
@@ -131,8 +131,8 @@
 | **最新 release** | `v0.6.0-pre.7`（2026-10-14 04:43，run `38461996096`，target `b77f3cc`，T0513 / T0517-T0519：遠端狀態燈、SSH forwarding 被拒訊息、commands / skills 描述；10 job 全綠）+ `server-bundle-v0.6.0-pre.7`（7 assets）。前一版 `v0.6.0-pre.6`（2026-10-14 03:16，run `38450958394`，target `79b1275`，T0510-T0512：SSH 精靈安裝 / 啟動修正、Profile 對話框加寬）+ `server-bundle-v0.6.0-pre.6`（7 assets）。前一版 `v0.6.0-pre.5`（2026-10-14 01:38，run `38438114047`，target `7a6fb9c`，D139 批次 T0483–T0509）+ `server-bundle-v0.6.0-pre.5`（7 assets）。前一版 `v0.6.0-pre.4`（2026-10-13 23:04，run `38417070634`，target `da787a7`，含 BUG-119 userData 統一 / T0476-T0478；不含 T0483）+ `server-bundle-v0.6.0-pre.4`（7 assets）。前一版 `v0.6.0-pre.3`（2026-10-13 19:15，第五十八 session，run `38387358451`，target `c634327`；mac 只 arm64 dmg，D136）+ `server-bundle-v0.6.0-pre.3`（7 assets）。前一版 `v0.6.0-pre.2`（2026-10-05 13:07，第五十七 session，run `37265491592`，target `9cb7cd4`，含第五十五 / 五十六 session 全部改動）+ `server-bundle-v0.6.0-pre.2`（7 assets）；同時段另有一次派發 run `37265211762` 因 `version` 帶 `v` 前綴在 manifest 比對失敗，未建 tag |
 | **前一 tag** | `v0.6.0-pre.6`（2026-10-14 03:16，`79b1275`） |
 | **目前主軸** | pre.7 批次已全結（BUG-123-126 CLOSED）；真人 5 分鐘項（105 / 107 / 108）+ Docker 精靈（097 / 111）+ Gary mac（116 / 118） |
-| **工單最大編號** | T0524（T0521 / T0522 DONE、T0523 / T0524 進行中；T0513-T0520 全 DONE；T0514-T0516 / T0520 為驗收單；T0520 pre.7 已安裝版驗收 17 PASS / 0 FAIL `a4fe1f5`） |
-| **BUG 最大編號** | **BUG-130**（127 / 128 FIXED、129 FIXING T0523、130 FIXING T0524）；Open 0 / Fixing 2 / Fixed 9（123-126 CLOSED：T0520 + 使用者 WSL 目視；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
+| **工單最大編號** | T0525（T0521-T0523 DONE、T0524 / T0525 進行中；T0513-T0520 全 DONE；T0514-T0516 / T0520 為驗收單；T0520 pre.7 已安裝版驗收 17 PASS / 0 FAIL `a4fe1f5`） |
+| **BUG 最大編號** | **BUG-131**（127-129 FIXED、130 FIXING T0524、131 FIXING T0525）；Open 0 / Fixing 2 / Fixed 10（123-126 CLOSED：T0520 + 使用者 WSL 目視；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
 | **PLAN 最大編號** | PLAN-039（**DONE** 2026-10-13）；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
 | **決策最大編號** | D139 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
