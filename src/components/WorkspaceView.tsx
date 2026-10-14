@@ -1065,6 +1065,15 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                 />
               </div>
             ))}
+            {/* BUG-134 / T0531: a workspace with no terminals shows an opaque empty state */}
+            {terminals.length === 0 && (
+              <div className="terminals-empty-state" data-testid="terminals-empty-state">
+                <p>{t('terminal.emptyWorkspace')}</p>
+                <button className="btn-primary" onClick={handleAddTerminal}>
+                  {t('terminal.addTerminal')}
+                </button>
+              </div>
+            )}
             {mainTerminal?.role === 'supervisor' && activeTab === 'terminal' && (
               <WorkerPanel
                 workers={terminals.filter(t => t.id !== mainTerminal.id)}
@@ -1150,7 +1159,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       default:
         return null
     }
-  }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote,
+  }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote, handleAddTerminal,
       handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude,
       handleSnippetPasteToTerminal, handleSnippetSendToAgent, handleExecWorkOrder, handleDoneWorkOrder, focusedTerminalId])
 

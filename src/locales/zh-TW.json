@@ -386,7 +386,9 @@
     "collapsePanel": "收合面板",
     "statusActive": "終端活躍中",
     "statusIdle": "終端閒置",
-    "statusPending": "等待操作"
+    "statusPending": "等待操作",
+    "emptyWorkspace": "這個工作區目前沒有終端。",
+    "addTerminal": "新增終端"
   },
   "dialogs": {
     "closeCodeAgent": "關閉 Code Agent？",

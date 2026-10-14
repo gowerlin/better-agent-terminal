@@ -476,13 +476,17 @@ class WorkspaceStore {
 
   removeTerminal(id: string): void {
     clearPreviewCache(id)
+    const removed = this.state.terminals.find(t => t.id === id)
     const terminals = this.state.terminals.filter(t => t.id !== id)
 
+    // BUG-134 / T0531: the next focus stays in the removed terminal's workspace. Falling back to
+    // the first terminal overall focused another workspace's terminal once a workspace's last
+    // terminal was closed.
     this.state = {
       ...this.state,
       terminals,
       focusedTerminalId: this.state.focusedTerminalId === id
-        ? (terminals[0]?.id ?? null)
+        ? (terminals.find(t => t.workspaceId === removed?.workspaceId)?.id ?? null)
         : this.state.focusedTerminalId
     }
 

@@ -386,7 +386,9 @@
     "collapsePanel": "Collapse Panel",
     "statusActive": "Terminal active",
     "statusIdle": "Terminal idle",
-    "statusPending": "Waiting for action"
+    "statusPending": "Waiting for action",
+    "emptyWorkspace": "This workspace has no terminals.",
+    "addTerminal": "Add Terminal"
   },
   "dialogs": {
     "closeCodeAgent": "Close Code Agent?",

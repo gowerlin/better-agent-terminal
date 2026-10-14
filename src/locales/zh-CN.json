@@ -386,7 +386,9 @@
     "collapsePanel": "收起面板",
     "statusActive": "终端活跃中",
     "statusIdle": "终端空闲",
-    "statusPending": "等待操作"
+    "statusPending": "等待操作",
+    "emptyWorkspace": "这个工作区目前没有终端。",
+    "addTerminal": "新增终端"
   },
   "dialogs": {
     "closeCodeAgent": "关闭 Code Agent？",

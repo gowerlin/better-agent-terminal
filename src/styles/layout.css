@@ -484,12 +484,38 @@
   z-index: 1;
 }
 
+/* BUG-134 / T0531: `.workspace-tab-panel.active` sets visibility: visible, which overrides the
+   visibility: hidden a hidden workspace passes down. A hidden workspace's active tab kept
+   painting under the active workspace and showed through wherever that one is transparent
+   (a workspace with no terminals). Nothing inside a hidden workspace may paint or take clicks. */
+.workspace-container.hidden .workspace-tab-panel.active {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .terminal-wrapper.hidden {
   display: none;
 }
 
 .terminal-wrapper.active {
   display: flex;
+}
+
+/* BUG-134 / T0531: workspace with no terminals — opaque, so nothing behind it shows through */
+.terminals-empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.terminals-empty-state p {
+  margin: 0;
 }
 
 /* Split View - side-by-side panes (terminals, files, git, github) */

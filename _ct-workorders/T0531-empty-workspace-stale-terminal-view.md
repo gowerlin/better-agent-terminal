@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0531
 title: "空工作區主畫面殘留其他 / 已關閉終端畫面（BUG-134）：找根因並修正"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-134
 priority: P2
 sizing: M
 created_at: "2026-10-15T01:16:21+0800"
-started_at: null
-updated_at: "2026-10-15T01:16:21+0800"
+started_at: "2026-10-15T01:17:39+0800"
+updated_at: "2026-10-15T01:17:39+0800"
 completed_at: null
 target_version: "0.6.0-pre.11"
 related:
@@ -71,10 +71,10 @@ memory_overrides:
 
 ## 驗收條件
 
-- [ ] 根因說明（情境 a / b 是哪一種，以及為何無法操作）
-- [ ] 關閉工作區全部終端後，主畫面為空狀態，切到其他工作區再切回來也一樣
-- [ ] 新增終端仍正常顯示，其他工作區的終端不受影響
-- [ ] BUG-134：`status: FIXED`、`fixed_at`、body 狀態列同步（PARTIAL 時保持 FIXING，寫明要補的 log）
+- [x] 根因說明（情境 a / b 是哪一種，以及為何無法操作）
+- [x] 關閉工作區全部終端後，主畫面為空狀態，切到其他工作區再切回來也一樣
+- [x] 新增終端仍正常顯示，其他工作區的終端不受影響
+- [x] BUG-134：`status: FIXED`、`fixed_at`、body 狀態列同步（PARTIAL 時保持 FIXING，寫明要補的 log）
 
 ## Sub-session 執行指示
 
@@ -91,10 +91,56 @@ memory_overrides:
 
 ### 結果摘要
 
+**DONE**。根因從程式碼找到並以隔離實例 e2e 重現（修正前紅、修正後綠），不需要向回報者要 log。
+
+**根因 = 情境 (a)，其他工作區的終端**（不是本工作區已關閉終端的殘影：關閉的終端 React 元件卸載、DOM 移除）：
+
+1. 已造訪的工作區都保持掛載，隱藏工作區用 `.workspace-container.hidden { visibility: hidden; pointer-events: none }`（`src/styles/layout.css`）。`visibility` 可被子元素覆寫，`.workspace-tab-panel.active { visibility: visible; pointer-events: auto }` 把每個隱藏工作區的 active 分頁面板翻回可見 ⇒ 隱藏工作區的終端分頁一直在畫，只是被 active 工作區（`z-index: 1`）蓋住。e2e 實測：A active、B 隱藏時，B 的 `.main-panel` computed visibility = `visible`。
+2. active 工作區 0 個終端時 `.terminals-container` 透明，底下隱藏工作區的 active 終端透出來。多個隱藏工作區時 DOM 順序最後（側欄最下面）的畫在最上層，與回報者看到 better-agent-terminal 一致；塔台 BUG-134 也記錄了使用者 pre.10 本機重現為情境 (a)。
+3. **無法操作**：點擊命中上層 active 工作區那個空的 `.terminals-container`（e2e `elementFromPoint(center)` = `terminals-container in workspace-container active`），鍵盤 focus 也不在隱藏工作區的 xterm。按 `+` 後新終端（有背景）蓋過去，所以「恢復正常」。
+4. 塔台 / Agent 預設終端：沒有特殊分支。`mainTerminal = focusedTerminal || agentTerminal || terminals[0]` 只在本工作區的 `terminals` 內選；透出來的是哪種終端，只取決於那個隱藏工作區當時的 active 終端（回報截圖是 `Claude CLI` 塔台分頁）。
+5. 附帶缺陷（store）：`removeTerminal()` 關掉 focus 終端時 fallback 到**全域** `terminals[0]`，關掉工作區最後一個終端後 `focusedTerminalId` 指向其他工作區的終端（snippet 貼上 `handleSnippetPasteToTerminal`、Skills / Agents 面板 active session 等會指錯對象；之後按 `+` 加一般終端時 `addTerminal` 也因 focus 非空而不搶 focus）。不是畫面殘留的成因，依工單第 3 點在 store 修正並補單元測試。
+
+**修正**：
+- CSS：`.workspace-container.hidden .workspace-tab-panel.active { visibility: hidden; pointer-events: none }`，隱藏工作區內的 active 分頁不再繪製、不收點擊。
+- UI：`WorkspaceView` 終端分頁在 0 個終端時渲染不透明空狀態 `.terminals-empty-state`（`data-testid="terminals-empty-state"`，`background: var(--bg-primary)`），文字 `terminal.emptyWorkspace` + 「新增終端」按鈕（`terminal.addTerminal`，呼叫既有 `handleAddTerminal`），三語 i18n。
+- store：`removeTerminal` 的 focus fallback 限同工作區的第一個終端，沒有則 `null`（之後由 `WorkspaceView` 既有的「Set default focus」effect 處理）。
+
 ### 修改檔案
+
+- `src/styles/layout.css`：隱藏工作區 active 分頁規則 + `.terminals-empty-state` 樣式
+- `src/components/WorkspaceView.tsx`：終端分頁空狀態（`renderTabContent` deps 加 `handleAddTerminal`）
+- `src/stores/workspace-store.ts`：`removeTerminal` focus fallback 限同工作區
+- `src/locales/en.json` / `zh-TW.json` / `zh-CN.json`：`terminal.emptyWorkspace`、`terminal.addTerminal`
+- `src/stores/__tests__/workspace-store.removeTerminal.test.ts`（新）：store 3 案例 + source guard 2 案例（CSS 規則、空狀態）
+- `e2e/t0531-empty-workspace-view.spec.ts`（新）：隔離實例，兩工作區各一個一般 shell 終端
+- `_ct-workorders/BUG-134-empty-workspace-shows-other-terminal.md`：FIXED、`fixed_at`、根因段、修正備註
 
 ### 驗證
 
+| 項目 | 結果 |
+|---|---|
+| Landing check | PASS。C-0：`repo: better-agent-terminal` = basename `better-agent-terminal`；C-1 PASS；C-3 PASS（`src/components/WorkspaceView.tsx` 等存在）；C-2 無 `branch` 欄位。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄） |
+| e2e 修正前（CSS 規則暫時失效） | 🔴 FAILED：`expect(panelB).toBeHidden()` → `Received: visible`（A active 時隱藏工作區 B 的終端面板 computed visibility 為 visible） |
+| e2e 修正前視覺探測（CSS 規則 + 空狀態都暫時失效，臨時 spec 跑完即刪） | 重現回報畫面：側欄 active = T0531-A、縮圖列空、主畫面顯示 `T0531 shell B`；hidden panels visibility=`["visible"]`；`elementFromPoint(center)` = `terminals-container in workspace-container active`（無法操作的原因）。截圖存 scratchpad `t0531-before-fix.png`（未入庫） |
+| e2e 修正後 `e2e/t0531-empty-workspace-view.spec.ts` | ✅ PASS：關閉 A 最後一個終端 → 空狀態、B 隱藏（hidden panels visibility=`["hidden"]`）；切 B 再切回 A 仍為空狀態；空狀態按鈕新增終端正常顯示，B 的終端不受影響 |
+| store 單元測試修正前 | 🔴 2 failed（`expected '<B 的終端 id>' to be null` 等），修正後 5/5 PASS |
+| `npm run typecheck` | ✅ exit 0 |
+| `npx vite build` | ✅ exit 0（修正後重新 build） |
+| `npm run test:unit` | ✅ 224 files / 3718 passed / 1 skipped |
+| 相關 e2e（`--workers=1`） | ✅ 5 passed：`t0531-empty-workspace-view`、`detached-workspace`、`detached-terminal-persistence`、`t0523-dispatch-workspace`、`t0530-detached-open-settings` |
+| `npm run typecheck:electron` | 未跑：未改 `electron/**` |
+
+全程用隔離實例（`--runtime=e2e-t0531-*`，userData 用完即刪），一般 shell 終端，未啟動 Claude / Codex。
+
 ### 偏差 / 備註
 
+- e2e 第一次試跑時種子工作區沒有 `folderPath`，`toTerminalInstance` 丟棄種子終端，隔離實例依預設 agent 建了一個 Claude Agent V1 分頁；因 cwd 為空立即報錯 `Cannot start session: invalid cwd "(empty)"`，**沒有啟動 session、沒有耗 token**。已補 `folderPath` / `cwd`，之後各次執行只有 shell 終端。
+- 修正前紅的證據是用「暫時讓 CSS 規則 selector 失效 / 暫時把空狀態條件改成 `false &&`」再 build 取得，之後以 Edit / sed 還原（未用 git stash / restore），還原後重新 build 並跑綠；`git diff` 確認無殘留 probe。
+- `src/styles/layout.css` 工作副本原為 CRLF（index LF，`.gitattributes` `eol=lf`），commit 時正規化，diff 只含本次新增行。
+- 殘留：全新工作區第一次啟用時，在預設終端建立完成前（非同步取 shell 路徑）可能短暫看到空狀態；之前同一時段是透明（可能透出其他工作區）。
+- 後續建議（未改，範圍外）：`workspaceStore.adoptDetached()` 的 focus fallback 同樣是全域 `terminals[0]`（`src/stores/workspace-store.ts` 約 L908），可比照本單改為限 active 工作區。
+
 ### Commit
+
+（commit 後補）
