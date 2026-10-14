@@ -5,9 +5,9 @@ id: BUG-129
 title: "塔台派工落到錯的工作區：Gary 在 SCB 工作區的 Codex 塔台用 bat-terminal.mjs --workspace \"$BAT_WORKSPACE_ID\" --agent default 派 T0001，Worker 分頁出現在另一個工作區（土銀），而且用 Claude Code 開（預期 Codex）"
 status: FIXED
 severity: medium
-reproducibility: unknown
+reproducibility: conditional
 created_at: "2026-10-14T13:31:24+0800"
-updated_at: "2026-10-14T13:48:23+0800"
+updated_at: "2026-10-14T17:02:37+0800"
 fixed_at: "2026-10-14T13:48:23+0800"
 impact:
   - control-tower
@@ -24,7 +24,7 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（Worker 在錯的工作區 / 錯的 agent 執行；cwd 正確所以改的是對的專案，但使用者看不到、Tower 通知可能送錯地方） |
-| 可重現 | 待確認（Gary 日誌待補） |
+| 可重現 | 條件式：塔台所在的 agent CLI（Codex）沿用了別的分頁的 `BAT_*` 環境時必然重現（T0526 依 Gary 日誌判定） |
 | **狀態** | ✅ FIXED（T0523；Gary 情境待日誌 / 實機確認，見下方殘留風險） |
 | 回報者 | Gary（mac） |
 
@@ -71,3 +71,27 @@ links:
 **Gary 情境（推論，日誌未到）**：helper exit 0 代表 `--workspace` 不是空值；BAT 自己的路徑不會把「非空但屬於別的工作區」的 id 注入 SCB 分頁。最吻合的是 agent CLI 還原了舊 env：Codex 狀態列的 thread 名稱是「套用2025_土銀客服中心建置案規則」，若此 thread 是從土銀分頁 resume 來的，`BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 會**都**指向土銀。🔴 若屬實，T0523 的「塔台終端優先」也會落在土銀（因為 `--notify-id` 同樣錯），只能讓塔台從 helper 輸出看到錯誤。判定方式見 T0523 回報區第 3 節，根治方案（不依賴 env 辨識呼叫者 PTY）見第 7 節。
 
 **agent**：`default` = 落點工作區的 `defaultAgent` → `settings.defaultAgent` → `claude-code`（語意未改）。如果 SCB 工作區與全域都沒設 codex，修正後依然會開 Claude。「沿用塔台自己的 agent」這個 UX 建議留給塔台決策。
+
+## Gary 日誌判定（T0526）
+
+依 Gary 補上的 `debug-20261014-113525.log` 與 `bat-scripts.log` 判定。兩份日誌的版本是 pre.5–pre.7（沒有 T0523 的欄位），細節見 T0526 回報區。
+
+**判定：T0523 §1 的 #11**（agent CLI 用的環境不是自己 PTY 的），信心高。
+
+- 事件派工發生在 05:18:17Z（13:18:17 UTC+8）：`--notify-id 77f17a65… --workspace ff79114e…`，env 的 `BAT_TERMINAL_ID` = `77f17a65`。`77f17a65` 是**土銀**的 Codex 塔台分頁，`ff79114e` 是**土銀**工作區。SCB 塔台分頁應該是 `1ba6042a`，SCB 工作區應該是 `faff6af2`
+- 落點：`landed = requested = ff79114e`，沒有 `Workspace miss`；只有一個視窗。#2 / #3 / #4 / #5 / #9 / #10 都排除：這是新 userData 的第一次啟動，SCB 分頁是當場新建的，事件前沒有 restart 或復原
+- SCB Codex 後續 05:25、05:26 的呼叫，env 依舊是 `77f17a65` / `ff79114e`；塔台在 argv 自行帶入 `1ba6042a` / `faff6af2` 後，就正確落在 SCB
+- 強佐證：07:56Z 因 mac 睡眠觸發 Terminal Server 復原。pre.7 重建 PTY 時不帶 env，此後**沒有任何活著的 PTY** 帶這組 env，但 08:02Z、08:13Z 的 helper 呼叫看到的仍然是 `77f17a65` / `ff79114e`（含 port）⇒ Codex 執行指令時用的是它自己保存的舊環境
+- **pre.8（T0523）修不好這個情況**：`--notify-id` 也是錯的，落點一樣會在土銀，只是 helper 會印出實際落點。另一個風險：Worker 的完成通知會送到**土銀塔台**，在 yolo 加 `--submit` 時會被直接送出
+
+**agent 開成 Claude 是另一個獨立原因**：05:18 時全域 Settings 還沒存過（新 userData 的第一次 `settings:save` 在 05:24:02），工作區層級又沒有設定入口（PLAN-040），所以 `default` 退到內建的 `claude-code`。落點就算正確，也一樣會開 Claude。05:24 Gary 存了 Settings 之後，05:26 的 `default` 解析成 `codex-cli`。這修正了上方「兩個症狀可能是同一根因」的推測。
+
+**後續（建議，交塔台決策）**：
+- [B] 先做：比對落點工作區 `folderPath` 與派工 `cwd`，不一致時警告；yolo / `--submit` 時拒派。規模 S，可以擋下這一次的情況
+- [A] 之後再做：以 helper 的祖先 PID 鏈對照 PTY pid 辨識呼叫者，這是根治做法，規模 M
+- [C] 在 Codex preset 關閉 shell snapshot：等 Gary 確認機制後再評估
+- 小缺口：`--agent codex` 不認得（要寫 `codex-cli`），helper 只印 `terminal-not-created`
+
+**殘留缺口**：Codex 內部是哪種機制（shell snapshot 或 resume 舊 thread）還沒確認；`1ba6042a` ∈ `faff6af2` 是推得的。給 Gary 的確認清單見 T0526 回報區「給 Gary 的補充要求」。
+
+`status` 維持 FIXED（結案與否由塔台決定）。
