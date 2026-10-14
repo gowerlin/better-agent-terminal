@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-14 17:04 (UTC+8) — 第六十二 session：T0526 判定 BUG-129 = #11 → 開 BUG-132 FIXING（T0527）
+> 最後同步：2026-10-14 17:19 (UTC+8) — 第六十二 session：BUG-132 FIXED（T0527 `a371ce5`，塔台複驗 typecheck 雙 0 + 相關測試 68 passed）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 12 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 57**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 13 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 57**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-132 | agent CLI 沿用別的分頁的 `BAT_*` → 派工落點 / 完成通知送錯塔台（Gary Codex，T0526 判定 #11；T0527） | 🟡 medium | 2026-10-14 17:04 | [BUG-132](BUG-132-agent-cli-stale-bat-env-misroutes-dispatch.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-132 | agent CLI 沿用別的分頁的 `BAT_*` → 派工落點 / 完成通知送錯塔台（T0527 `a371ce5`：cwd 一致性檢查、yolo 拒派、`--agent` 簡寫；遠端與 PID 鏈根治未做） | 🟡 medium | 2026-10-14 17:17 | [BUG-132](BUG-132-agent-cli-stale-bat-env-misroutes-dispatch.md) |
 | BUG-130 | 終端分頁貼圖（Windows 回歸未重現，已加固 + log；mac 送 Ctrl+V） | 🟡 medium | 2026-10-14 13:56 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
 | BUG-131 | 本機 PTY 重建路徑掉 env（heartbeat 復原 / restart customEnv） | 🟡 medium | 2026-10-14 13:54 | [BUG-131](BUG-131-pty-rebuild-drops-env.md) |
 | BUG-129 | 塔台派工落到錯的工作區 / `--agent default` 解析錯（Gary） | 🟡 medium | 2026-10-14 13:48 | [BUG-129](BUG-129-tower-dispatch-lands-in-wrong-workspace.md) |
