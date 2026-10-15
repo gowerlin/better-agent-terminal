@@ -58,7 +58,7 @@ const EMBEDDED_RUNTIME_REQUIRED_HOSTS = DESKTOP_PACKAGE_HOSTS;
 const EMBEDDED_CLAUDE_SEGMENTS = ['node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe'];
 
 // Text of the placeholder `bin/claude.exe` in the npm tarball
-// (@anthropic-ai/claude-code 2.1.289 and 2.1.296: a 500-byte shell script).
+// (@anthropic-ai/claude-code 2.1.289, 2.1.296 and 2.1.300: a 500-byte shell script).
 const CLAUDE_STUB_MARKER = 'claude native binary not installed';
 
 // Size is only a tie-breaker: a non-executable file this small is the stub even if

@@ -107,6 +107,11 @@ test('2.1.296 → healthy', () => {
   assert.strictEqual(classifyVersion('2.1.296'), 'healthy')
 })
 
+// T0541: embedded CLI bumped to 2.1.300
+test('2.1.300 → healthy', () => {
+  assert.strictEqual(classifyVersion('2.1.300'), 'healthy')
+})
+
 test('2.1.280 (boundary) → healthy', () => {
   assert.strictEqual(classifyVersion('2.1.280'), 'healthy')
 })
