@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0553
 title: "外部建立分頁的預設標題：Worker 顯示「Claude CLI · Worker · T0551」（Agent 顯示名 · 角色 · 工單號），非 Worker 顯示 Agent 名或命令檔名，拿掉誤導的「Remote:」；使用者 alias 優先，舊分頁重開後也套用"
 type: feature
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: "使用者需求（第六十六 session）；延伸 T0538 Worker 分頁標示"
 priority: P2
 sizing: S
 created_at: "2026-10-16T02:56:20+0800"
-updated_at: "2026-10-16T02:56:20+0800"
-started_at: ""
-completed_at: ""
-commit: ""
+updated_at: "2026-10-16T03:48:32+08:00"
+started_at: "2026-10-16T03:32:12+08:00"
+completed_at: "2026-10-16T03:48:32+08:00"
+commit: "bb9b9ddf"
 target_version: "0.6.1-pre.5（與 T0551 / T0552 同批）"
 depends_on: []
 related:
@@ -85,12 +85,71 @@ memory_overrides:
 
 ### 完成狀態
 
+DONE — 驗收條件全部達成；commit `bb9b9ddf`（未 push）。
+
 ### 產出摘要
+
+**落點檢查**：C-0 PASS（frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`，REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 PASS；C-3 PASS（`src/stores/workspace-store.ts` 等皆存在）；C-2 無 `branch` 欄位（main）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅紀錄）。CT_MODE=yolo、CT_INTERACTIVE=0。
+
+**資料模型發現**：使用者改名（`MainPanel` 雙擊 → `renameTerminal`）寫的是 `title`，`alias` 欄位實際上沒有 UI 會寫。因此「使用者 alias 優先」的實作是：預設標題只在建立時算一次存進 `title`；還原時只重算**舊預設格式**（`Remote: …` / `Remote Terminal`），其他任何標題（含使用者改的名）一律不動。
+
+**實作**
+- 新增 `src/lib/external-terminal-title.ts`（唯一實作）：`externalTerminalTitle`（Worker = `<Agent 顯示名> · Worker · <工單號>`；非 Worker = Agent 名 → 命令檔名 → `Terminal`）、`commandFileName`（去路徑 / 引號 / pwsh `&` / `.exe` 等）、`agentFromCommand`（`claude` / `codex` / `gemini` / `copilot` / `gh copilot`）、`legacyExternalCommand`（認舊標題）、`titleShowsWorkorder`。Agent 顯示名順序：renderer preset 名（`getAgentPreset`，與 Settings 下拉一致）→ main 帶來的 registry 名（自訂 CLI）→ 由命令認出的已知 CLI → 命令檔名 → agent id。
+- `electron/terminal-command-handlers.ts`：`terminal:create-agent-command` 把解析出的 `agentId` 與 `agentRegistry` 名稱以 `agent` / `agentName` 帶進 `terminal:created-externally`（本機與 headless 共用 `createWithCommand`，兩條路徑一致）。**只供標題，不傳給 `ptyManager.create`**（避免改到 `agentPreset` 觸發的 env 注入，例如 `DISABLE_UPDATES`）。raw command 模式不帶。
+- `src/stores/workspace-store.ts`：`addExternalTerminal` 改用新標題；`remote: true` → `TerminalInstance.remoteOrigin`（新欄位，存 / 讀 registry）；`toTerminalInstance` 還原時重算舊預設標題（load 與 detached adopt 共用）。
+- `src/components/TerminalThumbnail.tsx`：標題含工單號時小標籤只在已回報時顯示 `✓`（tooltip 不變；未回報時 tooltip 掛在標題上）；縮圖根元素加 `data-workorder`；`remoteOrigin` → `.remote-origin-badge`（文字沿用既有 `profiles.remote`：REMOTE / 遠端 / 远程，與 Profile 清單的遠端標示一致；tooltip 新 i18n 鍵 `workerTabs.remoteOriginTooltip` 三語）。CSS 在 `src/styles/panels.css`。
+- 型別：`src/types/index.ts`（`remoteOrigin`）、`src/types/electron.d.ts` / `electron/preload.ts`（事件 payload 加 `agent` / `agentName` / `remote`）。
+- CLAUDE.md：T0538 段落補註，新增「外部建立分頁的標題（T0553）」一條。
+
+**設計決定（我做的）**
+1. 遠端標示用縮圖小標籤（REMOTE），而非寫進標題字串：可隨語言顯示、且不污染使用者可改名的 `title`。
+2. 使用者把 Worker 改名後標題不再含工單號 → 小標籤恢復 T0538 的 `T####` / `✓ T####`，避免工單號完全看不到（使用者決定 2 的前提是「工單號已在標題中」）。
+3. 舊標題 `Remote: 'C:\Program`（舊邏輯在第一個空白截斷含空白路徑）或 `Remote: &`（pwsh）認不出檔名 → Worker 顯示 `Terminal · Worker · T####`，不猜 agent。
+4. 舊分頁沒有 `remoteOrigin` 資料，還原後不顯示遠端標籤（無法事後判斷）。
+
+**測試變更**
+- 新增：`src/lib/__tests__/external-terminal-title.test.ts`（claude / codex / copilot / 自訂 CLI / 未知 agent、已知 agent、路徑與引號、pwsh `&`、無命令、舊標題辨識）、`src/stores/__tests__/workspace-store.externalTitle.test.ts`（Worker 三種 agent、非 Worker、remoteOrigin 存讀、改名後 save→load 保留、舊 `Remote: …` 還原與存回）、`src/components/__tests__/worker-tab-title.test.tsx`（未回報無標籤 / 已回報 `✓` / tooltip / `data-workorder` / 改名後 T0538 標籤 / 遠端標籤）、`e2e/t0553-worker-tab-title.spec.ts`。
+- 更新：`electron/__tests__/terminal-handlers.test.ts`（5 處 payload `toEqual` 加 `agent` / `agentName`，新增 T0553 測試：registry 沒有的 agent 只帶 id、raw command 不帶、PTY 不收到 agent）、`electron/remote/__tests__/headless-terminal.test.ts`（payload 加 `agent` / `agentName`）、`src/stores/__tests__/workspace-store.workerOwnership.test.ts`（舊資料還原的標題 `Remote: claude` → `Claude CLI`，刻意的行為變更）、`e2e/t0538-worker-tab-batch-close.spec.ts`（定位改 `.thumbnail[data-workorder]`，未回報斷言標題 + 無標籤，已回報 `✓`）、`e2e/t0551-close-worker-focus.spec.ts`（只改定位）。
+
+**驗證**
+| 項目 | 結果 |
+|---|---|
+| `npm run test:unit` | PASS — 250 files，4234 passed / 1 skipped |
+| `npm run typecheck` | PASS — 0 |
+| `npm run typecheck:electron` | PASS — 0 |
+| `npx vite build` | PASS |
+| e2e `t0553-worker-tab-title.spec.ts`（新） | PASS（連續 4 次）；修 selector 後第一次跑曾有一次 `toHaveCount` 失敗，error-context 被後續執行覆蓋、未能定位是哪一行，之後重跑 4 次皆過 → 視為偶發，記錄供參 |
+| e2e `t0538-worker-tab-batch-close.spec.ts` | PASS（已依新標籤規則更新斷言） |
+| e2e `t0537-worker-ownership-persistence.spec.ts` | PASS（未修改） |
+| e2e `t0551-close-worker-focus.spec.ts` | PASS（只改定位） |
+
+e2e 全部為隔離實例 + 自訂 CLI 跑 node 腳本，未碰使用者 BAT（port 9876）、未耗 token。
+
+**Commit**：`bb9b9ddf feat(worker-tabs): T0553 tab titles name the agent, role and work order`（`git commit --only`，不含 `src/styles/settings.css` 與本工單檔；未 push、未建 tag、未改版號）。
 
 ### 互動紀錄
 
+無（CT_INTERACTIVE=0，fire-and-forget）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+- `.main-panel-title` 在工作區內每個分頁各有一個（隱藏的也在 DOM），e2e 改名步驟需以標題文字篩選。
+- 實機（非隔離）未驗證遠端 headless 實際派工的標題 / REMOTE 標籤；遠端路徑由 `headless-terminal.test.ts`（真 headless，payload 含 `agent` / `agentName`）與 store 單元測試（`remote: true` → `remoteOrigin`）覆蓋。
+
 ### 回報時間
+
+2026-10-16T03:48:32+08:00
+
+---
+
+## 塔台收單（第六十六 session，2026-10-16T03:50:02+0800）
+
+- ✅ **T0553 已確認 DONE**：`bb9b9ddf`（21 檔）。Worker 未 commit 本工單檔，由塔台收單一併 commit。塔台複驗 @ `bb9b9ddf`：`npm run test:unit` 4234 passed / 250 files、`npm run typecheck` = 0、`npm run typecheck:electron` = 0。
+- 設計決定 1–4 採納（REMOTE 用縮圖小標籤、改名後恢復 T0538 工單標籤、舊標題認不出檔名時顯示 `Terminal · Worker · T####`、舊分頁無 `remoteOrigin`）。「alias 優先」實為「使用者改名寫入 `title`，還原時只重算舊預設格式」，符合使用者決定 4 的意圖。
+- `agent` / `agentName` 只用於標題、不傳給 `ptyManager.create`（不影響 `agentPreset` 相關 env 注入），有測試守住。
+- e2e `t0553` 首次執行一次偶發失敗、之後連續 4 次通過：記錄為觀察，pre.5 發版前回歸再跑一次。
+- 實機：安裝 pre.5 後確認 Worker 分頁顯示 `Claude CLI · Worker · T####`。Worker 分頁已回收（03:48:46 排程 → 到期 `close requested`）。下一張 T0554 已派。
