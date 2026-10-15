@@ -99,7 +99,7 @@
 
 1. ✅ ~~PLAN-041 重驗~~ → **DONE**（第六十六 session 02:17，T0549：pre.4 收單即 `--close-worker` exit 0、10 s 後關閉；當次排程時已安靜，等安靜分支由 T0545 e2e 涵蓋）。同場結案 CT-T001 / CT-T011 / CT-T012 / T0510（PARTIAL→DONE）；PLAN-014 DROPPED、T0153 ABANDONED；L132 四份報告檔搬入歸檔；全 PLAN 盤點：PLAN-031 / 033 / 035 DONE、新開 PLAN-043（IDEA，PLAN-035 Phase 2/3）、PLAN-036 / 037 待 T0550
 2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
-3. 🟡 **pre.4 實機**：✅ T0550 DONE（WSL server → 0.6.1-pre.4、線上下載 / 匯入、smoke 13/13；PLAN-036 / 037 DONE；需真人 6 項見 T0550 回報區；衍生 **BUG-138**（精靈升級換 port）/ **BUG-139**（覆蓋安裝殘留））；其餘：WSL / SSH 首次設定的線上下載與「匯入本機 tarball」、dmg（UDBZ）掛載 / AppImage（xz）啟動速度、NSIS 完整重裝；WSL `~/.local/bat-server` 已升 0.6.1-pre.4（T0550；備份 `~/.local/bat-server.bak-0.5.9-pre.4-t0550` 687M 待使用者決定刪除）
+3. 🟡 **pre.4 實機**：✅ T0550 DONE（WSL server → 0.6.1-pre.4、線上下載 / 匯入、smoke 13/13；PLAN-036 / 037 DONE；需真人 6 項見 T0550 回報區；衍生 **BUG-138**（精靈升級換 port）/ **BUG-139**（覆蓋安裝殘留））；其餘：WSL / SSH 首次設定的線上下載與「匯入本機 tarball」、dmg（UDBZ）掛載 / AppImage（xz）啟動速度、NSIS 完整重裝；WSL `~/.local/bat-server` 已升 0.6.1-pre.4（T0550 / T0552；T0550 / T0552 的 5 份備份已依使用者指示於 2026-10-16 03:37 刪除）
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；Gary 日誌另案（macOS terminal-server 未存活、`first-renderer-ipc` +8 s）
 5. 🟢 程式碼簽章等使用者帳號；backlog：`docs/server-bundle-distribution.md` rate-limit 重試敘述與實作不符（T0548 #5）、PID 鏈、`*archive` 到齡候選
 
