@@ -58,6 +58,12 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => callback(info)
       ipcRenderer.on('terminal:keypress', handler)
       return () => ipcRenderer.removeListener('terminal:keypress', handler)
+    },
+    // PLAN-041 / T0535: main asks the window holding this tab to close it (`--close-worker`)
+    onCloseRequested: (callback: (info: { id: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { id: string }) => callback(info)
+      ipcRenderer.on('terminal:close-requested', handler)
+      return () => ipcRenderer.removeListener('terminal:close-requested', handler)
     }
   },
   workspace: {

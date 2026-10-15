@@ -74,9 +74,15 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
     }
   })
   // T0215 (BUG-050 階段 1):改用 writeWithResult 回 `{ok, reason}`,讓 bat-notify 可據以 exit 1
-  register('pty:write', (_ctx, id: string, data: string) =>
-    deps.getPtyManager()?.writeWithResult(id, data) ?? { ok: false, reason: 'manager-not-ready' }
-  )
+  // T0535 (PLAN-041): a write from a local window (Electron IPC, no remote connection) is the
+  // user's input — it cancels a pending `--close-worker` of that tab. Helper writes arrive over
+  // RemoteServer (connectionId set) and do not count.
+  register('pty:write', (ctx, id: string, data: string) => {
+    const manager = deps.getPtyManager()
+    if (!manager) return { ok: false, reason: 'manager-not-ready' }
+    if (!ctx.connectionId) manager.noteUserInput(id)
+    return manager.writeWithResult(id, data)
+  })
   register('pty:resize', (_ctx, id: string, cols: number, rows: number) => {
     logger.log(`[resize] pty:resize id=${id} cols=${cols} rows=${rows}`)
     return deps.getPtyManager()?.resize(id, cols, rows)

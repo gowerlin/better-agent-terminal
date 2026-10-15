@@ -13,6 +13,7 @@ import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResu
 import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
+import { WorkerCloseScheduler } from './close-worker'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
 import { registerGitHandlers } from './handlers/git'
@@ -419,6 +420,8 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
 }
 
 let ptyManager: PtyManager | null = null
+// PLAN-041 / T0535: `terminal:close-worker` delay timers (registerProxiedHandlers builds it).
+let workerCloseScheduler: WorkerCloseScheduler | null = null
 let claudeManager: ClaudeAgentManager | null = null
 let codexManager: CodexAgentManager | null = null
 const sessionManagerMap = new Map<string, 'claude' | 'codex'>()
@@ -1206,6 +1209,7 @@ async function cleanupAllProcesses(): Promise<void> {
   try { claudeManager?.dispose() } catch { /* ignore */ }
   try { codexManager?.killAll() } catch { /* ignore */ }
   try { codexManager?.dispose() } catch { /* ignore */ }
+  try { workerCloseScheduler?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   claudeManager = null
   codexManager = null
@@ -2137,13 +2141,18 @@ function registerProxiedHandlers() {
   // terminal:create-with-command / create-agent-command / notify / keypress — shared with
   // headless bat-server (PLAN-036 T0431, electron/handlers/terminal.ts). Events go to every
   // window + broadcastHub (remote clients of this BAT).
+  const terminalEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload))
+  // PLAN-041 / T0535: terminal:close-worker — `terminal:close-requested` goes to every window
+  // (detached ones too); the one holding the tab closes it like ✕.
+  workerCloseScheduler = new WorkerCloseScheduler({ getPtyManager: () => ptyManager, emit: terminalEmit, logger })
   registerTerminalHandlers(registerHandler, {
     getPtyManager: () => ptyManager,
-    emit: createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload)),
+    emit: terminalEmit,
     readSettings: readPersistedSettingsSync,
     buildAgentPromptCommand,
     resolveDispatchWorkspace,
     existsSync: fsSync.existsSync,
+    workerCloser: workerCloseScheduler,
   })
 
   // Workspace persistence — save/load from window registry entry

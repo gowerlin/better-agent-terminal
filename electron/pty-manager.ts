@@ -9,6 +9,7 @@ import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
 import { resolvePtyLocaleEnv } from './pty-locale-env'
+import { normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -55,7 +56,16 @@ interface PtyInstance {
   workspaceId?: string
   /** T0525 (BUG-131): the `agentPreset` it was created with (decides `claudeCliUpdateGuardEnv`). */
   agentPreset?: string
+  /**
+   * PLAN-041 / T0535: the work order a Tower dispatched this Worker for (`terminal:create-agent-command`
+   * `workorder`, normalized). With `customEnv.BAT_TOWER_TERMINAL_ID` it is what `--close-worker`
+   * looks up. Kept by `restart` and the Terminal Server recovery; lost when BAT reopens (T0537).
+   */
+  workorder?: string
 }
+
+/** T0535: `CreatePtyOptions` + the work order of a helper-dispatched Worker (main-side only). */
+export type PtyManagerCreateOptions = CreatePtyOptions & { workorder?: string }
 
 /** T0525 (BUG-131): what a PTY's env is built from; recorded on the instance for rebuilds. */
 interface PtyEnvSpec {
@@ -185,7 +195,7 @@ function claudeCliUpdateGuardEnv(agentPreset?: string): Record<string, string> {
   return claudeUpdateGuardEnv(getRuntimeSettingsSnapshot().mode === 'embedded' ? 'embedded' : 'system')
 }
 
-export class PtyManager {
+export class PtyManager implements CloseWorkerPtyManager {
   private instances: Map<string, PtyInstance> = new Map()
   private readonly deps: PtyManagerDeps
 
@@ -201,6 +211,11 @@ export class PtyManager {
   // T0403: raw output tail per PTY for `pty:get-buffer` replay (VT sequences intact, unlike
   // the line ring buffer above). Appended in the same tick as the pty:output broadcast.
   private replayBuffers: Map<string, PtyReplayBuffer> = new Map()
+
+  // T0535 (PLAN-041): when each PTY last produced output / got input typed in a local window.
+  // `--close-worker` refuses a busy Worker and cancels a delayed close on either.
+  private lastOutputAt: Map<string, number> = new Map()
+  private lastUserInputAt: Map<string, number> = new Map()
 
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
@@ -530,6 +545,7 @@ export class PtyManager {
     }
     this.instances.delete(id)
     this.replayBuffers.delete(id)
+    this.clearActivity(id)
     this.notifyPtyExit(id)
     this.broadcast('pty:exit', id, exitCode)
   }
@@ -547,8 +563,15 @@ export class PtyManager {
     }
     this.instances.delete(id)
     this.replayBuffers.delete(id)
+    this.clearActivity(id)
     this.notifyPtyExit(id)
     this.broadcast('pty:exit', id, exitCode)
+  }
+
+  /** T0535: forget a gone PTY's output / input times. */
+  private clearActivity(id: string): void {
+    this.lastOutputAt.delete(id)
+    this.lastUserInputAt.delete(id)
   }
 
   /** T0432: `deps.onPtyExit`; a throwing listener must not break exit / kill handling. */
@@ -567,6 +590,7 @@ export class PtyManager {
 
   /** Enqueue PTY output and flush in batched intervals */
   private enqueuePtyOutput(id: string, data: string) {
+    this.lastOutputAt.set(id, Date.now())
     const prev = this.outputBuffers.get(id) || ''
     this.outputBuffers.set(id, prev + data)
     if (!this.outputFlushTimer) {
@@ -652,6 +676,45 @@ export class PtyManager {
     return this.instances.has(id)
   }
 
+  /**
+   * T0535 (PLAN-041): running Worker PTYs recorded with `workorder` (normalized), dispatched by
+   * `towerId` (`customEnv.BAT_TOWER_TERMINAL_ID`); `towerId` null = whoever dispatched them.
+   */
+  findWorkerTerminals(towerId: string | null, workorder: string): string[] {
+    const wanted = normalizeWorkorderId(workorder)
+    if (!wanted) return []
+    const ids: string[] = []
+    for (const [id, inst] of this.instances) {
+      if (inst.workorder !== wanted) continue
+      if (towerId !== null && inst.customEnv?.BAT_TOWER_TERMINAL_ID !== towerId) continue
+      ids.push(id)
+    }
+    return ids
+  }
+
+  /** T0535: the Tower terminal that dispatched PTY `id` (`customEnv.BAT_TOWER_TERMINAL_ID`). */
+  getTowerTerminalId(id: string): string | undefined {
+    return this.instances.get(id)?.customEnv?.BAT_TOWER_TERMINAL_ID || undefined
+  }
+
+  /** T0535: when PTY `id` last produced output (ms epoch); null = none seen by this process. */
+  getLastOutputAt(id: string): number | null {
+    return this.lastOutputAt.get(id) ?? null
+  }
+
+  /** T0535: when input was last typed into PTY `id` from a local window (`noteUserInput`). */
+  getLastUserInputAt(id: string): number | null {
+    return this.lastUserInputAt.get(id) ?? null
+  }
+
+  /**
+   * T0535: a local window wrote to PTY `id` (`pty:write` over Electron IPC — the user typing,
+   * or xterm answering the program). Helper writes (RemoteServer) do not count.
+   */
+  noteUserInput(id: string): void {
+    if (this.instances.has(id)) this.lastUserInputAt.set(id, Date.now())
+  }
+
   /** T0450: running PTYs and the `maxInstances` cap (0 = unlimited) — the helper creation quota. */
   getCapacity(): { count: number; max: number } {
     const max = this.deps.maxInstances
@@ -694,14 +757,16 @@ export class PtyManager {
    * Throws `PtyLimitError` over the cap; the `pty:create` handler turns it into result
    * fields (T0424).
    */
-  createWithResult(options: CreatePtyOptions): PtyCreateResult {
+  createWithResult(options: PtyManagerCreateOptions): PtyCreateResult {
     const existed = this.instances.has(options.id)
     const ok = this.create(options)
     return { ok, created: ok && !existed }
   }
 
-  create(options: CreatePtyOptions): boolean {
+  create(options: PtyManagerCreateOptions): boolean {
     const { id, cwd, type, shell: shellOverride, customEnv = {}, workspaceId, agentPreset } = options
+    // T0535: recorded only when it is a valid work order id (same grammar as --workorder)
+    const workorder = normalizeWorkorderId(options.workorder) ?? undefined
     // T0404: a re-sent create for a running id stays idempotent below; only new ids count.
     const limit = this.deps.maxInstances
     if (limit && limit > 0 && !this.instances.has(id) && this.instances.size >= limit) {
@@ -740,6 +805,7 @@ export class PtyManager {
         if (existing && !existing.workspaceId && workspaceId) existing.workspaceId = workspaceId
         if (existing && !existing.customEnv && options.customEnv) existing.customEnv = { ...options.customEnv }
         if (existing && !existing.agentPreset && agentPreset) existing.agentPreset = agentPreset
+        if (existing && !existing.workorder && workorder) existing.workorder = workorder
         return true
       }
       this.sendToServer({
@@ -754,7 +820,7 @@ export class PtyManager {
       })
       // T0112: Store shell/args so handleServerDeath() can rebuild after crash.
       // T0525: + what the env was built from, so the rebuild can build it again.
-      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true, customEnv, workspaceId, agentPreset })
+      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true, customEnv, workspaceId, agentPreset, workorder })
       logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
       return true
     }
@@ -797,7 +863,7 @@ export class PtyManager {
           this.handleDirectExit(id, ptyProcess, exitCode)
         })
 
-        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId, agentPreset })
+        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId, agentPreset, workorder })
         usedPty = true
         logger.log('Created terminal using node-pty')
       } catch (e) {
@@ -853,7 +919,7 @@ export class PtyManager {
         // Send initial message
         this.broadcast('pty:output', id, `[Terminal - child_process mode]\r\n`)
 
-        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId, agentPreset })
+        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId, agentPreset, workorder })
         logger.log('Created terminal using child_process fallback')
       } catch (error) {
         logger.error('Failed to create terminal:', error)
@@ -940,6 +1006,7 @@ export class PtyManager {
       this.sendToServer({ type: 'pty:kill', id })
       this.instances.delete(id)
       this.replayBuffers.delete(id)
+      this.clearActivity(id)
       this.notifyPtyExit(id)
       return true
     }
@@ -961,6 +1028,7 @@ export class PtyManager {
       }
       this.instances.delete(id)
       this.replayBuffers.delete(id)
+      this.clearActivity(id)
       this.notifyPtyExit(id)
       return true
     }
@@ -984,19 +1052,21 @@ export class PtyManager {
    * binding (the kill revokes the old token; `helperEnv` issues the new one).
    * T0525 (BUG-131): Electron too — before it the env was rebuilt without `customEnv`, losing
    * workspace / global env vars and a Worker's `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE`.
+   * T0535: + its `workorder`, so `--close-worker` still finds a restarted Worker.
    */
   restart(id: string, cwd: string, shell?: string): boolean {
     const instance = this.instances.get(id)
     if (instance) {
       const type = instance.type
       const customEnv = instance.customEnv ? { ...instance.customEnv } : undefined
-      const { workspaceId, agentPreset } = instance
+      const { workspaceId, agentPreset, workorder } = instance
       this.kill(id)
       return this.create({
         id, cwd, type, shell,
         ...(customEnv ? { customEnv } : {}),
         ...(workspaceId ? { workspaceId } : {}),
         ...(agentPreset ? { agentPreset } : {}),
+        ...(workorder ? { workorder } : {}),
       })
     }
     return false
@@ -1171,6 +1241,8 @@ export class PtyManager {
       this.serverProcess = null
       this.instances.clear()
       this.replayBuffers.clear()
+      this.lastOutputAt.clear()
+      this.lastUserInputAt.clear()
       return
     }
     for (const [id] of this.instances) {

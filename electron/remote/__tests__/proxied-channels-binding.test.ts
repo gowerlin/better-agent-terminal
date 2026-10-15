@@ -17,7 +17,9 @@ import { PROXIED_CHANNELS } from '../protocol'
  * Channels intentionally reachable only through the handler registry (remote
  * server invoke frames), never from the local renderer. Each entry needs a reason.
  */
-const REGISTRY_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([])
+const REGISTRY_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
+  ['terminal:close-worker', 'PLAN-041 / T0535: only bat-terminal.mjs --close-worker calls it, over RemoteServer; a renderer never closes a Worker through it'],
+])
 
 const ELECTRON_DIR = path.resolve(__dirname, '..', '..')
 

@@ -17,6 +17,9 @@
 //        Omitted → PTY lands in the currently active workspace (T0137/BUG-031).
 //        T0523/BUG-129: when BAT knows the --notify-id terminal, its workspace wins
 //        (the Tower shell's BAT_WORKSPACE_ID can be stale); --workspace is the fallback.
+//   node scripts/bat-terminal.mjs --close-worker T0535 --notify-id "$BAT_TERMINAL_ID" [--delay-ms 10000]
+//     └─ PLAN-041 / T0535: close the Worker tab this Tower dispatched for T0535 (no tab is
+//        created). Exit 0 scheduled / 3 NOT_FOUND / 4 NOT_OWNER / 5 AMBIGUOUS / 6 BUSY / 1 other.
 //
 // Options:
 //   --help, -h     Show help
@@ -68,8 +71,10 @@ if (process.platform === 'win32') {
 const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs [options] --prompt <text>
        bat-terminal.mjs [options] --skill <name> --workorder <T####>
+       bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>]
 
 Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
+With --close-worker, close the Worker tab a Tower dispatched instead (no terminal is created).
 
 Options:
   --cwd <path>           Working directory for the new terminal
@@ -87,6 +92,21 @@ Options:
   --help, -h             Show this help message
   --version              Show version
 
+Close a Worker tab (PLAN-041):
+  --close-worker <T####> Close the Worker tab the --notify-id Tower dispatched for this work
+                         order (same ID format as --workorder). BAT checks that the tab is
+                         that Tower's Worker, that exactly one tab matches, and that it printed
+                         nothing in the last 5 s; it closes the tab like the tab's x button
+                         (no confirm, worktree kept). Cannot be combined with the options above
+                         that create a terminal (--cwd, --workspace, --agent, --prompt, --skill,
+                         --workorder, --mode, --interactive, --no-interactive, <command>).
+  --notify-id <id>       Required with --close-worker: the Tower's own terminal ID ($BAT_TERMINAL_ID)
+  --delay-ms <n>         Close after n ms (default 0; BAT clamps to 0-300000). New output in the
+                         tab or typing into it during the delay cancels the close.
+  Exit codes: 0 scheduled (closed when --delay-ms 0) / 3 NOT_FOUND / 4 NOT_OWNER /
+              5 AMBIGUOUS / 6 BUSY / 1 usage error, connection failure or BAT too old.
+              stderr also prints "close-worker: <CODE>".
+
 Examples:
   node scripts/bat-terminal.mjs --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs --skill ct-exec --workorder T0001
@@ -95,6 +115,7 @@ Examples:
   node scripts/bat-terminal.mjs --notify-id abc123 --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs --cwd /tmp echo hello
   node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --skill ct-exec --workorder T0001
+  node scripts/bat-terminal.mjs --close-worker T0001 --notify-id "$BAT_TERMINAL_ID" --delay-ms 10000
 `
 
 // T0360/BUG-082: Work order ID grammar, shared across the whole dispatch chain.
@@ -107,7 +128,10 @@ Examples:
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--help', '-h', '--version']
+
+// PLAN-041 / T0535: `--close-worker` exit codes (contract shared with CT, PLAN-041「介面契約」).
+const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -166,6 +190,10 @@ let workorder = null
 let mode = null
 let interactive = null  // null = unspecified / true = --interactive / false = --no-interactive
 const positional = []
+// PLAN-041 / T0535: close-worker mode, and the terminal-creating flags given (they exclude it)
+let closeWorker = null
+let delayMs = null
+const createFlags = []
 
 let i = 0
 while (i < rawArgs.length) {
@@ -186,6 +214,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--cwd') {
+    createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--cwd requires a path argument'); process.exit(1) }
     cwd = rawArgs[i + 1]
     i += 2
@@ -200,6 +229,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--workspace') {
+    createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--workspace requires a workspace ID argument'); process.exit(1) }
     workspaceId = rawArgs[i + 1]
     i += 2
@@ -207,6 +237,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--agent') {
+    createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--agent requires an agent id argument'); process.exit(1) }
     agent = rawArgs[i + 1]
     i += 2
@@ -214,6 +245,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--prompt') {
+    createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--prompt requires a prompt argument'); process.exit(1) }
     prompt = rawArgs[i + 1]
     i += 2
@@ -221,6 +253,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--skill') {
+    createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--skill requires a skill name argument'); process.exit(1) }
     const value = rawArgs[i + 1]
     if (!/^(ct-exec|ct-done)$/.test(value)) {
@@ -233,6 +266,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--workorder') {
+    createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--workorder requires a work order ID argument'); process.exit(1) }
     const value = rawArgs[i + 1]
     if (!WORKORDER_ID_PATTERN.test(value)) {
@@ -245,6 +279,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--mode') {
+    createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--mode requires a value argument (yolo|ask|off|on)'); process.exit(1) }
     const value = rawArgs[i + 1]
     if (!/^(yolo|ask|off|on)$/.test(value)) {
@@ -257,14 +292,42 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--interactive') {
+    createFlags.push(arg)
     interactive = true
     i += 1
     continue
   }
 
   if (arg === '--no-interactive') {
+    createFlags.push(arg)
     interactive = false
     i += 1
+    continue
+  }
+
+  if (arg === '--close-worker') {
+    if (!rawArgs[i + 1]) { printUsageError('--close-worker requires a work order ID argument'); process.exit(1) }
+    const value = rawArgs[i + 1].trim().toUpperCase()
+    if (!WORKORDER_ID_PATTERN.test(value)) {
+      console.error(`Error: Invalid --close-worker value: '${rawArgs[i + 1]}' (expected T followed by digits, with an optional 2-4 char uppercase prefix, e.g. T0001 or CP-T0113)`)
+      console.error('close-worker: USAGE')
+      process.exit(1)
+    }
+    closeWorker = value
+    i += 2
+    continue
+  }
+
+  if (arg === '--delay-ms') {
+    const value = rawArgs[i + 1]
+    if (!value) { printUsageError('--delay-ms requires a number of milliseconds'); process.exit(1) }
+    if (!/^\d+$/.test(value)) {
+      console.error(`Error: Invalid --delay-ms value: '${value}' (expected a non-negative integer, e.g. 10000)`)
+      console.error('close-worker: USAGE')
+      process.exit(1)
+    }
+    delayMs = Number(value)
+    i += 2
     continue
   }
 
@@ -279,6 +342,22 @@ while (i < rawArgs.length) {
   // First non-flag → start of command
   positional.push(arg)
   i++
+}
+
+// PLAN-041 / T0535: --close-worker closes a Worker tab; it never creates one.
+if (closeWorker || delayMs !== null) {
+  const closeUsage = (msg, reason) => {
+    printUsageError(msg)
+    console.error('close-worker: USAGE')
+    logEvent('bat-terminal', 'exit', { code: 1, reason })
+    process.exit(1)
+  }
+  if (!closeWorker) closeUsage('--delay-ms is only valid with --close-worker', 'delay-without-close-worker')
+  if (createFlags.length > 0 || positional.length > 0) {
+    const given = [...new Set(createFlags), ...(positional.length > 0 ? ['<command>'] : [])].join(', ')
+    closeUsage(`--close-worker cannot be combined with options that create a terminal (${given})`, 'close-worker-with-create-options')
+  }
+  if (!notifyId) closeUsage('--close-worker requires --notify-id <the Tower terminal ID>', 'close-worker-without-notify-id')
 }
 
 const hasSkillMode = Boolean(skill || workorder)
@@ -300,7 +379,7 @@ if (prompt && hasSkillMode) {
   process.exit(1)
 }
 
-if (!prompt && !hasSkillMode && positional.length === 0) {
+if (!closeWorker && !prompt && !hasSkillMode && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
   process.exit(1)
@@ -320,6 +399,7 @@ logEvent('bat-terminal', 'parsed', {
   interactive,
   cmd: positional[0] ?? null,
   cmdArgs: positional.slice(1),
+  ...(closeWorker ? { closeWorker, delayMs } : {}),
 })
 
 // ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
@@ -329,11 +409,13 @@ const TOKEN = process.env.BAT_REMOTE_TOKEN
 
 if (!PORT) {
   console.error('Error: Not running inside BAT terminal (BAT_REMOTE_PORT not set)')
+  if (closeWorker) console.error('close-worker: NOT_IN_BAT')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-BAT_REMOTE_PORT' })
   process.exit(1)
 }
 if (!TOKEN) {
   console.error('Error: BAT_REMOTE_TOKEN not set')
+  if (closeWorker) console.error('close-worker: NOT_IN_BAT')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-BAT_REMOTE_TOKEN' })
   process.exit(1)
 }
@@ -341,7 +423,7 @@ if (!TOKEN) {
 // T0360 (ADVISORY B-2): Advisory only — behaviour is unchanged. Callers that
 // dispatch on behalf of a specific project frequently do not know this flag
 // exists, and silently land the PTY in whatever workspace happens to be active.
-if (!workspaceId) {
+if (!workspaceId && !closeWorker) {
   console.error('[bat-terminal] --workspace not specified; PTY will land in the currently ACTIVE workspace.')
   console.error('               Callers dispatching for a specific project should pass')
   console.error('               --workspace "$BAT_WORKSPACE_ID".')
@@ -679,6 +761,7 @@ async function main() {
       exitPayload.hint = 'Cannot read BAT app server-cert.json. Ensure BAT app is running and has initialized its remote server.'
     }
     console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${msg}`)
+    if (closeWorker) console.error('close-worker: CONNECT_FAILED')
     logEvent('bat-terminal', 'exit', exitPayload)
     process.exit(1)
   }
@@ -704,6 +787,7 @@ async function main() {
     const msg = err?.message || String(err)
     console.error(`Error: Auth response timeout: ${msg}`)
     console.error('Hint: BAT_REMOTE_TOKEN may be stale. Try restart this terminal or re-export token from BAT app.')
+    if (closeWorker) console.error('close-worker: AUTH_FAILED')
     logEvent('bat-terminal', 'exit', {
       code: 1,
       reason: 'auth-timeout',
@@ -715,10 +799,13 @@ async function main() {
   }
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
+    if (closeWorker) console.error('close-worker: AUTH_FAILED')
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'auth-failed', error: authResp.error })
     ws.close()
     process.exit(1)
   }
+
+  if (closeWorker) return runCloseWorker(ws)
 
   const channel = prompt || hasSkillMode ? 'terminal:create-agent-command' : 'terminal:create-with-command'
   const invokePayload = prompt || hasSkillMode
@@ -858,6 +945,60 @@ async function main() {
   logEvent('bat-terminal', 'exit', { code: 0 })
   ws.close()
   process.exit(0)
+}
+
+/**
+ * PLAN-041 / T0535: `terminal:close-worker { towerId, workorder, delayMs }`. Success is decided
+ * by the exit code (CT never parses stdout); `close-worker: <CODE>` on stderr is diagnostic.
+ */
+async function runCloseWorker(ws) {
+  const request = { towerId: notifyId, workorder: closeWorker, ...(delayMs !== null ? { delayMs } : {}) }
+  const finish = (exitCode, code, fields = {}) => {
+    logEvent('bat-terminal', 'close-worker', { towerId: notifyId, workorder: closeWorker, delayMs, result: code, ...fields, ignoredFrames })
+    logEvent('bat-terminal', 'exit', { code: exitCode, reason: exitCode === 0 ? 'close-worker-scheduled' : `close-worker-${code}` })
+    ws.close()
+    process.exit(exitCode)
+  }
+
+  const invokeId = makeId()
+  ws.send(JSON.stringify({ type: 'invoke', id: invokeId, channel: 'terminal:close-worker', args: [request] }))
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000, channel: 'terminal:close-worker' })
+  let resp
+  try {
+    resp = await waitForMessage(ws, invokeId)
+  } catch (err) {
+    const msg = err?.message || String(err)
+    console.error(`Error: Invoke response timeout: ${msg}`)
+    console.error('close-worker: TIMEOUT')
+    return finish(1, 'TIMEOUT', { error: msg })
+  }
+  if (resp.error) {
+    // A BAT from before T0535 has no such handler.
+    const unsupported = /No handler for channel/i.test(String(resp.error))
+    console.error(`Error: ${unsupported ? 'This BAT does not support --close-worker (update BAT)' : `Failed to close the Worker: ${resp.error}`}`)
+    const code = unsupported ? 'UNSUPPORTED' : 'ERROR'
+    console.error(`close-worker: ${code}`)
+    return finish(1, code, { error: resp.error })
+  }
+  const result = resp.result
+  if (result && typeof result === 'object' && result.ok === true) {
+    const terminalId = String(result.terminalId)
+    const inMs = typeof result.delayMs === 'number' ? result.delayMs : Math.max(0, Number(result.closeAt) - Date.now()) || 0
+    console.log(`✓ Worker close scheduled: ${terminalId} (in ${inMs} ms)`)
+    return finish(0, 'OK', { terminalId, closeAt: result.closeAt, scheduledDelayMs: inMs })
+  }
+  const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
+  const exitCode = CLOSE_WORKER_EXIT[code] ?? 1
+  const detail = {
+    NOT_FOUND: `no Worker tab for ${closeWorker} (BAT reopened since the dispatch, or already closed) — close it by hand if it is still open`,
+    NOT_OWNER: `the Worker tab of ${closeWorker} was not dispatched by terminal ${notifyId}`,
+    AMBIGUOUS: `more than one Worker tab of ${closeWorker} from this Tower${Array.isArray(result?.terminalIds) ? ` (${result.terminalIds.join(', ')})` : ''}`,
+    BUSY: `the Worker tab of ${closeWorker} printed output in the last 5 s`,
+    INVALID_ARGS: 'BAT rejected the request arguments',
+  }[code] ?? 'the Worker tab was not closed'
+  console.error(`Error: Worker not closed (${code}): ${detail}`)
+  console.error(`close-worker: ${code}`)
+  return finish(exitCode, code, Array.isArray(result?.terminalIds) ? { terminalIds: result.terminalIds } : {})
 }
 
 // T0200/BUG-046: Safety net for rejections that escape main()'s await chain

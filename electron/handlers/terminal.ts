@@ -29,6 +29,7 @@ import {
   type AgentPromptCommandOptions,
   type TerminalCommandHandlerDeps,
 } from '../terminal-command-handlers'
+import type { WorkerCloseScheduler } from '../close-worker'
 import { shellPathRejection } from './pty'
 import type { HandlerContext, HandlerRegistrar } from './types'
 
@@ -67,6 +68,11 @@ export interface TerminalHandlerDeps {
   /** Reject a client-supplied `shell` that is not an absolute path to an existing file (headless). */
   validateShell?: boolean
   existsSync?: (path: string) => boolean
+  /**
+   * PLAN-041 / T0535 (Electron): serves `terminal:close-worker` (`bat-terminal.mjs --close-worker`).
+   * Absent (headless until T0536): the channel is not registered.
+   */
+  workerCloser?: Pick<WorkerCloseScheduler, 'request'>
 }
 
 /**
@@ -219,4 +225,11 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
       ? { ok: true, broadcastWindows: windowCount, broadcastClients: remoteReceivers }
       : { ok: true, broadcastWindows: windowCount }
   })
+
+  // PLAN-041 / T0535: a Tower closes the Worker tab it dispatched for a work order
+  // (`{ towerId, workorder, delayMs? }`, see electron/close-worker.ts).
+  const workerCloser = deps.workerCloser
+  if (workerCloser) {
+    register('terminal:close-worker', (_ctx, args: unknown) => workerCloser.request(args))
+  }
 }

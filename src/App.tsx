@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useMenuPosition } from './hooks/useMenuPosition'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
-import { workspaceStore } from './stores/workspace-store'
+import { ownsTerminalForCloseRequest, workspaceStore } from './stores/workspace-store'
 import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { Sidebar } from './components/Sidebar'
@@ -728,6 +728,17 @@ export default function App() {
       unsubServerStatus()
     }
   }, [])
+
+  // PLAN-041 / T0535: main asks to close a Worker tab (`bat-terminal.mjs --close-worker`, after its
+  // delay). The window that shows the tab closes it like ✕ — no confirm, worktree kept.
+  useEffect(() => {
+    return window.electronAPI.pty.onCloseRequested(({ id }) => {
+      const terminal = workspaceStore.getState().terminals.find(tm => tm.id === id)
+      if (!ownsTerminalForCloseRequest(terminal, detachedWorkspaceId, detachedIds)) return
+      window.electronAPI.debug.log(`[close-worker] closing tab id=${id} workspace=${terminal?.workspaceId ?? 'n/a'}${detachedWorkspaceId ? ' (detached window)' : ''}`)
+      workspaceStore.closeTerminalNow(id, { cleanWorktree: false })
+    })
+  }, [detachedWorkspaceId, detachedIds])
 
   // Poll remote client connection status
   useEffect(() => {

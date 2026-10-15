@@ -892,31 +892,23 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (shouldWarn) {
       setShowCloseConfirm(id)
     } else {
-      // Shell idle (no process, no alt buffer): close directly
-      window.electronAPI.pty.kill(id)
-      workspaceStore.removeTerminal(id)
-      workspaceStore.save()
+      // Shell idle (no process, no alt buffer): close directly (pty.kill → remove → save)
+      workspaceStore.closeTerminalNow(id)
     }
   }, [terminals])
 
+  // T0535: the stop / worktree / remove / save steps live in workspaceStore.closeTerminalNow,
+  // shared with main's terminal:close-requested (`--close-worker`).
   const handleConfirmClose = useCallback((cleanWorktree = false) => {
     if (showCloseConfirm) {
-      const terminal = terminals.find(t => t.id === showCloseConfirm)
-      if (terminal?.agentPreset && isIntegrated(terminal.agentPreset)) {
-        window.electronAPI.claude.stopSession(showCloseConfirm)
-        if (cleanWorktree && (isWorktreeAgent(terminal.agentPreset) || !!terminal.worktreePath)) {
-          window.electronAPI.claude.cleanupWorktree(showCloseConfirm, true)
-        }
-      } else {
-        window.electronAPI.pty.kill(showCloseConfirm)
-        if (cleanWorktree && terminal?.agentPreset === 'claude-cli-worktree') {
-          window.electronAPI.worktree.remove(showCloseConfirm, true)
-        }
-      }
-      workspaceStore.removeTerminal(showCloseConfirm)
-      workspaceStore.save()
+      workspaceStore.closeTerminalNow(showCloseConfirm, { cleanWorktree })
       setShowCloseConfirm(null)
     }
+  }, [showCloseConfirm])
+
+  // T0535: a tab closed elsewhere (`--close-worker`) while its confirm dialog is open.
+  useEffect(() => {
+    if (showCloseConfirm && !terminals.some(t => t.id === showCloseConfirm)) setShowCloseConfirm(null)
   }, [showCloseConfirm, terminals])
 
   const handleRestart = useCallback(async (id: string) => {

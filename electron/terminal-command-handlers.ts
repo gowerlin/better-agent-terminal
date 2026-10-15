@@ -39,6 +39,8 @@ interface TerminalPtyManager {
     shell?: string
     customEnv?: Record<string, string>
     workspaceId?: string
+    /** T0535 (PLAN-041): the work order of a dispatched Worker (`--close-worker` looks it up). */
+    workorder?: string
   }): boolean
   write(id: string, data: string): void
 }
@@ -52,6 +54,8 @@ interface TerminalCommandOptions {
   workspaceId?: string
   /** T0523: answer `TerminalCreatedReport` instead of `true` (bat-terminal.mjs sends it). */
   reportLanding?: boolean
+  /** T0535: set by create-agent-command (skill mode) — recorded on the PTY for `--close-worker`. */
+  workorder?: string
 }
 
 interface TerminalAgentCommandOptions {
@@ -469,6 +473,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       shell: shellResolution.shell,
       customEnv: opts.customEnv,
       workspaceId: landing.workspaceId,
+      ...(opts.workorder ? { workorder: opts.workorder } : {}),
     })
     if (created && opts.command) {
       delay(() => {
@@ -607,6 +612,8 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       customEnv: opts.customEnv,
       workspaceId: landing.workspaceId,
       ...(opts.reportLanding ? { reportLanding: true } : {}),
+      // T0535 (PLAN-041): the Worker's work order, for `--close-worker` (skill mode only)
+      ...(hasSkillPayload ? { workorder: opts.workorder } : {}),
     }
     const result = deps.invokeHandler
       ? await deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)

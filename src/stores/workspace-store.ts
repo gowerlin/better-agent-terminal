@@ -2,11 +2,27 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Workspace, TerminalInstance, AppState } from '../types'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { normalizeAgentParams } from '../types/agent-profiles'
-import { isIntegrated } from '../types/agent-runtime'
+import { isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import { requestPtyReplay } from '../lib/pty-replay'
 import { resolveEffectiveAgentArgs, resolveEffectiveDefaultAgent, type EffectiveDefaultAgent } from '../lib/agent-launch-settings'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { settingsStore } from './settings-store'
+
+/**
+ * T0535 (PLAN-041): whether this window closes `terminal` on `terminal:close-requested`. Every
+ * window gets the event, and a window's store also holds the terminals of workspaces shown
+ * elsewhere: a detached window closes only its own workspace's tabs, a main window only tabs of
+ * workspaces that are not detached from it.
+ */
+export function ownsTerminalForCloseRequest(
+  terminal: Pick<TerminalInstance, 'workspaceId'> | undefined,
+  detachedWorkspaceId: string | null,
+  detachedFromThisWindow: ReadonlySet<string>,
+): boolean {
+  if (!terminal) return false
+  if (detachedWorkspaceId) return terminal.workspaceId === detachedWorkspaceId
+  return !detachedFromThisWindow.has(terminal.workspaceId)
+}
 
 // ── Layout snapshot: collect/restore UI layout from localStorage ──
 const LAYOUT_KEYS = {
@@ -499,6 +515,30 @@ class WorkspaceStore {
     }
 
     this.notify()
+  }
+
+  /**
+   * T0535 (PLAN-041): close tab `id` the way ✕ does once it may close — stop its process (the
+   * SDK session of an integrated agent, otherwise the PTY), clean its worktree when asked,
+   * remove the tab, save. ✕ (WorkspaceView `handleCloseTerminal` / `handleConfirmClose`) and
+   * main's `terminal:close-requested` (`--close-worker`: no confirm, never cleans a worktree)
+   * both close through here.
+   */
+  closeTerminalNow(id: string, { cleanWorktree = false }: { cleanWorktree?: boolean } = {}): void {
+    const terminal = this.state.terminals.find(t => t.id === id)
+    if (terminal?.agentPreset && isIntegrated(terminal.agentPreset)) {
+      window.electronAPI.claude.stopSession(id)
+      if (cleanWorktree && (isWorktreeAgent(terminal.agentPreset) || !!terminal.worktreePath)) {
+        window.electronAPI.claude.cleanupWorktree(id, true)
+      }
+    } else {
+      window.electronAPI.pty.kill(id)
+      if (cleanWorktree && terminal?.agentPreset === 'claude-cli-worktree') {
+        window.electronAPI.worktree.remove(id, true)
+      }
+    }
+    this.removeTerminal(id)
+    this.save()
   }
 
   switchTerminalApiVersion(id: string): 'claude-code' | 'claude-code-v2' | null {
