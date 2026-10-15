@@ -1096,7 +1096,8 @@
       "alpineUseSystemRipgrep": "在 Alpine 上，請在 Claude settings.json 的 env 設定 USE_BUILTIN_RIPGREP=0，改用系統的 ripgrep。",
       "rgNeedsEpel": "RHEL 系列的 ripgrep 在 EPEL 中；若安裝失敗，請先啟用 EPEL。",
       "claudeManualUpdate": "BAT 遠端終端關閉了背景自動更新；請用這裡的「更新」或執行 claude update。",
-      "nvmEditsProfile": "nvm 安裝程式會在 ~/.bashrc（或 ~/.zshrc / ~/.profile）結尾加入幾行載入 nvm 的設定，檔案其他內容不變。互動式 shell、BAT 終端與這裡的偵測都會載入 nvm；若發行版的 ~/.bashrc 對非互動 shell 提早結束（Ubuntu），單純的 bash -lc 不會載入。",
+      "nvmEditsProfile": "nvm 安裝程式會在 ~/.bashrc（或 ~/.zshrc / ~/.profile）結尾加入幾行載入 nvm 的設定，檔案其他內容不變。",
+      "nvmLoginProfile": "BAT 另外會在 bash login shell 讀取的 profile 檔（~/.bash_profile、~/.bash_login、~/.profile 中第一個存在的；都沒有時建立 ~/.profile）結尾加入一段有註解標記的 nvm 載入片段，讓 bash -lc 等非互動 login shell 也找得到這個 Node.js。這段只會加入一次；nvm 已載入時不會重複載入。檔案其他內容不變。",
       "nvmKeepsSystemNode": "系統套件管理員安裝的 Node.js 會保留；有載入 nvm 的 shell 會優先使用 nvm 的版本。",
       "nvmReopenTerminal": "已開啟的終端分頁要重開，才看得到 nvm 與這個 Node.js。",
       "nvmUpdateMovesDefault": "以 nvm 安裝最新的 LTS，從目前版本重新安裝全域 npm 套件，並設為預設版本。舊版本會保留。如果已經是最新 LTS，不會有任何變更。"

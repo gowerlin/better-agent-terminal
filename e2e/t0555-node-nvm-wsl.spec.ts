@@ -13,6 +13,16 @@
 //   $env:BAT_E2E_T0555='1'
 //   npx playwright test e2e/t0555-node-nvm-wsl.spec.ts
 //
+// T0556 — the Update path on a distro that ALREADY has nvm (opt-in BAT_E2E_T0556=1, its own test):
+// press Update on Node.js twice; the first adds the nvm loader block to the bash login profile
+// (~/.profile on stock Ubuntu), the second finds it and adds nothing; then `bash -lc` / `sh -lc`
+// find nvm's node and `bash -lic` loads nvm.sh once. It writes only that block (back the profile
+// file up first); profile before / after, the appended part and sha256 go to the evidence dir.
+// Update is offered only for an nvm-managed node, so the server needs the T0555 probe.
+//
+//   $env:BAT_E2E_T0556='1'
+//   npx playwright test e2e/t0555-node-nvm-wsl.spec.ts -g "T0556"
+//
 // Ground rules: the user's BAT (9876) and its profiles are never touched; nothing under /mnt/c is
 // written; the remote window's PTYs created here are killed at the end.
 
@@ -27,6 +37,7 @@ import { MAIN_BUNDLE, REPO_ROOT, closeIsolated, launchIsolated, run, testLogger,
 type AnyApi = any
 
 const ENABLED = process.env.BAT_E2E_T0555 === '1'
+const UPDATE_ENABLED = process.env.BAT_E2E_T0556 === '1'
 const DISTRO = process.env.BAT_E2E_T0555_DISTRO || 'Ubuntu-24.04'
 const EVIDENCE_DIR = process.env.BAT_E2E_T0555_EVIDENCE_DIR || path.join(os.tmpdir(), 'bat-t0555', 'evidence')
 const INSTALL_TIMEOUT_MS = 10 * 60_000
@@ -39,7 +50,7 @@ function ui(key: string): RegExp {
   return new RegExp(`^(${[...new Set(texts)].map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`)
 }
 
-test.skip(!ENABLED, 'opt-in: set BAT_E2E_T0555=1 (installs nvm + Node.js LTS into the WSL distro)')
+test.skip(!ENABLED && !UPDATE_ENABLED, 'opt-in: set BAT_E2E_T0555=1 (installs nvm + Node.js LTS into the WSL distro) or BAT_E2E_T0556=1 (Update on a distro with nvm)')
 test.skip(process.platform !== 'win32', 'WSL acceptance runs on Windows')
 
 let inst: IsolatedInstance | undefined
@@ -93,6 +104,7 @@ test.describe.serial('T0555 Node.js via nvm on WSL', () => {
 
   test('install Node.js from the profile card tools panel; re-check shows the LTS and nvm', async () => {
     test.setTimeout(INSTALL_TIMEOUT_MS + 180_000)
+    test.skip(!ENABLED, 'opt-in: set BAT_E2E_T0555=1')
     test.skip(!fs.existsSync(MAIN_BUNDLE), 'dist-electron/ missing — run `npx vite build` first')
 
     const before = await wsl('ls -d ~/.nvm 2>&1; sha256sum ~/.bashrc; wc -l < ~/.bashrc; command -v node || echo node-missing')
@@ -184,8 +196,8 @@ test.describe.serial('T0555 Node.js via nvm on WSL', () => {
     evidence('detect-after.json', JSON.stringify(detected, null, 2))
     expect(node).toMatchObject({ status: 'ok', nvm: { version: '0.40.8' }, nvmManaged: true })
 
-    // Outside BAT. nvm's loader sits at the end of ~/.bashrc (nvm's own choice); the stock Ubuntu
-    // ~/.bashrc returns early for non-interactive shells, so `bash -lc` is recorded, not asserted.
+    // Outside BAT. nvm's loader sits at the end of ~/.bashrc (nvm's own choice), which the stock
+    // Ubuntu ~/.bashrc never reaches in a non-interactive shell; T0556's login profile block covers `bash -lc`.
     const nonInteractive = await wsl('command -v node || echo node-not-found')
     const interactive = await run('wsl.exe', ['-d', DISTRO, '--exec', 'bash', '-lic', 'command -v node; node --version'], 60_000).catch((err: AnyApi) => `ERR ${String(err?.message ?? err)}`)
     const files = await wsl('ls ~/.nvm/versions/node; sha256sum ~/.bashrc; wc -l < ~/.bashrc')
@@ -193,5 +205,158 @@ test.describe.serial('T0555 Node.js via nvm on WSL', () => {
     log(`after: bash -lc → ${nonInteractive.trim()} | bash -lic → ${interactive.replace(/\n/g, ' ')} | ${files.replace(/\n/g, ' | ')}`)
     expect(interactive).toContain('/.nvm/versions/node/')
     expect(interactive).toContain(`v${node.version}`)
+    expect(nonInteractive).toContain('/.nvm/versions/node/')
+  })
+})
+
+test.describe.serial('T0556 nvm login profile block via Update on WSL', () => {
+  let updInst: IsolatedInstance | undefined
+  let updRemote: Page | undefined
+
+  test.afterAll(async () => {
+    if (updRemote && !updRemote.isClosed()) {
+      const killed = await updRemote.evaluate(async () => {
+        const ids = ((window as AnyApi).__t0556Ids ?? []) as string[]
+        for (const id of ids) await (window as AnyApi).electronAPI.pty.kill(id).catch(() => {})
+        return ids
+      }).catch(() => [])
+      log(`T0556 afterAll: killed remote PTY(s) ${JSON.stringify(killed)}`)
+    }
+    await closeIsolated(updInst, log)
+    updInst = undefined
+  })
+
+  /** Plain `sh -c` (no login files) for the file checks, so they do not depend on the block. */
+  async function wslSh(script: string): Promise<string> {
+    return run('wsl.exe', ['-d', DISTRO, '--exec', 'sh', '-c', script], 60_000)
+      .catch((err: AnyApi) => `ERR ${String(err?.stdout ?? '')}${String(err?.stderr ?? err?.message ?? '')}`)
+  }
+
+  const PROFILE_TARGET = 'p="$HOME/.profile"; for f in "$HOME/.bash_profile" "$HOME/.bash_login"; do if [ -e "$f" ]; then p="$f"; break; fi; done'
+  const MARKER = '# >>> nvm loader for login shells (added by BetterAgentTerminal) >>>'
+  /** xtrace lines that source nvm.sh: `. …/nvm.sh` from ~/.bashrc, `command . …/nvm.sh` from the block. */
+  const NVM_SOURCE_TRACE = /^\++ (?:command )?\. \S*\/\.nvm\/nvm\.sh$/gm
+
+  test('T0556: Update twice → the block is added once; bash -lc / sh -lc find node; bash -lic loads nvm once', async () => {
+    test.setTimeout(2 * INSTALL_TIMEOUT_MS + 240_000)
+    test.skip(!UPDATE_ENABLED, 'opt-in: set BAT_E2E_T0556=1')
+    test.skip(!fs.existsSync(MAIN_BUNDLE), 'dist-electron/ missing — run `npx vite build` first')
+
+    const hasNvm = await wslSh('[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ] && echo has-nvm || echo no-nvm')
+    test.skip(!hasNvm.includes('has-nvm'), 'the distro has no nvm: run the T0555 install check first')
+
+    const target = (await wslSh(`${PROFILE_TARGET}; echo "$p"`)).trim()
+    const before = await wslSh(`${PROFILE_TARGET}; ls -la "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile" 2>&1; sha256sum "$p" 2>&1; wc -l < "$p" 2>&1; grep -cF '${MARKER}' "$p" 2>&1; true`)
+    const profileBefore = await wslSh(`cat "${target}" 2>/dev/null`)
+    const lcBefore = await wsl('command -v node || echo node-not-found')
+    evidence('t0556-before.txt', `target ${target}\n${before}\n## bash -lc\n${lcBefore}`)
+    evidence('t0556-profile-before.txt', profileBefore)
+    log(`T0556 before: target ${target} | ${before.replace(/\n/g, ' | ')} | bash -lc → ${lcBefore.trim()}`)
+
+    const smoke = await import(pathToFileURL(path.join(REPO_ROOT, 'scripts', 'smoke-remote-headless.mjs')).href)
+    const server = await smoke.resolveWslTarget({ ...smoke.parseTarget(`wsl:${DISTRO}`), host: '127.0.0.1' })
+    const port = Number(new URL(server.url).port)
+    log(`T0556 server ${server.url} fingerprint ${String(server.fingerprint).slice(0, 11)}…`)
+
+    updInst = await launchIsolated('t0556', log)
+    const name = `T0556 WSL ${DISTRO}`
+    const id = await updInst.win.evaluate(async ({ name: n, port: p, token, fingerprint, distro }) => {
+      const api = (window as AnyApi).electronAPI
+      const created = await api.profile.create(n, { type: 'remote', remoteHost: '127.0.0.1', remotePort: p, remoteToken: token, remoteFingerprint: fingerprint })
+      await api.profile.update(created.id, { targetOS: 'wsl-linux', wslDistro: distro })
+      return created.id as string
+    }, { name, port, token: server.token, fingerprint: server.fingerprint, distro: DISTRO })
+
+    await updInst.win.locator('.sidebar-footer-buttons .settings-btn').nth(0).click()
+    await expect(updInst.win.locator('.profile-card').first()).toBeVisible({ timeout: 15_000 })
+    const card = updInst.win.locator('.profile-card').filter({ hasText: name })
+    if (await card.locator('[data-testid="remote-tools-entry-profile"]').count() === 0) await card.locator('.profile-card-toggle').click()
+    const row = card.locator('[data-testid="remote-tool-node"]')
+    await expect(row).toBeVisible({ timeout: 60_000 })
+    await expect(row.getByRole('button', { name: ui('remoteTools.update') })).toBeVisible({ timeout: 60_000 })
+    evidence('t0556-row-before.txt', (await row.innerText()).replace(/\s+/g, ' '))
+
+    const done = /__BAT_TOOL_DONE_[0-9a-f]{16}_(\d{1,3})__/g
+    const remoteOutput = async (): Promise<string> => updRemote!.evaluate(() => Object.values((window as AnyApi).__t0556Out as Record<string, string>).join('\n'))
+      .then(out => out.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, ''))
+
+    /** Update → confirm → wait for the n-th sentinel; returns that run's exit code. */
+    async function pressUpdate(n: number): Promise<number> {
+      await updInst!.win.bringToFront()
+      await row.getByRole('button', { name: ui('remoteTools.update') }).click()
+      const dialog = updInst!.win.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      const command = await dialog.getByTestId('remote-tools-confirm-command').innerText()
+      evidence(`t0556-dialog-${n}.txt`, `${command}\n\n${(await dialog.innerText()).replace(/\s+/g, ' ')}`)
+      expect(command).toContain(MARKER)
+      await shot(updInst!.win, `t0556-dialog-${n}`)
+      const windowsBefore = new Set(updInst!.app.windows())
+      await dialog.getByRole('button', { name: ui('remoteTools.confirm.confirmUpdate') }).click()
+      if (!updRemote || updRemote.isClosed()) {
+        await expect.poll(() => updInst!.app.windows().find(p => !windowsBefore.has(p) && /windowId=/.test(p.url())) !== undefined, {
+          timeout: 60_000, message: 'remote window never opened',
+        }).toBe(true)
+        updRemote = updInst!.app.windows().find(p => !windowsBefore.has(p) && /windowId=/.test(p.url()))!
+        await updRemote.waitForLoadState('domcontentloaded')
+        await updRemote.evaluate(() => {
+          const w = window as AnyApi
+          w.__t0556Out = {}
+          w.__t0556Ids = []
+          w.electronAPI.pty.onOutput((pid: string, data: string) => {
+            if (!w.__t0556Out[pid]) { w.__t0556Out[pid] = ''; w.__t0556Ids.push(pid) }
+            w.__t0556Out[pid] = (w.__t0556Out[pid] + data).slice(-200_000)
+          })
+        })
+      }
+      let code = -1
+      await expect.poll(async () => {
+        const matches = [...(await remoteOutput()).matchAll(done)]
+        if (matches.length >= n) code = Number(matches[n - 1][1])
+        return matches.length >= n
+      }, { timeout: INSTALL_TIMEOUT_MS, intervals: [2_000], message: `update #${n} sentinel never arrived` }).toBe(true)
+      evidence(`t0556-update-output-${n}.txt`, await remoteOutput())
+      await shot(updRemote, `t0556-remote-after-update-${n}`)
+      log(`T0556 update #${n} exit code ${code}`)
+      return code
+    }
+
+    expect(await pressUpdate(1)).toBe(0)
+    expect(await remoteOutput()).toContain(`nvm loader for login shells added to ${target}`)
+    const afterFirst = await wslSh(`sha256sum "${target}"; grep -cF '${MARKER}' "${target}"`)
+    log(`T0556 after update #1: ${afterFirst.replace(/\n/g, ' | ')}`)
+    expect(afterFirst.trim().split('\n').pop()).toBe('1')
+
+    expect(await pressUpdate(2)).toBe(0)
+    expect(await remoteOutput()).toContain(`nvm loader for login shells already in ${target}`)
+
+    const after = await wslSh(`sha256sum "${target}"; wc -l < "${target}"; grep -cF '${MARKER}' "${target}"`)
+    const profileAfter = await wslSh(`cat "${target}"`)
+    evidence('t0556-profile-after.txt', profileAfter)
+    // Only appended: the old content is an untouched prefix, one block after it.
+    expect(profileAfter.startsWith(profileBefore)).toBe(true)
+    const added = profileAfter.slice(profileBefore.length)
+    evidence('t0556-profile-diff.txt', added)
+    expect(added.split(MARKER).length - 1).toBe(1)
+    expect(after.trim().split('\n').pop()).toBe('1')
+    expect(after.split('\n')[0]).toBe(afterFirst.split('\n')[0])
+
+    const lc = await wsl('command -v node || echo node-not-found')
+    const shLc = await run('wsl.exe', ['-d', DISTRO, '--exec', 'sh', '-lc', 'command -v node || echo node-not-found'], 60_000).catch((err: AnyApi) => `ERR ${String(err?.message ?? err)}`)
+    const lic = await run('wsl.exe', ['-d', DISTRO, '--exec', 'bash', '-lic', 'command -v node; node --version'], 60_000).catch((err: AnyApi) => `ERR ${String(err?.message ?? err)}`)
+    const licTrace = await wslSh('bash -x -lic true 2>&1')
+    const lcTrace = await wslSh('bash -x -lc true 2>&1')
+    const licLoads = licTrace.match(NVM_SOURCE_TRACE) ?? []
+    const lcLoads = lcTrace.match(NVM_SOURCE_TRACE) ?? []
+    evidence('t0556-after.txt', `target ${target}\n## before\n${before}\n## after\n${after}\n## bash -lc\n${lc}\n## sh -lc\n${shLc}\n## bash -lic\n${lic}\n## bash -x -lic nvm.sh loads\n${licLoads.join('\n')}\n## bash -x -lc nvm.sh loads\n${lcLoads.join('\n')}`)
+    log(`T0556 after: ${after.replace(/\n/g, ' | ')} | bash -lc → ${lc.trim()} | sh -lc → ${shLc.trim()} | bash -lic → ${lic.replace(/\n/g, ' ')} | loads -lic ${JSON.stringify(licLoads)} -lc ${JSON.stringify(lcLoads)}`)
+    expect(lc).toContain('/.nvm/versions/node/')
+    expect(shLc).toContain('/.nvm/versions/node/')
+    expect(lic).toContain('/.nvm/versions/node/')
+    expect(licLoads).toHaveLength(1)
+    expect(lcLoads).toEqual([expect.stringMatching(/^\++ command \. /)])
+
+    const detected = await updInst.win.evaluate(async (pid) => (window as AnyApi).electronAPI.remoteTools.detect(pid), id)
+    evidence('t0556-detect-after.json', JSON.stringify(detected, null, 2))
+    expect((detected?.report?.tools ?? []).find((t: AnyApi) => t.id === 'node')).toMatchObject({ status: 'ok', nvmManaged: true })
   })
 })

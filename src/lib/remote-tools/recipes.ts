@@ -81,6 +81,8 @@ export const NOTE_KEYS = [
   'remoteTools.note.claudeManualUpdate',
   /** nvm install.sh appends its loader to ~/.bashrc (or ~/.zshrc / ~/.profile). */
   'remoteTools.note.nvmEditsProfile',
+  /** T0556: a marked nvm loader block in the bash login profile, added once (`bash -lc` sees node). */
+  'remoteTools.note.nvmLoginProfile',
   /** A system node (apt / dnf) stays installed; shells that load nvm use nvm's node first. */
   'remoteTools.note.nvmKeepsSystemNode',
   /** Tabs opened before the install have not loaded nvm. */
@@ -405,6 +407,41 @@ const NVM_LOAD = '. "$NVM_DIR/nvm.sh"'
 const NVM_DEFAULT_LTS = "nvm alias default 'lts/*'"
 
 /**
+ * T0556: the block appended to the bash login profile. nvm puts its own loader at the end of
+ * `~/.bashrc`, which the stock Ubuntu `~/.bashrc` never reaches in a non-interactive shell, so a
+ * plain `bash -lc` / `sh -lc` (agents, `npx` MCP servers) would not find nvm's node.
+ * - POSIX sh: `~/.profile` is also read by `sh -l` (dash) and ksh.
+ * - Loads only when `nvm` is not a function yet: an interactive login shell has already loaded it
+ *   from `~/.bashrc` (Ubuntu's `~/.profile` sources it first), so it is not loaded twice. For a
+ *   function `command -v` prints the bare name; an `nvm` program on PATH (nvm-windows seen from
+ *   Git Bash) prints a path and does not count.
+ * - `command .`: a syntax error in a dot script ends a non-interactive POSIX shell (dash, bash as
+ *   sh); through `command` it only fails the dot. Output is discarded, so a broken or missing
+ *   nvm never fails or clutters a login.
+ * No single quotes in these lines: they are passed to printf inside single quotes.
+ */
+export const NVM_PROFILE_MARKER_BEGIN = '# >>> nvm loader for login shells (added by BetterAgentTerminal) >>>'
+export const NVM_PROFILE_MARKER_END = '# <<< nvm loader for login shells (added by BetterAgentTerminal) <<<'
+export const NVM_PROFILE_SNIPPET_LINES: readonly string[] = [
+  NVM_PROFILE_MARKER_BEGIN,
+  'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"',
+  'if [ "$(command -v nvm 2>/dev/null)" != nvm ] && [ -s "$NVM_DIR/nvm.sh" ]; then command . "$NVM_DIR/nvm.sh" >/dev/null 2>&1; fi',
+  NVM_PROFILE_MARKER_END,
+]
+
+/**
+ * Appends the block, once, to the file a bash login shell reads: the first of `~/.bash_profile`,
+ * `~/.bash_login`, `~/.profile` that exists (bash reads only that one), else a new `~/.profile`.
+ * The begin marker already there → no change. Runs in a subshell so `p` / `f` stay out of the tab.
+ */
+export const NVM_PROFILE_COMMAND = [
+  '( p="$HOME/.profile"',
+  'for f in "$HOME/.bash_profile" "$HOME/.bash_login"; do if [ -e "$f" ]; then p="$f"; break; fi; done',
+  `if grep -qsF '${NVM_PROFILE_MARKER_BEGIN}' "$p"; then echo "nvm loader for login shells already in $p"`,
+  `else printf '\\n${NVM_PROFILE_SNIPPET_LINES.map(() => '%s').join('\\n')}\\n' ${NVM_PROFILE_SNIPPET_LINES.map((line) => `'${line}'`).join(' ')} >> "$p" && echo "nvm loader for login shells added to $p"; fi )`,
+].join('; ')
+
+/**
  * `METHOD=script`: fetch nvm.sh at the pinned tag with curl instead of `git clone` — no git
  * dependency, and no macOS `/usr/bin/git` stub popping the Command Line Tools dialog.
  */
@@ -415,16 +452,19 @@ const NVM_INSTALL_COMMAND = [
   NVM_LOAD,
   'nvm install --lts',
   NVM_DEFAULT_LTS,
+  NVM_PROFILE_COMMAND,
 ].join(' && ')
 
 /**
  * Already on the newest LTS → say so and exit 0 (`--reinstall-packages-from=current` fails with
  * "Can not reinstall packages from the current version"); otherwise install it, bring the global
- * npm packages over and move `default`. The old version stays installed.
+ * npm packages over and move `default`. The old version stays installed. The login profile block
+ * is ensured first (T0556), so a T0555 install gets it from one Update, whatever nodejs.org says.
  */
 const NVM_UPDATE_COMMAND = [
   NVM_DIR_SETUP,
   NVM_LOAD,
+  NVM_PROFILE_COMMAND,
   `if [ "$(nvm version-remote --lts)" = "$(nvm current)" ]; then echo "Node.js $(nvm current) is already the latest LTS"; else nvm install --lts --reinstall-packages-from=current && ${NVM_DEFAULT_LTS}; fi`,
 ].join(' && ')
 
@@ -448,7 +488,7 @@ function nodeInstallPlan(env: RecipeEnv): RecipeResult {
     scriptUrl: SCRIPT.nvm,
     scriptPinned: true,
     integrity: 'remoteTools.integrity.nvmNodeShasums',
-    notes: ['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'],
+    notes: ['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmLoginProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'],
   }
 }
 
@@ -462,7 +502,7 @@ function nodeUpdatePlan(env: RecipeEnv): RecipeResult {
     installPath: '~/.nvm',
     docsUrl: DOCS.nvm,
     integrity: 'remoteTools.integrity.nvmNodeShasums',
-    notes: ['remoteTools.note.nvmUpdateMovesDefault'],
+    notes: ['remoteTools.note.nvmUpdateMovesDefault', 'remoteTools.note.nvmLoginProfile'],
   }
 }
 

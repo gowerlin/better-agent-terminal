@@ -446,6 +446,17 @@ describe('RemoteToolsPanel — Node.js via nvm (T0555)', () => {
     expect(screen.getByText('~/.nvm')).toBeInTheDocument()
     expect(screen.getByText(rt.confirm.sudoNo)).toBeInTheDocument()
     expect(screen.getByText(rt.note.nvmEditsProfile)).toBeInTheDocument()
+    // T0556: the login profile block is announced; the T0555 "bash -lc does not" caveat is gone.
+    expect(screen.getByText(rt.note.nvmLoginProfile)).toBeInTheDocument()
+    expect(rt.note.nvmEditsProfile).not.toMatch(/bash -lc/)
+  })
+
+  test('confirm dialog (update, T0556): the login profile block note is shown too', () => {
+    const p = plan(buildUpdatePlan('node', { osFamily: 'linux', pkgManager: 'apt', privilege: 'password-required', musl: false }))
+    render(<InstallConfirmDialog plan={p} host="profile" onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    expect(screen.getByText(rt.note.nvmUpdateMovesDefault)).toBeInTheDocument()
+    expect(screen.getByText(rt.note.nvmLoginProfile)).toBeInTheDocument()
+    expect(screen.getByTestId('remote-tools-confirm-command').textContent).toContain('nvm loader for login shells')
   })
 
   test.each(['zh-TW', 'zh-CN'] as const)('%s: the integrity text names the pinned nvm tag', async (lang) => {

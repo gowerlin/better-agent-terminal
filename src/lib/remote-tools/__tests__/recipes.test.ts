@@ -8,6 +8,9 @@ import { join } from 'node:path'
 import {
   ALLOWED_URL_HOSTS,
   INTEGRITY_KEYS,
+  NVM_PROFILE_MARKER_BEGIN,
+  NVM_PROFILE_MARKER_END,
+  NVM_PROFILE_SNIPPET_LINES,
   NVM_VERSION_TAG,
   LOCATION_KEYS,
   NOTE_KEYS,
@@ -207,8 +210,14 @@ describe('buildInstallPlan — key cases', () => {
 })
 
 describe('node via nvm (T0555)', () => {
-  const NVM_INSTALL = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default \'lts/*\''
-  const NVM_UPDATE = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && . "$NVM_DIR/nvm.sh" && if [ "$(nvm version-remote --lts)" = "$(nvm current)" ]; then echo "Node.js $(nvm current) is already the latest LTS"; else nvm install --lts --reinstall-packages-from=current && nvm alias default \'lts/*\'; fi'
+  // T0556: the login profile block, appended once (real shells: nvm-login-profile.test.ts).
+  const NVM_PROFILE = '( p="$HOME/.profile"; for f in "$HOME/.bash_profile" "$HOME/.bash_login"; do if [ -e "$f" ]; then p="$f"; break; fi; done; '
+    + 'if grep -qsF \'# >>> nvm loader for login shells (added by BetterAgentTerminal) >>>\' "$p"; then echo "nvm loader for login shells already in $p"; '
+    + 'else printf \'\\n%s\\n%s\\n%s\\n%s\\n\' \'# >>> nvm loader for login shells (added by BetterAgentTerminal) >>>\' \'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"\' '
+    + '\'if [ "$(command -v nvm 2>/dev/null)" != nvm ] && [ -s "$NVM_DIR/nvm.sh" ]; then command . "$NVM_DIR/nvm.sh" >/dev/null 2>&1; fi\' '
+    + '\'# <<< nvm loader for login shells (added by BetterAgentTerminal) <<<\' >> "$p" && echo "nvm loader for login shells added to $p"; fi )'
+  const NVM_INSTALL = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default \'lts/*\' && ' + NVM_PROFILE
+  const NVM_UPDATE = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && . "$NVM_DIR/nvm.sh" && ' + NVM_PROFILE + ' && if [ "$(nvm version-remote --lts)" = "$(nvm current)" ]; then echo "Node.js $(nvm current) is already the latest LTS"; else nvm install --lts --reinstall-packages-from=current && nvm alias default \'lts/*\'; fi'
   const MAC: RecipeEnv = { osFamily: 'darwin', pkgManager: 'brew', privilege: 'password-required', musl: false }
 
   it('nvm is pinned to a release tag, never master', () => {
@@ -231,13 +240,15 @@ describe('node via nvm (T0555)', () => {
         expect(p.installPath).toBe('~/.nvm')
         expect(p.integrity).toBe('remoteTools.integrity.nvmNodeShasums')
         expect(p.prerequisites).toBeUndefined()
-        expect(p.notes).toEqual(['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'])
+        expect(p.notes).toEqual(['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmLoginProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'])
       }
     }
   })
 
-  it('install: nvm loaded into the tab shell, then the LTS, then default → lts/*', () => {
-    const steps = plan('node', linux('apt', 'root')).command.split(' && ')
+  it('install: nvm loaded into the tab shell, then the LTS, then default → lts/*, then the login profile block (T0556)', () => {
+    const command = plan('node', linux('apt', 'root')).command
+    expect(command.endsWith(` && ${NVM_PROFILE}`)).toBe(true)
+    const steps = command.slice(0, -` && ${NVM_PROFILE}`.length).split(' && ')
     expect(steps).toEqual([
       'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"',
       'mkdir -p "$NVM_DIR"',
@@ -246,6 +257,32 @@ describe('node via nvm (T0555)', () => {
       'nvm install --lts',
       "nvm alias default 'lts/*'",
     ])
+  })
+
+  it('T0556 login profile block: marked, POSIX, loads nvm only when it is not loaded yet, quietly', () => {
+    expect(NVM_PROFILE_SNIPPET_LINES).toEqual([
+      NVM_PROFILE_MARKER_BEGIN,
+      'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"',
+      'if [ "$(command -v nvm 2>/dev/null)" != nvm ] && [ -s "$NVM_DIR/nvm.sh" ]; then command . "$NVM_DIR/nvm.sh" >/dev/null 2>&1; fi',
+      NVM_PROFILE_MARKER_END,
+    ])
+    expect(NVM_PROFILE_MARKER_BEGIN).toMatch(/^# >>> .*BetterAgentTerminal.* >>>$/)
+    expect(NVM_PROFILE_MARKER_END).toMatch(/^# <<< .*BetterAgentTerminal.* <<<$/)
+    // printf takes each line as a single-quoted argument; no bash-only syntax in a sh profile.
+    for (const line of NVM_PROFILE_SNIPPET_LINES) {
+      expect(line).not.toContain("'")
+      expect(line).not.toMatch(/\[\[|\bsource\b|\bfunction\b|\$\{[^}]*\[|&>/)
+      expect(NVM_PROFILE).toContain(`'${line}'`)
+    }
+  })
+
+  it('T0556 login profile block: bash login file order, ~/.profile fallback, the begin marker makes it a no-op', () => {
+    expect(NVM_PROFILE).toContain('p="$HOME/.profile"; for f in "$HOME/.bash_profile" "$HOME/.bash_login"; do if [ -e "$f" ]; then p="$f"; break; fi; done')
+    expect(NVM_PROFILE).toContain(`if grep -qsF '${NVM_PROFILE_MARKER_BEGIN}' "$p"; then`)
+    // Only ever appends (>>), to "$p" only; the subshell keeps p / f out of the tab's shell.
+    expect(NVM_PROFILE.match(/>>? ?"\$[a-zA-Z_]+"/g)).toEqual(['>> "$p"'])
+    expect(NVM_PROFILE.startsWith('( ')).toBe(true)
+    expect(NVM_PROFILE.endsWith(' )')).toBe(true)
   })
 
   it('macOS (SSH): nvm too, with or without brew; root is fine (no Homebrew involved)', () => {
@@ -277,8 +314,13 @@ describe('node via nvm (T0555)', () => {
       needsSudo: false,
       installLocation: 'remoteTools.location.nvmDir',
       integrity: 'remoteTools.integrity.nvmNodeShasums',
-      notes: ['remoteTools.note.nvmUpdateMovesDefault'],
+      notes: ['remoteTools.note.nvmUpdateMovesDefault', 'remoteTools.note.nvmLoginProfile'],
     })
+    // T0556: the login profile block comes before the version check, so it lands even when the
+    // node is already the newest LTS or nodejs.org cannot be reached.
+    const command = (p as InstallPlan).command
+    expect(command.indexOf(NVM_PROFILE)).toBeGreaterThan(0)
+    expect(command.indexOf(NVM_PROFILE)).toBeLessThan(command.indexOf('nvm version-remote'))
     expect(isInstallPlan(p) && p.scriptUrl).toBeFalsy()
     expect(buildUpdatePlan('node', MAC)).toMatchObject({ command: NVM_UPDATE })
   })

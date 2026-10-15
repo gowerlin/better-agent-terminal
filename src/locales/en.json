@@ -1096,7 +1096,8 @@
       "alpineUseSystemRipgrep": "On Alpine, set USE_BUILTIN_RIPGREP=0 in the env section of Claude settings.json so it uses the system ripgrep.",
       "rgNeedsEpel": "On RHEL-family systems ripgrep is in EPEL; enable EPEL first if the install fails.",
       "claudeManualUpdate": "Background auto-update is off in BAT remote terminals; use Update here or run claude update.",
-      "nvmEditsProfile": "The nvm installer appends a few lines that load nvm to ~/.bashrc (or ~/.zshrc / ~/.profile); nothing else in the file changes. Interactive shells, BAT terminals and this detection load nvm; on distros whose ~/.bashrc stops early for non-interactive shells (Ubuntu), a plain bash -lc does not.",
+      "nvmEditsProfile": "The nvm installer appends a few lines that load nvm to ~/.bashrc (or ~/.zshrc / ~/.profile); nothing else in the file changes.",
+      "nvmLoginProfile": "BAT also appends a marked block that loads nvm to the profile file bash login shells read (the first of ~/.bash_profile, ~/.bash_login, ~/.profile that exists; ~/.profile is created when none does), so non-interactive login shells such as bash -lc find this Node.js too. The block is added only once, and it skips loading when nvm is already loaded; nothing else in the file changes.",
       "nvmKeepsSystemNode": "A Node.js installed by the system package manager stays installed; shells that load nvm use the nvm version first.",
       "nvmReopenTerminal": "Terminal tabs that are already open will not see nvm or this Node.js until you open a new one.",
       "nvmUpdateMovesDefault": "Installs the newest LTS with nvm, reinstalls your global npm packages from the current version, and makes it the default. The previous version stays installed. Nothing changes when you are already on the newest LTS."

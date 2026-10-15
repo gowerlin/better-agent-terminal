@@ -478,14 +478,39 @@ The remote tools panel (PLAN-037) installs Node.js with
 - **Install** (Linux and macOS SSH targets, any package manager, no sudo):
   `export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" &&
   curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash &&
-  . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'`.
+  . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*' && <login profile block, below>`.
   The nvm release is pinned (`NVM_VERSION_TAG`, `src/lib/remote-tools/recipes.ts`);
   `METHOD=script` fetches `nvm.sh` from the same tag with curl (no git, no macOS
   Command Line Tools prompt). nvm checks Node.js against nodejs.org `SHASUMS256.txt`.
   nvm appends its loader to `~/.bashrc` (or `~/.zshrc` / `~/.profile`).
-- **Update** (shown only for an nvm-managed node): newest LTS with
-  `--reinstall-packages-from=current`, `default` moved to `lts/*`; already on the
-  newest LTS → prints so and exits 0. The old version stays installed.
+- **Update** (shown only for an nvm-managed node): ensures the login profile block first,
+  then newest LTS with `--reinstall-packages-from=current`, `default` moved to `lts/*`;
+  already on the newest LTS → prints so and exits 0. The old version stays installed.
+  A host set up by T0555 (no block yet) gets the block from one Update.
+- **Login profile block** (T0556, `NVM_PROFILE_COMMAND`): appended to the file a bash
+  login shell reads — the first of `~/.bash_profile`, `~/.bash_login`, `~/.profile` that
+  exists (bash reads only that one); `~/.profile` is created when none does. Same rule on
+  macOS; zsh's `~/.zprofile` is not touched (zsh users get nvm from the `~/.zshrc` nvm
+  writes). The block, between `# >>> nvm loader for login shells (added by
+  BetterAgentTerminal) >>>` and the matching `<<<` line, is:
+
+  ```sh
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [ "$(command -v nvm 2>/dev/null)" != nvm ] && [ -s "$NVM_DIR/nvm.sh" ]; then command . "$NVM_DIR/nvm.sh" >/dev/null 2>&1; fi
+  ```
+
+  - Appended only when the begin marker is not in the file yet (`grep -F`), so repeated
+    installs / updates add nothing; nothing else in the file is changed. Remove the
+    block by hand to undo it.
+  - POSIX `sh` (also read by `sh -l` / dash). Loads only when `nvm` is not a shell
+    function yet: an interactive login shell has loaded it from `~/.bashrc` (Ubuntu's
+    `~/.profile` sources `~/.bashrc` first), so it is not loaded twice. An `nvm` program
+    on PATH (nvm-windows seen through WSL interop / Git Bash) does not count.
+  - `command .`: a syntax error in a dot script ends a non-interactive POSIX shell
+    (dash, bash as `sh`); through `command` only the dot fails. Output is discarded, so a
+    missing or broken nvm leaves logins unchanged.
+  - `sh -lc` reads only `~/.profile`: with a `~/.bash_profile` present the block is in
+    `~/.bash_profile`, so `bash -lc` finds node and `sh -lc` does not.
 - **A node that nvm does not manage** (apt's 18.x, for example) is shown with its
   version and an "Install LTS with nvm" button next to it; the system node is never removed.
 - **Alpine / musl**: no button (nodejs.org has no musl build; nvm would compile from
@@ -496,11 +521,17 @@ The remote tools panel (PLAN-037) installs Node.js with
   The report carries `nvm: { version }` and `nvmManaged` on the node row. A WSL hit under
   `/mnt/<drive>/` is still `interop-only`. Needs a server with the T0555 probe; older
   servers still report node, without the nvm fields.
-- **Non-interactive shells**: BAT terminals (`-l -i`) and the detection see nvm's node.
-  A plain `bash -lc` on Ubuntu does not, because the stock `~/.bashrc` returns before
-  nvm's loader for non-interactive shells (nvm's own placement, unchanged by BAT).
+- **Non-interactive shells**: BAT terminals (`-l -i`), the detection and, with the login
+  profile block (T0556), non-interactive login shells (`bash -lc`, `sh -lc`) see nvm's node.
+  Without the block a plain `bash -lc` on Ubuntu does not: the stock `~/.bashrc` returns
+  before nvm's loader for non-interactive shells. A non-login, non-interactive shell
+  (`bash -c`) still does not load nvm.
 - Real-machine check: `e2e/t0555-node-nvm-wsl.spec.ts` (`BAT_E2E_T0555=1`, installs
   into the distro; deploy the server JS first with `npm run deploy:headless:dev -- --target wsl:<distro> --yes`).
+  The T0556 Update check in the same file (`BAT_E2E_T0556=1`) needs a distro that already
+  has nvm: it presses Update twice and checks that the block is added once and that
+  `bash -lc` / `sh -lc` find node. Unit and real-shell tests:
+  `src/lib/remote-tools/__tests__/recipes.test.ts`, `nvm-login-profile.test.ts`.
 
 ## Troubleshooting (cross-cutting)
 
