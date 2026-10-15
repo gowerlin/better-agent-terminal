@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-036
 title: headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用
-status: IN_PROGRESS
+status: DONE
 priority: high
 created_at: "2026-10-04T23:34:17+08:00"
-updated_at: "2026-10-05T01:01:44+08:00"
+updated_at: "2026-10-16T02:46:24+0800"
 links:
   research_workorder: T0386
   p0_workorders: [T0388, T0389, T0390, T0391, T0393]
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-036 |
 | 優先級 | 🔴 High |
-| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0386 DONE；P0 T0388-T0391 + T0393 全 DONE（00:57），待 P0 實機驗收） |
+| 狀態 | ✅ DONE（2026-10-16 T0550 WSL 實機驗收通過。以下為歷程：原 IN_PROGRESS（Phase 0 T0386 DONE；P0 T0388-T0391 + T0393 全 DONE（00:57），待 P0 實機驗收） |
 | 建立時間 | 2026-10-04 23:34 (UTC+8) |
 | 決策 | D129（架構：共用註冊模組 + DI；fs roots 由 client 推送；遠端 Agent 沿用遠端 router） |
 
@@ -139,3 +139,9 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 ## 實機驗收（第六十六 session，2026-10-16T02:29:01+0800）
 
 - 使用者決定以一張 WSL 實機驗收單收尾：**T0550**（安裝版 pre.4 隔離實例跑 WSL 精靈，把 `Ubuntu-24.04` server 從 0.5.9-pre.4 升到 pre.4，再跑 smoke S1–S13 與可自動化的 UI 流程）。通過即結案；需真人項目另列。
+
+## 結案（2026-10-16T02:46:24+0800）
+
+- 狀態 IN_PROGRESS → **DONE**：T0550（`97d54f5a`）以安裝版 0.6.1-pre.4 隔離實例跑 stock WSL 精靈，`Ubuntu-24.04` server 0.5.9-pre.4 → **0.6.1-pre.4**（port 9877、指紋不變；塔台複驗 version / active / port）。smoke **S1–S13 13/13 PASS**（S13 遠端 Tower：helper env 齊全、無 server token、raw command 與未知 agent 皆被拒）；遠端 UI：終端 I/O、斷線重連回放（T0403）、git（T0405）、fs 沙箱（T0406）、遠端 Tower 派單 → Worker 回報；PLAN-037 工具偵測版本 / 登入狀態與 WSL 實際一致（兩條偵測路徑 + 精靈完成頁）。
+- 衍生：**BUG-138**（精靈升級執行中的 server 會換 port）、**BUG-139**（覆蓋安裝殘留舊檔）。
+- 需真人清單（T0550 回報區，轉給使用者）：使用者自己的 WSL profile 重連（預期免設定）；遠端 Tower 派真 agent（需 WSL 內登入 claude + 安裝 control-tower skill）；遠端 Agent 面板對話；PLAN-037 一鍵安裝 / 更新按鈕；精靈「匯入本機 tarball…」按鈕；Profiles 對話框 WSL 卡片的工具區。

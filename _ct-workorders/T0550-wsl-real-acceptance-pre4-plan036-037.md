@@ -182,3 +182,12 @@ memory_overrides:
 ### 回報時間
 
 2026-10-16T02:43:10+0800（證據蒐集完成）；收尾時間見 frontmatter `completed_at`。
+
+---
+
+## 塔台收單（第六十六 session，2026-10-16T02:46:24+0800）
+
+- ✅ **T0550 已確認完成**：commit `97d54f5a`（本單 + `e2e/t0550-wsl-acceptance.spec.ts`）、`36d4a2bb`（記錄 hash）。塔台複驗：WSL `~/.local/bat-server` README `version: 0.6.1-pre.4`、`systemctl --user is-active` = active、unit `BAT_SERVER_PORT=9877`、`du` 708M（備份 687M）；`npx playwright test e2e/t0550-wsl-acceptance.spec.ts` 未設 env → `5 skipped`。
+- → PLAN-036 / PLAN-037 **DONE**；缺陷 1 / 2 → **BUG-138** / **BUG-139**（OPEN）。
+- 遭遇問題 1（舊 server 已有 T0456 期手動補的 helper，升級前 S13 已 PASS）：採納，工單前提有誤。
+- **Worker 分頁回收（PLAN-041 觀察）**：收單即 `--close-worker`（02:44:46）→ exit 0，`scheduled … (output 846 ms ago; will wait for quiet)`；到期 02:44:56 `→ cancelled (user input during the delay)`，分頁保留。02:45:14 再請求 → 02:45:24 `close requested`、分頁關閉、registry 無殘留。延遲期間的「使用者輸入」來源未確認（使用者操作，或 xterm 自動回應如 focus report 被算成輸入），待使用者確認。

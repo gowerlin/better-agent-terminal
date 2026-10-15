@@ -22,17 +22,15 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 02:29 (UTC+8) — 第六十六 session 全 PLAN 盤點：PLAN-041 / 031 / 033 / 035 DONE、PLAN-014 DROPPED、新開 PLAN-043（IDEA）；PLAN-040 補正（檔案早已 DONE）。只列熱區，已歸檔見 `_archive/plans/`
+> 最後同步：2026-10-16 02:46 (UTC+8) — PLAN-036 / 037 DONE（T0550 WSL 實機驗收）；前次：全 PLAN 盤點（PLAN-041 / 031 / 033 / 035 DONE、PLAN-014 DROPPED、PLAN-043 IDEA）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 2 | ✅ Done: 8 | 🚫 Dropped: 1
+- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 1
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
-| PLAN-036 | headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用 | 🔴 high | 🔄 IN_PROGRESS | [PLAN-036](PLAN-036-headless-server-functional-handlers.md) |
-| PLAN-037 | 遠端（WSL / SSH / Docker）AI 工具套件檢查與一鍵安裝（claude / codex CLI、git、gh 等） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-037](PLAN-037-remote-ai-toolchain-check-and-install.md) |
 | PLAN-015 | refactor-dual-render-path-shared-helper | 🟢 low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
@@ -42,6 +40,8 @@ breakdown:
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-036 | headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用 | 2026-10-16 | [PLAN-036](PLAN-036-headless-server-functional-handlers.md) |
+| PLAN-037 | 遠端（WSL / SSH / Docker）AI 工具套件檢查與一鍵安裝（claude / codex CLI、git、gh 等） | 2026-10-16 | [PLAN-037](PLAN-037-remote-ai-toolchain-check-and-install.md) |
 | PLAN-041 | 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` + CT `*config`；T0535–T0538、T0545、CT-T011；pre.4 實機重驗 T0549） | 2026-10-16 | [PLAN-041](PLAN-041-auto-close-worker-terminal.md) |
 | PLAN-035 | WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正） | 2026-10-16 | [PLAN-035](PLAN-035-wsl-environment-full-automation.md) |
 | PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 2026-10-16 | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |
