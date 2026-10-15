@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0549
 title: "PLAN-041 重驗探針（pre.4，claude Worker）：真實 claude Worker 回報後，塔台收單即 `--close-worker` 應 exit 0 並等安靜後關閉（D145 / T0545）"
 type: verification
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-041
 priority: P2
 sizing: XS
 created_at: "2026-10-16T02:14:11+0800"
-updated_at: "2026-10-16T02:14:11+0800"
-started_at: ""
-completed_at: ""
+updated_at: "2026-10-16T02:15:19+08:00"
+started_at: "2026-10-16T02:14:52+08:00"
+completed_at: "2026-10-16T02:15:19+08:00"
 commit: ""
 target_version: "0.6.1-pre.4（已安裝，不改程式碼）"
 depends_on: []
@@ -77,12 +77,47 @@ pre.3 上，塔台收單後立即呼叫 `--close-worker` 6 次全部得到 exit 
 
 ### 完成狀態
 
+DONE（Worker 部分）。塔台驗收（`--close-worker` 延遲 10 s、等安靜、分頁消失）由塔台在收單後執行。
+
 ### 產出摘要
+
+Landing check：PASS。C-0 `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 PASS；C-3 不適用（`affects_files` 只有本工單檔）；C-2 無 `branch` 欄位。開工時 `status` 為 `TODO`（非 `PENDING`），直接轉 `IN_PROGRESS`。
+
+以下都是指令取得的值：
+
+| 項目 | 值 | 取得方式 |
+|---|---|---|
+| agent | Claude Code，模型 `claude-opus-5-5`（Opus 5.5） | 模型由 session 系統資訊得知 |
+| agent 版本 | `2.1.300 (Claude Code)` | `claude --version` |
+| 實際執行的 agent binary | `C:\Users\Gower\.local\bin\claude.exe`（system installer 版，不是 BAT 內嵌版） | 本 shell 的父行程鏈：pwsh ← cmd ← `claude.exe`（PID 23936）；PATH 上的 `claude` 也是同一路徑 |
+| BAT FileVersion | `0.6.1-pre.4`（ProductVersion `0.6.1.0`） | `(Get-Item 'C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe').VersionInfo.FileVersion` |
+| `BAT_SESSION` | `1` | env |
+| `BAT_TERMINAL_ID` | `2f3d863cdffa40733e11283e39a0ae39` | env |
+| `BAT_TOWER_TERMINAL_ID` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` | env |
+| `BAT_WORKSPACE_ID` | `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b` | env |
+| `CT_MODE` | `yolo` | env |
+| `CT_INTERACTIVE` | `0` | env |
+| `BAT_REMOTE_PORT` | `9876` | env |
+| `BAT_REMOTE_TOKEN` | 有設定（值不記錄） | env |
+| `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminal\resources\scripts` | env |
+| 系統時間 | `2026-10-16T02:15:04+0800` | `date "+%Y-%m-%dT%H:%M:%S%z"` |
+
+Git Bash 與 PowerShell 看到的 `BAT_*` / `CT_*` 相同，沒有 shell env visibility mismatch。
+
+變更檔案：只有本工單檔。沒有改產品程式碼，沒有跑 build / test（依 memory_overrides）。
 
 ### 互動紀錄
 
+無（`CT_INTERACTIVE=0`，fire-and-forget）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+無。
+
 ### 回報時間
+
+2026-10-16T02:15:04+0800
