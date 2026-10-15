@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0545
 title: "`--close-worker` 等分頁安靜再關：請求時最近有輸出不再回 BUSY，延遲期間輸出不取消（只有使用者輸入取消），到期仍有輸出最多再等 60 秒（D145）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-041
 priority: P1
 sizing: S
 created_at: "2026-10-15T20:12:07+0800"
-updated_at: "2026-10-15T20:13:04+0800"
+updated_at: "2026-10-15T20:25:36+0800"
 started_at: "2026-10-15T20:13:04+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-15T20:25:36+0800"
+commit: "2321c719"
 target_version: "0.6.1-pre.4"
 depends_on: []
 related:
@@ -88,7 +88,7 @@ PLAN-041 實機驗收（2026-10-15，BAT `0.6.1-pre.3` + CT v5.1.0，詳見 PLAN
 
 ### 完成狀態
 
-DONE — 驗收條件 5 項全部通過（含 e2e 實跑）。
+DONE — 驗收條件 5 項全部通過（含 e2e 實跑）。產品 commit `2321c719`。
 
 **Landing check**：PASS。C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 PASS；C-3 PASS（affects_files 皆存在）；C-2 無 `branch` 欄位（main）。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
 
