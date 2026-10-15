@@ -202,30 +202,32 @@
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-15 01:21 (UTC+8) 第六十三 session（Fast Path 局部更新；前次 Full Scan 2026-10-13 15:40）
+> 最後掃描:2026-10-15 19:57 (UTC+8) 第六十五 session **Full Scan**（`*rescan`；前次 Full Scan 2026-10-13 15:40）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…` |
-| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 01:15）；T0531 派工 exit 0 |
-| BAT 安裝版 | ✅ `v0.6.0-pre.10` | FileVersion 確認（2026-10-15 01:15） |
+| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
+| BAT 安裝版 | ✅ `0.6.1-pre.3` | FileVersion 確認（2026-10-15 19:54） |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
-| BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-<stamp>.log`（10-14 01:54 新檔）；`.userdata-migration.json` marker 存在（BUG-119） |
-| 平台 | Windows | PowerShell 主，Bash tool 並存；repo 已有 `.gitattributes`（`* text=auto eol=lf`，T0493） |
+| BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
+| 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
 | UAC | ⚠️ `EnableLUA=0` | BAT 與子 shell 皆提權（BUG-085 背景） |
-| gh CLI | ✅ | 已登入 `gowerlin`；**必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
+| gh CLI | ✅ | 已登入 `gowerlin`（keyring）；**必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ✅ | `main` = `origin/main`（2026-10-15 02:10 收工 push）；`src/styles/settings.css` 顯示 M 但內容無差異（未處理） |
-| WSL | dev-deploy + docker | `~/.local/bat-server` tag `t0456`（舊）；WSL 內 `docker.io` 29.1.3（T0467 安裝，保留） |
-| ct-exec / ct-done / ct-status / evolve / insights / fieldguide / help | ✅ | |
-| 熱區工單 | **T:177 檔 / BUG:59 / PLAN:12** | `archive_days: 2` 下大量到齡候選（先 grep 程式碼引用，L133） |
-| 最大編號 | **T0532 / BUG-135 / PLAN-040 / D143 / L150** | 下張：T0533 / BUG-136 / PLAN-041 / D144 / L151 |
-| unit test | ✅ **3642 passed / 216 files** | 塔台聯合複驗 @ `b00c4f9` |
-| typecheck | ✅ src 0 / electron 0 | CI gate |
-| e2e | ✅ smoke / t0512 / t0513 / t0523 / t0524 6 passed | 需先 `npx vite build` |
-| 開放 PR | 0 | |
-| 設定來源 | project | `_tower-config.yaml`（auto-session **on**） |
-| 塔台版本 | v5.1.0（2026-10-15 安裝，下個 session 生效） | control-tower skill |
+| git 同步 | ✅ | `main` = `origin/main` @ `2b983a79`（fetch 後）；無其他 worktree / stash；`src/styles/settings.css` 顯示 M 但 `git diff` 無內容（stat-only，未處理） |
+| 最新 CI / release | ✅ | Pre-Release run `38715587426` success → `v0.6.1-pre.3` + `server-bundle-v0.6.1-pre.3`；開放 PR 0 |
+| WSL | Ubuntu-24.04 | `~/.local/bat-server` = `0.5.9-pre.4`（舊，systemd user service active）；`docker.io` 29.1.3 |
+| Control Tower skills | ✅ v5.1.0 | control-tower / ct-exec / ct-done / ct-status / ct-evolve / ct-insights / ct-fieldguide / ct-help 全為 5.1.0 |
+| 熱區單據 | **T:187 檔 / BUG:62 / PLAN:14 / EXP:0** | `archive_days: 2` 下大量到齡候選（歸檔前先 grep 程式碼引用，L133） |
+| 最大編號 | **T0541 / BUG-137 / PLAN-042 / D144 / L150 / CT-T012** | 下張：T0542 / BUG-138 / PLAN-043 / D145 / L151 / CT-T013 |
+| 非終態工單 | T0153 PARTIAL、T0510 PARTIAL、T0360 FIXED | 皆為舊單；`T0292/T0293/T0298/T0302-*-report.md` 無 frontmatter（L132） |
+| unit test | ✅ **3939 passed / 1 skipped / 237 files** | 塔台 rescan 複驗 @ `2b983a79`（31 s） |
+| typecheck | ✅ src 0 / electron 0 | 塔台 rescan 複驗 @ `2b983a79` |
+| e2e | 未重跑 | 最近：T0535-T0541 各自 e2e（需先 `npx vite build`） |
+| state 檔 | ✅ 19.9 KB | < 30 KB 軟警告；季檔 `2026-Q4.md` 86,352 bytes、INDEX 80 entries |
+| 設定來源 | project | `_tower-config.yaml`（auto-session **on**，`yolo_max_retries: 1`，`auto_commit: on`） |
+| 塔台版本 | v5.1.0（本 session 起生效） | control-tower skill |
 
 > **Drift / 注意事項**:
 > 1. 🔴 **D094 mac installer 280 MB cap 長期超標**未復議（L130）
