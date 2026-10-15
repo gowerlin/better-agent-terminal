@@ -1918,6 +1918,7 @@ async function stopTerminalServerGracefully(): Promise<void> {
 
   // Step A: Fork path (original behavior — preserved for dev serve)
   const child = _terminalServerProcess
+  const stepA = process.platform === 'win32' ? 'IPC server:shutdown' : 'SIGTERM'
   if (child && child.connected) {
     const sigtermStopped = await new Promise<boolean>((resolve) => {
       let resolved = false
@@ -1930,19 +1931,25 @@ async function stopTerminalServerGracefully(): Promise<void> {
       try { child.once('exit', () => finish(true)) } catch { /* listener failure non-fatal */ }
 
       try {
-        child.kill('SIGTERM')
+        if (process.platform === 'win32') {
+          // T0540: on Windows kill('SIGTERM') is TerminateProcess — the server's shutdown
+          // (taskkill /T of every PTY tree, pid/port file cleanup) never ran. Ask it over IPC.
+          child.send({ type: 'server:shutdown' })
+        } else {
+          child.kill('SIGTERM')
+        }
       } catch (err) {
-        logger.warn(`[quit] SIGTERM to terminal server failed: ${err}`)
+        logger.warn(`[quit] ${stepA} to terminal server failed: ${err}`)
       }
 
       setTimeout(() => finish(false), TIMEOUT_MS)
     })
 
     if (sigtermStopped) {
-      logger.log('[quit] terminal server stopped (via SIGTERM)')
+      logger.log(`[quit] terminal server stopped (via ${stepA})`)
       return
     }
-    logger.warn('[quit] SIGTERM did not exit within timeout, falling back to TCP shutdown')
+    logger.warn(`[quit] ${stepA} did not exit within timeout, falling back to TCP shutdown`)
   }
 
   // Step B: TCP shutdown (reconnect path + Step A timeout fallback)

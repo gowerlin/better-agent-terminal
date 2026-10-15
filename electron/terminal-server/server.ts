@@ -2,6 +2,7 @@ import * as net from 'net'
 import { RingBuffer } from './ring-buffer'
 import { writePortFile, removePortFile, removePidFile } from './pid-manager'
 import { addPtyEntry, removePtyEntry, clearRegistry, writeRegistry } from './pty-registry'
+import { defaultKillTreeDeps, killProcessTree, type KillTreeDeps } from './process-tree'
 import type { ServerRequest, ServerResponse } from './protocol'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
@@ -28,6 +29,11 @@ interface PtyEntry {
 const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes (D031 default)
 const DEFAULT_BUFFER_LINES = 1000               // D031 default
 
+/** T0540: injectable for tests (taskkill, platform, process exit). */
+export interface TerminalServerDeps extends KillTreeDeps {
+  exit: (code: number) => void
+}
+
 /**
  * Core Terminal Server logic. Manages PTY instances, routes IPC/TCP messages,
  * and handles idle-timeout shutdown after all clients disconnect.
@@ -49,10 +55,21 @@ export class TerminalServer {
   private tcpServer: net.Server | null = null
   private readonly tcpClients: Set<net.Socket> = new Set()
   private _userDataPath = ''
+  private shuttingDown = false
+  private readonly deps: TerminalServerDeps
 
-  constructor(idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS, bufferLines = DEFAULT_BUFFER_LINES) {
+  constructor(
+    idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
+    bufferLines = DEFAULT_BUFFER_LINES,
+    deps: Partial<TerminalServerDeps> = {},
+  ) {
     this.idleTimeoutMs = idleTimeoutMs
     this.bufferLines = bufferLines
+    this.deps = {
+      platform: deps.platform ?? defaultKillTreeDeps.platform,
+      execFile: deps.execFile ?? defaultKillTreeDeps.execFile,
+      exit: deps.exit ?? ((code) => process.exit(code)),
+    }
   }
 
   // ── Transport layer ─────────────────────────────────────────────────────────
@@ -142,6 +159,8 @@ export class TerminalServer {
 
   /** Dispatch an incoming message to the appropriate handler. */
   handleMessage(msg: ServerRequest, via: 'ipc' | 'tcp' = 'ipc', socket?: net.Socket): void {
+    // T0540: shutdown waits for the process trees to end; nothing new starts meanwhile.
+    if (this.shuttingDown) return
     this.resetIdleTimer()
 
     switch (msg.type) {
@@ -283,11 +302,31 @@ export class TerminalServer {
   private killPty(req: Extract<ServerRequest, { type: 'pty:kill' }>): void {
     const entry = this.ptys.get(req.id)
     if (entry) {
-      try { entry.pty.kill() } catch { /* already dead */ }
+      void this.endPty(req.id, entry)
       this.ptys.delete(req.id)
       // T0113: Remove from registry
       if (this._userDataPath) removePtyEntry(req.id, this._userDataPath)
     }
+  }
+
+  /**
+   * T0540 (PLAN-042): end a PTY like direct mode (`PtyManager.kill`). On Windows
+   * `taskkill /F /T` ends the whole tree first — `pty.kill()` alone leaves children the
+   * agent started without a console (detached) running — then `pty.kill()` releases the
+   * pseudo console. Elsewhere `pty.kill()` (SIGHUP to the shell) runs right away, as before.
+   */
+  private endPty(id: string, entry: PtyEntry): Promise<void> {
+    const killPty = () => { try { entry.pty.kill() } catch { /* already dead */ } }
+    if (this.deps.platform !== 'win32') {
+      killPty()
+      return Promise.resolve()
+    }
+    return killProcessTree(entry.pid, this.deps).then((result) => {
+      if (result !== 'killed') {
+        process.stderr.write(`[terminal-server] taskkill tree id=${id} pid=${entry.pid}: ${result}\n`)
+      }
+      killPty()
+    })
   }
 
   private listPtys(via: 'ipc' | 'tcp', socket?: net.Socket): void {
@@ -335,13 +374,17 @@ export class TerminalServer {
 
   // ── Shutdown ─────────────────────────────────────────────────────────────────
 
-  /** Gracefully kill all PTYs, close TCP connections, and exit the process. */
+  /**
+   * Gracefully kill all PTYs, close TCP connections, and exit the process.
+   * T0540: on Windows the exit (and the pid-file removal main waits for) comes after every
+   * PTY's process tree has ended (each taskkill is capped by its timeout).
+   */
   shutdown(): void {
+    if (this.shuttingDown) return
+    this.shuttingDown = true
     this.resetIdleTimer()
 
-    for (const [, entry] of this.ptys) {
-      try { entry.pty.kill() } catch { /* ignore */ }
-    }
+    const ended = Promise.all([...this.ptys].map(([id, entry]) => this.endPty(id, entry)))
     this.ptys.clear()
 
     // Close all TCP clients and the TCP server
@@ -354,13 +397,15 @@ export class TerminalServer {
       this.tcpServer = null
     }
 
-    // Clean up PID file + port file + PTY registry
-    if (this._userDataPath) {
-      try { clearRegistry(this._userDataPath) } catch { /* ignore */ }
-      try { removePidFile(this._userDataPath) } catch { /* ignore */ }
-      try { removePortFile(this._userDataPath) } catch { /* ignore */ }
-    }
+    void ended.then(() => {
+      // Clean up PID file + port file + PTY registry
+      if (this._userDataPath) {
+        try { clearRegistry(this._userDataPath) } catch { /* ignore */ }
+        try { removePidFile(this._userDataPath) } catch { /* ignore */ }
+        try { removePortFile(this._userDataPath) } catch { /* ignore */ }
+      }
 
-    process.exit(0)
+      this.deps.exit(0)
+    })
   }
 }
