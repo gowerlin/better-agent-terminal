@@ -4,14 +4,16 @@ schema_kind: workorder
 id: T0539
 title: "PLAN-042：修 BUG-137（已結束分頁 ⏻ 重啟無效）＋ helper 派工日誌 `sourceTerminalId` 永遠為空"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-042
 priority: P3
 sizing: S
 created_at: "2026-10-15T16:13:05+0800"
 started_at: "2026-10-15T17:21:25+0800"
-updated_at: "2026-10-15T17:21:25+0800"
+updated_at: "2026-10-15T17:30:31+0800"
+completed_at: "2026-10-15T17:30:31+0800"
+commit: 2ff55bdd
 target_version: "0.6.1-pre.3"
 depends_on: [T0535]
 related:
@@ -58,10 +60,10 @@ memory_overrides:
 
 ## 驗收條件
 
-- [ ] A：單元測試（instance 不存在時的重啟、回傳值檢查）；隔離實例實測兩種情境都能重啟，存活分頁的重啟行為不變
-- [ ] B：helper 測試或單元測試確認日誌欄位有值；Worker 的 env 不多出任何變數
-- [ ] BUG-137 更新為 FIXED（附 commit）
-- [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npx vite build` 成功、相關單元測試全綠
+- [x] A：單元測試（instance 不存在時的重啟、回傳值檢查）；隔離實例實測兩種情境都能重啟，存活分頁的重啟行為不變
+- [x] B：helper 測試或單元測試確認日誌欄位有值；Worker 的 env 不多出任何變數
+- [x] BUG-137 更新為 FIXED（附 commit）
+- [x] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npx vite build` 成功、相關單元測試全綠
 
 ## 回報區
 
@@ -139,4 +141,5 @@ memory_overrides:
 
 ### 8. Commit
 
-（見下方 closeout）
+- `2ff55bdd` fix: T0539 restart a tab whose process is gone (BUG-137); log the dispatching Tower as sourceTerminalId (PLAN-042)
+- closeout commit（本回報 hash、BUG-137 → FIXED、狀態 DONE）另行 commit；皆用 `git commit --only`，未含 `src/styles/settings.css`；未 push
