@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0556
 title: "T0555 後續：nvm 安裝 / 更新時，在 bash login 實際會讀的 profile 檔追加「nvm 尚未載入才載入」的片段（冪等、可辨識），讓非互動 login shell（`bash -lc`）也找得到 nvm 管理的 node"
 type: feature
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: "T0555 後續（使用者決定，第六十六 session）"
 priority: P2
 sizing: S
 created_at: "2026-10-16T04:52:56+0800"
-updated_at: "2026-10-16T05:08:33+0800"
+updated_at: "2026-10-16T05:08:50+0800"
 started_at: "2026-10-16T04:53:46+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-16T05:08:50+0800"
+commit: "e16e75b8"
 target_version: "0.6.1-pre.5（與 T0551–T0555 同批）"
 depends_on: [T0555]
 related:
@@ -77,7 +77,7 @@ T0555 讓遠端工具的 Node.js 可以透過 nvm 一鍵安裝。BAT 偵測與 B
 
 **DONE**：驗收條件全部通過。WSL 實機按兩次「更新」：第一次寫入片段，第二次不重複。之後 `bash -lc` 與 `sh -lc` 都找得到 `/home/gower/.nvm/versions/node/v24.22.0/bin/node`；`bash -lic` 只載入一次 nvm.sh。smoke 13/13。
 
-Commit：見下方「Commit」（未 push）。
+Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login shells（11 檔，未 push）；本收尾 metadata 另一個 commit。
 
 落點檢查：**PASS**
 - C-0：`repo`=`better-agent-terminal`，`basename(REPO_ROOT)`=`better-agent-terminal`，相符
@@ -206,7 +206,7 @@ Commit：見下方「Commit」（未 push）。
 - `t0556-after.txt`（三種 shell 的結果與 xtrace）
 - `t0556-detect-after.json`
 
-**Commit**：`feat(remote-tools): T0556 …`，用 `git commit --only` 提交本單變更的 11 個檔案，工單檔也包含在內。`src/styles/settings.css` 不在其中（工單已註明不是本單的變更）。未 push。
+**Commit**：`e16e75b8` `feat(remote-tools): T0556 …`，用 `git commit --only` 提交本單變更的 11 個檔案，工單檔也包含在內。`src/styles/settings.css` 不在其中（工單已註明不是本單的變更）。未 push。
 
 ### 互動紀錄
 
