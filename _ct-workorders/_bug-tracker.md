@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-15T01:16:21+0800"
+generated_at: "2026-10-15T13:13:21+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 60
+total: 61
 breakdown:
-  OPEN: 0
+  OPEN: 1
   FIXING: 0
   FIXED: 16
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-15 01:16 (UTC+8) — 第六十三 session：BUG-134 FIXED（T0531）；BUG-135 FIXED（T0532），塔台聯合複驗全綠
+> 最後同步：2026-10-15 13:13 (UTC+8) — 開 BUG-136（Gary：macOS 舊分頁打字延遲、Renderer 約 100% CPU、GPU 崩潰 5 次）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 16 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 60**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 16 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 61**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 
 ## ⏳ 修復中 (FIXING)
 

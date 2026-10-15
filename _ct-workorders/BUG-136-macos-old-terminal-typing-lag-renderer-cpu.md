@@ -1,0 +1,106 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-136
+title: "macOS：使用已久的 Codex 塔台分頁打字嚴重延遲，BAT Renderer 持續約 1 顆核心；同一程序新開的分頁正常。期間 GPU 行程崩潰 5 次"
+status: OPEN
+severity: medium
+reproducibility: unknown
+created_at: "2026-10-15T13:13:21+0800"
+updated_at: "2026-10-15T13:13:21+0800"
+impact:
+  - terminal-rendering
+  - xterm-canvas
+  - macos
+links:
+  discovered_in: "Gary 回報（2026-10-15，v0.6.1-pre.1）"
+  related: [T0533]
+---
+
+# BUG-136 — macOS 舊分頁打字延遲、Renderer 約 100% CPU
+
+| 欄位 | 內容 |
+|------|------|
+| 嚴重度 | 🟡 medium（舊塔台分頁幾乎無法打字；繞行：新開分頁 + 新 Codex 工作階段） |
+| 可重現 | 未確認（無最小重現；根因未定，見「判讀」） |
+| **狀態** | 📂 OPEN（待 Gary 做兩項區分測試） |
+| 回報者 | Gary（附量測與日誌） |
+
+## 環境
+
+- BAT `0.6.1-pre.1`（安裝版），Codex CLI `0.162.1`
+- macOS 27.0.1（26A434），Apple M2 Pro，16 GiB
+- 雙螢幕 2560×1440 + 1920×1080；BAT 視窗最大化，舊分頁 249×69
+
+## 現象
+
+- **實際**：使用已久、含大量對話的 Codex 塔台分頁（`be5530dd`）打字嚴重延遲。關閉 Word 後仍卡。
+- **預期**：長時間使用的分頁在工作停止後仍能順暢輸入。
+- 同一 BAT 程序內，新開的空白終端（12:54）與新 Codex 塔台工作階段（12:57）打字正常。
+
+## 量測（Gary，12:50:13–12:51:56 +0800，`ps` / `vm_stat`）
+
+- BAT Helper (Renderer) pid 64282：100.6% / 100.7% / 100.8%（單程序，約 1 顆核心），RSS 443 → 461 MiB
+- WindowServer：43.4% / 38.9% / 40.3%
+- Codex 程序：6.5% → 1.1% → 1.4%，其餘 0%
+- Word 0%
+- swap 已用 2105 MiB；103 秒內 swapout +0、swapin +203 頁
+- 量測時舊分頁為 active（日誌 12:50:49 切回 `be5530dd`）
+- 未量測：輸入延遲毫秒數、切到新分頁後的 Renderer CPU、CPU / heap profile
+
+## 日誌證據（塔台分析，`debug-20261015-112206.log`）
+
+以下時間皆為 +0800。
+
+1. **GPU 行程崩潰 5 次**：`[CRASH] child-process-gone type=GPU reason=crashed exitCode=5`，時間為 11:43:01、11:43:09、12:02:28、12:12:34、12:23:23。Gary 的報告未提及此事。前一份日誌 `debug-20261015-094818.log`（09:48–11:21）沒有 GPU crash。
+2. **崩潰後出現手動重繪**：
+   - 12:12:34 崩潰後 49 秒，`c7852c1c` 按了 `[redraw] manual redraw`
+   - 13:00:52 舊分頁 `be5530dd` 連按兩次重繪
+   - 推測崩潰後畫面曾損壞
+3. **新、舊分頁在同一程序**：12:54 的 `6841ca6b`、12:57 的 `b91b6c8c` 與舊分頁共用 main PID 64074 和同一個 Renderer，期間沒有重啟。⇒ 卡頓綁在分頁本身，不是整個 Renderer 都慢。
+4. **舊分頁建立時間早於所有崩潰**：`be5530dd` 在 11:22 由 Terminal Server 保留的 PTY 還原；09:48 那次已存在，11:21 quit 時 `stopTerminalServer=false`，Codex 程序跨 BAT 重啟存活。
+   - 崩潰前建立：`b308fb64` / `301bc669`（11:23）、`b9271150`（11:35）、`bf632657`（11:42）
+   - 崩潰後建立：新的兩個分頁
+5. **啟動慢 8 秒（另案觀察，未分析）**：11:22 啟動時 `buildMenu` 到 `RemoteServer Started` 間隔約 7.8 s，`first-renderer-ipc` +8178 ms；09:48 那次為 +498 ms。工作區在 Google Drive `CloudStorage` 底下，是否相關未驗證。
+
+`bat-scripts.log` 只有派工 / 通知事件，與本案無關。
+
+## 判讀（根因未定，兩個假設）
+
+| | A：BAT 繪圖狀態在 GPU 崩潰後損壞 | B：Codex 舊工作階段本身變慢 |
+|---|---|---|
+| 機制 | 終端使用 `@xterm/addon-canvas` `^0.7.0`（`src/components/TerminalPanel.tsx` `new CanvasAddon()`），沒有處理 2D context loss（WebGL addon 才有 `onContextLoss`）。GPU 崩潰前建立的 canvas 與 texture atlas 可能處在異常狀態；崩潰後新建的正常。Chromium 在 GPU 反覆崩潰後也可能整體退回軟體繪圖，與 WindowServer 約 40% 相符 | 長對話的 Codex TUI 每次按鍵重畫大量畫面 |
+| 符合 | 舊分頁早於崩潰、新分頁晚於崩潰；崩潰後有手動重繪 | 卡的正是長對話分頁 |
+| 不符 | 09:48–11:21 沒有崩潰。若那段已卡（11:21 的重啟是否因卡頓？），A 不成立 | Codex 程序 CPU 只有 1–6%，吃 CPU 的是 BAT Renderer |
+
+**Worker 未取得區分測試結果前，不轉述任何根因。**
+
+## 待 Gary 做的區分測試
+
+1. 在**崩潰前就開著的非 Codex 分頁**（例如第二個工作區 11:23 的空白終端）打字。
+   - 也卡 → 偏 A
+   - 順 → 偏 B
+2. **只重開 BAT（quit 時保留終端 / 不停 Terminal Server）**，回到舊 Codex 分頁打字。Codex 程序與長對話保留，只重建 BAT 畫面。
+   - 變順 → A
+   - 仍卡 → B
+3. 確認 09:48–11:21（尚無 GPU 崩潰）那段，舊分頁是否已經卡；11:21 的重啟是否因為卡頓。
+4. 選做：
+   - Settings 開 DevTools，Performance 錄 5 秒在舊分頁打字的過程
+   - 附上 `~/Library/Logs/DiagnosticReports` 內 11:43–12:23 的 GPU 崩潰報告
+
+## 可先做的改善（不論 A / B）
+
+- `electron/main.ts` 的 `child-process-gone`（type=GPU）額外記錄 `app.getGPUFeatureStatus()`，判斷是否已退回軟體繪圖。
+- 終端 renderer 在 GPU 崩潰 / context loss 後自動重建：
+  - 方案一：CanvasAddon 監聽 `contextlost` / `contextrestored`，或在 GPU crash 時對所有 xterm `clearTextureAtlas()` + `refresh`
+  - 方案二：改用 `@xterm/addon-webgl` 並在 `onContextLoss` 時 dispose 後 fallback
+  - 需評估與既有 Win11 `clearTextureAtlas` 修正（`TerminalPanel.tsx` isActive effect）的互動，不得造成退化
+
+## 附件
+
+Gary 提供的檔案放在使用者本機，未入庫：
+
+- `debug-20261015-094818.log`、`debug-20261015-112206.log`、`bat-scripts.log`
+- `關閉Word後量測.json`、`新舊工作階段比較.json`、`BAT問題回報草稿.txt`
+
+日誌含客戶專案路徑，引用時請去識別化。
