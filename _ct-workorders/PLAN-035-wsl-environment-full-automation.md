@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-035
 title: WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正）
-status: IN_PROGRESS
+status: DONE
 priority: high
 created_at: "2026-10-04T22:04:14+08:00"
-updated_at: "2026-10-04T23:46:46+08:00"
+updated_at: "2026-10-16T02:27:40+0800"
 links:
   research_workorder: T0380
   phase1_workorders: [T0381, T0382, T0383, T0384]
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-035 |
 | 優先級 | 🔴 High |
-| 狀態 | 🔄 IN_PROGRESS（Phase 0 T0380 DONE；Phase 1 T0381-T0384 全 DONE，**2026-10-04 23:46 安裝版實機通過**（精靈全程無警告 + profile 開啟，含 T0385 server JS）；Phase 2 / 3 待開單，先後待 PLAN-036 / T0386 建議） |
+| 狀態 | ✅ DONE（2026-10-16 以 Phase 0–1 結案；Phase 2 / 3 移到 PLAN-043（IDEA）。以下為歷程：原 IN_PROGRESS（
 | 建立時間 | 2026-10-04 22:04 (UTC+8) |
 | 決策 | D127、D128 |
 
@@ -98,3 +98,10 @@ links:
 unit 794 → 905；tsc 40 不變。待：安裝版從頭跑 WSL 精靈實機驗收（同時驗 BUG-086 / 087）。
 
 **Phase 2 新增候選**（來自 Phase 1 回報）：keep-alive per-profile 開關或 lazy 模式（T0384）；BAT 被強制終止時的孤兒 `wsl.exe`（Job Object，T0384）；runner 層 step abort（T0381）；`docs/wsl-deployment.md:216`、`docs/plan-007-release-checklist.md:59` 措辭對齊「NAT 不需強制改」（T0383）
+
+---
+
+## 結案（第六十六 session，2026-10-16T02:27:40+0800）
+
+- 狀態 IN_PROGRESS → **DONE**（使用者決定）：Phase 0（T0380）與 Phase 1（T0381–T0384，BUG-089–092 FIXED）完成，2026-10-04 23:46 安裝版實機通過。
+- Phase 2（已安裝環境偵測 → 清單 → 一次同意 → 自動修正，環節 4–8）、Phase 3（從零安裝環節 1–3 + 重開機接續）與「Phase 2 新增候選」整份移到 **PLAN-043**（💡 IDEA）。

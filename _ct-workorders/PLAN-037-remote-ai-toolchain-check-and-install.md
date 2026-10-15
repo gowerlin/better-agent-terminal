@@ -86,3 +86,7 @@ PLAN-036 讓遠端 headless server 有了終端與（進行中的）Agent / git 
 - BUG-104：codex installer `Start Codex now? [y/N]` 卡住標記 → T0415 加 `CODEX_NON_INTERACTIVE=1`
 - 未涵蓋：sudo 需密碼、Docker root 無 sudo、`curl | sh` 斷網回 0（皆待其他環境）
 - T0415 DONE（`1dd0647`）：BUG-104 修復，04:16 WSL 重裝 codex 無提示 → **PLAN-037 程式部分全部完成**；剩使用者以新 build 驗 UI（精靈完成畫面、設定頁、跨視窗安裝）
+
+## 實機驗收（第六十六 session，2026-10-16T02:29:01+0800）
+
+- 使用者決定以一張 WSL 實機驗收單收尾：**T0550**（安裝版 pre.4 隔離實例跑 WSL 精靈，把 `Ubuntu-24.04` server 從 0.5.9-pre.4 升到 pre.4，再跑 smoke S1–S13 與可自動化的 UI 流程）。通過即結案；需真人項目另列。

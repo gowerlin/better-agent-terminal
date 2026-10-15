@@ -97,9 +97,9 @@
 
 ### 待辦（依優先序）
 
-1. ✅ ~~PLAN-041 重驗~~ → **DONE**（第六十六 session 02:17，T0549：pre.4 收單即 `--close-worker` exit 0、10 s 後關閉；當次排程時已安靜，等安靜分支由 T0545 e2e 涵蓋）。同場結案 CT-T001 / CT-T011 / CT-T012 / T0510（PARTIAL→DONE）；PLAN-014 DROPPED、T0153 ABANDONED；L132 四份報告檔搬入歸檔
+1. ✅ ~~PLAN-041 重驗~~ → **DONE**（第六十六 session 02:17，T0549：pre.4 收單即 `--close-worker` exit 0、10 s 後關閉；當次排程時已安靜，等安靜分支由 T0545 e2e 涵蓋）。同場結案 CT-T001 / CT-T011 / CT-T012 / T0510（PARTIAL→DONE）；PLAN-014 DROPPED、T0153 ABANDONED；L132 四份報告檔搬入歸檔；全 PLAN 盤點：PLAN-031 / 033 / 035 DONE、新開 PLAN-043（IDEA，PLAN-035 Phase 2/3）、PLAN-036 / 037 待 T0550
 2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
-3. 🟡 **pre.4 實機**：WSL / SSH 首次設定的線上下載與「匯入本機 tarball」、dmg（UDBZ）掛載 / AppImage（xz）啟動速度、NSIS 完整重裝；WSL `~/.local/bat-server` 仍是 0.5.9-pre.4
+3. 🟡 **pre.4 實機**：**T0550 已派**（WSL 升級 + PLAN-036 / 037 驗收，順驗線上下載）；其餘：WSL / SSH 首次設定的線上下載與「匯入本機 tarball」、dmg（UDBZ）掛載 / AppImage（xz）啟動速度、NSIS 完整重裝；WSL `~/.local/bat-server` 仍是 0.5.9-pre.4
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；Gary 日誌另案（macOS terminal-server 未存活、`first-renderer-ipc` +8 s）
 5. 🟢 程式碼簽章等使用者帳號；backlog：`docs/server-bundle-distribution.md` rate-limit 重試敘述與實作不符（T0548 #5）、PID 鏈、`*archive` 到齡候選
 
@@ -115,7 +115,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（81 entries）
 
 ### 編號起始
-- **T0550** / **BUG-138** / **PLAN-043** / **D147** / **EXP-[TOPIC]-001** / **L151** / **CT-T013**
+- **T0551** / **BUG-138** / **PLAN-044** / **D147** / **EXP-[TOPIC]-001** / **L151** / **CT-T013**
 
 ---
 
@@ -131,7 +131,7 @@
 | **目前主軸** | `v0.6.1-pre.4` 已發佈；PLAN-041 待 pre.4 重驗；BUG-136 等 Gary |
 | **工單最大編號** | T0548（DONE `c389888b`）；T0542 / T0544-T0548 DONE、T0543 ABANDONED；跨專案 CT-T012 |
 | **BUG 最大編號** | **BUG-137**（FIXED，T0539）；Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 44 |
-| **PLAN 最大編號** | **PLAN-042**（DONE）；PLAN-041 DONE（T0549 pre.4 重驗，2026-10-16）；PLAN-040 / 039 DONE；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
+| **PLAN 最大編號** | **PLAN-043**（IDEA）；PLAN-036 / 037 IN_PROGRESS（待 T0550）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
 | **決策最大編號** | D146 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.1.0（第六十五 session 起生效；`worker_auto_close: done`） |

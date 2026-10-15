@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-033
 title: Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR）
-status: PLANNED
+status: DONE
 priority: high
 created_at: "2026-04-27T16:55:00+08:00"
+updated_at: "2026-10-16T02:27:40+0800"
 ---
 # PLAN-033 — Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR）
 
@@ -17,7 +18,7 @@ created_at: "2026-04-27T16:55:00+08:00"
 | 標題 | Tower State Snapshot Archive Architecture（hot/cold 分離） |
 | 類型 | A + B 混合（架構調整 + 技術改善 + 上游 PR 候選） |
 | 優先級 | 🔴 High |
-| 狀態 | 📋 PLANNED |
+| 狀態 | ✅ DONE（2026-10-16 補正：Sprint 1–2 T0346–T0350 皆 DONE，規則已落地於 `_local-rules.md`「Tower State Archive 規則」/「Quick Recovery Hygiene」） |
 | 建立時間 | 2026-04-27 16:55 (UTC+8) |
 | Release target | v4.4.1 / v4.5.0（control-tower skill 升版） |
 | 上游 PR 候選 | ✅（同類問題會發生在所有長期 dogfood 的 BAT/CT 用戶） |
@@ -122,4 +123,11 @@ Full Scan / Fast Path 額外驗證：
 
 ---
 
-**狀態**：📋 PLANNED — 等下 session 起手評估派 Sprint 1 research 工單
+**狀態**：✅ DONE（見文末結案）
+
+---
+
+## 結案（第六十六 session，2026-10-16T02:27:40+0800）
+
+- 狀態 PLANNED → **DONE**（frontmatter 漏改的補正）：T0346（research）/ T0347（歸檔遷移）/ T0348（local-rules）/ T0349（起手式重構）/ T0350（上游 skill PR）皆 DONE（已歸檔）。
+- 架構已持續運作：`_archive/state-snapshots/` 季檔 2026-Q1～Q4 + `INDEX.md`，每次收工依規則 append。

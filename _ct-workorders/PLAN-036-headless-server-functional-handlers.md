@@ -135,3 +135,7 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
   - T0434（commit 見 `git log`，`T0434` 開頭）vitest 端到端（helper 在 PTY 內執行：派單 → created-externally → bat-notify --submit → notified + keypress；越權 / 撤銷 / no-client 負向）+ smoke **S13**（舊 server SKIP 不算失敗）+ `deploy:headless:dev` 一併部署 helper + `CLAUDE.md`「遠端 Tower 通知」/ `docs/remote-dev-overview.md`
   - smoke 對目前 WSL server（bundle 0.5.9-pre.4，T0406 期部署）：12/13 PASS + S13 SKIP（無 helper env），exit 0
   - 待辦：WSL `deploy:headless:dev` 新版部署 + 真 BAT 遠端視窗實機派單（步驟見 T0434 回報區）；`_local-rules.md` 遠端分支由塔台套用（建議文字見 T0434 回報區）
+
+## 實機驗收（第六十六 session，2026-10-16T02:29:01+0800）
+
+- 使用者決定以一張 WSL 實機驗收單收尾：**T0550**（安裝版 pre.4 隔離實例跑 WSL 精靈，把 `Ubuntu-24.04` server 從 0.5.9-pre.4 升到 pre.4，再跑 smoke S1–S13 與可自動化的 UI 流程）。通過即結案；需真人項目另列。

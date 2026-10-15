@@ -22,32 +22,32 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 02:18 (UTC+8) — PLAN-041 DONE（pre.4 實機重驗 T0549）；PLAN-014 DROPPED
+> 最後同步：2026-10-16 02:29 (UTC+8) — 第六十六 session 全 PLAN 盤點：PLAN-041 / 031 / 033 / 035 DONE、PLAN-014 DROPPED、新開 PLAN-043（IDEA）；PLAN-040 補正（檔案早已 DONE）。只列熱區，已歸檔見 `_archive/plans/`
 
 ## 統計
-- 💡 Ideas: 3 | 📋 Planned: 2 | 🔄 In Progress: 6 | ✅ Done: 3 | 🚫 Dropped: 0
+- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 2 | ✅ Done: 8 | 🚫 Dropped: 1
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
 | PLAN-036 | headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用 | 🔴 high | 🔄 IN_PROGRESS | [PLAN-036](PLAN-036-headless-server-functional-handlers.md) |
-| PLAN-035 | WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-035](PLAN-035-wsl-environment-full-automation.md) |
-| PLAN-031 | Server Bundle Distribution（含 ARM64 Linux 支援） | 🔴 high | 🔄 IN_PROGRESS | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-037 | 遠端（WSL / SSH / Docker）AI 工具套件檢查與一鍵安裝（claude / codex CLI、git、gh 等） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-037](PLAN-037-remote-ai-toolchain-check-and-install.md) |
-| PLAN-040 | 工作區層級預設 Agent ＋ Agent 啟動參數設定（T0529） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-040](PLAN-040-workspace-default-agent-setting.md) |
-| PLAN-041 | 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` + CT `*config`；T0535–T0538、T0545、CT-T011；pre.4 實機重驗 T0549） | 🟡 medium | ✅ DONE | [PLAN-041](PLAN-041-auto-close-worker-terminal.md) |
-| PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 🔴 high | 📋 PLANNED | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |
-| PLAN-014 | evaluate-vscode-extension-vs-git-gui（2026-10-16 擱置；T0153 ABANDONED） | 🟡 medium | 🚫 DROPPED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
-| PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
 | PLAN-015 | refactor-dual-render-path-shared-helper | 🟢 low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
+| PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
+| PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
 
 ## Completed
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-041 | 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` + CT `*config`；T0535–T0538、T0545、CT-T011；pre.4 實機重驗 T0549） | 2026-10-16 | [PLAN-041](PLAN-041-auto-close-worker-terminal.md) |
+| PLAN-035 | WSL 環境全自動化（從未安裝 WSL 到可用的 BAT 伺服器，含環境不符時自動修正） | 2026-10-16 | [PLAN-035](PLAN-035-wsl-environment-full-automation.md) |
+| PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 2026-10-16 | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |
+| PLAN-031 | Server Bundle Distribution（含 ARM64 Linux 支援） | 2026-10-16 | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-042 | T0534 衍生修正：已結束分頁 ⏻ 無效（BUG-137）、Windows 關閉分頁子程序樹、派工日誌欄位、CT 文件落差（T0539 / T0540 / CT-T012） | 2026-10-15 | [PLAN-042](PLAN-042-t0534-side-findings.md) |
+| PLAN-040 | 工作區層級預設 Agent ＋ Agent 啟動參數設定（T0529） | 2026-10-14 | [PLAN-040](PLAN-040-workspace-default-agent-setting.md) |
 | PLAN-039 | 多個 remote profile 同時連線（per-profile RemoteClient 取代單一槽位） | 2026-10-13 | [PLAN-039](PLAN-039-multi-remote-profile-concurrent-clients.md) |
 | PLAN-032 | Setup Wizard Error UX Overhaul（Stepper awaiting-input + error mapping framework） | 2026-09-02 | [PLAN-032](PLAN-032-wizard-error-ux-overhaul.md) |
 
@@ -55,4 +55,4 @@ breakdown:
 
 | ~~ID~~ | ~~標題~~ | 原因 | 連結 |
 |--------|---------|------|------|
-| _（無）_ | | | |
+| ~~PLAN-014~~ | ~~evaluate-vscode-extension-vs-git-gui（2026-10-16 擱置；T0153 ABANDONED）~~ | 2026-10-16 使用者決定擱置 | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |

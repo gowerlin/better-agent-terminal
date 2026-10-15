@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-031
 title: Server Bundle Distribution（含 ARM64 Linux 支援）
-status: IN_PROGRESS
+status: DONE
 priority: high
 created_at: "2026-04-27T00:53:00+08:00"
+updated_at: "2026-10-16T02:27:40+0800"
 ---
 # PLAN-031 — Server Bundle Distribution（含 ARM64 Linux 支援）
 
@@ -17,7 +18,7 @@ created_at: "2026-04-27T00:53:00+08:00"
 | 標題 | Setup Wizard install-server-bundle step 從 placeholder throw 補完整 distribution path（installer 內建 + runtime fallback download + 三平台 + ARM64 Linux + version pinning） |
 | 優先級 | 🔴 High（BUG-071 阻擋全部使用者實機跑 wizard） |
 | 類型 | 技術改善 + 架構調整（涉及 release pipeline / runtime download / wizard step 三子系統） |
-| 狀態 | 🔄 IN_PROGRESS（Sprint 1-5 主體 11 工單已 DONE @session 35；剩 T0324 user dogfood + T0326 升級 UI）。⚠️ 2026-10-04 塔台複查：T0324/T0326 **從未建立工單檔**；另發現 runtime 下載斷線（D120），修復於 T0365，dogfood 併入 BUG-071 實機驗收 |
+| 狀態 | ✅ DONE（2026-10-16 結案：主體 11 張單 DONE；dogfood 併入 BUG-071 已 CLOSED；T0326 升級 UI 依使用者決定不做。以下為歷程：原 IN_PROGRESS（
 | 建立時間 | 2026-04-27 00:53 (UTC+8) |
 | 報告者 | 使用者（dogfood PLAN-030 完工後實機跑 WSL wizard） |
 | Release target | v0.5.0（從容做，配合 PLAN-032 wizard error UX 一起 ship） |
@@ -125,3 +126,12 @@ PLAN-030 完工後使用者實機跑 v0.4.1 WSL Setup Wizard，第 4 步「安�
 
 - BUG-072 / BUG-073 / BUG-074（wizard error UX 三 BUG）獨立成 PLAN-032，與本 PLAN 平行進行（同一個 wizard 改善 batch，但 root cause 不同：本 PLAN 是 distribution，PLAN-032 是 error UX）
 - 本 PLAN 結案後，BUG-071 自動 → CLOSED
+
+---
+
+## 結案（第六十六 session，2026-10-16T02:27:40+0800）
+
+- 狀態 IN_PROGRESS → **DONE**（使用者決定）。
+- T0324 dogfood：併入 BUG-071 實機驗收，2026-10-04 21:15 通過，BUG-071 CLOSED。
+- T0326 升級 UI：**不做**（從未開單）。重跑 WSL / SSH 精靈即會換上新 bundle（T0511 起 enable 階段 restart / reload）。
+- 後續演進：D120（desktop release 同時發 `server-bundle-v<版號>`）、D146 / T0547（安裝檔不內建 baseline，改隨需下載 + 匯入本機 tarball，0.6.1-pre.4）。pre.4 的線上下載實機驗由 T0550 順帶涵蓋。
