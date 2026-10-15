@@ -11,7 +11,10 @@
 //   node e2e/real-remote/t0515-wizard-env.mjs docker-check   # W9 image-level lane (no wizard, see the env script)
 //   node e2e/real-remote/t0515-wizard-env.mjs down
 //
-// The installed build uploads its own resources\bat-server-baseline (no BAT_SERVER_BUNDLE_BASE_URL).
+// A pre-T0547 installed build uploads its own resources\bat-server-baseline (no
+// BAT_SERVER_BUNDLE_BASE_URL); from D146 / T0547 on the installer has none and the wizard downloads
+// the server-bundle-v<version> release (T0548: beforeAll logs which). The env script's docker-check
+// lane finds its tarball via e2e/real-remote/baseline-source.mjs.
 // T0517: BAT_E2E_SOURCE_BUILD=1 without BAT_E2E_EXECUTABLE runs the source build instead (`npx vite
 // build` first; the bundle comes from dist-baseline / the release download like any dev run).
 // beforeAll appends the env script's marked block to the REAL ~/.ssh/config (Windows OpenSSH
@@ -49,6 +52,7 @@ import {
   testLogger,
   type IsolatedInstance,
 } from './fixtures/electron-isolation'
+import { describeBaselineSource, resolveBaselineSource } from './real-remote/baseline-source.mjs'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyApi = any
@@ -358,7 +362,18 @@ test.beforeAll(async () => {
       `(Get-Item '${E2E_EXECUTABLE.replace(/'/g, "''")}').VersionInfo.FileVersion`], 20_000).catch(() => '?')
     log(`FileVersion ${version.trim()}`)
     const baseline = path.join(path.dirname(E2E_EXECUTABLE), 'resources', 'bat-server-baseline', 'manifest.json')
-    log(`bundle source (installed baseline): ${baseline} → version ${(() => { try { return (JSON.parse(fs.readFileSync(baseline, 'utf8')) as { version?: string }).version } catch { return 'unreadable' } })()}`)
+    if (fs.existsSync(baseline)) {
+      log(`bundle source (installed baseline, pre-T0547 build): ${baseline} → version ${(() => { try { return (JSON.parse(fs.readFileSync(baseline, 'utf8')) as { version?: string }).version } catch { return 'unreadable' } })()}`)
+    } else {
+      // D146 / T0547: no baseline in the installer; the isolated instance's cache is empty, so
+      // the wizard downloads server-bundle-v<version> (or BAT_SERVER_BUNDLE_BASE_URL when set).
+      log(`bundle source: no installed baseline (D146) → release download${process.env.BAT_SERVER_BUNDLE_BASE_URL ? ` from ${process.env.BAT_SERVER_BUNDLE_BASE_URL}` : ''}`)
+    }
+    try {
+      log(`local bundle for the docker-check lane: ${describeBaselineSource(resolveBaselineSource({ repoRoot: REPO_ROOT }))}`)
+    } catch (err) {
+      log(`local bundle for the docker-check lane: ${(err as Error).message}`)
+    }
   } else {
     log(`source build under test: ${REPO_ROOT} (dist-electron)`)
   }

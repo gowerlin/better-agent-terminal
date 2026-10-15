@@ -13,8 +13,10 @@
  *   node e2e/real-remote/t0520-env.mjs down [--rmi]        # restore-ssh-config + remove containers / state
  *
  * Containers (WSL Docker; no network / volume is created):
- *   bat-t0520-srv   the stock pre.7 headless bat-server from the installed BAT's
- *                   resources/bat-server-baseline linux-x64 tarball (no overlay), 0.0.0.0:9876 inside,
+ *   bat-t0520-srv   the stock headless bat-server from a linux-x64 server bundle tarball (no
+ *                   overlay; T0548 lookup, baseline-source.mjs: --baseline-dir / BAT_E2E_BASELINE_DIR
+ *                   → dist-baseline/ (`npm run fetch:baseline`) → userData bat-server-bundles cache →
+ *                   a pre-T0547 install's resources/bat-server-baseline), 0.0.0.0:9876 inside,
  *                   published as 127.0.0.1:<--server-port> (default 29520). /work and /home/bat carry
  *                   the e2e/fixtures/t0520-skill-fixtures.json files (V1 target, V6 remote scans).
  *   bat-t0520-sshd  sshd + systemd, account `bat`, published as 127.0.0.1:<--ssh-port> (default
@@ -43,6 +45,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeTokenFile, normalizeFingerprint, parseFingerprintField } from '../../scripts/smoke-remote-headless.mjs'
+import { describeBaselineSource, resolveBaselineSource } from './baseline-source.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -72,7 +75,6 @@ const NAME_RX = /^[A-Za-z0-9._-]+$/
 const DEFAULT_DISTRO = 'Ubuntu-24.04'
 const DEFAULT_SERVER_PORT = 29520
 const DEFAULT_SSH_PORT = 22520
-const DEFAULT_BASELINE_DIR = 'C:\\Program Files\\BetterAgentTerminal\\resources\\bat-server-baseline'
 const USER_PORTS = new Set([9876, 9877])
 
 function log(message) {
@@ -97,7 +99,7 @@ function sha256(file) {
 }
 
 function parseArgs(argv) {
-  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, serverPort: DEFAULT_SERVER_PORT, sshPort: DEFAULT_SSH_PORT, baselineDir: DEFAULT_BASELINE_DIR, rmi: false }
+  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, serverPort: DEFAULT_SERVER_PORT, sshPort: DEFAULT_SSH_PORT, baselineDir: '', rmi: false }
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--distro') opts.distro = argv[++i]
@@ -207,12 +209,10 @@ export function writeFixtureTree(dir, files) {
 }
 
 function baselineTarball(dir) {
-  const manifest = JSON.parse(readFileSync(path.join(dir, 'manifest.json'), 'utf8'))
-  const file = manifest?.tarballs?.['linux-x64']?.filename
-  if (!file || !existsSync(path.join(dir, file))) throw new Error(`no linux-x64 tarball listed in ${dir}\\manifest.json`)
-  const tarball = path.join(dir, file)
-  const actual = createHash('sha256').update(readFileSync(tarball)).digest('hex')
-  return { tarball, file, version: manifest.version, sha256: manifest.tarballs['linux-x64'].sha256, sha256Actual: actual }
+  const source = resolveBaselineSource({ explicitDir: dir, explicitLabel: '--baseline-dir', repoRoot: path.resolve(here, '..', '..') })
+  log(`server bundle: ${describeBaselineSource(source)}`)
+  const actual = createHash('sha256').update(readFileSync(source.tarball)).digest('hex')
+  return { dir: source.dir, source: source.kind, hashFrom: source.manifestPath ? 'manifest' : 'sidecar', tarball: source.tarball, file: source.filename, version: source.version, sha256: source.sha256, sha256Actual: actual }
 }
 
 async function waitSystemd(distro, name) {
@@ -232,7 +232,7 @@ async function upServer(opts, base) {
   writeFixtureTree(path.join(ctx, 'fixture-work'), fixtures.project)
   writeFixtureTree(path.join(ctx, 'fixture-home'), fixtures.home)
   const ctxPosix = wsl(opts.distro, ['wslpath', '-a', ctx]).trim()
-  log(`docker build ${SERVER_IMAGE} from ${base.file} (manifest version ${base.version}, sha256 ${base.sha256.slice(0, 16)}…)`)
+  log(`docker build ${SERVER_IMAGE} from ${base.file} (${base.source}, version ${base.version}, sha256 ${base.sha256.slice(0, 16)}…)`)
   docker(opts.distro, ['build', '-q', '--label', LABEL, '-t', SERVER_IMAGE, ctxPosix], { timeout: 900_000 })
   rmSync(ctx, { recursive: true, force: true })
 
@@ -290,14 +290,14 @@ async function up(opts) {
   for (const port of [opts.serverPort, opts.sshPort]) await waitFor(`127.0.0.1:${port} to be free`, () => portFree(port), 15_000)
   mkdirSync(STATE_DIR, { recursive: true })
   const base = baselineTarball(opts.baselineDir)
-  if (base.sha256Actual !== base.sha256) throw new Error(`baseline ${base.file}: sha256 ${base.sha256Actual} ≠ manifest ${base.sha256}`)
+  if (base.sha256Actual !== base.sha256) throw new Error(`baseline ${base.file}: sha256 ${base.sha256Actual} ≠ ${base.hashFrom} ${base.sha256}`)
   const server = await upServer(opts, base)
   log(`bat-server ${server.bundleVersion} at 127.0.0.1:${server.port} fp=${server.fingerprint.slice(0, 23)}…`)
   const ssh = await upSshd(opts)
   const config = {
     createdBy: 'T0520 t0520-env.mjs',
     distro: opts.distro,
-    baseline: { dir: opts.baselineDir, file: base.tarball, version: base.version, sha256: base.sha256, sha256Verified: true },
+    baseline: { dir: base.dir, source: base.source, file: base.tarball, version: base.version, sha256: base.sha256, sha256Verified: true },
     server: { ...server, clientWork: CLIENT_WORK, serverWork: SERVER_WORK },
     ssh: { ...ssh, sshExe: WINDOWS_SSH },
     windowsUser: os.userInfo().username,

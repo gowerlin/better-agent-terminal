@@ -8,9 +8,10 @@
  *   node e2e/real-remote/t0514-env.mjs status
  *   node e2e/real-remote/t0514-env.mjs down     # remove the container + state dir (--rmi: image too)
  *
- * One container in WSL's Docker, `bat-t0514-srv`: the stock pre.6 headless bat-server from the
- * linux-x64 baseline tarball shipped with the installed BAT (resources/bat-server-baseline/),
- * no source overlay — the server half of the pre.6 build under test. It listens on 0.0.0.0:9876
+ * One container in WSL's Docker, `bat-t0514-srv`: the stock pre.6 headless bat-server from a
+ * linux-x64 server bundle tarball (T0548 lookup, baseline-source.mjs: --baseline-dir /
+ * BAT_E2E_BASELINE_DIR → dist-baseline/ (`npm run fetch:baseline`) → userData bat-server-bundles
+ * cache → a pre-T0547 install's resources/bat-server-baseline), no source overlay — the server half of the pre.6 build under test. It listens on 0.0.0.0:9876
  * inside the container, published to Windows as 127.0.0.1:<port> only. See
  * t0514-server.Dockerfile for the remote-only markers under /work.
  *
@@ -29,6 +30,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeTokenFile, normalizeFingerprint, parseFingerprintField } from '../../scripts/smoke-remote-headless.mjs'
+import { describeBaselineSource, resolveBaselineSource } from './baseline-source.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -45,7 +47,6 @@ export const SERVER_WORK = '/work'
 const NAME_RX = /^[A-Za-z0-9._-]+$/
 const DEFAULT_DISTRO = 'Ubuntu-24.04'
 const DEFAULT_PORT = 29514
-const DEFAULT_BASELINE_DIR = 'C:\\Program Files\\BetterAgentTerminal\\resources\\bat-server-baseline'
 const DATA_DIR = '/home/bat/.local/share/bat-server'
 const SEED_SESSION_ID = '5140d514-0514-4514-8514-000000005140'
 
@@ -67,7 +68,7 @@ export function docker(distro, args, opts) {
 }
 
 function parseArgs(argv) {
-  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, port: DEFAULT_PORT, baselineDir: DEFAULT_BASELINE_DIR, rmi: false }
+  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, port: DEFAULT_PORT, baselineDir: '', rmi: false }
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--distro') opts.distro = argv[++i]
@@ -99,10 +100,9 @@ function nameTaken(distro) {
 }
 
 function baselineTarball(dir) {
-  const manifest = JSON.parse(readFileSync(path.join(dir, 'manifest.json'), 'utf8'))
-  const file = manifest?.tarballs?.['linux-x64']?.filename
-  if (!file || !existsSync(path.join(dir, file))) throw new Error(`no linux-x64 tarball listed in ${dir}\\manifest.json`)
-  return { tarball: path.join(dir, file), version: manifest.version, sha256: manifest.tarballs['linux-x64'].sha256 }
+  const source = resolveBaselineSource({ explicitDir: dir, explicitLabel: '--baseline-dir', repoRoot: path.resolve(here, '..', '..') })
+  log(`server bundle: ${describeBaselineSource(source)}`)
+  return { tarball: source.tarball, version: source.version, sha256: source.sha256, source: source.kind }
 }
 
 function buildContext(tarball) {
@@ -190,7 +190,7 @@ async function up(opts) {
     token,
     fingerprint,
     bundleVersion,
-    baseline: { file: base.tarball, version: base.version, sha256: base.sha256 },
+    baseline: { file: base.tarball, version: base.version, sha256: base.sha256, source: base.source },
     clientWork: CLIENT_WORK,
     serverWork: SERVER_WORK,
     seedSessionId: SEED_SESSION_ID,

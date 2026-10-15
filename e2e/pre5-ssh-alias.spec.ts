@@ -14,8 +14,11 @@
 // Server bundle (T0511): a source build has no bat-server-baseline next to its electron binary,
 // so the wizard would download the release tarball for every isolated instance. For a source
 // build the spec serves a local bundle directory (manifest.json + tarballs) over HTTP and points
-// the instance at it with BAT_SERVER_BUNDLE_BASE_URL. Directory: BAT_E2E_PRE5_SSH_BUNDLE_DIR, else
-// the installed BAT's resources\bat-server-baseline. The installed build uses its own baseline.
+// the instance at it with BAT_SERVER_BUNDLE_BASE_URL. Source (T0548, baseline-source.mjs):
+// BAT_E2E_PRE5_SSH_BUNDLE_DIR / BAT_E2E_BASELINE_DIR, else dist-baseline\ (`npm run fetch:baseline`),
+// else the userData bat-server-bundles cache, else a pre-T0547 install's resources\bat-server-baseline.
+// The installed build is mirrored only with an explicit directory; otherwise it uses its own
+// lookup (pre-T0547 baseline, or the release download since D146).
 //
 // Windows OpenSSH ignores USERPROFILE / HOME for `~`, so the aliases go into the REAL
 // ~/.ssh/config: beforeAll runs `apply-ssh-config` (original copied aside, SHA-256 recorded,
@@ -59,6 +62,7 @@ import {
   testLogger,
   type IsolatedInstance,
 } from './fixtures/electron-isolation'
+import { BASELINE_DIR_ENV, bundleMirrorContent, describeBaselineSource, resolveBaselineSource } from './real-remote/baseline-source.mjs'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyApi = any
@@ -180,26 +184,40 @@ async function installEvidence(container: string): Promise<string> {
 
 // ── server bundle for source builds (T0511, see the header) ─────────────────────
 
-const BUNDLE_DIR = E2E_EXECUTABLE
-  ? ''
-  : process.env.BAT_E2E_PRE5_SSH_BUNDLE_DIR || 'C:\\Program Files\\BetterAgentTerminal\\resources\\bat-server-baseline'
+// T0548: an explicit directory (BAT_E2E_PRE5_SSH_BUNDLE_DIR / BAT_E2E_BASELINE_DIR) is mirrored
+// for either build. Without one, only the source build gets a mirror, from the first hit of
+// dist-baseline/ → userData bat-server-bundles cache → a pre-T0547 install's baseline
+// (e2e/real-remote/baseline-source.mjs); the installed build keeps its own lookup (pre-T0547: its
+// baseline; D146 onward: the release download, like the product).
+const EXPLICIT_BUNDLE_DIR = process.env.BAT_E2E_PRE5_SSH_BUNDLE_DIR || process.env[BASELINE_DIR_ENV] || ''
 let bundleServer: http.Server | undefined
 let bundleBaseUrl = ''
 
-/** Serves manifest.json and the tarballs it lists from BUNDLE_DIR on 127.0.0.1. */
+/** Serves manifest.json and the linux-x64 tarball of the resolved bundle source on 127.0.0.1. */
 async function startBundleServer(): Promise<void> {
-  if (!BUNDLE_DIR) return
-  const manifestPath = path.join(BUNDLE_DIR, 'manifest.json')
-  if (!fs.existsSync(manifestPath)) {
-    log(`bundle server: no ${manifestPath}; the instance downloads the release bundle instead`)
+  if (E2E_EXECUTABLE && !EXPLICIT_BUNDLE_DIR) return
+  let source: ReturnType<typeof resolveBaselineSource>
+  try {
+    source = resolveBaselineSource({
+      explicitDir: EXPLICIT_BUNDLE_DIR,
+      explicitLabel: process.env.BAT_E2E_PRE5_SSH_BUNDLE_DIR ? 'BAT_E2E_PRE5_SSH_BUNDLE_DIR' : BASELINE_DIR_ENV,
+      repoRoot: REPO_ROOT,
+    })
+  } catch (err) {
+    if (EXPLICIT_BUNDLE_DIR) throw err
+    log(`bundle server: ${(err as Error).message}\nthe instance downloads the release bundle instead`)
     return
   }
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { version?: string; tarballs: Record<string, { filename: string }> }
-  const served = new Set(['manifest.json', ...Object.values(manifest.tarballs).map(t => t.filename)])
+  const { manifest, files } = bundleMirrorContent(source)
+  const manifestJson = JSON.stringify(manifest)
   bundleServer = http.createServer((req, res) => {
     const name = decodeURIComponent((req.url ?? '/').split('?')[0].replace(/^\/+/, ''))
-    const file = path.join(BUNDLE_DIR, name)
-    if (req.method !== 'GET' || !served.has(name) || !fs.existsSync(file)) {
+    if (req.method === 'GET' && name === 'manifest.json') {
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(manifestJson)
+      return
+    }
+    const file = files.get(name)
+    if (req.method !== 'GET' || !file || !fs.existsSync(file)) {
       res.writeHead(404).end()
       return
     }
@@ -208,7 +226,7 @@ async function startBundleServer(): Promise<void> {
   })
   await new Promise<void>(resolve => bundleServer!.listen(0, '127.0.0.1', resolve))
   bundleBaseUrl = `http://127.0.0.1:${(bundleServer.address() as AddressInfo).port}`
-  log(`bundle server: ${BUNDLE_DIR} (version ${manifest.version}) at ${bundleBaseUrl}`)
+  log(`bundle server: ${describeBaselineSource(source)} at ${bundleBaseUrl}`)
 }
 
 async function stopBundleServer(): Promise<void> {

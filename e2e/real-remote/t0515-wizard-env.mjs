@@ -32,6 +32,8 @@
  * Windows `docker` CLI, which has no engine on this host (Docker Desktop is not running; the
  * engine lives inside WSL). This lane therefore checks what the fix put into the image and the
  * `docker run` arguments, without the wizard: it builds docker/Dockerfile with the pre.6 bundle
+ * (T0548: tarball from baseline-source.mjs — --baseline-dir / BAT_E2E_BASELINE_DIR → dist-baseline/
+ * → userData bat-server-bundles cache → a pre-T0547 install's resources/bat-server-baseline)
  * (`bat-t0515-docker-server:local`), runs `bat-t0515-dockersrv` with the exact arguments
  * electron/docker-lifecycle.ts uses (`-p 127.0.0.1:<port>:9876`, data volume, `--port 9876
  * --token`), waits for HEALTHCHECK, reads `docker port` / the in-container listener, does a TLS
@@ -50,6 +52,7 @@ import os from 'node:os'
 import path from 'node:path'
 import tls from 'node:tls'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { describeBaselineSource, resolveBaselineSource } from './baseline-source.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..', '..')
@@ -71,7 +74,6 @@ const BACKUP_STATE = path.join(BACKUP_DIR, 'state.json')
 export const USER_SSH_CONFIG = path.join(os.homedir(), '.ssh', 'config')
 export const WINDOWS_SSH = 'C:\\Windows\\System32\\OpenSSH\\ssh.exe'
 const WINDOWS_SSH_KEYGEN = 'C:\\Windows\\System32\\OpenSSH\\ssh-keygen.exe'
-const INSTALLED_BASELINE = 'C:\\Program Files\\BetterAgentTerminal\\resources\\bat-server-baseline'
 const BLOCK_BEGIN = '# >>> bat-t0515 temporary (remove) >>>'
 const BLOCK_END = '# <<< bat-t0515 temporary <<<'
 const NAME_RX = /^[A-Za-z0-9._-]+$/
@@ -112,11 +114,12 @@ function sha256(file) {
 }
 
 function parseArgs(argv) {
-  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, sshPort: DEFAULT_SSH_PORT, rmi: false }
+  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, sshPort: DEFAULT_SSH_PORT, baselineDir: '', rmi: false }
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--distro') opts.distro = argv[++i]
     else if (arg === '--ssh-port') opts.sshPort = Number(argv[++i])
+    else if (arg === '--baseline-dir') opts.baselineDir = argv[++i]
     else if (arg === '--rmi') opts.rmi = true
     else throw new Error(`unknown option ${arg}`)
   }
@@ -397,16 +400,17 @@ function tlsFingerprint(port) {
 /** W9 image-level lane (see the header). Prints one JSON object. */
 async function dockerCheck(opts) {
   const out = { lane: 'docker-image', distro: opts.distro }
-  const baselineManifest = JSON.parse(readFileSync(path.join(INSTALLED_BASELINE, 'manifest.json'), 'utf8'))
-  const tarball = readdirSync(INSTALLED_BASELINE).find(f => /^bat-server-linux-x64-.*\.tar\.gz$/.test(f))
-  if (!tarball) throw new Error(`no linux-x64 tarball in ${INSTALLED_BASELINE}`)
-  out.bundle = { source: path.join(INSTALLED_BASELINE, tarball), manifestVersion: baselineManifest.version }
+  // T0548: the installer no longer ships a baseline (D146); see baseline-source.mjs for the order.
+  const source = resolveBaselineSource({ explicitDir: opts.baselineDir, explicitLabel: '--baseline-dir', repoRoot })
+  log(`server bundle: ${describeBaselineSource(source)}`)
+  const tarball = source.filename
+  out.bundle = { source: source.tarball, from: source.kind, manifestVersion: source.version }
 
   const ctx = path.join(ROOT_DIR, 'docker-context')
   rmSync(ctx, { recursive: true, force: true })
   mkdirSync(path.join(ctx, 'dist-server'), { recursive: true })
   copyFileSync(path.join(repoRoot, 'docker', 'Dockerfile'), path.join(ctx, 'Dockerfile'))
-  copyFileSync(path.join(INSTALLED_BASELINE, tarball), path.join(ctx, 'dist-server', tarball))
+  copyFileSync(source.tarball, path.join(ctx, 'dist-server', tarball))
   const ctxPosix = wsl(opts.distro, ['wslpath', '-a', ctx]).trim()
   log(`docker build ${DOCKER_SERVER_IMAGE} from docker/Dockerfile + ${tarball}`)
   docker(opts.distro, ['build', '-q', '--label', LABEL, '-t', DOCKER_SERVER_IMAGE, ctxPosix], { timeout: 900_000 })
@@ -491,7 +495,7 @@ export async function main(argv = process.argv.slice(2)) {
   else if (opts.command === 'restore-ssh-config') restoreSshConfig()
   else if (opts.command === 'docker-check') await dockerCheck(opts)
   else {
-    console.log('Usage: node e2e/real-remote/t0515-wizard-env.mjs <up|status|apply-ssh-config|restore-ssh-config|docker-check|down> [--distro Ubuntu-24.04] [--ssh-port 22515] [--rmi]')
+    console.log('Usage: node e2e/real-remote/t0515-wizard-env.mjs <up|status|apply-ssh-config|restore-ssh-config|docker-check|down> [--distro Ubuntu-24.04] [--ssh-port 22515] [--baseline-dir <dir>] [--rmi]')
     return opts.command === 'help' ? 0 : 1
   }
   return 0

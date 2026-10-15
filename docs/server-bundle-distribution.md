@@ -33,6 +33,7 @@ Root cause：三平台 wizard 的 `install-bundle` step 留 placeholder throw；
      prerelease，與 desktop release 同一 commit。`build-server-bundle.yml` 手動推 `server-bundle-v*` tag 的線保留為備援
    - 私有部署可改 `BAT_SERVER_BUNDLE_BASE_URL`（見下方）
    - 下載後 verify SHA256 + 寫入 cache + sidecar
+   - 暫時性錯誤重試 3 次（500 / 1500 / 3000 ms）：HTTP 5xx 與連線錯誤（`ECONNREFUSED` / `ECONNRESET` / `ETIMEDOUT` / `ENOTFOUND` / `EAI_AGAIN` / `EPIPE` / `UND_ERR_SOCKET`）。連線錯誤碼沿 fetch 錯誤的 `cause` 鏈與 `AggregateError.errors` 取得（`code` → `errno` → 訊息字樣，T0548）；4xx、rate limit、SHA 不符、fetch 封鎖的連接埠（`bad port`）不重試
    - 失敗時錯誤訊息附上兩條出路（匯入本機 tarball 的檔名、`BAT_SERVER_BUNDLE_BASE_URL`），wizard 失敗畫面顯示三語說明與「匯入本機 tarball…」按鈕
 
 實作入口：`electron/remote/server-bundle-distributor.ts`（lookup）+ `electron/remote/server-bundle-cache.ts`（sidecar / cache 驗證）+ `electron/remote/server-bundle-download.ts`（download + retry）+ `electron/remote/server-bundle-import.ts`（匯入）。
@@ -51,6 +52,8 @@ Docker 不經 distributor（image 內建 `/opt/bat-server`，D096），沒有這
 ## Per-host baseline matrix（C-narrow，D092；D146 起安裝檔不再內建）
 
 > 歷史紀錄：以下是 T0547 前安裝檔內建的 baseline。D146 起安裝檔不內建任何 baseline，`npm run fetch:baseline` 仍保留給手動 / 測試（e2e real-remote env 腳本、離線匯入時準備檔案）使用，build 不再呼叫。
+>
+> e2e real-remote 工具（`t0514-env.mjs` / `t0515-wizard-env.mjs` / `t0520-env.mjs`、`pre5-ssh-alias` / `pre6-wizard-acceptance` / `pre7-acceptance` spec）的 tarball 來源（T0548，`e2e/real-remote/baseline-source.mjs`）：明確目錄（`--baseline-dir` / `BAT_E2E_PRE5_SSH_BUNDLE_DIR` / `BAT_E2E_BASELINE_DIR`）→ repo 的 `dist-baseline/` → userData `bat-server-bundles` cache（有 `.sha256` sidecar 者）→ T0547 前安裝版的 `resources/bat-server-baseline`；都找不到時提示 `npm run fetch:baseline`。
 
 每個 BAT host installer 只內建「最可能用得到」的 baseline，其餘 arch 走 download fallback：
 

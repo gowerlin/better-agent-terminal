@@ -8,6 +8,8 @@
 //   5. compareSha256 (T0317, timing-safe) → rename tmp → final
 //   6. progress event throttle by 1MB or 500ms
 //   7. exponential backoff 500/1500/3000ms; 4xx/abort/rate-limit no retry
+//      (T0548: connection errors are classified across the cause chain, see
+//      toAttemptError)
 //   8. GitHub rate limit detection (HTTP 403 + X-RateLimit-Remaining: 0)
 //   9. fallback URL via options.baseURL or BAT_SERVER_BUNDLE_BASE_URL env
 //  10. T0547: a verified tarball (download or cache hit) gets a `.sha256` sidecar
@@ -21,6 +23,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
+import { getSystemErrorName } from 'node:util'
 import { logger } from '../logger'
 import {
   compareSha256,
@@ -134,16 +137,91 @@ interface FetchAttemptError {
   message: string
 }
 
-function toAttemptError(err: unknown): FetchAttemptError {
-  if (err instanceof Error) {
-    const e = err as Error & { code?: string; cause?: { code?: string } }
-    return {
-      name: e.name,
-      code: e.code ?? e.cause?.code,
-      message: e.message,
+// undici reports its own connect timeout instead of the socket's ETIMEDOUT.
+const ERROR_CODE_ALIASES: Record<string, string> = {
+  UND_ERR_CONNECT_TIMEOUT: 'ETIMEDOUT',
+}
+
+const ERROR_CODE_IN_MESSAGE_RE = /\b(E[A-Z0-9_]{3,}|UND_ERR_[A-Z_]+)\b/
+
+interface ErrorLike {
+  name?: unknown
+  code?: unknown
+  errno?: unknown
+  message?: unknown
+  cause?: unknown
+  errors?: unknown
+}
+
+/**
+ * Walks an error, its `cause` chain and `AggregateError.errors` (depth-limited,
+ * cycle-safe) and returns every error object found, outermost first.
+ */
+function collectErrorChain(err: unknown): ErrorLike[] {
+  const out: ErrorLike[] = []
+  const seen = new Set<unknown>()
+  const visit = (e: unknown, depth: number): void => {
+    if (!e || typeof e !== 'object' || seen.has(e) || depth > 6) return
+    seen.add(e)
+    const node = e as ErrorLike
+    out.push(node)
+    if (Array.isArray(node.errors)) {
+      for (const inner of node.errors) visit(inner, depth + 1)
+    }
+    visit(node.cause, depth + 1)
+  }
+  visit(err, 0)
+  return out
+}
+
+/** Error codes carried by one error object: `code`, `errno`, then the message. */
+function codesOf(node: ErrorLike): string[] {
+  const codes: string[] = []
+  if (typeof node.code === 'string' && node.code) codes.push(node.code)
+  if (typeof node.errno === 'string' && node.errno) codes.push(node.errno)
+  if (typeof node.errno === 'number' && node.errno < 0) {
+    try {
+      codes.push(getSystemErrorName(node.errno))
+    } catch {
+      // not a known system errno
     }
   }
-  return { message: String(err) }
+  if (typeof node.message === 'string') {
+    const m = ERROR_CODE_IN_MESSAGE_RE.exec(node.message)
+    if (m) codes.push(m[1])
+  }
+  return codes.map((c) => ERROR_CODE_ALIASES[c] ?? c)
+}
+
+/**
+ * T0548: classify a thrown fetch error. Node's fetch (undici) throws
+ * `TypeError('fetch failed')` with the socket error in `cause`; for a host
+ * with several addresses (`localhost` → ::1 + 127.0.0.1) the cause is an
+ * `AggregateError` whose `errors` hold the per-address errors. The code is
+ * looked up across the whole chain, in this order per error object: `code`,
+ * `errno` (string, or negative number → `util.getSystemErrorName`), an
+ * `E…` / `UND_ERR_…` token in `message`. The first code that the retry table
+ * accepts wins; otherwise the first code found is kept for the log.
+ *
+ * Errors without any code stay non-retryable — e.g. undici's `bad port`
+ * (fetch-spec blocked ports such as 9), which is permanent.
+ */
+export function toAttemptError(err: unknown): FetchAttemptError {
+  if (!(err instanceof Error)) return { message: String(err) }
+  const chain = collectErrorChain(err)
+  const codes = chain.flatMap(codesOf)
+  const code = codes.find((c) => shouldRetryError({ code: c })) ?? codes[0]
+  // The outer message is just "fetch failed"; append the innermost detail.
+  const details = chain
+    .slice(1)
+    .map((n) => (typeof n.message === 'string' ? n.message : ''))
+    .filter((m) => m && m !== err.message)
+  const detail = details[details.length - 1]
+  return {
+    name: err.name,
+    code,
+    message: detail ? `${err.message} (${detail})` : err.message,
+  }
 }
 
 /**

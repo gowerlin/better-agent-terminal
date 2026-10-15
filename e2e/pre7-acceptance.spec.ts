@@ -11,7 +11,8 @@
 //
 // Every launch is an isolated instance (fixtures/electron-isolation: own --runtime / userData,
 // RemoteServer on a free port). Targets are the env script's containers only:
-//   bat-t0520-srv   stock pre.7 headless bat-server (installed baseline tarball, no overlay); its
+//   bat-t0520-srv   stock pre.7 headless bat-server (server bundle tarball from the env script's
+//                   T0548 lookup, e2e/real-remote/baseline-source.mjs; no overlay); its
 //                   `profile:list` is the empty stub that triggered BUG-123. /work and /home/bat hold
 //                   the e2e/fixtures/t0520-skill-fixtures.json files.
 //   bat-t0520-sshd  clean sshd target for the SSH wizard (alias bat-t0520-direct, marked block in the
@@ -69,7 +70,8 @@ const SSH_STEP_IDS = ['configure-ssh-host', 'verify-ssh-auth', 'install-server-b
 
 interface Connection {
   distro: string
-  baseline: { dir: string; file: string; version: string; sha256: string }
+  /** source: T0548 baseline-source.mjs kind; absent in connection.json written before T0548. */
+  baseline: { dir: string; source?: string; file: string; version: string; sha256: string }
   server: { container: string; hostname: string; host: string; port: number; token: string; fingerprint: string; bundleVersion: string; clientWork: string; serverWork: string }
   ssh: { container: string; sshPort: number; sshUser: string; alias: string }
 }
@@ -373,12 +375,20 @@ test.beforeAll(async () => {
   fs.mkdirSync(EVIDENCE_DIR, { recursive: true })
   const fileVersion = (await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
     `(Get-Item '${E2E_EXECUTABLE.replace(/'/g, "''")}').VersionInfo.FileVersion`], 20_000).catch(() => '?')).trim()
+  // T0548: installers from D146 / T0547 on ship no baseline; the env script's bundle comes from
+  // e2e/real-remote/baseline-source.mjs (conn.baseline.source). An installed baseline, when the
+  // build still has one, must carry the same version.
   const manifestPath = path.join(path.dirname(E2E_EXECUTABLE), 'resources', 'bat-server-baseline', 'manifest.json')
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { version?: string; tarballs?: Record<string, { filename: string; sha256: string }> }
-  record('ENV.version', fileVersion === EXPECTED_VERSION && manifest.version === EXPECTED_VERSION
+  const manifest = fs.existsSync(manifestPath)
+    ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { version?: string; tarballs?: Record<string, { filename: string; sha256: string }> }
+    : null
+  record('ENV.version', fileVersion === EXPECTED_VERSION && (manifest === null || manifest.version === EXPECTED_VERSION)
     && conn!.baseline.version === EXPECTED_VERSION && conn!.server.bundleVersion === EXPECTED_VERSION, [
     `executable ${E2E_EXECUTABLE} FileVersion ${fileVersion}`,
-    `baseline ${manifestPath} version ${manifest.version}; linux-x64 ${manifest.tarballs?.['linux-x64']?.filename} sha256 ${manifest.tarballs?.['linux-x64']?.sha256}`,
+    manifest
+      ? `installed baseline ${manifestPath} version ${manifest.version}; linux-x64 ${manifest.tarballs?.['linux-x64']?.filename} sha256 ${manifest.tarballs?.['linux-x64']?.sha256}`
+      : `installed baseline: none (D146 / T0547 installer)`,
+    `env bundle (${conn!.baseline.source ?? 'installed'}) ${conn!.baseline.file} version ${conn!.baseline.version} sha256 ${conn!.baseline.sha256}`,
     `container ${conn!.server.container} bundle package.json version ${conn!.server.bundleVersion} (built from ${path.basename(conn!.baseline.file)}, sha256 verified by the env script)`,
   ])
 })

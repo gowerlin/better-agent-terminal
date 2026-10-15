@@ -167,7 +167,30 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
       expect(pkg.scripts.prebuild).toBeUndefined()
       for (const name of ['build', 'build:dir', 'build:release']) expect(pkg.scripts[name]).not.toContain('fetch:baseline')
       expect(pkg.scripts['fetch:baseline']).toBe('node scripts/fetch-baseline-tarball.mjs')
+    })
+
+    it('compression: maximum for AppImage / dmg, Windows back to normal (T0548)', async () => {
+      const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
       expect(pkg.build.compression).toBe('maximum')
+      expect(pkg.build.win.compression).toBe('normal')
+      expect(pkg.build.mac?.compression).toBeUndefined()
+      expect(pkg.build.linux?.compression).toBeUndefined()
+      // Same resolution as app-builder-lib PlatformPackager#compression:
+      // platform value → top-level value → 'normal' (null = 'normal').
+      const resolve = (platform) => {
+        const own = pkg.build[platform]?.compression
+        if (own === null) return 'normal'
+        return own || pkg.build.compression || 'normal'
+      }
+      expect(resolve('win')).toBe('normal')
+      expect(resolve('mac')).toBe('maximum')
+      expect(resolve('linux')).toBe('maximum')
+      // zip on Windows: 7z Deflate -mx=7 (maximum would be -mx=9 -mfb=258 -mpass=15,
+      // 0.3% smaller and ~8x slower, T0547). NSIS is -mx=9 either way.
+      const { compute7zCompressArgs } = await import('app-builder-lib/out/targets/archive.js')
+      const zipArgs = compute7zCompressArgs('zip', { compression: resolve('win') })
+      expect(zipArgs).toContain('-mx=7')
+      expect(zipArgs).not.toContain('-mpass=15')
     })
 
     it('build and build:dir clear dist-electron first with a Node one-liner (no shell rm)', () => {
