@@ -40,7 +40,7 @@
 
 ### 編號起始（下 session）
 
-- **T0541** / **BUG-138** / **PLAN-043** / **D145** / **L151** / **CT-T013**（2026-10-15 16:13：PLAN-041 納入方案 D（T0538）並開工；T0535 16:32 DONE（`f26b7641`，契約未改，unit 3840 綠、e2e 綠；待實測：真實 claude CLI 閒置時是否有週期輸出導致 BUSY），16:33 派 T0536，16:5x DONE（`26f6996e`，headless 重用同一 scheduler；worker 權杖被拒訊息為 `role-not-allowed`，接受）；T0537 16:54 DONE（`e965f993`，主行程查詢時 fallback window registry 已存歸屬；殘餘：Terminal Server 未存活時尚未開啟的工作區回 NOT_FOUND）；派 T0538；PLAN-042 開立（BUG-137 / T0539 / T0540 / CT-T012）；派發順序 T0535 → T0536 → T0537 → T0538 → T0540 → T0539，同一工作樹不並行；CT-T011 / CT-T012 交 BMad-Guide 塔台；15:44 開 PLAN-041（D144）；BUG-136 於 2026-10-15 13:13 開立；T0533 於 13:17 派發、13:25 DONE，隨 v0.6.1-pre.2 發佈（Release 2026-10-15 13:39）；T0534 研究「收單後自動關閉 Worker 終端」於 15:15 派發、15:26 收單 DONE，推薦方案 B'；使用者改為開關與延遲放 CT `*config`、不做 local_rule → D144 / PLAN-041）
+- **T0541** / **BUG-138** / **PLAN-043** / **D145** / **L151** / **CT-T013**（2026-10-15 16:13：PLAN-041 納入方案 D（T0538）並開工；T0535 16:32 DONE（`f26b7641`，契約未改，unit 3840 綠、e2e 綠；待實測：真實 claude CLI 閒置時是否有週期輸出導致 BUSY），16:33 派 T0536，16:5x DONE（`26f6996e`，headless 重用同一 scheduler；worker 權杖被拒訊息為 `role-not-allowed`，接受）；T0537 16:54 DONE（`e965f993`，主行程查詢時 fallback window registry 已存歸屬；殘餘：Terminal Server 未存活時尚未開啟的工作區回 NOT_FOUND）；T0538 17:04 DONE（`8fd7bdf7`，Worker 標籤 / 已回報 / 塔台右鍵批次關閉，頁內確認）→ PLAN-041 BAT 端四張全完成，剩 CT-T011；派 T0540；PLAN-042 開立（BUG-137 / T0539 / T0540 / CT-T012）；派發順序 T0535 → T0536 → T0537 → T0538 → T0540 → T0539，同一工作樹不並行；CT-T011 / CT-T012 交 BMad-Guide 塔台；15:44 開 PLAN-041（D144）；BUG-136 於 2026-10-15 13:13 開立；T0533 於 13:17 派發、13:25 DONE，隨 v0.6.1-pre.2 發佈（Release 2026-10-15 13:39）；T0534 研究「收單後自動關閉 Worker 終端」於 15:15 派發、15:26 收單 DONE，推薦方案 B'；使用者改為開關與延遲放 CT `*config`、不做 local_rule → D144 / PLAN-041）
 
 ---
 

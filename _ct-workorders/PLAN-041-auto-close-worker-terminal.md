@@ -6,7 +6,7 @@ title: 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` 能力 +
 status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-15T15:44:39+0800"
-updated_at: "2026-10-15T16:13:05+0800"
+updated_at: "2026-10-15T17:04:34+0800"
 target_batch: "0.6.1-pre.3"
 workorders: [T0535, T0536, T0537, T0538, CT-T011]
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-041 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（2026-10-15 15:44 開立；16:13 納入方案 D（T0538）並開工，先派 T0535） |
+| 狀態 | 🔄 IN_PROGRESS（2026-10-15 15:44 開立；16:13 納入方案 D（T0538）並開工；17:04 BAT 端 T0535 `f26b7641` / T0536 `26f6996e` / T0537 `e965f993` / T0538 `8fd7bdf7` 全部 DONE，隨 0.6.1-pre.3 發佈；剩 CT-T011（BMad-Guide 塔台）與實機驗收：真實 claude / codex Worker 閒置時是否有週期輸出導致 BUSY） |
 | 來源 | 使用者提問「塔台收單完成後能否自動關掉 Worker 工單終端」；T0534 研究（推薦方案 B'）；D144 |
 | 說明網頁 | https://claude.ai/artifact/E9ZBy1JRwibBXrwnMdB4LS （私人） |
 
