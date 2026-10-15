@@ -134,3 +134,12 @@ T0550 收單時實測：延遲期間使用者只在 BAT 切換工作區 / 終端
 ### 回報時間
 
 2026-10-16T03:09:13+0800
+
+---
+
+## 塔台收單（第六十六 session，2026-10-16T03:11:39+0800）
+
+- ✅ **T0551 已確認 FIXED**：`92655e00`（7 檔，與回報一致）+ `0e78d1ba`。塔台複驗 @ `0e78d1ba`：`npm run test:unit` 4133 passed / 243 files、`npm run typecheck` = 0、`npm run typecheck:electron` = 0。
+- 根因有 e2e 證據（Worker stdin 只收到 `ESC [ I` / `ESC [ O`），修正前 build 上同一 spec 重現 BUG-140、修正後通過；取捨（main 端排除純自動回應序列、不碰 xterm 私有 API）採納。已知重疊（帶修飾鍵 F3 與 CPR 同形）接受。
+- Worker 分頁回收（安裝版仍是 pre.4）：03:10:25 排程 `output 32 ms ago; will wait for quiet` → 到期 `close requested`，分頁已關。
+- BUG-140 FIXED，待 pre.5 安裝後實機驗收（收單即回收時切換焦點，分頁仍應關閉）。下一張 T0552 已派（03:11:39）。
