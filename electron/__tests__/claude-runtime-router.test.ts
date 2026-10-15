@@ -457,3 +457,76 @@ describe('resolveClaudeRuntime embedded existence check', () => {
     expect(embeddedClaudeExists).not.toHaveBeenCalled()
   })
 })
+
+// T0546 (C2a): packaged builds no longer ship `@anthropic-ai/claude-agent-sdk-<platform>`.
+// The SDK only falls back to that bundled binary when `pathToClaudeCodeExecutable` is
+// empty, so the router must never point at it and never hand back '' outside the
+// node-modules (dev / tests) layout.
+describe('no fallback to the SDK-bundled claude (T0546)', () => {
+  const hosts: Array<{ platform: NodeJS.Platform; arch: string; musl?: boolean }> = [
+    { platform: 'win32', arch: 'x64' },
+    { platform: 'darwin', arch: 'arm64' },
+    { platform: 'linux', arch: 'x64', musl: false },
+    { platform: 'linux', arch: 'x64', musl: true },
+    { platform: 'linux', arch: 'arm64', musl: false },
+  ]
+  const dirs: string[] = []
+
+  afterEach(() => {
+    configureRuntimeRouter({})
+    __test__.loggedMissingEmbedded.clear()
+    vi.restoreAllMocks()
+  })
+  afterAll(() => {
+    for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('no packaged / server-bundle candidate is a claude-agent-sdk path, and none is empty', () => {
+    for (const { platform, arch, musl } of hosts) {
+      const layouts = [
+        { kind: 'electron-packaged' as const, resourcesPath: path.join('/r', 'resources') },
+        { kind: 'server-bundle' as const, installRoot: path.join('/opt', 'bat-server') },
+      ]
+      for (const layout of layouts) {
+        const candidates = embeddedClaudeCandidates(layout, platform, () => '/unused', { arch, musl })
+        expect(candidates.length).toBeGreaterThan(0)
+        for (const candidate of candidates) {
+          expect(candidate).not.toBe('')
+          expect(candidate).not.toMatch(/claude-agent-sdk/)
+        }
+        const resolved = resolveEmbeddedClaudePath(layout, platform, () => '/unused', { arch, musl, exists: () => false })
+        expect(resolved).not.toBe('')
+        expect(resolved).not.toMatch(/claude-agent-sdk/)
+      }
+    }
+  })
+
+  it('embedded mode throws EmbeddedClaudeMissingError even when an SDK-bundled claude is on disk', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {})
+    const resourcesPath = fs.mkdtempSync(path.join(os.tmpdir(), 't0546-resources-'))
+    dirs.push(resourcesPath)
+    const anthropic = path.join(resourcesPath, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
+    const sdkBinaries = [
+      path.join(anthropic, `claude-agent-sdk-${process.platform}-${process.arch}`, process.platform === 'win32' ? 'claude.exe' : 'claude'),
+      path.join(anthropic, 'claude-agent-sdk', 'cli.js'),
+    ]
+    for (const file of sdkBinaries) {
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      fs.writeFileSync(file, '')
+    }
+    configureRuntimeRouter({ getEmbeddedLayout: () => ({ kind: 'electron-packaged', resourcesPath }) })
+
+    const err = await resolveClaudeRuntime({ mode: 'embedded', fallbackToEmbedded: true }, { detectSystemClaude: vi.fn() })
+      .catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(EmbeddedClaudeMissingError)
+    const lookedFor = (err as EmbeddedClaudeMissingError).lookedFor
+    expect(lookedFor.length).toBeGreaterThan(0)
+    for (const candidate of lookedFor) expect(candidate).not.toMatch(/claude-agent-sdk/)
+
+    // system → embedded fallback with embedded missing: still an error, never the SDK binary
+    const fallbackErr = await resolveClaudeRuntime({ mode: 'system', fallbackToEmbedded: true }, { detectSystemClaude: vi.fn(async () => null) })
+      .catch((e: unknown) => e)
+    expect(fallbackErr).toBeInstanceOf(SystemClaudeUnavailableError)
+    expect((fallbackErr as SystemClaudeUnavailableError).detail).not.toMatch(/claude-agent-sdk/)
+  })
+})

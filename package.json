@@ -190,8 +190,6 @@
           "filter": [
             "bat-server-linux-x64-v*.tar.gz",
             "bat-server-linux-x64-v*.tar.gz.sha256",
-            "bat-server-linux-arm64-v*.tar.gz",
-            "bat-server-linux-arm64-v*.tar.gz.sha256",
             "manifest.json"
           ]
         }
@@ -203,6 +201,10 @@
       "dist/**/*",
       "dist-electron/**/*",
       "node_modules/**/*",
+      "!node_modules/!(@anthropic-ai|@kutalia|@lydell|@openai|ajv|ajv-formats|fast-deep-equal|fast-uri|json-schema-traverse|node-abi|node-addon-api|opencc-js|require-from-string|semver|ws){,/**}",
+      "!node_modules/@anthropic-ai/!(claude-code|claude-code-*){,/**}",
+      "!node_modules/@anthropic-ai/claude-code-win32-*/claude.exe",
+      "!node_modules/@kutalia/whisper-node-addon/dist/!(js|${os}-${arch}|${os}32-${arch}|darwin-${arch}){,/**}",
       "assets/icon.ico",
       "assets/icon.png",
       "assets/icon-512.png"
@@ -210,8 +212,6 @@
     "asarUnpack": [
       "node_modules/@anthropic-ai/claude-code/**/*",
       "node_modules/@anthropic-ai/claude-code-*/**/*",
-      "node_modules/@anthropic-ai/claude-agent-sdk/**/*",
-      "node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",
       "node_modules/@openai/codex-*/**/*",
       "node_modules/@lydell/node-pty/**/*",
       "node_modules/@lydell/node-pty-*/**/*",

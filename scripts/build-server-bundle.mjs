@@ -40,6 +40,10 @@ const serverBundleHelperScripts = [
   '_bat-logger.mjs',
 ]
 const VALID_TARGETS = ['linux-x64', 'linux-arm64', 'darwin-arm64']
+// T0546 (C2b): nativePackages carries the SDK js (`@anthropic-ai/claude-agent-sdk`, an esbuild
+// external of the headless entry) but not its `claude-agent-sdk-<platform>` binary package:
+// every spawn point passes `pathToClaudeCodeExecutable` (the claude-code platform binary
+// below), so the SDK-bundled claude never runs. verify-server-bundle.js forbids it.
 const TARGET_CONFIG = {
   'linux-x64': {
     nodeArchiveExt: 'tar.xz',
@@ -53,7 +57,6 @@ const TARGET_CONFIG = {
       '@anthropic-ai/claude-code',
       '@anthropic-ai/claude-code-linux-x64',
       '@anthropic-ai/claude-agent-sdk',
-      '@anthropic-ai/claude-agent-sdk-linux-x64',
     ],
     claudeCodeBinaryPackage: '@anthropic-ai/claude-code-linux-x64',
     claudeCodeBinaryName: 'claude',
@@ -70,7 +73,6 @@ const TARGET_CONFIG = {
       '@anthropic-ai/claude-code',
       '@anthropic-ai/claude-code-linux-arm64',
       '@anthropic-ai/claude-agent-sdk',
-      '@anthropic-ai/claude-agent-sdk-linux-arm64',
     ],
     claudeCodeBinaryPackage: '@anthropic-ai/claude-code-linux-arm64',
     claudeCodeBinaryName: 'claude',
@@ -88,7 +90,6 @@ const TARGET_CONFIG = {
       '@anthropic-ai/claude-code',
       '@anthropic-ai/claude-code-darwin-arm64',
       '@anthropic-ai/claude-agent-sdk',
-      '@anthropic-ai/claude-agent-sdk-darwin-arm64',
     ],
     claudeCodeBinaryPackage: '@anthropic-ai/claude-code-darwin-arm64',
     claudeCodeBinaryName: 'claude',

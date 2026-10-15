@@ -225,6 +225,13 @@ jobs:
         if: matrix.platform == 'win'
         run: npx electron-builder --win --publish never
 
+      # T0546: the Windows package: embedded claude-code/bin/claude.exe is an x64 PE, plus the
+      # installer slimming checks shared with mac / Linux (no second claude.exe, no
+      # claude-agent-sdk-*, whisper / baseline only for this host, every runtime require packaged).
+      - name: Verify packaged native binaries (Windows x64)
+        if: matrix.platform == 'win'
+        run: node scripts/verify-packaged-native.js --platform win --out release --arch x64
+
       - name: Package for macOS
         if: matrix.platform == 'mac'
         run: npx electron-builder --mac --publish never
@@ -245,6 +252,12 @@ jobs:
       - name: Verify packaged embedded claude (Linux x64)
         if: matrix.platform == 'linux'
         run: node scripts/verify-packaged-native.js --platform linux --out release --arch x64
+
+      # T0546: artifact sizes and what the unpacked app is made of, in the job log (data for
+      # the D094 size cap). Read-only, no threshold: never fails the job.
+      - name: Report artifact sizes
+        continue-on-error: true
+        run: node scripts/report-artifact-sizes.mjs --out release
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'win'
