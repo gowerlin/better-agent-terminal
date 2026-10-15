@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0540
 title: "PLAN-042：Windows Terminal Server 模式關閉分頁時，shell 底下的子程序（claude / codex / node）是否一併結束；未結束則修正"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-042
 priority: P2
 sizing: S
 created_at: "2026-10-15T16:13:05+0800"
 started_at: "2026-10-15T17:05:11+0800"
-updated_at: "2026-10-15T17:05:11+0800"
+updated_at: "2026-10-15T17:20:37+0800"
+completed_at: "2026-10-15T17:20:37+0800"
 target_version: "0.6.1-pre.3"
 depends_on: [T0535]
 related:
@@ -140,4 +141,4 @@ node-pty `UnixTerminal.kill(signal)` = `process.kill(this.pid, signal || 'SIGHUP
 
 ### Commit
 
-（commit 後補上 hash）
+- `a058fbd4` fix: T0540 end the whole PTY process tree when Terminal Server closes a tab on Windows (PLAN-042)（`--only`，未 push；`src/styles/settings.css`、`CT-T011` / `CT-T012` 不是本單的變更，沒有 commit）
