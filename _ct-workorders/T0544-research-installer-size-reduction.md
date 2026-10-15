@@ -13,7 +13,7 @@ created_at: "2026-10-15T20:06:48+0800"
 updated_at: "2026-10-15T20:32:48+0800"
 started_at: "2026-10-15T20:07:09+0800"
 completed_at: "2026-10-15T20:32:48+0800"
-commit: ""
+commit: "0c3c79e9"
 target_version: "未定（研究結論後由塔台開實作單）"
 depends_on: []
 related:
