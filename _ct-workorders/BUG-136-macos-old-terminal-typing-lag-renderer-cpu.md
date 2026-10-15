@@ -7,7 +7,7 @@ status: OPEN
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-15T13:13:21+0800"
-updated_at: "2026-10-15T13:20:50+0800"
+updated_at: "2026-10-15T13:25:28+0800"
 impact:
   - terminal-rendering
   - xterm-canvas
@@ -134,7 +134,7 @@ links:
 
 ## 可先做的改善（不論 A / B）
 
-- `electron/main.ts` 的 `child-process-gone`（type=GPU）額外記錄 `app.getGPUFeatureStatus()`，判斷是否已退回軟體繪圖。
+- `electron/main.ts` 的 `child-process-gone`（type=GPU）額外記錄 `app.getGPUFeatureStatus()`，判斷是否已退回軟體繪圖。→ **T0533 完成**：`0.6.1-pre.2` 起日誌可判斷是否退回軟體繪圖（`[gpu] feature status` 基準、`[gpu] crash #N` + 崩潰當下狀態與變動、`feature status changed`；判讀見 `CLAUDE.md`「Logging」節）。本單仍 OPEN，T0533 只是診斷，不是修正。
 - 終端 renderer 在 GPU 崩潰 / context loss 後自動重建：
   - 方案一：CanvasAddon 監聽 `contextlost` / `contextrestored`，或在 GPU crash 時對所有 xterm `clearTextureAtlas()` + `refresh`
   - 方案二：改用 `@xterm/addon-webgl` 並在 `onContextLoss` 時 dispose 後 fallback

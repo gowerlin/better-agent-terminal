@@ -68,6 +68,7 @@ import {
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { closeAllSshWizardTunnels, registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
+import { createGpuStatusLog, GPU_BASELINE_FALLBACK_MS, summarizeGpuInfo } from './gpu-status-log'
 import { describeMigrationReport } from './userdata-migration'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
@@ -1448,12 +1449,29 @@ app.whenReady().then(async () => {
     logger.error(`[userdata-migration] userData drifted: getPath('userData')=${app.getPath('userData')} expected=${resolvedUserData}`)
   }
 
+  // T0533 / BUG-136: record the GPU feature status (baseline, at each GPU crash, and whenever
+  // it changes) so a log shows whether Chromium fell back to software rendering. Logging only.
+  // The baseline waits for the first gpu-info-update: before it, getGPUFeatureStatus() returns
+  // a placeholder with every feature disabled_software / disabled_off.
+  const gpuStatusLog = createGpuStatusLog({
+    getFeatureStatus: () => app.getGPUFeatureStatus(),
+    log: message => logger.log(message),
+    warn: message => logger.warn(message),
+  })
+  app.on('gpu-info-update', () => gpuStatusLog.onGpuInfoUpdate())
+  setTimeout(() => gpuStatusLog.logBaselineIfMissing(), GPU_BASELINE_FALLBACK_MS).unref()
+  void app.getGPUInfo('basic').then(
+    info => logger.log(`[gpu] info: ${summarizeGpuInfo(info)}`),
+    err => logger.warn(`[gpu] getGPUInfo('basic') failed: ${err instanceof Error ? err.message : String(err)}`),
+  )
+
   app.on('render-process-gone', (_event, _webContents, details) => {
     logger.error(`[CRASH] render-process-gone reason=${details.reason} exitCode=${details.exitCode}`)
   })
 
   app.on('child-process-gone', (_event, details) => {
     logger.error(`[CRASH] child-process-gone type=${details.type} reason=${details.reason} exitCode=${details.exitCode}`)
+    gpuStatusLog.onChildProcessGone(details)
   })
 
   // Register voice handlers only after app is ready because it installs
