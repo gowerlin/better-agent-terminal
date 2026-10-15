@@ -157,6 +157,15 @@ export interface WizardStep {
   run(ctx: WizardContext): Promise<void>
   rollback?(ctx: WizardContext): Promise<void>
   /**
+   * T0554 (BUG-141): called once every step has succeeded (or been skipped),
+   * in step order, before run() resolves. For what a step keeps around only so
+   * its rollback can undo it (e.g. the previous server bundle at
+   * `<root>.bat-old`), which is no longer needed once the wizard is done.
+   * Best effort: a throw is logged and added to ctx.warnings; the wizard still
+   * completes.
+   */
+  finalize?(ctx: WizardContext): Promise<void>
+  /**
    * T0500: called on the jump target (after the jump-back rollback chain,
    * before it re-runs) so an `editableFromFailure` step asks for its input
    * again instead of reusing the value it stored last time. Steps mark the
@@ -565,6 +574,24 @@ export class WizardRunner {
         await this.rollbackFailedStep(step)
         await this.rollbackCompletedSteps()
         throw error
+      }
+    }
+    await this.finalizeCompletedSteps()
+  }
+
+  /** T0554: every step finished; run finalize() in step order (best effort). */
+  private async finalizeCompletedSteps(): Promise<void> {
+    for (const index of [...this.completedStepIndexes].sort((a, b) => a - b)) {
+      const step = this.activeSteps[index]
+      if (!step.finalize) continue
+      try {
+        await step.finalize(this.ctx)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        this.ctx.logger.warn(`Finalize failed for ${step.id}: ${message}`)
+        const warning = `Could not finish cleaning up after "${step.title}": ${message}`
+        if (!this.ctx.warnings.includes(warning)) this.ctx.warnings.push(warning)
+        this.emitProgress()
       }
     }
   }

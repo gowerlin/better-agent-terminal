@@ -2,7 +2,12 @@ import type { ChildProcess } from 'child_process'
 import type { ReadStream } from 'fs'
 import { logger } from '../logger'
 import { buildBaseSshArgs, buildBaseSshSpawnEnv, escapeSingleQuotesStrict } from './ssh-args'
-import { assertBundleInstallRoot, buildSshBundleInstallCommand } from '../server-bundle-install-script'
+import {
+  assertBundleInstallRoot,
+  buildSshBundleInstallCommand,
+  parseBundleInstallPrevious,
+  type BundleInstallPrevious,
+} from '../server-bundle-install-script'
 
 export interface UploadOptions {
   sshHost: string
@@ -13,6 +18,16 @@ export interface UploadOptions {
   tarballPath: string
   /** Optional pre-known total bytes; otherwise we fs.stat. */
   totalBytes?: number
+  /**
+   * T0554 (BUG-141): keep the replaced install at `<installPath>.bat-old` until
+   * the wizard restores it (cancel) or discards it (finished).
+   */
+  keepPrevious?: boolean
+}
+
+/** T0554: what the install script found at the root (omitted when it printed nothing). */
+export interface UploadResult {
+  previous?: BundleInstallPrevious
 }
 
 export type UploadProgress = (bytesSent: number, totalBytes: number) => void
@@ -49,8 +64,8 @@ export interface UploaderDeps {
  * anything (`server-bundle-install-script.ts`). The extract fails loudly when
  * `bin/bat-server` is missing afterwards.
  */
-function buildExtractCommand(safePath: string): string {
-  return buildSshBundleInstallCommand(safePath)
+function buildExtractCommand(safePath: string, keepPrevious = false): string {
+  return buildSshBundleInstallCommand(safePath, { keepPrevious })
 }
 
 function buildSshArgs(opts: UploadOptions): string[] {
@@ -63,7 +78,7 @@ function buildSshArgs(opts: UploadOptions): string[] {
   const safePath = escapeSingleQuotesStrict(opts.installPath, 'installPath')
   // T0552: the install replaces the root, so it must be a real install root
   // (normalised: a trailing `/` would put `.bat-new` inside the root).
-  const remoteCommand = buildExtractCommand(assertBundleInstallRoot(safePath))
+  const remoteCommand = buildExtractCommand(assertBundleInstallRoot(safePath), opts.keepPrevious === true)
   // user@host validation (F-004) + BatchMode/ConnectTimeout/StrictHostKeyChecking
   // prefix (EC-003) live in buildBaseSshArgs.
   const args = buildBaseSshArgs(opts)
@@ -75,7 +90,7 @@ export async function uploadServerBundle(
   opts: UploadOptions,
   onProgress: UploadProgress,
   deps: UploaderDeps = {},
-): Promise<void> {
+): Promise<UploadResult> {
   const stat = deps.stat ?? (async (p: string) => (await import('fs/promises')).stat(p))
   const createReadStream = deps.createReadStream ?? ((p: string) => {
     // dynamic require to keep this file loadable in test runners without fs cycle
@@ -100,8 +115,11 @@ export async function uploadServerBundle(
   proc.stderr?.on('data', (chunk: Buffer | string) => {
     stderr += typeof chunk === 'string' ? chunk : chunk.toString('utf8')
   })
-  // We don't strictly need stdout, but draining prevents pipe back-pressure.
-  proc.stdout?.on('data', () => { /* drain */ })
+  // Draining prevents pipe back-pressure; T0554 reads the install marker from it.
+  let stdout = ''
+  proc.stdout?.on('data', (chunk: Buffer | string) => {
+    if (stdout.length < 64 * 1024) stdout += typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+  })
 
   const stream = createReadStream(opts.tarballPath)
   let bytesSent = 0
@@ -166,6 +184,9 @@ export async function uploadServerBundle(
   if (bytesSent !== totalBytes) {
     try { onProgress(bytesSent, totalBytes) } catch { /* swallow */ }
   }
+
+  const previous = parseBundleInstallPrevious(stdout)
+  return previous ? { previous } : {}
 }
 
 export const __internals = {

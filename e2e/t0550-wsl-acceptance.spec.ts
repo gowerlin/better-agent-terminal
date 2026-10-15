@@ -65,8 +65,15 @@ test.skip(process.platform !== 'win32', 'Windows host only (WSL)')
 //   npx playwright test e2e/t0550-wsl-acceptance.spec.ts -g "A1-A3"
 const UPGRADE_RUNNING = process.env.BAT_E2E_T0550_UPGRADE_RUNNING === '1'
 const STALE_PACKAGES = ['@anthropic-ai/claude-agent-sdk-linux-x64', '@img', 'better-sqlite3', 'sharp']
+// T0554 (BUG-141): BAT_E2E_T0554_CANCEL_AFTER_INSTALL=1 adds "T0554 cancel": the wizard upgrades the
+// running server, a step after the install fails (fetch-fingerprint, injected into this isolated
+// instance's main process) and the user cancels; the previous install tree, unit and running
+// service must come back. Same source-build setup as UPGRADE_RUNNING. Run it alone:
+//   npx playwright test e2e/t0550-wsl-acceptance.spec.ts -g "T0554"
+const CANCEL_AFTER_INSTALL = process.env.BAT_E2E_T0554_CANCEL_AFTER_INSTALL === '1'
+const PREVIOUS_MARKER = '.t0554-previous-install'
 
-test.skip(ENABLED && !E2E_EXECUTABLE && !UPGRADE_RUNNING, 'set BAT_E2E_EXECUTABLE to the installed BetterAgentTerminal.exe under test')
+test.skip(ENABLED && !E2E_EXECUTABLE && !UPGRADE_RUNNING && !CANCEL_AFTER_INSTALL, 'set BAT_E2E_EXECUTABLE to the installed BetterAgentTerminal.exe under test')
 
 const log = testLogger('t0550')
 
@@ -308,7 +315,94 @@ test.describe.serial('T0550 WSL acceptance', () => {
     inst = undefined
   })
 
+  test('T0554 cancel after the install restores the previous server (unit, tree, running service)', async () => {
+    test.skip(!CANCEL_AFTER_INSTALL, 'opt-in: BAT_E2E_T0554_CANCEL_AFTER_INSTALL=1')
+    test.setTimeout(WIZARD_TIMEOUT_MS + 300_000)
+    const before = await serverState()
+    fs.writeFileSync(path.join(EVIDENCE_DIR, 't0554-server-state-before.txt'), before)
+    const oldPort = Number(section(before, 'unit-port'))
+    const oldFingerprint = section(before, 'fingerprint').toUpperCase()
+    expect(section(before, 'is-active'), 'T0554 cancel needs the old server active').toBe('active')
+    const backup = await wsl('ls -d $HOME/.local/bat-server.bak-* $HOME/.config/systemd/user/bat-server.service.bak-* 2>&1')
+    expect(backup, 'back up ~/.local/bat-server and the unit before running T0554').toContain('.bak-')
+    // Identity of what the cancel must bring back: a marker inside the tree (a fresh extract has
+    // none), the directory inode (renames keep it) and the unit file hash.
+    const identity = async () => wsl([
+      `echo "## marker"; test -e ${INSTALL_ROOT}/${PREVIOUS_MARKER} && echo present || echo absent`,
+      `echo "## inode"; stat -c %i ${INSTALL_ROOT} 2>&1`,
+      `echo "## unit-sha"; sha256sum ${UNIT} 2>&1 | cut -d' ' -f1`,
+      `echo "## siblings"; ls -d ${INSTALL_ROOT}.bat-new ${INSTALL_ROOT}.bat-old 2>/dev/null; true`,
+    ].join('; '))
+    await wsl(`touch ${INSTALL_ROOT}/${PREVIOUS_MARKER}`)
+    const idBefore = await identity()
+    log(`T0554 before: version ${section(before, 'version')} port ${oldPort} MainPID ${section(before, 'MainPID')} ${idBefore.replace(/\s+/g, ' ')}`)
+
+    const cancelInst = await launchIsolated('t0554-cancel', log)
+    try {
+      const win = cancelInst.win
+      const wizardLog = captureConsole(win, /\[wsl-wizard\]|rollback|Restored|restore/i)
+      // Fail the first step after the install + unit rewrite; nothing else is changed.
+      await cancelInst.app.evaluate(({ ipcMain }) => {
+        ipcMain.removeHandler('wsl:fetch-fingerprint')
+        ipcMain.handle('wsl:fetch-fingerprint', async () => ({ ok: false, errorCode: 'fingerprint-unreachable', error: 'T0554 injected failure after the install' }))
+      })
+      const profilesBefore = await profiles(win)
+      await openWslWizard(win)
+      const outcome = await driveWizard(win)
+      const stepsAtFailure = await stepStatuses(win)
+      await shot(win, 'T0554-failed')
+      const mid = await serverState()
+      const idMid = await identity()
+      fs.writeFileSync(path.join(EVIDENCE_DIR, 't0554-server-state-mid.txt'), `${mid}\n${idMid}`)
+      // Marker gone + .bat-old present = the install step swapped in the new bundle and kept the old one.
+      record('T0554.failed-after-install', outcome.result === 'failed'
+        && section(idMid, 'marker') === 'absent' && section(idMid, 'siblings').includes('.bat-old'), [
+        `wizard ${outcome.result}; steps ${stepsAtFailure.join(', ')}`,
+        `while failed: version ${section(mid, 'version')} is-active ${section(mid, 'is-active')} MainPID ${section(mid, 'MainPID')} (new bundle running)`,
+        `marker ${section(idMid, 'marker')}; .bat-old kept: ${section(idMid, 'siblings') || 'none'}`])
+
+      await win.locator('.bat-stepper-failed-actions [data-action-kind="cancel"]').first().click()
+      // Rollback: unit restored, previous tree swapped back, service started again.
+      await expect.poll(async () => {
+        const now = await identity()
+        return section(now, 'marker') === 'present' && !section(now, 'siblings')
+      }, { timeout: 180_000, intervals: [2000], message: 'previous install restored' }).toBe(true)
+      let after = ''
+      await expect.poll(async () => {
+        after = await serverState()
+        const pid = section(after, 'MainPID')
+        return section(after, 'is-active') === 'active' && section(after, 'listening').split('\n').some(l => l.includes(`:${oldPort} `) && l.includes(`pid=${pid},`))
+      }, { timeout: 60_000, intervals: [2000], message: 'previous server running on its port again' }).toBe(true)
+      const idAfter = await identity()
+      fs.writeFileSync(path.join(EVIDENCE_DIR, 't0554-server-state-after.txt'), `${after}\n${idAfter}`)
+      const stepsAfter = await stepStatuses(win)
+      fs.writeFileSync(path.join(EVIDENCE_DIR, 't0554-wizard-console.txt'), wizardLog.join('\n'))
+      fs.writeFileSync(path.join(EVIDENCE_DIR, 't0554-debug-log.txt'), latestLog(cancelInst.userData))
+      await shot(win, 'T0554-cancelled')
+      const profilesAfter = await profiles(win)
+      const newPort = Number(section(after, 'unit-port'))
+      const newFingerprint = section(after, 'fingerprint').toUpperCase()
+      record('T0554.restored', section(idAfter, 'marker') === 'present' && section(idAfter, 'inode') === section(idBefore, 'inode')
+        && section(idAfter, 'unit-sha') === section(idBefore, 'unit-sha') && !section(idAfter, 'siblings')
+        && section(after, 'version') === section(before, 'version') && newPort === oldPort && newFingerprint === oldFingerprint, [
+        `install tree: marker ${section(idAfter, 'marker')}; inode ${section(idBefore, 'inode')} → ${section(idAfter, 'inode')}; .bat-new / .bat-old left: ${section(idAfter, 'siblings') || 'none'}`,
+        `unit sha256 ${section(idBefore, 'unit-sha').slice(0, 16)}… → ${section(idAfter, 'unit-sha').slice(0, 16)}…`,
+        `version ${section(before, 'version')} → ${section(after, 'version')}; port ${oldPort} → ${newPort}; fingerprint ${oldFingerprint.slice(0, 11)}… → ${newFingerprint.slice(0, 11)}…`,
+        `steps after cancel: ${stepsAfter.join(', ')}`])
+      record('T0554.service-running', section(after, 'is-active') === 'active' && section(after, 'MainPID') !== section(mid, 'MainPID'), [
+        `is-active ${section(after, 'is-active')}; MainPID ${section(before, 'MainPID')} (before) → ${section(mid, 'MainPID')} (new bundle) → ${section(after, 'MainPID')} (restored)`,
+        `listening ${section(after, 'listening').split('\n').filter(l => l.includes(`:${oldPort} `)).join(' / ')}`])
+      record('T0554.profiles-untouched', JSON.stringify(profilesAfter.map(redact)) === JSON.stringify(profilesBefore.map(redact)), [
+        `profiles before ${profilesBefore.length}, after ${profilesAfter.length}`])
+      record('T0554.rollback-log', 'info', wizardLog.slice(-12))
+    } finally {
+      await closeIsolated(cancelInst, log)
+      await wsl(`rm -f ${INSTALL_ROOT}/${PREVIOUS_MARKER}`)
+    }
+  })
+
   test('A1-A3 stock WSL wizard upgrades the server (release download, sidecar, helpers)', async () => {
+    test.skip(CANCEL_AFTER_INSTALL && !UPGRADE_RUNNING && !E2E_EXECUTABLE, 'T0554 cancel run only')
     test.setTimeout(WIZARD_TIMEOUT_MS + 300_000)
     const before = await serverState()
     fs.writeFileSync(path.join(EVIDENCE_DIR, 'server-state-before.txt'), before)

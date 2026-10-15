@@ -69,12 +69,20 @@ BAT finds the Linux bundle tarball under the app data directory and extracts it 
 Re-running the wizard over an existing install (the upgrade path) replaces the
 directory cleanly (T0552 / BUG-139): the bundle is extracted into
 `~/.local/bat-server.bat-new`, checked for `bin/bat-server`, and only then
-swapped in; the previous tree is deleted, so packages a newer bundle no longer
-ships do not stay behind. A failed download or extract leaves the old install
-untouched. Only a directory that is a BAT bundle install (or empty) is
-replaced; anything else at that path is extracted over and nothing is deleted.
-The server data directory `~/.local/share/bat-server` (certificate, token) is
-never touched.
+swapped in, so packages a newer bundle no longer ships do not stay behind. A
+failed download or extract leaves the old install untouched. Only a directory
+that is a BAT bundle install (or empty) is replaced; anything else at that path
+is extracted over and nothing is deleted. The server data directory
+`~/.local/share/bat-server` (certificate, token) is never touched.
+
+The previous tree is kept at `~/.local/bat-server.bat-old` until the wizard
+ends (T0554 / BUG-141): when every step succeeds it is deleted; when a later
+step fails and you cancel, it is moved back (see "Rollback chain"). If BAT is
+closed in the middle, the next run handles the leftover: a `.bat-old` next to
+an existing install is replaced by the current install, and a `.bat-old` with
+no install next to it (BAT closed between the two renames) is moved back first.
+A `.bat-old` that is not a BAT bundle install is never deleted; the wizard
+stops and asks you to move it away.
 
 During this step BAT also performs a best-effort WSL networking check and records one of these modes:
 
@@ -172,10 +180,26 @@ If a wizard step fails or the user cancels mid-wizard, the wizard runner walks
 the already-completed steps in reverse and invokes each step's rollback
 handler (best-effort, not transactional). For the WSL flow, this means:
 
-- **install-server-bundle** rollback removes `~/.local/bat-server` inside the
-  distro.
-- **start-server** rollback stops `bat-server.service`, disables it, removes
-  the unit file, and reloads the user daemon.
+- **install-server-bundle** rollback depends on what the install found
+  (T0554 / BUG-141):
+  - first install: removes `~/.local/bat-server` inside the distro;
+  - upgrade (an earlier BAT install was there): moves
+    `~/.local/bat-server.bat-old` back into place and, when the previous
+    server was running before the wizard, starts `bat-server.service` again;
+  - a directory that was not a BAT install (extracted over): nothing is
+    deleted;
+  - a failed install: nothing to undo (the old install was never touched).
+- **write-systemd-unit** rollback: on an upgrade it writes the previous
+  `bat-server.service` back (content and enabled state, as read before the step
+  changed anything, including before the port check stopped the old server)
+  and leaves the service stopped until the previous bundle is back; on a first
+  setup it stops `bat-server.service`, disables it, removes the unit file, and
+  reloads the user daemon.
+
+The result of cancelling an upgrade is the server as it was before the wizard:
+same bundle, unit, port, certificate and token, running if it was running.
+Linger stays enabled if the wizard enabled it. When the wizard finishes, the
+kept `~/.local/bat-server.bat-old` is deleted (WizardStep `finalize`).
 - **fetch-fingerprint** / **verify-remote-connection** failures do not need
   state rollback (read-only operations) but still log their outcome.
 - **create-remote-profile** rollback deletes the partially-created profile

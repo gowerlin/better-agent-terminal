@@ -511,12 +511,14 @@ describe('jump back in the WSL flow never deletes a bundle this run did not inst
     expect(ctx.serverInstallPath).toBe('/home/alice/.local/bat-server')
   })
 
-  it('install fails during the install → its rollback still removes the partial bundle', async () => {
+  // T0554 (BUG-141): before T0554 this removed the root, which after T0552 is
+  // the untouched previous install (the script swaps only after a good extract).
+  it('install fails during the install → its rollback deletes nothing', async () => {
     const { wsl } = installWsl()
     wsl.installBundle.mockResolvedValueOnce({ ok: false, error: 'tar: unexpected EOF' } as never)
     const ctx = makeCtx({ wslDistro: 'Ubuntu', serverInstallPath: '/home/alice/.local/bat-server' })
     await expect(installServerBundleStep.run(ctx)).rejects.toThrow(/unexpected EOF/)
     await installServerBundleStep.rollback!(ctx)
-    expect(wsl.uninstallBundle).toHaveBeenCalledWith('Ubuntu', '/home/alice/.local/bat-server')
+    expect(wsl.uninstallBundle).not.toHaveBeenCalled()
   })
 })

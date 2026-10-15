@@ -517,6 +517,130 @@ export async function startStoppedService(distro: string, serviceName: string): 
   await runWsl(distro, ['systemctl', '--user', 'start', serviceName], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS })
 }
 
+// ---------------------------------------------------------------------------
+// T0554 (BUG-141): an upgrade the wizard cancels after write-systemd-unit puts
+// the previous unit (content, enabled state) back and leaves the service the
+// way it was. The snapshot is taken before write-systemd-unit changes anything
+// (pick-server-port may stop the old server); the wizard holds it in memory.
+// ---------------------------------------------------------------------------
+
+/** Unit files BAT writes are a few hundred bytes; anything this large is not one. */
+const MAX_UNIT_CONTENT_BYTES = 64 * 1024
+
+export interface ServiceSnapshot {
+  /** Unit file content; null when the file does not exist. */
+  content: string | null
+  /** active / activating / reloading (what stopServiceIfActive stops). */
+  active: boolean
+  enabled: boolean
+}
+
+export type ServiceSnapshotResult = ({ ok: true } & ServiceSnapshot) | { ok: false; error: string }
+
+function isActiveState(activeState: string): boolean {
+  return activeState === 'active' || activeState === 'activating' || activeState === 'reloading'
+}
+
+function describeError(error: unknown): string {
+  const stderr = (error as { stderr?: Buffer }).stderr
+  const detail = Buffer.isBuffer(stderr) ? stderr.toString('utf8').trim() : ''
+  const message = error instanceof Error ? error.message : String(error)
+  return detail && !message.includes(detail) ? `${message}: ${detail}` : message
+}
+
+export async function snapshotServiceUnit(
+  distro: string,
+  serviceName: string,
+  options: { path: string },
+): Promise<ServiceSnapshotResult> {
+  try {
+    assertValidDistro(distro)
+    assertValidServiceName(serviceName)
+    assertValidUnixPath(options.path, false)
+    let exists = true
+    try {
+      await runWsl(distro, ['test', '-f', options.path], { timeoutMs: PROBE_TIMEOUT_MS })
+    } catch (error) {
+      // `test` exits 1 for "no such file"; anything else (wsl.exe failed) is an error.
+      if ((error as { code?: unknown }).code !== 1) throw error
+      exists = false
+    }
+    let content: string | null = null
+    if (exists) {
+      const result = await runWsl(distro, ['cat', options.path], { timeoutMs: PROBE_TIMEOUT_MS })
+      if (result.stdout.length > MAX_UNIT_CONTENT_BYTES) {
+        throw new Error(`${options.path} is larger than ${MAX_UNIT_CONTENT_BYTES} bytes; not a BAT unit`)
+      }
+      content = result.stdout.toString('utf8')
+    }
+    const state = await readServiceState(distro, serviceName)
+    const enabledResult = await runWsl(distro, ['systemctl', '--user', 'is-enabled', serviceName], {
+      allowFailure: true,
+      timeoutMs: PROBE_TIMEOUT_MS,
+    })
+    return {
+      ok: true,
+      content,
+      active: isActiveState(state.activeState),
+      enabled: enabledResult.stdout.toString('utf8').trim() === 'enabled',
+    }
+  } catch (error) {
+    return { ok: false, error: describeError(error) }
+  }
+}
+
+/**
+ * Write the snapshot's unit back, reload systemd, restore the enabled state,
+ * then start the service (`start`) or leave it stopped. The wizard asks for
+ * "stopped" when the previous bundle still has to be restored: the service
+ * starts again only once the old bundle is back (restartService).
+ */
+export async function restoreServiceUnit(
+  distro: string,
+  serviceName: string,
+  options: { path: string; content: string; enabled: boolean; start: boolean },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    assertValidDistro(distro)
+    assertValidServiceName(serviceName)
+    assertValidUnixPath(options.path, false)
+    if (typeof options.content !== 'string' || Buffer.byteLength(options.content, 'utf8') > MAX_UNIT_CONTENT_BYTES) {
+      throw new Error('Invalid unit content to restore')
+    }
+    if (typeof options.enabled !== 'boolean' || typeof options.start !== 'boolean') {
+      throw new Error('Invalid restore options')
+    }
+    await runWsl(distro, ['systemctl', '--user', 'stop', serviceName], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS })
+    await writeUnit(distro, { path: options.path, content: options.content })
+    await runWsl(distro, ['systemctl', '--user', 'daemon-reload'], { timeoutMs: PROBE_TIMEOUT_MS })
+    await runWsl(distro, ['systemctl', '--user', options.enabled ? 'enable' : 'disable', serviceName], {
+      allowFailure: true,
+      timeoutMs: PROBE_TIMEOUT_MS,
+    })
+    if (options.start) {
+      await runWsl(distro, ['systemctl', '--user', 'restart', serviceName], { timeoutMs: PROBE_TIMEOUT_MS })
+    }
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: describeError(error) }
+  }
+}
+
+/** T0554: start the service again after the previous bundle was restored. */
+export async function restartService(
+  distro: string,
+  serviceName: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    assertValidDistro(distro)
+    assertValidServiceName(serviceName)
+    await runWsl(distro, ['systemctl', '--user', 'restart', serviceName], { timeoutMs: PROBE_TIMEOUT_MS })
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: describeError(error) }
+  }
+}
+
 export async function removeUnit(
   distro: string,
   serviceName: string,

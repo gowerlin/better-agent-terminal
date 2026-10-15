@@ -57,6 +57,7 @@ beforeEach(() => {
         enableLinger: vi.fn(async () => ({ ok: true })),
         startService: startServiceMock,
         removeUnit: vi.fn(async () => ({ ok: true })),
+        snapshotUnit: vi.fn(async () => ({ ok: true, content: null, active: false, enabled: false })),
       },
     },
   }
@@ -101,7 +102,7 @@ describe('install-server-bundle (T0378 / BUG-087 B)', () => {
   it('installs into <home>/.local/bat-server and stores the absolute path', async () => {
     const ctx = makeCtx({ serverInstallPath: '~/.local/bat-server' })
     await installServerBundleStep.run(ctx)
-    expect(installBundleMock).toHaveBeenCalledWith('Ubuntu-24.04', 'C:\\cache\\bat-server.tar.gz', '/home/gower/.local/bat-server')
+    expect(installBundleMock).toHaveBeenCalledWith('Ubuntu-24.04', 'C:\\cache\\bat-server.tar.gz', '/home/gower/.local/bat-server', { keepPrevious: true })
     expect(ctx.serverInstallPath).toBe('/home/gower/.local/bat-server')
   })
 

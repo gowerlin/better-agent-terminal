@@ -251,12 +251,15 @@ describe('SSH rollback through ssh.stopServer / ssh.uninstallBundle (T0426)', ()
     expect(sshApi.uninstallBundle).not.toHaveBeenCalled()
   })
 
-  it('install fails during the upload → rollback removes the partial bundle', async () => {
+  // T0554 (BUG-141): before T0554 this removed the root. Since T0552 the install
+  // script extracts beside the root and swaps only after a good extract, so the
+  // root after a failed upload is the untouched previous install (or absent).
+  it('install fails during the upload → rollback deletes nothing (the script left the root as it was)', async () => {
     sshApi.uploadBundle.mockResolvedValue({ ok: false, error: 'tar: unexpected EOF' })
     const ctx = sshCtx()
     await expect(installSshServerBundleStep.run(ctx)).rejects.toThrow(/unexpected EOF/)
     await installSshServerBundleStep.rollback!(ctx)
-    expect(sshApi.uninstallBundle.mock.calls[0][0]).toMatchObject({ installPath: '/home/alice/.local/bat-server' })
+    expect(sshApi.uninstallBundle).not.toHaveBeenCalled()
   })
 
   it('a failing stop-server IPC is a warning, never a throw', async () => {
@@ -280,6 +283,7 @@ describe('WSL write-systemd-unit rollback on a half-executed step (T0426)', () =
       enableLinger: vi.fn(async () => ({ ok: false, error: 'No such device or address' })),
       startService: vi.fn(async () => ({ ok: true, token: 't' })),
       removeUnit: vi.fn(async () => ({ ok: true })),
+      snapshotUnit: vi.fn(async () => ({ ok: true, content: null, active: false, enabled: false })),
     }
     wsl = {
       resolveHome: vi.fn(async () => '/home/tester'),

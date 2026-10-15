@@ -2,7 +2,7 @@ import type { IpcMain, IpcMainInvokeEvent } from 'electron'
 import { logger } from '../logger'
 import { listSshHosts } from './ssh-config-parser'
 import { probeSshAuth, type SshProbeOptions, type SshProbeResult } from './ssh-auth-probe'
-import { uploadServerBundle, type UploadOptions } from './ssh-bundle-uploader'
+import { uploadServerBundle, type UploadOptions, type UploadResult } from './ssh-bundle-uploader'
 import {
   startServerOnRemote,
   stopServerOnRemote,
@@ -81,17 +81,19 @@ export function registerSshSetupHandlers(ipcMain: IpcMain, options: SshSetupHand
     }
   })
 
-  ipcMain.handle('ssh:upload-bundle', async (event: IpcMainInvokeEvent, request: UploadIpcRequest): Promise<{ ok: true } | { ok: false; error: string }> => {
+  // T0554 (BUG-141): `options.keepPrevious` keeps the replaced install at
+  // `<root>.bat-old`; `previous` reports what the install found.
+  ipcMain.handle('ssh:upload-bundle', async (event: IpcMainInvokeEvent, request: UploadIpcRequest): Promise<({ ok: true } & UploadResult) | { ok: false; error: string }> => {
     const { uploadId, options } = request
     try {
-      await uploadServerBundle(options, (bytesSent, totalBytes) => {
+      const result = await uploadServerBundle(options, (bytesSent, totalBytes) => {
         try {
           event.sender.send('ssh:upload-progress', { uploadId, bytesSent, totalBytes })
         } catch {
           // renderer may have torn down — swallow to avoid double-fail
         }
       })
-      return { ok: true }
+      return { ok: true, ...result }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       logger.warn(`[ssh-setup] upload-bundle failed (${uploadId}): ${message}`)

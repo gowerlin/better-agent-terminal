@@ -513,10 +513,16 @@ const electronAPI = {
       mirroredSupported: boolean | null
     }>,
     resolveHome: (distro: string) => ipcRenderer.invoke('wsl:resolve-home', distro) as Promise<string>,
-    installBundle: (distro: string, tarballPath: string, installPath: string) =>
-      ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
+    // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`
+    // (`previous: 'kept'`) for restoreBundle (cancel) / discardPreviousBundle (finished).
+    installBundle: (distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean }) =>
+      ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath, options) as Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string }>,
     uninstallBundle: (distro: string, installPath: string) =>
       ipcRenderer.invoke('wsl:uninstall-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
+    restoreBundle: (distro: string, installPath: string) =>
+      ipcRenderer.invoke('wsl:restore-bundle', distro, installPath) as Promise<{ ok: true; outcome: 'restored' | 'missing' } | { ok: false; error: string }>,
+    discardPreviousBundle: (distro: string, installPath: string) =>
+      ipcRenderer.invoke('wsl:discard-previous-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
     // T0304 / BUG-069: setup-wizard step delegates fingerprint fetch to main
     // process so renderer never needs Node builtins. T0381 / BUG-090: TLS
     // handshake with a 5s timeout; failures carry an errorCode.
@@ -591,8 +597,10 @@ const electronAPI = {
         sshKeyPath?: string
         installPath: string
         tarballPath: string
+        // T0554 / BUG-141: keep the replaced install at `<installPath>.bat-old`.
+        keepPrevious?: boolean
       }
-    }) => ipcRenderer.invoke('ssh:upload-bundle', request) as Promise<{ ok: true } | { ok: false; error: string }>,
+    }) => ipcRenderer.invoke('ssh:upload-bundle', request) as Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string }>,
     onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => {
       const handler = (_event: unknown, payload: { uploadId: string; bytesSent: number; totalBytes: number }) => callback(payload)
       ipcRenderer.on('ssh:upload-progress', handler)
@@ -610,6 +618,8 @@ const electronAPI = {
         installPath: string
         serverPort?: number
         serverHome: string
+        // T0554 / BUG-141: back up the unit / plist first and report `previous`.
+        backupPrevious?: boolean
       }
     }) => ipcRenderer.invoke('ssh:start-server', request) as Promise<{
       ok: boolean
@@ -618,6 +628,7 @@ const electronAPI = {
       checkOutput?: string
       error?: string
       errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
+      previous?: { unit: boolean; active: boolean; enabled: boolean }
     }>,
     onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => {
       const handler = (_event: unknown, payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => callback(payload)
@@ -625,9 +636,11 @@ const electronAPI = {
       return () => ipcRenderer.removeListener('ssh:start-progress', handler)
     },
     // T0426 / BUG-100 — rollback teardown (start-server / install-server-bundle).
-    uninstallBundle: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; installPath: string }) =>
-      ipcRenderer.invoke('ssh:uninstall-bundle', request) as Promise<{ ok: true } | { ok: false; error: string }>,
-    stopServer: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }) =>
+    // T0554 / BUG-141: `mode` restores / discards `<installPath>.bat-old`; `action`
+    // restores / discards the unit backup start-server made.
+    uninstallBundle: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; installPath: string; mode?: 'remove' | 'restore-previous' | 'discard-previous'; startService?: 'ssh-linux' | 'ssh-darwin' }) =>
+      ipcRenderer.invoke('ssh:uninstall-bundle', request) as Promise<{ ok: true; outcome?: 'restored' | 'missing' } | { ok: false; error: string }>,
+    stopServer: (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string; action?: 'stop' | 'restore-previous' | 'discard-backup'; restore?: { enabled: boolean; start: boolean } }) =>
       ipcRenderer.invoke('ssh:stop-server', request) as Promise<{ ok: true } | { ok: false; error: string }>,
     // T0387 / BUG-093 — SSH wizard verification against the remote host.
     openVerifyTunnel: (request: { sessionId: string; sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; remotePort: number }) =>
@@ -655,6 +668,13 @@ const electronAPI = {
       ipcRenderer.invoke('wsl-systemd:start-service', distro, serviceName, options) as Promise<{ ok: true; token: string | null } | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed'; token?: string | null }>,
     removeUnit: (distro: string, serviceName: string, options?: { path?: string }) =>
       ipcRenderer.invoke('wsl-systemd:remove-unit', distro, serviceName, options) as Promise<{ ok: true }>,
+    // T0554 / BUG-141: previous unit + service state, restored when an upgrade is cancelled.
+    snapshotUnit: (distro: string, serviceName: string, options: { path: string }) =>
+      ipcRenderer.invoke('wsl-systemd:snapshot-unit', distro, serviceName, options) as Promise<{ ok: true; content: string | null; active: boolean; enabled: boolean } | { ok: false; error: string }>,
+    restoreUnit: (distro: string, serviceName: string, options: { path: string; content: string; enabled: boolean; start: boolean }) =>
+      ipcRenderer.invoke('wsl-systemd:restore-unit', distro, serviceName, options) as Promise<{ ok: true } | { ok: false; error: string }>,
+    restartService: (distro: string, serviceName: string) =>
+      ipcRenderer.invoke('wsl-systemd:restart-service', distro, serviceName) as Promise<{ ok: true } | { ok: false; error: string }>,
   },
   remote: {
     startServer: (port?: number, token?: string, bindInterface?: 'localhost' | 'tailscale' | 'all') =>

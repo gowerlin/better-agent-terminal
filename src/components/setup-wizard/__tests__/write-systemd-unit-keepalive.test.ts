@@ -59,6 +59,7 @@ beforeEach(() => {
           return { ok: true, token: 't-1' }
         }),
         removeUnit: vi.fn(async () => ({ ok: true })),
+        snapshotUnit: vi.fn(async () => ({ ok: true, content: null, active: false, enabled: false })),
       },
     },
   }

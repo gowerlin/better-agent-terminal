@@ -1,5 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
-import { resolveWslHome } from './install-server-bundle'
+import { readWslBundleInstall, resolveWslHome, WSL_SERVICE_START_AFTER_RESTORE_KEY } from './install-server-bundle'
 
 const SERVICE_NAME = 'bat-server.service'
 // T0378 (BUG-087 B): relative to the distro user's absolute $HOME. systemd
@@ -77,6 +77,56 @@ async function holdDistro(ctx: WizardContext, distro: string): Promise<void> {
   }
 }
 
+/**
+ * T0554 (BUG-141): the unit and service state before this wizard run touched
+ * them (taken before the port pick, which may stop the old server). Kept across
+ * retries of this step; rollback restores it and drops it.
+ */
+export const WSL_UNIT_SNAPSHOT_KEY = 'wslUnitSnapshot'
+
+interface WslUnitSnapshot {
+  path: string
+  /** null: there was no unit file. */
+  content: string | null
+  active: boolean
+  enabled: boolean
+}
+
+function readUnitSnapshot(ctx: WizardContext): WslUnitSnapshot | null {
+  const snapshot = ctx.state[WSL_UNIT_SNAPSHOT_KEY] as WslUnitSnapshot | undefined
+  return snapshot && typeof snapshot.path === 'string' ? snapshot : null
+}
+
+async function takeUnitSnapshot(ctx: WizardContext, distro: string, unitPath: string): Promise<void> {
+  if (readUnitSnapshot(ctx)) return
+  const result = await window.electronAPI.wslSystemd.snapshotUnit(distro, SERVICE_NAME, { path: unitPath })
+  if (!result.ok) {
+    throw new Error(`Could not read the current BAT service in ${distro} before changing it: ${result.error}`)
+  }
+  ctx.state[WSL_UNIT_SNAPSHOT_KEY] = {
+    path: unitPath,
+    content: result.content,
+    active: result.active,
+    enabled: result.enabled,
+  } satisfies WslUnitSnapshot
+  if (result.content !== null) {
+    ctx.logger.info(`Existing ${SERVICE_NAME} in ${distro}: ${result.active ? 'running' : 'not running'}, ${result.enabled ? 'enabled' : 'disabled'}`)
+  }
+}
+
+/**
+ * T0554: start the previous server again, or leave that to install-server-bundle's
+ * rollback when the previous bundle still has to be put back first.
+ */
+async function startPreviousService(ctx: WizardContext, distro: string, bundleRestorePending: boolean): Promise<void> {
+  if (bundleRestorePending) {
+    ctx.state[WSL_SERVICE_START_AFTER_RESTORE_KEY] = true
+    return
+  }
+  const result = await window.electronAPI.wslSystemd.restartService(distro, SERVICE_NAME)
+  if (!result.ok) ctx.logger.warn(`Failed to start the previous ${SERVICE_NAME} again: ${result.error}`)
+}
+
 function profileName(ctxName: unknown): string {
   return typeof ctxName === 'string' && ctxName.trim() ? ctxName.trim() : 'WSL BAT Server'
 }
@@ -93,7 +143,9 @@ export const writeSystemdUnitStep: WizardStep = {
   async run(ctx) {
     // T0426 (BUG-099): rollback skips while this is false, so a failure before
     // the unit is written never disables a bat-server from an earlier setup.
-    ctx.state.wslUnitWriteStarted = false
+    // T0554: sticky across retries (an earlier attempt may have written the
+    // unit); rollback resets it.
+    if (ctx.state.wslUnitWriteStarted !== true) ctx.state.wslUnitWriteStarted = false
     if (!ctx.wslDistro) {
       throw new Error('Select a WSL distro before configuring the BAT service.')
     }
@@ -104,6 +156,7 @@ export const writeSystemdUnitStep: WizardStep = {
     const servicePaths = ctx.wslSystemdEnabled === false
       ? null
       : buildWslServicePaths(await resolveWslHome(ctx, ctx.wslDistro))
+    if (servicePaths) await takeUnitSnapshot(ctx, ctx.wslDistro, servicePaths.unitPath)
     const port = await resolveServerPort(ctx, servicePaths?.unitPath ?? null)
     ctx.serverPort = port
 
@@ -172,12 +225,39 @@ export const writeSystemdUnitStep: WizardStep = {
       ctx.remoteToken = startResult.token
     }
   },
+  // T0554 (BUG-141): an upgrade puts the previous unit back (content and enabled
+  // state) and leaves the service running when it was running before; a first
+  // setup removes the unit as before.
   async rollback(ctx) {
-    if (!ctx.wslDistro || ctx.state.wslUnitWriteStarted === false) {
+    if (!ctx.wslDistro) {
       return
     }
-    const unitPath = ctx.wslHome ? buildWslServicePaths(ctx.wslHome).unitPath : LEGACY_UNIT_PATH
-    await window.electronAPI.wslSystemd.removeUnit(ctx.wslDistro, SERVICE_NAME, { path: unitPath })
+    const snapshot = readUnitSnapshot(ctx)
+    delete ctx.state[WSL_UNIT_SNAPSHOT_KEY]
+    const bundleRestorePending = readWslBundleInstall(ctx)?.previous === 'kept'
+    if (ctx.state.wslUnitWriteStarted === false) {
+      // Nothing written, but the port pick may have stopped the previous server.
+      if (snapshot?.active) await startPreviousService(ctx, ctx.wslDistro, bundleRestorePending)
+      return
+    }
+    if (snapshot && snapshot.content !== null) {
+      const result = await window.electronAPI.wslSystemd.restoreUnit(ctx.wslDistro, SERVICE_NAME, {
+        path: snapshot.path,
+        content: snapshot.content,
+        enabled: snapshot.enabled,
+        start: snapshot.active && !bundleRestorePending,
+      })
+      if (result.ok) {
+        ctx.logger.info(`Restored the previous ${SERVICE_NAME} unit`)
+        if (snapshot.active && bundleRestorePending) ctx.state[WSL_SERVICE_START_AFTER_RESTORE_KEY] = true
+      } else {
+        ctx.logger.warn(`Failed to restore the previous ${SERVICE_NAME} unit: ${result.error}`)
+      }
+    } else {
+      const unitPath = ctx.wslHome ? buildWslServicePaths(ctx.wslHome).unitPath : LEGACY_UNIT_PATH
+      await window.electronAPI.wslSystemd.removeUnit(ctx.wslDistro, SERVICE_NAME, { path: unitPath })
+    }
+    ctx.state.wslUnitWriteStarted = false
     ctx.systemdServiceActive = false
     // T0384: drop the wizard pin; main keeps holding if a profile still uses the distro.
     try {

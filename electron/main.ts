@@ -3087,8 +3087,14 @@ function registerLocalHandlers() {
   ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))
   // T0378 (BUG-087 B): absolute $HOME so the systemd unit never contains `~`.
   ipcMain.handle('wsl:resolve-home', (_event, distro: string) => wslDetect.resolveHome(distro))
-  ipcMain.handle('wsl:install-bundle', (_event, distro: string, tarballPath: string, installPath: string) =>
-    wslDetect.installBundle(distro, tarballPath, installPath))
+  // T0554 (BUG-141): `keepPrevious` keeps the replaced install at `<root>.bat-old`
+  // until the wizard restores it (cancel) or discards it (finished).
+  ipcMain.handle('wsl:install-bundle', (_event, distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean }) =>
+    wslDetect.installBundle(distro, tarballPath, installPath, { keepPrevious: options?.keepPrevious === true }))
+  ipcMain.handle('wsl:restore-bundle', (_event, distro: string, installPath: string) =>
+    wslDetect.restoreBundle(distro, installPath))
+  ipcMain.handle('wsl:discard-previous-bundle', (_event, distro: string, installPath: string) =>
+    wslDetect.discardPreviousBundle(distro, installPath))
   ipcMain.handle('wsl:uninstall-bundle', async (_event, distro: string, installPath: string) => {
     try {
       await wslDetect.uninstallBundle(distro, installPath)
@@ -3187,6 +3193,19 @@ function registerLocalHandlers() {
   })
   ipcMain.handle('wsl-systemd:remove-unit', (_event, distro: string, serviceName: string, options?: { path?: string }) =>
     wslSystemd.removeUnit(distro, serviceName, options))
+  // T0554 (BUG-141): an upgrade cancelled after write-systemd-unit restores the
+  // previous unit and service state (snapshot taken before the step changed anything).
+  ipcMain.handle('wsl-systemd:snapshot-unit', (_event, distro: string, serviceName: string, options: { path: string }) =>
+    wslSystemd.snapshotServiceUnit(distro, serviceName, { path: options?.path }))
+  ipcMain.handle('wsl-systemd:restore-unit', (_event, distro: string, serviceName: string, options: { path: string; content: string; enabled: boolean; start: boolean }) =>
+    wslSystemd.restoreServiceUnit(distro, serviceName, {
+      path: options?.path,
+      content: options?.content,
+      enabled: options?.enabled,
+      start: options?.start,
+    }))
+  ipcMain.handle('wsl-systemd:restart-service', (_event, distro: string, serviceName: string) =>
+    wslSystemd.restartService(distro, serviceName))
 
   // Get the profile ID this instance was launched with (--profile= argument)
   ipcMain.handle('app:get-launch-profile', () => launchProfileId)

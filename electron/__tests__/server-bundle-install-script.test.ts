@@ -3,6 +3,7 @@
  * `installBundle` and the SSH upload share the script). The path rules are
  * unit-tested; the script itself runs under a real POSIX `sh` + `tar` (Git Bash
  * on Windows, skipped when neither is on PATH) against a temp directory.
+ * T0554 (BUG-141): keep-previous, restore, cleanup and interrupted runs.
  */
 import { execFileSync, spawnSync } from 'child_process'
 import * as fs from 'fs'
@@ -13,8 +14,14 @@ import {
   BUNDLE_OLD_SUFFIX,
   BUNDLE_STAGE_SUFFIX,
   assertBundleInstallRoot,
+  buildSshBundleDiscardPreviousCommand,
   buildSshBundleInstallCommand,
+  buildSshBundleRestoreCommand,
+  buildWslBundleDiscardPreviousScript,
   buildWslBundleInstallScript,
+  buildWslBundleRestoreScript,
+  parseBundleInstallPrevious,
+  parseBundleRestoreOutcome,
 } from '../server-bundle-install-script'
 
 describe('assertBundleInstallRoot (T0552)', () => {
@@ -44,6 +51,36 @@ describe('install script text (T0552)', () => {
     expect([...targets].sort()).toEqual(['"$old"', '"$stage"'])
     expect(script).toContain(`stage="$dst${BUNDLE_STAGE_SUFFIX}"`)
     expect(script).toContain(`old="$dst${BUNDLE_OLD_SUFFIX}"`)
+  })
+
+  // T0554: restore / cleanup share the whitelist (the current root is moved to
+  // $stage before it is deleted, never removed by name) and the root checks.
+  it.each([
+    ['restore', buildWslBundleRestoreScript()],
+    ['discard', buildWslBundleDiscardPreviousScript()],
+    ['ssh install (keep)', buildSshBundleInstallCommand('/home/bat/.local/bat-server', { keepPrevious: true })],
+    ['ssh restore', buildSshBundleRestoreCommand('/home/bat/.local/bat-server')],
+    ['ssh discard', buildSshBundleDiscardPreviousCommand('/home/bat/.local/bat-server')],
+  ])('T0554 %s only ever deletes the whitelisted siblings and refuses $HOME', (_name, script) => {
+    const removals = script.split('\n').flatMap((line) => line.match(/rm -rf -- [^;|&]+/g) ?? [])
+    expect(removals.length).toBeGreaterThan(0)
+    const targets = new Set(removals.flatMap((rm) => rm.replace('rm -rf -- ', '').trim().split(/\s+/)))
+    expect([...targets].every((target) => target === '"$old"' || target === '"$stage"')).toBe(true)
+    expect(script).toContain(`stage="$dst${BUNDLE_STAGE_SUFFIX}"`)
+    expect(script).toContain(`old="$dst${BUNDLE_OLD_SUFFIX}"`)
+    expect(script).toContain('refusing to replace the home directory')
+    expect(script).toContain('case "$dst" in /?*/?*)')
+  })
+
+  it('T0554: markers parse; anything else is null', () => {
+    expect(parseBundleInstallPrevious('server bundle install: replaced /x\nBAT_BUNDLE_PREVIOUS=kept\n')).toBe('kept')
+    expect(parseBundleInstallPrevious('BAT_BUNDLE_PREVIOUS=none\r\n')).toBe('none')
+    expect(parseBundleInstallPrevious('BAT_BUNDLE_PREVIOUS=unmanaged')).toBe('unmanaged')
+    expect(parseBundleInstallPrevious('BAT_BUNDLE_PREVIOUS=rm -rf')).toBeNull()
+    expect(parseBundleInstallPrevious('')).toBeNull()
+    expect(parseBundleRestoreOutcome('BAT_BUNDLE_RESTORE=restored\n')).toBe('restored')
+    expect(parseBundleRestoreOutcome('BAT_BUNDLE_RESTORE=missing')).toBe('missing')
+    expect(parseBundleRestoreOutcome('restored')).toBeNull()
   })
 
   it('WSL reads root / tarball from argv, SSH quotes the root and reads stdin', () => {
@@ -94,8 +131,8 @@ describe.skipIf(!shellAvailable)('install script under a real sh (T0552 / BUG-13
     return tarball
   }
 
-  function runWsl(tarball: string, installRoot = root, env: NodeJS.ProcessEnv = {}) {
-    return spawnSync('sh', ['-c', buildWslBundleInstallScript(), 'sh', shPath(installRoot), shPath(tarball)], {
+  function runWsl(tarball: string, installRoot = root, env: NodeJS.ProcessEnv = {}, keep = false) {
+    return spawnSync('sh', ['-c', buildWslBundleInstallScript(), 'sh', shPath(installRoot), shPath(tarball), ...(keep ? ['keep'] : [])], {
       encoding: 'utf8',
       windowsHide: true,
       env: { ...process.env, ...env },
@@ -195,6 +232,168 @@ describe.skipIf(!shellAvailable)('install script under a real sh (T0552 / BUG-13
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('refusing to replace the home directory')
     expect(fs.readFileSync(path.join(root, 'bin', 'bat-server'), 'utf8')).toBe('old')
+  })
+
+  // ── T0554 (BUG-141): keep-previous, restore, cleanup, interrupted runs ──
+
+  function runScript(script: string, ...args: string[]) {
+    return spawnSync('sh', ['-c', script, 'sh', ...args], { encoding: 'utf8', windowsHide: true })
+  }
+
+  function installOld(): void {
+    write(path.join(root, 'bin', 'bat-server'), 'old', 0o755)
+    write(path.join(root, 'node_modules', 'better-sqlite3', 'index.js'), 'old dep')
+  }
+
+  it('T0554 keep: the previous install stays at .bat-old, marker kept', () => {
+    installOld()
+    const result = runWsl(makeBundle('keep', { 'package.json': '{}' }), root, {}, true)
+    expect(result.status, result.stderr).toBe(0)
+    expect(parseBundleInstallPrevious(result.stdout)).toBe('kept')
+    expect(listTree(root)).toEqual(['bin/bat-server', 'package.json'])
+    expect(listTree(root + BUNDLE_OLD_SUFFIX)).toEqual(['bin/bat-server', 'node_modules/better-sqlite3/index.js'])
+    expect(fs.existsSync(root + BUNDLE_STAGE_SUFFIX)).toBe(false)
+  })
+
+  it('T0554 without keep: marker none and no .bat-old (pre-T0554 behaviour)', () => {
+    installOld()
+    const result = runWsl(makeBundle('nokeep', {}))
+    expect(result.status, result.stderr).toBe(0)
+    expect(parseBundleInstallPrevious(result.stdout)).toBe('none')
+    expect(fs.existsSync(root + BUNDLE_OLD_SUFFIX)).toBe(false)
+  })
+
+  it('T0554 first install with keep: marker none, nothing kept', () => {
+    const result = runWsl(makeBundle('first', {}), root, {}, true)
+    expect(result.status, result.stderr).toBe(0)
+    expect(parseBundleInstallPrevious(result.stdout)).toBe('none')
+    expect(fs.existsSync(root + BUNDLE_OLD_SUFFIX)).toBe(false)
+  })
+
+  it('T0554 a non-BAT root is extracted over: marker unmanaged', () => {
+    write(path.join(root, 'notes.txt'), 'mine')
+    const result = runWsl(makeBundle('overlay2', {}), root, {}, true)
+    expect(result.status, result.stderr).toBe(0)
+    expect(parseBundleInstallPrevious(result.stdout)).toBe('unmanaged')
+    expect(fs.existsSync(root + BUNDLE_OLD_SUFFIX)).toBe(false)
+  })
+
+  it('T0554 restore: the previous install is back, the new one gone, data dir untouched', () => {
+    installOld()
+    expect(runWsl(makeBundle('upgrade', { 'package.json': '{}' }), root, {}, true).status).toBe(0)
+    const result = runScript(buildWslBundleRestoreScript(), shPath(root))
+    expect(result.status, result.stderr).toBe(0)
+    expect(parseBundleRestoreOutcome(result.stdout)).toBe('restored')
+    expect(listTree(root)).toEqual(['bin/bat-server', 'node_modules/better-sqlite3/index.js'])
+    expect(fs.readFileSync(path.join(root, 'bin', 'bat-server'), 'utf8')).toBe('old')
+    expect(fs.existsSync(root + BUNDLE_OLD_SUFFIX)).toBe(false)
+    expect(fs.existsSync(root + BUNDLE_STAGE_SUFFIX)).toBe(false)
+    expect(listTree(dataDir)).toEqual(['server-cert.json', 'server-token.json'])
+    expect(fs.existsSync(path.join(parent, 'bat-server.bak-0.5.9-pre.4-t0550', 'bin', 'bat-server'))).toBe(true)
+  })
+
+  it('T0554 restore with nothing kept: missing, root unchanged', () => {
+    installOld()
+    const result = runScript(buildWslBundleRestoreScript(), shPath(root))
+    expect(result.status, result.stderr).toBe(0)
+    expect(parseBundleRestoreOutcome(result.stdout)).toBe('missing')
+    expect(fs.readFileSync(path.join(root, 'bin', 'bat-server'), 'utf8')).toBe('old')
+  })
+
+  it('T0554 restore refuses to replace a root that is not a BAT install', () => {
+    write(path.join(root + BUNDLE_OLD_SUFFIX, 'bin', 'bat-server'), 'old', 0o755)
+    write(path.join(root, 'notes.txt'), 'mine')
+    const result = runScript(buildWslBundleRestoreScript(), shPath(root))
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('not a BAT server bundle install')
+    expect(listTree(root)).toEqual(['notes.txt'])
+    expect(listTree(root + BUNDLE_OLD_SUFFIX)).toEqual(['bin/bat-server'])
+  })
+
+  it('T0554 discard: removes .bat-old after a finished upgrade', () => {
+    installOld()
+    expect(runWsl(makeBundle('done', {}), root, {}, true).status).toBe(0)
+    const result = runScript(buildWslBundleDiscardPreviousScript(), shPath(root))
+    expect(result.status, result.stderr).toBe(0)
+    expect(fs.existsSync(root + BUNDLE_OLD_SUFFIX)).toBe(false)
+    expect(listTree(root)).toEqual(['bin/bat-server'])
+  })
+
+  it('T0554 discard and install refuse a .bat-old that holds something else (never deleted)', () => {
+    installOld()
+    write(path.join(root + BUNDLE_OLD_SUFFIX, 'mine.txt'), 'user data')
+    const discard = runScript(buildWslBundleDiscardPreviousScript(), shPath(root))
+    expect(discard.status).toBe(1)
+    expect(discard.stderr).toContain('not a BAT server bundle install')
+    const install = runWsl(makeBundle('blocked', {}), root, {}, true)
+    expect(install.status).toBe(1)
+    expect(listTree(root + BUNDLE_OLD_SUFFIX)).toEqual(['mine.txt'])
+    expect(fs.readFileSync(path.join(root, 'bin', 'bat-server'), 'utf8')).toBe('old')
+  })
+
+  it('T0554 BAT closed after a kept upgrade: the next install replaces the leftover .bat-old with the current root', () => {
+    write(path.join(root + BUNDLE_OLD_SUFFIX, 'bin', 'bat-server'), 'older', 0o755)
+    write(path.join(root, 'bin', 'bat-server'), 'current', 0o755)
+    const result = runWsl(makeBundle('again', {}), root, {}, true)
+    expect(result.status, result.stderr).toBe(0)
+    expect(parseBundleInstallPrevious(result.stdout)).toBe('kept')
+    expect(fs.readFileSync(path.join(root + BUNDLE_OLD_SUFFIX, 'bin', 'bat-server'), 'utf8')).toBe('current')
+    expect(fs.readFileSync(path.join(root, 'bin', 'bat-server'), 'utf8')).toContain('echo new')
+  })
+
+  it('T0554 BAT closed between the two renames (no root, install only in .bat-old): recovered, never deleted', () => {
+    write(path.join(root + BUNDLE_OLD_SUFFIX, 'bin', 'bat-server'), 'old', 0o755)
+    write(path.join(root + BUNDLE_STAGE_SUFFIX, 'partial'), 'x')
+    const result = runWsl(makeBundle('recover', {}), root, {}, true)
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('recovered')
+    expect(parseBundleInstallPrevious(result.stdout)).toBe('kept')
+    expect(fs.readFileSync(path.join(root + BUNDLE_OLD_SUFFIX, 'bin', 'bat-server'), 'utf8')).toBe('old')
+    expect(listTree(root)).toEqual(['bin/bat-server'])
+    expect(fs.existsSync(root + BUNDLE_STAGE_SUFFIX)).toBe(false)
+  })
+
+  it('T0554 restore refuses $HOME as the root', () => {
+    write(path.join(root + BUNDLE_OLD_SUFFIX, 'bin', 'bat-server'), 'old', 0o755)
+    write(path.join(root, 'bin', 'bat-server'), 'new', 0o755)
+    const result = spawnSync('sh', ['-c', buildWslBundleRestoreScript(), 'sh', shPath(root)], {
+      encoding: 'utf8',
+      windowsHide: true,
+      env: { ...process.env, HOME: shPath(root) },
+    })
+    expect(result.status).toBe(2)
+    expect(fs.readFileSync(path.join(root, 'bin', 'bat-server'), 'utf8')).toBe('new')
+  })
+
+  it('T0554 SSH: keep on a stdin install; restore runs the after-restore command only when it restored', () => {
+    installOld()
+    const tarball = makeBundle('ssh-keep', {})
+    const install = spawnSync('sh', ['-c', buildSshBundleInstallCommand(shPath(root), { keepPrevious: true })], {
+      input: fs.readFileSync(tarball),
+      encoding: 'utf8',
+      windowsHide: true,
+    })
+    expect(install.status, install.stderr).toBe(0)
+    expect(parseBundleInstallPrevious(install.stdout)).toBe('kept')
+
+    const restore = runScript(buildSshBundleRestoreCommand(shPath(root), 'echo AFTER_RESTORE'))
+    expect(restore.status, restore.stderr).toBe(0)
+    expect(parseBundleRestoreOutcome(restore.stdout)).toBe('restored')
+    expect(restore.stdout).toContain('AFTER_RESTORE')
+    expect(fs.readFileSync(path.join(root, 'bin', 'bat-server'), 'utf8')).toBe('old')
+
+    const again = runScript(buildSshBundleRestoreCommand(shPath(root), 'echo AFTER_RESTORE'))
+    expect(again.status).toBe(0)
+    expect(parseBundleRestoreOutcome(again.stdout)).toBe('missing')
+    expect(again.stdout).not.toContain('AFTER_RESTORE')
+  })
+
+  it('T0554 SSH discard removes .bat-old', () => {
+    installOld()
+    expect(runWsl(makeBundle('ssh-discard', {}), root, {}, true).status).toBe(0)
+    const result = runScript(buildSshBundleDiscardPreviousCommand(shPath(root)))
+    expect(result.status, result.stderr).toBe(0)
+    expect(fs.existsSync(root + BUNDLE_OLD_SUFFIX)).toBe(false)
   })
 
   it('SSH variant: same clean install with the tarball on stdin', () => {

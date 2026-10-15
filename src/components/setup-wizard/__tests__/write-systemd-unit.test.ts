@@ -58,6 +58,7 @@ beforeEach(() => {
         enableLinger: enableLingerMock,
         startService: startServiceMock,
         removeUnit: removeUnitMock,
+        snapshotUnit: vi.fn(async () => ({ ok: true, content: null, active: false, enabled: false })),
       },
     },
   }

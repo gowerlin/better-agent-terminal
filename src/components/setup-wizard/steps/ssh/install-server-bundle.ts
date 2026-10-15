@@ -20,11 +20,24 @@ interface InstallSshBundleState {
   uploadSpeedBytesPerSec?: number
   uploadEtaSeconds?: number
   /**
-   * T0426 (BUG-099): false until the upload starts. Rollback skips on false so
-   * a failure before the upload (e.g. bundle download) never deletes a bundle
-   * left by an earlier setup.
+   * T0426 (BUG-099) / T0554 (BUG-141): what this run's upload did, set only
+   * once it succeeded. Rollback acts on nothing else, so a failure before the
+   * upload (e.g. bundle download) never deletes a bundle left by an earlier
+   * setup, and a failed upload leaves the root as the install script left it
+   * (it extracts beside the root and swaps only after a good extract).
+   * `previous`: `kept` = the earlier install is at `<root>.bat-old` (rollback
+   * puts it back, finalize removes it); `none` = first install (rollback
+   * removes the root); `unmanaged` = extracted over a non-BAT directory
+   * (nothing is deleted).
    */
-  sshBundleUploadStarted?: boolean
+  sshBundleInstall?: SshBundleInstallRecord
+  /** T0554: set by start-server's rollback; start the service once the bundle is back. */
+  sshServiceStartAfterBundleRestore?: boolean
+}
+
+export interface SshBundleInstallRecord {
+  root: string
+  previous: 'kept' | 'none' | 'unmanaged'
 }
 
 function describeSource(source: 'cache' | 'baseline' | 'download'): string {
@@ -69,7 +82,6 @@ export const installSshServerBundleStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx) {
     const state = ctx.state as InstallSshBundleState
-    state.sshBundleUploadStarted = false
     // T0505: the user may be empty (ssh config decides it).
     if (!state.sshHost) {
       throw new Error('SSH host must be set before installing the server bundle.')
@@ -147,7 +159,6 @@ export const installSshServerBundleStep: WizardStep = {
       state.uploadEtaSeconds = Number.isFinite(eta) ? eta : undefined
     })
 
-    state.sshBundleUploadStarted = true
     try {
       const result = await window.electronAPI.ssh.uploadBundle({
         uploadId,
@@ -158,43 +169,94 @@ export const installSshServerBundleStep: WizardStep = {
           sshKeyPath: state.sshKeyPath,
           installPath,
           tarballPath,
+          keepPrevious: true,
         },
       })
       if (!result.ok) throw new Error(result.error)
+      state.sshBundleInstall = { root: installPath, previous: result.previous ?? 'none' }
     } finally {
       unsubscribeUpload()
     }
 
     ctx.serverInstallPath = installPath
     ctx.logger.info(`✓ Server bundle installed at ${installPath}`)
+    if (state.sshBundleInstall.previous === 'kept') {
+      ctx.logger.info(`The previous server bundle is kept until setup finishes (${installPath}.bat-old)`)
+    } else if (state.sshBundleInstall.previous === 'unmanaged') {
+      ctx.logger.warn(`${installPath} was not a BAT server bundle install; extracted over it (cancel cannot undo this)`)
+    }
   },
   // PLAN-007 T0289 — RFC C-3 best-effort rollback. Removes the install
   // directory the upload created (`ssh user@host "rm -rf <installPath>"`).
   // Failures are surfaced via warn log only; never throw.
-  // T0426: also runs for a failed install when the wizard is cancelled
-  // (`ssh:uninstall-bundle` is idempotent); skipped if the upload never started.
+  // T0426: also runs when the wizard is cancelled. T0554 (BUG-141): only for
+  // an upload that succeeded; an upgrade puts the previous bundle back (and
+  // starts the service again when start-server's rollback asked for it)
+  // instead of deleting the root.
   async rollback(ctx) {
     const state = ctx.state as InstallSshBundleState
-    if (state.sshBundleUploadStarted === false) {
+    const record = state.sshBundleInstall
+    const startAfterRestore = state.sshServiceStartAfterBundleRestore === true
+    delete state.sshServiceStartAfterBundleRestore
+    if (!record || !state.sshHost) {
       return
     }
-    if (!state.sshHost || !state.sshInstallPath) {
-      return
+    const connection = {
+      sshHost: state.sshHost,
+      sshUser: state.sshUser ?? '',
+      sshPort: state.sshPort,
+      sshKeyPath: state.sshKeyPath,
     }
+    if (record.previous === 'unmanaged') {
+      ctx.logger.warn(`Leaving ${record.root} in place: it was not a BAT server bundle install before this setup`)
+    } else if (record.previous === 'kept') {
+      const target = ctx.targetOS === 'ssh-linux' || ctx.targetOS === 'ssh-darwin' ? ctx.targetOS : undefined
+      const result = await window.electronAPI.ssh.uninstallBundle({
+        ...connection,
+        installPath: record.root,
+        mode: 'restore-previous',
+        ...(startAfterRestore && target ? { startService: target } : {}),
+      })
+      if (!result.ok) {
+        ctx.logger.warn(`Failed to restore the previous BAT server bundle over SSH: ${result.error}`)
+        return
+      }
+      if (result.outcome === 'missing') {
+        ctx.logger.warn(`No previous BAT server bundle at ${record.root}.bat-old to restore; leaving ${record.root} as it is`)
+      } else {
+        ctx.logger.info(`Restored the previous BAT server bundle at ${record.root}${startAfterRestore ? ' and started it again' : ''}`)
+      }
+    } else {
+      const result = await window.electronAPI.ssh.uninstallBundle({
+        ...connection,
+        // T0379: remove what the upload actually created (absolute path).
+        installPath: record.root,
+      })
+      if (!result.ok) {
+        ctx.logger.warn(`Failed to remove BAT server bundle over SSH: ${result.error}`)
+        return
+      }
+    }
+    delete state.sshBundleInstall
+    ctx.serverInstallPath = undefined
+    state.sshResolvedInstallPath = undefined
+  },
+  // T0554: setup finished; the previous bundle is no longer needed.
+  async finalize(ctx) {
+    const state = ctx.state as InstallSshBundleState
+    const record = state.sshBundleInstall
+    if (!record || record.previous !== 'kept' || !state.sshHost) return
     const result = await window.electronAPI.ssh.uninstallBundle({
       sshHost: state.sshHost,
       sshUser: state.sshUser ?? '',
       sshPort: state.sshPort,
       sshKeyPath: state.sshKeyPath,
-      // T0379: remove what the upload actually created (absolute path).
-      installPath: state.sshResolvedInstallPath ?? state.sshInstallPath,
+      installPath: record.root,
+      mode: 'discard-previous',
     })
-    if (!result.ok) {
-      ctx.logger.warn(`Failed to remove BAT server bundle over SSH: ${result.error}`)
-      return
-    }
-    ctx.serverInstallPath = undefined
-    state.sshResolvedInstallPath = undefined
+    if (!result.ok) throw new Error(`Failed to remove the previous BAT server bundle (${record.root}.bat-old): ${result.error}`)
+    ctx.logger.info(`Removed the previous BAT server bundle (${record.root}.bat-old)`)
+    delete state.sshBundleInstall
   },
 }
 

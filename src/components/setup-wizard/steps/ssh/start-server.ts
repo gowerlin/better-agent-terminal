@@ -20,6 +20,15 @@ interface StartServerState {
    * before any remote change never tears down a service from an earlier setup.
    */
   sshStartServerTouchedRemote?: boolean
+  /**
+   * T0554 (BUG-141): the service before this run touched it (`unit` = the unit
+   * / plist was backed up to `<file>.bat-prev`). Taken by the first attempt;
+   * rollback restores it, finalize deletes the backup.
+   */
+  sshServicePrevious?: { unit: boolean; active: boolean; enabled: boolean }
+  /** T0554: read from install-server-bundle's state (`kept` = bundle restore pending). */
+  sshBundleInstall?: { previous: 'kept' | 'none' | 'unmanaged' }
+  sshServiceStartAfterBundleRestore?: boolean
 }
 
 function makeStartId(): string {
@@ -123,7 +132,8 @@ export const startServerStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx: WizardContext) {
     const state = ctx.state as StartServerState
-    state.sshStartServerTouchedRemote = false
+    // T0554: sticky across retries (an earlier attempt may have written the unit).
+    if (state.sshStartServerTouchedRemote !== true) state.sshStartServerTouchedRemote = false
     // T0505: the user may be empty (ssh config decides it).
     if (!state.sshHost) {
       throw new Error('SSH host must be configured before starting the server.')
@@ -166,8 +176,13 @@ export const startServerStep: WizardStep = {
           installPath,
           serverPort: port,
           serverHome: state.sshServerHome,
+          // T0554: back up the unit / plist once per run (a retry keeps the first backup).
+          backupPrevious: state.sshServicePrevious === undefined,
         },
       })
+      if (result.previous && state.sshServicePrevious === undefined) {
+        state.sshServicePrevious = result.previous
+      }
 
       if (!result.ok) {
         const hint = startServerErrorHint(result.errorCode, result.error, ctx.targetOS)
@@ -194,6 +209,9 @@ export const startServerStep: WizardStep = {
   // `launchctl unload` + remove plist (darwin). Failures warn-log only.
   // T0426: also runs for a failed start-server when the wizard is cancelled
   // (`ssh:stop-server` is idempotent); skipped if run() never reached the remote.
+  // T0554 (BUG-141): an upgrade puts the previous unit / plist back instead and
+  // leaves the service running when it was running before (started by
+  // install-server-bundle's rollback when the previous bundle is restored too).
   async rollback(ctx) {
     const state = ctx.state as StartServerState
     if (state.sshStartServerTouchedRemote === false) {
@@ -205,6 +223,45 @@ export const startServerStep: WizardStep = {
     if (ctx.targetOS !== 'ssh-linux' && ctx.targetOS !== 'ssh-darwin') {
       return
     }
+    const previous = state.sshServicePrevious
+    const connection = {
+      sshHost: state.sshHost,
+      sshUser: state.sshUser ?? '',
+      sshPort: state.sshPort,
+      sshKeyPath: state.sshKeyPath,
+      targetOS: ctx.targetOS,
+      serverHome: state.sshServerHome,
+    }
+    if (previous?.unit) {
+      const bundleRestorePending = state.sshBundleInstall?.previous === 'kept'
+      const result = await window.electronAPI.ssh.stopServer({
+        ...connection,
+        action: 'restore-previous',
+        restore: { enabled: previous.enabled, start: previous.active && !bundleRestorePending },
+      })
+      if (!result.ok) {
+        ctx.logger.warn(`Failed to restore the previous bat-server service over SSH (${ctx.targetOS}): ${result.error}`)
+        return
+      }
+      if (previous.active && bundleRestorePending) state.sshServiceStartAfterBundleRestore = true
+      ctx.logger.info(`Restored the previous bat-server service (${ctx.targetOS})`)
+    } else {
+      const result = await window.electronAPI.ssh.stopServer(connection)
+      if (!result.ok) {
+        ctx.logger.warn(`Failed to stop bat-server over SSH (${ctx.targetOS}): ${result.error}`)
+        return
+      }
+    }
+    delete state.sshServicePrevious
+    state.sshStartServerTouchedRemote = false
+    ctx.systemdServiceActive = false
+    state.sshStartServicePath = undefined
+  },
+  // T0554: setup finished; drop the `<file>.bat-prev` backup.
+  async finalize(ctx) {
+    const state = ctx.state as StartServerState
+    if (!state.sshServicePrevious?.unit || !state.sshHost || !state.sshServerHome) return
+    if (ctx.targetOS !== 'ssh-linux' && ctx.targetOS !== 'ssh-darwin') return
     const result = await window.electronAPI.ssh.stopServer({
       sshHost: state.sshHost,
       sshUser: state.sshUser ?? '',
@@ -212,13 +269,10 @@ export const startServerStep: WizardStep = {
       sshKeyPath: state.sshKeyPath,
       targetOS: ctx.targetOS,
       serverHome: state.sshServerHome,
+      action: 'discard-backup',
     })
-    if (!result.ok) {
-      ctx.logger.warn(`Failed to stop bat-server over SSH (${ctx.targetOS}): ${result.error}`)
-      return
-    }
-    ctx.systemdServiceActive = false
-    state.sshStartServicePath = undefined
+    if (!result.ok) throw new Error(`Failed to remove the bat-server unit backup over SSH: ${result.error}`)
+    delete state.sshServicePrevious
   },
 }
 

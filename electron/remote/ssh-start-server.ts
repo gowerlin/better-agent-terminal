@@ -2,6 +2,13 @@ import type { ChildProcess, StdioOptions } from 'child_process'
 import { logger } from '../logger'
 import { buildBaseSshArgs, buildBaseSshSpawnEnv, escapeSingleQuotesStrict } from './ssh-args'
 import { shutdownSshProcess } from './ssh-process-lifecycle'
+import {
+  assertBundleInstallRoot,
+  buildSshBundleDiscardPreviousCommand,
+  buildSshBundleRestoreCommand,
+  parseBundleRestoreOutcome,
+  type BundleRestoreOutcome,
+} from '../server-bundle-install-script'
 
 export interface StartServerOptions {
   sshHost: string
@@ -30,6 +37,21 @@ export interface StartServerOptions {
    * arguments below. Must start with `/` and pass `resolveServerHome()`.
    */
   serverHome: string
+  /**
+   * T0554 (BUG-141): before overwriting, copy the existing unit / plist to
+   * `<file>.bat-prev` and report the service state (`previous`), so a cancelled
+   * upgrade can put both back (`stopServerOnRemote` `restore-previous`). The
+   * wizard asks for it once per run; a retry keeps the first backup.
+   */
+  backupPrevious?: boolean
+}
+
+/** T0554: the service before this run touched it. */
+export interface ServicePrevious {
+  /** A unit / plist existed and was copied to `<file>.bat-prev`. */
+  unit: boolean
+  active: boolean
+  enabled: boolean
 }
 
 export type StartServerErrorCode =
@@ -48,6 +70,8 @@ export interface StartServerResult {
   checkOutput?: string
   error?: string
   errorCode?: StartServerErrorCode
+  /** T0554: set once the backup ran (`backupPrevious`), on failures too. */
+  previous?: ServicePrevious
 }
 
 export type StartServerProgress = (phase: StartServerPhase) => void
@@ -73,6 +97,8 @@ const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_SERVER_PORT = 51820
 const SERVICE_NAME = 'bat-server'
 const LAUNCHD_LABEL = 'com.bat-server'
+/** T0554: backup of the unit / plist the wizard overwrote (systemd / launchd ignore the suffix). */
+const UNIT_BACKUP_SUFFIX = '.bat-prev'
 
 /**
  * Bash single-quote escape: `'` becomes `'\''`. Test-facing wrapper around
@@ -275,6 +301,42 @@ function buildWriteUnitCommand(dir: string, file: string, content: string): stri
   ].join('\n')
 }
 
+/**
+ * T0554 (BUG-141): copy the unit / plist about to be overwritten to
+ * `<file>.bat-prev` (a missing file removes a stale backup) and print the
+ * service state. Built from constants plus the validated `$HOME`.
+ */
+function buildBackupCommand(targetOS: StartServerOptions['targetOS'], file: string): string {
+  const lines = [
+    `unit='${escapeSingleQuotes(file)}'`,
+    `prev="$unit${UNIT_BACKUP_SUFFIX}"`,
+    'if [ -f "$unit" ]; then cp -p -- "$unit" "$prev" || exit 1; echo BAT_PREV_UNIT=1; else rm -f -- "$prev" || exit 1; echo BAT_PREV_UNIT=0; fi',
+  ]
+  if (targetOS === 'ssh-linux') {
+    lines.push(
+      `if systemctl --user is-active --quiet ${SERVICE_NAME} 2>/dev/null; then echo BAT_PREV_ACTIVE=1; else echo BAT_PREV_ACTIVE=0; fi`,
+      `if systemctl --user is-enabled --quiet ${SERVICE_NAME} 2>/dev/null; then echo BAT_PREV_ENABLED=1; else echo BAT_PREV_ENABLED=0; fi`,
+    )
+  } else {
+    lines.push(`if launchctl list ${LAUNCHD_LABEL} >/dev/null 2>&1; then echo BAT_PREV_ACTIVE=1; echo BAT_PREV_ENABLED=1; else echo BAT_PREV_ACTIVE=0; echo BAT_PREV_ENABLED=0; fi`)
+  }
+  return lines.join('\n')
+}
+
+/** T0554: backup stdout -> previous state; null when a marker is missing. */
+function parseBackupOutput(stdout: string): ServicePrevious | null {
+  const values = new Map<string, string>()
+  for (const line of stdout.split(/\r?\n/)) {
+    const match = /^(BAT_PREV_(?:UNIT|ACTIVE|ENABLED))=([01])$/.exec(line.trim())
+    if (match) values.set(match[1], match[2])
+  }
+  const unit = values.get('BAT_PREV_UNIT')
+  const active = values.get('BAT_PREV_ACTIVE')
+  const enabled = values.get('BAT_PREV_ENABLED')
+  if (unit === undefined || active === undefined || enabled === undefined) return null
+  return { unit: unit === '1', active: active === '1', enabled: enabled === '1' }
+}
+
 /** Verify polls once a second (bat-server may still be generating its TLS cert). */
 const VERIFY_ATTEMPTS = 20
 
@@ -442,14 +504,30 @@ export async function startServerOnRemote(
   const content = isLinux ? renderSystemdUnit(opts) : renderLaunchdPlist(opts)
   const escapedFile = escapeSingleQuotes(paths.file)
 
-  // ── Stage 1: write unit/plist ───────────────────────────────────────────
+  // ── Stage 0 (T0554): back up the unit / plist this run overwrites ───────
   onProgress('writing-unit')
+  let previous: ServicePrevious | undefined
+  if (opts.backupPrevious === true) {
+    const backupExec = await runSsh(spawn, connectArgs, buildBackupCommand(opts.targetOS, paths.file), timeoutMs)
+    const parsed = backupExec.ok ? parseBackupOutput(backupExec.stdout) : null
+    if (!parsed) {
+      const err = backupExec.ok
+        ? 'unit-write-failed: could not read the current service state before changing it'
+        : summariseFailure('unit-write-failed: backing up the current service', backupExec)
+      logger.warn(`[ssh-start-server] ${err}`)
+      return { ok: false, method: 'failed', servicePath: paths.file, error: err, errorCode: 'unit-write-failed' }
+    }
+    previous = parsed
+  }
+  const withPrevious = (result: StartServerResult): StartServerResult => (previous ? { ...result, previous } : result)
+
+  // ── Stage 1: write unit/plist ───────────────────────────────────────────
   const writeCmd = buildWriteUnitCommand(paths.dir, paths.file, content)
   const writeExec = await runSsh(spawn, connectArgs, writeCmd, timeoutMs)
   if (!writeExec.ok) {
     const err = summariseFailure('unit-write-failed', writeExec)
     logger.warn(`[ssh-start-server] ${err}`)
-    return { ok: false, method: 'failed', servicePath: paths.file, error: err, errorCode: 'unit-write-failed' }
+    return withPrevious({ ok: false, method: 'failed', servicePath: paths.file, error: err, errorCode: 'unit-write-failed' })
   }
 
   // ── Stage 2: enable + start ─────────────────────────────────────────────
@@ -477,13 +555,13 @@ export async function startServerOnRemote(
     // for systemd's distinctive "Job for X failed" / "exited with status" /
     // "ExecStart" markers — generic "Failed to ..." goes to enable-failed.
     const isStartIssue = /\bJob for\b|exited with|crashed|Active:\s*failed|ExecStart|Process exited/i.test(enableExec.stderr)
-    return {
+    return withPrevious({
       ok: false,
       method: 'failed',
       servicePath: paths.file,
       error: err,
       errorCode: isStartIssue ? 'start-failed' : 'enable-failed',
-    }
+    })
   }
 
   // ── Stage 3: verify ──────────────────────────────────────────────────────
@@ -496,15 +574,15 @@ export async function startServerOnRemote(
   if (!verifyExec.ok) {
     const err = summariseFailure('verify-failed', verifyExec)
     logger.warn(`[ssh-start-server] ${err}`)
-    return { ok: false, method: 'failed', servicePath: paths.file, error: err, errorCode: 'verify-failed', checkOutput: verifyExec.stdout || verifyExec.stderr }
+    return withPrevious({ ok: false, method: 'failed', servicePath: paths.file, error: err, errorCode: 'verify-failed', checkOutput: verifyExec.stdout || verifyExec.stderr })
   }
 
-  return {
+  return withPrevious({
     ok: true,
     method,
     servicePath: paths.file,
     checkOutput: verifyExec.stdout.trim(),
-  }
+  })
 }
 
 // ── T0426 (BUG-100): rollback teardown — stop-server / uninstall-bundle ─────
@@ -517,6 +595,14 @@ export interface StopServerOptions {
   targetOS: 'ssh-linux' | 'ssh-darwin'
   /** Remote `$HOME` (same rule as `StartServerOptions.serverHome`). */
   serverHome: string
+  /**
+   * T0554 (BUG-141): `stop` (default) disables the service and deletes the unit
+   * / plist; `restore-previous` puts back `<file>.bat-prev` (`restore` says
+   * whether to enable and start it); `discard-backup` only deletes the backup
+   * (the wizard finished).
+   */
+  action?: 'stop' | 'restore-previous' | 'discard-backup'
+  restore?: { enabled: boolean; start: boolean }
 }
 
 export interface UninstallBundleOptions {
@@ -529,9 +615,17 @@ export interface UninstallBundleOptions {
    * `/opt/bat-server`) or `~/...`. Its last segment must be `bat-server`.
    */
   installPath: string
+  /**
+   * T0554 (BUG-141): `remove` (default) deletes the install; `restore-previous`
+   * puts `<installPath>.bat-old` back (and with `startService` starts the
+   * service again afterwards); `discard-previous` deletes `<installPath>.bat-old`.
+   * The last two need an absolute install path.
+   */
+  mode?: 'remove' | 'restore-previous' | 'discard-previous'
+  startService?: 'ssh-linux' | 'ssh-darwin'
 }
 
-export type SshTeardownResult = { ok: true } | { ok: false; error: string }
+export type SshTeardownResult = { ok: true; outcome?: BundleRestoreOutcome } | { ok: false; error: string }
 
 /**
  * Teardown whitelist (T0426, stricter than `validateSshIdentifier`). Host and
@@ -579,6 +673,15 @@ function buildStopServerCommand(opts: StopServerOptions): string {
     throw new Error(`Invalid targetOS for teardown: ${JSON.stringify(opts.targetOS)}`)
   }
   const home = resolveServerHome(opts.serverHome)
+  const action = opts.action ?? 'stop'
+  if (action === 'restore-previous') return buildRestoreServiceCommand(opts.targetOS, home, opts.restore)
+  if (action === 'discard-backup') {
+    const file = opts.targetOS === 'ssh-linux' ? systemdUnitPath(home).file : launchdPlistPath(home).file
+    return `rm -f -- '${escapeSingleQuotes(file + UNIT_BACKUP_SUFFIX)}'`
+  }
+  if (action !== 'stop') {
+    throw new Error(`Invalid teardown action: ${JSON.stringify(action)}`)
+  }
   if (opts.targetOS === 'ssh-linux') {
     const unit = escapeSingleQuotes(systemdUnitPath(home).file)
     return [
@@ -597,6 +700,54 @@ function buildStopServerCommand(opts: StopServerOptions): string {
     `rm -f '${plist}'`,
     `test ! -e '${plist}' || { echo 'could not remove ${plist}' >&2; exit 1; }`,
   ].join('; ')
+}
+
+/**
+ * T0554 (BUG-141): put back the unit / plist `buildBackupCommand` saved, with
+ * the enabled state it had; start it only when asked (the wizard leaves it
+ * stopped while the previous bundle still has to be restored).
+ */
+function buildRestoreServiceCommand(
+  targetOS: StopServerOptions['targetOS'],
+  home: string,
+  restore: StopServerOptions['restore'],
+): string {
+  if (!restore || typeof restore.enabled !== 'boolean' || typeof restore.start !== 'boolean') {
+    throw new Error(`Invalid restore options for teardown: ${JSON.stringify(restore)}`)
+  }
+  const file = targetOS === 'ssh-linux' ? systemdUnitPath(home).file : launchdPlistPath(home).file
+  const lines = [
+    `unit='${escapeSingleQuotes(file)}'`,
+    `prev="$unit${UNIT_BACKUP_SUFFIX}"`,
+    '[ -f "$prev" ] || { echo "no backup of $unit to restore" >&2; exit 1; }',
+  ]
+  if (targetOS === 'ssh-linux') {
+    lines.push(
+      `systemctl --user stop ${SERVICE_NAME} >/dev/null 2>&1`,
+      'mv -f -- "$prev" "$unit" || exit 1',
+      'systemctl --user daemon-reload || exit 1',
+      `systemctl --user ${restore.enabled ? 'enable' : 'disable'} ${SERVICE_NAME} >/dev/null 2>&1`,
+    )
+    if (restore.start) lines.push(`systemctl --user restart ${SERVICE_NAME} || exit 1`)
+  } else {
+    lines.push(
+      'launchctl unload "$unit" >/dev/null 2>&1',
+      'mv -f -- "$prev" "$unit" || exit 1',
+    )
+    if (restore.start) lines.push('launchctl load -w "$unit" || exit 1')
+  }
+  return lines.join('\n')
+}
+
+/** T0554: start the service again once the previous bundle is back. */
+function buildStartServiceCommand(targetOS: unknown): string {
+  if (targetOS === 'ssh-linux') {
+    return `systemctl --user restart ${SERVICE_NAME} || { echo "server bundle restore: restored, but could not start ${SERVICE_NAME}" >&2; exit 1; }`
+  }
+  if (targetOS === 'ssh-darwin') {
+    return `launchctl load -w "$HOME/Library/LaunchAgents/${LAUNCHD_LABEL}.plist" || { echo "server bundle restore: restored, but could not load ${LAUNCHD_LABEL}" >&2; exit 1; }`
+  }
+  throw new Error(`Invalid startService for teardown: ${JSON.stringify(targetOS)}`)
 }
 
 /**
@@ -633,11 +784,31 @@ function buildUninstallBundleCommand(installPath: unknown): string {
   return `rm -rf -- ${target} && test ! -e ${target}`
 }
 
+/**
+ * T0554 (BUG-141): `ssh:uninstall-bundle` with a mode. `restore-previous` /
+ * `discard-previous` work on `<installPath>.bat-old` through the shared
+ * install-script builders, so the root must pass both the T0426 rule (ends in
+ * `/bat-server`) and the T0552 install-root rule (absolute).
+ */
+function buildBundleTeardownCommand(opts: UninstallBundleOptions): string {
+  const mode = opts.mode ?? 'remove'
+  if (mode === 'remove') return buildUninstallBundleCommand(opts.installPath)
+  resolveUninstallTarget(opts.installPath)
+  const root = assertBundleInstallRoot(opts.installPath)
+  if (mode === 'restore-previous') {
+    const start = opts.startService === undefined ? undefined : buildStartServiceCommand(opts.startService)
+    return buildSshBundleRestoreCommand(escapeSingleQuotes(root), start)
+  }
+  if (mode === 'discard-previous') return buildSshBundleDiscardPreviousCommand(escapeSingleQuotes(root))
+  throw new Error(`Invalid uninstall mode: ${JSON.stringify(mode)}`)
+}
+
 async function runTeardown(
   label: string,
   opts: SshConnectFields,
   buildCommand: () => string,
   deps: StarterDeps,
+  readOutcome?: (stdout: string) => BundleRestoreOutcome | null,
 ): Promise<SshTeardownResult> {
   let connectArgs: string[]
   let command: string
@@ -655,6 +826,11 @@ async function runTeardown(
     logger.warn(`[ssh-start-server] ${err}`)
     return { ok: false, error: err }
   }
+  if (readOutcome) {
+    const outcome = readOutcome(exec.stdout)
+    if (!outcome) return { ok: false, error: `${label}: the remote script did not report an outcome` }
+    return { ok: true, outcome }
+  }
   return { ok: true }
 }
 
@@ -667,9 +843,18 @@ export function stopServerOnRemote(opts: StopServerOptions, deps: StarterDeps = 
   return runTeardown('stop-server-failed', opts, () => buildStopServerCommand(opts), deps)
 }
 
-/** T0426 (BUG-100): undo the bundle upload — `rm -rf` the install directory. */
+/**
+ * T0426 (BUG-100): undo the bundle upload — `rm -rf` the install directory.
+ * T0554 (BUG-141): or restore / discard the previous install (`mode`).
+ */
 export function uninstallBundleOnRemote(opts: UninstallBundleOptions, deps: StarterDeps = {}): Promise<SshTeardownResult> {
-  return runTeardown('uninstall-bundle-failed', opts, () => buildUninstallBundleCommand(opts.installPath), deps)
+  return runTeardown(
+    'uninstall-bundle-failed',
+    opts,
+    () => buildBundleTeardownCommand(opts),
+    deps,
+    opts.mode === 'restore-previous' ? parseBundleRestoreOutcome : undefined,
+  )
 }
 
 // re-exported so tests can render unit content directly without spawning ssh
@@ -690,6 +875,10 @@ export const __internals = {
   launchdPlistPath,
   buildStopServerCommand,
   buildUninstallBundleCommand,
+  buildBundleTeardownCommand,
+  buildBackupCommand,
+  parseBackupOutput,
+  buildRestoreServiceCommand,
   resolveUninstallTarget,
   SERVICE_NAME,
   LAUNCHD_LABEL,

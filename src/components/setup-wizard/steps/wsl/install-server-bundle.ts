@@ -58,6 +58,35 @@ export async function resolveWslHome(ctx: WizardContext, distro: string): Promis
   return home
 }
 
+/**
+ * T0554 (BUG-141): what this wizard run's install did, set only after the
+ * install succeeded. `previous` is what the install script found at the root:
+ *  - `kept`: an existing BAT install, now at `<root>.bat-old`; rollback puts it
+ *    back, finalize removes it
+ *  - `none`: first install; rollback removes the root (as before T0554)
+ *  - `unmanaged`: extracted over a directory that is not a BAT install;
+ *    rollback cannot undo that and deletes nothing
+ */
+export const WSL_BUNDLE_INSTALL_KEY = 'wslBundleInstall'
+/**
+ * T0554: set by write-systemd-unit's rollback when the previous server was
+ * running but the previous bundle still had to be put back; this step's
+ * rollback starts the service again after restoring the bundle.
+ */
+export const WSL_SERVICE_START_AFTER_RESTORE_KEY = 'wslServiceStartAfterBundleRestore'
+export const WSL_SERVICE_NAME = 'bat-server.service'
+
+export interface WslBundleInstallRecord {
+  distro: string
+  root: string
+  previous: 'kept' | 'none' | 'unmanaged'
+}
+
+export function readWslBundleInstall(ctx: WizardContext): WslBundleInstallRecord | null {
+  const record = ctx.state[WSL_BUNDLE_INSTALL_KEY] as WslBundleInstallRecord | undefined
+  return record && typeof record.root === 'string' && typeof record.distro === 'string' ? record : null
+}
+
 function pushWarning(ctx: WizardContext, warning: string): void {
   if (!ctx.warnings.includes(warning)) {
     ctx.warnings.push(warning)
@@ -85,11 +114,14 @@ export const installServerBundleStep: WizardStep = {
   groupKey: 'wizard.group.deployment',
   editableFromFailure: false,
   async run(ctx) {
-    // T0489: rollback skips while this is false. ctx.serverInstallPath starts
-    // as the default `~/.local/bat-server`, so it cannot gate rollback: a
-    // failure before the install (then cancel, or a jump back from the failure
-    // screen) would `rm -rf` a bundle an earlier setup left in the distro.
-    ctx.state.wslBundleInstallStarted = false
+    // T0489: ctx.serverInstallPath starts as the default `~/.local/bat-server`,
+    // so it cannot gate rollback: a failure before the install (then cancel, or
+    // a jump back from the failure screen) would `rm -rf` a bundle an earlier
+    // setup left in the distro. T0554 (BUG-141): rollback acts only on
+    // WSL_BUNDLE_INSTALL_KEY, set once the install succeeded. A failed install
+    // has nothing to undo: the script extracts beside the root and swaps only
+    // after a good extract (before T0554 its rollback removed the root, which
+    // after T0552 was the untouched previous install).
     if (!ctx.wslDistro) {
       throw new Error('Select a WSL distro before installing the server bundle.')
     }
@@ -136,11 +168,17 @@ export const installServerBundleStep: WizardStep = {
     const tarballPath = result.tarballPath
     ctx.logger.info(`${describeSource(result.source)}: ${tarballPath}`)
 
-    ctx.state.wslBundleInstallStarted = true
-    const installResult = await window.electronAPI.wsl.installBundle(ctx.wslDistro, tarballPath, installPath)
+    const installResult = await window.electronAPI.wsl.installBundle(ctx.wslDistro, tarballPath, installPath, { keepPrevious: true })
 
     if (!installResult.ok) {
       throw new Error(installResult.error)
+    }
+    const previous = installResult.previous ?? 'none'
+    ctx.state[WSL_BUNDLE_INSTALL_KEY] = { distro: ctx.wslDistro, root: installPath, previous } satisfies WslBundleInstallRecord
+    if (previous === 'kept') {
+      ctx.logger.info(`Replaced the existing BAT server bundle; the previous one is kept until setup finishes (${installPath}.bat-old)`)
+    } else if (previous === 'unmanaged') {
+      ctx.logger.warn(`${installPath} was not a BAT server bundle install; extracted over it (cancel cannot undo this)`)
     }
 
     ctx.serverInstallPath = installPath
@@ -170,16 +208,53 @@ export const installServerBundleStep: WizardStep = {
       pushWarning(ctx, i18next.t(warning.key, warning.params))
     }
   },
+  // T0554 (BUG-141): an upgrade puts the previous bundle back (and starts the
+  // previous server again when write-systemd-unit's rollback asked for it); a
+  // first install is removed as before; nothing is deleted for a failed
+  // install or a root that was not a BAT install.
   async rollback(ctx) {
-    if (!ctx.wslDistro || !ctx.serverInstallPath || ctx.state.wslBundleInstallStarted === false) {
+    const record = readWslBundleInstall(ctx)
+    const startAfterRestore = ctx.state[WSL_SERVICE_START_AFTER_RESTORE_KEY] === true
+    delete ctx.state[WSL_SERVICE_START_AFTER_RESTORE_KEY]
+    if (!record) {
       return
     }
-    const result = await window.electronAPI.wsl.uninstallBundle(ctx.wslDistro, ctx.serverInstallPath)
-    if (!result.ok) {
-      ctx.logger.warn(`Failed to remove BAT server bundle: ${result.error}`)
-      return
+    if (record.previous === 'unmanaged') {
+      ctx.logger.warn(`Leaving ${record.root} in place: it was not a BAT server bundle install before this setup`)
+    } else if (record.previous === 'kept') {
+      const result = await window.electronAPI.wsl.restoreBundle(record.distro, record.root)
+      if (!result.ok) {
+        ctx.logger.warn(`Failed to restore the previous BAT server bundle: ${result.error}`)
+        return
+      }
+      if (result.outcome === 'missing') {
+        ctx.logger.warn(`No previous BAT server bundle at ${record.root}.bat-old to restore; leaving ${record.root} as it is`)
+      } else {
+        ctx.logger.info(`Restored the previous BAT server bundle at ${record.root}`)
+        if (startAfterRestore) {
+          const started = await window.electronAPI.wslSystemd.restartService(record.distro, WSL_SERVICE_NAME)
+          if (started.ok) ctx.logger.info(`Started the previous ${WSL_SERVICE_NAME} again`)
+          else ctx.logger.warn(`Failed to start the previous ${WSL_SERVICE_NAME} again: ${started.error}`)
+        }
+      }
+    } else {
+      const result = await window.electronAPI.wsl.uninstallBundle(record.distro, record.root)
+      if (!result.ok) {
+        ctx.logger.warn(`Failed to remove BAT server bundle: ${result.error}`)
+        return
+      }
     }
+    delete ctx.state[WSL_BUNDLE_INSTALL_KEY]
     ctx.serverInstallPath = undefined
     ctx.networkMode = undefined
+  },
+  // T0554: setup finished; the previous bundle is no longer needed.
+  async finalize(ctx) {
+    const record = readWslBundleInstall(ctx)
+    if (!record || record.previous !== 'kept') return
+    const result = await window.electronAPI.wsl.discardPreviousBundle(record.distro, record.root)
+    if (!result.ok) throw new Error(`Failed to remove the previous BAT server bundle (${record.root}.bat-old): ${result.error}`)
+    ctx.logger.info(`Removed the previous BAT server bundle (${record.root}.bat-old)`)
+    delete ctx.state[WSL_BUNDLE_INSTALL_KEY]
   },
 }

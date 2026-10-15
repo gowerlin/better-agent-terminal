@@ -416,8 +416,13 @@ interface ElectronAPI {
     detectNetworkMode: (distro: string) => Promise<WslNetworkModeInfo>
     // T0378 (BUG-087 B): absolute $HOME of the distro's default user (e.g. /home/alice).
     resolveHome: (distro: string) => Promise<string>
-    installBundle: (distro: string, tarballPath: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+    // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`;
+    // `previous` = kept / none (no previous, or not kept) / unmanaged (extracted over a non-BAT root).
+    installBundle: (distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean }) => Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string }>
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+    // T0554: put `<root>.bat-old` back (`missing` = nothing kept) / remove it once the wizard finished.
+    restoreBundle: (distro: string, installPath: string) => Promise<{ ok: true; outcome: 'restored' | 'missing' } | { ok: false; error: string }>
+    discardPreviousBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     // T0304 / BUG-069 — IPC migrated from renderer (was direct `node:https` call).
     // T0381 / BUG-090 — TLS-handshake fingerprint (5s timeout) with structured errors.
     fetchFingerprint: (port: number, host?: string) => Promise<WslFetchFingerprintResult>
@@ -458,6 +463,10 @@ interface ElectronAPI {
     // T0382 / BUG-091 — ok only after the unit stayed active (no auto-restart) for the stability window.
     startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) => Promise<WslStartServiceResult>
     removeUnit: (distro: string, serviceName: string, options?: { path?: string }) => Promise<{ ok: true }>
+    // T0554 / BUG-141 — previous unit (null = no file) + service state, restored on a cancelled upgrade.
+    snapshotUnit: (distro: string, serviceName: string, options: { path: string }) => Promise<{ ok: true; content: string | null; active: boolean; enabled: boolean } | { ok: false; error: string }>
+    restoreUnit: (distro: string, serviceName: string, options: { path: string; content: string; enabled: boolean; start: boolean }) => Promise<{ ok: true } | { ok: false; error: string }>
+    restartService: (distro: string, serviceName: string) => Promise<{ ok: true } | { ok: false; error: string }>
   }
   ssh: {
     listHosts: () => Promise<string[]>
@@ -479,8 +488,10 @@ interface ElectronAPI {
         sshKeyPath?: string
         installPath: string
         tarballPath: string
+        // T0554 / BUG-141: keep the replaced install at `<installPath>.bat-old`.
+        keepPrevious?: boolean
       }
-    }) => Promise<{ ok: true } | { ok: false; error: string }>
+    }) => Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string }>
     onUploadProgress: (callback: (payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void) => () => void
     // PLAN-007 T0286 — start-server (systemd unit / launchd plist + enable + verify)
     startServer: (request: {
@@ -494,6 +505,8 @@ interface ElectronAPI {
         installPath: string
         serverPort?: number
         serverHome: string
+        // T0554 / BUG-141: back up the unit / plist to `<file>.bat-prev` first and report `previous`.
+        backupPrevious?: boolean
       }
     }) => Promise<{
       ok: boolean
@@ -502,6 +515,7 @@ interface ElectronAPI {
       checkOutput?: string
       error?: string
       errorCode?: 'unit-write-failed' | 'enable-failed' | 'start-failed' | 'verify-failed' | 'unknown'
+      previous?: { unit: boolean; active: boolean; enabled: boolean }
     }>
     onStartProgress: (callback: (payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void) => () => void
     // PLAN-007 T0289 — best-effort rollback hooks (RFC C-3). IPC handlers:
@@ -513,7 +527,11 @@ interface ElectronAPI {
       sshPort?: number
       sshKeyPath?: string
       installPath: string
-    }) => Promise<{ ok: true } | { ok: false; error: string }>
+      // T0554 / BUG-141: restore / discard `<installPath>.bat-old` (absolute path);
+      // `startService` starts the service again after a restore.
+      mode?: 'remove' | 'restore-previous' | 'discard-previous'
+      startService?: 'ssh-linux' | 'ssh-darwin'
+    }) => Promise<{ ok: true; outcome?: 'restored' | 'missing' } | { ok: false; error: string }>
     stopServer: (request: {
       sshHost: string
       sshUser: string
@@ -521,6 +539,9 @@ interface ElectronAPI {
       sshKeyPath?: string
       targetOS: 'ssh-linux' | 'ssh-darwin'
       serverHome: string
+      // T0554 / BUG-141: put back / delete the `<file>.bat-prev` backup start-server made.
+      action?: 'stop' | 'restore-previous' | 'discard-backup'
+      restore?: { enabled: boolean; start: boolean }
     }) => Promise<{ ok: true } | { ok: false; error: string }>
     // T0387 / BUG-093 — SSH wizard verification against the remote host.
     openVerifyTunnel: (request: {
