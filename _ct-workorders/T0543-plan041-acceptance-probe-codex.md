@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0543
 title: "PLAN-041 實機驗收探針（codex Worker）：真實 codex Worker 完成回報後閒置，供塔台以 CT v5.1.0 `worker_auto_close` 回收分頁"
 type: verification
-status: PENDING
+status: ABANDONED
 repo: better-agent-terminal
 project: PLAN-041
 priority: P2
 sizing: XS
 created_at: "2026-10-15T19:59:34+0800"
-updated_at: "2026-10-15T19:59:34+0800"
+updated_at: "2026-10-15T20:05:55+0800"
 started_at: ""
 completed_at: ""
 commit: ""
@@ -64,6 +64,13 @@ PLAN-041（Worker 分頁回收）BAT 端已隨 `0.6.1-pre.3` 發佈，本機已�
 - `node "$BAT_HELPER_DIR\bat-terminal.mjs" --close-worker T0543 --notify-id "$BAT_TERMINAL_ID" --delay-ms 10000` 的 exit code（期望 `0`；`6` = BUSY → 記錄為發現）
 - `debug-*.log` 的 `[close-worker]` 行（排程 / 取消 / 關閉）、`bat-scripts.log` 的 `close-worker` 事件
 - 10 秒後分頁是否消失、window registry 內是否已無此分頁
+
+
+## 塔台註記（2026-10-15 20:05，ABANDONED）
+
+- 使用者沒有 codex 付費帳號，指示「改用低階模型或不驗」→ 不跑 Worker 任務（Worker 未開工，`started_at` 空白）。
+- 改由塔台直接驗證 codex 分頁的閒置行為（與模型無關）：20:03:13 派出（`732f9f20…`，`codex-cli`）；20:05:06 / 20:05:26 / 20:05:46 三次 `--close-worker --delay-ms 300000` 皆 exit `0`（未判 BUSY）；20:05:55 以 `--delay-ms 10000` 回收。
+- 限制：codex 停在未開工的畫面，不等於「完成一輪工作後閒置」的狀態；codex 完成回報後的收尾輸出時間未驗。
 
 ---
 
