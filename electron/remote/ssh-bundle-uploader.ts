@@ -2,6 +2,7 @@ import type { ChildProcess } from 'child_process'
 import type { ReadStream } from 'fs'
 import { logger } from '../logger'
 import { buildBaseSshArgs, buildBaseSshSpawnEnv, escapeSingleQuotesStrict } from './ssh-args'
+import { assertBundleInstallRoot, buildSshBundleInstallCommand } from '../server-bundle-install-script'
 
 export interface UploadOptions {
   sshHost: string
@@ -41,20 +42,15 @@ export interface UploaderDeps {
  * (`scripts/build-server-bundle.mjs` `tar -czf <bundle> staging`) have a
  * single top-level `staging/`; it is stripped so the bundle lands at
  * `<installPath>/bin/bat-server`, where the systemd unit / launchd plist point
- * (same as WSL `installBundle` and docker/Dockerfile). An install left by a
- * pre-fix wizard keeps its files under `<installPath>/staging/`: that directory
- * is removed first, but only when it holds a bundle launcher
- * (`staging/bin/bat-server`). The final `test -x` fails the upload loudly if a
- * tarball with any other layout was extracted.
+ * (same as WSL `installBundle` and docker/Dockerfile). T0552 (BUG-139): the
+ * bundle is extracted into `<installPath>.bat-new` and swapped in, so files an
+ * older bundle shipped (and a pre-T0511 `staging/`) do not survive an upgrade;
+ * a root that is not a BAT bundle install is extracted over without deleting
+ * anything (`server-bundle-install-script.ts`). The extract fails loudly when
+ * `bin/bat-server` is missing afterwards.
  */
 function buildExtractCommand(safePath: string): string {
-  return [
-    `mkdir -p '${safePath}'`,
-    `cd '${safePath}'`,
-    '{ if [ -f staging/bin/bat-server ]; then rm -rf -- staging; fi; }',
-    'tar xz --strip-components=1',
-    `{ test -x bin/bat-server || { echo 'server bundle layout unexpected: bin/bat-server missing after extract' >&2; exit 1; }; }`,
-  ].join(' && ')
+  return buildSshBundleInstallCommand(safePath)
 }
 
 function buildSshArgs(opts: UploadOptions): string[] {
@@ -65,7 +61,9 @@ function buildSshArgs(opts: UploadOptions): string[] {
     throw new Error(`installPath contains forbidden character: ${opts.installPath}`)
   }
   const safePath = escapeSingleQuotesStrict(opts.installPath, 'installPath')
-  const remoteCommand = buildExtractCommand(safePath)
+  // T0552: the install replaces the root, so it must be a real install root
+  // (normalised: a trailing `/` would put `.bat-new` inside the root).
+  const remoteCommand = buildExtractCommand(assertBundleInstallRoot(safePath))
   // user@host validation (F-004) + BatchMode/ConnectTimeout/StrictHostKeyChecking
   // prefix (EC-003) live in buildBaseSshArgs.
   const args = buildBaseSshArgs(opts)

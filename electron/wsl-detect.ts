@@ -4,6 +4,7 @@ import os from 'os'
 import path from 'path'
 import { winToWsl } from '../src/utils/wsl-path'
 import { assertValidDistro, assertValidUnixPath } from './wsl-validate'
+import { assertBundleInstallRoot, buildWslBundleInstallScript } from './server-bundle-install-script'
 
 export interface WslDistro {
   name: string
@@ -317,6 +318,15 @@ export async function detectNetworkMode(distro: string): Promise<WslNetworkModeI
   }
 }
 
+// T0552 (BUG-139): extracting the whole bundle can take a while on a cold distro.
+const INSTALL_TIMEOUT_MS = 300_000
+
+/**
+ * T0552 (BUG-139): clean overwrite install — the bundle is extracted next to
+ * the install root and swapped in, so files an older bundle shipped do not
+ * survive an upgrade (see `server-bundle-install-script.ts` for the removal
+ * whitelist). `--exec` so `sh -c` receives the root and tarball as argv.
+ */
 export async function installBundle(
   distro: string,
   tarballPath: string,
@@ -325,30 +335,32 @@ export async function installBundle(
   try {
     const validatedDistro = validateDistroName(distro)
     const validatedInstallPath = validateInstallPath(installPath)
+    const installRoot = assertBundleInstallRoot(validatedInstallPath)
     const validatedTarballPath = validateWindowsAbsolutePath(tarballPath)
     const tarballWslPath = winToWsl(validatedTarballPath, validatedDistro)
 
-    await runWsl(validatedDistro, ['mkdir', '-p', validatedInstallPath])
-    await runWsl(validatedDistro, [
-      'tar',
-      '-xzf',
-      tarballWslPath,
-      '-C',
-      validatedInstallPath,
-      '--strip-components=1',
-    ])
+    await execFileBuffered(
+      'wsl',
+      ['-d', validatedDistro, '--exec', 'sh', '-c', buildWslBundleInstallScript(), 'sh', installRoot, tarballWslPath],
+      { timeoutMs: INSTALL_TIMEOUT_MS },
+    )
 
     return { ok: true }
   } catch (error) {
+    const stderr = (error as { stderr?: Buffer }).stderr
+    const detail = Buffer.isBuffer(stderr) ? normalizeTextOutput(stderr) : ''
+    const message = error instanceof Error ? error.message : String(error)
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: detail && !message.includes(detail) ? `${message}
+${detail}` : message,
     }
   }
 }
 
 export async function uninstallBundle(distro: string, installPath: string): Promise<void> {
   const validatedDistro = validateDistroName(distro)
-  const validatedInstallPath = validateInstallPath(installPath)
+  // T0552: same root rule as installBundle before an `rm -rf`.
+  const validatedInstallPath = assertBundleInstallRoot(validateInstallPath(installPath))
   await runWsl(validatedDistro, ['rm', '-rf', validatedInstallPath])
 }

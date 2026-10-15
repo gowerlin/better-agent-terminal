@@ -57,7 +57,16 @@ const UNC = (linuxPath: string) => `\\\\wsl.localhost\\${DISTRO}${linuxPath.repl
 
 test.skip(!ENABLED, 'opt-in: set BAT_E2E_T0550=1 (T0550, upgrades the WSL bat-server)')
 test.skip(process.platform !== 'win32', 'Windows host only (WSL)')
-test.skip(ENABLED && !E2E_EXECUTABLE, 'set BAT_E2E_EXECUTABLE to the installed BetterAgentTerminal.exe under test')
+// T0552 (BUG-138 / BUG-139): BAT_E2E_T0550_UPGRADE_RUNNING=1 runs the wizard with the old server
+// still running (no stop first), after seeding this instance with a profile for the distro and
+// the old port; A2.upgrade-running / A3.clean-install then require: same port, that profile
+// updated and no new one, and an install root without the files the bundle no longer ships.
+// Works with the source build (`npx vite build`; BAT_E2E_EXECUTABLE optional). Run A1-A3 only:
+//   npx playwright test e2e/t0550-wsl-acceptance.spec.ts -g "A1-A3"
+const UPGRADE_RUNNING = process.env.BAT_E2E_T0550_UPGRADE_RUNNING === '1'
+const STALE_PACKAGES = ['@anthropic-ai/claude-agent-sdk-linux-x64', '@img', 'better-sqlite3', 'sharp']
+
+test.skip(ENABLED && !E2E_EXECUTABLE && !UPGRADE_RUNNING, 'set BAT_E2E_EXECUTABLE to the installed BetterAgentTerminal.exe under test')
 
 const log = testLogger('t0550')
 
@@ -321,12 +330,26 @@ test.describe.serial('T0550 WSL acceptance', () => {
         ? `re-running the wizard over a running server moves it to ${probe.port}; a profile saved with ${oldPort} goes stale`
         : 'picker keeps the old port'])
 
-    // Free the old port so the upgraded server keeps it (the user's profile points at it).
-    const stop = await wsl('systemctl --user stop bat-server; sleep 1; systemctl --user is-active bat-server; true')
-    let freed = false
-    for (let i = 0; i < 20 && !(freed = await windowsPortFree(oldPort)); i++) await new Promise(r => setTimeout(r, 500))
-    log(`stopped old service: ${stop.trim()}; Windows 127.0.0.1:${oldPort} free: ${freed}`)
-    expect(freed, `port ${oldPort} still busy after stopping the old service`).toBe(true)
+    let seededProfileId: string | undefined
+    const duBefore = (await wsl(`du -sm ${INSTALL_ROOT} | cut -f1`)).trim()
+    if (UPGRADE_RUNNING) {
+      // T0552: keep the old server running; this instance gets the profile a user would have.
+      expect(section(before, 'is-active'), 'T0552 upgrade-running needs the old server active').toBe('active')
+      seededProfileId = await win.evaluate(async ([distro, port, fp]) => {
+        const api = (window as AnyApi).electronAPI.profile
+        const created = await api.create(`T0552 seed ${distro}`, { type: 'remote', remoteHost: 'localhost', remotePort: port, remoteToken: 'seed-token', remoteFingerprint: fp })
+        await api.update(created.id, { targetOS: 'wsl-linux', wslDistro: distro, remoteHost: 'localhost', remotePort: port })
+        return created.id as string
+      }, [DISTRO, oldPort, oldFingerprint] as const)
+      log(`T0552: old server left running on ${oldPort}; seeded profile ${seededProfileId}; install root ${duBefore} MiB`)
+    } else {
+      // Free the old port so the upgraded server keeps it (the user's profile points at it).
+      const stop = await wsl('systemctl --user stop bat-server; sleep 1; systemctl --user is-active bat-server; true')
+      let freed = false
+      for (let i = 0; i < 20 && !(freed = await windowsPortFree(oldPort)); i++) await new Promise(r => setTimeout(r, 500))
+      log(`stopped old service: ${stop.trim()}; Windows 127.0.0.1:${oldPort} free: ${freed}`)
+      expect(freed, `port ${oldPort} still busy after stopping the old service`).toBe(true)
+    }
 
     await openWslWizard(win)
     const t0 = Date.now()
@@ -355,8 +378,10 @@ test.describe.serial('T0550 WSL acceptance', () => {
       .then(r => r.ok ? r.text() : `HTTP ${r.status}`).catch(e => `fetch failed: ${(e as Error).message}`)
     const urlSeen = bundleLines.some(l => l.includes(`/releases/download/server-bundle-v${EXPECTED_VERSION}/`))
     const sourceDownload = wizardLog.some(l => l.includes('Downloaded server bundle from release'))
-    record('A1', urlSeen && sourceDownload && cached.includes(tarName) && cached.includes(`${tarName}.sha256`)
-      && sidecar.startsWith(actualSha) && releaseSha.trim().startsWith(actualSha) && actualSha.length === 64, [
+    // T0552 upgrade-running: the bundle source (cache / baseline / download) is not under test.
+    const a1 = urlSeen && sourceDownload && cached.includes(tarName) && cached.includes(`${tarName}.sha256`)
+      && sidecar.startsWith(actualSha) && releaseSha.trim().startsWith(actualSha) && actualSha.length === 64
+    record('A1', UPGRADE_RUNNING ? 'info' : a1, [
       `log: ${bundleLines.map(l => l.replace(/^.*?\[server-bundle/, '[server-bundle')).join(' / ')}`,
       `wizard: ${wizardLog.filter(l => /server bundle/i.test(l)).slice(-3).join(' / ')}`,
       `cache ${cacheDir}: ${JSON.stringify(cached)}`,
@@ -381,6 +406,18 @@ test.describe.serial('T0550 WSL acceptance', () => {
     record('A2.identity-kept', newPort === oldPort && newFingerprint === oldFingerprint && normFp(wslProfile?.remoteFingerprint) === oldFingerprint, [
       `port ${oldPort} → ${newPort}; certificate fingerprint ${oldFingerprint.slice(0, 11)}… → ${newFingerprint.slice(0, 11)}…; wizard pinned ${normFp(wslProfile?.remoteFingerprint).slice(0, 11)}…`,
       'same port + certificate + token file ⇒ an existing profile for this distro keeps working'])
+    if (UPGRADE_RUNNING) {
+      // T0552 (BUG-138): the running old server did not push the wizard to another port, and the
+      // seeded profile was updated instead of a second one being created.
+      const distroProfiles = all.filter(p => p.targetOS === 'wsl-linux' && p.wslDistro === DISTRO)
+      const seeded = distroProfiles.find(p => p.id === seededProfileId)
+      const picks = latestLog(inst.userData).split(/\r?\n/).filter(l => l.includes('pick-server-port')).map(l => l.replace(/^.*?\[wizard\]/, '[wizard]'))
+      record('A2.upgrade-running', newPort === oldPort && distroProfiles.length === 1 && !!seeded
+        && seeded.remotePort === oldPort && seeded.remoteToken !== 'seed-token' && normFp(seeded.remoteFingerprint) === oldFingerprint, [
+        `old server active before the wizard; unit port ${oldPort} → ${newPort}`,
+        `profiles for ${DISTRO}: ${JSON.stringify(distroProfiles.map(redact))} (seeded ${seededProfileId}; token replaced: ${seeded?.remoteToken !== 'seed-token'})`,
+        ...picks])
+    }
 
     // A2: the profile opens and a remote shell answers.
     expect(wslProfile, 'wizard did not write a wsl-linux profile').toBeDefined()
@@ -412,6 +449,23 @@ test.describe.serial('T0550 WSL acceptance', () => {
     record('A3.leftovers', 'info', [
       'wsl:install-bundle extracts over the existing directory (tar --strip-components=1, no clean); files of the old bundle stay',
       ...helpers.split('\n').filter(l => /^(node_modules|scripts):/.test(l))])
+    if (UPGRADE_RUNNING) {
+      // T0552 (BUG-139): the install root holds only the new bundle; the data dir is untouched.
+      const clean = await wsl([
+        `echo "## du"; du -sm ${INSTALL_ROOT} | cut -f1`,
+        `echo "## stale"; for p in ${STALE_PACKAGES.join(' ')}; do test -e ${INSTALL_ROOT}/node_modules/$p && echo "present $p"; done; true`,
+        `echo "## siblings"; ls -d ${INSTALL_ROOT}.bat-new ${INSTALL_ROOT}.bat-old 2>/dev/null; true`,
+        'echo "## data"; ls -A $HOME/.local/share/bat-server',
+      ].join('; '))
+      const duAfter = section(clean, 'du')
+      const data = section(clean, 'data')
+      record('A3.clean-install', !section(clean, 'stale') && !section(clean, 'siblings') && Number(duAfter) < Number(duBefore)
+        && data.includes('server-cert.json') && data.includes('server-token.json'), [
+        `install root ${duBefore} MiB → ${duAfter} MiB`,
+        `stale packages present: ${section(clean, 'stale') || 'none'} (checked ${STALE_PACKAGES.join(', ')})`,
+        `.bat-new / .bat-old left: ${section(clean, 'siblings') || 'none'}`,
+        `data dir: ${data.replace(/\n/g, ' ')}`])
+    }
   })
 
   test('B4 smoke:remote:headless S1-S13 against the upgraded server', async () => {

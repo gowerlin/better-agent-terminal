@@ -528,9 +528,11 @@ const electronAPI = {
       >,
     // T0382 / BUG-091: Windows-side port probe for the WSL bat-server; never
     // returns the host RemoteServer port. preferredPort is validated as-is.
-    pickServerPort: (preferredPort?: number) =>
-      ipcRenderer.invoke('wsl:pick-server-port', preferredPort) as Promise<
-        | { ok: true; port: number }
+    // T0552 / BUG-138: `existing` names the unit the wizard will rewrite, so
+    // an upgrade keeps that unit's port (main stops the old server to probe it).
+    pickServerPort: (preferredPort?: number, existing?: { distro: string; unitPath: string; serviceName: string }) =>
+      ipcRenderer.invoke('wsl:pick-server-port', preferredPort, existing) as Promise<
+        | { ok: true; port: number; reusedExistingPort?: boolean }
         | { ok: false; errorCode: 'wsl-port-in-use' | 'wsl-port-invalid'; error: string }
       >,
     // T0384 / BUG-092: hold a long-lived `wsl.exe` so WSL does not idle-stop

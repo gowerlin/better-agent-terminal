@@ -438,6 +438,85 @@ export async function startService(
   }
 }
 
+// ---------------------------------------------------------------------------
+// T0552 (BUG-138): re-running the wizard on a distro whose bat-server is still
+// running. The old unit's port is reused; the probe only says "busy" because
+// that server holds it, so the service is stopped and the port probed again.
+// ---------------------------------------------------------------------------
+
+export interface ExistingServerUnit {
+  /** `BAT_SERVER_PORT` (or legacy `BAT_PORT`) of the unit; null when absent / invalid. */
+  port: number | null
+  execStart: string | null
+}
+
+function unescapeSystemdQuoted(value: string): string {
+  return value.replace(/\\(["\\])/g, '$1')
+}
+
+function unquoteSystemdValue(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return unescapeSystemdQuoted(trimmed.slice(1, -1))
+  }
+  return trimmed
+}
+
+/** Parse what renderSystemdUnit wrote (quoted values) or a hand-edited unit. */
+export function parseExistingServerUnit(text: string): ExistingServerUnit {
+  let serverPort: string | null = null
+  let legacyPort: string | null = null
+  let execStart: string | null = null
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (line.startsWith('ExecStart=')) {
+      execStart = unquoteSystemdValue(line.slice('ExecStart='.length)) || null
+      continue
+    }
+    if (!line.startsWith('Environment=')) continue
+    // one line may carry several assignments: Environment="A=1" "B=2"
+    for (const match of line.slice('Environment='.length).matchAll(/"((?:[^"\\]|\\.)*)"|(\S+)/g)) {
+      const assignment = match[1] !== undefined ? unescapeSystemdQuoted(match[1]) : match[2]
+      const eq = assignment.indexOf('=')
+      if (eq <= 0) continue
+      const key = assignment.slice(0, eq)
+      const value = assignment.slice(eq + 1)
+      if (key === 'BAT_SERVER_PORT') serverPort = value
+      else if (key === 'BAT_PORT') legacyPort = value
+    }
+  }
+  const rawPort = serverPort ?? legacyPort
+  const port = rawPort !== null && /^\d{1,5}$/.test(rawPort) ? Number(rawPort) : null
+  return { port: isValidServerPort(port) ? port : null, execStart }
+}
+
+/** Missing / unreadable unit -> `{ port: null, execStart: null }`. */
+export async function readExistingServerUnit(distro: string, unitPath: string): Promise<ExistingServerUnit> {
+  assertValidDistro(distro)
+  assertValidUnixPath(unitPath, false)
+  const result = await runWsl(distro, ['cat', unitPath], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS })
+  return parseExistingServerUnit(result.stdout.toString('utf8'))
+}
+
+/** Stops the service when it is active; true when a running service was stopped. */
+export async function stopServiceIfActive(distro: string, serviceName: string): Promise<boolean> {
+  assertValidDistro(distro)
+  assertValidServiceName(serviceName)
+  const state = await readServiceState(distro, serviceName)
+  if (state.activeState !== 'active' && state.activeState !== 'activating' && state.activeState !== 'reloading') {
+    return false
+  }
+  await runWsl(distro, ['systemctl', '--user', 'stop', serviceName], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS })
+  return true
+}
+
+/** Best effort: start a service stopped by stopServiceIfActive again (pick failed). */
+export async function startStoppedService(distro: string, serviceName: string): Promise<void> {
+  assertValidDistro(distro)
+  assertValidServiceName(serviceName)
+  await runWsl(distro, ['systemctl', '--user', 'start', serviceName], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS })
+}
+
 export async function removeUnit(
   distro: string,
   serviceName: string,
@@ -469,11 +548,16 @@ const SERVER_PORT_MIN = 1024
 const SERVER_PORT_MAX = 65535
 const PORT_PROBE_HOST = '127.0.0.1'
 const PORT_PROBE_TIMEOUT_MS = 2_000
+// T0552: after stopping the old server, how long its port may take to free up
+// (NAT mode's localhost relay lets go a little after the Linux socket closes).
+const RELEASE_WAIT_MS = 5_000
+const RELEASE_POLL_MS = 250
 
 export type PickServerPortErrorCode = 'wsl-port-in-use' | 'wsl-port-invalid'
 
 export type PickServerPortResult =
-  | { ok: true; port: number }
+  /** T0552: `reusedExistingPort` when the port came from the distro's existing unit. */
+  | { ok: true; port: number; reusedExistingPort?: boolean }
   | { ok: false; errorCode: PickServerPortErrorCode; error: string }
 
 type PortProbe = (port: number) => Promise<boolean>
@@ -540,6 +624,15 @@ export function resetPortProbeImplForTests(): void {
 export async function pickServerPort(options: {
   excludePorts: readonly unknown[]
   preferredPort?: unknown
+  /**
+   * T0552 (BUG-138): port of the bat-server unit already in the distro. Taken
+   * when free; when busy, `releaseExistingPort` (stop that service) runs and
+   * the port is probed again for up to `releaseWaitMs`. Still busy -> another
+   * program holds it and the normal scan runs.
+   */
+  existingPort?: unknown
+  releaseExistingPort?: () => Promise<boolean>
+  releaseWaitMs?: number
   scanStart?: number
   scanEnd?: number
 }): Promise<PickServerPortResult> {
@@ -571,10 +664,29 @@ export async function pickServerPort(options: {
     return { ok: true, port }
   }
 
+  const existing = isValidServerPort(options.existingPort) && !excluded.has(options.existingPort)
+    ? options.existingPort
+    : null
+  if (existing !== null) {
+    if (await portProbeImpl(existing)) {
+      return { ok: true, port: existing, reusedExistingPort: true }
+    }
+    if (options.releaseExistingPort && await options.releaseExistingPort()) {
+      const deadline = Date.now() + (options.releaseWaitMs ?? RELEASE_WAIT_MS)
+      for (;;) {
+        if (await portProbeImpl(existing)) {
+          return { ok: true, port: existing, reusedExistingPort: true }
+        }
+        if (Date.now() >= deadline) break
+        await sleep(RELEASE_POLL_MS)
+      }
+    }
+  }
+
   const start = options.scanStart ?? SERVER_PORT_SCAN_START
   const end = options.scanEnd ?? SERVER_PORT_SCAN_END
   for (let port = start; port <= end; port += 1) {
-    if (excluded.has(port)) continue
+    if (excluded.has(port) || port === existing) continue
     if (await portProbeImpl(port)) {
       return { ok: true, port }
     }
@@ -584,4 +696,65 @@ export async function pickServerPort(options: {
     errorCode: 'wsl-port-in-use',
     error: `No free port between ${start} and ${end} on Windows (${PORT_PROBE_HOST}) for the WSL server.`,
   }
+}
+
+/**
+ * T0552 (BUG-138): `wsl:pick-server-port`. With `existing` (the unit the
+ * wizard is about to rewrite) and no user-specified port, the port in that unit
+ * is reused: taken as-is when free, otherwise the service is stopped (the old
+ * server is what holds it) and the port probed again. Still busy -> another
+ * program has it -> normal scan (pre-T0552 behaviour). A pick that fails after
+ * the service was stopped starts it again. Chosen over "always stop first":
+ * nothing is stopped when the port is already free or no unit exists.
+ */
+export async function pickServerPortForUnit(options: {
+  excludePorts: readonly unknown[]
+  preferredPort?: unknown
+  existing?: { distro?: unknown; unitPath?: unknown; serviceName?: unknown }
+  releaseWaitMs?: number
+  log?: (message: string) => void
+}): Promise<PickServerPortResult> {
+  const log = options.log ?? (() => undefined)
+  const existing = options.existing
+  const distro = typeof existing?.distro === 'string' ? existing.distro : ''
+  const unitPath = typeof existing?.unitPath === 'string' ? existing.unitPath : ''
+  const serviceName = typeof existing?.serviceName === 'string' ? existing.serviceName : ''
+  const userPort = options.preferredPort !== undefined && options.preferredPort !== null
+
+  let existingPort: number | null = null
+  let stopped = false
+  if (!userPort && distro && unitPath && serviceName) {
+    try {
+      assertValidServiceName(serviceName)
+      const unit = await readExistingServerUnit(distro, unitPath)
+      existingPort = unit.port
+      if (existingPort !== null) {
+        log(`existing ${serviceName} in ${distro} uses port ${existingPort} (ExecStart=${unit.execStart ?? '?'})`)
+      }
+    } catch (error) {
+      log(`cannot read the existing unit, scanning instead: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  const result = await pickServerPort({
+    excludePorts: options.excludePorts,
+    preferredPort: options.preferredPort,
+    existingPort,
+    releaseWaitMs: options.releaseWaitMs,
+    releaseExistingPort: existingPort === null
+      ? undefined
+      : async () => {
+        stopped = await stopServiceIfActive(distro, serviceName)
+        log(stopped
+          ? `stopped the running ${serviceName} in ${distro} to reuse port ${existingPort}`
+          : `${serviceName} in ${distro} is not running; port ${existingPort} is held by another program`)
+        return stopped
+      },
+  })
+
+  if (!result.ok && stopped) {
+    await startStoppedService(distro, serviceName).catch(() => undefined)
+    log(`started ${serviceName} in ${distro} again after the failed pick`)
+  }
+  return result
 }

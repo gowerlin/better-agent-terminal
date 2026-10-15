@@ -3118,12 +3118,24 @@ function registerLocalHandlers() {
   // Mirrored mode shares localhost, so the host RemoteServer's port — both the
   // resolved startup port (env > settings > default) and the one actually
   // running — must never be handed to the WSL server.
-  ipcMain.handle('wsl:pick-server-port', async (_event, preferredPort?: number): Promise<wslSystemd.PickServerPortResult> => {
+  // T0552 / BUG-138: with `existing` (the distro + the unit the wizard is about
+  // to rewrite) an upgrade keeps the old unit's port, stopping the old server
+  // when it is what holds the port (wslSystemd.pickServerPortForUnit).
+  ipcMain.handle('wsl:pick-server-port', async (
+    _event,
+    preferredPort?: number,
+    existing?: { distro?: unknown; unitPath?: unknown; serviceName?: unknown },
+  ): Promise<wslSystemd.PickServerPortResult> => {
     const excludePorts = [readRemotePortSync()]
     if (remoteServer.port) excludePorts.push(remoteServer.port)
-    const result = await wslSystemd.pickServerPort({ excludePorts, preferredPort })
+    const result = await wslSystemd.pickServerPortForUnit({
+      excludePorts,
+      preferredPort,
+      existing,
+      log: (message) => logger.log(`[wizard] pick-server-port: ${message}`),
+    })
     if (result.ok) {
-      logger.log(`[wizard] pick-server-port -> ${result.port} (excluded host ports: ${excludePorts.join(', ')})`)
+      logger.log(`[wizard] pick-server-port -> ${result.port}${result.reusedExistingPort ? ' (reused the existing unit port)' : ''} (excluded host ports: ${excludePorts.join(', ')})`)
     } else {
       logger.warn(`[wizard] pick-server-port ${result.errorCode}: ${result.error}`)
     }

@@ -207,7 +207,12 @@ describe('write-systemd-unit server port (T0382 / BUG-091)', () => {
     const ctx = makeCtx({ serverPort: undefined })
     await writeSystemdUnitStep.run(ctx)
 
-    expect(pickServerPortMock).toHaveBeenCalledWith(undefined)
+    // T0552 (BUG-138): the unit about to be rewritten, so an upgrade keeps its port
+    expect(pickServerPortMock).toHaveBeenCalledWith(undefined, {
+      distro: 'Ubuntu',
+      unitPath: '/home/tester/.config/systemd/user/bat-server.service',
+      serviceName: 'bat-server.service',
+    })
     expect(ctx.serverPort).toBe(9877)
     const unit = writeUnitMock.mock.calls[0][1] as { environment: Record<string, string> }
     expect(unit.environment.BAT_PORT).toBe('9877')
@@ -219,7 +224,7 @@ describe('write-systemd-unit server port (T0382 / BUG-091)', () => {
     const ctx = makeCtx({ state: { serverPort: 12345 } })
     await writeSystemdUnitStep.run(ctx)
 
-    expect(pickServerPortMock).toHaveBeenCalledWith(12345)
+    expect(pickServerPortMock).toHaveBeenCalledWith(12345, expect.objectContaining({ distro: 'Ubuntu' }))
     expect(ctx.serverPort).toBe(12345)
   })
 
@@ -228,6 +233,22 @@ describe('write-systemd-unit server port (T0382 / BUG-091)', () => {
     await writeSystemdUnitStep.run(ctx)
     expect(ctx.fallbackStartHint).toMatch(/--port 9877$/)
     expect(writeUnitMock).not.toHaveBeenCalled()
+    // T0552: no unit without systemd, so nothing to reuse
+    expect(pickServerPortMock).toHaveBeenCalledWith(undefined, undefined)
+  })
+
+  it('T0552 (BUG-138): keeps the port main reused from the existing unit', async () => {
+    pickServerPortMock.mockResolvedValueOnce({ ok: true, port: 9877, reusedExistingPort: true })
+    const infos: string[] = []
+    const ctx = makeCtx({
+      serverPort: undefined,
+      logger: { info: (message: string) => infos.push(message), warn: () => undefined, error: () => undefined },
+    })
+    await writeSystemdUnitStep.run(ctx)
+    expect(ctx.serverPort).toBe(9877)
+    const unit = writeUnitMock.mock.calls[0][1] as { environment: Record<string, string> }
+    expect(unit.environment.BAT_SERVER_PORT).toBe('9877')
+    expect(infos.some((message) => /Keeping port 9877/.test(message))).toBe(true)
   })
 
   it('stops before writing the unit when the user-specified port is taken -> wsl-port-in-use', async () => {

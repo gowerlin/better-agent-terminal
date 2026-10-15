@@ -530,9 +530,11 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       .then(() => {
         if (disposed) return
         setComplete(true)
-        if (runnerCtx.createdProfileId) {
-          setCreatedProfileId(runnerCtx.createdProfileId)
-          onComplete?.(runnerCtx.createdProfileId)
+        // T0552: an upgrade updates the existing profile instead of creating one.
+        const resultProfileId = runnerCtx.createdProfileId ?? runnerCtx.updatedProfileId
+        if (resultProfileId) {
+          setCreatedProfileId(resultProfileId)
+          onComplete?.(resultProfileId)
         }
       })
       .catch((error) => {

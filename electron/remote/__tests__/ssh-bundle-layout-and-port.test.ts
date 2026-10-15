@@ -65,20 +65,29 @@ describe('BUG-120: upload extracts the bundle without the staging/ level', () =>
   }).at(-1)!
 
   it('strips the top-level directory', () => {
-    expect(command).toContain("mkdir -p '/home/bat/.local/bat-server' && cd '/home/bat/.local/bat-server'")
-    expect(command).toContain('tar xz --strip-components=1')
-    expect(command).not.toMatch(/tar xz( &&|$)/)
+    expect(command.split('\n')[0]).toBe("dst='/home/bat/.local/bat-server'")
+    expect(command).toContain('tar xz -C "$target" --strip-components=1')
+    expect(command).not.toMatch(/tar xz( &&|$)/m)
   })
 
-  it('removes a staging/ left by a pre-fix install, only when it holds a bundle launcher', () => {
-    expect(command).toContain('{ if [ -f staging/bin/bat-server ]; then rm -rf -- staging; fi; }')
-    // cleanup runs after `cd` succeeded (inside the && chain), never in another cwd
-    expect(command.indexOf("cd '/home/bat/.local/bat-server'")).toBeLessThan(command.indexOf('rm -rf -- staging'))
-    expect(command.indexOf('rm -rf -- staging')).toBeLessThan(command.indexOf('tar xz'))
+  it('T0552 (BUG-139): extracts next to the root and swaps it in, so a pre-fix staging/ and stale files go too', () => {
+    expect(command).toContain('stage="$dst.bat-new"')
+    expect(command).toContain('[ -f "$dst/staging/bin/bat-server" ]')
+    const extract = command.indexOf('tar xz -C "$target"')
+    const moveOld = command.indexOf('mv -- "$dst" "$old"')
+    expect(extract).toBeGreaterThan(-1)
+    expect(extract).toBeLessThan(moveOld)
+    expect(moveOld).toBeLessThan(command.indexOf('mv -- "$stage" "$dst"'))
   })
 
   it('fails the upload when the extracted layout has no bin/bat-server', () => {
-    expect(command).toMatch(/tar xz --strip-components=1 && \{ test -x bin\/bat-server \|\| \{ echo '[^']+' >&2; exit 1; \}; \}$/)
+    expect(command).toContain('if [ ! -x "$stage/bin/bat-server" ]; then rm -rf -- "$stage"; echo "server bundle layout unexpected: bin/bat-server missing after extract" >&2; exit 1; fi')
+  })
+
+  it('T0552: rejects a root that is not a real install root', () => {
+    for (const installPath of ['/', '/opt', '~/.local/bat-server', '/home/bat/../etc', '/home/bat/x$y']) {
+      expect(() => uploader.buildSshArgs({ sshHost: 'devbox', sshUser: '', installPath, tarballPath: 'b.tgz' })).toThrow()
+    }
   })
 })
 

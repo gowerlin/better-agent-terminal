@@ -66,7 +66,7 @@ type WslFetchFingerprintResult =
 
 // T0382 / BUG-091 (D128): WSL bat-server port picked on the Windows side.
 type WslPickServerPortResult =
-  | { ok: true; port: number }
+  | { ok: true; port: number; reusedExistingPort?: boolean }
   | { ok: false; errorCode: 'wsl-port-in-use' | 'wsl-port-invalid'; error: string }
 
 type WslStartServiceResult =
@@ -422,7 +422,8 @@ interface ElectronAPI {
     // T0381 / BUG-090 — TLS-handshake fingerprint (5s timeout) with structured errors.
     fetchFingerprint: (port: number, host?: string) => Promise<WslFetchFingerprintResult>
     // T0382 / BUG-091 — never returns the host RemoteServer port; preferredPort is validated as-is.
-    pickServerPort: (preferredPort?: number) => Promise<WslPickServerPortResult>
+    // T0552 / BUG-138: `existing` = the unit the wizard rewrites; its port is reused on upgrade.
+    pickServerPort: (preferredPort?: number, existing?: { distro: string; unitPath: string; serviceName: string }) => Promise<WslPickServerPortResult>
     // T0384 / BUG-092 — wizard pin of the distro keep-alive holder; profiles are held by main.
     keepAlive: (distro: string) => Promise<{ ok: true } | { ok: false; error: string }>
     releaseKeepAlive: (distro: string) => Promise<{ ok: true }>

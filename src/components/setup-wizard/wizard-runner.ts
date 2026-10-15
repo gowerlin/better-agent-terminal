@@ -115,6 +115,13 @@ export interface WizardContext {
   createdProfileId?: string
   /** T0444 (BUG-111): every profile id write-profile created this run; rollback deletes them all. */
   createdProfileIds?: string[]
+  /**
+   * T0552 (BUG-138): an existing profile write-profile updated instead of
+   * creating one (the shell opens it on done, like `createdProfileId`), and the
+   * values it overwrote, which rollback writes back.
+   */
+  updatedProfileId?: string
+  updatedProfiles?: Array<{ id: string; previous: Record<string, unknown> }>
   logger: WizardLogger
   requestChoice?: (request: WizardChoiceRequest) => Promise<string | null>
   /** T0502: free-text prompt; unset when the UI cannot take typed input. */

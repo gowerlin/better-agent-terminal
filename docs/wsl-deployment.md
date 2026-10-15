@@ -66,6 +66,16 @@ BAT finds the Linux bundle tarball under the app data directory and extracts it 
 ~/.local/bat-server
 ```
 
+Re-running the wizard over an existing install (the upgrade path) replaces the
+directory cleanly (T0552 / BUG-139): the bundle is extracted into
+`~/.local/bat-server.bat-new`, checked for `bin/bat-server`, and only then
+swapped in; the previous tree is deleted, so packages a newer bundle no longer
+ships do not stay behind. A failed download or extract leaves the old install
+untouched. Only a directory that is a BAT bundle install (or empty) is
+replaced; anything else at that path is extracted over and nothing is deleted.
+The server data directory `~/.local/share/bat-server` (certificate, token) is
+never touched.
+
 During this step BAT also performs a best-effort WSL networking check and records one of these modes:
 
 - `mirrored`
@@ -75,6 +85,13 @@ During this step BAT also performs a best-effort WSL networking check and record
 ### 5. Write BAT systemd user service
 
 BAT writes a user unit for `bat-server.service`, reloads the user daemon, and starts the service. When possible it also enables linger.
+
+The server port is picked on the Windows side (never the host BAT's own
+remote server port). When the distro already has a `bat-server.service` unit,
+its `BAT_SERVER_PORT` is kept (T0552 / BUG-138): if the old server still holds
+that port, the wizard stops it and checks again, so an upgrade does not move
+the server to the next free port. Only a port held by another program makes the
+wizard pick a new one.
 
 ### 6. Fetch TLS fingerprint
 
@@ -86,7 +103,10 @@ BAT performs a remote auth handshake against the local forwarded endpoint. In NA
 
 ### 8. Create remote profile
 
-BAT creates a local profile entry, then persists the WSL metadata:
+BAT creates a local profile entry, then persists the WSL metadata. When a
+profile for the same distro and server port already exists (an upgrade), that
+profile is updated instead and no second one is created (T0552); its name is
+kept:
 
 - `targetOS: wsl-linux`
 - `wslDistro`

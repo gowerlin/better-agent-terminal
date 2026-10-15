@@ -42,11 +42,20 @@ function assertAbsoluteInstallPath(ctx: WizardContext): string {
  * The result lands in `ctx.serverPort`, which fetch-fingerprint, connect-test
  * and write-profile all read.
  */
-async function resolveServerPort(ctx: WizardContext): Promise<number> {
+async function resolveServerPort(ctx: WizardContext, unitPath: string | null): Promise<number> {
   const preferred = typeof ctx.state.serverPort === 'number' ? ctx.state.serverPort : undefined
-  const result = await window.electronAPI.wsl.pickServerPort(preferred)
+  // T0552 (BUG-138): name the unit about to be rewritten; on an upgrade main
+  // keeps its port even while the old server still holds it (Mirrored mode
+  // made the old server look like a conflict and the port moved).
+  const existing = unitPath && ctx.wslDistro
+    ? { distro: ctx.wslDistro, unitPath, serviceName: SERVICE_NAME }
+    : undefined
+  const result = await window.electronAPI.wsl.pickServerPort(preferred, existing)
   if (!result.ok) {
     throw Object.assign(new Error(result.error), { code: result.errorCode })
+  }
+  if (result.reusedExistingPort) {
+    ctx.logger.info(`Keeping port ${result.port} of the existing BAT server in ${ctx.wslDistro}`)
   }
   return result.port
 }
@@ -92,10 +101,13 @@ export const writeSystemdUnitStep: WizardStep = {
       throw new Error('Install the BAT server bundle before configuring the BAT service.')
     }
 
-    const port = await resolveServerPort(ctx)
+    const servicePaths = ctx.wslSystemdEnabled === false
+      ? null
+      : buildWslServicePaths(await resolveWslHome(ctx, ctx.wslDistro))
+    const port = await resolveServerPort(ctx, servicePaths?.unitPath ?? null)
     ctx.serverPort = port
 
-    if (ctx.wslSystemdEnabled === false) {
+    if (!servicePaths) {
       ctx.systemdServiceActive = false
       ctx.fallbackStartHint = `wsl -d ${ctx.wslDistro} -- ${ctx.serverInstallPath}/bin/bat-server --port ${port}`
       ctx.remoteToken = undefined
@@ -103,7 +115,7 @@ export const writeSystemdUnitStep: WizardStep = {
     }
 
     const installPath = assertAbsoluteInstallPath(ctx)
-    const { dataDir, unitPath } = buildWslServicePaths(await resolveWslHome(ctx, ctx.wslDistro))
+    const { dataDir, unitPath } = servicePaths
     const execStart = `${installPath}/bin/bat-server`
     ctx.state.wslUnitWriteStarted = true
     const writeResult = await window.electronAPI.wslSystemd.writeUnit(ctx.wslDistro, {

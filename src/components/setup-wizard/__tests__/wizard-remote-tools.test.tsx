@@ -64,6 +64,15 @@ describe('SetupWizardShell completion block — remote tools', () => {
     expect(onComplete).toHaveBeenCalledWith('p-new')
   })
 
+  it('T0552: an updated existing profile is what the completion block opens', async () => {
+    const onComplete = vi.fn()
+    const updateExisting = step('write-profile', async (ctx) => { ctx.updatedProfileId = 'p-existing' })
+    render(<SetupWizardShell steps={[updateExisting]} ctx={makeCtx()} onComplete={onComplete} />)
+    expect(await screen.findByTestId('remote-tools-entry-wizard')).toBeInTheDocument()
+    await waitFor(() => expect(detect).toHaveBeenCalledWith('p-existing'))
+    expect(onComplete).toHaveBeenCalledWith('p-existing')
+  })
+
   it('does not show the panel while steps are still running', () => {
     const hanging = step('hang', () => new Promise<void>(() => undefined))
     render(<SetupWizardShell steps={[writeProfile('p-new'), hanging]} ctx={makeCtx()} />)
