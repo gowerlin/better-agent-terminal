@@ -1376,6 +1376,20 @@
 
 ---
 
+### D144 2026-10-15 — 收單後自動回收 Worker 分頁：開關與延遲放 CT `*config`，BAT 只提供能力與安全檢查（PLAN-041）
+
+- **背景**：使用者問塔台能否在收單後自動關掉 Worker 分頁。T0534 研究：只改 CT 做不到（只有 renderer 能移除分頁；`pty:kill` 留下死分頁；遠端權杖不允許），推薦方案 B'（BAT 提供歸屬驗證的關閉能力，CT 決定時機）
+- **決定**（使用者 2026-10-15 15:3x「不做 local_rule，加在下一版 CT」，並問開關與延遲該放 BAT 還是 CT；塔台建議放 CT，使用者指示「依這個方向」開 PLAN，B'-1～B'-4 完整版 + 一張 CT 單）：
+  - CT `*config`：`worker_auto_close: off | done`（預設 `off`）、`worker_close_delay: 0–300` 秒（預設 `10`）；只在 DONE 且不 Renew、收單確認後呼叫
+  - BAT **不設 Settings 開關**；只在塔台呼叫時動作，固定檢查：歸屬（`BAT_TOWER_TERMINAL_ID` / 遠端 `isWorkerOf`）、工單唯一命中、最近 5 秒有輸出 → `BUSY`
+  - 延遲由 BAT 主行程計時；期間有新輸出或使用者輸入即取消
+  - 介面：`bat-terminal.mjs --close-worker T#### --notify-id … [--delay-ms]`，exit `0` / `3 NOT_FOUND` / `4 NOT_OWNER` / `5 AMBIGUOUS` / `6 BUSY` / `1` 其他（舊 BAT 對未知參數 exit 1，不建立分頁）
+  - 工單：T0535（本機）、T0536（遠端）、T0537（持久化歸屬）、CT-T011（CT 下一版，取代 local_rule）；BAT 三張併入 `0.6.1-pre.3`
+- **不採用**：只改 local_rule（A，做不到真正關閉）；BAT 收到「完成」通知自動關（C，BAT 內嵌 CT 語意、塔台尚未收單即關閉）；BAT 與 CT 兩邊都設開關（使用者需設兩處，BAT 回 `DISABLED` 時塔台無法分辨原因）；遠端開關以哪一邊為準（隨開關移到 CT 而不存在）
+- **相關**：PLAN-041 / T0534 / T0535 / T0536 / T0537 / CT-T011
+
+---
+
 ### D143 2026-10-15 — 預覽版改走 `0.6.1-pre.N` 版號線；pre.11 照發，T0532 隨 `v0.6.1-pre.1` 發佈
 
 - **背景**：`v0.6.0-pre.10` / `pre.11` 起，`-pre.N` 兩位數在部分以字串排序的列表中排到 `pre.9` 之後，最新版不在最上方
