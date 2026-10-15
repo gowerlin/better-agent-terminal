@@ -1,12 +1,54 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-15 02:10 (UTC+8) — **第六十三 session 收工**：連國盛回報 → BUG-134 / 135 → T0531 / T0532 全 DONE → **`v0.6.0-pre.11`** + **`v0.6.1-pre.1`** 已發佈 → D143（版號線 0.6.1）。
+> 最後更新:2026-10-15 18:16 (UTC+8) — **第六十四 session 收工**：Gary BUG-136 → T0533 GPU 日誌 → **`v0.6.1-pre.2`**；T0534 研究 → D144 / PLAN-041（Worker 分頁回收）+ PLAN-042（衍生修正）→ T0535-T0541 全 DONE → CT v5.1.0（CT-T011 / CT-T012）→ **`v0.6.1-pre.3`**；L150 晉升為發版說明規則。
 >
-> **下次起手**:Fast Path 載入；等使用者 / 連國盛（BUG-134）與 Gary（BUG-127-135、116 / 118）`v0.6.1-pre.1` 驗收回饋；下一版 `0.6.1-pre.2`。
+> **下次起手**:Fast Path 載入；塔台改用 **Control Tower v5.1.0**（本 session 結束後生效）；等 Gary `v0.6.1-pre.3` 的 BUG-136 測試結果；PLAN-041 實機驗收（BMad-Guide T0136）；下一版 `0.6.1-pre.4`。
+---
+
+## 🛏 本 Session 收工快照 (第六十四 session, 2026-10-15 13:13 - 18:16, ~5h wall)
+
+> 13:13 前另有程式碼簽章研究（網頁 artifact `MxxjPnrMFwhsbV3CA9NdEL`，無 commit，後續等使用者取得 Apple Developer / SSL.com 憑證）；起點未記錄。
+
+### 主軸：Gary BUG-136 → **`v0.6.1-pre.2`**（GPU 日誌）→ T0534 研究 → D144 / PLAN-041 + PLAN-042 → T0535-T0541 → CT v5.1.0 → **`v0.6.1-pre.3`**
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **13:13** Gary 回報 macOS 舊 Codex 塔台分頁打字延遲（Renderer ~100% CPU、GPU 崩潰 5 次）→ 開 **BUG-136**；13:17 派 **T0533**（GPU 狀態日誌）→ 13:25 DONE（`5dee5bc2`）
+2. **13:39** **`v0.6.1-pre.2` 已發佈**（run `38686989923` @ `9dde59f3`）——漏寫更版重點，18:0x 補上
+3. **15:15** 使用者問收單後能否自動關 Worker 分頁 → 派 **T0534** 研究 → 15:26 DONE（推薦 B'）；說明網頁 artifact `E9ZBy1JRwibBXrwnMdB4LS`
+4. **15:44** 使用者決定開關與延遲放 CT `*config`、不做 local_rule → **D144** / **PLAN-041**（T0535 / T0536 / T0537 / CT-T011）；16:13「完整版」納入方案 D（**T0538**），T0534 §8 衍生問題開 **PLAN-042** / **BUG-137**（T0539 / T0540 / CT-T012）
+5. **16:15-17:30** 依序派發（同一工作樹不並行）：T0535 `f26b7641` → T0536 `26f6996e` → T0537 `e965f993` → T0538 `8fd7bdf7` → T0540 `a058fbd4` → T0539 `2ff55bdd`（BUG-137 FIXED），全部一次啟動、DONE
+6. **17:14** BMad-Guide 塔台回報 **CT v5.1.0**（CT-T011 / CT-T012）已裝兩端（BMad-Guide `cb2aa09`，**未 push**）；塔台回覆 exit 1 =「本 session 後續不再呼叫」
+7. **17:41** 派 **T0541**（內嵌 claude CLI 2.1.296 → 2.1.300）→ DONE（`1cb423c6`，模型 / 計價 / effort / 門檻皆無變動）
+8. **17:47** 派 pre.3（`95d1f8e5`）→ **18:06 `v0.6.1-pre.3` 已發佈**（run `38715587426`，全 job success），更版重點已寫
+9. **18:0x** 使用者指出 pre.2 無更版重點 → 補寫；**L150 晉升** `_local-rules.md`「更版重點（Release notes）必寫」（`a564e424`）
+10. **18:1x** 收工：發現第六十三 session 收工時 `2026-Q4.md` 被覆寫（80,855 → 3,310 bytes，`b83a6909`），已由 `2f169514` 版本還原並補回第六十一 session
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **9**（T0533-T0541） | 皆 DONE、一次啟動 |
+| 跨專案委派 | 2（CT-T011 / CT-T012） | CT v5.1.0 source / install DONE；runtime 驗收 BMad-Guide T0136 |
+| 發版 | 2（`v0.6.1-pre.2` / `v0.6.1-pre.3`） | 皆全 job 綠 + server-bundle 7 assets |
+| BUG | 新開 2（136 OPEN / 137 FIXED） | Open 1 / Fixed 17 / Closed 44 |
+| PLAN | 新開 2（041 IN_PROGRESS 待實機驗收 / 042 DONE） | |
+| 決策 | D144 | 回收開關與延遲放 CT `*config`，BAT 只提供能力與安全檢查 |
+| unit test | 3730 → **3939 passed / 237 files** | |
+
+### 重點觀察
+
+- 起手式已寫「發版說明（L150）」仍漏 pre.2 → 晉升為規則並存記憶；回報「已發佈」前必看 `gh release view --json body`
+- 收工歸檔把季檔覆寫而非 append（第六十三 session）→ 本次已還原；收工時以 `wc -c` 前後比對季檔大小，只可增加
+- 對 Gary 環境曾誤判「macOS 關閉後 terminal-server / codex 存活」，已更正；macOS `stopTerminalServer=false` 時 terminal-server 未存活，原因未查（入待辦）
+
+### 編號起始（下 session）
+
+- **T0542** / **BUG-138** / **PLAN-043** / **D145** / **L151** / **CT-T013**
 
 ---
 
-## 🛏 本 Session 收工快照 (第六十三 session, 2026-10-15 01:14 - 02:10, ~56m wall)
+## 🛏 前 Session 收工快照 (第六十三 session, 2026-10-15 01:14 - 02:10, ~56m wall)
 
 ### 主軸：Fast Path 起手 → 補第六十二 session 快照 → 連國盛回報 BUG-134 → T0531 → **`v0.6.0-pre.11`** → BUG-135 / T0532 → 版號線改 0.6.1（D143）→ **`v0.6.1-pre.1`**
 
@@ -40,75 +82,41 @@
 
 ### 編號起始（下 session）
 
-- **T0542** / **BUG-138** / **PLAN-043** / **D145** / **L151** / **CT-T013**（2026-10-15 18:0x L150 晉升為 `_local-rules.md` 規則「每次發佈必寫更版重點」，pre.2 已補；2026-10-15 17:41 派 T0541（內嵌 claude CLI 2.1.296 → 2.1.300），17:5x DONE（`1cb423c6`，模型 / 計價 / effort / 門檻皆無變動）→ **v0.6.1-pre.3 已發佈**（run `38715587426` @ `95d1f8e5`，全 job success，Release 2026-10-15 18:06，4 安裝檔 + server-bundle 7 檔，更版重點已寫）；下一版 0.6.1-pre.4；16:13：PLAN-041 納入方案 D（T0538）並開工；T0535 16:32 DONE（`f26b7641`，契約未改，unit 3840 綠、e2e 綠；待實測：真實 claude CLI 閒置時是否有週期輸出導致 BUSY），16:33 派 T0536，16:5x DONE（`26f6996e`，headless 重用同一 scheduler；worker 權杖被拒訊息為 `role-not-allowed`，接受）；T0537 16:54 DONE（`e965f993`，主行程查詢時 fallback window registry 已存歸屬；殘餘：Terminal Server 未存活時尚未開啟的工作區回 NOT_FOUND）；T0538 17:04 DONE（`8fd7bdf7`，Worker 標籤 / 已回報 / 塔台右鍵批次關閉，頁內確認）→ PLAN-041 BAT 端四張全完成，剩 CT-T011；T0540 17:20 DONE（`a058fbd4`，Windows server 模式 detached 孫程序殘留 → taskkill /T 後再 pty.kill；quit Step A 改 IPC `server:shutdown`）；CT v5.1.0 已裝（CT-T011 / CT-T012 source DONE，runtime 驗收 BMad-Guide T0136 等 pre.3）；T0539 17:30 DONE（`2ff55bdd`，BUG-137 FIXED；sourceTerminalId 改記 BAT_TOWER_TERMINAL_ID）→ PLAN-042 DONE；PLAN-041 BAT 端完成，待 0.6.1-pre.3 實機驗收（真實 claude / codex Worker 閒置是否 BUSY）；BUG-136 等 Gary pre.2 測試；PLAN-042 開立（BUG-137 / T0539 / T0540 / CT-T012）；派發順序 T0535 → T0536 → T0537 → T0538 → T0540 → T0539，同一工作樹不並行；CT-T011 / CT-T012 交 BMad-Guide 塔台；15:44 開 PLAN-041（D144）；BUG-136 於 2026-10-15 13:13 開立；T0533 於 13:17 派發、13:25 DONE，隨 v0.6.1-pre.2 發佈（Release 2026-10-15 13:39）；T0534 研究「收單後自動關閉 Worker 終端」於 15:15 派發、15:26 收單 DONE，推薦方案 B'；使用者改為開關與延遲放 CT `*config`、不做 local_rule → D144 / PLAN-041）
-
----
-
-## 🛏 前 Session 收工快照 (第六十二 session, 2026-10-14 16:55 - 18:38, ~1h43m wall)
-
-> 本段於 2026-10-15 01:21 第六十三 session 補寫（第六十二 session 未寫收工快照）；時間取自 git commit / gh run。
-
-### 主軸：Gary pre.8 日誌 → BUG-132（cwd 檢查）→ **`v0.6.0-pre.9`** → PLAN-040 擴大實作 + BUG-133 → **`v0.6.0-pre.10`**
-
-#### 時間線（時間取自 git / gh）
-
-1. **16:55** 開 **T0526**（BUG-129 Gary 日誌分診，研究）→ 17:02 DONE（`050b12b`）：判定 T0523 §1 **#11**（agent CLI 沿用別的分頁的 `BAT_*`）；開成 Claude 是另一個原因（Settings 未設預設 Agent）
-2. **17:05** **D141** → 開 **BUG-132** / 派 **T0527**（派工 cwd 與落點工作區一致性檢查、`--agent` 簡寫）→ 17:18 DONE（`a371ce5`），BUG-132 FIXED；PID 鏈根治入 backlog
-3. **17:23** 開 **T0528**（研究：Codex CLI 在 BAT 終端貼圖）→ 17:34 DONE：可用（Ctrl+V → Alt+V），不改產品
-4. **17:36** **`v0.6.0-pre.9` 已發佈**（run `38541740029` @ `7b0322a`）；17:37 package.json 同步（`c1d44f3`）
-5. **17:51** **D142**：PLAN-040 擴大為工作區層級 Agent ＋ 啟動參數 → 派 **T0529** → 18:08 DONE（`c89be6c`），PLAN-040 DONE
-6. **18:09** T0529 範圍外發現 → 開 **BUG-133** / 派 **T0530**（detached 視窗開設定）→ 18:17 DONE（`5bacb58`），BUG-133 FIXED；CLAUDE.md 補 detached 不渲染 SettingsPanel 規則（`e524867`）
-7. **18:36** **`v0.6.0-pre.10` 已發佈**（run `38548961092` @ `e524867`）；18:38 package.json 同步（`65cda7a`）
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **5**（T0526-T0530） | 全 DONE；T0526 / T0528 為研究單 |
-| 發版 | 2（`v0.6.0-pre.9` / `pre.10`） | 兩次 run 皆 success，各附 `server-bundle-v<版號>`；發布說明已寫 |
-| BUG | 新開 2（132 / 133）→ 皆 FIXED | Open 0 / Fixed 14 / Closed 44 |
-| 決策 | D141 / D142 | |
-| PLAN | PLAN-040 DONE | |
-| unit test | ✅ **3730 passed / 225 files** | 塔台聯合複驗 @ `a27904f7` |
-
-### 編號起始（下 session）
-
-- **T0531** / **BUG-134** / **PLAN-041** / **D143** / **L151**
+- **T0533** / **BUG-136** / **PLAN-041** / **D144** / **L151**（第六十三 session 收工時）
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-15 02:10 UTC+8（第六十三 session 收工）
+> 最後更新：2026-10-15 18:16 UTC+8（第六十四 session 收工）
 
 ### 近期完成
-- `v0.6.1-pre.1`（10-15 02:05，`e715c2b1`）/ `v0.6.0-pre.11`（10-15 01:47，`49af84ca`）已發佈：BUG-134 / 135（T0531 / T0532），版號線改 0.6.1（D143）
-- `v0.6.0-pre.10` 已發佈（10-14 18:36，run `38548961092` @ `e524867`）：工作區設定（預設 Agent + 啟動參數，PLAN-040 / D142）、detached 開設定（BUG-133）
-- `v0.6.0-pre.9` 已發佈（10-14 17:36，run `38541740029` @ `7b0322a`）：派工 cwd 檢查、`--agent` 簡寫（BUG-132 / D141）
-- T0526-T0530 全 DONE；unit 3713 passed / 223 files；使用者本機安裝版 = pre.10（尚未換裝 0.6.1-pre.1）
-- BUG Open 0 / Fixing 0 / Fixed 16（含 BUG-134 / 135） / Closed 44
+- `v0.6.1-pre.3`（10-15 18:06，run `38715587426` @ `95d1f8e5`）：Worker 分頁回收 `--close-worker`（PLAN-041）、分頁標示 / 批次關閉、BUG-137、Windows 關閉分頁程序樹（T0540）、內嵌 claude 2.1.300
+- `v0.6.1-pre.2`（10-15 13:39，run `38686989923` @ `9dde59f3`）：GPU 狀態日誌（T0533，BUG-136 診斷）
+- CT v5.1.0 已裝（`worker_auto_close` / `worker_close_delay`），BMad-Guide `cb2aa09` 未 push
+- unit 3939 passed / 237 files；BUG Open 1（136）/ Fixed 17 / Closed 44
 
 ### 待辦（依優先序）
 
-1. 🟡 **`v0.6.1-pre.1` 已發佈**（2026-10-15 02:05，run `38610008131` @ `e715c2b1`，BUG-135 + 空狀態不閃）、**`v0.6.0-pre.11`**（01:47，run `38607028430` @ `49af84ca`，BUG-134）→ 待使用者 / 連國盛 / Gary 驗收 BUG-127-135；版號線改 `0.6.1-pre.N`（D143），下一版 `0.6.1-pre.2`
-2. 🟡 **Gary 回饋**（建議直接裝 `v0.6.1-pre.1` arm64 dmg）：BUG-127-135 + BUG-116 / 118 驗收
-3. 🟡 **使用者 Windows**：BUG-130 間歇性（再失效查 `[terminal-paste]`）；真人項 BUG-105 / 107 / 108；Docker 精靈 BUG-097 / 111（需 Docker Desktop）
-4. 🟢 清理：T0514 / T0515 / T0520 保留的 docker image
-5. 🟢 backlog：PID 鏈辨識呼叫者（D141）、遠端派工 cwd 檢查、recovery `shellArgs` 為空（T0525 §5-2）、Windows `CF_HDROP` 路徑貼上、`*archive` 到齡候選（L133）、Codex 面板 Cache History、server-bundle `ubuntu-22.04` 2027-04-17 停用、PLAN-038、BUG-084 / PLAN-035 Phase 2、D094 復議
+1. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 以 pre.3 照新重現法回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU；可能修正方向見 BUG 單（CanvasAddon context loss，不得破壞 Win11 `clearTextureAtlas`）
+2. 🟡 **PLAN-041 實機驗收**：pre.3 + CT v5.1.0（BMad-Guide T0136）——真實 claude / codex Worker 閒置是否被判 `BUSY`；CT v5.1.0 尚未提供給 Gary（BMad-Guide 未 push）
+3. 🟡 **待使用者決定**：安裝檔過大（pre.3 dmg 914 MB，D094 上限 280 MB）是否開單；Gary 日誌另案：macOS `stopTerminalServer=false` 時 terminal-server 未存活、啟動 `first-renderer-ipc` +8 s
+4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130 間歇性、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111
+5. 🟢 程式碼簽章後續（mac Apple Developer、Windows SSL.com eSigner、CI 簽章）等使用者取得帳號；backlog：PID 鏈、遠端 cwd 檢查、`*archive` 到齡候選等
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**。
 
-### ⚠️ 版本驗證鐵則（L127）／發版說明（L150）
-**不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。發版 run 完成後同一步 `gh release edit --notes-file` 寫發布說明。
+### ⚠️ 版本驗證鐵則（L127）／更版重點必寫（L150 → `_local-rules.md`）
+**不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 0 / Fixing 0 / Fixed 16 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D143）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（79 entries）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 17 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D144）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（80 entries）
 
 ### 編號起始
-- **T0533** / **BUG-136** / **PLAN-041** / **D144** / **EXP-[TOPIC]-001** / **L151**
+- **T0542** / **BUG-138** / **PLAN-043** / **D145** / **EXP-[TOPIC]-001** / **L151** / **CT-T013**
 
 ---
 
@@ -118,17 +126,17 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.1-pre.1**（package.json + lock，2026-10-15 01:50 `e715c2b1`；D143 版號線改 0.6.1） |
-| **最新 release** | `v0.6.1-pre.1`（2026-10-15 02:05，run `38610008131`，target `e715c2b1`，T0532：BUG-135、空狀態不閃；10 job 全綠）+ `server-bundle-v0.6.1-pre.1`（7 assets）。前一版 `v0.6.0-pre.11`（2026-10-15 01:47，run `38607028430`，target `49af84ca`，T0531：BUG-134）+ `server-bundle-v0.6.0-pre.11`（7 assets）。再前 `v0.6.0-pre.10`（2026-10-14 18:36，run `38548961092`，target `e524867`，T0529 / T0530：工作區設定、BUG-133）+ `server-bundle-v0.6.0-pre.10`。前一版 `v0.6.0-pre.9`（2026-10-14 17:36，run `38541740029`，target `7b0322a`，T0527：BUG-132）+ `server-bundle-v0.6.0-pre.9`。再前 `v0.6.0-pre.8`（2026-10-14 14:20，run `38520403729`，target `887ff20`，BUG-127-131）。更早版本見 `_archive/state-snapshots/2026-Q4.md` |
-| **前一 tag** | `v0.6.0-pre.11`（2026-10-15 01:47，`49af84ca`） |
-| **目前主軸** | `v0.6.1-pre.1` 已發佈（BUG-134 / 135）；等使用者 / 連國盛 / Gary 驗收 |
-| **工單最大編號** | T0532（DONE `8b5251a8`，BUG-135）；T0521-T0532 全 DONE |
-| **BUG 最大編號** | **BUG-135**（FIXED，T0532）；Open 0 / Fixing 0 / Fixed 16（127-135 待 Gary / 使用者驗收；097 / 105 / 107 / 108 / 111 待真人；116 / 118 待 Gary）/ Closed 44 |
-| **PLAN 最大編號** | **PLAN-040**（**DONE** 2026-10-14，T0529）；PLAN-039 DONE；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
-| **決策最大編號** | D143 |
+| **目前版號** | **0.6.1-pre.3**（package.json + lock，2026-10-15 17:47 `95d1f8e5`） |
+| **最新 release** | `v0.6.1-pre.3`（2026-10-15 18:06，run `38715587426`，target `95d1f8e5`：PLAN-041 Worker 分頁回收 + 分頁標示 / 批次關閉、BUG-137、T0540 程序樹、claude 2.1.300）+ `server-bundle-v0.6.1-pre.3`（7 assets）。前一版 `v0.6.1-pre.2`（2026-10-15 13:39，run `38686989923`，target `9dde59f3`，T0533 GPU 日誌）。再前 `v0.6.1-pre.1`（2026-10-15 02:05，`e715c2b1`，BUG-135）、`v0.6.0-pre.11`（01:47，`49af84ca`，BUG-134）。更早見 `_archive/state-snapshots/2026-Q4.md` |
+| **前一 tag** | `v0.6.1-pre.2`（2026-10-15 13:39，`9dde59f3`） |
+| **目前主軸** | `v0.6.1-pre.3` 已發佈；BUG-136 等 Gary；PLAN-041 實機驗收（CT v5.1.0） |
+| **工單最大編號** | T0541（DONE `1cb423c6`）；T0533-T0541 全 DONE；跨專案 CT-T012 |
+| **BUG 最大編號** | **BUG-137**（FIXED，T0539）；Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 44 |
+| **PLAN 最大編號** | **PLAN-042**（DONE）；PLAN-041 IN_PROGRESS（BAT 端完成，待實機驗收）；PLAN-040 / 039 DONE；PLAN-038（IDEA）；PLAN-036 / 037 / 035 / 031 IN_PROGRESS |
+| **決策最大編號** | D144 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower v5.0.9 |
-| **unit test 基線** | **3730 passed / 225 files / 1 skipped**（塔台聯合複驗 2026-10-15 @ `a27904f7`）；typecheck 0 / typecheck:electron 0 |
+| **塔台版本** | Control Tower v5.1.0（2026-10-15 安裝，下個 session 生效；v5.0.9 備份於 `~/.claude/skill-backups/`） |
+| **unit test 基線** | **3939 passed / 237 files / 1 skipped**（T0541 @ `1cb423c6`）；typecheck 0 / typecheck:electron 0 |
 
 ---
 
@@ -217,7 +225,7 @@
 | e2e | ✅ smoke / t0512 / t0513 / t0523 / t0524 6 passed | 需先 `npx vite build` |
 | 開放 PR | 0 | |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**） |
-| 塔台版本 | v5.0.9 | control-tower skill |
+| 塔台版本 | v5.1.0（2026-10-15 安裝，下個 session 生效） | control-tower skill |
 
 > **Drift / 注意事項**:
 > 1. 🔴 **D094 mac installer 280 MB cap 長期超標**未復議（L130）
