@@ -1384,6 +1384,7 @@
   - **第二階段**（使用者 2026-10-16 選「做 A，加匯入本機 tarball」）：**推翻 D092 的「安裝檔內建 baseline」部分**——三平台安裝檔都不再附 server bundle，首次設定遠端時從 GitHub Release 下載（D120 每版都發 `server-bundle-v<版號>`）；新增 wizard「匯入本機 tarball」（含 `.sha256` 驗證）給離線 / 內網；修正無 baseline 時 cache 無法驗證的缺口；搭配 D1（`compression: maximum`）→ T0547。D093 / D095 / D120 保留
   - **第三階段 B**（使用者選「繼續內建」）：codex 維持內建，不做
   - **D094 改寫**：每個平台安裝檔 ≤ 320 MiB（可攜 zip 另計 ≤ 450 MiB），由 CI `Report artifact sizes` 量測；第二階段 CI 實測後確認數值，並解除 L130
+- **定案**（2026-10-16 02:08，`v0.6.1-pre.4` CI 實測，run `38781893001`）：exe 298.0 / zip 412.3 / AppImage 297.3 / dmg 309.6 MiB（pre.3：693.9 / 868.8 / 1030.7 / 871.9）；server bundle linux-x64 158.6 / linux-arm64 157.9 / darwin-arm64 143.5 MiB。**D094 由本決策取代**：每平台安裝檔 ≤ 320 MiB、可攜 zip ≤ 450 MiB，以 CI `Report artifact sizes` 量測；L130（長期超標）解除
 - **不採用**：mac 只附一份 baseline 的折衷（dmg 仍約 499）；B1 / B2（codex 不內建）；D2（ULMO dmg，需後處理與重簽）；D3（server bundle 改 xz，遠端需 `xz`）
 - **相關**：T0544 / T0546 / T0547 / D092 / D094 / D120 / PLAN-031 / L130
 
