@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-140
 title: "`--close-worker` 延遲期間，使用者只是在 BAT 切換工作區 / 終端焦點（沒有在 Worker 分頁打字），排程仍被當成「使用者輸入」取消，Worker 分頁沒有回收"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: likely
 created_at: "2026-10-16T02:49:49+0800"
-updated_at: "2026-10-16T02:51:47+0800"
+updated_at: "2026-10-16T03:10:07+0800"
 impact:
   - worker-auto-close
   - terminal-input
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（`worker_auto_close: done` 時，使用者在延遲期間只要在 BAT 內切換就可能讓回收失敗、分頁保留；塔台只知道 exit 0，不會得知取消。繞行：再請求一次 / 手動關閉） |
 | 可重現 | 推測可重現（單次觀察；根因待 Worker 確認） |
-| **狀態** | 🔧 FIXING（T0551，2026-10-16 02:51 派發） |
+| **狀態** | ✅ FIXED（T0551，commit `92655e00`，等人工驗收） |
 | 回報者 | 塔台觀察 + 使用者確認（「我在 BAT 操作切換工作區或終端 focus」，未在 Worker 分頁打字） |
 
 ## 現象
@@ -41,3 +41,10 @@ links:
 
 - 只把「使用者鍵入」記為輸入：在 renderer 區分 xterm `onData` 的來源（鍵盤 / 貼上 vs. 終端自動回應），或在 main 端排除純 focus report / 終端查詢回覆序列（`ESC [ I`、`ESC [ O`、`ESC [ … R`、`ESC [ ? … c` 等）。需涵蓋本機與遠端 headless 兩條路徑（遠端以 client 連線的 `pty:write` 判定，T0536）。
 - 補測試：延遲期間送 focus report / DSR 回覆不取消；真正鍵入仍取消。
+
+## 修正（T0551，commit `92655e00`）
+
+- **根因已證實**：xterm 的 focus report。隔離實例 e2e（`e2e/t0551-close-worker-focus.spec.ts`）中 Worker 腳本開 DECSET 1004 並記錄 stdin；延遲期間切換分頁 / 工作區，Worker 只收到 `ESC [ I` / `ESC [ O`，修正前分頁沒有關閉（重現）。DSR 等查詢回覆同樣走 `pty:write`。
+- **修正**：`isTerminalAutoReply`（`electron/close-worker.ts`）排除完全由終端自動回應組成的寫入（focus、CPR、DSR、DA、DECRQM、XTWINOPS、kitty 旗標、滑鼠回報、OSC / DCS 回覆）；`registerPtyHandlers`（本機與 headless 共用）只在非自動回應時 `noteUserInput`。寫入照常送進 PTY；打字、Enter、貼上、IME、夾帶一般字元的混合寫入仍取消。
+- 已知重疊：帶修飾鍵的 F3（`ESC [ 1 ; <m> R`）與游標位置回報同形，不算輸入。
+- 驗證：unit 4133 passed / 243 files、兩個 typecheck = 0、vite build、`e2e/t0551-close-worker-focus.spec.ts` 與 `e2e/t0535-close-worker.spec.ts` 通過、headless e2e 8 passed。細節見 T0551 回報區。
