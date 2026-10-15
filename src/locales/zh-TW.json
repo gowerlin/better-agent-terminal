@@ -978,6 +978,7 @@
     "checking": "檢查中…",
     "recheck": "重新檢查",
     "install": "安裝",
+    "installViaNvm": "透過 nvm 安裝 LTS",
     "update": "更新",
     "docsLink": "安裝說明",
     "tier": {
@@ -1034,6 +1035,10 @@
       "credentialFilePresent": "主機上有認證檔。",
       "credentialFileAbsent": "主機上找不到認證檔。"
     },
+    "nvm": {
+      "version": "nvm {{version}}",
+      "present": "nvm"
+    },
     "server": {
       "visible": "伺服器：可見",
       "hidden": "伺服器：不可見",
@@ -1058,7 +1063,8 @@
       "notOnPath": "已安裝，但還不在登入 PATH 上。請開一個新的終端分頁。",
       "tooOld": "此 Claude Code 版本太舊，無法使用較新的模型。請更新。",
       "versionError": "在 PATH 上找到，但沒有回報版本。",
-      "curlMissing": "主機上沒有可用的 curl，此安裝程式無法執行。請先安裝 curl。"
+      "curlMissing": "主機上沒有可用的 curl，此安裝程式無法執行。請先安裝 curl。",
+      "nodeNotNvm": "這個 Node.js 不是由 nvm 管理（例如發行版套件）。可以另外透過 nvm 安裝 LTS，系統的 Node.js 不會被移除。"
     },
     "unsupported": {
       "no-recipe": "此工具沒有一鍵安裝。",
@@ -1066,7 +1072,8 @@
       "no-package-manager": "主機上找不到支援的套件管理器。",
       "manual-only": "只能在主機上手動安裝。",
       "brew-as-root": "Homebrew 不能以 root 執行。",
-      "musl-without-apk": "此 musl 主機沒有 apk，無法安裝必要的函式庫。"
+      "musl-without-apk": "此 musl 主機沒有 apk，無法安裝必要的函式庫。",
+      "node-musl-source-build": "Node.js 沒有提供 Alpine 等 musl 主機的官方版本，nvm 會改成從原始碼編譯。請改用系統套件管理員安裝（例如 apk add nodejs npm）。"
     },
     "integrity": {
       "claudeManifestSha256": "安裝程式會對照 release manifest 中的 SHA-256 驗證下載內容。",
@@ -1074,19 +1081,25 @@
       "uvEmbeddedSha256": "安裝程式會對照腳本內建的 SHA-256 驗證下載內容。",
       "distroRepo": "套件由發行版套件庫簽章。",
       "ghRepoGpg": "套件來自 GitHub CLI 官方套件庫，以其 GPG 金鑰驗證。",
-      "homebrew": "由 Homebrew 驗證。"
+      "homebrew": "由 Homebrew 驗證。",
+      "nvmNodeShasums": "nvm 安裝腳本固定為 {{nvmTag}} 版（raw.githubusercontent.com/nvm-sh/nvm）。nvm 從 nodejs.org 下載 Node.js，並以官方公布的 SHASUMS256.txt 校驗。"
     },
     "location": {
       "userLocalBin": "使用者家目錄（~/.local/bin），不需 sudo",
       "system": "系統層級（套件管理器）",
-      "homebrew": "Homebrew 安裝目錄"
+      "homebrew": "Homebrew 安裝目錄",
+      "nvmDir": "你的家目錄（~/.nvm，由 nvm 管理），不需要 sudo"
     },
     "note": {
       "reopenTerminalForPath": "已開啟的終端分頁要重開，才看得到 ~/.local/bin。",
       "codexEditsProfile": "Codex 安裝程式會在 shell profile 加入 PATH 設定。",
       "alpineUseSystemRipgrep": "在 Alpine 上，請在 Claude settings.json 的 env 設定 USE_BUILTIN_RIPGREP=0，改用系統的 ripgrep。",
       "rgNeedsEpel": "RHEL 系列的 ripgrep 在 EPEL 中；若安裝失敗，請先啟用 EPEL。",
-      "claudeManualUpdate": "BAT 遠端終端關閉了背景自動更新；請用這裡的「更新」或執行 claude update。"
+      "claudeManualUpdate": "BAT 遠端終端關閉了背景自動更新；請用這裡的「更新」或執行 claude update。",
+      "nvmEditsProfile": "nvm 安裝程式會在 ~/.bashrc（或 ~/.zshrc / ~/.profile）結尾加入幾行載入 nvm 的設定，檔案其他內容不變。互動式 shell、BAT 終端與這裡的偵測都會載入 nvm；若發行版的 ~/.bashrc 對非互動 shell 提早結束（Ubuntu），單純的 bash -lc 不會載入。",
+      "nvmKeepsSystemNode": "系統套件管理員安裝的 Node.js 會保留；有載入 nvm 的 shell 會優先使用 nvm 的版本。",
+      "nvmReopenTerminal": "已開啟的終端分頁要重開，才看得到 nvm 與這個 Node.js。",
+      "nvmUpdateMovesDefault": "以 nvm 安裝最新的 LTS，從目前版本重新安裝全域 npm 套件，並設為預設版本。舊版本會保留。如果已經是最新 LTS，不會有任何變更。"
     },
     "error": {
       "host-platform": "此主機不支援工具偵測。",
@@ -1114,6 +1127,7 @@
       "location": "安裝位置",
       "integrity": "完整性",
       "integrityScriptNote": "安裝腳本本身經 HTTPS 下載，沒有釘選雜湊；官方每次發版都會修改它。",
+      "integrityScriptPinnedNote": "安裝腳本透過 HTTPS 從固定的發行版本標籤下載，沒有以雜湊值鎖定。",
       "sources": "來源",
       "docs": "官方文件",
       "viewScript": "檢視腳本內容",
@@ -1148,6 +1162,7 @@
     },
     "hint": {
       "reopenTabs": "已開啟的其他終端分頁需重開，才看得到 ~/.local/bin。",
+      "reopenTabsNvm": "已開啟的終端分頁要重開，才會載入 nvm。",
       "posixShell": "{{shell}} 不是 POSIX shell，安裝分頁改用 {{fallback}}。"
     }
   },

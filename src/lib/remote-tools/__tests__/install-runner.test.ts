@@ -154,12 +154,12 @@ describe('runRemoteToolInstall — plan', () => {
 
   test('unsupported plan ⇒ notice with the reason, no tab, no PTY', async () => {
     const h = harness()
-    const start = await runRemoteToolInstall({ toolId: 'node', kind: 'install' }, h.deps)
+    const start = await runRemoteToolInstall({ toolId: 'python3', kind: 'install' }, h.deps)
     expect(start.status).toBe('unsupported')
     expect(h.notices).toEqual([{
       level: 'warning',
       key: 'remoteToolInstall.error.unsupported',
-      params: { toolKey: 'remoteTools.tool.node.name', reasonKey: 'remoteTools.unsupported.no-recipe' },
+      params: { toolKey: 'remoteTools.tool.python3.name', reasonKey: 'remoteTools.unsupported.no-recipe' },
     }])
     expect(h.addTerminal).not.toHaveBeenCalled()
     expect(h.creates).toEqual([])
@@ -280,6 +280,21 @@ describe('runRemoteToolInstall — PTY', () => {
     expect(h.notices).toEqual([
       { level: 'warning', key: 'remoteToolInstall.result.failed', params: { toolKey: 'remoteTools.tool.gh.name', code: '100' } },
       { level: 'info', key: 'remoteToolInstall.hint.reopenTabs' },
+    ])
+  })
+
+  test('node (T0555): the reopen hint names nvm, not ~/.local/bin', async () => {
+    const node = makeReport({}, { node: { status: 'ok', path: '/home/u/.nvm/versions/node/v24.22.0/bin/node', version: '24.22.0', nvm: { version: '0.40.8' }, nvmManaged: true } })
+    const h = harness({ detect: [ok(WSL), ok(node)] })
+    const start = await runRemoteToolInstall({ toolId: 'node', kind: 'install' }, h.deps)
+    if (start.status !== 'started') throw new Error('not started')
+    expect(start.plan.command).toContain('https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh')
+    h.flushScheduled()
+    h.output('term-1', sentinelOutput(0))
+    await start.done
+    expect(h.notices).toEqual([
+      { level: 'success', key: 'remoteToolInstall.result.installed', params: { toolKey: 'remoteTools.tool.node.name', version: '24.22.0' } },
+      { level: 'info', key: 'remoteToolInstall.hint.reopenTabsNvm' },
     ])
   })
 

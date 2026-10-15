@@ -978,6 +978,7 @@
     "checking": "Checking…",
     "recheck": "Check again",
     "install": "Install",
+    "installViaNvm": "Install LTS with nvm",
     "update": "Update",
     "docsLink": "Installation docs",
     "tier": {
@@ -1034,6 +1035,10 @@
       "credentialFilePresent": "A credential file exists on the host.",
       "credentialFileAbsent": "No credential file was found on the host."
     },
+    "nvm": {
+      "version": "nvm {{version}}",
+      "present": "nvm"
+    },
     "server": {
       "visible": "Server: visible",
       "hidden": "Server: not visible",
@@ -1058,7 +1063,8 @@
       "notOnPath": "Installed, but not on the login PATH yet. Open a new terminal tab to pick it up.",
       "tooOld": "This Claude Code is too old for newer models. Update it.",
       "versionError": "Found on PATH, but it did not report a version.",
-      "curlMissing": "curl is not available on the host, so this installer cannot run. Install curl first."
+      "curlMissing": "curl is not available on the host, so this installer cannot run. Install curl first.",
+      "nodeNotNvm": "This Node.js is not managed by nvm (for example the distro package). You can add the nvm LTS next to it; the system Node.js is not removed."
     },
     "unsupported": {
       "no-recipe": "No one-click install for this tool.",
@@ -1066,7 +1072,8 @@
       "no-package-manager": "No supported package manager was found on the host.",
       "manual-only": "This can only be installed manually on the host.",
       "brew-as-root": "Homebrew does not run as root.",
-      "musl-without-apk": "This musl-based host has no apk, so the required libraries cannot be installed."
+      "musl-without-apk": "This musl-based host has no apk, so the required libraries cannot be installed.",
+      "node-musl-source-build": "Node.js has no official build for musl-based hosts such as Alpine, so nvm would compile it from source. Install it with the system package manager instead (for example apk add nodejs npm)."
     },
     "integrity": {
       "claudeManifestSha256": "The installer checks the download against the SHA-256 in the release manifest.",
@@ -1074,19 +1081,25 @@
       "uvEmbeddedSha256": "The installer checks the download against SHA-256 hashes embedded in the script.",
       "distroRepo": "Package signed by the distribution repository.",
       "ghRepoGpg": "Package from the official GitHub CLI repository, verified with its GPG key.",
-      "homebrew": "Verified by Homebrew."
+      "homebrew": "Verified by Homebrew.",
+      "nvmNodeShasums": "The nvm install script is pinned to release {{nvmTag}} (raw.githubusercontent.com/nvm-sh/nvm). nvm downloads Node.js from nodejs.org and checks it against the published SHASUMS256.txt."
     },
     "location": {
       "userLocalBin": "Your home directory (~/.local/bin), no sudo",
       "system": "System-wide (package manager)",
-      "homebrew": "Homebrew prefix"
+      "homebrew": "Homebrew prefix",
+      "nvmDir": "Your home directory (~/.nvm, managed by nvm), no sudo"
     },
     "note": {
       "reopenTerminalForPath": "Terminal tabs that are already open will not see ~/.local/bin until you open a new one.",
       "codexEditsProfile": "The Codex installer adds a PATH entry to your shell profile.",
       "alpineUseSystemRipgrep": "On Alpine, set USE_BUILTIN_RIPGREP=0 in the env section of Claude settings.json so it uses the system ripgrep.",
       "rgNeedsEpel": "On RHEL-family systems ripgrep is in EPEL; enable EPEL first if the install fails.",
-      "claudeManualUpdate": "Background auto-update is off in BAT remote terminals; use Update here or run claude update."
+      "claudeManualUpdate": "Background auto-update is off in BAT remote terminals; use Update here or run claude update.",
+      "nvmEditsProfile": "The nvm installer appends a few lines that load nvm to ~/.bashrc (or ~/.zshrc / ~/.profile); nothing else in the file changes. Interactive shells, BAT terminals and this detection load nvm; on distros whose ~/.bashrc stops early for non-interactive shells (Ubuntu), a plain bash -lc does not.",
+      "nvmKeepsSystemNode": "A Node.js installed by the system package manager stays installed; shells that load nvm use the nvm version first.",
+      "nvmReopenTerminal": "Terminal tabs that are already open will not see nvm or this Node.js until you open a new one.",
+      "nvmUpdateMovesDefault": "Installs the newest LTS with nvm, reinstalls your global npm packages from the current version, and makes it the default. The previous version stays installed. Nothing changes when you are already on the newest LTS."
     },
     "error": {
       "host-platform": "Tool detection is not supported on this host.",
@@ -1114,6 +1127,7 @@
       "location": "Installs to",
       "integrity": "Integrity",
       "integrityScriptNote": "The install script itself is downloaded over HTTPS and is not pinned to a hash; the vendor changes it with every release.",
+      "integrityScriptPinnedNote": "The install script is downloaded over HTTPS from a fixed release tag; it is not pinned to a hash.",
       "sources": "Sources",
       "docs": "Official docs",
       "viewScript": "View script",
@@ -1148,6 +1162,7 @@
     },
     "hint": {
       "reopenTabs": "Terminal tabs that were already open must be reopened to see ~/.local/bin.",
+      "reopenTabsNvm": "Terminal tabs that were already open must be reopened to load nvm.",
       "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
     }
   },

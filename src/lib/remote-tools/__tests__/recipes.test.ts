@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import {
   ALLOWED_URL_HOSTS,
   INTEGRITY_KEYS,
+  NVM_VERSION_TAG,
   LOCATION_KEYS,
   NOTE_KEYS,
   UNSUPPORTED_REASONS,
@@ -198,23 +199,101 @@ describe('buildInstallPlan — key cases', () => {
     expect(plan('rg', linux('apt', 'passwordless')).notes).toBeUndefined()
   })
 
-  it('no install button for node / curl / bash / python3 (node links the nodejs.org guidance)', () => {
-    expect(buildInstallPlan('node', linux('apt', 'root'))).toEqual({ unsupported: 'no-recipe', docsUrl: 'https://nodejs.org/en/download' })
+  it('no install button for curl / bash / python3', () => {
     for (const tool of ['curl', 'bash', 'python3'] as const) {
       expect(buildInstallPlan(tool, linux('apt', 'root'))).toEqual({ unsupported: 'no-recipe' })
     }
   })
 })
 
+describe('node via nvm (T0555)', () => {
+  const NVM_INSTALL = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default \'lts/*\''
+  const NVM_UPDATE = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && . "$NVM_DIR/nvm.sh" && if [ "$(nvm version-remote --lts)" = "$(nvm current)" ]; then echo "Node.js $(nvm current) is already the latest LTS"; else nvm install --lts --reinstall-packages-from=current && nvm alias default \'lts/*\'; fi'
+  const MAC: RecipeEnv = { osFamily: 'darwin', pkgManager: 'brew', privilege: 'password-required', musl: false }
+
+  it('nvm is pinned to a release tag, never master', () => {
+    expect(NVM_VERSION_TAG).toMatch(/^v\d+\.\d+\.\d+$/)
+    expect(NVM_VERSION_TAG).toBe('v0.40.8')
+    const p = plan('node', linux('apt', 'passwordless'))
+    expect(p.scriptUrl).toBe('https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh')
+    expect(p.scriptPinned).toBe(true)
+    expect(p.docsUrl).toBe('https://github.com/nvm-sh/nvm/blob/v0.40.8/README.md#installing-and-updating')
+    for (const { result } of allResults()) expect(JSON.stringify(result)).not.toMatch(/nvm-sh\/nvm\/(master|main|HEAD)\b/)
+  })
+
+  it('Linux apt / dnf / yum / none and Linux brew: the same user-space nvm install, no sudo', () => {
+    for (const pm of ['apt', 'dnf', 'yum', 'none', 'brew'] as const) {
+      for (const privilege of PRIVILEGES) {
+        const p = plan('node', linux(pm, privilege))
+        expect(p.command).toBe(NVM_INSTALL)
+        expect(p.needsSudo).toBe(false)
+        expect(p.installLocation).toBe('remoteTools.location.nvmDir')
+        expect(p.installPath).toBe('~/.nvm')
+        expect(p.integrity).toBe('remoteTools.integrity.nvmNodeShasums')
+        expect(p.prerequisites).toBeUndefined()
+        expect(p.notes).toEqual(['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'])
+      }
+    }
+  })
+
+  it('install: nvm loaded into the tab shell, then the LTS, then default → lts/*', () => {
+    const steps = plan('node', linux('apt', 'root')).command.split(' && ')
+    expect(steps).toEqual([
+      'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"',
+      'mkdir -p "$NVM_DIR"',
+      'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash',
+      '. "$NVM_DIR/nvm.sh"',
+      'nvm install --lts',
+      "nvm alias default 'lts/*'",
+    ])
+  })
+
+  it('macOS (SSH): nvm too, with or without brew; root is fine (no Homebrew involved)', () => {
+    expect(plan('node', MAC).command).toBe(NVM_INSTALL)
+    expect(plan('node', { ...MAC, pkgManager: 'none' }).command).toBe(NVM_INSTALL)
+    expect(plan('node', { ...MAC, privilege: 'root' }).command).toBe(NVM_INSTALL)
+  })
+
+  it('Alpine / musl: no one-click install (nvm would build from source), nodejs.org docs link', () => {
+    for (const privilege of PRIVILEGES) {
+      expect(buildInstallPlan('node', linux('apk', privilege, true))).toEqual({ unsupported: 'node-musl-source-build', docsUrl: 'https://nodejs.org/en/download' })
+      expect(buildUpdatePlan('node', linux('apk', privilege, true))).toEqual({ unsupported: 'node-musl-source-build', docsUrl: 'https://nodejs.org/en/download' })
+    }
+    // musl without apk (Void musl and friends), and apk reported without the musl flag.
+    expect(buildInstallPlan('node', linux('none', 'root', true))).toMatchObject({ unsupported: 'node-musl-source-build' })
+    expect(buildInstallPlan('node', linux('apk', 'root', false))).toMatchObject({ unsupported: 'node-musl-source-build' })
+  })
+
+  it('unknown OS: no recipe, nodejs.org docs link', () => {
+    expect(buildInstallPlan('node', { osFamily: 'unknown', pkgManager: 'none', privilege: 'root', musl: false })).toEqual({ unsupported: 'no-recipe', docsUrl: 'https://nodejs.org/en/download' })
+  })
+
+  it('update: newest LTS unless already on it, packages reinstalled, default moved', () => {
+    const p = buildUpdatePlan('node', linux('apt', 'password-required'))
+    expect(p).toMatchObject({
+      toolId: 'node',
+      kind: 'update',
+      command: NVM_UPDATE,
+      needsSudo: false,
+      installLocation: 'remoteTools.location.nvmDir',
+      integrity: 'remoteTools.integrity.nvmNodeShasums',
+      notes: ['remoteTools.note.nvmUpdateMovesDefault'],
+    })
+    expect(isInstallPlan(p) && p.scriptUrl).toBeFalsy()
+    expect(buildUpdatePlan('node', MAC)).toMatchObject({ command: NVM_UPDATE })
+  })
+})
+
 describe('buildUpdatePlan', () => {
-  it('claude update for the system claude; nothing else in v1', () => {
+  it('claude update for the system claude; node via nvm (T0555); nothing else', () => {
     expect(buildUpdatePlan('claude', linux('apt', 'password-required'))).toMatchObject({
       toolId: 'claude',
       kind: 'update',
       command: 'claude update',
       needsSudo: false,
     })
-    for (const tool of REMOTE_TOOL_IDS.filter((t) => t !== 'claude')) {
+    expect(buildUpdatePlan('node', linux('apt', 'root'))).toMatchObject({ toolId: 'node', kind: 'update' })
+    for (const tool of REMOTE_TOOL_IDS.filter((t) => t !== 'claude' && t !== 'node')) {
       expect(buildUpdatePlan(tool, linux('apt', 'root'))).toEqual({ unsupported: 'no-recipe' })
     }
   })

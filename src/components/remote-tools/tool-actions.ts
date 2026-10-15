@@ -22,6 +22,8 @@ export type ToolAction =
       plan: InstallPlan
       /** install.sh recipe on a host without a usable curl (the recipe does not bring its own). */
       blockedByCurl: boolean
+      /** T0555: node is already installed but not by nvm; this adds nvm's LTS next to it. */
+      alongside?: boolean
     }
   | {
       kind: 'update'
@@ -39,7 +41,23 @@ export function isCurlUsable(report: RemoteToolsReport): boolean {
   return report.tools.find((tool) => tool.id === 'curl')?.status === 'ok'
 }
 
+/**
+ * T0555: a runnable node. nvm's → "Update" to the newest LTS; any other (apt / dnf / brew) →
+ * "Install LTS with nvm" next to it (the system node is never removed). Hosts without a recipe
+ * (Alpine) show nothing for an installed node rather than an unsupported notice.
+ */
+function installedNodeAction(tool: RemoteToolReport, env: RecipeEnv, curlUsable: boolean): ToolAction {
+  if (tool.nvmManaged) {
+    const result = buildUpdatePlan('node', env)
+    return isInstallPlan(result) ? { kind: 'update', plan: result, emphasized: false } : { kind: 'none' }
+  }
+  const result = buildInstallPlan('node', env)
+  if (!isInstallPlan(result)) return { kind: 'none' }
+  return { kind: 'install', plan: result, blockedByCurl: !curlUsable, alongside: true }
+}
+
 export function toolAction(tool: RemoteToolReport, env: RecipeEnv, curlUsable: boolean): ToolAction {
+  if (tool.id === 'node' && tool.status === 'ok') return installedNodeAction(tool, env, curlUsable)
   if (tool.id === 'claude' && (tool.status === 'ok' || tool.status === 'too-old')) {
     const result = buildUpdatePlan('claude', env)
     return isInstallPlan(result)

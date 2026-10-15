@@ -470,6 +470,38 @@ inside the PTYs):
 Remote shell check (key names only):
 `env | grep ^BAT_ | cut -d= -f1 | sort`.
 
+## Remote tools: Node.js via nvm (T0555)
+
+The remote tools panel (PLAN-037) installs Node.js with
+[nvm](https://github.com/nvm-sh/nvm), in user space, like uv for Python.
+
+- **Install** (Linux and macOS SSH targets, any package manager, no sudo):
+  `export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" &&
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash &&
+  . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'`.
+  The nvm release is pinned (`NVM_VERSION_TAG`, `src/lib/remote-tools/recipes.ts`);
+  `METHOD=script` fetches `nvm.sh` from the same tag with curl (no git, no macOS
+  Command Line Tools prompt). nvm checks Node.js against nodejs.org `SHASUMS256.txt`.
+  nvm appends its loader to `~/.bashrc` (or `~/.zshrc` / `~/.profile`).
+- **Update** (shown only for an nvm-managed node): newest LTS with
+  `--reinstall-packages-from=current`, `default` moved to `lts/*`; already on the
+  newest LTS → prints so and exits 0. The old version stays installed.
+- **A node that nvm does not manage** (apt's 18.x, for example) is shown with its
+  version and an "Install LTS with nvm" button next to it; the system node is never removed.
+- **Alpine / musl**: no button (nodejs.org has no musl build; nvm would compile from
+  source). The row links the nodejs.org download page.
+- **Detection**: the login-view probe loads `${NVM_DIR:-$HOME/.nvm}/nvm.sh` in a child
+  `/bin/sh` (8 s limit, a broken `nvm.sh` cannot end the probe) and reports `nvm --version`
+  plus the node nvm activates; that node is used when it is under `$NVM_DIR/versions/node/`.
+  The report carries `nvm: { version }` and `nvmManaged` on the node row. A WSL hit under
+  `/mnt/<drive>/` is still `interop-only`. Needs a server with the T0555 probe; older
+  servers still report node, without the nvm fields.
+- **Non-interactive shells**: BAT terminals (`-l -i`) and the detection see nvm's node.
+  A plain `bash -lc` on Ubuntu does not, because the stock `~/.bashrc` returns before
+  nvm's loader for non-interactive shells (nvm's own placement, unchanged by BAT).
+- Real-machine check: `e2e/t0555-node-nvm-wsl.spec.ts` (`BAT_E2E_T0555=1`, installs
+  into the distro; deploy the server JS first with `npm run deploy:headless:dev -- --target wsl:<distro> --yes`).
+
 ## Troubleshooting (cross-cutting)
 
 For environment-specific troubleshooting see the per-env guides. The issues

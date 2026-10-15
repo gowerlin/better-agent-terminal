@@ -787,7 +787,9 @@ export function checkRemoteToolsAnswer(result) {
   if (!git || git.status !== 'ok') problems.push(`git status=${git?.status ?? 'absent'} (expected ok)`)
   if (problems.length > 0) return { ok: false, evidence: problems.join('; ') }
 
-  const statuses = tools.map((t) => `${t.id}=${t.status}${t.version ? `@${t.version}` : ''}`).join(' ')
+  // T0555: node carries the nvm facts (`(nvm 0.40.8, managed)`); display only, never judged.
+  const nvmNote = (t) => (t.id === 'node' && t.nvm ? `(nvm${t.nvm.version ? ` ${t.nvm.version}` : ''}${t.nvmManaged ? ', managed' : ''})` : '')
+  const statuses = tools.map((t) => `${t.id}=${t.status}${t.version ? `@${t.version}` : ''}${nvmNote(t)}`).join(' ')
   const warnings = Array.isArray(report.warnings) && report.warnings.length > 0 ? `; warnings: ${report.warnings.length}` : ''
   return {
     ok: true,

@@ -513,6 +513,72 @@ describe('hostile / noisy output', () => {
 
 describe('key whitelist', () => {
   it('contains only env.* and tool.<known id>.<known field> keys', () => {
-    for (const k of PROBE_KEY_WHITELIST) expect(k).toMatch(/^(env\.[a-z_]+|env\.auth\.[A-Z_]+|tool\.(claude|git|gh|codex|curl|bash|rg|uv|python3|node)\.(state|path|version|login|cred))$/)
+    for (const k of PROBE_KEY_WHITELIST) expect(k).toMatch(/^(env\.[a-z_]+|env\.auth\.[A-Z_]+|tool\.(claude|git|gh|codex|curl|bash|rg|uv|python3|node)\.(state|path|version|login|cred)|tool\.node\.(nvm|nvm_managed))$/)
+  })
+})
+
+describe('node via nvm (T0555)', () => {
+  const nodeLines = (lines: string[]) => block(['env.uname_s=Linux', ...missingTools(['node']), ...lines])
+
+  it('nvm-managed node: version, nvm version, managed flag', () => {
+    const node = tool(mustParse(nodeLines([
+      'tool.node.nvm=0.40.8',
+      'tool.node.state=found',
+      'tool.node.path=/home/u/.nvm/versions/node/v24.11.0/bin/node',
+      'tool.node.version=v24.11.0',
+      'tool.node.nvm_managed=1',
+    ])), 'node')
+    expect(node).toMatchObject({ status: 'ok', version: '24.11.0', nvm: { version: '0.40.8' }, nvmManaged: true, login: 'n/a' })
+  })
+
+  it('apt node with nvm installed but unused: not managed', () => {
+    const node = tool(mustParse(nodeLines([
+      'tool.node.nvm=0.40.8',
+      'tool.node.state=found',
+      'tool.node.path=/usr/bin/node',
+      'tool.node.version=v18.19.1',
+      'tool.node.nvm_managed=0',
+    ])), 'node')
+    expect(node).toMatchObject({ status: 'ok', version: '18.19.1', nvm: { version: '0.40.8' }, nvmManaged: false })
+  })
+
+  it('apt node without nvm: no nvm field', () => {
+    const node = tool(mustParse(nodeLines([
+      'tool.node.state=found',
+      'tool.node.path=/usr/bin/node',
+      'tool.node.version=v18.19.1',
+      'tool.node.nvm_managed=0',
+    ])), 'node')
+    expect(node.nvm).toBeUndefined()
+    expect(node.nvmManaged).toBe(false)
+  })
+
+  it('interop-only node stays interop-only (not installed), even with nvm present', () => {
+    const node = tool(mustParse(nodeLines([
+      'tool.node.nvm=0.40.8',
+      'tool.node.state=interop',
+      'tool.node.path=/mnt/c/nvm4w/nodejs/node',
+    ])), 'node')
+    expect(node).toMatchObject({ status: 'interop-only', nvm: { version: '0.40.8' } })
+    expect(node.nvmManaged).toBeUndefined()
+    expect(node.version).toBeUndefined()
+  })
+
+  it('nvm.sh present but nvm did not answer: nvm without a version', () => {
+    expect(tool(mustParse(nodeLines(['tool.node.nvm=', 'tool.node.state=missing'])), 'node')).toMatchObject({ status: 'missing', nvm: {} })
+  })
+
+  it('nvm keys never appear on other tools, and a forged managed flag on a missing node is ignored', () => {
+    const r = mustParse(block(['env.uname_s=Linux', ...missingTools(), 'tool.git.nvm=0.40.8', 'tool.node.nvm_managed=1']))
+    for (const t of r.tools) {
+      if (t.id !== 'node') expect(t).not.toHaveProperty('nvm')
+    }
+    expect(tool(r, 'node').nvmManaged).toBeUndefined()
+    expect(r.warnings).toContain('dropped 1 non-whitelisted line(s)')
+  })
+
+  it('nvm version text is sanitized and parsed, never passed through raw', () => {
+    const node = tool(mustParse(nodeLines(['tool.node.nvm=0.40.8 $(id)', 'tool.node.state=missing'])), 'node')
+    expect(node.nvm).toEqual({ version: '0.40.8' })
   })
 })

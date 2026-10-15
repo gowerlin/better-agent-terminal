@@ -248,6 +248,11 @@ function ToolRow({ tool, report, action, canInstall, onRequestPlan, onLogin, onO
         <span className="remote-tools-name">{t(`remoteTools.tool.${tool.id}.name`)}</span>
         <span className={`remote-tools-status remote-tools-status--${tool.status}`}>{t(`remoteTools.status.${tool.status}`)}</span>
         {tool.version && <span className="remote-tools-version">{tool.version}</span>}
+        {tool.nvm && (
+          <span className="remote-tools-chip" data-testid="remote-tool-nvm">
+            {tool.nvm.version ? t('remoteTools.nvm.version', { version: tool.nvm.version }) : t('remoteTools.nvm.present')}
+          </span>
+        )}
         {hasLogin && (
           <span className={`remote-tools-login remote-tools-login--${tool.login}`}>{t(`remoteTools.login.${tool.login}`)}</span>
         )}
@@ -260,11 +265,11 @@ function ToolRow({ tool, report, action, canInstall, onRequestPlan, onLogin, onO
           {canInstall && action.kind === 'install' && (
             <button
               type="button"
-              className="remote-tools-btn primary"
+              className={`remote-tools-btn${action.alongside ? '' : ' primary'}`}
               disabled={action.blockedByCurl}
               onClick={() => onRequestPlan(action.plan)}
             >
-              {t('remoteTools.install')}
+              {t(action.alongside ? 'remoteTools.installViaNvm' : 'remoteTools.install')}
             </button>
           )}
           {canInstall && action.kind === 'update' && (
@@ -285,6 +290,7 @@ function ToolRow({ tool, report, action, canInstall, onRequestPlan, onLogin, onO
       </div>
       {tool.path && <div className="remote-tools-path" title={tool.path}>{tool.path}</div>}
       {tool.status === 'interop-only' && <div className="remote-tools-hint">{t('remoteTools.hint.interopOnly')}</div>}
+      {action.kind === 'install' && action.alongside && <div className="remote-tools-hint">{t('remoteTools.hint.nodeNotNvm')}</div>}
       {tool.status === 'not-on-path' && <div className="remote-tools-hint">{t('remoteTools.hint.notOnPath')}</div>}
       {tool.status === 'too-old' && <div className="remote-tools-hint remote-tools-hint--warn">{t('remoteTools.hint.tooOld')}</div>}
       {tool.status === 'error' && <div className="remote-tools-hint">{t('remoteTools.hint.versionError')}</div>}

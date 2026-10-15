@@ -8,7 +8,8 @@
  *
  * Strategy (T0407 Q3): user-space first — claude / codex / uv use the vendor install.sh
  * into `~/.local/bin` (no sudo); git / gh / rg use the distro package manager (gh via its
- * signed repo).
+ * signed repo); node uses nvm in `~/.nvm` (no sudo, T0555), with the nvm install script
+ * pinned to a release tag.
  */
 
 import {
@@ -36,7 +37,15 @@ export const ALLOWED_URL_HOSTS: readonly string[] = [
   'docs.astral.sh',
   'git-scm.com',
   'nodejs.org',
+  /** nvm install.sh at a pinned tag (`NVM_VERSION_TAG`); with METHOD=script it fetches nvm.sh from here too. */
+  'raw.githubusercontent.com',
 ]
+
+/**
+ * nvm release the node recipe installs (T0555). Pinned: the install script, and the nvm.sh it
+ * downloads, come from this tag, never from `master`. Bump deliberately.
+ */
+export const NVM_VERSION_TAG = 'v0.40.8'
 
 /** i18n keys (flat `remoteTools.*` namespace, T0407 §5) the confirm dialog renders. */
 export const INTEGRITY_KEYS = [
@@ -46,6 +55,8 @@ export const INTEGRITY_KEYS = [
   'remoteTools.integrity.distroRepo',
   'remoteTools.integrity.ghRepoGpg',
   'remoteTools.integrity.homebrew',
+  /** nvm install.sh pinned to `NVM_VERSION_TAG`; nvm checks Node.js against nodejs.org SHASUMS256.txt. */
+  'remoteTools.integrity.nvmNodeShasums',
 ] as const
 export type IntegrityKey = typeof INTEGRITY_KEYS[number]
 
@@ -53,6 +64,7 @@ export const LOCATION_KEYS = [
   'remoteTools.location.userLocalBin',
   'remoteTools.location.system',
   'remoteTools.location.homebrew',
+  'remoteTools.location.nvmDir',
 ] as const
 export type InstallLocationKey = typeof LOCATION_KEYS[number]
 
@@ -67,11 +79,19 @@ export const NOTE_KEYS = [
   'remoteTools.note.rgNeedsEpel',
   /** In BAT remote terminals background auto-update is off (`DISABLE_AUTOUPDATER=1`). */
   'remoteTools.note.claudeManualUpdate',
+  /** nvm install.sh appends its loader to ~/.bashrc (or ~/.zshrc / ~/.profile). */
+  'remoteTools.note.nvmEditsProfile',
+  /** A system node (apt / dnf) stays installed; shells that load nvm use nvm's node first. */
+  'remoteTools.note.nvmKeepsSystemNode',
+  /** Tabs opened before the install have not loaded nvm. */
+  'remoteTools.note.nvmReopenTerminal',
+  /** Update: newest LTS, global npm packages reinstalled from the old version, default alias moved. */
+  'remoteTools.note.nvmUpdateMovesDefault',
 ] as const
 export type RecipeNoteKey = typeof NOTE_KEYS[number]
 
 export const UNSUPPORTED_REASONS = [
-  /** No install button for this tool in v1 (curl / bash / python3 / node). */
+  /** No install button for this tool (curl / bash / python3; node on an unknown OS). */
   'no-recipe',
   /** Needs root, but the account is not root and has no sudo. */
   'needs-root-no-sudo',
@@ -83,6 +103,8 @@ export const UNSUPPORTED_REASONS = [
   'brew-as-root',
   /** musl host without apk: the claude runtime dependencies cannot be installed. */
   'musl-without-apk',
+  /** musl (Alpine): nodejs.org has no official musl build, so nvm would compile Node.js from source. */
+  'node-musl-source-build',
 ] as const
 export type UnsupportedReason = typeof UNSUPPORTED_REASONS[number]
 
@@ -102,6 +124,8 @@ export interface InstallPlan {
   docsUrl: string
   /** Remote script the command pipes into a shell (shown with a "view script" link). */
   scriptUrl?: string
+  /** `scriptUrl` is fixed to a release tag (nvm), not the vendor's moving latest script. */
+  scriptPinned?: boolean
   integrity: IntegrityKey
   /** Package is community-maintained, not by the vendor (Alpine gh). */
   unofficial?: boolean
@@ -132,12 +156,14 @@ const DOCS = {
   ghGeneral: 'https://github.com/cli/cli#installation',
   rg: 'https://github.com/BurntSushi/ripgrep#installation',
   node: 'https://nodejs.org/en/download',
+  nvm: `https://github.com/nvm-sh/nvm/blob/${NVM_VERSION_TAG}/README.md#installing-and-updating`,
 } as const
 
 const SCRIPT = {
   claude: 'https://claude.ai/install.sh',
   codex: 'https://chatgpt.com/codex/install.sh',
   uv: 'https://astral.sh/uv/install.sh',
+  nvm: `https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION_TAG}/install.sh`,
 } as const
 
 const GH_KEYRING_URL = 'https://cli.github.com/packages/githubcli-archive-keyring.gpg'
@@ -367,6 +393,79 @@ function rgPlan(env: RecipeEnv): RecipeResult {
   return distroPlan('rg', env, DOCS.rg, (s, pm) => distroInstall(pm, s, 'ripgrep'), notes ? { notes } : {})
 }
 
+// ── node via nvm (T0555) ──────────────────────────────────────────────────────
+
+/**
+ * Same directory the probe looks in (`${NVM_DIR:-$HOME/.nvm}`). Set before install.sh so it
+ * never picks `$XDG_CONFIG_HOME/nvm`, and created because install.sh refuses a missing $NVM_DIR.
+ */
+const NVM_DIR_SETUP = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"'
+/** nvm is a shell function: load it into the tab's shell (sh / bash / zsh / dash all supported). */
+const NVM_LOAD = '. "$NVM_DIR/nvm.sh"'
+const NVM_DEFAULT_LTS = "nvm alias default 'lts/*'"
+
+/**
+ * `METHOD=script`: fetch nvm.sh at the pinned tag with curl instead of `git clone` — no git
+ * dependency, and no macOS `/usr/bin/git` stub popping the Command Line Tools dialog.
+ */
+const NVM_INSTALL_COMMAND = [
+  NVM_DIR_SETUP,
+  'mkdir -p "$NVM_DIR"',
+  `curl -fsSL ${SCRIPT.nvm} | METHOD=script bash`,
+  NVM_LOAD,
+  'nvm install --lts',
+  NVM_DEFAULT_LTS,
+].join(' && ')
+
+/**
+ * Already on the newest LTS → say so and exit 0 (`--reinstall-packages-from=current` fails with
+ * "Can not reinstall packages from the current version"); otherwise install it, bring the global
+ * npm packages over and move `default`. The old version stays installed.
+ */
+const NVM_UPDATE_COMMAND = [
+  NVM_DIR_SETUP,
+  NVM_LOAD,
+  `if [ "$(nvm version-remote --lts)" = "$(nvm current)" ]; then echo "Node.js $(nvm current) is already the latest LTS"; else nvm install --lts --reinstall-packages-from=current && ${NVM_DEFAULT_LTS}; fi`,
+].join(' && ')
+
+/** Hosts nvm's prebuilt Node.js runs on; null = a plan can be built. */
+function nodeUnsupported(env: RecipeEnv): UnsupportedPlan | null {
+  if (env.osFamily === 'unknown') return { unsupported: 'no-recipe', docsUrl: DOCS.node }
+  // Alpine and other musl hosts: no official binary, nvm falls back to a long source build.
+  if (env.musl || env.pkgManager === 'apk') return { unsupported: 'node-musl-source-build', docsUrl: DOCS.node }
+  return null
+}
+
+function nodeInstallPlan(env: RecipeEnv): RecipeResult {
+  return nodeUnsupported(env) ?? {
+    toolId: 'node',
+    kind: 'install',
+    command: NVM_INSTALL_COMMAND,
+    needsSudo: false,
+    installLocation: 'remoteTools.location.nvmDir',
+    installPath: '~/.nvm',
+    docsUrl: DOCS.nvm,
+    scriptUrl: SCRIPT.nvm,
+    scriptPinned: true,
+    integrity: 'remoteTools.integrity.nvmNodeShasums',
+    notes: ['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'],
+  }
+}
+
+function nodeUpdatePlan(env: RecipeEnv): RecipeResult {
+  return nodeUnsupported(env) ?? {
+    toolId: 'node',
+    kind: 'update',
+    command: NVM_UPDATE_COMMAND,
+    needsSudo: false,
+    installLocation: 'remoteTools.location.nvmDir',
+    installPath: '~/.nvm',
+    docsUrl: DOCS.nvm,
+    integrity: 'remoteTools.integrity.nvmNodeShasums',
+    notes: ['remoteTools.note.nvmUpdateMovesDefault'],
+  }
+}
+
 /**
  * Install recipe for one tool on a host described only by enums.
  * Throws `TypeError` when `toolId` or `env` is not a known enum value.
@@ -386,8 +485,7 @@ export function buildInstallPlan(toolId: RemoteToolId, env: RecipeEnv): RecipeRe
     case 'rg':
       return rgPlan(e)
     case 'node':
-      // v1 shows detection only, with the nvm / fnm guidance on nodejs.org.
-      return { unsupported: 'no-recipe', docsUrl: DOCS.node }
+      return nodeInstallPlan(e)
     case 'curl':
     case 'bash':
     case 'python3':
@@ -396,12 +494,14 @@ export function buildInstallPlan(toolId: RemoteToolId, env: RecipeEnv): RecipeRe
 }
 
 /**
- * Update recipe. Only the system claude has one in v1: BAT remote terminals export
- * `DISABLE_AUTOUPDATER=1`, so it never updates itself in the background (T0407 §2).
+ * Update recipe. The system claude has one: BAT remote terminals export `DISABLE_AUTOUPDATER=1`,
+ * so it never updates itself in the background (T0407 §2). T0555: an nvm-managed node moves to
+ * the newest LTS (the panel offers it only for `nvmManaged` nodes).
  */
 export function buildUpdatePlan(toolId: RemoteToolId, env: RecipeEnv): RecipeResult {
   const tool = assertMember(toolId, REMOTE_TOOL_IDS, 'toolId')
-  normalizeRecipeEnv(env)
+  const e = normalizeRecipeEnv(env)
+  if (tool === 'node') return nodeUpdatePlan(e)
   if (tool !== 'claude') return { unsupported: 'no-recipe' }
   return {
     toolId: 'claude',

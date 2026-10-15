@@ -5,7 +5,7 @@
 // `remote-tools:detect` channel (T0411) and rendered by the tools panel (T0410).
 //
 // Security contract (T0407 §6): the enum fields here (`status`, `login`,
-// `pkgManager`, `privilege`, `musl`, `osFamily`, `isWsl`) are the only values an
+// `pkgManager`, `privilege`, `musl`, `osFamily`, `isWsl`, `nvmManaged`) are the only values an
 // install recipe may branch on. Free-form strings (`path`, `version`, `osId`,
 // `arch`, ...) come from the remote host and are for display only — never
 // interpolate them into a command.
@@ -88,6 +88,13 @@ export interface RemoteToolReport {
    * keeps credentials in the Keychain, so `false` there proves nothing.
    */
   credentialFilePresent?: boolean
+  /**
+   * `node` only (T0555): nvm is installed (`${NVM_DIR:-$HOME/.nvm}/nvm.sh` exists). `version` is
+   * display only (`nvm --version`); absent when nvm did not answer.
+   */
+  nvm?: { version?: string }
+  /** `node` only (T0555): the reported node is nvm's (`$NVM_DIR/versions/node/...`). */
+  nvmManaged?: boolean
   /** Whether the server process (headless handler PATH) can see this tool. */
   serverVisible: boolean
 }

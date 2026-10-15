@@ -212,6 +212,8 @@ export function completionNotice(target: RemoteToolInstallTarget, redetect: Remo
 }
 
 const REOPEN_HINT: InstallNotice = { level: 'info', key: 'remoteToolInstall.hint.reopenTabs' }
+/** T0555: node goes through nvm (`~/.nvm`, loaded from the shell rc file), not `~/.local/bin`. */
+const REOPEN_HINT_NVM: InstallNotice = { level: 'info', key: 'remoteToolInstall.hint.reopenTabsNvm' }
 
 /**
  * Starts the install and returns once the command is typed (or the run stopped early).
@@ -307,7 +309,7 @@ export async function runRemoteToolInstall(target: RemoteToolInstallTarget, deps
     } else {
       deps.notify({ level: 'warning', key: 'remoteToolInstall.result.failed', params: toolParams(plan.toolId, { code: String(c.exitCode) }) })
     }
-    deps.notify(REOPEN_HINT)
+    deps.notify(plan.toolId === 'node' ? REOPEN_HINT_NVM : REOPEN_HINT)
     return c
   })
   return { status: 'started', terminalId, plan, done }

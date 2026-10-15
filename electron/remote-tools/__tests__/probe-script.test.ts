@@ -67,11 +67,24 @@ describe('probe scripts: security guards (T0407 §6)', () => {
   it.each(SCRIPTS)('%s only expands a fixed set of shell variables', (_name, script) => {
     // Every ${...} must be a known env var with a default, never a value supplied from outside.
     const braced = [...script.matchAll(/\$\{([^}]*)\}/g)].map(m => m[1].split(':-')[0])
-    const allowed = new Set(['WSL_DISTRO_NAME', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'OPENAI_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN', 'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'GH_CONFIG_DIR', 'XDG_CONFIG_HOME'])
+    const allowed = new Set(['WSL_DISTRO_NAME', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'OPENAI_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN', 'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'GH_CONFIG_DIR', 'XDG_CONFIG_HOME', 'NVM_DIR'])
     for (const name of braced) expect(allowed, name).toContain(name)
     // Command substitution is limited to probe-local commands.
     const substitutions = [...script.matchAll(/\$\(([^)]*)\)?/g)].map(m => m[1].trim().split(/\s+/)[0])
-    for (const cmd of substitutions) expect(['command', 'uname', 'sed', 'sw_vers', 'id', 'bat_run'], cmd).toContain(cmd)
+    for (const cmd of substitutions) expect(['command', 'uname', 'sed', 'sw_vers', 'id', 'bat_run', 'printf', 'nvm'], cmd).toContain(cmd)
+  })
+
+  it('nvm (T0555): nvm.sh is the only sourced file, loaded in a timed child /bin/sh, login view only', () => {
+    const lines = scriptLines(LOGIN_PROBE_SCRIPT)
+    const sourcing = lines.filter(l => /(^|[\s'"(;])\.\s+"/.test(l))
+    expect(sourcing).toHaveLength(1)
+    expect(sourcing[0].trim()).toBe(
+      'bat_nvm_out=$(bat_run 8 /bin/sh -c \'. "$NVM_DIR/nvm.sh" >/dev/null 2>&1; printf "%s\\n" "$(nvm --version 2>/dev/null)"; command -v node 2>/dev/null\' bat-nvm 2>/dev/null </dev/null)',
+    )
+    expect(lines.find(l => l.trim().startsWith('if [ -s "$bat_nvm_dir/nvm.sh" ]'))).toBeDefined()
+    // Only a node under $NVM_DIR/versions/node/ is taken from nvm.
+    expect(LOGIN_PROBE_SCRIPT).toContain('case "$bat_nvm_node" in "$bat_nvm_dir"/versions/node/*/bin/node) ;; *) bat_nvm_node=\'\' ;; esac')
+    expect(SERVER_PROBE_SCRIPT).not.toContain('nvm')
   })
 
   it('auth env vars are tested for presence only, never printed', () => {
@@ -105,6 +118,8 @@ describe('probe scripts: security guards (T0407 §6)', () => {
     expect(lines.filter(l => l.includes('"$bat_path" --version'))).toHaveLength(1)
     expect(lines[versionLine - 1].trim()).toBe('if [ "$bat_state" = found ]; then')
     expect(LOGIN_PROBE_SCRIPT).toContain('case "$bat_path" in /mnt/[a-z]/*) bat_state=interop ;; esac')
+    // T0555: the nvm node override re-applies the interop rule (once in bat_locate, once here).
+    expect(LOGIN_PROBE_SCRIPT.split('case "$bat_path" in /mnt/[a-z]/*) bat_state=interop ;; esac')).toHaveLength(3)
   })
 
   it('the server probe runs nothing but command -v', () => {
@@ -297,3 +312,52 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync('/bin/sh'))('serv
     expect(r?.warnings).toEqual([])
   })
 })
+
+// T0555: the login probe's nvm step under a real /bin/sh, with a fake $HOME/.nvm.
+describe.skipIf(process.platform === 'win32' || !fs.existsSync('/bin/sh'))('login probe nvm step under a real /bin/sh', () => {
+  function runLoginProbe(home: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      execFile('/bin/sh', ['-c', LOGIN_PROBE_SCRIPT], { env: { PATH: '/usr/bin:/bin', HOME: home }, timeout: 20000 }, (err, stdout) => {
+        if (err && !stdout) reject(err)
+        else resolve(String(stdout))
+      })
+    })
+  }
+
+  function fakeNvmHome(nvmSh: string): string {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 't0555-nvm-'))
+    const bin = path.join(home, '.nvm', 'versions', 'node', 'v24.0.0', 'bin')
+    fs.mkdirSync(bin, { recursive: true })
+    fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\necho v24.0.0\n', { mode: 0o755 })
+    fs.writeFileSync(path.join(home, '.nvm', 'nvm.sh'), nvmSh)
+    return home
+  }
+
+  it('nvm present: node taken from $NVM_DIR/versions/node, nvm version reported', async () => {
+    const home = fakeNvmHome('nvm() { echo 0.40.8; }\nPATH="$NVM_DIR/versions/node/v24.0.0/bin:$PATH"; export PATH\n')
+    try {
+      const node = tool(parseRemoteToolsReport(await runLoginProbe(home)), 'node')
+      expect(node).toMatchObject({ status: 'ok', version: '24.0.0', nvm: { version: '0.40.8' }, nvmManaged: true })
+      expect(node.path).toBe(path.join(home, '.nvm/versions/node/v24.0.0/bin/node'))
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
+
+  it('a broken nvm.sh does not end the probe', async () => {
+    const home = fakeNvmHome('if then fi (((\n')
+    try {
+      const report = parseRemoteToolsReport(await runLoginProbe(home))
+      expect(report).not.toBeNull()
+      expect(tool(report, 'node').nvm).toEqual({})
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+function tool(report: ReturnType<typeof parseRemoteToolsReport>, id: string) {
+  const t = report?.tools.find(x => x.id === id)
+  if (!t) throw new Error('no tool ' + id)
+  return t
+}

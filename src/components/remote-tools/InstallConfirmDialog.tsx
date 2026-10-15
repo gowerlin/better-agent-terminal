@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { InstallPlan } from '../../lib/remote-tools/recipes'
+import { NVM_VERSION_TAG, type InstallPlan } from '../../lib/remote-tools/recipes'
 import type { RemoteToolsPanelHost } from './RemoteToolsPanel'
 import { ExternalLink } from './ExternalLink'
 
@@ -88,8 +88,12 @@ export function InstallConfirmDialog({ plan, host, onConfirm, onCancel, onOpenUr
           </dd>
           <dt>{t('remoteTools.confirm.integrity')}</dt>
           <dd>
-            {t(plan.integrity)}
-            {plan.scriptUrl && <div className="remote-tools-muted">{t('remoteTools.confirm.integrityScriptNote')}</div>}
+            {t(plan.integrity, { nvmTag: NVM_VERSION_TAG })}
+            {plan.scriptUrl && (
+              <div className="remote-tools-muted">
+                {t(plan.scriptPinned ? 'remoteTools.confirm.integrityScriptPinnedNote' : 'remoteTools.confirm.integrityScriptNote')}
+              </div>
+            )}
           </dd>
           <dt>{t('remoteTools.confirm.sources')}</dt>
           <dd className="remote-tools-confirm-links">

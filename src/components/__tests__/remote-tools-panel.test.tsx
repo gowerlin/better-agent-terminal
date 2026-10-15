@@ -153,11 +153,17 @@ describe('RemoteToolsPanel — WSL Ubuntu (T0408 probe)', () => {
     expect(row('gh').getByRole('button', { name: rt.install })).toBeEnabled()
   })
 
-  test('node: no recipe, reason plus docs link', async () => {
-    await renderPanel({ detect: ok(WSL_REPORT) })
-    expect(row('node').queryByRole('button', { name: rt.install })).not.toBeInTheDocument()
-    expect(row('node').getByText(rt.unsupported['no-recipe'], { exact: false })).toBeInTheDocument()
-    expect(row('node').getByRole('link', { name: rt.docsLink })).toHaveAttribute('href', 'https://nodejs.org/en/download')
+  test('node missing (T0555): one-click install via nvm, no unsupported notice', async () => {
+    const { onInstall } = await renderPanel({ detect: ok(WSL_REPORT) })
+    const install = row('node').getByRole('button', { name: rt.install })
+    expect(install).toHaveClass('primary')
+    expect(row('node').queryByText(rt.unsupported['no-recipe'], { exact: false })).not.toBeInTheDocument()
+    expect(row('node').queryByTestId('remote-tool-nvm')).not.toBeInTheDocument()
+    fireEvent.click(install)
+    const expected = plan(buildInstallPlan('node', WSL_REPORT.env))
+    expect(screen.getByTestId('remote-tools-confirm-command').textContent).toBe(expected.command)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: rt.confirm.confirmInstall }))
+    expect(onInstall).toHaveBeenCalledWith(expected)
   })
 
   test('without onInstall no install / update buttons are shown', async () => {
@@ -352,6 +358,105 @@ describe('RemoteToolsPanel — detect errors', () => {
     await act(async () => { resolveFirst({ ok: false, errorCode: 'timeout', error: 'stale' }) })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByTestId('remote-tools-env')).toBeInTheDocument()
+  })
+})
+
+describe('RemoteToolsPanel — Node.js via nvm (T0555)', () => {
+  const nodeReport = (node: Partial<RemoteToolReport>, env: Partial<RemoteToolsEnv> = {}) =>
+    makeReport({ osId: 'ubuntu', osVersion: '24.04', isWsl: true, ...env }, {
+      curl: { status: 'ok', path: '/usr/bin/curl', version: '8.5.0' },
+      node,
+    })
+
+  test('nvm-managed node: version + nvm chip, Update (not emphasized) is the nvm update plan', async () => {
+    const report = nodeReport({ status: 'ok', path: '/home/u/.nvm/versions/node/v24.11.0/bin/node', version: '24.11.0', nvm: { version: '0.40.8' }, nvmManaged: true })
+    const { onInstall } = await renderPanel({ detect: ok(report) })
+    expect(row('node').getByText('24.11.0')).toBeInTheDocument()
+    expect(row('node').getByTestId('remote-tool-nvm')).toHaveTextContent('nvm 0.40.8')
+    expect(row('node').queryByRole('button', { name: rt.install })).not.toBeInTheDocument()
+    expect(row('node').queryByRole('button', { name: rt.installViaNvm })).not.toBeInTheDocument()
+    const update = row('node').getByRole('button', { name: rt.update })
+    expect(update).not.toHaveClass('primary')
+    fireEvent.click(update)
+    const expected = plan(buildUpdatePlan('node', report.env))
+    expect(screen.getByRole('heading', { name: 'Update Node.js' })).toBeInTheDocument()
+    expect(screen.getByTestId('remote-tools-confirm-command').textContent).toBe(expected.command)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: rt.confirm.confirmUpdate }))
+    expect(onInstall).toHaveBeenCalledWith(expected)
+  })
+
+  test('apt node (not nvm): version shown, "Install LTS with nvm" next to it, system node kept', async () => {
+    const report = nodeReport({ status: 'ok', path: '/usr/bin/node', version: '18.19.1', nvmManaged: false })
+    const { onInstall } = await renderPanel({ detect: ok(report) })
+    expect(row('node').getByText('18.19.1')).toBeInTheDocument()
+    expect(row('node').getByText(rt.hint.nodeNotNvm)).toBeInTheDocument()
+    expect(row('node').queryByRole('button', { name: rt.update })).not.toBeInTheDocument()
+    const viaNvm = row('node').getByRole('button', { name: rt.installViaNvm })
+    expect(viaNvm).not.toHaveClass('primary')
+    fireEvent.click(viaNvm)
+    expect(screen.getByText(rt.note.nvmKeepsSystemNode)).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: rt.confirm.confirmInstall }))
+    expect(onInstall).toHaveBeenCalledWith(plan(buildInstallPlan('node', report.env)))
+  })
+
+  test('apt node without a usable curl: the nvm button is disabled with the curl hint', async () => {
+    const report = makeReport({}, { node: { status: 'ok', path: '/usr/bin/node', version: '18.19.1', nvmManaged: false } })
+    await renderPanel({ detect: ok(report) })
+    expect(row('node').getByRole('button', { name: rt.installViaNvm })).toBeDisabled()
+    expect(row('node').getByText(rt.hint.curlMissing)).toBeInTheDocument()
+  })
+
+  test('interop-only node: Windows hint and a normal install, never treated as installed', async () => {
+    await renderPanel({ detect: ok(nodeReport({ status: 'interop-only', path: '/mnt/c/nvm4w/nodejs/node', nvm: { version: '0.40.8' } })) })
+    expect(row('node').getByText(rt.status['interop-only'])).toBeInTheDocument()
+    expect(row('node').getByText(rt.hint.interopOnly)).toBeInTheDocument()
+    expect(row('node').getByRole('button', { name: rt.install })).toHaveClass('primary')
+    expect(row('node').queryByRole('button', { name: rt.update })).not.toBeInTheDocument()
+    expect(row('node').getByTestId('remote-tool-nvm')).toHaveTextContent('nvm 0.40.8')
+  })
+
+  test('nvm without a version answer: plain "nvm" chip', async () => {
+    await renderPanel({ detect: ok(nodeReport({ status: 'missing', nvm: {} })) })
+    expect(row('node').getByTestId('remote-tool-nvm')).toHaveTextContent(/^nvm$/)
+  })
+
+  test('Alpine: no button, the musl reason and the nodejs.org link; an installed apk node shows nothing', async () => {
+    await renderPanel({ detect: ok(ALPINE_ROOT_REPORT) })
+    expect(row('node').queryByRole('button')).not.toBeInTheDocument()
+    expect(row('node').getByText(rt.unsupported['node-musl-source-build'], { exact: false })).toBeInTheDocument()
+    expect(row('node').getByRole('link', { name: rt.docsLink })).toHaveAttribute('href', 'https://nodejs.org/en/download')
+  })
+
+  test('Alpine with an apk node installed: no button and no unsupported notice', async () => {
+    const report = makeReport({ musl: true, pkgManager: 'apk', privilege: 'root' }, { node: { status: 'ok', path: '/usr/bin/node', version: '20.15.1', nvmManaged: false } })
+    await renderPanel({ detect: ok(report) })
+    expect(row('node').queryByRole('button')).not.toBeInTheDocument()
+    expect(row('node').queryByText(rt.unsupported['node-musl-source-build'], { exact: false })).not.toBeInTheDocument()
+  })
+
+  test('confirm dialog: nvm tag + SHASUMS integrity, pinned-script note, ~/.nvm, profile note', () => {
+    const p = plan(buildInstallPlan('node', { osFamily: 'linux', pkgManager: 'apt', privilege: 'password-required', musl: false }))
+    render(<InstallConfirmDialog plan={p} host="profile" onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    expect(screen.getByRole('heading')).toHaveTextContent('Install Node.js')
+    expect(screen.getByText(rt.integrity.nvmNodeShasums.replace('{{nvmTag}}', 'v0.40.8'))).toBeInTheDocument()
+    expect(screen.getByText(rt.confirm.integrityScriptPinnedNote)).toBeInTheDocument()
+    expect(screen.queryByText(rt.confirm.integrityScriptNote)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: rt.confirm.viewScript })).toHaveAttribute('href', 'https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh')
+    expect(screen.getByText(rt.location.nvmDir, { exact: false })).toBeInTheDocument()
+    expect(screen.getByText('~/.nvm')).toBeInTheDocument()
+    expect(screen.getByText(rt.confirm.sudoNo)).toBeInTheDocument()
+    expect(screen.getByText(rt.note.nvmEditsProfile)).toBeInTheDocument()
+  })
+
+  test.each(['zh-TW', 'zh-CN'] as const)('%s: the integrity text names the pinned nvm tag', async (lang) => {
+    await i18n.changeLanguage(lang)
+    try {
+      const p = plan(buildInstallPlan('node', { osFamily: 'linux', pkgManager: 'apt', privilege: 'root', musl: false }))
+      render(<InstallConfirmDialog plan={p} host="profile" onConfirm={vi.fn()} onCancel={vi.fn()} />)
+      expect(screen.getByText(/SHASUMS256\.txt/)).toHaveTextContent('v0.40.8')
+    } finally {
+      await i18n.changeLanguage('en')
+    }
   })
 })
 

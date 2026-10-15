@@ -930,6 +930,15 @@ describe('checkRemoteToolsAnswer (S10, T0411)', () => {
     expect(outcome.evidence).toContain('wsl=true')
   })
 
+  it('T0555: node evidence names nvm (display only, not judged)', () => {
+    const base = remoteToolsReport()
+    const tools = [...base.report.tools, { id: 'node', status: 'ok', version: '24.11.0', nvm: { version: '0.40.8' }, nvmManaged: true, login: 'n/a', serverVisible: false }]
+    const outcome = checkRemoteToolsAnswer({ ...base, report: { ...base.report, tools } })
+    expect(outcome.ok).toBe(true)
+    expect(outcome.evidence).toContain('node=ok@24.11.0(nvm 0.40.8, managed)')
+    expect(checkRemoteToolsAnswer(base).evidence).not.toContain('nvm')
+  })
+
   it('rejects non-objects, error results and each failed expectation by name', () => {
     expect(checkRemoteToolsAnswer(null).ok).toBe(false)
     expect(checkRemoteToolsAnswer({ ok: false, errorCode: 'no-markers', error: 'x' }).evidence).toMatch(/errorCode=no-markers/)

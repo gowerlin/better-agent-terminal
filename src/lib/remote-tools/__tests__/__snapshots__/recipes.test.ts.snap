@@ -217,28 +217,28 @@ python3 none root → unsupported:no-recipe
 python3 none passwordless → unsupported:no-recipe
 python3 none password-required → unsupported:no-recipe
 python3 none sudo-missing → unsupported:no-recipe
-node apt root → unsupported:no-recipe
-node apt passwordless → unsupported:no-recipe
-node apt password-required → unsupported:no-recipe
-node apt sudo-missing → unsupported:no-recipe
-node dnf root → unsupported:no-recipe
-node dnf passwordless → unsupported:no-recipe
-node dnf password-required → unsupported:no-recipe
-node dnf sudo-missing → unsupported:no-recipe
-node yum root → unsupported:no-recipe
-node yum passwordless → unsupported:no-recipe
-node yum password-required → unsupported:no-recipe
-node yum sudo-missing → unsupported:no-recipe
-node apk root → unsupported:no-recipe
-node apk passwordless → unsupported:no-recipe
-node apk password-required → unsupported:no-recipe
-node apk sudo-missing → unsupported:no-recipe
-node brew root → unsupported:no-recipe
-node brew passwordless → unsupported:no-recipe
-node brew password-required → unsupported:no-recipe
-node brew sudo-missing → unsupported:no-recipe
-node none root → unsupported:no-recipe
-node none passwordless → unsupported:no-recipe
-node none password-required → unsupported:no-recipe
-node none sudo-missing → unsupported:no-recipe"
+node apt root → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node apt passwordless → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node apt password-required → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node apt sudo-missing → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node dnf root → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node dnf passwordless → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node dnf password-required → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node dnf sudo-missing → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node yum root → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node yum passwordless → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node yum password-required → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node yum sudo-missing → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node apk root → unsupported:node-musl-source-build
+node apk passwordless → unsupported:node-musl-source-build
+node apk password-required → unsupported:node-musl-source-build
+node apk sudo-missing → unsupported:node-musl-source-build
+node brew root → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node brew passwordless → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node brew password-required → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node brew sudo-missing → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node none root → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node none passwordless → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node none password-required → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'
+node none sudo-missing → export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}" && mkdir -p "$NVM_DIR" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | METHOD=script bash && . "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*'"
 `;

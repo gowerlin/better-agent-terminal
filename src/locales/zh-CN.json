@@ -978,6 +978,7 @@
     "checking": "检查中…",
     "recheck": "重新检查",
     "install": "安装",
+    "installViaNvm": "通过 nvm 安装 LTS",
     "update": "更新",
     "docsLink": "安装说明",
     "tier": {
@@ -1034,6 +1035,10 @@
       "credentialFilePresent": "主机上有凭据文件。",
       "credentialFileAbsent": "主机上找不到凭据文件。"
     },
+    "nvm": {
+      "version": "nvm {{version}}",
+      "present": "nvm"
+    },
     "server": {
       "visible": "服务器：可见",
       "hidden": "服务器：不可见",
@@ -1058,7 +1063,8 @@
       "notOnPath": "已安装，但还不在登录 PATH 上。请打开一个新的终端标签页。",
       "tooOld": "此 Claude Code 版本太旧，无法使用较新的模型。请更新。",
       "versionError": "在 PATH 上找到，但没有报告版本。",
-      "curlMissing": "主机上没有可用的 curl，此安装程序无法运行。请先安装 curl。"
+      "curlMissing": "主机上没有可用的 curl，此安装程序无法运行。请先安装 curl。",
+      "nodeNotNvm": "这个 Node.js 不是由 nvm 管理（例如发行版软件包）。可以另外通过 nvm 安装 LTS，系统的 Node.js 不会被移除。"
     },
     "unsupported": {
       "no-recipe": "此工具没有一键安装。",
@@ -1066,7 +1072,8 @@
       "no-package-manager": "主机上找不到支持的包管理器。",
       "manual-only": "只能在主机上手动安装。",
       "brew-as-root": "Homebrew 不能以 root 运行。",
-      "musl-without-apk": "此 musl 主机没有 apk，无法安装必要的库。"
+      "musl-without-apk": "此 musl 主机没有 apk，无法安装必要的库。",
+      "node-musl-source-build": "Node.js 没有提供 Alpine 等 musl 主机的官方版本，nvm 会改为从源代码编译。请改用系统软件包管理器安装（例如 apk add nodejs npm）。"
     },
     "integrity": {
       "claudeManifestSha256": "安装程序会对照 release manifest 中的 SHA-256 校验下载内容。",
@@ -1074,19 +1081,25 @@
       "uvEmbeddedSha256": "安装程序会对照脚本内置的 SHA-256 校验下载内容。",
       "distroRepo": "软件包由发行版软件源签名。",
       "ghRepoGpg": "软件包来自 GitHub CLI 官方软件源，用其 GPG 密钥校验。",
-      "homebrew": "由 Homebrew 校验。"
+      "homebrew": "由 Homebrew 校验。",
+      "nvmNodeShasums": "nvm 安装脚本固定为 {{nvmTag}} 版（raw.githubusercontent.com/nvm-sh/nvm）。nvm 从 nodejs.org 下载 Node.js，并以官方公布的 SHASUMS256.txt 校验。"
     },
     "location": {
       "userLocalBin": "用户主目录（~/.local/bin），不需要 sudo",
       "system": "系统级（包管理器）",
-      "homebrew": "Homebrew 安装目录"
+      "homebrew": "Homebrew 安装目录",
+      "nvmDir": "你的主目录（~/.nvm，由 nvm 管理），不需要 sudo"
     },
     "note": {
       "reopenTerminalForPath": "已打开的终端标签页要重新打开，才能看到 ~/.local/bin。",
       "codexEditsProfile": "Codex 安装程序会在 shell profile 中加入 PATH 设置。",
       "alpineUseSystemRipgrep": "在 Alpine 上，请在 Claude settings.json 的 env 中设置 USE_BUILTIN_RIPGREP=0，改用系统的 ripgrep。",
       "rgNeedsEpel": "RHEL 系列的 ripgrep 在 EPEL 中；若安装失败，请先启用 EPEL。",
-      "claudeManualUpdate": "BAT 远程终端关闭了后台自动更新；请使用这里的“更新”或运行 claude update。"
+      "claudeManualUpdate": "BAT 远程终端关闭了后台自动更新；请使用这里的“更新”或运行 claude update。",
+      "nvmEditsProfile": "nvm 安装程序会在 ~/.bashrc（或 ~/.zshrc / ~/.profile）末尾加入几行加载 nvm 的配置，文件其他内容不变。交互式 shell、BAT 终端和这里的检测都会加载 nvm；如果发行版的 ~/.bashrc 对非交互 shell 提前结束（Ubuntu），单纯的 bash -lc 不会加载。",
+      "nvmKeepsSystemNode": "系统软件包管理器安装的 Node.js 会保留；加载了 nvm 的 shell 会优先使用 nvm 的版本。",
+      "nvmReopenTerminal": "已打开的终端标签页要重新打开，才能看到 nvm 和这个 Node.js。",
+      "nvmUpdateMovesDefault": "用 nvm 安装最新的 LTS，从当前版本重新安装全局 npm 包，并设为默认版本。旧版本会保留。如果已经是最新 LTS，不会有任何变更。"
     },
     "error": {
       "host-platform": "此主机不支持工具检测。",
@@ -1114,6 +1127,7 @@
       "location": "安装位置",
       "integrity": "完整性",
       "integrityScriptNote": "安装脚本本身通过 HTTPS 下载，没有固定哈希；官方每次发版都会修改它。",
+      "integrityScriptPinnedNote": "安装脚本通过 HTTPS 从固定的发行版本标签下载，没有以哈希值锁定。",
       "sources": "来源",
       "docs": "官方文档",
       "viewScript": "查看脚本内容",
@@ -1148,6 +1162,7 @@
     },
     "hint": {
       "reopenTabs": "已打开的其他终端标签页需重新打开，才能看到 ~/.local/bin。",
+      "reopenTabsNvm": "已打开的终端标签页要重新打开，才会加载 nvm。",
       "posixShell": "{{shell}} 不是 POSIX shell，安装标签页改用 {{fallback}}。"
     }
   },

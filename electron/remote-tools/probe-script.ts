@@ -99,9 +99,33 @@ const LOGIN_PROBE_BODY: readonly string[] = [
   'if [ -n "${OPENAI_API_KEY:-}" ]; then bat_emit env.auth.OPENAI_API_KEY 1; else bat_emit env.auth.OPENAI_API_KEY 0; fi',
   'if [ -n "${GH_TOKEN:-}" ]; then bat_emit env.auth.GH_TOKEN 1; else bat_emit env.auth.GH_TOKEN 0; fi',
   'if [ -n "${GITHUB_TOKEN:-}" ]; then bat_emit env.auth.GITHUB_TOKEN 1; else bat_emit env.auth.GITHUB_TOKEN 0; fi',
+  // --- nvm (T0555) ---
+  // nvm is a shell function, and the default Ubuntu .bashrc returns early for non-interactive
+  // shells, so the login PATH may not have nvm's node. Load `$NVM_DIR/nvm.sh` in a child /bin/sh
+  // under the per-command timeout (a broken or slow nvm.sh cannot end or stall this probe; it is
+  // the user's own file, like the rc files the login shell already ran) and keep only two lines
+  // from it: `nvm --version` and the node nvm activates. That node wins over the PATH one, as it
+  // does in the user's terminals; anything outside `$NVM_DIR/versions/node/` is ignored.
+  'bat_nvm_dir=${NVM_DIR:-$HOME/.nvm}',
+  'bat_nvm_node=\'\'',
+  'if [ -s "$bat_nvm_dir/nvm.sh" ]; then',
+  '  NVM_DIR=$bat_nvm_dir',
+  '  export NVM_DIR',
+  '  bat_nvm_out=$(bat_run 8 /bin/sh -c \'. "$NVM_DIR/nvm.sh" >/dev/null 2>&1; printf "%s\\n" "$(nvm --version 2>/dev/null)"; command -v node 2>/dev/null\' bat-nvm 2>/dev/null </dev/null)',
+  '  bat_emit tool.node.nvm "$(printf \'%s\\n\' "$bat_nvm_out" | sed -n 1p)"',
+  '  bat_nvm_node=$(printf \'%s\\n\' "$bat_nvm_out" | sed -n 2p)',
+  '  case "$bat_nvm_node" in "$bat_nvm_dir"/versions/node/*/bin/node) ;; *) bat_nvm_node=\'\' ;; esac',
+  'fi',
   // --- tools ---
   'for bat_name in ' + TOOL_NAMES + '; do',
   '  bat_locate "$bat_name"',
+  '  if [ "$bat_name" = node ] && [ -n "$bat_nvm_node" ]; then',
+  '    bat_state=found',
+  '    bat_path=$bat_nvm_node',
+  '    if [ "$bat_wsl" = 1 ]; then',
+  '      case "$bat_path" in /mnt/[a-z]/*) bat_state=interop ;; esac',
+  '    fi',
+  '  fi',
   '  if [ "$bat_state" != found ]; then',
   '    for bat_dir in "$HOME/.local/bin" /usr/local/bin /opt/homebrew/bin; do',
   '      if [ -f "$bat_dir/$bat_name" ] && [ -x "$bat_dir/$bat_name" ]; then',
@@ -120,6 +144,9 @@ const LOGIN_PROBE_BODY: readonly string[] = [
   '      codex) bat_login "$bat_path" login status ;;',
   '      gh) bat_login "$bat_path" auth status --hostname github.com ;;',
   '    esac',
+  '  fi',
+  '  if [ "$bat_name" = node ] && [ "$bat_state" = found ]; then',
+  '    case "$bat_path" in "$bat_nvm_dir"/versions/node/*) bat_emit tool.node.nvm_managed 1 ;; *) bat_emit tool.node.nvm_managed 0 ;; esac',
   '  fi',
   'done',
   // Credential files: existence only, never read.

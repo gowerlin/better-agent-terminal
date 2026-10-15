@@ -48,6 +48,9 @@ export const MAX_BLOCK_LINES = 512
 const TOOL_FIELDS = ['state', 'path', 'version', 'login', 'cred'] as const
 type ToolField = typeof TOOL_FIELDS[number]
 
+/** T0555: node-only keys (nvm version, whether the reported node is nvm's). */
+const NODE_EXTRA_KEYS = ['tool.node.nvm', 'tool.node.nvm_managed'] as const
+
 const ENV_KEYS = ['wsl', 'timeout', 'uname_s', 'arch', 'os_id', 'os_id_like', 'os_version', 'musl', 'pkg', 'priv'] as const
 
 function buildKeyWhitelist(): ReadonlySet<string> {
@@ -57,6 +60,7 @@ function buildKeyWhitelist(): ReadonlySet<string> {
   for (const id of REMOTE_TOOL_IDS) {
     for (const f of TOOL_FIELDS) keys.add('tool.' + id + '.' + f)
   }
+  for (const k of NODE_EXTRA_KEYS) keys.add(k)
   return keys
 }
 
@@ -261,6 +265,20 @@ function parseTool(id: RemoteToolId, fields: ToolProbeFields): Omit<RemoteToolRe
   return tool
 }
 
+/**
+ * T0555: nvm facts for the node row. `tool.node.nvm` is printed only when nvm.sh exists, so its
+ * presence (even empty) means nvm is installed; the managed flag is only meaningful for a runnable node.
+ */
+function withNvm(tool: Omit<RemoteToolReport, 'serverVisible'>, values: Map<string, string>): Omit<RemoteToolReport, 'serverVisible'> {
+  const rawNvm = values.get('tool.node.nvm')
+  if (rawNvm !== undefined) {
+    const version = LOOSE_VERSION_RE.exec(rawNvm)?.[1]
+    tool.nvm = version ? { version } : {}
+  }
+  if (tool.status === 'ok') tool.nvmManaged = flag(values.get('tool.node.nvm_managed'))
+  return tool
+}
+
 /** Server view: a tool is visible when the server PATH resolves it to a non-interop binary. */
 function serverVisibility(block: ProbeBlock | null): Map<RemoteToolId, boolean> {
   const out = new Map<RemoteToolId, boolean>()
@@ -284,7 +302,10 @@ export function parseRemoteToolsReport(loginStdout: string, serverStdout?: strin
   return {
     schemaVersion: REMOTE_TOOLS_SCHEMA_VERSION,
     env: parseEnv(login.values),
-    tools: REMOTE_TOOL_IDS.map(id => ({ ...parseTool(id, toolFields(login.values, id)), serverVisible: visible.get(id) ?? false })),
+    tools: REMOTE_TOOL_IDS.map(id => {
+      const tool = parseTool(id, toolFields(login.values, id))
+      return { ...(id === 'node' ? withNvm(tool, login.values) : tool), serverVisible: visible.get(id) ?? false }
+    }),
     serverViewAvailable: server !== null,
     warnings,
   }
