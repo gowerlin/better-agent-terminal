@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0536
 title: "PLAN-041 B'-2：遠端 headless 支援 `--close-worker`（tower 權杖只能關自己派出的 Worker）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-041
 priority: P2
 sizing: S
 created_at: "2026-10-15T15:44:39+0800"
 started_at: "2026-10-15T16:33:15+0800"
-updated_at: "2026-10-15T16:33:15+0800"
+updated_at: "2026-10-15T16:43:45+0800"
+completed_at: "2026-10-15T16:43:45+0800"
 target_version: "0.6.1-pre.3"
 depends_on: [T0535]
 related:
@@ -133,4 +134,4 @@ e2e（headless 真 server + 真 node-pty）沒有碰使用者的 BAT 與已部�
 
 ### Commit
 
-（見下方 closeout）
+- `26f6996e` feat: T0536 remote headless --close-worker (tower closes only its own Worker, PLAN-041)（未 push）
