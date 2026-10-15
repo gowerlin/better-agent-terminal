@@ -11,7 +11,10 @@
  *   `{ ok: true, terminalId, closeAt, delayMs }` or `{ ok: false, code }` with code
  *   INVALID_ARGS | NOT_FOUND | NOT_OWNER | AMBIGUOUS | BUSY.
  *
- * 🔴 No `electron` import here (shared with headless later, T0536).
+ * T0536: headless bat-server serves the same scheduler (electron/remote/headless-entry.ts) for a
+ * remote Tower's helper; the event then reaches the client windows of that profile.
+ *
+ * 🔴 No `electron` import here (shared with headless, T0536).
  */
 
 /** No output for this long before a Worker counts as idle (constant, not a setting). */
@@ -53,6 +56,11 @@ export interface CloseWorkerPtyManager {
 
 export interface WorkerCloseSchedulerDeps {
   getPtyManager(): CloseWorkerPtyManager | null
+  /**
+   * T0536: an extra ownership check of a candidate, on top of its `BAT_TOWER_TERMINAL_ID`
+   * (headless: the helper capability registry's `isWorkerOf`). False ⇒ NOT_OWNER.
+   */
+  isOwnedBy?: (terminalId: string, towerId: string) => boolean
   /** Sends the event to every window (detached ones included); returns how many took it. */
   emit(channel: string, payload: unknown): unknown
   logger: { log(...args: unknown[]): void; warn(...args: unknown[]): void }
@@ -114,7 +122,10 @@ export class WorkerCloseScheduler {
     // Look up by work order first, then check the tower: NOT_FOUND and NOT_OWNER stay apart.
     const candidates = ptys.findWorkerTerminals(null, workorder)
     if (candidates.length === 0) return refuse('NOT_FOUND')
-    const owned = candidates.filter(id => ptys.getTowerTerminalId(id) === towerId)
+    // T0536: a Tower is never its own Worker (it cannot close itself through this).
+    const isOwnedBy = this.deps.isOwnedBy
+    const owned = candidates.filter(id =>
+      id !== towerId && ptys.getTowerTerminalId(id) === towerId && (!isOwnedBy || isOwnedBy(id, towerId)))
     if (owned.length === 0) {
       const towers = candidates.map(id => ptys.getTowerTerminalId(id) ?? '(none)').join(',')
       return refuse('NOT_OWNER', ` (dispatched by ${towers})`)

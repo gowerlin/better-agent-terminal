@@ -14,6 +14,7 @@ import {
   type RemoteToolsHandlerDeps,
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
+import { WorkerCloseScheduler } from '../close-worker'
 import type { HandlerContext } from '../handlers/types'
 import type { PersistedShellSettings } from '../shell-path-resolver'
 import {
@@ -305,6 +306,8 @@ export function buildHeadlessHelperEnv(opts: {
  * T0433: with `helperCapabilities` + `helperEndpoint`, every spawned PTY gets its own
  * capability and helper env (`buildHeadlessHelperEnv`); `helperDir` is the bundle's
  * `<installRoot>/scripts`. `BAT_HELPER_DIR` comes only from there, never from `host`.
+ * PLAN-041 / T0536: `isUserInput` — which `pty:write` is the user typing (cancels a pending
+ * `--close-worker`); the server passes "a client connection, not a helper".
  */
 export function createHeadlessPtyModule(opts: {
   maxPtys?: number
@@ -312,6 +315,7 @@ export function createHeadlessPtyModule(opts: {
   helperCapabilities?: HelperCapabilityRegistry
   helperDir?: string
   helperEndpoint?: () => HeadlessHelperEndpoint | null
+  isUserInput?: (ctx: HandlerContext) => boolean
 } = {}): HandlerModule {
   return (register, host) => {
     const capabilities = opts.helperCapabilities
@@ -337,7 +341,11 @@ export function createHeadlessPtyModule(opts: {
           }
         : undefined,
     })
-    registerPtyHandlers(register, { getPtyManager: () => manager, validateShell: true })
+    registerPtyHandlers(register, {
+      getPtyManager: () => manager,
+      validateShell: true,
+      ...(opts.isUserInput ? { isUserInput: opts.isUserInput } : {}),
+    })
     opts.onManager?.(manager)
     return () => manager.dispose()
   }
@@ -431,15 +439,32 @@ export function readHeadlessTerminalSettings(raw: Record<string, unknown>): Pers
  * resolves through the runtime router the claude module configured (bundle `bin/claude`).
  * `countRemoteReceivers`: clients that will get the keypress broadcast — without it,
  * `terminal:keypress` never answers `no-client`.
+ * PLAN-041 / T0536: `terminal:close-worker` is the Electron scheduler (electron/close-worker.ts)
+ * on this server's PtyManager; `terminal:close-requested` goes to the connected clients, whose
+ * window holding the tab closes it. `isWorkerOf` (the helper capability registry) is the extra
+ * ownership check. No client connected when the timer fires ⇒ nobody closes the tab (it is still
+ * there on the next connect).
  */
 export function createHeadlessTerminalModule(opts: {
   getPtyManager: () => PtyManager | null
   countRemoteReceivers?: (ctx: HandlerContext) => number
   /** T0433: refuse agents this server cannot run (`createHeadlessAgentAvailabilityCheck`). */
   checkAgentAvailable?: (agentId: string) => Promise<AgentUnavailableResult | null>
+  /** T0536: whether PTY `terminalId` is a worker dispatched by tower `towerId`. */
+  isWorkerOf?: (terminalId: string, towerId: string) => boolean
 }): HandlerModule {
   return (register, host) => {
     const readSettings = () => readHeadlessTerminalSettings(host.getSettings())
+    const countRemoteReceivers = opts.countRemoteReceivers
+    const workerCloser = new WorkerCloseScheduler({
+      getPtyManager: opts.getPtyManager,
+      ...(opts.isWorkerOf ? { isOwnedBy: opts.isWorkerOf } : {}),
+      emit: (channel, payload) => {
+        host.emit(channel, payload)
+        return countRemoteReceivers ? countRemoteReceivers({ windowId: null }) : undefined
+      },
+      logger: defaultLogger,
+    })
     registerTerminalHandlers(register, {
       getPtyManager: opts.getPtyManager,
       emit: (channel, payload) => {
@@ -456,7 +481,9 @@ export function createHeadlessTerminalModule(opts: {
       countRemoteReceivers: opts.countRemoteReceivers,
       checkAgentAvailable: opts.checkAgentAvailable,
       validateShell: true,
+      workerCloser,
     })
+    return () => workerCloser.dispose()
   }
 }
 
@@ -688,7 +715,10 @@ export function createHeadlessHandlerModules(opts: {
   remoteTools?: HeadlessRemoteToolsOverrides
   git?: HeadlessGitOverrides
   fs?: Parameters<typeof createHeadlessFsModule>[0]
-  terminal?: { countRemoteReceivers?: (ctx: HandlerContext) => number }
+  terminal?: {
+    countRemoteReceivers?: (ctx: HandlerContext) => number
+    isWorkerOf?: (terminalId: string, towerId: string) => boolean
+  }
 } = {}): HandlerModule[] {
   let ptyManager: PtyManager | null = null
   const toolsCache = createHeadlessRemoteToolsCache(opts.remoteTools)
@@ -706,6 +736,7 @@ export function createHeadlessHandlerModules(opts: {
     createHeadlessTerminalModule({ // T0431
       getPtyManager: () => ptyManager,
       countRemoteReceivers: opts.terminal?.countRemoteReceivers,
+      isWorkerOf: opts.terminal?.isWorkerOf, // T0536
       checkAgentAvailable: createHeadlessAgentAvailabilityCheck(toolsCache), // T0433
     }),
     createHeadlessRemoteToolsModule(opts.remoteTools, toolsCache), // T0411
@@ -880,6 +911,8 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
             }
           : null
       },
+      // T0536: only a BAT window's typing cancels a pending --close-worker, not a helper's write.
+      isUserInput: ctx => remoteServer.isClientConnection(ctx.connectionId),
     },
     remoteTools: opts.remoteTools,
     git: opts.git,
@@ -887,7 +920,11 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     // T0431: every authenticated client gets the broadcast except the invoking one.
     // T0432: helper (capability) connections are not clients — they neither receive
     // broadcasts nor count, whether they invoke or merely stay connected.
-    terminal: { countRemoteReceivers: ctx => remoteServer.countBroadcastReceivers(ctx.connectionId) },
+    terminal: {
+      countRemoteReceivers: ctx => remoteServer.countBroadcastReceivers(ctx.connectionId),
+      // T0536: a tower closes only a worker holding a capability bound to it.
+      isWorkerOf: (terminalId, towerId) => helperCapabilities.isWorkerOf(terminalId, towerId),
+    },
   })
   for (const registerModule of handlerModules) {
     const dispose = registerModule(register, hostDeps)

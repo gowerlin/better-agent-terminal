@@ -9,6 +9,8 @@
  *   - role `tower`  (PTY without a notify target): `terminal:create-agent-command`,
  *     creating a NEW terminal whose notify target is the tower itself (or none), with a
  *     registry agent, within `HelperTowerSpawnQuota` (T0450)
+ *     PLAN-041 / T0536: also `terminal:close-worker` for itself only (`towerId` = its own
+ *     terminal); the handler then closes only a worker of this tower (`isWorkerOf`)
  *   - role `worker` (PTY created with `BAT_TOWER_TERMINAL_ID`): `terminal:notify` /
  *     `pty:write` (printable text only, T0450) / `terminal:keypress`, target = that tower only
  *
@@ -151,6 +153,20 @@ export class HelperCapabilityRegistry {
     return this.revoked.has(digestOf(token).toString('hex'))
   }
 
+  /**
+   * PLAN-041 / T0536: whether PTY `childId` holds a live worker capability bound to tower
+   * `towerId` — i.e. that tower dispatched it (`BAT_TOWER_TERMINAL_ID`). A terminal is never a
+   * worker of itself. The `terminal:close-worker` handler checks its candidate with this.
+   */
+  isWorkerOf(childId: string, towerId: string): boolean {
+    if (!childId || !towerId || childId === towerId) return false
+    for (const entry of this.entries.values()) {
+      const { capability } = entry
+      if (capability.role === 'worker' && capability.terminalId === childId && capability.towerId === towerId) return true
+    }
+    return false
+  }
+
   /** Revokes every capability bound to PTY `terminalId`; returns how many were revoked. */
   revokeTerminal(terminalId: string): number {
     let revoked = 0
@@ -207,6 +223,8 @@ export const HELPER_CREATE_ENV_KEYS: readonly string[] = [
 /** Channel → roles allowed to invoke it. Anything not listed is denied to every helper. */
 export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabilityRole[]>> = {
   'terminal:create-agent-command': ['tower'],
+  // PLAN-041 / T0536: `bat-terminal.mjs --close-worker` — a tower closes a worker it dispatched
+  'terminal:close-worker': ['tower'],
   'terminal:notify': ['worker'],
   'pty:write': ['worker'],
   'terminal:keypress': ['worker'],
@@ -289,6 +307,15 @@ export function authorizeHelperInvoke(
           return deny('tower-not-bound')
         }
       }
+      return { ok: true }
+    }
+    case 'terminal:close-worker': {
+      // PLAN-041 / T0536: `{ towerId, workorder, delayMs? }`. A tower asks for itself only —
+      // naming another tower would close that tower's workers. Which worker the work order
+      // resolves to (and whether it belongs to this tower) is the handler's check (`isWorkerOf`).
+      const opts = asRecord(args[0])
+      if (!opts) return deny('invalid-payload')
+      if (opts.towerId !== capability.terminalId) return deny('tower-not-bound')
       return { ok: true }
     }
     case 'terminal:notify':

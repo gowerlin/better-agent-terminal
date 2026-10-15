@@ -26,6 +26,15 @@ import { PROXIED_CHANNELS } from '../protocol'
 import { makeHeadlessDataDir, removeHeadlessDataDir } from './helpers/headless-harness'
 import { PROJECT_ROOT } from './helpers/server-bundle-config'
 
+/**
+ * Channels a headless module registers on purpose although they are not proxied: only a helper
+ * inside a server PTY invokes them (RemoteServer invoke frame), never a client window. Same list
+ * as REGISTRY_ONLY_CHANNELS in proxied-channels-binding.test.ts; each entry needs a reason.
+ */
+const HELPER_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
+  ['terminal:close-worker', 'PLAN-041 / T0536: a remote Tower\'s bat-terminal.mjs --close-worker (tower capability); a window never calls it'],
+])
+
 function formatViolations(violations: HeadlessParityViolation[]): string {
   return violations.map(v => `  ${v.channel}: ${v.problem}`).join('\n')
 }
@@ -71,7 +80,9 @@ describe('headless channel parity', () => {
     ))
     for (const dispose of disposers) if (dispose) dispose()
     expect(registered.length).toBeGreaterThan(0)
-    expect(registered.filter(c => !PROXIED_CHANNELS.has(c))).toEqual([])
+    expect(registered.filter(c => !PROXIED_CHANNELS.has(c) && !HELPER_ONLY_CHANNELS.has(c))).toEqual([])
+    // every exception is really registered (a stale entry would hide nothing but mislead)
+    for (const channel of HELPER_ONLY_CHANNELS.keys()) expect(registered).toContain(channel)
   })
 
   it('main.ts uses this ALWAYS_LOCAL_CHANNELS instead of its own copy (T0390)', () => {

@@ -17,13 +17,19 @@ import type { CreatePtyOptions, PtyCreateResult } from '../../src/types'
 import { logger } from '../logger'
 import { PtyLimitError, type PtyManager } from '../pty-manager'
 import { resolveShellPath } from '../shell-path-resolver'
-import type { HandlerRegistrar } from './types'
+import type { HandlerContext, HandlerRegistrar } from './types'
 
 export interface PtyHandlerDeps {
   /** Null while the host has not built its PtyManager yet (Electron: before app ready). */
   getPtyManager(): PtyManager | null
   /** Reject client-supplied shells that are not an absolute path to an existing file. */
   validateShell?: boolean
+  /**
+   * PLAN-041: whether a `pty:write` is the user's input (cancels a pending `--close-worker` of
+   * that tab). Default (Electron, T0535): a local window, i.e. no remote connection. Headless
+   * (T0536): a client connection — not a helper's.
+   */
+  isUserInput?: (ctx: HandlerContext) => boolean
 }
 
 /**
@@ -80,7 +86,7 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   register('pty:write', (ctx, id: string, data: string) => {
     const manager = deps.getPtyManager()
     if (!manager) return { ok: false, reason: 'manager-not-ready' }
-    if (!ctx.connectionId) manager.noteUserInput(id)
+    if (deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId) manager.noteUserInput(id)
     return manager.writeWithResult(id, data)
   })
   register('pty:resize', (_ctx, id: string, cols: number, rows: number) => {

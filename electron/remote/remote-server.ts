@@ -450,6 +450,18 @@ export class RemoteServer {
     return count
   }
 
+  /**
+   * PLAN-041 / T0536: whether `connectionId` is an authenticated client (a BAT window), not a
+   * helper — headless counts only a client's `pty:write` as the user typing into a Worker.
+   */
+  isClientConnection(connectionId?: string | null): boolean {
+    if (!connectionId) return false
+    for (const client of this.clients.values()) {
+      if (client.connectionId === connectionId) return true
+    }
+    return false
+  }
+
   /** T0432: open helper (capability) connections. */
   getHelperConnectionCount(): number {
     return this.helpers.size

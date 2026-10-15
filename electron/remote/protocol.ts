@@ -110,4 +110,7 @@ export const PROXIED_EVENTS = new Set([
   // T0431: auto-session dispatch (new Worker tab) + `bat-notify --submit` Enter, so a
   // remote Tower's helpers reach the client window (electron/handlers/terminal.ts)
   'terminal:created-externally', 'terminal:keypress',
+  // PLAN-041 / T0536: a remote Tower's `--close-worker` fired — the client window holding the
+  // Worker tab closes it (electron/close-worker.ts, src/App.tsx)
+  'terminal:close-requested',
 ])

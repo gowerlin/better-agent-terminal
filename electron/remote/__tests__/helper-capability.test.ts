@@ -146,9 +146,10 @@ describe('safeTokenEqual (T0432)', () => {
 })
 
 describe('authorizeHelperInvoke — whitelist (T0432)', () => {
-  it('the whitelist is exactly the 4 helper channels', () => {
+  it('the whitelist is exactly the 5 helper channels (T0536: + terminal:close-worker for towers)', () => {
     expect(HELPER_CHANNEL_ROLES).toEqual({
       'terminal:create-agent-command': ['tower'],
+      'terminal:close-worker': ['tower'],
       'terminal:notify': ['worker'],
       'pty:write': ['worker'],
       'terminal:keypress': ['worker'],
@@ -169,6 +170,71 @@ describe('authorizeHelperInvoke — whitelist (T0432)', () => {
 
   it('worker: create-agent-command is denied', () => {
     expect(reason(authorizeHelperInvoke(WORKER, 'terminal:create-agent-command', [{ id: 'new-1', prompt: 'p' }], ctx))).toBe('role-not-allowed')
+  })
+
+  it('T0536: worker: close-worker is denied (a worker closes no tab), even naming its own tower', () => {
+    expect(reason(authorizeHelperInvoke(WORKER, 'terminal:close-worker', [{ towerId: 'tower-1', workorder: 'T0001' }], ctx))).toBe('role-not-allowed')
+    expect(reason(authorizeHelperInvoke(WORKER, 'terminal:close-worker', [{ towerId: 'worker-1', workorder: 'T0001' }], ctx))).toBe('role-not-allowed')
+  })
+})
+
+describe('authorizeHelperInvoke — tower close-worker (PLAN-041 / T0536)', () => {
+  it('for itself (bat-terminal --close-worker payload) → allowed; the handler then checks ownership', () => {
+    expect(authorizeHelperInvoke(TOWER, 'terminal:close-worker', [{ towerId: 'tower-1', workorder: 'T0536' }], ctx)).toEqual({ ok: true })
+    expect(authorizeHelperInvoke(TOWER, 'terminal:close-worker', [{ towerId: 'tower-1', workorder: 'T0536', delayMs: 10_000 }], ctx)).toEqual({ ok: true })
+  })
+
+  it.each([
+    ['another tower', 'other-1'],
+    ['its worker', 'worker-1'],
+    ['missing', undefined],
+    ['padded own id', ' tower-1 '],
+    ['non-string', ['tower-1']],
+  ])('towerId = %s → tower-not-bound', (_label, towerId) => {
+    expect(reason(authorizeHelperInvoke(TOWER, 'terminal:close-worker', [{ towerId, workorder: 'T0536' }], ctx))).toBe('tower-not-bound')
+  })
+
+  it('non-object payloads → invalid-payload', () => {
+    expect(reason(authorizeHelperInvoke(TOWER, 'terminal:close-worker', [], ctx))).toBe('invalid-payload')
+    expect(reason(authorizeHelperInvoke(TOWER, 'terminal:close-worker', ['tower-1'], ctx))).toBe('invalid-payload')
+    expect(reason(authorizeHelperInvoke(TOWER, 'terminal:close-worker', [['tower-1']], ctx))).toBe('invalid-payload')
+  })
+})
+
+describe('HelperCapabilityRegistry.isWorkerOf (PLAN-041 / T0536)', () => {
+  it('true only for a live worker capability bound to that tower', () => {
+    const registry = new HelperCapabilityRegistry()
+    registry.issue('tower-1')
+    registry.issue('tower-2')
+    registry.issue('worker-1', { towerId: 'tower-1' })
+    registry.issue('worker-2', { towerId: 'tower-2' })
+    expect(registry.isWorkerOf('worker-1', 'tower-1')).toBe(true)
+    expect(registry.isWorkerOf('worker-2', 'tower-2')).toBe(true)
+    // another tower's worker / a tower / unknown ids
+    expect(registry.isWorkerOf('worker-2', 'tower-1')).toBe(false)
+    expect(registry.isWorkerOf('tower-2', 'tower-1')).toBe(false)
+    expect(registry.isWorkerOf('tower-1', 'tower-1')).toBe(false)
+    expect(registry.isWorkerOf('nope', 'tower-1')).toBe(false)
+    expect(registry.isWorkerOf('', '')).toBe(false)
+  })
+
+  it('a terminal is never its own worker', () => {
+    const registry = new HelperCapabilityRegistry()
+    registry.issue('self-1', { towerId: 'self-1' })
+    expect(registry.isWorkerOf('self-1', 'self-1')).toBe(false)
+  })
+
+  it('revoked (PTY exit / re-issue as a tower / clear) → false', () => {
+    const registry = new HelperCapabilityRegistry()
+    registry.issue('worker-1', { towerId: 'tower-1' })
+    registry.issue('worker-2', { towerId: 'tower-1' })
+    registry.revokeTerminal('worker-1')
+    expect(registry.isWorkerOf('worker-1', 'tower-1')).toBe(false)
+    registry.issue('worker-2')
+    expect(registry.isWorkerOf('worker-2', 'tower-1')).toBe(false)
+    registry.issue('worker-3', { towerId: 'tower-1' })
+    registry.clear()
+    expect(registry.isWorkerOf('worker-3', 'tower-1')).toBe(false)
   })
 })
 

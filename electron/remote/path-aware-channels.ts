@@ -339,6 +339,7 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['system:resume', 'no payload'],
   ['terminal:notified', '{ targetId, message, source } (terminal ids + message text)'],
   ['terminal:keypress', '{ targetId, key, code, keyCode, source, reason, traceId } (terminal ids + key enum)'],
+  ['terminal:close-requested', '{ id } (terminal id only; PLAN-041 / T0536)'],
 ])
 
 export function translateRemoteEventArgs(

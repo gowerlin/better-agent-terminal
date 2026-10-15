@@ -90,12 +90,13 @@ function fakePtys(workers: Record<string, FakeWorker>): CloseWorkerPtyManager & 
   }
 }
 
-function setupScheduler(workers: Record<string, FakeWorker>) {
+function setupScheduler(workers: Record<string, FakeWorker>, isOwnedBy?: (terminalId: string, towerId: string) => boolean) {
   const ptys = fakePtys(workers)
   const emitted: Array<{ channel: string; payload: unknown }> = []
   const logs: string[] = []
   const scheduler = new WorkerCloseScheduler({
     getPtyManager: () => ptys,
+    ...(isOwnedBy ? { isOwnedBy } : {}),
     emit: (channel, payload) => { emitted.push({ channel, payload }); return 1 },
     logger: { log: (...args: unknown[]) => { logs.push(args.join(' ')) }, warn: () => {} },
   })
@@ -130,6 +131,28 @@ describe('WorkerCloseScheduler (T0535)', () => {
     const { scheduler, logs } = setupScheduler({ w1: { tower: 'other-tower', workorder: 'T0535' }, w2: { workorder: 'T0535' } })
     expect(scheduler.request({ towerId: 'tw', workorder: 'T0535' })).toEqual({ ok: false, code: 'NOT_OWNER' })
     expect(logs.at(-1)).toContain('[close-worker] tower=tw workorder=T0535 → NOT_OWNER (dispatched by other-tower,(none))')
+  })
+
+  it('T0536: a tower is never its own Worker → NOT_OWNER', () => {
+    const { scheduler, emitted } = setupScheduler({ tw: { tower: 'tw', workorder: 'T0536' } })
+    expect(scheduler.request({ towerId: 'tw', workorder: 'T0536' })).toEqual({ ok: false, code: 'NOT_OWNER' })
+    expect(emitted).toEqual([])
+  })
+
+  it('T0536: isOwnedBy (headless isWorkerOf) is an extra check — false → NOT_OWNER; it narrows AMBIGUOUS', () => {
+    const owned = new Set(['w2'])
+    const isOwnedBy = vi.fn((id: string, tower: string) => tower === 'tw' && owned.has(id))
+    const { scheduler, emitted } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0536' } }, isOwnedBy)
+    expect(scheduler.request({ towerId: 'tw', workorder: 'T0536' })).toEqual({ ok: false, code: 'NOT_OWNER' })
+    expect(isOwnedBy).toHaveBeenCalledWith('w1', 'tw')
+
+    const both = setupScheduler({ w1: { tower: 'tw', workorder: 'T0536' }, w2: { tower: 'tw', workorder: 'T0536' } }, isOwnedBy)
+    expect(both.scheduler.request({ towerId: 'tw', workorder: 'T0536' })).toMatchObject({ ok: true, terminalId: 'w2' })
+    expect(both.emitted).toEqual([{ channel: 'terminal:close-requested', payload: { id: 'w2' } }])
+    // BAT_TOWER_TERMINAL_ID still has to match: isOwnedBy alone does not make another tower's Worker ours
+    const other = setupScheduler({ w2: { tower: 'other', workorder: 'T0536' } }, () => true)
+    expect(other.scheduler.request({ towerId: 'tw', workorder: 'T0536' })).toEqual({ ok: false, code: 'NOT_OWNER' })
+    expect(emitted).toEqual([])
   })
 
   it('AMBIGUOUS: two Workers of this tower for the work order (Renew re-dispatch)', () => {
@@ -430,6 +453,22 @@ describe('handlers (T0535)', () => {
       expect(await r.invoke('pty:write', { windowId: null }, 'w1', 'z')).toEqual({ ok: true })
       expect(manager.getLastUserInputAt('w1')).toBeGreaterThanOrEqual(before!)
       expect(await r.invoke('pty:write', { windowId: 'win-1' }, 'nope', 'z')).toEqual({ ok: false, reason: 'pty-not-found' })
+    } finally {
+      manager.dispose()
+    }
+  })
+
+  it('T0536: isUserInput overrides the rule (headless: a client connection counts, a helper does not)', async () => {
+    const manager = new PtyManager({ emit: vi.fn(), dataDir: CWD })
+    try {
+      const r = registry()
+      registerPtyHandlers(r.register, { getPtyManager: () => manager, isUserInput: ctx => ctx.connectionId === 'client-1' })
+      manager.create({ id: 'w1', ...{ cwd: CWD, type: 'terminal' as const, shell: '/bin/sh' } })
+      expect(await r.invoke('pty:write', { windowId: null, connectionId: 'helper-1' }, 'w1', 'x')).toEqual({ ok: true })
+      expect(await r.invoke('pty:write', { windowId: null }, 'w1', 'x')).toEqual({ ok: true })
+      expect(manager.getLastUserInputAt('w1')).toBeNull()
+      expect(await r.invoke('pty:write', { windowId: null, connectionId: 'client-1' }, 'w1', 'y')).toEqual({ ok: true })
+      expect(manager.getLastUserInputAt('w1')).not.toBeNull()
     } finally {
       manager.dispose()
     }
