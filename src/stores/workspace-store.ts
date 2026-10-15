@@ -119,8 +119,20 @@ function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<stri
     model: t.model,
     agentParams: normalizeAgentParams(t.agentPreset, t.agentParams),
     sessionMeta: t.sessionMeta,
+    ...workerOwnership(t),
     scrollbackBuffer: [],
     pid: undefined,
+  }
+}
+
+/**
+ * PLAN-041 / T0537: the saved Worker ownership of a tab (`towerTerminalId` / `workorder`), only
+ * the string fields that are there — data saved before T0537 has none and stays without them.
+ */
+function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown }): Pick<TerminalInstance, 'towerTerminalId' | 'workorder'> {
+  return {
+    ...(typeof t.towerTerminalId === 'string' && t.towerTerminalId ? { towerTerminalId: t.towerTerminalId } : {}),
+    ...(typeof t.workorder === 'string' && t.workorder ? { workorder: t.workorder } : {}),
   }
 }
 
@@ -429,8 +441,10 @@ class WorkspaceStore {
    *  apply: a remote event whose workspace is not in this window is ignored. Every BAT
    *  connected to the server gets the event; only the one holding the workspace adds it.
    *  T0523/BUG-129: before step 1, the workspace of `towerTerminalId` (`--notify-id`) when
-   *  this window holds that terminal — the Tower shell's `BAT_WORKSPACE_ID` can be stale. */
-  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
+   *  this window holds that terminal — the Tower shell's `BAT_WORKSPACE_ID` can be stale.
+   *  T0537 (PLAN-041): `towerTerminalId` / `workorder` are kept on the tab and saved with it —
+   *  the Worker ownership `--close-worker` looks up after BAT reopens. */
+  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
     // Avoid duplicates — PTY already tracked
     if (this.state.terminals.some(t => t.id === info.id)) return null
 
@@ -482,6 +496,7 @@ class WorkspaceStore {
       type: 'terminal',
       title: info.command ? `Remote: ${info.command.split(' ')[0]}` : 'Remote Terminal',
       cwd: info.cwd,
+      ...workerOwnership(info),
       scrollbackBuffer: [],
       lastActivityTime: Date.now()
     }
@@ -993,6 +1008,8 @@ class WorkspaceStore {
         model: t.model,
         agentParams: t.agentParams,
         sessionMeta: t.sessionMeta,
+        towerTerminalId: t.towerTerminalId,
+        workorder: t.workorder,
       }))
       const data = JSON.stringify({
         workspaces: this.state.workspaces,

@@ -59,7 +59,9 @@ interface PtyInstance {
   /**
    * PLAN-041 / T0535: the work order a Tower dispatched this Worker for (`terminal:create-agent-command`
    * `workorder`, normalized). With `customEnv.BAT_TOWER_TERMINAL_ID` it is what `--close-worker`
-   * looks up. Kept by `restart` and the Terminal Server recovery; lost when BAT reopens (T0537).
+   * looks up. Kept by `restart` and the Terminal Server recovery. Not known to a PTY registered
+   * from the Terminal Server's list (T0108) or re-created by a restored tab after BAT reopens —
+   * main then takes it from the saved tab (T0537, `electron/worker-ownership.ts`).
    */
   workorder?: string
 }
@@ -690,6 +692,11 @@ export class PtyManager implements CloseWorkerPtyManager {
       ids.push(id)
     }
     return ids
+  }
+
+  /** T0537: the work order recorded on PTY `id` by this process (undefined = none recorded). */
+  getWorkorder(id: string): string | undefined {
+    return this.instances.get(id)?.workorder
   }
 
   /** T0535: the Tower terminal that dispatched PTY `id` (`customEnv.BAT_TOWER_TERMINAL_ID`). */

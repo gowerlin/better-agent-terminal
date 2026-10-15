@@ -13,6 +13,7 @@ import {
   type DispatchWorkspaceRequest,
   type DispatchWorkspaceResolution,
 } from './dispatch-workspace'
+import { normalizeWorkorderId } from './close-worker'
 
 // 🔴 No `electron` import here: PLAN-036 T0431 registers these handlers on
 // headless bat-server too (electron/handlers/terminal.ts).
@@ -481,6 +482,8 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       }, 500)
     }
     if (created && !_ctx.windowId) {
+      // T0537 (PLAN-041): the work order the PTY recorded, so the tab saves it with its tower.
+      const workorder = opts.workorder ? normalizeWorkorderId(opts.workorder) : null
       const payload = {
         id: opts.id,
         cwd: opts.cwd,
@@ -489,6 +492,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         // T0523: the renderer lands the tab next to the Tower terminal when it holds it
         // (headless has no registry to resolve this on the server).
         ...(landing.towerTerminalId ? { towerTerminalId: landing.towerTerminalId } : {}),
+        ...(workorder ? { workorder } : {}),
         // T0523: the registry has this workspace (a window of this BAT holds it), so a window
         // without it skips the event instead of adding the tab to its active workspace.
         ...(landing.known ? { workspaceResolved: true } : {}),

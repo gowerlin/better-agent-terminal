@@ -43,8 +43,8 @@ const electronAPI = {
     // T0130: Listen for terminals created externally (e.g. via RemoteServer WebSocket)
     // T0137: `workspaceId` propagates from `bat-terminal.mjs --workspace <id>` for explicit allocation
     // T0523: `towerTerminalId` (from `--notify-id`) — the tab lands next to that Tower terminal when this window holds it
-    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workspaceResolved?: boolean }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workspaceResolved?: boolean }) => callback(info)
+    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; workspaceResolved?: boolean }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; workspaceResolved?: boolean }) => callback(info)
       ipcRenderer.on('terminal:created-externally', handler)
       return () => ipcRenderer.removeListener('terminal:created-externally', handler)
     },

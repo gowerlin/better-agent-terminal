@@ -14,6 +14,7 @@ import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { WorkerCloseScheduler } from './close-worker'
+import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
 import { registerGitHandlers } from './handlers/git'
@@ -2144,7 +2145,14 @@ function registerProxiedHandlers() {
   const terminalEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload))
   // PLAN-041 / T0535: terminal:close-worker — `terminal:close-requested` goes to every window
   // (detached ones too); the one holding the tab closes it like ✕.
-  workerCloseScheduler = new WorkerCloseScheduler({ getPtyManager: () => ptyManager, emit: terminalEmit, logger })
+  // T0537: a Worker this process recorded nothing for (BAT reopened) is found by its saved tab.
+  workerCloseScheduler = new WorkerCloseScheduler({
+    getPtyManager: () => ptyManager
+      ? withSavedWorkerOwnership(ptyManager, () => savedWorkerOwnership(windowRegistry.getCachedEntries()), logger)
+      : null,
+    emit: terminalEmit,
+    logger,
+  })
   registerTerminalHandlers(registerHandler, {
     getPtyManager: () => ptyManager,
     emit: terminalEmit,

@@ -66,6 +66,14 @@ export interface TerminalInstance {
   };
   worktreePath?: string;          // Path to the worktree if running in worktree isolation
   worktreeBranch?: string;        // Branch name in the worktree
+  /**
+   * PLAN-041 / T0537: a Worker tab a Tower dispatched (`terminal:created-externally`) — the Tower
+   * terminal (`BAT_TOWER_TERMINAL_ID`) and the work order it was dispatched for. Saved with the
+   * tab, so main can still find the Worker for `--close-worker` after BAT reopens
+   * (`electron/worker-ownership.ts`). Gone with the tab when it is closed.
+   */
+  towerTerminalId?: string;
+  workorder?: string;
 }
 
 export interface AppState {
