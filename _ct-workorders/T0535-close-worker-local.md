@@ -86,7 +86,7 @@ memory_overrides:
 - [ ] source guard 或測試：✕ 路徑（確認框條件、`stopSession` / `pty.kill` 分支、worktree 清理）不變
 - [ ] helper 測試：各 exit code、互斥參數、`--help`（`BAT_HELPER_LOG_DIR` / `BAT_USER_DATA` 指到 temp）
 - [ ] e2e（隔離實例，自訂 CLI 跑 node 腳本）：派工 → Worker 輸出停止 → `--close-worker` → 分頁消失、registry 不含該 id → 重開實例不還原；detached 視窗中的 Worker 同樣可關；延遲期間打字會取消
-- [ ] Windows：Terminal Server 模式關閉後，Worker shell 底下的子程序（node 腳本）確實結束（T0534 §1.2 未實測項）。未結束則回報區記錄並提出處理方式，不在本單擅自改 `killPty`
+- [ ] Windows Terminal Server 模式關閉後子程序是否結束，由 T0540（PLAN-042）專責實測與修正；本單不改 `killPty`，只要求不退化
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npx vite build` 成功、相關單元測試全綠
 
 ## 回報區

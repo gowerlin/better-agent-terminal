@@ -3,12 +3,12 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-041
 title: 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` 能力 + CT `*config` 開關與延遲）
-status: PLANNED
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-15T15:44:39+0800"
-updated_at: "2026-10-15T15:44:39+0800"
+updated_at: "2026-10-15T16:13:05+0800"
 target_batch: "0.6.1-pre.3"
-workorders: [T0535, T0536, T0537, CT-T011]
+workorders: [T0535, T0536, T0537, T0538, CT-T011]
 links:
   related: [T0534, D144, T0523, T0525, T0432, T0450]
 ---
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-041 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 📋 PLANNED（2026-10-15 15:44 開立，四張工單已建立、未派發） |
+| 狀態 | 🔄 IN_PROGRESS（2026-10-15 15:44 開立；16:13 納入方案 D（T0538）並開工，先派 T0535） |
 | 來源 | 使用者提問「塔台收單完成後能否自動關掉 Worker 工單終端」；T0534 研究（推薦方案 B'）；D144 |
 | 說明網頁 | https://claude.ai/artifact/E9ZBy1JRwibBXrwnMdB4LS （私人） |
 
@@ -68,11 +68,11 @@ stderr 另印一行 `close-worker: <CODE>`（診斷用；CT 只依 exit code 判
 | **T0535**（B'-1） | BAT 本機：PtyManager 記錄 `workorder` + 查詢、`terminal:close-worker` handler、main 端延遲計時與取消、`terminal:close-requested` 事件、renderer 共用關閉函式、helper `--close-worker` | — | M |
 | **T0536**（B'-2） | 遠端 headless：tower 權杖加 channel + `isWorkerOf`、headless handler、事件加進 `PROXIED_EVENTS` | T0535 | S |
 | **T0537**（B'-4） | 持久化 Worker 歸屬（`towerTerminalId` / `workorder` 存進工作區），BAT 重開後 `--close-worker` 仍有效 | T0535 | S–M |
+| **T0538**（方案 D） | 分頁列標示 Worker（工單編號 / 已回報）、塔台右鍵批次關閉已回報的 Worker | T0535、T0537 | S–M |
 | **CT-T011**（取代原 B'-3 local_rule） | CT 下一版：`*config` 兩個新選項、收單流程掛點、Bash 白名單、exit code 處理；Claude / Codex 兩份 skill 同步 | 介面契約（可並行撰寫；發佈需等含 T0535 的 BAT 版本） | S |
 
-建議順序：T0535 → T0536 / T0537（可並行）→ CT-T011 發佈。BAT 三張併入 `0.6.1-pre.3` 批次（與 BUG-136 修正同批，「batch fixes before release」）。
+派發順序（同一工作樹，不並行）：T0535 → T0536 → T0537 → T0538，之後接 PLAN-042 的 T0540 → T0539；CT-T011 由 BMad-Guide 塔台執行，等含 T0535 的 BAT 發出後發佈。BAT 三張併入 `0.6.1-pre.3` 批次（與 BUG-136 修正同批，「batch fixes before release」）。
 
 ## 範圍外（另案）
 
-- 方案 D：分頁列標示「Worker / 已回報」與右鍵批次關閉（T0537 完成後資料已具備）
-- T0534 §8 的後續項目：死分頁按 ⏻ 無反應、CT 文件 `result=true` 漂移、`~/.codex/AGENTS.md` 範例、`sourceTerminalId` 永遠為空
+- T0534 §8 的後續項目 → PLAN-042（方案 D 已於 2026-10-15 16:1x 依使用者指示「完整版」納入本 PLAN，T0538）
