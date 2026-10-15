@@ -3,12 +3,12 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-041
 title: 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` 能力 + CT `*config` 開關與延遲）
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-10-15T15:44:39+0800"
-updated_at: "2026-10-15T17:04:34+0800"
+updated_at: "2026-10-16T02:17:33+0800"
 target_batch: "0.6.1-pre.3"
-workorders: [T0535, T0536, T0537, T0538, CT-T011]
+workorders: [T0535, T0536, T0537, T0538, CT-T011, T0545, T0549]
 links:
   related: [T0534, D144, T0523, T0525, T0432, T0450]
 ---
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-041 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（2026-10-15 15:44 開立；16:13 納入方案 D（T0538）並開工；17:04 BAT 端 T0535 `f26b7641` / T0536 `26f6996e` / T0537 `e965f993` / T0538 `8fd7bdf7` 全部 DONE，隨 0.6.1-pre.3 發佈；剩 CT-T011（BMad-Guide 塔台）與實機驗收：真實 claude / codex Worker 閒置時是否有週期輸出導致 BUSY） |
+| 狀態 | ✅ DONE（2026-10-16 02:17 pre.4 實機重驗通過，T0549；以下為歷程：2026-10-15 15:44 開立；16:13 納入方案 D（T0538）並開工；17:04 BAT 端 T0535 `f26b7641` / T0536 `26f6996e` / T0537 `e965f993` / T0538 `8fd7bdf7` 全部 DONE，隨 0.6.1-pre.3 發佈；剩 CT-T011（BMad-Guide 塔台）與實機驗收：真實 claude / codex Worker 閒置時是否有週期輸出導致 BUSY） |
 | 來源 | 使用者提問「塔台收單完成後能否自動關掉 Worker 工單終端」；T0534 研究（推薦方案 B'）；D144 |
 | 說明網頁 | https://claude.ai/artifact/E9ZBy1JRwibBXrwnMdB4LS （私人） |
 
@@ -90,3 +90,15 @@ stderr 另印一行 `close-worker: <CODE>`（診斷用；CT 只依 exit code 判
 **發現**：CT v5.1.0 收單確認後立即呼叫 `--close-worker`，claude 那時多半仍在輸出通知後的收尾 → 依 CT 規則 exit 6「回報、不重試」⇒ 實務上 claude Worker 分頁**不會**被自動回收。BAT 端判定本身正確（閒置後即可回收、延遲取消 / 關閉路徑正常）。
 
 **決定（D145）**：修在 BAT——收單時仍輸出照常排程，延遲期間輸出不取消，到期仍輸出則等安靜 5 秒、最多再等 60 秒；CT 與契約不變。**T0545 DONE**（`2321c719`），隨 `0.6.1-pre.4` 發佈後再以真 claude Worker 實機驗一次（T0545 收單時在 pre.3 上又重現 exit 6，20:25:49）。
+
+## 實機重驗（第六十六 session，BAT `0.6.1-pre.4` + CT v5.1.0，Windows 本機；記錄於 2026-10-16T02:17:33+0800）
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| claude Worker（T0549，`claude-cli` 2.1.300，system binary）回報 | ✅ | `[T0538] Worker reported … workorder=T0549`（02:15:23） |
+| 塔台收單即呼叫 `--close-worker --delay-ms 10000` | ✅ **exit 0** | 02:15:59.95 呼叫；stdout `✓ Worker close scheduled … (in 10000 ms)` + 等安靜提示行；`bat-scripts.log` `result:"OK"` |
+| 延遲 10 s 實際關閉 | ✅ | `→ scheduled delayMs=10000`（18:16:00.000Z）→ `→ close requested (windows=1)`（18:16:10.001Z）+ renderer `closing tab`；`windows.json` / `bat-pty-registry.json` 皆無殘留；無 `cancelled` |
+
+**限制（照實記錄）**：本次呼叫距 Worker 回報 37 s，排程時分頁已安靜（日誌無 `output … ms ago`），沒有走到「到期仍輸出 → 等安靜」分支。該分支由 T0545 單元測試與 e2e `e2e/t0535-close-worker.spec.ts`（Worker 跑輸出腳本、delay 0 → 等輸出結束 + 5 s 才關）涵蓋；pre.4 起 BAT 不再回 `BUSY`，收單時是否仍在輸出都回 exit 0。後續真實收單若出現 exit 6 或 `cancelled (still printing …)`，重開本 PLAN。
+
+**結案**：BAT 端（T0535-T0538、T0545）與 CT v5.1.0（CT-T011）皆已在實機上走通 → PLAN-041 DONE。codex Worker 回報後的收尾輸出時間仍未驗（無 codex 付費帳號，T0543 ABANDONED）。

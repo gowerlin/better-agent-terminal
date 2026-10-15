@@ -3,15 +3,17 @@ schema_version: 1
 schema_kind: workorder
 id: CT-T001
 title: delegate-bat-routing-skill-update
-status: PENDING
+status: DONE
 created_at: "2026-04-17T00:08:00+08:00"
+updated_at: "2026-10-16T02:18:03+0800"
+completed_at: "2026-10-16T02:18:03+0800"
 ---
 # 工單 CT-T001-delegate-bat-routing-skill-update
 
 ## 元資料
 - **工單編號**：CT-T001
 - **任務名稱**：【受派】CT skill 修改 — BAT auto-session 路由 + Worker 自動通知
-- **狀態**：PENDING
+- **狀態**：DONE
 - **建立時間**：2026-04-17 00:08 (UTC+8)
 - **開始時間**：（sub-session 開始時填入）
 - **完成時間**：（完成時填入）
@@ -239,3 +241,10 @@ CT 端以三張工單序列接收並完成本 DELEGATE：
   - `D:\ForgejoGit\BMad-Guide\_ct-workorders\CP-T0092-bat-integration-source-modify.md`
   - `D:\ForgejoGit\BMad-Guide\_ct-workorders\CP-T0093-v410-snapshot-changelog-release.md`
 - BMad-Guide commit history（5 個 commit）：`9a81b05`, `e0cd284`, `207b1a4`, `98efd9c`, `3ca0afc`
+
+---
+
+## 塔台收單（better-agent-terminal 第六十六 session，2026-10-16T02:18:03+0800）
+
+- 狀態 PENDING → **DONE**：BMad-Guide 端 CP-T0091–T0093 已於 2026-04-17 完成並發佈 CT v4.1.0（回報區如上），本 repo 當時漏改 frontmatter。
+- BAT 端整合驗證（回報區「⏳ 待 BAT 端整合驗證」）早已由實際使用涵蓋：自 v4.1 起 BAT 內塔台派發一律走 `bat-terminal.mjs`、Worker 以 `bat-notify.mjs` 回報（第五十五 session 起數百次派發）；後續演進見 CT v5.x 與 PLAN-036 K / PLAN-041。

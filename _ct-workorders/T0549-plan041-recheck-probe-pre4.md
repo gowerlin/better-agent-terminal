@@ -121,3 +121,13 @@ Git Bash 與 PowerShell 看到的 `BAT_*` / `CT_*` 相同，沒有 shell env vis
 ### 回報時間
 
 2026-10-16T02:15:04+0800
+
+
+---
+
+## 塔台收單（第六十六 session，2026-10-16T02:18:03+0800）
+
+- ✅ **T0549 已確認完成**：Worker commit `7479911d`（只含本工單檔），回報區欄位齊全。
+- **塔台驗收 PASS**：收單後呼叫 `--close-worker T0549 --notify-id <塔台> --delay-ms 10000` → **exit 0**（stdout 含等安靜提示行；`bat-scripts.log` `result:"OK"`）；主行程 `[close-worker] → scheduled delayMs=10000` → 10.001 s 後 `→ close requested (windows=1)`，renderer `closing tab`；`windows.json` / `bat-pty-registry.json` 皆無此分頁；無 `cancelled`。
+- 限制：呼叫距回報 37 s（02:15:23 → 02:15:59.95），排程時已安靜，未走到「到期仍輸出 → 等安靜」分支（T0545 單元測試 / e2e 涵蓋）。
+- → PLAN-041 **DONE**。

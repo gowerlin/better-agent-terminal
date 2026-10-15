@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0510
 title: "pre.5 實機驗收自動化：以已安裝的 v0.6.0-pre.5 exe 起隔離實例，驗 Custom CLI 持久化、detached 關窗 flush、BUG-119 搬移、BUG-114 派發、SSH alias（無 User / ProxyJump）；真環境只做唯讀檢查"
 type: implementation
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: D139
 priority: P1
 sizing: L
 created_at: "2026-10-14T01:59:36+0800"
 started_at: "2026-10-14T02:01:09+08:00"
-updated_at: "2026-10-14T02:35:34+08:00"
+updated_at: "2026-10-16T02:18:03+0800"
 completed_at: "2026-10-14T02:35:34+08:00"
 target_version: "0.6.0-pre.5（驗收，不發版）"
 depends_on:
@@ -305,3 +305,10 @@ ok 7 detached-workspace.spec.ts:41     › detached workspace window loads the p
 - A4 判準偏離（token 每次啟動重寫）採納；token 明文不變留待真人以既有遠端 client 確認
 - 其他觀察 1（permission-denied 動作按鈕）併入 T0511 C；觀察 2（容器內環境偵測顯示 WSL）、3（error 等級延遲建檔）不開單
 - commit `8994fff` 範圍核對：6 檔，與回報一致
+
+---
+
+## Post-resolution note（塔台，第六十六 session，2026-10-16T02:18:03+0800）
+
+- 狀態 PARTIAL → **DONE**（work-order-system § Resolved `PARTIAL` 補正規則）：唯一 FAIL 的 A6-0（stock SSH wizard 在 `start-server` 失敗）來自 BUG-120 / BUG-121，已由 **T0511** 修正並以本單的 `e2e/pre5-ssh-alias.spec.ts`（workaround 關閉）驗證；BUG-120 / BUG-121 皆 **CLOSED**。
+- 原回報區與證據保留不改。剩下的「token 明文升版前後不變」是真人以既有遠端 client 確認的觀察項，不是本單 gate；之後各版遠端 client 持續連線正常。

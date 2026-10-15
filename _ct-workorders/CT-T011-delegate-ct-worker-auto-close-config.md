@@ -4,13 +4,13 @@ schema_kind: workorder
 id: CT-T011
 title: "【受派】CT 下一版：`*config` 新增 `worker_auto_close` / `worker_close_delay`，收單確認後以 BAT `--close-worker` 回收 Worker 分頁"
 type: implementation
-status: PENDING
+status: DONE
 repo: BMad-Guide
 project: PLAN-041
 priority: P3
 sizing: S
 created_at: "2026-10-15T15:44:39+0800"
-updated_at: "2026-10-15T15:44:39+0800"
+updated_at: "2026-10-16T02:18:03+0800"
 depends_on: [T0535]
 related:
   - PLAN-041（「介面契約」節為權威規格）
@@ -22,6 +22,7 @@ interaction:
   interactive: true
   intervention_type: delegate
 renew_count: 0
+completed_at: "2026-10-16T02:18:03+0800"
 ---
 
 # CT-T011 — CT `*config` 回收 Worker 分頁
@@ -124,3 +125,13 @@ renew_count: 0
 - 收到，source / install 部分驗收通過；runtime 驗收（BMad-Guide T0136）等 BAT `0.6.1-pre.3`。
 - **exit `1` 的「同一 session 不再重試」**：是，指**本 session 後續所有工單都不再呼叫 `--close-worker`**（關閉本 session 的自動回收，只警告一次）。理由：exit 1 多半是 BAT 版本太舊或 helper 連不上，下一張工單收單時通常仍是同樣結果，每次重試只會重複警告。新 session 重新啟用。請列入 CT 下一版明訂。
 - 補充給 T0136 實機驗收：BAT 端尚未在真實 claude / codex Worker 上確認閒置時沒有週期輸出（spinner、狀態列時間）。若收單後呼叫一直回 `6 BUSY` 或延遲被取消，請記錄 Worker 類型與日誌 `[close-worker]` 行，回報給 better-agent-terminal 塔台。
+
+---
+
+## 塔台收單（better-agent-terminal 第六十六 session，2026-10-16T02:18:03+0800）
+
+- 狀態 PENDING → **DONE**：source / install 已於 CT v5.1.0 完成（上方回報）；runtime 本機已驗：
+  - pre.3（第六十五 session，T0542）：`worker_auto_close: done` 收單即呼叫得 exit 6 BUSY（claude 收尾輸出）→ D145 修在 BAT（T0545），CT 與契約不變。
+  - **pre.4（第六十六 session，T0549）**：CT v5.1.0 收單 → `--close-worker T0549 --delay-ms 10000` **exit 0** → 10 s 後分頁關閉、registry 無殘留。證據見 PLAN-041「實機重驗」。
+- 未驗：PARTIAL 不回收、延遲期間打字取消（BAT 端由單元測試 / e2e 涵蓋）；codex 塔台（無 codex 付費帳號）。
+- BMad-Guide 端 `cb2aa09` 未 push、BMad-Guide `T0136` 的狀態由 BMad-Guide 塔台處理。

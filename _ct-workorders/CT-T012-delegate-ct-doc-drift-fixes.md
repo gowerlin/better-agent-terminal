@@ -4,13 +4,13 @@ schema_kind: workorder
 id: CT-T012
 title: "【受派】CT 下一版：修正與 BAT 實作不一致的文件（`result=true`、notify 失敗時的工單狀態、Codex 派工範例）"
 type: implementation
-status: PENDING
+status: DONE
 repo: BMad-Guide
 project: PLAN-042
 priority: P3
 sizing: S
 created_at: "2026-10-15T16:13:05+0800"
-updated_at: "2026-10-15T16:13:05+0800"
+updated_at: "2026-10-16T02:18:03+0800"
 depends_on: []
 related:
   - PLAN-042
@@ -21,6 +21,7 @@ interaction:
   interactive: true
   intervention_type: delegate
 renew_count: 0
+completed_at: "2026-10-16T02:18:03+0800"
 ---
 
 # CT-T012 — CT 文件與 BAT 實作的落差
@@ -81,3 +82,10 @@ renew_count: 0
 | 使用者本機 `~/.codex/AGENTS.md` 已更新 | ✅ |
 
 順帶修正：`ct-exec/SKILL.md` § BAT Notify And Fallback 補明 `CT_MODE=ask`／`off` 不加 `--submit`、顯示手動回報訊息（原只寫 `on`／`yolo`）。
+
+---
+
+## 塔台收單（better-agent-terminal 第六十六 session，2026-10-16T02:18:03+0800）
+
+- 狀態 PENDING → **DONE**：三項文件修正皆已隨 CT v5.1.0 安裝（上方回報）。本機抽驗：已安裝 `control-tower/SKILL.md` 寫的是 `"result":"ok"` 與「exit code 為主規則」，與 BAT `scripts/bat-terminal.mjs` 一致。
+- 本單只改文件，無 runtime 項目；「待 BAT 含 `--close-worker` 的版本」屬 CT-T011 的範圍，已於 pre.4 驗過（T0549）。
