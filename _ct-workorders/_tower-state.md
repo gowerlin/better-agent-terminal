@@ -1,11 +1,48 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-16 02:08 (UTC+8) — **第六十五 session 進行中**：`*rescan`；PLAN-041 實機驗收（T0542 / T0543）→ D145 / T0545（等安靜再回收）；T0544 安裝檔研究 → D146 / T0546-T0548 瘦身（D094 取代）→ **`v0.6.1-pre.4`**（exe 298 / dmg 310 MiB）。
+> 最後更新:2026-10-16 02:11 (UTC+8) — **第六十五 session 收工**：`*rescan`；PLAN-041 實機驗收（T0542 / T0543）→ D145 / T0545（等安靜再回收）；T0544 安裝檔研究 → D146 / T0546-T0548 瘦身（D094 取代）→ **`v0.6.1-pre.4`**（exe 298 / dmg 310 MiB）。
 >
 > **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.4` 後重驗 PLAN-041（真 claude Worker 收單即回收應 exit 0）；等 Gary BUG-136；pre.4 實機：WSL / SSH 首次設定下載 / 匯入 server bundle。
 ---
 
-## 🛏 本 Session 收工快照 (第六十四 session, 2026-10-15 13:13 - 18:16, ~5h wall)
+## 🛏 本 Session 收工快照 (第六十五 session, 2026-10-15 19:54 - 10-16 02:11, ~6h17m wall，含 20:35-01:09 使用者離開)
+
+### 主軸：`*rescan` → PLAN-041 實機驗收（T0542 / T0543）→ D145 / T0545 → T0544 安裝檔研究 → D146 / T0546-T0548 → **`v0.6.1-pre.4`**
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **19:54** Fast Path 起手（Control Tower v5.1.0 生效）；19:57 `*rescan` Full Scan（`8e8eb568`；WSL bat-server 仍 0.5.9-pre.4）
+2. **20:00** 使用者「PLAN-041 安排自動驗收」→ 開 T0542（claude 探針）/ T0543（codex 探針）、`worker_auto_close: done`（`696b4900`）；T0542 20:01 DONE → 收單後 9 s 呼叫 `--close-worker` 得 **exit 6 BUSY**（claude 通知後約 6 s 仍輸出），30 / 90 s 後 exit 0，10 s 延遲回收成功、無殘留
+3. **20:03** 派 T0543（codex）→ 使用者無 codex 付費帳號「不驗」→ 塔台直接探測 codex 分頁閒置 3 次 exit 0、20:06 回收；T0543 ABANDONED
+4. **20:06** 派 **T0544**（安裝檔研究）；20:12 使用者選「BAT：等安靜再關」並放寬等待 → **D145** / 派 **T0545** → 20:25 DONE（`2321c719`）
+5. **20:30** T0544 DONE（`0c3c79e9`）：組成實測（baseline 228–455、重複 claude.exe、SDK 內建 claude、asar 用不到的套件…）→ 20:33 塔台直接開第一階段 **T0546** → 21:09 DONE（`dc64388d`）
+6. **10-16 01:09** 使用者回覆：做 A（不內建 baseline）+ 匯入本機 tarball、codex 繼續內建 → **D146** / 01:11 派 **T0547** → 01:39 DONE（`73b7aa96`；`compression: maximum` 對 NSIS 無效）；刪除 T0544 暫存（11 GB）
+7. **01:40** 派 **T0548**（win normal 壓縮、e2e / release.ps1 不讀安裝目錄 baseline、下載重試分類）→ 01:56 DONE（`c389888b`）
+8. **01:59** 使用者同意發版 → bump + push + run `38781893001` → **02:08 `v0.6.1-pre.4` 已發佈**（10 job 全綠），更版重點已寫；D146 定案取代 D094（`5eeb19d9`）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **7**（T0542-T0548） | 6 DONE、T0543 ABANDONED；皆一次啟動 |
+| 發版 | 1（`v0.6.1-pre.4`） | exe 298.0 / zip 412.3 / AppImage 297.3 / dmg 309.6 MiB（pre.3：693.9 / 868.8 / 1030.7 / 871.9） |
+| 決策 | D145 / D146 | D146 取代 D094（每平台 ≤ 320 MiB、zip ≤ 450） |
+| PLAN | PLAN-041 仍 IN_PROGRESS | 待本機升 pre.4 後重驗 |
+| unit test | 3939 → **4073 passed / 243 files** | 每張單塔台聯合複驗 |
+
+### 重點觀察
+
+- CT v5.1.0 收單即回收在 pre.3 上 6 次全部 exit 6（claude 回報後仍輸出收尾）→ D145 修在 BAT；pre.4 起應 exit 0
+- 塔台建 T0544 時曾手打 `created_at`，發現後改取系統時間（R-G001）；之後新單一律以 `__TS__` 佔位再代入 `date`
+- T0547 對「Windows fetch 錯誤無 `cause.code`」的判斷有誤（實為 9 號埠被 fetch 封鎖），T0548 已更正並寫入 CLAUDE.md；Worker 根因結論仍需下一張單複核
+
+### 編號起始（下 session）
+
+- **T0549** / **BUG-138** / **PLAN-043** / **D147** / **L151** / **CT-T013**
+
+---
+
+## 🛏 前 Session 收工快照 (第六十四 session, 2026-10-15 13:13 - 18:16, ~5h wall)
 
 > 13:13 前另有程式碼簽章研究（網頁 artifact `MxxjPnrMFwhsbV3CA9NdEL`，無 commit，後續等使用者取得 Apple Developer / SSL.com 憑證）；起點未記錄。
 
@@ -48,47 +85,9 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第六十三 session, 2026-10-15 01:14 - 02:10, ~56m wall)
-
-### 主軸：Fast Path 起手 → 補第六十二 session 快照 → 連國盛回報 BUG-134 → T0531 → **`v0.6.0-pre.11`** → BUG-135 / T0532 → 版號線改 0.6.1（D143）→ **`v0.6.1-pre.1`**
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **01:14** Fast Path 起手：發現 state 漏記第六十二 session（T0526-T0530、pre.9 / pre.10）
-2. **01:16** 使用者轉述連國盛回報（關閉工作區全部終端後主畫面殘留其他終端、像當機）→ 開 **BUG-134** / 01:17 派 **T0531**（`2c714f6`）
-3. **01:22** 補第六十二 session 快照、歸檔第六十 session（INDEX 78，`2f16951`）；塔台誤報「pre.9 / pre.10 發布說明為空」（PowerShell `.Length` 量到行數），實際完整，未改 release
-4. **01:22** 使用者本機 pre.10 重現 → 情境 (a) 確認（`c733adc`）
-5. **01:27** T0531 DONE（`d41280a`）：根因為 CSS —— `.workspace-container.hidden` 用 `visibility: hidden`，子元素 `.workspace-tab-panel.active` 翻回 visible，空工作區透明容器透出隱藏工作區；`removeTerminal` focus 跨工作區為附帶缺陷 → 塔台聯合複驗全綠（`49af84c`）
-6. **01:29** 使用者選 A → push + 派 pre.11；01:32 使用者同意修兩件小事 → 開 **BUG-135** / 派 **T0532**（`491e553`）
-7. **01:44** T0532 DONE（`8b5251a`）：5 處 focus fallback 限 active 工作區、預設終端建立中顯示不透明 placeholder → 聯合複驗全綠（`7b5fcb6`）
-8. **01:47** **`v0.6.0-pre.11` 已發佈**（run `38607028430` @ `49af84c`）；使用者要求改版號 0.6.1-pre.1 →（選「pre.11 跑完接著發」）→ 01:50 package.json bump + push + 派 run
-9. **02:05** **`v0.6.1-pre.1` 已發佈**（run `38610008131` @ `e715c2b`，10 job 全綠）；兩版發布說明皆已寫入；02:08 **D143**（`646c77e`）
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **2**（T0531 / T0532） | 皆 DONE、一次啟動 |
-| 發版 | 2（`v0.6.0-pre.11` / `v0.6.1-pre.1`） | 各 10 job 全綠 + server-bundle 7 assets |
-| BUG | 新開 2（134 / 135）→ 皆 FIXED | Open 0 / Fixed 16 / Closed 44 |
-| 決策 | D143 | 預覽版版號線改 `0.6.1-pre.N` |
-| unit test | 3713 → **3730 passed / 225 files** | |
-| e2e（新） | `t0531-empty-workspace-view`、`t0532-default-terminal-no-empty-flash` | |
-
-### 重點觀察
-
-- 塔台在 Worker 進行中依半成品 diff 向使用者轉述根因（`removeTerminal`），與 Worker 最終結論（CSS visibility）不同 → 已更正；**Worker 未回報前不轉述根因**
-- PowerShell 對 gh 多行輸出取 `.Length` 得到行數而非字數，造成「發布說明為空」誤判；檢查 release body 用 `gh release view --json body -q .body | wc -c` 或直接讀內容
-
-### 編號起始（下 session）
-
-- **T0533** / **BUG-136** / **PLAN-041** / **D144** / **L151**（第六十三 session 收工時）
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-16 02:08 UTC+8（第六十五 session）
+> 最後更新：2026-10-16 02:11 UTC+8（第六十五 session 收工）
 
 ### 近期完成
 - `v0.6.1-pre.4`（10-16 02:08，run `38781893001` @ `e3e86496`）：安裝檔瘦身（T0546-T0548，不內建 server bundle + 匯入本機 tarball，D146）、`--close-worker` 等安靜再關（T0545，D145）
@@ -113,7 +112,7 @@
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 17 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D146）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（80 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（81 entries）
 
 ### 編號起始
 - **T0549** / **BUG-138** / **PLAN-043** / **D147** / **EXP-[TOPIC]-001** / **L151** / **CT-T013**
@@ -258,6 +257,7 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-15 第六十五 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0542-T0548（6 DONE、T0543 ABANDONED），皆一次啟動；首次啟用 `worker_auto_close: done`（pre.3 上收單即回收皆 exit 6 → D145）；pre.4 發佈
 - 2026-10-15 第六十三 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0531 / T0532 全 DONE，皆一次啟動；pre.11 / 0.6.1-pre.1 發佈
 - 2026-10-14 第六十二 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0526-T0530 全 DONE；pre.9 / pre.10 發佈（第六十三 session 補記）
 - 2026-10-14 第六十一 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0521-T0525 全 DONE，皆一次啟動（最多 2 張並行）；pre.8 發佈
