@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0538
 title: "PLAN-041 D：分頁列標示 Worker（工單編號 / 已回報），右鍵批次關閉已回報的 Worker 分頁"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-041
 priority: P3
 sizing: S-M
 created_at: "2026-10-15T16:13:05+0800"
 started_at: "2026-10-15T16:55:04+0800"
-updated_at: "2026-10-15T16:55:04+0800"
+updated_at: "2026-10-15T17:04:34+0800"
+completed_at: "2026-10-15T17:04:34+0800"
 target_version: "0.6.1-pre.3"
 depends_on: [T0535, T0537]
 related:
@@ -130,4 +131,4 @@ T0537 完成後，每個 Worker 分頁都存有 `towerTerminalId` / `workorder`�
 
 ### Commit
 
-- 見下方（`git commit --only`）
+- `8fd7bdf7` feat: T0538 mark Worker tabs and batch-close reported ones from the Tower (PLAN-041)（`git commit --only`，未 push）
