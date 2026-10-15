@@ -14,6 +14,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import type { CreatePtyOptions, PtyCreateResult } from '../../src/types'
+import { isTerminalAutoReply } from '../close-worker'
 import { logger } from '../logger'
 import { PtyLimitError, type PtyManager } from '../pty-manager'
 import { resolveShellPath } from '../shell-path-resolver'
@@ -83,10 +84,14 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   // T0535 (PLAN-041): a write from a local window (Electron IPC, no remote connection) is the
   // user's input — it cancels a pending `--close-worker` of that tab. Helper writes arrive over
   // RemoteServer (connectionId set) and do not count.
+  // T0551 (BUG-140): nor does a write made only of the terminal's own replies (xterm's focus
+  // in / out reports when a tab or workspace is switched, DSR / DA answers …) — same rule for
+  // the local window and a headless client. The write itself goes to the PTY either way.
   register('pty:write', (ctx, id: string, data: string) => {
     const manager = deps.getPtyManager()
     if (!manager) return { ok: false, reason: 'manager-not-ready' }
-    if (deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId) manager.noteUserInput(id)
+    const fromUser = deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId
+    if (fromUser && !isTerminalAutoReply(data)) manager.noteUserInput(id)
     return manager.writeWithResult(id, data)
   })
   register('pty:resize', (_ctx, id: string, cols: number, rows: number) => {

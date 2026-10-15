@@ -15,6 +15,11 @@
  * up (the tab stays). User input (a local window's or a remote client's `pty:write`) during the
  * delay or the wait still cancels.
  *
+ * T0551 / BUG-140: a write made only of the terminal's own replies to the program
+ * (`isTerminalAutoReply`: focus in / out reports, DSR / DA answers, mouse reports …) is not user
+ * input — switching tabs or workspaces makes xterm write `ESC [ I` / `ESC [ O` into a TUI that
+ * turned focus reporting on (the claude CLI does), which used to cancel the close.
+ *
  * Contract (PLAN-041「介面契約」): `{ towerId, workorder, delayMs? }` →
  *   `{ ok: true, terminalId, closeAt, delayMs }` or `{ ok: false, code }` with code
  *   INVALID_ARGS | NOT_FOUND | NOT_OWNER | AMBIGUOUS (BUSY stays in the contract, but BAT no
@@ -47,6 +52,35 @@ export function normalizeWorkorderId(raw: unknown): string | null {
   if (typeof raw !== 'string') return null
   const id = raw.trim().toUpperCase()
   return WORKORDER_ID_PATTERN.test(id) ? id : null
+}
+
+// T0551 / BUG-140: what a terminal (xterm.js) writes into the PTY on its own, answering the
+// program or reporting an event — never what a key, a paste or an IME commit produces.
+const TERMINAL_AUTO_REPLY_SEQUENCES = [
+  '\\x1b\\[[IO]', // focus in / out (DECSET 1004)
+  '\\x1b\\[\\??\\d+;\\d+(?:;\\d+)?R', // cursor position report (DSR 6 / DECXCPR)
+  '\\x1b\\[\\??\\d*n', // device status report (DSR 5, private DSR)
+  '\\x1b\\[[?>=][\\d;]*c', // device attributes (DA1 / DA2 / DA3)
+  '\\x1b\\[\\??\\d+;\\d+\\$y', // mode report (DECRQM)
+  '\\x1b\\[\\d+(?:;\\d+)*t', // window reports (XTWINOPS)
+  '\\x1b\\[\\?\\d*u', // keyboard flags (kitty protocol query)
+  '\\x1b\\[<\\d+;\\d+;\\d+[Mm]', // mouse report, SGR / SGR-pixels
+  '\\x1b\\[\\d+;\\d+;\\d+M', // mouse report, urxvt
+  '\\x1b\\[M[\\x20-\\xff]{3}', // mouse report, X10 / normal
+  '\\x1b\\][^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)', // OSC reply (colour queries …)
+  '\\x1bP[^\\x1b]*\\x1b\\\\', // DCS reply (DECRQSS, XTVERSION, XTGETTCAP)
+]
+const TERMINAL_AUTO_REPLY_ONLY = new RegExp(`^(?:${TERMINAL_AUTO_REPLY_SEQUENCES.join('|')})+$`)
+
+/**
+ * T0551 / BUG-140: true when a `pty:write` consists entirely of terminal auto-replies (see
+ * TERMINAL_AUTO_REPLY_SEQUENCES) — it still goes to the PTY, but it is not the user's input and
+ * does not cancel a pending close. A single other character (typed text, Enter, a paste, Esc
+ * alone) makes the whole write input. Known overlap: a modified F3 (`ESC [ 1 ; <m> R`) has the
+ * cursor position report's shape and is not counted.
+ */
+export function isTerminalAutoReply(data: unknown): boolean {
+  return typeof data === 'string' && TERMINAL_AUTO_REPLY_ONLY.test(data)
 }
 
 /** `BUSY` is kept for the contract (helper exit 6) but no longer returned (T0545 / D145). */

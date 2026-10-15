@@ -13,6 +13,10 @@
  *   the Terminal Server idempotent re-create and the recovery rebuild; output / input times
  * - `terminal:create-agent-command` (skill mode) passes `workorder` to the PTY; `pty:write` from a
  *   local window marks user input, a RemoteServer write does not
+ * - T0551 / BUG-140: a write made only of terminal auto-replies (focus in / out, DSR / DA answers,
+ *   mouse reports …) is not user input, locally or from a headless client; typing, Enter, a paste
+ *   or a write mixing a reply with other characters still is; end to end through `pty:write`, the
+ *   scheduler closes the tab despite focus reports during the delay / the quiet wait
  */
 import type { ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
@@ -35,6 +39,7 @@ import {
   CLOSE_WORKER_IDLE_MS,
   CLOSE_WORKER_MAX_DELAY_MS,
   CLOSE_WORKER_MAX_QUIET_WAIT_MS,
+  isTerminalAutoReply,
   normalizeWorkorderId,
   WorkerCloseScheduler,
   type CloseWorkerPtyManager,
@@ -597,5 +602,205 @@ describe('handlers (T0535)', () => {
     } finally {
       manager.dispose()
     }
+  })
+})
+
+// ── T0551 / BUG-140: terminal auto-replies are not user input ──
+
+const FOCUS_IN = '\x1b[I'
+const FOCUS_OUT = '\x1b[O'
+const AUTO_REPLIES: Array<[string, string]> = [
+  ['focus in', FOCUS_IN],
+  ['focus out', FOCUS_OUT],
+  ['cursor position report (DSR 6)', '\x1b[24;80R'],
+  ['DECXCPR', '\x1b[?24;80;1R'],
+  ['device status report (DSR 5)', '\x1b[0n'],
+  ['DA1', '\x1b[?1;2c'],
+  ['DA2', '\x1b[>0;276;0c'],
+  ['DECRQM reply', '\x1b[?2004;1$y'],
+  ['XTWINOPS size report', '\x1b[8;24;80t'],
+  ['kitty keyboard flags', '\x1b[?0u'],
+  ['SGR mouse press / release', '\x1b[<0;10;5M\x1b[<0;10;5m'],
+  ['urxvt mouse', '\x1b[32;10;5M'],
+  ['X10 mouse', '\x1b[M !!'],
+  ['OSC colour reply (BEL)', '\x1b]11;rgb:1e1e/1e1e/1e1e\x07'],
+  ['OSC colour reply (ST)', '\x1b]10;rgb:d4d4/d4d4/d4d4\x1b\\'],
+  ['DCS XTVERSION', '\x1bP>|xterm.js(5.5.0)\x1b\\'],
+  ['DCS DECRQSS', '\x1bP1$r0m\x1b\\'],
+  ['several replies in one write', `${FOCUS_OUT}${FOCUS_IN}\x1b[3;1R`],
+]
+const USER_INPUT: Array<[string, string]> = [
+  ['a character', 'x'],
+  ['Enter', '\r'],
+  ['Shift+Enter newline', '\n'],
+  ['Esc alone', '\x1b'],
+  ['an arrow key', '\x1b[A'],
+  ['an SS3 arrow key', '\x1bOA'],
+  ['F5', '\x1b[15~'],
+  ['Shift+Tab', '\x1b[Z'],
+  ['Alt+[ (incomplete CSI)', '\x1b['],
+  ['Alt+Shift+P (DCS introducer alone)', '\x1bP'],
+  ['an unterminated OSC', '\x1b]11;rgb:1e1e/1e1e/1e1e'],
+  ['a bracketed paste', '\x1b[200~hello\x1b[201~'],
+  ['a plain paste', 'git status\r'],
+  ['an IME commit', '中文'],
+  ['a focus report followed by a character', `${FOCUS_IN}x`],
+  ['a character followed by a focus report', `x${FOCUS_OUT}`],
+  ['a reply then Enter', '\x1b[24;80R\r'],
+]
+
+describe('isTerminalAutoReply (T0551)', () => {
+  it.each(AUTO_REPLIES)('%s → auto-reply', (_label, data) => {
+    expect(isTerminalAutoReply(data)).toBe(true)
+  })
+
+  it.each(USER_INPUT)('%s → user input', (_label, data) => {
+    expect(isTerminalAutoReply(data)).toBe(false)
+  })
+
+  it('empty and non-string data are not auto-replies (counted as before)', () => {
+    expect(isTerminalAutoReply('')).toBe(false)
+    expect(isTerminalAutoReply(undefined)).toBe(false)
+    expect(isTerminalAutoReply(null)).toBe(false)
+    expect(isTerminalAutoReply(42)).toBe(false)
+  })
+})
+
+describe('pty:write user input with terminal auto-replies (T0551)', () => {
+  let dataDir: string
+  let managers: PtyManagerType[] = []
+
+  beforeEach(() => {
+    dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 't0551-pty-'))
+  })
+
+  afterEach(() => {
+    for (const m of managers.splice(0)) m.dispose()
+    fs.rmSync(dataDir, { recursive: true, force: true })
+  })
+
+  /** A PtyManager with Worker `w1` (Tower `tw`, T0551) and its `pty:write` handler. */
+  function setup(isUserInput?: (ctx: HandlerContext) => boolean) {
+    const manager = new PtyManager({ emit: vi.fn(), dataDir })
+    managers.push(manager)
+    manager.create({ id: 'w1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_TOWER_TERMINAL_ID: 'tw' }, workorder: 'T0551' })
+    const pty = ptySpawn.mock.results.at(-1)!.value as FakePty
+    const handlers = new Map<string, SharedHandler>()
+    registerPtyHandlers((channel, handler) => { handlers.set(channel, handler) }, {
+      getPtyManager: () => manager,
+      ...(isUserInput ? { isUserInput } : {}),
+    })
+    const write = (ctx: HandlerContext, data: unknown) => Promise.resolve(handlers.get('pty:write')!(ctx, 'w1', data))
+    return { manager, pty, write }
+  }
+
+  const LOCAL: HandlerContext = { windowId: 'win-1' }
+  const HELPER: HandlerContext = { windowId: null, connectionId: 'helper-1' }
+  const CLIENT: HandlerContext = { windowId: null, connectionId: 'client-1' }
+
+  it('local window: auto-replies reach the PTY but are not input', async () => {
+    const { manager, pty, write } = setup()
+    for (const [, data] of AUTO_REPLIES) expect(await write(LOCAL, data)).toEqual({ ok: true })
+    expect(manager.getLastUserInputAt('w1')).toBeNull()
+    expect(pty.write.mock.calls.map(c => c[0])).toEqual(AUTO_REPLIES.map(([, d]) => d))
+  })
+
+  it.each(USER_INPUT)('local window: %s is input', async (_label, data) => {
+    const { manager, pty, write } = setup()
+    expect(await write(LOCAL, data)).toEqual({ ok: true })
+    expect(manager.getLastUserInputAt('w1')).not.toBeNull()
+    expect(pty.write).toHaveBeenCalledWith(data)
+  })
+
+  it('a helper write never counts, typed text or not', async () => {
+    const { manager, write } = setup()
+    await write(HELPER, 'x')
+    await write(HELPER, FOCUS_IN)
+    expect(manager.getLastUserInputAt('w1')).toBeNull()
+  })
+
+  it('headless (isUserInput = client connection): same rule for a client; a helper never counts', async () => {
+    const { manager, write } = setup(ctx => ctx.connectionId === 'client-1')
+    await write(CLIENT, FOCUS_OUT)
+    await write(CLIENT, '\x1b[?1;2c')
+    await write(CLIENT, '\x1b[12;1R')
+    await write(HELPER, 'typed by a helper\r')
+    expect(manager.getLastUserInputAt('w1')).toBeNull()
+    await write(CLIENT, `${FOCUS_IN}y`)
+    expect(manager.getLastUserInputAt('w1')).not.toBeNull()
+  })
+
+  describe('with the scheduler', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(T0)
+    })
+
+    function scheduler(manager: PtyManagerType) {
+      const emitted: unknown[] = []
+      const logs: string[] = []
+      const s = new WorkerCloseScheduler({
+        getPtyManager: () => manager,
+        emit: (_channel, payload) => { emitted.push(payload); return 1 },
+        logger: { log: (...args: unknown[]) => { logs.push(args.join(' ')) }, warn: () => {} },
+      })
+      return { s, emitted, logs }
+    }
+
+    it('focus in / out, DSR and DA replies during the delay → closed on time', async () => {
+      const { manager, write } = setup()
+      const { s, emitted, logs } = scheduler(manager)
+      expect(s.request({ towerId: 'tw', workorder: 'T0551', delayMs: 10_000 })).toMatchObject({ ok: true })
+      for (const data of [FOCUS_OUT, FOCUS_IN, '\x1b[3;1R', '\x1b[?1;2c', '\x1b[0n']) {
+        vi.advanceTimersByTime(1_000)
+        await write(LOCAL, data)
+      }
+      vi.advanceTimersByTime(5_000)
+      expect(emitted).toEqual([{ id: 'w1' }])
+      expect(logs.at(-1)).toContain('id=w1 → close requested')
+    })
+
+    it('focus reports while waiting for quiet → still closed once quiet', async () => {
+      const { manager, pty, write } = setup()
+      const { s, emitted, logs } = scheduler(manager)
+      const onData = pty.onData.mock.calls[0][0] as (data: string) => void
+      s.request({ towerId: 'tw', workorder: 'T0551', delayMs: 2_000 })
+      vi.advanceTimersByTime(1_000)
+      onData('wrap-up output')
+      vi.advanceTimersByTime(1_000) // due, printing → waiting for quiet
+      expect(s.pendingIds()).toEqual(['w1'])
+      await write(LOCAL, FOCUS_IN)
+      vi.advanceTimersByTime(1_000)
+      await write(LOCAL, FOCUS_OUT)
+      vi.advanceTimersByTime(CLOSE_WORKER_IDLE_MS)
+      expect(emitted).toEqual([{ id: 'w1' }])
+      expect(logs.at(-1)).toMatch(/id=w1 → close requested after waiting \d+\.\d s for quiet/)
+    })
+
+    it('typing during the delay (right after a focus report) still cancels', async () => {
+      const { manager, write } = setup()
+      const { s, emitted, logs } = scheduler(manager)
+      s.request({ towerId: 'tw', workorder: 'T0551', delayMs: 10_000 })
+      vi.advanceTimersByTime(1_000)
+      await write(LOCAL, FOCUS_IN)
+      vi.advanceTimersByTime(1_000)
+      await write(LOCAL, 'x')
+      vi.advanceTimersByTime(8_000)
+      expect(emitted).toEqual([])
+      expect(logs.at(-1)).toContain('id=w1 → cancelled (user input during the delay)')
+    })
+
+    it('a paste while waiting for quiet still cancels', async () => {
+      const { manager, pty, write } = setup()
+      const { s, emitted, logs } = scheduler(manager)
+      const onData = pty.onData.mock.calls[0][0] as (data: string) => void
+      onData('printing')
+      s.request({ towerId: 'tw', workorder: 'T0551', delayMs: 0 }) // waiting for quiet
+      vi.advanceTimersByTime(1_000)
+      await write(LOCAL, '\x1b[200~pasted\x1b[201~')
+      vi.advanceTimersByTime(CLOSE_WORKER_MAX_QUIET_WAIT_MS)
+      expect(emitted).toEqual([])
+      expect(logs.at(-1)).toContain('id=w1 → cancelled (user input while waiting for quiet)')
+    })
   })
 })

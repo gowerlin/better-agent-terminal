@@ -18,6 +18,9 @@
  * T0545 / D145: a Worker still printing is not refused (no BUSY): exit 0, and the event comes only
  * after the Worker has been quiet for CLOSE_WORKER_IDLE_MS; a BAT client typing into it while the
  * close waits for quiet cancels it.
+ *
+ * T0551 / BUG-140: the client writing only terminal auto-replies (focus in / out, a cursor
+ * position report) during the delay does not cancel it.
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -279,7 +282,7 @@ describe('remote Tower --close-worker through the real helper (PLAN-041 / T0536)
     expect(registry.isWorkerOf(workerA, towerA)).toBe(false)
   }, 60_000)
 
-  it('delay: a BAT client typing into the Worker cancels (during the delay, and while waiting for quiet); untouched, the event comes when the timer fires', async () => {
+  it('delay: a BAT client typing into the Worker cancels (during the delay, and while waiting for quiet); untouched or only answered by the terminal (T0551), the event comes when the timer fires', async () => {
     const logSpy = vi.spyOn(logger, 'log')
     await waitIdle(workerA2)
     const cancelled = await closeWorker(towerA, WO_A2, ['--delay-ms', '1500'])
@@ -312,11 +315,18 @@ describe('remote Tower --close-worker through the real helper (PLAN-041 / T0536)
     await waitIdle(workerA2)
     expect(closeRequests(workerA2)).toHaveLength(0)
 
+    // T0551 / BUG-140: the client's xterm answering the program (focus in / out when the user
+    // switches tabs, a cursor position report) during the delay is not typing → still closes
+    const logsBefore = logSpy.mock.calls.length
     const scheduledAt = Date.now()
     const run = await closeWorker(towerA, WO_A2, ['--delay-ms', '1500'])
     expect(run.code).toBe(0)
     expect(run.stdout).toContain(`✓ Worker close scheduled: ${workerA2} (in 1500 ms)`)
-    await bat.waitForEvent('terminal:close-requested', args => (args[0] as { id?: string })?.id === workerA2, 10_000)
+    for (const reply of ['\x1b[O', '\x1b[I', '\x1b[5;1R']) {
+      expect(await bat.invoke('pty:write', workerA2, reply)).toMatchObject({ ok: true })
+    }
+    await bat.waitForEvent('terminal:close-requested', args => (args[0] as { id?: string })?.id === workerA2, 20_000)
+    expect(logSpy.mock.calls.slice(logsBefore).some(call => String(call[0]).includes(`id=${workerA2} → cancelled`))).toBe(false)
     expect(Date.now() - scheduledAt).toBeGreaterThanOrEqual(1500)
     expect(closeRequests(workerA2)).toHaveLength(1)
     expect(await bat.invoke('pty:kill', workerA2)).toBe(true)

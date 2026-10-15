@@ -715,8 +715,9 @@ export class PtyManager implements CloseWorkerPtyManager {
   }
 
   /**
-   * T0535: a local window wrote to PTY `id` (`pty:write` over Electron IPC — the user typing,
-   * or xterm answering the program). Helper writes (RemoteServer) do not count.
+   * T0535: the user typed into PTY `id` (`pty:write` from a local window, or a headless client).
+   * Helper writes (RemoteServer) and, since T0551, writes made only of the terminal's own
+   * replies (`isTerminalAutoReply`, electron/close-worker.ts) are not passed here.
    */
   noteUserInput(id: string): void {
     if (this.instances.has(id)) this.lastUserInputAt.set(id, Date.now())
