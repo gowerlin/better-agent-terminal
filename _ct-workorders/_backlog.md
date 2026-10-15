@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-15T16:13:05+0800"
+generated_at: "2026-10-15T17:30:31+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
@@ -13,19 +13,19 @@ exclude_globs:
 total: 14
 breakdown:
   IDEA: 3
-  PLANNED: 3
-  IN_PROGRESS: 4
-  DONE: 2
+  PLANNED: 2
+  IN_PROGRESS: 6
+  DONE: 3
   DROPPED: 0
 ---
 
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-15 16:13 (UTC+8) — PLAN-041 開工（IN_PROGRESS，納入方案 D）；新增 PLAN-042（T0534 衍生修正，PLANNED）
+> 最後同步：2026-10-15 17:30 (UTC+8) — PLAN-042 DONE（T0539 / T0540 / CT-T012）；PLAN-041 BAT 端完成，待 pre.3 實機驗收
 
 ## 統計
-- 💡 Ideas: 3 | 📋 Planned: 3 | 🔄 In Progress: 6 | ✅ Done: 2 | 🚫 Dropped: 0
+- 💡 Ideas: 3 | 📋 Planned: 2 | 🔄 In Progress: 6 | ✅ Done: 3 | 🚫 Dropped: 0
 
 ## Active
 
@@ -37,7 +37,6 @@ breakdown:
 | PLAN-037 | 遠端（WSL / SSH / Docker）AI 工具套件檢查與一鍵安裝（claude / codex CLI、git、gh 等） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-037](PLAN-037-remote-ai-toolchain-check-and-install.md) |
 | PLAN-040 | 工作區層級預設 Agent ＋ Agent 啟動參數設定（T0529） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-040](PLAN-040-workspace-default-agent-setting.md) |
 | PLAN-041 | 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` + CT `*config`；T0535–T0538、CT-T011） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-041](PLAN-041-auto-close-worker-terminal.md) |
-| PLAN-042 | T0534 衍生修正：已結束分頁 ⏻ 無效（BUG-137）、Windows 關閉分頁子程序樹、派工日誌欄位、CT 文件落差（T0539 / T0540 / CT-T012） | 🟢 low | 📋 PLANNED | [PLAN-042](PLAN-042-t0534-side-findings.md) |
 | PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 🔴 high | 📋 PLANNED | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |
 | PLAN-014 | evaluate-vscode-extension-vs-git-gui | 🟡 medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
@@ -48,6 +47,7 @@ breakdown:
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-042 | T0534 衍生修正：已結束分頁 ⏻ 無效（BUG-137）、Windows 關閉分頁子程序樹、派工日誌欄位、CT 文件落差（T0539 / T0540 / CT-T012） | 2026-10-15 | [PLAN-042](PLAN-042-t0534-side-findings.md) |
 | PLAN-039 | 多個 remote profile 同時連線（per-profile RemoteClient 取代單一槽位） | 2026-10-13 | [PLAN-039](PLAN-039-multi-remote-profile-concurrent-clients.md) |
 | PLAN-032 | Setup Wizard Error UX Overhaul（Stepper awaiting-input + error mapping framework） | 2026-09-02 | [PLAN-032](PLAN-032-wizard-error-ux-overhaul.md) |
 

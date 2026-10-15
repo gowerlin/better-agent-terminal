@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-042
 title: T0534 研究順帶發現的問題：已結束分頁 ⏻ 無效、Windows 關閉分頁的子程序樹、派工日誌欄位、CT 文件落差
-status: PLANNED
+status: DONE
 priority: low
 created_at: "2026-10-15T16:13:05+0800"
-updated_at: "2026-10-15T16:13:05+0800"
+updated_at: "2026-10-15T17:30:31+0800"
 target_batch: "0.6.1-pre.3"
 workorders: [T0539, T0540, CT-T012]
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-042 |
 | 優先級 | 🟢 Low（T0540 為 P2：PLAN-041 自動回收會讓關閉路徑被頻繁使用） |
-| 狀態 | 📋 PLANNED（2026-10-15 16:13 開立；使用者指示「研究順帶發現的問題也安排下一個 PLAN，開工」） |
+| 狀態 | ✅ DONE（2026-10-15 16:13 開立；T0540 `a058fbd4` 17:20、T0539 `2ff55bdd` 17:30（BUG-137 FIXED）、CT-T012 於 CT v5.1.0（BMad-Guide `cb2aa09`）；BAT 部分隨 0.6.1-pre.3 發佈） |
 | 來源 | T0534 回報區 §8 |
 
 ## 項目
