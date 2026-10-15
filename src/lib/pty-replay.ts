@@ -144,6 +144,39 @@ export async function createPtyWithReplay(
 }
 
 /**
+ * T0539 (BUG-137): ⏻ on a tab. `pty:restart` (kill + create with the PTY's own env / workspace /
+ * agentPreset) answers false when the host has no PTY for the id any more — killed, or the shell
+ * exited on its own. Then a new PTY is created with the same id from the tab's data, the way a
+ * new tab is (`options`: workspace env, workspaceId, agentPreset; the host builds the env with
+ * `buildPtyEnv`, T0525). A failure is reported, never swallowed.
+ * `spawned`: a new shell runs — only then may a terminal-driven agent's launch command be typed.
+ */
+export type PtyRestartOutcome =
+  | { ok: true; via: 'restart' | 'create'; spawned: boolean }
+  | { ok: false; via: 'restart' | 'create'; reason: string; limited: boolean }
+
+type PtyRestartApi = PtyCreateApi & {
+  restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
+}
+
+export async function restartOrCreatePty(
+  options: CreatePtyOptions,
+  api: PtyRestartApi = window.electronAPI.pty,
+): Promise<PtyRestartOutcome> {
+  let restarted: unknown
+  try {
+    restarted = await api.restart(options.id, options.cwd, options.shell)
+  } catch (err) {
+    return { ok: false, via: 'restart', reason: err instanceof Error ? err.message : String(err), limited: false }
+  }
+  if (restarted === true) return { ok: true, via: 'restart', spawned: true }
+  const result = await createPtyWithReplay(options, api)
+  if (result.ok) return { ok: true, via: 'create', spawned: result.created }
+  // PTY limit: the refusal listeners (usePtyLimitNotice) already wrote a notice.
+  return { ok: false, via: 'create', reason: result.code ?? 'pty:create failed', limited: isPtyLimitResult(result) }
+}
+
+/**
  * Agent-preset restore: create (or re-attach to) the PTY, then run `launch` (types the agent
  * command) only when a shell was actually spawned — never into a surviving agent.
  */

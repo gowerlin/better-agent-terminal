@@ -378,6 +378,7 @@
     "redrawTerminal": "重新绘制终端",
     "restartTerminal": "重新启动终端",
     "ptyLimitNotice": "[BAT] 终端未启动：远程服务器已运行上限 {{limit}} 个终端。请先关闭其他终端（或在服务器上调高 BAT_SERVER_MAX_PTYS），再打开新终端。",
+    "restartFailedNotice": "[BAT] 终端未重新启动（{{reason}}）。请关闭此标签页再打开新终端。",
     "closeTerminal": "关闭终端",
     "terminals": "终端",
     "addTerminalOrAgent": "新增终端或 Agent",

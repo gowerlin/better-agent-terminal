@@ -409,7 +409,10 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     const ptyManager = deps.getPtyManager()
     const reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
     const customEnv = deps.pickWhitelistedEnv(opts.customEnv)
-    const sourceTerminalId = opts.customEnv?.BAT_TERMINAL_ID
+    // T0539: the dispatching Tower (`--notify-id`, sent as the Worker's BAT_TOWER_TERMINAL_ID;
+    // headless checks it is the caller's own terminal). Diagnostics only. Before T0539 this read
+    // `customEnv.BAT_TERMINAL_ID`, which bat-terminal.mjs never sends — always empty.
+    const sourceTerminalId = opts.customEnv?.BAT_TOWER_TERMINAL_ID
     const landing = resolved ?? await resolveWorkspace(_ctx, opts)
     const workspaceId = landing.workspaceId ?? opts.customEnv?.BAT_WORKSPACE_ID
     const invokerWindowId = _ctx.windowId ?? null

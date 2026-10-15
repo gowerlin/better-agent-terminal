@@ -16,7 +16,7 @@ import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../type
 import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
-import { createPtyThenLaunch, createPtyWithReplay } from '../lib/pty-replay'
+import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
 import { getShellFromSettings, rememberTerminalShell } from '../lib/terminal-drop'
 import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
 import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
@@ -956,12 +956,27 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       } else {
         const cwd = await window.electronAPI.pty.getCwd(id) || terminal.cwd
         const shell = await getShellFromSettings()
-        await window.electronAPI.pty.restart(id, cwd, shell)
+        // T0539 (BUG-137): a tab whose process is gone gets a new PTY with the same id, built
+        // like a new tab (workspace env / workspaceId / agentPreset).
+        const outcome = await restartOrCreatePty({
+          id,
+          cwd: cwd || workspace.folderPath,
+          type: 'terminal',
+          agentPreset: terminal.agentPreset,
+          shell,
+          customEnv: mergeEnvVars(settingsStore.getSettings().globalEnvVars, workspace.envVars),
+          workspaceId: workspace.id,
+        })
+        window.electronAPI.debug.log(`[BUG-137] restart terminal=${id} via=${outcome.via} ok=${outcome.ok}${outcome.ok ? ` spawned=${outcome.spawned}` : ` reason=${outcome.reason}`}`)
+        if (!outcome.ok) {
+          if (!outcome.limited) showPtyNotice(id, t('terminal.restartFailedNotice', { reason: outcome.reason }))
+          return
+        }
         rememberTerminalShell(id, shell)
         workspaceStore.updateTerminalCwd(id, cwd)
 
         // Re-run agent command on restart for terminal-driven agents
-        if (terminal.agentPreset && terminal.agentPreset !== 'none') {
+        if (outcome.spawned && terminal.agentPreset && terminal.agentPreset !== 'none') {
           const restartExtraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, terminal.agentPreset)
           const restartAppendArgs = (base: string) => restartExtraArgs ? `${base} ${restartExtraArgs}` : base
           try {
@@ -976,7 +991,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         }
       }
     }
-  }, [terminals])
+  }, [terminals, workspace.id, workspace.folderPath, workspace.envVars, t])
 
   const handleSwitchApiVersion = useCallback(async (id: string) => {
     const terminal = terminals.find(t => t.id === id)

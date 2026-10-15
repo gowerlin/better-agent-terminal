@@ -378,6 +378,7 @@
     "redrawTerminal": "Redraw terminal",
     "restartTerminal": "Restart terminal",
     "ptyLimitNotice": "[BAT] Terminal not started: the remote server is already running its maximum of {{limit}} terminals. Close a terminal (or raise BAT_SERVER_MAX_PTYS on the server), then open a new one.",
+    "restartFailedNotice": "[BAT] Terminal not restarted ({{reason}}). Close this tab and open a new one.",
     "closeTerminal": "Close terminal",
     "terminals": "Terminals",
     "addTerminalOrAgent": "Add Terminal or Agent",
