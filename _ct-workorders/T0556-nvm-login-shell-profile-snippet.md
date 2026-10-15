@@ -238,3 +238,14 @@ Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login sh
 ### 回報時間
 
 2026-10-16T05:08:33+0800
+
+---
+
+## 塔台收單（第六十六 session，2026-10-16T05:10:26+0800）
+
+- ✅ **T0556 已確認 DONE**：`e16e75b8`（11 檔）+ `fec2a112`。塔台複驗 @ `fec2a112`：`npm run test:unit` 4372 passed / 253 files（3 skipped）、`npm run typecheck` = 0、`npm run typecheck:electron` = 0；WSL：`bash -lc` 找得到 nvm 的 node、`~/.profile` 標記 1 個、server active。
+- 自行決定事項（只認 shell function 判斷已載入、update 中片段排在版本比對前、note 分兩條、只寫一個檔）採納。範圍說明（zsh `~/.zprofile`、`.bash_profile` 存在時 `sh -lc` 讀不到、`bash -c` 不載入）接受並記錄；zsh 視需求另開單。
+- 遭遇問題 3（WSL 唯讀存取 `/mnt/c` 下自建暫存檔一次，已刪）：未違反「不得改 `/mnt/c`」，記錄。
+- → T0555 依 Resolved PARTIAL 規則補正為 DONE。pre.5 批次（T0551–T0556）全部完成。
+- WSL 留下的備份待使用者決定：`~/.bashrc.t0555-20261016-042526.bak`、`~/.profile.t0556-20261016-050607.bak`、`~/.local/bat-server/electron/remote/*.bak-t055{5,6}`（8 個）、`~/.local/bat-server/scripts/*.bak-t055{5,6}`（8 個）。
+

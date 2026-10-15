@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0555
 title: "遠端工具「Node.js」改為可一鍵安裝：透過 nvm（`~/.nvm`，不需 sudo）安裝最新 LTS；偵測能看到 nvm 管理的 node（非互動 shell 也一樣），比照 uv 的使用體驗"
 type: feature
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: "PLAN-037 延伸（使用者需求，第六十六 session）"
 priority: P2
 sizing: M
 created_at: "2026-10-16T03:34:44+0800"
-updated_at: "2026-10-16T04:50:48+0800"
+updated_at: "2026-10-16T05:10:26+0800"
 started_at: "2026-10-16T04:19:35+0800"
 completed_at: "2026-10-16T04:50:48+0800"
 commit: "e9cae8d8"
@@ -193,3 +193,9 @@ Commit：`e9cae8d8` feat(remote-tools): T0555 one-click Node.js through nvm（22
 - 任務 3 / 4 的自行決定（apt node 旁裝按鈕、更新常駐 + 先比對）、`METHOD=script`、`NVM_DIR` 先設定皆採納。
 - 依 `worker_auto_close` 規則，PARTIAL 不自動回收 Worker 分頁（`b95c21e2…`）。
 - WSL 留下的檔案：`~/.bashrc.t0555-20261016-042526.bak`、`~/.local/bat-server/electron/remote/*.bak-t0555`（4 個），待使用者決定刪除。
+
+## Post-resolution note（塔台，2026-10-16T05:10:26+0800）
+
+- 狀態 PARTIAL → **DONE**（work-order-system § Resolved `PARTIAL` 補正規則）：唯一未過的 gate（非互動 login shell 看不到 nvm 的 node）由 **T0556**（`e16e75b8`）解決。塔台複驗：WSL `bash -lc 'command -v node'` → `/home/gower/.nvm/versions/node/v24.22.0/bin/node`，`~/.profile` 的 nvm loader 標記只有 1 個。
+- 原回報區與證據保留不改。Worker 分頁於本次補正後回收。
+
