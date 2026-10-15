@@ -4,14 +4,16 @@ schema_kind: workorder
 id: T0541
 title: "內嵌 claude CLI 追版：@anthropic-ai/claude-code ^2.1.296 → ^2.1.300（含平台子套件），核對模型清單 / effort / 服務端版本門檻，SDK 維持 0.2 線"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-10-15T17:41:45+0800"
-updated_at: "2026-10-15T17:42:32+08:00"
+updated_at: "2026-10-15T17:47:28+08:00"
 started_at: "2026-10-15T17:42:32+08:00"
+completed_at: "2026-10-15T17:47:28+08:00"
+commit: 1cb423c6
 target_version: "0.6.1-pre.3"
 depends_on: []
 related:
@@ -272,7 +274,7 @@ haiku   | claude-haiku-5-5  | ["low","medium","high","xhigh","max"] | Haiku  | H
 
 ### Commit
 
-commit message 含 `T0541`，以 `git commit --only` 只提交上列檔案，沒有 push。hash 請塔台以 `git log` 取得。
+commit message 含 `T0541`，以 `git commit --only` 只提交上列檔案，沒有 push。實作 commit：`1cb423c6`（另有一筆 closeout commit 只改本工單的狀態欄位）。
 
 ### 回報時間
 
