@@ -504,6 +504,21 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
 所以 package.json 落後**不影響安裝檔**，但會讓本機 `npm run dev` 顯示錯誤版本。
 發布後順手同步：`npm version --no-git-tag-version --allow-same-version <version>`（同步 package.json + lock）。
 
+### 更版重點（Release notes）必寫（L150 晉升，2026-10-15 使用者指示「加入塔台原則，每次發布都要加」）
+
+**每次發佈（預覽版與正式版）都要寫更版重點，CI 跑完立刻補上，不得只留 workflow 自動產生的內容。**
+
+- workflow 以 `generate_release_notes: true` 建立 release，內容只有一行 Full Changelog，而且比較基準常被誤抓成 `server-bundle-v*` tag（例：pre.2 自動產生 `server-bundle-v0.6.1-pre.1...v0.6.1-pre.2`）。
+- 做法：release 建立後，以 `gh release edit v<版號> -R gowerlin/better-agent-terminal --notes-file <檔>` 改寫 body。草稿可在 CI 跑的同時先寫好。
+- 內容格式（沿用 `v0.6.1-pre.1` 起的寫法，繁體中文、寫給使用者看）：
+  - 第一行：「版號 X.Y.Z-pre.N，接續 `v<上一版>`。」
+  - `## 新增` / `## 修正` / `## 更新`（依實際內容取用）：每項以使用者看得到的行為描述，附 BUG / PLAN 編號；不寫內部實作細節
+  - `## 已知事項`：未實機驗證的平台、仍在診斷的問題、需要搭配的外部版本（例如 Control Tower 版本）
+  - 結尾：`macOS 仍只提供 Apple Silicon（arm64）版。` 與 `**Full Changelog**: …/compare/v<上一版>...v<本版>`（基準一律是上一個 desktop tag，不是 server-bundle tag）
+- 來源：上一版 tag 到本版之間非 `(ct)` 的 commit（`git log --oneline v<上一版>..HEAD | grep -v "(ct)"`）與對應工單回報區。
+- 收尾檢查：`gh release view v<版號> -R gowerlin/better-agent-terminal --json body` 確認已不是自動內容，再向使用者回報發佈完成。
+- 緣由：`v0.6.0-pre.8` 漏寫（L150，2026-10-14）；L150 停在「候選晉升」，`v0.6.1-pre.2` 又漏寫，使用者指出後於 2026-10-15 補上並晉升為本規則。
+
 ### 下游發佈（D137 / T0476）
 
 `release.yml` 的 Homebrew tap dispatch 與 Chocolatey push 皆為 **opt-in、預設跳過**：分別需 repo variable `HOMEBREW_TAP_REPO`（tap `owner/name`，+ secret `TAP_GITHUB_TOKEN`）與 `CHOCOLATEY_PUBLISH == 'true'`（+ secret `CHOCO_API_KEY`），且 tag 不含 `-pre`。本 fork 目前未設定，正式版不會動上游 `tonyq-org/homebrew-tap` 或 chocolatey.org 上的 `better-agent-terminal`（該 package id 與 `choco/better-agent-terminal.nuspec` 的 authors / owners 屬上游，自發 choco 前需另案處理）。`pre-release.yml` 無此兩 step。

@@ -3425,4 +3425,4 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - Full Changelog 連結手動改成 `v<前一 desktop 版>...v<本版>`
 - 收工 / 回報「已發佈」前，`gh release view` 確認 body 不只一行
 
-**候選晉升**：📁 Project（Release 流程）
+**候選晉升**：📁 Project（Release 流程）→ ✅ 已晉升（2026-10-15，`_local-rules.md`「Release 流程實況 › 更版重點（Release notes）必寫」；`v0.6.1-pre.2` 再次漏寫後使用者指示）
