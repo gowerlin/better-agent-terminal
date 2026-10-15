@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0535
 title: "PLAN-041 B'-1：BAT 本機 `--close-worker`（歸屬驗證、延遲計時與取消、與 ✕ 相同的關閉路徑）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-041
 priority: P2
 sizing: M
 created_at: "2026-10-15T15:44:39+0800"
 started_at: "2026-10-15T16:15:22+0800"
-updated_at: "2026-10-15T16:15:22+0800"
+updated_at: "2026-10-15T16:32:34+0800"
+completed_at: "2026-10-15T16:32:34+0800"
 target_version: "0.6.1-pre.3"
 depends_on: []
 related:
@@ -172,4 +173,5 @@ exit=1
 
 ### 6. Commit
 
-- 見下方 commit 紀錄；只 commit 本單檔案（`git commit --only`），`src/styles/settings.css` 不包含；不 push。
+- `f26b7641` feat: T0535 bat-terminal --close-worker closes a Tower's own Worker tab (PLAN-041)（19 files）；`git commit --only`，`src/styles/settings.css` 不包含；不 push。回報區收尾與狀態另一個 commit。
+- 完成：2026-10-15T16:32:34+0800
