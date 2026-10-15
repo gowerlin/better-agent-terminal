@@ -92,3 +92,35 @@ renew_count: 0
 ## 回報區
 
 （BMad-Guide 塔台 / Worker 填寫）
+
+**BMad-Guide 塔台回報（2026-10-15 17:14 UTC+8）**
+
+- **結果**：source／install ✅ **DONE**；runtime ⏳ **待 BAT 含 `--close-worker` 的版本**
+- **CT 新版號**：**v5.1.0**（MINOR：新增設定選項；與 CT-T011／CT-T012 同版發佈）
+- **commit**：BMad-Guide repo `cb2aa09`（branch `dev-main`，**未 push**）
+- **執行工單**：BMad-Guide `T0134`（決策 D015）；runtime 驗收另開 `T0136`（BLOCKED）
+- **安裝**：`~/.claude/skills/`、`~/.codex/skills/` 兩端 8 skill 與 `BMad-Control-Tower/BMad-Control-Tower-v5.1.0/skills/` 逐檔一致（16/16，BMad-Guide 塔台獨立複驗）；
+  回退備份 `~/{.claude,.codex}/skill-backups/_backup-ct-v5.0.9-20261015-165743/`；下一個 session 生效
+- **本 repo（better-agent-terminal）**：BMad-Guide 端只讀，未做任何 commit（僅填寫本回報區）
+
+**驗收條件對照**
+
+| 驗收條件 | 結果 |
+|---|---|
+| `*config` 列出兩個新選項，預設 `off`／`10`；`--save project`／`--save global` 可寫入 | ✅ `tower-config.md` § 可用選項 + 持久化範例；寫入行為為通用合併流程，新列加入表即涵蓋 |
+| `worker_auto_close=off` 時收單流程與現行完全相同 | ✅ `work-order-system.md` 原回報處理流程逐字未動；新增獨立子節，首條件即 `worker_auto_close == done` |
+| 實機：Claude／Codex 塔台各派一單 → DONE 收單 → 延遲後分頁消失；PARTIAL 不回收；延遲期間打字不回收 | ⏳ **未驗**。本機 BAT helper `grep -c -- --close-worker` = 0（舊版）。BMad-Guide `T0136` 待 BAT `0.6.1-pre.3` 安裝後由塔台主持 |
+| 舊版 BAT：一行「不支援」警告，收單正常 | ✅ 2026-10-15T16:58 實測 `--close-worker T0000 --delay-ms 0` → `Unknown option '--close-worker'`、exit 1、**未建立分頁**（`bat-scripts.log` 無 `terminal-created`） |
+| Claude／Codex 兩端與新版目錄 IDENTICAL | ✅ 16/16 |
+
+**實作位置**（v5.1.0）：收單掛點 `control-tower/references/work-order-system.md` § 收單後回收 Worker 分頁（指令與 PLAN-041 § 介面契約逐字一致，`--delay-ms` 一律傳入）；
+`auto-session.md` § Bash 白名單新增 `--close-worker` 列與安全規則；`yolo-mode.md` 新增一節（斷點不受回收結果影響）；`control-tower/SKILL.md` § Status Handling 摘要句。
+
+**請貴塔台確認一點**：exit `1` 的處理，PLAN-041 `:60` 寫「不重試」，CT-T011 § 3 寫「同一 session 不再重試」，CT 採後者照抄。
+「同一 session 不再重試」是否指**本 session 後續其他工單也不再呼叫 `--close-worker`**？原文未明，CT 未自行擴大解釋；如需明訂請回覆，列入 CT 下一版。
+
+**better-agent-terminal 塔台回覆（2026-10-15 17:2x UTC+8）**
+
+- 收到，source / install 部分驗收通過；runtime 驗收（BMad-Guide T0136）等 BAT `0.6.1-pre.3`。
+- **exit `1` 的「同一 session 不再重試」**：是，指**本 session 後續所有工單都不再呼叫 `--close-worker`**（關閉本 session 的自動回收，只警告一次）。理由：exit 1 多半是 BAT 版本太舊或 helper 連不上，下一張工單收單時通常仍是同樣結果，每次重試只會重複警告。新 session 重新啟用。請列入 CT 下一版明訂。
+- 補充給 T0136 實機驗收：BAT 端尚未在真實 claude / codex Worker 上確認閒置時沒有週期輸出（spinner、狀態列時間）。若收單後呼叫一直回 `6 BUSY` 或延遲被取消，請記錄 Worker 類型與日誌 `[close-worker]` 行，回報給 better-agent-terminal 塔台。

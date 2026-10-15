@@ -51,3 +51,33 @@ renew_count: 0
 ## 回報區
 
 （BMad-Guide 塔台 / Worker 填寫）
+
+**BMad-Guide 塔台回報（2026-10-15 17:14 UTC+8）**
+
+- **結果**：source／install ✅ **DONE**；runtime ⏳ **待 BAT 含 `--close-worker` 的版本**
+- **CT 新版號**：**v5.1.0**（MINOR：新增設定選項；與 CT-T011／CT-T012 同版發佈）
+- **commit**：BMad-Guide repo `cb2aa09`（branch `dev-main`，**未 push**）
+- **執行工單**：BMad-Guide `T0134`（決策 D015）；runtime 驗收另開 `T0136`（BLOCKED）
+- **安裝**：`~/.claude/skills/`、`~/.codex/skills/` 兩端 8 skill 與 `BMad-Control-Tower/BMad-Control-Tower-v5.1.0/skills/` 逐檔一致（16/16，BMad-Guide 塔台獨立複驗）；
+  回退備份 `~/{.claude,.codex}/skill-backups/_backup-ct-v5.0.9-20261015-165743/`；下一個 session 生效
+- **本 repo（better-agent-terminal）**：BMad-Guide 端只讀，未做任何 commit（僅填寫本回報區）
+
+**三處修正**
+
+1. **`result=true` 漂移** ✅：`control-tower/SKILL.md:115`、`auto-session.md` § BAT 派發成功判讀規則改為 `bat-scripts.log` 的 helper 端 `"result":"ok"`（依 `scripts/bat-terminal.mjs` `logEvent(... { result: 'ok', terminalId, ... })`，NDJSON），主規則仍為 exit code `0`。
+   附帶發現：`result=true` 字面**確實存在**，在 BAT app 端 `electron/terminal-command-handlers.ts:514`（主行程 `debug-*.log`）與 `:515-519` 鏡像到 `bat-scripts.log` 的 `"script":"remote-server"` 布林值——CT 已加註說明，避免日後誤改回去。
+   另更正：「`Terminal created: null` 自 BAT v0.3.x 起已修」不正確，修正 commit `abdd1cf1`（BUG-020／T0110）最早包含於 **`v0.5.1`**（`merge-base --is-ancestor` 驗證），已改。
+2. **notify 失敗時的工單狀態** ✅：`yolo-mode.md` § 失敗硬鉤子語意對齊改為「notify 失敗時工單已是最終狀態、回報區完整，只是塔台沒收到通知」，與 `ct-exec`（Phase 4 最後寫最終狀態，§ BAT Notify 在其後）、`ct-done`（第 7 步 metadata、第 8 步 notify）一致。原文引用的 `ct-exec` Step 8.5／`ct-done` Step 6.5 已不存在（v5.0.3 起），一併移除。
+3. **Codex 派工範例** ✅（**前提更正**）：規格所指「安裝指南提供給 `~/.codex/AGENTS.md` 的派工範例」在 BMad-Guide repo（含所有舊版、`docs/`、`spec/`）**不存在**；使用者本機那段無 CT 出處。
+   因此改為在安裝指南 § 4.2 **新增**「Codex 端 `~/.codex/AGENTS.md` 塔台派工段落（範例）」：含 `--cwd`、`--interactive`／`--no-interactive` 二選一、`$BAT_HELPER_DIR` 優先＋安裝路徑 fallback、必要環境變數 5 個（移除 `BAT_TOWER_TERMINAL_ID`），與 `auto-session.md` Bash 白名單逐字一致，並註明權威在 `auto-session.md`。
+   **使用者本機 `~/.codex/AGENTS.md` 已更新**（先給使用者看差異、經同意後套用；備份 `~/.codex/AGENTS.md.bak-20261015-171244`）。
+
+**驗收條件對照**
+
+| 驗收條件 | 結果 |
+|---|---|
+| 三處修正後與 BAT 現行實作逐項一致 | ✅（`skills/` 內 `result=true` 0 筆；BMad-Guide 塔台以實際 `bat-scripts.log` 複驗 `"result":"ok"`） |
+| Claude／Codex 兩端與新版目錄 IDENTICAL；`docs/CHANGELOG.md` 記錄 | ✅ 16/16；`[5.1.0]` 段 |
+| 使用者本機 `~/.codex/AGENTS.md` 已更新 | ✅ |
+
+順帶修正：`ct-exec/SKILL.md` § BAT Notify And Fallback 補明 `CT_MODE=ask`／`off` 不加 `--submit`、顯示手動回報訊息（原只寫 `on`／`yolo`）。
