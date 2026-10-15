@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0547
 title: "安裝檔瘦身第二階段（D146）：安裝檔不再內建 server bundle baseline，改隨需下載 + wizard「匯入本機 tarball」+ 無 baseline 時的 cache 驗證；`compression: maximum`"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: L
 created_at: "2026-10-16T01:10:56+0800"
-updated_at: "2026-10-16T01:11:21+0800"
+updated_at: "2026-10-16T01:39:21+0800"
 started_at: "2026-10-16T01:11:21+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-16T01:39:21+0800"
+commit: "73b7aa96"
 target_version: "0.6.1-pre.4"
 depends_on: [T0546]
 related:
@@ -106,7 +106,7 @@ T0546（第一階段）完成後預估 exe ≈ 454 / zip ≈ 570 / AppImage ≈ 
 
 ### 完成狀態
 
-**DONE**：範圍 1–5 全部落地，單元測試 / typecheck / vite build / 本機 Windows `--dir` 打包與 verify / 隔離 runtime 實測都通過。dmg / AppImage / NSIS 安裝與真實 WSL / SSH 首次下載安裝只能在 CI / 實機驗證（見下方「只能在 CI / 實機驗證」）。
+**DONE**（commit `73b7aa96`）：範圍 1–5 全部落地，單元測試 / typecheck / vite build / 本機 Windows `--dir` 打包與 verify / 隔離 runtime 實測都通過。dmg / AppImage / NSIS 安裝與真實 WSL / SSH 首次下載安裝只能在 CI / 實機驗證（見下方「只能在 CI / 實機驗證」）。
 
 **要塔台注意的實測結果**：`compression: "maximum"` 對 **NSIS 沒有效果**。electron-builder 26.8.1 的 `compute7zCompressArgs` 對非 zip 格式一律 `-mx=9`，所以 normal 已經是最高等級，T0544 估的「exe ≈ 267」不成立，exe 實際約 **298 MiB**。zip 則幾乎沒有收益，打包時間卻變成 8 倍（數字見下）。依工單照做頂層 `maximum`（AppImage xz / dmg UDBZ 仍有效），建議另開小單決定是否加 `build.win.compression: "normal"`。
 
