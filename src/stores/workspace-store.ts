@@ -24,6 +24,42 @@ export function ownsTerminalForCloseRequest(
   return !detachedFromThisWindow.has(terminal.workspaceId)
 }
 
+// Same grammar as main's `normalizeWorkorderId` (electron/close-worker.ts), which normalized the
+// `workorder` a Worker tab carries (T0537).
+const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
+/** PLAN-041 / T0538: a report's message is kept for the badge tooltip and the batch close list. */
+const WORKER_REPORT_MESSAGE_MAX = 200
+
+/**
+ * PLAN-041 / T0538: the Worker tabs a `terminal:notified` is a report from — the Workers of the
+ * Tower `targetId` whose work order is `source` (ct-exec notifies with `--source "T####"`). The
+ * source is trimmed and upper-cased like `--workorder`; anything else (a terminal id, no source)
+ * matches nothing.
+ */
+export function findReportingWorkers(
+  terminals: readonly Pick<TerminalInstance, 'id' | 'towerTerminalId' | 'workorder'>[],
+  targetId: string,
+  source: string | undefined,
+): string[] {
+  if (!targetId || typeof source !== 'string') return []
+  const workorder = source.trim().toUpperCase()
+  if (!WORKORDER_ID_PATTERN.test(workorder)) return []
+  return terminals.filter(t => t.towerTerminalId === targetId && t.workorder === workorder).map(t => t.id)
+}
+
+/** PLAN-041 / T0538: the Worker tabs Tower `towerId` dispatched, in tab order. */
+export function workersOfTower<T extends Pick<TerminalInstance, 'id' | 'towerTerminalId'>>(terminals: readonly T[], towerId: string): T[] {
+  return terminals.filter(t => t.towerTerminalId === towerId && t.id !== towerId)
+}
+
+/**
+ * PLAN-041 / T0538: what Tower `towerId`'s "Close reported Worker tabs (N)" closes — its Workers
+ * among `terminals` that have reported. N = 0 disables the item.
+ */
+export function reportedWorkersOfTower<T extends Pick<TerminalInstance, 'id' | 'towerTerminalId' | 'workerReport'>>(terminals: readonly T[], towerId: string): T[] {
+  return workersOfTower(terminals, towerId).filter(t => !!t.workerReport)
+}
+
 // ── Layout snapshot: collect/restore UI layout from localStorage ──
 const LAYOUT_KEYS = {
   panel: 'better-terminal-panel-settings',
@@ -129,10 +165,15 @@ function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<stri
  * PLAN-041 / T0537: the saved Worker ownership of a tab (`towerTerminalId` / `workorder`), only
  * the string fields that are there — data saved before T0537 has none and stays without them.
  */
-function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown }): Pick<TerminalInstance, 'towerTerminalId' | 'workorder'> {
+function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown; workerReport?: unknown }): Pick<TerminalInstance, 'towerTerminalId' | 'workorder' | 'workerReport'> {
+  const report = t.workerReport as { message?: unknown; reportedAt?: unknown } | null | undefined
   return {
     ...(typeof t.towerTerminalId === 'string' && t.towerTerminalId ? { towerTerminalId: t.towerTerminalId } : {}),
     ...(typeof t.workorder === 'string' && t.workorder ? { workorder: t.workorder } : {}),
+    // T0538: the saved "reported" state of a Worker tab (data saved before T0538 has none)
+    ...(report && typeof report === 'object' && typeof report.message === 'string' && typeof report.reportedAt === 'number' && Number.isFinite(report.reportedAt)
+      ? { workerReport: { message: report.message.slice(0, WORKER_REPORT_MESSAGE_MAX), reportedAt: report.reportedAt } }
+      : {}),
   }
 }
 
@@ -556,6 +597,24 @@ class WorkspaceStore {
     this.save()
   }
 
+  /**
+   * PLAN-041 / T0538: a `terminal:notified` (every window gets it) — the Workers it is a report
+   * from (`findReportingWorkers`) are marked reported with the latest message. Display only:
+   * nothing is closed. Saves when a tab changed; returns the marked ids.
+   */
+  markWorkerReported(info: { targetId: string; source?: string; message: string }): string[] {
+    const ids = findReportingWorkers(this.state.terminals, info.targetId, info.source)
+    if (ids.length === 0) return ids
+    const workerReport = { message: String(info.message ?? '').slice(0, WORKER_REPORT_MESSAGE_MAX), reportedAt: Date.now() }
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t => ids.includes(t.id) ? { ...t, workerReport } : t),
+    }
+    this.notify()
+    this.save()
+    return ids
+  }
+
   switchTerminalApiVersion(id: string): 'claude-code' | 'claude-code-v2' | null {
     const terminal = this.state.terminals.find(t => t.id === id)
     if (!terminal) return null
@@ -959,6 +1018,8 @@ class WorkspaceStore {
           model: restored.model,
           agentParams: restored.agentParams,
           sessionMeta: restored.sessionMeta,
+          // T0538: a report the detached window saw (this window got the same event)
+          workerReport: restored.workerReport ?? existing.workerReport,
         }
       })
       .filter((t): t is TerminalInstance => t !== null)
@@ -1010,6 +1071,7 @@ class WorkspaceStore {
         sessionMeta: t.sessionMeta,
         towerTerminalId: t.towerTerminalId,
         workorder: t.workorder,
+        workerReport: t.workerReport,
       }))
       const data = JSON.stringify({
         workspaces: this.state.workspaces,

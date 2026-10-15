@@ -1126,5 +1126,15 @@
       "reopenTabs": "已打开的其他终端标签页需重新打开，才能看到 ~/.local/bin。",
       "posixShell": "{{shell}} 不是 POSIX shell，安装标签页改用 {{fallback}}。"
     }
+  },
+  "workerTabs": {
+    "badgeTooltip": "{{workorder}} 的 Worker，由 {{tower}} 派出",
+    "reportedTooltip": "已回报：{{message}}",
+    "notReportedTooltip": "尚未回报",
+    "closeWorker": "关闭此 Worker",
+    "closeReported": "关闭已回报的 Worker 标签页（{{count}}）",
+    "batchCloseTitle": "关闭已回报的 Worker 标签页？",
+    "batchCloseDesc": "以下 Worker 标签页已回报给 {{tower}}，将被关闭。其中正在执行的程序会被终止，worktree 保留。",
+    "batchCloseConfirm": "关闭 {{count}} 个标签页"
   }
 }

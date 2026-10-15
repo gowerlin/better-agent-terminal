@@ -4,7 +4,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { Workspace, TerminalInstance, EnvVariable, DockablePanel, DockZone, ShellType } from '../types'
-import { workspaceStore } from '../stores/workspace-store'
+import { reportedWorkersOfTower, workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { ThumbnailBar } from './ThumbnailBar'
 import { CloseConfirmDialog } from './CloseConfirmDialog'
@@ -194,6 +194,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   // T0424: remote PTY cap refusals → terminal notice + toast (instead of a blank terminal).
   usePtyLimitNotice(workspace.id, addNoticeToast)
   const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null)
+  // PLAN-041 / T0538: "Close reported Worker tabs" — the Tower and the Worker tabs listed in its confirm
+  const [batchCloseWorkers, setBatchCloseWorkers] = useState<{ towerId: string; ids: string[] } | null>(null)
   const [thumbnailSettings, setThumbnailSettings] = useState<ThumbnailSettings>(loadThumbnailSettings)
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(loadWorkspaceTab)
   const [hasGithubRemote, setHasGithubRemote] = useState(false)
@@ -911,6 +913,31 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (showCloseConfirm && !terminals.some(t => t.id === showCloseConfirm)) setShowCloseConfirm(null)
   }, [showCloseConfirm, terminals])
 
+  // PLAN-041 / T0538: a Tower's reported Workers in this workspace (the window showing them) are
+  // listed in an in-page confirm first; confirming closes each through closeTerminalNow (no
+  // per-tab confirm, worktree kept — same as `--close-worker`).
+  const handleCloseReportedWorkers = useCallback((towerId: string) => {
+    const ids = reportedWorkersOfTower(terminals, towerId).map(t => t.id)
+    if (ids.length > 0) setBatchCloseWorkers({ towerId, ids })
+  }, [terminals])
+
+  const batchCloseList = batchCloseWorkers
+    ? terminals.filter(t => batchCloseWorkers.ids.includes(t.id))
+    : []
+
+  const handleConfirmBatchClose = useCallback(() => {
+    if (!batchCloseWorkers) return
+    const ids = batchCloseWorkers.ids.filter(id => terminals.some(t => t.id === id))
+    window.electronAPI.debug.log(`[T0538] closing reported Workers of tower=${batchCloseWorkers.towerId}: ${ids.join(',') || '(none left)'}`)
+    for (const id of ids) workspaceStore.closeTerminalNow(id, { cleanWorktree: false })
+    setBatchCloseWorkers(null)
+  }, [batchCloseWorkers, terminals])
+
+  // T0538: every listed tab closed elsewhere while the confirm is open.
+  useEffect(() => {
+    if (batchCloseWorkers && !terminals.some(t => batchCloseWorkers.ids.includes(t.id))) setBatchCloseWorkers(null)
+  }, [batchCloseWorkers, terminals])
+
   const handleRestart = useCallback(async (id: string) => {
     const terminal = terminals.find(t => t.id === id)
     if (terminal) {
@@ -1378,6 +1405,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         onCollapse={handleThumbnailCollapse}
         onSetSupervisor={handleSetSupervisor}
         onClearSupervisor={handleClearSupervisor}
+        onCloseWorker={handleCloseTerminal}
+        onCloseReportedWorkers={handleCloseReportedWorkers}
       />
 
       {showCloseConfirm && (
@@ -1387,6 +1416,31 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           isWorktree={['claude-code-worktree', 'claude-cli-worktree', 'codex-agent-worktree'].includes(terminals.find(t => t.id === showCloseConfirm)?.agentPreset || '')}
           onConfirmAndClean={() => handleConfirmClose(true)}
         />
+      )}
+
+      {batchCloseWorkers && batchCloseList.length > 0 && (
+        <div className="dialog-overlay" onClick={() => setBatchCloseWorkers(null)}>
+          <div className="dialog worker-batch-close-dialog" role="dialog" onClick={e => e.stopPropagation()}>
+            <h3>{t('workerTabs.batchCloseTitle')}</h3>
+            <p>{t('workerTabs.batchCloseDesc', { tower: terminals.find(tm => tm.id === batchCloseWorkers.towerId)?.title ?? batchCloseWorkers.towerId.slice(0, 8) })}</p>
+            <ul className="worker-batch-close-list">
+              {batchCloseList.map(tm => (
+                <li key={tm.id} data-terminal-id={tm.id} title={tm.workerReport?.message}>
+                  <span className="worker-badge reported">{tm.workorder}</span>
+                  <span className="worker-batch-close-title">{tm.title}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="dialog-actions">
+              <button className="dialog-btn cancel" onClick={() => setBatchCloseWorkers(null)}>
+                {t('common.cancel')}
+              </button>
+              <button className="dialog-btn confirm" data-action="confirm-batch-close" onClick={handleConfirmBatchClose}>
+                {t('workerTabs.batchCloseConfirm', { count: batchCloseList.length })}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

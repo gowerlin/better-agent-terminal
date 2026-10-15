@@ -24,6 +24,17 @@
   background: var(--bg-hover);
 }
 
+/* PLAN-041 / T0538: e.g. "Close reported Worker tabs (0)" */
+.context-menu-item:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.context-menu-item:disabled:hover {
+  background: none;
+}
+
 /* Workspace Context Menu */
 .workspace-context-menu {
   position: fixed;

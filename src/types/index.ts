@@ -74,6 +74,13 @@ export interface TerminalInstance {
    */
   towerTerminalId?: string;
   workorder?: string;
+  /**
+   * PLAN-041 / T0538: the Worker reported to its Tower — a `terminal:notified` whose `targetId` is
+   * `towerTerminalId` and whose `source` is `workorder` (ct-exec `bat-notify --source "T####"`).
+   * The latest report's message and time. Display only (thumbnail badge, batch close list); saved
+   * with the tab like `towerTerminalId` / `workorder`, so it is still shown after BAT reopens.
+   */
+  workerReport?: { message: string; reportedAt: number };
 }
 
 export interface AppState {

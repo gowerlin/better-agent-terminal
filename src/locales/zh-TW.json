@@ -1126,5 +1126,15 @@
       "reopenTabs": "已開啟的其他終端分頁需重開，才看得到 ~/.local/bin。",
       "posixShell": "{{shell}} 不是 POSIX shell，安裝分頁改用 {{fallback}}。"
     }
+  },
+  "workerTabs": {
+    "badgeTooltip": "{{workorder}} 的 Worker，由 {{tower}} 派出",
+    "reportedTooltip": "已回報：{{message}}",
+    "notReportedTooltip": "尚未回報",
+    "closeWorker": "關閉此 Worker",
+    "closeReported": "關閉已回報的 Worker 分頁（{{count}}）",
+    "batchCloseTitle": "關閉已回報的 Worker 分頁？",
+    "batchCloseDesc": "以下 Worker 分頁已回報給 {{tower}}，將被關閉。其中執行中的程序會被終止，worktree 保留。",
+    "batchCloseConfirm": "關閉 {{count}} 個分頁"
   }
 }

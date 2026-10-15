@@ -479,6 +479,45 @@
   50% { opacity: 0.4; }
 }
 
+/* PLAN-041 / T0538: Worker tab work order badge (thumbnail + batch close list) */
+.worker-badge {
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.worker-badge.reported {
+  color: #98c379;
+  border-color: rgba(152, 195, 121, 0.6);
+}
+
+.worker-batch-close-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.worker-batch-close-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.worker-batch-close-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .thumbnail.split {
   border-color: rgba(229, 192, 123, 0.5);
   box-shadow: 0 0 6px rgba(229, 192, 123, 0.3);

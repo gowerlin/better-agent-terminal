@@ -505,6 +505,12 @@ export default function App() {
     const unsubTerminalNotified = window.electronAPI.pty.onTerminalNotified((info) => {
       window.electronAPI.debug.log(`[T0133] Notified target=${info.targetId.slice(0, 8)} source=${info.source ?? '?'} msg="${info.message}"`)
       markNotified(info.targetId)
+      // PLAN-041 / T0538: a Worker's report to its Tower (`--source "T####"`) marks the Worker tab
+      // "reported" — display only. Every window gets the event; each marks its own copy.
+      const reported = workspaceStore.markWorkerReported(info)
+      if (reported.length > 0) {
+        window.electronAPI.debug.log(`[T0538] Worker reported: tower=${info.targetId} workorder=${info.source} tabs=${reported.join(',')}${detachedWorkspaceId ? ' (detached window)' : ''}`)
+      }
       // Layer 2: workspace-level bubble — only if target is not in active workspace
       const targetTerminal = workspaceStore.getState().terminals.find(tm => tm.id === info.targetId)
       const targetWorkspaceId = targetTerminal?.workspaceId

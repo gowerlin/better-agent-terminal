@@ -127,11 +127,20 @@ interface TerminalThumbnailProps {
   onSplitTerminal?: (id: string, side?: 'left' | 'right') => void
   onSetSupervisor?: (id: string) => void
   onClearSupervisor?: () => void
+  /** PLAN-041 / T0538: a Worker tab — the display name of the Tower that dispatched it */
+  towerTitle?: string
+  /** PLAN-041 / T0538: a Tower tab — how many Worker tabs it has here / how many have reported */
+  workerCount?: number
+  reportedWorkerCount?: number
+  /** T0538: "Close this Worker" — same as ✕ (same confirm rules) */
+  onCloseWorker?: (id: string) => void
+  /** T0538: "Close reported Worker tabs (N)" — opens the in-page confirm listing them */
+  onCloseReportedWorkers?: (towerId: string) => void
 }
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
 let thumbRenderCount = 0
-export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isActive, isSplit, onClick, onSplitTerminal, onSetSupervisor, onClearSupervisor }: TerminalThumbnailProps) {
+export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isActive, isSplit, onClick, onSplitTerminal, onSetSupervisor, onClearSupervisor, towerTitle, workerCount = 0, reportedWorkerCount = 0, onCloseWorker, onCloseReportedWorkers }: TerminalThumbnailProps) {
   const { t } = useTranslation()
   thumbRenderCount++
   if (thumbRenderCount <= 30 || thumbRenderCount % 50 === 0) {
@@ -190,6 +199,14 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   }, [isActive, terminal.id])
 
   const isSupervisor = terminal.role === 'supervisor'
+  // PLAN-041 / T0538: a Worker tab (T0537 ownership) shows its work order; ✓ once it reported.
+  const isWorker = !!terminal.towerTerminalId && !!terminal.workorder
+  const workerTooltip = isWorker
+    ? [
+        t('workerTabs.badgeTooltip', { workorder: terminal.workorder, tower: towerTitle || terminal.towerTerminalId!.slice(0, 8) }),
+        terminal.workerReport ? t('workerTabs.reportedTooltip', { message: terminal.workerReport.message }) : t('workerTabs.notReportedTooltip'),
+      ].join('\n')
+    : undefined
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
   const { pos: ctxPos, menuRef: ctxRef } = useMenuPosition(ctxMenu)
 
@@ -220,6 +237,15 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           {isSplit && <span title="Split" className="split-badge">⫿</span>}
           {isAgent && <span>{agentConfig?.icon}</span>}
           <span>{terminal.title}</span>
+          {isWorker && (
+            <span
+              className={`worker-badge${terminal.workerReport ? ' reported' : ''}`}
+              title={workerTooltip}
+              data-workorder={terminal.workorder}
+            >
+              {terminal.workerReport ? '✓ ' : ''}{terminal.workorder}
+            </span>
+          )}
           {notified && <span title="New notification" className="notification-badge">●</span>}
         </div>
         <ActivityIndicator terminalId={terminal.id} size="small" />
@@ -260,6 +286,21 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           ) : (
             <button className="context-menu-item" onClick={() => { onSetSupervisor?.(terminal.id); setCtxMenu(null) }}>
               👁 Set as Supervisor
+            </button>
+          )}
+          {isWorker && onCloseWorker && (
+            <button className="context-menu-item" data-action="close-worker" onClick={() => { onCloseWorker(terminal.id); setCtxMenu(null) }}>
+              ✕ {t('workerTabs.closeWorker')}
+            </button>
+          )}
+          {workerCount > 0 && onCloseReportedWorkers && (
+            <button
+              className="context-menu-item"
+              data-action="close-reported-workers"
+              disabled={reportedWorkerCount === 0}
+              onClick={() => { onCloseReportedWorkers(terminal.id); setCtxMenu(null) }}
+            >
+              ✕ {t('workerTabs.closeReported', { count: reportedWorkerCount })}
             </button>
           )}
         </div>,

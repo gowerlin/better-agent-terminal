@@ -7,6 +7,7 @@ import { TerminalThumbnail } from './TerminalThumbnail'
 import { getAgentPreset } from '../types/agent-presets'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { AddMenu, type AddMenuSection } from './common/AddMenu'
+import { reportedWorkersOfTower, workersOfTower } from '../stores/workspace-store'
 
 interface ThumbnailBarProps {
   terminals: TerminalInstance[]
@@ -34,6 +35,10 @@ interface ThumbnailBarProps {
   onCollapse?: () => void
   onSetSupervisor?: (id: string) => void
   onClearSupervisor?: () => void
+  /** PLAN-041 / T0538: Worker tab context menu — "Close this Worker" (same as ✕) */
+  onCloseWorker?: (id: string) => void
+  /** PLAN-041 / T0538: Tower tab context menu — "Close reported Worker tabs (N)" */
+  onCloseReportedWorkers?: (towerId: string) => void
 }
 
 export function ThumbnailBar({
@@ -57,7 +62,9 @@ export function ThumbnailBar({
   collapsed = false,
   onCollapse,
   onSetSupervisor,
-  onClearSupervisor
+  onClearSupervisor,
+  onCloseWorker,
+  onCloseReportedWorkers
 }: ThumbnailBarProps) {
   const { t } = useTranslation()
   // Check if these are agent terminals or regular terminals
@@ -359,6 +366,11 @@ export function ThumbnailBar({
               onSplitTerminal={onSplitTerminal}
               onSetSupervisor={onSetSupervisor}
               onClearSupervisor={onClearSupervisor}
+              towerTitle={terminal.towerTerminalId ? terminals.find(tm => tm.id === terminal.towerTerminalId)?.title : undefined}
+              workerCount={workersOfTower(terminals, terminal.id).length}
+              reportedWorkerCount={reportedWorkersOfTower(terminals, terminal.id).length}
+              onCloseWorker={onCloseWorker}
+              onCloseReportedWorkers={onCloseReportedWorkers}
             />
           </div>
         ))}

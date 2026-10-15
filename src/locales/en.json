@@ -1126,5 +1126,15 @@
       "reopenTabs": "Terminal tabs that were already open must be reopened to see ~/.local/bin.",
       "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
     }
+  },
+  "workerTabs": {
+    "badgeTooltip": "Worker for {{workorder}}, dispatched by {{tower}}",
+    "reportedTooltip": "Reported: {{message}}",
+    "notReportedTooltip": "Not reported yet",
+    "closeWorker": "Close this Worker",
+    "closeReported": "Close reported Worker tabs ({{count}})",
+    "batchCloseTitle": "Close reported Worker tabs?",
+    "batchCloseDesc": "These Worker tabs have reported to {{tower}} and will be closed. Their processes are terminated; worktrees are kept.",
+    "batchCloseConfirm": "Close {{count}} tabs"
   }
 }
