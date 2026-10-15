@@ -7,7 +7,7 @@ status: OPEN
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-15T13:13:21+0800"
-updated_at: "2026-10-15T13:13:21+0800"
+updated_at: "2026-10-15T13:20:50+0800"
 impact:
   - terminal-rendering
   - xterm-canvas
@@ -64,6 +64,50 @@ links:
 5. **啟動慢 8 秒（另案觀察，未分析）**：11:22 啟動時 `buildMenu` 到 `RemoteServer Started` 間隔約 7.8 s，`first-renderer-ipc` +8178 ms；09:48 那次為 +498 ms。工作區在 Google Drive `CloudStorage` 底下，是否相關未驗證。
 
 `bat-scripts.log` 只有派工 / 通知事件，與本案無關。
+
+## Gary 第二輪回覆與新證據（2026-10-15 13:20）
+
+**Gary 回覆（13:16–13:19）**
+
+- 「是我派了好幾個工單後才開始卡頓」；每次開啟都是新的塔台分頁。
+- 「沒有重開 BAT，只有新增一個 codex cli 分頁，然後關掉舊分頁」。但日誌在 11:21:04 有 `[quit] user confirmed quit`，11:22:06 新程序啟動。可能是關掉最後一個視窗或 Cmd+Q 觸發；不影響判讀。
+- macOS 上 BAT 關閉後舊塔台不會留存：13:16 的 `ps` 顯示 terminal-server 與所有 codex 都是 BAT 重開後才啟動的。⇒ 原區分測試 1、2 已無法執行。
+
+**GPU 崩潰時間與派工的關係**（`debug-20261015-112206.log`，+0800）
+
+| GPU 崩潰 | 前一個事件 | 間隔 |
+|---|---|---|
+| 11:43:01 | 11:42:50 / 11:42:57 派工建立 `bf632657`、`f9b80c1a` | 4 s |
+| 11:43:09 | 同上 | 12 s |
+| 12:02:28 | 無建立事件（12:01:13 在舊分頁貼上文字） | — |
+| 12:12:34 | 12:12:32 派工建立 `c7852c1c`；12:13:23 該分頁手動重繪 | 2 s |
+| 12:23:23 | 12:21:37 對 `c7852c1c` 送 `$ct-exec`（notify `--submit`） | 106 s |
+
+5 次中有 3 次在新終端建立後 2–12 秒內發生。卡頓開始時間與 Gary 說的「派了好幾個工單後」一致。
+
+**崩潰報告**：`BetterAgentTerminal Helper-2026-10-15-114303.ips`，對應 11:43:01 那次。
+
+- GPU 程序 pid 64267，11:22:06 啟動
+- `EXC_BREAKPOINT` / `SIGTRAP`（Trace/BPT trap: 5），觸發執行緒 `CrGpuMain`（GPU 主執行緒）
+- 判讀：Chromium 主動中止（CHECK / fatal），不是存取違規
+- Electron Framework 未符號化（UUID `4c4c44be-5555-3144-a121-891fbdf26df9`，base `0x10f148000`）。頂層 frame 偏移 `15787796`、`15787108`、`9697016`。要知道是哪個 CHECK，需用 Electron `41.2.1` darwin-arm64 dSYM 以 `atos` 符號化。
+- `GpuWatchdog` 執行緒存在但不是觸發者，看起來不是 watchdog 逾時
+
+**更新後的判讀**：假設 A 的權重上升，並多了一個觸發條件。
+
+- 派工 → 建立新終端（新 xterm + CanvasAddon canvas）→ GPU 程序 CHECK 崩潰
+- 崩潰前就存在的終端畫面劣化：舊塔台卡頓、Renderer 約 1 核心；崩潰後才建立的終端正常
+- 仍未排除 B，也未確認 Renderer CPU 的實際熱點
+
+**新的重現方法**（不需要 Codex，不耗 token）：
+
+1. 重開 BAT，開一個一般終端並輸出一些內容（例如 `ls -R ~ | head -3000`）
+2. 連續按「+」快速新增 4–6 個終端
+3. 每加一個就檢查有沒有新的 GPU 崩潰報告：`ls -lt ~/Library/Logs/DiagnosticReports | grep "BetterAgentTerminal Helper" | head -3`
+4. 出現新的報告後，回第 1 步的終端打字，同時記錄 Renderer CPU
+5. 判讀：
+   - 重現 → 純 BAT / Chromium 問題，與 Codex 無關
+   - 開了很多終端都沒有崩潰 → 回到派工路徑（Codex 啟動、notify `--submit`）找差異
 
 ## 判讀（根因未定，兩個假設）
 
