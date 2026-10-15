@@ -3428,3 +3428,18 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 收工 / 回報「已發佈」前，`gh release view` 確認 body 不只一行
 
 **候選晉升**：📁 Project（Release 流程）→ ✅ 已晉升（2026-10-15，`_local-rules.md`「Release 流程實況 › 更版重點（Release notes）必寫」；`v0.6.1-pre.2` 再次漏寫後使用者指示）
+
+---
+
+## L151
+
+**來源**：第六十六 session（2026-10-16），T0549 開單、BUG-141 / T0554 開單時各失敗一次
+
+**現象**：塔台用 `git commit --only <檔>` 只提交自己的檔案（避開 Worker 進行中的變更與 `src/styles/settings.css`），但新建的單據檔是**未追蹤檔**，`--only` 會回 `pathspec ... did not match any file(s) known to git`，該次 commit 整個沒做。T0549 那次 Worker 已經在跑，若 Worker 先改檔，第一個 commit 就會混進 Worker 的內容。
+
+**How to apply**：
+- 新建單據後先 `git add <新檔>`，再 `git commit --only <新檔> <其他已追蹤檔>`
+- 派發前確認開單 commit 已成功（`git log -1`），再派 Worker
+- 同一回合的 commit 指令後面接 `git status --short` 檢查是否還有自己的檔案未提交
+
+**候選晉升**：📁 Project（塔台 commit 慣例）

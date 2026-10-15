@@ -1,11 +1,49 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-16 02:11 (UTC+8) — **第六十五 session 收工**：`*rescan`；PLAN-041 實機驗收（T0542 / T0543）→ D145 / T0545（等安靜再回收）；T0544 安裝檔研究 → D146 / T0546-T0548 瘦身（D094 取代）→ **`v0.6.1-pre.4`**（exe 298 / dmg 310 MiB）。
+> 最後更新:2026-10-16 05:47 (UTC+8) — **第六十六 session 收工**：PLAN-041 重驗 DONE；舊單 / 全 PLAN 盤點；T0550 WSL 實機驗收（PLAN-036 / 037 DONE）；T0551–T0556（BUG-138–141、Worker 分頁標題、遠端 Node via nvm）→ **`v0.6.1-pre.5`**。
 >
-> **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.4` 後重驗 PLAN-041（真 claude Worker 收單即回收應 exit 0）；等 Gary BUG-136；pre.4 實機：WSL / SSH 首次設定下載 / 匯入 server bundle。
+> **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.5` 後實機確認 Worker 分頁標題 / 收單回收時切換焦點不取消（BUG-140）/ WSL 工具面板 Node（nvm）；等 Gary BUG-136；SSH 主機升級與取消還原尚未實測。
 ---
 
-## 🛏 本 Session 收工快照 (第六十五 session, 2026-10-15 19:54 - 10-16 02:11, ~6h17m wall，含 20:35-01:09 使用者離開)
+## 🛏 本 Session 收工快照 (第六十六 session, 2026-10-16 02:12 - 05:47, ~3h35m wall)
+
+### 主軸：PLAN-041 重驗（T0549）→ 待辦單據 / 全 PLAN 盤點 → T0550 WSL 實機驗收（PLAN-036 / 037）→ BUG-138–141 + Worker 分頁標題 + 遠端 Node via nvm（T0551–T0556）→ **`v0.6.1-pre.5`**
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **02:12** BAT 已升 pre.4 並重啟；Fast Path 起手。02:14 派 **T0549**（PLAN-041 重驗探針）→ 02:15 DONE；收單即 `--close-worker` exit 0、10 s 後關閉 → **PLAN-041 DONE**
+2. **02:17-02:22** 使用者截圖的 Pending / Partial 單據：CT-T001 / CT-T011 / CT-T012 / T0510 → DONE；PLAN-014 DROPPED、T0153 ABANDONED；T0292 / T0293 / T0298 / T0302 報告檔搬入 `_archive/workorders/`（L132 改判）
+3. **02:27-02:30** 全 PLAN 盤點：PLAN-031 / 033 / 035 DONE、新開 PLAN-043（IDEA，PLAN-035 Phase 2/3）、backlog 依檔案重建；派 **T0550**（WSL 實機驗收）
+4. **02:44** T0550 DONE：WSL server 0.5.9-pre.4 → 0.6.1-pre.4（pre.4 線上下載 / 匯入路徑 PASS）、smoke 13/13 → **PLAN-036 / 037 DONE**；開 BUG-138（升級換 port）/ BUG-139（覆蓋殘留）；收單回收被取消 → 使用者確認只切換焦點 → BUG-140
+5. **02:51-04:53** 依序派：**T0551**（BUG-140）`92655e00` → **T0552**（BUG-138 / 139）`f599f915` → **T0553**（Worker 分頁標題，使用者需求）`bb9b9ddf` → **T0554**（BUG-141，T0552 殘餘風險）`38fe7421` → **T0555**（遠端 Node 一鍵安裝 via nvm，使用者需求）`e9cae8d8` PARTIAL → **T0556**（login profile 片段）`e16e75b8` → T0555 補正 DONE
+6. **05:10** 回歸：build 0、e2e 6 passed / 8 skipped（WSL opt-in）；使用者同意發版 → bump `6ad3c089` + push + run `38808244923` → **05:23 `v0.6.1-pre.5` 已發佈**（10 job 全綠、server-bundle 7 assets），更版重點已寫
+7. WSL 上 T0550–T0556 留下的備份依使用者指示全部刪除（03:37 / 04:2x / 05:12）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **8**（T0549-T0556） | 全 DONE / FIXED（T0555 經 T0556 補正）；皆一次啟動 |
+| 補正 / 結案舊單 | CT-T001 / 011 / 012、T0510 DONE；T0153 ABANDONED；4 份報告檔歸檔 | |
+| PLAN | DONE 041 / 036 / 037 / 031 / 033 / 035；DROPPED 014；新開 043（IDEA） | 進行中 0 |
+| BUG | 新開 4（138–141）皆 FIXED | Open 1（BUG-136）/ Fixed 21 / Closed 44 |
+| 發版 | 1（`v0.6.1-pre.5`） | exe 298.0 / zip 412.3 / AppImage 297.3 / dmg 309.7 MiB |
+| unit test | 4073 → **4372 passed / 253 files** | 每張單塔台聯合複驗；typecheck 0 / 0 |
+
+### 重點觀察
+
+- PLAN-041 等安靜分支在 T0552 收單時首次真實觸發（`still printing` → `close requested after waiting 0.4 s`），正常
+- 新建單據檔是未追蹤檔，`git commit --only <新檔>` 會 pathspec 失敗 → 先 `git add` 再 `--only`（T0549、BUG-141 / T0554 各踩一次）
+- T0553 / T0554 Worker 未 commit 工單檔與 BUG 檔，由塔台收單時一併 commit
+- 收單只看 exit code 時，回收被取消塔台不會知道；本次靠讀 `[close-worker]` 日誌發現 BUG-140
+
+### 編號起始（下 session）
+
+- **T0557** / **BUG-142** / **PLAN-044** / **D147** / **L152** / **CT-T013**
+
+---
+
+## 🛏 前 Session 收工快照 (第六十五 session, 2026-10-15 19:54 - 10-16 02:11, ~6h17m wall，含 20:35-01:09 使用者離開)
 
 ### 主軸：`*rescan` → PLAN-041 實機驗收（T0542 / T0543）→ D145 / T0545 → T0544 安裝檔研究 → D146 / T0546-T0548 → **`v0.6.1-pre.4`**
 
@@ -42,67 +80,24 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第六十四 session, 2026-10-15 13:13 - 18:16, ~5h wall)
-
-> 13:13 前另有程式碼簽章研究（網頁 artifact `MxxjPnrMFwhsbV3CA9NdEL`，無 commit，後續等使用者取得 Apple Developer / SSL.com 憑證）；起點未記錄。
-
-### 主軸：Gary BUG-136 → **`v0.6.1-pre.2`**（GPU 日誌）→ T0534 研究 → D144 / PLAN-041 + PLAN-042 → T0535-T0541 → CT v5.1.0 → **`v0.6.1-pre.3`**
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **13:13** Gary 回報 macOS 舊 Codex 塔台分頁打字延遲（Renderer ~100% CPU、GPU 崩潰 5 次）→ 開 **BUG-136**；13:17 派 **T0533**（GPU 狀態日誌）→ 13:25 DONE（`5dee5bc2`）
-2. **13:39** **`v0.6.1-pre.2` 已發佈**（run `38686989923` @ `9dde59f3`）——漏寫更版重點，18:0x 補上
-3. **15:15** 使用者問收單後能否自動關 Worker 分頁 → 派 **T0534** 研究 → 15:26 DONE（推薦 B'）；說明網頁 artifact `E9ZBy1JRwibBXrwnMdB4LS`
-4. **15:44** 使用者決定開關與延遲放 CT `*config`、不做 local_rule → **D144** / **PLAN-041**（T0535 / T0536 / T0537 / CT-T011）；16:13「完整版」納入方案 D（**T0538**），T0534 §8 衍生問題開 **PLAN-042** / **BUG-137**（T0539 / T0540 / CT-T012）
-5. **16:15-17:30** 依序派發（同一工作樹不並行）：T0535 `f26b7641` → T0536 `26f6996e` → T0537 `e965f993` → T0538 `8fd7bdf7` → T0540 `a058fbd4` → T0539 `2ff55bdd`（BUG-137 FIXED），全部一次啟動、DONE
-6. **17:14** BMad-Guide 塔台回報 **CT v5.1.0**（CT-T011 / CT-T012）已裝兩端（BMad-Guide `cb2aa09`，**未 push**）；塔台回覆 exit 1 =「本 session 後續不再呼叫」
-7. **17:41** 派 **T0541**（內嵌 claude CLI 2.1.296 → 2.1.300）→ DONE（`1cb423c6`，模型 / 計價 / effort / 門檻皆無變動）
-8. **17:47** 派 pre.3（`95d1f8e5`）→ **18:06 `v0.6.1-pre.3` 已發佈**（run `38715587426`，全 job success），更版重點已寫
-9. **18:0x** 使用者指出 pre.2 無更版重點 → 補寫；**L150 晉升** `_local-rules.md`「更版重點（Release notes）必寫」（`a564e424`）
-10. **18:1x** 收工：發現第六十三 session 收工時 `2026-Q4.md` 被覆寫（80,855 → 3,310 bytes，`b83a6909`），已由 `2f169514` 版本還原並補回第六十一 session
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **9**（T0533-T0541） | 皆 DONE、一次啟動 |
-| 跨專案委派 | 2（CT-T011 / CT-T012） | CT v5.1.0 source / install DONE；runtime 驗收 BMad-Guide T0136 |
-| 發版 | 2（`v0.6.1-pre.2` / `v0.6.1-pre.3`） | 皆全 job 綠 + server-bundle 7 assets |
-| BUG | 新開 2（136 OPEN / 137 FIXED） | Open 1 / Fixed 17 / Closed 44 |
-| PLAN | 新開 2（041 IN_PROGRESS 待實機驗收 / 042 DONE） | |
-| 決策 | D144 | 回收開關與延遲放 CT `*config`，BAT 只提供能力與安全檢查 |
-| unit test | 3730 → **3939 passed / 237 files** | |
-
-### 重點觀察
-
-- 起手式已寫「發版說明（L150）」仍漏 pre.2 → 晉升為規則並存記憶；回報「已發佈」前必看 `gh release view --json body`
-- 收工歸檔把季檔覆寫而非 append（第六十三 session）→ 本次已還原；收工時以 `wc -c` 前後比對季檔大小，只可增加
-- 對 Gary 環境曾誤判「macOS 關閉後 terminal-server / codex 存活」，已更正；macOS `stopTerminalServer=false` 時 terminal-server 未存活，原因未查（入待辦）
-
-### 編號起始（下 session）
-
-- **T0542** / **BUG-138** / **PLAN-043** / **D145** / **L151** / **CT-T013**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-16 02:11 UTC+8（第六十五 session 收工）
+> 最後更新：2026-10-16 05:47 UTC+8（第六十六 session 收工）
 
 ### 近期完成
-- `v0.6.1-pre.5`（10-16 05:23，run `38808244923` @ `6ad3c089`）：BUG-138–141（WSL / SSH 精靈升級沿用 port、乾淨覆蓋、取消還原；Worker 回收不被焦點切換取消）、Worker 分頁標題、遠端 Node.js via nvm；exe 298 / zip 412.3 / AppImage 297.3 / dmg 309.7 MiB
-- `v0.6.1-pre.4`（10-16 02:08，run `38781893001` @ `e3e86496`）：安裝檔瘦身（T0546-T0548，不內建 server bundle + 匯入本機 tarball，D146）、`--close-worker` 等安靜再關（T0545，D145）
-- 安裝檔 exe 298.0 / zip 412.3 / AppImage 297.3 / dmg 309.6 MiB（pre.3 693.9 / 868.8 / 1030.7 / 871.9）；D094 由 D146 取代（每平台 ≤ 320、zip ≤ 450）
-- `v0.6.1-pre.3`（10-15 18:06）：PLAN-041 Worker 分頁回收、BUG-137、T0540、claude 2.1.300
-- `worker_auto_close: done`（`_tower-config.yaml`，10 s）；unit 4073 passed / 243 files
+- `v0.6.1-pre.5`（10-16 05:23，run `38808244923` @ `6ad3c089`）：BUG-138–141（WSL / SSH 精靈升級沿用 port / profile、乾淨覆蓋、取消還原；Worker 回收不被焦點切換取消）、Worker 分頁標題（T0553）、遠端 Node.js via nvm（T0555 / T0556）
+- PLAN-041 / 036 / 037 / 031 / 033 / 035 DONE、PLAN-014 DROPPED；進行中 PLAN 0（IDEA：015 / 029 / 038 / 043）
+- WSL `Ubuntu-24.04` server = 0.6.1-pre.4（9877），nvm + Node 24.22.0，`~/.profile` 有 BAT nvm 片段；所有驗收備份已刪
+- `v0.6.1-pre.4`（10-16 02:08）：安裝檔瘦身（D146）、`--close-worker` 等安靜（D145）
+- unit 4372 passed / 253 files；`worker_auto_close: done`（10 s）
 
 ### 待辦（依優先序）
 
-1. ✅ ~~PLAN-041 重驗~~ → **DONE**（第六十六 session 02:17，T0549：pre.4 收單即 `--close-worker` exit 0、10 s 後關閉；當次排程時已安靜，等安靜分支由 T0545 e2e 涵蓋）。同場結案 CT-T001 / CT-T011 / CT-T012 / T0510（PARTIAL→DONE）；PLAN-014 DROPPED、T0153 ABANDONED；L132 四份報告檔搬入歸檔；全 PLAN 盤點：PLAN-031 / 033 / 035 DONE、新開 PLAN-043（IDEA，PLAN-035 Phase 2/3）、PLAN-036 / 037 待 T0550
+1. 🟡 **pre.5 實機**（本機 BAT 升級後）：Worker 分頁標題 `Claude CLI · Worker · T####` / 回報 ✓；收單回收期間切換焦點仍關閉（BUG-140）；WSL 工具面板 Node（nvm chip、更新）；T0550 需真人 6 項（見 T0550 回報區）；SSH 主機升級 / 取消還原（只有單元測試）；WSL server 升 pre.5（重跑精靈 = 驗 BUG-138 / 139 / 141）
 2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
-3. 🟡 **pre.4 實機**：✅ T0550 DONE（WSL server → 0.6.1-pre.4、線上下載 / 匯入、smoke 13/13；PLAN-036 / 037 DONE；需真人 6 項見 T0550 回報區；衍生 **BUG-138**（精靈升級換 port）/ **BUG-139**（覆蓋安裝殘留））；其餘：WSL / SSH 首次設定的線上下載與「匯入本機 tarball」、dmg（UDBZ）掛載 / AppImage（xz）啟動速度、NSIS 完整重裝；WSL `~/.local/bat-server` 已升 0.6.1-pre.4（T0550 / T0552；T0550 / T0552 的 5 份備份已依使用者指示於 2026-10-16 03:37 刪除）
-4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；Gary 日誌另案（macOS terminal-server 未存活、`first-renderer-ipc` +8 s）
-5. 🟢 程式碼簽章等使用者帳號；backlog：`docs/server-bundle-distribution.md` rate-limit 重試敘述與實作不符（T0548 #5）、PID 鏈、`*archive` 到齡候選
+3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；BUG-138–141 待 pre.5 驗收後 CLOSED；dmg / AppImage 啟動、NSIS 完整重裝
+4. 🟢 後續小項：T0550 spec 的 `A3.clean-install`「目錄變小」只適用跨版升級（T0554 #5）；zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）
+5. 🟢 程式碼簽章等使用者帳號；`*archive` 到齡候選
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**。
@@ -112,11 +107,11 @@
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 21 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D146）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（81 entries）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D146）｜ Learnings → [_learnings.md](_learnings.md)（最大 L151）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（82 entries）
 
 ### 編號起始
-- **T0557** / **BUG-142** / **PLAN-044** / **D147** / **EXP-[TOPIC]-001** / **L151** / **CT-T013**
+- **T0557** / **BUG-142** / **PLAN-044** / **D147** / **EXP-[TOPIC]-001** / **L152** / **CT-T013**
 
 ---
 
@@ -129,14 +124,14 @@
 | **目前版號** | **0.6.1-pre.5**（package.json + lock，2026-10-16 05:13 `6ad3c089`） |
 | **最新 release** | `v0.6.1-pre.5`（2026-10-16 05:23，run `38808244923`，target `6ad3c089`：BUG-138–141、Worker 分頁標題 T0553、遠端 Node.js via nvm T0555 / T0556；更版重點已寫）+ `server-bundle-v0.6.1-pre.5`（7 assets）。前一版 `v0.6.1-pre.4`（2026-10-16 02:08，run `38781893001`，target `e3e86496`：T0545 等安靜再回收、T0546-T0548 安裝檔瘦身）+ `server-bundle-v0.6.1-pre.4`（7 assets）。前一版 `v0.6.1-pre.3`（2026-10-15 18:06，run `38715587426`，target `95d1f8e5`：PLAN-041 Worker 分頁回收 + 分頁標示 / 批次關閉、BUG-137、T0540 程序樹、claude 2.1.300）+ `server-bundle-v0.6.1-pre.3`（7 assets）。前一版 `v0.6.1-pre.2`（2026-10-15 13:39，run `38686989923`，target `9dde59f3`，T0533 GPU 日誌）。再前 `v0.6.1-pre.1`（2026-10-15 02:05，`e715c2b1`，BUG-135）、`v0.6.0-pre.11`（01:47，`49af84ca`，BUG-134）。更早見 `_archive/state-snapshots/2026-Q4.md` |
 | **前一 tag** | `v0.6.1-pre.4`（2026-10-16 02:08，`e3e86496`） |
-| **目前主軸** | `v0.6.1-pre.4` 已發佈；PLAN-041 待 pre.4 重驗；BUG-136 等 Gary |
-| **工單最大編號** | T0548（DONE `c389888b`）；T0542 / T0544-T0548 DONE、T0543 ABANDONED；跨專案 CT-T012 |
-| **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 21（含 BUG-138–141，pre.5 批次）/ Fixing 0 / Fixed 17 / Closed 44 |
+| **目前主軸** | `v0.6.1-pre.5` 已發佈；待本機升 pre.5 實機確認；BUG-136 等 Gary；進行中 PLAN 0 |
+| **工單最大編號** | T0556（DONE `e16e75b8`）；T0549–T0556 全 DONE / FIXED（T0555 經 T0556 補正）；跨專案 CT-T012 |
+| **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 21（含 BUG-138–141，待 pre.5 驗收）/ Closed 44 |
 | **PLAN 最大編號** | **PLAN-043**（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
 | **決策最大編號** | D146 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.1.0（第六十五 session 起生效；`worker_auto_close: done`） |
-| **unit test 基線** | **4073 passed / 243 files / 1 skipped**（塔台複驗 T0548 @ `c389888b`）；typecheck 0 / typecheck:electron 0 |
+| **unit test 基線** | **4372 passed / 253 files / 3 skipped**（塔台複驗 T0556 @ `fec2a112`）；typecheck 0 / typecheck:electron 0；pre.5 回歸 e2e 6 passed / 8 skipped（WSL opt-in） |
 
 ---
 
@@ -208,7 +203,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ✅ `0.6.1-pre.3` | FileVersion 確認（2026-10-15 19:54） |
+| BAT 安裝版 | ✅ `0.6.1-pre.4` | 2026-10-16 02:12 重啟後確認（FileVersion）；`v0.6.1-pre.5` 已發佈、本機尚未安裝 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
@@ -217,11 +212,11 @@
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
 | git 同步 | ✅ | `main` = `origin/main` @ `2b983a79`（fetch 後）；無其他 worktree / stash；`src/styles/settings.css` 顯示 M 但 `git diff` 無內容（stat-only，未處理） |
 | 最新 CI / release | ✅ | Pre-Release run `38715587426` success → `v0.6.1-pre.3` + `server-bundle-v0.6.1-pre.3`；開放 PR 0 |
-| WSL | Ubuntu-24.04 | `~/.local/bat-server` = `0.5.9-pre.4`（舊，systemd user service active）；`docker.io` 29.1.3 |
+| WSL | Ubuntu-24.04 | `~/.local/bat-server` = `0.6.1-pre.4`（T0550 / T0552 / T0554，port 9877，systemd user service active）；nvm 0.40.8 + Node 24.22.0（T0555 / T0556）；`docker.io` 29.1.3 |
 | Control Tower skills | ✅ v5.1.0 | control-tower / ct-exec / ct-done / ct-status / ct-evolve / ct-insights / ct-fieldguide / ct-help 全為 5.1.0 |
 | 熱區單據 | **T:187 檔 / BUG:62 / PLAN:14 / EXP:0** | `archive_days: 2` 下大量到齡候選（歸檔前先 grep 程式碼引用，L133） |
-| 最大編號 | **T0541 / BUG-137 / PLAN-042 / D144 / L150 / CT-T012** | 下張：T0542 / BUG-138 / PLAN-043 / D145 / L151 / CT-T013 |
-| 非終態工單 | T0153 PARTIAL、T0510 PARTIAL、T0360 FIXED | 皆為舊單；`T0292/T0293/T0298/T0302-*-report.md` 無 frontmatter（L132） |
+| 最大編號 | **T0556 / BUG-141 / PLAN-043 / D146 / L151 / CT-T012** | 下張：T0557 / BUG-142 / PLAN-044 / D147 / L152 / CT-T013（第六十六 session 收工時） |
+| 非終態工單 | T0360 FIXED（舊單） | 第六十六 session 已補正 T0510 / T0153 / CT-T001 / 011 / 012；報告檔 T0292 / 293 / 298 / 302 已歸檔 |
 | unit test | ✅ **3939 passed / 1 skipped / 237 files** | 塔台 rescan 複驗 @ `2b983a79`（31 s） |
 | typecheck | ✅ src 0 / electron 0 | 塔台 rescan 複驗 @ `2b983a79` |
 | e2e | 未重跑 | 最近：T0535-T0541 各自 e2e（需先 `npx vite build`） |
@@ -258,6 +253,7 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-16 第六十六 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0549-T0556 全 DONE / FIXED，皆一次啟動；`worker_auto_close` 回收 7 次（1 次被焦點切換取消 → BUG-140，重請求後關閉；PARTIAL 不回收 1 次）；pre.5 發佈
 - 2026-10-15 第六十五 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0542-T0548（6 DONE、T0543 ABANDONED），皆一次啟動；首次啟用 `worker_auto_close: done`（pre.3 上收單即回收皆 exit 6 → D145）；pre.4 發佈
 - 2026-10-15 第六十三 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0531 / T0532 全 DONE，皆一次啟動；pre.11 / 0.6.1-pre.1 發佈
 - 2026-10-14 第六十二 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0526-T0530 全 DONE；pre.9 / pre.10 發佈（第六十三 session 補記）
