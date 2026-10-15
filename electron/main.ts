@@ -2978,6 +2978,42 @@ function registerLocalHandlers() {
     },
   )
 
+  // D146 / T0547 — setup wizard "Import local tarball…" (offline / intranet: no
+  // baseline in the installer any more). The tarball, and its .sha256 when it is not
+  // next to it, come from file dialogs; server-bundle-import.ts whitelists the name
+  // and verifies + copies with Node fs into the same cache a download fills.
+  ipcMain.handle('server-bundle:import-local', async (evt, opts: unknown) => {
+    const { importLocalServerBundle } = await import('./remote/server-bundle-import')
+    const parentWin = BrowserWindow.fromWebContents(evt.sender)
+    const pick = async (options: Electron.OpenDialogOptions): Promise<string | null> => {
+      const result = parentWin
+        ? await dialog.showOpenDialog(parentWin, options)
+        : await dialog.showOpenDialog(options)
+      return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+    }
+    return importLocalServerBundle(opts, {
+      cacheDir: path.join(app.getPath('userData'), 'bat-server-bundles'),
+      pickTarball: title => pick({
+        title,
+        defaultPath: app.getPath('downloads'),
+        properties: ['openFile'],
+        filters: [
+          { name: 'BAT server bundle (*.tar.gz)', extensions: ['gz'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      }),
+      pickSidecar: (title, tarballFilename) => pick({
+        title,
+        defaultPath: `${tarballFilename}.sha256`,
+        properties: ['openFile'],
+        filters: [
+          { name: 'SHA-256 (*.sha256)', extensions: ['sha256'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      }),
+    })
+  })
+
   ipcMain.handle('remote:list-profiles', async (_event, host: string, port: number, token: string, fingerprint?: string) => {
     const tempClient = new RemoteClient(() => [])
     try {

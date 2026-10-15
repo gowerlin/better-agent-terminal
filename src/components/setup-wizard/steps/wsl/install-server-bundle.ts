@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { distributeFailureError, SERVER_BUNDLE_IMPORT_TARGET_KEY } from '../../server-bundle-import'
 
 const INSTALL_SUBDIR = '.local/bat-server'
 
@@ -127,8 +128,10 @@ export const installServerBundleStep: WizardStep = {
       // Distributor already classified the failure (arch-detection-failed,
       // no-source-available, download-failed, baseline-corrupted, aborted) —
       // surface it directly without local retry / fallback (T0320 owns that).
-      throw new Error(`[${result.errorCode}] ${result.error}`)
+      // T0547: download failures offer "Import local tarball…" (server-bundle-import.ts).
+      throw distributeFailureError(ctx, result)
     }
+    delete ctx.state[SERVER_BUNDLE_IMPORT_TARGET_KEY]
 
     const tarballPath = result.tarballPath
     ctx.logger.info(`${describeSource(result.source)}: ${tarballPath}`)

@@ -21,6 +21,7 @@ import {
   type WizardMappedError,
   type WizardRecoveryAction,
 } from './error-mapper'
+import { importServerBundleForRetry } from './server-bundle-import'
 import { Stepper } from '../stepper/Stepper'
 import { RemoteToolsEntry } from '../profiles/RemoteToolsEntry'
 import type { StepDescriptor, StepStatus } from '../stepper/types'
@@ -226,9 +227,17 @@ function defaultActionLabel(
       return t('wizard.action.cancel')
     case 'edit-config':
       return t('wizard.action.editConfig')
+    case 'import-server-bundle':
+      return t('wizard.action.importServerBundle')
     default:
       return action.kind
   }
+}
+
+/** T0547: result line of a recovery action that runs outside the runner (bundle import). */
+interface ActionNotice {
+  tone: 'info' | 'success' | 'error'
+  text: string
 }
 
 interface StepDetailPanelProps {
@@ -241,6 +250,7 @@ interface StepDetailPanelProps {
   onBackToCurrent: () => void
   ctx: WizardContext
   mappedError: WizardMappedError | null
+  actionNotice: ActionNotice | null
 }
 
 function StepDetailPanel({
@@ -253,6 +263,7 @@ function StepDetailPanel({
   onBackToCurrent,
   ctx,
   mappedError,
+  actionNotice,
 }: StepDetailPanelProps) {
   const { t } = useTranslation()
   const display = readOnly ?? active
@@ -315,6 +326,21 @@ function StepDetailPanel({
               </pre>
             )}
           </div>
+        )}
+        {!isReadOnly && actionNotice && (
+          <p
+            className={`bat-wizard-action-notice mt-2 text-sm ${
+              actionNotice.tone === 'error'
+                ? 'text-rose-300'
+                : actionNotice.tone === 'success'
+                ? 'text-emerald-300'
+                : 'text-sky-300'
+            }`}
+            role={actionNotice.tone === 'error' ? 'alert' : 'status'}
+            data-tone={actionNotice.tone}
+          >
+            {actionNotice.text}
+          </p>
         )}
         {!showMappedError && display.status === WizardStepStatus.Failed && display.error && (
           <p className="mt-2 text-sm text-rose-300" role="alert">
@@ -473,6 +499,8 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
   const [complete, setComplete] = useState(false)
   const [createdProfileId, setCreatedProfileId] = useState<string | null>(null)
   const [readOnlyStepId, setReadOnlyStepId] = useState<string | null>(null)
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null)
+  const importBusyRef = useRef(false)
   const choiceResolverRef = useRef<((value: string | null) => void) | null>(null)
   const textResolverRef = useRef<((value: string | null) => void) | null>(null)
   const runnerRef = useRef<WizardRunner | null>(null)
@@ -539,6 +567,12 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
     return stepStates[stepStates.length - 1] ?? null
   }, [stepStates])
 
+  // T0547: an action notice belongs to the step it was run on.
+  const activeStepId = activeStep?.id
+  useEffect(() => {
+    setActionNotice(null)
+  }, [activeStepId])
+
   const readOnlyStep = useMemo(() => {
     if (!readOnlyStepId) return null
     return stepStates.find((s) => s.id === readOnlyStepId) ?? null
@@ -589,6 +623,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
     failedIndex: number,
   ): Promise<void> => {
     const runner = runnerRef.current
+    setActionNotice(null)
     switch (action.kind) {
       case 'retry':
       case 'fixed-and-retry':
@@ -628,6 +663,25 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
           console.warn('[SetupWizardShell] custom action failed:', err)
         }
         return
+      // T0547 (D146): offline / intranet — import a local tarball, then retry the
+      // step (the distributor finds it in the cache, verified by its sidecar).
+      case 'import-server-bundle': {
+        if (importBusyRef.current) return
+        importBusyRef.current = true
+        setActionNotice({ tone: 'info', text: t('wizard.shared.bundleImport.importing') })
+        try {
+          const outcome = await importServerBundleForRetry(ctx.state, t)
+          if (outcome.status === 'cancelled') {
+            setActionNotice(null)
+            return
+          }
+          setActionNotice({ tone: outcome.status === 'imported' ? 'success' : 'error', text: outcome.message })
+          if (outcome.status === 'imported') await runner?.retryCurrentStep()
+        } finally {
+          importBusyRef.current = false
+        }
+        return
+      }
     }
   }
 
@@ -702,7 +756,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
                         ? 'border-rose-700 text-rose-100 hover:bg-rose-950'
                         : action.kind === 'edit-config'
                         ? 'border-amber-700 text-amber-100 hover:bg-amber-950'
-                        : action.kind === 'open-link'
+                        : action.kind === 'open-link' || action.kind === 'import-server-bundle'
                         ? 'border-sky-700 text-sky-100 hover:bg-sky-950'
                         : 'border-neutral-700 text-neutral-100 hover:bg-neutral-800'
                     return (
@@ -734,6 +788,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
             onBackToCurrent={handleBackToCurrent}
             ctx={ctx}
             mappedError={activeMappedError}
+            actionNotice={actionNotice}
           />
         </div>
       </div>

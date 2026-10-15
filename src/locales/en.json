@@ -777,7 +777,8 @@
       "skipStepManualStart": "Skip this step (start manually)",
       "wslInstallGuide": "WSL2 install guide",
       "wslInstalledRetry": "I've installed WSL2, retry",
-      "editSshSettings": "Edit SSH settings"
+      "editSshSettings": "Edit SSH settings",
+      "importServerBundle": "Import local tarball…"
     },
     "shared": {
       "step": {
@@ -819,8 +820,30 @@
           "title": "Invalid server port",
           "body": "The server port must be a whole number between 1 and 65535. Go back, fix the port, and run the wizard again."
         },
+        "serverBundleUnavailable": {
+          "title": "Could not download the BAT server bundle",
+          "body": "The installer no longer includes the server bundle: BAT downloads it from the server-bundle-v<version> GitHub release the first time a remote is set up. If this computer cannot reach GitHub, choose \"Import local tarball…\" and pick bat-server-<target>-v<version>.tar.gz together with its .sha256 file (both are assets of that release, copied over by any means), or set the BAT_SERVER_BUNDLE_BASE_URL environment variable to a mirror and restart BAT. The exact target and version are in the details below."
+        },
         "stepFailed": {
           "title": "Step failed"
+        }
+      },
+      "bundleImport": {
+        "dialogTitle": "Select {{file}}",
+        "sidecarDialogTitle": "Select {{file}}.sha256 (SHA-256 checksum)",
+        "importing": "Importing and verifying the server bundle…",
+        "imported": "Imported {{file}} into the server bundle cache. Retrying the step…",
+        "noTarget": "The target and version this setup needs are not known yet. Retry the step first; if it fails again, import from there.",
+        "error": {
+          "invalidArguments": "The import request was invalid ({{error}}).",
+          "invalidFilename": "{{file}} is not a BAT server bundle. Pick {{expected}}.",
+          "archMismatch": "{{file}} is for {{actual}}, but this remote needs {{expected}}.",
+          "versionMismatch": "{{file}} is version {{actual}}, but this BAT needs {{expected}}.",
+          "sidecarMissing": "{{file}} was not found next to the tarball and none was selected. Get it from the same release.",
+          "sidecarInvalid": "The SHA-256 file {{file}} does not belong to this tarball or is not a SHA-256 line.",
+          "shaMismatch": "{{file}} does not match its SHA-256 file. The copy may be incomplete or altered; nothing was imported.",
+          "readFailed": "Could not read {{file}}.",
+          "cacheWriteFailed": "Could not write the server bundle cache ({{error}})."
         }
       }
     },

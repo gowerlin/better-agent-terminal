@@ -3,6 +3,7 @@
 // under app.asar.unpacked, the embedded claude (mac + Linux).
 // T0546 — Windows (PE claude.exe), and the installer slimming checks on every platform
 // (C1 duplicate claude, C2a SDK binary, C3 baseline, C4 runtime packages, C5 whisper dirs).
+// T0547 (D146) — no resources/bat-server-baseline at all on any platform.
 //
 // Fake electron-builder output trees (release/mac-arm64/*.app, release/linux-unpacked,
 // release/win-unpacked) are built in a temp dir with hand-written Mach-O / ELF / PE headers
@@ -193,8 +194,6 @@ function makeApp(outDir, arch, { omit = [] } = {}) {
   writeFile(unpacked(appPath, 'node_modules', '@lydell', `node-pty-darwin-${arch}`, 'pty.node'), thinMachO(arch))
   writeFile(whisperPath(appPath, 'js', 'index.js'), '')
   writeRuntimePackages(resources, 'darwin', arch)
-  writeFile(path.join(resources, 'bat-server-baseline', 'bat-server-linux-x64-v1.0.0.tar.gz'), '')
-  writeFile(path.join(resources, 'bat-server-baseline', 'bat-server-darwin-arm64-v1.0.0.tar.gz'), '')
   writeAsar(resources, HEALTHY_PACKED)
   return appPath
 }
@@ -284,7 +283,7 @@ describe('verifyPackagedMac', () => {
     expect(checked.found).toBe(whisperPath(app, 'mac-arm64'))
     expect(checked.embeddedClaude.found).toBe(claudePath(app, 'arm64'))
     expect(checked.machOCount).toBe(3)
-    expect(checked.layout.baselines).toEqual(['darwin-arm64', 'linux-x64'])
+    expect(checked.layout.baselines).toEqual([])
     expect(checked.layout.runtime.packages).toEqual(['@anthropic-ai/claude-code', '@kutalia/whisper-node-addon', '@lydell/node-pty', '@openai/codex-darwin-arm64', 'ws'])
     expect(runCli(['--out', out]).code).toBe(0)
   })
@@ -441,19 +440,28 @@ describe('verifyPackagedLinux', () => {
     const resources = path.join(outDir, linuxAppOutDirName(arch), 'resources')
     writeRuntimePackages(resources, 'linux', arch)
     if (claude) writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', `claude-code-linux-${arch}`, 'claude'), claude)
-    writeFile(path.join(resources, 'bat-server-baseline', `bat-server-linux-${arch}-v1.0.0.tar.gz`), '')
     writeAsar(resources, HEALTHY_PACKED)
     return resources
   }
 
-  it('a linux-arm64 baseline in the x64 AppImage → fail (D092 / T0546 C3)', () => {
+  it('any server bundle baseline in the AppImage → fail (D146 / T0547)', () => {
     const out = makeOutDir()
     const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64))
-    writeFile(path.join(resources, 'bat-server-baseline', 'bat-server-linux-arm64-v1.0.0.tar.gz'), '')
+    writeFile(path.join(resources, 'bat-server-baseline', 'bat-server-linux-x64-v1.0.0.tar.gz'), '')
 
     const result = verifyPackagedLinux(out)
-    expect(result.archs[0].problems.map((p) => p.id)).toEqual(['baseline'])
-    expect(result.archs[0].problems[0].details[0]).toContain('bat-server-linux-arm64-v1.0.0.tar.gz')
+    expect(result.archs[0].problems.map((p) => p.id)).toEqual(['server-bundle-baseline'])
+    expect(result.archs[0].problems[0].details[0]).toContain('bat-server-linux-x64-v1.0.0.tar.gz')
+  })
+
+  it('an empty bat-server-baseline directory → fail (D146 / T0547)', () => {
+    const out = makeOutDir()
+    const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64))
+    mkdirSync(path.join(resources, 'bat-server-baseline'))
+
+    const result = verifyPackagedLinux(out)
+    expect(result.archs[0].problems.map((p) => p.id)).toEqual(['server-bundle-baseline'])
+    expect(result.archs[0].problems[0].details[0]).toContain('empty directory')
   })
 
   it('claude-code-linux-x64/claude is an x86-64 ELF → ok (exit 0)', () => {
@@ -550,7 +558,6 @@ describe('verifyPackagedWin (T0546)', () => {
     if (claude) writeFile(path.join(anthropic, 'claude-code', 'bin', 'claude.exe'), claude)
     writeFile(path.join(anthropic, 'claude-code-win32-x64', 'package.json'), '{}')
     writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@kutalia', 'whisper-node-addon', 'dist', 'win32-x64', 'whisper.node'), pe(PE_MACHINES.x64))
-    writeFile(path.join(resources, 'bat-server-baseline', 'bat-server-linux-x64-v1.0.0.tar.gz'), '')
     extra(resources)
     writeAsar(resources, packed)
     return resources
@@ -564,7 +571,7 @@ describe('verifyPackagedWin (T0546)', () => {
     const result = verifyPackagedWin(out)
     expect(result.ok).toBe(true)
     expect(result.archs[0].peMachine).toBe(PE_MACHINES.x64)
-    expect(result.archs[0].layout.baselines).toEqual(['linux-x64'])
+    expect(result.archs[0].layout.baselines).toEqual([])
     expect(winAppOutDirName('arm64')).toBe('win-arm64-unpacked')
     const cli = runCli(['--platform', 'win', '--out', out])
     expect(cli.code).toBe(0)

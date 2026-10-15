@@ -641,6 +641,9 @@ interface ElectronAPI {
               | 'download-failed'
               | 'baseline-corrupted'
               | 'aborted'
+            // T0547: the target / version that was needed (for importLocal)
+            arch?: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+            version?: string
           }
       >
       onDistributeProgress: (
@@ -651,6 +654,38 @@ interface ElectronAPI {
           percent: number
         }) => void,
       ) => () => void
+      // D146 / T0547 — "Import local tarball…": file dialog(s) → verify → cache.
+      importLocal: (opts: {
+        arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+        version: string
+        dialogTitle?: string
+        sidecarDialogTitle?: string
+      }) => Promise<
+        | {
+            ok: true
+            tarballPath: string
+            sha256: string
+            sizeBytes: number
+            arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+            version: string
+          }
+        | {
+            ok: false
+            error: string
+            errorCode:
+              | 'invalid-arguments'
+              | 'cancelled'
+              | 'invalid-filename'
+              | 'arch-mismatch'
+              | 'version-mismatch'
+              | 'sidecar-missing'
+              | 'sidecar-invalid'
+              | 'sha-mismatch'
+              | 'read-failed'
+              | 'cache-write-failed'
+            details?: { expected?: string; actual?: string; file?: string }
+          }
+      >
     }
   }
   snippet: {

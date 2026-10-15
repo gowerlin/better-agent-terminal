@@ -777,7 +777,8 @@
       "skipStepManualStart": "略過此步驟（手動啟動）",
       "wslInstallGuide": "安裝 WSL2 指南",
       "wslInstalledRetry": "我已安裝 WSL2，重試",
-      "editSshSettings": "修改 SSH 設定"
+      "editSshSettings": "修改 SSH 設定",
+      "importServerBundle": "匯入本機 tarball…"
     },
     "shared": {
       "step": {
@@ -819,8 +820,30 @@
           "title": "伺服器埠無效",
           "body": "伺服器埠必須是 1 到 65535 之間的整數。請回到前面修正埠號後重新執行精靈。"
         },
+        "serverBundleUnavailable": {
+          "title": "無法下載 BAT 伺服器套件",
+          "body": "安裝檔已不再內建伺服器套件：第一次設定遠端時，BAT 會從 GitHub 的 server-bundle-v<版號> release 下載。若這台電腦連不到 GitHub，請選「匯入本機 tarball…」，選取 bat-server-<target>-v<版號>.tar.gz 與同名的 .sha256 檔（兩者都是該 release 的檔案，可用任何方式複製過來）；或把環境變數 BAT_SERVER_BUNDLE_BASE_URL 設為內部鏡像後重新啟動 BAT。需要的 target 與版號見下方詳細資訊。"
+        },
         "stepFailed": {
           "title": "步驟發生錯誤"
+        }
+      },
+      "bundleImport": {
+        "dialogTitle": "選取 {{file}}",
+        "sidecarDialogTitle": "選取 {{file}}.sha256（SHA-256 檢查碼）",
+        "importing": "正在匯入並驗證伺服器套件…",
+        "imported": "已將 {{file}} 匯入伺服器套件快取，正在重試此步驟…",
+        "noTarget": "尚不知道這次設定需要的 target 與版號。請先重試此步驟；若仍失敗，再從失敗畫面匯入。",
+        "error": {
+          "invalidArguments": "匯入要求無效（{{error}}）。",
+          "invalidFilename": "{{file}} 不是 BAT 伺服器套件，請選取 {{expected}}。",
+          "archMismatch": "{{file}} 是 {{actual}} 用的，這個遠端需要 {{expected}}。",
+          "versionMismatch": "{{file}} 的版號是 {{actual}}，這個 BAT 需要 {{expected}}。",
+          "sidecarMissing": "tarball 旁邊找不到 {{file}}，也沒有另外選取。請從同一個 release 取得。",
+          "sidecarInvalid": "SHA-256 檔 {{file}} 不屬於這個 tarball，或不是有效的 SHA-256 內容。",
+          "shaMismatch": "{{file}} 與它的 SHA-256 檔不符，檔案可能不完整或遭修改；未匯入任何檔案。",
+          "readFailed": "無法讀取 {{file}}。",
+          "cacheWriteFailed": "無法寫入伺服器套件快取（{{error}}）。"
         }
       }
     },

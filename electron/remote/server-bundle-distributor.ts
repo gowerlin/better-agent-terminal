@@ -10,6 +10,15 @@
 //
 // Lookup priority (spec §3.5): cache → baseline → download.
 // Result-based API (no throw); all errors → { ok: false, errorCode, error }.
+//
+// D146 / T0547: installers no longer ship a baseline, so the usual path is
+// cache → download. A cached tarball is verified against its own `.sha256`
+// sidecar (server-bundle-cache.ts), written when it entered the cache (download,
+// import, baseline copy), so an offline run can use it. A cache entry from before
+// T0547 has no sidecar: it is verified against a baseline manifest when one
+// exists, otherwise the download path re-verifies it against the release manifest.
+// The baseline layer stays for installers built before T0547 and private forks
+// that still ship one; its corrupted case is still fail-closed.
 
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
@@ -31,6 +40,7 @@ import {
 } from '../../src/lib/server-bundle-manifest'
 import { type ServerBundleArch } from '../../src/lib/arch-normalize'
 import { stripSnapshotSuffix } from '../../src/lib/snapshot-version'
+import { lookupCachedTarball, writeSha256Sidecar } from './server-bundle-cache'
 import {
   classifyDistributeError,
   expectedTarballFilename,
@@ -83,7 +93,21 @@ export type DistributeResult =
       source: DistributeSource
       arch: ServerBundleArch
     }
-  | { ok: false; error: string; errorCode: DistributeErrorCode }
+  | {
+      ok: false
+      error: string
+      errorCode: DistributeErrorCode
+      /** T0547: the target that was needed, once known (setup wizard "Import local tarball…"). */
+      arch?: ServerBundleArch
+      /** T0547: server bundle version that was needed (snapshot suffix stripped). */
+      version?: string
+    }
+
+/** T0547: appended to download failures so the user knows the two ways out. */
+export function downloadFailureHint(arch: ServerBundleArch, version: string): string {
+  const filename = expectedTarballFilename(arch, version)
+  return `Import a local tarball instead (${filename} with ${filename}.sha256, from the server-bundle-v${version} release), or point BAT_SERVER_BUNDLE_BASE_URL at a mirror.`
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Internal helpers
@@ -198,11 +222,11 @@ async function resolveBaselineEntry(
 }
 
 /**
- * Layer 1 — try cache. Return verified entry if SHA matches the **baseline**
- * manifest (single source of SHA truth without going to network). If baseline
- * manifest is unavailable, skip the cache layer entirely (we cannot verify).
+ * Layer 1b — a cache entry without a sidecar (cached before T0547): verify it
+ * against the **baseline** manifest when there is one, and give it a sidecar so
+ * the next lookup no longer needs the baseline.
  */
-async function resolveCacheEntry(
+async function resolveLegacyCacheEntry(
   cacheDir: string,
   baselineLookup: BaselineLookup,
   signal: AbortSignal | undefined,
@@ -211,18 +235,21 @@ async function resolveCacheEntry(
   const cachePath = path.join(cacheDir, baselineLookup.entry.filename)
   if (!(await fileExists(cachePath))) return { ok: false }
   const verify = await verifyTarballSha(cachePath, baselineLookup.entry, signal)
-  if (verify.ok) return { ok: true, tarballPath: cachePath, entry: baselineLookup.entry }
-  return { ok: false }
+  if (!verify.ok) return { ok: false }
+  await writeSha256Sidecar(cachePath, baselineLookup.entry.sha256)
+  return { ok: true, tarballPath: cachePath, entry: baselineLookup.entry }
 }
 
 async function copyBaselineToCache(
   baselineTarballPath: string,
   cacheDir: string,
   filename: string,
+  sha256: string,
 ): Promise<void> {
   const cachePath = path.join(cacheDir, filename)
   try {
     await fs.copyFile(baselineTarballPath, cachePath)
+    await writeSha256Sidecar(cachePath, sha256)
     logger.log(`[server-bundle-distributor] copied baseline → cache at ${cachePath}`)
   } catch (err) {
     // Non-fatal: caller still gets baseline result; cache will retry next time.
@@ -278,6 +305,7 @@ export async function distributeServerBundle(
       ok: false,
       errorCode: 'arch-detection-failed',
       error: `Arch detection failed: ${archResult.error}`,
+      version,
     }
   }
   const arch = archResult.arch
@@ -286,15 +314,35 @@ export async function distributeServerBundle(
     `[server-bundle-distributor] start: profile=${profile.id} arch=${arch} version=${version} target=${expectedFilename}`,
   )
 
-  // ── Phase 2: Baseline manifest lookup (needed for cache SHA verify) ────
+  // ── Layer 1a: Cache hit verified against its own sidecar (T0547, offline) ──
+  const cached = await lookupCachedTarball(cacheDir, expectedFilename, signal)
+  if (cached.state === 'aborted' || signal?.aborted) {
+    return { ok: false, errorCode: 'aborted', error: 'Aborted during cache check.', arch, version }
+  }
+  if (cached.state === 'hit') {
+    logger.log(`[server-bundle-distributor] cache hit at ${cached.tarballPath} (sidecar verified)`)
+    return {
+      ok: true,
+      tarballPath: cached.tarballPath,
+      sha256: cached.sha256,
+      sizeBytes: cached.sizeBytes,
+      source: 'cache',
+      arch,
+    }
+  }
+  if (cached.state === 'unverifiable') {
+    logger.log(`[server-bundle-distributor] cached ${cached.tarballPath} not verifiable on its own (${cached.reason})`)
+  }
+
+  // ── Phase 2: Baseline manifest lookup (installers before T0547 / forks) ─
   const baselineLookup = await resolveBaselineEntry(baselineDir, arch, signal)
 
   if (signal?.aborted) {
-    return { ok: false, errorCode: 'aborted', error: 'Aborted during baseline check.' }
+    return { ok: false, errorCode: 'aborted', error: 'Aborted during baseline check.', arch, version }
   }
 
-  // ── Layer 1: Cache hit (verified against baseline manifest) ────────────
-  const cacheHit = await resolveCacheEntry(cacheDir, baselineLookup, signal)
+  // ── Layer 1b: Pre-T0547 cache entry verified against baseline manifest ─
+  const cacheHit = await resolveLegacyCacheEntry(cacheDir, baselineLookup, signal)
   if (cacheHit.ok) {
     logger.log(`[server-bundle-distributor] cache hit at ${cacheHit.tarballPath}`)
     return {
@@ -308,12 +356,12 @@ export async function distributeServerBundle(
   }
 
   if (signal?.aborted) {
-    return { ok: false, errorCode: 'aborted', error: 'Aborted during cache check.' }
+    return { ok: false, errorCode: 'aborted', error: 'Aborted during cache check.', arch, version }
   }
 
   // ── Layer 2: Baseline ──────────────────────────────────────────────────
   if (baselineLookup.state === 'ok' && baselineLookup.entry && baselineLookup.tarballPath) {
-    await copyBaselineToCache(baselineLookup.tarballPath, cacheDir, expectedFilename)
+    await copyBaselineToCache(baselineLookup.tarballPath, cacheDir, expectedFilename, baselineLookup.entry.sha256)
     logger.log(
       `[server-bundle-distributor] baseline hit at ${baselineLookup.tarballPath} (no network)`,
     )
@@ -335,7 +383,7 @@ export async function distributeServerBundle(
         : `at ${baselineLookup.tarballPath ?? baselineDir}`
     const cls = classifyDistributeError('baseline', detail)
     logger.error(`[server-bundle-distributor] ${cls.error}`)
-    return { ok: false, errorCode: cls.errorCode, error: cls.error }
+    return { ok: false, errorCode: cls.errorCode, error: cls.error, arch, version }
   }
 
   // baselineLookup.state in { 'missing-manifest', 'missing-tarball' } → fall through to download.
@@ -347,12 +395,14 @@ export async function distributeServerBundle(
       ok: false,
       errorCode: 'no-source-available',
       error: `Baseline state ${baselineLookup.state} blocks download fallback.`,
+      arch,
+      version,
     }
   }
 
-  // ── Layer 3: Download fallback (T0318) ─────────────────────────────────
+  // ── Layer 3: Download (T0318; the normal first-run path since D146) ────
   logger.log(
-    `[server-bundle-distributor] baseline ${baselineLookup.state} → falling back to download for ${arch} v${version}`,
+    `[server-bundle-distributor] no verified cache, baseline ${baselineLookup.state} → downloading ${arch} v${version}`,
   )
   const downloadResult = await downloadServerBundle({
     arch,
@@ -377,11 +427,17 @@ export async function distributeServerBundle(
 
   // Map T0318 errorCode → distributor errorCode.
   if (downloadResult.errorCode === 'aborted') {
-    return { ok: false, errorCode: 'aborted', error: downloadResult.error }
+    return { ok: false, errorCode: 'aborted', error: downloadResult.error, arch, version }
   }
   const cls = classifyDistributeError(
     'download',
     `${downloadResult.errorCode}: ${downloadResult.error}`,
   )
-  return { ok: false, errorCode: cls.errorCode, error: cls.error }
+  return {
+    ok: false,
+    errorCode: cls.errorCode,
+    error: `${cls.error} ${downloadFailureHint(arch, version)}`,
+    arch,
+    version,
+  }
 }

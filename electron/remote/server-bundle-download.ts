@@ -10,6 +10,8 @@
 //   7. exponential backoff 500/1500/3000ms; 4xx/abort/rate-limit no retry
 //   8. GitHub rate limit detection (HTTP 403 + X-RateLimit-Remaining: 0)
 //   9. fallback URL via options.baseURL or BAT_SERVER_BUNDLE_BASE_URL env
+//  10. T0547: a verified tarball (download or cache hit) gets a `.sha256` sidecar
+//      so the distributor can verify the cache offline (server-bundle-cache.ts)
 //
 // Result-based API (no throw). All errors → { ok: false, errorCode, error }.
 // Spec source: T0314 §3.2/§3.3/§3.5/§8 + T0318 工單 §22-218.
@@ -35,6 +37,7 @@ import {
   shouldRetryError,
   shouldThrottleProgress,
 } from '../../src/lib/server-bundle-download-helpers'
+import { writeSha256Sidecar } from './server-bundle-cache'
 
 export type { ServerBundleArch } from '../../src/lib/arch-normalize'
 export {
@@ -389,6 +392,8 @@ export async function downloadServerBundle(
 
   if (await checkCache(cachePath, entry, signal)) {
     logger.log(`[server-bundle] cache hit for ${arch} v${manifest.version} at ${cachePath}`)
+    // T0547: entries cached before the sidecar existed get one now.
+    await writeSha256Sidecar(cachePath, entry.sha256)
     return {
       ok: true,
       tarballPath: cachePath,
@@ -490,6 +495,7 @@ export async function downloadServerBundle(
     }
   }
 
+  await writeSha256Sidecar(cachePath, entry.sha256)
   logger.log(
     `[server-bundle] downloaded ${entry.filename} (${entry.size} bytes) for ${arch} v${manifest.version}`,
   )

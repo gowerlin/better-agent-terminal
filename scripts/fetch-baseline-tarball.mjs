@@ -2,12 +2,16 @@
 /**
  * fetch-baseline-tarball.mjs — PLAN-031 Sprint 2 / T0316
  *
- * Build pre-step: download server bundle baseline tarballs from GitHub Release
- * into dist-baseline/ so electron-builder's `build.{win|mac|linux}.extraResources`
- * can pack them into the installer. First-run BAT extracts them under
- * userData/bat-server-bundles/ as the distributor (T0320) baseline lookup source.
+ * D146 / T0547: installers no longer ship a baseline, and no build script runs this any
+ * more (`prebuild` / `build:dir` / `build:release` dropped it). It stays as a manual /
+ * test tool: it downloads the `server-bundle-v<version>` tarballs of a host into
+ * dist-baseline/ (the e2e real-remote env scripts read them from there, and the files
+ * can be imported into a BAT through the setup wizard's "Import local tarball…").
  *
- * Baseline matrix (T0314 spec §3.1, C-narrow + Mac dual tarball):
+ * Until T0547 it was the build pre-step that filled dist-baseline/ for electron-builder's
+ * `build.{win|mac|linux}.extraResources`.
+ *
+ * Baseline matrix (T0314 spec §3.1, C-narrow + Mac dual tarball; D092, superseded by D146):
  *   win   × x64   → [linux-x64]
  *   mac   × arm64 → [linux-x64, darwin-arm64]
  *   linux × x64   → [linux-x64]

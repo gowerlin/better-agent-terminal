@@ -1,4 +1,5 @@
 import type { WizardStep } from '../../wizard-runner'
+import { distributeFailureError, SERVER_BUNDLE_IMPORT_TARGET_KEY } from '../../server-bundle-import'
 import { resolveSshInstallPath } from './remote-home'
 import { describeSshTarget } from './ssh-target'
 
@@ -119,8 +120,10 @@ export const installSshServerBundleStep: WizardStep = {
       // Distributor already classified the failure (arch-detection-failed,
       // no-source-available, download-failed, baseline-corrupted, aborted) —
       // surface it directly without local retry / fallback (T0320 owns that).
-      throw new Error(`[${distributeResult.errorCode}] ${distributeResult.error}`)
+      // T0547: download failures offer "Import local tarball…" (server-bundle-import.ts).
+      throw distributeFailureError(ctx, distributeResult)
     }
+    delete ctx.state[SERVER_BUNDLE_IMPORT_TARGET_KEY]
 
     const tarballPath = distributeResult.tarballPath
     state.bundleTarballPath = tarballPath

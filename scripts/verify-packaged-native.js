@@ -28,7 +28,8 @@
  *   - C1  Windows: no second claude (`claude-code-win32-<arch>/claude.exe`); the router only
  *         uses `claude-code/bin/claude.exe` there (BUG-052)
  *   - C2a no `@anthropic-ai/claude-agent-sdk*` (the SDK-bundled claude never runs)
- *   - C3  `resources/bat-server-baseline` only holds the D092 targets of this host
+ *   - no  `resources/bat-server-baseline` (D146 / T0547: the setup wizard downloads the
+ *         server bundle on demand; T0546 C3 only limited it to the D092 targets)
  *   - C4  every package the packaged `dist-electron` requires (string-literal require /
  *         require.resolve / `<createRequire>.resolve("<pkg>/package.json")`) plus the
  *         computed-path packages of dynamicRuntimePackages() is packaged, with the
@@ -102,17 +103,6 @@ function macWhisperAddonDirCandidates(arch) {
 function allowedWhisperDistDirs(platform, arch) {
   if (platform === 'darwin') return ['js', ...macWhisperAddonDirCandidates(arch)];
   return ['js', `${platform}-${arch}`];
-}
-
-/**
- * Server bundle baselines a host ships in `resources/bat-server-baseline` (D092 per-host
- * matrix; T0546 C3 dropped the stray linux-arm64 from the x64 AppImage). Must match the
- * package.json `build.<platform>.extraResources` filters.
- */
-function expectedBaselineTargets(platform, arch) {
-  if (platform === 'darwin') return ['linux-x64', 'darwin-arm64'];
-  if (platform === 'linux') return [`linux-${arch}`];
-  return ['linux-x64'];
 }
 
 /**
@@ -486,23 +476,20 @@ function verifyPackagedLayout(resourcesPath, platform, arch) {
     problems.push({ id: 'whisper-platforms', message: `whisper dist/ ships other platforms' builds (T0546 C5; allowed: ${allowed.join(', ')})`, details: strayDirs.map((d) => whisperPrefix + d) });
   }
 
-  // C3 / D092
+  // D146 / T0547: no server bundle baseline at all (was T0546 C3: D092 targets only)
   const baselineDir = path.join(resourcesPath, 'bat-server-baseline');
-  const expectedTargets = expectedBaselineTargets(platform, arch);
-  const baselines = [];
-  let baselineNames = [];
+  let baselines = null;
   try {
-    baselineNames = fs.readdirSync(baselineDir).sort();
+    baselines = fs.readdirSync(baselineDir).sort();
   } catch {
-    // no baseline directory: nothing to check here (verify-helper-bundle.js guards the build)
+    // absent: expected
   }
-  for (const name of baselineNames) {
-    const m = /^bat-server-(.+)-v.+\.tar\.gz$/.exec(name);
-    if (m) baselines.push({ name, target: m[1] });
-  }
-  const unexpected = baselines.filter((b) => !expectedTargets.includes(b.target));
-  if (unexpected.length > 0) {
-    problems.push({ id: 'baseline', message: `server bundle baseline for another host (D092 / T0546 C3; expected: ${expectedTargets.join(', ')})`, details: unexpected.map((b) => path.join(baselineDir, b.name)) });
+  if (baselines !== null) {
+    problems.push({
+      id: 'server-bundle-baseline',
+      message: 'installer ships resources/bat-server-baseline (D146 / T0547: the server bundle is downloaded on demand)',
+      details: baselines.length > 0 ? baselines.map((name) => path.join(baselineDir, name)) : [`${baselineDir} (empty directory)`],
+    });
   }
 
   // C4
@@ -512,7 +499,7 @@ function verifyPackagedLayout(resourcesPath, platform, arch) {
     problems.push(...runtime.problems);
   }
 
-  return { problems, runtime, baselines: baselines.map((b) => b.target) };
+  return { problems, runtime, baselines: baselines ?? [] };
 }
 
 function listApps(appOutDir) {
@@ -776,12 +763,12 @@ function printProblems(label, problems) {
 function describeLayout(layout) {
   if (!layout) return '';
   const runtime = layout.runtime ? `, ${layout.runtime.packages.length} runtime package(s) / ${layout.runtime.checked} with dependencies` : '';
-  return `, baseline [${layout.baselines.join(', ')}]${runtime}`;
+  return `, no server bundle baseline${runtime}`;
 }
 
 function printLayoutHints() {
   console.error('[verify-packaged-native] T0546 runtime-require: add the package (and its dependencies) to the node_modules whitelist in package.json build.files.');
-  console.error('[verify-packaged-native] T0546 sdk-binary / duplicate-claude / whisper-platforms / baseline: an exclusion in package.json build.files, build.<platform>.files or extraResources was lost.');
+  console.error('[verify-packaged-native] T0546 sdk-binary / duplicate-claude / whisper-platforms: an exclusion in package.json build.files was lost. T0547 server-bundle-baseline: remove the bat-server-baseline extraResources entry (D146).');
   console.error('');
 }
 
@@ -882,7 +869,6 @@ module.exports = {
   DIST_ELECTRON_ENTRIES,
   macWhisperAddonDirCandidates,
   allowedWhisperDistDirs,
-  expectedBaselineTargets,
   dynamicRuntimePackages,
   macAppOutDirName,
   linuxAppOutDirName,

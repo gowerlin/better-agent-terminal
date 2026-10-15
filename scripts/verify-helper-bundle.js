@@ -114,104 +114,57 @@ for (const entry of extraResources) {
   }
 }
 
-// ---------- T0316: server bundle baseline check ----------
+// ---------- D146 / T0547: no server bundle baseline in the installer ----------
 //
-// Per PLAN-031 spec §3.1, electron-builder build.{win,mac,linux}.extraResources
-// declares which baseline tarballs should be packed into the installer. The
-// fetch-baseline-tarball.mjs pre-step writes them to dist-baseline/. Here we
-// verify that for each platform-specific extraResources entry that targets
-// dist-baseline/, every declared baseline tarball glob has at least one
-// matching file on disk together with its .sha256 sidecar.
-//
-// Filename pattern: bat-server-<archTag>-v<version>.tar.gz
-//   archTag ∈ { linux-x64, linux-arm64, darwin-arm64 }
-//
-// Linux double-arch nuance: the linux block declares both linux-x64 + linux-arm64
-// globs (electron-builder JSON cannot branch on --arch). The fetch script only
-// drops the active arch into dist-baseline/, so we only require AT LEAST ONE
-// baseline tarball glob to be satisfied for a platform — not all of them.
+// T0316 (PLAN-031) packed a per-host baseline tarball into every installer through
+// build.<platform>.extraResources (from dist-baseline/ to bat-server-baseline/) and this
+// check required dist-baseline/ to hold it. D146 dropped the baseline: the setup wizard
+// downloads `server-bundle-v<version>` on demand, or imports a local tarball. A baseline
+// entry that comes back (top-level or per platform) would silently add 159-298 MiB per
+// installer, so the build stops instead.
 
-const SERVER_BUNDLE_GLOB_RE = /^bat-server-(linux-x64|linux-arm64|darwin-arm64)-v\*\.tar\.gz$/;
+const SERVER_BUNDLE_GLOB_RE = /^bat-server-[^/]*\.tar\.gz(?:\.sha256)?$/;
 
-function checkServerBundleBaseline() {
+function isBaselineEntry(entry) {
+  if (typeof entry === 'string') return /(^|\/)(dist-baseline|bat-server-baseline)(\/|$)/.test(entry);
+  if (!entry || typeof entry !== 'object') return false;
+  if (/(^|\/)(dist-baseline|bat-server-baseline)(\/|$)/.test(String(entry.from || ''))) return true;
+  if (/(^|\/)bat-server-baseline(\/|$)/.test(String(entry.to || ''))) return true;
+  const filters = Array.isArray(entry.filter) ? entry.filter : [];
+  return filters.some((g) => SERVER_BUNDLE_GLOB_RE.test(String(g)));
+}
+
+function checkNoServerBundleBaseline() {
   const buildSection = pkg.build || {};
-  const platforms = ['win', 'mac', 'linux'];
   const issues = [];
-
-  for (const platform of platforms) {
-    const platformBuild = buildSection[platform];
-    if (!platformBuild || !Array.isArray(platformBuild.extraResources)) continue;
-
-    for (const entry of platformBuild.extraResources) {
-      if (!entry || typeof entry !== 'object') continue;
-      const fromDir = entry.from;
-      const filterGlobs = Array.isArray(entry.filter) ? entry.filter : [];
-      if (!fromDir || filterGlobs.length === 0) continue;
-
-      const tarballGlobs = filterGlobs.filter((g) => SERVER_BUNDLE_GLOB_RE.test(g));
-      if (tarballGlobs.length === 0) continue;
-
-      const absFromDir = path.join(projectRoot, fromDir);
-      const dirExists = fs.existsSync(absFromDir) && fs.statSync(absFromDir).isDirectory();
-      const onDisk = dirExists ? fs.readdirSync(absFromDir) : [];
-
-      let satisfiedCount = 0;
-      const missingSidecars = [];
-
-      for (const tarGlob of tarballGlobs) {
-        const re = globToRegex(tarGlob);
-        const tarballMatches = onDisk.filter((n) => re.test(n));
-        if (tarballMatches.length === 0) continue;
-
-        // sidecar must accompany every tarball match
-        const sidecarMatches = onDisk.filter((n) => re.test(n.replace(/\.sha256$/, '')) && n.endsWith('.sha256'));
-        for (const tar of tarballMatches) {
-          if (!onDisk.includes(`${tar}.sha256`)) missingSidecars.push(`${tar}.sha256`);
-        }
-        if (tarballMatches.length > 0 && sidecarMatches.length === 0) {
-          // count as satisfied for tarball but record sidecar gap separately
-        }
-        satisfiedCount++;
-      }
-
-      if (satisfiedCount === 0) {
-        issues.push({
-          platform,
-          fromDir,
-          tarballGlobs,
-          dirExists,
-        });
-      }
-      if (missingSidecars.length > 0) {
-        issues.push({ platform, fromDir, missingSidecars });
+  const sections = [['build', buildSection]];
+  for (const platform of ['win', 'mac', 'linux']) {
+    if (buildSection[platform]) sections.push([`build.${platform}`, buildSection[platform]]);
+  }
+  for (const [name, section] of sections) {
+    for (const key of ['extraResources', 'extraFiles']) {
+      const entries = Array.isArray(section[key]) ? section[key] : [];
+      for (const entry of entries) {
+        if (isBaselineEntry(entry)) issues.push(`${name}.${key}: ${JSON.stringify(entry)}`);
       }
     }
   }
 
   if (issues.length > 0) {
     console.error('');
-    console.error('[verify-helper-bundle] PLAN-031 server bundle baseline check failed');
+    console.error('[verify-helper-bundle] D146 / T0547: installers must not ship a server bundle baseline');
     console.error('');
-    for (const issue of issues) {
-      if (issue.missingSidecars) {
-        console.error(`  - ${issue.fromDir}/ is missing .sha256 sidecar(s) for ${issue.platform}: ${issue.missingSidecars.join(', ')}`);
-      } else {
-        const dirNote = issue.dirExists ? `${issue.fromDir}/ exists but contains no matching tarball` : `${issue.fromDir}/ does not exist`;
-        console.error(`  - ${issue.platform}.extraResources expects ${issue.tarballGlobs.join(' / ')} but ${dirNote}`);
-      }
-    }
+    for (const issue of issues) console.error(`  - ${issue}`);
     console.error('');
-    console.error('[verify-helper-bundle] Fix: run the baseline pre-fetch before build, e.g.');
-    console.error('      node scripts/fetch-baseline-tarball.mjs --host-os <win|mac|linux> --host-arch <x64|arm64>');
-    console.error('  or  npm run fetch:baseline');
-    console.error('');
-    console.error('[verify-helper-bundle] Background: T0316 / PLAN-031 — baseline tarballs must be packed into the installer.');
+    console.error('[verify-helper-bundle] Fix: remove the entry. The setup wizard downloads server-bundle-v<version>');
+    console.error('      on demand (or imports a local tarball); see docs/server-bundle-distribution.md.');
     console.error('');
     process.exit(1);
   }
+  console.log('[verify-helper-bundle] OK: no server bundle baseline in the installer config (D146).');
 }
 
-checkServerBundleBaseline();
+checkNoServerBundleBaseline();
 
 // ---------- T0433: helpers shipped inside the server bundle ----------
 //

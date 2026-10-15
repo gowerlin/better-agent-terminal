@@ -784,6 +784,9 @@ const electronAPI = {
                 | 'download-failed'
                 | 'baseline-corrupted'
                 | 'aborted'
+              // T0547: the target / version that was needed (for importLocal)
+              arch?: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+              version?: string
             }
         >,
       onDistributeProgress: (
@@ -806,6 +809,40 @@ const electronAPI = {
         ipcRenderer.on('server-bundle:distribute-progress', handler)
         return () => ipcRenderer.removeListener('server-bundle:distribute-progress', handler)
       },
+      // D146 / T0547 — pick a local bat-server-<arch>-v<version>.tar.gz (+ .sha256),
+      // verify it and put it into the cache (setup wizard "Import local tarball…").
+      importLocal: (opts: {
+        arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+        version: string
+        dialogTitle?: string
+        sidecarDialogTitle?: string
+      }) =>
+        ipcRenderer.invoke('server-bundle:import-local', opts) as Promise<
+          | {
+              ok: true
+              tarballPath: string
+              sha256: string
+              sizeBytes: number
+              arch: 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+              version: string
+            }
+          | {
+              ok: false
+              error: string
+              errorCode:
+                | 'invalid-arguments'
+                | 'cancelled'
+                | 'invalid-filename'
+                | 'arch-mismatch'
+                | 'version-mismatch'
+                | 'sidecar-missing'
+                | 'sidecar-invalid'
+                | 'sha-mismatch'
+                | 'read-failed'
+                | 'cache-write-failed'
+              details?: { expected?: string; actual?: string; file?: string }
+            }
+        >,
     },
     restartServer: (newPort: number) =>
       ipcRenderer.invoke('remote:restart-server', newPort) as Promise<

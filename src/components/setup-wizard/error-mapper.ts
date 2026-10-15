@@ -46,6 +46,8 @@ export function targetOSToErrorPlatform(target: WizardTargetOS): WizardErrorPlat
  * The first 6 kinds (retry / fixed-and-retry / open-link / edit-config /
  * skip / cancel) are dispatched by SetupWizardShell against WizardRunner +
  * Electron shell APIs. `custom` is an extension point for future kinds.
+ * T0547 added an 8th, `import-server-bundle` (Shell: importServerBundleForRetry
+ * then retry).
  *
  * T0507: a label is either an i18n key (`labelKey`, translated by the Shell
  * so it follows the UI language) or a literal `label`. `labelKey` wins when
@@ -70,6 +72,8 @@ export type WizardRecoveryAction =
   | ({ kind: 'skip' } & WizardActionLabel)
   | ({ kind: 'cancel' } & WizardActionLabel)
   | ({ kind: 'custom'; run: () => Promise<void> | void } & WizardRequiredActionLabel)
+  // T0547 (D146): pick a local server bundle tarball, then retry the step.
+  | ({ kind: 'import-server-bundle' } & WizardActionLabel)
 
 /**
  * Backwards-compat alias kept so T0331/T0332 callsites compile without
@@ -418,6 +422,22 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     detailMode: 'hidden-by-default',
     actions: [
       { kind: 'fixed-and-retry' },
+      { kind: 'cancel' },
+    ],
+  },
+  // D146 / T0547: installers no longer ship the server bundle baseline, so the
+  // install step downloads it; when that fails (offline / intranet / rate limit)
+  // the user can import a local tarball (+ .sha256), then the retry hits the cache.
+  {
+    id: 'server-bundle-unavailable',
+    platforms: ['wsl', 'ssh'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['server-bundle-unavailable'],
+    messageKey: 'wizard.shared.error.serverBundleUnavailable',
+    detailMode: 'append-raw',
+    actions: [
+      { kind: 'import-server-bundle' },
+      { kind: 'retry' },
       { kind: 'cancel' },
     ],
   },

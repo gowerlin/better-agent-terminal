@@ -90,8 +90,8 @@ describe('server bundle helper copy (T0433)', () => {
 })
 
 describe('verify-helper-bundle.js server bundle check (T0433)', () => {
-  // The real build script, in a fixture whose package.json has no platform baseline
-  // entries (the T0316 dist-baseline check runs first and needs a fetched baseline).
+  // The real build script, in a fixture project (D146 / T0547: no baseline entries; the
+  // check that runs first now rejects them, see the describe block below).
   it('passes with the real build-server-bundle.mjs', () => {
     const r = fixture(readFileSync(buildScript, 'utf8'))
     expect(r.stderr).toBe('')
@@ -104,10 +104,10 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
     `const serverBundleHelperScripts = ${list}\nasync function main() {\n  await copyServerSources()\n}\nasync function copyServerSources() {\n${copies ? '  await copyHelperScripts()\n' : ''}}\n`
 
   /** Fixture project: package.json (extraResources scripts/*.mjs), the real helpers, a fake build script. */
-  function fixture(buildScriptSource, { drop = [] } = {}) {
+  function fixture(buildScriptSource, { drop = [], build = {} } = {}) {
     const root = makeTmp('verify')
     mkdirSync(join(root, 'scripts'))
-    writeFileSync(join(root, 'package.json'), JSON.stringify({ build: { extraResources: [{ from: 'scripts', to: 'scripts', filter: ['*.mjs'] }] } }))
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ build: { extraResources: [{ from: 'scripts', to: 'scripts', filter: ['*.mjs'] }], ...build } }))
     copyFileSync(verifyScript, join(root, 'scripts', 'verify-helper-bundle.js'))
     // _bat-server-helpers.mjs: imported by the real build script (extraResources import check)
     for (const name of ['bat-terminal.mjs', 'bat-notify.mjs', '_bat-cert.mjs', '_bat-logger.mjs', '_bat-server-helpers.mjs']) {
@@ -148,6 +148,62 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
     const noList = fixture('async function main() {}\n')
     expect(noList.status).toBe(1)
     expect(noList.stderr).toMatch(/`const serverBundleHelperScripts = \[\.\.\.\]` not found/)
+  })
+
+  // D146 / T0547: installers no longer ship the server bundle baseline.
+  describe('no server bundle baseline in the installer config (T0547)', () => {
+    const T0546_WIN_BASELINE = {
+      from: 'dist-baseline',
+      to: 'bat-server-baseline',
+      filter: ['bat-server-linux-x64-v*.tar.gz', 'bat-server-linux-x64-v*.tar.gz.sha256', 'manifest.json'],
+    }
+
+    it('the repo package.json declares no baseline anywhere', () => {
+      const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
+      for (const section of [pkg.build, pkg.build.win, pkg.build.mac, pkg.build.linux]) {
+        expect(JSON.stringify(section.extraResources ?? [])).not.toMatch(/baseline|bat-server-/)
+        expect(JSON.stringify(section.extraFiles ?? [])).not.toMatch(/baseline|bat-server-/)
+      }
+      expect(pkg.scripts.prebuild).toBeUndefined()
+      for (const name of ['build', 'build:dir', 'build:release']) expect(pkg.scripts[name]).not.toContain('fetch:baseline')
+      expect(pkg.scripts['fetch:baseline']).toBe('node scripts/fetch-baseline-tarball.mjs')
+      expect(pkg.build.compression).toBe('maximum')
+    })
+
+    it('build and build:dir clear dist-electron first with a Node one-liner (no shell rm)', () => {
+      const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
+      expect(pkg.scripts.build.startsWith('npm run clean:dist-electron && ')).toBe(true)
+      expect(pkg.scripts['build:dir'].startsWith('npm run clean:dist-electron && ')).toBe(true)
+      const script = pkg.scripts['clean:dist-electron']
+      expect(script).toMatch(/^node -e ".*rmSync\('dist-electron'.*"$/)
+      const code = script.slice('node -e "'.length, -1)
+      const root = makeTmp('clean')
+      mkdirSync(join(root, 'dist-electron', 'stale'), { recursive: true })
+      writeFileSync(join(root, 'dist-electron', 'stale', 'old-chunk.js'), '')
+      expect(runNode(['-e', code], { cwd: root }).status).toBe(0)
+      expect(existsSync(join(root, 'dist-electron'))).toBe(false)
+      expect(runNode(['-e', code], { cwd: root }).status).toBe(0) // already gone: still fine
+    })
+
+    for (const [label, build] of [
+      ['a per-platform entry (the T0546 shape)', { win: { extraResources: [T0546_WIN_BASELINE] } }],
+      ['a top-level entry', { extraResources: [{ from: 'scripts', to: 'scripts', filter: ['*.mjs'] }, T0546_WIN_BASELINE] }],
+      ['an entry that only names the target dir', { linux: { extraResources: [{ from: 'somewhere', to: 'bat-server-baseline' }] } }],
+      ['an entry that only filters bundle tarballs', { mac: { extraResources: [{ from: 'dist-server', to: 'x', filter: ['bat-server-darwin-arm64-v*.tar.gz'] }] } }],
+      ['an extraFiles string', { linux: { extraFiles: ['dist-baseline/'] } }],
+    ]) {
+      it(`fails on ${label}`, () => {
+        const r = fixture(buildSource(GOOD_LIST), { build })
+        expect(r.status).toBe(1)
+        expect(r.stderr).toMatch(/D146 \/ T0547: installers must not ship a server bundle baseline/)
+      })
+    }
+
+    it('passes without a dist-baseline directory (nothing to fetch any more)', () => {
+      const r = fixture(buildSource(GOOD_LIST))
+      expect(r.status).toBe(0)
+      expect(r.stdout).toMatch(/no server bundle baseline in the installer config \(D146\)/)
+    })
   })
 })
 

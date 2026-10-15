@@ -167,8 +167,10 @@ jobs:
             dist-server/bat-server-*.tar.gz.sha256
             dist-server/manifest.json
 
+  # D146 / T0547: installers no longer ship the server bundle baseline, so build does not
+  # wait for server-bundle-manifest; release does (it publishes server-bundle-v<version>).
   build:
-    needs: [prepare, server-bundle-manifest, typecheck]
+    needs: [prepare, typecheck]
     strategy:
       matrix:
         include:
@@ -206,16 +208,6 @@ jobs:
       - name: Verify required native modules present
         run: node scripts/verify-native-modules.js
 
-      - name: Download server bundle baselines into dist-baseline/
-        uses: actions/download-artifact@v8
-        with:
-          name: server-bundle-baseline
-          path: dist-baseline
-
-      - name: List dist-baseline (debug)
-        shell: bash
-        run: ls -la dist-baseline
-
       - name: Update version and build
         env:
           VERSION: v${{ needs.prepare.outputs.version }}
@@ -227,7 +219,8 @@ jobs:
 
       # T0546: the Windows package: embedded claude-code/bin/claude.exe is an x64 PE, plus the
       # installer slimming checks shared with mac / Linux (no second claude.exe, no
-      # claude-agent-sdk-*, whisper / baseline only for this host, every runtime require packaged).
+      # claude-agent-sdk-*, whisper only for this host, every runtime require packaged) and
+      # no resources/bat-server-baseline (D146 / T0547).
       - name: Verify packaged native binaries (Windows x64)
         if: matrix.platform == 'win'
         run: node scripts/verify-packaged-native.js --platform win --out release --arch x64
@@ -283,7 +276,7 @@ jobs:
           path: release/*.AppImage
 
   release:
-    needs: [prepare, build]
+    needs: [prepare, build, server-bundle-manifest]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -313,7 +306,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # D120 / T0365: publish this run's baseline (same artifact the installers embed) as
+      # D120 / T0365: publish this run's server bundles (installers do not embed them since
+      # D146 / T0547; the setup wizard downloads them on demand) as
       # `server-bundle-v<version>`, the URL the setup wizard runtime download fetches
       # (src/lib/server-bundle-download-helpers.ts buildBaseURL). Placed after the desktop
       # release step so a failed build never leaves an orphan server-bundle release.

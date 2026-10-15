@@ -12,27 +12,45 @@ Root cause：三平台 wizard 的 `install-bundle` step 留 placeholder throw；
 
 **PLAN-031** 補完此 gap：installer 內建 baseline tarball + GitHub Release runtime fallback download + cache-by-SHA + 三平台統一 arch detection contract。閉環 BUG-071。
 
-## Distribution 三層 lookup（runtime 行為）
+**D146 / T0547（0.6.1-pre.4 起）**：安裝檔**不再內建** baseline（每個安裝檔省 159–298 MiB）。第一次設定 WSL / SSH 遠端時從 GitHub Release 下載，下載後存進 cache 並附 `.sha256` sidecar，之後離線也能用；連不到 GitHub 的環境改用 wizard 的「匯入本機 tarball…」，或設 `BAT_SERVER_BUNDLE_BASE_URL`。D093 / D095 / D120 不變，D092 的「安裝檔內建 baseline」部分由 D146 取代。
+
+## Distribution lookup（runtime 行為）
 
 每次 wizard 執行 `install-bundle` step，按順序解析 tarball：
 
-1. **Cache** — `userData/bat-server-bundles/<sha256>.tar.gz`
-   - 命中即直接用，無 IO 成本
-   - cache key = manifest 上的 SHA256，避免版本污染
+1. **Cache（自帶 sidecar）** — `userData/bat-server-bundles/bat-server-<target>-v<ver>.tar.gz` + `….tar.gz.sha256`
+   - 以 cache 自己的 sidecar（sha256sum 格式 `<hex>  <filename>`）驗證，**不需要網路、也不需要 baseline**（T0547）
+   - sidecar 在 tarball 進 cache 時寫入，來源一定已驗證過：下載（release manifest）、匯入（使用者提供的 `.sha256`）、baseline 複製（baseline manifest）
+   - 與 sidecar 不符 → tarball 與 sidecar 一併刪除，往下走
+   - T0547 前留下、沒有 sidecar 的 cache：有 baseline manifest 時以它驗證並補 sidecar；沒有時由下載路徑以 release manifest 驗證（命中則只抓 manifest、不重抓 tarball）並補 sidecar
 2. **Baseline** — `resourcesPath/bat-server-baseline/`
-   - installer 內建（`extraResources`），離線可用
-   - 命中即複製到 cache + verify SHA256
-3. **Download** — GitHub Release fallback
-   - 預設端點：`https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v<ver>/`
+   - D146 起官方安裝檔**沒有**這個目錄；這層只為 T0547 前的安裝檔與仍自行內建 baseline 的私有 fork 保留
+   - 命中即複製到 cache（含 sidecar）+ verify SHA256；baseline 損毀仍 fail-closed（`baseline-corrupted`）
+3. **Download** — GitHub Release（D146 起為首次設定的一般路徑）
+   - 預設端點：`https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v<ver>/`（`<ver>` 去掉本機快照後綴，T0492）
    - 發佈來源（D120）：`pre-release.yml` / `release.yml` 在 desktop release step 成功後，於同一 job 把同 run 的
      `server-bundle-baseline` artifact（3 arch tarball + `.sha256` + `manifest.json`）發佈成 `server-bundle-v<ver>`
      prerelease，與 desktop release 同一 commit。`build-server-bundle.yml` 手動推 `server-bundle-v*` tag 的線保留為備援
    - 私有部署可改 `BAT_SERVER_BUNDLE_BASE_URL`（見下方）
-   - 下載後 verify SHA256 + 寫入 cache
+   - 下載後 verify SHA256 + 寫入 cache + sidecar
+   - 失敗時錯誤訊息附上兩條出路（匯入本機 tarball 的檔名、`BAT_SERVER_BUNDLE_BASE_URL`），wizard 失敗畫面顯示三語說明與「匯入本機 tarball…」按鈕
 
-實作入口：`electron/remote/server-bundle-distributor.ts`（D-1 三層 lookup）+ `electron/remote/server-bundle-download.ts`（D-3 download fallback + retry）。
+實作入口：`electron/remote/server-bundle-distributor.ts`（lookup）+ `electron/remote/server-bundle-cache.ts`（sidecar / cache 驗證）+ `electron/remote/server-bundle-download.ts`（download + retry）+ `electron/remote/server-bundle-import.ts`（匯入）。
 
-## Per-host baseline matrix（C-narrow，D092）
+## 匯入本機 tarball（離線 / 內網，T0547）
+
+WSL / SSH wizard 的「安裝 BAT 伺服器套件」下載失敗時（`download-failed` / `no-source-available`），失敗畫面提供 **匯入本機 tarball…**：
+
+1. 從可上網的機器取得 `server-bundle-v<ver>` release 的 `bat-server-<target>-v<ver>.tar.gz` 與同名 `.sha256`（或在 repo 跑 `npm run fetch:baseline -- --host-os … --host-arch …` 抓到 `dist-baseline/`），以任何方式複製過來
+2. 按「匯入本機 tarball…」選 tarball；`.sha256` 在同目錄就自動使用，否則會再請你選
+3. BAT 檢查檔名（白名單 regex：`bat-server-(linux-x64|linux-arm64|darwin-arm64)-v<semver>.tar.gz`）、target 與版號必須等於這次設定需要的值，再邊複製邊算 SHA-256，與 sidecar 相符才放進 cache（`bat-server-bundles/`，與下載後格式相同），然後自動重試該步驟（命中 cache）
+4. 失敗原因（檔名不符、target / 版號不符、缺 `.sha256`、`.sha256` 屬於別的檔、SHA 不符、讀取 / 寫入失敗）以三語顯示，cache 不會留下未驗證的檔案
+
+Docker 不經 distributor（image 內建 `/opt/bat-server`，D096），沒有這個按鈕。
+
+## Per-host baseline matrix（C-narrow，D092；D146 起安裝檔不再內建）
+
+> 歷史紀錄：以下是 T0547 前安裝檔內建的 baseline。D146 起安裝檔不內建任何 baseline，`npm run fetch:baseline` 仍保留給手動 / 測試（e2e real-remote env 腳本、離線匯入時準備檔案）使用，build 不再呼叫。
 
 每個 BAT host installer 只內建「最可能用得到」的 baseline，其餘 arch 走 download fallback：
 
@@ -45,7 +63,7 @@ Root cause：三平台 wizard 的 `install-bundle` step 留 placeholder throw；
 
 **邏輯**：90% 場景一個 baseline 命中；冷門 host × arch 組合 (e.g. macOS arm64 連 linux-arm64 remote) 走 download fallback，安裝會慢但不會 fail-closed。Mac 雙 tarball 是 D092 拍板項，因為 Mac 使用者頻繁 SSH 自家機器。
 
-Build 時抓 baseline：`npm run fetch:baseline`（`prebuild` hook 自動串接）。
+T0547 前 build 時抓 baseline：`npm run fetch:baseline`（`prebuild` hook 自動串接）。D146 起 `prebuild` 已移除，`verify-helper-bundle.js` 反過來擋任何 baseline `extraResources`，`verify-packaged-native.js` 擋打包產物內的 `resources/bat-server-baseline`。
 
 ## Architecture detection（三平台統一）
 
@@ -125,9 +143,9 @@ Anonymous GitHub API 預設 60 req/hr/IP。BAT 在 download fallback 時會：
 
 DGX Spark / Asahi Linux 等 arm64 Linux 場景：
 
-- **Remote 端 arch=linux-arm64**：走 download fallback（C-narrow 預設 host installer 不內建 linux-arm64 baseline）
-- **BAT host=Linux arm64**：installer 內建 linux-arm64 baseline（matrix 第 4 行）；DGX Spark 直接 ssh 自家 / 同集群另一台 arm64 box 即離線可用
-- **Build 端**：`npm run fetch:baseline` 在 host=linux-arm64 時抓 linux-arm64 tarball 到 `dist-baseline/`
+- **Remote 端 arch=linux-arm64**：與其他 target 相同，首次設定下載 `bat-server-linux-arm64-v<ver>.tar.gz`（D146 起沒有任何 host 內建 baseline）；離線則匯入本機 tarball
+- **BAT host=Linux arm64**：T0547 前 installer 內建 linux-arm64 baseline（matrix 第 4 行）；D146 起同樣改為下載 / 匯入，下載或匯入一次後 cache 可離線重用
+- **準備離線檔案**：`npm run fetch:baseline -- --host-os linux --host-arch arm64` 抓 linux-arm64 tarball + sidecar 到 `dist-baseline/`
 
 DGX Spark dogfood 由 user 親跑（D097）；T0324 工單收集實機數據。
 
@@ -145,9 +163,11 @@ T0326 owner 範圍，本文件僅預告。
 
 | 症狀 | 可能原因 | 解法 |
 |------|---------|------|
-| `Server bundle tarball not found` | dist-baseline 缺檔（dev 環境） | `npm run fetch:baseline` |
-| `Server bundle tarball not found`（installed BAT） | installer baseline 損毀 | 重跑 BAT installer |
-| `SHA256 mismatch` | tarball 被截斷 / cache 污染 | 刪 `userData/bat-server-bundles/`，重跑 wizard |
+| `[download-failed] … Import a local tarball instead …` | 連不到 GitHub（離線 / 內網 / proxy）或該版號沒有 `server-bundle-v<ver>` release | wizard 失敗畫面按「匯入本機 tarball…」，或設 `BAT_SERVER_BUNDLE_BASE_URL` 後重啟 BAT |
+| 匯入時 `version-mismatch` / `arch-mismatch` | 選到別的版號或 target 的 tarball | 取對應 `server-bundle-v<目前 BAT 版號>` 的該 target 檔案 |
+| 匯入時 `sha-mismatch` | tarball 複製不完整 / 被改 / `.sha256` 不是同一次發佈的 | 重新取得 tarball 與 `.sha256` |
+| `baseline-corrupted` | T0547 前的安裝檔 / 自帶 baseline 的 fork，其 baseline 損毀 | 重跑 BAT installer |
+| `SHA256 mismatch` | tarball 被截斷 / cache 污染 | 刪 `userData/bat-server-bundles/`，重跑 wizard（cache 與 sidecar 不符時 BAT 也會自行刪除重抓） |
 | `rate-limited` | GitHub API quota 用罄 | 等 reset 或設 `GITHUB_TOKEN` env |
 | `unsupported-arch` | remote 的 `uname -m` 落在 Supported Servers 矩陣外 | 確認 remote 為 x86_64 / aarch64 / darwin-arm64；其他 arch 不在 v1 範圍 |
 | `BAT_SERVER_BUNDLE_BASE_URL` 設了但仍打 GitHub | env 注入時機晚於 BAT 啟動 | 確認 env 在 launch BAT 前 export，或寫到 shell rc 後重啟 |
@@ -155,7 +175,7 @@ T0326 owner 範圍，本文件僅預告。
 ## 相關工單與決策
 
 - **PLAN-031** Server Bundle Distribution（本文件主軸）
-  - **拍板項**：D092 (C-narrow + Mac 雙 tarball) / D093 (雙 Release tag namespace) / D094 (Mac 280 MB cap) / D095 (`BAT_SERVER_BUNDLE_BASE_URL`) / D096 (Docker 不走 distributor) / D097 (DGX Spark dogfood) / D098 (v0.5.0 升級 UI)
+  - **拍板項**：D092 (C-narrow + Mac 雙 tarball；「安裝檔內建 baseline」由 D146 推翻) / D146 (安裝檔不內建 baseline，隨需下載 + 匯入，T0547) / D093 (雙 Release tag namespace) / D094 (Mac 280 MB cap) / D095 (`BAT_SERVER_BUNDLE_BASE_URL`) / D096 (Docker 不走 distributor) / D097 (DGX Spark dogfood) / D098 (v0.5.0 升級 UI)
   - **研究**：T0313（7 拍板項輸出）
   - **Spec**：T0314（凝練版，凍結於 `_ct-workorders/_spec-server-bundle-distribution.md`）
   - **實作 + 測試**：T0315-T0323（11 commits）+ T0325（187 unit + integration tests + e2e skeleton）
