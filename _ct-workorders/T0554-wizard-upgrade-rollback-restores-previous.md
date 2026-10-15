@@ -165,6 +165,6 @@ T0552 讓「重跑精靈」成為正式的升級路徑：沿用 port / profile�
 - 取捨 1–6 採納；「安裝失敗時 rollback 不再刪 root」與「疊在非 BAT 目錄不刪」為範圍內的同源修正，採納。
 - A3.clean-install 在同版重裝時必然 FAIL（目錄不會變小）：屬 T0550 spec 斷言的適用條件問題，非產品缺陷；列為後續（改成只在版本不同時檢查）。
 - 殘餘風險 1（SSH 未實機）列入 pre.5 實機項目；2–4 接受並記錄。
-- WSL 新備份（T0554 建立）：`~/.local/bat-server.bak-0.6.1-pre.4-t0554`、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0554`，待使用者決定刪除。
+- WSL 新備份（T0554 建立）：`~/.local/bat-server.bak-0.6.1-pre.4-t0554`（390M）、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0554`，已依使用者指示於 2026-10-16 04:24 刪除。
 - Worker 分頁已回收（到期 `close requested`）。下一張 T0555 已派。
 
