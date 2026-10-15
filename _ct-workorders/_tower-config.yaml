@@ -61,3 +61,12 @@ auto_commit: on
 
 # 自主 commit 訊息格式模板
 auto_commit_format: "chore: {description} ({scope})"
+
+# === v5.1.0 新增選項（PLAN-041 / D144） ===
+
+# 收單後回收 Worker 分頁（off / done）
+# 2026-10-15 20:00 第六十五 session 改為 done：PLAN-041 實機驗收（T0542 / T0543），使用者指示「安排自動驗收」
+worker_auto_close: done
+
+# 回收前延遲秒數（0-300），以 --delay-ms 傳給 BAT
+worker_close_delay: 10
