@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0548
 title: "安裝檔瘦身收尾（T0547 後續）：Windows 改回 normal 壓縮、release.ps1 / real-remote e2e 不再讀安裝目錄 baseline、server bundle 下載對連線錯誤的重試"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-10-16T01:40:03+0800"
-updated_at: "2026-10-16T01:40:27+0800"
+updated_at: "2026-10-16T01:56:43+0800"
 started_at: "2026-10-16T01:40:27+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-16T01:56:43+0800"
+commit: "c389888b"
 target_version: "0.6.1-pre.4"
 depends_on: [T0547]
 related:
@@ -83,7 +83,7 @@ T0547 觀察：`server-bundle-download.ts` 的 `toAttemptError` 只讀 `e.cause?
 
 ### 完成狀態
 
-**DONE**：三項都已完成，每項都有測試或靜態驗證；四個驗收 gate 全部通過，`build:dir` 也成功，並已實測 zip 的壓縮參數與打包時間。
+**DONE**（commit `c389888b`）：三項都已完成，每項都有測試或靜態驗證；四個驗收 gate 全部通過，`build:dir` 也成功，並已實測 zip 的壓縮參數與打包時間。
 
 **Landing check**：PASS。C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1：工單位於 REPO_ROOT 底下；C-3：`affects_files` 抽樣的路徑都存在（資訊性）；C-2：無 `branch` 欄位。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。`CT_MODE=yolo`，`CT_INTERACTIVE=0`。
 
