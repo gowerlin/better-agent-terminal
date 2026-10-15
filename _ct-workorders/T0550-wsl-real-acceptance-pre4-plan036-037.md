@@ -13,7 +13,7 @@ created_at: "2026-10-16T02:28:10+0800"
 updated_at: "2026-10-16T02:44:24+0800"
 started_at: "2026-10-16T02:30:12+0800"
 completed_at: "2026-10-16T02:44:24+0800"
-commit: ""
+commit: "97d54f5a"
 target_version: "0.6.1-pre.4（已安裝，不改產品程式碼）"
 depends_on: []
 related:
