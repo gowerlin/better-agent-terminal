@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0537
 title: "PLAN-041 B'-4：持久化 Worker 歸屬（塔台 id + 工單編號），BAT 重開後 `--close-worker` 仍有效"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-041
 priority: P3
 sizing: S-M
 created_at: "2026-10-15T15:44:39+0800"
 started_at: "2026-10-15T16:44:05+0800"
-updated_at: "2026-10-15T16:53:49+0800"
+updated_at: "2026-10-15T16:54:42+0800"
+completed_at: "2026-10-15T16:54:42+0800"
 target_version: "0.6.1-pre.3"
 depends_on: [T0535]
 related:
@@ -130,7 +131,7 @@ e2e 以隔離實例執行，跑前清掉 `BAT_*` / `CT_*`，未碰使用者的 B
 
 ### Commit
 
-（見下方 commit 欄位）
+- `e965f993` feat: T0537 persist Worker ownership so --close-worker works after BAT reopens (PLAN-041)（`git commit --only`，未含 `src/styles/settings.css`；未 push）
 
 ### 偏離 / 後續
 
