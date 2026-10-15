@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-139
 title: "WSL 精靈覆蓋安裝不清舊檔：`installBundle` 只 `tar -xzf` 疊上去，舊 bundle 已移除的套件殘留（實測約 256 MiB）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-10-16T02:45:47+0800"
-updated_at: "2026-10-16T02:45:47+0800"
+updated_at: "2026-10-16T02:51:47+0800"
 impact:
   - wsl-wizard
   - server-bundle
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（功能不受影響，smoke S1–S13 PASS；浪費磁碟，舊 native 套件留在 `node_modules` 有被誤載的潛在風險） |
 | 可重現 | 必現（既有 `~/.local/bat-server` 上再跑精靈） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0552，2026-10-16 02:51 派發） |
 | 回報者 | T0550 Worker（塔台確認） |
 
 ## 現象

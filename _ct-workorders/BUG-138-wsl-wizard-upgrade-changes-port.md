@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-138
 title: "以 WSL 精靈升級執行中的 bat-server 會換 port：舊 server 仍佔原 port，`pickServerPort` 改挑下一個，既有 profile 連不上、精靈另建新 profile"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: always
 created_at: "2026-10-16T02:45:47+0800"
-updated_at: "2026-10-16T02:45:47+0800"
+updated_at: "2026-10-16T02:51:47+0800"
 impact:
   - wsl-wizard
   - remote-profile
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（升級的唯一 UI 路徑就是重跑精靈；升級後原 profile 失效，需改用精靈新建的 profile。繞行：升級前先 `systemctl --user stop bat-server`） |
 | 可重現 | 必現（同 distro 已有精靈安裝且執行中的 bat-server） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0552，2026-10-16 02:51 派發） |
 | 回報者 | T0550 Worker（塔台確認） |
 
 ## 現象

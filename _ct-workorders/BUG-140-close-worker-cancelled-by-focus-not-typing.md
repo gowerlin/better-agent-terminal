@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-140
 title: "`--close-worker` 延遲期間，使用者只是在 BAT 切換工作區 / 終端焦點（沒有在 Worker 分頁打字），排程仍被當成「使用者輸入」取消，Worker 分頁沒有回收"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: likely
 created_at: "2026-10-16T02:49:49+0800"
-updated_at: "2026-10-16T02:49:49+0800"
+updated_at: "2026-10-16T02:51:47+0800"
 impact:
   - worker-auto-close
   - terminal-input
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（`worker_auto_close: done` 時，使用者在延遲期間只要在 BAT 內切換就可能讓回收失敗、分頁保留；塔台只知道 exit 0，不會得知取消。繞行：再請求一次 / 手動關閉） |
 | 可重現 | 推測可重現（單次觀察；根因待 Worker 確認） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0551，2026-10-16 02:51 派發） |
 | 回報者 | 塔台觀察 + 使用者確認（「我在 BAT 操作切換工作區或終端 focus」，未在 Worker 分頁打字） |
 
 ## 現象

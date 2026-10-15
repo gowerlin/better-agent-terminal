@@ -26,21 +26,21 @@ breakdown:
 > 最後同步：2026-10-16 02:45 (UTC+8) — BUG-138 / BUG-139 OPEN（T0550 發現）；BUG-140 OPEN（Worker 回收被焦點切換取消）
 
 ## 統計
-- 🔴 Open: 4 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 65**
+- 🔴 Open: 1 | ⏳ Fixing: 3 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 65**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
-| BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0550） | 🟡 medium | 2026-10-16 02:45 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
-| BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0550） | 🟢 low | 2026-10-16 02:45 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
-| BUG-140 | `--close-worker` 延遲期間切換工作區 / 終端焦點被算成使用者輸入，回收被取消（T0550 收單觀察） | 🟡 medium | 2026-10-16 02:49 | [BUG-140](BUG-140-close-worker-cancelled-by-focus-not-typing.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0550） | 🟡 medium | 2026-10-16 02:45 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
+| BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0550） | 🟢 low | 2026-10-16 02:45 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
+| BUG-140 | `--close-worker` 延遲期間切換工作區 / 終端焦點被算成使用者輸入，回收被取消（T0550 收單觀察） | 🟡 medium | 2026-10-16 02:49 | [BUG-140](BUG-140-close-worker-cancelled-by-focus-not-typing.md) |
 
 ## ✅ 已修復
 
