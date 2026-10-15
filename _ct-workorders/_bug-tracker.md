@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 02:45 (UTC+8) — BUG-138 / BUG-139 OPEN（T0550 發現）；BUG-140 OPEN（Worker 回收被焦點切換取消）
+> 最後同步：2026-10-16 03:33 (UTC+8) — BUG-140 FIXED（T0551）、BUG-138 / 139 FIXED（T0552）；BUG-141 FIXING（T0554）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 3 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 65**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 66**
 
 ## 🔴 Open / 處理中
 
@@ -38,14 +38,15 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0550） | 🟡 medium | 2026-10-16 02:45 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
-| BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0550） | 🟢 low | 2026-10-16 02:45 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
-| BUG-140 | `--close-worker` 延遲期間切換工作區 / 終端焦點被算成使用者輸入，回收被取消（T0550 收單觀察） | 🟡 medium | 2026-10-16 02:49 | [BUG-140](BUG-140-close-worker-cancelled-by-focus-not-typing.md) |
+| BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（舊版也沒了）（T0552 殘餘風險 → T0554） | 🟡 medium | 2026-10-16 03:32 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-140 | `--close-worker` 延遲期間切換工作區 / 終端焦點被算成使用者輸入，回收被取消（T0551 `92655e00`：終端自動回應（focus / CPR / DA…）不算使用者輸入） | 🟡 medium | 2026-10-16 03:10 | [BUG-140](BUG-140-close-worker-cancelled-by-focus-not-typing.md) |
+| BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0552 `f599f915`：沿用既有 unit port、更新既有 profile） | 🟡 medium | 2026-10-16 03:30 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
+| BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0552 `f599f915`：解到暫存目錄後換名，WSL / SSH 共用） | 🟢 low | 2026-10-16 03:30 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |

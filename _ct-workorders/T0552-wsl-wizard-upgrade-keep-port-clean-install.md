@@ -160,3 +160,13 @@ T0550 用安裝版 pre.4 的 WSL 精靈把使用者的 `Ubuntu-24.04` server 從
 ### 回報時間
 
 2026-10-16T03:29:23+0800
+
+---
+
+## 塔台收單（第六十六 session，2026-10-16T03:33:00+0800）
+
+- ✅ **T0552 已確認 FIXED**：`f599f915`（21 檔）+ `e96afcd9`。塔台複驗 @ `e96afcd9`：`npm run test:unit` 4211 passed / 247 files、`npm run typecheck` = 0、`npm run typecheck:electron` = 0；WSL `Ubuntu-24.04`：`version: 0.6.1-pre.4`、active、`BAT_SERVER_PORT=9877`、`~/.local/bat-server` 390M、`node_modules/@anthropic-ai/` 只剩 `claude-agent-sdk` / `claude-code` / `claude-code-linux-x64`；安裝腳本刪除範圍只限 `<root>.bat-new` / `<root>.bat-old` 與已換名的舊 root，路徑格式與 `$HOME` 在 TS 與 shell 兩端各檢查一次。
+- 偏離 affects_files（新增共用 `electron/server-bundle-install-script.ts`、改 `wizard-runner.ts` / `SetupWizardShell.tsx`）採納。SSH profile「同病」一併修正採納；SSH 主機升級未實測（列入 pre.5 實機）。
+- 殘餘風險 1（升級成功 → 後段失敗取消 → rollback 刪光）→ **BUG-141 / T0554**（塔台判定納入 pre.5 批次）。殘餘風險 2 接受（換名期間舊行程仍跑，systemd 會以新 bundle 重啟）。
+- Worker 分頁回收：03:31 排程 `output 64 ms ago` → 到期 `still printing (output 4639 ms ago): waiting for quiet` → `close requested after waiting 0.4 s for quiet`，分頁已關（PLAN-041 等安靜分支首次真實觸發，正常）。
+- 備份待使用者決定刪除：`~/.local/bat-server.bak-0.6.1-pre.4-t0552`（708M）、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0552`、`~/.local/share/bat-server.bak-t0552`（含 token / 憑證複本）。
