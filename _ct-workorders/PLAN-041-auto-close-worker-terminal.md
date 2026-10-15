@@ -76,3 +76,17 @@ stderr 另印一行 `close-worker: <CODE>`（診斷用；CT 只依 exit code 判
 ## 範圍外（另案）
 
 - T0534 §8 的後續項目 → PLAN-042（方案 D 已於 2026-10-15 16:1x 依使用者指示「完整版」納入本 PLAN，T0538）
+
+## 實機驗收（第六十五 session，BAT `0.6.1-pre.3` + CT v5.1.0，Windows 本機；記錄於 2026-10-15T20:07:05+0800）
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| claude Worker（T0542，`claude-cli` 2.1.300）收單後立即回收 | ⚠️ **exit 6 BUSY** | 通知 20:01:02 → 呼叫 20:01:11，`[close-worker] … → BUSY (output 2767 ms ago)`：claude 在通知後約 6 秒仍在輸出（收尾那一輪） |
+| claude Worker 閒置 30 s / 90 s | ✅ exit 0 | 20:01:36 / 20:02:36 `scheduled`；後者 `(replaces the pending close)` |
+| 延遲 10 s 實際關閉 | ✅ | 20:02:47 排程 → 20:02:57 `close requested (windows=1)` + renderer `closing tab`；`windows.json` / `bat-pty-registry.json` 無殘留；之後再查 exit 3 `NOT_FOUND` |
+| T0538 已回報標示 | ✅ | `[T0538] Worker reported: … workorder=T0542` |
+| codex Worker（T0543，`codex-cli`）閒置 | ✅ exit 0 ×3 | 使用者無 codex 付費帳號，Worker 未開工（T0543 ABANDONED）；20:05:06 / :26 / :46 皆未判 BUSY，20:05:55 排程 → 20:06:05 關閉。**未驗**：codex 完成一輪後的收尾輸出時間 |
+
+**發現**：CT v5.1.0 收單確認後立即呼叫 `--close-worker`，claude 那時多半仍在輸出通知後的收尾 → 依 CT 規則 exit 6「回報、不重試」⇒ 實務上 claude Worker 分頁**不會**被自動回收。BAT 端判定本身正確（閒置後即可回收、延遲取消 / 關閉路徑正常）。
+
+**待決**：修在 CT（exit 6 時等待後重試一次）或 BAT（BUSY 改為「排程並在延遲期間觀察」，延遲內有輸出才取消）。
