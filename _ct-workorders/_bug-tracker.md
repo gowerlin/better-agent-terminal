@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 03:33 (UTC+8) — BUG-140 FIXED（T0551）、BUG-138 / 139 FIXED（T0552）；BUG-141 FIXING（T0554）
+> 最後同步：2026-10-16 04:18 (UTC+8) — BUG-141 FIXED（T0554）；pre.5 批次 BUG-138–141 皆 FIXED
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 66**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 21 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 66**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（舊版也沒了）（T0552 殘餘風險 → T0554） | 🟡 medium | 2026-10-16 03:32 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（T0554 `38fe7421`：保留 `.bat-old` 至完成、取消換回舊樹 / 舊 unit 並重啟舊 service；WSL + SSH） | 🟡 medium | 2026-10-16 04:15 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |
 | BUG-140 | `--close-worker` 延遲期間切換工作區 / 終端焦點被算成使用者輸入，回收被取消（T0551 `92655e00`：終端自動回應（focus / CPR / DA…）不算使用者輸入） | 🟡 medium | 2026-10-16 03:10 | [BUG-140](BUG-140-close-worker-cancelled-by-focus-not-typing.md) |
 | BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0552 `f599f915`：沿用既有 unit port、更新既有 profile） | 🟡 medium | 2026-10-16 03:30 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
 | BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0552 `f599f915`：解到暫存目錄後換名，WSL / SSH 共用） | 🟢 low | 2026-10-16 03:30 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |

@@ -110,7 +110,7 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 1 / Fixed 20 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 21 / Closed 44）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D146）｜ Learnings → [_learnings.md](_learnings.md)（最大 L150）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（81 entries）
 
@@ -130,7 +130,7 @@
 | **前一 tag** | `v0.6.1-pre.3`（2026-10-15 18:06，`95d1f8e5`） |
 | **目前主軸** | `v0.6.1-pre.4` 已發佈；PLAN-041 待 pre.4 重驗；BUG-136 等 Gary |
 | **工單最大編號** | T0548（DONE `c389888b`）；T0542 / T0544-T0548 DONE、T0543 ABANDONED；跨專案 CT-T012 |
-| **BUG 最大編號** | **BUG-141**（FIXING，T0554）；Open 1（BUG-136）/ Fixing 1（BUG-141 → T0554）/ Fixed 20（含 BUG-138 / 139 / 140，pre.5 批次）/ Fixing 0 / Fixed 17 / Closed 44 |
+| **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 21（含 BUG-138–141，pre.5 批次）/ Fixing 0 / Fixed 17 / Closed 44 |
 | **PLAN 最大編號** | **PLAN-043**（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
 | **決策最大編號** | D146 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
