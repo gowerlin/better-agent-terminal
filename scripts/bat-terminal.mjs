@@ -20,6 +20,8 @@
 //   node scripts/bat-terminal.mjs --close-worker T0535 --notify-id "$BAT_TERMINAL_ID" [--delay-ms 10000]
 //     └─ PLAN-041 / T0535: close the Worker tab this Tower dispatched for T0535 (no tab is
 //        created). Exit 0 scheduled / 3 NOT_FOUND / 4 NOT_OWNER / 5 AMBIGUOUS / 6 BUSY / 1 other.
+//        T0545 / D145: BAT waits for the tab to go quiet instead of answering BUSY (6 stays
+//        for older BATs).
 //
 // Options:
 //   --help, -h     Show help
@@ -95,17 +97,22 @@ Options:
 Close a Worker tab (PLAN-041):
   --close-worker <T####> Close the Worker tab the --notify-id Tower dispatched for this work
                          order (same ID format as --workorder). BAT checks that the tab is
-                         that Tower's Worker, that exactly one tab matches, and that it printed
-                         nothing in the last 5 s; it closes the tab like the tab's x button
-                         (no confirm, worktree kept). Cannot be combined with the options above
+                         that Tower's Worker and that exactly one tab matches; it closes the tab
+                         like the tab's x button (no confirm, worktree kept). If the tab is
+                         still printing when the delay is up, BAT waits until it has been quiet
+                         for 5 s (at most 60 s more; still printing then -> the tab is kept).
+                         Cannot be combined with the options above
                          that create a terminal (--cwd, --workspace, --agent, --prompt, --skill,
                          --workorder, --mode, --interactive, --no-interactive, <command>).
   --notify-id <id>       Required with --close-worker: the Tower's own terminal ID ($BAT_TERMINAL_ID)
-  --delay-ms <n>         Close after n ms (default 0; BAT clamps to 0-300000). New output in the
-                         tab or typing into it during the delay cancels the close.
-  Exit codes: 0 scheduled (closed when --delay-ms 0) / 3 NOT_FOUND / 4 NOT_OWNER /
-              5 AMBIGUOUS / 6 BUSY / 1 usage error, connection failure or BAT too old.
-              stderr also prints "close-worker: <CODE>".
+  --delay-ms <n>         Close after n ms (default 0; BAT clamps to 0-300000). Typing into the
+                         tab during the delay or the quiet wait cancels the close; output
+                         does not.
+  Exit codes: 0 scheduled (closed when --delay-ms 0 and the tab is quiet) / 3 NOT_FOUND /
+              4 NOT_OWNER / 5 AMBIGUOUS / 6 BUSY / 1 usage error, connection failure or BAT
+              too old. stderr also prints "close-worker: <CODE>". 6 BUSY comes only from a
+              BAT before 0.6.1-pre.4 (it refused a tab that printed in the last 5 s); a newer
+              BAT waits for quiet instead.
 
 Examples:
   node scripts/bat-terminal.mjs --prompt "/ct-exec T0001"
@@ -985,6 +992,8 @@ async function runCloseWorker(ws) {
     const terminalId = String(result.terminalId)
     const inMs = typeof result.delayMs === 'number' ? result.delayMs : Math.max(0, Number(result.closeAt) - Date.now()) || 0
     console.log(`✓ Worker close scheduled: ${terminalId} (in ${inMs} ms)`)
+    // T0545 / D145: the close is decided later, in BAT (CT reads only the exit code).
+    console.log('  If the tab is still printing then, BAT waits until it is quiet (at most 60 s more).')
     return finish(0, 'OK', { terminalId, closeAt: result.closeAt, scheduledDelayMs: inMs })
   }
   const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
@@ -993,7 +1002,8 @@ async function runCloseWorker(ws) {
     NOT_FOUND: `no Worker tab for ${closeWorker} (BAT reopened since the dispatch, or already closed) — close it by hand if it is still open`,
     NOT_OWNER: `the Worker tab of ${closeWorker} was not dispatched by terminal ${notifyId}`,
     AMBIGUOUS: `more than one Worker tab of ${closeWorker} from this Tower${Array.isArray(result?.terminalIds) ? ` (${result.terminalIds.join(', ')})` : ''}`,
-    BUSY: `the Worker tab of ${closeWorker} printed output in the last 5 s`,
+    // Only a BAT before T0545 answers BUSY (a newer one waits for quiet).
+    BUSY: `the Worker tab of ${closeWorker} printed output in the last 5 s (this BAT is older than 0.6.1-pre.4)`,
     INVALID_ARGS: 'BAT rejected the request arguments',
   }[code] ?? 'the Worker tab was not closed'
   console.error(`Error: Worker not closed (${code}): ${detail}`)

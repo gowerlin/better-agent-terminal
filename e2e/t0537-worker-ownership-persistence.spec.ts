@@ -147,12 +147,15 @@ test('--close-worker closes a Worker dispatched before BAT reopened, in main and
     const env2 = await helperEnv(app2, userData2, relaunched.remotePort, tmp)
     const closeWorker = (tower: string, workorder: string) =>
       runHelper(env2, ['--close-worker', workorder, '--notify-id', tower], tmp)
-    /** Retries while the Worker is BUSY (its restored shell printed in the last 5 s) or its PTY is not up yet. */
-    const closeWhenIdle = async (tower: string, workorder: string): Promise<HelperRun> => {
+    /**
+     * Retries while the Worker's PTY is not up yet (NOT_FOUND). T0545 / D145: a restored shell
+     * that printed recently is no longer refused (no BUSY); BAT waits for quiet before closing.
+     */
+    const closeOncePtyUp = async (tower: string, workorder: string): Promise<HelperRun> => {
       const deadline = Date.now() + 60_000
       for (;;) {
         const run = await closeWorker(tower, workorder)
-        if ((run.code !== 6 && run.code !== 3) || Date.now() > deadline) return run
+        if (run.code !== 3 || Date.now() > deadline) return run
         await new Promise(r => setTimeout(r, 1_000))
       }
     }
@@ -162,11 +165,11 @@ test('--close-worker closes a Worker dispatched before BAT reopened, in main and
     log(`not owner: exit=${notOwner.code}\n${notOwner.stdout}${notOwner.stderr}`)
     expect(notOwner.code, notOwner.stderr).toBe(4)
     expect(notOwner.stderr).toContain('close-worker: NOT_OWNER')
-    const closedA = await closeWhenIdle(TOWER_A, 'T0537')
+    const closedA = await closeOncePtyUp(TOWER_A, 'T0537')
     log(`close A: exit=${closedA.code}\n${closedA.stdout}${closedA.stderr}`)
     expect(closedA.code, closedA.stderr).toBe(0)
     expect(closedA.stdout).toContain(`✓ Worker close scheduled: ${workerA} (in 0 ms)`)
-    await expect(viewA2.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 15_000 })
+    await expect(viewA2.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 30_000 })
     await expect.poll(async () => (await savedTerminals(win2)).map(t => t.id), { timeout: 15_000 }).not.toContain(workerA)
     await win2.screenshot({ path: test.info().outputPath('after-relaunch-close-worker.png') })
 
@@ -179,10 +182,10 @@ test('--close-worker closes a Worker dispatched before BAT reopened, in main and
     await detached.waitForLoadState('domcontentloaded')
     const viewB = detached.locator('.workspace-container.active')
     await expect(viewB.locator('.terminal-wrapper')).toHaveCount(2, { timeout: 30_000 })
-    const closedB = await closeWhenIdle(TOWER_B, 'T0538')
+    const closedB = await closeOncePtyUp(TOWER_B, 'T0538')
     log(`close B (detached): exit=${closedB.code}\n${closedB.stdout}${closedB.stderr}`)
     expect(closedB.code, closedB.stderr).toBe(0)
-    await expect(viewB.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 15_000 })
+    await expect(viewB.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 30_000 })
     // the detached window saved its list into the parent entry (T0491)
     await expect.poll(async () => (await savedTerminals(win2)).map(t => t.id), { timeout: 15_000 }).not.toContain(workerB)
     expect((await savedTerminals(win2)).map(t => t.id)).toContain(TOWER_B)

@@ -7,7 +7,8 @@
 // Workspaces A (Tower A, active) and B (Tower B, detached later), both defaulting to the Worker CLI.
 //   1. NOT_FOUND (unknown work order) / NOT_OWNER (Tower B asks for Tower A's Worker)
 //   2. delayed close + typing into the Worker during the delay → cancelled, tab stays
-//   3. close (delay 0, once the Worker is idle) → tab gone from the window and the registry
+//   3. close (delay 0) while the Worker is still printing → exit 0 (T0545: no BUSY), the tab stays
+//      until the Worker has been quiet for 5 s, then goes from the window and the registry
 //   4. AMBIGUOUS: two Workers of Tower A for one work order
 //   5. a Worker in a detached window closes there; the parent entry no longer holds it
 //   6. relaunch the runtime: the closed Workers are not restored
@@ -31,6 +32,17 @@ const WORKER_AGENT = 'e2e-t0535-worker'
 
 const WORKER_SCRIPT = [
   "process.stdout.write('t0535 worker ran: ' + process.argv.slice(2).join(' ') + '\\n')",
+  '',
+].join('\n')
+
+// T0545: an agent still printing its wrap-up — a line every 300 ms for argv[2] ms, then a marker.
+const PRINT_DONE = 'T0545-PRINTER-FINISHED'
+const PRINTER_SCRIPT = [
+  'const end = Date.now() + Number(process.argv[2])',
+  'const timer = setInterval(() => {',
+  "  process.stdout.write('t0545 still printing\\n')",
+  `  if (Date.now() >= end) { clearInterval(timer); process.stdout.write('${PRINT_DONE}\\n') }`,
+  '}, 300)',
   '',
 ].join('\n')
 
@@ -66,6 +78,8 @@ test('--close-worker closes the Tower\'s own idle Worker tab like ✕, in main a
   fs.mkdirSync(folderB, { recursive: true })
   const workerScript = path.join(tmp, 'worker.mjs').split(path.sep).join('/')
   fs.writeFileSync(workerScript, WORKER_SCRIPT)
+  const printerScript = path.join(tmp, 'printer.cjs').split(path.sep).join('/')
+  fs.writeFileSync(printerScript, PRINTER_SCRIPT)
   let inst: IsolatedInstance | undefined
   let relaunched: IsolatedInstance | undefined
   try {
@@ -121,15 +135,8 @@ test('--close-worker closes the Tower\'s own idle Worker tab like ✕, in main a
     }
     const closeWorker = (tower: string, workorder: string, extra: string[] = []) =>
       runHelper(env, ['--close-worker', workorder, '--notify-id', tower, ...extra], tmp)
-    /** Retries while the Worker is BUSY (it printed in the last 5 s); returns the first other answer. */
-    const closeWhenIdle = async (tower: string, workorder: string, extra: string[] = []): Promise<HelperRun> => {
-      const deadline = Date.now() + 60_000
-      for (;;) {
-        const run = await closeWorker(tower, workorder, extra)
-        if (run.code !== 6 || Date.now() > deadline) return run
-        await new Promise(r => setTimeout(r, 1_000))
-      }
-    }
+    // T0545 / D145: no retry loop — a Worker that printed recently is not refused (no BUSY);
+    // BAT waits for it to go quiet before closing.
 
     // ── Tower A dispatches T0535 ──
     const worker = await dispatch(TOWER_A, WS_A, 'T0535', folderA)
@@ -145,7 +152,7 @@ test('--close-worker closes the Tower\'s own idle Worker tab like ✕, in main a
     expect(notOwner.stderr).toContain('close-worker: NOT_OWNER')
 
     // 2) delayed close, the user types into the Worker during the delay → cancelled
-    const delayed = await closeWhenIdle(TOWER_A, 'T0535', ['--delay-ms', '4000'])
+    const delayed = await closeWorker(TOWER_A, 'T0535', ['--delay-ms', '4000'])
     log(`delayed close: exit=${delayed.code}\n${delayed.stdout}${delayed.stderr}`)
     expect(delayed.code, delayed.stderr).toBe(0)
     expect(delayed.stdout).toContain(`✓ Worker close scheduled: ${worker} (in 4000 ms)`)
@@ -156,12 +163,24 @@ test('--close-worker closes the Tower\'s own idle Worker tab like ✕, in main a
     expect(readDebugLogs(userData)).toContain(`[close-worker] tower=${TOWER_A} workorder=T0535 id=${worker} → cancelled (user input during the delay)`)
     await win.evaluate(async (id) => (window as AnyApi).electronAPI.pty.write(id, '\x7f'), worker) // erase the typed x
 
-    // 3) close once idle (delay 0) → the tab goes, the registry drops it
-    const closed = await closeWhenIdle(TOWER_A, 'T0535')
+    // 3) T0545: close (delay 0) while the Worker is still printing → exit 0, waits for quiet,
+    //    then the tab goes and the registry drops it
+    await new Promise(r => setTimeout(r, 1_000))
+    await win.evaluate(async ({ id, line }) => (window as AnyApi).electronAPI.pty.write(id, line), { id: worker, line: `node "${printerScript}" 6000\r` })
+    await expect(viewA).toContainText('t0545 still printing', { timeout: 15_000 })
+    const closed = await closeWorker(TOWER_A, 'T0535')
     log(`close: exit=${closed.code}\n${closed.stdout}${closed.stderr}`)
     expect(closed.code, closed.stderr).toBe(0)
     expect(closed.stdout).toContain(`✓ Worker close scheduled: ${worker} (in 0 ms)`)
-    await expect(viewA.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 15_000 })
+    expect(closed.stdout).toContain('BAT waits until it is quiet (at most 60 s more)')
+    await expect.poll(() => readDebugLogs(userData), { timeout: 10_000 })
+      .toContain(`[close-worker] tower=${TOWER_A} workorder=T0535 id=${worker} → still printing (output `)
+    expect(readDebugLogs(userData)).toMatch(new RegExp(`id=${worker} → scheduled delayMs=0 \\(output \\d+ ms ago; will wait for quiet\\)`))
+    // still open while it prints
+    await expect(viewA).toContainText(PRINT_DONE, { timeout: 20_000 })
+    await expect(viewA.locator('.terminal-wrapper')).toHaveCount(2)
+    await expect(viewA.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 20_000 })
+    expect(readDebugLogs(userData)).toMatch(new RegExp(`id=${worker} → close requested after waiting \\d+\\.\\d s for quiet`))
     await expect.poll(() => registryTerminalIds(win), { timeout: 15_000 }).not.toContain(worker)
     // the PTY is gone too → asking again finds nothing
     await expect.poll(async () => (await closeWorker(TOWER_A, 'T0535')).code, { timeout: 15_000 }).toBe(3)
@@ -184,10 +203,10 @@ test('--close-worker closes the Tower\'s own idle Worker tab like ✕, in main a
     await detached.waitForLoadState('domcontentloaded')
     const viewB = detached.locator('.workspace-container.active')
     await expect(viewB.locator('.terminal-wrapper')).toHaveCount(2, { timeout: 30_000 })
-    const closedB = await closeWhenIdle(TOWER_B, 'T0537')
+    const closedB = await closeWorker(TOWER_B, 'T0537')
     log(`detached close: exit=${closedB.code}\n${closedB.stdout}${closedB.stderr}`)
     expect(closedB.code, closedB.stderr).toBe(0)
-    await expect(viewB.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 15_000 })
+    await expect(viewB.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 30_000 })
     // the detached window saved its list into the parent entry (T0491)
     await expect.poll(() => registryTerminalIds(win), { timeout: 15_000 }).not.toContain(workerB)
     expect(await registryTerminalIds(win)).toContain(TOWER_B)

@@ -14,6 +14,10 @@
  * itself); a worker capability → `Forbidden: role-not-allowed`; a revoked tower capability →
  * `Capability revoked`. Delay: the event comes when the timer fires; a BAT client typing into the
  * Worker during the delay cancels it.
+ *
+ * T0545 / D145: a Worker still printing is not refused (no BUSY): exit 0, and the event comes only
+ * after the Worker has been quiet for CLOSE_WORKER_IDLE_MS; a BAT client typing into it while the
+ * close waits for quiet cancels it.
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -40,6 +44,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 let tmpDir: string
 let driverScript: string
+let printerScript: string
 let registry: HelperCapabilityRegistry
 let harness: HeadlessHarness
 let bat: HeadlessClient
@@ -62,6 +67,16 @@ if (job.kind === 'env') {
 }
 fs.writeFileSync(job.out + '.tmp', JSON.stringify(result))
 fs.renameSync(job.out + '.tmp', job.out)
+`
+
+/** T0545: an agent still printing its wrap-up — a line every 300 ms for argv[2] ms, then a marker. */
+const PRINT_DONE = 'T0545-PRINTER-FINISHED'
+const PRINTER_SOURCE = `
+const end = Date.now() + Number(process.argv[2])
+const timer = setInterval(() => {
+  process.stdout.write('t0545 still printing ' + Date.now() + '\\n')
+  if (Date.now() >= end) { clearInterval(timer); process.stdout.write('${PRINT_DONE}\\n') }
+}, 300)
 `
 
 interface HelperRun { code: number | null; stdout: string; stderr: string; error: string | null }
@@ -116,7 +131,7 @@ const outputOf = (id: string) => outputEvents(id).map(e => String(e.args[1] ?? '
 const closeRequests = (id: string) => bat.events.filter(e => e.channel === 'terminal:close-requested' && (e.args[0] as { id?: string })?.id === id)
 
 /**
- * Waits until PTY `id` printed nothing for longer than the BUSY window (the server stamps output
+ * Waits until PTY `id` printed nothing for longer than the quiet window (the server stamps output
  * when the PTY emits it, a little before the client sees the batched event — hence the margin).
  */
 async function waitIdle(id: string): Promise<void> {
@@ -130,10 +145,27 @@ async function waitIdle(id: string): Promise<void> {
   }
 }
 
+/** T0545: a BAT client starts the printer in Worker `id` (typed before the close request). */
+async function startPrinting(id: string, ms: number): Promise<void> {
+  const before = outputOf(id).length
+  expect(await bat.invoke('pty:write', id, `node "${printerScript}" ${ms}\r`)).toMatchObject({ ok: true })
+  await vi.waitFor(() => expect(outputOf(id).slice(before)).toContain('t0545 still printing'), { timeout: 20_000, interval: 50 })
+}
+
+/** Resolves with the time the client first sees the printer's marker in Worker `id`. */
+async function printerDoneAt(id: string, from: number): Promise<number> {
+  await vi.waitFor(() => expect(outputOf(id).slice(from)).toContain(PRINT_DONE), { timeout: 30_000, interval: 50 })
+  return Date.now()
+}
+
+const logged = (spy: { mock: { calls: unknown[][] } }, text: string) => spy.mock.calls.some(call => String(call[0]).includes(text))
+
 beforeAll(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 't0536-e2e-'))
   driverScript = path.join(tmpDir, 'driver.cjs')
   fs.writeFileSync(driverScript, DRIVER_SOURCE)
+  printerScript = path.join(tmpDir, 'printer.cjs')
+  fs.writeFileSync(printerScript, PRINTER_SOURCE)
   agentRegistry.registerCustomCli({ id: ECHO_AGENT, name: 'T0536 echo', icon: 'x', color: '#000', command: 'echo' })
   registry = new HelperCapabilityRegistry()
   harness = await startHeadlessHarness({ helperCapabilities: registry })
@@ -221,20 +253,33 @@ describe('remote Tower --close-worker through the real helper (PLAN-041 / T0536)
     expect(closeRequests(workerB)).toHaveLength(0)
   }, 60_000)
 
-  it('own Worker, delay 0 → exit 0 and the BAT client gets terminal:close-requested', async () => {
+  it('T0545: own Worker still printing, delay 0 → exit 0 (no BUSY); terminal:close-requested only after 5 s of quiet', async () => {
+    const logSpy = vi.spyOn(logger, 'log')
     await waitIdle(workerA)
+    const from = outputOf(workerA).length
+    await startPrinting(workerA, 6_000)
+    const done = printerDoneAt(workerA, from)
     const run = await closeWorker(towerA, WO_A)
     expect(run.stderr).toBe('')
     expect(run.code).toBe(0)
     expect(run.stdout).toContain(`✓ Worker close scheduled: ${workerA} (in 0 ms)`)
-    const [request] = await bat.waitForEvent('terminal:close-requested', args => (args[0] as { id?: string })?.id === workerA, 10_000)
+    expect(logged(logSpy, `id=${workerA} → scheduled delayMs=0 (output `)).toBe(true)
+    expect(logged(logSpy, 'ms ago; will wait for quiet)')).toBe(true)
+    expect(logged(logSpy, `id=${workerA} → still printing (output `)).toBe(true)
+    const doneAt = await done
+    expect(closeRequests(workerA)).toHaveLength(0) // not while it was printing
+    const [request] = await bat.waitForEvent('terminal:close-requested', args => (args[0] as { id?: string })?.id === workerA, 20_000)
     expect(request).toEqual({ id: workerA })
+    // quiet for CLOSE_WORKER_IDLE_MS after the last line (the client sees output a little late)
+    expect(Date.now() - doneAt).toBeGreaterThanOrEqual(CLOSE_WORKER_IDLE_MS - 1000)
+    expect(logged(logSpy, `id=${workerA} → close requested after waiting `)).toBe(true)
+    expect(closeRequests(workerA)).toHaveLength(1)
     // the client window closes the tab like ✕ (closeTerminalNow → pty:kill); the capability dies with it
     expect(await bat.invoke('pty:kill', workerA)).toBe(true)
     expect(registry.isWorkerOf(workerA, towerA)).toBe(false)
   }, 60_000)
 
-  it('delay: a BAT client typing into the Worker cancels; untouched, the event comes when the timer fires', async () => {
+  it('delay: a BAT client typing into the Worker cancels (during the delay, and while waiting for quiet); untouched, the event comes when the timer fires', async () => {
     const logSpy = vi.spyOn(logger, 'log')
     await waitIdle(workerA2)
     const cancelled = await closeWorker(towerA, WO_A2, ['--delay-ms', '1500'])
@@ -242,13 +287,31 @@ describe('remote Tower --close-worker through the real helper (PLAN-041 / T0536)
     // the user types into the Worker tab (a client connection, not a helper)
     expect(await bat.invoke('pty:write', workerA2, 'x')).toMatchObject({ ok: true })
     await vi.waitFor(
-      () => expect(logSpy.mock.calls.some(call => String(call[0]).includes(`id=${workerA2} → cancelled (user input during the delay)`))).toBe(true),
+      () => expect(logged(logSpy, `id=${workerA2} → cancelled (user input during the delay)`)).toBe(true),
       { timeout: 5_000, interval: 100 },
     )
     expect(closeRequests(workerA2)).toHaveLength(0)
 
     expect(await bat.invoke('pty:write', workerA2, '\b')).toMatchObject({ ok: true })
     await waitIdle(workerA2)
+
+    // T0545: still printing when the delay is up → the close waits for quiet; the user types meanwhile
+    const from = outputOf(workerA2).length
+    await startPrinting(workerA2, 8_000)
+    const waiting = await closeWorker(towerA, WO_A2)
+    expect(waiting.code).toBe(0)
+    await vi.waitFor(() => expect(logged(logSpy, `id=${workerA2} → still printing (output `)).toBe(true), { timeout: 5_000, interval: 50 })
+    expect(await bat.invoke('pty:write', workerA2, 'y')).toMatchObject({ ok: true })
+    await vi.waitFor(
+      () => expect(logged(logSpy, `id=${workerA2} → cancelled (user input while waiting for quiet)`)).toBe(true),
+      { timeout: 20_000, interval: 100 },
+    )
+    await printerDoneAt(workerA2, from)
+    expect(closeRequests(workerA2)).toHaveLength(0)
+    expect(await bat.invoke('pty:write', workerA2, '\b')).toMatchObject({ ok: true })
+    await waitIdle(workerA2)
+    expect(closeRequests(workerA2)).toHaveLength(0)
+
     const scheduledAt = Date.now()
     const run = await closeWorker(towerA, WO_A2, ['--delay-ms', '1500'])
     expect(run.code).toBe(0)

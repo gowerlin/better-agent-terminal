@@ -56,7 +56,7 @@ node "$BAT_HELPER_DIR/bat-terminal.mjs" --close-worker T#### --notify-id "$BAT_T
 | `3` | `NOT_FOUND`：找不到（含 BAT 重開前派出、T0537 之前的版本） | 靜默，可提示一次「請手動關閉」 |
 | `4` | `NOT_OWNER`：該工單的 Worker 不是這個塔台派出的 | 回報使用者，不重試 |
 | `5` | `AMBIGUOUS`：同一塔台同一工單有多個 Worker 分頁（Renew 重派等） | 回報使用者，不重試 |
-| `6` | `BUSY`：分頁最近 5 秒內仍有輸出 | 回報使用者，不重試 |
+| `6` | `BUSY`：分頁最近 5 秒內仍有輸出。**BAT ≥ 0.6.1-pre.4 不再因最近輸出回 6**（T0545 / D145：照常排程 exit 0，到期時仍在輸出就等安靜 5 秒再關，最多再等 60 秒，仍不安靜則放棄、分頁保留）；6 只會來自較舊的 BAT | 回報使用者，不重試 |
 | `1` | 用法錯誤、連線失敗，或 BAT 太舊（舊版對未知參數印 `Unknown option '--close-worker'` 並 exit 1，**不會建立分頁**） | 一行警告「BAT 不支援或連線失敗」，不重試 |
 
 stderr 另印一行 `close-worker: <CODE>`（診斷用；CT 只依 exit code 判斷）。

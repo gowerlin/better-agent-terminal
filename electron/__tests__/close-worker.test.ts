@@ -3,9 +3,12 @@
  * PLAN-041 / T0535: `terminal:close-worker` — a Tower closes the Worker tab it dispatched.
  *
  * - WorkerCloseScheduler (electron/close-worker.ts) against a fake PtyManager:
- *   INVALID_ARGS / NOT_FOUND / NOT_OWNER / AMBIGUOUS / BUSY / ok; `delayMs` clamped to
- *   0..300000; new output or local input during the delay cancels; a repeated request restarts
- *   the timer; a tab gone by then ends silently; delay 0 closes at once
+ *   INVALID_ARGS / NOT_FOUND / NOT_OWNER / AMBIGUOUS / ok; `delayMs` clamped to 0..300000;
+ *   local input during the delay cancels; a repeated request restarts the timer; a tab gone by
+ *   then ends silently; delay 0 closes at once
+ * - T0545 / D145: recent output no longer refuses (no BUSY) and output during the delay no
+ *   longer cancels; a tab still printing when the delay is up is closed once quiet for 5 s,
+ *   at most 60 s past the due time (then given up); input while waiting cancels
  * - PtyManager records the dispatch's `workorder` (normalized) and keeps it across `restart`,
  *   the Terminal Server idempotent re-create and the recovery rebuild; output / input times
  * - `terminal:create-agent-command` (skill mode) passes `workorder` to the PTY; `pty:write` from a
@@ -31,6 +34,7 @@ import { logger } from '../logger'
 import {
   CLOSE_WORKER_IDLE_MS,
   CLOSE_WORKER_MAX_DELAY_MS,
+  CLOSE_WORKER_MAX_QUIET_WAIT_MS,
   normalizeWorkorderId,
   WorkerCloseScheduler,
   type CloseWorkerPtyManager,
@@ -165,11 +169,41 @@ describe('WorkerCloseScheduler (T0535)', () => {
     expect(emitted).toEqual([])
   })
 
-  it('BUSY: output within the last 5 s; idle at exactly 5 s', () => {
-    const { scheduler, ptys } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 - CLOSE_WORKER_IDLE_MS + 1 } })
-    expect(scheduler.request({ towerId: 'tw', workorder: 'T0535' })).toEqual({ ok: false, code: 'BUSY' })
-    ptys.workers.w1.lastOutput = T0 - CLOSE_WORKER_IDLE_MS
+  it('T0545: output within the last 5 s no longer refuses (no BUSY): scheduled, closed once quiet', () => {
+    const { scheduler, emitted, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 - 812 } })
+    expect(scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 2_000 })).toEqual({ ok: true, terminalId: 'w1', closeAt: T0 + 2_000, delayMs: 2_000 })
+    expect(logs.at(-1)).toContain('id=w1 → scheduled delayMs=2000 (output 812 ms ago; will wait for quiet)')
+    vi.advanceTimersByTime(2_000) // the output is 2812 ms old by now: quiet at T0 - 812 + 5000
+    expect(emitted).toEqual([])
+    expect(logs.at(-1)).toContain('id=w1 → still printing (output 2812 ms ago): waiting for quiet (at most 60 s)')
+    vi.advanceTimersByTime(CLOSE_WORKER_IDLE_MS - 2_812 - 1)
+    expect(emitted).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(emitted).toEqual([{ channel: 'terminal:close-requested', payload: { id: 'w1' } }])
+    expect(logs.at(-1)).toContain('id=w1 → close requested after waiting 2.2 s for quiet (windows=1)')
+    expect(scheduler.pendingIds()).toEqual([])
+  })
+
+  it('T0545: quiet at exactly 5 s closes at once; the scheduled log says nothing about waiting', () => {
+    const { scheduler, emitted, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 - CLOSE_WORKER_IDLE_MS } })
     expect(scheduler.request({ towerId: 'tw', workorder: 'T0535' })).toMatchObject({ ok: true, terminalId: 'w1' })
+    expect(logs.at(-2)).toMatch(/→ scheduled delayMs=0$/)
+    expect(logs.at(-1)).toContain('id=w1 → close requested (windows=1)')
+    expect(emitted).toHaveLength(1)
+  })
+
+  it('T0545: delay 0 while printing waits for quiet instead of closing at once', () => {
+    const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 - 1_000 } })
+    expect(scheduler.request({ towerId: 'tw', workorder: 'T0535' })).toEqual({ ok: true, terminalId: 'w1', closeAt: T0, delayMs: 0 })
+    expect(emitted).toEqual([])
+    expect(scheduler.pendingIds()).toEqual(['w1'])
+    vi.advanceTimersByTime(2_000)
+    ptys.workers.w1.lastOutput = Date.now() // still printing: the quiet window restarts
+    vi.advanceTimersByTime(CLOSE_WORKER_IDLE_MS - 1)
+    expect(emitted).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(emitted).toHaveLength(1)
+    expect(logs.at(-1)).toContain('→ close requested after waiting 7.0 s for quiet')
   })
 
   it('ok, delay 0 (default): close requested at once, work order matched trimmed / case-insensitively', () => {
@@ -197,14 +231,105 @@ describe('WorkerCloseScheduler (T0535)', () => {
     expect(second.emitted).toHaveLength(1)
   })
 
-  it('new output during the delay cancels the close', () => {
+  it('T0545: output during the delay no longer cancels (quiet again by the due time → closes on time)', () => {
     const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535' } })
     scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 10_000 })
     vi.advanceTimersByTime(3_000)
     ptys.workers.w1.lastOutput = Date.now()
     vi.advanceTimersByTime(7_000)
+    expect(emitted).toEqual([{ channel: 'terminal:close-requested', payload: { id: 'w1' } }])
+    expect(logs.at(-1)).toContain('id=w1 → close requested (windows=1)')
+    expect(logs.join('\n')).not.toContain('cancelled')
+  })
+
+  it('T0545: still printing when the delay is up → waits, closes after 5 s of quiet', () => {
+    const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535' } })
+    scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 10_000 })
+    vi.advanceTimersByTime(9_000)
+    ptys.workers.w1.lastOutput = Date.now()
+    vi.advanceTimersByTime(1_000) // due: output 1 s ago
     expect(emitted).toEqual([])
-    expect(logs.at(-1)).toContain('→ cancelled (new output during the delay)')
+    expect(scheduler.pendingIds()).toEqual(['w1'])
+    expect(logs.at(-1)).toContain('→ still printing (output 1000 ms ago): waiting for quiet (at most 60 s)')
+    for (let i = 0; i < 5; i++) { // prints every 2 s for another 10 s
+      vi.advanceTimersByTime(2_000)
+      ptys.workers.w1.lastOutput = Date.now()
+    }
+    expect(emitted).toEqual([])
+    vi.advanceTimersByTime(CLOSE_WORKER_IDLE_MS - 1)
+    expect(emitted).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(emitted).toEqual([{ channel: 'terminal:close-requested', payload: { id: 'w1' } }])
+    expect(logs.at(-1)).toContain('→ close requested after waiting 15.0 s for quiet (windows=1)')
+    expect(logs.filter(line => line.includes('still printing'))).toHaveLength(1)
+  })
+
+  it('T0545: still printing 60 s after the delay → given up, no close-requested, tab kept', () => {
+    const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 } })
+    const ticker = setInterval(() => { ptys.workers.w1.lastOutput = Date.now() }, 1_000) // a TUI redrawing every second
+    scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 10_000 })
+    vi.advanceTimersByTime(10_000 + CLOSE_WORKER_MAX_QUIET_WAIT_MS - 1)
+    expect(emitted).toEqual([])
+    expect(scheduler.pendingIds()).toEqual(['w1'])
+    vi.advanceTimersByTime(1)
+    expect(emitted).toEqual([])
+    expect(scheduler.pendingIds()).toEqual([])
+    expect(logs.at(-1)).toContain('id=w1 → cancelled (still printing 60 s after the delay; tab kept)')
+    clearInterval(ticker)
+    vi.advanceTimersByTime(120_000)
+    expect(emitted).toEqual([])
+  })
+
+  it('T0545: quiet right at the 60 s deadline still closes', () => {
+    const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 } })
+    const ticker = setInterval(() => { ptys.workers.w1.lastOutput = Date.now() }, 1_000)
+    scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 0 })
+    vi.advanceTimersByTime(CLOSE_WORKER_MAX_QUIET_WAIT_MS - CLOSE_WORKER_IDLE_MS)
+    clearInterval(ticker) // last output: quiet for 5 s exactly at the deadline
+    vi.advanceTimersByTime(CLOSE_WORKER_IDLE_MS - 1)
+    expect(emitted).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(emitted).toEqual([{ channel: 'terminal:close-requested', payload: { id: 'w1' } }])
+    expect(logs.at(-1)).toContain('id=w1 → close requested after waiting 60.0 s for quiet')
+  })
+
+  it('T0545: user input while waiting for quiet cancels', () => {
+    const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535' } })
+    scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 3_000 })
+    vi.advanceTimersByTime(2_000)
+    ptys.workers.w1.lastOutput = Date.now()
+    vi.advanceTimersByTime(1_000) // due, still printing → waiting
+    expect(scheduler.pendingIds()).toEqual(['w1'])
+    vi.advanceTimersByTime(1_000)
+    ptys.workers.w1.lastInput = Date.now()
+    vi.advanceTimersByTime(CLOSE_WORKER_MAX_QUIET_WAIT_MS)
+    expect(emitted).toEqual([])
+    expect(scheduler.pendingIds()).toEqual([])
+    expect(logs.at(-1)).toContain('id=w1 → cancelled (user input while waiting for quiet)')
+  })
+
+  it('T0545: a new request replaces a close waiting for quiet (the latest one wins)', () => {
+    const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 } })
+    scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 0 }) // waiting for quiet until T0 + 5000
+    vi.advanceTimersByTime(1_000)
+    expect(scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 20_000 })).toMatchObject({ ok: true, closeAt: T0 + 21_000 })
+    expect(logs.at(-1)).toContain('(output 1000 ms ago; will wait for quiet) (replaces the pending close)')
+    vi.advanceTimersByTime(19_999) // the old quiet check (T0 + 5000) passes without closing
+    expect(emitted).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(emitted).toEqual([{ channel: 'terminal:close-requested', payload: { id: 'w1' } }])
+    void ptys
+  })
+
+  it('T0545: the tab is gone while waiting for quiet → ends silently', () => {
+    const { scheduler, emitted, ptys, logs } = setupScheduler({ w1: { tower: 'tw', workorder: 'T0535', lastOutput: T0 } })
+    scheduler.request({ towerId: 'tw', workorder: 'T0535', delayMs: 0 })
+    expect(scheduler.pendingIds()).toEqual(['w1'])
+    delete ptys.workers.w1
+    vi.advanceTimersByTime(CLOSE_WORKER_IDLE_MS)
+    expect(emitted).toEqual([])
+    expect(scheduler.pendingIds()).toEqual([])
+    expect(logs.at(-1)).toContain('→ skipped (terminal no longer exists)')
   })
 
   it('user input during the delay cancels the close', () => {

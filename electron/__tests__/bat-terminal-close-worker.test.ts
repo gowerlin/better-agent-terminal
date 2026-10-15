@@ -5,8 +5,9 @@
  * Against a mock RemoteServer (TLS + minimal WebSocket, same shape as
  * tests/bat-terminal-response-correlation.test.mjs) that keeps broadcasting, so the reply is
  * matched by frame id (BUG-114):
- *   - ok → exit 0 + `✓ Worker close scheduled: <id> (in <n> ms)`
+ *   - ok → exit 0 + `✓ Worker close scheduled: <id> (in <n> ms)` (T0545: + a line about waiting for quiet)
  *   - NOT_FOUND 3 / NOT_OWNER 4 / AMBIGUOUS 5 / BUSY 6 / INVALID_ARGS 1, `close-worker: <CODE>` on stderr
+ *     (T0545 / D145: a BAT ≥ 0.6.1-pre.4 no longer answers BUSY; exit 6 stays for older ones)
  *   - a BAT without the handler → exit 1 UNSUPPORTED; no reply → exit 1 TIMEOUT
  *   - usage errors (no server contacted) and --help
  * The helper's NDJSON log goes to a temp dir (BAT_HELPER_LOG_DIR / BAT_USER_DATA), never the real one.
@@ -170,7 +171,7 @@ describe('bat-terminal --close-worker (T0535)', () => {
     try {
       const r = await run([...CLOSE, '--delay-ms', '10000'], remote.env)
       expect(r.code, r.stderr).toBe(0)
-      expect(r.stdout.trim()).toBe(`✓ Worker close scheduled: ${'w'.repeat(32)} (in 10000 ms)`)
+      expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Worker close scheduled: ${'w'.repeat(32)} (in 10000 ms)`, '  If the tab is still printing then, BAT waits until it is quiet (at most 60 s more).'])
       expect(r.stderr).not.toContain('--workspace not specified')
       expect(remote.invokes).toEqual([{ id: expect.any(String), channel: 'terminal:close-worker', args: [{ towerId: 'tower-1', workorder: 'T0535', delayMs: 10000 }] }])
       expect(helperEvents(remote.dir, 'close-worker').at(-1)).toMatchObject({ towerId: 'tower-1', workorder: 'T0535', delayMs: 10000, result: 'OK', terminalId: 'w'.repeat(32) })
@@ -184,7 +185,7 @@ describe('bat-terminal --close-worker (T0535)', () => {
     try {
       const r = await run(['--notify-id', 'tower-1', '--close-worker', ' cp-t0113 '], remote.env)
       expect(r.code, r.stderr).toBe(0)
-      expect(r.stdout.trim()).toBe('✓ Worker close scheduled: abc (in 0 ms)')
+      expect(r.stdout.split(/\r?\n/)[0]).toBe('✓ Worker close scheduled: abc (in 0 ms)')
       expect(remote.invokes[0].args).toEqual([{ towerId: 'tower-1', workorder: 'CP-T0113' }])
     } finally {
       await remote.close()
@@ -192,7 +193,7 @@ describe('bat-terminal --close-worker (T0535)', () => {
   }, 20000)
 
   for (const [code, exit] of [['NOT_FOUND', 3], ['NOT_OWNER', 4], ['AMBIGUOUS', 5], ['BUSY', 6], ['INVALID_ARGS', 1]] as const) {
-    it(`${code} → exit ${exit}, "close-worker: ${code}" on stderr`, async () => {
+    it(`${code} → exit ${exit}, "close-worker: ${code}" on stderr${code === 'BUSY' ? ' (a BAT before T0545)' : ''}`, async () => {
       const remote = await startMockRemote({ result: { ok: false, code, ...(code === 'AMBIGUOUS' ? { terminalIds: ['a', 'b'] } : {}) } })
       try {
         const r = await run(CLOSE, remote.env)
@@ -201,6 +202,7 @@ describe('bat-terminal --close-worker (T0535)', () => {
         expect(r.stderr).toContain(`Error: Worker not closed (${code})`)
         expect(r.stdout).not.toContain('✓')
         if (code === 'AMBIGUOUS') expect(r.stderr).toContain('(a, b)')
+        if (code === 'BUSY') expect(r.stderr).toContain('this BAT is older than 0.6.1-pre.4')
         expect(helperEvents(remote.dir, 'close-worker').at(-1)).toMatchObject({ result: code })
         expect(helperEvents(remote.dir, 'exit').at(-1)).toMatchObject({ code: exit, reason: `close-worker-${code}` })
       } finally {
@@ -275,7 +277,12 @@ describe('bat-terminal --close-worker usage (T0535)', () => {
     expect(r.stdout).toContain('bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>]')
     expect(r.stdout).toContain('--close-worker <T####>')
     expect(r.stdout).toContain('--delay-ms <n>')
-    expect(r.stdout).toContain('0 scheduled (closed when --delay-ms 0) / 3 NOT_FOUND / 4 NOT_OWNER /')
+    expect(r.stdout).toContain('0 scheduled (closed when --delay-ms 0 and the tab is quiet) / 3 NOT_FOUND /')
     expect(r.stdout).toContain('5 AMBIGUOUS / 6 BUSY / 1 usage error')
+    // T0545 / D145: BUSY only from an older BAT; a newer one waits for quiet (at most 60 s)
+    expect(r.stdout).toContain('6 BUSY comes only from a')
+    expect(r.stdout).toContain('BAT before 0.6.1-pre.4')
+    expect(r.stdout).toContain('for 5 s (at most 60 s more; still printing then -> the tab is kept)')
+    expect(r.stdout).not.toContain('New output in the')
   })
 })

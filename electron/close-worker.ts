@@ -2,14 +2,23 @@
  * PLAN-041 / T0535: `terminal:close-worker` — a Tower closes the Worker tab it dispatched for a
  * work order (`bat-terminal.mjs --close-worker T#### --notify-id <tower> [--delay-ms N]`).
  *
- * BAT decides whether the tab may be closed (ownership, a single match, idle); CT decides
- * whether and when to ask (D144: no Settings switch here). Main checks the request, keeps the
- * delay timer and, when it fires, sends `terminal:close-requested { id }` to every window; the
- * window holding the tab closes it the way ✕ does (`workspaceStore.closeTerminalNow`).
+ * BAT decides whether the tab may be closed (ownership, a single match) and when (it waits for
+ * the tab to go quiet); CT decides whether and when to ask (D144: no Settings switch here). Main
+ * checks the request, keeps the delay timer and, when it fires, sends
+ * `terminal:close-requested { id }` to every window; the window holding the tab closes it the
+ * way ✕ does (`workspaceStore.closeTerminalNow`).
+ *
+ * T0545 / D145: recent output no longer refuses the request (BUSY) and output during the delay
+ * no longer cancels it — an agent keeps printing for a while after it reports. When the delay
+ * is up and the tab printed within `CLOSE_WORKER_IDLE_MS`, the close waits until the tab has
+ * been quiet that long, at most `CLOSE_WORKER_MAX_QUIET_WAIT_MS` past the due time, then gives
+ * up (the tab stays). User input (a local window's or a remote client's `pty:write`) during the
+ * delay or the wait still cancels.
  *
  * Contract (PLAN-041「介面契約」): `{ towerId, workorder, delayMs? }` →
  *   `{ ok: true, terminalId, closeAt, delayMs }` or `{ ok: false, code }` with code
- *   INVALID_ARGS | NOT_FOUND | NOT_OWNER | AMBIGUOUS | BUSY.
+ *   INVALID_ARGS | NOT_FOUND | NOT_OWNER | AMBIGUOUS (BUSY stays in the contract, but BAT no
+ *   longer returns it since T0545).
  *
  * T0536: headless bat-server serves the same scheduler (electron/remote/headless-entry.ts) for a
  * remote Tower's helper; the event then reaches the client windows of that profile.
@@ -17,8 +26,10 @@
  * 🔴 No `electron` import here (shared with headless, T0536).
  */
 
-/** No output for this long before a Worker counts as idle (constant, not a setting). */
+/** No output for this long before a Worker counts as quiet (constant, not a setting). */
 export const CLOSE_WORKER_IDLE_MS = 5000
+/** T0545: when the delay is up, wait at most this long for the tab to go quiet (constant). */
+export const CLOSE_WORKER_MAX_QUIET_WAIT_MS = 60_000
 /** `delayMs` is clamped to `0..CLOSE_WORKER_MAX_DELAY_MS`. */
 export const CLOSE_WORKER_MAX_DELAY_MS = 300_000
 
@@ -38,7 +49,8 @@ export function normalizeWorkorderId(raw: unknown): string | null {
   return WORKORDER_ID_PATTERN.test(id) ? id : null
 }
 
-export type CloseWorkerErrorCode = 'INVALID_ARGS' | 'NOT_FOUND' | 'NOT_OWNER' | 'AMBIGUOUS' | 'BUSY'
+/** `BUSY` is kept for the contract (helper exit 6) but no longer returned (T0545 / D145). */
+export type CloseWorkerErrorCode ='INVALID_ARGS' | 'NOT_FOUND' | 'NOT_OWNER' | 'AMBIGUOUS' | 'BUSY'
 
 export type CloseWorkerResult =
   | { ok: true; terminalId: string; closeAt: number; delayMs: number }
@@ -69,12 +81,18 @@ export interface WorkerCloseSchedulerDeps {
   clearTimeout?: (handle: unknown) => void
 }
 
-interface PendingClose {
-  timer: unknown
+interface CloseEntry {
   scheduledAt: number
+  /** When the delay is up; the quiet wait is measured from here. */
   closeAt: number
   towerId: string
   workorder: string
+  /** T0545: the delay is up and the close is waiting for the tab to go quiet. */
+  waiting: boolean
+}
+
+interface PendingClose extends CloseEntry {
+  timer: unknown
 }
 
 function clampDelay(raw: unknown): number | null {
@@ -95,14 +113,15 @@ export class WorkerCloseScheduler {
     this.clearTimer = deps.clearTimeout ?? ((handle) => clearTimeout(handle as ReturnType<typeof setTimeout>))
   }
 
-  /** Ids with a close still waiting for its timer (tests / diagnostics). */
+  /** Ids with a close still waiting for its delay or for quiet (tests / diagnostics). */
   pendingIds(): string[] {
     return [...this.pending.keys()]
   }
 
   /**
-   * `terminal:close-worker`. A request that passes replaces a pending close of the same tab
-   * (the timer restarts); a refused request leaves a pending close alone.
+   * `terminal:close-worker`. A request that passes replaces a pending close of the same tab,
+   * one waiting for quiet included (the timer restarts); a refused request leaves a pending
+   * close alone.
    */
   request(raw: unknown): CloseWorkerResult {
     const args = (raw && typeof raw === 'object' ? raw : {}) as { towerId?: unknown; workorder?: unknown; delayMs?: unknown }
@@ -134,10 +153,11 @@ export class WorkerCloseScheduler {
 
     const terminalId = owned[0]
     const now = this.now()
+    // T0545: recent output is no longer a refusal; the close waits for quiet when it is due.
     const lastOutput = ptys.getLastOutputAt(terminalId)
-    if (lastOutput !== null && now - lastOutput < CLOSE_WORKER_IDLE_MS) {
-      return refuse('BUSY', ` (id=${terminalId} output ${now - lastOutput} ms ago)`)
-    }
+    const printing = lastOutput !== null && now - lastOutput < CLOSE_WORKER_IDLE_MS
+      ? ` (output ${now - lastOutput} ms ago; will wait for quiet)`
+      : ''
 
     const previous = this.pending.get(terminalId)
     if (previous) {
@@ -145,18 +165,10 @@ export class WorkerCloseScheduler {
       this.pending.delete(terminalId)
     }
     const closeAt = now + delayMs
-    this.deps.logger.log(`[close-worker] ${tag} id=${terminalId} → scheduled delayMs=${delayMs}${previous ? ' (replaces the pending close)' : ''}`)
-    if (delayMs === 0) {
-      this.fire(terminalId, { scheduledAt: now, towerId, workorder })
-    } else {
-      const timer = this.setTimer(() => {
-        const entry = this.pending.get(terminalId)
-        if (!entry || entry.timer !== timer) return
-        this.pending.delete(terminalId)
-        this.fire(terminalId, entry)
-      }, delayMs)
-      this.pending.set(terminalId, { timer, scheduledAt: now, closeAt, towerId, workorder })
-    }
+    this.deps.logger.log(`[close-worker] ${tag} id=${terminalId} → scheduled delayMs=${delayMs}${printing}${previous ? ' (replaces the pending close)' : ''}`)
+    const entry: CloseEntry = { scheduledAt: now, closeAt, towerId, workorder, waiting: false }
+    if (delayMs === 0) this.fire(terminalId, entry)
+    else this.arm(terminalId, entry, delayMs)
     return { ok: true, terminalId, closeAt, delayMs }
   }
 
@@ -166,7 +178,19 @@ export class WorkerCloseScheduler {
     this.pending.clear()
   }
 
-  private fire(id: string, entry: { scheduledAt: number; towerId: string; workorder: string }): void {
+  /** Runs `fire` for `id` after `ms`, unless a newer request or `dispose` replaced the entry. */
+  private arm(id: string, entry: CloseEntry, ms: number): void {
+    const timer = this.setTimer(() => {
+      const current = this.pending.get(id)
+      if (!current || current.timer !== timer) return
+      this.pending.delete(id)
+      this.fire(id, current)
+    }, ms)
+    this.pending.set(id, { ...entry, timer })
+  }
+
+  /** The delay is up, or a quiet-wait check is due: close, keep waiting for quiet, or give up. */
+  private fire(id: string, entry: CloseEntry): void {
     const tag = `tower=${entry.towerId} workorder=${entry.workorder} id=${id}`
     const ptys = this.deps.getPtyManager()
     if (!ptys || !ptys.isAlive(id)) {
@@ -175,15 +199,26 @@ export class WorkerCloseScheduler {
     }
     const input = ptys.getLastUserInputAt(id)
     if (input !== null && input > entry.scheduledAt) {
-      this.deps.logger.log(`[close-worker] ${tag} → cancelled (user input during the delay)`)
+      this.deps.logger.log(`[close-worker] ${tag} → cancelled (user input ${entry.waiting ? 'while waiting for quiet' : 'during the delay'})`)
       return
     }
+    const now = this.now()
     const output = ptys.getLastOutputAt(id)
-    if (output !== null && output > entry.scheduledAt) {
-      this.deps.logger.log(`[close-worker] ${tag} → cancelled (new output during the delay)`)
+    if (output !== null && now - output < CLOSE_WORKER_IDLE_MS) {
+      const deadline = entry.closeAt + CLOSE_WORKER_MAX_QUIET_WAIT_MS
+      if (now >= deadline) {
+        this.deps.logger.log(`[close-worker] ${tag} → cancelled (still printing ${CLOSE_WORKER_MAX_QUIET_WAIT_MS / 1000} s after the delay; tab kept)`)
+        return
+      }
+      if (!entry.waiting) {
+        this.deps.logger.log(`[close-worker] ${tag} → still printing (output ${now - output} ms ago): waiting for quiet (at most ${CLOSE_WORKER_MAX_QUIET_WAIT_MS / 1000} s)`)
+      }
+      // Look again once the latest output is IDLE_MS old, or at the deadline.
+      this.arm(id, { ...entry, waiting: true }, Math.max(1, Math.min(output + CLOSE_WORKER_IDLE_MS, deadline) - now))
       return
     }
     const windows = this.deps.emit(CLOSE_REQUESTED_CHANNEL, { id })
-    this.deps.logger.log(`[close-worker] ${tag} → close requested (windows=${typeof windows === 'number' ? windows : 'n/a'})`)
+    const waited = entry.waiting ? ` after waiting ${((now - entry.closeAt) / 1000).toFixed(1)} s for quiet` : ''
+    this.deps.logger.log(`[close-worker] ${tag} → close requested${waited} (windows=${typeof windows === 'number' ? windows : 'n/a'})`)
   }
 }
