@@ -3121,6 +3121,8 @@ pwsh -Command "Set-Clipboard -Value '/ct-exec T####'"
 - 讀熱區 `T:` 計數時記得扣掉這 4 張（實際工單數 = T 計數 − 4）
 - 若日後 F-24 改為「無 frontmatter 即視為參考文件」，本條可 obsolete
 
+**更新（2026-10-16T02:22:04+0800，第六十六 session）**：BAT CT 面板把這 4 份無 frontmatter 的報告顯示為 Pending，使用者改選「搬入歸檔」→ 已 `git mv` 到 `_archive/workorders/`（與母工單同處）。熱區 `T:` 計數不再需要扣 4。
+
 **候選晉升**：📂 Project（本專案歷史遺留；但「排除規則靠檔名前綴，遇到越界命名即失效」是通例，
 可考慮回饋上游改為 frontmatter 判定）
 

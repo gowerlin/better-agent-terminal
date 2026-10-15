@@ -3,16 +3,17 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-014
 title: evaluate-vscode-extension-vs-git-gui
-status: PLANNED
+status: DROPPED
 priority: medium
 created_at: "2026-04-17T22:00:00+08:00"
+updated_at: "2026-10-16T02:22:04+0800"
 ---
 # PLAN-014-evaluate-vscode-extension-vs-git-gui
 
 ## 元資料
 - **編號**:PLAN-014
 - **標題**:BAT 內建 Git 圖形介面(方向 B — 方向 A 於 Phase 1 放棄)
-- **狀態**:📋 PLANNED
+- **狀態**:🚫 DROPPED（2026-10-16 使用者決定擱置）
 - **優先級**:🟡 Medium
 - **類型**:技術改善(擴展性實作)
 - **建立時間**:2026-04-17 22:00 (UTC+8)
@@ -177,3 +178,11 @@ BAT 目前定位為「Better Agent Terminal」— 結合終端機 + BMad Guide +
 本 PLAN 為高抽象度的**方向性評估**,非具體實作 PLAN。結論成熟後應拆成具體的實作 PLAN(如 `PLAN-XXX-git-commit-log-visualization`)。
 
 優先級標 🟢 Low 因為 PLAN-012 才剛結案、backlog 還有多張 🟡 Medium(PLAN-004 GPU Whisper / PLAN-009 Sprint Dashboard),本 PLAN 先進冷藏庫,等上述完成或使用者再提才動手。
+
+---
+
+## 擱置（第六十六 session，2026-10-16T02:22:04+0800）
+
+- 狀態 PLANNED → **DROPPED**：使用者決定擱置。自 2026-04-17 Phase 1（T0152）/ Phase 2 POC（T0153 PARTIAL）後未再推進，Phase 3 未開單。
+- T0153 → ABANDONED（回報區與結論保留）。
+- `src/components/git-poc/`（POC 程式碼）本次不動；要移除需另開工單並先確認 `App.tsx` 等引用。

@@ -22,7 +22,7 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 02:18 (UTC+8) — PLAN-041 DONE（pre.4 實機重驗 T0549）
+> 最後同步：2026-10-16 02:18 (UTC+8) — PLAN-041 DONE（pre.4 實機重驗 T0549）；PLAN-014 DROPPED
 
 ## 統計
 - 💡 Ideas: 3 | 📋 Planned: 2 | 🔄 In Progress: 6 | ✅ Done: 3 | 🚫 Dropped: 0
@@ -38,7 +38,7 @@ breakdown:
 | PLAN-040 | 工作區層級預設 Agent ＋ Agent 啟動參數設定（T0529） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-040](PLAN-040-workspace-default-agent-setting.md) |
 | PLAN-041 | 塔台收單後自動回收 Worker 分頁（BAT `--close-worker` + CT `*config`；T0535–T0538、T0545、CT-T011；pre.4 實機重驗 T0549） | 🟡 medium | ✅ DONE | [PLAN-041](PLAN-041-auto-close-worker-terminal.md) |
 | PLAN-033 | Tower State Snapshot Archive Architecture（hot/cold 分離 + 上游 PR） | 🔴 high | 📋 PLANNED | [PLAN-033](PLAN-033-tower-state-snapshot-archive-architecture.md) |
-| PLAN-014 | evaluate-vscode-extension-vs-git-gui | 🟡 medium | 📋 PLANNED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
+| PLAN-014 | evaluate-vscode-extension-vs-git-gui（2026-10-16 擱置；T0153 ABANDONED） | 🟡 medium | 🚫 DROPPED | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
 | PLAN-015 | refactor-dual-render-path-shared-helper | 🟢 low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |

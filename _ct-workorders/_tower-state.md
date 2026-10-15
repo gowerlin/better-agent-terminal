@@ -97,7 +97,7 @@
 
 ### 待辦（依優先序）
 
-1. ✅ ~~PLAN-041 重驗~~ → **DONE**（第六十六 session 02:17，T0549：pre.4 收單即 `--close-worker` exit 0、10 s 後關閉；當次排程時已安靜，等安靜分支由 T0545 e2e 涵蓋）。同場結案 CT-T001 / CT-T011 / CT-T012 / T0510（PARTIAL→DONE）
+1. ✅ ~~PLAN-041 重驗~~ → **DONE**（第六十六 session 02:17，T0549：pre.4 收單即 `--close-worker` exit 0、10 s 後關閉；當次排程時已安靜，等安靜分支由 T0545 e2e 涵蓋）。同場結案 CT-T001 / CT-T011 / CT-T012 / T0510（PARTIAL→DONE）；PLAN-014 DROPPED、T0153 ABANDONED；L132 四份報告檔搬入歸檔
 2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 **pre.4 實機**：WSL / SSH 首次設定的線上下載與「匯入本機 tarball」、dmg（UDBZ）掛載 / AppImage（xz）啟動速度、NSIS 完整重裝；WSL `~/.local/bat-server` 仍是 0.5.9-pre.4
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；Gary 日誌另案（macOS terminal-server 未存活、`first-renderer-ipc` +8 s）
@@ -230,8 +230,8 @@
 
 > **Drift / 注意事項**:
 > 1. ✅ ~~D094 mac installer 280 MB cap 長期超標（L130）~~ → D146 取代（每平台 ≤ 320 MiB、zip ≤ 450；pre.4 全數符合）
-> 2. ⚠️ `_ct-workorders/T0293-review-report.md` 含 2 個 NUL 位元組（既有）
-> 3. ⚠️ **L132**：`T0292/T0293/T0298/T0302-*-report.md` 命名越界，維持現狀
+> 2. ⚠️ `_ct-workorders/_archive/workorders/T0293-review-report.md` 含 2 個 NUL 位元組（既有；2026-10-16 隨 L132 處置搬入歸檔）
+> 3. ✅ ~~**L132**：`T0292/T0293/T0298/T0302-*-report.md` 命名越界~~ → 2026-10-16 使用者決定搬入 `_archive/workorders/`
 > 4. ⚠️ **L129**：含反斜線的內容一律走 Write 工具
 > 5. ⚠️ **L136**：VS Code Insiders 可能鎖 `release\win-unpacked\resources\app.asar`
 > 6. ⚠️ **發版綁定**：T0435 ↔ T0437、T0453 ↔ T0458（皆已同在 pre.2 之後的版本內）

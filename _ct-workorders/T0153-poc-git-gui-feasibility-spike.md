@@ -4,10 +4,11 @@ schema_kind: workorder
 id: T0153
 title: poc-git-gui-feasibility-spike
 type: research
-status: PARTIAL
+status: ABANDONED
 created_at: "2026-04-17T22:30:00+08:00"
 started_at: "2026-04-17T22:29:00+08:00"
 completed_at: "2026-04-17T22:36:00+08:00"
+updated_at: "2026-10-16T02:22:04+0800"
 renew_count: 0
 ---
 # T0153-poc-git-gui-feasibility-spike
@@ -15,7 +16,7 @@ renew_count: 0
 ## 元資料
 - **工單編號**:T0153
 - **任務名稱**:POC:方向 B(Git GUI)三個高風險假設驗證 Spike
-- **狀態**:PARTIAL
+- **狀態**:ABANDONED（原 PARTIAL）
 - **類型**:research(POC — 允許實作代碼)
 - **互動模式**:disabled(延續 Q3.A:Worker 獨立研究 + POC)
 - **Renew 次數**:0
@@ -287,3 +288,10 @@ renew_count: 0
 
 ### 回報時間
 2026-04-17 22:36 (UTC+8)
+
+---
+
+## Post-resolution note（塔台，第六十六 session，2026-10-16T02:22:04+0800）
+
+- 狀態 PARTIAL → **ABANDONED**（work-order-system § Resolved `PARTIAL` 補正規則第 4 點：blocker 因方向不再推進而解除）：使用者決定擱置 PLAN-014（→ DROPPED），未完成的 FPS / 反查延遲實測不再補。
+- 原回報區、三個假設的結論與 Phase 3 拆單建議保留，日後重啟 Git GUI 方向時可直接參考。
