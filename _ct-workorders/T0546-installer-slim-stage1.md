@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0546
 title: "安裝檔瘦身第一階段（T0544 S2）：排除重複 / 用不到的 binary 與 node_modules（C1 / C2a / C2b / C3 / C4 白名單 / C5），不改功能"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: M
 created_at: "2026-10-15T20:33:46+0800"
-updated_at: "2026-10-15T20:34:09+0800"
+updated_at: "2026-10-15T21:09:10+0800"
 started_at: "2026-10-15T20:34:09+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-15T21:09:10+0800"
+commit: "dc64388d"
 target_version: "0.6.1-pre.4"
 depends_on: []
 related:
@@ -87,7 +87,7 @@ memory_overrides:
 
 ### 完成狀態
 
-**DONE**：C1 / C2a / C2b / C3 / C4 / C5 全部落地，守門 1–4 都有測試；本機 Windows `--dir` 打包、驗證與 `--runtime=9546` 實機 smoke 通過。mac dmg / Linux AppImage 只能在 CI 驗證（見「只能在 CI 驗證」）。
+**DONE**（commit `dc64388d`）：C1 / C2a / C2b / C3 / C4 / C5 全部落地，守門 1–4 都有測試；本機 Windows `--dir` 打包、驗證與 `--runtime=9546` 實機 smoke 通過。mac dmg / Linux AppImage 只能在 CI 驗證（見「只能在 CI 驗證」）。
 
 Landing check：**PASS**
 - C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`，相符
