@@ -57,6 +57,12 @@ interface TerminalCommandOptions {
   reportLanding?: boolean
   /** T0535: set by create-agent-command (skill mode) — recorded on the PTY for `--close-worker`. */
   workorder?: string
+  /**
+   * T0553: set by create-agent-command — the agent it launched and that agent's registry name,
+   * sent with `terminal:created-externally` for the tab title only (not recorded on the PTY).
+   */
+  agent?: string
+  agentName?: string
 }
 
 interface TerminalAgentCommandOptions {
@@ -300,6 +306,15 @@ function cwdReport(check: DispatchCwdCheck | undefined): DispatchCwdReport | und
   }
 }
 
+/** T0553: an agent's name in the registry (custom CLIs included), for the tab title. */
+function agentDisplayName(agentId: string): string | undefined {
+  try {
+    return agentRegistry.getDefinition(agentId)?.name || undefined
+  } catch {
+    return undefined
+  }
+}
+
 export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps): void {
   const delay = deps.setTimeout ?? setTimeout
 
@@ -491,6 +506,9 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         id: opts.id,
         cwd: opts.cwd,
         command: opts.command,
+        // T0553: the tab title shows the agent (`<agent> · Worker · <workorder>`)
+        ...(typeof opts.agent === 'string' && opts.agent ? { agent: opts.agent } : {}),
+        ...(typeof opts.agentName === 'string' && opts.agentName ? { agentName: opts.agentName } : {}),
         workspaceId: landing.workspaceId,
         // T0523: the renderer lands the tab next to the Tower terminal when it holds it
         // (headless has no registry to resolve this on the server).
@@ -611,6 +629,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     }
 
     deps.logger.log(`[agent-command] resolved agent=${opts.agent || 'default'} to ${resolved.agentId} source=${resolved.agentSource ?? 'n/a'} workspace=${describeWorkspace(landing)} workspaceSource=${landing.source} argsSource=${resolved.argsSource ?? 'n/a'}`)
+    const agentName = agentDisplayName(resolved.agentId)
     const commandOptions: TerminalCommandOptions = {
       id: opts.id,
       cwd: opts.cwd,
@@ -621,6 +640,9 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       ...(opts.reportLanding ? { reportLanding: true } : {}),
       // T0535 (PLAN-041): the Worker's work order, for `--close-worker` (skill mode only)
       ...(hasSkillPayload ? { workorder: opts.workorder } : {}),
+      // T0553: for the tab title
+      agent: resolved.agentId,
+      ...(agentName ? { agentName } : {}),
     }
     const result = deps.invokeHandler
       ? await deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)

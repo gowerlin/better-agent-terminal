@@ -1159,6 +1159,7 @@
     "closeReported": "关闭已回报的 Worker 标签页（{{count}}）",
     "batchCloseTitle": "关闭已回报的 Worker 标签页？",
     "batchCloseDesc": "以下 Worker 标签页已回报给 {{tower}}，将被关闭。其中正在执行的程序会被终止，worktree 保留。",
-    "batchCloseConfirm": "关闭 {{count}} 个标签页"
+    "batchCloseConfirm": "关闭 {{count}} 个标签页",
+    "remoteOriginTooltip": "这个终端由远程服务器创建"
   }
 }

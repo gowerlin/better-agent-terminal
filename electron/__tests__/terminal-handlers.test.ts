@@ -81,7 +81,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       })])
       expect(t.emitted).toEqual([{
         channel: 'terminal:created-externally',
-        payload: { id: 'w1', cwd: '/home/x/repo', command: 'agent /ct-exec T0431', workspaceId: 'ws-1', towerTerminalId: 'tower-1', workorder: 'T0431' },
+        payload: { id: 'w1', cwd: '/home/x/repo', command: 'agent /ct-exec T0431', agent: 'claude-cli', agentName: 'Claude CLI', workspaceId: 'ws-1', towerTerminalId: 'tower-1', workorder: 'T0431' },
       }])
       vi.advanceTimersByTime(500)
       expect(t.writes).toEqual([['w1', 'agent /ct-exec T0431\r']])
@@ -105,6 +105,29 @@ describe('registerTerminalHandlers (T0431)', () => {
       })
       expect(prompt.emitted[0].payload).toMatchObject({ id: 'w3', towerTerminalId: 'tower-1' })
       expect(prompt.emitted[0].payload).not.toHaveProperty('workorder')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('created-externally names the agent for the tab title (T0553); a raw command does not', async () => {
+    vi.useFakeTimers()
+    try {
+      const custom = setup({
+        buildAgentPromptCommand: async () => ({ command: 'node w.mjs go', agentId: 'not-in-registry', prompt: 'go', prefixNormalized: false }),
+      })
+      await custom.invoke('terminal:create-agent-command', REMOTE, { id: 'w4', cwd: '/r', prompt: 'go' })
+      // no registry definition → the id only; the renderer falls back to the command file name
+      expect(custom.emitted[0].payload).toMatchObject({ id: 'w4', agent: 'not-in-registry' })
+      expect(custom.emitted[0].payload).not.toHaveProperty('agentName')
+
+      const raw = setup()
+      await raw.invoke('terminal:create-with-command', REMOTE, { id: 'w5', cwd: '/r', command: 'claude "/ct-exec T0553"' })
+      expect(raw.emitted[0].payload).toEqual({ id: 'w5', cwd: '/r', command: 'claude "/ct-exec T0553"', workspaceId: undefined })
+      // the agent is display data only: nothing new reaches the PTY
+      expect(raw.created[0]).not.toHaveProperty('agent')
+      expect(custom.created[0]).not.toHaveProperty('agent')
+      expect(custom.created[0]).not.toHaveProperty('agentPreset')
     } finally {
       vi.useRealTimers()
     }
@@ -141,7 +164,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       expect(t.created).toEqual([expect.objectContaining({ id: 'worker-1', workspaceId: 'ws-b' })])
       expect(t.emitted).toEqual([{
         channel: 'terminal:created-externally',
-        payload: { id: 'worker-1', cwd: '/scb', command: 'codex-cli go', workspaceId: 'ws-b', towerTerminalId: 'tower-b', workorder: 'T0001', workspaceResolved: true },
+        payload: { id: 'worker-1', cwd: '/scb', command: 'codex-cli go', agent: 'codex-cli', agentName: 'Codex CLI', workspaceId: 'ws-b', towerTerminalId: 'tower-b', workorder: 'T0001', workspaceResolved: true },
       }])
     })
 
@@ -157,13 +180,13 @@ describe('registerTerminalHandlers (T0431)', () => {
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({ BAT_TOWER_TERMINAL_ID: 'not-a-bat-tab' }, { workspaceId: 'ws-a' }))
       expect(t.agentWorkspaces).toEqual(['ws-a'])
       // ws-a is in the registry: a window without it skips the event (multi-window, T0523)
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', workspaceId: 'ws-a', towerTerminalId: 'not-a-bat-tab', workorder: 'T0001', workspaceResolved: true })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-a', towerTerminalId: 'not-a-bat-tab', workorder: 'T0001', workspaceResolved: true })
     })
 
     it('--workspace unknown to the registry → passed on unmarked (renderer falls back to active, T0361)', async () => {
       const t = dispatchSetup()
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({}, { workspaceId: 'ws-gone' }))
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', workspaceId: 'ws-gone', workorder: 'T0001' })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-gone', workorder: 'T0001' })
     })
 
     it('no --notify-id and no --workspace → active workspace (T0137, unchanged)', async () => {
@@ -171,7 +194,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({}))
       expect(t.agentWorkspaces).toEqual([undefined])
       expect(t.created[0].workspaceId).toBeUndefined()
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', workspaceId: undefined, workorder: 'T0001' })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: undefined, workorder: 'T0001' })
     })
 
     it('reportLanding → { ok, workspace, agent } (bat-terminal.mjs prints it)', async () => {

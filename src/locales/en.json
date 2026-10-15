@@ -1159,6 +1159,7 @@
     "closeReported": "Close reported Worker tabs ({{count}})",
     "batchCloseTitle": "Close reported Worker tabs?",
     "batchCloseDesc": "These Worker tabs have reported to {{tower}} and will be closed. Their processes are terminated; worktrees are kept.",
-    "batchCloseConfirm": "Close {{count}} tabs"
+    "batchCloseConfirm": "Close {{count}} tabs",
+    "remoteOriginTooltip": "A remote server created this terminal"
   }
 }

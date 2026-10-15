@@ -6,6 +6,7 @@ import { isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import { requestPtyReplay } from '../lib/pty-replay'
 import { resolveEffectiveAgentArgs, resolveEffectiveDefaultAgent, type EffectiveDefaultAgent } from '../lib/agent-launch-settings'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
+import { externalTerminalTitle, legacyExternalCommand } from '../lib/external-terminal-title'
 import { settingsStore } from './settings-store'
 
 /**
@@ -148,7 +149,7 @@ function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<stri
     workspaceId: t.workspaceId || '',
     type: 'terminal' as const,
     agentPreset: t.agentPreset,
-    title: t.title || 'Terminal',
+    title: restoredTitle(t),
     alias: t.alias,
     cwd,
     sdkSessionId: t.sdkSessionId,
@@ -156,9 +157,21 @@ function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<stri
     agentParams: normalizeAgentParams(t.agentPreset, t.agentParams),
     sessionMeta: t.sessionMeta,
     ...workerOwnership(t),
+    ...(t.remoteOrigin === true ? { remoteOrigin: true } : {}),
     scrollbackBuffer: [],
     pid: undefined,
   }
+}
+
+/**
+ * T0553: a saved tab's title. The pre-T0553 default title of a helper-created tab
+ * (`Remote: <first word of the command>`) becomes the current default title; any other title —
+ * one the user typed included — is kept as saved.
+ */
+function restoredTitle(t: Partial<TerminalInstance>): string {
+  const legacyCommand = legacyExternalCommand(t.title)
+  if (legacyCommand === null) return t.title || 'Terminal'
+  return externalTerminalTitle({ command: legacyCommand, ...workerOwnership(t) })
 }
 
 /**
@@ -484,8 +497,11 @@ class WorkspaceStore {
    *  T0523/BUG-129: before step 1, the workspace of `towerTerminalId` (`--notify-id`) when
    *  this window holds that terminal — the Tower shell's `BAT_WORKSPACE_ID` can be stale.
    *  T0537 (PLAN-041): `towerTerminalId` / `workorder` are kept on the tab and saved with it —
-   *  the Worker ownership `--close-worker` looks up after BAT reopens. */
-  addExternalTerminal(info: { id: string; cwd: string; command?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
+   *  the Worker ownership `--close-worker` looks up after BAT reopens.
+   *  T0553: the title is `<agent> · Worker · <workorder>` for a Worker, else the agent or the
+   *  command's file name (`externalTerminalTitle`); a tab a remote server created is marked
+   *  `remoteOrigin` (thumbnail badge) instead of the old `Remote:` title prefix. */
+  addExternalTerminal(info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
     // Avoid duplicates — PTY already tracked
     if (this.state.terminals.some(t => t.id === info.id)) return null
 
@@ -535,9 +551,10 @@ class WorkspaceStore {
       id: info.id,
       workspaceId: workspace.id,
       type: 'terminal',
-      title: info.command ? `Remote: ${info.command.split(' ')[0]}` : 'Remote Terminal',
+      title: externalTerminalTitle({ ...info, ...workerOwnership(info) }),
       cwd: info.cwd,
       ...workerOwnership(info),
+      ...(info.remote ? { remoteOrigin: true } : {}),
       scrollbackBuffer: [],
       lastActivityTime: Date.now()
     }
@@ -1072,6 +1089,7 @@ class WorkspaceStore {
         towerTerminalId: t.towerTerminalId,
         workorder: t.workorder,
         workerReport: t.workerReport,
+        remoteOrigin: t.remoteOrigin,
       }))
       const data = JSON.stringify({
         workspaces: this.state.workspaces,

@@ -1159,6 +1159,7 @@
     "closeReported": "關閉已回報的 Worker 分頁（{{count}}）",
     "batchCloseTitle": "關閉已回報的 Worker 分頁？",
     "batchCloseDesc": "以下 Worker 分頁已回報給 {{tower}}，將被關閉。其中執行中的程序會被終止，worktree 保留。",
-    "batchCloseConfirm": "關閉 {{count}} 個分頁"
+    "batchCloseConfirm": "關閉 {{count}} 個分頁",
+    "remoteOriginTooltip": "這個終端由遠端伺服器建立"
   }
 }

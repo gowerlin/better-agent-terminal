@@ -10,6 +10,9 @@
 //   2. Tower A's menu lists (1); the confirm lists T0601 only; confirming closes it, T0602 stays
 //   3. Tower B (workspace B) dispatches T0603 / T0604, workspace B is detached, T0604 reports →
 //      the detached window shows ✓ T0604 and closes it the same way, T0603 stays
+//
+// T0553: the Worker title is `<agent> · Worker · T####`, so the badge only appears once the
+// Worker reported (`✓`); thumbnails are found by their `data-workorder`.
 
 import { test, expect, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import { execFile } from 'node:child_process'
@@ -74,9 +77,11 @@ async function helperEnv(app: ElectronApplication, userData: string, remotePort:
   })
 }
 
-/** Thumbnail of the tab whose work order badge reads `workorder` (with or without ✓). */
+/** Thumbnail of the Worker tab of `workorder` (T0553: `data-workorder` on the thumbnail). */
 const workerThumb = (view: Locator, workorder: string) =>
-  view.locator('.thumbnail', { has: view.page().locator(`.worker-badge[data-workorder="${workorder}"]`) })
+  view.locator(`.thumbnail[data-workorder="${workorder}"]`)
+/** T0553: the default title of a Worker the custom CLI runs. */
+const workerTitle = (workorder: string) => `T0538 worker · Worker · ${workorder}`
 
 /** The thumbnail context menu closes on any document click (TerminalThumbnail). */
 async function closeMenu(page: Page) {
@@ -162,16 +167,17 @@ test('reported Worker tabs are marked and batch-closed from the Tower, in main a
     const w1 = await dispatch(TOWER_A, WS_A, 'T0601', folderA)
     const w2 = await dispatch(TOWER_A, WS_A, 'T0602', folderA)
     await expect(viewA.locator('.terminal-wrapper')).toHaveCount(3, { timeout: 20_000 })
-    await expect(workerThumb(viewA, 'T0601').locator('.worker-badge')).toHaveText('T0601')
-    await expect(workerThumb(viewA, 'T0602').locator('.worker-badge')).toHaveText('T0602')
+    await expect(workerThumb(viewA, 'T0601').locator('.thumbnail-title')).toContainText(workerTitle('T0601'))
+    await expect(workerThumb(viewA, 'T0602').locator('.thumbnail-title')).toContainText(workerTitle('T0602'))
+    await expect(workerThumb(viewA, 'T0601').locator('.worker-badge')).toHaveCount(0)
     // before any report: N = 0, disabled
     await viewA.locator('.thumbnail', { hasText: 'Tower A' }).click({ button: 'right' })
     await expect(win.locator('.context-menu [data-action="close-reported-workers"]')).toBeDisabled()
     await closeMenu(win)
 
     await report(TOWER_A, 'T0601')
-    await expect(workerThumb(viewA, 'T0601').locator('.worker-badge.reported')).toHaveText('✓ T0601', { timeout: 15_000 })
-    await expect(workerThumb(viewA, 'T0602').locator('.worker-badge')).not.toHaveClass(/reported/)
+    await expect(workerThumb(viewA, 'T0601').locator('.worker-badge.reported')).toHaveText('✓', { timeout: 15_000 })
+    await expect(workerThumb(viewA, 'T0602').locator('.worker-badge')).toHaveCount(0)
     await expect.poll(async () => (await savedTerminals(win)).find(t => t.id === w1)?.workerReport?.message, { timeout: 15_000 }).toBe('T0601 完成')
     // the Worker's own menu offers "Close this Worker"
     await workerThumb(viewA, 'T0602').click({ button: 'right' })
@@ -198,8 +204,8 @@ test('reported Worker tabs are marked and batch-closed from the Tower, in main a
     await expect(viewB.locator('.terminal-wrapper')).toHaveCount(3, { timeout: 30_000 })
 
     await report(TOWER_B, 'T0604')
-    await expect(workerThumb(viewB, 'T0604').locator('.worker-badge.reported')).toHaveText('✓ T0604', { timeout: 15_000 })
-    await expect(workerThumb(viewB, 'T0603').locator('.worker-badge')).not.toHaveClass(/reported/)
+    await expect(workerThumb(viewB, 'T0604').locator('.worker-badge.reported')).toHaveText('✓', { timeout: 15_000 })
+    await expect(workerThumb(viewB, 'T0603').locator('.worker-badge')).toHaveCount(0)
     await batchCloseReported(detached, viewB, 'Tower B', ['T0604'])
     await expect(viewB.locator('.terminal-wrapper')).toHaveCount(2, { timeout: 15_000 })
     await expect(workerThumb(viewB, 'T0603')).toHaveCount(1)

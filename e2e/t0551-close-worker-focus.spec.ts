@@ -66,8 +66,9 @@ async function registryTerminalIds(win: Page): Promise<string[]> {
   return raw ? (JSON.parse(raw) as { terminals: { id: string }[] }).terminals.map(t => t.id) : []
 }
 
+// T0553: the work order badge only shows once a Worker reported; the thumbnail carries `data-workorder`
 const workerThumb = (view: Locator, workorder: string): Locator =>
-  view.locator('.thumbnail', { has: view.page().locator(`.worker-badge[data-workorder="${workorder}"]`) })
+  view.locator(`.thumbnail[data-workorder="${workorder}"]`)
 
 test('focus reports and terminal replies do not cancel a delayed --close-worker; typing does', async () => {
   test.setTimeout(240_000)

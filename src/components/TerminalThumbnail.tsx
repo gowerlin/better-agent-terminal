@@ -6,6 +6,7 @@ import type { TerminalInstance } from '../types'
 import { ActivityIndicator } from './ActivityIndicator'
 import { settingsStore } from '../stores/settings-store'
 import { getAgentPreset } from '../types/agent-presets'
+import { titleShowsWorkorder } from '../lib/external-terminal-title'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { hasNotification, subscribeNotification, clearNotification } from '../stores/terminal-notifications'
 
@@ -201,6 +202,10 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   const isSupervisor = terminal.role === 'supervisor'
   // PLAN-041 / T0538: a Worker tab (T0537 ownership) shows its work order; ✓ once it reported.
   const isWorker = !!terminal.towerTerminalId && !!terminal.workorder
+  // T0553: the default title ends with the work order (`<agent> · Worker · T####`), so the badge
+  // only shows ✓ once it reported; a title the user gave the tab keeps the T0538 badge.
+  const workorderInTitle = isWorker && titleShowsWorkorder(terminal.title, terminal.workorder!)
+  const showWorkerBadge = isWorker && (!workorderInTitle || !!terminal.workerReport)
   const workerTooltip = isWorker
     ? [
         t('workerTabs.badgeTooltip', { workorder: terminal.workorder, tower: towerTitle || terminal.towerTerminalId!.slice(0, 8) }),
@@ -227,6 +232,7 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   return (
     <div
       className={`thumbnail ${isActive ? 'active' : ''} ${isSplit ? 'split' : ''} ${isAgent ? 'agent-terminal' : ''} ${isSupervisor ? 'supervisor' : ''}`}
+      data-workorder={isWorker ? terminal.workorder : undefined}
       onClick={onClick}
       onContextMenu={handleContextMenu}
       style={agentConfig ? { '--agent-color': agentConfig.color } as React.CSSProperties : undefined}
@@ -236,14 +242,17 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           {isSupervisor && <span title="Supervisor" className="supervisor-badge">👁</span>}
           {isSplit && <span title="Split" className="split-badge">⫿</span>}
           {isAgent && <span>{agentConfig?.icon}</span>}
-          <span>{terminal.title}</span>
-          {isWorker && (
+          <span title={workorderInTitle && !terminal.workerReport ? workerTooltip : undefined}>{terminal.title}</span>
+          {terminal.remoteOrigin && (
+            <span className="remote-origin-badge" title={t('workerTabs.remoteOriginTooltip')}>{t('profiles.remote')}</span>
+          )}
+          {showWorkerBadge && (
             <span
               className={`worker-badge${terminal.workerReport ? ' reported' : ''}`}
               title={workerTooltip}
               data-workorder={terminal.workorder}
             >
-              {terminal.workerReport ? '✓ ' : ''}{terminal.workorder}
+              {terminal.workerReport ? (workorderInTitle ? '✓' : `✓ ${terminal.workorder}`) : terminal.workorder}
             </span>
           )}
           {notified && <span title="New notification" className="notification-badge">●</span>}

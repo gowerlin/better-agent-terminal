@@ -77,7 +77,7 @@ describe('Worker ownership on the tab (T0537)', () => {
     expect(lastSaved().find(t => t.id === 'worker-1')).toMatchObject({ towerTerminalId: tower.id, workorder: 'T0537' })
   })
 
-  it('data saved before T0537 loads exactly as before (no new fields)', async () => {
+  it('data saved before T0537 loads exactly as before (no new fields; T0553: the old default title is renewed)', async () => {
     loadData = JSON.stringify({
       workspaces: [{ id: 'ws-old', name: 'old', folderPath: '/tmp/old', createdAt: 1 }],
       activeWorkspaceId: 'ws-old',
@@ -90,7 +90,8 @@ describe('Worker ownership on the tab (T0537)', () => {
       workspaceId: 'ws-old',
       type: 'terminal',
       agentPreset: undefined,
-      title: 'Remote: claude',
+      // T0553: `Remote: <command>` was the old default title of a helper-created tab
+      title: 'Claude CLI',
       alias: undefined,
       cwd: '/tmp/old',
       sdkSessionId: undefined,

@@ -81,6 +81,11 @@ export interface TerminalInstance {
    * with the tab like `towerTerminalId` / `workorder`, so it is still shown after BAT reopens.
    */
   workerReport?: { message: string; reportedAt: number };
+  /**
+   * T0553: a helper-created tab whose PTY a remote server created (`terminal:created-externally`
+   * with `remote: true`). Display only (thumbnail badge); saved with the tab.
+   */
+  remoteOrigin?: boolean;
 }
 
 export interface AppState {
