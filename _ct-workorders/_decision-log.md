@@ -1376,6 +1376,19 @@
 
 ---
 
+### D146 2026-10-16 — 安裝檔瘦身：第一階段直接做（T0546）；第二階段推翻 D092「安裝檔內建 server bundle baseline」改隨需下載 + 匯入本機 tarball + 較強壓縮（T0547）；codex 繼續內建；D094 改為每平台上限
+
+- **背景**：pre.3 安裝檔 exe 693.9 / zip 868.8 / AppImage 1030.7 / dmg 871.9 MiB，D094（mac 280 MB）長期超標（L130）。T0544 實測組成：server bundle baseline 228–455、codex 103–155、Electron 94–131、claude 86–114、Windows 重複 claude.exe 86–112、SDK 內建 claude（不執行）48–139、asar 內用不到的 node_modules 約 29–39 MiB
+- **決定**：
+  - **第一階段**（塔台依 T0544 推薦直接開單，不需推翻決策）：C1 / C2a / C2b / C3 / C4 白名單 / C5 → T0546 DONE（`dc64388d`），預估 exe ≈ 454 / zip ≈ 570 / AppImage ≈ 554 / dmg ≈ 640 MiB；CI 實測待 pre.4
+  - **第二階段**（使用者 2026-10-16 選「做 A，加匯入本機 tarball」）：**推翻 D092 的「安裝檔內建 baseline」部分**——三平台安裝檔都不再附 server bundle，首次設定遠端時從 GitHub Release 下載（D120 每版都發 `server-bundle-v<版號>`）；新增 wizard「匯入本機 tarball」（含 `.sha256` 驗證）給離線 / 內網；修正無 baseline 時 cache 無法驗證的缺口；搭配 D1（`compression: maximum`）→ T0547。D093 / D095 / D120 保留
+  - **第三階段 B**（使用者選「繼續內建」）：codex 維持內建，不做
+  - **D094 改寫**：每個平台安裝檔 ≤ 320 MiB（可攜 zip 另計 ≤ 450 MiB），由 CI `Report artifact sizes` 量測；第二階段 CI 實測後確認數值，並解除 L130
+- **不採用**：mac 只附一份 baseline 的折衷（dmg 仍約 499）；B1 / B2（codex 不內建）；D2（ULMO dmg，需後處理與重簽）；D3（server bundle 改 xz，遠端需 `xz`）
+- **相關**：T0544 / T0546 / T0547 / D092 / D094 / D120 / PLAN-031 / L130
+
+---
+
 ### D145 2026-10-15 — `--close-worker` 改為「等分頁安靜再關」：收單時仍有輸出不再拒絕（BUSY），延遲到期後最多再等 60 秒（PLAN-041 實機驗收）
 
 - **背景**：PLAN-041 實機驗收（T0542，claude-cli 2.1.300）：Worker 通知後約 6 秒仍在輸出收尾內容，塔台收單後 9 秒呼叫 `--close-worker` 得 exit 6 `BUSY`；CT v5.1.0 對 6「回報、不重試」⇒ claude Worker 分頁實務上不會被自動回收。30 / 90 秒後探測皆 exit 0，閒置時無週期輸出；codex 分頁閒置亦無週期輸出（T0543）
