@@ -515,7 +515,7 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
   - `## 新增` / `## 修正` / `## 更新`（依實際內容取用）：每項以使用者看得到的行為描述，附 BUG / PLAN 編號；不寫內部實作細節
   - `## 已知事項`：未實機驗證的平台、仍在診斷的問題、需要搭配的外部版本（例如 Control Tower 版本）
   - 結尾：`macOS 仍只提供 Apple Silicon（arm64）版。` 與 `**Full Changelog**: …/compare/v<上一版>...v<本版>`（基準一律是上一個 desktop tag，不是 server-bundle tag）
-- 來源：上一版 tag 到本版之間非 `(ct)` 的 commit（`git log --oneline v<上一版>..HEAD | grep -v "(ct)"`）與對應工單回報區。
+- 來源：上一版 tag 到本版之間非 `(ct)` 的 commit（`git log --oneline v<上一版>..HEAD | grep -v "(ct)$"`；只排除標題結尾的塔台記帳 commit，`fix(ct): …` 要保留，L154）與對應工單回報區。
 - 收尾檢查：`gh release view v<版號> -R gowerlin/better-agent-terminal --json body` 確認已不是自動內容，再向使用者回報發佈完成。
 - 緣由：`v0.6.0-pre.8` 漏寫（L150，2026-10-14）；L150 停在「候選晉升」，`v0.6.1-pre.2` 又漏寫，使用者指出後於 2026-10-15 補上並晉升為本規則。
 

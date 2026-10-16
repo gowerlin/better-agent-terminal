@@ -3474,3 +3474,16 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 對方 session 權限模式不同時，訊息可能要使用者在該分頁核准
 
 **候選晉升**：📁 Project（跨專案協調）
+
+## L154
+
+**來源**：第六十八 session（2026-10-16），T0570
+
+**現象**：`_local-rules.md`「更版重點必寫」的 commit 來源寫 `git log --oneline v<上一版>..HEAD | grep -v "(ct)"`。它會連同 scope 為 `ct` 的真正修正（例 `fix(ct): …`，T0359 / T0360 / T0361、PLAN-034）一起濾掉；T0570 Worker 補齊舊版時發現並改用只排除結尾 `(ct)` 的記帳 commit。
+
+**How to apply**：
+- 篩掉塔台記帳 commit 用 `grep -v "(ct)$"`（記帳 commit 的 `(ct)` 在標題結尾），不要用 `grep -v "(ct)"`
+- 已同步修正 `_local-rules.md` 的來源指令
+
+**候選晉升**：📁 Project（已直接寫入 `_local-rules.md`）
+
