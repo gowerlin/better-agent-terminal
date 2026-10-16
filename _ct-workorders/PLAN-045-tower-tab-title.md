@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-045
 title: 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`（D147）
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-10-16T14:56:56+0800"
-updated_at: "2026-10-16T14:56:56+0800"
+updated_at: "2026-10-16T17:29:35+0800"
 links:
   related: [D147, T0562, CT-T013, T0553]
 ---
@@ -19,7 +19,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-045 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（T0562 / T0565 DONE；CT v5.2.0 DONE（CT-T013）；待 0.6.1-pre.6 實機） |
+| 狀態 | ✅ DONE（T0562 / T0565、CT v5.2.0（CT-T013）；0.6.1-pre.6 實機 PASS，2026-10-16） |
 | 來源 | 使用者需求（2026-10-16 第六十七 session），決策 D147 |
 
 ## 動機
@@ -42,4 +42,5 @@ links:
 
 - T0562 `4faa93ab`、T0565 `4936f440`（`--mode`，D148）DONE
 - CT-T013 → BMad-Guide T0139：CT v5.2.0 發佈並安裝（Claude / Codex），舊 BAT 降級已驗
-- 待：`0.6.1-pre.6` 發版後，新 Tower session 實機確認標題與 mode
+- ✅ 2026-10-16 17:29 實機 PASS（第六十八 session）：本機 BAT `0.6.1-pre.6`，Tower 啟動 `--set-role tower --mode on --agent claude` exit 0（`✓ Tower role set` / `mode: on`），標題 `Claude CLI · Tower`；同批使用者確認 Dialog 點遮罩不關 / Esc / 精靈 Esc 不作用、Settings → Advanced 用量限制開關 PASS → **PLAN-045 DONE**
+- 仍待：首次真實撞用量限制時看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證；不阻擋本 PLAN）

@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0554
 title: "BUG-141：WSL / SSH 精靈升級既有 server 後若後段失敗並取消，rollback 恢復升級前的安裝（舊 bundle、原 unit、原 service 狀態），而不是刪光；首次安裝取消行為不變"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-141
 priority: P1
 sizing: S
 created_at: "2026-10-16T03:32:02+0800"
-updated_at: "2026-10-16T04:17:18+0800"
+updated_at: "2026-10-16T17:29:35+0800"
 started_at: "2026-10-16T03:50:21+08:00"
 completed_at: "2026-10-16T04:17:18+0800"
 commit: "38fe7421"
@@ -168,3 +168,6 @@ T0552 讓「重跑精靈」成為正式的升級路徑：沿用 port / profile�
 - WSL 新備份（T0554 建立）：`~/.local/bat-server.bak-0.6.1-pre.4-t0554`（390M）、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0554`，已依使用者指示於 2026-10-16 04:24 刪除。
 - Worker 分頁已回收（到期 `close requested`）。下一張 T0555 已派。
 
+### 塔台結案（2026-10-16 17:29，第六十八 session）
+
+- FIXED → **DONE**：BUG-141 已於 2026-10-16 第六十七 session pre.5 實機驗收 CLOSED（T0557–T0559 / T0561）。

@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0551
 title: "BUG-140：`--close-worker` 延遲 / 等安靜期間只把使用者真正鍵入（含貼上）算成輸入；焦點通知與終端查詢自動回覆不取消回收（本機 + 遠端 headless）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-140
 priority: P1
 sizing: S
 created_at: "2026-10-16T02:50:44+0800"
-updated_at: "2026-10-16T03:10:07+0800"
+updated_at: "2026-10-16T17:29:35+0800"
 started_at: "2026-10-16T02:52:09+0800"
 completed_at: "2026-10-16T03:10:07+0800"
 commit: "92655e00"
@@ -143,3 +143,7 @@ T0550 收單時實測：延遲期間使用者只在 BAT 切換工作區 / 終端
 - 根因有 e2e 證據（Worker stdin 只收到 `ESC [ I` / `ESC [ O`），修正前 build 上同一 spec 重現 BUG-140、修正後通過；取捨（main 端排除純自動回應序列、不碰 xterm 私有 API）採納。已知重疊（帶修飾鍵 F3 與 CPR 同形）接受。
 - Worker 分頁回收（安裝版仍是 pre.4）：03:10:25 排程 `output 32 ms ago; will wait for quiet` → 到期 `close requested`，分頁已關。
 - BUG-140 FIXED，待 pre.5 安裝後實機驗收（收單即回收時切換焦點，分頁仍應關閉）。下一張 T0552 已派（03:11:39）。
+
+### 塔台結案（2026-10-16 17:29，第六十八 session）
+
+- FIXED → **DONE**：BUG-140 已於 2026-10-16 第六十七 session pre.5 實機驗收 CLOSED（T0557–T0559 / T0561）。

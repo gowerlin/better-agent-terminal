@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0552
 title: "BUG-138 + BUG-139：WSL 精靈升級既有 server 時沿用原 port 與既有 profile；覆蓋安裝前清掉 bundle 管理的舊檔（並確認 SSH 精靈是否同病）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: "BUG-138 / BUG-139"
 priority: P1
 sizing: M
 created_at: "2026-10-16T02:50:44+0800"
-updated_at: "2026-10-16T03:30:17+0800"
+updated_at: "2026-10-16T17:29:35+0800"
 started_at: "2026-10-16T03:11:47+0800"
 completed_at: "2026-10-16T03:30:17+0800"
 commit: "f599f915"
@@ -170,3 +170,7 @@ T0550 用安裝版 pre.4 的 WSL 精靈把使用者的 `Ubuntu-24.04` server 從
 - 殘餘風險 1（升級成功 → 後段失敗取消 → rollback 刪光）→ **BUG-141 / T0554**（塔台判定納入 pre.5 批次）。殘餘風險 2 接受（換名期間舊行程仍跑，systemd 會以新 bundle 重啟）。
 - Worker 分頁回收：03:31 排程 `output 64 ms ago` → 到期 `still printing (output 4639 ms ago): waiting for quiet` → `close requested after waiting 0.4 s for quiet`，分頁已關（PLAN-041 等安靜分支首次真實觸發，正常）。
 - 備份待使用者決定刪除：`~/.local/bat-server.bak-0.6.1-pre.4-t0552`（708M）、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0552`、`~/.local/share/bat-server.bak-t0552`（含 token / 憑證複本）。
+
+### 塔台結案（2026-10-16 17:29，第六十八 session）
+
+- FIXED → **DONE**：BUG-138 / BUG-139 已於 2026-10-16 第六十七 session pre.5 實機驗收 CLOSED（T0557–T0559 / T0561）。

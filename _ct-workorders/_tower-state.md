@@ -1,6 +1,6 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-16 16:50 (UTC+8) — **第六十七 session 收工**：pre.5 實機驗收（BUG-138–141 CLOSED）；PLAN-044 / 045 / 046（T0562–T0567，D147 / D148）；CT-T013 → CT v5.2.0；→ **`v0.6.1-pre.6`**。
+> 最後更新:2026-10-16 17:29 (UTC+8) — **第六十八 session**：pre.6 實機 PASS → PLAN-045 DONE；T0551 / T0552 / T0554 FIXED → DONE。前次：第六十七 session 收工（2026-10-16 16:50）。
 >
 > **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.6` 後，在**新的**塔台 session（CT v5.2.0）確認分頁標題 `Claude CLI · Tower` 與 `--mode` 記錄、Dialog 點外部不關 / Esc；用量限制首次真實撞限制時看 `[usage-limit]`；等 Gary BUG-136。
 ---
@@ -91,12 +91,12 @@
 - `v0.6.1-pre.6`（10-16 16:11，run `38871114752` @ `b0b6cae5`）：塔台分頁標題 + `--mode`（T0562 / T0565）、Dialog 不因點外部關閉 + Esc 統一（T0563 / T0567）、用量限制自動繼續（T0566，預設關）
 - pre.5 實機：BUG-138 / 139 / 140 / 141 CLOSED（T0557–T0561）；WSL server = **0.6.1-pre.5**（9877），驗收備份已刪
 - CT **v5.2.2** 已安裝（v5.2.0 = CT-T013 / BMad-Guide T0139：Tower 啟動時 `--set-role tower --mode`；v5.2.1 helper 統一 `${BAT_HELPER_NODE:-node}`；v5.2.2 文件修正）；BMad-Guide 方皆已 push
-- PLAN-044 / 046 DONE，PLAN-045 IN_PROGRESS；設計頁 https://claude.ai/artifact/YBsuqdHZnjvGNfhKJgahvR
+- PLAN-044 / 045 / 046 DONE（045 於第六十八 session pre.6 實機 PASS）；設計頁 https://claude.ai/artifact/YBsuqdHZnjvGNfhKJgahvR
 - unit 4597 passed / 264 files；`worker_auto_close: done`（10 s）
 
 ### 待辦（依優先序）
 
-1. 🟡 **pre.6 實機**（使用者換版中）：新塔台 session（CT v5.2.0）→ 標題 `Claude CLI · Tower`、`bat-scripts.log` `set-role` `recordedMode`（BMad-Guide 也會另開單驗）；Dialog 點遮罩不關 / Esc / 精靈 Esc 不作用；Settings → Advanced 用量限制開關；首次真實撞限制看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）→ PLAN-045 DONE
+1. ✅ ~~**pre.6 實機**~~（2026-10-16 17:29 第六十八 session PASS：標題 `Claude CLI · Tower` + `--mode on` exit 0、Dialog / Esc / 精靈 Esc、用量限制開關 → **PLAN-045 DONE**）；僅剩被動觀察：首次真實撞限制看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
 2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
 4. 🟢 後續小項：zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）
@@ -130,10 +130,10 @@
 | **目前主軸** | `v0.6.1-pre.6` 已發佈（2026-10-16 16:11）；待本機升 pre.6 實機：新塔台 session（CT v5.2.0）分頁標題 / `--mode`、Dialog 關閉與 Esc、用量限制（首次真實撞限制時看 `[usage-limit]`）；BUG-136 等 Gary |
 | **工單最大編號** | T0567；T0562 DONE `4faa93ab`；T0557–T0561 DONE（第六十七 session）；跨專案 CT-T013 DONE（CT v5.2.0）；**T0563**（Dialog 不因點外部關閉，排隊：等 T0562 收單）；T0564 DONE（研究）；T0565 DONE `4936f440`；T0566 DONE `2e3305a9`（聯合複驗 @ `dbb5aa8b`：unit 264 / 4597、typecheck 0 / 0、vite build）；T0563 DONE `132aa4b4`；T0567 DONE `91bb9607`（聯合複驗 @ `cf3c6f12`：unit 261 / 4523、typecheck 0 / 0、vite build） |
 | **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 48（BUG-140 T0558、BUG-138 / 139 / 141 T0559，2026-10-16） |
-| **PLAN 最大編號** | **PLAN-046**（2026-10-16 新開：044 用量限制自動繼續 PLANNED / 045 塔台分頁標題 IN_PROGRESS / 046 Dialog 不因點外部關閉 PLANNED）；PLAN-043（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
+| **PLAN 最大編號** | **PLAN-046**（2026-10-16 新開：044 用量限制自動繼續 DONE / 045 塔台分頁標題 DONE（pre.6 實機 PASS，第六十八 session） / 046 Dialog 不因點外部關閉 DONE）；PLAN-043（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
 | **決策最大編號** | D148（PLAN-044 範圍：claude 信任 CLI、Codex 自動輸入、塔台 `--mode`，2026-10-16） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower v5.1.0（第六十五 session 起生效；`worker_auto_close: done`） |
+| **塔台版本** | Control Tower v5.2.2（第六十八 session 起生效；`worker_auto_close: done`） |
 | **unit test 基線** | **4597 passed / 264 files / 3 skipped**（塔台聯合複驗 @ `dbb5aa8b`，2026-10-16 第六十七 session）；前：4372 passed / 253 files / 3 skipped（塔台複驗 T0556 @ `fec2a112`）；typecheck 0 / typecheck:electron 0；pre.5 回歸 e2e 6 passed / 8 skipped（WSL opt-in） |
 
 ---
@@ -206,7 +206,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.6.1-pre.5` | 2026-10-16 13:47 確認；`v0.6.1-pre.6` 已發佈，使用者收工時換版中（下次起手以 FileVersion 確認） |
+| BAT 安裝版 | ✅ `0.6.1-pre.6` | 2026-10-16 17:29 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
@@ -219,7 +219,7 @@
 | Control Tower skills | ✅ v5.1.0 | control-tower / ct-exec / ct-done / ct-status / ct-evolve / ct-insights / ct-fieldguide / ct-help 全為 5.1.0 |
 | 熱區單據 | **T:187 檔 / BUG:62 / PLAN:14 / EXP:0** | `archive_days: 2` 下大量到齡候選（歸檔前先 grep 程式碼引用，L133） |
 | 最大編號 | **T0567 / BUG-141 / PLAN-046 / D148 / L153 / CT-T013** | 下張：T0568 / BUG-142 / PLAN-047 / D149 / L154 / CT-T014（第六十七 session 收工時） |
-| 非終態工單 | T0360 FIXED（舊單） | 第六十六 session 已補正 T0510 / T0153 / CT-T001 / 011 / 012；報告檔 T0292 / 293 / 298 / 302 已歸檔 |
+| 非終態工單 | T0360 FIXED（舊單） | 2026-10-16 17:29：T0551 / T0552 / T0554 FIXED → DONE（BUG 已 CLOSED）；第六十六 session 已補正 T0510 / T0153 / CT-T001 / 011 / 012；報告檔 T0292 / 293 / 298 / 302 已歸檔 |
 | unit test | ✅ **3939 passed / 1 skipped / 237 files** | 塔台 rescan 複驗 @ `2b983a79`（31 s） |
 | typecheck | ✅ src 0 / electron 0 | 塔台 rescan 複驗 @ `2b983a79` |
 | e2e | 未重跑 | 最近：T0535-T0541 各自 e2e（需先 `npx vite build`） |
