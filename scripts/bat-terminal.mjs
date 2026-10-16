@@ -22,7 +22,7 @@
 //        created). Exit 0 scheduled / 3 NOT_FOUND / 4 NOT_OWNER / 5 AMBIGUOUS / 6 BUSY / 1 other.
 //        T0545 / D145: BAT waits for the tab to go quiet instead of answering BUSY (6 stays
 //        for older BATs).
-//   node scripts/bat-terminal.mjs --set-role tower [--terminal-id <id>] [--agent claude]
+//   node scripts/bat-terminal.mjs --set-role tower [--mode yolo] [--terminal-id <id>] [--agent claude]
 //     └─ T0562 / D147: title this tab (default $BAT_TERMINAL_ID) `<agent> · Tower` (no tab is
 //        created; a name the user gave the tab is kept). Exit 0 done / 3 NOT_FOUND / 1 other.
 //
@@ -77,7 +77,7 @@ const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs [options] --prompt <text>
        bat-terminal.mjs [options] --skill <name> --workorder <T####>
        bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>]
-       bat-terminal.mjs --set-role tower [--terminal-id <id>] [--agent <id>]
+       bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]
 
 Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
 With --close-worker, close the Worker tab a Tower dispatched instead (no terminal is created).
@@ -124,8 +124,10 @@ Give a tab a role (T0562):
                          name comes from the tab's own agent, else --agent, else "Terminal". A
                          name the user gave the tab is kept. Cannot be combined with --close-worker,
                          --delay-ms, --notify-id or the options that create a terminal (--cwd,
-                         --workspace, --prompt, --skill, --workorder, --mode, --interactive,
+                         --workspace, --prompt, --skill, --workorder, --interactive,
                          --no-interactive, <command>).
+  --mode <value>         With --set-role (T0565): the Tower's CT mode (yolo|ask|off|on, any case);
+                         BAT records it for the tab. Without --mode the recorded mode is kept.
   --terminal-id <id>     The tab to set (default: $BAT_TERMINAL_ID, i.e. this tab)
   --agent <id>           With --set-role: only a hint for the agent name (claude / codex / an
                          agent id); the tab's own agent wins
@@ -143,6 +145,7 @@ Examples:
   node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --skill ct-exec --workorder T0001
   node scripts/bat-terminal.mjs --close-worker T0001 --notify-id "$BAT_TERMINAL_ID" --delay-ms 10000
   node scripts/bat-terminal.mjs --set-role tower --agent claude
+  node scripts/bat-terminal.mjs --set-role tower --mode yolo
 `
 
 // T0360/BUG-082: Work order ID grammar, shared across the whole dispatch chain.
@@ -162,6 +165,8 @@ const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
 // T0562: `--set-role` exit codes (contract shared with CT, T0562「介面契約」).
 const SET_ROLE_EXIT = { NOT_FOUND: 3 }
 const SET_ROLES = ['tower']
+// T0565: `--set-role tower --mode` accepts these trimmed / in any case (`--mode` of a new tab: exact)
+const CT_MODES = ['yolo', 'ask', 'off', 'on']
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -218,6 +223,8 @@ let prompt = null
 let skill = null
 let workorder = null
 let mode = null
+// T0565: a `--mode` value only `--set-role` accepts (trimmed / any case), checked after parsing
+let modeRaw = null
 let interactive = null  // null = unspecified / true = --interactive / false = --no-interactive
 const positional = []
 // PLAN-041 / T0535: close-worker mode, and the terminal-creating flags given (they exclude it)
@@ -227,6 +234,7 @@ const createFlags = []
 // T0562: set-role mode (`--agent` is then a display-name hint only)
 let setRole = null
 let roleTerminalId = null
+let roleMode = null  // T0565
 let agentGiven = false
 
 let i = 0
@@ -315,13 +323,23 @@ while (i < rawArgs.length) {
 
   if (arg === '--mode') {
     createFlags.push(arg)
-    if (!rawArgs[i + 1]) { printUsageError('--mode requires a value argument (yolo|ask|off|on)'); process.exit(1) }
+    // T0565: with --set-role the diagnostic line `set-role: USAGE` follows a usage error
+    const forSetRole = rawArgs.includes('--set-role')
+    if (!rawArgs[i + 1]) {
+      printUsageError('--mode requires a value argument (yolo|ask|off|on)')
+      if (forSetRole) console.error('set-role: USAGE')
+      process.exit(1)
+    }
     const value = rawArgs[i + 1]
-    if (!/^(yolo|ask|off|on)$/.test(value)) {
+    if (/^(yolo|ask|off|on)$/.test(value)) {
+      mode = value
+      modeRaw = null
+    } else if (forSetRole) {
+      modeRaw = value
+    } else {
       console.error(`Error: Invalid --mode value: '${value}' (expected one of: yolo, ask, off, on)`)
       process.exit(1)
     }
-    mode = value
     i += 2
     continue
   }
@@ -417,7 +435,8 @@ if (setRole || roleTerminalId !== null) {
   }
   if (!setRole) roleUsage('--terminal-id is only valid with --set-role', 'terminal-id-without-set-role')
   const conflicting = [
-    ...new Set(createFlags.filter(flag => flag !== '--agent')),
+    // T0565: --mode is the Tower's own mode here
+    ...new Set(createFlags.filter(flag => flag !== '--agent' && flag !== '--mode')),
     ...(closeWorker ? ['--close-worker'] : []),
     ...(delayMs !== null ? ['--delay-ms'] : []),
     ...(notifyId ? ['--notify-id'] : []),
@@ -431,6 +450,17 @@ if (setRole || roleTerminalId !== null) {
     roleUsage('--set-role needs --terminal-id <id> or BAT_TERMINAL_ID (run it inside a BAT tab)', 'set-role-without-terminal-id')
   }
   roleTerminalId = roleTerminalId.trim()
+  if (modeRaw !== null || mode !== null) {
+    const value = String(modeRaw ?? mode).trim().toLowerCase()
+    if (!CT_MODES.includes(value)) {
+      roleUsage(`Invalid --mode value: '${modeRaw ?? mode}' (expected one of: ${CT_MODES.join(', ')})`, 'set-role-invalid-mode')
+    }
+    roleMode = value
+  }
+} else if (modeRaw !== null) {
+  // `--set-role` was only another option's value: the --mode check of a new tab applies
+  console.error(`Error: Invalid --mode value: '${modeRaw}' (expected one of: yolo, ask, off, on)`)
+  process.exit(1)
 }
 
 // PLAN-041 / T0535: --close-worker closes a Worker tab; it never creates one.
@@ -489,7 +519,7 @@ logEvent('bat-terminal', 'parsed', {
   cmd: positional[0] ?? null,
   cmdArgs: positional.slice(1),
   ...(closeWorker ? { closeWorker, delayMs } : {}),
-  ...(setRole ? { setRole, roleTerminalId, agentHint: agentGiven ? agent : null } : {}),
+  ...(setRole ? { setRole, roleTerminalId, roleMode, agentHint: agentGiven ? agent : null } : {}),
 })
 
 // PLAN-041 / T0562: the `<mode>: <CODE>` diagnostic line on stderr of the modes that create no tab.
@@ -1099,14 +1129,14 @@ async function runCloseWorker(ws) {
 }
 
 /**
- * T0562 / D147: `terminal:set-role { terminalId, role, agent? }`. Success is decided by the exit
- * code (CT treats any non-0 as "not supported / not set" and goes on); `set-role: <CODE>` on stderr
- * is diagnostic.
+ * T0562 / D147: `terminal:set-role { terminalId, role, agent?, mode? }` (T0565: `mode`). Success is
+ * decided by the exit code (CT treats any non-0 as "not supported / not set" and goes on);
+ * `set-role: <CODE>` on stderr is diagnostic.
  */
 async function runSetRole(ws) {
-  const request = { terminalId: roleTerminalId, role: setRole, ...(agentGiven ? { agent } : {}) }
+  const request = { terminalId: roleTerminalId, role: setRole, ...(agentGiven ? { agent } : {}), ...(roleMode ? { mode: roleMode } : {}) }
   const finish = (exitCode, code, fields = {}) => {
-    logEvent('bat-terminal', 'set-role', { terminalId: roleTerminalId, role: setRole, agent: agentGiven ? agent : null, result: code, ...fields, ignoredFrames })
+    logEvent('bat-terminal', 'set-role', { terminalId: roleTerminalId, role: setRole, agent: agentGiven ? agent : null, mode: roleMode, result: code, ...fields, ignoredFrames })
     logEvent('bat-terminal', 'exit', { code: exitCode, reason: exitCode === 0 ? 'set-role-done' : `set-role-${code}` })
     ws.close()
     process.exit(exitCode)
@@ -1139,7 +1169,9 @@ async function runSetRole(ws) {
   const result = resp.result
   if (result && typeof result === 'object' && result.ok === true) {
     console.log(`✓ Tower role set: ${String(result.terminalId ?? roleTerminalId)}`)
-    return finish(0, 'OK')
+    // T0565: the mode BAT now records for the tab
+    if (typeof result.mode === 'string' && result.mode) console.log(`  mode: ${result.mode}`)
+    return finish(0, 'OK', typeof result.mode === 'string' && result.mode ? { recordedMode: result.mode } : {})
   }
   const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
   const detail = {

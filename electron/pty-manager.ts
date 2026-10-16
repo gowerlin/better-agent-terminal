@@ -10,6 +10,7 @@ import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
 import { resolvePtyLocaleEnv } from './pty-locale-env'
 import { normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
+import type { CtMode } from './ct-mode'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -64,6 +65,14 @@ interface PtyInstance {
    * main then takes it from the saved tab (T0537, `electron/worker-ownership.ts`).
    */
   workorder?: string
+  /**
+   * T0565 / D148: the role a program in this tab declared (`bat-terminal.mjs --set-role tower`,
+   * `terminal:set-role`) and the CT mode it declared with it (`--mode`; undefined = never given).
+   * Kept by `restart` and the Terminal Server recovery; gone with the instance when the PTY ends.
+   * Not known to a PTY registered from the Terminal Server's list (T0108) until CT declares again.
+   */
+  role?: 'tower'
+  towerMode?: CtMode
 }
 
 /** T0535: `CreatePtyOptions` + the work order of a helper-dispatched Worker (main-side only). */
@@ -704,6 +713,40 @@ export class PtyManager implements CloseWorkerPtyManager {
     return this.instances.get(id)?.agentPreset
   }
 
+  /**
+   * T0565 / D148: record the role PTY `id` declared (`terminal:set-role`). `mode` undefined keeps
+   * the recorded mode (CT passes it every time, so there is no "clear"). false = no such PTY.
+   */
+  setTerminalRole(id: string, role: 'tower', mode?: CtMode): boolean {
+    const instance = this.instances.get(id)
+    if (!instance) return false
+    instance.role = role
+    if (mode) instance.towerMode = mode
+    return true
+  }
+
+  /** T0565: the role PTY `id` declared (undefined = none). */
+  getTerminalRole(id: string): 'tower' | undefined {
+    return this.instances.get(id)?.role
+  }
+
+  /** T0565: the CT mode a Tower PTY declared (undefined = not a Tower, or no `--mode` given). */
+  getTowerMode(id: string): CtMode | undefined {
+    const instance = this.instances.get(id)
+    return instance?.role === 'tower' ? instance.towerMode : undefined
+  }
+
+  /**
+   * T0565 / D148: whether PTY `id` runs Control Tower in yolo mode — a Tower that declared
+   * `--mode yolo`, or a Worker dispatched with `--mode yolo` (`customEnv.CT_MODE`). The one
+   * place PLAN-044 (T0566) asks; Electron and headless alike.
+   */
+  isYoloTerminal(id: string): boolean {
+    const instance = this.instances.get(id)
+    if (!instance) return false
+    return (instance.role === 'tower' && instance.towerMode === 'yolo') || instance.customEnv?.CT_MODE === 'yolo'
+  }
+
   /** T0535: the Tower terminal that dispatched PTY `id` (`customEnv.BAT_TOWER_TERMINAL_ID`). */
   getTowerTerminalId(id: string): string | undefined {
     return this.instances.get(id)?.customEnv?.BAT_TOWER_TERMINAL_ID || undefined
@@ -1066,21 +1109,24 @@ export class PtyManager implements CloseWorkerPtyManager {
    * T0525 (BUG-131): Electron too — before it the env was rebuilt without `customEnv`, losing
    * workspace / global env vars and a Worker's `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE`.
    * T0535: + its `workorder`, so `--close-worker` still finds a restarted Worker.
+   * T0565: + the declared role / Tower mode, so a restarted yolo Tower stays one.
    */
   restart(id: string, cwd: string, shell?: string): boolean {
     const instance = this.instances.get(id)
     if (instance) {
       const type = instance.type
       const customEnv = instance.customEnv ? { ...instance.customEnv } : undefined
-      const { workspaceId, agentPreset, workorder } = instance
+      const { workspaceId, agentPreset, workorder, role, towerMode } = instance
       this.kill(id)
-      return this.create({
+      const ok = this.create({
         id, cwd, type, shell,
         ...(customEnv ? { customEnv } : {}),
         ...(workspaceId ? { workspaceId } : {}),
         ...(agentPreset ? { agentPreset } : {}),
         ...(workorder ? { workorder } : {}),
       })
+      if (ok && role) this.setTerminalRole(id, role, towerMode)
+      return ok
     }
     return false
   }

@@ -10,6 +10,10 @@
  *
  * Negative: `--terminal-id` naming another terminal → `Forbidden: target-not-bound`; a worker
  * capability → `Forbidden: role-not-allowed`; both exit 1 with no event.
+ *
+ * T0565 / D148: `--mode yolo|ask|off|on` — the headless PtyManager records the Tower's mode; the
+ * answer (`  mode: <m>`) and the event carry the recorded mode, a later request without `--mode`
+ * keeps it, and a worker capability is still refused.
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -131,6 +135,34 @@ describe('remote Tower --set-role through the real helper (T0562)', () => {
     expect(change).toEqual({ id: plain, role: 'tower' })
   }, 60_000)
 
+  it('T0565: the Tower declares --mode YOLO → recorded on the headless PtyManager (answer + event)', async () => {
+    const before = roleEvents(tower).length
+    const run = await helperIn(tower, ['--set-role', 'tower', '--mode', 'YOLO'])
+    expect(run.code, run.stderr).toBe(0)
+    expect(run.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${tower}`, '  mode: yolo'])
+    await vi.waitFor(() => expect(roleEvents(tower).length).toBe(before + 1), { timeout: 10_000, interval: 50 })
+    expect(roleEvents(tower).at(-1)?.args[0]).toMatchObject({ id: tower, role: 'tower', mode: 'yolo' })
+  }, 60_000)
+
+  it('T0565: no --mode keeps the recorded mode; --mode ask updates it', async () => {
+    const kept = await helperIn(tower, ['--set-role', 'tower'])
+    expect(kept.code, kept.stderr).toBe(0)
+    expect(kept.stdout).toContain('  mode: yolo')
+    const updated = await helperIn(tower, ['--set-role', 'tower', '--mode', 'ask'])
+    expect(updated.code, updated.stderr).toBe(0)
+    expect(updated.stdout).toContain('  mode: ask')
+    await vi.waitFor(() => expect(roleEvents(tower).at(-1)?.args[0]).toMatchObject({ id: tower, mode: 'ask' }), { timeout: 10_000, interval: 50 })
+  }, 60_000)
+
+  it('T0565: an unknown --mode → exit 1 USAGE, nothing sent', async () => {
+    const before = roleEvents(tower).length
+    const run = await helperIn(tower, ['--set-role', 'tower', '--mode', 'auto'])
+    expect(run.code).toBe(1)
+    expect(run.stderr).toContain('set-role: USAGE')
+    await sleep(300)
+    expect(roleEvents(tower)).toHaveLength(before)
+  }, 60_000)
+
   it('--terminal-id naming another terminal → Forbidden: target-not-bound (exit 1), no event', async () => {
     const before = roleEvents(plain).length
     const run = await helperIn(tower, ['--set-role', 'tower', '--terminal-id', plain])
@@ -146,6 +178,10 @@ describe('remote Tower --set-role through the real helper (T0562)', () => {
     expect(run.code).toBe(1)
     expect(run.stderr).toContain('Forbidden: role-not-allowed')
     expect(run.stderr).toContain('set-role: FORBIDDEN')
+    // T0565: --mode does not change that
+    const withMode = await helperIn(worker, ['--set-role', 'tower', '--mode', 'yolo'])
+    expect(withMode.code).toBe(1)
+    expect(withMode.stderr).toContain('Forbidden: role-not-allowed')
     await sleep(300)
     expect(roleEvents(worker)).toHaveLength(0)
 

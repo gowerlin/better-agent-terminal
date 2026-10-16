@@ -4,13 +4,18 @@
  * Tower starts). BAT then titles that tab `<agent> · Tower` (src/lib/tower-terminal-title.ts),
  * unless the user named the tab.
  *
+ * T0565 / D148: `--mode yolo|ask|off|on` (optional) declares the Tower's CT mode. Main records
+ * role + mode on the PTY (`PtyManager.setTerminalRole`; kept by restart / recovery, gone with the
+ * PTY) so PLAN-044 can ask `PtyManager.isYoloTerminal`. No `mode` keeps the recorded one.
+ *
  * Main only checks the request and that the PTY runs here, then sends
- * `terminal:role-changed { id, role, ptyAgent?, ptyAgentName?, agent?, agentName? }` to every
+ * `terminal:role-changed { id, role, ptyAgent?, ptyAgentName?, agent?, agentName?, mode? }` to every
  * window (Electron: + broadcastHub; headless: the connected clients); the window holding the tab
  * decides whether its title is still BAT's default and applies it (`workspaceStore.applyTerminalRole`).
  *
- * Contract (T0562「介面契約」): `{ terminalId, role, agent? }` →
- *   `{ ok: true, terminalId, role }` or `{ ok: false, code }` with code INVALID_ARGS | NOT_FOUND.
+ * Contract (T0562「介面契約」, T0565 adds `mode`): `{ terminalId, role, agent?, mode? }` →
+ *   `{ ok: true, terminalId, role, mode? }` (`mode` = the mode now recorded) or
+ *   `{ ok: false, code }` with code INVALID_ARGS | NOT_FOUND. An unknown `mode` → INVALID_ARGS.
  * `agent` is a display-name hint only: normalized like `--agent` (`normalizeAgentAlias`) and
  * dropped when the agent registry does not know it — never a reason to refuse.
  *
@@ -21,6 +26,7 @@
  */
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { normalizeAgentAlias } from './terminal-command-handlers'
+import { normalizeCtMode, type CtMode } from './ct-mode'
 
 export const SET_ROLE_CHANNEL = 'terminal:set-role'
 export const ROLE_CHANGED_CHANNEL = 'terminal:role-changed'
@@ -32,7 +38,7 @@ export type TerminalRole = typeof TERMINAL_ROLES[number]
 export type SetRoleErrorCode = 'INVALID_ARGS' | 'NOT_FOUND'
 
 export type SetRoleResult =
-  | { ok: true; terminalId: string; role: TerminalRole }
+  | { ok: true; terminalId: string; role: TerminalRole; mode?: CtMode }
   | { ok: false; code: SetRoleErrorCode }
 
 /** `terminal:role-changed` payload. */
@@ -46,6 +52,8 @@ export interface TerminalRoleChange {
   /** The caller's `--agent` hint, normalized to a registry id. */
   agent?: string
   agentName?: string
+  /** T0565: the Tower's recorded CT mode (renderer ignores it; titles do not change). */
+  mode?: CtMode
 }
 
 /** Terminal ids are uuids / hex; same whitelist as other external ids. */
@@ -56,6 +64,10 @@ export interface SetRolePtyManager {
   isAlive(id: string): boolean
   /** T0525: the `agentPreset` PTY `id` was created with. */
   getAgentPreset?(id: string): string | undefined
+  /** T0565: record the declared role / mode (`mode` undefined keeps the recorded one). */
+  setTerminalRole?(id: string, role: TerminalRole, mode?: CtMode): boolean
+  /** T0565: the mode now recorded for a Tower PTY. */
+  getTowerMode?(id: string): CtMode | undefined
 }
 
 export interface SetTerminalRoleDeps {
@@ -109,9 +121,19 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
   if (opts.agent !== undefined && opts.agent !== null && typeof opts.agent !== 'string') {
     return refuse('INVALID_ARGS', 'agent is not a string')
   }
+  let mode: CtMode | undefined
+  if (opts.mode !== undefined && opts.mode !== null) {
+    const normalized = normalizeCtMode(opts.mode)
+    if (!normalized) return refuse('INVALID_ARGS', `mode=${String(opts.mode)}`)
+    mode = normalized
+  }
 
   const ptyManager = deps.getPtyManager()
   if (!ptyManager || !ptyManager.isAlive(terminalId)) return refuse('NOT_FOUND', `id=${terminalId} role=${role}`)
+
+  ptyManager.setTerminalRole?.(terminalId, role, mode)
+  // Test doubles without the recorder echo the request.
+  const recordedMode = ptyManager.getTowerMode ? ptyManager.getTowerMode(terminalId) : mode
 
   const change: TerminalRoleChange = { id: terminalId, role }
   const ptyAgent = ptyManager.getAgentPreset?.(terminalId)
@@ -133,15 +155,18 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
     }
   }
 
+  if (recordedMode) change.mode = recordedMode
+
   const windows = deps.emit(ROLE_CHANGED_CHANNEL, change)
-  deps.logger.log(`[set-role] id=${terminalId} role=${role} ptyAgent=${change.ptyAgent ?? 'none'} agent=${change.agent ?? 'none'}${hintNote} → sent${typeof windows === 'number' ? ` windows=${windows}` : ''}`)
+  deps.logger.log(`[set-role] id=${terminalId} role=${role} mode=${recordedMode ?? 'none'}${mode ? '' : ' (no --mode)'} ptyAgent=${change.ptyAgent ?? 'none'} agent=${change.agent ?? 'none'}${hintNote} → sent${typeof windows === 'number' ? ` windows=${windows}` : ''}`)
   deps.mirrorToBatScripts?.('set-role', {
     result: 'OK',
     terminalId,
     role,
+    ...(recordedMode ? { mode: recordedMode } : {}),
     ...(change.ptyAgent ? { ptyAgent: change.ptyAgent } : {}),
     ...(change.agent ? { agent: change.agent } : {}),
     ...(hintNote ? { ignoredAgent: hint } : {}),
   })
-  return { ok: true, terminalId, role }
+  return { ok: true, terminalId, role, ...(recordedMode ? { mode: recordedMode } : {}) }
 }

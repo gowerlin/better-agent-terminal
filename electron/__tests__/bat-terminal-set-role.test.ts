@@ -10,6 +10,10 @@
  *     no reply → exit 1 TIMEOUT; no server → exit 1 CONNECT_FAILED; outside BAT → NOT_IN_BAT
  *   - usage errors (no server contacted, no terminal created) and --help
  * The helper's NDJSON log goes to a temp dir (BAT_HELPER_LOG_DIR / BAT_USER_DATA), never the real one.
+ *
+ * T0565 / D148: `--set-role tower --mode yolo|ask|off|on` — sent as `mode` (trimmed, lower case),
+ * `  mode: <m>` printed when BAT answers with the recorded mode, logged; another value → exit 1
+ * USAGE; no --mode → request unchanged from T0562. `--mode` of a new tab keeps its exact grammar.
  */
 import { createHash, X509Certificate } from 'node:crypto'
 import { spawn } from 'node:child_process'
@@ -287,7 +291,12 @@ describe('bat-terminal --set-role usage (T0562)', () => {
     ['no terminal id at all', ROLE, '--set-role needs --terminal-id <id> or BAT_TERMINAL_ID', { BAT_TERMINAL_ID: '' }],
     ['with --prompt', [...ROLE, '--prompt', 'hi'], '--set-role cannot be combined with --prompt'],
     ['with --skill / --workorder', [...ROLE, '--skill', 'ct-exec', '--workorder', 'T0562'], 'cannot be combined with --skill, --workorder'],
-    ['with --cwd / --workspace / --mode', [...ROLE, '--cwd', '/tmp', '--workspace', 'w', '--mode', 'yolo'], 'cannot be combined with --cwd, --workspace, --mode'],
+    // T0565: --mode is no longer a conflict here (it is the Tower's own mode)
+    ['with --cwd / --workspace (and a valid --mode)', [...ROLE, '--cwd', '/tmp', '--workspace', 'w', '--mode', 'yolo'], 'cannot be combined with --cwd, --workspace\n'],
+    ['an unknown --mode (T0565)', [...ROLE, '--mode', 'auto'], "Invalid --mode value: 'auto' (expected one of: yolo, ask, off, on)"],
+    ['an unknown --mode before --set-role (T0565)', ['--mode', 'auto', ...ROLE], "Invalid --mode value: 'auto' (expected one of: yolo, ask, off, on)"],
+    ['an empty --mode (T0565)', [...ROLE, '--mode', '  '], "Invalid --mode value: '  '"],
+    ['missing --mode value (T0565)', [...ROLE, '--mode'], '--mode requires a value argument (yolo|ask|off|on)'],
     ['with --interactive', [...ROLE, '--interactive'], 'cannot be combined with --interactive'],
     ['with --no-interactive', [...ROLE, '--no-interactive'], 'cannot be combined with --no-interactive'],
     ['with --notify-id', [...ROLE, '--notify-id', 'tower-1'], 'cannot be combined with --notify-id'],
@@ -309,12 +318,102 @@ describe('bat-terminal --set-role usage (T0562)', () => {
   it('--help documents --set-role, --terminal-id and the exit codes', async () => {
     const r = await run(['--help'], env)
     expect(r.code).toBe(0)
-    expect(r.stdout).toContain('bat-terminal.mjs --set-role tower [--terminal-id <id>] [--agent <id>]')
+    expect(r.stdout).toContain('bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]')
+    expect(r.stdout).toContain("--mode <value>         With --set-role (T0565): the Tower's CT mode (yolo|ask|off|on, any case);")
     expect(r.stdout).toContain('--set-role tower       Title the tab "<agent> · Tower"')
     expect(r.stdout).toContain('--terminal-id <id>     The tab to set (default: $BAT_TERMINAL_ID, i.e. this tab)')
     expect(r.stdout).toContain('Exit codes: 0 done (title applied, or kept because the user named the tab) / 3 NOT_FOUND /')
     expect(r.stdout).toContain('"set-role: <CODE>"')
     // --close-worker help unchanged
     expect(r.stdout).toContain('bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>]')
+  })
+})
+
+describe('bat-terminal --set-role --mode (T0565)', () => {
+  for (const [given, sent] of [['yolo', 'yolo'], ['ask', 'ask'], ['off', 'off'], ['on', 'on'], [' YOLO ', 'yolo'], ['Ask', 'ask']] as const) {
+    it(`--mode '${given}' → exit 0, sent as mode ${sent}, "  mode: ${sent}" printed, logged`, async () => {
+      const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', mode: sent } })
+      try {
+        const r = await run(['--set-role', 'tower', '--mode', given], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+        expect(r.code, r.stderr).toBe(0)
+        expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${TOWER_ID}`, `  mode: ${sent}`])
+        expect(remote.invokes[0].args).toEqual([{ terminalId: TOWER_ID, role: 'tower', mode: sent }])
+        expect(helperEvents(remote.dir, 'set-role').at(-1)).toMatchObject({ mode: sent, result: 'OK', recordedMode: sent })
+      } finally {
+        await remote.close()
+      }
+    }, 20000)
+  }
+
+  it('--mode before --set-role, with --agent and --terminal-id', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: 'other-tab', role: 'tower', mode: 'yolo' } })
+    try {
+      const r = await run(['--mode', 'yolo', '--agent', 'claude', '--set-role', 'tower', '--terminal-id', 'other-tab'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code, r.stderr).toBe(0)
+      expect(remote.invokes[0].args).toEqual([{ terminalId: 'other-tab', role: 'tower', agent: 'claude', mode: 'yolo' }])
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('no --mode → no mode sent (as T0562); BAT answering with the kept mode still prints it', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', mode: 'ask' } })
+    try {
+      const r = await run(['--set-role', 'tower'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code, r.stderr).toBe(0)
+      expect(remote.invokes[0].args).toEqual([{ terminalId: TOWER_ID, role: 'tower' }])
+      expect(r.stdout).toContain('  mode: ask')
+      expect(helperEvents(remote.dir, 'set-role').at(-1)).toMatchObject({ mode: null, result: 'OK' })
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('a BAT answering without mode → only the ✓ line', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower' } })
+    try {
+      const r = await run(['--set-role', 'tower', '--mode', 'yolo'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code, r.stderr).toBe(0)
+      expect(r.stdout.trim()).toBe(`✓ Tower role set: ${TOWER_ID}`)
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('NOT_FOUND with --mode → exit 3 (unchanged)', async () => {
+    const remote = await startMockRemote({ result: { ok: false, code: 'NOT_FOUND' } })
+    try {
+      const r = await run(['--set-role', 'tower', '--mode', 'yolo'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code).toBe(3)
+      expect(r.stderr).toContain('set-role: NOT_FOUND')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  describe('--mode of a new tab keeps its exact grammar (no set-role)', () => {
+    const dir = join(tmpdir(), `bat-set-role-mode-${process.pid}-${Date.now()}`)
+    tempDirs.push(dir)
+    const env = { BAT_REMOTE_PORT: '1', BAT_REMOTE_TOKEN: 'x', BAT_HELPER_LOG_DIR: join(dir, 'Logs'), BAT_USER_DATA: dir, BAT_TERMINAL_ID: TOWER_ID }
+    for (const value of ['YOLO', ' yolo', 'auto']) {
+      it(`--mode '${value}' → exit 1, no set-role diagnostic`, async () => {
+        const r = await run(['--mode', value, '--prompt', 'hi'], env)
+        expect(r.code).toBe(1)
+        expect(r.stderr).toContain(`Invalid --mode value: '${value}' (expected one of: yolo, ask, off, on)`)
+        expect(r.stderr).not.toContain('set-role:')
+      }, 20000)
+    }
+
+    it('--set-role as another option value does not loosen it', async () => {
+      const r = await run(['--mode', 'YOLO', '--prompt', '--set-role'], env)
+      expect(r.code).toBe(1)
+      expect(r.stderr).toContain("Invalid --mode value: 'YOLO'")
+    }, 20000)
+
+    it('--close-worker still refuses --mode', async () => {
+      const r = await run(['--close-worker', 'T0535', '--notify-id', 't', '--mode', 'yolo'], env)
+      expect(r.code).toBe(1)
+      expect(r.stderr).toContain('--close-worker cannot be combined with options that create a terminal (--mode)')
+    }, 20000)
   })
 })
