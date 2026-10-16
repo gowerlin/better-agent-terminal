@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0558
 title: "pre.5 驗收探針重跑（T0557 期間使用者未確認焦點切換）（claude Worker）：Worker 分頁標題 `Claude CLI · Worker · T0558`、回報 ✓（T0553），收單回收延遲期間切換焦點不取消（BUG-140 / T0551）"
 type: verification
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: BUG-140
 priority: P2
 sizing: XS
 created_at: "2026-10-16T14:06:46+0800"
-updated_at: "2026-10-16T14:06:46+0800"
-started_at: ""
-completed_at: ""
+updated_at: "2026-10-16T14:07:41+0800"
+started_at: "2026-10-16T14:07:03+0800"
+completed_at: "2026-10-16T14:07:41+0800"
 commit: ""
 target_version: "0.6.1-pre.5（已安裝，不改程式碼）"
 depends_on: []
@@ -80,12 +80,51 @@ memory_overrides:
 
 ### 完成狀態
 
+DONE（Worker 部分；塔台驗收另行執行）
+
 ### 產出摘要
+
+Landing check：**PASS**
+- C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單位於 `REPO_ROOT/_ct-workorders/` → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 下的本工單 → not applicable
+- C-2：工單無 `branch` 欄位；目前分支 `main`
+- 觀察到的 `BAT_WORKSPACE_ID`：`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
+事實（全部以指令取值，2026-10-16T14:07:16+08:00 前後）：
+
+| 項目 | 值 | 取值方式 |
+|---|---|---|
+| agent | Claude Code（`CLAUDECODE=1`、`CLAUDE_CODE_ENTRYPOINT=cli`） | env |
+| agent 版本 | `2.1.300 (Claude Code)` | `claude --version` |
+| 執行中的 claude 執行檔 | `C:\Users\Gower\.local\bin\claude.exe`（system claude，非 BAT 內嵌；PATH 上的 `claude` 同一檔） | `Get-CimInstance Win32_Process` 父行程鏈：pwsh ← cmd ← claude.exe |
+| BAT FileVersion | `0.6.1-pre.5`（ProductVersion `0.6.1.0`，LastWriteTime `2026-10-16T05:20:52+08:00`） | `(Get-Item "C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe").VersionInfo` |
+| `BAT_SESSION` | `1` | env |
+| `BAT_TERMINAL_ID` | `120046e8c82ff921e430493f2aa5af8a` | env |
+| `BAT_TOWER_TERMINAL_ID` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` | env |
+| `BAT_WORKSPACE_ID` | `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b` | env |
+| `CT_MODE` | `yolo` | env |
+| `CT_INTERACTIVE` | `0` | env |
+| `BAT_REMOTE_TOKEN` | 已設定（值不記錄） | env |
+| `BAT_REMOTE_PORT` / `BAT_HELPER_DIR` | `9876` / `C:\Program Files\BetterAgentTerminal\resources\scripts` | env |
+| 系統時間 | `2026-10-16T14:07:28+0800` | `date "+%Y-%m-%dT%H:%M:%S%z"` |
+
+備註：BAT FileVersion 的 LastWriteTime 為 05:20（檔案時間戳），與工單背景寫的「13:47 確認」是不同的量（後者為確認時間），不衝突。
+
+變更檔案：只有本工單檔。未改產品程式碼、未跑 build / test、未呼叫 `--close-worker`、未動任何分頁。
 
 ### 互動紀錄
 
+無（`CT_INTERACTIVE=0`，fire-and-forget）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+無。
+
 ### 回報時間
+
+2026-10-16T14:07:28+0800
