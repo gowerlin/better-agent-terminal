@@ -111,7 +111,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（82 entries）
 
 ### 編號起始
-- **T0565** / **BUG-142** / **PLAN-045** / **D148** / **EXP-[TOPIC]-001** / **L152** / **CT-T014**
+- **T0565** / **BUG-142** / **PLAN-047** / **D148** / **EXP-[TOPIC]-001** / **L152** / **CT-T014**
 
 ---
 
@@ -127,7 +127,7 @@
 | **目前主軸** | pre.5 實機驗收完成（T0557–T0561）；T0562 塔台分頁標題（D147）實作中，CT-T013 待 BMad-Guide 塔台派發；BUG-136 等 Gary；進行中 PLAN 0 |
 | **工單最大編號** | T0562（塔台分頁標題 `--set-role tower`，D147，派發中）；T0557–T0561 DONE（第六十七 session）；跨專案 **CT-T013**（PENDING，CT 端呼叫，待 BMad-Guide 塔台派發）；**T0563**（Dialog 不因點外部關閉，排隊：等 T0562 收單）；**T0564**（PLAN-044 研究，派發中） |
 | **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 48（BUG-140 T0558、BUG-138 / 139 / 141 T0559，2026-10-16） |
-| **PLAN 最大編號** | **PLAN-044**（PLANNED：用量限制解鎖後自動繼續，2026-10-16）；PLAN-043（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
+| **PLAN 最大編號** | **PLAN-046**（2026-10-16 新開：044 用量限制自動繼續 PLANNED / 045 塔台分頁標題 IN_PROGRESS / 046 Dialog 不因點外部關閉 PLANNED）；PLAN-043（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
 | **決策最大編號** | D147（塔台分頁標題，2026-10-16） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.1.0（第六十五 session 起生效；`worker_auto_close: done`） |
