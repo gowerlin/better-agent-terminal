@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 17:56 (UTC+8) — BUG-143 FIXED（T0569 `fb66c0bc`，與 BUG-142 同批待實機）
+> 最後同步：2026-10-16 21:48 (UTC+8) — BUG-142 / 143 CLOSED（pre.7 實機）；BUG-144 FIXING（T0571）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 68**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 50 | ⛔ Won't Fix: 0 | **Total: 69**
 
 ## 🔴 Open / 處理中
 
@@ -38,13 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（BUG-142 衍生，T0571） | 🟢 low | 2026-10-16 21:48 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-143 | 終端右鍵選單按 Esc 關不掉（T0569 `fb66c0bc`：選單開著時 Esc 只關選單、不送進 PTY） | 🟢 low | 2026-10-16 17:53 | [BUG-143](BUG-143-terminal-context-menu-esc-not-closing.md) |
-| BUG-142 | claude CLI 分頁右鍵已貼上又跳 BAT 選單（T0568 `9988a117`：程式開滑鼠追蹤時不開選單，Shift + 右鍵照開） | 🟢 low | 2026-10-16 17:39 | [BUG-142](BUG-142-right-click-pastes-and-shows-menu-in-claude-tab.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |
@@ -73,6 +72,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-143 | 終端右鍵選單按 Esc 關不掉（T0569 `fb66c0bc`：選單開著時 Esc 只關選單、不送進 PTY；pre.7 實機 PASS） | 🟢 low | 2026-10-16 | [BUG-143](BUG-143-terminal-context-menu-esc-not-closing.md) |
+| BUG-142 | claude CLI 分頁右鍵已貼上又跳 BAT 選單（T0568 `9988a117`：程式開滑鼠追蹤時不開選單，Shift + 右鍵照開；pre.7 實機 PASS，Shift 選單缺「複製」另開 BUG-144） | 🟢 low | 2026-10-16 | [BUG-142](BUG-142-right-click-pastes-and-shows-menu-in-claude-tab.md) |
 | BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（T0554 `38fe7421`：保留 `.bat-old` 至完成、取消換回舊樹 / 舊 unit 並重啟舊 service；WSL + SSH） | 🟡 medium | 2026-10-16 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |
 | BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0552 `f599f915`：解到暫存目錄後換名，WSL / SSH 共用） | 🟢 low | 2026-10-16 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
 | BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0552 `f599f915`：沿用既有 unit port、更新既有 profile） | 🟡 medium | 2026-10-16 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |

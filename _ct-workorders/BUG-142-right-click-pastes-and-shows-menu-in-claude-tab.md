@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-142
 title: "claude CLI 分頁按滑鼠右鍵：已經貼上，同時又跳出 BAT 的「貼上」右鍵選單（重複、不合理）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: likely
 created_at: "2026-10-16T17:31:58+0800"
-updated_at: "2026-10-16T17:39:16+0800"
+updated_at: "2026-10-16T21:48:35+0800"
 fixed_at: "2026-10-16T17:39:16+0800"
+closed_at: "2026-10-16T21:48:35+0800"
 fix_commit: "9988a117"
 impact:
   - terminal-context-menu
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（功能可用，但多一個多餘的選單；若再點選單的「貼上」會貼兩次） |
 | 可重現 | 推測可重現（使用者回報；只在 claude CLI 分頁看過） |
-| **狀態** | 🟡 FIXED（T0568，commit `9988a117`；待實機驗證） |
+| **狀態** | 🚫 CLOSED（2026-10-16 pre.7 實機：右鍵直接貼上、無 BAT 選單 PASS；Shift + 右鍵的選單沒有「複製」→ 衍生問題另開 BUG-144） |
 | 回報者 | 使用者（截圖：claude CLI 輸入框、右鍵後出現只有「貼上」一項的 BAT 選單） |
 
 ## 現象
@@ -49,3 +50,9 @@ links:
   - 二進位內的程式碼：右鍵（SGR button 2）按下、放開在同一格附近時，平台為 `windows` / `wsl` / `linux` 就複製 claude 自己的選取，沒有選取則讀剪貼簿並 `dispatchPasteEvent`。滑鼠模式預設 `full`；`CLAUDE_CODE_DISABLE_MOUSE_CLICKS` 改成 `scroll`（只開 1000 + 1006），`CLAUDE_CODE_DISABLE_MOUSE` 改成 `off`。
   - 所以貼上是 claude CLI 做的，BAT 的 `contextmenu` listener 只開選單。
 - **修正**：`TerminalPanel.tsx` 的 `contextmenu` 先看 `terminal.modes.mouseTrackingMode`，追蹤模式開著（`x10` / `vt200` / `drag` / `any`）時不開 BAT 選單，按住 Shift 時照開（`src/lib/terminal-context-menu.ts`）。xterm 寫進 PTY 的滑鼠回報不變。
+
+## 實機驗收（2026-10-16 21:48，BAT 0.6.1-pre.7，使用者）
+
+- 右鍵：claude CLI 分頁直接貼上，不再出現 BAT 選單 → PASS
+- Shift + 右鍵：選單有出現，但已選取文字（直接拖曳或 Shift + 拖曳都試過）時只有「貼上」、沒有「複製」→ 原問題已解，衍生問題另開 **BUG-144**（T0571）
+- → 🚫 CLOSED

@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-143
 title: "終端分頁的 BAT 右鍵選單在終端有焦點時按 Esc 關不掉（只能點外部）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-16T17:47:20+0800"
-updated_at: "2026-10-16T17:53:35+0800"
+updated_at: "2026-10-16T21:48:35+0800"
 fixed_at: "2026-10-16T17:53:35+0800"
+closed_at: "2026-10-16T21:48:35+0800"
 fix_commit: "fb66c0bc"
 impact:
   - terminal-context-menu
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（點選單外部仍可關閉） |
 | 可重現 | 必現（T0568 e2e 觀察） |
-| **狀態** | 🟡 FIXED（T0569，commit `fb66c0bc`；與 BUG-142 同批，待實機驗證） |
+| **狀態** | 🚫 CLOSED（2026-10-16 pre.7 實機：選單開著時 Esc 關閉且 claude 未中斷 PASS） |
 | 回報者 | T0568 Worker 觀察，使用者決定開單 |
 
 ## 現象
@@ -43,3 +44,8 @@ links:
   - 隔離實例探測（修正前的 build）：右鍵開選單後焦點為 `xterm-helper-textarea`；按 Esc → 選單仍在、node 腳本 stdin 收到 `"\u001b"`、window capture listener 收到 1 次、document bubble listener 0 次。⇒ 選單關不掉，且 Esc 已送進 PTY（claude CLI 會被中斷）。
 - **修正**：`TerminalPanel.tsx` 的 `attachCustomKeyEventHandler`（xterm 處理按鍵前先呼叫）在選單開著時遇到 Esc → 關選單、`preventDefault` + `stopPropagation`、回 `false`（xterm 不寫 PTY）；判斷 `shouldCloseTerminalContextMenuOnKey`（`src/lib/terminal-context-menu.ts`）：IME 組字中（`imeComposing` / `isComposing` / keyCode 229）不算。選單沒開時 Esc 照常送進 PTY；焦點不在終端時仍由 `document` listener 關閉。
 - 同一探測在修正後：選單關閉、stdin 無任何輸入。
+
+## 實機驗收（2026-10-16 21:48，BAT 0.6.1-pre.7，使用者）
+
+- 選單開著時按 Esc：選單關閉，claude CLI 沒有被中斷 → PASS
+- → 🚫 CLOSED

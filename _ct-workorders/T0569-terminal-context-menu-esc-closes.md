@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0569
 title: "BUG-143：終端分頁的 BAT 右鍵選單開著時，按 Esc 關閉選單（終端有焦點也一樣），且該次 Esc 不送進 PTY"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-143
 priority: P2
 sizing: XS
 created_at: "2026-10-16T17:47:20+0800"
-updated_at: "2026-10-16T17:54:04+0800"
+updated_at: "2026-10-16T21:48:35+0800"
 started_at: "2026-10-16T17:48:12+0800"
 completed_at: "2026-10-16T17:54:04+0800"
 commit: "fb66c0bc"

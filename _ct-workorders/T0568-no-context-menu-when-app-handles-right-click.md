@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0568
 title: "BUG-142：分頁內程式已開滑鼠追蹤並接收右鍵時（例 claude CLI 右鍵貼上），BAT 不再顯示右鍵選單；一般 shell 照舊"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-142
 priority: P2
 sizing: S
 created_at: "2026-10-16T17:31:58+0800"
-updated_at: "2026-10-16T17:39:16+0800"
+updated_at: "2026-10-16T21:48:35+0800"
 started_at: "2026-10-16T17:33:07+08:00"
 completed_at: "2026-10-16T17:39:16+0800"
 commit: "9988a117"
