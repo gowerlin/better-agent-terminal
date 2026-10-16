@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0557
 title: "pre.5 驗收探針（claude Worker）：Worker 分頁標題 `Claude CLI · Worker · T0557`、回報 ✓（T0553），收單回收延遲期間切換焦點不取消（BUG-140 / T0551）"
 type: verification
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: BUG-140
 priority: P2
 sizing: XS
 created_at: "2026-10-16T13:51:28+0800"
-updated_at: "2026-10-16T13:51:28+0800"
-started_at: ""
-completed_at: ""
+updated_at: "2026-10-16T13:52:45+0800"
+started_at: "2026-10-16T13:52:17+0800"
+completed_at: "2026-10-16T13:52:45+0800"
 commit: ""
 target_version: "0.6.1-pre.5（已安裝，不改程式碼）"
 depends_on: []
@@ -80,12 +80,50 @@ memory_overrides:
 
 ### 完成狀態
 
+DONE（Worker 部分）。塔台驗收（標題 / ✓ / 焦點切換不取消）由塔台於收單後執行。
+
 ### 產出摘要
+
+Landing check：**PASS**
+- C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單檔位於 `REPO_ROOT/_ct-workorders/` → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 下的本工單 → not applicable
+- C-2：無 `branch` 欄位（目前分支 `main`）
+- `BAT_WORKSPACE_ID`（證據）：`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`
+
+實測事實（皆以指令取得，2026-10-16T13:52:27+0800 前後）：
+
+| 項目 | 值 | 取得方式 |
+|---|---|---|
+| 目前 agent | Claude Code（模型 `claude-opus-5-5`），以 `/ct-exec T0557` 執行 | session 自身 |
+| claude 版本 | `2.1.300 (Claude Code)`；PATH 上的 `claude` = `C:\Users\Gower\.local\bin\claude.exe`（本分頁實際執行的是內嵌或 system 無法由 PATH 判定） | `claude --version`、`Get-Command claude` |
+| BAT FileVersion | `0.6.1-pre.5`（ProductVersion `0.6.1.0`） | `(Get-Item 'C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe').VersionInfo` |
+| `BAT_SESSION` | `1` | PowerShell `Env:` |
+| `BAT_TERMINAL_ID` | `9e199a092c15b1cc130fdf37ed53a1ac` | 同上 |
+| `BAT_TOWER_TERMINAL_ID` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` | 同上 |
+| `BAT_WORKSPACE_ID` | `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b` | 同上 |
+| `CT_MODE` | `yolo` | 同上 |
+| `CT_INTERACTIVE` | `0` | 同上 |
+| `BAT_REMOTE_TOKEN` | 已設定（值不記錄） | 同上 |
+| `BAT_REMOTE_PORT` | `9876` | 同上 |
+| `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminal\resources\scripts` | 同上 |
+| `BAT_USER_DATA` | `C:\Users\Gower\AppData\Roaming\BetterAgentTerminal` | 同上 |
+| 系統時間 | `2026-10-16T13:52:27+0800` | `date "+%Y-%m-%dT%H:%M:%S%z"` |
+
+變更檔案：僅本工單檔。未改產品程式碼、未跑 build / test。
 
 ### 互動紀錄
 
+無（`CT_INTERACTIVE=0`，fire-and-forget）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+無。補充觀察：`BetterAgentTerminal.exe` 的 LastWriteTime 顯示 `2026-10-16 05:20:52`（本機時間，檔案時間戳來自安裝包，與工單背景所述的安裝確認時間無衝突，僅記錄）。
+
 ### 回報時間
+
+2026-10-16T13:52:27+0800（事實取值時間；收尾時間見 frontmatter `completed_at`）
