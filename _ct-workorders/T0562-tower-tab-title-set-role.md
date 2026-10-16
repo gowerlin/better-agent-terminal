@@ -10,10 +10,10 @@ project: D147
 priority: P2
 sizing: M
 created_at: "2026-10-16T14:34:53+0800"
-updated_at: "2026-10-16T14:57:22+0800"
+updated_at: "2026-10-16T15:01:16+0800"
 started_at: "2026-10-16T14:37:16+0800"
 completed_at: "2026-10-16T14:57:22+0800"
-commit: ""
+commit: "4faa93ab"
 target_version: "0.6.1-pre.6"
 depends_on: []
 related:
@@ -153,3 +153,13 @@ Landing Zone Check：**PASS**。C-0 `repo: better-agent-terminal` = `basename(RE
 ### 回報時間
 
 2026-10-16T14:57:22+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T15:01:16+0800）
+
+- ✅ **T0562 已確認 DONE**：commit `4faa93ab`（27 檔，皆在 affects_files 內）；介面契約照原文實作，未偏離 → CT-T013 可依原契約撰寫。
+- 塔台聯合複驗 @ `4faa93ab`：`npm run test:unit` **258 files / 4452 passed / 3 skipped**；`npm run typecheck` = 0；`npm run typecheck:electron` = 0。
+- 接受 Worker 記錄的已知限制：使用者把分頁改名成與預設相同的字串仍視為預設；T0562 前以 raw command 建立、標題為命令檔名的分頁沒有 `autoTitle`，視為使用者命名而保留（安全方向）。
+- 未實機：遠端 WSL / SSH（headless in-process harness + 真 node-pty 已驗）、macOS / Linux；本機實機待 `0.6.1-pre.6` + CT-T013。
+- PLAN-045 維持 IN_PROGRESS（待 CT-T013 與發版後實機）。
