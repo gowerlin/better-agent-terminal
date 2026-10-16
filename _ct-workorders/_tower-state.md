@@ -203,7 +203,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ✅ `0.6.1-pre.4` | 2026-10-16 02:12 重啟後確認（FileVersion）；`v0.6.1-pre.5` 已發佈、本機尚未安裝 |
+| BAT 安裝版 | ✅ `0.6.1-pre.5` | 2026-10-16 13:47 第六十七 session 起手確認（FileVersion） |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
