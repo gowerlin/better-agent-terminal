@@ -1,11 +1,44 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-16 18:18 (UTC+8) — **第六十八 session 收工**：pre.6 實機 PASS（PLAN-045 DONE）；BUG-142 / 143（T0568 / T0569）；→ **`v0.6.1-pre.7`**；發佈後同步 repo 文件規則 + T0570 補齊 CHANGELOG / release-note。
+> 最後更新:2026-10-16 22:39 (UTC+8) — **第六十九 session 收工**：pre.7 實機 BUG-142 / 143 CLOSED；BUG-144 / 145（T0571 / T0572）→ **`v0.6.1-pre.8`**（使用者指示已知問題一起修完再發版）。
 >
-> **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.7` 後在 claude CLI 分頁確認：右鍵貼上無 BAT 選單 / Shift + 右鍵有選單 / 選單開著時 Esc 關閉且不中斷 → BUG-142 / 143 CLOSED；用量限制首次真實撞限制時看 `[usage-limit]`；等 Gary BUG-136。
+> **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.8` 後在 claude CLI 分頁確認：Shift + 拖曳 → Shift + 右鍵有「複製」（BUG-144）、⏻ 重啟後畫面佔滿寬度（BUG-145）→ CLOSED；用量限制首次真實撞限制時看 `[usage-limit]`；等 Gary BUG-136。
 ---
 
-## 🛏 本 Session 收工快照 (第六十八 session, 2026-10-16 17:25 - 18:18, ~52m wall)
+## 🛏 本 Session 收工快照 (第六十九 session, 2026-10-16 21:45 - 22:39, ~54m wall)
+
+### 主軸：pre.7 實機（BUG-142 / 143 CLOSED）→ Shift 選單缺「複製」BUG-144（T0571）→ 使用者指示「已知問題一起修完再發版」→ BUG-145（T0572）+ 文件修正 → **`v0.6.1-pre.8`**
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **21:45** Fast Path；本機 BAT = `0.6.1-pre.7`，CT v5.2.3；`--set-role tower --mode on` exit 0
+2. **21:48** pre.7 實機：右鍵直接貼上 PASS、Esc PASS → **BUG-142 / 143 CLOSED**、T0568 / T0569 DONE；Shift + 右鍵選單沒有「複製」（直接拖曳與 Shift 拖曳都試過）→ **BUG-144** / **T0571**（21:49 派）
+3. **22:06** T0571 DONE `35eaf125`（xterm 把 1003 移動回報當使用者輸入、清掉 Shift 拖曳選取 → 放回選取；直接拖曳是 claude 自己的選取，copyOnSelect 已複製）；塔台複驗 unit 4626 / 265
+4. **22:12** 使用者：「先把已知問題一起修完再發版」→ 塔台直改 `docs/server-bundle-distribution.md` rate-limit 段（T0548 #5）；T0571 e2e 觀察的 PTY 尺寸競態 → **BUG-145** / **T0572**（22:12 派）
+5. **22:27** T0572 FIXED `ecc00c60`（PTY 建立前送的 resize 被丟 + 去重；⏻ 重啟必現 → spawn 後重送尺寸）；塔台複驗 unit **4633 / 266**、typecheck 0 / 0
+6. **22:28** bump `0769bafc` → run `38916104029` → **22:36 `v0.6.1-pre.8` 已發佈**（10 job 全綠）→ 更版重點 + CHANGELOG / release-note / README（`370c7781`）→ push
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **2**（T0571 / T0572） | 皆一次完成；`worker_auto_close` 回收 2 次 |
+| BUG | CLOSED 2（142 / 143）；新開 2（144 / 145）→ FIXED | Open 1（BUG-136）/ Fixed 19 / Closed 50 |
+| 發版 | 1（`v0.6.1-pre.8`） | exe 298 / zip 412 / AppImage 297 / dmg 309 MiB |
+| unit test | 4614 → **4633 passed / 266 files** | 塔台複驗 @ `5e47ed60` |
+
+### 重點觀察
+
+- 修正宣稱的路徑（T0568「Shift + 右鍵可複製」）沒有測試時，實機才發現；驗收清單要逐條對到測試
+- Worker 回報區的「範圍外觀察」（T0571 的 PTY 尺寸競態）是已知問題清單的來源，批次發版前要掃一遍
+
+### 編號起始（下 session）
+
+- **T0573** / **BUG-146** / **PLAN-047** / **D149** / **L155** / **CT-T014**
+
+---
+
+## 🛏 前 Session 收工快照 (第六十八 session, 2026-10-16 17:25 - 18:18, ~52m wall)
 
 ### 主軸：pre.6 實機 PASS（PLAN-045 DONE）→ 右鍵選單 BUG-142 / 143（T0568 / T0569）→ **`v0.6.1-pre.7`** → 發佈後同步 repo 文件（新規則）+ T0570 補齊 CHANGELOG / release-note
 
@@ -40,64 +73,22 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第六十七 session, 2026-10-16 13:47 - 16:50, ~3h03m wall)
-
-### 主軸：pre.5 實機驗收（T0557–T0561，BUG-138–141 CLOSED）→ 三項新需求 PLAN-044 / 045 / 046（T0562–T0567，D147 / D148，CT-T013 → CT v5.2.0）→ **`v0.6.1-pre.6`**
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **13:47** Fast Path；本機 BAT 已是 pre.5。13:51 **T0557**（pre.5 探針：Worker 標題 / 回收）→ 標題 PASS；使用者未留意焦點切換 → 14:06 **T0558** 重跑 → 14:09 **BUG-140 CLOSED**
-2. **14:13** **T0559**（安裝版 pre.5 WSL e2e，pre.4 → pre.5 升級 / 取消還原）→ 14:20 塔台改判 DONE（2 項 spec 誤判）→ **BUG-138 / 139 / 141 CLOSED**；14:21 **T0560**（spec 判定修正）→ 14:25 DONE
-3. **14:27** WSL 備份 6 份依指示刪除、push；14:28 **T0561**（SSH 精靈升級 / 取消還原，t0515 Docker sshd）→ 14:36 DONE；14:44 WSL 工具面板 nvm 使用者目視 PASS
-4. **14:34** 使用者需求「塔台分頁標題」→ **D147** / **T0562**（14:37 派）/ CT-T013；14:47「Dialog 不因點外部關閉」→ **T0563**（等 T0562）；14:55「用量限制解鎖後自動繼續」→ **PLAN-044** / **T0564** 研究
-5. **14:56** 使用者要求先開 PLAN 並提供評估設計 → PLAN-045 / 046、設計頁 artifact `YBsuqdHZnjvGNfhKJgahvR`
-6. **15:01** T0562 DONE（`4faa93ab`）→ 派 T0563；15:04 T0564 DONE（claude CLI ≥ 2.1.234 內建 `autoContinueAtUsageLimit`）→ **D148**（claude 只提示、Codex 自動輸入、預設關、`--set-role --mode`）→ 15:07 **T0565**；15:11 T0563 DONE（`132aa4b4`）→ 使用者決定 → 15:12 **T0567**（Esc 統一、精靈 Esc 不作用）；15:17 T0565 DONE（`4936f440`）；15:26 T0567 DONE（`91bb9607`）→ 派 **T0566**
-7. **15:28** CT-T013 以跨 session 訊息送 BMad-Guide 塔台（`bmad-guide-8e`）→ 其 T0139 → 15:41 **CT v5.2.0 DONE**（已安裝；新 BAT 實機待 pre.6）
-8. **16:02** T0566 DONE（`2e3305a9`），聯合複驗 unit 264 / 4597 → bump `b0b6cae5` → run `38871114752` → **16:11 `v0.6.1-pre.6` 已發佈**（10 job 全綠），更版重點已寫
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **11**（T0557-T0567） | 全 DONE（T0559 Worker PARTIAL → 塔台改判 DONE）；皆一次啟動 |
-| BUG | CLOSED 4（138 / 139 / 140 / 141） | Open 1（BUG-136）/ Fixed 17 / Closed 48 |
-| PLAN | 新開 044 / 045 / 046；DONE 044 / 046 | PLAN-045 IN_PROGRESS（待 pre.6 實機） |
-| 決策 | D147 / D148 | |
-| 跨專案 | CT-T013 DONE（BMad-Guide T0139，CT v5.2.0） | 以跨 session 訊息派發 |
-| 發版 | 1（`v0.6.1-pre.6`） | exe 298.1 / zip 412.3 / AppImage 297.4 / dmg 309.8 MiB |
-| unit test | 4372 → **4597 passed / 264 files** | 聯合複驗 @ `cf3c6f12`、`dbb5aa8b` |
-
-### 重點觀察
-
-- 同一工作目錄並行兩個 Worker：以 `affects_files` 切目錄（`src/` vs `electron/`）並禁止共同檔（`CLAUDE.md`），對方的「CLAUDE.md 待補」由後續工單併入；兩邊都 commit 後再做聯合複驗（L152）
-- 跨專案受派單可直接用 Claude Code 跨 session 訊息交給 BMad-Guide 塔台（`notify_when_idle`），對方受理 / 結案各回覆一次（L153）
-- T0559 的 2 項 FAIL 是 spec 判定條件問題（autosave 改 `updatedAt`、瘦身後 `du` 不變），塔台審證據後改判並開 T0560 修 spec
-- 研究單先查 CLI 本身能力省下一半工作：claude 已內建自動繼續，PLAN-044 改為只對 Codex 自動輸入
-
-### 編號起始（下 session）
-
-- **T0568** / **BUG-142** / **PLAN-047** / **D149** / **L154** / **CT-T014**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-16 18:18 UTC+8（第六十八 session 收工）
+> 最後更新：2026-10-16 22:39 UTC+8（第六十九 session 收工）
 
 ### 近期完成
-- `v0.6.1-pre.7`（10-16 18:04，run `38884005468` @ `c41a0ec7`）：BUG-142 終端右鍵在程式開滑鼠追蹤時不疊 BAT 選單（Shift + 右鍵照開，T0568）、BUG-143 右鍵選單 Esc 關閉且不送進 PTY（T0569）；更版重點已寫；repo 文件已同步（T0570 補齊 CHANGELOG / release-note v0.4.3–pre.7、README 7 處，`97b5697e`）
-- `v0.6.1-pre.6` 實機 PASS（第六十八 session）→ PLAN-044 / 045 / 046 全 DONE；T0551 / T0552 / T0554 → DONE
-- 新規則：發佈後同步 `README.md` / `release-note.md` / `CHANGELOG.md`（`_local-rules.md`「發佈後同步 repo 文件」）
-- CT **v5.2.2** 已安裝並生效；unit 4614 passed / 265 files；`worker_auto_close: done`（10 s）
+- `v0.6.1-pre.8`（10-16 22:36，run `38916104029` @ `0769bafc`）：BUG-144 追蹤滑鼠的分頁 Shift + 拖曳選取後 Shift + 右鍵有「複製」（T0571）、BUG-145 新分頁 / 還原 / ⏻ 重啟的 PTY 尺寸同步（T0572）、rate-limit 文件更正；更版重點與 repo 三文件已同步（`370c7781`）
+- `v0.6.1-pre.7` 實機 → BUG-142 / 143 CLOSED、T0568 / T0569 DONE（第六十九 session）
+- CT **v5.2.3**；unit 4633 passed / 266 files；`worker_auto_close: done`（10 s）
 
 ### 待辦（依優先序）
 
-1. 🟡 **pre.7 實機**（使用者換版中）：claude CLI 分頁右鍵 → 貼上且無 BAT 選單；Shift + 右鍵 → 選單；選單開著時 Esc → 關閉且 claude 未中斷 → BUG-142 / 143 CLOSED
+1. 🟡 **pre.8 實機**（使用者收工時換版）：claude CLI 分頁 Shift + 拖曳 → 移動滑鼠 → Shift + 右鍵有「複製」且內容正確（BUG-144）；claude 分頁按 ⏻ 重啟後畫面佔滿寬度、不需重繪（BUG-145）→ CLOSED，T0571 / T0572 → DONE
 2. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
 3. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
-5. 🟢 後續小項：zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）；`CHANGELOG.md` 舊 `[0.4.2]` 段實為 v0.5.0-pre.2–v0.5.8 期間內容（T0570 觀察，未改）
-6. 🟢 程式碼簽章等使用者帳號；`*archive` 到齡候選；T0360（舊單 FIXED）
+5. 🟢 後續小項：背景分頁未顯示前 PTY 維持 120 欄、Terminal Server recovery 重建以 120x30（T0572 建議：PtyManager 記住最後尺寸）；追蹤模式 Alt + Shift 欄選取；`e2e/t0571` 的 redraw 繞法可移除；zsh `~/.zprofile` nvm；CHANGELOG `[0.4.2]` 段；程式碼簽章；`*archive` 到齡候選；T0360（舊單 FIXED）
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**。
@@ -106,12 +97,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 19 / Closed 48）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 19 / Closed 50）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D148）｜ Learnings → [_learnings.md](_learnings.md)（最大 L154）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（84 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（85 entries）
 
 ### 編號起始
-- **T0573** / **BUG-146** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**（第六十九 session：BUG-142 / 143 CLOSED；T0571 / T0572 FIXED → **`v0.6.1-pre.8` 已發佈** 2026-10-16 22:36，run `38916104029` @ `0769bafc`，更版重點與 repo 文件已同步；待 pre.8 實機 BUG-144 / 145）
+- **T0573** / **BUG-146** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**
 
 ---
 
@@ -121,17 +112,17 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.1-pre.7**（package.json + lock，2026-10-16 17:57 `c41a0ec7`） |
-| **最新 release** | `v0.6.1-pre.7`（2026-10-16 18:04，run `38884005468`，target `c41a0ec7`：BUG-142 右鍵在滑鼠追蹤時不開 BAT 選單、BUG-143 選單 Esc；更版重點已寫；repo 文件已同步 `97b5697e`；exe 298.0 / zip 412.3 / AppImage 297.4 / dmg 309.7 MiB）+ `server-bundle-v0.6.1-pre.7`（7 assets）。前一版 `v0.6.1-pre.6`（2026-10-16 16:11，run `38871114752`，target `b0b6cae5`：塔台分頁標題與模式、Dialog 關閉方式與 Esc、用量限制自動繼續）。更早見 `release-note.md` / `CHANGELOG.md` 與 `_archive/state-snapshots/2026-Q4.md` |
-| **前一 tag** | `v0.6.1-pre.6`（2026-10-16 16:11，`b0b6cae5`） |
-| **目前主軸** | `v0.6.1-pre.7` 已發佈（2026-10-16 18:04）；待本機升 pre.7 實機 BUG-142 / 143；用量限制被動觀察；BUG-136 等 Gary |
-| **工單最大編號** | T0570；T0568 FIXED `9988a117`、T0569 FIXED `fb66c0bc`、T0570 DONE `97b5697e`（第六十八 session）；T0557–T0567 DONE（第六十七 session） |
-| **BUG 最大編號** | **BUG-143**（FIXED，T0569）；Open 1（BUG-136）/ Fixing 0 / Fixed 19 / Closed 48（BUG-142 / 143 FIXED 2026-10-16，待 pre.7 實機） |
+| **目前版號** | **0.6.1-pre.8**（package.json + lock，2026-10-16 22:28 `0769bafc`） |
+| **最新 release** | `v0.6.1-pre.8`（2026-10-16 22:36，run `38916104029`，target `0769bafc`：BUG-144 Shift + 右鍵複製、BUG-145 PTY 初始尺寸；更版重點已寫；repo 文件已同步 `370c7781`；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.6.1-pre.8`（7 assets）。前一版 `v0.6.1-pre.7`（2026-10-16 18:04，run `38884005468`，target `c41a0ec7`：BUG-142 / 143 右鍵選單）。更早見 `release-note.md` / `CHANGELOG.md` 與 `_archive/state-snapshots/2026-Q4.md` |
+| **前一 tag** | `v0.6.1-pre.7`（2026-10-16 18:04，`c41a0ec7`） |
+| **目前主軸** | `v0.6.1-pre.8` 已發佈（2026-10-16 22:36）；待本機升 pre.8 實機 BUG-144 / 145；用量限制被動觀察；BUG-136 等 Gary |
+| **工單最大編號** | T0572；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
+| **BUG 最大編號** | **BUG-145**（FIXED，T0572）；Open 1（BUG-136）/ Fixing 0 / Fixed 19 / Closed 50（BUG-144 / 145 FIXED 2026-10-16，待 pre.8 實機；BUG-142 / 143 CLOSED） |
 | **PLAN 最大編號** | **PLAN-046**（044 / 045 / 046 DONE，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-014 DROPPED |
 | **決策最大編號** | D148（PLAN-044 範圍：claude 信任 CLI、Codex 自動輸入、塔台 `--mode`，2026-10-16） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower v5.2.2（第六十八 session 起生效；`worker_auto_close: done`） |
-| **unit test 基線** | **4614 passed / 265 files / 3 skipped**（塔台複驗 @ `2497014a`，2026-10-16 第六十八 session）；前：4597 passed / 264 files（@ `dbb5aa8b`，第六十七 session）；typecheck 0 / typecheck:electron 0 |
+| **塔台版本** | Control Tower v5.2.3（第六十九 session；`worker_auto_close: done`） |
+| **unit test 基線** | **4633 passed / 266 files / 3 skipped**（塔台複驗 @ `5e47ed60`，2026-10-16 第六十九 session）；前：4614 passed / 265 files（@ `2497014a`，第六十八 session）；typecheck 0 / typecheck:electron 0 |
 
 ---
 
@@ -203,7 +194,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.6.1-pre.7`（`v0.6.1-pre.8` 已發佈，待換版） | 2026-10-16 21:45 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
+| BAT 安裝版 | ⚠️ `0.6.1-pre.7`（`v0.6.1-pre.8` 已發佈，使用者收工時換版中；下次起手以 FileVersion 確認） | 2026-10-16 21:45 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
@@ -253,6 +244,8 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-16 第六十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0571 / T0572 皆一次完成；`worker_auto_close` 回收 2 次；pre.8 發佈
+- 2026-10-16 第六十八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0568–T0570 皆一次完成；pre.7 發佈
 - 2026-10-16 第六十七 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0557-T0567 全 DONE，皆一次啟動（最多 2 張並行，依目錄切分）；`worker_auto_close` 回收 10 次；pre.6 發佈
 - 2026-10-16 第六十六 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0549-T0556 全 DONE / FIXED，皆一次啟動；`worker_auto_close` 回收 7 次（1 次被焦點切換取消 → BUG-140，重請求後關閉；PARTIAL 不回收 1 次）；pre.5 發佈
 - 2026-10-15 第六十五 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0542-T0548（6 DONE、T0543 ABANDONED），皆一次啟動；首次啟用 `worker_auto_close: done`（pre.3 上收單即回收皆 exit 6 → D145）；pre.4 發佈
