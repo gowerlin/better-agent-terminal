@@ -97,7 +97,7 @@
 ### 待辦（依優先序）
 
 1. ✅ ~~**pre.6 實機**~~（2026-10-16 17:29 第六十八 session PASS：標題 `Claude CLI · Tower` + `--mode on` exit 0、Dialog / Esc / 精靈 Esc、用量限制開關 → **PLAN-045 DONE**）；僅剩被動觀察：首次真實撞限制看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
-2. 🟢 **BUG-142 FIXED**（T0568 `9988a117`，2026-10-16 17:45 塔台複驗 unit 265 / 4606、typecheck 0 / 0）：待下一版 pre 實機在 claude CLI 分頁右鍵確認（無選單、Shift + 右鍵有選單）
+2. 🟢 **BUG-142 FIXED**（T0568 `9988a117`，2026-10-16 17:45 塔台複驗 unit 265 / 4606、typecheck 0 / 0）：待下一版 pre 實機在 claude CLI 分頁右鍵確認（無選單、Shift + 右鍵有選單）；**BUG-143 / T0569**（17:47 派，同批）：右鍵選單按 Esc 關不掉
 3. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
 4. 🟢 後續小項：zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）
@@ -115,7 +115,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（83 entries）
 
 ### 編號起始
-- **T0569** / **BUG-143** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L154** / **CT-T014**
+- **T0570** / **BUG-144** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L154** / **CT-T014**
 
 ---
 
