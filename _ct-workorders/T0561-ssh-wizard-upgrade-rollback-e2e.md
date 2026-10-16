@@ -13,7 +13,7 @@ created_at: "2026-10-16T14:28:10+0800"
 updated_at: "2026-10-16T14:35:07+08:00"
 started_at: "2026-10-16T14:29:15+08:00"
 completed_at: "2026-10-16T14:35:07+08:00"
-commit: ""
+commit: "bb480dbf"
 target_version: "0.6.1-pre.5（已安裝；不改產品程式碼）"
 depends_on: []
 related:
