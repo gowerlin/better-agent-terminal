@@ -129,6 +129,13 @@
 - **追蹤中的 Shift + 拖曳選取（T0571 / BUG-144）**：xterm 5.5.0 把滑鼠回報當使用者輸入、送出即清掉選取；開 1003（claude CLI 預設）時每次移動都是回報（按住 Shift 也是），選取撐不到 Shift + 右鍵。`MouseReportSelectionKeeper`（同檔）在「清除後同一個 task 內的 `onData` 是 SGR 滑鼠回報」時以 `terminal.select` 放回同一範圍（回報照常寫進 PTY）；打字 / 貼上、BAT 不知原因的清除（buffer 切換、trim、開追蹤）、Shift + 右鍵以外的滑鼠按下、滾輪之後不放回；範圍讀出的文字不同（Alt 欄選取、resize）也不放回。選單的「複製」寫入**右鍵當下**的選取文字（`ContextMenu.selectionText`），關閉後不留。不按 Shift 的拖曳是 claude 自己的選取（xterm 沒有選取），claude 放開即複製（`copyOnSelect` 預設開）、不按 Shift 的右鍵也複製，BAT 選單不顯示「複製」。
 - 驗證：`src/__tests__/terminal-context-menu.test.tsx`；e2e `e2e/t0571-shift-right-click-copy.spec.ts`（隔離實例，腳本開 alt screen + 1000 / 1002 / 1003 / 1006：Shift + 拖曳 → 移動 → Shift + 右鍵 → 複製 → 剪貼簿 = 反白文字（測試後還原剪貼簿）；打字後 / 一般拖曳 → 只有「貼上」；macOS skip）；e2e `e2e/t0568-context-menu-mouse-tracking.spec.ts`（隔離實例，shell 分頁內 node 腳本開 1000 + 1006 並記錄 stdin：一般 shell → 選單、追蹤中 → 腳本收到 `ESC [ < 2 ; … M` 且無選單、Shift → 選單且無回報、關追蹤後 → 選單；T0569：選單開著按 Esc → 選單關閉且腳本 stdin 沒有 `ESC`，選單沒開時 Esc → 腳本收到 `ESC`；macOS skip；需先 `npx vite build`）。
 
+## 新 PTY 的初始尺寸（T0572 / BUG-145）
+
+- host 一律以 120x30 spawn（`PtyManager.create`、Terminal Server）；`pty:resize` 對 host 還不認得的 id 直接丟棄。分頁先進 store（TerminalPanel 掛載即送第一次 resize），`pty:create` 要等 shell 查詢等非同步步驟後才到 host，所以那次 resize 可能被丟；TerminalPanel 的 resize 去重（`lastSentCols` / `lastSentRows`）之後不再送同一尺寸。⏻ 重啟（`pty:restart`）的新 PTY 同樣是 120x30，去重也擋住重送（修正前 100% 停在 120x30）。
+- 修正：`createPtyWithReplay` 在 `{ ok, created: true }`、`restartOrCreatePty` 在 restart 成功時呼叫 `requestPtySizeSync(id)`（`src/lib/pty-replay.ts`）；TerminalPanel 的 sink 重設去重，分頁 active 時立即 `doResize()`，hidden 時等下次 activation 送出。`created: false`（PTY 已在跑）不重送；未掛載的分頁不保留請求（掛載後第一次 resize 時 PTY 已存在）。新建 PTY 一律經這兩個函式，不要直接呼叫 `pty.create` / `pty.restart`。
+- 已知限制：Terminal Server recovery（`handleServerDeath` 重建）以 120x30 重建，renderer 不知道，直到下一次 resize / 重繪；背景（未 active）分頁本來就不 fit，其 PTY 在第一次切到該分頁前維持 spawn 尺寸（例如外部建立、尚未切過去的分頁；本單未改）。
+- 驗證：`src/__tests__/terminal-pty-size-sync.test.tsx`；e2e `e2e/t0572-new-pty-initial-size.spec.ts`（隔離實例：還原分頁、4 個新分頁、⏻ 重啟，分頁內 node 腳本記錄 `process.stdout.columns` / `rows`，與工具列重繪後的 xterm 尺寸比對；需先 `npx vite build`）。
+
 ## 關閉分頁時的程序樹（T0540 / PLAN-042）
 
 - **direct 模式**（`PtyManager.kill`，`electron/pty-manager.ts`）：`pty.kill()` 後 Windows 另跑 `taskkill /F /T /PID <shell>`（同步，3 s timeout），行為不變。

@@ -58,10 +58,33 @@ export function registerPtyReplaySink(id: string, sink: ReplaySink): () => void 
   }
 }
 
+/**
+ * T0572 (BUG-145): a PTY was just spawned (`pty:create` answered created, or `pty:restart`) at the
+ * host's spawn size (120x30). The mounted view's earlier `pty:resize` may have reached the host
+ * before the id existed there (dropped), and after a restart the view's dedup thinks the size was
+ * sent already — so the view sends its size again. Not held for an unmounted view: its first
+ * resize after mount reaches the PTY that exists by then.
+ */
+type SizeSyncSink = () => void
+const sizeSyncSinks = new Map<string, SizeSyncSink>()
+
+export function requestPtySizeSync(id: string): void {
+  sizeSyncSinks.get(id)?.()
+}
+
+/** Terminal view hook-up. Returns unregister. */
+export function registerPtySizeSyncSink(id: string, sink: SizeSyncSink): () => void {
+  sizeSyncSinks.set(id, sink)
+  return () => {
+    if (sizeSyncSinks.get(id) === sink) sizeSyncSinks.delete(id)
+  }
+}
+
 /** Test helper. */
 export function resetPtyReplayRegistry(): void {
   pendingReplays.clear()
   replaySinks.clear()
+  sizeSyncSinks.clear()
   pendingNotices.clear()
   noticeSinks.clear()
   refusalListeners.clear()
@@ -139,6 +162,7 @@ export async function createPtyWithReplay(
     result = { ok: false, created: true }
   }
   if (result.ok && !result.created) requestPtyReplay(options.id)
+  if (result.ok && result.created) requestPtySizeSync(options.id)
   if (isPtyLimitResult(result)) emitPtyCreateRefused(options, result)
   return result
 }
@@ -169,7 +193,10 @@ export async function restartOrCreatePty(
   } catch (err) {
     return { ok: false, via: 'restart', reason: err instanceof Error ? err.message : String(err), limited: false }
   }
-  if (restarted === true) return { ok: true, via: 'restart', spawned: true }
+  if (restarted === true) {
+    requestPtySizeSync(options.id)
+    return { ok: true, via: 'restart', spawned: true }
+  }
   const result = await createPtyWithReplay(options, api)
   if (result.ok) return { ok: true, via: 'create', spawned: result.created }
   // PTY limit: the refusal listeners (usePtyLimitNotice) already wrote a notice.

@@ -11,7 +11,7 @@ import { CanvasAddon } from '@xterm/addon-canvas'
 import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
-import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from '../lib/pty-replay'
+import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink, registerPtySizeSyncSink } from '../lib/pty-replay'
 import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
 import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
@@ -765,6 +765,16 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     const unregisterNotice = registerPtyNoticeSink(terminalId, (text) => {
       terminal.write(`\r\n\x1b[33m${text}\x1b[0m\r\n`)
     })
+    // T0572 (BUG-145): a PTY was just spawned at the host's 120x30 — the size sent before may
+    // have been dropped (id not there yet) or deduped (restart). Send it again; a hidden view
+    // sends on its next activation (the dedup is reset).
+    const unregisterSizeSync = registerPtySizeSyncSink(terminalId, () => {
+      lastSentCols = 0
+      lastSentRows = 0
+      if (!isActiveRef.current) return
+      dlog(`[resize] PTY spawned → doResize terminal=${terminalId}`)
+      doResize()
+    })
 
     // Handle terminal exit
     const unsubscribeExit = window.electronAPI.pty.onExit((id, exitCode) => {
@@ -824,6 +834,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       window.removeEventListener('terminal-redraw', handleRedrawEvent)
       unregisterReplay()
       unregisterNotice()
+      unregisterSizeSync()
       replayer.dispose()
       unsubscribeOutput()
       unsubscribeExit()
