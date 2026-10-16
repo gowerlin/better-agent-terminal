@@ -213,7 +213,14 @@
       "testSuccess": "gh is ready: {{path}}",
       "testUnauthenticated": "gh was found at {{path}}, but GitHub authentication is missing.",
       "testNotFound": "GitHub CLI was not found."
-    }
+    },
+    "usageLimitTitle": "Usage limit auto continue",
+    "usageLimitAutoContinue": "Continue yolo tabs automatically after a usage limit resets",
+    "usageLimitAutoContinueHint": "Off by default. Applies only to tabs running Control Tower in yolo mode (a Tower that declared --mode yolo, or a Worker dispatched with --mode yolo); other tabs only get a hint. Codex tabs: once the reset time plus the delay below has passed and the screen still shows the limit, BAT types the text below and presses Enter. Claude Code CLI 2.1.234 and later continues on its own after the limit resets, so BAT never types text into Claude tabs: it only shows when the CLI will continue, and presses Enter when the CLI waits on \"Press enter to continue\" because the computer slept past the reset. Weekly limits (a reset more than 5 h 15 min away), spend caps and credits are only shown. Typing in the tab while BAT waits cancels it; at most 2 automatic continues in a row per tab.",
+    "usageLimitContinueText": "Text to type",
+    "usageLimitContinueTextHint": "Typed into Codex tabs before Enter. Default: 繼續",
+    "usageLimitContinueDelay": "Delay after the reset (minutes)",
+    "usageLimitContinueDelayHint": "0–60, default 2, so the limit has actually lifted."
   },
   "sidebar": {
     "workspaces": "Workspaces",
@@ -1177,5 +1184,19 @@
     "batchCloseDesc": "These Worker tabs have reported to {{tower}} and will be closed. Their processes are terminated; worktrees are kept.",
     "batchCloseConfirm": "Close {{count}} tabs",
     "remoteOriginTooltip": "A remote server created this terminal"
+  },
+  "usageLimit": {
+    "badge": "Limit",
+    "scheduledText": "Usage limit: BAT continues this tab at {{time}} (reset {{reset}} + delay)",
+    "scheduledEnter": "The limit has reset and Claude CLI is waiting for Enter: BAT presses Enter at {{time}}",
+    "cliAuto": "Usage limit: Claude CLI continues automatically at {{reset}}",
+    "cliStopped": "Usage limit: Claude CLI's automatic continue was stopped or cancelled; it will not continue on its own",
+    "cliUnavailable": "Usage limit (resets {{reset}}): Claude CLI shows no automatic continue (API key, older CLI or the setting is off). BAT does not type into Claude tabs; continue it yourself",
+    "weekly": "Weekly or long usage limit (resets {{reset}}): not continued automatically",
+    "noResetTime": "Usage limit without a reset time: not continued automatically",
+    "nonTimed": "Spend cap or credits: a reset does not lift it, not continued automatically",
+    "notYolo": "Usage limit (resets {{reset}}): not a yolo tab, BAT does not continue it",
+    "cap": "Usage limit again after {{count}} automatic continues in a row: BAT stops continuing this tab until you type in it",
+    "unknownTime": "unknown"
   }
 }

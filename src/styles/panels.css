@@ -496,6 +496,23 @@
   border-color: rgba(152, 195, 121, 0.6);
 }
 
+/* PLAN-044 / T0566: usage-limit state of a tab (hint, or the time BAT continues it) */
+.usage-limit-badge {
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(229, 192, 123, 0.6);
+  color: #e5c07b;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.usage-limit-badge.scheduled {
+  color: #61afef;
+  border-color: rgba(97, 175, 239, 0.6);
+}
+
 /* T0553: a helper-created tab whose PTY a remote server created */
 .remote-origin-badge {
   font-size: 9px;

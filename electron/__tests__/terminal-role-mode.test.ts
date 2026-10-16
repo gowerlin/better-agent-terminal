@@ -9,7 +9,7 @@
  * - kept by restart (node-pty and Terminal Server), the idempotent re-create and the recovery
  *   rebuild; gone when the PTY is killed or exits
  * - isYoloTerminal: Tower yolo / Tower ask / Tower without mode / Worker CT_MODE=yolo / Worker
- *   CT_MODE=ask / a plain tab / no such PTY
+ *   CT_MODE=ask / a plain tab / no such PTY; T0566: a Tower's declared mode wins over its CT_MODE env
  * The PtyManager runs against a fake node-pty (pattern of close-worker.test.ts).
  */
 import type { ChildProcess } from 'child_process'
@@ -191,6 +191,20 @@ describe('PtyManager.isYoloTerminal (T0565)', () => {
     // a Worker is not a Tower: no Tower mode
     expect(m.getTowerMode('worker-yolo')).toBeUndefined()
     expect(m.getTerminalRole('plain')).toBeUndefined()
+  })
+
+  it('T0566: a Tower’s declared mode wins over its CT_MODE env; a Tower without --mode falls back to CT_MODE', () => {
+    const m = makeManager()
+    m.create({ id: 'yolo-env-tower-ask', ...TAB, customEnv: { CT_MODE: 'yolo' } })
+    m.create({ id: 'ask-env-tower-yolo', ...TAB, customEnv: { CT_MODE: 'ask' } })
+    m.create({ id: 'yolo-env-tower-none', ...TAB, customEnv: { CT_MODE: 'yolo' } })
+    m.setTerminalRole('yolo-env-tower-ask', 'tower', 'ask')
+    m.setTerminalRole('ask-env-tower-yolo', 'tower', 'yolo')
+    m.setTerminalRole('yolo-env-tower-none', 'tower')
+
+    expect(m.isYoloTerminal('yolo-env-tower-ask')).toBe(false)
+    expect(m.isYoloTerminal('ask-env-tower-yolo')).toBe(true)
+    expect(m.isYoloTerminal('yolo-env-tower-none')).toBe(true)
   })
 })
 

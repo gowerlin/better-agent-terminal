@@ -16,6 +16,7 @@ import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from '../src/types/remote-tools'
 import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
+import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -24,7 +25,9 @@ const electronAPI = {
   pty: {
     create: (options: CreatePtyOptions) => ipcRenderer.invoke('pty:create', options),
     getBuffer: (id: string) => ipcRenderer.invoke('pty:get-buffer', id),
-    write: (id: string, data: string) => ipcRenderer.invoke('pty:write', id, data),
+    // T0566: `{ auto: true }` = BAT's own automatic write (usage-limit continue), not the user's input
+    write: (id: string, data: string, opts?: { auto?: boolean }) =>
+      opts ? ipcRenderer.invoke('pty:write', id, data, opts) : ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
     restart: (id: string, cwd: string, shell?: string) => ipcRenderer.invoke('pty:restart', id, cwd, shell),
@@ -71,6 +74,18 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: TerminalRoleChangeInfo) => callback(info)
       ipcRenderer.on('terminal:role-changed', handler)
       return () => ipcRenderer.removeListener('terminal:role-changed', handler)
+    },
+    // PLAN-044 / T0566: a tab's usage-limit state changed (hint / scheduled / cleared)
+    onUsageLimitStatus: (callback: (info: UsageLimitStatusEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: UsageLimitStatusEvent) => callback(info)
+      ipcRenderer.on('terminal:usage-limit-status', handler)
+      return () => ipcRenderer.removeListener('terminal:usage-limit-status', handler)
+    },
+    // PLAN-044 / T0566: the usage limit reset — the window holding the tab re-checks and continues
+    onUsageLimitContinue: (callback: (info: UsageLimitContinueEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: UsageLimitContinueEvent) => callback(info)
+      ipcRenderer.on('terminal:usage-limit-continue', handler)
+      return () => ipcRenderer.removeListener('terminal:usage-limit-continue', handler)
     }
   },
   workspace: {

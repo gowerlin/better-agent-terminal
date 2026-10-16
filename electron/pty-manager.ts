@@ -135,6 +135,13 @@ export interface PtyManagerDeps {
    * extra (Electron: `getRemoteServerInfo` + `helperDir` as before).
    */
   helperEnv?: (id: string, customEnv: Record<string, string>) => Record<string, string>
+  /**
+   * PLAN-044 / T0566: every chunk of live PTY output (direct and Terminal Server), as it is
+   * queued for the `pty:output` broadcast — not the T0108 replay of a reconnected Terminal
+   * Server. The usage-limit scheduler reads the screen from it. A throwing listener is logged
+   * and ignored. Undefined = no hook.
+   */
+  onPtyOutput?: (id: string, data: string) => void
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -602,6 +609,13 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** Enqueue PTY output and flush in batched intervals */
   private enqueuePtyOutput(id: string, data: string) {
     this.lastOutputAt.set(id, Date.now())
+    if (this.deps.onPtyOutput) {
+      try {
+        this.deps.onPtyOutput(id, data)
+      } catch (e) {
+        logger.warn(`[PtyManager] onPtyOutput listener failed id=${id}:`, e)
+      }
+    }
     const prev = this.outputBuffers.get(id) || ''
     this.outputBuffers.set(id, prev + data)
     if (!this.outputFlushTimer) {
@@ -737,14 +751,17 @@ export class PtyManager implements CloseWorkerPtyManager {
   }
 
   /**
-   * T0565 / D148: whether PTY `id` runs Control Tower in yolo mode — a Tower that declared
-   * `--mode yolo`, or a Worker dispatched with `--mode yolo` (`customEnv.CT_MODE`). The one
-   * place PLAN-044 (T0566) asks; Electron and headless alike.
+   * T0565 / D148: whether PTY `id` runs Control Tower in yolo mode. The one place PLAN-044
+   * (T0566) asks; Electron and headless alike. T0566 (Tower ruling on T0565): a Tower's declared
+   * mode wins — a Tower that declared `--mode` is yolo only when it declared `yolo`, whatever
+   * `CT_MODE` its env carries; otherwise a Worker dispatched with `--mode yolo`
+   * (`customEnv.CT_MODE`).
    */
   isYoloTerminal(id: string): boolean {
     const instance = this.instances.get(id)
     if (!instance) return false
-    return (instance.role === 'tower' && instance.towerMode === 'yolo') || instance.customEnv?.CT_MODE === 'yolo'
+    if (instance.role === 'tower' && instance.towerMode) return instance.towerMode === 'yolo'
+    return instance.customEnv?.CT_MODE === 'yolo'
   }
 
   /** T0535: the Tower terminal that dispatched PTY `id` (`customEnv.BAT_TOWER_TERMINAL_ID`). */

@@ -346,6 +346,10 @@ export interface AppSettings {
   remotePort?: number;             // RemoteServer port（PLAN-021，範圍 1024-65535，預設 9876，可被 BAT_REMOTE_PORT env 覆寫）
   claudeRuntime?: ClaudeRuntimeSettings;  // PLAN-027 #1：claude binary 來源選擇（embedded 或系統 PATH）
   githubCliPath?: string;           // GitHub CLI gh 自訂完整路徑（空白 = 自動偵測）
+  // PLAN-044 / T0566（D148）：用量限制解除後自動繼續 yolo 分頁（main 端以 src/lib/usage-limit.ts normalizeUsageLimitConfig 讀取）
+  usageLimitAutoContinue?: boolean;          // 預設 false
+  usageLimitContinueText?: string;           // Codex 分頁輸入的文字（預設「繼續」）
+  usageLimitContinueDelayMinutes?: number;   // 重置後延遲分鐘（0–60，預設 2）
 }
 
 // ============================================

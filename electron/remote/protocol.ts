@@ -116,4 +116,7 @@ export const PROXIED_EVENTS = new Set([
   // T0562: a remote Tower's `--set-role tower` — the client window holding the tab retitles it
   // (electron/terminal-role.ts, src/App.tsx)
   'terminal:role-changed',
+  // PLAN-044 / T0566: a remote tab's usage-limit hint, and the automatic continue the client
+  // window holding the tab types (electron/usage-limit-continue.ts, src/App.tsx)
+  'terminal:usage-limit-status', 'terminal:usage-limit-continue',
 ])

@@ -31,6 +31,11 @@ export interface PtyHandlerDeps {
    * (T0536): a client connection — not a helper's.
    */
   isUserInput?: (ctx: HandlerContext) => boolean
+  /**
+   * PLAN-044 / T0566: called after a `pty:write` counted as the user's input (the same rule that
+   * feeds `noteUserInput`) — the usage-limit scheduler cancels a pending automatic continue.
+   */
+  onUserInput?: (id: string) => void
 }
 
 /**
@@ -87,11 +92,18 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   // T0551 (BUG-140): nor does a write made only of the terminal's own replies (xterm's focus
   // in / out reports when a tab or workspace is switched, DSR / DA answers …) — same rule for
   // the local window and a headless client. The write itself goes to the PTY either way.
-  register('pty:write', (ctx, id: string, data: string) => {
+  // T0566 (PLAN-044): `{ auto: true }` marks BAT's own automatic write (the usage-limit continue
+  // text and its Enter) — never the user's input, so it cancels neither a `--close-worker` delay
+  // nor the usage-limit wait. A server before T0566 ignores the extra argument.
+  register('pty:write', (ctx, id: string, data: string, opts?: unknown) => {
     const manager = deps.getPtyManager()
     if (!manager) return { ok: false, reason: 'manager-not-ready' }
-    const fromUser = deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId
-    if (fromUser && !isTerminalAutoReply(data)) manager.noteUserInput(id)
+    const auto = !!opts && typeof opts === 'object' && (opts as { auto?: unknown }).auto === true
+    const fromUser = !auto && (deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId)
+    if (fromUser && !isTerminalAutoReply(data)) {
+      manager.noteUserInput(id)
+      deps.onUserInput?.(id)
+    }
     return manager.writeWithResult(id, data)
   })
   register('pty:resize', (_ctx, id: string, cols: number, rows: number) => {

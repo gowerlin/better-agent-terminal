@@ -16,6 +16,8 @@ import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, ter
 import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
 import { CtToast, useCtToast } from './CtToast'
+import { registerUsageLimitSender } from '../stores/usage-limit-store'
+import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -28,6 +30,28 @@ interface RemoteKeypressTrace {
   dataEvents: number
   dataBytes: number
   dataControls: string[]
+  /** T0566: what xterm writes for this keypress is BAT's automatic write (`pty.write` `{ auto }`). */
+  auto?: boolean
+}
+
+/**
+ * PLAN-044 / T0566: the bottom of the terminal's content as text lines (wrapped rows joined),
+ * at most `max` non-blank lines — what the usage-limit re-check reads.
+ */
+function terminalScreenLines(terminal: Terminal, max: number): string[] {
+  const buffer = terminal.buffer.active
+  const lines: string[] = []
+  let pending = ''
+  for (let row = buffer.baseY + terminal.rows - 1; row >= 0 && lines.length < max; row--) {
+    const line = buffer.getLine(row)
+    if (!line) continue
+    pending = line.translateToString(true) + pending
+    if (line.isWrapped) continue
+    if (pending.trim()) lines.unshift(pending)
+    pending = ''
+  }
+  if (pending.trim() && lines.length < max) lines.unshift(pending)
+  return lines
 }
 
 const describeTerminalInputData = (data: string): string => {
@@ -448,20 +472,19 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         trace.dataControls.push(describeTerminalInputData(data))
         dlog(`[terminal-submit] xterm onData terminal=${terminalId} trace=${trace.traceId} bytes=${data.length} controls=${trace.dataControls.at(-1)}`)
       }
-      window.electronAPI.pty.write(terminalId, data)
+      // T0566: the Enter of a usage-limit continue is BAT's automatic write, not the user's input.
+      if (trace?.auto) window.electronAPI.pty.write(terminalId, data, { auto: true })
+      else window.electronAPI.pty.write(terminalId, data)
     })
 
-    const unsubscribeKeypress = window.electronAPI.pty.onTerminalKeypress((info) => {
-      if (info.targetId !== terminalId) return
-      const isEnter = info.key === 'Enter' || info.code === 'Enter' || info.keyCode === 13
-      if (!isEnter) return
-      const traceId = info.traceId ?? `renderer-${Date.now().toString(36)}`
-      dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${traceId} source=${info.source ?? '?'} reason=${info.reason ?? '?'} path=dom-keydown`)
-
+    // `bat-notify --submit` (terminal:keypress) and the usage-limit continue (T0566): Enter through
+    // xterm, so the agent gets the bytes a real Enter key produces. False = no xterm textarea.
+    const dispatchEnter = (info: { traceId: string; source?: string; reason?: string; auto?: boolean }): boolean => {
+      const { traceId } = info
       const textarea = containerRef.current?.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement | null
       if (!textarea) {
         dlog(`[terminal-submit] remote Enter aborted terminal=${terminalId} trace=${traceId} reason=missing-xterm-helper-textarea`)
-        return
+        return false
       }
 
       const trace: RemoteKeypressTrace = {
@@ -471,8 +494,12 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         dataEvents: 0,
         dataBytes: 0,
         dataControls: [],
+        auto: info.auto,
       }
       remoteKeypressTraceRef.current = trace
+      // T0566: an automatic continue may land in a background tab — give the focus back afterwards
+      // so the user's typing keeps going where it was.
+      const previousFocus = info.auto ? document.activeElement as HTMLElement | null : null
 
       try {
         terminal.focus()
@@ -484,7 +511,35 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         }
       } finally {
         remoteKeypressTraceRef.current = null
+        if (previousFocus && previousFocus !== textarea && previousFocus.isConnected) previousFocus.focus({ preventScroll: true })
       }
+      return true
+    }
+
+    const unsubscribeKeypress = window.electronAPI.pty.onTerminalKeypress((info) => {
+      if (info.targetId !== terminalId) return
+      const isEnter = info.key === 'Enter' || info.code === 'Enter' || info.keyCode === 13
+      if (!isEnter) return
+      const traceId = info.traceId ?? `renderer-${Date.now().toString(36)}`
+      dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${traceId} source=${info.source ?? '?'} reason=${info.reason ?? '?'} path=dom-keydown`)
+      dispatchEnter({ traceId, source: info.source, reason: info.reason })
+    })
+
+    // PLAN-044 / T0566: the usage limit reset — re-check this screen, type the text (automatic
+    // write), then Enter through xterm. App.tsx calls it in the window holding the tab.
+    const unregisterUsageLimit = registerUsageLimitSender(terminalId, async (info) => {
+      const failure = usageLimitRecheckFailure(terminalScreenLines(terminal, USAGE_LIMIT_SCREEN_LINES), info.action, Date.now())
+      if (failure) return { ok: false, reason: `re-check failed: ${failure}` }
+      if (info.action === 'text' && info.text) {
+        await window.electronAPI.pty.write(terminalId, info.text, { auto: true })
+        await new Promise<void>(resolve => setTimeout(resolve, USAGE_LIMIT_ENTER_DELAY_MS))
+      }
+      dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${info.traceId} source=usage-limit reason=${info.agent} path=dom-keydown`)
+      if (!dispatchEnter({ traceId: info.traceId, source: 'usage-limit', reason: info.agent, auto: true })) {
+        await window.electronAPI.pty.write(terminalId, '\r', { auto: true })
+        return { ok: true, path: 'pty-write (no xterm textarea)' }
+      }
+      return { ok: true, path: 'dom-keydown' }
     })
 
     // Track IME composition state on xterm's hidden textarea
@@ -741,6 +796,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       unsubscribeOutput()
       unsubscribeExit()
       unsubscribeKeypress()
+      unregisterUsageLimit()
       unsubscribeSettings()
       bufferChangeDisposable.dispose()
       decorationManagerRef.current?.dispose()

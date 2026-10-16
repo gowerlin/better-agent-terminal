@@ -213,7 +213,14 @@
       "testSuccess": "gh 可使用：{{path}}",
       "testUnauthenticated": "已找到 gh：{{path}}，但尚未登录 GitHub。",
       "testNotFound": "找不到 GitHub CLI。"
-    }
+    },
+    "usageLimitTitle": "用量限制自动继续",
+    "usageLimitAutoContinue": "用量限制解除后自动继续 yolo 标签页",
+    "usageLimitAutoContinueHint": "默认关闭。只作用于以 yolo 模式运行 Control Tower 的标签页（以 --mode yolo 声明的塔台，或以 --mode yolo 派出的 Worker），其他标签页只显示提示。Codex 标签页：重置时间加上下方延迟之后，画面仍是限制信息时，BAT 输入下方文字并按 Enter。Claude Code CLI 2.1.234 起在限制重置后会自己继续，所以 BAT 不会在 Claude 标签页输入文字：只显示 CLI 何时继续；电脑休眠跨过重置、CLI 停在「Press enter to continue」时才补按 Enter。周限制（重置距今超过 5 小时 15 分）、花费上限与额度不足只显示提示。等待期间在标签页内打字即取消；同一标签页连续自动继续最多 2 次。",
+    "usageLimitContinueText": "输入的文字",
+    "usageLimitContinueTextHint": "在 Codex 标签页按 Enter 前输入。默认：繼續",
+    "usageLimitContinueDelay": "重置后延迟（分钟）",
+    "usageLimitContinueDelayHint": "0–60，默认 2，确保限制已实际解除。"
   },
   "sidebar": {
     "workspaces": "工作区",
@@ -1177,5 +1184,19 @@
     "batchCloseDesc": "以下 Worker 标签页已回报给 {{tower}}，将被关闭。其中正在执行的程序会被终止，worktree 保留。",
     "batchCloseConfirm": "关闭 {{count}} 个标签页",
     "remoteOriginTooltip": "这个终端由远程服务器创建"
+  },
+  "usageLimit": {
+    "badge": "限制",
+    "scheduledText": "用量限制：BAT 将于 {{time}} 自动继续此标签页（重置 {{reset}} + 延迟）",
+    "scheduledEnter": "限制已重置，Claude CLI 在等 Enter：BAT 将于 {{time}} 按 Enter",
+    "cliAuto": "用量限制：Claude CLI 将于 {{reset}} 自动继续",
+    "cliStopped": "用量限制：Claude CLI 的自动继续已停止或取消，不会自行继续",
+    "cliUnavailable": "用量限制（{{reset}} 重置）：Claude CLI 没有显示自动继续（API key、旧版 CLI 或设置已关闭）。BAT 不在 Claude 标签页输入，请手动继续",
+    "weekly": "周限制或长时间限制（{{reset}} 重置）：不会自动继续",
+    "noResetTime": "用量限制没有重置时间：不会自动继续",
+    "nonTimed": "花费上限或额度不足：重置不会解除，不会自动继续",
+    "notYolo": "用量限制（{{reset}} 重置）：不是 yolo 标签页，BAT 不自动继续",
+    "cap": "连续自动继续 {{count}} 次后再次撞到限制：BAT 停止自动继续此标签页，直到你在标签页内输入",
+    "unknownTime": "未知"
   }
 }

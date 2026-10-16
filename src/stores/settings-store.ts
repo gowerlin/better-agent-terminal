@@ -1,6 +1,7 @@
 import type { AppSettings, ShellType, FontType, ColorPresetId, EnvVariable, AgentCommandType, StatuslineItemConfig, StatuslineItemId, LanguageCode, LogLevel, EffortLevel, ClaudeRuntimeSettings } from '../types'
 import type { AgentPresetId } from '../types/agent-presets'
 import { FONT_OPTIONS, COLOR_PRESETS, AGENT_COMMAND_OPTIONS, STATUSLINE_ITEMS, DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../types'
+import { clampUsageLimitDelayMinutes } from '../lib/usage-limit'
 
 type Listener = () => void
 
@@ -356,6 +357,25 @@ class SettingsStore {
 
   setTerminalServerIdleTimeoutMinutes(minutes: number): void {
     this.settings = { ...this.settings, terminalServerIdleTimeoutMinutes: minutes }
+    this.notify()
+    this.save()
+  }
+
+  // PLAN-044 / T0566 (D148): usage-limit auto continue (main re-reads it on settings:save)
+  setUsageLimitAutoContinue(enabled: boolean): void {
+    this.settings = { ...this.settings, usageLimitAutoContinue: enabled }
+    this.notify()
+    this.save()
+  }
+
+  setUsageLimitContinueText(text: string): void {
+    this.settings = { ...this.settings, usageLimitContinueText: text }
+    this.notify()
+    this.save()
+  }
+
+  setUsageLimitContinueDelayMinutes(minutes: number): void {
+    this.settings = { ...this.settings, usageLimitContinueDelayMinutes: clampUsageLimitDelayMinutes(minutes) }
     this.notify()
     this.save()
   }

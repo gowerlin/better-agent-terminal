@@ -87,7 +87,7 @@ export const PATH_AWARE_CHANNELS = new Set<string>(Object.keys(PATH_ARG_SCHEMA))
  * PATH_ARG_SCHEMA, or the coverage test fails.
  */
 export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
-  ['pty:write', 'id + terminal input bytes'],
+  ['pty:write', 'id + terminal input bytes (+ { auto } flag, T0566)'],
   ['pty:resize', 'id + cols/rows'],
   ['pty:kill', 'id only'],
   ['pty:get-cwd', 'id only (result is path-returning)'],
@@ -341,6 +341,8 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['terminal:keypress', '{ targetId, key, code, keyCode, source, reason, traceId } (terminal ids + key enum)'],
   ['terminal:close-requested', '{ id } (terminal id only; PLAN-041 / T0536)'],
   ['terminal:role-changed', '{ id, role, ptyAgent?, ptyAgentName?, agent?, agentName? } (terminal id + role / agent ids and names; T0562)'],
+  ['terminal:usage-limit-status', '{ id, status } (terminal id + limit state / reset time text; T0566)'],
+  ['terminal:usage-limit-continue', '{ id, action, text?, agent, traceId } (terminal id + the Settings continue text; T0566)'],
 ])
 
 export function translateRemoteEventArgs(

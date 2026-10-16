@@ -6,6 +6,7 @@ import i18next from 'i18next'
 import { ownsTerminalForCloseRequest, workspaceStore } from './stores/workspace-store'
 import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
+import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView } from './components/WorkspaceView'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -756,6 +757,28 @@ export default function App() {
       const { result, title } = workspaceStore.applyTerminalRole(info)
       window.electronAPI.debug.log(`[set-role] id=${info.id} role=${info.role} → ${result}${title ? ` title="${title}"` : ''}${detachedWorkspaceId ? ' (detached window)' : ''}`)
     })
+  }, [detachedWorkspaceId, detachedIds])
+
+  // PLAN-044 / T0566 (D148): a tab's usage-limit hint, and the automatic continue once the limit
+  // reset (+ delay) is due. Only the window holding the tab acts (same rule as --close-worker), so
+  // a detached window and its main window never both type into one tab.
+  useEffect(() => {
+    const unsubStatus = window.electronAPI.pty.onUsageLimitStatus((info) => {
+      const terminal = workspaceStore.getState().terminals.find(tm => tm.id === info.id)
+      if (!ownsTerminalForCloseRequest(terminal, detachedWorkspaceId, detachedIds)) return
+      setUsageLimitStatus(info)
+    })
+    const unsubContinue = window.electronAPI.pty.onUsageLimitContinue((info) => {
+      const terminal = workspaceStore.getState().terminals.find(tm => tm.id === info.id)
+      if (!ownsTerminalForCloseRequest(terminal, detachedWorkspaceId, detachedIds)) return
+      void runUsageLimitContinue(info)
+    })
+    const unsubExit = window.electronAPI.pty.onExit((id) => clearUsageLimitStatus(id))
+    return () => {
+      unsubStatus()
+      unsubContinue()
+      unsubExit()
+    }
   }, [detachedWorkspaceId, detachedIds])
 
   // Poll remote client connection status

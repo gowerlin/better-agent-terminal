@@ -93,7 +93,8 @@ interface ElectronAPI {
     create: (options: CreatePtyOptions) => Promise<PtyCreateResult | boolean>
     /** T0403: replay buffer; rejects with `No handler` on a remote server before T0403. */
     getBuffer: (id: string) => Promise<PtyReplayBuffer | null>
-    write: (id: string, data: string) => Promise<void>
+    /** T0566: `opts.auto` = BAT's own automatic write (not the user's input; a server before T0566 ignores it). */
+    write: (id: string, data: string, opts?: { auto?: boolean }) => Promise<void>
     resize: (id: string, cols: number, rows: number) => Promise<void>
     kill: (id: string) => Promise<boolean>
     restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
@@ -108,6 +109,10 @@ interface ElectronAPI {
     onCloseRequested: (callback: (info: { id: string }) => void) => () => void
     /** T0562: `terminal:role-changed` — tab `id` declared its role (`bat-terminal.mjs --set-role tower`). */
     onRoleChanged: (callback: (info: import('../lib/tower-terminal-title').TerminalRoleChangeInfo) => void) => () => void
+    /** PLAN-044 / T0566: `terminal:usage-limit-status` — tab `id`'s usage-limit hint changed (null = cleared). */
+    onUsageLimitStatus: (callback: (info: import('../lib/usage-limit').UsageLimitStatusEvent) => void) => () => void
+    /** PLAN-044 / T0566: `terminal:usage-limit-continue` — the window holding tab `id` re-checks and continues. */
+    onUsageLimitContinue: (callback: (info: import('../lib/usage-limit').UsageLimitContinueEvent) => void) => () => void
   }
   workspace: {
     save: (data: string) => Promise<boolean>

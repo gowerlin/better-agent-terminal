@@ -14,6 +14,8 @@ import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { WorkerCloseScheduler } from './close-worker'
+import { UsageLimitContinueScheduler } from './usage-limit-continue'
+import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
@@ -423,6 +425,8 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
 let ptyManager: PtyManager | null = null
 // PLAN-041 / T0535: `terminal:close-worker` delay timers (registerProxiedHandlers builds it).
 let workerCloseScheduler: WorkerCloseScheduler | null = null
+// PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
+let usageLimitScheduler: UsageLimitContinueScheduler | null = null
 let claudeManager: ClaudeAgentManager | null = null
 let codexManager: CodexAgentManager | null = null
 const sessionManagerMap = new Map<string, 'claude' | 'codex'>()
@@ -483,6 +487,10 @@ interface PersistedSettings {
   shell?: string
   customShellPath?: string
   githubCliPath?: string
+  // PLAN-044 / T0566 (src/lib/usage-limit.ts normalizeUsageLimitConfig)
+  usageLimitAutoContinue?: boolean
+  usageLimitContinueText?: string
+  usageLimitContinueDelayMinutes?: number
 }
 
 const REMOTE_PORT_MIN = 1024
@@ -756,6 +764,9 @@ function createElectronPtyDeps(): PtyManagerDeps {
     helperDir: app.isPackaged
       ? path.join(process.resourcesPath, 'scripts')
       : path.join(__dirname, '..', 'scripts'),
+    // PLAN-044 / T0566: the usage-limit scheduler reads each tab's screen from the live output.
+    onPtyOutput: (id, data) => usageLimitScheduler?.onOutput(id, data),
+    onPtyExit: (id) => usageLimitScheduler?.onExit(id),
   }
 }
 
@@ -1211,6 +1222,7 @@ async function cleanupAllProcesses(): Promise<void> {
   try { codexManager?.killAll() } catch { /* ignore */ }
   try { codexManager?.dispose() } catch { /* ignore */ }
   try { workerCloseScheduler?.dispose() } catch { /* ignore */ }
+  try { usageLimitScheduler?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   claudeManager = null
   codexManager = null
@@ -2143,8 +2155,20 @@ app.on('activate', async () => {
 function registerProxiedHandlers() {
   const MESSAGE_ARCHIVE_DIR = path.join(app.getPath('userData'), 'message-archives')
 
+  // PLAN-044 / T0566: usage-limit auto continue. Events go to this BAT's own windows only — not
+  // to broadcastHub: a remote client of this BAT showing the same tab must not send it twice.
+  usageLimitScheduler = new UsageLimitContinueScheduler({
+    getPtyManager: () => ptyManager,
+    readConfig: () => normalizeUsageLimitConfig(readPersistedSettingsSync()),
+    emit: createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), () => {}),
+    logger,
+  })
+
   // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
-  registerPtyHandlers(registerHandler, { getPtyManager: () => ptyManager })
+  registerPtyHandlers(registerHandler, {
+    getPtyManager: () => ptyManager,
+    onUserInput: (id) => usageLimitScheduler?.onUserInput(id),
+  })
 
   // terminal:create-with-command / create-agent-command / notify / keypress — shared with
   // headless bat-server (PLAN-036 T0431, electron/handlers/terminal.ts). Events go to every
@@ -2227,6 +2251,8 @@ function registerProxiedHandlers() {
     }
     // Rebuild menu to reflect devtools toggle change
     buildMenu()
+    // PLAN-044 / T0566: the usage-limit switch / text / delay take effect at once
+    usageLimitScheduler?.refreshConfig()
     return true
   })
   registerHandler('settings:load', async (_ctx) => {

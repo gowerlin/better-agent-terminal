@@ -12,6 +12,7 @@ import { DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../types'
 import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
 import type { CustomCliDefinition } from '../types/agent-runtime'
 import { ModalOverlay } from './common/ModalOverlay'
+import { USAGE_LIMIT_DEFAULT_DELAY_MINUTES, USAGE_LIMIT_DEFAULT_TEXT, USAGE_LIMIT_MAX_DELAY_MINUTES, USAGE_LIMIT_MAX_TEXT_LENGTH } from '../lib/usage-limit'
 
 interface SettingsPanelProps {
   onClose: () => void
@@ -1114,6 +1115,49 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
                 <option value={0}>永不關閉</option>
               </select>
               <p className="settings-hint">BAT 關閉後 Terminal Server 保持存活的時間，設定後重啟 Terminal Server 生效</p>
+            </div>
+          </div>
+          {/* PLAN-044 / T0566 (D148): usage-limit auto continue — off by default */}
+          <div className="settings-section usage-limit-settings">
+            <h3>{t('settings.usageLimitTitle')}</h3>
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.usageLimitAutoContinue === true}
+                  onChange={e => settingsStore.setUsageLimitAutoContinue(e.target.checked)}
+                />
+                {t('settings.usageLimitAutoContinue')}
+              </label>
+              <p className="settings-hint">{t('settings.usageLimitAutoContinueHint')}</p>
+            </div>
+            <div className="settings-group">
+              <label>{t('settings.usageLimitContinueText')}</label>
+              <input
+                type="text"
+                className="usage-limit-text-input"
+                value={settings.usageLimitContinueText ?? USAGE_LIMIT_DEFAULT_TEXT}
+                placeholder={USAGE_LIMIT_DEFAULT_TEXT}
+                maxLength={USAGE_LIMIT_MAX_TEXT_LENGTH}
+                disabled={settings.usageLimitAutoContinue !== true}
+                onChange={e => settingsStore.setUsageLimitContinueText(e.target.value)}
+              />
+              <p className="settings-hint">{t('settings.usageLimitContinueTextHint')}</p>
+            </div>
+            <div className="settings-group">
+              <label>{t('settings.usageLimitContinueDelay')}</label>
+              <input
+                type="number"
+                className="usage-limit-delay-input"
+                min={0}
+                max={USAGE_LIMIT_MAX_DELAY_MINUTES}
+                step={1}
+                value={settings.usageLimitContinueDelayMinutes ?? USAGE_LIMIT_DEFAULT_DELAY_MINUTES}
+                disabled={settings.usageLimitAutoContinue !== true}
+                onChange={e => settingsStore.setUsageLimitContinueDelayMinutes(Number(e.target.value))}
+                style={{ width: '100px' }}
+              />
+              <p className="settings-hint">{t('settings.usageLimitContinueDelayHint')}</p>
             </div>
           </div>
           <div className="settings-section">

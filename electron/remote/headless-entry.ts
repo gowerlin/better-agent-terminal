@@ -15,6 +15,8 @@ import {
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
 import { WorkerCloseScheduler } from '../close-worker'
+import { UsageLimitContinueScheduler } from '../usage-limit-continue'
+import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
 import type { HandlerContext } from '../handlers/types'
 import type { PersistedShellSettings } from '../shell-path-resolver'
 import {
@@ -308,7 +310,14 @@ export function buildHeadlessHelperEnv(opts: {
  * `<installRoot>/scripts`. `BAT_HELPER_DIR` comes only from there, never from `host`.
  * PLAN-041 / T0536: `isUserInput` — which `pty:write` is the user typing (cancels a pending
  * `--close-worker`); the server passes "a client connection, not a helper".
+ * PLAN-044 / T0566: the usage-limit scheduler (electron/usage-limit-continue.ts) on this
+ * PtyManager; config from `<dataDir>/settings.json` (a remote window's Settings saves there,
+ * `settings:save` is proxied), re-read every `USAGE_LIMIT_CONFIG_TTL_MS`. Events go to the
+ * connected clients; `usageLimitCanDeliver` false (no client) → nothing is sent. User input =
+ * the same `isUserInput` rule.
  */
+export const USAGE_LIMIT_CONFIG_TTL_MS = 5000
+
 export function createHeadlessPtyModule(opts: {
   maxPtys?: number
   onManager?: (manager: PtyManager) => void
@@ -316,11 +325,21 @@ export function createHeadlessPtyModule(opts: {
   helperDir?: string
   helperEndpoint?: () => HeadlessHelperEndpoint | null
   isUserInput?: (ctx: HandlerContext) => boolean
+  usageLimitCanDeliver?: () => boolean
 } = {}): HandlerModule {
   return (register, host) => {
     const capabilities = opts.helperCapabilities
     const getEndpoint = opts.helperEndpoint
-    const manager = new PtyManager({
+    let manager: PtyManager | null = null
+    const usageLimit = new UsageLimitContinueScheduler({
+      getPtyManager: () => manager,
+      readConfig: () => normalizeUsageLimitConfig(host.getSettings()),
+      configTtlMs: USAGE_LIMIT_CONFIG_TTL_MS,
+      emit: (channel, payload) => host.emit(channel, payload),
+      ...(opts.usageLimitCanDeliver ? { canDeliver: opts.usageLimitCanDeliver } : {}),
+      logger: defaultLogger,
+    })
+    manager = new PtyManager({
       emit: host.emit,
       dataDir: host.dataDir,
       dropInheritedEnv: isHeadlessScrubbedEnvKey,
@@ -335,19 +354,24 @@ export function createHeadlessPtyModule(opts: {
             log: message => defaultLogger.log(message),
           })
         : undefined,
-      onPtyExit: capabilities
-        ? id => {
-            if (capabilities.revokeTerminal(id) > 0) defaultLogger.log(`[headless] helper capability revoked: terminal=${id}`)
-          }
-        : undefined,
+      onPtyExit: id => {
+        usageLimit.onExit(id)
+        if (capabilities && capabilities.revokeTerminal(id) > 0) defaultLogger.log(`[headless] helper capability revoked: terminal=${id}`)
+      },
+      onPtyOutput: (id, data) => usageLimit.onOutput(id, data),
     })
+    const ptys = manager
     registerPtyHandlers(register, {
-      getPtyManager: () => manager,
+      getPtyManager: () => ptys,
       validateShell: true,
       ...(opts.isUserInput ? { isUserInput: opts.isUserInput } : {}),
+      onUserInput: id => usageLimit.onUserInput(id),
     })
-    opts.onManager?.(manager)
-    return () => manager.dispose()
+    opts.onManager?.(ptys)
+    return () => {
+      usageLimit.dispose()
+      ptys.dispose()
+    }
   }
 }
 
@@ -913,6 +937,8 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
       },
       // T0536: only a BAT window's typing cancels a pending --close-worker, not a helper's write.
       isUserInput: ctx => remoteServer.isClientConnection(ctx.connectionId),
+      // T0566: an automatic continue needs a client window to type it (Enter is a client keypress).
+      usageLimitCanDeliver: () => remoteServer.countBroadcastReceivers(undefined) > 0,
     },
     remoteTools: opts.remoteTools,
     git: opts.git,

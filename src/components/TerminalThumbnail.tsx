@@ -9,6 +9,34 @@ import { getAgentPreset } from '../types/agent-presets'
 import { titleShowsWorkorder } from '../lib/external-terminal-title'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { hasNotification, subscribeNotification, clearNotification } from '../stores/terminal-notifications'
+import { useUsageLimitStatus } from '../stores/usage-limit-store'
+import { USAGE_LIMIT_MAX_CONSECUTIVE_SENDS, type UsageLimitStatus } from '../lib/usage-limit'
+
+/** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
+function clockTime(epoch: number | null): string {
+  if (epoch === null || !Number.isFinite(epoch)) return ''
+  return new Date(epoch).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+/** PLAN-044 / T0566: what the usage-limit badge tells the user (locale keys `usageLimit.*`). */
+function usageLimitTooltip(t: (key: string, options?: Record<string, unknown>) => string, status: UsageLimitStatus): string {
+  const reset = status.resetText || clockTime(status.resetsAt) || t('usageLimit.unknownTime')
+  if (status.state === 'scheduled') {
+    return status.action === 'text'
+      ? t('usageLimit.scheduledText', { time: clockTime(status.dueAt), reset })
+      : t('usageLimit.scheduledEnter', { time: clockTime(status.dueAt) })
+  }
+  switch (status.hint) {
+    case 'cli-auto': return t('usageLimit.cliAuto', { reset })
+    case 'cli-stopped': return t('usageLimit.cliStopped')
+    case 'cli-unavailable': return t('usageLimit.cliUnavailable', { reset })
+    case 'weekly': return t('usageLimit.weekly', { reset })
+    case 'no-reset-time': return t('usageLimit.noResetTime')
+    case 'non-timed': return t('usageLimit.nonTimed')
+    case 'not-yolo': return t('usageLimit.notYolo', { reset })
+    case 'cap': return t('usageLimit.cap', { count: USAGE_LIMIT_MAX_CONSECUTIVE_SENDS })
+  }
+}
 
 // Global preview cache - persists across component unmounts
 const MAX_PREVIEW_CACHE = 100
@@ -206,6 +234,8 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   // only shows ✓ once it reported; a title the user gave the tab keeps the T0538 badge.
   const workorderInTitle = isWorker && titleShowsWorkorder(terminal.title, terminal.workorder!)
   const showWorkerBadge = isWorker && (!workorderInTitle || !!terminal.workerReport)
+  // PLAN-044 / T0566: the tab's usage-limit state (main's `terminal:usage-limit-status`, memory only)
+  const usageLimit = useUsageLimitStatus(terminal.id)
   const workerTooltip = isWorker
     ? [
         t('workerTabs.badgeTooltip', { workorder: terminal.workorder, tower: towerTitle || terminal.towerTerminalId!.slice(0, 8) }),
@@ -253,6 +283,15 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               data-workorder={terminal.workorder}
             >
               {terminal.workerReport ? (workorderInTitle ? '✓' : `✓ ${terminal.workorder}`) : terminal.workorder}
+            </span>
+          )}
+          {usageLimit && (
+            <span
+              className={`usage-limit-badge ${usageLimit.state}`}
+              title={usageLimitTooltip(t, usageLimit)}
+              data-usage-limit={usageLimit.state === 'scheduled' ? `scheduled-${usageLimit.action}` : usageLimit.hint}
+            >
+              {usageLimit.state === 'scheduled' ? `⏳ ${clockTime(usageLimit.dueAt)}` : t('usageLimit.badge')}
             </span>
           )}
           {notified && <span title="New notification" className="notification-badge">●</span>}
