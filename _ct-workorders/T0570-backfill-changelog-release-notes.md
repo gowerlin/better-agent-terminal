@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0570
 title: "發佈文件補齊：CHANGELOG.md / release-note.md 從 GitHub Releases 補齊 v0.4.3 起到 v0.6.1-pre.7 的所有版本；README.md 與現況對齊"
 type: docs
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: release-docs
 priority: P2
 sizing: M
 created_at: "2026-10-16T17:58:28+0800"
-updated_at: "2026-10-16T18:06:21+0800"
+updated_at: "2026-10-16T18:13:42+0800"
 started_at: "2026-10-16T18:06:21+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-16T18:13:42+0800"
+commit: "97b5697e"
 target_version: "docs（不需發版）"
 depends_on: []
 related:
