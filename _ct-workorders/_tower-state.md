@@ -93,7 +93,7 @@
 
 ### 待辦（依優先序）
 
-1. 🟡 **pre.5 實機**（本機已升 pre.5）：✅ Worker 分頁標題 / ✓ / 焦點切換不取消回收（T0557 / T0558，BUG-140 CLOSED）；待：WSL 工具面板 Node（nvm chip、更新）；T0550 需真人 6 項（見 T0550 回報區）；SSH 主機升級 / 取消還原（只有單元測試）；WSL server 升 pre.5（重跑精靈 = 驗 BUG-138 / 139 / 141）
+1. 🟡 **pre.5 實機**（本機已升 pre.5）：✅ Worker 分頁標題 / ✓ / 焦點切換不取消回收（T0557 / T0558，BUG-140 CLOSED）；✅ WSL 精靈 pre.4 → pre.5 升級 / 取消還原（T0559，BUG-138 / 139 / 141 CLOSED，WSL server = pre.5）；待：WSL 工具面板 Node（nvm chip、更新）；T0550 需真人 6 項（見 T0550 回報區）；SSH 主機升級 / 取消還原（只有單元測試）；WSL server 升 pre.5（重跑精靈 = 驗 BUG-138 / 139 / 141）
 2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；BUG-138–141 待 pre.5 驗收後 CLOSED；dmg / AppImage 啟動、NSIS 完整重裝
 4. 🟢 後續小項：T0550 spec 的 `A3.clean-install`「目錄變小」只適用跨版升級（T0554 #5）；zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）
@@ -106,12 +106,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 20 / Closed 45）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 17 / Closed 48）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D146）｜ Learnings → [_learnings.md](_learnings.md)（最大 L151）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（82 entries）
 
 ### 編號起始
-- **T0559** / **BUG-142** / **PLAN-044** / **D147** / **EXP-[TOPIC]-001** / **L152** / **CT-T013**
+- **T0561** / **BUG-142** / **PLAN-044** / **D147** / **EXP-[TOPIC]-001** / **L152** / **CT-T013**
 
 ---
 
@@ -125,8 +125,8 @@
 | **最新 release** | `v0.6.1-pre.5`（2026-10-16 05:23，run `38808244923`，target `6ad3c089`：BUG-138–141、Worker 分頁標題 T0553、遠端 Node.js via nvm T0555 / T0556；更版重點已寫）+ `server-bundle-v0.6.1-pre.5`（7 assets）。前一版 `v0.6.1-pre.4`（2026-10-16 02:08，run `38781893001`，target `e3e86496`：T0545 等安靜再回收、T0546-T0548 安裝檔瘦身）+ `server-bundle-v0.6.1-pre.4`（7 assets）。前一版 `v0.6.1-pre.3`（2026-10-15 18:06，run `38715587426`，target `95d1f8e5`：PLAN-041 Worker 分頁回收 + 分頁標示 / 批次關閉、BUG-137、T0540 程序樹、claude 2.1.300）+ `server-bundle-v0.6.1-pre.3`（7 assets）。前一版 `v0.6.1-pre.2`（2026-10-15 13:39，run `38686989923`，target `9dde59f3`，T0533 GPU 日誌）。再前 `v0.6.1-pre.1`（2026-10-15 02:05，`e715c2b1`，BUG-135）、`v0.6.0-pre.11`（01:47，`49af84ca`，BUG-134）。更早見 `_archive/state-snapshots/2026-Q4.md` |
 | **前一 tag** | `v0.6.1-pre.4`（2026-10-16 02:08，`e3e86496`） |
 | **目前主軸** | `v0.6.1-pre.5` 已發佈；待本機升 pre.5 實機確認；BUG-136 等 Gary；進行中 PLAN 0 |
-| **工單最大編號** | T0558（DONE，pre.5 驗收探針重跑）；T0557 / T0558 DONE（第六十七 session）；跨專案 CT-T012 |
-| **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 20（含 BUG-138 / 139 / 141，待 WSL 精靈升 pre.5 驗收）/ Closed 45（BUG-140 2026-10-16 T0558） |
+| **工單最大編號** | T0560（spec 修正，派發中）；T0557–T0559 DONE（第六十七 session）；跨專案 CT-T012 |
+| **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 48（BUG-140 T0558、BUG-138 / 139 / 141 T0559，2026-10-16） |
 | **PLAN 最大編號** | **PLAN-043**（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
 | **決策最大編號** | D146 |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
@@ -212,7 +212,7 @@
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
 | git 同步 | ✅ | `main` = `origin/main` @ `2b983a79`（fetch 後）；無其他 worktree / stash；`src/styles/settings.css` 顯示 M 但 `git diff` 無內容（stat-only，未處理） |
 | 最新 CI / release | ✅ | Pre-Release run `38715587426` success → `v0.6.1-pre.3` + `server-bundle-v0.6.1-pre.3`；開放 PR 0 |
-| WSL | Ubuntu-24.04 | `~/.local/bat-server` = `0.6.1-pre.4`（T0550 / T0552 / T0554，port 9877，systemd user service active）；nvm 0.40.8 + Node 24.22.0（T0555 / T0556）；`docker.io` 29.1.3 |
+| WSL | Ubuntu-24.04 | `~/.local/bat-server` = `0.6.1-pre.5`（T0559 2026-10-16 14:17；備份 3 份 `*.bak*-t0559` 待使用者決定刪除；port 9877，systemd user service active）；nvm 0.40.8 + Node 24.22.0（T0555 / T0556）；`docker.io` 29.1.3 |
 | Control Tower skills | ✅ v5.1.0 | control-tower / ct-exec / ct-done / ct-status / ct-evolve / ct-insights / ct-fieldguide / ct-help 全為 5.1.0 |
 | 熱區單據 | **T:187 檔 / BUG:62 / PLAN:14 / EXP:0** | `archive_days: 2` 下大量到齡候選（歸檔前先 grep 程式碼引用，L133） |
 | 最大編號 | **T0556 / BUG-141 / PLAN-043 / D146 / L151 / CT-T012** | 下張：T0557 / BUG-142 / PLAN-044 / D147 / L152 / CT-T013（第六十六 session 收工時） |

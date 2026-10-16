@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-16T14:09:53+0800"
+generated_at: "2026-10-16T14:20:40+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 66
 breakdown:
   OPEN: 1
   FIXING: 0
-  FIXED: 20
+  FIXED: 17
   VERIFY: 0
-  CLOSED: 45
+  CLOSED: 48
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 14:09 (UTC+8) — BUG-140 CLOSED（pre.5 實機驗收 T0558）
+> 最後同步：2026-10-16 14:20 (UTC+8) — BUG-138 / 139 / 141 CLOSED（pre.5 實機 e2e T0559）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 45 | ⛔ Won't Fix: 0 | **Total: 66**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 66**
 
 ## 🔴 Open / 處理中
 
@@ -43,9 +43,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（T0554 `38fe7421`：保留 `.bat-old` 至完成、取消換回舊樹 / 舊 unit 並重啟舊 service；WSL + SSH） | 🟡 medium | 2026-10-16 04:15 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |
-| BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0552 `f599f915`：沿用既有 unit port、更新既有 profile） | 🟡 medium | 2026-10-16 03:30 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
-| BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0552 `f599f915`：解到暫存目錄後換名，WSL / SSH 共用） | 🟢 low | 2026-10-16 03:30 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |
@@ -74,6 +71,9 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（T0554 `38fe7421`：保留 `.bat-old` 至完成、取消換回舊樹 / 舊 unit 並重啟舊 service；WSL + SSH） | 🟡 medium | 2026-10-16 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |
+| BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0552 `f599f915`：解到暫存目錄後換名，WSL / SSH 共用） | 🟢 low | 2026-10-16 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
+| BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0552 `f599f915`：沿用既有 unit port、更新既有 profile） | 🟡 medium | 2026-10-16 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
 | BUG-140 | `--close-worker` 延遲期間切換工作區 / 終端焦點被算成使用者輸入，回收被取消（T0551 `92655e00`，pre.5 實機驗收 T0558：終端自動回應（focus / CPR / DA…）不算使用者輸入） | 🟡 medium | 2026-10-16 | [BUG-140](BUG-140-close-worker-cancelled-by-focus-not-typing.md) |
 | BUG-123 | Profile（配置）對話框：WSL / SSH / Docker（headless）profile 狀態燈恆紅（T0513：燈號改以本機 registry 連線 + live 視窗為準，🟢/🟡/🔴/⚪ 四態、三語 tooltip、即時更新） | 🟢 low | 2026-10-14 | [BUG-123](BUG-123-profile-panel-remote-status-always-red.md) |
 | BUG-124 | SSH 精靈：目標 sshd 禁止 port forwarding 時錯誤顯示成「沒有提供 TLS 憑證」，未指出真正原因（T0517 `213f587`：偵測 ssh `administratively prohibited`，三語提示 `AllowTcpForwarding`） | 🟢 low | 2026-10-14 | [BUG-124](BUG-124-ssh-wizard-forwarding-denied-misleading-tls-error.md) |

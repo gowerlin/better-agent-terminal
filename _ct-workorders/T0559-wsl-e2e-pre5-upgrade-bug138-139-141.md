@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0559
 title: "WSL 實機 e2e（安裝版 pre.5）：精靈 pre.4 → pre.5 升級沿用 port / profile、乾淨覆蓋（BUG-138 / 139）、升級後取消還原（BUG-141），並回歸 PLAN-036 / 037"
 type: verification
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: BUG-138
 priority: P2
 sizing: S
 created_at: "2026-10-16T14:12:46+0800"
-updated_at: "2026-10-16T14:20:00+08:00"
+updated_at: "2026-10-16T14:20:40+0800"
 started_at: "2026-10-16T14:13:46+08:00"
 completed_at: "2026-10-16T14:20:00+08:00"
 commit: ""
@@ -199,3 +199,14 @@ BUG-138 / 139 / 141 的修正（T0552 / T0554）已隨 pre.5 發佈，但當時�
 ### 回報時間
 
 2026-10-16T14:19:03+08:00
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T14:20:40+0800）
+
+- **改判 DONE**（Worker 回報 PARTIAL）：commit `109ffd7e`（只含本單）。產品行為全部達成；results.json 的 2 項 FAIL 經塔台審閱為 spec 判定條件問題，非產品缺陷：
+  - `T0554.profiles-untouched`：整份 profile JSON 比對跨過 renderer 30 s autosave，local profile `updatedAt` 改變（Worker 獨立探針重現：t+30 s 變動，其他欄位不變）；profile 數 1 → 1、無 wsl profile 建立。
+  - `A3.clean-install`：「`du` 變小」前提不適用（pre.4 已是瘦身 bundle，390 → 390 MiB）；canary 證明舊樹檔案已清除。
+- **塔台複驗 WSL**（14:20）：`version: 0.6.1-pre.5`、active / enabled、MainPID 10123 在 `127.0.0.1:9877` LISTEN、unit `BAT_SERVER_PORT=9877`、cert `dd0bc13f…` / token `bfc48f5c…` 與開始時相同、`.bat-*` 與 canary 無殘留；備份 3 份仍在（`~/.local/bat-server.bak-0.6.1-pre.4-t0559`、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0559`、`~/.local/share/bat-server.bak-t0559`）。
+- → BUG-138 / 139 / 141 **CLOSED**；spec 修正（排除 `updatedAt`、canary 判定、`A3.leftovers` 舊說明）→ **T0560**。
+- 仍未實機：SSH 主機升級 / 取消還原（只有單元測試）、WSL 工具面板 Node（nvm）目視。

@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-141
 title: "WSL 精靈升級既有 server 時，install 成功後後段步驟失敗並取消，rollback 會刪掉整個安裝目錄（舊版也沒了），使用者變成沒有 server"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: likely
 created_at: "2026-10-16T03:32:02+0800"
-updated_at: "2026-10-16T04:15:34+0800"
+updated_at: "2026-10-16T14:20:40+0800"
 impact:
   - wsl-wizard
   - server-bundle
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（只在「升級成功 → 之後步驟失敗 → 使用者取消」時發生；結果是原本能用的 server 消失，需重跑精靈） |
 | 可重現 | 推測可重現（T0552 Worker 依程式碼指出，未實測）；T0554 以單元測試確認舊 rollback 路徑（`uninstallBundle` / `removeUnit`），SSH 同病 |
-| **狀態** | ✅ FIXED（T0554，2026-10-16 04:15；WSL 實機取消驗證 PASS，待塔台驗收） |
+| **狀態** | 🚫 CLOSED（T0554，2026-10-16 04:15；WSL 實機取消驗證 PASS，待塔台驗收；pre.5 實機 e2e PASS，T0559，2026-10-16） |
 | 回報者 | T0552 Worker（塔台判定納入 0.6.1-pre.5 批次） |
 
 ## 現象
@@ -43,3 +43,8 @@ links:
 - WSL write-systemd-unit 在挑 port 前取 unit / service 快照，取消時寫回舊 unit 與 enabled 狀態；SSH start-server 備份 unit / plist 為 `.bat-prev`，取消時換回。
 - 中途關掉 BAT：下次安裝會先把只剩 `.bat-old` 的安裝換回；`.bat-old` 不是 bundle 安裝時中止、不刪。
 - WSL 實機（Ubuntu-24.04）：注入 fetch-fingerprint 失敗 → 取消 → 原安裝樹（同 inode）、unit、9877、指紋、service active 全部恢復；正常升級後無 `.bat-old`，smoke 13/13。細節見 T0554 回報區。
+
+## 驗收（pre.5 實機，T0559，2026-10-16）
+
+- T0559（安裝版 pre.5，`T0554 cancel`）：pre.4 執行中 → 精靈換入 pre.5 → 注入 fetch-fingerprint 失敗 → 取消 → install tree（inode 不變）、unit（sha256 不變）、執行中 service（舊 bundle 重新啟動，9877）全部回到 pre.4，指紋不變，`.bat-*` 無殘留。`profiles-untouched` 記 FAIL 為 spec 時間差誤判（30 s autosave 更新 local profile `updatedAt`），由 T0560 修正。SSH 路徑（`.bat-prev` / `restore-previous`）仍只有單元測試。
+- → **CLOSED**。
