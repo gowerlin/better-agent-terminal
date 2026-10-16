@@ -46,3 +46,4 @@ links:
 - **Settings**：預設關、文字「繼續」、延遲 2 分。
 - **塔台 yolo 辨識**：`--set-role tower --mode <m>`（T0565），CT-T013 同步。
 - 實作：T0565（塔台模式宣告）→ T0566（偵測 / 排程 / 送出 / 提示 / Settings）。
+- **外部查證**（使用者 2026-10-16 提供，第三方轉述官方文件，非官方原文）：與 T0564 [碼] 一致（2.1.234 起、session 需保持開啟、連續重排上限 2 次、> 24 h 不等、API key / 雲端供應商 / 按量計費不適用）。新增一點：此鍵只從使用者設定、`--settings`、managed settings 讀取；若這些都沒設而專案層 `.claude/settings.json` / `settings.local.json` 有設，功能會被**關閉**。本 repo 與使用者層皆未設（2026-10-16 塔台 grep）。

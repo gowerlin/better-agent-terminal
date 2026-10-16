@@ -155,3 +155,12 @@ detached 視窗與遠端視窗用的是同一批元件（App.tsx 的 detached �
 ### 回報時間
 
 2026-10-16T15:09:53+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T15:11:08+0800）
+
+- ✅ **T0563 已確認 DONE**：`132aa4b4`（23 檔，皆在 affects_files 內）、`120c3310`。共用 `ModalOverlay`（型別上不收 `onClick`）+ source guard（突變測試確認有效）；巢狀 Dialog 點遮罩連帶關閉 Profiles 的既有副作用一併消失。
+- 塔台複驗 @ `120c3310`：`npx vitest run src` 112 files / 1630 passed；`npm run typecheck` = 0。全套 unit 與 `typecheck:electron` 因 T0565 尚未 commit 的 `electron/` 變更在工作目錄中，延到 T0565 收單時一併跑。
+- 遭遇問題 1（RecoveryPrompt 不補 [X]）：**塔台同意**——兩個按鈕皆為明確關閉，加 [X] 會多出「都不選」的語意。
+- 遭遇問題 2（wizard 開著時 Esc 關掉 Profiles → rollback）、4（無 Esc 的 Dialog 是否補）：交使用者決定。

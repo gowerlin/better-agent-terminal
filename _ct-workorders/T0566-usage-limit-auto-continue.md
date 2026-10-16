@@ -61,6 +61,10 @@ memory_overrides:
 - **Settings**（三語）：開關預設**關**；文字預設「繼續」；延遲預設 2 分（夾 0–60）；說明 claude CLI 2.1.234 起自己會自動繼續、BAT 只處理 Codex 與 claude 休眠後的 Enter。
 - **取消**：等待期間本機視窗的使用者輸入（非 `isTerminalAutoReply`）；到期再確認時畫面已不是限制訊息；分頁結束；開關關閉；yolo 被移除。同一分頁連續自動送出上限 2 次，之後只提示。
 
+## 補充（使用者外部查證，2026-10-16）
+
+第三方轉述官方文件：`autoContinueAtUsageLimit` 只從使用者設定、`--settings`、managed settings 讀取；這些都沒設而**專案層** `.claude/settings.json` / `settings.local.json` 有設時，功能會被關閉。BAT 不讀設定檔判斷，一律以畫面為準（看得到 `continuing automatically` 才當 CLI 接手，否則依 D2 只提示）。
+
 ## 設計依據
 
 以 T0564 回報區 §1–§4 為技術依據（訊息原文與分類規則、時間格式、偵測放 main 端 PTY 輸出尾巴並只認行首完整句型 + 比對後安靜、送出前 renderer 再確認、scheduler 結構比照 `WorkerCloseScheduler`、headless 共用與 `PROXIED_EVENTS`、自動寫入路徑不算使用者輸入、Enter 沿用 `dispatchSyntheticEnterKeydown`）。T0564 標 [推] 的項目（replay 是否經過輸出 hook、bracketed paste 對 codex composer 的效果等）請實測確認並記錄。
