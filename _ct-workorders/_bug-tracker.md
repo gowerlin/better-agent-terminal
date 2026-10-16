@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 21:48 (UTC+8) — BUG-142 / 143 CLOSED（pre.7 實機）；BUG-144 FIXING（T0571）
+> 最後同步：2026-10-16 22:08 (UTC+8) — BUG-142 / 143 CLOSED（pre.7 實機）；BUG-144 FIXED（T0571 `35eaf125`）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 50 | ⛔ Won't Fix: 0 | **Total: 69**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 18 | 🧪 Verify: 0 | 🚫 Closed: 50 | ⛔ Won't Fix: 0 | **Total: 69**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（BUG-142 衍生，T0571） | 🟢 low | 2026-10-16 21:48 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（T0571 `35eaf125`：滑鼠移動回報清掉的 Shift 拖曳選取會放回；直接拖曳的反白是 claude 自己的選取，claude 放開即複製） | 🟢 low | 2026-10-16 22:04 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |

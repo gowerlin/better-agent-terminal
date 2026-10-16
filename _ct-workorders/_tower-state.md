@@ -111,7 +111,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（84 entries）
 
 ### 編號起始
-- **T0572** / **BUG-145** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**（第六十九 session 進行中：T0571 21:49 派發，BUG-144 FIXING；BUG-142 / 143 CLOSED）
+- **T0572** / **BUG-145** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**（第六十九 session 進行中：T0571 DONE `35eaf125`（塔台複驗 unit 4626 / 265、typecheck 0 / 0），BUG-144 FIXED 待下一版實機；BUG-142 / 143 CLOSED）
 
 ---
 
