@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0561
 title: "SSH 精靈升級 / 取消還原實機 e2e（安裝版 pre.5，t0515 Docker sshd）：升級後段失敗取消 → 舊安裝樹、unit `.bat-prev`、執行中 service 還原（BUG-141 SSH 路徑）；正常升級 → 乾淨覆蓋、完成時清 `.bat-old` / `.bat-prev`（BUG-139 SSH 路徑）"
 type: verification
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: BUG-141
 priority: P2
 sizing: S
 created_at: "2026-10-16T14:28:10+0800"
-updated_at: "2026-10-16T14:28:10+0800"
-started_at: ""
-completed_at: ""
+updated_at: "2026-10-16T14:35:07+08:00"
+started_at: "2026-10-16T14:29:15+08:00"
+completed_at: "2026-10-16T14:35:07+08:00"
 commit: ""
 target_version: "0.6.1-pre.5（已安裝；不改產品程式碼）"
 depends_on: []
@@ -77,12 +77,61 @@ T0554 把「精靈升級時保留舊版、取消時換回」做在 WSL 與 SSH �
 
 ### 完成狀態
 
+**DONE** — S0 / S1 / S2 全部 PASS（`3 passed (48.7s)`），14 項 verdict 皆 PASS；未改產品程式碼；環境已 `down`、`~/.ssh/config` hash 還原一致。
+
+Landing check：**PASS**。C-0 `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 PASS；C-3 present（`e2e/`、`e2e/real-remote/t0515-wizard-env.mjs` 皆存在）；C-2 無 `branch` 欄位。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。Mode：`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
+
 ### 產出摘要
+
+**檔案**
+- 新增 `e2e/t0561-ssh-upgrade-rollback.spec.ts`（opt-in：`BAT_E2E_T0561=1` + `BAT_E2E_EXECUTABLE`，Windows only，`test.describe.serial`）。三個 test 共用同一個隔離 runtime（`--runtime=e2e-t0561-<ts>`，中間 `closeIsolated(..., { keepUserData: true })` 再以同 runtimeId 重開），所以 S2 看得到 S0 寫的 profile 與 bundle cache；`afterAll` 還原 `~/.ssh/config` 並移除任何殘留的隔離 userData。
+- `e2e/real-remote/t0515-wizard-env.mjs`：**未修改**（既有 `up` / `apply-ssh-config` / `restore-ssh-config` / `down` 足夠）。
+
+**S1 注入點**：`ssh:verify-tunnel-open`（在隔離實例主行程 `ipcMain.removeHandler` + `ipcMain.handle` 回 `{ ok:false, errorCode:'ssh-tunnel-failed', error:'T0561 injected failure after start-server (ssh:verify-tunnel-open)' }`）。理由：SSH 流程順序為 `install-server-bundle → start-server → fetch-fingerprint`，`sshFetchFingerprintStep.run` 的第一個主行程呼叫就是 `ensureSshVerifyEndpoint` → `ssh.openVerifyTunnel`；`result.ok === false` 直接 throw，`ctx.verifyEndpoint` 未設，`explainForwardingDenied` 不改寫錯誤。`ssh:read-server-identity` 失敗只 warn、不會讓步驟失敗，所以不選它；也不像 pre6 W7a 那樣改 sshd（`AllowTcpForwarding no`），不動容器設定。
+
+**執行**：`node e2e/real-remote/t0515-wizard-env.mjs up`（containers `bat-t0515-jump` 172.18.0.3 / `bat-t0515-target`，probe `bat@bat-t0515-jump`）→ `BAT_E2E_T0561=1 BAT_E2E_EXECUTABLE='C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe' npx playwright test e2e/t0561-ssh-upgrade-rollback.spec.ts`（FileVersion `0.6.1-pre.5`）→ `down`。證據目錄 `%TEMP%\bat-t0561\evidence`（`results.json`、各階段 identity、wizard console、截圖）。
+
+**`results.json` verdict**
+
+| key | verdict | 證據 |
+|---|---|---|
+| S0.installed | PASS | wizard complete 15 s；active、MainPID 177 LISTEN `127.0.0.1:9876`（pid=177）、exe `/home/bat/.local/bat-server/bin/node`；`ExecStart=/home/bat/.local/bat-server/bin/bat-server --port 9876 --bind-interface localhost`；無 sibling；新 profile 1 個 `ssh-bat-t0515-direct` |
+| S0.identity | PASS | marker `.t0561-previous-install` planted；inode 11917；unit `8d891e54…`；cert `3a737942…`；token `38e8955d…`；version 0.6.1-pre.5 |
+| S1.failed-after-install | PASS | steps install / start-server `completed`、fetch-fingerprint `failed`，detail 含注入訊息；失敗當下 marker absent、inode 14831（新樹）、siblings `bat-server.service.bat-prev` + `bat-server.bat-old`（無 `.bat-new`）、active、MainPID 437（新 bundle） |
+| S1.tree-restored | PASS | marker present；inode 11917 → 14831 → 11917；`.bat-new` / `.bat-old` / `.bat-prev` 無殘留；steps install / start-server / fetch-fingerprint `rolled-back` |
+| S1.unit-restored | PASS | unit sha256 `8d891e5457e3…b043` S0 = 失敗當下 = 取消後（見遭遇問題 1） |
+| S1.service-running | PASS | MainPID 177 → 437 → 551；exe `/home/bat/.local/bat-server/bin/node`（帶 S0 marker、inode 11917 的樹）；pid=551 LISTEN `127.0.0.1:9876` |
+| S1.identity-kept | PASS | server-cert.json / server-token.json sha256 不變 |
+| S1.profiles-untouched | PASS | before 2 / after 2，排除 `updatedAt` 比對相同；updatedAt 變動：none |
+| S1.rollback-log | PASS | 無 warning；`Restored the previous bat-server service (ssh-linux)`、`Restored the previous BAT server bundle at /home/bat/.local/bat-server and started it again` |
+| S2.clean-install | PASS | canary `.t0561-canary`、`node_modules/t0561-stale-canary` 植入成功 → 升級後皆不存在；S0 marker absent；inode 11917 → 14834 |
+| S2.finalize | PASS | `.bat-new` / `.bat-old` / `.bat-prev` 無殘留；log `The previous server bundle is kept until setup finishes (…bat-server.bat-old)` → `Removed the previous BAT server bundle (…bat-server.bat-old)` |
+| S2.server | PASS | wizard complete 11 s、8 步全 completed；active、MainPID 747 LISTEN 9876、ExecStart 同上 |
+| S2.identity-kept | PASS | cert / token sha256 與 S0 相同 |
+| S2.profile-updated | PASS | profile 數 2 → 2、added 0，`ssh-bat-t0515-direct` 名稱不變；log `Updated the existing remote profile "SSH bat-t0515-direct" instead of creating a new one` |
+
+**驗收條件**
+- [x] 未設 opt-in：`npx playwright test e2e/t0561-ssh-upgrade-rollback.spec.ts` → `3 skipped`；`--list` 解析出 3 個 test
+- [x] S0 / S1 / S2 判定逐項列出；S1 注入點與理由如上
+- [x] `~/.ssh/config`：原始 sha256 `00aab1cda8667c85db60b35f406a785bd9a909b87df7cf49aa78450ca03c58a2`，套用後 `ba9d0e30…`，`restore-ssh-config`（spec afterAll）「backup copied back」→ `00aab1cd…c58a2`，`match=true`；`down` 後再算仍為 `00aab1cd…c58a2`
+- [x] `down`：containers / networks / volumes with `bat.t0515=1` = none；state dir 移除；隔離 userData `BetterAgentTerminal-runtime-e2e-t0561-1792132380312` 已移除（`ls` 無匹配）；三次 Terminal Server pid teardown 後皆 `alive: false`。image `bat-t0515-sshd:local` / `bat-t0515-docker-server:local` 依預設保留（工單允許）
+- [x] commit 只含 affects_files 內實際改動的檔（spec + 本工單）
 
 ### 互動紀錄
 
+無（`CT_INTERACTIVE=0`，fire-and-forget）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+1. **S1.unit-restored 的辨識力有限**：S0 / S1 / S2 都是 pre.5、port 9876，start-server 寫出的 unit 內容與舊的逐位元相同，所以「unit sha256 = S0」在換寫前後本來就成立。unit 還原路徑確實有執行的證據改看：失敗當下 `bat-server.service.bat-prev` 存在、取消後消失、log `Restored the previous bat-server service (ssh-linux)`。要讓 sha 比對本身有鑑別力，需要跨版（不同 unit 內容）或在 S1 前手動改 unit（會改變「舊 unit」本身，未採用）。
+2. **跨版（pre.4 → pre.5）未做**（工單標非必要）。marker / inode / canary 判定不依賴版本差。
+3. S2 的 `.bat-prev` 刪除（start-server `finalize` / `discard-backup`）沒有 log 行，只以「完成後 `.bat-prev` 不存在」判定。
+4. 未發現產品缺陷。
+
 ### 回報時間
+
+2026-10-16T14:35:07+08:00
