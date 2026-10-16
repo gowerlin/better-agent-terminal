@@ -3443,3 +3443,34 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 同一回合的 commit 指令後面接 `git status --short` 檢查是否還有自己的檔案未提交
 
 **候選晉升**：📁 Project（塔台 commit 慣例）
+
+
+---
+
+## L152
+
+**來源**：第六十七 session（2026-10-16），T0562 / T0563、T0563 / T0565、T0565 / T0567 並行
+
+**現象**：多張工單在同一個工作目錄並行時，`git commit --only <檔>` 會把另一個 Worker 對同一檔案尚未 commit 的修改一起帶進去。T0562 與 T0563 都要改 `src/App.tsx` / `WorkspaceView.tsx`，只能排隊；T0565 與 T0567 則以目錄切分後並行成功。
+
+**How to apply**：
+- 派發前比對 `affects_files`；重疊時排隊，不重疊才並行
+- 並行時在 memory_overrides 寫死各自不得修改的目錄（例：一張只改 `electron/` + `scripts/`、另一張只改 `src/`），共同檔（`CLAUDE.md`）只給一張；另一張把要補的文字寫在回報區「CLAUDE.md 待補」，由後續工單併入
+- 收單時先只跑本單相關的測試；全套 unit 與兩個 typecheck 等兩張都 commit 後做聯合複驗
+
+**候選晉升**：📁 Project（塔台派工慣例）
+
+---
+
+## L153
+
+**來源**：第六十七 session（2026-10-16），CT-T013
+
+**現象**：跨專案受派單（CT-T###）原本只寫規格檔，再請使用者到 BMad-Guide 塔台手動貼提示詞。BMad-Guide 塔台開著時，可用 Claude Code 的跨 session 訊息（`ListAgents` → `SendMessage`，`notify_when_idle: true`）直接轉交；對方受理與結案各回覆一次（工單號、版本、commit、驗收範圍），且不寫本 repo。
+
+**How to apply**：
+- 先 `ListAgents` 確認 `bmad-guide-*` session 存在；訊息第一行寫清楚來源與單號，內容附規格檔絕對路徑與重點，並要求對方完成後回覆版號 / commit / 狀態
+- 轉交、受理、結案都記在 CT-T 單的「轉交紀錄」；對方回報的 DONE 要分清 source / release / install 與 runtime lane
+- 對方 session 權限模式不同時，訊息可能要使用者在該分頁核准
+
+**候選晉升**：📁 Project（跨專案協調）
