@@ -22,17 +22,16 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 14:56 (UTC+8) — 新增 PLAN-044（PLANNED）/ 045（IN_PROGRESS）/ 046（PLANNED）
+> 最後同步：2026-10-16 16:02 (UTC+8) — PLAN-044 / 046 DONE；PLAN-045 IN_PROGRESS（待 pre.6 實機）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 1 | 🔄 In Progress: 1 | ✅ Done: 11 | 🚫 Dropped: 1
+- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 1 | ✅ Done: 12 | 🚫 Dropped: 1
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
 | PLAN-045 | 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`（D147） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-045](PLAN-045-tower-tab-title.md) |
-| PLAN-044 | yolo 分頁遇到 claude / codex 5 小時用量限制時，BAT 在解鎖時間（+ 可設延遲）自動輸入「繼續」 | 🟡 medium | 📋 PLANNED | [PLAN-044](PLAN-044-auto-continue-after-usage-limit.md) |
 | PLAN-015 | refactor-dual-render-path-shared-helper | 🟢 low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
@@ -42,6 +41,7 @@ breakdown:
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-044 | yolo 分頁遇到 claude / codex 5 小時用量限制時，BAT 在解鎖時間（+ 可設延遲）自動輸入「繼續」 | 🟡 medium | ✅ DONE | [PLAN-044](PLAN-044-auto-continue-after-usage-limit.md) |
 | PLAN-046 | Dialog 不因點擊外部而關閉：只能經 [X] / [確認] / [取消]（與 Esc） | 🟡 medium | ✅ DONE | [PLAN-046](PLAN-046-dialog-no-close-on-outside-click.md) |
 | PLAN-036 | headless bat-server 功能 handler 層（終端 / Agent / git / fs），讓 WSL / SSH / Docker 遠端 profile 真正可用 | 2026-10-16 | [PLAN-036](PLAN-036-headless-server-functional-handlers.md) |
 | PLAN-037 | 遠端（WSL / SSH / Docker）AI 工具套件檢查與一鍵安裝（claude / codex CLI、git、gh 等） | 2026-10-16 | [PLAN-037](PLAN-037-remote-ai-toolchain-check-and-install.md) |

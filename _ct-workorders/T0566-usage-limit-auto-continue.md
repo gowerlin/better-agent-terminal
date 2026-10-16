@@ -10,7 +10,7 @@ project: PLAN-044
 priority: P2
 sizing: M
 created_at: "2026-10-16T15:05:50+0800"
-updated_at: "2026-10-16T16:01:01+0800"
+updated_at: "2026-10-16T16:02:48+0800"
 started_at: "2026-10-16T15:26:12+0800"
 completed_at: "2026-10-16T16:01:01+0800"
 commit: "2e3305a9"
@@ -171,3 +171,13 @@ memory_overrides:
 ### 回報時間
 
 2026-10-16T16:00:03+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T16:02:48+0800）
+
+- ✅ **T0566 已確認 DONE**：`2e3305a9`（28 檔，皆在 affects_files 內）、`dbb5aa8b`。規格與 D148 一致；T0565 裁決（塔台宣告優先）已實作。
+- **塔台聯合複驗 @ `dbb5aa8b`**：`npm run test:unit` **264 files / 4597 passed / 3 skipped**；`npm run typecheck` = 0；`npm run typecheck:electron` = 0；`npx vite build` 成功。
+- 接受 Worker 的選擇：開關關閉時完全不偵測；非 yolo 分頁只顯示徽章；提示用縮圖徽章不用 toast。
+- 已知風險（寫入發版「已知事項」）：無真實限制樣本（句型來自 CLI 二進位）；codex composer 對「文字 + 300 ms + 合成 Enter」未在真 codex 驗證；兩台 BAT 互為 remote 時不送。
+- PLAN-044 → DONE（程式面）；實機待首次真實撞限制（觀察 `[usage-limit]` 日誌）。

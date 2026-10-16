@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-044
 title: yolo 分頁遇到 claude / codex 5 小時用量限制時，BAT 在解鎖時間（+ 可設延遲）自動輸入「繼續」
-status: PLANNED
+status: DONE
 priority: medium
 created_at: "2026-10-16T14:55:14+0800"
 updated_at: "2026-10-16T15:05:50+0800"
@@ -19,7 +19,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-044 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 📋 PLANNED（T0564 DONE → D148；T0565 / T0566 實作） |
+| 狀態 | ✅ DONE（T0565 `4936f440`、T0566 `2e3305a9`；實機待首次真實撞限制） |
 | 來源 | 使用者需求（2026-10-16 第六十七 session） |
 
 ## 動機
