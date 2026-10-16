@@ -4,13 +4,13 @@ schema_kind: workorder
 id: CT-T013
 title: "【受派】CT 下一版：Tower 啟動時呼叫 BAT `bat-terminal.mjs --set-role tower --mode <m>`，把塔台分頁標題設為 `<Agent 顯示名> · Tower` 並宣告模式（D147 / D148）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: BMad-Guide
 project: D147
 priority: P3
 sizing: XS
 created_at: "2026-10-16T14:36:25+0800"
-updated_at: "2026-10-16T15:34:10+0800"
+updated_at: "2026-10-16T15:41:23+0800"
 depends_on:
   - "T0562（BAT 端能力；介面契約以 T0562 為準）"
   - "T0565（`--mode` 擴充，D148；與 T0562 同版發佈）"
@@ -24,6 +24,7 @@ interaction:
   interactive: true
   intervention_type: delegate
 renew_count: 0
+completed_at: "2026-10-16T15:41:23+0800"
 ---
 
 # CT-T013 — Tower 啟動時設定塔台分頁標題與模式
@@ -75,3 +76,9 @@ renew_count: 0
 
 - 2026-10-16T15:28:48+0800：使用者要求直接轉交；BAT 塔台以 Claude Code 跨 session 訊息送給 BMad-Guide 塔台（session `bmad-guide-8e`，msg `a45500b1`），附規格檔路徑與重點，請其完成後回覆 CT 版本號 / commit / 狀態。
 - 2026-10-16T15:34:10+0800：BMad-Guide 塔台回覆已受理 → 該方工單 **T0139**（併入 CT **v5.2.0**，連同其 v5.1.1 文件落差修正），15:33 派 Worker，IN_PROGRESS。契約以 T0562 + T0565 為準（`--mode` 互斥已依 T0565 解除）；權威說明放 `auto-session.md` § BAT 內部終端路由新小節，SKILL.md Startup / `tower-config.md` 只放摘要；`BAT_HELPER_NODE` 只用於 `--set-role`。驗收只做舊 BAT（exit 1 → 不支援）降級路徑；新 BAT（0.6.1-pre.6）實機另開單。對方唯讀，不寫本 repo；完成後回覆版號 / commit / 狀態。
+- 2026-10-16T15:41:23+0800：BMad-Guide 塔台回報 **DONE**（source / 發版 / 安裝）：CT **v5.2.0**（T0139），commit `b105f4b`（feat）、`d5569e8`（closeout），BMad-Guide repo `dev-main`、未 push；`BMad-Control-Tower-v5.2.0.zip` 237,319 bytes，57 檔 SHA256 一致；Claude / Codex 兩端安裝 16/16 一致（下一個 session 起生效）。權威定義 `skills/control-tower/references/auto-session.md:819` §「塔台分頁角色宣告」。已驗：舊 BAT 降級（exit 1、`Unknown option '--set-role'`、未建立分頁）。**未驗**：新 BAT 0.6.1-pre.6 上的標題與 `--mode` 記錄 → 待 BAT 發版後對方開單驗收（需在塔台分頁執行）。規格差異：CT 啟動詢問不改模式，只有 `*config auto-session` 會改 → 權威小節寫成「生效值改變時」（接受）。
+
+## 收單（BAT 塔台，2026-10-16T15:41:23+0800）
+
+- ✅ source / release / install lane：DONE（對方回報，BAT 塔台未複核對方 repo）。
+- ⏳ runtime lane：待 `0.6.1-pre.6` 發版 + 新的 Tower session（CT v5.2.0 生效）後實機確認：分頁標題 `Claude CLI · Tower`、`--mode` 記錄（`bat-scripts.log` `set-role` 事件 `recordedMode`）。

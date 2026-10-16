@@ -19,7 +19,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-045 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（T0562 實作中） |
+| 狀態 | 🔄 IN_PROGRESS（T0562 / T0565 DONE；CT v5.2.0 DONE（CT-T013）；待 0.6.1-pre.6 實機） |
 | 來源 | 使用者需求（2026-10-16 第六十七 session），決策 D147 |
 
 ## 動機
@@ -37,3 +37,9 @@ links:
 1. T0562（BAT，實作中）
 2. CT-T013（CT 下一版）
 3. 發版（`0.6.1-pre.6`）後實機確認
+
+## 進度（2026-10-16）
+
+- T0562 `4faa93ab`、T0565 `4936f440`（`--mode`，D148）DONE
+- CT-T013 → BMad-Guide T0139：CT v5.2.0 發佈並安裝（Claude / Codex），舊 BAT 降級已驗
+- 待：`0.6.1-pre.6` 發版後，新 Tower session 實機確認標題與 mode
