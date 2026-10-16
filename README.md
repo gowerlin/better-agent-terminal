@@ -49,6 +49,7 @@
 - **GitHub Copilot CLI** — GitHub AI 程式助手
 - **Codex CLI** — OpenAI 程式代理，支援沙箱/YOLO 模式
 - **自訂 CLI** — 從設定中新增任意 CLI 工具作為 Agent
+- **用量限制自動繼續**（設定 > 進階，預設關閉）— yolo 分頁撞到 5 小時用量限制時，Codex 於解鎖後自動輸入續行文字；Claude CLI 自行續行，BAT 只標示
 
 ### ⭐ 指令自動完成
 - `*` 前綴觸發星號指令（掃描 `ct-*`、`gsd-*` 等 Skill）
@@ -61,6 +62,7 @@
 - **Sprint 進度** — 即時追蹤 Sprint 完成百分比
 - **工單操作** — 一鍵執行 `ct-exec`、`ct-done`、`ct-sync`，並依 default agent 自動選擇 Claude `/` 或 Codex `$` 前綴
 - **CtToast 通知** — 工單狀態變更即時通知
+- **塔台 / Worker 分頁** — 派工分頁標題顯示 `Agent · Worker · T####`、回報後標示 ✓；塔台分頁標題 `Agent · Tower`；塔台可回收自己派出的 Worker 分頁（`bat-terminal.mjs --close-worker`），或右鍵批次關閉已回報的 Worker
 
 ### 👁 Supervisor 模式
 - 指定一個終端機為 Supervisor，監控其他 Worker 終端機
@@ -78,8 +80,10 @@
 - 在同一個 BAT 視窗中跨 **WSL / Docker / SSH (Linux/macOS)** 環境驅動 AI Agent
 - 統一 setup wizard：安裝 server bundle → 啟動服務 → TLS fingerprint pinning → 連線驗證
 - 跨環境 path translator 自動轉換 chat context 附件路徑（Windows ↔ Linux ↔ macOS）
+- 可同時開啟多個遠端 profile 的視窗（最多 8 個連線）
+- 遠端 AI 工具面板：偵測並一鍵安裝遠端的 claude / codex / Node.js（nvm）等工具
 - 詳見 [Remote Dev Overview](docs/remote-dev-overview.md)
-- Server bundle 分發機制（installer 內建 baseline + GitHub Release fallback）詳見 [Server Bundle Distribution](docs/server-bundle-distribution.md)
+- Server bundle 分發機制（安裝檔不內建；第一次設定時從 GitHub Release 下載並快取，離線時可匯入本機 tarball）詳見 [Server Bundle Distribution](docs/server-bundle-distribution.md)
 
 ### 📊 狀態列
 - 13 項可配置狀態顯示（模型、成本、Token、快取等）
@@ -91,10 +95,11 @@
 - 內建檔案瀏覽器與 Git 檢視器
 - Snippet 管理器 — 儲存與快速插入常用指令
 - 可點擊的檔案路徑與 URL 連結
-- 環境變數編輯器（每工作區獨立）
+- 終端貼上依剪貼簿內容處理：檔案 → 加引號的路徑、圖片 → 送給 claude CLI 貼圖、文字 → 一般貼上
+- 工作區設定（每工作區獨立）：環境變數、預設 Agent、各 Agent 的啟動參數
 - Git Worktree 隔離 — 在獨立 worktree 中運行 Agent
 - 自動更新檢查
-- 多語系支援（繁體中文 / 英文 / 日文 / 德文 / 法文 / 韓文 / 簡體中文）
+- 多語系支援（繁體中文 / 英文 / 簡體中文）
 - 深色主題 UI
 
 ---
@@ -208,9 +213,9 @@ better-agent-terminal/
 
 ### 版本格式
 
-遵循語意化版號：`vMAJOR.MINOR.PATCH`（例如 `v0.6.0`）
+遵循語意化版號：`vMAJOR.MINOR.PATCH`（例如 `v0.6.1`）
 
-預覽版使用 `-pre.N` 後綴（例如 `v0.6.0-pre.3`），GitHub Release 標記為 Pre-release。
+預覽版使用 `-pre.N` 後綴（例如 `v0.6.1-pre.7`），GitHub Release 標記為 Pre-release。各版更版重點見 [release-note.md](release-note.md)，完整變更見 [CHANGELOG.md](CHANGELOG.md)。
 
 ### 預覽版（`pre-release.yml`）
 
@@ -227,8 +232,8 @@ gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y
 推送 `vX.Y.Z` tag 觸發三平台建置與發行：
 
 ```bash
-git tag v0.6.0
-git push origin v0.6.0
+git tag v0.6.1
+git push origin v0.6.1
 ```
 
 兩條線都會同時發佈對應的 `server-bundle-v<版號>` release。
