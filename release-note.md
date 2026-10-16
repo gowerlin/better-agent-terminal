@@ -2,6 +2,34 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.6.1-pre.8（2026-10-16）
+
+版號 0.6.1-pre.8，接續 `v0.6.1-pre.7`。
+
+### 修正
+
+- **Shift + 右鍵可以複製選取的文字**：在 claude CLI 等會追蹤滑鼠的程式分頁裡，按住 Shift 拖曳選取後再按 Shift + 右鍵，選單現在會出現「複製」，複製到的就是反白的文字。之前滑鼠一移動，選取就被清掉，選單只剩「貼上」。不按 Shift 直接拖曳時，反白是 claude CLI 自己的選取，放開滑鼠時 claude 已經複製到剪貼簿（BUG-144）
+- **新分頁與重啟的分頁畫面寬度正確**：新開、還原或按 ⏻ 重啟的分頁，分頁裡的程式有時會以 120 欄排版，比實際視窗窄，要按重繪才恢復（重啟的分頁每次都會發生）。現在分頁一建立就會同步實際寬度（BUG-145）
+
+### 更新
+
+- repo 的 `CHANGELOG.md` / `release-note.md` 補齊 v0.4.3 起的各版內容
+- 伺服器套件說明文件更正 GitHub 下載限流時的行為（遇到限流直接失敗、不重試，可改用「匯入本機 tarball…」）
+
+### 已知事項
+
+- 終端分頁裡的程式追蹤滑鼠時，Alt + Shift 拖曳的欄選取仍會在滑鼠移動時被清掉
+- 還沒切換過去的背景分頁，裡面的程式在第一次顯示前仍以 120 欄排版（顯示後會自動調整）；Terminal Server 意外結束後重建的分頁也要等下一次調整視窗大小或重繪才會同步寬度
+- macOS 上 Shift + 右鍵時，程式仍會收到右鍵（xterm 在 macOS 以 Option 繞過滑鼠追蹤）
+- 用量限制自動繼續（pre.6 新增）尚未在真實撞到限制時驗證，遇到時請留意 BAT 日誌中的 `[usage-limit]` 紀錄
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.6.1-pre.7...v0.6.1-pre.8
+
+---
+
 ## v0.6.1-pre.7（2026-10-16）
 
 版號 0.6.1-pre.7，接續 `v0.6.1-pre.6`。
