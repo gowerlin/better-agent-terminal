@@ -13,6 +13,7 @@ import { MicButton } from './voice/MicButton'
 import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { RemoteAgentUnavailable } from './RemoteAgentUnavailable'
 import { isAgentPresetUnsupportedRemotely } from '../lib/remote-unsupported'
+import { ModalOverlay } from './common/ModalOverlay'
 
 // Lazy load Claude Agent SDK (~240KB chunk) — only needed for claude-code terminals
 const ClaudeAgentPanel = lazy(() => import('./ClaudeAgentPanel').then(m => ({ default: m.ClaudeAgentPanel })))
@@ -268,7 +269,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
         <PromptBox terminalId={terminal.id} isActive={isActive} />
       )}
       {showRestartConfirm && (
-        <div className="dialog-overlay" onClick={() => setShowRestartConfirm(false)}>
+        <ModalOverlay className="dialog-overlay">
           <div className="dialog" onClick={e => e.stopPropagation()}>
             <h3>{t('dialogs.restartTerminalTitle')}</h3>
             <p>{t('dialogs.restartTerminalConfirm')}</p>
@@ -281,7 +282,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   )

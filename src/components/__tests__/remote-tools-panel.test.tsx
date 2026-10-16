@@ -491,7 +491,7 @@ describe('InstallConfirmDialog', () => {
     expect(screen.getByTestId('remote-tools-confirm-command').textContent).toBe(plan(buildInstallPlan('gh', WSL_REPORT.env)).command)
   })
 
-  test('cancel, Escape and overlay click do not call onInstall', async () => {
+  test('cancel and Escape close without calling onInstall; an overlay click does nothing (T0563)', async () => {
     const { onInstall } = await renderPanel({ detect: ok(WSL_REPORT) })
     fireEvent.click(row('claude').getByRole('button', { name: rt.install }))
     fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
@@ -503,6 +503,8 @@ describe('InstallConfirmDialog', () => {
 
     fireEvent.click(row('claude').getByRole('button', { name: rt.install }))
     fireEvent.click(document.querySelector('.dialog-overlay')!)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     expect(onInstall).not.toHaveBeenCalled()

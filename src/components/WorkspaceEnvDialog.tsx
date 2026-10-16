@@ -10,6 +10,7 @@ import {
     type AgentLaunchSource,
 } from '../lib/agent-launch-settings'
 import { EnvVarEditor } from './EnvVarEditor'
+import { ModalOverlay } from './common/ModalOverlay'
 
 interface WorkspaceEnvDialogProps {
     workspace: Workspace
@@ -55,7 +56,7 @@ export function WorkspaceEnvDialog({
     const canEdit = !readOnly
 
     return (
-        <div className="dialog-overlay" onClick={onClose}>
+        <ModalOverlay className="dialog-overlay">
             <div className="workspace-env-dialog workspace-settings-dialog" onClick={e => e.stopPropagation()}>
                 <div className="dialog-header">
                     <h2>{t('workspaceSettings.title')}</h2>
@@ -167,6 +168,6 @@ export function WorkspaceEnvDialog({
                     </section>
                 </div>
             </div>
-        </div>
+        </ModalOverlay>
     )
 }

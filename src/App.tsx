@@ -25,6 +25,7 @@ import { isWslWindowsDrivePath, winToWsl } from './utils/wsl-path'
 import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, REMOTE_LIMIT_ERROR_CODE, remoteConnectFailureNotice, subscribeRemoteWindowStatus } from './lib/remote-not-connected'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
+import { AppNotificationDialog } from './components/AppNotificationDialog'
 
 // Lazy-loaded panel components for sidebar docking
 const LazyFileTree = lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })))
@@ -990,12 +991,7 @@ export default function App() {
           </div>
         </main>
         {appNotification && (
-          <div className="app-notification-overlay" onClick={() => setAppNotification(null)}>
-            <div className="app-notification" onClick={e => e.stopPropagation()}>
-              <div className="app-notification-message">{appNotification}</div>
-              <button className="app-notification-close" onClick={() => setAppNotification(null)}>{t('common.ok')}</button>
-            </div>
-          </div>
+          <AppNotificationDialog message={appNotification} onClose={() => setAppNotification(null)} />
         )}
         {/* T0529 / D142: read-only — a detached window's workspace:save only merges its terminal list */}
         {envDialogWorkspace && (
@@ -1329,12 +1325,7 @@ export default function App() {
         />
       )}
       {appNotification && (
-        <div className="app-notification-overlay" onClick={() => setAppNotification(null)}>
-          <div className="app-notification" onClick={e => e.stopPropagation()}>
-            <div className="app-notification-message">{appNotification}</div>
-            <button className="app-notification-close" onClick={() => setAppNotification(null)}>{t('common.ok')}</button>
-          </div>
-        </div>
+        <AppNotificationDialog message={appNotification} onClose={() => setAppNotification(null)} />
       )}
       {recoveryInfo && (
         <RecoveryPrompt

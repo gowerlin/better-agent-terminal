@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ModalOverlay } from './common/ModalOverlay'
 
 interface ReleaseInfo {
   version: string
@@ -68,7 +69,7 @@ export function UpdateNotification() {
     .join('\n')
 
   return (
-    <div className="update-notification-overlay">
+    <ModalOverlay className="update-notification-overlay">
       <div className="update-notification">
         <div className="update-header">
           <h3>{t('update.newVersionAvailable')}</h3>
@@ -96,6 +97,6 @@ export function UpdateNotification() {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

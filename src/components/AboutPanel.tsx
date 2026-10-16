@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { ModalOverlay } from './common/ModalOverlay'
 
 interface AboutPanelProps {
   onClose: () => void
@@ -11,7 +12,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
   }
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
+    <ModalOverlay className="settings-overlay">
       <div className="settings-panel about-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('about.title')}</h2>
@@ -53,6 +54,6 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

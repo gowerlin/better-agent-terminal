@@ -1,3 +1,5 @@
+import { ModalOverlay } from './common/ModalOverlay'
+
 interface RecoveryPromptProps {
   ptyCount: number
   onRecover: () => void
@@ -6,7 +8,7 @@ interface RecoveryPromptProps {
 
 export function RecoveryPrompt({ ptyCount, onRecover, onFreshStart }: RecoveryPromptProps) {
   return (
-    <div className="recovery-prompt-overlay">
+    <ModalOverlay className="recovery-prompt-overlay">
       <div className="recovery-prompt-dialog">
         <div className="recovery-prompt-header">
           <h3>🔄 偵測到上次的終端 session</h3>
@@ -24,6 +26,6 @@ export function RecoveryPrompt({ ptyCount, onRecover, onFreshStart }: RecoveryPr
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

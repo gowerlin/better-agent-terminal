@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { NVM_VERSION_TAG, type InstallPlan } from '../../lib/remote-tools/recipes'
 import type { RemoteToolsPanelHost } from './RemoteToolsPanel'
 import { ExternalLink } from './ExternalLink'
+import { ModalOverlay } from '../common/ModalOverlay'
 
 export interface InstallConfirmDialogProps {
   plan: InstallPlan
@@ -45,7 +46,7 @@ export function InstallConfirmDialog({ plan, host, onConfirm, onCancel, onOpenUr
   }
 
   return (
-    <div className="dialog-overlay" onClick={onCancel}>
+    <ModalOverlay className="dialog-overlay">
       <div
         className="dialog remote-tools-confirm"
         role="dialog"
@@ -124,6 +125,6 @@ export function InstallConfirmDialog({ plan, host, onConfirm, onCancel, onOpenUr
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

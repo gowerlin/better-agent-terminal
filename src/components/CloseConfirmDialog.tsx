@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { ModalOverlay } from './common/ModalOverlay'
 
 interface CloseConfirmDialogProps {
   onConfirm: () => void
@@ -11,7 +12,7 @@ export function CloseConfirmDialog({ onConfirm, onCancel, isWorktree, onConfirmA
   const { t } = useTranslation()
 
   return (
-    <div className="dialog-overlay" onClick={onCancel}>
+    <ModalOverlay className="dialog-overlay">
       <div className="dialog" onClick={e => e.stopPropagation()}>
         <h3>{t('dialogs.closeCodeAgent')}</h3>
         <p>
@@ -33,6 +34,6 @@ export function CloseConfirmDialog({ onConfirm, onCancel, isWorktree, onConfirmA
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

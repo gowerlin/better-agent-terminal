@@ -279,6 +279,7 @@
 }
 
 .app-notification {
+  position: relative;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -289,7 +290,16 @@
   animation: slideIn 0.2s ease;
 }
 
+/* T0563: header [X]; the backdrop no longer dismisses the box */
+.app-notification-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  line-height: 1;
+}
+
 .app-notification-message {
+  padding-right: 24px;
   color: var(--text-primary);
   font-size: 13px;
   line-height: 1.6;

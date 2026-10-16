@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ModalOverlay } from './common/ModalOverlay'
 
 // Snippet interface (matches backend)
 type SnippetFormat = 'plaintext' | 'markdown'
@@ -60,7 +61,7 @@ function EditDialog({ snippet, isNew, workspaceId, onSave, onClose }: Readonly<E
     }
 
     return (
-        <div className="snippet-edit-overlay" onClick={onClose}>
+        <ModalOverlay className="snippet-edit-overlay">
             <div className="snippet-edit-dialog" onClick={e => e.stopPropagation()}>
                 <div className="snippet-edit-header">
                     <h3>{isNew ? t('snippets.newSnippet') : t('snippets.editSnippet')}</h3>
@@ -125,7 +126,7 @@ function EditDialog({ snippet, isNew, workspaceId, onSave, onClose }: Readonly<E
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalOverlay>
     )
 }
 

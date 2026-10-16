@@ -21,6 +21,7 @@ import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-pa
 import { CtToast, useCtToast } from './CtToast'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { getModelPricing, type ModelPricing } from '../lib/model-pricing'
+import { ModalOverlay } from './common/ModalOverlay'
 
 interface SessionMeta {
   model?: string
@@ -3930,7 +3931,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
 
       {/* Plan Modal */}
       {contentModal && (
-        <div className="claude-plan-overlay" onClick={() => setContentModal(null)}>
+        <ModalOverlay className="claude-plan-overlay">
           <div className="claude-plan-modal" onClick={e => e.stopPropagation()}>
             <div className="claude-plan-modal-header">
               <span className="claude-plan-modal-title">{contentModal.title}</span>
@@ -3949,12 +3950,12 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
               <pre className="claude-plan-modal-body">{contentModal.content}</pre>
             )}
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Context Usage Popup */}
       {contextUsagePopup && (
-        <div className="claude-plan-overlay" onClick={() => setContextUsagePopup(null)}>
+        <ModalOverlay className="claude-plan-overlay">
           <div className="claude-plan-modal claude-context-usage-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="claude-plan-modal-header">
               <span className="claude-plan-modal-title">Context Usage — {contextUsagePopup.model}</span>
@@ -4021,7 +4022,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
               )}
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Cache History Modal */}
@@ -4091,7 +4092,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           }
         }
         return (
-          <div className="claude-plan-overlay" onClick={() => setShowCacheHistory(false)}>
+          <ModalOverlay className="claude-plan-overlay">
             <div className="claude-plan-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 1060 }}>
               <div className="claude-plan-modal-header">
                 <span className="claude-plan-modal-title">Cache Efficiency History (last {hist.length})</span>
@@ -4201,7 +4202,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 </div>
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         )
       })()}
 
@@ -4236,7 +4237,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
         const callNum = hist.slice(0, cacheEntryModal + 1).filter(h => !h.isResult).length
         const fmtTokens = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
         return (
-          <div className="claude-plan-overlay" onClick={() => setCacheEntryModal(null)}>
+          <ModalOverlay className="claude-plan-overlay">
             <div className="claude-plan-modal claude-subagent-modal" onClick={e => e.stopPropagation()}>
               <div className="claude-plan-modal-header">
                 <span className="claude-tool-name" style={{ marginRight: 4 }}>Turn {callNum}</span>
@@ -4260,7 +4261,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 </div>
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         )
       })()}
 
@@ -4276,7 +4277,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
         void taskModalTick
 
         return (
-          <div className="claude-plan-overlay" onClick={() => setTaskModal(null)}>
+          <ModalOverlay className="claude-plan-overlay">
             <div className="claude-plan-modal claude-subagent-modal" onClick={e => e.stopPropagation()}>
               <div className="claude-plan-modal-header">
                 {isRunning && <span className="claude-active-task-dot" />}
@@ -4328,7 +4329,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 </div>
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         )
       })()}
 
@@ -4337,7 +4338,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
         const userPrompts = allMessages
           .filter(m => !isToolCall(m) && (m as ClaudeMessage).role === 'user') as ClaudeMessage[]
         return (
-          <div className="claude-plan-overlay" onClick={() => setShowPromptHistory(false)}>
+          <ModalOverlay className="claude-plan-overlay">
             <div className="claude-plan-modal claude-prompt-history-modal" onClick={e => e.stopPropagation()}>
               <div className="claude-plan-modal-header">
                 <span className="claude-plan-modal-title">Prompt History ({userPrompts.length})</span>
@@ -4376,7 +4377,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 ))}
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         )
       })()}
 

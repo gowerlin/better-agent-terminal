@@ -11,6 +11,7 @@ import { ClaudeRuntimeSection } from './ClaudeRuntimeSection'
 import { DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../types'
 import { AgentPresetId, getVisiblePresets } from '../types/agent-presets'
 import type { CustomCliDefinition } from '../types/agent-runtime'
+import { ModalOverlay } from './common/ModalOverlay'
 
 interface SettingsPanelProps {
   onClose: () => void
@@ -384,7 +385,7 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
   const terminalColors = settingsStore.getTerminalColors()
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
+    <ModalOverlay className="settings-overlay">
       <div className="settings-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('settings.title')}</h2>
@@ -1432,6 +1433,6 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
           <p className="settings-note">{t('settings.footerNote')}</p>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

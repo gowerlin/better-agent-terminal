@@ -24,6 +24,7 @@ import { CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, openClaudeLoginTerminal, type ClaudeO
 import { REMOTE_UNSUPPORTED_AGENT_PRESETS } from '../lib/remote-unsupported'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
+import { ModalOverlay } from './common/ModalOverlay'
 
 // Lazy load heavy components (xterm.js, Claude SDK, etc.)
 const MainPanel = lazy(() => import('./MainPanel').then(m => ({ default: m.MainPanel })))
@@ -1434,7 +1435,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       )}
 
       {batchCloseWorkers && batchCloseList.length > 0 && (
-        <div className="dialog-overlay" onClick={() => setBatchCloseWorkers(null)}>
+        <ModalOverlay className="dialog-overlay">
           <div className="dialog worker-batch-close-dialog" role="dialog" onClick={e => e.stopPropagation()}>
             <h3>{t('workerTabs.batchCloseTitle')}</h3>
             <p>{t('workerTabs.batchCloseDesc', { tower: terminals.find(tm => tm.id === batchCloseWorkers.towerId)?.title ?? batchCloseWorkers.towerId.slice(0, 8) })}</p>
@@ -1455,7 +1456,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   )

@@ -86,6 +86,13 @@
 - **遠端 headless**：同一 helper 指令與 handler；權杖 tower 角色可呼叫、`terminalId` 必須是自己（`target-not-bound`），worker 角色 → `Forbidden: role-not-allowed`（helper exit 1 `FORBIDDEN`）。`terminal:role-changed` 在 `PROXIED_EVENTS`，經 `RemoteConnectionRegistry` 送到該 profile 的視窗；沒有 client 連著時事件無人接收（不補送）。
 - 驗證：`electron/__tests__/bat-terminal-set-role.test.ts`（helper exit code、互斥參數、`--help`、`UNSUPPORTED` / `FORBIDDEN`）、`electron/__tests__/terminal-role.test.ts`（handler、`registerTerminalHandlers` 註冊、`PtyManager.getAgentPreset`）、`electron/remote/__tests__/helper-capability.test.ts`（set-role 角色表）、`electron/remote/__tests__/headless-set-role-e2e.test.ts`（真 headless + 真 node-pty，helper 在 PTY 內執行：自己 PASS、指定別人 `target-not-bound`、worker `role-not-allowed`）、`src/lib/__tests__/tower-terminal-title.test.ts`（標題與每一種預設標題）、`src/stores/__tests__/workspace-store.towerRole.test.ts`（套用 / 保留 / 重算、`autoTitle` 序列化往返與舊資料、detached adopt、`App.tsx` source guard）；e2e `e2e/t0562-tower-tab-title.spec.ts`（隔離實例；在一般 shell 分頁內執行 → `Claude CLI · Tower`、自訂 CLI 分頁 → `<registry 名稱> · Tower`、使用者命名保留、NOT_FOUND exit 3、reload 後仍在、改名後在分頁內再執行 → 保留；自訂 CLI 跑 node 腳本，不耗 token；需先 `npx vite build`）。
 
+## Dialog 不因點擊外部關閉（T0563）
+
+- **Dialog / modal**（有標題列、表單或確認 / 取消按鈕、帶遮罩：Settings、配置（Profiles）、工作區設定、遠端 profile 編輯、setup wizard、刪除 / 關閉 / 重啟 / Worker 批次關閉確認、工具安裝確認、About、Snippet 編輯、app 通知、Recovery、更新通知、Claude / Codex 面板的內容 / Context / Cache / Task / Prompt History modal）只經 **[X] / 確認 / 取消** 關閉；**Esc** 只保留原本就有的（Profiles、工具安裝確認），沒有的不新增。點遮罩、從 Dialog 內拖曳選取到外部放開都**不**關閉；setup wizard 因此不會因點遮罩被卸載（卸載 = runner cancel → rollback）。
+- **遮罩一律用 `ModalOverlay`**（`src/components/common/ModalOverlay.tsx`）：只接受 `className` / `style` / `children`，型別上沒有 `onClick`。🔴 新增 Dialog 請用它，且必須有 [X] 或取消按鈕（app 通知原本只有 OK，T0563 補了 [X]，`aria-label` = `common.close`）。不要在遮罩元素上掛 `onClick` / `onMouseDown`。
+- **選單 / popover 照舊點外部關閉**：右鍵選單、`AddMenu` 下拉、Claude / Codex 的 Ctrl+P 檔案選擇器（`.claude-file-picker`）、`PathLinker` 檔案預覽（`.path-preview-overlay`）、`VoicePreviewPopover`、GitHub 面板的 `.context-menu-backdrop`。
+- 驗證：`src/components/__tests__/dialog-no-outside-close.test.tsx`（Settings / Profiles / 刪除確認 / setup wizard / 工作區設定 / 關閉確認 / About / app 通知 [X] / 拖曳選取；`AddMenu` 仍點外部關閉；source guard：上列 Dialog 遮罩 class 只能經 `ModalOverlay`、`ModalOverlay` 不得帶點擊 handler、其他 `*overlay*` / `*backdrop*` 帶點擊關閉者只允許清單中的 popover / 選單）、`src/components/__tests__/remote-tools-panel.test.tsx`（安裝確認點遮罩不關閉）；e2e `e2e/t0563-dialog-no-outside-close.spec.ts`（隔離實例：Settings 點遮罩 / 拖出仍開著、[X] 關閉；Profiles 同；需先 `npx vite build`）。
+
 ## 關閉分頁時的程序樹（T0540 / PLAN-042）
 
 - **direct 模式**（`PtyManager.kill`，`electron/pty-manager.ts`）：`pty.kill()` 後 Windows 另跑 `taskkill /F /T /PID <shell>`（同步，3 s timeout），行為不變。

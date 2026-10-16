@@ -2,6 +2,7 @@
 // into a dedicated modal. Mirrors SetupWizardShell modal chrome.
 import { useTranslation } from 'react-i18next'
 import type { ProfileEntry } from './types'
+import { ModalOverlay } from '../common/ModalOverlay'
 
 interface RemoteProfileOption {
   id: string
@@ -54,7 +55,7 @@ export function EditRemoteProfileModal({
 }: EditRemoteProfileModalProps) {
   const { t } = useTranslation()
   return (
-    <div className="settings-overlay" style={{ zIndex: 1001 }} onClick={onClose}>
+    <ModalOverlay className="settings-overlay" style={{ zIndex: 1001 }}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="settings-header">
           <h2>{t('profiles.editConnection')}</h2>
@@ -154,6 +155,6 @@ export function EditRemoteProfileModal({
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

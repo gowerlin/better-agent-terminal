@@ -6,6 +6,7 @@ import { ProfileCard, EditRemoteProfileModal, computeRemoteCardStatus, formatRem
 import type { ProfileEntry, RemoteProbeResult, RemoteProfileConnectionSnapshot, TargetOS } from './profiles'
 import { AddProfileMenu, type ProfileTypeOption } from './profiles/AddProfileMenu'
 import { RemoteToolsEntry } from './profiles/RemoteToolsEntry'
+import { ModalOverlay } from './common/ModalOverlay'
 
 // PLAN-007 T0268: targetOS choices for the legacy-remote inline prompt.
 const REMOTE_TARGET_OS_OPTIONS: TargetOS[] = ['wsl-linux', 'docker-linux', 'ssh-linux', 'ssh-darwin']
@@ -422,7 +423,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
   }
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
+    <ModalOverlay className="settings-overlay">
       <div className="settings-panel profile-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('profiles.title')}</h2>
@@ -722,7 +723,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
 
       {/* Confirm delete dialog */}
       {confirmDelete && (
-        <div className="settings-overlay" style={{ zIndex: 1001 }} onClick={() => setConfirmDelete(null)}>
+        <ModalOverlay className="settings-overlay" style={{ zIndex: 1001 }}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 360, padding: 20 }}>
             <h3 style={{ margin: '0 0 12px', color: '#e5534b' }}>{t('profiles.deleteProfile')}</h3>
             <p style={{ margin: '0 0 16px', color: '#aaa' }}>
@@ -733,7 +734,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               <button className="profile-action-btn danger" onClick={() => handleDelete(confirmDelete)}>{t('common.delete')}</button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* PLAN-007 T0288 — RFC C-7: remote-edit moved out of the inline row into a dedicated modal. */}
@@ -767,7 +768,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
       })()}
 
       {wslWizard.isOpen && wslWizard.ctx && (
-        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={wslWizard.close}>
+        <ModalOverlay className="settings-overlay" style={{ zIndex: 1002 }}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>Add WSL Profile</h2>
@@ -782,11 +783,11 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               />
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {dockerWizard.isOpen && dockerWizard.ctx && (
-        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={dockerWizard.close}>
+        <ModalOverlay className="settings-overlay" style={{ zIndex: 1002 }}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>Add Docker Profile</h2>
@@ -801,11 +802,11 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               />
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {sshWizard.isOpen && sshWizard.ctx && (
-        <div className="settings-overlay" style={{ zIndex: 1002 }} onClick={sshWizard.close}>
+        <ModalOverlay className="settings-overlay" style={{ zIndex: 1002 }}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>Add SSH Profile</h2>
@@ -820,9 +821,9 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
               />
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
-    </div>
+    </ModalOverlay>
   )
 }
