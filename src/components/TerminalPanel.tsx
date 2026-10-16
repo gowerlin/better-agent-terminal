@@ -15,7 +15,7 @@ import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from 
 import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
 import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
-import { shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
+import { shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -112,6 +112,9 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const decorationManagerRef = useRef<TerminalDecorationManager | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const { pos: menuPos, menuRef: ctxMenuRef } = useMenuPosition(contextMenu)
+  // Read by xterm's key handler, which is attached once (T0569 / BUG-143).
+  const contextMenuOpenRef = useRef(false)
+  contextMenuOpenRef.current = contextMenu !== null
   const [_altBufferActive, setAltBufferActive] = useState(false)
   const altBufferRef = useRef(false)
   const [terminalReady, setTerminalReady] = useState(false)
@@ -262,7 +265,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     return () => document.removeEventListener('click', handleClickOutside)
   }, [])
 
-  // Close context menu on Escape key (BUG-011a)
+  // Close context menu on Escape key (BUG-011a). With focus in the terminal xterm stops the key
+  // before it reaches document; the key handler closes the menu then (T0569 / BUG-143).
   useEffect(() => {
     if (!contextMenu) return
     const handleEsc = (e: KeyboardEvent) => {
@@ -575,6 +579,17 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         // keyCode 229 = IME composition event, let it through
         // Everything else (CAPS LOCK, modifiers, etc.) should be blocked
         return event.keyCode === 229
+      }
+
+      // Escape with the right-click menu open closes the menu and is not sent to the PTY
+      // (T0569 / BUG-143: xterm would write ESC and stop the key before document sees it).
+      if (shouldCloseTerminalContextMenuOnKey(event, contextMenuOpenRef.current, imeComposing)) {
+        event.preventDefault()
+        event.stopPropagation()
+        contextMenuOpenRef.current = false
+        setContextMenu(null)
+        dlog(`[terminal-context-menu] terminal=${terminalId} closed by Escape (not sent to the terminal)`)
+        return false
       }
 
       // Shift+Enter for newline (multiline input)

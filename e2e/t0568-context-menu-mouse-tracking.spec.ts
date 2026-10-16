@@ -10,6 +10,10 @@
 //   2. script tracking the mouse: right-click → the script gets the SGR right-button report, no menu
 //   3. Shift + right-click → menu (Windows / Linux: xterm sends no report while Shift is held)
 //   4. script turns tracking off and exits: right-click → menu again
+//
+// BUG-143 / T0569: with the menu open and focus in xterm's textarea, Esc closes the menu and is not
+// written to the PTY (step 3: the script's stdin gets no ESC); with the menu closed Esc reaches the
+// program as before (step 3b). Step 1 closes the menu with Esc as well; step 4 by clicking outside.
 
 import { test, expect, type Page } from '@playwright/test'
 import fs from 'node:fs'
@@ -85,17 +89,24 @@ test('right-click: BAT menu in a plain shell, none while the program tracks the 
       await win.mouse.click(x, y, { button: 'right' })
       if (shift) await win.keyboard.up('Shift')
     }
-    // a click outside the terminal closes the menu (Esc goes to xterm's textarea while it has focus)
+    const textarea = view.locator('.terminal-wrapper.active .xterm-helper-textarea').first()
+    // a click outside the terminal closes the menu
     const dismissMenu = async () => {
       await win.locator('.workspace-item', { hasText: 'T0568' }).click()
       await expect(menu(win)).toHaveCount(0)
+    }
+    // Esc with focus in the terminal closes the menu (T0569 / BUG-143)
+    const escapeMenu = async () => {
+      await expect(textarea).toBeFocused()
+      await win.keyboard.press('Escape')
+      await expect(menu(win)).toHaveCount(0, { timeout: 5_000 })
     }
 
     // ── 1. plain shell ──
     await rightClick()
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
     await expect(menu(win)).toContainText('貼上')
-    await dismissMenu()
+    await escapeMenu()
 
     // ── 2. the program tracks the mouse ──
     await win.evaluate(({ id, line }) => (window as AnyApi).electronAPI.pty.write(id, line), { id: TAB, line: `node "${script}"\r` })
@@ -114,11 +125,18 @@ test('right-click: BAT menu in a plain shell, none while the program tracks the 
     await rightClick(true)
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
     await win.screenshot({ path: test.info().outputPath('shift-menu.png') })
-    await dismissMenu()
-    await win.waitForTimeout(300)
+    await escapeMenu()
+    await win.waitForTimeout(500)
     const shiftInput = readInputLog(inputLog).slice(beforeShift).join('')
-    log(`stdin after Shift+right-click: ${JSON.stringify(shiftInput)}`)
+    log(`stdin after Shift+right-click and Esc: ${JSON.stringify(shiftInput)}`)
     expect(shiftInput).not.toMatch(/\x1b\[<\d+;\d+;\d+[Mm]/)
+    // the Esc that closed the menu never reached the program (T0569)
+    expect(shiftInput).not.toContain('\x1b')
+
+    // ── 3b. menu closed: Esc reaches the program as before ──
+    const beforeEsc = readInputLog(inputLog).length
+    await win.keyboard.press('Escape')
+    await expect.poll(() => readInputLog(inputLog).slice(beforeEsc).join(''), { timeout: 10_000 }).toBe('\x1b')
 
     // ── 4. tracking off again ──
     await win.evaluate((id) => (window as AnyApi).electronAPI.pty.write(id, 'q'), TAB)

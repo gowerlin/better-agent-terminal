@@ -27,3 +27,22 @@ export function isMouseTrackingOn(mode: unknown): boolean {
 export function shouldShowTerminalContextMenu(mouseTrackingMode: unknown, shiftKey: boolean): boolean {
   return shiftKey || !isMouseTrackingOn(mouseTrackingMode)
 }
+
+/**
+ * Whether a keydown in the xterm tab closes BAT's open right-click menu (T0569 / BUG-143).
+ *
+ * The menu leaves focus in xterm's textarea, and xterm 5.5.0 handles Escape there itself: it
+ * writes `ESC` to the PTY and then calls `cancel(event, true)` (`preventDefault` +
+ * `stopPropagation`), so the `document` listener never saw the key and the program (claude CLI:
+ * Esc = interrupt) got it instead. The tab's `attachCustomKeyEventHandler` runs before that, so it
+ * asks this: Escape while the menu is open closes the menu and is not passed on. Not while an IME
+ * is composing (Escape then cancels the composition, as T0567 does for dialogs); with the menu
+ * closed Escape goes to the program unchanged.
+ */
+export function shouldCloseTerminalContextMenuOnKey(
+  event: Pick<KeyboardEvent, 'key' | 'isComposing' | 'keyCode'>,
+  menuOpen: boolean,
+  imeComposing: boolean,
+): boolean {
+  return menuOpen && event.key === 'Escape' && !imeComposing && !event.isComposing && event.keyCode !== 229
+}

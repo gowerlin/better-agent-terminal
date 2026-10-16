@@ -125,7 +125,8 @@
 - **Shift + 右鍵**一律開選單：Windows / Linux 的 xterm 在按住 Shift 時不送滑鼠回報、Shift + 拖曳是追蹤模式下的選取方式，選單的「複製」因此可用。macOS 的 xterm 改用 Option 繞過（`macOptionClickForcesSelection`），Shift + 右鍵時程式也會收到回報。
 - 原因：claude CLI 2.1.300 的 TUI（alt screen）開 `?1000h ?1002h ?1003h ?1006h`（`CLAUDE_CODE_DISABLE_MOUSE_CLICKS` → 只開 1000 + 1006，`CLAUDE_CODE_DISABLE_MOUSE` → 不開），在 windows / wsl / linux 收到右鍵就複製自己的選取或貼上剪貼簿；BAT 選單疊在上面等於同一次點擊做兩件事。
 - 🔴 不改 xterm 寫進 PTY 的滑鼠回報；只決定 BAT 選單要不要出現。Claude / Codex 面板、縮圖、檔案樹等其他右鍵選單不受影響。
-- 驗證：`src/__tests__/terminal-context-menu.test.tsx`；e2e `e2e/t0568-context-menu-mouse-tracking.spec.ts`（隔離實例，shell 分頁內 node 腳本開 1000 + 1006 並記錄 stdin：一般 shell → 選單、追蹤中 → 腳本收到 `ESC [ < 2 ; … M` 且無選單、Shift → 選單且無回報、關追蹤後 → 選單；macOS skip；需先 `npx vite build`）。
+- **選單開著時的 Esc（T0569 / BUG-143）**：開選單後焦點仍在 xterm textarea，xterm 5.5.0 的 `_keyDown` 會把 Esc 寫進 PTY 再 `stopPropagation`，`document` 的 BUG-011a listener 收不到。改由 `attachCustomKeyEventHandler` 先判斷（`shouldCloseTerminalContextMenuOnKey`，同檔）：選單開著 + Esc → 關選單、回 `false`（不寫 PTY），日誌 `[terminal-context-menu] … closed by Escape`；IME 組字中不算；選單沒開時 Esc 照常送進 PTY（claude CLI 的 Esc 中斷不受影響）。焦點不在終端時仍由 `document` listener 關閉。
+- 驗證：`src/__tests__/terminal-context-menu.test.tsx`；e2e `e2e/t0568-context-menu-mouse-tracking.spec.ts`（隔離實例，shell 分頁內 node 腳本開 1000 + 1006 並記錄 stdin：一般 shell → 選單、追蹤中 → 腳本收到 `ESC [ < 2 ; … M` 且無選單、Shift → 選單且無回報、關追蹤後 → 選單；T0569：選單開著按 Esc → 選單關閉且腳本 stdin 沒有 `ESC`，選單沒開時 Esc → 腳本收到 `ESC`；macOS skip；需先 `npx vite build`）。
 
 ## 關閉分頁時的程序樹（T0540 / PLAN-042）
 

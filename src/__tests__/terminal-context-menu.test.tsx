@@ -2,10 +2,13 @@
  * T0568 / BUG-142: a right-click in a terminal tab opens BAT's Copy / Paste menu only while the
  * program does not track the mouse (the claude CLI's TUI tracks it and pastes on right-click
  * itself). Shift + right-click opens the menu anyway. e2e: e2e/t0568-context-menu-mouse-tracking.spec.ts.
+ *
+ * T0569 / BUG-143: Escape with the menu open and focus in the terminal closes the menu and is not
+ * sent to the PTY; with the menu closed Escape reaches the PTY as before.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
-import { isMouseTrackingOn, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
+import { isMouseTrackingOn, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 
 const { deepStub, xterm } = vi.hoisted(() => {
   const deepStub = (): unknown => new Proxy(function () {}, {
@@ -19,7 +22,13 @@ const { deepStub, xterm } = vi.hoisted(() => {
   })
   return {
     deepStub,
-    xterm: { mouseTrackingMode: 'none' as string, selection: '', created: 0 },
+    xterm: {
+      mouseTrackingMode: 'none' as string,
+      selection: '',
+      created: 0,
+      keyHandler: null as ((event: KeyboardEvent) => boolean) | null,
+      onData: null as ((data: string) => void) | null,
+    },
   }
 })
 
@@ -32,6 +41,8 @@ vi.mock('@xterm/xterm', () => ({
         get(_target, prop) {
           if (prop === 'modes') return { get mouseTrackingMode() { return xterm.mouseTrackingMode } }
           if (prop === 'getSelection') return () => xterm.selection
+          if (prop === 'attachCustomKeyEventHandler') return (fn: (event: KeyboardEvent) => boolean) => { xterm.keyHandler = fn }
+          if (prop === 'onData') return (fn: (data: string) => void) => { xterm.onData = fn; return { dispose() {} } }
           return stub[prop]
         },
         set: () => true,
@@ -70,6 +81,28 @@ function permissiveApi(overrides: Record<string, Record<string, unknown>>): unkn
 }
 
 const debugLog = vi.fn()
+const ptyWrite = vi.fn(async (..._args: unknown[]) => undefined)
+
+/**
+ * A keydown in xterm's textarea, the way xterm 5.5.0 `_keyDown` treats it: the custom key handler
+ * runs first and `false` stops it; otherwise Escape is written to the PTY (`onData('\x1b')`) and
+ * the event is cancelled (`preventDefault` + `stopPropagation`), so document never sees it.
+ */
+function pressInTerminal(init: KeyboardEventInit) {
+  const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+  let result: boolean | undefined
+  act(() => {
+    result = xterm.keyHandler!(event)
+    if (result !== false && event.key === 'Escape' && !event.isComposing) {
+      xterm.onData!('\x1b')
+      event.preventDefault()
+      event.stopPropagation()
+    }
+  })
+  return { event, result }
+}
+
+const escWrites = () => ptyWrite.mock.calls.filter(c => c[1] === '\x1b')
 
 async function renderTerminal(id: string) {
   const { TerminalPanel } = await import('../components/TerminalPanel')
@@ -95,9 +128,12 @@ beforeAll(() => {
 beforeEach(() => {
   xterm.mouseTrackingMode = 'none'
   xterm.selection = ''
+  xterm.keyHandler = null
+  xterm.onData = null
   debugLog.mockClear()
+  ptyWrite.mockClear()
   ;(window as unknown as { electronAPI: unknown }).electronAPI = permissiveApi({
-    pty: { create: vi.fn(async () => ({ ok: true, created: true })), getBuffer: vi.fn(async () => null) },
+    pty: { create: vi.fn(async () => ({ ok: true, created: true })), getBuffer: vi.fn(async () => null), write: ptyWrite },
     debug: { log: debugLog, isDebugMode: false },
   })
 })
@@ -163,5 +199,89 @@ describe('TerminalPanel right-click (T0568)', () => {
     xterm.mouseTrackingMode = 'none'
     rightClick()
     await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+  })
+})
+
+describe('shouldCloseTerminalContextMenuOnKey (T0569)', () => {
+  const key = (k: string, extra: Partial<KeyboardEvent> = {}) => ({ key: k, isComposing: false, keyCode: k === 'Escape' ? 27 : 0, ...extra })
+
+  test('Escape closes the open menu', () => {
+    expect(shouldCloseTerminalContextMenuOnKey(key('Escape'), true, false)).toBe(true)
+  })
+
+  test('menu closed, other keys, or an IME composing: no', () => {
+    expect(shouldCloseTerminalContextMenuOnKey(key('Escape'), false, false)).toBe(false)
+    for (const k of ['a', 'Enter', 'Esc', 'Tab']) expect(shouldCloseTerminalContextMenuOnKey(key(k), true, false)).toBe(false)
+    expect(shouldCloseTerminalContextMenuOnKey(key('Escape'), true, true)).toBe(false)
+    expect(shouldCloseTerminalContextMenuOnKey(key('Escape', { isComposing: true }), true, false)).toBe(false)
+    expect(shouldCloseTerminalContextMenuOnKey(key('Escape', { keyCode: 229 }), true, false)).toBe(false)
+  })
+})
+
+describe('TerminalPanel Escape with the right-click menu (T0569 / BUG-143)', () => {
+  test('menu closed: Escape goes to the PTY as before', async () => {
+    await renderTerminal('t0569-closed')
+    await waitFor(() => expect(xterm.keyHandler).not.toBeNull())
+    const { result } = pressInTerminal({ key: 'Escape', keyCode: 27 })
+    expect(result).toBe(true)
+    expect(escWrites()).toEqual([['t0569-closed', '\x1b']])
+  })
+
+  test('menu open + focus in the terminal: Escape closes the menu and is not written to the PTY', async () => {
+    const { rightClick } = await renderTerminal('t0569-open')
+    await waitFor(() => expect(xterm.keyHandler).not.toBeNull())
+    rightClick()
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+
+    const { event, result } = pressInTerminal({ key: 'Escape', keyCode: 27 })
+    expect(result).toBe(false)
+    expect(event.defaultPrevented).toBe(true)
+    await waitFor(() => expect(menuItems()).toEqual([]))
+    expect(escWrites()).toEqual([])
+    expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('[terminal-context-menu] terminal=t0569-open closed by Escape'))
+
+    // The next Escape, with the menu gone, reaches the program again.
+    pressInTerminal({ key: 'Escape', keyCode: 27 })
+    expect(escWrites()).toEqual([['t0569-open', '\x1b']])
+  })
+
+  test('menu open via Shift + right-click while tracking (T0568): Escape closes it too', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0569-shift')
+    await waitFor(() => expect(xterm.keyHandler).not.toBeNull())
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    expect(pressInTerminal({ key: 'Escape', keyCode: 27 }).result).toBe(false)
+    await waitFor(() => expect(menuItems()).toEqual([]))
+    expect(escWrites()).toEqual([])
+  })
+
+  test('menu open: an IME composing keeps the menu and leaves Escape to xterm', async () => {
+    const { rightClick } = await renderTerminal('t0569-ime')
+    await waitFor(() => expect(xterm.keyHandler).not.toBeNull())
+    rightClick()
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    expect(pressInTerminal({ key: 'Escape', keyCode: 229, isComposing: true }).result).toBe(true)
+    await new Promise(r => setTimeout(r, 20))
+    expect(menuItems()).toEqual(['貼上'])
+  })
+
+  test('menu open: other keys are not taken by the menu', async () => {
+    const { rightClick } = await renderTerminal('t0569-other')
+    await waitFor(() => expect(xterm.keyHandler).not.toBeNull())
+    rightClick()
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    expect(pressInTerminal({ key: 'a', keyCode: 65 }).result).toBe(true)
+    await new Promise(r => setTimeout(r, 20))
+    expect(menuItems()).toEqual(['貼上'])
+  })
+
+  test('focus outside the terminal: Escape on document still closes the menu (BUG-011a)', async () => {
+    const { rightClick } = await renderTerminal('t0569-document')
+    rightClick()
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+    await waitFor(() => expect(menuItems()).toEqual([]))
+    expect(escWrites()).toEqual([])
   })
 })
