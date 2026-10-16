@@ -10,7 +10,7 @@ project: D147
 priority: P3
 sizing: XS
 created_at: "2026-10-16T14:36:25+0800"
-updated_at: "2026-10-16T15:41:23+0800"
+updated_at: "2026-10-16T16:57:00+0800"
 depends_on:
   - "T0562（BAT 端能力；介面契約以 T0562 為準）"
   - "T0565（`--mode` 擴充，D148；與 T0562 同版發佈）"
@@ -82,3 +82,4 @@ completed_at: "2026-10-16T15:41:23+0800"
 
 - ✅ source / release / install lane：DONE（對方回報，BAT 塔台未複核對方 repo）。
 - ⏳ runtime lane：待 `0.6.1-pre.6` 發版 + 新的 Tower session（CT v5.2.0 生效）後實機確認：分頁標題 `Claude CLI · Tower`、`--mode` 記錄（`bat-scripts.log` `set-role` 事件 `recordedMode`）。
+- 2026-10-16T16:57:00+0800：BMad-Guide 塔台後續通知：T0139 commit（`b105f4b` / `d5569e8`）**已 push**（BMad-Guide `dev-main`）；其後 CT **v5.2.1**（T0140 `d568b1a`：所有 helper 呼叫統一 `"${BAT_HELPER_NODE:-node}"`、helper 執行檔只允許該變數值或字面 `node`、狀態面板唯一定義含「分頁標題」行）與 **v5.2.2**（T0141 `d104481`：文件修正，行為不變）皆已 push；兩端安裝 **v5.2.2**。`--set-role` 條件 / 指令 / exit code 規則未變；只有 `--set-role` 需要 BAT >= 0.6.1-pre.6。runtime lane 仍待 pre.6 新塔台 session。

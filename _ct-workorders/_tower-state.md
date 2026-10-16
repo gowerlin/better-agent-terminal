@@ -90,7 +90,7 @@
 ### 近期完成
 - `v0.6.1-pre.6`（10-16 16:11，run `38871114752` @ `b0b6cae5`）：塔台分頁標題 + `--mode`（T0562 / T0565）、Dialog 不因點外部關閉 + Esc 統一（T0563 / T0567）、用量限制自動繼續（T0566，預設關）
 - pre.5 實機：BUG-138 / 139 / 140 / 141 CLOSED（T0557–T0561）；WSL server = **0.6.1-pre.5**（9877），驗收備份已刪
-- CT **v5.2.0**（BMad-Guide T0139，CT-T013）已發佈並安裝：Tower 啟動時 `--set-role tower --mode`；BMad-Guide commit `b105f4b` / `d5569e8` 尚未 push（對方決定）
+- CT **v5.2.2** 已安裝（v5.2.0 = CT-T013 / BMad-Guide T0139：Tower 啟動時 `--set-role tower --mode`；v5.2.1 helper 統一 `${BAT_HELPER_NODE:-node}`；v5.2.2 文件修正）；BMad-Guide 方皆已 push
 - PLAN-044 / 046 DONE，PLAN-045 IN_PROGRESS；設計頁 https://claude.ai/artifact/YBsuqdHZnjvGNfhKJgahvR
 - unit 4597 passed / 264 files；`worker_auto_close: done`（10 s）
 
@@ -99,7 +99,7 @@
 1. 🟡 **pre.6 實機**（使用者換版中）：新塔台 session（CT v5.2.0）→ 標題 `Claude CLI · Tower`、`bat-scripts.log` `set-role` `recordedMode`（BMad-Guide 也會另開單驗）；Dialog 點遮罩不關 / Esc / 精靈 Esc 不作用；Settings → Advanced 用量限制開關；首次真實撞限制看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）→ PLAN-045 DONE
 2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
-4. 🟢 後續小項：zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）；CT v5.2.1 評估遠端 PTY 其他 helper 指令改用 `${BAT_HELPER_NODE:-node}`（BMad-Guide 方）
+4. 🟢 後續小項：zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）
 5. 🟢 程式碼簽章等使用者帳號；`*archive` 到齡候選
 
 ### ⚠️ 本專案 gh 鐵則（L122）
