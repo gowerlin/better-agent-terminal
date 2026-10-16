@@ -1376,6 +1376,20 @@
 
 ---
 
+### D148 2026-10-16 — PLAN-044 範圍改定：claude 信任 CLI 內建自動繼續、BAT 只提示（休眠後補 Enter）；Codex 由 BAT 自動輸入；預設關；塔台以 `--set-role tower --mode <m>` 宣告模式（pre.6 前擴充 T0562 契約）
+
+- **背景**：T0564 研究發現 claude CLI ≥ 2.1.234 內建 `autoContinueAtUsageLimit`（預設開；重置後 30–90 s 自動續行，> 24 h 不排、連續上限 2 次）；使用者同事亦口頭確認「只要 session 沒關，用量恢復後 claude 會自行繼續，只有 claude 支援」。BAT 再送「繼續」會雙送。Codex 無此功能
+- **決定**（使用者 2026-10-16 選定，塔台記錄於 15:05:50）：
+  - **D1 claude 分頁**：信任 CLI；BAT 只辨識限制並提示（縮圖 / toast：何時自動繼續、或週限制不會自動繼續）；唯一補位為電腦休眠跨過重置後 CLI 停在 `Press enter to continue` 時只送 Enter
+  - **D2 claude 內建不可用**（API key、舊 CLI、設定 / 政策關閉）：不送，只提示
+  - **D3 Settings**：預設關；文字預設「繼續」；延遲預設 2 分鐘
+  - **Codex 分頁**：完整 PLAN-044（辨識 → 重置 + 延遲 → 再確認 → 文字 + Enter）；週限制只提示
+  - **塔台 yolo 宣告**：擴充 T0562 契約為 `--set-role tower [--mode yolo|ask|off|on]`（T0565），與 T0562 同版（`0.6.1-pre.6`）發佈；CT-T013 同步帶 `--mode`
+- **不採用**：claude 也送「繼續」（雙送）；claude `StopFailure` hook 注入（D1 選 A）；預設開
+- **相關**：PLAN-044 / T0564 / T0565 / T0566 / T0562 / CT-T013 / D147 / T0551
+
+---
+
 ### D147 2026-10-16 — 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`；BAT 提供 helper `--set-role tower`，CT 啟動時呼叫
 
 - **背景**：使用者要求塔台分頁像 Worker 分頁（T0553 `Claude CLI · Worker · T####`）一樣一眼可辨。BAT 目前沒有讓分頁內程式改標題的管道（不處理 OSC 標題序列、helper 無改名 API）

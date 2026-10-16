@@ -6,9 +6,9 @@ title: yolo 分頁遇到 claude / codex 5 小時用量限制時，BAT 在解鎖�
 status: PLANNED
 priority: medium
 created_at: "2026-10-16T14:55:14+0800"
-updated_at: "2026-10-16T14:55:14+0800"
+updated_at: "2026-10-16T15:05:50+0800"
 links:
-  related: [T0564, PLAN-041, BUG-140, T0551]
+  related: [T0564, T0565, T0566, D148, PLAN-041, BUG-140, T0551]
 ---
 
 # PLAN-044 — 用量限制解鎖後自動繼續
@@ -19,7 +19,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-044 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 📋 PLANNED（T0564 研究中） |
+| 狀態 | 📋 PLANNED（T0564 DONE → D148；T0565 / T0566 實作） |
 | 來源 | 使用者需求（2026-10-16 第六十七 session） |
 
 ## 動機
@@ -38,3 +38,11 @@ links:
 
 1. **T0564 研究**：兩個 CLI 的限制訊息原文 / 重置時間格式 / 結構化來源、偵測與送出設計、風險
 2. 實作單（依 T0564 結論開）
+
+## 範圍修訂（D148，2026-10-16 T0564 研究後）
+
+- **claude**：CLI ≥ 2.1.234 內建 `autoContinueAtUsageLimit`（預設開），BAT **不送**「繼續」；只辨識並提示（何時自動繼續 / 週限制不會自動繼續），電腦休眠跨過重置、CLI 停在 `Press enter to continue` 時只補 Enter。內建不可用（API key、舊 CLI、關閉）→ 只提示。使用者同事亦口頭確認此 CLI 行為。
+- **codex**：完整自動輸入（重置 + 延遲 → 再確認 → 文字 + Enter）；週限制只提示。
+- **Settings**：預設關、文字「繼續」、延遲 2 分。
+- **塔台 yolo 辨識**：`--set-role tower --mode <m>`（T0565），CT-T013 同步。
+- 實作：T0565（塔台模式宣告）→ T0566（偵測 / 排程 / 送出 / 提示 / Settings）。
