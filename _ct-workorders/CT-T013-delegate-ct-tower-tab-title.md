@@ -68,3 +68,9 @@ renew_count: 0
 - 在舊 BAT 中啟動 Tower → 啟動正常、無錯誤中斷；面板顯示不支援
 - 非 BAT 終端 → 無任何呼叫
 - Worker（ct-exec）分頁啟動 → 不呼叫
+
+---
+
+## 轉交紀錄
+
+- 2026-10-16T15:28:48+0800：使用者要求直接轉交；BAT 塔台以 Claude Code 跨 session 訊息送給 BMad-Guide 塔台（session `bmad-guide-8e`，msg `a45500b1`），附規格檔路徑與重點，請其完成後回覆 CT 版本號 / commit / 狀態。
