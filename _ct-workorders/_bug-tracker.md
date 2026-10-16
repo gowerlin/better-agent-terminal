@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-16T14:20:40+0800"
+generated_at: "2026-10-16T17:31:58+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 66
+total: 67
 breakdown:
-  OPEN: 1
+  OPEN: 2
   FIXING: 0
   FIXED: 17
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 14:20 (UTC+8) — BUG-138 / 139 / 141 CLOSED（pre.5 實機 e2e T0559）
+> 最後同步：2026-10-16 17:31 (UTC+8) — BUG-142 OPEN（T0568）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 66**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 67**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-142 | claude CLI 分頁按滑鼠右鍵：已經貼上，同時又跳出 BAT 的「貼上」右鍵選單（T0568） | 🟢 low | 2026-10-16 17:31 | [BUG-142](BUG-142-right-click-pastes-and-shows-menu-in-claude-tab.md) |
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 
 ## ⏳ 修復中 (FIXING)
