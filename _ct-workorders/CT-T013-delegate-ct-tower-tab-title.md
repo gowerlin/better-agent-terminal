@@ -4,13 +4,13 @@ schema_kind: workorder
 id: CT-T013
 title: "【受派】CT 下一版：Tower 啟動時呼叫 BAT `bat-terminal.mjs --set-role tower --mode <m>`，把塔台分頁標題設為 `<Agent 顯示名> · Tower` 並宣告模式（D147 / D148）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: BMad-Guide
 project: D147
 priority: P3
 sizing: XS
 created_at: "2026-10-16T14:36:25+0800"
-updated_at: "2026-10-16T15:05:50+0800"
+updated_at: "2026-10-16T15:34:10+0800"
 depends_on:
   - "T0562（BAT 端能力；介面契約以 T0562 為準）"
   - "T0565（`--mode` 擴充，D148；與 T0562 同版發佈）"
@@ -74,3 +74,4 @@ renew_count: 0
 ## 轉交紀錄
 
 - 2026-10-16T15:28:48+0800：使用者要求直接轉交；BAT 塔台以 Claude Code 跨 session 訊息送給 BMad-Guide 塔台（session `bmad-guide-8e`，msg `a45500b1`），附規格檔路徑與重點，請其完成後回覆 CT 版本號 / commit / 狀態。
+- 2026-10-16T15:34:10+0800：BMad-Guide 塔台回覆已受理 → 該方工單 **T0139**（併入 CT **v5.2.0**，連同其 v5.1.1 文件落差修正），15:33 派 Worker，IN_PROGRESS。契約以 T0562 + T0565 為準（`--mode` 互斥已依 T0565 解除）；權威說明放 `auto-session.md` § BAT 內部終端路由新小節，SKILL.md Startup / `tower-config.md` 只放摘要；`BAT_HELPER_NODE` 只用於 `--set-role`。驗收只做舊 BAT（exit 1 → 不支援）降級路徑；新 BAT（0.6.1-pre.6）實機另開單。對方唯讀，不寫本 repo；完成後回覆版號 / commit / 狀態。
