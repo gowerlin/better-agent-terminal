@@ -10,7 +10,7 @@ project: PLAN-046
 priority: P2
 sizing: S
 created_at: "2026-10-16T15:11:59+0800"
-updated_at: "2026-10-16T15:24:13+0800"
+updated_at: "2026-10-16T15:25:58+0800"
 started_at: "2026-10-16T15:12:54+08:00"
 completed_at: "2026-10-16T15:24:13+0800"
 commit: "91bb9607"
@@ -143,3 +143,12 @@ DONE
 ### 回報時間
 
 2026-10-16T15:24:13+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T15:25:58+0800）
+
+- ✅ **T0567 已確認 DONE**：`91bb9607`（21 檔，皆在 affects_files 內）、`cf3c6f12`。modal stack（只作用最上層、IME / defaultPrevented 放過、設定精靈與 Recovery 不給 `onEscape`），突變測試 7 種皆被抓到。
+- **塔台聯合複驗 @ `cf3c6f12`（T0562 / T0563 / T0565 / T0567 合併）**：`npm run test:unit` **261 files / 4523 passed / 3 skipped**；`npm run typecheck` = 0；`npm run typecheck:electron` = 0；`npx vite build` 成功。
+- 遭遇問題 2 / 3（modal 開著時 Esc 不再傳到面板的「中斷串流」）：**塔台同意**，符合 modal 語意；寫入發版說明「已知事項」以外不另處理。
+- PLAN-046 → DONE（程式面）；實機待 `0.6.1-pre.6`。

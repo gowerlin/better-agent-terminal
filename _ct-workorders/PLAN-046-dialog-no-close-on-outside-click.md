@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-046
 title: Dialog 不因點擊外部而關閉：只能經 [X] / [確認] / [取消]（與 Esc）
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-10-16T14:56:56+0800"
 updated_at: "2026-10-16T14:56:56+0800"
@@ -19,7 +19,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-046 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（T0563 DONE `132aa4b4`；T0567 Esc 統一進行中） |
+| 狀態 | ✅ DONE（T0563 `132aa4b4`、T0567 `91bb9607`；實機待 0.6.1-pre.6） |
 | 來源 | 使用者需求（2026-10-16 第六十七 session） |
 
 ## 動機
