@@ -519,6 +519,15 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
 - 收尾檢查：`gh release view v<版號> -R gowerlin/better-agent-terminal --json body` 確認已不是自動內容，再向使用者回報發佈完成。
 - 緣由：`v0.6.0-pre.8` 漏寫（L150，2026-10-14）；L150 停在「候選晉升」，`v0.6.1-pre.2` 又漏寫，使用者指出後於 2026-10-15 補上並晉升為本規則。
 
+### 發佈後同步 repo 文件（2026-10-16 使用者指示：「發布版本後也要更新 repo README.md release-note.md CHANGELOG.md」）
+
+**每次發佈（預覽版與正式版）在寫完 GitHub 更版重點之後，同一輪更新 repo 內三個文件並 commit，才算發佈完成。**
+
+- `CHANGELOG.md`：新增 `## [<版號>] — <發佈日期>` 段（日期取自 `gh release view --json publishedAt`），內容與更版重點一致（`Added` / `Fixed` / `Changed`，附 BUG / PLAN / T 編號）；`[Unreleased]` 中已發佈的項目移入該段。
+- `release-note.md`：最新版放最上面，內容 = 該版 GitHub 更版重點（繁體中文）。
+- `README.md`：只在功能、安裝、平台支援、版號範例等描述與本版不符時才改；無需修改時在回報中寫明「README 無需更新」。
+- 順序：CI 綠 → `gh release edit`（更版重點）→ 三文件 commit（`docs: release notes for v<版號> (ct)`）→ push（依當次授權）→ 回報發佈完成。
+
 ### 下游發佈（D137 / T0476）
 
 `release.yml` 的 Homebrew tap dispatch 與 Chocolatey push 皆為 **opt-in、預設跳過**：分別需 repo variable `HOMEBREW_TAP_REPO`（tap `owner/name`，+ secret `TAP_GITHUB_TOKEN`）與 `CHOCOLATEY_PUBLISH == 'true'`（+ secret `CHOCO_API_KEY`），且 tag 不含 `-pre`。本 fork 目前未設定，正式版不會動上游 `tonyq-org/homebrew-tap` 或 chocolatey.org 上的 `better-agent-terminal`（該 package id 與 `choco/better-agent-terminal.nuspec` 的 authors / owners 屬上游，自發 choco 前需另案處理）。`pre-release.yml` 無此兩 step。

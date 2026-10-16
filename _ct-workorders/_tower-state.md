@@ -92,12 +92,12 @@
 - pre.5 實機：BUG-138 / 139 / 140 / 141 CLOSED（T0557–T0561）；WSL server = **0.6.1-pre.5**（9877），驗收備份已刪
 - CT **v5.2.2** 已安裝（v5.2.0 = CT-T013 / BMad-Guide T0139：Tower 啟動時 `--set-role tower --mode`；v5.2.1 helper 統一 `${BAT_HELPER_NODE:-node}`；v5.2.2 文件修正）；BMad-Guide 方皆已 push
 - PLAN-044 / 045 / 046 DONE（045 於第六十八 session pre.6 實機 PASS）；設計頁 https://claude.ai/artifact/YBsuqdHZnjvGNfhKJgahvR
-- unit 4606 passed / 265 files（T0568 後）；`worker_auto_close: done`（10 s）
+- unit 4614 passed / 265 files（T0569 後）；`worker_auto_close: done`（10 s）
 
 ### 待辦（依優先序）
 
 1. ✅ ~~**pre.6 實機**~~（2026-10-16 17:29 第六十八 session PASS：標題 `Claude CLI · Tower` + `--mode on` exit 0、Dialog / Esc / 精靈 Esc、用量限制開關 → **PLAN-045 DONE**）；僅剩被動觀察：首次真實撞限制看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
-2. 🟢 **BUG-142 FIXED**（T0568 `9988a117`，2026-10-16 17:45 塔台複驗 unit 265 / 4606、typecheck 0 / 0）：待下一版 pre 實機在 claude CLI 分頁右鍵確認（無選單、Shift + 右鍵有選單）；**BUG-143 / T0569**（17:47 派，同批）：右鍵選單按 Esc 關不掉
+2. 🟢 **BUG-142 FIXED**（T0568 `9988a117`，2026-10-16 17:45 塔台複驗 unit 265 / 4606、typecheck 0 / 0）：待下一版 pre 實機在 claude CLI 分頁右鍵確認（無選單、Shift + 右鍵有選單）；**BUG-143 FIXED**（T0569 `fb66c0bc`，2026-10-16 17:56 塔台複驗 unit 265 / 4614、typecheck 0 / 0）：右鍵選單開著時 Esc 只關選單 → 兩者待下一版（pre.7）實機
 3. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
 4. 🟢 後續小項：zsh `~/.zprofile` 的 nvm 載入（T0556 範圍外）；`docs/server-bundle-distribution.md` rate-limit 敘述（T0548 #5）
