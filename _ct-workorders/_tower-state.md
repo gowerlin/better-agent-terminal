@@ -97,7 +97,7 @@
 ### 待辦（依優先序）
 
 1. ✅ ~~**pre.6 實機**~~（2026-10-16 17:29 第六十八 session PASS：標題 `Claude CLI · Tower` + `--mode on` exit 0、Dialog / Esc / 精靈 Esc、用量限制開關 → **PLAN-045 DONE**）；僅剩被動觀察：首次真實撞限制看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
-2. 🟡 **`v0.6.1-pre.7` 已發佈**（2026-10-16 18:04，run `38884005468` @ `c41a0ec7`，10 job 全綠；更版重點已寫；exe 298.0 / zip 412.3 / AppImage 297.4 / dmg 309.7 MiB；server-bundle 7 assets）→ **T0570**（18:06 派：CHANGELOG / release-note 補齊 v0.4.3–pre.7、README 對齊）收單後 push 才算發版完成
+2. 🟡 **`v0.6.1-pre.7` 已發佈**（2026-10-16 18:04，run `38884005468` @ `c41a0ec7`，10 job 全綠；更版重點已寫；exe 298.0 / zip 412.3 / AppImage 297.4 / dmg 309.7 MiB；server-bundle 7 assets）→ **T0570 DONE**（`97b5697e`，2026-10-16 18:14 收單：CHANGELOG / release-note 補齊 32 版、README 7 處）→ 已 push，發版完成。待實機：pre.7 claude CLI 分頁右鍵無選單 / Shift + 右鍵有選單 / 選單 Esc 關閉 → BUG-142 / 143 CLOSED
 3. 🟢 **BUG-142 FIXED**（T0568 `9988a117`，2026-10-16 17:45 塔台複驗 unit 265 / 4606、typecheck 0 / 0）：待下一版 pre 實機在 claude CLI 分頁右鍵確認（無選單、Shift + 右鍵有選單）；**BUG-143 FIXED**（T0569 `fb66c0bc`，2026-10-16 17:56 塔台複驗 unit 265 / 4614、typecheck 0 / 0）：右鍵選單開著時 Esc 只關選單 → 兩者待下一版（pre.7）實機
 3. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
