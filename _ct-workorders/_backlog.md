@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-15T17:30:31+0800"
+generated_at: "2026-10-16T14:55:14+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
@@ -22,15 +22,16 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 02:46 (UTC+8) — PLAN-036 / 037 DONE（T0550 WSL 實機驗收）；前次：全 PLAN 盤點（PLAN-041 / 031 / 033 / 035 DONE、PLAN-014 DROPPED、PLAN-043 IDEA）
+> 最後同步：2026-10-16 14:55 (UTC+8) — 新增 PLAN-044（用量限制解鎖後自動繼續，PLANNED）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 1
+- 💡 Ideas: 4 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 1
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
+| PLAN-044 | yolo 分頁遇到 claude / codex 5 小時用量限制時，BAT 在解鎖時間（+ 可設延遲）自動輸入「繼續」 | 🟡 medium | 📋 PLANNED | [PLAN-044](PLAN-044-auto-continue-after-usage-limit.md) |
 | PLAN-015 | refactor-dual-render-path-shared-helper | 🟢 low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
