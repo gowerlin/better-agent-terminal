@@ -498,7 +498,7 @@ describe('InstallConfirmDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     fireEvent.click(row('claude').getByRole('button', { name: rt.install }))
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     fireEvent.click(row('claude').getByRole('button', { name: rt.install }))

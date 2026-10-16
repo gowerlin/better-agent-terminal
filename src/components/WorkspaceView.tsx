@@ -1435,7 +1435,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       )}
 
       {batchCloseWorkers && batchCloseList.length > 0 && (
-        <ModalOverlay className="dialog-overlay">
+        <ModalOverlay className="dialog-overlay" onEscape={() => setBatchCloseWorkers(null)}>
           <div className="dialog worker-batch-close-dialog" role="dialog" onClick={e => e.stopPropagation()}>
             <h3>{t('workerTabs.batchCloseTitle')}</h3>
             <p>{t('workerTabs.batchCloseDesc', { tower: terminals.find(tm => tm.id === batchCloseWorkers.towerId)?.title ?? batchCloseWorkers.towerId.slice(0, 8) })}</p>

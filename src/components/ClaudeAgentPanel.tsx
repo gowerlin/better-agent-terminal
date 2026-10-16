@@ -3624,7 +3624,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
       {/* Plan Modal */}
       {contentModal && (
-        <ModalOverlay className="claude-plan-overlay">
+        <ModalOverlay className="claude-plan-overlay" onEscape={() => setContentModal(null)}>
           <div className="claude-plan-modal" onClick={e => e.stopPropagation()}>
             <div className="claude-plan-modal-header">
               <span className="claude-plan-modal-title">{contentModal.title}</span>
@@ -3648,7 +3648,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
       {/* Context Usage Popup */}
       {contextUsagePopup && (
-        <ModalOverlay className="claude-plan-overlay">
+        <ModalOverlay className="claude-plan-overlay" onEscape={() => setContextUsagePopup(null)}>
           <div className="claude-plan-modal claude-context-usage-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="claude-plan-modal-header">
               <span className="claude-plan-modal-title">Context Usage — {contextUsagePopup.model}</span>
@@ -3712,7 +3712,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         // T0498: a result row already includes its query's per-call rows, so they are not added again
         const { total: grandTotal, hasAnyCost } = cacheHistoryGrandTotal(hist)
         return (
-          <ModalOverlay className="claude-plan-overlay">
+          <ModalOverlay className="claude-plan-overlay" onEscape={() => setShowCacheHistory(false)}>
             <div className="claude-plan-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 1060 }}>
               <div className="claude-plan-modal-header">
                 <span className="claude-plan-modal-title">Cache Efficiency History (last {hist.length})</span>
@@ -3850,7 +3850,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         const callNum = hist.slice(0, cacheEntryModal + 1).filter(h => !h.isResult).length
         const fmtTokens = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
         return (
-          <ModalOverlay className="claude-plan-overlay">
+          <ModalOverlay className="claude-plan-overlay" onEscape={() => setCacheEntryModal(null)}>
             <div className="claude-plan-modal claude-subagent-modal" onClick={e => e.stopPropagation()}>
               <div className="claude-plan-modal-header">
                 <span className="claude-tool-name" style={{ marginRight: 4 }}>Turn {callNum}</span>
@@ -3890,7 +3890,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         void taskModalTick
 
         return (
-          <ModalOverlay className="claude-plan-overlay">
+          <ModalOverlay className="claude-plan-overlay" onEscape={() => setTaskModal(null)}>
             <div className="claude-plan-modal claude-subagent-modal" onClick={e => e.stopPropagation()}>
               <div className="claude-plan-modal-header">
                 {isRunning && <span className="claude-active-task-dot" />}
@@ -3951,7 +3951,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         const userPrompts = allMessages
           .filter(m => !isToolCall(m) && (m as ClaudeMessage).role === 'user') as ClaudeMessage[]
         return (
-          <ModalOverlay className="claude-plan-overlay">
+          <ModalOverlay className="claude-plan-overlay" onEscape={() => setShowPromptHistory(false)}>
             <div className="claude-plan-modal claude-prompt-history-modal" onClick={e => e.stopPropagation()}>
               <div className="claude-plan-modal-header">
                 <span className="claude-plan-modal-title">Prompt History ({userPrompts.length})</span>

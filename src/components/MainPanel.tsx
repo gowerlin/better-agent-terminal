@@ -269,7 +269,7 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
         <PromptBox terminalId={terminal.id} isActive={isActive} />
       )}
       {showRestartConfirm && (
-        <ModalOverlay className="dialog-overlay">
+        <ModalOverlay className="dialog-overlay" onEscape={() => setShowRestartConfirm(false)}>
           <div className="dialog" onClick={e => e.stopPropagation()}>
             <h3>{t('dialogs.restartTerminalTitle')}</h3>
             <p>{t('dialogs.restartTerminalConfirm')}</p>

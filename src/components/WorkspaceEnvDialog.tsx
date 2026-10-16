@@ -56,7 +56,7 @@ export function WorkspaceEnvDialog({
     const canEdit = !readOnly
 
     return (
-        <ModalOverlay className="dialog-overlay">
+        <ModalOverlay className="dialog-overlay" onEscape={onClose}>
             <div className="workspace-env-dialog workspace-settings-dialog" onClick={e => e.stopPropagation()}>
                 <div className="dialog-header">
                     <h2>{t('workspaceSettings.title')}</h2>

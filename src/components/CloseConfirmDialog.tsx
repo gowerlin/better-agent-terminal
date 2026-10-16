@@ -12,7 +12,7 @@ export function CloseConfirmDialog({ onConfirm, onCancel, isWorktree, onConfirmA
   const { t } = useTranslation()
 
   return (
-    <ModalOverlay className="dialog-overlay">
+    <ModalOverlay className="dialog-overlay" onEscape={onCancel}>
       <div className="dialog" onClick={e => e.stopPropagation()}>
         <h3>{t('dialogs.closeCodeAgent')}</h3>
         <p>

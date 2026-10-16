@@ -385,7 +385,7 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
   const terminalColors = settingsStore.getTerminalColors()
 
   return (
-    <ModalOverlay className="settings-overlay">
+    <ModalOverlay className="settings-overlay" onEscape={onClose}>
       <div className="settings-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('settings.title')}</h2>

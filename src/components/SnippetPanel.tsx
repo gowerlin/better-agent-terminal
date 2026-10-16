@@ -61,7 +61,7 @@ function EditDialog({ snippet, isNew, workspaceId, onSave, onClose }: Readonly<E
     }
 
     return (
-        <ModalOverlay className="snippet-edit-overlay">
+        <ModalOverlay className="snippet-edit-overlay" onEscape={onClose}>
             <div className="snippet-edit-dialog" onClick={e => e.stopPropagation()}>
                 <div className="snippet-edit-header">
                     <h3>{isNew ? t('snippets.newSnippet') : t('snippets.editSnippet')}</h3>

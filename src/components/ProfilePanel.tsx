@@ -204,20 +204,15 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
     void loadProfiles()
   })
 
-  // Escape to close
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (creating) { setCreating(false); setNewName('') }
-        else if (editingId) { setEditingId(null); setEditValue('') }
-        else if (editingRemoteId) { setEditingRemoteId(null) }
-        else if (confirmDelete) { setConfirmDelete(null) }
-        else onClose()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [creating, editingId, confirmDelete, onClose])
+  // Esc (T0567, through ModalOverlay): an inline name edit is cancelled first, then Profiles
+  // closes. The delete confirmation and the remote edit modal sit above Profiles and take Esc
+  // themselves; a setup wizard on top blocks it, so Profiles stays open and the wizard is not
+  // unmounted (= cancelled / rolled back).
+  const handleEscape = () => {
+    if (creating) { setCreating(false); setNewName('') }
+    else if (editingId) { setEditingId(null); setEditValue('') }
+    else onClose()
+  }
 
   const fetchRemoteProfileList = async (host: string, port: number, token: string, fingerprint?: string): Promise<{ profiles: RemoteProfileOption[]; fingerprint?: string }> => {
     const result = await window.electronAPI.remote.listProfiles(host, port, token, fingerprint || undefined)
@@ -423,7 +418,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
   }
 
   return (
-    <ModalOverlay className="settings-overlay">
+    <ModalOverlay className="settings-overlay" onEscape={handleEscape}>
       <div className="settings-panel profile-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('profiles.title')}</h2>
@@ -723,7 +718,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
 
       {/* Confirm delete dialog */}
       {confirmDelete && (
-        <ModalOverlay className="settings-overlay" style={{ zIndex: 1001 }}>
+        <ModalOverlay className="settings-overlay" style={{ zIndex: 1001 }} onEscape={() => setConfirmDelete(null)}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 360, padding: 20 }}>
             <h3 style={{ margin: '0 0 12px', color: '#e5534b' }}>{t('profiles.deleteProfile')}</h3>
             <p style={{ margin: '0 0 16px', color: '#aaa' }}>

@@ -69,7 +69,7 @@ export function UpdateNotification() {
     .join('\n')
 
   return (
-    <ModalOverlay className="update-notification-overlay">
+    <ModalOverlay className="update-notification-overlay" onEscape={() => setDismissed(true)}>
       <div className="update-notification">
         <div className="update-header">
           <h3>{t('update.newVersionAvailable')}</h3>

@@ -13,7 +13,7 @@ interface AppNotificationDialogProps {
 export function AppNotificationDialog({ message, onClose }: Readonly<AppNotificationDialogProps>) {
   const { t } = useTranslation()
   return (
-    <ModalOverlay className="app-notification-overlay">
+    <ModalOverlay className="app-notification-overlay" onEscape={onClose}>
       <div className="app-notification" role="dialog" onClick={e => e.stopPropagation()}>
         <button className="close-btn app-notification-x" aria-label={t('common.close')} title={t('common.close')} onClick={onClose}>×</button>
         <div className="app-notification-message">{message}</div>

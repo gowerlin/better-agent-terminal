@@ -55,7 +55,7 @@ export function EditRemoteProfileModal({
 }: EditRemoteProfileModalProps) {
   const { t } = useTranslation()
   return (
-    <ModalOverlay className="settings-overlay" style={{ zIndex: 1001 }}>
+    <ModalOverlay className="settings-overlay" style={{ zIndex: 1001 }} onEscape={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="settings-header">
           <h2>{t('profiles.editConnection')}</h2>

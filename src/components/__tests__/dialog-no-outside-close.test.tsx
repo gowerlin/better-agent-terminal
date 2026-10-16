@@ -1,6 +1,6 @@
 /**
  * T0563: Dialogs no longer close on a click outside them (on the backdrop). They close only
- * through [X] / confirm / cancel, plus Esc where they already handled it. Menus, dropdowns and
+ * through [X] / confirm / cancel, plus Esc (T0567, see dialog-escape.test.tsx). Menus, dropdowns and
  * small popovers still close on an outside click.
  *  - representative dialogs: Settings, Profiles, Workspace Settings, a confirm dialog, the app
  *    notification (which gained an [X]), and the setup wizard (backdrop click must not unmount
@@ -117,7 +117,7 @@ describe('Dialogs do not close on a backdrop click (T0563)', () => {
     expect(onClose).not.toHaveBeenCalled()
     fireEvent.click(document.querySelector('.settings-header .settings-close')!)
     expect(onClose).toHaveBeenCalledTimes(1)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 

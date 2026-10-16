@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NVM_VERSION_TAG, type InstallPlan } from '../../lib/remote-tools/recipes'
 import type { RemoteToolsPanelHost } from './RemoteToolsPanel'
@@ -30,12 +30,6 @@ export function InstallConfirmDialog({ plan, host, onConfirm, onCancel, onOpenUr
   const toolName = t(`remoteTools.tool.${plan.toolId}.name`)
   const isUpdate = plan.kind === 'update'
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
-
   const copy = async () => {
     try {
       await copyText(plan.command)
@@ -46,7 +40,7 @@ export function InstallConfirmDialog({ plan, host, onConfirm, onCancel, onOpenUr
   }
 
   return (
-    <ModalOverlay className="dialog-overlay">
+    <ModalOverlay className="dialog-overlay" onEscape={onCancel}>
       <div
         className="dialog remote-tools-confirm"
         role="dialog"
