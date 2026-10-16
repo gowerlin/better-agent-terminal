@@ -111,7 +111,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（82 entries）
 
 ### 編號起始
-- **T0567** / **BUG-142** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L152** / **CT-T014**
+- **T0568** / **BUG-142** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L152** / **CT-T014**
 
 ---
 
@@ -125,7 +125,7 @@
 | **最新 release** | `v0.6.1-pre.5`（2026-10-16 05:23，run `38808244923`，target `6ad3c089`：BUG-138–141、Worker 分頁標題 T0553、遠端 Node.js via nvm T0555 / T0556；更版重點已寫）+ `server-bundle-v0.6.1-pre.5`（7 assets）。前一版 `v0.6.1-pre.4`（2026-10-16 02:08，run `38781893001`，target `e3e86496`：T0545 等安靜再回收、T0546-T0548 安裝檔瘦身）+ `server-bundle-v0.6.1-pre.4`（7 assets）。前一版 `v0.6.1-pre.3`（2026-10-15 18:06，run `38715587426`，target `95d1f8e5`：PLAN-041 Worker 分頁回收 + 分頁標示 / 批次關閉、BUG-137、T0540 程序樹、claude 2.1.300）+ `server-bundle-v0.6.1-pre.3`（7 assets）。前一版 `v0.6.1-pre.2`（2026-10-15 13:39，run `38686989923`，target `9dde59f3`，T0533 GPU 日誌）。再前 `v0.6.1-pre.1`（2026-10-15 02:05，`e715c2b1`，BUG-135）、`v0.6.0-pre.11`（01:47，`49af84ca`，BUG-134）。更早見 `_archive/state-snapshots/2026-Q4.md` |
 | **前一 tag** | `v0.6.1-pre.4`（2026-10-16 02:08，`e3e86496`） |
 | **目前主軸** | pre.5 實機驗收完成（T0557–T0561）；T0562 塔台分頁標題（D147）實作中，CT-T013 待 BMad-Guide 塔台派發；BUG-136 等 Gary；進行中 PLAN 0 |
-| **工單最大編號** | T0566；T0562 DONE `4faa93ab`；T0557–T0561 DONE（第六十七 session）；跨專案 **CT-T013**（PENDING，CT 端呼叫，待 BMad-Guide 塔台派發）；**T0563**（Dialog 不因點外部關閉，排隊：等 T0562 收單）；T0564 DONE（研究）；**T0565**（`--set-role --mode`，派發中）；**T0566**（PLAN-044 實作，排隊：等 T0563 / T0565） |
+| **工單最大編號** | T0567；T0562 DONE `4faa93ab`；T0557–T0561 DONE（第六十七 session）；跨專案 **CT-T013**（PENDING，CT 端呼叫，待 BMad-Guide 塔台派發）；**T0563**（Dialog 不因點外部關閉，排隊：等 T0562 收單）；T0564 DONE（研究）；**T0565**（`--set-role --mode`，派發中）；**T0566**（PLAN-044 實作，排隊：等 T0565 / T0567）；T0563 DONE `132aa4b4`；**T0567**（Dialog Esc 統一，派發中） |
 | **BUG 最大編號** | **BUG-141**（FIXED，T0554）；Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 48（BUG-140 T0558、BUG-138 / 139 / 141 T0559，2026-10-16） |
 | **PLAN 最大編號** | **PLAN-046**（2026-10-16 新開：044 用量限制自動繼續 PLANNED / 045 塔台分頁標題 IN_PROGRESS / 046 Dialog 不因點外部關閉 PLANNED）；PLAN-043（IDEA）；PLAN-036 / 037 DONE（T0550，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-041 / 035 / 033 / 031 DONE（2026-10-16）；PLAN-014 DROPPED |
 | **決策最大編號** | D148（PLAN-044 範圍：claude 信任 CLI、Codex 自動輸入、塔台 `--mode`，2026-10-16） |

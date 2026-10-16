@@ -18,6 +18,7 @@ target_version: "0.6.1-pre.6 或之後（發版時塔台與使用者決定）"
 depends_on:
   - "T0563（同改 `src/App.tsx` / `SettingsPanel.tsx` 等；收單後才派）"
   - "T0565（`isYoloTerminal`、塔台 mode）"
+  - "T0567（同改 `src/**`；收單後才派）"
 related:
   - "PLAN-044、D148"
   - "T0564 回報區（訊息原文、時間格式、結構化來源評估、推薦設計 §3、實作建議 §4）——本單的技術依據，開工前完整閱讀"

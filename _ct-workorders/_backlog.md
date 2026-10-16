@@ -25,14 +25,14 @@ breakdown:
 > 最後同步：2026-10-16 14:56 (UTC+8) — 新增 PLAN-044（PLANNED）/ 045（IN_PROGRESS）/ 046（PLANNED）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 2 | 🔄 In Progress: 1 | ✅ Done: 10 | 🚫 Dropped: 1
+- 💡 Ideas: 4 | 📋 Planned: 1 | 🔄 In Progress: 2 | ✅ Done: 10 | 🚫 Dropped: 1
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
 | PLAN-045 | 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`（D147） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-045](PLAN-045-tower-tab-title.md) |
-| PLAN-046 | Dialog 不因點擊外部而關閉：只能經 [X] / [確認] / [取消]（與 Esc） | 🟡 medium | 📋 PLANNED | [PLAN-046](PLAN-046-dialog-no-close-on-outside-click.md) |
+| PLAN-046 | Dialog 不因點擊外部而關閉：只能經 [X] / [確認] / [取消]（與 Esc） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-046](PLAN-046-dialog-no-close-on-outside-click.md) |
 | PLAN-044 | yolo 分頁遇到 claude / codex 5 小時用量限制時，BAT 在解鎖時間（+ 可設延遲）自動輸入「繼續」 | 🟡 medium | 📋 PLANNED | [PLAN-044](PLAN-044-auto-continue-after-usage-limit.md) |
 | PLAN-015 | refactor-dual-render-path-shared-helper | 🟢 low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
 | PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
