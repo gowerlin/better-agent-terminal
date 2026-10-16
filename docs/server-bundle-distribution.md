@@ -136,9 +136,9 @@ $BASE_URL/bat-server-darwin-arm64-v0.5.0.tar.gz.sha256
 Anonymous GitHub API 預設 60 req/hr/IP。BAT 在 download fallback 時會：
 
 - **靜默吃 cache**：cache 命中完全不打 GitHub，避免 rate-limit 壓力
-- **Rate-limited 訊號**：response header `X-RateLimit-Remaining: 0` + `X-RateLimit-Reset: <epoch>` → BAT 顯示 actionable msg：
-  > GitHub API rate-limited. Reset at <local time>. Set `GITHUB_TOKEN` env to raise limit to 5000 req/hr.
-- **重試策略**：exponential backoff 至 reset time，最多 3 次
+- **Rate-limited 訊號**：HTTP 403 + response header `X-RateLimit-Remaining: 0`（`X-RateLimit-Reset: <epoch>` 用來算重置時間）→ 下載失敗（`rate-limited`），錯誤訊息附重置時間與出路：
+  > GitHub rate limit exceeded for <url>. <reset time> Consider setting GITHUB_TOKEN env or BAT_SERVER_BUNDLE_BASE_URL.
+- **不重試**：rate-limited 直接失敗，不等到 reset time（`electron/remote/server-bundle-download.ts` `fetchWithRetry`）。重試只用於 HTTP 5xx 與連線錯誤（見上方「下載」）。下載失敗時 wizard 提供「匯入本機 tarball…」
 
 `GITHUB_TOKEN` 提升 rate limit 至 5000 req/hr 是 spec §8 v2 候選項，目前 runtime 預讀 env 但未對外宣傳；fork / 私有部署可自行注入。
 

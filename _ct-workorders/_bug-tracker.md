@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 22:08 (UTC+8) — BUG-142 / 143 CLOSED（pre.7 實機）；BUG-144 FIXED（T0571 `35eaf125`）
+> 最後同步：2026-10-16 22:12 (UTC+8) — BUG-142 / 143 CLOSED（pre.7 實機）；BUG-144 FIXED（T0571 `35eaf125`）；BUG-145 FIXING（T0572）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 18 | 🧪 Verify: 0 | 🚫 Closed: 50 | ⛔ Won't Fix: 0 | **Total: 69**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 18 | 🧪 Verify: 0 | 🚫 Closed: 50 | ⛔ Won't Fix: 0 | **Total: 70**
 
 ## 🔴 Open / 處理中
 
@@ -38,6 +38,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-145 | 新分頁 PTY 有時停在建立時的尺寸（120x30），xterm 已 fit 成較寬欄數，要按重繪才同步（T0571 e2e 觀察，T0572 調查 + 修正） | 🟢 low | 2026-10-16 22:12 | [BUG-145](BUG-145-new-pty-stays-at-spawn-size.md) |
 
 ## ✅ 已修復
 
