@@ -97,7 +97,7 @@
 ### 待辦（依優先序）
 
 1. ✅ ~~**pre.6 實機**~~（2026-10-16 17:29 第六十八 session PASS：標題 `Claude CLI · Tower` + `--mode on` exit 0、Dialog / Esc / 精靈 Esc、用量限制開關 → **PLAN-045 DONE**）；僅剩被動觀察：首次真實撞限制看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
-2. 🟡 **`v0.6.1-pre.7` 發版中**（run `38884005468` @ `c41a0ec7`，BUG-142 / 143）→ 更版重點 → **T0570**（CHANGELOG / release-note 補齊 v0.4.3–pre.7、README 對齊；發版後派）
+2. 🟡 **`v0.6.1-pre.7` 已發佈**（2026-10-16 18:04，run `38884005468` @ `c41a0ec7`，10 job 全綠；更版重點已寫；exe 298.0 / zip 412.3 / AppImage 297.4 / dmg 309.7 MiB；server-bundle 7 assets）→ **T0570**（18:06 派：CHANGELOG / release-note 補齊 v0.4.3–pre.7、README 對齊）收單後 push 才算發版完成
 3. 🟢 **BUG-142 FIXED**（T0568 `9988a117`，2026-10-16 17:45 塔台複驗 unit 265 / 4606、typecheck 0 / 0）：待下一版 pre 實機在 claude CLI 分頁右鍵確認（無選單、Shift + 右鍵有選單）；**BUG-143 FIXED**（T0569 `fb66c0bc`，2026-10-16 17:56 塔台複驗 unit 265 / 4614、typecheck 0 / 0）：右鍵選單開著時 Esc 只關選單 → 兩者待下一版（pre.7）實機
 3. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
@@ -126,7 +126,7 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.1-pre.6**（package.json + lock，2026-10-16 16:02 `b0b6cae5`） |
+| **目前版號** | **0.6.1-pre.7**（`c41a0ec7`）；前 **0.6.1-pre.6**（package.json + lock，2026-10-16 16:02 `b0b6cae5`） |
 | **最新 release** | `v0.6.1-pre.6`（2026-10-16 16:11，run `38871114752`，target `b0b6cae5`：T0562 / T0565 塔台分頁標題與模式、T0563 / T0567 Dialog 關閉方式與 Esc、T0566 用量限制自動繼續；更版重點已寫；exe 298.1 / zip 412.3 / AppImage 297.4 / dmg 309.8 MiB）+ `server-bundle-v0.6.1-pre.6`（7 assets）。前一版 `v0.6.1-pre.5`（2026-10-16 05:23，run `38808244923`，target `6ad3c089`：BUG-138–141、Worker 分頁標題 T0553、遠端 Node.js via nvm T0555 / T0556；更版重點已寫）+ `server-bundle-v0.6.1-pre.5`（7 assets）。前一版 `v0.6.1-pre.4`（2026-10-16 02:08，run `38781893001`，target `e3e86496`：T0545 等安靜再回收、T0546-T0548 安裝檔瘦身）+ `server-bundle-v0.6.1-pre.4`（7 assets）。前一版 `v0.6.1-pre.3`（2026-10-15 18:06，run `38715587426`，target `95d1f8e5`：PLAN-041 Worker 分頁回收 + 分頁標示 / 批次關閉、BUG-137、T0540 程序樹、claude 2.1.300）+ `server-bundle-v0.6.1-pre.3`（7 assets）。前一版 `v0.6.1-pre.2`（2026-10-15 13:39，run `38686989923`，target `9dde59f3`，T0533 GPU 日誌）。再前 `v0.6.1-pre.1`（2026-10-15 02:05，`e715c2b1`，BUG-135）、`v0.6.0-pre.11`（01:47，`49af84ca`，BUG-134）。更早見 `_archive/state-snapshots/2026-Q4.md` |
 | **前一 tag** | `v0.6.1-pre.5`（2026-10-16 05:23，`6ad3c089`） |
 | **目前主軸** | `v0.6.1-pre.6` 已發佈（2026-10-16 16:11）；待本機升 pre.6 實機：新塔台 session（CT v5.2.0）分頁標題 / `--mode`、Dialog 關閉與 Esc、用量限制（首次真實撞限制時看 `[usage-limit]`）；BUG-136 等 Gary |
