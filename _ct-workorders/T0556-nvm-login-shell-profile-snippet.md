@@ -249,3 +249,10 @@ Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login sh
 - → T0555 依 Resolved PARTIAL 規則補正為 DONE。pre.5 批次（T0551–T0556）全部完成。
 - WSL 留下的備份待使用者決定：`~/.bashrc.t0555-20261016-042526.bak`、`~/.profile.t0556-20261016-050607.bak`、`~/.local/bat-server/electron/remote/*.bak-t055{5,6}`（8 個）、`~/.local/bat-server/scripts/*.bak-t055{5,6}`（8 個）。
 
+
+---
+
+## 塔台追記：pre.5 實機目視（第六十七 session，2026-10-16T14:44:08+0800）
+
+- 使用者 BAT `0.6.1-pre.5`，WSL `Ubuntu-24.04` profile（`localhost:9877`，server pre.5）→ 配置 → 工具面板截圖：Node.js「已安裝」`24.22.0`、chip `nvm 0.40.8`、按鈕「更新」、路徑 `/home/gower/.nvm/versions/node/v24.22.0/bin…` → **PASS**（T0555 / T0556 實機）。
+- Node.js / Claude Code / Codex / uv 顯示「伺服器：不可見」：systemd user service 的 PATH 不含 `~/.nvm`、`~/.local/bin`，屬設計（tooltip：只影響 Git / GitHub 面板；git / gh 皆「可見」；`remote-tools-panel.test.tsx` 亦預期 claude 為 hidden）。
