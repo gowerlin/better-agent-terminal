@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0563
 title: "Dialog 不再因點擊外部（遮罩）而關閉：只能經 [X] / [確認] / [取消]（與 Esc）關閉；缺少明確關閉按鈕的 Dialog 補 [X]；選單 / popover 不變"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: ""
 priority: P2
 sizing: S
 created_at: "2026-10-16T14:47:24+0800"
-updated_at: "2026-10-16T15:01:29+0800"
+updated_at: "2026-10-16T15:10:04+0800"
 started_at: "2026-10-16T15:01:29+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-16T15:10:04+0800"
+commit: "132aa4b4"
 target_version: "0.6.1-pre.6"
 depends_on:
   - "T0562（同改 `src/App.tsx` / `src/components/WorkspaceView.tsx`；T0562 收單後才派）"
