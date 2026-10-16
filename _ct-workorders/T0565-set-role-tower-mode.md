@@ -10,10 +10,10 @@ project: PLAN-044
 priority: P2
 sizing: S
 created_at: "2026-10-16T15:05:50+0800"
-updated_at: "2026-10-16T15:15:56+0800"
+updated_at: "2026-10-16T15:17:43+0800"
 started_at: "2026-10-16T15:07:39+0800"
 completed_at: "2026-10-16T15:15:56+0800"
-commit: ""
+commit: "4936f440"
 target_version: "0.6.1-pre.6（與 T0562 同版）"
 depends_on: []
 related:
@@ -173,3 +173,13 @@ PLAN-044（D148）的自動繼續只套用在 yolo 分頁。Worker 分頁有 `cu
 ### 回報時間
 
 2026-10-16T15:15:04+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T15:17:43+0800）
+
+- ✅ **T0565 已確認 DONE**：commit `4936f440`（8 檔，皆在 affects_files 內；未碰 `src/**` / `CLAUDE.md`）。契約與 CT-T013 一致（`--set-role tower --mode <m>`）。
+- 塔台複驗 @ `4936f440`：`npx vitest run electron scripts` 143 files / 2824 passed / 3 skipped；`npm run typecheck:electron` = 0。全套 unit / renderer typecheck 因 T0567 的 `src/` 變更進行中，延到 T0567 收單時跑。
+- 遭遇問題 1（OR 語意）：**塔台裁決**——塔台宣告的模式優先（tower 且有 `towerMode` → 以 `towerMode === 'yolo'` 為準，否則看 `CT_MODE`），交 T0566 調整 `isYoloTerminal`。
+- 遭遇問題 2（T0108 replay 後無記錄）：接受為已知限制（與 Worker `customEnv` 相同），T0566 寫入 CLAUDE.md。
+- 「CLAUDE.md 待補」由 T0566 併入（T0566 驗收條件已列）。

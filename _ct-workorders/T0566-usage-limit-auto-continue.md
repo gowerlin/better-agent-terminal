@@ -66,6 +66,12 @@ memory_overrides:
 
 第三方轉述官方文件：`autoContinueAtUsageLimit` 只從使用者設定、`--settings`、managed settings 讀取；這些都沒設而**專案層** `.claude/settings.json` / `settings.local.json` 有設時，功能會被關閉。BAT 不讀設定檔判斷，一律以畫面為準（看得到 `continuing automatically` 才當 CLI 接手，否則依 D2 只提示）。
 
+## T0565 收單後的塔台裁決（2026-10-16）
+
+- **`isYoloTerminal` 改為塔台宣告優先**：分頁 `role === 'tower'` 且有 `towerMode` → 以 `towerMode === 'yolo'` 為準；否則看 `customEnv.CT_MODE === 'yolo'`。只改 `PtyManager.isYoloTerminal` 這一處並補測試（T0565 原為 OR）。
+- **已知限制**：BAT 重開但 Terminal Server 存活（T0108 replay）時，PTY 沒有 role / mode / `customEnv` 記錄，自動繼續不會套用，直到 CT 再次 `--set-role`（Worker 則不會恢復）。寫進 CLAUDE.md，不在本單處理。
+- T0565 回報區「CLAUDE.md 待補」的文字併入 CLAUDE.md「塔台分頁標題（T0562，D147）」一節。
+
 ## 設計依據
 
 以 T0564 回報區 §1–§4 為技術依據（訊息原文與分類規則、時間格式、偵測放 main 端 PTY 輸出尾巴並只認行首完整句型 + 比對後安靜、送出前 renderer 再確認、scheduler 結構比照 `WorkerCloseScheduler`、headless 共用與 `PROXIED_EVENTS`、自動寫入路徑不算使用者輸入、Enter 沿用 `dispatchSyntheticEnterKeydown`）。T0564 標 [推] 的項目（replay 是否經過輸出 hook、bracketed paste 對 codex composer 的效果等）請實測確認並記錄。
