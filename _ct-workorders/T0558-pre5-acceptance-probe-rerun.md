@@ -128,3 +128,13 @@ Landing check：**PASS**
 ### 回報時間
 
 2026-10-16T14:07:28+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T14:09:53+0800）
+
+- ✅ **T0558 已確認完成**：Worker commit `b181a5c4`（只含本工單檔）。
+- **標題（T0553）PASS**：`windows.json` `title` = `Claude CLI · Worker · T0558`，帶 `towerTerminalId` / `workorder`，無 `Remote:` / `remoteOrigin`。
+- **✓（T0553 / T0538）PASS**：`workerReport { message: "T0558 完成" }` 已存；使用者目視縮圖確認 `✓`。
+- **焦點切換不取消（BUG-140）PASS**：14:08:40 `--close-worker T0558 --delay-ms 60000` → exit 0（stdout 含等安靜提示行）；延遲期間使用者切換分頁 / 工作區、不打字（renderer 日誌：Worker 分頁 06:08:47Z / 06:09:05Z / 06:09:15Z 三度 `active=true`，其他工作區縮圖 render）；`[close-worker] → scheduled delayMs=60000` → 60.010 s 後 `→ close requested (windows=1)`、renderer `closing tab`；無 `cancelled`；`windows.json` / `bat-pty-registry.json` 皆無此分頁。
+- → BUG-140 **CLOSED**；T0553 實機 PASS。

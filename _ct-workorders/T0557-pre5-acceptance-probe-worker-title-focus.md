@@ -137,3 +137,4 @@ Landing check：**PASS**
 - **已回報（T0553 / T0538）PASS（資料面）**：通知後分頁存有 `workerReport { message: "T0557 完成", reportedAt }`；縮圖 `✓` 目視待使用者確認。
 - **回收（BUG-140）PASS（日誌面）**：13:53:04 `--close-worker T0557 --delay-ms 60000` → exit 0；主行程 `[close-worker] → scheduled delayMs=60000` → 60.011 s 後 `→ close requested (windows=1)`，renderer `closing tab`；無 `cancelled`；`windows.json` / `bat-pty-registry.json` 皆無此分頁。
 - 限制：主行程日誌不記錄 focus report，延遲期間是否確實切換焦點只有間接證據（05:53:13Z 塔台縮圖 `active=false`，render 日誌為取樣）；以使用者確認為準。
+- 補記（2026-10-16T14:09:53+0800）：使用者未留意焦點切換，以 T0558 重跑並確認；BUG-140 依 T0558 結案。

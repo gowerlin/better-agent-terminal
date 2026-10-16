@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-140
 title: "`--close-worker` 延遲期間，使用者只是在 BAT 切換工作區 / 終端焦點（沒有在 Worker 分頁打字），排程仍被當成「使用者輸入」取消，Worker 分頁沒有回收"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: likely
 created_at: "2026-10-16T02:49:49+0800"
-updated_at: "2026-10-16T03:10:07+0800"
+updated_at: "2026-10-16T14:09:53+0800"
 impact:
   - worker-auto-close
   - terminal-input
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（`worker_auto_close: done` 時，使用者在延遲期間只要在 BAT 內切換就可能讓回收失敗、分頁保留；塔台只知道 exit 0，不會得知取消。繞行：再請求一次 / 手動關閉） |
 | 可重現 | 推測可重現（單次觀察；根因待 Worker 確認） |
-| **狀態** | ✅ FIXED（T0551，commit `92655e00`，等人工驗收） |
+| **狀態** | 🚫 CLOSED（T0551 `92655e00`；pre.5 實機驗收 PASS，T0558，2026-10-16） |
 | 回報者 | 塔台觀察 + 使用者確認（「我在 BAT 操作切換工作區或終端 focus」，未在 Worker 分頁打字） |
 
 ## 現象
@@ -48,3 +48,10 @@ links:
 - **修正**：`isTerminalAutoReply`（`electron/close-worker.ts`）排除完全由終端自動回應組成的寫入（focus、CPR、DSR、DA、DECRQM、XTWINOPS、kitty 旗標、滑鼠回報、OSC / DCS 回覆）；`registerPtyHandlers`（本機與 headless 共用）只在非自動回應時 `noteUserInput`。寫入照常送進 PTY；打字、Enter、貼上、IME、夾帶一般字元的混合寫入仍取消。
 - 已知重疊：帶修飾鍵的 F3（`ESC [ 1 ; <m> R`）與游標位置回報同形，不算輸入。
 - 驗證：unit 4133 passed / 243 files、兩個 typecheck = 0、vite build、`e2e/t0551-close-worker-focus.spec.ts` 與 `e2e/t0535-close-worker.spec.ts` 通過、headless e2e 8 passed。細節見 T0551 回報區。
+
+## 驗收（pre.5 實機，T0557 / T0558，2026-10-16）
+
+- 本機 BAT `0.6.1-pre.5`，真實 claude CLI Worker（`2.1.300`，會開 focus reporting）。
+- T0558：14:08:40 `--close-worker T0558 --delay-ms 60000` → exit 0；延遲期間使用者切換分頁 / 工作區、不打字（日誌：Worker 分頁 3 次 `active=true`，其他工作區縮圖 render）；14:09:40 `→ close requested (windows=1)`、renderer `closing tab`，無 `cancelled`；registry 已無此分頁。
+- T0557 同樣結果（13:53:04 → 13:54:04），但當時使用者未確認有切換焦點，以 T0558 為準。
+- → **CLOSED**。
