@@ -135,3 +135,12 @@ Landing check：**PASS**。C-0 `repo` = `better-agent-terminal`，`basename(REPO
 ### 回報時間
 
 2026-10-16T14:35:07+08:00
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T14:36:25+0800）
+
+- ✅ **T0561 已確認 DONE**：`bb480dbf`（新 spec + 本單）、`24f6ad8d`（記錄 hash）。S0 / S1 / S2 `3 passed`、14 項全 PASS；無產品缺陷。
+- 塔台複驗：未設 opt-in → `3 skipped`；`bat.t0515=1` 容器 / 網路 / volume = 0 / 0 / 0；`~/.ssh/config` 無 `bat-t0515` 區塊、sha256 `00aab1cd…c58a2` = 原始。
+- 限制（Worker 已註明）：同版重裝，unit sha 比對本身無鑑別力，unit 還原以 `.bat-prev` 出現 → 消失與 rollback 日誌佐證；未做跨版。
+- → BUG-141 / BUG-139 的 SSH 路徑實機驗證補齊（兩單已 CLOSED，追記證據）。

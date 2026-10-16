@@ -51,3 +51,4 @@ links:
 
 - T0559（安裝版 pre.5，跨版 pre.4 → pre.5）：升級前植入舊樹的 canary（`.t0559-canary`、`node_modules/t0559-stale-canary/`）升級後皆不存在；`.bat-new` / `.bat-old` 無殘留；資料目錄 cert / token 不變。spec 的 `A3.clean-install` 以「`du` 變小」判定而記 FAIL（pre.4 已瘦身，390 → 390 MiB），屬判定條件不適用，由 T0560 改為 canary 判定。
 - → **CLOSED**。
+- SSH 路徑（T0561，安裝版 pre.5，t0515 Docker sshd + systemd，2026-10-16T14:36:25+0800 收單）：正常升級 → 舊樹 canary 皆不存在、`finalize` 清除 `.bat-old` / `.bat-prev`、既有 profile 更新而非新建。

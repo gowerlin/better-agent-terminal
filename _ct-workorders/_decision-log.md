@@ -1376,6 +1376,20 @@
 
 ---
 
+### D147 2026-10-16 — 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`；BAT 提供 helper `--set-role tower`，CT 啟動時呼叫
+
+- **背景**：使用者要求塔台分頁像 Worker 分頁（T0553 `Claude CLI · Worker · T####`）一樣一眼可辨。BAT 目前沒有讓分頁內程式改標題的管道（不處理 OSC 標題序列、helper 無改名 API）
+- **決定**（使用者 2026-10-16 選定，塔台記錄於 14:34:53）：
+  - 格式 **`<Agent 顯示名> · Tower`**（例 `Claude CLI · Tower`），分隔與 Worker 一致（` · `）
+  - **使用者命名優先**：分頁標題已被使用者改過 → 保留不動；只在標題仍是 BAT 預設值（或已是 Tower 標題）時套用（沿用 T0553 原則）
+  - 範圍 **本機 + 遠端**：遠端 tower 權杖新增「只能設定自己」的權限
+  - 塔台結束後 **維持** Tower 標題（不偵測 agent 結束、不還原）
+  - 分工：BAT 提供能力（T0562：helper `bat-terminal.mjs --set-role tower`、主行程 channel、renderer 套用與持久化）；CT 在 Tower 啟動時呼叫，失敗不影響啟動（CT-T013，由 BMad-Guide 塔台派發）
+- **不採用**：處理 OSC 0 / 2 標題序列（任何程式都能改標題，與「使用者命名優先」衝突，且 claude / codex TUI 會自行送標題）；格式 `Claude CLI : Tower`（使用者改選與 Worker 一致）
+- **相關**：T0562 / CT-T013 / T0553 / T0538 / PLAN-036 K
+
+---
+
 ### D146 2026-10-16 — 安裝檔瘦身：第一階段直接做（T0546）；第二階段推翻 D092「安裝檔內建 server bundle baseline」改隨需下載 + 匯入本機 tarball + 較強壓縮（T0547）；codex 繼續內建；D094 改為每平台上限
 
 - **背景**：pre.3 安裝檔 exe 693.9 / zip 868.8 / AppImage 1030.7 / dmg 871.9 MiB，D094（mac 280 MB）長期超標（L130）。T0544 實測組成：server bundle baseline 228–455、codex 103–155、Electron 94–131、claude 86–114、Windows 重複 claude.exe 86–112、SDK 內建 claude（不執行）48–139、asar 內用不到的 node_modules 約 29–39 MiB

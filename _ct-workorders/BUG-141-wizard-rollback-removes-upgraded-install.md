@@ -48,3 +48,4 @@ links:
 
 - T0559（安裝版 pre.5，`T0554 cancel`）：pre.4 執行中 → 精靈換入 pre.5 → 注入 fetch-fingerprint 失敗 → 取消 → install tree（inode 不變）、unit（sha256 不變）、執行中 service（舊 bundle 重新啟動，9877）全部回到 pre.4，指紋不變，`.bat-*` 無殘留。`profiles-untouched` 記 FAIL 為 spec 時間差誤判（30 s autosave 更新 local profile `updatedAt`），由 T0560 修正。SSH 路徑（`.bat-prev` / `restore-previous`）仍只有單元測試。
 - → **CLOSED**。
+- SSH 路徑（T0561，安裝版 pre.5，t0515 Docker sshd + systemd，2026-10-16T14:36:25+0800 收單）：升級後 `fetch-fingerprint`（注入 `ssh:verify-tunnel-open` 失敗）→ 取消 → 舊樹（marker / inode 11917）換回、`.bat-prev` 還原後移除、舊 bundle 重新啟動在 9876、cert / token 不變、profile 未動。
