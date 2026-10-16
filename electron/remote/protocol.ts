@@ -113,4 +113,7 @@ export const PROXIED_EVENTS = new Set([
   // PLAN-041 / T0536: a remote Tower's `--close-worker` fired — the client window holding the
   // Worker tab closes it (electron/close-worker.ts, src/App.tsx)
   'terminal:close-requested',
+  // T0562: a remote Tower's `--set-role tower` — the client window holding the tab retitles it
+  // (electron/terminal-role.ts, src/App.tsx)
+  'terminal:role-changed',
 ])

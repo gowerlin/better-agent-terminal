@@ -118,7 +118,7 @@ export function useRemoteToolInstall({ addToast, takePending = false }: UseRemot
         workspaceStore.setActiveWorkspace(workspaceId)
         // 🔴 No agentPreset: claude-cli* presets inject DISABLE_UPDATES, which blocks `claude install`.
         const terminal = workspaceStore.addTerminal(workspaceId)
-        workspaceStore.renameTerminal(terminal.id, translate(`remoteToolInstall.tabTitle.${plan.kind}`, {
+        workspaceStore.setAutoTitle(terminal.id, translate(`remoteToolInstall.tabTitle.${plan.kind}`, {
           tool: translate(`remoteTools.tool.${plan.toolId}.name`),
         }))
         workspaceStore.setFocusedTerminal(terminal.id)

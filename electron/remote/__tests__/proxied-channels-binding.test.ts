@@ -19,6 +19,7 @@ import { PROXIED_CHANNELS } from '../protocol'
  */
 const REGISTRY_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:close-worker', 'PLAN-041 / T0535: only bat-terminal.mjs --close-worker calls it, over RemoteServer; a renderer never closes a Worker through it'],
+  ['terminal:set-role', 'T0562: only bat-terminal.mjs --set-role tower calls it, over RemoteServer; a renderer retitles through terminal:role-changed'],
 ])
 
 const ELECTRON_DIR = path.resolve(__dirname, '..', '..')

@@ -340,6 +340,7 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['terminal:notified', '{ targetId, message, source } (terminal ids + message text)'],
   ['terminal:keypress', '{ targetId, key, code, keyCode, source, reason, traceId } (terminal ids + key enum)'],
   ['terminal:close-requested', '{ id } (terminal id only; PLAN-041 / T0536)'],
+  ['terminal:role-changed', '{ id, role, ptyAgent?, ptyAgentName?, agent?, agentName? } (terminal id + role / agent ids and names; T0562)'],
 ])
 
 export function translateRemoteEventArgs(

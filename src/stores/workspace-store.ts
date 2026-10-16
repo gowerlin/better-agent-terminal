@@ -7,6 +7,7 @@ import { requestPtyReplay } from '../lib/pty-replay'
 import { resolveEffectiveAgentArgs, resolveEffectiveDefaultAgent, type EffectiveDefaultAgent } from '../lib/agent-launch-settings'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { externalTerminalTitle, legacyExternalCommand } from '../lib/external-terminal-title'
+import { isDefaultTerminalTitle, towerTerminalTitle, type TerminalRoleChangeInfo } from '../lib/tower-terminal-title'
 import { settingsStore } from './settings-store'
 
 /**
@@ -144,12 +145,18 @@ function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<stri
     return null
   }
   const cwd = ws.folderPath
+  const title = restoredTitle(t)
+  // T0562: the saved BAT-generated title; a recomputed pre-T0553 title is BAT's as well
+  const autoTitle = typeof t.autoTitle === 'string' && t.autoTitle
+    ? t.autoTitle
+    : (legacyExternalCommand(t.title) !== null ? autoTitleFor(title) : undefined)
   return {
     id: t.id || '',
     workspaceId: t.workspaceId || '',
     type: 'terminal' as const,
     agentPreset: t.agentPreset,
-    title: restoredTitle(t),
+    title,
+    ...(autoTitle ? { autoTitle } : {}),
     alias: t.alias,
     cwd,
     sdkSessionId: t.sdkSessionId,
@@ -172,6 +179,15 @@ function restoredTitle(t: Partial<TerminalInstance>): string {
   const legacyCommand = legacyExternalCommand(t.title)
   if (legacyCommand === null) return t.title || 'Terminal'
   return externalTerminalTitle({ command: legacyCommand, ...workerOwnership(t) })
+}
+
+/**
+ * T0562: the `autoTitle` a BAT-generated title needs — only one `isDefaultTerminalTitle` cannot
+ * recognize by itself (a command's file name such as `node`); undefined otherwise, so tabs keep
+ * the fields they had.
+ */
+function autoTitleFor(title: string): string | undefined {
+  return isDefaultTerminalTitle(title) ? undefined : title
 }
 
 /**
@@ -547,11 +563,14 @@ class WorkspaceStore {
     }
     if (!workspace) return null
 
+    const title = externalTerminalTitle({ ...info, ...workerOwnership(info) })
     const terminal: TerminalInstance = {
       id: info.id,
       workspaceId: workspace.id,
       type: 'terminal',
-      title: externalTerminalTitle({ ...info, ...workerOwnership(info) }),
+      title,
+      // T0562: BAT's title, when only this tells (a command's file name)
+      ...(autoTitleFor(title) ? { autoTitle: title } : {}),
       cwd: info.cwd,
       ...workerOwnership(info),
       ...(info.remote ? { remoteOrigin: true } : {}),
@@ -647,15 +666,60 @@ class WorkspaceStore {
     return newPreset
   }
 
+  /** The user names tab `id` (MainPanel). T0562: the title is no longer BAT's (`autoTitle` cleared). */
   renameTerminal(id: string, title: string): void {
     this.state = {
       ...this.state,
       terminals: this.state.terminals.map(t =>
-        t.id === id ? { ...t, title } : t
+        t.id === id ? { ...t, title, autoTitle: undefined } : t
       )
     }
 
     this.notify()
+  }
+
+  /**
+   * T0562: BAT titles tab `id` (a custom CLI's name, the remote tool install tab) — unlike
+   * `renameTerminal`, the title stays BAT's, so `--set-role tower` may still replace it.
+   */
+  setAutoTitle(id: string, title: string): void {
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t =>
+        t.id === id ? { ...t, title, autoTitle: title } : t
+      )
+    }
+
+    this.notify()
+  }
+
+  /**
+   * T0562 / D147: `terminal:role-changed` (`bat-terminal.mjs --set-role tower`; every window gets
+   * it — the caller checks this window holds the tab). The tab is titled `<agent> · Tower` when its
+   * title is still BAT's (`isDefaultTerminalTitle`, an earlier Tower title included); a title the
+   * user gave it is kept. Saves when the title changed.
+   */
+  applyTerminalRole(info: TerminalRoleChangeInfo): { result: 'applied' | 'unchanged' | 'kept' | 'not-found'; title?: string } {
+    const terminal = this.state.terminals.find(t => t.id === info.id)
+    if (!terminal || info.role !== 'tower') return { result: 'not-found' }
+    if (!isDefaultTerminalTitle(terminal.title, { autoTitle: terminal.autoTitle, agentNames: [info.ptyAgentName, info.agentName] })) {
+      return { result: 'kept', title: terminal.title }
+    }
+    const title = towerTerminalTitle({
+      agentPreset: terminal.agentPreset,
+      ptyAgent: info.ptyAgent,
+      ptyAgentName: info.ptyAgentName,
+      agent: info.agent,
+      agentName: info.agentName,
+    })
+    if (title === terminal.title) return { result: 'unchanged', title }
+    this.state = {
+      ...this.state,
+      terminals: this.state.terminals.map(t => t.id === info.id ? { ...t, title, autoTitle: undefined } : t),
+    }
+    this.notify()
+    this.save()
+    return { result: 'applied', title }
   }
 
   setFocusedTerminal(id: string | null): void {
@@ -1030,6 +1094,7 @@ class WorkspaceStore {
           ...existing,
           agentPreset: restored.agentPreset,
           title: restored.title,
+          autoTitle: restored.autoTitle,
           alias: restored.alias,
           sdkSessionId: restored.sdkSessionId,
           model: restored.model,
@@ -1090,6 +1155,7 @@ class WorkspaceStore {
         workorder: t.workorder,
         workerReport: t.workerReport,
         remoteOrigin: t.remoteOrigin,
+        autoTitle: t.autoTitle,
       }))
       const data = JSON.stringify({
         workspaces: this.state.workspaces,

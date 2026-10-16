@@ -3,8 +3,10 @@
  * / `terminal:notify` / `terminal:keypress`, registered by both Electron main and
  * headless bat-server (see ./types.ts).
  *
- * Events (`terminal:created-externally` / `terminal:notified` / `terminal:keypress`) go
- * out through the host `emit`:
+ * T0562: also `terminal:set-role` (`bat-terminal.mjs --set-role tower`, electron/terminal-role.ts).
+ *
+ * Events (`terminal:created-externally` / `terminal:notified` / `terminal:keypress` /
+ * `terminal:role-changed`) go out through the host `emit`:
  *   - Electron: every window + broadcastHub (remote clients of this BAT)
  *   - headless: broadcastHub only (the connected BAT clients)
  *
@@ -30,6 +32,7 @@ import {
   type TerminalCommandHandlerDeps,
 } from '../terminal-command-handlers'
 import type { WorkerCloseScheduler } from '../close-worker'
+import { setTerminalRole } from '../terminal-role'
 import { shellPathRejection } from './pty'
 import type { HandlerContext, HandlerRegistrar } from './types'
 
@@ -232,4 +235,13 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
   if (workerCloser) {
     register('terminal:close-worker', (_ctx, args: unknown) => workerCloser.request(args))
   }
+
+  // T0562 / D147: a tab declares its role (`bat-terminal.mjs --set-role tower`); the window
+  // holding the tab retitles it (`{ terminalId, role, agent? }`, see electron/terminal-role.ts).
+  register('terminal:set-role', (_ctx, args: unknown) => setTerminalRole(args, {
+    getPtyManager: deps.getPtyManager,
+    emit: deps.emit,
+    logger,
+    mirrorToBatScripts,
+  }))
 }

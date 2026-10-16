@@ -146,10 +146,11 @@ describe('safeTokenEqual (T0432)', () => {
 })
 
 describe('authorizeHelperInvoke — whitelist (T0432)', () => {
-  it('the whitelist is exactly the 5 helper channels (T0536: + terminal:close-worker for towers)', () => {
+  it('the whitelist is exactly the 6 helper channels (T0536: + terminal:close-worker, T0562: + terminal:set-role for towers)', () => {
     expect(HELPER_CHANNEL_ROLES).toEqual({
       'terminal:create-agent-command': ['tower'],
       'terminal:close-worker': ['tower'],
+      'terminal:set-role': ['tower'],
       'terminal:notify': ['worker'],
       'pty:write': ['worker'],
       'terminal:keypress': ['worker'],
@@ -198,6 +199,33 @@ describe('authorizeHelperInvoke — tower close-worker (PLAN-041 / T0536)', () =
     expect(reason(authorizeHelperInvoke(TOWER, 'terminal:close-worker', [], ctx))).toBe('invalid-payload')
     expect(reason(authorizeHelperInvoke(TOWER, 'terminal:close-worker', ['tower-1'], ctx))).toBe('invalid-payload')
     expect(reason(authorizeHelperInvoke(TOWER, 'terminal:close-worker', [['tower-1']], ctx))).toBe('invalid-payload')
+  })
+})
+
+describe('authorizeHelperInvoke — set-role (T0562)', () => {
+  it('a tower for its own terminal (bat-terminal --set-role payload) → allowed', () => {
+    expect(authorizeHelperInvoke(TOWER, 'terminal:set-role', [{ terminalId: 'tower-1', role: 'tower' }], ctx)).toEqual({ ok: true })
+    expect(authorizeHelperInvoke(TOWER, 'terminal:set-role', [{ terminalId: 'tower-1', role: 'tower', agent: 'codex' }], ctx)).toEqual({ ok: true })
+  })
+
+  it.each([
+    ['another terminal', 'other-1'],
+    ['its worker', 'worker-1'],
+    ['missing', undefined],
+    ['padded own id', ' tower-1 '],
+    ['non-string', ['tower-1']],
+  ])('terminalId = %s → target-not-bound', (_label, terminalId) => {
+    expect(reason(authorizeHelperInvoke(TOWER, 'terminal:set-role', [{ terminalId, role: 'tower' }], ctx))).toBe('target-not-bound')
+  })
+
+  it('a worker → role-not-allowed, even for its own terminal', () => {
+    expect(reason(authorizeHelperInvoke(WORKER, 'terminal:set-role', [{ terminalId: 'worker-1', role: 'tower' }], ctx))).toBe('role-not-allowed')
+    expect(reason(authorizeHelperInvoke(WORKER, 'terminal:set-role', [{ terminalId: 'tower-1', role: 'tower' }], ctx))).toBe('role-not-allowed')
+  })
+
+  it('non-object payloads → invalid-payload', () => {
+    expect(reason(authorizeHelperInvoke(TOWER, 'terminal:set-role', [], ctx))).toBe('invalid-payload')
+    expect(reason(authorizeHelperInvoke(TOWER, 'terminal:set-role', ['tower-1'], ctx))).toBe('invalid-payload')
   })
 })
 

@@ -106,6 +106,8 @@ interface ElectronAPI {
     onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => () => void
     /** PLAN-041 / T0535: `terminal:close-requested` — main asks the window holding tab `id` to close it. */
     onCloseRequested: (callback: (info: { id: string }) => void) => () => void
+    /** T0562: `terminal:role-changed` — tab `id` declared its role (`bat-terminal.mjs --set-role tower`). */
+    onRoleChanged: (callback: (info: import('../lib/tower-terminal-title').TerminalRoleChangeInfo) => void) => () => void
   }
   workspace: {
     save: (data: string) => Promise<boolean>

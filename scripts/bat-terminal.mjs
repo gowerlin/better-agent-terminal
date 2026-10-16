@@ -22,6 +22,9 @@
 //        created). Exit 0 scheduled / 3 NOT_FOUND / 4 NOT_OWNER / 5 AMBIGUOUS / 6 BUSY / 1 other.
 //        T0545 / D145: BAT waits for the tab to go quiet instead of answering BUSY (6 stays
 //        for older BATs).
+//   node scripts/bat-terminal.mjs --set-role tower [--terminal-id <id>] [--agent claude]
+//     └─ T0562 / D147: title this tab (default $BAT_TERMINAL_ID) `<agent> · Tower` (no tab is
+//        created; a name the user gave the tab is kept). Exit 0 done / 3 NOT_FOUND / 1 other.
 //
 // Options:
 //   --help, -h     Show help
@@ -74,9 +77,11 @@ const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs [options] --prompt <text>
        bat-terminal.mjs [options] --skill <name> --workorder <T####>
        bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>]
+       bat-terminal.mjs --set-role tower [--terminal-id <id>] [--agent <id>]
 
 Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
 With --close-worker, close the Worker tab a Tower dispatched instead (no terminal is created).
+With --set-role, give an existing tab a role instead (no terminal is created).
 
 Options:
   --cwd <path>           Working directory for the new terminal
@@ -114,6 +119,20 @@ Close a Worker tab (PLAN-041):
               BAT before 0.6.1-pre.4 (it refused a tab that printed in the last 5 s); a newer
               BAT waits for quiet instead.
 
+Give a tab a role (T0562):
+  --set-role tower       Title the tab "<agent> · Tower" (e.g. "Claude CLI · Tower"). The agent
+                         name comes from the tab's own agent, else --agent, else "Terminal". A
+                         name the user gave the tab is kept. Cannot be combined with --close-worker,
+                         --delay-ms, --notify-id or the options that create a terminal (--cwd,
+                         --workspace, --prompt, --skill, --workorder, --mode, --interactive,
+                         --no-interactive, <command>).
+  --terminal-id <id>     The tab to set (default: $BAT_TERMINAL_ID, i.e. this tab)
+  --agent <id>           With --set-role: only a hint for the agent name (claude / codex / an
+                         agent id); the tab's own agent wins
+  Exit codes: 0 done (title applied, or kept because the user named the tab) / 3 NOT_FOUND /
+              1 usage error, connection failure, not allowed or BAT too old. stderr also prints
+              "set-role: <CODE>".
+
 Examples:
   node scripts/bat-terminal.mjs --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs --skill ct-exec --workorder T0001
@@ -123,6 +142,7 @@ Examples:
   node scripts/bat-terminal.mjs --cwd /tmp echo hello
   node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --skill ct-exec --workorder T0001
   node scripts/bat-terminal.mjs --close-worker T0001 --notify-id "$BAT_TERMINAL_ID" --delay-ms 10000
+  node scripts/bat-terminal.mjs --set-role tower --agent claude
 `
 
 // T0360/BUG-082: Work order ID grammar, shared across the whole dispatch chain.
@@ -135,10 +155,13 @@ Examples:
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--help', '-h', '--version']
 
 // PLAN-041 / T0535: `--close-worker` exit codes (contract shared with CT, PLAN-041「介面契約」).
 const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
+// T0562: `--set-role` exit codes (contract shared with CT, T0562「介面契約」).
+const SET_ROLE_EXIT = { NOT_FOUND: 3 }
+const SET_ROLES = ['tower']
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -201,6 +224,10 @@ const positional = []
 let closeWorker = null
 let delayMs = null
 const createFlags = []
+// T0562: set-role mode (`--agent` is then a display-name hint only)
+let setRole = null
+let roleTerminalId = null
+let agentGiven = false
 
 let i = 0
 while (i < rawArgs.length) {
@@ -247,6 +274,7 @@ while (i < rawArgs.length) {
     createFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--agent requires an agent id argument'); process.exit(1) }
     agent = rawArgs[i + 1]
+    agentGiven = true
     i += 2
     continue
   }
@@ -325,6 +353,34 @@ while (i < rawArgs.length) {
     continue
   }
 
+  if (arg === '--set-role') {
+    if (!rawArgs[i + 1]) {
+      printUsageError(`--set-role requires a role argument (${SET_ROLES.join('|')})`)
+      console.error('set-role: USAGE')
+      process.exit(1)
+    }
+    const value = rawArgs[i + 1].trim().toLowerCase()
+    if (!SET_ROLES.includes(value)) {
+      console.error(`Error: Invalid --set-role value: '${rawArgs[i + 1]}' (expected one of: ${SET_ROLES.join(', ')})`)
+      console.error('set-role: USAGE')
+      process.exit(1)
+    }
+    setRole = value
+    i += 2
+    continue
+  }
+
+  if (arg === '--terminal-id') {
+    if (!rawArgs[i + 1]) {
+      printUsageError('--terminal-id requires a terminal ID argument')
+      console.error('set-role: USAGE')
+      process.exit(1)
+    }
+    roleTerminalId = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
   if (arg === '--delay-ms') {
     const value = rawArgs[i + 1]
     if (!value) { printUsageError('--delay-ms requires a number of milliseconds'); process.exit(1) }
@@ -349,6 +405,32 @@ while (i < rawArgs.length) {
   // First non-flag → start of command
   positional.push(arg)
   i++
+}
+
+// T0562: --set-role retitles an existing tab; it never creates one.
+if (setRole || roleTerminalId !== null) {
+  const roleUsage = (msg, reason) => {
+    printUsageError(msg)
+    console.error('set-role: USAGE')
+    logEvent('bat-terminal', 'exit', { code: 1, reason })
+    process.exit(1)
+  }
+  if (!setRole) roleUsage('--terminal-id is only valid with --set-role', 'terminal-id-without-set-role')
+  const conflicting = [
+    ...new Set(createFlags.filter(flag => flag !== '--agent')),
+    ...(closeWorker ? ['--close-worker'] : []),
+    ...(delayMs !== null ? ['--delay-ms'] : []),
+    ...(notifyId ? ['--notify-id'] : []),
+    ...(positional.length > 0 ? ['<command>'] : []),
+  ]
+  if (conflicting.length > 0) {
+    roleUsage(`--set-role cannot be combined with ${conflicting.join(', ')}`, 'set-role-with-other-options')
+  }
+  if (roleTerminalId === null) roleTerminalId = process.env.BAT_TERMINAL_ID || null
+  if (!roleTerminalId || !roleTerminalId.trim()) {
+    roleUsage('--set-role needs --terminal-id <id> or BAT_TERMINAL_ID (run it inside a BAT tab)', 'set-role-without-terminal-id')
+  }
+  roleTerminalId = roleTerminalId.trim()
 }
 
 // PLAN-041 / T0535: --close-worker closes a Worker tab; it never creates one.
@@ -386,7 +468,7 @@ if (prompt && hasSkillMode) {
   process.exit(1)
 }
 
-if (!closeWorker && !prompt && !hasSkillMode && positional.length === 0) {
+if (!closeWorker && !setRole && !prompt && !hasSkillMode && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
   process.exit(1)
@@ -407,7 +489,11 @@ logEvent('bat-terminal', 'parsed', {
   cmd: positional[0] ?? null,
   cmdArgs: positional.slice(1),
   ...(closeWorker ? { closeWorker, delayMs } : {}),
+  ...(setRole ? { setRole, roleTerminalId, agentHint: agentGiven ? agent : null } : {}),
 })
+
+// PLAN-041 / T0562: the `<mode>: <CODE>` diagnostic line on stderr of the modes that create no tab.
+const modeTag = closeWorker ? 'close-worker' : setRole ? 'set-role' : null
 
 // ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
 
@@ -416,13 +502,13 @@ const TOKEN = process.env.BAT_REMOTE_TOKEN
 
 if (!PORT) {
   console.error('Error: Not running inside BAT terminal (BAT_REMOTE_PORT not set)')
-  if (closeWorker) console.error('close-worker: NOT_IN_BAT')
+  if (modeTag) console.error(`${modeTag}: NOT_IN_BAT`)
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-BAT_REMOTE_PORT' })
   process.exit(1)
 }
 if (!TOKEN) {
   console.error('Error: BAT_REMOTE_TOKEN not set')
-  if (closeWorker) console.error('close-worker: NOT_IN_BAT')
+  if (modeTag) console.error(`${modeTag}: NOT_IN_BAT`)
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-BAT_REMOTE_TOKEN' })
   process.exit(1)
 }
@@ -430,7 +516,7 @@ if (!TOKEN) {
 // T0360 (ADVISORY B-2): Advisory only — behaviour is unchanged. Callers that
 // dispatch on behalf of a specific project frequently do not know this flag
 // exists, and silently land the PTY in whatever workspace happens to be active.
-if (!workspaceId && !closeWorker) {
+if (!workspaceId && !closeWorker && !setRole) {
   console.error('[bat-terminal] --workspace not specified; PTY will land in the currently ACTIVE workspace.')
   console.error('               Callers dispatching for a specific project should pass')
   console.error('               --workspace "$BAT_WORKSPACE_ID".')
@@ -768,7 +854,7 @@ async function main() {
       exitPayload.hint = 'Cannot read BAT app server-cert.json. Ensure BAT app is running and has initialized its remote server.'
     }
     console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${msg}`)
-    if (closeWorker) console.error('close-worker: CONNECT_FAILED')
+    if (modeTag) console.error(`${modeTag}: CONNECT_FAILED`)
     logEvent('bat-terminal', 'exit', exitPayload)
     process.exit(1)
   }
@@ -794,7 +880,7 @@ async function main() {
     const msg = err?.message || String(err)
     console.error(`Error: Auth response timeout: ${msg}`)
     console.error('Hint: BAT_REMOTE_TOKEN may be stale. Try restart this terminal or re-export token from BAT app.')
-    if (closeWorker) console.error('close-worker: AUTH_FAILED')
+    if (modeTag) console.error(`${modeTag}: AUTH_FAILED`)
     logEvent('bat-terminal', 'exit', {
       code: 1,
       reason: 'auth-timeout',
@@ -806,13 +892,14 @@ async function main() {
   }
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
-    if (closeWorker) console.error('close-worker: AUTH_FAILED')
+    if (modeTag) console.error(`${modeTag}: AUTH_FAILED`)
     logEvent('bat-terminal', 'exit', { code: 1, reason: 'auth-failed', error: authResp.error })
     ws.close()
     process.exit(1)
   }
 
   if (closeWorker) return runCloseWorker(ws)
+  if (setRole) return runSetRole(ws)
 
   const channel = prompt || hasSkillMode ? 'terminal:create-agent-command' : 'terminal:create-with-command'
   const invokePayload = prompt || hasSkillMode
@@ -1009,6 +1096,59 @@ async function runCloseWorker(ws) {
   console.error(`Error: Worker not closed (${code}): ${detail}`)
   console.error(`close-worker: ${code}`)
   return finish(exitCode, code, Array.isArray(result?.terminalIds) ? { terminalIds: result.terminalIds } : {})
+}
+
+/**
+ * T0562 / D147: `terminal:set-role { terminalId, role, agent? }`. Success is decided by the exit
+ * code (CT treats any non-0 as "not supported / not set" and goes on); `set-role: <CODE>` on stderr
+ * is diagnostic.
+ */
+async function runSetRole(ws) {
+  const request = { terminalId: roleTerminalId, role: setRole, ...(agentGiven ? { agent } : {}) }
+  const finish = (exitCode, code, fields = {}) => {
+    logEvent('bat-terminal', 'set-role', { terminalId: roleTerminalId, role: setRole, agent: agentGiven ? agent : null, result: code, ...fields, ignoredFrames })
+    logEvent('bat-terminal', 'exit', { code: exitCode, reason: exitCode === 0 ? 'set-role-done' : `set-role-${code}` })
+    ws.close()
+    process.exit(exitCode)
+  }
+
+  const invokeId = makeId()
+  ws.send(JSON.stringify({ type: 'invoke', id: invokeId, channel: 'terminal:set-role', args: [request] }))
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000, channel: 'terminal:set-role' })
+  let resp
+  try {
+    resp = await waitForMessage(ws, invokeId)
+  } catch (err) {
+    const msg = err?.message || String(err)
+    console.error(`Error: Invoke response timeout: ${msg}`)
+    console.error('set-role: TIMEOUT')
+    return finish(1, 'TIMEOUT', { error: msg })
+  }
+  if (resp.error) {
+    const text = String(resp.error)
+    // A BAT from before T0562 has no such handler; a remote server's capability may refuse it.
+    const code = /No handler for channel/i.test(text) ? 'UNSUPPORTED' : /Forbidden/i.test(text) ? 'FORBIDDEN' : 'ERROR'
+    const message = {
+      UNSUPPORTED: 'This BAT does not support --set-role (update BAT)',
+      FORBIDDEN: `Not allowed to set the role of terminal ${roleTerminalId}: ${text}`,
+    }[code] ?? `Failed to set the role: ${text}`
+    console.error(`Error: ${message}`)
+    console.error(`set-role: ${code}`)
+    return finish(1, code, { error: text })
+  }
+  const result = resp.result
+  if (result && typeof result === 'object' && result.ok === true) {
+    console.log(`✓ Tower role set: ${String(result.terminalId ?? roleTerminalId)}`)
+    return finish(0, 'OK')
+  }
+  const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
+  const detail = {
+    NOT_FOUND: `no running BAT terminal ${roleTerminalId}`,
+    INVALID_ARGS: 'BAT rejected the request arguments',
+  }[code] ?? 'the role was not set'
+  console.error(`Error: Role not set (${code}): ${detail}`)
+  console.error(`set-role: ${code}`)
+  return finish(SET_ROLE_EXIT[code] ?? 1, code)
 }
 
 // T0200/BUG-046: Safety net for rejections that escape main()'s await chain

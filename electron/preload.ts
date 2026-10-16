@@ -15,6 +15,7 @@ import type {
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from '../src/types/remote-tools'
 import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
+import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -64,6 +65,12 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: { id: string }) => callback(info)
       ipcRenderer.on('terminal:close-requested', handler)
       return () => ipcRenderer.removeListener('terminal:close-requested', handler)
+    },
+    // T0562: a tab declared its role (`bat-terminal.mjs --set-role tower`) — the window holding it retitles it
+    onRoleChanged: (callback: (info: TerminalRoleChangeInfo) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: TerminalRoleChangeInfo) => callback(info)
+      ipcRenderer.on('terminal:role-changed', handler)
+      return () => ipcRenderer.removeListener('terminal:role-changed', handler)
     }
   },
   workspace: {

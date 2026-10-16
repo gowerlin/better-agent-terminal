@@ -699,6 +699,11 @@ export class PtyManager implements CloseWorkerPtyManager {
     return this.instances.get(id)?.workorder
   }
 
+  /** T0562: the `agentPreset` PTY `id` was created with (undefined = none recorded). */
+  getAgentPreset(id: string): string | undefined {
+    return this.instances.get(id)?.agentPreset
+  }
+
   /** T0535: the Tower terminal that dispatched PTY `id` (`customEnv.BAT_TOWER_TERMINAL_ID`). */
   getTowerTerminalId(id: string): string | undefined {
     return this.instances.get(id)?.customEnv?.BAT_TOWER_TERMINAL_ID || undefined

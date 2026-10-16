@@ -746,6 +746,17 @@ export default function App() {
     })
   }, [detachedWorkspaceId, detachedIds])
 
+  // T0562 / D147: a tab declared itself a Tower (`bat-terminal.mjs --set-role tower`). The window
+  // that shows the tab titles it `<agent> · Tower`, unless the user named it.
+  useEffect(() => {
+    return window.electronAPI.pty.onRoleChanged((info) => {
+      const terminal = workspaceStore.getState().terminals.find(tm => tm.id === info.id)
+      if (!ownsTerminalForCloseRequest(terminal, detachedWorkspaceId, detachedIds)) return
+      const { result, title } = workspaceStore.applyTerminalRole(info)
+      window.electronAPI.debug.log(`[set-role] id=${info.id} role=${info.role} → ${result}${title ? ` title="${title}"` : ''}${detachedWorkspaceId ? ' (detached window)' : ''}`)
+    })
+  }, [detachedWorkspaceId, detachedIds])
+
   // Poll remote client connection status
   useEffect(() => {
     const check = () => {

@@ -33,6 +33,7 @@ import { PROJECT_ROOT } from './helpers/server-bundle-config'
  */
 const HELPER_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:close-worker', 'PLAN-041 / T0536: a remote Tower\'s bat-terminal.mjs --close-worker (tower capability); a window never calls it'],
+  ['terminal:set-role', 'T0562: a remote Tower\'s bat-terminal.mjs --set-role tower (tower capability, own tab only); a window never calls it'],
 ])
 
 function formatViolations(violations: HeadlessParityViolation[]): string {

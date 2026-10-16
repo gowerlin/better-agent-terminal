@@ -11,6 +11,7 @@
  *     registry agent, within `HelperTowerSpawnQuota` (T0450)
  *     PLAN-041 / T0536: also `terminal:close-worker` for itself only (`towerId` = its own
  *     terminal); the handler then closes only a worker of this tower (`isWorkerOf`)
+ *     T0562: also `terminal:set-role` for its own terminal only (`terminalId` = its own terminal)
  *   - role `worker` (PTY created with `BAT_TOWER_TERMINAL_ID`): `terminal:notify` /
  *     `pty:write` (printable text only, T0450) / `terminal:keypress`, target = that tower only
  *
@@ -225,6 +226,8 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
   'terminal:create-agent-command': ['tower'],
   // PLAN-041 / T0536: `bat-terminal.mjs --close-worker` — a tower closes a worker it dispatched
   'terminal:close-worker': ['tower'],
+  // T0562 / D147: `bat-terminal.mjs --set-role tower` — a tower titles its own tab
+  'terminal:set-role': ['tower'],
   'terminal:notify': ['worker'],
   'pty:write': ['worker'],
   'terminal:keypress': ['worker'],
@@ -316,6 +319,13 @@ export function authorizeHelperInvoke(
       const opts = asRecord(args[0])
       if (!opts) return deny('invalid-payload')
       if (opts.towerId !== capability.terminalId) return deny('tower-not-bound')
+      return { ok: true }
+    }
+    case 'terminal:set-role': {
+      // T0562: `{ terminalId, role, agent? }`. A tower sets the role of its own tab only.
+      const opts = asRecord(args[0])
+      if (!opts) return deny('invalid-payload')
+      if (opts.terminalId !== capability.terminalId) return deny('target-not-bound')
       return { ok: true }
     }
     case 'terminal:notify':

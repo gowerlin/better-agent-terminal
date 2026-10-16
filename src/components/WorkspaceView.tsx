@@ -826,7 +826,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (terminal.title === 'New Terminal') {
       const def = agentDefinitions.find(d => d.id === definitionId)
       if (def) {
-        workspaceStore.renameTerminal(terminal.id, def.name)
+        workspaceStore.setAutoTitle(terminal.id, def.name)
       }
     }
 

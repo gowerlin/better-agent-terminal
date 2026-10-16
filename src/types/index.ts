@@ -86,6 +86,14 @@ export interface TerminalInstance {
    * with `remote: true`). Display only (thumbnail badge); saved with the tab.
    */
   remoteOrigin?: boolean;
+  /**
+   * T0562: a title BAT generated for this tab that `isDefaultTerminalTitle`
+   * (src/lib/tower-terminal-title.ts) cannot recognize by itself — a helper raw command's file
+   * name (T0553), a custom CLI's name, the remote tool install tab's title. While `title` equals
+   * it, the title is BAT's and `--set-role tower` may replace it; a user rename clears it.
+   * Saved with the tab.
+   */
+  autoTitle?: string;
 }
 
 export interface AppState {
