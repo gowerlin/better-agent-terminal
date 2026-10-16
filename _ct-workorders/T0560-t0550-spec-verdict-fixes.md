@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0560
 title: "e2e `t0550-wsl-acceptance.spec.ts` 判定修正：`T0554.profiles-untouched` 排除 autosave 造成的 `updatedAt` 變動、`A3.clean-install` 改用 canary 判定、`A3.leftovers` 舊說明（T0559 兩項誤判 FAIL）"
 type: test
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: BUG-139
 priority: P3
 sizing: XS
 created_at: "2026-10-16T14:20:40+0800"
-updated_at: "2026-10-16T14:20:40+0800"
-started_at: ""
-completed_at: ""
+updated_at: "2026-10-16T14:24:49+0800"
+started_at: "2026-10-16T14:22:01+0800"
+completed_at: "2026-10-16T14:24:49+0800"
 commit: ""
 target_version: "測試檔，不影響產品"
 depends_on: []
@@ -70,10 +70,10 @@ T0559（安裝版 pre.5、WSL pre.4 → pre.5）產品行為全部達成，但 s
 
 ## 驗收條件
 
-- [ ] 三處修改完成，未設 opt-in 時全 skip（實測）
-- [ ] WSL 實機：`T0554.profiles-untouched`（跨過 30 s）與 `A3.clean-install`（canary）PASS，其餘既有判定不退步
-- [ ] 結束狀態：pre.5、active / enabled、9877、cert / token 不變；備份路徑寫入回報區
-- [ ] commit 只含 spec 與本工單檔
+- [x] 三處修改完成，未設 opt-in 時全 skip（實測）
+- [x] WSL 實機：`T0554.profiles-untouched`（跨過 30 s）與 `A3.clean-install`（canary）PASS，其餘既有判定不退步
+- [x] 結束狀態：pre.5、active / enabled、9877、cert / token 不變；備份路徑寫入回報區
+- [x] commit 只含 spec 與本工單檔
 
 ---
 
@@ -83,12 +83,75 @@ T0559（安裝版 pre.5、WSL pre.4 → pre.5）產品行為全部達成，但 s
 
 ### 完成狀態
 
+**DONE**。三處 spec 修改完成；未設 opt-in 全 skip（實測）；WSL 實機 `T0554.profiles-untouched`（跨 35 s，`updatedAt` 確實被 autosave 改動且已排除）與 `A3.clean-install`（canary）皆 PASS，其餘既有判定未退步；結束狀態符合 memory_overrides 第 2 條。
+
 ### 產出摘要
+
+**Landing check**：PASS。C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`；C-1 工單在 REPO_ROOT 下；C-3 `e2e/t0550-wsl-acceptance.spec.ts` 存在；C-2 無 `branch` 欄位（`main`）。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+
+**Spec 修改**（`e2e/t0550-wsl-acceptance.spec.ts`，只此一檔）：
+
+1. `T0554.profiles-untouched`：`ProfileRow` 加 `updatedAt?`；新增 `comparable()` = `redact()` 後把 `updatedAt` 設為 `undefined`（`JSON.stringify` 略過），比對其餘全部欄位（數量、id、name、type、targetOS、wslDistro、remote*、createdAt…）。記下取 before 的時間，取 after 前不足 35 s 就補等到 35 s（保證跨過一次 30 s autosave）。evidence 列出間隔秒數、比對內容與「被忽略的 `updatedAt` 變動」。
+2. `A3.clean-install`：新增 `CANARIES = ['.t0560-canary', 'node_modules/t0560-stale-canary']`。只在 `UPGRADE_RUNNING` 時於精靈執行前植入（`.t0560-canary` 檔 + `node_modules/t0560-stale-canary/package.json`），並逐一 `test -e` 回報 `planted` / `missing`。判定 = 兩個都 planted **且** 升級後都不存在 **且** STALE_PACKAGES 不存在 **且** 無 `.bat-new` / `.bat-old` **且** data dir 有 `server-cert.json` / `server-token.json`；植入失敗 → FAIL 並寫出植入輸出。`du` 改為最後一行 INFO 證據（`(info only)`），不參與判定。精靈未完成而 throw 前、以及 canary 仍殘留（FAIL）時會移除 canary，不留在使用者的安裝樹。
+3. `A3.leftovers` 說明改為：`wsl:install-bundle replaces the install root cleanly (T0552): extracts to <root>.bat-new, swaps it in, removes the old tree`。
+4. 檔頭 UPGRADE_RUNNING 註解補一句 canary 判定與 `du` 只作證據的原因。
+
+**驗證**：
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| `npx playwright test --list e2e/t0550-wsl-acceptance.spec.ts` | PASS | 解析成功，6 tests |
+| 未設任何 `BAT_E2E*`：`npx playwright test e2e/t0550-wsl-acceptance.spec.ts` | PASS | `6 skipped` |
+| WSL 實機 `-g "T0554"`（安裝版 pre.5 exe，server pre.5，同版重裝） | PASS（1 passed，38.9 s） | log `%TEMP%\bat-t0560\run-t0554.log` |
+| WSL 實機 `-g "A1-A3"`（`BAT_E2E_T0550_UPGRADE_RUNNING=1`） | PASS（1 passed，21.4 s） | log `%TEMP%\bat-t0560\run-a1a3.log` |
+
+證據目錄 `BAT_E2E_T0550_EVIDENCE_DIR=%TEMP%\bat-t0560\evidence`（與 T0559 的 `bat-t0559` 分開）。`results.json`：
+
+| key | verdict | 證據摘要 |
+|---|---|---|
+| T0554.failed-after-install | PASS | fetch-fingerprint 注入失敗；新 bundle MainPID 18355 執行中；marker absent；`.bat-old` 保留 |
+| T0554.restored | PASS | marker present；inode 11896 → 11896；unit sha256 `937940b4…` 不變；port 9877、指紋 `22:3A:E4:C7…` 不變；無 `.bat-*` |
+| T0554.service-running | PASS | MainPID 10123 → 18355（新）→ 19045（還原），9877 LISTEN |
+| **T0554.profiles-untouched** | **PASS** | profiles 1 → 1，**35 s apart**；`updatedAt changed (ignored): Default 1792131818753 → 1792131848990`（證明 autosave 確實改了 `updatedAt`，舊判定會 FAIL） |
+| T0554.rollback-log | INFO | Keeping port 9877 / Restored unit / Restored bundle / Started previous service |
+| A0.port-while-running | INFO | 無 existing 時 picker → 9878 |
+| A1 | INFO（upgrade-running 不判） | 由 `server-bundle-v0.6.1-pre.5` release 下載 166,362,972 bytes |
+| A2.server | PASS | `0.6.1-pre.5` active MainPID 20790，9877 由 MainPID LISTEN，profile `remotePort` 9877 |
+| A2.identity-kept | PASS | port 9877 → 9877；指紋不變，精靈 pin 同一指紋 |
+| A2.upgrade-running | PASS | seed profile `t0552-seed-ubuntu-24-04` 被更新（token 已換）、未新建 |
+| A2.profile-opens | PASS | remote shell → `T0550-gower@GXDEVPC02-25` |
+| A3 | PASS | helpers / `bin/node` v24.22.0 / `bin/bat-server` 皆在 |
+| A3.leftovers | INFO | 新說明文字；`node_modules: @anthropic-ai @lydell` |
+| **A3.clean-install** | **PASS** | canaries planted（`.t0560-canary`、`node_modules/t0560-stale-canary`）→ 升級後 left: none；stale none；`.bat-*` none；data dir 有 cert / token；`390 MiB → 390 MiB (info only)` |
+
+**結束狀態**（2026-10-16T14:24:49+0800）：
+
+| 項目 | 值 |
+|---|---|
+| bundle | `0.6.1-pre.5`（`package.json`） |
+| service | `active` / `enabled`，MainPID 20790 |
+| unit | `BAT_SERVER_PORT=9877`，sha256 `937940b4…`（與開始時相同） |
+| LISTEN | `127.0.0.1:9877` pid=20790（= MainPID） |
+| cert / token sha256 | `dd0bc13f…` / `bfc48f5c…`（不變） |
+| `.bat-new` / `.bat-old`、canary | 皆無 |
+| 本單備份 | `~/.local/bat-server.bak-0.6.1-pre.5-t0560`、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.5-t0560`、`~/.local/share/bat-server.bak-0.6.1-pre.5-t0560` |
+| T0559 備份 | 3 份仍在（未動） |
+| 使用者 BAT | 9876 仍由原行程 pid 29492 LISTEN，未操作；隔離實例 userData（`BetterAgentTerminal-runtime-e2e-*`）已全部移除 |
+
+**Commit**：`git commit --only e2e/t0550-wsl-acceptance.spec.ts _ct-workorders/T0560-t0550-spec-verdict-fixes.md`（`src/styles/settings.css` 未納入）。hash 依慣例留給塔台填 `commit` 欄。
 
 ### 互動紀錄
 
+無（`CT_MODE=yolo`、`CT_INTERACTIVE=0`）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+無。觀察：A1-A3 的精靈這次只花 14 s，比 T0554 的取消流程短；`profiles-untouched` 的 35 s 補等只在 T0554 測試內，不影響 A1-A3。
+
 ### 回報時間
+
+2026-10-16T14:24:49+0800

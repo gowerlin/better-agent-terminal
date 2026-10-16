@@ -61,10 +61,13 @@ test.skip(process.platform !== 'win32', 'Windows host only (WSL)')
 // still running (no stop first), after seeding this instance with a profile for the distro and
 // the old port; A2.upgrade-running / A3.clean-install then require: same port, that profile
 // updated and no new one, and an install root without the files the bundle no longer ships.
+// A3.clean-install plants canaries in the old tree before the wizard (T0560): an upgrade between
+// two slimmed bundles keeps the same size, so `du` is evidence only, the canaries decide.
 // Works with the source build (`npx vite build`; BAT_E2E_EXECUTABLE optional). Run A1-A3 only:
 //   npx playwright test e2e/t0550-wsl-acceptance.spec.ts -g "A1-A3"
 const UPGRADE_RUNNING = process.env.BAT_E2E_T0550_UPGRADE_RUNNING === '1'
 const STALE_PACKAGES = ['@anthropic-ai/claude-agent-sdk-linux-x64', '@img', 'better-sqlite3', 'sharp']
+const CANARIES = ['.t0560-canary', 'node_modules/t0560-stale-canary']
 // T0554 (BUG-141): BAT_E2E_T0554_CANCEL_AFTER_INSTALL=1 adds "T0554 cancel": the wizard upgrades the
 // running server, a step after the install fails (fetch-fingerprint, injected into this isolated
 // instance's main process) and the user cancels; the previous install tree, unit and running
@@ -246,13 +249,16 @@ function captureConsole(win: Page, needle: RegExp): string[] {
   return lines
 }
 
-interface ProfileRow { id: string; name: string; targetOS?: string; wslDistro?: string; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteFingerprint?: string }
+interface ProfileRow { id: string; name: string; targetOS?: string; wslDistro?: string; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteFingerprint?: string; updatedAt?: number }
 
 async function profiles(win: Page): Promise<ProfileRow[]> {
   return (await win.evaluate(async () => (window as AnyApi).electronAPI.profile.list())).profiles as ProfileRow[]
 }
 
 const redact = (p: ProfileRow) => ({ ...p, remoteToken: p.remoteToken ? '<set>' : p.remoteToken })
+// T0560: the renderer's 30 s autosave (`workspace:save` → profileManager.save()) bumps the local
+// profile's updatedAt; every other field must stay as it was.
+const comparable = (p: ProfileRow) => ({ ...redact(p), updatedAt: undefined })
 
 /** PTY output / created-externally / notified events as this renderer receives them. */
 async function installCapture(page: Page): Promise<void> {
@@ -347,6 +353,7 @@ test.describe.serial('T0550 WSL acceptance', () => {
         ipcMain.handle('wsl:fetch-fingerprint', async () => ({ ok: false, errorCode: 'fingerprint-unreachable', error: 'T0554 injected failure after the install' }))
       })
       const profilesBefore = await profiles(win)
+      const profilesBeforeAt = Date.now()
       await openWslWizard(win)
       const outcome = await driveWizard(win)
       const stepsAtFailure = await stepStatuses(win)
@@ -379,7 +386,11 @@ test.describe.serial('T0550 WSL acceptance', () => {
       fs.writeFileSync(path.join(EVIDENCE_DIR, 't0554-wizard-console.txt'), wizardLog.join('\n'))
       fs.writeFileSync(path.join(EVIDENCE_DIR, 't0554-debug-log.txt'), latestLog(cancelInst.userData))
       await shot(win, 'T0554-cancelled')
+      // Span at least one autosave so the comparison proves updatedAt is left out (T0560).
+      const sinceBefore = Date.now() - profilesBeforeAt
+      if (sinceBefore < 35_000) await win.waitForTimeout(35_000 - sinceBefore)
       const profilesAfter = await profiles(win)
+      const profilesSpan = Math.round((Date.now() - profilesBeforeAt) / 1000)
       const newPort = Number(section(after, 'unit-port'))
       const newFingerprint = section(after, 'fingerprint').toUpperCase()
       record('T0554.restored', section(idAfter, 'marker') === 'present' && section(idAfter, 'inode') === section(idBefore, 'inode')
@@ -392,8 +403,11 @@ test.describe.serial('T0550 WSL acceptance', () => {
       record('T0554.service-running', section(after, 'is-active') === 'active' && section(after, 'MainPID') !== section(mid, 'MainPID'), [
         `is-active ${section(after, 'is-active')}; MainPID ${section(before, 'MainPID')} (before) → ${section(mid, 'MainPID')} (new bundle) → ${section(after, 'MainPID')} (restored)`,
         `listening ${section(after, 'listening').split('\n').filter(l => l.includes(`:${oldPort} `)).join(' / ')}`])
-      record('T0554.profiles-untouched', JSON.stringify(profilesAfter.map(redact)) === JSON.stringify(profilesBefore.map(redact)), [
-        `profiles before ${profilesBefore.length}, after ${profilesAfter.length}`])
+      const bumped = profilesAfter.filter(p => profilesBefore.some(b => b.id === p.id && b.updatedAt !== p.updatedAt))
+      record('T0554.profiles-untouched', JSON.stringify(profilesAfter.map(comparable)) === JSON.stringify(profilesBefore.map(comparable)), [
+        `profiles before ${profilesBefore.length}, after ${profilesAfter.length}; ${profilesSpan} s apart`,
+        `compared without updatedAt (autosave): ${JSON.stringify(profilesAfter.map(p => ({ id: p.id, name: p.name, targetOS: p.targetOS, wslDistro: p.wslDistro, remotePort: p.remotePort })))}`,
+        `updatedAt changed (ignored): ${bumped.map(p => `${p.name} ${profilesBefore.find(b => b.id === p.id)?.updatedAt} → ${p.updatedAt}`).join(', ') || 'none'}`])
       record('T0554.rollback-log', 'info', wizardLog.slice(-12))
     } finally {
       await closeIsolated(cancelInst, log)
@@ -426,7 +440,17 @@ test.describe.serial('T0550 WSL acceptance', () => {
 
     let seededProfileId: string | undefined
     const duBefore = (await wsl(`du -sm ${INSTALL_ROOT} | cut -f1`)).trim()
+    let canaryPlant = ''
+    const removeCanaries = () => wsl(CANARIES.map(c => `rm -rf ${INSTALL_ROOT}/${c}`).join('; '))
     if (UPGRADE_RUNNING) {
+      // T0560 (BUG-139): files only the old tree has; a clean install leaves none of them.
+      canaryPlant = (await wsl([
+        `echo t0560 > ${INSTALL_ROOT}/${CANARIES[0]}`,
+        `mkdir -p ${INSTALL_ROOT}/${CANARIES[1]}`,
+        `echo '{"name":"t0560-stale-canary","version":"0.0.0"}' > ${INSTALL_ROOT}/${CANARIES[1]}/package.json`,
+        `for c in ${CANARIES.join(' ')}; do test -e ${INSTALL_ROOT}/$c && echo "planted $c" || echo "missing $c"; done`,
+      ].join('; '))).trim()
+      log(`T0560 canaries: ${canaryPlant.replace(/\s+/g, ' ')}`)
       // T0552: keep the old server running; this instance gets the profile a user would have.
       expect(section(before, 'is-active'), 'T0552 upgrade-running needs the old server active').toBe('active')
       seededProfileId = await win.evaluate(async ([distro, port, fp]) => {
@@ -455,6 +479,7 @@ test.describe.serial('T0550 WSL acceptance', () => {
     if (outcome.result !== 'complete') {
       record('A2', false, [`wizard ${outcome.result}: ${outcome.text.slice(0, 1500)}`, ...wizardLog.slice(-20)])
       fs.writeFileSync(path.join(EVIDENCE_DIR, 'debug-log-a.txt'), latestLog(inst.userData))
+      if (UPGRADE_RUNNING) await removeCanaries()
       throw new Error(`wizard ${outcome.result}`)
     }
 
@@ -541,24 +566,29 @@ test.describe.serial('T0550 WSL acceptance', () => {
     ].join('; '))
     record('A3', !/missing/.test(helpers) && /node v24\./.test(helpers), helpers.split('\n'))
     record('A3.leftovers', 'info', [
-      'wsl:install-bundle extracts over the existing directory (tar --strip-components=1, no clean); files of the old bundle stay',
+      'wsl:install-bundle replaces the install root cleanly (T0552): extracts to <root>.bat-new, swaps it in, removes the old tree',
       ...helpers.split('\n').filter(l => /^(node_modules|scripts):/.test(l))])
     if (UPGRADE_RUNNING) {
       // T0552 (BUG-139): the install root holds only the new bundle; the data dir is untouched.
       const clean = await wsl([
         `echo "## du"; du -sm ${INSTALL_ROOT} | cut -f1`,
+        `echo "## canary"; for c in ${CANARIES.join(' ')}; do test -e ${INSTALL_ROOT}/$c && echo "present $c"; done; true`,
         `echo "## stale"; for p in ${STALE_PACKAGES.join(' ')}; do test -e ${INSTALL_ROOT}/node_modules/$p && echo "present $p"; done; true`,
         `echo "## siblings"; ls -d ${INSTALL_ROOT}.bat-new ${INSTALL_ROOT}.bat-old 2>/dev/null; true`,
         'echo "## data"; ls -A $HOME/.local/share/bat-server',
       ].join('; '))
       const duAfter = section(clean, 'du')
       const data = section(clean, 'data')
-      record('A3.clean-install', !section(clean, 'stale') && !section(clean, 'siblings') && Number(duAfter) < Number(duBefore)
+      const planted = CANARIES.every(c => canaryPlant.split('\n').includes(`planted ${c}`))
+      record('A3.clean-install', planted && !section(clean, 'canary') && !section(clean, 'stale') && !section(clean, 'siblings')
         && data.includes('server-cert.json') && data.includes('server-token.json'), [
-        `install root ${duBefore} MiB → ${duAfter} MiB`,
+        planted ? `canaries planted in the old tree: ${CANARIES.join(', ')}` : `canary planting failed: ${canaryPlant.replace(/\n/g, ' / ') || '(no output)'}`,
+        `canaries left after the upgrade: ${section(clean, 'canary') || 'none'}`,
         `stale packages present: ${section(clean, 'stale') || 'none'} (checked ${STALE_PACKAGES.join(', ')})`,
         `.bat-new / .bat-old left: ${section(clean, 'siblings') || 'none'}`,
-        `data dir: ${data.replace(/\n/g, ' ')}`])
+        `data dir: ${data.replace(/\n/g, ' ')}`,
+        `install root ${duBefore} MiB → ${duAfter} MiB (info only)`])
+      if (section(clean, 'canary')) await removeCanaries()
     }
   })
 
