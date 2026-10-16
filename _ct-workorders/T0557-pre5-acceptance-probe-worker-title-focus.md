@@ -127,3 +127,13 @@ Landing check：**PASS**
 ### 回報時間
 
 2026-10-16T13:52:27+0800（事實取值時間；收尾時間見 frontmatter `completed_at`）
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T13:54:20+0800）
+
+- ✅ **T0557 已確認完成**：Worker commit `6a8af433`（只含本工單檔），回報區欄位齊全（BAT `0.6.1-pre.5`、claude `2.1.300`、`CT_MODE=yolo`）。
+- **標題（T0553）PASS**：派發後 `windows.json` 分頁 `title` = `Claude CLI · Worker · T0557`，帶 `towerTerminalId` / `workorder`，無 `Remote:` 前綴、無 `remoteOrigin`。
+- **已回報（T0553 / T0538）PASS（資料面）**：通知後分頁存有 `workerReport { message: "T0557 完成", reportedAt }`；縮圖 `✓` 目視待使用者確認。
+- **回收（BUG-140）PASS（日誌面）**：13:53:04 `--close-worker T0557 --delay-ms 60000` → exit 0；主行程 `[close-worker] → scheduled delayMs=60000` → 60.011 s 後 `→ close requested (windows=1)`，renderer `closing tab`；無 `cancelled`；`windows.json` / `bat-pty-registry.json` 皆無此分頁。
+- 限制：主行程日誌不記錄 focus report，延遲期間是否確實切換焦點只有間接證據（05:53:13Z 塔台縮圖 `active=false`，render 日誌為取樣）；以使用者確認為準。
