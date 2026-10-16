@@ -15,6 +15,7 @@ import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from 
 import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
 import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
+import { shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -645,9 +646,15 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       return true
     })
 
-    // Right-click context menu for copy/paste
+    // Right-click context menu for copy/paste. Not while the program tracks the mouse and so
+    // handles the right button itself (T0568 / BUG-142); Shift + right-click still opens it.
     containerRef.current.addEventListener('contextmenu', (e) => {
       e.preventDefault()
+      const mouseTrackingMode = terminal.modes.mouseTrackingMode
+      if (!shouldShowTerminalContextMenu(mouseTrackingMode, e.shiftKey)) {
+        dlog(`[terminal-context-menu] terminal=${terminalId} not shown: the program tracks the mouse (${mouseTrackingMode}); Shift+right-click opens it`)
+        return
+      }
       const selection = terminal.getSelection()
       setContextMenu({
         x: e.clientX,

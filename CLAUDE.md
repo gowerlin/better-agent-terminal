@@ -119,6 +119,14 @@
 - **選單 / popover 照舊點外部關閉**：右鍵選單、`AddMenu` 下拉、Claude / Codex 的 Ctrl+P 檔案選擇器（`.claude-file-picker`）、`PathLinker` 檔案預覽（`.path-preview-overlay`）、`VoicePreviewPopover`、GitHub 面板的 `.context-menu-backdrop`。
 - 驗證：`src/components/__tests__/dialog-no-outside-close.test.tsx`（Settings / Profiles / 刪除確認 / setup wizard / 工作區設定 / 關閉確認 / About / app 通知 [X] / 拖曳選取；`AddMenu` 仍點外部關閉；source guard：上列 Dialog 遮罩 class 只能經 `ModalOverlay`、`ModalOverlay` 不得帶點擊 handler、其他 `*overlay*` / `*backdrop*` 帶點擊關閉者只允許清單中的 popover / 選單）、`src/components/__tests__/remote-tools-panel.test.tsx`（安裝確認點遮罩不關閉）；e2e `e2e/t0563-dialog-no-outside-close.spec.ts`（隔離實例：Settings 點遮罩 / 拖出仍開著、[X] 關閉；Profiles 同；需先 `npx vite build`）。T0567：`src/components/__tests__/dialog-escape.test.tsx`（Settings / 工作區設定 / 確認類 = 取消 / About / app 通知 / Claude 面板 Prompt History 的 Esc；巢狀與兄弟的最上層、未顯示者略過；Dialog 內選單處理過的 Esc、IME 組字中不關；Recovery 不關且擋下層；精靈開著時 Esc 不關精靈與配置面板、不卸載，精靈 [×] 後 Esc 關配置面板；source guard：每個 `ModalOverlay` 都有 `onEscape`（`NO_ESCAPE_DIALOGS` 除外）、Dialog 檔不得自加 keydown listener（Claude / Codex 面板各 1 個既有快捷鍵 handler）、Esc listener 只在 `modal-stack.ts`）；e2e `e2e/t0567-dialog-esc.spec.ts`（隔離實例：Settings 按 Esc 關閉；配置面板開 SSH 精靈後按 Esc → 精靈與面板仍在，精靈 [×] 後 Esc 關面板；需先 `npx vite build`）。
 
+## 終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142）
+
+- xterm 分頁（`TerminalPanel.tsx` 的 `contextmenu`）只在分頁內程式**沒有**開滑鼠追蹤時開 BAT 的 複製 / 貼上 選單；`terminal.modes.mouseTrackingMode` 為 `x10` / `vt200` / `drag` / `any`（DECSET 9 / 1000 / 1002 / 1003）時不開（日誌 `[terminal-context-menu] … not shown`），原生選單照樣 `preventDefault`。判斷唯一實作 `shouldShowTerminalContextMenu`（`src/lib/terminal-context-menu.ts`）。每種追蹤模式都會回報右鍵，所以只看模式。
+- **Shift + 右鍵**一律開選單：Windows / Linux 的 xterm 在按住 Shift 時不送滑鼠回報、Shift + 拖曳是追蹤模式下的選取方式，選單的「複製」因此可用。macOS 的 xterm 改用 Option 繞過（`macOptionClickForcesSelection`），Shift + 右鍵時程式也會收到回報。
+- 原因：claude CLI 2.1.300 的 TUI（alt screen）開 `?1000h ?1002h ?1003h ?1006h`（`CLAUDE_CODE_DISABLE_MOUSE_CLICKS` → 只開 1000 + 1006，`CLAUDE_CODE_DISABLE_MOUSE` → 不開），在 windows / wsl / linux 收到右鍵就複製自己的選取或貼上剪貼簿；BAT 選單疊在上面等於同一次點擊做兩件事。
+- 🔴 不改 xterm 寫進 PTY 的滑鼠回報；只決定 BAT 選單要不要出現。Claude / Codex 面板、縮圖、檔案樹等其他右鍵選單不受影響。
+- 驗證：`src/__tests__/terminal-context-menu.test.tsx`；e2e `e2e/t0568-context-menu-mouse-tracking.spec.ts`（隔離實例，shell 分頁內 node 腳本開 1000 + 1006 並記錄 stdin：一般 shell → 選單、追蹤中 → 腳本收到 `ESC [ < 2 ; … M` 且無選單、Shift → 選單且無回報、關追蹤後 → 選單；macOS skip；需先 `npx vite build`）。
+
 ## 關閉分頁時的程序樹（T0540 / PLAN-042）
 
 - **direct 模式**（`PtyManager.kill`，`electron/pty-manager.ts`）：`pty.kill()` 後 Windows 另跑 `taskkill /F /T /PID <shell>`（同步，3 s timeout），行為不變。
