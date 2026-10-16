@@ -10,10 +10,10 @@ project: PLAN-044
 priority: P2
 sizing: S
 created_at: "2026-10-16T14:55:14+0800"
-updated_at: "2026-10-16T15:03:32+0800"
+updated_at: "2026-10-16T15:04:16+0800"
 started_at: "2026-10-16T14:56:44+0800"
 completed_at: "2026-10-16T15:03:32+0800"
-commit: ""
+commit: "d090ec4d"
 target_version: "研究，不改產品程式碼"
 depends_on: []
 related:
@@ -246,3 +246,12 @@ Landing Zone Check：**PASS**。C-0 `repo: better-agent-terminal` = `basename(RE
 ### 回報時間
 
 2026-10-16T15:01:28+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T15:04:16+0800）
+
+- ✅ **T0564 已確認 DONE**：commit `d090ec4d`（只含本單）。證據分級清楚（[碼] / [文] / [推]），無實測樣本（未耗額度，符合工單）。
+- **關鍵發現**：claude CLI ≥ 2.1.234 內建 `autoContinueAtUsageLimit`（預設開），BAT 對 claude 分頁再送「繼續」會雙送 → PLAN-044 範圍改以 Codex 為主、claude 只辨識 / 提示 / stale 補 Enter（待 D1–D3）。
+- **契約影響**：塔台 yolo 辨識建議 `--set-role tower --mode <m>`（T-B）；T0562 尚未發版，可在 `0.6.1-pre.6` 前擴充，CT-T013 需同步 → 待使用者決定。
+- D1–D3 交使用者決定後開實作單。
