@@ -111,7 +111,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（84 entries）
 
 ### 編號起始
-- **T0573** / **BUG-146** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**（第六十九 session 進行中：T0571 DONE `35eaf125`（塔台複驗 unit 4626 / 265、typecheck 0 / 0），BUG-144 FIXED 待下一版實機；BUG-142 / 143 CLOSED；使用者指示「已知問題一起修完再發版」→ docs rate-limit 段塔台直改、BUG-145 / T0572 22:12 派發，T0572 完成後發 pre.8）
+- **T0573** / **BUG-146** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**（第六十九 session：BUG-142 / 143 CLOSED；T0571 / T0572 FIXED → **`v0.6.1-pre.8` 已發佈** 2026-10-16 22:36，run `38916104029` @ `0769bafc`，更版重點與 repo 文件已同步；待 pre.8 實機 BUG-144 / 145）
 
 ---
 
@@ -203,7 +203,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ✅ `0.6.1-pre.7` | 2026-10-16 21:45 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
+| BAT 安裝版 | ⚠️ `0.6.1-pre.7`（`v0.6.1-pre.8` 已發佈，待換版） | 2026-10-16 21:45 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
