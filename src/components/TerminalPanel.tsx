@@ -15,7 +15,7 @@ import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink } from 
 import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
 import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
-import { shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
+import { MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -97,7 +97,8 @@ interface TerminalPanelProps {
 interface ContextMenu {
   x: number
   y: number
-  hasSelection: boolean
+  /** The selection at the right-click; Copy writes this, not what xterm holds by the time it is clicked (T0571). */
+  selectionText: string
 }
 
 let renderCount = 0
@@ -236,11 +237,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
   // Handle context menu actions
   const handleCopy = () => {
-    if (terminalRef.current) {
-      const selection = terminalRef.current.getSelection()
-      if (selection) {
-        navigator.clipboard.writeText(selection)
-      }
+    if (contextMenu?.selectionText) {
+      navigator.clipboard.writeText(contextMenu.selectionText)
     }
     setContextMenu(null)
     setTimeout(() => terminalRef.current?.focus(), 0)
@@ -459,6 +457,18 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     decorationManager.attach(terminal)
     decorationManagerRef.current = decorationManager
 
+    // A selection xterm drops only because it sent a mouse report comes back (T0571 / BUG-144:
+    // with DECSET 1003 every pointer move is a report, so Shift + drag never reached the menu).
+    const selectionKeeper = new MouseReportSelectionKeeper(terminal)
+    const selectionChangeDisposable = terminal.onSelectionChange(() => selectionKeeper.handleSelectionChange())
+    // The program gets these (or a new selection starts): the selection is not brought back after them.
+    const forgetKeptSelection = (e: MouseEvent | WheelEvent) => {
+      if (e.type === 'mousedown' && e.button === 2 && e.shiftKey) return
+      selectionKeeper.forget()
+    }
+    containerRef.current.addEventListener('mousedown', forgetKeptSelection, { capture: true })
+    containerRef.current.addEventListener('wheel', forgetKeptSelection, { capture: true, passive: true })
+
     // Track alt buffer state (BUG-008 infrastructure)
     const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
       const isAlt = activeBuffer === terminal.buffer.alternate
@@ -470,6 +480,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
     // Handle terminal input
     terminal.onData((data) => {
+      selectionKeeper.handleData(data)
       const trace = remoteKeypressTraceRef.current
       if (trace) {
         trace.dataEvents += 1
@@ -670,11 +681,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         dlog(`[terminal-context-menu] terminal=${terminalId} not shown: the program tracks the mouse (${mouseTrackingMode}); Shift+right-click opens it`)
         return
       }
-      const selection = terminal.getSelection()
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
-        hasSelection: !!selection
+        selectionText: terminal.getSelection()
       })
     })
 
@@ -821,6 +831,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       unregisterUsageLimit()
       unsubscribeSettings()
       bufferChangeDisposable.dispose()
+      selectionChangeDisposable.dispose()
       decorationManagerRef.current?.dispose()
       decorationManagerRef.current = null
       if (resizeTimer) clearTimeout(resizeTimer)
@@ -828,6 +839,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       resizeObserver.disconnect()
       observer.disconnect()
       containerRef.current?.removeEventListener('wheel', handleWheel, { capture: true })
+      containerRef.current?.removeEventListener('mousedown', forgetKeptSelection, { capture: true })
+      containerRef.current?.removeEventListener('wheel', forgetKeptSelection, { capture: true })
       containerRef.current?.removeEventListener('paste', handleNativePaste, { capture: true })
       doResizeRef.current = null
       terminal.dispose()
@@ -846,7 +859,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
             : { position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 1000, visibility: 'hidden' as const }
           }
         >
-          {contextMenu.hasSelection && (
+          {contextMenu.selectionText && (
             <button onClick={handleCopy} className="context-menu-item">
               複製
             </button>

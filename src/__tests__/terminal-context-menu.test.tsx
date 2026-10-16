@@ -5,10 +5,22 @@
  *
  * T0569 / BUG-143: Escape with the menu open and focus in the terminal closes the menu and is not
  * sent to the PTY; with the menu closed Escape reaches the PTY as before.
+ *
+ * T0571 / BUG-144: xterm clears its selection on every user input, mouse reports included, so with
+ * any-event tracking (the claude CLI) a Shift + drag selection was gone by the Shift + right-click.
+ * A selection dropped only for a mouse report is put back; Copy writes the text taken at the
+ * right-click. e2e: e2e/t0571-shift-right-click-copy.spec.ts.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
-import { isMouseTrackingOn, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
+import {
+  isMouseTrackingOn,
+  isSgrMouseReport,
+  MouseReportSelectionKeeper,
+  shouldCloseTerminalContextMenuOnKey,
+  shouldShowTerminalContextMenu,
+  type SelectionKeeperTerminal,
+} from '../lib/terminal-context-menu'
 
 const { deepStub, xterm } = vi.hoisted(() => {
   const deepStub = (): unknown => new Proxy(function () {}, {
@@ -28,6 +40,11 @@ const { deepStub, xterm } = vi.hoisted(() => {
       created: 0,
       keyHandler: null as ((event: KeyboardEvent) => boolean) | null,
       onData: null as ((data: string) => void) | null,
+      onSelectionChange: null as (() => void) | null,
+      // the fake selection: `select()` gives `selection` back only for the range last set by `selectInTerminal`
+      range: null as { start: { x: number; y: number }; end: { x: number; y: number } } | null,
+      rangeText: '',
+      selects: [] as Array<[number, number, number]>,
     },
   }
 })
@@ -43,6 +60,18 @@ vi.mock('@xterm/xterm', () => ({
           if (prop === 'getSelection') return () => xterm.selection
           if (prop === 'attachCustomKeyEventHandler') return (fn: (event: KeyboardEvent) => boolean) => { xterm.keyHandler = fn }
           if (prop === 'onData') return (fn: (data: string) => void) => { xterm.onData = fn; return { dispose() {} } }
+          if (prop === 'onSelectionChange') return (fn: () => void) => { xterm.onSelectionChange = fn; return { dispose() {} } }
+          if (prop === 'cols') return 80
+          if (prop === 'hasSelection') return () => xterm.selection !== ''
+          if (prop === 'getSelectionPosition') return () => (xterm.selection ? xterm.range ?? undefined : undefined)
+          if (prop === 'clearSelection') return () => { xterm.selection = ''; xterm.onSelectionChange?.() }
+          if (prop === 'select') return (column: number, row: number, length: number) => {
+            xterm.selects.push([column, row, length])
+            const r = xterm.range
+            const same = r && r.start.x === column && r.start.y === row && (r.end.y - r.start.y) * 80 + r.end.x - r.start.x === length
+            xterm.selection = same ? xterm.rangeText : 'elsewhere'
+            xterm.onSelectionChange?.()
+          }
           return stub[prop]
         },
         set: () => true,
@@ -104,6 +133,31 @@ function pressInTerminal(init: KeyboardEventInit) {
 
 const escWrites = () => ptyWrite.mock.calls.filter(c => c[1] === '\x1b')
 
+/** A Shift + drag selection made in xterm. */
+function selectInTerminal(text: string, start = { x: 2, y: 4 }, end = { x: 12, y: 4 }) {
+  act(() => {
+    xterm.range = { start, end }
+    xterm.rangeText = text
+    xterm.selection = text
+    xterm.onSelectionChange?.()
+  })
+}
+
+/** xterm 5.5.0 sending user input: `onUserInput` clears the selection, then `onData` carries it. */
+function terminalInput(data: string) {
+  act(() => {
+    if (xterm.selection) {
+      xterm.selection = ''
+      xterm.onSelectionChange?.()
+    }
+    xterm.onData!(data)
+  })
+}
+
+const clickCopy = () => act(() => { (document.querySelector('.context-menu .context-menu-item') as HTMLButtonElement).click() })
+
+const clipboardWrites = vi.fn(async (_text: string) => undefined)
+
 async function renderTerminal(id: string) {
   const { TerminalPanel } = await import('../components/TerminalPanel')
   const before = xterm.created
@@ -130,6 +184,12 @@ beforeEach(() => {
   xterm.selection = ''
   xterm.keyHandler = null
   xterm.onData = null
+  xterm.onSelectionChange = null
+  xterm.range = null
+  xterm.rangeText = ''
+  xterm.selects = []
+  clipboardWrites.mockClear()
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: clipboardWrites, readText: async () => '' } })
   debugLog.mockClear()
   ptyWrite.mockClear()
   ;(window as unknown as { electronAPI: unknown }).electronAPI = permissiveApi({
@@ -283,5 +343,226 @@ describe('TerminalPanel Escape with the right-click menu (T0569 / BUG-143)', () 
     act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
     await waitFor(() => expect(menuItems()).toEqual([]))
     expect(escWrites()).toEqual([])
+  })
+})
+
+describe('MouseReportSelectionKeeper (T0571 / BUG-144)', () => {
+  type Range = { start: { x: number; y: number }; end: { x: number; y: number } }
+
+  /** xterm's selection model, enough for the keeper: `select` yields the text only for the original range. */
+  function fakeTerminal(cols = 80) {
+    const state = { text: '', range: undefined as Range | undefined, original: '', originalRange: '', columnMode: false }
+    const listeners: Array<() => void> = []
+    const fire = () => listeners.forEach(fn => fn())
+    const term: SelectionKeeperTerminal = {
+      cols,
+      hasSelection: () => state.text !== '',
+      getSelection: () => state.text,
+      getSelectionPosition: () => (state.text ? state.range : undefined),
+      select: vi.fn((x: number, y: number, length: number) => {
+        state.range = { start: { x, y }, end: { x: (x + length) % cols, y: y + Math.floor((x + length) / cols) } }
+        // a NORMAL-mode range over a column selection's corners reads differently
+        state.text = !state.columnMode && JSON.stringify(state.range) === state.originalRange ? state.original : 'other text'
+        fire()
+      }),
+      clearSelection: vi.fn(() => { state.text = ''; fire() }),
+    }
+    const setSel = (text: string, start: Range['start'], end: Range['end']) => {
+      state.text = text
+      state.range = { start, end }
+      state.original = text
+      state.originalRange = JSON.stringify(state.range)
+      fire()
+    }
+    const clear = () => { state.text = ''; fire() }
+    const tasks: Array<() => void> = []
+    const keeper = new MouseReportSelectionKeeper(term, fn => tasks.push(fn))
+    listeners.push(() => keeper.handleSelectionChange())
+    const flush = () => tasks.splice(0).forEach(fn => fn())
+    return { term, state, keeper, setSel, clear, flush }
+  }
+
+  test('SGR mouse reports are recognised; keys, focus reports and X10 reports are not', () => {
+    for (const d of ['\x1b[<35;22;2M', '\x1b[<0;21;2m', '\x1b[<39;1;1M', '\x1b[<64;100;40M']) expect(isSgrMouseReport(d)).toBe(true)
+    for (const d of ['a', '\r', '\x1b', '\x1b[I', '\x1b[O', '\x1b[M #!', '\x1b[<35;22;2Mx', '\x1b[<35;22M', '\x1b[A']) expect(isSgrMouseReport(d)).toBe(false)
+  })
+
+  test('a selection cleared for a mouse report comes back (same range, also across lines)', () => {
+    const { term, keeper, setSel, clear } = fakeTerminal()
+    setSel('two\nlines', { x: 70, y: 3 }, { x: 5, y: 4 })
+    clear()
+    keeper.handleData('\x1b[<35;22;2M')
+    expect(term.select).toHaveBeenCalledWith(70, 3, 15)
+    expect(term.getSelection()).toBe('two\nlines')
+    // and again for the next report
+    clear()
+    keeper.handleData('\x1b[<39;23;2M')
+    expect(term.select).toHaveBeenCalledTimes(2)
+    expect(term.getSelection()).toBe('two\nlines')
+  })
+
+  test('cleared for anything but a mouse report: stays cleared', () => {
+    const { term, keeper, setSel, clear, flush } = fakeTerminal()
+    setSel('typed over', { x: 1, y: 1 }, { x: 11, y: 1 })
+    clear()
+    keeper.handleData('a')
+    keeper.handleData('\x1b[<35;22;2M')
+    expect(term.select).not.toHaveBeenCalled()
+
+    // no input followed (buffer switch, trim, tracking turned on): a later report does not bring it back
+    setSel('switched', { x: 1, y: 1 }, { x: 9, y: 1 })
+    clear()
+    flush()
+    keeper.handleData('\x1b[<35;22;2M')
+    expect(term.select).not.toHaveBeenCalled()
+  })
+
+  test('forget(): a click or wheel the program gets ends it', () => {
+    const { term, keeper, setSel, clear } = fakeTerminal()
+    setSel('clicked away', { x: 1, y: 1 }, { x: 13, y: 1 })
+    keeper.forget()
+    clear()
+    keeper.handleData('\x1b[<0;5;5M')
+    expect(term.select).not.toHaveBeenCalled()
+  })
+
+  test('the default scheduler calls queueMicrotask unbound (Chromium throws "Illegal invocation" otherwise)', async () => {
+    const real = globalThis.queueMicrotask
+    vi.stubGlobal('queueMicrotask', function (this: unknown, fn: () => void) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation')
+      real(fn)
+    })
+    try {
+      let text = 'kept'
+      const term: SelectionKeeperTerminal = {
+        cols: 80,
+        hasSelection: () => text !== '',
+        getSelection: () => text,
+        getSelectionPosition: () => ({ start: { x: 1, y: 1 }, end: { x: 5, y: 1 } }),
+        select: vi.fn(),
+        clearSelection: vi.fn(),
+      }
+      const keeper = new MouseReportSelectionKeeper(term)
+      keeper.handleSelectionChange()
+      text = ''
+      expect(() => keeper.handleSelectionChange()).not.toThrow()
+      await Promise.resolve()
+      keeper.handleData('\x1b[<35;22;2M')
+      expect(term.select).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+      vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+      vi.stubGlobal('MutationObserver', class { observe() {} disconnect() {} takeRecords() { return [] } })
+    }
+  })
+
+  test('a range that no longer gives the same text (column selection, resize) is not brought back', () => {
+    const { term, state, keeper, setSel, clear } = fakeTerminal()
+    setSel('col\nsel', { x: 4, y: 1 }, { x: 7, y: 2 })
+    state.columnMode = true
+    clear()
+    keeper.handleData('\x1b[<35;9;9M')
+    expect(term.select).toHaveBeenCalledTimes(1)
+    expect(term.clearSelection).toHaveBeenCalledTimes(1)
+    expect(term.getSelection()).toBe('')
+    keeper.handleData('\x1b[<35;10;9M')
+    expect(term.select).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144)', () => {
+  test('tracking on + Shift + a selection: Copy writes the selection to the clipboard', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0571-copy')
+    selectInTerminal('shift-dragged')
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    clickCopy()
+    expect(clipboardWrites).toHaveBeenCalledWith('shift-dragged')
+    await waitFor(() => expect(menuItems()).toEqual([]))
+  })
+
+  test('the pointer moving after the drag (DECSET 1003 move reports) no longer loses the selection', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0571-moved')
+    selectInTerminal('alpha beta', { x: 10, y: 1 }, { x: 20, y: 1 })
+    terminalInput('\x1b[<35;22;2M')
+    terminalInput('\x1b[<39;23;2M')
+    expect(xterm.selects).toEqual([[10, 1, 10], [10, 1, 10]])
+    expect(xterm.selection).toBe('alpha beta')
+    // the reports still went to the PTY unchanged
+    expect(ptyWrite.mock.calls.map(c => c[1])).toEqual(['\x1b[<35;22;2M', '\x1b[<39;23;2M'])
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    clickCopy()
+    expect(clipboardWrites).toHaveBeenCalledWith('alpha beta')
+  })
+
+  test('typing after the selection, a click or the wheel the program gets: the selection stays cleared', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick, container } = await renderTerminal('t0571-cleared')
+    selectInTerminal('typed over')
+    terminalInput('x')
+    terminalInput('\x1b[<35;22;2M')
+    expect(xterm.selects).toEqual([])
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    act(() => { document.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    await waitFor(() => expect(menuItems()).toEqual([]))
+
+    const panel = container.querySelector('.terminal-panel')!
+    selectInTerminal('clicked away')
+    act(() => { panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })) })
+    terminalInput('\x1b[<0;5;5M')
+    expect(xterm.selects).toEqual([])
+
+    selectInTerminal('right-clicked to the program')
+    act(() => { panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 2 })) })
+    terminalInput('\x1b[<2;5;5M')
+    expect(xterm.selects).toEqual([])
+
+    // the Shift + right press keeps it (that is the click that opens the menu)
+    selectInTerminal('kept')
+    act(() => { panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 2, shiftKey: true })) })
+    terminalInput('\x1b[<39;6;5M')
+    expect(xterm.selection).toBe('kept')
+
+    act(() => { panel.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 1 })) })
+    terminalInput('\x1b[<65;6;5M')
+    expect(xterm.selection).toBe('')
+  })
+
+  test('Copy writes what was selected at the right-click, and nothing is carried to the next menu', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0571-snapshot')
+    selectInTerminal('at the click')
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    // xterm drops the selection while the menu is open (a key, a buffer switch): Copy still has the text
+    act(() => { xterm.selection = ''; xterm.onSelectionChange?.() })
+    clickCopy()
+    expect(clipboardWrites).toHaveBeenCalledWith('at the click')
+    await waitFor(() => expect(menuItems()).toEqual([]))
+
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+  })
+
+  test('tracking on without Shift: still no menu, even with a selection (T0568)', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0571-no-shift')
+    selectInTerminal('ignored')
+    rightClick()
+    await new Promise(r => setTimeout(r, 20))
+    expect(menuItems()).toEqual([])
+  })
+
+  test('tracking off (a plain shell): Copy as before', async () => {
+    const { rightClick } = await renderTerminal('t0571-shell')
+    selectInTerminal('shell text')
+    rightClick()
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    clickCopy()
+    expect(clipboardWrites).toHaveBeenCalledWith('shell text')
   })
 })
