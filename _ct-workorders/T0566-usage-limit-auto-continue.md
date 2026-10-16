@@ -4,16 +4,16 @@ schema_kind: workorder
 id: T0566
 title: "PLAN-044 實作：yolo 分頁用量限制辨識；Codex 解鎖（+ 延遲）後自動輸入「繼續」，claude 只提示（休眠後補 Enter），週限制只提示；Settings 預設關（D148）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-044
 priority: P2
 sizing: M
 created_at: "2026-10-16T15:05:50+0800"
-updated_at: "2026-10-16T15:26:12+0800"
+updated_at: "2026-10-16T16:01:01+0800"
 started_at: "2026-10-16T15:26:12+0800"
-completed_at: ""
-commit: ""
+completed_at: "2026-10-16T16:01:01+0800"
+commit: "2e3305a9"
 target_version: "0.6.1-pre.6 或之後（發版時塔台與使用者決定）"
 depends_on:
   - "T0563（同改 `src/App.tsx` / `SettingsPanel.tsx` 等；收單後才派）"
