@@ -10,10 +10,10 @@ project: BUG-139
 priority: P3
 sizing: XS
 created_at: "2026-10-16T14:20:40+0800"
-updated_at: "2026-10-16T14:24:49+0800"
+updated_at: "2026-10-16T14:26:09+0800"
 started_at: "2026-10-16T14:22:01+0800"
 completed_at: "2026-10-16T14:24:49+0800"
-commit: ""
+commit: "ace4f96a"
 target_version: "測試檔，不影響產品"
 depends_on: []
 related:
@@ -155,3 +155,11 @@ T0559（安裝版 pre.5、WSL pre.4 → pre.5）產品行為全部達成，但 s
 ### 回報時間
 
 2026-10-16T14:24:49+0800
+
+---
+
+## 塔台收單（第六十七 session，2026-10-16T14:26:09+0800）
+
+- ✅ **T0560 已確認 DONE**：commit `ace4f96a`（spec + 本單）。塔台審閱 diff：`comparable()` 只排除 `updatedAt`、T0554 比對至少跨 35 s；`A3.clean-install` 以植入的 canary 判定（植入失敗即 FAIL），`du` 降為證據；`A3.leftovers` 說明更新；canary 在失敗路徑會清除。
+- 塔台複驗：未設 `BAT_E2E*` → `6 skipped`；WSL `0.6.1-pre.5` active、9877 LISTEN、cert / token sha256 不變、`.bat-*` / canary 無殘留。
+- WSL 備份（T0559 pre.4 ×3 + T0560 pre.5 ×3，合計 781 MiB）待使用者決定刪除。
