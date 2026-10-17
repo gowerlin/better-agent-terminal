@@ -181,6 +181,12 @@ export interface PtyManagerDeps {
    */
   onPtyExit?: (id: string) => void
   /**
+   * PLAN-048 / T0607: the Terminal Server died and its PTYs are being rebuilt under the same ids
+   * (no `onPtyExit` for them) — Electron cancels every pending tower question here. A throwing
+   * listener is logged and ignored. Undefined = no hook.
+   */
+  onServerRecovery?: () => void
+  /**
    * T0433: extra env for the helpers (`bat-terminal.mjs` / `bat-notify.mjs`) inside PTY `id`,
    * spread last so neither `customEnv` nor the inherited env can override it. Called once
    * per PTY actually spawned — never for an idempotent re-create of a running id, whose
@@ -1570,6 +1576,12 @@ export class PtyManager implements CloseWorkerPtyManager {
       this.notifySurvivingPtys([])
       // T0590: the rebuilt shells run no claude yet (T0600: nor `agentStarted`)
       this.blockedTracker.clearAll('Terminal Server recovery')
+      // T0607: the rebuilt shells run none of the agents that asked
+      try {
+        this.deps.onServerRecovery?.()
+      } catch (e) {
+        logger.warn('[PtyManager] onServerRecovery listener failed:', e)
+      }
 
       // T0113: Kill orphan PTY processes from registry before re-forking
       try {

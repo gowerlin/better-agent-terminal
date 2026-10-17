@@ -42,6 +42,12 @@ const HELPER_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:wait', 'T0582: a helper in a server PTY, long poll scoped by its capability'],
   ['worktree:terminal-status', 'T0585: a helper in a server PTY reads the worktree status of a Worker (git on the server), scoped by its capability'],
   ['terminal:report-hook', 'T0590: a claude hook (scripts/bat-hook.mjs) in a server PTY reports blocked for its own tab (capability = target)'],
+  // PLAN-048 / T0607: a Tower and its Workers on this server ask / answer each other (C-10)
+  ['question:ask', 'T0607: a Worker helper in a server PTY asks its own tower (worker capability)'],
+  ['question:cancel', 'T0607: a Worker helper in a server PTY cancels its own question'],
+  ['question:answer', 'T0607: a Tower helper in a server PTY answers a question sent to it (tower capability)'],
+  ['question:list', 'T0607: a helper in a server PTY, scoped by its capability'],
+  ['question:wait', 'T0607: a helper in a server PTY, long poll scoped by its capability'],
 ])
 
 function formatViolations(violations: HeadlessParityViolation[]): string {

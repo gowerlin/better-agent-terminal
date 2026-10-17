@@ -9,8 +9,8 @@
   | channel | 參數 | 回傳 |
   |---|---|---|
   | `terminal:whoami` | 無 | `terminalId`、`workspaceId?`、`role`（`tower` / `worker` / `shell`）、`towerTerminalId?`、`workorder?`、`yolo`（`isYoloTerminal`）、`towerMode?`、`agent?`（agentPreset）、`cwd?`；呼叫者 PTY 已結束 → `NOT_FOUND` |
-  | `terminal:list` | `{ scope?: 'mine' \| 'workspace' }`（預設 `mine`） | `{ scope, terminals: [{ id, role, workorder?, towerTerminalId?, title?, state, blockedReason?, blockedDetection, agentStarted, alive }] }`，含最近結束者（`alive:false`）；`title` 只有本機（window registry 已存標題） |
-  | `terminal:get-state` | `{ terminalId? }` | `state`（`working` / `idle` / `exited`）、`lastOutputAt`（null = 本行程未見輸出）、`idleMs`、`exitCode?`、`exitedAt?`、`source:'output'`；`blocked` 見「blocked 狀態偵測（PLAN-047 M1b / T0590）」節；`agentStarted` / `agentStartedAt?`（T0600）見「Worker 啟動確認（T0600，D154）」節 |
+  | `terminal:list` | `{ scope?: 'mine' \| 'workspace' }`（預設 `mine`） | `{ scope, terminals: [{ id, role, workorder?, towerTerminalId?, title?, state, blockedReason?, blockedDetection, agentStarted, pendingQuestions, alive }] }`，含最近結束者（`alive:false`）；`title` 只有本機（window registry 已存標題） |
+  | `terminal:get-state` | `{ terminalId? }` | `state`（`working` / `idle` / `exited`）、`lastOutputAt`（null = 本行程未見輸出）、`idleMs`、`exitCode?`、`exitedAt?`、`source:'output'`；`blocked` 見「blocked 狀態偵測（PLAN-047 M1b / T0590）」節；`agentStarted` / `agentStartedAt?`（T0600）見「Worker 啟動確認（T0600，D154）」節；`pendingQuestions`（T0607，該分頁問塔台的待答數，含非 blocking；`blocked` / `tower` / `source: 'question'`）見「Worker 問塔台（PLAN-048 / T0607）」節 |
   | `terminal:read-output` | `{ terminalId?, cursor?: string, maxLines?: number }` | `lines`、`nextCursor`、`truncated`、`skippedLines`、`partialLine`、`masked`、`state` |
   | `terminal:wait` | `{ terminalId?, until: 'state-change' \| 'exit' \| 'idle' \| 'agent-started', fromState?, timeoutMs? }` | `changed`（條件成立 = true；逾時 = false，不是錯誤）、`state` 等同 get-state、`waitedMs`；`agent-started`（T0600）= `agentStarted` 不是 `false` 或已結束 |
 

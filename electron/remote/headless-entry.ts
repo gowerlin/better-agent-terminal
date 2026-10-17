@@ -20,6 +20,7 @@ import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
 import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
+import { registerTowerQuestionHandlers } from '../tower-questions'
 import { registerWorktreeStatusHandler } from '../worktree-status-handlers'
 import { mirrorToBatScripts } from './remote-logger'
 import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
@@ -321,6 +322,7 @@ export function buildHeadlessHelperEnv(opts: {
  * `settings:save` is proxied), re-read every `USAGE_LIMIT_CONFIG_TTL_MS`. Events go to the
  * connected clients; `usageLimitCanDeliver` false (no client) → nothing is sent. User input =
  * the same `isUserInput` rule.
+ * PLAN-048 / T0607: `onPtyExit` — also told of every PTY that is gone (the tower-question store).
  */
 export const USAGE_LIMIT_CONFIG_TTL_MS = 5000
 
@@ -332,6 +334,7 @@ export function createHeadlessPtyModule(opts: {
   helperEndpoint?: () => HeadlessHelperEndpoint | null
   isUserInput?: (ctx: HandlerContext) => boolean
   usageLimitCanDeliver?: () => boolean
+  onPtyExit?: (id: string) => void
 } = {}): HandlerModule {
   return (register, host) => {
     const capabilities = opts.helperCapabilities
@@ -363,6 +366,7 @@ export function createHeadlessPtyModule(opts: {
       onPtyExit: id => {
         usageLimit.onExit(id)
         if (capabilities && capabilities.revokeTerminal(id) > 0) defaultLogger.log(`[headless] helper capability revoked: terminal=${id}`)
+        opts.onPtyExit?.(id) // T0607
       },
       onPtyOutput: (id, data) => usageLimit.onOutput(id, data),
     })
@@ -575,6 +579,10 @@ export function createHeadlessBatMcpModule(opts: { installRoot?: string; getPtyM
  * on this server's PtyManager. The caller's scope uses this server's capability registry
  * (`isWorkerOf`); no saved tabs here (no titles, no workspace of a PTY the server did not create
  * with one). `knownSecrets`: the server token, masked out of read-output literally.
+ * PLAN-048 / T0607 (C-10): + the tower-question channels (electron/tower-questions.ts, the module
+ * Electron main registers) — a Tower and its Workers on this server ask / answer each other; the
+ * store is this server process's memory. `onPtyExit` hands it the PTYs that are gone (the pty
+ * module's exit hook); a server restart ends every PTY, and old ids answer `lost`.
  */
 export function createHeadlessTerminalQueryModule(opts: {
   getPtyManager: () => PtyManager | null
@@ -582,13 +590,25 @@ export function createHeadlessTerminalQueryModule(opts: {
   knownSecrets?: () => readonly string[]
   /** T0585: `worktree:terminal-status`. Default: the resolved git, `BAT_*` scrubbed. */
   ctWorktree?: CtWorktreeService
+  /** T0607: subscribes to the PTYs that are gone; returns the unsubscribe. */
+  onPtyExit?: (listener: (id: string) => void) => () => void
 }): HandlerModule {
   return register => {
+    const towerQuestions = registerTowerQuestionHandlers({
+      registerHandler: register,
+      getPtyManager: opts.getPtyManager,
+      isWorkerOf: opts.isWorkerOf ?? (() => false),
+      ...(opts.knownSecrets ? { knownSecrets: opts.knownSecrets } : {}),
+      logger: defaultLogger,
+      mirrorToBatScripts,
+    })
+    const unsubscribeExit = opts.onPtyExit?.(id => towerQuestions.terminalEnded(id))
     const queries = registerTerminalQueryHandlers({
       registerHandler: register,
       getPtyManager: opts.getPtyManager,
       isWorkerOf: opts.isWorkerOf ?? (() => false),
       ...(opts.knownSecrets ? { knownSecrets: opts.knownSecrets } : {}),
+      getQuestionSummary: terminalId => towerQuestions.summaryFor(terminalId), // T0607
       logger: defaultLogger,
       mirrorToBatScripts,
     })
@@ -617,7 +637,11 @@ export function createHeadlessTerminalQueryModule(opts: {
       logger: defaultLogger,
       mirrorToBatScripts,
     })
-    return () => queries.dispose()
+    return () => {
+      unsubscribeExit?.()
+      towerQuestions.dispose()
+      queries.dispose()
+    }
   }
 }
 
@@ -857,6 +881,8 @@ export function createHeadlessHandlerModules(opts: {
   }
 } = {}): HandlerModule[] {
   let ptyManager: PtyManager | null = null
+  // T0607: the tower-question store hears of PTYs that are gone
+  const ptyExitListeners = new Set<(id: string) => void>()
   const toolsCache = createHeadlessRemoteToolsCache(opts.remoteTools)
   const ptyModule = createHeadlessPtyModule({
     helperDir: path.join(opts.installRoot ?? defaultHeadlessInstallRoot(), 'scripts'),
@@ -864,6 +890,10 @@ export function createHeadlessHandlerModules(opts: {
     onManager: manager => {
       ptyManager = manager
       opts.pty?.onManager?.(manager)
+    },
+    onPtyExit: id => {
+      opts.pty?.onPtyExit?.(id)
+      for (const listener of [...ptyExitListeners]) listener(id)
     },
   })
   return [
@@ -877,10 +907,14 @@ export function createHeadlessHandlerModules(opts: {
       batMcpInstallRoot: opts.installRoot ?? defaultHeadlessInstallRoot(), // T0584
     }),
     createHeadlessBatMcpModule({ installRoot: opts.installRoot, getPtyManager: () => ptyManager }), // T0584; T0590: blockedDetection
-    createHeadlessTerminalQueryModule({ // T0582
+    createHeadlessTerminalQueryModule({ // T0582; T0607: + tower questions
       getPtyManager: () => ptyManager,
       isWorkerOf: opts.terminal?.isWorkerOf,
       knownSecrets: opts.terminal?.knownSecrets,
+      onPtyExit: listener => {
+        ptyExitListeners.add(listener)
+        return () => { ptyExitListeners.delete(listener) }
+      },
     }),
     createHeadlessRemoteToolsModule(opts.remoteTools, toolsCache), // T0411
     createHeadlessGitModule(opts.git), // T0405

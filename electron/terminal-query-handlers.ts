@@ -20,11 +20,16 @@
  * T0590 (M1b-1): `blocked` = a claude hook reported the tab waits for the user
  * (electron/terminal-blocked-state.ts), with `blockedReason` / `blockedSince` / `source: 'hook'`;
  * precedence exited > blocked > working / idle. Every state answer carries `blockedDetection`
- * (`hook` / `none`): a `none` tab never reads `blocked`, so its `idle` says nothing about a prompt.
+ * (`hook` / `none`): a `none` tab never reads a hook reason, so its `idle` says nothing about a prompt.
  * T0600 (D154): every state answer also carries `agentStarted` — `true` (the tab's claude ran its
  * `SessionStart` hook; + `agentStartedAt`, ms), `false` (`blockedDetection: hook`, not reported
  * yet), `null` (`blockedDetection: none`: cannot tell). `terminal:wait` `until: 'agent-started'`
  * ends when it is no longer `false` or the PTY exited.
+ * PLAN-048 / T0607 (D156): `blocked` / `blockedReason: tower` / `source: 'question'` = the Worker has
+ * a pending blocking question for its Tower (electron/tower-questions.ts, `getQuestionSummary`;
+ * `blockedSince` = the oldest one's `createdAt`), whatever its `blockedDetection` (no hook needed);
+ * precedence exited > a hook's blocked > blocked / tower > working / idle. Every state answer
+ * carries `pendingQuestions` (blocking or not).
  *
  * Output: the PTY's raw replay buffer (`pty:get-buffer`'s, or the tail kept at exit) → plain text
  * (`plainTextFromOutput`, T0566) → `redactTerminalSecrets` (src/lib/terminal-output-redaction.ts)
@@ -44,6 +49,7 @@ import type { CtMode } from './ct-mode'
 import type { ExitedPtyRecord, PtyTerminalInfo } from './pty-manager'
 import type { BlockedDetection, BlockedReason, BlockedState } from './terminal-blocked-state'
 import type { HandlerContext } from './remote/handler-registry'
+import type { QuestionSummary } from './tower-questions'
 import {
   authorizeHelperQueryTarget,
   helperQueryRole,
@@ -134,6 +140,8 @@ export interface TerminalQueryDeps {
   knownSecrets?(): readonly string[]
   logger: { log(...args: unknown[]): void }
   mirrorToBatScripts?(event: string, payload: Record<string, unknown>): void
+  /** T0607: the tower-question store's `summaryFor` (pending / blocking questions of a Worker). Absent ⇒ none. */
+  getQuestionSummary?(terminalId: string): QuestionSummary
   /** Tests. Default `Date.now` / `setTimeout` / `clearTimeout`. */
   now?(): number
   setTimer?(fn: () => void, ms: number): unknown
@@ -236,9 +244,11 @@ interface StateSnapshot {
   /** T0590: `blocked` only. */
   blockedReason?: BlockedReason
   blockedSince?: number
-  /** `hook` for `blocked` (T0590), else `output`. */
-  source: 'output' | 'hook'
+  /** `hook` for a hook's `blocked` (T0590), `question` for `blocked` / `tower` (T0607), else `output`. */
+  source: 'output' | 'hook' | 'question'
   blockedDetection: BlockedDetection
+  /** T0607: pending questions this terminal asked its Tower (blocking or not). */
+  pendingQuestions: number
   /** T0600: true = `SessionStart` reported, false = not yet (`hook`), null = cannot tell (`none`). */
   agentStarted: boolean | null
   /** T0600: `agentStarted: true` only (ms). */
@@ -299,11 +309,14 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
   const stateOf = (pm: TerminalQueryPtyManager, id: string): StateSnapshot | null => {
     const t = now()
     const blockedDetection: BlockedDetection = pm.getBlockedDetection?.(id) ?? 'none'
+    const questions: QuestionSummary = deps.getQuestionSummary?.(id) ?? { pending: 0, blockingSince: null }
+    const pendingQuestions = questions.pending
     if (pm.getTerminalInfo(id)) {
       const last = pm.getLastOutputAt(id)
       const idleMs = last === null ? null : Math.max(0, t - last)
       const blocked = pm.getBlockedState?.(id) ?? null
       const started = agentStartedFields(blockedDetection, pm.getAgentStartedAt?.(id) ?? null)
+      // a hook reason first: the user has to act on it, the Tower cannot
       if (blocked) {
         return {
           state: 'blocked',
@@ -313,10 +326,33 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
           blockedSince: blocked.since,
           source: 'hook',
           blockedDetection,
+          pendingQuestions,
           ...started,
         }
       }
-      return { state: idleMs !== null && idleMs < TERMINAL_QUERY_IDLE_MS ? 'working' : 'idle', lastOutputAt: last, idleMs, source: 'output', blockedDetection, ...started }
+      // T0607: waiting for its Tower's answer — BAT knows it without a hook, so `none` tabs too
+      if (questions.blockingSince !== null) {
+        return {
+          state: 'blocked',
+          lastOutputAt: last,
+          idleMs,
+          blockedReason: 'tower',
+          blockedSince: questions.blockingSince,
+          source: 'question',
+          blockedDetection,
+          pendingQuestions,
+          ...started,
+        }
+      }
+      return {
+        state: idleMs !== null && idleMs < TERMINAL_QUERY_IDLE_MS ? 'working' : 'idle',
+        lastOutputAt: last,
+        idleMs,
+        source: 'output',
+        blockedDetection,
+        pendingQuestions,
+        ...started,
+      }
     }
     const record = pm.getExitedPty(id)
     if (!record) return null
@@ -328,6 +364,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       exitedAt: record.exitedAt,
       source: 'output',
       blockedDetection,
+      pendingQuestions,
       ...agentStartedFields(blockedDetection, record.agentStartedAt ?? null),
     }
   }
@@ -452,6 +489,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
         ...(state.blockedReason ? { blockedReason: state.blockedReason } : {}),
         blockedDetection: state.blockedDetection,
         agentStarted: state.agentStarted,
+        pendingQuestions: state.pendingQuestions, // T0607
         alive: info !== null,
       }]
     })

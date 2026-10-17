@@ -19,6 +19,10 @@
  *     T0585: + `worktree:terminal-status` (electron/worktree-status-handlers.ts), same scope rule
  *   - PLAN-047 M1b-1 / T0590, both roles: `terminal:report-hook` (scripts/bat-hook.mjs, the claude
  *     hooks), whose target is always the caller's own terminal (electron/terminal-blocked-state.ts)
+ *   - PLAN-048 / T0607 (D156): worker → `question:ask` (to its own tower only) / `question:cancel`
+ *     (its own questions); tower → `question:answer` (`towerId` = its own terminal, then only the
+ *     questions sent to it); both → `question:list` / `question:wait` (read-only, scoped in the
+ *     handler, electron/tower-questions.ts)
  *
  * PLAN-047 / T0575 (D149): Electron's local PTYs get these capabilities too (`buildLocalHelperEnv`),
  * no longer the full server token, and a tower may call `terminal:create-with-command` (raw command
@@ -413,6 +417,14 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
   // its clearing. The target is always the caller itself (electron/terminal-blocked-state.ts); a
   // tab without a tower holds a tower capability, so both roles.
   'terminal:report-hook': ['tower', 'worker'],
+  // PLAN-048 / T0607 (D156): Worker asks its Tower (electron/tower-questions.ts). Writes: a worker
+  // asks / cancels its own (the target is always its tower), a tower answers what was sent to it;
+  // reads: both roles, scoped by the handler.
+  'question:ask': ['worker'],
+  'question:cancel': ['worker'],
+  'question:answer': ['tower'],
+  'question:list': ['tower', 'worker'],
+  'question:wait': ['tower', 'worker'],
 }
 
 /** T0582: the read-only query channels (`HELPER_CHANNEL_ROLES`, electron/terminal-query-handlers.ts). */
@@ -608,6 +620,21 @@ export function authorizeHelperInvoke(
       return { ok: true }
     case 'terminal:report-hook':
       // T0590: no target parameter — the handler applies it to the caller's own terminal only.
+      return { ok: true }
+    case 'question:ask':
+    case 'question:cancel':
+      // T0607: no target parameter — the tower is the caller's `towerId`, the question its own.
+      return asRecord(args[0]) ? { ok: true } : deny('invalid-payload')
+    case 'question:answer': {
+      // T0607: `{ towerId, questionId, … }`. A tower answers as itself only (as `terminal:close-worker`);
+      // whether the question was sent to it is the handler's check (NOT_OWNER).
+      const opts = asRecord(args[0])
+      if (!opts) return deny('invalid-payload')
+      return opts.towerId === capability.terminalId ? { ok: true } : deny('tower-not-bound')
+    }
+    case 'question:list':
+    case 'question:wait':
+      // T0607: read-only; the handler scopes them by the caller (electron/tower-questions.ts).
       return { ok: true }
     case 'terminal:notify':
     case 'terminal:keypress': {

@@ -355,9 +355,9 @@ describe('terminal:report-hook', () => {
     h.manager.setTerminalRole('tw', 'tower')
   }
 
-  it('is a helper channel for both roles (14 in the table)', () => {
+  it('is a helper channel for both roles (19 in the table; T0607: + 5 question channels)', () => {
     expect(HELPER_CHANNEL_ROLES['terminal:report-hook']).toEqual(['tower', 'worker'])
-    expect(Object.keys(HELPER_CHANNEL_ROLES)).toHaveLength(14)
+    expect(Object.keys(HELPER_CHANNEL_ROLES)).toHaveLength(19)
     for (const cap of [{ terminalId: 'a', role: 'tower' as const }, { terminalId: 'b', role: 'worker' as const, towerId: 'a' }]) {
       expect(authorizeHelperInvoke(cap, 'terminal:report-hook', [{ event: 'stop' }])).toEqual({ ok: true })
     }
@@ -480,6 +480,7 @@ describe('query handlers: blocked (T0590)', () => {
       source: 'hook',
       blockedDetection: 'hook',
       agentStarted: false, // T0600: the hooks run (detection hook), but no session-start yet
+      pendingQuestions: 0, // T0607
     })
     // the worker itself, and its tower's metadata view
     expect(h.call('terminal:get-state', h.asHelper('wk'))).toMatchObject({ state: 'blocked' })

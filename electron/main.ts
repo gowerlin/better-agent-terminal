@@ -18,6 +18,7 @@ import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-wor
 import { registerTerminalQueryHandlers, savedTabsFromRegistry, type TerminalQueryHandlers } from './terminal-query-handlers'
 import { registerWorktreeStatusHandler } from './worktree-status-handlers'
 import { registerReportHookHandler } from './terminal-blocked-state'
+import { registerTowerQuestionHandlers, type TowerQuestionHandlers } from './tower-questions'
 import { mirrorToBatScripts } from './remote/remote-logger'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
@@ -472,6 +473,7 @@ let ptyManager: PtyManager | null = null
 let workerCloseScheduler: WorkerCloseScheduler | null = null
 // PLAN-047 M1 / T0582: terminal:whoami / list / get-state / read-output / wait (registerProxiedHandlers).
 let terminalQueryHandlers: TerminalQueryHandlers | null = null
+let towerQuestionHandlers: TowerQuestionHandlers | null = null
 // PLAN-047 W1 / T0583: `--isolation worktree` dispatch + `--close-worker --worktree` cleanup (plain git).
 const ctWorktreeService = new CtWorktreeService()
 // PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
@@ -895,7 +897,10 @@ function createElectronPtyDeps(): PtyManagerDeps {
     onPtyExit: (id) => {
       if (localHelperCapabilities.revokeTerminal(id) > 0) logger.log(`[helper-cap] revoked: terminal=${id}`)
       usageLimitScheduler?.onExit(id)
+      towerQuestionHandlers?.terminalEnded(id) // T0607: questions it asked / was asked → cancelled
     },
+    // T0607: the Terminal Server recovery cancels every pending tower question
+    onServerRecovery: () => towerQuestionHandlers?.serverRecovered(),
     // T0129 / T0575: BAT_REMOTE_PORT + the PTY's own capability as BAT_REMOTE_TOKEN (tower, or a
     // worker of its customEnv.BAT_TOWER_TERMINAL_ID) — no longer the server token
     helperEnv: (id, customEnv) => buildLocalHelperEnv({
@@ -1361,6 +1366,7 @@ async function cleanupAllProcesses(): Promise<void> {
   try { codexManager?.dispose() } catch { /* ignore */ }
   try { workerCloseScheduler?.dispose() } catch { /* ignore */ }
   try { terminalQueryHandlers?.dispose() } catch { /* ignore */ }
+  try { towerQuestionHandlers?.dispose() } catch { /* ignore */ }
   try { usageLimitScheduler?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   claudeManager = null
@@ -2342,15 +2348,28 @@ function registerProxiedHandlers() {
     ctWorktree: ctWorktreeService,
   })
 
+  // PLAN-048 / T0607 (D155 / D156): a Worker asks its Tower (same module as headless). Questions
+  // and answers stay in this process's memory, masked on receipt; ended by PTY exit / recovery above.
+  const towerQuestions = registerTowerQuestionHandlers({
+    registerHandler,
+    getPtyManager: () => ptyManager,
+    isWorkerOf: (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
+    knownSecrets: () => [remoteServer.currentToken],
+    logger,
+    mirrorToBatScripts,
+  })
+  towerQuestionHandlers = towerQuestions
   // PLAN-047 M1 / T0582: read-only helper queries (same module as headless). The caller is its
   // capability (`localHelperCapabilities`); titles and the workspace of a PTY the Terminal Server
   // kept come from the saved tabs; the server token is masked out of read-output literally.
+  // T0607: `blocked` / `tower` and `pendingQuestions` from the tower-question store.
   terminalQueryHandlers = registerTerminalQueryHandlers({
     registerHandler,
     getPtyManager: () => ptyManager,
     isWorkerOf: (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
     savedTabs: () => savedTabsFromRegistry(windowRegistry.getCachedEntries()),
     knownSecrets: () => [remoteServer.currentToken],
+    getQuestionSummary: terminalId => towerQuestions.summaryFor(terminalId),
     logger,
     mirrorToBatScripts,
   })

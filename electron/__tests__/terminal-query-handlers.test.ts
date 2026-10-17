@@ -396,14 +396,14 @@ describe('query handlers (T0582)', () => {
     expect(ids(h.call('terminal:list', h.asHelper('sh')) as Record<string, unknown>)).toEqual(['sh'])
     expect(ids(h.call('terminal:list', h.asHelper('other-tw')) as Record<string, unknown>)).toEqual(['other-tw', 'other-wk'])
     const wk = (h.call('terminal:list', h.asHelper('tw')) as { terminals: Array<Record<string, unknown>> }).terminals.find(t => t.id === 'wk')
-    expect(wk).toEqual({ id: 'wk', role: 'worker', workorder: 'T0582', towerTerminalId: 'tw', state: 'idle', blockedDetection: 'none', agentStarted: null, alive: true })
+    expect(wk).toEqual({ id: 'wk', role: 'worker', workorder: 'T0582', towerTerminalId: 'tw', state: 'idle', blockedDetection: 'none', agentStarted: null, pendingQuestions: 0, alive: true })
   })
 
   it('list workspace: a declared tower lists its workspace (metadata + saved titles); a shell / worker → NOT_OWNER', () => {
     scene(new Map([['sh', { title: 'My shell' }]]))
     const r = h.call('terminal:list', h.asHelper('tw'), { scope: 'workspace' }) as { terminals: Array<Record<string, unknown>> }
     expect(r.terminals.map(t => t.id).sort()).toEqual(['sh', 'tw', 'wk'])
-    expect(r.terminals.find(t => t.id === 'sh')).toEqual({ id: 'sh', role: 'shell', title: 'My shell', state: 'idle', blockedDetection: 'none', agentStarted: null, alive: true })
+    expect(r.terminals.find(t => t.id === 'sh')).toEqual({ id: 'sh', role: 'shell', title: 'My shell', state: 'idle', blockedDetection: 'none', agentStarted: null, pendingQuestions: 0, alive: true })
     expect(h.call('terminal:list', h.asHelper('sh'), { scope: 'workspace' })).toMatchObject({ ok: false, code: 'NOT_OWNER' })
     expect(h.call('terminal:list', h.asHelper('wk'), { scope: 'workspace' })).toMatchObject({ ok: false, code: 'NOT_OWNER' })
     expect(h.call('terminal:list', h.asHelper('tw'), { scope: 'all' })).toMatchObject({ ok: false, code: 'INVALID_ARGS' })

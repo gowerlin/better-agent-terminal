@@ -28,6 +28,12 @@ const REGISTRY_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:wait', 'T0582: a helper long poll over RemoteServer; a renderer is pushed pty:output / pty:exit'],
   ['worktree:terminal-status', 'T0585: a helper (MCP shim / CT) reads the worktree status of an isolated Worker over RemoteServer, scoped by its capability'],
   ['terminal:report-hook', 'T0590: only scripts/bat-hook.mjs (a claude hook) calls it, over RemoteServer, for its own tab; a renderer has no blocked state to report'],
+  // PLAN-048 / T0607: Worker asks its Tower (electron/tower-questions.ts), answered by the caller's capability
+  ['question:ask', 'T0607: only a Worker helper (bat-notify.mjs --ask) over RemoteServer, to its own tower; a renderer never asks'],
+  ['question:cancel', 'T0607: only a Worker helper over RemoteServer, its own questions'],
+  ['question:answer', 'T0607: only a Tower helper (bat-terminal.mjs --answer) over RemoteServer, questions sent to it'],
+  ['question:list', 'T0607: a helper (MCP shim / CT) over RemoteServer, scoped by its capability'],
+  ['question:wait', 'T0607: a helper long poll over RemoteServer, scoped by its capability'],
 ])
 
 const ELECTRON_DIR = path.resolve(__dirname, '..', '..')

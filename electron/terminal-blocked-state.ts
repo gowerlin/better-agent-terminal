@@ -20,7 +20,7 @@
  * `blockedDetection` (`hook` / `none`) is per terminal id and outlives the PTY (restart, recovery,
  * an exited record): set by the launch decision (`buildBatMcpLaunchArgs`, `none` when no hooks)
  * and by any accepted report (a tab that reports evidently runs the hooks). So a `none` tab never
- * reads `blocked`.
+ * reads a hook reason (T0607 / D156: it may still read `blocked` / `tower`, which needs no hook).
  *
  * T0600 (D154): `agentStarted` — the claude of running PTY `id` ran its `SessionStart` hook (any
  * `source`; only the first time per PTY is kept). Same lifetime as `blocked`: cleared when the PTY
@@ -31,7 +31,14 @@
  */
 import type { HandlerContext } from './remote/handler-registry'
 
-export type BlockedReason = 'permission' | 'question' | 'elicitation'
+/** What a claude hook reports (this file's tracker). */
+export type HookBlockedReason = 'permission' | 'question' | 'elicitation'
+/**
+ * PLAN-048 / T0607 (D156): + `tower` — a Worker waiting for its Tower's answer, synthesized by the
+ * query handlers from the tower-question store (electron/tower-questions.ts), never by a hook:
+ * no `blockedDetection` needed, not cleared by user input.
+ */
+export type BlockedReason = HookBlockedReason | 'tower'
 export type BlockedDetection = 'hook' | 'none'
 export type HookReportEvent =
   | 'permission-request'
@@ -62,7 +69,7 @@ export function isStartReportEvent(event: HookReportEvent): event is StartReport
 }
 
 /** Which reason an event enters; null = the event clears. */
-export const HOOK_EVENT_REASON: Readonly<Record<BlockedReportEvent, BlockedReason | null>> = {
+export const HOOK_EVENT_REASON: Readonly<Record<BlockedReportEvent, HookBlockedReason | null>> = {
   'permission-request': 'permission',
   'ask-user-question': 'question',
   'ask-user-question-done': null,
@@ -77,7 +84,7 @@ export const HOOK_EVENT_REASON: Readonly<Record<BlockedReportEvent, BlockedReaso
  * with tool_name AskUserQuestion follows its `PreToolUse` (~90 ms later, any permission mode; claude
  * 2.1.300 / 2.1.302, T0596) — still a question, or `ask-user-question-done` could never clear it.
  */
-export function hookEventReason(event: BlockedReportEvent, toolName?: string): BlockedReason | null {
+export function hookEventReason(event: BlockedReportEvent, toolName?: string): HookBlockedReason | null {
   if (event === 'permission-request' && toolName === 'AskUserQuestion') return 'question'
   return HOOK_EVENT_REASON[event]
 }
@@ -86,7 +93,7 @@ export function hookEventReason(event: BlockedReportEvent, toolName?: string): B
  * T0594: a clearing event that clears only this reason (another reason → `unchanged`): the answered
  * AskUserQuestion must not clear a permission prompt shown meanwhile. Absent = clears any reason.
  */
-export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<BlockedReportEvent, BlockedReason>>> = {
+export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<BlockedReportEvent, HookBlockedReason>>> = {
   'ask-user-question-done': 'question',
 }
 
@@ -98,7 +105,7 @@ export const BLOCKED_DETECTION_MAX = 512
 export const REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS = 5_000
 
 export interface BlockedState {
-  reason: BlockedReason
+  reason: HookBlockedReason
   /** ms epoch the tab entered this reason. */
   since: number
   /** The hook event that entered it. */

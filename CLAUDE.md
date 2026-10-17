@@ -231,7 +231,7 @@
 ## 遠端 Tower 通知（PLAN-036 K）
 
 - 遠端視窗（WSL / SSH / Docker）的 Tower 與本機一樣能派單、Worker 能回報。方案 A'（T0420 / D134）：為**每個 PTY** 簽發範圍權杖（`batcap.`），**server token 永不進 PTY env**；本機 PTY 自 T0575 起同樣（D149）。
-- 唯一實作 `electron/remote/helper-capability.ts`：`HelperCapabilityRegistry`、`HELPER_CHANNEL_ROLES`（本機與 headless 共用）、`authorizeHelperInvoke`、`buildLocalHelperEnv`；遠端 env `buildHeadlessHelperEnv`（`electron/remote/headless-entry.ts`）。權限預設拒絕：tower 可派工 / `--close-worker` / `--set-role`，worker 只能 notify / `pty:write` / keypress 到綁定的塔台。
+- 唯一實作 `electron/remote/helper-capability.ts`：`HelperCapabilityRegistry`、`HELPER_CHANNEL_ROLES`（本機與 headless 共用）、`authorizeHelperInvoke`、`buildLocalHelperEnv`；遠端 env `buildHeadlessHelperEnv`（`electron/remote/headless-entry.ts`）。權限預設拒絕：tower 可派工 / `--close-worker` / `--set-role`，worker 只能 notify / `pty:write` / keypress 到綁定的塔台；T0607：worker 可 `question:ask` / `cancel`（目標固定綁定的塔台），tower 可 `question:answer`（`towerId` 須是自己），兩者皆可唯讀 `question:list` / `wait`。
 - 本機權杖跨 BAT 重開保留（T0576）：`<userData>/helper-capabilities.json` 只存 SHA-256 digest，不含 token；token 不寫檔、不記日誌。
 - 遠端呼叫 helper 用 `"${BAT_HELPER_NODE:-node}"`（遠端 PATH 不一定有 `node`）。
 - **helper 回應必須以 frame id 比對**（BUG-114）：等待 `auth-result` / `invoke-result` 時只接受 `frame.id === 送出的 id`；新增 helper 腳本時沿用此規則。helper 測試須設 `BAT_HELPER_LOG_DIR` / `BAT_USER_DATA` 到 temp。
@@ -254,7 +254,7 @@
 
 ## blocked 狀態偵測（PLAN-047 M1b / T0590）
 
-- **契約**（T0590「介面契約」，CT 斷點 D 依此撰寫，不得單方更改）：`terminal:get-state` / `terminal:list` / `terminal:wait` 多一個 `blocked`（`blockedReason` = `permission` / `question` / `elicitation`），優先序 `exited` > `blocked` > `working` / `idle`；每個 state 回傳都帶 `blockedDetection`（`hook` / `none`），`none` 的分頁永遠不會回 `blocked`。
+- **契約**（T0590「介面契約」，CT 斷點 D 依此撰寫，不得單方更改）：`terminal:get-state` / `terminal:list` / `terminal:wait` 多一個 `blocked`（`blockedReason` = `permission` / `question` / `elicitation`），優先序 `exited` > `blocked` > `working` / `idle`；每個 state 回傳都帶 `blockedDetection`（`hook` / `none`），`none` 的分頁永遠不會回 hook 的 reason。T0607 / D156：另有 `blockedReason: tower`（`source: 'question'`，Worker 等塔台答覆，由 BAT 自己的問答 store 判斷，`none` 分頁也會回；優先序在 hook reason 之後），見「Worker 問塔台」節。
 - 唯一實作：`TerminalBlockedTracker`、`registerReportHookHandler`（`electron/terminal-blocked-state.ts`）；hook 事件表 `BAT_CLAUDE_HOOKS`（`electron/bat-mcp-launch.ts`），經 `--settings=<dataDir>/bat-mcp/claude-settings.json` 注入（只對 claude-cli，設定檔只有 `hooks`、無權杖）。回報 channel `terminal:report-hook` 的目標永遠是呼叫者自己。
 - hook 腳本 `scripts/bat-hook.mjs`：🔴 **不得影響 claude**：一律 exit 0、stdout 不輸出任何東西（`PermissionRequest` / `PreToolUse` 印 JSON 會替使用者做決定）、任何失敗靜默、總時限 `HOOK_DEADLINE_MS` = 1.8 s（stdin 300 ms、連線 1 s、invoke 1 s）。
 - 使用者 / 專案設定 `disableAllHooks: true` 時 BAT hooks 也停用。🔴 不得在 `--settings` 寫 `disableAllHooks: false` 反制。
@@ -269,6 +269,16 @@
 - claude 自己的設定關閉 hooks（managed / 使用者設定檔的 `disableAllHooks`、managed 的 `allowManagedHooksOnly`；`claudeHooksDisabledBy`，`electron/bat-mcp-launch.ts`）→ 參數照注入、分頁記 `blockedDetection: none`。🔴 hook 腳本規則沿用 T0590（exit 0、stdout 不輸出：`SessionStart` 的 stdout 會進對話上下文；不送 `source` 等 payload）。
 - 方案 B（只記日誌）：派工指令寫入後 10 s 內輸出含 `command not found` 等 → `[agent-command] launch-suspect`（`LaunchSuspectWatcher`）。
 - 完整契約、CT 判斷、版本判定、日誌、實機查證、已知限制、驗證清單：[docs/agent-guide/worker-launch-confirmation.md](docs/agent-guide/worker-launch-confirmation.md)
+
+## Worker 問塔台（PLAN-048 / T0607）
+
+- 用途：yolo Worker 以結構化通道問塔台、等答覆，取代 CT 的工單檔往返（D155 / D156）。
+- **契約**（T0606 回報區「介面契約草案」C-1–C-11，CT-T019 依此撰寫，不得單方更改）：channel `question:ask` / `question:cancel`（worker）、`question:answer`（tower，`towerId` 綁定自己）、`question:list` / `question:wait`（唯讀，≤ 45 s）；id `q-<boot>-<rand>`，BAT 重開後回 `lost`；Worker 有 blocking 待答問題時 state = `blocked` / `blockedReason: tower` / `source: 'question'`，每個 state 回傳帶 `pendingQuestions`。
+- 唯一實作 `electron/tower-questions.ts`（store + `registerTowerQuestionHandlers`，本機與 headless 共用、不 import electron）；狀態合成在 `terminal-query-handlers.ts` `stateOf`（`getQuestionSummary`）；PTY 結束經 `onPtyExit`、Terminal Server recovery 經 `PtyManagerDeps.onServerRecovery` 取消問題。
+- 🔴 問題 / 選項 / detail / 答案只存在主行程記憶體、收件即 `redactTerminalSecrets`，**不寫入任何檔案**；`[tower-question]` 日誌與 bat-scripts.log 只記 id / 長度 / 數量 / 結果，永遠不記內容與權杖。
+- 🔴 BAT MCP 維持全唯讀（寫入只走 helper）；helper 的問題 / 答案內容只走 stdin，不得放 argv（T0608）。
+- 🔴 使用者在 Worker 分頁輸入**不清除** `tower`、不取消問題（中斷後由 120 s 租約到期 `expired` / `not-polled`）。
+- 完整契約、限制常數、結束原因、日誌、已知限制、驗證清單：[docs/agent-guide/tower-questions.md](docs/agent-guide/tower-questions.md)
 
 ## 多 remote profile 同時連線（PLAN-039）
 
