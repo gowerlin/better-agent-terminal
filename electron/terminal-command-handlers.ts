@@ -44,6 +44,9 @@ interface TerminalPtyManager {
     workorder?: string
   }): boolean
   write(id: string, data: string): void
+  /** BUG-146 / T0580: Electron holds creates while the Recovery prompt is unanswered (headless never does). */
+  isCreateHeld?(): boolean
+  whenCreatesReleased?(id?: string, opts?: { timeoutMs?: number; channel?: string }): Promise<boolean>
 }
 
 interface TerminalCommandOptions {
@@ -120,10 +123,21 @@ export interface DispatchCwdReport {
 export const DISPATCH_CWD_OTHER_WORKSPACE = 'DISPATCH_CWD_OTHER_WORKSPACE' as const
 /** T0527: `--agent <id>` is not an agent registry id (nor a shorthand of one). */
 export const AGENT_UNKNOWN = 'AGENT_UNKNOWN' as const
+/**
+ * BUG-146 / T0580: the Recovery prompt was not answered within `HELPER_CREATE_HOLD_WAIT_MS` —
+ * not created (nor later); dispatch again once the prompt is answered.
+ */
+export const RECOVERY_PENDING = 'RECOVERY_PENDING' as const
+/**
+ * T0580: how long a helper dispatch waits for the Recovery answer. Below bat-terminal.mjs's
+ * 3 s invoke timeout, so the helper gets an answer: a dispatch still waiting past its timeout
+ * would create the Worker after the helper reported failure (and the Tower may dispatch again).
+ */
+export const HELPER_CREATE_HOLD_WAIT_MS = 2_000
 
 export interface DispatchRefusal {
   ok: false
-  code: typeof DISPATCH_CWD_OTHER_WORKSPACE | typeof AGENT_UNKNOWN
+  code: typeof DISPATCH_CWD_OTHER_WORKSPACE | typeof AGENT_UNKNOWN | typeof RECOVERY_PENDING
   /** English, human-readable; bat-terminal.mjs prints it. */
   error: string
   cwd?: string
@@ -422,7 +436,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
 
   const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution) => {
     const ptyManager = deps.getPtyManager()
-    const reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
+    let reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
     const customEnv = deps.pickWhitelistedEnv(opts.customEnv)
     // T0539: the dispatching Tower (`--notify-id`, sent as the Worker's BAT_TOWER_TERMINAL_ID;
     // headless checks it is the caller's own terminal). Diagnostics only. Before T0539 this read
@@ -469,6 +483,30 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         reason: 'invalid-shell',
       })
       return false
+    }
+
+    // BUG-146 / T0580: the Recovery prompt is unanswered — PtyManager is connected to no Terminal
+    // Server yet, so a create now would spawn a direct shell whose input later goes to the server.
+    if (ptyManager.isCreateHeld?.() && ptyManager.whenCreatesReleased) {
+      const released = await ptyManager.whenCreatesReleased(opts.id, { timeoutMs: HELPER_CREATE_HOLD_WAIT_MS, channel: 'terminal:create-with-command' })
+      if (!released) {
+        deps.logger.warn(`[BUG-146] terminal:create-with-command id=${opts.id} not created: the Recovery prompt is still unanswered after ${HELPER_CREATE_HOLD_WAIT_MS} ms`)
+        deps.mirrorToBatScripts('ipc-result', {
+          channel: 'terminal:create-with-command',
+          terminalId: opts.id,
+          result: false,
+          reason: RECOVERY_PENDING,
+        })
+        return {
+          ok: false,
+          code: RECOVERY_PENDING,
+          error: 'BAT is waiting for the answer to its Terminal Server recovery prompt (BAT was reopened while its Terminal Server kept the terminals running). '
+            + 'Not created: answer the prompt in the BAT window, then dispatch again.',
+        } satisfies DispatchRefusal
+      }
+      // after a recover the surviving ids are registered; after a fresh start none are
+      reusedExisting = ptyManager.isAlive(opts.id)
+      deps.logger.log(`[BUG-146] terminal:create-with-command id=${opts.id} released: reused=${reusedExisting}`)
     }
 
     const settings = deps.readPersistedSettingsSync()

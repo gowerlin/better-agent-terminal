@@ -119,7 +119,11 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   register('pty:restart', (_ctx, id: string, cwd: string, shellPath?: string) => {
     // Validate before restart() kills the running shell.
     if (rejectShell('pty:restart', shellPath)) return false
-    return deps.getPtyManager()?.restart(id, cwd, shellPath)
+    const manager = deps.getPtyManager()
+    // BUG-146 / T0580: restart creates the new shell too — wait for the Recovery answer like
+    // `pty:create` (after a recover the surviving id is registered, so it restarts on the server)
+    if (manager?.isCreateHeld?.()) return manager.whenCreatesReleased(id, { channel: 'pty:restart' }).then(() => manager.restart(id, cwd, shellPath))
+    return manager?.restart(id, cwd, shellPath)
   })
   register('pty:get-cwd', (_ctx, id: string) => deps.getPtyManager()?.getCwd(id))
   // T0403: replay buffer, answered to the caller only (an invoke result, never a broadcast).

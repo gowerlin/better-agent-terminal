@@ -884,17 +884,36 @@ export class PtyManager implements CloseWorkerPtyManager {
   }
 
   /**
-   * Resolves when the hold ends (right away without one); `id` is only logged. Waiters resume in
-   * the order they came.
+   * Resolves true when the hold ends (right away without one); `id` is only logged. Waiters
+   * resume in the order they came.
+   * T0580: `timeoutMs` → resolves false once it passes with the hold still on, and the waiter
+   * leaves the hold (a helper dispatch gives up before its own invoke timeout). `channel` names
+   * the caller in the log line.
    */
-  whenCreatesReleased(id?: string): Promise<void> {
+  whenCreatesReleased(id?: string, opts: { timeoutMs?: number; channel?: string } = {}): Promise<boolean> {
     const hold = this.createHold
-    if (!hold) return Promise.resolve()
+    if (!hold) return Promise.resolve(true)
+    const { timeoutMs, channel = 'pty:create' } = opts
     if (id) {
       hold.heldIds.push(id)
-      logger.log(`[BUG-146] pty:create id=${id} held until the Recovery prompt is answered`)
+      logger.log(`[BUG-146] ${channel} id=${id} held until the Recovery prompt is answered${timeoutMs !== undefined ? ` (at most ${timeoutMs} ms)` : ''}`)
     }
-    return new Promise(resolve => { hold.waiters.push(resolve) })
+    return new Promise(resolve => {
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const waiter = () => {
+        if (timer) clearTimeout(timer)
+        resolve(true)
+      }
+      hold.waiters.push(waiter)
+      if (timeoutMs === undefined) return
+      timer = setTimeout(() => {
+        const at = hold.waiters.indexOf(waiter)
+        if (at !== -1) hold.waiters.splice(at, 1)
+        const heldAt = id ? hold.heldIds.indexOf(id) : -1
+        if (heldAt !== -1) hold.heldIds.splice(heldAt, 1)
+        resolve(false)
+      }, timeoutMs)
+    })
   }
 
   /** Ends the hold: the waiting creates run now, against whatever connection there is. No-op without a hold. */
@@ -991,8 +1010,8 @@ export class PtyManager implements CloseWorkerPtyManager {
       return true
     }
 
-    // BUG-146: only the `pty:create` handler waits for the hold; a synchronous caller (helper
-    // dispatch, restart) still spawns directly, as before T0578
+    // BUG-146: `pty:create`, `pty:restart` and the helper dispatch (T0580) wait for the hold; a
+    // caller that does not would still spawn directly, as before T0578
     if (this.createHold) logger.warn(`[BUG-146] pty:create id=${id} spawns directly while creates are held (synchronous caller)`)
 
     // Fallback: direct PTY spawn (node-pty or child_process)
