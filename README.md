@@ -159,6 +159,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 唯讀查詢（MCP，`mcp__bat__*`） | `>= 0.7.0-pre.2`（Codex 分頁 `>= 0.7.0-pre.3`） | 不需要（CT `>= v5.3.0` 列為選用通道） |
 | Worker 分頁關閉後查 worktree 狀態（`source`） | `>= 0.7.0-pre.4` | `>= v5.4.0`（舊 CT 照舊以 git 重算） |
 | 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4`（AskUserQuestion 回報 `question`：`>= 0.7.0-pre.5`） | CT 後續版本（斷點 D） |
+| Worker 啟動確認（`--wait-started`、`agentStarted`，Claude CLI 分頁） | `>= 0.7.0-pre.6` | CT 後續版本（舊 CT 不帶參數，照舊） |
 
 ---
 

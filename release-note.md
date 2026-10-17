@@ -2,6 +2,42 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.6（2026-10-18）
+
+版號 0.7.0-pre.6，接續 `v0.7.0-pre.5`。
+
+### 新增
+
+- **確認塔台派出的 Worker 真的啟動了**：Claude CLI 分頁啟動時，BAT 會記下「已啟動」。BAT MCP 的 `bat_get_state` / `bat_wait` / `bat_list_terminals` 多一個 `agentStarted` 欄位（`true` 已啟動 / `false` 還沒 / `null` 無法判定），`bat_wait` 也可以等到啟動為止（`until: 'agent-started'`）。塔台派工時可以加 `--wait-started <毫秒>`，helper 會等到 Worker 啟動才回傳：已啟動回 `started: <時間>`；等不到時回 exit `8`（分頁保留，不要重派）；無法判定（例如 Codex）回 `started: unknown`，不算失敗。不加這個參數時，派工行為和以前完全一樣（D154）
+
+### 修正
+
+- **塔台派工時，Worker 分頁搶走鍵盤焦點**：塔台派出的 Worker 分頁會切到前景並取得焦點，你正在塔台分頁打的字會跑進 Worker 分頁。現在 Worker 分頁照常出現在分頁列與縮圖，但畫面和焦點都留在你正在用的分頁；手動開的分頁、Control Tower 面板按鈕開的分頁仍會切過去（BUG-152）
+- **Claude 設定關閉 hooks 時，`blocked` 偵測誤以為有在偵測**：使用者或系統管理設定以 `disableAllHooks` 關閉 hooks 時，分頁現在回報 `blockedDetection: "none"`（原本是 `hook` 但永遠不會有事件）
+
+### 歡迎協助測試
+
+如果你平常使用 **Codex CLI**，歡迎幫忙跑一次塔台 / Worker 流程（需要 BMad Control Tower）：
+
+1. 新開一個 Codex CLI 分頁，請它呼叫 MCP tool `bat_whoami`（不帶參數），確認回傳的 `role` 與 `agent`（應為 `codex-cli`）
+2. 在塔台分頁派一張小工單給 Codex Worker（`--agent codex`）；如果你的塔台會帶 `--wait-started`，Codex Worker 應回 `started: unknown`（Codex 目前沒有啟動信號，這是預期結果）
+3. 確認 Worker 完成後通知有回到塔台分頁，Worker 分頁也有被自動回收
+
+不論成功或失敗，都歡迎到 [GitHub Issues](https://github.com/gowerlin/better-agent-terminal/issues) 回報，請附上 BAT 版本、Codex 版本（`codex --version`）、作業系統與安裝方式（npm / 官方 installer）。
+
+### 已知事項
+
+- 啟動確認只支援 Claude CLI 分頁；Codex、自訂 CLI 一律為無法判定
+- Claude 的 hooks 若是在專案層設定（`.claude/settings.json`）或公司政策中關閉，BAT 偵測不到：`--wait-started` 會等到期限後回 exit `8`
+- 以 server token 呼叫 helper（例如遠端 profile、測試程式）派出的分頁仍會取得焦點
+- Worker 分頁在你第一次切過去之前，終端尺寸維持 120x30
+- Control Tower 尚未使用 `--wait-started`（需 CT 後續版本）
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.0-pre.5...v0.7.0-pre.6
+
 ## v0.7.0-pre.5（2026-10-18）
 
 版號 0.7.0-pre.5，接續 `v0.7.0-pre.4`。

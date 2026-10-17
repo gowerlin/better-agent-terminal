@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0-pre.6] — 2026-10-18
+
+### Added
+- **確認塔台派出的 Worker 真的啟動了**：Claude CLI 分頁啟動時，BAT 會記下「已啟動」。BAT MCP 的 `bat_get_state` / `bat_wait` / `bat_list_terminals` 多一個 `agentStarted` 欄位（`true` / `false` / `null` = 無法判定），`bat_wait` 可等到啟動（`until: 'agent-started'`）。塔台派工時可加 `--wait-started <毫秒>`：已啟動回 `started: <時間>`；等不到回 exit `8`（分頁保留，不要重派）；無法判定（例如 Codex）回 `started: unknown`。不加參數時派工行為不變（D154，T0600）
+
+### Fixed
+- **塔台派工時，Worker 分頁搶走鍵盤焦點**：Worker 分頁照常出現在分頁列與縮圖，但畫面和焦點留在你正在用的分頁；手動開的分頁、Control Tower 面板按鈕開的分頁仍會切過去（BUG-152，T0599）
+- **Claude 設定關閉 hooks 時，`blocked` 偵測誤以為有在偵測**：以 `disableAllHooks` 關閉 hooks 時，分頁改回報 `blockedDetection: "none"`（T0600）
+
+### Call for testing
+Codex CLI 使用者：歡迎以 Codex 當 Worker 跑一次塔台 / Worker 流程（`bat_whoami` → 派一張小工單 `--agent codex` → 確認通知回到塔台、分頁被回收；帶 `--wait-started` 時 Codex Worker 應回 `started: unknown`），並到 GitHub Issues 回報 BAT / Codex 版本與結果。
+
+### Known issues
+- 啟動確認只支援 Claude CLI 分頁；Claude 的 hooks 在專案層設定或公司政策中關閉時 BAT 偵測不到，`--wait-started` 會等到期限後回 exit `8`
+- 以 server token 呼叫 helper 派出的分頁仍會取得焦點；Worker 分頁在第一次切過去前終端尺寸維持 120x30
+- macOS / Linux 版本未實機驗證
+
 ## [0.7.0-pre.5] — 2026-10-18
 
 ### Fixed
