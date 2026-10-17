@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0586
 title: "BUG-148：codex 分頁的 BAT MCP 讀不到分頁 env（CONNECT_FAILED）— 讓 codex 把 shim 需要的 `BAT_*` 傳給 stdio MCP server"
 type: bugfix
-status: PENDING
-started_at: ""
-updated_at: "2026-10-17T23:50:21+0800"
-completed_at: ""
+status: FIXED
+started_at: "2026-10-17T23:51:38+0800"
+updated_at: "2026-10-18T00:00:58+0800"
+completed_at: "2026-10-18T00:00:58+0800"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P1
@@ -69,4 +69,97 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 結果：✅ FIXED（等塔台隨下一版實機驗收）
+
+### Landing check：PASS
+
+- C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 下 → PASS
+- C-3：`electron/bat-mcp-launch.ts` 等皆存在 → PASS（informational）
+- C-2：無 `branch` 欄位；目前 `main`
+- 無 `CT_HOME`（非 worktree 派工）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅紀錄）
+
+### 1. 原因（已確認）與依據
+
+codex 啟動 stdio MCP server 時**只傳預設白名單的 env**，分頁的 `BAT_*` 不在白名單內；claude 則把完整 env 交給 MCP server。
+
+依據（全部不耗 token，隔離 `CODEX_HOME`，未碰 `~/.codex`）：
+
+1. **codex 二進位**（`C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`，`codex-cli 0.163.0`）內的 Windows 預設清單字串：`PATH PATHEXT SHELL COMSPEC SYSTEMROOT WINDIR SYSTEMDRIVE USERNAME USERDOMAIN USERPROFILE HOMEDRIVE HOMEPATH PROGRAMFILES PROGRAMFILES(X86) PROGRAMW6432 PROGRAMDATA LOCALAPPDATA APPDATA TEMP TMP TMPDIR POWERSHELL PWSH`；stdio transport 的設定鍵有 `command / args / env / env_vars / cwd`，錯誤字串 `unsupported env_vars source \`…\`; expected \`local\` or \`remote\``。
+2. **實測（codex app-server + 假 stdio MCP server 記錄自己收到的 env）**：`codex -c mcp_servers.bat.command=… -c mcp_servers.bat.args=[…] app-server` → `initialize` → `mcpServerStatus/list`（會啟動 MCP server 並取 tools/list，不呼叫模型）。父行程 env 有 `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` / `XDG_CONFIG_HOME`，假 server 收到的只有 21 個鍵：`APPDATA COMSPEC HOMEDRIVE HOMEPATH LOCALAPPDATA PATH PATHEXT PROGRAMDATA PROGRAMFILES PROGRAMFILES(X86) PROGRAMW6432 SHELL SYSTEMDRIVE SYSTEMROOT TEMP TMP TMPDIR USERDOMAIN USERNAME USERPROFILE WINDIR`，**沒有任何 `BAT_*`**。
+3. **用真 shim 重現 BUG-148 原文**：同樣方式（`thread/start { ephemeral: true }`，不開 turn → `mcpServer/tool/call bat_whoami`）跑 `scripts/bat-mcp.mjs`：不帶 `env_vars` → `CONNECT_FAILED: not running inside a BAT terminal (BAT_REMOTE_PORT / BAT_REMOTE_TOKEN not set)`，與實機錯誤逐字相同。
+4. **「只列名稱」的轉送方式存在**：`mcp_servers.<name>.env_vars = ["NAME", …]`（也接受 `{ name, source = "local" | "remote" }`）。`codex mcp get bat --json` 解析為 `"env": null, "env_vars": [...]`；codex 0.160.0（repo 內嵌，`node_modules/@openai/codex-win32-x64`）與 0.163.0（使用者安裝版）實測行為相同：列出且有設的名稱轉送、沒設的名稱直接略過（不報錯）。T0584 用的 0.162.1 本機已無此版本，未實測（介於兩者之間，推定相同）。
+5. Unix 的預設清單在 Windows 二進位內看不到（`cfg(windows)` 編譯），未實測；依上游原始碼印象為 `HOME / LOGNAME / PATH / SHELL / USER / LANG / LC_ALL / TERM / TMPDIR / TZ` 等，不含 `XDG_CONFIG_HOME` — 此點為**推論**，故清單仍列 `XDG_CONFIG_HOME`（沒設則略過，無副作用）。
+
+### 2. 修正
+
+`electron/bat-mcp-launch.ts`（本機與 headless 共用的 `buildBatMcpLaunchArgs` codex 分支）：
+
+- 抽出 `codexMcpOverrides(server)`，在 `args` 之後、`tool_timeout_sec` 之前加 `mcp_servers.bat.env_vars=[…]`（TOML literal string 名稱）。
+- 新常數 `BAT_MCP_CODEX_ENV_VARS`（只有名稱，值由 codex 從分頁 env 取）：
+
+| 名稱 | 理由 |
+|---|---|
+| `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` | shim 連線端點與範圍權杖（`bat-mcp.mjs`） |
+| `BAT_TERMINAL_ID` | shim 的 `bat-scripts.log` `start` 事件 |
+| `BAT_USER_DATA` | `_bat-cert.mjs` / `_bat-logger.mjs` 的 userData（T0481，本機 PTY 注入） |
+| `BAT_SERVER_CERT_PATH` / `BAT_HELPER_LOG_DIR` | headless PTY 的憑證路徑 / 日誌目錄 override |
+| `BAT_RUNTIME` | 舊推測路徑的 runtime 後綴 |
+| `APPDATA` | Windows userData fallback（已在 codex Windows 預設內，列出無害） |
+| `XDG_CONFIG_HOME` | Linux userData fallback（codex Unix 預設推定不含） |
+
+  = `scripts/bat-mcp.mjs`、`_bat-cert.mjs`、`_bat-logger.mjs` 讀取的全部 `process.env.*`（新測試以 source scan 守住）。`HOME`（`os.homedir()`）在 codex 預設內，不需列。`_bat-logger.mjs` 的 `ENV_WHITELIST`（`BAT_SESSION` 等）只供 `snapshotBatEnv()`，shim 未呼叫，不列。
+- 🔴 未使用帶值寫法（`mcp_servers.bat.env = { … }`）；權杖值不出現在命令列、設定、日誌。
+- 既有行為不變：Settings 關閉 / 自訂參數已含 `mcp_servers.bat` / RemoteServer 未監聽 / 無 shim / 其他 agent → 不注入（既有測試照過）；claude 分支未動。
+
+### 3. 三種 shell 的實際注入字串（shim 路徑以 repo `scripts/` 為例；不含權杖值）
+
+- pwsh：`-c 'mcp_servers.bat.command=''node''' -c 'mcp_servers.bat.args=[''D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal\scripts\bat-mcp.mjs'']' -c 'mcp_servers.bat.env_vars=[''BAT_REMOTE_PORT'', ''BAT_REMOTE_TOKEN'', ''BAT_TERMINAL_ID'', ''BAT_USER_DATA'', ''BAT_SERVER_CERT_PATH'', ''BAT_HELPER_LOG_DIR'', ''BAT_RUNTIME'', ''APPDATA'', ''XDG_CONFIG_HOME'']' -c mcp_servers.bat.tool_timeout_sec=60`
+- posix：`-c 'mcp_servers.bat.command='\''node'\''' -c 'mcp_servers.bat.args=['\''D:\…\scripts\bat-mcp.mjs'\'']' -c 'mcp_servers.bat.env_vars=['\''BAT_REMOTE_PORT'\'', '\''BAT_REMOTE_TOKEN'\'', '\''BAT_TERMINAL_ID'\'', '\''BAT_USER_DATA'\'', '\''BAT_SERVER_CERT_PATH'\'', '\''BAT_HELPER_LOG_DIR'\'', '\''BAT_RUNTIME'\'', '\''APPDATA'\'', '\''XDG_CONFIG_HOME'\'']' -c mcp_servers.bat.tool_timeout_sec=60`
+- cmd：`-c "mcp_servers.bat.command='node'" -c "mcp_servers.bat.args=['D:\…\scripts\bat-mcp.mjs']" -c "mcp_servers.bat.env_vars=['BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN', 'BAT_TERMINAL_ID', 'BAT_USER_DATA', 'BAT_SERVER_CERT_PATH', 'BAT_HELPER_LOG_DIR', 'BAT_RUNTIME', 'APPDATA', 'XDG_CONFIG_HOME']" -c mcp_servers.bat.tool_timeout_sec=60`
+
+三種字串各自寫成 `.ps1`（`pwsh -NoProfile -File`）/ `.sh`（Git Bash）/ `.cmd`（`cmd /d /c`）執行 `codex <字串> mcp get bat --json`（PATH 上的 codex 0.163.0、隔離 `CODEX_HOME`）：三者解析結果完全相同 — `command: "node"`、`args: [<shim 路徑>]`、`env: null`、`env_vars: [9 個名稱]`、`tool_timeout_sec: 60`。
+
+### 4. 整合驗證：做了什麼 / 沒做什麼
+
+做了（皆不耗 token、不連使用者 BAT 9876）：
+
+- **新單元整合測試** `electron/__tests__/bat-mcp-codex-env.test.ts`：內嵌 codex（0.160.0）`app-server` + 隔離 `CODEX_HOME` + 假 stdio MCP server（以 `codexMcpOverrides` 的實際值）：不帶 `env_vars` → 0 個 `BAT_*`（BUG-148 機制）；帶了 → `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN`（只記長度）/ `BAT_TERMINAL_ID` / `BAT_USER_DATA` / `BAT_HELPER_LOG_DIR` 到達、沒設的 `BAT_SERVER_CERT_PATH` / `BAT_RUNTIME` 略過、未列的 `BAT_WORKSPACE_ID` 不到；Windows 另驗 `APPDATA`。內嵌 codex 不在時 skip。另有 source scan（清單涵蓋 shim 讀的全部 env）與三種 shell 不含權杖值 / 不含 `env` 表的測試。
+- **真 shim 手動實測**（scratchpad 腳本，codex 0.163.0）：`thread/start { ephemeral: true }` → `mcpServer/tool/call bat_whoami`，`BAT_REMOTE_PORT=1`、假權杖：不帶 `env_vars` → `CONNECT_FAILED: not running inside a BAT terminal …`（重現）；帶了 → `CONNECT_FAILED: connect ECONNREFUSED 127.0.0.1:1`（shim 已讀到 port / token），`bat-scripts.log` 寫進轉送的 `BAT_HELPER_LOG_DIR`（`hasEndpoint: true`）。
+- e2e `e2e/t0584-bat-mcp-shim.spec.ts` 斷言改為含 `env_vars`、不含 `batcap.`；隔離實例跑過 1 passed。
+
+沒做：
+
+- codex 分頁內**實際連上 BAT** 回 whoami（需要真 BAT + 真 codex 分頁）→ 留給塔台隨下一版實機驗收（`bat_whoami` 應回 `role: shell`、`agent: codex-cli`）。
+- npm 的 `codex.cmd` shim、Linux / macOS 的 codex、headless 遠端 codex 分頁未實測（注入字串同一份實作）。
+- 附帶影響說明：手動重現「不帶 `env_vars`」那一次，shim 沒拿到 `BAT_HELPER_LOG_DIR` / `BAT_USER_DATA`，依 `APPDATA` fallback 在使用者真實的 `%APPDATA%\BetterAgentTerminal\Logs\bat-scripts.log` 追加了 2 筆 `bat-mcp` 事件（`start` / `tool-call CONNECT_FAILED`，無權杖）。
+
+### 5. 驗收閘門
+
+| 閘門 | 結果 |
+|---|---|
+| `npm run test:unit` | ✅ PASS — 285 files、4997 passed / 3 skipped（基線 284 / 4992；+1 檔 +5 測試） |
+| `npm run typecheck` | ✅ 0 |
+| `npm run typecheck:electron` | ✅ 0 |
+| `npx vite build` | ✅ 成功 |
+| e2e `t0584-bat-mcp-shim.spec.ts` | ✅ 1 passed（隔離實例） |
+| 實機（Codex CLI 分頁 `bat_whoami`） | ⏳ 塔台隨下一版 |
+
+### 變更檔案
+
+- `electron/bat-mcp-launch.ts`：`BAT_MCP_CODEX_ENV_VARS`、`codexMcpOverrides`、codex 分支加 `env_vars`
+- `electron/__tests__/bat-mcp-codex-env.test.ts`（新）
+- `electron/__tests__/bat-mcp-launch.test.ts`：codex 三種 shell 期望字串、派工組裝 regex
+- `e2e/t0584-bat-mcp-shim.spec.ts`：codex pwsh 期望字串 + 不含 `batcap.`
+- `CLAUDE.md`：「BAT MCP shim」小節 codex 注入說明、`env_vars` 原因與清單、app-server 驗證方式、已知限制、驗證清單
+- `scripts/bat-mcp.mjs`：未改
+
+### Commit
+
+- `8c7bd4c4` fix: forward the shim's env to codex stdio MCP server (T0586, BUG-148)（產品 + 測試 + CLAUDE.md，`git commit --only`）
+- 工單本身另一個 commit；未 push。`src/styles/settings.css` 的 M 不是本單變更，未動。
+
+### 偏離 / 後續
+
+- 無範圍偏離。BUG-148 狀態留給塔台更新（本單 affects_files 不含 BUG 單）。
+- 建議：塔台實機驗收時，若遠端 headless 也有 codex 分頁，順便驗一次（`BAT_SERVER_CERT_PATH` / `BAT_HELPER_LOG_DIR` 路徑）。
