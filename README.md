@@ -137,13 +137,14 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 分頁回收 | `--close-worker`（等輸出安靜後才關，使用者輸入即取消） | `worker_auto_close`（收單後回收） |
 | 塔台分頁宣告 | `--set-role tower --mode <m>` | 塔台啟動時呼叫；BAT 以此判斷 yolo 分頁 |
 | 每分頁權限 | 每個分頁的 `BAT_REMOTE_TOKEN` 是專屬 `batcap.` 權杖：塔台可派工 / 回收自己的 Worker，Worker 只能回報給自己的塔台 | 塔台須在一般分頁（不是 Worker 分頁）啟動 |
-| worktree 隔離與合併前檢查 | `--isolation worktree`、`CT_HOME` 等環境變數、`--worktree-status` | 工單 `isolation: worktree`；合併工單與塔台直接合併判準 |
+| worktree 隔離與合併前檢查 | `--isolation worktree`、`CT_HOME` 等環境變數、`--worktree-status`（Worker 分頁關閉後仍可查，回傳 `source`） | 工單 `isolation: worktree`；合併工單與塔台直接合併判準 |
 | 唯讀查詢（MCP） | BAT 啟動的 claude / codex 分頁掛上 `mcp__bat__*` | 選用通道（MCP → helper → 檔案） |
+| 等人回答偵測 | Claude CLI 分頁停在權限確認 / 提問 / MCP 表單時，`bat_get_state` 等回 `blocked`（`blockedReason`、`blockedDetection`） | 供塔台判斷 Worker 是否在等人（CT 後續版本） |
 | 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
 | 工單看板 | 側欄塔台面板：看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/` |
 | 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
 
-完整契約（參數、exit code、環境變數、日誌）見 [CLAUDE.md](CLAUDE.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」各節。
+完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
 
 ### 版本對照
 
@@ -156,6 +157,8 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 每分頁範圍權杖（`batcap.`）的文件與失敗提示 | `>= 0.7.0-pre.1` | `>= v5.2.4`（舊 CT 仍可用） |
 | worktree 隔離派工、合併工單 | `>= 0.7.0-pre.2` | `>= v5.3.0`（選用） |
 | 唯讀查詢（MCP，`mcp__bat__*`） | `>= 0.7.0-pre.2`（Codex 分頁 `>= 0.7.0-pre.3`） | 不需要（CT `>= v5.3.0` 列為選用通道） |
+| Worker 分頁關閉後查 worktree 狀態（`source`） | `>= 0.7.0-pre.4` | 不需要（舊 CT 照舊以 git 重算） |
+| 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4` | CT 後續版本（斷點 D） |
 
 ---
 

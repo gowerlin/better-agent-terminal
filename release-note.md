@@ -2,6 +2,46 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.4（2026-10-18）
+
+版號 0.7.0-pre.4，接續 `v0.7.0-pre.3`。
+
+### 新增
+
+- **偵測 Claude 分頁卡在等人回答**：Claude CLI 分頁停在權限確認、AskUserQuestion 提問或 MCP 表單（elicitation）時，BAT MCP 的 `bat_get_state` / `bat_list_terminals` / `bat_wait` 會回 `blocked`，並附原因（`permission` / `question` / `elicitation`）。塔台可以藉此知道 Worker 是在等人，而不是還在工作。BAT 以 Claude 的 hooks 回報，hook 不影響 Claude 的任何判斷、不送出工具參數或對話內容；與「BAT MCP」用同一個 Settings 開關（預設開）。每個分頁另回 `blockedDetection`（`hook` / `none`），表示這個分頁有沒有在偵測（PLAN-047）
+- **Worker 分頁關掉之後仍可查 worktree 狀態**：以 `--worktree keep` 回收 Worker 分頁、甚至 `--worktree remove` 刪掉 worktree 之後，`--worktree-status T####` / `bat_worktree_status` 仍會回答（`source` 為 `exited` 或 `git`），塔台合併時不必再自己用 git 重算（PLAN-047）
+
+### 修正
+
+- **全新安裝的 Windows 上，塔台派出的 Claude / Codex Worker 起不來**：從未在 Settings 存過任何設定時，BAT 派工以 bash 的方式替參數加引號，但分頁實際是 PowerShell，命令被拆壞，Worker 啟動即失敗。現在依分頁實際啟動的 shell 加引號（BUG-149）
+
+### 更新
+
+- 新增 Codex CLI 擔任塔台 / Worker 的自動化整合測試（用真的 Codex 連 BAT，不呼叫模型）；BUG-149 就是這組測試找到的
+
+### 歡迎協助測試
+
+如果你平常使用 **Codex CLI**，歡迎幫忙跑一次塔台 / Worker 流程（需要 BMad Control Tower）：
+
+1. 新開一個 Codex CLI 分頁，請它呼叫 MCP tool `bat_whoami`（不帶參數），確認回傳的 `role` 與 `agent`（應為 `codex-cli`）
+2. 在塔台分頁派一張小工單給 Codex Worker（`--agent codex`）
+3. 確認 Worker 完成後通知有回到塔台分頁，Worker 分頁也有被自動回收
+
+不論成功或失敗，都歡迎到 [GitHub Issues](https://github.com/gowerlin/better-agent-terminal/issues) 回報，請附上 BAT 版本、Codex 版本（`codex --version`）、作業系統與安裝方式（npm / 官方 installer）。如果你在 `~/.codex/config.toml` 改過 `shell_environment_policy`，也請一併註明（可能讓 Codex 執行的指令拿不到 BAT 的連線資訊）。
+
+### 已知事項
+
+- `blocked` 偵測目前只支援 Claude CLI 分頁；Codex 分頁回 `blockedDetection: "none"`（後續版本）。以 `--dangerously-skip-permissions` 執行時不會出現權限確認；在權限確認上用**滑鼠**按允許 / 拒絕時，`blocked` 會維持到該回合結束或你下一次鍵盤輸入
+- `blocked` 的權限確認、AskUserQuestion、MCP 表單三種情況尚未在真實 Claude 互動中觸發驗證，遇到時歡迎回報
+- Claude 設定了 `disableAllHooks` 時 BAT 的 hooks 也會停用，`blocked` 不會出現
+- Control Tower 尚未使用 `blocked`（需 CT 後續版本）；本版其他功能沿用 Control Tower v5.3.x
+- 用量限制自動繼續（0.6.1-pre.6 新增）尚未在真實撞到限制時驗證，遇到時請留意 BAT 日誌中的 `[usage-limit]` 紀錄
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.0-pre.3...v0.7.0-pre.4
+
 ## v0.7.0-pre.3（2026-10-18）
 
 版號 0.7.0-pre.3，接續 `v0.7.0-pre.2`。
