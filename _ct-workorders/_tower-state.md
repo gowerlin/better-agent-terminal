@@ -100,7 +100,7 @@
 ### 待辦（依優先序）
 
 1. 🟡 **PLAN-048**（IN_PROGRESS，D155 / D156）：T0606 契約 DONE → T0607（A）/ T0608（B，隔離）並行中 → 合併 → C（e2e）→ CT-T019；PLAN-047 M1b-2 待排期
-2. 🟡 **BUG-153**（OPEN，BMad-Guide 提出）：Worker 縮圖提問 / blocked 誤標 `✓`、計入批次關閉 → 建議接在 T0607 後（用主行程 `blocked` / `tower`），待使用者排期
+2. 🟡 **BUG-153**（OPEN，BMad-Guide 提出）：Worker 縮圖提問 / blocked 誤標 `✓`、計入批次關閉 → 使用者同意：T0607 合入 main 後派修復單（縮圖用主行程 `blocked` / `tower`，字串 `提問` 只作舊 CT 後備）
 2. ✅ ~~`v0.7.0-pre.6` 實機驗收~~ → 第七十七 session T0601（安裝版）+ T0602（隔離 e2e 4 spec）PASS：BUG-150 / 151 CLOSED；CT v5.6.0 `--wait-started` 實際派工 2 次皆 `started:`
 3. 🟡 **PLAN-048**（Worker 問塔台 / 塔台答覆通道）：使用者決定是否排期；**PLAN-047 後續**：M1b-2 codex blocked / 啟動信號、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
