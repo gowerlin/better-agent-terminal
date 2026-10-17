@@ -20,15 +20,23 @@
  * also lets a tower call `terminal:create-with-command` (raw command mode) under the
  * create-agent-command limits; headless keeps `HELPER_CHANNEL_ROLES` (raw command denied).
  *
- * Tokens are `HELPER_CAPABILITY_TOKEN_PREFIX` + `randomBytes(32)` and live in memory only:
- * the registry keeps their SHA-256 digest (never the token), nothing is persisted or
- * logged, the PTY's exit / kill revokes its token, and a new server process starts with
- * an empty registry. Revoked digests are remembered for a while (bounded, TTL) so a
- * stale helper gets `Capability revoked` instead of counting as a failed auth (T0449).
+ * Tokens are `HELPER_CAPABILITY_TOKEN_PREFIX` + `randomBytes(32)`; the registry keeps their
+ * SHA-256 digest (never the token) and nothing logs a token. The PTY's exit / kill revokes its
+ * token. Headless keeps them in memory only: a new server process starts with an empty registry.
+ * Revoked digests are remembered for a while (bounded, TTL) so a stale helper gets
+ * `Capability revoked` instead of counting as a failed auth (T0449).
+ *
+ * PLAN-047 / T0576: Electron persists the live records (digest + binding, `records()` /
+ * `onChange`) to `<userData>/helper-capabilities.json` (`writeHelperCapabilityStore`), because
+ * the Terminal Server keeps the PTYs — and the tokens in their env — alive while BAT is closed.
+ * The next BAT process `restore`s them as *pending*, and `settleRestored` keeps only those whose
+ * PTY the Terminal Server still runs (T0108 replay list); no surviving server ⇒ all dropped.
  *
  * 🔴 No `electron` import here (headless-electron-free guard).
  */
 import { createHash, randomBytes, timingSafeEqual } from 'crypto'
+import * as fs from 'fs'
+import * as path from 'path'
 
 export type HelperCapabilityRole = 'tower' | 'worker'
 
@@ -61,16 +69,43 @@ export function isCapabilityTokenShaped(token: unknown): token is string {
 }
 
 export interface HelperCapabilityRegistryOptions {
-  /** Clock for the revoked-digest TTL (tests). Default `Date.now`. */
+  /** Clock for the revoked-digest TTL and `issuedAt` (tests). Default `Date.now`. */
   now?: () => number
   revokedTtlMs?: number
   revokedCapacity?: number
+  /**
+   * T0576: called after the live records changed (issue / revoke / clear / restore / settle);
+   * Electron writes `records()` to disk here. A throwing listener is ignored.
+   */
+  onChange?: () => void
+}
+
+/**
+ * T0576: one live capability as it is persisted — the SHA-256 digest of the token (hex), never
+ * the token, plus its binding and when it was issued (ms since epoch).
+ */
+export interface PersistedHelperCapability {
+  digest: string
+  terminalId: string
+  role: HelperCapabilityRole
+  towerId?: string
+  issuedAt: number
 }
 
 interface CapabilityEntry {
   digest: Buffer
   capability: HelperCapability
+  issuedAt: number
+  /**
+   * T0576: loaded by `restore`, not yet matched against the PTYs the Terminal Server still runs
+   * (`settleRestored`). While pending, `issue` for the same terminal does not revoke it: a
+   * restored tab's `pty:create` may reach the main process before the T0108 replay list and get
+   * a capability whose env goes nowhere (the server keeps the running PTY).
+   */
+  pending?: boolean
 }
+
+const DIGEST_HEX_PATTERN = /^[0-9a-f]{64}$/
 
 function digestOf(token: string): Buffer {
   return createHash('sha256').update(token, 'utf8').digest()
@@ -92,6 +127,21 @@ function isTerminalId(value: unknown): value is string {
   return typeof value === 'string' && HELPER_TERMINAL_ID_PATTERN.test(value)
 }
 
+/** T0576: a persisted record as the registry accepts it, or null (malformed / inconsistent). */
+function parsePersistedRecord(raw: unknown): PersistedHelperCapability | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const { digest, terminalId, role, towerId, issuedAt } = raw as Record<string, unknown>
+  if (typeof digest !== 'string' || !DIGEST_HEX_PATTERN.test(digest)) return null
+  if (!isTerminalId(terminalId)) return null
+  if (typeof issuedAt !== 'number' || !Number.isFinite(issuedAt)) return null
+  if (role === 'worker') {
+    if (!isTerminalId(towerId) || towerId === terminalId) return null
+    return { digest, terminalId, role, towerId, issuedAt }
+  }
+  if (role === 'tower' && towerId === undefined) return { digest, terminalId, role, issuedAt }
+  return null
+}
+
 export class HelperCapabilityRegistry {
   /** digest (hex) → entry */
   private readonly entries = new Map<string, CapabilityEntry>()
@@ -100,11 +150,13 @@ export class HelperCapabilityRegistry {
   private readonly now: () => number
   private readonly revokedTtlMs: number
   private readonly revokedCapacity: number
+  private readonly onChange?: () => void
 
   constructor(opts: HelperCapabilityRegistryOptions = {}) {
     this.now = opts.now ?? Date.now
     this.revokedTtlMs = opts.revokedTtlMs ?? REVOKED_CAPABILITY_TTL_MS
     this.revokedCapacity = Math.max(0, opts.revokedCapacity ?? REVOKED_CAPABILITY_CAPACITY)
+    this.onChange = opts.onChange
   }
 
   get size(): number {
@@ -115,19 +167,86 @@ export class HelperCapabilityRegistry {
    * Issues the capability of PTY `terminalId` and returns its token. One live token per
    * PTY: issuing again (re-create / restart) revokes the previous one. `towerId` makes
    * it a worker capability bound to that tower.
+   * T0576: a *pending* restored capability of the terminal is kept (`CapabilityEntry.pending`);
+   * `settleRestored` later keeps one of the two.
    */
   issue(terminalId: string, opts: { towerId?: string } = {}): string {
     if (!isTerminalId(terminalId)) throw new Error('helper capability: invalid terminal id')
     const towerId = opts.towerId || undefined
     if (towerId !== undefined && !isTerminalId(towerId)) throw new Error('helper capability: invalid tower id')
-    this.revokeTerminal(terminalId)
+    this.revokeWhere(entry => entry.capability.terminalId === terminalId && !entry.pending, false)
     const token = HELPER_CAPABILITY_TOKEN_PREFIX + randomBytes(CAPABILITY_TOKEN_BYTES).toString('base64url')
     const digest = digestOf(token)
     const capability: HelperCapability = towerId
       ? { terminalId, towerId, role: 'worker' }
       : { terminalId, role: 'tower' }
-    this.entries.set(digest.toString('hex'), { digest, capability })
+    this.entries.set(digest.toString('hex'), { digest, capability, issuedAt: this.now() })
+    this.changed()
     return token
+  }
+
+  /** T0576: the live capabilities as persisted (digest, binding, issuedAt) — never a token. */
+  records(): PersistedHelperCapability[] {
+    const out: PersistedHelperCapability[] = []
+    for (const [key, entry] of this.entries) {
+      const { terminalId, towerId, role } = entry.capability
+      out.push(towerId
+        ? { digest: key, terminalId, role, towerId, issuedAt: entry.issuedAt }
+        : { digest: key, terminalId, role, issuedAt: entry.issuedAt })
+    }
+    return out
+  }
+
+  /**
+   * T0576: loads persisted records (a previous BAT process) as *pending* capabilities: they
+   * authenticate right away, until `settleRestored` keeps the ones whose PTY still runs.
+   * Malformed records (digest, ids, role / tower mismatch) and digests already live are skipped.
+   * Returns how many were restored.
+   */
+  restore(records: readonly unknown[]): number {
+    let restored = 0
+    for (const raw of records) {
+      const record = parsePersistedRecord(raw)
+      if (!record || this.entries.has(record.digest)) continue
+      const capability: HelperCapability = record.towerId
+        ? { terminalId: record.terminalId, towerId: record.towerId, role: 'worker' }
+        : { terminalId: record.terminalId, role: 'tower' }
+      this.revoked.delete(record.digest)
+      this.entries.set(record.digest, { digest: Buffer.from(record.digest, 'hex'), capability, issuedAt: record.issuedAt, pending: true })
+      restored++
+    }
+    if (restored > 0) this.changed()
+    return restored
+  }
+
+  /**
+   * T0576: settles the pending restored capabilities once it is known which PTYs survived the
+   * BAT restart (`isAlive`: on the Terminal Server's replay list; `() => false` when no Terminal
+   * Server survived). A surviving PTY keeps its restored capability — the token in its env — and
+   * loses any capability issued for it meanwhile (that env went nowhere); a gone PTY loses the
+   * restored one. Returns the terminal ids kept / dropped.
+   */
+  settleRestored(isAlive: (terminalId: string) => boolean): { kept: string[]; dropped: string[] } {
+    const kept = new Set<string>()
+    const dropped = new Set<string>()
+    for (const entry of this.entries.values()) {
+      if (!entry.pending) continue
+      if (isAlive(entry.capability.terminalId)) kept.add(entry.capability.terminalId)
+      else dropped.add(entry.capability.terminalId)
+    }
+    if (kept.size === 0 && dropped.size === 0) return { kept: [], dropped: [] }
+    this.revokeWhere(entry => entry.pending
+      ? dropped.has(entry.capability.terminalId)
+      : kept.has(entry.capability.terminalId), false)
+    for (const entry of this.entries.values()) entry.pending = false
+    this.changed()
+    return { kept: [...kept], dropped: [...dropped] }
+  }
+
+  /** T0576: whether a restored capability still waits for `settleRestored`. */
+  hasPendingRestored(): boolean {
+    for (const entry of this.entries.values()) if (entry.pending) return true
+    return false
   }
 
   /**
@@ -173,23 +292,51 @@ export class HelperCapabilityRegistry {
     return false
   }
 
+  /**
+   * T0576: whether PTY `terminalId` holds a live worker capability (of any tower). That binding
+   * is its env's `BAT_TOWER_TERMINAL_ID`; the close-worker ownership check prefers it over the
+   * saved tab (`capabilityOrSavedTabOwnership`).
+   */
+  hasWorkerCapability(terminalId: string): boolean {
+    for (const entry of this.entries.values()) {
+      if (entry.capability.role === 'worker' && entry.capability.terminalId === terminalId) return true
+    }
+    return false
+  }
+
   /** Revokes every capability bound to PTY `terminalId`; returns how many were revoked. */
   revokeTerminal(terminalId: string): number {
+    return this.revokeWhere(entry => entry.capability.terminalId === terminalId)
+  }
+
+  /** Revokes everything (server stop). */
+  clear(): void {
+    if (this.entries.size === 0) return
+    for (const key of this.entries.keys()) this.rememberRevoked(key)
+    this.entries.clear()
+    this.changed()
+  }
+
+  private revokeWhere(match: (entry: CapabilityEntry) => boolean, notify = true): number {
     let revoked = 0
     for (const [key, entry] of this.entries) {
-      if (entry.capability.terminalId === terminalId) {
+      if (match(entry)) {
         this.entries.delete(key)
         this.rememberRevoked(key)
         revoked++
       }
     }
+    if (revoked > 0 && notify) this.changed()
     return revoked
   }
 
-  /** Revokes everything (server stop). */
-  clear(): void {
-    for (const key of this.entries.keys()) this.rememberRevoked(key)
-    this.entries.clear()
+  private changed(): void {
+    if (!this.onChange) return
+    try {
+      this.onChange()
+    } catch {
+      // the persisted copy is best-effort; the registry is the authority
+    }
   }
 
   private rememberRevoked(key: string): void {
@@ -533,4 +680,93 @@ export function buildLocalHelperEnv(opts: {
     BAT_REMOTE_PORT: String(endpoint.port),
     BAT_REMOTE_TOKEN: token,
   }
+}
+
+/** T0576: the file Electron keeps its local capability records in, under userData. */
+export const HELPER_CAPABILITY_STORE_FILE = 'helper-capabilities.json'
+/** T0576: store format version (`{ version, capabilities: PersistedHelperCapability[] }`). */
+export const HELPER_CAPABILITY_STORE_VERSION = 1
+
+export type HelperCapabilityStoreRead =
+  | { status: 'missing'; records: [] }
+  | { status: 'ok'; records: unknown[] }
+  | { status: 'corrupt'; records: []; error: string }
+
+/**
+ * T0576: reads the capability store. A missing file is `missing`; unreadable JSON, another
+ * version or no `capabilities` array is `corrupt` (the caller logs it and starts empty).
+ * Record contents are validated by `HelperCapabilityRegistry.restore`.
+ */
+export function readHelperCapabilityStore(filePath: string): HelperCapabilityStoreRead {
+  let text: string
+  try {
+    text = fs.readFileSync(filePath, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { status: 'missing', records: [] }
+    return { status: 'corrupt', records: [], error: error instanceof Error ? error.message : String(error) }
+  }
+  try {
+    const parsed = JSON.parse(text) as { version?: unknown; capabilities?: unknown }
+    if (!parsed || typeof parsed !== 'object' || parsed.version !== HELPER_CAPABILITY_STORE_VERSION || !Array.isArray(parsed.capabilities)) {
+      return { status: 'corrupt', records: [], error: 'unexpected format' }
+    }
+    return { status: 'ok', records: parsed.capabilities }
+  } catch (error) {
+    return { status: 'corrupt', records: [], error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+/**
+ * T0576: writes the records atomically — a temp file in the same directory, then rename over the
+ * store — so a crash leaves either the old or the new file, never half of one. Digests and
+ * bindings only; the caller never has a token to write. Throws on failure.
+ */
+export function writeHelperCapabilityStore(filePath: string, records: readonly PersistedHelperCapability[]): void {
+  const body = JSON.stringify({ version: HELPER_CAPABILITY_STORE_VERSION, capabilities: records }, null, 2) + '\n'
+  const tmp = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.tmp`)
+  fs.writeFileSync(tmp, body, { encoding: 'utf8', mode: 0o600 })
+  try {
+    fs.renameSync(tmp, filePath)
+  } catch (error) {
+    try { fs.rmSync(tmp, { force: true }) } catch { /* best-effort */ }
+    throw error
+  }
+}
+
+/**
+ * T0576: loads the store into `registry` as pending capabilities (`restore`). A damaged store is
+ * logged (`warn`) and replaced by an empty one; invalid records are skipped and the store is
+ * rewritten without them. Never throws — a restart must not fail over this file.
+ */
+export function restoreHelperCapabilitiesFromStore(opts: {
+  registry: HelperCapabilityRegistry
+  filePath: string
+  log: { log(message: string): void; warn(message: string): void }
+}): { status: HelperCapabilityStoreRead['status']; restored: number; skipped: number } {
+  const { registry, filePath, log } = opts
+  const name = path.basename(filePath)
+  const rewrite = () => {
+    try {
+      writeHelperCapabilityStore(filePath, registry.records())
+    } catch (error) {
+      log.warn(`[helper-cap] could not rewrite ${name}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  const stored = readHelperCapabilityStore(filePath)
+  if (stored.status === 'missing') return { status: 'missing', restored: 0, skipped: 0 }
+  if (stored.status === 'corrupt') {
+    log.warn(`[helper-cap] ${name} unreadable (${stored.error}) — starting with no restored capabilities`)
+    rewrite()
+    return { status: 'corrupt', restored: 0, skipped: 0 }
+  }
+  const restored = registry.restore(stored.records)
+  const skipped = stored.records.length - restored
+  if (stored.records.length > 0) {
+    log.log(`[helper-cap] restored ${restored} capability record(s) from ${name}${skipped > 0 ? ` (${skipped} invalid skipped)` : ''} — pending the Terminal Server's PTY list`)
+  }
+  if (skipped > 0) {
+    log.warn(`[helper-cap] ${name}: ${skipped} invalid record(s) dropped`)
+    rewrite()
+  }
+  return { status: 'ok', restored, skipped }
 }

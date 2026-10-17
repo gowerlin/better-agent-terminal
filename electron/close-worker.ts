@@ -107,12 +107,25 @@ export interface CloseWorkerPtyManager {
  * this process) keeps that as its record: after BAT reopens its PTY was registered from the
  * Terminal Server's list or re-created as a plain shell, so it holds no worker capability — the
  * saved tab is written by BAT windows only (`workspace:save` needs `ctx.windowId`).
+ *
+ * PLAN-047 / T0576: a PTY that survived the reopen on the Terminal Server keeps its restored
+ * capability, and a worker capability is the binding of its own env (`BAT_TOWER_TERMINAL_ID`).
+ * Order: (1) a worker capability (`hasWorkerCapability`) decides — it must be bound to the asking
+ * tower (`isWorkerOf`), whatever the saved tab says; (2) otherwise a work order this process
+ * recorded needs one (`NOT_OWNER`); (3) otherwise the saved tab's ownership stands (T0537: the
+ * Terminal Server did not survive and the tab came back as a plain shell — a tower capability —
+ * or the PTY predates T0576 / T0575). The work order itself still comes from the saved tab.
  */
 export function capabilityOrSavedTabOwnership(
   isWorkerOf: (terminalId: string, towerId: string) => boolean,
   hasRecordedWorkorder: (terminalId: string) => boolean,
+  hasWorkerCapability: (terminalId: string) => boolean = () => false,
 ): (terminalId: string, towerId: string) => boolean {
-  return (terminalId, towerId) => isWorkerOf(terminalId, towerId) || !hasRecordedWorkorder(terminalId)
+  return (terminalId, towerId) => {
+    if (isWorkerOf(terminalId, towerId)) return true
+    if (hasWorkerCapability(terminalId)) return false
+    return !hasRecordedWorkorder(terminalId)
+  }
 }
 
 export interface WorkerCloseSchedulerDeps {

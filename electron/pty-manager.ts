@@ -143,6 +143,14 @@ export interface PtyManagerDeps {
    * and ignored. Undefined = no hook.
    */
   onPtyOutput?: (id: string, data: string) => void
+  /**
+   * PLAN-047 / T0576: the PTYs that survived on the Terminal Server — called with the T0108
+   * replay list (`pty:list` after a reconnect; ids registered from it are running) and with `[]`
+   * when the Terminal Server died (T0112 recovery: no earlier PTY survives; the rebuilt ones are
+   * new spawns). Electron settles its restored helper capabilities here. A throwing listener is
+   * logged and ignored. Undefined = no hook.
+   */
+  onSurvivingPtys?: (ids: string[]) => void
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -523,6 +531,17 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
       // Request the ring buffer for this PTY
       this.sendToServer({ type: 'pty:getBuffer', id })
+    }
+    this.notifySurvivingPtys(ptys.map(p => p.id))
+  }
+
+  /** T0576: `deps.onSurvivingPtys`; a throwing listener must not break the replay / recovery. */
+  private notifySurvivingPtys(ids: string[]): void {
+    if (!this.deps.onSurvivingPtys) return
+    try {
+      this.deps.onSurvivingPtys(ids)
+    } catch (e) {
+      logger.warn('[PtyManager] onSurvivingPtys listener failed:', e)
     }
   }
 
@@ -1226,6 +1245,8 @@ export class PtyManager implements CloseWorkerPtyManager {
         this.tcpSocket.destroy()
         this.tcpSocket = null
       }
+      // T0576: none of the server's PTYs survives; the rebuild below spawns new ones
+      this.notifySurvivingPtys([])
 
       // T0113: Kill orphan PTY processes from registry before re-forking
       try {

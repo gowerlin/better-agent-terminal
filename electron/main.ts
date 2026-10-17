@@ -59,7 +59,14 @@ import { PROXIED_CHANNELS } from './remote/protocol'
 import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
-import { buildLocalHelperEnv, HelperCapabilityRegistry, LOCAL_HELPER_CHANNEL_ROLES } from './remote/helper-capability'
+import {
+  buildLocalHelperEnv,
+  HELPER_CAPABILITY_STORE_FILE,
+  HelperCapabilityRegistry,
+  LOCAL_HELPER_CHANNEL_ROLES,
+  restoreHelperCapabilitiesFromStore,
+  writeHelperCapabilityStore,
+} from './remote/helper-capability'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
 import { clientPathTranslatorForProfile, IdentityTranslator, resolveClientPaths, type PathTranslator } from './remote/path-translator'
 import { describeSameTargetWarning, detachedSenderRouteIdentity, formatRemoteNotConnectedError, planProfileConnectionSnapshots, planProfileProxiedInvokeRoute, planProfileStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_PROFILE_CONNECTIONS_CHANGED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, shouldDropProfileConnectionOnUpdate, type DetachedWindowRecord, type SenderProfileBinding } from './remote/remote-connect-plan'
@@ -337,6 +344,9 @@ async function startTerminalServer(): Promise<void> {
     removePortFile(userDataPath)
   }
 
+  // T0576: no Terminal Server survived (or the user chose a fresh start) — no earlier PTY runs
+  settleRestoredHelperCapabilities(() => false, 'no surviving Terminal Server')
+
   const serverScript = path.join(__dirname, 'terminal-server.js')
 
   if (!fsSync.existsSync(serverScript)) {
@@ -448,8 +458,49 @@ const profileManager = new ProfileManager()
 const wslKeepAlive = new WslKeepAlive()
 // PLAN-047 / T0575 (D149): each local PTY's helpers authenticate with a capability of their own
 // (`batcap.`, issued in `createElectronPtyDeps().helperEnv`, revoked when the PTY is gone) instead
-// of the server token, which keeps authenticating the remote / QR / mobile clients. Memory only.
-const localHelperCapabilities = new HelperCapabilityRegistry()
+// of the server token, which keeps authenticating the remote / QR / mobile clients.
+// T0576: the records (digest + binding, never a token) are kept in
+// `<userData>/helper-capabilities.json`, so a tab the Terminal Server kept alive while BAT was
+// closed still authenticates after BAT reopens (`loadLocalHelperCapabilities` /
+// `settleRestoredHelperCapabilities`).
+const localHelperCapabilities = new HelperCapabilityRegistry({ onChange: () => persistLocalHelperCapabilities() })
+// T0576: set by `loadLocalHelperCapabilities` at whenReady (userData is never read at import time)
+let helperCapabilityStorePath: string | null = null
+
+/** T0576: writes the live capability records; a failure is logged and retried on the next change. */
+function persistLocalHelperCapabilities(): void {
+  if (!helperCapabilityStorePath) return
+  try {
+    writeHelperCapabilityStore(helperCapabilityStorePath, localHelperCapabilities.records())
+  } catch (error) {
+    logger.warn(`[helper-cap] could not write ${HELPER_CAPABILITY_STORE_FILE}:`, error)
+  }
+}
+
+/**
+ * T0576: loads the previous BAT process's capability records as pending (before any PTY is
+ * created or the Terminal Server reconnects). A damaged store is logged and replaced by an empty
+ * one — the tabs it covered then need a reopen, as before T0576.
+ */
+function loadLocalHelperCapabilities(): void {
+  if (helperCapabilityStorePath) return
+  const filePath = path.join(app.getPath('userData'), HELPER_CAPABILITY_STORE_FILE)
+  restoreHelperCapabilitiesFromStore({ registry: localHelperCapabilities, filePath, log: logger })
+  // after the restore: its own rewrites are done, later changes are persisted from here on
+  helperCapabilityStorePath = filePath
+}
+
+/**
+ * T0576: keeps the restored capabilities of PTYs that survived (on the Terminal Server's replay
+ * list) and drops the rest; `isAlive` () => false when no Terminal Server survived.
+ */
+function settleRestoredHelperCapabilities(isAlive: (id: string) => boolean, reason: string): void {
+  if (!localHelperCapabilities.hasPendingRestored()) return
+  const { kept, dropped } = localHelperCapabilities.settleRestored(isAlive)
+  for (const id of kept) logger.log(`[helper-cap] kept restored: terminal=${id} (${reason})`)
+  for (const id of dropped) logger.log(`[helper-cap] dropped restored: terminal=${id} (${reason})`)
+}
+
 const remoteServer = new RemoteServer({
   helperCapabilities: localHelperCapabilities,
   helperChannelRoles: LOCAL_HELPER_CHANNEL_ROLES,
@@ -788,6 +839,11 @@ function createElectronPtyDeps(): PtyManagerDeps {
       : path.join(__dirname, '..', 'scripts'),
     // PLAN-044 / T0566: the usage-limit scheduler reads each tab's screen from the live output.
     onPtyOutput: (id, data) => usageLimitScheduler?.onOutput(id, data),
+    // T0576: the T0108 replay list (or [] when the server died) settles the restored capabilities
+    onSurvivingPtys: (ids) => {
+      const alive = new Set(ids)
+      settleRestoredHelperCapabilities(id => alive.has(id), 'Terminal Server PTY list')
+    },
     // T0575: the PTY's capability goes with it (kill / exit / failed spawn; may come twice)
     onPtyExit: (id) => {
       if (localHelperCapabilities.revokeTerminal(id) > 0) logger.log(`[helper-cap] revoked: terminal=${id}`)
@@ -1553,6 +1609,9 @@ app.whenReady().then(async () => {
     logger.error('[startup] failed to create system tray:', err)
   }
 
+  // T0576: the previous process's capability records, before any PTY / Terminal Server reconnect
+  loadLocalHelperCapabilities()
+
   // Initialize PtyManager before starting Terminal Server so TCP reconnect can use it (T0108)
   if (!ptyManager) {
     ptyManager = new PtyManager(createElectronPtyDeps())
@@ -2214,10 +2273,12 @@ function registerProxiedHandlers() {
     emit: terminalEmit,
     logger,
     // T0575 (as headless T0536): the candidate must hold a worker capability of the asking tower —
-    // or own its ownership to the saved tab (T0537: PTY re-created after BAT reopened)
+    // or own its ownership to the saved tab (T0537: PTY re-created after BAT reopened).
+    // T0576: a worker capability (restored for a PTY that survived the reopen) wins over the saved tab.
     isOwnedBy: capabilityOrSavedTabOwnership(
       (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
       terminalId => ptyManager?.getWorkorder(terminalId) !== undefined,
+      terminalId => localHelperCapabilities.hasWorkerCapability(terminalId),
     ),
   })
   registerTerminalHandlers(registerHandler, {
