@@ -593,6 +593,10 @@ export function createHeadlessTerminalQueryModule(opts: {
       getWorkerView: opts.getPtyManager,
       isWorkerOf: opts.isWorkerOf ?? (() => false),
       status: record => ctWorktree.status(record),
+      // PLAN-047 Q3 / T0589: after the Worker tab closed (exited record, then git)
+      getExitedView: opts.getPtyManager,
+      getTerminalCwd: terminalId => opts.getPtyManager()?.getTerminalInfo(terminalId)?.cwd,
+      statusFromGit: query => ctWorktree.statusFromGit(query),
       logger: defaultLogger,
       mirrorToBatScripts,
     })

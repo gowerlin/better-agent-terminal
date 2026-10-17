@@ -168,6 +168,22 @@ describe('tools/call forwards to the channel', () => {
     expect((await ambiguous('bat_worktree_status', { workorder: 'T0585' })).result).toMatchObject({ isError: true, structuredContent: { code: 'AMBIGUOUS' } })
   })
 
+  it('bat_worktree_status summary names a closed tab / git source (T0589); structuredContent keeps source', async () => {
+    const reply = {
+      ok: true, terminalId: null, source: 'git', isolated: true, workorder: 'T0589', path: '/r/.bat-worktrees/r/T0589', branch: 'ct/T0589',
+      base: 'b', mainCheckout: '/r', head: 'h', mainHead: 'm', ahead: 1, behind: 0, dirty: null, dirtyCount: null, worktreeMissing: true,
+      changedFiles: ['a.ts'], changedCount: 1, outOfScopeFiles: [], touchesCtWorkorders: false, conflicts: [], computedAt: 1, cached: false,
+    }
+    const { call } = setup({ 'worktree:terminal-status': { ok: true, result: reply } })
+    const r = (await call('bat_worktree_status', { workorder: 'T0589' })).result
+    expect(r.content[0].text).toBe('ct/T0589 at /r/.bat-worktrees/r/T0589 (no tab; from git), ahead 1, behind 0, worktree missing, 1 changed file')
+    expect(r.structuredContent).toMatchObject({ source: 'git', terminalId: null, worktreeMissing: true })
+    const { call: exited } = setup({ 'worktree:terminal-status': { ok: true, result: { ...reply, terminalId: 'w1', source: 'exited', exited: true, exitedAt: 5 } } })
+    expect((await exited('bat_worktree_status', { workorder: 'T0589' })).result.content[0].text).toMatch(/^ct\/T0589 at \/r\/\.bat-worktrees\/r\/T0589 \(tab closed\), /)
+    const { call: plain } = setup({ 'worktree:terminal-status': { ok: true, result: { ok: true, terminalId: 'w1', source: 'exited', exited: true, exitedAt: 5, isolated: false } } })
+    expect((await plain('bat_worktree_status', { terminalId: 'w1' })).result.content[0].text).toBe('w1: not an isolated worktree (tab closed)')
+  })
+
   it('legacy calls get no resultType', async () => {
     const { call } = setup()
     const r = (await call('bat_whoami', {}, null)).result

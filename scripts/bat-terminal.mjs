@@ -172,6 +172,11 @@ Worktree status (T0585):
                          With <T####>: the Worker the --notify-id Tower dispatched for it (found as
                          --close-worker finds it); without: this tab itself (a Worker checking its
                          own worktree). Read-only: nothing is merged, checked out or committed.
+                         "source" says where it came from (T0589): "live" (the running tab),
+                         "exited" (the tab closed within 10 min; + "exited", "exitedAt") or "git"
+                         (no tab left: the ct/<T####> branch of this Tower's own repository, found
+                         by the --isolation location rules; "terminalId": null). A removed
+                         worktree whose branch is left prints "worktreeMissing": true.
                          Cannot be combined with --close-worker, --delay-ms, --worktree, --set-role,
                          --terminal-id or the options that create a terminal.
   --notify-id <id>       Required with --worktree-status <T####>: the Tower's own terminal ID
@@ -1431,6 +1436,8 @@ async function runWorktreeStatus(ws) {
     console.log(JSON.stringify(status))
     return finish(0, 'OK', {
       terminalId: status.terminalId ?? null,
+      // T0589: live / exited / git (absent = a BAT from before T0589)
+      source: typeof status.source === 'string' ? status.source : null,
       isolated: Boolean(status.isolated),
       ...(status.isolated ? {
         ahead: status.ahead,
@@ -1445,7 +1452,7 @@ async function runWorktreeStatus(ws) {
   }
   const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
   const detail = {
-    NOT_FOUND: worktreeStatusWorkorder ? `no running Worker tab for ${worktreeStatusWorkorder}` : 'this tab is not a running BAT terminal',
+    NOT_FOUND: worktreeStatusWorkorder ? `no Worker tab for ${worktreeStatusWorkorder} (running or closed within 10 min) and no ct/${worktreeStatusWorkorder} branch in this Tower's repository` : 'this tab is not a running BAT terminal',
     NOT_OWNER: worktreeStatusWorkorder ? `the Worker tab of ${worktreeStatusWorkorder} was not dispatched by terminal ${notifyId}` : 'not allowed to read that tab',
     AMBIGUOUS: `more than one Worker tab of ${worktreeStatusWorkorder} from this Tower${Array.isArray(result?.terminalIds) ? ` (${result.terminalIds.join(', ')})` : ''}`,
     TIMEOUT: 'BAT gave up after 10 s (git too slow?)',

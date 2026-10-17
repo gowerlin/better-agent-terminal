@@ -196,6 +196,36 @@ describe('bat-terminal --worktree-status (T0585)', () => {
     }
   }, 20000)
 
+  it('T0589: source / exited / terminalId null pass through the JSON line; the event logs source', async () => {
+    const closed = { ...STATUS, terminalId: null, source: 'git', dirty: null, dirtyCount: null, worktreeMissing: true }
+    const remote = await startMockRemote({ result: { ok: true, ...closed } })
+    try {
+      const r = await run(['--worktree-status', 'T0585', '--notify-id', 'tower-1'], remote.env)
+      expect(r.code, r.stderr).toBe(0)
+      expect(JSON.parse(r.stdout.trim())).toEqual(closed)
+      expect(helperEvents(remote.dir, 'worktree-status').at(-1)).toMatchObject({ result: 'OK', source: 'git', terminalId: null, isolated: true, dirtyCount: null })
+    } finally {
+      await remote.close()
+    }
+    const exited = await startMockRemote({ result: { ok: true, terminalId: 'wk-1', source: 'exited', exited: true, exitedAt: 5, isolated: false } })
+    try {
+      const r = await run(['--worktree-status', 'T0585', '--notify-id', 'tower-1'], exited.env)
+      expect(r.code, r.stderr).toBe(0)
+      expect(r.stdout.trim()).toBe('{"terminalId":"wk-1","source":"exited","exited":true,"exitedAt":5,"isolated":false}')
+      expect(helperEvents(exited.dir, 'worktree-status').at(-1)).toMatchObject({ source: 'exited', isolated: false })
+    } finally {
+      await exited.close()
+    }
+    // a BAT from before T0589 has no source: logged as null
+    const old = await startMockRemote({ result: { ok: true, terminalId: 'me', isolated: false } })
+    try {
+      await run(['--worktree-status'], old.env)
+      expect(helperEvents(old.dir, 'worktree-status').at(-1)).toMatchObject({ source: null })
+    } finally {
+      await old.close()
+    }
+  }, 30000)
+
   const codes: Array<[string, number, Record<string, unknown>]> = [
     ['NOT_FOUND', 3, {}],
     ['NOT_OWNER', 4, {}],
@@ -282,5 +312,7 @@ describe('usage errors (T0585)', () => {
     expect(r.stdout).toContain('--worktree-status [<T####>]')
     expect(r.stdout).toContain('Exit codes: 0 printed (isolated or not) / 3 NOT_FOUND / 4 NOT_OWNER / 5 AMBIGUOUS')
     expect(r.stdout).toContain('"worktree-status: <CODE>"')
+    // T0589
+    expect(r.stdout).toContain('"source" says where it came from (T0589): "live" (the running tab),')
   })
 })

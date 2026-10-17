@@ -5,6 +5,8 @@
  * writes, T0574 L155) — ahead / behind, clean / dirty, worktree deleted, changedFiles, out of scope
  * with each `affects_files` style and a missing field, the `_ct-workorders` exception, conflict /
  * no conflict, the cache, the time limit; and that a query changes nothing in either checkout.
+ * T0589: `statusFromGit` / `findFromGit` — registered, removed (branch only), a stray directory at
+ * the location, NOT_FOUND.
  */
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -20,6 +22,7 @@ import {
   parsePorcelainZ,
   parseWorkorderAffectsFiles,
   type CtWorktreeRecord,
+  type CtWorktreeGitStatusResult,
   type CtWorktreeStatusResult,
   type GitRunResult,
 } from '../ct-worktree'
@@ -82,7 +85,7 @@ async function isolated(repo: string): Promise<CtWorktreeRecord> {
   return prepared.record
 }
 
-function ok(result: CtWorktreeStatusResult) {
+function ok(result: CtWorktreeStatusResult | CtWorktreeGitStatusResult) {
   if (!result.ok) throw new Error(`${result.code}: ${result.error}`)
   return result
 }
@@ -272,6 +275,67 @@ describe('CtWorktreeService.status (real git)', () => {
     expect(await service.status(record)).toMatchObject({ ok: false, code: 'GIT_FAILED' })
     expect(await service.status({ ...record, path: join(repo, 'elsewhere') })).toMatchObject({ ok: false, code: 'INVALID' })
     expect(await service.status(null)).toMatchObject({ ok: false, code: 'INVALID' })
+  })
+})
+
+describe('CtWorktreeService.statusFromGit (T0589, real git)', () => {
+  it('a registered worktree: found by the location rules from a sub-directory; read as usual; nothing changes', async () => {
+    const { repo } = makeRepo()
+    const record = await isolated(repo)
+    writeFileSync(join(record.path, 'src', 'in.txt'), 'changed\n')
+    git(record.path, 'commit', '-q', '-am', 'w')
+    writeFileSync(join(record.path, 'dirty.txt'), 'x\n')
+    const found = await service.findFromGit({ cwd: join(repo, 'src'), workorder: 't0001' })
+    expect(found).toMatchObject({ ok: true, registered: true })
+    if (!found.ok) throw new Error(found.error)
+    expect(same(found.record.path, record.path)).toBe(true)
+    expect(found.record).toMatchObject({ branch: 'ct/T0001', workorder: 'T0001', base: git(repo, 'rev-parse', 'HEAD') })
+    expect(same(found.record.mainCheckout, repo)).toBe(true)
+    const before = [snapshot(repo), snapshot(record.path)]
+    const status = ok(await service.statusFromGit({ cwd: join(repo, 'src'), workorder: 'T0001' }))
+    expect(status).toMatchObject({ ahead: 1, behind: 0, dirty: ['dirty.txt'], dirtyCount: 1, changedFiles: ['src/in.txt'], outOfScopeFiles: [] })
+    expect(status.worktreeMissing).toBeUndefined()
+    expect([snapshot(repo), snapshot(record.path)]).toEqual(before)
+  })
+
+  it('removed (`--worktree remove`), the branch left: dirty null + worktreeMissing, the rest from the branch', async () => {
+    const { repo } = makeRepo()
+    const record = await isolated(repo)
+    writeFileSync(join(record.path, 'out.txt'), 'x\n')
+    git(record.path, 'add', '-A')
+    git(record.path, 'commit', '-q', '-m', 'w')
+    git(repo, 'worktree', 'remove', record.path)
+    const before = snapshot(repo)
+    const found = await service.findFromGit({ cwd: repo, workorder: 'T0001' })
+    expect(found).toMatchObject({ ok: true, registered: false })
+    const status = ok(await service.statusFromGit({ cwd: repo, workorder: 'T0001' }))
+    expect(status).toMatchObject({ dirty: null, dirtyCount: null, worktreeMissing: true, ahead: 1, behind: 0, changedFiles: ['out.txt'], outOfScopeFiles: ['out.txt'], conflicts: [] })
+    expect(same(status.path, record.path)).toBe(true)
+    expect(snapshot(repo)).toEqual(before)
+  })
+
+  it('a directory at the location that is not the registered worktree is not read', async () => {
+    const { repo } = makeRepo()
+    const record = await isolated(repo)
+    git(repo, 'worktree', 'remove', record.path)
+    mkdirSync(record.path, { recursive: true })
+    writeFileSync(join(record.path, 'stray.txt'), 'x\n')
+    const status = ok(await service.statusFromGit({ cwd: repo, workorder: 'T0001' }))
+    expect(status).toMatchObject({ dirty: null, worktreeMissing: true })
+  })
+
+  it('NOT_FOUND: no branch, not a git repository, no cwd, a bad work order id', async () => {
+    const { root, repo } = makeRepo()
+    expect(await service.statusFromGit({ cwd: repo, workorder: 'T0001' })).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    const record = await isolated(repo)
+    git(repo, 'worktree', 'remove', record.path)
+    git(repo, 'branch', '-D', 'ct/T0001')
+    expect(await service.statusFromGit({ cwd: repo, workorder: 'T0001' })).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    const plain = join(root, 'plain')
+    mkdirSync(plain)
+    expect(await service.statusFromGit({ cwd: plain, workorder: 'T0001' })).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    expect(await service.statusFromGit({ cwd: join(root, 'nope'), workorder: 'T0001' })).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    expect(await service.statusFromGit({ cwd: repo, workorder: '../x' })).toMatchObject({ ok: false, code: 'NOT_FOUND' })
   })
 })
 

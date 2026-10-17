@@ -2365,6 +2365,11 @@ function registerProxiedHandlers() {
       terminalId => localHelperCapabilities.hasWorkerCapability(terminalId),
     ),
     status: record => ctWorktreeService.status(record),
+    // PLAN-047 Q3 / T0589: after the Worker tab closed — its exited record, then the asking
+    // Tower's own repository (git, by the T0583 location rules)
+    getExitedView: () => ptyManager,
+    getTerminalCwd: terminalId => ptyManager?.getTerminalInfo(terminalId)?.cwd,
+    statusFromGit: opts => ctWorktreeService.statusFromGit(opts),
     logger,
     mirrorToBatScripts,
   })

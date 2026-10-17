@@ -19,6 +19,8 @@
  * PLAN-047 W1-2 / T0585: `status` answers `worktree:terminal-status` (electron/worktree-status-handlers.ts)
  * — ahead / behind, dirty files, changed files, files outside the work order's `affects_files`
  * and the conflicts `merge-tree` predicts — reading git only (the merge stays the Tower's, D150).
+ * PLAN-047 Q3 / T0589: `statusFromGit` finds the worktree of a work order by the location rules
+ * when no tab remembers it (the Worker tab closed long ago, or `--worktree remove` left the branch).
  *
  * Unrelated to `WorktreeManager` (electron/worktree-manager.ts: Agent panel / `claude-cli-worktree`,
  * `.bat-worktrees` inside the repo), which is unchanged.
@@ -272,6 +274,25 @@ export type CtWorktreeStatusErrorCode = 'INVALID' | 'GIT_FAILED' | 'TIMEOUT'
 export type CtWorktreeStatusResult =
   | ({ ok: true } & CtWorktreeStatus)
   | { ok: false; code: CtWorktreeStatusErrorCode; error: string }
+
+/** T0589: `status` options. */
+export interface CtWorktreeStatusOptions {
+  /**
+   * The worktree is not registered at the record's location (only the branch is left, e.g. after
+   * `--worktree remove`): do not read `dirty` there — `dirty: null` + `worktreeMissing: true`.
+   */
+  unregistered?: boolean
+}
+
+/** T0589: `statusFromGit` — `NOT_FOUND` = no `ct/<T####>` branch in the caller's repository. */
+export type CtWorktreeGitStatusResult =
+  | CtWorktreeStatusResult
+  | { ok: false; code: 'NOT_FOUND'; error: string }
+
+/** T0589: what `findFromGit` found — `registered` = a worktree of the branch is at the location. */
+export type CtWorktreeFindResult =
+  | { ok: true; record: CtWorktreeRecord; registered: boolean }
+  | { ok: false; code: 'NOT_FOUND' | 'GIT_FAILED'; error: string }
 
 /**
  * Removes a YAML quoted scalar's quotes (and what follows the closing quote); a plain scalar loses
@@ -648,16 +669,75 @@ export class CtWorktreeService {
    * conflicts are cached per (worktree, head, mainHead); `dirty` and the work order's
    * `affects_files` are read on every call. The whole call is limited to `statusTimeoutMs`.
    */
-  async status(raw: unknown): Promise<CtWorktreeStatusResult> {
+  async status(raw: unknown, opts: CtWorktreeStatusOptions = {}): Promise<CtWorktreeStatusResult> {
     const record = parseCtWorktreeRecord(raw, this.platform)
     if (!record) return { ok: false, code: 'INVALID', error: 'not a worktree BAT created for a work order' }
+    return this.withStatusTimeout(() => this.computeStatus(record, opts))
+  }
+
+  /**
+   * T0589: `status` of work order `workorder`'s worktree found by the location rules from `cwd`
+   * (the asking Tower's own checkout) — for a Worker no tab remembers any more. The main checkout
+   * is `git rev-parse --show-toplevel` of `cwd`, the location `ctWorktreeLocation`, the branch
+   * `ct/<T####>`, the base its fork point from the main checkout's HEAD. A worktree registered at
+   * the location on that branch is read as usual; otherwise (removed, only the branch is left)
+   * `dirty: null` + `worktreeMissing: true`. No branch → `NOT_FOUND`. One time limit for all of it.
+   */
+  async statusFromGit(opts: { cwd: string; workorder: unknown }): Promise<CtWorktreeGitStatusResult> {
+    return this.withStatusTimeout<CtWorktreeGitStatusResult>(async () => {
+      const found = await this.findFromGit(opts)
+      if (!found.ok) return found
+      return this.computeStatus(found.record, { unregistered: !found.registered })
+    })
+  }
+
+  /** T0589: the record `statusFromGit` reads (see there). Read-only. */
+  async findFromGit(opts: { cwd: string; workorder: unknown }): Promise<CtWorktreeFindResult> {
+    const workorder = ctWorktreeWorkorder(opts.workorder)
+    if (!workorder) return { ok: false, code: 'NOT_FOUND', error: `invalid work order id '${String(opts.workorder)}'` }
+    if (typeof opts.cwd !== 'string' || !opts.cwd || !this.existsSync(opts.cwd)) {
+      return { ok: false, code: 'NOT_FOUND', error: `cwd ${String(opts.cwd)} does not exist` }
+    }
+    const p = this.platform === 'win32' ? path.win32 : path.posix
+    let mainCheckout: string
+    try {
+      const top = (await this.git(['rev-parse', '--show-toplevel'], opts.cwd, CT_GIT_QUERY_TIMEOUT_MS)).stdout.trim()
+      if (!top) return { ok: false, code: 'NOT_FOUND', error: `cwd ${opts.cwd} is not inside a git work tree` }
+      mainCheckout = p.resolve(top)
+    } catch (error) {
+      return { ok: false, code: 'NOT_FOUND', error: `cwd ${opts.cwd} is not a git repository (${gitError(error)})` }
+    }
+    const branch = ctWorktreeBranch(workorder)
+    if (!(await this.branchExists(mainCheckout, branch))) {
+      return { ok: false, code: 'NOT_FOUND', error: `branch ${branch} not found in ${mainCheckout}` }
+    }
+    let mainHead: string
+    try {
+      mainHead = (await this.git(['rev-parse', '--verify', 'HEAD^{commit}'], mainCheckout, CT_GIT_QUERY_TIMEOUT_MS)).stdout.trim()
+    } catch (error) {
+      return { ok: false, code: 'GIT_FAILED', error: `cannot read HEAD of ${mainCheckout} (${gitError(error)})` }
+    }
+    const location = ctWorktreeLocation(mainCheckout, workorder, this.platform)
+    let registered = false
+    try {
+      const entry = (await this.listWorktrees(mainCheckout)).find(w => samePath(w.path, location, this.platform))
+      registered = !!entry && entry.branch === branch && !entry.prunable
+    } catch (error) {
+      return { ok: false, code: 'GIT_FAILED', error: gitError(error) }
+    }
+    const base = await this.mergeBase(mainCheckout, mainHead, branch)
+    return { ok: true, record: { path: location, branch, base, mainCheckout, workorder }, registered }
+  }
+
+  /** T0585: `work` limited to `statusTimeoutMs` (→ `TIMEOUT`). */
+  private async withStatusTimeout<T>(work: () => Promise<T | CtWorktreeStatusResult>): Promise<T | CtWorktreeStatusResult> {
     const limit = this.deps.statusTimeoutMs ?? CT_WORKTREE_STATUS_TIMEOUT_MS
     let timer: ReturnType<typeof setTimeout> | null = null
     const timeout = new Promise<CtWorktreeStatusResult>(resolve => {
       timer = setTimeout(() => resolve({ ok: false, code: 'TIMEOUT', error: `worktree status took longer than ${limit} ms` }), limit)
     })
     try {
-      return await Promise.race([this.computeStatus(record), timeout])
+      return await Promise.race([work(), timeout])
     } finally {
       if (timer) clearTimeout(timer)
     }
@@ -665,7 +745,7 @@ export class CtWorktreeService {
 
   private readonly statusCache = new Map<string, StatusCacheEntry>()
 
-  private async computeStatus(record: CtWorktreeRecord): Promise<CtWorktreeStatusResult> {
+  private async computeStatus(record: CtWorktreeRecord, opts: CtWorktreeStatusOptions = {}): Promise<CtWorktreeStatusResult> {
     const { mainCheckout, path: location, branch } = record
     if (!this.existsSync(mainCheckout)) return { ok: false, code: 'GIT_FAILED', error: `main checkout ${mainCheckout} does not exist` }
     const ci = this.platform === 'win32' || this.platform === 'darwin'
@@ -687,7 +767,7 @@ export class CtWorktreeService {
     let dirtyCount: number | null = null
     let worktreeMissing = false
     let dirtyError: string | undefined
-    if (!this.existsSync(location)) {
+    if (opts.unregistered || !this.existsSync(location)) {
       worktreeMissing = true
     } else {
       try {

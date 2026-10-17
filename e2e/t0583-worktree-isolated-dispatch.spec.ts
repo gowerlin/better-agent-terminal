@@ -20,6 +20,13 @@
 // files, out of scope = out.txt, conflict = pkg/x.txt, an untracked file in dirty, cached on the
 // second call; `git status` / branches / HEAD of both checkouts unchanged by the queries. In 4,
 // after the relaunch, `--worktree-status T0584` finds the Worker from its saved tab.
+//
+// PLAN-047 Q3 / T0589 (after the tab closed): after 3, `--worktree-status T0583` still answers from
+// the exited tab record (`source: "exited"`, `worktreeMissing: true`, the branch's ahead / behind);
+// 3b. dispatch T0586 isolated, `--close-worker T0586 --worktree keep` → once the tab closed
+// `--worktree-status T0586` exit 0, `source: "exited"`, the kept worktree read as usual. (The helper
+// here authenticates with the server token, so `source: "git"` — tower capabilities only — is
+// covered by electron/__tests__/worktree-status-after-close.test.ts.)
 
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { execFile, execFileSync } from 'node:child_process'
@@ -210,7 +217,7 @@ test('--isolation worktree runs the Worker in its own worktree; --close-worker -
     expect(JSON.parse(again.stdout)).toMatchObject({ cached: true, computedAt: status.computedAt, conflicts: ['pkg/x.txt'] })
     expect([gitState(repo), gitState(wt)]).toEqual(before)
     await expect.poll(() => readDebugLogs(userData), { timeout: 10_000 })
-      .toMatch(/\[helper-query\] channel=worktree:terminal-status caller=client:\S+ target=\S+ → ok isolated=true ahead=1 behind=1 dirty=1 changed=3 outOfScope=1 conflicts=1 cached=false ms=\d+/)
+      .toMatch(/\[helper-query\] channel=worktree:terminal-status caller=client:\S+ target=\S+ → ok source=live isolated=true ahead=1 behind=1 dirty=1 changed=3 outOfScope=1 conflicts=1 cached=false ms=\d+/)
     const missing = await runHelper(env, ['--worktree-status', 'T0599', '--notify-id', TOWER], tmp)
     expect(missing.code).toBe(3)
     expect(missing.stderr).toContain('worktree-status: NOT_FOUND')
@@ -235,6 +242,44 @@ test('--isolation worktree runs the Worker in its own worktree; --close-worker -
     expect(git(repo, 'branch', '--list', 'ct/T0583')).toContain('ct/T0583')
     expect(git(repo, 'worktree', 'list')).not.toContain('T0583')
     await expect.poll(() => readDebugLogs(userData), { timeout: 10_000 }).toContain(`→ removed ${wt} (branch ct/T0583); branch kept`)
+
+    // ── T0589: the tab is closed and the worktree removed; the exited record still answers ──
+    const afterRemove = await runHelper(env, ['--worktree-status', 'T0583', '--notify-id', TOWER], tmp)
+    log(`worktree-status T0583 after --worktree remove: exit=${afterRemove.code}\n${afterRemove.stdout}${afterRemove.stderr}`)
+    expect(afterRemove.code, afterRemove.stderr).toBe(0)
+    const removedStatus = JSON.parse(afterRemove.stdout)
+    expect(removedStatus).toMatchObject({
+      terminalId: worker, source: 'exited', exited: true, isolated: true, branch: 'ct/T0583',
+      ahead: 1, behind: 1, dirty: null, dirtyCount: null, worktreeMissing: true, conflicts: ['pkg/x.txt'], outOfScopeFiles: ['out.txt'],
+    })
+    expect(typeof removedStatus.exitedAt).toBe('number')
+    await expect.poll(() => readDebugLogs(userData), { timeout: 10_000 })
+      .toMatch(/\[helper-query\] channel=worktree:terminal-status caller=client:\S+ target=\S+ → ok source=exited isolated=true ahead=1 behind=1 dirty=n\/a /)
+
+    // ── 3b. T0589: --worktree keep → once the tab closed, still answered (source exited) ──
+    const wt3 = path.join(tmp, '.bat-worktrees', 'repo', 'T0586')
+    const third = await dispatch('T0586', repo)
+    expect(third.code, third.stderr).toBe(0)
+    const worker3 = third.terminalId!
+    await expect.poll(() => readOut('T0586'), { timeout: 30_000 }).not.toBeNull()
+    await expect(view.locator('.terminal-wrapper')).toHaveCount(2, { timeout: 20_000 })
+    fs.writeFileSync(path.join(wt3, 'kept.txt'), 'kept\n')
+    git(wt3, 'add', 'kept.txt')
+    git(wt3, 'commit', '-q', '-m', 'kept')
+    const kept = await runHelper(env, ['--close-worker', 'T0586', '--notify-id', TOWER, '--worktree', 'keep'], tmp)
+    log(`close T0586 (keep): exit=${kept.code}\n${kept.stdout}${kept.stderr}`)
+    expect(kept.code, kept.stderr).toBe(0)
+    await expect(view.locator('.terminal-wrapper')).toHaveCount(1, { timeout: 30_000 })
+    const afterKeep = await runHelper(env, ['--worktree-status', 'T0586', '--notify-id', TOWER], tmp)
+    log(`worktree-status T0586 after --worktree keep: exit=${afterKeep.code}\n${afterKeep.stdout}${afterKeep.stderr}`)
+    expect(afterKeep.code, afterKeep.stderr).toBe(0)
+    const keptStatus = JSON.parse(afterKeep.stdout)
+    expect(keptStatus).toMatchObject({ terminalId: worker3, source: 'exited', exited: true, isolated: true, branch: 'ct/T0586', ahead: 1, dirty: [], dirtyCount: 0, changedFiles: ['kept.txt'] })
+    expect(keptStatus).not.toHaveProperty('worktreeMissing')
+    expect(norm(keptStatus.path)).toBe(norm(wt3))
+    expect(fs.existsSync(wt3)).toBe(true)
+    const helperLog = fs.readFileSync(path.join(tmp, 'helper-logs', 'bat-scripts.log'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
+    expect(helperLog.filter(e => e.event === 'worktree-status').at(-1)).toMatchObject({ workorder: 'T0586', result: 'OK', source: 'exited', isolated: true })
 
     // ── 4. isolated Worker, relaunch, close with --worktree archive (saved tab) ──
     const wt2 = path.join(tmp, '.bat-worktrees', 'repo', 'T0584')

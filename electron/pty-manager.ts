@@ -112,6 +112,11 @@ export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' |
   lastOutputAt: number | null
   /** The last `EXITED_PTY_TAIL_MAX_CHARS` of its replay buffer (`total` as it was). */
   tail: PtyReplayBuffer
+  /**
+   * PLAN-047 Q3 / T0589: `PtyInstance.worktree` of an isolated Worker, so `worktree:terminal-status`
+   * still answers after its tab closed (electron/worktree-status-handlers.ts).
+   */
+  worktree?: CtWorktreeRecord
 }
 
 /** T0582: exited PTYs remembered (oldest dropped first). */
@@ -693,6 +698,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       ...(exitCode !== undefined ? { exitCode } : {}),
       lastOutputAt: this.lastOutputAt.get(id) ?? null,
       tail: { data, total: buf?.total ?? 0 },
+      ...(instance.worktree ? { worktree: { ...instance.worktree } } : {}),
     }
     this.exitedPtys.delete(id)
     this.exitedPtys.set(id, record)
@@ -929,7 +935,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     if (this.instances.has(id)) return null
     this.pruneExitedPtys(Date.now())
     const record = this.exitedPtys.get(id)
-    return record ? { ...record, tail: { ...record.tail } } : null
+    return record ? { ...record, tail: { ...record.tail }, ...(record.worktree ? { worktree: { ...record.worktree } } : {}) } : null
   }
 
   /** T0582: ids of the remembered exited PTYs that do not run again (oldest first). */

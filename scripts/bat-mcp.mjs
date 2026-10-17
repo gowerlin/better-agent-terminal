@@ -161,7 +161,7 @@ export const TOOLS = [
     name: 'bat_worktree_status',
     channel: 'worktree:terminal-status',
     title: 'Worker worktree status',
-    description: 'Git worktree of an isolated Worker (dispatched with --isolation worktree): branch, base, ahead / behind, dirty, changed files, files outside the work order scope, merge conflicts. isolated=false = not an isolated Worker.',
+    description: 'Git worktree of an isolated Worker (dispatched with --isolation worktree): branch, base, ahead / behind, dirty, changed files, files outside the work order scope, merge conflicts. isolated=false = not an isolated Worker. Also after the Worker tab closed: source=exited (closed within 10 min) or source=git (workorder only, from the asking Tower repository).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -229,9 +229,11 @@ export function summarize(toolName, data) {
       return `changed=${data.changed} state=${data.state} after ${data.waitedMs} ms`
     case 'bat_worktree_status': {
       // T0585 shape: lists capped, counts beside them (dirtyCount / changedCount / outOfScopeCount)
-      if (!data.isolated) return `${data.terminalId ? `${data.terminalId}: ` : ''}not an isolated worktree`
+      // T0589: `source` live / exited (the tab closed) / git (no tab left, found by the location rules)
+      const from = data.source === 'exited' ? ' (tab closed)' : data.source === 'git' ? ' (no tab; from git)' : ''
+      if (!data.isolated) return `${data.terminalId ? `${data.terminalId}: ` : ''}not an isolated worktree${from}`
       const count = (n, list) => typeof n === 'number' ? n : Array.isArray(list) ? list.length : 0
-      const parts = [`${data.branch} at ${data.path}`, `ahead ${data.ahead}`, `behind ${data.behind}`]
+      const parts = [`${data.branch} at ${data.path}${from}`, `ahead ${data.ahead}`, `behind ${data.behind}`]
       if (data.worktreeMissing) parts.push('worktree missing')
       const dirty = count(data.dirtyCount, data.dirty)
       if (dirty) parts.push(`${dirty} uncommitted`)
