@@ -92,14 +92,14 @@
 ### 近期完成
 - `v0.7.0-pre.6`（10-18 03:50，run `39063636289` @ `659c9a79`）：T0600 Worker 啟動確認（`--wait-started` / exit 8 / `agentStarted`）、BUG-152 派工分頁不搶焦點；三文件 `87ad460d`
 - `v0.7.0-pre.5`（10-18 03:18，run `39061324454` @ `ffeb8b21`）：BUG-150 AskUserQuestion → `question`、BUG-151 派工前輸入接在指令前；三文件 `38dd75b8`
-- CT-T017 → CT v5.4.0（`source`）DONE、v5.5.0 / v5.5.1（斷點 D、BUG-150 補註）；CT-T018 → CT v5.6.0 待做（D039）
+- CT-T017 → CT v5.4.0（`source`）DONE、v5.5.0 / v5.5.1（斷點 D、BUG-150 補註）；CT-T018 → CT v5.6.0 DONE（對方 T0165 `d092206`，派工一律帶 `--wait-started 30000`；README CT 欄已補 `5ba2ef06`）
 - PLAN-048（Worker 問塔台通道）IDEA；D154
 - unit 5118 passed / 293 files
 
 ### 待辦（依優先序）
 
 1. 🔴 **`v0.7.0-pre.6` 實機驗收**：派探針小單（只回報）帶 `--wait-started 30000` → `started: <時間>`；派工時在塔台分頁打字 → 字留在塔台、畫面不跳（BUG-151 / 152）；Claude CLI 分頁 AskUserQuestion → `blocked` / `question`，滑鼠回答立即清除（BUG-150）
-2. 🟡 **CT v5.6.0**（CT-T018）發佈後補 README 版本對照表「Worker 啟動確認」列的 CT 欄
+2. 🟡 **CT v5.6.0 runtime**：塔台派工若由 CT v5.6.0 帶 `--wait-started`，探針單即驗；BMad-Guide 另開單驗收
 3. 🟡 **PLAN-048**（Worker 問塔台 / 塔台答覆通道）：使用者決定是否排期；**PLAN-047 後續**：M1b-2 codex blocked / 啟動信號、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
 5. 🟢 前期驗收與小項：Gary BUG-127-135 / 116 / 118；BUG-130 / 105 / 107 / 108 / 097 / 111；T0550 真人 6 項；dmg / AppImage、NSIS 重裝；T0360
@@ -129,7 +129,7 @@
 | **目前版號** | **0.7.0-pre.6**（package.json + lock，2026-10-18 `659c9a79`） |
 | **最新 release** | `v0.7.0-pre.6`（2026-10-18 03:50，run `39063636289`，target `659c9a79`：T0600 Worker 啟動確認、BUG-152 不搶焦點；更版重點含「歡迎協助測試」；repo 文件已同步 `87ad460d`；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.0-pre.6`（7 assets）。前一版 `v0.7.0-pre.5`（2026-10-18 03:18，run `39061324454`，target `ffeb8b21`：BUG-150 / BUG-151；repo 文件已同步 `38dd75b8`）+ `server-bundle-v0.7.0-pre.5`。前一版 `v0.7.0-pre.4`（2026-10-18 02:02，run `39055793254`，target `6a059147`：T0589 Q3 關閉後查 worktree 狀態、T0590 / T0594 blocked（claude hooks）、BUG-149 / T0593、T0592 codex e2e；更版重點含「歡迎協助測試」；repo 文件已同步 `18bd2e03`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.0-pre.4`（7 assets）。前一版 `v0.7.0-pre.3`（2026-10-18 00:20，run `39048372727`，target `738abbd0`：BUG-148 codex 分頁 BAT MCP；更版重點已寫；repo 文件已同步 `15546d32`；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.0-pre.3`（7 assets）。前一版 `v0.7.0-pre.2`（2026-10-17 23:03，run `39042821892`，target `9cc4bcf3`：PLAN-047 M1 / W1（T0582–T0585）BAT MCP、worktree 隔離派工與狀態；更版重點已寫；repo 文件已同步 `1343be13`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.0-pre.2`（7 assets）。前一版 `v0.7.0-pre.1`（2026-10-17 20:54，run `39033898223`，target `7771b546`：PLAN-047 A1 / A2 本機範圍權杖、T0577、T0579、BUG-146 / 147；更版重點已寫；repo 文件已同步 `95107b90`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.0-pre.1`（7 assets）。前一版 `v0.6.1-pre.9`（2026-10-17 10:45，run `38995709965`，target `14246954`：BUG-144 重修 T0573；更版重點已寫；repo 文件已同步 `65c841bf`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.6.1-pre.9`（7 assets）。前一版 `v0.6.1-pre.8`（2026-10-16 22:36，run `38916104029`，target `0769bafc`：BUG-144 Shift + 右鍵複製、BUG-145 PTY 初始尺寸；更版重點已寫；repo 文件已同步 `370c7781`；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.6.1-pre.8`（7 assets）。前一版 `v0.6.1-pre.7`（2026-10-16 18:04，run `38884005468`，target `c41a0ec7`：BUG-142 / 143 右鍵選單）。更早見 `release-note.md` / `CHANGELOG.md` 與 `_archive/state-snapshots/2026-Q4.md` |
 | **前一 tag** | `v0.7.0-pre.5`（2026-10-18 03:18，`ffeb8b21`） |
-| **目前主軸** | `v0.7.0-pre.6` 已發佈、待實機驗 BUG-150 / 151 / 152 與 T0600；CT v5.6.0（CT-T018）由 BMad-Guide 進行；PLAN-048 待排期 |
+| **目前主軸** | `v0.7.0-pre.6` 已發佈、待實機驗 BUG-150 / 151 / 152 與 T0600；CT v5.6.0（CT-T018）DONE，runtime 待 pre.6；PLAN-048 待排期 |
 | **工單最大編號** | T0600 DONE（第七十六 session：T0596 研究、T0597 BUG-150、T0598 BUG-151、T0599 BUG-152、T0600 啟動確認）；T0588 DONE（第七十四 session：T0586 BUG-148 FIXED、T0587 隔離派工探針、T0588 合併工單模式 ②）；T0585 DONE（第七十三 session：T0581 實機探針、T0582–T0585 PLAN-047 M1 / W1，實作皆 source / test 層，實機隨 0.7.0-pre.2）；T0580 DONE（第七十二 session：T0574 研究、T0575–T0580 實作，皆 source / test 層，實機隨 0.7.0-pre.1）；T0573 DONE（pre.9 實機，第七十一 session）；T0572 DONE（pre.8 實機）；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
 | **BUG 最大編號** | **BUG-152**（BUG-150 / 151 / 152 皆 FIXED，第七十六 session；tracker Open 1 / Fixing 0 / Fixed 23 / Closed 13）；**BUG-148**（FIXED by T0586 `8c7bd4c4` → 2026-10-18 00:28 `0.7.0-pre.3` 實機 PASS，**CLOSED**；tracker Open 1 / Fixed 19 / Closed 13）；BUG-147（BUG-146 / 147 FIXED by T0578 / T0580，2026-10-17）；BUG-145（CLOSED 2026-10-17）；BUG-144 CLOSED（pre.9 實機，2026-10-17）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 12（10-17 歸檔 40 張） |
 | **PLAN 最大編號** | **PLAN-048**（IDEA：Worker 問塔台 / 塔台答覆通道，BMad-Guide D036 提出，2026-10-18）；**PLAN-047**（IN_PROGRESS，D149；外部提案「BAT MCP Server 與 Worktree 合併」審議，2026-10-17 第七十二 session）；PLAN-044 / 045 / 046 DONE（2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-014 DROPPED |
