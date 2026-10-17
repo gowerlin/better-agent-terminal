@@ -15,7 +15,12 @@
 //   4. a plain drag goes to the script (press / drag / release reports), xterm selects nothing:
 //      Shift + right-click → Paste only (the claude CLI selects and copies that itself)
 //   5. right-click without Shift: no menu, the script gets the right button (T0568)
-//   6. tracking off: right-click → menu as in a plain shell
+//   6. T0573: focus away, then a Shift + drag that brings focus back; the script answers the focus
+//      report with the tracking DECSETs mid-drag (xterm clears the selection and ends the drag) →
+//      Shift + right-click → Copy → clipboard = the whole dragged text
+//   7. T0573: selected, focus away, Shift + right-click brings focus back; the DECSETs arrive
+//      between press and release → Copy → clipboard = the selection
+//   8. tracking off: right-click → menu as in a plain shell
 
 import { test, expect, type Page } from '@playwright/test'
 import fs from 'node:fs'
@@ -36,28 +41,44 @@ const SENTINEL = 'T0571-clipboard-before'
 // size to `sizeFile` once the screen is drawn and tracking is on (again on every resize), `doneFile`
 // once tracking is off again. Every stdin chunk (raw mode) goes to `inputLog` as a JSON string; a
 // `q` turns everything off and exits.
-const scriptSource = (inputLog: string, sizeFile: string, doneFile: string): string => [
+//
+// T0573: like the claude CLI the script turns on focus reporting (DECSET 1004) and, when the tab
+// gets focus back (`ESC [ I`) after being out for at least REFOCUS_MS, sends the tracking DECSETs
+// again (claude 2.1.300: after about 5 s out); each time it appends a line to `reassertLog`.
+const REFOCUS_MS = 1000
+const scriptSource = (inputLog: string, sizeFile: string, doneFile: string, reassertLog: string): string => [
   "const fs = require('fs')",
   `const INPUT_LOG = ${JSON.stringify(inputLog)}`,
   `const writeSize = () => fs.writeFileSync(${JSON.stringify(sizeFile)}, JSON.stringify({ cols: process.stdout.columns, rows: process.stdout.rows }))`,
+  'let focusOutAt = 0',
   'if (process.stdin.isTTY) process.stdin.setRawMode(true)',
   "process.stdin.on('data', d => {",
   "  const s = d.toString('latin1')",
   "  fs.appendFileSync(INPUT_LOG, JSON.stringify(s) + '\\n')",
-  "  if (s.includes('q')) {",
-  "    process.stdout.write('\\x1b[?1006l\\x1b[?1003l\\x1b[?1002l\\x1b[?1000l\\x1b[?1049l', () => {",
+  "  if (s.includes('\\x1b[O')) focusOutAt = Date.now()",
+  `  if (s.includes('\\x1b[I') && focusOutAt && Date.now() - focusOutAt >= ${REFOCUS_MS}) {`,
+  '    focusOutAt = 0',
+  "    process.stdout.write('\\x1b[?1000h\\x1b[?1002h\\x1b[?1003h\\x1b[?1006h', () => {",
+  `      fs.appendFileSync(${JSON.stringify(reassertLog)}, 'reasserted\\n')`,
+  '    })',
+  '  }',
+  "  if (s.replace(/\\x1b\\[[IO]/g, '').includes('q')) {",
+  "    process.stdout.write('\\x1b[?1004l\\x1b[?1006l\\x1b[?1003l\\x1b[?1002l\\x1b[?1000l\\x1b[?1049l', () => {",
   `      fs.writeFileSync(${JSON.stringify(doneFile)}, 'done')`,
   '      process.exit(0)',
   '    })',
   '  }',
   '})',
   "process.stdout.on('resize', writeSize)",
-  `process.stdout.write('\\x1b[?1049h\\x1b[2J\\x1b[H${LINE}\\r\\n\\x1b[?1000h\\x1b[?1002h\\x1b[?1003h\\x1b[?1006h', writeSize)`,
+  `process.stdout.write('\\x1b[?1049h\\x1b[2J\\x1b[H${LINE}\\r\\n\\x1b[?1004h\\x1b[?1000h\\x1b[?1002h\\x1b[?1003h\\x1b[?1006h', writeSize)`,
   '',
 ].join('\n')
 
 const readInputLog = (file: string): string[] =>
   fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l) as string) : []
+const countLines = (file: string): number => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).length : 0)
+/** stdin without the focus reports BAT sends while the script has DECSET 1004 on. */
+const withoutFocusReports = (chunks: string[]): string[] => chunks.map(s => s.replace(/\x1b\[[IO]/g, '')).filter(Boolean)
 
 const menu = (win: Page) => win.locator('.context-menu')
 const menuItems = (win: Page) => win.locator('.context-menu .context-menu-item').allInnerTexts()
@@ -72,7 +93,8 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
   const inputLog = path.join(tmp, 'input.log')
   const sizeFile = path.join(tmp, 'size.json')
   const doneFile = path.join(tmp, 'done')
-  fs.writeFileSync(script, scriptSource(inputLog, sizeFile, doneFile))
+  const reassertLog = path.join(tmp, 'reassert.log')
+  fs.writeFileSync(script, scriptSource(inputLog, sizeFile, doneFile, reassertLog))
   let inst: IsolatedInstance | undefined
   let clipboardBefore: string | undefined
   try {
@@ -155,7 +177,7 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     await win.keyboard.press('Escape')
     await expect(menu(win)).toHaveCount(0, { timeout: 5_000 })
     await win.waitForTimeout(300)
-    expect(readInputLog(inputLog).slice(before2).filter(s => s.includes('\x1b') && !s.startsWith('\x1b[<'))).toEqual([])
+    expect(withoutFocusReports(readInputLog(inputLog).slice(before2)).filter(s => s.includes('\x1b') && !s.startsWith('\x1b[<'))).toEqual([])
 
     // ── 3. a key to the script ends the selection ──
     const before3 = readInputLog(inputLog).length
@@ -189,7 +211,53 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     await win.waitForTimeout(500)
     await expect(menu(win)).toHaveCount(0)
 
-    // ── 6. tracking off: a plain shell again ──
+    // ── 6. T0573: focus away, then the Shift + drag is the press that brings focus back; the script
+    //    sends the tracking DECSETs again while the button is still down ──
+    const blurTerminal = async () => {
+      const before = readInputLog(inputLog).length
+      await win.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+      await expect.poll(() => readInputLog(inputLog).slice(before).join(''), { timeout: 10_000 }).toContain('\x1b[O')
+      await win.waitForTimeout(REFOCUS_MS + 300)
+    }
+    await blurTerminal()
+    const reasserts6 = countLines(reassertLog)
+    await win.keyboard.down('Shift')
+    await win.mouse.move(at(10).x, at(10).y)
+    await win.mouse.down()
+    await expect(textarea).toBeFocused()
+    await expect.poll(() => countLines(reassertLog), { timeout: 10_000 }).toBe(reasserts6 + 1)
+    await win.waitForTimeout(200)
+    await win.mouse.move(at(20).x, at(20).y, { steps: 5 })
+    await win.mouse.up()
+    await win.keyboard.up('Shift')
+    await win.mouse.move(at(23).x, at(23).y, { steps: 3 })
+    await rightClick(23, true)
+    await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
+    expect(await menuItems(win)).toEqual(['複製', '貼上'])
+    await menu(win).getByText('複製').click()
+    await expect(menu(win)).toHaveCount(0)
+    await expect.poll(readClipboard, { timeout: 5_000 }).toBe('alpha beta')
+
+    // ── 7. T0573: selected, focus away, Shift + right-click brings focus back (the DECSETs arrive
+    //    between the press and the release, as with a person's click) ──
+    await app.evaluate(({ clipboard }, text) => clipboard.writeText(text), SENTINEL)
+    await drag(16, 26, true)
+    await blurTerminal()
+    const reasserts7 = countLines(reassertLog)
+    await win.keyboard.down('Shift')
+    await win.mouse.move(at(27, 1).x, at(27, 1).y)
+    await win.mouse.down({ button: 'right' })
+    await expect.poll(() => countLines(reassertLog), { timeout: 10_000 }).toBe(reasserts7 + 1)
+    await win.waitForTimeout(200)
+    await win.mouse.up({ button: 'right' })
+    await win.keyboard.up('Shift')
+    await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
+    expect(await menuItems(win)).toEqual(['複製', '貼上'])
+    await menu(win).getByText('複製').click()
+    await expect(menu(win)).toHaveCount(0)
+    await expect.poll(readClipboard, { timeout: 5_000 }).toBe('beta gamma')
+
+    // ── 8. tracking off: a plain shell again ──
     await win.evaluate((id) => (window as AnyApi).electronAPI.pty.write(id, 'q'), TAB)
     await expect.poll(() => fs.existsSync(doneFile), { timeout: 15_000 }).toBe(true)
     await win.waitForTimeout(500)

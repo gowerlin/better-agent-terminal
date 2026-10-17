@@ -10,15 +10,23 @@
  * any-event tracking (the claude CLI) a Shift + drag selection was gone by the Shift + right-click.
  * A selection dropped only for a mouse report is put back; Copy writes the text taken at the
  * right-click. e2e: e2e/t0571-shift-right-click-copy.spec.ts.
+ *
+ * T0573 / BUG-144: the claude CLI sets mouse tracking again when the tab gets focus back, and xterm
+ * clears the selection for every tracking DECSET (no input involved); while a Shift + drag is going
+ * on that also ends the drag. The selection comes back after the write, a drag in progress is
+ * pressed again where it began. e2e: e2e/t0571-shift-right-click-copy.spec.ts (focus steps).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
 import {
+  forcesTerminalSelection,
+  isMouseTrackingDecset,
   isMouseTrackingOn,
   isSgrMouseReport,
   MouseReportSelectionKeeper,
   shouldCloseTerminalContextMenuOnKey,
   shouldShowTerminalContextMenu,
+  type SelectionDrag,
   type SelectionKeeperTerminal,
 } from '../lib/terminal-context-menu'
 
@@ -45,6 +53,10 @@ const { deepStub, xterm } = vi.hoisted(() => {
       range: null as { start: { x: number; y: number }; end: { x: number; y: number } } | null,
       rangeText: '',
       selects: [] as Array<[number, number, number]>,
+      // `CSI ? … h` handlers registered through `terminal.parser` (T0573)
+      decsetHandlers: [] as Array<(params: Array<number | number[]>) => boolean>,
+      onBufferChange: null as ((buffer: unknown) => void) | null,
+      element: null as HTMLElement | null,
     },
   }
 })
@@ -62,6 +74,21 @@ vi.mock('@xterm/xterm', () => ({
           if (prop === 'onData') return (fn: (data: string) => void) => { xterm.onData = fn; return { dispose() {} } }
           if (prop === 'onSelectionChange') return (fn: () => void) => { xterm.onSelectionChange = fn; return { dispose() {} } }
           if (prop === 'cols') return 80
+          if (prop === 'element') return xterm.element
+          if (prop === 'parser') return {
+            registerCsiHandler: (id: { prefix?: string; final: string }, fn: (params: Array<number | number[]>) => boolean) => {
+              if (id.prefix === '?' && id.final === 'h') xterm.decsetHandlers.push(fn)
+              return { dispose() {} }
+            },
+          }
+          if (prop === 'buffer') {
+            const buffer = stub.buffer as Record<string | symbol, unknown>
+            return new Proxy({}, {
+              get: (_t, p) => (p === 'onBufferChange'
+                ? (fn: (b: unknown) => void) => { xterm.onBufferChange = fn; return { dispose() {} } }
+                : buffer[p]),
+            })
+          }
           if (prop === 'hasSelection') return () => xterm.selection !== ''
           if (prop === 'getSelectionPosition') return () => (xterm.selection ? xterm.range ?? undefined : undefined)
           if (prop === 'clearSelection') return () => { xterm.selection = ''; xterm.onSelectionChange?.() }
@@ -154,6 +181,24 @@ function terminalInput(data: string) {
   })
 }
 
+/**
+ * The program sends `?1000h ?1002h ?1003h ?1006h` (the claude CLI on focus): xterm runs the custom
+ * handlers, then sets its mouse protocol, which clears the selection (`SelectionService.disable()`).
+ */
+function trackingSet(mode = 'any') {
+  act(() => {
+    for (const param of [1000, 1002, 1003]) {
+      for (const handler of xterm.decsetHandlers) handler([param])
+      xterm.mouseTrackingMode = mode
+      xterm.selection = ''
+      xterm.onSelectionChange?.()
+    }
+  })
+}
+
+/** The microtask the keeper schedules after the write. */
+const afterWrite = () => act(async () => { await Promise.resolve() })
+
 const clickCopy = () => act(() => { (document.querySelector('.context-menu .context-menu-item') as HTMLButtonElement).click() })
 
 const clipboardWrites = vi.fn(async (_text: string) => undefined)
@@ -188,6 +233,10 @@ beforeEach(() => {
   xterm.range = null
   xterm.rangeText = ''
   xterm.selects = []
+  xterm.decsetHandlers = []
+  xterm.onBufferChange = null
+  xterm.element = document.createElement('div')
+  xterm.element.appendChild(document.createElement('div')).className = 'xterm-screen'
   clipboardWrites.mockClear()
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: clipboardWrites, readText: async () => '' } })
   debugLog.mockClear()
@@ -350,7 +399,7 @@ describe('MouseReportSelectionKeeper (T0571 / BUG-144)', () => {
   type Range = { start: { x: number; y: number }; end: { x: number; y: number } }
 
   /** xterm's selection model, enough for the keeper: `select` yields the text only for the original range. */
-  function fakeTerminal(cols = 80) {
+  function fakeTerminal(cols = 80, drag?: SelectionDrag) {
     const state = { text: '', range: undefined as Range | undefined, original: '', originalRange: '', columnMode: false }
     const listeners: Array<() => void> = []
     const fire = () => listeners.forEach(fn => fn())
@@ -376,7 +425,7 @@ describe('MouseReportSelectionKeeper (T0571 / BUG-144)', () => {
     }
     const clear = () => { state.text = ''; fire() }
     const tasks: Array<() => void> = []
-    const keeper = new MouseReportSelectionKeeper(term, fn => tasks.push(fn))
+    const keeper = new MouseReportSelectionKeeper(term, fn => tasks.push(fn), drag)
     listeners.push(() => keeper.handleSelectionChange())
     const flush = () => tasks.splice(0).forEach(fn => fn())
     return { term, state, keeper, setSel, clear, flush }
@@ -468,6 +517,134 @@ describe('MouseReportSelectionKeeper (T0571 / BUG-144)', () => {
     keeper.handleData('\x1b[<35;10;9M')
     expect(term.select).toHaveBeenCalledTimes(1)
   })
+  test('T0573: tracking DECSETs are 9 / 1000 / 1002 / 1003; the forcing modifier follows xterm', () => {
+    for (const p of [[1000], [1002], [1003], [9], [2004, 1003], [1000, [1]]]) expect(isMouseTrackingDecset(p)).toBe(true)
+    for (const p of [[1006], [1004], [2004], [1049], [25], [[1000]]]) expect(isMouseTrackingDecset(p)).toBe(false)
+    expect(forcesTerminalSelection({ shiftKey: true, altKey: false }, 'win32', false)).toBe(true)
+    expect(forcesTerminalSelection({ shiftKey: false, altKey: true }, 'linux', true)).toBe(false)
+    expect(forcesTerminalSelection({ shiftKey: true, altKey: false }, 'darwin', true)).toBe(false)
+    expect(forcesTerminalSelection({ shiftKey: false, altKey: true }, 'darwin', true)).toBe(true)
+    expect(forcesTerminalSelection({ shiftKey: false, altKey: true }, 'darwin', false)).toBe(false)
+  })
+
+  test('T0573: a selection cleared because tracking was set again (no input) comes back after the write', () => {
+    const { term, keeper, setSel, clear, flush } = fakeTerminal()
+    setSel('Claude Cod', { x: 11, y: 1 }, { x: 21, y: 1 })
+    // ?1000h ?1002h ?1003h: one clear each, all in one write
+    for (let i = 0; i < 3; i++) {
+      keeper.handleMouseTrackingSet()
+      clear()
+    }
+    expect(term.select).not.toHaveBeenCalled()
+    flush()
+    expect(term.select).toHaveBeenCalledTimes(1)
+    expect(term.select).toHaveBeenCalledWith(11, 1, 10)
+    expect(term.getSelection()).toBe('Claude Cod')
+    expect(keeper.lastAction).toBe('restored (mouse tracking set again)')
+    // and it is kept like any selection: the next move report brings it back too
+    clear()
+    keeper.handleData('\x1b[<35;22;2M')
+    expect(term.select).toHaveBeenCalledTimes(2)
+  })
+
+  test('T0573: tracking set again without a clear, with no selection, after forget(), or over changed text: nothing brought back', () => {
+    const { term, state, keeper, setSel, clear, flush } = fakeTerminal()
+    keeper.handleMouseTrackingSet()
+    flush()
+    expect(term.select).not.toHaveBeenCalled()
+
+    setSel('stays', { x: 1, y: 1 }, { x: 6, y: 1 })
+    keeper.handleMouseTrackingSet()
+    flush()
+    expect(term.select).not.toHaveBeenCalled()
+    expect(term.getSelection()).toBe('stays')
+
+    keeper.handleMouseTrackingSet()
+    clear()
+    keeper.forget('buffer switch')
+    flush()
+    expect(term.select).not.toHaveBeenCalled()
+    expect(keeper.lastAction).toBe('forgotten (buffer switch)')
+
+    setSel('redrawn', { x: 1, y: 2 }, { x: 8, y: 2 })
+    keeper.handleMouseTrackingSet()
+    clear()
+    state.columnMode = true
+    flush()
+    expect(term.select).toHaveBeenCalledTimes(1)
+    expect(term.getSelection()).toBe('')
+    expect(keeper.lastAction).toBe('not restored (mouse tracking set again: the range now reads different text)')
+
+    // typing clears it for good: a later tracking DECSET has nothing to bring back
+    state.columnMode = false
+    setSel('typed over', { x: 1, y: 3 }, { x: 11, y: 3 })
+    clear()
+    keeper.handleData('x')
+    keeper.handleMouseTrackingSet()
+    clear()
+    flush()
+    expect(term.select).toHaveBeenCalledTimes(1)
+  })
+
+  test('T0573: during a Shift + drag the drag is pressed again instead of restoring the partial range', () => {
+    let dragging = true
+    const drag: SelectionDrag = { isDragging: () => dragging, resume: vi.fn(() => true) }
+    const { term, keeper, setSel, clear, flush } = fakeTerminal(80, drag)
+    // the press that focused the tab started the drag; claude answers the focus report mid-drag
+    setSel('Cl', { x: 11, y: 1 }, { x: 13, y: 1 })
+    keeper.handleMouseTrackingSet()
+    clear()
+    flush()
+    expect(drag.resume).toHaveBeenCalledTimes(1)
+    expect(term.select).not.toHaveBeenCalled()
+    expect(keeper.lastAction).toBe('drag resumed (mouse tracking set again)')
+
+    // even before the first selection change of the drag
+    clear()
+    keeper.handleMouseTrackingSet()
+    clear()
+    flush()
+    expect(drag.resume).toHaveBeenCalledTimes(2)
+
+    // released before the write was parsed: the range comes back instead
+    setSel('Claude', { x: 11, y: 1 }, { x: 17, y: 1 })
+    keeper.handleMouseTrackingSet()
+    clear()
+    dragging = false
+    flush()
+    expect(drag.resume).toHaveBeenCalledTimes(2)
+    expect(term.getSelection()).toBe('Claude')
+
+    // resume impossible: the range comes back
+    dragging = true
+    ;(drag.resume as ReturnType<typeof vi.fn>).mockReturnValue(false)
+    keeper.handleMouseTrackingSet()
+    clear()
+    flush()
+    expect(term.getSelection()).toBe('Claude')
+    expect(keeper.lastAction).toBe('restored (mouse tracking set again)')
+  })
+
+  test('T0573: the same range selected again fires no selection change in xterm; the drag end tells the keeper', () => {
+    const { term, state, keeper, setSel, clear } = fakeTerminal()
+    setSel('Claude Cod', { x: 11, y: 1 }, { x: 21, y: 1 })
+    keeper.forget('mouse press')
+    clear()
+    // the second Shift + drag over the same cells: xterm compares with its last reported range
+    state.text = 'Claude Cod'
+    keeper.handleSelectionDragEnd()
+    expect(keeper.lastAction).toBe('selected')
+    clear()
+    keeper.handleData('\x1b[<35;22;2M')
+    expect(term.select).toHaveBeenCalledWith(11, 1, 10)
+    expect(term.getSelection()).toBe('Claude Cod')
+    // a Shift + click that selected nothing changes nothing
+    keeper.forget('mouse press')
+    clear()
+    keeper.handleSelectionDragEnd()
+    expect(keeper.lastAction).toBe('forgotten (mouse press)')
+  })
+
 })
 
 describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144)', () => {
@@ -564,5 +741,134 @@ describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144
     await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
     clickCopy()
     expect(clipboardWrites).toHaveBeenCalledWith('shell text')
+  })
+})
+
+describe('TerminalPanel: tracking set again on focus (T0573 / BUG-144)', () => {
+  const shownLog = () => debugLog.mock.calls.map(c => String(c[0])).filter(l => l.startsWith('[terminal-context-menu]') && l.includes(' shown: mouseTrackingMode='))
+
+  test('the claude CLI re-sending ?1000h ?1002h ?1003h on focus no longer loses the selection; the menu logs what it saw', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0573-refocus')
+    selectInTerminal('Claude Cod', { x: 11, y: 1 }, { x: 21, y: 1 })
+    trackingSet()
+    expect(xterm.selection).toBe('')
+    await afterWrite()
+    expect(xterm.selects).toEqual([[11, 1, 10]])
+    expect(xterm.selection).toBe('Claude Cod')
+    // nothing was written to the PTY for it
+    expect(ptyWrite).not.toHaveBeenCalled()
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    expect(shownLog()).toEqual([
+      '[terminal-context-menu] terminal=t0573-refocus shown: mouseTrackingMode=any shift=true hasSelection=true selectionText=10 chars keeper=restored (mouse tracking set again)',
+    ])
+    clickCopy()
+    expect(clipboardWrites).toHaveBeenCalledWith('Claude Cod')
+  })
+
+  test('the focusing press is the Shift + drag: it is pressed again where it began, with no report to the PTY', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { container } = await renderTerminal('t0573-drag')
+    const panel = container.querySelector('.terminal-panel')!
+    const screen = xterm.element!.querySelector('.xterm-screen')!
+    const presses: MouseEvent[] = []
+    screen.addEventListener('mousedown', e => presses.push(e as MouseEvent))
+    act(() => { panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true, clientX: 140, clientY: 22 })) })
+    selectInTerminal('Cl', { x: 11, y: 1 }, { x: 13, y: 1 })
+    trackingSet()
+    await afterWrite()
+    expect(presses).toHaveLength(1)
+    expect(presses[0]).toMatchObject({ button: 0, buttons: 1, detail: 1, shiftKey: true, altKey: false, clientX: 140, clientY: 22 })
+    expect(xterm.selects).toEqual([])
+    expect(ptyWrite).not.toHaveBeenCalled()
+
+    // released: the next clear for tracking brings back the finished range instead
+    act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 })) })
+    selectInTerminal('Claude Cod', { x: 11, y: 1 }, { x: 21, y: 1 })
+    trackingSet()
+    await afterWrite()
+    expect(presses).toHaveLength(1)
+    expect(xterm.selection).toBe('Claude Cod')
+  })
+
+  test('a Shift + drag whose release never arrived (a move with no button down) is not pressed again', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { container } = await renderTerminal('t0573-stale-drag')
+    const panel = container.querySelector('.terminal-panel')!
+    const presses: Event[] = []
+    xterm.element!.querySelector('.xterm-screen')!.addEventListener('mousedown', e => presses.push(e))
+    act(() => { panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true, clientX: 140, clientY: 22 })) })
+    selectInTerminal('Claude Cod', { x: 11, y: 1 }, { x: 21, y: 1 })
+    act(() => { document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, buttons: 0 })) })
+    trackingSet()
+    await afterWrite()
+    expect(presses).toEqual([])
+    expect(xterm.selection).toBe('Claude Cod')
+  })
+
+  test('a plain drag (the program gets it) is never pressed again', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { container } = await renderTerminal('t0573-plain-drag')
+    const panel = container.querySelector('.terminal-panel')!
+    const presses: Event[] = []
+    xterm.element!.querySelector('.xterm-screen')!.addEventListener('mousedown', e => presses.push(e))
+    act(() => { panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 140, clientY: 22 })) })
+    trackingSet()
+    await afterWrite()
+    expect(presses).toEqual([])
+    expect(xterm.selects).toEqual([])
+  })
+
+  test('tracking turned on from off, a buffer switch, or typing first: the selection stays cleared', async () => {
+    const { rightClick } = await renderTerminal('t0573-not-restored')
+    // tracking turned on (from off) clears the selection as before T0573
+    selectInTerminal('shell text')
+    trackingSet('any')
+    await afterWrite()
+    expect(xterm.selects).toEqual([])
+
+    selectInTerminal('before the switch')
+    act(() => { xterm.onBufferChange?.({}) })
+    trackingSet()
+    await afterWrite()
+    expect(xterm.selects).toEqual([])
+
+    selectInTerminal('typed over')
+    terminalInput('x')
+    trackingSet()
+    await afterWrite()
+    expect(xterm.selects).toEqual([])
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    expect(shownLog().at(-1)).toContain('hasSelection=false selectionText=0 chars keeper=')
+  })
+
+  test('the same range Shift + dragged again (xterm fires no selection change): kept across move reports', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick, container } = await renderTerminal('t0573-reselect')
+    const panel = container.querySelector('.terminal-panel')!
+    selectInTerminal('Claude Cod', { x: 11, y: 1 }, { x: 21, y: 1 })
+    terminalInput('x')
+    // the second drag over the same cells: xterm has the selection but reports no change
+    act(() => { panel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true, clientX: 140, clientY: 22 })) })
+    act(() => { xterm.selection = 'Claude Cod' })
+    act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0, shiftKey: true })) })
+    terminalInput('[<35;22;2M')
+    expect(xterm.selection).toBe('Claude Cod')
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    clickCopy()
+    expect(clipboardWrites).toHaveBeenCalledWith('Claude Cod')
+  })
+
+  test('right-click without Shift while tracking: no menu and no "shown" log line (T0568)', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0573-no-shift')
+    selectInTerminal('ignored')
+    rightClick()
+    await new Promise(r => setTimeout(r, 20))
+    expect(menuItems()).toEqual([])
+    expect(shownLog()).toEqual([])
   })
 })

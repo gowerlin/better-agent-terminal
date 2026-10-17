@@ -15,7 +15,7 @@ import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink, regist
 import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
 import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
-import { MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
+import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -459,19 +459,65 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
     // A selection xterm drops only because it sent a mouse report comes back (T0571 / BUG-144:
     // with DECSET 1003 every pointer move is a report, so Shift + drag never reached the menu).
-    const selectionKeeper = new MouseReportSelectionKeeper(terminal)
+    // T0573: the claude CLI also sets tracking again when the tab gets focus back, which clears the
+    // selection without any input and, when the focusing press is the Shift + drag, ends the drag.
+    let selectionDrag: Pick<MouseEvent, 'clientX' | 'clientY' | 'shiftKey' | 'altKey' | 'ctrlKey' | 'metaKey'> | null = null
+    let pressingAgain = false
+    const selectionKeeper = new MouseReportSelectionKeeper(terminal, undefined, {
+      isDragging: () => selectionDrag !== null,
+      resume: () => {
+        const screen = terminal.element?.querySelector('.xterm-screen')
+        if (!selectionDrag || !screen) return false
+        const { clientX, clientY, shiftKey, altKey, ctrlKey, metaKey } = selectionDrag
+        pressingAgain = true
+        try {
+          // Same modifiers as the press that began the drag, so xterm selects and reports nothing.
+          screen.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true, cancelable: true, detail: 1, button: 0, buttons: 1,
+            clientX, clientY, shiftKey, altKey, ctrlKey, metaKey,
+          }))
+        } finally {
+          pressingAgain = false
+        }
+        return true
+      },
+    })
     const selectionChangeDisposable = terminal.onSelectionChange(() => selectionKeeper.handleSelectionChange())
+    const trackingSetDisposable = terminal.parser.registerCsiHandler({ prefix: '?', final: 'h' }, (params) => {
+      // Before xterm handles it; not when it turns tracking on from off.
+      if (isMouseTrackingDecset(params) && isMouseTrackingOn(terminal.modes.mouseTrackingMode)) selectionKeeper.handleMouseTrackingSet()
+      return false
+    })
     // The program gets these (or a new selection starts): the selection is not brought back after them.
     const forgetKeptSelection = (e: MouseEvent | WheelEvent) => {
+      if (pressingAgain) return
       if (e.type === 'mousedown' && e.button === 2 && e.shiftKey) return
-      selectionKeeper.forget()
+      selectionKeeper.forget(e.type === 'wheel' ? 'wheel' : 'mouse press')
+      selectionDrag = e.type === 'mousedown' && e.button === 0 && isMouseTrackingOn(terminal.modes.mouseTrackingMode)
+        && forcesTerminalSelection(e, window.electronAPI?.platform, terminal.options.macOptionClickForcesSelection)
+        ? e
+        : null
+    }
+    // Capture on document: before xterm's own mouseup, with the drag's final range in place.
+    const endSelectionDrag = (e: MouseEvent) => {
+      if (e.button !== 0 || !selectionDrag) return
+      selectionDrag = null
+      selectionKeeper.handleSelectionDragEnd()
+    }
+    // A release that never arrived: a stale drag must not be pressed again (xterm would then
+    // follow the pointer with no button down).
+    const dropStaleSelectionDrag = (e: MouseEvent) => {
+      if (selectionDrag && (e.buttons & 1) === 0) selectionDrag = null
     }
     containerRef.current.addEventListener('mousedown', forgetKeptSelection, { capture: true })
     containerRef.current.addEventListener('wheel', forgetKeptSelection, { capture: true, passive: true })
+    document.addEventListener('mouseup', endSelectionDrag, { capture: true })
+    document.addEventListener('mousemove', dropStaleSelectionDrag, { capture: true, passive: true })
 
     // Track alt buffer state (BUG-008 infrastructure)
     const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
       const isAlt = activeBuffer === terminal.buffer.alternate
+      selectionKeeper.forget('buffer switch')
       setAltBufferActive(isAlt)
       altBufferRef.current = isAlt
       workspaceStore.setTerminalAltBuffer(terminalId, isAlt)
@@ -681,10 +727,13 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         dlog(`[terminal-context-menu] terminal=${terminalId} not shown: the program tracks the mouse (${mouseTrackingMode}); Shift+right-click opens it`)
         return
       }
+      const selectionText = terminal.getSelection()
+      // T0573: what the menu was built from, to read a failed Copy from the user's log.
+      dlog(`[terminal-context-menu] terminal=${terminalId} shown: mouseTrackingMode=${mouseTrackingMode} shift=${e.shiftKey} hasSelection=${terminal.hasSelection()} selectionText=${selectionText.length} chars keeper=${selectionKeeper.lastAction}`)
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
-        selectionText: terminal.getSelection()
+        selectionText
       })
     })
 
@@ -843,6 +892,9 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       unsubscribeSettings()
       bufferChangeDisposable.dispose()
       selectionChangeDisposable.dispose()
+      trackingSetDisposable.dispose()
+      document.removeEventListener('mouseup', endSelectionDrag, { capture: true })
+      document.removeEventListener('mousemove', dropStaleSelectionDrag, { capture: true })
       decorationManagerRef.current?.dispose()
       decorationManagerRef.current = null
       if (resizeTimer) clearTimeout(resizeTimer)
