@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.1-pre.9] — 2026-10-17
+
+### Fixed
+- **claude CLI 分頁的 Shift + 右鍵「複製」**：pre.8 的修正在真實的 claude CLI 裡沒有作用，這版補上。以下兩種情況，原本 Shift + 右鍵選單只有「貼上」：
+  - 從別的視窗或分頁切回來的那一下就用 Shift + 拖曳選取
+  - 同一段文字選了第二次
+
+  現在 Shift + 拖曳選取 → Shift + 右鍵，選單都會出現「複製」，複製到的就是反白的文字。claude CLI 自己的選取是藍底反白（不按 Shift 直接拖曳時出現，放開滑鼠時 claude 已經複製到剪貼簿）；BAT 的選取是另一種顏色（BUG-144）
+- BAT 日誌會在每次開啟終端右鍵選單時記一行 `[terminal-context-menu]`，方便回報問題時判讀
+
+### Known issues
+- 終端分頁裡的程式追蹤滑鼠時，Alt + Shift 拖曳的欄選取仍會在滑鼠移動時被清掉
+- 還沒切換過去的背景分頁，裡面的程式在第一次顯示前仍以 120 欄排版（顯示後會自動調整）；Terminal Server 意外結束後重建的分頁也要等下一次調整視窗大小或重繪才會同步寬度
+- macOS 上 Shift + 右鍵時，程式仍會收到右鍵（xterm 在 macOS 以 Option 繞過滑鼠追蹤）
+- 用量限制自動繼續（pre.6 新增）尚未在真實撞到限制時驗證，遇到時請留意 BAT 日誌中的 `[usage-limit]` 紀錄
+- macOS / Linux 版本未實機驗證
+
 ## [0.6.1-pre.8] — 2026-10-16
 
 ### Fixed

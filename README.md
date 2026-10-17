@@ -215,7 +215,7 @@ better-agent-terminal/
 
 遵循語意化版號：`vMAJOR.MINOR.PATCH`（例如 `v0.6.1`）
 
-預覽版使用 `-pre.N` 後綴（例如 `v0.6.1-pre.8`），GitHub Release 標記為 Pre-release。各版更版重點見 [release-note.md](release-note.md)，完整變更見 [CHANGELOG.md](CHANGELOG.md)。
+預覽版使用 `-pre.N` 後綴（例如 `v0.6.1-pre.9`），GitHub Release 標記為 Pre-release。各版更版重點見 [release-note.md](release-note.md)，完整變更見 [CHANGELOG.md](CHANGELOG.md)。
 
 ### 預覽版（`pre-release.yml`）
 
