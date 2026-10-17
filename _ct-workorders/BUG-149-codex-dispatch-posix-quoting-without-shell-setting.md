@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-149
 title: "`settings.json` 沒有 `shell` 鍵時，helper 以 `--agent codex` 派出的 Codex Worker 起不來（Windows：引號以 posix 組、分頁卻是 pwsh）"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-18T01:40:47+0800"
 fixed_at: "2026-10-18T01:49:10+0800"
+closed_at: "2026-10-18T04:29:11+0800"
 fixed_by: T0593
 fix_commit: "e283abdc"
 impact:
@@ -25,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（Codex Worker 啟動即失敗；全新安裝、從未在 Settings 存過設定的 Windows 使用者必中） |
 | 可重現 | 必現（T0592 e2e `test.fixme('codex Worker dispatch with settings.json lacking "shell" …')` 改成 `test` 即重現） |
-| **狀態** | ✅ FIXED（T0593 `e283abdc`；實機隨 `0.7.0-pre.4`） |
+| **狀態** | 🚫 CLOSED（T0593 `e283abdc`；`v0.7.0-pre.6` 安裝版暫移 `shell` 鍵實機：T0604 claude / T0605 codex Worker 皆啟動，`family=pwsh from=pty-default:pwsh.exe`，2026-10-18） |
 
 ## 現象
 

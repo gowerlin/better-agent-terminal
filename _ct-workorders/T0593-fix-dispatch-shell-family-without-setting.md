@@ -4,9 +4,9 @@ schema_kind: workorder
 id: T0593
 title: "BUG-149：`settings.json` 沒有 `shell` 鍵時，helper 派工的 shell family 以 PtyManager 實際預設 shell 判斷"
 type: bugfix
-status: FIXED
+status: DONE
 started_at: "2026-10-18T01:43:05+0800"
-updated_at: "2026-10-18T01:49:10+0800"
+updated_at: "2026-10-18T04:29:11+0800"
 completed_at: "2026-10-18T01:49:10+0800"
 repo: better-agent-terminal
 project: PLAN-047

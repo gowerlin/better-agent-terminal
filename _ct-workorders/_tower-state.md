@@ -90,7 +90,7 @@
 > 最後更新：2026-10-18 04:19 UTC+8（第七十七 session 進行中）
 
 ### 近期完成
-- 第七十七 session：T0601 / T0602 pre.5 / pre.6 驗收 PASS（`3391caed` / `54b5316b`）→ BUG-150 / 151 CLOSED、T0597 / T0598 DONE；T0603 探針使用者目視 → BUG-152 CLOSED、T0599 DONE
+- 第七十七 session：T0601 / T0602 pre.5 / pre.6 驗收 PASS（`3391caed` / `54b5316b`）→ BUG-150 / 151 CLOSED、T0597 / T0598 DONE；T0603 探針使用者目視 → BUG-152 CLOSED、T0599 DONE；T0604 / T0605 暫移 `shell` 鍵 → BUG-149 CLOSED、T0593 DONE
 - `v0.7.0-pre.6`（10-18 03:50，run `39063636289` @ `659c9a79`）：T0600 Worker 啟動確認（`--wait-started` / exit 8 / `agentStarted`）、BUG-152 派工分頁不搶焦點；三文件 `87ad460d`
 - `v0.7.0-pre.5`（10-18 03:18，run `39061324454` @ `ffeb8b21`）：BUG-150 AskUserQuestion → `question`、BUG-151 派工前輸入接在指令前；三文件 `38dd75b8`
 - CT-T017 → CT v5.4.0（`source`）DONE、v5.5.0 / v5.5.1（斷點 D、BUG-150 補註）；CT-T018 → CT v5.6.0 DONE（對方 T0165 `d092206`，派工一律帶 `--wait-started 30000`；README CT 欄已補 `5ba2ef06`）
@@ -99,7 +99,7 @@
 
 ### 待辦（依優先序）
 
-1. 🟡 BUG-149（無 `shell` 鍵派工）實機未驗；PLAN-048 / PLAN-047 M1b-2 待排期
+1. 🟡 PLAN-048 / PLAN-047 M1b-2 待排期
 2. ✅ ~~`v0.7.0-pre.6` 實機驗收~~ → 第七十七 session T0601（安裝版）+ T0602（隔離 e2e 4 spec）PASS：BUG-150 / 151 CLOSED；CT v5.6.0 `--wait-started` 實際派工 2 次皆 `started:`
 3. 🟡 **PLAN-048**（Worker 問塔台 / 塔台答覆通道）：使用者決定是否排期；**PLAN-047 後續**：M1b-2 codex blocked / 啟動信號、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
@@ -112,12 +112,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 20 / Closed 16）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 19 / Closed 17）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D154）｜ Learnings → [_learnings.md](_learnings.md)（最大 L162）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（92 entries）
 
 ### 編號起始
-- **T0604** / **BUG-153** / **PLAN-049** / **D155** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
+- **T0606** / **BUG-153** / **PLAN-049** / **D155** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
 
 ---
 
