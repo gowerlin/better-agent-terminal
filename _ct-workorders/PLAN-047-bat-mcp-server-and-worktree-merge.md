@@ -186,6 +186,15 @@ links:
 - 合併工單本身也動到 main 的歷史，仍需 `CT_HOME` 確保它的回報寫回主 checkout 的工單檔。
 - token 成本：小型、無衝突的合併是否允許塔台直接做（類比「小型非邏輯變更塔台可直接處理」），還是一律派單。
 
+## 研究結論（T0574 DONE，2026-10-17 19:01；完整內容見 T0574 回報區）
+
+- **R1**：MCP `2026-07-28` 版存在且為最新（移除 session 與 `initialize` 握手、改 `server/discover` + per-request `_meta`；HTTP+SSE / Sampling / Logging 棄用；OTel `_meta`）。Claude Code 2.1.300 stdio 無每請求 60 s 計時、`--mcp-config` 可注入；Codex 0.162.1 可用 `-c mcp_servers.*` 注入、`tool_timeout_sec` 預設 60 s。
+- **R2**：claude 用 hook（`PermissionRequest` / `PreToolUse` AskUserQuestion / elicitation），`--settings` 附加會與使用者 hooks 合併；`disableAllHooks` 時降級。codex 建議 OSC 9 `approval-requested`（`-c tui.notifications`）+ 句型啟發式後援；codex hooks 需信任審核，不適合 yolo。
+- **R3**：本機全權 token 可呼叫**所有** `registerHandler` channel（含 `fs:*`、`settings:save`、任意 `pty:write`）並收全部廣播——越權面比初評更大。capability 程式碼已在共用 `RemoteServer`，本機只差接線（A1）；但權杖只存記憶體，BAT 重開而 Terminal Server 存活時會全部失效 → 須同版做持久化（A2）。
+- **R4**：零依賴手寫 dual-era stdio shim（約 200 行）在隔離實例實測通過 legacy `initialize` 與 modern `server/discover`；內嵌 claude 2.1.300 `claude mcp list` ✔ Connected（走 modern）。建議新增唯讀 channel：`terminal:whoami` / `list` / `get-state` / `read-output` / `wait` / `worktree:terminal-status` / `terminal:report-hook`。
+- **R5**：worktree 每個 `npm ci` 約 16 s / 2.1 GiB，test 60 s 全綠；sparse 排除 `_ct-workorders/` 會讓 5 個 parser-parity 測試失敗 → 建議 `CT_HOME` + 樣本改 fixture。合併工單 `--ff-only` 在四種情況都機械保證 main 不變；`merge-tree` 試算約 50 ms。CT 落點檢查 C-0 在 worktree 會誤判，CT 端需修。
+- **推薦方向 [A]**：A1 + A2（同版）→ M1（shim + 唯讀）→ M1b（blocked）；T（樣本 fixture）+ W1 + CT-T014 / CT-T015 並行；M2 / M3 視 M1 使用情況再決定。修正後階段表與 Q1–Q14 建議答案見 T0574。
+
 ## 四、建議階段（待使用者決定）
 
 | 階段 | 內容 | 型態 |
@@ -213,3 +222,4 @@ links:
 - 2026-10-17 18:35 — 建立；塔台對照現況完成初評（第七十二 session）
 - 2026-10-17 18:40 — 使用者方向：合併改由塔台派合併工單，不由 BAT 執行；新增 §三之一評估，軌道 W 縮為 W1
 - 2026-10-17 18:42 — 開研究單 T0574（R1 外部查證 / R2 blocked 偵測 / R3 本機範圍權杖 / R4 shim 原型 / R5 worktree 與合併工單實測 / R6 綜合）
+- 2026-10-17 19:01 — T0574 DONE；新增「研究結論」節，推薦方向 [A]，待使用者決定階段與第一批工單

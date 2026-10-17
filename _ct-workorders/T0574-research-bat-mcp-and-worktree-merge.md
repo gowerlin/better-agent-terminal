@@ -485,3 +485,12 @@ shim 端記錄：recv server/discover id "server-discover-probe-1" _meta.protoco
 
 ### 回報時間
 2026-10-17T19:00:19+08:00
+
+## 塔台結案（2026-10-17T19:01:35+0800）
+
+**DONE**。塔台核對：
+- commit `009059b9` 只動本工單檔；`git worktree list` 只有主 checkout、無 `ct/*` / `T9999` 分支，reflog 無異常 → 遭遇問題 1 的誤建 worktree / 分支確認已清除，主 repo 未受影響
+- 抽查 [碼]：`electron/remote/remote-server.ts:742` server-token client 直接 `invokeHandler(frame.channel, …)`（不限 PROXIED_CHANNELS）；`electron/main.ts:438` `new RemoteServer()` 無 capability 選項、`headless-entry.ts:893` 有 → R3「本機只差接線」成立
+- 證據等級標示完整；Codex 握手 / hook / OSC 9 未實測已誠實列出
+- 違反 memory_override（誤在主 repo 建 worktree）已自行復原並揭露 → 記 L155
+

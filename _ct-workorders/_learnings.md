@@ -3487,3 +3487,15 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 
 **候選晉升**：📁 Project（已直接寫入 `_local-rules.md`）
 
+## L155
+
+**來源**：第七十二 session（2026-10-17），T0574
+
+**現象**：研究單禁止在主 repo 建 worktree，要求先 `git clone --local` 到 repo 外。Windows 上 scratchpad（C:）與 repo（D:）跨磁碟，`clone --local` 硬連結失敗（`Improper link`）；腳本沒有 `set -e`、cwd 停在主 repo，後續 `git worktree add … -b ct/T9999` 因此在**主 repo** 上執行。Worker 約 2.5 分鐘後發現並自行移除、揭露。另：scratchpad 基底路徑 169 字元，clone 需 `core.longpaths=true`。
+
+**How to apply**：
+- 工單要求「在 clone 上做 git 實驗」時，memory_overrides 一併寫：腳本 `set -e`；每次 git 寫入前斷言 `git rev-parse --git-common-dir` 不在主 repo；跨磁碟用 `git clone --no-hardlinks`；Windows 加 `-c core.longpaths=true`
+- 收單時以 `git worktree list`、`git branch --list 'ct/*'`、`git reflog` 核對主 repo 沒有被動到
+
+**候選晉升**：📁 Project（工單撰寫慣例）
+
