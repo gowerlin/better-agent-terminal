@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-048
 title: "Worker 問塔台 / 塔台答覆的結構化通道（CT-to-BAT 需求）"
-status: PLANNED
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-18T02:43:24+0800"
 links:
@@ -33,3 +33,4 @@ BMad-Guide D036：`auto-session = yolo` 時，Worker 有問題向塔台提問，
 
 - 使用者選定：先研究再實作、答覆走 helper CLI、待答問題只存記憶體、等待中 `blocked` / `tower`（D155）。
 - 研究單 **T0606**：現況盤點、介面契約草案、實作切分；審過後開實作單並轉交 CT（CT-T019）。
+- 2026-10-18：T0606 DONE（契約草案）→ D156 全部採用推薦 → 實作 T0607（A 主行程）/ T0608（B helper + MCP，worktree 隔離）並行；C（e2e）與 CT-T019 待 A / B 合併。

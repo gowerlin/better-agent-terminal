@@ -1452,6 +1452,17 @@
 - **不採用**：「最近沒打字才切焦點」（規則複雜、行為難預測）；Settings 開關（多一個設定項）；只揭露狀態不加 helper 參數。
 - **相關**：BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017
 
+### D156 2026-10-18 — PLAN-048 契約：採用 T0606 全部 12 項推薦；實作切 A（主行程）/ B（helper + MCP，worktree 隔離）並行，C（e2e）合併後
+
+- **背景**：T0606 研究完成介面契約草案（回報區 C-1–C-11）與 12 個待決點。
+- **決定**（使用者 2026-10-18 04:50 選定，全部採用推薦）：
+  1. Worker 提問走 helper `bat-notify.mjs --ask`（內容只從 stdin 傳入），BAT MCP 維持全唯讀；等答覆以唯讀 MCP `bat_wait_question` 為主、helper `--wait-answer` 為備援。
+  2. codex（`blockedDetection: none`）也回 `blocked` / `tower`；T0590 契約「`none` 永遠不會 `blocked`」改為「`none` 永遠不會回 hook reason」，CT 斷點 D 一起改。
+  3. 使用者在 Worker 分頁輸入不清除 `tower`、不取消問題；中斷後由 120 s 租約到期 `expired / not-polled`。
+  4–12. 通知由 `--ask` 同一指令送 notify（BAT 不主動推送）；租約 120 s（只對 blocking 問題）；`--expires-min` 由 CT 帶 `worker_question_timeout`；塔台分頁結束取消送給它的問題；重複答覆第一個生效、之後 exit `9` CLOSED；新 exit code `9` / `10`；`T#### 提問` 訊息不附問題 id；實作 A → B（契約鎖定後並行，B worktree 隔離）→ C（e2e），文件跟著 A / B。
+- **派工**：T0607（A，主 checkout）、T0608（B，`--isolation worktree`）；C 與 CT-T019 轉交在 A / B 合併、契約經實作確認後進行。
+- **相關**：PLAN-048 / D155 / T0606 / T0590 / CT-T019
+
 ### D155 2026-10-18 — PLAN-048 Worker 問塔台通道：先研究再實作；答覆走 helper CLI；待答問題只存記憶體；等待中為 `blocked` / `tower`
 
 - **背景**：BMad-Guide D036 要求 yolo Worker 以結構化通道問塔台、等答覆，取代 CT v5.5.0 的工單檔往返（PLAN-048）。
