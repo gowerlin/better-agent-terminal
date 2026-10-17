@@ -25,6 +25,12 @@
 //   node scripts/bat-notify.mjs --submit "T0133 完成"
 //   # (prefills text, then asks the renderer/xterm layer to press Enter)
 //
+//   # PLAN-048 / T0608: ask the Tower a question (JSON on stdin, never in argv), then notify it:
+//   node scripts/bat-notify.mjs --ask --source T0608 --submit "T0608 提問" < question.json
+//   # Wait for the answer (one line of JSON) / withdraw the question:
+//   node scripts/bat-notify.mjs --wait-answer q-0123abcd-0123456789abcdef [--timeout-ms 45000]
+//   node scripts/bat-notify.mjs --cancel-question q-0123abcd-0123456789abcdef
+//
 // Options:
 //   --help, -h     Show help
 //   --version      Show version
@@ -47,6 +53,21 @@ const PTY_PREFILL_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]+/g
 function toPtyPrefill(message) {
   return message.replace(PTY_PREFILL_CONTROL_CHARS, ' ').trim()
 }
+
+// PLAN-048 / T0608 (T0606「介面契約」C-5): the question is read from stdin only — argv is logged
+// verbatim below (D155: question / answer text never lands on disk). stdin: UTF-8, at most 64 KiB.
+const QUESTION_STDIN_MAX_BYTES = 65_536
+const STDIN_READ_TIMEOUT_MS = 10_000
+const QUESTION_ID_PATTERN = /^q-[0-9a-f]{8}-[0-9a-f]{16}$/
+// the `question:ask` fields a stdin JSON may carry (others are dropped)
+const ASK_KEYS = ['question', 'options', 'allowFreeText', 'detail', 'blocking', 'expiresInMs']
+const EXPIRES_MIN_MAX = 120
+// `question:wait` holds the reply up to 45 s (QUESTION_WAIT_MAX_MS) — wait a little longer than that
+const QUESTION_WAIT_MAX_MS = 45_000
+const QUESTION_WAIT_INVOKE_MARGIN_MS = 5_000
+// exit codes (T0606 C-5); anything else is 1
+const ASK_EXIT = { NOT_FOUND: 3, TOO_MANY_QUESTIONS: 10 }
+const QUESTION_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4 }
 
 // T0192: Log entry point before parsing, so every invocation is recorded even
 // when args are malformed. Paired with bat-terminal.mjs's same event for
@@ -82,8 +103,12 @@ if (process.platform === 'win32') {
 // ── Help / version (handled before env check so they work universally) ──
 
 const HELP_TEXT = `Usage: bat-notify.mjs [options] <message>
+       bat-notify.mjs --ask [options] [--expires-min <1-120>] <message> < question.json
+       bat-notify.mjs --wait-answer <question id> [--timeout-ms <0-45000>]
+       bat-notify.mjs --cancel-question <question id>
 
 Notify another BAT terminal with a message (UI toast + PTY pre-fill).
+With --ask, first register a question for this Worker's Tower, then notify it.
 
 Options:
   --target <id>      Target terminal ID (default: $BAT_TOWER_TERMINAL_ID)
@@ -94,14 +119,44 @@ Options:
   --help, -h         Show this help message
   --version          Show version
 
+Ask the Tower (PLAN-048, Worker tabs only):
+  --ask              Read the question from stdin (UTF-8 JSON, at most 64 KiB; never put it in the
+                     command line, which is logged):
+                       {"question": "…", "options": ["…", "…"], "allowFreeText": true,
+                        "detail": "…", "blocking": true}
+                     BAT keeps it in memory only and sends it to this Worker's Tower; then <message>
+                     is sent as a normal notify (toast, pre-fill, --submit). If any notify step
+                     fails, the question is cancelled again (exit 1). stdout:
+                       "  question: <id>", "  expires: <ISO time>", "  notified: yes"
+  --expires-min <n>  With --ask: the question expires after n minutes (1-120; BAT default 30)
+  Exit codes: 0 asked and notified / 3 NOT_FOUND (the Tower tab is not running) /
+              10 TOO_MANY_QUESTIONS / 1 usage error, bad stdin, connection failure, BAT too old
+              (UNSUPPORTED), notify failed. stderr also prints "ask: <CODE>".
+
+  --wait-answer <id> Wait (BAT side, at most 45 s) until the question is no longer pending; stdout's
+                     last line is one line of JSON: questionId, status (pending / answered /
+                     cancelled / expired / lost), changed, endReason, answer {choice, text},
+                     answeredAt, waitedMs. changed=false + status pending = timed out: run it again.
+                     lost = BAT restarted since the question was asked (it is gone).
+  --timeout-ms <n>   With --wait-answer: wait at most n ms (0-45000; more is cut to 45000)
+  --cancel-question <id>
+                     Withdraw a question this Worker asked (an ended one keeps its status).
+  Exit codes: 0 (any status, including pending and lost) / 3 NOT_FOUND / 4 NOT_OWNER / 1 usage
+              error, connection failure, BAT too old (UNSUPPORTED). stderr also prints
+              "wait-answer: <CODE>" / "cancel-question: <CODE>".
+  A helper that does not know these options exits 1 with "Unknown option '--ask'" (no question).
+
 Examples:
   node scripts/bat-notify.mjs "T0133 完成"
   node scripts/bat-notify.mjs --target abc123 --source T0133 "T0133 完成"
   node scripts/bat-notify.mjs --submit "T0133 完成"
+  node scripts/bat-notify.mjs --ask --source T0608 --submit --expires-min 30 "T0608 提問" < question.json
+  node scripts/bat-notify.mjs --wait-answer q-0123abcd-0123456789abcdef
 `
 
 const KNOWN_FLAGS = [
   '--target', '--source', '--no-pty-write', '--submit',
+  '--ask', '--expires-min', '--wait-answer', '--timeout-ms', '--cancel-question',
   '--help', '-h', '--version',
 ]
 
@@ -156,6 +211,29 @@ let source = process.env.BAT_TERMINAL_ID || null
 let ptyWrite = true
 let submit = false
 const messageParts = []
+// PLAN-048 / T0608: question modes (flags given, for the "cannot be combined" checks)
+let ask = false
+let expiresMin = null
+let waitAnswer = null
+let timeoutMs = null
+let cancelQuestion = null
+const notifyFlags = []
+
+function questionUsage(tag, msg, reason) {
+  printUsageError(msg)
+  console.error(`${tag}: USAGE`)
+  logEvent('bat-notify', 'exit', { code: 1, reason })
+  process.exit(1)
+}
+
+/** `--wait-answer` / `--cancel-question` value: a question id (T0606 C-1). */
+function questionIdArg(flag, tag, value) {
+  if (!value) questionUsage(tag, `${flag} requires a question id argument`, `${tag}-without-id`)
+  if (!QUESTION_ID_PATTERN.test(value)) {
+    questionUsage(tag, `Invalid ${flag} value: '${value}' (expected a question id such as q-0123abcd-0123456789abcdef)`, `${tag}-invalid-id`)
+  }
+  return value
+}
 
 let i = 0
 while (i < rawArgs.length) {
@@ -176,6 +254,7 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--target') {
+    notifyFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--target requires a terminal ID argument'); process.exit(1) }
     target = rawArgs[i + 1]
     i += 2
@@ -183,14 +262,56 @@ while (i < rawArgs.length) {
   }
 
   if (arg === '--source') {
+    notifyFlags.push(arg)
     if (!rawArgs[i + 1]) { printUsageError('--source requires a label argument'); process.exit(1) }
     source = rawArgs[i + 1]
     i += 2
     continue
   }
 
-  if (arg === '--no-pty-write') { ptyWrite = false; i++; continue }
-  if (arg === '--submit')       { submit = true;   i++; continue }
+  if (arg === '--no-pty-write') { notifyFlags.push(arg); ptyWrite = false; i++; continue }
+  if (arg === '--submit')       { notifyFlags.push(arg); submit = true;   i++; continue }
+
+  // PLAN-048 / T0608 (T0606 C-5)
+  if (arg === '--ask') { ask = true; i++; continue }
+
+  if (arg === '--expires-min') {
+    const value = rawArgs[i + 1]
+    if (!value) questionUsage('ask', '--expires-min requires a number of minutes (1-120)', 'expires-min-without-value')
+    if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > EXPIRES_MIN_MAX) {
+      questionUsage('ask', `Invalid --expires-min value: '${value}' (expected minutes, 1-${EXPIRES_MIN_MAX})`, 'invalid-expires-min')
+    }
+    expiresMin = Number(value)
+    i += 2
+    continue
+  }
+
+  if (arg === '--wait-answer') {
+    waitAnswer = questionIdArg(arg, 'wait-answer', rawArgs[i + 1])
+    i += 2
+    continue
+  }
+
+  if (arg === '--timeout-ms') {
+    const value = rawArgs[i + 1]
+    if (!value) questionUsage('wait-answer', '--timeout-ms requires a number of milliseconds', 'timeout-ms-without-value')
+    if (!/^\d+$/.test(value)) {
+      questionUsage('wait-answer', `Invalid --timeout-ms value: '${value}' (expected a non-negative integer, at most ${QUESTION_WAIT_MAX_MS})`, 'invalid-timeout-ms')
+    }
+    timeoutMs = Number(value)
+    if (timeoutMs > QUESTION_WAIT_MAX_MS) {
+      console.error(`[bat-notify] --timeout-ms ${value}: waiting at most ${QUESTION_WAIT_MAX_MS} ms.`)
+      timeoutMs = QUESTION_WAIT_MAX_MS
+    }
+    i += 2
+    continue
+  }
+
+  if (arg === '--cancel-question') {
+    cancelQuestion = questionIdArg(arg, 'cancel-question', rawArgs[i + 1])
+    i += 2
+    continue
+  }
 
   // Unknown flag (help/version already consumed by fast-path)
   if (arg.startsWith('-')) {
@@ -204,22 +325,44 @@ while (i < rawArgs.length) {
   i++
 }
 
+// PLAN-048 / T0608: --wait-answer / --cancel-question only query; they notify nobody.
+const questionMode = waitAnswer ? 'wait-answer' : cancelQuestion ? 'cancel-question' : null
+// the `<mode>: <CODE>` diagnostic line on stderr (T0606 C-5)
+const modeTag = questionMode ?? (ask ? 'ask' : null)
+if (questionMode) {
+  const flag = `--${questionMode}`
+  const conflicting = [
+    ...(waitAnswer && cancelQuestion ? ['--cancel-question'] : []),
+    ...(ask ? ['--ask'] : []),
+    ...(expiresMin !== null ? ['--expires-min'] : []),
+    ...new Set(notifyFlags),
+    ...(messageParts.length > 0 ? ['<message>'] : []),
+  ]
+  if (conflicting.length > 0) questionUsage(questionMode, `${flag} cannot be combined with ${conflicting.join(', ')}`, `${questionMode}-with-other-options`)
+} else {
+  if (expiresMin !== null && !ask) questionUsage('ask', '--expires-min is only valid with --ask', 'expires-min-without-ask')
+  if (timeoutMs !== null) questionUsage('wait-answer', '--timeout-ms is only valid with --wait-answer', 'timeout-ms-without-wait-answer')
+}
+
 // Submit requires the PTY pre-fill path.
 if (submit && !ptyWrite) {
   printUsageError('--submit and --no-pty-write are mutually exclusive')
+  if (modeTag) console.error(`${modeTag}: USAGE`)
   logEvent('bat-notify', 'exit', { code: 1, reason: 'submit-vs-no-pty-write' })
   process.exit(1)
 }
 
-if (!target) {
+if (!target && !questionMode) {
   printUsageError('No target terminal ID (set BAT_TOWER_TERMINAL_ID or use --target)')
+  if (modeTag) console.error(`${modeTag}: USAGE`)
   logEvent('bat-notify', 'exit', { code: 1, reason: 'no-target' })
   process.exit(1)
 }
 
 const message = messageParts.join(' ')
-if (!/\S/u.test(message)) {
-  printUsageError('Message is required')
+if (!questionMode && !/\S/u.test(message)) {
+  printUsageError(ask ? 'Message is required (the notify text, e.g. "T#### 提問"; the question itself comes on stdin)' : 'Message is required')
+  if (modeTag) console.error(`${modeTag}: USAGE`)
   logEvent('bat-notify', 'exit', { code: 1, reason: 'no-message' })
   process.exit(1)
 }
@@ -227,15 +370,22 @@ if (!/\S/u.test(message)) {
 // T0192: Record the resolved notification target and submit mode. For
 // BUG-043 diagnostics this pins down whether the notify-id env propagated
 // correctly from the spawning bat-terminal.mjs call.
-logEvent('bat-notify', 'parsed', {
+logEvent('bat-notify', 'parsed', questionMode ? {
+  // T0608: only the id and the wait; never question / answer text
+  mode: questionMode,
+  questionId: waitAnswer ?? cancelQuestion,
+  ...(timeoutMs !== null ? { timeoutMs } : {}),
+} : {
   target,
   source,
   ptyWrite,
   submit,
   messageLength: message.length,
   // Preview keeps the leading portion of the message in clear text — these
-  // are CT status strings like "T0192 完成", not secrets.
+  // are CT status strings like "T0192 完成", not secrets. With --ask the question
+  // itself is on stdin and never logged (T0608 / D155).
   messagePreview: message.slice(0, 80),
+  ...(ask ? { ask, expiresMin } : {}),
 })
 
 // ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
@@ -245,11 +395,13 @@ const TOKEN = process.env.BAT_REMOTE_TOKEN
 
 if (!PORT) {
   console.error('Error: Not running inside BAT terminal (BAT_REMOTE_PORT not set)')
+  if (modeTag) console.error(`${modeTag}: NOT_IN_BAT`)
   logEvent('bat-notify', 'exit', { code: 1, reason: 'no-BAT_REMOTE_PORT' })
   process.exit(1)
 }
 if (!TOKEN) {
   console.error('Error: BAT_REMOTE_TOKEN not set')
+  if (modeTag) console.error(`${modeTag}: NOT_IN_BAT`)
   logEvent('bat-notify', 'exit', { code: 1, reason: 'no-BAT_REMOTE_TOKEN' })
   process.exit(1)
 }
@@ -483,9 +635,240 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// ── PLAN-048 / T0608: questions for the Tower (T0606「介面契約」C-3 / C-5) ──
+
+/**
+ * All of stdin as UTF-8 (at most QUESTION_STDIN_MAX_BYTES; a BOM is dropped). A terminal on
+ * stdin (nothing redirected) reads as empty; stdin that never ends is an error, not a hang.
+ */
+function readStdin() {
+  return new Promise((resolve) => {
+    const stdin = process.stdin
+    if (stdin.isTTY) { resolve({ ok: true, tty: true, bytes: 0, text: '' }); return }
+    const chunks = []
+    let bytes = 0
+    let done = false
+    const finish = (result) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      stdin.pause()
+      resolve(result)
+    }
+    const timer = setTimeout(() => finish({ ok: false, reason: 'timeout', bytes }), STDIN_READ_TIMEOUT_MS)
+    stdin.on('data', (chunk) => {
+      bytes += chunk.length
+      if (bytes > QUESTION_STDIN_MAX_BYTES) { finish({ ok: false, reason: 'too-large', bytes }); return }
+      chunks.push(chunk)
+    })
+    stdin.on('end', () => {
+      let text
+      try {
+        // fatal: bytes that are not UTF-8 are refused rather than turned into U+FFFD
+        text = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))
+      } catch {
+        finish({ ok: false, reason: 'not-utf8', bytes })
+        return
+      }
+      finish({ ok: true, tty: false, bytes, text })
+    })
+    stdin.on('error', () => finish({ ok: false, reason: 'error', bytes }))
+  })
+}
+
+const STDIN_PROBLEM = {
+  'too-large': `stdin is larger than ${QUESTION_STDIN_MAX_BYTES} bytes`,
+  'not-utf8': 'stdin is not UTF-8 (on Windows PowerShell 5.1 use pwsh 7 or Git Bash)',
+  timeout: `stdin did not end within ${STDIN_READ_TIMEOUT_MS / 1000} s (redirect it from a file or a heredoc)`,
+  error: 'stdin could not be read',
+}
+
+/** An `invoke-error` text → `{ code, message }` (as scripts/bat-mcp.mjs classifyInvokeError). */
+function classifyInvokeError(error) {
+  const message = String(error ?? '')
+  // (each mode's own text explains UNSUPPORTED)
+  if (/^No handler for channel/.test(message) || message === 'Forbidden: channel-not-allowed') return { code: 'UNSUPPORTED' }
+  if (message.startsWith('Forbidden: ')) return { code: 'FORBIDDEN', message: message.slice('Forbidden: '.length) }
+  return { code: 'ERROR', message }
+}
+
+/** One invoke → `{ ok: true, result }` or `{ ok: false, code, message?, result? }`; never throws. */
+async function invokeChannel(ws, channel, args, timeoutMs) {
+  const id = makeId()
+  ws.send(JSON.stringify({ type: 'invoke', id, channel, args }))
+  let resp
+  try {
+    resp = await waitForMessageById(ws, id, timeoutMs)
+  } catch (err) {
+    return { ok: false, code: 'TIMEOUT', message: `no reply from BAT within ${timeoutMs} ms (${err?.message || String(err)})` }
+  }
+  if (resp.error) return { ok: false, ...classifyInvokeError(resp.error) }
+  const result = resp.result
+  if (result && typeof result === 'object' && result.ok === true) return { ok: true, result }
+  const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
+  return { ok: false, code, ...(typeof result?.message === 'string' ? { message: result.message } : {}), result }
+}
+
+function exitQuestionMode(ws, exitCode, reason) {
+  logEvent('bat-notify', 'exit', exitCode === 0 ? { code: 0 } : { code: exitCode, reason })
+  ws?.close()
+  process.exit(exitCode)
+}
+
+function isoTime(value) {
+  return typeof value === 'number' ? new Date(value).toISOString() : String(value ?? 'unknown')
+}
+
+/** stdin JSON → the `question:ask` request; exits 1 (`ask: INVALID_INPUT`) when it is not usable. */
+async function readAskRequest() {
+  const input = await readStdin()
+  const fail = (msg, fields) => {
+    // never the input itself (nor JSON.parse's message, which quotes it)
+    console.error(`Error: ${msg}`)
+    console.error('ask: INVALID_INPUT')
+    logEvent('bat-notify', 'exit', { code: 1, reason: 'ask-invalid-input', ...fields })
+    process.exit(1)
+  }
+  if (!input.ok) fail(STDIN_PROBLEM[input.reason], { stdin: input.reason, stdinBytes: input.bytes })
+  if (!input.text.trim()) fail('the question must come as JSON on stdin (e.g. < question.json)', { stdin: input.tty ? 'tty' : 'empty', stdinBytes: input.bytes })
+  let parsed
+  try {
+    parsed = JSON.parse(input.text)
+  } catch {
+    fail('stdin is not valid JSON', { stdin: 'not-json', stdinBytes: input.bytes })
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) fail('stdin JSON must be an object', { stdin: 'not-object', stdinBytes: input.bytes })
+  if (typeof parsed.question !== 'string' || !parsed.question.trim()) fail('"question" (a non-empty string) is required in the stdin JSON', { stdin: 'no-question', stdinBytes: input.bytes })
+  const request = {}
+  for (const key of ASK_KEYS) if (parsed[key] !== undefined) request[key] = parsed[key]
+  if (expiresMin !== null) request.expiresInMs = expiresMin * 60_000
+  return { request, stdinBytes: input.bytes }
+}
+
+/** `question:ask`; returns its reply, or exits (3 / 10 / 1, `ask: <CODE>`). Logs sizes only. */
+async function runAsk(ws, { request, stdinBytes }) {
+  const shape = {
+    questionLength: request.question.length,
+    optionsCount: Array.isArray(request.options) ? request.options.length : 0,
+    detailLength: typeof request.detail === 'string' ? request.detail.length : 0,
+    blocking: typeof request.blocking === 'boolean' ? request.blocking : null,
+    expiresInMs: request.expiresInMs ?? null,
+    stdinBytes,
+  }
+  const outcome = await invokeChannel(ws, 'question:ask', [request], 3000)
+  if (outcome.ok && typeof outcome.result.questionId === 'string') {
+    const r = outcome.result
+    logEvent('bat-notify', 'question-ask', {
+      result: 'ok',
+      questionId: r.questionId,
+      towerTerminalId: r.towerTerminalId ?? null,
+      expiresAt: r.expiresAt ?? null,
+      masked: r.masked ?? 0,
+      ...shape,
+    })
+    return r
+  }
+  const code = outcome.ok ? 'ERROR' : outcome.code
+  logEvent('bat-notify', 'question-ask', { result: code, ...shape })
+  const detail = {
+    NOT_FOUND: "this Worker's Tower tab is not running",
+    TOO_MANY_QUESTIONS: 'this Worker (8) or its Tower (64) has too many pending questions',
+    INVALID_ARGS: 'BAT refused the question (empty, too long, a control character, bad options or expiry)',
+    UNSUPPORTED: 'this BAT does not support questions for the Tower (update BAT); no question was registered',
+    FORBIDDEN: 'not allowed (only a Worker tab dispatched by a Tower can ask)',
+    TIMEOUT: 'no reply from BAT',
+  }[code] ?? (outcome.ok ? 'BAT answered without a question id' : 'the question was not registered')
+  console.error(`Error: Question not asked (${code}): ${detail}${outcome.message ? ` — ${outcome.message}` : ''}`)
+  console.error(`ask: ${code}`)
+  return exitQuestionMode(ws, ASK_EXIT[code] ?? 1, `ask-${code}`)
+}
+
+/**
+ * A notify step after `question:ask` failed: cancel the question (the Tower would not know about
+ * it), then exit 1 with `ask: NOTIFY_FAILED`.
+ */
+async function failAfterAsk(ws, asked, step, reason) {
+  console.error(`Error: ${step} failed: ${reason}`)
+  const cancel = await invokeChannel(ws, 'question:cancel', [{ questionId: asked.questionId }], 3000)
+  logEvent('bat-notify', 'question-cancel', { questionId: asked.questionId, after: 'notify-failed', step, result: cancel.ok ? 'ok' : cancel.code, status: cancel.ok ? cancel.result.status ?? null : null })
+  if (cancel.ok) {
+    console.error(`[bat-notify] The Tower was not notified; question ${asked.questionId} was cancelled.`)
+  } else {
+    console.error(`[bat-notify] The Tower was not notified, and question ${asked.questionId} could not be cancelled (${cancel.code}); it expires at ${isoTime(asked.expiresAt)}.`)
+  }
+  console.error('ask: NOTIFY_FAILED')
+  return exitQuestionMode(ws, 1, 'ask-notify-failed')
+}
+
+/** `question:wait`: stdout's last line = the reply without `ok`, as one line of JSON. */
+async function runWaitAnswer(ws) {
+  const request = { questionId: waitAnswer, ...(timeoutMs !== null ? { timeoutMs } : {}) }
+  const outcome = await invokeChannel(ws, 'question:wait', [request], (timeoutMs ?? QUESTION_WAIT_MAX_MS) + QUESTION_WAIT_INVOKE_MARGIN_MS)
+  if (outcome.ok) {
+    const { ok: _ok, ...data } = outcome.result
+    console.log(JSON.stringify(data))
+    const answer = data.answer && typeof data.answer === 'object' ? data.answer : null
+    logEvent('bat-notify', 'question-wait', {
+      questionId: waitAnswer,
+      result: 'ok',
+      status: data.status ?? null,
+      changed: data.changed ?? null,
+      endReason: data.endReason ?? null,
+      waitedMs: data.waitedMs ?? null,
+      // the answer's size only, never its text
+      ...(answer ? { choice: answer.choice ?? null, answerLength: typeof answer.text === 'string' ? answer.text.length : 0 } : {}),
+    })
+    return exitQuestionMode(ws, 0)
+  }
+  logEvent('bat-notify', 'question-wait', { questionId: waitAnswer, result: outcome.code })
+  const detail = {
+    NOT_FOUND: `BAT does not know ${waitAnswer} (mistyped, or ended more than 10 min ago)`,
+    NOT_OWNER: `${waitAnswer} is not a question of this tab (or of its Workers)`,
+    TOO_MANY_WAITS: 'too many open waits of this tab',
+    INVALID_ARGS: 'BAT rejected the request arguments',
+    UNSUPPORTED: 'this BAT does not support questions for the Tower (update BAT)',
+    TIMEOUT:'no reply from BAT (restarting? try again: a restarted BAT answers status lost)',
+  }[outcome.code] ?? 'the question was not read'
+  console.error(`Error: Answer not read (${outcome.code}): ${detail}${outcome.message ? ` — ${outcome.message}` : ''}`)
+  console.error(`wait-answer: ${outcome.code}`)
+  return exitQuestionMode(ws, QUESTION_EXIT[outcome.code] ?? 1, `wait-answer-${outcome.code}`)
+}
+
+/** `question:cancel` (a question that already ended keeps its status; exit 0 either way). */
+async function runCancelQuestion(ws) {
+  const outcome = await invokeChannel(ws, 'question:cancel', [{ questionId: cancelQuestion }], 3000)
+  if (outcome.ok) {
+    const status = outcome.result.status ?? 'cancelled'
+    const endReason = outcome.result.endReason
+    console.log(status === 'cancelled' && (!endReason || endReason === 'worker')
+      ? `✓ Question cancelled: ${cancelQuestion}`
+      : `✓ Question already ended: ${cancelQuestion}`)
+    console.log(`  status: ${status}${endReason ? ` ${endReason}` : ''}`)
+    logEvent('bat-notify', 'question-cancel', { questionId: cancelQuestion, result: 'ok', status, endReason: endReason ?? null })
+    return exitQuestionMode(ws, 0)
+  }
+  const lost = outcome.code === 'NOT_FOUND' && outcome.result?.status === 'lost'
+  const code = lost ? 'LOST' : outcome.code
+  logEvent('bat-notify', 'question-cancel', { questionId: cancelQuestion, result: code })
+  const detail = {
+    LOST: `${cancelQuestion} belonged to a BAT that has restarted since (it is gone)`,
+    NOT_FOUND: `BAT does not know ${cancelQuestion} (mistyped, or ended more than 10 min ago)`,
+    NOT_OWNER: `${cancelQuestion} was not asked by this tab`,
+    INVALID_ARGS: 'BAT rejected the request arguments',
+    FORBIDDEN: 'not allowed (only the Worker that asked can cancel)',
+    UNSUPPORTED: 'this BAT does not support questions for the Tower (update BAT)',
+  }[code] ?? 'the question was not cancelled'
+  console.error(`Error: Question not cancelled (${code}): ${detail}${outcome.message ? ` — ${outcome.message}` : ''}`)
+  console.error(`cancel-question: ${code}`)
+  return exitQuestionMode(ws, QUESTION_EXIT[outcome.code] ?? 1, `cancel-question-${code}`)
+}
+
 // ── Main ──
 
 async function main() {
+  // PLAN-048 / T0608: the question comes on stdin — read and check it before connecting
+  const askRequest = ask ? await readAskRequest() : null
+
   const ws = new MinimalWS()
 
   try {
@@ -517,6 +900,7 @@ async function main() {
       exitPayload.hint = 'Cannot read BAT app server-cert.json. Ensure BAT app is running and has initialized its remote server.'
     }
     console.error(`Error: Cannot connect to BAT RemoteServer (port ${PORT}): ${msg}`)
+    if (modeTag) console.error(`${modeTag}: CONNECT_FAILED`)
     logEvent('bat-notify', 'exit', exitPayload)
     process.exit(1)
   }
@@ -530,13 +914,33 @@ async function main() {
     args: ['bat-notify-cli'],
   }))
 
-  const authResp = await waitForMessageById(ws, authId, 3000, 'auth-result')
+  let authResp
+  try {
+    authResp = await waitForMessageById(ws, authId, 3000, 'auth-result')
+  } catch (err) {
+    // T0608: the question modes print their `<mode>: <CODE>` line; plain notify is unchanged
+    if (!modeTag) throw err
+    console.error(`Error: Auth response timeout: ${err?.message || String(err)}`)
+    console.error(`${modeTag}: AUTH_FAILED`)
+    return exitQuestionMode(ws, 1, 'auth-timeout')
+  }
   if (authResp.error) {
     console.error(`Error: Authentication failed: ${authResp.error}`)
+    if (modeTag) console.error(`${modeTag}: AUTH_FAILED`)
     logEvent('bat-notify', 'exit', { code: 1, reason: 'auth-failed', error: authResp.error })
     ws.close()
     process.exit(1)
   }
+
+  if (waitAnswer) return runWaitAnswer(ws)
+  if (cancelQuestion) return runCancelQuestion(ws)
+  // T0608 (T0606 C-5): register the question, then notify as usual; a failed notify step
+  // cancels it again (no question the Tower does not know about)
+  const asked = askRequest ? await runAsk(ws, askRequest) : null
+  // with --ask a missing reply is a failed step (cancel), not an unhandled rejection
+  const reply = (id) => asked
+    ? waitForMessageById(ws, id).catch((err) => ({ error: `no reply (${err?.message || String(err)})` }))
+    : waitForMessageById(ws, id)
 
   // Step 1: UI notification (toast + tab badge)
   const notifyId = makeId()
@@ -547,8 +951,12 @@ async function main() {
     args: [{ targetId: target, message, source }],
   }))
 
-  const notifyResp = await waitForMessageById(ws, notifyId)
+  const notifyResp = await reply(notifyId)
   if (notifyResp.error) {
+    if (asked) {
+      logEvent('bat-notify', 'send', { channel: 'terminal:notify', result: 'error', error: notifyResp.error })
+      return failAfterAsk(ws, asked, 'UI notify', notifyResp.error)
+    }
     console.error(`Warning: UI notify failed: ${notifyResp.error}`)
     // Continue to PTY write — not fatal
   }
@@ -586,12 +994,16 @@ async function main() {
       args: [target, payload],
     }))
 
-    const writeResp = await waitForMessageById(ws, writeId)
+    const writeResp = await reply(writeId)
     const writeResult = writeResp.result
     // T0215 (BUG-050 階段 1):嚴格 === false 避免舊 server undefined payload 誤觸發
     const failed = writeResp.error || (writeResult && writeResult.ok === false)
     if (failed) {
       const reason = writeResp.error || writeResult?.reason || 'unknown'
+      if (asked) {
+        logEvent('bat-notify', 'send', { channel: 'pty:write', result: 'error', reason, submit })
+        return failAfterAsk(ws, asked, 'PTY write', reason)
+      }
       console.error(`Error: PTY write failed: ${reason}`)
       logEvent('bat-notify', 'send', {
         channel: 'pty:write',
@@ -649,11 +1061,15 @@ async function main() {
         }],
       }))
 
-      const keypressResp = await waitForMessageById(ws, keypressId)
+      const keypressResp = await reply(keypressId)
       const keypressResult = keypressResp.result
       const keypressFailed = keypressResp.error || (keypressResult && keypressResult.ok === false)
       if (keypressFailed) {
         const reason = keypressResp.error || keypressResult?.reason || 'unknown'
+        if (asked) {
+          logEvent('bat-notify', 'send', { channel: 'terminal:keypress', result: 'error', reason, submit, traceId: keypressId })
+          return failAfterAsk(ws, asked, 'terminal keypress', reason)
+        }
         console.error(`Error: terminal keypress failed: ${reason}`)
         logEvent('bat-notify', 'send', {
           channel: 'terminal:keypress',
@@ -677,6 +1093,12 @@ async function main() {
   }
 
   console.log(`✓ Notified ${target.slice(0, 8)}…: ${message}`)
+  // T0608 (T0606 C-5): the question's result lines (id and expiry only, never its text)
+  if (asked) {
+    console.log(`  question: ${asked.questionId}`)
+    console.log(`  expires: ${isoTime(asked.expiresAt)}`)
+    console.log('  notified: yes')
+  }
   logEvent('bat-notify', 'exit', { code: 0 })
   ws.close()
   process.exit(0)
