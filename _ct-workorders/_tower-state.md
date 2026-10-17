@@ -99,7 +99,7 @@
 
 ### 待辦（依優先序）
 
-1. 🟡 **PLAN-048**（IN_PROGRESS，D155 / D156）：T0606 契約 DONE → T0607（A）DONE `00bdcaeb` / T0608（B）DONE on `ct/T0608` `2e7740b0` → 合併單 T0610（模式 ②） → 合併 → C（e2e）→ CT-T019；PLAN-047 M1b-2 待排期
+1. 🟡 **PLAN-048**（IN_PROGRESS，D155 / D156）：T0606 契約 DONE → T0607（A）DONE `00bdcaeb` / T0608（B）→ T0610 合併（模式 ②，無衝突，unit 5226 / e2e 7）→ 斷點 E 使用者 [A] → `main` ff `4e5f5e7f`；T0608 worktree 已移除，`ct/T0608` / `ct-merge/T0608` 分支保留待使用者同意刪除 → C 單 T0611（e2e + 文件 + `--cancel-question` lost 對齊主行程 exit 0） → 合併 → C（e2e）→ CT-T019；PLAN-047 M1b-2 待排期
 2. 🟡 **BUG-153**（OPEN，BMad-Guide 提出）：Worker 縮圖提問 / blocked 誤標 `✓`、計入批次關閉 → T0609 FIXED `fbf641dc`（實機待下一版）
 2. ✅ ~~`v0.7.0-pre.6` 實機驗收~~ → 第七十七 session T0601（安裝版）+ T0602（隔離 e2e 4 spec）PASS：BUG-150 / 151 CLOSED；CT v5.6.0 `--wait-started` 實際派工 2 次皆 `started:`；CT-T017 / CT-T018 runtime PASS（BMad-Guide T0166 / T0167）→ DONE
 3. 🟡 **PLAN-048**（Worker 問塔台 / 塔台答覆通道）：使用者決定是否排期；**PLAN-047 後續**：M1b-2 codex blocked / 啟動信號、`ElicitationResult` 清 elicitation
@@ -118,7 +118,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（92 entries）
 
 ### 編號起始
-- **T0611** / **BUG-154** / **PLAN-049** / **D157** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
+- **T0612** / **BUG-154** / **PLAN-049** / **D157** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
 
 ---
 
