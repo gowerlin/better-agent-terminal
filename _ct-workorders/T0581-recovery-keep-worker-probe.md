@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0581
 title: "0.7.0-pre.1 實機驗收探針：Worker 完工後停在分頁內，跨 BAT 重開（Recovery 保留）再以原權杖回報"
 type: verify
-status: TODO
-started_at: ""
-updated_at: "2026-10-17T21:41:41+0800"
-completed_at: ""
+status: DONE
+started_at: "2026-10-17T21:42:34+08:00"
+updated_at: "2026-10-17T21:42:51+08:00"
+completed_at: "2026-10-17T21:42:51+08:00"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
@@ -62,4 +62,32 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 階段 1（2026-10-17T21:42:51+08:00）
+
+**落點檢查**：PASS
+- C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單檔在 REPO_ROOT 底下 → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 底下的本工單檔 → not applicable
+- C-2：無 `branch` 欄位；目前 `main`
+- 觀察到的 `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 工單原 `status: TODO`（非 `PENDING`），照開工處理
+
+**環境**（Git Bash 可見 `BAT_*`，無 shell env visibility mismatch）：
+
+| 項目 | 值 |
+|---|---|
+| `BAT_TERMINAL_ID` | `577d12f1444d4eaeb848126531bfdf96` |
+| `BAT_TOWER_TERMINAL_ID` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` |
+| `BAT_REMOTE_TOKEN` 是否 `batcap.` 前綴 | **是**（值未記錄） |
+| `BAT_REMOTE_PORT` | `9876` |
+| `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminalesources\scripts` |
+| `BAT_HELPER_NODE` | 未設定（本機，用 `node`） |
+| `CT_MODE` / `CT_INTERACTIVE` | `yolo` / `0` |
+
+**bat-notify 對綁定塔台回報**：照 ct-exec 收尾流程，於本工單 commit 之後執行 `bat-notify.mjs --source "T0581" --target "$BAT_TOWER_TERMINAL_ID" --submit "T0581 完成"`；結果見下方「階段 1 通知結果」（通知後另一個 commit 補記）。
+
+**變更檔案**：只有本工單檔。未改產品程式碼、未跑 build / test、未 push。
+
+**驗收（階段 1）**：權杖 `batcap.` → PASS；回報送達 → 見通知結果。
+
+**後續**：本分頁停在原地不關閉，等使用者輸入「T0581 階段 2」。
