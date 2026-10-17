@@ -134,6 +134,28 @@ describe('registerTerminalHandlers (T0431)', () => {
     }
   })
 
+  it('created-externally marks a helper dispatch (BUG-152 / T0599); a server-token client is not marked', async () => {
+    vi.useFakeTimers()
+    try {
+      const HELPER: HandlerContext = { windowId: null, connectionId: 'conn-h', helper: { terminalId: 'tower-1', role: 'tower' } }
+      const agent = setup()
+      await agent.invoke('terminal:create-agent-command', HELPER, {
+        id: 'w6', cwd: '/r', skill: 'ct-exec', workorder: 'T0599', customEnv: { BAT_TOWER_TERMINAL_ID: 'tower-1' },
+      })
+      expect(agent.emitted[0].payload).toMatchObject({ id: 'w6', towerTerminalId: 'tower-1', workorder: 'T0599', dispatchedByHelper: true })
+
+      const raw = setup()
+      await raw.invoke('terminal:create-with-command', HELPER, { id: 'w7', cwd: '/r', command: 'claude "/ct-exec T0599"' })
+      expect(raw.emitted[0].payload).toMatchObject({ id: 'w7', dispatchedByHelper: true })
+
+      const client = setup()
+      await client.invoke('terminal:create-agent-command', REMOTE, { id: 'w8', cwd: '/r', skill: 'ct-exec', workorder: 'T0599' })
+      expect(client.emitted[0].payload).not.toHaveProperty('dispatchedByHelper')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   describe('dispatch workspace follows the --notify-id Tower terminal (T0523 / BUG-129)', () => {
     // Registry: tower-b is a tab of workspace B; workspace A exists too.
     const ENTRIES = [{

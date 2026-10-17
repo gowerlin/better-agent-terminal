@@ -47,8 +47,9 @@ const electronAPI = {
     // T0130: Listen for terminals created externally (e.g. via RemoteServer WebSocket)
     // T0137: `workspaceId` propagates from `bat-terminal.mjs --workspace <id>` for explicit allocation
     // T0523: `towerTerminalId` (from `--notify-id`) — the tab lands next to that Tower terminal when this window holds it
-    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean }) => callback(info)
+    // BUG-152 / T0599: `dispatchedByHelper` — a helper dispatched it; the tab does not take the focus
+    onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean; dispatchedByHelper?: boolean }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean; dispatchedByHelper?: boolean }) => callback(info)
       ipcRenderer.on('terminal:created-externally', handler)
       return () => ipcRenderer.removeListener('terminal:created-externally', handler)
     },

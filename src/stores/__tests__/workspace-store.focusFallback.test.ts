@@ -178,6 +178,49 @@ describe('addExternalTerminal focus (BUG-135)', () => {
   })
 })
 
+describe('addExternalTerminal focus — helper dispatch (BUG-152 / T0599)', () => {
+  it('a helper-dispatched Worker in the active workspace does not take the focus from the tower', () => {
+    const a = workspaceStore.addWorkspace('a', '/tmp/a')
+    const tower = workspaceStore.addTerminal(a.id)
+    workspaceStore.setActiveWorkspace(a.id)
+    workspaceStore.setFocusedTerminal(tower.id)
+
+    const added = workspaceStore.addExternalTerminal({
+      id: 'worker-1', cwd: '/tmp/a', workspaceId: a.id, towerTerminalId: tower.id, workorder: 'T0599', dispatchedByHelper: true,
+    })
+
+    expect(added?.workspaceId).toBe(a.id)
+    expect(workspaceStore.getWorkspaceTerminals(a.id).map(t => t.id)).toEqual([tower.id, 'worker-1'])
+    expect(focused()).toBe(tower.id)
+    expect(workspaceStore.getState().activeWorkspaceId).toBe(a.id)
+  })
+
+  it('a helper-dispatched Worker in a non-active workspace does not take the focus either', () => {
+    const tower = workspaceStore.addWorkspace('tower', '/tmp/tower')
+    const a = workspaceStore.addWorkspace('a', '/tmp/a')
+    workspaceStore.addTerminal(tower.id)
+    const a1 = workspaceStore.addTerminal(a.id)
+    workspaceStore.setActiveWorkspace(a.id)
+    workspaceStore.setFocusedTerminal(a1.id)
+
+    workspaceStore.addExternalTerminal({ id: 'worker-2', cwd: '/tmp/tower', workspaceId: tower.id, dispatchedByHelper: true })
+
+    expect(focused()).toBe(a1.id)
+    expect(workspaceStore.getState().activeWorkspaceId).toBe(a.id)
+  })
+
+  it('without the marker (not a helper: e.g. a remote client window) the tab takes the focus as before', () => {
+    const a = workspaceStore.addWorkspace('a', '/tmp/a')
+    const a1 = workspaceStore.addTerminal(a.id)
+    workspaceStore.setActiveWorkspace(a.id)
+    workspaceStore.setFocusedTerminal(a1.id)
+
+    workspaceStore.addExternalTerminal({ id: 'ext-3', cwd: '/tmp/a', workspaceId: a.id, dispatchedByHelper: false })
+
+    expect(focused()).toBe('ext-3')
+  })
+})
+
 describe('reload focus (BUG-135)', () => {
   const serialized = (activeWorkspaceId: string, terminals: Partial<TerminalInstance>[]) => JSON.stringify({
     workspaces: workspaceStore.getState().workspaces,

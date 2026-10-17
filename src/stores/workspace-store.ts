@@ -529,7 +529,7 @@ class WorkspaceStore {
    *  T0553: the title is `<agent> · Worker · <workorder>` for a Worker, else the agent or the
    *  command's file name (`externalTerminalTitle`); a tab a remote server created is marked
    *  `remoteOrigin` (thumbnail badge) instead of the old `Remote:` title prefix. */
-  addExternalTerminal(info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
+  addExternalTerminal(info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean; dispatchedByHelper?: boolean }): TerminalInstance | null {
     // Avoid duplicates — PTY already tracked
     if (this.state.terminals.some(t => t.id === info.id)) return null
 
@@ -592,10 +592,13 @@ class WorkspaceStore {
 
     // BUG-135 / T0532: a terminal that lands in a workspace the user is not looking at (T0523:
     // the tower's workspace) does not take the focus away from the active workspace.
+    // BUG-152 / T0599 (D154): nor does a helper-dispatched Worker in the active workspace — the
+    // user may be typing in the Tower tab.
+    const takesFocus = workspace.id === this.state.activeWorkspaceId && !info.dispatchedByHelper
     this.state = {
       ...this.state,
       terminals: [...this.state.terminals, terminal],
-      focusedTerminalId: workspace.id === this.state.activeWorkspaceId ? terminal.id : this.state.focusedTerminalId
+      focusedTerminalId: takesFocus ? terminal.id : this.state.focusedTerminalId
     }
 
     this.notify()

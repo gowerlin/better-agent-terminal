@@ -15,6 +15,7 @@ import {
   type DispatchWorkspaceResolution,
 } from './dispatch-workspace'
 import { normalizeWorkorderId } from './close-worker'
+import type { HandlerHelperIdentity } from './remote/handler-registry'
 import {
   CT_WORKTREE_ENV_KEYS,
   CtWorktreeService,
@@ -30,6 +31,8 @@ import {
 interface HandlerContext {
   windowId: string | null
   connectionId?: string | null
+  /** BUG-152 / T0599: present when a helper (capability connection) invoked the handler. */
+  helper?: HandlerHelperIdentity
 }
 
 type Handler = (ctx: HandlerContext, ...args: unknown[]) => Promise<unknown> | unknown
@@ -643,8 +646,9 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       ...(worktree ? { worktree: worktree.record } : {}),
     })
     if (created && opts.command) {
-      // BUG-151 / T0598: the new tab has the keyboard focus already — what is typed into it
-      // before the command follows the command instead of being prefixed to it
+      // BUG-151 / T0598: the new tab may have the keyboard focus already (a helper's does not
+      // since BUG-152 / T0599) — what is typed into it before the command follows the command
+      // instead of being prefixed to it
       ptyManager.holdInputForDispatch?.(opts.id)
       delay(() => {
         if (ptyManager.writeDispatchCommand) ptyManager.writeDispatchCommand(opts.id, opts.command + '\r')
@@ -671,6 +675,9 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         // T0523: the registry has this workspace (a window of this BAT holds it), so a window
         // without it skips the event instead of adding the tab to its active workspace.
         ...(landing.known ? { workspaceResolved: true } : {}),
+        // BUG-152 / T0599 (D154): a helper dispatched it (capability connection) — the renderer
+        // adds the tab without taking the focus from the tab the user is typing in.
+        ...(_ctx.helper ? { dispatchedByHelper: true } : {}),
       }
       if (deps.emit) {
         deps.emit('terminal:created-externally', payload)
