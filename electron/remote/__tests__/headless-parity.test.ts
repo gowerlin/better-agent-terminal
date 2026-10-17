@@ -40,6 +40,7 @@ const HELPER_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:get-state', 'T0582: a helper in a server PTY, scoped by its capability'],
   ['terminal:read-output', 'T0582: a helper in a server PTY, scoped by its capability, masked'],
   ['terminal:wait', 'T0582: a helper in a server PTY, long poll scoped by its capability'],
+  ['worktree:terminal-status', 'T0585: a helper in a server PTY reads the worktree status of a Worker (git on the server), scoped by its capability'],
 ])
 
 function formatViolations(violations: HeadlessParityViolation[]): string {

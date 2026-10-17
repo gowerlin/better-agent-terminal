@@ -4,9 +4,9 @@ schema_kind: workorder
 id: T0585
 title: "PLAN-047 W1-2：唯讀 `worktree:terminal-status`（ahead / behind、髒檔、實際變更、範圍外檔案、預測衝突）+ helper `--worktree-status`"
 type: feature
-status: TODO
-started_at: ""
-updated_at: "2026-10-17T22:23:52+0800"
+status: IN_PROGRESS
+started_at: "2026-10-17T22:25:33+0800"
+updated_at: "2026-10-17T22:25:33+0800"
 completed_at: ""
 repo: better-agent-terminal
 project: PLAN-047
@@ -88,3 +88,98 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 落點檢查
+
+- **PASS**。C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）。C-1：工單位於 REPO_ROOT 下。C-3：前 5 項（排除萬用字元與 `_ct-workorders/`）皆存在。C-2：無 `branch` 欄位。
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
+
+### 結果摘要
+
+照契約實作 `worktree:terminal-status` 與 helper `--worktree-status`。查詢只讀 git（`merge-tree --write-tree` 只寫物件庫）；本機與 headless 共用同一份 handler / service。單元測試、helper 測試、清單測試與擴充後的 T0583 e2e 全數通過。
+
+### 變更檔案
+
+- `electron/ct-worktree.ts`：`CtWorktreeService.status()`（快取、10 s 時限）與純函式 `parseWorkorderAffectsFiles` / `affectsFilePatterns` / `matchesAffectsPattern` / `outOfScopeFiles` / `isCtWorkordersPath` / `parsePorcelainZ`；`git()` 失敗時另附 `stdout`（merge-tree exit 1 的衝突清單在 stdout）
+- `electron/worktree-status-handlers.ts`（新）：`registerWorktreeStatusHandler`，範圍沿用 `authorizeHelperQueryTarget`（`output`），以 `--close-worker` 的方式找 Worker，`[helper-query]` 稽核
+- `electron/remote/helper-capability.ts`：`HELPER_CHANNEL_ROLES` 加 `worktree:terminal-status`（tower / worker），`authorizeHelperInvoke` 放行（範圍由 handler 判定）
+- `electron/main.ts`：只加 import 與註冊（`withSavedWorkerOwnership` view + `capabilityOrSavedTabOwnership`，同 `--close-worker`）
+- `electron/remote/headless-entry.ts`：只在 `createHeadlessTerminalQueryModule` 內加註冊（自建 `CtWorktreeService`，headless git resolver、去 `BAT_*` env）+ import
+- `scripts/bat-terminal.mjs`：`--worktree-status [T####]`（參數、互斥、`--notify-id` 規則、`--help`、exit code、`worktree-status` 事件）
+- 測試：`electron/__tests__/ct-worktree-status.test.ts`（新，17）、`electron/__tests__/worktree-status-handlers.test.ts`（新，11）、`electron/__tests__/bat-terminal-worktree-status.test.ts`（新，25）、`electron/remote/__tests__/helper-capability.test.ts`（白名單 13）、`proxied-channels-binding.test.ts`（REGISTRY_ONLY）、`headless-parity.test.ts`（HELPER_ONLY）
+- e2e：`e2e/t0583-worktree-isolated-dispatch.spec.ts` 擴充 T0585 段
+- `CLAUDE.md`：新增「worktree 狀態查詢（PLAN-047 W1 / T0585）」小節（未改其他小節）
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `npx vite build` | PASS |
+| `npm run typecheck` | PASS（0） |
+| `npm run typecheck:electron` | PASS（0） |
+| `npm run test:unit` | PASS：280 files、4941 passed、3 skipped。第一次全量跑有 1 個失敗（`path-aware-channels-coverage.test.ts`，起因是 T0584 進行中新增的 `agent:bat-mcp-launch-args`），T0584 修正後單檔重跑與全量重跑皆綠 |
+| 新增單元 / helper / 清單測試 | PASS（ct-worktree-status 17、worktree-status-handlers 11、bat-terminal-worktree-status 25；既有 bat-terminal-worktree / close-worker / set-role、terminal-query-handlers、ct-worktree 一併跑過） |
+| e2e `t0583-worktree-isolated-dispatch.spec.ts` | PASS（21.1 s，含 T0585 段與重開後已存分頁查詢） |
+| 唯讀斷言 | 單元測試（真 git）與 e2e 都斷言：查詢前後主 checkout 與 worktree 的 `git status --porcelain --untracked-files=all`、`HEAD`、目前分支、`refs/heads` 全部不變 |
+
+注意：vite build、typecheck、unit 與 e2e 都在含 T0584 進行中變更的工作樹上執行（`main.ts` / `headless-entry.ts` / `CLAUDE.md` 等並行修改中）。commit 只包含本單的檔案與 hunk（`git apply --cached` 挑出本單 hunk）。「HEAD + 本單」這個組合本身沒有另外 build；本單的 hunk 不依賴 T0584 的程式碼。
+
+### 實際 JSON 範例（e2e，塔台 `--worktree-status T0583 --notify-id <tower>`）
+
+```json
+{"terminalId":"4b7462e6178657ee65fe575ef3a9e399","isolated":true,"workorder":"T0583","path":"C:\\Users\\Gower\\AppData\\Local\\Temp\\bat-t0583-aqMhuV\\.bat-worktrees\\repo\\T0583","branch":"ct/T0583","base":"27509e4071ab31d93f6537a602d1f7b0043df137","mainCheckout":"C:\\Users\\Gower\\AppData\\Local\\Temp\\bat-t0583-aqMhuV\\repo","head":"e8a3d244f9aafb23178e1525548856c766bedc71","mainHead":"b1610a211126109fcd56ded9ff5e66ac8ceaaa47","ahead":1,"behind":1,"dirty":["scratch.txt"],"dirtyCount":1,"changedFiles":["out.txt","pkg/in.txt","pkg/x.txt"],"changedCount":3,"outOfScopeFiles":["out.txt"],"outOfScopeCount":1,"workorderFile":"_ct-workorders/T0583-e2e.md","touchesCtWorkorders":false,"conflicts":["pkg/x.txt"],"computedAt":1792247935086,"cached":false}
+```
+
+重開 BAT 後由已存分頁找到（T0584，沒有工單檔 → `outOfScopeFiles: null`）：
+
+```json
+{"terminalId":"3e13df14c3e584d1525333011a94a662","isolated":true,"workorder":"T0584","path":"…\\.bat-worktrees\\repo\\T0584","branch":"ct/T0584","base":"b1610a2…","mainCheckout":"…\\repo","head":"b1610a2…","mainHead":"b1610a2…","ahead":0,"behind":0,"dirty":[],"dirtyCount":0,"changedFiles":[],"changedCount":0,"outOfScopeFiles":null,"touchesCtWorkorders":false,"conflicts":[],"computedAt":1792247943658,"cached":false}
+```
+
+非隔離分頁：`{"terminalId":"…","isolated":false}`。
+
+### 各 git 指令實測耗時
+
+環境：Windows、git 2.56.0.windows.2；本 repo 在 temp 目錄的 clone（2618 個追蹤檔、2142 commits；Worker 3 commits、main 2 commits、1 個重疊）。每個指令跑 7 次取中位數：
+
+| 指令 | 中位數 | min–max |
+|---|---|---|
+| `rev-parse --verify refs/heads/ct/<T>^{commit}` | 35 ms | 34–36 |
+| `rev-parse --verify HEAD^{commit}` | 35 ms | 35–46 |
+| `--no-optional-locks status --porcelain=v1 -z`（worktree） | 87 ms | 79–89 |
+| `rev-list --left-right --count <main>...<head>` | 36 ms | 33–38 |
+| `diff --name-only --no-renames -z <main>...<head>` | 37 ms | 36–38 |
+| `merge-tree --write-tree --name-only --no-messages -z` | 37 ms | 31–38 |
+
+六個指令依序執行：沒有快取時約 270 ms，快取命中時約 160 ms（兩次 rev-parse + status）。e2e 中 helper 一次呼叫含 node 啟動約 220 ms（小 repo）。
+
+### 與契約的差異 / 擴充
+
+1. **`affects_files` 的 `、` 列舉**：契約寫的是「第一個 token」，但這種寫法下 `electron/main.ts、electron/remote/headless-entry.ts（接線）` 只會取到 `main.ts`，`headless-entry.ts` 會被誤判為範圍外（本工單的 `affects_files` 自己就這樣寫）。因此改成：token 內以 `、` / `，` / `,` / `；` / `;` 列出的多個路徑**全部**算範圍內；分隔符兩側的空白先收掉，所以 `…（說明）、e2e（說明）` 也會取到 `e2e`。沒有萬用字元的路徑視為「該檔或它底下的檔案」（例：`e2e` 涵蓋 `e2e/**`）。
+2. **`affects_files:` 沒有值**（YAML null）、`~` → `null`；`[]` → 所有變更（`_ct-workorders/**` 除外）都算範圍外。
+3. **新增錯誤碼 `GIT_FAILED`**：`ct/<T####>` 分支或主 checkout 已不在。helper exit 1，與 `TIMEOUT` 同類。
+4. **新增欄位**（只增不改）：`workorder`、`mainCheckout`、`dirtyCount`、`changedCount`、`outOfScopeCount`、`workorderFile`、`cached`、`terminalId`，以及視情況出現的 `dirtyError` / `conflictsError` / `worktreeMissing`。`computedAt` 為 epoch ms（數字，與 T0582 的時間欄位一致）。
+5. **`changedFiles` 帶 `--no-renames`**：改名時新、舊路徑都會列出，所以搬離範圍的刪除也會被算進範圍外。
+6. **不跑 merge-tree 的情況**：`ahead == 0` 或 `behind == 0`（可以 fast-forward）時直接回 `conflicts: []`。
+7. **只查執行中的分頁**：分頁結束後找不到（`NOT_FOUND`），因為 PtyManager 的結束紀錄沒有 worktree 資訊。
+8. **helper 規則**：`--notify-id` 只在 helper 端檢查，不送到 BAT；不帶 `T####` 時又給 `--notify-id` 算用法錯誤。
+
+### 給 CT-T016（合併工單 / 直接合併判準）的注意事項
+
+- **可以直接 `git merge --ff-only ct/T####`**：`behind == 0`，`dirty` 為空，而且 `conflicts == []`（此時一定是空陣列）。
+- `dirty` 非空時，Worker 還有沒提交的變更，合併拿不到這些內容，先讓 Worker commit。`worktreeMissing: true` 時無法判斷有沒有髒檔。
+- `behind > 0` 且 `conflicts == []`：merge-tree 預測可以乾淨合併，但要 merge commit 或 rebase，不能 ff。`conflicts` 非空或 `null`（例如沒有共同祖先、git < 2.38）就派合併工單。
+- `outOfScopeFiles` 非空時，Worker 改了工單 `affects_files` 以外的檔案，先確認再合併。`null` 表示工單讀不到或沒有該欄位，**不代表**範圍內。
+- `touchesCtWorkorders: true` 表示分支改到 `_ct-workorders/**`（例如 Worker 寫了回報區）。合併時要留意和塔台在主 checkout 的改動有沒有衝突（衝突會出現在 `conflicts` 裡）。
+- `head` / `mainHead` 每次都是當下的值；`cached` 只表示 ahead / behind / changedFiles / conflicts 沿用了先前的計算結果（同一組 head / mainHead）。合併前想再確認，再查一次就好（約 0.2–0.3 s）。
+- 帶 `T####` 查詢要搭配 `--notify-id "$BAT_TERMINAL_ID"`。exit 3 / 4 / 5 的語意和 `--close-worker` 相同；exit 1 時看 stderr 的 `worktree-status: <CODE>`（`UNSUPPORTED` 代表 BAT 太舊）。
+
+### 已知限制
+
+- headless 的範圍只依權杖判定，沒有已存分頁補判；server 重啟後找不到 Worker。
+- `affects_files` 解析只涵蓋常見的 YAML 寫法，不是完整的 YAML parser。工單檔以主 checkout 工作樹中的內容為準，未提交的修改也算。
+- e2e 的 helper 以 server token 連線（沿用 T0583 e2e 的寫法），範圍判定（自己 / 自己的 Worker / 別人的 `NOT_OWNER`）由單元測試涵蓋。
+
+### Commit
+
+- 見下方「Commit 紀錄」（本單檔案以 `git commit --only` 提交，`main.ts` / `headless-entry.ts` 以 `git apply --cached` 只提交本單 hunk）。

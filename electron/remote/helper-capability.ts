@@ -16,6 +16,7 @@
  *     `pty:write` (printable text only, T0450) / `terminal:keypress`, target = that tower only
  *   - PLAN-047 M1 / T0582, both roles: the read-only queries `terminal:whoami` / `list` /
  *     `get-state` / `read-output` / `wait`, scoped by `authorizeHelperQueryTarget` in the handler
+ *     T0585: + `worktree:terminal-status` (electron/worktree-status-handlers.ts), same scope rule
  *
  * PLAN-047 / T0575 (D149): Electron's local PTYs get these capabilities too (`buildLocalHelperEnv`),
  * no longer the full server token, and a tower may call `terminal:create-with-command` (raw command
@@ -403,6 +404,9 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
   'terminal:get-state': ['tower', 'worker'],
   'terminal:read-output': ['tower', 'worker'],
   'terminal:wait': ['tower', 'worker'],
+  // PLAN-047 W1-2 / T0585: read-only worktree status of an isolated Worker
+  // (electron/worktree-status-handlers.ts), same scope rule (`authorizeHelperQueryTarget`, output).
+  'worktree:terminal-status': ['tower', 'worker'],
 }
 
 /** T0582: the read-only query channels (`HELPER_CHANNEL_ROLES`, electron/terminal-query-handlers.ts). */
@@ -593,6 +597,7 @@ export function authorizeHelperInvoke(
     case 'terminal:get-state':
     case 'terminal:read-output':
     case 'terminal:wait':
+    case 'worktree:terminal-status': // T0585
       // T0582: read-only; the handler checks the target against the caller (`authorizeHelperQueryTarget`).
       return { ok: true }
     case 'terminal:notify':

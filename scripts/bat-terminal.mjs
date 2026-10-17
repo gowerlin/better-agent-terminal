@@ -30,6 +30,10 @@
 //   node scripts/bat-terminal.mjs --set-role tower [--mode yolo] [--terminal-id <id>] [--agent claude]
 //     └─ T0562 / D147: title this tab (default $BAT_TERMINAL_ID) `<agent> · Tower` (no tab is
 //        created; a name the user gave the tab is kept). Exit 0 done / 3 NOT_FOUND / 1 other.
+//   node scripts/bat-terminal.mjs --worktree-status T0585 --notify-id "$BAT_TERMINAL_ID"
+//     └─ PLAN-047 W1-2 / T0585: one line of JSON — the worktree status of the Worker this Tower
+//        dispatched for T0585 (without T####: this tab's own). Read-only. Exit 0 / 3 NOT_FOUND /
+//        4 NOT_OWNER / 5 AMBIGUOUS / 1 other.
 //
 // Options:
 //   --help, -h     Show help
@@ -83,10 +87,12 @@ const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs [options] --skill <name> --workorder <T####> [--isolation worktree]
        bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>] [--worktree keep|remove|archive]
        bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]
+       bat-terminal.mjs --worktree-status [<T####> --notify-id <id>]
 
 Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
 With --close-worker, close the Worker tab a Tower dispatched instead (no terminal is created).
 With --set-role, give an existing tab a role instead (no terminal is created).
+With --worktree-status, print an isolated Worker's worktree status instead (read-only).
 
 Options:
   --cwd <path>           Working directory for the new terminal
@@ -155,6 +161,24 @@ Give a tab a role (T0562):
               1 usage error, connection failure, not allowed or BAT too old. stderr also prints
               "set-role: <CODE>".
 
+Worktree status (T0585):
+  --worktree-status [<T####>]
+                         Print one line of JSON about the worktree of an isolated Worker
+                         (--isolation worktree): isolated, path, branch, base, head, mainHead,
+                         ahead, behind, dirty, changedFiles, outOfScopeFiles (changed files outside
+                         the work order's affects_files; null = no work order / no field),
+                         conflicts (merge-tree prediction; null = unknown), touchesCtWorkorders,
+                         computedAt. A tab that is not isolated prints {"isolated":false,...}.
+                         With <T####>: the Worker the --notify-id Tower dispatched for it (found as
+                         --close-worker finds it); without: this tab itself (a Worker checking its
+                         own worktree). Read-only: nothing is merged, checked out or committed.
+                         Cannot be combined with --close-worker, --delay-ms, --worktree, --set-role,
+                         --terminal-id or the options that create a terminal.
+  --notify-id <id>       Required with --worktree-status <T####>: the Tower's own terminal ID
+  Exit codes: 0 printed (isolated or not) / 3 NOT_FOUND / 4 NOT_OWNER / 5 AMBIGUOUS / 1 usage
+              error, connection failure, TIMEOUT (BAT gives up after 10 s), GIT_FAILED or BAT
+              too old (UNSUPPORTED). stderr also prints "worktree-status: <CODE>".
+
 Examples:
   node scripts/bat-terminal.mjs --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs --skill ct-exec --workorder T0001
@@ -168,6 +192,8 @@ Examples:
   node scripts/bat-terminal.mjs --close-worker T0001 --notify-id "$BAT_TERMINAL_ID" --worktree remove
   node scripts/bat-terminal.mjs --set-role tower --agent claude
   node scripts/bat-terminal.mjs --set-role tower --mode yolo
+  node scripts/bat-terminal.mjs --worktree-status T0001 --notify-id "$BAT_TERMINAL_ID"
+  node scripts/bat-terminal.mjs --worktree-status
 `
 
 // T0360/BUG-082: Work order ID grammar, shared across the whole dispatch chain.
@@ -180,7 +206,7 @@ Examples:
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--worktree-status', '--help', '-h', '--version']
 
 // PLAN-041 / T0535: `--close-worker` exit codes (contract shared with CT, PLAN-041「介面契約」).
 const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
@@ -195,6 +221,10 @@ const WORKTREE_CLOSE_MODES = ['keep', 'remove', 'archive']
 const WORKTREE_FAILED_EXIT = 7
 // T0583: an isolated dispatch waits for git (BAT: 30 s for `git worktree add`, 2 s Recovery hold)
 const ISOLATED_INVOKE_TIMEOUT_MS = 40_000
+// PLAN-047 W1-2 / T0585: `--worktree-status` exit codes (T0585「介面契約」) and invoke timeout
+// (BAT answers TIMEOUT itself after 10 s)
+const WORKTREE_STATUS_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5 }
+const WORKTREE_STATUS_INVOKE_TIMEOUT_MS = 15_000
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -267,6 +297,9 @@ let agentGiven = false
 // PLAN-047 W1 / T0583
 let isolation = null
 let worktreeMode = null
+// PLAN-047 W1-2 / T0585: --worktree-status [T####]
+let worktreeStatus = false
+let worktreeStatusWorkorder = null
 
 let i = 0
 while (i < rawArgs.length) {
@@ -466,6 +499,26 @@ while (i < rawArgs.length) {
     continue
   }
 
+  // PLAN-047 W1-2 / T0585: read-only worktree status; the work order id is optional
+  if (arg === '--worktree-status') {
+    worktreeStatus = true
+    const next = rawArgs[i + 1]
+    if (next !== undefined && !next.startsWith('-')) {
+      const value = next.trim().toUpperCase()
+      if (!WORKORDER_ID_PATTERN.test(value)) {
+        console.error(`Error: Invalid --worktree-status value: '${next}' (expected T followed by digits, with an optional 2-4 char uppercase prefix, e.g. T0001 or CP-T0113)`)
+        console.error('worktree-status: USAGE')
+        logEvent('bat-terminal', 'exit', { code: 1, reason: 'invalid-worktree-status-workorder' })
+        process.exit(1)
+      }
+      worktreeStatusWorkorder = value
+      i += 2
+    } else {
+      i += 1
+    }
+    continue
+  }
+
   if (arg === '--delay-ms') {
     const value = rawArgs[i + 1]
     if (!value) { printUsageError('--delay-ms requires a number of milliseconds'); process.exit(1) }
@@ -490,6 +543,34 @@ while (i < rawArgs.length) {
   // First non-flag → start of command
   positional.push(arg)
   i++
+}
+
+// PLAN-047 W1-2 / T0585: --worktree-status only reads; it never creates or changes a tab.
+if (worktreeStatus) {
+  const statusUsage = (msg, reason) => {
+    printUsageError(msg)
+    console.error('worktree-status: USAGE')
+    logEvent('bat-terminal', 'exit', { code: 1, reason })
+    process.exit(1)
+  }
+  const conflicting = [
+    ...new Set(createFlags),
+    ...(closeWorker ? ['--close-worker'] : []),
+    ...(delayMs !== null ? ['--delay-ms'] : []),
+    ...(worktreeMode !== null ? ['--worktree'] : []),
+    ...(setRole ? ['--set-role'] : []),
+    ...(roleTerminalId !== null ? ['--terminal-id'] : []),
+    ...(positional.length > 0 ? ['<command>'] : []),
+  ]
+  if (conflicting.length > 0) {
+    statusUsage(`--worktree-status cannot be combined with ${conflicting.join(', ')}`, 'worktree-status-with-other-options')
+  }
+  if (worktreeStatusWorkorder && !notifyId) {
+    statusUsage('--worktree-status <T####> requires --notify-id <the Tower terminal ID>', 'worktree-status-without-notify-id')
+  }
+  if (!worktreeStatusWorkorder && notifyId) {
+    statusUsage('--notify-id is only used with --worktree-status <T####> (without it the status is this tab\'s own)', 'worktree-status-notify-id-without-workorder')
+  }
 }
 
 // T0562: --set-role retitles an existing tab; it never creates one.
@@ -575,7 +656,7 @@ if (isolation && !hasSkillMode) {
   process.exit(1)
 }
 
-if (!closeWorker && !setRole && !prompt && !hasSkillMode && positional.length === 0) {
+if (!closeWorker && !setRole && !worktreeStatus && !prompt && !hasSkillMode && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
   process.exit(1)
@@ -598,10 +679,11 @@ logEvent('bat-terminal', 'parsed', {
   ...(closeWorker ? { closeWorker, delayMs, worktree: worktreeMode } : {}),
   ...(isolation ? { isolation } : {}),
   ...(setRole ? { setRole, roleTerminalId, roleMode, agentHint: agentGiven ? agent : null } : {}),
+  ...(worktreeStatus ? { worktreeStatus: worktreeStatusWorkorder ?? 'self' } : {}),
 })
 
 // PLAN-041 / T0562: the `<mode>: <CODE>` diagnostic line on stderr of the modes that create no tab.
-const modeTag = closeWorker ? 'close-worker' : setRole ? 'set-role' : null
+const modeTag = closeWorker ? 'close-worker' : setRole ? 'set-role' : worktreeStatus ? 'worktree-status' : null
 
 // ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
 
@@ -624,7 +706,7 @@ if (!TOKEN) {
 // T0360 (ADVISORY B-2): Advisory only — behaviour is unchanged. Callers that
 // dispatch on behalf of a specific project frequently do not know this flag
 // exists, and silently land the PTY in whatever workspace happens to be active.
-if (!workspaceId && !closeWorker && !setRole) {
+if (!workspaceId && !closeWorker && !setRole && !worktreeStatus) {
   console.error('[bat-terminal] --workspace not specified; PTY will land in the currently ACTIVE workspace.')
   console.error('               Callers dispatching for a specific project should pass')
   console.error('               --workspace "$BAT_WORKSPACE_ID".')
@@ -1008,6 +1090,7 @@ async function main() {
 
   if (closeWorker) return runCloseWorker(ws)
   if (setRole) return runSetRole(ws)
+  if (worktreeStatus) return runWorktreeStatus(ws)
 
   const channel = prompt || hasSkillMode ? 'terminal:create-agent-command' : 'terminal:create-with-command'
   const invokePayload = prompt || hasSkillMode
@@ -1301,6 +1384,77 @@ async function runSetRole(ws) {
   console.error(`Error: Role not set (${code}): ${detail}`)
   console.error(`set-role: ${code}`)
   return finish(SET_ROLE_EXIT[code] ?? 1, code)
+}
+
+/**
+ * PLAN-047 W1-2 / T0585: `worktree:terminal-status { workorder? }` (none = this tab). stdout = one
+ * line of JSON (the answer without `ok`); success is decided by the exit code,
+ * `worktree-status: <CODE>` on stderr is diagnostic.
+ */
+async function runWorktreeStatus(ws) {
+  const request = worktreeStatusWorkorder ? { workorder: worktreeStatusWorkorder } : {}
+  const target = worktreeStatusWorkorder ?? 'this tab'
+  const finish = (exitCode, code, fields = {}) => {
+    logEvent('bat-terminal', 'worktree-status', { workorder: worktreeStatusWorkorder, notifyId, result: code, ...fields, ignoredFrames })
+    logEvent('bat-terminal', 'exit', { code: exitCode, reason: exitCode === 0 ? 'worktree-status-done' : `worktree-status-${code}` })
+    ws.close()
+    process.exit(exitCode)
+  }
+
+  const invokeId = makeId()
+  ws.send(JSON.stringify({ type: 'invoke', id: invokeId, channel: 'worktree:terminal-status', args: [request] }))
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: WORKTREE_STATUS_INVOKE_TIMEOUT_MS, channel: 'worktree:terminal-status' })
+  let resp
+  try {
+    resp = await waitForMessage(ws, invokeId, WORKTREE_STATUS_INVOKE_TIMEOUT_MS)
+  } catch (err) {
+    const msg = err?.message || String(err)
+    console.error(`Error: Invoke response timeout: ${msg}`)
+    console.error('worktree-status: TIMEOUT')
+    return finish(1, 'TIMEOUT', { error: msg })
+  }
+  if (resp.error) {
+    const text = String(resp.error)
+    // A BAT from before T0585 has no such handler; a capability of another kind may refuse it.
+    const code = /No handler for channel/i.test(text) ? 'UNSUPPORTED' : /Forbidden/i.test(text) ? 'FORBIDDEN' : 'ERROR'
+    const message = {
+      UNSUPPORTED: 'This BAT does not support --worktree-status (update BAT)',
+      FORBIDDEN: `Not allowed to read the worktree status: ${text}`,
+    }[code] ?? `Failed to read the worktree status: ${text}`
+    console.error(`Error: ${message}`)
+    console.error(`worktree-status: ${code}`)
+    return finish(1, code, { error: text })
+  }
+  const result = resp.result
+  if (result && typeof result === 'object' && result.ok === true) {
+    const { ok: _ok, ...status } = result
+    console.log(JSON.stringify(status))
+    return finish(0, 'OK', {
+      terminalId: status.terminalId ?? null,
+      isolated: Boolean(status.isolated),
+      ...(status.isolated ? {
+        ahead: status.ahead,
+        behind: status.behind,
+        dirtyCount: status.dirtyCount ?? null,
+        changedCount: status.changedCount,
+        outOfScopeCount: status.outOfScopeCount ?? null,
+        conflicts: Array.isArray(status.conflicts) ? status.conflicts.length : null,
+        cached: Boolean(status.cached),
+      } : {}),
+    })
+  }
+  const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
+  const detail = {
+    NOT_FOUND: worktreeStatusWorkorder ? `no running Worker tab for ${worktreeStatusWorkorder}` : 'this tab is not a running BAT terminal',
+    NOT_OWNER: worktreeStatusWorkorder ? `the Worker tab of ${worktreeStatusWorkorder} was not dispatched by terminal ${notifyId}` : 'not allowed to read that tab',
+    AMBIGUOUS: `more than one Worker tab of ${worktreeStatusWorkorder} from this Tower${Array.isArray(result?.terminalIds) ? ` (${result.terminalIds.join(', ')})` : ''}`,
+    TIMEOUT: 'BAT gave up after 10 s (git too slow?)',
+    GIT_FAILED: 'git failed (the branch or the main checkout is gone?)',
+    INVALID_ARGS: 'BAT rejected the request arguments',
+  }[code] ?? 'the status was not read'
+  console.error(`Error: Worktree status of ${target} not read (${code}): ${detail}${typeof result?.message === 'string' ? ` — ${result.message}` : ''}`)
+  console.error(`worktree-status: ${code}`)
+  return finish(WORKTREE_STATUS_EXIT[code] ?? 1, code, Array.isArray(result?.terminalIds) ? { terminalIds: result.terminalIds } : {})
 }
 
 // T0200/BUG-046: Safety net for rejections that escape main()'s await chain

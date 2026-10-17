@@ -15,6 +15,7 @@ import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceF
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
 import { registerTerminalQueryHandlers, savedTabsFromRegistry, type TerminalQueryHandlers } from './terminal-query-handlers'
+import { registerWorktreeStatusHandler } from './worktree-status-handlers'
 import { mirrorToBatScripts } from './remote/remote-logger'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
@@ -2329,6 +2330,23 @@ function registerProxiedHandlers() {
     isWorkerOf: (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
     savedTabs: () => savedTabsFromRegistry(windowRegistry.getCachedEntries()),
     knownSecrets: () => [remoteServer.currentToken],
+    logger,
+    mirrorToBatScripts,
+  })
+  // PLAN-047 W1-2 / T0585: read-only worktree status of an isolated Worker (same module as headless).
+  // Workers are found and owned as `--close-worker` finds them (saved tabs after BAT reopens).
+  registerWorktreeStatusHandler({
+    registerHandler,
+    getWorkerView: () => ptyManager
+      ? withSavedWorkerOwnership(ptyManager, () => savedWorkerOwnership(windowRegistry.getCachedEntries()))
+      : null,
+    isWorkerOf: (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
+    isOwnedBy: capabilityOrSavedTabOwnership(
+      (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
+      terminalId => ptyManager?.getWorkorder(terminalId) !== undefined,
+      terminalId => localHelperCapabilities.hasWorkerCapability(terminalId),
+    ),
+    status: record => ctWorktreeService.status(record),
     logger,
     mirrorToBatScripts,
   })

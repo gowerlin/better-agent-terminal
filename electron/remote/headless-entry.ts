@@ -18,6 +18,7 @@ import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
 import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
+import { registerWorktreeStatusHandler } from '../worktree-status-handlers'
 import { mirrorToBatScripts } from './remote-logger'
 import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
 import type { HandlerContext } from '../handlers/types'
@@ -534,6 +535,8 @@ export function createHeadlessTerminalQueryModule(opts: {
   getPtyManager: () => PtyManager | null
   isWorkerOf?: (terminalId: string, towerId: string) => boolean
   knownSecrets?: () => readonly string[]
+  /** T0585: `worktree:terminal-status`. Default: the resolved git, `BAT_*` scrubbed. */
+  ctWorktree?: CtWorktreeService
 }): HandlerModule {
   return register => {
     const queries = registerTerminalQueryHandlers({
@@ -541,6 +544,20 @@ export function createHeadlessTerminalQueryModule(opts: {
       getPtyManager: opts.getPtyManager,
       isWorkerOf: opts.isWorkerOf ?? (() => false),
       ...(opts.knownSecrets ? { knownSecrets: opts.knownSecrets } : {}),
+      logger: defaultLogger,
+      mirrorToBatScripts,
+    })
+    // PLAN-047 W1-2 / T0585: `worktree:terminal-status` — git runs on this server, in its checkout;
+    // Workers are found as `--close-worker` finds them here (PtyManager + `isWorkerOf`).
+    const ctWorktree = opts.ctWorktree ?? new CtWorktreeService({
+      gitBinary: createHeadlessGitBinaryResolver(),
+      env: () => buildProbeEnv(process.env, isHeadlessScrubbedEnvKey),
+    })
+    registerWorktreeStatusHandler({
+      registerHandler: register,
+      getWorkerView: opts.getPtyManager,
+      isWorkerOf: opts.isWorkerOf ?? (() => false),
+      status: record => ctWorktree.status(record),
       logger: defaultLogger,
       mirrorToBatScripts,
     })

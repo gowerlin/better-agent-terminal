@@ -13,6 +13,13 @@
 //   3. --close-worker T0583 --worktree remove → the tab closes, the worktree goes, the branch stays
 //   4. dispatch T0584 isolated, relaunch BAT, --close-worker T0584 --worktree archive → found from the
 //      saved tab, worktree removed, branch renamed ct-archive/T0584
+//
+// PLAN-047 W1-2 / T0585 (`--worktree-status`), between 1 and 3: the Worker's worktree commits one file
+// inside the work order's affects_files and one outside, plus a change to pkg/x.txt that the main
+// checkout changes too → the Tower's `--worktree-status T0583` JSON: ahead 1 / behind 1, changed
+// files, out of scope = out.txt, conflict = pkg/x.txt, an untracked file in dirty, cached on the
+// second call; `git status` / branches / HEAD of both checkouts unchanged by the queries. In 4,
+// after the relaunch, `--worktree-status T0584` finds the Worker from its saved tab.
 
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { execFile, execFileSync } from 'node:child_process'
@@ -90,6 +97,11 @@ test('--isolation worktree runs the Worker in its own worktree; --close-worker -
   const top = git(repo, 'rev-parse', '--show-toplevel')
   if (norm(top) !== norm(repo) || norm(top) === norm(REPO_ROOT)) throw new Error(`fixture repo is not isolated: ${top}`)
   fs.writeFileSync(path.join(repo, 'pkg', 'x.txt'), 'x\n')
+  // T0585: the work order whose affects_files `--worktree-status` checks the changes against
+  fs.mkdirSync(path.join(repo, '_ct-workorders'))
+  fs.writeFileSync(path.join(repo, '_ct-workorders', 'T0583-e2e.md'), [
+    '---', 'id: T0583', 'affects_files:', '  - "pkg/**（the package）"', '  - docs/readme.md', '---', '', '# T0583', '',
+  ].join('\n'))
   git(repo, 'add', '-A')
   git(repo, 'commit', '-q', '-m', 'init')
   const head = git(repo, 'rev-parse', 'HEAD')
@@ -158,6 +170,52 @@ test('--isolation worktree runs the Worker in its own worktree; --close-worker -
     expect(git(repo, 'status', '--porcelain')).toBe('')
     await expect.poll(async () => (await savedTerminals(win)).find(t => t.id === worker)?.ctWorktree?.branch, { timeout: 15_000 }).toBe('ct/T0583')
 
+    // ── T0585: --worktree-status (read-only) ──
+    const clean = await runHelper(env, ['--worktree-status', 'T0583', '--notify-id', TOWER], tmp)
+    expect(clean.code, clean.stderr).toBe(0)
+    expect(JSON.parse(clean.stdout)).toMatchObject({ terminalId: worker, isolated: true, branch: 'ct/T0583', ahead: 0, behind: 0, dirty: [], changedFiles: [], conflicts: [], outOfScopeFiles: [] })
+    fs.writeFileSync(path.join(wt, 'pkg', 'in.txt'), 'in scope\n')
+    fs.writeFileSync(path.join(wt, 'out.txt'), 'out of scope\n')
+    fs.writeFileSync(path.join(wt, 'pkg', 'x.txt'), 'worker\n')
+    git(wt, 'add', 'pkg/in.txt', 'out.txt', 'pkg/x.txt')
+    git(wt, 'commit', '-q', '-m', 'worker')
+    fs.writeFileSync(path.join(repo, 'pkg', 'x.txt'), 'main\n')
+    git(repo, 'commit', '-q', '-m', 'main', '--', 'pkg/x.txt')
+    fs.writeFileSync(path.join(wt, 'scratch.txt'), 'untracked\n')
+    const gitState = (dir: string) => [
+      git(dir, 'status', '--porcelain=v1', '--untracked-files=all'),
+      git(dir, 'rev-parse', 'HEAD'),
+      git(dir, 'rev-parse', '--abbrev-ref', 'HEAD'),
+      git(repo, 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads'),
+    ]
+    const before = [gitState(repo), gitState(wt)]
+    const t0 = Date.now()
+    const queried = await runHelper(env, ['--worktree-status', 'T0583', '--notify-id', TOWER], tmp)
+    log(`worktree-status T0583 (${Date.now() - t0} ms incl. node start): exit=${queried.code}\n${queried.stdout}${queried.stderr}`)
+    expect(queried.code, queried.stderr).toBe(0)
+    expect(queried.stdout.trim().split(/\r?\n/)).toHaveLength(1)
+    const status = JSON.parse(queried.stdout)
+    expect(status).toMatchObject({
+      terminalId: worker, isolated: true, workorder: 'T0583', branch: 'ct/T0583', base: head,
+      head: git(repo, 'rev-parse', 'ct/T0583'), mainHead: git(repo, 'rev-parse', 'HEAD'),
+      ahead: 1, behind: 1, dirty: ['scratch.txt'], dirtyCount: 1, changedCount: 3,
+      outOfScopeFiles: ['out.txt'], conflicts: ['pkg/x.txt'], touchesCtWorkorders: false,
+      workorderFile: '_ct-workorders/T0583-e2e.md', cached: false,
+    })
+    expect(norm(status.path)).toBe(norm(wt))
+    expect([...status.changedFiles].sort()).toEqual(['out.txt', 'pkg/in.txt', 'pkg/x.txt'])
+    expect(status).not.toHaveProperty('ok')
+    const again = await runHelper(env, ['--worktree-status', 'T0583', '--notify-id', TOWER], tmp)
+    expect(again.code, again.stderr).toBe(0)
+    expect(JSON.parse(again.stdout)).toMatchObject({ cached: true, computedAt: status.computedAt, conflicts: ['pkg/x.txt'] })
+    expect([gitState(repo), gitState(wt)]).toEqual(before)
+    await expect.poll(() => readDebugLogs(userData), { timeout: 10_000 })
+      .toMatch(/\[helper-query\] channel=worktree:terminal-status caller=client:\S+ target=\S+ → ok isolated=true ahead=1 behind=1 dirty=1 changed=3 outOfScope=1 conflicts=1 cached=false ms=\d+/)
+    const missing = await runHelper(env, ['--worktree-status', 'T0599', '--notify-id', TOWER], tmp)
+    expect(missing.code).toBe(3)
+    expect(missing.stderr).toContain('worktree-status: NOT_FOUND')
+    fs.rmSync(path.join(wt, 'scratch.txt')) // `--worktree remove` below keeps a dirty worktree
+
     // ── 2. not a git repository → exit 7, no tab ──
     const failed = await dispatch('T0599', plain)
     log(`dispatch from a plain folder: exit=${failed.code}\n${failed.stdout}${failed.stderr}`)
@@ -195,6 +253,16 @@ test('--isolation worktree runs the Worker in its own worktree; --close-worker -
     await expect(view2.locator('.terminal-wrapper')).toHaveCount(2, { timeout: 30_000 })
     const env2 = await helperEnv(app2, userData2, relaunched.remotePort, tmp)
     const deadline = Date.now() + 60_000
+    // T0585: found from the saved tab (this process recorded nothing for T0584)
+    let saved: HelperRun
+    for (;;) {
+      saved = await runHelper(env2, ['--worktree-status', 'T0584', '--notify-id', TOWER], tmp)
+      if (saved.code !== 3 || Date.now() > deadline) break
+      await new Promise(r => setTimeout(r, 1_000)) // the restored PTY is not up yet
+    }
+    log(`worktree-status T0584 after relaunch: exit=${saved.code}\n${saved.stdout}${saved.stderr}`)
+    expect(saved.code, saved.stderr).toBe(0)
+    expect(JSON.parse(saved.stdout)).toMatchObject({ terminalId: worker2, isolated: true, branch: 'ct/T0584', ahead: 0, dirty: [] })
     let archived: HelperRun
     for (;;) {
       archived = await runHelper(env2, ['--close-worker', 'T0584', '--notify-id', TOWER, '--worktree', 'archive'], tmp)
