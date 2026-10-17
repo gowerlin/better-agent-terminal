@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-17 10:47 (UTC+8) — BUG-145 CLOSED（pre.8 實機）；BUG-144 FIXED（T0573 `6e4f3764`），隨 `v0.6.1-pre.9` 待實機
+> 最後同步：2026-10-17 10:52 (UTC+8) — BUG-144 CLOSED（pre.9 實機三項 PASS，T0573 DONE）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 18 | 🧪 Verify: 0 | 🚫 Closed: 51 | ⛔ Won't Fix: 0 | **Total: 70**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 52 | ⛔ Won't Fix: 0 | **Total: 70**
 
 ## 🔴 Open / 處理中
 
@@ -43,7 +43,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（T0573 `6e4f3764`：claude 聚焦時重送追蹤 DECSET 清選取 → 放回 / 接回拖曳；同範圍重選經放開同步；T0571 pre.8 實機無效；隨 `v0.6.1-pre.9` 待實機） | 🟢 low | 2026-10-17 10:35 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |
@@ -72,6 +71,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（T0573 `6e4f3764`：claude 聚焦時重送追蹤 DECSET 清選取 → 放回 / 接回拖曳；同範圍重選經放開同步；pre.9 實機三項 PASS） | 🟢 low | 2026-10-17 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 | BUG-145 | 新分頁 / 還原 / ⏻ 重啟的 PTY 停在 120x30（T0572 `ecc00c60`：PTY 建立後重送 fit 尺寸；pre.8 實機 PASS） | 🟢 low | 2026-10-17 | [BUG-145](BUG-145-new-pty-stays-at-spawn-size.md) |
 | BUG-143 | 終端右鍵選單按 Esc 關不掉（T0569 `fb66c0bc`：選單開著時 Esc 只關選單、不送進 PTY；pre.7 實機 PASS） | 🟢 low | 2026-10-16 | [BUG-143](BUG-143-terminal-context-menu-esc-not-closing.md) |
 | BUG-142 | claude CLI 分頁右鍵已貼上又跳 BAT 選單（T0568 `9988a117`：程式開滑鼠追蹤時不開選單，Shift + 右鍵照開；pre.7 實機 PASS，Shift 選單缺「複製」另開 BUG-144） | 🟢 low | 2026-10-16 | [BUG-142](BUG-142-right-click-pastes-and-shows-menu-in-claude-tab.md) |

@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0573
 title: "BUG-144 重修：真實 claude CLI 分頁 Shift + 拖曳後 Shift + 右鍵仍只有「貼上」（T0571 實機無效）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-144
 priority: P2
 sizing: S-M
 created_at: "2026-10-17T10:05:10+0800"
-updated_at: "2026-10-17T10:35:17+0800"
+updated_at: "2026-10-17T10:52:12+0800"
 completed_at: "2026-10-17T10:35:17+0800"
 started_at: "2026-10-17T10:06:26+0800"
 target_version: "0.6.1-pre.9（未排發版）"
@@ -190,3 +190,7 @@ blur6 修正前的事件序（節錄）：`mousedown(Shift)` → `data ESC[I` �
 - 無範圍偏差。真實 claude 實測以暫時診斷 spec 執行（已刪）；修正前 build 以暫時 git worktree 建置（已移除，node_modules junction 先解除）。
 - 給塔台：使用者日誌（`debug-20261017-085134.log`）只有不按 Shift 的「not shown」紀錄；T0573 前 Shift + 右鍵開選單不記日誌，無法從實機日誌直接判讀。本單起每次開選單都有一行 `shown`。
 - 建議實機驗收時順帶試：① 從別的視窗回來（≥ 5 秒）後直接 Shift + 拖曳；② 同一段文字選兩次。
+
+## 塔台結案（2026-10-17T10:52:12+0800）
+
+pre.9 實機驗收（使用者，本機 BAT `0.6.1-pre.9`）三項 PASS → **DONE**；BUG-144 CLOSED。

@@ -72,9 +72,10 @@
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-17 10:48 UTC+8（第七十 session 收工）
+> 最後更新：2026-10-17 10:52 UTC+8（第七十一 session）
 
 ### 近期完成
+- pre.9 實機（第七十一 session，10:52）：BUG-144 三項 PASS → **CLOSED**、T0573 DONE
 - `v0.6.1-pre.9`（10-17 10:45，run `38995709965` @ `14246954`）：BUG-144 重修（T0573 `6e4f3764`：claude 聚焦時重送追蹤 DECSET 清選取、同範圍重選無事件）；更版重點與三文件已同步（`65c841bf`）
 - pre.8 實機（第七十 session）：BUG-145 CLOSED、T0572 DONE；T0538 手動批次關閉實機 PASS（記於 PLAN-041）；BUG-144 實機無效 → T0573
 - `v0.6.1-pre.8`（10-16 22:36，run `38916104029` @ `0769bafc`）：BUG-144 追蹤滑鼠的分頁 Shift + 拖曳選取後 Shift + 右鍵有「複製」（T0571）、BUG-145 新分頁 / 還原 / ⏻ 重啟的 PTY 尺寸同步（T0572）、rate-limit 文件更正；更版重點與 repo 三文件已同步（`370c7781`）
@@ -83,11 +84,10 @@
 
 ### 待辦（依優先序）
 
-1. 🟡 **pre.9 實機 BUG-144**：claude CLI 分頁 ① Shift + 拖曳 → 移動 → Shift + 右鍵 ② 從別的視窗回來 ≥ 5 s 直接 Shift + 拖曳 ③ 同一段文字選兩次 → 都有「複製」且內容正確 → CLOSED、T0573 DONE；失敗看日誌 `[terminal-context-menu] … shown: … keeper=…`
-2. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
-3. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
-4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
-5. 🟢 後續小項：背景分頁未顯示前 PTY 維持 120 欄、Terminal Server recovery 重建以 120x30（T0572 建議：PtyManager 記住最後尺寸）；追蹤模式 Alt + Shift 欄選取；`e2e/t0571` 的 redraw 繞法可移除；zsh `~/.zprofile` nvm；CHANGELOG `[0.4.2]` 段；程式碼簽章；`*archive` 到齡候選；T0360（舊單 FIXED）
+1. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
+2. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
+3. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
+4. 🟢 後續小項：背景分頁未顯示前 PTY 維持 120 欄、Terminal Server recovery 重建以 120x30（T0572 建議：PtyManager 記住最後尺寸）；追蹤模式 Alt + Shift 欄選取；`e2e/t0571` 的 redraw 繞法可移除；zsh `~/.zprofile` nvm；CHANGELOG `[0.4.2]` 段；程式碼簽章；`*archive` 到齡候選；T0360（舊單 FIXED）
 
 ### ⚠️ 本專案 gh 鐵則（L122）
 **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**。
@@ -96,7 +96,7 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 19 / Closed 50）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（Open 1 / Fixing 0 / Fixed 17 / Closed 52）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D148）｜ Learnings → [_learnings.md](_learnings.md)（最大 L154）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（85 entries）
 
@@ -193,7 +193,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.6.1-pre.8`（`v0.6.1-pre.9` 已發佈，使用者收工時換版中；下次起手以 FileVersion 確認） | 2026-10-17 09:56 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
+| BAT 安裝版 | ✅ `0.6.1-pre.9`（= 最新 release） | 2026-10-17 10:50 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |

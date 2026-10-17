@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-144
 title: "claude CLI 分頁（滑鼠追蹤開啟）已反白文字後 Shift + 右鍵，BAT 選單只有「貼上」、沒有「複製」"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-16T21:48:35+0800"
-updated_at: "2026-10-17T10:35:05+0800"
+updated_at: "2026-10-17T10:52:12+0800"
+fixed_in: 6e4f3764
 impact:
   - terminal-context-menu
   - terminal-selection
@@ -22,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（貼上正常；複製可改用其他方式，但 T0568 宣稱的 Shift + 右鍵複製不能用） |
 | 可重現 | 必現（使用者實機） |
-| **狀態** | ✅ FIXED（T0573 `6e4f3764`，待實機驗收；T0571 `35eaf125` 實機無效） |
+| **狀態** | 🚫 CLOSED（T0573 `6e4f3764`；2026-10-17 使用者 pre.9 實機驗收三項 PASS；T0571 `35eaf125` 實機無效） |
 | 回報者 | 使用者（BUG-142 實機驗收第 2 項） |
 
 ## 現象
@@ -63,3 +64,12 @@ links:
 - **根因 2：重選同一範圍沒有事件**。xterm `clearSelection()` / `select()` 不更新 `_oldSelection*`，再拖出完全相同的範圍時不發 `onSelectionChange`，keeper 不知道有選取。
 - **修正**：TerminalPanel 以 `?h` CSI handler 在 xterm 處理前通知 keeper（追蹤已開時才算），寫入解析完把選取放回；拖曳仍按著時在原起點以相同修飾鍵補一個 `mousedown` 讓拖曳繼續；Shift + 拖曳放開時主動同步 keeper。開選單時記一行 `[terminal-context-menu] … shown: mouseTrackingMode=… hasSelection=… selectionText=<n> chars keeper=…`。
 - **驗證**：隔離實例跑真實 claude CLI 修正前後對照（失焦後 Shift + 拖曳、同範圍重選、選好後失焦再 Shift + 右鍵：修正前只有「貼上」、修正後「複製」且剪貼簿正確）；單元 / 元件測試；e2e `t0571`（腳本加 1004 與聚焦重送 DECSET）/ `t0568`。詳見 T0573 回報區。待使用者實機驗收。
+
+## 實機驗收通過（pre.9，記錄於 2026-10-17T10:52:12+0800）
+
+本機 BAT `0.6.1-pre.9`，claude CLI 分頁，使用者三項皆 PASS：
+1. Shift + 拖曳 → 移動 → Shift + 右鍵 → 有「複製」、內容正確
+2. 從別的視窗回來（≥ 5 s）直接 Shift + 拖曳 → 有「複製」
+3. 同一段文字選兩次 → 有「複製」
+
+→ BUG-144 CLOSED、T0573 DONE。
