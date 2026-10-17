@@ -19,7 +19,7 @@ scope:
 estimated_workorders: 12
 links:
   source: "D:\\ForgejoGit\\@Gower_Labs\\BMad-Guide\\BAT MCP Server 規格提案.md"
-  related: [PLAN-036, PLAN-041, PLAN-044, PLAN-045, T0420, T0449, T0523, T0535, T0537, T0545, T0551, T0562, T0565, D134, D144, D145, D147, D148]
+  related: [T0574, PLAN-036, PLAN-041, PLAN-044, PLAN-045, T0420, T0449, T0523, T0535, T0537, T0545, T0551, T0562, T0565, D134, D144, D145, D147, D148]
 ---
 
 # PLAN-047 — BAT MCP Server 與 Worktree 合併
@@ -212,3 +212,4 @@ links:
 
 - 2026-10-17 18:35 — 建立；塔台對照現況完成初評（第七十二 session）
 - 2026-10-17 18:40 — 使用者方向：合併改由塔台派合併工單，不由 BAT 執行；新增 §三之一評估，軌道 W 縮為 W1
+- 2026-10-17 18:42 — 開研究單 T0574（R1 外部查證 / R2 blocked 偵測 / R3 本機範圍權杖 / R4 shim 原型 / R5 worktree 與合併工單實測 / R6 綜合）
