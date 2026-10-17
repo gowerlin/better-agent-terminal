@@ -92,6 +92,8 @@
 ### 待辦（依優先序）
 
 1. ✅ ~~`v0.7.0-pre.3` 實機驗收~~ → 2026-10-18 00:28 第七十五 session：Codex CLI 分頁 `bat_whoami` PASS（`role: shell`、`agent: codex-cli`）→ **BUG-148 CLOSED**
+1a. 🔄 **第七十五 session 進行中**：T0589（Q3，主 checkout）/ T0590（M1b-1 claude hooks，隔離 `ct/T0590`，base `3362c8aa`）00:33 並行派出；收單後 T0590 走 `--worktree-status` → 合併判準 / 合併工單
+1b. ⏳ **合併後塔台直接補 `CLAUDE.md`**（使用者 2026-10-18 同意）：「Helper scripts 的 userData」補「`BAT_HELPER_LOG_DIR` 同樣須為絕對路徑，相對路徑忽略」（`scripts/_bat-logger.mjs:83`；BMad-Guide 回函觀察 4）
 2. 🟡 **PLAN-047 後續**（pre.2 驗收已完成，可決定）：M1b（blocked 偵測）；Q3（關閉後仍可查 `--worktree-status`，可沿用 T0582 已結束 PTY 紀錄）；M2 / M3 視使用情況
 3. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`；**BUG-136**：等 Gary 回傳日誌；`RECOVERY_PENDING`（> 2 s 未答）實機未驗
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
