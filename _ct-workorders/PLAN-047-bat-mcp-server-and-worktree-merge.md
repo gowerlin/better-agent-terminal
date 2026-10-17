@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-047
 title: BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照）
-status: IDEA
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-17T18:35:37+0800"
+updated_at: "2026-10-17T19:07:31+0800"
 plan_type:
   - feature
   - architecture
@@ -19,7 +20,7 @@ scope:
 estimated_workorders: 12
 links:
   source: "D:\\ForgejoGit\\@Gower_Labs\\BMad-Guide\\BAT MCP Server 規格提案.md"
-  related: [T0574, PLAN-036, PLAN-041, PLAN-044, PLAN-045, T0420, T0449, T0523, T0535, T0537, T0545, T0551, T0562, T0565, D134, D144, D145, D147, D148]
+  related: [T0574, T0575, T0576, T0577, D149, D150, PLAN-036, PLAN-041, PLAN-044, PLAN-045, T0420, T0449, T0523, T0535, T0537, T0545, T0551, T0562, T0565, D134, D144, D145, D147, D148]
 ---
 
 # PLAN-047 — BAT MCP Server 與 Worktree 合併
@@ -30,7 +31,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-047 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 💡 IDEA（塔台審議中，尚未決定範圍與階段） |
+| 狀態 | 🔄 IN_PROGRESS（D149 採路線 [A]；第一批 T0575 A1 / T0576 A2 / T0577 T） |
 | 來源 | 外部規格提案「BAT MCP Server 與 Worktree 合併規格提案」（2026-10-17，@Gower）；原檔路徑見 frontmatter `links.source` |
 | 提案前提 | 提案方未掌握完整 CT / BAT 實作細節；本單由塔台對照現況評估 |
 
@@ -195,6 +196,18 @@ links:
 - **R5**：worktree 每個 `npm ci` 約 16 s / 2.1 GiB，test 60 s 全綠；sparse 排除 `_ct-workorders/` 會讓 5 個 parser-parity 測試失敗 → 建議 `CT_HOME` + 樣本改 fixture。合併工單 `--ff-only` 在四種情況都機械保證 main 不變；`merge-tree` 試算約 50 ms。CT 落點檢查 C-0 在 worktree 會誤判，CT 端需修。
 - **推薦方向 [A]**：A1 + A2（同版）→ M1（shim + 唯讀）→ M1b（blocked）；T（樣本 fixture）+ W1 + CT-T014 / CT-T015 並行；M2 / M3 視 M1 使用情況再決定。修正後階段表與 Q1–Q14 建議答案見 T0574。
 
+## 三之二、合併工單的三種模式（D150）
+
+使用者問：合併工單能否由 AI 判斷做衝突解決或等價移植，而非單純合併。**可以**，定為三種模式：
+
+| 模式 | 適用 | Worker 做什麼 | 額外證據 | yolo 斷點 E |
+|---|---|---|---|---|
+| ① 機械合併 | 無衝突且符合 T0574 R5 五條判準 | （塔台可直接做）`--no-ff` 於整合 worktree → main `--ff-only` | SHA 比對五步 | 不暫停 |
+| ② 衝突解決 | 有文字 / 語意衝突，但工單分支的意圖仍適用於目前 main | 在整合 worktree 解衝突、跑完整驗收 | 每個衝突檔：雙方意圖、採用的解法與理由 | 驗收全綠且無範圍外檔案 → 自動 ff；否則暫停 |
+| ③ 等價移植 | 分支過舊、程式碼已被重構搬移、或 EXP / 上游（tony1223）成果要採用 | 以原工單的目標與驗收條件為規格，在目前 main 上重新實作；不使用 git merge | 「原 commit / hunk → 新位置」對照表；原驗收項逐條在新樹上重驗；原本沒有測試的行為要補測試或標「需真人驗收」 | **一律暫停**，使用者確認後才 ff |
+
+共同護欄：只在整合 worktree 工作，main 只 `--ff-only`，不 push；完整驗收（build、兩個 typecheck、test:unit + 原工單驗收）；範圍以原工單 `affects_files` 為準，超出要列明。**模式由塔台決定**：Worker 在 ② 遇到超出衝突解決的情況，回報 PARTIAL 並建議改 ③，不自行升級。細節寫進 CT-T015 合併工單模板。
+
 ## 四、建議階段（待使用者決定）
 
 | 階段 | 內容 | 型態 |
@@ -223,3 +236,4 @@ links:
 - 2026-10-17 18:40 — 使用者方向：合併改由塔台派合併工單，不由 BAT 執行；新增 §三之一評估，軌道 W 縮為 W1
 - 2026-10-17 18:42 — 開研究單 T0574（R1 外部查證 / R2 blocked 偵測 / R3 本機範圍權杖 / R4 shim 原型 / R5 worktree 與合併工單實測 / R6 綜合）
 - 2026-10-17 19:01 — T0574 DONE；新增「研究結論」節，推薦方向 [A]，待使用者決定階段與第一批工單
+- 2026-10-17 19:07 — D149 採路線 [A]，狀態 → IN_PROGRESS；開 T0575（A1）/ T0576（A2，依賴 T0575）/ T0577（T）；D150 合併工單三種模式（新增 §三之二）

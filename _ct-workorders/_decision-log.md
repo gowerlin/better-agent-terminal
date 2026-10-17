@@ -1390,6 +1390,28 @@
 
 ---
 
+### D149 2026-10-17 — PLAN-047 採路線 [A]：先 A1（本機範圍權杖）+ A2（跨重開持久化，同版發佈）+ T（測試解耦），MCP 走 stdio shim、合併走工單
+
+- **背景**：外部提案「BAT MCP Server 與 Worktree 合併」；T0574 研究證實本機 PTY 持有可呼叫所有 handler 的全權 server token，範圍權杖程式碼已在共用 `RemoteServer` 只差接線；stdio shim 原型實測可行
+- **決定**（使用者 2026-10-17 選 [A]，塔台記錄於 2026-10-17 19:07:08）：
+  - 階段：A1 + A2（同版發佈）→ M1（`bat-mcp.mjs` 手寫 dual-era stdio shim + 唯讀 channel）→ M1b（blocked）；T / W1 / CT-T014 / CT-T015 並行；M2 / M3 待 M1 使用後再議。不做 bat-daemon 分離、不開 Streamable HTTP 埠
+  - 第一批：T0575（A1）、T0576（A2，依賴 T0575）、T0577（T）
+  - A1 細節（使用者授權塔台依研究建議預設）：本機 tower 角色允許 raw command（`terminal:create-with-command`，限制同 create-agent-command），headless 暫不動；本機每 tower 存活子 PTY 上限沿用 8、不加 Settings；升級當下存活的舊分頁維持全權 token 至重開，不輪替 server token
+- **不採用**：提案原樣（HTTP + daemon 分離 + BAT 合併引擎）；只做 CLI 不做 MCP（[C]）
+- **相關**：PLAN-047 / T0574 / T0575 / T0576 / T0577 / PLAN-036 K / D134
+
+---
+
+### D150 2026-10-17 — 合併工單由 AI 判斷執行：機械合併 / 衝突解決 / 等價移植三種模式，main 一律 `--ff-only`
+
+- **背景**：使用者 2026-10-17 指示合併改由塔台派合併工單（PLAN-047 §三之一），並問合併工單可否由 AI 判斷做衝突解決或等價移植，而非單純合併
+- **決定**（塔台 2026-10-17 19:07:08 記錄，細節待 CT-T015 合併工單模板定稿）：
+  - 合併工單可做三種模式：① 機械合併（無衝突，符合 T0574 R5 五條判準時塔台可直接做）② 衝突解決（AI 在整合 worktree 解衝突）③ 等價移植（分支過舊或結構性衝突時，以原工單驗收條件為規格，在目前 main 上重新實作其意圖）
+  - 共同護欄：只在整合 worktree 工作；main 只 `--ff-only`；不 push；完整驗收（本專案 build + 兩個 typecheck + test:unit，加原工單的驗收項）；回報衝突檔與每處解法理由（②）或「原 commit / hunk → 新位置」移植對照表與等價證據（③）；範圍以原工單 `affects_files` 為準，超出須列明
+  - 模式升級由塔台決定：合併工單遇到超出衝突解決範圍的情況 → 回報 PARTIAL + 建議改移植，不自行改做移植
+  - 斷點 E：② 在 yolo 下驗收全綠且無範圍外檔案可自動 ff；③ 一律暫停請使用者確認後才 ff
+- **相關**：PLAN-047 / T0574 / D149 / CT-T015（待開）
+
 ### D147 2026-10-16 — 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`；BAT 提供 helper `--set-role tower`，CT 啟動時呼叫
 
 - **背景**：使用者要求塔台分頁像 Worker 分頁（T0553 `Claude CLI · Worker · T####`）一樣一眼可辨。BAT 目前沒有讓分頁內程式改標題的管道（不處理 OSC 標題序列、helper 無改名 API）
