@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（codex 分頁的 `mcp__bat__*` 全部不可用；claude 分頁正常） |
 | 可重現 | 必現（本機 BAT `0.7.0-pre.2`、OpenAI Codex `v0.163.0`、Windows） |
-| **狀態** | 🔧 FIXING（T0586） |
+| **狀態** | ✅ FIXED（T0586，`8c7bd4c4`；實機待 0.7.0-pre.3） |
 
 ## 現象
 
