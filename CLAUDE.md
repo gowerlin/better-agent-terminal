@@ -153,6 +153,16 @@
 - **macOS / Linux**（只看程式碼，未實測）：node-pty `UnixTerminal.kill()` 只對 shell pid 送 `SIGHUP`，不對程序群組；互動 shell 收到 SIGHUP 會轉送給自己的 job，shell（session leader）結束時 kernel 對前景程序群組送 SIGHUP，一般 agent CLI 會一起結束。`setsid` / `nohup` / detached 的 daemon 不在範圍內，兩種模式都會殘留（direct 模式在 Unix 也只有 `kill()`）。
 - 驗證：`electron/__tests__/terminal-server-kill-tree.test.ts`（注入 execFile 驗參數 / timeout / pid、順序、restart、shutdown 等待、quit Step A source guard；Windows 另跑真 node-pty + detached 孫程序）、`electron/__tests__/terminal-server-stale-exit.test.ts`。
 
+## Recovery 提示期間的 `pty:create`（T0578 / BUG-146）
+
+- **規則**：BAT 重開、Terminal Server 存活且有 PTY（`startTerminalServer` 設 `pendingRecovery`）時，main 同時 `ptyManager.holdCreates(...)`；`pty:create` handler（`electron/handlers/pty.ts`）在 hold 中回 Promise，等 `whenCreatesReleased` 後才 `createWithResult`。🔴 Recovery 提示回答前不得 spawn direct shell：此時 PtyManager 尚未連上任何 Terminal Server，T0578 前的 create 走 direct node-pty，同 id 在 Electron 主程序下另起一個 shell（選「保留」後仍存活，輸出併入同 id；T0578 隔離實例實測 `pwsh.exe` 1 個）。
+- **放行**：「保留」→ `connectToServer` + `pty:list` 後 `releaseCreatesOnReplayList()`，由 `handleReplayList` 在註冊存活 id、通知 `onSurvivingPtys`（T0576 settle）**之後**放行，所以存活 id 的 create 走冪等 skip，回 `created: false`（不重送 agent 啟動命令、renderer 要 replay、不 `requestPtySizeSync`），其他 id 在 server 上新建、`created: true`；`pty:list` 逾時 `PtyManager.CREATE_HOLD_LIST_TIMEOUT_MS` = 5 s 仍放行（`logger.warn`）。View→Reload 且 IPC 仍在的「保留」同樣呼叫（沒有 hold 時 no-op）。「保留」失敗（server 已死）與「重新開始」→ `startTerminalServer()` 之後 `releaseCreates(...)`：全部在新 server 上建立（新 server 起不來則 direct，與 T0578 前相同）。放行依請求順序。
+- **「重新開始」等舊 server 結束**：舊 server 收到 `server:shutdown` 立即關 TCP（`sendShutdownToServer` 隨即返回），但 pid / port / registry 檔要等全部 PTY 程序樹結束（T0540）才刪；T0578 前 main 已 fork 新 server，舊 server 隨後刪掉**新 server 的**檔案（修正前 e2e 實測：重新開始後 30 s 內 pid 檔一直不存在）。現 `waitForTerminalServerExit`（`isServerRunning` 為否，最多 `FRESH_START_SERVER_EXIT_TIMEOUT_MS` = 5 s，逾時 `logger.warn` 後照舊 fork）之後才刪檔、fork。
+- **不受影響**：沒有存活 Terminal Server / 存活但 0 個 PTY（靜默重連）/ direct 模式 / headless（`createHeadlessPtyModule` 不 hold）：沒有 hold，handler 同步回傳，行為不變。hold 不分平台（Recovery 提示在 macOS / Linux 也會出現，只看程式碼，e2e 只在 Windows 跑）。**未涵蓋**：同步呼叫 `ptyManager.create` 的路徑（helper 派工 `terminal:create-with-command`、`restart`）在 hold 中仍照舊 direct spawn，記 `[BUG-146] … spawns directly while creates are held (synchronous caller)`；Recovery 提示期間存活分頁的塔台派工（T0576 pending 權杖可認證）會碰到。
+- **T0576 對照**：hold 中不 spawn → 不經 `helperEnv` → 存活 id 不再新簽權杖；「保留」的冪等 skip 也不簽。T0576 的 pending + `settleRestored`（`issue()` 不撤銷 pending 紀錄、settle 撤銷期間新簽者）保留未移除。
+- **日誌** `[BUG-146]`：`pty:create held (Recovery prompt pending)` / `pty:create id=<id> held until the Recovery prompt is answered` / `pty:create released (<原因>): <n> held create(s) [<ids>]` / `no Terminal Server PTY list within 5000 ms — releasing the held creates`。
+- 驗證：`electron/__tests__/recovery-create-hold.test.ts`（hold 中不 create / 不 spawn / 不簽權杖、保留：存活 id `created: false` 不送 server、新 id `created: true`、依序放行、`pty:list` 逾時、重新開始 `created: true`、無 hold 時同步回傳、main.ts source guard）；e2e `e2e/t0578-recovery-no-direct-shell.spec.ts`（隔離實例，Windows：退出不停 Terminal Server → 重開 → 提示開著 5 s 時 Electron 主程序下（Terminal Server 樹以外）無 shell → 保留：仍無、`pty:create SKIP (idempotent)`、分頁內指令的父程序 = 原 server PTY pid 且只出現一次；重新開始：新 server pid、分頁得到新 PTY、舊 server 結束；需先 `npx vite build`）。
+
 ## Child Process Spawning
 
 新增涉及 child_process 的程式碼（特別是 IPC handler / wizard step / shell 互動）：

@@ -264,6 +264,12 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** Callback provided by main.ts to re-fork a new Terminal Server process. */
   onRequestNewServer: (() => Promise<ChildProcess | null>) | null = null
 
+  // BUG-146 / T0578: while the Recovery prompt is unanswered, `pty:create` waits here instead of
+  // spawning a direct shell for an id that may be running on the surviving Terminal Server.
+  private createHold: { waiters: Array<() => void>; heldIds: string[]; releaseTimer: ReturnType<typeof setTimeout> | null } | null = null
+  /** How long a recover waits for the Terminal Server's PTY list before releasing anyway. */
+  static readonly CREATE_HOLD_LIST_TIMEOUT_MS = 5_000
+
   constructor(deps: PtyManagerDeps) {
     this.deps = deps
   }
@@ -533,6 +539,8 @@ export class PtyManager implements CloseWorkerPtyManager {
       this.sendToServer({ type: 'pty:getBuffer', id })
     }
     this.notifySurvivingPtys(ptys.map(p => p.id))
+    // BUG-146: the surviving ids are registered — a held create of one of them is now idempotent
+    this.releaseCreates('Terminal Server PTY list')
   }
 
   /** T0576: `deps.onSurvivingPtys`; a throwing listener must not break the replay / recovery. */
@@ -859,6 +867,60 @@ export class PtyManager implements CloseWorkerPtyManager {
     return { ok, created: ok && !existed }
   }
 
+  /**
+   * BUG-146 / T0578: hold `pty:create` (the `pty:create` handler waits on `whenCreatesReleased`)
+   * until the Recovery prompt is answered. Before the answer PtyManager is connected to no
+   * Terminal Server, so a create would spawn a direct shell for an id that may still run on the
+   * surviving server — a second, hidden shell whose output joins the tab's.
+   */
+  holdCreates(reason: string): void {
+    if (this.createHold) return
+    this.createHold = { waiters: [], heldIds: [], releaseTimer: null }
+    logger.log(`[BUG-146] pty:create held (${reason})`)
+  }
+
+  isCreateHeld(): boolean {
+    return this.createHold !== null
+  }
+
+  /**
+   * Resolves when the hold ends (right away without one); `id` is only logged. Waiters resume in
+   * the order they came.
+   */
+  whenCreatesReleased(id?: string): Promise<void> {
+    const hold = this.createHold
+    if (!hold) return Promise.resolve()
+    if (id) {
+      hold.heldIds.push(id)
+      logger.log(`[BUG-146] pty:create id=${id} held until the Recovery prompt is answered`)
+    }
+    return new Promise(resolve => { hold.waiters.push(resolve) })
+  }
+
+  /** Ends the hold: the waiting creates run now, against whatever connection there is. No-op without a hold. */
+  releaseCreates(reason: string): void {
+    const hold = this.createHold
+    if (!hold) return
+    this.createHold = null
+    if (hold.releaseTimer) clearTimeout(hold.releaseTimer)
+    logger.log(`[BUG-146] pty:create released (${reason}): ${hold.heldIds.length} held create(s)${hold.heldIds.length ? ` [${hold.heldIds.join(', ')}]` : ''}`)
+    for (const resolve of hold.waiters) resolve()
+  }
+
+  /**
+   * After "recover" connected and asked for `pty:list`: the hold ends when the list arrives
+   * (`handleReplayList` registers the surviving ids first, so their held creates answer
+   * `created: false`), or after `timeoutMs` if it never does.
+   */
+  releaseCreatesOnReplayList(timeoutMs: number = PtyManager.CREATE_HOLD_LIST_TIMEOUT_MS): void {
+    const hold = this.createHold
+    if (!hold || hold.releaseTimer) return
+    hold.releaseTimer = setTimeout(() => {
+      logger.warn(`[BUG-146] no Terminal Server PTY list within ${timeoutMs} ms — releasing the held creates`)
+      this.releaseCreates('PTY list timeout')
+    }, timeoutMs)
+  }
+
   create(options: PtyManagerCreateOptions): boolean {
     const { id, cwd, type, shell: shellOverride, customEnv = {}, workspaceId, agentPreset } = options
     // T0535: recorded only when it is a valid work order id (same grammar as --workorder)
@@ -928,6 +990,10 @@ export class PtyManager implements CloseWorkerPtyManager {
       logger.log(`[PtyManager] pty:create SKIP (idempotent, direct) id=${id} — already running`)
       return true
     }
+
+    // BUG-146: only the `pty:create` handler waits for the hold; a synchronous caller (helper
+    // dispatch, restart) still spawns directly, as before T0578
+    if (this.createHold) logger.warn(`[BUG-146] pty:create id=${id} spawns directly while creates are held (synchronous caller)`)
 
     // Fallback: direct PTY spawn (node-pty or child_process)
     let usedPty = false

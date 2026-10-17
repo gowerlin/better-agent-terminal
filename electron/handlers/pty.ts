@@ -73,17 +73,22 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   // T0424: over the PTY cap (PtyLimitError) → `{ ok: false, created: false, code, limit }`.
   // A thrown error crosses the remote WebSocket and Electron IPC as its message string only,
   // so the renderer could not tell "limit reached" apart without English string matching.
-  register('pty:create', (_ctx, options: unknown): PtyCreateResult => {
+  register('pty:create', (_ctx, options: unknown): PtyCreateResult | Promise<PtyCreateResult> => {
     const opts = options as CreatePtyOptions
     if (rejectShell('pty:create', opts?.shell)) return { ok: false, created: false }
     const manager = deps.getPtyManager()
     if (!manager) return { ok: false, created: false }
-    try {
-      return manager.createWithResult(opts)
-    } catch (err) {
-      if (err instanceof PtyLimitError) return { ok: false, created: false, code: err.code, limit: err.limit }
-      throw err
+    const create = (): PtyCreateResult => {
+      try {
+        return manager.createWithResult(opts)
+      } catch (err) {
+        if (err instanceof PtyLimitError) return { ok: false, created: false, code: err.code, limit: err.limit }
+        throw err
+      }
     }
+    // BUG-146 / T0578: Electron holds creates while the Recovery prompt is unanswered (headless never does)
+    if (manager.isCreateHeld?.()) return manager.whenCreatesReleased(opts?.id).then(create)
+    return create()
   })
   // T0215 (BUG-050 階段 1):改用 writeWithResult 回 `{ok, reason}`,讓 bat-notify 可據以 exit 1
   // T0535 (PLAN-041): a write from a local window (Electron IPC, no remote connection) is the

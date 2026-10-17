@@ -262,6 +262,22 @@ async function sendShutdownToServer(port: number): Promise<void> {
   })
 }
 
+/** T0578: covers the old server's `endPty` taskkills (3 s each, run in parallel) on a fresh start. */
+const FRESH_START_SERVER_EXIT_TIMEOUT_MS = 5_000
+
+/**
+ * T0578: resolves true once the Terminal Server of `userDataPath` is gone (its pid file removed by
+ * its own shutdown, or the process dead), false after `timeoutMs`.
+ */
+async function waitForTerminalServerExit(userDataPath: string, timeoutMs: number): Promise<boolean> {
+  const start = Date.now()
+  while (isServerRunning(userDataPath)) {
+    if (Date.now() - start >= timeoutMs) return false
+    await new Promise<void>(r => setTimeout(r, 50))
+  }
+  return true
+}
+
 /**
  * T0575 (T0574 gap 4): the env the Terminal Server inherits — `process.env` without
  * `BAT_REMOTE_*`. The server spreads its own env under every PTY's, so a BAT started inside
@@ -320,6 +336,8 @@ async function startTerminalServer(): Promise<void> {
       if (ptyCount > 0) {
         pendingRecovery = { port, ptyCount }
         logger.log(`[terminal-server] ${ptyCount} live PTYs detected — deferring to user recovery decision`)
+        // BUG-146 / T0578: no direct shell for the restored tabs before the answer
+        ptyManager?.holdCreates('Recovery prompt pending')
         return  // Recovery prompt will handle reconnect or fresh-start
       }
       // Server alive but no PTYs — T0108: try silent reconnect
@@ -3743,6 +3761,7 @@ function registerLocalHandlers() {
     if (ptyManager.isIpcConnected()) {
       logger.log(`[terminal-server] user chose recovery — IPC already active, sending pty:list directly`)
       ptyManager.sendToServer({ type: 'pty:list' })
+      ptyManager.releaseCreatesOnReplayList()
       return
     }
 
@@ -3750,6 +3769,8 @@ function registerLocalHandlers() {
     if (connected) {
       logger.log(`[terminal-server] user chose recovery — connected to port ${port}`)
       ptyManager.sendToServer({ type: 'pty:list' })
+      // BUG-146: the held creates run once the list registered the surviving ids (created: false)
+      ptyManager.releaseCreatesOnReplayList()
     } else {
       // Server died while prompt was showing — fall back to new server
       logger.warn('[terminal-server] recovery failed (server died) — falling back to new server')
@@ -3757,7 +3778,11 @@ function registerLocalHandlers() {
       removePidFile(userDataPath)
       removePortFile(userDataPath)
       _terminalServerStarted = false
-      await startTerminalServer()
+      try {
+        await startTerminalServer()
+      } finally {
+        ptyManager?.releaseCreates('recovery failed: new Terminal Server')
+      }
     }
   })
 
@@ -3770,11 +3795,21 @@ function registerLocalHandlers() {
     try { await sendShutdownToServer(port) } catch { /* server may already be dead */ }
 
     const userDataPath = app.getPath('userData')
+    // T0578: the old server closes its sockets at once but removes the pid / port / registry files
+    // only after its PTY trees ended (T0540) — wait for that, or it deletes the new server's files
+    if (!(await waitForTerminalServerExit(userDataPath, FRESH_START_SERVER_EXIT_TIMEOUT_MS))) {
+      logger.warn(`[terminal-server] fresh start: old server still running after ${FRESH_START_SERVER_EXIT_TIMEOUT_MS} ms — starting the new one anyway`)
+    }
     removePidFile(userDataPath)
     removePortFile(userDataPath)
 
     _terminalServerStarted = false
-    await startTerminalServer()
+    try {
+      await startTerminalServer()
+    } finally {
+      // BUG-146: the held creates go to the new server (or direct, when it could not start)
+      ptyManager?.releaseCreates('fresh start')
+    }
   })
 
 }
