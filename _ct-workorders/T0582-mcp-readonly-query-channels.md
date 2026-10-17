@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0582
 title: "PLAN-047 M1-1：helper 唯讀查詢 channel（whoami / list / get-state / read-output / wait）+ shell 範圍 + 輸出遮罩，本機與 headless 共用"
 type: feature
-status: TODO
-started_at: ""
-updated_at: "2026-10-17T21:52:34+0800"
-completed_at: ""
+status: DONE
+started_at: "2026-10-17T21:54:38+08:00"
+updated_at: "2026-10-17T22:19:08+08:00"
+completed_at: "2026-10-17T22:19:08+08:00"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
@@ -99,3 +99,99 @@ PLAN-047 路線 [A]（D149）：MCP 建在 A1 / A2 的範圍權杖上，傳輸�
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 結果摘要（2026-10-17，Worker）
+
+五個唯讀 channel（`terminal:whoami` / `list` / `get-state` / `read-output` / `wait`）已實作，本機與 headless 共用同一個 handler 模組與角色表；範圍判定、遮罩各一個唯一實作。全部驗收閘門通過（含隔離實例 e2e）。
+
+### Landing Zone Check
+
+- C-0：frontmatter `repo: better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 底下 → PASS
+- C-3：`affects_files` 可測項目都在（新檔的上層目錄存在）→ PASS（資訊）
+- C-2：工單沒有 `branch` 欄位 → 不適用；目前分支 `main`
+- 觀察到的 `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）
+- 結論：PASS
+
+### 變更檔案
+
+新檔：
+- `electron/terminal-query-handlers.ts`：`registerTerminalQueryHandlers`（五個 channel）、`readOutput`、`screenLines`、`savedTabsFromRegistry`、常數
+- `src/lib/terminal-output-redaction.ts`：`redactTerminalSecrets`（遮罩純函式）
+- 測試：`electron/__tests__/terminal-query-handlers.test.ts`、`electron/remote/__tests__/headless-terminal-query-e2e.test.ts`、`src/lib/__tests__/terminal-output-redaction.test.ts`、`e2e/t0582-helper-query.spec.ts`
+
+修改：
+- `electron/remote/helper-capability.ts`：`HELPER_CHANNEL_ROLES` 加五個 channel（tower / worker）、`HELPER_QUERY_CHANNELS`、`helperQueryRole`、`authorizeHelperQueryTarget`（範圍判定唯一實作）、`authorizeHelperInvoke` 對五個 channel 放行
+- `electron/pty-manager.ts`：結束紀錄（`recordExit`，exit / kill 時記）與唯讀 accessor `listTerminalIds` / `getTerminalInfo` / `getExitedPty` / `listExitedPtyIds`
+- `electron/remote/handler-registry.ts`：`HandlerContext.helper`（呼叫者權杖綁定）、`invokeHandler` 第五參數
+- `electron/remote/remote-server.ts`：helper 路徑把 capability 交給 `invokeHandler`（1 行）
+- `electron/main.ts`：在 `registerProxiedHandlers` 註冊、quit 時 `dispose`
+- `electron/remote/headless-entry.ts`：`createHeadlessTerminalQueryModule`，放進 `createHeadlessHandlerModules`，server 傳 `knownSecrets`
+- `electron/remote/__tests__/proxied-channels-binding.test.ts`（REGISTRY_ONLY）、`headless-parity.test.ts`（HELPER_ONLY）、`helper-capability.test.ts`（白名單 7 → 12）
+- `CLAUDE.md`：新增「helper 唯讀查詢 channel（PLAN-047 M1 / T0582）」小節（放在「遠端 Tower 通知」與「多 remote profile」之間；未改其他小節）
+
+### 驗證
+
+| 閘門 | 結果 |
+|---|---|
+| `npx vite build` | PASS（exit 0） |
+| `npm run typecheck` | PASS（0） |
+| `npm run typecheck:electron` | PASS（0） |
+| `npm run test:unit` | PASS：277 files、4890 passed、3 skipped |
+| 新單元 / 整合測試 | `terminal-query-handlers.test.ts` 36 passed（含真 RemoteServer + 範圍權杖）；`terminal-output-redaction.test.ts` 9 passed |
+| headless 對等（真 headless + 真 node-pty） | `headless-terminal-query-e2e.test.ts` 5 passed |
+| e2e（隔離實例） | `npx playwright test e2e/t0582-helper-query.spec.ts` 1 passed（約 11 s）：塔台宣告 + 派 Worker（自訂 CLI 跑 node 腳本，不耗 token）→ 塔台 whoami / list mine + workspace / get-state / read-output（看得到 Worker 輸出，`batcap.` 樣式被遮罩）/ wait until=exit（Worker shell 結束 → `changed:true` `exited` `exitCode:0`）；Worker 讀塔台輸出 → `NOT_OWNER`；未宣告塔台的一般分頁 `list scope=workspace` → `NOT_OWNER`；debug log 有 `[helper-query]`、不含輸出與權杖。teardown：隔離 Terminal Server 已停、runtime userData 已刪 |
+
+註：驗證時工作樹同時含 T0583 尚未 commit 的變更（同一個 repo 並行），以上結果是合併狀態下的結果。未碰使用者的 BAT（port 9876），e2e 用隔離實例的動態 port。
+
+### 實際採用的常數
+
+| 常數 | 值 | 說明 |
+|---|---|---|
+| `TERMINAL_QUERY_IDLE_MS` | 5000 | = `CLOSE_WORKER_IDLE_MS`（未新增可設定值） |
+| `READ_OUTPUT_DEFAULT_LINES` / `READ_OUTPUT_MAX_LINES` | 200 / 1000 | 超過 1000 夾到 1000；非正整數 → `INVALID_ARGS` |
+| `READ_OUTPUT_PARTIAL_LINE_MAX_CHARS` | 4096 | 仍在輸出中的最後一行在此長度內會留給下次整行再讀 |
+| `TERMINAL_WAIT_MAX_MS` | 45000 | `timeoutMs` 預設與上限（超過夾到 45 s） |
+| `TERMINAL_WAIT_POLL_MS` | 250 | wait 的 server 端輪詢間隔 |
+| `TERMINAL_WAIT_MAX_PER_CALLER` | 8 | 同一呼叫者同時開著的 wait |
+| `EXITED_PTY_RECORD_MAX` / `EXITED_PTY_RECORD_TTL_MS` | 32 / 10 分鐘 | 結束紀錄的筆數與保留時間 |
+| `EXITED_PTY_TAIL_MAX_CHARS` | 32 KiB | 結束時保留的最後輸出 |
+
+### 與契約的差異（新增，不改既有語意）
+
+1. **`read-output` 多兩個欄位**：`skippedLines`（因 `maxLines` 從前面丟掉的行數）、`partialLine`（最後一行仍在輸出中，下次會整行再回傳一次）。理由：`nextCursor` 停在最後一個 raw `\n` 之後，讓被讀取切開的權杖下次整個遮罩（否則下次讀到的是沒有前綴的權杖後半段，遮罩不到）。`truncated` 只表示 cursor 的輸出已不在 buffer（捲掉，或 PTY 重啟後 cursor 超過結尾）。
+2. **`wait` 多一個錯誤碼 `TOO_MANY_WAITS`**（同一呼叫者最多 8 個同時等待），以及回傳 `waitedMs`。`changed` = 條件成立（條件在呼叫當下已成立也是 `true`），逾時 `false`。`until=idle` 在 `idle` 或 `exited` 都成立。
+3. **server token 呼叫者**：不受範圍限制（契約如此），但沒有「自己」，所以必須帶 `terminalId`（`whoami` 也接受 `{ terminalId }`），否則 `INVALID_ARGS`。helper 呼叫 `whoami` 時參數一律忽略。
+4. **錯誤可帶 `message`**（例如 `scope=workspace needs a declared tower (--set-role tower)`），`code` 不變。
+5. **`list` 會列出最近結束的分頁**（`alive:false`），範圍規則相同。`list scope=workspace` 只多列 metadata，不開放這些分頁的 get-state / read-output / wait（照範圍表「只列 metadata」）。
+6. **遮罩多兩類**：`secret-env`（`*_TOKEN=` / `*_SECRET=` / `*_PASSWORD=` / `*_API_KEY=` 等的值）、PEM 只有 END 時從文字開頭遮到 END（讀取從金鑰中間開始）。「server token 樣式」= host 傳入的 server token 字面比對 + 43 字元混大小寫數字的 base64url（舊版 32 hex token 只靠字面比對，未用通用樣式，以免誤遮 MD5 / uuid 類字串）。
+7. **affects_files 以外的檔**：`electron/remote/handler-registry.ts`（`HandlerContext.helper`）、`electron/remote/remote-server.ts`（1 行，把 capability 交給 handler）。任務 4 已點名 RemoteServer；handler 要以權杖為身分只能從這裡拿到。另改 `electron/remote/__tests__/helper-capability.test.ts`（白名單數量測試）。
+
+### 任務 4（長輪詢與逾時）的做法
+
+RemoteServer 對每個 frame 各自 `await` handler（`ws.on('message', async …)`），沒有 server 端 invoke 逾時，所以 45 s 的 wait 不會擋同一連線的其他 invoke（整合測試「a pending wait does not hold up other invokes」驗證）。不需要改 RemoteServer 的逾時。helper 端：目前沒有既有 helper 腳本呼叫這五個 channel（`bat-terminal.mjs` 的 3 s 逾時與它們無關），所以未改 helper；放寬逾時是 T0584 shim 的事（見下）。quit / server stop 時 `dispose()` 讓等待中的 wait 回 `changed:false`。
+
+### T0584 shim 需要知道的事
+
+- 連 `wss://127.0.0.1:$BAT_REMOTE_PORT`，`auth` 帶 `BAT_REMOTE_TOKEN`（分頁的 `batcap.` 權杖），之後 `invoke` frame；回應以 frame `id` 比對（BUG-114 規則）。本機 helper 連線**不收廣播**。
+- 呼叫者身分 = 權杖，參數不能改；`terminalId` 省略 = 自己。
+- invoke 逾時要大於 `wait` 的 `timeoutMs`（建議 ≥ 50 s）；其他 channel 都是同步回應。
+- RemoteServer 每 30 s 對 helper 連線送 WebSocket ping，上一輪沒回 pong 就斷線（T0451）：長連線的 shim 必須回 pong（`ws` 套件會自動回；`bat-*.mjs` 的 `MinimalWS` 是短連線設計，沿用前要確認）。每個權杖同時連線數有上限（`HELPER_MAX_CONNECTIONS_PER_CAPABILITY`），被拒絕次數過多會被節流（T0451）。
+- 範圍外 → `NOT_OWNER`；目標不存在 → `NOT_FOUND`（檢查順序：參數 → 存在 → 範圍）。
+- `read-output` 增量讀取：保存 `nextCursor`，`partialLine:true` 時最後一行下次會再出現一次；`truncated:true` 表示中間有輸出已看不到。內容是 replay buffer 的去 ANSI 文字，TUI（claude CLI 的 alt screen）重繪會產生很多行，建議搭配 `maxLines`。
+- 狀態只有 `working` / `idle` / `exited`；`blocked` 保留給 M1b。
+
+### 已知限制
+
+- T0108 replay 註冊的 PTY（BAT 重開、Terminal Server 存活）沒有 `customEnv` / role / workorder：worker 身分仍以還原的權杖判斷，但 `whoami` / `list` 缺 `towerTerminalId` / `workorder`（本機 `list` 的 `towerTerminalId` 取已存分頁）；這類 Worker 結束後沒有可比對的塔台紀錄 → 塔台查詢回 `NOT_OWNER`。
+- `lastOutputAt` 只計本行程看到的輸出（replay 不算），重開後未再輸出的分頁是 `idle` / `lastOutputAt:null`。
+- headless 沒有標題，也沒有 client 端的工作區資料（`workspaceId` 只有建立時帶的）。
+- 遮罩是樣式比對，非窮舉。
+
+### Commit
+
+見下方 commit 紀錄（只含本單的檔案與 hunk；T0583 並行中的變更未夾帶）。未 push。
+
+### 互動紀錄
+
+無（`CT_INTERACTIVE=0`，fire-and-forget）。

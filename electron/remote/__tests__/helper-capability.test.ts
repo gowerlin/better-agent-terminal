@@ -145,7 +145,7 @@ describe('safeTokenEqual (T0432)', () => {
 })
 
 describe('authorizeHelperInvoke — whitelist (T0432)', () => {
-  it('the whitelist is exactly the 7 helper channels (T0536: + terminal:close-worker, T0562: + terminal:set-role, T0579: + terminal:create-with-command for towers)', () => {
+  it('the whitelist is exactly the 12 helper channels (T0536: + terminal:close-worker, T0562: + terminal:set-role, T0579: + terminal:create-with-command for towers, T0582: + 5 read-only queries for both roles)', () => {
     expect(HELPER_CHANNEL_ROLES).toEqual({
       'terminal:create-agent-command': ['tower'],
       'terminal:create-with-command': ['tower'],
@@ -154,6 +154,11 @@ describe('authorizeHelperInvoke — whitelist (T0432)', () => {
       'terminal:notify': ['worker'],
       'pty:write': ['worker'],
       'terminal:keypress': ['worker'],
+      'terminal:whoami': ['tower', 'worker'],
+      'terminal:list': ['tower', 'worker'],
+      'terminal:get-state': ['tower', 'worker'],
+      'terminal:read-output': ['tower', 'worker'],
+      'terminal:wait': ['tower', 'worker'],
     })
   })
 

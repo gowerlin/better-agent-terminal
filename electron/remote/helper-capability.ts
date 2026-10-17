@@ -14,6 +14,8 @@
  *     T0562: also `terminal:set-role` for its own terminal only (`terminalId` = its own terminal)
  *   - role `worker` (PTY created with `BAT_TOWER_TERMINAL_ID`): `terminal:notify` /
  *     `pty:write` (printable text only, T0450) / `terminal:keypress`, target = that tower only
+ *   - PLAN-047 M1 / T0582, both roles: the read-only queries `terminal:whoami` / `list` /
+ *     `get-state` / `read-output` / `wait`, scoped by `authorizeHelperQueryTarget` in the handler
  *
  * PLAN-047 / T0575 (D149): Electron's local PTYs get these capabilities too (`buildLocalHelperEnv`),
  * no longer the full server token, and a tower may call `terminal:create-with-command` (raw command
@@ -393,6 +395,79 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
   'terminal:notify': ['worker'],
   'pty:write': ['worker'],
   'terminal:keypress': ['worker'],
+  // PLAN-047 M1 / T0582: read-only queries (electron/terminal-query-handlers.ts). Every role may
+  // call them; the handler answers by the caller's capability and checks the target with
+  // `authorizeHelperQueryTarget` (NOT_OWNER), not here.
+  'terminal:whoami': ['tower', 'worker'],
+  'terminal:list': ['tower', 'worker'],
+  'terminal:get-state': ['tower', 'worker'],
+  'terminal:read-output': ['tower', 'worker'],
+  'terminal:wait': ['tower', 'worker'],
+}
+
+/** T0582: the read-only query channels (`HELPER_CHANNEL_ROLES`, electron/terminal-query-handlers.ts). */
+export const HELPER_QUERY_CHANNELS: readonly string[] = [
+  'terminal:whoami',
+  'terminal:list',
+  'terminal:get-state',
+  'terminal:read-output',
+  'terminal:wait',
+]
+
+/**
+ * T0582: what a query caller is, as `terminal:whoami` reports it: `worker` (worker capability),
+ * `tower` (tower capability whose tab declared `--set-role tower`), `shell` (tower capability that
+ * did not — every local tab without a tower has one, T0575).
+ */
+export type HelperQueryRole = 'tower' | 'worker' | 'shell'
+
+/**
+ * T0582: `metadata` = whoami / list / get-state; `output` = read-output / wait (the screen text,
+ * or watching it).
+ */
+export type HelperQueryAccess = 'metadata' | 'output'
+
+/** T0582: who a query is about, from the host (PtyManager + the capability registry). */
+export interface HelperQueryScopeContext {
+  /**
+   * Whether `childId` is a Worker dispatched by tower `towerId`: its live worker capability
+   * (`HelperCapabilityRegistry.isWorkerOf`), or — once it ended — what was recorded at its exit.
+   */
+  isWorkerOf(childId: string, towerId: string): boolean
+  /** The role PTY `id` declared (`PtyManager.getTerminalRole`). */
+  getTerminalRole(id: string): 'tower' | undefined
+}
+
+/** T0582: the caller's query role (see `HelperQueryRole`). */
+export function helperQueryRole(caller: HelperCapability, ctx: Pick<HelperQueryScopeContext, 'getTerminalRole'>): HelperQueryRole {
+  if (caller.role === 'worker') return 'worker'
+  return ctx.getTerminalRole(caller.terminalId) === 'tower' ? 'tower' : 'shell'
+}
+
+export type HelperQueryScopeDecision = { ok: true } | { ok: false; code: 'NOT_OWNER' }
+
+/**
+ * PLAN-047 M1 / T0582: the one scope check of the query channels (local and headless).
+ *   - `caller` null (a server-token client): any target
+ *   - any capability: itself
+ *   - tower capability (declared or not): + the Workers it dispatched (`isWorkerOf`)
+ *   - worker capability: + its tower, `metadata` only (never its output)
+ * The workspace listing of a declared tower (`terminal:list scope=workspace`) is the handler's,
+ * metadata only, and does not open any other channel. Anything else → NOT_OWNER.
+ */
+export function authorizeHelperQueryTarget(
+  caller: HelperCapability | null,
+  targetId: string,
+  access: HelperQueryAccess,
+  ctx: HelperQueryScopeContext,
+): HelperQueryScopeDecision {
+  if (!caller) return { ok: true }
+  if (targetId === caller.terminalId) return { ok: true }
+  if (caller.role === 'tower') {
+    return ctx.isWorkerOf(targetId, caller.terminalId) ? { ok: true } : { ok: false, code: 'NOT_OWNER' }
+  }
+  if (access === 'metadata' && caller.towerId !== undefined && targetId === caller.towerId) return { ok: true }
+  return { ok: false, code: 'NOT_OWNER' }
 }
 
 /**
@@ -513,6 +588,13 @@ export function authorizeHelperInvoke(
       if (opts.terminalId !== capability.terminalId) return deny('target-not-bound')
       return { ok: true }
     }
+    case 'terminal:whoami':
+    case 'terminal:list':
+    case 'terminal:get-state':
+    case 'terminal:read-output':
+    case 'terminal:wait':
+      // T0582: read-only; the handler checks the target against the caller (`authorizeHelperQueryTarget`).
+      return { ok: true }
     case 'terminal:notify':
     case 'terminal:keypress': {
       const opts = asRecord(args[0])

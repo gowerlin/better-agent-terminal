@@ -83,6 +83,44 @@ interface PtyInstance {
   towerMode?: CtMode
 }
 
+/**
+ * PLAN-047 M1 / T0582: what the helper query channels (`terminal:whoami` / `list` / `get-state`,
+ * electron/terminal-query-handlers.ts) read about a running PTY. A copy; never the env.
+ */
+export interface PtyTerminalInfo {
+  id: string
+  cwd: string
+  workspaceId?: string
+  /** `customEnv.BAT_TOWER_TERMINAL_ID`: the Tower that dispatched it. */
+  towerTerminalId?: string
+  workorder?: string
+  agentPreset?: string
+  role?: 'tower'
+  towerMode?: CtMode
+  yolo: boolean
+}
+
+/**
+ * T0582: a PTY that ended recently (exit / kill), so `terminal:get-state` can answer `exited` and
+ * `terminal:read-output` can still read its last output. At most `EXITED_PTY_RECORD_MAX`, for
+ * `EXITED_PTY_RECORD_TTL_MS`; a running PTY with the same id (restart, re-create) wins.
+ */
+export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' | 'towerMode'> {
+  exitedAt: number
+  /** Unknown for a kill until the process's own exit arrives (it may never). */
+  exitCode?: number
+  lastOutputAt: number | null
+  /** The last `EXITED_PTY_TAIL_MAX_CHARS` of its replay buffer (`total` as it was). */
+  tail: PtyReplayBuffer
+}
+
+/** T0582: exited PTYs remembered (oldest dropped first). */
+export const EXITED_PTY_RECORD_MAX = 32
+/** T0582: how long an exited PTY is remembered. */
+export const EXITED_PTY_RECORD_TTL_MS = 10 * 60_000
+/** T0582: raw output kept per exited PTY (UTF-16 code units). */
+export const EXITED_PTY_TAIL_MAX_CHARS = 32 * 1024
+
 /** T0535: `CreatePtyOptions` + the work order of a helper-dispatched Worker (main-side only); T0583: + its worktree. */
 export type PtyManagerCreateOptions = CreatePtyOptions & { workorder?: string; worktree?: CtWorktreeRecord }
 
@@ -251,6 +289,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   // `--close-worker` refuses a busy Worker and cancels a delayed close on either.
   private lastOutputAt: Map<string, number> = new Map()
   private lastUserInputAt: Map<string, number> = new Map()
+  // T0582: recently ended PTYs (insertion order = oldest first), for the helper query channels
+  private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
 
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
@@ -600,6 +640,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       logger.log(`[PtyManager] stale exit ignored id=${id} (server has not confirmed the new PTY yet)`)
       return
     }
+    this.recordExit(id, exitCode)
     this.instances.delete(id)
     this.replayBuffers.delete(id)
     this.clearActivity(id)
@@ -618,11 +659,55 @@ export class PtyManager implements CloseWorkerPtyManager {
       logger.log(`[PtyManager] stale exit ignored id=${id} (replaced by a newer process)`)
       return
     }
+    this.recordExit(id, exitCode)
     this.instances.delete(id)
     this.replayBuffers.delete(id)
     this.clearActivity(id)
     this.notifyPtyExit(id)
     this.broadcast('pty:exit', id, exitCode)
+  }
+
+  /**
+   * T0582: remember PTY `id` as ended — call before its instance / replay buffer / activity go.
+   * No instance (the process's own exit after a kill): only fills in the exit code.
+   */
+  private recordExit(id: string, exitCode?: number): void {
+    const instance = this.instances.get(id)
+    const now = Date.now()
+    this.pruneExitedPtys(now)
+    if (!instance) {
+      const record = this.exitedPtys.get(id)
+      if (record && record.exitCode === undefined && exitCode !== undefined) record.exitCode = exitCode
+      return
+    }
+    const buf = this.replayBuffers.get(id)
+    const data = buf ? buf.data.slice(-EXITED_PTY_TAIL_MAX_CHARS) : ''
+    const record: ExitedPtyRecord = {
+      id,
+      cwd: instance.cwd,
+      ...(instance.workspaceId ? { workspaceId: instance.workspaceId } : {}),
+      ...(instance.customEnv?.BAT_TOWER_TERMINAL_ID ? { towerTerminalId: instance.customEnv.BAT_TOWER_TERMINAL_ID } : {}),
+      ...(instance.workorder ? { workorder: instance.workorder } : {}),
+      ...(instance.agentPreset ? { agentPreset: instance.agentPreset } : {}),
+      exitedAt: now,
+      ...(exitCode !== undefined ? { exitCode } : {}),
+      lastOutputAt: this.lastOutputAt.get(id) ?? null,
+      tail: { data, total: buf?.total ?? 0 },
+    }
+    this.exitedPtys.delete(id)
+    this.exitedPtys.set(id, record)
+    while (this.exitedPtys.size > EXITED_PTY_RECORD_MAX) {
+      const oldest = this.exitedPtys.keys().next().value
+      if (oldest === undefined) break
+      this.exitedPtys.delete(oldest)
+    }
+  }
+
+  private pruneExitedPtys(now: number): void {
+    for (const [id, record] of this.exitedPtys) {
+      if (now - record.exitedAt < EXITED_PTY_RECORD_TTL_MS) break
+      this.exitedPtys.delete(id)
+    }
   }
 
   /** T0535: forget a gone PTY's output / input times. */
@@ -811,6 +896,46 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** T0535: the Tower terminal that dispatched PTY `id` (`customEnv.BAT_TOWER_TERMINAL_ID`). */
   getTowerTerminalId(id: string): string | undefined {
     return this.instances.get(id)?.customEnv?.BAT_TOWER_TERMINAL_ID || undefined
+  }
+
+  /** T0582: running PTY ids. */
+  listTerminalIds(): string[] {
+    return [...this.instances.keys()]
+  }
+
+  /** T0582: what the helper query channels read about running PTY `id` (null = not running). */
+  getTerminalInfo(id: string): PtyTerminalInfo | null {
+    const instance = this.instances.get(id)
+    if (!instance) return null
+    const towerTerminalId = instance.customEnv?.BAT_TOWER_TERMINAL_ID || undefined
+    return {
+      id,
+      cwd: instance.cwd,
+      ...(instance.workspaceId ? { workspaceId: instance.workspaceId } : {}),
+      ...(towerTerminalId ? { towerTerminalId } : {}),
+      ...(instance.workorder ? { workorder: instance.workorder } : {}),
+      ...(instance.agentPreset ? { agentPreset: instance.agentPreset } : {}),
+      ...(instance.role ? { role: instance.role } : {}),
+      ...(instance.role === 'tower' && instance.towerMode ? { towerMode: instance.towerMode } : {}),
+      yolo: this.isYoloTerminal(id),
+    }
+  }
+
+  /**
+   * T0582: the record of PTY `id` if it ended within `EXITED_PTY_RECORD_TTL_MS` (and is one of the
+   * last `EXITED_PTY_RECORD_MAX`); null when it runs again or is not remembered. A copy.
+   */
+  getExitedPty(id: string): ExitedPtyRecord | null {
+    if (this.instances.has(id)) return null
+    this.pruneExitedPtys(Date.now())
+    const record = this.exitedPtys.get(id)
+    return record ? { ...record, tail: { ...record.tail } } : null
+  }
+
+  /** T0582: ids of the remembered exited PTYs that do not run again (oldest first). */
+  listExitedPtyIds(): string[] {
+    this.pruneExitedPtys(Date.now())
+    return [...this.exitedPtys.keys()].filter(id => !this.instances.has(id))
   }
 
   /** T0535: when PTY `id` last produced output (ms epoch); null = none seen by this process. */
@@ -1201,6 +1326,7 @@ export class PtyManager implements CloseWorkerPtyManager {
   kill(id: string): boolean {
     if (this.useServer && this.instances.has(id)) {
       this.sendToServer({ type: 'pty:kill', id })
+      this.recordExit(id)
       this.instances.delete(id)
       this.replayBuffers.delete(id)
       this.clearActivity(id)
@@ -1223,6 +1349,7 @@ export class PtyManager implements CloseWorkerPtyManager {
           execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore', timeout: 3000, windowsHide: true })
         } catch { /* process may already be gone */ }
       }
+      this.recordExit(id)
       this.instances.delete(id)
       this.replayBuffers.delete(id)
       this.clearActivity(id)

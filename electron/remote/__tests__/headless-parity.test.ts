@@ -34,6 +34,12 @@ import { PROJECT_ROOT } from './helpers/server-bundle-config'
 const HELPER_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:close-worker', 'PLAN-041 / T0536: a remote Tower\'s bat-terminal.mjs --close-worker (tower capability); a window never calls it'],
   ['terminal:set-role', 'T0562: a remote Tower\'s bat-terminal.mjs --set-role tower (tower capability, own tab only); a window never calls it'],
+  // PLAN-047 M1 / T0582: read-only helper queries, answered by the caller's capability
+  ['terminal:whoami', 'T0582: a helper in a server PTY (MCP shim / CT), answered by its capability'],
+  ['terminal:list', 'T0582: a helper in a server PTY, scoped by its capability'],
+  ['terminal:get-state', 'T0582: a helper in a server PTY, scoped by its capability'],
+  ['terminal:read-output', 'T0582: a helper in a server PTY, scoped by its capability, masked'],
+  ['terminal:wait', 'T0582: a helper in a server PTY, long poll scoped by its capability'],
 ])
 
 function formatViolations(violations: HeadlessParityViolation[]): string {

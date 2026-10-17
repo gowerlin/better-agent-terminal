@@ -1138,7 +1138,9 @@ export class RemoteServer {
         return
       }
       try {
-        const result = await invokeHandler(channel, args as unknown[], null, helper.connectionId)
+        // T0582: the capability is the caller's identity for handlers that answer by it
+        // (terminal:whoami / list / get-state / read-output / wait).
+        const result = await invokeHandler(channel, args as unknown[], null, helper.connectionId, capability)
         this.sendFrame(ws, { type: 'invoke-result', id: frame.id, result })
       } finally {
         settle?.()

@@ -20,6 +20,12 @@ import { PROXIED_CHANNELS } from '../protocol'
 const REGISTRY_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:close-worker', 'PLAN-041 / T0535: only bat-terminal.mjs --close-worker calls it, over RemoteServer; a renderer never closes a Worker through it'],
   ['terminal:set-role', 'T0562: only bat-terminal.mjs --set-role tower calls it, over RemoteServer; a renderer retitles through terminal:role-changed'],
+  // PLAN-047 M1 / T0582: read-only helper queries answered by the caller's capability (ctx.helper)
+  ['terminal:whoami', 'T0582: a helper (MCP shim / CT) over RemoteServer, answered by its capability; a renderer knows its tabs'],
+  ['terminal:list', 'T0582: a helper over RemoteServer, scoped by its capability; a renderer has the workspace store'],
+  ['terminal:get-state', 'T0582: a helper over RemoteServer, scoped by its capability; a renderer sees pty:output'],
+  ['terminal:read-output', 'T0582: a helper over RemoteServer, scoped + masked; a renderer reads pty:get-buffer'],
+  ['terminal:wait', 'T0582: a helper long poll over RemoteServer; a renderer is pushed pty:output / pty:exit'],
 ])
 
 const ELECTRON_DIR = path.resolve(__dirname, '..', '..')

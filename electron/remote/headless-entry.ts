@@ -17,6 +17,8 @@ import { registerTerminalHandlers } from '../handlers/terminal'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
+import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
+import { mirrorToBatScripts } from './remote-logger'
 import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
 import type { HandlerContext } from '../handlers/types'
 import type { PersistedShellSettings } from '../shell-path-resolver'
@@ -522,6 +524,31 @@ export function createHeadlessTerminalModule(opts: {
 }
 
 /**
+ * PLAN-047 M1 / T0582: the read-only helper queries (`terminal:whoami` / `list` / `get-state` /
+ * `read-output` / `wait`, electron/terminal-query-handlers.ts — the module Electron main registers)
+ * on this server's PtyManager. The caller's scope uses this server's capability registry
+ * (`isWorkerOf`); no saved tabs here (no titles, no workspace of a PTY the server did not create
+ * with one). `knownSecrets`: the server token, masked out of read-output literally.
+ */
+export function createHeadlessTerminalQueryModule(opts: {
+  getPtyManager: () => PtyManager | null
+  isWorkerOf?: (terminalId: string, towerId: string) => boolean
+  knownSecrets?: () => readonly string[]
+}): HandlerModule {
+  return register => {
+    const queries = registerTerminalQueryHandlers({
+      registerHandler: register,
+      getPtyManager: opts.getPtyManager,
+      isWorkerOf: opts.isWorkerOf ?? (() => false),
+      ...(opts.knownSecrets ? { knownSecrets: opts.knownSecrets } : {}),
+      logger: defaultLogger,
+      mirrorToBatScripts,
+    })
+    return () => queries.dispose()
+  }
+}
+
+/**
  * T0433: the last `remote-tools:detect` result of this server, shared by the
  * `remote-tools:detect` handler and the agent availability check. Concurrent callers
  * share one in-flight probe.
@@ -752,6 +779,8 @@ export function createHeadlessHandlerModules(opts: {
   terminal?: {
     countRemoteReceivers?: (ctx: HandlerContext) => number
     isWorkerOf?: (terminalId: string, towerId: string) => boolean
+    /** T0582: secrets masked literally in `terminal:read-output` (the server token). */
+    knownSecrets?: () => readonly string[]
   }
 } = {}): HandlerModule[] {
   let ptyManager: PtyManager | null = null
@@ -772,6 +801,11 @@ export function createHeadlessHandlerModules(opts: {
       countRemoteReceivers: opts.terminal?.countRemoteReceivers,
       isWorkerOf: opts.terminal?.isWorkerOf, // T0536
       checkAgentAvailable: createHeadlessAgentAvailabilityCheck(toolsCache), // T0433
+    }),
+    createHeadlessTerminalQueryModule({ // T0582
+      getPtyManager: () => ptyManager,
+      isWorkerOf: opts.terminal?.isWorkerOf,
+      knownSecrets: opts.terminal?.knownSecrets,
     }),
     createHeadlessRemoteToolsModule(opts.remoteTools, toolsCache), // T0411
     createHeadlessGitModule(opts.git), // T0405
@@ -962,6 +996,8 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
       countRemoteReceivers: ctx => remoteServer.countBroadcastReceivers(ctx.connectionId),
       // T0536: a tower closes only a worker holding a capability bound to it.
       isWorkerOf: (terminalId, towerId) => helperCapabilities.isWorkerOf(terminalId, towerId),
+      // T0582: read-output masks this server's token literally
+      knownSecrets: () => [remoteServer.currentToken],
     },
   })
   for (const registerModule of handlerModules) {

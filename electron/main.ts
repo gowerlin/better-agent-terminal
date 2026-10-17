@@ -14,6 +14,8 @@ import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
+import { registerTerminalQueryHandlers, savedTabsFromRegistry, type TerminalQueryHandlers } from './terminal-query-handlers'
+import { mirrorToBatScripts } from './remote/remote-logger'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
@@ -465,6 +467,8 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
 let ptyManager: PtyManager | null = null
 // PLAN-041 / T0535: `terminal:close-worker` delay timers (registerProxiedHandlers builds it).
 let workerCloseScheduler: WorkerCloseScheduler | null = null
+// PLAN-047 M1 / T0582: terminal:whoami / list / get-state / read-output / wait (registerProxiedHandlers).
+let terminalQueryHandlers: TerminalQueryHandlers | null = null
 // PLAN-047 W1 / T0583: `--isolation worktree` dispatch + `--close-worker --worktree` cleanup (plain git).
 const ctWorktreeService = new CtWorktreeService()
 // PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
@@ -1334,6 +1338,7 @@ async function cleanupAllProcesses(): Promise<void> {
   try { codexManager?.killAll() } catch { /* ignore */ }
   try { codexManager?.dispose() } catch { /* ignore */ }
   try { workerCloseScheduler?.dispose() } catch { /* ignore */ }
+  try { terminalQueryHandlers?.dispose() } catch { /* ignore */ }
   try { usageLimitScheduler?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   claudeManager = null
@@ -2313,6 +2318,19 @@ function registerProxiedHandlers() {
     existsSync: fsSync.existsSync,
     workerCloser: workerCloseScheduler,
     ctWorktree: ctWorktreeService,
+  })
+
+  // PLAN-047 M1 / T0582: read-only helper queries (same module as headless). The caller is its
+  // capability (`localHelperCapabilities`); titles and the workspace of a PTY the Terminal Server
+  // kept come from the saved tabs; the server token is masked out of read-output literally.
+  terminalQueryHandlers = registerTerminalQueryHandlers({
+    registerHandler,
+    getPtyManager: () => ptyManager,
+    isWorkerOf: (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
+    savedTabs: () => savedTabsFromRegistry(windowRegistry.getCachedEntries()),
+    knownSecrets: () => [remoteServer.currentToken],
+    logger,
+    mirrorToBatScripts,
   })
 
   // Workspace persistence — save/load from window registry entry
