@@ -7,7 +7,10 @@
  *     `BAT_REMOTE_TOKEN` from the PTY). `=` form because `--mcp-config <configs...>` is variadic
  *     and would swallow the prompt that follows. Never `--strict-mcp-config`.
  *   - codex: `-c mcp_servers.bat.command=… -c mcp_servers.bat.args=[…] -c
- *     mcp_servers.bat.tool_timeout_sec=60` (TOML literal strings, shell-quoted per family).
+ *     mcp_servers.bat.env_vars=[…] -c mcp_servers.bat.tool_timeout_sec=60` (TOML literal strings,
+ *     shell-quoted per family). codex starts a stdio MCP server with a default env allow-list
+ *     only (no `BAT_*`), so `env_vars` forwards the shim's variables **by name** (T0586 / BUG-148);
+ *     never `mcp_servers.bat.env = { … }`, which would put the token value on the command line.
  *
  * One implementation for every launch path: the renderer (`agent:bat-mcp-launch-args`, proxied,
  * so a remote window gets the server's paths) and `terminal:create-agent-command`
@@ -26,6 +29,24 @@ export const BAT_MCP_CONFIG_DIR = 'bat-mcp'
 export const BAT_MCP_CLAUDE_CONFIG = 'claude.json'
 /** Codex's default `tool_timeout_sec` is 60 s; the shim waits up to 55 s for `bat_wait`. */
 export const BAT_MCP_CODEX_TOOL_TIMEOUT_SEC = 60
+/**
+ * T0586 / BUG-148: the env names codex forwards to the shim (`mcp_servers.bat.env_vars`; names
+ * only, an unset name is skipped). Everything `scripts/bat-mcp.mjs`, `_bat-cert.mjs` and
+ * `_bat-logger.mjs` read: endpoint + token, the tab id (audit log), the userData / cert / log
+ * resolution (T0481), and the userData fallbacks codex's default list may lack (`APPDATA` is in
+ * codex's Windows default, `XDG_CONFIG_HOME` is not in its Unix one).
+ */
+export const BAT_MCP_CODEX_ENV_VARS = [
+  'BAT_REMOTE_PORT',
+  'BAT_REMOTE_TOKEN',
+  'BAT_TERMINAL_ID',
+  'BAT_USER_DATA',
+  'BAT_SERVER_CERT_PATH',
+  'BAT_HELPER_LOG_DIR',
+  'BAT_RUNTIME',
+  'APPDATA',
+  'XDG_CONFIG_HOME',
+] as const
 export const BAT_MCP_LAUNCH_ARGS_CHANNEL = 'agent:bat-mcp-launch-args'
 
 export type BatMcpAgentKind = 'claude' | 'codex'
@@ -147,13 +168,18 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
     return { injected: true, kind, args: quoteArgForShell(`--mcp-config=${configPath}`, shell) }
   }
 
+  return { injected: true, kind, args: codexMcpOverrides(server).map(value => `-c ${quoteArgForShell(value, shell)}`).join(' ') }
+}
+
+/** The codex `-c` values (unquoted) that define the `bat` stdio server. */
+export function codexMcpOverrides(server: BatMcpServerCommand): string[] {
   const prefix = `mcp_servers.${BAT_MCP_SERVER_NAME}`
-  const overrides = [
+  return [
     `${prefix}.command=${tomlString(server.command)}`,
     `${prefix}.args=[${server.args.map(tomlString).join(', ')}]`,
+    `${prefix}.env_vars=[${BAT_MCP_CODEX_ENV_VARS.map(tomlString).join(', ')}]`,
     `${prefix}.tool_timeout_sec=${BAT_MCP_CODEX_TOOL_TIMEOUT_SEC}`,
   ]
-  return { injected: true, kind, args: overrides.map(value => `-c ${quoteArgForShell(value, shell)}`).join(' ') }
 }
 
 /** `base` + the MCP args (when injected), the custom args still to be appended by the caller. */

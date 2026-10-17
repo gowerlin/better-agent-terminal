@@ -4,7 +4,7 @@
  * (electron/bat-mcp-launch.ts) and the assembly points that use it.
  *
  *   - buildBatMcpLaunchArgs: claude `--mcp-config=<file>` (file = command / args, no token, no env),
- *     codex `-c mcp_servers.bat.*` per shell family, off in Settings, custom args that already
+ *     codex `-c mcp_servers.bat.*` per shell family (T0586: + `env_vars` names), off in Settings, custom args that already
  *     attach MCP, RemoteServer not listening, shim missing, other agents
  *   - `agent:bat-mcp-launch-args` handler; headless host (bundle node / helpers missing)
  *   - createAgentPromptCommandBuilder (helper dispatch): placed after the base command, before the
@@ -93,18 +93,20 @@ describe('buildBatMcpLaunchArgs', () => {
     expect(r.injected && r.args).not.toMatch(/--mcp-config /)
   })
 
-  it('codex: -c command / args / tool_timeout_sec, TOML literal strings, quoted per shell', () => {
+  it('codex: -c command / args / env_vars / tool_timeout_sec, TOML literal strings, quoted per shell', () => {
     const base = `mcp_servers.bat.args=['${shim()}']`
+    // T0586 / BUG-148: names only
+    const envVars = "mcp_servers.bat.env_vars=['BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN', 'BAT_TERMINAL_ID', 'BAT_USER_DATA', 'BAT_SERVER_CERT_PATH', 'BAT_HELPER_LOG_DIR', 'BAT_RUNTIME', 'APPDATA', 'XDG_CONFIG_HOME']"
     expect(buildBatMcpLaunchArgs(host(), { agentId: 'codex-cli', shellFamily: 'pwsh' })).toEqual({
       injected: true,
       kind: 'codex',
-      args: `-c 'mcp_servers.bat.command=''node''' -c '${base.replace(/'/g, "''")}' -c mcp_servers.bat.tool_timeout_sec=60`,
+      args: `-c 'mcp_servers.bat.command=''node''' -c '${base.replace(/'/g, "''")}' -c '${envVars.replace(/'/g, "''")}' -c mcp_servers.bat.tool_timeout_sec=60`,
     })
     expect(buildBatMcpLaunchArgs(host(), { agentId: 'codex-cli', shellFamily: 'posix' })).toMatchObject({
-      args: `-c 'mcp_servers.bat.command='\\''node'\\''' -c '${base.replace(/'/g, "'\\''")}' -c mcp_servers.bat.tool_timeout_sec=60`,
+      args: `-c 'mcp_servers.bat.command='\\''node'\\''' -c '${base.replace(/'/g, "'\\''")}' -c '${envVars.replace(/'/g, "'\\''")}' -c mcp_servers.bat.tool_timeout_sec=60`,
     })
     expect(buildBatMcpLaunchArgs(host(), { agentId: 'codex-cli', shellFamily: 'cmd' })).toMatchObject({
-      args: `-c "mcp_servers.bat.command='node'" -c "${base}" -c mcp_servers.bat.tool_timeout_sec=60`,
+      args: `-c "mcp_servers.bat.command='node'" -c "${base}" -c "${envVars}" -c mcp_servers.bat.tool_timeout_sec=60`,
     })
     // codex never writes the claude file
     expect(fs.existsSync(configFile())).toBe(false)
@@ -237,7 +239,7 @@ describe('helper dispatch (createAgentPromptCommandBuilder)', () => {
 
   it('codex: -c overrides before the custom args', async () => {
     const r = await builder(settings, host())({ skill: 'ct-exec', workorder: 'T0584', agent: 'codex-cli', shellFamily: 'posix' })
-    expect(r?.command).toMatch(/^codex -c 'mcp_servers\.bat\.command=.* -c mcp_servers\.bat\.tool_timeout_sec=60 --yolo '\$ct-exec T0584'$/)
+    expect(r?.command).toMatch(/^codex -c 'mcp_servers\.bat\.command=.* -c 'mcp_servers\.bat\.env_vars=\[.*\]' -c mcp_servers\.bat\.tool_timeout_sec=60 --yolo '\$ct-exec T0584'$/)
   })
 
   it('off in Settings / no dep → the pre-T0584 command, byte for byte', async () => {

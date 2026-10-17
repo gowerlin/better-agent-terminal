@@ -248,8 +248,10 @@ test('bat MCP shim: tools from inside the tabs (scoped), launch args, claude hea
     log(`launch args: ${JSON.stringify(args)}`)
     const configFile = path.join(userData, 'bat-mcp', 'claude.json')
     expect(args.claude).toBe(`'--mcp-config=${configFile}'`)
-    expect(args.codexPwsh).toMatch(/^-c 'mcp_servers\.bat\.command=''node''' -c 'mcp_servers\.bat\.args=\[''.+bat-mcp\.mjs''\]' -c mcp_servers\.bat\.tool_timeout_sec=60$/)
+    expect(args.codexPwsh).toMatch(/^-c 'mcp_servers\.bat\.command=''node''' -c 'mcp_servers\.bat\.args=\[''.+bat-mcp\.mjs''\]' -c 'mcp_servers\.bat\.env_vars=\[''BAT_REMOTE_PORT'', ''BAT_REMOTE_TOKEN'', .*\]' -c mcp_servers\.bat\.tool_timeout_sec=60$/)
     expect(args.codexPosix).toContain('mcp_servers.bat.tool_timeout_sec=60')
+    // T0586 / BUG-148: env names only, never the token value
+    expect(args.codexPwsh).not.toContain('batcap.')
     expect(args.userConfig).toBe('')
     expect(args.gemini).toBe('')
     const config = fs.readFileSync(configFile, 'utf8')
