@@ -2,6 +2,28 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.5（2026-10-18）
+
+版號 0.7.0-pre.5，接續 `v0.7.0-pre.4`。
+
+### 修正
+
+- **塔台派工時正在打字，Worker 會起不來**：塔台派出的 Worker 分頁會取得鍵盤焦點，而 BAT 要等分頁的 shell 準備好才送出啟動指令。這段時間打進來的字會接在指令前面，Worker 啟動失敗（例如 `bash: ,: command not found`），塔台卻收到派工成功。現在這段時間的輸入會在啟動指令之後才送出，不會丟失（BUG-151）
+- **Claude 用 AskUserQuestion 提問時，`blocked` 的原因誤報為權限確認**：Claude 對提問也會送出權限請求，BAT 因此把原因從 `question` 改成 `permission`；用滑鼠回答後，`blocked` 也要等到該回合結束才清除。現在提問一律回報 `question`，用滑鼠或鍵盤回答後都會立即清除（BUG-150）
+
+### 已知事項
+
+- 塔台派出的 Worker 分頁仍會搶走鍵盤焦點；派工後接著打的字會進到 Worker 分頁（不再破壞啟動指令）
+- 塔台派工時，helper 回傳成功只代表分頁已建立，不代表 Worker 已經啟動；請以 `bat_get_state` 確認 Worker 有沒有開始工作
+- `blocked` 偵測目前只支援 Claude CLI 分頁；Codex 分頁回 `blockedDetection: "none"`（後續版本）。在權限確認上用**滑鼠**按允許 / 拒絕時，`blocked` 會維持到該回合結束或你下一次鍵盤輸入
+- Control Tower v5.4.0 起支援 Worker 分頁關閉後查 worktree 狀態（`source`）；斷點 D（使用 `blocked`）在 Control Tower 後續版本
+- 用量限制自動繼續（0.6.1-pre.6 新增）尚未在真實撞到限制時驗證，遇到時請留意 BAT 日誌中的 `[usage-limit]` 紀錄
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.0-pre.4...v0.7.0-pre.5
+
 ## v0.7.0-pre.4（2026-10-18）
 
 版號 0.7.0-pre.4，接續 `v0.7.0-pre.3`。
