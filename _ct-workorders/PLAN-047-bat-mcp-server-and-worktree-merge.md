@@ -139,7 +139,7 @@ links:
 | blocked 偵測 | 🟡 claude 可（hook）；codex 待研究 | hook 注入不得干擾使用者設定；codex 句型漂移 |
 | Phase 2 訊息 / artifact / 跨 workspace | ✅ 可做，全新開發 | 提示注入傳染（S1）是設計問題不是技術問題；agent 只能以 `bat_wait` 長輪詢收訊，會佔住 agent 回合 |
 | Phase 3 控制類 | ✅ 可做，`dispatch` / `close` 已有語意 | **前置：本機範圍權杖**；`send_input` 需新 UI 確認閘門 |
-| 軌道 W 合併引擎 | ✅ 可做 | CT_HOME 牽動 CT 與本 repo 測試；本專案 worktree 初始化成本高 |
+| 軌道 W 合併引擎 | ✅ 可做，但**不建議由 BAT 做**（改派合併工單，見 §三之一） | CT_HOME 牽動 CT 與本 repo 測試；本專案 worktree 初始化成本高 |
 | 前置「bat-daemon 分離」 | ⚠️ **不建議作為前置** | Terminal Server 已在獨立行程持有 PTY；MCP 層放在 Electron main（與現有 RemoteServer 同處）即可，無需先做大型架構搬遷 |
 
 ---
@@ -155,6 +155,37 @@ links:
 
 ---
 
+## 三之一、合併由誰執行：BAT 合併引擎 vs 塔台派「合併工單」（使用者方向，2026-10-17 18:40，評估中）
+
+使用者傾向：**不由 BAT 自己執行合併，改由塔台派專職合併工單給 Worker 執行**。塔台評估如下。
+
+| 面向 | BAT 合併引擎（提案 §14.6 / W2） | 合併工單（使用者方向） |
+|---|---|---|
+| 衝突處理 | 只能偵測、回報，衝突仍要另開工單（提案自己也這樣寫） | Worker 直接理解語意並解決；提案的「衝突 → 開合併工單」本來就是這條路，等於把所有合併都走同一條 |
+| 驗證 | 需新增 `.bat/merge.json` 具名設定檔（防 S10 指令注入） | 沿用專案既有驗收規則（本專案 `CLAUDE.md`：build、`npm run typecheck`、`typecheck:electron`、`test:unit`），不需新設定檔 |
+| 可追溯（G8） | 需另寫稽核 + 決策日誌 | 工單回報區天然記錄：合併前後 SHA、衝突檔、驗證證據、commit 訊息含工單 ID |
+| 「main 在通過前不變」的保證 | 機械保證（程式控制） | 只靠工單指示 → **需補機械護欄**（見下） |
+| 開發成本 | W2 約 2–3 張（試合併、三策略、佇列、閘門、UI 確認框、契約測試） | 幾乎為 0：合併工單模板 + CT 規則；BAT 不必新增寫入類 git 能力 |
+| 執行成本 | 無 token 成本、秒級 | 每次合併一個 agent session（token、數分鐘） |
+| 合併順序 / 佇列 | BAT 佇列 | 塔台排序、一次只派一張合併單（`affects_files` 重疊檢查即可擋並行） |
+| 與提案原則一致性 | BAT 做 git 寫入 | 更符合 P1「工單是唯一權威通道」與「BAT 不做決策」 |
+
+**塔台結論：採用使用者方向，但保留兩個不需 BAT 寫入能力的護欄。**
+
+1. **合併在整合 worktree 內做，main 只 fast-forward**：合併工單在獨立 worktree（或整合分支）把工單分支併入 → 跑完全部驗收 → 通過才 `git merge --ff-only` 到 main；不通過 main 不動。塔台收單時比對「派工時 main SHA」與「回報的合併前 SHA」，被別人動過即 Renew 重做。不 push（沿用現行授權規則）。
+2. **BAT 只提供唯讀信號**（保留提案 `bat_worktree_status` 的提前警示）：ahead / behind、未提交變更、`out_of_scope_files`（實際變更 vs `affects_files`）、以 `git merge-tree` 試算的預測衝突。這些都是查詢、不改分支，屬 Phase 1 唯讀範圍；塔台據此決定合併順序、要不要派合併單。
+
+連帶調整：
+- 提案 `bat_merge` tool、合併佇列、`MERGE_IN_PROGRESS` / `MAIN_DIRTY` 等錯誤碼、§14.9 BAT 端 UI 閘門 → **移除**；YOLO 下的「合併前人工確認」改為 CT 斷點（提案斷點 E 保留，由塔台觸發）。
+- Q9 合併策略、Q10 合併位置 → 寫進合併工單模板（建議 `--no-ff` 合併 commit 訊息含工單 ID；位置 = 整合 worktree）。
+- Q11 MERGE 單據 → 建議沿用一般工單 + 固定模板（frontmatter 例如 `kind: merge`、`merges: [T####]`），是否新增單據類型留給 CT 端決定。
+- 軌道 W 只剩 **W1**（派工 `isolation: worktree`、`CT_HOME`、清理 keep / remove / archive）+ 唯讀 `worktree_status`。
+
+待評估（研究單一併處理）：
+- 本專案每個 worktree 需 `npm ci`；合併工單的整合 worktree 可長期保留重用，避免每次重裝。
+- 合併工單本身也動到 main 的歷史，仍需 `CT_HOME` 確保它的回報寫回主 checkout 的工單檔。
+- token 成本：小型、無衝突的合併是否允許塔台直接做（類比「小型非邏輯變更塔台可直接處理」），還是一律派單。
+
 ## 四、建議階段（待使用者決定）
 
 | 階段 | 內容 | 型態 |
@@ -163,7 +194,7 @@ links:
 | A | 本機 PTY 範圍權杖（A' 回移本機） | 1–2 張 |
 | M1 | Phase 1：`bat-mcp` shim + 唯讀 tool（不含 blocked）+ 稽核；本機 / headless 對等 | 2 張 |
 | M1b | blocked 偵測（claude hook 先、codex 依研究） | 1–2 張 |
-| W1 / W2 | worktree 隔離派工 + CT_HOME（含 CT-T 跨專案單）；合併引擎 / 佇列 / 閘門 | 3–4 張 + CT-T |
+| W1 | worktree 隔離派工 + CT_HOME + 清理（含 CT-T 跨專案單）；合併改由合併工單執行（§三之一），BAT 不做合併引擎 | 1–2 張 + CT-T（合併工單模板） |
 | M2 / M3 | 訊息 / artifact / 跨 workspace；控制類 + UI 閘門 | 3–4 張 + CT-T |
 
 ## 五、待決議題（塔台整理，取代 / 補充提案 §16）
@@ -173,8 +204,11 @@ links:
 - [ ] Q2 前置：本機範圍權杖（塔台建議）vs bat-daemon 分離
 - [ ] 遠端 headless 是否同步支援（塔台建議同步）
 - [ ] worktree 軌道是否與 MCP 分開立案
-- [ ] 提案 §16 Q3–Q14 待研究單結果後再逐項決議
+- [ ] 合併執行者：合併工單（使用者方向，塔台同意，§三之一）— 待研究單評估後定案為決策
+- [ ] 小型無衝突合併是否允許塔台直接做
+- [ ] 提案 §16 Q3–Q8、Q12–Q14 待研究單結果後再逐項決議（Q9–Q11 已併入 §三之一建議）
 
 ## 變更紀錄
 
 - 2026-10-17 18:35 — 建立；塔台對照現況完成初評（第七十二 session）
+- 2026-10-17 18:40 — 使用者方向：合併改由塔台派合併工單，不由 BAT 執行；新增 §三之一評估，軌道 W 縮為 W1
