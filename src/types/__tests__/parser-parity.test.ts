@@ -10,12 +10,14 @@
  * We sample a representative set across workorder / bug / plan; mismatches on
  * status imply migration normalization drift, which is the BUG-077 root cause.
  *
- * The samples are real files, looked up in the hot zone `_ct-workorders/` first
- * and then in the cold zone `_ct-workorders/_archive/<kind>s/` (workorders /
- * bugs / plans). Tower `*archive` moves files there regularly, so archiving a
- * sample needs no change here. Only if a sample is renamed or deleted, swap it
- * for another file with the same schema_kind — the test is about parity, not
- * specific files.
+ * The samples live in `fixtures/ct-workorders/` next to this file: byte-for-byte
+ * copies of real CT documents (T0577), so the test no longer depends on the
+ * repo's `_ct-workorders/` tree — Tower may archive, rename or delete the
+ * originals, and a checkout without `_ct-workorders/` (sparse worktree,
+ * PLAN-047) still passes. To add or replace a sample, copy the committed file
+ * as-is (`git show HEAD:<path> > fixtures/ct-workorders/<name>`) and list it in
+ * SAMPLES; any file with frontmatter plus the legacy body table works, the test
+ * is about parity, not specific files.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -27,7 +29,7 @@ import { parseBugFile } from '../bug-tracker'
 import { parsePlanFile } from '../backlog'
 import { extractFrontmatterBlock } from '../../utils/ct-frontmatter'
 
-const CT_DIR = join(process.cwd(), '_ct-workorders')
+const FIXTURE_DIR = join(__dirname, 'fixtures', 'ct-workorders')
 
 interface Sample {
   filename: string
@@ -43,25 +45,13 @@ const SAMPLES: Sample[] = [
   { filename: 'PLAN-033-tower-state-snapshot-archive-architecture.md',          kind: 'plan' },
 ]
 
-const ARCHIVE_SUBDIR: Record<Sample['kind'], string> = {
-  workorder: 'workorders',
-  bug: 'bugs',
-  plan: 'plans',
-}
-
-/** Lookup order: hot zone first, then the kind's archive subdir. */
-function samplePaths(sample: Sample): string[] {
-  return [
-    join(CT_DIR, sample.filename),
-    join(CT_DIR, '_archive', ARCHIVE_SUBDIR[sample.kind], sample.filename),
-  ]
+function samplePath(sample: Sample): string {
+  return join(FIXTURE_DIR, sample.filename)
 }
 
 function readSample(sample: Sample): string | null {
-  for (const p of samplePaths(sample)) {
-    if (existsSync(p)) return readFileSync(p, 'utf8')
-  }
-  return null
+  const p = samplePath(sample)
+  return existsSync(p) ? readFileSync(p, 'utf8') : null
 }
 
 /** Strip frontmatter from content so we can re-parse legacy-only. */
@@ -75,12 +65,8 @@ describe('PLAN-034 parser parity (frontmatter vs legacy markdown)', () => {
     it(`${sample.filename}: frontmatter and legacy parsers agree`, () => {
       const content = readSample(sample)
       if (content == null) {
-        // Missing from both hot and cold zone — renamed / deleted. Emit a clear
-        // failure with every path tried so the maintainer can swap a sample.
-        throw new Error(
-          `Sample ${sample.filename} not found in any of: ${samplePaths(sample).join(', ')}. ` +
-            `Replace with another ${sample.kind}.`,
-        )
+        // SAMPLES lists a file that is not in fixtures/ct-workorders/.
+        throw new Error(`Sample ${sample.filename} not found at ${samplePath(sample)}.`)
       }
 
       const body = stripFrontmatter(content)
