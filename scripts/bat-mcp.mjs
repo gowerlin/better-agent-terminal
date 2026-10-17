@@ -19,6 +19,11 @@
 //   bat_read_output      terminal:read-output
 //   bat_wait             terminal:wait
 //   bat_worktree_status  worktree:terminal-status (T0585)
+//   bat_list_questions   question:list (PLAN-048 / T0608)
+//   bat_wait_question    question:wait (PLAN-048 / T0608)
+//
+// All read-only: asking, cancelling and answering a question go through the helpers
+// (bat-notify.mjs --ask / --cancel-question, bat-terminal.mjs --answer; D155 / D156).
 //
 // Connection: one WebSocket, opened on the first tool call and shared by concurrent calls
 // (replies matched by frame id, BUG-114), closed after IDLE_CLOSE_MS without calls. It
@@ -64,7 +69,7 @@ export const RPC = {
 export const CONNECT_TIMEOUT_MS = 3000
 /** Helper convention (bat-terminal / bat-notify wait 3 s for a reply). */
 export const INVOKE_TIMEOUT_MS = 3000
-/** `terminal:wait` holds the reply up to 45 s (TERMINAL_WAIT_MAX_MS) — wait longer than that. */
+/** `terminal:wait` / `question:wait` hold the reply up to 45 s (TERMINAL_WAIT_MAX_MS / QUESTION_WAIT_MAX_MS) — wait longer than that. */
 export const WAIT_INVOKE_TIMEOUT_MS = 55_000
 /** `worktree:terminal-status` runs git (rev-list / merge-tree / diff) on the host. */
 export const WORKTREE_INVOKE_TIMEOUT_MS = 15_000
@@ -115,7 +120,7 @@ export const TOOLS = [
     name: 'bat_get_state',
     channel: 'terminal:get-state',
     title: 'Terminal state',
-    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation) / exited, last output time, idle ms, exit code. blockedDetection none = this tab cannot report blocked, so idle does not rule out a prompt. agentStarted: true = its claude has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. codex).',
+    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation; tower = a Worker waits for its tower to answer a question, any agent) / exited, last output time, idle ms, exit code. blockedDetection none = this tab cannot report permission / question / elicitation, so idle does not rule out a prompt (tower still shows). pendingQuestions = its questions waiting for an answer. agentStarted: true = its claude has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. codex).',
     inputSchema: { type: 'object', properties: { terminalId: TERMINAL_ID }, additionalProperties: false },
     keys: ['terminalId'],
     timeoutMs: INVOKE_TIMEOUT_MS,
@@ -173,6 +178,41 @@ export const TOOLS = [
     keys: ['terminalId', 'workorder'],
     timeoutMs: WORKTREE_INVOKE_TIMEOUT_MS,
   },
+  // PLAN-048 / T0608 (T0606「介面契約」C-6): questions a Worker asked its tower (bat-notify.mjs --ask)
+  {
+    name: 'bat_list_questions',
+    channel: 'question:list',
+    title: 'Tower questions',
+    description: 'Questions Workers asked their tower, with the full text: a tower sees the questions sent to it (terminalId = one of its Workers to narrow), a worker its own. status pending (default) or all (ended ones kept 10 min: answered / cancelled / expired, endReason). Each: questionId, workerTerminalId, workorder, question, options, allowFreeText, detail, blocking, status, createdAt, expiresAt, answer. Answer with the helper bat-terminal.mjs --answer (this server is read-only).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        terminalId: { type: 'string', description: 'A Worker of this tower (or this tab). Omit for all the questions this tab may see.' },
+        status: { type: 'string', enum: ['pending', 'all'] },
+      },
+      additionalProperties: false,
+    },
+    keys: ['terminalId', 'status'],
+    timeoutMs: INVOKE_TIMEOUT_MS,
+  },
+  {
+    name: 'bat_wait_question',
+    channel: 'question:wait',
+    title: 'Wait for a tower answer',
+    description: 'Wait (server side, at most 45 s) until a question is no longer pending: answered (answer: choice 1-based / text), cancelled, expired (endReason timeout / not-polled: a blocking question nobody waited for in 120 s) or lost (BAT restarted since it was asked: it is gone, fall back to the work order). changed=false + status pending = timed out (not an error); call again. The asking Worker\'s calls keep its blocking question alive.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        questionId: { type: 'string', description: 'The id bat-notify.mjs --ask printed (q-…)' },
+        timeoutMs: { type: 'integer', minimum: 0, maximum: 45000 },
+      },
+      required: ['questionId'],
+      additionalProperties: false,
+    },
+    keys: ['questionId', 'timeoutMs'],
+    timeoutMs: WAIT_INVOKE_TIMEOUT_MS,
+    idempotent: false,
+  },
 ]
 
 const TOOLS_BY_NAME = new Map(TOOLS.map(tool => [tool.name, tool]))
@@ -202,6 +242,12 @@ function stateText(data) {
 /** T0600: `, agent started` / `, agent not started yet` (nothing when it cannot be told). */
 function agentStartedText(data) {
   return data.agentStarted === true ? ', agent started' : data.agentStarted === false ? ', agent not started yet' : ''
+}
+
+/** T0608: the first 60 characters of a question, on one line. */
+function questionPreview(text) {
+  const flat = String(text ?? '').replace(/\s+/g, ' ').trim()
+  return flat.length > 60 ? `${flat.slice(0, 60)}…` : flat
 }
 
 /** One short line (plus the output lines for bat_read_output) for `content`. */
@@ -252,6 +298,24 @@ export function summarize(toolName, data) {
       if (outOfScope) parts.push(`${outOfScope} out of scope`)
       if (Array.isArray(data.conflicts) && data.conflicts.length) parts.push(plural(data.conflicts.length, 'conflict'))
       return parts.join(', ')
+    }
+    case 'bat_list_questions': {
+      // T0606 C-6: `N pending questions: <id> (T####, <first 60 chars>)`; status=all names each status
+      const questions = Array.isArray(data.questions) ? data.questions : []
+      const allPending = questions.every(q => q.status === 'pending')
+      const items = questions.map(q => `${q.questionId} (${[q.workorder, allPending ? null : q.status, questionPreview(q.question)].filter(Boolean).join(', ')})`)
+      const head = allPending ? plural(questions.length, 'pending question') : plural(questions.length, 'question')
+      return `${head}${items.length ? `: ${items.join('; ')}` : ''}`
+    }
+    case 'bat_wait_question': {
+      // T0606 C-6: `status=<s> after <ms> ms`, with the full answer when answered
+      const head = `status=${data.status}${data.endReason ? ` (${data.endReason})` : ''} after ${typeof data.waitedMs === 'number' ? data.waitedMs : 0} ms`
+      const answer = data.status === 'answered' && data.answer && typeof data.answer === 'object' ? data.answer : null
+      if (!answer) return data.status === 'pending' && data.changed === false ? `${head} (timed out; call again)` : head
+      const lines = [head]
+      if (typeof answer.choice === 'number') lines.push(`choice: ${answer.choice}`)
+      if (typeof answer.text === 'string' && answer.text) lines.push(answer.text)
+      return lines.join('\n')
     }
     default:
       return 'ok'
@@ -312,7 +376,7 @@ export function createMcpServer(deps) {
   const log = deps.log ?? (() => {})
   const now = deps.now ?? Date.now
   const serverInfo = { name: SERVER_NAME, title: 'Better Agent Terminal', version: VERSION }
-  const instructions = 'Read-only queries about BAT terminals: this tab (bat_whoami), the tabs it may see (bat_list_terminals), their state / output, waiting for them, and the worktree of an isolated Worker. Omit terminalId to ask about this tab.'
+  const instructions = 'Read-only queries about BAT terminals and tower questions: this tab (bat_whoami), the tabs it may see (bat_list_terminals), their state / output, waiting for them, the worktree of an isolated Worker, and the questions Workers asked their tower (bat_list_questions, bat_wait_question). Omit terminalId to ask about this tab.'
 
   /** 'modern' | 'legacy' | { unsupported: version } for a request. */
   function eraOf(params) {

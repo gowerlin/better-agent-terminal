@@ -2,13 +2,15 @@
 // PLAN-047 M1 / T0584: scripts/bat-mcp.mjs — the MCP side, with a stub `invoke`:
 //   - legacy (`initialize`, `ping`) and modern 2026-07-28 (`server/discover`, `_meta` version,
 //     `resultType`, tools/list `ttlMs` / `cacheScope`); unsupported version → -32022
-//   - tools/list: the six tools, read-only annotations
+//   - tools/list: the eight tools (T0608: + bat_list_questions / bat_wait_question), all read-only
 //   - every tool forwards to its channel with only its known keys (bat_worktree_status via stub)
 //   - results: structuredContent = channel reply without `ok`; `{ ok:false, code }` → isError
 //   - errors: unknown tool -32602, unknown method -32601, parse error, notifications unanswered
 //   - classifyInvokeError: old BAT → UNSUPPORTED, other Forbidden → FORBIDDEN
 //   - audit: one tool-call event (tool / ok / code / duration / traceparent), never the arguments
 //   - the real process on stdio: --version, a modern session, CONNECT_FAILED outside BAT
+//   - T0608 (PLAN-048): the question tools forward to question:list / question:wait, summaries,
+//     no write tool, instructions name tower questions
 import { spawn, spawnSync } from 'child_process'
 import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
@@ -88,17 +90,24 @@ describe('handshake: legacy and modern (dual-era)', () => {
 })
 
 describe('tools/list', () => {
-  it('lists the six contract tools, all read-only', async () => {
+  it('lists the eight contract tools, all read-only', async () => {
     const { request } = setup()
     const legacy = (await request('tools/list')).result
     expect(legacy.resultType).toBeUndefined()
     expect(legacy.tools.map(t => t.name)).toEqual([
       'bat_whoami', 'bat_list_terminals', 'bat_get_state', 'bat_read_output', 'bat_wait', 'bat_worktree_status',
+      'bat_list_questions', 'bat_wait_question',
     ])
     for (const tool of legacy.tools) {
       expect(tool.annotations.readOnlyHint, tool.name).toBe(true)
+      expect(tool.annotations.destructiveHint, tool.name).toBe(false)
+      expect(tool.annotations.openWorldHint, tool.name).toBe(false)
       expect(tool.inputSchema.type).toBe('object')
     }
+    // T0608 (D155 / D156): BAT MCP stays read-only — asking / cancelling / answering are helpers only
+    expect(TOOLS.map(t => t.channel).filter(c => /^question:(ask|cancel|answer)$/.test(c))).toEqual([])
+    expect(legacy.tools.find(t => t.name === 'bat_wait_question').annotations.idempotentHint).toBe(false)
+    expect(legacy.tools.find(t => t.name === 'bat_list_questions').annotations.idempotentHint).toBe(true)
     const m = (await request('tools/list', modern)).result
     expect(m).toMatchObject({ resultType: 'complete', cacheScope: 'private' })
     expect(m.ttlMs).toBeGreaterThan(0)
@@ -114,6 +123,8 @@ describe('tools/call forwards to the channel', () => {
     ['bat_read_output', { terminalId: 'w1', cursor: '42', maxLines: 5, junk: true }, 'terminal:read-output', [{ terminalId: 'w1', cursor: '42', maxLines: 5 }]],
     ['bat_wait', { terminalId: 'w1', until: 'exit', fromState: 'working', timeoutMs: 30000 }, 'terminal:wait', [{ terminalId: 'w1', until: 'exit', fromState: 'working', timeoutMs: 30000 }]],
     ['bat_worktree_status', { workorder: 'T0585', terminalId: 'w1' }, 'worktree:terminal-status', [{ terminalId: 'w1', workorder: 'T0585' }]],
+    ['bat_list_questions', { terminalId: 'w1', status: 'all', question: 'dropped' }, 'question:list', [{ terminalId: 'w1', status: 'all' }]],
+    ['bat_wait_question', { questionId: 'q-0123abcd-0123456789abcdef', timeoutMs: 30000, answer: 'dropped' }, 'question:wait', [{ questionId: 'q-0123abcd-0123456789abcdef', timeoutMs: 30000 }]],
   ]
   for (const [tool, args, channel, forwarded] of cases) {
     it(`${tool} → ${channel}`, async () => {
@@ -206,6 +217,88 @@ describe('tools/call forwards to the channel', () => {
   })
 })
 
+describe('tower questions (PLAN-048 / T0608)', () => {
+  const QID = 'q-0123abcd-0123456789abcdef'
+  const question = (fields = {}) => ({
+    questionId: QID, workerTerminalId: 'w1', towerTerminalId: 't1', workorder: 'T0608',
+    question: `要不要把 schema 改成\n第二版？${'很長'.repeat(40)}`,
+    options: ['改', '不改'], allowFreeText: true, blocking: true, status: 'pending', createdAt: 1, expiresAt: 2, ...fields,
+  })
+
+  it('bat_wait_question: invoke timeout 55 s (as bat_wait), not idempotent; bat_list_questions 3 s; schemas', () => {
+    const wait = TOOLS.find(t => t.name === 'bat_wait_question')
+    expect(wait.timeoutMs).toBe(WAIT_INVOKE_TIMEOUT_MS)
+    expect(wait.inputSchema.required).toEqual(['questionId'])
+    expect(wait.inputSchema.properties.timeoutMs).toEqual({ type: 'integer', minimum: 0, maximum: 45000 })
+    const list = TOOLS.find(t => t.name === 'bat_list_questions')
+    expect(list.timeoutMs).toBe(3000)
+    expect(list.inputSchema.properties.status.enum).toEqual(['pending', 'all'])
+    expect(list.description).toContain('bat-terminal.mjs --answer')
+  })
+
+  it('bat_list_questions summary: N pending questions: <id> (T####, first 60 chars on one line)', async () => {
+    const { call } = setup({ 'question:list': { ok: true, result: { ok: true, questions: [question(), question({ questionId: 'q-0123abcd-fedcba9876543210', workorder: undefined, question: 'short' })] } } })
+    const r = (await call('bat_list_questions', {})).result
+    const preview = `要不要把 schema 改成 第二版？${'很長'.repeat(40)}`.slice(0, 60)
+    expect(r.content[0].text).toBe(`2 pending questions: ${QID} (T0608, ${preview}…); q-0123abcd-fedcba9876543210 (short)`)
+    expect(r.structuredContent.questions).toHaveLength(2)
+    expect(r.structuredContent.questions[0].question).toContain('\n第二版')
+    const { call: none } = setup({ 'question:list': { ok: true, result: { ok: true, questions: [] } } })
+    expect((await none('bat_list_questions', {})).result.content[0].text).toBe('0 pending questions')
+    const { call: all } = setup({ 'question:list': { ok: true, result: { ok: true, questions: [question({ status: 'answered', question: 'a?' }), question({ question: 'b?' })] } } })
+    expect((await all('bat_list_questions', { status: 'all' })).result.content[0].text).toBe(`2 questions: ${QID} (T0608, answered, a?); ${QID} (T0608, pending, b?)`)
+  })
+
+  it('bat_wait_question summary: status after ms; answered carries the full answer; timed out says call again', async () => {
+    const answered = { ok: true, questionId: QID, changed: true, status: 'answered', answer: { choice: 2, text: '理由：相容\n第二行' }, answeredAt: 9, waitedMs: 1200 }
+    const { call, calls } = setup({ 'question:wait': { ok: true, result: answered } })
+    const r = (await call('bat_wait_question', { questionId: QID })).result
+    expect(calls).toEqual([{ channel: 'question:wait', args: [{ questionId: QID }], timeoutMs: WAIT_INVOKE_TIMEOUT_MS }])
+    expect(r.content[0].text).toBe('status=answered after 1200 ms\nchoice: 2\n理由：相容\n第二行')
+    const { ok: _ok, ...data } = answered
+    expect(r.structuredContent).toEqual(data)
+    const cases = [
+      [{ changed: false, status: 'pending', waitedMs: 45000 }, 'status=pending after 45000 ms (timed out; call again)'],
+      [{ changed: true, status: 'expired', endReason: 'not-polled', waitedMs: 3 }, 'status=expired (not-polled) after 3 ms'],
+      [{ changed: true, status: 'cancelled', endReason: 'tower-exited', waitedMs: 4 }, 'status=cancelled (tower-exited) after 4 ms'],
+      [{ changed: true, status: 'lost' }, 'status=lost after 0 ms'],
+    ]
+    for (const [fields, text] of cases) {
+      const { call: c } = setup({ 'question:wait': { ok: true, result: { ok: true, questionId: QID, ...fields } } })
+      expect((await c('bat_wait_question', { questionId: QID })).result.content[0].text).toBe(text)
+    }
+  })
+
+  it('an older BAT → UNSUPPORTED; channel refusals are tool errors', async () => {
+    expect(classifyInvokeError('No handler for channel: question:list').code).toBe('UNSUPPORTED')
+    for (const code of ['UNSUPPORTED', 'NOT_OWNER', 'NOT_FOUND', 'TOO_MANY_WAITS']) {
+      const { call } = setup({ 'question:wait': code === 'UNSUPPORTED' ? { ok: false, code, message: 'update BAT' } : { ok: true, result: { ok: false, code } } })
+      expect((await call('bat_wait_question', { questionId: QID })).result).toMatchObject({ isError: true, structuredContent: { code } })
+    }
+  })
+
+  it('the audit line never carries question or answer text', async () => {
+    const { call, events } = setup({
+      'question:list': { ok: true, result: { ok: true, questions: [question({ question: 'QTEXT-secret' })] } },
+      'question:wait': { ok: true, result: { ok: true, questionId: QID, changed: true, status: 'answered', answer: { text: 'ATEXT-secret' }, waitedMs: 1 } },
+    })
+    await call('bat_list_questions', {})
+    await call('bat_wait_question', { questionId: QID })
+    expect(events.map(e => e.tool)).toEqual(['bat_list_questions', 'bat_wait_question'])
+    expect(JSON.stringify(events)).not.toMatch(/QTEXT|ATEXT|q-0123abcd/)
+  })
+
+  it('instructions (legacy initialize and modern discover) name tower questions and stay read-only', async () => {
+    const { request } = setup()
+    const init = (await request('initialize', { protocolVersion: '2025-11-25' })).result
+    const discover = (await request('server/discover', modern)).result
+    for (const text of [init.instructions, discover.instructions]) {
+      expect(text).toMatch(/^Read-only queries about BAT terminals and tower questions/)
+      expect(text).toContain('bat_list_questions')
+    }
+  })
+})
+
 describe('errors', () => {
   it('a channel { ok:false, code } is a tool result with isError, not a JSON-RPC error', async () => {
     const { call } = setup({ 'terminal:read-output': { ok: true, result: { ok: false, code: 'NOT_OWNER' } } })
@@ -289,7 +382,8 @@ describe('the shim process on stdio', () => {
     expect(code).toBe(0)
     const replies = Object.fromEntries(out.trim().split('\n').map(l => JSON.parse(l)).map(r => [r.id, r]))
     expect(replies.d.result.resultType).toBe('complete')
-    expect(replies.l.result.tools).toHaveLength(6)
+    expect(replies.l.result.tools).toHaveLength(8)
+    expect(replies.d.result.instructions).toContain('tower questions')
     expect(replies.w.result).toMatchObject({ isError: true, structuredContent: { code: 'CONNECT_FAILED' } })
   })
 })

@@ -38,6 +38,10 @@
 //     └─ T0600 (D154): after creating the tab, wait (at most the given ms) until its claude has
 //        started (`SessionStart` hook). Exit 0 + "started: <ISO>" / "started: unknown" (no signal:
 //        codex, no hooks…) / 8 LAUNCH_UNCONFIRMED + "started: unconfirmed" (the tab is kept).
+//   node scripts/bat-terminal.mjs --answer q-0123abcd-0123456789abcdef --notify-id "$BAT_TERMINAL_ID" [--choice 1] < answer.txt
+//     └─ PLAN-048 / T0608: answer a question one of this Tower's Workers asked (bat-notify.mjs --ask).
+//        The answer text comes on stdin only (argv is logged). Exit 0 answered / 3 NOT_FOUND (incl.
+//        LOST) / 4 NOT_OWNER / 9 CLOSED (answered, cancelled or expired already) / 1 other.
 //
 // Options:
 //   --help, -h     Show help
@@ -92,11 +96,13 @@ const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>] [--worktree keep|remove|archive]
        bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]
        bat-terminal.mjs --worktree-status [<T####> --notify-id <id>]
+       bat-terminal.mjs --answer <question id> --notify-id <id> [--choice <n>] < answer.txt
 
 Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
 With --close-worker, close the Worker tab a Tower dispatched instead (no terminal is created).
 With --set-role, give an existing tab a role instead (no terminal is created).
 With --worktree-status, print an isolated Worker's worktree status instead (read-only).
+With --answer, answer a question of one of this Tower's Workers instead (no terminal is created).
 
 Options:
   --cwd <path>           Working directory for the new terminal
@@ -203,6 +209,23 @@ Worktree status (T0585):
               error, connection failure, TIMEOUT (BAT gives up after 10 s), GIT_FAILED or BAT
               too old (UNSUPPORTED). stderr also prints "worktree-status: <CODE>".
 
+Answer a Worker's question (PLAN-048):
+  --answer <question id> Answer a question a Worker of this Tower asked (bat-notify.mjs --ask; list
+                         them with the BAT MCP tool bat_list_questions). The answer text comes on
+                         stdin only (UTF-8, at most 64 KiB; the command line is logged); it may be
+                         empty when --choice is given. BAT keeps it in memory only; the Worker reads
+                         it with bat_wait_question (nothing is typed into the Worker tab). The first
+                         answer counts. stdout: "  answered: <id>"; when the question had ended:
+                         "  status: <answered|cancelled|expired> [<endReason>]".
+                         Cannot be combined with the other modes or the options that create a terminal.
+  --notify-id <id>       Required with --answer: the Tower's own terminal ID ($BAT_TERMINAL_ID)
+  --choice <n>           With --answer: the chosen option, 1-based (the stdin text is then the reason)
+  Exit codes: 0 answered / 3 NOT_FOUND (stderr "answer: LOST" when BAT restarted since the question)
+              / 4 NOT_OWNER / 9 CLOSED (answered, cancelled or expired already) / 1 usage error, bad
+              stdin, INVALID_ARGS, connection failure or BAT too old (UNSUPPORTED). stderr also
+              prints "answer: <CODE>". A helper that does not know it exits 1 with
+              "Unknown option '--answer'".
+
 Examples:
   node scripts/bat-terminal.mjs --prompt "/ct-exec T0001"
   node scripts/bat-terminal.mjs --skill ct-exec --workorder T0001
@@ -218,6 +241,7 @@ Examples:
   node scripts/bat-terminal.mjs --set-role tower --mode yolo
   node scripts/bat-terminal.mjs --worktree-status T0001 --notify-id "$BAT_TERMINAL_ID"
   node scripts/bat-terminal.mjs --worktree-status
+  node scripts/bat-terminal.mjs --answer q-0123abcd-0123456789abcdef --notify-id "$BAT_TERMINAL_ID" --choice 1 < answer.txt
 `
 
 // T0360/BUG-082: Work order ID grammar, shared across the whole dispatch chain.
@@ -230,7 +254,7 @@ Examples:
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--worktree-status', '--wait-started', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--worktree-status', '--wait-started', '--answer', '--choice', '--help', '-h', '--version']
 
 // PLAN-041 / T0535: `--close-worker` exit codes (contract shared with CT, PLAN-041「介面契約」).
 const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
@@ -255,6 +279,12 @@ const WAIT_STARTED_MAX_MS = 120_000
 const WAIT_STARTED_CHUNK_MS = 45_000
 const WAIT_STARTED_INVOKE_MARGIN_MS = 5_000
 const LAUNCH_UNCONFIRMED_EXIT = 8
+// PLAN-048 / T0608 (T0606「介面契約」C-5): `--answer` exit codes; the answer text comes on stdin only
+// (argv is logged verbatim — D155: question / answer text never lands on disk), UTF-8, ≤ 64 KiB
+const ANSWER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, CLOSED: 9 }
+const QUESTION_ID_PATTERN = /^q-[0-9a-f]{8}-[0-9a-f]{16}$/
+const ANSWER_STDIN_MAX_BYTES = 65_536
+const STDIN_READ_TIMEOUT_MS = 10_000
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -332,6 +362,9 @@ let worktreeStatus = false
 let worktreeStatusWorkorder = null
 // T0600: --wait-started <ms> (null = not given)
 let waitStartedMs = null
+// PLAN-048 / T0608: --answer <question id> [--choice <n>]
+let answer = null
+let choice = null
 
 let i = 0
 while (i < rawArgs.length) {
@@ -570,6 +603,43 @@ while (i < rawArgs.length) {
     continue
   }
 
+  // PLAN-048 / T0608: answer a Worker's question (the text comes on stdin)
+  if (arg === '--answer') {
+    const value = rawArgs[i + 1]
+    if (!value) {
+      printUsageError('--answer requires a question id argument')
+      console.error('answer: USAGE')
+      process.exit(1)
+    }
+    if (!QUESTION_ID_PATTERN.test(value)) {
+      console.error(`Error: Invalid --answer value: '${value}' (expected a question id such as q-0123abcd-0123456789abcdef)`)
+      console.error('answer: USAGE')
+      logEvent('bat-terminal', 'exit', { code: 1, reason: 'invalid-answer-id' })
+      process.exit(1)
+    }
+    answer = value
+    i += 2
+    continue
+  }
+
+  if (arg === '--choice') {
+    const value = rawArgs[i + 1]
+    if (!value) {
+      printUsageError('--choice requires an option number (1-based)')
+      console.error('answer: USAGE')
+      process.exit(1)
+    }
+    if (!/^\d+$/.test(value) || Number(value) < 1) {
+      console.error(`Error: Invalid --choice value: '${value}' (expected an option number, 1-based)`)
+      console.error('answer: USAGE')
+      logEvent('bat-terminal', 'exit', { code: 1, reason: 'invalid-choice' })
+      process.exit(1)
+    }
+    choice = Number(value)
+    i += 2
+    continue
+  }
+
   if (arg === '--delay-ms') {
     const value = rawArgs[i + 1]
     if (!value) { printUsageError('--delay-ms requires a number of milliseconds'); process.exit(1) }
@@ -594,6 +664,31 @@ while (i < rawArgs.length) {
   // First non-flag → start of command
   positional.push(arg)
   i++
+}
+
+// PLAN-048 / T0608: --answer answers a Worker's question; it never creates or changes a tab.
+if (answer || choice !== null) {
+  const answerUsage = (msg, reason) => {
+    printUsageError(msg)
+    console.error('answer: USAGE')
+    logEvent('bat-terminal', 'exit', { code: 1, reason })
+    process.exit(1)
+  }
+  if (!answer) answerUsage('--choice is only valid with --answer', 'choice-without-answer')
+  const conflicting = [
+    ...new Set(createFlags),
+    ...(closeWorker ? ['--close-worker'] : []),
+    ...(delayMs !== null ? ['--delay-ms'] : []),
+    ...(worktreeMode !== null ? ['--worktree'] : []),
+    ...(setRole ? ['--set-role'] : []),
+    ...(roleTerminalId !== null ? ['--terminal-id'] : []),
+    ...(worktreeStatus ? ['--worktree-status'] : []),
+    ...(positional.length > 0 ? ['<command>'] : []),
+  ]
+  if (conflicting.length > 0) {
+    answerUsage(`--answer cannot be combined with ${conflicting.join(', ')}`, 'answer-with-other-options')
+  }
+  if (!notifyId) answerUsage('--answer requires --notify-id <the Tower terminal ID>', 'answer-without-notify-id')
 }
 
 // PLAN-047 W1-2 / T0585: --worktree-status only reads; it never creates or changes a tab.
@@ -708,13 +803,13 @@ if (isolation && !hasSkillMode) {
 }
 
 // T0600: the Tower may only query its own Workers (the new tab's tower = --notify-id)
-if (waitStartedMs !== null && !closeWorker && !setRole && !worktreeStatus && !notifyId) {
+if (waitStartedMs !== null && !closeWorker && !setRole && !worktreeStatus && !answer && !notifyId) {
   printUsageError('--wait-started requires --notify-id <the Tower terminal ID> (the Tower may only query its own Workers)')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'wait-started-without-notify-id' })
   process.exit(1)
 }
 
-if (!closeWorker && !setRole && !worktreeStatus && !prompt && !hasSkillMode && positional.length === 0) {
+if (!closeWorker && !setRole && !worktreeStatus && !answer && !prompt && !hasSkillMode && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
   process.exit(1)
@@ -739,10 +834,12 @@ logEvent('bat-terminal', 'parsed', {
   ...(setRole ? { setRole, roleTerminalId, roleMode, agentHint: agentGiven ? agent : null } : {}),
   ...(worktreeStatus ? { worktreeStatus: worktreeStatusWorkorder ?? 'self' } : {}),
   ...(waitStartedMs !== null ? { waitStartedMs } : {}),
+  // T0608: the id and the choice only (the answer text is on stdin, never logged)
+  ...(answer ? { answer, choice } : {}),
 })
 
 // PLAN-041 / T0562: the `<mode>: <CODE>` diagnostic line on stderr of the modes that create no tab.
-const modeTag = closeWorker ? 'close-worker' : setRole ? 'set-role' : worktreeStatus ? 'worktree-status' : null
+const modeTag = closeWorker ? 'close-worker' : setRole ? 'set-role' : worktreeStatus ? 'worktree-status' : answer ? 'answer' : null
 
 // ── Environment (checked AFTER arg parsing so --help works outside BAT) ──
 
@@ -765,7 +862,7 @@ if (!TOKEN) {
 // T0360 (ADVISORY B-2): Advisory only — behaviour is unchanged. Callers that
 // dispatch on behalf of a specific project frequently do not know this flag
 // exists, and silently land the PTY in whatever workspace happens to be active.
-if (!workspaceId && !closeWorker && !setRole && !worktreeStatus) {
+if (!workspaceId && !closeWorker && !setRole && !worktreeStatus && !answer) {
   console.error('[bat-terminal] --workspace not specified; PTY will land in the currently ACTIVE workspace.')
   console.error('               Callers dispatching for a specific project should pass')
   console.error('               --workspace "$BAT_WORKSPACE_ID".')
@@ -1072,6 +1169,9 @@ function describeLanding(result) {
 // ── Main ──
 
 async function main() {
+  // PLAN-048 / T0608: the answer comes on stdin — read and check it before connecting
+  const answerInput = answer ? await readAnswerInput() : null
+
   const ws = new MinimalWS()
 
   try {
@@ -1150,6 +1250,7 @@ async function main() {
   if (closeWorker) return runCloseWorker(ws)
   if (setRole) return runSetRole(ws)
   if (worktreeStatus) return runWorktreeStatus(ws)
+  if (answer) return runAnswer(ws, answerInput)
 
   const channel = prompt || hasSkillMode ? 'terminal:create-agent-command' : 'terminal:create-with-command'
   const invokePayload = prompt || hasSkillMode
@@ -1588,6 +1689,136 @@ async function runWorktreeStatus(ws) {
   console.error(`Error: Worktree status of ${target} not read (${code}): ${detail}${typeof result?.message === 'string' ? ` — ${result.message}` : ''}`)
   console.error(`worktree-status: ${code}`)
   return finish(WORKTREE_STATUS_EXIT[code] ?? 1, code, Array.isArray(result?.terminalIds) ? { terminalIds: result.terminalIds } : {})
+}
+
+/**
+ * PLAN-048 / T0608: all of stdin as UTF-8 (at most ANSWER_STDIN_MAX_BYTES; a BOM is dropped). A
+ * terminal on stdin (nothing redirected) reads as empty; stdin that never ends is an error, not a
+ * hang. Same as bat-notify.mjs readStdin (zero-deps: no shared module).
+ */
+function readStdin() {
+  return new Promise((resolve) => {
+    const stdin = process.stdin
+    if (stdin.isTTY) { resolve({ ok: true, tty: true, bytes: 0, text: '' }); return }
+    const chunks = []
+    let bytes = 0
+    let done = false
+    const finish = (result) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      stdin.pause()
+      resolve(result)
+    }
+    const timer = setTimeout(() => finish({ ok: false, reason: 'timeout', bytes }), STDIN_READ_TIMEOUT_MS)
+    stdin.on('data', (chunk) => {
+      bytes += chunk.length
+      if (bytes > ANSWER_STDIN_MAX_BYTES) { finish({ ok: false, reason: 'too-large', bytes }); return }
+      chunks.push(chunk)
+    })
+    stdin.on('end', () => {
+      let text
+      try {
+        // fatal: bytes that are not UTF-8 are refused rather than turned into U+FFFD
+        text = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))
+      } catch {
+        finish({ ok: false, reason: 'not-utf8', bytes })
+        return
+      }
+      finish({ ok: true, tty: false, bytes, text })
+    })
+    stdin.on('error', () => finish({ ok: false, reason: 'error', bytes }))
+  })
+}
+
+/**
+ * The answer text from stdin (trailing line breaks dropped; blank = no text). Exits 1 when stdin is
+ * unusable (`answer: INVALID_INPUT`) or when there is neither text nor --choice (`answer: USAGE`).
+ */
+async function readAnswerInput() {
+  const input = await readStdin()
+  if (!input.ok) {
+    const problem = {
+      'too-large': `stdin is larger than ${ANSWER_STDIN_MAX_BYTES} bytes`,
+      'not-utf8': 'stdin is not UTF-8 (on Windows PowerShell 5.1 use pwsh 7 or Git Bash)',
+      timeout: `stdin did not end within ${STDIN_READ_TIMEOUT_MS / 1000} s (redirect it from a file or a heredoc; with --choice alone, < /dev/null)`,
+      error: 'stdin could not be read',
+    }[input.reason]
+    console.error(`Error: ${problem}`)
+    console.error('answer: INVALID_INPUT')
+    logEvent('bat-terminal', 'exit', { code: 1, reason: 'answer-invalid-input', stdin: input.reason, stdinBytes: input.bytes })
+    process.exit(1)
+  }
+  const text = input.text.replace(/[\r\n]+$/, '')
+  if (!text.trim() && choice === null) {
+    printUsageError('--answer needs the answer text on stdin, or --choice <n> (or both)')
+    console.error('answer: USAGE')
+    logEvent('bat-terminal', 'exit', { code: 1, reason: 'answer-empty', stdin: input.tty ? 'tty' : 'empty', stdinBytes: input.bytes })
+    process.exit(1)
+  }
+  return { text: text.trim() ? text : null, stdinBytes: input.bytes }
+}
+
+/**
+ * PLAN-048 / T0608 (T0606 C-3 / C-5): `question:answer { towerId, questionId, choice?, text? }`.
+ * Success is decided by the exit code; `answer: <CODE>` on stderr is diagnostic. Logs the id, the
+ * choice and the text length — never the text.
+ */
+async function runAnswer(ws, input) {
+  const request = { towerId: notifyId, questionId: answer, ...(choice !== null ? { choice } : {}), ...(input.text !== null ? { text: input.text } : {}) }
+  const finish = (exitCode, code, fields = {}) => {
+    logEvent('bat-terminal', 'answer', { questionId: answer, towerId: notifyId, choice, textLength: input.text?.length ?? 0, stdinBytes: input.stdinBytes, result: code, ...fields, ignoredFrames })
+    logEvent('bat-terminal', 'exit', { code: exitCode, reason: exitCode === 0 ? 'answer-done' : `answer-${code}` })
+    ws.close()
+    process.exit(exitCode)
+  }
+
+  const invokeId = makeId()
+  ws.send(JSON.stringify({ type: 'invoke', id: invokeId, channel: 'question:answer', args: [request] }))
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000, channel: 'question:answer' })
+  let resp
+  try {
+    resp = await waitForMessage(ws, invokeId)
+  } catch (err) {
+    const msg = err?.message || String(err)
+    console.error(`Error: Invoke response timeout: ${msg}`)
+    console.error('answer: TIMEOUT')
+    return finish(1, 'TIMEOUT', { error: msg })
+  }
+  if (resp.error) {
+    const text = String(resp.error)
+    // A BAT from before T0607 has no such channel (the capability refuses it, or no handler).
+    const code = /No handler for channel/i.test(text) || text === 'Forbidden: channel-not-allowed' ? 'UNSUPPORTED' : /Forbidden/i.test(text) ? 'FORBIDDEN' : 'ERROR'
+    const message = {
+      UNSUPPORTED: 'This BAT does not support --answer (update BAT)',
+      FORBIDDEN: `Not allowed to answer (only a Tower tab, with --notify-id = its own terminal ID): ${text}`,
+    }[code] ?? `Failed to answer: ${text}`
+    console.error(`Error: ${message}`)
+    console.error(`answer: ${code}`)
+    return finish(1, code, { error: text })
+  }
+  const result = resp.result
+  if (result && typeof result === 'object' && result.ok === true) {
+    console.log(`✓ Question answered: ${String(result.questionId ?? answer)}`)
+    console.log(`  answered: ${String(result.questionId ?? answer)}`)
+    return finish(0, 'OK', { masked: result.masked ?? 0 })
+  }
+  const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
+  const lost = code === 'NOT_FOUND' && result?.status === 'lost'
+  const status = typeof result?.status === 'string' ? result.status : null
+  const endReason = typeof result?.endReason === 'string' ? result.endReason : null
+  if (code === 'CLOSED' && status) console.log(`  status: ${status}${endReason ? ` ${endReason}` : ''}`)
+  const detail = lost
+    ? `${answer} belonged to a BAT that has restarted since (it is gone; answer in the work order instead)`
+    : {
+      NOT_FOUND: `BAT does not know ${answer} (mistyped, or ended more than 10 min ago)`,
+      NOT_OWNER: `${answer} was not sent to terminal ${notifyId}`,
+      CLOSED: `${answer} is ${status ?? 'closed'} already${endReason ? ` (${endReason})` : ''}; the first answer counts`,
+      INVALID_ARGS: 'BAT rejected the answer (a --choice out of range, a choice the question needs, text too long or with a control character)',
+    }[code] ?? 'the question was not answered'
+  console.error(`Error: Not answered (${lost ? 'LOST' : code}): ${detail}${typeof result?.message === 'string' ? ` — ${result.message}` : ''}`)
+  console.error(`answer: ${lost ? 'LOST' : code}`)
+  return finish(ANSWER_EXIT[code] ?? 1, lost ? 'LOST' : code, { ...(status ? { status } : {}), ...(endReason ? { endReason } : {}) })
 }
 
 // T0200/BUG-046: Safety net for rejections that escape main()'s await chain
