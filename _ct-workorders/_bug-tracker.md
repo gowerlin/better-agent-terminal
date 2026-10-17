@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-18T02:43:24+0800"
+generated_at: "2026-10-18T02:51:22+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 36
 breakdown:
   OPEN: 1
-  FIXING: 2
-  FIXED: 20
+  FIXING: 1
+  FIXED: 21
   VERIFY: 0
   CLOSED: 13
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 02:43 (UTC+8) — BUG-150 FIXING（T0597）；新增 BUG-151 FIXING（T0598，BMad-Guide 回報派工引號）
+> 最後同步：2026-10-18 02:51 (UTC+8) — BUG-150 FIXED（T0597 `ddb9b970`）；BUG-151 FIXING（T0598）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 2 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 36**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 21 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 36**
 
 ## 🔴 Open / 處理中
 
@@ -38,13 +38,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-150 | claude-cli 分頁的 AskUserQuestion 一律回報 `blocked` / `permission`（應為 `question`），T0594 的回答後清除永遠不生效 | 🟡 medium | 2026-10-18 02:43（T0597） | [BUG-150](BUG-150-askuserquestion-blocked-reason-permission.md) |
 | BUG-151 | helper 派工在 Git Bash 分頁送出 PowerShell 形式的啟動指令，Worker 起不來但 helper 仍 exit 0 | 🔴 high | 2026-10-18 02:43（T0598） | [BUG-151](BUG-151-dispatch-quoting-pwsh-in-git-bash-tab.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-150 | claude-cli 分頁的 AskUserQuestion 一律回報 `blocked` / `permission`（應為 `question`），T0594 的回答後清除永遠不生效 | 🟡 medium | 2026-10-18 02:51（T0597 `ddb9b970`） | [BUG-150](BUG-150-askuserquestion-blocked-reason-permission.md) |
 | BUG-149 | `settings.json` 沒有 `shell` 鍵時，helper `--agent` 派出的 claude / codex Worker 起不來（引號以 posix 組、Windows 分頁是 pwsh；T0593 `e283abdc`：以 PtyManager 實際預設 shell 判斷） | 🔴 high | 2026-10-18 01:49 | [BUG-149](BUG-149-codex-dispatch-posix-quoting-without-shell-setting.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
 | BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁另起 direct shell | 🟡 medium | 2026-10-17 20:17 | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |
