@@ -3537,3 +3537,29 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 整合 worktree 第一次合併時才安裝依賴，之後保留重用
 
 **候選晉升**：📁 Project（並行派工慣例，補 L156）
+
+## L159
+
+**來源**：第七十五 session（2026-10-18），T0592 / BUG-149
+
+**現象**：codex 派工的單元測試與既有 e2e（node 腳本模擬 CLI）都通過，但「真 BAT + 真 codex、`settings.json` 沒有 `shell` 鍵」的組合下，派工引號以 posix 組、分頁是 pwsh，Worker 啟動即失敗（claude 派工同樣受影響）。D153 A 層 e2e（假 codex shim 記錄分頁 shell 實際解析的 argv，再交給內嵌 codex `app-server`，不呼叫模型）第一次跑就抓到。
+
+**How to apply**：
+- 外部 CLI 整合（codex / claude）的驗收至少要有一層「真 binary 啟動、參數經真分頁 shell 解析」的測試，只驗字串組裝不夠（BUG-148 同類）
+- e2e 隔離實例的初始設定要涵蓋「從未存過設定」的狀態（缺鍵），不要只測 `shell: 'auto'`
+
+**候選晉升**：📁 Project（外部 CLI 整合測試慣例，補 D153）
+
+## L160
+
+**來源**：第七十五 session（2026-10-18），T0590 / T0591
+
+**現象**：塔台寫 T0590 `affects_files` 時用「`src/components/SettingsPanel.tsx 與 src/locales/*.json`」這類合寫、且漏列新模組與注入點的連帶檔，BAT `--worktree-status` 的 `affects_files` 解析只取第一個 token，結果 `outOfScopeFiles` 有 12 筆，直接合併判準第 3 條不成立，只能由塔台逐檔判斷接受。
+
+**How to apply**：
+- `affects_files` 每項一個路徑（或 glob）；多個路徑用「、」分隔（解析器支援），不要用「與 / 和」
+- 功能工單預先列入：新模組所在目錄 glob（例 `electron/*.ts` 不夠時寫具體新檔名）、preload / 型別宣告 / renderer 呼叫點、bundle 清單、三語 locale
+- 收單看到 `outOfScopeFiles` 時先比對 Worker 回報的理由，再決定接受或要求拆出
+
+**候選晉升**：📁 Project（工單撰寫慣例）
+
