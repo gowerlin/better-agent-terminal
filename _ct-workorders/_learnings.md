@@ -3499,3 +3499,16 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 
 **候選晉升**：📁 Project（工單撰寫慣例）
 
+
+## L156
+
+**來源**：第七十三 session（2026-10-17），T0582 / T0583 / T0584 / T0585 並行
+
+**現象**：兩張並行工單共用同一個工作樹與 index。T0583 已以 `hash-object` + `update-index --cacheinfo` 寫入 index 的 5 個共用檔，在它 commit 前被重設回 HEAD（T0582 以暫存 index + `update-ref` compare-and-swap 建 commit，未執行 reset / restore，推定為 stage 互相覆蓋）。T0583 重建後補 commit；T0585 遇到相鄰 hunk 被 `git apply --cached` 帶入、位置偏移，改以「HEAD + 本單」組 blob 寫入 index。四張最終 commit 塔台核對皆無夾帶。
+
+**How to apply**：
+- 並行工單改到同一檔時，memory_overrides 寫明各自負責的區塊，並要求 commit 前 `git diff --cached` 只含自己的 hunk；收單時以 `git show <sha> | grep` 核對對方特有字串未出現
+- 共用 index 本身不安全：W1（`--isolation worktree`，BAT 0.7.0-pre.2 / CT v5.3.0）上線後，會改同檔的並行工單優先用隔離派工
+- 並行單各自的驗證都是「混合工作樹」結果；塔台在兩張都落地後做一次完整複驗
+
+**候選晉升**：📁 Project（並行派工慣例）
