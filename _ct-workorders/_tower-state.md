@@ -94,7 +94,8 @@
 1. ✅ ~~`v0.7.0-pre.3` 實機驗收~~ → 2026-10-18 00:28 第七十五 session：Codex CLI 分頁 `bat_whoami` PASS（`role: shell`、`agent: codex-cli`）→ **BUG-148 CLOSED**
 1a. 🔄 **第七十五 session 進行中**：T0589（Q3，主 checkout）/ T0590（M1b-1 claude hooks，隔離 `ct/T0590`，base `3362c8aa`）00:33 並行派出；收單後 T0590 走 `--worktree-status` → 合併判準 / 合併工單
 1b. ⏳ **合併後塔台直接補 `CLAUDE.md`**（使用者 2026-10-18 同意）：「Helper scripts 的 userData」補「`BAT_HELPER_LOG_DIR` 同樣須為絕對路徑，相對路徑忽略」（`scripts/_bat-logger.mjs:83`；BMad-Guide 回函觀察 4）
-1c. ⏳ **D153**：T0590 合併後派 **T0591**（codex × Tower / Worker A 層自動化 e2e，不耗 token）；B 層實機探針 = 發版時寫進更版重點「歡迎協助測試」請 codex 使用者協助（`_local-rules.md` 更版重點規則）
+1b'. 🔄 T0590 DONE（`ct/T0590` `9afdf110`，01:00）；分頁 `--worktree keep` 回收；判準第 1 條（T0589 產品 commit）/ 第 3 條（範圍外 12 檔，塔台接受）不成立、`conflicts []` → 派 **T0591** 合併工單（模式 ②，base `87a14314`）
+1c. ⏳ **D153**：T0590 合併後派 **T0592**（codex × Tower / Worker A 層自動化 e2e，不耗 token）；B 層實機探針 = 發版時寫進更版重點「歡迎協助測試」請 codex 使用者協助（`_local-rules.md` 更版重點規則）
 1d. ✅ T0589 DONE（`c3b2a9d5`，00:48）；塔台複驗 @ `2d995552`：typecheck 0 / 0、**5015 passed / 286 files**；Worker 分頁已回收。CT 建議（`merge-workorder.md` 關閉後改用 `--worktree-status`，`source`）待下一版發佈後開 CT-T017
 2. 🟡 **PLAN-047 後續**（pre.2 驗收已完成，可決定）：M1b（blocked 偵測）；Q3（關閉後仍可查 `--worktree-status`，可沿用 T0582 已結束 PTY 紀錄）；M2 / M3 視使用情況
 3. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`；**BUG-136**：等 Gary 回傳日誌；`RECOVERY_PENDING`（> 2 s 未答）實機未驗
