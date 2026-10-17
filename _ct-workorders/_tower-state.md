@@ -100,6 +100,7 @@
 ### 待辦（依優先序）
 
 1. 🟡 **PLAN-048**（IN_PROGRESS，D155 / D156）：T0606 契約 DONE → T0607（A）/ T0608（B，隔離）並行中 → 合併 → C（e2e）→ CT-T019；PLAN-047 M1b-2 待排期
+2. 🟡 **BUG-153**（OPEN，BMad-Guide 提出）：Worker 縮圖提問 / blocked 誤標 `✓`、計入批次關閉 → 建議接在 T0607 後（用主行程 `blocked` / `tower`），待使用者排期
 2. ✅ ~~`v0.7.0-pre.6` 實機驗收~~ → 第七十七 session T0601（安裝版）+ T0602（隔離 e2e 4 spec）PASS：BUG-150 / 151 CLOSED；CT v5.6.0 `--wait-started` 實際派工 2 次皆 `started:`
 3. 🟡 **PLAN-048**（Worker 問塔台 / 塔台答覆通道）：使用者決定是否排期；**PLAN-047 後續**：M1b-2 codex blocked / 啟動信號、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
@@ -112,12 +113,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 19 / Closed 17）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 2 / Fixing 0 / Fixed 19 / Closed 17）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D156）｜ Learnings → [_learnings.md](_learnings.md)（最大 L162）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（92 entries）
 
 ### 編號起始
-- **T0609** / **BUG-153** / **PLAN-049** / **D157** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
+- **T0609** / **BUG-154** / **PLAN-049** / **D157** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
 
 ---
 
