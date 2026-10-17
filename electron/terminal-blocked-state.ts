@@ -5,7 +5,8 @@
  * `scripts/bat-hook.mjs` → `terminal:report-hook` (helper only, over RemoteServer).
  *
  *   hook event                                   → effect
- *   PermissionRequest                            → blocked / permission (tool_name: log only)
+ *   PermissionRequest                            → blocked / permission (tool_name: log only);
+ *                                                  tool_name AskUserQuestion → question (T0597)
  *   PreToolUse, matcher AskUserQuestion          → blocked / question
  *   Notification, elicitation_dialog / _url_     → blocked / elicitation
  *   PostToolUse, matcher AskUserQuestion (T0594) → cleared, only when blocked / question
@@ -51,6 +52,17 @@ export const HOOK_EVENT_REASON: Readonly<Record<HookReportEvent, BlockedReason |
   elicitation: 'elicitation',
   'user-prompt-submit': null,
   stop: null,
+}
+
+/**
+ * T0597 (BUG-150): the reason `event` enters (null = clears). claude's AskUserQuestion requires user
+ * interaction, so its question dialog goes through the permission prompt: a `PermissionRequest`
+ * with tool_name AskUserQuestion follows its `PreToolUse` (~90 ms later, any permission mode; claude
+ * 2.1.300 / 2.1.302, T0596) — still a question, or `ask-user-question-done` could never clear it.
+ */
+export function hookEventReason(event: HookReportEvent, toolName?: string): BlockedReason | null {
+  if (event === 'permission-request' && toolName === 'AskUserQuestion') return 'question'
+  return HOOK_EVENT_REASON[event]
 }
 
 /**
@@ -100,7 +112,7 @@ export class TerminalBlockedTracker {
   /** Applies a hook report of PTY `id` (the caller checks it is running). */
   report(id: string, event: HookReportEvent, toolName?: string): { result: HookReportResult; state: BlockedState | null } {
     this.setDetection(id, 'hook')
-    const reason = HOOK_EVENT_REASON[event]
+    const reason = hookEventReason(event, toolName)
     if (reason === null) {
       const only = HOOK_EVENT_CLEARS_ONLY[event]
       if (only && this.states.get(id)?.reason !== only) return { result: 'unchanged', state: this.get(id) }

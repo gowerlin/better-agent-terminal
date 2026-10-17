@@ -16,6 +16,8 @@
  *   - a real RemoteServer with scoped capabilities and the real scripts/bat-hook.mjs process:
  *     stdin hook JSON → blocked; `wait until=state-change` returns when the hook fires; exit 0,
  *     nothing on stdout, tool_input never sent; not in BAT / dead port → exit 0, stdout empty
+ *   - T0597 (BUG-150): claude's real AskUserQuestion order — PreToolUse, PermissionRequest with
+ *     tool_name AskUserQuestion, PostToolUse — stays a question and the answer clears it
  */
 import { spawn } from 'child_process'
 import * as fs from 'fs'
@@ -40,6 +42,7 @@ import { authorizeHelperInvoke, HELPER_CHANNEL_ROLES, HelperCapabilityRegistry }
 import { RemoteServer } from '../remote/remote-server'
 import {
   BLOCKED_DETECTION_MAX,
+  hookEventReason,
   HOOK_REPORT_EVENTS,
   registerReportHookHandler,
   REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS,
@@ -179,6 +182,43 @@ describe('TerminalBlockedTracker', () => {
       '[blocked] terminal=a → cleared (hook ask-user-question-done)',
       '[blocked] terminal=a → blocked reason=permission (hook permission-request tool=Bash)',
       '[blocked] terminal=a → blocked reason=elicitation (hook elicitation)',
+    ])
+  })
+
+  it('T0597: PermissionRequest of AskUserQuestion is a question — claude’s real order ask → permission-request → done clears', () => {
+    const lines: string[] = []
+    let t = 1000
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) }, () => t)
+    expect(hookEventReason('permission-request', 'AskUserQuestion')).toBe('question')
+    expect(hookEventReason('permission-request', 'Bash')).toBe('permission')
+    expect(hookEventReason('permission-request')).toBe('permission')
+    expect(hookEventReason('ask-user-question-done', 'AskUserQuestion')).toBeNull()
+    // claude 2.1.302: PreToolUse(AskUserQuestion), ~90 ms later PermissionRequest(AskUserQuestion)
+    tracker.report('a', 'ask-user-question')
+    t = 1090
+    expect(tracker.report('a', 'permission-request', 'AskUserQuestion')).toEqual({
+      result: 'unchanged',
+      state: { reason: 'question', since: 1000, event: 'ask-user-question' },
+    })
+    t = 5000
+    expect(tracker.report('a', 'ask-user-question-done')).toEqual({ result: 'cleared', state: null })
+    // no PreToolUse first: the permission prompt of the question enters question itself
+    expect(tracker.report('b', 'permission-request', 'AskUserQuestion')).toEqual({
+      result: 'blocked',
+      state: { reason: 'question', since: 5000, event: 'permission-request', toolName: 'AskUserQuestion' },
+    })
+    expect(tracker.report('b', 'ask-user-question-done')).toEqual({ result: 'cleared', state: null })
+    // another tool's permission prompt during a question still replaces it (T0594 case unchanged)
+    tracker.report('c', 'ask-user-question')
+    expect(tracker.report('c', 'permission-request', 'Bash')).toMatchObject({ result: 'blocked', state: { reason: 'permission', toolName: 'Bash' } })
+    expect(tracker.report('c', 'ask-user-question-done')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(lines).toEqual([
+      '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
+      '[blocked] terminal=a → cleared (hook ask-user-question-done)',
+      '[blocked] terminal=b → blocked reason=question (hook permission-request tool=AskUserQuestion)',
+      '[blocked] terminal=b → cleared (hook ask-user-question-done)',
+      '[blocked] terminal=c → blocked reason=question (hook ask-user-question)',
+      '[blocked] terminal=c → blocked reason=permission (hook permission-request tool=Bash)',
     ])
   })
 
@@ -359,6 +399,22 @@ describe('terminal:report-hook', () => {
     expect(logs).toContain('[blocked] terminal=wk → cleared (hook ask-user-question-done)')
     // PermissionDenied is not reported (claude 2.1.300 fires it for auto-mode classifier denials only)
     expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-denied' })).toMatchObject({ ok: false, code: 'INVALID_ARGS' })
+  })
+
+  it('T0597: PermissionRequest of AskUserQuestion over the channel answers blockedReason question; the answer clears it', () => {
+    scene()
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'ask-user-question' })).toMatchObject({ result: 'blocked', blockedReason: 'question' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'permission-request', toolName: 'AskUserQuestion' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'unchanged', state: 'blocked', blockedReason: 'question' })
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'wk' })).toMatchObject({ ok: true, state: 'blocked', blockedReason: 'question', source: 'hook' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'ask-user-question-done' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'cleared', state: 'not-blocked' })
+    // without the PreToolUse first
+    expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-request', toolName: 'AskUserQuestion' }))
+      .toEqual({ ok: true, terminalId: 'sh', result: 'blocked', state: 'blocked', blockedReason: 'question' })
+    expect(logs).toContain('[blocked] terminal=sh → blocked reason=question (hook permission-request tool=AskUserQuestion)')
+    expect(logs).toContain('[blocked] terminal=wk → cleared (hook ask-user-question-done)')
+    expect(logs.some(l => l.includes('reason=permission'))).toBe(false)
   })
 
   it('bat-scripts.log: every transition, an unchanged report at most once per 5 s per terminal; never content', () => {
@@ -615,6 +671,33 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
       .toMatchObject({ event: 'report-hook', hook: 'ask-user-question-done', result: 'cleared', terminalId: 'hk-worker' })
     expect(log).not.toMatch(/SECRET/)
+  })
+
+  it('T0597: PermissionRequest of AskUserQuestion after its PreToolUse → the tower reads question; PostToolUse clears it', async () => {
+    const tower = { terminalId: 'hk-tower', role: 'tower' as const }
+    const { invokeHandler } = await import('../remote/handler-registry')
+    const towerState = () => invokeHandler('terminal:get-state', [{ terminalId: 'hk-worker' }], null, 'tw', tower) as Promise<Record<string, unknown>>
+    await runHook('ask-user-question', JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' }), hookEnv('hk-worker'))
+    const since = manager.getBlockedState('hk-worker')!.since
+    const input = {
+      session_id: 's1',
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'AskUserQuestion',
+      tool_input: { questions: [{ question: 'SECRET-QUESTION?' }] },
+      permission_suggestions: [],
+    }
+    const run = await runHook('permission-request', JSON.stringify(input), hookEnv('hk-worker'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'AskUserQuestion' }])
+    expect(JSON.stringify(received)).not.toMatch(/SECRET|tool_input/)
+    expect(await towerState()).toMatchObject({ ok: true, state: 'blocked', blockedReason: 'question', blockedSince: since, source: 'hook' })
+    await runHook('ask-user-question-done', JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion' }), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+    // the question's permission prompt alone (no PreToolUse) is a question too
+    await runHook('permission-request', JSON.stringify(input), hookEnv('hk-worker'))
+    expect(await towerState()).toMatchObject({ state: 'blocked', blockedReason: 'question' })
+    await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
   })
 
   it('T0594: a BAT that does not know the event answers INVALID_ARGS → still exit 0, stdout empty; state untouched', async () => {

@@ -10,7 +10,9 @@
 //   2. Tower (MCP): bat_get_state / bat_list_terminals of the Worker → blocked (question), hook
 //   3. typing into the Worker tab (the user answering) → cleared; bat_wait fromState=blocked returns
 //   3b. T0594: blocked on a question again, then the Worker's PostToolUse AskUserQuestion hook
-//      (`ask-user-question-done`, the question answered by mouse) → cleared with no keyboard input
+//      (`ask-user-question-done`, the question answered by mouse) → cleared with no keyboard input.
+//      T0597 (BUG-150): in claude's real order — the question's PermissionRequest hook (tool_name
+//      AskUserQuestion) ~90 ms after its PreToolUse — the Tower still reads blocked (question)
 //   4. `agent:bat-mcp-launch-args` for a claude-cli tab: `--settings=<userData>/bat-mcp/claude-settings.json`,
 //      the file holds hooks only; the tab id records blockedDetection
 //   5. debug log: `[blocked] … → blocked reason=question` / `→ cleared (user input)` /
@@ -147,8 +149,13 @@ test('blocked: a claude hook in a Worker tab → the Tower reads blocked (MCP); 
       { kind: 'env' },
       { kind: 'hook', event: 'ask-user-question', input: askInput(SECRET_QUESTION) },
       { kind: 'hold', file: release },
-      // T0594: asked again, answered without the keyboard (claude's PostToolUse after the answer)
+      // T0594: asked again, answered without the keyboard (claude's PostToolUse after the answer);
+      // T0597: claude's real order, the question's PermissionRequest ~90 ms after its PreToolUse
       { kind: 'hook', event: 'ask-user-question', input: askInput(SECRET_QUESTION) },
+      { kind: 'hook', event: 'permission-request', waitMs: 90, input: {
+        session_id: 'e2e', hook_event_name: 'PermissionRequest', tool_name: 'AskUserQuestion',
+        tool_input: { questions: [{ question: SECRET_QUESTION }] }, permission_suggestions: [],
+      } },
       { kind: 'hook', event: 'ask-user-question-done', waitMs: 6_000, input: {
         session_id: 'e2e', hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion', tool_use_id: 'toolu_e2e',
         tool_input: { questions: [{ question: SECRET_QUESTION }] }, tool_response: { answers: { [SECRET_QUESTION]: SECRET_QUESTION } },
@@ -243,21 +250,22 @@ test('blocked: a claude hook in a Worker tab → the Tower reads blocked (MCP); 
     await results(workerOut, 3)
 
     // ── 3b. blocked on a question again; the answered-question hook clears it, no keyboard ──
-    const [, , , again] = await results(workerOut, 4)
+    const [, , , again, prompt] = await results(workerOut, 5)
     expect(again).toMatchObject({ kind: 'hook', code: 0, stdout: '' })
+    expect(prompt).toMatchObject({ kind: 'hook', code: 0, stdout: '' })
     const [answered] = await runInTab(win, TOWER, [{ kind: 'mcp', requests: [
       call('bat_get_state', { terminalId: worker }),
       call('bat_wait', { terminalId: worker, until: 'state-change', fromState: 'blocked', timeoutMs: 40_000 }),
     ] }])
     expect(answered.code, answered.stderr).toBe(0)
-    // the done hook runs 6 s after the second question: the get-state lands in between
+    // the done hook runs 6 s after the question's PermissionRequest: the get-state lands in between
     expect(tool(answered, 0)?.structuredContent).toMatchObject({ terminalId: worker, state: 'blocked', blockedReason: 'question' })
     expect(tool(answered, 1)?.structuredContent).toMatchObject({ terminalId: worker, changed: true, blockedDetection: 'hook' })
     expect((tool(answered, 1)?.structuredContent as { state: string }).state).not.toBe('blocked')
-    const [, , , , done] = await results(workerOut, 5)
+    const [, , , , , done] = await results(workerOut, 6)
     expect(done).toMatchObject({ kind: 'hook', code: 0, stdout: '' })
     fs.writeFileSync(releaseAgain, '')
-    await results(workerOut, 6)
+    await results(workerOut, 7)
 
     // ── 4. launch args of a claude-cli tab: --settings= with hooks only ──
     const args = await win.evaluate(async () => (window as AnyApi).electronAPI.agent.batMcpLaunchArgs('claude-cli', 'pwsh', '--model opus', 'e2e-t0590-claude-tab'))
@@ -280,6 +288,8 @@ test('blocked: a claude hook in a Worker tab → the Tower reads blocked (MCP); 
     expect(debug).toContain(`[blocked] terminal=${worker} → blocked reason=question (hook ask-user-question)`)
     expect(debug).toContain(`[blocked] terminal=${worker} → cleared (user input)`)
     expect(debug).toContain(`[blocked] terminal=${worker} → cleared (hook ask-user-question-done)`)
+    // T0597: the question's PermissionRequest never turned it into a permission prompt
+    expect(debug).not.toContain(`[blocked] terminal=${worker} → blocked reason=permission`)
     expect(debug).toMatch(/\[bat-mcp\] tab agent=claude-cli terminal=e2e-t0590-claude-tab → injected: .*; hooks=yes/)
     expect(debug).not.toContain(SECRET_QUESTION)
     const scriptsLog = fs.readFileSync(path.join(userData, 'Logs', 'bat-scripts.log'), 'utf8')
@@ -287,6 +297,7 @@ test('blocked: a claude hook in a Worker tab → the Tower reads blocked (MCP); 
     expect(entries.find(e => e.script === 'bat-hook' && e.event === 'report-hook' && e.hook === 'ask-user-question' && e.result === 'blocked')).toBeTruthy()
     expect(entries.find(e => e.event === 'report-hook' && e.hook === 'ask-user-question' && e.result === 'blocked' && e.script !== 'bat-hook')).toBeTruthy()
     expect(entries.find(e => e.script === 'bat-hook' && e.event === 'report-hook' && e.hook === 'ask-user-question-done' && e.result === 'cleared')).toBeTruthy()
+    expect(entries.find(e => e.script === 'bat-hook' && e.event === 'report-hook' && e.hook === 'permission-request' && e.result === 'unchanged')).toBeTruthy()
     expect(scriptsLog).not.toContain(SECRET_QUESTION)
     expect(scriptsLog).not.toContain(workerEnv.token!)
   } finally {

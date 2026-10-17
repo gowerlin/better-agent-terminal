@@ -13,6 +13,9 @@
  *   - a plain shell (tower capability, undeclared) reports for itself too
  *   - T0594: PostToolUse AskUserQuestion (`ask-user-question-done`) clears a question with no
  *     client input (the driver runs both hooks from one typed command, the second after a pause)
+ *   - T0597 (BUG-150): claude's real order — `ask-user-question`, ~90 ms later `permission-request`
+ *     with tool_name AskUserQuestion, then `ask-user-question-done` — reads blocked / question while
+ *     waiting and leaves blocked on the answer, no client input
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -167,6 +170,32 @@ describe('blocked from claude hooks inside headless PTYs (T0590)', () => {
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(run.then).toEqual([expect.objectContaining({ code: 0, stdout: '' })])
     expect(await state(worker)).toMatchObject({ blockedDetection: 'hook' })
+    expect((await state(worker)).state).not.toBe('blocked')
+  }, 60_000)
+
+  it('T0597: claude’s real order — PreToolUse, PermissionRequest(AskUserQuestion), PostToolUse — stays a question, then clears with no client input', async () => {
+    const ask = { hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion', tool_input: { questions: [{ question: 'SECRET?' }] } }
+    const prompt = { hook_event_name: 'PermissionRequest', tool_name: 'AskUserQuestion', tool_input: { questions: [{ question: 'SECRET?' }] }, permission_suggestions: [] }
+    const done = { hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion', tool_response: { answers: { 'SECRET?': 'SECRET' } } }
+    // claude runs the PermissionRequest hook ~90 ms after PreToolUse; the answer comes 3 s later
+    const hook = hookIn(worker, 'ask-user-question', ask, [
+      { delayMs: 90, event: 'permission-request', input: prompt },
+      { delayMs: 3_000, event: 'ask-user-question-done', input: done },
+    ])
+    let last: Record<string, unknown> = await state(worker)
+    const deadline = Date.now() + 30_000
+    while (last.state !== 'blocked' && Date.now() < deadline) {
+      last = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: last.state, timeoutMs: 30_000 }) as Record<string, unknown>
+    }
+    expect(last).toMatchObject({ state: 'blocked', blockedReason: 'question' })
+    await sleep(1_500) // the PermissionRequest hook has reported by now, the answer has not
+    expect(await state(worker)).toMatchObject({ state: 'blocked', blockedReason: 'question', blockedSince: last.blockedSince })
+    const left = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: 'blocked', timeoutMs: 20_000 }) as Record<string, unknown>
+    expect(left).toMatchObject({ ok: true, changed: true, source: 'output' })
+    expect(left.state).not.toBe('blocked')
+    const run = await hook
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.then).toEqual([expect.objectContaining({ code: 0, stdout: '' }), expect.objectContaining({ code: 0, stdout: '' })])
     expect((await state(worker)).state).not.toBe('blocked')
   }, 60_000)
 
