@@ -175,3 +175,13 @@ T0575 已 DONE（`2c59edee`），開工前條件成立。請先讀 T0575 回報�
 
 - `7e3c1d7d` feat(T0576): persist local helper capabilities across BAT restarts（產品 + 測試 + e2e + CLAUDE.md + 本回報；未 push）
 - 本次狀態收尾另一個 commit（只動本工單）
+
+## 塔台結案（2026-10-17T19:55:34+0800）
+
+**DONE**（source / test 層；runtime 實機與 T0575 同版發佈後驗收）。塔台複驗 @ `cc4be280`：`npm run typecheck` 0、`npm run typecheck:electron` 0、`npm run test:unit` 268 檔 / 4724 passed / 3 skipped；store 以 temp + rename、`0o600` 寫入，只存 digest。
+
+塔台裁決：
+- `close-worker.ts` 超出 affects_files：**接受**（任務 4 / 塔台補充 2 要求，只加選填參數）。
+- 後續建議 1（Recovery 待決時另起 direct shell）→ 開 **BUG-146**（OPEN）。
+- `role` / `towerMode` 不持久化：**接受建議**（CT 每次啟動都會重新 `--set-role --mode`）。
+

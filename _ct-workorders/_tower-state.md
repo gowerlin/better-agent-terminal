@@ -100,7 +100,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（87 entries）
 
 ### 編號起始
-- **T0578** / **BUG-146** / **PLAN-048** / **D151** / **EXP-[TOPIC]-001** / **L156** / **CT-T014**
+- **T0578** / **BUG-147** / **PLAN-048** / **D151** / **EXP-[TOPIC]-001** / **L156** / **CT-T014**
 
 ---
 
@@ -116,7 +116,7 @@
 | **目前主軸** | `v0.6.1-pre.9` 已發佈並實機通過（BUG-144 CLOSED）；用量限制被動觀察；BUG-136 等 Gary |
 | **工單最大編號** | T0573 DONE（pre.9 實機，第七十一 session）；T0572 DONE（pre.8 實機）；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
 | **BUG 最大編號** | **BUG-145**（CLOSED 2026-10-17）；BUG-144 CLOSED（pre.9 實機，2026-10-17）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 12（10-17 歸檔 40 張） |
-| **PLAN 最大編號** | **PLAN-047**（IN_PROGRESS，D149；外部提案「BAT MCP Server 與 Worktree 合併」審議，2026-10-17 第七十二 session）；PLAN-044 / 045 / 046 DONE（2026-10-16）；PLAN-015 / 029 / 038 / 043 / 047 IDEA；PLAN-014 DROPPED |
+| **PLAN 最大編號** | **PLAN-047**（IN_PROGRESS，D149；外部提案「BAT MCP Server 與 Worktree 合併」審議，2026-10-17 第七十二 session）；PLAN-044 / 045 / 046 DONE（2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-014 DROPPED |
 | **決策最大編號** | D150（D149 PLAN-047 路線 [A]；D150 合併工單三種模式，2026-10-17）；前 D148（PLAN-044 範圍：claude 信任 CLI、Codex 自動輸入、塔台 `--mode`，2026-10-16） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.2.3（第六十九 session；`worker_auto_close: done`） |
