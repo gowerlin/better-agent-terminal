@@ -2,6 +2,47 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.7（2026-10-18）
+
+版號 0.7.0-pre.7，接續 `v0.7.0-pre.6`。
+
+### 新增
+
+- **Worker 可以直接問塔台、等塔台答覆**：塔台派出的 Worker 遇到需要決定的事，可以用 `bat-notify.mjs --ask` 把問題（可附選項）送給派它的塔台，BAT 會同時通知塔台分頁；Worker 再用 BAT MCP 的 `bat_wait_question` 等答覆（每次最多 45 秒，沒等到就再呼叫）。塔台用 `bat_list_questions` 看題目、用 `bat-terminal.mjs --answer` 回答。問題與答案只放在 BAT 執行中的記憶體，不寫入任何檔案，日誌也不記內容；BAT 重開後尚未回答的問題會回報「已遺失」，Control Tower 會改回原本「寫在工單裡往返」的做法（PLAN-048）
+- **狀態查詢看得出 Worker 在等塔台**：Worker 有待答問題時，`bat_get_state` / `bat_wait` / `bat_list_terminals` 回報 `blocked`，原因為 `tower`，並多一個 `pendingQuestions`（待答題數）欄位。Codex 分頁也適用。你在 Worker 分頁打字不會取消問題
+- BAT MCP 新增兩個唯讀 tool：`bat_list_questions`、`bat_wait_question`（共 8 個，全部唯讀）
+
+### 修正
+
+- **Worker 向塔台提問時，縮圖就顯示 ✓**：Worker 送出「T#### 提問」後，縮圖立刻顯示和「已回報」一樣的 `✓`，塔台分頁右鍵「關閉已回報的 Worker 分頁（N）」也會把它算進去，有誤關仍在工作的 Worker 的風險。現在縮圖分三種：等你處理（權限確認、Claude 提問等）顯示 ⚠️、等塔台答覆顯示 `?`、已回報才顯示 `✓`，滑鼠移上去會說明原因與時間；只有 `✓` 會算進批次關閉（BUG-153）
+
+### 更新
+
+- `blockedDetection: "none"` 的意思改為「這個分頁不會回報 Claude hook 的三種原因（`permission` / `question` / `elicitation`）」；等塔台答覆的 `tower` 由 BAT 自己判斷，任何分頁都可能出現
+
+### 歡迎協助測試
+
+如果你平常使用 **Codex CLI**，歡迎幫忙確認新的 MCP tool 在 Codex 分頁可以用：
+
+1. 在塔台派出的 Codex Worker 分頁（或任何 Codex CLI 分頁），請它呼叫 MCP tool `bat_list_questions`（不帶參數），應回傳 `0 pending questions`
+2. 請它呼叫 `bat_whoami`，確認 `agent` 為 `codex-cli`
+3. 如果你的 Control Tower 已支援「Worker 問塔台」（v5.7.0 起），讓 Codex Worker 提問一次，確認塔台收到通知、`bat_get_state` 回報 `blocked` / `tower`、答覆後 Worker 繼續工作
+
+不論成功或失敗，都歡迎到 [GitHub Issues](https://github.com/gowerlin/better-agent-terminal/issues) 回報，請附上 BAT 版本、Codex 版本（`codex --version`）、作業系統與安裝方式（npm / 官方 installer）。
+
+### 已知事項
+
+- Control Tower 使用「Worker 問塔台」需要 v5.7.0（準備中）；在那之前 Control Tower 照舊在工單裡往返
+- 問題與答案不寫入 BAT 的檔案或日誌，但 Claude / Codex 自己的對話紀錄仍會包含它們
+- 縮圖的 ⚠️ / `?` 只存在視窗記憶體：重新載入視窗或遠端重新連線後，要等該分頁下一次狀態變化才會再出現
+- 舊版 Control Tower 以「T#### 提問」通知時，塔台答覆後縮圖的 `?` 會保留到 Worker 下一次通知
+- Claude hook 的 `blocked`（權限確認 / 提問）偵測仍只支援 Claude CLI 分頁
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.0-pre.6...v0.7.0-pre.7
+
 ## v0.7.0-pre.6（2026-10-18）
 
 版號 0.7.0-pre.6，接續 `v0.7.0-pre.5`。

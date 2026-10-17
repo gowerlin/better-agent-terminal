@@ -4,6 +4,27 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0-pre.7] — 2026-10-18
+
+### Added
+- **Worker 可以直接問塔台、等塔台答覆**：Worker 以 `bat-notify.mjs --ask`（問題與選項從 stdin 傳入）把問題送給派它的塔台並通知塔台分頁，再以 BAT MCP `bat_wait_question` 等答覆（每次 ≤ 45 秒）；塔台以 `bat_list_questions` 看題目、`bat-terminal.mjs --answer` 回答。問題與答案只存在 BAT 記憶體，不寫檔、日誌不記內容；BAT 重開後未答的問題回報 `lost`（PLAN-048，D155 / D156，T0606–T0611）
+- **狀態查詢看得出 Worker 在等塔台**：有待答問題時 `bat_get_state` / `bat_wait` / `bat_list_terminals` 回 `blocked`、`blockedReason: tower`，並多 `pendingQuestions` 欄位；Codex 分頁也適用，使用者輸入不清除（T0607）
+- BAT MCP 新增唯讀 tool `bat_list_questions`、`bat_wait_question`（共 8 個，全部唯讀）（T0608）
+
+### Fixed
+- **Worker 向塔台提問時，縮圖就顯示 ✓**：縮圖改為 ⚠️ 等使用者（權限確認、Claude 提問等）/ `?` 等塔台答覆 / `✓` 已回報，tooltip 說明原因與時間；只有 `✓` 計入「關閉已回報的 Worker 分頁（N）」。主行程以 `terminal:attention-changed` 推送狀態（本機與遠端視窗）（BUG-153，T0609）
+
+### Changed
+- `blockedDetection: "none"` 改為「不會回報 Claude hook 的三種原因」；`tower` 由 BAT 判斷，任何分頁都可能出現（D156）
+
+### Call for testing
+Codex CLI 使用者：歡迎在 Codex 分頁呼叫 `bat_list_questions`（應回 `0 pending questions`）與 `bat_whoami`，Control Tower v5.7.0 起可讓 Codex Worker 提問一次，確認塔台收到、`blocked` / `tower` 與答覆後繼續，並到 GitHub Issues 回報 BAT / Codex 版本與結果。
+
+### Known issues
+- Control Tower 使用「Worker 問塔台」需 v5.7.0（準備中）；Claude / Codex 自己的對話紀錄仍會包含問答內容
+- 縮圖 ⚠️ / `?` 只存在視窗記憶體，重新載入或遠端重連後要等下一次狀態變化；舊版 CT 以「T#### 提問」通知時，答覆後 `?` 保留到 Worker 下一次通知
+- macOS / Linux 版本未實機驗證
+
 ## [0.7.0-pre.6] — 2026-10-18
 
 ### Added

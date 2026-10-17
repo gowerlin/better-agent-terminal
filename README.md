@@ -122,6 +122,8 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
   │        ↓
   │   Worker 分頁（標題「Agent · Worker · T####」，自動執行 /ct-exec T####）
   │        ├─ 依工單實作、驗證、commit
+  │        ├─ （需要決定時）提問 ── bat-notify.mjs --ask … < question.json → 等答覆 bat_wait_question
+  │        │                       塔台 bat_list_questions 讀題 → bat-terminal.mjs --answer <id> < answer.txt
   │        └─ 回報 ── bat-notify.mjs --target <塔台> --submit   → 塔台收到通知（yolo 自動送出）
   │        ↓
   ├─ 收單、更新狀態，決定下一步（下一張 / Renew / 合併工單）
@@ -139,12 +141,14 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 每分頁權限 | 每個分頁的 `BAT_REMOTE_TOKEN` 是專屬 `batcap.` 權杖：塔台可派工 / 回收自己的 Worker，Worker 只能回報給自己的塔台 | 塔台須在一般分頁（不是 Worker 分頁）啟動 |
 | worktree 隔離與合併前檢查 | `--isolation worktree`、`CT_HOME` 等環境變數、`--worktree-status`（Worker 分頁關閉後仍可查，回傳 `source`） | 工單 `isolation: worktree`；合併工單與塔台直接合併判準 |
 | 唯讀查詢（MCP） | BAT 啟動的 claude / codex 分頁掛上 `mcp__bat__*` | 選用通道（MCP → helper → 檔案） |
-| 等人回答偵測 | Claude CLI 分頁停在權限確認 / 提問 / MCP 表單時，`bat_get_state` 等回 `blocked`（`blockedReason`、`blockedDetection`） | 供塔台判斷 Worker 是否在等人（CT 後續版本） |
+| 等人回答偵測 | Claude CLI 分頁停在權限確認 / 提問 / MCP 表單時，`bat_get_state` 等回 `blocked`（`blockedReason`、`blockedDetection`） | 斷點 D：告知使用者 Worker 在等人 |
+| Worker 問塔台 | Worker `bat-notify.mjs --ask`（內容走 stdin）+ 唯讀 MCP `bat_wait_question`；塔台唯讀 MCP `bat_list_questions` + `bat-terminal.mjs --answer`；等答覆時 `blocked` / `tower`、`pendingQuestions`；問答只存在 BAT 記憶體 | yolo Worker 向塔台提問、塔台代決（取代工單檔往返） |
+| Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者 / `?` 等塔台答覆 / `✓` 已回報；只有 `✓` 計入「關閉已回報的 Worker 分頁」 | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
 | 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
 | 工單看板 | 側欄塔台面板：看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/` |
 | 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
 
-完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
+完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」「Worker 啟動確認」「Worker 問塔台」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
 
 ### 版本對照
 
@@ -158,8 +162,10 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | worktree 隔離派工、合併工單 | `>= 0.7.0-pre.2` | `>= v5.3.0`（選用） |
 | 唯讀查詢（MCP，`mcp__bat__*`） | `>= 0.7.0-pre.2`（Codex 分頁 `>= 0.7.0-pre.3`） | 不需要（CT `>= v5.3.0` 列為選用通道） |
 | Worker 分頁關閉後查 worktree 狀態（`source`） | `>= 0.7.0-pre.4` | `>= v5.4.0`（舊 CT 照舊以 git 重算） |
-| 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4`（AskUserQuestion 回報 `question`：`>= 0.7.0-pre.5`） | CT 後續版本（斷點 D） |
+| 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4`（AskUserQuestion 回報 `question`：`>= 0.7.0-pre.5`） | `>= v5.5.0`（斷點 D） |
 | Worker 啟動確認（`--wait-started`、`agentStarted`，Claude CLI 分頁） | `>= 0.7.0-pre.6` | `>= v5.6.0`（舊 CT 不帶參數，照舊） |
+| Worker 問塔台（`--ask` / `--answer`、`bat_list_questions` / `bat_wait_question`、`blocked` / `tower`） | `>= 0.7.0-pre.7` | `>= v5.7.0`（準備中；舊 CT 照舊在工單裡往返） |
+| Worker 縮圖 ⚠️ / `?` / `✓` | `>= 0.7.0-pre.7` | 不需要 |
 
 ---
 
