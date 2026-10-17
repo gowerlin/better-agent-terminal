@@ -4,7 +4,7 @@ schema_kind: workorder
 id: CT-T014
 title: "【受派】CT 文件與提示對齊 BAT 0.7.0-pre.1：每分頁範圍權杖（batcap.）、分頁角色決定 helper 權限、遠端可用 raw command"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: BMad-Guide
 project: PLAN-047
 priority: P3
@@ -78,3 +78,11 @@ BAT 塔台已核對現行 CT v5.2.3 skill（唯讀）：ct-exec / ct-done 只以
 - 2026-10-17T20:27:36+0800：使用者授權「規格確認即可發給 BMad-Guide 塔台」；BAT 塔台以跨 session 訊息轉交（session `bmad-guide-f4`，msg `bdc8b44b`，`notify_when_idle`），附規格檔路徑與重點，請其受理與完成各回覆一次。
 - 2026-10-17T20:31:08+0800：BMad-Guide 塔台回覆**已受理** → 該方工單 **T0149**（`BMad-Guide/_ct-workorders/T0149-ct-v524-bat-scoped-token-docs.md`，對方決策 D028），預計 CT **v5.2.4**（PATCH，新建目錄），20:30 派 Worker（yolo、`--no-interactive`）。修改清單 1–5 全做（含選做的面板加註）。與規格寫法的三點差異，BAT 塔台**接受**：(a) 判斷只看 exit code，stderr 的 Forbidden 只用來挑提示文字，文件中「不解析 stdout / stderr」處統一改為此說法；(b) Forbidden 為降級鏈「靜默降級」的例外，顯示一行原因；(c) 遠端「只能 agent 模式」描述由對方 Worker 確認後回報。不做 runtime 實測，且禁止在 Worker 分頁實跑 `--set-role` / 派工（舊 BAT 不擋，會把 Worker 分頁改成塔台角色）；0.7.0-pre.1 實機驗收發版後另開單。兩端（Claude + Codex）安裝已獲使用者授權。對方不寫本 repo。
 - 2026-10-17T20:33:57+0800：補充 T0580 新增的 `RECOVERY_PENDING`（BAT 重開、Recovery 提示未回答時派工 → helper exit 1，stderr `Failed to create terminal (RECOVERY_PENDING): …`，確定未建立分頁），請對方納入失敗提示文字（判斷仍只看 exit code，不要求自動重派）。
+- 對方回覆：`RECOVERY_PENDING` 已併入 T0149（Step 3.5 / AC-3b），仍為 v5.2.4。
+- 2026-10-17T20:38:08+0800：BMad-Guide 塔台回報 **DONE**：CT **v5.2.4**（T0149），commit `bfc30d7`（V24 + 工單，71 檔）、`6d23e30`（closeout），BMad-Guide `dev-main`、未 push。權威位置 `auto-session.md` § BAT 內部終端路由 › 範圍權杖與分頁角色（:756，8 點：分頁專屬、不得外流、角色權限表、塔台須在非 Worker 分頁、Forbidden 處理、`RECOVERY_PENDING`（只適用派工、不自動重派）、升級與重開、舊 BAT 不變）；SKILL.md / work-order-system.md / memory-protocol.md（面板加註「Worker 分頁：無法派工」）只放摘要。(c) 遠端「只能 agent 模式」描述在 V24 不存在，未改。lanes：source PASS（V23→V24 14 檔；ct-exec / ct-done 的 bat-notify 呼叫逐位元組相同）、release PASS（`BMad-Control-Tower-v5.2.4.zip` 243,101 bytes，SHA256 57/57）、install PASS（Claude + Codex 16/16，下個 session 生效）、**runtime 未驗**（待 BAT 0.7.0-pre.1 發版後對方開單）。
+
+## 收單（BAT 塔台，2026-10-17T20:38:08+0800）
+
+- ✅ source / release / install lane：DONE（對方回報，BAT 塔台未複核對方 repo）。
+- ⏳ runtime lane：待 `v0.7.0-pre.1` 發版 + 新 Tower session（CT v5.2.4 生效）後驗收：一般分頁 Tower 派工 / 回收 / set-role 正常；Worker 分頁啟動 Tower → 派工 exit 1 且有原因提示。
+
