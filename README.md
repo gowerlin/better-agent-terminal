@@ -213,9 +213,9 @@ better-agent-terminal/
 
 ### 版本格式
 
-遵循語意化版號：`vMAJOR.MINOR.PATCH`（例如 `v0.6.1`）
+遵循語意化版號：`vMAJOR.MINOR.PATCH`（例如 `v0.7.0`）
 
-預覽版使用 `-pre.N` 後綴（例如 `v0.6.1-pre.9`），GitHub Release 標記為 Pre-release。各版更版重點見 [release-note.md](release-note.md)，完整變更見 [CHANGELOG.md](CHANGELOG.md)。
+預覽版使用 `-pre.N` 後綴（例如 `v0.7.0-pre.1`），GitHub Release 標記為 Pre-release。`-pre.N` 最多到 `pre.9`（兩位數在 GitHub Release 等字串排序列表中會錯位），需要更多預覽版時改升版號線。各版更版重點見 [release-note.md](release-note.md)，完整變更見 [CHANGELOG.md](CHANGELOG.md)。
 
 ### 預覽版（`pre-release.yml`）
 
@@ -232,8 +232,8 @@ gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y
 推送 `vX.Y.Z` tag 觸發三平台建置與發行：
 
 ```bash
-git tag v0.6.1
-git push origin v0.6.1
+git tag v0.7.0
+git push origin v0.7.0
 ```
 
 兩條線都會同時發佈對應的 `server-bundle-v<版號>` release。

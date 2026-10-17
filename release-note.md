@@ -2,6 +2,38 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.1（2026-10-17）
+
+版號 0.7.0-pre.1，接續 `v0.6.1-pre.9`。這版更動了終端分頁裡 helper 腳本的權限，所以升到 0.7.0。
+
+### 更新
+
+- **每個終端分頁改用自己專屬的權杖**：本機分頁裡的 `BAT_REMOTE_TOKEN` 不再是可以操作整個 BAT 的全權 token，而是只屬於該分頁的 `batcap.` 權杖（遠端 WSL / SSH / Docker 分頁早已如此）。分頁裡的程式能透過 BAT 做的事，依分頁角色限制（PLAN-047）：
+  - 一般分頁與塔台分頁：可以派工（agent 模式與 raw command 模式）、回收自己派出的 Worker 分頁、設定自己的塔台角色
+  - 塔台派出的 Worker 分頁：只能通知 / 預填 / 送出給派出它的那個塔台
+  - 其他操作（讀寫檔案、改設定、寫入別的分頁等）一律拒絕
+- **權杖在 BAT 重開後仍有效**：退出 BAT 時選「不停止 Terminal Server」、重開後選「保留」，存活分頁裡的塔台與 Worker 照常可以派工、回報、回收（權杖紀錄只存雜湊，不存權杖本身）
+- **遠端 Tower 也能用 raw command 派工**（`bat-terminal.mjs claude "/ct-exec T####"`），規則與本機相同；建議仍以 agent 模式（`--skill` / `--workorder`）為主
+
+### 修正
+
+- **BAT 重開時，回答 Recovery 提示之前不再多開一個 shell**：之前還原的分頁會在背景另起一個本機 shell，選「保留」後它仍在執行，輸出也混進同一個分頁。現在分頁會等你回答後才接回或建立；在提示開著時派工，BAT 最多等 2 秒，仍未回答就回報失敗（`RECOVERY_PENDING`），不會建立分頁（BUG-146）
+- **Recovery 選「重新開始」後，新的 Terminal Server 不會再被當成不存在**：之前舊 server 結束時會刪掉新 server 剛寫好的紀錄檔，下次啟動又另開一個（BUG-147）
+
+### 已知事項
+
+- **行為改變**：Worker 分頁裡不能再派工、回收或設定塔台角色；也不能在一般分頁手動用 `bat-notify --target` 通知任意分頁。Control Tower 的正常流程不受影響，請在一般分頁（不是 Worker 分頁）啟動塔台
+- 升級當下仍開著的舊分頁沿用舊的權杖，重開分頁後才會換成新的
+- Control Tower 建議搭配 v5.2.4（文件與失敗提示對齊本版；舊版 CT 仍可正常使用）
+- 遠端 raw command 用的是遠端使用者 `PATH` 上的 `claude`，不是 BAT 內建的版本
+- 還沒切換過去的背景分頁，裡面的程式在第一次顯示前仍以 120 欄排版；Terminal Server 意外結束後重建的分頁要等下一次調整視窗大小或重繪才會同步寬度
+- 用量限制自動繼續（0.6.1-pre.6 新增）尚未在真實撞到限制時驗證，遇到時請留意 BAT 日誌中的 `[usage-limit]` 紀錄
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.6.1-pre.9...v0.7.0-pre.1
+
 ## v0.6.1-pre.9（2026-10-17）
 
 版號 0.6.1-pre.9，接續 `v0.6.1-pre.8`。
