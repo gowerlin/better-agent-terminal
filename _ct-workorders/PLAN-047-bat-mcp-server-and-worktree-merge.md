@@ -241,3 +241,4 @@ links:
 - 2026-10-17 19:55 — T0576 DONE（`7e3c1d7d`，權杖跨 BAT 重開保留）；A1 + A2 完成，待同版發佈與實機驗收；衍生 BUG-146
 - 2026-10-17 20:13 — T0579 DONE（`514710a9`，headless tower 開放 raw command，本機 / headless 共用角色表）；候選：headless PTY `PATH` 加入內嵌 claude（需決策，暫不開）
 - 2026-10-17 20:17 — T0578 DONE（`f833e3b0`，BUG-146 FIXED、BUG-147 FIXED）；開 T0580（helper 派工 / restart 等 hold 放行），完成後發 `v0.7.0-pre.1`
+- 2026-10-17 20:27 — CT-T014（CT 文件對齊 BAT 0.7.0 範圍權杖）轉交 BMad-Guide 塔台；原規劃的 CT_HOME / C-0 單與合併工單模板單順延編號（CT-T015 / CT-T016），待 BAT W1 介面契約定稿再發
