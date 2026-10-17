@@ -34,10 +34,12 @@ const remoteDir = path.join(stagingRoot, 'electron', 'remote')
 // listed too — scripts/verify-helper-bundle.js enforces the closure (BUG-058).
 const helperScriptsDir = path.join(stagingRoot, 'scripts')
 // T0584: bat-mcp.mjs = the `bat` MCP server a remote claude / codex tab starts (PLAN-047 M1).
+// T0590: bat-hook.mjs = the claude hooks reporting `blocked` (PLAN-047 M1b-1; imports bat-mcp.mjs).
 const serverBundleHelperScripts = [
   'bat-terminal.mjs',
   'bat-notify.mjs',
   'bat-mcp.mjs',
+  'bat-hook.mjs',
   '_bat-cert.mjs',
   '_bat-logger.mjs',
 ]

@@ -15,6 +15,7 @@ import {
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
 import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
+import { registerReportHookHandler } from '../terminal-blocked-state'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
@@ -489,7 +490,7 @@ export function createHeadlessTerminalModule(opts: {
   return (register, host) => {
     const readSettings = () => readHeadlessTerminalSettings(host.getSettings())
     const batMcpLaunchArgs = opts.batMcpInstallRoot
-      ? createBatMcpLaunchArgs(createHeadlessBatMcpHost(opts.batMcpInstallRoot, host), 'dispatch')
+      ? createBatMcpLaunchArgs(createHeadlessBatMcpHost(opts.batMcpInstallRoot, host, fs.existsSync, opts.getPtyManager), 'dispatch')
       : undefined
     const countRemoteReceivers = opts.countRemoteReceivers
     // PLAN-047 W1 / T0583: git runs on this server, in the server's checkout of the dispatch cwd
@@ -538,7 +539,13 @@ export function createHeadlessTerminalModule(opts: {
  * `<dataDir>/settings.json` (default on). Same rule as the helper env: no helpers in
  * `<installRoot>/scripts` (`HEADLESS_REQUIRED_HELPER_SCRIPTS`) ⇒ no endpoint in the tab ⇒ none.
  */
-export function createHeadlessBatMcpHost(installRoot: string, host: HostDeps, exists: (p: string) => boolean = fs.existsSync): BatMcpHost {
+export function createHeadlessBatMcpHost(
+  installRoot: string,
+  host: HostDeps,
+  exists: (p: string) => boolean = fs.existsSync,
+  /** T0590: where the launch decision is recorded as the tab's `blockedDetection`. */
+  getPtyManager?: () => PtyManager | null,
+): BatMcpHost {
   const helperDir = path.join(installRoot, 'scripts')
   const helperNode = path.join(installRoot, 'bin', 'node')
   return {
@@ -548,14 +555,15 @@ export function createHeadlessBatMcpHost(installRoot: string, host: HostDeps, ex
     // answering a client (or a helper) means this server listens: its PTYs have the endpoint
     endpointReady: () => true,
     readSettings: () => host.getSettings(),
+    recordBlockedDetection: (terminalId, detection) => getPtyManager?.()?.setBlockedDetection(terminalId, detection),
     logger: defaultLogger,
   }
 }
 
 /** T0584: `agent:bat-mcp-launch-args` on headless (a remote window's claude-cli / codex tab). */
-export function createHeadlessBatMcpModule(opts: { installRoot?: string } = {}): HandlerModule {
+export function createHeadlessBatMcpModule(opts: { installRoot?: string; getPtyManager?: () => PtyManager | null } = {}): HandlerModule {
   return (register, host) => {
-    registerBatMcpHandlers(register, createHeadlessBatMcpHost(opts.installRoot ?? defaultHeadlessInstallRoot(), host))
+    registerBatMcpHandlers(register, createHeadlessBatMcpHost(opts.installRoot ?? defaultHeadlessInstallRoot(), host, fs.existsSync, opts.getPtyManager))
   }
 }
 
@@ -587,6 +595,13 @@ export function createHeadlessTerminalQueryModule(opts: {
     const ctWorktree = opts.ctWorktree ?? new CtWorktreeService({
       gitBinary: createHeadlessGitBinaryResolver(),
       env: () => buildProbeEnv(process.env, isHeadlessScrubbedEnvKey),
+    })
+    // PLAN-047 M1b-1 / T0590: `terminal:report-hook` (claude hooks of a tab on this server)
+    registerReportHookHandler({
+      registerHandler: register,
+      getPtyManager: opts.getPtyManager,
+      logger: defaultLogger,
+      mirrorToBatScripts,
     })
     registerWorktreeStatusHandler({
       registerHandler: register,
@@ -859,7 +874,7 @@ export function createHeadlessHandlerModules(opts: {
       checkAgentAvailable: createHeadlessAgentAvailabilityCheck(toolsCache), // T0433
       batMcpInstallRoot: opts.installRoot ?? defaultHeadlessInstallRoot(), // T0584
     }),
-    createHeadlessBatMcpModule({ installRoot: opts.installRoot }), // T0584
+    createHeadlessBatMcpModule({ installRoot: opts.installRoot, getPtyManager: () => ptyManager }), // T0584; T0590: blockedDetection
     createHeadlessTerminalQueryModule({ // T0582
       getPtyManager: () => ptyManager,
       isWorkerOf: opts.terminal?.isWorkerOf,

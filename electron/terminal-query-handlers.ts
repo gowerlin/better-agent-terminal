@@ -4,7 +4,7 @@
  *
  *   terminal:whoami       {}                                           → who the caller is
  *   terminal:list         { scope?: 'mine' | 'workspace' }             → terminals in its scope
- *   terminal:get-state    { terminalId? }                              → working / idle / exited
+ *   terminal:get-state    { terminalId? }                              → working / idle / blocked / exited
  *   terminal:read-output  { terminalId?, cursor?, maxLines? }          → plain screen text, masked
  *   terminal:wait         { terminalId?, until, fromState?, timeoutMs? } → long poll on the state
  *
@@ -17,7 +17,10 @@
  *
  * State: `working` = output within `TERMINAL_QUERY_IDLE_MS` (the `--close-worker` quiet time),
  * `idle` otherwise, `exited` = the PTY ended (`PtyManager.getExitedPty`, recent ones only).
- * `blocked` is reserved (M1b) and never produced here.
+ * T0590 (M1b-1): `blocked` = a claude hook reported the tab waits for the user
+ * (electron/terminal-blocked-state.ts), with `blockedReason` / `blockedSince` / `source: 'hook'`;
+ * precedence exited > blocked > working / idle. Every state answer carries `blockedDetection`
+ * (`hook` / `none`): a `none` tab never reads `blocked`, so its `idle` says nothing about a prompt.
  *
  * Output: the PTY's raw replay buffer (`pty:get-buffer`'s, or the tail kept at exit) → plain text
  * (`plainTextFromOutput`, T0566) → `redactTerminalSecrets` (src/lib/terminal-output-redaction.ts)
@@ -35,6 +38,7 @@ import type { PtyReplayBuffer } from '../src/types'
 import { CLOSE_WORKER_IDLE_MS } from './close-worker'
 import type { CtMode } from './ct-mode'
 import type { ExitedPtyRecord, PtyTerminalInfo } from './pty-manager'
+import type { BlockedDetection, BlockedReason, BlockedState } from './terminal-blocked-state'
 import type { HandlerContext } from './remote/handler-registry'
 import {
   authorizeHelperQueryTarget,
@@ -62,7 +66,7 @@ export const TERMINAL_WAIT_POLL_MS = 250
 /** `terminal:wait` calls one caller may have open at once. */
 export const TERMINAL_WAIT_MAX_PER_CALLER = 8
 
-export type TerminalQueryState = 'working' | 'idle' | 'exited'
+export type TerminalQueryState = 'working' | 'idle' | 'blocked' | 'exited'
 export type TerminalQueryErrorCode = 'INVALID_ARGS' | 'NOT_FOUND' | 'NOT_OWNER' | 'TOO_MANY_WAITS'
 export type TerminalQueryFailure = { ok: false; code: TerminalQueryErrorCode; message?: string }
 
@@ -77,6 +81,10 @@ export interface TerminalQueryPtyManager {
   getLastOutputAt(id: string): number | null
   getReplayBuffer(id: string): PtyReplayBuffer | null
   getTerminalRole(id: string): 'tower' | undefined
+  /** T0590: what running PTY `id` is blocked on (null = not blocked). Absent ⇒ never blocked. */
+  getBlockedState?(id: string): BlockedState | null
+  /** T0590: `hook` / `none` (per id, outlives the PTY). Absent ⇒ `none`. */
+  getBlockedDetection?(id: string): BlockedDetection
 }
 
 /** Electron: what the window registry saved for a tab (title, workspace, its tower). */
@@ -127,7 +135,7 @@ export interface TerminalQueryDeps {
 
 const TERMINAL_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/
 const CURSOR_PATTERN = /^\d{1,16}$/
-const STATES: readonly TerminalQueryState[] = ['working', 'idle', 'exited']
+const STATES: readonly TerminalQueryState[] = ['working', 'idle', 'blocked', 'exited']
 const WAIT_UNTIL: readonly TerminalWaitUntil[] = ['state-change', 'exit', 'idle']
 
 function asOptions(raw: unknown): Record<string, unknown> | null {
@@ -218,6 +226,12 @@ interface StateSnapshot {
   idleMs: number | null
   exitCode?: number
   exitedAt?: number
+  /** T0590: `blocked` only. */
+  blockedReason?: BlockedReason
+  blockedSince?: number
+  /** `hook` for `blocked` (T0590), else `output`. */
+  source: 'output' | 'hook'
+  blockedDetection: BlockedDetection
 }
 
 export interface TerminalQueryHandlers {
@@ -267,10 +281,23 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
 
   const stateOf = (pm: TerminalQueryPtyManager, id: string): StateSnapshot | null => {
     const t = now()
+    const blockedDetection: BlockedDetection = pm.getBlockedDetection?.(id) ?? 'none'
     if (pm.getTerminalInfo(id)) {
       const last = pm.getLastOutputAt(id)
       const idleMs = last === null ? null : Math.max(0, t - last)
-      return { state: idleMs !== null && idleMs < TERMINAL_QUERY_IDLE_MS ? 'working' : 'idle', lastOutputAt: last, idleMs }
+      const blocked = pm.getBlockedState?.(id) ?? null
+      if (blocked) {
+        return {
+          state: 'blocked',
+          lastOutputAt: last,
+          idleMs,
+          blockedReason: blocked.reason,
+          blockedSince: blocked.since,
+          source: 'hook',
+          blockedDetection,
+        }
+      }
+      return { state: idleMs !== null && idleMs < TERMINAL_QUERY_IDLE_MS ? 'working' : 'idle', lastOutputAt: last, idleMs, source: 'output', blockedDetection }
     }
     const record = pm.getExitedPty(id)
     if (!record) return null
@@ -280,6 +307,8 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       idleMs: record.lastOutputAt === null ? null : Math.max(0, t - record.lastOutputAt),
       ...(record.exitCode !== undefined ? { exitCode: record.exitCode } : {}),
       exitedAt: record.exitedAt,
+      source: 'output',
+      blockedDetection,
     }
   }
 
@@ -400,6 +429,8 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
         ...(towerTerminalId ? { towerTerminalId } : {}),
         ...(title ? { title } : {}),
         state: state.state,
+        ...(state.blockedReason ? { blockedReason: state.blockedReason } : {}),
+        blockedDetection: state.blockedDetection,
         alive: info !== null,
       }]
     })
@@ -415,8 +446,8 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     if ('ok' in resolved) return resolved
     const state = stateOf(resolved.pm, resolved.target)
     if (!state) return fail(channel, ctx, resolved.target, 'NOT_FOUND')
-    audit(channel, ctx, resolved.target, `ok state=${state.state}`)
-    return { ok: true, terminalId: resolved.target, ...state, source: 'output' as const }
+    audit(channel, ctx, resolved.target, `ok state=${state.state}${state.blockedReason ? ` reason=${state.blockedReason}` : ''}`)
+    return { ok: true, terminalId: resolved.target, ...state }
   })
 
   registerHandler('terminal:read-output', (ctx: HandlerContext, raw?: unknown) => {

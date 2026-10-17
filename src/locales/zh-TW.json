@@ -223,7 +223,7 @@
     "usageLimitContinueDelayHint": "0–60，預設 2，確保限制已實際解除。",
     "batMcpTitle": "BAT MCP",
     "batMcpEnabled": "BAT MCP（讓分頁內的 agent 查詢 BAT）",
-    "batMcpEnabledHint": "預設開啟。BAT 啟動的 Claude CLI 與 Codex CLI 分頁（新建、還原、重啟的分頁與塔台派工）會掛上唯讀的「bat」MCP server：agent 可以查詢自己是哪個分頁、列出 Worker、讀取 Worker 的輸出並等待它們。變更後啟動的分頁才會套用。自訂參數已帶 --mcp-config（Claude）或已定義 mcp_servers.bat（Codex）時不加；原樣執行的命令也不加。"
+    "batMcpEnabledHint": "預設開啟。BAT 啟動的 Claude CLI 與 Codex CLI 分頁（新建、還原、重啟的分頁與塔台派工）會掛上唯讀的「bat」MCP server：agent 可以查詢自己是哪個分頁、列出 Worker、讀取 Worker 的輸出並等待它們。變更後啟動的分頁才會套用。自訂參數已帶 --mcp-config（Claude）或已定義 mcp_servers.bat（Codex）時不加；原樣執行的命令也不加。Claude CLI 分頁另會掛上 hooks，在 claude 等你回答（權限確認、提問、MCP 對話框：「blocked」狀態）時通知 BAT；自訂參數已帶 --settings 時不加。"
   },
   "sidebar": {
     "workspaces": "工作區",

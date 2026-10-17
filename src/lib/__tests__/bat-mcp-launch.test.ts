@@ -24,11 +24,14 @@ describe('withBatMcpLaunchArgs', () => {
     const { batMcpLaunchArgs } = mockApi(async () => "'--mcp-config=C:\\u\\bat-mcp\\claude.json'")
     expect(await withBatMcpLaunchArgs("& 'C:\\claude.exe'", 'claude-cli', 'C:\\Program Files\\PowerShell\\7\\pwsh.exe', '--x'))
       .toBe("& 'C:\\claude.exe' '--mcp-config=C:\\u\\bat-mcp\\claude.json'")
-    expect(batMcpLaunchArgs).toHaveBeenCalledWith('claude-cli', 'pwsh', '--x')
+    expect(batMcpLaunchArgs).toHaveBeenCalledWith('claude-cli', 'pwsh', '--x', undefined)
     await withBatMcpLaunchArgs('codex', 'codex-cli', '/bin/bash', undefined)
-    expect(batMcpLaunchArgs).toHaveBeenLastCalledWith('codex-cli', 'posix', undefined)
+    expect(batMcpLaunchArgs).toHaveBeenLastCalledWith('codex-cli', 'posix', undefined, undefined)
     await withBatMcpLaunchArgs('x', 'claude-cli-worktree', undefined, '')
-    expect(batMcpLaunchArgs).toHaveBeenLastCalledWith('claude-cli-worktree', 'posix', '')
+    expect(batMcpLaunchArgs).toHaveBeenLastCalledWith('claude-cli-worktree', 'posix', '', undefined)
+    // T0590: the tab id, so the host records its blockedDetection
+    await withBatMcpLaunchArgs('x', 'claude-cli', undefined, '', 'tab-1')
+    expect(batMcpLaunchArgs).toHaveBeenLastCalledWith('claude-cli', 'posix', '', 'tab-1')
   })
 
   it('"" (off / not applicable) leaves the command unchanged', async () => {

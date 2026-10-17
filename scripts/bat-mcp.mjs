@@ -115,7 +115,7 @@ export const TOOLS = [
     name: 'bat_get_state',
     channel: 'terminal:get-state',
     title: 'Terminal state',
-    description: 'State of a terminal: working (printed within 5 s) / idle / exited, last output time, idle ms, exit code.',
+    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation) / exited, last output time, idle ms, exit code. blockedDetection none = this tab cannot report blocked, so idle does not rule out a prompt.',
     inputSchema: { type: 'object', properties: { terminalId: TERMINAL_ID }, additionalProperties: false },
     keys: ['terminalId'],
     timeoutMs: INVOKE_TIMEOUT_MS,
@@ -141,13 +141,13 @@ export const TOOLS = [
     name: 'bat_wait',
     channel: 'terminal:wait',
     title: 'Wait for a terminal',
-    description: 'Wait (server side, at most 45 s) until this tab or one of its Workers changes state, exits, or goes idle. changed=false = timed out (not an error); call again to keep waiting.',
+    description: 'Wait (server side, at most 45 s) until this tab or one of its Workers changes state (including entering / leaving blocked), exits, or goes idle (blocked counts as not working). changed=false = timed out (not an error); call again to keep waiting.',
     inputSchema: {
       type: 'object',
       properties: {
         terminalId: TERMINAL_ID,
         until: { type: 'string', enum: ['state-change', 'exit', 'idle'] },
-        fromState: { type: 'string', enum: ['working', 'idle', 'exited'] },
+        fromState: { type: 'string', enum: ['working', 'idle', 'blocked', 'exited'] },
         timeoutMs: { type: 'integer', minimum: 0, maximum: 45000 },
       },
       required: ['until'],
@@ -194,6 +194,11 @@ function plural(n, word) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
+/** T0590: `blocked (question)` — the state with its reason. */
+function stateText(data) {
+  return data.state === 'blocked' && data.blockedReason ? `blocked (${data.blockedReason})` : data.state
+}
+
 /** One short line (plus the output lines for bat_read_output) for `content`. */
 export function summarize(toolName, data) {
   switch (toolName) {
@@ -207,11 +212,11 @@ export function summarize(toolName, data) {
     }
     case 'bat_list_terminals': {
       const terminals = Array.isArray(data.terminals) ? data.terminals : []
-      const items = terminals.map(t => `${t.id} (${[t.role, t.workorder, t.state].filter(Boolean).join(', ')})`)
+      const items = terminals.map(t => `${t.id} (${[t.role, t.workorder, stateText(t)].filter(Boolean).join(', ')})`)
       return `${plural(terminals.length, 'terminal')} (scope=${data.scope})${items.length ? `: ${items.join('; ')}` : ''}`
     }
     case 'bat_get_state':
-      return `${data.terminalId}: ${data.state}${typeof data.idleMs === 'number' ? `, idle ${data.idleMs} ms` : ''}${data.exitCode !== undefined && data.exitCode !== null ? `, exit code ${data.exitCode}` : ''}`
+      return `${data.terminalId}: ${stateText(data)}${typeof data.idleMs === 'number' ? `, idle ${data.idleMs} ms` : ''}${data.exitCode !== undefined && data.exitCode !== null ? `, exit code ${data.exitCode}` : ''}`
     case 'bat_read_output': {
       const lines = Array.isArray(data.lines) ? data.lines : []
       const flags = [
@@ -226,7 +231,7 @@ export function summarize(toolName, data) {
       return lines.length ? `${head}\n${lines.join('\n')}` : head
     }
     case 'bat_wait':
-      return `changed=${data.changed} state=${data.state} after ${data.waitedMs} ms`
+      return `changed=${data.changed} state=${stateText(data)} after ${data.waitedMs} ms`
     case 'bat_worktree_status': {
       // T0585 shape: lists capped, counts beside them (dirtyCount / changedCount / outOfScopeCount)
       // T0589: `source` live / exited (the tab closed) / git (no tab left, found by the location rules)
@@ -470,6 +475,7 @@ export class BatConnection {
   #token
   #idleCloseMs
   #connectTimeoutMs
+  #clientName
   #socket = null
   #ready = null // Promise<void> while connecting / connected
   #buffer = Buffer.alloc(0)
@@ -478,8 +484,10 @@ export class BatConnection {
   #idleTimer = null
   #unsupported = new Set() // channels this BAT answered UNSUPPORTED (no repeat denials)
 
-  constructor({ port, token, host = '127.0.0.1', idleCloseMs = IDLE_CLOSE_MS, connectTimeoutMs = CONNECT_TIMEOUT_MS }) {
+  // T0590: scripts/bat-hook.mjs reuses this connection (`clientName` = the auth frame's label)
+  constructor({ port, token, host = '127.0.0.1', idleCloseMs = IDLE_CLOSE_MS, connectTimeoutMs = CONNECT_TIMEOUT_MS, clientName = 'bat-mcp' }) {
     this.#host = host
+    this.#clientName = clientName
     this.#port = Number(port)
     this.#token = token
     this.#idleCloseMs = idleCloseMs
@@ -603,7 +611,7 @@ export class BatConnection {
             return
           }
           this.#upgraded = true
-          this.#send(JSON.stringify({ type: 'auth', id: authId, token: this.#token, args: ['bat-mcp'] }))
+          this.#send(JSON.stringify({ type: 'auth', id: authId, token: this.#token, args: [this.#clientName] }))
         }
         this.#drain(onText)
       })

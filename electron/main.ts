@@ -17,6 +17,7 @@ import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/t
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
 import { registerTerminalQueryHandlers, savedTabsFromRegistry, type TerminalQueryHandlers } from './terminal-query-handlers'
 import { registerWorktreeStatusHandler } from './worktree-status-handlers'
+import { registerReportHookHandler } from './terminal-blocked-state'
 import { mirrorToBatScripts } from './remote/remote-logger'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
@@ -722,6 +723,8 @@ const batMcpHost: BatMcpHost = {
   nodeCommand: () => 'node',
   endpointReady: () => Boolean(remoteServer.isRunning && remoteServer.port),
   readSettings: () => readPersistedSettingsSync() as Record<string, unknown> | null,
+  // T0590: the launch decision (claude `blocked` hooks or not) = the tab's `blockedDetection`
+  recordBlockedDetection: (terminalId, detection) => ptyManager?.setBlockedDetection(terminalId, detection),
   logger,
 }
 
@@ -2370,6 +2373,15 @@ function registerProxiedHandlers() {
     getExitedView: () => ptyManager,
     getTerminalCwd: terminalId => ptyManager?.getTerminalInfo(terminalId)?.cwd,
     statusFromGit: opts => ctWorktreeService.statusFromGit(opts),
+    logger,
+    mirrorToBatScripts,
+  })
+
+  // PLAN-047 M1b-1 / T0590: `terminal:report-hook` — a claude hook of a tab (scripts/bat-hook.mjs)
+  // reports `blocked` / its clearing for the caller's own terminal (same module as headless).
+  registerReportHookHandler({
+    registerHandler,
+    getPtyManager: () => ptyManager,
     logger,
     mirrorToBatScripts,
   })

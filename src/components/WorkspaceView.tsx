@@ -500,7 +500,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             const extraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, agentPreset)
             const appendArgs = (base: string) => extraArgs ? `${base} ${extraArgs}` : base
             window.electronAPI.agent?.buildLaunchCommand(agentPreset, undefined, extraArgs).then((cmd: string | null) =>
-              cmd ? withBatMcpLaunchArgs(cmd, agentPreset, shell, extraArgs) : cmd, // T0584
+              cmd ? withBatMcpLaunchArgs(cmd, agentPreset, shell, extraArgs, terminal.id) : cmd, // T0584 / T0590
             ).then((cmd: string | null) => {
               if (cmd) {
                 noticeCodexDaemonRef.current(cmd)
@@ -557,7 +557,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               const defExtraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, defaultAgent)
               const defAppendArgs = (base: string) => defExtraArgs ? `${base} ${defExtraArgs}` : base
               window.electronAPI.agent?.buildLaunchCommand(defaultAgent, undefined, defExtraArgs).then((cmd: string | null) =>
-                cmd ? withBatMcpLaunchArgs(cmd, defaultAgent, shell, defExtraArgs) : cmd, // T0584
+                cmd ? withBatMcpLaunchArgs(cmd, defaultAgent, shell, defExtraArgs, agentTerminal.id) : cmd, // T0584 / T0590
               ).then((cmd: string | null) => {
                 if (cmd) {
                   noticeCodexDaemonRef.current(cmd)
@@ -745,7 +745,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const presetId = isWorktree ? 'claude-cli-worktree' : 'claude-cli'
     const customArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, presetId)
     // T0584: the `bat` MCP server right after the CLI path, before the custom args
-    const cmdParts = [await withBatMcpLaunchArgs(quoteCommandPath(cliPath, detectShellFamily(shell ?? '')), presetId, shell, customArgs)]
+    const cmdParts = [await withBatMcpLaunchArgs(quoteCommandPath(cliPath, detectShellFamily(shell ?? '')), presetId, shell, customArgs, terminalId)]
     if (customArgs) {
       cmdParts.push(customArgs)
     }
@@ -869,7 +869,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const addAppendArgs = (base: string) => addExtraArgs ? `${base} ${addExtraArgs}` : base
     try {
       const launchCmd = await window.electronAPI.agent.buildLaunchCommand(definitionId, undefined, addExtraArgs)
-        .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, definitionId, shell, addExtraArgs) : cmd) // T0584
+        .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, definitionId, shell, addExtraArgs, terminal.id) : cmd) // T0584 / T0590
       if (launchCmd) {
         noticeCodexDaemonRef.current(launchCmd)
         setTimeout(() => {
@@ -989,7 +989,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           const restartAppendArgs = (base: string) => restartExtraArgs ? `${base} ${restartExtraArgs}` : base
           try {
             const launchCmd = await window.electronAPI.agent.buildLaunchCommand(terminal.agentPreset, undefined, restartExtraArgs)
-              .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, terminal.agentPreset, shell, restartExtraArgs) : cmd) // T0584
+              .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, terminal.agentPreset, shell, restartExtraArgs, id) : cmd) // T0584 / T0590
             if (launchCmd) {
               noticeCodexDaemonRef.current(launchCmd)
               setTimeout(() => {
