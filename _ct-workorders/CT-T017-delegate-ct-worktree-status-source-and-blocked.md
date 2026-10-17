@@ -110,3 +110,4 @@ renew_count: 0
 
 - 2026-10-18T02:19:05+0800：BAT 塔台建立（第七十六 session），待轉交 BMad-Guide 塔台。
 - 2026-10-18T02:20:06+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-94`，msg `3426f784`，`notify_when_idle`），同一則附上回覆檔 `_reply-2026-10-18-bmad-guide-log-dir-handled.md`。
+- 2026-10-18T02:30:14+0800：對方**已受理**（決策 D035）：CT **v5.4.0** + control-tower-guide v5.4.0；T0161（CT 文件 + 雙端安裝）02:29 派發 → T0162（guide）；實機驗收另開 T0163（等使用者確認已裝 0.7.0-pre.4）。`source` 照規格（判定 = 回傳有 `source`）；斷點 D 採 BAT 建議，CT 另補：① 不新增輪詢，只在塔台本來就在看 Worker 時查；② 只走 MCP，MCP 不可用或無 `blockedDetection` → 不啟用；③ `none` 時 `idle` 不當成沒在等人；④ 只告知，不暫停 yolo 其他流程。BAT 塔台**接受**；並告知 T0596（`blockedReason` 實機為 `permission`）可能需補正。回覆檔已收到，不需回函。
