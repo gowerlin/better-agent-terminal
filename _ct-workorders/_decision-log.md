@@ -1422,6 +1422,17 @@
   - 預覽版 `-pre.N` 最多到 `pre.9`；需要第十個預覽版時改升 minor / patch 線（例 `0.7.1-pre.1`），不發 `pre.10`
 - **相關**：D143 / D149 / T0575 / T0576 / T0577 / T0578 / T0579
 
+### D152 2026-10-17 — PLAN-047 第二批：M1（唯讀 channel → shim）與 W1（worktree 隔離派工 → 唯讀狀態）並行；worktree 依賴由 Worker 自己安裝
+
+- **背景**：`v0.7.0-pre.1` 實機驗收通過（T0581、BMad-Guide T0150），A1 / A2 前置完成；使用者指示開始 M1 / W1
+- **決定**（使用者 2026-10-17 選定，塔台記錄於 21:51:48）：
+  - 拆 4 張：**T0582** M1-1 唯讀 channel（+ `shell` 角色、輸出遮罩）、**T0583** W1-1 worktree 隔離派工（`--isolation worktree`、repo 外位置、`ct/T####`、`CT_HOME`、`--close-worker --worktree keep|remove|archive`）先並行；**T0584** M1-2 `bat-mcp.mjs` shim + agent 注入（依賴 T0582）、**T0585** W1-2 唯讀 `worktree:terminal-status`（依賴 T0582 / T0583）之後派
+  - worktree 建立後**由 Worker 依專案規則自己安裝依賴**（BAT 不執行 npm / setup 指令，保持通用）；worktree 池 / lock hash 跳過列為後續候選
+  - 隔離預設關閉（Q12），只有派工明確帶 `--isolation worktree` 才建 worktree；`--close-worker` 未帶 `--worktree` = `keep`
+  - 並行規則：兩張共用 `helper-capability.ts`（T0582 只改 `HELPER_CHANNEL_ROLES` 與角色判定、T0583 只改 `customEnv` 白名單）與 `CLAUDE.md`（各自新增獨立小節），commit 一律 `--only` 自己的檔，收單核對 diff
+  - 附帶事實（M1b 用）：本機 Settings `agentCustomArgs` 的 claude 系列帶 `--dangerously-skip-permissions`，CT yolo Worker 以略過權限模式執行 → M1b 以 AskUserQuestion / elicitation 為主，PermissionRequest 仍需支援（他人設定不同）
+- **相關**：D149 / D150 / PLAN-047 / T0574 / T0581
+
 ### D147 2026-10-16 — 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`；BAT 提供 helper `--set-role tower`，CT 啟動時呼叫
 
 - **背景**：使用者要求塔台分頁像 Worker 分頁（T0553 `Claude CLI · Worker · T####`）一樣一眼可辨。BAT 目前沒有讓分頁內程式改標題的管道（不處理 OSC 標題序列、helper 無改名 API）
