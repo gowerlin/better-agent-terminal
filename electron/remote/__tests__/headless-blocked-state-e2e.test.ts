@@ -16,6 +16,9 @@
  *   - T0597 (BUG-150): claude's real order — `ask-user-question`, ~90 ms later `permission-request`
  *     with tool_name AskUserQuestion, then `ask-user-question-done` — reads blocked / question while
  *     waiting and leaves blocked on the answer, no client input
+ *   - T0600 (D154): `SessionStart` (`session-start`) in a claude-cli Worker PTY → agentStarted true
+ *     (a client wait until=agent-started returns), false before, null for a codex tab; restart →
+ *     false again; the exited record keeps agentStartedAt
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -198,6 +201,36 @@ describe('blocked from claude hooks inside headless PTYs (T0590)', () => {
     expect(run.then).toEqual([expect.objectContaining({ code: 0, stdout: '' }), expect.objectContaining({ code: 0, stdout: '' })])
     expect((await state(worker)).state).not.toBe('blocked')
   }, 60_000)
+
+  it('T0600: SessionStart inside the PTY → agentStarted; a client wait until=agent-started returns; codex null; restart → false; exited keeps it', async () => {
+    const starter = termId('starter')
+    const codex = termId('codex')
+    await harness.invoke('agent:bat-mcp-launch-args', 'claude-cli', 'posix', '', starter)
+    await harness.invoke('agent:bat-mcp-launch-args', 'codex-cli', 'posix', '', codex)
+    await createPty(starter, { BAT_TOWER_TERMINAL_ID: tower })
+    await createPty(codex, { BAT_TOWER_TERMINAL_ID: tower })
+    await sleep(1_000)
+    expect(await state(starter)).toMatchObject({ ok: true, blockedDetection: 'hook', agentStarted: false })
+    expect(await state(codex)).toMatchObject({ ok: true, blockedDetection: 'none', agentStarted: null })
+    expect(await harness.invoke('terminal:wait', { terminalId: codex, until: 'agent-started', timeoutMs: 5_000 })).toMatchObject({ ok: true, changed: true, agentStarted: null })
+
+    const waiting = harness.invoke('terminal:wait', { terminalId: starter, until: 'agent-started', timeoutMs: 30_000 }) as Promise<Record<string, unknown>>
+    const run = await hookIn(starter, 'session-start', { hook_event_name: 'SessionStart', source: 'startup', model: 'SECRET-MODEL' })
+    expect(run).toMatchObject({ code: 0, stdout: '', tokenShape: 'batcap.' })
+    const started = await waiting
+    expect(started).toMatchObject({ ok: true, changed: true, agentStarted: true, agentStartedAt: expect.any(Number), blockedDetection: 'hook' })
+    expect((await state(starter)).state).not.toBe('blocked')
+
+    expect(await harness.invoke('pty:restart', starter, CWD, SHELL)).toBe(true)
+    await sleep(500)
+    expect(await state(starter)).toMatchObject({ blockedDetection: 'hook', agentStarted: false })
+    await hookIn(starter, 'session-start', { hook_event_name: 'SessionStart', source: 'startup' })
+    const again = await state(starter)
+    expect(again).toMatchObject({ agentStarted: true })
+    await harness.invoke('pty:kill', starter)
+    expect(await state(starter)).toMatchObject({ state: 'exited', agentStarted: true, agentStartedAt: again.agentStartedAt })
+    await harness.invoke('pty:kill', codex)
+  }, 90_000)
 
   it('a plain shell (undeclared, tower capability) reports for itself; Stop clears', async () => {
     const run = await hookIn(plain, 'permission-request', { hook_event_name: 'PermissionRequest', tool_name: 'Bash' })

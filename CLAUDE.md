@@ -260,6 +260,16 @@
 - 使用者 / 專案設定 `disableAllHooks: true` 時 BAT hooks 也停用。🔴 不得在 `--settings` 寫 `disableAllHooks: false` 反制。
 - 完整事件表、清除規則、注入條件、日誌、已知限制（含滑鼠回答的清除漏洞）、驗證清單：[docs/agent-guide/blocked-state.md](docs/agent-guide/blocked-state.md)
 
+## Worker 啟動確認（T0600，D154）
+
+- 用途：helper 派工 exit 0 後塔台仍不知 Worker 是否真的啟動（BUG-151）。claude 的 `SessionStart` hook（async、無 matcher）經 `terminal:report-hook` 回報 `session-start`，狀態查詢揭露，helper 加 opt-in 等待。
+- **契約**（T0600「介面契約」，CT 依此撰寫，不得單方更改）：`terminal:get-state` / `terminal:list` / `terminal:wait` 每個 state 回傳多 `agentStarted: true | false | null`（`true` 時 get-state / wait 另回 `agentStartedAt` ms；`null` = `blockedDetection: none`，無法判定，**不得**當成啟動失敗）；`terminal:wait` 多 `until: 'agent-started'`。helper `bat-terminal.mjs … --notify-id "$BAT_TERMINAL_ID" --wait-started <ms>`（上限 120000，必須帶 `--notify-id`）：stdout 最後一行 `  started: <ISO>` exit 0 / `  started: unknown` exit 0（stderr `wait-started: <CODE>`）/ `  started: unconfirmed` exit **8**（stderr `create: LAUNCH_UNCONFIRMED`，分頁不關閉）。不帶參數時輸出與 exit code 完全不變；舊 helper → `Unknown option '--wait-started'` exit 1、不建立分頁。
+- 唯一實作：狀態 `TerminalBlockedTracker`（`electron/terminal-blocked-state.ts`，`session-start` 不影響 `blocked`），讀取 `stateOf` / `agentStartedFields`（`electron/terminal-query-handlers.ts`），等待 `runWaitStarted`（`scripts/bat-terminal.mjs`），hook 表 `BAT_CLAUDE_HOOKS`；本機與 headless 共用。
+- 生命週期比照 `blocked`：PTY 結束 / restart / Terminal Server recovery 清除（結束紀錄保留 `agentStartedAt`），使用者輸入不清除，只記每個 PTY 第一次 `SessionStart`。
+- claude 自己的設定關閉 hooks（managed / 使用者設定檔的 `disableAllHooks`、managed 的 `allowManagedHooksOnly`；`claudeHooksDisabledBy`，`electron/bat-mcp-launch.ts`）→ 參數照注入、分頁記 `blockedDetection: none`。🔴 hook 腳本規則沿用 T0590（exit 0、stdout 不輸出：`SessionStart` 的 stdout 會進對話上下文；不送 `source` 等 payload）。
+- 方案 B（只記日誌）：派工指令寫入後 10 s 內輸出含 `command not found` 等 → `[agent-command] launch-suspect`（`LaunchSuspectWatcher`）。
+- 完整契約、CT 判斷、版本判定、日誌、實機查證、已知限制、驗證清單：[docs/agent-guide/worker-launch-confirmation.md](docs/agent-guide/worker-launch-confirmation.md)
+
 ## 多 remote profile 同時連線（PLAN-039）
 
 - `RemoteConnectionRegistry`（`electron/remote/remote-connection-registry.ts`）取代單一 `remoteClient`：每個 profile 一條連線、一把 mutex。proxied IPC 依 sender 綁定的 profile 路由，無 live 連線即拒絕，不 fallback 本機。

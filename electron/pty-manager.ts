@@ -12,7 +12,7 @@ import { resolvePtyLocaleEnv } from './pty-locale-env'
 import { isTerminalAutoReply, normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
-import { TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
+import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -118,6 +118,8 @@ export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' |
    * still answers after its tab closed (electron/worktree-status-handlers.ts).
    */
   worktree?: CtWorktreeRecord
+  /** T0600: when its claude ran `SessionStart` (ms epoch); absent = not reported before it ended. */
+  agentStartedAt?: number
 }
 
 /** T0582: exited PTYs remembered (oldest dropped first). */
@@ -301,6 +303,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
   // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
   private blockedTracker = new TerminalBlockedTracker(logger)
+  // T0600 option B: `[agent-command] launch-suspect` (log only)
+  private launchSuspect = new LaunchSuspectWatcher(logger)
 
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
@@ -693,6 +697,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     }
     const buf = this.replayBuffers.get(id)
     const data = buf ? buf.data.slice(-EXITED_PTY_TAIL_MAX_CHARS) : ''
+    const startedAt = this.blockedTracker.getStartedAt(id) // T0600
     const record: ExitedPtyRecord = {
       id,
       cwd: instance.cwd,
@@ -705,6 +710,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       lastOutputAt: this.lastOutputAt.get(id) ?? null,
       tail: { data, total: buf?.total ?? 0 },
       ...(instance.worktree ? { worktree: { ...instance.worktree } } : {}),
+      ...(startedAt !== null ? { agentStartedAt: startedAt } : {}),
     }
     this.exitedPtys.delete(id)
     this.exitedPtys.set(id, record)
@@ -727,6 +733,8 @@ export class PtyManager implements CloseWorkerPtyManager {
     this.lastOutputAt.delete(id)
     this.lastUserInputAt.delete(id)
     this.blockedTracker.clear(id, 'the PTY ended') // T0590: exit / kill (restart kills first)
+    this.blockedTracker.clearStarted(id) // T0600
+    this.launchSuspect.clear(id)
   }
 
   /** T0432: `deps.onPtyExit`; a throwing listener must not break exit / kill handling. */
@@ -746,6 +754,7 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** Enqueue PTY output and flush in batched intervals */
   private enqueuePtyOutput(id: string, data: string) {
     this.lastOutputAt.set(id, Date.now())
+    this.launchSuspect.output(id, data) // T0600 option B
     if (this.deps.onPtyOutput) {
       try {
         this.deps.onPtyOutput(id, data)
@@ -996,6 +1005,14 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   getBlockedDetection(id: string): BlockedDetection {
     return this.blockedTracker.getDetection(id)
+  }
+
+  /**
+   * T0600 (D154): when the claude of running PTY `id` ran its `SessionStart` hook (ms epoch), or
+   * null (not reported yet / not running). An exited PTY's time is `ExitedPtyRecord.agentStartedAt`.
+   */
+  getAgentStartedAt(id: string): number | null {
+    return this.instances.has(id) ? this.blockedTracker.getStartedAt(id) : null
   }
 
   /** T0450: running PTYs and the `maxInstances` cap (0 = unlimited) — the helper creation quota. */
@@ -1332,6 +1349,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     const held = this.dispatchInputHolds.get(id) ?? []
     this.dispatchInputHolds.delete(id)
     this.write(id, command)
+    if (this.instances.has(id)) this.launchSuspect.watch(id) // T0600 option B: a "command not found" right after it
     if (held.length === 0) return
     const bytes = held.reduce((n, data) => n + Buffer.byteLength(data), 0)
     logger.log(`[agent-command] id=${id} input before the dispatch command: ${held.length} write(s), ${bytes} bytes → sent after it`)
@@ -1550,7 +1568,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
       // T0576: none of the server's PTYs survives; the rebuild below spawns new ones
       this.notifySurvivingPtys([])
-      // T0590: the rebuilt shells run no claude yet
+      // T0590: the rebuilt shells run no claude yet (T0600: nor `agentStarted`)
       this.blockedTracker.clearAll('Terminal Server recovery')
 
       // T0113: Kill orphan PTY processes from registry before re-forking
@@ -1650,6 +1668,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       this.lastOutputAt.clear()
       this.lastUserInputAt.clear()
       this.blockedTracker.dispose()
+      this.launchSuspect.dispose()
       return
     }
     for (const [id] of this.instances) {

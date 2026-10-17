@@ -65,6 +65,7 @@ function host(overrides: Partial<BatMcpHost> = {}, settings: Record<string, unkn
     nodeCommand: () => 'node',
     endpointReady: () => true,
     readSettings: () => settings,
+    claudeSettingsFiles: () => [], // T0600: never this machine's own claude settings
     ...overrides,
   }
 }

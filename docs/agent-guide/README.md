@@ -23,6 +23,7 @@
 | [terminal-context-menu.md](terminal-context-menu.md) | 終端右鍵選單與滑鼠追蹤、Esc、Shift + 拖曳選取 | 終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142） |
 | [tower-tab-title.md](tower-tab-title.md) | `--set-role tower`、yolo 判定、Tower 標題 | 塔台分頁標題（T0562，D147） |
 | [usage-limit-continue.md](usage-limit-continue.md) | 用量限制自動繼續（codex 送文字、claude 只提示 / 只送 Enter） | 用量限制自動繼續（PLAN-044 / T0566，D148） |
+| [worker-launch-confirmation.md](worker-launch-confirmation.md) | Worker 啟動確認（`SessionStart` hook、`agentStarted`、`--wait-started` / exit 8） | Worker 啟動確認（T0600，D154） |
 | [worker-tab-recycle.md](worker-tab-recycle.md) | `--close-worker` 契約、等安靜、歸屬、Worker 標示 / 批次關閉、外部分頁標題 | Worker 分頁回收（PLAN-041 / T0535，D144；等安靜 T0545，D145） |
 | [workspace-agent-launch.md](workspace-agent-launch.md) | 工作區層級預設 agent 與啟動參數 | 工作區層級 Agent / 啟動參數（PLAN-040 / T0529，D142） |
 | [worktree-isolated-dispatch.md](worktree-isolated-dispatch.md) | `--isolation worktree` 派工與 `--worktree` 回收清理 | worktree 隔離派工（PLAN-047 W1 / T0583，D150 / D152） |

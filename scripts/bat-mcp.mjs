@@ -115,7 +115,7 @@ export const TOOLS = [
     name: 'bat_get_state',
     channel: 'terminal:get-state',
     title: 'Terminal state',
-    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation) / exited, last output time, idle ms, exit code. blockedDetection none = this tab cannot report blocked, so idle does not rule out a prompt.',
+    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation) / exited, last output time, idle ms, exit code. blockedDetection none = this tab cannot report blocked, so idle does not rule out a prompt. agentStarted: true = its claude has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. codex).',
     inputSchema: { type: 'object', properties: { terminalId: TERMINAL_ID }, additionalProperties: false },
     keys: ['terminalId'],
     timeoutMs: INVOKE_TIMEOUT_MS,
@@ -141,12 +141,12 @@ export const TOOLS = [
     name: 'bat_wait',
     channel: 'terminal:wait',
     title: 'Wait for a terminal',
-    description: 'Wait (server side, at most 45 s) until this tab or one of its Workers changes state (including entering / leaving blocked), exits, or goes idle (blocked counts as not working). changed=false = timed out (not an error); call again to keep waiting.',
+    description: 'Wait (server side, at most 45 s) until this tab or one of its Workers changes state (including entering / leaving blocked), exits, or goes idle (blocked counts as not working), or (agent-started) its agent start is confirmed or cannot be told (agentStarted not false). changed=false = timed out (not an error); call again to keep waiting.',
     inputSchema: {
       type: 'object',
       properties: {
         terminalId: TERMINAL_ID,
-        until: { type: 'string', enum: ['state-change', 'exit', 'idle'] },
+        until: { type: 'string', enum: ['state-change', 'exit', 'idle', 'agent-started'] },
         fromState: { type: 'string', enum: ['working', 'idle', 'blocked', 'exited'] },
         timeoutMs: { type: 'integer', minimum: 0, maximum: 45000 },
       },
@@ -199,6 +199,11 @@ function stateText(data) {
   return data.state === 'blocked' && data.blockedReason ? `blocked (${data.blockedReason})` : data.state
 }
 
+/** T0600: `, agent started` / `, agent not started yet` (nothing when it cannot be told). */
+function agentStartedText(data) {
+  return data.agentStarted === true ? ', agent started' : data.agentStarted === false ? ', agent not started yet' : ''
+}
+
 /** One short line (plus the output lines for bat_read_output) for `content`. */
 export function summarize(toolName, data) {
   switch (toolName) {
@@ -216,7 +221,7 @@ export function summarize(toolName, data) {
       return `${plural(terminals.length, 'terminal')} (scope=${data.scope})${items.length ? `: ${items.join('; ')}` : ''}`
     }
     case 'bat_get_state':
-      return `${data.terminalId}: ${stateText(data)}${typeof data.idleMs === 'number' ? `, idle ${data.idleMs} ms` : ''}${data.exitCode !== undefined && data.exitCode !== null ? `, exit code ${data.exitCode}` : ''}`
+      return `${data.terminalId}: ${stateText(data)}${typeof data.idleMs === 'number' ? `, idle ${data.idleMs} ms` : ''}${data.exitCode !== undefined && data.exitCode !== null ? `, exit code ${data.exitCode}` : ''}${agentStartedText(data)}`
     case 'bat_read_output': {
       const lines = Array.isArray(data.lines) ? data.lines : []
       const flags = [
@@ -231,7 +236,7 @@ export function summarize(toolName, data) {
       return lines.length ? `${head}\n${lines.join('\n')}` : head
     }
     case 'bat_wait':
-      return `changed=${data.changed} state=${stateText(data)} after ${data.waitedMs} ms`
+      return `changed=${data.changed} state=${stateText(data)}${agentStartedText(data)} after ${data.waitedMs} ms`
     case 'bat_worktree_status': {
       // T0585 shape: lists capped, counts beside them (dirtyCount / changedCount / outOfScopeCount)
       // T0589: `source` live / exited (the tab closed) / git (no tab left, found by the location rules)

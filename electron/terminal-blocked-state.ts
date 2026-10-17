@@ -11,6 +11,7 @@
  *   Notification, elicitation_dialog / _url_     → blocked / elicitation
  *   PostToolUse, matcher AskUserQuestion (T0594) → cleared, only when blocked / question
  *   UserPromptSubmit, Stop                       → cleared
+ *   SessionStart (async, T0600)                  → `agentStarted` (blocked unchanged)
  *
  * Also cleared: the user's input into the tab (`PtyManager.noteUserInput`: a local window's /
  * headless client's `pty:write`, not `{ auto: true }`, not only terminal auto-replies), the PTY
@@ -20,6 +21,11 @@
  * an exited record): set by the launch decision (`buildBatMcpLaunchArgs`, `none` when no hooks)
  * and by any accepted report (a tab that reports evidently runs the hooks). So a `none` tab never
  * reads `blocked`.
+ *
+ * T0600 (D154): `agentStarted` — the claude of running PTY `id` ran its `SessionStart` hook (any
+ * `source`; only the first time per PTY is kept). Same lifetime as `blocked`: cleared when the PTY
+ * ends (exit / kill, so `pty:restart` too; the exited record keeps the time, `agentStartedAt` of
+ * `ExitedPtyRecord`) and by the Terminal Server recovery; user input does not clear it.
  *
  * 🔴 No `electron` import here (PtyManager and headless use it).
  */
@@ -34,6 +40,7 @@ export type HookReportEvent =
   | 'elicitation'
   | 'user-prompt-submit'
   | 'stop'
+  | 'session-start'
 
 export const HOOK_REPORT_EVENTS: readonly HookReportEvent[] = [
   'permission-request',
@@ -42,10 +49,20 @@ export const HOOK_REPORT_EVENTS: readonly HookReportEvent[] = [
   'elicitation',
   'user-prompt-submit',
   'stop',
+  'session-start',
 ]
 
+/** T0600: the events that only report the launch (`agentStarted`); they never touch `blocked`. */
+export type StartReportEvent = 'session-start'
+export const START_REPORT_EVENTS: readonly StartReportEvent[] = ['session-start']
+export type BlockedReportEvent = Exclude<HookReportEvent, StartReportEvent>
+
+export function isStartReportEvent(event: HookReportEvent): event is StartReportEvent {
+  return (START_REPORT_EVENTS as readonly string[]).includes(event)
+}
+
 /** Which reason an event enters; null = the event clears. */
-export const HOOK_EVENT_REASON: Readonly<Record<HookReportEvent, BlockedReason | null>> = {
+export const HOOK_EVENT_REASON: Readonly<Record<BlockedReportEvent, BlockedReason | null>> = {
   'permission-request': 'permission',
   'ask-user-question': 'question',
   'ask-user-question-done': null,
@@ -60,7 +77,7 @@ export const HOOK_EVENT_REASON: Readonly<Record<HookReportEvent, BlockedReason |
  * with tool_name AskUserQuestion follows its `PreToolUse` (~90 ms later, any permission mode; claude
  * 2.1.300 / 2.1.302, T0596) — still a question, or `ask-user-question-done` could never clear it.
  */
-export function hookEventReason(event: HookReportEvent, toolName?: string): BlockedReason | null {
+export function hookEventReason(event: BlockedReportEvent, toolName?: string): BlockedReason | null {
   if (event === 'permission-request' && toolName === 'AskUserQuestion') return 'question'
   return HOOK_EVENT_REASON[event]
 }
@@ -69,7 +86,7 @@ export function hookEventReason(event: HookReportEvent, toolName?: string): Bloc
  * T0594: a clearing event that clears only this reason (another reason → `unchanged`): the answered
  * AskUserQuestion must not clear a permission prompt shown meanwhile. Absent = clears any reason.
  */
-export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<HookReportEvent, BlockedReason>>> = {
+export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<BlockedReportEvent, BlockedReason>>> = {
   'ask-user-question-done': 'question',
 }
 
@@ -90,7 +107,8 @@ export interface BlockedState {
   toolName?: string
 }
 
-export type HookReportResult = 'blocked' | 'cleared' | 'unchanged'
+/** T0600: `started` = the first `session-start` of this PTY (a later one is `unchanged`). */
+export type HookReportResult = 'blocked' | 'cleared' | 'unchanged' | 'started'
 
 export interface BlockedTrackerLogger {
   log(message: string): void
@@ -98,11 +116,14 @@ export interface BlockedTrackerLogger {
 
 /**
  * The state machine (one per PtyManager). Logs transitions only:
- * `[blocked] terminal=<id> → blocked reason=<r> (hook <event>[ tool=<name>])` / `→ cleared (<cause>)`.
+ * `[blocked] terminal=<id> → blocked reason=<r> (hook <event>[ tool=<name>])` / `→ cleared (<cause>)`;
+ * T0600: `[agent-start] terminal=<id> → started (hook session-start)`.
  */
 export class TerminalBlockedTracker {
   private readonly states = new Map<string, BlockedState>()
   private readonly detection = new Map<string, BlockedDetection>()
+  /** T0600: running PTY id → ms epoch of its first `session-start`. */
+  private readonly started = new Map<string, number>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
@@ -112,6 +133,13 @@ export class TerminalBlockedTracker {
   /** Applies a hook report of PTY `id` (the caller checks it is running). */
   report(id: string, event: HookReportEvent, toolName?: string): { result: HookReportResult; state: BlockedState | null } {
     this.setDetection(id, 'hook')
+    if (isStartReportEvent(event)) {
+      const state = this.get(id)
+      if (this.started.has(id)) return { result: 'unchanged', state }
+      this.started.set(id, this.now())
+      this.logger?.log(`[agent-start] terminal=${id} → started (hook ${event})`)
+      return { result: 'started', state }
+    }
     const reason = hookEventReason(event, toolName)
     if (reason === null) {
       const only = HOOK_EVENT_CLEARS_ONLY[event]
@@ -135,6 +163,17 @@ export class TerminalBlockedTracker {
 
   clearAll(cause: string): void {
     for (const id of [...this.states.keys()]) this.clear(id, cause)
+    this.started.clear() // T0600
+  }
+
+  /** T0600: ms epoch of PTY `id`'s first `session-start`, or null. */
+  getStartedAt(id: string): number | null {
+    return this.started.get(id) ?? null
+  }
+
+  /** T0600: the PTY ended (exit / kill); its exited record keeps the time. */
+  clearStarted(id: string): void {
+    this.started.delete(id)
   }
 
   get(id: string): BlockedState | null {
@@ -158,6 +197,66 @@ export class TerminalBlockedTracker {
 
   dispose(): void {
     this.states.clear()
+    this.started.clear()
+  }
+}
+
+/** T0600 option B: how long after the dispatch command the output is looked at, and how much of it. */
+export const LAUNCH_SUSPECT_WINDOW_MS = 10_000
+export const LAUNCH_SUSPECT_MAX_CHARS = 8_192
+/** T0600 option B: what a shell prints when the agent command does not exist (bash / zsh, cmd, pwsh). */
+export const LAUNCH_SUSPECT_PATTERNS: ReadonlyArray<readonly [label: string, pattern: RegExp]> = [
+  ['command not found', /command not found/i],
+  ['is not recognized as', /is not recognized as/i],
+  ['CommandNotFoundException', /CommandNotFoundException/],
+]
+// eslint-disable-next-line no-control-regex
+const ANSI_SEQUENCE = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g
+
+/**
+ * T0600 option B (D154): log only — the output of a PTY within `LAUNCH_SUSPECT_WINDOW_MS` of its
+ * dispatch command (`PtyManager.writeDispatchCommand`) is matched against `LAUNCH_SUSPECT_PATTERNS`;
+ * the first match logs `[agent-command] launch-suspect terminal=<id> pattern="<label>" after=<ms>ms`
+ * (never the output) and ends the watch. Changes no state, no exit code; O(1) for unwatched PTYs.
+ */
+export class LaunchSuspectWatcher {
+  private readonly watches = new Map<string, { since: number; text: string }>()
+
+  constructor(
+    private readonly logger?: BlockedTrackerLogger,
+    private readonly now: () => number = () => Date.now(),
+  ) {}
+
+  watch(id: string): void {
+    this.watches.set(id, { since: this.now(), text: '' })
+  }
+
+  output(id: string, data: string): void {
+    const watch = this.watches.get(id)
+    if (!watch) return
+    const elapsed = this.now() - watch.since
+    if (elapsed > LAUNCH_SUSPECT_WINDOW_MS) {
+      this.watches.delete(id)
+      return
+    }
+    // the tail of the previous chunk too: a message split across chunks
+    watch.text = `${watch.text}${data.replace(ANSI_SEQUENCE, '')}`.slice(-LAUNCH_SUSPECT_MAX_CHARS)
+    const hit = LAUNCH_SUSPECT_PATTERNS.find(([, pattern]) => pattern.test(watch.text))
+    if (!hit) return
+    this.watches.delete(id)
+    this.logger?.log(`[agent-command] launch-suspect terminal=${id} pattern="${hit[0]}" after=${elapsed}ms`)
+  }
+
+  isWatching(id: string): boolean {
+    return this.watches.has(id)
+  }
+
+  clear(id: string): void {
+    this.watches.delete(id)
+  }
+
+  dispose(): void {
+    this.watches.clear()
   }
 }
 
@@ -183,7 +282,8 @@ export type ReportHookFailure = { ok: false; code: 'INVALID_ARGS' | 'NOT_FOUND';
 /**
  * `terminal:report-hook` `{ event, toolName? }` — the target is always the caller's own terminal
  * (`ctx.helper`, the capability the invoke came in with). Answers
- * `{ ok: true, terminalId, result, state, blockedReason? }` or `{ ok: false, INVALID_ARGS | NOT_FOUND }`.
+ * `{ ok: true, terminalId, result, state, blockedReason? }` or `{ ok: false, INVALID_ARGS | NOT_FOUND }`
+ * (T0600: `result: 'started'` for the first `session-start`).
  * Every report is O(1); transitions are logged by the tracker, an `unchanged` report is mirrored to
  * bat-scripts.log at most once per `REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS` per terminal.
  */

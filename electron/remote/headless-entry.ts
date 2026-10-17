@@ -14,7 +14,7 @@ import {
   type RemoteToolsHandlerDeps,
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
-import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
+import { createBatMcpLaunchArgs, defaultClaudeSettingsFiles, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
 import { registerReportHookHandler } from '../terminal-blocked-state'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
@@ -556,6 +556,8 @@ export function createHeadlessBatMcpHost(
     endpointReady: () => true,
     readSettings: () => host.getSettings(),
     recordBlockedDetection: (terminalId, detection) => getPtyManager?.()?.setBlockedDetection(terminalId, detection),
+    // T0600: the server user's claude settings (`host.homeDir`) that can turn the hooks off
+    claudeSettingsFiles: () => defaultClaudeSettingsFiles(process.env, process.platform, host.homeDir),
     logger: defaultLogger,
   }
 }

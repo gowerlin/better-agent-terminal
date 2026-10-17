@@ -18,6 +18,11 @@
  *     nothing on stdout, tool_input never sent; not in BAT / dead port → exit 0, stdout empty
  *   - T0597 (BUG-150): claude's real AskUserQuestion order — PreToolUse, PermissionRequest with
  *     tool_name AskUserQuestion, PostToolUse — stays a question and the answer clears it
+ *   - T0600 (D154): `session-start` → `agentStarted` (first one only, blocked untouched); cleared by
+ *     the PTY ending / restart / recovery, kept by the exited record, not by user input; get-state /
+ *     list / wait `agentStarted` true / false / null; `until: 'agent-started'`; the real hook process
+ *   - T0600 option B: `[agent-command] launch-suspect` — a "command not found" right after the
+ *     dispatch command is logged (label only), nothing else changes
  */
 import { spawn } from 'child_process'
 import * as fs from 'fs'
@@ -44,6 +49,9 @@ import {
   BLOCKED_DETECTION_MAX,
   hookEventReason,
   HOOK_REPORT_EVENTS,
+  isStartReportEvent,
+  LAUNCH_SUSPECT_WINDOW_MS,
+  LaunchSuspectWatcher,
   registerReportHookHandler,
   REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS,
   TerminalBlockedTracker,
@@ -154,7 +162,7 @@ describe('TerminalBlockedTracker', () => {
       '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
       '[blocked] terminal=a → cleared (hook user-prompt-submit)',
     ])
-    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop'])
+    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop', 'session-start'])
   })
 
   it('T0594: ask-user-question-done clears a question only; another reason (or none) is unchanged', () => {
@@ -471,6 +479,7 @@ describe('query handlers: blocked (T0590)', () => {
       blockedSince: since,
       source: 'hook',
       blockedDetection: 'hook',
+      agentStarted: false, // T0600: the hooks run (detection hook), but no session-start yet
     })
     // the worker itself, and its tower's metadata view
     expect(h.call('terminal:get-state', h.asHelper('wk'))).toMatchObject({ state: 'blocked' })
@@ -728,5 +737,230 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     expect(bad).toMatchObject({ code: 0, stdout: '' })
     const unknownEvent = await runHook('bogus', '{}', hookEnv('hk-worker'))
     expect(unknownEvent).toMatchObject({ code: 0, stdout: '' })
+  })
+
+  it('T0600: SessionStart → agentStarted; exit 0, stdout empty (claude would add it to the context), source never sent; a tower wait until=agent-started returns', async () => {
+    manager.create({ id: 'hk-start', ...TAB, workspaceId: 'ws', customEnv: { BAT_TOWER_TERMINAL_ID: 'hk-tower' } })
+    manager.setBlockedDetection('hk-start', 'hook')
+    const { invokeHandler } = await import('../remote/handler-registry')
+    const towerHelper = { terminalId: 'hk-tower', role: 'tower' as const }
+    const waiting = invokeHandler('terminal:wait', [{ terminalId: 'hk-start', until: 'agent-started', timeoutMs: 10_000 }], null, 'tw', towerHelper) as Promise<Record<string, unknown>>
+    const input = { session_id: 's-start', hook_event_name: 'SessionStart', source: 'startup', model: 'SECRET-MODEL', transcript_path: '/SECRET/path.jsonl' }
+    const run = await runHook('session-start', JSON.stringify(input), hookEnv('hk-start'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.ms).toBeLessThan(2_000)
+    expect(received.at(-1)).toEqual([{ event: 'session-start' }])
+    expect(JSON.stringify(received)).not.toMatch(/SECRET|startup|batcap/)
+    const startedAt = manager.getAgentStartedAt('hk-start')
+    expect(startedAt).toEqual(expect.any(Number))
+    expect(await waiting).toMatchObject({ ok: true, changed: true, agentStarted: true, agentStartedAt: startedAt, blockedDetection: 'hook' })
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
+      .toMatchObject({ hook: 'session-start', result: 'started', terminalId: 'hk-start' })
+    expect(log).not.toMatch(/SECRET|batcap\./)
+    // a BAT before T0600 refuses the event: still exit 0, nothing on stdout
+    oldBat = true
+    try {
+      expect(await runHook('session-start', JSON.stringify(input), hookEnv('hk-start'))).toMatchObject({ code: 0, stdout: '' })
+    } finally {
+      oldBat = false
+    }
+    // another hook's input under this event is not reported
+    const before = received.length
+    expect(await runHook('session-start', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-start'))).toMatchObject({ code: 0, stdout: '' })
+    expect(received.length).toBe(before)
+    manager.kill('hk-start')
+  })
+})
+
+// ── T0600 (D154): agentStarted ──
+
+describe('agentStarted (T0600)', () => {
+  it('tracker: the first session-start is `started`, later ones `unchanged`; blocked untouched; logged once', () => {
+    const lines: string[] = []
+    let t = 1000
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) }, () => t)
+    expect(tracker.getStartedAt('a')).toBeNull()
+    expect(tracker.report('a', 'session-start')).toEqual({ result: 'started', state: null })
+    expect(tracker.getDetection('a')).toBe('hook')
+    expect(tracker.getStartedAt('a')).toBe(1000)
+    t = 2000
+    tracker.report('a', 'ask-user-question')
+    // a resume / clear / compact SessionStart neither moves the time nor clears the question
+    expect(tracker.report('a', 'session-start')).toEqual({ result: 'unchanged', state: { reason: 'question', since: 2000, event: 'ask-user-question' } })
+    expect(tracker.getStartedAt('a')).toBe(1000)
+    expect(tracker.get('a')).toMatchObject({ reason: 'question' })
+    expect(isStartReportEvent('session-start')).toBe(true)
+    expect(isStartReportEvent('stop')).toBe(false)
+    expect(lines).toEqual([
+      '[agent-start] terminal=a → started (hook session-start)',
+      '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
+    ])
+    tracker.clearStarted('a')
+    expect(tracker.getStartedAt('a')).toBeNull()
+    tracker.report('b', 'session-start')
+    tracker.clearAll('Terminal Server recovery')
+    expect(tracker.getStartedAt('b')).toBeNull()
+  })
+
+  it('PtyManager: needs a running PTY; user input keeps it; kill / exit / restart clear it; the exited record keeps the time; recovery clears all', () => {
+    const { manager, create, exit } = makeManager()
+    expect(manager.reportHookEvent('a', 'session-start')).toBeNull()
+    create('a')
+    expect(manager.getAgentStartedAt('a')).toBeNull()
+    expect(manager.reportHookEvent('a', 'session-start')).toMatchObject({ result: 'started' })
+    const at = manager.getAgentStartedAt('a')
+    expect(at).toEqual(expect.any(Number))
+    manager.noteUserInput('a')
+    expect(manager.getAgentStartedAt('a')).toBe(at)
+    expect(logs).toContain('[agent-start] terminal=a → started (hook session-start)')
+    exit('a', 1)
+    expect(manager.getAgentStartedAt('a')).toBeNull()
+    expect(manager.getExitedPty('a')).toMatchObject({ agentStartedAt: at, exitCode: 1 })
+
+    create('b')
+    manager.reportHookEvent('b', 'session-start')
+    manager.kill('b')
+    expect(manager.getExitedPty('b')?.agentStartedAt).toEqual(expect.any(Number))
+    create('c')
+    expect(manager.getExitedPty('c')).toBeNull()
+    create('d')
+    expect(manager.getExitedPty('d')).toBeNull()
+    manager.reportHookEvent('d', 'session-start')
+    expect(manager.restart('d', CWD, '/bin/sh')).toBe(true)
+    expect(manager.getAgentStartedAt('d')).toBeNull() // the new shell runs no claude yet
+    // not started before it ended: no field on the record
+    exit('c')
+    expect(manager.getExitedPty('c')).not.toHaveProperty('agentStartedAt')
+  })
+
+  it('PtyManager: the Terminal Server recovery clears agentStarted (source)', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, '..', 'pty-manager.ts'), 'utf8')
+    const recovery = src.slice(src.indexOf('Terminal Server died — attempting recovery'))
+    expect(recovery.indexOf("this.blockedTracker.clearAll('Terminal Server recovery')")).toBeGreaterThan(0)
+    const tracker = fs.readFileSync(path.resolve(__dirname, '..', 'terminal-blocked-state.ts'), 'utf8')
+    expect(tracker).toMatch(/clearAll\(cause: string\): void \{[\s\S]*?this\.started\.clear\(\)/)
+  })
+})
+
+describe('query handlers: agentStarted (T0600)', () => {
+  let h: ReturnType<typeof setupHandlers>
+  let queries: TerminalQueryHandlers | null = null
+  afterEach(() => { queries?.dispose(); queries = null })
+
+  function scene() {
+    h = setupHandlers()
+    queries = h.queries
+    h.create('tw', { workspaceId: 'ws' })
+    h.create('wk', { workspaceId: 'ws', towerId: 'tw' })
+    h.create('cx', { workspaceId: 'ws', towerId: 'tw' })
+    h.manager.setTerminalRole('tw', 'tower')
+    h.manager.setBlockedDetection('wk', 'hook')
+    h.manager.setBlockedDetection('cx', 'none') // a codex Worker
+  }
+
+  it('get-state / list: false before SessionStart, true + agentStartedAt after, null for a none tab; exited keeps it', () => {
+    scene()
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'wk' })).toMatchObject({ agentStarted: false, blockedDetection: 'hook' })
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'wk' })).not.toHaveProperty('agentStartedAt')
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'cx' })).toMatchObject({ agentStarted: null, blockedDetection: 'none' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'session-start' })).toEqual({ ok: true, terminalId: 'wk', result: 'started', state: 'not-blocked' })
+    const at = h.manager.getAgentStartedAt('wk')
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'wk' })).toMatchObject({ agentStarted: true, agentStartedAt: at })
+    // blocked answers carry it too
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'permission-request', toolName: 'Bash' })
+    expect(h.call('terminal:get-state', h.asHelper('wk'))).toMatchObject({ state: 'blocked', agentStarted: true, agentStartedAt: at })
+    const r = h.call('terminal:list', h.asHelper('tw')) as { terminals: Array<Record<string, unknown>> }
+    expect(r.terminals.find(t => t.id === 'wk')).toMatchObject({ agentStarted: true })
+    expect(r.terminals.find(t => t.id === 'cx')).toMatchObject({ agentStarted: null })
+    expect(r.terminals.find(t => t.id === 'tw')).toMatchObject({ agentStarted: null })
+    h.manager.kill('wk')
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'wk' })).toMatchObject({ state: 'exited', agentStarted: true, agentStartedAt: at })
+    h.manager.kill('cx')
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'cx' })).toMatchObject({ state: 'exited', agentStarted: null })
+  })
+
+  it('wait until=agent-started: returns on SessionStart; at once for a none tab or one already started; on exit; times out with changed=false', async () => {
+    vi.useFakeTimers()
+    scene()
+    const pending = h.call('terminal:wait', h.asHelper('tw'), { terminalId: 'wk', until: 'agent-started', timeoutMs: 10_000 }) as Promise<Record<string, unknown>>
+    await vi.advanceTimersByTimeAsync(500)
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'session-start' })
+    await vi.advanceTimersByTimeAsync(300)
+    expect(await pending).toMatchObject({ ok: true, changed: true, agentStarted: true, agentStartedAt: expect.any(Number) })
+    expect(h.call('terminal:wait', h.asHelper('tw'), { terminalId: 'wk', until: 'agent-started' })).toMatchObject({ changed: true, agentStarted: true })
+    expect(h.call('terminal:wait', h.asHelper('tw'), { terminalId: 'cx', until: 'agent-started' })).toMatchObject({ changed: true, agentStarted: null })
+
+    h.create('w2', { workspaceId: 'ws', towerId: 'tw' })
+    h.manager.setBlockedDetection('w2', 'hook')
+    expect(h.call('terminal:wait', h.asHelper('tw'), { terminalId: 'w2', until: 'agent-started', timeoutMs: 0 })).toMatchObject({ changed: false, agentStarted: false })
+    const timedOut = h.call('terminal:wait', h.asHelper('tw'), { terminalId: 'w2', until: 'agent-started', timeoutMs: 1_000 }) as Promise<Record<string, unknown>>
+    await vi.advanceTimersByTimeAsync(1_100)
+    expect(await timedOut).toMatchObject({ changed: false, agentStarted: false })
+    const ended = h.call('terminal:wait', h.asHelper('tw'), { terminalId: 'w2', until: 'agent-started', timeoutMs: 10_000 }) as Promise<Record<string, unknown>>
+    await vi.advanceTimersByTimeAsync(500)
+    h.exit('w2', 1)
+    await vi.advanceTimersByTimeAsync(300)
+    expect(await ended).toMatchObject({ changed: true, state: 'exited', agentStarted: false })
+    // the scope is unchanged: a worker may not wait on its tower (output access)
+    expect(h.call('terminal:wait', h.asHelper('wk'), { terminalId: 'tw', until: 'agent-started' })).toMatchObject({ ok: false, code: 'NOT_OWNER' })
+  })
+})
+
+describe('launch-suspect log (T0600 option B)', () => {
+  it('watcher: bash / cmd / pwsh messages within the window, across chunks and colors; once; never the output', () => {
+    const lines: string[] = []
+    let t = 0
+    const w = new LaunchSuspectWatcher({ log: m => lines.push(m) }, () => t)
+    w.output('x', 'bash: claude: command not found\r\n') // not watched
+    expect(lines).toEqual([])
+    w.watch('a')
+    t = 120
+    w.output('a', 'PS C:\\w> claude --x\r\n\x1b[31;1mclaude: The term \'claude\' is not rec')
+    w.output('a', 'ognized as a name of a cmdlet, function, script file, or executable program.\x1b[0m\r\n')
+    expect(lines).toEqual(['[agent-command] launch-suspect terminal=a pattern="is not recognized as" after=120ms'])
+    w.output('a', 'bash: claude: command not found\r\n')
+    expect(lines).toHaveLength(1) // once per dispatch
+    expect(w.isWatching('a')).toBe(false)
+
+    w.watch('b')
+    w.output('b', 'CategoryInfo : ObjectNotFound: (claude:String) [], CommandNotFoundException\r\n')
+    w.watch('c')
+    w.output('c', 'zsh: command not found: claude\r\n')
+    expect(lines.slice(1)).toEqual([
+      '[agent-command] launch-suspect terminal=b pattern="CommandNotFoundException" after=0ms',
+      '[agent-command] launch-suspect terminal=c pattern="command not found" after=0ms',
+    ])
+    expect(lines.join('\n')).not.toContain('claude:')
+
+    // claude starting normally; then past the window nothing is looked at
+    w.watch('d')
+    w.output('d', '\x1b[?25l Claude Code v2.1.300 \r\n')
+    t += LAUNCH_SUSPECT_WINDOW_MS + 1
+    w.output('d', 'bash: foo: command not found\r\n')
+    expect(lines).toHaveLength(3)
+    expect(w.isWatching('d')).toBe(false)
+    w.watch('e')
+    w.clear('e')
+    w.output('e', 'command not found')
+    expect(lines).toHaveLength(3)
+  })
+
+  it('PtyManager: watched from writeDispatchCommand only; logged from its output; the PTY ending stops it', () => {
+    const { manager, create, output } = makeManager()
+    create('a')
+    output('a', 'bash: x: command not found\r\n') // a tab without a dispatch command
+    expect(logs.some(l => l.includes('launch-suspect'))).toBe(false)
+    manager.writeDispatchCommand('a', 'claude /ct-exec T0600\r')
+    output('a', 'bash: claude: command not found\r\n')
+    expect(logs.filter(l => l.startsWith('[agent-command] launch-suspect terminal=a pattern="command not found"'))).toHaveLength(1)
+    // nothing else changes
+    expect(manager.getBlockedState('a')).toBeNull()
+    expect(manager.getAgentStartedAt('a')).toBeNull()
+    create('b')
+    manager.writeDispatchCommand('b', 'claude\r')
+    manager.kill('b')
+    manager.writeDispatchCommand('gone', 'claude\r') // no PTY: not watched
+    expect(logs.filter(l => l.includes('launch-suspect'))).toHaveLength(1)
   })
 })

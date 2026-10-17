@@ -9,6 +9,8 @@
 //   PostToolUse (matcher AskUserQuestion, async) → bat-hook.mjs ask-user-question-done (T0594)
 //   UserPromptSubmit (async)                   → bat-hook.mjs user-prompt-submit
 //   Stop (async)                               → bat-hook.mjs stop
+//   SessionStart (async, T0600)                → bat-hook.mjs session-start (`agentStarted`;
+//                                                `source` is not sent)
 //
 // It reads claude's hook JSON from stdin (only `hook_event_name` / `tool_name` /
 // `notification_type`), sends one `terminal:report-hook` to the tab's BAT with the tab's own
@@ -37,7 +39,7 @@ export const STDIN_MAX_BYTES = 256 * 1024
 export const CONNECT_TIMEOUT_MS = 1000
 export const INVOKE_TIMEOUT_MS = 1000
 
-export const HOOK_EVENTS = ['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop']
+export const HOOK_EVENTS = ['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop', 'session-start']
 const ELICITATION_TYPES = ['elicitation_dialog', 'elicitation_url_dialog']
 /** claude hook_event_name each event is wired to (a mismatch = not ours to report). */
 const HOOK_EVENT_NAMES = {
@@ -47,6 +49,7 @@ const HOOK_EVENT_NAMES = {
   elicitation: 'Notification',
   'user-prompt-submit': 'UserPromptSubmit',
   stop: 'Stop',
+  'session-start': 'SessionStart',
 }
 const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/
 

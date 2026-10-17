@@ -130,6 +130,20 @@ describe('tools/call forwards to the channel', () => {
     expect(TOOLS.find(t => t.name === 'bat_whoami').timeoutMs).toBe(3000)
   })
 
+  it('T0600: bat_wait accepts until agent-started; summaries say whether the agent started (nothing when it cannot be told)', async () => {
+    expect(TOOLS.find(t => t.name === 'bat_wait').inputSchema.properties.until.enum).toEqual(['state-change', 'exit', 'idle', 'agent-started'])
+    expect(TOOLS.find(t => t.name === 'bat_get_state').description).toContain('agentStarted')
+    const { call, calls } = setup({
+      'terminal:get-state': { ok: true, result: { ok: true, terminalId: 'w1', state: 'idle', idleMs: 9000, blockedDetection: 'hook', agentStarted: true, agentStartedAt: 5 } },
+      'terminal:wait': { ok: true, result: { ok: true, terminalId: 'w1', changed: false, state: 'idle', blockedDetection: 'hook', agentStarted: false, waitedMs: 100 } },
+    })
+    expect((await call('bat_get_state', { terminalId: 'w1' })).result.content[0].text).toBe('w1: idle, idle 9000 ms, agent started')
+    expect((await call('bat_wait', { terminalId: 'w1', until: 'agent-started' })).result.content[0].text).toBe('changed=false state=idle, agent not started yet after 100 ms')
+    expect(calls.at(-1).args).toEqual([{ terminalId: 'w1', until: 'agent-started' }])
+    const { call: callNone } = setup({ 'terminal:get-state': { ok: true, result: { ok: true, terminalId: 'c1', state: 'idle', idleMs: 1, blockedDetection: 'none', agentStarted: null } } })
+    expect((await callNone('bat_get_state', { terminalId: 'c1' })).result.content[0].text).toBe('c1: idle, idle 1 ms')
+  })
+
   it('no arguments = this tab (no terminalId sent)', async () => {
     const { call, calls } = setup()
     await call('bat_get_state')

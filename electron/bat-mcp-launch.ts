@@ -23,6 +23,11 @@
  * way). The launch decision is recorded as the terminal's `blockedDetection` (`hook` / `none`) when
  * the caller names the terminal (`recordBlockedDetection`).
  *
+ * T0600 (D154): + `SessionStart` (async) → `agentStarted` (electron/terminal-blocked-state.ts). A
+ * claude whose own settings turn hooks off (`disableAllHooks` in the managed / user settings file,
+ * `allowManagedHooksOnly` in the managed one: `claudeHooksDisabledBy`) still gets the args, but the
+ * terminal is recorded `none`: no hook will report, so neither `blocked` nor `agentStarted` can.
+ *
  * One implementation for every launch path: the renderer (`agent:bat-mcp-launch-args`, proxied,
  * so a remote window gets the server's paths) and `terminal:create-agent-command`
  * (`createAgentPromptCommandBuilder`). Raw command mode is never touched.
@@ -30,6 +35,7 @@
  * 🔴 No `electron` import: headless registers the same handler.
  */
 import * as fs from 'fs'
+import * as os from 'os'
 import * as path from 'path'
 import { quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
 import type { HandlerRegistrar } from './handlers/types'
@@ -105,7 +111,55 @@ export const BAT_CLAUDE_HOOKS: ReadonlyArray<{ hookEvent: string; matcher?: stri
   { hookEvent: 'PostToolUse', matcher: 'AskUserQuestion', event: 'ask-user-question-done', async: true },
   { hookEvent: 'UserPromptSubmit', event: 'user-prompt-submit', async: true },
   { hookEvent: 'Stop', event: 'stop', async: true },
+  // T0600: the launch confirmation (`agentStarted`); any `source`, which is not sent. async: claude
+  // must not wait for it, and its stdout would go into the conversation (the script prints nothing)
+  { hookEvent: 'SessionStart', event: 'session-start', async: true },
 ]
+
+/** T0600: a claude settings file that can turn BAT's hooks off; `managed` = the machine's policy file. */
+export interface ClaudeSettingsFile {
+  file: string
+  managed: boolean
+}
+
+/**
+ * T0600: the claude settings files `claudeHooksDisabledBy` reads, highest precedence first: the
+ * managed settings file (claude 2.1.300: `C:\Program Files\ClaudeCode`, `/Library/Application
+ * Support/ClaudeCode`, `/etc/claude-code`), then the user's (`$CLAUDE_CONFIG_DIR` or `~/.claude`).
+ * Project files (`<cwd>/.claude/settings[.local].json`) are not known at the launch decision.
+ */
+export function defaultClaudeSettingsFiles(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  homeDir: string = os.homedir(),
+): ClaudeSettingsFile[] {
+  const managedDir = platform === 'win32' ? 'C:\\Program Files\\ClaudeCode'
+    : platform === 'darwin' ? '/Library/Application Support/ClaudeCode'
+      : '/etc/claude-code'
+  const p = platform === 'win32' ? path.win32 : path.posix
+  const userDir = env.CLAUDE_CONFIG_DIR?.trim() || p.join(homeDir, '.claude')
+  return [
+    { file: p.join(managedDir, 'managed-settings.json'), managed: true },
+    { file: p.join(userDir, 'settings.json'), managed: false },
+  ]
+}
+
+/**
+ * T0600: why claude will run none of BAT's hooks, or null: `allowManagedHooksOnly: true` in the
+ * managed file, or `disableAllHooks: true` in the first file (in precedence order) that sets it.
+ * Unreadable / not JSON = not set. MDM / server-managed policies are not seen.
+ */
+export function claudeHooksDisabledBy(files: readonly ClaudeSettingsFile[], fsImpl: Pick<BatMcpFs, 'readFileSync'> = fs): string | null {
+  for (const { file, managed } of files) {
+    let parsed: unknown
+    try { parsed = JSON.parse(fsImpl.readFileSync(file, 'utf8')) } catch { continue }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue
+    const settings = parsed as Record<string, unknown>
+    if (managed && settings.allowManagedHooksOnly === true) return `allowManagedHooksOnly in ${file}`
+    if (typeof settings.disableAllHooks === 'boolean') return settings.disableAllHooks ? `disableAllHooks in ${file}` : null
+  }
+  return null
+}
 
 /**
  * T0590: the shell command of one hook. claude runs it through bash (Git Bash on Windows) or, on
@@ -203,6 +257,8 @@ export interface BatMcpHost {
    * (`PtyManager.setBlockedDetection`). Called only when the request names the terminal.
    */
   recordBlockedDetection?(terminalId: string, detection: 'hook' | 'none'): void
+  /** T0600: the claude settings files that can turn hooks off. Absent ⇒ `defaultClaudeSettingsFiles()`. */
+  claudeSettingsFiles?(): readonly ClaudeSettingsFile[]
   /** The platform the hook commands run on (tests). Default `process.platform`. */
   platform?: NodeJS.Platform
   fs?: BatMcpFs
@@ -221,14 +277,15 @@ export interface BatMcpLaunchRequest {
 /**
  * `injected` = some args (MCP and / or, claude only, the hooks). `mcp` / `hooks` say which;
  * `mcpReason` / `hooksReason` why a part is missing (`hooks` is always false for codex).
+ * T0600: `hooksDisabled` = the hooks went in, but claude's own settings turn them off.
  */
 export type BatMcpLaunchResult =
-  | { injected: true; kind: BatMcpAgentKind; args: string; mcp: boolean; hooks: boolean; mcpReason?: string; hooksReason?: string }
+  | { injected: true; kind: BatMcpAgentKind; args: string; mcp: boolean; hooks: boolean; mcpReason?: string; hooksReason?: string; hooksDisabled?: string }
   | { injected: false; reason: string; kind?: BatMcpAgentKind; hooksReason?: string }
 
 /** T0590: the `blockedDetection` a launch decision gives the terminal. */
 export function blockedDetectionOf(result: BatMcpLaunchResult): 'hook' | 'none' {
-  return result.injected && result.hooks ? 'hook' : 'none'
+  return result.injected && result.hooks && !result.hooksDisabled ? 'hook' : 'none'
 }
 
 /**
@@ -285,6 +342,14 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
   if (!mcpArgs && !hooksArgs) {
     return { injected: false, kind, reason: mcpReason ?? 'nothing to inject', ...(hooksReason ? { hooksReason } : {}) }
   }
+  // T0600: injected anyway (harmless; a report still proves the hooks run), recorded as `none`
+  let hooksDisabled: string | null = null
+  if (hooksArgs) {
+    try {
+      const files = host.claudeSettingsFiles ? host.claudeSettingsFiles() : defaultClaudeSettingsFiles(process.env, host.platform ?? process.platform)
+      hooksDisabled = claudeHooksDisabledBy(files, fsImpl)
+    } catch { /* not checked */ }
+  }
   return {
     injected: true,
     kind,
@@ -293,6 +358,7 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
     hooks: hooksArgs !== null,
     ...(mcpReason ? { mcpReason } : {}),
     ...(hooksReason ? { hooksReason } : {}),
+    ...(hooksDisabled ? { hooksDisabled } : {}),
   }
 }
 
@@ -318,13 +384,14 @@ function narrowShellFamily(value: unknown): ShellFamily {
 
 /**
  * One log line per decision (claude / codex tabs only). Args are logged: they hold no secret.
- * T0590: claude lines say whether the hooks went in (`hooks=yes` / `hooks=no (<reason>)`).
+ * T0590: claude lines say whether the hooks went in (`hooks=yes` / `hooks=no (<reason>)`);
+ * T0600: `hooks=yes (turned off: <reason>)` when claude's own settings disable them.
  */
 export function logBatMcpDecision(logger: BatMcpHost['logger'], source: string, agentId: string, result: BatMcpLaunchResult, terminalId?: string): void {
   if (!logger || (!result.injected && !result.kind)) return
   const tab = terminalId ? ` terminal=${terminalId}` : ''
   const hooks = result.kind === 'claude'
-    ? `; hooks=${result.injected && result.hooks ? 'yes' : `no (${result.hooksReason ?? (result.injected ? 'n/a' : result.reason)})`}`
+    ? `; hooks=${result.injected && result.hooks ? `yes${result.hooksDisabled ? ` (turned off: ${result.hooksDisabled})` : ''}` : `no (${result.hooksReason ?? (result.injected ? 'n/a' : result.reason)})`}`
     : ''
   if (result.injected) {
     const mcp = result.mcp ? '' : `; mcp=no (${result.mcpReason ?? 'n/a'})`

@@ -13,6 +13,8 @@
  *     argument and from the dispatch builder; logs say whether the hooks went in
  *   - headless host: bundle node, `<installRoot>/scripts/bat-hook.mjs`, records on its PtyManager
  *   - the hook command really runs in bash and PowerShell when present (quoting)
+ *   - T0600: `SessionStart` (async, no matcher) → session-start; claude's own settings turning hooks
+ *     off (`disableAllHooks` managed / user, `allowManagedHooksOnly` managed) → injected but `none`
  */
 import { spawnSync } from 'child_process'
 import * as fs from 'fs'
@@ -31,7 +33,9 @@ import {
   blockedDetectionOf,
   buildBatMcpLaunchArgs,
   claudeHookSettingsContent,
+  claudeHooksDisabledBy,
   createBatMcpLaunchArgs,
+  defaultClaudeSettingsFiles,
   registerBatMcpHandlers,
   userArgsPassClaudeSettings,
   type BatMcpHost,
@@ -73,6 +77,7 @@ function host(overrides: Partial<BatMcpHost> = {}, settings: Record<string, unkn
     endpointReady: () => true,
     readSettings: () => settings,
     platform: 'win32',
+    claudeSettingsFiles: () => [], // T0600: never this machine's own claude settings
     ...overrides,
   }
 }
@@ -90,7 +95,7 @@ describe('claude hooks injection', () => {
     const content = fs.readFileSync(settingsFile(), 'utf8')
     const parsed = JSON.parse(content) as { hooks: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>> }
     expect(Object.keys(parsed)).toEqual(['hooks'])
-    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'UserPromptSubmit', 'Stop'])
+    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'])
     const cmd = (event: string) => `node '${fwd(hookScript())}' ${event}`
     expect(parsed.hooks).toEqual({
       PermissionRequest: [{ hooks: [{ type: 'command', command: cmd('permission-request'), timeout: 5 }] }],
@@ -100,6 +105,8 @@ describe('claude hooks injection', () => {
       PostToolUse: [{ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command: cmd('ask-user-question-done'), timeout: 5, async: true }] }],
       UserPromptSubmit: [{ hooks: [{ type: 'command', command: cmd('user-prompt-submit'), timeout: 5, async: true }] }],
       Stop: [{ hooks: [{ type: 'command', command: cmd('stop'), timeout: 5, async: true }] }],
+      // T0600: the launch confirmation, every source, never waited for
+      SessionStart: [{ hooks: [{ type: 'command', command: cmd('session-start'), timeout: 5, async: true }] }],
     })
     expect(content).not.toContain(TOKEN)
     expect(content).not.toMatch(/disableAllHooks|allowManagedHooksOnly|permissions|model|env|BAT_REMOTE|token/i)
@@ -167,7 +174,7 @@ describe('claude hooks injection', () => {
     for (const name of ['bat-mcp.mjs', 'bat-hook.mjs']) fs.writeFileSync(path.join(quoted, name), '')
     expect(buildBatMcpLaunchArgs(host({ helperDir: () => quoted }), { agentId: 'claude-cli', shellFamily: 'posix' }))
       .toMatchObject({ injected: true, mcp: true, hooks: false, hooksReason: expect.stringContaining('bash and PowerShell') })
-    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'ask-user-question-done', 'user-prompt-submit', 'stop'])
+    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'ask-user-question-done', 'user-prompt-submit', 'stop', 'session-start'])
     // every hook BAT injects is an event bat-hook.mjs and terminal:report-hook accept
     expect(BAT_CLAUDE_HOOKS.every(h => (HOOK_REPORT_EVENTS as readonly string[]).includes(h.event))).toBe(true)
   })
@@ -260,6 +267,75 @@ describe('blockedDetection recording', () => {
     fs.rmSync(path.join(scripts, 'bat-hook.mjs'))
     expect(createBatMcpLaunchArgs(h, 'tab')({ agentId: 'claude-cli', shellFamily: 'posix', terminalId: 'remote-tab' })).toMatchObject({ injected: true, hooks: false })
     expect(recorded.at(-1)).toEqual(['remote-tab', 'none'])
+  })
+})
+
+describe('claude settings that turn the hooks off (T0600)', () => {
+  const write = (name: string, value: unknown) => {
+    const file = path.join(dir, name)
+    fs.writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value))
+    return file
+  }
+
+  it('claudeHooksDisabledBy: first file setting disableAllHooks decides (managed first); allowManagedHooksOnly in the managed file only; unreadable = unset', () => {
+    const managed = (v: unknown) => ({ file: write('managed.json', v), managed: true })
+    const user = (v: unknown) => ({ file: write('user.json', v), managed: false })
+    const missing = { file: path.join(dir, 'missing.json'), managed: true }
+    expect(claudeHooksDisabledBy([missing, user({ disableAllHooks: true })])).toBe(`disableAllHooks in ${path.join(dir, 'user.json')}`)
+    expect(claudeHooksDisabledBy([managed({ disableAllHooks: false }), user({ disableAllHooks: true })])).toBeNull()
+    expect(claudeHooksDisabledBy([managed({ model: 'x' }), user({ disableAllHooks: false })])).toBeNull()
+    expect(claudeHooksDisabledBy([managed({ allowManagedHooksOnly: true }), user({})])).toBe(`allowManagedHooksOnly in ${path.join(dir, 'managed.json')}`)
+    expect(claudeHooksDisabledBy([user({ allowManagedHooksOnly: true })])).toBeNull()
+    expect(claudeHooksDisabledBy([managed('not json'), user('[true]')])).toBeNull()
+    expect(claudeHooksDisabledBy([])).toBeNull()
+  })
+
+  it('defaultClaudeSettingsFiles: managed file per platform, then CLAUDE_CONFIG_DIR or ~/.claude', () => {
+    expect(defaultClaudeSettingsFiles({}, 'win32', 'C:\\Users\\u')).toEqual([
+      { file: 'C:\\Program Files\\ClaudeCode\\managed-settings.json', managed: true },
+      { file: 'C:\\Users\\u\\.claude\\settings.json', managed: false },
+    ])
+    expect(defaultClaudeSettingsFiles({ CLAUDE_CONFIG_DIR: '/cfg/claude' }, 'linux', '/home/u')).toEqual([
+      { file: '/etc/claude-code/managed-settings.json', managed: true },
+      { file: '/cfg/claude/settings.json', managed: false },
+    ])
+    expect(defaultClaudeSettingsFiles({}, 'darwin', '/Users/u')[0].file).toBe('/Library/Application Support/ClaudeCode/managed-settings.json')
+  })
+
+  it('turned off → the args still go in (a report would still prove they run), recorded none, logged; on → hook', () => {
+    const userFile = write('settings.json', { disableAllHooks: true })
+    const recorded: Array<[string, string]> = []
+    const logs: string[] = []
+    const launch = createBatMcpLaunchArgs(host({
+      claudeSettingsFiles: () => [{ file: userFile, managed: false }],
+      recordBlockedDetection: (id, d) => { recorded.push([id, d]) },
+      logger: { log: m => logs.push(m), warn: m => logs.push(m) },
+    }), 'dispatch')
+    const r = launch({ agentId: 'claude-cli', shellFamily: 'posix', terminalId: 'w1' })
+    expect(r).toMatchObject({ injected: true, mcp: true, hooks: true, hooksDisabled: `disableAllHooks in ${userFile}` })
+    expect(r.injected && r.args).toContain('--settings=')
+    expect(blockedDetectionOf(r)).toBe('none')
+    expect(recorded).toEqual([['w1', 'none']])
+    expect(logs[0]).toMatch(/; hooks=yes \(turned off: disableAllHooks in .*settings\.json\)$/)
+    // the claude settings file BAT writes never says anything about it
+    expect(fs.readFileSync(settingsFile(), 'utf8')).not.toMatch(/disableAllHooks|allowManagedHooksOnly/)
+    fs.writeFileSync(userFile, JSON.stringify({ disableAllHooks: false }))
+    expect(launch({ agentId: 'claude-cli', shellFamily: 'posix', terminalId: 'w2' })).not.toHaveProperty('hooksDisabled')
+    expect(recorded.at(-1)).toEqual(['w2', 'hook'])
+    // codex is never checked (no hooks), custom --settings neither
+    expect(launch({ agentId: 'codex-cli', shellFamily: 'posix', terminalId: 'c1' })).not.toHaveProperty('hooksDisabled')
+  })
+
+  it('headless host reads the server user’s home (HostDeps.homeDir)', () => {
+    const installRoot = path.join(dir, 'bundle-t0600')
+    const hostDeps: HostDeps = { emit: () => {}, dataDir, homeDir: path.join(dir, 'home'), getSettings: () => ({}) }
+    const h = createHeadlessBatMcpHost(installRoot, hostDeps, fs.existsSync, () => null)
+    vi.stubEnv('CLAUDE_CONFIG_DIR', '')
+    try {
+      expect(h.claudeSettingsFiles?.().find(f => !f.managed)?.file).toBe(path.join(dir, 'home', '.claude', 'settings.json'))
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })
 

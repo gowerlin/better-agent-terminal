@@ -14,7 +14,7 @@ describe('hookReport', () => {
     expect(hookReport('permission-request', { tool_name: 'bad name with spaces' })).toEqual({ event: 'permission-request' })
     expect(hookReport('user-prompt-submit', { hook_event_name: 'UserPromptSubmit', prompt: 'SECRET' })).toEqual({ event: 'user-prompt-submit' })
     expect(hookReport('stop', null)).toEqual({ event: 'stop' })
-    expect(HOOK_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop'])
+    expect(HOOK_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop', 'session-start'])
     // T0594: the answered question — never tool_response (the answers) / tool_input
     expect(hookReport('ask-user-question-done', { hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion', tool_input: { q: 1 }, tool_response: { answers: { a: 'SECRET' } } }))
       .toEqual({ event: 'ask-user-question-done' })
@@ -31,6 +31,15 @@ describe('hookReport', () => {
     expect(hookReport('ask-user-question-done', { hook_event_name: 'PostToolUse', tool_name: 'Bash' })).toBeNull()
     expect(hookReport('ask-user-question-done', { hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' })).toBeNull()
     expect(hookReport('permission-denied', { hook_event_name: 'PermissionDenied', tool_name: 'Bash' })).toBeNull()
+  })
+
+  it('T0600: SessionStart → session-start, nothing of its input (source, model, transcript) is sent', () => {
+    for (const source of ['startup', 'resume', 'clear', 'compact', 'fork']) {
+      expect(hookReport('session-start', { hook_event_name: 'SessionStart', source, model: 'm', transcript_path: '/t.jsonl', session_id: 's' })).toEqual({ event: 'session-start' })
+    }
+    expect(hookReport('session-start', null)).toEqual({ event: 'session-start' })
+    expect(hookReport('session-start', { hook_event_name: 'Stop' })).toBeNull()
+    expect(hookReport('stop', { hook_event_name: 'SessionStart' })).toBeNull()
   })
 })
 

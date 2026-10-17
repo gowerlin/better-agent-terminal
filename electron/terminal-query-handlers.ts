@@ -21,6 +21,10 @@
  * (electron/terminal-blocked-state.ts), with `blockedReason` / `blockedSince` / `source: 'hook'`;
  * precedence exited > blocked > working / idle. Every state answer carries `blockedDetection`
  * (`hook` / `none`): a `none` tab never reads `blocked`, so its `idle` says nothing about a prompt.
+ * T0600 (D154): every state answer also carries `agentStarted` — `true` (the tab's claude ran its
+ * `SessionStart` hook; + `agentStartedAt`, ms), `false` (`blockedDetection: hook`, not reported
+ * yet), `null` (`blockedDetection: none`: cannot tell). `terminal:wait` `until: 'agent-started'`
+ * ends when it is no longer `false` or the PTY exited.
  *
  * Output: the PTY's raw replay buffer (`pty:get-buffer`'s, or the tail kept at exit) → plain text
  * (`plainTextFromOutput`, T0566) → `redactTerminalSecrets` (src/lib/terminal-output-redaction.ts)
@@ -70,7 +74,8 @@ export type TerminalQueryState = 'working' | 'idle' | 'blocked' | 'exited'
 export type TerminalQueryErrorCode = 'INVALID_ARGS' | 'NOT_FOUND' | 'NOT_OWNER' | 'TOO_MANY_WAITS'
 export type TerminalQueryFailure = { ok: false; code: TerminalQueryErrorCode; message?: string }
 
-export type TerminalWaitUntil = 'state-change' | 'exit' | 'idle'
+/** T0600: + `agent-started`. */
+export type TerminalWaitUntil = 'state-change' | 'exit' | 'idle' | 'agent-started'
 
 /** What the handlers need from PtyManager (the class satisfies it). */
 export interface TerminalQueryPtyManager {
@@ -85,6 +90,8 @@ export interface TerminalQueryPtyManager {
   getBlockedState?(id: string): BlockedState | null
   /** T0590: `hook` / `none` (per id, outlives the PTY). Absent ⇒ `none`. */
   getBlockedDetection?(id: string): BlockedDetection
+  /** T0600: when running PTY `id`'s claude ran `SessionStart` (ms), or null. Absent ⇒ never. */
+  getAgentStartedAt?(id: string): number | null
 }
 
 /** Electron: what the window registry saved for a tab (title, workspace, its tower). */
@@ -136,7 +143,7 @@ export interface TerminalQueryDeps {
 const TERMINAL_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/
 const CURSOR_PATTERN = /^\d{1,16}$/
 const STATES: readonly TerminalQueryState[] = ['working', 'idle', 'blocked', 'exited']
-const WAIT_UNTIL: readonly TerminalWaitUntil[] = ['state-change', 'exit', 'idle']
+const WAIT_UNTIL: readonly TerminalWaitUntil[] = ['state-change', 'exit', 'idle', 'agent-started']
 
 function asOptions(raw: unknown): Record<string, unknown> | null {
   if (raw === undefined || raw === null) return {}
@@ -232,6 +239,16 @@ interface StateSnapshot {
   /** `hook` for `blocked` (T0590), else `output`. */
   source: 'output' | 'hook'
   blockedDetection: BlockedDetection
+  /** T0600: true = `SessionStart` reported, false = not yet (`hook`), null = cannot tell (`none`). */
+  agentStarted: boolean | null
+  /** T0600: `agentStarted: true` only (ms). */
+  agentStartedAt?: number
+}
+
+/** T0600: `agentStarted` / `agentStartedAt` of a state answer. */
+export function agentStartedFields(detection: BlockedDetection, startedAt: number | null): Pick<StateSnapshot, 'agentStarted' | 'agentStartedAt'> {
+  if (startedAt !== null) return { agentStarted: true, agentStartedAt: startedAt }
+  return { agentStarted: detection === 'hook' ? false : null }
 }
 
 export interface TerminalQueryHandlers {
@@ -286,6 +303,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       const last = pm.getLastOutputAt(id)
       const idleMs = last === null ? null : Math.max(0, t - last)
       const blocked = pm.getBlockedState?.(id) ?? null
+      const started = agentStartedFields(blockedDetection, pm.getAgentStartedAt?.(id) ?? null)
       if (blocked) {
         return {
           state: 'blocked',
@@ -295,9 +313,10 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
           blockedSince: blocked.since,
           source: 'hook',
           blockedDetection,
+          ...started,
         }
       }
-      return { state: idleMs !== null && idleMs < TERMINAL_QUERY_IDLE_MS ? 'working' : 'idle', lastOutputAt: last, idleMs, source: 'output', blockedDetection }
+      return { state: idleMs !== null && idleMs < TERMINAL_QUERY_IDLE_MS ? 'working' : 'idle', lastOutputAt: last, idleMs, source: 'output', blockedDetection, ...started }
     }
     const record = pm.getExitedPty(id)
     if (!record) return null
@@ -309,6 +328,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       exitedAt: record.exitedAt,
       source: 'output',
       blockedDetection,
+      ...agentStartedFields(blockedDetection, record.agentStartedAt ?? null),
     }
   }
 
@@ -431,6 +451,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
         state: state.state,
         ...(state.blockedReason ? { blockedReason: state.blockedReason } : {}),
         blockedDetection: state.blockedDetection,
+        agentStarted: state.agentStarted,
         alive: info !== null,
       }]
     })
@@ -510,7 +531,8 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     const met = (s: StateSnapshot): boolean =>
       until === 'exit' ? s.state === 'exited'
         : until === 'idle' ? s.state !== 'working'
-          : s.state !== baseline
+          : until === 'agent-started' ? s.agentStarted !== false || s.state === 'exited'
+            : s.state !== baseline
 
     const key = callerLabel(ctx)
     const open = waitsByCaller.get(key) ?? 0
@@ -519,7 +541,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     }
     const startedAt = now()
     const answer = (s: StateSnapshot, changed: boolean) => {
-      audit(channel, ctx, target, `ok until=${until} changed=${changed} state=${s.state}`)
+      audit(channel, ctx, target, `ok until=${until} changed=${changed} state=${s.state}${until === 'agent-started' ? ` agentStarted=${s.agentStarted}` : ''}`)
       return { ok: true as const, terminalId: target, changed, ...s, waitedMs: Math.max(0, now() - startedAt) }
     }
     if (met(initial)) return answer(initial, true)

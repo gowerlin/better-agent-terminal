@@ -34,6 +34,10 @@
 //     └─ PLAN-047 W1-2 / T0585: one line of JSON — the worktree status of the Worker this Tower
 //        dispatched for T0585 (without T####: this tab's own). Read-only. Exit 0 / 3 NOT_FOUND /
 //        4 NOT_OWNER / 5 AMBIGUOUS / 1 other.
+//   node scripts/bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --skill ct-exec --workorder T0600 --wait-started 30000
+//     └─ T0600 (D154): after creating the tab, wait (at most the given ms) until its claude has
+//        started (`SessionStart` hook). Exit 0 + "started: <ISO>" / "started: unknown" (no signal:
+//        codex, no hooks…) / 8 LAUNCH_UNCONFIRMED + "started: unconfirmed" (the tab is kept).
 //
 // Options:
 //   --help, -h     Show help
@@ -84,7 +88,7 @@ if (process.platform === 'win32') {
 
 const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs [options] --prompt <text>
-       bat-terminal.mjs [options] --skill <name> --workorder <T####> [--isolation worktree]
+       bat-terminal.mjs [options] --skill <name> --workorder <T####> [--isolation worktree] [--wait-started <ms>]
        bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>] [--worktree keep|remove|archive]
        bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]
        bat-terminal.mjs --worktree-status [<T####> --notify-id <id>]
@@ -116,6 +120,21 @@ Options:
                          Exit 7 (stderr "create: WORKTREE_FAILED"): the worktree could not be
                          prepared (not a git repository, the location is taken, git failed);
                          no terminal is created.
+  --wait-started <ms>    T0600: after the terminal is created, wait at most <ms> (0-120000; more is
+                         cut to 120000) until its agent has started: claude runs BAT's SessionStart
+                         hook. Needs --notify-id (the Tower's own terminal ID: the Tower may only
+                         query its own Workers). stdout gets one more line after the others:
+                           "  started: <ISO time>"   started -> exit 0
+                           "  started: unknown"      this tab cannot tell (codex, raw <command>, BAT
+                                                     hooks not injected or turned off by claude's
+                                                     settings, a BAT that cannot answer) -> exit 0;
+                                                     stderr "wait-started: <CODE>" says why
+                           "  started: unconfirmed"  not started within <ms>, or the terminal ended
+                                                     first -> exit 8, stderr "create: LAUNCH_UNCONFIRMED";
+                                                     the terminal is NOT closed
+                         Without it nothing changes (no wait, no "started:" line). A BAT whose
+                         helper does not know it exits 1 with "Unknown option '--wait-started'"
+                         and creates no terminal.
   --help, -h             Show this help message
   --version              Show version
 
@@ -211,7 +230,7 @@ Examples:
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--worktree-status', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--worktree-status', '--wait-started', '--help', '-h', '--version']
 
 // PLAN-041 / T0535: `--close-worker` exit codes (contract shared with CT, PLAN-041「介面契約」).
 const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
@@ -230,6 +249,12 @@ const ISOLATED_INVOKE_TIMEOUT_MS = 40_000
 // (BAT answers TIMEOUT itself after 10 s)
 const WORKTREE_STATUS_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5 }
 const WORKTREE_STATUS_INVOKE_TIMEOUT_MS = 15_000
+// T0600 (D154): `--wait-started <ms>` ceiling, one `terminal:wait` per 45 s (BAT's own ceiling), the
+// exit code of a launch not confirmed in time (the tab is kept)
+const WAIT_STARTED_MAX_MS = 120_000
+const WAIT_STARTED_CHUNK_MS = 45_000
+const WAIT_STARTED_INVOKE_MARGIN_MS = 5_000
+const LAUNCH_UNCONFIRMED_EXIT = 8
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -305,6 +330,8 @@ let worktreeMode = null
 // PLAN-047 W1-2 / T0585: --worktree-status [T####]
 let worktreeStatus = false
 let worktreeStatusWorkorder = null
+// T0600: --wait-started <ms> (null = not given)
+let waitStartedMs = null
 
 let i = 0
 while (i < rawArgs.length) {
@@ -524,6 +551,25 @@ while (i < rawArgs.length) {
     continue
   }
 
+  // T0600 (D154): wait for the new tab's agent to start (creating modes only: a create flag)
+  if (arg === '--wait-started') {
+    createFlags.push(arg)
+    const value = rawArgs[i + 1]
+    if (!value) { printUsageError('--wait-started requires a number of milliseconds'); process.exit(1) }
+    if (!/^\d+$/.test(value)) {
+      console.error(`Error: Invalid --wait-started value: '${value}' (expected a non-negative integer, e.g. 30000)`)
+      logEvent('bat-terminal', 'exit', { code: 1, reason: 'invalid-wait-started' })
+      process.exit(1)
+    }
+    waitStartedMs = Number(value)
+    if (waitStartedMs > WAIT_STARTED_MAX_MS) {
+      console.error(`[bat-terminal] --wait-started ${value}: waiting at most ${WAIT_STARTED_MAX_MS} ms.`)
+      waitStartedMs = WAIT_STARTED_MAX_MS
+    }
+    i += 2
+    continue
+  }
+
   if (arg === '--delay-ms') {
     const value = rawArgs[i + 1]
     if (!value) { printUsageError('--delay-ms requires a number of milliseconds'); process.exit(1) }
@@ -661,6 +707,13 @@ if (isolation && !hasSkillMode) {
   process.exit(1)
 }
 
+// T0600: the Tower may only query its own Workers (the new tab's tower = --notify-id)
+if (waitStartedMs !== null && !closeWorker && !setRole && !worktreeStatus && !notifyId) {
+  printUsageError('--wait-started requires --notify-id <the Tower terminal ID> (the Tower may only query its own Workers)')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'wait-started-without-notify-id' })
+  process.exit(1)
+}
+
 if (!closeWorker && !setRole && !worktreeStatus && !prompt && !hasSkillMode && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
@@ -685,6 +738,7 @@ logEvent('bat-terminal', 'parsed', {
   ...(isolation ? { isolation } : {}),
   ...(setRole ? { setRole, roleTerminalId, roleMode, agentHint: agentGiven ? agent : null } : {}),
   ...(worktreeStatus ? { worktreeStatus: worktreeStatusWorkorder ?? 'self' } : {}),
+  ...(waitStartedMs !== null ? { waitStartedMs } : {}),
 })
 
 // PLAN-041 / T0562: the `<mode>: <CODE>` diagnostic line on stderr of the modes that create no tab.
@@ -1263,9 +1317,81 @@ async function main() {
     } : {}),
     ...responseDiag,
   })
+  // T0600 (D154): the launch confirmation, opt-in
+  if (waitStartedMs !== null) {
+    const exitCode = await runWaitStarted(ws, terminalId)
+    logEvent('bat-terminal', 'exit', exitCode === 0 ? { code: 0 } : { code: exitCode, reason: 'launch-unconfirmed' })
+    ws.close()
+    process.exit(exitCode)
+  }
   logEvent('bat-terminal', 'exit', { code: 0 })
   ws.close()
   process.exit(0)
+}
+
+/**
+ * T0600 (D154): `terminal:wait { terminalId, until: 'agent-started' }` until the new tab's
+ * `agentStarted` is no longer `false`, the PTY ended, or `waitStartedMs` is over. Prints one
+ * `  started: <ISO> | unknown | unconfirmed` line; returns the exit code (0, or 8 = unconfirmed).
+ * The terminal is created already, so anything that keeps BAT from answering is `unknown`, never 1.
+ */
+async function runWaitStarted(ws, id) {
+  const startedAt = Date.now()
+  const deadline = startedAt + waitStartedMs
+  const finish = (exitCode, line, result, fields = {}) => {
+    console.log(`  started: ${line}`)
+    logEvent('bat-terminal', 'wait-started', { terminalId: id, waitStartedMs, result, waitedMs: Date.now() - startedAt, ...fields, ignoredFrames })
+    return exitCode
+  }
+  const unknown = (code, why, fields = {}) => {
+    console.error(`[bat-terminal] --wait-started: cannot tell whether the agent of ${id} started (${why}).`)
+    console.error(`wait-started: ${code}`)
+    return finish(0, 'unknown', code, fields)
+  }
+  for (;;) {
+    const timeoutMs = Math.max(0, Math.min(deadline - Date.now(), WAIT_STARTED_CHUNK_MS))
+    const invokeId = makeId()
+    ws.send(JSON.stringify({ type: 'invoke', id: invokeId, channel: 'terminal:wait', args: [{ terminalId: id, until: 'agent-started', timeoutMs }] }))
+    let resp
+    try {
+      resp = await waitForMessage(ws, invokeId, timeoutMs + WAIT_STARTED_INVOKE_MARGIN_MS)
+    } catch (err) {
+      return unknown('TIMEOUT', `no answer from BAT: ${err?.message || String(err)}`)
+    }
+    if (resp.error) {
+      const text = String(resp.error)
+      // a BAT before T0582 has no terminal:wait
+      if (/No handler for channel/i.test(text)) return unknown('UNSUPPORTED', 'this BAT has no terminal:wait (update BAT)')
+      return unknown(/Forbidden/i.test(text) ? 'FORBIDDEN' : 'ERROR', text)
+    }
+    const result = resp.result
+    if (!result || typeof result !== 'object' || result.ok !== true) {
+      const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
+      // a BAT before T0600 refuses `until: 'agent-started'`
+      if (code === 'INVALID_ARGS') return unknown('UNSUPPORTED', 'this BAT does not know until=agent-started (update BAT)')
+      const why = {
+        NOT_OWNER: `terminal ${notifyId} (--notify-id) is not this tab's own terminal, so ${id} is not its Worker`,
+        NOT_FOUND: `BAT no longer knows ${id}`,
+        TOO_MANY_WAITS: 'too many open waits of this tab',
+      }[code] ?? 'BAT refused the query'
+      return unknown(code, why)
+    }
+    // a BAT before T0600 has no `agentStarted` (it would not have accepted the `until` either)
+    if (!('agentStarted' in result)) return unknown('UNSUPPORTED', 'this BAT does not report agentStarted (update BAT)')
+    if (result.agentStarted === true) {
+      const at = typeof result.agentStartedAt === 'number' ? new Date(result.agentStartedAt).toISOString() : new Date().toISOString()
+      return finish(0, at, 'started', { agentStartedAt: at })
+    }
+    if (result.agentStarted !== false) {
+      return unknown('NO_SIGNAL', `blockedDetection=${result.blockedDetection ?? 'none'}: no start signal for this tab (codex, raw command, hooks not injected or turned off)`)
+    }
+    const exited = result.state === 'exited'
+    if (exited || Date.now() >= deadline) {
+      console.error(`[bat-terminal] --wait-started: the agent of ${id} has not confirmed its start ${exited ? 'before the terminal ended' : `within ${waitStartedMs} ms`}; the terminal is kept.`)
+      console.error('create: LAUNCH_UNCONFIRMED')
+      return finish(LAUNCH_UNCONFIRMED_EXIT, 'unconfirmed', exited ? 'exited' : 'timeout', { state: result.state })
+    }
+  }
 }
 
 /**
