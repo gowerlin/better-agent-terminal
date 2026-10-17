@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-18T01:40:47+0800"
+generated_at: "2026-10-18T02:31:23+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 34
+total: 35
 breakdown:
-  OPEN: 1
+  OPEN: 2
   FIXING: 0
   FIXED: 20
   VERIFY: 0
@@ -23,16 +23,17 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 01:40 (UTC+8) — 新增 BUG-149（T0592 e2e 發現 → FIXED by T0593 `e283abdc`）；BUG-148 CLOSED
+> 最後同步：2026-10-18 02:31 (UTC+8) — 新增 BUG-150（T0596：AskUserQuestion 回報 `permission`）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 34**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 35**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
+| BUG-150 | claude-cli 分頁的 AskUserQuestion 一律回報 `blocked` / `permission`（應為 `question`），T0594 的回答後清除永遠不生效 | 🟡 medium | 2026-10-18 02:31 | [BUG-150](BUG-150-askuserquestion-blocked-reason-permission.md) |
 
 ## ⏳ 修復中 (FIXING)
 
