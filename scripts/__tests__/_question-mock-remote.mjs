@@ -63,11 +63,19 @@ function parseClientFrame(buffer) {
  * (n = how many invokes of that channel came before). A channel without an entry answers
  * `{ result: { ok: true } }`. `decoy: true` sends a reply with another id before each real one.
  */
-export async function startMockRemote(replies = {}, { decoy = false } = {}) {
-  const pems = await selfsigned.generate([{ name: 'commonName', value: '127.0.0.1' }], {
+// One certificate per test process: RSA key generation is CPU-heavy, and a new one per mock server
+// slowed the parallel real-git tests past their 5 s timeout (T0608 full-suite runs).
+let pemsPromise = null
+function certificate() {
+  pemsPromise ??= selfsigned.generate([{ name: 'commonName', value: '127.0.0.1' }], {
     keySize: 2048, algorithm: 'sha256',
     extensions: [{ name: 'subjectAltName', altNames: [{ type: 7, ip: '127.0.0.1' }] }],
   })
+  return pemsPromise
+}
+
+export async function startMockRemote(replies = {}, { decoy = false } = {}) {
+  const pems = await certificate()
   const dir = join(tmpdir(), `bat-t0608-helper-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`)
   mkdirSync(dir, { recursive: true })
   tempDirs.push(dir)
