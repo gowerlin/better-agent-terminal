@@ -63,6 +63,8 @@
 - **工單操作** — 一鍵執行 `ct-exec`、`ct-done`、`ct-sync`，並依 default agent 自動選擇 Claude `/` 或 Codex `$` 前綴
 - **CtToast 通知** — 工單狀態變更即時通知
 - **塔台 / Worker 分頁** — 派工分頁標題顯示 `Agent · Worker · T####`、回報後標示 ✓；塔台分頁標題 `Agent · Tower`；塔台可回收自己派出的 Worker 分頁（`bat-terminal.mjs --close-worker`），或右鍵批次關閉已回報的 Worker
+- **BAT MCP** — BAT 啟動的 Claude CLI / Codex 分頁自動掛上唯讀 MCP 工具（`mcp__bat__*`：查身分、列分頁、查狀態、讀輸出、等待、worktree 狀態），範圍依分頁權杖限制；Settings → Advanced 可關閉
+- **worktree 隔離派工** — `bat-terminal.mjs --isolation worktree` 讓 Worker 在 repo 外的獨立 worktree（分支 `ct/T####`）執行；`--worktree-status` 查合併前狀態，`--close-worker … --worktree keep|remove|archive` 回收
 
 ### 👁 Supervisor 模式
 - 指定一個終端機為 Supervisor，監控其他 Worker 終端機

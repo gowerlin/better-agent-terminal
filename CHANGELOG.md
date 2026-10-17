@@ -4,6 +4,21 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0-pre.2] — 2026-10-17
+
+### Added
+- **分頁內的 agent 可以直接查詢 BAT（BAT MCP）**：BAT 啟動的 Claude CLI / Codex 分頁會自動掛上一組唯讀 MCP 工具（`mcp__bat__*`），可以查自己是誰、列出分頁、查分頁狀態（執行中 / 閒置 / 已結束）、讀取分頁輸出、等待分頁狀態改變、查 worktree 狀態。範圍依分頁權杖限制：塔台只能看自己與自己派出的 Worker，Worker 只能看自己。讀出的輸出會先遮蔽權杖、API key、私鑰等字串。設定檔不含任何權杖，也不會覆蓋你自己的 MCP 設定。可在 Settings → Advanced「BAT MCP」關閉（預設開啟）（PLAN-047，T0582 / T0584）
+- **Worker 可以在獨立的 git worktree 執行**：派工加 `--isolation worktree`，BAT 會在 repo 外建立 `.bat-worktrees/<repo>/<工單號>` 與分支 `ct/<工單號>`，Worker 在裡面工作，主 checkout 不受影響；回收 Worker 時可選擇保留、移除或封存 worktree（`--close-worker … --worktree keep|remove|archive`，預設保留）。依賴套件由 Worker 自行安裝。預設不隔離，不加參數時行為與先前相同（PLAN-047，T0583）
+- **查詢 Worker 分支的合併狀態**：`bat-terminal.mjs --worktree-status T####` 回報分支相對 main 的領先 / 落後、未提交的檔案、實際改動、超出工單範圍的檔案、預測的合併衝突，只讀不改（PLAN-047，T0585）
+
+### Known issues
+- Control Tower 要使用 worktree 隔離派工與合併工單，需等對應的 CT 版本（CT-T015 / CT-T016 進行中）；目前的 CT v5.2.4 不受影響
+- Codex 分頁的 BAT MCP 只驗證到設定解析，尚未實際連線驗證；以 npm 安裝的 `codex.cmd` 在 PowerShell 下的參數引號未實測
+- Claude / Codex 面板（非終端分頁）不掛 BAT MCP；BAT MCP 開關只影響之後啟動的分頁
+- 「偵測 Worker 停下來等回答」尚未提供（後續版本）
+- 用量限制自動繼續（0.6.1-pre.6 新增）尚未在真實撞到限制時驗證，遇到時請留意 BAT 日誌中的 `[usage-limit]` 紀錄
+- macOS / Linux 版本未實機驗證
+
 ## [0.7.0-pre.1] — 2026-10-17
 
 ### Changed
