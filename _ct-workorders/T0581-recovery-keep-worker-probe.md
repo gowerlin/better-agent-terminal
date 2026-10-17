@@ -99,3 +99,40 @@ memory_overrides:
 - ⇒ 以 `batcap.` worker 權杖對綁定塔台回報 → **送達，PASS**
 
 **後續**：本分頁停在原地不關閉，等使用者輸入「T0581 階段 2」。
+
+### 階段 2（2026-10-17T21:47:17+08:00，使用者輸入「T0581 階段 2」）
+
+**環境**（Git Bash 與原生 PowerShell 兩邊一致；權杖值未記錄）：
+
+| 項目 | 階段 1 | 階段 2 | 相同 |
+|---|---|---|---|
+| `BAT_TERMINAL_ID` | `577d12f1444d4eaeb848126531bfdf96` | `577d12f1444d4eaeb848126531bfdf96` | ✅ |
+| `BAT_TOWER_TERMINAL_ID` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` | ✅ |
+| `BAT_REMOTE_TOKEN` 前綴 | `batcap.` | `batcap.` | ✅ |
+| `BAT_REMOTE_PORT` | `9876` | `9876` | ✅ |
+
+**跨重開的證據**（主行程日誌 `%APPDATA%\BetterAgentTerminal\Logs\debug-20261017-214334.log`，新 PID 33224；只摘 id 與事件，不含權杖 / digest）：
+- `13:43:35.066Z` `[helper-cap] restored 6 capability record(s) from helper-capabilities.json — pending the Terminal Server's PTY list`
+- `13:43:35.075Z` `[terminal-server] 6 live PTYs detected — deferring to user recovery decision`
+- `13:43:35.479Z` `[BUG-146] pty:create id=577d12f1444d4eaeb848126531bfdf96 held until the Recovery prompt is answered`
+- `13:43:45.907Z` `[terminal-server] user chose recovery — connected to port 51555`（＝「保留」）
+- `13:43:45.909Z` `[helper-cap] kept restored: terminal=577d12f1444d4eaeb848126531bfdf96 (Terminal Server PTY list)`（塔台 `66447ea9…` 同樣 kept）
+- `13:43:45.909Z` `[PtyManager] pty:create SKIP (idempotent) id=577d12f1444d4eaeb848126531bfdf96 — already registered`（沒有另起 direct shell）
+
+**指令**（PowerShell，`$n` = `node`，`BAT_HELPER_NODE` 未設定）：
+`& $n "$env:BAT_HELPER_DIR\bat-notify.mjs" --target "$env:BAT_TOWER_TERMINAL_ID" --source "T0581" "T0581 階段 2：重開後原權杖回報"`（不帶 `--submit`；參數名已以 `--help` 確認）
+
+**結果**（2026-10-17T21:47:25+08:00）：
+- exit code：`0`
+- stdout：`✓ Notified 66447ea9…: T0581 階段 2：重開後原權杖回報`
+- stderr：（空）
+- 主行程日誌：
+  - `13:47:25.590Z` `[RemoteServer] Helper authenticated: role=worker terminal=577d12f1444d4eaeb848126531bfdf96`
+  - `13:47:25.592Z` `ipc-result channel=terminal:notify result=true target=66447ea9-66e1-431a-8303-0f4ced7ec6a7 broadcastWindows=1`
+  - `13:47:25.592Z` `[RENDERER] [T0538] Worker reported: tower=66447ea9-… workorder=T0581 tabs=577d12f1444d4eaeb848126531bfdf96`
+
+**驗收（階段 2）**：重開 + Recovery 保留後，同一 `batcap.` worker 權杖執行 `bat-notify` → exit 0，認證角色 `worker`、綁定塔台不變 → **PASS**（PLAN-047 A2 / T0576 實機成立）。沒有出現 `Authentication failed: Invalid token`。
+
+**附帶觀察**：Recovery 提示期間有一筆 helper 派工 `terminal:create-with-command id=d676dbdfe5f07045a4078177ff5422af` 被 hold，按「保留」後在 2 s 內放行（`released: reused=false`），符合 T0580 的行為。
+
+**變更檔案**：只有本工單檔；status 維持 `DONE`。
