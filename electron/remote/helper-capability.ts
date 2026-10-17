@@ -471,6 +471,12 @@ export function authorizeHelperInvoke(
       if (ctx.isTerminalAlive(opts.id)) return deny('terminal-exists')
       // The host's default shell only; a client-chosen executable is not a helper's call.
       if (opts.shell !== undefined && opts.shell !== null && opts.shell !== '') return deny('shell-not-allowed')
+      // PLAN-047 W1 / T0583: `--isolation worktree` — the one new create field; skill mode only. The
+      // worktree's CT_HOME / CT_WORKTREE* come from BAT, not from `customEnv` (whitelist unchanged).
+      if (opts.isolation !== undefined && opts.isolation !== null) {
+        if (channel !== 'terminal:create-agent-command') return deny('isolation-not-allowed')
+        if (typeof opts.isolation !== 'string' || opts.isolation.trim().toLowerCase() !== 'worktree') return deny('invalid-isolation')
+      }
       // T0450 (T0445 #7): a registry agent only — an unknown id is not something to launch.
       if (opts.agent !== undefined && opts.agent !== null && opts.agent !== '' && opts.agent !== 'default') {
         if (typeof opts.agent !== 'string') return deny('invalid-agent')

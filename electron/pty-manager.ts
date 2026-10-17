@@ -11,6 +11,7 @@ import { claudeUpdateGuardEnv } from './claude-resolver'
 import { resolvePtyLocaleEnv } from './pty-locale-env'
 import { normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 import type { CtMode } from './ct-mode'
+import type { CtWorktreeRecord } from './ct-worktree'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -66,6 +67,13 @@ interface PtyInstance {
    */
   workorder?: string
   /**
+   * PLAN-047 W1 / T0583: the worktree a `--isolation worktree` dispatch created for this Worker
+   * (electron/ct-worktree.ts) — `--close-worker --worktree remove|archive` cleans it after the tab
+   * closes. Kept by `restart` and the Terminal Server recovery, like `workorder`; after BAT reopens
+   * main takes it from the saved tab (T0537 path).
+   */
+  worktree?: CtWorktreeRecord
+  /**
    * T0565 / D148: the role a program in this tab declared (`bat-terminal.mjs --set-role tower`,
    * `terminal:set-role`) and the CT mode it declared with it (`--mode`; undefined = never given).
    * Kept by `restart` and the Terminal Server recovery; gone with the instance when the PTY ends.
@@ -75,8 +83,8 @@ interface PtyInstance {
   towerMode?: CtMode
 }
 
-/** T0535: `CreatePtyOptions` + the work order of a helper-dispatched Worker (main-side only). */
-export type PtyManagerCreateOptions = CreatePtyOptions & { workorder?: string }
+/** T0535: `CreatePtyOptions` + the work order of a helper-dispatched Worker (main-side only); T0583: + its worktree. */
+export type PtyManagerCreateOptions = CreatePtyOptions & { workorder?: string; worktree?: CtWorktreeRecord }
 
 /** T0525 (BUG-131): what a PTY's env is built from; recorded on the instance for rebuilds. */
 interface PtyEnvSpec {
@@ -753,6 +761,11 @@ export class PtyManager implements CloseWorkerPtyManager {
     return this.instances.get(id)?.workorder
   }
 
+  /** T0583: the worktree recorded on PTY `id` by this process (undefined = not an isolated Worker). */
+  getWorktree(id: string): CtWorktreeRecord | undefined {
+    return this.instances.get(id)?.worktree
+  }
+
   /** T0562: the `agentPreset` PTY `id` was created with (undefined = none recorded). */
   getAgentPreset(id: string): string | undefined {
     return this.instances.get(id)?.agentPreset
@@ -944,6 +957,8 @@ export class PtyManager implements CloseWorkerPtyManager {
     const { id, cwd, type, shell: shellOverride, customEnv = {}, workspaceId, agentPreset } = options
     // T0535: recorded only when it is a valid work order id (same grammar as --workorder)
     const workorder = normalizeWorkorderId(options.workorder) ?? undefined
+    // T0583: the worktree of an isolated Worker (main-side only, like workorder)
+    const worktree = options.worktree
     // T0404: a re-sent create for a running id stays idempotent below; only new ids count.
     const limit = this.deps.maxInstances
     if (limit && limit > 0 && !this.instances.has(id) && this.instances.size >= limit) {
@@ -983,6 +998,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         if (existing && !existing.customEnv && options.customEnv) existing.customEnv = { ...options.customEnv }
         if (existing && !existing.agentPreset && agentPreset) existing.agentPreset = agentPreset
         if (existing && !existing.workorder && workorder) existing.workorder = workorder
+        if (existing && !existing.worktree && worktree) existing.worktree = worktree
         return true
       }
       this.sendToServer({
@@ -997,7 +1013,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       })
       // T0112: Store shell/args so handleServerDeath() can rebuild after crash.
       // T0525: + what the env was built from, so the rebuild can build it again.
-      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true, customEnv, workspaceId, agentPreset, workorder })
+      this.instances.set(id, { process: null, type, cwd, usePty: true, shell, shellArgs: args, awaitingCreated: true, customEnv, workspaceId, agentPreset, workorder, worktree })
       logger.log(`[PtyManager] pty:create ${id} → Terminal Server`)
       return true
     }
@@ -1044,7 +1060,7 @@ export class PtyManager implements CloseWorkerPtyManager {
           this.handleDirectExit(id, ptyProcess, exitCode)
         })
 
-        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId, agentPreset, workorder })
+        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId, agentPreset, workorder, worktree })
         usedPty = true
         logger.log('Created terminal using node-pty')
       } catch (e) {
@@ -1100,7 +1116,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         // Send initial message
         this.broadcast('pty:output', id, `[Terminal - child_process mode]\r\n`)
 
-        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId, agentPreset, workorder })
+        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId, agentPreset, workorder, worktree })
         logger.log('Created terminal using child_process fallback')
       } catch (error) {
         logger.error('Failed to create terminal:', error)
@@ -1241,7 +1257,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     if (instance) {
       const type = instance.type
       const customEnv = instance.customEnv ? { ...instance.customEnv } : undefined
-      const { workspaceId, agentPreset, workorder, role, towerMode } = instance
+      const { workspaceId, agentPreset, workorder, worktree, role, towerMode } = instance
       this.kill(id)
       const ok = this.create({
         id, cwd, type, shell,
@@ -1249,6 +1265,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         ...(workspaceId ? { workspaceId } : {}),
         ...(agentPreset ? { agentPreset } : {}),
         ...(workorder ? { workorder } : {}),
+        ...(worktree ? { worktree } : {}),
       })
       if (ok && role) this.setTerminalRole(id, role, towerMode)
       return ok

@@ -14,6 +14,7 @@ import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
+import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
@@ -464,6 +465,8 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
 let ptyManager: PtyManager | null = null
 // PLAN-041 / T0535: `terminal:close-worker` delay timers (registerProxiedHandlers builds it).
 let workerCloseScheduler: WorkerCloseScheduler | null = null
+// PLAN-047 W1 / T0583: `--isolation worktree` dispatch + `--close-worker --worktree` cleanup (plain git).
+const ctWorktreeService = new CtWorktreeService()
 // PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
 let usageLimitScheduler: UsageLimitContinueScheduler | null = null
 let claudeManager: ClaudeAgentManager | null = null
@@ -2298,6 +2301,8 @@ function registerProxiedHandlers() {
       terminalId => ptyManager?.getWorkorder(terminalId) !== undefined,
       terminalId => localHelperCapabilities.hasWorkerCapability(terminalId),
     ),
+    // T0583: `--worktree remove|archive` once the isolated Worker's tab is gone
+    cleanupWorktree: (record, mode) => ctWorktreeService.cleanup(record, mode),
   })
   registerTerminalHandlers(registerHandler, {
     getPtyManager: () => ptyManager,
@@ -2307,6 +2312,7 @@ function registerProxiedHandlers() {
     resolveDispatchWorkspace,
     existsSync: fsSync.existsSync,
     workerCloser: workerCloseScheduler,
+    ctWorktree: ctWorktreeService,
   })
 
   // Workspace persistence — save/load from window registry entry

@@ -15,6 +15,7 @@ import {
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
 import { WorkerCloseScheduler } from '../close-worker'
+import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
 import type { HandlerContext } from '../handlers/types'
@@ -476,13 +477,21 @@ export function createHeadlessTerminalModule(opts: {
   checkAgentAvailable?: (agentId: string) => Promise<AgentUnavailableResult | null>
   /** T0536: whether PTY `terminalId` is a worker dispatched by tower `towerId`. */
   isWorkerOf?: (terminalId: string, towerId: string) => boolean
+  /** T0583: `--isolation worktree` / `--worktree` cleanup. Default: the resolved git, `BAT_*` scrubbed. */
+  ctWorktree?: CtWorktreeService
 }): HandlerModule {
   return (register, host) => {
     const readSettings = () => readHeadlessTerminalSettings(host.getSettings())
     const countRemoteReceivers = opts.countRemoteReceivers
+    // PLAN-047 W1 / T0583: git runs on this server, in the server's checkout of the dispatch cwd
+    const ctWorktree = opts.ctWorktree ?? new CtWorktreeService({
+      gitBinary: createHeadlessGitBinaryResolver(),
+      env: () => buildProbeEnv(process.env, isHeadlessScrubbedEnvKey),
+    })
     const workerCloser = new WorkerCloseScheduler({
       getPtyManager: opts.getPtyManager,
       ...(opts.isWorkerOf ? { isOwnedBy: opts.isWorkerOf } : {}),
+      cleanupWorktree: (record, mode) => ctWorktree.cleanup(record, mode),
       emit: (channel, payload) => {
         host.emit(channel, payload)
         return countRemoteReceivers ? countRemoteReceivers({ windowId: null }) : undefined
@@ -506,6 +515,7 @@ export function createHeadlessTerminalModule(opts: {
       checkAgentAvailable: opts.checkAgentAvailable,
       validateShell: true,
       workerCloser,
+      ctWorktree,
     })
     return () => workerCloser.dispose()
   }
