@@ -8,7 +8,9 @@
  *   would re-issue — and so revoke — the capability the running shell holds)
  * - a throwing host still spawns the PTY, just without helper env
  * - a spawn that fails entirely reports the id through `onPtyExit` (revokes what was issued)
- * - no `helperEnv` (Electron) = env unchanged
+ * - no `helperEnv` = no `BAT_REMOTE_*`, inherited ones dropped (T0575, T0574 gap 4: a BAT inside a
+ *   BAT tab must not hand the outer token on); Electron's `helperEnv` since T0575 is
+ *   `buildLocalHelperEnv` (see local-helper-capability.test.ts)
  * - T0481 (BUG-119): a host with `helperDir` (Electron) also gets `BAT_USER_DATA` = `dataDir` on
  *   all three env builders (Terminal Server, node-pty, child_process), overriding an inherited /
  *   client-supplied value; without `helperDir` (headless) it is not injected
@@ -16,7 +18,7 @@
  *   so a restarted worker keeps its role / tower binding (old token revoked, new one issued)
  * - T0525 (BUG-131): Electron's `restart` keeps `customEnv` too, and the Terminal Server
  *   recovery rebuild (T0112) sends the full env; both use the helper values current at rebuild
- *   time (a changed server token is the new one)
+ *   time (a changed server token / port is the new one)
  *
  * Same fake node-pty seeding as pty-manager-exit-hook.test.ts.
  */
@@ -99,7 +101,7 @@ class FakeServer extends EventEmitter {
 const USER_DATA = path.join(CWD, 'BetterAgentTerminal-runtime-7')
 const HELPER_DIR = path.join(CWD, 'bat-scripts')
 
-const SAVED_KEYS = ['BAT_REMOTE_TOKEN', 'BAT_HELPER_DIR', 'BAT_USER_DATA'] as const
+const SAVED_KEYS = ['BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN', 'BAT_HELPER_DIR', 'BAT_USER_DATA'] as const
 const saved: Record<string, string | undefined> = {}
 
 beforeEach(() => {
@@ -159,23 +161,39 @@ describe('PtyManager helperEnv (T0433)', () => {
     expect(env.BAT_REMOTE_TOKEN).toBeUndefined()
   })
 
-  it('without helperEnv (Electron) the env carries no helper keys it did not have', () => {
+  it('without helperEnv the env carries no BAT_REMOTE_*, inherited ones dropped (T0575 gap 4)', () => {
+    process.env.BAT_REMOTE_PORT = '9876'
+    process.env.BAT_REMOTE_TOKEN = 'outer-bat-server-token'
     const manager = makeManager()
-    manager.getRemoteServerInfo = () => ({ port: 9876, token: 'local-server-token' })
     manager.create({ id: 'p4', cwd: CWD, type: 'terminal', shell: '/bin/sh' })
     const env = spawnedEnv()
-    // Electron's own path is unchanged: getRemoteServerInfo still supplies port/token.
-    expect(env.BAT_REMOTE_PORT).toBe('9876')
-    expect(env.BAT_REMOTE_TOKEN).toBe('local-server-token')
+    expect(env.BAT_REMOTE_PORT).toBeUndefined()
+    expect(env.BAT_REMOTE_TOKEN).toBeUndefined()
+    expect(Object.values(env)).not.toContain('outer-bat-server-token')
     expect(env.BAT_SERVER_CERT_PATH).toBeUndefined()
     expect(env.BAT_HELPER_LOG_DIR).toBeUndefined()
+  })
+
+  it('T0575 gap 4: an inherited BAT_REMOTE_* is dropped on the Terminal Server path too; customEnv wins', () => {
+    process.env.BAT_REMOTE_PORT = '9876'
+    process.env.BAT_REMOTE_TOKEN = 'outer-bat-server-token'
+    const manager = makeManager()
+    const server = new FakeServer()
+    manager.setServerProcess(server as unknown as ChildProcess)
+    manager.create({ id: 'p4s', cwd: CWD, type: 'terminal', shell: '/bin/sh' })
+    manager.create({ id: 'p4c', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_REMOTE_PORT: '1234' } })
+    const [plain, custom] = server.sent.filter(msg => msg.type === 'pty:create')
+    expect(plain.env?.BAT_REMOTE_PORT).toBeUndefined()
+    expect(plain.env?.BAT_REMOTE_TOKEN).toBeUndefined()
+    // An explicit workspace / caller value is the user's own choice, not inherited
+    expect(custom.env?.BAT_REMOTE_PORT).toBe('1234')
+    expect(custom.env?.BAT_REMOTE_TOKEN).toBeUndefined()
   })
 
   describe('BAT_USER_DATA for the local helpers (T0481 / BUG-119)', () => {
     it('node-pty: helperDir host gets BAT_USER_DATA = dataDir, over inherited and customEnv values', () => {
       process.env.BAT_USER_DATA = path.join(CWD, 'parent-bat-userdata')
-      const manager = makeManager({ dataDir: USER_DATA, helperDir: HELPER_DIR })
-      manager.getRemoteServerInfo = () => ({ port: 9876, token: 'local-server-token' })
+      const manager = makeManager({ dataDir: USER_DATA, helperDir: HELPER_DIR, helperEnv: () => ({ BAT_REMOTE_PORT: '9876', BAT_REMOTE_TOKEN: 'batcap.local' }) })
       manager.create({ id: 'u1', cwd: CWD, type: 'terminal', shell: '/bin/sh', customEnv: { BAT_USER_DATA: '/client/value' } })
       const env = spawnedEnv()
       expect(env.BAT_USER_DATA).toBe(USER_DATA)
@@ -183,8 +201,8 @@ describe('PtyManager helperEnv (T0433)', () => {
       // The explicit helper overrides stay headless-only: the helpers derive both paths from userData.
       expect(env.BAT_SERVER_CERT_PATH).toBeUndefined()
       expect(env.BAT_HELPER_LOG_DIR).toBeUndefined()
-      // No new grant: the only credential is still the local server token it already had.
-      expect(env.BAT_REMOTE_TOKEN).toBe('local-server-token')
+      // No new grant: the only credential is the PTY's own capability (T0575).
+      expect(env.BAT_REMOTE_TOKEN).toBe('batcap.local')
     })
 
     it('Terminal Server: the pty:create env carries BAT_USER_DATA = dataDir', () => {
@@ -283,11 +301,9 @@ describe('PtyManager helperEnv (T0433)', () => {
       fs.rmSync(dataDir, { recursive: true, force: true })
     })
 
-    /** Electron host: helperDir + userData + a RemoteServer whose token can change. */
+    /** Electron host: helperDir + userData + a helper env (port / token) that can change. */
     function electronManager(remote: { port: number; token: string }): PtyManagerType {
-      const manager = makeManager({ dataDir, helperDir: HELPER_DIR })
-      manager.getRemoteServerInfo = () => ({ ...remote })
-      return manager
+      return makeManager({ dataDir, helperDir: HELPER_DIR, helperEnv: () => ({ BAT_REMOTE_PORT: String(remote.port), BAT_REMOTE_TOKEN: remote.token }) })
     }
 
     const ptyCreates = (server: FakeServer) => server.sent.filter(msg => msg.type === 'pty:create')
@@ -337,8 +353,7 @@ describe('PtyManager helperEnv (T0433)', () => {
       expect(manager.create(opts)).toBe(true)
       expect(ptyCreates(server)).toEqual([])
       expect(manager.restart('r-4', CWD, '/bin/sh')).toBe(true)
-      const fresh = makeManager({ dataDir, helperDir: HELPER_DIR })
-      fresh.getRemoteServerInfo = () => ({ port: 9876, token: 'token-1' })
+      const fresh = electronManager({ port: 9876, token: 'token-1' })
       const freshServer = new FakeServer()
       fresh.setServerProcess(freshServer as unknown as ChildProcess)
       fresh.create(opts)

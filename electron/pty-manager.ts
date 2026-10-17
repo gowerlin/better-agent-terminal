@@ -123,16 +123,17 @@ export interface PtyManagerDeps {
    * T0432: called with the id of a PTY that is gone — killed (`kill` / `killAll` / restart's
    * kill), exited on its own, or (T0433) failed to spawn. A stale exit of a replaced process is not reported. May be
    * called twice for one PTY (kill, then its exit); listeners must be idempotent. Headless
-   * revokes the PTY's helper capability here. Undefined = no hook (Electron).
+   * revokes the PTY's helper capability here (Electron too since T0575). Undefined = no hook.
    */
   onPtyExit?: (id: string) => void
   /**
    * T0433: extra env for the helpers (`bat-terminal.mjs` / `bat-notify.mjs`) inside PTY `id`,
    * spread last so neither `customEnv` nor the inherited env can override it. Called once
    * per PTY actually spawned — never for an idempotent re-create of a running id, whose
-   * env (and helper capability) must stay valid. Headless issues the PTY's capability here
-   * (`BAT_REMOTE_TOKEN`); the server token never goes through it. Undefined = nothing
-   * extra (Electron: `getRemoteServerInfo` + `helperDir` as before).
+   * env (and helper capability) must stay valid. Both hosts issue the PTY's capability here
+   * (`BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN`; Electron since T0575, `buildLocalHelperEnv`); the
+   * server token never goes through it. Inherited `BAT_REMOTE_*` it does not supply are dropped
+   * from the PTY env (a BAT started inside a BAT tab, T0575). Undefined = nothing extra.
    */
   helperEnv?: (id: string, customEnv: Record<string, string>) => Record<string, string>
   /**
@@ -255,9 +256,6 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** Callback provided by main.ts to re-fork a new Terminal Server process. */
   onRequestNewServer: (() => Promise<ChildProcess | null>) | null = null
 
-  /** Callback provided by main.ts to get RemoteServer port/token for env injection (T0129). */
-  getRemoteServerInfo: (() => { port: number; token: string } | null) | null = null
-
   constructor(deps: PtyManagerDeps) {
     this.deps = deps
   }
@@ -305,8 +303,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   /**
    * T0525 (BUG-131): the env of PTY `id` — one builder for the first `pty:create` (all three
    * spawn paths), `restart` and the Terminal Server recovery rebuild, so none of them drops part
-   * of it again. Helper values (`BAT_REMOTE_*` from `getRemoteServerInfo`, `localHelperEnv`,
-   * `helperEnv`) are read at call time, never copied from the previous process.
+   * of it again. Helper values (`localHelperEnv`, `helperEnv` — `BAT_REMOTE_*`, the PTY's
+   * capability) are read at call time, never copied from the previous process.
    * `noFlicker: false` = the child_process fallback, which has never set CLAUDE_CODE_NO_FLICKER.
    */
   private buildPtyEnv(
@@ -316,9 +314,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     { noFlicker = true }: { noFlicker?: boolean } = {},
   ): Record<string, string> {
     const { customEnv, workspaceId, agentPreset } = spec
-    // T0129: RemoteServer connection info so PTY children (CLI tools) can connect back via WebSocket
-    const remoteInfo = this.getRemoteServerInfo?.() ?? null
-    return {
+    const env: Record<string, string> = {
       ...this.inheritedEnv() as Record<string, string>,
       ...customEnv,  // Merge custom environment variables
       // UTF-8 encoding (BUG-102 / T0398: per-platform locale; customEnv LANG / LC_* win)
@@ -352,10 +348,18 @@ export class PtyManager implements CloseWorkerPtyManager {
       ...(noFlicker ? { CLAUDE_CODE_NO_FLICKER: '1' } : {}),
       // Ensure not detected as CI environment
       CI: '',
-      ...(remoteInfo ? { BAT_REMOTE_PORT: String(remoteInfo.port), BAT_REMOTE_TOKEN: remoteInfo.token } : {}),
-      // T0433: host helper env (headless: per-PTY capability), last so nothing overrides it
+      // T0129 / T0433: RemoteServer connection info so PTY children (the helpers) can connect back
+      // via WebSocket — the host's helper env with the PTY's own capability (T0575: Electron too,
+      // no longer the server token), last so nothing overrides it
       ...helperEnv,
     }
+    // T0575 (T0574 gap 4): no inherited BAT_REMOTE_*. A BAT started inside another BAT's tab
+    // would hand the outer session's credentials on when its own RemoteServer is not listening.
+    // The host's helper env and an explicit customEnv value are kept.
+    for (const key of ['BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN']) {
+      if (!(key in helperEnv) && !(key in customEnv)) delete env[key]
+    }
+    return env
   }
 
   /** Inject Terminal Server IPC reference; enables proxy mode for all future PTY operations. */

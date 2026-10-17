@@ -17,6 +17,8 @@ import {
 import { readSecretFile, writeSecretFile } from './secrets'
 import {
   authorizeHelperInvoke,
+  HELPER_CHANNEL_ROLES,
+  HELPER_CREATE_CHANNELS,
   HelperTowerSpawnQuota,
   isCapabilityTokenShaped,
   safeTokenEqual,
@@ -95,10 +97,15 @@ interface RemoteServerOptions {
   /** BUG-103: server environment reported in auth metadata. Default: `detectServerEnv()` per auth. */
   detectServerEnv?: () => ServerEnvInfo
   /**
-   * T0432: per-PTY capabilities accepted at auth (headless). Absent = only the server
-   * token authenticates (Electron, unchanged).
+   * T0432: per-PTY capabilities accepted at auth (headless; Electron's local PTYs too since
+   * T0575). Absent = only the server token authenticates.
    */
   helperCapabilities?: HelperCapabilityRegistry
+  /**
+   * T0575: the helper role table. Default `HELPER_CHANNEL_ROLES` (headless); Electron passes
+   * `LOCAL_HELPER_CHANNEL_ROLES` (adds raw command mode for a tower, D149).
+   */
+  helperChannelRoles?: Readonly<Record<string, readonly HelperCapabilityRole[]>>
   /** T0432: PTY liveness for helper `terminal:create-agent-command` (absent ⇒ denied). */
   isTerminalAlive?: (id: string) => boolean
   /** T0450: agent registry lookup for helper `create-agent-command` `agent` (absent ⇒ explicit agents denied). */
@@ -378,6 +385,7 @@ export class RemoteServer {
   private readonly log: RemoteServerLogger
   private readonly detectEnv: () => ServerEnvInfo
   private readonly helperCapabilities?: HelperCapabilityRegistry
+  private readonly helperChannelRoles: Readonly<Record<string, readonly HelperCapabilityRole[]>>
   private readonly isTerminalAlive?: (id: string) => boolean
   private readonly isKnownAgent?: (agent: string) => boolean
   private readonly getPtyCapacity?: () => HelperPtyCapacity | null
@@ -392,6 +400,7 @@ export class RemoteServer {
     this.log = options.logger ?? defaultLogger
     this.detectEnv = options.detectServerEnv ?? (() => detectServerEnv())
     this.helperCapabilities = options.helperCapabilities
+    this.helperChannelRoles = options.helperChannelRoles ?? HELPER_CHANNEL_ROLES
     this.isTerminalAlive = options.isTerminalAlive
     this.isKnownAgent = options.isKnownAgent
     this.getPtyCapacity = options.getPtyCapacity
@@ -1095,11 +1104,13 @@ export class RemoteServer {
       const decision = authorizeHelperInvoke(capability, channel, args as unknown[], {
         isTerminalAlive: this.isTerminalAlive,
         isKnownAgent: this.isKnownAgent,
+        channelRoles: this.helperChannelRoles,
       })
       // T0450 (T0445 #7): a tower's creations also pass its quota (children / rate / client reserve).
+      // T0575: raw command mode (`terminal:create-with-command`, local role table) as well.
       let settle: (() => void) | undefined
       let denied = decision.ok ? undefined : decision.reason
-      if (!denied && channel === 'terminal:create-agent-command') {
+      if (!denied && HELPER_CREATE_CHANNELS.includes(channel)) {
         const isTerminalAlive = this.isTerminalAlive
         const childId = (args as Array<{ id: string }>)[0].id
         const reservation = isTerminalAlive

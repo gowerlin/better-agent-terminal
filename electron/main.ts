@@ -10,10 +10,10 @@ import { spawnSync, fork } from 'child_process'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
-import { createAgentPromptCommandBuilder } from './terminal-command-handlers'
+import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal-command-handlers'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
-import { WorkerCloseScheduler } from './close-worker'
+import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
@@ -59,6 +59,7 @@ import { PROXIED_CHANNELS } from './remote/protocol'
 import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
 import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
+import { buildLocalHelperEnv, HelperCapabilityRegistry, LOCAL_HELPER_CHANNEL_ROLES } from './remote/helper-capability'
 import { RemoteClient, collectWorkspaceRoots, shouldSyncWorkspaceRoots } from './remote/remote-client'
 import { clientPathTranslatorForProfile, IdentityTranslator, resolveClientPaths, type PathTranslator } from './remote/path-translator'
 import { describeSameTargetWarning, detachedSenderRouteIdentity, formatRemoteNotConnectedError, planProfileConnectionSnapshots, planProfileProxiedInvokeRoute, planProfileStatusPushes, REMOTE_CLIENT_STATUS_CHANGED_CHANNEL, REMOTE_INVOKE_REFUSED_CHANNEL, REMOTE_PROFILE_CONNECTIONS_CHANGED_CHANNEL, REMOTE_NOT_CONNECTED, resolveDetachedProfileBinding, senderBindingProfileId, shouldDropProfileConnectionOnUpdate, type DetachedWindowRecord, type SenderProfileBinding } from './remote/remote-connect-plan'
@@ -255,6 +256,16 @@ async function sendShutdownToServer(port: number): Promise<void> {
 }
 
 /**
+ * T0575 (T0574 gap 4): the env the Terminal Server inherits — `process.env` without
+ * `BAT_REMOTE_*`. The server spreads its own env under every PTY's, so a BAT started inside
+ * another BAT's tab would otherwise hand that outer session's credentials to its tabs.
+ */
+function terminalServerInheritedEnv(): NodeJS.ProcessEnv {
+  const { BAT_REMOTE_PORT: _port, BAT_REMOTE_TOKEN: _token, ...env } = process.env
+  return env
+}
+
+/**
  * Fork the Terminal Server as a detached child process.
  * The server manages PTY instances independently and survives BAT restarts.
  * It shuts itself down after 30 minutes of idle (no parent connection).
@@ -343,7 +354,7 @@ async function startTerminalServer(): Promise<void> {
       detached: true,
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
       env: {
-        ...process.env,
+        ...terminalServerInheritedEnv(),
         BAT_USER_DATA: userDataPath,
         BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
         BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
@@ -400,7 +411,7 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
       detached: true,
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
       env: {
-        ...process.env,
+        ...terminalServerInheritedEnv(),
         BAT_USER_DATA: userDataPath,
         BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
         BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
@@ -435,7 +446,18 @@ const profileManager = new ProfileManager()
 // T0384 (BUG-092, D128): one long-lived `wsl.exe` per WSL profile distro so
 // WSL does not idle-stop it (and bat-server with it) while BAT runs.
 const wslKeepAlive = new WslKeepAlive()
-const remoteServer = new RemoteServer()
+// PLAN-047 / T0575 (D149): each local PTY's helpers authenticate with a capability of their own
+// (`batcap.`, issued in `createElectronPtyDeps().helperEnv`, revoked when the PTY is gone) instead
+// of the server token, which keeps authenticating the remote / QR / mobile clients. Memory only.
+const localHelperCapabilities = new HelperCapabilityRegistry()
+const remoteServer = new RemoteServer({
+  helperCapabilities: localHelperCapabilities,
+  helperChannelRoles: LOCAL_HELPER_CHANNEL_ROLES,
+  isTerminalAlive: id => ptyManager?.isAlive(id) ?? false,
+  // Same meaning as headless: a registry agent, after the `codex` → `codex-cli` shorthand (T0527)
+  isKnownAgent: agent => agentRegistry.getDefinition(normalizeAgentAlias(agent)) !== undefined,
+  getPtyCapacity: () => ptyManager?.getCapacity() ?? null,
+})
 // T0463 (PLAN-039): one RemoteClient per remote profile — replaces the single
 // module-level slot, so opening a second remote profile no longer pushes the
 // first one out. Keyed by the bound profile id:
@@ -766,7 +788,20 @@ function createElectronPtyDeps(): PtyManagerDeps {
       : path.join(__dirname, '..', 'scripts'),
     // PLAN-044 / T0566: the usage-limit scheduler reads each tab's screen from the live output.
     onPtyOutput: (id, data) => usageLimitScheduler?.onOutput(id, data),
-    onPtyExit: (id) => usageLimitScheduler?.onExit(id),
+    // T0575: the PTY's capability goes with it (kill / exit / failed spawn; may come twice)
+    onPtyExit: (id) => {
+      if (localHelperCapabilities.revokeTerminal(id) > 0) logger.log(`[helper-cap] revoked: terminal=${id}`)
+      usageLimitScheduler?.onExit(id)
+    },
+    // T0129 / T0575: BAT_REMOTE_PORT + the PTY's own capability as BAT_REMOTE_TOKEN (tower, or a
+    // worker of its customEnv.BAT_TOWER_TERMINAL_ID) — no longer the server token
+    helperEnv: (id, customEnv) => buildLocalHelperEnv({
+      id,
+      customEnv,
+      capabilities: localHelperCapabilities,
+      endpoint: remoteServer.isRunning && remoteServer.port ? { port: remoteServer.port } : null,
+      log: message => logger.log(message),
+    }),
   }
 }
 
@@ -1689,13 +1724,8 @@ app.whenReady().then(async () => {
     )
   }
 
-  // T0129: Wire up PtyManager → RemoteServer info callback for env var injection
-  if (ptyManager) {
-    ptyManager.getRemoteServerInfo = () => {
-      if (!remoteServer.isRunning || !remoteServer.port) return null
-      return { port: remoteServer.port, token: remoteServer.currentToken }
-    }
-  }
+  // T0129: PTY env gets the RemoteServer port + a per-PTY capability from
+  // createElectronPtyDeps().helperEnv (T0575), read when each PTY is spawned.
 
   // Create all windows in this process
   for (const w of windowsToCreate) {
@@ -2183,6 +2213,12 @@ function registerProxiedHandlers() {
       : null,
     emit: terminalEmit,
     logger,
+    // T0575 (as headless T0536): the candidate must hold a worker capability of the asking tower —
+    // or own its ownership to the saved tab (T0537: PTY re-created after BAT reopened)
+    isOwnedBy: capabilityOrSavedTabOwnership(
+      (terminalId, towerId) => localHelperCapabilities.isWorkerOf(terminalId, towerId),
+      terminalId => ptyManager?.getWorkorder(terminalId) !== undefined,
+    ),
   })
   registerTerminalHandlers(registerHandler, {
     getPtyManager: () => ptyManager,

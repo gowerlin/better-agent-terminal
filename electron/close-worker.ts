@@ -100,11 +100,27 @@ export interface CloseWorkerPtyManager {
   isAlive(id: string): boolean
 }
 
+/**
+ * PLAN-047 / T0575: Electron's `isOwnedBy`. A Worker this process recorded a work order for must
+ * hold a worker capability bound to the asking tower (`isWorkerOf`, as headless T0536). A Worker
+ * whose ownership came from its saved tab (T0537, `withSavedWorkerOwnership`: nothing recorded by
+ * this process) keeps that as its record: after BAT reopens its PTY was registered from the
+ * Terminal Server's list or re-created as a plain shell, so it holds no worker capability — the
+ * saved tab is written by BAT windows only (`workspace:save` needs `ctx.windowId`).
+ */
+export function capabilityOrSavedTabOwnership(
+  isWorkerOf: (terminalId: string, towerId: string) => boolean,
+  hasRecordedWorkorder: (terminalId: string) => boolean,
+): (terminalId: string, towerId: string) => boolean {
+  return (terminalId, towerId) => isWorkerOf(terminalId, towerId) || !hasRecordedWorkorder(terminalId)
+}
+
 export interface WorkerCloseSchedulerDeps {
   getPtyManager(): CloseWorkerPtyManager | null
   /**
    * T0536: an extra ownership check of a candidate, on top of its `BAT_TOWER_TERMINAL_ID`
-   * (headless: the helper capability registry's `isWorkerOf`). False ⇒ NOT_OWNER.
+   * (headless: the helper capability registry's `isWorkerOf`; Electron since T0575:
+   * `capabilityOrSavedTabOwnership`). False ⇒ NOT_OWNER.
    */
   isOwnedBy?: (terminalId: string, towerId: string) => boolean
   /** Sends the event to every window (detached ones included); returns how many took it. */

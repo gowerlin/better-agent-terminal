@@ -15,6 +15,11 @@
  *   - role `worker` (PTY created with `BAT_TOWER_TERMINAL_ID`): `terminal:notify` /
  *     `pty:write` (printable text only, T0450) / `terminal:keypress`, target = that tower only
  *
+ * PLAN-047 / T0575 (D149): Electron's local PTYs get these capabilities too (`buildLocalHelperEnv`),
+ * no longer the full server token. The local RemoteServer uses `LOCAL_HELPER_CHANNEL_ROLES`, which
+ * also lets a tower call `terminal:create-with-command` (raw command mode) under the
+ * create-agent-command limits; headless keeps `HELPER_CHANNEL_ROLES` (raw command denied).
+ *
  * Tokens are `HELPER_CAPABILITY_TOKEN_PREFIX` + `randomBytes(32)` and live in memory only:
  * the registry keeps their SHA-256 digest (never the token), nothing is persisted or
  * logged, the PTY's exit / kill revokes its token, and a new server process starts with
@@ -234,6 +239,21 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
 }
 
 /**
+ * PLAN-047 / T0575 (D149): the role table of Electron's local RemoteServer — the headless one plus
+ * raw command mode (`bat-terminal.mjs claude "/ct-exec T####"` → `terminal:create-with-command`) for
+ * a tower, checked like `terminal:create-agent-command` (new id, no `shell`, `customEnv` whitelist,
+ * `BAT_TOWER_TERMINAL_ID` = itself, `HelperTowerSpawnQuota`). A tower can run any command in its own
+ * shell anyway; one more tab with a command of its choice adds little. Headless is unchanged.
+ */
+export const LOCAL_HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabilityRole[]>> = {
+  ...HELPER_CHANNEL_ROLES,
+  'terminal:create-with-command': ['tower'],
+}
+
+/** T0575: channels that create a terminal — they also pass `HelperTowerSpawnQuota`. */
+export const HELPER_CREATE_CHANNELS: readonly string[] = ['terminal:create-agent-command', 'terminal:create-with-command']
+
+/**
  * T0450 (T0445 #6): what a worker may `pty:write` into its tower — printable text only. C0
  * controls (`\r` / `\n` / `\t` / `\x03` / ESC …), DEL and C1 controls are refused, so a worker
  * capability can pre-fill a line but never submit, interrupt or drive the tower's terminal;
@@ -250,6 +270,8 @@ export interface HelperInvokeContext {
    * host's configured default agent.
    */
   isKnownAgent?: (agent: string) => boolean
+  /** T0575: the server's role table. Default `HELPER_CHANNEL_ROLES` (headless). */
+  channelRoles?: Readonly<Record<string, readonly HelperCapabilityRole[]>>
 }
 
 export type HelperInvokeDecision = { ok: true } | { ok: false; reason: string }
@@ -275,16 +297,22 @@ export function authorizeHelperInvoke(
   // T0447 (T0445 #2): frame fields are attacker-controlled. Own keys only — `constructor` /
   // `__proto__` / `toString` … must not resolve to Object.prototype members, and a non-string
   // channel (e.g. `['pty:write']`) must not be coerced into a whitelisted key.
+  const channelRoles = ctx.channelRoles ?? HELPER_CHANNEL_ROLES
   if (typeof channel !== 'string') return deny('channel-not-allowed')
-  if (!Object.prototype.hasOwnProperty.call(HELPER_CHANNEL_ROLES, channel)) return deny('channel-not-allowed')
+  if (!Object.prototype.hasOwnProperty.call(channelRoles, channel)) return deny('channel-not-allowed')
   if (!Array.isArray(args)) return deny('invalid-args')
-  const roles = HELPER_CHANNEL_ROLES[channel]
+  const roles = channelRoles[channel]
   if (!roles.includes(capability.role)) return deny('role-not-allowed')
 
   switch (channel) {
+    case 'terminal:create-with-command':
     case 'terminal:create-agent-command': {
       const opts = asRecord(args[0])
       if (!opts) return deny('invalid-payload')
+      // T0575: raw command mode — the command is typed into the new shell; a string or nothing.
+      if (channel === 'terminal:create-with-command' && opts.command !== undefined && opts.command !== null && typeof opts.command !== 'string') {
+        return deny('invalid-payload')
+      }
       // A NEW terminal only: create-with-command types the command into an existing id.
       if (!isTerminalId(opts.id)) return deny('invalid-terminal-id')
       if (opts.id === capability.terminalId) return deny('target-not-bound')
@@ -459,5 +487,50 @@ export class HelperTowerSpawnQuota {
       }
       if (entry.children.size === 0 && now - entry.lastCreateAt >= this.createIntervalMs) this.towers.delete(towerId)
     }
+  }
+}
+
+/** T0575: where the local helpers connect — Electron's own RemoteServer (null = not listening). */
+export interface LocalHelperEndpoint {
+  port: number
+}
+
+/**
+ * PLAN-047 / T0575 (D149): the helper env of a local (Electron) PTY — `BAT_REMOTE_PORT` + a
+ * capability issued for it as `BAT_REMOTE_TOKEN`, never the server token. Role as on headless
+ * (`buildHeadlessHelperEnv`): `customEnv.BAT_TOWER_TERMINAL_ID` ⇒ worker bound to that tower, else
+ * tower. The other helper paths stay as before (`BAT_HELPER_DIR` / `BAT_USER_DATA` from PtyManager;
+ * the helpers find `server-cert.json` / `Logs` under `BAT_USER_DATA`).
+ *
+ * Returns `{}` and issues nothing when the RemoteServer is not listening or the id is refused; the
+ * PTY then has no `BAT_REMOTE_*` at all (PtyManager drops inherited ones, T0574 gap 4).
+ * Logs the terminal id and role, never the token.
+ */
+export function buildLocalHelperEnv(opts: {
+  id: string
+  customEnv: Record<string, string>
+  capabilities: HelperCapabilityRegistry
+  endpoint: LocalHelperEndpoint | null
+  log?: (message: string) => void
+}): Record<string, string> {
+  const { id, customEnv, capabilities, endpoint } = opts
+  if (!endpoint) {
+    opts.log?.(`[helper-cap] not issued: terminal=${id} (RemoteServer not listening)`)
+    return {}
+  }
+  const towerId = typeof customEnv.BAT_TOWER_TERMINAL_ID === 'string' && customEnv.BAT_TOWER_TERMINAL_ID
+    ? customEnv.BAT_TOWER_TERMINAL_ID
+    : undefined
+  let token: string
+  try {
+    token = capabilities.issue(id, { towerId })
+  } catch (error) {
+    opts.log?.(`[helper-cap] not issued: terminal=${id} (${error instanceof Error ? error.message : String(error)})`)
+    return {}
+  }
+  opts.log?.(`[helper-cap] issued: terminal=${id} role=${towerId ? `worker tower=${towerId}` : 'tower'}`)
+  return {
+    BAT_REMOTE_PORT: String(endpoint.port),
+    BAT_REMOTE_TOKEN: token,
   }
 }
