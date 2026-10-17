@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-17T10:47:45+0800"
+generated_at: "2026-10-17T10:53:17+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,9 +14,9 @@ total: 70
 breakdown:
   OPEN: 1
   FIXING: 0
-  FIXED: 18
+  FIXED: 17
   VERIFY: 0
-  CLOSED: 51
+  CLOSED: 52
   WONTFIX: 0
 ---
 
