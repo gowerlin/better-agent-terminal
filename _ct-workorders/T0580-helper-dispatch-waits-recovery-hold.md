@@ -129,3 +129,13 @@ e2e 方法：塔台分頁內先啟動 node watcher（在 server PTY 內，跨 BA
 - PASS。C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`。C-1 PASS。C-3 PASS（`electron/terminal-command-handlers.ts` 等存在）。C-2：無 `branch` 欄位。
 - `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
 - 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`；未碰使用者的 BAT（9876）與其 Terminal Server，所有實測皆隔離實例，teardown 確認 Terminal Server 已停、runtime userData 已刪。
+
+## 塔台結案（2026-10-17T20:33:57+0800）
+
+**DONE**（source / test 層；實機隨 `v0.7.0-pre.1`）。塔台完整複驗 @ `079b5e35`：`npx vite build` 0、`npm run typecheck` 0、`npm run typecheck:electron` 0、`npm run test:unit` 270 檔 / 4771 passed / 3 skipped。`f03e5e27` 範圍與 affects_files 一致；工作樹乾淨（修正前對照用的暫時換檔已還原）。
+
+塔台裁決：
+- 偏離「等待限時 2 s，逾時回 `RECOVERY_PENDING` 且之後不建立」：**接受**（helper invoke 逾時 3 s，無限等待會讓 helper exit 1 但 Worker 仍被建立 → 重派造成同一工單兩個 Worker）。
+- 殘留 1（CT 對 `RECOVERY_PENDING` 的處理）：補充給 CT-T014（對方 T0149）作提示文字；不要求自動重派。
+- 殘留 2 / 3：記錄，不處理。
+
