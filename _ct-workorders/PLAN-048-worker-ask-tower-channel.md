@@ -34,3 +34,4 @@ BMad-Guide D036：`auto-session = yolo` 時，Worker 有問題向塔台提問，
 - 使用者選定：先研究再實作、答覆走 helper CLI、待答問題只存記憶體、等待中 `blocked` / `tower`（D155）。
 - 研究單 **T0606**：現況盤點、介面契約草案、實作切分；審過後開實作單並轉交 CT（CT-T019）。
 - 2026-10-18：T0606 DONE（契約草案）→ D156 全部採用推薦 → 實作 T0607（A 主行程）/ T0608（B helper + MCP，worktree 隔離）並行；C（e2e）與 CT-T019 待 A / B 合併。
+- 2026-10-18：T0607 / T0608（T0610 合併）/ T0611 全部 DONE（source / test / e2e，unit 5226 / 301 files）；`--cancel-question` 對 `lost` exit 0（T0611 裁定，契約 C-3）；CT-T019 轉交 BMad-Guide。實機待下一個預覽版。
