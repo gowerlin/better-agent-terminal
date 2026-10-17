@@ -90,7 +90,7 @@
 > 最後更新：2026-10-18 04:19 UTC+8（第七十七 session 進行中）
 
 ### 近期完成
-- `v0.7.0-pre.7`（10-18 07:26，run `39078626121` @ `ef31abf5`）：PLAN-048 Worker 問塔台、BUG-153 縮圖；CT-T019 已受理（CT v5.6.1 / v5.7.0），**需告知對方 pre.7 版號**
+- `v0.7.0-pre.7`（10-18 07:26，run `39078626121` @ `ef31abf5`）：PLAN-048 Worker 問塔台、BUG-153 縮圖；CT-T019 已受理（CT v5.6.1 / v5.7.0），已告知對方版號
 - 第七十七 session：T0601 / T0602 pre.5 / pre.6 驗收 PASS（`3391caed` / `54b5316b`）→ BUG-150 / 151 CLOSED、T0597 / T0598 DONE；T0603 探針使用者目視 → BUG-152 CLOSED、T0599 DONE；T0604 / T0605 暫移 `shell` 鍵 → BUG-149 CLOSED、T0593 DONE
 - `v0.7.0-pre.6`（10-18 03:50，run `39063636289` @ `659c9a79`）：T0600 Worker 啟動確認（`--wait-started` / exit 8 / `agentStarted`）、BUG-152 派工分頁不搶焦點；三文件 `87ad460d`
 - `v0.7.0-pre.5`（10-18 03:18，run `39061324454` @ `ffeb8b21`）：BUG-150 AskUserQuestion → `question`、BUG-151 派工前輸入接在指令前；三文件 `38dd75b8`

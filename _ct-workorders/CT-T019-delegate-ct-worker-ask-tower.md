@@ -106,3 +106,4 @@ CT v5.5.0 的 yolo Worker 提問走工單檔往返（寫 `### 待塔台決策` �
 - 2026-10-18T07:16:57+0800：BAT 塔台建立（第七十七 session），待轉交 BMad-Guide 塔台。
 - 2026-10-18T07:17:20+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-09`，msg `e62c1efd`）；BAT 版號待下一個預覽版發佈後告知。
 - 2026-10-18T07:18:21+0800：對方**已受理**：CT 分兩版。**v5.6.1**（PATCH，不依賴 pre.7，對方 T0168）收 T0166 / T0167 六項規則修正（答覆行固定 regex、備援補 `tower_question: open`、先 commit 再 notify、timeout 0 時塔台等備援、分段工單只判自己段落、合併判準在合併前取），BAT 介面不變；**v5.7.0**（MINOR）接本單：Worker `--ask` + `bat_wait_question`（備援 `--wait-answer`）、塔台 `bat_list_questions` + `--answer`、`tower` 不算斷點 D、降級回工單檔往返、問答紀錄照舊寫互動紀錄；source 先做，實機（claude / codex）待 BAT `0.7.0-pre.7` 發佈告知版號後開單。BUG-153 CT 不改，pre.7 驗收順帶確認縮圖。BAT 塔台**接受**。
+- 2026-10-18T07:28:00+0800：BAT `v0.7.0-pre.7` 已發佈（run `39078626121`，target `ef31abf5`），以跨 session 訊息告知對方（msg `b1f375e7`）；BAT 最低版本確定為 `>= 0.7.0-pre.7`。
