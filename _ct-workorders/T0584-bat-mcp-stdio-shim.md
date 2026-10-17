@@ -190,3 +190,14 @@ bat: node D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agen
 
 ### 回報時間
 2026-10-17T22:50:26+0800
+
+## 塔台結案（2026-10-17T22:54:20+0800）
+
+**DONE**（source / test 層；實機隨下一版）。塔台複驗 @ `46b904f1`（T0582–T0585 皆已落地）：`npx vite build` 0、`npm run typecheck` 0、`npm run typecheck:electron` 0、`npm run verify:helpers` 0、`npm run test:unit` 284 檔 / 4992 passed / 3 skipped。repo 只有主 worktree、無 `ct/*` 分支。
+
+塔台裁決：
+- 偏離 1（claude-cli 啟動命令在 renderer 組裝 → 新增 proxied channel `agent:bat-mcp-launch-args`，改 `WorkspaceView.tsx` 等）：**接受**，必要範圍。
+- 偏離 2–7（`--mcp-config=` 形式避開 variadic 吞 prompt、額外錯誤碼與 `UNSUPPORTED` 快取、`bat_read_output` 的 content 附輸出、健康檢查改 `add-json` + `mcp list`、CT 面板 raw command 不注入、claude-cli 打字啟動無 e2e）：**接受**。
+- 連線策略（共用長連線、閒置 5 s 關、回 pong）：**接受**，理由充分（每權杖 4 連線上限與 helper 共用）。
+- 誤觸 codex 啟動一次：隔離 `CODEX_HOME`、無 auth、立即結束，無 token 消耗，記錄不處理。
+- 殘留：npm `codex.cmd` 在 pwsh 的引號未實測、codex 實際 MCP 握手未驗 → 列入下一版實機驗收項。

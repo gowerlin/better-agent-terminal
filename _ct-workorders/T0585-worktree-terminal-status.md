@@ -183,3 +183,12 @@ memory_overrides:
 ### Commit
 
 - `77c93c64` feat(T0585): read-only worktree:terminal-status + bat-terminal --worktree-status（15 檔）。`main.ts` / `headless-entry.ts` 與 T0584 並行修改：先以 `git apply --cached --unidiff-zero` 挑 hunk，發現相鄰的 T0584 兩行被帶入、插入位置也偏移，改由 HEAD 版本依 anchor 組出 blob，再 `git update-index --cacheinfo` 寫入 index；commit 內容 = HEAD + 本單，T0584 的變更仍留在工作樹（`git diff` 不含本單內容）。未 push。
+
+## 塔台結案（2026-10-17T22:54:20+0800）
+
+**DONE**（source / test 層；實機隨下一版）。塔台複驗同 T0584（@ `46b904f1`，「HEAD + T0585」單獨未 build 的缺口由此補上）。commit `77c93c64` 塔台核對未夾帶 T0584 程式碼。
+
+塔台裁決：
+- 差異 1–8：**全部接受**（`、` 列舉全部算範圍內、YAML null / `[]` 語意、`GIT_FAILED`、新增欄位、`--no-renames`、可 ff 時不跑 merge-tree、只查執行中分頁、helper `--notify-id` 規則）。
+- 「只查執行中分頁」記為已知限制；合併工單若需要已結束 Worker 的狀態，CT 端直接用 git 查 `ct/T####`。
+- 「給 CT-T016 的注意事項」原文轉入 CT-T016。
