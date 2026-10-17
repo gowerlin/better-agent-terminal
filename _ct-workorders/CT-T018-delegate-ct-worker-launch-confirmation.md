@@ -4,7 +4,8 @@ schema_kind: workorder
 id: CT-T018
 title: "【受派】CT 接 BAT Worker 啟動確認：派工加 `--wait-started`、exit `8`、`agentStarted` 狀態欄位（D154 / T0600）"
 type: implementation
-status: TODO
+status: DONE
+completed_at: "2026-10-18T05:11:48+0800"
 repo: BMad-Guide
 project: PLAN-047
 priority: P2
@@ -94,3 +95,4 @@ helper 派工在 PTY 建立後就回 exit 0，啟動指令約 500 ms 後才寫�
 - 2026-10-18T03:42:22+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-94`，msg `9ea91794`）；BAT 版號待 `0.7.0-pre.6` 發佈後告知。
 - 2026-10-18T03:49:08+0800：對方**已受理**（決策 D039）：等 BAT `0.7.0-pre.6` 發佈並告知版號後開 **CT v5.6.0** + guide v5.6.0；方向與本規格一致（派工帶 `--wait-started`、exit 8 不重派、`unknown` 照現行流程、舊 BAT 去參數重派一次、MCP `agentStarted` 為選用通道），v5.5.1 的暫時提示改引用正式機制。CT v5.5.1 已兩端安裝（含 BAT >= 0.7.0-pre.5 / BUG-150 補註）。BAT 塔台**接受**。
 - 2026-10-18T04:08:52+0800：對方回報 **DONE（source / 兩端安裝）**：**CT v5.6.0**（對方 T0165，產品 `d092206`；權威 `auto-session.md` § Worker 啟動確認）。派工一律帶 `--wait-started 30000`；只用於 `--skill` + `--workorder` 派工；與本規格 6 處差異以 BAT 權威為準（含 BAT 讀不到的 hooks 關閉設定會造成 exit 8 誤報，已寫入）。斷點 D 已知限制改為 `>= 0.7.0-pre.6` 的 `disableAllHooks` → `none`。runtime 待使用者升 pre.6 後對方另開單。BAT README 版本對照表 CT 欄補 `>= v5.6.0`。
+- 2026-10-18T05:11:48+0800：對方回報 **runtime lane PASS**（CT v5.6.0 × BAT `0.7.0-pre.6`；對方 T0166 claude + 隔離、T0167 codex + 不隔離，皆 DONE）：`--wait-started` claude `started:` 與 `agentStartedAt` 差 0 ms、codex `unknown` / `NO_SIGNAL` 立即返回、舊 BAT（pre.5 helper）`Unknown option` → 去參數重派 exit 0；斷點 D claude `blocked` / `question` / `hook`，同一 `blockedSince` 不重複、回答後立即清除，codex `none` 未觸發；`source` live → exited → exited + `worktreeMissing` → git 逐欄一致；模式 ① 合併 `--no-ff` + 斷點 E ff 成功。參考（非缺陷）：分支合併後 `source: git` 拿不到原始 base / changedFiles（符合 docs，CT 註明判準要在合併前取）；BUG-153 對方重現兩次。BAT 塔台**結案**。

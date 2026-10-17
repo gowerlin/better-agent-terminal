@@ -4,7 +4,8 @@ schema_kind: workorder
 id: CT-T017
 title: "【受派】CT 接 BAT 0.7.0-pre.4 兩個新介面：`--worktree-status` 關閉後可查（`source`）與 `blocked` 狀態（斷點 D）"
 type: implementation
-status: TODO
+status: DONE
+completed_at: "2026-10-18T05:11:48+0800"
 repo: BMad-Guide
 project: PLAN-047
 priority: P2
@@ -112,3 +113,4 @@ renew_count: 0
 - 2026-10-18T02:20:06+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-94`，msg `3426f784`，`notify_when_idle`），同一則附上回覆檔 `_reply-2026-10-18-bmad-guide-log-dir-handled.md`。
 - 2026-10-18T02:30:14+0800：對方**已受理**（決策 D035）：CT **v5.4.0** + control-tower-guide v5.4.0；T0161（CT 文件 + 雙端安裝）02:29 派發 → T0162（guide）；實機驗收另開 T0163（等使用者確認已裝 0.7.0-pre.4）。`source` 照規格（判定 = 回傳有 `source`）；斷點 D 採 BAT 建議，CT 另補：① 不新增輪詢，只在塔台本來就在看 Worker 時查；② 只走 MCP，MCP 不可用或無 `blockedDetection` → 不啟用；③ `none` 時 `idle` 不當成沒在等人；④ 只告知，不暫停 yolo 其他流程。BAT 塔台**接受**；並告知 T0596（`blockedReason` 實機為 `permission`）可能需補正。回覆檔已收到，不需回函。
 - 2026-10-18T02:57:12+0800：對方 D037 版號定案：§ 一 `source` → **CT v5.4.0** DONE（對方 T0161，產品 `c2962d7`，兩端已裝；權威 `merge-workorder.md` § 合併判準資料來源 › 查詢時機與資料來源；判定 = 回傳有 `source`；與本規格 8 處差異一律以 BAT 權威為準，主要三處：`archive` 後結束紀錄仍在 → `GIT_FAILED` exit 1、`worktreeMissing` 在 `exited` 也會出現、`git` 來源用塔台分頁建立時的 cwd —— 皆與 BAT docs 一致，BAT 塔台**接受**）。§ 二 斷點 D + T0596 三處補正 → **CT v5.5.0**（對方 T0163；yolo 下 Worker 提問走工單檔往返，斷點 D 在 yolo 為異常偵測、非 yolo 只告知；同一 `blockedSince` 只告知一次）。BUG-150 修正版號確定後 CT 出 v5.5.1 補一句。
+- 2026-10-18T05:11:48+0800：對方回報 **runtime lane PASS**（CT v5.6.0 × BAT `0.7.0-pre.6`；對方 T0166 claude + 隔離、T0167 codex + 不隔離，皆 DONE）：`--wait-started` claude `started:` 與 `agentStartedAt` 差 0 ms、codex `unknown` / `NO_SIGNAL` 立即返回、舊 BAT（pre.5 helper）`Unknown option` → 去參數重派 exit 0；斷點 D claude `blocked` / `question` / `hook`，同一 `blockedSince` 不重複、回答後立即清除，codex `none` 未觸發；`source` live → exited → exited + `worktreeMissing` → git 逐欄一致；模式 ① 合併 `--no-ff` + 斷點 E ff 成功。參考（非缺陷）：分支合併後 `source: git` 拿不到原始 base / changedFiles（符合 docs，CT 註明判準要在合併前取）；BUG-153 對方重現兩次。BAT 塔台**結案**。
