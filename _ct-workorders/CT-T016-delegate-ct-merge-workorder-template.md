@@ -4,7 +4,7 @@ schema_kind: workorder
 id: CT-T016
 title: "【受派】CT 合併工單：三種模式模板（機械 / 衝突解決 / 等價移植）、收單 SHA 比對、塔台直接合併判準（用 BAT `--worktree-status`）"
 type: implementation
-status: TODO
+status: DONE
 repo: BMad-Guide
 project: PLAN-047
 priority: P2
@@ -85,3 +85,4 @@ renew_count: 0
 - 2026-10-17T23:01:56+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-47`，msg `3deb4bbe`，`notify_when_idle`）。
 - 2026-10-17T23:01:56+0800：對方**已受理**，CT-T015 + CT-T016 合為 **CT v5.3.0**（對方 T0155，23:01 派工；guide v5.3.0 由 T0156；對方決策 D031）。基底為 CT v5.2.6（非規格寫的 v5.2.4）；欄位名採 `isolation: worktree`；直接合併判準第 1 條採放寬版；合併一律整合 worktree `--no-ff` 後 main `--ff-only`（behind == 0 亦同，不做線性 ff，與 T0574 Q9 一致）；斷點 E 寫入 `yolo-mode.md`、斷點 D 待 M1b；本輪 source / release / 兩端安裝，runtime 待 0.7.0-pre.2 發佈後另開單合驗；介面權威以 BAT CLAUDE.md 四小節為準，差異於完成回覆時列出。BAT 塔台**接受**上述全部。
 - 2026-10-17T23:18:28+0800：對方回報 **DONE（source / release / 兩端安裝）**：CT **v5.3.0**（T0155，commit `70afce0`，未 push）；CT-T016 新 reference `merge-workorder.md` 為合併流程唯一權威，直接合併一律 `ct-merge/T####` `--no-ff` 後 main `--ff-only`。差異 1–3（舊 BAT 忽略 isolation 以「exit 0 無 `worktree:` 行」判定、`GIT_FAILED` 歸 exit 1、判準比 CLAUDE.md 嚴）BAT 塔台**接受**。Q1–Q4 裁決（msg 回覆）：Q1 確定 exit 0，建議判定順序 exit code → `bat-scripts.log` `terminal-created` 的 `worktree` 欄位（字串 / null）→ stdout；Q2 `CT_HOME` 維持 Windows 反斜線（契約）；Q3 關閉後仍可查列為 BAT 後續工單候選（未排期）；Q4 尾端 `/` 會被去除，等同目錄前綴。**runtime lane 待使用者安裝 0.7.0-pre.2 後對方開單合驗。**
+- 2026-10-18T00:05:53+0800：對方回報 **runtime lane PASS**（對方 T0158 DONE，AC-1～AC-11；CT v5.3.0 × BAT 0.7.0-pre.2，`merge_target: dev-main`），回覆檔 `D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\_reply-2026-10-18-ct-v530-runtime.md`，由使用者轉交。隔離派工（含 exit `7`）、`CT_*` env、C-0、SHA 回報、MCP 塔台 / Worker、回收順序、直接合併判準與模式 ①、清理都通過。對方未驗：模式 ② / ③、舊主程式的「未隔離」路徑、Codex 分頁 MCP、斷點 D。BAT 端同日補驗：Codex 分頁 MCP → BUG-148 / T0586（FIXED，實機待 0.7.0-pre.3）；模式 ② → T0588（合併 T0587）。對方給 BAT 的三點觀察：① 以 `keep` 關閉的分頁 `bat_list_terminals` 仍列為 `exited`，`--worktree-status` 回 `NOT_FOUND` → 併入 PLAN-047 Q3 的考量（以 list 看得到的 exited 分頁為範圍）；② Claude Code 只顯示 MCP 錯誤的 `content` 文字、看不到 `structuredContent` → shim 的錯誤 `content` 已以 `<CODE>: <message>` 開頭，不需改；③ `bat_worktree_status` 的 `cached: true` 行為符合 T0585。**全部 lane 結案。**
