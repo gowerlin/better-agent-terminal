@@ -4,12 +4,16 @@ schema_kind: workorder
 id: T0579
 title: "PLAN-047：遠端 headless 的 tower 角色開放 raw command 派工（與本機 T0575 規則一致）"
 type: feature
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-047
 priority: P3
 sizing: S
 created_at: "2026-10-17T19:57:39+0800"
+started_at: "2026-10-17T19:58:56+0800"
+updated_at: "2026-10-17T20:11:38+0800"
+completed_at: "2026-10-17T20:11:38+0800"
+commit: 514710a9
 target_version: "0.7.0-pre.1（與 T0575 / T0576 / T0578 同版，D151）"
 depends_on: [T0575]
 related:
@@ -58,3 +62,57 @@ T0575 讓本機 tower 角色可用 `terminal:create-with-command`（`LOCAL_HELPE
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 結果摘要
+
+DONE。本機與 headless 改用同一張角色表：`HELPER_CHANNEL_ROLES` 加入 `'terminal:create-with-command': ['tower']`，`LOCAL_HELPER_CHANNEL_ROLES` 改為同一個物件（`main.ts` 仍 import 這個名稱，本單不得改 `main.ts`，所以保留名稱、刪掉差異）。headless 的 `RemoteServer` 本來就用預設表，因此不需改接線；授權（`authorizeHelperInvoke`）、配額（`HELPER_CREATE_CHANNELS` → `HelperTowerSpawnQuota`）與 handler 的 `rejectShell` 早已對兩個建立 channel 共用，任務 2 檢查**沒有找到缺口**，未改防護邏輯。本機行為不變（`LOCAL_HELPER_CHANNEL_ROLES` 內容與 T0575 相同）。
+
+- Commit：`514710a9` feat(T0579): allow raw command dispatch for headless towers（未 push）
+- 落地檢查：PASS — C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`；C-1 PASS；C-3 PASS（`affects_files` 皆存在）；C-2 無 `branch` 欄位。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+- 模式：`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
+
+### 任務 2：headless `terminal:create-with-command` 防護對照
+
+| 防護 | create-agent-command | create-with-command（headless，T0579） | 實作位置 | 測試 |
+|---|---|---|---|---|
+| 角色：只有 tower | ✅ | ✅（worker → `role-not-allowed`） | `HELPER_CHANNEL_ROLES` | `helper-capability.test.ts`、`headless-helper-narrowing.test.ts`、e2e（Worker 以 raw command 派單） |
+| 只能建**新** id（不是自己、不是執行中的 PTY） | ✅ | ✅ `target-not-bound` / `terminal-exists` | `authorizeHelperInvoke` 同一個 case | 同上（含既有 id 不會收到命令） |
+| `shell` 參數拒絕 | ✅ `shell-not-allowed`；handler 另有 `rejectShell`（`validateShell: true`） | ✅ 同一處；handler `createWithCommand` 本身呼叫 `rejectShell` | `authorizeHelperInvoke`、`terminal-command-handlers.ts` `createWithCommand` | narrowing |
+| `customEnv` 白名單（`BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE` / `MSYS_NO_PATHCONV`），值須為字串 | ✅ | ✅ `custom-env-not-allowed` / `invalid-custom-env` | `authorizeHelperInvoke`（`HELPER_CREATE_ENV_KEYS`）；`pickWhitelistedEnv` 只用於日誌，PTY 收到的 `customEnv` 已經過授權白名單 | unit + narrowing |
+| `BAT_TOWER_TERMINAL_ID` 只能是自己 | ✅ | ✅ `tower-not-bound` | `authorizeHelperInvoke` | unit + narrowing |
+| agent 須為 registry id | ✅ | ✅ `agent-not-allowed`（raw 模式的 helper 不帶 `agent`，帶了一樣檢查） | `authorizeHelperInvoke` + headless `isKnownAgent` | unit |
+| `command` 必須是字串 | 不適用 | ✅ `invalid-payload`（缺省 / null 允許 = 只開 shell） | `authorizeHelperInvoke`（T0575） | unit + narrowing |
+| 8 個存活子 PTY / 間隔 ≥ 1 s | ✅ | ✅ 與 agent 模式**共用**同一份配額 | `RemoteServer` 對 `HELPER_CREATE_CHANNELS` 呼叫 `HelperTowerSpawnQuota.reserve` | narrowing（agent → raw 1 s 內 `create-rate-limited`；混合 8 個後兩種都 `too-many-children`） |
+| server 有 PTY 上限時保留 8 個 client 名額 | ✅ | ✅ `pty-quota-reserved` | 同上（headless `getPtyCapacity`） | narrowing（`maxPtys: 10`） |
+| 新分頁拿到 worker 權杖、能回報 | ✅ | ✅ | `buildHeadlessHelperEnv`（依 `customEnv.BAT_TOWER_TERMINAL_ID`） | narrowing（`isWorkerOf`）、e2e（`bat-notify` → `terminal:notified`） |
+
+不在權杖檢查內、與 agent 模式的差異（非防護缺口，已寫進 CLAUDE.md）：raw command 原樣打進遠端 login shell，`claude` 取遠端使用者 `PATH`（bundle 內嵌 claude 不在 `PATH`）；不經 `checkAgentAvailable`（`AGENT_UNAVAILABLE`）；helper 不帶 `workorder`，所以 `--close-worker` 找不到（同本機）。另：`agentName` 由呼叫端提供、只影響 client 分頁標題，本機 T0575 已同樣接受，未改。
+
+### 修改檔案
+
+- `electron/remote/helper-capability.ts`：角色表合併、註解更新
+- `electron/remote/headless-entry.ts`、`electron/remote/remote-server.ts`：只改註解（`remote-server.ts` 不在 `affects_files`，但原註解寫「headless 預設表不含 raw command」會變成錯的，故一併修正）
+- 測試：`electron/remote/__tests__/helper-capability.test.ts`（角色表 7 個 channel；raw command 授權：允許 / 10 種拒絕 / worker / fail closed）、`electron/__tests__/local-helper-capability.test.ts`（`LOCAL_HELPER_CHANNEL_ROLES` 即 `HELPER_CHANNEL_ROLES`；預設表允許 raw）、`electron/remote/__tests__/headless-helper-capability.test.ts`（從 FORBIDDEN 清單移除 create-with-command）、`electron/remote/__tests__/headless-helper-narrowing.test.ts`（新 describe，真 headless + 真 node-pty：建立並執行命令、`shell` / 白名單外 env / 別的塔台 / 非字串 command / 自己與既有 id 拒絕、worker 拒絕、共用配額、client 名額）、`electron/remote/__tests__/headless-remote-tower-e2e.test.ts`（helper 在 Tower PTY 內執行 raw command 派單 → `created-externally`、Worker 執行命令、Worker 權杖、`bat-notify` 回報；Worker 以 raw command 派單 → `role-not-allowed`；原「Tower 不能 raw command」斷言移除）
+- `CLAUDE.md`「遠端 Tower 通知」節：角色表加 `terminal:create-with-command`、「其餘 channel」清單移除它並說明兩表共用、本機 PTY 的 raw command 條目、「遠端 Tower 派單只能用 agent 模式」改寫為兩種模式皆可（附差異）、驗證條目
+
+`headless-parity.test.ts` / `proxied-channels-binding.test.ts`：不需更新（`create-with-command` 本來就是 client 可用的 proxied channel 且 headless 有註冊；兩者都通過）。
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `npm run typecheck` | PASS（0 錯誤） |
+| `npm run typecheck:electron` | PASS（0 錯誤） |
+| `npm run test:unit` | PASS — 269 files / 4757 passed / 3 skipped |
+| `npx vitest run headless- helper-capability local-helper-capability proxied-channels-binding` | PASS — 25 files / 428 tests（含 `headless-parity`、`headless-remote-tower-e2e`、`headless-helper-narrowing`） |
+
+注意：全套測試執行時工作樹含 T0578 未 commit 的 `electron/main.ts` / `electron/pty-manager.ts` / `electron/handlers/pty.ts` 修改（並行工單），結果仍全綠；本單未動這些檔，commit 以 `--only` 排除。未碰使用者的 BAT（9876）與 WSL bat-server（9877）。
+
+### 偏差 / 過程紀錄
+
+- e2e 第一版讓 raw Worker 以 `bat-notify`（預設預填）回報，預填文字留在 Tower 提示列，導致後面 T0447 測試打進 Tower 的命令接在預填文字後而失敗；改用 `--no-pty-write`（只 toast）後 8/8 通過。最後一個測試開頭加 `sleep(1100)`，避開與 raw 派單之間的 1 s 建立間隔。
+- 無 Renew、無互動。
+
+### 後續建議
+
+- 遠端 raw command 依賴遠端 `PATH` 上的 `claude`；若希望 `bat-terminal.mjs claude …` 在遠端也用 bundle 的 claude，可另開單評估在 headless PTY 的 `PATH` 加入內嵌 claude 的 bin（會影響使用者自己的 claude 優先序，需決策）。
