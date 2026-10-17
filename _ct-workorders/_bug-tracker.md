@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-18T03:13:30+0800"
+generated_at: "2026-10-18T03:27:46+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 37
 breakdown:
   OPEN: 1
-  FIXING: 1
-  FIXED: 22
+  FIXING: 0
+  FIXED: 23
   VERIFY: 0
   CLOSED: 13
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 03:13 (UTC+8) — 新增 BUG-152 FIXING（T0599，派工分頁搶焦點，D154）；BUG-150 / 151 FIXED
+> 最後同步：2026-10-18 03:27 (UTC+8) — BUG-152 FIXED（T0599 `95cfa2b0`）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 37**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 37**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-152 | 塔台以 helper 派出的 Worker 分頁會搶走鍵盤焦點，使用者正在打的字跑進 Worker 分頁 | 🟡 medium | 2026-10-18 03:13（T0599） | [BUG-152](BUG-152-dispatched-worker-tab-steals-focus.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-152 | 塔台以 helper 派出的 Worker 分頁會搶走鍵盤焦點，使用者正在打的字跑進 Worker 分頁 | 🟡 medium | 2026-10-18 03:27（T0599 `95cfa2b0`） | [BUG-152](BUG-152-dispatched-worker-tab-steals-focus.md) |
 | BUG-151 | helper 派工指令寫入前打進新分頁的輸入被接在指令前面，Worker 起不來但 helper 仍 exit 0 | 🔴 high | 2026-10-18 03:02（T0598 `45943d16`） | [BUG-151](BUG-151-dispatch-quoting-pwsh-in-git-bash-tab.md) |
 | BUG-150 | claude-cli 分頁的 AskUserQuestion 一律回報 `blocked` / `permission`（應為 `question`），T0594 的回答後清除永遠不生效 | 🟡 medium | 2026-10-18 02:51（T0597 `ddb9b970`） | [BUG-150](BUG-150-askuserquestion-blocked-reason-permission.md) |
 | BUG-149 | `settings.json` 沒有 `shell` 鍵時，helper `--agent` 派出的 claude / codex Worker 起不來（引號以 posix 組、Windows 分頁是 pwsh；T0593 `e283abdc`：以 PtyManager 實際預設 shell 判斷） | 🔴 high | 2026-10-18 01:49 | [BUG-149](BUG-149-codex-dispatch-posix-quoting-without-shell-setting.md) |
