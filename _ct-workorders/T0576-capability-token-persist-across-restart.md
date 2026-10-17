@@ -4,9 +4,10 @@ schema_kind: workorder
 id: T0576
 title: "PLAN-047 A2：本機範圍權杖跨 BAT 重開持久化（Terminal Server 存活 / T0108 replay）＋升級相容"
 type: feature
-status: IN_PROGRESS
+status: DONE
 started_at: "2026-10-17T19:36:29+0800"
-updated_at: "2026-10-17T19:36:29+0800"
+updated_at: "2026-10-17T19:53:30+0800"
+completed_at: "2026-10-17T19:53:30+0800"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P1
@@ -172,4 +173,5 @@ T0575 已 DONE（`2c59edee`），開工前條件成立。請先讀 T0575 回報�
 
 ### Commit
 
-（commit 後補）
+- `7e3c1d7d` feat(T0576): persist local helper capabilities across BAT restarts（產品 + 測試 + e2e + CLAUDE.md + 本回報；未 push）
+- 本次狀態收尾另一個 commit（只動本工單）
