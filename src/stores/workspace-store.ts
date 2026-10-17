@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
-import type { Workspace, TerminalInstance, AppState } from '../types'
+import type { Workspace, TerminalInstance, AppState, CtWorktreeInfo } from '../types'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { normalizeAgentParams } from '../types/agent-profiles'
 import { isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
@@ -194,8 +194,9 @@ function autoTitleFor(title: string): string | undefined {
  * PLAN-041 / T0537: the saved Worker ownership of a tab (`towerTerminalId` / `workorder`), only
  * the string fields that are there — data saved before T0537 has none and stays without them.
  */
-function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown; workerReport?: unknown }): Pick<TerminalInstance, 'towerTerminalId' | 'workorder' | 'workerReport'> {
+function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown; workerReport?: unknown; ctWorktree?: unknown }): Pick<TerminalInstance, 'towerTerminalId' | 'workorder' | 'workerReport' | 'ctWorktree'> {
   const report = t.workerReport as { message?: unknown; reportedAt?: unknown } | null | undefined
+  const ctWorktree = ctWorktreeInfo(t.ctWorktree)
   return {
     ...(typeof t.towerTerminalId === 'string' && t.towerTerminalId ? { towerTerminalId: t.towerTerminalId } : {}),
     ...(typeof t.workorder === 'string' && t.workorder ? { workorder: t.workorder } : {}),
@@ -203,7 +204,18 @@ function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown; wo
     ...(report && typeof report === 'object' && typeof report.message === 'string' && typeof report.reportedAt === 'number' && Number.isFinite(report.reportedAt)
       ? { workerReport: { message: report.message.slice(0, WORKER_REPORT_MESSAGE_MAX), reportedAt: report.reportedAt } }
       : {}),
+    // T0583: the worktree of an isolated Worker (main checks the location / branch rules before using it)
+    ...(ctWorktree ? { ctWorktree } : {}),
   }
+}
+
+/** T0583: a `ctWorktree` as sent / saved → its string fields, or undefined. */
+function ctWorktreeInfo(raw: unknown): CtWorktreeInfo | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const { path, branch, base, mainCheckout, workorder } = raw as Record<string, unknown>
+  if (typeof path !== 'string' || !path || typeof branch !== 'string' || !branch || typeof base !== 'string' || !base) return undefined
+  if (typeof mainCheckout !== 'string' || !mainCheckout || typeof workorder !== 'string' || !workorder) return undefined
+  return { path, branch, base, mainCheckout, workorder }
 }
 
 const AUTO_SAVE_INTERVAL_MS = 30_000
@@ -517,7 +529,7 @@ class WorkspaceStore {
    *  T0553: the title is `<agent> · Worker · <workorder>` for a Worker, else the agent or the
    *  command's file name (`externalTerminalTitle`); a tab a remote server created is marked
    *  `remoteOrigin` (thumbnail badge) instead of the old `Remote:` title prefix. */
-  addExternalTerminal(info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
+  addExternalTerminal(info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean }): TerminalInstance | null {
     // Avoid duplicates — PTY already tracked
     if (this.state.terminals.some(t => t.id === info.id)) return null
 
@@ -1154,6 +1166,7 @@ class WorkspaceStore {
         towerTerminalId: t.towerTerminalId,
         workorder: t.workorder,
         workerReport: t.workerReport,
+        ctWorktree: t.ctWorktree,
         remoteOrigin: t.remoteOrigin,
         autoTitle: t.autoTitle,
       }))

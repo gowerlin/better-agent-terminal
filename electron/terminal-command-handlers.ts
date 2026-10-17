@@ -14,6 +14,14 @@ import {
   type DispatchWorkspaceResolution,
 } from './dispatch-workspace'
 import { normalizeWorkorderId } from './close-worker'
+import {
+  CT_WORKTREE_ENV_KEYS,
+  CtWorktreeService,
+  WORKTREE_FAILED,
+  ctWorktreeEnv,
+  normalizeIsolationMode,
+  type CtWorktreeRecord,
+} from './ct-worktree'
 
 // 🔴 No `electron` import here: PLAN-036 T0431 registers these handlers on
 // headless bat-server too (electron/handlers/terminal.ts).
@@ -42,6 +50,8 @@ interface TerminalPtyManager {
     workspaceId?: string
     /** T0535 (PLAN-041): the work order of a dispatched Worker (`--close-worker` looks it up). */
     workorder?: string
+    /** T0583: the worktree of a `--isolation worktree` Worker (`--close-worker --worktree`). */
+    worktree?: CtWorktreeRecord
   }): boolean
   write(id: string, data: string): void
   /** BUG-146 / T0580: Electron holds creates while the Recovery prompt is unanswered (headless never does). */
@@ -79,6 +89,8 @@ interface TerminalAgentCommandOptions {
   customEnv?: Record<string, string>
   workspaceId?: string
   reportLanding?: boolean
+  /** PLAN-047 W1 / T0583: `'worktree'` (`--isolation worktree`, skill mode only). */
+  isolation?: string
 }
 
 /**
@@ -105,6 +117,24 @@ export interface TerminalCreatedReport {
     id: string
     source: BuiltAgentCommand['agentSource']
   }
+  /** T0583: `--isolation worktree` — the Worker's worktree (bat-terminal.mjs prints it). */
+  worktree?: {
+    path: string
+    branch: string
+    base: string
+    mainCheckout: string
+    reused: boolean
+  }
+}
+
+/**
+ * T0583: `--isolation worktree` failed — not a git repository, the location is taken, git failed…
+ * Nothing was created (helper exit 7). `error` is one English line, without the capability token.
+ */
+export interface WorktreeFailedResult {
+  ok: false
+  code: typeof WORKTREE_FAILED
+  error: string
 }
 
 /** BUG-132: what the helper prints when the cwd is not under the landing workspace's folderPath. */
@@ -231,6 +261,8 @@ export interface TerminalCommandHandlerDeps {
   env?: NodeJS.ProcessEnv
   existsSync?: (path: string) => boolean
   setTimeout?: (callback: () => void, ms: number) => unknown
+  /** T0583: prepares the worktree of a `--isolation worktree` dispatch. Default: `CtWorktreeService` with plain `git`. */
+  ctWorktree?: Pick<CtWorktreeService, 'prepare'>
 }
 
 function shellBasename(shellPath: string | undefined): string {
@@ -331,6 +363,14 @@ function agentDisplayName(agentId: string): string | undefined {
 
 export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps): void {
   const delay = deps.setTimeout ?? setTimeout
+  const ctWorktree = deps.ctWorktree ?? new CtWorktreeService()
+
+  /** T0583: a refused `--isolation worktree` dispatch (logged; nothing created). */
+  const worktreeFailed = (channel: string, id: string, error: string, fields: Record<string, unknown> = {}): WorktreeFailedResult => {
+    deps.logger.warn(`[ct-worktree] ${channel} id=${id} → ${WORKTREE_FAILED}: ${error}`)
+    deps.mirrorToBatScripts('ipc-result', { channel, terminalId: id, result: false, reason: WORKTREE_FAILED, isolation: 'worktree', error, ...fields })
+    return { ok: false, code: WORKTREE_FAILED, error }
+  }
 
   /**
    * T0523 / BUG-129: the workspace of a terminal a helper creates (no invoking window). A
@@ -434,7 +474,11 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     }
   }
 
-  const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution) => {
+  /**
+   * `isolation` comes from create-agent-command only (T0583: never from the create-with-command
+   * payload, so a caller of that channel cannot name a worktree for BAT to record or clean).
+   */
+  const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution, isolation?: { workorder: string }) => {
     const ptyManager = deps.getPtyManager()
     let reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
     const customEnv = deps.pickWhitelistedEnv(opts.customEnv)
@@ -509,6 +553,33 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       deps.logger.log(`[BUG-146] terminal:create-with-command id=${opts.id} released: reused=${reusedExisting}`)
     }
 
+    // PLAN-047 W1 / T0583: `--isolation worktree` — the Worker runs in its own worktree (created or
+    // reused here, after the Recovery hold and before the PTY); BAT adds CT_HOME / CT_WORKTREE*.
+    let cwd = opts.cwd
+    let customEnvForPty = opts.customEnv
+    let worktree: { record: CtWorktreeRecord; reused: boolean } | null = null
+    if (isolation) {
+      const prepared = await ctWorktree.prepare({ cwd: opts.cwd, workorder: isolation.workorder })
+      if (!prepared.ok) return worktreeFailed('terminal:create-agent-command', opts.id, prepared.error, { cwd: opts.cwd, workorder: isolation.workorder })
+      worktree = { record: prepared.record, reused: prepared.reused }
+      cwd = prepared.cwd
+      const callerEnv = Object.fromEntries(Object.entries(opts.customEnv ?? {}).filter(([key]) => !CT_WORKTREE_ENV_KEYS.includes(key)))
+      customEnvForPty = { ...callerEnv, ...ctWorktreeEnv(prepared.record) }
+      deps.logger.log(`[ct-worktree] id=${opts.id} workorder=${prepared.record.workorder} → ${prepared.reused ? 'reused' : prepared.createdBranch ? 'created' : 'created on the existing branch'} ${prepared.record.path} branch=${prepared.record.branch} base=${prepared.record.base} cwd=${cwd}`)
+      deps.mirrorToBatScripts('ct-worktree', {
+        channel: 'terminal:create-agent-command',
+        terminalId: opts.id,
+        isolation: 'worktree',
+        worktree: prepared.record.path,
+        branch: prepared.record.branch,
+        base: prepared.record.base,
+        mainCheckout: prepared.record.mainCheckout,
+        reused: prepared.reused,
+        createdBranch: prepared.createdBranch,
+        cwd,
+      })
+    }
+
     const settings = deps.readPersistedSettingsSync()
     const shellResolution = resolveTerminalShell(opts.shell, settings, deps)
     const fallbackReason = shellResolution.fallbackReason ? ` reason=${shellResolution.fallbackReason}` : ''
@@ -525,12 +596,13 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
 
     const created = ptyManager.create({
       id: opts.id,
-      cwd: opts.cwd,
+      cwd,
       type: 'terminal',
       shell: shellResolution.shell,
-      customEnv: opts.customEnv,
+      customEnv: customEnvForPty,
       workspaceId: landing.workspaceId,
       ...(opts.workorder ? { workorder: opts.workorder } : {}),
+      ...(worktree ? { worktree: worktree.record } : {}),
     })
     if (created && opts.command) {
       delay(() => {
@@ -542,7 +614,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       const workorder = opts.workorder ? normalizeWorkorderId(opts.workorder) : null
       const payload = {
         id: opts.id,
-        cwd: opts.cwd,
+        cwd,
         command: opts.command,
         // T0553: the tab title shows the agent (`<agent> · Worker · <workorder>`)
         ...(typeof opts.agent === 'string' && opts.agent ? { agent: opts.agent } : {}),
@@ -552,6 +624,8 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         // (headless has no registry to resolve this on the server).
         ...(landing.towerTerminalId ? { towerTerminalId: landing.towerTerminalId } : {}),
         ...(workorder ? { workorder } : {}),
+        // T0583: saved with the tab, for `--close-worker --worktree` after BAT reopens
+        ...(worktree ? { ctWorktree: worktree.record } : {}),
         // T0523: the registry has this workspace (a window of this BAT holds it), so a window
         // without it skips the event instead of adding the tab to its active workspace.
         ...(landing.known ? { workspaceResolved: true } : {}),
@@ -598,12 +672,28 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
           mismatch: landing.mismatch,
           ...(cwdCheck ? { cwdCheck } : {}),
         },
+        ...(worktree ? {
+          worktree: {
+            path: worktree.record.path,
+            branch: worktree.record.branch,
+            base: worktree.record.base,
+            mainCheckout: worktree.record.mainCheckout,
+            reused: worktree.reused,
+          },
+        } : {}),
       }
       return report
     }
     return created
   }
-  deps.registerHandler('terminal:create-with-command', (ctx, opts) => createWithCommand(ctx, opts as TerminalCommandOptions))
+  deps.registerHandler('terminal:create-with-command', (ctx, opts) => {
+    // T0583: worktree isolation is a skill-mode dispatch (`create-agent-command`) only
+    const isolation = opts && typeof opts === 'object' ? (opts as { isolation?: unknown }).isolation : undefined
+    if (isolation !== undefined && isolation !== null) {
+      return worktreeFailed('terminal:create-with-command', String((opts as { id?: unknown }).id ?? 'n/a'), '--isolation worktree needs --skill and --workorder (raw command mode is not isolated)')
+    }
+    return createWithCommand(ctx, opts as TerminalCommandOptions)
+  })
 
   deps.registerHandler('terminal:create-agent-command', async (_ctx, rawOpts) => {
     const opts = rawOpts as TerminalAgentCommandOptions
@@ -616,6 +706,18 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     if (hasPrompt && hasSkillPayload) {
       deps.logger.warn('[agent-command] received both prompt and skill/workorder for terminal:create-agent-command')
       return false
+    }
+    // PLAN-047 W1 / T0583: `--isolation worktree` (skill mode only; absent = not isolated, D152)
+    let isolation: { workorder: string } | undefined
+    if (opts.isolation !== undefined && opts.isolation !== null) {
+      if (normalizeIsolationMode(opts.isolation) !== 'worktree') {
+        return worktreeFailed('terminal:create-agent-command', opts.id, `unsupported isolation '${String(opts.isolation)}' (expected: worktree)`)
+      }
+      const workorder = hasSkillPayload ? normalizeWorkorderId(opts.workorder) : null
+      if (!workorder) {
+        return worktreeFailed('terminal:create-agent-command', opts.id, '--isolation worktree needs --skill and --workorder')
+      }
+      isolation = { workorder }
     }
 
     // T0527: `--agent codex` → codex-cli; an id the registry does not know is refused with the
@@ -682,9 +784,11 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       agent: resolved.agentId,
       ...(agentName ? { agentName } : {}),
     }
-    const result = deps.invokeHandler
+    // T0583: an isolated dispatch never goes through the create-with-command channel (its payload
+    // cannot carry the worktree, see createWithCommand)
+    const result = deps.invokeHandler && !isolation
       ? await deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)
-      : await createWithCommand(_ctx, commandOptions, landing)
+      : await createWithCommand(_ctx, commandOptions, landing, isolation)
     if (result && typeof result === 'object' && (result as { ok?: unknown }).ok === true) {
       const report = result as TerminalCreatedReport
       // Through invokeHandler the second resolution saw the already-resolved id: keep the first.

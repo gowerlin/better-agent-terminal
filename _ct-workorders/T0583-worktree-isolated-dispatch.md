@@ -4,9 +4,9 @@ schema_kind: workorder
 id: T0583
 title: "PLAN-047 W1-1：worktree 隔離派工（`--isolation worktree`、repo 外位置、`ct/T####` 分支、`CT_HOME`）+ `--close-worker --worktree keep|remove|archive`"
 type: feature
-status: TODO
-started_at: ""
-updated_at: "2026-10-17T21:52:34+0800"
+status: IN_PROGRESS
+started_at: "2026-10-17T21:54:32+08:00"
+updated_at: "2026-10-17T22:18:49+08:00"
 completed_at: ""
 repo: better-agent-terminal
 project: PLAN-047
@@ -99,3 +99,111 @@ PLAN-047 軌道 W（D150 / D152）：工單可選擇在獨立 worktree 執行，
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 結果
+
+**DONE**：契約全部實作（派工 `--isolation worktree`、回收 `--worktree keep|remove|archive`、持久化、headless 對等），驗收條件 1–3 全部通過。與契約的差異都是補充細節，列在「與契約的差異」，沒有改變 CT 端可觀察的介面（exit code、stdout 行、env 名稱）。
+
+### 落點檢查
+
+- C-0 **PASS**：frontmatter `repo` = `better-agent-terminal`，`basename(git rev-parse --show-toplevel)` = `better-agent-terminal`（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1 PASS（工單在 REPO_ROOT 底下）；C-3 PASS（資訊性，`electron/terminal-command-handlers.ts` 等皆存在）；C-2 不適用（無 `branch` 欄位，HEAD = `main`）
+- 觀察到的 `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）；`CT_MODE=yolo`、`CT_INTERACTIVE=0`
+
+### 實作摘要
+
+| 部分 | 檔案 | 內容 |
+|---|---|---|
+| worktree 服務 | `electron/ct-worktree.ts`（新） | `CtWorktreeService.prepare` / `cleanup`、位置 / 分支 / env 規則、`parseCtWorktreeRecord`（清理前驗位置 + `ct/` 分支）、porcelain 解析；全部 `execFile('git', [...])` + timeout（查詢 5 s、add 30 s、remove 300 s），win32 一律 `-c core.longpaths=true`；不 import electron |
+| 派工 | `electron/terminal-command-handlers.ts` | `create-agent-command` 解析 `isolation`（只 skill 模式）；`createWithCommand` 在 Recovery hold **之後**、`ptyManager.create` 之前建 / 沿用 worktree，改 cwd、注入 `CT_HOME` / `CT_WORKTREE*`（呼叫者同名鍵丟棄）、PTY 記 `worktree`、報告與 `terminal:created-externally` 帶 `worktree` / `ctWorktree`；失敗回 `{ ok:false, code:'WORKTREE_FAILED', error }`；隔離派工不經 `invokeHandler`；`create-with-command` payload 帶 `isolation` 一律拒絕 |
+| 回收 | `electron/close-worker.ts` | `worktree` 參數（非法 → `INVALID_ARGS`）、回應 `worktree: { mode, isolated, path?, branch? }`、close request 後每 1 s 查 `isAlive`，連續兩次不在才清理，60 s 仍在 → 保留；取消不清理；日誌 `[ct-worktree]` |
+| 持久化 | `electron/pty-manager.ts`、`electron/worker-ownership.ts`、`src/types/index.ts`、`src/stores/workspace-store.ts`、`electron/preload.ts`、`src/types/electron.d.ts` | `PtyInstance.worktree`（restart / recovery / 冪等 re-create 沿用）、`getWorktree()`；分頁 `TerminalInstance.ctWorktree`（隨 `workspace:save` 存、detached adopt 沿用；與 Agent 面板 `worktreePath` 分開）；重開後 `withSavedWorkerOwnership.getWorktree` 由已存分頁取得（只收符合規則且工單號一致者） |
+| 接線 | `electron/main.ts`、`electron/handlers/terminal.ts`、`electron/remote/headless-entry.ts` | 本機 `CtWorktreeService`（plain git）；headless 用 `createHeadlessGitBinaryResolver()` + 去 `BAT_*` env，同一份實作（對等支援，不是拒絕） |
+| 權杖 | `electron/remote/helper-capability.ts` | `authorizeHelperInvoke` 只新放行 `isolation`（`create-agent-command`、值 `worktree`；否則 `isolation-not-allowed` / `invalid-isolation`）；`HELPER_CHANNEL_ROLES`、`HELPER_CREATE_ENV_KEYS` 未動 |
+| helper | `scripts/bat-terminal.mjs` | `--isolation` / `--worktree` 解析與互斥、`--help`、exit 7 + `create: WORKTREE_FAILED`、stdout `worktree:` / `branch:` / `base:`、隔離派工 invoke 逾時 40 s、`--worktree` 的 stdout 說明、舊 BAT 警告、日誌欄位 |
+| 文件 | `CLAUDE.md` | 新增「worktree 隔離派工（PLAN-047 W1 / T0583，D150 / D152）」小節（只新增，未改其他小節） |
+| 測試 | `electron/__tests__/ct-worktree.test.ts`（23）、`electron/__tests__/ct-worktree-dispatch.test.ts`（24）、`electron/__tests__/bat-terminal-worktree.test.ts`（18）、`src/stores/__tests__/workspace-store.ctWorktree.test.ts`（4）、`e2e/t0583-worktree-isolated-dispatch.spec.ts` | 見驗證 |
+
+### 與契約的差異（補充，CT 可觀察介面未變）
+
+1. **沿用 / 既有分支時的 `base`**：契約寫「base = 派工當下主 checkout 的 HEAD」。新建分支照此；但 `reused` 或「分支在、worktree 不在」時分支不是現在才從 HEAD 開的，回報 `git merge-base HEAD ct/<T####>`（fork point；main 沒被改寫時就是原本的 base）。理由：直接報現在的 HEAD 會讓 CT 以為工單分支從一個它根本不含的 commit 開始。
+2. **位置登記但目錄已刪（prunable）**：先 `git worktree prune` 再在既有分支上重建（契約未提；不處理會一直卡在「已登記」）。
+3. **helper invoke 逾時**：`--isolation worktree` 時 40 s（一般仍 3 s）。理由：主行程 Recovery hold 最多 2 s + `git worktree add` 最多 30 s；3 s 逾時會造成「helper exit 1、Worker 稍後仍建立」的重派風險（同 T0580 的考量）。
+4. **清理時機的定義**：「分頁實際關閉」= close request 送出後，PTY 連續兩次（間隔 1 s）不在；60 s 內沒關（沒有視窗持有、或使用者 ⏻ 重啟）→ 保留並 warn。延遲期間使用者自己按 ✕ 關掉 → 不清理（請求未執行）。清理失敗（例如 Windows 檔案鎖）不重試，保留並 warn。
+5. **`archive` 名稱碰撞後綴**：`ct-archive/<T####>-YYYYMMDD-HHMMSS`（本地時間；再碰撞加 `-1`…）。
+6. **互斥補充**：`--close-worker` 與 `--isolation` 互斥（`--isolation` 視為建立分頁的參數）；`--set-role` 與 `--worktree` 互斥。明確帶 `--worktree keep` 時回應也帶 `worktree: { mode: 'keep', … }`（只顯示，不清理）。
+7. **主行程對非法 `isolation`**：helper 先擋（exit 1 用法錯誤）；繞過 helper 直送非法值 / prompt 模式時主行程回 `WORKTREE_FAILED`（helper 會 exit 7）。
+8. **affects_files 以外的檔案**（必要接線，未改其行為）：`electron/worker-ownership.ts`（重開後由已存分頁取 worktree，任務 4）、`electron/handlers/terminal.ts`（把 `ctWorktree` 傳進共用 handler）、`electron/preload.ts`、`src/types/electron.d.ts`（`onCreatedExternally` 型別加 `ctWorktree`）。
+
+### 長路徑實測（Windows 11，git 2.56.0.windows.2；temp repo，worktree 內最長路徑 333 字元）
+
+| 動作 | 不帶 `core.longpaths` | 帶 `-c core.longpaths=true` |
+|---|---|---|
+| `git worktree add -b ct/T…` | ❌ `fatal: cannot create directory at 'aaaa…': Filename too long`；worktree 未登記，但**分支 `ct/T0001` 已建立** | ✅ |
+| `git -C <wt> status --porcelain` | ⚠️ `warning: could not open directory … Filename too long`，長路徑檔顯示為 ` D`（已刪除） | ✅ 空（乾淨） |
+| `git worktree remove <wt>` | ❌ `contains modified or untracked files, use --force` | ✅ rc=0 |
+
+⇒ win32 每個 git 呼叫都帶 `-c core.longpaths=true`（`CtWorktreeService.git`，單元測試斷言）。前面那個殘留分支的情境也由「分支在、worktree 不在 → 在既有分支上建」涵蓋。實驗在 scratchpad 的 temp repo，結束已刪除。
+
+### 實際 stdout（e2e 隔離實例）
+
+```
+✓ Terminal created: 376371b33d1872644dcb45f838d43336
+  workspace: T0583 (e2e-t0583-ws) — the Tower terminal's workspace (--notify-id)
+  agent: e2e-t0583-worker (--agent default: the workspace's default agent)
+  worktree: C:\Users\Gower\AppData\Local\Temp\bat-t0583-r1LR5i\.bat-worktrees\repo\T0583
+  branch: ct/T0583
+  base: 521d99e870c8c2d603b5624a59376e2fd7cd91bb
+```
+
+Worker 端（自訂 CLI 的 node 腳本記錄）：`cwd` = `…\.bat-worktrees\repo\T0583\pkg`（派工 cwd 為 `<repo>\pkg`）、`CT_HOME` = `…\bat-t0583-r1LR5i\repo`、`CT_WORKTREE` = `…\.bat-worktrees\repo\T0583`、`CT_WORKTREE_BRANCH` = `ct/T0583`、`CT_WORKTREE_BASE` = `521d99e8…`（40 字元）。
+
+```
+Error: Failed to create terminal (WORKTREE_FAILED): cwd C:\Users\Gower\AppData\Local\Temp\bat-t0583-r1LR5i\plain is not a git repository (fatal: not a git repository (or any of the parent directories): .git)
+create: WORKTREE_FAILED
+```
+（exit 7，沒有建立分頁）
+
+```
+✓ Worker close scheduled: 376371b33d1872644dcb45f838d43336 (in 0 ms)
+  If the tab is still printing then, BAT waits until it is quiet (at most 60 s more).
+  worktree: remove C:\…\.bat-worktrees\repo\T0583 once the tab is closed (branch ct/T0583 kept; result in the BAT log)
+```
+重開 BAT 後：`worktree: archive C:\…\.bat-worktrees\repo\T0584 once the tab is closed (branch ct/T0584 → ct-archive/T0584; result in the BAT log)`。未隔離的 Worker：`worktree: ignored (T#### was not dispatched with --isolation worktree)`。
+
+### 給 CT-T015 / CT-T016 的注意事項
+
+1. **`CT_HOME`** = 主 checkout 絕對路徑（git toplevel 經 `path.resolve`，Windows 為反斜線）。worktree 內也有一份 `_ct-workorders/`（base 當下的副本）；讀寫與 commit 工單一律走 `$CT_HOME/_ct-workorders/`（`git -C "$CT_HOME" commit --only …`），worktree 中勿 stage `_ct-workorders/`。
+2. **C-0 在 worktree**：`basename(git rev-parse --show-toplevel)` 是 `T####`，必須改用 `basename "$CT_HOME"`，或 `basename(dirname(realpath(git rev-parse --git-common-dir)))`。
+3. **SHA**：`CT_WORKTREE_BASE` 為完整 40 字元 SHA（同 stdout `base:`）；`reused` 時是 `merge-base HEAD ct/T####`（見差異 1）。`head_sha` 用 `git -C "$CT_WORKTREE" rev-parse HEAD`。
+4. **exit code**：建立失敗 = **7**（stderr `create: WORKTREE_FAILED`，下一行前已印原因）；其他 exit 碼不變。`--close-worker` 的 exit 碼不變，清理結果只在 BAT 日誌（`[ct-worktree] … → removed …; branch kept` / `→ archived …` / `→ … kept (uncommitted changes)` 等）。
+5. **`--worktree remove` 不會刪有未提交或未追蹤變更的 worktree**（不 `--force`）：Worker 收工前要全部 commit；ignored（`node_modules`）照刪。分支 `ct/T####` 一律保留給合併工單；`archive` 會把它改名成 `ct-archive/T####`，合併前不要用 `archive`。
+6. **依賴安裝**：worktree 裡沒有 `node_modules`（D152 BAT 不裝），Worker 依專案規則自己 `npm ci`（T0574：約 16 s / 2 GB）。
+7. 同一工單重派（Renew）會沿用既有 worktree 與其中的 commit；要從新的 HEAD 重來需先 `--worktree archive`（或手動處理分支）。
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `npx vite build` | PASS（最終一次在全部變更後） |
+| `npm run typecheck` | **0**（中途一次因 T0582 未追蹤的 `src/lib/terminal-output-redaction.ts` 有 1 個 TS6133，非本單；最終一次 0） |
+| `npm run typecheck:electron` | **0** |
+| `npm run test:unit` | PASS：277 files，4890 passed / 3 skipped（最終一次）。中途一次 1 failed 為 T0582 進行中的 `HELPER_CHANNEL_ROLES` 擴充（`helper-capability.test.ts` 白名單），非本單 hunk，之後 T0582 已同步測試 |
+| 新單元測試 | `ct-worktree.test.ts` 23、`ct-worktree-dispatch.test.ts` 24、`bat-terminal-worktree.test.ts` 18、`workspace-store.ctWorktree.test.ts` 4，全綠；相關既有測試（`close-worker` / `worker-ownership` / `terminal-handlers` / `bat-terminal-close-worker` / `bat-terminal-set-role`）合計 9 檔 271 項全綠 |
+| e2e `t0583-worktree-isolated-dispatch.spec.ts` | PASS（16.4 s）：子目錄派工 → cwd / `CT_*` / 分支 / 主 checkout 未動；非 git → exit 7、無分頁；`--worktree remove` → 分頁關閉後 worktree 消失、分支保留（Windows 上 shell 結束後即可移除）；派 T0584 → 重開 BAT → `--worktree archive` 由已存分頁找到 → `ct-archive/T0584` |
+| 回歸 e2e | `t0535-close-worker.spec.ts` + `t0537-worker-ownership-persistence.spec.ts` PASS（45.8 s） |
+| 主 repo 安全 | 全程 `git worktree list` 只有主 checkout、無 `ct/*` / `ct-archive/*` 分支；測試 / e2e 的 git 夾具都先斷言 toplevel 是自己的 temp 目錄 |
+
+### Commit
+
+- 精準 staging：T0582 同時在改 `electron/pty-manager.ts`、`electron/remote/headless-entry.ts`、`electron/remote/helper-capability.ts`、`electron/main.ts`、`CLAUDE.md`。這 5 個檔以「HEAD + 本單變更」直接寫入 index（`git hash-object -w` + `git update-index --cacheinfo`，工作樹不動），T0582 的 hunk 全部留在工作樹未 stage；`src/styles/settings.css` 未動。commit hash 見下方收尾。
+- 不 push、不建 tag、不改版號。
+
+### 遭遇問題
+
+- Bash 工具的 heredoc 在內容含反引號 / 引號時兩次被誤解析（`unexpected EOF`），改用 Write 工具寫 Python 腳本到 scratchpad 再執行（L129 同類）。
+- T0582 並行修改共用檔：處理方式見 Commit。
+
+### 互動紀錄
+
+無（`CT_INTERACTIVE=0`，未向使用者提問）。

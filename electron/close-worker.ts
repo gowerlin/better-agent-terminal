@@ -28,8 +28,16 @@
  * T0536: headless bat-server serves the same scheduler (electron/remote/headless-entry.ts) for a
  * remote Tower's helper; the event then reaches the client windows of that profile.
  *
+ * PLAN-047 W1 / T0583: `{ …, worktree?: 'keep' | 'remove' | 'archive' }` (`--close-worker --worktree`).
+ * A Worker dispatched with `--isolation worktree` (electron/ct-worktree.ts) has its worktree removed
+ * (or removed and its branch archived) once the tab is actually gone — the close request went out
+ * and the PTY ended within `CLOSE_WORKER_TAB_CLOSE_WAIT_MS`. A cancelled close cleans nothing; a
+ * Worker that is not isolated ignores the option. The cleanup result goes to the log only (the
+ * helper has exited by then).
+ *
  * 🔴 No `electron` import here (shared with headless, T0536).
  */
+import type { CtWorktreeCleanupResult, CtWorktreeCloseMode, CtWorktreeRecord } from './ct-worktree'
 
 /** No output for this long before a Worker counts as quiet (constant, not a setting). */
 export const CLOSE_WORKER_IDLE_MS = 5000
@@ -37,6 +45,12 @@ export const CLOSE_WORKER_IDLE_MS = 5000
 export const CLOSE_WORKER_MAX_QUIET_WAIT_MS = 60_000
 /** `delayMs` is clamped to `0..CLOSE_WORKER_MAX_DELAY_MS`. */
 export const CLOSE_WORKER_MAX_DELAY_MS = 300_000
+/** T0583: after the close request, how long the tab may take to go before its worktree is kept. */
+export const CLOSE_WORKER_TAB_CLOSE_WAIT_MS = 60_000
+/** T0583: how often a closing tab is checked; it must be gone on two checks in a row (shell exited). */
+export const CLOSE_WORKER_TAB_CLOSE_POLL_MS = 1_000
+
+const WORKTREE_CLOSE_MODES: readonly string[] = ['keep', 'remove', 'archive']
 
 export const CLOSE_REQUESTED_CHANNEL = 'terminal:close-requested'
 
@@ -86,8 +100,19 @@ export function isTerminalAutoReply(data: unknown): boolean {
 /** `BUSY` is kept for the contract (helper exit 6) but no longer returned (T0545 / D145). */
 export type CloseWorkerErrorCode ='INVALID_ARGS' | 'NOT_FOUND' | 'NOT_OWNER' | 'AMBIGUOUS' | 'BUSY'
 
+/**
+ * T0583: what a request with `worktree` answers about it — `isolated: false` = the Worker was not
+ * dispatched with `--isolation worktree`, the option is ignored (the tab is still closed).
+ */
+export interface CloseWorkerWorktreeAnswer {
+  mode: CtWorktreeCloseMode
+  isolated: boolean
+  path?: string
+  branch?: string
+}
+
 export type CloseWorkerResult =
-  | { ok: true; terminalId: string; closeAt: number; delayMs: number }
+  | { ok: true; terminalId: string; closeAt: number; delayMs: number; worktree?: CloseWorkerWorktreeAnswer }
   | { ok: false; code: CloseWorkerErrorCode; terminalIds?: string[] }
 
 /** What the scheduler needs from PtyManager. */
@@ -98,6 +123,8 @@ export interface CloseWorkerPtyManager {
   getLastOutputAt(id: string): number | null
   getLastUserInputAt(id: string): number | null
   isAlive(id: string): boolean
+  /** T0583: the worktree record of an isolated Worker (PtyInstance, else its saved tab). */
+  getWorktree?(id: string): CtWorktreeRecord | undefined
 }
 
 /**
@@ -139,6 +166,8 @@ export interface WorkerCloseSchedulerDeps {
   /** Sends the event to every window (detached ones included); returns how many took it. */
   emit(channel: string, payload: unknown): unknown
   logger: { log(...args: unknown[]): void; warn(...args: unknown[]): void }
+  /** T0583: removes / archives an isolated Worker's worktree (`CtWorktreeService.cleanup`). Absent = kept. */
+  cleanupWorktree?: (record: CtWorktreeRecord, mode: Exclude<CtWorktreeCloseMode, 'keep'>) => Promise<CtWorktreeCleanupResult>
   now?: () => number
   setTimeout?: (callback: () => void, ms: number) => unknown
   clearTimeout?: (handle: unknown) => void
@@ -152,6 +181,8 @@ interface CloseEntry {
   workorder: string
   /** T0545: the delay is up and the close is waiting for the tab to go quiet. */
   waiting: boolean
+  /** T0583: what to do with the Worker's worktree once the tab is gone. */
+  worktreeMode: CtWorktreeCloseMode
 }
 
 interface PendingClose extends CloseEntry {
@@ -164,8 +195,20 @@ function clampDelay(raw: unknown): number | null {
   return Math.min(CLOSE_WORKER_MAX_DELAY_MS, Math.max(0, Math.round(raw)))
 }
 
+/** T0583: a tab whose close was requested, watched until it is gone, then its worktree cleaned. */
+interface ClosingWorktree {
+  record: CtWorktreeRecord
+  mode: Exclude<CtWorktreeCloseMode, 'keep'>
+  tag: string
+  requestedAt: number
+  /** The previous check already found the tab gone. */
+  goneOnce: boolean
+  timer: unknown
+}
+
 export class WorkerCloseScheduler {
   private readonly pending = new Map<string, PendingClose>()
+  private readonly closing = new Map<string, ClosingWorktree>()
   private readonly now: () => number
   private readonly setTimer: (callback: () => void, ms: number) => unknown
   private readonly clearTimer: (handle: unknown) => void
@@ -187,17 +230,21 @@ export class WorkerCloseScheduler {
    * close alone.
    */
   request(raw: unknown): CloseWorkerResult {
-    const args = (raw && typeof raw === 'object' ? raw : {}) as { towerId?: unknown; workorder?: unknown; delayMs?: unknown }
+    const args = (raw && typeof raw === 'object' ? raw : {}) as { towerId?: unknown; workorder?: unknown; delayMs?: unknown; worktree?: unknown }
     const towerId = typeof args.towerId === 'string' ? args.towerId.trim() : ''
     const workorder = normalizeWorkorderId(args.workorder)
     const delayMs = clampDelay(args.delayMs)
+    // T0583: absent = keep (the worktree, if any, stays)
+    const worktreeGiven = args.worktree !== undefined && args.worktree !== null
+    const worktreeValue = !worktreeGiven ? 'keep' : typeof args.worktree === 'string' ? args.worktree.trim().toLowerCase() : ''
+    const worktreeMode = WORKTREE_CLOSE_MODES.includes(worktreeValue) ? worktreeValue as CtWorktreeCloseMode : null
     const tag = `tower=${towerId || 'n/a'} workorder=${workorder ?? String(args.workorder ?? 'n/a')}`
     const refuse = (code: CloseWorkerErrorCode, extra = '', terminalIds?: string[]): CloseWorkerResult => {
       this.deps.logger.log(`[close-worker] ${tag} → ${code}${extra}`)
       return terminalIds ? { ok: false, code, terminalIds } : { ok: false, code }
     }
 
-    if (!towerId || !workorder || delayMs === null) return refuse('INVALID_ARGS')
+    if (!towerId || !workorder || delayMs === null || worktreeMode === null) return refuse('INVALID_ARGS')
     const ptys = this.deps.getPtyManager()
     if (!ptys) return refuse('NOT_FOUND', ' (no PTY manager)')
 
@@ -227,18 +274,31 @@ export class WorkerCloseScheduler {
       this.clearTimer(previous.timer)
       this.pending.delete(terminalId)
     }
+    // T0583: an isolated Worker (`--isolation worktree`) — anything else ignores `--worktree`
+    const record = ptys.getWorktree?.(terminalId)
+    const worktree: CloseWorkerWorktreeAnswer | undefined = worktreeGiven
+      ? { mode: worktreeMode, isolated: !!record, ...(record ? { path: record.path, branch: record.branch } : {}) }
+      : undefined
+    const worktreeNote = worktreeMode === 'keep' ? '' : record ? ` worktree=${worktreeMode}` : ` worktree=${worktreeMode} (not an isolated Worker: ignored)`
     const closeAt = now + delayMs
-    this.deps.logger.log(`[close-worker] ${tag} id=${terminalId} → scheduled delayMs=${delayMs}${printing}${previous ? ' (replaces the pending close)' : ''}`)
-    const entry: CloseEntry = { scheduledAt: now, closeAt, towerId, workorder, waiting: false }
+    this.deps.logger.log(`[close-worker] ${tag} id=${terminalId} → scheduled delayMs=${delayMs}${worktreeNote}${printing}${previous ? ' (replaces the pending close)' : ''}`)
+    const entry: CloseEntry = { scheduledAt: now, closeAt, towerId, workorder, waiting: false, worktreeMode: record ? worktreeMode : 'keep' }
     if (delayMs === 0) this.fire(terminalId, entry)
     else this.arm(terminalId, entry, delayMs)
-    return { ok: true, terminalId, closeAt, delayMs }
+    return worktree ? { ok: true, terminalId, closeAt, delayMs, worktree } : { ok: true, terminalId, closeAt, delayMs }
   }
 
   /** Clears every pending timer (app quit). */
   dispose(): void {
     for (const entry of this.pending.values()) this.clearTimer(entry.timer)
     this.pending.clear()
+    for (const entry of this.closing.values()) this.clearTimer(entry.timer)
+    this.closing.clear()
+  }
+
+  /** T0583: tabs whose worktree waits for the tab to go (tests / diagnostics). */
+  closingWorktreeIds(): string[] {
+    return [...this.closing.keys()]
   }
 
   /** Runs `fire` for `id` after `ms`, unless a newer request or `dispose` replaced the entry. */
@@ -283,5 +343,76 @@ export class WorkerCloseScheduler {
     const windows = this.deps.emit(CLOSE_REQUESTED_CHANNEL, { id })
     const waited = entry.waiting ? ` after waiting ${((now - entry.closeAt) / 1000).toFixed(1)} s for quiet` : ''
     this.deps.logger.log(`[close-worker] ${tag} → close requested${waited} (windows=${typeof windows === 'number' ? windows : 'n/a'})`)
+    if (entry.worktreeMode !== 'keep') this.watchWorktree(id, entry.worktreeMode, tag, now)
+  }
+
+  /**
+   * T0583: the close request went out — clean the worktree once the tab is gone (the PTY no longer
+   * runs on two checks in a row, so its shell has exited), or keep it when the tab is still there
+   * `CLOSE_WORKER_TAB_CLOSE_WAIT_MS` later (no window held it, or the user restarted it).
+   */
+  private watchWorktree(id: string, mode: Exclude<CtWorktreeCloseMode, 'keep'>, tag: string, requestedAt: number): void {
+    const record = this.deps.getPtyManager()?.getWorktree?.(id)
+    const previous = this.closing.get(id)
+    if (previous) {
+      this.clearTimer(previous.timer)
+      this.closing.delete(id)
+    }
+    if (!record) return
+    if (!this.deps.cleanupWorktree) {
+      this.deps.logger.warn(`[ct-worktree] ${tag} → ${record.path} kept (no cleanup on this host)`)
+      return
+    }
+    this.closing.set(id, { record, mode, tag, requestedAt, goneOnce: false, timer: null })
+    this.pollWorktree(id)
+  }
+
+  private pollWorktree(id: string): void {
+    const entry = this.closing.get(id)
+    if (!entry) return
+    const timer = this.setTimer(() => {
+      const current = this.closing.get(id)
+      if (!current || current.timer !== timer) return
+      const alive = this.deps.getPtyManager()?.isAlive(id) ?? false
+      if (!alive && current.goneOnce) {
+        this.closing.delete(id)
+        void this.runCleanup(id, current)
+        return
+      }
+      if (alive && this.now() - current.requestedAt >= CLOSE_WORKER_TAB_CLOSE_WAIT_MS) {
+        this.closing.delete(id)
+        this.deps.logger.warn(`[ct-worktree] ${current.tag} → ${current.record.path} kept (the tab was still open ${CLOSE_WORKER_TAB_CLOSE_WAIT_MS / 1000} s after the close request)`)
+        return
+      }
+      current.goneOnce = !alive
+      this.pollWorktree(id)
+    }, CLOSE_WORKER_TAB_CLOSE_POLL_MS)
+    entry.timer = timer
+  }
+
+  private async runCleanup(id: string, entry: ClosingWorktree): Promise<void> {
+    const { record, mode, tag } = entry
+    const where = `${record.path} (branch ${record.branch})`
+    try {
+      const result = await this.deps.cleanupWorktree!(record, mode)
+      switch (result.status) {
+        case 'removed':
+          this.deps.logger.log(`[ct-worktree] ${tag} → removed ${where}; branch kept`)
+          break
+        case 'archived':
+          this.deps.logger.log(`[ct-worktree] ${tag} → archived ${where}: worktree removed, branch renamed to ${result.archivedBranch}${result.detail ? ` (${result.detail})` : ''}`)
+          break
+        case 'missing':
+          this.deps.logger.log(`[ct-worktree] ${tag} → ${where} was already gone${result.detail ? ` (${result.detail})` : ''}`)
+          break
+        case 'kept-dirty':
+          this.deps.logger.warn(`[ct-worktree] ${tag} → ${where} kept (uncommitted changes)`)
+          break
+        default:
+          this.deps.logger.warn(`[ct-worktree] ${tag} → ${where} kept (${result.status}: ${result.detail ?? 'n/a'})`)
+      }
+    } catch (error) {
+      this.deps.logger.warn(`[ct-worktree] ${tag} id=${id} → ${where} kept (cleanup failed):`, error)
+    }
   }
 }

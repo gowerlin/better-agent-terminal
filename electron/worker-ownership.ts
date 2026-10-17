@@ -18,19 +18,28 @@
  * What this process recorded wins over the saved data (a Worker dispatched in this session,
  * `pty:restart`, the Terminal Server recovery). A saved tab counts only while its PTY runs.
  *
+ * PLAN-047 W1 / T0583: a Worker dispatched with `--isolation worktree` saves its worktree with the tab
+ * (`ctWorktree`), so `--close-worker --worktree remove|archive` still cleans it after BAT reopens.
+ * Only a record that follows the location / branch rules (`parseCtWorktreeRecord`) is taken.
+ *
  * 🔴 No `electron` import here (unit-tested without Electron).
  */
 import { normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
+import { parseCtWorktreeRecord, type CtWorktreeRecord } from './ct-worktree'
 
 export interface SavedWorkerOwnership {
   towerTerminalId: string
   workorder: string
+  /** T0583: the saved worktree of an isolated Worker (its work order matches the tab's). */
+  worktree?: CtWorktreeRecord
 }
 
 /** What the fallback needs from PtyManager on top of the scheduler's view. */
 export interface WorkerOwnershipPtyManager extends CloseWorkerPtyManager {
   /** The work order this process recorded on PTY `id`; undefined = none. */
   getWorkorder(id: string): string | undefined
+  /** T0583: the worktree this process recorded on PTY `id`. */
+  getWorktree?(id: string): CtWorktreeRecord | undefined
 }
 
 /**
@@ -38,18 +47,23 @@ export interface WorkerOwnershipPtyManager extends CloseWorkerPtyManager {
  * (normalized). Entries are window registry entries; a detached window's tabs are in its
  * parent's entry (`saveDetachedWorkspaceTerminals`). The first tab wins when an id repeats.
  */
-export function savedWorkerOwnership(entries: ReadonlyArray<{ terminals?: unknown }>): Map<string, SavedWorkerOwnership> {
+export function savedWorkerOwnership(entries: ReadonlyArray<{ terminals?: unknown }>, platform: NodeJS.Platform = process.platform): Map<string, SavedWorkerOwnership> {
   const owned = new Map<string, SavedWorkerOwnership>()
   for (const entry of entries) {
     if (!Array.isArray(entry?.terminals)) continue
     for (const t of entry.terminals as unknown[]) {
       if (!t || typeof t !== 'object') continue
-      const { id, towerTerminalId, workorder } = t as { id?: unknown; towerTerminalId?: unknown; workorder?: unknown }
+      const { id, towerTerminalId, workorder, ctWorktree } = t as { id?: unknown; towerTerminalId?: unknown; workorder?: unknown; ctWorktree?: unknown }
       if (typeof id !== 'string' || !id || owned.has(id)) continue
       if (typeof towerTerminalId !== 'string' || !towerTerminalId.trim()) continue
       const normalized = normalizeWorkorderId(workorder)
       if (!normalized) continue
-      owned.set(id, { towerTerminalId: towerTerminalId.trim(), workorder: normalized })
+      const worktree = parseCtWorktreeRecord(ctWorktree, platform)
+      owned.set(id, {
+        towerTerminalId: towerTerminalId.trim(),
+        workorder: normalized,
+        ...(worktree && worktree.workorder === normalized ? { worktree } : {}),
+      })
     }
   }
   return owned
@@ -91,5 +105,7 @@ export function withSavedWorkerOwnership(
     getLastOutputAt: id => ptys.getLastOutputAt(id),
     getLastUserInputAt: id => ptys.getLastUserInputAt(id),
     isAlive: id => ptys.isAlive(id),
+    // T0583: what this process recorded, else the saved tab's (same rule as the ownership)
+    getWorktree: id => ptys.getWorktree?.(id) ?? savedFor(id)?.worktree,
   }
 }

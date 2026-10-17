@@ -76,6 +76,11 @@ export interface TerminalHandlerDeps {
    * Absent (headless until T0536): the channel is not registered.
    */
   workerCloser?: Pick<WorkerCloseScheduler, 'request'>
+  /**
+   * PLAN-047 W1 / T0583: prepares `--isolation worktree` dispatches. Absent: plain `git` (Electron);
+   * headless passes one with its resolved git and scrubbed env.
+   */
+  ctWorktree?: TerminalCommandHandlerDeps['ctWorktree']
 }
 
 /**
@@ -114,6 +119,7 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
     mirrorToBatScripts,
     logger,
     existsSync: deps.existsSync ?? fs.existsSync,
+    ...(deps.ctWorktree ? { ctWorktree: deps.ctWorktree } : {}),
   })
 
   // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.

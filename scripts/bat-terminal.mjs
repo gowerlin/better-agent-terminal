@@ -22,6 +22,11 @@
 //        created). Exit 0 scheduled / 3 NOT_FOUND / 4 NOT_OWNER / 5 AMBIGUOUS / 6 BUSY / 1 other.
 //        T0545 / D145: BAT waits for the tab to go quiet instead of answering BUSY (6 stays
 //        for older BATs).
+//   node scripts/bat-terminal.mjs --skill ct-exec --workorder T0583 --isolation worktree
+//     └─ PLAN-047 W1 / T0583: run the Worker in its own git worktree
+//        (<repo parent>/.bat-worktrees/<repo>/T0583, branch ct/T0583). Exit 7 = worktree failed.
+//   node scripts/bat-terminal.mjs --close-worker T0583 --notify-id "$BAT_TERMINAL_ID" --worktree remove
+//     └─ T0583: once the tab is closed, remove its worktree (archive: + rename the branch).
 //   node scripts/bat-terminal.mjs --set-role tower [--mode yolo] [--terminal-id <id>] [--agent claude]
 //     └─ T0562 / D147: title this tab (default $BAT_TERMINAL_ID) `<agent> · Tower` (no tab is
 //        created; a name the user gave the tab is kept). Exit 0 done / 3 NOT_FOUND / 1 other.
@@ -75,8 +80,8 @@ if (process.platform === 'win32') {
 
 const HELP_TEXT = `Usage: bat-terminal.mjs [options] <command> [args...]
        bat-terminal.mjs [options] --prompt <text>
-       bat-terminal.mjs [options] --skill <name> --workorder <T####>
-       bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>]
+       bat-terminal.mjs [options] --skill <name> --workorder <T####> [--isolation worktree]
+       bat-terminal.mjs --close-worker <T####> --notify-id <id> [--delay-ms <n>] [--worktree keep|remove|archive]
        bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]
 
 Open a new BAT terminal and run either a raw command or the selected/default agent with a prompt.
@@ -96,6 +101,15 @@ Options:
   --mode <value>         CT mode for Worker (yolo|ask|off|on); injects CT_MODE env
   --interactive          Force interactive mode; injects CT_INTERACTIVE=1 env
   --no-interactive       Force non-interactive mode; injects CT_INTERACTIVE=0 env
+  --isolation worktree   With --skill/--workorder (T0583): run the Worker in its own git worktree
+                         <parent of the repo>/.bat-worktrees/<repo dir>/<T####> on branch ct/<T####>,
+                         created from the repo's HEAD (reused when it already exists). The repo is
+                         the git work tree of --cwd; the Worker starts in the same sub-directory.
+                         BAT sets CT_HOME (the main checkout), CT_WORKTREE, CT_WORKTREE_BRANCH and
+                         CT_WORKTREE_BASE in the Worker. Without it the Worker is not isolated.
+                         Exit 7 (stderr "create: WORKTREE_FAILED"): the worktree could not be
+                         prepared (not a git repository, the location is taken, git failed);
+                         no terminal is created.
   --help, -h             Show this help message
   --version              Show version
 
@@ -113,6 +127,12 @@ Close a Worker tab (PLAN-041):
   --delay-ms <n>         Close after n ms (default 0; BAT clamps to 0-300000). Typing into the
                          tab during the delay or the quiet wait cancels the close; output
                          does not.
+  --worktree <mode>      With --close-worker (T0583): keep (default) | remove | archive the
+                         Worker's worktree (--isolation worktree) once the tab is closed. remove:
+                         git worktree remove (never forced: uncommitted changes keep it), the
+                         branch stays; archive: also renames the branch to ct-archive/<T####>.
+                         A cancelled close keeps it. Ignored for a Worker that is not isolated.
+                         The result is in the BAT log only (it happens after this exits).
   Exit codes: 0 scheduled (closed when --delay-ms 0 and the tab is quiet) / 3 NOT_FOUND /
               4 NOT_OWNER / 5 AMBIGUOUS / 6 BUSY / 1 usage error, connection failure or BAT
               too old. stderr also prints "close-worker: <CODE>". 6 BUSY comes only from a
@@ -144,6 +164,8 @@ Examples:
   node scripts/bat-terminal.mjs --cwd /tmp echo hello
   node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --mode yolo --interactive --skill ct-exec --workorder T0001
   node scripts/bat-terminal.mjs --close-worker T0001 --notify-id "$BAT_TERMINAL_ID" --delay-ms 10000
+  node scripts/bat-terminal.mjs --notify-id <id> --workspace <uuid> --skill ct-exec --workorder T0001 --isolation worktree
+  node scripts/bat-terminal.mjs --close-worker T0001 --notify-id "$BAT_TERMINAL_ID" --worktree remove
   node scripts/bat-terminal.mjs --set-role tower --agent claude
   node scripts/bat-terminal.mjs --set-role tower --mode yolo
 `
@@ -158,7 +180,7 @@ Examples:
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--help', '-h', '--version']
 
 // PLAN-041 / T0535: `--close-worker` exit codes (contract shared with CT, PLAN-041「介面契約」).
 const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
@@ -167,6 +189,12 @@ const SET_ROLE_EXIT = { NOT_FOUND: 3 }
 const SET_ROLES = ['tower']
 // T0565: `--set-role tower --mode` accepts these trimmed / in any case (`--mode` of a new tab: exact)
 const CT_MODES = ['yolo', 'ask', 'off', 'on']
+// PLAN-047 W1 / T0583: `--isolation` / `--worktree` values (trimmed, any case); worktree failure exit
+const ISOLATION_MODES = ['worktree']
+const WORKTREE_CLOSE_MODES = ['keep', 'remove', 'archive']
+const WORKTREE_FAILED_EXIT = 7
+// T0583: an isolated dispatch waits for git (BAT: 30 s for `git worktree add`, 2 s Recovery hold)
+const ISOLATED_INVOKE_TIMEOUT_MS = 40_000
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length
@@ -236,6 +264,9 @@ let setRole = null
 let roleTerminalId = null
 let roleMode = null  // T0565
 let agentGiven = false
+// PLAN-047 W1 / T0583
+let isolation = null
+let worktreeMode = null
 
 let i = 0
 while (i < rawArgs.length) {
@@ -399,6 +430,42 @@ while (i < rawArgs.length) {
     continue
   }
 
+  // PLAN-047 W1 / T0583: run the Worker in its own git worktree (skill mode only)
+  if (arg === '--isolation') {
+    createFlags.push(arg)
+    const value = rawArgs[i + 1]
+    if (!value) { printUsageError(`--isolation requires a value (${ISOLATION_MODES.join('|')})`); process.exit(1) }
+    const normalized = value.trim().toLowerCase()
+    if (!ISOLATION_MODES.includes(normalized)) {
+      console.error(`Error: Invalid --isolation value: '${value}' (expected one of: ${ISOLATION_MODES.join(', ')})`)
+      logEvent('bat-terminal', 'exit', { code: 1, reason: 'invalid-isolation' })
+      process.exit(1)
+    }
+    isolation = normalized
+    i += 2
+    continue
+  }
+
+  // T0583: what --close-worker does with the Worker's worktree
+  if (arg === '--worktree') {
+    const value = rawArgs[i + 1]
+    if (!value) {
+      printUsageError(`--worktree requires a value (${WORKTREE_CLOSE_MODES.join('|')})`)
+      console.error('close-worker: USAGE')
+      process.exit(1)
+    }
+    const normalized = value.trim().toLowerCase()
+    if (!WORKTREE_CLOSE_MODES.includes(normalized)) {
+      console.error(`Error: Invalid --worktree value: '${value}' (expected one of: ${WORKTREE_CLOSE_MODES.join(', ')})`)
+      console.error('close-worker: USAGE')
+      logEvent('bat-terminal', 'exit', { code: 1, reason: 'invalid-worktree-mode' })
+      process.exit(1)
+    }
+    worktreeMode = normalized
+    i += 2
+    continue
+  }
+
   if (arg === '--delay-ms') {
     const value = rawArgs[i + 1]
     if (!value) { printUsageError('--delay-ms requires a number of milliseconds'); process.exit(1) }
@@ -439,6 +506,7 @@ if (setRole || roleTerminalId !== null) {
     ...new Set(createFlags.filter(flag => flag !== '--agent' && flag !== '--mode')),
     ...(closeWorker ? ['--close-worker'] : []),
     ...(delayMs !== null ? ['--delay-ms'] : []),
+    ...(worktreeMode !== null ? ['--worktree'] : []),
     ...(notifyId ? ['--notify-id'] : []),
     ...(positional.length > 0 ? ['<command>'] : []),
   ]
@@ -464,14 +532,16 @@ if (setRole || roleTerminalId !== null) {
 }
 
 // PLAN-041 / T0535: --close-worker closes a Worker tab; it never creates one.
-if (closeWorker || delayMs !== null) {
+if (closeWorker || delayMs !== null || worktreeMode !== null) {
   const closeUsage = (msg, reason) => {
     printUsageError(msg)
     console.error('close-worker: USAGE')
     logEvent('bat-terminal', 'exit', { code: 1, reason })
     process.exit(1)
   }
-  if (!closeWorker) closeUsage('--delay-ms is only valid with --close-worker', 'delay-without-close-worker')
+  if (!closeWorker && delayMs !== null) closeUsage('--delay-ms is only valid with --close-worker', 'delay-without-close-worker')
+  // T0583
+  if (!closeWorker) closeUsage('--worktree is only valid with --close-worker', 'worktree-without-close-worker')
   if (createFlags.length > 0 || positional.length > 0) {
     const given = [...new Set(createFlags), ...(positional.length > 0 ? ['<command>'] : [])].join(', ')
     closeUsage(`--close-worker cannot be combined with options that create a terminal (${given})`, 'close-worker-with-create-options')
@@ -498,6 +568,13 @@ if (prompt && hasSkillMode) {
   process.exit(1)
 }
 
+// PLAN-047 W1 / T0583: a worktree is per work order — skill mode only
+if (isolation && !hasSkillMode) {
+  printUsageError('--isolation worktree needs --skill and --workorder (not --prompt or a raw <command>)')
+  logEvent('bat-terminal', 'exit', { code: 1, reason: 'isolation-without-skill-mode' })
+  process.exit(1)
+}
+
 if (!closeWorker && !setRole && !prompt && !hasSkillMode && positional.length === 0) {
   printUsageError('No command specified')
   logEvent('bat-terminal', 'exit', { code: 1, reason: 'no-command' })
@@ -518,7 +595,8 @@ logEvent('bat-terminal', 'parsed', {
   interactive,
   cmd: positional[0] ?? null,
   cmdArgs: positional.slice(1),
-  ...(closeWorker ? { closeWorker, delayMs } : {}),
+  ...(closeWorker ? { closeWorker, delayMs, worktree: worktreeMode } : {}),
+  ...(isolation ? { isolation } : {}),
   ...(setRole ? { setRole, roleTerminalId, roleMode, agentHint: agentGiven ? agent : null } : {}),
 })
 
@@ -944,6 +1022,8 @@ async function main() {
   // T0523/BUG-129: ask for where the terminal landed and which agent it runs (BAT before
   // T0523 ignores this and answers `true`)
   invokePayload.reportLanding = true
+  // PLAN-047 W1 / T0583: BAT creates (or reuses) the worktree before the terminal
+  if (isolation) invokePayload.isolation = isolation
   // T0180/BUG-041 Phase 2.2: Inject CT_MODE / CT_INTERACTIVE env when explicitly specified.
   // Unset values are NOT injected (strict stateless — Worker falls back to workorder rules).
   if (mode) {
@@ -970,6 +1050,7 @@ async function main() {
     workorder,
     command,
     customEnv: invokePayload.customEnv ?? null,
+    ...(isolation ? { isolation } : {}),
   })
 
   const invokeId = makeId()
@@ -981,16 +1062,17 @@ async function main() {
   }))
 
   // T0200/BUG-046: See matching defensive wrap on auth await above.
-  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000 })
+  const invokeTimeoutMs = isolation ? ISOLATED_INVOKE_TIMEOUT_MS : 3000
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: invokeTimeoutMs })
   let invokeResp
   try {
-    invokeResp = await waitForMessage(ws, invokeId)
+    invokeResp = await waitForMessage(ws, invokeId, invokeTimeoutMs)
   } catch (err) {
     const msg = err?.message || String(err)
     const logPath = process.platform === 'win32'
       ? '%APPDATA%/BetterAgentTerminal/Logs/bat-scripts.log'
       : '~/Library/Application Support/BetterAgentTerminal/Logs/bat-scripts.log'
-    const hint = `Invoke response not received in 3000ms. Check BAT app is running and log at ${logPath}`
+    const hint = `Invoke response not received in ${invokeTimeoutMs}ms. Check BAT app is running and log at ${logPath}`
     console.error(`Error: Invoke response timeout: ${msg}`)
     console.error(`Hint: ${hint}`)
     logEvent('bat-terminal', 'exit', {
@@ -1025,6 +1107,14 @@ async function main() {
     const code = typeof invokeResult.code === 'string' ? invokeResult.code : 'refused'
     const detail = typeof invokeResult.error === 'string' ? invokeResult.error : 'terminal was not created'
     console.error(`Error: Failed to create terminal (${code}): ${detail}`)
+    // PLAN-047 W1 / T0583: the worktree could not be prepared — its own exit code
+    if (code === 'WORKTREE_FAILED') {
+      console.error('create: WORKTREE_FAILED')
+      logEvent('bat-terminal', 'terminal-created', { result: 'refused', code, isolation, error: detail, ...responseDiag })
+      logEvent('bat-terminal', 'exit', { code: WORKTREE_FAILED_EXIT, reason: 'worktree-failed' })
+      ws.close()
+      process.exit(WORKTREE_FAILED_EXIT)
+    }
     // BUG-132 (T0527): yolo dispatch from a cwd that belongs to another workspace.
     if (code === 'DISPATCH_CWD_OTHER_WORKSPACE' && invokeResult.cwdWorkspace && invokeResult.landingWorkspace) {
       console.error(`  cwd workspace:     ${describeNamed(invokeResult.cwdWorkspace)}`)
@@ -1058,12 +1148,31 @@ async function main() {
   console.log(`✓ Terminal created: ${terminalId}`)
   const landing = describeLanding(invokeResult)
   for (const line of landing.lines) console.log(line)
+  // PLAN-047 W1 / T0583: the Worker's worktree
+  const worktree = invokeResult && typeof invokeResult === 'object' && invokeResult.worktree && typeof invokeResult.worktree === 'object'
+    ? invokeResult.worktree
+    : null
+  if (worktree) {
+    console.log(`  worktree: ${worktree.path}${worktree.reused ? ' (reused)' : ''}`)
+    console.log(`  branch: ${worktree.branch}`)
+    console.log(`  base: ${worktree.base}`)
+  } else if (isolation) {
+    // a BAT before T0583 ignores --isolation and creates a plain Worker
+    console.error('[bat-terminal] --isolation worktree: this BAT did not report a worktree (BAT older than T0583?); the Worker is not isolated.')
+  }
   for (const line of landing.warnings) console.error(line)
   logEvent('bat-terminal', 'terminal-created', {
     result: 'ok',
     terminalId,
     ...(landing.workspace ? { landing: landing.workspace } : {}),
     ...(landing.agent ? { agent: landing.agent } : {}),
+    ...(isolation ? {
+      isolation,
+      worktree: worktree?.path ?? null,
+      branch: worktree?.branch ?? null,
+      base: worktree?.base ?? null,
+      reused: worktree ? Boolean(worktree.reused) : null,
+    } : {}),
     ...responseDiag,
   })
   logEvent('bat-terminal', 'exit', { code: 0 })
@@ -1076,9 +1185,9 @@ async function main() {
  * by the exit code (CT never parses stdout); `close-worker: <CODE>` on stderr is diagnostic.
  */
 async function runCloseWorker(ws) {
-  const request = { towerId: notifyId, workorder: closeWorker, ...(delayMs !== null ? { delayMs } : {}) }
+  const request = { towerId: notifyId, workorder: closeWorker, ...(delayMs !== null ? { delayMs } : {}), ...(worktreeMode !== null ? { worktree: worktreeMode } : {}) }
   const finish = (exitCode, code, fields = {}) => {
-    logEvent('bat-terminal', 'close-worker', { towerId: notifyId, workorder: closeWorker, delayMs, result: code, ...fields, ignoredFrames })
+    logEvent('bat-terminal', 'close-worker', { towerId: notifyId, workorder: closeWorker, delayMs, worktree: worktreeMode, result: code, ...fields, ignoredFrames })
     logEvent('bat-terminal', 'exit', { code: exitCode, reason: exitCode === 0 ? 'close-worker-scheduled' : `close-worker-${code}` })
     ws.close()
     process.exit(exitCode)
@@ -1111,7 +1220,18 @@ async function runCloseWorker(ws) {
     console.log(`✓ Worker close scheduled: ${terminalId} (in ${inMs} ms)`)
     // T0545 / D145: the close is decided later, in BAT (CT reads only the exit code).
     console.log('  If the tab is still printing then, BAT waits until it is quiet (at most 60 s more).')
-    return finish(0, 'OK', { terminalId, closeAt: result.closeAt, scheduledDelayMs: inMs })
+    // PLAN-047 W1 / T0583: what happens to the worktree (later, after the tab closes; BAT log only)
+    const wt = result.worktree && typeof result.worktree === 'object' ? result.worktree : null
+    if (worktreeMode !== null && worktreeMode !== 'keep') {
+      if (wt?.isolated) {
+        console.log(`  worktree: ${wt.mode} ${wt.path} once the tab is closed (branch ${wt.branch}${wt.mode === 'archive' ? ` → ct-archive/${String(closeWorker).trim().toUpperCase()}` : ' kept'}; result in the BAT log)`)
+      } else if (wt) {
+        console.log(`  worktree: ignored (${String(closeWorker).trim().toUpperCase()} was not dispatched with --isolation worktree)`)
+      } else {
+        console.error('[bat-terminal] --worktree: this BAT did not report worktree handling (BAT older than T0583?); the worktree is kept.')
+      }
+    }
+    return finish(0, 'OK', { terminalId, closeAt: result.closeAt, scheduledDelayMs: inMs, ...(wt ? { worktreeIsolated: Boolean(wt.isolated), worktreePath: wt.path ?? null } : {}) })
   }
   const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
   const exitCode = CLOSE_WORKER_EXIT[code] ?? 1

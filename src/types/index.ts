@@ -82,6 +82,13 @@ export interface TerminalInstance {
    */
   workerReport?: { message: string; reportedAt: number };
   /**
+   * PLAN-047 W1 / T0583: a Worker dispatched with `--isolation worktree` — the worktree BAT created
+   * for it (electron/ct-worktree.ts). Saved with the tab like `towerTerminalId` / `workorder`, so
+   * `--close-worker --worktree remove|archive` still finds it after BAT reopens. Unrelated to
+   * `worktreePath` / `worktreeBranch` (Agent panel worktree sessions).
+   */
+  ctWorktree?: CtWorktreeInfo;
+  /**
    * T0553: a helper-created tab whose PTY a remote server created (`terminal:created-externally`
    * with `remote: true`). Display only (thumbnail badge); saved with the tab.
    */
@@ -94,6 +101,18 @@ export interface TerminalInstance {
    * Saved with the tab.
    */
   autoTitle?: string;
+}
+
+/** PLAN-047 W1 / T0583: a `--isolation worktree` Worker's worktree (main's `CtWorktreeRecord`). */
+export interface CtWorktreeInfo {
+  path: string;
+  /** `ct/<T####>`. */
+  branch: string;
+  /** SHA the branch started from. */
+  base: string;
+  /** The main checkout (`CT_HOME`). */
+  mainCheckout: string;
+  workorder: string;
 }
 
 export interface AppState {
