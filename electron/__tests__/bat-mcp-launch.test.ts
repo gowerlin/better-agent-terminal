@@ -75,7 +75,8 @@ const shim = () => path.join(helperDir, 'bat-mcp.mjs')
 describe('buildBatMcpLaunchArgs', () => {
   it('claude: --mcp-config=<userData>/bat-mcp/claude.json, the file holds command / args only', () => {
     const r = buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli', shellFamily: 'pwsh' })
-    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--mcp-config=${configFile()}'` })
+    // T0590: no bat-hook.mjs in this helper dir → MCP only (hooks: blocked-hooks-launch.test.ts)
+    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--mcp-config=${configFile()}'`, mcp: true, hooks: false, hooksReason: `bat-hook.mjs not found in ${helperDir}` })
     const content = fs.readFileSync(configFile(), 'utf8')
     expect(JSON.parse(content)).toEqual({ mcpServers: { bat: { type: 'stdio', command: 'node', args: [shim()] } } })
     expect(content).not.toContain(TOKEN)
@@ -101,6 +102,8 @@ describe('buildBatMcpLaunchArgs', () => {
       injected: true,
       kind: 'codex',
       args: `-c 'mcp_servers.bat.command=''node''' -c '${base.replace(/'/g, "''")}' -c '${envVars.replace(/'/g, "''")}' -c mcp_servers.bat.tool_timeout_sec=60`,
+      mcp: true,
+      hooks: false, // T0590: claude only
     })
     expect(buildBatMcpLaunchArgs(host(), { agentId: 'codex-cli', shellFamily: 'posix' })).toMatchObject({
       args: `-c 'mcp_servers.bat.command='\\''node'\\''' -c '${base.replace(/'/g, "'\\''")}' -c '${envVars.replace(/'/g, "'\\''")}' -c mcp_servers.bat.tool_timeout_sec=60`,
@@ -180,7 +183,8 @@ describe('agent:bat-mcp-launch-args handler', () => {
     expect(logs).toEqual([
       expect.stringMatching(/^\[bat-mcp\] tab agent=claude-cli → injected: '--mcp-config=/),
       expect.stringMatching(/^\[bat-mcp\] tab agent=codex-cli → injected: -c /),
-      '[bat-mcp] tab agent=claude-cli → not injected (custom args already pass --mcp-config)',
+      // T0590: + whether the hooks went in
+      `[bat-mcp] tab agent=claude-cli → not injected (custom args already pass --mcp-config); hooks=no (bat-hook.mjs not found in ${helperDir})`,
     ])
     expect(logs.join('\n')).not.toContain(TOKEN)
   })
@@ -277,7 +281,7 @@ describe('source guards', () => {
     expect(main).toMatch(/dataDir: \(\) => app\.getPath\('userData'\)/) // lazy (BUG-119 rule)
     const headless = read('electron/remote/headless-entry.ts')
     expect(headless).toMatch(/batMcpLaunchArgs, \/\/ T0584/)
-    expect(headless).toMatch(/createHeadlessBatMcpModule\(\{ installRoot: opts\.installRoot \}\)/)
+    expect(headless).toMatch(/createHeadlessBatMcpModule\(\{ installRoot: opts\.installRoot, getPtyManager: \(\) => ptyManager \}\)/)
   })
 
   it('every renderer launch of a terminal-driven agent goes through withBatMcpLaunchArgs', () => {

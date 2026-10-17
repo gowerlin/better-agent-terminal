@@ -27,6 +27,7 @@ const REGISTRY_ONLY_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:read-output', 'T0582: a helper over RemoteServer, scoped + masked; a renderer reads pty:get-buffer'],
   ['terminal:wait', 'T0582: a helper long poll over RemoteServer; a renderer is pushed pty:output / pty:exit'],
   ['worktree:terminal-status', 'T0585: a helper (MCP shim / CT) reads the worktree status of an isolated Worker over RemoteServer, scoped by its capability'],
+  ['terminal:report-hook', 'T0590: only scripts/bat-hook.mjs (a claude hook) calls it, over RemoteServer, for its own tab; a renderer has no blocked state to report'],
 ])
 
 const ELECTRON_DIR = path.resolve(__dirname, '..', '..')

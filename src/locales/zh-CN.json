@@ -223,7 +223,7 @@
     "usageLimitContinueDelayHint": "0–60，默认 2，确保限制已实际解除。",
     "batMcpTitle": "BAT MCP",
     "batMcpEnabled": "BAT MCP（让标签页内的 agent 查询 BAT）",
-    "batMcpEnabledHint": "默认开启。BAT 启动的 Claude CLI 与 Codex CLI 标签页（新建、还原、重启的标签页与塔台派工）会挂上只读的“bat”MCP server：agent 可以查询自己是哪个标签页、列出 Worker、读取 Worker 的输出并等待它们。更改后启动的标签页才会应用。自定义参数已带 --mcp-config（Claude）或已定义 mcp_servers.bat（Codex）时不添加；原样执行的命令也不添加。"
+    "batMcpEnabledHint": "默认开启。BAT 启动的 Claude CLI 与 Codex CLI 标签页（新建、还原、重启的标签页与塔台派工）会挂上只读的“bat”MCP server：agent 可以查询自己是哪个标签页、列出 Worker、读取 Worker 的输出并等待它们。更改后启动的标签页才会应用。自定义参数已带 --mcp-config（Claude）或已定义 mcp_servers.bat（Codex）时不添加；原样执行的命令也不添加。Claude CLI 标签页另会挂上 hooks，在 claude 等你回答（权限确认、提问、MCP 对话框：“blocked”状态）时通知 BAT；自定义参数已带 --settings 时不加。"
   },
   "sidebar": {
     "workspaces": "工作区",

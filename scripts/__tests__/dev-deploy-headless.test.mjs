@@ -36,7 +36,7 @@ import {
 } from '../dev-deploy-headless.mjs'
 
 const FILES = ['server-entry.js', 'headless-entry.js', 'lockfile.js', 'dataDir.js']
-const HELPERS = ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', '_bat-cert.mjs', '_bat-logger.mjs']
+const HELPERS = ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs']
 const REPO_SCRIPTS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 function makeInstallRoot() {

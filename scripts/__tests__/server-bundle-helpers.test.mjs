@@ -63,9 +63,10 @@ function stageHelpers(names) {
 describe('server bundle helper copy (T0433)', () => {
   const listed = parseHelperList(readFileSync(buildScript, 'utf8'))
 
-  it('lists the five helpers and copies them in copyServerSources()', () => {
+  it('lists the six helpers and copies them in copyServerSources()', () => {
     // T0584: bat-mcp.mjs (the `bat` MCP server of a remote claude / codex tab)
-    expect(listed).toEqual(['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', '_bat-cert.mjs', '_bat-logger.mjs'])
+    // T0590: bat-hook.mjs (the claude hooks reporting `blocked`)
+    expect(listed).toEqual(['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs'])
     const source = readFileSync(buildScript, 'utf8')
     // \r?\n: a core.autocrlf=true checkout has CRLF sources (T0454).
     expect(source).toMatch(/async function copyServerSources\(\) \{[\s\S]*?\r?\n {2}await copyHelperScripts\(\)\r?\n\}/)
@@ -80,6 +81,11 @@ describe('server bundle helper copy (T0433)', () => {
       expect(r.status).toBe(0)
       expect(r.stdout.trim()).toBe(`${helper} v9.9.9`)
     }
+    // T0590: bat-hook.mjs has no --version (it must print nothing): its imports resolve, it exits 0
+    const hook = runNode([join(root, 'scripts', 'bat-hook.mjs'), 'stop'])
+    expect(hook.stderr).toBe('')
+    expect(hook.stdout).toBe('')
+    expect(hook.status).toBe(0)
   })
 
   it('negative control: without _bat-cert.mjs the copied helper dies with ERR_MODULE_NOT_FOUND', () => {
@@ -97,10 +103,10 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
     const r = fixture(readFileSync(buildScript, 'utf8'))
     expect(r.stderr).toBe('')
     expect(r.status).toBe(0)
-    expect(r.stdout).toMatch(/server bundle ships 5 helper\(s\) with a closed import set/)
+    expect(r.stdout).toMatch(/server bundle ships 6 helper\(s\) with a closed import set/)
   })
 
-  const GOOD_LIST = "['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', '_bat-cert.mjs', '_bat-logger.mjs']"
+  const GOOD_LIST = "['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs']"
   const buildSource = (list, { copies = true } = {}) =>
     `const serverBundleHelperScripts = ${list}\nasync function main() {\n  await copyServerSources()\n}\nasync function copyServerSources() {\n${copies ? '  await copyHelperScripts()\n' : ''}}\n`
 
@@ -111,7 +117,7 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
     writeFileSync(join(root, 'package.json'), JSON.stringify({ build: { extraResources: [{ from: 'scripts', to: 'scripts', filter: ['*.mjs'] }], ...build } }))
     copyFileSync(verifyScript, join(root, 'scripts', 'verify-helper-bundle.js'))
     // _bat-server-helpers.mjs: imported by the real build script (extraResources import check)
-    for (const name of ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', '_bat-cert.mjs', '_bat-logger.mjs', '_bat-server-helpers.mjs']) {
+    for (const name of ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs', '_bat-server-helpers.mjs']) {
       if (!drop.includes(name)) copyFileSync(join(scriptsDir, name), join(root, 'scripts', name))
     }
     writeFileSync(join(root, 'scripts', 'build-server-bundle.mjs'), buildScriptSource)
@@ -137,9 +143,15 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
   })
 
   it('fails when bat-mcp.mjs is not shipped (T0584)', () => {
-    const r = fixture(buildSource("['bat-terminal.mjs', 'bat-notify.mjs', '_bat-cert.mjs', '_bat-logger.mjs']"))
+    const r = fixture(buildSource("['bat-terminal.mjs', 'bat-notify.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs']"))
     expect(r.status).toBe(1)
     expect(r.stderr).toMatch(/serverBundleHelperScripts is missing bat-mcp\.mjs/)
+  })
+
+  it('fails when bat-hook.mjs is not shipped (T0590)', () => {
+    const r = fixture(buildSource("['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', '_bat-cert.mjs', '_bat-logger.mjs']"))
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/serverBundleHelperScripts is missing bat-hook\.mjs/)
   })
 
   it('fails when a listed helper does not exist', () => {

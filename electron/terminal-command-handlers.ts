@@ -741,6 +741,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       workorder: opts.workorder,
       workspaceId: landing.workspaceId,
       shellFamily,
+      terminalId: opts.id, // T0590
     })
     if (!resolved) return false
 
@@ -815,6 +816,8 @@ export interface AgentPromptCommandOptions {
   workorder?: string
   workspaceId?: string
   shellFamily?: ShellFamily
+  /** T0590: the terminal being created (its `blockedDetection` is recorded by `batMcpLaunchArgs`). */
+  terminalId?: string
 }
 
 /** Settings fields `buildAgentPromptCommand` reads. */
@@ -941,7 +944,8 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
 
     const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
     // T0584: before the custom args (codex `-c` precedes a `resume` subcommand there)
-    const mcp = deps.batMcpLaunchArgs?.({ agentId, shellFamily: opts.shellFamily ?? 'posix', extraArgs })
+    // T0590: + the claude `blocked` hooks; the decision becomes the terminal's `blockedDetection`
+    const mcp = deps.batMcpLaunchArgs?.({ agentId, shellFamily: opts.shellFamily ?? 'posix', extraArgs, ...(opts.terminalId ? { terminalId: opts.terminalId } : {}) })
     if (mcp) baseCommand = withBatMcpArgs(baseCommand, mcp)
     const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
     return {

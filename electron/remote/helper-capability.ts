@@ -17,6 +17,8 @@
  *   - PLAN-047 M1 / T0582, both roles: the read-only queries `terminal:whoami` / `list` /
  *     `get-state` / `read-output` / `wait`, scoped by `authorizeHelperQueryTarget` in the handler
  *     T0585: + `worktree:terminal-status` (electron/worktree-status-handlers.ts), same scope rule
+ *   - PLAN-047 M1b-1 / T0590, both roles: `terminal:report-hook` (scripts/bat-hook.mjs, the claude
+ *     hooks), whose target is always the caller's own terminal (electron/terminal-blocked-state.ts)
  *
  * PLAN-047 / T0575 (D149): Electron's local PTYs get these capabilities too (`buildLocalHelperEnv`),
  * no longer the full server token, and a tower may call `terminal:create-with-command` (raw command
@@ -407,6 +409,10 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
   // PLAN-047 W1-2 / T0585: read-only worktree status of an isolated Worker
   // (electron/worktree-status-handlers.ts), same scope rule (`authorizeHelperQueryTarget`, output).
   'worktree:terminal-status': ['tower', 'worker'],
+  // PLAN-047 M1b-1 / T0590: a claude hook of this tab (scripts/bat-hook.mjs) reports `blocked` /
+  // its clearing. The target is always the caller itself (electron/terminal-blocked-state.ts); a
+  // tab without a tower holds a tower capability, so both roles.
+  'terminal:report-hook': ['tower', 'worker'],
 }
 
 /** T0582: the read-only query channels (`HELPER_CHANNEL_ROLES`, electron/terminal-query-handlers.ts). */
@@ -599,6 +605,9 @@ export function authorizeHelperInvoke(
     case 'terminal:wait':
     case 'worktree:terminal-status': // T0585
       // T0582: read-only; the handler checks the target against the caller (`authorizeHelperQueryTarget`).
+      return { ok: true }
+    case 'terminal:report-hook':
+      // T0590: no target parameter — the handler applies it to the caller's own terminal only.
       return { ok: true }
     case 'terminal:notify':
     case 'terminal:keypress': {

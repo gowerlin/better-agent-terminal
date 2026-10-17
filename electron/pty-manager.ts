@@ -12,6 +12,7 @@ import { resolvePtyLocaleEnv } from './pty-locale-env'
 import { normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
+import { TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -291,6 +292,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   private lastUserInputAt: Map<string, number> = new Map()
   // T0582: recently ended PTYs (insertion order = oldest first), for the helper query channels
   private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
+  // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
+  private blockedTracker = new TerminalBlockedTracker(logger)
 
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
@@ -714,6 +717,7 @@ export class PtyManager implements CloseWorkerPtyManager {
   private clearActivity(id: string): void {
     this.lastOutputAt.delete(id)
     this.lastUserInputAt.delete(id)
+    this.blockedTracker.clear(id, 'the PTY ended') // T0590: exit / kill (restart kills first)
   }
 
   /** T0432: `deps.onPtyExit`; a throwing listener must not break exit / kill handling. */
@@ -954,7 +958,35 @@ export class PtyManager implements CloseWorkerPtyManager {
    * replies (`isTerminalAutoReply`, electron/close-worker.ts) are not passed here.
    */
   noteUserInput(id: string): void {
-    if (this.instances.has(id)) this.lastUserInputAt.set(id, Date.now())
+    if (!this.instances.has(id)) return
+    this.lastUserInputAt.set(id, Date.now())
+    this.blockedTracker.clear(id, 'user input') // T0590
+  }
+
+  // ── PLAN-047 M1b-1 / T0590: `blocked` (electron/terminal-blocked-state.ts) ──
+
+  /** A claude hook of running PTY `id` (`terminal:report-hook`); null = not running. */
+  reportHookEvent(id: string, event: HookReportEvent, toolName?: string): { result: HookReportResult; state: BlockedState | null } | null {
+    if (!this.instances.has(id)) return null
+    return this.blockedTracker.report(id, event, toolName)
+  }
+
+  /** What running PTY `id` is blocked on, or null (not blocked / not running). */
+  getBlockedState(id: string): BlockedState | null {
+    return this.instances.has(id) ? this.blockedTracker.get(id) : null
+  }
+
+  /**
+   * Whether terminal `id` was launched with BAT's claude hooks (`buildBatMcpLaunchArgs`). Kept per
+   * id — before the PTY exists (claude-cli tabs decide first), across `restart` / the Terminal
+   * Server recovery and after it exits; a later decision for the id replaces it.
+   */
+  setBlockedDetection(id: string, mode: BlockedDetection): void {
+    this.blockedTracker.setDetection(id, mode)
+  }
+
+  getBlockedDetection(id: string): BlockedDetection {
+    return this.blockedTracker.getDetection(id)
   }
 
   /** T0450: running PTYs and the `maxInstances` cap (0 = unlimited) — the helper creation quota. */
@@ -1476,6 +1508,8 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
       // T0576: none of the server's PTYs survives; the rebuild below spawns new ones
       this.notifySurvivingPtys([])
+      // T0590: the rebuilt shells run no claude yet
+      this.blockedTracker.clearAll('Terminal Server recovery')
 
       // T0113: Kill orphan PTY processes from registry before re-forking
       try {
@@ -1573,6 +1607,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       this.replayBuffers.clear()
       this.lastOutputAt.clear()
       this.lastUserInputAt.clear()
+      this.blockedTracker.dispose()
       return
     }
     for (const [id] of this.instances) {
