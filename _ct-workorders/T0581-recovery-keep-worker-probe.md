@@ -80,7 +80,7 @@ memory_overrides:
 | `BAT_TOWER_TERMINAL_ID` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` |
 | `BAT_REMOTE_TOKEN` 是否 `batcap.` 前綴 | **是**（值未記錄） |
 | `BAT_REMOTE_PORT` | `9876` |
-| `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminalesources\scripts` |
+| `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | `BAT_HELPER_NODE` | 未設定（本機，用 `node`） |
 | `CT_MODE` / `CT_INTERACTIVE` | `yolo` / `0` |
 
