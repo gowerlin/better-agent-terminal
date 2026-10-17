@@ -2,6 +2,31 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.3（2026-10-18）
+
+版號 0.7.0-pre.3，接續 `v0.7.0-pre.2`。
+
+### 修正
+
+- **Codex 分頁的 BAT MCP 無法連線**：0.7.0-pre.2 的 Codex CLI 分頁呼叫 `mcp__bat__*` 一律回 `CONNECT_FAILED: not running inside a BAT terminal`。原因是 Codex 啟動 MCP 程式時只傳少數系統環境變數，分頁的連線資訊沒有傳下去。現在 BAT 會告訴 Codex 要轉送哪些變數（只給變數名稱，權杖不會出現在命令列或設定裡）。需要新開的 Codex 分頁才會套用（BUG-148）
+
+### 更新
+
+- README「與 BMad Control Tower 協作」的版本對照表補上「唯讀查詢（MCP）」：BAT `>= 0.7.0-pre.2`，不需要特定 CT 版本
+
+### 已知事項
+
+- Control Tower v5.3.0 已在 0.7.0-pre.2 上完成實機驗收（worktree 隔離派工、合併工單），本版沿用
+- Codex 分頁的 BAT MCP 修正已用 Codex 0.160.0 / 0.163.0 驗證轉送機制，實際分頁連線待本版安裝後驗證；以 npm 安裝的 `codex.cmd`、遠端（WSL / SSH / Docker）的 Codex 分頁未實測
+- Claude / Codex 面板（非終端分頁）不掛 BAT MCP；BAT MCP 開關只影響之後啟動的分頁
+- 「偵測 Worker 停下來等回答」尚未提供（後續版本）
+- 用量限制自動繼續（0.6.1-pre.6 新增）尚未在真實撞到限制時驗證，遇到時請留意 BAT 日誌中的 `[usage-limit]` 紀錄
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.0-pre.2...v0.7.0-pre.3
+
 ## v0.7.0-pre.2（2026-10-17）
 
 版號 0.7.0-pre.2，接續 `v0.7.0-pre.1`。
