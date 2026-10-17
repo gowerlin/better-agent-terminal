@@ -3,10 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-146
 title: "BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁的 pty:create 走 direct node-pty，同 id 另起一個本機 shell"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: always
 created_at: "2026-10-17T19:55:06+0800"
+updated_at: "2026-10-17T19:58:41+0800"
+fixing_by: T0578
 impact:
   - terminal-lifecycle
   - terminal-server
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（多出一個看不見的 shell 程序；其輸出併入同 id） |
 | 可重現 | 必現（T0576 隔離實例日誌） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0578） |
 
 ## 現象
 

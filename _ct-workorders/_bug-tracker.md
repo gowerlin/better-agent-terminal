@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-17T19:55:34+0800"
+generated_at: "2026-10-17T19:58:41+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 31
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 1
+  FIXING: 1
   FIXED: 17
   VERIFY: 0
   CLOSED: 12
@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-17 19:55 (UTC+8) — 新增 BUG-146（T0576 發現）
+> 最後同步：2026-10-17 19:58 (UTC+8) — BUG-146 → FIXING（T0578）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 31**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 31**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
-| BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁的 pty:create 走 direct node-pty，同 id 另起本機 shell | 🟡 medium | 2026-10-17 19:55 | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁另起 direct shell | 🟡 medium | （T0578 進行中） | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |
 
 ## ✅ 已修復
 
