@@ -686,9 +686,8 @@ const STDIN_PROBLEM = {
 /** An `invoke-error` text → `{ code, message }` (as scripts/bat-mcp.mjs classifyInvokeError). */
 function classifyInvokeError(error) {
   const message = String(error ?? '')
-  if (/^No handler for channel/.test(message) || message === 'Forbidden: channel-not-allowed') {
-    return { code: 'UNSUPPORTED', message: 'this BAT does not support questions for the Tower (update BAT)' }
-  }
+  // (each mode's own text explains UNSUPPORTED)
+  if (/^No handler for channel/.test(message) || message === 'Forbidden: channel-not-allowed') return { code: 'UNSUPPORTED' }
   if (message.startsWith('Forbidden: ')) return { code: 'FORBIDDEN', message: message.slice('Forbidden: '.length) }
   return { code: 'ERROR', message }
 }
@@ -827,7 +826,8 @@ async function runWaitAnswer(ws) {
     NOT_OWNER: `${waitAnswer} is not a question of this tab (or of its Workers)`,
     TOO_MANY_WAITS: 'too many open waits of this tab',
     INVALID_ARGS: 'BAT rejected the request arguments',
-    TIMEOUT: 'no reply from BAT (restarting? try again: a restarted BAT answers status lost)',
+    UNSUPPORTED: 'this BAT does not support questions for the Tower (update BAT)',
+    TIMEOUT:'no reply from BAT (restarting? try again: a restarted BAT answers status lost)',
   }[outcome.code] ?? 'the question was not read'
   console.error(`Error: Answer not read (${outcome.code}): ${detail}${outcome.message ? ` — ${outcome.message}` : ''}`)
   console.error(`wait-answer: ${outcome.code}`)
@@ -856,6 +856,7 @@ async function runCancelQuestion(ws) {
     NOT_OWNER: `${cancelQuestion} was not asked by this tab`,
     INVALID_ARGS: 'BAT rejected the request arguments',
     FORBIDDEN: 'not allowed (only the Worker that asked can cancel)',
+    UNSUPPORTED: 'this BAT does not support questions for the Tower (update BAT)',
   }[code] ?? 'the question was not cancelled'
   console.error(`Error: Question not cancelled (${code}): ${detail}${outcome.message ? ` — ${outcome.message}` : ''}`)
   console.error(`cancel-question: ${code}`)

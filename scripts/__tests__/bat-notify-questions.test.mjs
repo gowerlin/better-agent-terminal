@@ -153,6 +153,7 @@ describe('bat-notify --ask (T0608)', () => {
         const r = await run(['--ask', '--submit', 'T0608 提問'], remote.env, JSON.stringify({ question: 'ok?' }))
         expect(r.code, `${code}: ${r.stderr}`).toBe(exitCode)
         expect(r.stderr).toContain(`ask: ${code}`)
+        if (code === 'UNSUPPORTED') expect(r.stderr.match(/does not support questions/g)).toHaveLength(1)
         expect(remote.invokes.map(i => i.channel)).toEqual(['question:ask'])
         expect(helperEvents(remote.dir, 'bat-notify', 'question-ask').at(-1)).toMatchObject({ result: code })
       } finally {
