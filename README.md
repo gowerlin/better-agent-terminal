@@ -106,6 +106,58 @@
 
 ---
 
+## 與 BMad Control Tower 協作
+
+BMad Control Tower（CT）是一套以檔案驅動的多 Agent 開發流程，以 skill 形式安裝在 Claude Code / Codex（`control-tower`、`ct-exec`、`ct-done`、`ct-status` 等）。一個分頁當**塔台**（Tower）：負責對齊需求、開工單、派工、收單與決策；其他分頁當 **Worker**：各自執行一張工單，完成後回報塔台。
+
+BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設施，CT 提供流程規則**。兩邊以「BAT 定介面契約、CT 依契約撰寫」的方式同步演進——BAT 的 helper 參數、exit code、環境變數與 JSON 欄位是契約，CT 只看 exit code 判斷成敗。
+
+### 協作流程
+
+```
+塔台分頁（/control-tower）
+  ├─ 宣告自己是塔台 ── bat-terminal.mjs --set-role tower --mode <m>   → 分頁標題「Agent · Tower」
+  ├─ 派工 ─────────── bat-terminal.mjs --skill ct-exec --workorder T#### --notify-id … --workspace …
+  │                     （選用 --isolation worktree：在獨立 git worktree 執行）
+  │        ↓
+  │   Worker 分頁（標題「Agent · Worker · T####」，自動執行 /ct-exec T####）
+  │        ├─ 依工單實作、驗證、commit
+  │        └─ 回報 ── bat-notify.mjs --target <塔台> --submit   → 塔台收到通知（yolo 自動送出）
+  │        ↓
+  ├─ 收單、更新狀態，決定下一步（下一張 / Renew / 合併工單）
+  └─ 回收 ─────────── bat-terminal.mjs --close-worker T#### [--worktree keep|remove|archive]
+```
+
+### BAT 提供的整合點
+
+| 功能 | BAT 介面 | CT 的用法 |
+|---|---|---|
+| 派工到正確的工作區 | `bat-terminal.mjs`（agent 模式 `--skill` / `--workorder`；落點以塔台所在工作區為準，cwd 不符時警告） | auto-session 派工（`on` / `ask` / `yolo`） |
+| Worker 回報 | `bat-notify.mjs`（toast、徽章、預填、`--submit`） | ct-exec / ct-done 收尾通知塔台 |
+| 分頁回收 | `--close-worker`（等輸出安靜後才關，使用者輸入即取消） | `worker_auto_close`（收單後回收） |
+| 塔台分頁宣告 | `--set-role tower --mode <m>` | 塔台啟動時呼叫；BAT 以此判斷 yolo 分頁 |
+| 每分頁權限 | 每個分頁的 `BAT_REMOTE_TOKEN` 是專屬 `batcap.` 權杖：塔台可派工 / 回收自己的 Worker，Worker 只能回報給自己的塔台 | 塔台須在一般分頁（不是 Worker 分頁）啟動 |
+| worktree 隔離與合併前檢查 | `--isolation worktree`、`CT_HOME` 等環境變數、`--worktree-status` | 工單 `isolation: worktree`；合併工單與塔台直接合併判準 |
+| 唯讀查詢（MCP） | BAT 啟動的 claude / codex 分頁掛上 `mcp__bat__*` | 選用通道（MCP → helper → 檔案） |
+| 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
+| 工單看板 | 側欄塔台面板：看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/` |
+| 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
+
+完整契約（參數、exit code、環境變數、日誌）見 [CLAUDE.md](CLAUDE.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」各節。
+
+### 版本對照
+
+新功能需要兩邊版本都到位；任一邊較舊時，該功能不啟用，其餘流程照舊。
+
+| 功能 | BAT | CT |
+|---|---|---|
+| 收單後自動回收 Worker 分頁 | `>= 0.6.1-pre.4` | `>= v5.1.0` |
+| 塔台分頁標題、yolo 塔台宣告 | `>= 0.6.1-pre.6` | `>= v5.2.0` |
+| 每分頁範圍權杖（`batcap.`）的文件與失敗提示 | `>= 0.7.0-pre.1` | `>= v5.2.4`（舊 CT 仍可用） |
+| worktree 隔離派工、合併工單 | `>= 0.7.0-pre.2` | `>= v5.3.0`（選用） |
+
+---
+
 ## 快速開始
 
 ### 方式一：直接下載

@@ -526,6 +526,7 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
 - `CHANGELOG.md`：新增 `## [<版號>] — <發佈日期>` 段（日期取自 `gh release view --json publishedAt`），內容與更版重點一致（`Added` / `Fixed` / `Changed`，附 BUG / PLAN / T 編號）；`[Unreleased]` 中已發佈的項目移入該段。
 - `release-note.md`：最新版放最上面，內容 = 該版 GitHub 更版重點（繁體中文）。
 - `README.md`：只在功能、安裝、平台支援、版號範例等描述與本版不符時才改；無需修改時在回報中寫明「README 無需更新」。
+- **README 必含「與 BMad Control Tower 協作」章節**（2026-10-17 使用者指示：「BAT 的 README.md 更新時，要加一章節說明與 BMad-Control-Tower 的協作與整合」）：每次更新 README 時一併檢查該章節（協作流程、BAT 整合點表、版本對照表）。BAT ↔ CT 介面契約有新增或改變（新 helper 參數、新功能需要對應 CT 版本）時，同步更新整合點表與版本對照表（BAT 最低版號 + CT 最低版號）。
 - 順序：CI 綠 → `gh release edit`（更版重點）→ 三文件 commit（`docs: release notes for v<版號> (ct)`）→ push（依當次授權）→ 回報發佈完成。
 
 ### 下游發佈（D137 / T0476）
