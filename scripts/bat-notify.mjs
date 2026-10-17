@@ -141,6 +141,10 @@ Ask the Tower (PLAN-048, Worker tabs only):
   --timeout-ms <n>   With --wait-answer: wait at most n ms (0-45000; more is cut to 45000)
   --cancel-question <id>
                      Withdraw a question this Worker asked (an ended one keeps its status).
+                     stdout: "✓ Question cancelled: <id>" or "✓ Question already ended: <id>",
+                     then "  status: <status> [<endReason>]". Exit 0 does not mean this call
+                     cancelled it: only "status: cancelled worker" does (answered / expired /
+                     lost etc. had ended before; lost = BAT restarted since, it is gone).
   Exit codes: 0 (any status, including pending and lost) / 3 NOT_FOUND / 4 NOT_OWNER / 1 usage
               error, connection failure, BAT too old (UNSUPPORTED). stderr also prints
               "wait-answer: <CODE>" / "cancel-question: <CODE>".
@@ -847,11 +851,10 @@ async function runCancelQuestion(ws) {
     logEvent('bat-notify', 'question-cancel', { questionId: cancelQuestion, result: 'ok', status, endReason: endReason ?? null })
     return exitQuestionMode(ws, 0)
   }
-  const lost = outcome.code === 'NOT_FOUND' && outcome.result?.status === 'lost'
-  const code = lost ? 'LOST' : outcome.code
+  // T0611: a lost question (BAT restarted since) is an ended one: BAT answers ok + status lost (C-3)
+  const code = outcome.code
   logEvent('bat-notify', 'question-cancel', { questionId: cancelQuestion, result: code })
   const detail = {
-    LOST: `${cancelQuestion} belonged to a BAT that has restarted since (it is gone)`,
     NOT_FOUND: `BAT does not know ${cancelQuestion} (mistyped, or ended more than 10 min ago)`,
     NOT_OWNER: `${cancelQuestion} was not asked by this tab`,
     INVALID_ARGS: 'BAT rejected the request arguments',
@@ -860,7 +863,7 @@ async function runCancelQuestion(ws) {
   }[code] ?? 'the question was not cancelled'
   console.error(`Error: Question not cancelled (${code}): ${detail}${outcome.message ? ` — ${outcome.message}` : ''}`)
   console.error(`cancel-question: ${code}`)
-  return exitQuestionMode(ws, QUESTION_EXIT[outcome.code] ?? 1, `cancel-question-${code}`)
+  return exitQuestionMode(ws, QUESTION_EXIT[code] ?? 1, `cancel-question-${code}`)
 }
 
 // ── Main ──

@@ -11,7 +11,8 @@
 //   - D155: the question / answer text is never in argv, bat-scripts.log or the --ask stdout
 //   - --wait-answer: one line of JSON (stdout's last line), exit 0 for any status (pending, lost),
 //     3 NOT_FOUND / 4 NOT_OWNER / 1; --timeout-ms is cut to 45000
-//   - --cancel-question: exit 0 / 3 (LOST) / 4; usage errors before any connection
+//   - --cancel-question: exit 0 / 3 / 4; lost is an ended question (exit 0, status: lost — the real
+//     main process's reply, T0611); usage errors before any connection
 import { afterAll, describe, expect, it } from 'vitest'
 import { cleanupTempDirs, helperEvents, helperLogText, offlineEnv, runHelper, startMockRemote } from './_question-mock-remote.mjs'
 
@@ -273,7 +274,7 @@ describe('bat-notify --wait-answer / --cancel-question (T0608)', () => {
     }
   }, 20000)
 
-  it('--cancel-question: cancelled / already ended → exit 0; NOT_OWNER 4; NOT_FOUND 3; lost → 3 + cancel-question: LOST', async () => {
+  it('--cancel-question: cancelled / already ended / lost → exit 0; NOT_OWNER 4; NOT_FOUND 3', async () => {
     const ok = await startMockRemote({ 'question:cancel': { result: { ok: true, questionId: QID, status: 'cancelled', endReason: 'worker' } } })
     try {
       const r = await run(['--cancel-question', QID], ok.env)
@@ -292,10 +293,20 @@ describe('bat-notify --wait-answer / --cancel-question (T0608)', () => {
     } finally {
       await ended.close()
     }
+    // T0611: the real main process answers a lost id with ok + status lost (electron/tower-questions.ts)
+    const lost = await startMockRemote({ 'question:cancel': { result: { ok: true, questionId: QID, status: 'lost' } } })
+    try {
+      const r = await run(['--cancel-question', QID], lost.env)
+      expect(r.code, r.stderr).toBe(0)
+      expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Question already ended: ${QID}`, '  status: lost'])
+      expect(r.stderr).toBe('')
+      expect(helperEvents(lost.dir, 'bat-notify', 'question-cancel').at(-1)).toMatchObject({ questionId: QID, result: 'ok', status: 'lost' })
+    } finally {
+      await lost.close()
+    }
     for (const [reply, exitCode, code] of [
       [{ result: { ok: false, code: 'NOT_OWNER' } }, 4, 'NOT_OWNER'],
       [{ result: { ok: false, code: 'NOT_FOUND' } }, 3, 'NOT_FOUND'],
-      [{ result: { ok: false, code: 'NOT_FOUND', status: 'lost' } }, 3, 'LOST'],
       [{ error: 'Forbidden: channel-not-allowed' }, 1, 'UNSUPPORTED'],
     ]) {
       const remote = await startMockRemote({ 'question:cancel': reply })
@@ -351,7 +362,7 @@ describe('usage errors (no connection)', () => {
   it('--help documents the modes and exit codes', async () => {
     const r = await run(['--help'], {})
     expect(r.code).toBe(0)
-    for (const text of ['--ask', '--wait-answer <id>', '--cancel-question <id>', '--expires-min <n>', '--timeout-ms <n>', '10 TOO_MANY_QUESTIONS', 'ask: <CODE>', "Unknown option '--ask'"]) {
+    for (const text of ['--ask', '--wait-answer <id>', '--cancel-question <id>', '--expires-min <n>', '--timeout-ms <n>', '10 TOO_MANY_QUESTIONS', 'ask: <CODE>', "Unknown option '--ask'", 'Exit 0 does not mean this call', 'only "status: cancelled worker" does']) {
       expect(r.stdout, text).toContain(text)
     }
   }, 20000)

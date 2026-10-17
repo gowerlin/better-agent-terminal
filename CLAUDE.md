@@ -247,7 +247,7 @@
 
 ## BAT MCP shim（PLAN-047 M1 / T0584）
 
-- `scripts/bat-mcp.mjs` 是 stdio MCP server（零依賴），6 個唯讀 tool 轉接 helper channel，以分頁自己的範圍權杖認證。Settings「BAT MCP」`batMcpEnabled` 預設開（D152）。
+- `scripts/bat-mcp.mjs` 是 stdio MCP server（零依賴），8 個唯讀 tool 轉接 helper channel，以分頁自己的範圍權杖認證；T0608 起含 `bat_list_questions` / `bat_wait_question`，全部唯讀，問答寫入只走 helper。Settings「BAT MCP」`batMcpEnabled` 預設開（D152）。
 - 注入唯一實作 `electron/bat-mcp-launch.ts` `buildBatMcpLaunchArgs`（本機與 headless 共用）：claude 用 `--mcp-config=<file>`（**一定用 `=` 形式**，variadic 參數會吃掉 prompt）；codex 用 `-c mcp_servers.bat.*`，含 `env_vars`（codex 只轉送白名單 env）。🔴 不得改用 `mcp_servers.bat.env = { BAT_REMOTE_TOKEN = "…" }`（權杖值會出現在命令列與日誌）；新增 shim 讀的 env 時同步加進清單。
 - 組裝點：renderer `withBatMcpLaunchArgs`（`src/lib/bat-mcp-launch.ts`）、helper 派工 `createAgentPromptCommandBuilder` 的 `batMcpLaunchArgs` dep。🔴 新增 claude / codex 啟動路徑時一律經這兩者之一（`bat-mcp-launch.test.ts` source guard 數 `buildLaunchCommand(` 次數）。
 - 派工的 shell 只解析一次：`resolveDispatchShell`（`electron/terminal-command-handlers.ts`）同時決定 PTY 啟動的 shell 與引號 family（沒有持久化 shell 時用 `PtyManager.getDefaultShell()`，BUG-149 / T0593）；🔴 不要在 `createWithCommand` 或 consumer 另行推導（T0598 / BUG-151）。派工指令寫入前打進新分頁的輸入由 `PtyManager.holdInputForDispatch` / `writeDispatchCommand` 移到指令之後（BUG-151）。codex 升版時必跑 `e2e/t0592-codex-tower-worker.spec.ts`。
@@ -276,10 +276,12 @@
 - 用途：yolo Worker 以結構化通道問塔台、等答覆，取代 CT 的工單檔往返（D155 / D156）。
 - **契約**（T0606 回報區「介面契約草案」C-1–C-11，CT-T019 依此撰寫，不得單方更改）：channel `question:ask` / `question:cancel`（worker）、`question:answer`（tower，`towerId` 綁定自己）、`question:list` / `question:wait`（唯讀，≤ 45 s）；id `q-<boot>-<rand>`，BAT 重開後回 `lost`；Worker 有 blocking 待答問題時 state = `blocked` / `blockedReason: tower` / `source: 'question'`，每個 state 回傳帶 `pendingQuestions`。
 - 唯一實作 `electron/tower-questions.ts`（store + `registerTowerQuestionHandlers`，本機與 headless 共用、不 import electron）；狀態合成在 `terminal-query-handlers.ts` `stateOf`（`getQuestionSummary`）；PTY 結束經 `onPtyExit`、Terminal Server recovery 經 `PtyManagerDeps.onServerRecovery` 取消問題。
+- helper（T0608，契約 C-5，唯一實作 `scripts/bat-notify.mjs` / `scripts/bat-terminal.mjs`）：Worker `bat-notify.mjs --ask --source T#### --target "$BAT_TOWER_TERMINAL_ID" [--submit] "T#### 提問" < question.json`（exit `0` / `3` / `10` TOO_MANY_QUESTIONS / `1`；notify 任一步失敗 → 先 `question:cancel` 再 exit 1）、`--wait-answer <id>`（stdout 一行 JSON，任何狀態含 `lost` 都 exit 0）、`--cancel-question <id>`（已結束與 `lost` 也 exit 0：🔴 看 `status:` 行，`cancelled worker` 才是取消了，T0611）；塔台 `bat-terminal.mjs --answer <id> --notify-id "$BAT_TERMINAL_ID" [--choice <n>] < answer.txt`（`0` / `3`（含 `answer: LOST`）/ `4` / `9` CLOSED / `1`）。
+- 🔴 BAT MCP 維持全唯讀：只有 `bat_list_questions` / `bat_wait_question`（invoke 逾時 55 s），不得新增問答寫入 tool（D155 / D156），所有 tool `readOnlyHint: true`（`bat-mcp.test.mjs` 斷言）。
 - 🔴 問題 / 選項 / detail / 答案只存在主行程記憶體、收件即 `redactTerminalSecrets`，**不寫入任何檔案**；`[tower-question]` 日誌與 bat-scripts.log 只記 id / 長度 / 數量 / 結果，永遠不記內容與權杖。
-- 🔴 BAT MCP 維持全唯讀（寫入只走 helper）；helper 的問題 / 答案內容只走 stdin，不得放 argv（T0608）。
+- 🔴 helper 的問題 / 答案內容只從 stdin 讀（UTF-8、≤ 64 KiB），不得放 argv（helper 把完整 argv 寫進 bat-scripts.log）；helper 日誌只記 id / 長度 / 選項數 / choice / 結果。
 - 🔴 使用者在 Worker 分頁輸入**不清除** `tower`、不取消問題（中斷後由 120 s 租約到期 `expired` / `not-polled`）。
-- 完整契約、限制常數、結束原因、日誌、已知限制、驗證清單：[docs/agent-guide/tower-questions.md](docs/agent-guide/tower-questions.md)
+- 完整契約、helper / MCP 細節、限制常數、結束原因、日誌、已知限制、驗證清單（含 e2e `e2e/t0611-tower-question.spec.ts`）：[docs/agent-guide/tower-questions.md](docs/agent-guide/tower-questions.md)
 
 ## 多 remote profile 同時連線（PLAN-039）
 
