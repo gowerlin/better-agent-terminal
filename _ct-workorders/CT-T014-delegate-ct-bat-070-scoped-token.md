@@ -4,7 +4,7 @@ schema_kind: workorder
 id: CT-T014
 title: "【受派】CT 文件與提示對齊 BAT 0.7.0-pre.1：每分頁範圍權杖（batcap.）、分頁角色決定 helper 權限、遠端可用 raw command"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: BMad-Guide
 project: PLAN-047
 priority: P3
@@ -76,3 +76,5 @@ BAT 塔台已核對現行 CT v5.2.3 skill（唯讀）：ct-exec / ct-done 只以
 ## 轉交紀錄
 
 - 2026-10-17T20:27:36+0800：使用者授權「規格確認即可發給 BMad-Guide 塔台」；BAT 塔台以跨 session 訊息轉交（session `bmad-guide-f4`，msg `bdc8b44b`，`notify_when_idle`），附規格檔路徑與重點，請其受理與完成各回覆一次。
+- 2026-10-17T20:31:08+0800：BMad-Guide 塔台回覆**已受理** → 該方工單 **T0149**（`BMad-Guide/_ct-workorders/T0149-ct-v524-bat-scoped-token-docs.md`，對方決策 D028），預計 CT **v5.2.4**（PATCH，新建目錄），20:30 派 Worker（yolo、`--no-interactive`）。修改清單 1–5 全做（含選做的面板加註）。與規格寫法的三點差異，BAT 塔台**接受**：(a) 判斷只看 exit code，stderr 的 Forbidden 只用來挑提示文字，文件中「不解析 stdout / stderr」處統一改為此說法；(b) Forbidden 為降級鏈「靜默降級」的例外，顯示一行原因；(c) 遠端「只能 agent 模式」描述由對方 Worker 確認後回報。不做 runtime 實測，且禁止在 Worker 分頁實跑 `--set-role` / 派工（舊 BAT 不擋，會把 Worker 分頁改成塔台角色）；0.7.0-pre.1 實機驗收發版後另開單。兩端（Claude + Codex）安裝已獲使用者授權。對方不寫本 repo。
+
