@@ -427,13 +427,12 @@ test('codex CLI as Tower / Worker against a real BAT (app-server, no model call)
   await scenario('t0592', 'auto')
 })
 
-// T0592 finding (product defect, not fixed here): settings.json without a `shell` key (a fresh
-// install that never saved a setting) makes `terminal:create-agent-command` quote for posix
+// BUG-149 (found by T0592, fixed by T0593): settings.json without a `shell` key (a fresh install
+// that never saved a setting) used to make `terminal:create-agent-command` quote for posix
 // (`resolveTerminalShell` → basename `pty-default` → `detectShellFamily` = posix) while the
-// Windows PTY default is pwsh. The posix-quoted codex `-c` values (TOML literal strings, `'` escaped
-// as `'\''`) then split in pwsh (argv `mcp_servers.bat.command=`, `\node\'`, …) and the Worker's
-// codex exits at once: `invalid type: string "[", expected a
-// sequence in mcp_servers.bat.args`. Remove fixme once the dispatch quotes for the PTY's real shell.
-test.fixme('codex Worker dispatch with settings.json lacking "shell" (posix quoting into pwsh)', async () => {
+// Windows PTY default is pwsh; the posix-quoted codex `-c` values split in pwsh and the Worker's
+// codex exited at once (`invalid type: string "[", expected a sequence in mcp_servers.bat.args`).
+// The dispatch now quotes for `PtyManager.getDefaultShell()`, the shell the PTY starts.
+test('codex Worker dispatch with settings.json lacking "shell" (quotes for the PTY default shell)', async () => {
   await scenario('t0592-noshell', undefined)
 })

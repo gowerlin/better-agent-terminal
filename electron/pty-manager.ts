@@ -1001,7 +1001,11 @@ export class PtyManager implements CloseWorkerPtyManager {
     return { count: this.instances.size, max: max && max > 0 ? max : 0 }
   }
 
-  private getDefaultShell(): string {
+  /**
+   * The shell `create` starts when it gets no `shell`. Public for BUG-149 / T0593: helper
+   * dispatch quotes for this same shell when Settings has no persisted `shell`.
+   */
+  getDefaultShell(): string {
     if (process.platform === 'win32') {
       // Prefer PowerShell 7 (pwsh) over Windows PowerShell
       const fs = require('fs')

@@ -55,6 +55,8 @@ interface TerminalPtyManager {
     worktree?: CtWorktreeRecord
   }): boolean
   write(id: string, data: string): void
+  /** BUG-149 / T0593: the shell `create` starts without `shell` (`PtyManager.getDefaultShell`). */
+  getDefaultShell?(): string
   /** BUG-146 / T0580: Electron holds creates while the Recovery prompt is unanswered (headless never does). */
   isCreateHeld?(): boolean
   whenCreatesReleased?(id?: string, opts?: { timeoutMs?: number; channel?: string }): Promise<boolean>
@@ -302,6 +304,22 @@ function resolveTerminalShell(
     fallback: resolved.fallback,
     fallbackReason: resolved.fallbackReason,
   }
+}
+
+/**
+ * BUG-149 / T0593: the shell a dispatched command is quoted for. Without a persisted shell
+ * (settings.json lacking `shell`, or `custom` with an empty path) `create` gets no `shell` and
+ * the PTY starts `PtyManager.getDefaultShell()` — pwsh on Windows — so quote for that same shell
+ * (it used to fall to `pty-default` → posix, which pwsh splits).
+ */
+function quotingShell(
+  resolution: ReturnType<typeof resolveTerminalShell>,
+  ptyManager: TerminalPtyManager | null,
+): { shell: string; from: string } {
+  if (resolution.shell) return { shell: resolution.shell, from: resolution.source }
+  const defaultShell = ptyManager?.getDefaultShell?.()
+  if (defaultShell) return { shell: defaultShell, from: `pty-default:${shellBasename(defaultShell)}` }
+  return { shell: resolution.basename, from: resolution.source }
 }
 
 /** T0523: `undefined` → `(active)` etc. for one-line logs. */
@@ -728,7 +746,9 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
 
     const settings = deps.readPersistedSettingsSync()
     const shellResolution = resolveTerminalShell(opts.shell, settings, deps)
-    const shellFamily = detectShellFamily(shellResolution.shell ?? shellResolution.basename)
+    const quoting = quotingShell(shellResolution, deps.getPtyManager())
+    const shellFamily = detectShellFamily(quoting.shell)
+    deps.logger.log(`[agent-command] id=${opts.id} shell family=${shellFamily} from=${quoting.from}`)
     // T0523 / BUG-129: `--agent default` follows the workspace the terminal lands in.
     const landing = await resolveWorkspace(_ctx, opts)
     const cwdRefusal = applyCwdCheck('terminal:create-agent-command', opts, landing)
