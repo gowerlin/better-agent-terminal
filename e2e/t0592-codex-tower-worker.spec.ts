@@ -368,7 +368,7 @@ async function scenario(label: string, shellSetting: string | undefined): Promis
     expect(workerSteps[0].error).toBeUndefined()
     const status = (workerSteps.find(s => s.kind === 'rpc' && s.method === 'mcpServerStatus/list')?.result as { data: Array<{ name: string; serverInfo?: { name?: string }; tools?: Record<string, unknown> }> }).data.find(s => s.name === 'bat')
     expect(status?.serverInfo?.name).toBe('bat')
-    expect(Object.keys(status?.tools ?? {}).sort()).toEqual(['bat_get_state', 'bat_list_terminals', 'bat_read_output', 'bat_wait', 'bat_whoami', 'bat_worktree_status'])
+    expect(Object.keys(status?.tools ?? {}).sort()).toEqual(['bat_get_state', 'bat_list_questions', 'bat_list_terminals', 'bat_read_output', 'bat_wait', 'bat_wait_question', 'bat_whoami', 'bat_worktree_status'])
     expect(tool(workerSteps, 'bat_whoami')?.structuredContent).toMatchObject({ terminalId: worker, role: 'worker', towerTerminalId: TOWER, workorder: WORKORDER })
     expect(tool(workerSteps, 'bat_read_output')).toMatchObject({ isError: true, structuredContent: { code: 'NOT_OWNER' } })
     expect(tool(workerSteps, 'bat_get_state')?.structuredContent).toMatchObject({ terminalId: worker, blockedDetection: 'none' })

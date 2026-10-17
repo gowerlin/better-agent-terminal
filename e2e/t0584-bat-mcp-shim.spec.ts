@@ -211,6 +211,7 @@ test('bat MCP shim: tools from inside the tabs (scoped), launch args, claude hea
     expect(tool(towerMcp, 0)).toMatchObject({ resultType: 'complete', supportedVersions: expect.arrayContaining(['2026-07-28', '2025-11-25']) })
     expect((tool(towerMcp, 1)?.tools as Array<{ name: string }>).map(t => t.name)).toEqual([
       'bat_whoami', 'bat_list_terminals', 'bat_get_state', 'bat_read_output', 'bat_wait', 'bat_worktree_status',
+      'bat_list_questions', 'bat_wait_question',
     ])
     expect(tool(towerMcp, 2)?.structuredContent).toMatchObject({ terminalId: TOWER, role: 'tower', yolo: true, workspaceId: WS })
     expect(((tool(towerMcp, 3)?.structuredContent as { terminals: Array<{ id: string }> }).terminals).map(t => t.id).sort()).toEqual([TOWER, worker!].sort())
