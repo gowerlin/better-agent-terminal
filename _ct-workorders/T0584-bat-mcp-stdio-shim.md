@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0584
 title: "PLAN-047 M1-2：`bat-mcp.mjs` stdio shim（手寫 dual-era）+ BAT 啟動 claude / codex 時自動掛上 + 打包 / server bundle + 稽核"
 type: feature
-status: IN_PROGRESS
+status: DONE
 started_at: "2026-10-17T22:25:40+0800"
-updated_at: "2026-10-17T22:25:40+0800"
-completed_at: ""
+updated_at: "2026-10-17T22:52:36+0800"
+completed_at: "2026-10-17T22:52:36+0800"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
@@ -186,7 +186,7 @@ bat: node D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agen
 - 建議：CT 的 MCP 用法可依 CLAUDE.md 小節的 tool 表撰寫；`bat_read_output` 建議帶 `maxLines` 與上次 `nextCursor`。
 
 ### Commit
-COMMIT_PLACEHOLDER
+`d1b82946` feat(T0584): bat-mcp.mjs stdio MCP shim + attach it to BAT-launched claude / codex tabs（31 檔；`git commit --only`，未含 `src/styles/settings.css`）。未 push。
 
 ### 回報時間
 2026-10-17T22:50:26+0800
