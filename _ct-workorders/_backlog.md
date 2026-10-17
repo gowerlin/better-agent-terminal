@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-17T10:55:08+0800"
+generated_at: "2026-10-17T18:37:49+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 17
+total: 18
 breakdown:
-  IDEA: 4
+  IDEA: 5
   PLANNED: 0
   IN_PROGRESS: 0
   DONE: 12
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-17 10:55 (UTC+8) — *archive：PLAN-039 移入 `_archive/plans/`
+> 最後同步：2026-10-17 18:37 (UTC+8) — 新增 PLAN-047（外部提案審議）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 12 | 🚫 Dropped: 1
+- 💡 Ideas: 5 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 12 | 🚫 Dropped: 1
 
 ## Active
 
@@ -35,6 +35,7 @@ breakdown:
 | PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
 | PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
+| PLAN-047 | BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照） | 🟡 medium | 💡 IDEA | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
 
 ## Completed
 
