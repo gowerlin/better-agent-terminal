@@ -2,8 +2,11 @@
 schema_version: 1
 schema_kind: bug
 id: BUG-151
-title: "helper 派工在 Git Bash 分頁送出 PowerShell 形式的啟動指令（開頭 `, '…claude.exe'`），Worker 起不來但 helper 仍 exit 0"
-status: FIXING
+title: "helper 派工指令寫入前打進新分頁的輸入被接在指令前面（例 `, '…claude.exe'`），Worker 起不來但 helper 仍 exit 0"
+status: FIXED
+fixed_at: "2026-10-18T03:02:58+0800"
+fixed_by: T0598
+fix_commit: "45943d16"
 severity: high
 reproducibility: conditional
 created_at: "2026-10-18T02:43:24+0800"
@@ -21,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（該工作區 helper 派工一律起不來；helper exit 0，塔台無從察覺） |
 | 可重現 | 條件式（BMad-Guide 工作區重現；本工作區 02:26 派 T0596 正常，條件待查） |
-| **狀態** | 🔧 FIXING（T0598） |
+| **狀態** | ✅ FIXED（T0598 `45943d16`；實機待含修正的版本） |
 
 ## 現象（BMad-Guide 塔台回報）
 
@@ -35,3 +38,11 @@ links:
 - 派工引號的 shell 由 `quotingShell`（`electron/terminal-command-handlers.ts`，BUG-149 / T0593）決定：有持久化 shell 用它，否則 `PtyManager.getDefaultShell()`。使用者有持久化 `git-bash`，理論上應走 posix；開頭的 `, ` 推測是 PowerShell call operator `&` 之類前綴被組錯或被 shell 吃掉。
 - 同一份 settings 下，本工作區（better-agent-terminal）02:26 派 T0596 正常 → 差異可能在工作區（BMad-Guide 工作區的工作區層級設定 / 環境變數）、落點視窗，或 claude 執行檔路徑（系統 claude `C:\Users\Gower\.local\bin\claude.exe` 的路徑解析分支）。
 - 研究與修正：T0598。
+
+## 根因更正（T0598，2026-10-18）
+
+- **引號沒有錯**：T0161 與 T0596 的派工日誌相同（`shell family=posix from=persisted`、`bash.exe`、posix 單引號），指令本身是 posix 形式。開頭的 `, ` 不是 PowerShell 前綴，而是**一次鍵盤輸入**。
+- 機制（實測）：派工分頁落在使用中工作區時會取得鍵盤焦點（`addExternalTerminal`，BUG-135 / T0532）；主行程在 PTY 建立 500 ms 後才寫入啟動指令，這段時間打進來的字先進 shell 輸入緩衝，指令接在後面成為同一行。隔離重現逐字吻合 `bash: ,: command not found`。
+- 推論：使用者當時正在 BMad-Guide 視窗打字給塔台，焦點被新分頁搶走約 3 秒。
+- 修正：`PtyManager.holdInputForDispatch` / `writeDispatchCommand` 把指令寫入前的輸入移到指令之後；派工 shell 改由 `resolveDispatchShell` 只解析一次（spawn 與引號同值）。
+- 未處理（另議）：派工分頁仍會搶焦點；helper exit 0 時指令尚未送出，無法得知 shell 報錯（T0598 建議以 claude `SessionStart` hook 作為已啟動信號）。
