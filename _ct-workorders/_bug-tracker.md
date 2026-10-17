@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 38
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 1
+  FIXING: 1
   FIXED: 19
   VERIFY: 0
   CLOSED: 17
@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 04:59 (UTC+8) — BUG-153 OPEN（BMad-Guide 提出，縮圖 `✓` 誤標）
+> 最後同步：2026-10-18 05:11 (UTC+8) — BUG-153 FIXING（T0609）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 38**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 38**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-153 | Worker 分頁縮圖在 `T#### 提問`（等塔台答覆）時也顯示 `✓` 並計入批次關閉；hook `blocked` 時沒有專屬標示 | 🟡 medium | 2026-10-18 04:59 | [BUG-153](BUG-153-worker-thumbnail-checkmark-on-question-and-blocked.md) |
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-153 | Worker 分頁縮圖在 `T#### 提問`（等塔台答覆）時也顯示 `✓` 並計入批次關閉；hook `blocked` 時沒有專屬標示 | 🟡 medium | 2026-10-18 04:59 | [BUG-153](BUG-153-worker-thumbnail-checkmark-on-question-and-blocked.md) |
 
 ## ✅ 已修復
 
