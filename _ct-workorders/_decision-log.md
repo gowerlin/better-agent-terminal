@@ -1452,6 +1452,18 @@
 - **不採用**：「最近沒打字才切焦點」（規則複雜、行為難預測）；Settings 開關（多一個設定項）；只揭露狀態不加 helper 參數。
 - **相關**：BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017
 
+### D155 2026-10-18 — PLAN-048 Worker 問塔台通道：先研究再實作；答覆走 helper CLI；待答問題只存記憶體；等待中為 `blocked` / `tower`
+
+- **背景**：BMad-Guide D036 要求 yolo Worker 以結構化通道問塔台、等答覆，取代 CT v5.5.0 的工單檔往返（PLAN-048）。
+- **決定**（使用者 2026-10-18 04:36 選定建議方案）：
+  - **進行方式**：先派研究單 T0606 寫介面契約草案，審過後再開實作單，契約同時轉交 CT（CT-T019）。
+  - **答覆通道**：塔台以 helper CLI（`bat-terminal.mjs --answer …`）回答，待答問題以唯讀 MCP tool 讀取；BAT MCP 維持唯讀。
+  - **持久化**：只存記憶體；BAT 重開後待答問題消失，Worker 收到「已遺失」，CT 改走工單檔往返；問答內容不落地。
+  - **狀態**：Worker 等塔台答覆時 `blocked`，新增 `blockedReason: tower`（擴充 T0590 契約，CT 斷點 D 需跟著更新）。
+  - 等待方式由塔台預設：單次最多等 45 s，未答回 pending 再呼叫（研究單可提案修正）。
+- **不採用**：直接實作（契約可能返工）；MCP 寫入 tool（打破 MCP 唯讀）；寫入檔案保留（內容落地、需另做遮罩與清理）；不算 blocked（斷點 D 無法分辨在等塔台）。
+- **相關**：PLAN-048 / T0606 / T0582 / T0584 / T0590 / T0600 / CT-T017
+
 ### D147 2026-10-16 — 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`；BAT 提供 helper `--set-role tower`，CT 啟動時呼叫
 
 - **背景**：使用者要求塔台分頁像 Worker 分頁（T0553 `Claude CLI · Worker · T####`）一樣一眼可辨。BAT 目前沒有讓分頁內程式改標題的管道（不處理 OSC 標題序列、helper 無改名 API）

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-048
 title: "Worker 問塔台 / 塔台答覆的結構化通道（CT-to-BAT 需求）"
-status: IDEA
+status: PLANNED
 priority: medium
 created_at: "2026-10-18T02:43:24+0800"
 links:
@@ -28,3 +28,8 @@ BMad-Guide D036：`auto-session = yolo` 時，Worker 有問題向塔台提問，
 - 目前範圍權杖：Worker → 塔台可 notify / `pty:write` / keypress；塔台 → Worker 不可寫；BAT MCP 全為唯讀（T0582 / T0584）。新通道需新增一組 helper channel 與權限列，屬 `HELPER_CHANNEL_ROLES` 擴充。
 - 待決：等待模型（MCP tool 阻塞等候上限，參照 `terminal:wait` 45 s）、持久化（BAT 重開後待答問題是否保留）、塔台通知方式（沿用 notify 預填 / 送出）、與 `blocked` 的關係（Worker 等塔台時是否算 `blocked`）。
 - 排期：使用者決定。正式規格於排期時寫入本檔或另開研究工單。
+
+## 排期（2026-10-18，D155）
+
+- 使用者選定：先研究再實作、答覆走 helper CLI、待答問題只存記憶體、等待中 `blocked` / `tower`（D155）。
+- 研究單 **T0606**：現況盤點、介面契約草案、實作切分；審過後開實作單並轉交 CT（CT-T019）。

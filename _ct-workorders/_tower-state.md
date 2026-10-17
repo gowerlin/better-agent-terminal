@@ -99,7 +99,7 @@
 
 ### 待辦（依優先序）
 
-1. 🟡 PLAN-048 / PLAN-047 M1b-2 待排期
+1. 🟡 **PLAN-048**（PLANNED，D155）：研究單 T0606 進行中 → 審契約 → 實作單 + CT-T019；PLAN-047 M1b-2 待排期
 2. ✅ ~~`v0.7.0-pre.6` 實機驗收~~ → 第七十七 session T0601（安裝版）+ T0602（隔離 e2e 4 spec）PASS：BUG-150 / 151 CLOSED；CT v5.6.0 `--wait-started` 實際派工 2 次皆 `started:`
 3. 🟡 **PLAN-048**（Worker 問塔台 / 塔台答覆通道）：使用者決定是否排期；**PLAN-047 後續**：M1b-2 codex blocked / 啟動信號、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
@@ -113,11 +113,11 @@
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 19 / Closed 17）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D154）｜ Learnings → [_learnings.md](_learnings.md)（最大 L162）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D155）｜ Learnings → [_learnings.md](_learnings.md)（最大 L162）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（92 entries）
 
 ### 編號起始
-- **T0606** / **BUG-153** / **PLAN-049** / **D155** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
+- **T0607** / **BUG-153** / **PLAN-049** / **D156** / **EXP-[TOPIC]-001** / **L163** / **CT-T019**
 
 ---
 
