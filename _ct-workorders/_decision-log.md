@@ -1439,7 +1439,7 @@
 - **背景**：既有 codex 相關 e2e 都以 node 腳本模擬 CLI；T0586 雖啟動真 codex（`app-server`），shim 連的是不存在的 port。BUG-148（設定解析正確但實際連不上 BAT）因此漏到實機才發現；codex 版號幾天內 0.160 → 0.163，行為可能隨時改變
 - **決定**（使用者 2026-10-18 00:50 選定「照預設安排」）：
   - **A 層（T0591，T0590 合併後派）**：隔離 BAT 實例 + 內嵌 codex（`app-server`、隔離 `CODEX_HOME`），以 BAT 為 codex 分頁實際產生的啟動參數連**真的** BAT：塔台 / Worker 的 `bat_whoami` role、Worker 讀塔台 `NOT_OWNER`、`--agent codex` 派工送 `$ct-exec T####` 且帶自訂參數、codex 分頁內 `bat-notify --submit` 送達；不耗 token；codex 升版時必跑。T0590 的 claude `--settings` 注入不影響 codex 也一併驗。之後 M1b-2（codex OSC 9）沿用此架構
-  - **B 層（不開工單，驗收清單）**：codex 當 Worker 跑一張極小探針工單（比照 T0581 / T0587：讀工單 → 回報 → `bat-notify` 回塔台 → `--close-worker` 回收），最便宜的模型；codex 升版或發版前由塔台提醒使用者執行
+  - **B 層（不開工單，驗收清單）**：codex 當 Worker 跑一張極小探針工單（比照 T0581 / T0587：讀工單 → 回報 → `bat-notify` 回塔台 → `--close-worker` 回收），最便宜的模型。**改由 codex 使用者協助**（使用者 2026-10-18 指示）：發版時寫進更版重點，請 codex 使用者幫忙測試並回報（規則見 `_local-rules.md`「更版重點必寫」）
 - **不採用**：把真模型執行工單放進常態自動化（耗 token、結果不穩定）
 - **相關**：BUG-148 / T0584 / T0586 / T0590 / PLAN-047
 

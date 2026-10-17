@@ -514,6 +514,7 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
   - 第一行：「版號 X.Y.Z-pre.N，接續 `v<上一版>`。」
   - `## 新增` / `## 修正` / `## 更新`（依實際內容取用）：每項以使用者看得到的行為描述，附 BUG / PLAN 編號；不寫內部實作細節
   - `## 已知事項`：未實機驗證的平台、仍在診斷的問題、需要搭配的外部版本（例如 Control Tower 版本）
+  - `## 歡迎協助測試`（D153，2026-10-18 使用者指示）：本版有 codex 相關變更（codex 分頁啟動參數、BAT MCP、派工、通知、用量限制等），或 BAT 內嵌的 codex 升版時必寫。請 codex 使用者以 Codex CLI 當 Worker 跑一次 Tower / Worker 流程並回報結果。用使用者看得懂的步驟寫：開 Codex CLI 分頁 → 呼叫 MCP tool `bat_whoami` 看 `role` / `agent` → 由塔台派一張小工單給 Codex Worker → 確認 Worker 完成後通知回到塔台、分頁被回收；附回報管道（GitHub issue）與 BAT / codex 版本。沒有 codex 相關變更時省略
   - 結尾：`macOS 仍只提供 Apple Silicon（arm64）版。` 與 `**Full Changelog**: …/compare/v<上一版>...v<本版>`（基準一律是上一個 desktop tag，不是 server-bundle tag）
 - 來源：上一版 tag 到本版之間非 `(ct)` 的 commit（`git log --oneline v<上一版>..HEAD | grep -v "(ct)$"`；只排除標題結尾的塔台記帳 commit，`fix(ct): …` 要保留，L154）與對應工單回報區。
 - 收尾檢查：`gh release view v<版號> -R gowerlin/better-agent-terminal --json body` 確認已不是自動內容，再向使用者回報發佈完成。
