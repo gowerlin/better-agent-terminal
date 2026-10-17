@@ -59,6 +59,14 @@ T0575（A1）後，本機 PTY 的 `BAT_REMOTE_TOKEN` 是只存在記憶體的 `b
 3. e2e `e2e/t0576-capability-persist-restart.spec.ts`（隔離實例）：派一個 Worker → 關 BAT（不停 Terminal Server）→ 重開 → 塔台分頁 `--set-role` / `--close-worker` 成功、Worker 分頁 `bat-notify` 成功；Worker 結束後其紀錄已移除。
 4. 回報區附：T0575 回報的回歸現象在本單後已消失的實測對照。
 
+## 塔台補充（2026-10-17 19:36，派工前，依 T0575 回報）
+
+T0575 已 DONE（`2c59edee`），開工前條件成立。請先讀 T0575 回報區「BAT 重開 + Terminal Server 存活」一節，以下為必做：
+
+1. **時序**：重開後 renderer 還原分頁的 `pty:create` 早於 T0108 replay 清單（實測 `[helper-cap] issued` 11:30:43.333Z 早於 `replay: 1 active PTY(s)` 11:30:43.601Z），Terminal Server 判定已存在、不重建，但主行程已替同一 id 簽新權杖；`issue()` 會先 `revokeTerminal`，會把還原的那把撤銷。修正方式自行判斷（例如持久化紀錄先載入、遇到 Terminal Server 回「已存在」時撤回新簽的並保留還原的，或 replay 完成前不簽），測試要涵蓋這個順序。
+2. **歸屬**：`isOwnedBy` 目前是 `capabilityOrSavedTabOwnership`（本行程有工單記錄須 `isWorkerOf`，否則沿用 T0537 已存分頁歸屬）；還原權杖後，replay PTY 的 worker 綁定是否改由權杖紀錄提供，與 T0537 的優先序寫清楚，t0537 e2e 回歸必跑。
+3. 驗收第 3 點的 e2e 可參考 T0575 量測時的流程（「確認退出、不停止 Terminal Server」→ 重開 → Recovery 保留 → 在存活分頁內執行 helper，`BAT_REMOTE_PORT` 換成新實例 port）；注意 T0575 第一次量測 `app.close()` 未返回而殘留隔離 Terminal Server，teardown 要確保結束並刪 runtime userData。
+
 ---
 
 ## 回報區

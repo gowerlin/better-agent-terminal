@@ -184,3 +184,13 @@ bat-notify.mjs …                  → exit 1
 ### Commit
 
 - `2c59edee` feat(T0575): local PTYs get per-PTY batcap. capability instead of server token（產品 + 測試 + CLAUDE.md + 本回報；未 push）
+
+## 塔台結案（2026-10-17T19:36:07+0800）
+
+**DONE**（source / test 層；runtime 實機待與 T0576 同版發佈後驗收）。塔台複驗 @ `2a1e8a62`：`npm run typecheck` 0、`npm run typecheck:electron` 0、`npm run test:unit` 267 檔 / 4688 passed / 3 skipped。`2c59edee` 變更範圍與 affects_files 一致。
+
+塔台裁決（D149 範圍內）：
+- 「非 Worker 分頁手動 `bat-notify --target`」、「Worker 分頁再派工 / set-role / close-worker」、「`--set-role --terminal-id <別人>`」改為 Forbidden：**接受**（與 headless 一致，正是 T0574 R3 要關的越權面；CT 正常流程不受影響）。
+- headless 同步開放 raw command：**記為 PLAN-047 後續小單**，排在 T0576 之後，暫不開。
+- 「`pty:create` 早於 replay 時替同 id 再簽權杖」的時序：已寫入 T0576「塔台補充」為必做項。
+
