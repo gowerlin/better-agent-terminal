@@ -135,3 +135,15 @@ PASS — C-0：`repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-age
 
 - `f833e3b0` fix(T0578): hold pty:create until the Recovery prompt is answered (BUG-146)
 - 未 push；`src/styles/settings.css` 的 M 非本單變更，未納入。
+
+## 塔台結案（2026-10-17T20:17:47+0800）
+
+**DONE**（source / test 層；實機隨 `v0.7.0-pre.1`）。塔台完整複驗 @ `15226fb7`：`npx vite build` 0、`npm run typecheck` 0、`npm run typecheck:electron` 0、`npm run test:unit` 269 檔 / 4757 passed / 3 skipped。`f833e3b0` 範圍與 affects_files 一致。
+
+塔台裁決：
+- 方案 (a) 與「非 Windows Recovery 路徑也 hold」：接受。
+- 偏差 1（重新開始的 pid 檔競態，同 handler 一併修）：接受，補開 **BUG-147**（FIXED by T0578）作記錄。
+- 殘留風險 1（helper 派工 / restart 的同步 create 未涵蓋）與 3（CLAUDE.md 過時段落）：開 **T0580**，同版發佈前完成。
+- 殘留風險 2（保留時存活 PTY 尺寸）：非本單引入，記錄不處理。
+- T0576 pending 機制：保留（仍涵蓋同步路徑）。
+

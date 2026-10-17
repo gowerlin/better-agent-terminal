@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-17T19:58:41+0800"
+generated_at: "2026-10-17T20:17:47+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 31
+total: 32
 breakdown:
   OPEN: 1
-  FIXING: 1
-  FIXED: 17
+  FIXING: 0
+  FIXED: 19
   VERIFY: 0
   CLOSED: 12
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-17 19:58 (UTC+8) — BUG-146 → FIXING（T0578）
+> 最後同步：2026-10-17 20:17 (UTC+8) — BUG-146 FIXED（T0578）、新增 BUG-147（FIXED by T0578）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 31**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 32**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,13 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁另起 direct shell | 🟡 medium | （T0578 進行中） | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
+| BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁另起 direct shell | 🟡 medium | 2026-10-17 20:17 | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |

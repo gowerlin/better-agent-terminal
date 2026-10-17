@@ -240,3 +240,4 @@ links:
 - 2026-10-17 19:36 — T0577 DONE（`58ec1046`，L133 放寬）；T0575 DONE（`2c59edee`，本機 `batcap.` 權杖）；後續小單候選：headless 同步開放 raw command（T0575 任務 2 評估）；派 T0576
 - 2026-10-17 19:55 — T0576 DONE（`7e3c1d7d`，權杖跨 BAT 重開保留）；A1 + A2 完成，待同版發佈與實機驗收；衍生 BUG-146
 - 2026-10-17 20:13 — T0579 DONE（`514710a9`，headless tower 開放 raw command，本機 / headless 共用角色表）；候選：headless PTY `PATH` 加入內嵌 claude（需決策，暫不開）
+- 2026-10-17 20:17 — T0578 DONE（`f833e3b0`，BUG-146 FIXED、BUG-147 FIXED）；開 T0580（helper 派工 / restart 等 hold 放行），完成後發 `v0.7.0-pre.1`
