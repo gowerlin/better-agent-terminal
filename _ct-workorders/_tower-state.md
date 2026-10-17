@@ -1,11 +1,43 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-16 22:39 (UTC+8) — **第六十九 session 收工**：pre.7 實機 BUG-142 / 143 CLOSED；BUG-144 / 145（T0571 / T0572）→ **`v0.6.1-pre.8`**（使用者指示已知問題一起修完再發版）。
+> 最後更新:2026-10-17 10:48 (UTC+8) — **第七十 session 收工**：pre.8 實機 BUG-145 CLOSED、T0538 批次關閉 PASS；BUG-144 以 T0573 重修 → **`v0.6.1-pre.9`**。
 >
-> **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.8` 後在 claude CLI 分頁確認：Shift + 拖曳 → Shift + 右鍵有「複製」（BUG-144）、⏻ 重啟後畫面佔滿寬度（BUG-145）→ CLOSED；用量限制首次真實撞限制時看 `[usage-limit]`；等 Gary BUG-136。
+> **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.9` 後在 claude CLI 分頁驗 BUG-144 三情境（一般 / 失焦 ≥ 5 s 回來直接 Shift 拖曳 / 同段選兩次）→ CLOSED、T0573 DONE；失敗看日誌 `[terminal-context-menu] … shown`；用量限制被動觀察；等 Gary BUG-136。
 ---
 
-## 🛏 本 Session 收工快照 (第六十九 session, 2026-10-16 21:45 - 22:39, ~54m wall)
+## 🛏 本 Session 收工快照 (第七十 session, 2026-10-17 09:56 - 10:48, ~52m wall)
+
+### 主軸：pre.8 實機（BUG-145 CLOSED、T0538 批次關閉 PASS；BUG-144 無效）→ T0573 以真實 claude CLI 找出根因重修 → **`v0.6.1-pre.9`**
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **09:56** Fast Path；本機 BAT = `0.6.1-pre.8`（FileVersion），CT v5.2.3；`--set-role tower --mode on` exit 0
+2. **10:04** pre.8 實機：BUG-145 PASS → CLOSED、T0572 DONE；T0538 塔台右鍵「關閉已回報的 Worker 分頁（3）」+ 頁內確認 PASS（記於 PLAN-041）；BUG-144 反白仍在、選單只有「貼上」→ 退回 FIXING（`02eb9e66`）
+3. **10:06** 派 **T0573**（真實 claude 重現）；使用者補充 pwsh 7 一般 shell 正常
+4. **10:35** T0573 FIXED `6e4f3764`：claude 2.1.300 失焦 ≥ ~5 s 後收到 `ESC[I` 重送 `?1000h/1002h/1003h` → xterm `onProtocolChange` → `disable()` 清選取（不經 `onData`）；xterm 同範圍重選不發 `onSelectionChange`；截圖藍底反白是 claude 自己的選取。修正：DECSET handler 放回 / 接回拖曳、放開時同步；開選單記 `[terminal-context-menu] … shown`。塔台複驗 unit **4645 / 266**、typecheck 0 / 0；`worker_auto_close` 回收 1 次
+5. **10:38** bump `14246954` → run `38995709965` → **10:45 `v0.6.1-pre.9` 已發佈**（10 job 全綠）→ 更版重點 + 三文件（`65c841bf`）→ push `bc571b9b`
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **1**（T0573） | 一次完成 |
+| BUG | CLOSED 1（145）；144 FIXING → FIXED | Open 1（BUG-136）/ Fixed 18 / Closed 51 |
+| 發版 | 1（`v0.6.1-pre.9`） | exe 298 / zip 412 / AppImage 297 / dmg 310 MiB |
+| unit test | 4633 → **4645 passed / 266 files** | 塔台複驗 @ `8409a60b` |
+
+### 重點觀察
+
+- 模擬腳本通過 ≠ 真實 TUI 通過：T0571 的 node 腳本沒開 1004、不會重送 DECSET；涉及第三方 TUI 行為的修正，驗收要含真實程式在隔離實例的實測（T0573 以內嵌 claude、不送 prompt 達成）
+- 實機失敗時先問「反白是誰畫的」：顏色（xterm `#5c5142` 棕 vs claude 藍）就能分辨
+
+### 編號起始（下 session）
+
+- **T0574** / **BUG-146** / **PLAN-047** / **D149** / **L155** / **CT-T014**
+
+---
+
+## 🛏 前 Session 收工快照 (第六十九 session, 2026-10-16 21:45 - 22:39, ~54m wall)
 
 ### 主軸：pre.7 實機（BUG-142 / 143 CLOSED）→ Shift 選單缺「複製」BUG-144（T0571）→ 使用者指示「已知問題一起修完再發版」→ BUG-145（T0572）+ 文件修正 → **`v0.6.1-pre.8`**
 
@@ -38,44 +70,9 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第六十八 session, 2026-10-16 17:25 - 18:18, ~52m wall)
-
-### 主軸：pre.6 實機 PASS（PLAN-045 DONE）→ 右鍵選單 BUG-142 / 143（T0568 / T0569）→ **`v0.6.1-pre.7`** → 發佈後同步 repo 文件（新規則）+ T0570 補齊 CHANGELOG / release-note
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **17:25** Fast Path；本機 BAT = `0.6.1-pre.6`，CT v5.2.2；`--set-role tower --mode on` exit 0（分頁標題已設定）
-2. **17:29** 使用者確認 pre.6 實機（Dialog / Esc / 精靈 Esc / 用量限制開關）PASS → **PLAN-045 DONE**；T0551 / T0552 / T0554 FIXED → DONE（`c9cd0f81`）
-3. **17:31** 使用者回報 claude CLI 分頁右鍵「已貼上又跳選單」→ 選定「程式自己處理右鍵就不顯示選單」→ **BUG-142** / **T0568**（17:32 派）→ 17:39 FIXED `9988a117`（claude 2.1.300 開 1000/1002/1003/1006，右鍵自己貼上；BAT 追蹤時不開選單、Shift + 右鍵照開）
-4. **17:47** T0568 觀察「選單 Esc 關不掉」→ **BUG-143** / **T0569** → 17:53 FIXED `fb66c0bc`（xterm 吃掉 Esc 且送進 PTY；`attachCustomKeyEventHandler` 攔下）；塔台複驗 unit 265 / 4614、typecheck 0 / 0
-5. **17:55** 使用者新規則：發版後同步 `README.md` / `release-note.md` / `CHANGELOG.md` → `_local-rules.md`「發佈後同步 repo 文件」+ 記憶；選擇補齊舊版
-6. **17:57** bump `c41a0ec7` → run `38884005468` → **18:04 `v0.6.1-pre.7` 已發佈**（10 job 全綠；更版重點已寫）→ 18:06 派 **T0570** → DONE `97b5697e`（32 版、README 7 處）→ push `f09dfcb4`
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **3**（T0568–T0570） | 全一次完成 |
-| BUG | 新開 2（142 / 143）→ FIXED | Open 1（BUG-136）/ Fixed 19 / Closed 48 |
-| PLAN | DONE 045 | Active 只剩 IDEA 4 |
-| 發版 | 1（`v0.6.1-pre.7`） | exe 298.0 / zip 412.3 / AppImage 297.4 / dmg 309.7 MiB |
-| 規則 | 發佈後同步 repo 文件（`_local-rules.md`）；L154 | |
-| unit test | 4597 → **4614 passed / 265 files** | 塔台複驗 @ `2497014a` |
-
-### 重點觀察
-
-- 終端內 TUI（claude CLI）開滑鼠追蹤後自己處理右鍵；BAT 疊加的 DOM 選單要以 xterm `mouseTrackingMode` 讓路，xterm 的 key handler 會吃掉 Esc（`stopPropagation`）→ 選單類 UI 要在 `attachCustomKeyEventHandler` 處理
-- 發版收尾現在是三步：`gh release edit` 更版重點 → repo 三文件 commit → push（L154：commit 來源篩選用 `(ct)$` 而非 `(ct)`）
-
-### 編號起始（下 session）
-
-- **T0571** / **BUG-144** / **PLAN-047** / **D149** / **L155** / **CT-T014**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-17 10:47 UTC+8（第七十 session 進行中）
+> 最後更新：2026-10-17 10:48 UTC+8（第七十 session 收工）
 
 ### 近期完成
 - `v0.6.1-pre.9`（10-17 10:45，run `38995709965` @ `14246954`）：BUG-144 重修（T0573 `6e4f3764`：claude 聚焦時重送追蹤 DECSET 清選取、同範圍重選無事件）；更版重點與三文件已同步（`65c841bf`）
@@ -196,7 +193,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.6.1-pre.7`（`v0.6.1-pre.8` 已發佈，使用者收工時換版中；下次起手以 FileVersion 確認） | 2026-10-16 21:45 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
+| BAT 安裝版 | ⚠️ `0.6.1-pre.8`（`v0.6.1-pre.9` 已發佈，使用者收工時換版中；下次起手以 FileVersion 確認） | 2026-10-17 09:56 FileVersion 確認；Tower `--set-role tower --mode on` exit 0 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
@@ -246,6 +243,7 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-17 第七十 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0573 一次完成；`worker_auto_close` 回收 1 次；pre.9 發佈
 - 2026-10-16 第六十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0571 / T0572 皆一次完成；`worker_auto_close` 回收 2 次；pre.8 發佈
 - 2026-10-16 第六十八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0568–T0570 皆一次完成；pre.7 發佈
 - 2026-10-16 第六十七 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0557-T0567 全 DONE，皆一次啟動（最多 2 張並行，依目錄切分）；`worker_auto_close` 回收 10 次；pre.6 發佈
