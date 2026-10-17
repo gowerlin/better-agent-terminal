@@ -218,6 +218,8 @@ describe('T0416 result translation (WSL translator)', () => {
       'claude:get-worktree-status': { diff: '', worktreePath: '/home/x/repo/.worktrees/a', branchName: 'a', sourceBranch: 'main' },
       'worktree:create': { success: true, worktreePath: '/home/x/repo/.worktrees/a', gitRoot: '/home/x/repo' },
       'worktree:status': { diff: '', worktreePath: '/home/x/repo/.worktrees/a', branchName: 'a', sourceBranch: 'main' },
+      // T0584: typed into the remote tab after the CLI path
+      'agent:bat-mcp-launch-args': "'--mcp-config=/home/x/.local/share/bat-server/bat-mcp/claude.json'",
     }
     expect(Object.keys(results).sort()).toEqual(Array.from(SERVER_PATH_RESULT_CHANNELS.keys()).sort())
     for (const [channel, result] of Object.entries(results)) {

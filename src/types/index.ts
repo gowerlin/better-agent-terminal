@@ -369,6 +369,8 @@ export interface AppSettings {
   usageLimitAutoContinue?: boolean;          // 預設 false
   usageLimitContinueText?: string;           // Codex 分頁輸入的文字（預設「繼續」）
   usageLimitContinueDelayMinutes?: number;   // 重置後延遲分鐘（0–60，預設 2）
+  // PLAN-047 M1 / T0584：BAT 啟動 claude / codex 分頁時掛上 `bat` MCP server（electron/bat-mcp-launch.ts 讀取）
+  batMcpEnabled?: boolean;                   // 預設 true（只有 false 才關閉）
 }
 
 // ============================================

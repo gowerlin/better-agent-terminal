@@ -943,6 +943,10 @@ const electronAPI = {
     // or Settings); only used to skip flags the user already set. Omitted → persisted Settings.
     buildLaunchCommand: (definitionId: string, options?: Record<string, string | boolean>, extraArgs?: string) =>
       ipcRenderer.invoke('agent:build-launch-command', definitionId, options, extraArgs) as Promise<string | null>,
+    // PLAN-047 M1 / T0584: args attaching the `bat` MCP server to a claude-cli / codex-cli launch
+    // ('' = none), answered by the host that runs the tab (proxied for a remote window).
+    batMcpLaunchArgs: (agentId: string, shellFamily: 'posix' | 'pwsh' | 'cmd', extraArgs?: string) =>
+      ipcRenderer.invoke('agent:bat-mcp-launch-args', agentId, shellFamily, extraArgs) as Promise<string>,
     registerCustomCli: (def: { id: string; name: string; icon: string; color: string; command: string; args?: string[]; supportsWorktree?: boolean; sandboxFlag?: string; yoloFlag?: string }) =>
       ipcRenderer.invoke('agent:register-custom-cli', def) as Promise<unknown>,
     removeCustomCli: (id: string) =>

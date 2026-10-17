@@ -14,6 +14,7 @@ import {
   type RemoteToolsHandlerDeps,
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
+import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
@@ -482,9 +483,14 @@ export function createHeadlessTerminalModule(opts: {
   isWorkerOf?: (terminalId: string, towerId: string) => boolean
   /** T0583: `--isolation worktree` / `--worktree` cleanup. Default: the resolved git, `BAT_*` scrubbed. */
   ctWorktree?: CtWorktreeService
+  /** T0584: bundle root whose `scripts/bat-mcp.mjs` dispatched claude / codex get; absent ⇒ none. */
+  batMcpInstallRoot?: string
 }): HandlerModule {
   return (register, host) => {
     const readSettings = () => readHeadlessTerminalSettings(host.getSettings())
+    const batMcpLaunchArgs = opts.batMcpInstallRoot
+      ? createBatMcpLaunchArgs(createHeadlessBatMcpHost(opts.batMcpInstallRoot, host), 'dispatch')
+      : undefined
     const countRemoteReceivers = opts.countRemoteReceivers
     // PLAN-047 W1 / T0583: git runs on this server, in the server's checkout of the dispatch cwd
     const ctWorktree = opts.ctWorktree ?? new CtWorktreeService({
@@ -512,6 +518,7 @@ export function createHeadlessTerminalModule(opts: {
         readSettings,
         resolveWorkspaceAgentSettings: async () => null,
         ensureElevationApplied: async () => {},
+        batMcpLaunchArgs, // T0584
         logger: defaultLogger,
       }),
       countRemoteReceivers: opts.countRemoteReceivers,
@@ -521,6 +528,34 @@ export function createHeadlessTerminalModule(opts: {
       ctWorktree,
     })
     return () => workerCloser.dispose()
+  }
+}
+
+/**
+ * PLAN-047 M1 / T0584: the `bat` MCP server of a claude / codex tab on this server — the shim
+ * `<installRoot>/scripts/bat-mcp.mjs` run by the bundle's node (`<installRoot>/bin/node`, else
+ * `node`), the claude config under `<dataDir>/bat-mcp/`, Settings `batMcpEnabled` from
+ * `<dataDir>/settings.json` (default on). Same rule as the helper env: no helpers in
+ * `<installRoot>/scripts` (`HEADLESS_REQUIRED_HELPER_SCRIPTS`) ⇒ no endpoint in the tab ⇒ none.
+ */
+export function createHeadlessBatMcpHost(installRoot: string, host: HostDeps, exists: (p: string) => boolean = fs.existsSync): BatMcpHost {
+  const helperDir = path.join(installRoot, 'scripts')
+  const helperNode = path.join(installRoot, 'bin', 'node')
+  return {
+    dataDir: () => host.dataDir,
+    helperDir: () => HEADLESS_REQUIRED_HELPER_SCRIPTS.every(name => exists(path.join(helperDir, name))) ? helperDir : undefined,
+    nodeCommand: () => exists(helperNode) ? helperNode : 'node',
+    // answering a client (or a helper) means this server listens: its PTYs have the endpoint
+    endpointReady: () => true,
+    readSettings: () => host.getSettings(),
+    logger: defaultLogger,
+  }
+}
+
+/** T0584: `agent:bat-mcp-launch-args` on headless (a remote window's claude-cli / codex tab). */
+export function createHeadlessBatMcpModule(opts: { installRoot?: string } = {}): HandlerModule {
+  return (register, host) => {
+    registerBatMcpHandlers(register, createHeadlessBatMcpHost(opts.installRoot ?? defaultHeadlessInstallRoot(), host))
   }
 }
 
@@ -818,7 +853,9 @@ export function createHeadlessHandlerModules(opts: {
       countRemoteReceivers: opts.terminal?.countRemoteReceivers,
       isWorkerOf: opts.terminal?.isWorkerOf, // T0536
       checkAgentAvailable: createHeadlessAgentAvailabilityCheck(toolsCache), // T0433
+      batMcpInstallRoot: opts.installRoot ?? defaultHeadlessInstallRoot(), // T0584
     }),
+    createHeadlessBatMcpModule({ installRoot: opts.installRoot }), // T0584
     createHeadlessTerminalQueryModule({ // T0582
       getPtyManager: () => ptyManager,
       isWorkerOf: opts.terminal?.isWorkerOf,

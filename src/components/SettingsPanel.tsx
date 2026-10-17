@@ -1160,6 +1160,21 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
               <p className="settings-hint">{t('settings.usageLimitContinueDelayHint')}</p>
             </div>
           </div>
+          {/* PLAN-047 M1 / T0584: `bat` MCP server for claude / codex tabs — on by default */}
+          <div className="settings-section bat-mcp-settings">
+            <h3>{t('settings.batMcpTitle')}</h3>
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.batMcpEnabled !== false}
+                  onChange={e => settingsStore.setBatMcpEnabled(e.target.checked)}
+                />
+                {t('settings.batMcpEnabled')}
+              </label>
+              <p className="settings-hint">{t('settings.batMcpEnabledHint')}</p>
+            </div>
+          </div>
           <div className="settings-section">
             <h3>{t('settings.debugLogging')}</h3>
 

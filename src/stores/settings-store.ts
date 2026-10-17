@@ -368,6 +368,13 @@ class SettingsStore {
     this.save()
   }
 
+  // PLAN-047 M1 / T0584: `bat` MCP server for claude / codex tabs (read at each launch)
+  setBatMcpEnabled(enabled: boolean): void {
+    this.settings = { ...this.settings, batMcpEnabled: enabled }
+    this.notify()
+    this.save()
+  }
+
   setUsageLimitContinueText(text: string): void {
     this.settings = { ...this.settings, usageLimitContinueText: text }
     this.notify()

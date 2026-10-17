@@ -17,6 +17,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
+import { withBatMcpLaunchArgs } from '../lib/bat-mcp-launch'
 import { getShellFromSettings, rememberTerminalShell } from '../lib/terminal-drop'
 import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
 import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
@@ -498,7 +499,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           createPtyThenLaunch(createOpts, () => {
             const extraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, agentPreset)
             const appendArgs = (base: string) => extraArgs ? `${base} ${extraArgs}` : base
-            window.electronAPI.agent?.buildLaunchCommand(agentPreset, undefined, extraArgs).then((cmd: string | null) => {
+            window.electronAPI.agent?.buildLaunchCommand(agentPreset, undefined, extraArgs).then((cmd: string | null) =>
+              cmd ? withBatMcpLaunchArgs(cmd, agentPreset, shell, extraArgs) : cmd, // T0584
+            ).then((cmd: string | null) => {
               if (cmd) {
                 noticeCodexDaemonRef.current(cmd)
                 setTimeout(() => {
@@ -553,7 +556,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             if (settings.agentAutoCommand) {
               const defExtraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, defaultAgent)
               const defAppendArgs = (base: string) => defExtraArgs ? `${base} ${defExtraArgs}` : base
-              window.electronAPI.agent?.buildLaunchCommand(defaultAgent, undefined, defExtraArgs).then((cmd: string | null) => {
+              window.electronAPI.agent?.buildLaunchCommand(defaultAgent, undefined, defExtraArgs).then((cmd: string | null) =>
+                cmd ? withBatMcpLaunchArgs(cmd, defaultAgent, shell, defExtraArgs) : cmd, // T0584
+              ).then((cmd: string | null) => {
                 if (cmd) {
                   noticeCodexDaemonRef.current(cmd)
                   setTimeout(() => {
@@ -737,9 +742,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     // BUG-051: cliPath 已為 native binary(bin/claude.exe),直接執行即可。
     // 加 'node' prefix 會讓 Node.js v25 拋 ERR_UNKNOWN_FILE_EXTENSION(.exe 非 .js/.mjs)。
     // 不 hardcode --continue / --dangerously-skip-permissions，使用者如需可從 Settings → agent custom args 自行加入。
-    const cmdParts = [quoteCommandPath(cliPath, detectShellFamily(shell ?? ''))]
     const presetId = isWorktree ? 'claude-cli-worktree' : 'claude-cli'
     const customArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, presetId)
+    // T0584: the `bat` MCP server right after the CLI path, before the custom args
+    const cmdParts = [await withBatMcpLaunchArgs(quoteCommandPath(cliPath, detectShellFamily(shell ?? '')), presetId, shell, customArgs)]
     if (customArgs) {
       cmdParts.push(customArgs)
     }
@@ -863,6 +869,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const addAppendArgs = (base: string) => addExtraArgs ? `${base} ${addExtraArgs}` : base
     try {
       const launchCmd = await window.electronAPI.agent.buildLaunchCommand(definitionId, undefined, addExtraArgs)
+        .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, definitionId, shell, addExtraArgs) : cmd) // T0584
       if (launchCmd) {
         noticeCodexDaemonRef.current(launchCmd)
         setTimeout(() => {
@@ -982,6 +989,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           const restartAppendArgs = (base: string) => restartExtraArgs ? `${base} ${restartExtraArgs}` : base
           try {
             const launchCmd = await window.electronAPI.agent.buildLaunchCommand(terminal.agentPreset, undefined, restartExtraArgs)
+              .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, terminal.agentPreset, shell, restartExtraArgs) : cmd) // T0584
             if (launchCmd) {
               noticeCodexDaemonRef.current(launchCmd)
               setTimeout(() => {

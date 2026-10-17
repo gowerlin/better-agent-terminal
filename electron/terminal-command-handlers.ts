@@ -7,6 +7,7 @@ import {
   type WorkspaceAgentLaunchFields,
 } from '../src/lib/agent-launch-settings'
 import { agentRegistry } from './agent-runtime/agent-registry'
+import { withBatMcpArgs, type BatMcpLaunchRequest, type BatMcpLaunchResult } from './bat-mcp-launch'
 import {
   passThroughDispatchWorkspace,
   type DispatchCwdCheck,
@@ -842,6 +843,11 @@ export interface AgentPromptCommandDeps {
   buildLaunchCommand?(agentId: string, extraArgs: string): string | null
   /** Default: `resolveClaudeBaseCommand` (claude runtime router). */
   resolveClaudeBaseCommand?(shellFamily?: ShellFamily): Promise<string>
+  /**
+   * PLAN-047 M1 / T0584: the `bat` MCP server args for claude / codex (electron/bat-mcp-launch.ts),
+   * put right after the base command. Absent ⇒ never injected.
+   */
+  batMcpLaunchArgs?(request: BatMcpLaunchRequest): BatMcpLaunchResult
   logger: {
     warn(...args: unknown[]): void
   }
@@ -934,6 +940,9 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
     }
 
     const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
+    // T0584: before the custom args (codex `-c` precedes a `resume` subcommand there)
+    const mcp = deps.batMcpLaunchArgs?.({ agentId, shellFamily: opts.shellFamily ?? 'posix', extraArgs })
+    if (mcp) baseCommand = withBatMcpArgs(baseCommand, mcp)
     const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
     return {
       command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, opts.shellFamily ?? 'posix')}`,

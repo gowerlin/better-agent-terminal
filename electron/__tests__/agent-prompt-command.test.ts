@@ -94,6 +94,8 @@ function electronLikeDeps(settings: AgentCommandSettings | null, workspaceAgents
     ensureElevationApplied: async () => {},
     buildLaunchCommand: (agentId, extraArgs) => agentRegistry.buildLaunchCommand(agentId, undefined, extraArgs),
     resolveClaudeBaseCommand: async () => CLAUDE_BASE,
+    // T0584: BAT MCP off (Settings) — the command must stay what it was before T0584
+    batMcpLaunchArgs: () => ({ injected: false, reason: 'turned off in Settings' }),
     logger: { warn: vi.fn() },
   }
 }

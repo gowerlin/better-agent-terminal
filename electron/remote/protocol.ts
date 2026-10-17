@@ -79,6 +79,9 @@ export const PROXIED_CHANNELS = new Set([
   'terminal:create-with-command', 'terminal:create-agent-command', 'terminal:notify', 'terminal:keypress',
   // Remote AI toolchain probe (T0411, PLAN-037 B; electron/handlers/remote-tools.ts)
   'remote-tools:detect',
+  // PLAN-047 M1 / T0584: the `bat` MCP args of a claude / codex tab (electron/bat-mcp-launch.ts);
+  // the host running the tab answers (shim / config paths are its own)
+  'agent:bat-mcp-launch-args',
   // T0437 (BUG-105): client paths → the window's host form; ALWAYS_LOCAL (answered by this
   // machine's main with the window's PathTranslator), listed here only for the IPC binding.
   'remote:resolve-client-paths',

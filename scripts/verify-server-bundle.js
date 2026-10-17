@@ -241,6 +241,10 @@ for (const tarball of tarballs) {
     requirePath(stagingRoot, path.join('bin', 'bat-server'))
     requirePath(stagingRoot, path.join('bin', 'bat-server.mjs'))
     requirePath(stagingRoot, path.join('node_modules', '@lydell', 'node-pty', 'package.json'))
+    // T0433 / T0584: the helpers a headless PTY runs from <installRoot>/scripts (BAT_HELPER_DIR)
+    for (const helper of ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', '_bat-cert.mjs', '_bat-logger.mjs']) {
+      requirePath(stagingRoot, path.join('scripts', helper))
+    }
   } finally {
     fs.rmSync(extractRoot, { recursive: true, force: true })
   }

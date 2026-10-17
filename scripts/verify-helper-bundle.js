@@ -174,13 +174,13 @@ checkNoServerBundleBaseline();
 // .mjs import is not listed dies with ERR_MODULE_NOT_FOUND on the remote host.
 // Checked here (source parse; the build script runs main() at load and cannot
 // be imported):
-//   - the list exists and holds bat-terminal.mjs + bat-notify.mjs
+//   - the list exists and holds bat-terminal.mjs + bat-notify.mjs + bat-mcp.mjs (T0584)
 //   - every listed file exists in scripts/
 //   - the list is closed under static relative .mjs imports
 //   - the build actually copies it (copyHelperScripts() is called)
 
 const SERVER_BUNDLE_SCRIPT = path.join(projectRoot, 'scripts', 'build-server-bundle.mjs');
-const REQUIRED_SERVER_BUNDLE_HELPERS = ['bat-terminal.mjs', 'bat-notify.mjs'];
+const REQUIRED_SERVER_BUNDLE_HELPERS = ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs'];
 
 function parseServerBundleHelperScripts(source) {
   const listMatch = source.match(/const\s+serverBundleHelperScripts\s*=\s*\[([\s\S]*?)\]/);

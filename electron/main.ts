@@ -11,6 +11,7 @@ import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorks
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
 import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal-command-handlers'
+import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from './bat-mcp-launch'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
@@ -702,8 +703,27 @@ const buildAgentPromptCommand = createAgentPromptCommandBuilder({
   readSettings: readPersistedSettingsSync,
   resolveWorkspaceAgentSettings,
   ensureElevationApplied,
+  batMcpLaunchArgs: request => createBatMcpLaunchArgs(batMcpHost, 'dispatch')(request), // T0584
   logger,
 })
+
+/** `BAT_HELPER_DIR` of local PTYs: dev `<project-root>/scripts`, packaged `<install-root>/resources/scripts`. */
+function localHelperDir(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'scripts')
+    : path.join(__dirname, '..', 'scripts')
+}
+
+// PLAN-047 M1 / T0584: the `bat` MCP server of claude / codex tabs — the config file in userData
+// (lazy: never app.getPath at import time), local `node`, only while RemoteServer listens.
+const batMcpHost: BatMcpHost = {
+  dataDir: () => app.getPath('userData'),
+  helperDir: localHelperDir,
+  nodeCommand: () => 'node',
+  endpointReady: () => Boolean(remoteServer.isRunning && remoteServer.port),
+  readSettings: () => readPersistedSettingsSync() as Record<string, unknown> | null,
+  logger,
+}
 
 /** Read minimizeToTray from persisted settings file (sync, for use in close handler) */
 function isMinimizeToTrayEnabled(): boolean {
@@ -860,9 +880,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
   return {
     emit: createWindowBroadcastEmit(getAllWindows),
     dataDir: app.getPath('userData'),
-    helperDir: app.isPackaged
-      ? path.join(process.resourcesPath, 'scripts')
-      : path.join(__dirname, '..', 'scripts'),
+    helperDir: localHelperDir(),
     // PLAN-044 / T0566: the usage-limit scheduler reads each tab's screen from the live output.
     onPtyOutput: (id, data) => usageLimitScheduler?.onOutput(id, data),
     // T0576: the T0108 replay list (or [] when the server died) settles the restored capabilities
@@ -2350,6 +2368,9 @@ function registerProxiedHandlers() {
     logger,
     mirrorToBatScripts,
   })
+
+  // PLAN-047 M1 / T0584: `agent:bat-mcp-launch-args` (proxied: a remote window asks its server)
+  registerBatMcpHandlers(registerHandler, batMcpHost)
 
   // Workspace persistence — save/load from window registry entry
   registerHandler('workspace:save', async (ctx, data: string) => {

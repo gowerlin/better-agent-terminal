@@ -220,7 +220,10 @@
     "usageLimitContinueText": "Text to type",
     "usageLimitContinueTextHint": "Typed into Codex tabs before Enter. Default: 繼續",
     "usageLimitContinueDelay": "Delay after the reset (minutes)",
-    "usageLimitContinueDelayHint": "0–60, default 2, so the limit has actually lifted."
+    "usageLimitContinueDelayHint": "0–60, default 2, so the limit has actually lifted.",
+    "batMcpTitle": "BAT MCP",
+    "batMcpEnabled": "BAT MCP (lets the agent in a tab query BAT)",
+    "batMcpEnabledHint": "On by default. Claude CLI and Codex CLI tabs that BAT starts (new / restored / restarted tabs and Control Tower dispatches) get the read-only \"bat\" MCP server: the agent can ask which tab it is, list its Workers, read their output and wait for them. Applies to tabs started after the change. Not added when your custom args already pass --mcp-config (Claude) or define mcp_servers.bat (Codex), nor to commands run as typed."
   },
   "sidebar": {
     "workspaces": "Workspaces",

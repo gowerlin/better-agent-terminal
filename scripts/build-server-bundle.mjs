@@ -33,9 +33,11 @@ const remoteDir = path.join(stagingRoot, 'electron', 'remote')
 // <installRoot>/scripts). Every relative .mjs import of a listed helper must be
 // listed too — scripts/verify-helper-bundle.js enforces the closure (BUG-058).
 const helperScriptsDir = path.join(stagingRoot, 'scripts')
+// T0584: bat-mcp.mjs = the `bat` MCP server a remote claude / codex tab starts (PLAN-047 M1).
 const serverBundleHelperScripts = [
   'bat-terminal.mjs',
   'bat-notify.mjs',
+  'bat-mcp.mjs',
   '_bat-cert.mjs',
   '_bat-logger.mjs',
 ]
