@@ -1,0 +1,13 @@
+# 工作區層級 Agent / 啟動參數（PLAN-040 / T0529，D142）
+
+> 從 CLAUDE.md「工作區層級 Agent / 啟動參數（PLAN-040 / T0529，D142）」節搬出（T0595）。本檔為該節完整原文；CLAUDE.md 該節保留用途、必守規則、唯一實作位置與本檔連結。
+
+- **資料**：`Workspace.defaultAgent` / `Workspace.agentCustomArgs?: Record<presetId, string>`（`src/types/index.ts`），隨工作區物件整個存進 window registry。設定入口：工作區右鍵 →「工作區設定…」（`src/components/WorkspaceEnvDialog.tsx`，環境變數為其中一區）；store `setWorkspaceDefaultAgent(id, agent | undefined)` / `setWorkspaceAgentCustomArg(id, presetId, args | undefined)`，每次變更立即 `save()`，main 下一次讀 registry 即看得到。下拉與參數列沿用 Settings 的 `getVisiblePresets()`（不含自訂 CLI，與 Settings 一致）。
+- **查找順序**（唯一實作 `src/lib/agent-launch-settings.ts`，renderer 與 main 共用，不要在 consumer 內聯）：
+  - 預設 agent：工作區 `defaultAgent` → Settings `defaultAgent` → `claude-code`（D140，不得改成沿用塔台自己的 agent）
+  - 啟動參數以 preset 為單位：工作區 `agentCustomArgs` **有** key（含空字串）→ 整串取代全域，不串接；空字串 = 此工作區不帶參數；**沒有** key → Settings `agentCustomArgs[preset]`。helper 以 `[terminal-driven id, 指定 id]` 兩個候選查（例 `claude-code` → `claude-cli`），工作區層全部候選先於全域層
+- **consumer**：`App.tsx` CT 派工按鈕、`WorkspaceView.tsx`（新建 / 還原 / 重啟 Agent 終端、claude-cli、CT 派工）一律經 `workspaceStore.getEffectiveDefaultAgent()` / `getEffectiveAgentArgs()`（讀最新 state，避開 memo 過的 closure）。🔴 不要再直接用 `settingsStore.getAgentCustomArgs` 或 `workspace.defaultAgent || settings.defaultAgent`（`src/components/__tests__/workspace-settings-dialog.test.tsx` source guard）。`agent:build-launch-command` 第三參數帶生效參數（只供 codex daemon opt-out 去重，T0377），未帶時退回 Settings。
+- **helper 派工**：`terminal:create-agent-command`（`--agent default` 與 `--agent <id>`）套用落點工作區（T0523 規則）的生效參數，與 UI 按鈕一致；主行程日誌 `[agent-command] resolved … argsSource=workspace|settings|builtin`。raw command 模式（`bat-terminal.mjs codex …` = `terminal:create-with-command`）不加參數。T0529 前 helper 已會套全域 `agentCustomArgs`，只是不看工作區。main 讀工作區欄位：`findWorkspaceAgentSettings`（`electron/dispatch-workspace.ts`）。
+- **detached 視窗**：設定入口唯讀（分頁列齒輪按鈕 → 唯讀工作區設定，提示回主視窗修改），因為 detached 的 `workspace:save` 只合併終端清單（見上節，`saveDetachedWorkspaceTerminals` 語意不變）。主視窗 sidebar 不列 detached 中的工作區，所以 detach 期間兩邊都改不了；detached 視窗開啟時讀父 entry，值與 detach 當下一致，派工 / 新建終端讀得到。
+- **遠端**：遠端視窗的 UI consumer 在 client 端算生效值（工作區存在 client 的 registry），照樣生效；遠端 Tower 經 headless bat-server 的 helper 派工**沒有**工作區層級（server 只讀 `<dataDir>/settings.json`，`resolveWorkspaceAgentSettings: async () => null`）。
+- 驗證：`src/lib/__tests__/agent-launch-settings.test.ts`、`src/stores/__tests__/workspace-store.agentSettings.test.ts`、`src/components/__tests__/workspace-settings-dialog.test.tsx`、`electron/__tests__/workspace-agent-launch-dispatch.test.ts`；e2e `e2e/t0529-workspace-agent-launch.spec.ts`（隔離實例，自訂 CLI 跑 node 腳本記錄 argv，不耗 token；需先 `npx vite build`）。
