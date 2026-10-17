@@ -75,16 +75,18 @@
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-16 22:39 UTC+8（第六十九 session 收工）
+> 最後更新：2026-10-17 10:47 UTC+8（第七十 session 進行中）
 
 ### 近期完成
+- `v0.6.1-pre.9`（10-17 10:45，run `38995709965` @ `14246954`）：BUG-144 重修（T0573 `6e4f3764`：claude 聚焦時重送追蹤 DECSET 清選取、同範圍重選無事件）；更版重點與三文件已同步（`65c841bf`）
+- pre.8 實機（第七十 session）：BUG-145 CLOSED、T0572 DONE；T0538 手動批次關閉實機 PASS（記於 PLAN-041）；BUG-144 實機無效 → T0573
 - `v0.6.1-pre.8`（10-16 22:36，run `38916104029` @ `0769bafc`）：BUG-144 追蹤滑鼠的分頁 Shift + 拖曳選取後 Shift + 右鍵有「複製」（T0571）、BUG-145 新分頁 / 還原 / ⏻ 重啟的 PTY 尺寸同步（T0572）、rate-limit 文件更正；更版重點與 repo 三文件已同步（`370c7781`）
 - `v0.6.1-pre.7` 實機 → BUG-142 / 143 CLOSED、T0568 / T0569 DONE（第六十九 session）
 - CT **v5.2.3**；unit 4633 passed / 266 files；`worker_auto_close: done`（10 s）
 
 ### 待辦（依優先序）
 
-1. 🟡 **pre.8 實機**（使用者收工時換版）：claude CLI 分頁 Shift + 拖曳 → 移動滑鼠 → Shift + 右鍵有「複製」且內容正確（BUG-144）；claude 分頁按 ⏻ 重啟後畫面佔滿寬度、不需重繪（BUG-145）→ CLOSED，T0571 / T0572 → DONE
+1. 🟡 **pre.9 實機 BUG-144**：claude CLI 分頁 ① Shift + 拖曳 → 移動 → Shift + 右鍵 ② 從別的視窗回來 ≥ 5 s 直接 Shift + 拖曳 ③ 同一段文字選兩次 → 都有「複製」且內容正確 → CLOSED、T0573 DONE；失敗看日誌 `[terminal-context-menu] … shown: … keeper=…`
 2. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`（Codex 自動輸入未在真 codex 驗證）
 3. 🟡 **BUG-136**（Gary macOS 打字延遲）：等 Gary 回傳 `debug-*.log`（`[gpu]` 行）/ `.ips` / CPU
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
@@ -102,7 +104,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（85 entries）
 
 ### 編號起始
-- **T0573** / **BUG-146** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**
+- **T0574** / **BUG-146** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**
 
 ---
 
@@ -112,12 +114,12 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.6.1-pre.8**（package.json + lock，2026-10-16 22:28 `0769bafc`） |
-| **最新 release** | `v0.6.1-pre.8`（2026-10-16 22:36，run `38916104029`，target `0769bafc`：BUG-144 Shift + 右鍵複製、BUG-145 PTY 初始尺寸；更版重點已寫；repo 文件已同步 `370c7781`；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.6.1-pre.8`（7 assets）。前一版 `v0.6.1-pre.7`（2026-10-16 18:04，run `38884005468`，target `c41a0ec7`：BUG-142 / 143 右鍵選單）。更早見 `release-note.md` / `CHANGELOG.md` 與 `_archive/state-snapshots/2026-Q4.md` |
-| **前一 tag** | `v0.6.1-pre.7`（2026-10-16 18:04，`c41a0ec7`） |
+| **目前版號** | **0.6.1-pre.9**（package.json + lock，2026-10-17 10:38 `14246954`） |
+| **最新 release** | `v0.6.1-pre.9`（2026-10-17 10:45，run `38995709965`，target `14246954`：BUG-144 重修 T0573；更版重點已寫；repo 文件已同步 `65c841bf`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.6.1-pre.9`（7 assets）。前一版 `v0.6.1-pre.8`（2026-10-16 22:36，run `38916104029`，target `0769bafc`：BUG-144 Shift + 右鍵複製、BUG-145 PTY 初始尺寸；更版重點已寫；repo 文件已同步 `370c7781`；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.6.1-pre.8`（7 assets）。前一版 `v0.6.1-pre.7`（2026-10-16 18:04，run `38884005468`，target `c41a0ec7`：BUG-142 / 143 右鍵選單）。更早見 `release-note.md` / `CHANGELOG.md` 與 `_archive/state-snapshots/2026-Q4.md` |
+| **前一 tag** | `v0.6.1-pre.8`（2026-10-16 22:36，`0769bafc`） |
 | **目前主軸** | `v0.6.1-pre.8` 已發佈（2026-10-16 22:36）；待本機升 pre.8 實機 BUG-144 / 145；用量限制被動觀察；BUG-136 等 Gary |
-| **工單最大編號** | T0572；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
-| **BUG 最大編號** | **BUG-145**（FIXED，T0572）；Open 1（BUG-136）/ Fixing 0 / Fixed 19 / Closed 50（BUG-144 / 145 FIXED 2026-10-16，待 pre.8 實機；BUG-142 / 143 CLOSED） |
+| **工單最大編號** | T0573 FIXED `6e4f3764`（第七十 session，待 pre.9 實機）；T0572 DONE（pre.8 實機）；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
+| **BUG 最大編號** | **BUG-145**（CLOSED 2026-10-17）；Open 1（BUG-136）/ Fixing 0 / Fixed 18 / Closed 51（BUG-144 FIXED by T0573，待 pre.9 實機）；以下為前次記錄：（BUG-144 / 145 FIXED 2026-10-16，待 pre.8 實機；BUG-142 / 143 CLOSED） |
 | **PLAN 最大編號** | **PLAN-046**（044 / 045 / 046 DONE，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-014 DROPPED |
 | **決策最大編號** | D148（PLAN-044 範圍：claude 信任 CLI、Codex 自動輸入、塔台 `--mode`，2026-10-16） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
