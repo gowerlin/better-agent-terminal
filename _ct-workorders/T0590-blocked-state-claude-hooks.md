@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0590
 title: "PLAN-047 M1b-1：`blocked` 狀態偵測（claude-cli 分頁以 hooks 回報；`terminal:get-state` / `list` / `wait` 與 MCP 帶出）"
 type: feature
-status: PENDING
-started_at: null
-updated_at: "2026-10-18T00:31:47+0800"
-completed_at: null
+status: DONE
+started_at: "2026-10-18T00:33:57+08:00"
+updated_at: "2026-10-18T01:00:22+08:00"
+completed_at: "2026-10-18T01:00:22+08:00"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
@@ -131,19 +131,84 @@ T0574 R2 已研究過做法：claude 用 hooks（立即、可信），codex 走 
 
 ### 完成狀態
 
+**DONE** — 契約 1–6 本機與 headless 對等實作；驗收條件 1–3 全部達成。
+
 ### 產出摘要
 
+**落點檢查**：PASS。C-0 `repo` = `better-agent-terminal` = `basename $CT_HOME`；C-1 工單在 `$CT_HOME/_ct-workorders/`；C-3 `affects_files` 祖先皆存在（PASS）；C-2 無 `branch` 欄位。`CT_HOME` = `D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal`、`CT_WORKTREE_BRANCH` = `ct/T0590`、`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。依賴：worktree 內 `npm ci`（exit 0）。
+
+**新檔**
+- `electron/terminal-blocked-state.ts`：`TerminalBlockedTracker`（狀態機、`blockedDetection` 以 terminal id 為鍵、上限 512）、`registerReportHookHandler`（`terminal:report-hook`）
+- `scripts/bat-hook.mjs`：hook 腳本（重用 `bat-mcp.mjs` 的 `BatConnection`，新增 `clientName` 選項）
+- 測試：`electron/__tests__/terminal-blocked-state.test.ts`（15）、`electron/__tests__/blocked-hooks-launch.test.ts`（11）、`electron/remote/__tests__/headless-blocked-state-e2e.test.ts`（4）、`scripts/__tests__/bat-hook.test.mjs`（5）、e2e `e2e/t0590-blocked-state.spec.ts`
+
+**修改**：`electron/pty-manager.ts`（新區塊 4 個方法 + `clearActivity` / `noteUserInput` / `handleServerDeath` / `dispose` 各一行；未動已結束紀錄）、`electron/terminal-query-handlers.ts`（`stateOf` / list / `STATES`）、`electron/remote/helper-capability.ts`（角色表 + `authorizeHelperInvoke` case）、`electron/bat-mcp-launch.ts`（hooks 注入、`recordBlockedDetection`、日誌）、`electron/terminal-command-handlers.ts`（派工帶 `terminalId`）、`electron/main.ts`、`electron/remote/headless-entry.ts`（接線）、`electron/preload.ts`、`src/types/electron.d.ts`、`src/lib/bat-mcp-launch.ts`、`src/components/WorkspaceView.tsx`（5 處帶分頁 id）、`scripts/bat-mcp.mjs`（schema / 摘要）、`scripts/build-server-bundle.mjs` + `scripts/verify-helper-bundle.js`（bundle 6 個 helper）、三語 `batMcpEnabledHint`、CLAUDE.md（新增「blocked 狀態偵測（PLAN-047 M1b / T0590）」小節；T0582 表格只改 `blocked` 那一句；**未動 T0585 小節**）、既有測試期望值（bat-mcp-launch / terminal-query-handlers / 角色表 14 / parity 清單 / bundle 清單 / t0584 e2e）。`handlers/pty.ts` 不需修改（使用者輸入經既有 `noteUserInput` 清除）。
+
+**實際注入的命令列片段**（Windows pwsh，e2e 實測）：
+```
+'--mcp-config=<userData>\bat-mcp\claude.json' '--settings=<userData>\bat-mcp\claude-settings.json'
+```
+**設定檔內容**（`claude-settings.json`，只有 `hooks`，無權杖；e2e 實測，路徑為 worktree）：
+```json
+{ "hooks": {
+  "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "node '<repo>/scripts/bat-hook.mjs' permission-request", "timeout": 5 }] }],
+  "PreToolUse": [{ "matcher": "AskUserQuestion", "hooks": [{ "type": "command", "command": "node '<repo>/scripts/bat-hook.mjs' ask-user-question", "timeout": 5 }] }],
+  "Notification": [{ "matcher": "elicitation_dialog|elicitation_url_dialog", "hooks": [{ "type": "command", "command": "node '<repo>/scripts/bat-hook.mjs' elicitation", "timeout": 5 }] }],
+  "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node '<repo>/scripts/bat-hook.mjs' user-prompt-submit", "timeout": 5, "async": true }] }],
+  "Stop": [{ "hooks": [{ "type": "command", "command": "node '<repo>/scripts/bat-hook.mjs' stop", "timeout": 5, "async": true }] }]
+} }
+```
+參數形式：`--settings=`（claude 2.1.300 `--settings <file-or-json>` 只收一個值，`=` 兩種情況都安全，比照 `--mcp-config=`）；選檔案不選 JSON 字串（hook 命令含引號，放命令列要再為三種 shell 各包一層）。hook 命令引號：claude 2.1.300 二進位實讀 `shell` 說明「Defaults to bash (powershell on Windows without Git Bash)」→ 用 bash 與 PowerShell 都正確的形式：裸字 node + 單引號腳本路徑（Windows 轉 `/`）；測試中實際以 bash 與 pwsh 執行命令，argv 正確。未用 2.1.300 的 exec form（`args`），因較舊 system claude 不認得會把 `node` 當 REPL。
+
+**`get-state` 的 `blocked` JSON 範例**（e2e，塔台經 MCP `bat_get_state`）：
+```json
+{ "terminalId": "0884ea72557a25e88c9e1b54cd7b4465", "state": "blocked", "lastOutputAt": 1792256124824, "idleMs": 436,
+  "blockedReason": "question", "blockedSince": 1792256124911, "source": "hook", "blockedDetection": "hook" }
+```
+content 摘要：`0884ea72…: blocked (question), idle 436 ms`。
+
+**hook 腳本一次回報耗時**：分頁內 `spawnSync` 量（node 啟動 + TLS + 一個 invoke）**59 ms**（e2e）；headless 與 RemoteServer 測試皆 < 2 s 斷言通過；死 port 3 ms 內結束。
+
+**節流 / 合併**：每次回報 O(1)；日誌只記轉換；`bat-scripts.log` 的 `unchanged` 每分頁每 5 s 最多一筆；不另設配額。
+
+**實機查證**（1 次，內嵌 claude 2.1.300、Windows、`-p "Reply with: ok" --model claude-haiku-5-5 --settings=<file>`，hook 指向本 repo `bat-hook.mjs`、`BAT_REMOTE_PORT=1`、暫存 `BAT_HELPER_LOG_DIR`）：exit 0、stdout `ok`、6.5 s；`bat-scripts.log` 出現 `hook: user-prompt-submit` 與 `hook: stop` 各一筆（`CONNECT_FAILED`，證明兩個 async hook 都由 claude 執行了 `bat-hook.mjs`）。權限 / AskUserQuestion / elicitation 的真實 claude 觸發未實測（需互動），留待使用者實機驗收。
+
+**驗證 lanes**
+- build / typecheck：`npx vite build` exit 0；`npm run typecheck` = 0；`npm run typecheck:electron` = 0 — PASS
+- 單元：`npm run test:unit` **289 files / 5033 passed / 3 skipped，exit 0** — PASS
+- 整合（真 RemoteServer + 範圍權杖 + 真 bat-hook 程序）、headless（真 headless + 真 node-pty）— PASS
+- e2e：`npx playwright test e2e/t0590-blocked-state.spec.ts e2e/t0584-bat-mcp-shim.spec.ts` → **2 passed (21.6s)** — PASS
+- `node scripts/verify-helper-bundle.js` OK（server bundle 6 個 helper）
+- 實機 claude hook 執行（UserPromptSubmit / Stop）— PASS；其餘事件 — 未驗（使用者實機）
+
+**與契約的差異**
+1. `blockedDetection` 除了啟動決策，**一次被接受的回報也會設為 `hook`**：e2e 規格要求自訂 CLI 分頁（未注入）回報後讀到 `blocked`，與「`none` 永遠不回 blocked」並存只能這樣定義；不變式維持成立。
+2. `Notification` matcher 另含 `elicitation_url_dialog`（claude 2.1.300 對 URL 型 elicitation 的類型，二進位實讀）。
+3. 清除類 hook（`UserPromptSubmit` / `Stop`）設 `async: true`，避免每次送出 / 結束多等一次 node 啟動；進入類維持同步（回報早於對話框出現）。
+4. `terminal:wait until: 'idle'` 以「不是 working」判斷，`blocked` 也成立。
+5. `terminal:report-hook` 回傳多 `result`（`blocked` / `cleared` / `unchanged`）與 `state`（`blocked` / `not-blocked`）。沒有 helper 權杖的呼叫（server token / 本機）→ `INVALID_ARGS`。
+6. `blockedDetection` 存在 PtyManager 內以 terminal id 為鍵的表（不掛在 instance 上），因 claude-cli 分頁先決定啟動參數、後 `pty:create`；restart / recovery / 結束後皆沿用。
+7. bat-scripts.log 欄位名用 `hook`（非 `event`）：兩個 logger 都把 data 展開在 `event` 之後會覆蓋。
+
 ### 互動紀錄
+無（`CT_INTERACTIVE=0`，fire-and-forget）。
 
 ### Renew 歷程
+無。
 
 ### 遭遇問題
+- **清除規則漏洞與建議**（未自行擴大掛的事件）：
+  1. 使用者**只用滑鼠**在 claude TUI 點選回答：滑鼠回報屬 `isTerminalAutoReply`，不算使用者輸入，且無 hook → `blocked` 維持到該回合 `Stop`（之後 claude 繼續工作期間仍顯示 blocked）。同理 elicitation 逾時自行關閉、AskUserQuestion 被以其他方式結束。**建議**：加 `PostToolUse` matcher `AskUserQuestion`（只在該工具後啟動 node，成本低）清除 question；加 `PermissionDenied` hook 清除 permission（二進位中有此事件）；允許的權限之後無低成本清除點（`PostToolUse` 不分工具則太貴），仍靠使用者鍵盤輸入 / Stop。
+  2. `UserPromptSubmit` 為 async，理論上其清除回報可能晚於同回合極快的 `PreToolUse(AskUserQuestion)` 而誤清（模型回應至少數百 ms、hook ~60 ms，實務上不發生）。若要零風險可改回同步（每次送出多 ~60 ms）。
+- 實作過程：Bash heredoc 會吃掉反斜線（L129），改用 Write 寫編輯腳本；`handlers/pty` 靜態 import 會先載入真 node-pty，測試改動態 import。
+- 已知限制（已寫進 CLAUDE.md）：`disableAllHooks` / `allowManagedHooksOnly`、`--dangerously-skip-permissions` 無權限提示、codex 未支援、T0108 replay（BAT 重開時 detection 以當下設定重記，blocked 遺失）、headless server 重啟全失。
 
 ### 隔離分支證據
 - branch：`ct/T0590`
-- base_sha：
-- validated_sha：
-- head_sha：
-- validated_sha ≠ head_sha 的說明：
+- base_sha：`3362c8aac08cb4be5baab21364a7d07e7ec06fb9`
+- validated_sha：`9afdf1109fbe8b673a9f6b8c4957686ed854c7cc`
+- head_sha：`9afdf1109fbe8b673a9f6b8c4957686ed854c7cc`
+- validated_sha ≠ head_sha 的說明：相同。驗證 gates 在 base `3362c8aa` + 未提交的工作樹上執行，驗證後未再修改任何檔案即原樣 commit 為 `9afdf110`（`git status --porcelain` 為空），故以該 commit 記為 validated_sha。
 
 ### 回報時間
+2026-10-18T00:59:39+08:00
