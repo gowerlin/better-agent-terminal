@@ -80,7 +80,8 @@ memory_overrides:
 | `BAT_TOWER_TERMINAL_ID` | `66447ea9-66e1-431a-8303-0f4ced7ec6a7` |
 | `BAT_REMOTE_TOKEN` 是否 `batcap.` 前綴 | **是**（值未記錄） |
 | `BAT_REMOTE_PORT` | `9876` |
-| `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminalesources\scripts` |
+| `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminal
+esources\scripts` |
 | `BAT_HELPER_NODE` | 未設定（本機，用 `node`） |
 | `CT_MODE` / `CT_INTERACTIVE` | `yolo` / `0` |
 
@@ -89,5 +90,13 @@ memory_overrides:
 **變更檔案**：只有本工單檔。未改產品程式碼、未跑 build / test、未 push。
 
 **驗收（階段 1）**：權杖 `batcap.` → PASS；回報送達 → 見通知結果。
+
+### 階段 1 通知結果（2026-10-17T21:43:01+08:00）
+
+- 指令：`node "$BAT_HELPER_DIR/bat-notify.mjs" --source "T0581" --target "$BAT_TOWER_TERMINAL_ID" --submit "T0581 完成"`
+- exit code：`0`
+- stdout：`✓ Notified 66447ea9…: T0581 完成`
+- stderr：（空）
+- ⇒ 以 `batcap.` worker 權杖對綁定塔台回報 → **送達，PASS**
 
 **後續**：本分頁停在原地不關閉，等使用者輸入「T0581 階段 2」。
