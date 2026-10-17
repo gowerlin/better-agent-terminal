@@ -1,11 +1,43 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-17 10:48 (UTC+8) — **第七十 session 收工**：pre.8 實機 BUG-145 CLOSED、T0538 批次關閉 PASS；BUG-144 以 T0573 重修 → **`v0.6.1-pre.9`**。
+> 最後更新:2026-10-17 10:59 (UTC+8) — **第七十一 session 收工**：pre.9 實機 BUG-144 CLOSED（T0573 DONE）；`*sync` 索引統計校正；`*archive` 176 張。
 >
-> **下次起手**:Fast Path 載入；本機 BAT 升 `0.6.1-pre.9` 後在 claude CLI 分頁驗 BUG-144 三情境（一般 / 失焦 ≥ 5 s 回來直接 Shift 拖曳 / 同段選兩次）→ CLOSED、T0573 DONE；失敗看日誌 `[terminal-context-menu] … shown`；用量限制被動觀察；等 Gary BUG-136。
+> **下次起手**:Fast Path 載入；用量限制被動觀察；等 Gary BUG-136；可挑前期驗收項或後續小項開單。
 ---
 
-## 🛏 本 Session 收工快照 (第七十 session, 2026-10-17 09:56 - 10:48, ~52m wall)
+## 🛏 本 Session 收工快照 (第七十一 session, 2026-10-17 10:50 - 10:59, ~9m wall)
+
+### 主軸：pre.9 實機 BUG-144 CLOSED（T0573 DONE）→ `*sync` → `*archive` 176 張 → push
+
+#### 時間線（時間取自系統 / git）
+
+1. **10:50** Fast Path；本機 BAT = `0.6.1-pre.9`（FileVersion），CT v5.2.3；`--set-role tower --mode on` exit 0
+2. **10:52** pre.9 實機 BUG-144 三項（Shift 拖曳 → 右鍵 / 失焦 ≥ 5 s 回來 Shift 拖曳 / 同段選兩次）PASS → **CLOSED**、T0573 DONE（`420fd10f`）
+3. **10:53** `*sync`：各單 frontmatter 與索引區段一致；`_bug-tracker.md` / `_backlog.md` frontmatter 統計過期 → 校正（`bb965288`）
+4. **10:56** `*archive`（`archive_days: 2`，使用者確認全部）：T 135 / BUG 40 / PLAN-039 → `_archive/`；43 張因被未結案單據引用保留；L133 unit 4645 / 266 PASS（`15d1a82a`）
+5. **10:59** 收工 push
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | 0 | — |
+| BUG | CLOSED 1（144） | 熱區 Open 1（BUG-136）/ Fixed 17 / Closed 12 |
+| 歸檔 | 176 張 | 熱區 T 80 / BUG 30 / PLAN 17 |
+
+### 重點觀察
+
+- 塔台腳本在 Windows 用 Python 寫清單檔會是 CRLF，bash `read` 後 `git mv` 全數失敗；最後一行無換行也會被 `while read` 漏掉 → 寫清單用 `newline='
+'` 並補結尾換行
+- 索引 frontmatter 的 `breakdown` 與正文統計各自手改，容易只改一邊；`*sync` 要兩處都核
+
+### 編號起始（下 session）
+
+- **T0574** / **BUG-146** / **PLAN-047** / **D149** / **L155** / **CT-T014**
+
+---
+
+## 🛏 前 Session 收工快照 (第七十 session, 2026-10-17 09:56 - 10:48, ~52m wall)
 
 ### 主軸：pre.8 實機（BUG-145 CLOSED、T0538 批次關閉 PASS；BUG-144 無效）→ T0573 以真實 claude CLI 找出根因重修 → **`v0.6.1-pre.9`**
 
@@ -37,42 +69,9 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第六十九 session, 2026-10-16 21:45 - 22:39, ~54m wall)
-
-### 主軸：pre.7 實機（BUG-142 / 143 CLOSED）→ Shift 選單缺「複製」BUG-144（T0571）→ 使用者指示「已知問題一起修完再發版」→ BUG-145（T0572）+ 文件修正 → **`v0.6.1-pre.8`**
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **21:45** Fast Path；本機 BAT = `0.6.1-pre.7`，CT v5.2.3；`--set-role tower --mode on` exit 0
-2. **21:48** pre.7 實機：右鍵直接貼上 PASS、Esc PASS → **BUG-142 / 143 CLOSED**、T0568 / T0569 DONE；Shift + 右鍵選單沒有「複製」（直接拖曳與 Shift 拖曳都試過）→ **BUG-144** / **T0571**（21:49 派）
-3. **22:06** T0571 DONE `35eaf125`（xterm 把 1003 移動回報當使用者輸入、清掉 Shift 拖曳選取 → 放回選取；直接拖曳是 claude 自己的選取，copyOnSelect 已複製）；塔台複驗 unit 4626 / 265
-4. **22:12** 使用者：「先把已知問題一起修完再發版」→ 塔台直改 `docs/server-bundle-distribution.md` rate-limit 段（T0548 #5）；T0571 e2e 觀察的 PTY 尺寸競態 → **BUG-145** / **T0572**（22:12 派）
-5. **22:27** T0572 FIXED `ecc00c60`（PTY 建立前送的 resize 被丟 + 去重；⏻ 重啟必現 → spawn 後重送尺寸）；塔台複驗 unit **4633 / 266**、typecheck 0 / 0
-6. **22:28** bump `0769bafc` → run `38916104029` → **22:36 `v0.6.1-pre.8` 已發佈**（10 job 全綠）→ 更版重點 + CHANGELOG / release-note / README（`370c7781`）→ push
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **2**（T0571 / T0572） | 皆一次完成；`worker_auto_close` 回收 2 次 |
-| BUG | CLOSED 2（142 / 143）；新開 2（144 / 145）→ FIXED | Open 1（BUG-136）/ Fixed 19 / Closed 50 |
-| 發版 | 1（`v0.6.1-pre.8`） | exe 298 / zip 412 / AppImage 297 / dmg 309 MiB |
-| unit test | 4614 → **4633 passed / 266 files** | 塔台複驗 @ `5e47ed60` |
-
-### 重點觀察
-
-- 修正宣稱的路徑（T0568「Shift + 右鍵可複製」）沒有測試時，實機才發現；驗收清單要逐條對到測試
-- Worker 回報區的「範圍外觀察」（T0571 的 PTY 尺寸競態）是已知問題清單的來源，批次發版前要掃一遍
-
-### 編號起始（下 session）
-
-- **T0573** / **BUG-146** / **PLAN-047** / **D149** / **L155** / **CT-T014**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-17 10:52 UTC+8（第七十一 session）
+> 最後更新：2026-10-17 10:59 UTC+8（第七十一 session 收工）
 
 ### 近期完成
 - pre.9 實機（第七十一 session，10:52）：BUG-144 三項 PASS → **CLOSED**、T0573 DONE；`*sync` 校正索引統計；`*archive` 176 張（unit 4645 / 266 PASS）
@@ -98,7 +97,7 @@
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 17 / Closed 12；10-17 歸檔 40 張）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D148）｜ Learnings → [_learnings.md](_learnings.md)（最大 L154）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（85 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（87 entries）
 
 ### 編號起始
 - **T0574** / **BUG-146** / **PLAN-047** / **D149** / **EXP-[TOPIC]-001** / **L155** / **CT-T014**
@@ -114,14 +113,14 @@
 | **目前版號** | **0.6.1-pre.9**（package.json + lock，2026-10-17 10:38 `14246954`） |
 | **最新 release** | `v0.6.1-pre.9`（2026-10-17 10:45，run `38995709965`，target `14246954`：BUG-144 重修 T0573；更版重點已寫；repo 文件已同步 `65c841bf`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.6.1-pre.9`（7 assets）。前一版 `v0.6.1-pre.8`（2026-10-16 22:36，run `38916104029`，target `0769bafc`：BUG-144 Shift + 右鍵複製、BUG-145 PTY 初始尺寸；更版重點已寫；repo 文件已同步 `370c7781`；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.6.1-pre.8`（7 assets）。前一版 `v0.6.1-pre.7`（2026-10-16 18:04，run `38884005468`，target `c41a0ec7`：BUG-142 / 143 右鍵選單）。更早見 `release-note.md` / `CHANGELOG.md` 與 `_archive/state-snapshots/2026-Q4.md` |
 | **前一 tag** | `v0.6.1-pre.8`（2026-10-16 22:36，`0769bafc`） |
-| **目前主軸** | `v0.6.1-pre.8` 已發佈（2026-10-16 22:36）；待本機升 pre.8 實機 BUG-144 / 145；用量限制被動觀察；BUG-136 等 Gary |
-| **工單最大編號** | T0573 FIXED `6e4f3764`（第七十 session，待 pre.9 實機）；T0572 DONE（pre.8 實機）；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
-| **BUG 最大編號** | **BUG-145**（CLOSED 2026-10-17）；Open 1（BUG-136）/ Fixing 0 / Fixed 18 / Closed 51（BUG-144 FIXED by T0573，待 pre.9 實機）；以下為前次記錄：（BUG-144 / 145 FIXED 2026-10-16，待 pre.8 實機；BUG-142 / 143 CLOSED） |
+| **目前主軸** | `v0.6.1-pre.9` 已發佈並實機通過（BUG-144 CLOSED）；用量限制被動觀察；BUG-136 等 Gary |
+| **工單最大編號** | T0573 DONE（pre.9 實機，第七十一 session）；T0572 DONE（pre.8 實機）；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
+| **BUG 最大編號** | **BUG-145**（CLOSED 2026-10-17）；BUG-144 CLOSED（pre.9 實機，2026-10-17）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 12（10-17 歸檔 40 張） |
 | **PLAN 最大編號** | **PLAN-046**（044 / 045 / 046 DONE，2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-014 DROPPED |
 | **決策最大編號** | D148（PLAN-044 範圍：claude 信任 CLI、Codex 自動輸入、塔台 `--mode`，2026-10-16） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower v5.2.3（第六十九 session；`worker_auto_close: done`） |
-| **unit test 基線** | **4633 passed / 266 files / 3 skipped**（塔台複驗 @ `5e47ed60`，2026-10-16 第六十九 session）；前：4614 passed / 265 files（@ `2497014a`，第六十八 session）；typecheck 0 / typecheck:electron 0 |
+| **unit test 基線** | **4645 passed / 266 files / 3 skipped**（塔台複驗 @ archive 後，2026-10-17 第七十一 session）；前：4633（@ `5e47ed60`）；4614 passed / 265 files（@ `2497014a`，第六十八 session）；typecheck 0 / typecheck:electron 0 |
 
 ---
 
@@ -243,6 +242,7 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-17 第七十一 session：auto-session on，無派發（實機驗收 + `*sync` + `*archive`）
 - 2026-10-17 第七十 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0573 一次完成；`worker_auto_close` 回收 1 次；pre.9 發佈
 - 2026-10-16 第六十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0571 / T0572 皆一次完成；`worker_auto_close` 回收 2 次；pre.8 發佈
 - 2026-10-16 第六十八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0568–T0570 皆一次完成；pre.7 發佈
