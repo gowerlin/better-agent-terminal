@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-17T19:07:31+0800"
+generated_at: "2026-10-18T02:43:24+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 18
+total: 19
 breakdown:
-  IDEA: 4
+  IDEA: 5
   PLANNED: 0
   IN_PROGRESS: 1
   DONE: 12
@@ -36,6 +36,7 @@ breakdown:
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
 | PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
 | PLAN-047 | BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
+| PLAN-048 | Worker 問塔台 / 塔台答覆的結構化通道（CT-to-BAT 需求，BMad-Guide D036） | 🟡 medium | 💡 IDEA | [PLAN-048](PLAN-048-worker-ask-tower-channel.md) |
 
 ## Completed
 
