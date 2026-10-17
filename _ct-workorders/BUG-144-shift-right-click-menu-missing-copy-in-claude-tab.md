@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-144
 title: "claude CLI 分頁（滑鼠追蹤開啟）已反白文字後 Shift + 右鍵，BAT 選單只有「貼上」、沒有「複製」"
-status: FIXED
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-10-16T21:48:35+0800"
-updated_at: "2026-10-16T22:04:56+0800"
+updated_at: "2026-10-17T10:04:44+0800"
 impact:
   - terminal-context-menu
   - terminal-selection
 links:
   discovered_in: "BUG-142 pre.7 實機驗收（第六十九 session，本機 BAT 0.6.1-pre.7，塔台分頁 claude CLI 2.1.300）"
-  related: [BUG-142, T0568, T0571]
+  related: [BUG-142, T0568, T0571, T0573]
 ---
 
 # BUG-144 — Shift + 右鍵選單沒有「複製」
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（貼上正常；複製可改用其他方式，但 T0568 宣稱的 Shift + 右鍵複製不能用） |
 | 可重現 | 必現（使用者實機） |
-| **狀態** | ✅ FIXED（T0571，commit `35eaf125`，待實機驗收） |
+| **狀態** | 🔧 FIXING（T0571 `35eaf125` 實機無效 → T0573） |
 | 回報者 | 使用者（BUG-142 實機驗收第 2 項） |
 
 ## 現象
@@ -48,3 +48,10 @@ links:
 - **修正**：`MouseReportSelectionKeeper`（`src/lib/terminal-context-menu.ts`）在選取只因滑鼠回報被清掉時放回同一範圍（回報照常送進 PTY）；選單「複製」寫入右鍵當下的選取文字。
 - **直接拖曳**：反白是 claude 自己的選取，xterm 沒有選取，BAT 讀不到；claude 放開滑鼠即複製（`copyOnSelect` 預設開），不按 Shift 的右鍵也複製。BAT 不處理。
 - 驗證：單元 / 元件測試、e2e `e2e/t0571-shift-right-click-copy.spec.ts`（隔離實例）。待使用者實機驗收。
+
+## 實機驗收失敗（pre.8，記錄於 2026-10-17T10:04:44+0800）
+
+- 環境：本機 Windows，BAT `0.6.1-pre.8`（FileVersion 確認），塔台分頁 claude CLI 2.1.300（REPL，非隔離實例）。
+- 操作：依塔台指示「按住 Shift 拖曳選取 → 移動滑鼠 → Shift + 右鍵」。
+- 結果：畫面上反白**仍在**（使用者截圖：一段文字以藍底反白），但 BAT 選單**只有「貼上」**，沒有「複製」。
+- 判定：原問題未解（修正無效）→ 退回 FIXING，派 **T0573**。T0571 的 e2e（node 腳本模擬 1000 / 1002 / 1003 / 1006）通過，但與真實 claude CLI 的行為有落差，落差點待 T0573 查明。

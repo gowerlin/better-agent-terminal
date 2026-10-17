@@ -102,3 +102,12 @@ stderr 另印一行 `close-worker: <CODE>`（診斷用；CT 只依 exit code 判
 **限制（照實記錄）**：本次呼叫距 Worker 回報 37 s，排程時分頁已安靜（日誌無 `output … ms ago`），沒有走到「到期仍輸出 → 等安靜」分支。該分支由 T0545 單元測試與 e2e `e2e/t0535-close-worker.spec.ts`（Worker 跑輸出腳本、delay 0 → 等輸出結束 + 5 s 才關）涵蓋；pre.4 起 BAT 不再回 `BUSY`，收單時是否仍在輸出都回 exit 0。後續真實收單若出現 exit 6 或 `cancelled (still printing …)`，重開本 PLAN。
 
 **結案**：BAT 端（T0535-T0538、T0545）與 CT v5.1.0（CT-T011）皆已在實機上走通 → PLAN-041 DONE。codex Worker 回報後的收尾輸出時間仍未驗（無 codex 付費帳號，T0543 ABANDONED）。
+
+## 實機補驗：手動批次關閉（BAT `0.6.1-pre.8`，Windows 本機；記錄於 2026-10-17T10:04:51+0800）
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| 塔台分頁右鍵「關閉已回報的 Worker 分頁（N）」（T0538） | ✅ | 使用者截圖：BMad-Guide 塔台分頁（`Claude CLI · Tower`）有 3 個已回報 Worker（`Claude CLI · Worker · T0146` / `T0147` / `T0148`，標題後 `✓`），選單顯示「關閉已回報的 Worker 分頁（3）」 |
+| 頁內確認框 | ✅ | 列出 3 個工單編號 + 標題、說明「worktree 保留」，按鈕「關閉 3 個分頁」；使用者確認關閉正確 |
+
+PLAN-041 先前的實機驗收只涵蓋自動回收（`--close-worker`）與「已回報」標示；本次補上手動批次關閉的實機證據。

@@ -3,30 +3,30 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-16T17:56:41+0800"
+generated_at: "2026-10-17T10:06:03+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 68
+total: 70
 breakdown:
   OPEN: 1
-  FIXING: 0
-  FIXED: 19
+  FIXING: 1
+  FIXED: 17
   VERIFY: 0
-  CLOSED: 48
+  CLOSED: 51
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-16 22:39 (UTC+8) — BUG-142 / 143 CLOSED（pre.7 實機）；BUG-144 / 145 FIXED（T0571 `35eaf125` / T0572 `ecc00c60`），隨 `v0.6.1-pre.8` 發佈待實機
+> 最後同步：2026-10-17 10:06 (UTC+8) — BUG-145 CLOSED（pre.8 實機）；BUG-144 實機無效 → FIXING（T0573）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 50 | ⛔ Won't Fix: 0 | **Total: 70**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 17 | 🧪 Verify: 0 | 🚫 Closed: 51 | ⛔ Won't Fix: 0 | **Total: 70**
 
 ## 🔴 Open / 處理中
 
@@ -38,13 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（T0571 `35eaf125` pre.8 實機無效：反白仍在、選單仍只有貼上 → T0573 重修） | 🟢 low | 2026-10-17 10:04 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-145 | 新分頁 / 還原 / ⏻ 重啟的 PTY 停在 120x30，xterm 已 fit 成較寬欄數（T0572 `ecc00c60`：PTY 建立後重送 fit 尺寸） | 🟢 low | 2026-10-16 22:26 | [BUG-145](BUG-145-new-pty-stays-at-spawn-size.md) |
-| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（T0571 `35eaf125`：滑鼠移動回報清掉的 Shift 拖曳選取會放回；直接拖曳的反白是 claude 自己的選取，claude 放開即複製） | 🟢 low | 2026-10-16 22:04 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-10-15 01:43 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-134 | 空工作區透出隱藏工作區的終端畫面，無法操作（連國盛；T0531 `d41280ae`：隱藏工作區 active 分頁真正隱藏 + 空狀態 + focus 不跨工作區） | 🟡 medium | 2026-10-15 01:26 | [BUG-134](BUG-134-empty-workspace-shows-other-terminal.md) |
@@ -73,6 +72,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-145 | 新分頁 / 還原 / ⏻ 重啟的 PTY 停在 120x30（T0572 `ecc00c60`：PTY 建立後重送 fit 尺寸；pre.8 實機 PASS） | 🟢 low | 2026-10-17 | [BUG-145](BUG-145-new-pty-stays-at-spawn-size.md) |
 | BUG-143 | 終端右鍵選單按 Esc 關不掉（T0569 `fb66c0bc`：選單開著時 Esc 只關選單、不送進 PTY；pre.7 實機 PASS） | 🟢 low | 2026-10-16 | [BUG-143](BUG-143-terminal-context-menu-esc-not-closing.md) |
 | BUG-142 | claude CLI 分頁右鍵已貼上又跳 BAT 選單（T0568 `9988a117`：程式開滑鼠追蹤時不開選單，Shift + 右鍵照開；pre.7 實機 PASS，Shift 選單缺「複製」另開 BUG-144） | 🟢 low | 2026-10-16 | [BUG-142](BUG-142-right-click-pastes-and-shows-menu-in-claude-tab.md) |
 | BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（T0554 `38fe7421`：保留 `.bat-old` 至完成、取消換回舊樹 / 舊 unit 並重啟舊 service；WSL + SSH） | 🟡 medium | 2026-10-16 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |

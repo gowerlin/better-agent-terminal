@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-145
 title: "新分頁的 PTY 有時停在建立時的尺寸（120x30），xterm 已 fit 成較寬的欄數，要按重繪才同步"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: intermittent
 created_at: "2026-10-16T22:12:44+0800"
-updated_at: "2026-10-16T22:26:34+0800"
+updated_at: "2026-10-17T10:04:35+0800"
 fixed_in: ecc00c60
 impact:
   - terminal-resize
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（推測：TUI 依錯的欄數排版、折行錯位；按工具列重繪可恢復） |
 | 可重現 | 還原分頁偶發（競態）；⏻ 重啟必然（T0572 隔離實例實測） |
-| **狀態** | ✅ FIXED（T0572，`ecc00c60`，待驗收） |
+| **狀態** | 🚫 CLOSED（T0572 `ecc00c60`；2026-10-17 使用者 pre.8 實機驗收通過：⏻ 重啟後畫面佔滿寬度） |
 | 回報者 | T0571 Worker 觀察，塔台開單 |
 
 ## 現象

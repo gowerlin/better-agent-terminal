@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0572
 title: "BUG-145：新分頁 PTY 有時停在建立時的尺寸，xterm 已 fit 成別的欄數；找出競態並讓第一次 fit 後的尺寸一定送達 PTY"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-145
 priority: P2
 sizing: S
 created_at: "2026-10-16T22:12:44+0800"
 started_at: "2026-10-16T22:13:36+0800"
-updated_at: "2026-10-16T22:27:17+0800"
+updated_at: "2026-10-17T10:04:35+0800"
 completed_at: "2026-10-16T22:27:17+0800"
 target_version: "0.6.1-pre.8（與 BUG-144 / T0571 同批）"
 depends_on: []
