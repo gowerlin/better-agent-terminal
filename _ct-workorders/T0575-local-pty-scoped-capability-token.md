@@ -4,9 +4,10 @@ schema_kind: workorder
 id: T0575
 title: "PLAN-047 A1：本機 PTY 改用範圍權杖（batcap.），不再注入全權 server token"
 type: feature
-status: IN_PROGRESS
+status: DONE
 started_at: "2026-10-17T19:07:59+0800"
-updated_at: "2026-10-17T19:34:10+0800"
+updated_at: "2026-10-17T19:34:16+0800"
+completed_at: "2026-10-17T19:34:16+0800"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P1
@@ -181,3 +182,5 @@ bat-notify.mjs …                  → exit 1
 3. 若需要「非 Worker 分頁手動 bat-notify」，請塔台決策（目前為 Forbidden）。
 
 ### Commit
+
+- `2c59edee` feat(T0575): local PTYs get per-PTY batcap. capability instead of server token（產品 + 測試 + CLAUDE.md + 本回報；未 push）
