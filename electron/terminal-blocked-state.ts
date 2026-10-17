@@ -8,6 +8,7 @@
  *   PermissionRequest                            → blocked / permission (tool_name: log only)
  *   PreToolUse, matcher AskUserQuestion          → blocked / question
  *   Notification, elicitation_dialog / _url_     → blocked / elicitation
+ *   PostToolUse, matcher AskUserQuestion (T0594) → cleared, only when blocked / question
  *   UserPromptSubmit, Stop                       → cleared
  *
  * Also cleared: the user's input into the tab (`PtyManager.noteUserInput`: a local window's /
@@ -25,11 +26,18 @@ import type { HandlerContext } from './remote/handler-registry'
 
 export type BlockedReason = 'permission' | 'question' | 'elicitation'
 export type BlockedDetection = 'hook' | 'none'
-export type HookReportEvent = 'permission-request' | 'ask-user-question' | 'elicitation' | 'user-prompt-submit' | 'stop'
+export type HookReportEvent =
+  | 'permission-request'
+  | 'ask-user-question'
+  | 'ask-user-question-done'
+  | 'elicitation'
+  | 'user-prompt-submit'
+  | 'stop'
 
 export const HOOK_REPORT_EVENTS: readonly HookReportEvent[] = [
   'permission-request',
   'ask-user-question',
+  'ask-user-question-done',
   'elicitation',
   'user-prompt-submit',
   'stop',
@@ -39,9 +47,18 @@ export const HOOK_REPORT_EVENTS: readonly HookReportEvent[] = [
 export const HOOK_EVENT_REASON: Readonly<Record<HookReportEvent, BlockedReason | null>> = {
   'permission-request': 'permission',
   'ask-user-question': 'question',
+  'ask-user-question-done': null,
   elicitation: 'elicitation',
   'user-prompt-submit': null,
   stop: null,
+}
+
+/**
+ * T0594: a clearing event that clears only this reason (another reason → `unchanged`): the answered
+ * AskUserQuestion must not clear a permission prompt shown meanwhile. Absent = clears any reason.
+ */
+export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<HookReportEvent, BlockedReason>>> = {
+  'ask-user-question-done': 'question',
 }
 
 /** `toolName` as accepted from a hook (claude / MCP tool names: `Bash`, `mcp__bat__bat_wait`). */
@@ -85,6 +102,8 @@ export class TerminalBlockedTracker {
     this.setDetection(id, 'hook')
     const reason = HOOK_EVENT_REASON[event]
     if (reason === null) {
+      const only = HOOK_EVENT_CLEARS_ONLY[event]
+      if (only && this.states.get(id)?.reason !== only) return { result: 'unchanged', state: this.get(id) }
       return { result: this.clear(id, `hook ${event}`) ? 'cleared' : 'unchanged', state: null }
     }
     const current = this.states.get(id)

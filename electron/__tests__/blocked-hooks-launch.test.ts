@@ -39,6 +39,7 @@ import {
 import { createHeadlessBatMcpHost } from '../remote/headless-entry'
 import { createAgentPromptCommandBuilder, type AgentCommandSettings } from '../terminal-command-handlers'
 import { agentRegistry } from '../agent-runtime/agent-registry'
+import { HOOK_REPORT_EVENTS } from '../terminal-blocked-state'
 import type { HostDeps, SharedHandler } from '../handlers/types'
 import type { PtyManager } from '../pty-manager'
 
@@ -89,19 +90,23 @@ describe('claude hooks injection', () => {
     const content = fs.readFileSync(settingsFile(), 'utf8')
     const parsed = JSON.parse(content) as { hooks: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>> }
     expect(Object.keys(parsed)).toEqual(['hooks'])
-    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'UserPromptSubmit', 'Stop'])
+    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'UserPromptSubmit', 'Stop'])
     const cmd = (event: string) => `node '${fwd(hookScript())}' ${event}`
     expect(parsed.hooks).toEqual({
       PermissionRequest: [{ hooks: [{ type: 'command', command: cmd('permission-request'), timeout: 5 }] }],
       PreToolUse: [{ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command: cmd('ask-user-question'), timeout: 5 }] }],
       Notification: [{ matcher: 'elicitation_dialog|elicitation_url_dialog', hooks: [{ type: 'command', command: cmd('elicitation'), timeout: 5 }] }],
+      // T0594: the answered question clears (async, AskUserQuestion only)
+      PostToolUse: [{ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command: cmd('ask-user-question-done'), timeout: 5, async: true }] }],
       UserPromptSubmit: [{ hooks: [{ type: 'command', command: cmd('user-prompt-submit'), timeout: 5, async: true }] }],
       Stop: [{ hooks: [{ type: 'command', command: cmd('stop'), timeout: 5, async: true }] }],
     })
     expect(content).not.toContain(TOKEN)
     expect(content).not.toMatch(/disableAllHooks|allowManagedHooksOnly|permissions|model|env|BAT_REMOTE|token/i)
-    // no PostToolUse (a node start per tool call), no idle / permission notifications
-    expect(content).not.toMatch(/PostToolUse|idle_prompt|permission_prompt/)
+    // no all-tool PostToolUse (a node start per tool call), no PermissionDenied (auto-mode classifier
+    // denials only, T0594), no idle / permission notifications
+    expect(parsed.hooks.PostToolUse.every(e => e.matcher === 'AskUserQuestion')).toBe(true)
+    expect(content).not.toMatch(/PermissionDenied|PostToolUseFailure|PostToolBatch|idle_prompt|permission_prompt/)
     // rewritten only when it changes
     const mtime = fs.statSync(settingsFile()).mtimeMs
     buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli-worktree', shellFamily: 'posix' })
@@ -162,7 +167,9 @@ describe('claude hooks injection', () => {
     for (const name of ['bat-mcp.mjs', 'bat-hook.mjs']) fs.writeFileSync(path.join(quoted, name), '')
     expect(buildBatMcpLaunchArgs(host({ helperDir: () => quoted }), { agentId: 'claude-cli', shellFamily: 'posix' }))
       .toMatchObject({ injected: true, mcp: true, hooks: false, hooksReason: expect.stringContaining('bash and PowerShell') })
-    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'user-prompt-submit', 'stop'])
+    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'ask-user-question-done', 'user-prompt-submit', 'stop'])
+    // every hook BAT injects is an event bat-hook.mjs and terminal:report-hook accept
+    expect(BAT_CLAUDE_HOOKS.every(h => (HOOK_REPORT_EVENTS as readonly string[]).includes(h.event))).toBe(true)
   })
 
   it('the command runs as written in bash and PowerShell (when installed): argv reaches node intact', () => {

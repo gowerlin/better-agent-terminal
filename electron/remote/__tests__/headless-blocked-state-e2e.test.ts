@@ -11,6 +11,8 @@
  *   - a client wait until=state-change returns when the hook fires in the PTY
  *   - the client's `pty:write` clears it; `{ auto: true }` does not
  *   - a plain shell (tower capability, undeclared) reports for itself too
+ *   - T0594: PostToolUse AskUserQuestion (`ask-user-question-done`) clears a question with no
+ *     client input (the driver runs both hooks from one typed command, the second after a pause)
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -32,22 +34,39 @@ let driverScript: string
 let registry: HelperCapabilityRegistry
 let harness: HeadlessHarness
 
-// Runs `node $BAT_HELPER_DIR/bat-hook.mjs <event>` with the hook JSON on stdin, from the PTY's env.
+// Runs `node $BAT_HELPER_DIR/bat-hook.mjs <event>` with the hook JSON on stdin, from the PTY's env;
+// then each of `job.then` (`{ delayMs, event, input }`) after its pause (T0594: no input in between).
 const DRIVER_SOURCE = `
 const { spawnSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 const job = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
-const started = Date.now()
-const run = spawnSync(process.execPath, [path.join(process.env.BAT_HELPER_DIR || '', 'bat-hook.mjs'), job.event], {
-  env: process.env, input: JSON.stringify(job.input), encoding: 'utf8', windowsHide: true, timeout: 20000,
-})
-const result = { code: run.status, stdout: run.stdout || '', stderr: run.stderr || '', ms: Date.now() - started, hasCert: !!process.env.BAT_SERVER_CERT_PATH, tokenShape: String(process.env.BAT_REMOTE_TOKEN || '').slice(0, 7) }
+const hook = (event, input) => {
+  const started = Date.now()
+  const run = spawnSync(process.execPath, [path.join(process.env.BAT_HELPER_DIR || '', 'bat-hook.mjs'), event], {
+    env: process.env, input: JSON.stringify(input), encoding: 'utf8', windowsHide: true, timeout: 20000,
+  })
+  return { code: run.status, stdout: run.stdout || '', stderr: run.stderr || '', ms: Date.now() - started }
+}
+const result = { ...hook(job.event, job.input), hasCert: !!process.env.BAT_SERVER_CERT_PATH, tokenShape: String(process.env.BAT_REMOTE_TOKEN || '').slice(0, 7), then: [] }
+for (const next of job.then || []) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, next.delayMs)
+  result.then.push(hook(next.event, next.input))
+}
 fs.writeFileSync(job.out + '.tmp', JSON.stringify(result))
 fs.renameSync(job.out + '.tmp', job.out)
 `
 
-interface HookRun { code: number | null; stdout: string; stderr: string; ms: number; hasCert: boolean; tokenShape: string }
+interface HookRun {
+  code: number | null
+  stdout: string
+  stderr: string
+  ms: number
+  hasCert: boolean
+  tokenShape: string
+  then: Array<{ code: number | null; stdout: string; stderr: string; ms: number }>
+}
+interface HookStep { delayMs: number; event: string; input: Record<string, unknown> }
 
 async function waitForFile(file: string, timeoutMs = 30_000): Promise<string> {
   const deadline = Date.now() + timeoutMs
@@ -58,11 +77,11 @@ async function waitForFile(file: string, timeoutMs = 30_000): Promise<string> {
   throw new Error(`timed out waiting for ${file}`)
 }
 
-async function hookIn(id: string, event: string, input: Record<string, unknown>): Promise<HookRun> {
+async function hookIn(id: string, event: string, input: Record<string, unknown>, then: HookStep[] = []): Promise<HookRun> {
   const name = `job-${seq++}`
   const out = path.join(tmpDir, `${name}.out.json`)
   const jobFile = path.join(tmpDir, `${name}.json`)
-  fs.writeFileSync(jobFile, JSON.stringify({ event, input, out }))
+  fs.writeFileSync(jobFile, JSON.stringify({ event, input, out, then }))
   expect(await harness.invoke('pty:write', id, `node "${driverScript}" "${jobFile}"\r`)).toMatchObject({ ok: true })
   return JSON.parse(await waitForFile(out)) as HookRun
 }
@@ -129,6 +148,27 @@ describe('blocked from claude hooks inside headless PTYs (T0590)', () => {
     expect(await harness.invoke('pty:write', worker, ' ')).toMatchObject({ ok: true })
     expect((await state(worker)).state).not.toBe('blocked')
   }, 30_000)
+
+  it('T0594: the answered question (PostToolUse AskUserQuestion) clears it with no client input', async () => {
+    const ask = { hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion', tool_input: { questions: [{ question: 'SECRET?' }] } }
+    const done = { hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion', tool_response: { answers: { 'SECRET?': 'SECRET' } } }
+    // one typed command (the only client input) runs both hooks, the second 3 s later
+    const hook = hookIn(worker, 'ask-user-question', ask, [{ delayMs: 3_000, event: 'ask-user-question-done', input: done }])
+    let last: Record<string, unknown> = await state(worker)
+    const deadline = Date.now() + 30_000
+    while (last.state !== 'blocked' && Date.now() < deadline) {
+      last = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: last.state, timeoutMs: 30_000 }) as Record<string, unknown>
+    }
+    expect(last).toMatchObject({ state: 'blocked', blockedReason: 'question' })
+    const left = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: 'blocked', timeoutMs: 20_000 }) as Record<string, unknown>
+    expect(left).toMatchObject({ ok: true, changed: true, source: 'output' })
+    expect(left.state).not.toBe('blocked')
+    const run = await hook
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.then).toEqual([expect.objectContaining({ code: 0, stdout: '' })])
+    expect(await state(worker)).toMatchObject({ blockedDetection: 'hook' })
+    expect((await state(worker)).state).not.toBe('blocked')
+  }, 60_000)
 
   it('a plain shell (undeclared, tower capability) reports for itself; Stop clears', async () => {
     const run = await hookIn(plain, 'permission-request', { hook_event_name: 'PermissionRequest', tool_name: 'Bash' })

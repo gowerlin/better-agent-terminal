@@ -101,6 +101,8 @@ export const BAT_CLAUDE_HOOKS: ReadonlyArray<{ hookEvent: string; matcher?: stri
   { hookEvent: 'PermissionRequest', event: 'permission-request' },
   { hookEvent: 'PreToolUse', matcher: 'AskUserQuestion', event: 'ask-user-question' },
   { hookEvent: 'Notification', matcher: 'elicitation_dialog|elicitation_url_dialog', event: 'elicitation' },
+  // T0594: the question answered (also by mouse, which is no input); only that tool starts node
+  { hookEvent: 'PostToolUse', matcher: 'AskUserQuestion', event: 'ask-user-question-done', async: true },
   { hookEvent: 'UserPromptSubmit', event: 'user-prompt-submit', async: true },
   { hookEvent: 'Stop', event: 'stop', async: true },
 ]
@@ -128,10 +130,11 @@ export function claudeHookSettingsContent(nodeCommand: string, script: string, p
   for (const hook of BAT_CLAUDE_HOOKS) {
     const command = batHookCommand(nodeCommand, script, hook.event, platform)
     if (!command) return null
-    hooks[hook.hookEvent] = [{
+    const entries = hooks[hook.hookEvent] ??= []
+    entries.push({
       ...(hook.matcher ? { matcher: hook.matcher } : {}),
       hooks: [{ type: 'command', command, timeout: BAT_HOOK_TIMEOUT_SEC, ...(hook.async ? { async: true } : {}) }],
-    }]
+    })
   }
   return `${JSON.stringify({ hooks }, null, 2)}\n`
 }

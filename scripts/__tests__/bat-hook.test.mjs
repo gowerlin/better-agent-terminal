@@ -14,7 +14,10 @@ describe('hookReport', () => {
     expect(hookReport('permission-request', { tool_name: 'bad name with spaces' })).toEqual({ event: 'permission-request' })
     expect(hookReport('user-prompt-submit', { hook_event_name: 'UserPromptSubmit', prompt: 'SECRET' })).toEqual({ event: 'user-prompt-submit' })
     expect(hookReport('stop', null)).toEqual({ event: 'stop' })
-    expect(HOOK_EVENTS).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'user-prompt-submit', 'stop'])
+    expect(HOOK_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop'])
+    // T0594: the answered question — never tool_response (the answers) / tool_input
+    expect(hookReport('ask-user-question-done', { hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion', tool_input: { q: 1 }, tool_response: { answers: { a: 'SECRET' } } }))
+      .toEqual({ event: 'ask-user-question-done' })
   })
 
   it('nothing for an unknown event, another hook, a non-elicitation notification, another tool', () => {
@@ -25,6 +28,9 @@ describe('hookReport', () => {
     expect(hookReport('elicitation', { hook_event_name: 'Notification', notification_type: 'permission_prompt' })).toBeNull()
     expect(hookReport('elicitation', { hook_event_name: 'Notification', notification_type: 'elicitation_url_dialog' })).toEqual({ event: 'elicitation' })
     expect(hookReport('ask-user-question', { hook_event_name: 'PreToolUse', tool_name: 'Bash' })).toBeNull()
+    expect(hookReport('ask-user-question-done', { hook_event_name: 'PostToolUse', tool_name: 'Bash' })).toBeNull()
+    expect(hookReport('ask-user-question-done', { hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' })).toBeNull()
+    expect(hookReport('permission-denied', { hook_event_name: 'PermissionDenied', tool_name: 'Bash' })).toBeNull()
   })
 })
 

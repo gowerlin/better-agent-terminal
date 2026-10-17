@@ -151,7 +151,35 @@ describe('TerminalBlockedTracker', () => {
       '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
       '[blocked] terminal=a → cleared (hook user-prompt-submit)',
     ])
-    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'user-prompt-submit', 'stop'])
+    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop'])
+  })
+
+  it('T0594: ask-user-question-done clears a question only; another reason (or none) is unchanged', () => {
+    const lines: string[] = []
+    let t = 1000
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) }, () => t)
+    // not blocked: nothing to clear, but the tab is evidently reporting
+    expect(tracker.report('a', 'ask-user-question-done')).toEqual({ result: 'unchanged', state: null })
+    expect(tracker.getDetection('a')).toBe('hook')
+    tracker.report('a', 'ask-user-question')
+    expect(tracker.report('a', 'ask-user-question-done')).toEqual({ result: 'cleared', state: null })
+    expect(tracker.get('a')).toBeNull()
+    // a permission prompt (or an elicitation) is not answered by the question tool finishing
+    tracker.report('a', 'permission-request', 'Bash')
+    t = 2000
+    expect(tracker.report('a', 'ask-user-question-done')).toEqual({
+      result: 'unchanged',
+      state: { reason: 'permission', since: 1000, event: 'permission-request', toolName: 'Bash' },
+    })
+    tracker.report('a', 'elicitation')
+    expect(tracker.report('a', 'ask-user-question-done')).toMatchObject({ result: 'unchanged', state: { reason: 'elicitation' } })
+    expect(tracker.get('a')).toMatchObject({ reason: 'elicitation' })
+    expect(lines).toEqual([
+      '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
+      '[blocked] terminal=a → cleared (hook ask-user-question-done)',
+      '[blocked] terminal=a → blocked reason=permission (hook permission-request tool=Bash)',
+      '[blocked] terminal=a → blocked reason=elicitation (hook elicitation)',
+    ])
   })
 
   it('blockedDetection: none by default; a report sets hook; bounded, oldest dropped', () => {
@@ -319,6 +347,20 @@ describe('terminal:report-hook', () => {
     expect(h.manager.getBlockedState('wk')).toEqual({ reason: 'question', since: expect.any(Number), event: 'ask-user-question' })
   })
 
+  it('T0594: ask-user-question-done over the channel — clears the caller’s question, leaves a permission prompt', () => {
+    scene()
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'ask-user-question' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'ask-user-question-done', toolName: 'AskUserQuestion' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'cleared', state: 'not-blocked' })
+    h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-request', toolName: 'Bash' })
+    expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'ask-user-question-done' }))
+      .toEqual({ ok: true, terminalId: 'sh', result: 'unchanged', state: 'blocked', blockedReason: 'permission' })
+    expect(h.manager.getBlockedState('sh')).toMatchObject({ reason: 'permission', toolName: 'Bash' })
+    expect(logs).toContain('[blocked] terminal=wk → cleared (hook ask-user-question-done)')
+    // PermissionDenied is not reported (claude 2.1.300 fires it for auto-mode classifier denials only)
+    expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-denied' })).toMatchObject({ ok: false, code: 'INVALID_ARGS' })
+  })
+
   it('bat-scripts.log: every transition, an unchanged report at most once per 5 s per terminal; never content', () => {
     scene()
     const r = (event: string) => h.call('terminal:report-hook', h.asHelper('wk'), { event })
@@ -443,6 +485,9 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
   let queries: TerminalQueryHandlers
   const received: unknown[][] = []
   const tokens = new Map<string, string>()
+  /** T0594: answer like a T0590 BAT, which does not know `ask-user-question-done`. */
+  let oldBat = false
+  const T0590_EVENTS = ['permission-request', 'ask-user-question', 'elicitation', 'user-prompt-submit', 'stop']
 
   const hookEnv = (id: string): NodeJS.ProcessEnv => ({
     BAT_REMOTE_PORT: String(port),
@@ -479,6 +524,8 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
       // record what crosses the wire: the event (and a tool name), never the hook input
       registerHandler: (channel, handler) => registerHandler(channel, (ctx, ...args) => {
         received.push(args)
+        const event = (args[0] as { event?: unknown } | undefined)?.event
+        if (oldBat && !T0590_EVENTS.includes(String(event))) return { ok: false, code: 'INVALID_ARGS', message: 'event' }
         return handler(ctx, ...args)
       }),
       getPtyManager: () => manager,
@@ -542,6 +589,50 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const before = received.length
     expect(await runHook('elicitation', JSON.stringify({ hook_event_name: 'Notification', notification_type: 'idle_prompt' }), hookEnv('hk-tower'))).toMatchObject({ code: 0, stdout: '' })
     expect(received.length).toBe(before)
+  })
+
+  it('T0594: PostToolUse AskUserQuestion → cleared (no keyboard); another tool sends nothing; tool_response never sent', async () => {
+    await runHook('ask-user-question', JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' }), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'question' })
+    const before = received.length
+    const other = await runHook('ask-user-question-done', JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Bash' }), hookEnv('hk-worker'))
+    expect(other).toMatchObject({ code: 0, stdout: '' })
+    expect(received.length).toBe(before)
+    const input = {
+      session_id: 's1',
+      hook_event_name: 'PostToolUse',
+      tool_name: 'AskUserQuestion',
+      tool_input: { questions: [{ question: 'SECRET-QUESTION?' }] },
+      tool_response: { answers: { 'SECRET-QUESTION?': 'SECRET-ANSWER' } },
+      tool_use_id: 'toolu_1',
+    }
+    const run = await runHook('ask-user-question-done', JSON.stringify(input), hookEnv('hk-worker'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+    expect(received.at(-1)).toEqual([{ event: 'ask-user-question-done' }])
+    expect(JSON.stringify(received)).not.toMatch(/SECRET|tool_response|tool_input/)
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
+      .toMatchObject({ event: 'report-hook', hook: 'ask-user-question-done', result: 'cleared', terminalId: 'hk-worker' })
+    expect(log).not.toMatch(/SECRET/)
+  })
+
+  it('T0594: a BAT that does not know the event answers INVALID_ARGS → still exit 0, stdout empty; state untouched', async () => {
+    await runHook('ask-user-question', JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' }), hookEnv('hk-worker'))
+    oldBat = true
+    try {
+      const run = await runHook('ask-user-question-done', JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion' }), hookEnv('hk-worker'))
+      expect(run).toMatchObject({ code: 0, stdout: '' })
+      expect(run.ms).toBeLessThan(2_000)
+    } finally {
+      oldBat = false
+    }
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'question' })
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
+      .toMatchObject({ hook: 'ask-user-question-done', result: 'failed', code: 'INVALID_ARGS' })
+    await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
   })
 
   it('not in BAT / a dead port / a revoked token / garbage stdin → exit 0, stdout empty, quickly', async () => {
