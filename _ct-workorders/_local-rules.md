@@ -202,9 +202,9 @@ OPEN → FIXING → FIXED → VERIFY → CLOSED
 - 被 active 工單的「相關單據」欄位引用
 - 塔台明確標記「保留」的單據
 - `_tower-state.md` 起手式提及的單據
-- 被產品程式碼 / 測試以檔名引用的單據（歸檔前 `grep -rln "<filename>" src electron scripts`，有命中即豁免；L133，2026-10-04 補）
+- 被產品程式碼以檔名**讀取**的單據（歸檔前 `grep -rln "<filename>" src electron scripts`，命中且會讀檔才豁免；只當路徑字串用的不算，例 `scripts/__tests__/asar-runtime-deps.test.mjs`。L133，2026-10-04 補；2026-10-17 T0577 起 parser-parity 改讀 `src/types/__tests__/fixtures/ct-workorders/` 複本，已無測試讀取真實工單檔）
 
-> ⚠️ 本專案產品測試會讀 `_ct-workorders/` 的真實檔案。塔台 commit 若搬動該目錄下檔案，commit 前跑 `npm run test:unit`（L133）。
+> ℹ️ T0577（2026-10-17）起產品測試不再讀 `_ct-workorders/` 的真實檔案，塔台搬動 / 歸檔工單的 commit 不必再跑 `npm run test:unit`（L133 放寬）。新增讀取真實工單檔的測試前，先改用 fixture。
 
 ### 歸檔目錄結構
 

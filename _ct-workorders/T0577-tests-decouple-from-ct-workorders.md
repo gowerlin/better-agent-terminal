@@ -122,3 +122,8 @@ e2e（`e2e/**`）無命中。
 
 - 原樣本工作區檔案有 3 個為 CRLF/LF 混合（`git ls-files --eol` 顯示 `w/mixed`），但 index 為 LF；fixture 取自 HEAD blob（LF），與 `.gitattributes` `eol=lf` 一致，parity 測試結果不變。
 - 建議塔台：L133 / `_local-rules.md:205,207` 的「產品測試讀真實工單檔」說明可放寬（本單範圍外，未改）。
+
+## 塔台結案（2026-10-17T19:13:48+0800）
+
+**DONE**。塔台核對：`58ec1046` 只含 parity 測試與 5 個 fixture；fixture blob 與原檔相同（T0335 `599732e3…`、PLAN-033 `45c2b249…` 塔台抽驗）；塔台重跑 `parser-parity.test.ts` 5 passed。依建議放寬 `_local-rules.md` 的 L133（歸檔豁免改為「會讀檔才豁免」、搬檔 commit 不必再跑 test:unit）。
+
