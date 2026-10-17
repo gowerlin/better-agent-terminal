@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0585
 title: "PLAN-047 W1-2：唯讀 `worktree:terminal-status`（ahead / behind、髒檔、實際變更、範圍外檔案、預測衝突）+ helper `--worktree-status`"
 type: feature
-status: IN_PROGRESS
+status: DONE
 started_at: "2026-10-17T22:25:33+0800"
-updated_at: "2026-10-17T22:25:33+0800"
-completed_at: ""
+updated_at: "2026-10-17T22:44:47+0800"
+completed_at: "2026-10-17T22:44:47+0800"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
@@ -182,4 +182,4 @@ memory_overrides:
 
 ### Commit
 
-- 見下方「Commit 紀錄」（本單檔案以 `git commit --only` 提交，`main.ts` / `headless-entry.ts` 以 `git apply --cached` 只提交本單 hunk）。
+- `77c93c64` feat(T0585): read-only worktree:terminal-status + bat-terminal --worktree-status（15 檔）。`main.ts` / `headless-entry.ts` 與 T0584 並行修改：先以 `git apply --cached --unidiff-zero` 挑 hunk，發現相鄰的 T0584 兩行被帶入、插入位置也偏移，改由 HEAD 版本依 anchor 組出 blob，再 `git update-index --cacheinfo` 寫入 index；commit 內容 = HEAD + 本單，T0584 的變更仍留在工作樹（`git diff` 不含本單內容）。未 push。
