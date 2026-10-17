@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0593
 title: "BUG-149：`settings.json` 沒有 `shell` 鍵時，helper 派工的 shell family 以 PtyManager 實際預設 shell 判斷"
 type: bugfix
-status: PENDING
-started_at: null
-updated_at: "2026-10-18T01:41:50+0800"
-completed_at: null
+status: FIXED
+started_at: "2026-10-18T01:43:05+0800"
+updated_at: "2026-10-18T01:49:10+0800"
+completed_at: "2026-10-18T01:49:10+0800"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P1
@@ -73,12 +73,61 @@ memory_overrides:
 
 ### 完成狀態
 
+**FIXED**（驗收條件 1–3 全部 PASS；BUG-149 狀態留給塔台收單時改）
+
 ### 產出摘要
+
+**Landing check**：PASS。C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`；C-1 工單在 `REPO_ROOT/_ct-workorders/` 下；C-3 `electron/terminal-command-handlers.ts` 存在；C-2 無 `branch` 欄位（`main`）。`CT_HOME` 未設（非 worktree）。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+
+**Commit**：`e283abdc` fix(dispatch): quote for the PTY default shell when settings.json has no shell (T0593, BUG-149)（5 檔：`electron/pty-manager.ts`、`electron/terminal-command-handlers.ts`、`electron/__tests__/dispatch-shell-family.test.ts`（新）、`e2e/t0592-codex-tower-worker.spec.ts`、`CLAUDE.md`；`git commit --only`，T0594 的檔案與 `src/styles/settings.css` 未納入）。未 push。
+
+**選擇的修法與理由**：以 PtyManager 實際的預設 shell 判斷（不採「缺鍵視為 `auto`」）。理由：`resolveShellPath('auto')` 是 `shell-path-resolver.ts` 對預設 shell 的**另一份推論**（T0390 起與 `getDefaultShell` 平行維護），工單要求判斷來源與 `ptyManager.create` 同一個；且缺鍵時 `create` 實際不帶 `shell`、跑的就是 `getDefaultShell()`，直接問它最準。`create` 照舊不帶 `shell`（PTY 啟動行為完全不變，restart / recovery 的 `inst.shell` 也不變）。
+
+**修正點**：
+- `electron/pty-manager.ts:1008` — `getDefaultShell()` 由 `private` 改為 public（只加註解，邏輯不動）；`create` 仍是 `const shell = shellOverride || this.getDefaultShell()`（source guard 守住）。
+- `electron/terminal-command-handlers.ts:59` — `TerminalPtyManager` 介面加選用的 `getDefaultShell?(): string`（本機與 headless 都是真 PtyManager，免改接線；`main.ts` / `headless-entry.ts` 未動）。
+- `electron/terminal-command-handlers.ts:315` — 新 `quotingShell(resolution, ptyManager)`：有持久化 / 明確 shell → 用它（不變）；沒有 → `ptyManager.getDefaultShell()`；PtyManager 不在或沒有此方法 → 舊行為 `pty-default`（posix）。
+- `electron/terminal-command-handlers.ts:749` — `terminal:create-agent-command` 的 `shellFamily = detectShellFamily(quoting.shell)`，並記 `[agent-command] id=<id> shell family=<f> from=<persisted|explicit|pty-default:<檔名>>`。
+
+**缺鍵時實際的 Worker argv**（e2e `t0592-noshell`，`settings.json shell: (absent) → (absent)`，假 `codex.cmd` 記錄的 shell 解析後 argv；權杖不在 argv 中）：
+```
+["-c","features.daemon_auto_start=false","-c","mcp_servers.bat.command='node'","-c","mcp_servers.bat.args=['D:\\ForgejoGit\\@Gower_Labs\\BMad-Guide\\better-agent-terminal\\better-agent-terminal\\scripts\\bat-mcp.mjs']","-c","mcp_servers.bat.env_vars=['BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN', 'BAT_TERMINAL_ID', 'BAT_USER_DATA', 'BAT_SERVER_CERT_PATH', 'BAT_HELPER_LOG_DIR', 'BAT_RUNTIME', 'APPDATA', 'XDG_CONFIG_HOME']","-c","mcp_servers.bat.tool_timeout_sec=60","--search","-c","model_reasoning_effort=low","$ct-exec T0592"]
+```
+（修正前：`["-c","mcp_servers.bat.command=","\\node\\'", …]` → codex exit 1。）主行程 `[bat-mcp] dispatch … → injected:` 為 pwsh 引號（`''node''`）。
+
+**受影響路徑清單**：
+| 路徑 | 結果 |
+|---|---|
+| 本機 helper 派工 `terminal:create-agent-command` + codex（BUG-149 本體） | 受影響 → 已修 |
+| 本機 helper 派工 `terminal:create-agent-command` + claude-cli / claude-cli-worktree | **也受影響**（BUG 單原判「不受影響」不正確）：`resolveClaudeBaseCommand(shellFamily)` 以 posix 包路徑 `'C:\…\claude.exe'`，pwsh 下為 ParserError（本機以 `pwsh -Command "'C:\Windows\System32\where.exe' '/?'"` 實測 ParserError；`& '…'` 正常）。同一修正涵蓋，單元測試驗 `& '<claude.exe>' …` |
+| 同上，prompt / `--mcp-config=` / `--settings=` 參數 | 同一 family，一併正確 |
+| 本機 raw command `terminal:create-with-command` | 不受影響：命令由呼叫者原樣提供，BAT 不加引號（`resolveTerminalShell` 只決定 `create` 的 `shell`，缺鍵時仍是 undefined → 預設 shell，行為不變） |
+| `shell` 有值（`auto` / pwsh / git-bash / cmd / 自訂路徑） | 不變（單元測試以「被呼叫即 throw」的 `getDefaultShell` 證明不被諮詢） |
+| headless（Linux / macOS）缺鍵 | 同一程式路徑（`createHeadlessTerminalModule` 的 PtyManager 也有 `getDefaultShell`）；Linux `$SHELL` / bash / sh、macOS `$SHELL` / zsh → posix，與修正前相同（單元測試以真 PtyManager + stub `process.platform` 驗 linux / darwin） |
+| renderer 分頁啟動（`agent:bat-mcp-launch-args`，renderer 帶 family） | 不經此路徑，未改；renderer 預設 `shell: 'auto'` |
+
+### 驗證證據
+
+- `npx vite build`：exit 0。
+- `npm run typecheck`：0；`npm run typecheck:electron`：0。
+- `npm run test:unit`：exit 0，Test Files 291 passed，Tests 5070 passed / 3 skipped（工作樹含 T0594 並行中的未提交變更，一併全綠）。
+- 新單元 `electron/__tests__/dispatch-shell-family.test.ts`（15 tests）：缺鍵 / 無 settings / `custom` 空路徑 → pwsh、`create` 不帶 shell、codex 引號 = `buildBatMcpLaunchArgs(pwsh)`、日誌 `from=pty-default:pwsh.exe`；`powershell.exe` → pwsh；claude → `& '<path>'`；無 `getDefaultShell` → posix（舊行為）；`auto` / pwsh / git-bash / cmd / 自訂路徑 不變且不諮詢預設 shell；真 PtyManager：win32 → pwsh、linux / darwin → posix；source guard。既有 `terminal-command-handlers.test.ts` 照常通過。
+- e2e `npx playwright test e2e/t0592-codex-tower-worker.spec.ts`：**2 passed**（18.1 s）— 主測試（`shell: auto`）8.8 s、缺 `shell` 測試（`test.fixme` → `test`）8.7 s，均未呼叫模型、未連 OpenAI（沿用 T0592 的假 codex shim、空 `CODEX_HOME`、離線 provider；`codex-stderr openaiHost:false`）。
+- `CLAUDE.md`：只改「BAT MCP shim（PLAN-047 M1 / T0584）」小節的兩句（已知限制的 BUG-149 句改為「已修（T0593）」並說明缺鍵時以 `PtyManager.getDefaultShell()` 判斷、claude 也受影響、raw command 不受影響、驗證檔；驗證段的 `test.fixme` 句改為第二個 test）。單一 hunk，T0594 尚未改 CLAUDE.md，無需挑 hunk。
 
 ### 互動紀錄
 
+無（`CT_INTERACTIVE=0`，fire-and-forget）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+- 無阻塞。偏差：BUG-149 單「claude 派工不受影響」的判斷不成立（見上表），已在同一修正內涵蓋並寫進 CLAUDE.md；建議塔台收單時一併更正 BUG 單範圍描述。
+- 未做：真 claude / 真 codex TUI 實機派工（D153 B 層，不在本單範圍）。
+
 ### 回報時間
+
+2026-10-18T01:48:35+0800
