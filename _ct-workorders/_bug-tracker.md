@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 34
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 1
+  FIXING: 1
   FIXED: 19
   VERIFY: 0
   CLOSED: 13
@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 01:40 (UTC+8) — 新增 BUG-149（T0592 e2e 發現，OPEN）；BUG-148 CLOSED
+> 最後同步：2026-10-18 01:40 (UTC+8) — 新增 BUG-149（T0592 e2e 發現 → FIXING by T0593）；BUG-148 CLOSED
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 34**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 34**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-149 | `settings.json` 沒有 `shell` 鍵時，`--agent codex` 派出的 Codex Worker 起不來（BAT MCP 參數以 posix 引號組、Windows 分頁是 pwsh；T0592 發現） | 🔴 high | 2026-10-18 01:40 | [BUG-149](BUG-149-codex-dispatch-posix-quoting-without-shell-setting.md) |
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-149 | `settings.json` 沒有 `shell` 鍵時，`--agent codex` 派出的 Codex Worker 起不來（BAT MCP 參數以 posix 引號組、Windows 分頁是 pwsh；T0592 發現） | 🔴 high | T0593（2026-10-18 01:41 派） | [BUG-149](BUG-149-codex-dispatch-posix-quoting-without-shell-setting.md) |
 
 ## ✅ 已修復
 
