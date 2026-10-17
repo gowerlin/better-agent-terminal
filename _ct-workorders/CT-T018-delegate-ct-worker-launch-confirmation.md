@@ -92,3 +92,4 @@ helper 派工在 PTY 建立後就回 exit 0，啟動指令約 500 ms 後才寫�
 
 - 2026-10-18T03:41:41+0800：BAT 塔台建立（第七十六 session），待轉交 BMad-Guide 塔台。
 - 2026-10-18T03:42:22+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-94`，msg `9ea91794`）；BAT 版號待 `0.7.0-pre.6` 發佈後告知。
+- 2026-10-18T03:49:08+0800：對方**已受理**（決策 D039）：等 BAT `0.7.0-pre.6` 發佈並告知版號後開 **CT v5.6.0** + guide v5.6.0；方向與本規格一致（派工帶 `--wait-started`、exit 8 不重派、`unknown` 照現行流程、舊 BAT 去參數重派一次、MCP `agentStarted` 為選用通道），v5.5.1 的暫時提示改引用正式機制。CT v5.5.1 已兩端安裝（含 BAT >= 0.7.0-pre.5 / BUG-150 補註）。BAT 塔台**接受**。
