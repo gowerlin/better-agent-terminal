@@ -198,3 +198,12 @@ RemoteServer 對每個 frame 各自 `await` handler（`ws.on('message', async �
 ### 互動紀錄
 
 無（`CT_INTERACTIVE=0`，fire-and-forget）。
+
+## 塔台結案（2026-10-17T22:23:43+0800）
+
+**DONE**（source / test 層；實機隨下一版）。塔台複驗 @ `b39634cb`（T0582 + T0583 皆已落地）：`npx vite build` 0、`npm run typecheck` 0、`npm run typecheck:electron` 0、`npm run test:unit` 277 檔 / 4890 passed / 3 skipped。repo 無殘留 worktree / 分支 / stash。
+
+塔台裁決：
+- 與契約差異 1–7：**全部接受**（`partialLine` / `skippedLines`、`TOO_MANY_WAITS`、server token 需帶 `terminalId`、錯誤帶 `message`、`list` 含最近結束分頁、遮罩多 `secret-env` 與只有 END 的 PEM、`handler-registry.ts` / `remote-server.ts` 為必要接線）。
+- 「T0583 寫入 index 的 5 檔被重設」：本單以暫存 index + compare-and-swap `update-ref` 建 commit，未執行 reset / restore；推定為兩張單共用 index 的 stage 互相覆蓋（非違規），結果兩邊 commit 皆乾淨。記為並行共用工作樹的已知成本，W1 隔離派工正是解法。
+- 「T0584 shim 需要知道的事」原文轉入 T0584 背景。

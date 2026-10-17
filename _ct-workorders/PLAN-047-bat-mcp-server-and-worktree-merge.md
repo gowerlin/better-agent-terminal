@@ -244,3 +244,4 @@ links:
 - 2026-10-17 20:27 — CT-T014（CT 文件對齊 BAT 0.7.0 範圍權杖）轉交 BMad-Guide 塔台；原規劃的 CT_HOME / C-0 單與合併工單模板單順延編號（CT-T015 / CT-T016），待 BAT W1 介面契約定稿再發
 - 2026-10-17 20:33 — T0580 DONE（`f03e5e27`，helper 派工 / restart 等 hold 放行，2 s 逾時 `RECOVERY_PENDING`）；0.7.0-pre.1 範圍（T0575–T0580）全部完成，準備發版
 - 2026-10-17 21:52 — `v0.7.0-pre.1` 實機驗收通過（T0581、BMad-Guide T0150）；D152 第二批：開 T0582（M1-1 唯讀 channel）/ T0583（W1-1 worktree 隔離派工）並行，T0584（M1-2 shim）/ T0585（W1-2 worktree 狀態）待前兩張完成；worktree 依賴由 Worker 自己安裝
+- 2026-10-17 22:23 — T0582 DONE（`6b2ac19e`，五個唯讀 helper channel + 遮罩）、T0583 DONE（`462522ef` / `4e7da0e3`，`--isolation worktree` + `--close-worker --worktree`）；塔台複驗 @ `b39634cb` 全綠；並行派 T0584（`bat-mcp.mjs` shim + 注入，Settings 開關預設開）/ T0585（`worktree:terminal-status` + helper `--worktree-status`）

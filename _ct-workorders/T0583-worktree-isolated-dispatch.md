@@ -211,3 +211,11 @@ create: WORKTREE_FAILED
 ### 互動紀錄
 
 無（`CT_INTERACTIVE=0`，未向使用者提問）。
+
+## 塔台結案（2026-10-17T22:23:43+0800）
+
+**DONE**（source / test 層；實機隨下一版）。塔台複驗同 T0582（@ `b39634cb`：build 0 / typecheck 0 / typecheck:electron 0 / unit 4890 passed）。commit `462522ef` / `4e7da0e3` 塔台核對未夾帶 T0582 hunk。
+
+塔台裁決：
+- 與契約差異 1–8：**全部接受**（reused 時 base = merge-base、prunable 先 prune、隔離派工 helper 逾時 40 s、清理時機定義、archive 後綴、互斥補充、主行程非法 isolation → WORKTREE_FAILED、必要接線檔）。
+- 「給 CT-T015 / CT-T016 的注意事項」1–7 原文轉入 CT-T015 / CT-T016（W1 契約定稿：T0585 完成後一併發）。
