@@ -3,7 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-153
 title: "Worker 分頁縮圖在 `T#### 提問`（等塔台答覆）時也顯示 `✓` 並計入批次關閉；hook `blocked`（等使用者）時沒有專屬標示"
-status: FIXING
+status: FIXED
+fixed_at: "2026-10-18T05:31:45+0800"
+fixed_by: T0609
+fix_commit: "fbf641dc"
 severity: medium
 reproducibility: always
 created_at: "2026-10-18T04:59:06+0800"
@@ -21,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（使用者誤以為 Worker 已完成；塔台分頁右鍵「關閉已回報的 Worker 分頁（N）」會把仍在等答覆的 Worker 算進 N，有誤關風險，頁內確認框是唯一防線） |
 | 可重現 | 必現（yolo Worker 送 `T#### 提問` 後） |
-| **狀態** | 🔧 FIXING（T0609） |
+| **狀態** | ✅ FIXED（T0609 `fbf641dc`；主行程推送 `terminal:attention-changed`，縮圖 ⚠️ / `?` / `✓`；實機待含修正的版本） |
 
 ## 現象
 
