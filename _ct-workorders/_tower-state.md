@@ -87,7 +87,7 @@
 
 ### 待辦（依優先序）
 
-1. 🔴 **`v0.7.0-pre.1` 實機驗收**（使用者安裝中）：退出時「不停止 Terminal Server」→ 重開 → Recovery「保留」→ `/control-tower`（面板分頁標題已設定）→ 派一張小單確認 Worker 回報與回收；選做：Worker 分頁手動 `bat-notify --target` 應 exit 1。BMad-Guide 塔台的 CT runtime 驗收單 **T0150** 等使用者裝好後派（對方會回覆結果）
+1. 🔴 **`v0.7.0-pre.1` 實機驗收**（使用者安裝中）：退出時「不停止 Terminal Server」→ 重開 → Recovery「保留」→ `/control-tower`（面板分頁標題已設定）→ 派一張小單確認 Worker 回報與回收；選做：Worker 分頁手動 `bat-notify --target` 應 exit 1。BMad-Guide 塔台的 CT runtime 驗收單 **T0150 DONE（2026-10-17 第七十三 session 收到回覆）**：範圍權杖行為 PASS（塔台 / Worker 標題、Worker 分頁派工與 `--set-role` exit 1 `Forbidden: role-not-allowed`、Worker `bat-notify` 送達、`--close-worker` exit 0）；**RECOVERY_PENDING 未驗**。對方提示 `--skill` 非 ct-exec / ct-done 時本地 exit 1，與 Forbidden 同碼（CT v5.2.5 改驗收規則，BAT 端不需改）；日誌中的 `66447ea9…` tower 即本專案塔台分頁
 2. 🟡 **PLAN-047 下一批**：M1（`bat-mcp` shim + 唯讀 channel）與 W1（worktree 隔離派工）可並行；M1b 開單前需使用者回答「CT yolo Worker 的 claude 是否以略過權限模式啟動」；W1 契約定稿後發 CT-T015（CT_HOME / C-0）/ CT-T016（合併工單模板）
 3. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`；**BUG-136**：等 Gary 回傳日誌
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
