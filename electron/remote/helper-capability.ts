@@ -16,9 +16,10 @@
  *     `pty:write` (printable text only, T0450) / `terminal:keypress`, target = that tower only
  *
  * PLAN-047 / T0575 (D149): Electron's local PTYs get these capabilities too (`buildLocalHelperEnv`),
- * no longer the full server token. The local RemoteServer uses `LOCAL_HELPER_CHANNEL_ROLES`, which
- * also lets a tower call `terminal:create-with-command` (raw command mode) under the
- * create-agent-command limits; headless keeps `HELPER_CHANNEL_ROLES` (raw command denied).
+ * no longer the full server token, and a tower may call `terminal:create-with-command` (raw command
+ * mode) under the create-agent-command limits. T0579: headless allows raw command mode too — local
+ * and headless share one role table (`HELPER_CHANNEL_ROLES`; `LOCAL_HELPER_CHANNEL_ROLES` is the
+ * same object).
  *
  * Tokens are `HELPER_CAPABILITY_TOKEN_PREFIX` + `randomBytes(32)`; the registry keeps their
  * SHA-256 digest (never the token) and nothing logs a token. The PTY's exit / kill revokes its
@@ -373,9 +374,18 @@ export const HELPER_CREATE_ENV_KEYS: readonly string[] = [
   'MSYS_NO_PATHCONV',
 ]
 
-/** Channel → roles allowed to invoke it. Anything not listed is denied to every helper. */
+/**
+ * Channel → roles allowed to invoke it. Anything not listed is denied to every helper.
+ * Local (Electron) and headless servers use this one table (T0579).
+ */
 export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabilityRole[]>> = {
   'terminal:create-agent-command': ['tower'],
+  // PLAN-047 / T0575 (D149, local) → T0579 (headless): raw command mode
+  // (`bat-terminal.mjs claude "/ct-exec T####"`), checked like `terminal:create-agent-command`
+  // (new id, no `shell`, `customEnv` whitelist, `BAT_TOWER_TERMINAL_ID` = itself, registry agent,
+  // `HelperTowerSpawnQuota` shared through `HELPER_CREATE_CHANNELS`). A tower can run any command
+  // in its own shell anyway; one more tab with a command of its choice adds little.
+  'terminal:create-with-command': ['tower'],
   // PLAN-041 / T0536: `bat-terminal.mjs --close-worker` — a tower closes a worker it dispatched
   'terminal:close-worker': ['tower'],
   // T0562 / D147: `bat-terminal.mjs --set-role tower` — a tower titles its own tab
@@ -386,16 +396,10 @@ export const HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabi
 }
 
 /**
- * PLAN-047 / T0575 (D149): the role table of Electron's local RemoteServer — the headless one plus
- * raw command mode (`bat-terminal.mjs claude "/ct-exec T####"` → `terminal:create-with-command`) for
- * a tower, checked like `terminal:create-agent-command` (new id, no `shell`, `customEnv` whitelist,
- * `BAT_TOWER_TERMINAL_ID` = itself, `HelperTowerSpawnQuota`). A tower can run any command in its own
- * shell anyway; one more tab with a command of its choice adds little. Headless is unchanged.
+ * PLAN-047 / T0575 (D149): the role table Electron's local RemoteServer is given. Since T0579 it is
+ * `HELPER_CHANNEL_ROLES` itself (headless gained raw command mode), kept as a name for main.ts.
  */
-export const LOCAL_HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabilityRole[]>> = {
-  ...HELPER_CHANNEL_ROLES,
-  'terminal:create-with-command': ['tower'],
-}
+export const LOCAL_HELPER_CHANNEL_ROLES: Readonly<Record<string, readonly HelperCapabilityRole[]>> = HELPER_CHANNEL_ROLES
 
 /** T0575: channels that create a terminal — they also pass `HelperTowerSpawnQuota`. */
 export const HELPER_CREATE_CHANNELS: readonly string[] = ['terminal:create-agent-command', 'terminal:create-with-command']
@@ -417,7 +421,7 @@ export interface HelperInvokeContext {
    * host's configured default agent.
    */
   isKnownAgent?: (agent: string) => boolean
-  /** T0575: the server's role table. Default `HELPER_CHANNEL_ROLES` (headless). */
+  /** T0575: the server's role table. Default `HELPER_CHANNEL_ROLES` (local and headless share it, T0579). */
   channelRoles?: Readonly<Record<string, readonly HelperCapabilityRole[]>>
 }
 
@@ -556,7 +560,8 @@ interface TowerSpawnEntry {
 }
 
 /**
- * T0450 (T0445 #7): limits on terminals a tower capability creates (`terminal:create-agent-command`),
+ * T0450 (T0445 #7): limits on terminals a tower capability creates (`HELPER_CREATE_CHANNELS`:
+ * `terminal:create-agent-command`, and raw command mode since T0575 / T0579),
  * checked after `authorizeHelperInvoke` allowed the invoke:
  *   - at most `maxLiveChildren` of its children running (in flight counts)
  *   - at least `createIntervalMs` between two creations (every allowed attempt counts)

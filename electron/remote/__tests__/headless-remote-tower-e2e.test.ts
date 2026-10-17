@@ -14,9 +14,12 @@
  *   worker PTY ─ bat-notify.mjs --submit ─▶ terminal:notify / pty:write / terminal:keypress
  *     BAT client sees terminal:notified + terminal:keypress; the Tower PTY gets the text
  *
- * Negative (capability scope, through the real helpers): a worker cannot dispatch, a Tower
- * cannot notify / write a worker, a worker cannot write a PTY other than its Tower, a Tower
- * cannot run a raw command. T0447: after the worker PTY dies its capability is dead — the
+ * T0579: the Tower may also dispatch in raw command mode (`bat-terminal.mjs <command>` →
+ * terminal:create-with-command), like a local Tower (T0575); the worker it opens reports back.
+ *
+ * Negative (capability scope, through the real helpers): a worker cannot dispatch (agent or raw
+ * command mode), a Tower cannot notify / write a worker, a worker cannot write a PTY other than
+ * its Tower. T0447: after the worker PTY dies its capability is dead — the
  * real helper is refused (`Capability revoked`, T0449), and frames pipelined behind the
  * revocation on an already authenticated socket run no handler. With no BAT client left, `--submit` exits 1
  * (`no-client`) instead of pretending the Tower was submitted.
@@ -153,9 +156,8 @@ describe('remote Tower end to end through the real helpers (T0434)', () => {
   }, 60_000)
 
   it('dispatch: bat-terminal run inside the Tower PTY opens a worker tab in the Tower workspace', async () => {
-    // the remote Tower's dispatch form: agent mode (--skill / --workorder). The raw-command
-    // form (`bat-terminal.mjs claude "/ct-exec T…"`) is terminal:create-with-command — never
-    // allowed for a capability (see the Tower scope test below).
+    // agent mode (--skill / --workorder); raw command mode (`bat-terminal.mjs claude "/ct-exec T…"`,
+    // terminal:create-with-command) is the T0579 test below.
     const run = await helperIn(towerId, 'bat-terminal.mjs', [
       '--agent', ECHO_AGENT, '--skill', 'ct-exec', '--workorder', WORKORDER,
       '--notify-id', '{env:BAT_TERMINAL_ID}', '--workspace', '{env:BAT_WORKSPACE_ID}',
@@ -205,6 +207,11 @@ describe('remote Tower end to end through the real helpers (T0434)', () => {
     expect(dispatch.code).toBe(1)
     expect(dispatch.stderr).toContain('Forbidden: role-not-allowed')
 
+    // T0579: raw command mode is a tower's channel only
+    const rawDispatch = await helperIn(workerId, 'bat-terminal.mjs', ['--cwd', CWD, 'echo', 'T0579-WORKER-RAW'])
+    expect(rawDispatch.code).toBe(1)
+    expect(rawDispatch.stderr).toContain('Forbidden: role-not-allowed')
+
     const stray = await helperIn(workerId, 'bat-notify.mjs', ['--target', bystanderId, '--source', 'stray', 'T0434-STRAY-WORKER'])
     expect(stray.code).toBe(1)
     expect(stray.stderr).toMatch(/Forbidden: \S+/)
@@ -213,15 +220,12 @@ describe('remote Tower end to end through the real helpers (T0434)', () => {
     await sleep(300)
     expect(createdCount()).toBe(before)
     expect(outputOf(bystanderId)).not.toContain('T0434-STRAY-WORKER')
+    expect(bat.events.some(e => e.channel === 'pty:output' && String(e.args[1] ?? '').includes('T0579-WORKER-RAW') && e.args[0] !== workerId)).toBe(false)
     expect(bat.events.some(e => e.channel === 'terminal:notified' && (e.args[0] as { source?: string })?.source === 'stray')).toBe(false)
   }, 60_000)
 
-  it('scope: a Tower cannot notify / write its worker, nor run a raw command', async () => {
+  it('scope: a Tower cannot notify / write its worker', async () => {
     const before = createdCount()
-    const raw = await helperIn(towerId, 'bat-terminal.mjs', ['--cwd', CWD, 'echo', 'T0434-RAW'])
-    expect(raw.code).toBe(1)
-    expect(raw.stderr).toContain('Forbidden: channel-not-allowed')
-
     const notify = await helperIn(towerId, 'bat-notify.mjs', ['--target', workerId, '--source', 'tower-to-worker', 'T0434-TOWER-WRITE'])
     expect(notify.code).toBe(1)
     expect(notify.stderr).toContain('Forbidden: role-not-allowed')
@@ -236,6 +240,39 @@ describe('remote Tower end to end through the real helpers (T0434)', () => {
     expect(outputOf(workerId)).not.toContain('T0434-TOWER-WRITE')
     expect(bat.events.some(e => e.channel === 'terminal:notified' && (e.args[0] as { source?: string })?.source === 'tower-to-worker')).toBe(false)
   }, 60_000)
+
+  it('T0579: raw command mode — bat-terminal run inside the Tower PTY opens a worker running the command, which reports back', async () => {
+    await sleep(1100) // HelperTowerSpawnQuota: ≥ 1 s between two creations of this Tower
+    const run = await helperIn(towerId, 'bat-terminal.mjs', [
+      '--notify-id', '{env:BAT_TERMINAL_ID}', '--workspace', '{env:BAT_WORKSPACE_ID}',
+      '--mode', 'yolo', '--no-interactive', '--cwd', CWD, 'echo', 'T0579-RAW',
+    ])
+    expect(run.stderr).toBe('')
+    expect(run.code).toBe(0)
+    const rawId = /Terminal created: (\S+)/.exec(run.stdout)?.[1] ?? ''
+    expect(rawId).not.toBe('')
+
+    const [created] = await bat.waitForEvent('terminal:created-externally', args => (args[0] as { id?: string })?.id === rawId, 10_000)
+    expect(created).toMatchObject({ id: rawId, workspaceId: WORKSPACE, towerTerminalId: towerId, command: 'echo T0579-RAW' })
+    // the worker shell ran the command as given
+    await vi.waitFor(() => expect(outputOf(rawId)).toContain('T0579-RAW'), { timeout: 20_000, interval: 100 })
+
+    const rawEnv = await ptyEnv(rawId)
+    expect(rawEnv).toMatchObject({ BAT_TERMINAL_ID: rawId, BAT_TOWER_TERMINAL_ID: towerId, CT_MODE: 'yolo', CT_INTERACTIVE: '0', BAT_WORKSPACE_ID: WORKSPACE })
+    expect(serverTokenIn(rawEnv)).toBe(false)
+    expect(registry.verify(rawEnv.BAT_REMOTE_TOKEN)?.capability).toEqual({ terminalId: rawId, towerId, role: 'worker' })
+
+    // it reports back to the Tower like an agent-mode worker (toast only: no pre-fill left in the
+    // Tower prompt for the jobs typed there next)
+    const notify = await helperIn(rawId, 'bat-notify.mjs', ['--no-pty-write', '--source', 'T0579-raw', 'T0579 完成'])
+    expect(notify.stderr).toBe('')
+    expect(notify.code).toBe(0)
+    const [notified] = await bat.waitForEvent('terminal:notified', args => (args[0] as { source?: string })?.source === 'T0579-raw', 10_000)
+    expect(notified).toMatchObject({ targetId: towerId, message: 'T0579 完成' })
+
+    expect(await bat.invoke('pty:kill', rawId)).toBe(true)
+    expect(registry.verify(rawEnv.BAT_REMOTE_TOKEN)).toBeNull()
+  }, 90_000)
 
   it('T0447: once the worker PTY is gone its capability is dead — pipelined frames run no handler, the real helper is refused', async () => {
     // A socket authenticated with the worker capability while the worker was alive
@@ -289,6 +326,7 @@ fs.writeFileSync(process.argv[3] + '.tmp', JSON.stringify({ code: run.status, st
 
   it('no BAT client connected: --submit exits 1 (no-client) — yolo never pretends the Tower was submitted', async () => {
     // a second worker, dispatched by the Tower through the real bat-terminal
+    await sleep(1100) // T0579: the raw command dispatch above was this Tower's previous creation
     const run = await helperIn(towerId, 'bat-terminal.mjs', [
       '--agent', ECHO_AGENT, '--prompt', `/ct-exec ${WORKORDER}`,
       '--notify-id', '{env:BAT_TERMINAL_ID}', '--workspace', '{env:BAT_WORKSPACE_ID}', '--cwd', CWD,

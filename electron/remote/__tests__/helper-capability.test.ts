@@ -34,7 +34,6 @@ const FORBIDDEN_FOR_ALL = [
   'pty:resize',
   'pty:get-buffer',
   'pty:get-cwd',
-  'terminal:create-with-command',
   'fs:readdir',
   'fs:readFile',
   'fs:writeFile',
@@ -146,9 +145,10 @@ describe('safeTokenEqual (T0432)', () => {
 })
 
 describe('authorizeHelperInvoke — whitelist (T0432)', () => {
-  it('the whitelist is exactly the 6 helper channels (T0536: + terminal:close-worker, T0562: + terminal:set-role for towers)', () => {
+  it('the whitelist is exactly the 7 helper channels (T0536: + terminal:close-worker, T0562: + terminal:set-role, T0579: + terminal:create-with-command for towers)', () => {
     expect(HELPER_CHANNEL_ROLES).toEqual({
       'terminal:create-agent-command': ['tower'],
+      'terminal:create-with-command': ['tower'],
       'terminal:close-worker': ['tower'],
       'terminal:set-role': ['tower'],
       'terminal:notify': ['worker'],
@@ -355,6 +355,39 @@ describe('authorizeHelperInvoke — tower create-agent-command (T0432)', () => {
     expect(reason(create({ prompt: 'p' }))).toBe('invalid-terminal-id')
     expect(reason(create(null))).toBe('invalid-payload')
     expect(reason(create('new-1'))).toBe('invalid-payload')
+  })
+})
+
+describe('authorizeHelperInvoke — tower create-with-command on the default (headless) table (T0579)', () => {
+  const raw = (opts: unknown, cap: HelperCapability = TOWER, c: HelperInvokeContext = ctx) =>
+    reason(authorizeHelperInvoke(cap, 'terminal:create-with-command', [opts], c))
+
+  it('the bat-terminal.mjs raw command payload → allowed', () => {
+    expect(raw({ id: 'new-1', cwd: '/w', command: 'claude "/ct-exec T0001"', customEnv: { BAT_TOWER_TERMINAL_ID: 'tower-1', CT_MODE: 'yolo', CT_INTERACTIVE: '0' }, workspaceId: 'ws', reportLanding: true })).toBeNull()
+    expect(raw({ id: 'new-1', cwd: '/w' })).toBeNull()
+  })
+
+  it.each([
+    ['an existing id (it would type into that tab)', { id: 'other-1', command: 'x' }, 'terminal-exists'],
+    ['its own id', { id: 'tower-1', command: 'x' }, 'target-not-bound'],
+    ['an invalid id', { id: 'a b', command: 'x' }, 'invalid-terminal-id'],
+    ['a shell', { id: 'new-1', command: 'x', shell: '/bin/bash' }, 'shell-not-allowed'],
+    ['a customEnv key off the whitelist', { id: 'new-1', command: 'x', customEnv: { LD_PRELOAD: '/x.so' } }, 'custom-env-not-allowed'],
+    ['a non-string customEnv value', { id: 'new-1', command: 'x', customEnv: { CT_MODE: 1 } }, 'invalid-custom-env'],
+    ['another tower as BAT_TOWER_TERMINAL_ID', { id: 'new-1', command: 'x', customEnv: { BAT_TOWER_TERMINAL_ID: 'other-1' } }, 'tower-not-bound'],
+    ['an unknown agent', { id: 'new-1', command: 'x', agent: 'evil' }, 'agent-not-allowed'],
+    ['a non-string command', { id: 'new-1', command: ['rm', '-rf'] }, 'invalid-payload'],
+    ['a non-object payload', 'x', 'invalid-payload'],
+  ])('tower: %s → denied', (_what, opts, expected) => {
+    expect(raw(opts)).toBe(expected)
+  })
+
+  it('worker → role-not-allowed', () => {
+    expect(raw({ id: 'new-1', command: 'x' }, WORKER)).toBe('role-not-allowed')
+  })
+
+  it('without a liveness check → denied (fail closed)', () => {
+    expect(raw({ id: 'new-1', command: 'x' }, TOWER, {})).toBe('terminal-liveness-unknown')
   })
 })
 

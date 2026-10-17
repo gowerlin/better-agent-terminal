@@ -102,8 +102,8 @@ interface RemoteServerOptions {
    */
   helperCapabilities?: HelperCapabilityRegistry
   /**
-   * T0575: the helper role table. Default `HELPER_CHANNEL_ROLES` (headless); Electron passes
-   * `LOCAL_HELPER_CHANNEL_ROLES` (adds raw command mode for a tower, D149).
+   * T0575: the helper role table. Default `HELPER_CHANNEL_ROLES`; Electron passes
+   * `LOCAL_HELPER_CHANNEL_ROLES`, the same table since T0579 (raw command mode on both, D149).
    */
   helperChannelRoles?: Readonly<Record<string, readonly HelperCapabilityRole[]>>
   /** T0432: PTY liveness for helper `terminal:create-agent-command` (absent ⇒ denied). */
@@ -1107,7 +1107,7 @@ export class RemoteServer {
         channelRoles: this.helperChannelRoles,
       })
       // T0450 (T0445 #7): a tower's creations also pass its quota (children / rate / client reserve).
-      // T0575: raw command mode (`terminal:create-with-command`, local role table) as well.
+      // T0575 / T0579: raw command mode (`terminal:create-with-command`) as well.
       let settle: (() => void) | undefined
       let denied = decision.ok ? undefined : decision.reason
       if (!denied && HELPER_CREATE_CHANNELS.includes(channel)) {

@@ -9,7 +9,7 @@
  *     keeps the role (T0448), kill / exit revoke, idempotent re-create keeps the running token,
  *     Terminal Server recovery re-issues
  *   - `LOCAL_HELPER_CHANNEL_ROLES`: a tower may call `terminal:create-with-command` (raw command
- *     mode) under the create-agent-command limits; the headless table is unchanged
+ *     mode) under the create-agent-command limits; T0579: the same table as headless
  *   - a real RemoteServer with the local wiring: raw command passes, its quota applies, a worker's
  *     `pty:create` / `fs:*` / … are Forbidden (the handler never runs), the server token still works
  *   - `capabilityOrSavedTabOwnership` (the local `--close-worker` `isOwnedBy`)
@@ -278,14 +278,14 @@ const raw = (opts: Record<string, unknown>, cap = towerCap, ctx: Parameters<type
   reason(authorizeHelperInvoke(cap, 'terminal:create-with-command', [opts], ctx))
 
 describe('LOCAL_HELPER_CHANNEL_ROLES (T0575 / D149)', () => {
-  it('is the headless table plus raw command mode for a tower; the headless table is unchanged', () => {
-    expect(LOCAL_HELPER_CHANNEL_ROLES).toEqual({ ...HELPER_CHANNEL_ROLES, 'terminal:create-with-command': ['tower'] })
-    expect(HELPER_CHANNEL_ROLES).not.toHaveProperty('terminal:create-with-command')
+  it('T0579: is the headless table itself — raw command mode for a tower on both', () => {
+    expect(LOCAL_HELPER_CHANNEL_ROLES).toBe(HELPER_CHANNEL_ROLES)
+    expect(HELPER_CHANNEL_ROLES['terminal:create-with-command']).toEqual(['tower'])
     expect(HELPER_CREATE_CHANNELS).toEqual(['terminal:create-agent-command', 'terminal:create-with-command'])
   })
 
-  it('headless (default table) still denies raw command mode', () => {
-    expect(raw({ id: 'new-1', cwd: CWD, command: 'claude' }, towerCap, { isTerminalAlive: () => false })).toBe('channel-not-allowed')
+  it('T0579: headless (default table) allows raw command mode for a tower too', () => {
+    expect(raw({ id: 'new-1', cwd: CWD, command: 'claude' }, towerCap, { isTerminalAlive: () => false })).toBe('ok')
   })
 
   it('tower: the bat-terminal.mjs raw command payload passes', () => {

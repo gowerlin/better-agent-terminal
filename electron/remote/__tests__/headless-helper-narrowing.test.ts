@@ -8,6 +8,9 @@
  *     and the real bat-notify flattens a multi-line message into one pre-fill line
  *   - tower `terminal:create-agent-command`: registry agents only; ≤ 8 live children per tower;
  *     ≥ 1 s between creations; helpers never take the last 8 PTY slots of a capped server
+ *   - T0579: tower `terminal:create-with-command` (raw command mode, now allowed on headless): same
+ *     checks (no `shell`, `customEnv` whitelist, own tower id, new id) and the same quota, shared
+ *     with create-agent-command; a worker → `role-not-allowed`
  *
  * The creation quota gets an injected clock (`helperSpawnQuota`) so the 1 s interval does not
  * slow the suite; the interval itself is covered against that clock.
@@ -76,6 +79,10 @@ const outputOf = (server: Server, id: string) => server.harness.events
 
 const agentCommand = (id: string, extra: Record<string, unknown> = {}) =>
   ({ id, cwd: CWD, agent: ECHO_AGENT, prompt: 'T0450MARK', ...extra })
+
+/** T0579: what `bat-terminal.mjs [--notify-id …] echo T0579RAW` sends (raw command mode). */
+const rawCommand = (id: string, extra: Record<string, unknown> = {}) =>
+  ({ id, cwd: CWD, command: 'echo T0579RAW', reportLanding: true, ...extra })
 
 let main: Server
 
@@ -230,6 +237,122 @@ describe('tower create-agent-command — registry agent, quota (T0450, T0445 #7)
 
     await tower.close()
     for (const id of [...children, clientPty]) await harness.invoke('pty:kill', id)
+  }, 60_000)
+})
+
+describe('tower create-with-command — raw command mode on headless (T0579)', () => {
+  it('a tower creates a terminal that runs the command; bound to it, the new terminal gets a worker capability', async () => {
+    const { harness, registry, towerId, tick } = main
+    const tower = await main.connectAs(registry.issue(towerId))
+    tick(1000)
+    const childId = termId('raw')
+    const result = await tower.invoke('terminal:create-with-command', rawCommand(childId, {
+      customEnv: { BAT_TOWER_TERMINAL_ID: towerId, CT_MODE: 'yolo', CT_INTERACTIVE: '0' },
+    }))
+    expect(result).toMatchObject({ ok: true, terminalId: childId })
+    const [created] = await harness.waitForEvent('terminal:created-externally', args => (args[0] as { id?: string })?.id === childId, 10_000)
+    expect(created).toMatchObject({ id: childId, command: 'echo T0579RAW', towerTerminalId: towerId })
+    await vi.waitFor(() => expect(outputOf(main, childId)).toContain('T0579RAW'), { timeout: 20_000, interval: 100 })
+    // The raw-dispatched terminal reports back like an agent-mode worker.
+    expect(registry.isWorkerOf(childId, towerId)).toBe(true)
+    await tower.close()
+    await harness.invoke('pty:kill', childId)
+  }, 30_000)
+
+  it.each([
+    ['a shell', { shell: SHELL ?? 'C:\\Windows\\System32\\cmd.exe' }, 'shell-not-allowed'],
+    ['a customEnv key off the whitelist', { customEnv: { LD_PRELOAD: '/tmp/x.so' } }, 'custom-env-not-allowed'],
+    ['another terminal as its tower', { customEnv: { BAT_TOWER_TERMINAL_ID: 'someone-else' } }, 'tower-not-bound'],
+    ['a non-string command', { command: ['echo', 'T0579PWN'] }, 'invalid-payload'],
+  ])('a tower passing %s is refused; nothing is created', async (_what, extra, expected) => {
+    const { harness, registry, towerId, tick } = main
+    const tower = await main.connectAs(registry.issue(towerId))
+    tick(1000)
+    const childId = termId('raw')
+    await expect(tower.invoke('terminal:create-with-command', rawCommand(childId, extra as Record<string, unknown>)))
+      .rejects.toThrow(new RegExp(`^Forbidden: ${expected}$`))
+    expect(await harness.invoke('pty:get-buffer', childId)).toBeNull()
+    await tower.close()
+  })
+
+  it('a raw command over its own or an existing id is refused; the command never reaches that terminal', async () => {
+    const { harness, registry, towerId, tick } = main
+    const tower = await main.connectAs(registry.issue(towerId))
+    tick(1000)
+    await expect(tower.invoke('terminal:create-with-command', rawCommand(towerId, { command: 'echo T0579PWN-OWN' })))
+      .rejects.toThrow(/^Forbidden: target-not-bound$/)
+    const otherId = termId('other')
+    await main.createPty(otherId)
+    await expect(tower.invoke('terminal:create-with-command', rawCommand(otherId, { command: 'echo T0579PWN-OTHER' })))
+      .rejects.toThrow(/^Forbidden: terminal-exists$/)
+    await tower.close()
+    await sleep(700)
+    expect(outputOf(main, towerId)).not.toContain('T0579PWN')
+    expect(outputOf(main, otherId)).not.toContain('T0579PWN')
+    await harness.invoke('pty:kill', otherId)
+  })
+
+  it('a worker capability → role-not-allowed', async () => {
+    const { harness, registry, towerId } = main
+    const workerId = termId('worker')
+    const worker = await main.connectAs(registry.issue(workerId, { towerId }))
+    const childId = termId('raw')
+    await expect(worker.invoke('terminal:create-with-command', rawCommand(childId, { customEnv: { BAT_TOWER_TERMINAL_ID: towerId } })))
+      .rejects.toThrow(/^Forbidden: role-not-allowed$/)
+    expect(await harness.invoke('pty:get-buffer', childId)).toBeNull()
+    await worker.close()
+    registry.revokeTerminal(workerId)
+  })
+
+  it('shares the quota with create-agent-command: 1 s between either, 8 live children across both', async () => {
+    const { harness, registry, towerId, tick } = main
+    const tower = await main.connectAs(registry.issue(towerId))
+    const children: string[] = []
+    tick(1000)
+    const first = termId('child')
+    expect(await tower.invoke('terminal:create-agent-command', agentCommand(first))).toBe(true)
+    children.push(first)
+    const tooSoon = termId('raw')
+    await expect(tower.invoke('terminal:create-with-command', rawCommand(tooSoon))).rejects.toThrow(/^Forbidden: create-rate-limited$/)
+    expect(await harness.invoke('pty:get-buffer', tooSoon)).toBeNull()
+
+    for (let i = 1; i < 8; i++) {
+      tick(1000)
+      const raw = i % 2 === 1
+      const id = termId(raw ? 'raw' : 'child')
+      const result = raw
+        ? await tower.invoke('terminal:create-with-command', rawCommand(id))
+        : await tower.invoke('terminal:create-agent-command', agentCommand(id))
+      expect(result).toBeTruthy()
+      children.push(id)
+    }
+    tick(1000)
+    const ninthRaw = termId('raw')
+    await expect(tower.invoke('terminal:create-with-command', rawCommand(ninthRaw))).rejects.toThrow(/^Forbidden: too-many-children$/)
+    tick(1000)
+    const ninthAgent = termId('child')
+    await expect(tower.invoke('terminal:create-agent-command', agentCommand(ninthAgent))).rejects.toThrow(/^Forbidden: too-many-children$/)
+    expect(await harness.invoke('pty:get-buffer', ninthRaw)).toBeNull()
+    expect(await harness.invoke('pty:get-buffer', ninthAgent)).toBeNull()
+
+    await tower.close()
+    for (const id of children) await harness.invoke('pty:kill', id)
+  }, 60_000)
+
+  it('on a capped server a raw command stops 8 slots short of the cap too', async () => {
+    const capped = await startServer({ maxPtys: 10 })
+    try {
+      const { harness, registry, towerId, tick } = capped
+      const tower = await capped.connectAs(registry.issue(towerId))
+      expect(await tower.invoke('terminal:create-with-command', rawCommand(termId('raw')))).toMatchObject({ ok: true })
+      tick(1000)
+      const refused = termId('raw')
+      await expect(tower.invoke('terminal:create-with-command', rawCommand(refused))).rejects.toThrow(/^Forbidden: pty-quota-reserved$/)
+      expect(await harness.invoke('pty:get-buffer', refused)).toBeNull()
+      await tower.close()
+    } finally {
+      await capped.harness.dispose()
+    }
   }, 60_000)
 })
 

@@ -895,6 +895,8 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
     logger: opts.logger,
     detectServerEnv: opts.detectServerEnv,
     // T0432: helpers inside headless PTYs authenticate with their PTY's capability.
+    // T0579: default role table (`HELPER_CHANNEL_ROLES`), the same as Electron's local one — a
+    // tower may also dispatch in raw command mode (`terminal:create-with-command`).
     helperCapabilities,
     isTerminalAlive: id => ptyManager?.isAlive(id) ?? false,
     // T0450 (T0445 #7): a tower helper launches registry agents only, within its creation

@@ -9,7 +9,7 @@
  *
  *   - positive: tower creates a worker reporting back to it; worker notifies / pre-fills /
  *     submits to its tower
- *   - negative: every non-whitelisted channel (pty:create, create-with-command, fs:*, claude:*,
+ *   - negative: every non-whitelisted channel (pty:create, fs:*, claude:*,
  *     git:*, profile:*, settings:* …), a tower writing a PTY, a worker targeting another PTY,
  *     a create over an existing id, a worker bound to another tower — the handler never runs
  *   - revocation: PTY exit revokes (open connection closed, new auth refused); server stop
@@ -116,7 +116,6 @@ describe('helper capability — denied (T0432)', () => {
     ['pty:kill', ['TOWER']],
     ['pty:restart', ['TOWER', CWD]],
     ['pty:get-buffer', ['TOWER']],
-    ['terminal:create-with-command', [{ id: 'evil-2', cwd: CWD, command: 'echo pwned' }]],
     ['fs:readdir', [CWD]],
     ['fs:readFile', [`${CWD}/x`]],
     ['image:read-as-data-url', [`${CWD}/x.png`]],
@@ -144,7 +143,6 @@ describe('helper capability — denied (T0432)', () => {
     registry.revokeTerminal(workerId)
     // Nothing was created behind the denial, and the tower PTY is untouched.
     expect(await bat.invoke('pty:get-buffer', 'evil-1')).toBeNull()
-    expect(await bat.invoke('pty:get-buffer', 'evil-2')).toBeNull()
     expect(await bat.invoke('pty:get-cwd', towerId)).toBe(CWD)
   })
 
