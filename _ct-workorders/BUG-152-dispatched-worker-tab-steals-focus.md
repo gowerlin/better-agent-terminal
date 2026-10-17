@@ -3,8 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-152
 title: "塔台以 helper 派出的 Worker 分頁會搶走鍵盤焦點，使用者正在打的字跑進 Worker 分頁"
-status: FIXED
+status: CLOSED
 fixed_at: "2026-10-18T03:27:14+0800"
+closed_at: "2026-10-18T04:21:39+0800"
 fixed_by: T0599
 fix_commit: "95cfa2b0"
 severity: medium
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（輸入誤送到 Worker 分頁；BUG-151 修正前會直接讓 Worker 起不來） |
 | 可重現 | 必現：派工分頁落在使用中的工作區時 |
-| **狀態** | ✅ FIXED（T0599 `95cfa2b0`；隔離實例 e2e T0602 PASS；安裝版「畫面不跳」待真人確認） |
+| **狀態** | 🚫 CLOSED（T0599 `95cfa2b0`；隔離實例 e2e T0602 PASS；`v0.7.0-pre.6` 安裝版派 T0603 使用者目視「沒跳，停在塔台」，2026-10-18） |
 
 ## 現象
 

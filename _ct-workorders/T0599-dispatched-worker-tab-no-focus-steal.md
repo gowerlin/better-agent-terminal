@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0599
 title: "BUG-152：helper 派出的 Worker 分頁不搶鍵盤焦點（D154）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
 sizing: S
 created_at: "2026-10-18T03:13:30+0800"
 started_at: "2026-10-18T03:15:32+0800"
-updated_at: "2026-10-18T03:27:14+0800"
+updated_at: "2026-10-18T04:21:39+0800"
 completed_at: "2026-10-18T03:27:14+0800"
 commit: 95cfa2b0
 depends_on: [T0598]
