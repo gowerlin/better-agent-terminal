@@ -116,3 +116,10 @@ DONE。本機與 headless 改用同一張角色表：`HELPER_CHANNEL_ROLES` 加�
 ### 後續建議
 
 - 遠端 raw command 依賴遠端 `PATH` 上的 `claude`；若希望 `bat-terminal.mjs claude …` 在遠端也用 bundle 的 claude，可另開單評估在 headless PTY 的 `PATH` 加入內嵌 claude 的 bin（會影響使用者自己的 claude 優先序，需決策）。
+
+## 塔台結案（2026-10-17T20:13:07+0800）
+
+**DONE**（source / test 層）。塔台核對：`514710a9` 範圍與 affects_files 一致（`remote-server.ts` 只改註解，接受）；`CLAUDE.md` 的 diff 未夾帶並行 T0578 的未 commit 內容；塔台重跑 `headless- / helper-capability / local-helper-capability / proxied-channels-binding` 25 檔 / 428 passed（工作樹含 T0578 進行中變更；完整複驗待 T0578 收單後一併跑）。
+
+後續建議「headless PTY 的 `PATH` 加入內嵌 claude」記入 PLAN-047 候選，不在 0.7.0-pre.1 範圍。
+

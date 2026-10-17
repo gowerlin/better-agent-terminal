@@ -239,3 +239,4 @@ links:
 - 2026-10-17 19:07 — D149 採路線 [A]，狀態 → IN_PROGRESS；開 T0575（A1）/ T0576（A2，依賴 T0575）/ T0577（T）；D150 合併工單三種模式（新增 §三之二）
 - 2026-10-17 19:36 — T0577 DONE（`58ec1046`，L133 放寬）；T0575 DONE（`2c59edee`，本機 `batcap.` 權杖）；後續小單候選：headless 同步開放 raw command（T0575 任務 2 評估）；派 T0576
 - 2026-10-17 19:55 — T0576 DONE（`7e3c1d7d`，權杖跨 BAT 重開保留）；A1 + A2 完成，待同版發佈與實機驗收；衍生 BUG-146
+- 2026-10-17 20:13 — T0579 DONE（`514710a9`，headless tower 開放 raw command，本機 / headless 共用角色表）；候選：headless PTY `PATH` 加入內嵌 claude（需決策，暫不開）
