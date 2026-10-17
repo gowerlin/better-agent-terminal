@@ -3,29 +3,29 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-17T10:53:17+0800"
+generated_at: "2026-10-17T10:55:08+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 18
+total: 17
 breakdown:
   IDEA: 4
   PLANNED: 0
   IN_PROGRESS: 0
-  DONE: 13
+  DONE: 12
   DROPPED: 1
 ---
 
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-17 10:53 (UTC+8) — *sync：索引 frontmatter 統計校正（18 PLAN：IDEA 4 / DONE 13 / DROPPED 1）
+> 最後同步：2026-10-17 10:55 (UTC+8) — *archive：PLAN-039 移入 `_archive/plans/`
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 13 | 🚫 Dropped: 1
+- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 12 | 🚫 Dropped: 1
 
 ## Active
 
@@ -51,7 +51,6 @@ breakdown:
 | PLAN-031 | Server Bundle Distribution（含 ARM64 Linux 支援） | 2026-10-16 | [PLAN-031](PLAN-031-server-bundle-distribution.md) |
 | PLAN-042 | T0534 衍生修正：已結束分頁 ⏻ 無效（BUG-137）、Windows 關閉分頁子程序樹、派工日誌欄位、CT 文件落差（T0539 / T0540 / CT-T012） | 2026-10-15 | [PLAN-042](PLAN-042-t0534-side-findings.md) |
 | PLAN-040 | 工作區層級預設 Agent ＋ Agent 啟動參數設定（T0529） | 2026-10-14 | [PLAN-040](PLAN-040-workspace-default-agent-setting.md) |
-| PLAN-039 | 多個 remote profile 同時連線（per-profile RemoteClient 取代單一槽位） | 2026-10-13 | [PLAN-039](PLAN-039-multi-remote-profile-concurrent-clients.md) |
 | PLAN-032 | Setup Wizard Error UX Overhaul（Stepper awaiting-input + error mapping framework） | 2026-09-02 | [PLAN-032](PLAN-032-wizard-error-ux-overhaul.md) |
 
 ## Dropped
