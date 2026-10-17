@@ -104,3 +104,4 @@ CT v5.5.0 的 yolo Worker 提問走工單檔往返（寫 `### 待塔台決策` �
 ## 轉交紀錄
 
 - 2026-10-18T07:16:57+0800：BAT 塔台建立（第七十七 session），待轉交 BMad-Guide 塔台。
+- 2026-10-18T07:17:20+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-09`，msg `e62c1efd`）；BAT 版號待下一個預覽版發佈後告知。
