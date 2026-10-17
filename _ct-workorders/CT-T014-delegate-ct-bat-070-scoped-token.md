@@ -86,3 +86,4 @@ BAT 塔台已核對現行 CT v5.2.3 skill（唯讀）：ct-exec / ct-done 只以
 - ✅ source / release / install lane：DONE（對方回報，BAT 塔台未複核對方 repo）。
 - ⏳ runtime lane：待 `v0.7.0-pre.1` 發版 + 新 Tower session（CT v5.2.4 生效）後驗收：一般分頁 Tower 派工 / 回收 / set-role 正常；Worker 分頁啟動 Tower → 派工 exit 1 且有原因提示。
 - 2026-10-17 20:56：BAT 塔台通知 `v0.7.0-pre.1` 已發佈；BMad-Guide 塔台開 runtime 驗收單 **T0150**（併入 T0139 塔台分頁標題實機驗收），等使用者安裝新版、在一般分頁開新 Tower session 後派發。
+- 2026-10-17 第七十三 session：BMad-Guide 塔台回報 **T0150 DONE** → ✅ **runtime lane PASS**（一般分頁 set-role / 派工 / close-worker exit 0；Worker 分頁派工與 set-role exit 1 `Forbidden: role-not-allowed`；Worker bat-notify 送達綁定塔台；面板 Forbidden 提示與 Worker 加註）。`RECOVERY_PENDING` 對方未驗；BAT 端由 T0581 實機涵蓋 Recovery 保留路徑（> 2 s 未答分支僅單元 / e2e）。**CT-T014 全部 lane 結案。**
