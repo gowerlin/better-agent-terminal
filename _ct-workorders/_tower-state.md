@@ -91,7 +91,7 @@
 
 ### 待辦（依優先序）
 
-1. 🔴 **`v0.7.0-pre.3` 實機驗收**（使用者退出 BAT 時停 Terminal Server → 安裝）：「+」選單新開 Codex CLI 分頁 → 「請呼叫 MCP tool bat_whoami（不帶參數），把結果的 JSON 原樣貼出來。」→ `role: shell`、`agent: codex-cli` → BUG-148 CLOSED；失敗時查 BAT 日誌 `[bat-mcp] … injected:` 是否含 `mcp_servers.bat.env_vars`
+1. ✅ ~~`v0.7.0-pre.3` 實機驗收~~ → 2026-10-18 00:28 第七十五 session：Codex CLI 分頁 `bat_whoami` PASS（`role: shell`、`agent: codex-cli`）→ **BUG-148 CLOSED**
 2. 🟡 **PLAN-047 後續**（pre.2 驗收已完成，可決定）：M1b（blocked 偵測）；Q3（關閉後仍可查 `--worktree-status`，可沿用 T0582 已結束 PTY 紀錄）；M2 / M3 視使用情況
 3. 🟡 **用量限制**：首次真實撞限制時看 `[usage-limit]`；**BUG-136**：等 Gary 回傳日誌；`RECOVERY_PENDING`（> 2 s 未答）實機未驗
 4. 🟡 前期驗收：Gary BUG-127-135 / 116 / 118；使用者 Windows BUG-130、真人項 BUG-105 / 107 / 108、Docker BUG-097 / 111；T0550 真人 6 項；dmg / AppImage 啟動、NSIS 完整重裝
@@ -124,11 +124,11 @@
 | **前一 tag** | `v0.7.0-pre.2`（2026-10-17 23:03，`9cc4bcf3`） |
 | **目前主軸** | `v0.7.0-pre.3` 已發佈、待實機驗 codex MCP（BUG-148）；pre.2 其餘項目與 CT v5.3.0 已驗收；之後決定 M1b / Q3 |
 | **工單最大編號** | T0588 DONE（第七十四 session：T0586 BUG-148 FIXED、T0587 隔離派工探針、T0588 合併工單模式 ②）；T0585 DONE（第七十三 session：T0581 實機探針、T0582–T0585 PLAN-047 M1 / W1，實作皆 source / test 層，實機隨 0.7.0-pre.2）；T0580 DONE（第七十二 session：T0574 研究、T0575–T0580 實作，皆 source / test 層，實機隨 0.7.0-pre.1）；T0573 DONE（pre.9 實機，第七十一 session）；T0572 DONE（pre.8 實機）；T0571 DONE `35eaf125`、T0572 FIXED `ecc00c60`（第六十九 session，皆待 pre.8 實機）；T0568–T0570 DONE（第六十八 session） |
-| **BUG 最大編號** | **BUG-148**（FIXED by T0586 `8c7bd4c4`，實機待 0.7.0-pre.3，2026-10-18）；BUG-147（BUG-146 / 147 FIXED by T0578 / T0580，2026-10-17）；BUG-145（CLOSED 2026-10-17）；BUG-144 CLOSED（pre.9 實機，2026-10-17）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 12（10-17 歸檔 40 張） |
+| **BUG 最大編號** | **BUG-148**（FIXED by T0586 `8c7bd4c4` → 2026-10-18 00:28 `0.7.0-pre.3` 實機 PASS，**CLOSED**；tracker Open 1 / Fixed 19 / Closed 13）；BUG-147（BUG-146 / 147 FIXED by T0578 / T0580，2026-10-17）；BUG-145（CLOSED 2026-10-17）；BUG-144 CLOSED（pre.9 實機，2026-10-17）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 17 / Closed 12（10-17 歸檔 40 張） |
 | **PLAN 最大編號** | **PLAN-047**（IN_PROGRESS，D149；外部提案「BAT MCP Server 與 Worktree 合併」審議，2026-10-17 第七十二 session）；PLAN-044 / 045 / 046 DONE（2026-10-16）；PLAN-015 / 029 / 038 / 043 IDEA；PLAN-014 DROPPED |
 | **決策最大編號** | D152（PLAN-047 第二批：M1 / W1 並行、worktree 依賴由 Worker 安裝、BAT MCP 預設開，2026-10-17）；D151（D151 下一版 `v0.7.0-pre.1`、不發兩位數 pre；D149 PLAN-047 路線 [A]；D150 合併工單三種模式，2026-10-17）；前 D148（PLAN-044 範圍：claude 信任 CLI、Codex 自動輸入、塔台 `--mode`，2026-10-16） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower **v5.3.0**（第七十四 session 起使用；runtime PASS：BMad-Guide T0158 + 本專案 T0587 / T0588；`worker_auto_close: done`） |
+| **塔台版本** | Control Tower **v5.3.1**（第七十五 session 載入；v5.3.0 自第七十四 session 起使用；runtime PASS：BMad-Guide T0158 + 本專案 T0587 / T0588；`worker_auto_close: done`） |
 | **unit test 基線** | **4997 passed / 285 files / 3 skipped**（塔台複驗 @ `baf9e5ab`，2026-10-18 第七十四 session）；前：4992 passed / 284 files（@ `46b904f1`，第七十三 session）；前：4771 passed / 270 files / 3 skipped（@ `079b5e35`，第七十二 session）；前：4645 passed / 266 files / 3 skipped（塔台複驗 @ archive 後，2026-10-17 第七十一 session）；前：4633（@ `5e47ed60`）；4614 passed / 265 files（@ `2497014a`，第六十八 session）；typecheck 0 / typecheck:electron 0 |
 
 ---
@@ -201,7 +201,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.7.0-pre.2`（最新 release 為 `0.7.0-pre.3`，待使用者安裝） | 2026-10-17 23:38 FileVersion 確認；分頁權杖 `batcap.`；Tower `--set-role tower --mode on` exit 0（標題為使用者命名 `Claude CLI : Tower`，kept） |
+| BAT 安裝版 | ✅ `0.7.0-pre.3`（= 最新 release） | 2026-10-18 00:27 FileVersion 確認（第七十五 session）；分頁權杖 `batcap.`；Tower `--set-role tower --mode on` exit 0（標題為使用者命名 `Claude CLI : Tower`，kept） |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |

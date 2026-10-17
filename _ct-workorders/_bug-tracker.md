@@ -3,30 +3,30 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-17T20:17:47+0800"
+generated_at: "2026-10-18T00:28:44+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 32
+total: 33
 breakdown:
   OPEN: 1
   FIXING: 0
   FIXED: 19
   VERIFY: 0
-  CLOSED: 12
+  CLOSED: 13
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-17 20:17 (UTC+8) — BUG-146 FIXED（T0578）、新增 BUG-147（FIXED by T0578）
+> 最後同步：2026-10-18 00:28 (UTC+8) — 新增 BUG-148（T0586 FIXED → `0.7.0-pre.3` 實機驗收 CLOSED）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 32**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 33**
 
 ## 🔴 Open / 處理中
 
@@ -73,6 +73,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-148 | Codex CLI 分頁的 BAT MCP 一律 `CONNECT_FAILED`（T0586 `8c7bd4c4`：codex 注入改帶 `mcp_servers.bat.env_vars` 轉送 `BAT_*` 名稱；pre.3 實機 `bat_whoami` PASS） | 🟡 medium | 2026-10-18 | [BUG-148](BUG-148-codex-mcp-shim-missing-bat-env.md) |
 | BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（T0573 `6e4f3764`：claude 聚焦時重送追蹤 DECSET 清選取 → 放回 / 接回拖曳；同範圍重選經放開同步；pre.9 實機三項 PASS） | 🟢 low | 2026-10-17 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
 | BUG-145 | 新分頁 / 還原 / ⏻ 重啟的 PTY 停在 120x30（T0572 `ecc00c60`：PTY 建立後重送 fit 尺寸；pre.8 實機 PASS） | 🟢 low | 2026-10-17 | [BUG-145](BUG-145-new-pty-stays-at-spawn-size.md) |
 | BUG-143 | 終端右鍵選單按 Esc 關不掉（T0569 `fb66c0bc`：選單開著時 Esc 只關選單、不送進 PTY；pre.7 實機 PASS） | 🟢 low | 2026-10-16 | [BUG-143](BUG-143-terminal-context-menu-esc-not-closing.md) |
