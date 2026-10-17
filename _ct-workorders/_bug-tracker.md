@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-18T03:03:31+0800"
+generated_at: "2026-10-18T03:13:30+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 36
+total: 37
 breakdown:
   OPEN: 1
-  FIXING: 0
+  FIXING: 1
   FIXED: 22
   VERIFY: 0
   CLOSED: 13
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 03:03 (UTC+8) — BUG-151 FIXED（T0598 `45943d16`，根因更正：派工指令前的鍵盤輸入）；BUG-150 FIXED（T0597）
+> 最後同步：2026-10-18 03:13 (UTC+8) — 新增 BUG-152 FIXING（T0599，派工分頁搶焦點，D154）；BUG-150 / 151 FIXED
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 36**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 37**
 
 ## 🔴 Open / 處理中
 
@@ -38,6 +38,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-152 | 塔台以 helper 派出的 Worker 分頁會搶走鍵盤焦點，使用者正在打的字跑進 Worker 分頁 | 🟡 medium | 2026-10-18 03:13（T0599） | [BUG-152](BUG-152-dispatched-worker-tab-steals-focus.md) |
 
 ## ✅ 已修復
 

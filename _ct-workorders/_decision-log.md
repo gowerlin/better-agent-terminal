@@ -1443,6 +1443,15 @@
 - **不採用**：把真模型執行工單放進常態自動化（耗 token、結果不穩定）
 - **相關**：BUG-148 / T0584 / T0586 / T0590 / PLAN-047
 
+### D154 2026-10-18 — 塔台派出的 Worker 分頁不搶焦點；Worker 啟動確認以 claude `SessionStart` hook 為信號、helper 可選擇等待
+
+- **背景**：BUG-151（T0598）根因是派工分頁搶走鍵盤焦點、指令寫入前的輸入接在指令前；修正後輸入不再破壞指令，但使用者接著打的字仍會進 Worker 分頁。另 helper exit 0 時指令尚未送出，塔台無法得知 Worker 是否真的啟動。
+- **決定**（使用者 2026-10-18 03:13 選定建議方案）：
+  - **焦點（BUG-152 / T0599）**：只有 helper 派出的分頁不搶焦點（分頁照常出現在清單與縮圖）；手動開的分頁、UI 按鈕開的分頁照舊。
+  - **啟動確認（T0600）**：claude 的 `SessionStart` hook 回報「已啟動」，狀態查詢多一個欄位；helper 加 opt-in 等待參數，逾時回新的 exit code。不帶參數時行為不變；codex 等沒有信號的 agent 回「無法判定」，不得當成失敗。介面契約由 T0600 寫定後轉交 CT。
+- **不採用**：「最近沒打字才切焦點」（規則複雜、行為難預測）；Settings 開關（多一個設定項）；只揭露狀態不加 helper 參數。
+- **相關**：BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017
+
 ### D147 2026-10-16 — 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`；BAT 提供 helper `--set-role tower`，CT 啟動時呼叫
 
 - **背景**：使用者要求塔台分頁像 Worker 分頁（T0553 `Claude CLI · Worker · T####`）一樣一眼可辨。BAT 目前沒有讓分頁內程式改標題的管道（不處理 OSC 標題序列、helper 無改名 API）
