@@ -3,10 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-149
 title: "`settings.json` 沒有 `shell` 鍵時，helper 以 `--agent codex` 派出的 Codex Worker 起不來（Windows：引號以 posix 組、分頁卻是 pwsh）"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-10-18T01:40:47+0800"
+fixed_at: "2026-10-18T01:49:10+0800"
+fixed_by: T0593
+fix_commit: "e283abdc"
 impact:
   - helper-dispatch
   - codex-cli
@@ -22,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（Codex Worker 啟動即失敗；全新安裝、從未在 Settings 存過設定的 Windows 使用者必中） |
 | 可重現 | 必現（T0592 e2e `test.fixme('codex Worker dispatch with settings.json lacking "shell" …')` 改成 `test` 即重現） |
-| **狀態** | 🔧 FIXING（T0593） |
+| **狀態** | ✅ FIXED（T0593 `e283abdc`；實機隨 `0.7.0-pre.4`） |
 
 ## 現象
 
@@ -38,3 +41,11 @@ links:
 ## 修正方向（T0592 建議）
 
 `resolveTerminalShell` 在沒有持久化 shell 時，以 PtyManager 實際的預設 shell（`getDefaultShell`）判斷 family；或 `resolvePersistedShellPathWithDiagnostics` 把缺鍵視為 `auto`。
+
+## 範圍更正（T0593，2026-10-18）
+
+原判「claude 派工不受影響」**不正確**：缺鍵時 `resolveClaudeBaseCommand(shellFamily)` 以 posix 包路徑 `'C:\…\claude.exe'`，pwsh 下是 ParserError（應為 `& '…'`）。所以缺 `shell` 鍵的 Windows 使用者，helper 以 `--agent` 派出的 **claude 與 codex Worker 都起不來**。raw command 模式（`terminal:create-with-command`）不受影響；`shell` 有值時不受影響。
+
+## 修正（T0593，`e283abdc`）
+
+缺 `shell` 鍵時，`terminal:create-agent-command` 以 `PtyManager.getDefaultShell()`（與 `ptyManager.create` 實際用的同一來源）判斷 shell family，不再推成 posix；`create` 本身行為不變。新增 `electron/__tests__/dispatch-shell-family.test.ts`（15）；T0592 e2e 的缺鍵情境由 `test.fixme` 改為 `test` 並通過（2 passed）。unit 5070 passed / 291 files。
