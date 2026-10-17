@@ -55,6 +55,9 @@ interface TerminalPtyManager {
     worktree?: CtWorktreeRecord
   }): boolean
   write(id: string, data: string): void
+  /** BUG-151 / T0598: input for `id` waits until `writeDispatchCommand` wrote the command. */
+  holdInputForDispatch?(id: string): void
+  writeDispatchCommand?(id: string, command: string): void
   /** BUG-149 / T0593: the shell `create` starts without `shell` (`PtyManager.getDefaultShell`). */
   getDefaultShell?(): string
   /** BUG-146 / T0580: Electron holds creates while the Recovery prompt is unanswered (headless never does). */
@@ -307,19 +310,33 @@ function resolveTerminalShell(
 }
 
 /**
- * BUG-149 / T0593: the shell a dispatched command is quoted for. Without a persisted shell
- * (settings.json lacking `shell`, or `custom` with an empty path) `create` gets no `shell` and
- * the PTY starts `PtyManager.getDefaultShell()` — pwsh on Windows — so quote for that same shell
- * (it used to fall to `pty-default` → posix, which pwsh splits).
+ * BUG-151 / T0598: the shell a dispatch spawns and quotes its command for, resolved once —
+ * `create-agent-command` passes it to `createWithCommand`, which spawns exactly `spawn`.
+ *
+ * BUG-149 / T0593: without a persisted shell (settings.json lacking `shell`, or `custom` with an
+ * empty path) the PTY starts `PtyManager.getDefaultShell()` — pwsh on Windows — so quote for that
+ * same shell (it used to fall to `pty-default` → posix, which pwsh splits).
  */
-function quotingShell(
-  resolution: ReturnType<typeof resolveTerminalShell>,
+interface DispatchShell {
+  resolution: ReturnType<typeof resolveTerminalShell>
+  /** Passed to `PtyManager.create`; undefined only when no default shell is known either. */
+  spawn: string | undefined
+  /** What the command is quoted for (`detectShellFamily`). */
+  quoting: string
+  from: string
+}
+
+function resolveDispatchShell(
+  explicitShell: string | undefined,
+  settings: PersistedShellSettings | null,
+  deps: TerminalCommandHandlerDeps,
   ptyManager: TerminalPtyManager | null,
-): { shell: string; from: string } {
-  if (resolution.shell) return { shell: resolution.shell, from: resolution.source }
+): DispatchShell {
+  const resolution = resolveTerminalShell(explicitShell, settings, deps)
+  if (resolution.shell) return { resolution, spawn: resolution.shell, quoting: resolution.shell, from: resolution.source }
   const defaultShell = ptyManager?.getDefaultShell?.()
-  if (defaultShell) return { shell: defaultShell, from: `pty-default:${shellBasename(defaultShell)}` }
-  return { shell: resolution.basename, from: resolution.source }
+  if (defaultShell) return { resolution, spawn: defaultShell, quoting: defaultShell, from: `pty-default:${shellBasename(defaultShell)}` }
+  return { resolution, spawn: undefined, quoting: resolution.basename, from: resolution.source }
 }
 
 /** T0523: `undefined` → `(active)` etc. for one-line logs. */
@@ -497,7 +514,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
    * `isolation` comes from create-agent-command only (T0583: never from the create-with-command
    * payload, so a caller of that channel cannot name a worktree for BAT to record or clean).
    */
-  const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution, isolation?: { workorder: string }) => {
+  const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution, isolation?: { workorder: string }, dispatchShell?: DispatchShell) => {
     const ptyManager = deps.getPtyManager()
     let reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
     const customEnv = deps.pickWhitelistedEnv(opts.customEnv)
@@ -599,10 +616,11 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       })
     }
 
-    const settings = deps.readPersistedSettingsSync()
-    const shellResolution = resolveTerminalShell(opts.shell, settings, deps)
+    // BUG-151 / T0598: create-agent-command quoted its command for `dispatchShell` — spawn that one
+    const shell = dispatchShell ?? resolveDispatchShell(opts.shell, deps.readPersistedSettingsSync(), deps, ptyManager)
+    const shellResolution = shell.resolution
     const fallbackReason = shellResolution.fallbackReason ? ` reason=${shellResolution.fallbackReason}` : ''
-    deps.logger.log(`[remote][terminal] shell-resolution channel=terminal:create-with-command id=${opts.id} basename=${shellResolution.basename} persistedShell=${shellResolution.persistedShell} source=${shellResolution.source} fallback=${shellResolution.fallback ? 'yes' : 'no'}${fallbackReason}`)
+    deps.logger.log(`[remote][terminal] shell-resolution channel=terminal:create-with-command id=${opts.id} basename=${shellResolution.basename} persistedShell=${shellResolution.persistedShell} source=${shellResolution.source} fallback=${shellResolution.fallback ? 'yes' : 'no'}${fallbackReason} spawn=${shellBasename(shell.spawn)}`)
     deps.mirrorToBatScripts('shell-resolution', {
       channel: 'terminal:create-with-command',
       terminalId: opts.id,
@@ -611,21 +629,26 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       source: shellResolution.source,
       fallback: shellResolution.fallback,
       fallbackReason: shellResolution.fallbackReason,
+      spawn: shellBasename(shell.spawn),
     })
 
     const created = ptyManager.create({
       id: opts.id,
       cwd,
       type: 'terminal',
-      shell: shellResolution.shell,
+      shell: shell.spawn,
       customEnv: customEnvForPty,
       workspaceId: landing.workspaceId,
       ...(opts.workorder ? { workorder: opts.workorder } : {}),
       ...(worktree ? { worktree: worktree.record } : {}),
     })
     if (created && opts.command) {
+      // BUG-151 / T0598: the new tab has the keyboard focus already — what is typed into it
+      // before the command follows the command instead of being prefixed to it
+      ptyManager.holdInputForDispatch?.(opts.id)
       delay(() => {
-        ptyManager.write(opts.id, opts.command + '\r')
+        if (ptyManager.writeDispatchCommand) ptyManager.writeDispatchCommand(opts.id, opts.command + '\r')
+        else ptyManager.write(opts.id, opts.command + '\r')
       }, 500)
     }
     if (created && !_ctx.windowId) {
@@ -744,11 +767,9 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     const agentCheck = unknownAgent(opts)
     if (agentCheck.refusal) return agentCheck.refusal
 
-    const settings = deps.readPersistedSettingsSync()
-    const shellResolution = resolveTerminalShell(opts.shell, settings, deps)
-    const quoting = quotingShell(shellResolution, deps.getPtyManager())
-    const shellFamily = detectShellFamily(quoting.shell)
-    deps.logger.log(`[agent-command] id=${opts.id} shell family=${shellFamily} from=${quoting.from}`)
+    const dispatchShell = resolveDispatchShell(opts.shell, deps.readPersistedSettingsSync(), deps, deps.getPtyManager())
+    const shellFamily = detectShellFamily(dispatchShell.quoting)
+    deps.logger.log(`[agent-command] id=${opts.id} shell family=${shellFamily} from=${dispatchShell.from}`)
     // T0523 / BUG-129: `--agent default` follows the workspace the terminal lands in.
     const landing = await resolveWorkspace(_ctx, opts)
     const cwdRefusal = applyCwdCheck('terminal:create-agent-command', opts, landing)
@@ -807,10 +828,11 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       ...(agentName ? { agentName } : {}),
     }
     // T0583: an isolated dispatch never goes through the create-with-command channel (its payload
-    // cannot carry the worktree, see createWithCommand)
+    // cannot carry the worktree, see createWithCommand). T0598: nor the resolved shell — through
+    // invokeHandler createWithCommand resolves it again from the same settings.
     const result = deps.invokeHandler && !isolation
       ? await deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)
-      : await createWithCommand(_ctx, commandOptions, landing, isolation)
+      : await createWithCommand(_ctx, commandOptions, landing, isolation, dispatchShell)
     if (result && typeof result === 'object' && (result as { ok?: unknown }).ok === true) {
       const report = result as TerminalCreatedReport
       // Through invokeHandler the second resolution saw the already-resolved id: keep the first.

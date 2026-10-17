@@ -249,7 +249,7 @@
 - `scripts/bat-mcp.mjs` 是 stdio MCP server（零依賴），6 個唯讀 tool 轉接 helper channel，以分頁自己的範圍權杖認證。Settings「BAT MCP」`batMcpEnabled` 預設開（D152）。
 - 注入唯一實作 `electron/bat-mcp-launch.ts` `buildBatMcpLaunchArgs`（本機與 headless 共用）：claude 用 `--mcp-config=<file>`（**一定用 `=` 形式**，variadic 參數會吃掉 prompt）；codex 用 `-c mcp_servers.bat.*`，含 `env_vars`（codex 只轉送白名單 env）。🔴 不得改用 `mcp_servers.bat.env = { BAT_REMOTE_TOKEN = "…" }`（權杖值會出現在命令列與日誌）；新增 shim 讀的 env 時同步加進清單。
 - 組裝點：renderer `withBatMcpLaunchArgs`（`src/lib/bat-mcp-launch.ts`）、helper 派工 `createAgentPromptCommandBuilder` 的 `batMcpLaunchArgs` dep。🔴 新增 claude / codex 啟動路徑時一律經這兩者之一（`bat-mcp-launch.test.ts` source guard 數 `buildLaunchCommand(` 次數）。
-- 沒有持久化 shell 時，派工引號的 shell family 以 `PtyManager.getDefaultShell()` 判斷（`quotingShell`，`electron/terminal-command-handlers.ts`，BUG-149 / T0593）。codex 升版時必跑 `e2e/t0592-codex-tower-worker.spec.ts`。
+- 派工的 shell 只解析一次：`resolveDispatchShell`（`electron/terminal-command-handlers.ts`）同時決定 PTY 啟動的 shell 與引號 family（沒有持久化 shell 時用 `PtyManager.getDefaultShell()`，BUG-149 / T0593）；🔴 不要在 `createWithCommand` 或 consumer 另行推導（T0598 / BUG-151）。派工指令寫入前打進新分頁的輸入由 `PtyManager.holdInputForDispatch` / `writeDispatchCommand` 移到指令之後（BUG-151）。codex 升版時必跑 `e2e/t0592-codex-tower-worker.spec.ts`。
 - 完整 tool 表、協定、連線、注入條件、日誌、健康檢查、已知限制、驗證清單：[docs/agent-guide/bat-mcp-shim.md](docs/agent-guide/bat-mcp-shim.md)
 
 ## blocked 狀態偵測（PLAN-047 M1b / T0590）

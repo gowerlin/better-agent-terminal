@@ -9,7 +9,7 @@ import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
 import { resolvePtyLocaleEnv } from './pty-locale-env'
-import { normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
+import { isTerminalAutoReply, normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
 import { TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
@@ -295,6 +295,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   // `--close-worker` refuses a busy Worker and cancels a delayed close on either.
   private lastOutputAt: Map<string, number> = new Map()
   private lastUserInputAt: Map<string, number> = new Map()
+  // BUG-151 / T0598: input that reached a dispatched PTY before its launch command (in order)
+  private dispatchInputHolds: Map<string, string[]> = new Map()
   // T0582: recently ended PTYs (insertion order = oldest first), for the helper query channels
   private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
   // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
@@ -680,6 +682,7 @@ export class PtyManager implements CloseWorkerPtyManager {
    * No instance (the process's own exit after a kill): only fills in the exit code.
    */
   private recordExit(id: string, exitCode?: number): void {
+    this.dispatchInputHolds.delete(id) // T0598: nothing left to write after
     const instance = this.instances.get(id)
     const now = Date.now()
     this.pruneExitedPtys(now)
@@ -1314,6 +1317,28 @@ export class PtyManager implements CloseWorkerPtyManager {
   }
 
   /**
+   * BUG-151 / T0598: a helper dispatch writes its launch command into PTY `id` a moment after
+   * creating it, while the new tab already has the keyboard focus (BUG-135 / T0532). Until
+   * `writeDispatchCommand`, input for `id` (`writeWithResult`: `pty:write`) waits: written first,
+   * a stray keystroke became part of the command line (`, 'C:\…\claude.exe' …` →
+   * `bash: ,: command not found`). The terminal's own replies (`isTerminalAutoReply`) are not held.
+   */
+  holdInputForDispatch(id: string): void {
+    if (this.instances.has(id)) this.dispatchInputHolds.set(id, [])
+  }
+
+  /** BUG-151 / T0598: writes the dispatch command, then the input held since `holdInputForDispatch`. */
+  writeDispatchCommand(id: string, command: string): void {
+    const held = this.dispatchInputHolds.get(id) ?? []
+    this.dispatchInputHolds.delete(id)
+    this.write(id, command)
+    if (held.length === 0) return
+    const bytes = held.reduce((n, data) => n + Buffer.byteLength(data), 0)
+    logger.log(`[agent-command] id=${id} input before the dispatch command: ${held.length} write(s), ${bytes} bytes → sent after it`)
+    for (const data of held) this.write(id, data)
+  }
+
+  /**
    * T0215 (BUG-050 階段 1) — pty:write 顯性化錯誤回傳路徑。
    * 與舊 `write()` 併存:舊 write 供內部 caller(fire-and-forget、void return),
    * 本方法供 RemoteServer invoke 鏈回傳 `{ ok, reason }`,讓 bat-notify 可據以 exit 1。
@@ -1325,6 +1350,13 @@ export class PtyManager implements CloseWorkerPtyManager {
     // Manager-level check
     if (!this.instances.has(id)) {
       return { ok: false, reason: 'pty-not-found' }
+    }
+
+    // BUG-151 / T0598: the dispatch command of this PTY is not written yet — the input follows it
+    const held = this.dispatchInputHolds.get(id)
+    if (held && !isTerminalAutoReply(data)) {
+      held.push(data)
+      return { ok: true, reason: 'held-until-dispatch' }
     }
 
     // useServer 分支:fire-and-forget,樂觀回 ok。

@@ -10,7 +10,7 @@
  *
  *   - missing key / null settings / `custom` with an empty path: family of
  *     `ptyManager.getDefaultShell()` — the same function `create` uses when it gets no `shell`
- *     (`create` still gets no `shell`)
+ *     (T0598: `create` gets that same shell — one resolution for spawn and quoting)
  *   - `auto` / `pwsh` / `git-bash` / `cmd`: unchanged (the persisted shell, passed to `create`)
  *   - codex `-c` and claude base command quoted for that family
  *   - a real PtyManager: Windows → pwsh, Linux / macOS → posix (headless unchanged)
@@ -70,6 +70,8 @@ interface DispatchOptions {
   agent: 'codex' | 'claude-cli'
   platform?: NodeJS.Platform
   existsSync?: (p: string) => boolean
+  /** T0598: overrides `settings` — called on every settings.json read. */
+  readSettings?: () => PersistedShellSettings | null
 }
 
 async function dispatch(opts: DispatchOptions) {
@@ -78,6 +80,7 @@ async function dispatch(opts: DispatchOptions) {
   const written: string[] = []
   const families: Array<ShellFamily | undefined> = []
   const logs: string[] = []
+  let settingsReads = 0
   const getDefaultShell = typeof opts.defaultShell === 'function'
     ? opts.defaultShell
     : opts.defaultShell === null ? undefined : (() => opts.defaultShell as string)
@@ -108,7 +111,10 @@ async function dispatch(opts: DispatchOptions) {
       }
     },
     getAllWindows: () => [],
-    readPersistedSettingsSync: () => opts.settings,
+    readPersistedSettingsSync: () => {
+      settingsReads += 1
+      return opts.readSettings ? opts.readSettings() : opts.settings
+    },
     buildAgentPromptCommand: async o => {
       families.push(o.shellFamily)
       return buildAgentPromptCommand(o)
@@ -135,7 +141,7 @@ async function dispatch(opts: DispatchOptions) {
   })
   expect(result).toBe(true)
   expect(written).toHaveLength(1)
-  return { family: families[0], createdShell: created[0]?.shell, command: written[0].replace(/\r$/, ''), logs }
+  return { family: families[0], createdShell: created[0]?.shell, command: written[0].replace(/\r$/, ''), logs, settingsReads }
 }
 
 function codexArgs(family: ShellFamily): string {
@@ -149,10 +155,10 @@ describe('BUG-149: settings.json without "shell" (Windows)', () => {
     ['no shell key', {} as PersistedShellSettings],
     ['no settings.json', null],
     ['custom with an empty path', { shell: 'custom', customShellPath: '  ' }],
-  ])('%s → the PtyManager default shell (pwsh): codex -c quoted for pwsh, create gets no shell', async (_label, settings) => {
+  ])('%s → the PtyManager default shell (pwsh): codex -c quoted for pwsh, create spawns that shell', async (_label, settings) => {
     const r = await dispatch({ settings, defaultShell: WIN_PWSH, agent: 'codex' })
     expect(r.family).toBe('pwsh')
-    expect(r.createdShell).toBeUndefined()
+    expect(r.createdShell).toBe(WIN_PWSH)
     expect(r.command).toBe(`codex ${codexArgs('pwsh')} '$ct-exec T0593'`)
     // the pre-fix posix form (`'\''`) is gone
     expect(r.command).not.toContain("'\\''")
@@ -217,7 +223,7 @@ describe('the family follows the real PtyManager.getDefaultShell', () => {
     expect(detectShellFamily(shell)).toBe('pwsh')
     const r = await dispatch({ settings: {}, defaultShell: getDefault, agent: 'codex' })
     expect(r.family).toBe(detectShellFamily(shell))
-    expect(r.createdShell).toBeUndefined()
+    expect(r.createdShell).toBe(shell)
   })
 
   it.each([
@@ -234,12 +240,52 @@ describe('the family follows the real PtyManager.getDefaultShell', () => {
   })
 })
 
+describe('BUG-151 / T0598: one resolution for the spawned shell and the quoting', () => {
+  it('git-bash (the BUG-151 settings): posix quoting, the claude path run as a posix word, create spawns bash.exe', async () => {
+    const r = await dispatch({ settings: { shell: 'git-bash', customShellPath: '' }, defaultShell: WIN_PWSH, agent: 'claude-cli' })
+    expect(r.family).toBe('posix')
+    expect(r.createdShell).toBe(WIN_GIT_BASH)
+    expect(r.command.startsWith(`'${CLAUDE_EXE}' `)).toBe(true)
+    expect(r.command).not.toMatch(/^[&,]/)
+    expect(r.command.endsWith(" '/ct-exec T0593'")).toBe(true)
+    expect(r.logs.some(l => l.includes('[agent-command] id=worker-1 shell family=posix from=persisted'))).toBe(true)
+    expect(r.logs.some(l => l.includes('shell-resolution channel=terminal:create-with-command id=worker-1 basename=bash.exe persistedShell=git-bash source=persisted fallback=no spawn=bash.exe'))).toBe(true)
+  })
+
+  it.each([
+    ['git-bash', { shell: 'git-bash' }, 'posix', WIN_GIT_BASH],
+    ['missing shell key (BUG-149)', {}, 'pwsh', WIN_PWSH],
+    ['pwsh', { shell: 'pwsh' }, 'pwsh', WIN_PWSH],
+    ['cmd', { shell: 'cmd' }, 'cmd', 'cmd.exe'],
+  ] satisfies Array<[string, PersistedShellSettings, ShellFamily, string]>)('%s: settings.json is read once per dispatch and create spawns the shell quoted for', async (_label, settings, family, shellPath) => {
+    const r = await dispatch({ settings, defaultShell: WIN_PWSH, agent: 'claude-cli' })
+    expect(r.settingsReads).toBe(1)
+    expect(r.family).toBe(family)
+    expect(r.createdShell).toBe(shellPath)
+    expect(detectShellFamily(r.createdShell!)).toBe(r.family)
+    expect(r.command.startsWith(quoteCommandPath(CLAUDE_EXE, family))).toBe(true)
+  })
+
+  it('settings.json changing during the dispatch cannot split spawn and quoting', async () => {
+    const reads: PersistedShellSettings[] = [{ shell: 'git-bash' }, { shell: 'pwsh' }]
+    const r = await dispatch({ settings: null, readSettings: () => reads.shift() ?? { shell: 'cmd' }, defaultShell: WIN_PWSH, agent: 'claude-cli' })
+    expect(r.family).toBe('posix')
+    expect(r.createdShell).toBe(WIN_GIT_BASH)
+  })
+})
+
 describe('source guards', () => {
-  it('create starts getDefaultShell() without a shell; create-agent-command quotes for the same function', () => {
+  it('create starts getDefaultShell() without a shell; the dispatch resolves its shell once (spawn = quoting)', () => {
     const pty = fs.readFileSync(path.join(ROOT, 'electron', 'pty-manager.ts'), 'utf8')
     expect(pty).toContain('const shell = shellOverride || this.getDefaultShell()')
     const handlers = fs.readFileSync(path.join(ROOT, 'electron', 'terminal-command-handlers.ts'), 'utf8')
-    expect(handlers).toContain('const quoting = quotingShell(shellResolution, deps.getPtyManager())')
+    expect(handlers).toContain('const dispatchShell = resolveDispatchShell(opts.shell, deps.readPersistedSettingsSync(), deps, deps.getPtyManager())')
+    expect(handlers).toContain('const shellFamily = detectShellFamily(dispatchShell.quoting)')
+    expect(handlers).toContain('await createWithCommand(_ctx, commandOptions, landing, isolation, dispatchShell)')
+    expect(handlers).toContain('const shell = dispatchShell ?? resolveDispatchShell(')
+    expect(handlers).toContain('shell: shell.spawn,')
+    // the definition + its one caller, resolveDispatchShell
+    expect(handlers.match(/resolveTerminalShell\(/g) ?? []).toHaveLength(2)
     expect(handlers).toContain('ptyManager?.getDefaultShell?.()')
     // no parallel default-shell inference of its own
     expect(handlers).not.toMatch(/PowerShell\\\\7|pwsh\.exe'/)
