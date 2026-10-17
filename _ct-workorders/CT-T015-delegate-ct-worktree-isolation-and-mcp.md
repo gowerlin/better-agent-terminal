@@ -104,4 +104,5 @@ worktree 內也有一份 base 當下的 `_ct-workorders/` 副本；那是**唯�
 
 ## 轉交紀錄
 
-（BAT 塔台填寫）
+- 2026-10-17T23:01:56+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-47`，msg `3deb4bbe`，`notify_when_idle`）。
+- 2026-10-17T23:01:56+0800：對方**已受理**，CT-T015 + CT-T016 合為 **CT v5.3.0**（對方 T0155，23:01 派工；guide v5.3.0 由 T0156；對方決策 D031）。基底為 CT v5.2.6（非規格寫的 v5.2.4）；欄位名採 `isolation: worktree`；直接合併判準第 1 條採放寬版；合併一律整合 worktree `--no-ff` 後 main `--ff-only`（behind == 0 亦同，不做線性 ff，與 T0574 Q9 一致）；斷點 E 寫入 `yolo-mode.md`、斷點 D 待 M1b；本輪 source / release / 兩端安裝，runtime 待 0.7.0-pre.2 發佈後另開單合驗；介面權威以 BAT CLAUDE.md 四小節為準，差異於完成回覆時列出。BAT 塔台**接受**上述全部。
