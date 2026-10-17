@@ -3,8 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-150
 title: "claude-cli 分頁的 AskUserQuestion 一律回報 `blocked` / `permission`（應為 `question`），T0594 的回答後清除因此永遠不生效"
-status: FIXED
+status: CLOSED
 fixed_at: "2026-10-18T02:51:01+0800"
+closed_at: "2026-10-18T04:19:32+0800"
 fixed_by: T0597
 fix_commit: "ddb9b970"
 severity: medium
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（塔台會誤判「在等權限確認」；滑鼠回答後 `blocked` 一路留到回合結束，Worker 回答後若還要工作很久，CT 斷點 D 整段誤報） |
 | 可重現 | 必現（claude 2.1.300 / 2.1.302，任何權限模式含 `--dangerously-skip-permissions`） |
-| **狀態** | ✅ FIXED（T0597 `ddb9b970`；實機待含修正的版本） |
+| **狀態** | 🚫 CLOSED（T0597 `ddb9b970`；`v0.7.0-pre.6` 安裝版實機 T0601 + 隔離實例 e2e T0602 PASS，2026-10-18） |
 
 ## 現象
 

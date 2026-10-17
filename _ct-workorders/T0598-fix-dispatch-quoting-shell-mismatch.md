@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0598
 title: "BUG-151：helper 派工在 Git Bash 分頁送出 PowerShell 形式指令 —— 查根因並修正，讓引號一律依分頁實際啟動的 shell"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: PLAN-047
 priority: P1
 sizing: M
 created_at: "2026-10-18T02:43:24+0800"
 started_at: "2026-10-18T02:45:28+0800"
-updated_at: "2026-10-18T03:02:58+0800"
+updated_at: "2026-10-18T04:19:32+0800"
 completed_at: "2026-10-18T03:02:58+0800"
 depends_on: [T0593]
 related:

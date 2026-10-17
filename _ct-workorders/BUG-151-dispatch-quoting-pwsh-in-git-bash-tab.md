@@ -3,8 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-151
 title: "helper 派工指令寫入前打進新分頁的輸入被接在指令前面（例 `, '…claude.exe'`），Worker 起不來但 helper 仍 exit 0"
-status: FIXED
+status: CLOSED
 fixed_at: "2026-10-18T03:02:58+0800"
+closed_at: "2026-10-18T04:19:32+0800"
 fixed_by: T0598
 fix_commit: "45943d16"
 severity: high
@@ -24,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（該工作區 helper 派工一律起不來；helper exit 0，塔台無從察覺） |
 | 可重現 | 條件式（BMad-Guide 工作區重現；本工作區 02:26 派 T0596 正常，條件待查） |
-| **狀態** | ✅ FIXED（T0598 `45943d16`；實機待含修正的版本） |
+| **狀態** | 🚫 CLOSED（T0598 `45943d16`；`v0.7.0-pre.6` 安裝版實機 T0601 + 隔離實例 e2e T0602 PASS，2026-10-18） |
 
 ## 現象（BMad-Guide 塔台回報）
 
