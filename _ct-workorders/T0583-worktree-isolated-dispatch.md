@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0583
 title: "PLAN-047 W1-1：worktree 隔離派工（`--isolation worktree`、repo 外位置、`ct/T####` 分支、`CT_HOME`）+ `--close-worker --worktree keep|remove|archive`"
 type: feature
-status: IN_PROGRESS
+status: DONE
 started_at: "2026-10-17T21:54:32+08:00"
-updated_at: "2026-10-17T22:18:49+08:00"
-completed_at: ""
+updated_at: "2026-10-17T22:20:26+08:00"
+completed_at: "2026-10-17T22:20:26+08:00"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
@@ -196,7 +196,11 @@ create: WORKTREE_FAILED
 
 ### Commit
 
-- 精準 staging：T0582 同時在改 `electron/pty-manager.ts`、`electron/remote/headless-entry.ts`、`electron/remote/helper-capability.ts`、`electron/main.ts`、`CLAUDE.md`。這 5 個檔以「HEAD + 本單變更」直接寫入 index（`git hash-object -w` + `git update-index --cacheinfo`，工作樹不動），T0582 的 hunk 全部留在工作樹未 stage；`src/styles/settings.css` 未動。commit hash 見下方收尾。
+- 精準 staging：T0582 同時在改 `electron/pty-manager.ts`、`electron/remote/headless-entry.ts`、`electron/remote/helper-capability.ts`、`electron/main.ts`、`CLAUDE.md`。這 5 個檔以「HEAD + 本單變更」直接寫入 index（`git hash-object -w` + `git update-index --cacheinfo`，工作樹不動），T0582 的 hunk 全部留在工作樹未 stage；`src/styles/settings.css` 未動。
+- `462522ef` feat: T0583 worktree-isolated dispatch and --close-worker --worktree（16 檔：新模組、handler、scheduler、helper、renderer、測試、e2e、本工單回報）
+- `4e7da0e3` feat: T0583 wire worktree isolation into shared files（5 個共用檔中本單的 hunk）。**原因**：第一次 commit 前，寫進 index 的這 5 檔在 commit 前被重設回 HEAD（推測是並行的 T0582 操作 index；本單未執行任何 reset / restore），所以 `462522ef` 少了它們、單獨看會 typecheck 失敗。以同一腳本（內容 blob hash 與第一次相同）重建後立即 commit，commit 前斷言 index 只有這 5 檔。
+- HEAD（`4e7da0e3`，不含 T0582 未 commit 的變更）另以 `git archive` 匯出到 scratchpad、junction 借用 node_modules 驗證：`typecheck` = 0、`typecheck:electron` = 0、相關 9 檔 326 項全綠；之後已刪除快照（先移除 junction）。
+- 本工單收尾（狀態 DONE）另一個 commit，只含本檔。
 - 不 push、不建 tag、不改版號。
 
 ### 遭遇問題
