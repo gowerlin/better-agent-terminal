@@ -6,7 +6,7 @@ title: "PLAN-047 M1-1：helper 唯讀查詢 channel（whoami / list / get-state 
 type: feature
 status: DONE
 started_at: "2026-10-17T21:54:38+08:00"
-updated_at: "2026-10-17T22:19:08+08:00"
+updated_at: "2026-10-17T22:21:21+08:00"
 completed_at: "2026-10-17T22:19:08+08:00"
 repo: better-agent-terminal
 project: PLAN-047
@@ -190,7 +190,10 @@ RemoteServer 對每個 frame 各自 `await` handler（`ws.on('message', async �
 
 ### Commit
 
-見下方 commit 紀錄（只含本單的檔案與 hunk；T0583 並行中的變更未夾帶）。未 push。
+- `6b2ac19e` feat(T0582): helper read-only query channels（17 files，+2318 / −7），只含本單的檔案與 hunk；T0583 的變更未夾帶。未 push。
+- 並行處理：T0583 同時改 `pty-manager.ts` / `main.ts` / `headless-entry.ts` / `helper-capability.ts` / `CLAUDE.md`，且會把自己的檔案 stage 進共用 index。本單先以暫存 index（HEAD + 只有本單的修改）建 commit，並在該 tree 的獨立 worktree 跑 `tsc`：`typecheck` = 0、`typecheck:electron` = 0；`update-ref` 以 compare-and-swap 推進時 HEAD 已被 T0583 的 `28d85b18`（只改 T0583 工單）推進而被拒，未覆寫任何東西。之後 T0583 全部已 commit、工作樹只剩本單變更，改以 `git commit --only <本單檔案>` 提交；`6b2ac19e` 與先前驗證的 tree 只差 T0583 的工單檔。
+- `src/styles/settings.css` 的 M 不是本單變更，未動。
+- commit 時 tower-hook 對本工單第 167 行發出 sensitive content WARN（不阻擋）：該行是遮罩規則的名稱清單（`*_TOKEN=` 等字樣），不含任何權杖值，屬誤報。
 
 ### 互動紀錄
 
