@@ -26,7 +26,7 @@ links:
 
 ## 現象
 
-BAT `0.7.0-pre.2` 新開「Codex CLI」分頁（`codex-cli` preset，YOLO mode），請 codex 呼叫 `bat_whoami` / `bat_list_terminals`：
+BAT `0.7.0-pre.2` 新開「Codex CLI」分頁（終端縮圖列右側 **「+」選單 → Codex CLI**，即 `WorkspaceView` 新建 Agent 終端路徑；`codex-cli` preset，YOLO mode），請 codex 呼叫 `bat_whoami` / `bat_list_terminals`：
 
 - **預期**：回傳該分頁的 whoami（`role: shell`、`agent: codex-cli`）與只有自己一筆的 list。
 - **實際**：兩個 tool 都回
