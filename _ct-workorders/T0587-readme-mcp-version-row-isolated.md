@@ -4,10 +4,10 @@ schema_kind: workorder
 id: T0587
 title: "隔離派工驗收探針：README「與 BMad Control Tower 協作」版本對照表補「唯讀查詢（MCP）」一列（`isolation: worktree`）"
 type: docs
-status: PENDING
-started_at: ""
-updated_at: "2026-10-17T23:52:53+0800"
-completed_at: ""
+status: DONE
+started_at: "2026-10-17T23:53:54+0800"
+updated_at: "2026-10-17T23:55:01+0800"
+completed_at: "2026-10-17T23:55:01+0800"
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
@@ -69,4 +69,74 @@ README「與 BMad Control Tower 協作」→「版本對照」表目前有四列
 
 ## 回報區
 
-（Worker 填寫）
+### 結果摘要
+
+- 狀態：DONE
+- 在隔離 worktree 的 `README.md`「### 版本對照」表最後加一列 `| 唯讀查詢（MCP，`mcp__bat__*`） | `>= 0.7.0-pre.2` | 不需要（CT `>= v5.3.0` 列為選用通道） |`，其他列與章節沒有改動。換行為 LF（`cat -A` 確認沒有 `^M`）。
+- 已 commit 到 `ct/T0587`：`901cfc48 docs: README version row for BAT MCP`（只含 `README.md`，1 insertion，附 attribution）。
+- 依本單 memory_overrides，工單檔只在主 checkout（`CT_HOME`）修改、**沒有 commit**（交給塔台收單）；worktree 內的 `_ct-workorders/` 沒有修改、沒有 stage。
+- 沒有 `npm install`、unit test、build（本單規定不跑）；沒有 push、merge、stash、reset、restore，也沒有切換分支。
+
+### 落點檢查（Landing Zone）：PASS
+
+- C-0：工單 `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal` → PASS
+- C-1：工單檔在 `$CT_HOME/_ct-workorders/` 底下 → PASS
+- C-3：`README.md` 在 worktree 中存在 → PASS
+- C-2：工單沒有 `branch` 欄位，不適用（實際分支 `ct/T0587`）
+- `CT_HOME` = `D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal`
+- `CT_WORKTREE_BRANCH` = `ct/T0587`
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄，沒有拿來比對）
+- 任務 1：`CT_HOME` / `CT_WORKTREE` / `CT_WORKTREE_BRANCH` / `CT_WORKTREE_BASE` 都存在；cwd = `CT_WORKTREE`；`git branch --show-current` = `ct/T0587` → 符合
+- `CT_MODE=yolo`、`CT_INTERACTIVE=0`
+
+### 隔離分支證據
+
+| 欄位 | 值 |
+|---|---|
+| worktree（`CT_WORKTREE`） | `D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\.bat-worktrees\better-agent-terminal\T0587` |
+| `branch` | `ct/T0587` |
+| `base_sha` | `45380d4a553b52ce89b09d5c3d4c9f5fae1b7cf8` |
+| `validated_sha` | `901cfc4835b56e9d32da3f589fd7eb054c7abbed` |
+| `head_sha` | `901cfc4835b56e9d32da3f589fd7eb054c7abbed` |
+
+`validated_sha` = `head_sha`。
+
+- `git rev-list --count base..HEAD` = `1`；`git diff --name-only base..HEAD` = `README.md`
+- `git -C "$CT_WORKTREE" status --porcelain` 輸出空白（worktree 乾淨）
+- `mcp__bat__bat_worktree_status`（查自己）：`isolated:true`、`branch:"ct/T0587"`、`head:"901cfc48…"`、`mainHead:"45380d4a…"`、`ahead:1`、`behind:0`、`dirty:[]`、`changedFiles:["README.md"]`、`outOfScopeFiles:[]`、`touchesCtWorkorders:false`、`conflicts:[]`、`cached:false` → 可直接 `--ff-only` 合併（`behind == 0` 且 `dirty` 為空）
+
+### 主 checkout 未被變動的證據
+
+`git -C "$CT_HOME" branch --show-current`：
+
+```
+main
+```
+
+`git -C "$CT_HOME" rev-parse HEAD`：`45380d4a553b52ce89b09d5c3d4c9f5fae1b7cf8`（= base，本單沒有改變 HEAD）
+
+`git -C "$CT_HOME" status --short`：
+
+```
+ M _ct-workorders/T0586-codex-mcp-forward-bat-env.md
+ M _ct-workorders/T0587-readme-mcp-version-row-isolated.md
+ M electron/bat-mcp-launch.ts
+ M src/styles/settings.css
+```
+
+除了本工單檔，其餘都是既有的變更（`src/styles/settings.css`）或 T0586 的變更（T0586 工單、`electron/bat-mcp-launch.ts`），本單沒有造成。
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `ct/T0587` 比 base 多一個 commit，只動 `README.md`，內容如任務 2 | PASS |
+| 主 checkout 分支為 `main`，HEAD 沒有被本單改變 | PASS |
+| 隔離分支證據完整 | PASS |
+| build / unit test | 不適用（本單規定不跑） |
+
+### 偏離 / 阻礙 / 後續
+
+- 偏離：ct-exec v5.3.0 § Worktree Isolation 第 2 條要求把工單檔 commit 到主 checkout，本單 memory_overrides 規定不 commit，依工單執行，沒有 commit 工單檔。
+- 阻礙：無
+- 後續：塔台依 `merge-workorder.md` 合併 `ct/T0587`（可 `--ff-only`），並收單 commit 本工單檔。
