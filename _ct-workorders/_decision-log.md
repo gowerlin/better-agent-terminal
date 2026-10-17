@@ -1430,6 +1430,7 @@
   - worktree 建立後**由 Worker 依專案規則自己安裝依賴**（BAT 不執行 npm / setup 指令，保持通用）；worktree 池 / lock hash 跳過列為後續候選
   - 隔離預設關閉（Q12），只有派工明確帶 `--isolation worktree` 才建 worktree；`--close-worker` 未帶 `--worktree` = `keep`
   - 並行規則：兩張共用 `helper-capability.ts`（T0582 只改 `HELPER_CHANNEL_ROLES` 與角色判定、T0583 只改 `customEnv` 白名單）與 `CLAUDE.md`（各自新增獨立小節），commit 一律 `--only` 自己的檔，收單核對 diff
+  - T0584 注入：Settings → Advanced「BAT MCP」開關**預設開**（唯讀、權杖範圍、不蓋使用者 MCP 設定）；使用者 2026-10-17 22:2x 確認「依塔台建議設計即可」
   - 附帶事實（M1b 用）：本機 Settings `agentCustomArgs` 的 claude 系列帶 `--dangerously-skip-permissions`，CT yolo Worker 以略過權限模式執行 → M1b 以 AskUserQuestion / elicitation 為主，PermissionRequest 仍需支援（他人設定不同）
 - **相關**：D149 / D150 / PLAN-047 / T0574 / T0581
 
