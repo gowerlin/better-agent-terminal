@@ -3563,3 +3563,26 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 
 **候選晉升**：📁 Project（工單撰寫慣例）
 
+## L161
+
+**來源**：第七十六 session（2026-10-18），T0594 → BUG-150 / T0596
+
+**現象**：T0594 為 AskUserQuestion 加的清除 hook，單元 / headless / e2e 測試全綠，但實機永不生效：測試以 driver 只送 `ask-user-question` → `ask-user-question-done`，真實 claude 在兩者之間另送 `PermissionRequest`（AskUserQuestion 是 requiresUserInteraction 工具），把 reason 改成 `permission`。
+
+**How to apply**：
+- 依賴外部 CLI 事件序列的功能，測試的事件順序要取自實機日誌或 CLI 二進位查證，不能只照 docs 推想
+- 工單驗收加一條「以真實 CLI 跑一次並附日誌行」或明寫「事件序列未實機查證」，塔台收單時把後者列為實機驗收重點
+
+**候選晉升**：📁 Project（外部 CLI 整合的測試慣例）
+
+## L162
+
+**來源**：第七十六 session（2026-10-18），BUG-151 / T0598
+
+**現象**：BMad-Guide 回報「Git Bash 分頁收到 PowerShell 形式指令」，雙方塔台都先推測是 BUG-149 修正的引號回歸；Worker 對照兩次派工日誌後發現引號完全相同，根因是派工分頁搶焦點、使用者 500 ms 內的鍵盤輸入接在指令前。
+
+**How to apply**：
+- 「同設定下這邊正常、那邊壞」時，工單第一步寫成「對照兩次的日誌找差異」，不要在工單標題預設根因
+- 開 BUG 單時把推測標為「初步線索（未分析）」，根因確定後改標題（BUG-151 已改）
+
+**候選晉升**：📁 Project（BUG 開單慣例）

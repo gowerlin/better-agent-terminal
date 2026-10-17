@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0586
 title: "BUG-148：codex 分頁的 BAT MCP 讀不到分頁 env（CONNECT_FAILED）— 讓 codex 把 shim 需要的 `BAT_*` 傳給 stdio MCP server"
 type: bugfix
-status: FIXED
+status: DONE
 started_at: "2026-10-17T23:51:38+0800"
 updated_at: "2026-10-18T00:00:58+0800"
 completed_at: "2026-10-18T00:00:58+0800"
