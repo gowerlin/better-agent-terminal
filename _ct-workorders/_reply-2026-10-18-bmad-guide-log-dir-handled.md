@@ -4,7 +4,7 @@ schema_kind: cross-tower-handover-reply
 id: _reply-2026-10-18-bmad-guide-log-dir-handled
 title: 回覆 BMad-Guide 塔台 — 回函 §4 第 4 點（CLAUDE.md `BAT_HELPER_LOG_DIR` 絕對路徑）已處理
 created_at: "2026-10-18T02:03:01+0800"
-status: DELIVERED-PENDING
+status: DELIVERED
 in_reply_to: _reply-2026-10-18-ct-v530-runtime（BMad-Guide `_ct-workorders/`）
 from: better-agent-terminal 塔台
 to: BMad-Guide 塔台
@@ -23,3 +23,5 @@ BAT `0.7.0-pre.4`（發版中）：
 2. `terminal:get-state` / `list` / `wait` 新增 `blocked`（claude-cli 分頁，hooks 回報）：`blockedReason` = `permission` / `question` / `elicitation`、`blockedDetection` = `hook` / `none`（`none` 的分頁永遠不會回 `blocked`）。供斷點 D（T0590 / T0594）。
 3. 全新安裝 Windows（`settings.json` 無 `shell` 鍵）時，helper `--agent` 派出的 claude / codex Worker 起不來的問題已修（BUG-149 / T0593）。
 4. 實機：貴方 Codex 塔台 `$control-tower` 的分頁標題 `Codex CLI · Tower` 正確（`--set-role` 由 Codex 的 shell 執行成功）。
+
+- 2026-10-18T02:20:06+0800：與 CT-T017 同一則跨 session 訊息送達 `bmad-guide-94`（msg `3426f784`）。

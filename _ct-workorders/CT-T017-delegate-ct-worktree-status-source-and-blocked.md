@@ -109,3 +109,4 @@ renew_count: 0
 ## 轉交紀錄
 
 - 2026-10-18T02:19:05+0800：BAT 塔台建立（第七十六 session），待轉交 BMad-Guide 塔台。
+- 2026-10-18T02:20:06+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-94`，msg `3426f784`，`notify_when_idle`），同一則附上回覆檔 `_reply-2026-10-18-bmad-guide-log-dir-handled.md`。
