@@ -97,6 +97,7 @@
 1b''. ✅ T0591 DONE（merge `4a93a5d1`，5051 passed / 290 files，e2e t0590 / t0584 / t0583 PASS）→ 第 5 步補合 main `960a7f14` → 使用者確認 [A] → `main` ff = `960a7f14`；整合 worktree detach；T0590 worktree removed；`ct/T0590`、`ct-merge/T0590` 已依使用者同意刪除（`branch -d`）；**使用者授權：T0592 完成後 push + 發 `v0.7.0-pre.4`**（若 T0592 查出產品缺陷，先開單修完同批再發，依 batch-fixes-before-release）；CLAUDE.md `BAT_HELPER_LOG_DIR` 一句已補
 1b'. ✅ T0590 DONE（`ct/T0590` `9afdf110`，01:00）；分頁 `--worktree keep` 回收；判準第 1 條（T0589 產品 commit）/ 第 3 條（範圍外 12 檔，塔台接受）不成立、`conflicts []` → 派 **T0591** 合併工單（模式 ②，base `87a14314`）
 1a'. 🔄 **pre.4 批次**（使用者 01:4x 選 [A]）：T0592 DONE（`cab7c9d1`，codex A 層 e2e）發現 **BUG-149**（high：缺 `shell` 鍵時 codex 派工引號錯）→ 並行派 **T0593**（修 BUG-149）+ **T0594**（blocked 清除 hook 補強）；兩張完成驗收後 push + 發 `v0.7.0-pre.4`（更版重點含「歡迎協助測試」；`shell_environment_policy` 只寫已知限制）
+1a''. ⏳ **CLAUDE.md 壓縮**（使用者 2026-10-18 指示：超過 Claude Code 150k 字元上限，實測 158,909 字元）：T0593 / T0594 收單後派 **T0595**（文件工單）：各功能小節的契約 / 細節原文搬到 `docs/` 主題檔（不刪內容），CLAUDE.md 保留小節標題 + 🔴 規則 + 唯一實作位置 + 連結，目標 ≤ 80k 字元；無測試讀 CLAUDE.md（已查）
 1c. ✅ **D153**：T0590 合併後派 **T0592**（codex × Tower / Worker A 層自動化 e2e，不耗 token）；B 層實機探針 = 發版時寫進更版重點「歡迎協助測試」請 codex 使用者協助（`_local-rules.md` 更版重點規則）
 1d. ✅ T0589 DONE（`c3b2a9d5`，00:48）；塔台複驗 @ `2d995552`：typecheck 0 / 0、**5015 passed / 286 files**；Worker 分頁已回收。CT 建議（`merge-workorder.md` 關閉後改用 `--worktree-status`，`source`）待下一版發佈後開 CT-T017
 2. 🟡 **PLAN-047 後續**（pre.2 驗收已完成，可決定）：M1b（blocked 偵測）；Q3（關閉後仍可查 `--worktree-status`，可沿用 T0582 已結束 PTY 紀錄）；M2 / M3 視使用情況
