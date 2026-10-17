@@ -85,4 +85,4 @@ BAT 塔台已核對現行 CT v5.2.3 skill（唯讀）：ct-exec / ct-done 只以
 
 - ✅ source / release / install lane：DONE（對方回報，BAT 塔台未複核對方 repo）。
 - ⏳ runtime lane：待 `v0.7.0-pre.1` 發版 + 新 Tower session（CT v5.2.4 生效）後驗收：一般分頁 Tower 派工 / 回收 / set-role 正常；Worker 分頁啟動 Tower → 派工 exit 1 且有原因提示。
-
+- 2026-10-17 20:56：BAT 塔台通知 `v0.7.0-pre.1` 已發佈；BMad-Guide 塔台開 runtime 驗收單 **T0150**（併入 T0139 塔台分頁標題實機驗收），等使用者安裝新版、在一般分頁開新 Tower session 後派發。
