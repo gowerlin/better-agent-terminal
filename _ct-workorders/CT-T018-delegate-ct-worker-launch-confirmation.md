@@ -91,3 +91,4 @@ helper 派工在 PTY 建立後就回 exit 0，啟動指令約 500 ms 後才寫�
 ## 轉交紀錄
 
 - 2026-10-18T03:41:41+0800：BAT 塔台建立（第七十六 session），待轉交 BMad-Guide 塔台。
+- 2026-10-18T03:42:22+0800：BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-94`，msg `9ea91794`）；BAT 版號待 `0.7.0-pre.6` 發佈後告知。
