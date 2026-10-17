@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0604
 title: "探針：BUG-149 安裝版缺 `shell` 鍵時 claude-cli Worker 能否啟動"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-047
 priority: P2
 sizing: XS
 created_at: "2026-10-18T04:26:44+0800"
-started_at: ""
-updated_at: "2026-10-18T04:26:44+0800"
+started_at: "2026-10-18T04:27:09+0800"
+updated_at: "2026-10-18T04:27:09+0800"
 completed_at: ""
 depends_on: [T0593]
 related:
