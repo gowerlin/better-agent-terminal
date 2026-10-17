@@ -125,6 +125,8 @@ export interface BlockedTrackerLogger {
  * The state machine (one per PtyManager). Logs transitions only:
  * `[blocked] terminal=<id> → blocked reason=<r> (hook <event>[ tool=<name>])` / `→ cleared (<cause>)`;
  * T0600: `[agent-start] terminal=<id> → started (hook session-start)`.
+ * T0609 (BUG-153): `onChange(id)` after every `blocked` transition (entered / reason changed /
+ * cleared) — the renderer push (electron/terminal-attention.ts). A throwing listener is ignored.
  */
 export class TerminalBlockedTracker {
   private readonly states = new Map<string, BlockedState>()
@@ -135,7 +137,17 @@ export class TerminalBlockedTracker {
   constructor(
     private readonly logger?: BlockedTrackerLogger,
     private readonly now: () => number = () => Date.now(),
+    private readonly onChange?: (id: string) => void,
   ) {}
+
+  private changed(id: string): void {
+    if (!this.onChange) return
+    try {
+      this.onChange(id)
+    } catch (e) {
+      this.logger?.log(`[blocked] onChange listener failed terminal=${id}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
 
   /** Applies a hook report of PTY `id` (the caller checks it is running). */
   report(id: string, event: HookReportEvent, toolName?: string): { result: HookReportResult; state: BlockedState | null } {
@@ -158,6 +170,7 @@ export class TerminalBlockedTracker {
     const state: BlockedState = { reason, since: this.now(), event, ...(toolName ? { toolName } : {}) }
     this.states.set(id, state)
     this.logger?.log(`[blocked] terminal=${id} → blocked reason=${reason} (hook ${event}${toolName ? ` tool=${toolName}` : ''})`)
+    this.changed(id)
     return { result: 'blocked', state: { ...state } }
   }
 
@@ -165,6 +178,7 @@ export class TerminalBlockedTracker {
   clear(id: string, cause: string): boolean {
     if (!this.states.delete(id)) return false
     this.logger?.log(`[blocked] terminal=${id} → cleared (${cause})`)
+    this.changed(id)
     return true
   }
 

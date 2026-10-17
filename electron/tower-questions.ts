@@ -31,6 +31,10 @@
  * `summaryFor` feeds `terminal:get-state` / `list` / `wait` (`blocked` / `tower`,
  * `pendingQuestions`; electron/terminal-query-handlers.ts).
  *
+ * T0609 (BUG-153): `onChange(workerId)` — a Worker's pending questions changed (asked / answered /
+ * cancelled / expired) — feeds the renderer's `terminal:attention-changed` (electron/terminal-attention.ts).
+ * With it, one timer runs to the next expiry / lease end, so an expiry is seen without an access.
+ *
  * Electron main and headless bat-server register this same module (T0579 pattern).
  * 🔴 No `electron` import here (shared with headless).
  */
@@ -127,6 +131,11 @@ export interface TowerQuestionDeps {
   setTimer?(fn: () => void, ms: number): unknown
   clearTimer?(handle: unknown): void
   randomHex?(bytes: number): string
+  /**
+   * T0609: Worker `workerId`'s pending questions changed (ids only, never the content). Called
+   * synchronously from inside the store — a listener must not call back into it synchronously.
+   */
+  onChange?(workerId: string): void
 }
 
 /** `terminal:get-state` / `list` / `wait` of Worker `id` (C-7). */
@@ -135,6 +144,8 @@ export interface QuestionSummary {
   pending: number
   /** `createdAt` of its oldest pending blocking question; null = not `blocked` / `tower`. */
   blockingSince: number | null
+  /** T0609: `createdAt` of its oldest pending question, blocking or not; null = none. */
+  pendingSince?: number | null
 }
 
 export interface TowerQuestionHandlers {
@@ -197,6 +208,10 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
   const openWaits = new Map<() => void, () => void>()
   /** Question id → open `question:wait`s of the Worker that asked it (they keep its lease). */
   const workerWaits = new Map<string, number>()
+  /** T0609: the timer to the next expiry / lease end (only with `deps.onChange`). */
+  let expiryTimer: unknown = null
+  let expiryAt: number | null = null
+  let disposed = false
 
   const callerLabel = (ctx: HandlerContext): string =>
     ctx.helper ? ctx.helper.terminalId : ctx.connectionId ? `client:${ctx.connectionId}` : 'local'
@@ -229,12 +244,48 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
     for (const wake of [...openWaits.values()]) wake()
   }
 
+  /** T0609: tells `deps.onChange`; a throwing listener changes nothing here. */
+  const notifyChange = (workerId: string): void => {
+    if (!deps.onChange) return
+    try {
+      deps.onChange(workerId)
+    } catch (e) {
+      deps.logger.log(`[tower-question] onChange listener failed worker=${workerId}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
   /** Ends pending question `q` (cancelled / expired), logs it, wakes its waits. */
   const end = (q: QuestionRecord, status: 'cancelled' | 'expired', reason: QuestionEndReason, at: number): void => {
     q.status = status
     q.endReason = reason
     q.endedAt = at
     log('end', { q: q.id }, `${status} (${reason})`)
+    notifyChange(q.workerId)
+  }
+
+  /**
+   * T0609: with `deps.onChange`, one timer to the earliest `expiresAt` / lease end of a pending
+   * question; it sweeps (which ends what is due and tells `onChange`) and re-arms. A lease that
+   * moved later (a poll) only makes it fire early and re-arm.
+   */
+  const armExpiry = (): void => {
+    if (!deps.onChange || disposed) return
+    let next: number | null = null
+    for (const q of questions.values()) {
+      if (q.status !== 'pending') continue
+      const due = q.blocking && !workerWaits.has(q.id) ? Math.min(q.expiresAt, q.lastPolledAt + QUESTION_POLL_LEASE_MS) : q.expiresAt
+      if (next === null || due < next) next = due
+    }
+    if (next === expiryAt) return
+    if (expiryTimer !== null) clearTimer(expiryTimer)
+    expiryTimer = null
+    expiryAt = next
+    if (next === null) return
+    expiryTimer = setTimer(() => {
+      expiryTimer = null
+      expiryAt = null
+      sweep()
+    }, Math.max(0, next - now()))
   }
 
   /** Expires what is due, forgets ended questions past their retention. Every access runs it. */
@@ -256,6 +307,7 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
       if (t - (q.endedAt ?? 0) >= QUESTION_ENDED_RETENTION_MS || ended.length - i > QUESTION_ENDED_MAX) questions.delete(q.id)
     }
     if (changed) wakeWaits()
+    armExpiry()
   }
 
   /** The record of `id`, `lost` (another process's id), or null (unknown / forgotten). */
@@ -396,6 +448,8 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
     fields.q = id
     fields.masked = masked
     log('ask', fields, 'ok')
+    notifyChange(record.workerId) // T0609
+    armExpiry()
     return { ok: true, questionId: id, status: 'pending', towerTerminalId: record.towerId, createdAt, expiresAt: record.expiresAt, masked }
   })
 
@@ -468,6 +522,7 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
     q.answeredAt = answeredAt
     q.endedAt = answeredAt
     log('answer', fields, 'ok')
+    notifyChange(q.workerId) // T0609
     wakeWaits()
     return { ok: true, questionId: id, status: 'answered', answeredAt, masked: r.count }
   })
@@ -575,6 +630,7 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
           if (n > 0) workerWaits.set(id, n)
           else workerWaits.delete(id)
           q.lastPolledAt = now() // the lease restarts when the wait ends
+          armExpiry() // T0609
         }
         resolve(answer(changed))
       }
@@ -617,12 +673,14 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
       sweep()
       let pending = 0
       let blockingSince: number | null = null
+      let pendingSince: number | null = null
       for (const q of questions.values()) {
         if (q.status !== 'pending' || q.workerId !== workerId) continue
         pending++
         if (q.blocking && (blockingSince === null || q.createdAt < blockingSince)) blockingSince = q.createdAt
+        if (pendingSince === null || q.createdAt < pendingSince) pendingSince = q.createdAt
       }
-      return { pending, blockingSince }
+      return { pending, blockingSince, pendingSince }
     },
     terminalEnded(id) {
       cancelWhere(q => q.workerId === id ? 'worker-exited' : q.towerId === id ? 'tower-exited' : null)
@@ -632,6 +690,10 @@ export function registerTowerQuestionHandlers(deps: TowerQuestionDeps): TowerQue
     },
     dispose() {
       for (const stop of [...openWaits.keys()]) stop()
+      disposed = true
+      if (expiryTimer !== null) clearTimer(expiryTimer)
+      expiryTimer = null
+      expiryAt = null
     },
   }
 }

@@ -21,6 +21,7 @@ import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
 import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
 import { registerTowerQuestionHandlers } from '../tower-questions'
+import { TerminalAttentionNotifier } from '../terminal-attention'
 import { registerWorktreeStatusHandler } from '../worktree-status-handlers'
 import { mirrorToBatScripts } from './remote-logger'
 import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
@@ -323,6 +324,7 @@ export function buildHeadlessHelperEnv(opts: {
  * connected clients; `usageLimitCanDeliver` false (no client) → nothing is sent. User input =
  * the same `isUserInput` rule.
  * PLAN-048 / T0607: `onPtyExit` — also told of every PTY that is gone (the tower-question store).
+ * T0609: `onBlockedChange` — a PTY's hook `blocked` changed (the attention push).
  */
 export const USAGE_LIMIT_CONFIG_TTL_MS = 5000
 
@@ -335,6 +337,8 @@ export function createHeadlessPtyModule(opts: {
   isUserInput?: (ctx: HandlerContext) => boolean
   usageLimitCanDeliver?: () => boolean
   onPtyExit?: (id: string) => void
+  /** T0609: a PTY's hook `blocked` changed (the attention push of the query module). */
+  onBlockedChange?: (id: string) => void
 } = {}): HandlerModule {
   return (register, host) => {
     const capabilities = opts.helperCapabilities
@@ -369,6 +373,7 @@ export function createHeadlessPtyModule(opts: {
         opts.onPtyExit?.(id) // T0607
       },
       onPtyOutput: (id, data) => usageLimit.onOutput(id, data),
+      ...(opts.onBlockedChange ? { onBlockedChange: opts.onBlockedChange } : {}), // T0609
     })
     const ptys = manager
     registerPtyHandlers(register, {
@@ -583,6 +588,8 @@ export function createHeadlessBatMcpModule(opts: { installRoot?: string; getPtyM
  * Electron main registers) — a Tower and its Workers on this server ask / answer each other; the
  * store is this server process's memory. `onPtyExit` hands it the PTYs that are gone (the pty
  * module's exit hook); a server restart ends every PTY, and old ids answer `lost`.
+ * T0609 (BUG-153): + `terminal:attention-changed` to the connected clients (electron/terminal-attention.ts)
+ * from the tower-question store and the pty module's `blocked` changes (`onBlockedChange`).
  */
 export function createHeadlessTerminalQueryModule(opts: {
   getPtyManager: () => PtyManager | null
@@ -592,8 +599,12 @@ export function createHeadlessTerminalQueryModule(opts: {
   ctWorktree?: CtWorktreeService
   /** T0607: subscribes to the PTYs that are gone; returns the unsubscribe. */
   onPtyExit?: (listener: (id: string) => void) => () => void
+  /** T0609: subscribes to the PTYs whose hook `blocked` changed; returns the unsubscribe. */
+  onBlockedChange?: (listener: (id: string) => void) => () => void
 }): HandlerModule {
-  return register => {
+  return (register, host) => {
+    // T0609 (BUG-153): a tab waits for the user / its Tower's answer → the connected clients
+    let attention: TerminalAttentionNotifier | null = null
     const towerQuestions = registerTowerQuestionHandlers({
       registerHandler: register,
       getPtyManager: opts.getPtyManager,
@@ -601,7 +612,16 @@ export function createHeadlessTerminalQueryModule(opts: {
       ...(opts.knownSecrets ? { knownSecrets: opts.knownSecrets } : {}),
       logger: defaultLogger,
       mirrorToBatScripts,
+      onChange: workerId => attention?.refresh(workerId),
     })
+    attention = new TerminalAttentionNotifier({
+      getBlockedState: id => opts.getPtyManager()?.getBlockedState(id) ?? null,
+      getQuestionSummary: id => towerQuestions.summaryFor(id),
+      emit: (channel, payload) => host.emit(channel, payload),
+      logger: defaultLogger,
+    })
+    const notifier = attention
+    const unsubscribeBlocked = opts.onBlockedChange?.(id => notifier.refresh(id))
     const unsubscribeExit = opts.onPtyExit?.(id => towerQuestions.terminalEnded(id))
     const queries = registerTerminalQueryHandlers({
       registerHandler: register,
@@ -639,8 +659,10 @@ export function createHeadlessTerminalQueryModule(opts: {
     })
     return () => {
       unsubscribeExit?.()
+      unsubscribeBlocked?.()
       towerQuestions.dispose()
       queries.dispose()
+      notifier.dispose()
     }
   }
 }
@@ -883,6 +905,8 @@ export function createHeadlessHandlerModules(opts: {
   let ptyManager: PtyManager | null = null
   // T0607: the tower-question store hears of PTYs that are gone
   const ptyExitListeners = new Set<(id: string) => void>()
+  // T0609: the attention push hears of `blocked` changes
+  const blockedChangeListeners = new Set<(id: string) => void>()
   const toolsCache = createHeadlessRemoteToolsCache(opts.remoteTools)
   const ptyModule = createHeadlessPtyModule({
     helperDir: path.join(opts.installRoot ?? defaultHeadlessInstallRoot(), 'scripts'),
@@ -894,6 +918,10 @@ export function createHeadlessHandlerModules(opts: {
     onPtyExit: id => {
       opts.pty?.onPtyExit?.(id)
       for (const listener of [...ptyExitListeners]) listener(id)
+    },
+    onBlockedChange: id => {
+      opts.pty?.onBlockedChange?.(id)
+      for (const listener of [...blockedChangeListeners]) listener(id)
     },
   })
   return [
@@ -914,6 +942,10 @@ export function createHeadlessHandlerModules(opts: {
       onPtyExit: listener => {
         ptyExitListeners.add(listener)
         return () => { ptyExitListeners.delete(listener) }
+      },
+      onBlockedChange: listener => {
+        blockedChangeListeners.add(listener)
+        return () => { blockedChangeListeners.delete(listener) }
       },
     }),
     createHeadlessRemoteToolsModule(opts.remoteTools, toolsCache), // T0411

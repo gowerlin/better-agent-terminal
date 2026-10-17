@@ -7,6 +7,8 @@ import { ownsTerminalForCloseRequest, workspaceStore } from './stores/workspace-
 import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
+import { clearTerminalAttention, setTerminalAttention } from './stores/terminal-attention-store'
+import { isQuestionNotifyMessage } from './lib/terminal-attention'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView } from './components/WorkspaceView'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -511,7 +513,9 @@ export default function App() {
       // "reported" — display only. Every window gets the event; each marks its own copy.
       const reported = workspaceStore.markWorkerReported(info)
       if (reported.length > 0) {
-        window.electronAPI.debug.log(`[T0538] Worker reported: tower=${info.targetId} workorder=${info.source} tabs=${reported.join(',')}${detachedWorkspaceId ? ' (detached window)' : ''}`)
+        // T0609: a `T#### 提問` notify marks the tab "asked its Tower", not reported
+        const what = isQuestionNotifyMessage(info.message) ? '[T0609] Worker asked its Tower' : '[T0538] Worker reported'
+        window.electronAPI.debug.log(`${what}: tower=${info.targetId} workorder=${info.source} tabs=${reported.join(',')}${detachedWorkspaceId ? ' (detached window)' : ''}`)
       }
       // Layer 2: workspace-level bubble — only if target is not in active workspace
       const targetTerminal = workspaceStore.getState().terminals.find(tm => tm.id === info.targetId)
@@ -780,6 +784,18 @@ export default function App() {
       unsubExit()
     }
   }, [detachedWorkspaceId, detachedIds])
+
+  // T0609 (BUG-153): main (or a remote server) tells every window that a tab waits for the user
+  // (claude hook `blocked`) or for its Tower's answer. Display only, so every window keeps every
+  // tab's state (no ownership check: a reattached workspace's tabs are then already known).
+  useEffect(() => {
+    const unsubAttention = window.electronAPI.pty.onAttentionChanged((info) => setTerminalAttention(info))
+    const unsubExit = window.electronAPI.pty.onExit((id) => clearTerminalAttention(id))
+    return () => {
+      unsubAttention()
+      unsubExit()
+    }
+  }, [])
 
   // Poll remote client connection status
   useEffect(() => {

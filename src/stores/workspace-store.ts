@@ -8,7 +8,9 @@ import { resolveEffectiveAgentArgs, resolveEffectiveDefaultAgent, type Effective
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { externalTerminalTitle, legacyExternalCommand } from '../lib/external-terminal-title'
 import { isDefaultTerminalTitle, towerTerminalTitle, type TerminalRoleChangeInfo } from '../lib/tower-terminal-title'
+import { isQuestionNotifyMessage, workerAttention, type TerminalAttentionEvent } from '../lib/terminal-attention'
 import { settingsStore } from './settings-store'
+import { getTerminalAttention } from './terminal-attention-store'
 
 /**
  * T0535 (PLAN-041): whether this window closes `terminal` on `terminal:close-requested`. Every
@@ -57,9 +59,16 @@ export function workersOfTower<T extends Pick<TerminalInstance, 'id' | 'towerTer
 /**
  * PLAN-041 / T0538: what Tower `towerId`'s "Close reported Worker tabs (N)" closes — its Workers
  * among `terminals` that have reported. N = 0 disables the item.
+ * T0609 (BUG-153): not a Worker that waits for the user (claude hook `blocked`) or for this
+ * Tower's answer (a pending tower question, or its latest report ends with `提問`) —
+ * `workerAttention` (src/lib/terminal-attention.ts) must say `reported`.
  */
-export function reportedWorkersOfTower<T extends Pick<TerminalInstance, 'id' | 'towerTerminalId' | 'workerReport'>>(terminals: readonly T[], towerId: string): T[] {
-  return workersOfTower(terminals, towerId).filter(t => !!t.workerReport)
+export function reportedWorkersOfTower<T extends Pick<TerminalInstance, 'id' | 'towerTerminalId' | 'workerReport' | 'workerQuestion'>>(
+  terminals: readonly T[],
+  towerId: string,
+  attentionOf: (id: string) => TerminalAttentionEvent | null = getTerminalAttention,
+): T[] {
+  return workersOfTower(terminals, towerId).filter(t => workerAttention(t, attentionOf(t.id))?.kind === 'reported')
 }
 
 // ── Layout snapshot: collect/restore UI layout from localStorage ──
@@ -194,8 +203,9 @@ function autoTitleFor(title: string): string | undefined {
  * PLAN-041 / T0537: the saved Worker ownership of a tab (`towerTerminalId` / `workorder`), only
  * the string fields that are there — data saved before T0537 has none and stays without them.
  */
-function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown; workerReport?: unknown; ctWorktree?: unknown }): Pick<TerminalInstance, 'towerTerminalId' | 'workorder' | 'workerReport' | 'ctWorktree'> {
+function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown; workerReport?: unknown; workerQuestion?: unknown; ctWorktree?: unknown }): Pick<TerminalInstance, 'towerTerminalId' | 'workorder' | 'workerReport' | 'workerQuestion' | 'ctWorktree'> {
   const report = t.workerReport as { message?: unknown; reportedAt?: unknown } | null | undefined
+  const question = t.workerQuestion as { message?: unknown; askedAt?: unknown } | null | undefined
   const ctWorktree = ctWorktreeInfo(t.ctWorktree)
   return {
     ...(typeof t.towerTerminalId === 'string' && t.towerTerminalId ? { towerTerminalId: t.towerTerminalId } : {}),
@@ -203,6 +213,10 @@ function workerOwnership(t: { towerTerminalId?: unknown; workorder?: unknown; wo
     // T0538: the saved "reported" state of a Worker tab (data saved before T0538 has none)
     ...(report && typeof report === 'object' && typeof report.message === 'string' && typeof report.reportedAt === 'number' && Number.isFinite(report.reportedAt)
       ? { workerReport: { message: report.message.slice(0, WORKER_REPORT_MESSAGE_MAX), reportedAt: report.reportedAt } }
+      : {}),
+    // T0609: the saved "asked its Tower" state (old CT `T#### 提問`)
+    ...(question && typeof question === 'object' && typeof question.message === 'string' && typeof question.askedAt === 'number' && Number.isFinite(question.askedAt)
+      ? { workerQuestion: { message: question.message.slice(0, WORKER_REPORT_MESSAGE_MAX), askedAt: question.askedAt } }
       : {}),
     // T0583: the worktree of an isolated Worker (main checks the location / branch rules before using it)
     ...(ctWorktree ? { ctWorktree } : {}),
@@ -652,14 +666,23 @@ class WorkspaceStore {
    * PLAN-041 / T0538: a `terminal:notified` (every window gets it) — the Workers it is a report
    * from (`findReportingWorkers`) are marked reported with the latest message. Display only:
    * nothing is closed. Saves when a tab changed; returns the marked ids.
+   * T0609 (BUG-153): a message ending with `提問` (`isQuestionNotifyMessage`, old CT asking its
+   * Tower) marks the tab `workerQuestion` instead — not reported; the next notify replaces it.
    */
   markWorkerReported(info: { targetId: string; source?: string; message: string }): string[] {
     const ids = findReportingWorkers(this.state.terminals, info.targetId, info.source)
     if (ids.length === 0) return ids
-    const workerReport = { message: String(info.message ?? '').slice(0, WORKER_REPORT_MESSAGE_MAX), reportedAt: Date.now() }
+    const message = String(info.message ?? '').slice(0, WORKER_REPORT_MESSAGE_MAX)
+    const at = Date.now()
+    const mark = (t: TerminalInstance): TerminalInstance => {
+      const { workerReport: _report, workerQuestion: _question, ...rest } = t
+      return isQuestionNotifyMessage(message)
+        ? { ...rest, workerQuestion: { message, askedAt: at } }
+        : { ...rest, workerReport: { message, reportedAt: at } }
+    }
     this.state = {
       ...this.state,
-      terminals: this.state.terminals.map(t => ids.includes(t.id) ? { ...t, workerReport } : t),
+      terminals: this.state.terminals.map(t => ids.includes(t.id) ? mark(t) : t),
     }
     this.notify()
     this.save()
@@ -1117,6 +1140,8 @@ class WorkspaceStore {
           sessionMeta: restored.sessionMeta,
           // T0538: a report the detached window saw (this window got the same event)
           workerReport: restored.workerReport ?? existing.workerReport,
+          // T0609: likewise, unless the detached window saw a newer notify
+          workerQuestion: restored.workerReport ? restored.workerQuestion : restored.workerQuestion ?? existing.workerQuestion,
         }
       })
       .filter((t): t is TerminalInstance => t !== null)
@@ -1169,6 +1194,7 @@ class WorkspaceStore {
         towerTerminalId: t.towerTerminalId,
         workorder: t.workorder,
         workerReport: t.workerReport,
+        workerQuestion: t.workerQuestion,
         ctWorktree: t.ctWorktree,
         remoteOrigin: t.remoteOrigin,
         autoTitle: t.autoTitle,

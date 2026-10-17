@@ -1181,6 +1181,13 @@
     "badgeTooltip": "{{workorder}} 的 Worker，由 {{tower}} 派出",
     "reportedTooltip": "已回报：{{message}}",
     "notReportedTooltip": "尚未回报",
+    "blockedTooltip": {
+      "permission": "等待用户：权限确认（{{time}} 起）",
+      "question": "等待用户回答问题（{{time}} 起）",
+      "elicitation": "等待用户：MCP 输入对话框（{{time}} 起）"
+    },
+    "questionTooltip": "已向塔台提问 {{time}}，等待塔台答复",
+    "questionPendingTooltip": "{{count}} 个问题待答",
     "closeWorker": "关闭此 Worker",
     "closeReported": "关闭已回报的 Worker 标签页（{{count}}）",
     "batchCloseTitle": "关闭已回报的 Worker 标签页？",

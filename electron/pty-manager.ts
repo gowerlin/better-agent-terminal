@@ -187,6 +187,12 @@ export interface PtyManagerDeps {
    */
   onServerRecovery?: () => void
   /**
+   * T0609 (BUG-153): PTY `id`'s `blocked` changed (a hook report, the user's input, the PTY
+   * ending, the Terminal Server recovery) — the renderer push (electron/terminal-attention.ts).
+   * Called synchronously; a throwing listener is logged and ignored. Undefined = no hook.
+   */
+  onBlockedChange?: (id: string) => void
+  /**
    * T0433: extra env for the helpers (`bat-terminal.mjs` / `bat-notify.mjs`) inside PTY `id`,
    * spread last so neither `customEnv` nor the inherited env can override it. Called once
    * per PTY actually spawned — never for an idempotent re-create of a running id, whose
@@ -308,7 +314,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   // T0582: recently ended PTYs (insertion order = oldest first), for the helper query channels
   private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
   // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
-  private blockedTracker = new TerminalBlockedTracker(logger)
+  // T0609: `deps` is assigned by the constructor before any report can arrive
+  private blockedTracker = new TerminalBlockedTracker(logger, undefined, id => this.deps.onBlockedChange?.(id))
   // T0600 option B: `[agent-command] launch-suspect` (log only)
   private launchSuspect = new LaunchSuspectWatcher(logger)
 

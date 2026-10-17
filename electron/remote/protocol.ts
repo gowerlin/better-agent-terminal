@@ -122,4 +122,7 @@ export const PROXIED_EVENTS = new Set([
   // PLAN-044 / T0566: a remote tab's usage-limit hint, and the automatic continue the client
   // window holding the tab types (electron/usage-limit-continue.ts, src/App.tsx)
   'terminal:usage-limit-status', 'terminal:usage-limit-continue',
+  // T0609 (BUG-153): a remote tab waits for the user (claude hook) / for its Tower's answer — the
+  // client windows mark its Worker badge (electron/terminal-attention.ts, src/App.tsx)
+  'terminal:attention-changed',
 ])

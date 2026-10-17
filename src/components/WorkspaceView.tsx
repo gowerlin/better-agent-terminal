@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { Workspace, TerminalInstance, EnvVariable, DockablePanel, DockZone, ShellType } from '../types'
 import { reportedWorkersOfTower, workspaceStore } from '../stores/workspace-store'
+import { useTerminalAttentionVersion } from '../stores/terminal-attention-store'
 import { settingsStore } from '../stores/settings-store'
 import { ThumbnailBar } from './ThumbnailBar'
 import { CloseConfirmDialog } from './CloseConfirmDialog'
@@ -929,22 +930,26 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (ids.length > 0) setBatchCloseWorkers({ towerId, ids })
   }, [terminals])
 
+  // T0609 (BUG-153): a listed Worker that starts waiting for the user / its Tower while the confirm
+  // is open leaves the list (and is not closed); the attention store re-renders this view.
+  useTerminalAttentionVersion()
   const batchCloseList = batchCloseWorkers
-    ? terminals.filter(t => batchCloseWorkers.ids.includes(t.id))
+    ? reportedWorkersOfTower(terminals, batchCloseWorkers.towerId).filter(t => batchCloseWorkers.ids.includes(t.id))
     : []
 
   const handleConfirmBatchClose = useCallback(() => {
     if (!batchCloseWorkers) return
-    const ids = batchCloseWorkers.ids.filter(id => terminals.some(t => t.id === id))
-    window.electronAPI.debug.log(`[T0538] closing reported Workers of tower=${batchCloseWorkers.towerId}: ${ids.join(',') || '(none left)'}`)
+    const ids = reportedWorkersOfTower(terminals, batchCloseWorkers.towerId).map(t => t.id).filter(id => batchCloseWorkers.ids.includes(id))
+    const skipped = batchCloseWorkers.ids.filter(id => !ids.includes(id) && terminals.some(t => t.id === id))
+    window.electronAPI.debug.log(`[T0538] closing reported Workers of tower=${batchCloseWorkers.towerId}: ${ids.join(',') || '(none left)'}${skipped.length > 0 ? ` (T0609: no longer reported, kept: ${skipped.join(',')})` : ''}`)
     for (const id of ids) workspaceStore.closeTerminalNow(id, { cleanWorktree: false })
     setBatchCloseWorkers(null)
   }, [batchCloseWorkers, terminals])
 
-  // T0538: every listed tab closed elsewhere while the confirm is open.
+  // T0538: every listed tab closed elsewhere while the confirm is open (T0609: or no longer reported).
   useEffect(() => {
-    if (batchCloseWorkers && !terminals.some(t => batchCloseWorkers.ids.includes(t.id))) setBatchCloseWorkers(null)
-  }, [batchCloseWorkers, terminals])
+    if (batchCloseWorkers && batchCloseList.length === 0) setBatchCloseWorkers(null)
+  }, [batchCloseWorkers, batchCloseList.length])
 
   const handleRestart = useCallback(async (id: string) => {
     const terminal = terminals.find(t => t.id === id)

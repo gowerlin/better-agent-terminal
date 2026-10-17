@@ -17,6 +17,7 @@ import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstall
 import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
+import type { TerminalAttentionEvent } from '../src/lib/terminal-attention'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -81,6 +82,12 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: UsageLimitStatusEvent) => callback(info)
       ipcRenderer.on('terminal:usage-limit-status', handler)
       return () => ipcRenderer.removeListener('terminal:usage-limit-status', handler)
+    },
+    // T0609 (BUG-153): a tab now waits for the user (claude hook) / for its Tower's answer, or no longer
+    onAttentionChanged: (callback: (info: TerminalAttentionEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: TerminalAttentionEvent) => callback(info)
+      ipcRenderer.on('terminal:attention-changed', handler)
+      return () => ipcRenderer.removeListener('terminal:attention-changed', handler)
     },
     // PLAN-044 / T0566: the usage limit reset — the window holding the tab re-checks and continues
     onUsageLimitContinue: (callback: (info: UsageLimitContinueEvent) => void) => {

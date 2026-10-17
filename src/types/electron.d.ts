@@ -111,6 +111,8 @@ interface ElectronAPI {
     onRoleChanged: (callback: (info: import('../lib/tower-terminal-title').TerminalRoleChangeInfo) => void) => () => void
     /** PLAN-044 / T0566: `terminal:usage-limit-status` — tab `id`'s usage-limit hint changed (null = cleared). */
     onUsageLimitStatus: (callback: (info: import('../lib/usage-limit').UsageLimitStatusEvent) => void) => () => void
+    /** T0609 (BUG-153): `terminal:attention-changed` — tab `id` waits for the user / its Tower's answer (empty = no longer). */
+    onAttentionChanged: (callback: (info: import('../lib/terminal-attention').TerminalAttentionEvent) => void) => () => void
     /** PLAN-044 / T0566: `terminal:usage-limit-continue` — the window holding tab `id` re-checks and continues. */
     onUsageLimitContinue: (callback: (info: import('../lib/usage-limit').UsageLimitContinueEvent) => void) => () => void
   }

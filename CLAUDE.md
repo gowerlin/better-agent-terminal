@@ -71,6 +71,7 @@
 - 歸屬：Worker 的 `customEnv.BAT_TOWER_TERMINAL_ID`；BAT 重開後經 `withSavedWorkerOwnership`（`electron/worker-ownership.ts`，T0537）以已存分頁判斷。歸屬只來自 BAT 視窗存的資料，不接受請求參數宣告。
 - 關閉路徑：`App.tsx` `ownsTerminalForCloseRequest` → `workspaceStore.closeTerminalNow(id, { cleanWorktree: false })`；✕ 也走 `closeTerminalNow`。🔴 改 ✕ 行為時同步看 `src/stores/__tests__/workspace-store.closeTerminalNow.test.ts`（含 T0535 前邏輯的對照與 source guard）。
 - 分頁標示與手動批次關閉（T0538）：已回報比對唯一實作 `findReportingWorkers`（`src/stores/workspace-store.ts`）；批次關閉的頁內確認 `.worker-batch-close-dialog`（列出工單編號 + 標題，🔴 不得改用 `window.confirm`）。
+- 等使用者 / 等塔台答覆（T0609 / BUG-153）：Worker 標籤 ⚠️（hook `blocked`）/ `?`（塔台問題，或舊 CT 通知結尾 `提問` → `workerQuestion`）/ `✓`，提問與 blocked **不計入**批次關閉；判斷唯一實作 `workerAttention`（`src/lib/terminal-attention.ts`），主行程推送 `terminal:attention-changed`（`TerminalAttentionNotifier`，`electron/terminal-attention.ts`，只含狀態欄位、不含問題內容）。
 - 外部建立分頁的標題（T0553）唯一實作 `externalTerminalTitle`（`src/lib/external-terminal-title.ts`）；使用者改名後一律不動。
 - 完整契約、取消規則、日誌、已知限制、遠端 headless、驗證清單：[docs/agent-guide/worker-tab-recycle.md](docs/agent-guide/worker-tab-recycle.md)
 

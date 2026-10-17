@@ -8,6 +8,7 @@ import { getAgentPreset } from '../types/agent-presets'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { AddMenu, type AddMenuSection } from './common/AddMenu'
 import { reportedWorkersOfTower, workersOfTower } from '../stores/workspace-store'
+import { useTerminalAttentionVersion } from '../stores/terminal-attention-store'
 
 interface ThumbnailBarProps {
   terminals: TerminalInstance[]
@@ -75,6 +76,8 @@ export function ThumbnailBar({
     : t('terminal.terminals')
 
   // All hooks must be declared before any conditional return (React rules of hooks)
+  // T0609: a Worker that starts / stops waiting changes its Tower's reported count
+  useTerminalAttentionVersion()
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before')

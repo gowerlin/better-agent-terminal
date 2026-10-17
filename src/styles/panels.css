@@ -496,6 +496,17 @@
   border-color: rgba(152, 195, 121, 0.6);
 }
 
+/* T0609 (BUG-153): waits for the user (claude hook) / for its Tower's answer — not reported */
+.worker-badge.blocked {
+  color: #e06c75;
+  border-color: rgba(224, 108, 117, 0.6);
+}
+
+.worker-badge.question {
+  color: #61afef;
+  border-color: rgba(97, 175, 239, 0.6);
+}
+
 /* PLAN-044 / T0566: usage-limit state of a tab (hint, or the time BAT continues it) */
 .usage-limit-badge {
   font-size: 9px;

@@ -82,6 +82,13 @@ export interface TerminalInstance {
    */
   workerReport?: { message: string; reportedAt: number };
   /**
+   * T0609 (BUG-153): the Worker's latest notify to its Tower ends with `提問` (old CT: it asks in
+   * the work order file and waits) — shown `?`, not counted as reported. Replaced by the next
+   * notify (`workerReport`); saved with the tab like `workerReport`. A structured tower question
+   * (main's `terminal:attention-changed`) wins over both (src/lib/terminal-attention.ts).
+   */
+  workerQuestion?: { message: string; askedAt: number };
+  /**
    * PLAN-047 W1 / T0583: a Worker dispatched with `--isolation worktree` — the worktree BAT created
    * for it (electron/ct-worktree.ts). Saved with the tab like `towerTerminalId` / `workorder`, so
    * `--close-worker --worktree remove|archive` still finds it after BAT reopens. Unrelated to

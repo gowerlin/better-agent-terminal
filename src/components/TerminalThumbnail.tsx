@@ -11,6 +11,8 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { hasNotification, subscribeNotification, clearNotification } from '../stores/terminal-notifications'
 import { useUsageLimitStatus } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_MAX_CONSECUTIVE_SENDS, type UsageLimitStatus } from '../lib/usage-limit'
+import { useTerminalAttention } from '../stores/terminal-attention-store'
+import { workerAttention, type WorkerAttention } from '../lib/terminal-attention'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
 function clockTime(epoch: number | null): string {
@@ -37,6 +39,19 @@ function usageLimitTooltip(t: (key: string, options?: Record<string, unknown>) =
     case 'cap': return t('usageLimit.cap', { count: USAGE_LIMIT_MAX_CONSECUTIVE_SENDS })
   }
 }
+
+/** T0609 (BUG-153): the second tooltip line of a Worker badge (locale keys `workerTabs.*`). */
+function workerAttentionTooltip(t: (key: string, options?: Record<string, unknown>) => string, attention: WorkerAttention | null): string {
+  if (!attention) return t('workerTabs.notReportedTooltip')
+  if (attention.kind === 'reported') return t('workerTabs.reportedTooltip', { message: attention.message })
+  const time = clockTime(attention.since) || t('usageLimit.unknownTime')
+  if (attention.kind === 'blocked') return t(`workerTabs.blockedTooltip.${attention.reason}`, { time })
+  const asked = t('workerTabs.questionTooltip', { time })
+  return attention.pending > 1 ? `${asked}\n${t('workerTabs.questionPendingTooltip', { count: attention.pending })}` : asked
+}
+
+/** T0609: the badge text — ⚠️ waits for the user, ? waits for the Tower, ✓ reported. */
+const WORKER_ATTENTION_MARK: Record<WorkerAttention['kind'], string> = { blocked: '⚠️', question: '?', reported: '✓' }
 
 // Global preview cache - persists across component unmounts
 const MAX_PREVIEW_CACHE = 100
@@ -233,13 +248,17 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   // T0553: the default title ends with the work order (`<agent> · Worker · T####`), so the badge
   // only shows ✓ once it reported; a title the user gave the tab keeps the T0538 badge.
   const workorderInTitle = isWorker && titleShowsWorkorder(terminal.title, terminal.workorder!)
-  const showWorkerBadge = isWorker && (!workorderInTitle || !!terminal.workerReport)
+  // T0609 (BUG-153): waits for the user (⚠️) / for its Tower (?) / reported (✓) — main's
+  // `terminal:attention-changed` first, then the Worker's latest report
+  const attentionEvent = useTerminalAttention(terminal.id)
+  const attention = isWorker ? workerAttention(terminal, attentionEvent) : null
+  const showWorkerBadge = isWorker && (!workorderInTitle || !!attention)
   // PLAN-044 / T0566: the tab's usage-limit state (main's `terminal:usage-limit-status`, memory only)
   const usageLimit = useUsageLimitStatus(terminal.id)
   const workerTooltip = isWorker
     ? [
         t('workerTabs.badgeTooltip', { workorder: terminal.workorder, tower: towerTitle || terminal.towerTerminalId!.slice(0, 8) }),
-        terminal.workerReport ? t('workerTabs.reportedTooltip', { message: terminal.workerReport.message }) : t('workerTabs.notReportedTooltip'),
+        workerAttentionTooltip(t, attention),
       ].join('\n')
     : undefined
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
@@ -272,17 +291,21 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           {isSupervisor && <span title="Supervisor" className="supervisor-badge">👁</span>}
           {isSplit && <span title="Split" className="split-badge">⫿</span>}
           {isAgent && <span>{agentConfig?.icon}</span>}
-          <span title={workorderInTitle && !terminal.workerReport ? workerTooltip : undefined}>{terminal.title}</span>
+          <span title={workorderInTitle && !attention ? workerTooltip : undefined}>{terminal.title}</span>
           {terminal.remoteOrigin && (
             <span className="remote-origin-badge" title={t('workerTabs.remoteOriginTooltip')}>{t('profiles.remote')}</span>
           )}
           {showWorkerBadge && (
             <span
-              className={`worker-badge${terminal.workerReport ? ' reported' : ''}`}
+              className={`worker-badge${attention ? ` ${attention.kind}` : ''}`}
               title={workerTooltip}
               data-workorder={terminal.workorder}
+              data-attention={attention?.kind}
+              data-blocked-reason={attention?.kind === 'blocked' ? attention.reason : undefined}
             >
-              {terminal.workerReport ? (workorderInTitle ? '✓' : `✓ ${terminal.workorder}`) : terminal.workorder}
+              {attention
+                ? (workorderInTitle ? WORKER_ATTENTION_MARK[attention.kind] : `${WORKER_ATTENTION_MARK[attention.kind]} ${terminal.workorder}`)
+                : terminal.workorder}
             </span>
           )}
           {usageLimit && (

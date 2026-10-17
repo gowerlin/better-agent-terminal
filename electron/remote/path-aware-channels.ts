@@ -345,6 +345,7 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['terminal:role-changed', '{ id, role, ptyAgent?, ptyAgentName?, agent?, agentName? } (terminal id + role / agent ids and names; T0562)'],
   ['terminal:usage-limit-status', '{ id, status } (terminal id + limit state / reset time text; T0566)'],
   ['terminal:usage-limit-continue', '{ id, action, text?, agent, traceId } (terminal id + the Settings continue text; T0566)'],
+  ['terminal:attention-changed', '{ id, blockedReason?, blockedSince?, pendingQuestions, questionsSince? } (terminal id + state enum / times / count, never question text; T0609)'],
 ])
 
 export function translateRemoteEventArgs(

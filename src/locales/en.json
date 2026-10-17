@@ -1181,6 +1181,13 @@
     "badgeTooltip": "Worker for {{workorder}}, dispatched by {{tower}}",
     "reportedTooltip": "Reported: {{message}}",
     "notReportedTooltip": "Not reported yet",
+    "blockedTooltip": {
+      "permission": "Waiting for you: a permission prompt (since {{time}})",
+      "question": "Waiting for you: a question to answer (since {{time}})",
+      "elicitation": "Waiting for you: an MCP input dialog (since {{time}})"
+    },
+    "questionTooltip": "Asked its Tower at {{time}}, waiting for the answer",
+    "questionPendingTooltip": "{{count}} questions pending",
     "closeWorker": "Close this Worker",
     "closeReported": "Close reported Worker tabs ({{count}})",
     "batchCloseTitle": "Close reported Worker tabs?",

@@ -19,6 +19,7 @@ import { registerTerminalQueryHandlers, savedTabsFromRegistry, type TerminalQuer
 import { registerWorktreeStatusHandler } from './worktree-status-handlers'
 import { registerReportHookHandler } from './terminal-blocked-state'
 import { registerTowerQuestionHandlers, type TowerQuestionHandlers } from './tower-questions'
+import { TerminalAttentionNotifier } from './terminal-attention'
 import { mirrorToBatScripts } from './remote/remote-logger'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
@@ -474,6 +475,8 @@ let workerCloseScheduler: WorkerCloseScheduler | null = null
 // PLAN-047 M1 / T0582: terminal:whoami / list / get-state / read-output / wait (registerProxiedHandlers).
 let terminalQueryHandlers: TerminalQueryHandlers | null = null
 let towerQuestionHandlers: TowerQuestionHandlers | null = null
+// T0609 (BUG-153): `terminal:attention-changed` (a tab waits for the user / its Tower's answer)
+let terminalAttention: TerminalAttentionNotifier | null = null
 // PLAN-047 W1 / T0583: `--isolation worktree` dispatch + `--close-worker --worktree` cleanup (plain git).
 const ctWorktreeService = new CtWorktreeService()
 // PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
@@ -901,6 +904,8 @@ function createElectronPtyDeps(): PtyManagerDeps {
     },
     // T0607: the Terminal Server recovery cancels every pending tower question
     onServerRecovery: () => towerQuestionHandlers?.serverRecovered(),
+    // T0609: a hook `blocked` entered / cleared → the windows' Worker badges
+    onBlockedChange: (id) => terminalAttention?.refresh(id),
     // T0129 / T0575: BAT_REMOTE_PORT + the PTY's own capability as BAT_REMOTE_TOKEN (tower, or a
     // worker of its customEnv.BAT_TOWER_TERMINAL_ID) — no longer the server token
     helperEnv: (id, customEnv) => buildLocalHelperEnv({
@@ -1367,6 +1372,7 @@ async function cleanupAllProcesses(): Promise<void> {
   try { workerCloseScheduler?.dispose() } catch { /* ignore */ }
   try { terminalQueryHandlers?.dispose() } catch { /* ignore */ }
   try { towerQuestionHandlers?.dispose() } catch { /* ignore */ }
+  try { terminalAttention?.dispose() } catch { /* ignore */ }
   try { usageLimitScheduler?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   claudeManager = null
@@ -2357,8 +2363,17 @@ function registerProxiedHandlers() {
     knownSecrets: () => [remoteServer.currentToken],
     logger,
     mirrorToBatScripts,
+    onChange: (workerId) => terminalAttention?.refresh(workerId), // T0609
   })
   towerQuestionHandlers = towerQuestions
+  // T0609 (BUG-153): a tab waits for the user (hook `blocked`) / its Tower's answer → every window
+  // + broadcastHub (remote clients of this BAT) mark the Worker badge. State fields only (D155).
+  terminalAttention = new TerminalAttentionNotifier({
+    getBlockedState: id => ptyManager?.getBlockedState(id) ?? null,
+    getQuestionSummary: id => towerQuestions.summaryFor(id),
+    emit: terminalEmit,
+    logger,
+  })
   // PLAN-047 M1 / T0582: read-only helper queries (same module as headless). The caller is its
   // capability (`localHelperCapabilities`); titles and the workspace of a PTY the Terminal Server
   // kept come from the saved tabs; the server token is masked out of read-output literally.
