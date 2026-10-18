@@ -171,11 +171,11 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | worktree 隔離派工、合併工單 | `>= 0.7.0-pre.2` | `>= v5.3.0`（選用） |
 | 唯讀查詢（MCP，`mcp__bat__*`） | `>= 0.7.0-pre.2`（Codex 分頁 `>= 0.7.0-pre.3`） | 不需要（CT `>= v5.3.0` 列為選用通道） |
 | Worker 分頁關閉後查 worktree 狀態（`source`） | `>= 0.7.0-pre.4` | `>= v5.4.0`（舊 CT 照舊以 git 重算） |
-| 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4`（AskUserQuestion 回報 `question`：`>= 0.7.0-pre.5`；MCP 表單回答後清除：`>= 0.7.0-pre.9`） | `>= v5.5.0`（斷點 D） |
+| 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4`（AskUserQuestion 回報 `question`：`>= 0.7.0-pre.5`；MCP 表單回答後清除：`>= 0.7.0-pre.9`；權限請求結束後清除：`>= 0.7.1-pre.2`） | `>= v5.5.0`（斷點 D） |
 | Worker 啟動確認（`--wait-started`、`agentStarted`，Claude CLI 分頁） | `>= 0.7.0-pre.6` | `>= v5.6.0`（舊 CT 不帶參數，照舊） |
 | Codex CLI 分頁的等人回答偵測與啟動確認（`blockedDetection: osc`、`blockedReason: input`；需 codex `>= 0.163.0`） | `>= 0.7.0-pre.9` | `>= v5.8.0`（舊 CT 對 Codex 照舊視為無法判斷） |
 | Worker 問塔台（`--ask` / `--answer`、`bat_list_questions` / `bat_wait_question`、`blocked` / `tower`） | `>= 0.7.0-pre.7` | `>= v5.7.0`（舊 CT 照舊在工單裡往返） |
-| Claude 分頁的 session 名稱、`claudeSessionName` / `claudeSessionId`、`scope: towers`、以塔台開啟 Claude | `>= 0.7.1-pre.1` | 名稱不需要 CT 配合；依這些欄位找塔台的規則：CT 新版發佈後補上（舊 CT 照舊） |
+| Claude 分頁的 session 名稱、`claudeSessionName` / `claudeSessionId`、`scope: towers`、以塔台開啟 Claude | `>= 0.7.1-pre.1` | 名稱不需要 CT 配合；依這些欄位找塔台：`>= v5.9.0`（舊 CT 照舊） |
 | Worker 縮圖 ⚠️ / `?` / `✓` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`） | 不需要 |
 
 <!-- #endregion compatibility -->

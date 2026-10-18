@@ -4,6 +4,32 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.2] — 2026-10-18
+
+### Fixed
+- **Docker 設定精靈固定用 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突**：「建立新容器」改由主行程挑埠（9877–9976，避開 RemoteServer 埠與已佔用埠，與 WSL 共用 `pickServerPort`）；「沿用既有容器」改讀容器公開的 `9876/tcp` 主機埠；埠衝突時只移除本次建立的容器、重試換埠；新 IPC `docker:pick-server-port`（BUG-156，T0649）
+- **「編輯連線」釘選新指紋後按「儲存」寫回舊指紋**：釘選成功後對話框持有新指紋，釘選失敗顯示錯誤（BUG-157，T0650）
+- **SSH 設定的「重新釘選指紋」不經 SSH 通道、直連本機同號埠**（可能釘到本機其他 BAT 伺服器並送出權杖）：SSH 設定（`ssh-linux` / `ssh-darwin`）停用該按鈕、`handlePinFingerprint` 防禦性拒絕（BUG-160，T0655）
+- **權限請求被放行 / 逾時拒絕（未經鍵盤）後仍維持 `blocked` / `permission`**：新增 async `PostToolBatch` hook（`post-tool-batch`），只清 `permission`，依 hook 的 `agent_id` 區分 subagent（每分頁上限 32，超過退回任何批次都清）；`terminal:report-hook` 多選用 `agentId`（BUG-162，T0657）
+- **codex 共用 app-server daemon 讓分頁內命令讀到別的分頁的 `BAT_*`**：BAT MCP 沒注入的 codex 分頁在 codex `>= 0.156.0` 時加 `--no-daemon`（`createCodexNoDaemonSupportCheck`），BAT MCP 有注入與 helper 派工命令列不變（BUG-159，T0648 / T0651）
+- **設定精靈的選項按鈕、輸入框、進度條用 Tailwind class 但 App 未載入 Tailwind**：改用 `profile-action-btn` / `profile-name-input` 與 `.bat-wizard-*`（`src/styles/setup-wizard.css`）；WSL / SSH / Docker 步驟說明三語改寫（BUG-163，T0658）
+- **遠端設定畫面與精靈的英文字樣**：配置面板 / 編輯連線 / 精靈提示與警告走 i18n（三語 +48 key）、SSH 認證失敗文案改指向金鑰 / ssh-agent；精靈 step 錯誤改帶 code、error-mapper +32 entry（`Error.message` 與日誌維持英文）；復原警告、縮圖列 `suggested`、「Set as Supervisor」翻譯；21 個 modal × 補 `aria-label`（BUG-158，T0652；BUG-161，T0660）
+- `smoke:remote:headless` S13 的 raw command 探測改為帶別的塔台 `--notify-id`（T0579 後塔台可用 raw command；探測不再建出分頁）（T0654）
+
+### Changed
+- 專案網站：新增「遠端開發」四頁（`/remote/`）、真實截圖與派工短片（`e2e/site-media.spec.ts`，手動執行）、OG 分享卡片、sitemap、`pages.yml` 的 lychee `link-check`（只警告）；「BAT × Control Tower」改名「與 Control Tower 協作」（PLAN-049，T0646 / T0656 / T0659）
+- README 截圖換新；`docs/` 的 WSL / SSH / Docker 部署指南與 remote-dev-overview 更新為目前行為（T0653）
+- 狀態列可設定項目數更正為 19
+
+### Call for testing
+Codex CLI 使用者（一般權限執行 BAT）：關閉 BAT MCP 後開 Codex 分頁，確認分頁內命令讀到的 `BAT_TERMINAL_ID` 是自己的；以 Control Tower 派 Codex Worker 確認通知與回收；到 GitHub Issues 回報 BAT / Codex 版本、作業系統與安裝方式。
+
+### Known issues
+- 未實機驗證：Docker 精靈挑埠、指紋重新釘選、權限請求結束後 ⚠️ 消失、非系統管理員下的 codex `--no-daemon`
+- 「沿用既有容器」仍自動選最近建立的容器（PLAN-052）
+- 遠端視窗需重跑設定精靈把遠端 server 升級到本版
+- macOS / Linux 版本未實機驗證
+
 ## [0.7.1-pre.1] — 2026-10-18
 
 ### Added
