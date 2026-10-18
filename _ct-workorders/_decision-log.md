@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D168 2026-10-18 — 下一個預覽版號線 `0.7.1-pre.1`
+
+- **背景**：`0.7.0` 線已發到 `pre.9`（D151：不發兩位數 pre）。下一版內容：BUG-155（T0639）、PLAN-050 session 識別（T0641 / T0642 / T0643 / T0644，D167）。
+- **決定**（使用者 2026-10-18 17:1x，選塔台推薦）：下一版為 **`0.7.1-pre.1`**（新功能與修正，無破壞相容的改動）；`0.7.1` 線同樣最多到 `pre.9`。
+- **時機**：T0643 完成、塔台複驗後發版（使用者 16:0x 指示「等 T0640 研究完、PLAN-050 定案後一起發」）。
+- **相關**：D151 / D167 / PLAN-050 / BUG-155
+
 ### D167 2026-10-18 — PLAN-050 Claude 分頁的 session 識別：R2 採 (a)+(b)；hook 回報 sessionId（改 T0600）；放寬 D149 加 `scope: 'towers'`；`--name` 不加 Settings 開關
 
 - **背景**：BMad-Guide 塔台需求提案（CT D067，`BMad-Guide/_ct-workorders/_request-2026-10-18-bat-session-identity.md`）：ListAgents 只顯示「目錄名＋兩字元」，CT 分不出 BAT 塔台與 Worker（2026-10-18 兩次實例）。T0640 研究 DONE（16:07）：claude `--name` 在 2.1.300 / 2.1.302 實測可用（ListAgents 顯示、中文與 `·` 正確、上限 200 字元、重複時最後一個生效）；`< 2.1.76` 不認得 → claude exit 1（system runtime 需版本檢查）；`--session-id` 會在 resume / 重啟 / 重複時讓 claude 啟動失敗 → 不用；`SessionStart` hook stdin 有 `session_id`；hook `sessionTitle` 不改 ListAgents 名稱 → 排除。
