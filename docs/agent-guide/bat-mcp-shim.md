@@ -8,7 +8,7 @@
   | tool | channel | 參數 | invoke 逾時 |
   |---|---|---|---|
   | `bat_whoami` | `terminal:whoami` | 無 | 3 s |
-  | `bat_list_terminals` | `terminal:list` | `scope?: 'mine' \| 'workspace'` | 3 s |
+  | `bat_list_terminals` | `terminal:list` | `scope?: 'mine' \| 'workspace' \| 'towers'`（`towers`：T0643） | 3 s |
   | `bat_get_state` | `terminal:get-state` | `terminalId?` | 3 s |
   | `bat_read_output` | `terminal:read-output` | `terminalId?`、`cursor?`、`maxLines?` | 3 s |
   | `bat_wait` | `terminal:wait` | `terminalId?`、`until`、`fromState?`、`timeoutMs?`（≤ 45 s） | 55 s |
@@ -19,6 +19,7 @@
   T0621（codex OSC 7501）：`bat_get_state` / `bat_list_terminals` / `bat_wait` 直接轉送 channel 回傳，所以 codex 分頁的 `blockedDetection: osc`、`blockedReason: input`、`source: 'osc'` 與 `agentStarted` 不需改 shim 邏輯；`bat_get_state` 的說明文字加上 `input`（codex 等使用者：核准或提問）與 `blockedDetection` 三值（`hook` = claude hooks、`osc` = codex `>= 0.163.0` 的狀態序列、`none` = 無法回報），摘要為 `<id>: blocked (input), idle <ms> ms, agent started`（e2e 實測）。
 
   T0642（PLAN-050 B）：`bat_whoami` / `bat_list_terminals` / `bat_get_state` 的 `structuredContent` 原樣帶 `claudeSessionName` / `claudeSessionId`（channel 回傳，shim 不另組），三個 tool 的說明各補一句欄位意義（`null` 不代表沒有 session）；`bat_whoami` 的文字摘要多 `session="<名稱>"`。仍全部 `readOnlyHint: true`。欄位定義見 [claude-session-name.md](claude-session-name.md)「查詢欄位 R3」。
+  T0643（PLAN-050 C）：`bat_list_terminals` 的 `scope` enum 加 `towers`（只給已宣告的塔台：同一 BAT 所有工作區的執行中塔台，每列只有 `id` / `workspaceId` / `workspaceName` / `title?` / `claudeSessionName` / `state` / `alive` / `self`），說明補一句（含「舊 BAT 回 `INVALID_ARGS`」）；`towers` 的文字摘要為 `<id> (self, workspace="<名稱>", session="<名稱>", <state>)`（缺的項目省略）。shim 只轉送，不另組欄位；仍 `readOnlyHint: true`。契約見 [helper-query-channels.md](helper-query-channels.md) 與 [claude-session-name.md](claude-session-name.md)「列出所有塔台」。
 
   問答的寫入（提問 / 取消 / 答覆）**沒有** MCP tool，一律走 helper（`bat-notify.mjs --ask` / `--cancel-question`、`bat-terminal.mjs --answer`，D155 / D156），BAT MCP 維持全唯讀；server `instructions` 為「Read-only queries about BAT terminals and tower questions: …」。`bat_list_questions` 的 `content` 摘要 `N pending questions: <id> (T####, <前 60 字>)`（`status: all` 時 `N questions: <id> (T####, <status>, <前 60 字>)`），`structuredContent.questions` 是全文；`bat_wait_question` 摘要 `status=<s>[ (<endReason>)] after <ms> ms`，`answered` 時另起行附 `choice: <n>` 與答覆全文，`pending` 逾時附 `(timed out; call again)`。稽核行同其他 tool（只記 tool / ok / code / 耗時），不記問題、答案、問題 id。
 

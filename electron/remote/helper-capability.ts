@@ -474,8 +474,9 @@ export type HelperQueryScopeDecision = { ok: true } | { ok: false; code: 'NOT_OW
  *   - any capability: itself
  *   - tower capability (declared or not): + the Workers it dispatched (`isWorkerOf`)
  *   - worker capability: + its tower, `metadata` only (never its output)
- * The workspace listing of a declared tower (`terminal:list scope=workspace`) is the handler's,
- * metadata only, and does not open any other channel. Anything else → NOT_OWNER.
+ * The workspace / towers listings of a declared tower (`terminal:list scope=workspace|towers`,
+ * `authorizeHelperListScope`) are metadata only and do not open any other channel. Anything else →
+ * NOT_OWNER.
  */
 export function authorizeHelperQueryTarget(
   caller: HelperCapability | null,
@@ -490,6 +491,33 @@ export function authorizeHelperQueryTarget(
   }
   if (access === 'metadata' && caller.towerId !== undefined && targetId === caller.towerId) return { ok: true }
   return { ok: false, code: 'NOT_OWNER' }
+}
+
+/** T0582 / T0643: the scopes of `terminal:list` (anything else → INVALID_ARGS). */
+export type HelperListScope = 'mine' | 'workspace' | 'towers'
+export const HELPER_LIST_SCOPES: readonly HelperListScope[] = ['mine', 'workspace', 'towers']
+
+/**
+ * T0582 / PLAN-050 T0643 (D167, relaxes D149): who may list a `terminal:list` scope.
+ *   - `mine`: anyone (each row passes `authorizeHelperQueryTarget`)
+ *   - `workspace`: a declared tower — + the other tabs of its workspace
+ *   - `towers`: a declared tower — the running declared towers of this host, every workspace
+ *     (`isTowersScopeMember`), identification fields only
+ * A server-token client (`caller` null) may list any. Neither listing widens the other channels:
+ * get-state / read-output / wait of a listed tab stay `authorizeHelperQueryTarget`'s.
+ */
+export function authorizeHelperListScope(
+  caller: HelperCapability | null,
+  listScope: HelperListScope,
+  ctx: Pick<HelperQueryScopeContext, 'getTerminalRole'>,
+): HelperQueryScopeDecision {
+  if (!caller || listScope === 'mine') return { ok: true }
+  return helperQueryRole(caller, ctx) === 'tower' ? { ok: true } : { ok: false, code: 'NOT_OWNER' }
+}
+
+/** T0643: whether running PTY `id` is a row of `terminal:list scope=towers` (it declared `--set-role tower`). */
+export function isTowersScopeMember(id: string, ctx: Pick<HelperQueryScopeContext, 'getTerminalRole'>): boolean {
+  return ctx.getTerminalRole(id) === 'tower'
 }
 
 /**

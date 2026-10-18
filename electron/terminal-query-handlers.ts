@@ -3,7 +3,7 @@
  * or CT asks about terminals, over the RemoteServer, with the caller's PTY capability:
  *
  *   terminal:whoami       {}                                           → who the caller is
- *   terminal:list         { scope?: 'mine' | 'workspace' }             → terminals in its scope
+ *   terminal:list         { scope?: 'mine' | 'workspace' | 'towers' }  → terminals in its scope
  *   terminal:get-state    { terminalId? }                              → working / idle / blocked / exited
  *   terminal:read-output  { terminalId?, cursor?, maxLines? }          → plain screen text, masked
  *   terminal:wait         { terminalId?, until, fromState?, timeoutMs? } → long poll on the state
@@ -39,6 +39,14 @@
  * electron/claude-session-name-record.ts; null = none injected) and `claudeSessionId` (the session
  * id its claude's last `SessionStart` hook sent; null = not reported / cannot be / unknown since BAT
  * reopened — 🔴 null does not mean there is no session). An exited tab keeps both.
+ * PLAN-050 / T0643 (D167, relaxes D149): `terminal:list scope=towers` — a declared tower (as
+ * `scope=workspace`, `authorizeHelperListScope`) lists the running declared towers of this host in
+ * every workspace (`isTowersScopeMember`), itself too (`self: true`). Rows carry identification
+ * only: `id` / `workspaceId` / `workspaceName` (`alias || name`; null = unknown, always on
+ * headless) / `title` (Electron, when saved) / `claudeSessionName` / `state` / `alive` / `self` —
+ * 🔴 never the session id, cwd, output, tower mode, work order or questions. get-state /
+ * read-output / wait of those tabs stay NOT_OWNER. A BAT before T0643 answers INVALID_ARGS
+ * (`message: 'scope'`).
  *
  * Output: the PTY's raw replay buffer (`pty:get-buffer`'s, or the tail kept at exit) → plain text
  * (`plainTextFromOutput`, T0566) → `redactTerminalSecrets` (src/lib/terminal-output-redaction.ts)
@@ -60,8 +68,12 @@ import type { BlockedDetection, BlockedReason, BlockedState } from './terminal-b
 import type { HandlerContext } from './remote/handler-registry'
 import type { QuestionSummary } from './tower-questions'
 import {
+  authorizeHelperListScope,
   authorizeHelperQueryTarget,
+  HELPER_LIST_SCOPES,
   helperQueryRole,
+  isTowersScopeMember,
+  type HelperListScope,
   type HelperCapability,
   type HelperQueryAccess,
   type HelperQueryRole,
@@ -140,6 +152,24 @@ export function savedTabsFromRegistry(entries: ReadonlyArray<{ terminals?: unkno
   return tabs
 }
 
+/**
+ * T0643: the name of workspace `workspaceId` in window registry entries — `alias || name`, the same
+ * source as the claude session name (T0641); null when no entry has it.
+ */
+export function workspaceNameFromRegistry(entries: ReadonlyArray<{ workspaces?: unknown }>, workspaceId: string): string | null {
+  for (const entry of entries) {
+    if (!Array.isArray(entry?.workspaces)) continue
+    for (const w of entry.workspaces as unknown[]) {
+      if (!w || typeof w !== 'object') continue
+      const { id, alias, name } = w as Record<string, unknown>
+      if (id !== workspaceId) continue
+      if (typeof alias === 'string' && alias) return alias
+      return typeof name === 'string' && name ? name : null
+    }
+  }
+  return null
+}
+
 export interface TerminalQueryDeps {
   registerHandler(channel: string, handler: (ctx: HandlerContext, ...args: unknown[]) => unknown): void
   getPtyManager(): TerminalQueryPtyManager | null
@@ -155,6 +185,8 @@ export interface TerminalQueryDeps {
   getQuestionSummary?(terminalId: string): QuestionSummary
   /** T0642: the claude session name injected at the tab's last launch (`claudeSessionNameRecords`). Absent ⇒ null. */
   getClaudeSessionName?(terminalId: string): string | null
+  /** T0643: a workspace's `alias || name` (`workspaceNameFromRegistry`). Absent (headless) ⇒ null. */
+  getWorkspaceName?(workspaceId: string): string | null
   /** Tests. Default `Date.now` / `setTimeout` / `clearTimeout`. */
   now?(): number
   setTimer?(fn: () => void, ms: number): unknown
@@ -394,12 +426,17 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     }
   }
 
+  const claudeSessionNameOf = (id: string): string | null => {
+    try {
+      return deps.getClaudeSessionName?.(id) ?? null
+    } catch {
+      return null
+    }
+  }
+
   /** T0642: running → the PTY's; exited → its record's. */
   const claudeSessionOf = (pm: TerminalQueryPtyManager, id: string): ClaudeSessionFields => {
-    let claudeSessionName: string | null = null
-    try {
-      claudeSessionName = deps.getClaudeSessionName?.(id) ?? null
-    } catch { /* null */ }
+    const claudeSessionName = claudeSessionNameOf(id)
     const claudeSessionId = pm.getTerminalInfo(id)
       ? pm.getClaudeSessionId?.(id) ?? null
       : pm.getExitedPty(id)?.claudeSessionId ?? null
@@ -416,6 +453,15 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
 
   const workspaceOf = (pm: TerminalQueryPtyManager, id: string): string | undefined =>
     pm.getTerminalInfo(id)?.workspaceId ?? pm.getExitedPty(id)?.workspaceId ?? savedTab(id)?.workspaceId
+
+  const workspaceNameOf = (workspaceId: string | undefined): string | null => {
+    if (!workspaceId) return null
+    try {
+      return deps.getWorkspaceName?.(workspaceId) ?? null
+    } catch {
+      return null
+    }
+  }
 
   /** A listed terminal's role: dispatched by a tower → worker; declared → tower; else shell. */
   const roleOf = (pm: TerminalQueryPtyManager, id: string): HelperQueryRole => {
@@ -488,20 +534,43 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     const channel = 'terminal:list'
     const opts = asOptions(raw)
     if (!opts) return fail(channel, ctx, '-', 'INVALID_ARGS')
-    const listScope = opts.scope === undefined || opts.scope === null ? 'mine' : opts.scope
-    if (listScope !== 'mine' && listScope !== 'workspace') return fail(channel, ctx, '-', 'INVALID_ARGS', 'scope')
+    const rawScope = opts.scope === undefined || opts.scope === null ? 'mine' : opts.scope
+    if (!(HELPER_LIST_SCOPES as readonly unknown[]).includes(rawScope)) return fail(channel, ctx, '-', 'INVALID_ARGS', 'scope')
+    const listScope = rawScope as HelperListScope
     const pm = deps.getPtyManager()
     const caller = callerOf(ctx)
     if (!pm) return fail(channel, ctx, `scope=${listScope}`, 'NOT_FOUND')
+    const sc = scope(pm)
+    if (!authorizeHelperListScope(caller, listScope, sc).ok) {
+      return fail(channel, ctx, `scope=${listScope}`, 'NOT_OWNER', `scope=${listScope} needs a declared tower (--set-role tower)`)
+    }
+    if (listScope === 'towers') {
+      // T0643: identification only — never claudeSessionId / cwd / output / towerMode / workorder
+      const towers = pm.listTerminalIds().flatMap(id => {
+        if (!pm.getTerminalInfo(id) || !isTowersScopeMember(id, sc)) return []
+        const state = stateOf(pm, id)
+        if (!state) return []
+        const workspaceId = workspaceOf(pm, id) ?? null
+        const title = savedTab(id)?.title
+        return [{
+          id,
+          workspaceId,
+          workspaceName: workspaceNameOf(workspaceId ?? undefined),
+          ...(title ? { title } : {}),
+          claudeSessionName: claudeSessionNameOf(id),
+          state: state.state,
+          alive: true,
+          self: caller?.terminalId === id,
+        }]
+      })
+      audit(channel, ctx, `scope=${listScope}`, `ok count=${towers.length}`)
+      return { ok: true, scope: listScope, terminals: towers }
+    }
     const all = [...new Set([...pm.listTerminalIds(), ...pm.listExitedPtyIds()])]
     let ids: string[]
     if (!caller) {
       ids = all
     } else {
-      const sc = scope(pm)
-      if (listScope === 'workspace' && helperQueryRole(caller, sc) !== 'tower') {
-        return fail(channel, ctx, `scope=${listScope}`, 'NOT_OWNER', 'scope=workspace needs a declared tower (--set-role tower)')
-      }
       const mine = new Set(all.filter(id => authorizeHelperQueryTarget(caller, id, 'metadata', sc).ok))
       if (listScope === 'workspace') {
         const ws = workspaceOf(pm, caller.terminalId)

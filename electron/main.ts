@@ -18,7 +18,7 @@ import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameR
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
-import { registerTerminalQueryHandlers, savedTabsFromRegistry, type TerminalQueryHandlers } from './terminal-query-handlers'
+import { registerTerminalQueryHandlers, savedTabsFromRegistry, workspaceNameFromRegistry, type TerminalQueryHandlers } from './terminal-query-handlers'
 import { registerWorktreeStatusHandler } from './worktree-status-handlers'
 import { registerReportHookHandler } from './terminal-blocked-state'
 import { registerTowerQuestionHandlers, type TowerQuestionHandlers } from './tower-questions'
@@ -2429,6 +2429,7 @@ function registerProxiedHandlers() {
     knownSecrets: () => [remoteServer.currentToken],
     getQuestionSummary: terminalId => towerQuestions.summaryFor(terminalId),
     getClaudeSessionName: terminalId => claudeSessionNameRecords.get(terminalId)?.name ?? null, // T0642
+    getWorkspaceName: workspaceId => workspaceNameFromRegistry(windowRegistry.getCachedEntries(), workspaceId), // T0643
     logger,
     mirrorToBatScripts,
   })

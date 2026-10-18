@@ -173,6 +173,23 @@ describe('tools/call forwards to the channel', () => {
     expect(state.structuredContent).toMatchObject({ claudeSessionName: null, claudeSessionId: null })
   })
 
+  it('T0643: bat_list_terminals scope towers (read-only), forwarded as is; the summary names workspace / session / self', async () => {
+    const tool = TOOLS.find(t => t.name === 'bat_list_terminals')
+    expect(tool.inputSchema.properties.scope.enum).toEqual(['mine', 'workspace', 'towers'])
+    expect(tool.description).toContain('"towers"')
+    expect(tool.description).toContain('INVALID_ARGS')
+    const { call, calls } = setup({
+      'terminal:list': { ok: true, result: { ok: true, scope: 'towers', terminals: [
+        { id: 't1', workspaceId: 'ws-a', workspaceName: 'Alpha', claudeSessionName: 'Alpha · Tower', state: 'idle', alive: true, self: true },
+        { id: 't2', workspaceId: 'ws-b', workspaceName: null, claudeSessionName: null, state: 'working', alive: true, self: false },
+      ] } },
+    })
+    const r = (await call('bat_list_terminals', { scope: 'towers' })).result
+    expect(calls).toEqual([{ channel: 'terminal:list', args: [{ scope: 'towers' }], timeoutMs: tool.timeoutMs }])
+    expect(r.content[0].text).toBe('2 terminals (scope=towers): t1 (self, workspace="Alpha", session="Alpha · Tower", idle); t2 (working)')
+    expect(r.structuredContent.terminals[0]).toEqual({ id: 't1', workspaceId: 'ws-a', workspaceName: 'Alpha', claudeSessionName: 'Alpha · Tower', state: 'idle', alive: true, self: true })
+  })
+
   it('no arguments = this tab (no terminalId sent)', async () => {
     const { call, calls } = setup()
     await call('bat_get_state')

@@ -107,10 +107,10 @@ export const TOOLS = [
     name: 'bat_list_terminals',
     channel: 'terminal:list',
     title: 'List BAT terminals',
-    description: 'Terminals this tab may see: scope "mine" (default) = itself, its Workers (a tower) or its tower (a worker); "workspace" (declared towers only) adds the other tabs of the workspace, metadata only. Each row has claudeSessionName / claudeSessionId as bat_get_state.',
+    description: 'Terminals this tab may see: scope "mine" (default) = itself, its Workers (a tower) or its tower (a worker); "workspace" (declared towers only) adds the other tabs of the workspace, metadata only. Each row has claudeSessionName / claudeSessionId as bat_get_state. "towers" (declared towers only) = the running declared towers of this BAT in every workspace, itself too (self=true), each with id / workspaceId / workspaceName / claudeSessionName / state only; their state and output stay out of scope. An older BAT answers INVALID_ARGS to "towers".',
     inputSchema: {
       type: 'object',
-      properties: { scope: { type: 'string', enum: ['mine', 'workspace'] } },
+      properties: { scope: { type: 'string', enum: ['mine', 'workspace', 'towers'] } },
       additionalProperties: false,
     },
     keys: ['scope'],
@@ -264,7 +264,9 @@ export function summarize(toolName, data) {
     }
     case 'bat_list_terminals': {
       const terminals = Array.isArray(data.terminals) ? data.terminals : []
-      const items = terminals.map(t => `${t.id} (${[t.role, t.workorder, stateText(t)].filter(Boolean).join(', ')})`)
+      const items = data.scope === 'towers' // T0643
+        ? terminals.map(t => `${t.id} (${[t.self ? 'self' : null, t.workspaceName ? `workspace="${t.workspaceName}"` : null, t.claudeSessionName ? `session="${t.claudeSessionName}"` : null, stateText(t)].filter(Boolean).join(', ')})`)
+        : terminals.map(t => `${t.id} (${[t.role, t.workorder, stateText(t)].filter(Boolean).join(', ')})`)
       return `${plural(terminals.length, 'terminal')} (scope=${data.scope})${items.length ? `: ${items.join('; ')}` : ''}`
     }
     case 'bat_get_state':

@@ -12,7 +12,7 @@
 | 角色 | 輸入 | 名稱 | 誰用 |
 |---|---|---|---|
 | Worker | `{ role: 'worker', workspaceName, workorder }` | `<ws> · Worker · <T####>` | helper 派工（`--skill ct-exec|ct-done --workorder`） |
-| Tower | `{ role: 'tower', workspaceName }` | `<ws> · Tower` | T0644（本單只有函式與測試） |
+| Tower | `{ role: 'tower', workspaceName }` | `<ws> · Tower` | 「以塔台開啟 Claude」開的分頁（`launchRole: 'tower'`，T0644，見下方同名節） |
 | 其他 claude-cli 分頁 | `{ role: 'tab', workspaceName, terminalId }` | `<ws> · <短 ID>` | UI 開的 claude-cli / claude-cli-worktree 分頁、helper `--prompt` 派工 |
 
 - `<T####>`：符合 `WORKORDER_ID_PATTERN`（`^(?:[A-Z]{2,4}-)?T\d+$`，可帶 `CT-` 等前綴；本檔一份複本，`src/types/control-tower.ts` 那份會把 js-yaml 帶進 main bundle，兩者一致由單元測試斷言）。不符合 → `null`（不注入，`no-name`）。
@@ -36,7 +36,7 @@
 - 請求 / 結果：`BatMcpLaunchRequest` 多 `sessionName?`（**呼叫端算好的名稱**，main 再清理）與 `claudeNameSupport?`（版本檢查結果，見下）；`BatMcpLaunchResult`（claude）多 `name`（注入的名稱）或 `nameReason`。codex / 其他 agent 的結果沒有這兩個欄位。
   - 選「傳算好的名稱」而非「傳資料由 main 算」：renderer 才知道工作區名稱與分頁 id（`agent:bat-mcp-launch-args` 在 PTY 建立前呼叫），T0644 還要傳 Tower 角色；main 只做清理與長度上限。
 - 兩個呼叫端（`bat-mcp-launch.test.ts` 的 `buildLaunchCommand(` source guard 不變）：
-  - renderer：`WorkspaceView.tsx` `startClaudeCliPty`（新建 / 還原 / 預設 Agent 終端 / ⏻ 重啟的 claude-cli 都經這裡）以 `claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId })` 算名稱，經 `withBatMcpLaunchArgs(…, terminalId, sessionName)` → `agent:bat-mcp-launch-args` 第 5 個參數。工作區名稱以 ref 在啟動當下讀（`startClaudeCliPty` 的 deps 不變，避免改到還原 effect）。
+  - renderer：`WorkspaceView.tsx` `startClaudeCliPty`（新建 / 還原 / 預設 Agent 終端 / ⏻ 重啟的 claude-cli 都經這裡）以 `claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId })` 算名稱（分頁的 `launchRole` 為 `'tower'` 時改用 `role: 'tower'`，T0644），經 `withBatMcpLaunchArgs(…, terminalId, sessionName)` → `agent:bat-mcp-launch-args` 第 5 個參數。工作區名稱以 ref 在啟動當下讀（`startClaudeCliPty` 的 deps 不變，避免改到還原 effect）。
   - helper 派工：`terminal:create-agent-command` 把落點工作區名稱（`landing.workspaceName`，T0523：`--notify-id` 塔台所屬工作區優先）傳給 `createAgentPromptCommandBuilder`；有 `--skill` + `--workorder` → Worker 名稱，`--prompt` → `<ws> · <短 ID>`。
 - **headless**（遠端 bat-server）：
   - 遠端視窗的 UI 分頁：renderer 送名稱（含工作區名稱）→ server 的 `agent:bat-mcp-launch-args` 決定、記錄，與本機相同。
@@ -80,7 +80,7 @@
 | `claudeSessionId` | `string \| null`（UUID） | 該 PTY 的 claude 最後一次 `SessionStart` hook 回報的 `session_id` | 還沒回報、`blockedDetection: none`（沒有 hooks）、hooks 被 claude 設定關閉、BAT 重開後沒有存檔（headless、Terminal Server 沒存活）。🔴 **`null` 不代表沒有 session** |
 
 - 結束紀錄（`exited`，10 分鐘 / 32 筆）保留最後的兩個值（`ExitedPtyRecord.claudeSessionId`；名稱紀錄本來就不隨 PTY 清除）。
-- 查詢範圍沿用 `authorizeHelperQueryTarget`，本單不放寬：tower 看得到自己與自己的 Worker；worker 看得到自己與綁定塔台的 metadata（含這兩欄）。跨工作區列 tower 是 T0643（`scope: 'towers'`）。
+- 查詢範圍沿用 `authorizeHelperQueryTarget`，本單不放寬：tower 看得到自己與自己的 Worker；worker 看得到自己與綁定塔台的 metadata（含這兩欄）。跨工作區列 tower 是 T0643（`scope: 'towers'`，見下方「列出所有塔台」，只回 `claudeSessionName`、不回 `claudeSessionId`）。
 - MCP（`bat_whoami` / `bat_list_terminals` / `bat_get_state`）的 `structuredContent` 原樣帶兩欄，tool 說明各補一句；`bat_whoami` 的文字摘要多 `session="<名稱>"`。
 
 ### sessionId 的來源（改 T0600 hook 契約，D167）
@@ -102,6 +102,45 @@
 - 寫入時機：啟動決策（`recordClaudeSessionName`）、sessionId 改變（`PtyManagerDeps.onClaudeSessionChange`）、PTY 結束（`onPtyExit`）、Terminal Server recovery（`onServerRecovery`）。
 - 不經 renderer 的 `workspace:save`、不動 window registry。headless 不持久化（bat-server 重啟後兩值都是 `null`，已知限制）。
 - 還原不包含 `agentStartedAt` / `blockedDetection` / tower 角色（各自的既有限制）：BAT 重開後分頁可能是 `claudeSessionId` 有值、`blockedDetection: none`、`agentStarted: null`（e2e 實測）。
+
+## 以塔台開啟 Claude（T0644，PLAN-050 D）
+
+- 入口：分頁縮圖列「+」選單，緊接在「Claude CLI」下方的「以塔台開啟 Claude」（en `Open Claude as Tower`、zh-CN `以塔台打开 Claude`；i18n key `terminal.openClaudeAsTower` / `terminal.openClaudeAsTowerHint`）。Claude CLI 在該視窗不可用時，以同一個原因停用；選單沒有 Claude CLI 時排在 agent 清單最後。實作：`ThumbnailBar` 的 prop `onAddClaudeCliAsTower`、`WorkspaceView.handleAddClaudeCliAsTower`。
+- 行為：一律開 claude-cli 分頁（不看工作區預設 agent），套用工作區生效的 claude-cli 啟動參數（`getEffectiveAgentArgs`），session 名稱為 `<ws> · Tower`（`claudeSessionName({ role: 'tower' })`）。標題預設 `Claude CLI · Tower`（`setAutoTitle`，與 T0562 一致；使用者改名優先）。
+- 🔴 只負責命名：不呼叫 `terminal:set-role`、不設定塔台角色、不自動輸入任何指令；塔台角色仍由 CT 啟動時以 `--set-role tower` 宣告。CT 宣告後標題的結果為 `unchanged`。
+- `launchRole`：`TerminalInstance.launchRole?: 'tower'`，隨分頁一起存檔（`workspaceStore.save()`）。還原時只接受 `'tower'`；detached 視窗收回時保留。`startClaudeCliPty` 每次從 store 讀這個欄位決定名稱，所以新建、⏻ 重啟、BAT 重開還原都是同一個名稱。沒有 `launchRole` 的分頁照 T0641 規則（`<ws> · <短 ID>`）。
+- 不注入名稱的情況與 T0641 相同（上節「降級」）：自訂參數已含 `--name` / `-n` 時不注入；system claude `< 2.1.76` 或讀不到版本時不注入。
+- 已知限制：
+  - 名稱只在 BAT 啟動 claude 時決定。分頁內執行 `/rename`，或之後改了工作區名稱，都不會反映到已在執行的 session；要等下次 ⏻ 重啟才會用新的工作區名稱。
+  - 只支援 claude-cli；claude-cli-worktree、Claude Agent（SDK）、codex 等沒有這個入口。
+  - 同一個工作區開多個「以塔台開啟」分頁時名稱相同（都是 `<ws> · Tower`），ListAgents 上分不出來。
+  - 使用者手動改分頁名稱不影響 session 名稱（名稱看 `launchRole`，不看標題）。
+- 驗證清單：`src/stores/__tests__/workspace-store.launchRole.test.ts`、`src/components/__tests__/open-claude-as-tower-menu.test.tsx`、`electron/__tests__/claude-session-name-launch.test.ts`（tower 分支 guard）；e2e `e2e/t0644-open-claude-as-tower.spec.ts`（新入口 / 既有入口 / ⏻ 重啟 / reload；截圖存 `e2e-results/t0644/`）。
+
+## 列出所有塔台：`terminal:list { scope: 'towers' }`（T0643，PLAN-050 C，契約 C-6）
+
+用途：從一般分頁開的塔台在 ListAgents 上是 `<ws> · <短 ID>`，看不出角色（R2 (a)）；CT 問 BAT「這台機器上有哪些塔台、各自的 session 名稱」，再到 ListAgents 對名稱。D167：使用者同意放寬 D149，讓已宣告的塔台列出同一 BAT 內所有工作區的塔台分頁，只有識別用的 metadata。
+
+- 誰能呼叫：只有已 `--set-role tower` 宣告的塔台（`helperQueryRole` = `tower`）；未宣告的分頁（`shell`）與 Worker → `NOT_OWNER`（`message: 'scope=towers needs a declared tower (--set-role tower)'`），與 `scope: 'workspace'` 同一條規則。server token 連線可列。唯一實作 `authorizeHelperListScope` / `isTowersScopeMember`（`electron/remote/helper-capability.ts`），handler 在 `electron/terminal-query-handlers.ts`。
+- 回傳：`{ ok: true, scope: 'towers', terminals: [...] }`，同一個 BAT host（同一 RemoteServer / 主行程）上**所有工作區**中執行中、`role: tower` 的分頁，依 PTY 建立順序；呼叫者自己也列出。結束的塔台、Worker、一般分頁不列。每列：
+
+  | 欄位 | 型別 | 說明 |
+  |---|---|---|
+  | `id` | string | terminal id |
+  | `workspaceId` | `string \| null` | 所屬工作區（PTY 的 `workspaceId`，本機缺時取已存分頁）；不明 → `null` |
+  | `workspaceName` | `string \| null` | 工作區 `alias \|\| name`（與 T0641 `cleanSessionWorkspaceName` 的來源一致，但不清理），本機取 window registry（`workspaceNameFromRegistry`）；不明 → `null`；🔴 headless 一律 `null`（已知限制） |
+  | `title` | string（可省略） | 本機 window registry 已存的分頁標題（例 `Claude CLI · Tower` / `Terminal · Tower`）；headless 沒有 |
+  | `claudeSessionName` | `string \| null` | 同「查詢欄位 R3」：該分頁最後一次啟動決策注入的 `--name`；手動在 shell 打 `claude` 的塔台是 `null` |
+  | `state` | `working` / `idle` / `blocked` | 同 get-state 的 `state`（不含 `blockedReason` 等細節） |
+  | `alive` | `true` | 只列執行中的分頁 |
+  | `self` | boolean | 這一列是呼叫者自己（server token 連線一律 `false`） |
+
+- 🔴 不回 `claudeSessionId`、`cwd`、輸出、`towerMode`、`workorder`、問題內容、`blockedReason` / `blockedDetection` / `agentStarted`；對這些分頁的 `get-state` / `read-output` / `wait` 範圍**不變**（別工作區、非自己 Worker 的塔台仍 `NOT_OWNER`）。`scope: 'mine'` / `'workspace'` 的行為與欄位不變。
+- 舊 BAT（T0643 前）：`scope: 'towers'` 回 `{ ok: false, code: 'INVALID_ARGS', message: 'scope' }`，與其他未知 scope 相同 —— CT 以此判斷「BAT 不支援」，退回 `scope: 'mine'` / ListAgents 目錄名。shim 與 BAT 同一份安裝（`$BAT_HELPER_DIR/bat-mcp.mjs`），所以舊 BAT 的 shim 的 `bat_list_terminals` schema 沒有 `towers`（shim 本身不檢查 enum、照轉送，但 MCP client 可能依 schema 先擋下）；照轉送時 BAT 回 `INVALID_ARGS`，tool error 文字為 `INVALID_ARGS: scope`。
+- MCP：`bat_list_terminals` 的 `scope` enum 加 `towers`，仍 `readOnlyHint: true`；文字摘要 `<id> (self, workspace="<名稱>", session="<名稱>", <state>)`。helper `bat-terminal.mjs` 沒有 list 參數，不變。
+- 稽核：`[helper-query] channel=terminal:list caller=<id> target=scope=towers → ok count=<n>`（失敗 `→ NOT_OWNER (…)`），`bat-scripts.log` 的 `helper-query` 事件同欄位；不記名稱、工作區或其他內容。
+- 已知限制：headless 沒有工作區名稱（`workspaceName: null`）；一個 BAT host 只看得到自己的塔台（另一台機器 / 另一個 BAT 實例 / 遠端 headless 的塔台要各自查）；T0108 replay 註冊的 PTY（BAT 重開、Terminal Server 存活）要重新 `--set-role tower` 才會被列出（角色不持久化，T0562）。
+- 驗證：`electron/__tests__/terminal-list-towers.test.ts`、`electron/remote/__tests__/headless-terminal-query-e2e.test.ts`（T0643 段）、`scripts/__tests__/bat-mcp.test.mjs`（T0643 段）；e2e `e2e/t0643-list-towers.spec.ts`（隔離實例、不耗 token；需先 `npx vite build`）。
 
 ## 日誌
 
@@ -127,7 +166,8 @@
 - CT 面板的「執行工單 / 補結案」按鈕是 raw command（`claude "/ct-exec T####"`），不經啟動決策，**沒有名稱**（也沒有 BAT MCP / hooks，既有行為）；R1 只涵蓋 helper 派工。
 - headless 派工沒有工作區名稱（`BAT · Worker · T####`）。
 - 名稱只在啟動時決定：工作區改名、使用者 `/rename`、自訂參數之後加 `--resume` 都不會回寫 BAT 的紀錄；`--resume` / `--continue` 時 BAT 的 `--name` 會覆寫 transcript 裡的舊名稱（T0640 Q1-3）。
-- 同一工作區的同名（兩個工作區同名、或 T0644 的兩個 Tower）在 ListAgents 只靠 `[ref]` 區分。
+- 同一工作區的同名（兩個工作區同名、或 T0644 的兩個 Tower）在 ListAgents 只靠 `[ref]` 區分；`scope: 'towers'`（T0643）以 terminal id / `workspaceId` 區分，但對到 ListAgents 仍只能靠名稱。
+- `scope: 'towers'` 在 headless 沒有工作區名稱（`workspaceName: null`）。
 - 名稱紀錄與 sessionId 在 Electron 由 `claude-sessions.json` 跨 BAT 重開保留（T0642）；headless 不保留。
 - `claudeSessionId` 只在 BAT 注入 hooks 的 claude-cli 分頁有值；手動在 shell 打 `claude`、hooks 被關閉、system claude 不跑 hook 時都是 `null`。claude 結束後回到 shell 的分頁仍回傳最後的 sessionId（沒有注入 `SessionEnd`）。
 
@@ -136,4 +176,5 @@
 - 單元：`src/lib/__tests__/claude-session-name.test.ts`（三種角色、帶前綴工單與 `WORKORDER_ID_PATTERN` 一致、清理、60 / 200 截斷與 surrogate pair、`BAT`、`normalizeClaudeSessionName`）；`electron/__tests__/claude-version-check.test.ts`（embedded 不 probe、`execFile` 參數 / timeout、`2.1.75` / `2.1.76` 邊界、unknown 各情況、runtime 解析失敗、快取與 mtime）；`electron/__tests__/claude-session-name-launch.test.ts`（引號、順序、不受 `batMcpEnabled` / endpoint 影響、`user-args` 正反例、各 reason、codex 無欄位、紀錄與日誌、handler 第 5 參數與只在需要時問版本、派工 Worker 名稱 / `BAT` / prompt 派工、source guard、紀錄上限）；既有 `bat-mcp-launch.test.ts` / `blocked-hooks-launch.test.ts` 已更新 `nameReason` / `name=` 日誌。
 - e2e：`e2e/t0641-claude-session-name.spec.ts`（隔離實例，claude 一律帶工作區自訂參數 `--version`，不開 TUI、不耗 token；需先 `npx vite build`）：還原的 claude-cli 分頁、helper 派工的 claude Worker、使用者 `--name` / codex、pwsh / cmd / Git Bash 編碼。
 - T0642：`electron/__tests__/claude-session-query.test.ts`（UUID 樣式；tracker 第一次 / `/clear` 取代 / 不改 `agentStartedAt` / 日誌只有前 8 碼 / `onSessionChange` / `restoreSessionId` / 清除；PtyManager 需執行中、結束紀錄保留、restart 清除、restore；report-hook 合格記錄、不合格與其他 event 忽略不報錯、T0600 BAT 相容；三個查詢的注入 / 未注入 / codex / exited、範圍不變、`wait` 不加欄位；存檔格式、無權杖、損毀檔、無效項目、兩個 BAT 行程間的還原 / 丟棄 / 新值優先 / 結束移除、內容沒變不重寫；main.ts / headless source guard）、`electron/__tests__/terminal-blocked-state.test.ts`（真 RemoteServer + 真 `bat-hook.mjs`：帶 UUID、exit 0 無 stdout、`bat-scripts.log` 只有前 8 碼、`/clear` 取代、非 UUID 不送、T0600 / 更舊 BAT 仍 exit 0）、`scripts/__tests__/bat-hook.test.mjs`、`scripts/__tests__/bat-mcp.test.mjs`；既有 `terminal-query-handlers` / `codex-osc-state` / `tower-questions` 的完整回傳形狀補兩欄。e2e `e2e/t0642-claude-session-query.spec.ts`（隔離實例、不耗 token：塔台 MCP `bat_whoami` / `bat_get_state` / `bat_list_terminals` 拿到名稱與 sessionId、`/clear` 換 id、`claude-sessions.json`、日誌只有前 8 碼、保留 Terminal Server 重開 BAT 後還原；需先 `npx vite build`）。
+- T0644 / T0643：見上方兩節的驗證清單。
 - 改名稱格式時同步：本檔、CLAUDE.md 節、`claude-session-name.test.ts`；改注入條件時同步 `bat-mcp-shim.md` 的注入節。

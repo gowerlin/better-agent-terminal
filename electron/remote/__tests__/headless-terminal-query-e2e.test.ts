@@ -10,6 +10,8 @@
  *     Worker's shell exits → exited
  *   Worker → whoami (worker, its tower) / its tower's state ok / its tower's output → NOT_OWNER
  *   plain shell (undeclared tower) → whoami shell / list scope=workspace → NOT_OWNER
+ *   T0643: list scope=towers — the Tower sees itself only (workspaceName null on headless, no
+ *     session id / cwd); the Worker and the plain shell → NOT_OWNER
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -143,11 +145,13 @@ describe('helper query channels from inside headless PTYs (T0582)', () => {
       { channel: 'terminal:get-state', args: [{ terminalId: tower }] },
       { channel: 'terminal:read-output', args: [{ terminalId: tower }] },
       { channel: 'terminal:list', args: [] },
+      { channel: 'terminal:list', args: [{ scope: 'towers' }] },
     ])
     expect(run.calls[0].result).toMatchObject({ ok: true, terminalId: worker, role: 'worker', towerTerminalId: tower, workspaceId: WORKSPACE, yolo: true })
     expect(run.calls[1].result).toMatchObject({ ok: true, terminalId: tower, source: 'output' })
     expect(run.calls[2].result).toEqual({ ok: false, code: 'NOT_OWNER' })
     expect((run.calls[3].result?.terminals as Array<{ id: string }>).map(t => t.id).sort()).toEqual([tower, worker].sort())
+    expect(run.calls[4].result).toMatchObject({ ok: false, code: 'NOT_OWNER' }) // T0643
   }, 90_000)
 
   it('plain shell: whoami = shell; list scope=workspace → NOT_OWNER; another tab → NOT_OWNER', async () => {
@@ -155,10 +159,12 @@ describe('helper query channels from inside headless PTYs (T0582)', () => {
       { channel: 'terminal:whoami', args: [] },
       { channel: 'terminal:list', args: [{ scope: 'workspace' }] },
       { channel: 'terminal:get-state', args: [{ terminalId: worker }] },
+      { channel: 'terminal:list', args: [{ scope: 'towers' }] },
     ])
     expect(run.calls[0].result).toMatchObject({ ok: true, terminalId: plain, role: 'shell' })
     expect(run.calls[1].result).toMatchObject({ ok: false, code: 'NOT_OWNER' })
     expect(run.calls[2].result).toEqual({ ok: false, code: 'NOT_OWNER' })
+    expect(run.calls[3].result).toMatchObject({ ok: false, code: 'NOT_OWNER' }) // T0643
   }, 90_000)
 
   it('Tower: whoami / list / get-state / read-output (masked) / wait until=exit while the Worker exits', async () => {
@@ -170,13 +176,14 @@ describe('helper query channels from inside headless PTYs (T0582)', () => {
       { channel: 'terminal:read-output', args: [{ terminalId: worker }] },
       { channel: 'terminal:wait', args: [{ terminalId: worker, until: 'exit', timeoutMs: 30_000 }] },
       { channel: 'terminal:get-state', args: [{ terminalId: worker }] },
+      { channel: 'terminal:list', args: [{ scope: 'towers' }] },
     ])
     // the Worker's shell exits while the Tower waits
     await sleep(3_000)
     expect(await bat.invoke('pty:write', worker, 'exit\r')).toMatchObject({ ok: true })
     const run = JSON.parse(await waitForFile(outFile)) as DriverRun
     expect(run.error).toBeUndefined()
-    const [whoami, mine, workspace, state, read, wait, after] = run.calls.map(c => c.result)
+    const [whoami, mine, workspace, state, read, wait, after, towers] = run.calls.map(c => c.result)
     expect(whoami).toMatchObject({ ok: true, terminalId: tower, role: 'tower', workspaceId: WORKSPACE })
     expect((mine?.terminals as Array<{ id: string }>).map(t => t.id).sort()).toEqual([tower, worker].sort())
     expect((workspace?.terminals as Array<{ id: string }>).map(t => t.id).sort()).toEqual([tower, worker, plain].sort())
@@ -190,6 +197,11 @@ describe('helper query channels from inside headless PTYs (T0582)', () => {
     expect(read?.masked).toBeGreaterThanOrEqual(1)
     expect(wait).toMatchObject({ ok: true, terminalId: worker, changed: true, state: 'exited' })
     expect(after).toMatchObject({ ok: true, state: 'exited' })
+    // T0643: the only declared tower of this server; headless has no workspace names
+    expect(towers).toMatchObject({ ok: true, scope: 'towers' })
+    expect(towers?.terminals).toEqual([
+      { id: tower, workspaceId: WORKSPACE, workspaceName: null, claudeSessionName: null, state: expect.any(String), alive: true, self: true },
+    ])
     // the Worker's capability went with its PTY
     expect(registry.isWorkerOf(worker, tower)).toBe(false)
   }, 120_000)
