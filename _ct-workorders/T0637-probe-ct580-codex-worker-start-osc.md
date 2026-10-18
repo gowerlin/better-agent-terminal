@@ -4,7 +4,10 @@ schema_kind: workorder
 id: T0637
 title: "探針：CT-T020 實機驗收 —— codex Worker 在 BAT 0.7.0-pre.9 上的啟動確認（OSC 7501 → `started:`）與 `blockedDetection: osc`"
 type: verification
-status: TODO
+status: DONE
+started_at: "2026-10-18T15:34:49+08:00"
+updated_at: "2026-10-18T15:35:10+08:00"
+completed_at: "2026-10-18T15:35:10+08:00"
 repo: better-agent-terminal
 project: CT-T020 實機驗收（BMad-Guide 請 BAT 代跑）
 priority: P2
@@ -76,4 +79,35 @@ BAT `0.7.0-pre.9`（T0621）起，codex `>= 0.163.0` 的 Worker 會送 OSC 7501 
 
 ## 回報區
 
-（Worker 填寫）
+### 執行摘要
+
+- 狀態：DONE；實機探針已完成。工單原狀態為 `TODO`，本次依流程開始執行。
+- 落點檢查：PASS。`repo` 預期值 `better-agent-terminal` = 實際 repo basename `better-agent-terminal`；`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`。C-1 工單位於 repo 內；C-3 指定工單路徑存在。`CT_HOME` 未設定；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`。
+- 開工時間：2026-10-18T15:34:49+08:00
+
+### 互動紀錄
+
+- [2026-10-18T15:35:10+08:00] 執行 T0637；未向塔台提問，依工單直接完成探針。
+
+### 環境紀錄
+
+- `codex --version`：`codex-cli 0.163.0`
+- `Get-Command codex -All` 路徑（依序）：
+  1. `C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`
+  2. `C:\Users\Gower\AppData\Roaming\npm\codex.ps1`
+  3. `C:\Users\Gower\AppData\Roaming\npm\codex.cmd`
+  4. `C:\Users\Gower\AppData\Roaming\npm\codex`
+- 環境變數：`BAT_SESSION=1`；`BAT_TERMINAL_ID` 已設定；`BAT_TOWER_TERMINAL_ID` 已設定；`BAT_WORKSPACE_ID` 已設定；`CT_MODE=yolo`；`BAT_REMOTE_TOKEN` 已設定、以 `batcap.` 開頭（未記錄權杖值）。
+- `bat_whoami`：`role=worker`；`agent` 欄位未提供（回傳只有 terminalId、workspaceId、role、towerTerminalId、workorder、yolo、cwd；派工工單指定 codex preset）；`yolo=true`；`towerMode` 欄位未提供；`workorder=T0637`；`towerTerminalId=d64be77a-fa33-4391-b92c-70069ddfd207`。
+
+### 驗收證據
+
+- `bat_get_state`（本分頁）：`state=working`；`blockedDetection=osc`；`agentStarted=true`；`agentStartedAt=1792308847163`（Unix epoch milliseconds，照 MCP 回傳）。
+- codex 版本符合 `>= 0.163.0`；BAT MCP 顯示 OSC 偵測且已確認 agent 啟動。`bat_whoami` 未提供 `agent` / `towerMode` 欄位，已如實記錄；codex preset 由派工工單指定。
+- 狀態探測沒有重試或改寫結果。Helper `started:` / exit code 與塔台側執行中快照由塔台記錄。
+
+### 檔案與提交
+
+- 僅修改本工單檔；產品程式碼未讀取、未修改，未執行 build / test。
+- 提交：依工單要求僅提交本工單檔，commit message 含 T0637。
+- 偏差 / 後續：MCP `bat_whoami` 未提供 `agent`、`towerMode`；塔台可在其派工驗收紀錄補充 helper `started:` 輸出。
