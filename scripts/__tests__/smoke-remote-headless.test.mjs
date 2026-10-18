@@ -4,6 +4,7 @@
 // T0405 — S11 git / github / worktree
 // T0406 — S12 fs sandbox / workspace:sync-roots
 // T0434 — S13 remote Tower helper env / helper capability path
+// T0654 — S13 raw command probe after T0579 (a tower may call terminal:create-with-command)
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -14,7 +15,7 @@ import { describe, expect, it } from 'vitest'
 import { PROXIED_CHANNELS, PROXIED_EVENTS } from '../../electron/remote/protocol'
 import { HEADLESS_UNSUPPORTED } from '../../electron/remote/headless-channel-status'
 import { buildHeadlessHelperEnv } from '../../electron/remote/headless-entry'
-import { HelperCapabilityRegistry } from '../../electron/remote/helper-capability'
+import { HelperCapabilityRegistry, authorizeHelperInvoke } from '../../electron/remote/helper-capability'
 import {
   CHECKS,
   HELPER_CAPABILITY_LENGTHS,
@@ -27,6 +28,7 @@ import {
   checkHelperEnvAnswer,
   checkHelperProbeAnswers,
   helperEnvProbeRx,
+  s13ForeignTowerId,
   tokenDigest,
   FS_DENIED,
   FRAME_FIELDS,
@@ -404,14 +406,17 @@ function remoteToolsReport(overrides = {}) {
 
 const FAKE_TOKEN = 'fake-server-token-t0434-0123456789abcdef'
 const STRAY_ID = 'fedcba9876543210'
+const RAW_STRAY_ID = '1111222233334444'
 
 /**
  * T0434 S13 helper env / bat-terminal runs in the Tower PTY.
  *   helperEnv:   'full' | 'none' (server before T0433) | 'partial' | 'leak' (an env value is the server token) | 'nosha' (no sha256sum)
- *   helperRaw:   'forbidden' | 'allowed'
+ *   helperRaw:   'current' (T0579+ authorizeHelperInvoke: a tower may call create-with-command; a
+ *                `--notify-id` other than the calling PTY → tower-not-bound, else the terminal is
+ *                created) | 'pre-t0579' (channel-not-allowed) | 'allowed' (created regardless) | 'refused'
  *   helperAgent: 'false' (server answers false; bat-terminal prints created) | 'not-allowed' (T0450+ server) | 'refused' | 'created'
  */
-function s13Reply(data, { helperEnv, helperRaw, helperAgent }, s13, ptys) {
+function s13Reply(id, data, { helperEnv, helperRaw, helperAgent }, s13, ptys) {
   const line = data.trim()
   const env = /^echo (\S+)-s13-env:\[/.exec(line)
   if (env) {
@@ -426,9 +431,14 @@ function s13Reply(data, { helperEnv, helperRaw, helperAgent }, s13, ptys) {
   const raw = /echo (\S+)-s13-raw:\[\$\?\]$/.exec(line)
   if (raw) {
     s13.rawRuns += 1
-    return helperRaw === 'forbidden'
-      ? `Error: Failed to create terminal: Forbidden: channel-not-allowed\r\n${raw[1]}-s13-raw:[1]`
-      : `✓ Terminal created: 1111222233334444\r\n${raw[1]}-s13-raw:[0]`
+    const notifyId = /--notify-id (\S+)/.exec(line)?.[1]
+    if (helperRaw === 'pre-t0579') return `Error: Failed to create terminal: Forbidden: channel-not-allowed\r\n${raw[1]}-s13-raw:[1]`
+    if (helperRaw === 'refused') return `Error: Failed to create terminal: Forbidden: role-not-allowed\r\n${raw[1]}-s13-raw:[1]`
+    if (helperRaw === 'current' && notifyId !== undefined && notifyId !== id) {
+      return `Error: Failed to create terminal: Forbidden: tower-not-bound\r\n${raw[1]}-s13-raw:[1]`
+    }
+    ptys.set(RAW_STRAY_ID, { pid: 998, rows: 30, cols: 120 })
+    return `✓ Terminal created: ${RAW_STRAY_ID}\r\n${raw[1]}-s13-raw:[0]`
   }
   const agent = /echo (\S+)-s13-agent:\[\$\?\]$/.exec(line)
   if (agent) {
@@ -441,7 +451,7 @@ function s13Reply(data, { helperEnv, helperRaw, helperAgent }, s13, ptys) {
   return null
 }
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, preFs = false, serverEnv = 'native', helperEnv = 'full', helperRaw = 'forbidden', helperAgent = 'false' } = {}) {
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, preFs = false, serverEnv = 'native', helperEnv = 'full', helperRaw = 'current', helperAgent = 'false' } = {}) {
   const ptys = new Map()
   // T0434: S13 probe counters + every pty:write payload (the server token must never be typed)
   const s13 = { envProbes: 0, rawRuns: 0, agentRuns: 0 }
@@ -474,7 +484,7 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       const pty = ptys.get(id)
       if (!pty) return { ok: false, reason: 'pty-not-found' }
       writes.push(data)
-      const helperReply = s13Reply(data, { helperEnv, helperRaw, helperAgent }, s13, ptys)
+      const helperReply = s13Reply(id, data, { helperEnv, helperRaw, helperAgent }, s13, ptys)
       if (helperReply !== null) {
         setTimeout(() => emit('pty:output', id, `${data}\r\n${helperReply}\r\n$ `), 1)
         return { ok: true }
@@ -793,9 +803,11 @@ describe('runSmoke (fake server)', () => {
     expect(s13.status, s13.evidence).toBe('PASS')
     expect(s13.evidence).toContain(`BAT_* = ${[...REMOTE_TOWER_ENV_KEYS].sort().join(',')}`)
     expect(s13.evidence).toContain('no env value equals the server token (sha256)')
-    expect(s13.evidence).toContain('raw command → Forbidden: channel-not-allowed')
+    expect(s13.evidence).toContain('raw command with another tower as --notify-id → Forbidden: tower-not-bound (T0579+: tower reaches raw command mode), nothing created')
     expect(s13.evidence).toContain(`create-agent-command authorized (bat-terminal exit 0), no terminal created for ${S13_PROBE_AGENT}`)
     expect(fake.s13).toEqual({ envProbes: 1, rawRuns: 1, agentRuns: 1 })
+    // T0654: the raw probe never names the smoke Tower PTY as the new terminal's tower
+    expect(fake.writes.some((w) => w.includes(`--notify-id ${report.ptyId}-tower `))).toBe(false)
     expect(fake.writes.some((w) => w.includes(tokenDigest(FAKE_TOKEN)))).toBe(true)
     expect(fake.writes.some((w) => w.includes(FAKE_TOKEN))).toBe(false)
     expect(fake.ptys.size).toBe(0)
@@ -809,6 +821,15 @@ describe('runSmoke (fake server)', () => {
     const s13 = report.checks.find((c) => c.id === 'S13')
     expect(s13.status, s13.evidence).toBe('PASS')
     expect(s13.evidence).toContain(`${S13_PROBE_AGENT} → Forbidden: agent-not-allowed (T0450+), nothing created`)
+    expect(fake.ptys.size).toBe(0)
+  })
+
+  it('S13 passes against a server before T0579 that refuses raw command mode to a capability (channel-not-allowed)', async () => {
+    const fake = createFakeServer({ helperRaw: 'pre-t0579' })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s13 = report.checks.find((c) => c.id === 'S13')
+    expect(s13.status, s13.evidence).toBe('PASS')
+    expect(s13.evidence).toContain('raw command → Forbidden: channel-not-allowed (server before T0579), nothing created')
     expect(fake.ptys.size).toBe(0)
   })
 
@@ -832,12 +853,13 @@ describe('runSmoke (fake server)', () => {
     expect(summarize({ checks, cleanup: { leftover: false } })).toMatchObject({ ok: true, tooOld: 1 })
   })
 
-  it('S13 fails on a leaked server token, wrong keys, a missing sha256sum, an allowed raw command, or a refused / creating agent probe — and still cleans up', async () => {
+  it('S13 fails on a leaked server token, wrong keys, a missing sha256sum, a created or otherwise refused raw command, or a refused / creating agent probe — and still cleans up', async () => {
     const cases = [
       [{ helperEnv: 'leak' }, /1 env value\(s\) equal the server token/],
       [{ helperEnv: 'partial' }, /missing BAT_SERVER_CERT_PATH/],
       [{ helperEnv: 'nosha' }, /sha256sum not available/],
-      [{ helperRaw: 'allowed' }, /raw command: exit 0/],
+      [{ helperRaw: 'allowed' }, new RegExp(`raw probe created terminal ${RAW_STRAY_ID}`)],
+      [{ helperRaw: 'refused' }, /raw command: exit 1, .*role-not-allowed/],
       [{ helperAgent: 'refused' }, /agent probe refused: exit 1/],
       [{ helperAgent: 'created' }, new RegExp(`agent probe created terminal ${STRAY_ID}`)],
     ]
@@ -1020,6 +1042,9 @@ describe('S13 helpers (T0434)', () => {
       expect(command).toMatch(/^n="\$BAT_HELPER_DIR\/\.\.\/bin\/node"; \[ -x "\$n" \] \|\| n=node; "\$n" "\$BAT_HELPER_DIR\/bat-terminal\.mjs" /)
     }
     expect(buildHelperRawProbe('n1')).toMatch(/ echo n1-s13-denied; echo n1-s13-raw:\[\$\?\]$/)
+    // T0654: since T0579 a tower may run raw commands, so the probe names another tower and is
+    // refused (tower-not-bound) before anything is created
+    expect(buildHelperRawProbe('n1')).toContain(`bat-terminal.mjs" --notify-id ${s13ForeignTowerId('n1')} --cwd /tmp echo n1-s13-denied;`)
     expect(buildHelperAgentProbe('n1', 'smoke-ws')).toContain(`--agent ${S13_PROBE_AGENT} --prompt n1-s13 --workspace smoke-ws --cwd /tmp`)
   })
 
@@ -1039,8 +1064,8 @@ describe('S13 helpers (T0434)', () => {
     expect(checkHelperEnvAnswer({ keys: ['BAT_HELPER_DIR', 'BAT_SESSION'], tokenMatches: 0, capabilityLength: 0 })).toMatchObject({ ok: false, tooOld: false })
   })
 
-  it('checkHelperProbeAnswers: raw must be Forbidden; the agent probe must be authorized and create nothing', () => {
-    const raw = { code: 1, text: 'Error: Failed to create terminal: Forbidden: channel-not-allowed' }
+  it('checkHelperProbeAnswers: raw must be refused before creation; the agent probe must be authorized and create nothing', () => {
+    const raw = { code: 1, text: 'Error: Failed to create terminal: Forbidden: tower-not-bound', createdId: null }
     const agent = { code: 0, text: '✓ Terminal created: abc', createdId: 'abc', cwdAfter: null }
     expect(checkHelperProbeAnswers({ raw, agent }).ok).toBe(true)
     expect(checkHelperProbeAnswers({ raw, agent: { code: 1, text: 'Error: Failed to create terminal (refused): x', createdId: null, cwdAfter: null } }).ok).toBe(true)
@@ -1052,5 +1077,32 @@ describe('S13 helpers (T0434)', () => {
     expect(checkHelperProbeAnswers({ raw, agent: { ...agent, cwdAfter: '/tmp' } }).ok).toBe(false)
     expect(checkHelperProbeAnswers({ raw, agent: { code: 1, text: 'Error: Cannot connect to BAT RemoteServer', createdId: null, cwdAfter: null } }).ok).toBe(false)
     expect(checkHelperProbeAnswers({ raw, agent: { code: 127, text: 'node: not found', createdId: null, cwdAfter: null } }).ok).toBe(false)
+  })
+
+  it('the raw probe payload is refused for the tower role before creation (T0654); without --notify-id it would be allowed (T0579)', () => {
+    // what bat-terminal.mjs sends for buildHelperRawProbe (raw command mode + --notify-id)
+    const tower = { terminalId: 'smoke-1-tower', role: 'tower' }
+    const ctx = { isTerminalAlive: () => false }
+    const payload = { id: 'aaaabbbbccccdddd', cwd: '/tmp', command: "'echo' 'n1-s13-denied'", reportLanding: true }
+    const probe = { ...payload, customEnv: { BAT_TOWER_TERMINAL_ID: s13ForeignTowerId('n1') } }
+    expect(authorizeHelperInvoke(tower, 'terminal:create-with-command', [probe], ctx)).toEqual({ ok: false, reason: 'tower-not-bound' })
+    expect(authorizeHelperInvoke(tower, 'terminal:create-with-command', [payload], ctx)).toEqual({ ok: true })
+  })
+
+  it('checkHelperProbeAnswers raw (T0654): tower-not-bound (T0579+) or channel-not-allowed (before T0579); a created terminal or any other answer fails', () => {
+    const agent = { code: 1, text: 'Error: Failed to create terminal: Forbidden: agent-not-allowed', createdId: null, cwdAfter: null }
+    const judge = (raw) => checkHelperProbeAnswers({ raw: { createdId: null, ...raw }, agent })
+    const current = judge({ code: 1, text: 'Error: Failed to create terminal: Forbidden: tower-not-bound' })
+    expect(current.ok).toBe(true)
+    expect(current.evidence).toMatch(/tower-not-bound \(T0579\+/)
+    const preT0579 = judge({ code: 1, text: 'Error: Failed to create terminal: Forbidden: channel-not-allowed' })
+    expect(preT0579.ok).toBe(true)
+    expect(preT0579.evidence).toMatch(/server before T0579/)
+    const created = judge({ code: 0, text: '✓ Terminal created: abc', createdId: 'abc' })
+    expect(created.ok).toBe(false)
+    expect(created.evidence).toMatch(/raw probe created terminal abc/)
+    expect(judge({ code: 1, text: 'Error: Failed to create terminal: Forbidden: role-not-allowed' }).ok).toBe(false)
+    expect(judge({ code: 1, text: 'Error: Failed to create terminal: Forbidden: target-not-bound' }).ok).toBe(false)
+    expect(judge({ code: 0, text: 'Forbidden: tower-not-bound' }).ok).toBe(false)
   })
 })

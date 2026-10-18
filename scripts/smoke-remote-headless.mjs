@@ -36,9 +36,11 @@
  *     them when the connection closes) and removes the directory;
  *   - S13 runs bat-terminal inside its own smoke PTY with that PTY's helper env:
  *     the server token is only ever typed as its sha256; one run asks for a raw
- *     command (must be Forbidden), one for an agent no server registers
- *     (T0450+: Forbidden agent-not-allowed; before: authorized, nothing created)
- *     — no agent is ever started on the server;
+ *     command reporting to another tower (refused before anything is created:
+ *     T0579+ tower-not-bound, before T0579 channel-not-allowed), one for an
+ *     agent no server registers (T0450+: Forbidden agent-not-allowed; before:
+ *     authorized, nothing created) — no terminal or agent is ever started by a
+ *     probe on the server;
  *   - never sends a wrong token: the server bans an IP after 5 failed auths and
  *     the user's own BAT client connects from the same loopback address. The
  *     negative check uses a wrong FINGERPRINT, which is rejected client-side
@@ -890,9 +892,23 @@ export function helperEnvProbeRx(nonce) {
 /** S13: the bundle's own node (`<installRoot>/bin/node`, sibling of `scripts/`), else `node` on PATH. */
 const HELPER_NODE = 'n="$BAT_HELPER_DIR/../bin/node"; [ -x "$n" ] || n=node;'
 
-/** S13: a raw command through bat-terminal = `terminal:create-with-command`, never allowed for a capability. */
+/**
+ * S13: the tower the raw probe names with `--notify-id` — never the smoke Tower PTY itself
+ * (`<ptyId>-tower`), so a capability may not hand it to a new terminal.
+ */
+export function s13ForeignTowerId(nonce) {
+  return `${nonce}-s13-other-tower`
+}
+
+/**
+ * S13: a raw command through bat-terminal = `terminal:create-with-command`. Since T0579 a tower
+ * capability may call it (D149), so a plain raw command would really open a terminal on the
+ * server; the probe names another tower with `--notify-id` (`customEnv.BAT_TOWER_TERMINAL_ID`),
+ * which `authorizeHelperInvoke` refuses before anything is created (`tower-not-bound`). A server
+ * before T0579 refuses the channel itself (`channel-not-allowed`).
+ */
 export function buildHelperRawProbe(nonce) {
-  return `${HELPER_NODE} "$n" "$BAT_HELPER_DIR/bat-terminal.mjs" --cwd /tmp echo ${nonce}-s13-denied; echo ${nonce}-s13-raw:[$?]`
+  return `${HELPER_NODE} "$n" "$BAT_HELPER_DIR/bat-terminal.mjs" --notify-id ${s13ForeignTowerId(nonce)} --cwd /tmp echo ${nonce}-s13-denied; echo ${nonce}-s13-raw:[$?]`
 }
 
 /** S13: `terminal:create-agent-command` for an agent the server does not know — authorized, creates nothing. */
@@ -938,7 +954,10 @@ export function checkHelperEnvAnswer({ keys, tokenMatches, capabilityLength }) {
 
 /**
  * S13 (T0434): judge the two bat-terminal runs inside the Tower PTY.
- *   raw:   `{ code, text }` — must be refused with `Forbidden: channel-not-allowed`
+ *   raw:   `{ code, text, createdId }` — must be refused before anything is created: T0579+
+ *          `Forbidden: tower-not-bound` (the tower reached raw command mode; the new terminal may
+ *          report to itself only), before T0579 `Forbidden: channel-not-allowed`. A created
+ *          terminal (T0654) or any other answer fails.
  *   agent: `{ code, text, createdId, cwdAfter }` — the tower role reached create-agent-command
  *          and no terminal was created: T0450+ `Forbidden: agent-not-allowed` (exit 1), or on
  *          T0433-T0449 an authorized `false` answer, which bat-terminal reports as created
@@ -949,10 +968,14 @@ export function checkHelperEnvAnswer({ keys, tokenMatches, capabilityLength }) {
 export function checkHelperProbeAnswers({ raw, agent }) {
   const problems = []
   const notes = []
-  if (raw.code === 1 && /Forbidden: channel-not-allowed/.test(raw.text)) {
-    notes.push('raw command → Forbidden: channel-not-allowed')
+  if (raw.createdId) {
+    problems.push(`raw probe created terminal ${raw.createdId} (a tower capability handed another tower to a new terminal)`)
+  } else if (raw.code === 1 && /Forbidden: tower-not-bound/.test(raw.text)) {
+    notes.push('raw command with another tower as --notify-id → Forbidden: tower-not-bound (T0579+: tower reaches raw command mode), nothing created')
+  } else if (raw.code === 1 && /Forbidden: channel-not-allowed/.test(raw.text)) {
+    notes.push('raw command → Forbidden: channel-not-allowed (server before T0579), nothing created')
   } else {
-    problems.push(`raw command: exit ${raw.code}, ${JSON.stringify(excerpt(raw.text, 120))} (expected exit 1 + Forbidden: channel-not-allowed)`)
+    problems.push(`raw command: exit ${raw.code}, ${JSON.stringify(excerpt(raw.text, 120))} (expected exit 1 + Forbidden: tower-not-bound, or channel-not-allowed before T0579)`)
   }
   if (!agent) {
     problems.push('agent probe not run')
@@ -1014,8 +1037,8 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
   const fsPty = { id: `${ptyId}-fs`, created: false, killed: false }
   // S13's own Tower PTY (helper env); killed in S13, re-checked in cleanup.
   const towerPty = { id: `${ptyId}-tower`, created: false, killed: false }
-  // A terminal the S13 agent probe must NOT create; killed in cleanup if it ever exists.
-  let s13Stray = null
+  // Terminals the S13 probes must NOT create; killed in cleanup if they ever exist.
+  const s13Strays = []
 
   try {
     // ── S1 ──
@@ -1372,14 +1395,16 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
           outcome = envAnswer
         } else {
           const rawRun = await capture(buildHelperRawProbe(nonce), new RegExp(`${nonce}-s13-raw:\\[(\\d+)\\]`))
-          const raw = { code: Number(rawRun.match[1]), text: rawRun.text }
+          const rawCreatedId = /Terminal created: ([A-Za-z0-9._-]+)/.exec(rawRun.text)?.[1] ?? null
+          if (rawCreatedId) s13Strays.push(rawCreatedId)
+          const raw = { code: Number(rawRun.match[1]), text: rawRun.text, createdId: rawCreatedId }
           let agent = null
           // A refused capability counts as a failed auth on the server: do not try twice.
           if (!/Authentication failed|Cannot connect/.test(raw.text)) {
             const agentRun = await capture(buildHelperAgentProbe(nonce, workspaceId), new RegExp(`${nonce}-s13-agent:\\[(\\d+)\\]`))
             const createdId = /Terminal created: ([A-Za-z0-9._-]+)/.exec(agentRun.text)?.[1] ?? null
             const cwdAfter = createdId ? await client.invoke(SMOKE_CHANNELS.PTY_GET_CWD, createdId) : null
-            if (createdId && cwdAfter != null) s13Stray = createdId
+            if (createdId && cwdAfter != null) s13Strays.push(createdId)
             agent = { code: Number(agentRun.match[1]), text: agentRun.text, createdId, cwdAfter }
           }
           const probes = checkHelperProbeAnswers({ raw, agent })
@@ -1466,8 +1491,8 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
         cleanup.evidence += `; S12 PTY cleanup failed: ${error instanceof Error ? error.message : String(error)}`
       }
     }
-    // T0434: S13's Tower PTY (S13 kills it; only re-checked here) and a stray agent-probe terminal.
-    for (const extra of [towerPty.created ? towerPty : null, s13Stray ? { id: s13Stray, killed: false } : null]) {
+    // T0434: S13's Tower PTY (S13 kills it; only re-checked here) and stray probe terminals.
+    for (const extra of [towerPty.created ? towerPty : null, ...s13Strays.map((id) => ({ id, killed: false }))]) {
       if (!extra) continue
       try {
         if (!client?.isOpen) {
