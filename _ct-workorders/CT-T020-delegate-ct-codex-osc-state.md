@@ -73,3 +73,9 @@ codex `>= 0.163.0` 會在 PTY 送 `ESC ] 7501 ; state=idle|working|blocked`（�
 - **BAT 最低版本**：CT 暫用占位字串「含 T0621 的 BAT 預覽版（版號待 BAT 發佈）」（32 處）。
 - **BAT 待辦**（BAT 塔台追蹤）：① ✅ `v0.7.0-pre.9` 於 2026-10-18 07:16:08Z 發佈（target `c0f4dcae`，含 T0620 / T0621 / T0623），15:2x 傳訊 `bmad-guide-43` 告知版號（原收件 `bmad-guide-d8` 已不在）→ 待對方開 CT PATCH 換掉占位字串；② ⏳ 之後照本單 § 驗收建議代跑實機驗收（codex Worker `--wait-started 30000` → `started: <ISO>`；核准提示 → `blocked` / `input` / `osc`）——需先安裝 pre.9（重開 BAT），於下一個塔台 session 進行。
 - **對進行中驗收的影響**：v5.8.0 於 12:48 安裝。T0625（12:40）、T0626（12:43）的 Worker 載入 v5.7.2；T0627（12:47:54 啟動）的 `ct-exec` 於 swap 前載入；T0628 / T0629 在 v5.8.0 上執行。BAT 塔台以 BMad-Guide 的 V72 / V80 比對：`ct-exec/SKILL.md` 只差版號註解，`yolo-mode.md` § Worker 向塔台提問 全文相同 → v5.7.1 / v5.7.2 提問規則的驗收結果不受影響（回函需註明）。
+
+### BAT 代跑實機驗收（BAT 塔台記錄，2026-10-18T15:54:44+0800）
+
+- 委託：BMad-Guide `_reply-2026-10-18-ct-v581-request-runtime.md`（CT **v5.8.1**，本機 15:26 安裝；占位字串已改 BAT `>= 0.7.0-pre.9`）。
+- BAT 探針 T0637（安裝版 `0.7.0-pre.9`、codex `0.163.0` 原生 exe）：① codex Worker `--wait-started 30000` → exit `0`、`started: 2026-10-18T07:34:07.163Z`，`bat_get_state` `osc` / `agentStarted: true` — **PASS**；② 使用者手動 codex 分頁（`-a on-request -s read-only`，非 Worker 分頁）核准提示 → `blocked` / `input` / `osc`，塔台依斷點 D 只以分頁標題告知，拒絕後清除 — **PASS**；③ F-2 / ④ O-3 未自然發生（對方同意不另派）。
+- 回函：`D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\_reply-2026-10-18-ct-v581-runtime.md`；BAT 待辦 ② 完成。附帶 BAT BUG-155（T0639 修正，與 CT 無關）。
