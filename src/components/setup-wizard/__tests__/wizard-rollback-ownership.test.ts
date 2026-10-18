@@ -32,8 +32,8 @@ interface FakeContainer {
 interface DockerFakeOptions {
   containers?: FakeContainer[]
   startError?: string
-  /** `docker run` creates the container, then fails (e.g. port already allocated). */
-  startCreatesThenFails?: boolean
+  /** `docker run` creates the container, then fails (`true` = port already allocated, or this error). */
+  startCreatesThenFails?: boolean | string
   health?: 'healthy' | 'unhealthy'
   inspectThrows?: boolean
 }
@@ -63,7 +63,13 @@ function installDocker(options: DockerFakeOptions = {}) {
         }
         if (options.startCreatesThenFails) {
           containers.set(name, { name, running: false })
-          return { ok: false, token: 'tok-run', error: 'Bind for 127.0.0.1:19876 failed: port is already allocated' }
+          return {
+            ok: false,
+            token: 'tok-run',
+            error: typeof options.startCreatesThenFails === 'string'
+              ? options.startCreatesThenFails
+              : 'Bind for 127.0.0.1:19876 failed: port is already allocated',
+          }
         }
         if (options.startError) return { ok: false, error: options.startError }
         containers.set(name, { name, running: true })
@@ -74,6 +80,9 @@ function installDocker(options: DockerFakeOptions = {}) {
       if (c) c.running = true
       return { ok: true, token: 'tok' }
     }),
+    // T0649: main picks the host port; an existing container keeps the one it publishes.
+    pickServerPort: vi.fn(async (opts?: { container?: string; previousPort?: number }) =>
+      opts?.container ? { ok: true, port: 19876, reusedExistingPort: true } : { ok: true, port: opts?.previousPort ?? 19876 }),
     getContainerHealth: vi.fn(async () => ({ ok: true, health: options.health ?? 'healthy' })),
     stopContainer: vi.fn(async (name: string) => {
       const c = containers.get(name)
@@ -225,6 +234,8 @@ describe('start-server "Create new": removes only the container this run created
     await startDockerServerStep.rollback!(ctx)
     expect(docker.removeContainer).toHaveBeenCalledWith('bat-new')
     expect(containers.has('bat-new')).toBe(false)
+    // T0649: removed by run() itself; rollback had nothing left to remove.
+    expect(docker.removeContainer).toHaveBeenCalledTimes(1)
   })
 
   it('name already exists and is not ours → fails before `docker run`; rollback leaves it alone', async () => {
@@ -290,10 +301,11 @@ describe('start-server "Create new": removes only the container this run created
 
 describe('start-server "Create new" retry reuses only the container this run created (T0452)', () => {
   it('`docker run` created the container then failed → retry `docker start`s it with the same token and succeeds', async () => {
-    const { docker, containers } = installDocker({ startCreatesThenFails: true })
+    // T0649: a port conflict is handled by removing the container instead (below).
+    const { docker, containers } = installDocker({ startCreatesThenFails: 'OCI runtime create failed: exec format error' })
     const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new' })
 
-    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/port is already allocated/)
+    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/OCI runtime create failed/)
     expect(ctx.state[CREATED]).toBe('bat-new')
     expect(ctx.state.remoteToken).toBe('tok-run')
 
@@ -305,6 +317,32 @@ describe('start-server "Create new" retry reuses only the container this run cre
     expect(ctx.remoteToken).toBe('tok-run')
     expect(ctx.state[CREATED]).toBe('bat-new')
     expect(docker.removeContainer).not.toHaveBeenCalled()
+  })
+
+  it('T0649: `docker run` failed on the host port → our container is removed at once; the retry creates it on a new pick', async () => {
+    const { docker, containers } = installDocker()
+    docker.startContainer.mockImplementationOnce(async (name: string) => {
+      containers.set(name, { name, running: false })
+      return { ok: false, token: 'tok-run', error: 'Bind for 127.0.0.1:19876 failed: port is already allocated' }
+    })
+    // The retry's pick finds the earlier port still busy and moves on.
+    docker.pickServerPort
+      .mockResolvedValueOnce({ ok: true, port: 19876 })
+      .mockResolvedValueOnce({ ok: true, port: 19877 })
+    const ctx = makeCtx({ containerMode: 'new', dockerContainer: 'bat-new' })
+
+    await expect(startDockerServerStep.run(ctx)).rejects.toThrow(/127\.0\.0\.1:19876 because that port is in use.*BAT removed the container it created.*Retry picks another free port/)
+    expect(docker.removeContainer).toHaveBeenCalledWith('bat-new')
+    expect(containers.has('bat-new')).toBe(false)
+    expect(ctx.state[CREATED]).toBeUndefined()
+
+    await startDockerServerStep.run(ctx)
+    expect(docker.pickServerPort.mock.calls[1][0]).toEqual({ preferredPort: undefined, previousPort: 19876 })
+    expect(docker.startContainer).toHaveBeenCalledTimes(2)
+    expect(docker.startContainer.mock.calls[1][1]).toMatchObject({ createIfMissing: true, port: 19877 })
+    expect(ctx.serverPort).toBe(19877)
+    expect(containers.get('bat-new')?.running).toBe(true)
+    expect(ctx.state[CREATED]).toBe('bat-new')
   })
 
   it('created by this run but gone before the retry (e.g. `docker run` never created it) → `docker run` again', async () => {

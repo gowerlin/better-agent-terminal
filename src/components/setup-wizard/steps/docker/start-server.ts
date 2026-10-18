@@ -5,6 +5,7 @@ import {
   isContainerCreatedByWizard,
   isContainerStartedByWizard,
   isNameConflictError,
+  isPortConflictError,
   removeContainerIfCreatedByWizard,
 } from './ownership'
 
@@ -63,8 +64,6 @@ export const startDockerServerStep: WizardStep = {
     if (!containerName) throw new Error('Container name is missing.')
 
     const containerMode = ctx.state.containerMode
-    const port = typeof ctx.state.serverPort === 'number' ? ctx.state.serverPort : (ctx.serverPort ?? 9876)
-    ctx.serverPort = port
 
     // T0452: a re-run after an earlier attempt of this run created the
     // container `docker start`s that container — `docker run` again could
@@ -73,6 +72,10 @@ export const startDockerServerStep: WizardStep = {
     const restartOwnContainer = containerMode === 'new'
       && isContainerCreatedByWizard(ctx, containerName)
       && await containerExists(containerName)
+    // T0649 (BUG-156): resolved before anything is claimed or started; the
+    // result is what fetch-fingerprint, connect-test and write-profile use.
+    const port = await resolveServerPort(ctx, containerName, containerMode === 'new' && !restartOwnContainer)
+    ctx.serverPort = port
     if (containerMode === 'new') await claimNewContainer(ctx, containerName)
     else await recordExistingContainerState(ctx, containerName)
 
@@ -92,6 +95,18 @@ export const startDockerServerStep: WizardStep = {
     )
 
     if (!startResult.ok) {
+      // T0649 (BUG-156): our container is bound to a host port that turned out
+      // to be taken, so `docker start` on a retry would fail the same way.
+      // Remove it (ours only); the retry creates it again on a new pick.
+      if (containerMode === 'new' && isPortConflictError(startResult.error) && isContainerCreatedByWizard(ctx, containerName)) {
+        await removeContainerIfCreatedByWizard(ctx, containerName)
+        throw Object.assign(
+          new Error(`Docker could not publish the BAT server on 127.0.0.1:${port} because that port is in use. `
+            + `${isContainerCreatedByWizard(ctx, containerName) ? 'BAT could not remove the container it created' : 'BAT removed the container it created'}; `
+            + `Retry picks another free port. Docker reported: ${startResult.error}`),
+          { code: 'docker-port-in-use' },
+        )
+      }
       if (containerMode === 'new' && !restartOwnContainer) {
         // `docker run` only runs when no container of ours holds the name, so
         // a name conflict means we lost a race: whatever holds it is not ours.
@@ -143,6 +158,34 @@ export const startDockerServerStep: WizardStep = {
     }
     delete ctx.state[DOCKER_OWNERSHIP_KEYS.containerStarted]
   },
+}
+
+/**
+ * T0649 (BUG-156): the host port is no longer a fixed 9876 — that is where
+ * the host RemoteServer listens by default, on the same 127.0.0.1 the
+ * container is published on. A container to create gets a port picked by
+ * main (RemoteServer ports excluded, busy ports skipped, an earlier attempt's
+ * port kept while free; `state.serverPort` is a user override); an existing
+ * container (Use existing, or ours on a re-run) keeps the port it publishes.
+ */
+export const DOCKER_SERVER_PORT_KEY = 'dockerServerPort'
+
+async function resolveServerPort(ctx: WizardContext, containerName: string, createContainer: boolean): Promise<number> {
+  const previousPort = ctx.state[DOCKER_SERVER_PORT_KEY]
+  const result = await window.electronAPI.docker.pickServerPort(createContainer
+    ? {
+        preferredPort: typeof ctx.state.serverPort === 'number' ? ctx.state.serverPort : undefined,
+        previousPort: typeof previousPort === 'number' ? previousPort : undefined,
+      }
+    : { container: containerName })
+  if (!result.ok) {
+    throw Object.assign(new Error(result.error), { code: result.errorCode })
+  }
+  if (result.reusedExistingPort) {
+    ctx.logger.info(`Using host port ${result.port} published by Docker container ${containerName}`)
+  }
+  ctx.state[DOCKER_SERVER_PORT_KEY] = result.port
+  return result.port
 }
 
 async function containerExists(name: string): Promise<boolean> {

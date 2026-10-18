@@ -36,6 +36,15 @@ export function isNameConflictError(error: string | undefined): boolean {
 }
 
 /**
+ * T0649 (BUG-156): `docker run` / `docker start` failed because the host port
+ * could not be published (taken, or in a Windows excluded port range).
+ */
+export function isPortConflictError(error: string | undefined): boolean {
+  return typeof error === 'string'
+    && /port is already allocated|ports are not available|address already in use|only one usage of each socket address|forbidden by its access permissions/i.test(error)
+}
+
+/**
  * Remove a container only when this run created it. Clears the flag on
  * success so a second rollback (failed step + completed steps) is a no-op.
  */

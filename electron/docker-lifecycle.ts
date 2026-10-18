@@ -1,6 +1,7 @@
 import * as childProcess from 'child_process'
 import { randomBytes } from 'crypto'
 import { validateContainerName, type DockerMount } from './docker-validate'
+import { pickServerPort } from './wsl-systemd'
 
 /** BUG-097: host interface the container's server port is published on. Never widen. */
 export const DOCKER_PUBLISH_HOST = '127.0.0.1'
@@ -127,6 +128,105 @@ export async function detectContainerExposure(
     return { ok: true, exposed: hostIps.length > 0, hostIps, legacyImage }
   } catch (error) {
     return { ...unknown, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export type DockerPickServerPortErrorCode =
+  | 'docker-port-in-use'
+  | 'docker-port-invalid'
+  | 'docker-port-unpublished'
+  | 'docker-inspect-failed'
+
+export type DockerPickServerPortResult =
+  /** `reusedExistingPort`: the port the container already publishes. */
+  | { ok: true; port: number; reusedExistingPort?: boolean }
+  | { ok: false; errorCode: DockerPickServerPortErrorCode; error: string }
+
+function toHostPort(value: unknown): number | null {
+  const port = Number(value)
+  return Number.isInteger(port) && port > 0 && port <= 65535 ? port : null
+}
+
+/**
+ * T0649 (BUG-156): host port the container publishes the in-image bat-server
+ * port on. `NetworkSettings.Ports` (what docker actually bound, running
+ * containers) wins over `HostConfig.PortBindings` (what was asked for; also
+ * set on stopped containers). Other container ports are never guessed at.
+ */
+export function publishedServerPort(entry: Record<string, any> | null | undefined): number | null {
+  for (const source of [entry?.NetworkSettings?.Ports, entry?.HostConfig?.PortBindings]) {
+    const list = source && typeof source === 'object' ? (source as Record<string, unknown>)[SERVER_CONTAINER_PORT_KEY] : null
+    if (!Array.isArray(list)) continue
+    for (const binding of list as Array<Record<string, unknown>>) {
+      const port = toHostPort(binding?.HostPort)
+      if (port !== null) return port
+    }
+  }
+  return null
+}
+
+/**
+ * T0649 (BUG-156): pick the host port a Docker container publishes bat-server
+ * on. The publish host is 127.0.0.1 — where the host RemoteServer listens too
+ * (default 9876) — so a fixed 9876 made "Create new" fail with the port taken.
+ *
+ * - `container`: a container that already exists (Use existing, or the one
+ *   this wizard run created): its published port is kept. Only the port the
+ *   RemoteServer is actually listening on (`activeServerPort`) is refused —
+ *   127.0.0.1:<port> would reach this BAT instead of the container.
+ * - otherwise: `pickServerPort` (shared with the WSL wizard) with
+ *   `excludePorts` = the RemoteServer's resolved / running ports; `previousPort`
+ *   (an earlier attempt of this run) is kept while free.
+ */
+export async function pickDockerServerPort(options: {
+  excludePorts: readonly unknown[]
+  activeServerPort?: number | null
+  preferredPort?: unknown
+  previousPort?: unknown
+  container?: string
+}): Promise<DockerPickServerPortResult> {
+  if (options.container !== undefined) {
+    const name = options.container
+    const validation = validateContainerName(name)
+    if (!validation.ok) return { ok: false, errorCode: 'docker-inspect-failed', error: validation.error ?? 'Invalid container name.' }
+    let entry: Record<string, any> | null
+    try {
+      const { stdout } = await execDocker(['inspect', '--type', 'container', name], false, DETECT_TIMEOUT_MS)
+      const parsed = JSON.parse(stdout) as unknown
+      entry = (Array.isArray(parsed) ? parsed[0] : null) as Record<string, any> | null
+    } catch (error) {
+      return { ok: false, errorCode: 'docker-inspect-failed', error: error instanceof Error ? error.message : String(error) }
+    }
+    const port = publishedServerPort(entry)
+    if (port === null) {
+      return {
+        ok: false,
+        errorCode: 'docker-port-unpublished',
+        error: `Docker container ${name} does not publish the BAT server port (${SERVER_CONTAINER_PORT_KEY}) on the host, so BAT cannot connect to it. Choose "Create new", or recreate the container with -p ${DOCKER_PUBLISH_HOST}:<port>:9876.`,
+      }
+    }
+    if (options.activeServerPort && port === options.activeServerPort) {
+      return {
+        ok: false,
+        errorCode: 'docker-port-in-use',
+        error: `Docker container ${name} publishes the BAT server on host port ${port}, which this BAT's own remote server is listening on. Change the remote server port in Settings, or choose "Create new".`,
+      }
+    }
+    return { ok: true, port, reusedExistingPort: true }
+  }
+
+  const result = await pickServerPort({
+    excludePorts: options.excludePorts,
+    preferredPort: options.preferredPort,
+    existingPort: options.previousPort,
+    serverLabel: 'Docker container',
+    hostLabel: 'this machine',
+  })
+  if (result.ok) return { ok: true, port: result.port }
+  return {
+    ok: false,
+    errorCode: result.errorCode === 'wsl-port-invalid' ? 'docker-port-invalid' : 'docker-port-in-use',
+    error: result.error,
   }
 }
 

@@ -759,8 +759,13 @@ export async function pickServerPort(options: {
   releaseWaitMs?: number
   scanStart?: number
   scanEnd?: number
+  /** T0649: wording for other callers (Docker); defaults keep the WSL messages. */
+  serverLabel?: string
+  hostLabel?: string
 }): Promise<PickServerPortResult> {
   const excluded = new Set(options.excludePorts.filter(isValidServerPort))
+  const serverLabel = options.serverLabel ?? 'WSL server'
+  const hostLabel = options.hostLabel ?? 'Windows'
 
   if (options.preferredPort !== undefined && options.preferredPort !== null) {
     const port = options.preferredPort
@@ -775,14 +780,14 @@ export async function pickServerPort(options: {
       return {
         ok: false,
         errorCode: 'wsl-port-in-use',
-        error: `Port ${port} is used by this BAT's own remote server; choose another port for the WSL server.`,
+        error: `Port ${port} is used by this BAT's own remote server; choose another port for the ${serverLabel}.`,
       }
     }
     if (!(await portProbeImpl(port))) {
       return {
         ok: false,
         errorCode: 'wsl-port-in-use',
-        error: `Port ${port} is already in use on Windows (${PORT_PROBE_HOST}); choose another port for the WSL server.`,
+        error: `Port ${port} is already in use on ${hostLabel} (${PORT_PROBE_HOST}); choose another port for the ${serverLabel}.`,
       }
     }
     return { ok: true, port }
@@ -818,7 +823,7 @@ export async function pickServerPort(options: {
   return {
     ok: false,
     errorCode: 'wsl-port-in-use',
-    error: `No free port between ${start} and ${end} on Windows (${PORT_PROBE_HOST}) for the WSL server.`,
+    error: `No free port between ${start} and ${end} on ${hostLabel} (${PORT_PROBE_HOST}) for the ${serverLabel}.`,
   }
 }
 

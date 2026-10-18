@@ -361,6 +361,9 @@ function installDocker(containersIn: FakeContainer[]) {
       if (c) c.running = true
       return { ok: true, token: 'tok' }
     }),
+    // T0649: main picks the host port; an existing container keeps the one it publishes.
+    pickServerPort: vi.fn(async (opts?: { container?: string }) =>
+      opts?.container ? { ok: true, port: 19876, reusedExistingPort: true } : { ok: true, port: 19876 }),
     getContainerHealth: vi.fn(async () => ({ ok: true, health: 'healthy' })),
     stopContainer: vi.fn(async (name: string) => {
       const c = containers.get(name)

@@ -3377,6 +3377,30 @@ function registerLocalHandlers() {
   ipcMain.handle('docker:validate-mounts', (_event, mounts: Array<{ host: string; container: string }>) => dockerValidate.validateMountTable(mounts))
   ipcMain.handle('docker:start-container', (_event, name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
     dockerLifecycle.startContainer(name, options))
+  // T0649 (BUG-156): the container's bat-server port is published on host
+  // 127.0.0.1, where the host RemoteServer listens too, so the Docker wizard
+  // gets a port picked like the WSL one (same excluded RemoteServer ports).
+  ipcMain.handle('docker:pick-server-port', async (
+    _event,
+    options?: { preferredPort?: unknown; previousPort?: unknown; container?: unknown },
+  ): Promise<dockerLifecycle.DockerPickServerPortResult> => {
+    const excludePorts = [readRemotePortSync()]
+    if (remoteServer.port) excludePorts.push(remoteServer.port)
+    const container = typeof options?.container === 'string' ? options.container : undefined
+    const result = await dockerLifecycle.pickDockerServerPort({
+      excludePorts,
+      activeServerPort: remoteServer.port,
+      preferredPort: options?.preferredPort,
+      previousPort: options?.previousPort,
+      container,
+    })
+    if (result.ok) {
+      logger.log(`[wizard] docker pick-server-port -> ${result.port}${result.reusedExistingPort ? ` (published by container ${container})` : ''} (excluded host ports: ${excludePorts.join(', ')})`)
+    } else {
+      logger.warn(`[wizard] docker pick-server-port ${result.errorCode}: ${result.error}`)
+    }
+    return result
+  })
   ipcMain.handle('docker:stop-container', (_event, name: string, options?: { remove?: boolean }) => dockerLifecycle.stopContainer(name, options))
   ipcMain.handle('docker:remove-container', (_event, name: string) => dockerLifecycle.removeContainer(name))
   ipcMain.handle('docker:restart-container', (_event, name: string) => dockerLifecycle.restartContainer(name))

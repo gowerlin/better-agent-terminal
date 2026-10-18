@@ -69,6 +69,11 @@ type WslPickServerPortResult =
   | { ok: true; port: number; reusedExistingPort?: boolean }
   | { ok: false; errorCode: 'wsl-port-in-use' | 'wsl-port-invalid'; error: string }
 
+/** T0649 (BUG-156): `docker:pick-server-port`. */
+type DockerPickServerPortResult =
+  | { ok: true; port: number; reusedExistingPort?: boolean }
+  | { ok: false; errorCode: 'docker-port-in-use' | 'docker-port-invalid' | 'docker-port-unpublished' | 'docker-inspect-failed'; error: string }
+
 type WslStartServiceResult =
   | { ok: true; token: string | null }
   | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed'; token?: string | null }
@@ -458,6 +463,8 @@ interface ElectronAPI {
     }>
     validateMounts: (mounts: Array<{ host: string; container: string }>) => Promise<{ ok: boolean; errors: string[] }>
     startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) => Promise<{ ok: boolean; token?: string | null; error?: string; /** T0427: set when an existing container predates the BUG-097 fix. */ exposure?: { ok: boolean; exposed: boolean; hostIps: string[]; legacyImage: boolean; error?: string } }>
+    // T0649 / BUG-156 — never returns the host RemoteServer port; `container` keeps the port that container publishes.
+    pickServerPort: (options?: { preferredPort?: number; previousPort?: number; container?: string }) => Promise<DockerPickServerPortResult>
     stopContainer: (name: string, options?: { remove?: boolean }) => Promise<{ ok: boolean; error?: string }>
     removeContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
     restartContainer: (name: string) => Promise<{ ok: boolean; error?: string }>
