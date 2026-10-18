@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0617
 title: "探針：CT v5.7.0 BAT 題目逾時 `expired` → BLOCKED → Renew"
 type: verification
-status: IN_PROGRESS
+status: BLOCKED
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:02:10+0800"
 started_at: "2026-10-18T11:12:00+08:00"
-updated_at: "2026-10-18T11:12:00+08:00"
+updated_at: "2026-10-18T11:13:34+08:00"
 depends_on: [T0616]
 related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 4 張（T0614–T0618）"
@@ -74,3 +74,58 @@ memory_overrides:
 - Worker 建議：[A]，因為本單為受測探針，任一答覆皆可，此題預期逾時
 - 影響範圍：Step 2 / Step 3（第一輪逾時收尾、第二輪 Renew）
 - 阻塞：是（Step 2 起要等答覆）
+
+### 完成狀態
+
+**BLOCKED**（第一輪，依 `yolo-mode.md` § Worker 向塔台提問 › 第 4 點 § 備援：3-A 回傳 `expired` / `timeout`）。Q-1 未獲答覆，`### 待塔台決策` 原樣保留、frontmatter `tower_question: open` 保留，等塔台在 `## 塔台補充（Renew #1）` 答覆後重派。
+
+### Landing Zone Check
+
+- 結果：**PASS**
+- C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單位於 `REPO_ROOT/_ct-workorders/` → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 下的本檔 → `C-3 not applicable`
+- C-2：工單無 `branch` 欄位 → 略過（目前分支 `main`）
+- `CT_HOME` 未設定（非 worktree 隔離）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`；`BAT_TOWER_TERMINAL_ID` / `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` 皆存在（權杖值不記錄）
+
+### 執行摘要
+
+1. 11:12:00 工單改 `IN_PROGRESS`、寫入 `### 待塔台決策` Q-1、加 `tower_question: open` → commit `93ea480c`（先 commit 後 notify）。
+2. `worker_question_timeout` 取工單 frontmatter = `1`（合法整數，未讀 config）→ 走 3-A BAT 通道，`--expires-min 1`。
+3. 11:12:07 `bat-notify.mjs --ask` 送出（題目只走 Git Bash heredoc stdin，無暫存檔），exit `0`，`--ask` 自己通知塔台 `T0617 提問`，未另送一般通知。
+4. MCP `bat_wait_question` 迴圈等待：第 1 次 `pending`（逾時），第 2 次 `expired` / `timeout`。
+5. 依 § 備援：不延長等待、不重送題目、未改走 3-B；填回報區 → `BLOCKED` → commit 工單 → 題目已有結束狀態（`expired`），**不需** `--cancel-question` → 送 `T0617 需要協助`（`--submit`）。
+
+### 驗收證據
+
+**第一輪**
+
+- `--ask` 參數（不含題目內容）：`"${BAT_HELPER_NODE:-node}" "$BAT_HELPER_DIR/bat-notify.mjs" --ask --source T0617 --target "$BAT_TOWER_TERMINAL_ID" --submit --expires-min 1 "T0617 提問"`，stdin = JSON（`question` 以 `Q-1：` 開頭、`options` 2 個、`detail`、`blocking: true`）
+- exit code：`0`；stdout：`question: q-4b13b4f7-5d245786fa58509e`、`expires: 2026-10-18T03:13:07.422Z`、`notified: yes`
+- `--expires-min` 值：`1`（= 生效的 `worker_question_timeout`）
+- 等待呼叫（MCP `bat_wait_question`，`timeoutMs: 45000`）：
+  - #1 起 ≈ 11:12:08，回 11:12:57：`{"changed":false,"status":"pending","waitedMs":45000}`
+  - #2 起 ≈ 11:12:59，回 ≈ 11:13:07（11:13:10 取時）：`{"changed":true,"status":"expired","endReason":"timeout","waitedMs":7400}`
+  - 兩次呼叫間隔 < 120 s
+- 最終 `status` / `endReason`：`expired` / `timeout`（與 `expires` 2026-10-18T11:13:07+08:00 一致）
+- `BLOCKED` 工單 commit hash：本次收尾 commit（訊息 `ct: block T0617 question-expired probe (Q-1 expired)`；hash 於 commit 後才產生，無法寫入同一 commit，見 `git log -- _ct-workorders/T0617-probe-ct570-question-expired.md`）
+- `需要協助` 送出時間：於上述 commit **之後**送出（時間由 Worker 回覆畫面與 `bat-scripts.log` 記錄；第二輪可補記）
+- 先後：工單 `BLOCKED` commit → `T0617 需要協助` notify（commit 在 notify 之前）
+
+**第二輪**
+
+（待重派 Worker 填寫）
+
+### 變更檔案
+
+- `_ct-workorders/T0617-probe-ct570-question-expired.md`（僅本檔）
+
+### 遭遇問題
+
+- 無。題目依設計逾時。
+
+### 偏離與備註
+
+- 未讀產品程式碼、未跑 build / test、未 push；`src/styles/settings.css` 的既有 M 未動。
+- 回報區未出現任何權杖值；題目未寫入暫存檔。
