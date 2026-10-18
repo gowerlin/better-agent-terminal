@@ -1452,6 +1452,13 @@
 - **不採用**：「最近沒打字才切焦點」（規則複雜、行為難預測）；Settings 開關（多一個設定項）；只揭露狀態不加 helper 參數。
 - **相關**：BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017
 
+### D159 2026-10-18 — PLAN-049 網站：專案站 `gowerlin.github.io/better-agent-terminal`；CT 只介紹概念與 BAT 整合點
+
+- **背景**：PLAN-049（GitHub Pages 介紹 BAT + CT）的兩個待決點；T0622 研究派工後使用者直接決定。
+- **決定**（使用者 2026-10-18 12:18）：① 站台用專案站 `gowerlin.github.io/better-agent-terminal`（本 repo 部署），不另開使用者站；② CT 維持未開源，網站只介紹 CT 的概念與它跟 BAT 的整合點，不提供取得管道（與 README 規則一致）。
+- **處置**：T0622 工單加「塔台補充」，Q1 改研究專案站的具體做法、Q4 改列可公開的概念與整合點。
+- **相關**：PLAN-049 / T0622 / `_local-rules.md`「發佈後同步 repo 文件」
+
 ### D158 2026-10-18 — PLAN-047 M1b-2：codex 以 OSC 7501 回報 `blocked` 與啟動；新增 `blockedDetection: osc`、`blockedReason: input`
 
 - **背景**：T0619 研究（0 次模型呼叫，假 Responses API 驅動真 codex 0.163.0 TUI）發現 codex `>= 0.163.0` 自己在 PTY 送 `ESC ] 7501 ; state=idle|working|blocked`（結束 `clear`），不需設定、與焦點無關；TUI 就緒約 0.5 s 送第一個值，卡在啟動前畫面（信任目錄 / hooks review）不送。T0574 建議的 OSC 9 只在失焦時送、無清除信號，不採用；codex hooks 注入會觸發信任畫面擋住 `--yolo`，列備案。BAT 派出的 codex Worker 帶 `--yolo`，回合中幾乎不停，價值主要在啟動信號。

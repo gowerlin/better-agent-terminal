@@ -34,6 +34,11 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 5. **素材**：截圖、示範 GIF（塔台派工 → Worker → 回收）的產生方式；品牌（icon、配色）。
 6. **維運成本**：部署 workflow、連結檢查、SEO / OG 卡片、分析（是否需要）。
 
+## 已決定（D159，2026-10-18 12:18）
+
+- 站台位置：**專案站 `gowerlin.github.io/better-agent-terminal`**（本 repo 部署）。
+- CT 呈現：**只介紹概念與它跟 BAT 的整合點**，不提供取得管道。
+
 ## 排期
 
 使用者決定。排期時先開研究工單（選型、站台位置、內容盤點與 CT 公開範圍建議），結論審過後再開實作工單。
