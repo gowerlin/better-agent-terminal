@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 19:21 (UTC+8) — BUG-160 FIXED（T0655）；本批 BUG-156–160 全數 FIXED；BUG-161 OPEN
+> 最後同步：2026-10-18 19:30 (UTC+8) — BUG-162 FIXING（T0657）；BUG-156–160 FIXED；BUG-161 OPEN
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 46**
+- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 47**
 
 ## 🔴 Open / 處理中
 
@@ -39,6 +39,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-162 | claude Worker 的 Bash 權限請求被放行後（未經鍵盤），仍維持 `blocked` / `permission`（縮圖 ⚠️）直到 `Stop`（T0657） | 🟡 medium | — | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
 
 ## ✅ 已修復
 
