@@ -3143,6 +3143,283 @@
   }
 }
 
+/* ---------- /cases 實戰案例（CaseCard、ContractFlow） ---------- */
+
+/* 每個案例以一條粗線開頭，不做成卡片框；兩欄沿用故事章節的「以前 / BAT + CT」 */
+.vp-doc .case-card {
+  margin: 40px 0 72px;
+  padding-top: 20px;
+  border-top: 2px solid var(--vp-c-text-1);
+}
+
+.vp-doc .case-card.is-brief {
+  margin-bottom: 48px;
+  border-top-width: 1px;
+  border-top-color: var(--vp-c-divider);
+}
+
+.vp-doc .case-card .case-title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--bat-font-display);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  text-wrap: balance;
+}
+
+.vp-doc .case-card.is-brief .case-title {
+  font-size: 22px;
+}
+
+.vp-doc .case-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 8px 0 24px;
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc .case-card.is-brief .case-meta {
+  margin-bottom: 12px;
+}
+
+.case-tag {
+  font-weight: 700;
+  color: var(--vp-c-text-1);
+}
+
+/* 誰出力：文字維持中性（紫色文字留給連結），用圓點標示——實心紫 = Control Tower、空心 = BAT，搭配兩個都有 */
+.case-facet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 16px;
+  border-left: 1px solid var(--vp-c-divider);
+}
+
+.case-facet::before,
+.case-facet.is-both::after {
+  content: '';
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.case-facet.is-ct::before {
+  background: var(--bat-signal);
+}
+
+.case-facet.is-bat::before {
+  border: 1.5px solid var(--vp-c-text-2);
+}
+
+.case-facet.is-both::before {
+  order: -2;
+  border: 1.5px solid var(--vp-c-text-2);
+}
+
+.case-facet.is-both::after {
+  order: -1;
+  margin-left: -3px;
+  background: var(--bat-signal);
+}
+
+.vp-doc .case-card .story-card h4 {
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.vp-doc .case-card .story-card p {
+  margin: 0;
+  line-height: 1.85;
+}
+
+.vp-doc .case-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px 40px;
+}
+
+.vp-doc .case-card.has-figure .case-body {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px 32px;
+  align-items: start;
+}
+
+.vp-doc .case-text > p:first-child {
+  margin-top: 0;
+}
+
+.vp-doc .case-text > p:last-child {
+  margin-bottom: 0;
+}
+
+.vp-doc .case-result {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--vp-c-text-1);
+  font-weight: 500;
+  line-height: 1.8;
+}
+
+.vp-doc .case-result b {
+  flex: none;
+  font-weight: 700;
+}
+
+.vp-doc .case-card .story-roles {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .case-card .story-roles > li {
+  margin: 0;
+}
+
+.vp-doc .cases-next {
+  margin-top: 56px;
+}
+
+/* R1 的契約流程圖：雷達的同心圓與十字線，跟著頁面深淺色 */
+.contract-flow {
+  margin: 0;
+}
+
+.cf-svg {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  margin: 0 auto;
+  font-family: var(--bat-font-sans);
+}
+
+.cf-ring {
+  fill: none;
+  stroke: var(--vp-c-divider);
+  stroke-width: 1;
+}
+
+.cf-ring.is-outer {
+  fill: var(--bat-raised);
+  stroke: var(--bat-line);
+}
+
+.cf-tower {
+  fill: var(--bat-signal);
+}
+
+.cf-name,
+.cf-what,
+.cf-doc-title,
+.cf-doc-item {
+  text-anchor: middle;
+}
+
+.cf-name {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--vp-c-text-1);
+}
+
+.cf-what,
+.cf-doc-item {
+  font-size: 13px;
+  fill: var(--vp-c-text-2);
+}
+
+.cf-doc-title {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--vp-c-text-1);
+}
+
+.cf-doc,
+.cf-table {
+  fill: var(--vp-c-bg);
+  stroke: var(--vp-c-text-1);
+  stroke-width: 1.5;
+}
+
+.cf-table {
+  stroke: var(--vp-c-divider);
+  fill: var(--bat-raised);
+}
+
+.cf-link {
+  stroke: var(--vp-c-text-2);
+  stroke-width: 1.5;
+}
+
+.cf-link.is-signal {
+  stroke: var(--bat-signal);
+  stroke-width: 2;
+}
+
+.cf-link.is-dashed {
+  stroke-dasharray: 4 4;
+}
+
+.cf-head {
+  fill: var(--vp-c-text-2);
+}
+
+.cf-head.is-signal {
+  fill: var(--bat-signal);
+}
+
+.cf-tag {
+  font-size: 13px;
+  fill: var(--vp-c-text-2);
+}
+
+.cf-tag.is-signal {
+  font-weight: 700;
+  fill: var(--bat-signal-text);
+}
+
+@media (max-width: 859px) {
+  .vp-doc .case-card.has-figure .case-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .vp-doc .case-card {
+    margin: 32px 0 56px;
+  }
+
+  .vp-doc .case-card .case-title {
+    font-size: 24px;
+  }
+
+  .vp-doc .case-card.is-brief .case-title {
+    font-size: 20px;
+  }
+
+  .case-facet {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .vp-doc .case-meta {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {

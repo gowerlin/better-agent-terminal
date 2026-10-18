@@ -45,7 +45,7 @@ export default async () => {
             { text: 'Control Tower 功能導覽', link: '/control-tower-tour' }
           ]
         },
-        // TODO(W2d): { text: '實戰案例', link: '/cases' }
+        { text: '實戰案例', link: '/cases' },
         {
           text: '參考',
           items: [
@@ -70,8 +70,8 @@ export default async () => {
           text: 'BAT × Control Tower',
           items: [
             { text: '分工與流程', link: '/control-tower' },
-            { text: 'Control Tower 功能導覽', link: '/control-tower-tour' }
-            // TODO(W2d): { text: '實戰案例', link: '/cases' }
+            { text: 'Control Tower 功能導覽', link: '/control-tower-tour' },
+            { text: '實戰案例', link: '/cases' }
           ]
         },
         {

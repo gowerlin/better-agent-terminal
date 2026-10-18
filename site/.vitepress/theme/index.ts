@@ -3,7 +3,9 @@ import type { Theme } from 'vitepress'
 import AutonomyDial from './components/AutonomyDial.vue'
 import CapabilityLevels from './components/CapabilityLevels.vue'
 import CardTable from './components/CardTable.vue'
+import CaseCard from './components/CaseCard.vue'
 import CompareMatrix from './components/CompareMatrix.vue'
+import ContractFlow from './components/ContractFlow.vue'
 import DownloadLinks from './components/DownloadLinks.vue'
 import FeatureGrid from './components/FeatureGrid.vue'
 import GrowthLadder from './components/GrowthLadder.vue'
@@ -24,7 +26,9 @@ export default {
     app.component('AutonomyDial', AutonomyDial)
     app.component('CapabilityLevels', CapabilityLevels)
     app.component('CardTable', CardTable)
+    app.component('CaseCard', CaseCard)
     app.component('CompareMatrix', CompareMatrix)
+    app.component('ContractFlow', ContractFlow)
     app.component('DownloadLinks', DownloadLinks)
     app.component('FeatureGrid', FeatureGrid)
     app.component('GrowthLadder', GrowthLadder)
