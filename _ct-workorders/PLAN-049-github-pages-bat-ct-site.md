@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-049
 title: "GitHub Pages 個人網站：介紹 BAT + Control Tower、推廣使用"
-status: IDEA
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-18T12:16:31+0800"
 links:
@@ -41,6 +41,11 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 - （12:20 追加）技術選型、截圖 / 示範 GIF、部署方式：**由塔台依 T0622 建議決定並設計**。
 - 內容來源與同步：使用者向內容**可公開、可同步**；**發版時一起更新網站**（併入發佈後同步流程）。
 - （12:24，D160，塔台依授權決定）T0622 研究 DONE → VitePress 1.6.4 於 `site/`、Actions `pages.yml`、Playwright 手動素材 spec + WebM、發版同步併入三文件 commit；實作切 W1 骨架與部署 / W2 內容 / W3 素材 / W4 維運（W1 → W2、W3 並行 → W4）。待使用者：自訂網域、語言、README 換圖、分析、W1 授權。
+
+## 進度
+
+- **W1 DONE**（T0624 `e2006ab3`，2026-10-18）：塔台依 D160 授權 push（`24c4da3a`）並啟用 Pages；run `39098377237` 綠燈，`https://gowerlin.github.io/better-agent-terminal/` 四頁 200、首頁版號 `v0.7.0-pre.8`；README 加網站連結（`ebeb8016`，使用者指示）。
+- **網站 v2 方向（D161，2026-10-18 13:03）**：使用者預覽 W1 後認為介紹過於簡單、看不出 BAT × CT 整合優勢 → 規格 `_ct-workorders/_spec-site-v2-bat-ct-story.md`（故事主軸「AI 協作開發的 7 個卡關時刻 vs BAT + CT 解法」、三欄對照、`/control-tower` 深入頁）。W2 改切 W2a（T0630：設計語言 + 元件 + 首頁）→ W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c（遠端開發）；每次 push 前使用者預覽確認。
 
 ## 排期
 
