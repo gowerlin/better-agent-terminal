@@ -92,7 +92,7 @@
 
 1. 🔴 **代跑 CT v5.7.1 / v5.7.2 實機驗收**（BMad-Guide 請求、使用者同意）：新塔台先確認面板 v5.7.2；規格在 BMad-Guide repo `_ct-workorders/T0170-*.md` / `T0171-*.md`、CT CHANGELOG [5.7.1] / [5.7.2]、`yolo-mode.md` § Worker 向塔台提問；5 項（F-1 四種情況含需刻意延遲的「第一則通知早於後面題目登記」、晚退回的 `- **通道**：工單` 標記、`--cancel-question` 對已答題回 `answered`、O-2 自檢、codex awk 略過 fenced code block）；比照 T0614–T0618 探針；回函寫 BAT repo `_ct-workorders/_reply-2026-10-18-ct-v571-v572-runtime.md`（格式比照 v5.7.0 那份）→ 傳訊 BMad-Guide（`ListAgents` 找 bmad-guide-*）
 2. 🟡 **PLAN-049 W1 = T0624**（PENDING，未派）：DONE 後依 D160 授權由塔台 push → `gh api -X POST repos/gowerlin/better-agent-terminal/pages -f build_type=workflow` → 確認 Pages run 綠燈與站台 200（授權限 W1 一次）；之後開 W2 內容 / W3 素材（含 README 換圖）/ W4 維運（含 `_local-rules.md` 發版同步加一句）
-3. 🟡 **下一個預覽版**（含 T0620 / T0621 / T0623）：⚠️ 下一版是 `v0.7.0-pre.9`，之後不發 `pre.10`（`_local-rules.md` D151，需改升版號線並先問使用者）；發版後告知 BMad-Guide 版號（CT-T020 依此驗收）；實機待驗：elicitation 滑鼠回答清除、codex `osc` / `input` / `--wait-started` / 縮圖 ⚠️
+3. 🟡 **下一個預覽版**（含 T0620 / T0621 / T0623）：⚠️ 下一版是 `v0.7.0-pre.9`，之後不發 `pre.10`（`_local-rules.md` D151，需改升版號線並先問使用者）；發版後**務必**傳訊告知 BMad-Guide 確切版號 —— 對方（D057）等這個版號才開 T0172 做 CT-T020，預定 CT v5.8.0（guide 同步 v5.8.0、最低版本寫確切版號），完成後依委派單 § 完成回覆 回報；實機待驗：elicitation 滑鼠回答清除、codex `osc` / `input` / `--wait-started` / 縮圖 ⚠️
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
 5. 🟢 前期驗收與小項：Gary BUG-127-135 / 116 / 118；BUG-130 / 105 / 107 / 108 / 097 / 111；T0550 真人 6 項；dmg / AppImage、NSIS 重裝；T0360；README「下載最新版本」連結會落到 releases 列表（最上面常是 `server-bundle-v*`，T0622 發現，W2 / README 更新時修）
 
