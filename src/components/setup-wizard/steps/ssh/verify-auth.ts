@@ -1,4 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { describeSshTarget } from './ssh-target'
 
 interface VerifyAuthState {
@@ -65,7 +66,7 @@ export const verifySshAuthStep: WizardStep = {
     const state = readState(ctx)
     // T0505: the user may be empty (ssh config decides it).
     if (!state.sshHost) {
-      throw new Error('SSH host must be configured before verifying authentication.')
+      throw wizardError('SSH host must be configured before verifying authentication.', PRECONDITION_MISSING_CODE)
     }
 
     ctx.logger.info(`Probing ${describeSshTarget(state.sshUser, state.sshHost)}${state.sshPort ? ':' + state.sshPort : ''}…`)
@@ -92,9 +93,8 @@ export const verifySshAuthStep: WizardStep = {
       // T0511: carry the probe code so the runner's stage-1 errorCode lookup
       // finds `ssh-permission-denied` (and its "Edit SSH settings" action).
       // The message alone does not match: it reads `permission-denied: ...`.
-      const err = new Error(`${code}: ${hint}`) as Error & { code?: string }
-      err.code = code
-      throw err
+      // T0660 (BUG-161): `no-ssh` copy depends on this computer's OS (body_win32 / body_darwin).
+      throw wizardError(`${code}: ${hint}`, code, code === 'no-ssh' ? { context: process.platform } : undefined)
     }
 
     // Auto-fill targetOS based on the remote uname result. Spec frozen in

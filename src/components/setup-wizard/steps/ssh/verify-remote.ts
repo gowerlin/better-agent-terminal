@@ -1,4 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import type { SshTunnelMode } from './configure-host'
 import { describeSshTarget } from './ssh-target'
 import { connectTestStep } from '../wsl/connect-test'
@@ -56,11 +57,11 @@ export async function ensureSshVerifyEndpoint(ctx: WizardContext): Promise<void>
   const state = readState(ctx)
   const remotePort = ctx.serverPort
   if (typeof remotePort !== 'number') {
-    throw new Error('Server port was not resolved before verifying the SSH server; re-run the start-server step.')
+    throw wizardError('Server port was not resolved before verifying the SSH server; re-run the start-server step.', PRECONDITION_MISSING_CODE)
   }
   // T0505: the user may be empty (ssh config decides it).
   if (!state.sshHost) {
-    throw new Error('SSH host must be configured before verifying the remote server.')
+    throw wizardError('SSH host must be configured before verifying the remote server.', PRECONDITION_MISSING_CODE)
   }
 
   const result = await window.electronAPI.ssh.openVerifyTunnel({

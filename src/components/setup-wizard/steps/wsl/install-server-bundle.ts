@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { distributeFailureError, SERVER_BUNDLE_IMPORT_TARGET_KEY } from '../../server-bundle-import'
 
 const INSTALL_SUBDIR = '.local/bat-server'
@@ -52,7 +53,7 @@ export async function resolveWslHome(ctx: WizardContext, distro: string): Promis
   if (ctx.wslHome) return ctx.wslHome
   const home = await window.electronAPI.wsl.resolveHome(distro)
   if (typeof home !== 'string' || !home.startsWith('/') || home.includes('~')) {
-    throw new Error(`Unable to resolve the home directory of the WSL user (got ${JSON.stringify(home)}).`)
+    throw wizardError(`Unable to resolve the home directory of the WSL user (got ${JSON.stringify(home)}).`, 'wsl-home-unresolved')
   }
   ctx.wslHome = home
   return home
@@ -123,7 +124,7 @@ export const installServerBundleStep: WizardStep = {
     // after a good extract (before T0554 its rollback removed the root, which
     // after T0552 was the untouched previous install).
     if (!ctx.wslDistro) {
-      throw new Error('Select a WSL distro before installing the server bundle.')
+      throw wizardError('Select a WSL distro before installing the server bundle.', PRECONDITION_MISSING_CODE)
     }
 
     // Resolve before downloading so a broken distro user fails fast.
@@ -171,7 +172,7 @@ export const installServerBundleStep: WizardStep = {
     const installResult = await window.electronAPI.wsl.installBundle(ctx.wslDistro, tarballPath, installPath, { keepPrevious: true })
 
     if (!installResult.ok) {
-      throw new Error(installResult.error)
+      throw wizardError(installResult.error, 'server-bundle-install-failed')
     }
     const previous = installResult.previous ?? 'none'
     ctx.state[WSL_BUNDLE_INSTALL_KEY] = { distro: ctx.wslDistro, root: installPath, previous } satisfies WslBundleInstallRecord

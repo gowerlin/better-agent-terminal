@@ -390,7 +390,7 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
       <div className="settings-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('settings.title')}</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" aria-label={t('common.close')} onClick={onClose}>×</button>
         </div>
 
         <div className="settings-content">

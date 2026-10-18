@@ -1,4 +1,5 @@
 import type { WizardStep } from '../../wizard-runner'
+import { wizardError } from '../../error-mapper'
 
 function basename(filePath: string): string {
   const parts = filePath.split(/[\\/]/).filter(Boolean)
@@ -37,7 +38,7 @@ export const configureMountsStep: WizardStep = {
       if (hostPath) {
         mounts = [{ host: hostPath, container: defaultContainerPath(hostPath) }]
       } else if (mounts.length === 0) {
-        throw new Error('Select at least one host folder to mount into the Docker container.')
+        throw wizardError('Select at least one host folder to mount into the Docker container.', 'docker-mounts-none')
       } else {
         // T0500: the folder dialog has no default path, so closing it after a
         // jump back keeps the previous mounts instead of failing.
@@ -46,7 +47,7 @@ export const configureMountsStep: WizardStep = {
     }
 
     const validation = await window.electronAPI.docker.validateMounts(mounts)
-    if (!validation.ok) throw new Error(validation.errors.join('\n'))
+    if (!validation.ok) throw wizardError(validation.errors.join('\n'), 'docker-mounts-invalid')
 
     ctx.state.dockerMounts = mounts
     ctx.profileDraft.dockerMounts = mounts

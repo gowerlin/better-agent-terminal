@@ -15,6 +15,7 @@ import { DEFAULT_WIZARD_ERROR_REGISTRY, resolveWizardError } from '../error-mapp
 import {
   distributeFailureError,
   importServerBundleForRetry,
+  SERVER_BUNDLE_DISTRIBUTE_FAILED_CODE,
   SERVER_BUNDLE_IMPORT_TARGET_KEY,
   SERVER_BUNDLE_UNAVAILABLE_CODE,
 } from '../server-bundle-import'
@@ -98,7 +99,7 @@ async function failedActions(container: HTMLElement): Promise<HTMLButtonElement[
 }
 
 describe('install-server-bundle download failure → import (T0547)', () => {
-  it('importable failures carry the code and record the target; others do not', () => {
+  it('importable failures carry the code and record the target; others carry server-bundle-distribute-failed (T0660)', () => {
     const ctx = makeCtx()
     const err = distributeFailureError(ctx, downloadFailed) as Error & { code?: string }
     expect(err.code).toBe(SERVER_BUNDLE_UNAVAILABLE_CODE)
@@ -106,10 +107,11 @@ describe('install-server-bundle download failure → import (T0547)', () => {
     expect(ctx.state[SERVER_BUNDLE_IMPORT_TARGET_KEY]).toEqual({ arch: 'linux-x64', version: VERSION })
 
     const arch = distributeFailureError(ctx, { ok: false, errorCode: 'arch-detection-failed', error: 'x', version: VERSION }) as Error & { code?: string }
-    expect(arch.code).toBeUndefined()
+    expect(arch.code).toBe(SERVER_BUNDLE_DISTRIBUTE_FAILED_CODE)
+    expect(arch.message).toBe('[arch-detection-failed] x')
     expect(ctx.state[SERVER_BUNDLE_IMPORT_TARGET_KEY]).toBeUndefined()
     const corrupted = distributeFailureError(ctx, { ok: false, errorCode: 'baseline-corrupted', error: 'x', arch: 'linux-x64', version: VERSION }) as Error & { code?: string }
-    expect(corrupted.code).toBeUndefined()
+    expect(corrupted.code).toBe(SERVER_BUNDLE_DISTRIBUTE_FAILED_CODE)
   })
 
   it('the registry maps it to import / retry / cancel for WSL and SSH only', () => {

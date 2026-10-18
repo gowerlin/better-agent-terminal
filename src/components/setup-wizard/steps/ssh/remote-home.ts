@@ -14,13 +14,18 @@
  * render time as a second line of defence.
  */
 
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
+
+/** T0660 (BUG-161): a remote $HOME / install path BAT cannot use. */
+const REMOTE_PATH_INVALID_CODE = 'ssh-remote-path-invalid'
+
 /** Validated remote home without trailing slash (`/` becomes `''`). */
 export function resolveSshServerHome(serverHome: unknown): string {
   if (typeof serverHome !== 'string' || serverHome.length === 0) {
-    throw new Error('Server $HOME must be probed (verify-ssh-auth) before resolving the install path.')
+    throw wizardError('Server $HOME must be probed (verify-ssh-auth) before resolving the install path.', PRECONDITION_MISSING_CODE)
   }
   if (!/^\/[A-Za-z0-9._/-]*$/.test(serverHome) || serverHome.split('/').includes('..')) {
-    throw new Error(`Server $HOME must be an absolute path without special characters: ${JSON.stringify(serverHome)}`)
+    throw wizardError(`Server $HOME must be an absolute path without special characters: ${JSON.stringify(serverHome)}`, REMOTE_PATH_INVALID_CODE)
   }
   return serverHome.replace(/\/+$/, '')
 }
@@ -34,5 +39,5 @@ export function resolveSshInstallPath(installPath: string, serverHome: unknown):
   if (installPath === '~') return home || '/'
   if (installPath.startsWith('~/')) return `${home}${installPath.slice(1)}`
   if (installPath.startsWith('/')) return installPath
-  throw new Error(`Install path must be absolute or start with ~/ (got ${JSON.stringify(installPath)})`)
+  throw wizardError(`Install path must be absolute or start with ~/ (got ${JSON.stringify(installPath)})`, REMOTE_PATH_INVALID_CODE)
 }

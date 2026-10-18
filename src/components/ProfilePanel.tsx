@@ -445,7 +445,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
       <div className="settings-panel profile-panel" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
           <h2>{t('profiles.title')}</h2>
-          <button className="settings-close" onClick={onClose}>&times;</button>
+          <button className="settings-close" aria-label={t('common.close')} onClick={onClose}>&times;</button>
         </div>
         <div className="settings-body" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -789,7 +789,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>{t('profiles.addWslProfile')}</h2>
-              <button className="settings-close" onClick={wslWizard.close}>&times;</button>
+              <button className="settings-close" aria-label={t('common.close')} onClick={wslWizard.close}>&times;</button>
             </div>
             <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <SetupWizardShell
@@ -808,7 +808,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>{t('profiles.addDockerProfile')}</h2>
-              <button className="settings-close" onClick={dockerWizard.close}>&times;</button>
+              <button className="settings-close" aria-label={t('common.close')} onClick={dockerWizard.close}>&times;</button>
             </div>
             <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <SetupWizardShell
@@ -827,7 +827,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
               <h2>{t('profiles.addSshProfile')}</h2>
-              <button className="settings-close" onClick={sshWizard.close}>&times;</button>
+              <button className="settings-close" aria-label={t('common.close')} onClick={sshWizard.close}>&times;</button>
             </div>
             <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <SetupWizardShell

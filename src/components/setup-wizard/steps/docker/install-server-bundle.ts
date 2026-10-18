@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { DOCKER_OWNERSHIP_KEYS } from './ownership'
 
 /**
@@ -42,11 +43,15 @@ export const installDockerServerBundleStep: WizardStep = {
     }
 
     if (mode !== 'existing' || typeof ctx.state.dockerContainer !== 'string') {
-      throw new Error('Choose a Docker container before validating the BAT server bundle.')
+      throw wizardError('Choose a Docker container before validating the BAT server bundle.', PRECONDITION_MISSING_CODE)
     }
 
     const inspection = await window.electronAPI.docker.inspectContainer(ctx.state.dockerContainer)
-    if (!inspection.image) throw new Error(`Unable to inspect Docker container ${ctx.state.dockerContainer}.`)
+    if (!inspection.image) {
+      throw wizardError(`Unable to inspect Docker container ${ctx.state.dockerContainer}.`, 'docker-inspect-failed', {
+        name: ctx.state.dockerContainer,
+      })
+    }
 
     ctx.serverInstallPath = '/opt/bat-server'
     const warning = i18next.t('wizard.docker.warning.existingNeedsBundle', { name: ctx.state.dockerContainer })

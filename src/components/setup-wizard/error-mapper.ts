@@ -115,7 +115,42 @@ export interface WizardErrorContext {
   stepId: string
   /** Optional structured error code (e.g. SSH permission-denied). */
   errorCode?: string
+  /** T0660 (BUG-161): i18n values for the mapped title / body (see wizardError). */
+  params?: WizardErrorParams
   error: Error
+}
+
+/**
+ * T0660 (BUG-161): interpolation values a step error carries for its mapped
+ * title / body (e.g. a container name). `context` selects an i18next context
+ * variant (`body_darwin`), falling back to the plain key.
+ */
+export type WizardErrorParams = Record<string, string | number>
+
+export type WizardCodedError = Error & { code: string; params?: WizardErrorParams }
+
+/**
+ * T0660 (BUG-161): build a step error the registry maps by `code` (stage 1).
+ * The message stays English: it is what the logs and the raw error detail
+ * show; the UI shows the entry's translated title / body instead.
+ */
+export function wizardError(message: string, code: string, params?: WizardErrorParams): WizardCodedError {
+  const error = new Error(message) as WizardCodedError
+  error.code = code
+  if (params) error.params = params
+  return error
+}
+
+/**
+ * T0660 (BUG-161): a step ran without what an earlier step should have left
+ * on ctx (e.g. no distro picked, no server port). One shared entry.
+ */
+export const PRECONDITION_MISSING_CODE = 'wizard-precondition-missing'
+
+/** T0660: the `params` a wizardError carries, if any. */
+export function readWizardErrorParams(error: unknown): WizardErrorParams | undefined {
+  const params = (error as { params?: unknown } | null)?.params
+  return params && typeof params === 'object' ? params as WizardErrorParams : undefined
 }
 
 interface ResolvedMessage {
@@ -140,13 +175,13 @@ const UNINITIALIZED_FALLBACK_TITLE = 'Step failed'
  * T0507; its copy now lives verbatim in zh-TW.json. Unknown keys resolve to
  * the fallback title.
  */
-function lookupMessage(key: string): ResolvedMessage {
+function lookupMessage(key: string, params?: WizardErrorParams): ResolvedMessage {
   if (i18next.isInitialized) {
     for (const candidate of [key, FALLBACK_MESSAGE_KEY]) {
       if (!i18next.exists(`${candidate}.title`)) continue
       return {
-        title: i18next.t(`${candidate}.title`),
-        body: i18next.exists(`${candidate}.body`) ? i18next.t(`${candidate}.body`) : '',
+        title: i18next.t(`${candidate}.title`, params),
+        body: i18next.exists(`${candidate}.body`) ? i18next.t(`${candidate}.body`, params) : '',
       }
     }
   }
@@ -170,7 +205,7 @@ function buildMapped(
   match: WizardErrorMatch,
   ctx: WizardErrorContext,
 ): WizardMappedError {
-  const dict = lookupMessage(match.messageKey)
+  const dict = lookupMessage(match.messageKey, ctx.params)
   const rawError = ctx.error.message
   return {
     matchId: match.id,
@@ -502,5 +537,293 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     messageKey: 'wizard.shared.error.fingerprintInvalidPort',
     detailMode: 'append-raw',
     actions: [{ kind: 'cancel' }],
+  },
+  // T0660 (BUG-161): step errors that used to reach the UI as their raw English
+  // message. Each step throws with one of these codes (wizardError); the
+  // message stays English for the logs and the raw detail.
+  {
+    id: 'step-precondition-missing',
+    platforms: 'all',
+    errorCodes: [PRECONDITION_MISSING_CODE],
+    messageKey: 'wizard.shared.error.preconditionMissing',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'profile-save-failed',
+    platforms: 'all',
+    stepIds: ['write-profile'],
+    errorCodes: ['wizard-profile-save-failed'],
+    messageKey: 'wizard.shared.error.profileSaveFailed',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'cancel' }],
+  },
+  {
+    id: 'connect-test-failed',
+    platforms: 'all',
+    stepIds: ['connect-test'],
+    errorCodes: ['connect-test-failed'],
+    messageKey: 'wizard.shared.error.connectTestFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'skip' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'server-bundle-install-failed',
+    platforms: ['wsl', 'ssh'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['server-bundle-install-failed'],
+    messageKey: 'wizard.shared.error.serverBundleInstallFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'server-bundle-distribute-failed',
+    platforms: ['wsl', 'ssh'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['server-bundle-distribute-failed'],
+    messageKey: 'wizard.shared.error.serverBundleDistributeFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-no-containers',
+    platforms: ['docker'],
+    stepIds: ['pick-container'],
+    errorCodes: ['docker-no-containers'],
+    messageKey: 'wizard.docker.error.noContainers',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-container-names-exhausted',
+    platforms: ['docker'],
+    stepIds: ['pick-container'],
+    errorCodes: ['docker-container-names-exhausted'],
+    messageKey: 'wizard.docker.error.containerNamesExhausted',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-mounts-none',
+    platforms: ['docker'],
+    stepIds: ['configure-mounts'],
+    errorCodes: ['docker-mounts-none'],
+    messageKey: 'wizard.docker.error.mountsNone',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-mounts-invalid',
+    platforms: ['docker'],
+    stepIds: ['configure-mounts'],
+    errorCodes: ['docker-mounts-invalid'],
+    messageKey: 'wizard.docker.error.mountsInvalid',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-inspect-failed',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-inspect-failed'],
+    messageKey: 'wizard.docker.error.inspectFailed',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-container-not-owned',
+    platforms: ['docker'],
+    stepIds: ['start-server'],
+    errorCodes: ['docker-container-not-owned'],
+    messageKey: 'wizard.docker.error.containerNotOwned',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'edit-config', targetStepId: 'pick-container' },
+      { kind: 'cancel' },
+    ],
+  },
+  {
+    id: 'docker-start-failed',
+    platforms: ['docker'],
+    stepIds: ['start-server'],
+    errorCodes: ['docker-start-failed'],
+    messageKey: 'wizard.docker.error.startFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-health-unavailable',
+    platforms: ['docker'],
+    stepIds: ['start-server'],
+    errorCodes: ['docker-health-unavailable'],
+    messageKey: 'wizard.docker.error.healthUnavailable',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-container-unhealthy',
+    platforms: ['docker'],
+    stepIds: ['start-server'],
+    errorCodes: ['docker-container-unhealthy'],
+    messageKey: 'wizard.docker.error.containerUnhealthy',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-health-timeout',
+    platforms: ['docker'],
+    stepIds: ['start-server'],
+    errorCodes: ['docker-health-timeout'],
+    messageKey: 'wizard.docker.error.healthTimeout',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'wsl-requires-wsl2',
+    platforms: ['wsl'],
+    stepIds: ['pick-wsl-distro'],
+    errorCodes: ['wsl-requires-wsl2'],
+    messageKey: 'wizard.wsl.error.requiresWsl2',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'fixed-and-retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'wsl-home-unresolved',
+    platforms: ['wsl'],
+    stepIds: ['install-server-bundle', 'write-systemd-unit'],
+    errorCodes: ['wsl-home-unresolved'],
+    messageKey: 'wizard.wsl.error.homeUnresolved',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'wsl-unit-snapshot-failed',
+    platforms: ['wsl'],
+    stepIds: ['write-systemd-unit'],
+    errorCodes: ['wsl-unit-snapshot-failed'],
+    messageKey: 'wizard.wsl.error.unitSnapshotFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'wsl-unit-write-failed',
+    platforms: ['wsl'],
+    stepIds: ['write-systemd-unit'],
+    errorCodes: ['wsl-unit-write-failed'],
+    messageKey: 'wizard.wsl.error.unitWriteFailed',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  // T0660: write-systemd-unit has thrown this code since T0337 without an entry.
+  {
+    id: 'wsl-service-start-failed',
+    platforms: ['wsl'],
+    stepIds: ['write-systemd-unit'],
+    errorCodes: ['wsl-service-start-failed'],
+    messageKey: 'wizard.wsl.error.serviceStartFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  // T0660: verify-ssh-auth has carried these probe codes since T0511.
+  // `no-ssh` passes `context: process.platform` (body_win32 / body_darwin).
+  {
+    id: 'ssh-client-missing',
+    platforms: ['ssh'],
+    stepIds: ['verify-ssh-auth'],
+    errorCodes: ['no-ssh'],
+    messageKey: 'wizard.ssh.error.clientMissing',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'fixed-and-retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'ssh-host-key',
+    platforms: ['ssh'],
+    stepIds: ['verify-ssh-auth'],
+    errorCodes: ['host-key'],
+    messageKey: 'wizard.ssh.error.hostKey',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'fixed-and-retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'ssh-connect-timeout',
+    platforms: ['ssh'],
+    stepIds: ['verify-ssh-auth'],
+    errorCodes: ['connect-timeout'],
+    messageKey: 'wizard.ssh.error.connectTimeout',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'edit-config', labelKey: 'wizard.action.editSshSettings', targetStepId: 'configure-ssh-host' },
+      { kind: 'retry' },
+      { kind: 'cancel' },
+    ],
+  },
+  {
+    id: 'ssh-remote-path-invalid',
+    platforms: ['ssh'],
+    stepIds: ['install-server-bundle', 'start-server'],
+    errorCodes: ['ssh-remote-path-invalid'],
+    messageKey: 'wizard.ssh.error.remotePathInvalid',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  // T0660: ssh-start-server's codes. start-server passes `context: 'darwin'`
+  // for macOS, whose copy (body_darwin) names launchd instead of systemd.
+  {
+    id: 'ssh-start-unit-write-failed',
+    platforms: ['ssh'],
+    stepIds: ['start-server'],
+    errorCodes: ['unit-write-failed'],
+    messageKey: 'wizard.ssh.error.unitWriteFailed',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'ssh-start-enable-failed',
+    platforms: ['ssh'],
+    stepIds: ['start-server'],
+    errorCodes: ['enable-failed'],
+    messageKey: 'wizard.ssh.error.enableFailed',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'fixed-and-retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'ssh-start-crashed',
+    platforms: ['ssh'],
+    stepIds: ['start-server'],
+    errorCodes: ['start-failed'],
+    messageKey: 'wizard.ssh.error.startCrashed',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'ssh-start-verify-failed',
+    platforms: ['ssh'],
+    stepIds: ['start-server'],
+    errorCodes: ['verify-failed'],
+    messageKey: 'wizard.ssh.error.verifyFailed',
+    detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'ssh-tunnel-failed',
+    platforms: ['ssh'],
+    stepIds: ['fetch-fingerprint', 'connect-test'],
+    errorCodes: ['ssh-tunnel-failed', 'ssh-tunnel-invalid-input'],
+    messageKey: 'wizard.ssh.error.tunnelFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'ssh-fingerprint-mismatch',
+    platforms: ['ssh'],
+    stepIds: ['fetch-fingerprint'],
+    errorCodes: ['fingerprint-mismatch'],
+    messageKey: 'wizard.ssh.error.fingerprintMismatch',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'edit-config', labelKey: 'wizard.action.editSshSettings', targetStepId: 'configure-ssh-host' },
+      { kind: 'retry' },
+      { kind: 'cancel' },
+    ],
   },
 ]

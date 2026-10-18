@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 
 export const wslSystemdCheckStep: WizardStep = {
   id: 'wsl-systemd-check',
@@ -12,7 +13,7 @@ export const wslSystemdCheckStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx) {
     if (!ctx.wslDistro) {
-      throw new Error('Select a WSL distro before checking systemd.')
+      throw wizardError('Select a WSL distro before checking systemd.', PRECONDITION_MISSING_CODE)
     }
 
     const enabled = await window.electronAPI.wsl.systemdEnabled(ctx.wslDistro)

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
+  WIZARD_CANCELLED_MESSAGE,
   WizardRunner,
   WizardStepStatus,
   type WizardChoiceRequest,
@@ -16,6 +17,7 @@ import { buildSshWizardSteps, createSshWizardContext } from './ssh-flow'
 import { buildWslWizardSteps, createWslWizardContext } from './wsl-flow'
 import {
   DEFAULT_WIZARD_ERROR_REGISTRY,
+  readWizardErrorParams,
   resolveWizardError,
   targetOSToErrorPlatform,
   type WizardMappedError,
@@ -165,7 +167,9 @@ function buildStepDescriptors(
       groupLabel,
       status,
       retryable: s.retryable,
-      errorMessage: s.error,
+      // T0660 (BUG-161): a mapped error shows its translated title; the raw
+      // (English) message stays for unmapped errors and in the detail panel.
+      errorMessage: s.mappedError?.matchId ? s.mappedError.title : s.error,
       // T0330: only set promptRegionId on awaiting-input rows so non-input
       // steps don't pick up a stray aria-describedby pointer.
       promptRegionId: status === 'awaiting-input' ? PROMPT_REGION_ID : undefined,
@@ -358,16 +362,37 @@ function StepDetailPanel({
             <p className="bat-wizard-prompt-description">{activeChoice.description}</p>
           )}
           <div className="bat-wizard-actions">
-            {activeChoice.options.map((option) => (
-              <button
-                key={option.value}
-                className="profile-action-btn bat-wizard-choice"
-                onClick={() => onChoiceSelect(option.value)}
-                type="button"
-              >
-                {option.labelKey ? t(option.labelKey, option.label) : option.label}
-              </button>
-            ))}
+            {activeChoice.options.map((option) => {
+              const button = (
+                <button
+                  key={option.value}
+                  className="profile-action-btn bat-wizard-choice"
+                  onClick={() => onChoiceSelect(option.value)}
+                  type="button"
+                  aria-describedby={option.description ? `${PROMPT_REGION_ID}-option-${option.value}` : undefined}
+                >
+                  {option.labelKey ? t(option.labelKey, option.label) : option.label}
+                </button>
+              )
+              if (!option.description) return button
+              // T0660 (BUG-161): the option description sits under its button,
+              // outside it, so the button's accessible name stays the label.
+              return (
+                <div
+                  key={option.value}
+                  className="bat-wizard-choice-item"
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: 280 }}
+                >
+                  {button}
+                  <p
+                    id={`${PROMPT_REGION_ID}-option-${option.value}`}
+                    className="bat-wizard-prompt-description"
+                  >
+                    {option.description}
+                  </p>
+                </div>
+              )
+            })}
             {activeChoice.allowSkip && (
               <button
                 className="profile-action-btn bat-wizard-choice"
@@ -484,12 +509,41 @@ function TextPrompt({ request, onSubmit }: TextPromptProps) {
   )
 }
 
+interface WizardErrorNotice {
+  title: string | null
+  text: string
+}
+
+/**
+ * T0660 (BUG-161): what the error box shows when run() rejects — a cancel, or
+ * a failure the runner does not wait on (non-retryable step). A coded step
+ * error shows its translated title / body; anything else its raw message.
+ */
+function describeWizardError(error: unknown, targetOS: WizardTargetOS, t: TFunction): WizardErrorNotice {
+  const errorObj = error instanceof Error ? error : new Error(String(error))
+  if (errorObj.message === WIZARD_CANCELLED_MESSAGE) return { title: null, text: t('wizard.cancelled') }
+  const code = (errorObj as Error & { code?: unknown }).code
+  if (typeof code !== 'string') return { title: null, text: errorObj.message }
+  const mapped = resolveWizardError(
+    {
+      platform: targetOSToErrorPlatform(targetOS),
+      stepId: '',
+      errorCode: code,
+      params: readWizardErrorParams(errorObj),
+      error: errorObj,
+    },
+    DEFAULT_WIZARD_ERROR_REGISTRY,
+  )
+  return mapped.matchId ? { title: mapped.title, text: mapped.body } : { title: null, text: errorObj.message }
+}
+
 export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellProps) {
   const { t } = useTranslation()
   const [stepStates, setStepStates] = useState<WizardStepSnapshot[]>([])
   const [activeChoice, setActiveChoice] = useState<WizardChoiceRequest | null>(null)
   const [activeText, setActiveText] = useState<WizardTextRequest | null>(null)
-  const [wizardError, setWizardError] = useState<string | null>(null)
+  // T0660: the rejection itself; describeWizardError renders it in the UI language.
+  const [wizardFailure, setWizardFailure] = useState<{ error: unknown } | null>(null)
   const [complete, setComplete] = useState(false)
   const [createdProfileId, setCreatedProfileId] = useState<string | null>(null)
   const [readOnlyStepId, setReadOnlyStepId] = useState<string | null>(null)
@@ -532,7 +586,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
         }
       })
       .catch((error) => {
-        if (!disposed) setWizardError(error instanceof Error ? error.message : String(error))
+        if (!disposed) setWizardFailure({ error })
       })
 
     return () => {
@@ -541,6 +595,8 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       runnerRef.current = null
     }
   }, [ctx, steps])
+
+  const wizardError = wizardFailure ? describeWizardError(wizardFailure.error, ctx.targetOS, t) : null
 
   const completedCount = stepStates.filter(
     (step) => step.status === WizardStepStatus.Succeeded || step.skipped,
@@ -787,7 +843,8 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
           <div className="bat-wizard-box-header">
             {t('wizard.errorHeader')}
           </div>
-          <p>{wizardError}</p>
+          {wizardError.title && <p className="bat-wizard-mapped-error-title">{wizardError.title}</p>}
+          <p>{wizardError.text}</p>
         </div>
       )}
 

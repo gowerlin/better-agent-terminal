@@ -1,4 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { resolveSshInstallPath } from './remote-home'
 import { describeSshTarget } from './ssh-target'
 
@@ -136,16 +137,16 @@ export const startServerStep: WizardStep = {
     if (state.sshStartServerTouchedRemote !== true) state.sshStartServerTouchedRemote = false
     // T0505: the user may be empty (ssh config decides it).
     if (!state.sshHost) {
-      throw new Error('SSH host must be configured before starting the server.')
+      throw wizardError('SSH host must be configured before starting the server.', PRECONDITION_MISSING_CODE)
     }
     if (!state.sshInstallPath) {
-      throw new Error('Install path must be selected before starting the server.')
+      throw wizardError('Install path must be selected before starting the server.', PRECONDITION_MISSING_CODE)
     }
     if (!state.sshServerHome) {
-      throw new Error('Server $HOME must be probed (verify-ssh-auth) before starting the server.')
+      throw wizardError('Server $HOME must be probed (verify-ssh-auth) before starting the server.', PRECONDITION_MISSING_CODE)
     }
     if (ctx.targetOS !== 'ssh-linux' && ctx.targetOS !== 'ssh-darwin') {
-      throw new Error(`start-server step is not applicable to targetOS=${ctx.targetOS}`)
+      throw wizardError(`start-server step is not applicable to targetOS=${ctx.targetOS}`, PRECONDITION_MISSING_CODE)
     }
 
     // T0379 / BUG-088: hand the main process an absolute path (same rule the
@@ -188,7 +189,13 @@ export const startServerStep: WizardStep = {
         const hint = startServerErrorHint(result.errorCode, result.error, ctx.targetOS)
         state.sshStartLastError = hint
         state.sshStartLastErrorCode = result.errorCode
-        throw new Error(`${result.errorCode ?? 'unknown'}: ${hint}`)
+        // T0660 (BUG-161): the code picks the translated copy; macOS uses its
+        // launchd variant (`body_darwin`).
+        throw wizardError(
+          `${result.errorCode ?? 'unknown'}: ${hint}`,
+          result.errorCode ?? 'unknown',
+          ctx.targetOS === 'ssh-darwin' ? { context: 'darwin' } : undefined,
+        )
       }
 
       state.sshStartServicePath = result.servicePath

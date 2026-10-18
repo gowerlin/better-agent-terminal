@@ -1,4 +1,5 @@
 import type { WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { distributeFailureError, SERVER_BUNDLE_IMPORT_TARGET_KEY } from '../../server-bundle-import'
 import { resolveSshInstallPath } from './remote-home'
 import { describeSshTarget } from './ssh-target'
@@ -84,13 +85,13 @@ export const installSshServerBundleStep: WizardStep = {
     const state = ctx.state as InstallSshBundleState
     // T0505: the user may be empty (ssh config decides it).
     if (!state.sshHost) {
-      throw new Error('SSH host must be set before installing the server bundle.')
+      throw wizardError('SSH host must be set before installing the server bundle.', PRECONDITION_MISSING_CODE)
     }
     if (!state.sshInstallPath) {
-      throw new Error('Install path must be selected before installing the server bundle.')
+      throw wizardError('Install path must be selected before installing the server bundle.', PRECONDITION_MISSING_CODE)
     }
     if (!state.sshServerArch) {
-      throw new Error('SSH server architecture not detected — re-run verify-ssh-auth before installing the server bundle.')
+      throw wizardError('SSH server architecture not detected — re-run verify-ssh-auth before installing the server bundle.', PRECONDITION_MISSING_CODE)
     }
     // T0379 / BUG-088: the upload single-quotes the path (`mkdir -p '<path>'`),
     // so a literal `~` would become a directory named `~` under $HOME. Resolve
@@ -172,7 +173,7 @@ export const installSshServerBundleStep: WizardStep = {
           keepPrevious: true,
         },
       })
-      if (!result.ok) throw new Error(result.error)
+      if (!result.ok) throw wizardError(result.error, 'server-bundle-install-failed')
       state.sshBundleInstall = { root: installPath, previous: result.previous ?? 'none' }
     } finally {
       unsubscribeUpload()

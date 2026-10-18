@@ -1,7 +1,9 @@
 export type WizardTargetOS = 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
 
+import i18next from 'i18next'
 import {
   DEFAULT_WIZARD_ERROR_REGISTRY,
+  readWizardErrorParams,
   resolveWizardError,
   targetOSToErrorPlatform,
   type WizardMappedError,
@@ -293,6 +295,20 @@ export interface WizardStepSnapshot {
   mappedError?: WizardMappedError
 }
 
+/** run() rejects with this message when the user cancels (the Shell shows `wizard.cancelled`). */
+export const WIZARD_CANCELLED_MESSAGE = 'Wizard cancelled'
+
+/**
+ * T0660 (BUG-161): a recovery warning in the UI language. The step is named
+ * by its i18n label (`labelKey`), or its English `title` when it has none;
+ * `english` is used when i18next is not initialized or lacks the key.
+ */
+function recoveryWarning(key: string, step: WizardStep, error: string, english: string): string {
+  if (!i18next.isInitialized || !i18next.exists(key)) return english
+  const stepLabel = step.labelKey && i18next.exists(step.labelKey) ? i18next.t(step.labelKey) : step.title
+  return i18next.t(key, { step: stepLabel, error })
+}
+
 function defaultLogger(): WizardLogger {
   return {
     info: (message: string) => console.info(`[wizard] ${message}`),
@@ -449,7 +465,7 @@ export class WizardRunner {
     for (let index = 0; index < this.activeSteps.length; index += 1) {
       if (this.cancelRequested) {
         await this.rollbackCompletedSteps()
-        throw new Error('Wizard cancelled')
+        throw new Error(WIZARD_CANCELLED_MESSAGE)
       }
 
       this.currentStepIndex = index
@@ -536,6 +552,7 @@ export class WizardRunner {
             platform: targetOSToErrorPlatform(this.ctx.targetOS),
             stepId: step.id,
             errorCode,
+            params: readWizardErrorParams(errorObj),
             error: errorObj,
           },
           DEFAULT_WIZARD_ERROR_REGISTRY,
@@ -568,7 +585,7 @@ export class WizardRunner {
           // roll it back first, then the completed steps in reverse order.
           await this.rollbackFailedStep(step, index)
           await this.rollbackCompletedSteps()
-          throw new Error('Wizard cancelled')
+          throw new Error(WIZARD_CANCELLED_MESSAGE)
         }
 
         await this.rollbackFailedStep(step)
@@ -589,7 +606,12 @@ export class WizardRunner {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         this.ctx.logger.warn(`Finalize failed for ${step.id}: ${message}`)
-        const warning = `Could not finish cleaning up after "${step.title}": ${message}`
+        const warning = recoveryWarning(
+          'wizard.shared.warning.finalizeFailed',
+          step,
+          message,
+          `Could not finish cleaning up after "${step.title}": ${message}`,
+        )
         if (!this.ctx.warnings.includes(warning)) this.ctx.warnings.push(warning)
         this.emitProgress()
       }
@@ -655,7 +677,12 @@ export class WizardRunner {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.ctx.logger.warn(`Rollback failed for ${step.id} while jumping back: ${message}`)
-      const warning = `Could not undo "${step.title}" before going back: ${message}`
+      const warning = recoveryWarning(
+        'wizard.shared.warning.jumpRollbackFailed',
+        step,
+        message,
+        `Could not undo "${step.title}" before going back: ${message}`,
+      )
       if (!this.ctx.warnings.includes(warning)) this.ctx.warnings.push(warning)
       this.emitProgress()
     }

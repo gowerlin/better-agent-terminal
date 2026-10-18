@@ -12,6 +12,9 @@ import type { WizardContext } from './wizard-runner'
 
 export const SERVER_BUNDLE_UNAVAILABLE_CODE = 'server-bundle-unavailable'
 
+/** T0660 (BUG-161): distributor failures a local tarball cannot fix (arch detection, abort, corrupted baseline). */
+export const SERVER_BUNDLE_DISTRIBUTE_FAILED_CODE = 'server-bundle-distribute-failed'
+
 /** ctx.state key: what the failed step needed (read by the import action). */
 export const SERVER_BUNDLE_IMPORT_TARGET_KEY = 'serverBundleImportTarget'
 
@@ -35,7 +38,8 @@ export function isImportableDistributeFailure(errorCode: DistributeFailure['erro
 /**
  * Build the error an install step throws for a failed distribute call. Importable
  * failures carry `code = server-bundle-unavailable` and record the import target
- * on ctx.state; the message keeps the `[errorCode] error` shape used since T0321.
+ * on ctx.state; the others `server-bundle-distribute-failed` (T0660). The message
+ * keeps the `[errorCode] error` shape used since T0321.
  */
 export function distributeFailureError(ctx: WizardContext, result: DistributeFailure): Error {
   const error = new Error(`[${result.errorCode}] ${result.error}`) as Error & { code?: string }
@@ -43,6 +47,7 @@ export function distributeFailureError(ctx: WizardContext, result: DistributeFai
     error.code = SERVER_BUNDLE_UNAVAILABLE_CODE
     ctx.state[SERVER_BUNDLE_IMPORT_TARGET_KEY] = { arch: result.arch, version: result.version } satisfies ServerBundleImportTarget
   } else {
+    error.code = SERVER_BUNDLE_DISTRIBUTE_FAILED_CODE
     delete ctx.state[SERVER_BUNDLE_IMPORT_TARGET_KEY]
   }
   return error

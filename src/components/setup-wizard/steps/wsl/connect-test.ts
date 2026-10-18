@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 
 export const connectTestStep: WizardStep = {
   id: 'connect-test',
@@ -18,7 +19,7 @@ export const connectTestStep: WizardStep = {
     }
 
     if (!ctx.remoteToken) {
-      throw new Error('Remote server token was not available after starting the BAT service.')
+      throw wizardError('Remote server token was not available after starting the BAT service.', PRECONDITION_MISSING_CODE)
     }
 
     // T0382 (BUG-091): same ctx.serverPort the unit and the profile use. No
@@ -29,7 +30,7 @@ export const connectTestStep: WizardStep = {
     const host = endpoint ? endpoint.host : 'localhost'
     const port = endpoint ? endpoint.port : ctx.serverPort
     if (typeof port !== 'number') {
-      throw new Error('Server port was not resolved before the connection test; re-run the service step.')
+      throw wizardError('Server port was not resolved before the connection test; re-run the service step.', PRECONDITION_MISSING_CODE)
     }
     let lastError: string | null = null
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -52,6 +53,6 @@ export const connectTestStep: WizardStep = {
       }
     }
 
-    throw new Error(lastError ?? 'Connection test failed')
+    throw wizardError(lastError ?? 'Connection test failed', 'connect-test-failed')
   },
 }

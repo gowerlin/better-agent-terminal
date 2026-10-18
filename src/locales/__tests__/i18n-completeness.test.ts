@@ -279,3 +279,75 @@ describe('remote setup screens i18n completeness (T0652)', () => {
     expect(body).not.toMatch(/password|密碼|密码/i)
   })
 })
+
+// T0660 (BUG-161): wizard step errors (error registry entries, incl. the
+// `body_win32` / `body_darwin` context variants), recovery warnings, the
+// cancel notice, WSL distro option descriptions and the thumbnail Supervisor
+// menu resolve through i18next.
+const T0660_KEYS = [
+  'wizard.cancelled',
+  'wizard.shared.warning.finalizeFailed',
+  'wizard.shared.warning.jumpRollbackFailed',
+  'wizard.shared.error.preconditionMissing.title',
+  'wizard.docker.error.startFailed.body',
+  'wizard.wsl.error.requiresWsl2.title',
+  'wizard.wsl.pickDistro.optionDescription',
+  'wizard.wsl.pickDistro.state.Running',
+  'wizard.wsl.pickDistro.state.Stopped',
+  'wizard.ssh.error.clientMissing.body_win32',
+  'wizard.ssh.error.clientMissing.body_darwin',
+  'wizard.ssh.error.verifyFailed.body_darwin',
+  'workspace.setSupervisor',
+  'workspace.removeSupervisor',
+  'profiles.addMenuSuggested',
+  'common.close',
+] as const
+
+const T0660_ROOTS = [
+  'wizard.shared.error',
+  'wizard.shared.warning',
+  'wizard.docker.error',
+  'wizard.wsl.error',
+  'wizard.wsl.pickDistro',
+  'wizard.ssh.error',
+] as const
+
+describe('wizard step errors / thumbnail menu i18n completeness (T0660)', () => {
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s contains every key as a non-empty string', (_name, locale) => {
+    for (const key of T0660_KEYS) {
+      const value = getNested(locale, key)
+      expect(value, `missing "${key}"`).toBeTypeOf('string')
+      expect((value as string).trim().length).toBeGreaterThan(0)
+    }
+  })
+
+  it.each([
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s ships the same key sets as en under each T0660 root, all translated', (_name, locale) => {
+    for (const root of T0660_ROOTS) {
+      const keys = flattenKeys(getNested(en, root), root)
+      expect(flattenKeys(getNested(locale, root), root).sort()).toEqual(keys.sort())
+    }
+    expect(getNested(locale, 'workspace.setSupervisor')).not.toBe(getNested(en, 'workspace.setSupervisor'))
+    expect(getNested(locale, 'wizard.shared.error.preconditionMissing.body')).not.toBe(
+      getNested(en, 'wizard.shared.error.preconditionMissing.body'),
+    )
+  })
+
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s recovery warnings keep the {{step}} / {{error}} placeholders', (_name, locale) => {
+    for (const key of ['wizard.shared.warning.finalizeFailed', 'wizard.shared.warning.jumpRollbackFailed']) {
+      const value = getNested(locale, key) as string
+      expect(value).toContain('{{step}}')
+      expect(value).toContain('{{error}}')
+    }
+  })
+})

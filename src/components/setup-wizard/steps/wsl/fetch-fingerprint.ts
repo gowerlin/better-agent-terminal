@@ -6,6 +6,7 @@
 // with a 5s timeout and returns a structured result; failures are rethrown
 // here with `code` so WizardErrorMapper resolves them at stage 1.
 import type { WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 
 // T0387 (BUG-093): host is only passed when ctx.verifyEndpoint is set (SSH).
 type FetchFingerprintImpl = (port: number, host?: string) => Promise<string>
@@ -65,7 +66,7 @@ export const fetchFingerprintStep: WizardStep = {
     const endpoint = ctx.verifyEndpoint
     const port = endpoint ? endpoint.port : ctx.serverPort
     if (typeof port !== 'number') {
-      throw new Error('Server port was not resolved before fetching the TLS fingerprint; re-run the service step.')
+      throw wizardError('Server port was not resolved before fetching the TLS fingerprint; re-run the service step.', PRECONDITION_MISSING_CODE)
     }
     let lastError: unknown = null
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {

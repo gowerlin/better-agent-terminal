@@ -368,7 +368,7 @@ export function FilePreviewModal({ filePath, onClose }: FilePreviewModalProps) {
           >
             &#128269;
           </button>
-          <button className="path-preview-close" onClick={onClose}>×</button>
+          <button className="path-preview-close" aria-label={t('common.close')} onClick={onClose}>×</button>
         </div>
         {searchOpen && (
           <div className="path-preview-search">

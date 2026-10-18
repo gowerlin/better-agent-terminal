@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import {
   DOCKER_OWNERSHIP_KEYS,
   isContainerCreatedByWizard,
@@ -18,13 +19,13 @@ const HEALTH_WAIT_MS = 45_000
 async function waitForHealthy(name: string): Promise<void> {
   for (let attempt = 0; attempt < HEALTH_WAIT_MS / HEALTH_POLL_INTERVAL_MS; attempt += 1) {
     const health = await window.electronAPI.docker.getContainerHealth(name)
-    if (!health.ok) throw new Error(health.error ?? `Failed to read Docker health for ${name}.`)
+    if (!health.ok) throw wizardError(health.error ?? `Failed to read Docker health for ${name}.`, 'docker-health-unavailable', { name })
     if (health.health === 'healthy' || health.health === 'none') return
-    if (health.health === 'unhealthy') throw new Error(`Docker container ${name} reported unhealthy.`)
+    if (health.health === 'unhealthy') throw wizardError(`Docker container ${name} reported unhealthy.`, 'docker-container-unhealthy', { name })
     await new Promise((resolve) => setTimeout(resolve, HEALTH_POLL_INTERVAL_MS))
   }
 
-  throw new Error(`Timed out waiting for Docker container ${name} to become healthy.`)
+  throw wizardError(`Timed out waiting for Docker container ${name} to become healthy.`, 'docker-health-timeout', { name })
 }
 
 type DockerExposure = NonNullable<Awaited<ReturnType<typeof window.electronAPI.docker.startContainer>>['exposure']>
@@ -61,7 +62,7 @@ export const startDockerServerStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx) {
     const containerName = typeof ctx.state.dockerContainer === 'string' ? ctx.state.dockerContainer : ''
-    if (!containerName) throw new Error('Container name is missing.')
+    if (!containerName) throw wizardError('Container name is missing.', PRECONDITION_MISSING_CODE)
 
     const containerMode = ctx.state.containerMode
 
@@ -118,7 +119,9 @@ export const startDockerServerStep: WizardStep = {
           ctx.state.remoteToken = startResult.token
         }
       }
-      throw new Error(startResult.error ?? `Failed to start Docker container ${containerName}.`)
+      throw wizardError(startResult.error ?? `Failed to start Docker container ${containerName}.`, 'docker-start-failed', {
+        name: containerName,
+      })
     }
     // Before the health wait: a pre-fix image never turns healthy, and the
     // warning is what tells the user why.
@@ -203,8 +206,10 @@ async function containerExists(name: string): Promise<boolean> {
 async function claimNewContainer(ctx: WizardContext, name: string): Promise<void> {
   if (isContainerCreatedByWizard(ctx, name)) return
   if (await containerExists(name)) {
-    throw new Error(
+    throw wizardError(
       `Docker container ${name} already exists and was not created by this setup run. BAT will not reuse or remove it — go back to "Choose Docker container mode" to pick another name or use the existing container.`,
+      'docker-container-not-owned',
+      { name },
     )
   }
   ctx.state[DOCKER_OWNERSHIP_KEYS.containerCreated] = name

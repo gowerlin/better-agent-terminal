@@ -296,7 +296,7 @@ export function ThumbnailBar({
                   >
                     <span className="thumbnail-add-menu-icon" style={{ color: def.color }}>{def.icon}</span>
                     {def.name}
-                    {def.suggested && <span className="thumbnail-add-menu-suggested">suggested</span>}
+                    {def.suggested && <span className="thumbnail-add-menu-suggested">{t('profiles.addMenuSuggested')}</span>}
                   </div>
                 )
                 pushTowerAfter(def.id)
@@ -307,7 +307,7 @@ export function ThumbnailBar({
                 <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeAgent(); setShowAddMenu(false) }}>
                   <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>✦</span>
                   Claude Agent V1
-                  <span className="thumbnail-add-menu-suggested">suggested</span>
+                  <span className="thumbnail-add-menu-suggested">{t('profiles.addMenuSuggested')}</span>
                 </div>
               )
               if (onAddClaudeAgentV2) items.push(
@@ -326,7 +326,7 @@ export function ThumbnailBar({
                 <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeCli(); setShowAddMenu(false) }}>
                   <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>▶</span>
                   Claude CLI
-                  <span className="thumbnail-add-menu-suggested">suggested</span>
+                  <span className="thumbnail-add-menu-suggested">{t('profiles.addMenuSuggested')}</span>
                 </div>
               )
               if (onAddClaudeCliAsTower) items.push(towerItem())

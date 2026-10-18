@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { readWslBundleInstall, resolveWslHome, WSL_SERVICE_START_AFTER_RESTORE_KEY } from './install-server-bundle'
 
 const SERVICE_NAME = 'bat-server.service'
@@ -16,7 +17,7 @@ export interface WslServicePaths {
 
 export function buildWslServicePaths(home: string): WslServicePaths {
   if (!home.startsWith('/') || home.includes('~')) {
-    throw new Error(`Expected an absolute home directory, got ${JSON.stringify(home)}`)
+    throw wizardError(`Expected an absolute home directory, got ${JSON.stringify(home)}`, 'wsl-home-unresolved')
   }
   const base = home.replace(/\/+$/, '')
   return {
@@ -30,7 +31,7 @@ function assertAbsoluteInstallPath(ctx: WizardContext): string {
   if (!installPath.startsWith('/')) {
     // A `~/...` path here means install-server-bundle did not run with the
     // T0378 home resolution (e.g. ctx default) — systemd would reject it.
-    throw new Error(`BAT server install path must be absolute for systemd, got ${JSON.stringify(installPath)}. Re-run the install step.`)
+    throw wizardError(`BAT server install path must be absolute for systemd, got ${JSON.stringify(installPath)}. Re-run the install step.`, PRECONDITION_MISSING_CODE)
   }
   return installPath
 }
@@ -102,7 +103,9 @@ async function takeUnitSnapshot(ctx: WizardContext, distro: string, unitPath: st
   if (readUnitSnapshot(ctx)) return
   const result = await window.electronAPI.wslSystemd.snapshotUnit(distro, SERVICE_NAME, { path: unitPath })
   if (!result.ok) {
-    throw new Error(`Could not read the current BAT service in ${distro} before changing it: ${result.error}`)
+    throw wizardError(`Could not read the current BAT service in ${distro} before changing it: ${result.error}`, 'wsl-unit-snapshot-failed', {
+      distro,
+    })
   }
   ctx.state[WSL_UNIT_SNAPSHOT_KEY] = {
     path: unitPath,
@@ -148,10 +151,10 @@ export const writeSystemdUnitStep: WizardStep = {
     // unit); rollback resets it.
     if (ctx.state.wslUnitWriteStarted !== true) ctx.state.wslUnitWriteStarted = false
     if (!ctx.wslDistro) {
-      throw new Error('Select a WSL distro before configuring the BAT service.')
+      throw wizardError('Select a WSL distro before configuring the BAT service.', PRECONDITION_MISSING_CODE)
     }
     if (!ctx.serverInstallPath) {
-      throw new Error('Install the BAT server bundle before configuring the BAT service.')
+      throw wizardError('Install the BAT server bundle before configuring the BAT service.', PRECONDITION_MISSING_CODE)
     }
 
     const servicePaths = ctx.wslSystemdEnabled === false
@@ -185,7 +188,7 @@ export const writeSystemdUnitStep: WizardStep = {
     })
 
     if (!writeResult.ok) {
-      throw new Error('Failed to write BAT systemd unit')
+      throw wizardError('Failed to write BAT systemd unit', 'wsl-unit-write-failed')
     }
     await holdDistro(ctx, ctx.wslDistro)
 

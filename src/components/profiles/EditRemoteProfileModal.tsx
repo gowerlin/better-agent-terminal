@@ -76,7 +76,7 @@ export function EditRemoteProfileModal({
       <div className="settings-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="settings-header">
           <h2>{t('profiles.editConnection')}</h2>
-          <button className="settings-close" onClick={onClose}>&times;</button>
+          <button className="settings-close" aria-label={t('common.close')} onClick={onClose}>&times;</button>
         </div>
         <div className="settings-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <input

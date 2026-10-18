@@ -65,7 +65,7 @@ function EditDialog({ snippet, isNew, workspaceId, onSave, onClose }: Readonly<E
             <div className="snippet-edit-dialog" onClick={e => e.stopPropagation()}>
                 <div className="snippet-edit-header">
                     <h3>{isNew ? t('snippets.newSnippet') : t('snippets.editSnippet')}</h3>
-                    <button className="close-btn" onClick={onClose}>×</button>
+                    <button className="close-btn" aria-label={t('common.close')} onClick={onClose}>×</button>
                 </div>
                 <div className="snippet-edit-body">
                     <div className="form-group">

@@ -378,7 +378,9 @@
     "workspaces": "工作區",
     "moveToLeft": "移至左側面板",
     "moveToMain": "移至主區域",
-    "moveToRight": "移至右側面板"
+    "moveToRight": "移至右側面板",
+    "setSupervisor": "設為監督者",
+    "removeSupervisor": "移除監督者"
   },
   "github": {
     "pullRequests": "Pull Requests",
@@ -870,6 +872,26 @@
         },
         "stepFailed": {
           "title": "步驟發生錯誤"
+        },
+        "preconditionMissing": {
+          "title": "前面的步驟沒有完成",
+          "body": "這一步需要前面步驟的結果，但目前沒有（前面的步驟失敗或被略過）。請回到前面的步驟重新執行，或取消後重新設定。詳細資訊會寫出缺少的項目。"
+        },
+        "profileSaveFailed": {
+          "title": "無法儲存遠端配置",
+          "body": "BAT 無法儲存新遠端配置的設定，這次設定已復原。請重新執行精靈；若一直失敗，請查看 BAT 的日誌。"
+        },
+        "connectTestFailed": {
+          "title": "連線測試失敗",
+          "body": "BAT 連不上剛設定好的 BAT 伺服器。請確認伺服器正在執行（查看它的日誌）後重試；也可以略過這項測試，之後再從配置連線。"
+        },
+        "serverBundleInstallFailed": {
+          "title": "無法安裝 BAT 伺服器套件",
+          "body": "BAT 已取得伺服器套件，但在目標環境安裝時失敗。下方詳細資訊是目標環境回報的錯誤（例如磁碟已滿或沒有寫入權限）。處理後再重試。"
+        },
+        "serverBundleDistributeFailed": {
+          "title": "無法準備 BAT 伺服器套件",
+          "body": "BAT 無法取得這個目標環境要用的伺服器套件（例如偵測不到伺服器的架構，或快取的套件已損壞）。下方詳細資訊是原因。請重試；若一直失敗，請查看 BAT 的日誌。"
         }
       },
       "bundleImport": {
@@ -891,7 +913,9 @@
         }
       },
       "warning": {
-        "systemdFallback": "無法使用 systemd，請改用備用指令：{{command}}"
+        "systemdFallback": "無法使用 systemd，請改用備用指令：{{command}}",
+        "finalizeFailed": "「{{step}}」之後的清理沒有完成：{{error}}",
+        "jumpRollbackFailed": "回到前面的步驟之前，無法復原「{{step}}」：{{error}}"
       }
     },
     "wsl": {
@@ -933,6 +957,26 @@
         "notInstalled": {
           "title": "找不到 WSL2",
           "body": "請先安裝 WSL2，然後重試。Windows 11 / 10 22H2 可在 PowerShell 執行 `wsl --install`。"
+        },
+        "requiresWsl2": {
+          "title": "需要 WSL2",
+          "body": "已安裝的發行版都在 WSL 1 上執行，BAT 需要 WSL 2。請在 PowerShell 執行 `wsl --set-version <發行版> 2` 轉換其中一個（`wsl -l -v` 可列出名稱），然後重試。"
+        },
+        "homeUnresolved": {
+          "title": "找不到 WSL 使用者的主目錄",
+          "body": "BAT 無法讀取 WSL 發行版預設使用者的主目錄。請確認發行版能正常啟動（在終端機開啟一次並完成使用者設定），然後重試。"
+        },
+        "unitSnapshotFailed": {
+          "title": "無法讀取目前的 BAT 服務",
+          "body": "修改 {{distro}} 內的 BAT 服務前，BAT 會先記下目前的設定，取消時才能還原；這次讀取失敗。下方詳細資訊是錯誤內容。請重試。"
+        },
+        "unitWriteFailed": {
+          "title": "無法寫入 BAT 服務檔",
+          "body": "BAT 無法在 WSL 發行版內寫入 BAT 伺服器的 systemd unit 檔。請確認發行版正在執行、磁碟沒有滿，然後重試。"
+        },
+        "serviceStartFailed": {
+          "title": "BAT 服務沒有啟動",
+          "body": "systemd 無法在 WSL 發行版內啟動 BAT 伺服器服務。下方詳細資訊是錯誤內容；服務日誌可在發行版內執行 `journalctl --user -u bat-server.service -n 50` 查看。處理後再重試。"
         }
       },
       "warning": {
@@ -948,7 +992,12 @@
       },
       "pickDistro": {
         "title": "選擇 WSL2 發行版",
-        "description": "選擇要讓 BAT 安裝遠端伺服器套件的發行版。"
+        "description": "選擇要讓 BAT 安裝遠端伺服器套件的發行版。",
+        "optionDescription": "{{state}} • WSL{{version}}",
+        "state": {
+          "Running": "執行中",
+          "Stopped": "已停止"
+        }
       }
     },
     "docker": {
@@ -988,6 +1037,46 @@
         "portUnpublished": {
           "title": "容器沒有公開 BAT 伺服器埠",
           "body": "既有容器沒有把 BAT 伺服器埠（9876/tcp）公開到這台電腦上，BAT 連不到它。請改選「建立新容器」，或以 -p 127.0.0.1:<埠>:9876 重新建立容器後重試。"
+        },
+        "noContainers": {
+          "title": "找不到 Docker 容器",
+          "body": "你選了沿用既有容器，但 Docker 在這台電腦上沒有任何容器。請按「重試」後改選「建立新容器」，或先建立一個容器。"
+        },
+        "containerNamesExhausted": {
+          "title": "沒有可用的 Docker 容器名稱",
+          "body": "Docker 容器 {{name}} 到 {{last}} 都已存在。請取消後替配置改名，或按「重試」後改選「沿用既有容器」。"
+        },
+        "mountsNone": {
+          "title": "沒有選擇資料夾",
+          "body": "請至少選一個這台電腦上的資料夾掛載到 Docker 容器。按「重試」會再次開啟資料夾選擇視窗。"
+        },
+        "mountsInvalid": {
+          "title": "選擇的資料夾無法掛載",
+          "body": "Docker 無法把選擇的一個或多個資料夾掛載到容器。下方詳細資訊是原因。請按「重試」改選其他資料夾。"
+        },
+        "inspectFailed": {
+          "title": "無法讀取 Docker 容器",
+          "body": "BAT 無法讀取 Docker 容器 {{name}} 的資訊。請確認容器還在、Docker 正在執行，然後重試。"
+        },
+        "containerNotOwned": {
+          "title": "Docker 容器名稱已被使用",
+          "body": "Docker 容器 {{name}} 已存在，而且不是這次設定建立的。BAT 不會沿用或移除它。請回到選擇容器模式的步驟取得其他名稱，或改為沿用既有容器。"
+        },
+        "startFailed": {
+          "title": "無法啟動 Docker 容器",
+          "body": "Docker 無法啟動容器 {{name}}。下方詳細資訊是 Docker 回報的內容。處理後再重試。"
+        },
+        "healthUnavailable": {
+          "title": "無法讀取容器的健康狀態",
+          "body": "BAT 無法讀取 Docker 容器 {{name}} 的健康狀態。下方詳細資訊是 Docker 回報的內容。等 Docker 正常執行後再重試。"
+        },
+        "containerUnhealthy": {
+          "title": "Docker 容器狀態不正常",
+          "body": "Docker 容器 {{name}} 回報 unhealthy：容器內的 BAT 伺服器沒有回應。請查看容器日誌（`docker logs {{name}}`）後重試。"
+        },
+        "healthTimeout": {
+          "title": "Docker 容器沒有進入正常狀態",
+          "body": "Docker 容器 {{name}} 在 45 秒內沒有回報 healthy。請查看容器日誌（`docker logs {{name}}`）後重試。"
         }
       },
       "pickContainer": {
@@ -1044,13 +1133,60 @@
         "forwardingDenied": {
           "title": "SSH 伺服器不允許 port forwarding",
           "body": "BAT 透過 SSH tunnel 連到 BAT 伺服器，但目標主機的 sshd 拒絕轉送（AllowTcpForwarding）。請主機管理員為這個帳號開放 TCP forwarding（sshd_config 設 AllowTcpForwarding local 或 yes，含 Match 區塊），重新載入 sshd 後重試。"
+        },
+        "clientMissing": {
+          "title": "找不到 OpenSSH 用戶端",
+          "body": "BAT 在這台電腦上找不到 OpenSSH 用戶端（`ssh`）。請先安裝（例如 Debian / Ubuntu 執行 `sudo apt install openssh-client`），然後重試。",
+          "body_win32": "BAT 在這台電腦上找不到 OpenSSH 用戶端（`ssh`）。請到「設定 → 應用程式 → 選用功能 → 新增功能」安裝「OpenSSH 用戶端」，然後重試。",
+          "body_darwin": "BAT 找不到 OpenSSH 用戶端（`ssh`）。macOS 已內建它；請在「終端機」執行 `which ssh` 檢查，然後重試。"
+        },
+        "hostKey": {
+          "title": "SSH 主機金鑰驗證失敗",
+          "body": "這台伺服器的 SSH 主機金鑰不在已知清單中，或已經改變。請在終端機執行一次 `ssh <主機>` 並接受主機金鑰（若是金鑰改變，請先確認伺服器真的重裝過），然後重試。"
+        },
+        "connectTimeout": {
+          "title": "SSH 連線逾時",
+          "body": "SSH 伺服器沒有回應。請確認主機連得到、防火牆允許 SSH 埠（22 或自訂的埠），然後重試。"
+        },
+        "remotePathInvalid": {
+          "title": "伺服器上的路徑無法使用",
+          "body": "伺服器回報的 $HOME 必須是不含特殊字元的絕對路徑，安裝路徑必須是絕對路徑或以 ~/ 開頭。詳細資訊會寫出 BAT 收到的值。"
+        },
+        "unitWriteFailed": {
+          "title": "無法寫入 BAT 服務檔",
+          "body": "BAT 無法在伺服器上寫入 systemd unit 檔。可能原因：磁碟配額已用完，或 `~/.config/systemd/user` 是唯讀。詳細資訊會寫出伺服器回報的內容。",
+          "body_darwin": "BAT 無法在伺服器上寫入 launchd plist。可能原因：磁碟配額已用完，或 `~/Library/LaunchAgents` 是唯讀。詳細資訊會寫出伺服器回報的內容。"
+        },
+        "enableFailed": {
+          "title": "無法啟用 BAT 服務",
+          "body": "伺服器上的 `loginctl enable-linger` 或 `systemctl --user enable` 失敗。強化過的發行版需要 polkit 或 root 才能做這件事：請在伺服器上執行 `sudo loginctl enable-linger <使用者>`，然後按「已修復，重試」。",
+          "body_darwin": "伺服器上的 `launchctl load -w` 失敗。可能原因：plist 屬於其他使用者，或被「系統完整性保護」（SIP）拒絕載入。詳細資訊會寫出伺服器回報的內容。"
+        },
+        "startCrashed": {
+          "title": "bat-server 啟動後就結束了",
+          "body": "服務已註冊，但 bat-server 啟動後立刻結束。請透過 SSH 執行 `journalctl --user -u bat-server -n 50` 查看原因，然後重試。",
+          "body_darwin": "服務已註冊，但 bat-server 啟動後立刻結束。請透過 SSH 執行 `tail -n 50 ~/Library/Logs/com.bat-server.log`（若有設定日誌）查看原因，然後重試。"
+        },
+        "verifyFailed": {
+          "title": "無法確認 bat-server 正在執行",
+          "body": "服務看起來已啟動，但檢查時沒有看到在監聽的 socket。請透過 SSH 執行 `systemctl --user status bat-server` 查看狀態，然後重試。",
+          "body_darwin": "服務看起來已啟動，但 `pgrep -x bat-server` 找不到它。請透過 SSH 執行 `launchctl list | grep com.bat-server` 查看狀態，然後重試。"
+        },
+        "tunnelFailed": {
+          "title": "無法開啟 SSH tunnel",
+          "body": "BAT 透過 SSH port forwarding 檢查伺服器，但開啟失敗。下方詳細資訊是 ssh 回報的內容。請檢查 SSH 連線後重試。"
+        },
+        "fingerprintMismatch": {
+          "title": "連到了另一個伺服器",
+          "body": "檢查的埠上的 TLS 憑證不屬於這台主機上安裝的 BAT 伺服器，表示連到了另一個伺服器（例如本機 BAT 自己的遠端伺服器）。請確認 SSH 主機與伺服器埠，然後重試。"
         }
       },
       "pickHost": {
         "title": "選擇 SSH 主機",
         "description": "從 ~/.ssh/config 選一個要連線的別名。"
       }
-    }
+    },
+    "cancelled": "已取消設定。"
   },
   "remoteTools": {
     "installRequestFailed": "無法在遠端視窗啟動安裝。",

@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
+import { wizardError } from '../../error-mapper'
 
 export const pickWslDistroStep: WizardStep = {
   id: 'pick-wsl-distro',
@@ -32,7 +33,7 @@ export const pickWslDistroStep: WizardStep = {
       if (!ctx.warnings.includes(warning)) {
         ctx.warnings.push(warning)
       }
-      throw new Error('BAT requires WSL2. Upgrade an existing distro to version 2 and retry.')
+      throw wizardError('BAT requires WSL2. Upgrade an existing distro to version 2 and retry.', 'wsl-requires-wsl2')
     }
 
     // T0378: the cached $HOME belongs to the previously picked distro.
@@ -55,7 +56,10 @@ export const pickWslDistroStep: WizardStep = {
           options: v2Distros.map((distro) => ({
             value: distro.name,
             label: distro.name,
-            description: `${distro.state} • WSL${distro.version}`,
+            description: i18next.t('wizard.wsl.pickDistro.optionDescription', {
+              state: i18next.t(`wizard.wsl.pickDistro.state.${distro.state}`, distro.state),
+              version: distro.version,
+            }),
           })),
         })
       : defaultChoice

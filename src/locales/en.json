@@ -378,7 +378,9 @@
     "workspaces": "Workspaces",
     "moveToLeft": "Move to Left Panel",
     "moveToMain": "Move to Main Area",
-    "moveToRight": "Move to Right Panel"
+    "moveToRight": "Move to Right Panel",
+    "setSupervisor": "Set as Supervisor",
+    "removeSupervisor": "Remove Supervisor"
   },
   "github": {
     "pullRequests": "Pull Requests",
@@ -870,6 +872,26 @@
         },
         "stepFailed": {
           "title": "Step failed"
+        },
+        "preconditionMissing": {
+          "title": "An earlier step did not finish",
+          "body": "This step needs a result from an earlier step, and it is missing (the earlier step failed or was skipped). Go back and run the earlier step again, or cancel and start the setup over. The details name what is missing."
+        },
+        "profileSaveFailed": {
+          "title": "Could not save the remote profile",
+          "body": "BAT could not save the settings of the new remote profile, and this setup run was undone. Run the wizard again; if it keeps failing, check the BAT log."
+        },
+        "connectTestFailed": {
+          "title": "Connection test failed",
+          "body": "BAT could not connect to the BAT server it just set up. Make sure the server is running (check its log), then retry. You can also skip the test and connect later from the profile."
+        },
+        "serverBundleInstallFailed": {
+          "title": "Could not install the BAT server bundle",
+          "body": "BAT has the server bundle, but installing it on the target failed. The details below show the error the target reported (for example a full disk or no write permission). Fix it, then retry."
+        },
+        "serverBundleDistributeFailed": {
+          "title": "Could not prepare the BAT server bundle",
+          "body": "BAT could not get a server bundle for this target (for example the server architecture could not be detected, or the cached bundle is damaged). The details below show the reason. Retry; if it keeps failing, check the BAT log."
         }
       },
       "bundleImport": {
@@ -891,7 +913,9 @@
         }
       },
       "warning": {
-        "systemdFallback": "systemd is unavailable; use the fallback command: {{command}}"
+        "systemdFallback": "systemd is unavailable; use the fallback command: {{command}}",
+        "finalizeFailed": "Could not finish cleaning up after \"{{step}}\": {{error}}",
+        "jumpRollbackFailed": "Could not undo \"{{step}}\" before going back: {{error}}"
       }
     },
     "wsl": {
@@ -933,6 +957,26 @@
         "notInstalled": {
           "title": "WSL2 not found",
           "body": "Install WSL2 first, then retry. On Windows 11 / 10 22H2 you can run `wsl --install` in PowerShell."
+        },
+        "requiresWsl2": {
+          "title": "WSL2 is required",
+          "body": "Every installed distro runs on WSL 1, and BAT needs WSL 2. Convert one in PowerShell with `wsl --set-version <distro> 2` (`wsl -l -v` lists the names), then retry."
+        },
+        "homeUnresolved": {
+          "title": "Cannot find the WSL user's home directory",
+          "body": "BAT could not read the home directory of the default user in the WSL distro. Make sure the distro starts normally (open it once in a terminal and finish the user setup), then retry."
+        },
+        "unitSnapshotFailed": {
+          "title": "Cannot read the current BAT service",
+          "body": "Before changing the BAT service in {{distro}}, BAT saves its current settings so that cancelling can restore them, and reading them failed. The details below show the error. Retry."
+        },
+        "unitWriteFailed": {
+          "title": "Could not write the BAT service file",
+          "body": "BAT could not write the systemd unit file of the BAT server in the WSL distro. Make sure the distro is running and its disk is not full, then retry."
+        },
+        "serviceStartFailed": {
+          "title": "The BAT service did not start",
+          "body": "systemd could not start the BAT server service in the WSL distro. The details below show the error; for the service log run `journalctl --user -u bat-server.service -n 50` in the distro. Fix it, then retry."
         }
       },
       "warning": {
@@ -948,7 +992,12 @@
       },
       "pickDistro": {
         "title": "Choose a WSL2 distro",
-        "description": "Select the distro where BAT should install the remote server bundle."
+        "description": "Select the distro where BAT should install the remote server bundle.",
+        "optionDescription": "{{state}} • WSL{{version}}",
+        "state": {
+          "Running": "Running",
+          "Stopped": "Stopped"
+        }
       }
     },
     "docker": {
@@ -988,6 +1037,46 @@
         "portUnpublished": {
           "title": "The container does not publish the BAT server port",
           "body": "The existing container does not publish the BAT server port (9876/tcp) on this computer, so BAT cannot connect to it. Choose \"Create new\", or recreate the container with -p 127.0.0.1:<port>:9876 and retry."
+        },
+        "noContainers": {
+          "title": "No Docker containers found",
+          "body": "You chose to use an existing container, but Docker lists no containers on this computer. Retry and choose \"Create new\", or create a container first."
+        },
+        "containerNamesExhausted": {
+          "title": "No free Docker container name",
+          "body": "Docker containers {{name}} through {{last}} already exist. Cancel and give the profile another name, or retry and choose \"Use existing\"."
+        },
+        "mountsNone": {
+          "title": "No folder selected",
+          "body": "Choose at least one folder on this computer to mount into the Docker container. Retry to open the folder picker again."
+        },
+        "mountsInvalid": {
+          "title": "The selected folder cannot be mounted",
+          "body": "Docker cannot mount one or more of the selected folders into the container. The details below show why. Retry and choose another folder."
+        },
+        "inspectFailed": {
+          "title": "Cannot read the Docker container",
+          "body": "BAT could not read the details of Docker container {{name}}. Make sure the container still exists and Docker is running, then retry."
+        },
+        "containerNotOwned": {
+          "title": "Docker container name already in use",
+          "body": "Docker container {{name}} already exists, and this setup run did not create it. BAT will not reuse or remove it. Go back to choosing the container mode to get another name, or use the existing container."
+        },
+        "startFailed": {
+          "title": "Could not start the Docker container",
+          "body": "Docker could not start container {{name}}. The details below show what Docker reported. Fix the problem, then retry."
+        },
+        "healthUnavailable": {
+          "title": "Cannot read the container health",
+          "body": "BAT could not read the health status of Docker container {{name}}. The details below show what Docker reported. Retry once Docker is running normally."
+        },
+        "containerUnhealthy": {
+          "title": "The Docker container is unhealthy",
+          "body": "Docker container {{name}} reports unhealthy: the BAT server inside it is not responding. Check the container log (`docker logs {{name}}`), then retry."
+        },
+        "healthTimeout": {
+          "title": "The Docker container did not become healthy",
+          "body": "Docker container {{name}} did not report healthy within 45 seconds. Check the container log (`docker logs {{name}}`), then retry."
         }
       },
       "pickContainer": {
@@ -1044,13 +1133,60 @@
         "forwardingDenied": {
           "title": "The SSH server does not allow port forwarding",
           "body": "BAT reaches the BAT server through an SSH tunnel, but the target's sshd refused to forward it (AllowTcpForwarding). Ask the host's administrator to allow TCP forwarding for this account (AllowTcpForwarding local or yes in sshd_config, including any Match block), reload sshd, then retry."
+        },
+        "clientMissing": {
+          "title": "OpenSSH client not found",
+          "body": "BAT cannot find the OpenSSH client (`ssh`) on this computer. Install it (for example `sudo apt install openssh-client` on Debian / Ubuntu), then retry.",
+          "body_win32": "BAT cannot find the OpenSSH client (`ssh`) on this computer. Install it from Settings → Apps → Optional features → Add a feature → OpenSSH Client, then retry.",
+          "body_darwin": "BAT cannot find the OpenSSH client (`ssh`). macOS includes it; run `which ssh` in Terminal to check, then retry."
+        },
+        "hostKey": {
+          "title": "SSH host key verification failed",
+          "body": "The SSH host key of this server is unknown or has changed. Run `ssh <host>` once in a terminal and accept the host key (if it changed, first make sure the server really was reinstalled), then retry."
+        },
+        "connectTimeout": {
+          "title": "SSH connection timed out",
+          "body": "The SSH server did not answer. Check that the host is reachable and that the firewall allows the SSH port (22, or your custom port), then retry."
+        },
+        "remotePathInvalid": {
+          "title": "The server path cannot be used",
+          "body": "The $HOME the server reported must be an absolute path without special characters, and the install path must be absolute or start with ~/. The details show the value BAT received."
+        },
+        "unitWriteFailed": {
+          "title": "Could not write the BAT service file",
+          "body": "BAT could not write the systemd unit file on the server. Likely causes: the disk quota is used up, or `~/.config/systemd/user` is read-only. The details show the server's message.",
+          "body_darwin": "BAT could not write the launchd plist on the server. Likely causes: the disk quota is used up, or `~/Library/LaunchAgents` is read-only. The details show the server's message."
+        },
+        "enableFailed": {
+          "title": "Could not enable the BAT service",
+          "body": "`loginctl enable-linger` or `systemctl --user enable` failed on the server. Hardened distros need polkit or root for this: run `sudo loginctl enable-linger <user>` on the server, then choose \"Already fixed, retry\".",
+          "body_darwin": "`launchctl load -w` failed on the server. Likely causes: another user owns the plist, or System Integrity Protection rejected the load. The details show the server's message."
+        },
+        "startCrashed": {
+          "title": "bat-server exited on startup",
+          "body": "The service was registered, but bat-server exited right after starting. Run `journalctl --user -u bat-server -n 50` over SSH to see why, then retry.",
+          "body_darwin": "The service was registered, but bat-server exited right after starting. Run `tail -n 50 ~/Library/Logs/com.bat-server.log` over SSH (if logging is set up) to see why, then retry."
+        },
+        "verifyFailed": {
+          "title": "Could not confirm that bat-server is running",
+          "body": "The service seems to have started, but the check found no listening socket. Run `systemctl --user status bat-server` over SSH to see its state, then retry.",
+          "body_darwin": "The service seems to have started, but `pgrep -x bat-server` did not find it. Run `launchctl list | grep com.bat-server` over SSH to see its state, then retry."
+        },
+        "tunnelFailed": {
+          "title": "Could not open the SSH tunnel",
+          "body": "BAT checks the server through an SSH port forward, and opening it failed. The details below show what ssh reported. Check the SSH connection, then retry."
+        },
+        "fingerprintMismatch": {
+          "title": "Reached a different server",
+          "body": "The TLS certificate on the checked port does not belong to the BAT server installed on this host, so the check reached another server (for example this BAT's own remote server). Check the SSH host and the server port, then retry."
         }
       },
       "pickHost": {
         "title": "Select SSH host",
         "description": "Pick an alias from ~/.ssh/config to connect to."
       }
-    }
+    },
+    "cancelled": "Setup was cancelled."
   },
   "remoteTools": {
     "installRequestFailed": "Could not start the install in the remote window.",

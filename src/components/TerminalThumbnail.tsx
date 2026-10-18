@@ -352,11 +352,11 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           )}
           {isSupervisor ? (
             <button className="context-menu-item" onClick={() => { onClearSupervisor?.(); setCtxMenu(null) }}>
-              ✕ Remove Supervisor
+              ✕ {t('workspace.removeSupervisor')}
             </button>
           ) : (
             <button className="context-menu-item" onClick={() => { onSetSupervisor?.(terminal.id); setCtxMenu(null) }}>
-              👁 Set as Supervisor
+              👁 {t('workspace.setSupervisor')}
             </button>
           )}
           {isWorker && onCloseWorker && (

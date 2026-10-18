@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { wizardError } from '../../error-mapper'
 import { isContainerCreatedByWizard, removeContainerIfCreatedByWizard } from './ownership'
 
 function slugifyProfileId(name: unknown): string {
@@ -68,7 +69,7 @@ export const pickContainerStep: WizardStep = {
     // this step's rollback still sees the mode and container of the earlier
     // run that may have created one.
     if (mode === 'existing') {
-      if (containers.length === 0) throw new Error('No Docker containers found. Create one first or switch to "Create new".')
+      if (containers.length === 0) throw wizardError('No Docker containers found. Create one first or switch to "Create new".', 'docker-no-containers')
       const selectedContainer = keepContainer && typeof ctx.state.dockerContainer === 'string' && ctx.state.dockerContainer
         ? ctx.state.dockerContainer
         : containers[0].name
@@ -132,8 +133,10 @@ function resolveNewContainerName(
     if (isContainerCreatedByWizard(ctx, candidate) || !taken.has(candidate)) name = candidate
   }
   if (!name) {
-    throw new Error(
+    throw wizardError(
       `Docker containers ${defaultName} through ${defaultName}-${MAX_NAME_SUFFIX} already exist. Rename the profile or choose "Use existing".`,
+      'docker-container-names-exhausted',
+      { name: defaultName, last: `${defaultName}-${MAX_NAME_SUFFIX}` },
     )
   }
 

@@ -3935,7 +3935,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           <div className="claude-plan-modal" onClick={e => e.stopPropagation()}>
             <div className="claude-plan-modal-header">
               <span className="claude-plan-modal-title">{contentModal.title}</span>
-              <button className="claude-plan-modal-close" onClick={() => setContentModal(null)}>&times;</button>
+              <button className="claude-plan-modal-close" aria-label={t('common.close')} onClick={() => setContentModal(null)}>&times;</button>
             </div>
             {contentModal.markdown ? (
               <div
@@ -3959,7 +3959,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           <div className="claude-plan-modal claude-context-usage-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="claude-plan-modal-header">
               <span className="claude-plan-modal-title">Context Usage — {contextUsagePopup.model}</span>
-              <button className="claude-plan-modal-close" onClick={() => setContextUsagePopup(null)}>&times;</button>
+              <button className="claude-plan-modal-close" aria-label={t('common.close')} onClick={() => setContextUsagePopup(null)}>&times;</button>
             </div>
             <div className="claude-plan-modal-body" style={{ padding: '12px 16px', whiteSpace: 'normal', fontFamily: 'inherit' }}>
               <div style={{ marginBottom: 12 }}>
@@ -4098,7 +4098,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 <span className="claude-plan-modal-title">Cache Efficiency History (last {hist.length})</span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button className="claude-plan-modal-close" title="Clear history" style={{ fontSize: 14, opacity: 0.6 }} onClick={() => { cacheHistoryRef.current = []; setShowCacheHistory(false) }}>Clear</button>
-                  <button className="claude-plan-modal-close" onClick={() => setShowCacheHistory(false)}>&times;</button>
+                  <button className="claude-plan-modal-close" aria-label={t('common.close')} onClick={() => setShowCacheHistory(false)}>&times;</button>
                 </div>
               </div>
               <div className="claude-plan-modal-body" style={{ padding: '12px 16px', fontFamily: 'inherit' }}>
@@ -4249,7 +4249,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                   {turnMsgs.length} messages
                   {entry.timestamp ? ` · ${new Date(entry.timestamp).toLocaleTimeString()}` : ''}
                 </span>
-                <button className="claude-plan-modal-close" onClick={() => setCacheEntryModal(null)}>&times;</button>
+                <button className="claude-plan-modal-close" aria-label={t('common.close')} onClick={() => setCacheEntryModal(null)}>&times;</button>
               </div>
               <div className="claude-subagent-body">
                 <div className="claude-messages claude-timeline">
@@ -4288,7 +4288,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                   {taskMsgs.length} messages
                   {parentTask && parentTask.timestamp > 0 ? ` · ${formatElapsed(parentTask.timestamp)}` : ''}
                 </span>
-                <button className="claude-plan-modal-close" onClick={() => setTaskModal(null)}>&times;</button>
+                <button className="claude-plan-modal-close" aria-label={t('common.close')} onClick={() => setTaskModal(null)}>&times;</button>
               </div>
               <div className="claude-subagent-body" ref={el => {
                 if (!el) return
@@ -4350,7 +4350,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                   }}
                   title={t('claude.copyAllPrompts')}
                 >copy all</button>
-                <button className="claude-plan-modal-close" onClick={() => setShowPromptHistory(false)}>&times;</button>
+                <button className="claude-plan-modal-close" aria-label={t('common.close')} onClick={() => setShowPromptHistory(false)}>&times;</button>
               </div>
               <div className="claude-prompt-history-list">
                 {userPrompts.length === 0 ? (

@@ -1,4 +1,5 @@
 import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 
 /**
  * T0444 (BUG-111): every profile this step creates is recorded, so a re-run
@@ -80,7 +81,7 @@ async function updateExistingProfiles(ctx: WizardContext, existing: ListedProfil
     }
     const updated = await window.electronAPI.profile.update(profile.id, updates)
     if (!updated) {
-      throw new Error(`Failed to update the existing remote profile "${profile.name}".`)
+      throw wizardError(`Failed to update the existing remote profile "${profile.name}".`, 'wizard-profile-save-failed')
     }
     ctx.logger.info(`Updated the existing remote profile "${profile.name}" instead of creating a new one`)
   }
@@ -124,7 +125,7 @@ export const writeProfileStep: WizardStep = {
     // 9876 fallback — that is the host RemoteServer's default port.
     const port = ctx.serverPort
     if (typeof port !== 'number') {
-      throw new Error('Server port was not resolved before writing the remote profile.')
+      throw wizardError('Server port was not resolved before writing the remote profile.', PRECONDITION_MISSING_CODE)
     }
     const fingerprint = ctx.fingerprint ?? undefined
 
@@ -143,10 +144,10 @@ export const writeProfileStep: WizardStep = {
         sshServerHome?: string
       }
       if (!sshState.sshHost) {
-        throw new Error('SSH host is required before writing the remote profile.')
+        throw wizardError('SSH host is required before writing the remote profile.', PRECONDITION_MISSING_CODE)
       }
       if (!ctx.remoteToken) {
-        throw new Error('Remote token missing; BAT cannot create the SSH remote profile.')
+        throw wizardError('Remote token missing; BAT cannot create the SSH remote profile.', PRECONDITION_MISSING_CODE)
       }
       const serverHome = ctx.serverMetadata?.serverHome ?? sshState.sshServerHome
       const sshUpdates: ProfileUpdates = {
@@ -192,7 +193,7 @@ export const writeProfileStep: WizardStep = {
       // legacy `sshTunnelMode: 'direct'` in the state is not honoured.
       const updated = await window.electronAPI.profile.update(profile.id, sshUpdates)
       if (!updated) {
-        throw new Error('Failed to persist SSH profile metadata.')
+        throw wizardError('Failed to persist SSH profile metadata.', 'wizard-profile-save-failed')
       }
       await pruneSupersededProfiles(ctx)
       return
@@ -201,10 +202,10 @@ export const writeProfileStep: WizardStep = {
     if (ctx.targetOS === 'docker-linux') {
       const containerName = typeof ctx.state.dockerContainer === 'string' ? ctx.state.dockerContainer : ''
       if (!containerName) {
-        throw new Error('A Docker container is required before writing the remote profile.')
+        throw wizardError('A Docker container is required before writing the remote profile.', PRECONDITION_MISSING_CODE)
       }
       if (!ctx.remoteToken) {
-        throw new Error('Remote token missing; BAT cannot create the Docker remote profile.')
+        throw wizardError('Remote token missing; BAT cannot create the Docker remote profile.', PRECONDITION_MISSING_CODE)
       }
 
       const dockerMounts = Array.isArray(ctx.state.dockerMounts)
@@ -229,17 +230,17 @@ export const writeProfileStep: WizardStep = {
         remoteFingerprint: fingerprint,
       })
       if (!updated) {
-        throw new Error('Failed to persist Docker profile metadata.')
+        throw wizardError('Failed to persist Docker profile metadata.', 'wizard-profile-save-failed')
       }
       await pruneSupersededProfiles(ctx)
       return
     }
 
     if (!ctx.wslDistro) {
-      throw new Error('A WSL distro is required before writing the remote profile.')
+      throw wizardError('A WSL distro is required before writing the remote profile.', PRECONDITION_MISSING_CODE)
     }
     if (!ctx.remoteToken) {
-      throw new Error('Remote token missing; BAT cannot create the WSL remote profile.')
+      throw wizardError('Remote token missing; BAT cannot create the WSL remote profile.', PRECONDITION_MISSING_CODE)
     }
 
     const wslDistro = ctx.wslDistro
@@ -275,7 +276,7 @@ export const writeProfileStep: WizardStep = {
 
     const updated = await window.electronAPI.profile.update(profile.id, wslUpdates)
     if (!updated) {
-      throw new Error('Failed to persist WSL profile metadata.')
+      throw wizardError('Failed to persist WSL profile metadata.', 'wizard-profile-save-failed')
     }
     await pruneSupersededProfiles(ctx)
   },

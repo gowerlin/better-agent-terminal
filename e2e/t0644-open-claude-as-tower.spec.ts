@@ -106,7 +106,8 @@ test('Open Claude as Tower: `<ws> · Tower` on open, ⏻ restart and reopen; Cla
     await win.screenshot({ path: path.join(SHOTS, 'tower-tab.png') })
 
     // ── 2. the existing Claude CLI entry is unchanged ──
-    const plain = await addFromMenu(win, /^\s*▶\s*Claude CLI\s*(suggested)?\s*$/)
+    // T0660: the "suggested" tag follows the UI language.
+    const plain = await addFromMenu(win, /^\s*▶\s*Claude CLI\s*(suggested|建議|建议)?\s*$/)
     log(`plain tab: ${JSON.stringify(plain)}`)
     expect(plain.agentPreset).toBe('claude-cli')
     expect(plain.launchRole).toBeUndefined()

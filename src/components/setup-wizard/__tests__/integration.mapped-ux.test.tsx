@@ -210,7 +210,7 @@ describe('integration.mapped-ux (T0338) — 6 registry entries × Shell render �
       'permission-denied',
       { groupKey: 'wizard.group.connection' },
     )
-    const { container, getAllByText, getByText, findByText } = render(
+    const { container, getAllByText, getByText, findAllByText } = render(
       <SetupWizardShell steps={[configureStep, verifyStep]} ctx={makeCtx('ssh-linux')} />,
     )
     const actions = await waitForFailedActions(container)
@@ -233,8 +233,9 @@ describe('integration.mapped-ux (T0338) — 6 registry entries × Shell render �
     await waitFor(() => {
       expect(jumpSpy).toHaveBeenCalledWith(0)
     })
-    // Confirm `findByText` works post-action — sanity that Shell did not unmount.
-    expect(await findByText('SSH 認證失敗')).toBeInTheDocument()
+    // Confirm `findAllByText` works post-action — sanity that Shell did not unmount.
+    // T0660: the Stepper row shows the mapped title too, so it appears twice.
+    expect((await findAllByText('SSH 認證失敗')).length).toBeGreaterThanOrEqual(1)
   })
 
   // ─────────────────────────────────────────────────────────────────────

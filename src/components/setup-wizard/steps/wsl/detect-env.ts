@@ -1,4 +1,5 @@
 import type { WizardStep } from '../../wizard-runner'
+import { wizardError } from '../../error-mapper'
 import { getPreflightCached, type WizardPreflightResult } from '../../preflight'
 
 /**
@@ -91,15 +92,16 @@ export const detectEnvStep: WizardStep = {
     }
 
     if (window.electronAPI.platform !== 'win32') {
-      throw new Error('WSL setup is only available from the Windows BAT client.')
+      throw wizardError('WSL setup is only available from the Windows BAT client.', 'wsl-not-on-windows')
     }
 
     let result: Awaited<ReturnType<typeof window.electronAPI.wsl.list>> | undefined
     try {
       result = await window.electronAPI.wsl.list()
     } catch (error) {
-      throw new Error(
+      throw wizardError(
         `Unable to detect WSL. Install WSL2 first, then retry. ${error instanceof Error ? error.message : String(error)}`,
+        'wsl-not-installed',
       )
     }
 

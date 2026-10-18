@@ -61,7 +61,7 @@ export function WorkspaceEnvDialog({
                 <div className="dialog-header">
                     <h2>{t('workspaceSettings.title')}</h2>
                     <span className="dialog-subtitle">{workspace.alias || workspace.name}</span>
-                    <button className="dialog-close-btn" onClick={onClose}>×</button>
+                    <button className="dialog-close-btn" aria-label={t('common.close')} onClick={onClose}>×</button>
                 </div>
                 <div className="dialog-content">
                     {readOnly && (
