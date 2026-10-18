@@ -51,7 +51,8 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 - **CT 進階能力與案例（D165，13:46）**：T0633 研究 DONE → 首頁加「越用越懂你的專案」、`/control-tower` 加三節與 FAQ（併入 W2b）、新頁 `/cases`（W2d）。
 - **W2a DONE 並上線**（T0630 `7d22cb8b`，2026-10-18 13:59）：故事化首頁（A 雷達 Hero + C 時間軸故事 + 三欄對照 + 自動但不失控 + 實績 + 不用 CT 也好用 + 下載）；Lighthouse 桌面 a11y / BP 100。使用者本機預覽後授權 push（14:01，`ebeb8016..08046367`，Pages run `39102565113`）。預覽時列出的 4 個改進點（插圖形式單一、Hero 銜接與下半頁層次、計數器動畫 vs 設計語言 § 6、手機版故事長度）使用者未勾選，維持現狀，可在 W2b 再議。
 - **W2b-1 DONE 並上線**（T0634 `47b24606`，14:20）：`/control-tower` 14 節深入頁（含 D165 三節與 FAQ）、首頁「越用越懂你的專案」、nav。使用者預覽後授權 push（`08046367..13f207f3`，Pages run `39104035036`，`/control-tower` 200）。預覽建議的步驟器 / 二選一標示未選，維持現狀；手機 checklist 對齊 bug 由塔台判定併入 T0635。
-- **W2b-2 = T0635**（14:27 建立）：`/features`、`/faq`、`/contribute`、頁尾致謝、nav，修 checklist 對齊、設計語言補「你 = 藍」。
+- **W2b-2 DONE 並上線**（T0635 `5ddef4dc`，14:40）：`/features`（11 節）、`/faq`（7 題）、`/contribute`（回報 + Codex 協助測試）、頁尾致謝、nav「安裝 / 功能 / BAT × Control Tower / 參考▾」；修手機 checklist 對齊；設計語言補「你 = 藍」。使用者預覽後授權 push 到 `bc210843`（不含 T0636 進行中的 commit；Pages run `39106001818`）。預覽改用不依賴套件的靜態伺服器（`e2e-results/site-preview/serve.mjs`，gitignored），不再鎖住 `site/node_modules` 的 esbuild。
+- **CT 介紹放寬（D166，14:40）**：CT 不開源，但以「概念加細節」介紹 → 新頁「Control Tower 功能導覽」`/control-tower-tour` = T0636（W2b-3，14:43 派工）。
 
 ## 排期
 
