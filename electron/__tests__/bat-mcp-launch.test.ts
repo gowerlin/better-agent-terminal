@@ -77,7 +77,8 @@ describe('buildBatMcpLaunchArgs', () => {
   it('claude: --mcp-config=<userData>/bat-mcp/claude.json, the file holds command / args only', () => {
     const r = buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli', shellFamily: 'pwsh' })
     // T0590: no bat-hook.mjs in this helper dir → MCP only (hooks: blocked-hooks-launch.test.ts)
-    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--mcp-config=${configFile()}'`, mcp: true, hooks: false, hooksReason: `bat-hook.mjs not found in ${helperDir}` })
+    // T0641: no session name sent → `no-name`
+    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--mcp-config=${configFile()}'`, mcp: true, hooks: false, hooksReason: `bat-hook.mjs not found in ${helperDir}`, nameReason: 'no-name' })
     const content = fs.readFileSync(configFile(), 'utf8')
     expect(JSON.parse(content)).toEqual({ mcpServers: { bat: { type: 'stdio', command: 'node', args: [shim()] } } })
     expect(content).not.toContain(TOKEN)
@@ -123,7 +124,7 @@ describe('buildBatMcpLaunchArgs', () => {
 
   it('off in Settings → nothing (and no file)', () => {
     expect(buildBatMcpLaunchArgs(host({}, { batMcpEnabled: false }), { agentId: 'claude-cli', shellFamily: 'pwsh' }))
-      .toEqual({ injected: false, kind: 'claude', reason: 'turned off in Settings' })
+      .toEqual({ injected: false, kind: 'claude', reason: 'turned off in Settings', nameReason: 'no-name' })
     expect(fs.existsSync(configFile())).toBe(false)
     expect(isBatMcpEnabled(null)).toBe(true)
     expect(isBatMcpEnabled({})).toBe(true)
@@ -171,21 +172,22 @@ describe('buildBatMcpLaunchArgs', () => {
 })
 
 describe('agent:bat-mcp-launch-args handler', () => {
-  it('returns the args string, "" when not injected; logs each decision', () => {
+  it('returns the args string, "" when not injected; logs each decision', async () => {
     const handlers = new Map<string, SharedHandler>()
     const logs: string[] = []
     registerBatMcpHandlers((channel, handler) => { handlers.set(channel, handler) }, host({ logger: { log: m => logs.push(m), warn: m => logs.push(m) } }))
     const call = (...args: unknown[]) => handlers.get(BAT_MCP_LAUNCH_ARGS_CHANNEL)!({ windowId: 'w' }, ...args)
-    expect(call('claude-cli', 'pwsh', '')).toBe(`'--mcp-config=${configFile()}'`)
-    expect(call('codex-cli', 'bogus-family', '--yolo')).toMatch(/^-c 'mcp_servers\.bat\.command=/)
-    expect(call('claude-cli', 'pwsh', '--mcp-config x.json')).toBe('')
-    expect(call(42)).toBe('')
-    expect(call('gemini-cli', 'posix')).toBe('')
+    expect(await call('claude-cli', 'pwsh', '')).toBe(`'--mcp-config=${configFile()}'`)
+    expect(await call('codex-cli', 'bogus-family', '--yolo')).toMatch(/^-c 'mcp_servers\.bat\.command=/)
+    expect(await call('claude-cli', 'pwsh', '--mcp-config x.json')).toBe('')
+    expect(await call(42)).toBe('')
+    expect(await call('gemini-cli', 'posix')).toBe('')
     expect(logs).toEqual([
       expect.stringMatching(/^\[bat-mcp\] tab agent=claude-cli → injected: '--mcp-config=/),
       expect.stringMatching(/^\[bat-mcp\] tab agent=codex-cli → injected: -c /),
       // T0590: + whether the hooks went in
-      `[bat-mcp] tab agent=claude-cli → not injected (custom args already pass --mcp-config); hooks=no (bat-hook.mjs not found in ${helperDir})`,
+      // T0641: + whether the session name went in
+      `[bat-mcp] tab agent=claude-cli → not injected (custom args already pass --mcp-config); hooks=no (bat-hook.mjs not found in ${helperDir}); name=no (no-name)`,
     ])
     expect(logs.join('\n')).not.toContain(TOKEN)
   })

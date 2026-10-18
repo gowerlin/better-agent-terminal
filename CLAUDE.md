@@ -285,6 +285,14 @@
 - 🔴 使用者在 Worker 分頁輸入**不清除** `tower`、不取消問題（中斷後由 120 s 租約到期 `expired` / `not-polled`）。
 - 完整契約、helper / MCP 細節、限制常數、結束原因、日誌、已知限制、驗證清單（含 e2e `e2e/t0611-tower-question.spec.ts`）：[docs/agent-guide/tower-questions.md](docs/agent-guide/tower-questions.md)
 
+## Claude 分頁的 session 名稱（PLAN-050 / T0641，D167）
+
+- 用途：claude-cli 分頁啟動時加 `claude --name=<名稱>`，讓 CT 從 ListAgents 分得出 BAT 的塔台與 Worker。格式唯一實作 `claudeSessionName`（`src/lib/claude-session-name.ts`，main / renderer 共用）：Worker `<ws> · Worker · <T####>`、Tower `<ws> · Tower`（T0644 用）、其他 `<ws> · <短 ID>`；`<ws>` = 工作區 `alias || name` 清理後 ≤ 60 字、整個名稱 ≤ 200 字（從 `<ws>` 截斷）、空 → `BAT`。
+- 注入：`buildBatMcpLaunchArgs`（`electron/bat-mcp-launch.ts`）的獨立一段，只對 `claude-cli` / `claude-cli-worktree`，`--name=` 形式放在 BAT 參數最後。🔴 不受 `batMcpEnabled` 影響、不加 Settings 開關（D167）；名稱由呼叫端算好（renderer `startClaudeCliPty`、helper 派工以落點工作區），一律經 `withBatMcpLaunchArgs` / `createAgentPromptCommandBuilder`。
+- 降級（不注入、記原因）：非 claude-cli、自訂參數已含 `--name` / `-n` / 短旗標群組含 `n`（`user-args`）。🔴 system runtime 的 claude `< 2.1.76` 或讀不到版本絕不注入（`claude-too-old` / `version-unknown`，否則 claude exit 1）；檢查唯一實作 `createClaudeNameSupportCheck`（`electron/claude-version-check.ts`，`execFile` + 5 s、路徑 + mtime 快取），embedded 不檢查。
+- 記錄：每個分頁實際注入的名稱（或原因）以 terminal id 記在 `claudeSessionNameRecords`（`electron/claude-session-name-record.ts`，與 PTY 分開）；查詢欄位是 T0642。
+- 完整格式、降級表、headless 行為、日誌、pwsh / cmd(950) / Git Bash 編碼實測、已知限制、驗證清單：[docs/agent-guide/claude-session-name.md](docs/agent-guide/claude-session-name.md)
+
 ## 多 remote profile 同時連線（PLAN-039）
 
 - `RemoteConnectionRegistry`（`electron/remote/remote-connection-registry.ts`）取代單一 `remoteClient`：每個 profile 一條連線、一把 mutex。proxied IPC 依 sender 綁定的 profile 路由，無 live 連線即拒絕，不 fallback 本機。

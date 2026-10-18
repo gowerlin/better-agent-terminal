@@ -7,6 +7,7 @@
 | [bat-mcp-shim.md](bat-mcp-shim.md) | BAT MCP shim（`scripts/bat-mcp.mjs`）與 claude / codex 注入 | BAT MCP shim（PLAN-047 M1 / T0584） |
 | [blocked-state.md](blocked-state.md) | blocked 狀態偵測（claude hooks、`terminal:report-hook`、`scripts/bat-hook.mjs`） | blocked 狀態偵測（PLAN-047 M1b / T0590） |
 | [build-toolchain.md](build-toolchain.md) | Vite 7 toolchain、electron-builder 26 migration notes | Build Toolchain |
+| [claude-session-name.md](claude-session-name.md) | claude-cli 分頁的 `--name`（命名格式、注入點、降級、版本門檻、編碼實測） | Claude 分頁的 session 名稱（PLAN-050 / T0641，D167） |
 | [claude-agent-sdk-cli.md](claude-agent-sdk-cli.md) | Claude SDK / CLI 版本、模型、計價、effort、Runtime Selection、auto-update 停用 | Claude Agent SDK / CLI |
 | [detached-workspace.md](detached-workspace.md) | detached 視窗的 registry 合併、所有權、關窗 flush、quit 互動、Settings 入口 | Detached workspace 視窗的持久化（T0453 / T0491） |
 | [dialog-close-and-escape.md](dialog-close-and-escape.md) | Dialog 不因點擊外部關閉、`ModalOverlay`、Esc 統一 | Dialog 不因點擊外部關閉（T0563）、Esc 統一（T0567） |

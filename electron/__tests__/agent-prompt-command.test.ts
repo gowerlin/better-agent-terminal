@@ -103,6 +103,8 @@ function electronLikeDeps(settings: AgentCommandSettings | null, workspaceAgents
     // T0621: no codex version check (the command does not depend on it)
     codexWritesOsc: async () => false,
     recordBlockedDetection: () => {},
+    // T0641: never asked here (BAT MCP stub above injects nothing, so no `--name` either)
+    claudeNameSupport: async () => ({ inject: false, reason: 'version-unknown' }),
     logger: { warn: vi.fn() },
   }
 }

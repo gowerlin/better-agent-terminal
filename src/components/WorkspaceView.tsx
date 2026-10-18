@@ -19,6 +19,7 @@ import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } fr
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
 import { withBatMcpLaunchArgs } from '../lib/bat-mcp-launch'
+import { claudeSessionName } from '../lib/claude-session-name'
 import { getShellFromSettings, rememberTerminalShell } from '../lib/terminal-drop'
 import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
 import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
@@ -188,6 +189,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
   )
   const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
   // Ref (not a callback dep) so the launch effects below keep their dependency lists unchanged.
+  // T0641: the workspace part of claude-cli session names, read at launch (alias first)
+  const sessionWorkspaceNameRef = useRef('')
+  sessionWorkspaceNameRef.current = workspace.alias || workspace.name
   const noticeCodexDaemonRef = useRef<(cmd: string | null) => void>(() => {})
   noticeCodexDaemonRef.current = (cmd: string | null) => {
     if (codexDaemonNoticeShown || !cmd?.includes(CODEX_DAEMON_DISABLED_ARG)) return
@@ -746,7 +750,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const presetId = isWorktree ? 'claude-cli-worktree' : 'claude-cli'
     const customArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, presetId)
     // T0584: the `bat` MCP server right after the CLI path, before the custom args
-    const cmdParts = [await withBatMcpLaunchArgs(quoteCommandPath(cliPath, detectShellFamily(shell ?? '')), presetId, shell, customArgs, terminalId)]
+    // T0641: + the session name `<ws> · <short id>` (claude `--name=`, shown by ListAgents)
+    const sessionName = claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId }) ?? undefined
+    const cmdParts = [await withBatMcpLaunchArgs(quoteCommandPath(cliPath, detectShellFamily(shell ?? '')), presetId, shell, customArgs, terminalId, sessionName)]
     if (customArgs) {
       cmdParts.push(customArgs)
     }

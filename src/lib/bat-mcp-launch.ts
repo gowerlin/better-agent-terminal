@@ -6,6 +6,8 @@
  * has no handler) leaves the command as it was.
  * T0590: the args include claude's `blocked` hooks; `terminalId` lets the host record the tab's
  * `blockedDetection` (a server before T0590 ignores the extra argument).
+ * T0641: `sessionName` (claude only, `claudeSessionName`) → `--name=`, decided by the host (a server
+ * before T0641 ignores it).
  */
 import { detectShellFamily } from '../utils/shell-quote'
 
@@ -18,10 +20,11 @@ export async function withBatMcpLaunchArgs(
   shell: string | undefined,
   extraArgs: string | undefined,
   terminalId?: string,
+  sessionName?: string,
 ): Promise<string> {
   if (!agentId || !BAT_MCP_AGENTS.has(agentId)) return baseCommand
   try {
-    const args = await window.electronAPI.agent?.batMcpLaunchArgs?.(agentId, detectShellFamily(shell ?? ''), extraArgs, terminalId)
+    const args = await window.electronAPI.agent?.batMcpLaunchArgs?.(agentId, detectShellFamily(shell ?? ''), extraArgs, terminalId, ...(sessionName ? [sessionName] : []))
     return typeof args === 'string' && args ? `${baseCommand} ${args}` : baseCommand
   } catch (err) {
     window.electronAPI?.debug?.log(`[bat-mcp] agent=${agentId}: launch args unavailable (${err instanceof Error ? err.message : String(err)})`)

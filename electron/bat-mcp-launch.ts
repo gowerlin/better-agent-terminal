@@ -28,6 +28,15 @@
  * `allowManagedHooksOnly` in the managed one: `claudeHooksDisabledBy`) still gets the args, but the
  * terminal is recorded `none`: no hook will report, so neither `blocked` nor `agentStarted` can.
  *
+ * PLAN-050 / T0641 (D167, T0640 contract C-2 / C-3): + claude's session name, `--name=<name>`
+ * (`=` form, last of BAT's args, before the custom args), the name the caller computed with
+ * `claudeSessionName` (src/lib/claude-session-name.ts). A part of its own: **not** tied to Settings
+ * `batMcpEnabled` or the endpoint, no Settings switch. Not injected (`nameReason`): no name sent
+ * (`no-name`), the custom args set one (`user-args`), the system runtime's claude is `< 2.1.76` or
+ * its version unknown (`claude-too-old` / `version-unknown`, electron/claude-version-check.ts — the
+ * caller passes that check's result as `claudeNameSupport`; absent = `version-unknown`). The
+ * decision is recorded per terminal (`recordClaudeSessionName`, electron/claude-session-name-record.ts).
+ *
  * One implementation for every launch path: the renderer (`agent:bat-mcp-launch-args`, proxied,
  * so a remote window gets the server's paths) and `terminal:create-agent-command`
  * (`createAgentPromptCommandBuilder`). Raw command mode is never touched.
@@ -38,7 +47,10 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
+import { normalizeClaudeSessionName } from '../src/lib/claude-session-name'
 import type { HandlerRegistrar } from './handlers/types'
+import type { ClaudeNameSupport } from './claude-version-check'
+import type { ClaudeSessionNameReason, ClaudeSessionNameRecord } from './claude-session-name-record'
 
 export const BAT_MCP_SERVER_NAME = 'bat'
 export const BAT_MCP_SHIM = 'bat-mcp.mjs'
@@ -96,6 +108,15 @@ export function userArgsAttachBatMcp(kind: BatMcpAgentKind, extraArgs: string | 
 /** T0590: why the user's own claude args rule out BAT's `--settings` (hooks), or null. */
 export function userArgsPassClaudeSettings(extraArgs: string | undefined): string | null {
   return /(^|\s)--settings(\s|=|$)/.test(extraArgs ?? '') ? 'custom args already pass --settings' : null
+}
+
+/**
+ * T0641: the user's own claude args name the session — `--name` / `-n` (with a value or `=`), or a
+ * short-flag group holding `n` (`-cn <name>`, `-nfoo`). claude takes the last `--name`, so theirs
+ * would win over BAT's anyway; BAT then adds none and records `user-args`.
+ */
+export function userArgsSetClaudeName(extraArgs: string | undefined): boolean {
+  return /(^|\s)(--name(\s|=|$)|-[A-Za-z]*n)/.test(extraArgs ?? '')
 }
 
 /**
@@ -264,6 +285,14 @@ export interface BatMcpHost {
   recordBlockedDetection?(terminalId: string, detection: 'hook' | 'none'): void
   /** T0600: the claude settings files that can turn hooks off. Absent ⇒ `defaultClaudeSettingsFiles()`. */
   claudeSettingsFiles?(): readonly ClaudeSettingsFile[]
+  /**
+   * T0641: whether the claude a claude-cli launch now runs knows `--name`
+   * (`createClaudeNameSupportCheck`). Asked by `agent:bat-mcp-launch-args` only when a name could
+   * go in. Absent ⇒ `version-unknown` (never injected).
+   */
+  claudeNameSupport?(): Promise<ClaudeNameSupport>
+  /** T0641: records the session name decision of terminal `terminalId` (`claudeSessionNameRecords`). */
+  recordClaudeSessionName?(terminalId: string, record: ClaudeSessionNameRecord): void
   /** The platform the hook commands run on (tests). Default `process.platform`. */
   platform?: NodeJS.Platform
   fs?: BatMcpFs
@@ -277,16 +306,40 @@ export interface BatMcpLaunchRequest {
   extraArgs?: string
   /** T0590: the terminal being launched; its `blockedDetection` is recorded. */
   terminalId?: string
+  /** T0641: the claude session name (`claudeSessionName`); cleaned again here. */
+  sessionName?: string
+  /** T0641: the `claudeNameSupport` check's result for this launch. Absent ⇒ `version-unknown`. */
+  claudeNameSupport?: ClaudeNameSupport
 }
 
 /**
- * `injected` = some args (MCP and / or, claude only, the hooks). `mcp` / `hooks` say which;
- * `mcpReason` / `hooksReason` why a part is missing (`hooks` is always false for codex).
- * T0600: `hooksDisabled` = the hooks went in, but claude's own settings turn them off.
+ * `injected` = some args (MCP and / or, claude only, the hooks and / or the session name). `mcp` /
+ * `hooks` say which; `mcpReason` / `hooksReason` why a part is missing (`hooks` is always false for
+ * codex). T0600: `hooksDisabled` = the hooks went in, but claude's own settings turn them off.
+ * T0641 (claude only): `name` = the session name that went in, else `nameReason`.
  */
 export type BatMcpLaunchResult =
-  | { injected: true; kind: BatMcpAgentKind; args: string; mcp: boolean; hooks: boolean; mcpReason?: string; hooksReason?: string; hooksDisabled?: string }
-  | { injected: false; reason: string; kind?: BatMcpAgentKind; hooksReason?: string }
+  | { injected: true; kind: BatMcpAgentKind; args: string; mcp: boolean; hooks: boolean; mcpReason?: string; hooksReason?: string; hooksDisabled?: string; name?: string; nameReason?: ClaudeSessionNameReason }
+  | { injected: false; reason: string; kind?: BatMcpAgentKind; hooksReason?: string; nameReason?: ClaudeSessionNameReason }
+
+type ClaudeNameDecision = { name: string; reason?: undefined } | { name?: undefined; reason: ClaudeSessionNameReason }
+
+/** T0641: the claude session name of `request`, or why none (C-3). */
+function claudeNameDecision(request: BatMcpLaunchRequest): ClaudeNameDecision {
+  if (userArgsSetClaudeName(request.extraArgs)) return { reason: 'user-args' }
+  const name = normalizeClaudeSessionName(request.sessionName)
+  if (!name) return { reason: 'no-name' }
+  const support = request.claudeNameSupport
+  if (!support) return { reason: 'version-unknown' }
+  return support.inject ? { name } : { reason: support.reason }
+}
+
+/** T0641: a session name could go in (claude, a name, not set by the custom args): ask `claudeNameSupport`. */
+export function needsClaudeNameSupport(request: Pick<BatMcpLaunchRequest, 'agentId' | 'extraArgs' | 'sessionName'>): boolean {
+  return batMcpAgentKind(request.agentId) === 'claude'
+    && !userArgsSetClaudeName(request.extraArgs)
+    && normalizeClaudeSessionName(request.sessionName) !== null
+}
 
 /** T0590: the `blockedDetection` a launch decision gives the terminal. */
 export function blockedDetectionOf(result: BatMcpLaunchResult): 'hook' | 'none' {
@@ -300,10 +353,19 @@ export function blockedDetectionOf(result: BatMcpLaunchResult): 'hook' | 'none' 
 export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchRequest): BatMcpLaunchResult {
   const kind = batMcpAgentKind(request.agentId)
   if (!kind) return { injected: false, reason: 'not a claude / codex tab' }
-  if (!isBatMcpEnabled(host.readSettings())) return { injected: false, kind, reason: 'turned off in Settings' }
+  const shell = request.shellFamily
+  // T0641: the session name, independent of `batMcpEnabled` and the endpoint (D167)
+  const nameDecision = kind === 'claude' ? claudeNameDecision(request) : null
+  const nameArgs = nameDecision?.name ? quoteArgForShell(`--name=${nameDecision.name}`, shell) : null
+  const nameFields = !nameDecision ? {} : nameDecision.name ? { name: nameDecision.name } : { nameReason: nameDecision.reason }
+  if (!isBatMcpEnabled(host.readSettings())) {
+    const off = 'turned off in Settings'
+    return nameArgs
+      ? { injected: true, kind, args: nameArgs, mcp: false, hooks: false, mcpReason: off, hooksReason: off, ...nameFields }
+      : { injected: false, kind, reason: off, ...nameFields }
+  }
   const helperDir = host.helperDir()
   const fsImpl = host.fs ?? fs
-  const shell = request.shellFamily
   const endpointReason = host.endpointReady() ? null : 'RemoteServer not listening (no helper endpoint in the tab)'
 
   let mcpArgs: string | null = null
@@ -344,8 +406,8 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
     }
   }
 
-  if (!mcpArgs && !hooksArgs) {
-    return { injected: false, kind, reason: mcpReason ?? 'nothing to inject', ...(hooksReason ? { hooksReason } : {}) }
+  if (!mcpArgs && !hooksArgs && !nameArgs) {
+    return { injected: false, kind, reason: mcpReason ?? 'nothing to inject', ...(hooksReason ? { hooksReason } : {}), ...nameFields }
   }
   // T0600: injected anyway (harmless; a report still proves the hooks run), recorded as `none`
   let hooksDisabled: string | null = null
@@ -358,12 +420,13 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
   return {
     injected: true,
     kind,
-    args: [mcpArgs, hooksArgs].filter(Boolean).join(' '),
+    args: [mcpArgs, hooksArgs, nameArgs].filter(Boolean).join(' '),
     mcp: mcpArgs !== null,
     hooks: hooksArgs !== null,
     ...(mcpReason ? { mcpReason } : {}),
     ...(hooksReason ? { hooksReason } : {}),
     ...(hooksDisabled ? { hooksDisabled } : {}),
+    ...nameFields,
   }
 }
 
@@ -391,12 +454,14 @@ function narrowShellFamily(value: unknown): ShellFamily {
  * One log line per decision (claude / codex tabs only). Args are logged: they hold no secret.
  * T0590: claude lines say whether the hooks went in (`hooks=yes` / `hooks=no (<reason>)`);
  * T0600: `hooks=yes (turned off: <reason>)` when claude's own settings disable them.
+ * T0641: + `name=yes` / `name=no (<reason>)` on claude lines.
  */
 export function logBatMcpDecision(logger: BatMcpHost['logger'], source: string, agentId: string, result: BatMcpLaunchResult, terminalId?: string): void {
   if (!logger || (!result.injected && !result.kind)) return
   const tab = terminalId ? ` terminal=${terminalId}` : ''
   const hooks = result.kind === 'claude'
     ? `; hooks=${result.injected && result.hooks ? `yes${result.hooksDisabled ? ` (turned off: ${result.hooksDisabled})` : ''}` : `no (${result.hooksReason ?? (result.injected ? 'n/a' : result.reason)})`}`
+      + `; name=${result.injected && result.name ? 'yes' : `no (${result.nameReason ?? 'n/a'})`}`
     : ''
   if (result.injected) {
     const mcp = result.mcp ? '' : `; mcp=no (${result.mcpReason ?? 'n/a'})`
@@ -408,7 +473,8 @@ export function logBatMcpDecision(logger: BatMcpHost['logger'], source: string, 
 
 /**
  * `buildBatMcpLaunchArgs` on `host`, logging each decision as `source` (`tab` / `dispatch`) and
- * (T0590) recording a named terminal's `blockedDetection`.
+ * (T0590) recording a named terminal's `blockedDetection`; T0641: and its session name decision
+ * (`not-claude-cli` for codex / other agents).
  */
 export function createBatMcpLaunchArgs(host: BatMcpHost, source: string): (request: BatMcpLaunchRequest) => BatMcpLaunchResult {
   return request => {
@@ -421,28 +487,50 @@ export function createBatMcpLaunchArgs(host: BatMcpHost, source: string): (reque
         host.logger?.warn(`[bat-mcp] recording blockedDetection of ${request.terminalId} failed: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
+    if (request.terminalId) {
+      const name = result.injected && result.name ? result.name : null
+      try {
+        host.recordClaudeSessionName?.(request.terminalId, { name, ...(name ? {} : { reason: result.nameReason ?? 'not-claude-cli' }), at: Date.now() })
+      } catch (error) {
+        host.logger?.warn(`[bat-mcp] recording the session name of ${request.terminalId} failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
     return result
+  }
+}
+
+/** T0641: `request` + `host.claudeNameSupport()` when a session name could go in. Never rejects. */
+export async function withClaudeNameSupport(host: Pick<BatMcpHost, 'claudeNameSupport' | 'logger'>, request: BatMcpLaunchRequest): Promise<BatMcpLaunchRequest> {
+  if (!host.claudeNameSupport || !needsClaudeNameSupport(request)) return request
+  try {
+    return { ...request, claudeNameSupport: await host.claudeNameSupport() }
+  } catch (error) {
+    host.logger?.warn(`[bat-mcp] claude version check failed: ${error instanceof Error ? error.message : String(error)}`)
+    return request
   }
 }
 
 const TERMINAL_ID_ARG = /^[A-Za-z0-9._-]{1,128}$/
 
 /**
- * `agent:bat-mcp-launch-args` — `(agentId, shellFamily, extraArgs?, terminalId?)` → the args string
- * ('' = none). Registered by Electron main and headless (a remote window asks the server that runs
- * the tab). T0590: `terminalId` (a renderer before T0590 sends none) gets the decision as its
- * `blockedDetection`.
+ * `agent:bat-mcp-launch-args` — `(agentId, shellFamily, extraArgs?, terminalId?, sessionName?)` →
+ * the args string ('' = none). Registered by Electron main and headless (a remote window asks the
+ * server that runs the tab). T0590: `terminalId` (a renderer before T0590 sends none) gets the
+ * decision as its `blockedDetection`. T0641: `sessionName` (a renderer before T0641 sends none →
+ * `no-name`), checked against the claude this host would launch (`claudeNameSupport`).
  */
 export function registerBatMcpHandlers(register: HandlerRegistrar, host: BatMcpHost): void {
   const launchArgs = createBatMcpLaunchArgs(host, 'tab')
-  register(BAT_MCP_LAUNCH_ARGS_CHANNEL, (_ctx, agentId: unknown, shellFamily: unknown, extraArgs: unknown, terminalId: unknown) => {
+  register(BAT_MCP_LAUNCH_ARGS_CHANNEL, async (_ctx, agentId: unknown, shellFamily: unknown, extraArgs: unknown, terminalId: unknown, sessionName: unknown) => {
     if (typeof agentId !== 'string') return ''
-    const result = launchArgs({
+    const name = normalizeClaudeSessionName(sessionName)
+    const result = launchArgs(await withClaudeNameSupport(host, {
       agentId,
       shellFamily: narrowShellFamily(shellFamily),
       extraArgs: typeof extraArgs === 'string' ? extraArgs : undefined,
       ...(typeof terminalId === 'string' && TERMINAL_ID_ARG.test(terminalId) ? { terminalId } : {}),
-    })
+      ...(name ? { sessionName: name } : {}),
+    }))
     return result.injected ? result.args : ''
   })
 }

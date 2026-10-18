@@ -90,7 +90,7 @@ const fwd = (p: string) => p.replace(/\\/g, '/')
 describe('claude hooks injection', () => {
   it('--mcp-config= then --settings=; the settings file holds hooks only (no token, no other key)', () => {
     const r = buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli', shellFamily: 'pwsh' })
-    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--mcp-config=${mcpFile()}' '--settings=${settingsFile()}'`, mcp: true, hooks: true })
+    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--mcp-config=${mcpFile()}' '--settings=${settingsFile()}'`, mcp: true, hooks: true, nameReason: 'no-name' })
     expect(blockedDetectionOf(r)).toBe('hook')
     const content = fs.readFileSync(settingsFile(), 'utf8')
     const parsed = JSON.parse(content) as { hooks: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>> }
@@ -146,13 +146,13 @@ describe('claude hooks injection', () => {
     expect(userArgsPassClaudeSettings('--settingsx')).toBeNull()
     expect(userArgsPassClaudeSettings('--setting-sources user')).toBeNull()
     const r = buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli', shellFamily: 'posix', extraArgs: '--mcp-config mine.json' })
-    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--settings=${settingsFile()}'`, mcp: false, hooks: true, mcpReason: 'custom args already pass --mcp-config' })
+    expect(r).toEqual({ injected: true, kind: 'claude', args: `'--settings=${settingsFile()}'`, mcp: false, hooks: true, mcpReason: 'custom args already pass --mcp-config', nameReason: 'no-name' })
     expect(blockedDetectionOf(r)).toBe('hook')
   })
 
   it('not injected: Settings off, endpoint down, bat-hook.mjs missing (MCP stays), codex / others', () => {
     expect(buildBatMcpLaunchArgs(host({}, { batMcpEnabled: false }), { agentId: 'claude-cli', shellFamily: 'posix' }))
-      .toEqual({ injected: false, kind: 'claude', reason: 'turned off in Settings' })
+      .toEqual({ injected: false, kind: 'claude', reason: 'turned off in Settings', nameReason: 'no-name' })
     expect(fs.existsSync(settingsFile())).toBe(false)
     expect(buildBatMcpLaunchArgs(host({ endpointReady: () => false }), { agentId: 'claude-cli', shellFamily: 'posix' }))
       .toMatchObject({ injected: false, hooksReason: expect.stringContaining('RemoteServer not listening') })
@@ -209,7 +209,7 @@ describe('claude hooks injection', () => {
 })
 
 describe('blockedDetection recording', () => {
-  it('the handler records the 4th argument (a valid terminal id) for claude / codex, nothing for other agents; logs say hooks=', () => {
+  it('the handler records the 4th argument (a valid terminal id) for claude / codex, nothing for other agents; logs say hooks=', async () => {
     const recorded: Array<[string, string]> = []
     const logs: string[] = []
     const handlers = new Map<string, SharedHandler>()
@@ -218,15 +218,15 @@ describe('blockedDetection recording', () => {
       logger: { log: m => logs.push(m), warn: m => logs.push(m) },
     }))
     const call = (...args: unknown[]) => handlers.get(BAT_MCP_LAUNCH_ARGS_CHANNEL)!({ windowId: 'w' }, ...args)
-    expect(call('claude-cli', 'pwsh', '', 'tab-1')).toBe(`'--mcp-config=${mcpFile()}' '--settings=${settingsFile()}'`)
-    call('claude-cli', 'pwsh', '--settings x.json', 'tab-2')
-    call('codex-cli', 'posix', '', 'tab-3')
-    call('gemini-cli', 'posix', '', 'tab-4')
-    call('claude-cli', 'posix', '', 'bad id with spaces')
-    call('claude-cli', 'posix', '') // a renderer before T0590
+    expect(await call('claude-cli', 'pwsh', '', 'tab-1')).toBe(`'--mcp-config=${mcpFile()}' '--settings=${settingsFile()}'`)
+    await call('claude-cli', 'pwsh', '--settings x.json', 'tab-2')
+    await call('codex-cli', 'posix', '', 'tab-3')
+    await call('gemini-cli', 'posix', '', 'tab-4')
+    await call('claude-cli', 'posix', '', 'bad id with spaces')
+    await call('claude-cli', 'posix', '') // a renderer before T0590
     expect(recorded).toEqual([['tab-1', 'hook'], ['tab-2', 'none'], ['tab-3', 'none']])
-    expect(logs[0]).toBe(`[bat-mcp] tab agent=claude-cli terminal=tab-1 → injected: '--mcp-config=${mcpFile()}' '--settings=${settingsFile()}'; hooks=yes`)
-    expect(logs[1]).toBe(`[bat-mcp] tab agent=claude-cli terminal=tab-2 → injected: '--mcp-config=${mcpFile()}'; hooks=no (custom args already pass --settings)`)
+    expect(logs[0]).toBe(`[bat-mcp] tab agent=claude-cli terminal=tab-1 → injected: '--mcp-config=${mcpFile()}' '--settings=${settingsFile()}'; hooks=yes; name=no (no-name)`)
+    expect(logs[1]).toBe(`[bat-mcp] tab agent=claude-cli terminal=tab-2 → injected: '--mcp-config=${mcpFile()}'; hooks=no (custom args already pass --settings); name=no (no-name)`)
     expect(logs[2]).toMatch(/^\[bat-mcp\] tab agent=codex-cli terminal=tab-3 → injected: -c /)
     expect(logs[2]).not.toContain('hooks=')
     expect(logs.join('\n')).not.toContain(TOKEN)
@@ -324,7 +324,7 @@ describe('claude settings that turn the hooks off (T0600)', () => {
     expect(r.injected && r.args).toContain('--settings=')
     expect(blockedDetectionOf(r)).toBe('none')
     expect(recorded).toEqual([['w1', 'none']])
-    expect(logs[0]).toMatch(/; hooks=yes \(turned off: disableAllHooks in .*settings\.json\)$/)
+    expect(logs[0]).toMatch(/; hooks=yes \(turned off: disableAllHooks in .*settings\.json\); name=no \(no-name\)$/)
     // the claude settings file BAT writes never says anything about it
     expect(fs.readFileSync(settingsFile(), 'utf8')).not.toMatch(/disableAllHooks|allowManagedHooksOnly/)
     fs.writeFileSync(userFile, JSON.stringify({ disableAllHooks: false }))
@@ -366,6 +366,7 @@ describe('source guards (T0590)', () => {
     const view = read('src/components/WorkspaceView.tsx')
     const calls = view.match(/withBatMcpLaunchArgs\([^\n]*\)/g) ?? []
     expect(calls).toHaveLength(5)
-    for (const call of calls) expect(call, call).toMatch(/, (terminal\.id|agentTerminal\.id|terminalId|id)\)/)
+    // T0641: the claude-cli launch also passes its session name
+    for (const call of calls) expect(call, call).toMatch(/, (terminal\.id|agentTerminal\.id|terminalId|id)(, sessionName)?\)/)
   })
 })

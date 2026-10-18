@@ -286,8 +286,8 @@ interface ElectronAPI {
     listDefinitions: () => Promise<import('./agent-runtime').AgentDefinition[]>
     getDefinition: (id: string) => Promise<import('./agent-runtime').AgentDefinition | null>
     buildLaunchCommand: (definitionId: string, options?: Record<string, string | boolean>, extraArgs?: string) => Promise<string | null>
-    /** T0584: args attaching the `bat` MCP server ('' = none); put right after the base command. T0590: + claude hooks; `terminalId` records its `blockedDetection`. */
-    batMcpLaunchArgs: (agentId: string, shellFamily: 'posix' | 'pwsh' | 'cmd', extraArgs?: string, terminalId?: string) => Promise<string>
+    /** T0584: args attaching the `bat` MCP server ('' = none); put right after the base command. T0590: + claude hooks; `terminalId` records its `blockedDetection`. T0641: `sessionName` → claude `--name=`. */
+    batMcpLaunchArgs: (agentId: string, shellFamily: 'posix' | 'pwsh' | 'cmd', extraArgs?: string, terminalId?: string, sessionName?: string) => Promise<string>
     registerCustomCli: (def: import('./agent-runtime').CustomCliDefinition) => Promise<import('./agent-runtime').AgentDefinition>
     removeCustomCli: (id: string) => Promise<boolean>
     listCustomClis: () => Promise<import('./agent-runtime').CustomCliDefinition[]>

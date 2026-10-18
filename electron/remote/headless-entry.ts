@@ -41,9 +41,13 @@ import { agentRegistry } from '../agent-runtime/agent-registry'
 import { ClaudeAgentManager } from '../claude-agent-manager'
 import {
   configureRuntimeRouter,
+  getRuntimeSettingsSnapshot,
+  resolveClaudeRuntime,
   resolveEmbeddedClaudePath,
   type EmbeddedClaudeLayout,
 } from '../claude-runtime-router'
+import { createClaudeNameSupportCheck } from '../claude-version-check'
+import { claudeSessionNameRecords } from '../claude-session-name-record'
 import { resolveGitBinary } from '../gh-resolver'
 import { logger as defaultLogger } from '../logger'
 import { SyncedWorkspaceRoots } from '../path-guard'
@@ -530,6 +534,8 @@ export function createHeadlessTerminalModule(opts: {
         resolveWorkspaceAgentSettings: async () => null,
         ensureElevationApplied: async () => {},
         batMcpLaunchArgs, // T0584
+        // T0641: the claude on this server (no workspace names here: a Worker is `BAT · Worker · T####`)
+        ...(batMcpLaunchArgs ? { claudeNameSupport: headlessClaudeNameSupport } : {}),
         // T0621 (C-5): the codex on this server, probed here
         codexWritesOsc: createCodexOscVersionCheck({ logger: defaultLogger }),
         recordBlockedDetection: (terminalId, detection) => opts.getPtyManager()?.setBlockedDetection(terminalId, detection),
@@ -552,6 +558,12 @@ export function createHeadlessTerminalModule(opts: {
  * `<dataDir>/settings.json` (default on). Same rule as the helper env: no helpers in
  * `<installRoot>/scripts` (`HEADLESS_REQUIRED_HELPER_SCRIPTS`) ⇒ no endpoint in the tab ⇒ none.
  */
+/** T0641 (C-3): whether the claude this server's claude-cli tabs launch knows `--name`. */
+const headlessClaudeNameSupport = createClaudeNameSupportCheck({
+  resolveRuntime: () => resolveClaudeRuntime(getRuntimeSettingsSnapshot()),
+  logger: defaultLogger,
+})
+
 export function createHeadlessBatMcpHost(
   installRoot: string,
   host: HostDeps,
@@ -571,6 +583,9 @@ export function createHeadlessBatMcpHost(
     recordBlockedDetection: (terminalId, detection) => getPtyManager?.()?.setBlockedDetection(terminalId, detection),
     // T0600: the server user's claude settings (`host.homeDir`) that can turn the hooks off
     claudeSettingsFiles: () => defaultClaudeSettingsFiles(process.env, process.platform, host.homeDir),
+    // T0641: the session name of a remote window's claude-cli tab (the window sends the name)
+    claudeNameSupport: headlessClaudeNameSupport,
+    recordClaudeSessionName: (terminalId, record) => claudeSessionNameRecords.set(terminalId, record),
     logger: defaultLogger,
   }
 }

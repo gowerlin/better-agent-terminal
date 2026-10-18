@@ -7,7 +7,9 @@ import {
   type WorkspaceAgentLaunchFields,
 } from '../src/lib/agent-launch-settings'
 import { agentRegistry } from './agent-runtime/agent-registry'
-import { withBatMcpArgs, type BatMcpLaunchRequest, type BatMcpLaunchResult } from './bat-mcp-launch'
+import { needsClaudeNameSupport, withBatMcpArgs, type BatMcpLaunchRequest, type BatMcpLaunchResult } from './bat-mcp-launch'
+import type { ClaudeNameSupport } from './claude-version-check'
+import { claudeSessionName } from '../src/lib/claude-session-name'
 import {
   passThroughDispatchWorkspace,
   type DispatchCwdCheck,
@@ -797,6 +799,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       skill: opts.skill,
       workorder: opts.workorder,
       workspaceId: landing.workspaceId,
+      ...(landing.workspaceName ? { workspaceName: landing.workspaceName } : {}), // T0641
       shellFamily,
       terminalId: opts.id, // T0590
     })
@@ -877,6 +880,11 @@ export interface AgentPromptCommandOptions {
   shellFamily?: ShellFamily
   /** T0590: the terminal being created (its `blockedDetection` is recorded by `batMcpLaunchArgs`). */
   terminalId?: string
+  /**
+   * T0641: the landing workspace's name (alias first, T0523 resolution) for the claude session
+   * name; absent (headless, active workspace) → `BAT`.
+   */
+  workspaceName?: string
 }
 
 /** Settings fields `buildAgentPromptCommand` reads. */
@@ -916,6 +924,11 @@ export interface AgentPromptCommandDeps {
    * Absent ⇒ never (the dispatched codex stays `none` until a sequence is seen).
    */
   codexWritesOsc?(baseCommand: string): Promise<boolean>
+  /**
+   * T0641 (C-3): whether the claude this host launches knows `--name` (`createClaudeNameSupportCheck`,
+   * electron/claude-version-check.ts). Absent ⇒ `version-unknown` (no session name).
+   */
+  claudeNameSupport?(): Promise<ClaudeNameSupport>
   /** T0621: records `osc` as the dispatched terminal's `blockedDetection` (`PtyManager.setBlockedDetection`). */
   recordBlockedDetection?(terminalId: string, detection: 'osc'): void
   logger: {
@@ -1018,9 +1031,28 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
     }
 
     const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
+    // T0641 (R1): a claude Worker is `<ws> · Worker · <T####>` (a prompt dispatch: `<ws> · <short id>`)
+    const sessionName = opts.skill && opts.workorder
+      ? claudeSessionName({ role: 'worker', workspaceName: opts.workspaceName, workorder: opts.workorder })
+      : opts.terminalId ? claudeSessionName({ role: 'tab', workspaceName: opts.workspaceName, terminalId: opts.terminalId }) : null
+    const mcpRequest: BatMcpLaunchRequest = {
+      agentId,
+      shellFamily: opts.shellFamily ?? 'posix',
+      extraArgs,
+      ...(opts.terminalId ? { terminalId: opts.terminalId } : {}),
+      ...(sessionName ? { sessionName } : {}),
+    }
+    if (deps.batMcpLaunchArgs && deps.claudeNameSupport && needsClaudeNameSupport(mcpRequest)) {
+      try {
+        mcpRequest.claudeNameSupport = await deps.claudeNameSupport()
+      } catch (error) {
+        deps.logger.warn(`[agent-command] claude version check failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
     // T0584: before the custom args (codex `-c` precedes a `resume` subcommand there)
     // T0590: + the claude `blocked` hooks; the decision becomes the terminal's `blockedDetection`
-    const mcp = deps.batMcpLaunchArgs?.({ agentId, shellFamily: opts.shellFamily ?? 'posix', extraArgs, ...(opts.terminalId ? { terminalId: opts.terminalId } : {}) })
+    // T0641: + the claude session name (`--name=`)
+    const mcp = deps.batMcpLaunchArgs?.(mcpRequest)
     const launchBase = baseCommand
     if (mcp) baseCommand = withBatMcpArgs(baseCommand, mcp)
     if (agentId === 'codex-cli') {

@@ -13,6 +13,8 @@ import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResu
 import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal-command-handlers'
 import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from './bat-mcp-launch'
 import { createCodexOscVersionCheck } from './codex-osc-version'
+import { createClaudeNameSupportCheck } from './claude-version-check'
+import { claudeSessionNameRecords } from './claude-session-name-record'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
@@ -54,7 +56,7 @@ if (process.platform === 'win32') {
 }
 
 import { PtyManager, createWindowBroadcastEmit, type PtyManagerDeps } from './pty-manager'
-import { configureRuntimeRouter } from './claude-runtime-router'
+import { configureRuntimeRouter, getRuntimeSettingsSnapshot, resolveClaudeRuntime } from './claude-runtime-router'
 import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
 import { checkForUpdates, UpdateCheckResult } from './update-checker'
@@ -706,11 +708,18 @@ function ensureElevationApplied(): Promise<void> {
 
 // T0431: built in electron/terminal-command-handlers.ts (shared with headless); Electron supplies
 // userData settings, the window-registry workspace agent settings and the elevation probe.
+// T0641 (C-3): does the claude a claude-cli launch now runs know `--name` (system runtime >= 2.1.76)
+const claudeNameSupport = createClaudeNameSupportCheck({
+  resolveRuntime: () => resolveClaudeRuntime(getRuntimeSettingsSnapshot()),
+  logger,
+})
+
 const buildAgentPromptCommand = createAgentPromptCommandBuilder({
   readSettings: readPersistedSettingsSync,
   resolveWorkspaceAgentSettings,
   ensureElevationApplied,
   batMcpLaunchArgs: request => createBatMcpLaunchArgs(batMcpHost, 'dispatch')(request), // T0584
+  claudeNameSupport, // T0641
   // T0621 (C-5): a dispatched codex >= 0.163.0 is `blockedDetection: osc` from its launch
   codexWritesOsc: createCodexOscVersionCheck({ logger }),
   recordBlockedDetection: (terminalId, detection) => ptyManager?.setBlockedDetection(terminalId, detection),
@@ -734,6 +743,9 @@ const batMcpHost: BatMcpHost = {
   readSettings: () => readPersistedSettingsSync() as Record<string, unknown> | null,
   // T0590: the launch decision (claude `blocked` hooks or not) = the tab's `blockedDetection`
   recordBlockedDetection: (terminalId, detection) => ptyManager?.setBlockedDetection(terminalId, detection),
+  // T0641: the claude session name (`--name`), independent of the BAT MCP switch
+  claudeNameSupport,
+  recordClaudeSessionName: (terminalId, record) => claudeSessionNameRecords.set(terminalId, record),
   logger,
 }
 
