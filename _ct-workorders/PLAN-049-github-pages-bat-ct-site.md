@@ -40,6 +40,7 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 - CT 呈現：**只介紹概念與它跟 BAT 的整合點**，不提供取得管道。
 - （12:20 追加）技術選型、截圖 / 示範 GIF、部署方式：**由塔台依 T0622 建議決定並設計**。
 - 內容來源與同步：使用者向內容**可公開、可同步**；**發版時一起更新網站**（併入發佈後同步流程）。
+- （12:24，D160，塔台依授權決定）T0622 研究 DONE → VitePress 1.6.4 於 `site/`、Actions `pages.yml`、Playwright 手動素材 spec + WebM、發版同步併入三文件 commit；實作切 W1 骨架與部署 / W2 內容 / W3 素材 / W4 維運（W1 → W2、W3 並行 → W4）。待使用者：自訂網域、語言、README 換圖、分析、W1 授權。
 
 ## 排期
 

@@ -1452,6 +1452,18 @@
 - **不採用**：「最近沒打字才切焦點」（規則複雜、行為難預測）；Settings 開關（多一個設定項）；只揭露狀態不加 helper 參數。
 - **相關**：BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017
 
+### D160 2026-10-18 — PLAN-049 技術與部署（塔台依 D159 授權決定）：VitePress 1.6.4 於 `site/`、Actions `pages.yml`、發版同步併入三文件 commit
+
+- **背景**：T0622 研究 DONE（推薦組合 + W1–W4 切分）；D159 授權塔台決定技術選型、素材、部署。
+- **決定**（塔台 2026-10-18 12:24，採 T0622 推薦）：
+  1. VitePress 1.6.4，原始碼放新頂層目錄 `site/`（**不用 `docs/`**，避免內部文件被渲染公開），獨立 `package.json` / lockfile，`base: '/better-agent-terminal/'`，local search；`site/package.json` 的 `allowScripts` 只放行 `esbuild`（name-only，與根目錄政策一致）。
+  2. 部署：獨立 workflow `.github/workflows/pages.yml`（push main 且 `site/**`、`README.md`、`release-note.md`、本 workflow 變更 + `workflow_dispatch`；`concurrency: pages`；只在 deploy job 給 `pages: write` / `id-token: write`）；Pages source = GitHub Actions。不碰 `pre-release.yml` / `release.yml`。
+  3. 發版同步：網站 include `README.md`（版本對照）/ `release-note.md`，既有「發佈後同步 repo 文件」三文件 commit push 後自動重建；下載按鈕於 build 時以 Releases API 取最新 `v*`（排除 `server-bundle-v*`）。`_local-rules.md` 發版流程加「確認 Pages workflow 綠燈、首頁版號 = 本版」（W4 時由塔台加）。
+  4. 素材：手動執行、不進 CI 的 `e2e/site-media.spec.ts`（隔離實例、虛構示範專案）產生截圖與 WebM 短片，網站用 `<video autoplay muted loop>` 取代 GIF；上站前逐張過 T0622 Q3-3 隱私清單；既有 `assets/screenshot-*.png`（上游舊 UI、含上游作者路徑）網站不沿用。
+  5. 維運：OG 卡片、sitemap、lychee 連結檢查；內部內容（T / D / BUG 編號密集的 `CHANGELOG.md`、`docs/agent-guide/`、`_ct-workorders/`）不上站，只改寫可公開段落。
+- **待使用者**：自訂網域、語言（繁中單語 / 加英文）、README 是否換新截圖、網站分析；W1 啟用 Pages（改 repo 設定）與 push 新 workflow 需使用者授權。
+- **相關**：PLAN-049 / T0622 / D159
+
 ### D159 2026-10-18 — PLAN-049 網站：專案站 `gowerlin.github.io/better-agent-terminal`；CT 只介紹概念與 BAT 整合點
 
 - **背景**：PLAN-049（GitHub Pages 介紹 BAT + CT）的兩個待決點；T0622 研究派工後使用者直接決定。

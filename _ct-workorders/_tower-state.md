@@ -112,7 +112,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（93 entries）
 
 ### 編號起始
-- **T0624** / **BUG-155** / **PLAN-050** / **D160** / **EXP-[TOPIC]-001** / **L164** / **CT-T021**
+- **T0624** / **BUG-155** / **PLAN-050** / **D161** / **EXP-[TOPIC]-001** / **L164** / **CT-T021**
 
 ---
 
