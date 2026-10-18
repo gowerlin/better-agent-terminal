@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0616
 title: "探針：CT v5.7.0 多題混合通道（BAT / `--ask` 失敗降級 / `--cancel-question`）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:02:10+0800"
+started_at: "2026-10-18T11:08:47+0800"
+updated_at: "2026-10-18T11:08:47+0800"
 depends_on: [T0615]
 related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 3 張（T0614–T0618）"
@@ -18,6 +20,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -76,4 +79,29 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：探針 Q-1（BAT 通道）
+- 提問時間：2026-10-18T11:08:47+0800
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為本題是刻意安排的受測提問，答 [A] 即可確認此路徑送達
+- 影響範圍：Step 3 等待答覆、Step 4 驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
+#### Q-2：探針 Q-2（`--ask` 失敗降級）
+- 提問時間：2026-10-18T11:08:47+0800
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為本題是刻意安排的受測提問，答 [A] 即可確認此路徑送達
+- 影響範圍：Step 3 等待答覆、Step 4 驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
+#### Q-3：探針 Q-3（取消後降級）
+- 提問時間：2026-10-18T11:08:47+0800
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為本題是刻意安排的受測提問，答 [A] 即可確認此路徑送達
+- 影響範圍：Step 3 等待答覆、Step 4 驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
+### 互動紀錄
+
+- [11:08] Landing check PASS：C-0 expected repo `better-agent-terminal` = actual `basename(REPO_ROOT)` `better-agent-terminal`（`REPO_ROOT=D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 工單在 repo 下；C-3 not applicable（`affects_files` 只有 `_ct-workorders/` 下的本工單）；C-2 無 `branch` 欄位（`main`）。`CT_HOME` 未設。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`。`CT_MODE=yolo`、`CT_INTERACTIVE=0`。既存 ` M src/styles/settings.css` 不是本單變更，保留不動。
