@@ -1,0 +1,198 @@
+<!doctype html>
+<!--
+  網站分享卡片（OG / Twitter）原稿，輸出成 site/public/og-card.png（1200×630）。
+  色票、字體、雷達語彙取自 docs/design/site-design-language.md 與首頁 Hero（site/.vitepress/theme/custom.css）：
+  夜色底 + 48 px 網格、雷達同心圓與十字線、紫色只給塔台（掃描線與中心點，錨點 A1）、
+  Worker 光點用縮圖狀態色且一律「符號 + 文字」（錨點 A2）。
+  輸出方式：以 Chrome 開本檔，viewport 1200×630，等字型載入後擷取整頁（見 T0659 回報區）。
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200">
+<title>BAT 分享卡片</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+Hei+HK:wght@900&family=Martian+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;700&display=block">
+<style>
+  :root {
+    --night: #10172e;
+    --scope: #0f2547;
+    --grid: #2a3f6b;
+    --ink: #e8ebf7;
+    --muted: #9aa5c4;
+    --signal: #a855f7;
+    --reported: #98c379;
+    --question: #61afef;
+    --running: #9aa5c4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+
+  body {
+    position: relative;
+    color: var(--ink);
+    background-color: var(--night);
+    background-image:
+      linear-gradient(rgba(42, 63, 107, 0.32) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42, 63, 107, 0.32) 1px, transparent 1px);
+    background-size: 48px 48px;
+    background-position: -1px -1px;
+    font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  }
+
+  /* 雷達：中心在右側，外圈被卡片右緣與上下緣裁切，讓標語佔滿左邊 */
+  .scope {
+    position: absolute;
+    left: 700px;
+    top: 30px;
+    width: 570px;
+    height: 570px;
+  }
+
+  .scope svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+  .ring { fill: none; stroke: var(--grid); stroke-width: 1.5; }
+  .ring.outer { fill: var(--scope); }
+  .sweep { stroke: var(--signal); stroke-width: 3; }
+  .tower-dot { fill: var(--signal); }
+  .blip { fill: currentColor; }
+  .is-reported { color: var(--reported); }
+  .is-question { color: var(--question); }
+  .is-running { color: var(--running); }
+
+  .tag {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    background: rgba(16, 23, 46, 0.88);
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .tag .id {
+    font-family: 'Martian Mono', Consolas, monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .tower-label {
+    position: absolute;
+    left: 285px;
+    top: 285px;
+    transform: translate(-50%, 18px);
+    font-family: 'Martian Mono', Consolas, monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: #c084fc;
+  }
+
+  .copy {
+    position: absolute;
+    left: 80px;
+    top: 0;
+    bottom: 0;
+    width: 640px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .brand img { width: 56px; height: 56px; }
+
+  h1 {
+    margin-top: 44px;
+    font-family: 'Chiron Hei HK', 'Noto Sans TC', sans-serif;
+    font-size: 78px;
+    font-weight: 900;
+    line-height: 1.16;
+    letter-spacing: 0.02em;
+  }
+
+  h1 span { display: block; white-space: nowrap; }
+
+  .lead {
+    margin-top: 32px;
+    max-width: 21em;
+    font-size: 26px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .lead span { display: block; }
+
+  .url {
+    position: absolute;
+    left: 80px;
+    bottom: 44px;
+    font-family: 'Martian Mono', Consolas, monospace;
+    font-size: 18px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <div class="scope" aria-hidden="true">
+    <svg viewBox="0 0 570 570">
+      <defs>
+        <!-- 掃描線後方的殘影：與 Hero 的多段 wedge 同一個意思，靜態圖改用漸層 -->
+        <linearGradient id="trail" x1="1" y1="0.35" x2="0.25" y2="0">
+          <stop offset="0" stop-color="#a855f7" stop-opacity="0.42" />
+          <stop offset="1" stop-color="#a855f7" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <circle cx="285" cy="285" r="285" class="ring outer" />
+      <circle cx="285" cy="285" r="214" class="ring" />
+      <circle cx="285" cy="285" r="142" class="ring" />
+      <circle cx="285" cy="285" r="71" class="ring" />
+      <line x1="0" y1="285" x2="570" y2="285" class="ring" />
+      <line x1="285" y1="0" x2="285" y2="570" class="ring" />
+      <!-- 掃描線指向右上（-40°）、順時針轉；殘影是它身後 70° 的扇形（-40° 到 -110°） -->
+      <path d="M285 285 L503.3 101.8 A285 285 0 0 0 187.5 17.2 Z" fill="url(#trail)" />
+      <line x1="285" y1="285" x2="503.3" y2="101.8" class="sweep" />
+      <g class="is-reported">
+        <circle cx="430" cy="160" r="20" class="blip" fill-opacity="0.3" />
+        <circle cx="430" cy="160" r="8" class="blip" />
+      </g>
+      <g class="is-question">
+        <circle cx="140" cy="420" r="20" class="blip" fill-opacity="0.3" />
+        <circle cx="140" cy="420" r="8" class="blip" />
+      </g>
+      <g class="is-running">
+        <circle cx="110" cy="170" r="7" class="blip" />
+      </g>
+      <circle cx="285" cy="285" r="11" class="tower-dot" />
+    </svg>
+    <span class="tower-label">Tower</span>
+    <span class="tag is-reported" style="left: 227px; top: 143px;">✓ 已回報 <span class="id">T1024</span></span>
+    <span class="tag is-question" style="left: 40px; top: 448px;">? 等塔台答覆 <span class="id">T1025</span></span>
+    <span class="tag is-running" style="left: 20px; top: 196px;"><span class="id">T1026</span> 執行中</span>
+  </div>
+
+  <div class="copy">
+    <div class="brand"><img src="../../site/public/logo.svg" alt="">Better Agent Terminal</div>
+    <h1><span>一個塔台，</span><span>指揮整隊 AI Agent</span></h1>
+    <p class="lead"><span>開單、派工、回報、提問、收尾，</span><span>串成一個會自己推進的循環。</span></p>
+  </div>
+
+  <div class="url">gowerlin.github.io/better-agent-terminal</div>
+</body>
+</html>

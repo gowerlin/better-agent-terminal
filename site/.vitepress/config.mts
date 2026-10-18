@@ -1,8 +1,16 @@
-import { defineConfigWithTheme, type DefaultTheme } from 'vitepress'
+import { defineConfigWithTheme, type DefaultTheme, type HeadConfig } from 'vitepress'
 import { getLatestRelease, REPO, type LatestRelease } from './latest-release.mjs'
 
 export interface ThemeConfig extends DefaultTheme.Config {
   latestRelease: LatestRelease
+}
+
+// 分享卡片與 sitemap 都要絕對網址
+const SITE_URL = 'https://gowerlin.github.io/better-agent-terminal/'
+
+// cleanUrls：cases.md → cases、remote/index.md → remote/、index.md → 首頁
+function pageUrl(relativePath: string): string {
+  return SITE_URL + relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
 }
 
 export default async () => {
@@ -15,6 +23,10 @@ export default async () => {
     description: '一個塔台，指揮整隊 AI Agent：Better Agent Terminal 與 BMad Control Tower 把開單、派工、回報、提問、收尾串成一個會自己推進的循環。',
     cleanUrls: true,
 
+    sitemap: {
+      hostname: SITE_URL
+    },
+
     head: [
       ['link', { rel: 'icon', type: 'image/svg+xml', href: '/better-agent-terminal/logo.svg' }],
       ['meta', { name: 'theme-color', content: '#10172e' }],
@@ -26,8 +38,32 @@ export default async () => {
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css2?family=Chiron+Hei+HK:wght@900&family=Martian+Mono:wght@300;400;500&family=Noto+Sans+TC:wght@400;500;700;900&display=swap'
         }
-      ]
+      ],
+      // 分享卡片：每頁共用的部分；標題、說明、網址在 transformHead 依頁面帶入
+      ['meta', { property: 'og:type', content: 'website' }],
+      ['meta', { property: 'og:site_name', content: 'Better Agent Terminal' }],
+      ['meta', { property: 'og:locale', content: 'zh_TW' }],
+      ['meta', { property: 'og:image', content: `${SITE_URL}og-card.png` }],
+      ['meta', { property: 'og:image:width', content: '1200' }],
+      ['meta', { property: 'og:image:height', content: '630' }],
+      ['meta', { property: 'og:image:alt', content: 'Better Agent Terminal：一個塔台，指揮整隊 AI Agent' }],
+      ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+      ['meta', { name: 'twitter:image', content: `${SITE_URL}og-card.png` }]
     ],
+
+    // 每頁的分享標題 / 說明取自頁面 frontmatter（沒寫就用站名與站點說明，同 <title> / <meta name="description">）
+    transformHead({ pageData, title, description }) {
+      const head: HeadConfig[] = [
+        ['meta', { property: 'og:title', content: title }],
+        ['meta', { property: 'og:description', content: description }],
+        ['meta', { name: 'twitter:title', content: title }],
+        ['meta', { name: 'twitter:description', content: description }]
+      ]
+      if (!pageData.isNotFound) {
+        head.push(['meta', { property: 'og:url', content: pageUrl(pageData.relativePath) }])
+      }
+      return head
+    },
 
     themeConfig: {
       latestRelease,

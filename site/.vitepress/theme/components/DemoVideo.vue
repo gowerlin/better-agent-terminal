@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 真實操作短片（WebM，無聲）。畫面進入視窗才播放、捲出就暫停；
+// 真實操作短片（WebM，無聲；可另給 H.264 MP4 當備援，給不支援 WebM 的舊版 Safari）。畫面進入視窗才播放、捲出就暫停；
 // prefers-reduced-motion 時不自動播放，只顯示 poster 與播放控制。使用者自己按暫停後不再自動播放。
 // 文字等價說明放在 slot（圖說），內容要能單獨讀懂。
 import { onBeforeUnmount, onMounted, ref } from 'vue'
@@ -8,6 +8,7 @@ import { withBase } from 'vitepress'
 const props = withDefaults(
   defineProps<{
     src: string
+    mp4?: string
     poster: string
     label: string
     width?: number
@@ -82,6 +83,7 @@ onBeforeUnmount(() => {
         preload="none"
       >
         <source :src="withBase(props.src)" type="video/webm" />
+        <source v-if="props.mp4" :src="withBase(props.mp4)" type="video/mp4" />
       </video>
     </div>
     <figcaption class="bat-media-caption">
