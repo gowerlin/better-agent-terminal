@@ -5,7 +5,7 @@ id: _handover-2026-10-18-ct-evolution-doc-update
 title: 交辦 BMad-Guide 塔台 — 更新《Control Tower 演進史.html》（目前只寫到 CT v5.2.3）
 from: better-agent-terminal
 to: BMad-Guide
-status: DELIVERED
+status: DRAFT
 local_workorder: ""
 created_at: "2026-10-18T20:36:04+0800"
 ---
