@@ -95,7 +95,7 @@ DONE。codex `blocked` / `input`（OSC 7501）現在與 claude hook reason 同�
 | `npm run typecheck` | PASS — exit 0（0 errors） |
 | `npm run typecheck:electron` | PASS — exit 0（0 errors） |
 | `npx vite build` | PASS — exit 0 |
-| e2e `e2e/t0621-codex-osc-state.spec.ts`（含本單新增的縮圖斷言，真 codex 0.163.0 `%LOCALAPPDATA%\Programs\OpenAI\Codexin\codex.exe`） | PASS |
+| e2e `e2e/t0621-codex-osc-state.spec.ts`（含本單新增的縮圖斷言，真 codex 0.163.0 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`） | PASS |
 | e2e 回歸 `e2e/t0609-worker-attention-badge.spec.ts` | PASS（兩支同次執行 `2 passed (28.7s)`） |
 
 ### Commit
