@@ -12,11 +12,21 @@ export default async () => {
     base: '/better-agent-terminal/',
     lang: 'zh-TW',
     title: 'Better Agent Terminal',
-    description: '跨平台終端機聚合器，支援多工作區管理與內建 AI Agent 整合',
+    description: '一個塔台，指揮整隊 AI Agent：Better Agent Terminal 與 BMad Control Tower 把開單、派工、回報、提問、收尾串成一個會自己推進的循環。',
     cleanUrls: true,
 
     head: [
-      ['link', { rel: 'icon', type: 'image/svg+xml', href: '/better-agent-terminal/logo.svg' }]
+      ['link', { rel: 'icon', type: 'image/svg+xml', href: '/better-agent-terminal/logo.svg' }],
+      ['meta', { name: 'theme-color', content: '#10172e' }],
+      ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+      ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+      [
+        'link',
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Chiron+Hei+HK:wght@900&family=Martian+Mono:wght@300;400;500&family=Noto+Sans+TC:wght@400;500;700;900&display=swap'
+        }
+      ]
     ],
 
     themeConfig: {
