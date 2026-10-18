@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0617
 title: "探針：CT v5.7.0 BAT 題目逾時 `expired` → BLOCKED → Renew"
 type: verification
-status: BLOCKED
+status: PENDING
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
@@ -17,7 +17,7 @@ related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 4 張（T0614–T0618）"
 affects_files:
   - _ct-workorders/T0617-probe-ct570-question-expired.md
-renew_count: 0
+renew_count: 1
 tower_question: open
 workdir: main repo
 worker_question_timeout: 1
@@ -61,6 +61,17 @@ memory_overrides:
 
 - 第一輪以 `BLOCKED` + `需要協助` 收尾，工單 commit 在 notify 之前
 - 第二輪讀到 Renew 答覆並 DONE
+
+## 塔台補充（Renew #1）
+
+**時間**：2026-10-18T11:14:00+0800 (UTC+8)
+**補充內容**：
+> 第一輪依設計逾時：BAT 題目 `expired` / `timeout`，Worker 以 `BLOCKED` + `需要協助` 收尾（工單 commit `60e3d92c` 在 notify 之前）。塔台對該題 `--answer` → exit 9 `status: expired timeout`，依規則改在本區段答覆。
+
+- **塔台答覆 Q-1**：[A] 收到——第一輪逾時路徑已驗，本題在 Renew 區段答覆（2026-10-18T11:14:00+0800；塔台代決）
+
+**新指示**：
+> 依工單 Step 3：讀到上方 `塔台答覆 Q-1` → 記入互動紀錄、刪 `tower_question` → 填回報區「第二輪」證據 → DONE → commit → 送 `T0617 完成`。不要再提問。
 
 ---
 
