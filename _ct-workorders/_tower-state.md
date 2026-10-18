@@ -92,7 +92,7 @@
 
 1. 🔴 **`v0.7.1-pre.2` 剩餘實機驗收**：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex（BUG-157 / 158 / 160 / 161 / 162 / 163 已於第八十四 session 經 T0663 / T0664 自動化驗收 CLOSED）
 2. 🟡 PLAN-052 Docker 可用性（IDEA）；PLAN-047 已於第八十四 session DONE（D171，M2 / M3 不續做；T0620 elicitation 清除未經安裝版實機）
-3. 🟢 T0656 列的「需使用者手動拍」素材（Claude 面板對話、真實狀態列、BAT MCP、Codex、語音）（網站 description / 404 `og:description` / 更版紀錄 title 已由 T0665 補齊並上線，`a300975b`）
+3. 🟢 （PLAN-049 已 DONE，D172）T0656 列的「需使用者手動拍」素材，拍好後另開小工單（Claude 面板對話、真實狀態列、BAT MCP、Codex、語音）（網站 description / 404 `og:description` / 更版紀錄 title 已由 T0665 補齊並上線，`a300975b`）
 4. 🟢 BUG-136 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗；WSL bat-server 仍 `0.6.1-pre.5`（升級後可跑 `smoke:remote:headless` 驗 S13）
 5. 🟢 前期驗收（Gary BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
 
@@ -104,12 +104,12 @@
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 21 / Closed 26）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D171）｜ Learnings → [_learnings.md](_learnings.md)（最大 L170）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D172）｜ Learnings → [_learnings.md](_learnings.md)（最大 L170）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（99 entries）
 
 ### 編號起始
-- **T0666** / **BUG-164** / **PLAN-053** / **D172** / **EXP-[TOPIC]-001** / **L171** / **CT-T022**
+- **T0666** / **BUG-164** / **PLAN-053** / **D173** / **EXP-[TOPIC]-001** / **L171** / **CT-T022**
 
 ---
 
@@ -125,8 +125,8 @@
 | **目前主軸** | `v0.7.1-pre.2` 已發佈（第八十三 session）；下一步實機驗收 BUG-156–163 |
 | **工單最大編號** | **T0664** DONE（第八十四 session：T0663 / T0664 安裝版 pre.2 自動化驗收）；第八十三 session：T0646–T0662；更早見 `_archive/state-snapshots/` |
 | **BUG 最大編號** | **BUG-163**（BUG-156–163 第八十三 session 開立並 FIXED；157 / 158 / 160 / 161 / 162 / 163 第八十四 session CLOSED，156 / 159 待實機）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 21 / Closed 26 |
-| **PLAN 最大編號** | **PLAN-052**（IDEA：Docker 遠端可用性）；PLAN-051 IDEA（D169）；PLAN-049 IN_PROGRESS（W2c / W3 / W4 完成，剩手動素材等零星）；PLAN-047 DONE（D171）；PLAN-015 / 029 / 038 / 043 IDEA |
-| **決策最大編號** | **D171**（D171 PLAN-047 結案，第八十四 session；D169 PLAN-051 維持 IDEA + codex daemon 探針、D170 CT 演進史網站摘要，2026-10-18 第八十三 session） |
+| **PLAN 最大編號** | **PLAN-052**（IDEA：Docker 遠端可用性）；PLAN-051 IDEA（D169）；PLAN-049 DONE（D172）；PLAN-047 DONE（D171）；PLAN-015 / 029 / 038 / 043 IDEA |
+| **決策最大編號** | **D172**（D171 PLAN-047 結案、D172 PLAN-049 結案，第八十四 session；D169 PLAN-051 維持 IDEA + codex daemon 探針、D170 CT 演進史網站摘要，2026-10-18 第八十三 session） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v5.9.0**（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
 | **unit test 基線** | **5597 passed / 317 files / 3 skipped**（塔台複驗 @ `2056ce47`，發 `v0.7.1-pre.2` 前，2026-10-18 第八十三 session；typecheck 0 / 0、vite build 成功；e2e t0590 / t0567 / t0584 passed） |

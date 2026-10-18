@@ -3,7 +3,8 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-049
 title: "GitHub Pages 個人網站：介紹 BAT + Control Tower、推廣使用"
-status: IN_PROGRESS
+status: DONE
+completed_at: "2026-10-18T22:44:48+0800"
 priority: medium
 created_at: "2026-10-18T12:16:31+0800"
 links:
@@ -59,3 +60,10 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 使用者決定。排期時先開研究工單（選型、站台位置、內容盤點與 CT 公開範圍建議），結論審過後再開實作工單。
 - **W2c / W3 / W4 完成（第八十三 session，2026-10-18）**：T0646 `/remote/` 四頁（推上線 `e2cd8e49`，Pages run `39119733905`）；T0656 真實截圖與派工短片、README 換圖；T0659 分享卡片、sitemap、lychee `link-check`（只警告）、MP4 備援；T0652 / T0658 遠端畫面 i18n 與精靈截圖重拍。W3 / W4 與遠端頁的後續修改等 `0.7.1-pre.2` 發佈後再 push（遠端頁內容依賴本批產品修正）。發版流程加「確認 Pages 與 link-check」（`_local-rules.md`）。
 - **CT 演進史摘要（D170，2026-10-18）**：等 BMad-Guide T0175 完成後開單，在 `/control-tower-tour` 下方加「Control Tower 怎麼長出來的」（六個世代、不寫版本號 / 檔名 / 命令名稱，D166 不放寬）。
+- **T0665（第八十四 session）**：`install` / `compatibility` / `releases` 頁面 description、404 中文分享說明、「更版紀錄」title；push `a300975b`，Pages run `39137082682` 全綠，link-check 1141 / 0 errors。
+
+## 結案（D172，2026-10-18 22:44）
+
+- W1 / W2a–W2d / W2c / W3 / W4、CT 演進史一節（D170）、T0665 全部完成並上線；相關工單 T0622–T0665 共 17 張皆 DONE；D159 / D160 待使用者決定事項皆已決定（專案站、無自訂網域、繁中單語、無分析、README 換圖）。
+- **不擋結案**：T0656「需使用者手動拍」素材（Claude 面板對話、真實狀態列、BAT MCP 查詢、Codex、語音）網站與 README 未預留位置；使用者拍好後另開小工單放上。日常維運已併入發版流程（`_local-rules.md` 網站同步確認）。
+- `D:\demo` 的 T0656 殘留（空資料夾與空檔案）待使用者手動刪除。
