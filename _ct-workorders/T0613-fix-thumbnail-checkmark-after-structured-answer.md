@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0613
 title: "BUG-154：結構化提問（`--ask`）答覆後，Worker 縮圖回到「執行中」，不顯示 `✓`、不計入批次關閉"
 type: bugfix
-status: TODO
+status: FIXED
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T09:49:10+0800"
+started_at: "2026-10-18T09:50:07+0800"
+updated_at: "2026-10-18T09:57:03+0800"
+completed_at: "2026-10-18T09:57:03+0800"
 depends_on: [T0609, T0612]
 related:
   - "BUG-154（T0612 Step 2 安裝版 pre.7 目視：答覆後 Worker 仍在跑，縮圖 `✓`）；BUG-153 / T0609（`workerAttention`、`terminal:attention-changed`、`findReportingWorkers`）；T0607 / T0608 / T0611（PLAN-048 `--ask`）"
@@ -77,4 +80,78 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 結果摘要
+
+✅ FIXED。`bat-notify --ask` 的 `terminal:notify` 多帶選用欄位 `questionId`（只有 id），主行程驗證格式後轉送，renderer `markWorkerReported` 遇到它就移除該分頁的 `workerReport` / `workerQuestion`、不記新值。問題 pending 時 `?`（主行程 attention，不變）；問題結束後無標示、N 不計；Worker 下一次一般通知才是 `✓`。
+
+### Landing Zone Check：PASS
+
+- C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 下 → PASS
+- C-3：前 5 個可測項目（`src/stores/workspace-store.ts`、`src/lib/terminal-attention.ts`、`src/App.tsx`、其餘帶括號說明者以祖先目錄判定）皆存在 → PASS（資訊性）
+- C-2：無 `branch` 欄位，略過；目前分支 `main`
+- `CT_HOME` 未設定（非 worktree 派工）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
+### 根因（實際資料流，已查證；塔台推測正確，另有第二個症狀）
+
+1. `scripts/bat-notify.mjs --ask`：`question:ask` 成功 → 主行程 `TowerQuestionStore` `onChange` → `TerminalAttentionNotifier` 送 `terminal:attention-changed { pendingQuestions: 1, blockedReason: 'tower' }` → renderer `terminal-attention-store`。
+2. 接著同一 helper 送一般的 `terminal:notify { targetId, message, source: 'T####' }` → `electron/handlers/terminal.ts` → `terminal:notified` → `App.tsx` `onTerminalNotified` → `workspaceStore.markWorkerReported(info)`。
+3. `markWorkerReported` 只看訊息文字：
+   - 不以 `提問` 結尾（T0612 的 `T0612 結構化提問（探針 Step 2）`）→ 寫 `workerReport`。
+   - 以 `提問` 結尾（CT 慣例 `T#### 提問`）→ 寫 `workerQuestion`（舊 CT 後備）。
+4. `workerAttention`：attention 有問題時 `?` 優先，蓋住上面兩者。答覆後主行程送空 attention → renderer 忘掉該分頁 → 退回殘留的 `workerReport` → `✓`，`reportedWorkersOfTower` 算進 N（BUG-154）；若訊息以 `提問` 結尾則殘留 `workerQuestion` → 答覆後仍是 `?`（同一根因的第二個症狀，CT 真實訊息就是這種）。
+
+### 做法與理由
+
+選「通知帶選用欄位」（不選「renderer 依 attention 變化清除」）：
+
+- 精確：只有 `--ask` 的那一則通知不算回報。若改成「通知到達時該分頁有 pending 問題就不記回報」，Worker 帶著 non-blocking 問題送 `完成` 時，答覆後會失去 `✓`（新的回歸）；若改成「attention 出現問題就清回報」，則依事件先後與 non-blocking 問題也有同類誤判。
+- 欄位只放 question id（`q-<boot>-<rand>`），不含問題 / 答案內容（D155）；主行程只轉送符合 `QUESTION_ID_PATTERN` 的值（不符即丟棄，其他欄位照舊）。
+- 判斷集中：新增 `workerNotifyKind`（`src/lib/terminal-attention.ts`，`ask` / `question` / `report`），`markWorkerReported` 與 `App.tsx` 日誌共用；`workerAttention` / `findReportingWorkers` 不變。
+- 事件先後無關：通知只清除不設定，`?` 永遠來自 attention；單元測試涵蓋「通知先於 attention」。
+
+### 相容性
+
+- 舊 helper（不帶 `questionId`）+ 新 BAT：照訊息判斷，等同修正前行為（helper 隨 BAT 安裝，正常情況同版）。
+- 新 helper + 舊 BAT：舊 `terminal:notify` handler 只取 `targetId` / `message` / `source`，多出的欄位被忽略；`helper-capability` 授權只看 `targetId`，不受影響。helper 的 exit code / stdout 不變。
+- 遠端（WSL / SSH / Docker）：`terminal:notify` handler 本機與 headless 共用（`electron/handlers/terminal.ts`）；`terminal:notified` 在 `PROXIED_EVENTS`，RemoteClient 原樣轉送，判斷同在 renderer → 行為一致。舊 server bundle 不帶欄位 → 舊行為，升級 bundle 後生效。
+- 不帶 `--ask` 的舊 CT `T#### 提問`：不變（`workerQuestion`，`?` 維持到 Worker 下一次通知）。
+- `question:*` channel、`terminal:get-state` 等回傳、helper exit code / stdout 皆未改（T0606 C-1–C-11）。
+
+### 變更檔案
+
+- `scripts/bat-notify.mjs`：`--ask` 的 `terminal:notify` 帶 `questionId`
+- `electron/handlers/terminal.ts`：驗證並轉送 `questionId`；日誌 / bat-scripts.log 多記 id
+- `electron/preload.ts`、`src/types/electron.d.ts`：`onTerminalNotified` 型別加 `questionId?`
+- `electron/remote/path-aware-channels.ts`：channel 說明字串
+- `src/lib/terminal-attention.ts`：`workerNotifyKind` + 檔頭說明
+- `src/stores/workspace-store.ts`：`markWorkerReported` 依 `workerNotifyKind` 處理
+- `src/App.tsx`：日誌 `[T0613] Worker asked its Tower (structured) … question=<id>`
+- `src/types/index.ts`：`workerQuestion` 註解
+- 測試：`src/stores/__tests__/workspace-store.workerAttention.test.ts`（+6：`workerNotifyKind`、規格表四列、事件先後、舊 CT 後備不變）、`electron/__tests__/terminal-handlers.test.ts`（+1：轉送 / 丟棄格式不符）、`scripts/__tests__/bat-notify-questions.test.mjs`（`--ask` 帶 id、一般通知不帶）
+- e2e：`e2e/t0611-tower-question.spec.ts` 答覆後預期改為無標示（無 `data-attention`）、N = 0；再送 `T0611 完成` → `✓`、N = 1；之後第二題從 `✓` 狀態提問 → `?`、N = 0（規格第 4 列）
+- 文件：`docs/agent-guide/tower-questions.md`（流程、徽章規則與相容性、驗收清單第 1 / 2 點）、`docs/agent-guide/worker-tab-recycle.md`（狀態表、後備說明、驗證清單）。CLAUDE.md 未動（必守規則未改變）。
+
+### 驗證
+
+| Gate | 結果 | 證據 |
+|---|---|---|
+| `npx vite build` | PASS | exit 0 |
+| `npm run typecheck` | PASS | `tsc --noEmit -p .` exit 0 |
+| `npm run typecheck:electron` | PASS | exit 0 |
+| `npm run test:unit` | PASS | Test Files 301 passed (301)；Tests 5233 passed / 3 skipped (5236) |
+| e2e `e2e/t0611-tower-question.spec.ts` | PASS | 32.7 s，隔離實例（`launchIsolated`），未碰 port 9876 |
+| e2e `e2e/t0609-worker-attention-badge.spec.ts` | PASS | 4.6 s |
+
+e2e 的新斷言（答覆後 `.worker-badge[data-attention]` 為 0、N = 0）在修正前必失敗：該題訊息 `T0611 等塔台答覆` 不以 `提問` 結尾，舊邏輯會寫 `workerReport` → `✓`。未對 claude / codex 送任何 prompt（e2e 的 Worker 是自訂 CLI 跑 node 腳本）。
+
+### Commit
+
+- `7bfe225c` `fix(T0613): BUG-154 --ask notify no longer leaves a Worker report (✓) behind`（`git commit --only` 15 個檔案；`src/styles/settings.css` 未納入）
+- 工單檔另一個 commit。未 push、未建 tag、未改版號。
+
+### 偏差 / 後續
+
+- 無偏差。
+- 已知限制：舊 helper / 舊遠端 server bundle 仍是修正前行為，直到隨 BAT 升級。
+- 建議：安裝版（下一個預覽版）照 T0612 Step 2 再目視一次：`--ask` → `?` → `--answer` → 無標示、N = 0 → Worker 一般通知 → `✓`。
