@@ -4,7 +4,7 @@ schema_kind: workorder
 id: CT-T019
 title: "【受派】CT 接 BAT「Worker 問塔台」結構化通道：`bat-notify --ask` / `bat_wait_question` / `bat_list_questions` / `bat-terminal --answer`、`blockedReason: tower`（PLAN-048 / D155 / D156）"
 type: implementation
-status: TODO
+status: DONE
 repo: BMad-Guide
 project: PLAN-048
 priority: P2
