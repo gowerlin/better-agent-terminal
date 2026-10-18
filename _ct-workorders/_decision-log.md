@@ -1452,6 +1452,14 @@
 - **不採用**：「最近沒打字才切焦點」（規則複雜、行為難預測）；Settings 開關（多一個設定項）；只揭露狀態不加 helper 參數。
 - **相關**：BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017
 
+### D157 2026-10-18 — CT v5.7.0 × BAT 0.7.0-pre.8 實機驗收由 BAT 塔台統一執行（5 張探針），結果以回函交 BMad-Guide
+
+- **背景**：BMad-Guide 也已換上 CT v5.7.0，使用者要求協商由哪一邊統一驗收（第七十九 session 10:55）。
+- **決定**：BAT 塔台提議、BMad-Guide 同意（對方使用者 10:57 確認，CT 不另開 T0170）。兩邊共用同一份 BAT 安裝版與 `~/.claude/skills`，BUG-154 又需使用者目視，一次驗完。對方追加 12 項（5–16），使用者選 [A]：拆成 T0614（claude 主流程）/ T0615（codex）/ T0616（多題混合，以 `--expires-min 999` 製造 `--ask` 失敗、Worker 自行 `--cancel-question`）/ T0617（timeout 1，塔台刻意不答 → expired → Renew）/ T0618（timeout 0 → Renew → ct-done），依序派工。
+- **塔台代決的提問**（皆範圍內技術選擇）：T0614 Q-1 [A] 驗證清單節末新增條目（BAT 答覆）；T0615 Q-1 [A] codex 另起一條（BAT 答覆）；T0616 Q-1 [A]（BAT）、Q-2 / Q-3 [A]（工單答覆行）；T0617 / T0618 Q-1 [A]（Renew #1）。T0616 時序：第一則提問早於後續 `--ask` 登記，塔台先只答已確定的 Q-3（回函 F-1）。
+- **結果**：16 項 claude 路徑無 FAIL、codex 主流程 PASS；未驗項目與 F-1 / O-1 / O-2 見回函 `D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\_reply-2026-10-18-ct-v570-runtime.md`。
+- **相關**：PLAN-048 / BUG-154 / CT-T019 / T0614–T0618 / D156
+
 ### D156 2026-10-18 — PLAN-048 契約：採用 T0606 全部 12 項推薦；實作切 A（主行程）/ B（helper + MCP，worktree 隔離）並行，C（e2e）合併後
 
 - **背景**：T0606 研究完成介面契約草案（回報區 C-1–C-11）與 12 個待決點。
