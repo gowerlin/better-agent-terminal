@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0609
 title: "BUG-153：Worker 分頁縮圖區分「等使用者（blocked）」「等塔台答覆（提問）」「已回報」，提問 / blocked 不計入批次關閉"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2

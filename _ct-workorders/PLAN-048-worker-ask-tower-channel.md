@@ -35,3 +35,4 @@ BMad-Guide D036：`auto-session = yolo` 時，Worker 有問題向塔台提問，
 - 研究單 **T0606**：現況盤點、介面契約草案、實作切分；審過後開實作單並轉交 CT（CT-T019）。
 - 2026-10-18：T0606 DONE（契約草案）→ D156 全部採用推薦 → 實作 T0607（A 主行程）/ T0608（B helper + MCP，worktree 隔離）並行；C（e2e）與 CT-T019 待 A / B 合併。
 - 2026-10-18：T0607 / T0608（T0610 合併）/ T0611 全部 DONE（source / test / e2e，unit 5226 / 301 files）；`--cancel-question` 對 `lost` exit 0（T0611 裁定，契約 C-3）；CT-T019 轉交 BMad-Guide。實機待下一個預覽版。
+- 2026-10-18 09:47：`v0.7.0-pre.7` 安裝版 T0612（claude Worker）實跑 helper 路徑 PASS：`--ask` exit 0 → 塔台 MCP `bat_list_questions` 看到題目、`bat_get_state` = `blocked` / `tower` / `source: question` / `pendingQuestions: 1` → `--answer --choice 1` exit 0 → Worker `--wait-answer` `answered`。衍生 BUG-154（答覆後縮圖殘留 `✓`）。codex 線與 CT v5.7.0 實機仍待 CT-T019。
