@@ -57,3 +57,5 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 ## 排期
 
 使用者決定。排期時先開研究工單（選型、站台位置、內容盤點與 CT 公開範圍建議），結論審過後再開實作工單。
+- **W2c / W3 / W4 完成（第八十三 session，2026-10-18）**：T0646 `/remote/` 四頁（推上線 `e2cd8e49`，Pages run `39119733905`）；T0656 真實截圖與派工短片、README 換圖；T0659 分享卡片、sitemap、lychee `link-check`（只警告）、MP4 備援；T0652 / T0658 遠端畫面 i18n 與精靈截圖重拍。W3 / W4 與遠端頁的後續修改等 `0.7.1-pre.2` 發佈後再 push（遠端頁內容依賴本批產品修正）。發版流程加「確認 Pages 與 link-check」（`_local-rules.md`）。
+- **CT 演進史摘要（D170，2026-10-18）**：等 BMad-Guide T0175 完成後開單，在 `/control-tower-tour` 下方加「Control Tower 怎麼長出來的」（六個世代、不寫版本號 / 檔名 / 命令名稱，D166 不放寬）。

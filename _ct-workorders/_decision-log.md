@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D170 2026-10-18 — PLAN-049 網站：CT 演進史以「網站版摘要」加在 `/control-tower-tour` 下方（等 BMad-Guide T0175 完成再開單）
+
+- **背景**：使用者考慮把《Control Tower 演進史.html》（BMad-Control-Tower/docs，BMad-Guide T0175 正在補 v5.2.4–v5.9.0）放到網站「Control Tower 功能導覽」下方。演進史以版本表、CHANGELOG、`SKILL.md` / frontmatter、zip 大小圖為骨幹，原文上站會牴觸 D166（不寫命令名稱、skill 名稱、CT 版本號、檔案格式範本）。
+- **決定**（使用者 2026-10-18 20:4x，選塔台推薦 B）：在 `/control-tower-tour` 下方加一節「Control Tower 怎麼長出來的」——以六個世代講設計思路（例：把人手從傳輸線上拿掉、塔台和 Worker 分開、一條規則只寫一處），不寫版本號、檔名、命令名稱，寫法比照 `/cases`；D166 不放寬。不放原文、不連 artifact。
+- **時機**：BMad-Guide T0175 完成（世代劃分補到 v5.9.0）後開單，排在 `0.7.1-pre.2` 發版之後。
+- **相關**：PLAN-049 / D159 / D165 / D166 / `_handover-2026-10-18-ct-evolution-doc-update`（BMad-Guide T0175、D073）
+
 ### D169 2026-10-18 — PLAN-051 跨塔台傳訊維持 IDEA；開 codex 共用 daemon 環境變數繼承探針
 
 - **背景**：T0647 研究 DONE（`c3497907`）：跨塔台往來全為「兩個 Claude 塔台、同一台機器」，失敗兩次皆為認錯收件人（PLAN-050 已解）；codex / 遠端塔台卡住 0 件。另更正兩項前提：Claude Code SendMessage 經 Remote Control 可跨機器與雲端（雲端不能回覆；WSL 2 / container 與 host 互不通）；codex `0.163.0` 有 Stable 的 `codex queue --thread … --message …`（經共用 app-server daemon）。順帶發現未驗證風險：第三方回報 codex 共用 daemon 底下各 session 繼承第一個 session 的環境變數。
