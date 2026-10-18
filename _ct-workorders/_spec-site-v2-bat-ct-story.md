@@ -162,6 +162,7 @@
 - `/contribute`：回報管道（GitHub Issues）與「歡迎協助測試」步驟（Codex 使用者）
 - 頁尾：MIT、致謝上游（tony1223、scandnavik 與原始貢獻者）
 - `/remote/`：另開單（四頁改寫，量大）
+- `/control-tower-tour`「Control Tower 功能導覽」（D166，W2b-3 = T0636）：專門介紹 CT 本身，公開程度「概念加細節」——四級能力、基本操作流程、工單生命週期與狀態、自主模式與斷點、自我學習、多塔台協調、Debug 三層防線、去識別化使用情境、常見問題；不寫命令名稱、skill 名稱、CT 版本號、取得管道、安裝 / 升級步驟、skill 檔原文、完整參數 / 設定表、檔案格式範本。`/control-tower` 維持 BAT × CT 協作重點並連過去
 - `/cases`（D165，W2d）：nav 放在「Control Tower」之後；3 個去識別化情境案例（合併後問題一層層冒出來／兩個服務同一個欄位／規劃到一半正式站出事）＋「BAT 自己就是這樣開發的」3 個真實案例（BAT 定介面契約、CT 依契約撰寫，寫「約 20 次、10 項功能」並標截至日期；一句話變成塔台原則；網站設計語言從 BAT 程式碼抽出）。🔴 不寫「CT 新版由 BAT 塔台實機驗收」。全文與元件（沿用 `StoryChapter`、新元件 `CaseCard`）見 `_spec-site-v2-ct-features-cases.md` § 3、§ 4.1
 
 ---
@@ -212,6 +213,7 @@
 | W2a-0（T0632） | 設計語言檔、BAT Design System、Design 畫布 3 個方向（不改 `site/`） | T0631 |
 | W2a（T0630） | 依使用者選定方向實作元件（§ 7）、首頁（§ 4）；本機 build + 預覽截圖（桌面 / 手機 × 淺色 / 深色） | T0632 + 使用者選方向 |
 | W2b | `/control-tower`（§ 5，含 D165 新增三節與 FAQ）、首頁新段落「越用越懂你的專案」（§ 4.4a）、`/features`、`/faq`、`/contribute`、頁尾、nav / sidebar | W2a 預覽通過（共用元件與 `config.mts`） |
+| W2b-3（T0636） | `/control-tower-tour` Control Tower 功能導覽（§ 6，D166） | T0635（共用 `config.mts`、`/control-tower` 連結） |
 | W2d | `/cases`（§ 6，D165） | W2b |
 | W2c | `/remote/` 四頁改寫 | W2b |
 | W3 | 真實截圖 / 短片（隱私清單逐張檢查）、README 換新截圖 | W2a 設計語言 |
