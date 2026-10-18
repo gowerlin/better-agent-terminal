@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0660
 title: "BUG-161：精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested`、「Set as Supervisor」改走 i18n；modal 關閉鈕補 `aria-label`；評估顯示選項 description"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-161
 priority: P2

@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0657
 title: "BUG-162：查明 yolo Worker 的 Bash 為何觸發 `PermissionRequest`、由誰放行；權限請求結束後清除 `blocked` / `permission`（評估 `PostToolBatch` / `PostToolUse` 成本後實作）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-162
 priority: P2

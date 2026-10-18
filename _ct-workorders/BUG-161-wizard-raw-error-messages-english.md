@@ -3,7 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-161
 title: "設定精靈 step 的原始錯誤訊息、復原警告與縮圖列「suggested」仍是英文（BUG-158 範圍外的殘留）"
-status: FIXED
+status: CLOSED
+closed_at: "2026-10-18T22:24:09+0800"
+closed_by: "使用者（T0663 安裝版 0.7.1-pre.2 自動化驗收）"
 fixed_at: "2026-10-18T20:46:12+0800"
 fixed_by: T0660
 fix_commit: "a5caf04a"
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響錯誤畫面的語言） |
 | 可重現 | 必現（zh-TW 介面遇到對應錯誤時） |
-| **狀態** | ✅ FIXED（T0660 `a5caf04a`：精靈 step 錯誤改帶 code、error-mapper +32 entry（`Error.message` / 日誌維持英文）；復原警告、`suggested`、「Set as Supervisor」走 i18n；21 個 modal × 補 `aria-label`；選項 description 顯示） |
+| **狀態** | 🚫 CLOSED（T0660 `a5caf04a` 修正；2026-10-18 T0663 安裝版 `0.7.1-pre.2` 自動化驗收 PASS，使用者同意結案） |
 
 ## 現象（T0652 回報區）
 
@@ -45,3 +47,11 @@ links:
 - `MainPanel.tsx` 監督者徽章 `title="Supervisor"`、`TerminalThumbnail.tsx` `title="New notification"`；Agent 面板 Cache History「Clear」/`Clear history`；`SettingsPanel.tsx` 自訂 CLI 刪除鈕 `title="Remove"`；`PathLinker.tsx` `Search (Ctrl+F)`；`CtToast` / `UpdateNotification` 的 × 無 aria-label。
 - `ssh/configure-host.ts` `INSTALL_PATH_OPTIONS` 英文 label 含內部工單號字樣（目前未顯示，日後若使用需先改）。
 - 少數 code（例 ssh `start-server` 回 `unknown`）仍走 fallback（標題已翻譯、內文英文）。
+- （T0663 補）配置卡片展開鈕 `title` / `aria-label` 在 zh-TW 仍是 `Expand` / `Collapse`（`src/components/profiles/ProfileCard.tsx` 第 125–126 行）。
+- （T0663 補）`.profile-action-btn` 沒有自訂鍵盤 focus 樣式，只有瀏覽器預設 focus ring（精靈選項按鈕沿用）。
+
+## 實機驗收（T0663，2026-10-18）
+
+- 已安裝 `0.7.1-pre.2`（FileVersion 與隔離實例 `app.getVersion()` 相符），Playwright 隔離實例。
+- V4：觸發得了的 5 個錯誤（`docker-daemon-down` / `docker-no-containers` / `wsl-requires-wsl2` / `wsl-home-unresolved` / `permission-denied`）顯示中文；「建議」標籤、「設為監督者」、× 的 `aria-label`、Docker 選項說明皆正確。其餘 24 個 code 需真實安裝 / 主機失敗才會出現，僅 T0660 單元測試涵蓋（NEEDS-HUMAN，不擋結案）
+- 使用者 2026-10-18 22:24 同意 CLOSED。

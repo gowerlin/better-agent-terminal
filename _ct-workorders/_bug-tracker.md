@@ -3,30 +3,30 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-18T15:51:00+0800"
+generated_at: "2026-10-18T22:24:09+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 40
+total: 48
 breakdown:
   OPEN: 1
   FIXING: 0
-  FIXED: 20
+  FIXED: 21
   VERIFY: 0
-  CLOSED: 19
+  CLOSED: 26
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 20:48 (UTC+8) — BUG-161 FIXED（T0660）；0.7.1-pre.2 批次 BUG-156–163 全數 FIXED
+> 最後同步：2026-10-18 22:24 (UTC+8) — BUG-157 / 158 / 160 / 161 / 162 / 163 CLOSED（T0663 / T0664 安裝版 0.7.1-pre.2 自動化驗收）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 21 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
@@ -43,14 +43,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-161 | 設定精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested` / 「Set as Supervisor」仍是英文（T0660 `a5caf04a`） | 🟢 low | 2026-10-18 | [BUG-161](BUG-161-wizard-raw-error-messages-english.md) |
-| BUG-163 | 設定精靈選項按鈕用 Tailwind class 但 App 沒載入 Tailwind，顯示成白底原生按鈕；步驟說明過時（T0658 `9d8e1985`） | 🟡 medium | 2026-10-18 | [BUG-163](BUG-163-wizard-choice-buttons-unstyled-and-stale-step-text.md) |
-| BUG-162 | claude Worker 的權限請求被放行 / 逾時拒絕後（未經鍵盤），仍維持 `blocked` / `permission` 直到 `Stop`（T0657 `ff14fa5d`） | 🟡 medium | 2026-10-18 | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
-| BUG-160 | SSH 設定的「重新釘選指紋」不經通道連本機埠，可能釘到本機其他 BAT 伺服器並送出權杖（T0655 `02f1c6f8`） | 🟡 medium | 2026-10-18 | [BUG-160](BUG-160-ssh-profile-pin-fingerprint-probes-local-port.md) |
-| BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（T0652 `15a792d4`） | 🟢 low | 2026-10-18 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
-| BUG-157 | 「編輯連線」釘選新指紋後按「儲存」寫回舊指紋；釘選失敗不提示（T0650 `5594ec57`） | 🟡 medium | 2026-10-18 | [BUG-157](BUG-157-pin-fingerprint-overwritten-on-save.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
 | BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁另起 direct shell | 🟡 medium | 2026-10-17 20:17 | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
@@ -81,6 +75,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-163 | 設定精靈選項按鈕用 Tailwind class 但 App 沒載入 Tailwind，顯示成白底原生按鈕；步驟說明過時（T0658 `9d8e1985`；0.7.1-pre.2 T0663 實機） | 🟡 medium | 2026-10-18 | [BUG-163](BUG-163-wizard-choice-buttons-unstyled-and-stale-step-text.md) |
+| BUG-162 | claude Worker 的權限請求被放行 / 逾時拒絕後（未經鍵盤），仍維持 `blocked` / `permission` 直到 `Stop`（T0657 `ff14fa5d`；0.7.1-pre.2 T0664 實機） | 🟡 medium | 2026-10-18 | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
+| BUG-161 | 設定精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested` / 「Set as Supervisor」仍是英文（T0660 `a5caf04a`；0.7.1-pre.2 T0663 實機） | 🟢 low | 2026-10-18 | [BUG-161](BUG-161-wizard-raw-error-messages-english.md) |
+| BUG-160 | SSH 設定的「重新釘選指紋」不經通道連本機埠，可能釘到本機其他 BAT 伺服器並送出權杖（T0655 `02f1c6f8`；0.7.1-pre.2 T0663 實機） | 🟡 medium | 2026-10-18 | [BUG-160](BUG-160-ssh-profile-pin-fingerprint-probes-local-port.md) |
+| BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（T0652 `15a792d4`；0.7.1-pre.2 T0663 實機） | 🟢 low | 2026-10-18 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
+| BUG-157 | 「編輯連線」釘選新指紋後按「儲存」寫回舊指紋；釘選失敗不提示（T0650 `5594ec57`；0.7.1-pre.2 T0663 實機） | 🟡 medium | 2026-10-18 | [BUG-157](BUG-157-pin-fingerprint-overwritten-on-save.md) |
 | BUG-155 | helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 `DISABLE_UPDATES` 防護（T0639 `149f6f8d`；0.7.1-pre.1 T0645 實機） | 🟢 low | 2026-10-18 | [BUG-155](BUG-155-helper-dispatch-pty-missing-agent-preset.md) |
 | BUG-154 | 結構化提問（`bat-notify --ask`）答覆後，仍在執行的 Worker 縮圖顯示 `✓` 並計入批次關閉（T0613 `7bfe225c`；pre.8 T0614 目視） | 🟡 medium | 2026-10-18 | [BUG-154](BUG-154-thumbnail-checkmark-after-structured-answer.md) |
 | BUG-153 | Worker 分頁縮圖在 `T#### 提問`（等塔台答覆）時也顯示 `✓` 並計入批次關閉；hook `blocked` 時沒有專屬標示（T0609 `fbf641dc`；pre.7 T0612 目視） | 🟡 medium | 2026-10-18 | [BUG-153](BUG-153-worker-thumbnail-checkmark-on-question-and-blocked.md) |

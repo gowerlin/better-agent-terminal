@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0655
 title: "BUG-160：SSH 設定停用「重新釘選指紋」（不經通道會釘到本機其他伺服器、送錯權杖）；`handlePinFingerprint` 防禦性拒絕 SSH 設定"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-160
 priority: P2

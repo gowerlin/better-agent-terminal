@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0650
 title: "BUG-157：「編輯連線」釘選新指紋後按「儲存」不再寫回舊指紋；釘選失敗要顯示錯誤"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-157
 priority: P2

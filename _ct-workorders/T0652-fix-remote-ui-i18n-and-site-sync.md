@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0652
 title: "BUG-158：遠端設定畫面的英文字樣改走 i18n、補齊缺的 key、修正 SSH 認證失敗的「帳號密碼」文案；同步網站 `/remote/` 引用的 UI 字樣與指紋段落"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-158
 priority: P3

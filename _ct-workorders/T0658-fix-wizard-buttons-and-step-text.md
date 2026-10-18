@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0658
 title: "BUG-163：設定精靈的選項按鈕 / 輸入框改用 App 既有樣式（不靠 Tailwind）；更正 WSL / SSH / Docker 步驟說明；修完重拍網站的 3 張精靈截圖"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-163
 priority: P2

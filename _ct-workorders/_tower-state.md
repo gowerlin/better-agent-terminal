@@ -90,7 +90,7 @@
 
 ### 待辦（依優先序）
 
-1. 🔴 **`v0.7.1-pre.2` 實機驗收**（使用者已換版；先以 FileVersion 確認）：BUG-157 釘選 → 儲存、BUG-160 SSH 釘選按鈕停用、BUG-162 權限請求後 ⚠️ 消失、BUG-163 精靈按鈕 / 進度條、BUG-158 / 161 中文；BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
+1. 🔴 **`v0.7.1-pre.2` 剩餘實機驗收**：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex（BUG-157 / 158 / 160 / 161 / 162 / 163 已於第八十四 session 經 T0663 / T0664 自動化驗收 CLOSED）
 2. 🟡 PLAN-047 收尾盤點（frontmatter 仍 IN_PROGRESS；M1 / M1b / W1 已完成）；PLAN-052 Docker 可用性（IDEA）
 3. 🟢 T0656 列的「需使用者手動拍」素材（Claude 面板對話、真實狀態列、BAT MCP、Codex、語音）；網站 3 頁缺 `description`、404 `og:description`
 4. 🟢 BUG-136 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗；WSL bat-server 仍 `0.6.1-pre.5`（升級後可跑 `smoke:remote:headless` 驗 S13）
@@ -103,13 +103,13 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，確認 Pages 綠燈、首頁版號、`link-check` summary，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 27 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 21 / Closed 26）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D170）｜ Learnings → [_learnings.md](_learnings.md)（最大 L170）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（99 entries）
 
 ### 編號起始
-- **T0663** / **BUG-164** / **PLAN-053** / **D171** / **EXP-[TOPIC]-001** / **L171** / **CT-T022**
+- **T0665** / **BUG-164** / **PLAN-053** / **D171** / **EXP-[TOPIC]-001** / **L171** / **CT-T022**
 
 ---
 
@@ -123,8 +123,8 @@
 | **最新 release** | `v0.7.1-pre.2`（2026-10-18 20:55，run `39128867451`，target `9c5fe2b1`：BUG-156–163、網站 W2c / W3 / W4；更版重點含「歡迎協助測試」（codex `--no-daemon`）；repo 文件 `c678fc02`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.2`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.1`（2026-10-18 17:36，`1bc9ccca`） |
 | **目前主軸** | `v0.7.1-pre.2` 已發佈（第八十三 session）；下一步實機驗收 BUG-156–163 |
-| **工單最大編號** | **T0662** DONE（第八十三 session：T0646–T0662）；更早見 `_archive/state-snapshots/` |
-| **BUG 最大編號** | **BUG-163**（BUG-156–163 第八十三 session 開立並 FIXED，待實機）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 27 / Closed 20 |
+| **工單最大編號** | **T0664** DONE（第八十四 session：T0663 / T0664 安裝版 pre.2 自動化驗收）；第八十三 session：T0646–T0662；更早見 `_archive/state-snapshots/` |
+| **BUG 最大編號** | **BUG-163**（BUG-156–163 第八十三 session 開立並 FIXED；157 / 158 / 160 / 161 / 162 / 163 第八十四 session CLOSED，156 / 159 待實機）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 21 / Closed 26 |
 | **PLAN 最大編號** | **PLAN-052**（IDEA：Docker 遠端可用性）；PLAN-051 IDEA（D169）；PLAN-049 IN_PROGRESS（W2c / W3 / W4 完成，剩手動素材等零星）；PLAN-047 IN_PROGRESS（待收尾盤點）；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D170**（D169 PLAN-051 維持 IDEA + codex daemon 探針、D170 CT 演進史網站摘要，2026-10-18 第八十三 session） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
