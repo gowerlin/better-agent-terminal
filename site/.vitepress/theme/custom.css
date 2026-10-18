@@ -3420,6 +3420,137 @@
   }
 }
 
+/* ---------- /remote/ 的連線示意（RemoteBridge）：沿用雷達線條，跟著頁面深淺色；不用紫色 ---------- */
+
+.vp-doc .remote-bridge {
+  margin: 28px 0 8px;
+}
+
+.rb-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+  font-family: var(--bat-font-sans);
+}
+
+.rb-svg.is-wide {
+  max-width: 680px;
+}
+
+.rb-svg.is-tall {
+  display: none;
+  max-width: 340px;
+}
+
+.rb-ring {
+  fill: none;
+  stroke: var(--vp-c-divider);
+  stroke-width: 1;
+}
+
+.rb-ring.is-outer {
+  fill: var(--bat-raised);
+  stroke: var(--bat-line);
+}
+
+.rb-bat {
+  fill: var(--vp-c-bg);
+  stroke: var(--vp-c-text-1);
+  stroke-width: 1.5;
+}
+
+.rb-bat-label,
+.rb-server-label {
+  font-family: var(--bat-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  text-anchor: middle;
+  fill: var(--vp-c-text-1);
+}
+
+.rb-name,
+.rb-what,
+.rb-tag {
+  text-anchor: middle;
+}
+
+.rb-what.is-left,
+.rb-tag.is-left {
+  text-anchor: start;
+}
+
+.rb-name {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--vp-c-text-1);
+}
+
+.rb-what {
+  font-size: 13px;
+  fill: var(--vp-c-text-2);
+}
+
+.rb-tag {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--vp-c-text-1);
+}
+
+.rb-tag.is-muted {
+  font-weight: 400;
+  fill: var(--vp-c-text-2);
+}
+
+.rb-link {
+  fill: none;
+  stroke: var(--vp-c-text-2);
+  stroke-width: 1.5;
+}
+
+.rb-joint {
+  fill: var(--bat-spark-yellow);
+  stroke: var(--vp-c-text-1);
+  stroke-width: 1;
+}
+
+.rb-target {
+  fill: var(--vp-c-bg);
+  stroke: var(--vp-c-divider);
+  stroke-width: 1.5;
+}
+
+.rb-target-name {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--vp-c-text-1);
+}
+
+.rb-server {
+  fill: var(--bat-term-bg);
+  stroke: var(--bat-term-line);
+}
+
+.rb-server-label {
+  fill: var(--bat-term-ink);
+}
+
+@media (max-width: 639px) {
+  .rb-svg.is-wide {
+    display: none;
+  }
+
+  .rb-svg.is-tall {
+    display: block;
+  }
+}
+
+/* ---------- /remote/ 各頁：該選哪一種、步驟 ---------- */
+
+.vp-doc .remote-next {
+  margin-top: 56px;
+}
+
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {

@@ -110,7 +110,7 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 - 可以同時開好幾個遠端環境的視窗，最多 8 個連線。
 - 遠端 AI 工具面板偵測遠端有沒有 claude、codex、Node.js，缺的可以一鍵安裝（Node.js 透過 nvm）。
 
-<!-- TODO(W2c): 連到 /remote/ 的 WSL、SSH、Docker 設定指南（頁面在 W2c 才建立） -->
+一步步的設定方式見[遠端開發](./remote/)：[WSL](./remote/wsl)、[SSH](./remote/ssh)、[Docker](./remote/docker)（Docker 目前需要自己建置伺服器映像）。
 
 ## 遠端存取 {#remote-access}
 

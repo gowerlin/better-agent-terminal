@@ -55,6 +55,8 @@ BAT 的終端機跑在背景的 Terminal Server 裡。離開 BAT 時沒有勾選
 
 ## 遠端開發 {#remote}
 
+WSL、SSH、Docker 的設定步驟與各自的常見狀況，見[遠端開發](./remote/)。
+
 ### 設定遠端時下載不到伺服器套件？ {#server-bundle}
 
 安裝檔不內建遠端用的伺服器套件。第一次設定 WSL、SSH 或 Docker 時，BAT 會從 GitHub 上對應版本的 `server-bundle-v<版號>` release 下載，下載過的會快取起來。

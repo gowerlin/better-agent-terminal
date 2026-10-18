@@ -1,0 +1,138 @@
+---
+title: Docker
+description: 用 BAT 驅動本機 Docker 容器裡的 Agent：目前需要先自己建置伺服器映像；設定精靈的兩種模式、每一步、移除與常見狀況。
+---
+
+# Docker
+
+BAT 留在你的電腦，Agent 在本機 Docker 的 Linux 容器裡執行，專案資料夾掛進容器。適合想把每個專案的環境隔開、隨時可以重建的人。 {.ct-intro}
+
+::: warning 目前需要自己建置伺服器映像
+Docker 精靈不會把伺服器套件裝進容器，而是用你電腦上現成的 `bat-server:latest` 映像建立容器。這個映像目前沒有公開發佈，要從 BAT 的原始碼自己建置（見[準備映像](#image)）。WSL 與 SSH 沒有這個步驟。
+:::
+
+## 開始之前 {#before}
+
+- **Docker Desktop**（Windows、macOS）或 **Docker Engine**（Linux），而且 daemon 已經在執行：在終端機執行 `docker info` 不會出錯。
+- **`bat-server:latest` 映像**，見下一節。
+- **一個要掛進容器的專案資料夾**。
+
+映像是 linux/amd64，以 root 執行伺服器。
+
+### 準備映像 {#image}
+
+在一台裝好 Node.js、Git 與 Docker 的電腦上，取得 BAT 的原始碼，建議切到與你的 BAT 相同版本的 tag（`v<版號>`），然後執行：
+
+```bash
+npm ci
+npm run build:docker-image
+```
+
+指令會先打包伺服器，再建置 `bat-server:<版號>` 與 `bat-server:latest` 兩個標籤。之後升級 BAT，也要用新版的原始碼重新建置一次。
+
+## 設定精靈 {#wizard}
+
+在側欄底部按 **配置**，再按 **+ 更多 ▾**，在「容器類」選 **新增 Docker 設定檔**。
+
+<!-- TODO(W3): 截圖 -->
+
+1. **偵測目標環境**：確認找得到 `docker` 指令，daemon 也在執行。
+2. **選擇 Docker 容器模式**：選 **Create new** 或 **Use existing**（這兩個按鈕目前只有英文）。差別見[兩種模式](#modes)。
+3. **設定 bind mounts**：選一個本機資料夾，它會掛到容器的 `/workspace/<資料夾名稱>`。目前只能選一個資料夾，容器裡的路徑不能改。
+4. **確認 BAT 伺服器套件**：確認容器裡有伺服器（`/opt/bat-server`）；這一步不會複製任何檔案。
+5. **啟動 Docker 容器**：建立或啟動容器，最多等 45 秒讓它的健康檢查通過。
+6. **取得 TLS 指紋**：記下伺服器憑證的指紋，之後每次連線都會核對。
+7. **連線測試**。
+8. **寫入連線設定**：在「配置」裡新增一筆 Docker 設定。
+9. **完成**：列出過程中收集到的警告。
+
+### 兩種模式 {#modes}
+
+<CardTable
+  caption="Docker 精靈的兩種模式"
+  :columns="['', 'Create new（建議）', 'Use existing']"
+  :rows="[
+    ['容器', '用 bat-server:latest 建立新容器，名稱是 bat-server-profile；已有同名容器時加上 -2、-3', '直接用 docker ps -a 列出的第一個容器，也就是最新建立的那個；不能自己挑'],
+    ['掛載的資料夾', '建立容器時掛上', '不會套用到容器，只用來轉換附件路徑'],
+    ['自動重啟', '容器設成 unless-stopped，Docker 重啟或電腦重開後自己回來', '維持容器原本的設定'],
+    ['適合', '大多數情況', '你自己用同一個映像建立、而且只有它一個容器的情況']
+  ]"
+/>
+
+「Use existing」目前有兩個限制：會自動拿最新的容器，不一定是你要的那個；而且用 Create new 建立的容器，改用 Use existing 接上時可能讀不到權杖，連線測試會失敗。沒有特別理由，請選 **Create new**。
+
+### 連接埠與資料 {#port-data}
+
+- 容器的伺服器埠固定是 9876，只對本機的 `127.0.0.1` 公開，區網上的其他電腦連不到。
+- 憑證存在 Docker volume `bat-server-<容器名稱>-data`，刪掉容器後還在。
+
+::: warning 先把 BAT 自己的伺服器埠改掉
+BAT 一啟動就會在本機開自己的伺服器，預設也是 9876。兩者用同一個埠時，容器會因為埠被占用而啟動失敗。跑精靈之前，到 **設定 > 進階 > 遠端存取**，把「伺服器 Port」改成別的埠（例如 9880），按「儲存並切換」。
+
+已經開著的分頁還記著舊的埠，派工、完成通知這類功能要在之後新開的分頁裡才會正常。
+:::
+
+## 連上之後 {#after}
+
+- 在「配置」裡開啟這筆 Docker 設定，會開一個新的 BAT 視窗；裡面的終端機與 Agent 都在容器裡執行，專案資料夾在 `/workspace/<資料夾名稱>`。
+- 附加到 Agent 對話的本機檔案，路徑會自動換成容器裡的路徑；不在掛載資料夾裡的檔案，容器看不到。
+- BAT 不會替你啟動停掉的容器。容器停了，執行 `docker start <容器名稱>` 再連線。
+
+## 升級與移除 {#upgrade-remove}
+
+### 升級 {#upgrade}
+
+用新版 BAT 的原始碼重新建置映像（見[準備映像](#image)），刪掉舊容器，再用 **Create new** 跑一次精靈。Docker 精靈每次都會新增一筆設定，不會更新舊的；舊的那筆請自己刪掉。
+
+### 移除 {#remove}
+
+在「配置」裡刪除 Docker 設定，只會刪掉 BAT 這邊的設定，容器不會停。要完整移除：
+
+```bash
+docker rm -f bat-server-profile
+docker volume rm bat-server-bat-server-profile-data
+docker rmi bat-server:latest
+```
+
+容器名稱不一樣時，換成你的名稱；可以用 `docker ps -a` 查。
+
+## 常見狀況 {#troubleshooting}
+
+### 未偵測到 Docker daemon {#daemon}
+
+啟動 Docker Desktop（Linux 上啟動 Docker 服務），等它就緒後按「我已啟動 Docker，重試」。
+
+### 找不到 bat-server:latest {#no-image}
+
+「啟動 Docker 容器」那一步會顯示 Docker 的錯誤訊息，表示這台電腦還沒有映像。照[準備映像](#image)建置之後重試。
+
+### 埠已經被占用 {#port-in-use}
+
+Docker 的錯誤訊息提到 9876 已被使用時，通常是 BAT 自己的伺服器占著，照[連接埠與資料](#port-data)的提醒改掉 BAT 的伺服器埠，再重試。
+
+### 等不到容器變成 healthy {#unhealthy}
+
+看容器的日誌與健康檢查結果：
+
+```bash
+docker logs bat-server-profile
+docker inspect --format '{{json .State.Health}}' bat-server-profile
+```
+
+精靈若警告容器用的映像建置於網路修正之前，用新版原始碼重新建置映像，刪掉舊容器後再跑一次。
+
+### 容器公開在所有網路介面上 {#exposed}
+
+精靈若警告容器的埠公開在主機所有網路介面上，表示那是 BAT 改成只對本機公開之前建立的舊容器。刪掉它，改用 **Create new** 讓 BAT 建立只對本機公開的新容器。
+
+### 中途取消 {#cancel}
+
+按 **取消**，或在執行中關掉精靈，已完成的步驟會依序復原：這次建立的容器會刪掉；原本就有、這次才啟動的容器會停回去；不是這次建立的東西不會動。
+
+### 指紋不符 {#fingerprint}
+
+見[遠端開發：憑證指紋](./#fingerprint)。
+
+---
+
+回報 Docker 相關問題時，請附上 Docker 版本、映像標籤、精靈的錯誤訊息與 BAT 的除錯日誌，見[回報與協助測試](../contribute)。更多問題見[常見問題](../faq#remote)。 {.remote-next}

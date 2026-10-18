@@ -37,7 +37,7 @@ export default async () => {
       nav: [
         { text: '安裝', link: '/install' },
         { text: '功能', link: '/features' },
-        // TODO(W2c): { text: '遠端開發', link: '/remote/' }
+        { text: '遠端開發', link: '/remote/' },
         {
           text: 'BAT × Control Tower',
           items: [
@@ -65,7 +65,15 @@ export default async () => {
             { text: '功能', link: '/features' }
           ]
         },
-        // TODO(W2c): 遠端開發（/remote/：overview、wsl、ssh、docker）
+        {
+          text: '遠端開發',
+          items: [
+            { text: '總覽', link: '/remote/' },
+            { text: 'WSL', link: '/remote/wsl' },
+            { text: 'SSH', link: '/remote/ssh' },
+            { text: 'Docker', link: '/remote/docker' }
+          ]
+        },
         {
           text: 'BAT × Control Tower',
           items: [

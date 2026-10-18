@@ -10,6 +10,7 @@ import DownloadLinks from './components/DownloadLinks.vue'
 import FeatureGrid from './components/FeatureGrid.vue'
 import GrowthLadder from './components/GrowthLadder.vue'
 import QuestionFlow from './components/QuestionFlow.vue'
+import RemoteBridge from './components/RemoteBridge.vue'
 import StatsCounter from './components/StatsCounter.vue'
 import StoryChapter from './components/StoryChapter.vue'
 import StoryIllo from './components/StoryIllo.vue'
@@ -33,6 +34,7 @@ export default {
     app.component('FeatureGrid', FeatureGrid)
     app.component('GrowthLadder', GrowthLadder)
     app.component('QuestionFlow', QuestionFlow)
+    app.component('RemoteBridge', RemoteBridge)
     app.component('StatsCounter', StatsCounter)
     app.component('StoryChapter', StoryChapter)
     app.component('StoryIllo', StoryIllo)
