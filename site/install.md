@@ -1,3 +1,7 @@
+---
+description: 下載 Better Agent Terminal 的 Windows、macOS（Apple Silicon）、Linux 安裝檔，或從原始碼建置；資料目錄的位置、從舊版升級、除錯日誌，以及語音輸入的麥克風權限。
+---
+
 # 安裝
 
 ## 下載安裝檔

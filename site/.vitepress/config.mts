@@ -8,6 +8,9 @@ export interface ThemeConfig extends DefaultTheme.Config {
 // 分享卡片與 sitemap 都要絕對網址
 const SITE_URL = 'https://gowerlin.github.io/better-agent-terminal/'
 
+// 404 頁的說明：VitePress 內建的是英文 Not Found
+const NOT_FOUND_DESCRIPTION = '找不到這個頁面，網址可能已經移除或改名。請回 Better Agent Terminal 首頁，或從上方選單找你要的內容。'
+
 // cleanUrls：cases.md → cases、remote/index.md → remote/、index.md → 首頁
 function pageUrl(relativePath: string): string {
   return SITE_URL + relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
@@ -53,13 +56,17 @@ export default async () => {
 
     // 每頁的分享標題 / 說明取自頁面 frontmatter（沒寫就用站名與站點說明，同 <title> / <meta name="description">）
     transformHead({ pageData, title, description }) {
+      const pageDescription = pageData.isNotFound ? NOT_FOUND_DESCRIPTION : description
       const head: HeadConfig[] = [
         ['meta', { property: 'og:title', content: title }],
-        ['meta', { property: 'og:description', content: description }],
+        ['meta', { property: 'og:description', content: pageDescription }],
         ['meta', { name: 'twitter:title', content: title }],
-        ['meta', { name: 'twitter:description', content: description }]
+        ['meta', { name: 'twitter:description', content: pageDescription }]
       ]
-      if (!pageData.isNotFound) {
+      if (pageData.isNotFound) {
+        // head 裡有 meta description 時，VitePress 不再輸出內建的那一個
+        head.push(['meta', { name: 'description', content: NOT_FOUND_DESCRIPTION }])
+      } else {
         head.push(['meta', { property: 'og:url', content: pageUrl(pageData.relativePath) }])
       }
       return head
