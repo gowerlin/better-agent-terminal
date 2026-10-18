@@ -121,6 +121,8 @@ export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' |
   worktree?: CtWorktreeRecord
   /** T0600: when its claude ran `SessionStart` (ms epoch); absent = not reported before it ended. */
   agentStartedAt?: number
+  /** T0642: the session id its claude's last `SessionStart` sent; absent = none known when it ended. */
+  claudeSessionId?: string
 }
 
 /** T0582: exited PTYs remembered (oldest dropped first). */
@@ -218,6 +220,13 @@ export interface PtyManagerDeps {
    * logged and ignored. Undefined = no hook.
    */
   onSurvivingPtys?: (ids: string[]) => void
+  /**
+   * PLAN-050 / T0642: a `session-start` report changed running PTY `id`'s claude session id
+   * (`getClaudeSessionId`). Not called when the PTY ends (`onPtyExit`) or for the Terminal Server
+   * recovery (`onServerRecovery`), which drop it. Electron persists the session ids here. A
+   * throwing listener is logged and ignored. Undefined = no hook.
+   */
+  onClaudeSessionChange?: (id: string) => void
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -316,7 +325,13 @@ export class PtyManager implements CloseWorkerPtyManager {
   private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
   // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
   // T0609: `deps` is assigned by the constructor before any report can arrive
-  private blockedTracker = new TerminalBlockedTracker(logger, undefined, id => this.deps.onBlockedChange?.(id))
+  // T0642: + the claude session id of a `session-start` (`onClaudeSessionChange`)
+  private blockedTracker = new TerminalBlockedTracker(
+    logger,
+    undefined,
+    id => this.deps.onBlockedChange?.(id),
+    id => this.deps.onClaudeSessionChange?.(id),
+  )
   // T0600 option B: `[agent-command] launch-suspect` (log only)
   private launchSuspect = new LaunchSuspectWatcher(logger)
   // T0621: codex's OSC 7501 in the live output (read only) → `blockedTracker.observeCodexState`
@@ -721,6 +736,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     const buf = this.replayBuffers.get(id)
     const data = buf ? buf.data.slice(-EXITED_PTY_TAIL_MAX_CHARS) : ''
     const startedAt = this.blockedTracker.getStartedAt(id) // T0600
+    const claudeSessionId = this.blockedTracker.getSessionId(id) // T0642
     const record: ExitedPtyRecord = {
       id,
       cwd: instance.cwd,
@@ -734,6 +750,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       tail: { data, total: buf?.total ?? 0 },
       ...(instance.worktree ? { worktree: { ...instance.worktree } } : {}),
       ...(startedAt !== null ? { agentStartedAt: startedAt } : {}),
+      ...(claudeSessionId !== null ? { claudeSessionId } : {}),
     }
     this.exitedPtys.delete(id)
     this.exitedPtys.set(id, record)
@@ -1011,10 +1028,13 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   // ── PLAN-047 M1b-1 / T0590: `blocked` (electron/terminal-blocked-state.ts) ──
 
-  /** A claude hook of running PTY `id` (`terminal:report-hook`); null = not running. */
-  reportHookEvent(id: string, event: HookReportEvent, toolName?: string): { result: HookReportResult; state: BlockedState | null } | null {
+  /**
+   * A claude hook of running PTY `id` (`terminal:report-hook`); null = not running. T0642: + the
+   * session id of a `session-start` (validated by the handler).
+   */
+  reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string): { result: HookReportResult; state: BlockedState | null } | null {
     if (!this.instances.has(id)) return null
-    return this.blockedTracker.report(id, event, toolName)
+    return this.blockedTracker.report(id, event, toolName, sessionId)
   }
 
   /** What running PTY `id` is blocked on, or null (not blocked / not running). */
@@ -1042,6 +1062,25 @@ export class PtyManager implements CloseWorkerPtyManager {
    */
   getAgentStartedAt(id: string): number | null {
     return this.instances.has(id) ? this.blockedTracker.getStartedAt(id) : null
+  }
+
+  /**
+   * PLAN-050 / T0642 (D167): the session id the claude of running PTY `id` sent with its last
+   * `SessionStart` hook, or null (not reported / not running). An exited PTY's is
+   * `ExitedPtyRecord.claudeSessionId`.
+   */
+  getClaudeSessionId(id: string): string | null {
+    return this.instances.has(id) ? this.blockedTracker.getSessionId(id) : null
+  }
+
+  /**
+   * T0642: puts back the session id saved for running PTY `id` before BAT closed (Electron, after the
+   * Terminal Server's PTY list). Ignored when the PTY does not run, already has one, or it is not a
+   * UUID. True when it was set.
+   */
+  restoreClaudeSessionId(id: string, sessionId: string): boolean {
+    if (!this.instances.has(id)) return false
+    return this.blockedTracker.restoreSessionId(id, sessionId)
   }
 
   /** T0450: running PTYs and the `maxInstances` cap (0 = unlimited) — the helper creation quota. */

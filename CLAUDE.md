@@ -290,7 +290,8 @@
 - 用途：claude-cli 分頁啟動時加 `claude --name=<名稱>`，讓 CT 從 ListAgents 分得出 BAT 的塔台與 Worker。格式唯一實作 `claudeSessionName`（`src/lib/claude-session-name.ts`，main / renderer 共用）：Worker `<ws> · Worker · <T####>`、Tower `<ws> · Tower`（T0644 用）、其他 `<ws> · <短 ID>`；`<ws>` = 工作區 `alias || name` 清理後 ≤ 60 字、整個名稱 ≤ 200 字（從 `<ws>` 截斷）、空 → `BAT`。
 - 注入：`buildBatMcpLaunchArgs`（`electron/bat-mcp-launch.ts`）的獨立一段，只對 `claude-cli` / `claude-cli-worktree`，`--name=` 形式放在 BAT 參數最後。🔴 不受 `batMcpEnabled` 影響、不加 Settings 開關（D167）；名稱由呼叫端算好（renderer `startClaudeCliPty`、helper 派工以落點工作區），一律經 `withBatMcpLaunchArgs` / `createAgentPromptCommandBuilder`。
 - 降級（不注入、記原因）：非 claude-cli、自訂參數已含 `--name` / `-n` / 短旗標群組含 `n`（`user-args`）。🔴 system runtime 的 claude `< 2.1.76` 或讀不到版本絕不注入（`claude-too-old` / `version-unknown`，否則 claude exit 1）；檢查唯一實作 `createClaudeNameSupportCheck`（`electron/claude-version-check.ts`，`execFile` + 5 s、路徑 + mtime 快取），embedded 不檢查。
-- 記錄：每個分頁實際注入的名稱（或原因）以 terminal id 記在 `claudeSessionNameRecords`（`electron/claude-session-name-record.ts`，與 PTY 分開）；查詢欄位是 T0642。
+- 記錄：每個分頁實際注入的名稱（或原因）以 terminal id 記在 `claudeSessionNameRecords`（`electron/claude-session-name-record.ts`，與 PTY 分開）。
+- 查詢 R3（T0642，契約 C-4 / C-5 / C-8）：`terminal:whoami` / `list` 每列 / `get-state` 多 `claudeSessionName`（注入的名稱）/ `claudeSessionId`（`SessionStart` hook 回報的 UUID，🔴 `null` 不代表沒有 session），結束紀錄保留。sessionId 由 `bat-hook.mjs session-start` 送 `sessionId`（改 T0600 契約，D167；🔴 其餘 hook 規則不變，日誌只記前 8 碼），存在 `TerminalBlockedTracker`；Electron 以 `ClaudeSessionPersistence`（`<userData>/claude-sessions.json`，無權杖）在 BAT 重開、Terminal Server 存活時還原，headless 不持久化。
 - 完整格式、降級表、headless 行為、日誌、pwsh / cmd(950) / Git Bash 編碼實測、已知限制、驗證清單：[docs/agent-guide/claude-session-name.md](docs/agent-guide/claude-session-name.md)
 
 ## 多 remote profile 同時連線（PLAN-039）

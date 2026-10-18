@@ -155,6 +155,24 @@ describe('tools/call forwards to the channel', () => {
     expect((await callNone('bat_get_state', { terminalId: 'c1' })).result.content[0].text).toBe('c1: idle, idle 1 ms')
   })
 
+  it('T0642: whoami / list / get-state describe claudeSessionName / claudeSessionId; structuredContent carries them; the whoami summary names the session', async () => {
+    for (const name of ['bat_whoami', 'bat_list_terminals', 'bat_get_state']) {
+      const tool = TOOLS.find(t => t.name === name)
+      expect(tool.description, name).toContain('claudeSessionName')
+      expect(tool.description, name).toContain('claudeSessionId')
+    }
+    const sid = '0f3c2a9e-6b1d-4c8e-9a7f-1d2e3f4a5b6c'
+    const { call } = setup({
+      'terminal:whoami': { ok: true, result: { ok: true, terminalId: 't1', role: 'tower', yolo: true, claudeSessionName: 'BMad · Tower', claudeSessionId: sid } },
+      'terminal:get-state': { ok: true, result: { ok: true, terminalId: 'w1', state: 'idle', idleMs: 1, blockedDetection: 'hook', agentStarted: true, claudeSessionName: null, claudeSessionId: null } },
+    })
+    const who = (await call('bat_whoami')).result
+    expect(who.content[0].text).toBe('terminal t1 role=tower yolo session="BMad · Tower"')
+    expect(who.structuredContent).toMatchObject({ claudeSessionName: 'BMad · Tower', claudeSessionId: sid })
+    const state = (await call('bat_get_state', { terminalId: 'w1' })).result
+    expect(state.structuredContent).toMatchObject({ claudeSessionName: null, claudeSessionId: null })
+  })
+
   it('no arguments = this tab (no terminalId sent)', async () => {
     const { call, calls } = setup()
     await call('bat_get_state')

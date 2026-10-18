@@ -300,7 +300,8 @@ describe('source guards (T0641)', () => {
     const main = read('electron/main.ts')
     expect(main).toMatch(/const claudeNameSupport = createClaudeNameSupportCheck\(\{\n  resolveRuntime: \(\) => resolveClaudeRuntime\(getRuntimeSettingsSnapshot\(\)\),/)
     expect(main).toMatch(/claudeNameSupport, \/\/ T0641/)
-    expect(main).toMatch(/recordClaudeSessionName: \(terminalId, record\) => claudeSessionNameRecords\.set\(terminalId, record\)/)
+    // T0642: + the persisted store
+    expect(main).toMatch(/recordClaudeSessionName: \(terminalId, record\) => \{\n    claudeSessionNameRecords\.set\(terminalId, record\)\n    claudeSessionPersistence\.persist\(\) \/\/ T0642/)
     const headless = read('electron/remote/headless-entry.ts')
     expect(headless).toMatch(/claudeNameSupport: headlessClaudeNameSupport/)
     expect(headless).toMatch(/recordClaudeSessionName: \(terminalId, record\) => claudeSessionNameRecords\.set\(terminalId, record\)/)
@@ -311,7 +312,8 @@ describe('source guards (T0641)', () => {
   it('the renderer\'s claude-cli launch passes `<ws> · <short id>` (alias first) to withBatMcpLaunchArgs', () => {
     const view = read('src/components/WorkspaceView.tsx')
     expect(view).toMatch(/sessionWorkspaceNameRef\.current = workspace\.alias \|\| workspace\.name/)
-    expect(view).toMatch(/const sessionName = claudeSessionName\(\{ role: 'tab', workspaceName: sessionWorkspaceNameRef\.current, terminalId \}\)/)
+    // T0644: a tab opened as Tower (`launchRole: 'tower'`) is `<ws> · Tower`; every other tab keeps `<ws> · <short id>`
+    expect(view).toMatch(/: claudeSessionName\(\{ role: 'tab', workspaceName: sessionWorkspaceNameRef\.current, terminalId \}\)\) \?\? undefined/)
     expect(view).toMatch(/withBatMcpLaunchArgs\(quoteCommandPath\(cliPath, detectShellFamily\(shell \?\? ''\)\), presetId, shell, customArgs, terminalId, sessionName\)/)
     expect(read('electron/preload.ts')).toMatch(/ipcRenderer\.invoke\('agent:bat-mcp-launch-args', agentId, shellFamily, extraArgs, terminalId, sessionName\)/)
   })

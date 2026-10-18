@@ -14,7 +14,7 @@ import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal
 import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from './bat-mcp-launch'
 import { createCodexOscVersionCheck } from './codex-osc-version'
 import { createClaudeNameSupportCheck } from './claude-version-check'
-import { claudeSessionNameRecords } from './claude-session-name-record'
+import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords } from './claude-session-name-record'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
@@ -375,6 +375,7 @@ async function startTerminalServer(): Promise<void> {
 
   // T0576: no Terminal Server survived (or the user chose a fresh start) — no earlier PTY runs
   settleRestoredHelperCapabilities(() => false, 'no surviving Terminal Server')
+  claudeSessionPersistence.settle(() => false, 'no surviving Terminal Server') // T0642
 
   const serverScript = path.join(__dirname, 'terminal-server.js')
 
@@ -524,6 +525,20 @@ function loadLocalHelperCapabilities(): void {
   restoreHelperCapabilitiesFromStore({ registry: localHelperCapabilities, filePath, log: logger })
   // after the restore: its own rewrites are done, later changes are persisted from here on
   helperCapabilityStorePath = filePath
+}
+
+// PLAN-050 / T0642 (C-8): the claude session name / id of each running PTY, kept in
+// `<userData>/claude-sessions.json` (no token) and put back for a tab the Terminal Server kept alive
+// while BAT was closed — loaded and settled next to the T0576 capabilities.
+const claudeSessionPersistence = new ClaudeSessionPersistence({
+  records: claudeSessionNameRecords,
+  getPtyManager: () => ptyManager,
+  log: logger,
+})
+
+/** T0642: loads the previous BAT process's claude sessions as pending (whenReady, before any PTY). */
+function loadClaudeSessions(): void {
+  claudeSessionPersistence.load(path.join(app.getPath('userData'), CLAUDE_SESSION_STORE_FILE))
 }
 
 /**
@@ -745,7 +760,10 @@ const batMcpHost: BatMcpHost = {
   recordBlockedDetection: (terminalId, detection) => ptyManager?.setBlockedDetection(terminalId, detection),
   // T0641: the claude session name (`--name`), independent of the BAT MCP switch
   claudeNameSupport,
-  recordClaudeSessionName: (terminalId, record) => claudeSessionNameRecords.set(terminalId, record),
+  recordClaudeSessionName: (terminalId, record) => {
+    claudeSessionNameRecords.set(terminalId, record)
+    claudeSessionPersistence.persist() // T0642
+  },
   logger,
 }
 
@@ -911,15 +929,23 @@ function createElectronPtyDeps(): PtyManagerDeps {
     onSurvivingPtys: (ids) => {
       const alive = new Set(ids)
       settleRestoredHelperCapabilities(id => alive.has(id), 'Terminal Server PTY list')
+      claudeSessionPersistence.settle(id => alive.has(id), 'Terminal Server PTY list') // T0642
     },
     // T0575: the PTY's capability goes with it (kill / exit / failed spawn; may come twice)
     onPtyExit: (id) => {
       if (localHelperCapabilities.revokeTerminal(id) > 0) logger.log(`[helper-cap] revoked: terminal=${id}`)
       usageLimitScheduler?.onExit(id)
       towerQuestionHandlers?.terminalEnded(id) // T0607: questions it asked / was asked → cancelled
+      claudeSessionPersistence.persist() // T0642: its claude session is no longer stored
     },
     // T0607: the Terminal Server recovery cancels every pending tower question
-    onServerRecovery: () => towerQuestionHandlers?.serverRecovered(),
+    // T0642: and drops every claude session id (the rebuilt PTYs run no claude)
+    onServerRecovery: () => {
+      towerQuestionHandlers?.serverRecovered()
+      claudeSessionPersistence.persist()
+    },
+    // T0642: a SessionStart hook sent a (new) session id
+    onClaudeSessionChange: () => claudeSessionPersistence.persist(),
     // T0609: a hook `blocked` entered / cleared → the windows' Worker badges
     onBlockedChange: (id) => terminalAttention?.refresh(id),
     // T0129 / T0575: BAT_REMOTE_PORT + the PTY's own capability as BAT_REMOTE_TOKEN (tower, or a
@@ -1687,6 +1713,7 @@ app.whenReady().then(async () => {
 
   // T0576: the previous process's capability records, before any PTY / Terminal Server reconnect
   loadLocalHelperCapabilities()
+  loadClaudeSessions() // T0642: same moment, same reason
 
   // Initialize PtyManager before starting Terminal Server so TCP reconnect can use it (T0108)
   if (!ptyManager) {
@@ -2401,6 +2428,7 @@ function registerProxiedHandlers() {
     savedTabs: () => savedTabsFromRegistry(windowRegistry.getCachedEntries()),
     knownSecrets: () => [remoteServer.currentToken],
     getQuestionSummary: terminalId => towerQuestions.summaryFor(terminalId),
+    getClaudeSessionName: terminalId => claudeSessionNameRecords.get(terminalId)?.name ?? null, // T0642
     logger,
     mirrorToBatScripts,
   })

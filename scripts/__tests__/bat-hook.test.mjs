@@ -3,7 +3,9 @@
 // electron/__tests__/terminal-blocked-state.test.ts).
 import { PassThrough } from 'stream'
 import { describe, expect, it } from 'vitest'
-import { HOOK_EVENTS, hookReport, readHookInput, reportHook } from '../bat-hook.mjs'
+import { HOOK_EVENTS, hookReport, readHookInput, reportHook, SESSION_ID_PATTERN } from '../bat-hook.mjs'
+
+const SID = '0f3c2a9e-6b1d-4c8e-9a7f-1d2e3f4a5b6c'
 
 describe('hookReport', () => {
   it('the event alone, plus the tool name of a permission prompt; never tool_input / prompt', () => {
@@ -62,6 +64,19 @@ describe('hookReport', () => {
     expect(hookReport('session-start', { hook_event_name: 'Stop' })).toBeNull()
     expect(hookReport('stop', { hook_event_name: 'SessionStart' })).toBeNull()
   })
+
+  it('T0642: a SessionStart sends its session_id when it is a UUID — nothing else of the input; other events never', () => {
+    for (const source of ['startup', 'resume', 'clear', 'compact']) {
+      expect(hookReport('session-start', { hook_event_name: 'SessionStart', source, model: 'm', transcript_path: '/SECRET.jsonl', cwd: '/c', session_id: SID }))
+        .toEqual({ event: 'session-start', sessionId: SID })
+    }
+    for (const bad of ['s', `${SID}x`, ` ${SID}`, SID.replace(/-/g, ''), 42, null, { id: SID }]) {
+      expect(hookReport('session-start', { hook_event_name: 'SessionStart', session_id: bad })).toEqual({ event: 'session-start' })
+    }
+    expect(hookReport('stop', { hook_event_name: 'Stop', session_id: SID })).toEqual({ event: 'stop' })
+    expect(hookReport('permission-request', { hook_event_name: 'PermissionRequest', tool_name: 'Bash', session_id: SID })).toEqual({ event: 'permission-request', toolName: 'Bash' })
+    expect(SESSION_ID_PATTERN.test(SID.toUpperCase())).toBe(true)
+  })
 })
 
 describe('readHookInput', () => {
@@ -90,6 +105,17 @@ describe('reportHook', () => {
     const c = conn({ ok: true, result: { ok: true, result: 'blocked' } })
     expect(await reportHook('ask-user-question', { tool_input: { secret: 1 } }, { env, connection: c })).toMatchObject({ result: 'blocked' })
     expect(c.calls).toEqual([['terminal:report-hook', [{ event: 'ask-user-question' }], 1000], 'close'])
+  })
+
+  it('T0642: the session id goes in the report and back in the outcome (for the log); a BAT refusing it is still a result', async () => {
+    const c = conn({ ok: true, result: { ok: true, result: 'started' } })
+    expect(await reportHook('session-start', { hook_event_name: 'SessionStart', session_id: SID, source: 'startup' }, { env, connection: c }))
+      .toMatchObject({ result: 'started', sessionId: SID })
+    expect(c.calls).toEqual([['terminal:report-hook', [{ event: 'session-start', sessionId: SID }], 1000], 'close'])
+    expect(await reportHook('session-start', { session_id: SID }, { env, connection: conn({ ok: true, result: { ok: false, code: 'INVALID_ARGS' } }) }))
+      .toMatchObject({ result: 'failed', code: 'INVALID_ARGS', sessionId: SID })
+    expect(await reportHook('session-start', { session_id: 'nope' }, { env, connection: conn({ ok: true, result: { ok: true, result: 'started' } }) }))
+      .not.toHaveProperty('sessionId')
   })
 
   it('failures are results, never throws: transport, channel error, throwing connection; skipped / not in BAT', async () => {

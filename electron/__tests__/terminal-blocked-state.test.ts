@@ -533,6 +533,8 @@ describe('query handlers: blocked (T0590)', () => {
       blockedDetection: 'hook',
       agentStarted: false, // T0600: the hooks run (detection hook), but no session-start yet
       pendingQuestions: 0, // T0607
+      claudeSessionName: null, // T0642
+      claudeSessionId: null,
     })
     // the worker itself, and its tower's metadata view
     expect(h.call('terminal:get-state', h.asHelper('wk'))).toMatchObject({ state: 'blocked' })
@@ -605,6 +607,8 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
   const tokens = new Map<string, string>()
   /** T0594: answer like a T0590 BAT, which does not know `ask-user-question-done`. */
   let oldBat = false
+  /** T0642: answer like a T0600 BAT, which reads only `event` / `toolName` (the session id is dropped). */
+  let t0600Bat = false
   const T0590_EVENTS = ['permission-request', 'ask-user-question', 'elicitation', 'user-prompt-submit', 'stop']
 
   const hookEnv = (id: string): NodeJS.ProcessEnv => ({
@@ -644,6 +648,10 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
         received.push(args)
         const event = (args[0] as { event?: unknown } | undefined)?.event
         if (oldBat && !T0590_EVENTS.includes(String(event))) return { ok: false, code: 'INVALID_ARGS', message: 'event' }
+        if (t0600Bat) {
+          const { sessionId: _dropped, ...rest } = args[0] as Record<string, unknown>
+          return handler(ctx, rest)
+        }
         return handler(ctx, ...args)
       }),
       getPtyManager: () => manager,
@@ -879,6 +887,55 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     expect(await runHook('session-start', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-start'))).toMatchObject({ code: 0, stdout: '' })
     expect(received.length).toBe(before)
     manager.kill('hk-start')
+  })
+
+  it('T0642: SessionStart sends its session_id (a UUID) — exit 0, stdout empty, the log has its first 8; `/clear` replaces it, agentStartedAt stays', async () => {
+    const sid1 = '0f3c2a9e-6b1d-4c8e-9a7f-1d2e3f4a5b6c'
+    const sid2 = 'a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d'
+    manager.create({ id: 'hk-sid', ...TAB, workspaceId: 'ws', customEnv: { BAT_TOWER_TERMINAL_ID: 'hk-tower' } })
+    manager.setBlockedDetection('hk-sid', 'hook')
+    const input = (sessionId: string, source: string) => ({
+      session_id: sessionId, hook_event_name: 'SessionStart', source, model: 'SECRET-MODEL', transcript_path: '/SECRET/path.jsonl', cwd: '/SECRET-CWD',
+    })
+    const run = await runHook('session-start', JSON.stringify(input(sid1, 'startup')), hookEnv('hk-sid'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.ms).toBeLessThan(2_000)
+    expect(received.at(-1)).toEqual([{ event: 'session-start', sessionId: sid1 }])
+    expect(manager.getClaudeSessionId('hk-sid')).toBe(sid1)
+    const startedAt = manager.getAgentStartedAt('hk-sid')
+    expect(await runHook('session-start', JSON.stringify(input(sid2, 'clear')), hookEnv('hk-sid'))).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.getClaudeSessionId('hk-sid')).toBe(sid2)
+    expect(manager.getAgentStartedAt('hk-sid')).toBe(startedAt)
+    expect(JSON.stringify(received)).not.toMatch(/SECRET|startup|"clear"|batcap/)
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    const hookLines = log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook' && e.terminalId === 'hk-sid')
+    expect(hookLines.map(e => e.session)).toEqual(['0f3c2a9e', 'a1b2c3d4'])
+    expect(log).not.toContain(sid1)
+    expect(log).not.toContain(sid2)
+    // not a UUID: not sent; the id stays
+    await runHook('session-start', JSON.stringify(input('not-a-uuid', 'resume')), hookEnv('hk-sid'))
+    expect(received.at(-1)).toEqual([{ event: 'session-start' }])
+    expect(manager.getClaudeSessionId('hk-sid')).toBe(sid2)
+    // a BAT before T0642 ignores the field: exit 0, nothing on stdout, nothing recorded
+    t0600Bat = true
+    try {
+      expect(await runHook('session-start', JSON.stringify(input(sid1, 'compact')), hookEnv('hk-sid'))).toMatchObject({ code: 0, stdout: '' })
+    } finally {
+      t0600Bat = false
+    }
+    expect(manager.getClaudeSessionId('hk-sid')).toBe(sid2)
+    // a BAT refusing the whole report (older than T0600): still exit 0
+    oldBat = true
+    try {
+      expect(await runHook('session-start', JSON.stringify(input(sid1, 'startup')), hookEnv('hk-sid'))).toMatchObject({ code: 0, stdout: '' })
+    } finally {
+      oldBat = false
+    }
+    // the tower's query
+    const { invokeHandler } = await import('../remote/handler-registry')
+    const towerHelper = { terminalId: 'hk-tower', role: 'tower' as const }
+    expect(await invokeHandler('terminal:get-state', [{ terminalId: 'hk-sid' }], null, 'tw', towerHelper)).toMatchObject({ ok: true, claudeSessionId: sid2 })
+    manager.kill('hk-sid')
   })
 })
 

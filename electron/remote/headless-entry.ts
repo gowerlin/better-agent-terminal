@@ -648,6 +648,8 @@ export function createHeadlessTerminalQueryModule(opts: {
       isWorkerOf: opts.isWorkerOf ?? (() => false),
       ...(opts.knownSecrets ? { knownSecrets: opts.knownSecrets } : {}),
       getQuestionSummary: terminalId => towerQuestions.summaryFor(terminalId), // T0607
+      // T0642: kept in memory only (headless does not persist, C-8)
+      getClaudeSessionName: terminalId => claudeSessionNameRecords.get(terminalId)?.name ?? null,
       logger: defaultLogger,
       mirrorToBatScripts,
     })

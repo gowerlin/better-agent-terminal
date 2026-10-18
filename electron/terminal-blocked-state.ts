@@ -29,6 +29,13 @@
  * ends (exit / kill, so `pty:restart` too; the exited record keeps the time, `agentStartedAt` of
  * `ExitedPtyRecord`) and by the Terminal Server recovery; user input does not clear it.
  *
+ * PLAN-050 / T0642 (D167): `claudeSessionId` — the `session_id` a `SessionStart` hook sends
+ * (`sessionId`, a UUID; anything else is ignored). Every `SessionStart` (startup / resume / clear /
+ * compact) replaces it; `agentStarted` keeps the first time. Same lifetime as `agentStarted` (the
+ * exited record keeps it, `ExitedPtyRecord.claudeSessionId`); `restoreSessionId` puts back the one
+ * Electron saved for a PTY the Terminal Server kept while BAT was closed. Logs carry its first 8
+ * characters only.
+ *
  * PLAN-047 M1b-2 / T0621 (D158): codex tabs, from codex's own OSC 7501 in the PTY output
  * (src/lib/codex-terminal-state.ts, `observeCodexState`), no hook:
  *
@@ -121,6 +128,14 @@ export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<BlockedReportEvent,
   'elicitation-done': 'elicitation',
 }
 
+/** T0642: a claude session id as accepted from a `session-start` report (scripts/bat-hook.mjs checks the same). */
+export const CLAUDE_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** T0642: what a log line may show of a session id. */
+export function sessionIdForLog(sessionId: string): string {
+  return sessionId.slice(0, 8)
+}
+
 /** `toolName` as accepted from a hook (claude / MCP tool names: `Bash`, `mcp__bat__bat_wait`). */
 export const HOOK_TOOL_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/
 /** Terminal ids whose `blockedDetection` is remembered (oldest dropped first). */
@@ -154,8 +169,11 @@ export interface BlockedTrackerLogger {
  * The state machine (one per PtyManager). Logs transitions only:
  * `[blocked] terminal=<id> → blocked reason=<r> (hook <event>[ tool=<name>])` / `→ cleared (<cause>)`;
  * T0600: `[agent-start] terminal=<id> → started (hook session-start)`.
+ * T0642: + ` session=<first 8>`; a later `session-start` with another session id logs
+ * `[agent-start] terminal=<id> session=<first 8> (hook session-start)`.
  * T0609 (BUG-153): `onChange(id)` after every `blocked` transition (entered / reason changed /
  * cleared) — the renderer push (electron/terminal-attention.ts). A throwing listener is ignored.
+ * T0642: `onSessionChange(id)` when a report changes PTY `id`'s session id (Electron persists it).
  */
 export class TerminalBlockedTracker {
   private readonly states = new Map<string, BlockedState>()
@@ -164,12 +182,24 @@ export class TerminalBlockedTracker {
   private readonly started = new Map<string, number>()
   /** T0621: running PTY id → its last codex OSC 7501 state (logs transitions only). */
   private readonly codexStates = new Map<string, CodexTerminalState>()
+  /** T0642: running PTY id → the session id its last `session-start` sent. */
+  private readonly sessionIds = new Map<string, string>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
     private readonly now: () => number = () => Date.now(),
     private readonly onChange?: (id: string) => void,
+    private readonly onSessionChange?: (id: string) => void,
   ) {}
+
+  private sessionChanged(id: string): void {
+    if (!this.onSessionChange) return
+    try {
+      this.onSessionChange(id)
+    } catch (e) {
+      this.logger?.log(`[agent-start] onSessionChange listener failed terminal=${id}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
 
   private changed(id: string): void {
     if (!this.onChange) return
@@ -180,15 +210,27 @@ export class TerminalBlockedTracker {
     }
   }
 
-  /** Applies a hook report of PTY `id` (the caller checks it is running). */
-  report(id: string, event: HookReportEvent, toolName?: string): { result: HookReportResult; state: BlockedState | null } {
+  /**
+   * Applies a hook report of PTY `id` (the caller checks it is running). T0642: `sessionId` (a
+   * `session-start` only, already validated) replaces the PTY's session id.
+   */
+  report(id: string, event: HookReportEvent, toolName?: string, sessionId?: string): { result: HookReportResult; state: BlockedState | null } {
     this.setDetection(id, 'hook')
     if (isStartReportEvent(event)) {
       const state = this.get(id)
-      if (this.started.has(id)) return { result: 'unchanged', state }
-      this.started.set(id, this.now())
-      this.logger?.log(`[agent-start] terminal=${id} → started (hook ${event})`)
-      return { result: 'started', state }
+      const sessionChanged = sessionId !== undefined && this.sessionIds.get(id) !== sessionId
+      if (sessionChanged) this.sessionIds.set(id, sessionId)
+      const session = sessionId !== undefined ? ` session=${sessionIdForLog(sessionId)}` : ''
+      let result: HookReportResult = 'unchanged'
+      if (!this.started.has(id)) {
+        this.started.set(id, this.now())
+        this.logger?.log(`[agent-start] terminal=${id} → started (hook ${event})${session}`)
+        result = 'started'
+      } else if (sessionChanged) {
+        this.logger?.log(`[agent-start] terminal=${id}${session} (hook ${event})`)
+      }
+      if (sessionChanged) this.sessionChanged(id)
+      return { result, state }
     }
     const reason = hookEventReason(event, toolName)
     if (reason === null) {
@@ -250,6 +292,7 @@ export class TerminalBlockedTracker {
     for (const id of [...this.states.keys()]) this.clear(id, cause)
     this.started.clear() // T0600
     this.codexStates.clear() // T0621
+    this.sessionIds.clear() // T0642
   }
 
   /** T0600: ms epoch of PTY `id`'s first `session-start`, or null. */
@@ -257,10 +300,30 @@ export class TerminalBlockedTracker {
     return this.started.get(id) ?? null
   }
 
-  /** T0600: the PTY ended (exit / kill); its exited record keeps the time. T0621: + its codex state. */
+  /** T0642: the session id PTY `id`'s last `session-start` sent, or null. */
+  getSessionId(id: string): string | null {
+    return this.sessionIds.get(id) ?? null
+  }
+
+  /**
+   * T0642: puts back the session id Electron saved for running PTY `id` (BAT reopened, the Terminal
+   * Server kept the PTY). A session id reported since wins. True when it was set.
+   */
+  restoreSessionId(id: string, sessionId: string): boolean {
+    if (this.sessionIds.has(id) || !CLAUDE_SESSION_ID_PATTERN.test(sessionId)) return false
+    this.sessionIds.set(id, sessionId)
+    this.logger?.log(`[agent-start] terminal=${id} session=${sessionIdForLog(sessionId)} (restored)`)
+    return true
+  }
+
+  /**
+   * T0600: the PTY ended (exit / kill); its exited record keeps the time. T0621: + its codex state.
+   * T0642: + its session id (the exited record keeps it too).
+   */
   clearStarted(id: string): void {
     this.started.delete(id)
     this.codexStates.delete(id)
+    this.sessionIds.delete(id)
   }
 
   get(id: string): BlockedState | null {
@@ -286,6 +349,7 @@ export class TerminalBlockedTracker {
     this.states.clear()
     this.started.clear()
     this.codexStates.clear()
+    this.sessionIds.clear()
   }
 }
 
@@ -351,7 +415,7 @@ export class LaunchSuspectWatcher {
 /** What `terminal:report-hook` needs from PtyManager (the class satisfies it). */
 export interface ReportHookPtyManager {
   isAlive(id: string): boolean
-  reportHookEvent(id: string, event: HookReportEvent, toolName?: string): { result: HookReportResult; state: BlockedState | null } | null
+  reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string): { result: HookReportResult; state: BlockedState | null } | null
 }
 
 export interface ReportHookDeps {
@@ -368,10 +432,13 @@ export const REPORT_HOOK_CHANNEL = 'terminal:report-hook'
 export type ReportHookFailure = { ok: false; code: 'INVALID_ARGS' | 'NOT_FOUND'; message?: string }
 
 /**
- * `terminal:report-hook` `{ event, toolName? }` — the target is always the caller's own terminal
+ * `terminal:report-hook` `{ event, toolName?, sessionId? }` — the target is always the caller's own terminal
  * (`ctx.helper`, the capability the invoke came in with). Answers
  * `{ ok: true, terminalId, result, state, blockedReason? }` or `{ ok: false, INVALID_ARGS | NOT_FOUND }`
  * (T0600: `result: 'started'` for the first `session-start`).
+ * T0642 (D167): `sessionId` of a `session-start` (`CLAUDE_SESSION_ID_PATTERN`) is recorded; on any
+ * other event, or not a UUID, it is ignored — no error, `agentStarted` as without it. A BAT before
+ * T0642 ignores the field the same way (the hook still exits 0).
  * Every report is O(1); transitions are logged by the tracker, an `unchanged` report is mirrored to
  * bat-scripts.log at most once per `REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS` per terminal.
  */
@@ -379,7 +446,7 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
   const now = deps.now ?? (() => Date.now())
   const lastUnchangedMirror = new Map<string, number>()
 
-  const mirror = (terminalId: string, event: string, result: string): void => {
+  const mirror = (terminalId: string, event: string, result: string, sessionId?: string): void => {
     if (!deps.mirrorToBatScripts) return
     if (result === 'unchanged') {
       const t = now()
@@ -389,7 +456,12 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
       if (lastUnchangedMirror.size > BLOCKED_DETECTION_MAX) lastUnchangedMirror.delete(lastUnchangedMirror.keys().next().value as string)
     }
     // `hook`, not `event`: the record's own `event` is 'report-hook'
-    deps.mirrorToBatScripts('report-hook', { terminalId, hook: event, result })
+    deps.mirrorToBatScripts('report-hook', {
+      terminalId,
+      hook: event,
+      result,
+      ...(sessionId ? { session: sessionIdForLog(sessionId) } : {}), // T0642: first 8 only
+    })
   }
 
   const fail = (caller: string, event: string, code: ReportHookFailure['code'], message?: string): ReportHookFailure => {
@@ -412,10 +484,14 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
       // only a permission prompt names its tool (logged, never returned)
       if (event === 'permission-request') toolName = opts.toolName
     }
+    // T0642: a session-start's UUID; anything else is dropped without an error
+    const sessionId = event === 'session-start' && typeof opts.sessionId === 'string' && CLAUDE_SESSION_ID_PATTERN.test(opts.sessionId)
+      ? opts.sessionId
+      : undefined
     const pm = deps.getPtyManager()
-    const outcome = pm && pm.isAlive(caller) ? pm.reportHookEvent(caller, event as HookReportEvent, toolName) : null
+    const outcome = pm && pm.isAlive(caller) ? pm.reportHookEvent(caller, event as HookReportEvent, toolName, sessionId) : null
     if (!outcome) return fail(caller, event, 'NOT_FOUND')
-    mirror(caller, event, outcome.result)
+    mirror(caller, event, outcome.result, sessionId)
     return {
       ok: true,
       terminalId: caller,

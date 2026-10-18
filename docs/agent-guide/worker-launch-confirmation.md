@@ -43,7 +43,7 @@
 
 - `BAT_CLAUDE_HOOKS`（`electron/bat-mcp-launch.ts`）多 `{ hookEvent: 'SessionStart', event: 'session-start', async: true }`，**沒有 matcher**（所有 `source`：`startup` / `resume` / `clear` / `compact` / `fork`）。注入條件與既有 hooks 相同（只對 claude-cli / claude-cli-worktree，`--settings=<dataDir>/bat-mcp/claude-settings.json`）。
 - `async: true`：claude 不等它（不延遲啟動）。🔴 `SessionStart` 的 stdout 會被 claude 加進對話上下文，`scripts/bat-hook.mjs` 一律不輸出任何東西（T0590 規則）。
-- `bat-hook.mjs session-start`：`hook_event_name` 不是 `SessionStart` → 不送；只送 `{ event: 'session-start' }`，**不送** `source`、`model`、`transcript_path`、`session_id` 或任何 payload 內容。
+- `bat-hook.mjs session-start`：`hook_event_name` 不是 `SessionStart` → 不送；只送 `{ event: 'session-start' }`，**不送** `source`、`model`、`transcript_path` 或任何 payload 內容。**T0642（D167 改本契約）**：`session_id` 是 UUID 時另送 `sessionId`（`{ event: 'session-start', sessionId }`，不合格就不帶），供查詢欄位 `claudeSessionId`；handler 對不合格值忽略、不回錯誤，`agentStarted` 的判斷與回應不變（見 [claude-session-name.md](claude-session-name.md)「查詢欄位 R3」）。
 - `terminal:report-hook` 對 `session-start` 回 `result: 'started'`（該 PTY 第一次）/ `'unchanged'`（之後）；它**不影響 `blocked`**（`isStartReportEvent`，`HOOK_EVENT_REASON` 不含它）。被接受的回報照舊把 `blockedDetection` 設為 `hook`。
 
 ## codex（OSC 7501，T0621，D158）
@@ -58,7 +58,7 @@
 
 ## 狀態的生命週期（唯一實作 `TerminalBlockedTracker`，`electron/terminal-blocked-state.ts`）
 
-- 以 PTY 為單位、只記第一次 `SessionStart` 的時間（`getStartedAt`）；之後的 `resume` / `clear` / `compact` 不改時間。
+- 以 PTY 為單位、只記第一次 `SessionStart` 的時間（`getStartedAt`）；之後的 `resume` / `clear` / `compact` 不改時間（T0642：但會以新的 sessionId 取代 `claudeSessionId`）。
 - 比照 `blocked`：PTY 結束（exit / kill，所以 `pty:restart` 也清 → 新 shell 回 `false`）、Terminal Server recovery（`clearAll`，重建的 shell 沒有 claude）清除。**使用者輸入不清除**（與 `blocked` 不同：輸入不代表 claude 結束）。
 - PTY 結束時時間寫進結束紀錄 `ExitedPtyRecord.agentStartedAt`（`PtyManager.recordExit`），所以 `exited` 的回傳仍有 `agentStarted` / `agentStartedAt`（結束前沒收到 → `false`；`none` → `null`）。
 - PtyManager 接點：`getAgentStartedAt`（執行中才有值）、`recordExit` 一行、`clearActivity` 一行；recovery 沿用 T0590 的 `clearAll`。本機與 headless 共用（headless 也用 PtyManager）。
@@ -77,7 +77,7 @@
 
 ## 日誌
 
-- `[agent-start] terminal=<id> → started (hook session-start)`（第一次）；`report-hook` 的 `bat-scripts.log` 鏡像 `result: 'started'`。
+- `[agent-start] terminal=<id> → started (hook session-start)`（第一次；T0642 起帶 sessionId 時尾端多 ` session=<前 8 碼>`）；`report-hook` 的 `bat-scripts.log` 鏡像 `result: 'started'`。
 - `[helper-query] channel=terminal:wait … → ok until=agent-started changed=<b> state=<s> agentStarted=<v>`。
 - `[agent-command] launch-suspect …`（方案 B）。
 

@@ -12,17 +12,18 @@
 //   UserPromptSubmit (async)                   → bat-hook.mjs user-prompt-submit
 //   Stop (async)                               → bat-hook.mjs stop
 //   SessionStart (async, T0600)                → bat-hook.mjs session-start (`agentStarted`;
-//                                                `source` is not sent)
+//                                                `source` is not sent; T0642: + `sessionId`)
 //
 // It reads claude's hook JSON from stdin (only `hook_event_name` / `tool_name` /
-// `notification_type`), sends one `terminal:report-hook` to the tab's BAT with the tab's own
+// `notification_type`; T0642: + `session_id` of a SessionStart), sends one `terminal:report-hook` to the tab's BAT with the tab's own
 // capability (BAT_REMOTE_PORT / BAT_REMOTE_TOKEN; certificate pinning and frame-id matching of
 // scripts/bat-mcp.mjs `BatConnection`) and ends.
 //
 // 🔴 It must never change what claude does: exit 0 always, nothing on stdout (a PermissionRequest /
 // PreToolUse hook printing JSON would decide for the user), silent on any failure, done within
-// HOOK_DEADLINE_MS. It sends the event name and (permission prompts only) the tool name — never
-// tool_input / tool_response, an elicitation's content / action, a prompt, a message or a token. Outside BAT (no BAT_REMOTE_*) it exits at once.
+// HOOK_DEADLINE_MS. It sends the event name, (permission prompts only) the tool name and (T0642,
+// SessionStart only) the session id when it is a UUID — never tool_input / tool_response, `source`,
+// `transcript_path`, `cwd`, an elicitation's content / action, a prompt, a message or a token. Outside BAT (no BAT_REMOTE_*) it exits at once.
 //
 // Zero external dependencies — Node.js 18+ built-in modules only.
 
@@ -57,10 +58,12 @@ const HOOK_EVENT_NAMES = {
   'session-start': ['SessionStart'],
 }
 const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/
+/** T0642 (D167): a claude session id as sent (anything else is not sent). */
+export const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * What to report for `event` given claude's hook input (already parsed; null = none / unreadable):
- * `{ event, toolName? }`, or null = report nothing (unknown event, the input names another hook,
+ * `{ event, toolName? }` (T0642: `{ event: 'session-start', sessionId? }`), or null = report nothing (unknown event, the input names another hook,
  * a Notification that is not an elicitation / an elicitation response, a PreToolUse / PostToolUse of
  * another tool).
  */
@@ -74,6 +77,9 @@ export function hookReport(event, input) {
   if ((event === 'ask-user-question' || event === 'ask-user-question-done') && typeof fields.tool_name === 'string' && fields.tool_name !== 'AskUserQuestion') return null
   if (event === 'permission-request' && typeof fields.tool_name === 'string' && TOOL_NAME_PATTERN.test(fields.tool_name)) {
     return { event, toolName: fields.tool_name }
+  }
+  if (event === 'session-start' && typeof fields.session_id === 'string' && SESSION_ID_PATTERN.test(fields.session_id)) {
+    return { event, sessionId: fields.session_id }
   }
   return { event }
 }
@@ -116,13 +122,15 @@ export function readHookInput(stream = process.stdin, timeoutMs = STDIN_TIMEOUT_
 }
 
 /**
- * One report. `{ result, code?, durationMs }`, never throws. `connection` / `env` for tests.
+ * One report. `{ result, code?, sessionId?, durationMs }` (`sessionId`: the one sent, for the log's
+ * first 8 characters), never throws. `connection` / `env` for tests.
  */
 export async function reportHook(event, input, { env = process.env, connection } = {}) {
   const startedAt = Date.now()
   const report = hookReport(event, input)
   if (!report) return { result: 'skipped', durationMs: Date.now() - startedAt }
-  if (!env.BAT_REMOTE_PORT || !env.BAT_REMOTE_TOKEN) return { result: 'not-in-bat', durationMs: Date.now() - startedAt }
+  const sent = report.sessionId ? { sessionId: report.sessionId } : {}
+  if (!env.BAT_REMOTE_PORT || !env.BAT_REMOTE_TOKEN) return { result: 'not-in-bat', ...sent, durationMs: Date.now() - startedAt }
   const conn = connection ?? new BatConnection({
     port: env.BAT_REMOTE_PORT,
     token: env.BAT_REMOTE_TOKEN,
@@ -131,14 +139,14 @@ export async function reportHook(event, input, { env = process.env, connection }
   })
   try {
     const outcome = await conn.invoke('terminal:report-hook', [report], INVOKE_TIMEOUT_MS)
-    if (!outcome.ok) return { result: 'failed', code: outcome.code, durationMs: Date.now() - startedAt }
+    if (!outcome.ok) return { result: 'failed', code: outcome.code, ...sent, durationMs: Date.now() - startedAt }
     const value = outcome.result
     if (value && typeof value === 'object' && value.ok === false) {
-      return { result: 'failed', code: typeof value.code === 'string' ? value.code : 'ERROR', durationMs: Date.now() - startedAt }
+      return { result: 'failed', code: typeof value.code === 'string' ? value.code : 'ERROR', ...sent, durationMs: Date.now() - startedAt }
     }
-    return { result: value && typeof value.result === 'string' ? value.result : 'ok', durationMs: Date.now() - startedAt }
+    return { result: value && typeof value.result === 'string' ? value.result : 'ok', ...sent, durationMs: Date.now() - startedAt }
   } catch {
-    return { result: 'failed', code: 'ERROR', durationMs: Date.now() - startedAt }
+    return { result: 'failed', code: 'ERROR', ...sent, durationMs: Date.now() - startedAt }
   } finally {
     try { conn.close() } catch { /* ignore */ }
   }
@@ -167,6 +175,8 @@ async function main() {
       hook: HOOK_EVENTS.includes(event) ? event : String(event ?? '').slice(0, 40),
       result: outcome.result,
       ...(outcome.code ? { code: outcome.code } : {}),
+      // T0642: the first 8 characters only
+      ...(outcome.sessionId ? { session: outcome.sessionId.slice(0, 8) } : {}),
       durationMs: outcome.durationMs,
       terminalId: process.env.BAT_TERMINAL_ID ?? null,
     })

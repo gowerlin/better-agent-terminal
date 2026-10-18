@@ -34,6 +34,11 @@
  * electron/terminal-blocked-state.ts `observeCodexState`): `blocked` / `blockedReason: input` /
  * `source: 'osc'` (same rank as a hook reason, over `tower`); `agentStarted` true from the first
  * OSC 7501 (`false` before it, as `hook`).
+ * PLAN-050 / T0642 (D167): `terminal:whoami`, every `terminal:list` row and `terminal:get-state`
+ * carry `claudeSessionName` (the `--name` BAT injected at the tab's last launch,
+ * electron/claude-session-name-record.ts; null = none injected) and `claudeSessionId` (the session
+ * id its claude's last `SessionStart` hook sent; null = not reported / cannot be / unknown since BAT
+ * reopened — 🔴 null does not mean there is no session). An exited tab keeps both.
  *
  * Output: the PTY's raw replay buffer (`pty:get-buffer`'s, or the tail kept at exit) → plain text
  * (`plainTextFromOutput`, T0566) → `redactTerminalSecrets` (src/lib/terminal-output-redaction.ts)
@@ -102,6 +107,8 @@ export interface TerminalQueryPtyManager {
   getBlockedDetection?(id: string): BlockedDetection
   /** T0600: when running PTY `id`'s claude ran `SessionStart` (ms), or null. Absent ⇒ never. */
   getAgentStartedAt?(id: string): number | null
+  /** T0642: the session id running PTY `id`'s claude last sent, or null. Absent ⇒ never. */
+  getClaudeSessionId?(id: string): string | null
 }
 
 /** Electron: what the window registry saved for a tab (title, workspace, its tower). */
@@ -146,6 +153,8 @@ export interface TerminalQueryDeps {
   mirrorToBatScripts?(event: string, payload: Record<string, unknown>): void
   /** T0607: the tower-question store's `summaryFor` (pending / blocking questions of a Worker). Absent ⇒ none. */
   getQuestionSummary?(terminalId: string): QuestionSummary
+  /** T0642: the claude session name injected at the tab's last launch (`claudeSessionNameRecords`). Absent ⇒ null. */
+  getClaudeSessionName?(terminalId: string): string | null
   /** Tests. Default `Date.now` / `setTimeout` / `clearTimeout`. */
   now?(): number
   setTimer?(fn: () => void, ms: number): unknown
@@ -271,6 +280,12 @@ export function agentStartedFields(detection: BlockedDetection, startedAt: numbe
   return { agentStarted: detection === 'hook' || detection === 'osc' ? false : null }
 }
 
+/** T0642: `claudeSessionName` / `claudeSessionId` of whoami / list / get-state. */
+export interface ClaudeSessionFields {
+  claudeSessionName: string | null
+  claudeSessionId: string | null
+}
+
 export interface TerminalQueryHandlers {
   /** Ends every open `terminal:wait` (answers `changed: false`); server stop / app quit. */
   dispose(): void
@@ -379,6 +394,18 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     }
   }
 
+  /** T0642: running → the PTY's; exited → its record's. */
+  const claudeSessionOf = (pm: TerminalQueryPtyManager, id: string): ClaudeSessionFields => {
+    let claudeSessionName: string | null = null
+    try {
+      claudeSessionName = deps.getClaudeSessionName?.(id) ?? null
+    } catch { /* null */ }
+    const claudeSessionId = pm.getTerminalInfo(id)
+      ? pm.getClaudeSessionId?.(id) ?? null
+      : pm.getExitedPty(id)?.claudeSessionId ?? null
+    return { claudeSessionName, claudeSessionId }
+  }
+
   const savedTab = (id: string): SavedTabInfo | undefined => {
     try {
       return deps.savedTabs?.().get(id)
@@ -453,6 +480,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       ...(towerMode ? { towerMode } : {}),
       ...(info.agentPreset && info.agentPreset !== 'none' ? { agent: info.agentPreset } : {}),
       ...(info.cwd ? { cwd: info.cwd } : {}),
+      ...claudeSessionOf(pm, target), // T0642
     }
   })
 
@@ -500,6 +528,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
         blockedDetection: state.blockedDetection,
         agentStarted: state.agentStarted,
         pendingQuestions: state.pendingQuestions, // T0607
+        ...claudeSessionOf(pm, id), // T0642
         alive: info !== null,
       }]
     })
@@ -516,7 +545,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     const state = stateOf(resolved.pm, resolved.target)
     if (!state) return fail(channel, ctx, resolved.target, 'NOT_FOUND')
     audit(channel, ctx, resolved.target, `ok state=${state.state}${state.blockedReason ? ` reason=${state.blockedReason}` : ''}`)
-    return { ok: true, terminalId: resolved.target, ...state }
+    return { ok: true, terminalId: resolved.target, ...state, ...claudeSessionOf(resolved.pm, resolved.target) }
   })
 
   registerHandler('terminal:read-output', (ctx: HandlerContext, raw?: unknown) => {

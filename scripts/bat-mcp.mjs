@@ -98,7 +98,7 @@ export const TOOLS = [
     name: 'bat_whoami',
     channel: 'terminal:whoami',
     title: 'Who am I (BAT tab)',
-    description: 'This BAT tab: terminal id, workspace, role (tower / worker / shell), the tower that dispatched it, work order, yolo, agent, cwd.',
+    description: 'This BAT tab: terminal id, workspace, role (tower / worker / shell), the tower that dispatched it, work order, yolo, agent, cwd. claudeSessionName = the claude session name BAT gave the tab (--name, null = none); claudeSessionId = its claude session id from the SessionStart hook (null = not known, which does not mean there is no session).',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     keys: [],
     timeoutMs: INVOKE_TIMEOUT_MS,
@@ -107,7 +107,7 @@ export const TOOLS = [
     name: 'bat_list_terminals',
     channel: 'terminal:list',
     title: 'List BAT terminals',
-    description: 'Terminals this tab may see: scope "mine" (default) = itself, its Workers (a tower) or its tower (a worker); "workspace" (declared towers only) adds the other tabs of the workspace, metadata only.',
+    description: 'Terminals this tab may see: scope "mine" (default) = itself, its Workers (a tower) or its tower (a worker); "workspace" (declared towers only) adds the other tabs of the workspace, metadata only. Each row has claudeSessionName / claudeSessionId as bat_get_state.',
     inputSchema: {
       type: 'object',
       properties: { scope: { type: 'string', enum: ['mine', 'workspace'] } },
@@ -120,7 +120,7 @@ export const TOOLS = [
     name: 'bat_get_state',
     channel: 'terminal:get-state',
     title: 'Terminal state',
-    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation; a codex tab: input = waits for the user, an approval or a question; tower = a Worker waits for its tower to answer a question, any agent) / exited, last output time, idle ms, exit code. blockedDetection = how this tab reports a prompt: hook (claude hooks), osc (codex >= 0.163.0 state sequence), none = it cannot, so idle does not rule out a prompt (tower still shows). pendingQuestions = its questions waiting for an answer. agentStarted: true = its agent has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. an older codex).',
+    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation; a codex tab: input = waits for the user, an approval or a question; tower = a Worker waits for its tower to answer a question, any agent) / exited, last output time, idle ms, exit code. blockedDetection = how this tab reports a prompt: hook (claude hooks), osc (codex >= 0.163.0 state sequence), none = it cannot, so idle does not rule out a prompt (tower still shows). pendingQuestions = its questions waiting for an answer. agentStarted: true = its agent has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. an older codex). claudeSessionName = the claude session name BAT gave the tab (--name, null = none); claudeSessionId = its claude session id from the SessionStart hook (null = not known, which does not mean there is no session).',
     inputSchema: { type: 'object', properties: { terminalId: TERMINAL_ID }, additionalProperties: false },
     keys: ['terminalId'],
     timeoutMs: INVOKE_TIMEOUT_MS,
@@ -259,6 +259,7 @@ export function summarize(toolName, data) {
       if (data.workorder) parts.push(`workorder=${data.workorder}`)
       if (data.yolo) parts.push('yolo')
       if (data.agent) parts.push(`agent=${data.agent}`)
+      if (data.claudeSessionName) parts.push(`session="${data.claudeSessionName}"`) // T0642
       return parts.join(' ')
     }
     case 'bat_list_terminals': {
