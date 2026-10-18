@@ -828,23 +828,23 @@
       "step": {
         "detectEnv": {
           "label": "Detect target environment",
-          "description": "Confirm the target runtime is reachable before installing the BAT server."
+          "description": "Check that WSL or Docker is available on this computer."
         },
         "fetchFingerprint": {
           "label": "Fetch TLS fingerprint",
-          "description": "Pin the server's self-signed TLS fingerprint for trust-on-first-use."
+          "description": "Read the new server's certificate fingerprint and remember it, so later connections trust only this server."
         },
         "connectTest": {
           "label": "Verify remote connection",
-          "description": "Open a TLS handshake and authenticate against the freshly started server."
+          "description": "Connect to the new server with its access token and the recorded fingerprint, the same way the saved profile will."
         },
         "writeProfile": {
           "label": "Save remote profile",
-          "description": "Persist the verified profile so it appears in the profile picker."
+          "description": "Save the verified profile so it appears in the Profiles panel."
         },
         "done": {
           "label": "Finalize",
-          "description": "Wrap up and surface any post-install hints."
+          "description": "Finish and list any notes collected during setup."
         }
       },
       "error": {
@@ -898,19 +898,19 @@
       "step": {
         "pickDistro": {
           "label": "Select WSL distro",
-          "description": "Pick a WSL2 distro to host the BAT server."
+          "description": "Choose the WSL2 distro that will run the BAT server. If there is only one, it is chosen automatically."
         },
         "systemdCheck": {
           "label": "Check systemd availability",
-          "description": "Confirm systemd is enabled inside the chosen distro (required for service management)."
+          "description": "Check that systemd is enabled in the distro. The BAT server runs as a systemd service; without it a later step fails."
         },
         "installBundle": {
           "label": "Install BAT server bundle",
-          "description": "Stream the BAT server bundle into the WSL distro and unpack it."
+          "description": "Get the BAT server for this BAT version (from the local cache or a download from GitHub) and install it in the distro."
         },
         "writeSystemdUnit": {
-          "label": "Write systemd user service",
-          "description": "Install and enable the bat-server systemd user unit."
+          "label": "Set up and start the server service",
+          "description": "Pick a free port, register the BAT server as a user service that starts automatically, and start it."
         }
       },
       "error": {
@@ -955,19 +955,19 @@
       "step": {
         "pickContainer": {
           "label": "Choose Docker container mode",
-          "description": "Reuse an existing container or create a new one for the BAT server."
+          "description": "Create a new container for the BAT server, or use your most recent existing container."
         },
         "configureMounts": {
-          "label": "Configure bind mounts",
-          "description": "Map host workspace directories into the container."
+          "label": "Choose workspace folder",
+          "description": "Pick one folder on this computer to share with the container. It appears in the container as /workspace/<folder name>."
         },
         "installBundle": {
           "label": "Verify BAT server bundle",
-          "description": "Confirm the BAT server bundle is present inside the container image."
+          "description": "The BAT server is already included in the Docker image, so nothing is copied."
         },
         "startServer": {
           "label": "Start Docker container",
-          "description": "Launch the container and wait for it to become healthy."
+          "description": "Create or start the container and wait until it is ready (up to 45 seconds)."
         }
       },
       "warning": {
@@ -1006,20 +1006,20 @@
     "ssh": {
       "step": {
         "configureHost": {
-          "label": "Configure SSH host",
-          "description": "Pick host, user, port, identity, and install path. BAT connects through an SSH tunnel."
+          "label": "Choose SSH host",
+          "description": "Pick a host from ~/.ssh/config, or enter one by hand. BAT always connects through an SSH tunnel."
         },
         "verifyAuth": {
           "label": "Verify SSH authentication",
-          "description": "Test BAT_AUTH_OK probe and detect the remote OS / home directory."
+          "description": "Sign in to the host over SSH and check its operating system and home folder. A host key seen for the first time is accepted automatically."
         },
         "installBundle": {
           "label": "Install BAT server bundle (SSH)",
-          "description": "Pipe the BAT server bundle to the remote host over ssh+tar."
+          "description": "Get the BAT server for the host's platform (from the local cache or a download from GitHub) and install it in ~/.local/bat-server on the host."
         },
         "startServer": {
-          "label": "Start bat-server (SSH)",
-          "description": "Install and enable systemd unit (Linux) or launchd plist (macOS)."
+          "label": "Start BAT server",
+          "description": "Register the BAT server as a user service (systemd on Linux, launchd on macOS) and start it. It listens only on the host itself."
         }
       },
       "manualHost": {

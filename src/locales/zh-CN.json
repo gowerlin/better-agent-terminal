@@ -828,23 +828,23 @@
       "step": {
         "detectEnv": {
           "label": "检测目标环境",
-          "description": "确认目标运行环境可连接后再安装 BAT 服务器。"
+          "description": "确认这台电脑上的 WSL 或 Docker 可以使用。"
         },
         "fetchFingerprint": {
           "label": "获取 TLS 指纹",
-          "description": "钉选服务器自签 TLS 指纹（首次信任 TOFU）。"
+          "description": "读取新服务器的证书指纹并记下来，之后连接只信任这台服务器。"
         },
         "connectTest": {
           "label": "连接测试",
-          "description": "建立 TLS 连接并验证刚启动的服务器。"
+          "description": "用访问令牌与刚记下的指纹连接新服务器，方式与之后保存的连接配置相同。"
         },
         "writeProfile": {
           "label": "保存连接配置",
-          "description": "保存已验证的连接配置，可在配置选单中查看。"
+          "description": "保存已验证的连接配置，之后可在「配置」面板中看到。"
         },
         "done": {
           "label": "完成",
-          "description": "收尾并显示安装后提示。"
+          "description": "完成设置，并列出过程中的注意事项。"
         }
       },
       "error": {
@@ -898,19 +898,19 @@
       "step": {
         "pickDistro": {
           "label": "选择 WSL 发行版",
-          "description": "挑一个 WSL2 发行版来托管 BAT 服务器。"
+          "description": "选择要运行 BAT 服务器的 WSL2 发行版；只有一个时会自动选取。"
         },
         "systemdCheck": {
           "label": "检查 systemd 是否启用",
-          "description": "确认所选发行版已启用 systemd（服务管理必需）。"
+          "description": "确认发行版已启用 systemd。BAT 服务器以 systemd 服务运行，未启用时后面的步骤会失败。"
         },
         "installBundle": {
           "label": "安装 BAT 服务器套件",
-          "description": "将 BAT 服务器套件流式传送进 WSL 并解压。"
+          "description": "获取这个 BAT 版本的服务器套件（本机缓存，或从 GitHub 下载），安装到发行版内。"
         },
         "writeSystemdUnit": {
-          "label": "写入 systemd 用户服务",
-          "description": "安装并启用 bat-server systemd user unit。"
+          "label": "配置并启动服务器服务",
+          "description": "挑选可用的端口，把 BAT 服务器注册为会自动启动的用户服务，并启动它。"
         }
       },
       "error": {
@@ -955,19 +955,19 @@
       "step": {
         "pickContainer": {
           "label": "选择 Docker 容器模式",
-          "description": "重用现有容器或新建容器来运行 BAT 服务器。"
+          "description": "新建容器来运行 BAT 服务器，或使用最近创建的现有容器。"
         },
         "configureMounts": {
-          "label": "配置 bind mounts",
-          "description": "将宿主机工作区目录挂载进容器。"
+          "label": "选择工作文件夹",
+          "description": "选一个本机文件夹共享给容器，在容器内的路径是 /workspace/<文件夹名称>。"
         },
         "installBundle": {
           "label": "确认 BAT 服务器套件",
-          "description": "确认容器镜像中已包含 BAT 服务器套件。"
+          "description": "Docker 镜像已内置 BAT 服务器，不需要另外复制。"
         },
         "startServer": {
           "label": "启动 Docker 容器",
-          "description": "启动容器并等待 healthy 状态。"
+          "description": "创建或启动容器，并等待它就绪（最多 45 秒）。"
         }
       },
       "warning": {
@@ -1006,20 +1006,20 @@
     "ssh": {
       "step": {
         "configureHost": {
-          "label": "配置 SSH 主机信息",
-          "description": "选择主机、账号、端口、密钥与安装路径；BAT 始终通过 SSH 通道连接。"
+          "label": "选择 SSH 主机",
+          "description": "从 ~/.ssh/config 选择主机，或手动输入；BAT 始终通过 SSH 通道连接。"
         },
         "verifyAuth": {
           "label": "验证 SSH 认证",
-          "description": "执行 BAT_AUTH_OK probe 并检测远端 OS 与家目录。"
+          "description": "以 SSH 登录主机，并确认操作系统与家目录；首次连接的主机密钥会自动接受。"
         },
         "installBundle": {
           "label": "安装 BAT 服务器套件（SSH）",
-          "description": "通过 ssh+tar pipe 将 BAT 服务器套件传到远端主机。"
+          "description": "获取符合主机平台的 BAT 服务器套件（本机缓存，或从 GitHub 下载），安装到主机的 ~/.local/bat-server。"
         },
         "startServer": {
-          "label": "启动 bat-server（SSH）",
-          "description": "安装并启用 systemd unit（Linux）或 launchd plist（macOS）。"
+          "label": "启动 BAT 服务器",
+          "description": "把 BAT 服务器注册为用户服务（Linux 用 systemd、macOS 用 launchd）并启动；只在主机本机监听。"
         }
       },
       "manualHost": {

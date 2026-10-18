@@ -57,3 +57,238 @@
     grid-template-columns: 1fr;
   }
 }
+
+/*
+ * T0658 (BUG-163): the rest of SetupWizardShell used Tailwind utility classes
+ * too, so buttons rendered as white native buttons and the progress bar, prompt
+ * box and message boxes had no styling. Buttons / the text input now use the
+ * Profiles panel classes (.profile-action-btn, .profile-name-input in
+ * settings.css); everything else is styled here with the app CSS variables and
+ * the Stepper status colours (src/components/stepper/status-preset.ts).
+ */
+
+.bat-wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.bat-wizard-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bat-wizard-progress-text {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.bat-wizard-progress-track {
+  flex-shrink: 0;
+  width: 160px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+}
+
+.bat-wizard-progress-fill {
+  height: 100%;
+  background: #10b981;
+  transition: width 0.2s ease;
+}
+
+.bat-wizard-detail-kicker {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.bat-wizard-detail-title {
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bat-wizard-detail-description {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.bat-wizard-detail-empty p,
+.bat-wizard-detail-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.bat-wizard-detail-body > * {
+  margin-top: 8px;
+}
+
+.bat-wizard-running {
+  color: #38bdf8;
+}
+
+.bat-wizard-error-text {
+  color: #fca5a5;
+}
+
+.bat-wizard-skipped-note {
+  color: #f59e0b;
+}
+
+.bat-wizard-mapped-error {
+  padding: 10px 12px;
+  border-left: 2px solid #ef4444;
+  border-radius: 2px;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.bat-wizard-mapped-error-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fca5a5;
+}
+
+.bat-wizard-mapped-error-body {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.bat-wizard-link-btn {
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: #fca5a5;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bat-wizard-mapped-error-raw {
+  margin-top: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  font-size: 12px;
+  color: #fca5a5;
+}
+
+.bat-wizard-action-notice[data-tone='info'] {
+  color: #38bdf8;
+}
+
+.bat-wizard-action-notice[data-tone='success'] {
+  color: #10b981;
+}
+
+.bat-wizard-action-notice[data-tone='error'] {
+  color: #fca5a5;
+}
+
+/* Choice / text prompt waiting for the user (awaiting-input colour). */
+.bat-wizard-prompt {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid #38bdf8;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+
+.bat-wizard-prompt-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bat-wizard-prompt-description {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.bat-wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.bat-wizard-text-input {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.bat-wizard-field-error {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #fca5a5;
+}
+
+/* Recovery buttons under a failed step in the narrow Stepper column. */
+.bat-wizard-action-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.bat-wizard-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.bat-wizard-box-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.bat-wizard-box p + p,
+.bat-wizard-box-header + p {
+  margin-top: 4px;
+}
+
+.bat-wizard-warnings {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.08);
+  color: #fcd34d;
+}
+
+.bat-wizard-error-box {
+  margin-top: 16px;
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+}
+
+.bat-wizard-complete {
+  margin-top: 16px;
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.08);
+  color: #6ee7b7;
+}
+
+.bat-wizard-remote-tools {
+  margin-top: 12px;
+}

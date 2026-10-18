@@ -574,23 +574,21 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
     })
     const panel = container.querySelector('.bat-wizard-mapped-error') as HTMLElement
 
-    // L1 Title — rose-200 semibold heading.
+    // L1 Title — mapped-error heading (T0658: wizard CSS class, not Tailwind).
     const title = panel.querySelector('h4') as HTMLElement
     expect(title.textContent).toBe('未偵測到 Docker daemon')
-    expect(title.className).toContain('text-rose-200')
-    expect(title.className).toContain('font-semibold')
+    expect(title.className).toBe('bat-wizard-mapped-error-title')
 
-    // L2 Body — rose-100 paragraph (mapped body, not raw).
+    // L2 Body — mapped body paragraph, not raw.
     const body = panel.querySelector('p') as HTMLElement
     expect(body.textContent).toContain('Docker Desktop')
-    expect(body.className).toContain('text-rose-100')
+    expect(body.className).toBe('bat-wizard-mapped-error-body')
 
-    // L3 Raw — append-raw mode renders <pre> immediately with border + dark bg.
+    // L3 Raw — append-raw mode renders <pre> immediately (styled by setup-wizard.css).
     const raw = panel.querySelector('pre.bat-wizard-mapped-error-raw') as HTMLElement
     expect(raw).not.toBeNull()
     expect(raw.textContent).toContain(rawMessage)
-    expect(raw.className).toContain('border-rose-900/60')
-    expect(raw.className).toContain('bg-rose-950/40')
+    expect(raw.className).toBe('bat-wizard-mapped-error-raw')
 
     // L4 Actions — three buttons in spec order: open-link, fixed-and-retry, cancel.
     const actions = container.querySelector('.bat-stepper-failed-actions') as HTMLElement
@@ -638,11 +636,11 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
 
     const title = panel.querySelector('h4') as HTMLElement
     expect(title.textContent).toBe('無法自動啟用 systemd lingering')
-    expect(title.className).toContain('text-rose-200')
+    expect(title.className).toBe('bat-wizard-mapped-error-title')
 
     const body = panel.querySelector('p') as HTMLElement
     expect(body.textContent).toContain('loginctl enable-linger')
-    expect(body.className).toContain('text-rose-100')
+    expect(body.className).toBe('bat-wizard-mapped-error-body')
 
     // append-raw mode: <pre> renders immediately without "Show details" gate.
     const raw = panel.querySelector('pre.bat-wizard-mapped-error-raw') as HTMLElement

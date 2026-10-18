@@ -279,7 +279,7 @@ function StepDetailPanel({
   if (!display) {
     return (
       <div className="bat-wizard-detail bat-wizard-detail-empty">
-        <p className="text-sm text-neutral-400">{t('wizard.noStep')}</p>
+        <p>{t('wizard.noStep')}</p>
       </div>
     )
   }
@@ -294,34 +294,34 @@ function StepDetailPanel({
   return (
     <div className="bat-wizard-detail">
       <header className="bat-wizard-detail-header">
-        <div className="text-xs uppercase tracking-wide text-neutral-500">
+        <div className="bat-wizard-detail-kicker">
           {isReadOnly ? t('wizard.readonly.viewing') : t('wizard.currentStep')}
         </div>
-        <h3 className="text-base font-semibold text-neutral-100">{label}</h3>
-        {description && <p className="mt-1 text-sm text-neutral-400">{description}</p>}
+        <h3 className="bat-wizard-detail-title">{label}</h3>
+        {description && <p className="bat-wizard-detail-description">{description}</p>}
       </header>
 
       <div className="bat-wizard-detail-body">
         {display.status === WizardStepStatus.Running && (
-          <p className="text-sm text-sky-300">{t('wizard.running')}</p>
+          <p className="bat-wizard-running">{t('wizard.running')}</p>
         )}
         {showMappedError && mappedError && (
-          <div className="bat-wizard-mapped-error mt-2" role="alert">
-            <h4 className="text-sm font-semibold text-rose-200">{mappedError.title}</h4>
+          <div className="bat-wizard-mapped-error" role="alert">
+            <h4 className="bat-wizard-mapped-error-title">{mappedError.title}</h4>
             {mappedError.body && (
-              <p className="mt-1 text-sm text-rose-100">{mappedError.body}</p>
+              <p className="bat-wizard-mapped-error-body">{mappedError.body}</p>
             )}
             {detailMode === 'hidden-by-default' && !showRawError && (
               <button
                 type="button"
-                className="mt-2 text-xs text-rose-300 underline"
+                className="bat-wizard-link-btn"
                 onClick={() => setShowRawError(true)}
               >
                 {t('wizard.action.showDetails', 'Show details')}
               </button>
             )}
             {rawVisible && mappedError.rawError && (
-              <pre className="bat-wizard-mapped-error-raw mt-2 whitespace-pre-wrap rounded border border-rose-900/60 bg-rose-950/40 p-2 text-xs text-rose-200">
+              <pre className="bat-wizard-mapped-error-raw">
                 {mappedError.rawError}
               </pre>
             )}
@@ -329,13 +329,7 @@ function StepDetailPanel({
         )}
         {!isReadOnly && actionNotice && (
           <p
-            className={`bat-wizard-action-notice mt-2 text-sm ${
-              actionNotice.tone === 'error'
-                ? 'text-rose-300'
-                : actionNotice.tone === 'success'
-                ? 'text-emerald-300'
-                : 'text-sky-300'
-            }`}
+            className="bat-wizard-action-notice"
             role={actionNotice.tone === 'error' ? 'alert' : 'status'}
             data-tone={actionNotice.tone}
           >
@@ -343,31 +337,31 @@ function StepDetailPanel({
           </p>
         )}
         {!showMappedError && display.status === WizardStepStatus.Failed && display.error && (
-          <p className="mt-2 text-sm text-rose-300" role="alert">
+          <p className="bat-wizard-error-text" role="alert">
             {display.error}
           </p>
         )}
         {display.skipped && (
-          <p className="mt-2 text-sm text-amber-300">{t('wizard.skippedNote')}</p>
+          <p className="bat-wizard-skipped-note">{t('wizard.skippedNote')}</p>
         )}
       </div>
 
       {!isReadOnly && activeChoice && (
         <div
           id={PROMPT_REGION_ID}
-          className="mt-3 rounded-lg border border-sky-700 bg-sky-950/40 p-4"
+          className="bat-wizard-prompt"
           role="group"
           aria-label={activeChoice.title}
         >
-          <h4 className="font-medium text-sky-100">{activeChoice.title}</h4>
+          <h4 className="bat-wizard-prompt-title">{activeChoice.title}</h4>
           {activeChoice.description && (
-            <p className="mt-1 text-sm text-sky-200">{activeChoice.description}</p>
+            <p className="bat-wizard-prompt-description">{activeChoice.description}</p>
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="bat-wizard-actions">
             {activeChoice.options.map((option) => (
               <button
                 key={option.value}
-                className="rounded-md border border-sky-600 px-3 py-2 text-sm text-sky-100 transition hover:bg-sky-900"
+                className="profile-action-btn bat-wizard-choice"
                 onClick={() => onChoiceSelect(option.value)}
                 type="button"
               >
@@ -376,7 +370,7 @@ function StepDetailPanel({
             ))}
             {activeChoice.allowSkip && (
               <button
-                className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition hover:bg-neutral-800"
+                className="profile-action-btn bat-wizard-choice"
                 onClick={() => onChoiceSelect(null)}
                 type="button"
               >
@@ -392,9 +386,9 @@ function StepDetailPanel({
       )}
 
       {isReadOnly && (
-        <div className="mt-3">
+        <div className="bat-wizard-actions">
           <button
-            className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-100 transition hover:bg-neutral-800"
+            className="profile-action-btn"
             onClick={onBackToCurrent}
             type="button"
           >
@@ -404,12 +398,12 @@ function StepDetailPanel({
       )}
 
       {ctx.warnings.length > 0 && (
-        <div className="mt-3 rounded-lg border border-amber-700 bg-amber-950/30 p-3 text-sm text-amber-200">
-          <div className="text-xs uppercase tracking-wide text-amber-400">
+        <div className="bat-wizard-box bat-wizard-warnings">
+          <div className="bat-wizard-box-header">
             {t('wizard.warningHeader')}
           </div>
           {ctx.warnings.map((warning) => (
-            <p key={warning} className="mt-1">{warning}</p>
+            <p key={warning}>{warning}</p>
           ))}
         </div>
       )}
@@ -444,18 +438,18 @@ function TextPrompt({ request, onSubmit }: TextPromptProps) {
   return (
     <form
       id={PROMPT_REGION_ID}
-      className="mt-3 rounded-lg border border-sky-700 bg-sky-950/40 p-4"
+      className="bat-wizard-prompt"
       aria-label={title}
       onSubmit={(event) => {
         event.preventDefault()
         submit()
       }}
     >
-      <label htmlFor={inputId} className="font-medium text-sky-100">{title}</label>
-      {description && <p className="mt-1 text-sm text-sky-200">{description}</p>}
+      <label htmlFor={inputId} className="bat-wizard-prompt-title">{title}</label>
+      {description && <p className="bat-wizard-prompt-description">{description}</p>}
       <input
         id={inputId}
-        className="mt-3 w-full rounded-md border border-sky-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100"
+        className="profile-name-input bat-wizard-text-input"
         value={value}
         placeholder={request.placeholder}
         onChange={(event) => {
@@ -469,17 +463,17 @@ function TextPrompt({ request, onSubmit }: TextPromptProps) {
         autoComplete="off"
       />
       {errorKey && (
-        <p id={errorId} className="mt-2 text-sm text-rose-300" role="alert">{t(errorKey)}</p>
+        <p id={errorId} className="bat-wizard-field-error" role="alert">{t(errorKey)}</p>
       )}
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="bat-wizard-actions">
         <button
-          className="rounded-md border border-sky-600 px-3 py-2 text-sm text-sky-100 transition hover:bg-sky-900"
+          className="profile-action-btn primary"
           type="submit"
         >
           {t('wizard.action.submitText')}
         </button>
         <button
-          className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition hover:bg-neutral-800"
+          className="profile-action-btn"
           onClick={() => onSubmit(null)}
           type="button"
         >
@@ -688,17 +682,17 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
   }
 
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-neutral-100 shadow-lg bat-wizard-shell">
-      <header className="mb-4 flex items-center justify-between gap-4">
+    <section className="bat-wizard-shell">
+      <header className="bat-wizard-header">
         <div>
-          <h2 className="text-lg font-semibold">{t(`wizard.title.${ctx.targetOS}`, ctx.targetOS)}</h2>
-          <p className="text-sm text-neutral-400">
+          <h2 className="bat-wizard-title">{t(`wizard.title.${ctx.targetOS}`, ctx.targetOS)}</h2>
+          <p className="bat-wizard-progress-text">
             {t('wizard.progress.label', { completed: completedCount, total })} ({progressPercent}%)
           </p>
         </div>
-        <div className="h-2 w-40 overflow-hidden rounded-full bg-neutral-800">
+        <div className="bat-wizard-progress-track">
           <div
-            className="h-full bg-emerald-500 transition-all"
+            className="bat-wizard-progress-fill"
             style={{ width: `${progressPercent}%` }}
             role="progressbar"
             aria-valuenow={progressPercent}
@@ -708,7 +702,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
         </div>
       </header>
 
-      <div className="bat-wizard-grid grid grid-cols-1 gap-4 md:grid-cols-[minmax(220px,300px)_1fr]">
+      <div className="bat-wizard-grid">
         <div className="bat-wizard-stepper-col">
           <Stepper
             steps={stepDescriptors}
@@ -745,7 +739,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
               }
 
               return (
-                <div className="bat-stepper-failed-actions flex flex-wrap gap-2">
+                <div className="bat-stepper-failed-actions">
                   {baseActions.map((action, i) => {
                     const disabled =
                       snap.retryable === false &&
@@ -753,18 +747,11 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
                         action.kind === 'fixed-and-retry' ||
                         action.kind === 'skip')
                     if (disabled) return null
-                    const tone =
-                      action.kind === 'cancel'
-                        ? 'border-rose-700 text-rose-100 hover:bg-rose-950'
-                        : action.kind === 'edit-config'
-                        ? 'border-amber-700 text-amber-100 hover:bg-amber-950'
-                        : action.kind === 'open-link' || action.kind === 'import-server-bundle'
-                        ? 'border-sky-700 text-sky-100 hover:bg-sky-950'
-                        : 'border-neutral-700 text-neutral-100 hover:bg-neutral-800'
+                    const tone = action.kind === 'cancel' ? ' danger' : ''
                     return (
                       <button
                         key={`${action.kind}-${i}`}
-                        className={`rounded-md border px-2 py-1 text-xs transition ${tone}`}
+                        className={`profile-action-btn bat-wizard-action-btn${tone}`}
                         onClick={() => void dispatchAction(action, index)}
                         type="button"
                         data-action-kind={action.kind}
@@ -796,23 +783,23 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       </div>
 
       {wizardError && (
-        <div className="mt-4 rounded-lg border border-rose-700 bg-rose-950/30 p-4 text-sm text-rose-200">
-          <div className="text-xs uppercase tracking-wide text-rose-400">
+        <div className="bat-wizard-box bat-wizard-error-box">
+          <div className="bat-wizard-box-header">
             {t('wizard.errorHeader')}
           </div>
-          <p className="mt-1">{wizardError}</p>
+          <p>{wizardError}</p>
         </div>
       )}
 
       {complete && !wizardError && (
-        <div className="mt-4 rounded-lg border border-emerald-700 bg-emerald-950/30 p-4 text-sm text-emerald-200">
+        <div className="bat-wizard-box bat-wizard-complete">
           {t('wizard.progress.complete')}
         </div>
       )}
 
       {/* T0413 (PLAN-037 F): remote AI toolchain check for the profile just created. */}
       {complete && !wizardError && createdProfileId && (
-        <div className="bat-wizard-remote-tools mt-3" style={{ flexShrink: 0, maxHeight: '45vh', overflowY: 'auto' }}>
+        <div className="bat-wizard-remote-tools" style={{ flexShrink: 0, maxHeight: '45vh', overflowY: 'auto' }}>
           <RemoteToolsEntry profileId={createdProfileId} host="wizard" />
         </div>
       )}
