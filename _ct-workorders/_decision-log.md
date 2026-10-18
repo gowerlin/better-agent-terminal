@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D167 2026-10-18 — PLAN-050 Claude 分頁的 session 識別：R2 採 (a)+(b)；hook 回報 sessionId（改 T0600）；放寬 D149 加 `scope: 'towers'`；`--name` 不加 Settings 開關
+
+- **背景**：BMad-Guide 塔台需求提案（CT D067，`BMad-Guide/_ct-workorders/_request-2026-10-18-bat-session-identity.md`）：ListAgents 只顯示「目錄名＋兩字元」，CT 分不出 BAT 塔台與 Worker（2026-10-18 兩次實例）。T0640 研究 DONE（16:07）：claude `--name` 在 2.1.300 / 2.1.302 實測可用（ListAgents 顯示、中文與 `·` 正確、上限 200 字元、重複時最後一個生效）；`< 2.1.76` 不認得 → claude exit 1（system runtime 需版本檢查）；`--session-id` 會在 resume / 重啟 / 重複時讓 claude 啟動失敗 → 不用；`SessionStart` hook stdin 有 `session_id`；hook `sessionTitle` 不改 ListAgents 名稱 → 排除。
+- **決定**（使用者 2026-10-18 16:1x，四題皆選推薦）：
+  1. **R2 採 (a)+(b) 並用**：(a) 所有 claude-cli 分頁啟動即 `--name "<工作區> · <短 ID>"`（Worker 為 `<工作區> · Worker · T####`）＋ R3 ＋ `scope: 'towers'`；(b) 新增「以塔台開啟 Claude」入口，啟動即 `<工作區> · Tower`（只命名，不代替 `--set-role tower`）。(c) 使用者 `/rename` 作為發版前過渡。
+  2. **改 T0600 契約**：`SessionStart` hook 回報時多帶驗證過的 `session_id`（UUID），日誌只記前 8 碼；hook 仍 exit 0、stdout 不輸出。
+  3. **放寬 D149**：`terminal:list { scope: 'towers' }`，只有已宣告的 tower 可呼叫，回同一 BAT host 所有 tower 分頁的 `id` / `workspaceId` / `workspaceName` / `claudeSessionName` / `state` / `alive`；不回 sessionId、cwd、輸出；`read-output` / `wait` 範圍不變。
+  4. 刪除 T0640 實驗留在 `~/.claude/projects/` 的兩個 transcript（塔台已刪，16:1x）。
+- **塔台補充（範圍內）**：`--name` 注入不加 Settings 開關、預設啟用（比照 D144；Worker 建議）；介面契約以 T0640 回報區 C-1–C-8 為底，實作工單可微調並在回報說明。
+- **派工**：A（T0641，C-1 / C-2 / C-3 + R1）先做；A 完成後 B（T0642，C-4 / C-5 / C-8 + R3）與 D（T0644，C-7「以塔台開啟」）並行；B 完成後 C（T0643，C-6 `scope: 'towers'`）。全部完成後開 CT-T021 委派 CT 改「跨 session 選收件人」規則，並發下一個 BAT 預覽版（版號線發版前問使用者）。
+- **相關**：PLAN-050 / T0640 / D149 / T0600 / T0590 / D144 / T0562 / T0582 / T0584
+
 ### D166 2026-10-18 — PLAN-049 網站：CT 不開源但可「概念加細節」介紹；新開「Control Tower 功能導覽」頁
 
 - **背景**：使用者 14:29 前：「CT 不開源，但是可以稍微詳細介紹」，參考 CT 使用指南 v5（`BMad-Control-Tower-v5.8.0/docs/BMad Control Tower 安裝(升級)與使用指南 v5.md`，2007 行：§ 1 這是什麼、§ 2 v4.0–v5.8.0 新功能、§ 3–4 升級與安裝、§ 5 四級能力、§ 6 基本流程、§ 7 使用情境、§ 8 自我學習、§ 9 多塔台、§ 10 Debug 三層防線、§ 11 FAQ、§ 12–14 速查表）。
