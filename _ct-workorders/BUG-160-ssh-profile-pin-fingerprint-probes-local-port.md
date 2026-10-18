@@ -23,7 +23,7 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（權杖可能送到錯的伺服器；但對象仍是使用者自己機器上的 BAT 伺服器，通常只是連不上） |
-| 可重現 | 條件式（程式碼推論）：本機 `localhost:<SSH 設定的 remotePort>` 剛好有別的 BAT 伺服器 |
+| 可重現 | 條件式（T0655 以測試重現直連 `localhost:<remotePort>`）：本機該埠剛好有別的 BAT 伺服器時才會釘錯 |
 | **狀態** | ✅ FIXED（T0655 `02f1c6f8`：SSH 設定（`targetOS` = `ssh-linux` / `ssh-darwin`）停用釘選按鈕並顯示說明，`handlePinFingerprint` 防禦性拒絕；WSL / Docker 照舊） |
 
 ## 現象（T0652 程式碼追蹤）
