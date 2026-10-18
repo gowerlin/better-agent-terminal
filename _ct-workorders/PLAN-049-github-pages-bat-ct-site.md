@@ -38,6 +38,8 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 
 - 站台位置：**專案站 `gowerlin.github.io/better-agent-terminal`**（本 repo 部署）。
 - CT 呈現：**只介紹概念與它跟 BAT 的整合點**，不提供取得管道。
+- （12:20 追加）技術選型、截圖 / 示範 GIF、部署方式：**由塔台依 T0622 建議決定並設計**。
+- 內容來源與同步：使用者向內容**可公開、可同步**；**發版時一起更新網站**（併入發佈後同步流程）。
 
 ## 排期
 
