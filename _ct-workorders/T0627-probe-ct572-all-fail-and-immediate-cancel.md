@@ -115,8 +115,7 @@ DONE — 兩階段都照 ct-exec v5.7.2 規則完成。階段 A：Q-1、Q-2 的 
 - C-3：`affects_files` 只有本工單（`_ct-workorders/` 下）→ 不適用
 - C-2：工單無 `branch` 欄位 → 不適用（實際分支 `main`）
 - `CT_HOME` 未設（非 worktree 隔離）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
-- 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`BAT_TOWER_TERMINAL_ID` / `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` 皆可見；helper = `$BAT_HELPER_DIR/bat-notify.mjs`（`C:\Program Files\BetterAgentTerminal
-esources\scripts`）；`worker_question_timeout` = 30（frontmatter）
+- 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`BAT_TOWER_TERMINAL_ID` / `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` 皆可見；helper = `$BAT_HELPER_DIR/bat-notify.mjs`（`C:\Program Files\BetterAgentTerminal\resources\scripts`）；`worker_question_timeout` = 30（frontmatter）
 
 ### 互動紀錄
 
