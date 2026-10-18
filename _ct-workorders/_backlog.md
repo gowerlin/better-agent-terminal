@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 18:03 (UTC+8) — PLAN-050 DONE（T0645 實機驗收）
+> 最後同步：2026-10-18 18:33 (UTC+8) — PLAN-052 IDEA（T0646 衍生）；PLAN-051 維持 IDEA（D169）
 
 ## 統計
-- 💡 Ideas: 5 | 📋 Planned: 0 | 🔄 In Progress: 2 | ✅ Done: 14 | 🚫 Dropped: 1
+- 💡 Ideas: 6 | 📋 Planned: 0 | 🔄 In Progress: 2 | ✅ Done: 14 | 🚫 Dropped: 1
 
 ## Active
 
@@ -38,6 +38,7 @@ breakdown:
 | PLAN-047 | BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
 | PLAN-049 | GitHub Pages 個人網站：介紹 BAT + Control Tower、推廣使用 | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-049](PLAN-049-github-pages-bat-ct-site.md) |
 | PLAN-051 | BAT 跨塔台傳訊通道：不同專案的塔台（含 codex 塔台）經 BAT 互相送訊息，不依賴 SendMessage | 🟢 low | 💡 IDEA | [PLAN-051](PLAN-051-cross-tower-messaging-channel.md) |
+| PLAN-052 | Docker 遠端路線可用性：發佈 `bat-server` 映像或裝進任意容器、「Use existing」可選容器、重跑精靈更新既有設定 | 🟢 low | 💡 IDEA | [PLAN-052](PLAN-052-docker-remote-usability.md) |
 
 ## Completed
 

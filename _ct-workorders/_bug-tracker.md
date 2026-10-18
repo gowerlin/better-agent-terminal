@@ -23,21 +23,24 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 18:01 (UTC+8) — BUG-155 CLOSED（T0645 實機驗收）
+> 最後同步：2026-10-18 18:33 (UTC+8) — BUG-156 / BUG-157 FIXING（T0649 / T0650）、BUG-158 OPEN（T0646 衍生）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 40**
+- 🔴 Open: 2 | ⏳ Fixing: 2 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 43**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
+| BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（BAT 無法用密碼登入） | 🟢 low | 2026-10-18 18:33 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649） | 🟡 medium | — | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
+| BUG-157 | 「編輯連線」釘選新指紋後按「儲存」寫回舊指紋；釘選失敗不提示（T0650） | 🟡 medium | — | [BUG-157](BUG-157-pin-fingerprint-overwritten-on-save.md) |
 
 ## ✅ 已修復
 
