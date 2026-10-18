@@ -1,11 +1,48 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-18 21:25 (UTC+8) — **第八十三 session 收工**：PLAN-049 W2c / W3 / W4 完成、BUG-156–163 批次修正、發佈 `v0.7.1-pre.2`、PLAN-051 維持 IDEA（D169）、CT 演進史交 BMad-Guide（T0175）、MCP 實作報告更新（T0661）。
+> 最後更新:2026-10-18 22:45 (UTC+8) — **第八十四 session 收工**：`v0.7.1-pre.2` 安裝版自動化驗收（T0663 / T0664）→ BUG-157 / 158 / 160 / 161 / 162 / 163 CLOSED；PLAN-047 DONE（D171）、PLAN-049 DONE（D172）；網站 metadata（T0665）上線。
 >
-> **下次起手**:使用者已換裝 `v0.7.1-pre.2` → 以 FileVersion 確認（L127）→ ① 本批 BUG 實機驗收（BUG-157 / 160 / 162 / 163 / 158 / 161 可在本機；BUG-156 需 Docker Desktop、BUG-159 需一般權限）→ ② PLAN-047 收尾盤點；③ 前期驗收。
+> **下次起手**:熱區已無進行中 PLAN / 工單 → 依使用者環境安排 BUG-156（Docker Desktop）/ BUG-159（一般權限 + codex）驗收，或選 PLAN-052 等 IDEA 立項；網站手動素材等使用者拍好。
 ---
 
-## 🛏 本 Session 收工快照 (第八十三 session, 2026-10-18 18:10 - 21:25, ~3h15m)
+## 🛏 本 Session 收工快照 (第八十四 session, 2026-10-18 21:27 - 22:45, ~1h18m)
+
+### 主軸：`v0.7.1-pre.2` 安裝版自動化驗收 → BUG-157 / 158 / 160 / 161 / 162 / 163 CLOSED；PLAN-047、PLAN-049 結案；網站 metadata 補齊上線
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **21:27** 啟動（CT v5.9.0；BAT 安裝版 FileVersion `0.7.1-pre.2` 確認；`--set-role tower --mode on` exit 0；本分頁 `better-agent-terminal · Tower`，不顯示提示）
+2. **21:30** 使用者「從清單開始，只做能自動化的」→ T0663（BUG-157 / 158 / 160 / 161 / 163）＋ T0664（BUG-162）建單（`7a2387fa`），21:32 並行派工皆 `started:`；BUG-156（Docker Desktop）/ BUG-159（一般權限）不納入
+3. **21:44** T0664 DONE（V0–V2 PASS；真實 claude haiku 1 回合，危險 rm 120 s 自動拒絕後 `post-tool-batch` 先於 `Stop` 清除）；**21:47** T0663 DONE（40 項：39 PASS / 1 NEEDS-HUMAN，24 個錯誤 code 本機觸發不了）
+4. **22:24** 使用者同意 → 六張 BUG CLOSED、T0650 / 0652 / 0655 / 0657 / 0658 / 0660 DONE（`3ecf9049`）；T0663 觀察（`Expand` / `Collapse`、無自訂 focus 樣式）記入 BUG-161 殘留；順修 bug-tracker frontmatter 計數
+5. **22:26** 使用者「看缺甚麼或可 done」→ PLAN-047 DONE（D171：M2 / M3 不續做；已知缺口 T0620 elicitation 未經安裝版實機；`a77c3dc1`，順修 backlog 計數）
+6. **22:28** T0665 網站 description / 404 中文 → DONE 22:32（`c31c2db0`）→ 塔台補 `site/releases.md` `title: 更版紀錄` → push `bd061968..a300975b` → Pages run `39137082682` 全綠、link-check 1141 / 0 errors、線上 meta 確認
+7. **22:44** PLAN-049 DONE（D172：手動素材改為使用者拍好後另開工單；`5fc14b8f`）
+8. **22:45** 收工（使用者「收工, push」）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | **3**（T0663–T0665） | 全部 `started:`；`worker_auto_close` 回收 3 次；最多 2 張並行；無提問 |
+| BUG | 6 CLOSED（157 / 158 / 160 / 161 / 162 / 163） | 剩 BUG-156 / 159 FIXED 待特定環境；熱區 Open 1 / Fixed 21 / Closed 26 |
+| PLAN / 決策 | PLAN-047 DONE（D171）、PLAN-049 DONE（D172） | 熱區已無 IN_PROGRESS PLAN |
+| 網站 | 1 次上線 | link-check 0 errors |
+| 新增 opt-in e2e | `e2e/v071-pre2-acceptance.spec.ts`、`e2e/v071-pre2-blocked-acceptance.spec.ts`、`e2e/real-remote/t0663-*` | `BAT_E2E_V071PRE2=1`（V2 另需 `BAT_E2E_REAL_CLAUDE=1`） |
+
+### 重點觀察
+
+- 安裝版自動化驗收（T0520 模式）可延伸到真實 claude：temp `CLAUDE_CONFIG_DIR` + 只讀 access token、1 回合即驗 hook 時序；`pty:write { auto: true }` 不算使用者輸入，可當驗收手段
+- 塔台手改索引時 frontmatter 計數會落後於統計行（bug-tracker 40 / 20 / 19、backlog 22 / IDEA 5）→ 改索引要兩處一起改
+- Worker 截圖可能拍進隔離實例權杖（T0663 `v1a-after-pin.png`，已失效、只在 temp）
+
+### 編號起始（下 session）
+
+- **T0666** / **BUG-164** / **PLAN-053** / **D173** / **L171** / **CT-T022**
+
+---
+
+## 🛏 前 Session 收工快照 (第八十三 session, 2026-10-18 18:10 - 21:25, ~3h15m)
 
 ### 主軸：網站 W2c / W3 / W4 → 一路挖出遠端相關 BUG-156–163 → 批次修正 → 發 `v0.7.1-pre.2`；PLAN-051 評估（維持 IDEA）；CT 演進史跨專案交辦
 
@@ -45,48 +82,15 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第八十二 session, 2026-10-18 17:56 - 18:08, ~12m)
-
-### 主軸：`v0.7.1-pre.1` 安裝版實機驗收——PLAN-050 DONE、BUG-155 CLOSED、CT-T021（CT v5.9.0）四情境全 PASS（T0645）
-
-#### 時間線（時間取自系統 / git）
-
-1. **17:56** 啟動（CT **v5.9.0**；BAT 安裝版 FileVersion `0.7.1-pre.1`）；`--set-role tower --mode on` exit 0；面板出現「以塔台開啟 Claude」提示（本分頁名稱 `better-agent-terminal · d64be7`）；啟動 `bat_whoami` / `scope=towers` 即驗到 `agent`、`claudeSessionName` / `claudeSessionId`、兩個塔台
-2. **17:57** 使用者「留在這個分頁，先跑 Worker 探針和 CT-T021」→ T0645 建單（`9dff2569`）→ 17:58:22 派工 `started:` → Worker 名稱 `better-agent-terminal · Worker · T0645`（BAT 與 ListAgents 一致）→ 17:59 DONE（`c0799a77`）
-3. **18:00** 使用者在 Worker 分頁 `/clear` → `claudeSessionId` 換新、名稱與 `agentStartedAt` 不變；`--close-worker` exit 0；回函 `BMad-Guide/_ct-workorders/_reply-2026-10-18-ct-v590-runtime.md` + 跨 session 訊息（收件人以 v5.9.0 第 ② 步選出）→ 對方 D071（情境 2–4 PASS）
-4. **18:02** 使用者同意 → BUG-155 CLOSED（`efe8efba`）
-5. **18:03** 使用者以「以塔台開啟 Claude」開新分頁 → ListAgents `better-agent-terminal · Tower`（`role: shell`，未宣告不在 `scope: towers`）→ 情境 1 PASS → PLAN-050 DONE（`e8ddd1a0`）→ 通知對方（對方於回函補記）
-6. **18:0x** 使用者問分頁標題 `Claude CLI · Tower` 與 session 名稱 `better-agent-terminal · Tower` 不同是否正常 → 正常（標題給 BAT 畫面、session 名稱給 ListAgents；T0644 設計）
-7. **18:08** 收工
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | **1**（T0645 探針） | `started:`；`worker_auto_close` 回收 1 次 |
-| BUG / PLAN | BUG-155 CLOSED；PLAN-050 DONE | |
-| 跨專案 | CT-T021 實機驗收全數完成（對方 D071） | 跨 session 訊息 2 則，收件人以 `scope: towers` 選出 |
-
-### 重點觀察
-
-- 新入口開的分頁只命名、不宣告：兩個分頁標題都是 `Claude CLI · Tower`，畫面上不易分辨；使用者若改用新分頁，需在新分頁跑 `/control-tower` 並關掉舊分頁
-- CT 可選建議（重複 Tower 名稱帶短 ID）不開單，遇到實際撞名再議
-
-### 編號起始（下 session）
-
-- **T0646** / **BUG-156** / **PLAN-052** / **D169** / **L168** / **CT-T022**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-18 21:25 UTC+8（第八十三 session 收工）
+> 最後更新：2026-10-18 22:45 UTC+8（第八十四 session 收工）
 
 ### 近期完成
-- `v0.7.1-pre.2` 發佈（20:55，run `39128867451`）：BUG-156–163 修正、網站 `/remote/` / 截圖 / 短片 / OG / link-check
-- PLAN-049 W2c / W3 / W4 完成；網站「與 Control Tower 協作」改名、功能導覽加「Control Tower 怎麼長出來的」（D170）
-- PLAN-051 評估 → 維持 IDEA（D169）；codex daemon 探針 → BUG-159
-- CT 演進史由 BMad-Guide T0175 補到 v5.9.0；MCP 實作報告補到 `v0.7.1-pre.2`（BMad-Guide `33f2a07`，已 push）
+- `v0.7.1-pre.2` 安裝版自動化驗收：BUG-157 / 158 / 160 / 161 / 162 / 163 CLOSED（T0663 / T0664，第八十四 session）
+- PLAN-047 DONE（D171，M2 / M3 不續做）、PLAN-049 DONE（D172，手動素材另開工單）
+- 網站 description / 404 中文 / 更版紀錄 title 上線（T0665，`a300975b`，link-check 0 errors）
+- `v0.7.1-pre.2` 發佈（第八十三 session，run `39128867451`）
 
 ### 待辦（依優先序）
 
@@ -122,8 +126,8 @@
 | **目前版號** | **0.7.1-pre.2**（package.json + lock，2026-10-18 `9c5fe2b1`；`0.7.1` 線，D168，最多到 pre.9） |
 | **最新 release** | `v0.7.1-pre.2`（2026-10-18 20:55，run `39128867451`，target `9c5fe2b1`：BUG-156–163、網站 W2c / W3 / W4；更版重點含「歡迎協助測試」（codex `--no-daemon`）；repo 文件 `c678fc02`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.2`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.1`（2026-10-18 17:36，`1bc9ccca`） |
-| **目前主軸** | `v0.7.1-pre.2` 已發佈（第八十三 session）；下一步實機驗收 BUG-156–163 |
-| **工單最大編號** | **T0664** DONE（第八十四 session：T0663 / T0664 安裝版 pre.2 自動化驗收）；第八十三 session：T0646–T0662；更早見 `_archive/state-snapshots/` |
+| **目前主軸** | `v0.7.1-pre.2` 已發佈並完成可自動化驗收（第八十四 session）；剩 BUG-156 / 159 待特定環境；熱區無進行中 PLAN |
+| **工單最大編號** | **T0665** DONE（第八十四 session：T0663 / T0664 安裝版 pre.2 自動化驗收、T0665 網站 metadata）；第八十三 session：T0646–T0662；更早見 `_archive/state-snapshots/` |
 | **BUG 最大編號** | **BUG-163**（BUG-156–163 第八十三 session 開立並 FIXED；157 / 158 / 160 / 161 / 162 / 163 第八十四 session CLOSED，156 / 159 待實機）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 21 / Closed 26 |
 | **PLAN 最大編號** | **PLAN-052**（IDEA：Docker 遠端可用性）；PLAN-051 IDEA（D169）；PLAN-049 DONE（D172）；PLAN-047 DONE（D171）；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D172**（D171 PLAN-047 結案、D172 PLAN-049 結案，第八十四 session；D169 PLAN-051 維持 IDEA + codex daemon 探針、D170 CT 演進史網站摘要，2026-10-18 第八十三 session） |
@@ -251,6 +255,7 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-18 第八十四 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0663–T0665 全部 `started:`，T0663 / T0664 並行；無提問；`worker_auto_close` 回收 3 次；無發版
 - 2026-10-18 第八十三 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0646–T0662 共 17 張全部 `started:`，最多 3 張並行；結構化提問 1 次（T0657 Q-1 `--answer`）；`worker_auto_close` 回收 17 次；`v0.7.1-pre.2` 發佈
 - 2026-10-18 第八十一 session：auto-session on，per-dispatch `--mode yolo --no-interactive`（T0637 `--agent codex`）；T0637–T0644 全部 `started:`（codex 首次 `started: <時間>`）；T0642 / T0644 並行、T0644 結構化提問 1 次；`worker_auto_close` 回收 8 次；`v0.7.1-pre.1` 發佈
 - 2026-10-18 第八十 session：auto-session on，per-dispatch `--mode yolo --no-interactive`（T0629 `--agent codex`）；T0624–T0636 全 DONE、claude 皆一次啟動（`started:`），codex T0629 `unknown`（pre.8 預期）；T0630 首派被使用者停掉後依 D162 重派；`worker_auto_close` 回收 12 次（T0627 / T0630 首派分頁使用者手動關）；`v0.7.0-pre.9` 發佈
