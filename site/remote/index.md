@@ -19,7 +19,7 @@ BAT 留在你的電腦，Agent 在遠端環境執行。遠端可以是 WSL 發�
 
 在遠端視窗裡，終端機、Agent、檔案瀏覽器與 Git 檢視都在遠端執行；你看到的視窗、分頁與縮圖和本機一樣。
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/remote-profiles.png" alt="配置對話框：本機的 Default，以及遠端的 WSL Ubuntu-24.04、SSH dev-server、Docker demo-shop 三筆設定，每筆右側有狀態燈。" caption="每個遠端環境在「配置」裡是一筆設定，右側的燈號顯示連線狀態；開啟一筆設定就開一個連到那裡的 BAT 視窗。" />
 
 ## 該選哪一種 {#choose}
 

@@ -11,7 +11,7 @@ description: 不用 Control Tower，Better Agent Terminal 本身能做什麼：�
 
 每個專案一個工作區，終端機、Agent 對話與設定各自分開，重開 BAT 後照樣還原。 {.ct-lead}
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/overview.png" alt="BAT 主視窗：左側列出 demo-shop、demo-api、docs-site 三個工作區；demo-shop 開著塔台分頁，下方縮圖列有塔台與三個 Worker 分頁，分別標著 ✓、?、⚠️。" caption="左側是三個工作區，各自有自己的分頁；開著的 demo-shop 有一個塔台分頁和三個 Worker 分頁，下方的縮圖列用來切換。畫面中的專案和 Demo Agent（一個自訂 CLI）都是示範用的。" />
 
 - 工作區以標籤頁排列，可以拖放排序、分組；暫時用不到的可以封存。
 - 每個工作區有自己的終端機、Agent 對話與環境變數。
@@ -23,7 +23,7 @@ description: 不用 Control Tower，Better Agent Terminal 本身能做什麼：�
 
 常用的 AI 程式 Agent 都能直接在 BAT 裡開，任何 CLI 工具也能加成自訂 Agent。 {.ct-lead}
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/agents-menu.png" alt="縮圖列的「+」選單：終端、Claude Agent V1、Claude Agent V2、Claude CLI、以塔台開啟 Claude、Codex Agent、Codex CLI、Gemini CLI、GitHub Copilot CLI，最後是自訂的 Demo Agent。" caption="縮圖列的「+」選單列出可以開的 Agent；最後一項 Demo Agent 是在設定裡加的自訂 CLI。" />
 
 - **Claude Code 面板**：以 Claude Agent SDK 驅動，工具呼叫以結構化事件顯示，權限確認在面板裡回答，也能續接之前的對話。
 - **Claude Code CLI**：在終端機分頁裡使用完整的 CLI。
@@ -57,7 +57,7 @@ BAT 內附 Claude Code CLI。想改用你系統上安裝的 claude，到 **設�
 
 Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看清。 {.ct-lead}
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/statusline-settings.png" alt="設定的外觀分頁裡的狀態列清單：Account、Git Branch、Session ID、Tokens、Cost、5h Usage 等項目，每一列有對齊按鈕、分隔符號、顏色與開關。" caption="狀態列的設定清單：每個項目可以拖曳排序、選對齊、加分隔符號、換顏色或關掉。" />
 
 - 13 個項目可以各自開關、拖曳排序。
 - 每個項目可以自訂顏色、靠左 / 置中 / 靠右對齊，項目之間可以加分隔符號。
@@ -69,7 +69,9 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 
 不離開 BAT 就能瀏覽檔案、看 Git 狀態。 {.ct-lead}
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/files.png" alt="檔案分頁：左邊是 demo-shop 的檔案樹，右邊預覽 src/cart.js，有行號與語法上色。" caption="檔案分頁：點檔案就在右邊預覽。" />
+
+<MediaFigure src="/media/git.png" alt="Git 分頁：左欄是提交紀錄，最上面一筆是未提交的變更；中欄列出已修改的 cart.js 與未追蹤的 money.js；右欄是 cart.js 的差異。" caption="Git 分頁：選一筆提交紀錄或「未提交的變更」，再選檔案，右欄就顯示差異。" />
 
 - 內建檔案瀏覽器，瀏覽工作區裡的檔案。
 - 內建 Git 檢視器。
@@ -79,7 +81,7 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 
 常打的指令存起來，一鍵插入；不想打字的時候，用說的。 {.ct-lead}
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/snippets.png" alt="右側的程式碼片段面板，列出「看最近的提交」、「請 Agent 寫測試」、「跑全部測試」、「只跑購物車測試」四個片段，每個片段都有執行、複製、編輯、刪除按鈕。" caption="右側的程式碼片段面板，可以搜尋，也可以只看全域或這個工作區的片段。" />
 
 ### Snippet
 
@@ -102,7 +104,7 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 
 在同一個 BAT 視窗裡，驅動 WSL、Docker 容器或 SSH 主機（Linux、macOS）上的 Agent。 {.ct-lead}
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/remote-add-menu.png" alt="配置對話框的「+ 更多」選單：容器類有新增 WSL 設定檔與新增 Docker 設定檔，遠端類有新增 SSH 設定檔；下方列著已設定的 WSL、SSH、Docker 三筆遠端。" caption="側欄底部的「配置」：WSL、Docker、SSH 的設定精靈都從「+ 更多」開始。" />
 
 - 設定精靈一路帶你完成：啟動遠端的 BAT 伺服器、核對憑證指紋、驗證連線。WSL 與 SSH 由精靈安裝伺服器套件；Docker 用的是事先建置好的伺服器映像。
 - 伺服器套件不包在安裝檔裡：WSL 與 SSH 第一次設定時從 GitHub 下載並快取。連不到 GitHub 時，可以匯入本機檔案（見[常見問題](./faq#server-bundle)）。

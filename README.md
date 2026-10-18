@@ -24,11 +24,16 @@
 
 <div align="center">
 
-**Claude Code Agent 面板** — 內建 AI Agent，支援權限控制、狀態列與串流輸出
-<img src="assets/screenshot-claude.png" alt="Claude Code Agent Panel" width="800">
+**工作區與分頁** — 每個專案一個工作區；塔台分頁派出的 Worker，縮圖會標出 ✓ 已回報、? 在等塔台答覆、⚠️ 在等你
+<img src="assets/screenshot-overview.png" alt="BAT 主視窗：左側三個工作區，demo-shop 開著塔台分頁，縮圖列有三個 Worker 分頁，分別標著 ✓、?、⚠️" width="800">
 
-**終端機** — 在 Agent 旁執行持久終端機，方便運行長時間指令與監控
-<img src="assets/screenshot-terminal.png" alt="Terminal" width="800">
+**Worker 問塔台** — 規格沒寫清楚的事，Worker 先問塔台，拿到答覆再繼續
+<img src="assets/screenshot-question.png" alt="Worker 分頁 T1025：問塔台優惠碼要不要連運費一起折，收到塔台答覆「只折商品金額」後繼續實作" width="800">
+
+**Git 檢視** — 不離開 BAT 看提交紀錄、未提交的變更與差異
+<img src="assets/screenshot-git.png" alt="Git 分頁：提交紀錄、變更的檔案，以及 src/cart.js 的差異" width="800">
+
+<sub>畫面中的專案 demo-shop 與 Demo Agent（自訂 CLI）為示範用。</sub>
 
 </div>
 

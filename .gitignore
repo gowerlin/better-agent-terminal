@@ -8,6 +8,8 @@ release/
 playwright-report/
 test-results/
 e2e-results/
+# site / README media from e2e/site-media.spec.ts (pick files by hand)
+e2e-media/
 .DS_Store
 
 # Local environment (not committed)

@@ -133,6 +133,12 @@ Worker 執行中遇到需要決定的事，會用 BAT 的提問通道直接問�
 
 <TicketLife />
 
+在 BAT 裡，派工、回報與回收的實際畫面：
+
+<DemoVideo src="/media/clip-dispatch.webm" poster="/media/clip-dispatch-poster.png" label="短片：塔台派工、Worker 跑測試並回報、塔台回收 Worker 分頁">
+短片（約 16 秒，無聲）：塔台分頁派出 T1024，縮圖列多了「Demo Agent · Worker · T1024」；切到 Worker 分頁，它跑完單元測試後回報，縮圖標上 ✓，塔台分頁收到「T1024 完成」；回到塔台分頁，塔台收單並回收 Worker 分頁，縮圖消失。畫面中的 Agent 是示範用的自訂 CLI，照指令稿輸出；派工、回報與回收是 BAT 的實際功能。
+</DemoVideo>
+
 ## 自主程度與斷點 {#autonomy}
 
 自主程度決定塔台自己推進多少；不管選哪一檔，斷點出現時都會停下來問你。 {.ct-lead}

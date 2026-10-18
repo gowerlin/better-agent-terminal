@@ -34,7 +34,7 @@ npm run build:docker-image
 
 在側欄底部按 **配置**，再按 **+ 更多 ▾**，在「容器類」選 **新增 Docker 設定檔**。
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/wizard-docker.png" alt="Docker 設定精靈：左邊是步驟清單，偵測目標環境已完成，目前停在選擇 Docker 容器模式；右邊有「建立新容器」與「沿用既有容器」兩個按鈕。" caption="第 2 步選「建立新容器」或「沿用既有容器」。" />
 
 1. **偵測目標環境**：確認找得到 `docker` 指令，daemon 也在執行。
 2. **選擇 Docker 容器模式**：選 **建立新容器** 或 **沿用既有容器**。差別見[兩種模式](#modes)。

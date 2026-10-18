@@ -6,9 +6,11 @@ import CardTable from './components/CardTable.vue'
 import CaseCard from './components/CaseCard.vue'
 import CompareMatrix from './components/CompareMatrix.vue'
 import ContractFlow from './components/ContractFlow.vue'
+import DemoVideo from './components/DemoVideo.vue'
 import DownloadLinks from './components/DownloadLinks.vue'
 import FeatureGrid from './components/FeatureGrid.vue'
 import GrowthLadder from './components/GrowthLadder.vue'
+import MediaFigure from './components/MediaFigure.vue'
 import QuestionFlow from './components/QuestionFlow.vue'
 import RemoteBridge from './components/RemoteBridge.vue'
 import StatsCounter from './components/StatsCounter.vue'
@@ -30,9 +32,11 @@ export default {
     app.component('CaseCard', CaseCard)
     app.component('CompareMatrix', CompareMatrix)
     app.component('ContractFlow', ContractFlow)
+    app.component('DemoVideo', DemoVideo)
     app.component('DownloadLinks', DownloadLinks)
     app.component('FeatureGrid', FeatureGrid)
     app.component('GrowthLadder', GrowthLadder)
+    app.component('MediaFigure', MediaFigure)
     app.component('QuestionFlow', QuestionFlow)
     app.component('RemoteBridge', RemoteBridge)
     app.component('StatsCounter', StatsCounter)

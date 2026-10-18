@@ -34,7 +34,7 @@ Host dev-server
 
 在側欄底部按 **配置**，再按 **+ 更多 ▾**，在「遠端類」選 **新增 SSH 設定檔**。精靈依序執行下面幾步；中途失敗時，畫面會說明原因並提供重試或取消，有些錯誤還能直接回去改主機。
 
-<!-- TODO(W3): 截圖 -->
+<MediaFigure src="/media/wizard-ssh.png" alt="SSH 設定精靈：左邊是步驟清單，目前在設定 SSH 主機資訊；右邊列出 ~/.ssh/config 裡的別名 dev-server、build-box，以及「手動輸入主機…」。" caption="第 1 步從 ~/.ssh/config 的別名中選一個，或按「手動輸入主機…」。" />
 
 1. **設定 SSH 主機資訊**：從 `~/.ssh/config` 的別名中選一個，或按「手動輸入主機…」輸入 `dev-server`、`you@dev-server` 或 `you@dev-server:2222`。這是整個精靈裡唯一要你輸入的地方。
 2. **驗證 SSH 認證**：用金鑰登入一次，同時判斷主機是 Linux 還是 macOS、用的是哪種 CPU。第一次連的主機，主機金鑰會自動記下。

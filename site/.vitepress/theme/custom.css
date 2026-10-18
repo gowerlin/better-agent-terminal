@@ -3551,6 +3551,46 @@
   margin-top: 56px;
 }
 
+/* ---------- 真實截圖與短片（MediaFigure、DemoVideo）：App 本身是深色，外框沿用終端底色 ---------- */
+
+.vp-doc .bat-media {
+  margin: 24px 0 32px;
+}
+
+.vp-doc .bat-media-frame {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--bat-line);
+  border-radius: 12px;
+  background: var(--bat-term-bg);
+  line-height: 0;
+}
+
+.vp-doc a.bat-media-frame:hover {
+  border-color: var(--vp-c-text-3);
+}
+
+.vp-doc a.bat-media-frame:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+}
+
+.vp-doc .bat-media-frame img,
+.vp-doc .bat-media-frame video {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+}
+
+.vp-doc .bat-media-caption {
+  max-width: 40em;
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--vp-c-text-2);
+}
+
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
