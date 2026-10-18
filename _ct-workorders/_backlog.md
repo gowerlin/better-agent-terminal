@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 21
 breakdown:
-  IDEA: 5
-  PLANNED: 0
+  IDEA: 4
+  PLANNED: 1
   IN_PROGRESS: 2
   DONE: 13
   DROPPED: 1
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 15:48 (UTC+8) — 新增 PLAN-050（IDEA，BMad-Guide 需求提案）
+> 最後同步：2026-10-18 15:52 (UTC+8) — PLAN-050 IDEA → PLANNED（T0640 研究）
 
 ## 統計
-- 💡 Ideas: 5 | 📋 Planned: 0 | 🔄 In Progress: 2 | ✅ Done: 13 | 🚫 Dropped: 1
+- 💡 Ideas: 4 | 📋 Planned: 1 | 🔄 In Progress: 2 | ✅ Done: 13 | 🚫 Dropped: 1
 
 ## Active
 
@@ -37,7 +37,7 @@ breakdown:
 | PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
 | PLAN-047 | BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
 | PLAN-049 | GitHub Pages 個人網站：介紹 BAT + Control Tower、推廣使用 | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-049](PLAN-049-github-pages-bat-ct-site.md) |
-| PLAN-050 | 跨 session 傳訊時辨識塔台 / Worker（Claude 分頁 session 命名與對應查詢，CT D067 需求） | 🟡 medium | 💡 IDEA | [PLAN-050](PLAN-050-claude-session-identity-for-cross-session.md) |
+| PLAN-050 | 跨 session 傳訊時辨識塔台 / Worker（Claude 分頁 session 命名與對應查詢，CT D067 需求） | 🟡 medium | 📋 PLANNED | [PLAN-050](PLAN-050-claude-session-identity-for-cross-session.md) |
 
 ## Completed
 

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-050
 title: "跨 session 傳訊時辨識塔台 / Worker：BAT 開的 Claude 分頁在 ListAgents 可辨識，並可查分頁 ↔ session 對應"
-status: IDEA
+status: PLANNED
 priority: medium
 created_at: "2026-10-18T15:48:20+0800"
 links:
