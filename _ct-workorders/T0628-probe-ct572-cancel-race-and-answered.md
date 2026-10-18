@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0628
 title: "探針：CT v5.7.2 塔台 `--answer` 時才發現已取消（F-1 ④ b）＋對已答題 `--cancel-question` 回 `answered`"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
+started_at: "2026-10-18T13:17:24+08:00"
+updated_at: "2026-10-18T13:17:24+08:00"
+tower_question: open
 depends_on: [T0627]
 related:
   - "CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 實機驗收第 4 張（T0625–T0629）"
@@ -73,4 +76,11 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：探針 Q-1（塔台答覆時已取消）
+- 提問時間：2026-10-18T13:17:24+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是刻意安排的受測提問，選項本身不影響產品
+- 影響範圍：僅本工單 Step 1（階段 A）
+- 阻塞：是（Step 2 起要等答覆）
