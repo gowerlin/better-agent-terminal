@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-154
 title: "結構化提問（`bat-notify --ask`）答覆後，仍在執行的 Worker 縮圖顯示 `✓` 並計入批次關閉"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: always
 created_at: "2026-10-18T09:47:39+0800"
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（仍在執行的 Worker 被算進「關閉已回報的 Worker 分頁（N）」，有誤關風險；頁內確認框是唯一防線） |
 | 可重現 | 必現（T0612 Step 2） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0613，2026-10-18 09:49 使用者選 [A]） |
 
 ## 現象（T0612，`v0.7.0-pre.7` 安裝版）
 

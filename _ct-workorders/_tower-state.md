@@ -98,7 +98,7 @@
 ### 待辦（依優先序）
 
 1. 🟡 **PLAN-048**（IN_PROGRESS，D155 / D156）：A / B / C 全 DONE；實機待 BMad-Guide CT v5.7.0 開單（claude + codex 兩條線）→ 收結果 → PLAN-048 DONE；CT v5.7.0 出版後補 README 版本對照表 CT 欄（目前寫「`>= v5.7.0`（準備中）」）
-2. 🟡 **BUG-154**（OPEN，2026-10-18 09:47，T0612 發現）：結構化提問答覆後縮圖殘留 `✓`、計入批次關閉 → 待決定是否派修復單（BUG-153 已 CLOSED）
+2. 🟡 **BUG-154**（FIXING，T0613 派工 2026-10-18 09:49，使用者選 [A]）：結構化提問答覆後縮圖殘留 `✓`、計入批次關閉；修好隨下一個預覽版（BUG-153 已 CLOSED）
 3. 🟡 **PLAN-047 後續**：M1b-2 codex 分頁 `blocked` / 啟動信號（未排期）、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
 5. 🟢 前期驗收與小項：Gary BUG-127-135 / 116 / 118；BUG-130 / 105 / 107 / 108 / 097 / 111；T0550 真人 6 項；dmg / AppImage、NSIS 重裝；T0360
@@ -110,12 +110,12 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 2 / Fixing 0 / Fixed 19 / Closed 18）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 1 / Fixed 19 / Closed 18）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D156）｜ Learnings → [_learnings.md](_learnings.md)（最大 L163）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（93 entries）
 
 ### 編號起始
-- **T0613** / **BUG-155** / **PLAN-049** / **D157** / **EXP-[TOPIC]-001** / **L164** / **CT-T020**
+- **T0614** / **BUG-155** / **PLAN-049** / **D157** / **EXP-[TOPIC]-001** / **L164** / **CT-T020**
 
 ---
 
