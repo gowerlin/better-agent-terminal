@@ -59,7 +59,7 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 
 <MediaFigure src="/media/statusline-settings.png" alt="設定的外觀分頁裡的狀態列清單：Account、Git Branch、Session ID、Tokens、Cost、5h Usage 等項目，每一列有對齊按鈕、分隔符號、顏色與開關。" caption="狀態列的設定清單：每個項目可以拖曳排序、選對齊、加分隔符號、換顏色或關掉。" />
 
-- 13 個項目可以各自開關、拖曳排序。
+- 19 個項目可以各自開關、拖曳排序。
 - 每個項目可以自訂顏色、靠左 / 置中 / 靠右對齊，項目之間可以加分隔符號。
 - 整條狀態列也可以用一行範本字串設定。
 - 可以定期查詢並顯示 Claude 的 API 用量。

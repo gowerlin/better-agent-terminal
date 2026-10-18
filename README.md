@@ -94,7 +94,7 @@
 - Server bundle 分發機制（安裝檔不內建；第一次設定時從 GitHub Release 下載並快取，離線時可匯入本機 tarball）詳見 [Server Bundle Distribution](docs/server-bundle-distribution.md)
 
 ### 📊 狀態列
-- 13 項可配置狀態顯示（模型、成本、Token、快取等）
+- 19 項可配置狀態顯示（模型、成本、Token、快取等）
 - 自訂顏色、區域對齊與範本設定
 - API 用量輪詢：Chrome Session Key（主要）→ OAuth（備用）
 

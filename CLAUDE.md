@@ -174,7 +174,7 @@
 ## Status Line
 
 - Our status line implementation is superior to external alternatives (e.g., ccstatusline). Do not replace it.
-- 13 configurable items with custom colors, zone alignment, and template-based config.
+- 19 configurable items (`STATUSLINE_ITEMS` in `src/types/index.ts`) with custom colors, zone alignment, and template-based config.
 - Usage polling: Chrome session key (primary, lenient rate limits) → OAuth fallback (strict rate limits).
 
 ## Claude Agent SDK / CLI
