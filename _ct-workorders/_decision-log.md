@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D164 2026-10-18 — PLAN-049 網站 v2 視覺方向：A「進場雷達」為主 + C「一個早上」的故事時間軸；全站一套字體（A）
+
+- **背景**：T0632 DONE（13:30）：設計語言 `docs/design/site-design-language.md`（`647bfeca`）、Design System「Better Agent Terminal」（https://claude.ai/artifact/FgvvUnYMgJwsEkrS2ATCBj）、Design 畫布「BAT 網站視覺方向」（https://claude.ai/artifact/2LN8rmZ3VbGwZSLpN18mPv，三方向 × 4 artboard）；Worker 推薦 A + C 時間軸。塔台查證三方向所用 7 個 Google Fonts 字族 css2 皆回 200（含 Worker 未查證的 Chiron Hei HK、LXGW WenKai TC）。
+- **決定**（使用者 2026-10-18 13:33 選推薦）：Hero、終端 / 示意區塊、三欄對照、字體系統與品牌色用 **A**（深色航管雷達：塔台在圓心、Worker 光點標 ⚠️ / `?` / `✓`、事件紀錄；Chiron Hei HK 900 / Noto Sans TC / Martian Mono）；故事 7 章用 **C** 的版面（大時間數字、捲動「現在」線、以前 / BAT + CT 兩欄），回到淺色長篇閱讀。塔台補充（範圍內技術選擇）：全站只用 A 的字體系統，C 只借版面與時間敘事；雷達避開資安 / 駭客語彙。
+- **派工**：T0630 填入「選定的視覺方向」節後重新派工。
+- **相關**：PLAN-049 / D161 / D162 / T0632 / T0630
+
 ### D163 2026-10-18 — CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 代跑實機驗收結案（T0625–T0629）；pre.9 延後到網站改版與驗收告一段落
 
 - **背景**：BMad-Guide D057 請 BAT 代跑 CT v5.7.1 / v5.7.2 實機驗收（規格 BMad-Guide T0170 / T0171），第七十九 session 交接給本 session。

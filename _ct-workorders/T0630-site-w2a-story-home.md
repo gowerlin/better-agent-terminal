@@ -47,7 +47,19 @@ memory_overrides:
 
 ## 選定的視覺方向（塔台於派工前填寫）
 
-（待 T0632 完成、使用者選定後填寫：方向名稱、Design 畫布與 Design System 連結、使用者的調整意見）
+使用者選定（D164）：**A「進場雷達」為主 + C「一個早上」的故事時間軸**（即 T0632 的推薦）。
+
+- **來源**（用 Artifact 工具 `action: read` 讀取；兩者都是私人 Artifact）：
+  - Design 畫布「BAT 網站視覺方向」：https://claude.ai/artifact/2LN8rmZ3VbGwZSLpN18mPv —— 讀 **A 列四張**（Hero 桌面 / 故事 09:20 / 三欄對照 / Hero 手機）與 **C 列的故事 09:20**；每列右側便利貼是方向說明
+  - Design System「Better Agent Terminal」：https://claude.ai/artifact/FgvvUnYMgJwsEkrS2ATCBj
+  - 設計語言（repo 唯一來源，固定錨點 A1–A3）：`docs/design/site-design-language.md`（`647bfeca`）
+- **怎麼混**：
+  - **A 負責**：Hero（BAT 視窗：分頁列 + 雷達幕〔塔台在圓心、Worker 是標 ⚠️ / `?` / `✓` 的光點〕+ 三行事件紀錄）、終端 / 示意區塊、三欄對照的外觀、整站字體系統與品牌色。Hero 與終端區塊在淺色、深色模式都維持深色帶（規格 § 7）
+  - **C 負責**：故事「7 個卡關時刻」的**版面**——每章一個大時間數字、時間軸上的「現在」線隨捲動前進、以前 / BAT + CT 兩欄；這一段回到淺色長篇閱讀（深色模式照 VitePress 深色）
+  - 🔴 **全站只用一套字體系統（A）**：C 只借版面與時間敘事，不另引 C 的明體 / Bodoni，避免兩套風格打架。大時間數字的字體由你依 `frontend-design` 原則從 A 的字族中選（例如 Martian Mono 或 Chiron Hei HK 900），回報區說明理由
+- **字體**（塔台已確認 Google Fonts css2 皆回 200）：Chiron Hei HK 900（標題）/ Noto Sans TC（內文）/ Martian Mono（終端、數字）；css2 分段載入、`display=swap`；淺色模式的紫色文字用 `#7c3aed`、狀態色用設計語言檔的淺色 AA 版
+- **T0632 已知風險，實作時要處理**：雷達容易被讀成資安 / 駭客風 → 用事件紀錄與分頁標題把它錨定在「工作進度」，避免綠色螢光、矩陣字雨之類的語彙；深色 Hero 與淺色故事段的銜接要自然（漸層或分隔帶）；Chiron Hei HK 載入失敗時退回 Noto Sans TC 900
+- **動態**：A 的掃描線（約 6 秒一圈，掃到的光點換狀態，約 20 秒一輪，事件紀錄同步）＋ C 的捲動「現在」線；`prefers-reduced-motion` 一律停在最終狀態
 
 ## 要做的事
 
