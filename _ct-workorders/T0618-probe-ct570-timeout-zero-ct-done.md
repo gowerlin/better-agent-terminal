@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0618
 title: "探針：CT v5.7.0 `worker_question_timeout: 0`（不用 BAT 通道、直接 BLOCKED）+ ct-done 補結"
 type: verification
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:02:10+0800"
 started_at: "2026-10-18T11:16:18+0800"
-updated_at: "2026-10-18T11:16:31+0800"
+updated_at: "2026-10-18T11:17:43+0800"
+completed_at: "2026-10-18T11:17:43+0800"
 depends_on: [T0617]
 related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 5 張（T0614–T0618）"
@@ -20,7 +21,6 @@ affects_files:
 renew_count: 1
 workdir: main repo
 worker_question_timeout: 0
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -76,6 +76,10 @@ memory_overrides:
 
 ### 完成狀態
 
+**DONE**（Step 2，ct-done 補結，2026-10-18T11:17:43+0800）。依據：塔台已在 `## 塔台補充（Renew #1）` 答覆 Q-1 = [A] 收到，並指示最終狀態 DONE；Step 1 的 timeout 0 路徑證據已齊（見 `### 驗收證據` 與 `### 補結證據（ct-done，Step 2）`）。frontmatter `tower_question` 已刪除，`### 待塔台決策` Q-1 保留作紀錄（已答覆）。
+
+以下為 Step 1 原狀態紀錄（保留）：
+
 **BLOCKED**（Step 1，ct-exec）。依 `yolo-mode.md` § Worker 向塔台提問 › § 備援：`worker_question_timeout = 0` → 不用 BAT 通道、不等答覆。
 `### 待塔台決策` 原樣保留、frontmatter `tower_question: open` 保留；等塔台在 `## 塔台補充（Renew #1）` 答覆後由 ct-done 補結（Step 2）。
 
@@ -104,10 +108,25 @@ memory_overrides:
 - `BLOCKED` 工單 commit hash：本次收尾 commit（訊息 `ct: block T0618 timeout-zero question probe (Q-1, timeout 0)`；hash 於 commit 後才產生，無法寫入同一 commit，見 `git log -- _ct-workorders/T0618-probe-ct570-timeout-zero-ct-done.md`）
 - `需要協助` 送出時間：於上述 commit **之後**送出（時間記錄於 Worker 回覆畫面與 `bat-scripts.log`；ct-done 可補記）
 - 先後順序：Q-1 commit `9ad5ee24` → `T0618 提問` notify → 回報區 + `BLOCKED` → `BLOCKED` 工單 commit → `T0618 需要協助` notify
+- ct-done 補記（取自 `git log` 與 `<userData>/Logs/bat-scripts.log`）：
+  - `BLOCKED` 工單 commit = `fc414c45`（2026-10-18T11:16:47+0800）
+  - `T0618 提問` notify：`terminal:notify` 11:16:28.910、submit keypress 11:16:29.169（+0800）
+  - `T0618 需要協助` notify：`terminal:notify` 11:16:51.223、submit keypress 11:16:51.479（+0800）→ 晚於 `fc414c45`，順序符合預期
+  - 該時段 bat-scripts.log 內 T0618 無 `--ask` / `--wait-answer` / `--cancel-question` 呼叫
+
+### 補結證據（ct-done，Step 2）
+
+- 讀到 Renew 答覆：**是**（`塔台答覆 Q-1`：[A] 收到，2026-10-18T11:17:04+0800，Renew commit `ab76757d`）
+- 最終狀態：**DONE**；frontmatter `tower_question: open` 已刪、`status: DONE`、`completed_at` 已填
+- Landing Zone Check（ct-done 重跑）：C-0 PASS（`repo` = `basename(REPO_ROOT)` = `better-agent-terminal`）、C-1 PASS、C-3 not applicable、C-2 略過（分支 `main`）；`CT_HOME` 未設定；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`
+- notify 前 `git status --short`（commit 前取得）：` M src/styles/settings.css`（非本單變更，未動）＋本工單檔（待 commit）
+- notify 前那次 commit：訊息 `ct: complete T0618 timeout-zero probe via ct-done (Renew #1)`，`git commit --only` 本檔；hash 與 `git show --stat` 於 commit 後才產生，無法寫入同一 commit，見 `git log -1 -- _ct-workorders/T0618-probe-ct570-timeout-zero-ct-done.md`（ct-done Worker 回覆畫面另列）
+- notify：`T0618 完成`（`CT_MODE=yolo` → `--submit`），於上述 commit 之後送出
 
 ### 互動紀錄
 
 - [11:16] Q-1: 探針 Q-1（timeout 0）[A] 收到 / [B] 沒收到 → 未等答覆（`worker_question_timeout: 0`）→ Action: § 備援，`BLOCKED` + `T0618 需要協助`
+- [11:17] Q-1 塔台答覆（Renew #1）：[A] 收到 → Action: ct-done 補結，`tower_question` 刪除，狀態 DONE，送 `T0618 完成`
 
 ### 變更檔案
 
