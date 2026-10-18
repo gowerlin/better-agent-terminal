@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0625
 title: "探針：CT v5.7.2 多題 `--ask` 刻意延遲（F-1 ①：第一則通知早於後面題目登記）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
+started_at: "2026-10-18T12:41:11+08:00"
+updated_at: "2026-10-18T12:41:11+08:00"
 depends_on: []
 related:
   - "CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 實機驗收第 1 張（T0625–T0629）；規格 BMad-Guide T0170 / T0171、CT `references/yolo-mode.md` § Worker 向塔台提問"
@@ -18,6 +20,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -68,4 +71,26 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：探針 Q-1（先送）
+- 提問時間：2026-10-18T12:41:11+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是受測探針題，收到即可
+- 影響範圍：T0625 Step 3 驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
+#### Q-2：探針 Q-2（延遲後送）
+- 提問時間：2026-10-18T12:41:11+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是受測探針題，收到即可
+- 影響範圍：T0625 Step 3 驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
+#### Q-3：探針 Q-3（延遲後送）
+- 提問時間：2026-10-18T12:41:11+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是受測探針題，收到即可
+- 影響範圍：T0625 Step 3 驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
