@@ -30,7 +30,7 @@ created_at: "2026-10-18T20:36:04+0800"
 |---|---|---|---|
 | v5.2.4 | 每分頁範圍權杖（`batcap.`）的文件與失敗提示 | `0.7.0-pre.1` | CT-T014 |
 | v5.3.0 | worktree 隔離派工、合併工單；BAT MCP 唯讀查詢列為選用通道 | `0.7.0-pre.2` | CT-T015 / CT-T016 |
-| v5.4.0 | Worker 分頁關閉後查 worktree 狀態（`source`） | `0.7.0-pre.4` | — |
+| v5.4.0 | Worker 分頁關閉後查 worktree 狀態（`source`） | `0.7.0-pre.4` | CT-T017 § 一（BAT T0589；原稿誤寫「—」，BMad-Guide T0175 依 CT CHANGELOG 更正） |
 | v5.5.0 | 等人回答偵測（`blocked`）→ 斷點 D | `0.7.0-pre.4`（`question`：pre.5） | CT-T017 |
 | v5.6.0 | Worker 啟動確認（`--wait-started`、`agentStarted`） | `0.7.0-pre.6` | CT-T018 |
 | v5.7.0 | Worker 問塔台（`--ask` / `--answer`、`bat_list_questions`） | `0.7.0-pre.7` | CT-T019 |
@@ -48,3 +48,7 @@ created_at: "2026-10-18T20:36:04+0800"
 ## 5. 回覆
 
 受理或不受理請照 `cross-project-coordination.md` 的回覆稿格式，寫在貴方 repo；完成後以跨 session 訊息告知 BAT 塔台即可（本稿 `status` 由 BAT 塔台依回覆更新）。
+
+## 6. 結果
+
+- BMad-Guide T0175 DONE（D074，產品 commit `eddf74c`，2026-10-18 20:5x 跨 session 通知）：補 17 個版本（合計 52 版），新增第七世代「v5.2.4–5.9（BAT 0.7 委派：隔離、觀測、對話）」，派工迴路旗標圖與表、zip 大小圖補到 v5.9.0。§ 4 未寫入（文件無近期動態段落）。claude.ai artifact 由對方在使用者確認後重新發布。
