@@ -4,6 +4,28 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.1] — 2026-10-18
+
+### Added
+- **Claude CLI 分頁的 session 名稱**：claude-cli / claude-cli-worktree 分頁啟動時注入 `--name=<名稱>`（顯示在 ListAgents、`/resume`、輸入框）。helper 派出的 Worker `<工作區> · Worker · <T####>`、其他分頁 `<工作區> · <短 ID>`；唯一實作 `claudeSessionName`（`src/lib/claude-session-name.ts`），注入點 `buildBatMcpLaunchArgs`（不受 BAT MCP 開關影響、無 Settings 開關）。使用者自訂參數已有 `--name` / `-n`、system claude `< 2.1.76` 或讀不到版本時不注入（PLAN-050，D167，T0640 / T0641）
+- **以塔台開啟 Claude**：縮圖列「+」選單新增入口，開出的 claude-cli 分頁記錄 `launchRole: 'tower'`，名稱 `<工作區> · Tower`，⏻ 重啟與還原沿用；只命名，不做 `--set-role`（PLAN-050，T0644）
+- **查詢欄位 `claudeSessionName` / `claudeSessionId`**：`terminal:whoami` / `terminal:list` / `terminal:get-state`（MCP `bat_whoami` / `bat_list_terminals` / `bat_get_state`）；sessionId 由 `SessionStart` hook 回報（`terminal:report-hook` 多選用 `sessionId`，hook 仍 exit 0、stdout 不輸出，日誌只記前 8 碼）；`<userData>/claude-sessions.json` 在 BAT 重開、Terminal Server 存活時還原（PLAN-050，T0642）
+- **`terminal:list { scope: 'towers' }`**：已宣告的塔台列出同一 BAT host 所有工作區的塔台（`id` / `workspaceId` / `workspaceName` / `title?` / `claudeSessionName` / `state` / `alive` / `self`），其他查詢範圍不變；舊 BAT 回 `INVALID_ARGS`（PLAN-050，T0643）
+- 網站新增「實戰案例」頁 `/cases`（PLAN-049，T0638）
+
+### Fixed
+- **helper 派出的 Worker PTY 沒有記錄 agent preset**：`bat_whoami` 缺 `agent`，claude Worker 少了 embedded 的 `DISABLE_UPDATES`；`terminal:create-agent-command` 改傳 resolved agent，raw command 不變（BUG-155，T0639）
+
+### Call for testing
+Codex CLI 使用者：在 Codex 分頁與塔台派出的 Codex Worker 呼叫 `bat_whoami`，確認有 `agent`（Codex），Worker 完成後通知回到塔台、分頁被回收；到 GitHub Issues 回報 BAT / Codex 版本、作業系統與安裝方式。
+
+### Known issues
+- session 名稱只用在 Claude CLI 分頁；Codex 分頁兩欄一律 `null`
+- 名稱只在啟動時決定（`/rename`、工作區改名不回寫）；同一工作區兩個「以塔台開啟」分頁同名
+- 塔台面板「執行工單 / 補結案」按鈕（raw command）沒有名稱；遠端 headless 派工名稱為 `BAT · Worker · T####`，需升級遠端 server
+- Control Tower 依這些欄位選收件人的規則待 CT 新版
+- macOS / Linux 版本未實機驗證
+
 ## [0.7.0-pre.9] — 2026-10-18
 
 ### Added

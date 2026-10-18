@@ -2,6 +2,39 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.1（2026-10-18）
+
+版號 0.7.1-pre.1，接續 `v0.7.0-pre.9`。
+
+### 新增
+
+- **在 Claude Code 的跨 session 清單裡認得出 BAT 的分頁**：BAT 開的 Claude CLI 分頁啟動時會自動帶上 session 名稱，顯示在 Claude Code 的跨 session 清單（ListAgents）、`/resume` 選單與輸入框上。塔台派出的 Worker 是「工作區 · Worker · T####」，其他 Claude CLI 分頁是「工作區 · 短 ID」。你自己在啟動參數裡加了 `--name` 時，以你的為準；系統安裝的 claude 低於 2.1.76 或判斷不到版本時，不會加名稱，避免 claude 啟動失敗（PLAN-050）
+- **以塔台開啟 Claude**：分頁縮圖列的「+」選單，在「Claude CLI」下方多了「以塔台開啟 Claude」。開出的分頁名稱是「工作區 · Tower」，按 ⏻ 重啟或 BAT 重開還原後都不變。這個入口只負責命名，塔台角色仍由 Control Tower 啟動時宣告（PLAN-050）
+- **查得到分頁對應哪個 Claude session**：BAT MCP 的 `bat_whoami`、`bat_list_terminals`、`bat_get_state` 多了 `claudeSessionName` 與 `claudeSessionId` 兩個欄位。已宣告的塔台可以用 `bat_list_terminals` 的 `scope: towers` 列出這台 BAT 上所有工作區的塔台與它們的 session 名稱，其他分頁的內容仍然看不到（PLAN-050）
+- **專案網站新增「實戰案例」頁**：<https://gowerlin.github.io/better-agent-terminal/cases>，3 個情境案例與 3 個 BAT 自己的開發紀錄（PLAN-049）
+
+### 修正
+
+- **塔台派出的 Worker 查不到自己是哪個 agent**：由 `bat-terminal.mjs` 派出的 Worker（Claude 與 Codex 皆是），`bat_whoami` 沒有 `agent` 欄位；派出的 Claude Worker 也少了「不讓內嵌 claude 被手動更新」的防護。現在都與從 BAT 介面開的分頁相同（BUG-155）
+
+### 歡迎協助測試
+
+如果你平常使用 **Codex CLI**，歡迎幫忙確認一件事：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認有 `agent` 欄位，值是 Codex
+2. 如果你也在用 Control Tower：由塔台派一張小工單給 Codex Worker，在 Worker 分頁呼叫 `bat_whoami`，確認 `agent` 是 Codex；Worker 完成後，確認通知回到塔台、分頁被回收
+
+不論成功或失敗，都歡迎到 [GitHub Issues](https://github.com/gowerlin/better-agent-terminal/issues) 回報，請附上 BAT 版本、Codex 版本（`codex --version`）、作業系統與安裝方式。
+
+### 已知事項
+
+- session 名稱只用在 Claude CLI 分頁；Codex 分頁不會出現在 Claude Code 的跨 session 清單，兩個欄位一律是空值
+- 名稱在 BAT 啟動 claude 時決定：在分頁裡 `/rename`，或之後改了工作區名稱，BAT 記錄的名稱不會跟著變；同一個工作區開兩個「以塔台開啟」分頁時名稱相同
+- 側欄塔台面板的「執行工單 / 補結案」按鈕開出的分頁沒有 session 名稱
+- WSL / SSH / Docker 遠端視窗派出的 Worker，名稱是「BAT · Worker · T####」（遠端沒有工作區名稱）；需把遠端 server 升級到本版
+- Control Tower 依這些欄位找塔台的規則尚待 CT 新版；在那之前，名稱已經會出現在跨 session 清單上
+- macOS / Linux 版本未實機驗證
+
 ## v0.7.0-pre.9（2026-10-18）
 
 版號 0.7.0-pre.9，接續 `v0.7.0-pre.8`。
