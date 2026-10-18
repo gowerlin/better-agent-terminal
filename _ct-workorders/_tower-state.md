@@ -95,7 +95,7 @@
 ### 待辦（依優先序）
 
 1. ✅ **PLAN-048 DONE / BUG-154 CLOSED**（第七十九 session，D157）；待 BMad-Guide CT v5.7.1（F-1 多題 `--ask` 時序）是否需要 BAT 介面變更
-2. 🟡 **BUG-154**（FIXED，T0613 `7bfe225c`）→ **`v0.7.0-pre.8` 已發佈**（2026-10-18 10:20，run `39089400205` @ `b65f9544`；更版重點 + 三文件 `3c59528f`；版號已告知 BMad-Guide）→ 等 BMad-Guide 在 pre.8 上的 CT v5.7.0 實機驗收（claude + codex）結果 → BUG-154 CLOSED、PLAN-048 DONE
+2. ✅ **BUG-154 CLOSED**（T0613 修正、`v0.7.0-pre.8` T0614 目視；見待辦 1）
 3. 🟡 **PLAN-047 後續**：M1b-2 codex 分頁 `blocked` / 啟動信號（未排期）、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
 5. 🟢 前期驗收與小項：Gary BUG-127-135 / 116 / 118；BUG-130 / 105 / 107 / 108 / 097 / 111；T0550 真人 6 項；dmg / AppImage、NSIS 重裝；T0360
