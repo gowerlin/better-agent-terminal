@@ -314,6 +314,7 @@ describe('source guards (T0641)', () => {
     expect(view).toMatch(/sessionWorkspaceNameRef\.current = workspace\.alias \|\| workspace\.name/)
     // T0644: a tab opened as Tower (`launchRole: 'tower'`) is `<ws> · Tower`; every other tab keeps `<ws> · <short id>`
     expect(view).toMatch(/: claudeSessionName\(\{ role: 'tab', workspaceName: sessionWorkspaceNameRef\.current, terminalId \}\)\) \?\? undefined/)
+    expect(view).toMatch(/const sessionName = \(launchRole === 'tower'\s*\n\s*\? claudeSessionName\(\{ role: 'tower', workspaceName: sessionWorkspaceNameRef\.current \}\)/)
     expect(view).toMatch(/withBatMcpLaunchArgs\(quoteCommandPath\(cliPath, detectShellFamily\(shell \?\? ''\)\), presetId, shell, customArgs, terminalId, sessionName\)/)
     expect(read('electron/preload.ts')).toMatch(/ipcRenderer\.invoke\('agent:bat-mcp-launch-args', agentId, shellFamily, extraArgs, terminalId, sessionName\)/)
   })
