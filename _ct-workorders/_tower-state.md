@@ -92,7 +92,7 @@
 
 1. 🔴 **`v0.7.1-pre.2` 剩餘實機驗收**：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex（BUG-157 / 158 / 160 / 161 / 162 / 163 已於第八十四 session 經 T0663 / T0664 自動化驗收 CLOSED）
 2. 🟡 PLAN-052 Docker 可用性（IDEA）；PLAN-047 已於第八十四 session DONE（D171，M2 / M3 不續做；T0620 elicitation 清除未經安裝版實機）
-3. 🟢 T0656 列的「需使用者手動拍」素材（Claude 面板對話、真實狀態列、BAT MCP、Codex、語音）；網站 3 頁缺 `description`、404 `og:description`
+3. 🟢 T0656 列的「需使用者手動拍」素材（Claude 面板對話、真實狀態列、BAT MCP、Codex、語音）（網站 description / 404 `og:description` / 更版紀錄 title 已由 T0665 補齊並上線，`a300975b`）
 4. 🟢 BUG-136 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗；WSL bat-server 仍 `0.6.1-pre.5`（升級後可跑 `smoke:remote:headless` 驗 S13）
 5. 🟢 前期驗收（Gary BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
 
