@@ -150,8 +150,12 @@ markdownStyles: false
 <div class="home-wrap">
 <h2 class="home-title"><span class="phrase">不用 Control Tower，</span><span class="phrase">BAT 也好用</span></h2>
 <p class="home-lead">只拿來開終端機和 Agent，BAT 也是順手的工作台。</p>
-<!-- TODO(W2b): 「看全部功能」連到 /features（頁面在 W2b 才建立） -->
 <FeatureGrid />
+<div class="home-more">
+
+[看全部功能](./features)
+
+</div>
 </div>
 </section>
 

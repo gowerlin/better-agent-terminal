@@ -36,23 +36,30 @@ export default async () => {
 
       nav: [
         { text: '安裝', link: '/install' },
-        // TODO(W2): { text: '功能', link: '/features' }
-        // TODO(W2): { text: '遠端開發', link: '/remote/' }
+        { text: '功能', link: '/features' },
+        // TODO(W2c): { text: '遠端開發', link: '/remote/' }
         { text: 'BAT × Control Tower', link: '/control-tower' },
         // TODO(W2d): { text: '實戰案例', link: '/cases' }
-        { text: '版本對照', link: '/compatibility' },
-        { text: '更版紀錄', link: '/releases' }
+        {
+          text: '參考',
+          items: [
+            { text: '版本對照', link: '/compatibility' },
+            { text: '更版紀錄', link: '/releases' },
+            { text: '常見問題', link: '/faq' },
+            { text: '回報與協助測試', link: '/contribute' }
+          ]
+        }
       ],
 
       sidebar: [
         {
           text: '開始使用',
           items: [
-            { text: '安裝', link: '/install' }
-            // TODO(W2): { text: '功能', link: '/features' }
+            { text: '安裝', link: '/install' },
+            { text: '功能', link: '/features' }
           ]
         },
-        // TODO(W2): 遠端開發（/remote/：overview、wsl、ssh、docker）
+        // TODO(W2c): 遠端開發（/remote/：overview、wsl、ssh、docker）
         {
           text: 'BAT × Control Tower',
           items: [
@@ -64,9 +71,9 @@ export default async () => {
           text: '參考',
           items: [
             { text: '版本對照', link: '/compatibility' },
-            { text: '更版紀錄', link: '/releases' }
-            // TODO(W2): { text: '常見問題', link: '/faq' }
-            // TODO(W2): { text: '回報與協助測試', link: '/contribute' }
+            { text: '更版紀錄', link: '/releases' },
+            { text: '常見問題', link: '/faq' },
+            { text: '回報與協助測試', link: '/contribute' }
           ]
         }
       ],
@@ -75,9 +82,13 @@ export default async () => {
         { icon: 'github', link: `https://github.com/${REPO}`, ariaLabel: 'GitHub' }
       ],
 
-      // TODO(W2): 頁尾致謝上游專案與原始貢獻者
+      // 頁尾只在沒有側欄的頁面（首頁）顯示，這是 VitePress 預設主題的行為
       footer: {
-        message: '以 MIT 授權釋出'
+        message: '以 MIT 授權釋出',
+        copyright:
+          '致謝上游：<a href="https://github.com/tony1223/better-agent-terminal" target="_blank" rel="noreferrer">TonyQ 的原始專案</a>、' +
+          '<a href="https://github.com/scandnavik/better-agent-terminal" target="_blank" rel="noreferrer">scandnavik 的 fork</a>，' +
+          `以及<a href="https://github.com/${REPO}#%E8%87%B4%E8%AC%9D" target="_blank" rel="noreferrer">所有原始貢獻者</a>`
       },
 
       search: {

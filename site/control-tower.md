@@ -297,7 +297,7 @@ Control Tower 目前未公開提供。BAT 的派工、回報、提問與查詢�
 
 ### 沒有 Control Tower，能用 BAT 嗎？
 
-可以。多工作區、Claude Code 面板與狀態列、遠端 WSL / SSH / Docker、檔案瀏覽器與 Git 檢視，這些功能都和 Control Tower 無關。<!-- TODO(W2b): 連到 /features（頁面在 W2b 才建立） -->
+可以。多工作區、Claude Code 面板與狀態列、遠端 WSL / SSH / Docker、檔案瀏覽器與 Git 檢視，這些功能都和 Control Tower 無關，全部功能見[功能](./features)。
 
 ### Codex 可以當 Worker 嗎？
 

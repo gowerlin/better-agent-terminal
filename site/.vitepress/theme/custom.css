@@ -1372,6 +1372,32 @@
   color: var(--bat-step-done);
 }
 
+/* 驗收清單：符號 / 項目 / 結果三欄（桌面與原本的等寬對齊相同：項目欄 23 字寬） */
+.si-screen.is-check {
+  white-space: normal;
+}
+
+.si-check-row {
+  display: grid;
+  grid-template-columns: 2ch 23ch auto;
+}
+
+.si-check-what.is-full {
+  grid-column: 2 / -1;
+}
+
+/* 窄螢幕：結果換到項目下一行，續行都對齊項目，不再折到符號底下 */
+@media (max-width: 639px) {
+  .si-check-row {
+    grid-template-columns: 2ch minmax(0, 1fr);
+  }
+
+  .si-check-result {
+    grid-column: 2;
+    color: var(--bat-term-muted);
+  }
+}
+
 /* ---------- 三欄對照 ---------- */
 
 .compare {
@@ -1756,6 +1782,22 @@
   font-size: 15px;
   line-height: 1.8;
   color: var(--vp-c-text-2);
+}
+
+/* 標題連到 /features 的對應段落：平時是細底線，滑過或聚焦時換成連結色 */
+.feature-title a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--bat-line);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.feature-title a:hover,
+.feature-title a:focus-visible {
+  color: var(--bat-signal-text);
+  text-decoration-color: currentColor;
 }
 
 @media (max-width: 959px) {

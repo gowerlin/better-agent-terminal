@@ -135,6 +135,20 @@ Agent 識別色（縮圖標題前的圖示，`src/types/agent-presets.ts` `icon`
 - 工單狀態只有 **DONE / PARTIAL / BLOCKED / FAILED** 四種（規格 § 4.2），網站顯示時對應：DONE → `completed`、PARTIAL → `running` 色、BLOCKED → `awaiting-input` 色、FAILED → `failed`。
 - Stepper 的 `completed` 綠（`#10b981`）與縮圖 `✓` 綠（`#98c379`）是 App 裡兩個不同元件的值；網站在「縮圖」示意用後者，在「流程 / 驗收」示意用前者。
 
+### 4.1 角色色：「你 = 藍」（`--bat-you`）
+
+T0634 為 `/control-tower` 與首頁「越用越懂你的專案」新增的語意色，標示「你要做的事」。
+
+| Token | 深色模式 | 淺色模式 | 對比（T0635 實算） | 出處 |
+|---|---|---|---|---|
+| `--bat-you` | `#38bdf8` | `#0369a1` | `#38bdf8` 在 `#1b1b1f` 上 8.01；`#0369a1` 在 `#ffffff` 上 5.93、在 `#f6f6f7` 上 5.49 | `site/.vitepress/theme/custom.css`（`:root` / `.dark`），T0634 |
+
+- 角色三色：**紫 = 塔台**（`--bat-signal`，A1）、**藍 = 你**（`--bat-you`）、**中性 = Worker**（文字色 / 分隔線，不另給顏色）。
+- 藍取自 Stepper `awaiting-input`（`#38bdf8`，上表）：「輪到你」和「等你輸入」是同一個語意，都是中性等待，不是錯誤。淺色模式同色相降明度到 AA。
+- 用在：TicketLife 每步的「你要做的事」框（`.tl-you`）、QuestionFlow 轉給你的那一路（`.qf-branch.is-you`）、GrowthLadder 由你拍板的幾級（`.gl-rung.is-you`）。
+- 🔴 不得用在 Worker 或 `?` 在等塔台答覆：縮圖 `?` 的藍（`#61afef` / `#1d64a8`，§ 3.1）是另一個值、另一個語意。
+- `#38bdf8` 在白底只有 2.14，淺色模式一律用 `#0369a1`。
+
 ---
 
 ## 5. 字體

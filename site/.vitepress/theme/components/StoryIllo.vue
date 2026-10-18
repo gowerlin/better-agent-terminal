@@ -140,12 +140,23 @@ ct/T1025  領先 2  落後 3  未提交 0  → 先更新再合併</pre>
     </template>
 
     <template v-else-if="kind === 'checklist'">
-      <pre class="si-screen is-wide is-check" aria-hidden="true"><span class="si-title">T1024 驗收</span>
-<span class="si-done">✓</span> npm run test:unit      214 passed
-<span class="si-done">✓</span> npm run build          0 errors
-<span class="si-done">✓</span> 只改 src/discount.ts、src/cart.ts
-<span class="si-done">✓</span> commit 3f2a9c1
-狀態 <span class="si-state">DONE</span></pre>
+      <!-- 每列拆成「符號 / 項目 / 結果」三欄：窄螢幕折行時結果與續行對齊項目，不靠空白補齊 -->
+      <div class="si-screen is-wide is-check" aria-hidden="true">
+        <div class="si-title">T1024 驗收</div>
+        <div class="si-check-row">
+          <span class="si-done">✓</span><span class="si-check-what">npm run test:unit</span><span class="si-check-result">214 passed</span>
+        </div>
+        <div class="si-check-row">
+          <span class="si-done">✓</span><span class="si-check-what">npm run build</span><span class="si-check-result">0 errors</span>
+        </div>
+        <div class="si-check-row">
+          <span class="si-done">✓</span><span class="si-check-what is-full">只改 src/discount.ts、src/cart.ts</span>
+        </div>
+        <div class="si-check-row">
+          <span class="si-done">✓</span><span class="si-check-what is-full">commit 3f2a9c1</span>
+        </div>
+        <div>狀態 <span class="si-state">DONE</span></div>
+      </div>
     </template>
 
     <template v-else-if="kind === 'files'">
