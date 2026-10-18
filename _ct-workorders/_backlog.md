@@ -14,18 +14,18 @@ total: 19
 breakdown:
   IDEA: 4
   PLANNED: 0
-  IN_PROGRESS: 2
-  DONE: 12
+  IN_PROGRESS: 1
+  DONE: 13
   DROPPED: 1
 ---
 
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 04:50 (UTC+8) — PLAN-048 → IN_PROGRESS（D156）
+> 最後同步：2026-10-18 11:21 (UTC+8) — PLAN-048 → DONE（D157）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 2 | ✅ Done: 12 | 🚫 Dropped: 1
+- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 1 | ✅ Done: 13 | 🚫 Dropped: 1
 
 ## Active
 
@@ -36,12 +36,12 @@ breakdown:
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
 | PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
 | PLAN-047 | BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
-| PLAN-048 | Worker 問塔台 / 塔台答覆的結構化通道（CT-to-BAT 需求，BMad-Guide D036） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-048](PLAN-048-worker-ask-tower-channel.md) |
 
 ## Completed
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-048 | Worker 問塔台 / 塔台答覆的結構化通道（CT-to-BAT 需求，BMad-Guide D036） | 2026-10-18 | [PLAN-048](PLAN-048-worker-ask-tower-channel.md) |
 | PLAN-045 | 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`（D147） | 2026-10-16 | [PLAN-045](PLAN-045-tower-tab-title.md) |
 | PLAN-044 | yolo 分頁遇到 claude / codex 5 小時用量限制時，BAT 在解鎖時間（+ 可設延遲）自動輸入「繼續」 | 2026-10-16 | [PLAN-044](PLAN-044-auto-continue-after-usage-limit.md) |
 | PLAN-046 | Dialog 不因點擊外部而關閉：只能經 [X] / [確認] / [取消]（與 Esc） | 2026-10-16 | [PLAN-046](PLAN-046-dialog-no-close-on-outside-click.md) |

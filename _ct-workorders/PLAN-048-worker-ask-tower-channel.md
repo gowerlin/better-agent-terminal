@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-048
 title: "Worker 問塔台 / 塔台答覆的結構化通道（CT-to-BAT 需求）"
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-10-18T02:43:24+0800"
 links:
@@ -36,3 +36,4 @@ BMad-Guide D036：`auto-session = yolo` 時，Worker 有問題向塔台提問，
 - 2026-10-18：T0606 DONE（契約草案）→ D156 全部採用推薦 → 實作 T0607（A 主行程）/ T0608（B helper + MCP，worktree 隔離）並行；C（e2e）與 CT-T019 待 A / B 合併。
 - 2026-10-18：T0607 / T0608（T0610 合併）/ T0611 全部 DONE（source / test / e2e，unit 5226 / 301 files）；`--cancel-question` 對 `lost` exit 0（T0611 裁定，契約 C-3）；CT-T019 轉交 BMad-Guide。實機待下一個預覽版。
 - 2026-10-18 09:47：`v0.7.0-pre.7` 安裝版 T0612（claude Worker）實跑 helper 路徑 PASS：`--ask` exit 0 → 塔台 MCP `bat_list_questions` 看到題目、`bat_get_state` = `blocked` / `tower` / `source: question` / `pendingQuestions: 1` → `--answer --choice 1` exit 0 → Worker `--wait-answer` `answered`。衍生 BUG-154（答覆後縮圖殘留 `✓`）。codex 線與 CT v5.7.0 實機仍待 CT-T019。
+- 2026-10-18 11:21：CT v5.7.0 × `v0.7.0-pre.8` 實機驗收由 BAT 統一執行（D157，T0614–T0618 全 DONE；claude 路徑無 FAIL、codex 主流程 PASS），回函交 BMad-Guide，對方結 CT-T019 CT 端（BMad-Guide D051 PASS，6 項已知未驗不擋結案；F-1 / O-1 / O-2 列 CT v5.7.1 候選）→ **PLAN-048 DONE**（2026-10-18T11:21:09+0800）。
