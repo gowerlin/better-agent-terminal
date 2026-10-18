@@ -101,6 +101,8 @@ Control Tower 是一套以檔案驅動的多 Agent 開發流程：一個分頁�
 
 塔台與 Worker 都是一般的 Claude Code 或 Codex 分頁，照著同一套流程規則工作。Control Tower 定規則；BAT 提供讓規則跑起來的終端機、分頁、通知與權限。兩邊各自開發，以 BAT 公開的介面接在一起。
 
+想看 Control Tower 本身的完整介紹（四級能力、工單狀態、自我學習、多塔台協調等），見[功能導覽](./control-tower-tour)。
+
 ## 分工：塔台、跑道與雷達 {#division}
 
 Control Tower 定規則，BAT 提供跑道、無線電和雷達。 {.ct-lead}

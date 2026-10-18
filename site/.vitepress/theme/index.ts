@@ -1,6 +1,7 @@
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
 import AutonomyDial from './components/AutonomyDial.vue'
+import CapabilityLevels from './components/CapabilityLevels.vue'
 import CardTable from './components/CardTable.vue'
 import CompareMatrix from './components/CompareMatrix.vue'
 import DownloadLinks from './components/DownloadLinks.vue'
@@ -12,6 +13,8 @@ import StoryChapter from './components/StoryChapter.vue'
 import StoryIllo from './components/StoryIllo.vue'
 import StoryTimeline from './components/StoryTimeline.vue'
 import TicketLife from './components/TicketLife.vue'
+import TicketStates from './components/TicketStates.vue'
+import TourDay from './components/TourDay.vue'
 import TowerDemo from './components/TowerDemo.vue'
 import './custom.css'
 
@@ -19,6 +22,7 @@ export default {
   extends: DefaultTheme,
   enhanceApp({ app }) {
     app.component('AutonomyDial', AutonomyDial)
+    app.component('CapabilityLevels', CapabilityLevels)
     app.component('CardTable', CardTable)
     app.component('CompareMatrix', CompareMatrix)
     app.component('DownloadLinks', DownloadLinks)
@@ -30,6 +34,8 @@ export default {
     app.component('StoryIllo', StoryIllo)
     app.component('StoryTimeline', StoryTimeline)
     app.component('TicketLife', TicketLife)
+    app.component('TicketStates', TicketStates)
+    app.component('TourDay', TourDay)
     app.component('TowerDemo', TowerDemo)
   }
 } satisfies Theme

@@ -38,7 +38,13 @@ export default async () => {
         { text: '安裝', link: '/install' },
         { text: '功能', link: '/features' },
         // TODO(W2c): { text: '遠端開發', link: '/remote/' }
-        { text: 'BAT × Control Tower', link: '/control-tower' },
+        {
+          text: 'BAT × Control Tower',
+          items: [
+            { text: '分工與流程', link: '/control-tower' },
+            { text: 'Control Tower 功能導覽', link: '/control-tower-tour' }
+          ]
+        },
         // TODO(W2d): { text: '實戰案例', link: '/cases' }
         {
           text: '參考',
@@ -63,7 +69,8 @@ export default async () => {
         {
           text: 'BAT × Control Tower',
           items: [
-            { text: '分工與流程', link: '/control-tower' }
+            { text: '分工與流程', link: '/control-tower' },
+            { text: 'Control Tower 功能導覽', link: '/control-tower-tour' }
             // TODO(W2d): { text: '實戰案例', link: '/cases' }
           ]
         },

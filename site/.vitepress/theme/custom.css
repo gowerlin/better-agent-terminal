@@ -2672,6 +2672,477 @@
   }
 }
 
+/* ---------- /control-tower-tour 功能導覽 ---------- */
+
+/* 工單狀態用的流程色（設計語言 § 4）：深色模式用 Stepper 原值，淺色模式同色相降明度到 AA */
+:root {
+  --tour-pending: #52525b;
+  --tour-running: #b45309;
+  --tour-done: #047857;
+  --tour-failed: #b91c1c;
+}
+
+.dark {
+  --tour-pending: #a1a1aa;
+  --tour-running: #f59e0b;
+  --tour-done: #10b981;
+  --tour-failed: #ef4444;
+}
+
+.vp-doc .tour-result {
+  padding-left: 14px;
+  border-left: 2px solid var(--vp-c-text-1);
+  color: var(--vp-c-text-1);
+  font-weight: 500;
+}
+
+/* Debug 三層防線：依序往下的三層，越往下越重 */
+.vp-doc .tour-layers {
+  counter-reset: tour-layer;
+  margin: 28px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .tour-layers > li {
+  counter-increment: tour-layer;
+  position: relative;
+  margin: 0;
+  padding: 16px 0 16px 64px;
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc .tour-layers > li:first-child {
+  border-top: 2px solid var(--vp-c-text-1);
+}
+
+.vp-doc .tour-layers > li::before {
+  content: '第 ' counter(tour-layer) ' 層';
+  position: absolute;
+  top: 19px;
+  left: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc .tour-layers p {
+  margin: 0;
+  line-height: 1.8;
+}
+
+.vp-doc .tour-layers .tour-layer-name {
+  margin-bottom: 4px;
+  font-family: var(--bat-font-display);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.vp-doc .tour-layers .tour-layer-name + p {
+  color: var(--vp-c-text-2);
+}
+
+/* 四級能力：三個可選的增強並排，坐在第 0 級的地基上（可任意組合，所以不畫成階梯） */
+.vp-doc .cap-levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 28px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cap-levels .cap-level.is-core {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.vp-doc .cap-levels > li + li {
+  margin-top: 0;
+}
+
+.cap-levels .cap-level {
+  margin: 0;
+  padding: 18px 20px;
+  border: 1px dashed var(--vp-c-text-3);
+  border-radius: 6px;
+}
+
+.cap-levels .cap-level.is-core {
+  padding: 22px 20px;
+  border: 0;
+  border-top: 3px solid var(--vp-c-text-1);
+  border-radius: 0;
+  background: var(--bat-raised);
+}
+
+.cap-levels p {
+  margin: 0;
+}
+
+.cap-levels .cap-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--vp-c-text-2);
+}
+
+.cap-levels .cap-num {
+  font-weight: 700;
+  color: var(--vp-c-text-1);
+}
+
+.cap-levels .cap-name {
+  margin-top: 4px;
+  font-family: var(--bat-font-display);
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.cap-levels .cap-what {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--vp-c-text-2);
+}
+
+.cap-levels .cap-fit {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.cap-levels .cap-fit b {
+  margin-right: 8px;
+  font-weight: 700;
+}
+
+/* 一天的基本流程：你（藍）說的話與塔台（紫）會做的事 */
+.vp-doc .tour-day {
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .tour-day > li + li {
+  margin-top: 0;
+}
+
+.tour-day .dy-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 0 18px;
+  margin: 0;
+  padding-bottom: 32px;
+}
+
+.tour-day .dy-step::before {
+  content: '';
+  position: absolute;
+  top: 38px;
+  bottom: 6px;
+  left: 15px;
+  width: 2px;
+  background: var(--vp-c-divider);
+}
+
+.tour-day .dy-step:last-child {
+  padding-bottom: 0;
+}
+
+.tour-day .dy-step:last-child::before {
+  display: none;
+}
+
+.tour-day .dy-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--vp-c-text-1);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--vp-c-bg);
+  font-family: var(--bat-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tour-day .dy-body {
+  min-width: 0;
+}
+
+.tour-day p {
+  margin: 0;
+}
+
+.tour-day .dy-name {
+  font-family: var(--bat-font-display);
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 32px;
+  letter-spacing: 0.02em;
+}
+
+.tour-day .dy-line {
+  display: grid;
+  grid-template-columns: 3em minmax(0, 1fr);
+  gap: 0 12px;
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.tour-day .dy-line b {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.tour-day .dy-line.is-you b {
+  color: var(--bat-you);
+}
+
+.tour-day .dy-line.is-tower b {
+  color: var(--bat-signal-text);
+}
+
+.tour-day .dy-line.is-tower span {
+  color: var(--vp-c-text-2);
+}
+
+/* 工單的狀態流轉 */
+.vp-doc .ticket-states {
+  margin: 28px 0;
+}
+
+.ticket-states p {
+  margin: 0;
+}
+
+.ticket-states .ts-path {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 0;
+  align-items: stretch;
+}
+
+.ticket-states .ts-arrow {
+  position: relative;
+}
+
+/* 待派工 → 執行中 */
+.ticket-states .ts-arrow::before {
+  content: '';
+  position: absolute;
+  top: 28px;
+  left: 4px;
+  right: 6px;
+  height: 2px;
+  background: var(--vp-c-text-2);
+}
+
+.ticket-states .ts-arrow::after {
+  content: '';
+  position: absolute;
+  top: 24px;
+  right: 4px;
+  border: 5px solid transparent;
+  border-left: 7px solid var(--vp-c-text-2);
+  border-right: 0;
+}
+
+.ticket-states .ts-state {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+}
+
+/* 暫停是執行中的旁支：虛線框，用雙向的細線接回執行中 */
+.ticket-states .ts-side {
+  position: relative;
+  margin-left: 28px;
+  border-style: dashed;
+}
+
+.ticket-states .ts-side::before {
+  content: '⇄';
+  position: absolute;
+  top: 16px;
+  left: -24px;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--vp-c-text-2);
+}
+
+.ticket-states .ts-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  line-height: 24px;
+}
+
+.vp-doc .ticket-states .ts-head code {
+  padding: 0;
+  background: none;
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+}
+
+.ticket-states .ts-mark {
+  width: 1.2em;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ticket-states .ts-name {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.ticket-states .ts-text {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--vp-c-text-2);
+}
+
+.ticket-states .is-pending .ts-mark,
+.ticket-states .is-paused .ts-mark {
+  color: var(--tour-pending);
+}
+
+.ticket-states .is-running .ts-mark,
+.ticket-states .is-partial .ts-mark {
+  color: var(--tour-running);
+}
+
+.ticket-states .is-done .ts-mark {
+  color: var(--tour-done);
+}
+
+.ticket-states .is-blocked .ts-mark {
+  color: var(--bat-you);
+}
+
+.ticket-states .is-failed .ts-mark {
+  color: var(--tour-failed);
+}
+
+.ticket-states .is-running {
+  border-color: var(--vp-c-text-1);
+}
+
+.ticket-states .ts-ends-label {
+  margin: 28px 0 12px;
+  padding-top: 16px;
+  border-top: 2px solid var(--vp-c-text-1);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.vp-doc .ticket-states .ts-ends {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .ticket-states .ts-ends > li + li {
+  margin-top: 0;
+}
+
+@media (max-width: 959px) {
+  .vp-doc .ticket-states .ts-ends {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .ticket-states .ts-path {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 窄螢幕：箭頭改成往下 */
+  .ticket-states .ts-arrow {
+    height: 24px;
+  }
+
+  .ticket-states .ts-arrow::before {
+    top: 2px;
+    bottom: 8px;
+    left: 23px;
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+
+  .ticket-states .ts-arrow::after {
+    top: auto;
+    bottom: 2px;
+    left: 19px;
+    right: auto;
+    border: 5px solid transparent;
+    border-top: 7px solid var(--vp-c-text-2);
+    border-bottom: 0;
+  }
+
+  .ticket-states .ts-side {
+    margin: 24px 0 0 28px;
+  }
+
+  .ticket-states .ts-side::before {
+    top: -25px;
+    left: 8px;
+    transform: rotate(90deg);
+  }
+
+  .vp-doc .ticket-states .ts-ends {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  /* 窄螢幕：照 DOM 順序，地基在最上面 */
+  .vp-doc .cap-levels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cap-levels .cap-level.is-core {
+    grid-row: auto;
+  }
+
+  .cap-levels .cap-level,
+  .cap-levels .cap-level.is-core {
+    padding: 16px;
+  }
+
+  .tour-day .dy-line {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tour-day .dy-line b {
+    line-height: 20px;
+  }
+}
+
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
