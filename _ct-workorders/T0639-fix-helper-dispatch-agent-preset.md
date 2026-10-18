@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0639
 title: "BUG-155：helper 派工建立的 Worker PTY 記錄 `agentPreset`（`whoami.agent`、claude Worker 的 update guard env）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-155
 priority: P2

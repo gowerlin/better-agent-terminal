@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0613
 title: "BUG-154：結構化提問（`--ask`）答覆後，Worker 縮圖回到「執行中」，不顯示 `✓`、不計入批次關閉"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
