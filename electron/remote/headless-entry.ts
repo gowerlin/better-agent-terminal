@@ -15,7 +15,7 @@ import {
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
 import { createBatMcpLaunchArgs, defaultClaudeSettingsFiles, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
-import { createCodexOscVersionCheck } from '../codex-osc-version'
+import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from '../codex-osc-version'
 import { registerReportHookHandler } from '../terminal-blocked-state'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
@@ -563,6 +563,8 @@ const headlessClaudeNameSupport = createClaudeNameSupportCheck({
   resolveRuntime: () => resolveClaudeRuntime(getRuntimeSettingsSnapshot()),
   logger: defaultLogger,
 })
+/** T0651: whether the codex this server's codex-cli tabs launch knows `--no-daemon`. */
+const headlessCodexNoDaemonSupport = createCodexNoDaemonSupportCheck({ logger: defaultLogger })
 
 export function createHeadlessBatMcpHost(
   installRoot: string,
@@ -586,6 +588,8 @@ export function createHeadlessBatMcpHost(
     // T0641: the session name of a remote window's claude-cli tab (the window sends the name)
     claudeNameSupport: headlessClaudeNameSupport,
     recordClaudeSessionName: (terminalId, record) => claudeSessionNameRecords.set(terminalId, record),
+    // T0651: `--no-daemon` for a remote window's codex tab without the MCP args
+    codexNoDaemonSupport: headlessCodexNoDaemonSupport,
     logger: defaultLogger,
   }
 }

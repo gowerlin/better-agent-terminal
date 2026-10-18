@@ -270,9 +270,18 @@ const BUILTIN_DEFINITIONS: AgentDefinition[] = [
 export const CODEX_DISABLE_DAEMON_ARGS = ['-c', 'features.daemon_auto_start=false'] as const
 
 /** User-supplied args that already opt out of the daemon — skip injection to avoid duplicates. */
-function hasCodexDaemonOptOut(extraArgs?: string): boolean {
+export function hasCodexDaemonOptOut(extraArgs?: string): boolean {
   if (!extraArgs) return false
   return extraArgs.includes('--no-daemon') || extraArgs.includes('daemon_auto_start')
+}
+
+/**
+ * T0651 / BUG-159: user-supplied args that rule out BAT's `--no-daemon` (electron/bat-mcp-launch.ts):
+ * an own daemon choice (`hasCodexDaemonOptOut`), or `--remote` (codex rejects `--remote` together
+ * with `--no-daemon`). The elevated `CODEX_DISABLE_DAEMON_ARGS` above keeps its own check.
+ */
+export function codexArgsRuleOutNoDaemon(extraArgs?: string): boolean {
+  return hasCodexDaemonOptOut(extraArgs) || /(^|\s)--remote(\s|=|$)/.test(extraArgs ?? '')
 }
 
 // ── Agent Registry ─────────────────────────────────────────────────

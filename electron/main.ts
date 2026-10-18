@@ -12,7 +12,7 @@ import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardow
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
 import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal-command-handlers'
 import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from './bat-mcp-launch'
-import { createCodexOscVersionCheck } from './codex-osc-version'
+import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from './codex-osc-version'
 import { createClaudeNameSupportCheck } from './claude-version-check'
 import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords } from './claude-session-name-record'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
@@ -764,6 +764,8 @@ const batMcpHost: BatMcpHost = {
     claudeSessionNameRecords.set(terminalId, record)
     claudeSessionPersistence.persist() // T0642
   },
+  // T0651: `--no-daemon` for a codex tab without the MCP args (`codex --version` >= 0.156.0)
+  codexNoDaemonSupport: createCodexNoDaemonSupportCheck({ logger }),
   logger,
 }
 

@@ -251,6 +251,7 @@
 - 注入唯一實作 `electron/bat-mcp-launch.ts` `buildBatMcpLaunchArgs`（本機與 headless 共用）：claude 用 `--mcp-config=<file>`（**一定用 `=` 形式**，variadic 參數會吃掉 prompt）；codex 用 `-c mcp_servers.bat.*`，含 `env_vars`（codex 只轉送白名單 env）。🔴 不得改用 `mcp_servers.bat.env = { BAT_REMOTE_TOKEN = "…" }`（權杖值會出現在命令列與日誌）；新增 shim 讀的 env 時同步加進清單。
 - 組裝點：renderer `withBatMcpLaunchArgs`（`src/lib/bat-mcp-launch.ts`）、helper 派工 `createAgentPromptCommandBuilder` 的 `batMcpLaunchArgs` dep。🔴 新增 claude / codex 啟動路徑時一律經這兩者之一（`bat-mcp-launch.test.ts` source guard 數 `buildLaunchCommand(` 次數）。
 - 派工的 shell 只解析一次：`resolveDispatchShell`（`electron/terminal-command-handlers.ts`）同時決定 PTY 啟動的 shell 與引號 family（沒有持久化 shell 時用 `PtyManager.getDefaultShell()`，BUG-149 / T0593）；🔴 不要在 `createWithCommand` 或 consumer 另行推導（T0598 / BUG-151）。派工指令寫入前打進新分頁的輸入由 `PtyManager.holdInputForDispatch` / `writeDispatchCommand` 移到指令之後（BUG-151）。codex 升版時必跑 `e2e/t0592-codex-tower-worker.spec.ts`。
+- 🔴 codex 共用 daemon（T0648 / BUG-159，T0651）：BAT 的 codex 分頁靠非 `features.*` 的 `-c`（`mcp_servers.bat.*`、派工的 `check_for_update_on_startup`）讓 codex 走 embedded，否則 shell 命令與 MCP 拿到 daemon（別的分頁）的 `BAT_*`；`features.daemon_auto_start=false` 擋不住已在跑的 daemon。BAT MCP 沒注入的手動分頁加 `--no-daemon`（codex `>= 0.156.0` 才加，`codexNoDaemonDecision` / `createCodexNoDaemonSupportCheck`），helper 派工不加。codex 升版時查 `tui/src/daemon_startup.rs` `config_exclusion`（[docs](docs/agent-guide/bat-mcp-shim.md)「codex 共用 daemon」）。
 - 完整 tool 表、協定、連線、注入條件、日誌、健康檢查、已知限制、驗證清單：[docs/agent-guide/bat-mcp-shim.md](docs/agent-guide/bat-mcp-shim.md)
 
 ## blocked 狀態偵測（PLAN-047 M1b / T0590）

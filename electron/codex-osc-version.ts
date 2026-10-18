@@ -17,6 +17,10 @@
  * (an in-place upgrade is probed again); only a parsed version is cached, a failure is probed again
  * next time. One log line per check: `[codex-version] path=<…> version=<x.y.z|unknown> (cached|probed)`.
  *
+ * T0651 / BUG-159: the same probe (`createCodexVersionReader`) answers whether the codex a tab
+ * launches knows `--no-daemon` (`>= 0.156.0`, `createCodexNoDaemonSupportCheck`), asked by
+ * `agent:bat-mcp-launch-args` (electron/bat-mcp-launch.ts) only for a codex tab without BAT MCP.
+ *
  * 🔴 No `electron` import (headless uses it).
  */
 import { execFile } from 'child_process'
@@ -84,10 +88,10 @@ export function resolveDispatchCodexBinary(
 const VERSION_RE = /codex-cli\s+v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/i
 
 /**
- * `(baseCommand) => Promise<boolean>`: true when the codex it launches writes OSC 7501. Never
- * throws, never rejects.
+ * `(baseCommand) => Promise<version | null>`: the `x.y.z[-pre]` of the codex `baseCommand` launches,
+ * null when not known. One `[codex-version]` line per call. Never throws, never rejects.
  */
-export function createCodexOscVersionCheck(deps: CodexOscVersionDeps = {}): (baseCommand: string) => Promise<boolean> {
+export function createCodexVersionReader(deps: CodexOscVersionDeps = {}): (baseCommand: string) => Promise<string | null> {
   const platform = deps.platform ?? process.platform
   const env = deps.env ?? process.env
   const isFile = deps.isFile ?? ((p: string) => {
@@ -111,12 +115,12 @@ export function createCodexOscVersionCheck(deps: CodexOscVersionDeps = {}): (bas
     }
   })
 
-  return async (baseCommand: string): Promise<boolean> => {
+  return async (baseCommand: string): Promise<string | null> => {
     try {
       const resolved = resolveDispatchCodexBinary(baseCommand, { platform, env, isFile })
       if ('reason' in resolved) {
         log(`[codex-version] path=- version=unknown (${resolved.reason})`)
-        return false
+        return null
       }
       const mtime = mtimeMs(resolved.path)
       const key = `${resolved.path}\0${mtime ?? '-'}`
@@ -127,10 +131,64 @@ export function createCodexOscVersionCheck(deps: CodexOscVersionDeps = {}): (bas
         if (version !== null && mtime !== null) cache.set(key, version)
       }
       log(`[codex-version] path=${resolved.path} version=${version ?? 'unknown'} (${how})`)
-      return version !== null && codexVersionWritesOsc(`codex-cli ${version}`) === true
+      return version
     } catch (error) {
       log(`[codex-version] path=- version=unknown (${error instanceof Error ? error.message : String(error)})`)
-      return false
+      return null
     }
+  }
+}
+
+/**
+ * `(baseCommand) => Promise<boolean>`: true when the codex it launches writes OSC 7501. Never
+ * throws, never rejects.
+ */
+export function createCodexOscVersionCheck(deps: CodexOscVersionDeps = {}): (baseCommand: string) => Promise<boolean> {
+  const readVersion = createCodexVersionReader(deps)
+  return async (baseCommand: string): Promise<boolean> => {
+    const version = await readVersion(baseCommand)
+    return version !== null && codexVersionWritesOsc(`codex-cli ${version}`) === true
+  }
+}
+
+/**
+ * T0651: codex `rust-v0.156.0` added `--no-daemon` ("Run without the shared background server, even
+ * if it is already running"; release notes: "bypass it with `--no-daemon`. (#45854, #46088)";
+ * `codex-rs/tui/src/cli.rs` has no `no_daemon` at `rust-v0.155.1`). An older codex exits 2 on it
+ * (T0375: 0.133).
+ */
+export const CODEX_NO_DAEMON_MIN_VERSION = '0.156.0'
+
+const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/
+
+/** `version` (`x.y.z[-pre]`) >= `min` (`x.y.z`); a pre-release of `min` itself does not count. */
+export function codexVersionAtLeast(version: string, min: string): boolean {
+  const m = SEMVER_RE.exec(version.trim())
+  const r = SEMVER_RE.exec(min)
+  if (!m || !r) return false
+  for (let i = 1; i <= 3; i++) {
+    const [a, b] = [Number(m[i]), Number(r[i])]
+    if (a !== b) return a > b
+  }
+  return m[4] === undefined
+}
+
+export type CodexNoDaemonSupport =
+  | { inject: true; version: string }
+  | { inject: false; reason: 'codex-too-old' | 'version-unknown'; version?: string }
+
+/**
+ * T0651: `() => Promise<CodexNoDaemonSupport>` for the codex a codex-cli tab launches (`codex` on
+ * PATH: an npm shim first on Windows, no codex, or no readable version → `version-unknown`).
+ * Never throws, never rejects.
+ */
+export function createCodexNoDaemonSupportCheck(deps: CodexOscVersionDeps = {}): () => Promise<CodexNoDaemonSupport> {
+  const readVersion = createCodexVersionReader(deps)
+  return async (): Promise<CodexNoDaemonSupport> => {
+    const version = await readVersion('codex')
+    if (version === null) return { inject: false, reason: 'version-unknown' }
+    return codexVersionAtLeast(version, CODEX_NO_DAEMON_MIN_VERSION)
+      ? { inject: true, version }
+      : { inject: false, reason: 'codex-too-old', version }
   }
 }

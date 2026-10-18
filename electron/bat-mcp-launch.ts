@@ -37,6 +37,18 @@
  * caller passes that check's result as `claudeNameSupport`; absent = `version-unknown`). The
  * decision is recorded per terminal (`recordClaudeSessionName`, electron/claude-session-name-record.ts).
  *
+ * T0651 / BUG-159 (T0648): codex 0.163 runs embedded (not on the shared app-server daemon) when its
+ * command line has a `-c` override outside `features.*` — the `mcp_servers.bat.*` above, the
+ * dispatch's `check_for_update_on_startup`. On the daemon, shell commands and MCP servers get the
+ * daemon's env, i.e. another tab's `BAT_*`. A codex tab **without** the MCP args (Settings off, no
+ * endpoint, shim missing, custom args defining `mcp_servers.bat`) gets `--no-daemon` instead, the
+ * only arg here then, when the caller passed `codexNoDaemon` = the codex knows it (`>= 0.156.0`,
+ * `createCodexNoDaemonSupportCheck`, electron/codex-osc-version.ts). Not injected (`noDaemonReason`):
+ * custom args with `--no-daemon` / `daemon_auto_start` / `--remote` (`user-args`,
+ * `codexArgsRuleOutNoDaemon`), an older or unreadable codex (`codex-too-old` / `version-unknown`),
+ * no check (`not-checked`: helper dispatch, which already has its `-c`). Independent of Settings
+ * `batMcpEnabled` and of the elevated `CODEX_DISABLE_DAEMON_ARGS`.
+ *
  * One implementation for every launch path: the renderer (`agent:bat-mcp-launch-args`, proxied,
  * so a remote window gets the server's paths) and `terminal:create-agent-command`
  * (`createAgentPromptCommandBuilder`). Raw command mode is never touched.
@@ -48,8 +60,10 @@ import * as os from 'os'
 import * as path from 'path'
 import { quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
 import { normalizeClaudeSessionName } from '../src/lib/claude-session-name'
+import { codexArgsRuleOutNoDaemon } from './agent-runtime/agent-registry'
 import type { HandlerRegistrar } from './handlers/types'
 import type { ClaudeNameSupport } from './claude-version-check'
+import type { CodexNoDaemonSupport } from './codex-osc-version'
 import type { ClaudeSessionNameReason, ClaudeSessionNameRecord } from './claude-session-name-record'
 
 export const BAT_MCP_SERVER_NAME = 'bat'
@@ -83,6 +97,11 @@ export const BAT_MCP_CODEX_ENV_VARS = [
   'XDG_CONFIG_HOME',
 ] as const
 export const BAT_MCP_LAUNCH_ARGS_CHANNEL = 'agent:bat-mcp-launch-args'
+/** T0651: a root option (before a `resume` / `fork` subcommand in the custom args). */
+export const CODEX_NO_DAEMON_ARG = '--no-daemon'
+
+/** T0651: why a codex tab without the MCP args gets no `--no-daemon`. */
+export type CodexNoDaemonReason = 'user-args' | 'codex-too-old' | 'version-unknown' | 'not-checked'
 
 export type BatMcpAgentKind = 'claude' | 'codex'
 
@@ -293,6 +312,12 @@ export interface BatMcpHost {
   claudeNameSupport?(): Promise<ClaudeNameSupport>
   /** T0641: records the session name decision of terminal `terminalId` (`claudeSessionNameRecords`). */
   recordClaudeSessionName?(terminalId: string, record: ClaudeSessionNameRecord): void
+  /**
+   * T0651: whether the codex a codex-cli tab launches knows `--no-daemon`
+   * (`createCodexNoDaemonSupportCheck`). Asked by `agent:bat-mcp-launch-args` only for a codex tab
+   * that gets no MCP args. Absent ⇒ `not-checked` (never injected).
+   */
+  codexNoDaemonSupport?(): Promise<CodexNoDaemonSupport>
   /** The platform the hook commands run on (tests). Default `process.platform`. */
   platform?: NodeJS.Platform
   fs?: BatMcpFs
@@ -310,17 +335,29 @@ export interface BatMcpLaunchRequest {
   sessionName?: string
   /** T0641: the `claudeNameSupport` check's result for this launch. Absent ⇒ `version-unknown`. */
   claudeNameSupport?: ClaudeNameSupport
+  /** T0651: the `codexNoDaemonSupport` check's result for this launch. Absent ⇒ `not-checked`. */
+  codexNoDaemon?: CodexNoDaemonSupport
 }
 
 /**
- * `injected` = some args (MCP and / or, claude only, the hooks and / or the session name). `mcp` /
- * `hooks` say which; `mcpReason` / `hooksReason` why a part is missing (`hooks` is always false for
- * codex). T0600: `hooksDisabled` = the hooks went in, but claude's own settings turn them off.
- * T0641 (claude only): `name` = the session name that went in, else `nameReason`.
+ * `injected` = some args (MCP and / or, claude only, the hooks and / or the session name; T0651,
+ * codex only: `--no-daemon`). `mcp` / `hooks` say which; `mcpReason` / `hooksReason` why a part is
+ * missing (`hooks` is always false for codex). T0600: `hooksDisabled` = the hooks went in, but
+ * claude's own settings turn them off. T0641 (claude only): `name` = the session name that went in,
+ * else `nameReason`. T0651 (codex without the MCP args only): `noDaemon` = `--no-daemon` went in,
+ * else `noDaemonReason`.
  */
 export type BatMcpLaunchResult =
-  | { injected: true; kind: BatMcpAgentKind; args: string; mcp: boolean; hooks: boolean; mcpReason?: string; hooksReason?: string; hooksDisabled?: string; name?: string; nameReason?: ClaudeSessionNameReason }
-  | { injected: false; reason: string; kind?: BatMcpAgentKind; hooksReason?: string; nameReason?: ClaudeSessionNameReason }
+  | { injected: true; kind: BatMcpAgentKind; args: string; mcp: boolean; hooks: boolean; mcpReason?: string; hooksReason?: string; hooksDisabled?: string; name?: string; nameReason?: ClaudeSessionNameReason; noDaemon?: true }
+  | { injected: false; reason: string; kind?: BatMcpAgentKind; hooksReason?: string; nameReason?: ClaudeSessionNameReason; noDaemonReason?: CodexNoDaemonReason }
+
+/** T0651: whether a codex tab that gets no MCP args gets `--no-daemon`, or why not. */
+function codexNoDaemonDecision(request: BatMcpLaunchRequest): { inject: true } | { inject: false; reason: CodexNoDaemonReason } {
+  if (codexArgsRuleOutNoDaemon(request.extraArgs)) return { inject: false, reason: 'user-args' }
+  const support = request.codexNoDaemon
+  if (!support) return { inject: false, reason: 'not-checked' }
+  return support.inject ? { inject: true } : { inject: false, reason: support.reason }
+}
 
 type ClaudeNameDecision = { name: string; reason?: undefined } | { name?: undefined; reason: ClaudeSessionNameReason }
 
@@ -358,8 +395,15 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
   const nameDecision = kind === 'claude' ? claudeNameDecision(request) : null
   const nameArgs = nameDecision?.name ? quoteArgForShell(`--name=${nameDecision.name}`, shell) : null
   const nameFields = !nameDecision ? {} : nameDecision.name ? { name: nameDecision.name } : { nameReason: nameDecision.reason }
+  // T0651: used only when no MCP args go in (those `-c` already keep codex embedded)
+  const noDaemonDecision = kind === 'codex' ? codexNoDaemonDecision(request) : null
   if (!isBatMcpEnabled(host.readSettings())) {
     const off = 'turned off in Settings'
+    if (noDaemonDecision) {
+      return noDaemonDecision.inject
+        ? { injected: true, kind, args: CODEX_NO_DAEMON_ARG, mcp: false, hooks: false, mcpReason: off, noDaemon: true }
+        : { injected: false, kind, reason: off, noDaemonReason: noDaemonDecision.reason }
+    }
     return nameArgs
       ? { injected: true, kind, args: nameArgs, mcp: false, hooks: false, mcpReason: off, hooksReason: off, ...nameFields }
       : { injected: false, kind, reason: off, ...nameFields }
@@ -406,8 +450,19 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
     }
   }
 
-  if (!mcpArgs && !hooksArgs && !nameArgs) {
-    return { injected: false, kind, reason: mcpReason ?? 'nothing to inject', ...(hooksReason ? { hooksReason } : {}), ...nameFields }
+  // T0651: a codex tab without the MCP args
+  const noDaemonArgs = noDaemonDecision && !mcpArgs && noDaemonDecision.inject ? CODEX_NO_DAEMON_ARG : null
+  const noDaemonFields = noDaemonArgs ? { noDaemon: true as const } : {}
+
+  if (!mcpArgs && !hooksArgs && !nameArgs && !noDaemonArgs) {
+    return {
+      injected: false,
+      kind,
+      reason: mcpReason ?? 'nothing to inject',
+      ...(hooksReason ? { hooksReason } : {}),
+      ...nameFields,
+      ...(noDaemonDecision && !noDaemonDecision.inject ? { noDaemonReason: noDaemonDecision.reason } : {}),
+    }
   }
   // T0600: injected anyway (harmless; a report still proves the hooks run), recorded as `none`
   let hooksDisabled: string | null = null
@@ -420,13 +475,35 @@ export function buildBatMcpLaunchArgs(host: BatMcpHost, request: BatMcpLaunchReq
   return {
     injected: true,
     kind,
-    args: [mcpArgs, hooksArgs, nameArgs].filter(Boolean).join(' '),
+    args: [mcpArgs, hooksArgs, nameArgs, noDaemonArgs].filter(Boolean).join(' '),
     mcp: mcpArgs !== null,
     hooks: hooksArgs !== null,
     ...(mcpReason ? { mcpReason } : {}),
     ...(hooksReason ? { hooksReason } : {}),
     ...(hooksDisabled ? { hooksDisabled } : {}),
     ...nameFields,
+    ...noDaemonFields,
+  }
+}
+
+/**
+ * T0651: a codex tab whose launch gets no MCP args and whose custom args leave `--no-daemon` to BAT:
+ * ask `codexNoDaemonSupport`. Codex never writes a file in `buildBatMcpLaunchArgs`.
+ */
+export function needsCodexNoDaemonSupport(host: BatMcpHost, request: BatMcpLaunchRequest): boolean {
+  if (batMcpAgentKind(request.agentId) !== 'codex' || codexArgsRuleOutNoDaemon(request.extraArgs)) return false
+  const result = buildBatMcpLaunchArgs(host, { ...request, codexNoDaemon: undefined })
+  return !(result.injected && result.mcp)
+}
+
+/** T0651: `request` + `host.codexNoDaemonSupport()` when `needsCodexNoDaemonSupport`. Never rejects. */
+export async function withCodexNoDaemonSupport(host: BatMcpHost, request: BatMcpLaunchRequest): Promise<BatMcpLaunchRequest> {
+  if (!host.codexNoDaemonSupport || !needsCodexNoDaemonSupport(host, request)) return request
+  try {
+    return { ...request, codexNoDaemon: await host.codexNoDaemonSupport() }
+  } catch (error) {
+    host.logger?.warn(`[bat-mcp] codex version check failed: ${error instanceof Error ? error.message : String(error)}`)
+    return request
   }
 }
 
@@ -455,6 +532,7 @@ function narrowShellFamily(value: unknown): ShellFamily {
  * T0590: claude lines say whether the hooks went in (`hooks=yes` / `hooks=no (<reason>)`);
  * T0600: `hooks=yes (turned off: <reason>)` when claude's own settings disable them.
  * T0641: + `name=yes` / `name=no (<reason>)` on claude lines.
+ * T0651: + `no-daemon=no (<reason>)` on codex lines without any args (`--no-daemon` shows in the args).
  */
 export function logBatMcpDecision(logger: BatMcpHost['logger'], source: string, agentId: string, result: BatMcpLaunchResult, terminalId?: string): void {
   if (!logger || (!result.injected && !result.kind)) return
@@ -467,7 +545,8 @@ export function logBatMcpDecision(logger: BatMcpHost['logger'], source: string, 
     const mcp = result.mcp ? '' : `; mcp=no (${result.mcpReason ?? 'n/a'})`
     logger.log(`[bat-mcp] ${source} agent=${agentId}${tab} → injected: ${result.args}${mcp}${hooks}`)
   } else {
-    logger.log(`[bat-mcp] ${source} agent=${agentId}${tab} → not injected (${result.reason})${hooks}`)
+    const noDaemon = result.noDaemonReason ? `; no-daemon=no (${result.noDaemonReason})` : ''
+    logger.log(`[bat-mcp] ${source} agent=${agentId}${tab} → not injected (${result.reason})${hooks}${noDaemon}`)
   }
 }
 
@@ -518,19 +597,21 @@ const TERMINAL_ID_ARG = /^[A-Za-z0-9._-]{1,128}$/
  * server that runs the tab). T0590: `terminalId` (a renderer before T0590 sends none) gets the
  * decision as its `blockedDetection`. T0641: `sessionName` (a renderer before T0641 sends none →
  * `no-name`), checked against the claude this host would launch (`claudeNameSupport`).
+ * T0651: a codex tab without the MCP args is checked against the codex this host would launch
+ * (`codexNoDaemonSupport`) for `--no-daemon`. Only here: helper dispatch never asks.
  */
 export function registerBatMcpHandlers(register: HandlerRegistrar, host: BatMcpHost): void {
   const launchArgs = createBatMcpLaunchArgs(host, 'tab')
   register(BAT_MCP_LAUNCH_ARGS_CHANNEL, async (_ctx, agentId: unknown, shellFamily: unknown, extraArgs: unknown, terminalId: unknown, sessionName: unknown) => {
     if (typeof agentId !== 'string') return ''
     const name = normalizeClaudeSessionName(sessionName)
-    const result = launchArgs(await withClaudeNameSupport(host, {
+    const result = launchArgs(await withCodexNoDaemonSupport(host, await withClaudeNameSupport(host, {
       agentId,
       shellFamily: narrowShellFamily(shellFamily),
       extraArgs: typeof extraArgs === 'string' ? extraArgs : undefined,
       ...(typeof terminalId === 'string' && TERMINAL_ID_ARG.test(terminalId) ? { terminalId } : {}),
       ...(name ? { sessionName: name } : {}),
-    }))
+    })))
     return result.injected ? result.args : ''
   })
 }

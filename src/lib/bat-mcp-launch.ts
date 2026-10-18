@@ -8,6 +8,7 @@
  * `blockedDetection` (a server before T0590 ignores the extra argument).
  * T0641: `sessionName` (claude only, `claudeSessionName`) → `--name=`, decided by the host (a server
  * before T0641 ignores it).
+ * T0651: a codex tab the host gives no MCP args may get `--no-daemon` instead (same string, same place).
  */
 import { detectShellFamily } from '../utils/shell-quote'
 
