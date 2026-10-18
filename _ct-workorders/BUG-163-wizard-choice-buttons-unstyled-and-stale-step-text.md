@@ -3,7 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-163
 title: "設定精靈的選項按鈕用 Tailwind class，但 App 沒載入 Tailwind，顯示成白底原生按鈕；步驟說明過時、含內部用語"
-status: FIXING
+status: FIXED
+fixed_at: "2026-10-18T19:59:45+0800"
+fixed_by: T0658
+fix_commit: "9d8e1985"
 severity: medium
 reproducibility: always
 created_at: "2026-10-18T19:47:34+0800"
@@ -21,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（每個遠端精靈第一步都看得到；網站截圖也拍到） |
 | 可重現 | 必現 |
-| **狀態** | ⏳ FIXING（T0658） |
+| **狀態** | ✅ FIXED（T0658 `9d8e1985`：`SetupWizardShell.tsx` 46 個無效 Tailwind 寫法改用 `profile-action-btn` / `profile-name-input` 與新 `.bat-wizard-*` class（`src/styles/setup-wizard.css`）；21 個步驟說明 key × 三語改寫；網站 3 張精靈截圖重拍。待實機目視） |
 
 ## 現象
 
