@@ -3648,3 +3648,39 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 共用檔案的等待條件寫成可檢查的形式（`git log -1 -- <file>` 是對方 commit 且 `git diff --quiet -- <file>`），附輪詢間隔與上限
 
 **候選晉升**：📁 Project（並行派工的 overlap 檢查補充）
+
+## L168
+
+**來源**：第八十三 session（2026-10-18），T0649 / T0651 並行
+
+**現象**：兩張非隔離工單都改 `electron/main.ts`（各加自己的 hunk）。T0649 用 `git commit --only electron/main.ts …` 時，`--only` 收的是**整個檔案的工作樹內容**，把 T0651 還沒 commit 的 import 與 dep 一起帶進 T0649 的 commit，HEAD 會引用尚未 commit 的函式。T0649 自行以 `git update-index --cacheinfo` 只放自己的 hunk 再 amend 修正（塔台以 `git show <sha>:electron/main.ts` 確認不含 T0651 字樣）。
+
+**How to apply**：
+- 並行工單的 overlap 檢查要看「同一個檔案」而不只是「同一段程式」：兩張單都要改的共用檔（`main.ts`、`headless-entry.ts`、locale 檔等）不要並行，或在 `memory_overrides` 明寫「該檔有另一張單未 commit 的 hunk 時，commit 前確認 diff 只含自己的 hunk」
+- 收單時對共用檔抽查 `git show <sha>:<file>` 是否混入另一張單的符號
+
+**候選晉升**：📁 Project（並行派工 overlap 規則補充，與 L167 同類）
+
+## L169
+
+**來源**：第八十三 session（2026-10-18），T0652 / T0656
+
+**現象**：`playwright.config.ts` 的 `outputDir` 是 `e2e-results`，Playwright **每次執行都會清空它**。T0652 跑 e2e 時把 T0646 留下的截圖目錄與 `e2e-results/site-preview/serve.mjs`（網站預覽工具，L164）一併刪掉。T0656 改把素材輸出到 gitignored 的 `e2e-media/`。
+
+**How to apply**：
+- 要保留的截圖、預覽工具、素材一律放在 `outputDir` 以外（`e2e-media/` 或 scratchpad）；工單引用 `e2e-results/...` 下的工具時註明「可能被清空，不存在就重建」
+- 多張工單可能同時跑 Playwright 時，在 `memory_overrides` 指定誰可以跑、跑之前確認沒有其他 Playwright 程序
+
+**候選晉升**：📁 Project
+
+## L170
+
+**來源**：第八十三 session（2026-10-18），BUG-162 / T0657（使用者截圖：Worker 沒在等卻顯示 ⚠️）
+
+**現象**：yolo Worker（`--dangerously-skip-permissions`）要 `rm` 磁碟根層目錄（`D:\demo`），claude 2.1.302 內建「危險 rm」安全檢查**在 bypass 下仍顯示權限對話框**（先執行 `PermissionRequest` hook），無人回答時 120 s 逾時自動拒絕，回合繼續。BAT 因此標 `blocked` / `permission` 直到 `Stop`。修正：async `PostToolBatch` hook 清除（T0657）。另外塔台自己用 PowerShell `Remove-Item D:\demo` 也被 harness 擋下（磁碟根層路徑受保護），最後請使用者手動刪。
+
+**How to apply**：
+- 工單要求 Worker 建立暫存目錄時，指定放在 temp / scratchpad 或 repo 內的 gitignored 目錄，**不要放磁碟根層**（刪不掉，還會觸發安全對話框與 ⚠️）
+- 斷點 D 看到 `blockedReason: permission` 但 Worker 仍在輸出時，先查 BAT 日誌 `[blocked] … tool=<name>` 再判斷，不急著告訴使用者「Worker 在等你」
+
+**候選晉升**：🌐 Global 候選（claude bypass 下仍會跳的安全檢查）
