@@ -3,7 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-155
 title: "helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 BUG-084 的 `DISABLE_UPDATES` 防護"
-status: FIXED
+status: CLOSED
+closed_at: "2026-10-18T18:01:40+0800"
+closed_by: "使用者（T0645 實機驗收）"
 fixed_at: "2026-10-18T15:49:52+0800"
 fixed_by: T0639
 fix_commit: "149f6f8d"
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（`whoami.agent` 依契約是選填，CT 不依賴它；update guard 只差 `DISABLE_UPDATES`，背景自動更新仍由全域 `DISABLE_AUTOUPDATER` 擋住） |
 | 可重現 | 必現（所有經 `bat-terminal.mjs --skill … --workorder …` 派出的 Worker，claude 與 codex 皆是） |
-| **狀態** | ✅ FIXED（T0639 `149f6f8d`；source / test 層：typecheck 0 / 0、unit 5303 / 304、vite build；實機待下一版安裝版 `bat_whoami`） |
+| **狀態** | 🚫 CLOSED（T0639 `149f6f8d` 修正；2026-10-18 T0645 實機驗收 PASS，使用者同意結案） |
 
 ## 現象（T0637，`v0.7.0-pre.9` 安裝版）
 
@@ -41,3 +43,9 @@ links:
 
 - helper 派工（本機與 headless 共用路徑）把 resolved agent 的 preset id 傳給 `ptyManager.create({ agentPreset })`；raw command 模式維持不傳。
 - 測試：helper 派工後 `whoami.agent` = preset；claude-cli Worker 的 PTY env 含 `claudeUpdateGuardEnv`（embedded）；codex Worker 不含；headless 同步。
+
+## 實機驗收（T0645，2026-10-18）
+
+- 安裝版 `0.7.1-pre.1`：helper 派出的 claude Worker（`--agent default`）在分頁內 `bat_whoami` 回 `agent: claude-cli`；塔台 `bat_whoami` 同樣有 `agent: claude-cli`。
+- 未另驗 codex Worker 的 `agent`（與 claude 走同一段派工程式碼）。
+- 使用者 18:01 同意 CLOSED。

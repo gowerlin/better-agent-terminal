@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 15:51 (UTC+8) — BUG-155 FIXED（T0639 `149f6f8d`）
+> 最後同步：2026-10-18 18:01 (UTC+8) — BUG-155 CLOSED（T0645 實機驗收）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 40**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 40**
 
 ## 🔴 Open / 處理中
 
@@ -43,7 +43,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-155 | helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 `DISABLE_UPDATES` 防護 | 🟢 low | 2026-10-18 15:49 | [BUG-155](BUG-155-helper-dispatch-pty-missing-agent-preset.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
 | BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁另起 direct shell | 🟡 medium | 2026-10-17 20:17 | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |
 | BUG-137 | 程序已結束的分頁按 ⏻ 重啟沒有任何反應（T0539 `2ff55bdd`：restart 失敗改以同 id 重建；T0534 衍生） | 🟢 low | 2026-10-15 17:30 | [BUG-137](BUG-137-restart-button-no-op-on-exited-terminal.md) |
@@ -74,6 +73,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-155 | helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 `DISABLE_UPDATES` 防護（T0639 `149f6f8d`；0.7.1-pre.1 T0645 實機） | 🟢 low | 2026-10-18 | [BUG-155](BUG-155-helper-dispatch-pty-missing-agent-preset.md) |
 | BUG-154 | 結構化提問（`bat-notify --ask`）答覆後，仍在執行的 Worker 縮圖顯示 `✓` 並計入批次關閉（T0613 `7bfe225c`；pre.8 T0614 目視） | 🟡 medium | 2026-10-18 | [BUG-154](BUG-154-thumbnail-checkmark-after-structured-answer.md) |
 | BUG-153 | Worker 分頁縮圖在 `T#### 提問`（等塔台答覆）時也顯示 `✓` 並計入批次關閉；hook `blocked` 時沒有專屬標示（T0609 `fbf641dc`；pre.7 T0612 目視） | 🟡 medium | 2026-10-18 | [BUG-153](BUG-153-worker-thumbnail-checkmark-on-question-and-blocked.md) |
 | BUG-149 | `settings.json` 沒有 `shell` 鍵時，helper `--agent` 派出的 claude / codex Worker 起不來（引號以 posix 組、Windows 分頁是 pwsh；T0593 `e283abdc`：以 PtyManager 實際預設 shell 判斷） | 🔴 high | 2026-10-18 | [BUG-149](BUG-149-codex-dispatch-posix-quoting-without-shell-setting.md) |

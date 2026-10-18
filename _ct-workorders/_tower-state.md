@@ -102,8 +102,8 @@
 ### 待辦（依優先序）
 
 1. 🔴 **安裝 `v0.7.1-pre.1` 後的新塔台**：確認 FileVersion（L127）；以「以塔台開啟 Claude」開塔台
-2. 🔴 **PLAN-050 / BUG-155 實機驗收**：ListAgents 看到 `better-agent-terminal · Tower` 與 `… · Worker · T####`；Worker `bat_whoami` 有 `agent`（claude / codex）、`claudeSessionName`、`claudeSessionId`；`bat_list_terminals scope=towers`；`/clear` 後 sessionId 換新（T0642 只以模擬 hook 驗證）；通過後 PLAN-050 → DONE、BUG-155 → CLOSED
-3. 🔴 **CT-T021 實機驗收**：CT **v5.9.0** 已發版並安裝（17:5x，BMad-Guide 回覆稿 `_reply-2026-10-18-ct-v590-session-identity.md`）→ 與待辦 2 一起代跑回覆稿 § 5 四個情境（BMad-Guide 塔台需先重開載入 v5.9.0）→ 回函 `BMad-Guide/_ct-workorders/_reply-<日期>-ct-v590-runtime.md` 並傳訊；可選建議「重複 Tower 名稱帶短 ID」見 PLAN-050 後續
+2. 🔴 **PLAN-050 / BUG-155 實機驗收**（第八十二 session 18:01：T0645 驗 Worker 名稱 / `claudeSessionId` / `/clear` / `agent` / `scope: towers` 全 PASS，BUG-155 CLOSED；**只剩「以塔台開啟 Claude」的 `· Tower` 名稱**，補驗後 PLAN-050 → DONE）：ListAgents 看到 `better-agent-terminal · Tower` 與 `… · Worker · T####`；Worker `bat_whoami` 有 `agent`（claude / codex）、`claudeSessionName`、`claudeSessionId`；`bat_list_terminals scope=towers`；`/clear` 後 sessionId 換新（T0642 只以模擬 hook 驗證）；通過後 PLAN-050 → DONE、BUG-155 → CLOSED
+3. 🔴 **CT-T021 實機驗收**（第八十二 session：情境 2 / 3 / 4 PASS，回函 `_reply-2026-10-18-ct-v590-runtime.md`，對方 D071；**只剩情境 1**，與待辦 2 同一次補驗後通知 `BMad-Guide · Tower`／ListAgents 對方塔台）：CT **v5.9.0** 已發版並安裝（17:5x，BMad-Guide 回覆稿 `_reply-2026-10-18-ct-v590-session-identity.md`）→ 與待辦 2 一起代跑回覆稿 § 5 四個情境（BMad-Guide 塔台需先重開載入 v5.9.0）→ 回函 `BMad-Guide/_ct-workorders/_reply-<日期>-ct-v590-runtime.md` 並傳訊；可選建議「重複 Tower 名稱帶短 ID」見 PLAN-050 後續
 4. 🟡 **PLAN-049 後續**：W2c `/remote/` → W3 截圖 / 短片 / README 換圖 → W4 OG / sitemap / lychee（README 版本對照每加一列，`/cases` 的「12 項」要同步）
 5. 🟢 PLAN-051（跨塔台傳訊，IDEA）待評估；BUG-136 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗；前期驗收（Gary BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
 
@@ -114,7 +114,7 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 20 / Closed 19）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 19 / Closed 20）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D168）｜ Learnings → [_learnings.md](_learnings.md)（最大 L167）
 - PLAN-050 契約總表 → [T0643](T0643-list-towers-scope.md) 回報區｜ 網站 → https://gowerlin.github.io/better-agent-terminal/
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（97 entries）
@@ -135,7 +135,7 @@
 | **前一 tag** | `v0.7.0-pre.9`（2026-10-18 15:16，`c0f4dcae`） |
 | **目前主軸** | `v0.7.1-pre.1` 已發佈（第八十一 session）；待使用者安裝 → PLAN-050 / BUG-155 實機驗收；CT-T021 等 CT v5.9.0；PLAN-049 後續 W2c / W3 / W4 |
 | **工單最大編號** | **T0644** DONE（第八十一 session：T0637 codex 探針、T0638 `/cases`、T0639 BUG-155、T0640 研究、T0641–T0644 PLAN-050，全 DONE / FIXED）；更早見 `_archive/state-snapshots/` |
-| **BUG 最大編號** | **BUG-155** FIXED（T0639 `149f6f8d`，隨 `v0.7.1-pre.1`，實機待驗）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 20 / Closed 19 |
+| **BUG 最大編號** | **BUG-155** CLOSED（T0639 `149f6f8d`；2026-10-18 18:01 T0645 實機 PASS 後使用者同意結案）；熱區 Open 1（BUG-136）/ Fixing 0 / Fixed 20 / Closed 19 |
 | **PLAN 最大編號** | **PLAN-051**（IDEA：跨塔台傳訊）；PLAN-050 IN_PROGRESS（實作完、隨 `v0.7.1-pre.1`，待實機與 CT-T021）；PLAN-049 IN_PROGRESS（網站，W2c / W3 / W4 待做）；PLAN-047 IN_PROGRESS；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D168**（D167 PLAN-050 方案、D168 版號線 `0.7.1-pre.1`，2026-10-18 第八十一 session）；D161–D166 PLAN-049 網站（第八十 session） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
