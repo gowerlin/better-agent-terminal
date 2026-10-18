@@ -156,7 +156,7 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 
 ## 和 Control Tower 一起用時 {#control-tower}
 
-BAT 提供工單看板、派工用的分頁與查詢介面；流程本身由 Control Tower 決定。每一步怎麼運作，見 [BAT × Control Tower](./control-tower)。 {.ct-lead}
+BAT 提供工單看板、派工用的分頁與查詢介面；流程本身由 Control Tower 決定。每一步怎麼運作，見[與 Control Tower 協作](./control-tower)。 {.ct-lead}
 
 - **指揮塔面板**：側欄列出工單，有看板與 Sprint 總覽；工單狀態改變時會跳出通知。
 - **一鍵執行**：在工單上按「執行」或「補救收尾」，交給 Agent 處理；指令前綴依預設 Agent 自動選 `/` 或 `$`。

@@ -1,5 +1,5 @@
 ---
-title: BAT × Control Tower
+title: 與 Control Tower 協作
 description: Better Agent Terminal 與 BMad Control Tower 一起用時，每一步發生什麼、BAT 提供什麼、你要做什麼。
 ---
 
@@ -68,7 +68,7 @@ const integrationRows = [
 ]
 </script>
 
-# BAT × Control Tower
+# 與 Control Tower 協作
 
 這一頁說明 Better Agent Terminal（BAT）與 BMad Control Tower 一起用時，每一步發生什麼、BAT 提供什麼、你要做什麼。 {.ct-intro}
 
@@ -107,7 +107,7 @@ Control Tower 是一套以檔案驅動的多 Agent 開發流程：一個分頁�
 
 Control Tower 定規則，BAT 提供跑道、無線電和雷達。 {.ct-lead}
 
-<CardTable caption="機場比喻" :columns="['在機場', '在 BAT × Control Tower']" :rows="airportRows" :highlight="[7]" />
+<CardTable caption="機場比喻" :columns="['在機場', '在 BAT 與 Control Tower 協作時']" :rows="airportRows" :highlight="[7]" />
 
 最後一列是塔台最重要的習慣，下一節說明原因。
 

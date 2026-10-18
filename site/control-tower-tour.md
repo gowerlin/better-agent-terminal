@@ -14,7 +14,7 @@ const confidenceRows = [
 
 # Control Tower 功能導覽
 
-[BAT × Control Tower](./control-tower) 講兩邊怎麼一起用；這一頁講 Control Tower 本身：它能做什麼、怎麼運作，以及你每天會怎麼用它。 {.ct-intro}
+[與 Control Tower 協作](./control-tower)講 BAT 和 Control Tower 怎麼一起用；這一頁講 Control Tower 本身：它能做什麼、怎麼運作，以及你每天會怎麼用它。 {.ct-intro}
 
 ::: info Control Tower 目前未公開提供
 這一頁只介紹 Control Tower 的概念與流程。BAT 對外公開的整合介面，見[BAT 提供的整合點](./control-tower#integration)。
@@ -255,7 +255,7 @@ Control Tower 目前未公開提供。BAT 的派工、回報、提問與查詢�
 
 ### 沒有 BAT 能用嗎？
 
-可以。塔台會改用其他終端機開新分頁，或告訴你要在哪裡貼什麼指令；Worker 做完，你再把結果帶回塔台。BAT 把開分頁、通知、提問、狀態查詢與回收都接了起來，見[BAT × Control Tower](./control-tower)。
+可以。塔台會改用其他終端機開新分頁，或告訴你要在哪裡貼什麼指令；Worker 做完，你再把結果帶回塔台。BAT 把開分頁、通知、提問、狀態查詢與回收都接了起來，見[與 Control Tower 協作](./control-tower)。
 
 ### 搭配的工具更新了，要跟著改什麼嗎？
 

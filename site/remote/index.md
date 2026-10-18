@@ -101,7 +101,7 @@ claude、codex、uv、git、gh、rg 與 Node.js 缺的話，可以按「安裝�
 
 ## 在遠端用塔台與 Worker {#tower}
 
-遠端視窗裡的塔台與 Worker，用的是和本機同一套派工、回報、提問與權限，見 [BAT × Control Tower：支援的 Agent 與遠端](../control-tower#agents)。
+遠端視窗裡的塔台與 Worker，用的是和本機同一套派工、回報、提問與權限，見[與 Control Tower 協作：支援的 Agent 與遠端](../control-tower#agents)。
 
 - 每個遠端分頁拿到自己的專屬權杖，只能做它的角色允許的事；遠端伺服器自己的權杖不會交給任何分頁。
 - 遠端那一側也要能執行 Control Tower。

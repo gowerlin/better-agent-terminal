@@ -75,7 +75,7 @@ export default async () => {
         { text: '功能', link: '/features' },
         { text: '遠端開發', link: '/remote/' },
         {
-          text: 'BAT × Control Tower',
+          text: '與 Control Tower 協作',
           items: [
             { text: '分工與流程', link: '/control-tower' },
             { text: 'Control Tower 功能導覽', link: '/control-tower-tour' }
@@ -111,7 +111,7 @@ export default async () => {
           ]
         },
         {
-          text: 'BAT × Control Tower',
+          text: '與 Control Tower 協作',
           items: [
             { text: '分工與流程', link: '/control-tower' },
             { text: 'Control Tower 功能導覽', link: '/control-tower-tour' },
