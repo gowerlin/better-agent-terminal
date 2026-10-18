@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 19:30 (UTC+8) — BUG-162 FIXING（T0657）；BUG-156–160 FIXED；BUG-161 OPEN
+> 最後同步：2026-10-18 19:47 (UTC+8) — BUG-162 / 163 FIXING（T0657 / T0658）；BUG-156–160 FIXED；BUG-161 OPEN
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 47**
+- 🔴 Open: 2 | ⏳ Fixing: 2 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
@@ -39,6 +39,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-163 | 設定精靈選項按鈕用 Tailwind class 但 App 沒載入 Tailwind，顯示成白底原生按鈕；步驟說明過時（T0658） | 🟡 medium | — | [BUG-163](BUG-163-wizard-choice-buttons-unstyled-and-stale-step-text.md) |
 | BUG-162 | claude Worker 的 Bash 權限請求被放行後（未經鍵盤），仍維持 `blocked` / `permission`（縮圖 ⚠️）直到 `Stop`（T0657） | 🟡 medium | — | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
 
 ## ✅ 已修復

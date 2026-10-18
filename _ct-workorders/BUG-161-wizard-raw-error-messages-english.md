@@ -30,7 +30,8 @@ links:
 3. 縮圖列「+」選單的 `suggested`（`ThumbnailBar.tsx` 3 處）：配置面板的同款標籤已改走 i18n，兩處現在不一致。
 4. 各 modal 的 `&times;` 關閉鈕沒有 `aria-label`（無障礙）。
 5. `SetupWizardShell` 不顯示選項的 `description`（Docker 選項說明已翻譯但畫面看不到）。
-6. `SshDetails.tsx` / `WslDetails.tsx` 的技術值（`systemd (user)`、`launchd`、`tunnel → localhost:<port>`、`default`）未譯，屬可接受。
+6. （T0656 補）縮圖右鍵選單的「Set as Supervisor」在 zh-TW 介面仍是英文（`e2e-media/worker-badges.png` 可見）。
+7. `SshDetails.tsx` / `WslDetails.tsx` 的技術值（`systemd (user)`、`launchd`、`tunnel → localhost:<port>`、`default`）未譯，屬可接受。
 
 ## 修正方向
 
