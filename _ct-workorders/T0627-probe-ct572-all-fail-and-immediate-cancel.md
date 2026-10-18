@@ -4,7 +4,10 @@ schema_kind: workorder
 id: T0627
 title: "探針：CT v5.7.2 全部 `--ask` 失敗（F-1 ③）＋單題 `--ask` 後立刻取消（F-1 ④ a）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
+started_at: "2026-10-18T12:48:36+08:00"
+updated_at: "2026-10-18T12:48:36+08:00"
+tower_question: open
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
@@ -71,4 +74,18 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：探針 Q-1（全部失敗 1）
+- 提問時間：2026-10-18T12:48:36+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是刻意安排的受測提問，收到即代表工單通道可用
+- 影響範圍：本工單 Step 1（階段 A）與驗收證據
+- 阻塞：是（Step 2 起要等答覆）
+
+#### Q-2：探針 Q-2（全部失敗 2）
+- 提問時間：2026-10-18T12:48:36+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是刻意安排的受測提問，收到即代表工單通道可用
+- 影響範圍：本工單 Step 1（階段 A）與驗收證據
+- 阻塞：是（Step 2 起要等答覆）
