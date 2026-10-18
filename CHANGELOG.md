@@ -4,6 +4,29 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0-pre.9] — 2026-10-18
+
+### Added
+- **Codex CLI 分頁的「在等你」與「已啟動」**：Codex CLI `>= 0.163.0` 在 PTY 送 OSC 7501 回報狀態，BAT 只讀、不改輸出，新增 `blockedDetection: osc` 與 `blockedReason: input`（使用者輸入不清除，Codex 自己送轉換才清除）；Worker 縮圖顯示 ⚠️、不計入批次關閉；`--wait-started` / `agentStarted` 對 Codex 生效（派工前以 `codex --version` 判斷，確認不到 → `unknown`，絕不回 `unconfirmed`）；BAT 重開時由 replay 補回最後狀態（PLAN-047 M1b-2，D158，T0619 / T0621 / T0623）
+- **專案網站**：GitHub Pages <https://gowerlin.github.io/better-agent-terminal/>（VitePress 於 `site/`、`.github/workflows/pages.yml`）：故事化首頁、BAT × Control Tower 協作頁、Control Tower 功能導覽、功能、常見問題、回報與協助測試、安裝、版本對照、更版紀錄（PLAN-049，D159–D166，T0622 / T0624 / T0630–T0636）
+
+### Fixed
+- **Claude CLI 分頁回答 MCP 表單後 `blocked`（`elicitation`）沒有清除**：新增 `ElicitationResult` 與 `Notification(elicitation_response)` hook → `elicitation-done`，只清 `elicitation`，涵蓋回答、取消與請求逾時（PLAN-047，T0620）
+
+### Changed
+- 塔台派出的 Codex Worker 命令加 `-c check_for_update_on_startup=false`，避免更新提示擋住 Worker（自訂參數已設定時不加；手動開的分頁不加）（T0621）
+- Control Tower v5.8.0 支援 Codex 的 `osc` / `input`（斷點 D）與 Worker 啟動確認；BAT 最低版本 `0.7.0-pre.9`（CT-T020）
+- README「下載最新版本」改連網站下載區（GitHub `releases/latest` 常落在 `server-bundle-v*`）
+
+### Call for testing
+Codex CLI 0.163.0 以上的使用者：在 Codex 分頁以 `bat_whoami` / `bat_get_state` 確認 `blockedDetection: osc`；停在核准提示時確認縮圖 ⚠️ 與 `blocked` / `input`，核准後清除；搭配 Control Tower v5.8.0 派 Codex Worker（`--agent codex --wait-started 30000`）確認 `started: <時間>`，完成後通知回到塔台、分頁被回收；到 GitHub Issues 回報 BAT / Codex 版本、作業系統與安裝方式。
+
+### Known issues
+- Codex 版本以 BAT 主程序的 PATH 判斷：Windows 上 PATH 第一個 codex 是 npm shim（`codex.cmd`）時判斷不到（`unknown`，行為同前）；分頁實際執行較舊的 codex 時可能回報 `unconfirmed`
+- Codex 的 `input` 不分種類（核准 / 提問）；未信任的 git repo 會停在「Trust this folder?」→ `unconfirmed`
+- 需搭配本版內附 helper；遠端視窗需升級遠端 server
+- macOS / Linux 版本未實機驗證
+
 ## [0.7.0-pre.8] — 2026-10-18
 
 ### Fixed

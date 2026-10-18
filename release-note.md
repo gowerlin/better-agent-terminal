@@ -2,6 +2,46 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.9（2026-10-18）
+
+版號 0.7.0-pre.9，接續 `v0.7.0-pre.8`。
+
+### 新增
+
+- **Codex CLI 分頁也看得出「在等你」與「已啟動」**：Codex CLI 0.163.0 以上會自己回報狀態，BAT 據此判斷 Codex 分頁是否停在核准提示或提問等你回答，Worker 縮圖顯示 ⚠️（不算進「關閉已回報的 Worker 分頁」），`bat_get_state` 回報 `blocked` / `input`（`blockedDetection: osc`）。塔台派工時帶 `--wait-started`，也能確認 Codex Worker 真的啟動了。BAT 重開時，Codex 分頁最後的狀態會從保留的輸出補回（PLAN-047）
+- **專案網站上線**：<https://gowerlin.github.io/better-agent-terminal/>——用一個早上的故事說明 BAT 與 Control Tower 一起用能解決哪些卡關時刻，另有功能介紹、Control Tower 功能導覽、安裝、常見問題與回報方式（PLAN-049）
+
+### 修正
+
+- **Claude CLI 分頁回答 MCP 表單後，「等人回答」狀態沒有清除**：MCP 伺服器跳出的表單在你回答、取消或請求逾時後，現在會立即清除 `blocked`（`elicitation`），不再停留到該回合結束（PLAN-047）
+
+### 更新
+
+- BAT 派出的 Codex Worker 啟動時不再跳出更新提示，避免 Worker 卡在提示畫面（只對塔台派出的 Worker、只影響該次啟動；你的自訂參數已設定這一項時以你的為準）
+- Control Tower v5.8.0 已支援 Codex 的「在等你」告知與 Worker 啟動確認；需要 BAT `0.7.0-pre.9` 以上
+
+### 歡迎協助測試
+
+如果你平常使用 **Codex CLI 0.163.0 以上**，歡迎幫忙跑一次：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `agent` 是 Codex；再呼叫 `bat_get_state`，看 `blockedDetection` 是否變成 `osc`
+2. 讓 Codex 停在需要你核准的提示，確認縮圖顯示 ⚠️、`bat_get_state` 回報 `blocked` / `input`；核准後 ⚠️ 消失
+3. 如果你也在用 Control Tower（v5.8.0）：由塔台派一張小工單給 Codex Worker（`--agent codex --wait-started 30000`），確認塔台收到 `started: <時間>`；Worker 完成後，確認通知回到塔台、分頁被回收
+
+不論成功或失敗，都歡迎到 [GitHub Issues](https://github.com/gowerlin/better-agent-terminal/issues) 回報，請附上 BAT 版本、Codex 版本（`codex --version`）、作業系統與安裝方式（npm / 官方 installer）。
+
+### 已知事項
+
+- Codex 的狀態判斷需要 Codex CLI 0.163.0 以上。BAT 以自己的 PATH 判斷版本：Windows 上若 PATH 裡第一個 codex 是 npm 安裝的 `codex.cmd`，判斷不到版本，派工的啟動確認回報 `unknown`，行為與先前相同；若分頁實際執行的 codex 比 BAT 判斷的舊，啟動確認可能回報 `unconfirmed`（分頁不會被關閉）
+- Codex 的「在等你」不分種類（核准、提問都顯示為 `input`）；你在 Codex 分頁打字不會清除 ⚠️，要等 Codex 自己回報狀態改變
+- 未信任的 git repo 會讓 Codex 停在「Trust this folder?」畫面，啟動確認回報 `unconfirmed`；先在該目錄手動開一次 Codex 並信任即可
+- 需搭配本版內附的 helper；WSL / SSH / Docker 遠端視窗需把遠端 server 升級到本版
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.0-pre.8...v0.7.0-pre.9
+
 ## v0.7.0-pre.8（2026-10-18）
 
 版號 0.7.0-pre.8，接續 `v0.7.0-pre.7`。

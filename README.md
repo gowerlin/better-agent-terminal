@@ -14,7 +14,7 @@
 
 在同一個視窗中管理多個專案終端機，內建支援 **Claude Code、Gemini CLI、GitHub Copilot CLI、Codex CLI** 及任意自訂 CLI 代理。附帶檔案瀏覽器、Git 檢視器、Snippet 管理器、遠端存取，以及可協調多個 AI Agent 的 **Supervisor 模式**。
 
-[專案網站](https://gowerlin.github.io/better-agent-terminal/) · [下載最新版本](https://github.com/gowerlin/better-agent-terminal/releases/latest)
+[專案網站](https://gowerlin.github.io/better-agent-terminal/) · [下載最新版本](https://gowerlin.github.io/better-agent-terminal/#download)
 
 </div>
 
@@ -142,9 +142,9 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 每分頁權限 | 每個分頁的 `BAT_REMOTE_TOKEN` 是專屬 `batcap.` 權杖：塔台可派工 / 回收自己的 Worker，Worker 只能回報給自己的塔台 | 塔台須在一般分頁（不是 Worker 分頁）啟動 |
 | worktree 隔離與合併前檢查 | `--isolation worktree`、`CT_HOME` 等環境變數、`--worktree-status`（Worker 分頁關閉後仍可查，回傳 `source`） | 工單 `isolation: worktree`；合併工單與塔台直接合併判準 |
 | 唯讀查詢（MCP） | BAT 啟動的 claude / codex 分頁掛上 `mcp__bat__*` | 選用通道（MCP → helper → 檔案） |
-| 等人回答偵測 | Claude CLI 分頁停在權限確認 / 提問 / MCP 表單時，`bat_get_state` 等回 `blocked`（`blockedReason`、`blockedDetection`） | 斷點 D：告知使用者 Worker 在等人 |
+| 等人回答偵測 | Claude CLI 分頁停在權限確認 / 提問 / MCP 表單時（hook），或 Codex CLI 0.163.0 以上停在核准 / 提問時（Codex 自己回報的 OSC 7501，`blockedDetection: osc`、`blockedReason: input`），`bat_get_state` 等回 `blocked`（`blockedReason`、`blockedDetection`） | 斷點 D：告知使用者 Worker 在等人 |
 | Worker 問塔台 | Worker `bat-notify.mjs --ask`（內容走 stdin）+ 唯讀 MCP `bat_wait_question`；塔台唯讀 MCP `bat_list_questions` + `bat-terminal.mjs --answer`；等答覆時 `blocked` / `tower`、`pendingQuestions`；問答只存在 BAT 記憶體 | yolo Worker 向塔台提問、塔台代決（取代工單檔往返） |
-| Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者 / `?` 等塔台答覆 / `✓` 已回報；只有 `✓` 計入「關閉已回報的 Worker 分頁」 | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
+| Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者（Claude CLI 的 hook 與 Codex 的 `input`）/ `?` 等塔台答覆 / `✓` 已回報；只有 `✓` 計入「關閉已回報的 Worker 分頁」 | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
 | 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
 | 工單看板 | 側欄塔台面板：看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/` |
 | 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
@@ -165,10 +165,11 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | worktree 隔離派工、合併工單 | `>= 0.7.0-pre.2` | `>= v5.3.0`（選用） |
 | 唯讀查詢（MCP，`mcp__bat__*`） | `>= 0.7.0-pre.2`（Codex 分頁 `>= 0.7.0-pre.3`） | 不需要（CT `>= v5.3.0` 列為選用通道） |
 | Worker 分頁關閉後查 worktree 狀態（`source`） | `>= 0.7.0-pre.4` | `>= v5.4.0`（舊 CT 照舊以 git 重算） |
-| 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4`（AskUserQuestion 回報 `question`：`>= 0.7.0-pre.5`） | `>= v5.5.0`（斷點 D） |
+| 等人回答偵測（`blocked`，Claude CLI 分頁） | `>= 0.7.0-pre.4`（AskUserQuestion 回報 `question`：`>= 0.7.0-pre.5`；MCP 表單回答後清除：`>= 0.7.0-pre.9`） | `>= v5.5.0`（斷點 D） |
 | Worker 啟動確認（`--wait-started`、`agentStarted`，Claude CLI 分頁） | `>= 0.7.0-pre.6` | `>= v5.6.0`（舊 CT 不帶參數，照舊） |
+| Codex CLI 分頁的等人回答偵測與啟動確認（`blockedDetection: osc`、`blockedReason: input`；需 codex `>= 0.163.0`） | `>= 0.7.0-pre.9` | `>= v5.8.0`（舊 CT 對 Codex 照舊視為無法判斷） |
 | Worker 問塔台（`--ask` / `--answer`、`bat_list_questions` / `bat_wait_question`、`blocked` / `tower`） | `>= 0.7.0-pre.7` | `>= v5.7.0`（舊 CT 照舊在工單裡往返） |
-| Worker 縮圖 ⚠️ / `?` / `✓` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`） | 不需要 |
+| Worker 縮圖 ⚠️ / `?` / `✓` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`） | 不需要 |
 
 <!-- #endregion compatibility -->
 
@@ -178,7 +179,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 
 ### 方式一：直接下載
 
-從 [Releases](https://github.com/gowerlin/better-agent-terminal/releases/latest) 下載對應平台安裝包：
+從[網站下載區](https://gowerlin.github.io/better-agent-terminal/#download)（自動指向最新版）或 [Releases](https://github.com/gowerlin/better-agent-terminal/releases) 下載對應平台安裝包：
 
 | 平台 | 檔案格式 |
 |------|---------|
