@@ -3,8 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-155
 title: "helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 BUG-084 的 `DISABLE_UPDATES` 防護"
-status: FIXING
-fixing_by: T0639
+status: FIXED
+fixed_at: "2026-10-18T15:49:52+0800"
+fixed_by: T0639
+fix_commit: "149f6f8d"
 severity: low
 reproducibility: always
 created_at: "2026-10-18T15:36:22+0800"
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（`whoami.agent` 依契約是選填，CT 不依賴它；update guard 只差 `DISABLE_UPDATES`，背景自動更新仍由全域 `DISABLE_AUTOUPDATER` 擋住） |
 | 可重現 | 必現（所有經 `bat-terminal.mjs --skill … --workorder …` 派出的 Worker，claude 與 codex 皆是） |
-| **狀態** | 🔧 FIXING（T0639，2026-10-18 15:40 派工） |
+| **狀態** | ✅ FIXED（T0639 `149f6f8d`；source / test 層：typecheck 0 / 0、unit 5303 / 304、vite build；實機待下一版安裝版 `bat_whoami`） |
 
 ## 現象（T0637，`v0.7.0-pre.9` 安裝版）
 
