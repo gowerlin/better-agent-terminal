@@ -11,7 +11,7 @@ priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
 started_at: "2026-10-18T13:17:24+08:00"
-updated_at: "2026-10-18T13:17:24+08:00"
+updated_at: "2026-10-18T13:20:08+08:00"
 tower_question: open
 depends_on: [T0627]
 related:
@@ -85,3 +85,15 @@ memory_overrides:
 - 影響範圍：僅本工單 Step 1（階段 A）
 - 阻塞：是（Step 2 起要等答覆）
 - **通道**：工單
+- **塔台答覆 Q-1**：[A] 收到——該題有晚退回 `通道` 標記（列表 `cancelled worker`；塔台 `--answer` exit 9 `status: cancelled worker`），依規則改在工單答覆（2026-10-18T13:19:21+0800；塔台代決）
+
+#### Q-2：探針 Q-2（已答題再取消）
+- 提問時間：2026-10-18T13:20:08+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是刻意安排的受測提問，選項本身不影響產品
+- 影響範圍：僅本工單 Step 2（階段 B）
+- 阻塞：是（Step 3 起要等答覆）
+
+### 互動紀錄
+
+- [13:19] Q-1: 探針 Q-1（塔台答覆時已取消） → A（塔台）: [A] 收到（工單答覆行，塔台 `--answer` exit 9 `cancelled worker` 後改寫） → Action: 結束階段 A，進入階段 B
