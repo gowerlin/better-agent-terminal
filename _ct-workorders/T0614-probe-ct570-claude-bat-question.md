@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0614
 title: "探針：CT v5.7.0 × 0.7.0-pre.8 claude Worker 經 BAT 通道問塔台（主流程 + BUG-154 目視）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:00:19+0800"
+started_at: "2026-10-18T11:01:37+0800"
+updated_at: "2026-10-18T11:01:37+0800"
 depends_on: [T0613]
 related:
   - "PLAN-048（Worker 問塔台）；CT-T019（BMad-Guide CT v5.7.0）—— 本單是 CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收的第 1 張（T0614–T0618，2026-10-18 與 BMad-Guide 塔台協商）"
@@ -20,6 +22,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -84,4 +87,11 @@ Worker 建議由你自己寫。收到答覆後：
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：本次實機驗收紀錄要寫在 `docs/agent-guide/tower-questions.md` 的哪個位置？
+- 提問時間：2026-10-18T11:01:46+0800
+- 選項：[A] 在 `## 驗證清單` 節末尾新增一條 `- 實機（CT v5.7.0 × 安裝版 0.7.0-pre.8，2026-10-18）：…` 項目 / [B] 在 `## 驗證清單` 之後新增 `## 實機驗收紀錄` 節，以表格記錄 / [C] 其他：________
+- Worker 建議：[A]，因為 `## 驗證清單` 現有內容全是條列項目（單元測試、e2e、回歸），實機驗收也是驗證證據的一種，接在同節最後最一致；T0615 只需在同一條下補 codex 一句或再加一條，不必另開新節與表頭；[B] 的表格在只有 claude / codex 兩列時效益有限，且多一個 `##` 標題要維護。
+- 影響範圍：`docs/agent-guide/tower-questions.md`（Step 3 寫入位置與格式）；T0615 的補寫位置
+- 阻塞：是（Step 3 起要等答覆）
