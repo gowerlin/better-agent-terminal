@@ -1452,6 +1452,14 @@
 - **不採用**：「最近沒打字才切焦點」（規則複雜、行為難預測）；Settings 開關（多一個設定項）；只揭露狀態不加 helper 參數。
 - **相關**：BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017
 
+### D158 2026-10-18 — PLAN-047 M1b-2：codex 以 OSC 7501 回報 `blocked` 與啟動；新增 `blockedDetection: osc`、`blockedReason: input`
+
+- **背景**：T0619 研究（0 次模型呼叫，假 Responses API 驅動真 codex 0.163.0 TUI）發現 codex `>= 0.163.0` 自己在 PTY 送 `ESC ] 7501 ; state=idle|working|blocked`（結束 `clear`），不需設定、與焦點無關；TUI 就緒約 0.5 s 送第一個值，卡在啟動前畫面（信任目錄 / hooks review）不送。T0574 建議的 OSC 9 只在失焦時送、無清除信號，不採用；codex hooks 注入會觸發信任畫面擋住 `--yolo`，列備案。BAT 派出的 codex Worker 帶 `--yolo`，回合中幾乎不停，價值主要在啟動信號。
+- **決定**（使用者 2026-10-18 選 [A]，T0619 建議 6 點全採用）：① `blockedDetection` 新增 `osc`（觀察式，看到 7501 即設）；② `blockedReason` 新增 `input`（7501 不分 reason），使用者輸入不清除；③ codex `agentStarted` = 第一個 7501，`--wait-started` 對 codex 生效；④ 派工前 `codex --version`（`execFile` + 5 s timeout + 快取），確認不到 → `none` / `unknown`，絕不 `unconfirmed`；⑤ 派工的 codex Worker 加 `-c check_for_update_on_startup=false`；⑥ BAT 重開時掃 replay 內容補回最後狀態。
+- **派工**：T0621（L，非隔離，契約 C-1–C-8）；DONE 後開 CT-T020（斷點 D 接受 `osc` / `input`、`started: unknown` 說明更新，CT MINOR）。
+- **不採用**：OSC 9（`-c tui.*` 覆寫使用者設定、無清除）；`-c notify`（會取代使用者 notify）；codex hooks + 預給信任雜湊（未公開格式）。
+- **相關**：PLAN-047 / T0619 / T0621 / T0590 / T0600 / T0607 / D153
+
 ### D157 2026-10-18 — CT v5.7.0 × BAT 0.7.0-pre.8 實機驗收由 BAT 塔台統一執行（5 張探針），結果以回函交 BMad-Guide
 
 - **背景**：BMad-Guide 也已換上 CT v5.7.0，使用者要求協商由哪一邊統一驗收（第七十九 session 10:55）。
