@@ -11,6 +11,9 @@
  *   any other report (完成 / BLOCKED / 需要協助 …)    renderer: `workerReport`        ✓   (counted by batch close)
  *
  * Precedence: waits for the user > waits for the Tower > reported (`workerAttention`).
+ * T0613 (BUG-154): the notify of `bat-notify --ask` (it carries `questionId`) is no report: it
+ * clears the tab's `workerReport` / `workerQuestion`, so once the question ends the tab shows
+ * nothing (still working) until the Worker notifies again (`workerNotifyKind`).
  * 🔴 The payload carries state fields only — never a question, an option or an answer (D155).
  */
 
@@ -50,6 +53,19 @@ export function isHookReason(reason: unknown): reason is AttentionHookReason {
  */
 export function isQuestionNotifyMessage(message: unknown): boolean {
   return typeof message === 'string' && /提問\s*$/.test(message)
+}
+
+/**
+ * What a Worker's `terminal:notified` says about its tab (`markWorkerReported`):
+ *   - `ask`      T0613: it carries `questionId` (`bat-notify --ask`) — main's attention shows the
+ *                question; the tab keeps neither a report nor the old CT fallback
+ *   - `question` T0609: old CT `T#### 提問` without `--ask` — `workerQuestion` until the next notify
+ *   - `report`   anything else — `workerReport` (✓)
+ * An older helper sends no `questionId`: its `--ask` notify is read by its message as before.
+ */
+export function workerNotifyKind(info: { message?: unknown; questionId?: unknown }): 'ask' | 'question' | 'report' {
+  if (typeof info.questionId === 'string' && info.questionId !== '') return 'ask'
+  return isQuestionNotifyMessage(info.message) ? 'question' : 'report'
 }
 
 export type WorkerAttention =

@@ -103,7 +103,7 @@ interface ElectronAPI {
     onOutput: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
     onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean; dispatchedByHelper?: boolean }) => void) => () => void
-    onTerminalNotified: (callback: (info: { targetId: string; message: string; source?: string }) => void) => () => void
+    onTerminalNotified: (callback: (info: { targetId: string; message: string; source?: string; questionId?: string }) => void) => () => void
     onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => () => void
     /** PLAN-041 / T0535: `terminal:close-requested` — main asks the window holding tab `id` to close it. */
     onCloseRequested: (callback: (info: { id: string }) => void) => () => void

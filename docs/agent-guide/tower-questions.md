@@ -115,7 +115,7 @@
 ```
 
 - stdin JSON：`{ "question", "options"?, "allowFreeText"?, "detail"?, "blocking"?, "expiresInMs"? }`，只轉送這些鍵（其他鍵丟掉）；`--expires-min n` → `expiresInMs = n × 60 000`（優先於 JSON）。helper 只檢查「是物件、`question` 是非空字串」，其餘由 BAT 驗證（`INVALID_ARGS`）。
-- 流程：`question:ask` → `terminal:notify` → `pty:write`（預填）→ `--submit` 時 `terminal:keypress`。三步任一失敗（含逾時、`--ask` 下 `terminal:notify` 錯誤也算失敗，與一般 notify 只警告不同）→ `question:cancel { questionId }` → exit 1（stderr `ask: NOTIFY_FAILED`；取消也失敗時印出到期時間）。
+- 流程：`question:ask` → `terminal:notify`（T0613 起多帶選用欄位 `questionId`，只有 id、不含問題文字）→ `pty:write`（預填）→ `--submit` 時 `terminal:keypress`。三步任一失敗（含逾時、`--ask` 下 `terminal:notify` 錯誤也算失敗，與一般 notify 只警告不同）→ `question:cancel { questionId }` → exit 1（stderr `ask: NOTIFY_FAILED`；取消也失敗時印出到期時間）。
 - stdout（成功）：
 
   ```text
@@ -127,7 +127,9 @@
 
 - exit：`0` / `3` NOT_FOUND / `10` TOO_MANY_QUESTIONS / `1`（`USAGE`、`INVALID_INPUT`、`NOT_IN_BAT`、`CONNECT_FAILED`、`AUTH_FAILED`、`TIMEOUT`、`UNSUPPORTED`、`FORBIDDEN`、`INVALID_ARGS`、`NOTIFY_FAILED`）。
 - 已知限制：`question:ask` 逾時（3 s 沒有回應）時 helper 不知道 id、無法取消；BAT 若已登記，該題由租約（blocking 120 s）或 `expiresAt` 結束。
-- 徽章：通知訊息照 CT 慣例是 `T#### 提問`（renderer 也據此記 `workerQuestion`，舊 CT 的 `?`）；結構化問題的 `?` 來自主行程的 `terminal:attention-changed`，與訊息文字無關（T0609、`e2e/t0611-tower-question.spec.ts` 以不以 `提問` 結尾的訊息驗證）。
+- 徽章：結構化問題的 `?` 來自主行程的 `terminal:attention-changed`，與訊息文字無關（T0609、`e2e/t0611-tower-question.spec.ts` 以不以 `提問` 結尾的訊息驗證）。
+- `--ask` 的通知不算回報（T0613 / BUG-154）：通知帶 `questionId` → 主行程 `terminal:notify` handler（`electron/handlers/terminal.ts`，本機與 headless 共用）只在符合 `QUESTION_ID_PATTERN` 時轉送到 `terminal:notified` → renderer `markWorkerReported`（`workerNotifyKind` = `ask`）移除該分頁的 `workerReport` 與 `workerQuestion`、不記新值。所以問題 pending 時是 `?`，問題結束（answered / cancelled / expired / lost）後**無標示**、不計入批次關閉，直到 Worker 下一次一般通知才是 `✓`；提問前已是 `✓` 也一樣回到無標示（提問代表 Worker 仍在工作）。修正前 renderer 只看訊息：不以 `提問` 結尾 → `workerReport`，答覆後殘留 `✓` 並被算進 N（T0612 實測）；以 `提問` 結尾 → `workerQuestion`，答覆後殘留 `?`。
+  - 相容：舊 helper（不帶 `questionId`）/ 舊遠端 server bundle → 照訊息判斷（修正前的行為）；新 helper 對舊 BAT → 舊 handler 忽略多出的欄位。不帶 `--ask` 的舊 CT `T#### 提問` 不變（`workerQuestion`，`?` 維持到下一次通知）。遠端視窗：事件經 `PROXIED_EVENTS` 原樣轉送，判斷同在 renderer。
 
 ### Worker 等答覆 `--wait-answer`（備援；主路徑 MCP `bat_wait_question`）
 
@@ -193,8 +195,8 @@
 - 清單類守門：`helper-capability.test.ts`（19 個 channel）、`terminal-blocked-state.test.ts`（19 個、`pendingQuestions: 0`）、`terminal-query-handlers.test.ts`（list 列的 `pendingQuestions`）、`proxied-channels-binding.test.ts` REGISTRY_ONLY、`headless-parity.test.ts` HELPER_ONLY。
 - helper / MCP（T0608）：`scripts/__tests__/bat-notify-questions.test.mjs`、`scripts/__tests__/bat-terminal-answer.test.mjs`（假 RemoteServer `_question-mock-remote.mjs`，持續廣播 + 錯 id 的回應，`BAT_HELPER_LOG_DIR` / `BAT_USER_DATA` 指 temp；`--cancel-question` 的 `lost` 用真主行程的回傳形狀 `{ ok: true, status: 'lost' }`，T0611）、`scripts/__tests__/bat-mcp.test.mjs`（八個 tool、全唯讀、沒有寫入 channel、摘要、instructions）。
 - e2e `e2e/t0611-tower-question.spec.ts`（T0611；隔離實例，需先 `npx vite build`；塔台是 shell 分頁、Worker 是自訂 CLI，兩者都在分頁內以 node runner 用自己的權杖執行 helper 與 `bat-mcp.mjs` stdio，不啟動 claude / codex；約 35 s）：
-  1. Worker `bat-notify --ask`（stdin JSON，`detail` 含 `batcap.` 樣式字串）→ 塔台 MCP `bat_list_questions` 看到題目、選項、`detail` 已遮罩（`[REDACTED:batcap]`）；`bat_get_state` Worker = `blocked` / `tower` / `source: question` / `pendingQuestions: 1`；Worker 縮圖 `.worker-badge` = `?`、`data-attention="question"`，塔台「關閉已回報的 Worker 分頁（N）」N = 0（通知訊息刻意不以 `提問` 結尾：單靠它會是 ✓，所以 `?` 與 N = 0 只來自結構化問題）。
-  2. Worker MCP `bat_wait_question` 先等（2 s 內不返回）→ 塔台 `bat-terminal --answer --choice 1`（stdin）→ Worker 收到 `answered` / choice / 全文、`waitedMs` > 1 s；Worker `bat_get_state` 不是 `blocked`、`pendingQuestions: 0`；縮圖回 ✓、N = 1。
+  1. Worker `bat-notify --ask`（stdin JSON，`detail` 含 `batcap.` 樣式字串）→ 塔台 MCP `bat_list_questions` 看到題目、選項、`detail` 已遮罩（`[REDACTED:batcap]`）；`bat_get_state` Worker = `blocked` / `tower` / `source: question` / `pendingQuestions: 1`；Worker 縮圖 `.worker-badge` = `?`、`data-attention="question"`，塔台「關閉已回報的 Worker 分頁（N）」N = 0（通知訊息刻意不以 `提問` 結尾：T0613 前單靠它會是 ✓，所以 `?` 與 N = 0 只來自結構化問題）。
+  2. Worker MCP `bat_wait_question` 先等（2 s 內不返回）→ 塔台 `bat-terminal --answer --choice 1`（stdin）→ Worker 收到 `answered` / choice / 全文、`waitedMs` > 1 s；Worker `bat_get_state` 不是 `blocked`、`pendingQuestions: 0`；縮圖**無標示**（沒有 `data-attention`）、N = 0（T0613 / BUG-154）；Worker 再送一般通知 `T0611 完成` → `✓`、N = 1。
   3. 第二題（`T0611 提問`）→ 塔台 `--close-worker` → `bat_list_questions status=all` = 第一題 `answered`、第二題 `cancelled` / `worker-exited`。
   4. 第二個 Worker 提問 → BAT 結束並保留 Terminal Server → 重開、選「保留」：Worker `--cancel-question` exit 0、stdout `✓ Question already ended` + `  status: lost`、stderr 空；`--wait-answer` 與 MCP `bat_wait_question` 回 `lost`；`bat_get_state` `pendingQuestions: 0`；塔台 `--answer` exit 3 `answer: LOST`；`bat_list_questions status=all` 為空。
   5. 兩次啟動的 debug 日誌與 `bat-scripts.log` 都不含問題、選項、`detail`、答案文字與假權杖；debug 日誌有 `[attention] … → blocked reason=tower pendingQuestions=1` / `→ none` 與 `[tower-question] answer q=<id>`。

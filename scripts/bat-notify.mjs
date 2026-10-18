@@ -945,13 +945,14 @@ async function main() {
     ? waitForMessageById(ws, id).catch((err) => ({ error: `no reply (${err?.message || String(err)})` }))
     : waitForMessageById(ws, id)
 
-  // Step 1: UI notification (toast + tab badge)
+  // Step 1: UI notification (toast + tab badge). T0613 (BUG-154): with --ask the notify carries
+  // the question id (never its text) — the Worker tab is not marked reported for it
   const notifyId = makeId()
   ws.send(JSON.stringify({
     type: 'invoke',
     id: notifyId,
     channel: 'terminal:notify',
-    args: [{ targetId: target, message, source }],
+    args: [{ targetId: target, message, source, ...(asked ? { questionId: asked.questionId } : {}) }],
   }))
 
   const notifyResp = await reply(notifyId)

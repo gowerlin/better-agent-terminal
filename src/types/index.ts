@@ -85,7 +85,8 @@ export interface TerminalInstance {
    * T0609 (BUG-153): the Worker's latest notify to its Tower ends with `提問` (old CT: it asks in
    * the work order file and waits) — shown `?`, not counted as reported. Replaced by the next
    * notify (`workerReport`); saved with the tab like `workerReport`. A structured tower question
-   * (main's `terminal:attention-changed`) wins over both (src/lib/terminal-attention.ts).
+   * (main's `terminal:attention-changed`) wins over both (src/lib/terminal-attention.ts); its notify
+   * (`bat-notify --ask`, carries `questionId`) clears both (T0613 / BUG-154).
    */
   workerQuestion?: { message: string; askedAt: number };
   /**

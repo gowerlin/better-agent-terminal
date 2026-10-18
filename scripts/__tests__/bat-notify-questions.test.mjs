@@ -2,7 +2,7 @@
 // PLAN-048 / T0608 (T0606「介面契約」C-5): bat-notify.mjs --ask / --wait-answer / --cancel-question,
 // against a mock RemoteServer that keeps broadcasting (replies matched by frame id, BUG-114):
 //   - --ask: stdin JSON → question:ask (only the known keys, --expires-min → expiresInMs), then
-//     the usual notify (terminal:notify → pty:write → --submit terminal:keypress); stdout
+//     the usual notify (terminal:notify with questionId, T0613 → pty:write → --submit terminal:keypress); stdout
 //     "  question: / expires: / notified: yes"; exit 0 / 3 NOT_FOUND / 10 TOO_MANY_QUESTIONS / 1
 //   - any notify step failing → question:cancel → exit 1, stderr ask: NOTIFY_FAILED
 //   - an older host (No handler / channel-not-allowed) → ask: UNSUPPORTED, exit 1, nothing notified
@@ -37,7 +37,8 @@ describe('bat-notify --ask (T0608)', () => {
       expect(r.code, r.stderr).toBe(0)
       expect(remote.invokes.map(i => i.channel)).toEqual(['question:ask', 'terminal:notify', 'pty:write'])
       expect(remote.invokes[0].args).toEqual([{ ...QUESTION, expiresInMs: 1_800_000 }])
-      expect(remote.invokes[1].args).toEqual([{ targetId: 'tower-1', message: 'T0608 提問', source: 'T0608' }])
+      // T0613 (BUG-154): the notify carries the question id (not its text), so the Worker tab is not marked reported
+      expect(remote.invokes[1].args).toEqual([{ targetId: 'tower-1', message: 'T0608 提問', source: 'T0608', questionId: QID }])
       expect(remote.invokes[2].args).toEqual(['tower-1', 'T0608 提問'])
       const lines = r.stdout.trim().split(/\r?\n/)
       expect(lines).toEqual([
@@ -50,6 +51,18 @@ describe('bat-notify --ask (T0608)', () => {
         result: 'ok', questionId: QID, questionLength: SECRET_Q.length, optionsCount: 2, detailLength: SECRET_DETAIL.length, blocking: true, expiresInMs: 1_800_000,
       })
       expect(helperEvents(remote.dir, 'bat-notify', 'exit').at(-1)).toEqual(expect.objectContaining({ code: 0 }))
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('T0613: a plain notify (no --ask) carries no questionId', async () => {
+    const remote = await startMockRemote({})
+    try {
+      const r = await run(['--source', 'T0613', '--no-pty-write', 'T0613 完成'], remote.env)
+      expect(r.code, r.stderr).toBe(0)
+      expect(remote.invokes.map(i => i.channel)).toEqual(['terminal:notify'])
+      expect(remote.invokes[0].args).toEqual([{ targetId: 'tower-1', message: 'T0613 完成', source: 'T0613' }])
     } finally {
       await remote.close()
     }

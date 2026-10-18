@@ -8,7 +8,7 @@ import { resolveEffectiveAgentArgs, resolveEffectiveDefaultAgent, type Effective
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { externalTerminalTitle, legacyExternalCommand } from '../lib/external-terminal-title'
 import { isDefaultTerminalTitle, towerTerminalTitle, type TerminalRoleChangeInfo } from '../lib/tower-terminal-title'
-import { isQuestionNotifyMessage, workerAttention, type TerminalAttentionEvent } from '../lib/terminal-attention'
+import { workerAttention, workerNotifyKind, type TerminalAttentionEvent } from '../lib/terminal-attention'
 import { settingsStore } from './settings-store'
 import { getTerminalAttention } from './terminal-attention-store'
 
@@ -668,15 +668,19 @@ class WorkspaceStore {
    * nothing is closed. Saves when a tab changed; returns the marked ids.
    * T0609 (BUG-153): a message ending with `提問` (`isQuestionNotifyMessage`, old CT asking its
    * Tower) marks the tab `workerQuestion` instead — not reported; the next notify replaces it.
+   * T0613 (BUG-154): the notify of `bat-notify --ask` (`questionId`) clears both — the question is
+   * main's attention; once it ends the tab is running again, not reported (`workerNotifyKind`).
    */
-  markWorkerReported(info: { targetId: string; source?: string; message: string }): string[] {
+  markWorkerReported(info: { targetId: string; source?: string; message: string; questionId?: string }): string[] {
     const ids = findReportingWorkers(this.state.terminals, info.targetId, info.source)
     if (ids.length === 0) return ids
     const message = String(info.message ?? '').slice(0, WORKER_REPORT_MESSAGE_MAX)
+    const kind = workerNotifyKind({ message, questionId: info.questionId })
     const at = Date.now()
     const mark = (t: TerminalInstance): TerminalInstance => {
       const { workerReport: _report, workerQuestion: _question, ...rest } = t
-      return isQuestionNotifyMessage(message)
+      if (kind === 'ask') return rest
+      return kind === 'question'
         ? { ...rest, workerQuestion: { message, askedAt: at } }
         : { ...rest, workerReport: { message, reportedAt: at } }
     }

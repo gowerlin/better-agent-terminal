@@ -8,6 +8,8 @@
  *   saved / loaded / adopted like `workerReport`
  * - reportedWorkersOfTower: excludes blocked / question tabs (main's state from the attention store)
  * - terminal-attention-store: an empty event forgets the tab
+ * - T0613 (BUG-154): the notify of `bat-notify --ask` (`questionId`) clears the report — once the
+ *   question ends the tab shows nothing, until the Worker's next plain notify (✓)
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -16,7 +18,7 @@ vi.mock('../../lib/pty-replay', () => replay)
 
 import { reportedWorkersOfTower, workspaceStore } from '../workspace-store'
 import { clearTerminalAttention, getTerminalAttention, resetTerminalAttention, setTerminalAttention } from '../terminal-attention-store'
-import { isQuestionNotifyMessage, workerAttention, type TerminalAttentionEvent } from '../../lib/terminal-attention'
+import { isQuestionNotifyMessage, workerAttention, workerNotifyKind, type TerminalAttentionEvent } from '../../lib/terminal-attention'
 import type { TerminalInstance } from '../../types'
 
 interface SavedTerminal { id: string; workerReport?: unknown; workerQuestion?: unknown; [key: string]: unknown }
@@ -191,5 +193,89 @@ describe('workspaceStore.markWorkerReported with `提問` (T0609)', () => {
     await workspaceStore.adoptDetachedWorkspaceTerminals(ws.id)
     expect(terminal('w-d')?.workerReport).toEqual({ message: 'T0609 完成', reportedAt: 5 })
     expect(terminal('w-d')?.workerQuestion).toBeUndefined()
+  })
+})
+
+describe('T0613 (BUG-154): the notify of `bat-notify --ask` leaves no report', () => {
+  const QID = 'q-0123abcd-0123456789abcdef'
+  const pending = (id: string) => ev(id, { blockedReason: 'tower', blockedSince: 30, pendingQuestions: 1, questionsSince: 30 })
+  function setup() {
+    const ws = workspaceStore.addWorkspace('ws', '/tmp/ws')
+    const tower = workspaceStore.addTerminal(ws.id)
+    workspaceStore.addExternalTerminal({ id: 'w1', cwd: '/tmp/ws', workspaceId: ws.id, towerTerminalId: tower.id, workorder: 'T0613' })
+    return { tower }
+  }
+  const attentionKind = () => workerAttention(terminal('w1')!, getTerminalAttention('w1'))?.kind ?? null
+  const counted = (towerId: string) => reportedWorkersOfTower(workspaceStore.getState().terminals, towerId).map(t => t.id)
+
+  it('workerNotifyKind: questionId → ask (whatever the message); else 提問 → question; else report', () => {
+    expect(workerNotifyKind({ message: 'T0613 結構化提問（探針 Step 2）', questionId: QID })).toBe('ask')
+    expect(workerNotifyKind({ message: 'T0613 提問', questionId: QID })).toBe('ask')
+    expect(workerNotifyKind({ message: 'T0613 提問' })).toBe('question')
+    expect(workerNotifyKind({ message: 'T0613 提問', questionId: '' })).toBe('question')
+    expect(workerNotifyKind({ message: 'T0613 完成' })).toBe('report')
+    expect(workerNotifyKind({ message: 'T0613 完成', questionId: 42 })).toBe('report')
+  })
+
+  it('pending → ? not counted; ended → nothing, not counted; the next plain notify → ✓ counted', async () => {
+    const { tower } = setup()
+    setTerminalAttention(pending('w1'))
+    // the T0612 message (not ending with 提問) that left ✓ behind before the fix
+    expect(workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 結構化提問（探針 Step 2）', questionId: QID })).toEqual(['w1'])
+    expect(terminal('w1')).not.toHaveProperty('workerReport')
+    expect(terminal('w1')).not.toHaveProperty('workerQuestion')
+    expect(attentionKind()).toBe('question')
+    expect(counted(tower.id)).toEqual([])
+
+    // answered / cancelled / expired / lost: main's attention for the tab empties
+    setTerminalAttention(ev('w1'))
+    expect(attentionKind()).toBeNull()
+    expect(counted(tower.id)).toEqual([])
+    await workspaceStore.save()
+    expect(lastSaved().find(t => t.id === 'w1')).not.toHaveProperty('workerReport')
+
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 完成' })
+    expect(attentionKind()).toBe('reported')
+    expect(counted(tower.id)).toEqual(['w1'])
+  })
+
+  it('a notify that arrives before main\'s attention event gives the same result', () => {
+    const { tower } = setup()
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 提問', questionId: QID })
+    expect(attentionKind()).toBeNull()
+    setTerminalAttention(pending('w1'))
+    expect(attentionKind()).toBe('question')
+    setTerminalAttention(ev('w1'))
+    expect(attentionKind()).toBeNull()
+    expect(counted(tower.id)).toEqual([])
+  })
+
+  it('already ✓ (or the old CT ?) before --ask → nothing once the question ends', () => {
+    const { tower } = setup()
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 部分完成' })
+    expect(counted(tower.id)).toEqual(['w1'])
+    setTerminalAttention(pending('w1'))
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 提問', questionId: QID })
+    expect(attentionKind()).toBe('question')
+    expect(counted(tower.id)).toEqual([])
+    setTerminalAttention(ev('w1'))
+    expect(attentionKind()).toBeNull()
+    expect(counted(tower.id)).toEqual([])
+
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 提問' })
+    expect(attentionKind()).toBe('question')
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 提問', questionId: QID })
+    expect(terminal('w1')).not.toHaveProperty('workerQuestion')
+  })
+
+  it('old CT `T#### 提問` without --ask is unchanged: ? until the Worker notifies again', () => {
+    const { tower } = setup()
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 提問' })
+    setTerminalAttention(pending('w1'))
+    setTerminalAttention(ev('w1'))
+    expect(workerAttention(terminal('w1')!, getTerminalAttention('w1'))).toMatchObject({ kind: 'question', source: 'notify' })
+    expect(counted(tower.id)).toEqual([])
+    workspaceStore.markWorkerReported({ targetId: tower.id, source: 'T0613', message: 'T0613 完成' })
+    expect(attentionKind()).toBe('reported')
   })
 })

@@ -455,6 +455,17 @@ describe('registerTerminalHandlers (T0431)', () => {
     expect(t.emitted).toHaveLength(1)
   })
 
+  it('T0613: notify of `bat-notify --ask` → its questionId is passed on; a malformed one is dropped', async () => {
+    const t = setup()
+    const questionId = 'q-0123abcd-0123456789abcdef'
+    expect(await t.invoke('terminal:notify', REMOTE, { targetId: 'tower-1', message: 'T0613 提問', source: 'T0613', questionId })).toBe(true)
+    for (const bad of ['', 'q-1', 'Q-0123ABCD-0123456789ABCDEF', 'T0613 question text', 42, null]) {
+      expect(await t.invoke('terminal:notify', REMOTE, { targetId: 'tower-1', message: 'T0613 提問', source: 'T0613', questionId: bad })).toBe(true)
+    }
+    expect(t.emitted[0]).toEqual({ channel: 'terminal:notified', payload: { targetId: 'tower-1', message: 'T0613 提問', source: 'T0613', questionId } })
+    expect(t.emitted.slice(1).map(e => e.payload)).toEqual(Array(6).fill({ targetId: 'tower-1', message: 'T0613 提問', source: 'T0613' }))
+  })
+
   it('keypress (Electron: no receiver count) → event + broadcastWindows from emit', async () => {
     const t = setup()
     expect(await t.invoke('terminal:keypress', REMOTE, { targetId: 'tower-1', key: 'Enter', source: 'T0431', traceId: 'tr' }))

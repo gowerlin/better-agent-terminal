@@ -8,7 +8,7 @@ import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
 import { clearTerminalAttention, setTerminalAttention } from './stores/terminal-attention-store'
-import { isQuestionNotifyMessage } from './lib/terminal-attention'
+import { workerNotifyKind } from './lib/terminal-attention'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView } from './components/WorkspaceView'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -513,9 +513,11 @@ export default function App() {
       // "reported" — display only. Every window gets the event; each marks its own copy.
       const reported = workspaceStore.markWorkerReported(info)
       if (reported.length > 0) {
-        // T0609: a `T#### 提問` notify marks the tab "asked its Tower", not reported
-        const what = isQuestionNotifyMessage(info.message) ? '[T0609] Worker asked its Tower' : '[T0538] Worker reported'
-        window.electronAPI.debug.log(`${what}: tower=${info.targetId} workorder=${info.source} tabs=${reported.join(',')}${detachedWorkspaceId ? ' (detached window)' : ''}`)
+        // T0609: a `T#### 提問` notify marks the tab "asked its Tower", not reported;
+        // T0613: the notify of `bat-notify --ask` (question id) clears the tab's report
+        const kind = workerNotifyKind(info)
+        const what = kind === 'ask' ? '[T0613] Worker asked its Tower (structured)' : kind === 'question' ? '[T0609] Worker asked its Tower' : '[T0538] Worker reported'
+        window.electronAPI.debug.log(`${what}: tower=${info.targetId} workorder=${info.source}${kind === 'ask' ? ` question=${info.questionId}` : ''} tabs=${reported.join(',')}${detachedWorkspaceId ? ' (detached window)' : ''}`)
       }
       // Layer 2: workspace-level bubble — only if target is not in active workspace
       const targetTerminal = workspaceStore.getState().terminals.find(tm => tm.id === info.targetId)

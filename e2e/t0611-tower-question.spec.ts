@@ -12,7 +12,8 @@
 //      the structured `?` (data-attention="question") and the Tower's "Close reported Worker tabs
 //      (N)" does not count it
 //   2. Worker (MCP) bat_wait_question waits; Tower `bat-terminal --answer` (stdin) wakes it →
-//      answered, choice + text; the Worker leaves blocked, pendingQuestions 0, badge ✓, N = 1
+//      answered, choice + text; the Worker leaves blocked, pendingQuestions 0, no badge, N = 0
+//      (T0613 / BUG-154: the --ask notify is no report); a plain `T0611 完成` notify → ✓, N = 1
 //   3. a second question, then the Tower closes the Worker (--close-worker) → Tower (MCP)
 //      bat_list_questions status=all: cancelled / worker-exited
 //   4. a second Worker asks; BAT quits keeping the Terminal Server, relaunches, recovers →
@@ -319,8 +320,9 @@ test('Worker asks its Tower: ask → list / blocked tower / ? → answer → wai
     await expectReportedCount(win, view, 0)
 
     // ── 1. the Worker asks; the Tower sees it; blocked / tower; structured ? not counted ──
-    // The notify message deliberately does not end with `提問`: alone it would mark the tab
-    // reported (✓), so the `?` and N = 0 below come from the structured question only.
+    // The notify message deliberately does not end with `提問` (as T0612's did, BUG-154): before
+    // T0613 it marked the tab reported, so the `?` and N = 0 below come from the structured
+    // question only, and after the answer the tab must not fall back to ✓.
     const [asked1] = await inWorker(w1, [ask('T0611', 'T0611 等塔台答覆', {
       question: Q1_TEXT,
       options: [`${Q1_OPT} staging`, `${Q1_OPT} prod`],
@@ -387,11 +389,19 @@ test('Worker asks its Tower: ask → list / blocked tower / ? → answer → wai
     expect(structured(after1, 1)).toMatchObject({ terminalId: w1, pendingQuestions: 0 })
     expect(structured(after1, 1)!.state).not.toBe('blocked')
     expect(structured(after1, 2)!.questions).toEqual([])
-    // no question left: the badge is the report (the --ask notify), counted again
+    // T0613 (BUG-154): no question left and the --ask notify was no report → running (no mark), not counted
+    await expect(workerThumb(view, 'T0611').locator('.worker-badge[data-attention]')).toHaveCount(0, { timeout: 15_000 })
+    await expectReportedCount(win, view, 0)
+    await win.screenshot({ path: test.info().outputPath('after-answer-no-badge.png') })
+    // the Worker's next plain notify is its report: ✓, counted
+    const [done1] = await inWorker(w1, [{
+      kind: 'helper', script: 'bat-notify.mjs', args: ['--source', 'T0611', '--target', '$BAT_TOWER_TERMINAL_ID', '--no-pty-write', 'T0611 完成'],
+    }])
+    expect(done1.code, done1.stderr).toBe(0)
     await expect(workerThumb(view, 'T0611').locator('.worker-badge.reported')).toHaveText('✓', { timeout: 15_000 })
     await expectReportedCount(win, view, 1)
 
-    // ── 3. a second question (CT's real `T#### 提問`), then the Tower closes the Worker ──
+    // ── 3. a second question (CT's real `T#### 提問`) from ✓, then the Tower closes the Worker ──
     const [asked2] = await inWorker(w1, [ask('T0611', 'T0611 提問', { question: Q2_TEXT })])
     expect(asked2.code, asked2.stderr).toBe(0)
     const q2 = questionIdOf(asked2)

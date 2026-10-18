@@ -33,6 +33,7 @@ import {
 } from '../terminal-command-handlers'
 import type { WorkerCloseScheduler } from '../close-worker'
 import { setTerminalRole } from '../terminal-role'
+import { QUESTION_ID_PATTERN } from '../tower-questions'
 import { shellPathRejection } from './pty'
 import type { HandlerContext, HandlerRegistrar } from './types'
 
@@ -124,16 +125,21 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
 
   // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.
   // Invoked by bat-notify.mjs over WebSocket; renderer(s) show UI cues for targetId.
-  register('terminal:notify', (_ctx, opts: { targetId: string; message: string; source?: string }) => {
+  // T0613 (BUG-154): `questionId` (optional) = the notify of `bat-notify --ask` — the renderer keeps
+  // no report for it (src/stores/workspace-store.ts `markWorkerReported`). Only a well-formed id is
+  // passed on (never question / answer text, D155); older helpers do not send it.
+  register('terminal:notify', (_ctx, opts: { targetId: string; message: string; source?: string; questionId?: string }) => {
     // T0193: Diagnostic logging — capture notify routing so we can correlate with
     // bat-notify.mjs entries in the same NDJSON timeline.
     const invokerWindowId = _ctx.windowId ?? null
-    logger.log(`[remote][terminal] ipc-invoke channel=terminal:notify target=${opts?.targetId ?? 'n/a'} source=${opts?.source ?? 'n/a'} windowId=${invokerWindowId ?? 'n/a'}`)
+    const questionId = typeof opts?.questionId === 'string' && QUESTION_ID_PATTERN.test(opts.questionId) ? opts.questionId : null
+    logger.log(`[remote][terminal] ipc-invoke channel=terminal:notify target=${opts?.targetId ?? 'n/a'} source=${opts?.source ?? 'n/a'}${questionId ? ` question=${questionId}` : ''} windowId=${invokerWindowId ?? 'n/a'}`)
     mirrorToBatScripts('ipc-invoke', {
       channel: 'terminal:notify',
       targetTerminalId: opts?.targetId,
       sourceTerminalId: opts?.source,
       messageLength: opts?.message ? opts.message.length : 0,
+      ...(questionId ? { questionId } : {}),
       windowId: invokerWindowId,
     })
 
@@ -150,6 +156,7 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
       targetId: opts.targetId,
       message: opts.message,
       source: opts.source,
+      ...(questionId ? { questionId } : {}),
     })
     logger.log(`[remote][terminal] ipc-result channel=terminal:notify result=true target=${opts.targetId} broadcastWindows=${windowCount}`)
     mirrorToBatScripts('ipc-result', {
