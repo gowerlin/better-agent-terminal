@@ -65,11 +65,18 @@ BAT `0.7.0-pre.9`（T0621）起，codex `>= 0.163.0` 的 Worker 會送 OSC 7501 
 
 ### A. 派工啟動確認
 
-（派工後填寫：helper exit code、`started:` 行、stderr 診斷行）
+- **PASS**。2026-10-18 15:34:07（系統時間）派工：`bat-terminal.mjs … --mode yolo --no-interactive --agent codex --skill ct-exec --workorder T0637 --wait-started 30000`（BAT 安裝版 FileVersion `0.7.0-pre.9`，塔台 CT v5.8.1）。
+- helper exit `0`；stdout `agent: codex-cli (--agent codex: from --agent)`、`started: 2026-10-18T07:34:07.163Z`；stderr 無 `wait-started:` 診斷行。對照 pre.8 的 T0629 是 `started: unknown`。
+- 本機 codex `0.163.0`，PATH 第一個是 `…\OpenAI\Codex\bin\codex.exe`（原生 exe，不是 npm shim）。
+- 同時派出的 claude Worker T0638：`started: 2026-10-18T07:33:57.906Z`（對照組）。
 
 ### B. 執行中狀態
 
-（塔台 `bat_get_state` 結果）
+- **PASS**。派工後立即 `bat_get_state`（T0637 分頁）：`state: working`、`blockedDetection: osc`、`agentStarted: true`、`agentStartedAt: 1792308847163`（= 07:34:07.163Z，與 helper `started:` 相同）、`pendingQuestions: 0`。
+- `bat_list_terminals scope=mine`：分頁標題 `Codex CLI · Worker · T0637`、`role: worker`、`blockedDetection: osc`、`agentStarted: true`。
+- Worker 端 `bat_get_state` 自查結果相同（見回報區）。
+- 觀察（非 CT-T020 範圍）：`bat_whoami` 沒有 `agent` 欄位 → 塔台查證為 BAT 端問題：helper 派工的 `ptyManager.create`（`electron/terminal-command-handlers.ts`）沒有傳 `agentPreset`，所有 helper 派出的 Worker 都缺這個欄位；另開 BUG-155。`towerMode` 只有塔台分頁才有，Worker 沒有屬預期。
+- L165 對照：Worker 的 `started_at` 15:34:49、`completed_at` 15:35:10，commit `dc5622fb` 15:35:16，時間戳與系統一致。
 
 ### C. blocked / input（使用者協助，選做）
 

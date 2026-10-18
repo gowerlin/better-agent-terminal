@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-18T09:47:39+0800"
+generated_at: "2026-10-18T15:36:22+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 39
+total: 40
 breakdown:
-  OPEN: 1
+  OPEN: 2
   FIXING: 0
   FIXED: 19
   VERIFY: 0
@@ -23,16 +23,17 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 11:22 (UTC+8) — BUG-154 CLOSED（pre.8 T0614 目視，D157）
+> 最後同步：2026-10-18 15:36 (UTC+8) — 新增 BUG-155（OPEN，T0637 發現）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 39**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 40**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
+| BUG-155 | helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 `DISABLE_UPDATES` 防護 | 🟢 low | 2026-10-18 15:36 | [BUG-155](BUG-155-helper-dispatch-pty-missing-agent-preset.md) |
 
 ## ⏳ 修復中 (FIXING)
 
