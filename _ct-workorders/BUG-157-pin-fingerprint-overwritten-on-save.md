@@ -3,9 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-157
 title: "「編輯連線」按「Pin expected fingerprint」後再按「儲存」，會把舊指紋寫回去；釘選失敗的錯誤也被吞掉"
-status: FIXING
+status: FIXED
+fixed_at: "2026-10-18T18:41:43+0800"
+fixed_by: T0650
+fix_commit: "5594ec57"
 severity: medium
-reproducibility: always（程式碼推論，未實機重現）
+reproducibility: always（T0650 以 vitest + RTL 重現）
 created_at: "2026-10-18T18:33:43+0800"
 impact:
   - remote-profile-edit
@@ -20,8 +23,8 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（伺服器憑證更換後，使用者照 UI 操作仍連不上，只能重跑精靈；不會讓錯誤指紋被信任） |
-| 可重現 | 程式碼推論為必現；未實機重現 |
-| **狀態** | ⏳ FIXING（T0650） |
+| 可重現 | 必現（T0650 以 vitest + RTL 重現：修正前 4 項失敗） |
+| **狀態** | ✅ FIXED（T0650 `5594ec57`；待實機驗收：編輯連線 → Pin → 欄位變新值 → 儲存 → 重開仍為新值；連不到時 Pin 出現紅字錯誤） |
 
 ## 現象（T0646 程式碼追蹤）
 
