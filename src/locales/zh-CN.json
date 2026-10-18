@@ -393,6 +393,8 @@
     "terminals": "终端",
     "addTerminalOrAgent": "新增终端或 Agent",
     "terminalLabel": "终端",
+    "openClaudeAsTower": "以塔台打开 Claude",
+    "openClaudeAsTowerHint": "打开 Claude CLI 标签页，session 名称为“<工作区> · Tower”（ListAgents 会显示）。只负责命名：塔台角色仍由 Control Tower 启动时声明。",
     "expandThumbnails": "展开缩略图",
     "collapsePanel": "收起面板",
     "statusActive": "终端活跃中",

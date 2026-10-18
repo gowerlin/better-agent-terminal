@@ -174,6 +174,7 @@ function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<stri
     sessionMeta: t.sessionMeta,
     ...workerOwnership(t),
     ...(t.remoteOrigin === true ? { remoteOrigin: true } : {}),
+    ...(t.launchRole === 'tower' ? { launchRole: 'tower' as const } : {}),
     scrollbackBuffer: [],
     pid: undefined,
   }
@@ -490,7 +491,8 @@ class WorkspaceStore {
   }
 
   // Terminal actions
-  addTerminal(workspaceId: string, agentPreset?: AgentPresetId): TerminalInstance {
+  /** T0644: `options.launchRole` = the tab's claude session name role (`TerminalInstance.launchRole`). */
+  addTerminal(workspaceId: string, agentPreset?: AgentPresetId, options?: { launchRole?: 'tower' }): TerminalInstance {
     const workspace = this.state.workspaces.find(w => w.id === workspaceId)
     if (!workspace) throw new Error('Workspace not found')
 
@@ -509,7 +511,8 @@ class WorkspaceStore {
       cwd: workspace.folderPath,
       scrollbackBuffer: [],
       lastActivityTime: Date.now(),
-      agentParams: normalizeAgentParams(agentPreset)
+      agentParams: normalizeAgentParams(agentPreset),
+      ...(options?.launchRole === 'tower' ? { launchRole: 'tower' as const } : {}),
     }
 
     // Auto-focus if it's an agent terminal or no current focus
@@ -1202,6 +1205,7 @@ class WorkspaceStore {
         ctWorktree: t.ctWorktree,
         remoteOrigin: t.remoteOrigin,
         autoTitle: t.autoTitle,
+        launchRole: t.launchRole,
       }))
       const data = JSON.stringify({
         workspaces: this.state.workspaces,

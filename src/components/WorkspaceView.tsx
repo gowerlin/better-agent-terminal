@@ -20,6 +20,7 @@ import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
 import { withBatMcpLaunchArgs } from '../lib/bat-mcp-launch'
 import { claudeSessionName } from '../lib/claude-session-name'
+import { towerTerminalTitle } from '../lib/tower-terminal-title'
 import { getShellFromSettings, rememberTerminalShell } from '../lib/terminal-drop'
 import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
 import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
@@ -751,7 +752,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const customArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, presetId)
     // T0584: the `bat` MCP server right after the CLI path, before the custom args
     // T0641: + the session name `<ws> · <short id>` (claude `--name=`, shown by ListAgents)
-    const sessionName = claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId }) ?? undefined
+    // T0644: `<ws> · Tower` for a tab opened as Tower — read from the store, so ⏻ restart / reopen keep it
+    const launchRole = workspaceStore.getState().terminals.find(t => t.id === terminalId)?.launchRole
+    const sessionName = (launchRole === 'tower'
+      ? claudeSessionName({ role: 'tower', workspaceName: sessionWorkspaceNameRef.current })
+      : claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId })) ?? undefined
     const cmdParts = [await withBatMcpLaunchArgs(quoteCommandPath(cliPath, detectShellFamily(shell ?? '')), presetId, shell, customArgs, terminalId, sessionName)]
     if (customArgs) {
       cmdParts.push(customArgs)
@@ -783,6 +788,17 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
   const handleAddClaudeCli = useCallback(async () => {
     const terminal = workspaceStore.addTerminal(workspace.id, 'claude-cli' as AgentPresetId)
+    workspaceStore.setFocusedTerminal(terminal.id)
+    workspaceStore.save()
+    await startClaudeCliPty(terminal.id, workspace.folderPath, false)
+  }, [workspace.id, workspace.folderPath, startClaudeCliPty])
+
+  // PLAN-050 / T0644: "Open Claude as Tower" — always claude-cli, named `<ws> · Tower`. Naming only:
+  // no `terminal:set-role`, nothing typed after the launch command (CT declares the role itself).
+  const handleAddClaudeCliAsTower = useCallback(async () => {
+    const terminal = workspaceStore.addTerminal(workspace.id, 'claude-cli' as AgentPresetId, { launchRole: 'tower' })
+    // T0562: a BAT title (the one `--set-role tower` would give), so the user's rename still wins
+    workspaceStore.setAutoTitle(terminal.id, towerTerminalTitle({ agentPreset: 'claude-cli' }))
     workspaceStore.setFocusedTerminal(terminal.id)
     workspaceStore.save()
     await startClaudeCliPty(terminal.id, workspace.folderPath, false)
@@ -1433,6 +1449,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         onAddClaudeWorktree={isDebugMode && isGitRepo ? handleAddClaudeWorktree : undefined}
         onAddClaudeCli={handleAddClaudeCli}
         onAddClaudeCliWorktree={isDebugMode && isGitRepo ? handleAddClaudeCliWorktree : undefined}
+        onAddClaudeCliAsTower={handleAddClaudeCliAsTower}
         onReorder={handleReorderTerminals}
         showAddButton={true}
         height={thumbnailSettings.height}

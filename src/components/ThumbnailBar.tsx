@@ -29,6 +29,11 @@ interface ThumbnailBarProps {
   onAddClaudeWorktree?: () => void
   onAddClaudeCli?: () => void
   onAddClaudeCliWorktree?: () => void
+  /**
+   * PLAN-050 / T0644: "Open Claude as Tower" — a claude-cli tab whose claude session is named
+   * `<ws> · Tower`. Listed right after Claude CLI (shown disabled when Claude CLI is).
+   */
+  onAddClaudeCliAsTower?: () => void
   onReorder?: (orderedIds: string[]) => void
   showAddButton: boolean
   height?: number
@@ -58,6 +63,7 @@ export function ThumbnailBar({
   onAddClaudeWorktree,
   onAddClaudeCli,
   onAddClaudeCliWorktree,
+  onAddClaudeCliAsTower,
   onReorder,
   height,
   collapsed = false,
@@ -238,7 +244,34 @@ export function ThumbnailBar({
               </div>
             )
 
+            // T0644: "Open Claude as Tower", always a claude-cli tab (whatever the workspace's default agent)
+            const towerLabel = t('terminal.openClaudeAsTower')
+            const towerItem = (unavailableReason?: string): ReactNode => unavailableReason || !onAddClaudeCliAsTower
+              ? (
+                <div className="thumbnail-add-menu-item disabled" aria-disabled="true" title={unavailableReason}>
+                  <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>▶</span>
+                  {towerLabel}
+                  {unavailableReason && <span className="thumbnail-add-menu-unavailable">{unavailableReason}</span>}
+                </div>
+              )
+              : (
+                <div
+                  className="thumbnail-add-menu-item"
+                  title={t('terminal.openClaudeAsTowerHint')}
+                  onClick={() => { onAddClaudeCliAsTower(); setShowAddMenu(false) }}
+                >
+                  <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>▶</span>
+                  {towerLabel}
+                </div>
+              )
+
             if (onAddAgent && agentDefinitions.length > 0) {
+              let towerListed = false
+              const pushTowerAfter = (defId: string, unavailableReason?: string) => {
+                if (defId !== 'claude-cli' || !onAddClaudeCliAsTower) return
+                items.push(towerItem(unavailableReason))
+                towerListed = true
+              }
               for (const def of agentDefinitions) {
                 const unavailableReason = unavailableAgents?.[def.id]
                 if (unavailableReason) {
@@ -253,6 +286,7 @@ export function ThumbnailBar({
                       <span className="thumbnail-add-menu-unavailable">{unavailableReason}</span>
                     </div>
                   )
+                  pushTowerAfter(def.id, unavailableReason)
                   continue
                 }
                 items.push(
@@ -265,7 +299,9 @@ export function ThumbnailBar({
                     {def.suggested && <span className="thumbnail-add-menu-suggested">suggested</span>}
                   </div>
                 )
+                pushTowerAfter(def.id)
               }
+              if (!towerListed && onAddClaudeCliAsTower) items.push(towerItem())
             } else {
               if (onAddClaudeAgent) items.push(
                 <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeAgent(); setShowAddMenu(false) }}>
@@ -293,6 +329,7 @@ export function ThumbnailBar({
                   <span className="thumbnail-add-menu-suggested">suggested</span>
                 </div>
               )
+              if (onAddClaudeCliAsTower) items.push(towerItem())
               if (onAddClaudeCliWorktree) items.push(
                 <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeCliWorktree(); setShowAddMenu(false) }}>
                   <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>▶🌳</span>

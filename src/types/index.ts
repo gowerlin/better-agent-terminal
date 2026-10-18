@@ -109,6 +109,13 @@ export interface TerminalInstance {
    * Saved with the tab.
    */
   autoTitle?: string;
+  /**
+   * PLAN-050 / T0644: a claude-cli tab opened with "Open Claude as Tower" — launched (and on ⏻ restart /
+   * BAT reopen relaunched) with the session name `<ws> · Tower` (`claudeSessionName`) instead of
+   * `<ws> · <short id>`. Naming only: it does not declare the Tower role (`--set-role tower`, CT's
+   * job). Saved with the tab.
+   */
+  launchRole?: 'tower';
 }
 
 /** PLAN-047 W1 / T0583: a `--isolation worktree` Worker's worktree (main's `CtWorktreeRecord`). */

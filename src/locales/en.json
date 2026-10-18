@@ -393,6 +393,8 @@
     "terminals": "Terminals",
     "addTerminalOrAgent": "Add Terminal or Agent",
     "terminalLabel": "Terminal",
+    "openClaudeAsTower": "Open Claude as Tower",
+    "openClaudeAsTowerHint": "A Claude CLI tab whose session is named \"<workspace> · Tower\" (shown by ListAgents). It only names the session: the Tower role is still declared by Control Tower when it starts.",
     "expandThumbnails": "Expand Thumbnails",
     "collapsePanel": "Collapse Panel",
     "statusActive": "Terminal active",
