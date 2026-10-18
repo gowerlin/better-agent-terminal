@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0626
 title: "探針：CT v5.7.2 多題混合通道＋等待中取消的晚退回標記（F-1 ② ／ 第 6 步）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
+started_at: "2026-10-18T12:44:08+0800"
+updated_at: "2026-10-18T12:44:08+0800"
 depends_on: [T0625]
 related:
   - "CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 實機驗收第 2 張（T0625–T0629）；對照 v5.7.0 的 T0616"
@@ -18,6 +20,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -75,4 +78,25 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：探針 Q-1（BAT 通道）
+- 提問時間：2026-10-18T12:44:08+0800
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是刻意安排的受測提問，收到即代表通道可用
+- 影響範圍：本工單 Step 3–4 與驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
+#### Q-2：探針 Q-2（`--ask` 失敗降級）
+- 提問時間：2026-10-18T12:44:08+0800
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是刻意安排的受測提問，收到即代表通道可用
+- 影響範圍：本工單 Step 3–4 與驗收證據
+- 阻塞：是（Step 3 起要等答覆）
+
+#### Q-3：探針 Q-3（等待中取消、晚退回）
+- 提問時間：2026-10-18T12:44:08+0800
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為這是刻意安排的受測提問，收到即代表通道可用
+- 影響範圍：本工單 Step 3–4 與驗收證據
+- 阻塞：是（Step 3 起要等答覆）
