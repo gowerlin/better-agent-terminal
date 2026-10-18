@@ -276,8 +276,8 @@ test('blocked: a claude hook in a Worker tab → the Tower reads blocked (MCP); 
     log(`claude-settings.json: ${settings}`)
     const parsed = JSON.parse(settings) as { hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>> }
     expect(Object.keys(parsed)).toEqual(['hooks'])
-    // T0600: + SessionStart (launch confirmation); T0620: + ElicitationResult (found stale by T0621)
-    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'ElicitationResult', 'UserPromptSubmit', 'Stop', 'SessionStart'])
+    // T0600: + SessionStart (launch confirmation); T0620: + ElicitationResult (found stale by T0621); T0657: + PostToolBatch
+    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'ElicitationResult', 'PostToolBatch', 'UserPromptSubmit', 'Stop', 'SessionStart'])
     expect(parsed.hooks.PostToolUse).toEqual([{ matcher: 'AskUserQuestion', hooks: [expect.objectContaining({ command: `node '${slash(path.join(REPO_ROOT, 'scripts', 'bat-hook.mjs'))}' ask-user-question-done`, async: true })] }])
     expect(parsed.hooks.Stop[0].hooks[0].command).toBe(`node '${slash(path.join(REPO_ROOT, 'scripts', 'bat-hook.mjs'))}' stop`)
     expect(settings).not.toMatch(/batcap\.|BAT_REMOTE_TOKEN|disableAllHooks/)

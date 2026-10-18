@@ -3,7 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-162
 title: "claude Worker 的 Bash 權限請求被放行後（未經鍵盤），分頁仍維持 `blocked` / `permission`（縮圖 ⚠️）直到該回合 `Stop`"
-status: FIXING
+status: FIXED
+fixed_at: "2026-10-18T19:52:06+0800"
+fixed_by: T0657
+fix_commit: "ff14fa5d"
 severity: medium
 reproducibility: observed（2026-10-18 19:22:52，T0656 Worker，`v0.7.1-pre.1` 安裝版）
 created_at: "2026-10-18T19:30:08+0800"
@@ -21,8 +24,8 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（誤報「Worker 在等你」：使用者被誤導、CT 斷點 D 可能誤告知；批次關閉也會把它排除） |
-| 可重現 | 已觀察到一次；觸發條件待 T0657 查明 |
-| **狀態** | ⏳ FIXING（T0657） |
+| 可重現 | T0657 查明：claude 內建「危險 rm」安全檢查在 bypass 下仍顯示權限對話框（先執行 `PermissionRequest` hook），無人回答時 120 s 逾時自動拒絕，回合繼續 |
+| **狀態** | ✅ FIXED（T0657 `ff14fa5d`：新增 async `PostToolBatch` hook，批次結束（允許 / 拒絕 / 逾時拒絕）後只清 `permission`，依 `agent_id` 區分 subagent；待實機驗收） |
 
 ## 現象
 

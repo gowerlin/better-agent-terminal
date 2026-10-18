@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 19:47 (UTC+8) — BUG-162 / 163 FIXING（T0657 / T0658）；BUG-156–160 FIXED；BUG-161 OPEN
+> 最後同步：2026-10-18 19:54 (UTC+8) — BUG-162 FIXED（T0657）；BUG-163 FIXING（T0658）；BUG-161 OPEN
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 2 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
@@ -40,12 +40,12 @@ breakdown:
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-163 | 設定精靈選項按鈕用 Tailwind class 但 App 沒載入 Tailwind，顯示成白底原生按鈕；步驟說明過時（T0658） | 🟡 medium | — | [BUG-163](BUG-163-wizard-choice-buttons-unstyled-and-stale-step-text.md) |
-| BUG-162 | claude Worker 的 Bash 權限請求被放行後（未經鍵盤），仍維持 `blocked` / `permission`（縮圖 ⚠️）直到 `Stop`（T0657） | 🟡 medium | — | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-162 | claude Worker 的權限請求被放行 / 逾時拒絕後（未經鍵盤），仍維持 `blocked` / `permission` 直到 `Stop`（T0657 `ff14fa5d`） | 🟡 medium | 2026-10-18 | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
 | BUG-160 | SSH 設定的「重新釘選指紋」不經通道連本機埠，可能釘到本機其他 BAT 伺服器並送出權杖（T0655 `02f1c6f8`） | 🟡 medium | 2026-10-18 | [BUG-160](BUG-160-ssh-profile-pin-fingerprint-probes-local-port.md) |
 | BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（T0652 `15a792d4`） | 🟢 low | 2026-10-18 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
