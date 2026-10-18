@@ -4,7 +4,7 @@ schema_kind: workorder
 id: CT-T020
 title: "【受派】CT 接 BAT codex 分頁的 OSC 7501 信號：斷點 D 接受 `blockedDetection: osc` / `blockedReason: input`；`--wait-started` 對 codex 生效（PLAN-047 M1b-2 / D158）"
 type: implementation
-status: TODO
+status: DONE
 repo: BMad-Guide
 project: PLAN-047
 priority: P2
@@ -64,3 +64,12 @@ codex `>= 0.163.0` 會在 PTY 送 `ESC ] 7501 ; state=idle|working|blocked`（�
 ## 完成回覆
 
 請以跨 session 訊息或 `_reply-*.md` 告知：修改的 CT 檔案與版本號、與 BAT 權威的差異（若有）、需要 BAT 補的東西（若有）。
+
+### 收到的回覆（BAT 塔台記錄，2026-10-18T13:17:25+0800）
+
+- **來源**：`D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\_reply-2026-10-18-ct-t020-done.md`（BMad-Guide 塔台 12:54 撰寫，由使用者轉交）；BMad-Guide 本地工單 T0172。
+- **CT 端結果**：CT **v5.8.0** ＋ control-tower-guide v5.8.0（BMad-Guide `1b4d400` 產品、`ad54f3e` 工單、`cfd0016` 收單；對方 dev-main 未 push）；本機兩端 16/16 安裝（BAT 塔台查證：`~/.claude/skills`、`~/.codex/skills` 的 `control-tower` / `ct-exec` 皆 `5.8.0`，備份 `_backup-ct-v5.7.2-20261018-124816` / `-124819`）。改 `yolo-mode.md` § 斷點 D（接受 `osc` / `input`，告知型、不代答、不送按鍵；`tower` 仍不是斷點 D）、`auto-session.md` § Worker 啟動確認（codex `>= 0.163.0` 生效、確認不到 → `unknown`、絕不 `unconfirmed`；exit 8 不重派）與 § BAT MCP 唯讀 tool 值域；派工命令逐字未改。
+- **與 BAT 權威的差異**：無矛盾；對方依權威補寫 5 項（`input` 的其他清除時機、`none` → `osc`、C-7 replay、C-8 日誌 CT 不讀、PATH 判定誤差 → exit 8 也不重派）。版本標示一項 BAT 塔台查證屬實：`worker-launch-confirmation.md` 最後 commit `15559f8b`；`blocked-state.md`、`CLAUDE.md` 最後 commit `1481f65c`（T0623 縮圖 ⚠️，與 CT 無關）；`d8f019bb` 是 T0621 回報 commit。
+- **BAT 最低版本**：CT 暫用占位字串「含 T0621 的 BAT 預覽版（版號待 BAT 發佈）」（32 處）。
+- **BAT 待辦**（BAT 塔台追蹤）：① 發佈含 T0621（及 T0620 / T0623）的預覽版後，告知 BMad-Guide 確切版號 → 對方開 CT PATCH 換掉占位字串；② 之後照本單 § 驗收建議代跑實機驗收（codex Worker `--wait-started 30000` → `started: <ISO>`；核准提示 → `blocked` / `input` / `osc`）。
+- **對進行中驗收的影響**：v5.8.0 於 12:48 安裝。T0625（12:40）、T0626（12:43）的 Worker 載入 v5.7.2；T0627（12:47:54 啟動）的 `ct-exec` 於 swap 前載入；T0628 / T0629 在 v5.8.0 上執行。BAT 塔台以 BMad-Guide 的 V72 / V80 比對：`ct-exec/SKILL.md` 只差版號註解，`yolo-mode.md` § Worker 向塔台提問 全文相同 → v5.7.1 / v5.7.2 提問規則的驗收結果不受影響（回函需註明）。
