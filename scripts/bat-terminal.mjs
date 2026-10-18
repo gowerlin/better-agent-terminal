@@ -36,8 +36,9 @@
 //        4 NOT_OWNER / 5 AMBIGUOUS / 1 other.
 //   node scripts/bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --skill ct-exec --workorder T0600 --wait-started 30000
 //     └─ T0600 (D154): after creating the tab, wait (at most the given ms) until its claude has
-//        started (`SessionStart` hook). Exit 0 + "started: <ISO>" / "started: unknown" (no signal:
-//        codex, no hooks…) / 8 LAUNCH_UNCONFIRMED + "started: unconfirmed" (the tab is kept).
+//        started (`SessionStart` hook; T0621: a codex >= 0.163.0, its first OSC 7501). Exit 0 +
+//        "started: <ISO>" / "started: unknown" (no signal: an older codex, no hooks…) / 8
+//        LAUNCH_UNCONFIRMED + "started: unconfirmed" (the tab is kept).
 //   node scripts/bat-terminal.mjs --answer q-0123abcd-0123456789abcdef --notify-id "$BAT_TERMINAL_ID" [--choice 1] < answer.txt
 //     └─ PLAN-048 / T0608: answer a question one of this Tower's Workers asked (bat-notify.mjs --ask).
 //        The answer text comes on stdin only (argv is logged). Exit 0 answered / 3 NOT_FOUND (incl.
@@ -128,14 +129,17 @@ Options:
                          no terminal is created.
   --wait-started <ms>    T0600: after the terminal is created, wait at most <ms> (0-120000; more is
                          cut to 120000) until its agent has started: claude runs BAT's SessionStart
-                         hook. Needs --notify-id (the Tower's own terminal ID: the Tower may only
-                         query its own Workers). stdout gets one more line after the others:
+                         hook; codex (T0621, 0.163.0 or newer) prints its first state sequence
+                         (OSC 7501). Needs --notify-id (the Tower's own terminal ID: the Tower may
+                         only query its own Workers). stdout gets one more line after the others:
                            "  started: <ISO time>"   started -> exit 0
-                           "  started: unknown"      this tab cannot tell (codex, raw <command>, BAT
-                                                     hooks not injected or turned off by claude's
+                           "  started: unknown"      this tab cannot tell (a codex older than 0.163.0
+                                                     or whose version BAT cannot read, raw <command>,
+                                                     BAT hooks not injected or turned off by claude's
                                                      settings, a BAT that cannot answer) -> exit 0;
                                                      stderr "wait-started: <CODE>" says why
-                           "  started: unconfirmed"  not started within <ms>, or the terminal ended
+                           "  started: unconfirmed"  not started within <ms> (e.g. codex waits on
+                                                     "Trust this folder?"), or the terminal ended
                                                      first -> exit 8, stderr "create: LAUNCH_UNCONFIRMED";
                                                      the terminal is NOT closed
                          Without it nothing changes (no wait, no "started:" line). A BAT whose
@@ -1484,7 +1488,7 @@ async function runWaitStarted(ws, id) {
       return finish(0, at, 'started', { agentStartedAt: at })
     }
     if (result.agentStarted !== false) {
-      return unknown('NO_SIGNAL', `blockedDetection=${result.blockedDetection ?? 'none'}: no start signal for this tab (codex, raw command, hooks not injected or turned off)`)
+      return unknown('NO_SIGNAL', `blockedDetection=${result.blockedDetection ?? 'none'}: no start signal for this tab (codex older than 0.163.0 or version unknown, raw command, hooks not injected or turned off)`)
     }
     const exited = result.state === 'exited'
     if (exited || Date.now() >= deadline) {

@@ -15,6 +15,7 @@ import {
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
 import { createBatMcpLaunchArgs, defaultClaudeSettingsFiles, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
+import { createCodexOscVersionCheck } from '../codex-osc-version'
 import { registerReportHookHandler } from '../terminal-blocked-state'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
@@ -529,6 +530,9 @@ export function createHeadlessTerminalModule(opts: {
         resolveWorkspaceAgentSettings: async () => null,
         ensureElevationApplied: async () => {},
         batMcpLaunchArgs, // T0584
+        // T0621 (C-5): the codex on this server, probed here
+        codexWritesOsc: createCodexOscVersionCheck({ logger: defaultLogger }),
+        recordBlockedDetection: (terminalId, detection) => opts.getPtyManager()?.setBlockedDetection(terminalId, detection),
         logger: defaultLogger,
       }),
       countRemoteReceivers: opts.countRemoteReceivers,

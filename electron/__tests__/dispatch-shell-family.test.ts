@@ -147,7 +147,8 @@ async function dispatch(opts: DispatchOptions) {
 function codexArgs(family: ShellFamily): string {
   const r = buildBatMcpLaunchArgs(mcpHost(), { agentId: 'codex-cli', shellFamily: family })
   if (!r.injected) throw new Error('codex BAT MCP args not injected')
-  return r.args
+  // T0621 (C-6): + the dispatch-only update-check override (no quoting needed in any family)
+  return `${r.args} -c check_for_update_on_startup=false`
 }
 
 describe('BUG-149: settings.json without "shell" (Windows)', () => {

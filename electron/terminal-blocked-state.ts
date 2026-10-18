@@ -29,8 +29,22 @@
  * ends (exit / kill, so `pty:restart` too; the exited record keeps the time, `agentStartedAt` of
  * `ExitedPtyRecord`) and by the Terminal Server recovery; user input does not clear it.
  *
+ * PLAN-047 M1b-2 / T0621 (D158): codex tabs, from codex's own OSC 7501 in the PTY output
+ * (src/lib/codex-terminal-state.ts, `observeCodexState`), no hook:
+ *
+ *   OSC 7501 state=                              → effect (`blockedDetection: osc`)
+ *   any value, the first of the PTY              → `agentStarted` (BAT's receive time)
+ *   blocked                                      → blocked / input
+ *   working, idle, clear                         → cleared
+ *
+ * `osc` is set by the first sequence seen (observed: BAT's codex tabs and a `codex` typed into a
+ * shell alike) or by the dispatch launch decision (`codex --version` >= 0.163.0, T0621 C-5); never
+ * over `hook` (a hook tab ignores the sequence). `input` is not cleared by user input (codex sends
+ * its own transitions); the PTY ending and the Terminal Server recovery clear it like a hook reason.
+ *
  * 🔴 No `electron` import here (PtyManager and headless use it).
  */
+import type { CodexTerminalState } from '../src/lib/codex-terminal-state'
 import type { HandlerContext } from './remote/handler-registry'
 
 /** What a claude hook reports (this file's tracker). */
@@ -40,8 +54,11 @@ export type HookBlockedReason = 'permission' | 'question' | 'elicitation'
  * query handlers from the tower-question store (electron/tower-questions.ts), never by a hook:
  * no `blockedDetection` needed, not cleared by user input.
  */
-export type BlockedReason = HookBlockedReason | 'tower'
-export type BlockedDetection = 'hook' | 'none'
+export type BlockedReason = HookBlockedReason | 'input' | 'tower'
+/** T0621: what the tracker holds — a hook reason, or codex's `input` (OSC 7501 `state=blocked`). */
+export type TrackedBlockedReason = HookBlockedReason | 'input'
+/** T0621: + `osc` (codex's OSC 7501). */
+export type BlockedDetection = 'hook' | 'osc' | 'none'
 export type HookReportEvent =
   | 'permission-request'
   | 'ask-user-question'
@@ -112,14 +129,19 @@ export const BLOCKED_DETECTION_MAX = 512
 export const REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS = 5_000
 
 export interface BlockedState {
-  reason: HookBlockedReason
+  reason: TrackedBlockedReason
   /** ms epoch the tab entered this reason. */
   since: number
-  /** The hook event that entered it. */
-  event: HookReportEvent
+  /** The hook event that entered it; absent for `source: 'osc'`. */
+  event?: HookReportEvent
   /** `permission-request` only; never returned by a query, only logged. */
   toolName?: string
+  /** T0621: `osc` = entered by codex's OSC 7501 (`reason: input`); absent = a claude hook. */
+  source?: 'osc'
 }
+
+/** T0621: what `observeCodexState` did. `ignored` = a `hook` tab (its sequences are not read). */
+export type CodexStateResult = 'blocked' | 'cleared' | 'unchanged' | 'ignored'
 
 /** T0600: `started` = the first `session-start` of this PTY (a later one is `unchanged`). */
 export type HookReportResult = 'blocked' | 'cleared' | 'unchanged' | 'started'
@@ -138,8 +160,10 @@ export interface BlockedTrackerLogger {
 export class TerminalBlockedTracker {
   private readonly states = new Map<string, BlockedState>()
   private readonly detection = new Map<string, BlockedDetection>()
-  /** T0600: running PTY id → ms epoch of its first `session-start`. */
+  /** T0600: running PTY id → ms epoch of its first `session-start` (T0621: or OSC 7501). */
   private readonly started = new Map<string, number>()
+  /** T0621: running PTY id → its last codex OSC 7501 state (logs transitions only). */
+  private readonly codexStates = new Map<string, CodexTerminalState>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
@@ -181,6 +205,39 @@ export class TerminalBlockedTracker {
     return { result: 'blocked', state: { ...state } }
   }
 
+  /**
+   * T0621: codex's OSC 7501 `state` of running PTY `id` (the caller checks it is running). Logs
+   * `[codex-state] terminal=<id> → <state>` on a change, `[agent-start] … → started (osc <state>)`,
+   * `[blocked] … → blocked reason=input (osc)` / `→ cleared (osc <state>)`.
+   */
+  observeCodexState(id: string, state: CodexTerminalState): CodexStateResult {
+    if (this.getDetection(id) === 'hook') return 'ignored'
+    if (this.getDetection(id) !== 'osc') this.setDetection(id, 'osc')
+    if (this.codexStates.get(id) !== state) {
+      this.codexStates.set(id, state)
+      this.logger?.log(`[codex-state] terminal=${id} → ${state}`)
+    }
+    if (!this.started.has(id)) {
+      this.started.set(id, this.now())
+      this.logger?.log(`[agent-start] terminal=${id} → started (osc ${state})`)
+    }
+    if (state !== 'blocked') return this.clear(id, `osc ${state}`) ? 'cleared' : 'unchanged'
+    if (this.states.get(id)?.reason === 'input') return 'unchanged'
+    this.states.set(id, { reason: 'input', since: this.now(), source: 'osc' })
+    this.logger?.log(`[blocked] terminal=${id} → blocked reason=input (osc)`)
+    this.changed(id)
+    return 'blocked'
+  }
+
+  /**
+   * T0621: the user typed into PTY `id`: clears a hook reason (T0590), never codex's `input` (codex
+   * reports its own transitions). True when it was cleared.
+   */
+  clearForUserInput(id: string): boolean {
+    if (this.states.get(id)?.reason === 'input') return false
+    return this.clear(id, 'user input')
+  }
+
   /** Clears PTY `id`; true when it was blocked. */
   clear(id: string, cause: string): boolean {
     if (!this.states.delete(id)) return false
@@ -192,6 +249,7 @@ export class TerminalBlockedTracker {
   clearAll(cause: string): void {
     for (const id of [...this.states.keys()]) this.clear(id, cause)
     this.started.clear() // T0600
+    this.codexStates.clear() // T0621
   }
 
   /** T0600: ms epoch of PTY `id`'s first `session-start`, or null. */
@@ -199,9 +257,10 @@ export class TerminalBlockedTracker {
     return this.started.get(id) ?? null
   }
 
-  /** T0600: the PTY ended (exit / kill); its exited record keeps the time. */
+  /** T0600: the PTY ended (exit / kill); its exited record keeps the time. T0621: + its codex state. */
   clearStarted(id: string): void {
     this.started.delete(id)
+    this.codexStates.delete(id)
   }
 
   get(id: string): BlockedState | null {
@@ -226,6 +285,7 @@ export class TerminalBlockedTracker {
   dispose(): void {
     this.states.clear()
     this.started.clear()
+    this.codexStates.clear()
   }
 }
 

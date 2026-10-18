@@ -12,6 +12,7 @@ import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardow
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
 import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal-command-handlers'
 import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from './bat-mcp-launch'
+import { createCodexOscVersionCheck } from './codex-osc-version'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
@@ -710,6 +711,9 @@ const buildAgentPromptCommand = createAgentPromptCommandBuilder({
   resolveWorkspaceAgentSettings,
   ensureElevationApplied,
   batMcpLaunchArgs: request => createBatMcpLaunchArgs(batMcpHost, 'dispatch')(request), // T0584
+  // T0621 (C-5): a dispatched codex >= 0.163.0 is `blockedDetection: osc` from its launch
+  codexWritesOsc: createCodexOscVersionCheck({ logger }),
+  recordBlockedDetection: (terminalId, detection) => ptyManager?.setBlockedDetection(terminalId, detection),
   logger,
 })
 

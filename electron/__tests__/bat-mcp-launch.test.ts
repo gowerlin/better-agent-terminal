@@ -244,7 +244,7 @@ describe('helper dispatch (createAgentPromptCommandBuilder)', () => {
 
   it('codex: -c overrides before the custom args', async () => {
     const r = await builder(settings, host())({ skill: 'ct-exec', workorder: 'T0584', agent: 'codex-cli', shellFamily: 'posix' })
-    expect(r?.command).toMatch(/^codex -c 'mcp_servers\.bat\.command=.* -c 'mcp_servers\.bat\.env_vars=\[.*\]' -c mcp_servers\.bat\.tool_timeout_sec=60 --yolo '\$ct-exec T0584'$/)
+    expect(r?.command).toMatch(/^codex -c 'mcp_servers\.bat\.command=.* -c 'mcp_servers\.bat\.env_vars=\[.*\]' -c mcp_servers\.bat\.tool_timeout_sec=60 -c check_for_update_on_startup=false --yolo '\$ct-exec T0584'$/)
   })
 
   it('off in Settings / no dep → the pre-T0584 command, byte for byte', async () => {

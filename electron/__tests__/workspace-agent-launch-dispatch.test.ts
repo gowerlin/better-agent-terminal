@@ -92,7 +92,8 @@ describe('helper --agent dispatch uses the landing workspace (T0529)', () => {
     await invoke('terminal:create-agent-command', dispatch(TOWER_B, 'default'))
 
     expect(written).toEqual([
-      "codex --model gpt-5 -c x=1 '$ct-exec T0529'\r",
+      // T0621 (C-6): a dispatched codex gets the update-check override before the custom args
+      "codex -c check_for_update_on_startup=false --model gpt-5 -c x=1 '$ct-exec T0529'\r",
       "claude --dangerously-skip-permissions '/ct-exec T0529'\r",
     ])
   })
@@ -105,9 +106,9 @@ describe('helper --agent dispatch uses the landing workspace (T0529)', () => {
     await invoke('terminal:create-agent-command', dispatch(TOWER_B, 'codex-cli'))
 
     expect(written).toEqual([
-      "codex --model o3 '$ct-exec T0529'\r",
-      "codex --model o3 '$ct-exec T0529'\r",
-      "codex --yolo '$ct-exec T0529'\r",
+      "codex -c check_for_update_on_startup=false --model o3 '$ct-exec T0529'\r",
+      "codex -c check_for_update_on_startup=false --model o3 '$ct-exec T0529'\r",
+      "codex -c check_for_update_on_startup=false --yolo '$ct-exec T0529'\r",
     ])
   })
 

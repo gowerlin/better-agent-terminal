@@ -13,6 +13,7 @@ import { isTerminalAutoReply, normalizeWorkorderId, type CloseWorkerPtyManager }
 import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
 import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
+import { CodexStateScanner, lastCodexState } from '../src/lib/codex-terminal-state'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -318,6 +319,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   private blockedTracker = new TerminalBlockedTracker(logger, undefined, id => this.deps.onBlockedChange?.(id))
   // T0600 option B: `[agent-command] launch-suspect` (log only)
   private launchSuspect = new LaunchSuspectWatcher(logger)
+  // T0621: codex's OSC 7501 in the live output (read only) → `blockedTracker.observeCodexState`
+  private codexStates = new CodexStateScanner()
 
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
@@ -642,6 +645,13 @@ export class PtyManager implements CloseWorkerPtyManager {
       if (!this.replayBuffers.get(id)?.total) this.appendToReplayBuffer(id, data)
       this.broadcast('pty:output', id, data)
       logger.log(`[PtyManager] replayed buffer for PTY ${id}: ${lines.length} lines`)
+      // T0621 (C-7): the replay skips `enqueuePtyOutput` — restore a codex tab from its last
+      // OSC 7501 (`agentStarted` = now; nothing found = as before)
+      const codexState = this.instances.has(id) ? lastCodexState(data) : null
+      if (codexState) {
+        logger.log(`[PtyManager] replay: PTY ${id} last codex state=${codexState}`)
+        this.blockedTracker.observeCodexState(id, codexState)
+      }
     }
   }
 
@@ -748,6 +758,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     this.blockedTracker.clear(id, 'the PTY ended') // T0590: exit / kill (restart kills first)
     this.blockedTracker.clearStarted(id) // T0600
     this.launchSuspect.clear(id)
+    this.codexStates.clear(id) // T0621
   }
 
   /** T0432: `deps.onPtyExit`; a throwing listener must not break exit / kill handling. */
@@ -768,6 +779,10 @@ export class PtyManager implements CloseWorkerPtyManager {
   private enqueuePtyOutput(id: string, data: string) {
     this.lastOutputAt.set(id, Date.now())
     this.launchSuspect.output(id, data) // T0600 option B
+    // T0621: read only — the data goes to the renderer unchanged
+    for (const state of this.codexStates.feed(id, data)) {
+      if (this.instances.has(id)) this.blockedTracker.observeCodexState(id, state)
+    }
     if (this.deps.onPtyOutput) {
       try {
         this.deps.onPtyOutput(id, data)
@@ -991,7 +1006,7 @@ export class PtyManager implements CloseWorkerPtyManager {
   noteUserInput(id: string): void {
     if (!this.instances.has(id)) return
     this.lastUserInputAt.set(id, Date.now())
-    this.blockedTracker.clear(id, 'user input') // T0590
+    this.blockedTracker.clearForUserInput(id) // T0590; T0621: not codex's `input`
   }
 
   // ── PLAN-047 M1b-1 / T0590: `blocked` (electron/terminal-blocked-state.ts) ──
@@ -1011,6 +1026,7 @@ export class PtyManager implements CloseWorkerPtyManager {
    * Whether terminal `id` was launched with BAT's claude hooks (`buildBatMcpLaunchArgs`). Kept per
    * id — before the PTY exists (claude-cli tabs decide first), across `restart` / the Terminal
    * Server recovery and after it exits; a later decision for the id replaces it.
+   * T0621: `osc` = a codex tab (the dispatch's version check, or the first OSC 7501 seen).
    */
   setBlockedDetection(id: string, mode: BlockedDetection): void {
     this.blockedTracker.setDetection(id, mode)
@@ -1022,7 +1038,7 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   /**
    * T0600 (D154): when the claude of running PTY `id` ran its `SessionStart` hook (ms epoch), or
-   * null (not reported yet / not running). An exited PTY's time is `ExitedPtyRecord.agentStartedAt`.
+   * null (not reported yet / not running). T0621: or its codex sent the first OSC 7501. An exited PTY's time is `ExitedPtyRecord.agentStartedAt`.
    */
   getAgentStartedAt(id: string): number | null {
     return this.instances.has(id) ? this.blockedTracker.getStartedAt(id) : null
@@ -1581,8 +1597,9 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
       // T0576: none of the server's PTYs survives; the rebuild below spawns new ones
       this.notifySurvivingPtys([])
-      // T0590: the rebuilt shells run no claude yet (T0600: nor `agentStarted`)
+      // T0590: the rebuilt shells run no claude yet (T0600: nor `agentStarted`; T0621: nor codex)
       this.blockedTracker.clearAll('Terminal Server recovery')
+      this.codexStates.dispose()
       // T0607: the rebuilt shells run none of the agents that asked
       try {
         this.deps.onServerRecovery?.()
@@ -1688,6 +1705,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       this.lastUserInputAt.clear()
       this.blockedTracker.dispose()
       this.launchSuspect.dispose()
+      this.codexStates.dispose()
       return
     }
     for (const [id] of this.instances) {

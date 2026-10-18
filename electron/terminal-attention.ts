@@ -38,7 +38,8 @@ export interface TerminalAttentionDeps {
 export function computeTerminalAttention(id: string, blocked: BlockedState | null, questions: QuestionSummary | null): TerminalAttentionEvent {
   const pendingQuestions = questions?.pending ?? 0
   const event: TerminalAttentionEvent = { id, pendingQuestions }
-  if (blocked) {
+  // T0621: codex's `input` (OSC 7501) is not shown on the badge (yet): a query answer only
+  if (blocked && blocked.reason !== 'input') {
     event.blockedReason = blocked.reason
     event.blockedSince = blocked.since
   } else if (questions && questions.blockingSince !== null) {

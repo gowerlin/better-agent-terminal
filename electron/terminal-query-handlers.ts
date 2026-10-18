@@ -30,6 +30,10 @@
  * `blockedSince` = the oldest one's `createdAt`), whatever its `blockedDetection` (no hook needed);
  * precedence exited > a hook's blocked > blocked / tower > working / idle. Every state answer
  * carries `pendingQuestions` (blocking or not).
+ * PLAN-047 M1b-2 / T0621 (D158): codex tabs — `blockedDetection: osc` (codex's OSC 7501,
+ * electron/terminal-blocked-state.ts `observeCodexState`): `blocked` / `blockedReason: input` /
+ * `source: 'osc'` (same rank as a hook reason, over `tower`); `agentStarted` true from the first
+ * OSC 7501 (`false` before it, as `hook`).
  *
  * Output: the PTY's raw replay buffer (`pty:get-buffer`'s, or the tail kept at exit) → plain text
  * (`plainTextFromOutput`, T0566) → `redactTerminalSecrets` (src/lib/terminal-output-redaction.ts)
@@ -94,7 +98,7 @@ export interface TerminalQueryPtyManager {
   getTerminalRole(id: string): 'tower' | undefined
   /** T0590: what running PTY `id` is blocked on (null = not blocked). Absent ⇒ never blocked. */
   getBlockedState?(id: string): BlockedState | null
-  /** T0590: `hook` / `none` (per id, outlives the PTY). Absent ⇒ `none`. */
+  /** T0590: `hook` / `none` (T0621: + `osc`; per id, outlives the PTY). Absent ⇒ `none`. */
   getBlockedDetection?(id: string): BlockedDetection
   /** T0600: when running PTY `id`'s claude ran `SessionStart` (ms), or null. Absent ⇒ never. */
   getAgentStartedAt?(id: string): number | null
@@ -244,12 +248,18 @@ interface StateSnapshot {
   /** T0590: `blocked` only. */
   blockedReason?: BlockedReason
   blockedSince?: number
-  /** `hook` for a hook's `blocked` (T0590), `question` for `blocked` / `tower` (T0607), else `output`. */
-  source: 'output' | 'hook' | 'question'
+  /**
+   * `hook` for a hook's `blocked` (T0590), `osc` for codex's `blocked` / `input` (T0621),
+   * `question` for `blocked` / `tower` (T0607), else `output`.
+   */
+  source: 'output' | 'hook' | 'osc' | 'question'
   blockedDetection: BlockedDetection
   /** T0607: pending questions this terminal asked its Tower (blocking or not). */
   pendingQuestions: number
-  /** T0600: true = `SessionStart` reported, false = not yet (`hook`), null = cannot tell (`none`). */
+  /**
+   * T0600: true = `SessionStart` reported (T0621: or the first OSC 7501), false = not yet (`hook` /
+   * `osc`), null = cannot tell (`none`).
+   */
   agentStarted: boolean | null
   /** T0600: `agentStarted: true` only (ms). */
   agentStartedAt?: number
@@ -258,7 +268,7 @@ interface StateSnapshot {
 /** T0600: `agentStarted` / `agentStartedAt` of a state answer. */
 export function agentStartedFields(detection: BlockedDetection, startedAt: number | null): Pick<StateSnapshot, 'agentStarted' | 'agentStartedAt'> {
   if (startedAt !== null) return { agentStarted: true, agentStartedAt: startedAt }
-  return { agentStarted: detection === 'hook' ? false : null }
+  return { agentStarted: detection === 'hook' || detection === 'osc' ? false : null }
 }
 
 export interface TerminalQueryHandlers {
@@ -316,7 +326,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       const idleMs = last === null ? null : Math.max(0, t - last)
       const blocked = pm.getBlockedState?.(id) ?? null
       const started = agentStartedFields(blockedDetection, pm.getAgentStartedAt?.(id) ?? null)
-      // a hook reason first: the user has to act on it, the Tower cannot
+      // a hook reason (T0621: or codex's `input`) first: the user has to act on it, the Tower cannot
       if (blocked) {
         return {
           state: 'blocked',
@@ -324,7 +334,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
           idleMs,
           blockedReason: blocked.reason,
           blockedSince: blocked.since,
-          source: 'hook',
+          source: blocked.source ?? 'hook',
           blockedDetection,
           pendingQuestions,
           ...started,

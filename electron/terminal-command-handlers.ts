@@ -900,9 +900,25 @@ export interface AgentPromptCommandDeps {
    * put right after the base command. Absent ⇒ never injected.
    */
   batMcpLaunchArgs?(request: BatMcpLaunchRequest): BatMcpLaunchResult
+  /**
+   * PLAN-047 M1b-2 / T0621 (C-5): whether the codex `baseCommand` launches writes OSC 7501
+   * (`codex --version` >= 0.163.0, `createCodexOscVersionCheck`, electron/codex-osc-version.ts).
+   * Absent ⇒ never (the dispatched codex stays `none` until a sequence is seen).
+   */
+  codexWritesOsc?(baseCommand: string): Promise<boolean>
+  /** T0621: records `osc` as the dispatched terminal's `blockedDetection` (`PtyManager.setBlockedDetection`). */
+  recordBlockedDetection?(terminalId: string, detection: 'osc'): void
   logger: {
     warn(...args: unknown[]): void
   }
+}
+
+/** T0621 (C-6, D158): the codex override every helper-dispatched codex Worker gets. */
+export const CODEX_DISPATCH_NO_UPDATE_CHECK = 'check_for_update_on_startup=false'
+
+/** T0621 (C-6): the user's own args already set `check_for_update_on_startup` (then BAT adds nothing). */
+export function userArgsSetCodexUpdateCheck(extraArgs: string | undefined): boolean {
+  return /check_for_update_on_startup/.test(extraArgs ?? '')
 }
 
 export function toTerminalDrivenAgentId(agentId: string): string {
@@ -995,7 +1011,24 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
     // T0584: before the custom args (codex `-c` precedes a `resume` subcommand there)
     // T0590: + the claude `blocked` hooks; the decision becomes the terminal's `blockedDetection`
     const mcp = deps.batMcpLaunchArgs?.({ agentId, shellFamily: opts.shellFamily ?? 'posix', extraArgs, ...(opts.terminalId ? { terminalId: opts.terminalId } : {}) })
+    const launchBase = baseCommand
     if (mcp) baseCommand = withBatMcpArgs(baseCommand, mcp)
+    if (agentId === 'codex-cli') {
+      // T0621 (C-6): no update prompt in front of a Worker; same place as the MCP `-c` (before
+      // the custom args, which may hold a `resume` subcommand). Dispatch only.
+      if (!userArgsSetCodexUpdateCheck(extraArgs)) {
+        baseCommand = `${baseCommand} -c ${quoteArgForShell(CODEX_DISPATCH_NO_UPDATE_CHECK, opts.shellFamily ?? 'posix')}`
+      }
+      // T0621 (C-5): a codex that writes OSC 7501 is `osc` from the launch (after the MCP decision
+      // above recorded `none`), so `agentStarted` reads false until its first sequence
+      if (opts.terminalId && deps.codexWritesOsc && deps.recordBlockedDetection && await deps.codexWritesOsc(launchBase)) {
+        try {
+          deps.recordBlockedDetection(opts.terminalId, 'osc')
+        } catch (error) {
+          deps.logger.warn(`[agent-command] recording blockedDetection osc of ${opts.terminalId} failed: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+    }
     const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
     return {
       command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, opts.shellFamily ?? 'posix')}`,

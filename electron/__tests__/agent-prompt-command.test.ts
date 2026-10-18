@@ -7,6 +7,8 @@
  *     below, copied verbatim; only the module globals became the same deps)
  *   - golden strings pinning the exact Electron commands
  *   - headless deps: `<dataDir>/settings.json` only, no workspace default agent
+ * T0621 (C-6, D158): the one intended change since — a dispatched codex gets
+ * `-c check_for_update_on_startup=false` after its base command (marked in the legacy copy).
  */
 import { describe, expect, it, vi } from 'vitest'
 import { agentRegistry } from '../agent-runtime/agent-registry'
@@ -77,6 +79,8 @@ async function legacyBuildAgentPromptCommand(deps: Required<AgentPromptCommandDe
   }
 
   const normalized = legacyNormalizeControlTowerPromptForAgent(agentId, prompt)
+  // T0621 (C-6): not in the pre-T0431 body — no codex update prompt in front of a dispatched Worker
+  if (agentId === 'codex-cli' && !/check_for_update_on_startup/.test(extraArgs)) baseCommand = `${baseCommand} -c check_for_update_on_startup=false`
   const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
   return {
     command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, opts.shellFamily ?? 'posix')}`,
@@ -96,6 +100,9 @@ function electronLikeDeps(settings: AgentCommandSettings | null, workspaceAgents
     resolveClaudeBaseCommand: async () => CLAUDE_BASE,
     // T0584: BAT MCP off (Settings) — the command must stay what it was before T0584
     batMcpLaunchArgs: () => ({ injected: false, reason: 'turned off in Settings' }),
+    // T0621: no codex version check (the command does not depend on it)
+    codexWritesOsc: async () => false,
+    recordBlockedDetection: () => {},
     logger: { warn: vi.fn() },
   }
 }
@@ -151,8 +158,8 @@ describe('createAgentPromptCommandBuilder — Electron output unchanged (T0431)'
   it.each([
     [{ skill: 'ct-exec', workorder: 'T0431' }, `${CLAUDE_BASE} --dangerously-skip-permissions '/ct-exec T0431'`, false],
     [{ skill: 'ct-exec', workorder: 'T0431', shellFamily: 'pwsh' as ShellFamily }, `${CLAUDE_BASE} --dangerously-skip-permissions '/ct-exec T0431'`, false],
-    [{ prompt: '/ct-done T0431', agent: 'codex-cli', shellFamily: 'cmd' as ShellFamily }, 'codex --yolo "$ct-done T0431"', true],
-    [{ prompt: 'x', workspaceId: 'ws-codex' }, 'codex --yolo x', false],
+    [{ prompt: '/ct-done T0431', agent: 'codex-cli', shellFamily: 'cmd' as ShellFamily }, 'codex -c check_for_update_on_startup=false --yolo "$ct-done T0431"', true],
+    [{ prompt: 'x', workspaceId: 'ws-codex' }, 'codex -c check_for_update_on_startup=false --yolo x', false],
   ])('golden Electron command %#', async (opts, command, prefixNormalized) => {
     const build = createAgentPromptCommandBuilder(electronLikeDeps({
       agentCustomArgs: { 'claude-cli': '--dangerously-skip-permissions', 'codex-cli': '--yolo' },
@@ -180,7 +187,7 @@ describe('createAgentPromptCommandBuilder — Electron output unchanged (T0431)'
       ensureElevationApplied: async () => {},
       logger: { warn: () => {} },
     })
-    expect((await build({ prompt: 'p', agent: 'codex-cli' }))?.command).toBe('codex p')
+    expect((await build({ prompt: 'p', agent: 'codex-cli' }))?.command).toBe('codex -c check_for_update_on_startup=false p')
   })
 })
 

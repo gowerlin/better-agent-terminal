@@ -120,7 +120,7 @@ export const TOOLS = [
     name: 'bat_get_state',
     channel: 'terminal:get-state',
     title: 'Terminal state',
-    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation; tower = a Worker waits for its tower to answer a question, any agent) / exited, last output time, idle ms, exit code. blockedDetection none = this tab cannot report permission / question / elicitation, so idle does not rule out a prompt (tower still shows). pendingQuestions = its questions waiting for an answer. agentStarted: true = its claude has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. codex).',
+    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation; a codex tab: input = waits for the user, an approval or a question; tower = a Worker waits for its tower to answer a question, any agent) / exited, last output time, idle ms, exit code. blockedDetection = how this tab reports a prompt: hook (claude hooks), osc (codex >= 0.163.0 state sequence), none = it cannot, so idle does not rule out a prompt (tower still shows). pendingQuestions = its questions waiting for an answer. agentStarted: true = its agent has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. an older codex).',
     inputSchema: { type: 'object', properties: { terminalId: TERMINAL_ID }, additionalProperties: false },
     keys: ['terminalId'],
     timeoutMs: INVOKE_TIMEOUT_MS,
