@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0642
 title: "PLAN-050 B：查詢回傳 `claudeSessionName` / `claudeSessionId`（R3）——`SessionStart` hook 回報 sessionId（改 T0600）、BAT 重開後還原"
 type: feature
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-050
 priority: P2
 sizing: M
 created_at: "2026-10-18T16:44:32+0800"
+started_at: "2026-10-18T16:45:53+08:00"
+updated_at: "2026-10-18T17:08:06+0800"
+completed_at: "2026-10-18T17:08:06+0800"
 depends_on: [T0641]
 related:
   - "D167（使用者同意改 T0600 契約讓 hook 回報 session_id）；T0640 回報區（Q1-5 hook stdin 欄位、Q2-2 現況與落點、介面契約草案 C-4 / C-5 / C-8、實作切分 B）"
@@ -75,4 +78,98 @@ T0641 已讓 claude-cli 分頁啟動時帶 `--name`，並在主行程記下每�
 
 ## 回報區
 
-（Worker 填寫）
+### 結果摘要
+
+**DONE**。R3 完成：塔台經 `terminal:whoami` / `terminal:list` / `terminal:get-state`（MCP `bat_whoami` / `bat_list_terminals` / `bat_get_state`）取得自己與自己 Worker 的 `claudeSessionName` / `claudeSessionId`；sessionId 由 `SessionStart` hook 回報（D167 改 T0600 契約），Electron 以 `<userData>/claude-sessions.json` 在 BAT 重開、Terminal Server 存活時還原。hook 規則（exit 0、stdout 空、1.8 s、不送其他 payload）與既有欄位 / exit code 不變。
+
+### 落點檢查（Landing Zone）
+
+- 結果：**PASS**
+- C-0：工單 `repo: better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal`（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）→ PASS
+- C-1：工單位於 `REPO_ROOT/_ct-workorders/` → PASS
+- C-3：前 5 個可測項目（`scripts/bat-hook.mjs` 等）皆存在 → PASS（C-0 已 PASS，僅記錄）
+- C-2：工單無 `branch` 欄位，略過（實際 `main`）
+- 非隔離工單（`CT_HOME` 未設定）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
+### 最終欄位定義（給 CT-T021）
+
+`terminal:whoami`、`terminal:list` 每一列、`terminal:get-state` **每個回傳都有這兩個鍵**（`terminal:wait` 不加；既有欄位與值域不變）：
+
+| 欄位 | 型別 | 來源 | `null` 的意義 |
+|---|---|---|---|
+| `claudeSessionName` | `string \| null` | 該分頁最後一次啟動決策實際注入的 `--name`（T0641 `claudeSessionNameRecords`） | 沒注入：非 claude-cli（codex / 自訂 CLI / shell）、使用者自己命名、system claude 太舊或讀不到版本 |
+| `claudeSessionId` | `string \| null`（UUID） | 該 PTY 的 claude 最後一次 `SessionStart` hook 的 `session_id` | 還沒回報、`blockedDetection: none`、hooks 被關、BAT 重開後無存檔（headless / Terminal Server 沒存活）。🔴 `null` 不代表沒有 session |
+
+- 每一次 `SessionStart`（startup / resume / clear / compact）以新值取代 sessionId；`agentStartedAt` 仍只記第一次（e2e 實測 `/clear` 換 id、時間不變）。
+- 結束紀錄（exited）保留兩值；PTY 結束 / ⏻ 重啟 / Terminal Server recovery 清除 sessionId；使用者輸入不清除。名稱不隨 PTY 清除（是「最後一次注入的名稱」，不保證 claude 仍在跑）。
+- 範圍沿用 `authorizeHelperQueryTarget`，未放寬（worker 對綁定塔台的 metadata 也看得到兩欄）。
+- hook 契約（C-5）：`terminal:report-hook { event: 'session-start', sessionId?: string }`；handler 以 `CLAUDE_SESSION_ID_PATTERN` 驗證，不合格 / 非字串 / 其他 event → 忽略、不回錯誤，回應格式不變。舊 BAT 忽略該欄位，hook 仍 exit 0。
+
+### 持久化設計（C-8）
+
+- 唯一實作 `ClaudeSessionPersistence`（`electron/claude-session-name-record.ts`），比照 T0576 `helper-capabilities.json`；只在 `electron/**`，**不經 renderer `workspace:save`、不動 window registry**（故未提問）。
+- 檔案 `<userData>/claude-sessions.json` = `{ version: 1, sessions: [{ terminalId, name, sessionId }] }`，只存執行中且兩值至少一個非 null 的 PTY；不含權杖；原子寫入、內容沒變不重寫。
+- main.ts：whenReady 與 helper capabilities 同時 `load`（PtyManager 建立前）→ pending；`onSurvivingPtys` `settle`（存活者還原：名稱僅在沒有更新的啟動決策時、sessionId 經 `PtyManager.restoreClaudeSessionId` 僅在未回報新值時）；`startTerminalServer` fork 前 `settle(() => false)` 全丟。寫入時機：`recordClaudeSessionName`、`onClaudeSessionChange`（新 PtyManagerDeps）、`onPtyExit`、`onServerRecovery`。
+- headless：只在記憶體（已知限制）。
+- 還原不含 `agentStartedAt` / `blockedDetection` / tower 角色（各自既有限制）：BAT 重開後可能 `claudeSessionId` 有值但 `blockedDetection: none`、`agentStarted: null`、role `shell`（e2e 實測）。
+
+### 變更檔案
+
+- `scripts/bat-hook.mjs`（`SESSION_ID_PATTERN`、`hookReport` 帶 `sessionId`、bat-scripts.log `session` 前 8 碼）
+- `electron/terminal-blocked-state.ts`（`CLAUDE_SESSION_ID_PATTERN`、`sessionIdForLog`、tracker `sessionIds` / `getSessionId` / `restoreSessionId` / `onSessionChange`、report-hook 收 `sessionId`、鏡像前 8 碼）
+- `electron/pty-manager.ts`（`ExitedPtyRecord.claudeSessionId`、`reportHookEvent` 第 4 參數、`getClaudeSessionId`、`restoreClaudeSessionId`、`PtyManagerDeps.onClaudeSessionChange`）
+- `electron/claude-session-name-record.ts`（store read / write、`ClaudeSessionPersistence`）
+- `electron/terminal-query-handlers.ts`（`getClaudeSessionName` dep、`claudeSessionOf`，三個 channel 加欄位）
+- `electron/main.ts`、`electron/remote/headless-entry.ts`（接線）
+- `scripts/bat-mcp.mjs`（三個 tool 說明、whoami 摘要）
+- 測試：新 `electron/__tests__/claude-session-query.test.ts`；`terminal-blocked-state` / `terminal-query-handlers` / `codex-osc-state` / `tower-questions` / `claude-session-name-launch` / `bat-hook` / `bat-mcp` 測試更新；新 e2e `e2e/t0642-claude-session-query.spec.ts`
+- 文件：`docs/agent-guide/claude-session-name.md`（新「查詢欄位 R3」節、日誌、已知限制、驗證）、`worker-launch-confirmation.md`、`blocked-state.md`、`helper-query-channels.md`、`bat-mcp-shim.md`、`CLAUDE.md` PLAN-050 節
+- 未動 `src/components/**`、`src/stores/**`、`src/types/index.ts`、`src/locales/**`、`src/styles/settings.css`
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `npm run typecheck` | ✅ 0 |
+| `npm run typecheck:electron` | ✅ 0 |
+| `npm run test:unit` | ✅ 310 files / 5371 passed / 3 skipped（基線 5334 / 307；+T0644 2 檔、+本單 1 檔） |
+| `npx vite build` | ✅ 成功 |
+| e2e `e2e/t0642-claude-session-query.spec.ts` | ✅ 1 passed（31.6 s，最終 build 上重跑） |
+| 回歸 e2e `t0590` / `t0600` / `t0576`（含 control）/ `t0641` | ✅ 5 passed |
+
+測試涵蓋（對應工單「驗證」）：
+- hook 只帶合格 UUID、仍 exit 0 無 stdout：`bat-hook.test.mjs`（`hookReport` / `reportHook`）、`terminal-blocked-state.test.ts` 真 RemoteServer + 真 `bat-hook.mjs` process（UUID 送出、非 UUID 不送、`source` / `transcript_path` / `cwd` 不送、bat-scripts.log 只有前 8 碼）
+- `/clear` 類第二次 `session-start` 更新 sessionId、不改 `agentStartedAt`：tracker 單元、真 hook process、e2e
+- 三個查詢欄位（注入 / 未注入 / codex / exited）、範圍不變、`wait` 不加欄位：`claude-session-query.test.ts`
+- 舊 BAT 相容：T0600 BAT（丟棄 `sessionId`）與更舊 BAT（`INVALID_ARGS`）皆 exit 0（真 hook process）；handler 層 T0600 形狀不變
+- 持久化還原：store 格式 / 無權杖 / 損毀 / 無效項目、兩個 BAT 行程間的還原 / 丟棄 / 新值優先 / 結束移除 / 不重寫（單元）；e2e 保留 Terminal Server 重開 BAT → `[claude-session] kept restored` → 塔台 MCP 讀回名稱與兩個 sessionId
+- e2e：塔台 MCP `bat_whoami`（`T0642 · Tower` + SID_T）、`bat_get_state` / `bat_list_terminals`（Worker 名稱 null + SID_W）；debug log / bat-scripts.log 只有前 8 碼、不含完整 sessionId / 權杖 / hook 內容
+
+### 偏離與決策（yolo，自行決定，未提問）
+
+1. **`terminal:wait` 不加兩欄**：C-4 只列 whoami / list / get-state；`wait` 共用 `StateSnapshot`，刻意不擴（測試斷言 wait 沒有該欄位）。若 CT 需要在 `until: 'agent-started'` 後直接拿 sessionId，可另開小單。
+2. **修正 T0641 的 renderer source guard**（`electron/__tests__/claude-session-name-launch.test.ts`）：T0644（commit `6174a6f2`）把 `startClaudeCliPty` 的 `sessionName` 改成依 `launchRole` 的三元式，使 T0641 guard 失敗（T0644 範圍不含 `electron/**`）。該檔在本單 `affects_files` 內，故把 guard 改成比對新寫法的 tab 分支，維持「一般分頁仍是 `<ws> · <短 ID>`」的守護。
+3. **持久化不經 renderer**：選 main 端獨立檔（比照 T0576），不需改 `src/**`，未觸發工單要求的提問條件。
+4. `/clear` 換 sessionId：T0640 列為推論；本單 e2e 以模擬的 `source: clear` hook 驗證 BAT 端行為（取代、不改時間），**未以真 claude 實測** `/clear` 會換 id（不耗 token 原則）。
+
+### 已知限制
+
+- headless 不持久化；BAT 重開後 `agentStarted` / `blockedDetection` / tower 角色不還原（各自既有限制），可能出現 sessionId 有值但 `blockedDetection: none`。
+- 名稱是最後一次注入的值；claude 結束、shell 仍在時兩欄仍回傳最後的值（未注入 `SessionEnd`）。
+- 手動在 shell 打 `claude`、hooks 被關閉 → `claudeSessionId` 為 null。
+
+### 遭遇問題
+
+- 並行工單 T0644 於本單執行期間提交，導致 T0641 renderer guard 失敗（見偏離 2，已處理）。
+- `vite build` / e2e 與 T0644 並行，未遇到互相覆寫或鎖檔問題。
+- bash heredoc 內含特定字元時 `bash -c` 解析失敗，改以 scratchpad 的 Python 腳本套用編輯（不影響產物）。
+
+### Commit
+
+- 產品：`12da2ca6` feat(T0642): claudeSessionName / claudeSessionId in whoami / list / get-state (PLAN-050 B, D167)
+- 工單：本次結案 commit（`git commit --only _ct-workorders/T0642-claude-session-query-fields.md`）
+- 未 push
+
+### 互動紀錄
+
+- 無（yolo，未向塔台提問）。
