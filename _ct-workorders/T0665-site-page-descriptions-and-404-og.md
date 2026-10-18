@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0665
 title: "PLAN-049：網站 install / compatibility / releases 補頁面 description；404 頁分享說明改中文"
 type: feature
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-049
 priority: P3
 sizing: S
 created_at: "2026-10-18T22:28:18+0800"
-started_at: ""
-updated_at: "2026-10-18T22:28:18+0800"
-completed_at: ""
+started_at: "2026-10-18T22:29:04+0800"
+updated_at: "2026-10-18T22:32:00+0800"
+completed_at: "2026-10-18T22:32:00+0800"
 target_version: "網站（不發 BAT 版）"
 related:
   - "T0659 回報區「給塔台的後續建議」第 1、2 點"
@@ -76,10 +76,64 @@ T0659（W4 分享卡片）回報兩個零星缺口：
 
 ### 完成狀態
 
+**DONE** — 三頁補上各自的 description；404 頁的 description / `og:description` / `twitter:description` 改中文；其他頁面 head 不變；build 成功；未 push。
+
+### 落點檢查
+
+- 結果：**PASS**
+- C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 下 → PASS
+- C-3：`site/install.md` 等皆存在 → PASS（資訊性）
+- C-2：工單無 `branch` 欄位，略過；目前分支 `main`
+- `CT_HOME` 未設定（非隔離工單）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
 ### 產出摘要
+
+**三句 description（給使用者預覽）**
+
+| 頁面 | description |
+|---|---|
+| `site/install.md`（安裝） | 下載 Better Agent Terminal 的 Windows、macOS（Apple Silicon）、Linux 安裝檔，或從原始碼建置；資料目錄的位置、從舊版升級、除錯日誌，以及語音輸入的麥克風權限。 |
+| `site/compatibility.md`（版本對照） | Better Agent Terminal 與 BMad Control Tower 一起用時，每項協作功能需要的 BAT 與 Control Tower 最低版本；任一邊較舊時，該功能不啟用，其餘流程照舊。 |
+| `site/releases.md`（更版紀錄） | Better Agent Terminal 各版的更版重點，最新版在最上面：每一版修正了什麼、新增或更新了什麼、有哪些已知事項；上游專案 v2.1.x 的紀錄附在最後。 |
+
+內容對照正文：install 依頁面各 `##` 節（下載安裝檔 / 從原始碼建置 / 資料存放位置 / 從舊版升級 / 除錯日誌 / 語音輸入的麥克風權限）；compatibility 依 README `#region compatibility` 的說明句與表格；releases 依 `release-note.md`（最新在上，`###` 節以 修正 40 / 已知事項 24 / 更新 18 / 新增 15 為主，最後一節「上游歷史（tony1223/better-agent-terminal v2.1.x）」）。`releases.md` 原有 frontmatter（`outline`），description 加在其中；install / compatibility 新增 frontmatter。正文未改。
+
+**404 新文字**（`site/.vitepress/config.mts` 常數 `NOT_FOUND_DESCRIPTION`）：
+
+> 找不到這個頁面，網址可能已經移除或改名。請回 Better Agent Terminal 首頁，或從上方選單找你要的內容。
+
+做法：`transformHead` 對 `pageData.isNotFound` 改用此文字產生 `og:description` / `twitter:description`，並在 head 加 `meta[name=description]`（VitePress `renderPage` 以 `isDescriptionOverridden(head)` 判斷，head 已有時不再輸出內建的 `Not Found`）。其他頁面的 head 標籤與順序與修改前相同（`og:title`、`og:description`、`twitter:title`、`twitter:description`、`og:url`）。
+
+`<title>`：維持 `404 | Better Agent Terminal`（「404」是數字不是英文；VitePress 的 `<title>` 由內建 `notFoundPageData.title` 產生，transformHead 無法替換，加第二個 `<title>` 不妥，要改需新增自訂 `404.md`，不在 `affects_files`）。`og:title` / `twitter:title` 也維持與 `<title>` 一致。
+
+**commit**：`c31c2db0` docs(site): T0665 page descriptions for install / compatibility / releases; Chinese 404 description（`git commit --only` 4 個 `site/` 檔）；工單 commit 另提。未 push。
+
+### 驗證
+
+- `site/` `npm run build`：修改前（基準）與修改後皆 exit 0（`build complete in 2.71s`），無 error / warning / dead link。
+- 產物 `site/.vitepress/dist/`：
+  - `install.html` / `compatibility.html` / `releases.html`：`meta[name=description]`、`og:description`、`twitter:description` 三者皆為上表各自那句；`og:url` 照舊。
+  - `404.html`：三者皆為上方中文句；檔內 `Not Found` 出現 0 次；無 `og:url`（同修改前）。
+  - 每個 `.html` 的 `meta[name=description]` 恰好 1 個（全站逐檔檢查）。
+  - `index.html` / `faq.html` / `features.html` 的 `<head>`：與修改前基準 diff，唯一差異是 `app.*.js` / `chunks/theme.*.js` 的雜湊檔名（config 變更造成）；把雜湊正規化後三頁 **IDENTICAL**。`index.html` 的 description = 站點說明（預期行為）。
+- 換行：`git ls-files --eol` 四檔皆 `i/lf w/lf`。
+- 只改 `affects_files`；`src/styles/settings.css` 未動、未提交。
 
 ### 互動紀錄
 
+無（yolo，無需向塔台提問）。
+
 ### 遭遇問題
 
+- 第一次基準 build 的日誌誤寫到 repo 上兩層的 `D:/ForgejoGit/@Gower_Labs/BMad-Guide/t0665-base-build.log`，已立即移到 scratchpad；該目錄 `git status` 無殘留（只有原本就有的子目錄標記）。
+- 已知限制：VitePress 客端 hydration（`useUpdateHead`）會把瀏覽器 DOM 裡 404 的 `meta[name=description]` 改回內建的 `Not Found`（只在已執行 JS 的瀏覽器內；分享卡片爬蟲讀靜態 HTML，不受影響）。要連客端一起改需動 theme 或新增自訂 `404.md`，不在本單範圍。
+
+### 給塔台的後續建議
+
+1. `releases.html` 的 `<title>` / `og:title` 是 `Release Notes — Better Agent Terminal（gowerlin fork） | Better Agent Terminal`（取自 `release-note.md` 的 H1，英文且重複站名），分享卡片標題不理想；可在 `site/releases.md` frontmatter 加 `title: 更版紀錄`（修改前就如此，本單未動）。
+2. 若要 404 的 `<title>` 與客端 description 也中文化，可另開單新增 `site/404.md`（VitePress 自訂 404 頁）。
+
 ### 回報時間
+
+2026-10-18T22:31:25+0800
