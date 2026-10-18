@@ -4,7 +4,10 @@ schema_kind: workorder
 id: T0633
 title: "研究：從 CT 文件萃取網站可用的功能特點與案例（自助擴充、DESIGN.md、FIELDGUIDE、實戰補充）"
 type: research
-status: PENDING
+status: DONE
+started_at: "2026-10-18T13:37:50+08:00"
+updated_at: "2026-10-18T13:43:37+08:00"
+completed_at: "2026-10-18T13:43:37+08:00"
 repo: better-agent-terminal
 project: PLAN-049
 priority: P2
@@ -88,4 +91,77 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 結果摘要
+
+- 狀態：**DONE**。研究型工單，交付提案稿 `_ct-workorders/_spec-site-v2-ct-features-cases.md`（Status: DRAFT，commit `714ba3b1`）
+- Q1：17 個功能點，分兩組：「越用越懂你的專案」F1–F8、「現實比計劃更混亂時」F9–F17。每點都寫了文案草稿、對應的故事章節、分工（CT / BAT / 搭配）、出處與公開判斷。結果：13 點可公開（✅；其中 F8 的「業界背景」段不上站），3 點需改寫或使用者確認（⚠️：F3、F11、F16），1 點不公開（❌：F17）
+- Q2：4 個情境案例（C1 合併後的洋蔥式除錯、C2 兩個服務同一個欄位、C3 正式站插隊、C4 塔台被慣壞〔備選〕），全部改寫成 `demo-shop`；另有 3 個 BAT 真實案例（R1 BAT 定契約 / CT 依契約、R2 一句話變成塔台原則、R3 網站設計語言從 BAT UI 抽出）
+- Q3：首頁加一段「越用越懂你的專案」（S–M）；`/control-tower` 加 3 節加 FAQ（M，併入 W2b）；新增 `/cases`（M，獨立 W2d）
+- Q4：12 條對照，沒有硬衝突。主要補強是支柱 2 加入熔斷、支柱 3 延伸成「還會長大」。潛在衝突是來源文件充滿指令名、路徑與版本號，與 D159 / 規格 § 8 相抵，所以網站只寫概念
+
+### 推薦
+
+1. 首頁加「越用越懂你的專案」：3 張卡（說一次就記得 / 教戰手冊 / 視覺規範）加一條 4 格成長管線，排進 W2b，不改進行中的 T0630
+2. 開 `/cases`（W2d）：首批放 C1–C3 與 R1–R3；C4 / F16 只放 `/control-tower` FAQ
+3. 網站不寫任何 CT 指令名稱、檔名、存放路徑或 CT 版本號
+4. 「需要使用者決定的事項」共 7 題，列在提案稿 § 6，每題都附了推薦
+
+### 各來源讀過的章節
+
+| 來源 | 讀取範圍 |
+|---|---|
+| 自助擴充指南 v4 | 全文（769 行）：為什麼可以自己擴充、基本原理、四步流程、實戰範例 1–6、AI 輔助設計、擴充邊界、常見問題、一句話總結、v4.0 章節 A–D |
+| DESIGN.md 視覺規範指南 v4 | 全文（464 行）：什麼是 DESIGN.md、與 FIELDGUIDE 關係、業界背景、快速開始、擷取管線 Step 0.5–9、URL 靜態分析、瀏覽器即時擷取、適用場景、跨專案一致性、九章節格式、常見問題、進階技巧 |
+| FIELDGUIDE 教戰手冊指南 v4 | 全文（461 行）：什麼是 FIELDGUIDE、三層結構、快速開始、五大子命令、三層撰寫指引、Global vs Project、回報標記、常見問題、進階技巧 |
+| 實戰補充（8 篇） | 全部全文：索引、（一）、（一-A）、（一-B）、（一-C）、（四）、（五）、參考篇「資深開發者除錯模式分析」 |
+| 補充查證（非指定來源，只查關鍵字） | 同目錄 v5 使用指南：確認學規則、經驗萃取、教戰手冊、DESIGN.md、互動探索、安全匯入、熔斷在 v5 仍存在；中斷語法 v5 改為暫停 / 恢復；REVIEW 狀態在 v5 已移除 |
+| BAT 端核對 | `README.md`「功能特色」「與 BMad Control Tower 協作」（整合點表、版本對照表 10 列）；`docs/agent-guide/` 的 workspace-agent-launch、helper-query-channels、bat-mcp-shim、tower-questions、recovery-create-hold、logging（確認檔案存在）；`docs/design/site-design-language.md` 檔頭；規格 `_spec-site-v2-bat-ct-story.md` 全文；決策 D159 / D160 / D162–D164 |
+
+### 隱私與公開判斷總表
+
+| 項目 | 判斷 | 理由 |
+|---|---|---|
+| F1、F2、F4–F10、F12–F15 | ✅ | 概念層 |
+| F3 | ⚠️ 改寫 | 原文以內部層級與存放路徑說明 |
+| F8「業界背景」段 | ⚠️ 不上站 | 第三方說法未查證 |
+| F11 | ⚠️ 改寫 | 原文語法在 v5 已改；BAT 保留分頁有前提條件 |
+| F16、C4 | ⚠️ 使用者確認 | 內容偏負面；推薦只放 FAQ |
+| F17（除錯模式分析整份） | ❌ | 含真實客戶名稱、系統識別碼、內部元件與 log 細節 |
+| C1–C3 | ✅ | 改寫成 `demo-shop`；原文的子專案名、產品名、時間戳、人物與自述都不使用 |
+| R1 | ✅（數字 ⚠️） | 依 README 公開段落；「約 20 次」與「CT 新版由 BAT 實機驗收」一句交使用者決定（推薦：數字上站，驗收那句不加） |
+| R2、R3 | ✅ | 只涉及 BAT 自己 |
+| 學員自述 / 人格描述 | ❌ 一律不用 | 可推回身分 |
+
+### 驗證
+
+- 來源覆蓋：4 份來源全文讀完（見上表）：PASS
+- 出處與公開判斷：F1–F17、C1–C4、R1–R3 每項都有：PASS
+- 去識別化：grep 提案稿中的原文專有名詞（兩個子專案名、客戶名、CTI 元件名、訊息佇列產品名等）、CT 指令（星號 / 斜線開頭）、CT 資料目錄路徑、BMad-Guide 路徑，命中 0：PASS
+- 案例字數（中文字元，不含標點）：C1 195、C2 169、C3 147、C4 161，都在 120–200 之間。R1 約 150、R2 124；R3 約 70，因為用作註腳，刻意寫短。工單的字數規定只適用於實戰補充的案例：PASS
+- R1 數字實測（2026-10-18）：本 repo 工單目錄含歸檔共 20 個不同的 CT 委派單編號，最早一張建立於 2026-04-17；README 版本對照表 10 列
+- 未改 `site/`、`README.md`、`src/`；`src/styles/settings.css` 的 M 與 `site/` 的未追蹤檔不是本單的變更，沒有動；未 push：PASS
+- 寫檔 LF（`\r` 計數 0）
+
+### Landing check
+
+- C-0：`repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`：PASS
+- C-1：工單位於 REPO_ROOT 之下：PASS
+- C-3：`affects_files` 全在 `_ct-workorders/`：不適用
+- C-2：無 `branch` 欄位；目前在 `main`
+- `CT_HOME` 未設（非隔離）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）
+- 結果：PASS
+
+### Commit
+
+- `714ba3b1` docs(ct): T0633 site v2 CT features and cases proposal (DRAFT)：只含提案稿
+- 工單檔：本次回報另行 `git commit --only`
+
+### 偏差 / 阻礙 / 後續
+
+- 沒有偏差、沒有阻礙；沒有向塔台提問（`CT_MODE=yolo`，範圍內的選擇都依工單與規格自行決定，理由寫在提案稿）
+- 範圍外的觀察：CT 端 4 份 v4 文件有過時處（中斷語法、REVIEW 狀態），屬於 CT 文件維護，只記錄、未處理
+- 後續建議：使用者回覆提案稿 § 6 之後，由塔台把結論併入 `_spec-site-v2-bat-ct-story.md`（§ 3 支柱 3、§ 4.4、§ 5、§ 8、§ 10），再開 W2b / W2d
+
+### 互動紀錄
+
+- 無（fire-and-forget，未向使用者或塔台提問）
