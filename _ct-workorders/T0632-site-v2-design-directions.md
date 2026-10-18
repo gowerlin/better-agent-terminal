@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0632
 title: "PLAN-049 W2a-0：網站 v2 視覺方向 —— BAT 設計語言、Design System 與 Design 畫布三個方向（frontend-design / theme-factory）"
 type: design
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-049
 priority: P2
 sizing: M
 created_at: "2026-10-18T13:08:27+0800"
+started_at: "2026-10-18T13:13:33+0800"
+updated_at: "2026-10-18T13:30:01+0800"
+completed_at: "2026-10-18T13:30:01+0800"
 depends_on: [T0631]
 related:
   - "規格：`_ct-workorders/_spec-site-v2-bat-ct-story.md`（APPROVED，D161；§ 3 定位、§ 4 首頁內容、§ 7 視覺、§ 8 文案規則）"
@@ -112,4 +115,86 @@ Artifact 的 Design / Design System 類型在你的 session 不能用 → 改把
 
 ## 回報區
 
-（Worker 填寫）
+### 結果摘要
+
+**DONE**。三樣產出都完成，三個方向 × 4 張 artboard 都在畫布上；未改 `site/`、未 push。
+
+| 產出 | 位置 |
+|---|---|
+| 設計語言（repo 唯一來源） | `docs/design/site-design-language.md`，commit `647bfeca` |
+| Design System「Better Agent Terminal」 | https://claude.ai/artifact/FgvvUnYMgJwsEkrS2ATCBj （私人） |
+| Design 畫布「BAT 網站視覺方向」 | https://claude.ai/artifact/2LN8rmZ3VbGwZSLpN18mPv （私人；已安裝上面的 Design System） |
+
+實際載入的 skill 名稱：`frontend-design:frontend-design`（plugin 前綴）、`anthropic-skills:theme-factory`；設計語言抽取另依步驟 2 載入 `ct-fieldguide`（design from code，static 模式）。theme-factory 的 10 個內建主題都不帶中文字體、也不帶固定錨點，所以用它的「Create your Own Theme」流程自訂 3 組主題（名稱 + 色票 + 字體搭配），沒有套用內建主題；依工單「本單不等使用者回覆」，跳過該 skill 的「先給使用者看 showcase、等選擇」步驟。
+
+### 設計語言（步驟 2）
+
+`docs/design/site-design-language.md` 每個值都附出處：
+
+- 品牌色：`assets/icon.svg` 的 `#a855f7`（`magicAura` 0%、書脊符文）/ `#7c3aed` / `#4c1d95`、書封 `#1a1a2e` → `#0f3460`、羽毛筆 `#ff6b6b` / `#feca57` / `#48dbfb` / `#ff9ff3` / `#54a0ff`；`#c084fc` / `#e9d5ff` 依規格 § 7。另算出 WCAG 對比：`#a855f7` 白底 3.96 / 深底 4.31，所以淺色模式的紫色文字改用圖示內的 `#7c3aed`（白底 5.70），`#a855f7` 只做訊號 / 圖形。
+- 分頁標題：`src/lib/tower-terminal-title.ts`（`towerTerminalTitle`、`TOWER_ROLE_LABEL`、`SEPARATOR = ' · '`）、`src/lib/external-terminal-title.ts`（`externalTerminalTitle`、`WORKER_ROLE_LABEL`）；Agent 顯示名與圖示色取 `src/types/agent-presets.ts`。
+- Worker 狀態：符號 `src/components/TerminalThumbnail.tsx` `WORKER_ATTENTION_MARK`（`⚠️` / `?` / `✓`），顏色 `src/styles/panels.css` `.worker-badge.blocked` `#e06c75` / `.question` `#61afef` / `.reported` `#98c379`，優先序 `src/lib/terminal-attention.ts` `workerAttention`。App 沒有淺色主題，這三色在白底只有 2.0–3.2，所以另訂網站淺色 AA 版 `#b42d3a` / `#1d64a8` / `#3b7a1e`（同色相降明度，文件中註明是網站新訂值）。
+- Stepper：`docs/design/bat-stepper-design-language.md` § 3 的 `pending` / `running` / `awaiting-input` / `completed` / `failed`，並對應工單四種狀態。
+- 固定錨點 A1–A3（品牌紫 = 塔台訊號色、狀態符號與語意、分頁標題格式）寫在 § 0。
+
+### 三個方向摘要
+
+| | A 進場雷達 | B 飛行進度條 | C 一個早上 |
+|---|---|---|---|
+| 概念 | 機場比喻的「雷達 = BAT 狀態偵測」：Hero 是一個 BAT 視窗，上面分頁列、中間雷達幕（塔台在圓心、Worker 是標了 ⚠️ / ? / ✓ 的光點）、下面三行事件紀錄 | 航管員的紙條架：每張工單是一條進度條（編號、Agent、範圍、派工 / 回報時間），塔台用紫筆手寫 ✓ / ? / ⚠️；強調工單 = 飛行計畫、可追溯 | 故事本身是一個早上，時間就是版面：每章一個超大時間數字，Hero 的分頁列畫成 09:00–12:30 的時間軸，Worker 沿時間出現、提問、回報 |
+| 明暗 | 深色 | 淺色（灰藍條架） | 淺色（帶紫晨光 → 正午白） |
+| 字體 | Chiron Hei HK 900 / Noto Sans TC / Martian Mono（終端） | Noto Sans TC 900 / LXGW WenKai TC（手寫標記）/ IBM Plex Mono（條上格子） | Noto Serif TC 900 / Noto Sans TC / Bodoni Moda（只用在時間數字） |
+| 色票 | `#10172e` `#0f2547` `#2a3f6b` `#e8ebf7` `#9aa5c4` + 紫 `#a855f7` / `#c084fc` + App 狀態原色 | `#e6e8ee` `#c7ccd8` `#1b2233` `#4d5468` Worker 條 `#fff4d1` 塔台條 `#efe4ff` 紫筆 `#7c3aed` + 淺色 AA 狀態色 | `#f4f1fb` `#fbfbfd` `#1d1830` `#5b5470` 紫 `#7c3aed` 淡紫 `#e9d5ff` 太陽黃 `#feca57` |
+| 動態 | 掃描線 6 秒一圈，掃到的光點換狀態（約 20 秒一輪）、事件紀錄同步；reduced-motion 停在固定角度與最終狀態 | 紙條滑進架子（派工）、紫筆描出 ✓（SVG 筆畫）、滑出（回收）；reduced-motion 直接顯示最終狀態 | 捲動時背景亮度與時間軸「現在」線跟著章節走（IntersectionObserver 換 CSS 變數）；reduced-motion 每章固定亮度 |
+| VitePress 實作要點 | TowerDemo = SVG 雷達 + HTML 光點 + 紀錄；動畫只有一個 rotate；淺色模式 Hero 與終端維持深色帶，其餘換淺色 | FlightStrip 元件三處共用；WenKai 用 css2 `&text=` 子集只抓手寫的幾個字；深色模式要多一組「深色條架」tokens | StoryTimeline（sticky 大時間）+ MorningTrack；Serif 只載 900 一個字重；深色模式要「深夜」一組 tokens |
+| 風險 | 與 VitePress 預設淺色落差最大；雷達容易被讀成資安 / 駭客風；Chiron Hei HK 載入失敗時個性變弱 | 「飛行進度條」在台灣不算常識，要一句說明；格子密，手機要重排；最好實作，但也最可能顯得平 | 明體大標在 Windows 字型未載入時退回新細明體；最接近雜誌模板，要靠時間軸撐個性；長標題換行要逐句調 |
+
+三個方向的共同點：中文字體一律 Google Fonts css2 分段載入（unicode-range，只抓用到的字），不自帶字型、不加 npm 依賴；手機 16 px 邊距、表格放進自己的 `overflow-x: auto` 容器（不捲整頁）；狀態一律符號 + 文字。各方向的完整說明也以便利貼放在畫布每列右側。
+
+### 推薦
+
+**推薦 A 進場雷達為主，混入 C 的時間軸做故事段落。** 理由：
+
+1. 它最貼近產品本身：Hero 就是 BAT 視窗（分頁列 + 狀態 + 事件紀錄），雷達直接對應規格 § 3 機場比喻的「雷達 = 狀態偵測」，⚠️ / ? / ✓ 在第一屏就被看見——規格 § 0 診斷的問題正是「看不出整合優勢」。
+2. 規格 § 7 本來就要求 Hero 用深色帶、終端機氛圍，A 不用和規格拉扯。
+3. 故事段落（7 個時間點）改用 C 的「大時間 + 以前 / BAT + CT」排版，可以把 A 的深色限制在 Hero 與終端區塊，讓長篇閱讀回到淺色，減輕 A 最大的風險（深色長頁與 VitePress 淺色模式的落差）。
+
+B 是最穩、最好實作的選項；如果使用者偏好淺色、想強調「工單 = 飛行計畫」的可追溯性，選 B。
+
+### 驗收對照
+
+| 驗收項 | 結果 | 證據 |
+|---|---|---|
+| `docs/design/site-design-language.md` 存在、已 commit，色票與狀態符號有出處 | PASS | commit `647bfeca`（在 `main`），每節表格都有「出處」欄 |
+| Design System 與 Design 畫布各一個 Artifact | PASS | 連結見上；Design System 含 README、tokens（深 / 淺兩主題、34 色、10 個字級含繁中字體、間距、圓角、陰影）、6 個元件附即時預覽（TabTitle、WorkerThumbnail、StatusTag、TerminalBlock、RoleTag、StoryChapter）、App 圖示素材、封面 |
+| 三個方向 × 4 張 artboard | PASS | 畫布 12 張：每方向 Hero 桌面 1440 / 故事 09:20 / 三欄對照 / Hero 手機 390；文案取自規格 § 3、§ 4.1–4.3 |
+| 回報附連結、摘要表、推薦、skill 名稱 | PASS | 本節 |
+| 未改 `site/`、未 push | PASS | 本單只 commit `docs/design/site-design-language.md` 與本工單檔；未執行 push |
+| Artifact 內容符合規格 § 8 | PASS | 對 Design System 與畫布所有原始檔 grep `T0\d{3}`、`D1\d{2}`、`BUG-\d`、`PLAN-\d`、`_ct-workorders`、`CLAUDE.md`、`全自動`、使用者名稱：0 筆；示意只用 `demo-shop` 與 `T1024`–`T1026` |
+
+### 偏離與限制
+
+- **未截圖檢視畫布**：Design 類型的說明明訂「使用者沒要求就不 render / 截圖驗證」，所以 12 張 artboard 沒有實際截圖檢查；版面問題請在畫布上直接看。寫作時自行抓到並修正兩處（B 故事頁不合法的 `grid-template-columns`、C Hero 時間刻度位置不按比例）。
+- **畫布的字體清單不含中日韓字型**：畫布附的 Google Fonts 清單沒有 `Noto Sans TC` 等 CJK 字族（推測是匯出 PNG / PDF 時無法嵌入）。artboard 照樣用 css2 `<link>` 載入，瀏覽器內應可顯示；**匯出 PNG / PDF 時中文可能退回系統字型**。T0630 實作不受影響。
+- `Chiron Hei HK`、`LXGW WenKai TC` 的 Google Fonts 字族名稱依記憶填寫，未在本 session 線上查證；若載入失敗會退回 `Noto Sans TC` / 系統楷體，T0630 實作前請先確認。
+- Design System 的 `lastChange.by` 填 `Claude`（不放使用者名稱，遵守 § 8）。
+- 兩個 Artifact 都是私人；要給別人看需由使用者從頁面的 Share 選單分享。
+- B / C 的派工時間（09:22、09:25）與範圍名稱（折扣碼驗證、金額計算、結帳頁畫面）是 demo-shop 故事內的虛構示意值，規格未給。
+
+### Landing check
+
+- C-0 PASS：`repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1 PASS：工單在 `REPO_ROOT/_ct-workorders/` 下
+- C-3 PASS：`docs/design/` 已存在
+- C-2：工單無 `branch` 欄位，不適用；目前分支 `main`
+- 非 worktree（`CT_HOME` 未設）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
+### Commit
+
+- 產品 / 文件：`647bfeca docs: site design language from BAT UI (T0632)`（`git commit --only`）
+- 工單檔：本次收尾 commit（`git commit --only _ct-workorders/T0632-site-v2-design-directions.md`）
+- `src/styles/settings.css` 的未提交變更不是本單的，未碰。
+
+### 互動紀錄
+
+無（yolo，未向塔台提問）。
