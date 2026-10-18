@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0626
 title: "探針：CT v5.7.2 多題混合通道＋等待中取消的晚退回標記（F-1 ② ／ 第 6 步）"
 type: verification
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
 started_at: "2026-10-18T12:44:08+0800"
-updated_at: "2026-10-18T12:44:08+0800"
+updated_at: "2026-10-18T12:47:00+0800"
+completed_at: "2026-10-18T12:47:00+0800"
 depends_on: [T0625]
 related:
   - "CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 實機驗收第 2 張（T0625–T0629）；對照 v5.7.0 的 T0616"
@@ -20,7 +21,6 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -103,3 +103,60 @@ memory_overrides:
 - 影響範圍：本工單 Step 3–4 與驗收證據
 - 阻塞：是（Step 3 起要等答覆）
 - **通道**：工單
+- **塔台答覆 Q-3**：[A] 收到——該題有晚退回 `通道` 標記（列表 `cancelled worker`），依規則改在工單答覆（2026-10-18T12:45:46+0800；塔台代決）
+
+### 完成狀態
+
+DONE — 三題依 ct-exec v5.7.2 規則完成：Q-1 經 BAT 通道收到答覆；Q-2（`--ask` 失敗）走 3-A 第 2 步、Q-3（等待中由 Worker 取消，`cancelled worker`）走 3-A 第 6 步，兩題都從工單答覆行收到。每題只有一個通道答覆。
+
+### 落點檢查
+
+- 結果：PASS
+- C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 下 → PASS
+- C-3：`affects_files` 只有本工單（`_ct-workorders/` 下）→ 不適用
+- C-2：工單無 `branch` 欄位 → 不適用（實際分支 `main`）
+- `CT_HOME` 未設（非 worktree 隔離）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`BAT_TOWER_TERMINAL_ID` / `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` 皆可見；helper = `$BAT_HELPER_DIR/bat-notify.mjs`（`C:\Program Files\BetterAgentTerminal\resources\scripts`）
+
+### 互動紀錄
+
+- [12:44] Q-1: 探針 Q-1（BAT 通道） → A（塔台，BAT 通道，choice 1）: [A] 收到——Q-1 經 BAT 通道送達（塔台代決） → Action: 記錄為 BAT 通道收到，繼續
+- [12:45] Q-2: 探針 Q-2（`--ask` 失敗降級） → A（塔台）: [A] 收到——該題有 `通道` 標記，依規則改在工單答覆 → Action: 記錄為工單答覆收到；Q-1、Q-2 皆答完後對 Q-3 執行 `--cancel-question`
+- [12:46] Q-3: 探針 Q-3（等待中取消、晚退回） → A（塔台）: [A] 收到——該題有晚退回 `通道` 標記（列表 `cancelled worker`），依規則改在工單答覆 → Action: 記錄為工單答覆收到；三題答完，刪除 `tower_question`，收尾
+
+### 驗收證據
+
+時間皆取自系統（`date`，+0800）。題目內容只經 stdin（Git Bash heredoc）傳給 helper；輸出暫存在 Claude scratchpad（系統暫存目錄），未寫進 repo。
+
+| 題 | 路徑 | 指令參數（不含題目內容） | exit | id | `status:` 行 | 答覆來源 | 收到時間 |
+|---|---|---|---|---|---|---|---|
+| Q-1 | BAT 通道 | `--ask --source T0626 --target $BAT_TOWER_TERMINAL_ID --submit --expires-min 30 "T0626 提問"` | `0`（`notified: yes`，送出 12:44:35） | `q-4b13b4f7-faf8da49c7327ce9` | —（MCP `bat_wait_question` 回 `changed: true`、`status: answered`、`choice: 1`） | BAT（`bat_wait_question`，`timeoutMs` 30000） | `answeredAt` 2026-10-18T12:44:45+0800；Worker 第一次 wait 即取得（`waitedMs: 1`） |
+| Q-2 | `--ask` 失敗 → 工單（3-A 第 2 步） | `--ask --source T0626 --target $BAT_TOWER_TERMINAL_ID --submit --expires-min 999 "T0626 提問"` | `1`；stderr 第一行 `Error: Invalid --expires-min value: '999' (expected minutes, 1-120)` | 無 | — | 工單答覆行（`### 待塔台決策`，區段限定 awk exit 0） | 答覆行標記 12:44:58；Worker 讀到 12:45:27 |
+| Q-3 | BAT 通道 → Worker 取消 → 工單（3-A 第 6 步） | `--ask` 參數同 Q-1；`--cancel-question q-4b13b4f7-94c69d7742827f77` | `--ask` `0`（12:44:35）；`--cancel-question` `0`（12:45:31） | `q-4b13b4f7-94c69d7742827f77` | `status: cancelled worker`（stdout 只有這一行 `status:`；另一行 `✓ Question cancelled: q-4b13b4f7-94c69d7742827f77`） | 工單答覆行（區段限定 awk，間隔 30 s 輪詢） | 答覆行標記 12:45:46；Worker 讀到 12:46:22 |
+
+- Q-3 在取消前的 BAT 等待：與 Q-1 的 wait 同時發出一次 `bat_wait_question`（`timeoutMs` 30000）→ `changed: false`、`status: pending`、`waitedMs: 30002`；之後 12:45:31 取消，兩次呼叫間隔 < 120 s。等待開始時間未另以 `date` 記錄：Q-1 的 wait 回 `waitedMs: 1` 且 `answeredAt` 為 12:44:45，Q-3 的 wait 等滿 30 s 後、12:45:27（Q-2 awk 檢查）前結束，所以開始時間落在 12:44:45–12:44:57。
+- 一般 `T0626 提問` 送出 **2 次**（`--submit`，皆 exit `0`）：
+  1. 12:44:43 — 觸發題：Q-2（3-A 第 2 步，三題 `--ask` 全部送完後只送一次）
+  2. 12:45:41 — 觸發題：Q-3（3-A 第 6 步晚退回）
+- 從第一題 `--ask` 成功（12:44:35）到開始等待（12:44:45–12:44:57，見上）< 120 s。
+- 標記行與 commit（皆在對應的一般 `提問` 送出前 commit）：
+  - Q-2 `- **通道**：工單` → commit `b93f728c`（12:44:43 前；只多了標記行）
+  - Q-3 `- **通道**：工單` → commit `149349c8`（12:45:41，notify 同秒之前）
+- notify 前自檢：(a) Q-1–Q-3 三個 `#### Q-n：` 標題都有題目文字，下一行是「提問時間」→ PASS；(b) 回報區無範本佔位文字 → PASS；(c) `### 互動紀錄` 只有一個 → PASS。
+
+### 遭遇問題 / 偏差
+
+- commit `149349c8`（Q-3 晚退回標記）除了標記行，還一併帶進了塔台寫在工作樹、尚未 commit 的 `- **塔台答覆 Q-2**` 行（`git commit --only <本檔>` 以整個檔案為單位）。內容沒有變動，只是那一行由 Worker 的 commit 進版；3-A 第 6 步的「只多了標記行」在這次 commit 因此不完全成立。給塔台參考：塔台寫完工單答覆行後若不 commit，下一次 Worker commit 就會帶進去。同理，塔台寫的 `- **塔台答覆 Q-3**` 行也未 commit，由本單的收尾 commit 一併進版。
+- 未讀產品程式碼、未改其他檔案、未跑 build / test、未 push；`src/styles/settings.css` 等其他 M 檔未動。回報區不含任何權杖值。
+
+### 檔案異動
+
+- `_ct-workorders/T0626-probe-ct572-mixed-late-fallback.md`（僅本檔）
+
+### Commit
+
+- `689c0093` chore: T0626 start, write Q-1..Q-3 for tower (ct)
+- `b93f728c` chore: T0626 Q-2 channel marker (ask failed) (ct)
+- `149349c8` chore: T0626 Q-3 late-drop channel marker (cancelled worker) (ct)
+- 收尾 commit：本回報與最終狀態（以 `git log` 為準）
