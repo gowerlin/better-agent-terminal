@@ -1,11 +1,45 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-18 09:47 (UTC+8) — 第七十八 session 進行中：T0612 探針 → BUG-153 CLOSED；BUG-154 / T0613 → `v0.7.0-pre.8` 已發佈｜前：**第七十七 session 收工**：BUG-149 / 150 / 151 / 152 CLOSED；PLAN-048 Worker 問塔台（T0606–T0611）與 BUG-153 縮圖（T0609）→ `v0.7.0-pre.7` 已發佈；CT-T019 轉交受理。
+> 最後更新:2026-10-18 10:50 (UTC+8) — **第七十八 session 收工**：BUG-153 CLOSED（T0612 探針）；BUG-154 FIXED（T0613）→ `v0.7.0-pre.8` 已發佈；CT v5.7.0 已出版。
 >
-> **下次起手**:Fast Path 載入；若使用者已換 pre.7 → 實機看 BUG-153 縮圖（⚠️ / `?` / `✓`）；等 BMad-Guide CT v5.7.0 出版 → 補 README 版本對照表 CT 欄、收 PLAN-048 實機結果；PLAN-047 M1b-2 待排期。
+> **下次起手**:Fast Path 載入；使用者已換 pre.8 → 可目視 BUG-154（`--ask` 答覆後縮圖無標示）；等 BMad-Guide 在 pre.8 上的 CT v5.7.0 實機驗收（claude + codex）→ BUG-154 CLOSED、PLAN-048 DONE；PLAN-047 M1b-2 待排期。
 ---
 
-## 🛏 本 Session 收工快照 (第七十七 session, 2026-10-18 04:11 - 09:33, 實際工作至 07:28 ~3h17m)
+## 🛏 本 Session 收工快照 (第七十八 session, 2026-10-18 09:35 - 10:50, 實際工作至 10:22 ~47m)
+
+### 主軸：BUG-153 安裝版探針 T0612 → CLOSED；探針抓到 **BUG-154**（結構化提問答覆後縮圖殘留 `✓` / `?`）→ T0613 FIXED → 等 BMad-Guide CT v5.7.0 出版後發 **`v0.7.0-pre.8`**
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **09:35** Fast Path；本機 BAT 已是 `0.7.0-pre.7`；`--set-role tower --mode on` exit 0
+2. **09:38** 使用者 [A] → **T0612** 探針（⚠️ AskUserQuestion / 結構化 `--ask` / 舊 CT `提問` / 完成 `✓`，使用者目視）→ Step 1 / 3 / 4 PASS；Step 2 答覆後 Worker 仍在跑卻顯示 `✓` → **BUG-153 CLOSED**、新開 **BUG-154**（`fcfee298`）
+3. **09:49** 使用者 [A] → **T0613** 09:57 FIXED `7bfe225c`：`--ask` 的 notify 帶選用欄位 `questionId`，renderer 不記回報並清除殘留；另修同根因第二症狀（訊息以 `提問` 結尾時答覆後殘留 `?`）；T0611 e2e 改預期
+4. **10:00** 使用者：等 BMad-Guide CT v5.7.0 更版再發版 → 跨 session 通知 `bmad-guide-a9`（BUG-154 已知事項；對方維持 BAT 最低 `>= 0.7.0-pre.7`）
+5. **10:13** 對方 CT v5.7.0 完成（T0169）→ 塔台複驗 5233 passed / 301 files、typecheck 0 / 0、vite build → bump `b65f9544` → push → run `39089400205` 10 job 全綠 → **10:20 `v0.7.0-pre.8` 已發佈** → 更版重點 + 三文件（README CT 欄 `>= v5.7.0`）`3c59528f` → 告知對方版號；對方收工，下 session 在 pre.8 上做 v5.7.0 實機驗收（claude + codex）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|------|------|------|
+| 派發工單 | **2**（T0612 / T0613） | 皆一次啟動（`--wait-started` 皆 `started:`）；`worker_auto_close` 回收 2 次（T0612 延遲 60 s 供目視） |
+| BUG | BUG-153 CLOSED；BUG-154 新開 → FIXED | Open 1（BUG-136）/ Fixed 20 / Closed 18 |
+| PLAN | PLAN-048 helper 路徑在 pre.7 安裝版 PASS | 等對方 v5.7.0 實機 |
+| 跨專案 | CT v5.7.0 出版（CT-T019 接上） | 全程跨 session 訊息 |
+| 發版 | 1（`v0.7.0-pre.8`） | exe 298 / zip 412 / AppImage 297 / dmg 310 MiB |
+| unit test | 5226 → **5233 passed / 301 files** | 塔台複驗 @ `b65f9544` |
+
+### 重點觀察
+
+- 隔離 e2e（T0611）把「答覆後 `✓`」寫成預期，等於把缺陷固定成規格；安裝版目視探針在製造狀態之間刻意停頓才看出來
+- 探針工單在 Worker 端製造狀態、塔台與使用者目視分工，4 種狀態 10 分鐘內驗完
+
+### 編號起始（下 session）
+
+- **T0614** / **BUG-155** / **PLAN-049** / **D157** / **L164** / **CT-T020**
+
+---
+
+## 🛏 前 Session 收工快照 (第七十七 session, 2026-10-18 04:11 - 09:33, 實際工作至 07:28 ~3h17m)
 
 ### 主軸：pre.5 / pre.6 驗收自動化（T0601 安裝版探針 + T0602 隔離 e2e）→ BUG-149 / 150 / 151 / 152 CLOSED；PLAN-048「Worker 問塔台」（T0606 契約 → T0607 / T0608 / T0610 合併 / T0611）＋ BUG-153 縮圖（T0609）→ **`v0.7.0-pre.7`**；CT-T019 轉交
 
@@ -46,48 +80,9 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第七十六 session, 2026-10-18 02:10 - 03:55, ~1h45m wall)
-
-### 主軸：`v0.7.0-pre.4` 實機驗 `blocked` → BUG-150（T0596 研究 → T0597）；BMad-Guide 回報派工失敗 → BUG-151（T0598，根因更正為「派工前的鍵盤輸入」）→ **`v0.7.0-pre.5`**；D154 → BUG-152（T0599）/ T0600 啟動確認 → **`v0.7.0-pre.6`**；CT-T017 / CT-T018 轉交
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **02:10** Fast Path；本機 BAT `0.7.0-pre.4`；`--set-role tower --mode on` exit 0。使用者問 Codex daemon 提示（BUG-085 設計，提權環境；決定不加 `--no-daemon`）
-2. **02:19** CT-T017（`source` + `blocked`）→ 跨 session 轉交 `bmad-guide-94`（附 log-dir 回覆檔）→ 對方 D035 受理；後拆單 D036 / 定版 D037（§ 一 → CT v5.4.0 DONE、§ 二 → CT v5.5.0）
-3. **02:21** 實機：AskUserQuestion → `blocked` / **`permission`**（預期 `question`）→ **T0596** 研究（02:26 → 02:31 DONE）：claude 對 AskUserQuestion 必觸發 `PermissionRequest`，T0594 清除永不生效 → **BUG-150**
-4. **02:3x** BMad-Guide 回報 T0161 派工 `bash: ,: command not found`（helper exit 0）→ **BUG-151**；並提 CT-to-BAT 需求「Worker 問塔台」→ **PLAN-048**（IDEA）
-5. **02:44** 並行 **T0598**（BUG-151）/ **T0597**（BUG-150；首派撞 `create-rate-limited` exit 1，確認未建分頁後 20 s 重派）→ 02:51 T0597 FIXED（`ddb9b970`）、03:02 T0598 FIXED（`45943d16`：引號沒錯，是新分頁搶焦點 + 500 ms 內輸入接在指令前）
-6. **03:03** 塔台複驗 5089 passed → bump `ffeb8b21` → run `39061324454` → **03:18 `v0.7.0-pre.5` 已發佈** → 更版重點 + 三文件 `38dd75b8`
-7. **03:13** D154（使用者選建議）：派工分頁不搶焦點 **BUG-152 / T0599**、啟動確認 **T0600** → 03:27 T0599 FIXED（`95cfa2b0`）、03:40 T0600 DONE（`75a867b1`：`SessionStart` hook、`agentStarted`、`--wait-started` / exit 8）
-8. **03:41** 塔台複驗 5118 passed / 293 files → CT-T018 轉交（對方 D039 受理，CT v5.6.0 待 pre.6）→ bump `659c9a79` → run `39063636289` → **03:50 `v0.7.0-pre.6` 已發佈** → 三文件 `87ad460d`
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|------|------|------|
-| 派發工單 | **5**（T0596–T0600） | 皆一次完成（T0597 首派 rate-limit 重派 1 次）；最多 2 張並行；`worker_auto_close` 回收 5 次 |
-| BUG | 新開 3（BUG-150 / 151 / 152）→ 全 FIXED | 實機待 pre.6 |
-| PLAN | PLAN-048 IDEA | CT-to-BAT 需求 |
-| 決策 | D154 | 焦點 + 啟動確認 |
-| 跨專案 | CT-T017（CT v5.4.0 / v5.5.0 / v5.5.1）、CT-T018（CT v5.6.0 待做） | 全程跨 session 訊息 |
-| 發版 | 2（`v0.7.0-pre.5` / `pre.6`） | pre.6：exe 298 / zip 412 / AppImage 297 / dmg 309 MiB |
-| unit test | 5071 → **5118 passed / 293 files** | 塔台複驗 @ `69a59bc8` |
-
-### 重點觀察
-
-- 測試以模擬事件順序驗證 hook，漏掉真實 CLI 多送的事件（T0594 → BUG-150，L161）
-- 「派工失敗」的初步推測（引號 / shell）被日誌對照推翻；根因是使用者行為 × 焦點（L162）
-- 快速連續兩次派工撞 helper 建立頻率限制（每塔台每秒一次）→ 連續派工間隔 ≥ 20 s
-
-### 編號起始（下 session）
-
-- **T0601** / **BUG-153** / **PLAN-049** / **D155** / **L163** / **CT-T019**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-18 09:33 UTC+8（第七十七 session 收工）
+> 最後更新：2026-10-18 10:50 UTC+8（第七十八 session 收工）
 
 ### 近期完成
 - `v0.7.0-pre.7`（10-18 07:26，run `39078626121` @ `ef31abf5`）：PLAN-048 Worker 問塔台（T0607 `00bdcaeb` / T0608 經 T0610 合入 `4e5f5e7f` / T0611 `c271e852`）、BUG-153 縮圖 ⚠️ / `?` / `✓`（T0609 `fbf641dc`）；三文件 `c135ca69`；分支 `ct/T0608` / `ct-merge/T0608` 已刪
@@ -207,7 +202,7 @@
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.7.0-pre.4`（最新 release 為 `0.7.0-pre.6`，使用者收工時換版） | 2026-10-18 02:10 FileVersion 確認（第七十六 session）；分頁權杖 `batcap.`；Tower `--set-role tower --mode on` exit 0（標題為使用者命名 `Claude CLI : Tower`，kept） |
+| BAT 安裝版 | ⚠️ `0.7.0-pre.7`（2026-10-18 09:35 FileVersion；最新 release `0.7.0-pre.8`，使用者第七十八 session 收工時換版） | 分頁權杖 `batcap.`；Tower `--set-role tower --mode on` exit 0（標題 `Claude CLI · Tower`） |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
@@ -257,6 +252,8 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-18 第七十八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0612（探針，使用者目視）/ T0613 皆一次完成；`worker_auto_close` 回收 2 次；`v0.7.0-pre.8` 發佈
+- 2026-10-18 第七十七 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0601–T0611 皆一次啟動；`v0.7.0-pre.7` 發佈
 - 2026-10-18 第七十六 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0596–T0600 皆一次完成（T0597 首派 `create-rate-limited` 重派 1 次），最多 2 張並行；`worker_auto_close` 回收 5 次；`v0.7.0-pre.5` / `pre.6` 發佈
 - 2026-10-18 第七十五 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0589–T0595 皆一次完成（T0590 隔離 + T0591 合併工單，最多 2 張並行）；`worker_auto_close` 回收 6 次；`v0.7.0-pre.4` 發佈
 - 2026-10-18 第七十四 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0586–T0588 皆一次完成（T0587 首次 `--isolation worktree`、T0588 首次合併工單）；`worker_auto_close` 回收 3 次；`v0.7.0-pre.3` 發佈
