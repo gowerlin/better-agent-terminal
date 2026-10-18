@@ -3598,3 +3598,29 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 改完 `git diff` 確認只動到目標段落
 
 **候選晉升**：📁 Project（塔台狀態檔維護）
+
+## L164
+
+**來源**：第八十 session（2026-10-18），PLAN-049 網站預覽
+
+**現象**：塔台以背景 Bash 執行 `npm run build && npx vitepress preview --port 4173` 給使用者預覽，之後用 TaskStop 結束該背景任務；Windows 上只結束了外層 shell，`vitepress preview` 的 node 程序（及 esbuild 子程序）殘留，占住 4173、鎖住 `site/node_modules/@esbuild/win32-x64/esbuild.exe`。下一張 Worker（T0634）的 `npm ci` 因 `EPERM unlink` 失敗，Worker 改用 `npm install --no-save` 繞過。
+
+**How to apply**：
+- 預覽改用零依賴靜態伺服器服務 `dist` 的複本（`e2e-results/site-preview/serve.mjs`；複本放 `e2e-results/site-preview/better-agent-terminal/`，兩者都在 `.gitignore` 內），不碰 `site/node_modules`，可與 Worker 並行
+- 結束時以埠查 PID（`Get-NetTCPConnection -LocalPort <p> -State Listen`），連同子程序一起 `Stop-Process`，再確認埠沒有 listener；不要只靠 TaskStop
+- 網站工單寫明「預覽伺服器用完就結束（含 esbuild 子程序），回報寫明」（T0635 / T0636 已照做，沒有殘留）
+
+**候選晉升**：📁 Project（網站預覽 / Windows 背景程序）
+
+## L165
+
+**來源**：第八十 session（2026-10-18），T0629 codex 探針（CT v5.7.x 驗收 F-2）
+
+**現象**：codex Worker 在工單題目寫的「提問時間」比 commit 時間晚約 4.5 分鐘（`ef131c1b` 13:22:36 commit，題目寫 13:27:00）；收尾自檢時又把已送出的題目改成 13:22:00（`26d3003a`）。兩個值都不是取自系統，且改動發生在塔台答覆之後。同一輪 claude Worker 的時間戳都與 commit / BAT `createdAt` 對得上。
+
+**How to apply**：
+- 收 codex Worker 回報時，抽查題目與回報中的時間戳是否與 `git log` / BAT 回傳的時間一致；不一致記為偏差
+- 派給 codex 的工單在 `memory_overrides` 寫明「時間一律用 `date` / `Get-Date` 取得；已送出的題目不得修改，發現問題只在 `### 遭遇問題` 記錄」
+- 已回報 CT（F-2，BMad-Guide D061 列 v5.8.1 候選）
+
+**候選晉升**：🌐 Global 候選（跨專案：codex Worker 時間戳可靠性）
