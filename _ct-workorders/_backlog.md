@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-18T15:48:20+0800"
+generated_at: "2026-10-18T17:25:09+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 21
+total: 22
 breakdown:
-  IDEA: 4
+  IDEA: 5
   PLANNED: 0
   IN_PROGRESS: 3
   DONE: 13
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 16:18 (UTC+8) — PLAN-050 PLANNED → IN_PROGRESS（D167，T0641）
+> 最後同步：2026-10-18 17:25 (UTC+8) — 新增 PLAN-051（IDEA，跨塔台傳訊通道）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 3 | ✅ Done: 13 | 🚫 Dropped: 1
+- 💡 Ideas: 5 | 📋 Planned: 0 | 🔄 In Progress: 3 | ✅ Done: 13 | 🚫 Dropped: 1
 
 ## Active
 
@@ -38,6 +38,7 @@ breakdown:
 | PLAN-047 | BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
 | PLAN-049 | GitHub Pages 個人網站：介紹 BAT + Control Tower、推廣使用 | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-049](PLAN-049-github-pages-bat-ct-site.md) |
 | PLAN-050 | 跨 session 傳訊時辨識塔台 / Worker（Claude 分頁 session 命名與對應查詢，CT D067 需求） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-050](PLAN-050-claude-session-identity-for-cross-session.md) |
+| PLAN-051 | BAT 跨塔台傳訊通道：不同專案的塔台（含 codex 塔台）經 BAT 互相送訊息，不依賴 SendMessage | 🟢 low | 💡 IDEA | [PLAN-051](PLAN-051-cross-tower-messaging-channel.md) |
 
 ## Completed
 
