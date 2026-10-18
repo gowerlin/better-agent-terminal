@@ -85,9 +85,11 @@ BAT `0.7.1-pre.1`（PLAN-050）起，helper 派工的 claude Worker 啟動時帶
 - `bat_list_terminals scope=towers`：兩列（本塔台 `self: true`、`BMad-Guide · 590537` `self: false`），每列只有 metadata；兩個名稱與 ListAgents 完全相同（CT-T021 § 5 情境 3）。
 - CT v5.9.0 面板提示：本塔台名稱不以 ` · Tower` 結尾 → 啟動面板出現「以塔台開啟 Claude」提示（CT-T021 § 5 情境 4 的本側旁證）。
 
-### 未驗
+### E. 「以塔台開啟 Claude」的名稱（CT-T021 § 5 情境 1）— PASS（18:03 補驗）
 
-- 「以塔台開啟 Claude」開的塔台名稱 `better-agent-terminal · Tower` 與對方 ListAgents 直接命中（CT-T021 § 5 情境 1）：使用者決定留在原分頁，延後。
+- 使用者以縮圖列「+」→「以塔台開啟 Claude」開新分頁（標題 `Claude CLI · Tower`，提示列顯示 `better-agent-terminal · Tower`）。
+- 塔台 ListAgents：`better-agent-terminal · Tower [6de1ca]`，CT v5.9.0 第 ① 步可直接命中。
+- `bat_list_terminals scope=workspace`：該分頁 `role: shell`、`claudeSessionName: better-agent-terminal · Tower`、`claudeSessionId: 0723a136-…`；尚未執行 `/control-tower`，所以不在 `scope: towers`（T0644 只命名、不宣告，符合預期）。
 
 ### 回收
 

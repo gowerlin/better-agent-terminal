@@ -3,7 +3,8 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-050
 title: "跨 session 傳訊時辨識塔台 / Worker：BAT 開的 Claude 分頁在 ListAgents 可辨識，並可查分頁 ↔ session 對應"
-status: IN_PROGRESS
+status: DONE
+completed_at: "2026-10-18T18:03:21+0800"
 priority: medium
 created_at: "2026-10-18T15:48:20+0800"
 links:
@@ -45,3 +46,12 @@ CT 塔台以跨 session 訊息（SendMessage）找 BAT 塔台時，ListAgents �
 
 - 實作 T0641–T0644 隨 `v0.7.1-pre.1` 發佈；CT 端 CT-T021 完成（CT v5.9.0）。待實機驗收（安裝版 + BMad-Guide 塔台 v5.9.0，CT 回覆稿 § 5 四個情境）。
 - CT 可選建議：重複的 `<工作區> · Tower`（同工作區兩個入口開的分頁、或兩工作區同名）時名稱相同，CT 對不到 ListAgents `[ref]` 而降級為 `_reply-*.md`；可考慮重複時帶短 ID。實機驗收後再決定是否開單。
+
+## 實機驗收（2026-10-18 第八十二 session，T0645）— DONE
+
+- 安裝版 `0.7.1-pre.1` × CT v5.9.0，CT 回覆稿 § 5 四個情境全部 PASS（BMad-Guide D071 記錄 2–4；情境 1 於 18:03 補驗）：
+  - R1：helper 派出的 Worker 在 ListAgents 為 `better-agent-terminal · Worker · T0645`，與 `claudeSessionName` 相同。
+  - R2：使用者以縮圖列「+」→「以塔台開啟 Claude」開的分頁，ListAgents 為 `better-agent-terminal · Tower`（`scope=workspace`：`role: shell`、`claudeSessionName: better-agent-terminal · Tower`，尚未 `/control-tower` 時不在 `scope: towers`，符合 T0644「只命名、不宣告」）。
+  - R3：`claudeSessionName` / `claudeSessionId` 塔台與 Worker 皆可查；`claudeSessionId` 與實際 session ID 一致；`/clear` 後換新、名稱不變；`scope: towers` 回兩個專案的塔台，名稱與 ListAgents 相同。
+- 塔台分頁另驗 `bat_whoami.agent`（BUG-155 CLOSED）。
+- CT 可選建議（重複 Tower 名稱帶短 ID）不開單：目前沒有實際衝突案例，CT 已安全降級；遇到再議。

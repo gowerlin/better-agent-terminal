@@ -102,8 +102,8 @@
 ### 待辦（依優先序）
 
 1. 🔴 **安裝 `v0.7.1-pre.1` 後的新塔台**：確認 FileVersion（L127）；以「以塔台開啟 Claude」開塔台
-2. 🔴 **PLAN-050 / BUG-155 實機驗收**（第八十二 session 18:01：T0645 驗 Worker 名稱 / `claudeSessionId` / `/clear` / `agent` / `scope: towers` 全 PASS，BUG-155 CLOSED；**只剩「以塔台開啟 Claude」的 `· Tower` 名稱**，補驗後 PLAN-050 → DONE）：ListAgents 看到 `better-agent-terminal · Tower` 與 `… · Worker · T####`；Worker `bat_whoami` 有 `agent`（claude / codex）、`claudeSessionName`、`claudeSessionId`；`bat_list_terminals scope=towers`；`/clear` 後 sessionId 換新（T0642 只以模擬 hook 驗證）；通過後 PLAN-050 → DONE、BUG-155 → CLOSED
-3. 🔴 **CT-T021 實機驗收**（第八十二 session：情境 2 / 3 / 4 PASS，回函 `_reply-2026-10-18-ct-v590-runtime.md`，對方 D071；**只剩情境 1**，與待辦 2 同一次補驗後通知 `BMad-Guide · Tower`／ListAgents 對方塔台）：CT **v5.9.0** 已發版並安裝（17:5x，BMad-Guide 回覆稿 `_reply-2026-10-18-ct-v590-session-identity.md`）→ 與待辦 2 一起代跑回覆稿 § 5 四個情境（BMad-Guide 塔台需先重開載入 v5.9.0）→ 回函 `BMad-Guide/_ct-workorders/_reply-<日期>-ct-v590-runtime.md` 並傳訊；可選建議「重複 Tower 名稱帶短 ID」見 PLAN-050 後續
+2. 🔴 **PLAN-050 / BUG-155 實機驗收**（第八十二 session 18:01：T0645 驗 Worker 名稱 / `claudeSessionId` / `/clear` / `agent` / `scope: towers` 全 PASS，BUG-155 CLOSED；18:03 補驗「以塔台開啟 Claude」名稱 PASS → **PLAN-050 DONE**）：ListAgents 看到 `better-agent-terminal · Tower` 與 `… · Worker · T####`；Worker `bat_whoami` 有 `agent`（claude / codex）、`claudeSessionName`、`claudeSessionId`；`bat_list_terminals scope=towers`；`/clear` 後 sessionId 換新（T0642 只以模擬 hook 驗證）；通過後 PLAN-050 → DONE、BUG-155 → CLOSED
+3. 🔴 **CT-T021 實機驗收**（第八十二 session：情境 2 / 3 / 4 PASS，回函 `_reply-2026-10-18-ct-v590-runtime.md`，對方 D071；18:03 情境 1 補驗 PASS，已通知對方 → **CT-T021 實機驗收全數完成**）：CT **v5.9.0** 已發版並安裝（17:5x，BMad-Guide 回覆稿 `_reply-2026-10-18-ct-v590-session-identity.md`）→ 與待辦 2 一起代跑回覆稿 § 5 四個情境（BMad-Guide 塔台需先重開載入 v5.9.0）→ 回函 `BMad-Guide/_ct-workorders/_reply-<日期>-ct-v590-runtime.md` 並傳訊；可選建議「重複 Tower 名稱帶短 ID」見 PLAN-050 後續
 4. 🟡 **PLAN-049 後續**：W2c `/remote/` → W3 截圖 / 短片 / README 換圖 → W4 OG / sitemap / lychee（README 版本對照每加一列，`/cases` 的「12 項」要同步）
 5. 🟢 PLAN-051（跨塔台傳訊，IDEA）待評估；BUG-136 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗；前期驗收（Gary BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
 
