@@ -1,5 +1,18 @@
 <script lang="ts">
-export type StoryIlloKind = 'long-chat' | 'dispatch' | 'thumbnails' | 'questions' | 'branches' | 'checklist' | 'files'
+export type StoryIlloKind =
+  | 'long-chat'
+  | 'dispatch'
+  | 'thumbnails'
+  | 'questions'
+  | 'branches'
+  | 'checklist'
+  | 'files'
+  // /control-tower「一張工單的一生」另外用到的畫面
+  | 'align'
+  | 'workorder'
+  | 'running'
+  | 'report'
+  | 'recycle'
 </script>
 
 <script setup lang="ts">
@@ -17,7 +30,16 @@ const LABELS: Record<StoryIlloKind, string> = {
     '插圖：主線分出 ct/T1024 與 ct/T1025 兩條分支，各自在獨立的 worktree 裡工作。合併前狀態：ct/T1024 領先 3、落後 0、沒有未提交的變更。',
   checklist:
     '插圖：T1024 的驗收清單。單元測試通過、建置 0 錯誤、只改了工單列出的檔案、附上 commit，狀態 DONE。',
-  files: '插圖：demo-shop 的檔案樹，程式碼旁邊是三張工單與一份決策紀錄，都是 Markdown 檔。'
+  files: '插圖：demo-shop 的檔案樹，程式碼旁邊是三張工單與一份決策紀錄，都是 Markdown 檔。',
+  align:
+    '插圖：你在塔台分頁說要替結帳頁加折扣碼；塔台反問有沒有到期日、能不能和會員折扣疊加，並把疊加規則記成待你決定。',
+  workorder:
+    '插圖：工單 T1024 的內容。目標是折扣碼的資料模型與驗證，範圍是 src/discount.ts 與 src/cart.ts，驗收是單元測試通過、建置 0 錯誤，不准碰結帳頁畫面。',
+  running: '插圖：Worker T1024 的分頁。它讀了工單、改了兩個檔案、跑過單元測試，再做了 commit。',
+  report:
+    '插圖：Worker T1024 標「✓ 已回報」，完成通知送回塔台分頁，塔台的輸入列出現「T1024 完成」。',
+  recycle:
+    '插圖：收單後，T1024 的 Worker 分頁等輸出安靜才關閉；還在執行的 T1025 分頁不受影響。'
 }
 </script>
 
@@ -136,6 +158,62 @@ ct/T1025  領先 2  落後 3  未提交 0  → 先更新再合併</pre>
    ├─ T1025-rounding.md
    ├─ T1026-checkout-ui.md
    └─ decision-log.md</pre>
+    </template>
+
+    <template v-else-if="kind === 'align'">
+      <div class="si-col" aria-hidden="true">
+        <p class="si-tab is-tower"><span class="si-agent is-claude">▶</span>Claude CLI · Tower</p>
+        <div class="si-chat is-under-tab">
+          <p><b>你</b>結帳頁要能輸入折扣碼</p>
+          <p class="is-tower"><b>塔台</b>折扣碼有到期日嗎？能和會員折扣疊加嗎？</p>
+          <p><b>你</b>有到期日。疊加我再想想</p>
+          <p class="is-tower"><b>塔台</b>記下了：疊加規則等你決定。我拆成三張工單。</p>
+        </div>
+      </div>
+    </template>
+
+    <template v-else-if="kind === 'workorder'">
+      <pre class="si-screen is-wide" aria-hidden="true"><span class="si-title">work-orders/T1024-discount-code.md</span>
+目標    折扣碼的資料模型與驗證
+範圍    src/discount.ts、src/cart.ts
+驗收    單元測試通過、建置 0 錯誤
+不准碰  結帳頁畫面（T1026 負責）
+回報    （Worker 做完填寫）</pre>
+    </template>
+
+    <template v-else-if="kind === 'running'">
+      <div class="si-col" aria-hidden="true">
+        <p class="si-thumb-head"><span class="si-agent is-claude">▶</span>Claude CLI · Worker · T1024</p>
+        <pre class="si-screen is-wide is-under-tab">讀取工單 T1024
+改 src/discount.ts
+改 src/cart.ts
+$ npm run test:unit    214 passed
+$ git commit -m "T1024 折扣碼驗證"</pre>
+      </div>
+    </template>
+
+    <template v-else-if="kind === 'report'">
+      <div class="si-dispatch is-report" aria-hidden="true">
+        <div class="si-col">
+          <p class="si-tab is-tower"><span class="si-agent is-claude">▶</span>Claude CLI · Tower</p>
+          <pre class="si-screen is-under-tab"><span class="si-prompt">›</span> T1024 完成</pre>
+        </div>
+        <span class="si-arrows">
+          <span class="si-arrow is-back">完成通知</span>
+        </span>
+        <div class="si-thumb">
+          <p class="si-thumb-head"><span class="si-agent is-claude">▶</span>Claude CLI · Worker · T1024</p>
+          <p class="si-badge is-reported"><span>✓</span>已回報</p>
+        </div>
+      </div>
+    </template>
+
+    <template v-else-if="kind === 'recycle'">
+      <ul class="si-tabs is-full" aria-hidden="true">
+        <li class="si-tab is-tower"><span class="si-agent is-claude">▶</span>Claude CLI · Tower <span class="si-note">T1024 收單</span></li>
+        <li class="si-tab is-closing"><span class="si-agent is-claude">▶</span>Claude CLI · Worker · T1024 <span class="si-note">輸出安靜後關閉</span></li>
+        <li class="si-tab"><span class="si-agent is-codex">▶</span>Codex CLI · Worker · T1025 <span class="si-note">還在執行，不動</span></li>
+      </ul>
     </template>
   </figure>
 </template>

@@ -76,8 +76,12 @@ markdownStyles: false
 <div class="home-wrap">
 <h2 class="home-title"><span class="phrase">BAT 提供跑道，</span><span class="phrase">Control Tower 提供調度——</span><span class="phrase">少一個，循環就斷了</span></h2>
 <p class="home-lead">Control Tower 定規則，BAT 提供跑道、無線電和雷達。</p>
-<!-- TODO(W2b): 連到 /control-tower 的「分工」段落（頁面在 W2b 才建立） -->
 <CompareMatrix />
+<div class="home-more">
+
+[看塔台、Worker 與 BAT 怎麼分工](./control-tower#division)
+
+</div>
 </div>
 </section>
 
@@ -114,6 +118,21 @@ markdownStyles: false
 <li>連續失敗</li>
 </ul>
 </div>
+</div>
+</div>
+</section>
+
+<section class="home-section home-learning">
+<div class="home-wrap">
+<h2 class="home-title">越用越懂你的專案</h2>
+<p class="home-lead">第一天它照工單做事；第三個月，它照你的專案做事。</p>
+<FeatureGrid set="learning" />
+<h3 class="home-subtitle home-ladder-title">經驗會長大</h3>
+<GrowthLadder />
+<div class="home-more">
+
+[看塔台怎麼學你的專案](./control-tower#learning)
+
 </div>
 </div>
 </section>

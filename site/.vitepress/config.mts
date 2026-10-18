@@ -38,7 +38,8 @@ export default async () => {
         { text: '安裝', link: '/install' },
         // TODO(W2): { text: '功能', link: '/features' }
         // TODO(W2): { text: '遠端開發', link: '/remote/' }
-        // TODO(W2): { text: 'BAT × Control Tower', link: '/control-tower' }
+        { text: 'BAT × Control Tower', link: '/control-tower' },
+        // TODO(W2d): { text: '實戰案例', link: '/cases' }
         { text: '版本對照', link: '/compatibility' },
         { text: '更版紀錄', link: '/releases' }
       ],
@@ -52,7 +53,13 @@ export default async () => {
           ]
         },
         // TODO(W2): 遠端開發（/remote/：overview、wsl、ssh、docker）
-        // TODO(W2): BAT × Control Tower（/control-tower）
+        {
+          text: 'BAT × Control Tower',
+          items: [
+            { text: '分工與流程', link: '/control-tower' }
+            // TODO(W2d): { text: '實戰案例', link: '/cases' }
+          ]
+        },
         {
           text: '參考',
           items: [

@@ -45,6 +45,8 @@
   --bat-status-blocked: #b42d3a;
   --bat-status-question: #1d64a8;
   --bat-status-reported: #3b7a1e;
+  /* 「你要做的事」：沿用 Stepper awaiting-input 的藍（中性等待，不是錯誤）；淺色模式降明度到 AA */
+  --bat-you: #0369a1;
 
   --vp-font-family-base: var(--bat-font-sans);
   --vp-font-family-mono: var(--bat-font-mono);
@@ -67,6 +69,7 @@
   --bat-status-blocked: #e06c75;
   --bat-status-question: #61afef;
   --bat-status-reported: #98c379;
+  --bat-you: #38bdf8;
 
   --vp-c-brand-1: #c084fc;
   --vp-c-brand-2: #a855f7;
@@ -1840,6 +1843,791 @@
   font-size: 13px;
   color: var(--vp-c-text-2);
   word-break: break-all;
+}
+
+/* ---------- 首頁：越用越懂你的專案 ---------- */
+
+.feature-note {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--vp-c-divider);
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--vp-c-text-2);
+}
+
+.home-ladder-title {
+  margin-top: 64px;
+}
+
+.home-more {
+  margin-top: 32px;
+}
+
+.home-more p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.home-more a {
+  font-weight: 700;
+  color: var(--bat-signal-text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.home-more a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* ---------- 成長管線（GrowthLadder） ---------- */
+
+.growth-ladder {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.growth-ladder .gl-rung {
+  position: relative;
+  margin: 0;
+  padding: 32px 24px 0 0;
+}
+
+/* 管線本身：一條線串起四個節點 */
+.growth-ladder .gl-rung::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--vp-c-divider);
+}
+
+.growth-ladder .gl-rung:last-child::before {
+  right: auto;
+  width: 16px;
+}
+
+.growth-ladder .gl-node {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--vp-c-text-1);
+  border-radius: 50%;
+  background: var(--vp-c-bg);
+  box-sizing: border-box;
+}
+
+.growth-ladder .gl-rung.is-tower .gl-node {
+  border-color: var(--bat-signal);
+  background: var(--bat-signal);
+  box-shadow: 0 0 0 4px var(--bat-signal-soft);
+}
+
+.growth-ladder .gl-rung.is-you .gl-node {
+  border-color: var(--bat-you);
+}
+
+.growth-ladder p {
+  margin: 0;
+}
+
+.growth-ladder .gl-name {
+  font-family: var(--bat-font-display);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+.growth-ladder .gl-who {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--vp-c-text-2);
+}
+
+.growth-ladder .gl-rung.is-tower .gl-who {
+  color: var(--bat-signal-text);
+}
+
+.growth-ladder .gl-rung.is-you .gl-who {
+  color: var(--bat-you);
+}
+
+.growth-ladder .gl-text {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--vp-c-text-2);
+}
+
+/* 窄螢幕改直向 */
+@media (max-width: 639px) {
+  .growth-ladder {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .growth-ladder .gl-rung {
+    padding: 0 0 28px 36px;
+  }
+
+  .growth-ladder .gl-rung::before {
+    top: 0;
+    bottom: 0;
+    left: 7px;
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+
+  .growth-ladder .gl-rung:last-child::before {
+    display: none;
+  }
+
+  .growth-ladder .gl-node {
+    top: 4px;
+  }
+
+  .growth-ladder .gl-rung:last-child {
+    padding-bottom: 0;
+  }
+
+  .growth-ladder .gl-name {
+    font-size: 21px;
+  }
+}
+
+/* ---------- /control-tower 文件頁 ---------- */
+
+.vp-doc .ct-intro {
+  font-size: 18px;
+  line-height: 1.85;
+  color: var(--vp-c-text-2);
+}
+
+/* 每節開頭的一句話摘要 */
+.vp-doc .ct-lead {
+  margin: 16px 0 28px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.8;
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc .ct-note {
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: var(--bat-raised);
+  font-size: 15px;
+  line-height: 1.85;
+}
+
+.vp-doc .ct-concepts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px 32px;
+  margin: 28px 0;
+}
+
+.vp-doc .ct-concepts > div {
+  padding-top: 14px;
+  border-top: 2px solid var(--vp-c-text-1);
+}
+
+.vp-doc .ct-concepts > div:first-child {
+  border-top-color: var(--bat-signal);
+}
+
+.vp-doc .ct-concepts dt {
+  font-family: var(--bat-font-display);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.vp-doc .ct-concepts > div:first-child dt {
+  color: var(--bat-signal-text);
+}
+
+.vp-doc .ct-concepts dd {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--vp-c-text-2);
+}
+
+@media (max-width: 639px) {
+  .vp-doc .ct-concepts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+/* 首頁元件放進文件頁：擋掉 .vp-doc 的段落、清單與標題預設樣式 */
+.vp-doc .story-illo p,
+.vp-doc .story-illo li {
+  line-height: inherit;
+}
+
+.vp-doc .story-illo li + li {
+  margin-top: 0;
+}
+
+.vp-doc .story-illo {
+  margin: 20px 0;
+}
+
+.vp-doc .features {
+  margin: 28px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .features > li {
+  margin: 0;
+}
+
+.vp-doc .feature-title {
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.vp-doc .feature-body {
+  margin: 10px 0 0;
+  line-height: 1.8;
+}
+
+.features.is-messy {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 32px;
+}
+
+@media (max-width: 639px) {
+  .features.is-messy {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+
+.vp-doc .growth-ladder {
+  margin: 28px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .growth-ladder > li + li {
+  margin-top: 0;
+}
+
+/* ---------- 對照表（CardTable）：桌面表格、窄螢幕卡片 ---------- */
+
+.vp-doc .card-table {
+  margin: 24px 0;
+}
+
+.vp-doc .ct-grid {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.vp-doc .ct-grid tr {
+  border: 0;
+  background: none;
+}
+
+.vp-doc .ct-grid th,
+.vp-doc .ct-grid td {
+  padding: 12px 16px 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--vp-c-divider);
+  background: none;
+  text-align: left;
+  vertical-align: top;
+}
+
+.vp-doc .ct-grid thead th {
+  padding-top: 0;
+  border-bottom-color: var(--vp-c-text-1);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc .ct-grid tbody th {
+  width: 30%;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc .ct-grid td {
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc .ct-grid tr.is-highlight th,
+.vp-doc .ct-grid tr.is-highlight td {
+  background: var(--bat-raised);
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc .ct-grid tr.is-highlight th {
+  padding-left: 14px;
+  box-shadow: inset 2px 0 0 var(--bat-signal);
+  color: var(--bat-signal-text);
+}
+
+.vp-doc .ct-cards {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--vp-c-text-1);
+}
+
+.vp-doc .ct-cards > li {
+  margin: 0;
+}
+
+.vp-doc .ct-card {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc .ct-card.is-highlight {
+  padding: 14px;
+  background: var(--bat-raised);
+  box-shadow: inset 2px 0 0 var(--bat-signal);
+}
+
+.vp-doc .ct-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.vp-doc .ct-card.is-highlight .ct-card-title {
+  color: var(--bat-signal-text);
+}
+
+.vp-doc .ct-card dl {
+  display: grid;
+  grid-template-columns: minmax(3.5em, max-content) minmax(0, 1fr);
+  gap: 4px 14px;
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.vp-doc .ct-card dt {
+  padding-top: 2px;
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc .ct-card dd {
+  margin: 0;
+}
+
+@media (max-width: 639px) {
+  .vp-doc .ct-grid {
+    display: none;
+  }
+
+  .vp-doc .ct-cards {
+    display: block;
+  }
+}
+
+/* ---------- 一張工單的一生（TicketLife） ---------- */
+
+.vp-doc .ticket-life {
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticket-life .tl-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 0 20px;
+  margin: 0;
+  padding-bottom: 56px;
+}
+
+/* 步驟之間的軌道 */
+.ticket-life .tl-step::before {
+  content: '';
+  position: absolute;
+  top: 48px;
+  bottom: 8px;
+  left: 19px;
+  width: 2px;
+  background: var(--vp-c-divider);
+}
+
+.ticket-life .tl-step:last-child {
+  padding-bottom: 0;
+}
+
+.ticket-life .tl-step:last-child::before {
+  display: none;
+}
+
+.ticket-life .tl-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--vp-c-text-1);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--vp-c-bg);
+  font-family: var(--bat-font-mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.ticket-life .tl-body {
+  min-width: 0;
+}
+
+.ticket-life .tl-name {
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--bat-font-display);
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.ticket-life .story-illo {
+  margin: 16px 0 0;
+}
+
+.ticket-life p {
+  margin: 0;
+}
+
+.ticket-life .tl-what {
+  margin-top: 16px;
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+.ticket-life .tl-you {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--bat-you);
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.ticket-life .tl-you b {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bat-you);
+}
+
+@media (max-width: 639px) {
+  .ticket-life .tl-step {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 0 14px;
+    padding-bottom: 44px;
+  }
+
+  .ticket-life .tl-step::before {
+    top: 40px;
+    left: 15px;
+  }
+
+  .ticket-life .tl-marker {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .ticket-life .tl-name {
+    margin-top: 0;
+    font-size: 22px;
+  }
+
+  .ticket-life .story-illo {
+    padding: 14px;
+  }
+}
+
+/* 「一張工單的一生」另外用到的示意 */
+.si-chat.is-under-tab {
+  margin-top: 10px;
+}
+
+.si-chat p.is-tower {
+  background: rgba(76, 29, 149, 0.6);
+  color: #e9d5ff;
+}
+
+.si-chat p.is-tower b {
+  color: #d8b4fe;
+}
+
+.si-screen.is-under-tab {
+  margin-top: 8px;
+  background: #161616;
+}
+
+.si-prompt {
+  color: var(--bat-signal-text-dark);
+}
+
+.si-tabs.is-full {
+  width: 100%;
+}
+
+.si-tab.is-closing {
+  border-style: dashed;
+  color: var(--bat-term-muted);
+}
+
+.si-dispatch.is-report .si-col {
+  flex: 1 1 200px;
+}
+
+.si-dispatch.is-report .si-thumb {
+  flex: 0 1 210px;
+}
+
+/* 窄螢幕上下堆疊：完成通知改成往上指向塔台 */
+@media (max-width: 639px) {
+  .si-dispatch.is-report .si-arrow.is-back::before {
+    content: '▲ ';
+  }
+}
+
+/* ---------- Worker 問塔台（QuestionFlow） ---------- */
+
+.vp-doc .question-flow {
+  margin: 28px 0;
+}
+
+.question-flow p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.question-flow .qf-main,
+.question-flow .qf-branches {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question-flow .qf-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.question-flow .qf-box {
+  position: relative;
+  width: min(100%, 440px);
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  box-sizing: border-box;
+}
+
+.question-flow .qf-box.is-tower {
+  border-color: var(--bat-signal);
+  background: var(--bat-raised);
+}
+
+/* 連接線與箭頭 */
+.question-flow .qf-box + .qf-box::before,
+.question-flow .qf-branches::before,
+.question-flow .qf-branch::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--vp-c-text-3);
+}
+
+.question-flow .qf-box + .qf-box::before {
+  top: -33px;
+  height: 26px;
+}
+
+.question-flow .qf-box + .qf-box::after,
+.question-flow .qf-branch::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-bottom: 0;
+  border-top-color: var(--vp-c-text-3);
+}
+
+.question-flow .qf-box + .qf-box::after {
+  top: -8px;
+}
+
+.question-flow .qf-branches {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding-top: 64px;
+}
+
+.question-flow .qf-branches::before {
+  top: 0;
+  height: 30px;
+}
+
+/* 分成兩路的橫線 */
+.question-flow .qf-branches::after {
+  content: '';
+  position: absolute;
+  top: 30px;
+  left: calc(25% - 5px);
+  right: calc(25% - 5px);
+  height: 2px;
+  background: var(--vp-c-text-3);
+}
+
+.question-flow .qf-branch {
+  position: relative;
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+
+.question-flow .qf-branch::before {
+  top: -34px;
+  height: 26px;
+}
+
+.question-flow .qf-branch::after {
+  top: -8px;
+}
+
+.question-flow .qf-branch.is-tower {
+  border-color: var(--bat-signal);
+  background: var(--bat-raised);
+}
+
+.question-flow .qf-branch.is-you {
+  border-color: var(--bat-you);
+}
+
+.question-flow .qf-who {
+  font-family: var(--bat-font-mono);
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+}
+
+.question-flow .qf-box.is-tower .qf-who {
+  color: var(--bat-signal-text);
+}
+
+.question-flow .qf-text {
+  margin-top: 4px;
+  font-size: 16px;
+}
+
+.question-flow .qf-state {
+  display: inline-flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 13px;
+  color: var(--bat-status-question);
+}
+
+.question-flow .qf-when {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.question-flow .qf-branch.is-tower .qf-when {
+  color: var(--bat-signal-text);
+}
+
+.question-flow .qf-branch.is-you .qf-when {
+  color: var(--bat-you);
+}
+
+.question-flow .qf-then {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+
+.question-flow .qf-fallback {
+  margin-top: 24px;
+  padding: 14px 18px;
+  border: 1px dashed var(--vp-c-divider);
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--vp-c-text-2);
+}
+
+.question-flow .qf-fallback b {
+  color: var(--vp-c-text-1);
+}
+
+@media (max-width: 639px) {
+  .question-flow .qf-branches {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding-top: 40px;
+  }
+
+  .question-flow .qf-branches::before {
+    height: 32px;
+  }
+
+  .question-flow .qf-branches::after,
+  .question-flow .qf-branch::before {
+    display: none;
+  }
+
+  .question-flow .qf-branch + .qf-branch::after {
+    display: none;
+  }
 }
 
 /* ---------- reduced motion ---------- */
