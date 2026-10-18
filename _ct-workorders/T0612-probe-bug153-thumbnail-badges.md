@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0612
 title: "探針：BUG-153 安裝版 Worker 縮圖 ⚠️ / ? / ✓（使用者目視）"
 type: verification
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T09:38:11+0800"
+started_at: "2026-10-18T09:39:10+0800"
+updated_at: "2026-10-18T09:46:51+0800"
+completed_at: "2026-10-18T09:46:51+0800"
 depends_on: [T0609]
 related:
   - "BUG-153（FIXED by T0609 `fbf641dc`，等安裝版 0.7.0-pre.7 目視）"
@@ -77,4 +80,41 @@ Worker 只負責依序製造四種狀態，每一步等使用者 / 塔台回應�
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：BUG-153 探針 Step 3：請看縮圖是否為 ?、N 是否為 0
+
+- 提問時間：2026-10-18T09:45:21+0800
+- 選項：
+  - [A] 已確認
+  - [其他] 其他觀察（請描述）
+- Worker 建議：[A]（探針確認用，無實質決策）
+- 影響：只用來製造舊 CT 提問狀態，供使用者目視縮圖 `?` 與批次關閉 N
+- 阻塞：是（Step 4 等答覆後才進行）
+- **塔台答覆 Q-1**：[A] 已確認——使用者目視縮圖為 `?`、「關閉已回報的 Worker 分頁（0）」灰色停用（2026-10-18T09:46:16+0800；使用者決定）
+
+### 互動紀錄
+
+- [09:42] Step 1（hook blocked，AskUserQuestion）：使用者選「看到 ⚠，N = 0（或選單沒有這項）」，並附截圖：Worker 縮圖標題列有 ⚠️ 徽章；塔台分頁右鍵選單「關閉已回報的 Worker 分頁（0）」為停用（灰色）。→ 符合預期（⚠️ / N=0）。
+- [09:42] Step 2（結構化提問）：`bat-notify --ask` exit 0，question id `q-f17ecd01-8870f256f02a4cd8`，`notified: yes`，expires `2026-10-18T02:12:43.373Z`。
+- [09:44] Step 2 答覆：`--wait-answer` 第 1 次 `pending`（waitedMs 45003），第 2 次 `status: answered`、`answer.choice: 1`、waitedMs 32408（皆 exit 0）。之後停 60 秒再進 Step 3（供使用者看答覆後的縮圖）。
+- [09:45] 停頓實際 67 秒（答覆 09:44:05 → 09:45:12）後進 Step 3。
+- [09:45] Step 3（舊 CT 提問）：回報區寫 `### 待塔台決策` / `#### Q-1`，frontmatter 加 `tower_question: open`，`bat-notify --submit "T0612 提問"` exit 0。
+- [09:46] Q-1: BUG-153 探針 Step 3：請看縮圖是否為 ?、N 是否為 0 → A（塔台）: [A] 已確認——使用者目視縮圖為 `?`、「關閉已回報的 Worker 分頁（0）」灰色停用 → Action: 刪除 `tower_question`，進 Step 4。（輪詢註記：第一次輪詢 grep 全檔，誤中本文 Step 3 的步驟說明文字，改為只搜 `## 回報區` 之後重跑，09:46:31 讀到答覆。）
+- [09:46] Step 4：寫報告、狀態 DONE、`git commit --only` 本檔、送 `T0612 完成`（yolo `--submit`）。
+
+### 結果摘要
+
+| Step | 狀態 | 預期 | 結果 | 證據 |
+|---|---|---|---|---|
+| 1 | hook `blocked`（AskUserQuestion） | ⚠️ / N=0 | ✅ PASS | 使用者答覆 + 截圖（縮圖 ⚠️ 徽章；右鍵「關閉已回報的 Worker 分頁（0）」停用） |
+| 2 | 結構化提問 `--ask`（訊息不以 `提問` 結尾） | `?` / N=0 | ✅ PASS（使用者經塔台答 choice 1「已確認」） | `--ask` exit 0、id `q-f17ecd01-8870f256f02a4cd8`；`--wait-answer` → `answered`、choice 1 |
+| 3 | 舊 CT 提問（工單檔 + `T0612 提問`） | `?` / N=0 | ✅ PASS | 塔台答覆 Q-1：使用者目視 `?`、N=0 停用 |
+| 4 | 完成回報 `T0612 完成` | `✓` / N=1 | ⏳ 由使用者在本 Worker 送出完成通知後目視（Worker 無法觀察通知後的畫面） | — |
+
+- 驗證 lane：installed-bundle（安裝版 0.7.0-pre.7）使用者目視；未跑 build / test、未讀產品程式碼（探針單規則）。
+- 變更檔案：只有本工單檔。問題 JSON 寫在 session scratchpad（不在 repo）。
+- Landing check：PASS。C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`；C-1 PASS；C-3 not applicable（`affects_files` 只有 `_ct-workorders/`）；C-2 無 `branch` 欄位。`CT_HOME` 未設定（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+- 偏差：Step 1 回答後使用者中斷一次並補送截圖，內容與答覆一致，未改變流程。
+- Commit：`git commit --only` 本檔（hash 見塔台 git log）；未 push。`src/styles/settings.css` 的 M 非本單變更，未觸碰。
+- 後續：Step 4 的 `✓` / N=1 待使用者目視確認後，塔台可結 BUG-153。
