@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0618
 title: "探針：CT v5.7.0 `worker_question_timeout: 0`（不用 BAT 通道、直接 BLOCKED）+ ct-done 補結"
 type: verification
-status: BLOCKED
+status: PENDING
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
@@ -17,7 +17,7 @@ related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 5 張（T0614–T0618）"
 affects_files:
   - _ct-workorders/T0618-probe-ct570-timeout-zero-ct-done.md
-renew_count: 0
+renew_count: 1
 workdir: main repo
 worker_question_timeout: 0
 tower_question: open
@@ -49,6 +49,17 @@ memory_overrides:
 
 塔台在 `## 塔台補充（Renew #1）` 寫 `塔台答覆 Q-1`，然後派 **ct-done**。ct-done Worker 依 ct-done 規則補結，並在回報區記：
 讀到 Renew 答覆與否、最終狀態、notify 前那次 commit 的 hash 與 `git show --stat` 檔案清單（預期只有本工單檔）、notify 前 `git status --short`。
+
+## 塔台補充（Renew #1）
+
+**時間**：2026-10-18T11:17:04+0800 (UTC+8)
+**補充內容**：
+> 收到 `T0618 提問` 時依 § 塔台端 第 0 點（`worker_question_timeout: 0`）不在題目下答覆；收到 `T0618 需要協助`（工單 `BLOCKED`、`tower_question: open`）後在本區段答覆。
+
+- **塔台答覆 Q-1**：[A] 收到——timeout 0 路徑已驗，本題在 Renew 區段答覆（2026-10-18T11:17:04+0800；塔台代決）
+
+**新指示**：
+> 本單由 **ct-done** 補結（Step 2）：讀上方 `塔台答覆 Q-1` → 記入互動紀錄、刪 `tower_question` → 最終狀態 **DONE** → 依 ct-done 規則 commit（只含本工單檔）→ 送 `T0618 完成`。回報區照 Step 2 記錄證據。
 
 ---
 
