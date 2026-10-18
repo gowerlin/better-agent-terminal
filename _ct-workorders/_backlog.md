@@ -10,9 +10,9 @@ source_globs:
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 19
+total: 20
 breakdown:
-  IDEA: 4
+  IDEA: 5
   PLANNED: 0
   IN_PROGRESS: 1
   DONE: 13
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 11:21 (UTC+8) — PLAN-048 → DONE（D157）
+> 最後同步：2026-10-18 12:16 (UTC+8) — 新增 PLAN-049（IDEA）
 
 ## 統計
-- 💡 Ideas: 4 | 📋 Planned: 0 | 🔄 In Progress: 1 | ✅ Done: 13 | 🚫 Dropped: 1
+- 💡 Ideas: 5 | 📋 Planned: 0 | 🔄 In Progress: 1 | ✅ Done: 13 | 🚫 Dropped: 1
 
 ## Active
 
@@ -36,6 +36,7 @@ breakdown:
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
 | PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
 | PLAN-047 | BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
+| PLAN-049 | GitHub Pages 個人網站：介紹 BAT + Control Tower、推廣使用 | 🟡 medium | 💡 IDEA | [PLAN-049](PLAN-049-github-pages-bat-ct-site.md) |
 
 ## Completed
 

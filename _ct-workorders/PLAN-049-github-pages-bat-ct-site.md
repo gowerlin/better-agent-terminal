@@ -1,0 +1,39 @@
+---
+schema_version: 1
+schema_kind: plan
+id: PLAN-049
+title: "GitHub Pages 個人網站：介紹 BAT + Control Tower、推廣使用"
+status: IDEA
+priority: medium
+created_at: "2026-10-18T12:16:31+0800"
+links:
+  source: "使用者 2026-10-18 第七十九 session `*plan`：研究如何在 GitHub Pages 架設個人網站，用來介紹 BAT + CT，推廣使用"
+  related: [PLAN-047, PLAN-048]
+---
+
+# PLAN-049 — GitHub Pages 介紹 BAT + Control Tower
+
+## 動機
+
+BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BMad Control Tower 的協作（塔台 / Worker、BAT MCP、worktree 隔離派工、Worker 問塔台、啟動確認等）目前只寫在 README 與 `docs/agent-guide/`，對新使用者門檻高。
+想以 GitHub Pages 架一個介紹網站：說明能做什麼、怎麼安裝、怎麼和 CT 一起用，推廣使用並吸引協助測試（例如 codex 使用者，見 `_local-rules.md`「歡迎協助測試」D153）。
+
+## 已知約束（塔台整理）
+
+- 🔴 **CT 維持未開源**（使用者 2026-10-17 指示）：README 不放 CT 的取得連結或內部 repo 位置；網站同樣適用，除非使用者另有決定。網站怎麼介紹 CT（只介紹概念與 BAT 整合點？提供取得管道？）需使用者決定。
+- `gh` 一律帶 `-R gowerlin/better-agent-terminal`（L122）；本 repo 有 3 個 remote，Pages 設定與部署 workflow 不得打到 upstream。
+- 既有 release workflow（`pre-release.yml` / `release.yml`）不得受影響；Pages 部署若用 Actions，獨立一個 workflow。
+- 安裝檔下載連結指向本 fork 的 GitHub Releases（預覽版 `v0.7.0-pre.N` 線）；macOS 只有 arm64（D136）。
+
+## 待研究 / 待決
+
+1. **站台位置**：使用者站 `gowerlin.github.io`（個人網站，BAT / CT 為其中一區）vs 專案站 `gowerlin.github.io/better-agent-terminal`（從本 repo 的 `/docs` 或 `gh-pages` 分支 / Actions 部署）；是否用自訂網域。
+2. **技術選型**：VitePress（本機已有 vitepress-book skill、與 `docs/` Markdown 相容）/ Astro / 純 HTML；i18n（繁中為主、英文？）。
+3. **內容來源與同步**：README、`release-note.md` / `CHANGELOG.md`、`docs/agent-guide/` 哪些可公開、哪些是內部開發文件；發版時如何同步（併入「發佈後同步 repo 文件」流程？）。
+4. **內容架構**：首頁（價值主張、截圖 / GIF）、功能介紹、安裝、BAT × CT 協作流程、版本對照、FAQ、回報管道（GitHub issue）。
+5. **素材**：截圖、示範 GIF（塔台派工 → Worker → 回收）的產生方式；品牌（icon、配色）。
+6. **維運成本**：部署 workflow、連結檢查、SEO / OG 卡片、分析（是否需要）。
+
+## 排期
+
+使用者決定。排期時先開研究工單（選型、站台位置、內容盤點與 CT 公開範圍建議），結論審過後再開實作工單。
