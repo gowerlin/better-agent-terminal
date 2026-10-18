@@ -78,6 +78,12 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
   const [editRemoteProfiles, setEditRemoteProfiles] = useState<RemoteProfileOption[]>([])
   const [editSelectedRemoteProfileId, setEditSelectedRemoteProfileId] = useState<string>('')
   const [editFetchingRemoteProfiles, setEditFetchingRemoteProfiles] = useState(false)
+  // T0650 (BUG-157): "Pin expected fingerprint" in the edit dialog. The ref tells a pin that
+  // finishes late whether its dialog is still the open one.
+  const [editPinning, setEditPinning] = useState(false)
+  const [editPinError, setEditPinError] = useState('')
+  const editingRemoteIdRef = useRef<string | null>(null)
+  editingRemoteIdRef.current = editingRemoteId
   const createInputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
 
@@ -301,6 +307,8 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
     setEditRemoteFingerprint(profile.remoteFingerprint || '')
     setEditRemoteProfiles([])
     setEditSelectedRemoteProfileId(profile.remoteProfileId || '')
+    setEditPinning(false)
+    setEditPinError('')
   }
 
   const handleFetchEditRemoteProfiles = async () => {
@@ -346,8 +354,13 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
     loadProfiles()
   }
 
+  // T0650 (BUG-157): the pinned value also goes into the dialog's state, otherwise Save writes the
+  // old fingerprint back. A failed pin is shown in the dialog and writes nothing.
   const handlePinFingerprint = async (profile: ProfileEntry) => {
     if (!profile.remoteHost || !profile.remoteToken) return
+    const stillEditing = () => editingRemoteIdRef.current === profile.id
+    setEditPinning(true)
+    setEditPinError('')
     try {
       const result = await window.electronAPI.remote.testConnection(
         profile.remoteHost,
@@ -359,10 +372,17 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
         await window.electronAPI.profile.update(profile.id, {
           remoteFingerprint: result.fingerprint,
         })
+        if (stillEditing()) setEditRemoteFingerprint(result.fingerprint)
         loadProfiles()
+      } else if (stillEditing()) {
+        setEditPinError(formatRemoteStatusTitle(t, { status: 'disconnected', reason: 'probeFailed', errorCode: result.errorCode, detail: result.error }))
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      if (stillEditing()) {
+        setEditPinError(formatRemoteStatusTitle(t, { status: 'disconnected', reason: 'probeFailed', detail: err instanceof Error ? err.message : String(err) }))
+      }
+    } finally {
+      if (stillEditing()) setEditPinning(false)
     }
   }
 
@@ -736,7 +756,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
       {editingRemoteId && (() => {
         const profile = profiles.find(p => p.id === editingRemoteId)
         if (!profile) return null
-        const closeModal = () => { setEditingRemoteId(null); setEditRemoteProfiles([]) }
+        const closeModal = () => { setEditingRemoteId(null); setEditRemoteProfiles([]); setEditPinning(false); setEditPinError('') }
         return (
           <EditRemoteProfileModal
             profile={profile}
@@ -747,6 +767,8 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
             selectedRemoteProfileId={editSelectedRemoteProfileId}
             remoteProfiles={editRemoteProfiles}
             fetching={editFetchingRemoteProfiles}
+            pinning={editPinning}
+            pinError={editPinError}
             setHost={setEditRemoteHost}
             setPort={setEditRemotePort}
             setToken={setEditRemoteToken}

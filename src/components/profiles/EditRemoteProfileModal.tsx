@@ -19,6 +19,10 @@ export interface EditRemoteProfileModalProps {
   selectedRemoteProfileId: string
   remoteProfiles: RemoteProfileOption[]
   fetching: boolean
+  /** T0650: a pin request is in flight. */
+  pinning: boolean
+  /** T0650: why the last pin failed (empty = no error). */
+  pinError: string
   setHost: (v: string) => void
   setPort: (v: string) => void
   setToken: (v: string) => void
@@ -41,6 +45,8 @@ export function EditRemoteProfileModal({
   selectedRemoteProfileId,
   remoteProfiles,
   fetching,
+  pinning,
+  pinError,
   setHost,
   setPort,
   setToken,
@@ -124,7 +130,7 @@ export function EditRemoteProfileModal({
             <button
               className="profile-action-btn"
               onClick={onPin}
-              disabled={!profile.remoteHost || !profile.remoteToken}
+              disabled={pinning || !profile.remoteHost || !profile.remoteToken}
               title="Fetch current server fingerprint and pin it for future connections"
             >
               Pin expected fingerprint
@@ -135,6 +141,9 @@ export function EditRemoteProfileModal({
               </span>
             )}
           </div>
+          {pinError && (
+            <span role="alert" style={{ color: '#e5534b', fontSize: 12 }}>{pinError}</span>
+          )}
           {remoteProfiles.length > 0 && (
             <select
               className="profile-name-input"
