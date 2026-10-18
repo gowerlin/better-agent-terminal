@@ -4,7 +4,10 @@ schema_kind: workorder
 id: T0615
 title: "探針：CT v5.7.0 × 0.7.0-pre.8 codex Worker 經 BAT 通道問塔台（主流程 + BUG-154 目視）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
+started_at: "2026-10-18T11:06:00+08:00"
+updated_at: "2026-10-18T11:06:00+08:00"
+tower_question: open
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
@@ -86,3 +89,19 @@ Worker 建議由你自己寫。收到答覆後：
 ## 回報區
 
 （Worker 填寫）
+
+### 待塔台決策
+
+#### Q-1
+
+codex 那一條要怎麼寫？
+
+- [A] 與 claude 那條並列，另起一條 codex 項目
+- [B] 併進 claude 那一條，改寫成「claude / codex」共用一條
+
+Worker 建議：[A] 另起 codex 項目，能清楚保留本次 codex 實機紀錄與既有 claude 紀錄的區別。
+影響：決定 Step 3 文件新增項目的編排方式。阻塞後續步驟：是。
+
+### 互動紀錄
+
+- [11:06] Landing check PASS：repo expected `better-agent-terminal` = actual `better-agent-terminal`（`REPO_ROOT=D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 工單在 repo 下；C-3 `docs/agent-guide/tower-questions.md` 存在；C-2 branch `main` 符合工單 `workdir: main repo`。BAT_WORKSPACE_ID=`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`。保留既存 `src/styles/settings.css` 修改。
