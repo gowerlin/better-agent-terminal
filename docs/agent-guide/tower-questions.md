@@ -201,3 +201,5 @@
   4. 第二個 Worker 提問 → BAT 結束並保留 Terminal Server → 重開、選「保留」：Worker `--cancel-question` exit 0、stdout `✓ Question already ended` + `  status: lost`、stderr 空；`--wait-answer` 與 MCP `bat_wait_question` 回 `lost`；`bat_get_state` `pendingQuestions: 0`；塔台 `--answer` exit 3 `answer: LOST`；`bat_list_questions status=all` 為空。
   5. 兩次啟動的 debug 日誌與 `bat-scripts.log` 都不含問題、選項、`detail`、答案文字與假權杖；debug 日誌有 `[attention] … → blocked reason=tower pendingQuestions=1` / `→ none` 與 `[tower-question] answer q=<id>`。
 - 回歸：`e2e/t0609-worker-attention-badge.spec.ts`（舊 CT `提問` 的 `?`、⚠️、✓ 與批次關閉）、`e2e/t0584-bat-mcp-shim.spec.ts`（`tools/list` 八個）。
+- 實機（CT v5.7.0 × 安裝版 0.7.0-pre.8，2026-10-18）：
+  - claude（T0614，ct-exec v5.7.0 yolo Worker）：題目先寫進工單並 commit，再 `bat-notify.mjs --ask --source T0614 --target "$BAT_TOWER_TERMINAL_ID" --submit --expires-min 30 "T0614 提問"`（題目 JSON 從 stdin 檔案重導入）→ exit 0、stdout 有 `question:` id 與 `notified: yes`；等答覆用 MCP `bat_wait_question`（`timeoutMs` 45000），第 1 次呼叫即回 `answered`、`choice: 1`（`waitedMs` ≈ 13 s）；工單內沒有塔台答覆行。
