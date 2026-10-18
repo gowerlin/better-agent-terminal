@@ -1,6 +1,6 @@
 # BAT Server Bundle Distribution
 
-> Server bundle = 跨環境 (WSL / SSH / Docker) 部署到 remote 的 BAT helper runtime + `@anthropic-ai/claude-code` CLI 套組。本文件給 contributor / advanced user / 私有部署管理員看；spec 凝練版見 `_ct-workorders/_spec-server-bundle-distribution.md`。
+> Server bundle = WSL / SSH 設定精靈部署到 remote 的 BAT headless server + helper runtime + `@anthropic-ai/claude-code` CLI 套組（Docker 不用 bundle，server 在 image 裡，見 [Docker Deployment Guide](./docker-deployment.md)）。本文件給 contributor / advanced user / 私有部署管理員看；spec 凝練版見 `_ct-workorders/_spec-server-bundle-distribution.md`。
 
 ## 動機
 
@@ -16,7 +16,7 @@ Root cause：三平台 wizard 的 `install-bundle` step 留 placeholder throw；
 
 ## Distribution lookup（runtime 行為）
 
-每次 wizard 執行 `install-bundle` step，按順序解析 tarball：
+每次 WSL / SSH wizard 執行 `install-server-bundle` step，按順序解析 tarball：
 
 1. **Cache（自帶 sidecar）** — `userData/bat-server-bundles/bat-server-<target>-v<ver>.tar.gz` + `….tar.gz.sha256`
    - 以 cache 自己的 sidecar（sha256sum 格式 `<hex>  <filename>`）驗證，**不需要網路、也不需要 baseline**（T0547）
@@ -70,15 +70,15 @@ T0547 前 build 時抓 baseline：`npm run fetch:baseline`（`prebuild` hook 自
 
 ## Architecture detection（三平台統一）
 
-三平台 install-bundle step 走相同 IPC contract，回傳 `RemoteHostArch` 之一（`linux-x64` / `linux-arm64` / `darwin-arm64` / `unsupported-arch`）：
+WSL / SSH 的 `install-server-bundle` step 走相同 IPC contract（`electron/remote/arch-detect.ts`），回傳 `RemoteHostArch` 之一（`linux-x64` / `linux-arm64` / `darwin-arm64` / `unsupported-arch`）：
 
 | 平台 | 偵測方式 |
 |------|---------|
 | WSL | `execFile('wsl', ['-d', distro, '--', 'uname', '-m'])` → 經 `normalizeArch()` 純函數轉換 |
-| SSH | 重用 verify-auth probe 結果（`profile.sshServerArch` 已在 setup wizard 早期 step 寫入） |
-| Docker | image-based — 用 `docker inspect` 讀 image 的 `Architecture` field（D096，不走 distributor） |
+| SSH | 重用 `verify-ssh-auth` probe（`uname -sm`）的結果（`profile.sshServerArch`）；Intel Mac（Darwin `x86_64`）→ `arch-detection-failed` |
+| Docker | 精靈不偵測、不走 distributor（D096）：server 在 image 的 `/opt/bat-server`，image 由 `npm run build:docker-image` 建成 `linux/amd64`。`arch-detect.ts` 雖有 `docker exec <container> uname -m` 分支，Docker 精靈不呼叫 |
 
-`normalizeArch()` 純函數位於 `electron/remote/arch-normalize.ts`，純文字轉換無 IO，便於 unit test。
+`normalizeArch()` 純函數位於 `src/lib/arch-normalize.ts`，純文字轉換無 IO，便於 unit test。
 
 ## SHA256 manifest schema
 
@@ -102,7 +102,7 @@ T0547 前 build 時抓 baseline：`npm run fetch:baseline`（`prebuild` hook 自
 
 完整 schema + 欄位語義見 spec `§9 Manifest schema`。
 
-Manifest 落地實作：`electron/remote/server-bundle-manifest.ts`（解析）+ `scripts/_bat-build-manifest.mjs`（CI 端產出）。
+Manifest 落地實作：`src/lib/server-bundle-manifest.ts`（`parseManifest` 解析 + SHA-256 工具）+ `scripts/generate-server-bundle-manifest.mjs`（CI 端產出）。
 
 ## 私有部署 / fork
 
@@ -127,7 +127,9 @@ $BASE_URL/bat-server-darwin-arm64-v0.5.0.tar.gz.sha256
 ...
 ```
 
-實作入口：`electron/remote/server-bundle-download.ts` 的 `resolveBaseUrl()`。env 未設時 fallback 到 GitHub Release 預設。
+實作入口：`src/lib/server-bundle-download-helpers.ts` 的 `buildBaseURL()`（`electron/remote/server-bundle-download.ts` 呼叫）。env 未設時 fallback 到 GitHub Release 預設 `…/releases/download/server-bundle-v<ver>`。
+
+注意：env 值**整串取代** base URL，BAT 不會再自動加上版號路徑，所以 mirror 指向的目錄必須就是目前 BAT 版號的那一組檔案（`manifest.json` 的 `version` 與檔名都要對上）；升級 BAT 後要跟著改 env。env 在 BAT 啟動時讀取（`process.env`），改了要重啟 BAT。
 
 決策依據：D095（PLAN-031 spec §2 拍板項）。
 
@@ -152,15 +154,17 @@ DGX Spark / Asahi Linux 等 arm64 Linux 場景：
 
 DGX Spark dogfood 由 user 親跑（D097）；T0324 工單收集實機數據。
 
-## 升級既有 server bundle（v0.5.0+）
+## 升級既有 server bundle
 
-v0.5.0 起 ProfilePanel 將提供「Upgrade server bundle」按鈕（T0326 範疇，D098 拍板）：
+ProfilePanel **沒有**「Upgrade server bundle」按鈕（D098 預告的 UI 未實作）。升級方式是升級 BAT 後，對同一個 WSL 發行版 / SSH 主機**再跑一次設定精靈**：
 
-- 觸發 distributor 重新跑三層 lookup
-- 強制 re-download（bypass cache）
-- verify SHA256 後寫回 cache + 重啟 remote server
+- `install-server-bundle` 照上方三層 lookup 取得新版號的 tarball（cache 以版號 + target 為檔名，不同版號不會命中舊檔）
+- 解壓到 `~/.local/bat-server.bat-new`，確認 `bin/bat-server` 可執行才換上；舊版留在 `~/.local/bat-server.bat-old`，精靈完成才刪，取消則搬回（`electron/server-bundle-install-script.ts`）
+- SSH 另把舊的 unit / plist 備份成 `.bat-prev`，完成才刪、取消還原
+- WSL 沿用原埠；同一發行版 + 埠（WSL）/ 同一主機 + 帳號 + SSH 埠 + server 埠（SSH）的設定會更新、不另建，名稱保留
+- server data dir（憑證、權杖）不動
 
-T0326 owner 範圍，本文件僅預告。
+細節見 [WSL Deployment Guide](./wsl-deployment.md#upgrade) / [SSH Deployment Guide](./ssh-deployment.md#upgrade)。
 
 ## 排錯
 
@@ -183,7 +187,7 @@ T0326 owner 範圍，本文件僅預告。
   - **Spec**：T0314（凝練版，凍結於 `_ct-workorders/_spec-server-bundle-distribution.md`）
   - **實作 + 測試**：T0315-T0323（11 commits）+ T0325（187 unit + integration tests + e2e skeleton）
   - **Dogfood**：T0324（user 親跑）
-  - **後續**：T0326（v0.5.0 升級 server UI）
+  - **後續**：T0326（v0.5.0 升級 server UI，未實作；目前以重跑精靈升級，見上方「升級既有 server bundle」）
 - **BUG-071** Server bundle 安裝 wizard 撞 placeholder（PLAN-031 結案後 CLOSE）
 - **PLAN-007** Remote dev support（distribution flow 補完入口；見 [Remote Dev Overview](remote-dev-overview.md)）
 - **PLAN-027** Claude runtime selection（server bundle 內含 `@anthropic-ai/claude-code`，沿用 `DISABLE_AUTOUPDATER=1` env 注入）
