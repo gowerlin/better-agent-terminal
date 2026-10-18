@@ -4,6 +4,22 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0-pre.8] — 2026-10-18
+
+### Fixed
+- **Worker 問完塔台後，縮圖標示沒有恢復**：`bat-notify.mjs --ask` 提問、塔台答覆後，仍在工作的 Worker 縮圖停在 `?`（訊息以「提問」結尾）或變成 `✓` 並計入「關閉已回報的 Worker 分頁（N）」。`--ask` 的通知改帶選用欄位 `questionId`（只有 id），renderer 不記為回報並清除殘留；答覆後回到「執行中」，下一次一般回報才 `✓`（BUG-154，T0613）
+
+### Changed
+- Control Tower v5.7.0 支援「Worker 問塔台」（`--ask` / `bat_list_questions` / `--answer`，失敗回到工單往返）；BAT 最低版本 `0.7.0-pre.7`
+
+### Call for testing
+Codex CLI 使用者（CT v5.7.0）：派一張工單請 Codex Worker 向塔台提問一次，確認通知、縮圖 `?`、`blocked` / `tower`，答覆後繼續工作、縮圖無標示，完成後 `✓` 並回收，並到 GitHub Issues 回報 BAT / Codex 版本與結果。
+
+### Known issues
+- 需搭配本版內附 helper；遠端視窗需升級遠端 server
+- 舊版 CT（v5.6.x 以前）以「T#### 提問」在工單往返時，答覆後 `?` 保留到 Worker 下一次通知
+- macOS / Linux 版本未實機驗證
+
 ## [0.7.0-pre.7] — 2026-10-18
 
 ### Added

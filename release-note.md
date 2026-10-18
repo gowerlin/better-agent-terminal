@@ -2,6 +2,39 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.0-pre.8（2026-10-18）
+
+版號 0.7.0-pre.8，接續 `v0.7.0-pre.7`。
+
+### 修正
+
+- **Worker 問完塔台後，縮圖標示沒有恢復**：Worker 用 `bat-notify.mjs --ask` 提問、塔台答覆後，Worker 其實還在工作，縮圖卻停在 `?`（訊息以「提問」結尾時），或變成 `✓` 並被算進塔台分頁右鍵「關閉已回報的 Worker 分頁（N）」（其他訊息時）。現在答覆後縮圖回到「執行中」（沒有標示、不算進批次關閉），等 Worker 下一次回報（例如完成）才顯示 `✓`；先回報過再提問的 Worker 也一樣（BUG-154）
+
+### 更新
+
+- Control Tower v5.7.0 已支援「Worker 問塔台」：yolo Worker 改用 `--ask` 提問、塔台以 `bat_list_questions` / `bat-terminal.mjs --answer` 答覆，BAT 不支援或問題遺失時仍回到工單裡往返。需要 BAT `0.7.0-pre.7` 以上；本版另修正上面的縮圖問題
+
+### 歡迎協助測試
+
+如果你平常使用 **Codex CLI**，且 Control Tower 已是 v5.7.0，歡迎幫忙跑一次「Codex Worker 問塔台」：
+
+1. 在塔台派一張小工單給 Codex Worker（`--agent codex`），內容請它向塔台提問一次
+2. 確認塔台分頁收到通知、Worker 縮圖顯示 `?`，`bat_get_state` 回報 `blocked` / `tower`
+3. 塔台答覆後，確認 Worker 繼續工作、縮圖沒有標示；Worker 完成回報後縮圖顯示 `✓`、分頁被回收
+
+不論成功或失敗，都歡迎到 [GitHub Issues](https://github.com/gowerlin/better-agent-terminal/issues) 回報，請附上 BAT 版本、Codex 版本（`codex --version`）、作業系統與安裝方式（npm / 官方 installer）。
+
+### 已知事項
+
+- 提問的通知要搭配本版 BAT 內附的 helper 才會正確恢復縮圖；WSL / SSH / Docker 遠端視窗需把遠端 server 升級到本版
+- 舊版 Control Tower（v5.6.x 以前）以「T#### 提問」在工單裡往返時，塔台答覆後縮圖的 `?` 仍會保留到 Worker 下一次通知
+- Claude hook 的 `blocked`（權限確認 / 提問）偵測仍只支援 Claude CLI 分頁
+- macOS / Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.0-pre.7...v0.7.0-pre.8
+
 ## v0.7.0-pre.7（2026-10-18）
 
 版號 0.7.0-pre.7，接續 `v0.7.0-pre.6`。
