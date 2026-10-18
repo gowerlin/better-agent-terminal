@@ -103,7 +103,7 @@
 
 1. 🔴 **安裝 `v0.7.1-pre.1` 後的新塔台**：確認 FileVersion（L127）；以「以塔台開啟 Claude」開塔台
 2. 🔴 **PLAN-050 / BUG-155 實機驗收**：ListAgents 看到 `better-agent-terminal · Tower` 與 `… · Worker · T####`；Worker `bat_whoami` 有 `agent`（claude / codex）、`claudeSessionName`、`claudeSessionId`；`bat_list_terminals scope=towers`；`/clear` 後 sessionId 換新（T0642 只以模擬 hook 驗證）；通過後 PLAN-050 → DONE、BUG-155 → CLOSED
-3. 🟡 **CT-T021**：等 BMad-Guide 發 CT v5.9.0 → 依 § 驗收建議代跑、回函
+3. 🔴 **CT-T021 實機驗收**：CT **v5.9.0** 已發版並安裝（17:5x，BMad-Guide 回覆稿 `_reply-2026-10-18-ct-v590-session-identity.md`）→ 與待辦 2 一起代跑回覆稿 § 5 四個情境（BMad-Guide 塔台需先重開載入 v5.9.0）→ 回函 `BMad-Guide/_ct-workorders/_reply-<日期>-ct-v590-runtime.md` 並傳訊；可選建議「重複 Tower 名稱帶短 ID」見 PLAN-050 後續
 4. 🟡 **PLAN-049 後續**：W2c `/remote/` → W3 截圖 / 短片 / README 換圖 → W4 OG / sitemap / lychee（README 版本對照每加一列，`/cases` 的「12 項」要同步）
 5. 🟢 PLAN-051（跨塔台傳訊，IDEA）待評估；BUG-136 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗；前期驗收（Gary BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
 
@@ -139,7 +139,7 @@
 | **PLAN 最大編號** | **PLAN-051**（IDEA：跨塔台傳訊）；PLAN-050 IN_PROGRESS（實作完、隨 `v0.7.1-pre.1`，待實機與 CT-T021）；PLAN-049 IN_PROGRESS（網站，W2c / W3 / W4 待做）；PLAN-047 IN_PROGRESS；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D168**（D167 PLAN-050 方案、D168 版號線 `0.7.1-pre.1`，2026-10-18 第八十一 session）；D161–D166 PLAN-049 網站（第八十 session） |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower **v5.8.1**（第八十一 session 載入；BMad-Guide 15:26 安裝兩端）；CT-T021 對應版預計 v5.9.0（BMad-Guide D069） |
+| **塔台版本** | Control Tower **v5.8.1**（第八十一 session 載入）；本機收工後已裝 **v5.9.0**（CT-T021，BMad-Guide T0174，兩端），下個塔台 session 載入 |
 | **unit test 基線** | **5384 passed / 311 files / 3 skipped**（塔台複驗 @ `b34087d3`，發 `v0.7.1-pre.1` 前，2026-10-18 第八十一 session；typecheck 0 / 0、vite build 成功） |
 
 ---

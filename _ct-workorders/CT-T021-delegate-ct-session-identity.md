@@ -4,7 +4,7 @@ schema_kind: workorder
 id: CT-T021
 title: "【受派】CT 接 BAT 的 Claude session 識別：跨 session 選收件人改用 `claudeSessionName` / `scope: 'towers'`（PLAN-050 / D167；回應 CT D067 需求）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: BMad-Guide
 project: PLAN-050
 priority: P2
@@ -75,3 +75,11 @@ renew_count: 0
 - BMad-Guide 塔台（bmad-guide-89）跨 session 訊息：**受理**（對方決策 D069）。契約 C-1–C-8 與 CT D067 需求一致、無疑問。
 - CT 計畫：新規則加到 `cross-project-coordination.md`（順序 ① ListAgents `<工作區> · Tower` → ② `scope=towers` 以 `workspaceName` 對 `claudeSessionName`，`INVALID_ARGS` = 舊 BAT 跳過 → ③ `_reply-*.md`；含 `· Worker · T####` 不當收件人）；`auto-session.md` MCP 欄位表補兩欄與 `scope=towers`、「鍵不存在 = 舊 BAT」。版號（建議 v5.9.0）與選做項 4 待對方使用者決定。
 - BAT 待辦：使用者安裝 `0.7.1-pre.1` 後由 BAT 塔台代跑 § 驗收建議；CT 發版後回覆修改檔案、版號與差異。
+
+### CT 端完成（BAT 塔台記錄，2026-10-18T17:52:37+0800）
+
+- 來源：`D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\_reply-2026-10-18-ct-v590-session-identity.md`（BMad-Guide T0174，`dada1bd` 產品、`df0c2d0` 回覆）。CT **v5.9.0** ＋ guide v5.9.0，本機兩端 16/16 已裝（備份 `_backup-ct-v5.8.1-20261018-174804`）；BAT 最低 `>= 0.7.1-pre.1`。
+- 第 1–4 項皆做（含選做 4 面板提示）；新規則唯一權威 `cross-project-coordination.md` § 跨 session 選收件人（v5.9.0+）。
+- 與 BAT 權威差異 7 條，CT 皆以權威為準（重點：② 的任何錯誤都當不支援；只用 `claudeSessionName`、不用 sessionId 對 session；面板條件「不以 ` · Tower` 結尾」；「訊息第一行請收件者確認身分」仍保留）。需要 BAT 補：無。
+- 可選建議（記入 PLAN-050 後續）：同工作區兩個「以塔台開啟 Claude」或兩工作區同名時 `claudeSessionName` 重複，CT 只能走 ③；可考慮重複的 Tower 名稱帶短 ID。
+- BAT 待辦：使用者安裝 `0.7.1-pre.1`、BMad-Guide 塔台重開載入 v5.9.0 後，代跑回覆稿 § 5 四個情境 ＋ 本檔 § 驗收建議 → 回函 `BMad-Guide/_ct-workorders/_reply-<日期>-ct-v590-runtime.md` 並傳訊。

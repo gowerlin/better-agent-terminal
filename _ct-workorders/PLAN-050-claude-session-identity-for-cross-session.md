@@ -40,3 +40,8 @@ CT 塔台以跨 session 訊息（SendMessage）找 BAT 塔台時，ListAgents �
 3. R2 選哪個做法（使用者決定）；跨工作區唯讀查塔台是否放寬 `authorizeHelperQueryTarget`（目前 `scope=workspace` 只到同工作區，D149 權杖範圍）
 4. `--session-id` 的 UUID 由誰產生、BAT 重開（Terminal Server 存活）後的持久化
 5. 版號：需新的 BAT 版號線（`0.7.0` 線已發到 pre.9，D151）
+
+## 後續（2026-10-18 第八十一 session 收工後）
+
+- 實作 T0641–T0644 隨 `v0.7.1-pre.1` 發佈；CT 端 CT-T021 完成（CT v5.9.0）。待實機驗收（安裝版 + BMad-Guide 塔台 v5.9.0，CT 回覆稿 § 5 四個情境）。
+- CT 可選建議：重複的 `<工作區> · Tower`（同工作區兩個入口開的分頁、或兩工作區同名）時名稱相同，CT 對不到 ListAgents `[ref]` 而降級為 `_reply-*.md`；可考慮重複時帶短 ID。實機驗收後再決定是否開單。
