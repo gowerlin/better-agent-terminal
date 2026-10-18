@@ -3,7 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-161
 title: "設定精靈 step 的原始錯誤訊息、復原警告與縮圖列「suggested」仍是英文（BUG-158 範圍外的殘留）"
-status: FIXING
+status: FIXED
+fixed_at: "2026-10-18T20:46:12+0800"
+fixed_by: T0660
+fix_commit: "a5caf04a"
 severity: low
 reproducibility: always（zh-TW 介面，遇到對應錯誤時）
 created_at: "2026-10-18T19:12:43+0800"
@@ -21,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響錯誤畫面的語言） |
 | 可重現 | 必現（zh-TW 介面遇到對應錯誤時） |
-| **狀態** | ⏳ FIXING（T0660；使用者 2026-10-18 20:2x 決定放進 `0.7.1-pre.2`） |
+| **狀態** | ✅ FIXED（T0660 `a5caf04a`：精靈 step 錯誤改帶 code、error-mapper +32 entry（`Error.message` / 日誌維持英文）；復原警告、`suggested`、「Set as Supervisor」走 i18n；21 個 modal × 補 `aria-label`；選項 description 顯示） |
 
 ## 現象（T0652 回報區）
 
@@ -36,3 +39,9 @@ links:
 ## 修正方向
 
 - 另開 i18n 批次：error-mapper entry / key、復原警告、`ThumbnailBar` 的 `suggested`、`aria-label`；第 5 點評估是否要顯示 description。
+
+## 殘留（T0660 回報「範圍外英文字樣」，未開單）
+
+- `MainPanel.tsx` 監督者徽章 `title="Supervisor"`、`TerminalThumbnail.tsx` `title="New notification"`；Agent 面板 Cache History「Clear」/`Clear history`；`SettingsPanel.tsx` 自訂 CLI 刪除鈕 `title="Remove"`；`PathLinker.tsx` `Search (Ctrl+F)`；`CtToast` / `UpdateNotification` 的 × 無 aria-label。
+- `ssh/configure-host.ts` `INSTALL_PATH_OPTIONS` 英文 label 含內部工單號字樣（目前未顯示，日後若使用需先改）。
+- 少數 code（例 ssh `start-server` 回 `unknown`）仍走 fallback（標題已翻譯、內文英文）。
