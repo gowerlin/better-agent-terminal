@@ -1,6 +1,6 @@
 ---
 title: Control Tower 功能導覽
-description: BMad Control Tower 本身能做什麼、怎麼運作：四級能力、一天的基本流程、工單狀態與驗收、自主程度與斷點、自我學習、多塔台協調與 Debug 三層防線。
+description: BMad Control Tower 本身能做什麼、怎麼運作：四級能力、一天的基本流程、工單狀態與驗收、自主程度與斷點、自我學習、多塔台協調與 Debug 三層防線，以及它一路演進的七代。
 ---
 
 <script setup>
@@ -234,6 +234,50 @@ T1025 的金額計算做完了，審查工單卻列出兩個嚴重、三個高�
 結果：換了 Agent 也不用從頭講起，工作從昨天停下的地方接著做。 {.tour-result}
 
 現實比計劃更混亂的時候，例如合併後問題接連冒出來、規劃到一半正式站出事，塔台怎麼接住，見[實戰案例](./cases)。
+
+## Control Tower 怎麼長出來的 {#evolution}
+
+Control Tower 不是一次設計好的。它經過七代，每一代都在解決前一代實際用起來卡住的地方。 {.ct-lead}
+
+<ol class="tour-generations">
+<li>
+<p class="tour-gen-name">對話裡的指揮塔</p>
+<p class="tour-gen-line"><b>起點</b><span>想把規劃和動手分開：一個對話專門規劃，另一個對話寫程式。</span></p>
+<p class="tour-gen-line"><b>做法</b><span>塔台在對話裡寫出工作指引，你複製到另一個對話執行，做完再整理摘要貼回來。</span></p>
+</li>
+<li>
+<p class="tour-gen-name">工單檔案</p>
+<p class="tour-gen-line"><b>卡在</b><span>每一段交接都經過你的手：漏貼一段、排版跑掉、忘了把摘要帶回來。</span></p>
+<p class="tour-gen-line"><b>做法</b><span>工作指引改寫成工單檔案，開工與完成時間、回報都寫回同一張工單。你只要告訴 Worker 工單編號，做完回塔台說一聲。</span></p>
+</li>
+<li>
+<p class="tour-gen-name">分開跑、會學習</p>
+<p class="tour-gen-line"><b>卡在</b><span>塔台與 Worker 的規則放在一起，Worker 連「塔台不寫程式」的禁令也一起帶上，結果改不了程式；學到的規則寫回 Control Tower 本身，一升級就被蓋掉。</span></p>
+<p class="tour-gen-line"><b>做法</b><span>塔台與 Worker 的規則拆開，兩邊只靠工單交換。塔台開始記下進度與經驗，對話重開也接得回來；Control Tower 本身唯讀，經驗分成跨專案與本專案兩處存放。</span></p>
+</li>
+<li>
+<p class="tour-gen-name">接上 BAT</p>
+<p class="tour-gen-line"><b>卡在</b><span>只有工單一種單據不夠用；派工時仍要你開分頁、貼指令，再把回報帶回塔台。</span></p>
+<p class="tour-gen-line"><b>做法</b><span>加入 Bug 單、計畫單、實驗單、決策紀錄與研究型工單。接上 BAT 後，塔台自己開 Worker 分頁，Worker 做完直接通知塔台；yolo 模式讓塔台自己推進，只在斷點停下來。</span></p>
+</li>
+<li>
+<p class="tour-gen-name">規則只寫一處</p>
+<p class="tour-gen-line"><b>卡在</b><span>規則越寫越多，每次啟動都整份讀進脈絡；同一條規則寫在好幾處，改了一處漏了另一處，Worker 讀到舊的就做錯。</span></p>
+<p class="tour-gen-line"><b>做法</b><span>工單狀態改放在檔頭的固定欄位，每個讀取的地方都看同一處。規則從一份大文件拆成按需載入的章節，每條規則只留一處完整定義，其他地方只引用。Worker 開工前先確認自己在對的 repo。</span></p>
+</li>
+<li>
+<p class="tour-gen-name">管理分頁</p>
+<p class="tour-gen-line"><b>卡在</b><span>派工自動了，Worker 做完之後分頁卻一直留著；BAT 也分不出哪個分頁是塔台。</span></p>
+<p class="tour-gen-line"><b>做法</b><span>收單後，塔台回收 Worker 的分頁；啟動時，塔台向 BAT 表明自己是塔台，分頁標題跟著標出來。</span></p>
+</li>
+<li>
+<p class="tour-gen-name">看得見、問得到</p>
+<p class="tour-gen-line"><b>卡在</b><span>派出去之後看不見：Worker 有沒有真的啟動、是不是在等人回答都不知道；幾個 Worker 同時改檔，也會互相踩到。</span></p>
+<p class="tour-gen-line"><b>做法</b><span>每個分頁各有自己的權限，Worker 在各自的 worktree 裡平行開工；塔台看得到 Worker 是否已啟動、是否在等你，yolo 下 Worker 改問塔台。這些能力都是 BAT 先定好介面，Control Tower 再照著寫規則。</span></p>
+</li>
+</ol>
+
+七代下來，工單始終是唯一的交接方式。BAT 負責開分頁、通知、狀態與提問的通道，Control Tower 負責什麼時候派、派給誰、怎麼驗收。兩邊怎麼分工，見[與 Control Tower 協作](./control-tower)；實際跑起來的樣子，見[實戰案例](./cases)。
 
 ## 常見問題 {#faq}
 

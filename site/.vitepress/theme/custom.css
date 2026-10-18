@@ -2745,6 +2745,88 @@
   color: var(--vp-c-text-2);
 }
 
+/* 七個世代：仿航管的飛行進程條，左格是第幾代與名稱，右格是卡在哪裡、怎麼改；最新一代用粗線收尾 */
+.vp-doc .tour-generations {
+  counter-reset: tour-gen;
+  margin: 28px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .tour-generations > li {
+  counter-increment: tour-gen;
+  display: grid;
+  grid-template-columns: 9em minmax(0, 1fr);
+  gap: 4px 20px;
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc .tour-generations > li:first-child {
+  border-top: 2px solid var(--vp-c-text-1);
+}
+
+.vp-doc .tour-generations > li:last-child {
+  border-bottom: 2px solid var(--vp-c-text-1);
+}
+
+.vp-doc .tour-generations p {
+  margin: 0;
+}
+
+.vp-doc .tour-generations .tour-gen-name {
+  grid-row: 1 / span 2;
+  font-family: var(--bat-font-display);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.vp-doc .tour-generations .tour-gen-name::before {
+  content: '第 ' counter(tour-gen) ' 代';
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--vp-font-family-base);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  letter-spacing: 0;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc .tour-generations .tour-gen-line {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 2.5em minmax(0, 1fr);
+  gap: 0 10px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.vp-doc .tour-generations .tour-gen-line b {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 27px;
+  color: var(--vp-c-text-2);
+}
+
+@media (max-width: 639px) {
+  .vp-doc .tour-generations > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vp-doc .tour-generations .tour-gen-name {
+    grid-row: auto;
+    margin-bottom: 4px;
+  }
+
+  .vp-doc .tour-generations .tour-gen-line {
+    grid-column: 1;
+  }
+}
+
 /* 四級能力：三個可選的增強並排，坐在第 0 級的地基上（可任意組合，所以不畫成階梯） */
 .vp-doc .cap-levels {
   display: grid;
