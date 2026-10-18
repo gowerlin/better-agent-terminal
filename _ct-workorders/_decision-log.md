@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D163 2026-10-18 — CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 代跑實機驗收結案（T0625–T0629）；pre.9 延後到網站改版與驗收告一段落
+
+- **背景**：BMad-Guide D057 請 BAT 代跑 CT v5.7.1 / v5.7.2 實機驗收（規格 BMad-Guide T0170 / T0171），第七十九 session 交接給本 session。
+- **執行**（塔台代決的探針設計，比照 D157）：5 張探針依序派工——T0625（F-1 ①，Q-1 後刻意延遲 60 秒）、T0626（F-1 ② + 第 6 步，塔台刻意不答 Q-3）、T0627（F-1 ③ 全部失敗 + ④(a) 立刻取消）、T0628（④(b) + 對已答題 `--cancel-question`）、T0629（codex：fenced code block awk + O-2 自檢，塔台刻意延遲 90 秒才答）。T0628 / T0629 因使用者插入網站改版而暫停約 25 分鐘，使用者指示「也處理暫停的項目」後續跑。
+- **結果**：5 項 PASS、0 FAIL；④(b) 自然時序未重現（塔台忙時通知排隊，以刻意 `--answer` exit `9` 為證）；新發現 **F-2**（codex 的「提問時間」不是取自系統，自檢時又改了已送出的題目）、觀察 O-3（塔台未 commit 的答覆行被 Worker commit 帶入）、O-4。CT v5.8.0 於 12:48 裝到本機，T0628 / T0629 跑在 v5.8.0（V72 / V80 提問規則全文相同，雙方塔台各自比對確認）。
+- **交付**：回函 `D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\_reply-2026-10-18-ct-v571-v572-runtime.md`（13:28 傳訊 `bmad-guide-d8`）；對方 13:29 回覆 PASS 採信、D057 結案（對方 D061，`e96b84a`），F-2 / O-3 列 CT v5.8.1 候選、O-4 只記錄。
+- **CT-T020**：對方 CT v5.8.0 完成（回覆 `_reply-2026-10-18-ct-t020-done.md`），BAT 端委派單標 DONE（`65ab4663`）；BAT 最低版本占位字串待 BAT 發版後替換。
+- **發版決定**（使用者 2026-10-18 13:2x）：含 T0620 / T0621 / T0623 的 `v0.7.0-pre.9` **等網站改版（PLAN-049 W2a）與驗收告一段落再發**；發佈後告知 BMad-Guide 版號，再照 CT-T020 § 驗收建議代跑 codex 實機驗收。pre.9 是 0.7.0 線最後一個預覽版（D151）。
+- **相關**：D057（BMad-Guide）/ D157 / D158 / CT-T020 / T0625–T0629
+
 ### D162 2026-10-18 — PLAN-049 網站 v2：加入 `frontend-design`、`theme-factory`，先以 Design System + Design 畫布定視覺方向再實作；`frontend-design` 由工單授權安裝
 
 - **背景**：T0630 13:05 派工後，使用者貼上另一段建議（做有設計感的產品介紹網站：核心用 `frontend-design`；先用 Design 畫布定方向再做成網頁；`theme-factory` 試主題；有品牌規範可先整理成 Design System；`brand-guidelines` 是 Anthropic 自家規範可略過；`canvas-design` 適合做 hero 主視覺 / 海報，不適合整站），指示「加入這些考量：幫我安裝 SKILL」，並自行停止 T0630（Worker 啟動約 47 秒、無產出），要求「加上上述 SKILL 後重新安排」。
