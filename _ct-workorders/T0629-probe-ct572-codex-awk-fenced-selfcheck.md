@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0629
 title: "探針：CT v5.7.2 codex Worker —— 3-B awk 略過 fenced code block ＋ notify 前自檢（O-2）"
 type: verification
-status: IN_PROGRESS
-tower_question: open
+status: DONE
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
-started_at: "2026-10-18T13:27:00+0800"
-updated_at: "2026-10-18T13:27:00+0800"
+started_at: "2026-10-18T13:21:54+0800"
+completed_at: "2026-10-18T13:26:02+08:00"
+updated_at: "2026-10-18T13:26:02+08:00"
 depends_on: [T0628]
 related:
   - "CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 實機驗收第 5 張（T0625–T0629）；對照 v5.7.0 的 T0615（O-2 格式偏差）"
@@ -80,7 +80,7 @@ memory_overrides:
 ### 待塔台決策
 
 #### Q-1：探針 Q-1（fenced code block 不算答覆）
-- 提問時間：2026-10-18T13:27:00+0800
+- 提問時間：2026-10-18T13:22:00+0800
 - **問題**：在範本 fenced code block 原樣保留的情況下，確認區段限定 awk 在收到塔台真正答覆前不把假答覆算入。
 - **選項**：
   - [A] 收到
@@ -92,3 +92,27 @@ memory_overrides:
 - **阻塞**：是
 
 - **通道**：工單
+- **塔台答覆 Q-1**：[A] 收到——該題有 `通道` 標記，依規則改在工單答覆（探針安排：塔台刻意於提問後約 90 秒才答）（2026-10-18T13:24:46+0800；塔台代決）
+
+### 互動紀錄
+
+- [13:24] Q-1：探針 Q-1（fenced code block 不算答覆） → A（塔台）：[A] 收到——該題有 `通道` 標記，依規則改在工單答覆 → Action：確認權威 awk 在有效區段收到答覆後回傳 0，完成驗收。
+
+### 驗收證據
+
+- **Landing check：PASS** — C-0 repo expected=`better-agent-terminal`、actual=`better-agent-terminal`；C-1 工單位於 repo 內；C-3 not applicable（`affects_files` 僅工單本身）；C-2 branch=`main`，工單未指定 branch。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。`CT_HOME` 未設定。`LEAN-CTX.md` 依 AGENTS.md 引用的兩個可能位置皆不存在。
+- **執行環境**：PowerShell 7；GNU Awk 5.4.1, API 4.1, PMA Avon 8-g1（`C:\Program Files\Git\usr\bin\awk.exe`）。
+- **基準**：直接照 control-tower `references/yolo-mode.md` § Worker 端 3-B 權威 awk 程式執行本工單，exit `1`；範本 fenced code block 原樣保留。
+- **等待輪詢**（塔台在 13:24:46 寫入答覆；前四次都在答覆前）：
+  - 13:22:59 — exit `1`
+  - 13:23:36 — exit `1`
+  - 13:24:03 — exit `1`
+  - 13:24:32 — exit `1`
+  - 13:25:04 — exit `0`（首次讀到有效答覆）
+- **提問降級**：`--ask --expires-min 999` exit `1`；stderr 首行：`Error: Invalid --expires-min value: '999' (expected minutes, 1-120)`。已加入 `- **通道**：工單`，並於 commit `93547a83` 後通知一次 `T0629 提問`（exit `0`）。Q-1 答覆時間：2026-10-18T13:24:46+0800。
+- **notify 前自檢 (a)**：PASS — Q-1 標題含問題文字，下一行為「提問時間」；更新問題時間為 13:22，對齊提出時段。
+- **notify 前自檢 (b)**：PASS — 回報區不含原始模板佔位符；已以本報告取代初始佔位行。
+- **notify 前自檢 (c)**：PASS — 全工單僅一段 `### 互動紀錄`。
+- **檔案／提交**：僅本工單；`ef131c1b`（開始與題目）、`89104337`（`tower_question: open`）、`93547a83`（通道標記）均為工單專屬 commit。無產品檔變更、無 build/test、未 push。其他既有 dirty files `_ct-workorders/T0632-site-v2-design-directions.md`、`src/styles/settings.css` 保留未動。
+- **結果**：PASS；驗收條件全部通過。
+- **偏差／後續**：無。
