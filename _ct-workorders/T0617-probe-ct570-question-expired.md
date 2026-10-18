@@ -4,21 +4,21 @@ schema_kind: workorder
 id: T0617
 title: "探針：CT v5.7.0 BAT 題目逾時 `expired` → BLOCKED → Renew"
 type: verification
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:02:10+0800"
 started_at: "2026-10-18T11:12:00+08:00"
-updated_at: "2026-10-18T11:13:34+08:00"
+completed_at: "2026-10-18T11:15:36+08:00"
+updated_at: "2026-10-18T11:15:36+08:00"
 depends_on: [T0616]
 related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 4 張（T0614–T0618）"
 affects_files:
   - _ct-workorders/T0617-probe-ct570-question-expired.md
 renew_count: 1
-tower_question: open
 workdir: main repo
 worker_question_timeout: 1
 interaction:
@@ -88,7 +88,12 @@ memory_overrides:
 
 ### 完成狀態
 
-**BLOCKED**（第一輪，依 `yolo-mode.md` § Worker 向塔台提問 › 第 4 點 § 備援：3-A 回傳 `expired` / `timeout`）。Q-1 未獲答覆，`### 待塔台決策` 原樣保留、frontmatter `tower_question: open` 保留，等塔台在 `## 塔台補充（Renew #1）` 答覆後重派。
+**DONE**（第二輪，Renew #1）。兩項驗收條件皆達成：
+
+- 第一輪以 `BLOCKED` + `需要協助` 收尾，工單 commit `60e3d92c`（11:13:34）在 notify（11:13:38）之前 ✅
+- 第二輪在 `## 塔台補充（Renew #1）` 區段內讀到 `塔台答覆 Q-1` = [A]，記入互動紀錄、刪 `tower_question` → DONE ✅
+
+（第一輪原狀態：**BLOCKED**，依 `yolo-mode.md` § Worker 向塔台提問 › § 備援：3-A 回傳 `expired` / `timeout`。）
 
 ### Landing Zone Check
 
@@ -107,6 +112,7 @@ memory_overrides:
 3. 11:12:07 `bat-notify.mjs --ask` 送出（題目只走 Git Bash heredoc stdin，無暫存檔），exit `0`，`--ask` 自己通知塔台 `T0617 提問`，未另送一般通知。
 4. MCP `bat_wait_question` 迴圈等待：第 1 次 `pending`（逾時），第 2 次 `expired` / `timeout`。
 5. 依 § 備援：不延長等待、不重送題目、未改走 3-B；填回報區 → `BLOCKED` → commit 工單 → 題目已有結束狀態（`expired`），**不需** `--cancel-question` → 送 `T0617 需要協助`（`--submit`）。
+6. （第二輪，11:14:55）重派 Worker 以區段限定比對讀到 Renew #1 的 `塔台答覆 Q-1` → 記互動紀錄、刪 `tower_question` → 填第二輪證據 → DONE → commit → 送 `T0617 完成`（`--submit`）。未再提問、未讀產品程式碼。
 
 ### 驗收證據
 
@@ -124,9 +130,26 @@ memory_overrides:
 - `需要協助` 送出時間：於上述 commit **之後**送出（時間由 Worker 回覆畫面與 `bat-scripts.log` 記錄；第二輪可補記）
 - 先後：工單 `BLOCKED` commit → `T0617 需要協助` notify（commit 在 notify 之前）
 
+- 第一輪補記（第二輪 Worker 依 `bat-scripts.log` 補）：`BLOCKED` 工單 commit = `60e3d92c`（commit 時間 2026-10-18T11:13:34+08:00）；`T0617 需要協助` 由 `bat-notify` 送出於 2026-10-18T03:13:38.636Z（= 11:13:38+08:00），`terminal:notify` / `pty:write` / `terminal:keypress`（submit）皆 ok → commit 早於 notify 約 4 s ✅
+
 **第二輪**
 
-（待重派 Worker 填寫）
+- 重派：塔台 2026-10-18T03:14:35Z `--close-worker T0617`（舊分頁）後以 `--skill ct-exec --workorder T0617 --mode yolo --no-interactive --wait-started 30000` 重派，新 Worker 分頁 `99f64984c7a2ce086dcd8c957a29a98c`
+- 讀到 Renew 答覆時間：2026-10-18T11:14:55+08:00
+- 比對方式：**只在區段內比對**——以 `awk` 依 `^## ` / `^### ` 標題追蹤目前區段，只在 `## 塔台補充（Renew #N）` 或 `### 待塔台決策` 內、且行首為 `- **塔台答覆 Q-1**` 時才算答覆；未對全檔 grep。命中第 71 行（`## 塔台補充（Renew #1）` 區段內）；`### 待塔台決策` 內無答覆行
+- 互動紀錄寫法：見下方 `### 互動紀錄`（`[HH:MM] Q-n: … → A（塔台）: … → Action: …`）
+- frontmatter：刪除 `tower_question`（唯一題目 Q-1 已答覆）；`status` → `DONE`；`### 待塔台決策` 原文保留作紀錄
+- 最終 commit hash：本次收尾 commit（訊息 `ct: complete T0617 question-expired probe (Renew #1)`；hash 於 commit 後產生，無法寫入同一 commit，見 `git log -- _ct-workorders/T0617-probe-ct570-question-expired.md`）
+- 先後：工單 DONE commit → `T0617 完成` notify（`--submit`）
+
+### 互動紀錄
+
+- [11:12] Q-1: 探針 Q-1（逾時）[A] 收到 / [B] 沒收到 → BAT 題目 `q-4b13b4f7-5d245786fa58509e` 於 11:13:07 `expired` / `timeout`，未獲答覆 → Action: § 備援，`BLOCKED` + `T0617 需要協助`
+- [11:14] Q-1（Renew #1）: 探針 Q-1（逾時）→ A（塔台）: [A] 收到——第一輪逾時路徑已驗，本題在 Renew 區段答覆 → Action: 刪 `tower_question`、填第二輪證據、DONE、commit、送 `T0617 完成`
+
+### Renew 紀錄
+
+- Renew #1（2026-10-18T11:14:00+0800）：塔台於 `## 塔台補充（Renew #1）` 答覆 Q-1 = [A]；重派 Worker 依新指示完成 Step 3，未再提問
 
 ### 變更檔案
 
