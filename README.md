@@ -8,12 +8,13 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%28Apple%20Silicon%29%20%7C%20Linux-lightgrey.svg)
 ![Electron](https://img.shields.io/github/package-json/dependency-version/gowerlin/better-agent-terminal/dev/electron?color=47848F)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+[![Website](https://img.shields.io/badge/website-gowerlin.github.io-blue.svg)](https://gowerlin.github.io/better-agent-terminal/)
 
 **跨平台終端機聚合器，支援多工作區管理與內建 AI Agent 整合**
 
 在同一個視窗中管理多個專案終端機，內建支援 **Claude Code、Gemini CLI、GitHub Copilot CLI、Codex CLI** 及任意自訂 CLI 代理。附帶檔案瀏覽器、Git 檢視器、Snippet 管理器、遠端存取，以及可協調多個 AI Agent 的 **Supervisor 模式**。
 
-[下載最新版本](https://github.com/gowerlin/better-agent-terminal/releases/latest)
+[專案網站](https://gowerlin.github.io/better-agent-terminal/) · [下載最新版本](https://github.com/gowerlin/better-agent-terminal/releases/latest)
 
 </div>
 
