@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0644
 title: "PLAN-050 D：「以塔台開啟 Claude」入口——claude-cli 分頁啟動即 `--name \"<工作區> · Tower\"`（R2 (b)）"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-050
 priority: P2
 sizing: S
 created_at: "2026-10-18T16:44:32+0800"
+started_at: "2026-10-18T16:46:02+08:00"
+updated_at: "2026-10-18T16:46:02+08:00"
 depends_on: [T0641]
 related:
   - "D167（使用者決定 R2 採 (a)+(b)）；T0640 回報區（R2 三案比較、介面契約草案 C-7、實作切分 D）"
@@ -27,6 +29,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -70,5 +73,15 @@ memory_overrides:
 ---
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：T0641 的 source guard 逐字鎖住 tab 名稱那一行，本單改成依 `launchRole` 選名稱後它會失敗；可以由本單改這條 `electron/__tests__` 斷言嗎？
+- 提問時間：2026-10-18T16:52:35+0800
+- 背景：`electron/__tests__/claude-session-name-launch.test.ts:314` 斷言 `WorkspaceView.tsx` 內有 `const sessionName = claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId })`。本單在 `startClaudeCliPty` 依分頁的 `launchRole` 選 `role: 'tower'` 或 `role: 'tab'`（`const sessionName = (launchRole === 'tower' ? claudeSessionName({ role: 'tower', … }) : claudeSessionName({ role: 'tab', … })) ?? undefined`），該斷言因此失敗（`npm run test:unit`：1 failed / 5345 passed）。其餘兩條斷言（`sessionWorkspaceNameRef`、`withBatMcpLaunchArgs(…, terminalId, sessionName)`）仍通過。memory_overrides 禁止本單改 `electron/**`；另外 T0642 目前**正在改同一個檔**（工作樹已有它未 commit 的 hunk，line 303），本單若現在用 `git commit --only` 提交這個檔，會把 T0642 未 commit 的變更一起帶進來。
+- 選項：[A] 等 T0642 commit 該檔後，由本單只改那一條 `it(...)`：保留 tab 分支斷言（改成比對 `: claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId })`），加上 tower 分支斷言，`git commit --only` 只提交該檔 / [B] 由塔台轉給 T0642 的 Worker 一併改這條斷言（本單在回報區附替換文字） / [C] 其他：________
+- Worker 建議：[A]，只改測試、不動 `electron/**` 產品碼，斷言意圖不變（沒有 `launchRole` 的分頁仍是 `<ws> · <短 ID>`）；等 T0642 commit 後再改可避免把對方的 hunk 混進本單 commit。不建議為了迎合舊斷言把 WorkspaceView 改成另包一層函式，那等於繞過 guard。
+- 影響範圍：`electron/__tests__/claude-session-name-launch.test.ts` 一條斷言；本單驗收「`npm run test:unit` 全綠」
+- 阻塞：是（全綠與收尾 commit 要等答覆；其餘實作與驗證已完成）
 
 （Worker 填寫）
