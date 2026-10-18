@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0614
 title: "探針：CT v5.7.0 × 0.7.0-pre.8 claude Worker 經 BAT 通道問塔台（主流程 + BUG-154 目視）"
 type: verification
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:00:19+0800"
 started_at: "2026-10-18T11:01:37+0800"
-updated_at: "2026-10-18T11:01:37+0800"
+updated_at: "2026-10-18T11:04:35+0800"
+completed_at: "2026-10-18T11:04:35+0800"
 depends_on: [T0613]
 related:
   - "PLAN-048（Worker 問塔台）；CT-T019（BMad-Guide CT v5.7.0）—— 本單是 CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收的第 1 張（T0614–T0618，2026-10-18 與 BMad-Guide 塔台協商）"
@@ -22,7 +23,6 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -95,3 +95,67 @@ Worker 建議由你自己寫。收到答覆後：
 - Worker 建議：[A]，因為 `## 驗證清單` 現有內容全是條列項目（單元測試、e2e、回歸），實機驗收也是驗證證據的一種，接在同節最後最一致；T0615 只需在同一條下補 codex 一句或再加一條，不必另開新節與表頭；[B] 的表格在只有 claude / codex 兩列時效益有限，且多一個 `##` 標題要維護。
 - 影響範圍：`docs/agent-guide/tower-questions.md`（Step 3 寫入位置與格式）；T0615 的補寫位置
 - 阻塞：是（Step 3 起要等答覆）
+
+### 完成狀態
+
+DONE — Q-1 經 BAT 通道（3-A）提問並收到 `answered`（choice 1 = [A]）；文件新增一條 claude 實機紀錄；產品 commit 與工單 commit 分開。
+
+### 登陸檢查
+
+- 結果：PASS
+- C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單位於 `REPO_ROOT/_ct-workorders/` → PASS
+- C-3：可測項 `docs/agent-guide/tower-questions.md` 存在 → PASS（`_ct-workorders/` 項目排除）
+- C-2：工單無 `branch` 欄位，不適用（目前 `main`）
+- `CT_HOME` 未設定（非隔離工單）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+- 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`BAT_TOWER_TERMINAL_ID` / `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` 皆在 Git Bash 可見
+
+### 互動紀錄
+
+- [11:02] Q-1: 實機驗收紀錄寫在 `tower-questions.md` 的哪個位置（[A] 驗證清單節末新增條目 / [B] 新增 `## 實機驗收紀錄` 表格節） → A（塔台，BAT 通道，choice 1）: [A] 在 `## 驗證清單` 節末尾新增一條實機項目——與該節現有條列格式一致，T0615 接著補 codex 一條即可（塔台代決） → Action: 在 `## 驗證清單` 末尾新增 `- 實機（CT v5.7.0 × 安裝版 0.7.0-pre.8，2026-10-18）：` 項目，其下一條 claude 子項（留給 T0615 補 codex 子項）
+- 停頓（Step 2-2）：開始 `2026-10-18T11:02:38+08:00`，結束 `2026-10-18T11:03:38+08:00`（PowerShell `Start-Sleep -Seconds 60`）
+
+### 執行摘要
+
+1. Step 1：只讀 `docs/agent-guide/tower-questions.md` `## 驗證清單` 節。
+2. Step 2：依 ct-exec v5.7.0 § Questions For Tower 與 `yolo-mode.md` § Worker 向塔台提問 3-A：寫 Q-1 → frontmatter `tower_question: open` → commit 工單 → `--ask` → MCP `bat_wait_question` → `answered`；停 60 秒。
+3. Step 3：依答覆 [A] 在文件寫入一條 claude 實機紀錄（只含本單親眼看到的事實，無縮圖結論）。
+4. Step 4：照 Phase 4 收尾順序。
+
+### 修改檔案
+
+- `docs/agent-guide/tower-questions.md`：`## 驗證清單` 節末新增「實機（CT v5.7.0 × 安裝版 0.7.0-pre.8，2026-10-18）」項目及 claude（T0614）子項（+2 行）
+- `_ct-workorders/T0614-probe-ct570-claude-bat-question.md`：metadata 與回報區
+
+### 驗證
+
+- source / docs：PASS（文件新增內容已目視確認位於 `## 驗證清單` 節末，與既有條列格式一致）
+- build / tests：不適用（工單明令不跑 build / test，只改一份文件）
+- runtime smoke：PASS（BAT 通道實機：`--ask` exit 0 → `bat_wait_question` `answered`）
+
+### 驗收證據
+
+| 項目 | 證據 |
+|---|---|
+| 雙寫 | 題目與 `tower_question: open` 寫入工單後 commit `b30c17787ed9567991e663b6cb2f1d993cf5cbca`（commit 時間 `2026-10-18T11:02:01+08:00`）；`--ask` 送出時間 `2026-10-18T11:02:13+0800`（執行前取時）～ `11:02:14`（執行後取時）→ **commit 在前、`--ask` 在後**（相差約 12 s） |
+| `--ask` | 指令（Git Bash）：`"${BAT_HELPER_NODE:-node}" "$BAT_HELPER_DIR/bat-notify.mjs" --ask --source T0614 --target "$BAT_TOWER_TERMINAL_ID" --submit --expires-min 30 "T0614 提問" < "$Q"`；stdin = 以 Write 工具寫在 scratchpad 的 JSON 檔（`…/scratchpad/t0614-q1.json`，不在 repo），以 `<` 重導入；題目內容不在命令列。exit **0**；stdout `✓ Notified 5f679fbf…: T0614 提問` / `question: q-4b13b4f7-6856d878ff817f8a` / `expires: 2026-10-18T03:32:13.846Z` / `notified: yes`。`--expires-min 30`，來源 = 工單 frontmatter `worker_question_timeout: 30`（取值順序第一個存在的值） |
+| `--ask` 的 JSON | `question` 以 `Q-1：` 開頭：是；`options` 數：**2**（[A] / [B]，不列「其他」）；`detail` 含 Worker 建議 / 影響範圍 / 阻塞；`blocking: true` |
+| 等待 | 工具：MCP `bat_wait_question`（`questionId` = `q-4b13b4f7-6856d878ff817f8a`、`timeoutMs` 45000）；呼叫次數 **1**；最長兩次呼叫間隔：不適用（只呼叫一次；`--ask` 結束到第一次呼叫 < 30 s，遠小於 120 s）；回傳 `changed: true`、`status: answered`、`answer.choice: 1`、`waitedMs: 12986`、`answeredAt` = `2026-10-18T03:02:32.746Z`（= 11:02:32 +0800）。未用 `--wait-answer`、未用 `--cancel-question` |
+| 互動紀錄 | 已寫 `A（塔台，BAT 通道，choice 1）`；`tower_question` 於收尾時刪除（約 `2026-10-18T11:04+0800`，答覆後、寫回報區時一併刪除；等待與停頓期間未改工單）。工單內**沒有**塔台寫的 `塔台答覆 Q-1` 行 |
+| 收尾順序 | 產品 commit `75256750183f0e8c670814107fdaff5934b38974`（`11:03:58`）→ 回報區（本節）→ 最終 metadata（`status: DONE`、`completed_at`）→ 工單 commit（hash 見下方「Commit」，因 commit 自身無法寫入自己的 hash）→ notify `T0614 完成`（`--submit`）；notify 前 `git status --short` 由收尾指令再確認，只剩 ` M src/styles/settings.css` |
+
+### Commit
+
+- 工單提問 commit：`b30c1778`（`chore: T0614 start, Q-1 for tower (tower_question: open)`）
+- 產品 commit：`75256750`（`docs(tower-questions): record claude real-machine check for CT v5.7.0 BAT channel (T0614)`）
+- 工單收尾 commit：本報告之後的下一個 commit（`git log -1 -- _ct-workorders/T0614-probe-ct570-claude-bat-question.md`）
+- 皆以 `git commit --only <檔案>`；未 push；`src/styles/settings.css` 未碰
+
+### 偏差 / 遭遇問題
+
+- 無。Q-1 依 memory_overrides 必問（即使 Worker 可自行判斷 [A]）。
+- 時間格式：`date` 輸出 `+0800`，PowerShell 輸出 `+08:00`，皆為系統取時，原樣記錄。
+
+### 後續建議
+
+- T0615（codex）在同一「實機」項目下補 codex 子項即可。
