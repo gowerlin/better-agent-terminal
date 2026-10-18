@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0628
 title: "探針：CT v5.7.2 塔台 `--answer` 時才發現已取消（F-1 ④ b）＋對已答題 `--cancel-question` 回 `answered`"
 type: verification
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
 started_at: "2026-10-18T13:17:24+08:00"
-updated_at: "2026-10-18T13:20:08+08:00"
-tower_question: open
+updated_at: "2026-10-18T13:21:14+08:00"
+completed_at: "2026-10-18T13:21:14+08:00"
 depends_on: [T0627]
 related:
   - "CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 實機驗收第 4 張（T0625–T0629）"
@@ -97,3 +97,69 @@ memory_overrides:
 ### 互動紀錄
 
 - [13:19] Q-1: 探針 Q-1（塔台答覆時已取消） → A（塔台）: [A] 收到（工單答覆行，塔台 `--answer` exit 9 `cancelled worker` 後改寫） → Action: 結束階段 A，進入階段 B
+- [13:20] Q-2: 探針 Q-2（已答題再取消） → A（塔台，BAT 通道，choice 1）: [A] 收到——Q-2 經 BAT 通道送達（塔台代決） → Action: 兩題都已答，刪除 `tower_question`，進入收尾
+
+### 完成狀態
+
+DONE — 兩個階段都照 ct-exec v5.7.2 / yolo-mode § Worker 向塔台提問 3-A 第 5、6 步走完，驗收條件三項全部符合。
+
+### 結果摘要
+
+- 階段 A（Q-1）：`--ask` 成功 → `bat_wait_question` 兩次共 58 s 皆 `pending` → 從 `--ask` 起滿 60 s 執行 `--cancel-question` → `status: cancelled worker` → 3-A 第 6 步：加 `- **通道**：工單` 標記、commit、送一次一般 `T0628 提問` → 3-B 等工單答覆行 → 13:19:51 偵測到塔台的 Q-1 工單答覆行（塔台記錄 `--answer` exit 9 `status: cancelled worker`）。
+- 階段 B（Q-2）：`--ask` 成功後不呼叫 wait，改以 `bat_list_questions`（`status: all`）查詢；第 2 次查詢看到 `answered` → `--cancel-question` → `status: answered` → 3-A 第 5 步：再呼叫一次 `bat_wait_question` 取得答覆（`choice: 1`），不加標記、不送一般 `提問`。
+
+### 驗收證據
+
+Landing check：C-0 PASS（frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`，`REPO_ROOT` = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 PASS；C-3 not applicable（`affects_files` 只有本工單）；C-2 無 `branch` 欄位（實際 `main`）。`CT_HOME` 未設定（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`worker_question_timeout` = 30（工單 frontmatter）。
+
+**Q-1（階段 A）**
+
+| 項目 | 內容 |
+|---|---|
+| 題目 commit | `f96bb5f5`（含 `tower_question: open`） |
+| `--ask` 參數 | `--ask --source T0628 --target "$BAT_TOWER_TERMINAL_ID" --submit --expires-min 30 "T0628 提問"`，題目 JSON 走 Git Bash heredoc stdin |
+| `--ask` 結果 | exit `0`，id `q-4b13b4f7-10eb636ec5d51470`，13:17:33（BAT `createdAt` 13:17:33.281），`notified: yes` |
+| 等待 | `bat_wait_question` `timeoutMs` 30000 → `changed: false` / `pending`（`waitedMs` 30002）；`timeoutMs` 28000 → `changed: false` / `pending`（`waitedMs` 28000） |
+| `--cancel-question` | 13:18:39（`--ask` 後 66 s），exit `0`，stdout `✓ Question cancelled: …`、`status: cancelled worker`（唯一一行 `status:`） |
+| 標記 | `- **通道**：工單` 加在 Q-1 最後（13:18:44），commit `4ff1b53d`（只含標記行） |
+| 一般 `提問` | 13:18:45 送出 `T0628 提問`（`--submit`），exit `0` |
+| BAT 列表 | 13:20 查詢 Q-1 為 `status: cancelled` / `endReason: worker` |
+| 答覆來源 | 工單答覆行（`### 待塔台決策` 區段內，3-B 區段限定 awk 比對，間隔 30 s），13:19:51 偵測到；塔台行內時間 13:19:21 |
+| 答覆行數 | 工單只有一行 `- **塔台答覆 Q-1**` |
+
+**Q-2（階段 B）**
+
+| 項目 | 內容 |
+|---|---|
+| 題目 commit | `b13fba01`（`tower_question` 保持 `open`；此 commit 一併納入了塔台寫在工作樹、尚未 commit 的 Q-1 答覆行） |
+| `--ask` 參數 | 同 Q-1（`--expires-min 30`，stdin JSON） |
+| `--ask` 結果 | exit `0`，id `q-4b13b4f7-d9e7089cc36942ff`，13:20:08（BAT `createdAt` 13:20:08.602） |
+| `bat_list_questions` 查詢 | 第 1 次約 13:20:10 → `pending`；第 2 次約 13:20:30（間隔約 15 s）→ `answered`（`answeredAt` 13:20:17.323，`choice: 1`）。期間未呼叫 `bat_wait_question` / `--wait-answer` |
+| `--cancel-question` | 13:20:31，exit `0`，stdout `✓ Question already ended: …`、`status: answered`（唯一一行 `status:`） |
+| 取得答覆 | 再呼叫一次 `bat_wait_question`（`timeoutMs` 30000）→ `changed: true`、`status: answered`、`choice: 1`、`waitedMs: 0` |
+| 答覆來源 | BAT 通道 |
+| 標記 | 無（Q-2 下沒有 `通道` 行） |
+| 一般 `提問` | 無額外送出 |
+| 工單答覆行 | 無 `塔台答覆 Q-2` 行 |
+
+**通知次數**：`--ask` 自帶通知 2 則（Q-1、Q-2）；一般 `T0628 提問` 1 則（Q-1 晚退回）；收尾 `T0628 完成` 1 則。
+
+**notify 前自檢**（ct-exec § Phase 4 step 4）：(a) `#### Q-1：`、`#### Q-2：` 皆帶題目文字且下一行為「提問時間」— PASS；(b) 回報區無範本佔位文字 — PASS；(c) `### 互動紀錄` 恰一個 — PASS。
+
+### 變更檔案
+
+- `_ct-workorders/T0628-probe-ct572-cancel-race-and-answered.md`（僅本檔；`src/styles/settings.css`、`_ct-workorders/T0632-site-v2-design-directions.md` 的 M 不是本單變更，未動）
+
+### Commit
+
+`f96bb5f5`（開工＋Q-1）、`4ff1b53d`（Q-1 標記）、`b13fba01`（Q-1 互動紀錄＋Q-2）、收尾 commit（本回報）。全部 `git commit --only <本檔>`，未 push。無產品變更。
+
+### 偏差與備註
+
+- 階段 A 的 `--cancel-question` 在 `--ask` 後 66 s 執行（兩次 wait 共 58 s，加上工具往返），略晚於 60 s，不影響探針結果。
+- Q-2 輪詢間隔：第 1 次查詢緊接 `--ask`，第 2 次約 20 s 後（背景 sleep 13 s 加工具往返）；工單要求每 15 s，實際間隔略長，100 s 上限內已看到 `answered`。
+- 未讀產品程式碼、未跑 build / test（工單排除）。題目內容只走 stdin，未寫暫存檔；回報區無權杖值。
+
+### 遭遇問題
+
+無。
