@@ -63,7 +63,35 @@ BAT `0.7.1-pre.1`（PLAN-050）起，helper 派工的 claude Worker 啟動時帶
 
 ## 塔台驗收紀錄（塔台填寫，Worker 不改）
 
-（待填）
+> 環境：安裝版 BAT FileVersion `0.7.1-pre.1`；塔台分頁「Claude CLI · Tower」（一般分頁開啟，session 名稱 `better-agent-terminal · d64be7`），control-tower **v5.9.0**，auto-session `on`，派工 `--mode yolo --no-interactive`；Worker 載入 ct-exec `5.9.0`。
+
+### A. 派工啟動確認 — PASS
+
+- 17:58:22（系統時間）派工 `bat-terminal.mjs … --agent default --skill ct-exec --workorder T0645 --wait-started 30000`：exit `0`，`agent: claude-cli (--agent default: Settings default agent)`，`started: 2026-10-18T09:58:22.278Z`。
+
+### B. 名稱與狀態欄位 — PASS
+
+- 派工後立即塔台 `bat_get_state`（T0645 分頁）：`claudeSessionName: better-agent-terminal · Worker · T0645`、`claudeSessionId: 89d0ee8d-4038-4d8e-bc2b-2e7f697eb4a3`、`blockedDetection: hook`、`agentStarted: true`、`agentStartedAt: 1792317502278`（= helper `started:`）。
+- ListAgents（塔台 session）：`better-agent-terminal · Worker · T0645`，與 BAT 名稱完全相同（CT-T021 § 5 情境 2）。
+- Worker 端 `bat_whoami` 有 `agent: claude-cli`（BUG-155 實機 PASS），`claudeSessionId` 與 Worker 自己的 session 目錄名一致（見回報區）。
+
+### C. `/clear` 換 sessionId — PASS
+
+- 使用者於 Worker 回報後在分頁輸入 `/clear`；18:00 塔台 `bat_get_state`：`claudeSessionId: 6732a6a1-2f29-46d5-a21d-5385c48a63cf`（換新），`claudeSessionName` 不變，`agentStartedAt` 仍是 `1792317502278`（只記第一次 `SessionStart`，符合 T0600 契約）。ListAgents 名稱不變。
+
+### D. 塔台分頁與 `scope: towers`（啟動時）— PASS
+
+- 塔台 `bat_whoami`：`role: tower`、`agent: claude-cli`、`towerMode: on`、`claudeSessionName: better-agent-terminal · d64be7`、`claudeSessionId` = 本塔台 session 實際 ID。
+- `bat_list_terminals scope=towers`：兩列（本塔台 `self: true`、`BMad-Guide · 590537` `self: false`），每列只有 metadata；兩個名稱與 ListAgents 完全相同（CT-T021 § 5 情境 3）。
+- CT v5.9.0 面板提示：本塔台名稱不以 ` · Tower` 結尾 → 啟動面板出現「以塔台開啟 Claude」提示（CT-T021 § 5 情境 4 的本側旁證）。
+
+### 未驗
+
+- 「以塔台開啟 Claude」開的塔台名稱 `better-agent-terminal · Tower` 與對方 ListAgents 直接命中（CT-T021 § 5 情境 1）：使用者決定留在原分頁，延後。
+
+### 回收
+
+- 18:00 `--close-worker T0645 --delay-ms 10000` exit `0`。
 
 ---
 
