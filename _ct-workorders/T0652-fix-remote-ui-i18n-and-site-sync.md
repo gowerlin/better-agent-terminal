@@ -59,6 +59,14 @@ T0646 改寫網站 `/remote/` 時發現遠端設定相關畫面殘留不少英�
 - `npx vite build` 成功
 - `site/` 內 `npm run build`：0 錯誤、0 死連結；CT 字樣 / 內部編號 / 隱私 grep = 0
 
+
+## 塔台補充（派工前，2026-10-18 18:51，T0649 / T0650 回報後）
+
+1. **加做 Docker 埠錯誤的 i18n**（T0649 回報區第 2、8 節）：新增 `wizard.docker.error.portInUse.{title,body}`（en / zh-TW / zh-CN；`docker-port-unpublished` 可另給 key 或併入，回報說明），並在 error-mapper registry 加 entry `{ id: 'docker-port-in-use', platforms: ['docker'], stepIds: ['start-server'], errorCodes: ['docker-port-in-use'], actions: [retry, cancel] }`（`docker-port-unpublished` 同理）。`error-mapper.test.ts` 要求每個 entry 三語 title / body 齊全。affects_files 加 `src/components/setup-wizard/**` 已涵蓋 error-mapper。
+2. **網站 `/remote/docker` 埠段落**（BUG-156 已 FIXED，`99abe9a1`）：照 T0649 回報區第 7 節改——第 66 行改寫為精靈挑埠（9877 起、避開 BAT 伺服器埠、只對 `127.0.0.1` 公開、設定檔記實際埠；Use existing 沿用容器公開的埠，容器須以 `-p 127.0.0.1:<port>:9876` 公開）；刪除「先把 BAT 自己的伺服器埠改掉」warning；「埠已經被占用」改成兩種情況。另把 overview / features 若有「Docker 固定 9876」的敘述一併修正。
+3. **網站上線時機**：網站改版要等含 `99abe9a1` / 本單產品修正的預覽版發佈後才 push（舊版仍固定 9876）。Worker 照常 commit、不 push；塔台在發版後才 push 網站。
+4. **commit 注意**（T0649 實例）：`git commit --only <檔案>` 會收整個檔案的工作樹內容；若某個檔案同時有 T0651 Worker 未 commit 的 hunk（目前 `electron/main.ts`、`electron/remote/headless-entry.ts`、`electron/agent-runtime/agent-registry.ts`、`electron/bat-mcp-launch.ts`、`src/lib/bat-mcp-launch.ts` 等），不要碰那些檔；本單理應不需要改它們，真的需要時先在工單提問。
+
 ## 驗收
 
 - zh-TW 介面的遠端設定畫面不再出現 BUG-158 清單上的英文；SSH 認證失敗文案不提密碼

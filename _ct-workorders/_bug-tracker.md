@@ -23,29 +23,29 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 18:43 (UTC+8) — BUG-157 FIXED（T0650）；BUG-156 / 159 FIXING；BUG-158 OPEN
+> 最後同步：2026-10-18 18:51 (UTC+8) — BUG-156 / 157 FIXED（T0649 / T0650）；BUG-158 FIXING（T0652）；BUG-159 FIXING（T0651）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 2 | ✅ Fixed: 20 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
+- 🔴 Open: 1 | ⏳ Fixing: 2 | ✅ Fixed: 21 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
-| BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（BAT 無法用密碼登入） | 🟢 low | 2026-10-18 18:33 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649） | 🟡 medium | — | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
+| BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（BAT 無法用密碼登入）（T0652） | 🟢 low | — | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651） | 🟢 low | — | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
 | BUG-157 | 「編輯連線」釘選新指紋後按「儲存」寫回舊指紋；釘選失敗不提示（T0650 `5594ec57`） | 🟡 medium | 2026-10-18 | [BUG-157](BUG-157-pin-fingerprint-overwritten-on-save.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
 | BUG-146 | BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁另起 direct shell | 🟡 medium | 2026-10-17 20:17 | [BUG-146](BUG-146-recovery-prompt-pending-spawns-direct-shell.md) |

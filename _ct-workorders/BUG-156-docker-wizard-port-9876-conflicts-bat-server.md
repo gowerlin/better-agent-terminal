@@ -3,9 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-156
 title: "Docker 設定精靈的容器埠固定 `127.0.0.1:9876`，與 BAT 自己的 RemoteServer 預設埠衝突，「Create new」預設設定下應該必定失敗"
-status: FIXING
+status: FIXED
+fixed_at: "2026-10-18T18:49:54+0800"
+fixed_by: T0649
+fix_commit: "99abe9a1"
 severity: medium
-reproducibility: always（程式碼推論，未實機重現）
+reproducibility: always（T0649：本機 `127.0.0.1:9876` 由 BAT 佔用、socket bind `EADDRINUSE` 實測；未實際跑 `docker run`）
 created_at: "2026-10-18T18:33:43+0800"
 impact:
   - docker-setup-wizard
@@ -19,8 +22,8 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（Docker 路線在預設設定下無法完成；WSL / SSH 不受影響） |
-| 可重現 | 程式碼推論為必現；未實機跑 `docker run` |
-| **狀態** | ⏳ FIXING（T0649） |
+| 可重現 | 必現（T0649 socket 實測；本機無 Docker daemon，未實際跑 `docker run`） |
+| **狀態** | ✅ FIXED（T0649 `99abe9a1`：Create new 由主行程挑埠 9877–9976、避開 RemoteServer 埠與已佔用埠；Use existing 沿用容器公開的埠；附帶修正 Use existing 一律連 9876 的問題。待有 Docker Desktop 的環境實機驗收） |
 
 ## 現象（T0646 程式碼追蹤）
 

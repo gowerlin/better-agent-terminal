@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-158
 title: "遠端設定相關畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」，但 BAT 無法用密碼登入"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-10-18T18:33:43+0800"
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（不影響功能；誤導使用者以為可用密碼） |
 | 可重現 | 必現（zh-TW 介面） |
-| **狀態** | 📂 OPEN（排在 BUG-156 / BUG-157 之後，避免同檔衝突） |
+| **狀態** | ⏳ FIXING（T0652） |
 
 ## 現象（T0646 程式碼追蹤，清單待修正工單逐項確認）
 
