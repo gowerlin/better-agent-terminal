@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D169 2026-10-18 — PLAN-051 跨塔台傳訊維持 IDEA；開 codex 共用 daemon 環境變數繼承探針
+
+- **背景**：T0647 研究 DONE（`c3497907`）：跨塔台往來全為「兩個 Claude 塔台、同一台機器」，失敗兩次皆為認錯收件人（PLAN-050 已解）；codex / 遠端塔台卡住 0 件。另更正兩項前提：Claude Code SendMessage 經 Remote Control 可跨機器與雲端（雲端不能回覆；WSL 2 / container 與 host 互不通）；codex `0.163.0` 有 Stable 的 `codex queue --thread … --message …`（經共用 app-server daemon）。順帶發現未驗證風險：第三方回報 codex 共用 daemon 底下各 session 繼承第一個 session 的環境變數。
+- **決定**（使用者 2026-10-18 18:2x，兩題皆選推薦）：
+  1. PLAN-051 **維持 IDEA**：塔台更正 PLAN 前提、寫入重新評估觸發條件；T0647 Q5 契約草案（結構化訊息箱）留作日後依據。
+  2. **開探針單 T0648**：查證 codex 共用 daemon 下 BAT 分頁的 `BAT_TERMINAL_ID` / 權杖 / BAT MCP 是否可能取到別的分頁的值（本機 BAT 為系統管理員權限、已注入 `features.daemon_auto_start=false`，推論不受影響；非系統管理員的 BAT 使用者可能受影響）。
+- **相關**：PLAN-051 / T0647 / T0648 / PLAN-050 / D149 / D155 / T0377（BUG-085）
+
 ### D168 2026-10-18 — 下一個預覽版號線 `0.7.1-pre.1`
 
 - **背景**：`0.7.0` 線已發到 `pre.9`（D151：不發兩位數 pre）。下一版內容：BUG-155（T0639）、PLAN-050 session 識別（T0641 / T0642 / T0643 / T0644，D167）。
