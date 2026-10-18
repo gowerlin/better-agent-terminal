@@ -529,6 +529,7 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
 - `README.md`：只在功能、安裝、平台支援、版號範例等描述與本版不符時才改；無需修改時在回報中寫明「README 無需更新」。
 - **README 必含「與 BMad Control Tower 協作」章節**（2026-10-17 使用者指示：「BAT 的 README.md 更新時，要加一章節說明與 BMad-Control-Tower 的協作與整合」）：每次更新 README 時一併檢查該章節（協作流程、BAT 整合點表、版本對照表）。BAT ↔ CT 介面契約有新增或改變（新 helper 參數、新功能需要對應 CT 版本）時，同步更新整合點表與版本對照表（BAT 最低版號 + CT 最低版號）。**CT 維持未開源：README 不放 CT 的取得連結或內部 repo 位置**（使用者 2026-10-17 指示）。
 - 順序：CI 綠 → `gh release edit`（更版重點）→ 三文件 commit（`docs: release notes for v<版號> (ct)`）→ push（依當次授權）→ 回報發佈完成。
+- **網站同步確認**（PLAN-049 W4 / T0659，D160 第 3 點）：三文件 push 會觸發 Pages workflow（`.github/workflows/pages.yml`）。確認該 run 綠燈、網站首頁下載區的版號 = 本版；並打開 `link-check` job 的 summary，有 broken 連結就開單修（該 job 只警告、不擋部署，不看就不會有人發現）。
 
 ### 下游發佈（D137 / T0476）
 
