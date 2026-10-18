@@ -1,6 +1,6 @@
 /**
  * T0609 (BUG-153): `terminal:attention-changed` — main tells the windows that a tab now waits for
- * the user (a claude hook `blocked`, T0590) or for its Tower's answer (pending tower questions,
+ * the user (a claude hook `blocked`, T0590; codex's `input`, T0621 / T0623) or for its Tower's answer (pending tower questions,
  * T0607), or no longer does. The Worker badge (src/components/TerminalThumbnail.tsx) and the
  * Tower's "Close reported Worker tabs (N)" read it (src/lib/terminal-attention.ts).
  *
@@ -8,7 +8,7 @@
  * tower-question store (`TowerQuestionDeps.onChange`, its expiry included) call `refresh(id)`;
  * refreshes are coalesced to one microtask, the state is recomputed and sent only when it changed.
  * Same precedence as `terminal:get-state` (`stateOf`, electron/terminal-query-handlers.ts): a hook
- * reason over `tower`. The helper / MCP answers are unchanged — this is a separate push.
+ * reason (codex's `input` included) over `tower`. The helper / MCP answers are unchanged — this is a separate push.
  *
  * Electron main sends it to every window + broadcastHub (remote clients of this BAT); headless
  * bat-server to its connected clients (`PROXIED_EVENTS` → the client windows of that profile).
@@ -38,8 +38,7 @@ export interface TerminalAttentionDeps {
 export function computeTerminalAttention(id: string, blocked: BlockedState | null, questions: QuestionSummary | null): TerminalAttentionEvent {
   const pendingQuestions = questions?.pending ?? 0
   const event: TerminalAttentionEvent = { id, pendingQuestions }
-  // T0621: codex's `input` (OSC 7501) is not shown on the badge (yet): a query answer only
-  if (blocked && blocked.reason !== 'input') {
+  if (blocked) {
     event.blockedReason = blocked.reason
     event.blockedSince = blocked.since
   } else if (questions && questions.blockingSince !== null) {

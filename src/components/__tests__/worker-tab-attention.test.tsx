@@ -120,6 +120,23 @@ describe('Worker badge: waits for the user / for the Tower / reported (T0609)', 
     expect(badgeOf('Worker three')!.getAttribute('title')).toContain(en.workerTabs.questionPendingTooltip.replace('{{count}}', '3'))
   })
 
+  test('T0623: codex input → ⚠️ with its own tooltip, not counted; cleared → ✓ counted', () => {
+    setTerminalAttention(ev('w1', { blockedReason: 'input', blockedSince: T }))
+    renderBar([
+      term('tower', 'Tower'),
+      term('w1', 'Worker one', { towerTerminalId: 'tower', workorder: 'T0601', workerReport: report }),
+    ])
+    const badge = badgeOf('Worker one')!
+    expect(badge).toHaveTextContent('⚠️ T0601')
+    expect(badge).toHaveClass('worker-badge', 'blocked')
+    expect(badge.dataset.blockedReason).toBe('input')
+    expect(badge.getAttribute('title')).toBe(`Worker for T0601, dispatched by Tower\n${en.workerTabs.blockedTooltip.input.replace('{{time}}', clock(T))}`)
+    expect(reportedItem()).toHaveTextContent('Close reported Worker tabs (0)')
+    act(() => setTerminalAttention(ev('w1')))
+    expect(badgeOf('Worker one')).toHaveTextContent('✓ T0601')
+    expect(reportedItem()).toHaveTextContent('Close reported Worker tabs (1)')
+  })
+
   test('old CT `T#### 提問` (workerQuestion) → ?, asked time in the tooltip, not counted', () => {
     renderBar([
       term('tower', 'Tower'),

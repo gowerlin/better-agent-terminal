@@ -1184,7 +1184,8 @@
     "blockedTooltip": {
       "permission": "Waiting for you: a permission prompt (since {{time}})",
       "question": "Waiting for you: a question to answer (since {{time}})",
-      "elicitation": "Waiting for you: an MCP input dialog (since {{time}})"
+      "elicitation": "Waiting for you: an MCP input dialog (since {{time}})",
+      "input": "Waiting for you: codex needs input, an approval or a question (since {{time}})"
     },
     "questionTooltip": "Asked its Tower at {{time}}, waiting for the answer",
     "questionPendingTooltip": "{{count}} questions pending",

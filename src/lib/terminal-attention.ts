@@ -6,6 +6,7 @@
  *
  *   attention                                         source                         badge
  *   blocked / permission | question | elicitation     main: claude hook (T0590)       ⚠️
+ *   blocked / input                                   main: codex OSC 7501 (T0621)    ⚠️  (T0623)
  *   blocked / tower, or pending questions > 0         main: tower questions (T0607)   ?
  *   the Worker's latest report ends with `提問`       renderer: `workerQuestion`      ?   (old CT fallback)
  *   any other report (完成 / BLOCKED / 需要協助 …)    renderer: `workerReport`        ✓   (counted by batch close)
@@ -17,11 +18,15 @@
  * 🔴 The payload carries state fields only — never a question, an option or an answer (D155).
  */
 
-/** What a claude hook reports (electron/terminal-blocked-state.ts `HookBlockedReason`). */
-export type AttentionHookReason = 'permission' | 'question' | 'elicitation'
+/**
+ * Waits for the user (⚠️): what a claude hook reports (electron/terminal-blocked-state.ts
+ * `HookBlockedReason`), or T0623: codex's `input` (OSC 7501 `state=blocked`, T0621) — same badge,
+ * same batch-close rule.
+ */
+export type AttentionHookReason = 'permission' | 'question' | 'elicitation' | 'input'
 export type AttentionBlockedReason = AttentionHookReason | 'tower'
 
-export const ATTENTION_HOOK_REASONS: readonly AttentionHookReason[] = ['permission', 'question', 'elicitation']
+export const ATTENTION_HOOK_REASONS: readonly AttentionHookReason[] = ['permission', 'question', 'elicitation', 'input']
 
 /**
  * `terminal:attention-changed` payload: tab `id`'s state now. No `blockedReason` and

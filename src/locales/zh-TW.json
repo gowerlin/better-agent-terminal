@@ -1184,7 +1184,8 @@
     "blockedTooltip": {
       "permission": "等待使用者：權限確認（{{time}} 起）",
       "question": "等待使用者回答問題（{{time}} 起）",
-      "elicitation": "等待使用者：MCP 輸入對話框（{{time}} 起）"
+      "elicitation": "等待使用者：MCP 輸入對話框（{{time}} 起）",
+      "input": "等待使用者：codex 等待輸入（核准或提問）（{{time}} 起）"
     },
     "questionTooltip": "已向塔台提問 {{time}}，等待塔台答覆",
     "questionPendingTooltip": "{{count}} 個問題待答",

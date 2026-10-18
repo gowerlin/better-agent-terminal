@@ -76,8 +76,8 @@ describe('workerAttention precedence', () => {
     expect(workerAttention({ workerReport: report }, null)).toEqual({ kind: 'reported', message: 'T0609 完成', reportedAt: 10 })
   })
 
-  it('a hook reason wins over questions and reports', () => {
-    for (const reason of ['permission', 'question', 'elicitation'] as const) {
+  it('a hook reason (T0623: codex input included) wins over questions and reports', () => {
+    for (const reason of ['permission', 'question', 'elicitation', 'input'] as const) {
       expect(workerAttention({ workerReport: report, workerQuestion: question }, ev('w', { blockedReason: reason, blockedSince: 5, pendingQuestions: 2, questionsSince: 3 })))
         .toEqual({ kind: 'blocked', reason, since: 5 })
     }
@@ -119,21 +119,24 @@ describe('reportedWorkersOfTower excludes Workers that wait (T0609)', () => {
     tab('asked-structured', { workorder: 'T0603', workerReport: report }),
     tab('blocked', { workorder: 'T0604', workerReport: report }),
     tab('running', { workorder: 'T0605' }),
+    tab('codex-input', { workorder: 'T0606', workerReport: report }),
   ]
 
   it('only `reported` is counted (attention store by default)', () => {
     setTerminalAttention(ev('asked-structured', { blockedReason: 'tower', blockedSince: 1, pendingQuestions: 1, questionsSince: 1 }))
     setTerminalAttention(ev('blocked', { blockedReason: 'permission', blockedSince: 1 }))
+    setTerminalAttention(ev('codex-input', { blockedReason: 'input', blockedSince: 1 })) // T0623
     expect(reportedWorkersOfTower(tabs, 'tower').map(t => t.id)).toEqual(['reported'])
     // the waits end → back to their reports
     setTerminalAttention(ev('asked-structured'))
     setTerminalAttention(ev('blocked'))
-    expect(reportedWorkersOfTower(tabs, 'tower').map(t => t.id)).toEqual(['reported', 'asked-structured', 'blocked'])
+    setTerminalAttention(ev('codex-input'))
+    expect(reportedWorkersOfTower(tabs, 'tower').map(t => t.id)).toEqual(['reported', 'asked-structured', 'blocked', 'codex-input'])
   })
 
   it('an explicit attention source is used instead of the store', () => {
     const attention = (id: string) => id === 'reported' ? ev(id, { pendingQuestions: 1 }) : null
-    expect(reportedWorkersOfTower(tabs, 'tower', attention).map(t => t.id)).toEqual(['asked-structured', 'blocked'])
+    expect(reportedWorkersOfTower(tabs, 'tower', attention).map(t => t.id)).toEqual(['asked-structured', 'blocked', 'codex-input'])
   })
 })
 

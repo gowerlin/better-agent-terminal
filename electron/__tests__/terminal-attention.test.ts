@@ -5,6 +5,7 @@
  *
  *   - precedence (as `terminal:get-state`): a hook reason over `tower`; pendingQuestions / questionsSince
  *   - hook blocked → sent; same reason again → not resent; user input / PTY exit → empty state
+ *   - T0623: codex's `input` (OSC 7501) → sent like a hook reason, over `tower`; user input keeps it
  *   - ask (blocking / not) → sent; answer / cancel / worker exit → empty; expiry (timeout /
  *     not-polled) is sent by the store's own timer, without any query
  *   - one microtask coalesces several changes; nothing is sent for an unchanged state
@@ -32,6 +33,7 @@ import type { HandlerContext } from '../remote/handler-registry'
 import { HelperCapabilityRegistry } from '../remote/helper-capability'
 import { ATTENTION_CHANGED_CHANNEL, computeTerminalAttention, TerminalAttentionNotifier } from '../terminal-attention'
 import { TerminalBlockedTracker } from '../terminal-blocked-state'
+import { CODEX_OSC_PREFIX } from '../../src/lib/codex-terminal-state'
 import { QUESTION_DEFAULT_EXPIRES_MS, QUESTION_POLL_LEASE_MS, registerTowerQuestionHandlers, type TowerQuestionHandlers } from '../tower-questions'
 import type { TerminalAttentionEvent } from '../../src/lib/terminal-attention'
 
@@ -169,12 +171,16 @@ function setup() {
     const onExit = fakes.get(id)!.onExit.mock.calls.at(-1)![0] as (e: { exitCode: number }) => void
     onExit({ exitCode: 0 })
   }
+  const output = (id: string, data: string) => {
+    const onData = fakes.get(id)!.onData.mock.calls.at(-1)![0] as (d: string) => void
+    onData(data)
+  }
   const worker = (terminalId: string): HandlerContext => ({ windowId: null, connectionId: `c-${terminalId}`, helper: { terminalId, role: 'worker', towerId: 'tw' } })
   const tower: HandlerContext = { windowId: null, connectionId: 'c-tw', helper: { terminalId: 'tw', role: 'tower' } }
   const call = (channel: string, ctx: HandlerContext, ...args: unknown[]) => handlers.get(channel)!(ctx, ...args) as Record<string, unknown>
   const ask = (id: string, body: Record<string, unknown> = {}) =>
     call('question:ask', worker(id), { question: QUESTION, options: [OPTION], detail: DETAIL, ...body })
-  return { clock, manager, store: questions, notifier: notifier!, sent, emit, exit, call, ask, worker, tower }
+  return { clock, manager, store: questions, notifier: notifier!, sent, emit, exit, output, call, ask, worker, tower }
 }
 
 const of = (sent: TerminalAttentionEvent[], id: string) => sent.filter(e => e.id === id)
@@ -190,6 +196,13 @@ describe('computeTerminalAttention', () => {
     // non-blocking only: no blockedReason, still pending
     expect(computeTerminalAttention('a', null, { pending: 1, blockingSince: null, pendingSince: 9 }))
       .toEqual({ id: 'a', pendingQuestions: 1, questionsSince: 9 })
+  })
+
+  it('T0623: codex input like a hook reason, over tower', () => {
+    const input = { reason: 'input' as const, since: 7, source: 'osc' as const }
+    expect(computeTerminalAttention('a', input, null)).toEqual({ id: 'a', blockedReason: 'input', blockedSince: 7, pendingQuestions: 0 })
+    expect(computeTerminalAttention('a', input, { pending: 1, blockingSince: 3, pendingSince: 3 }))
+      .toEqual({ id: 'a', blockedReason: 'input', blockedSince: 7, pendingQuestions: 1, questionsSince: 3 })
   })
 })
 
@@ -236,6 +249,45 @@ describe('hook blocked → terminal:attention-changed (T0609)', () => {
     h.manager.reportHookEvent('wk', 'elicitation')
     await settle()
     expect(of(h.sent, 'wk')).toEqual([{ id: 'wk', blockedReason: 'elicitation', blockedSince: expect.any(Number), pendingQuestions: 0 }])
+  })
+})
+
+describe('codex input → terminal:attention-changed (T0623)', () => {
+  const osc = (state: string) => `${CODEX_OSC_PREFIX}state=${state}:app=codex\x1b\\`
+
+  it('OSC blocked → input is sent; user input keeps it; working clears it', async () => {
+    const h = setup()
+    h.output('wk', osc('idle'))
+    await settle()
+    expect(of(h.sent, 'wk')).toEqual([])
+    h.output('wk', `Would you like to run…${osc('blocked')}`)
+    await settle()
+    expect(of(h.sent, 'wk')).toEqual([{ id: 'wk', blockedReason: 'input', blockedSince: expect.any(Number), pendingQuestions: 0 }])
+    expect(logs.some(l => l.includes('[attention] terminal=wk → blocked reason=input pendingQuestions=0 windows=1'))).toBe(true)
+    h.manager.noteUserInput('wk') // the user's keys do not clear input (T0621 C-2)
+    h.output('wk', osc('blocked'))
+    await settle()
+    expect(of(h.sent, 'wk')).toHaveLength(1)
+    h.output('wk', osc('working'))
+    await settle()
+    expect(of(h.sent, 'wk').at(-1)).toEqual({ id: 'wk', pendingQuestions: 0 })
+  })
+
+  it('input wins over a blocking tower question; cleared → tower again; the PTY ending → empty', async () => {
+    const h = setup()
+    h.ask('wk')
+    await settle()
+    h.output('wk', osc('blocked'))
+    await settle()
+    expect(of(h.sent, 'wk').map(e => e.blockedReason)).toEqual(['tower', 'input'])
+    h.output('wk', osc('clear'))
+    await settle()
+    expect(of(h.sent, 'wk').at(-1)).toMatchObject({ blockedReason: 'tower', pendingQuestions: 1 })
+    h.output('wk2', osc('blocked'))
+    await settle()
+    h.exit('wk2')
+    await settle()
+    expect(of(h.sent, 'wk2').map(e => e.blockedReason ?? 'none')).toEqual(['input', 'none'])
   })
 })
 

@@ -14,6 +14,8 @@
 //      "  started: <ISO>"; bat_get_state(Worker): blockedDetection osc, agentStarted true
 //   2. the approval prompt → blocked / input / source osc (bat_get_state); `y` into the Worker tab
 //      → cleared (working / idle); the OSC 7501 bytes still reach the tab (read-only tap)
+//      T0623: meanwhile the Worker's thumbnail badge is ⚠️ (`data-blocked-reason="input"`, not counted
+//      by the Tower's "Close reported Worker tabs (N)"), and no longer ⚠️ once approved
 //   3. dispatch into an untrusted git repository ("Trust this folder?", no OSC 7501) with
 //      `--wait-started 15000` → exit 8, "  started: unconfirmed", stderr create: LAUNCH_UNCONFIRMED;
 //      the tab is not closed
@@ -309,8 +311,21 @@ test('codex OSC 7501: --wait-started started / unconfirmed, blocked / input / os
     log(`bat_get_state (approval prompt): ${JSON.stringify(blocked)}`)
     expect(blocked).toMatchObject({ terminalId: worker, state: 'blocked', blockedReason: 'input', blockedSince: expect.any(Number), source: 'osc', blockedDetection: 'osc', agentStarted: true })
     expect(stripAnsi(await buffer(worker!))).toContain(MARKER) // the command is on the screen…
+    // T0623: the badge (`terminal:attention-changed`) — ⚠️ only (the default Worker title holds T0621)
+    const badge = win.locator('.workspace-container.active .thumbnail[data-workorder="T0621"] .worker-badge')
+    await expect(badge).toHaveText('⚠️', { timeout: 15_000 })
+    await expect(badge).toHaveClass(/\bblocked\b/)
+    await expect(badge).toHaveAttribute('data-blocked-reason', 'input')
+    await win.locator('.workspace-container.active .thumbnail', { hasText: 'Tower' }).first().click({ button: 'right' })
+    const reportedItem = win.locator('.context-menu [data-action="close-reported-workers"]')
+    await expect(reportedItem).toHaveText(/[(（]0[)）]$/)
+    await expect(reportedItem).toBeDisabled()
+    await win.evaluate(() => document.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    await expect(win.locator('.context-menu')).toHaveCount(0)
+    await win.screenshot({ path: test.info().outputPath('codex-input-badge.png') })
     await win.evaluate((id) => (window as AnyApi).electronAPI.pty.write(id, 'y'), worker)
     await expect.poll(() => /\[blocked\] terminal=\S+ → cleared \(osc (working|idle)\)/.test(debugLog().split('\n').filter(l => l.includes(worker!)).join('\n')), { timeout: 30_000 }).toBe(true)
+    await expect(win.locator('.workspace-container.active .thumbnail[data-workorder="T0621"] .worker-badge.blocked')).toHaveCount(0, { timeout: 15_000 })
     const cleared = await state(win, worker!)
     log(`bat_get_state (approved): ${JSON.stringify(cleared)}`)
     expect(cleared.state).not.toBe('blocked')

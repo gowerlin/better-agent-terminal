@@ -9,7 +9,7 @@
  *     exit / kill / restart (the exited record keeps `agentStartedAt`), the replay scan (C-7), the
  *     Terminal Server recovery
  *   - query handlers: get-state / list / wait with `osc` / `input`, `agentStarted` false → true,
- *     `until: 'agent-started'`, precedence over `tower`; the attention push does not show `input`
+ *     `until: 'agent-started'`, precedence over `tower`; T0623: the attention push shows `input`
  *   - C-5: resolving the dispatched codex, `codex --version` (execFile, array args, timeout), the
  *     path + mtime cache, `[codex-version]` lines
  *   - C-5 / C-6 in `createAgentPromptCommandBuilder`: `osc` recorded after the MCP decision, only
@@ -433,10 +433,10 @@ describe('query handlers: osc / input (T0621)', () => {
     expect(await leaving).toMatchObject({ changed: true, state: 'working' })
   })
 
-  it('the attention push (badge) does not show input; tower still shows', () => {
-    expect(computeTerminalAttention('a', { reason: 'input', since: 1, source: 'osc' }, null)).toEqual({ id: 'a', pendingQuestions: 0 })
+  it('T0623: the attention push (badge) shows input, over tower', () => {
+    expect(computeTerminalAttention('a', { reason: 'input', since: 1, source: 'osc' }, null)).toEqual({ id: 'a', blockedReason: 'input', blockedSince: 1, pendingQuestions: 0 })
     expect(computeTerminalAttention('a', { reason: 'input', since: 1, source: 'osc' }, { pending: 1, blockingSince: 2, pendingSince: 2 } as QuestionSummary))
-      .toMatchObject({ blockedReason: 'tower', blockedSince: 2 })
+      .toMatchObject({ blockedReason: 'input', blockedSince: 1, pendingQuestions: 1 })
     expect(computeTerminalAttention('a', { reason: 'permission', since: 1, event: 'permission-request' }, null)).toMatchObject({ blockedReason: 'permission' })
   })
 })
