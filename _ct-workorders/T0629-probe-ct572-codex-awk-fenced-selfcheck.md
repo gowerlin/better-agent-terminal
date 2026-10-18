@@ -5,6 +5,7 @@ id: T0629
 title: "探針：CT v5.7.2 codex Worker —— 3-B awk 略過 fenced code block ＋ notify 前自檢（O-2）"
 type: verification
 status: IN_PROGRESS
+tower_question: open
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
