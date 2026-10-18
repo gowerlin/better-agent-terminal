@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0654
 title: "`smoke:remote:headless` S13 過時：raw command 探測仍預期 `Forbidden: channel-not-allowed`，T0579 起塔台權杖可呼叫 `terminal:create-with-command`"
 type: bugfix
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-049
 priority: P3
 sizing: S
 created_at: "2026-10-18T19:09:32+0800"
+started_at: "2026-10-18T19:10:17+0800"
+updated_at: "2026-10-18T19:15:47+0800"
+completed_at: "2026-10-18T19:15:47+0800"
 depends_on: [T0653]
 related:
   - "T0653 回報區「新發現的落後項」最後一列、「給塔台的後續建議」第 2 點；T0434（S13 原設計）；T0579（塔台權杖允許 raw command）；`electron/remote/helper-capability.ts` `HELPER_CHANNEL_ROLES` / `authorizeHelperInvoke`；`docs/agent-guide/remote-tower-notify.md`"
@@ -54,3 +57,60 @@ T0653 更新 `docs/remote-dev-overview.md` 時發現：`scripts/smoke-remote-hea
 - S13 與 T0579 後的權杖契約一致；探測不建分頁
 - 回報區附角色 / 授權確認、修改說明、測試結果、commit
 - 只改 `affects_files`；未 push
+
+## 回報區
+
+### 結果摘要
+
+DONE。S13 的 smoke PTY 是**塔台角色**，T0579 後 raw command 對它是**允許**的（舊 S13 對新伺服器會真的建出一個執行 `echo …-s13-denied` 的分頁，並以「expected channel-not-allowed」FAIL）。改成帶別人的 `--notify-id` 的 raw command 探測：T0579+ 在建立前回 `Forbidden: tower-not-bound`，T0579 前回 `Forbidden: channel-not-allowed`，兩者皆 PASS；任何一個探測建出分頁 → FAIL 並在 cleanup 刪掉。
+
+### 落點檢查
+
+- C-0：PASS（frontmatter `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`）
+- C-1：PASS（工單在 REPO_ROOT 下）；C-2：工單無 `branch`，N/A（實際 `main`）
+- C-3：PASS（`scripts/smoke-remote-headless.mjs`、`scripts/__tests__/smoke-remote-headless.test.mjs` 存在）
+- 非隔離（`CT_HOME` 未設）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
+### 角色 / 授權確認
+
+- S13 的 PTY 以 `pty:create { id: <ptyId>-tower, type: 'terminal', workspaceId }` 建立，**沒有** `customEnv.BAT_TOWER_TERMINAL_ID` → `HelperCapabilityRegistry.issue` 發 **tower** 權杖（`electron/remote/helper-capability.ts` issue：無 towerId → `role: 'tower'`）。
+- `HELPER_CHANNEL_ROLES['terminal:create-with-command'] = ['tower']`（T0579，headless 用同一張表，`headless-entry.ts` 1108 行註解）；`headless-helper-narrowing.test.ts`「tower create-with-command — raw command mode on headless (T0579)」實測 tower 會建出分頁並執行命令。⇒ 舊 S13 的預期確實過時（不屬於 memory_overrides 第 1 點的「仍應拒絕 → FAILED」情形）。
+- 選擇的探測：`authorizeHelperInvoke` 對 create 類 channel 的 `customEnv.BAT_TOWER_TERMINAL_ID` ≠ 呼叫者自己 → `deny('tower-not-bound')`，在 RemoteServer 交給 handler 之前、也在 `HelperTowerSpawnQuota.reserve` 之前（`remote-server.ts` ~1104–1137），所以**不會建分頁、不佔配額**。這個檢查自 T0432 起就存在（`git log -S tower-not-bound` → aec20c0d），T0579 前的伺服器在 channel 白名單就擋下（`channel-not-allowed`），所以新舊伺服器都不建分頁。
+- 為何不選「改測一個仍被拒的 channel」：tower 能呼叫的 helper 腳本裡，對 tower 仍被拒的只有 worker channel（`bat-notify`），那驗的是另一件事；現在的探測同時證明「tower 能進 raw command 模式」與「權杖範圍（新分頁只能回報給自己）正確」，更貼近 S13 原意。
+- 拒絕次數不變（raw 1 次 + agent 1 次），不影響 `HELPER_DENIAL_THRESHOLD`。
+
+### 修改內容（commit `a96371d0`）
+
+- `scripts/smoke-remote-headless.mjs`
+  - 新增 `s13ForeignTowerId(nonce)`（`<nonce>-s13-other-tower`）；`buildHelperRawProbe` 改為 `bat-terminal.mjs --notify-id <foreign> --cwd /tmp echo <nonce>-s13-denied`。
+  - `checkHelperProbeAnswers`：raw 接受 exit 1 + `tower-not-bound`（T0579+）或 `channel-not-allowed`（T0579 前）；`raw.createdId` 有值 → FAIL（`raw probe created terminal …`）；其他回答 FAIL。
+  - runner：raw 輸出若有 `Terminal created: <id>` 記入 `s13Strays`（原 `s13Stray` 改為陣列），cleanup 一併 kill + 存在確認。檔頭 ground rules 說明同步。
+  - `S13_PROBE_AGENT` 的「授權但不建分頁」探測未改。
+- `scripts/__tests__/smoke-remote-headless.test.mjs`
+  - fake server 的 raw 回應改成模擬 T0579+ 授權（`--notify-id` ≠ 呼叫 PTY → `tower-not-bound`，否則真的建分頁）；新增 `pre-t0579` / `refused` 情境。
+  - 新增：T0579 前伺服器 PASS、建出分頁 FAIL 且 cleanup 後 0 個 PTY、role-not-allowed FAIL、`checkHelperProbeAnswers` raw 判斷表、**以真實 `authorizeHelperInvoke` 驗證探測 payload 對 tower 回 `tower-not-bound`、不帶 `--notify-id` 則 `ok: true`**（把 smoke 的假設綁在產品契約上）。
+- `docs/remote-dev-overview.md`：S13 列移除 T0653 的「⚠️ … out of date … not re-run」註記，改寫成新行為。
+
+### 驗證
+
+- `npx vitest run scripts/__tests__/smoke-remote-headless.test.mjs`：95 passed（scripts 測試在 vitest `include` 內，非 `node --test`）
+- `npm run test:unit`：314 files passed，5446 passed / 3 skipped（輸出中的 `AttachConsole failed` 是 node-pty conpty agent 的 stderr，非測試失敗）
+- 未對遠端伺服器實跑 `smoke:remote:headless`（工單規定不跑；本機沒有可用的遠端 headless 環境）。未改 `electron/**` / `src/**`，typecheck 不適用。
+
+### Commit
+
+- 產品：`a96371d0` fix(smoke): S13 raw command probe follows T0579 tower raw command mode (T0654)（`git commit --only` 3 檔）
+- 工單：本次回報 commit（另一筆）；未 push
+
+### 偏差 / 遭遇問題
+
+- 工單初始 `status: TODO`（非 `PENDING`），直接改為 `IN_PROGRESS`。
+- 工作期間 HEAD 由其他 Worker 前進（T0652 等），未觸碰其檔案；`src/styles/settings.css`、T0652/T0655/T0656 工單的 M 皆非本單變更。
+
+### 互動紀錄
+
+無（未向塔台提問）。
+
+### 給塔台的後續建議
+
+- 下次有可用的 WSL / SSH headless 時跑一次 `npm run smoke:remote:headless`，確認 S13 evidence 出現 `tower-not-bound (T0579+…)`。
