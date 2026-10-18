@@ -48,7 +48,7 @@ test('Esc closes Settings; with a setup wizard open Esc closes neither the wizar
     await expect(profiles).toBeVisible({ timeout: 10_000 })
     await win.getByRole('button', { name: ADD_MORE }).click()
     await win.locator('.thumbnail-add-menu-item').filter({ hasText: ADD_SSH }).click()
-    const wizard = win.locator('.settings-panel').filter({ has: win.getByRole('heading', { name: 'Add SSH Profile' }) })
+    const wizard = win.locator('.settings-panel').filter({ has: win.getByRole('heading', { name: ADD_SSH }) })
     await expect(wizard).toBeVisible({ timeout: 10_000 })
     await win.waitForTimeout(500)
 

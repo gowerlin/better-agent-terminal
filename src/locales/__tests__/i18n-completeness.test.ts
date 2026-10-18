@@ -207,3 +207,75 @@ describe('SSH host error + details note i18n completeness (T0506)', () => {
     }
   })
 })
+
+// T0652 (BUG-158): remote setup screens (profile cards, Edit connection, setup
+// wizard prompts / warnings / Docker port errors) resolve through i18next.
+const T0652_KEYS = [
+  'profiles.legacyTargetOsPrompt',
+  'profiles.selectTargetOs',
+  'profiles.connectionUrlPlaceholder',
+  'profiles.addMenuSuggested',
+  'profiles.fingerprint.expectedPlaceholder',
+  'profiles.fingerprint.expectedTitle',
+  'profiles.fingerprint.pinnedPlaceholder',
+  'profiles.fingerprint.pinnedTitle',
+  'profiles.fingerprint.pin',
+  'profiles.fingerprint.pinTitle',
+  'wizard.docker.pickContainer.title',
+  'wizard.docker.pickContainer.new.label',
+  'wizard.docker.pickContainer.existing.label',
+  'wizard.docker.warning.existingNeedsBundle',
+  'wizard.docker.warning.nameTaken',
+  'wizard.docker.error.portInUse.title',
+  'wizard.docker.error.portUnpublished.title',
+  'wizard.wsl.pickDistro.title',
+  'wizard.wsl.warning.wsl1Only',
+  'wizard.wsl.warning.systemdDisabled',
+  'wizard.wsl.warning.lingerFailed',
+  'wizard.shared.warning.systemdFallback',
+  'wizard.ssh.pickHost.title',
+] as const
+
+const T0652_ROOTS = [
+  'profiles.fingerprint',
+  'profiles.details',
+  'wizard.docker.pickContainer',
+  'wizard.docker.warning',
+  'wizard.docker.error',
+  'wizard.wsl.pickDistro',
+  'wizard.ssh.pickHost',
+  'wizard.shared.warning',
+] as const
+
+describe('remote setup screens i18n completeness (T0652)', () => {
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s contains every key as a non-empty string', (_name, locale) => {
+    for (const key of T0652_KEYS) {
+      const value = getNested(locale, key)
+      expect(value, `missing "${key}"`).toBeTypeOf('string')
+      expect((value as string).trim().length).toBeGreaterThan(0)
+    }
+  })
+
+  it.each([
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s ships the same key sets as en under each T0652 root', (_name, locale) => {
+    for (const root of T0652_ROOTS) {
+      expect(flattenKeys(getNested(locale, root), root).sort()).toEqual(flattenKeys(getNested(en, root), root).sort())
+    }
+  })
+
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s SSH permission-denied copy never mentions a password (BatchMode=yes)', (_name, locale) => {
+    const body = getNested(locale, 'wizard.ssh.error.permissionDenied.body') as string
+    expect(body).toMatch(/ssh-agent/)
+    expect(body).not.toMatch(/password|密碼|密码/i)
+  })
+})

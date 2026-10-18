@@ -792,7 +792,10 @@ describe('<SetupWizardShell> mapped error visual snapshot (T0334)', () => {
     expect(title.textContent).toBe('SSH 認證失敗')
 
     const body = panel.querySelector('p') as HTMLElement
-    expect(body.textContent).toContain('SSH key')
+    // BUG-158: BAT's SSH runs with BatchMode=yes, so the copy points at keys / ssh-agent, never a password.
+    expect(body.textContent).toContain('SSH 金鑰')
+    expect(body.textContent).toContain('ssh-agent')
+    expect(body.textContent).not.toContain('密碼')
 
     // hidden-by-default: <pre> NOT rendered until "Show details" click; instead
     // a reveal button surfaces.

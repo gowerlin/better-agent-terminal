@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
 
 export const doneStep: WizardStep = {
@@ -11,7 +12,7 @@ export const doneStep: WizardStep = {
   editableFromFailure: false,
   async run(ctx) {
     if (ctx.systemdServiceActive === false && ctx.fallbackStartHint) {
-      const warning = `systemd is unavailable; use the fallback command: ${ctx.fallbackStartHint}`
+      const warning = i18next.t('wizard.shared.warning.systemdFallback', { command: ctx.fallbackStartHint })
       if (!ctx.warnings.includes(warning)) {
         ctx.warnings.push(warning)
       }

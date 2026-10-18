@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
 
 export const pickWslDistroStep: WizardStep = {
@@ -27,7 +28,7 @@ export const pickWslDistroStep: WizardStep = {
         err.code = 'wsl-no-distro'
         throw err
       }
-      const warning = 'BAT only supports WSL2. Run `wsl --set-version <distro> 2` before continuing.'
+      const warning = i18next.t('wizard.wsl.warning.wsl1Only')
       if (!ctx.warnings.includes(warning)) {
         ctx.warnings.push(warning)
       }
@@ -49,8 +50,8 @@ export const pickWslDistroStep: WizardStep = {
     const selected = ctx.requestChoice
       ? await ctx.requestChoice({
           stepId: 'pick-wsl-distro',
-          title: 'Choose a WSL2 distro',
-          description: 'Select the distro where BAT should install the remote server bundle.',
+          title: i18next.t('wizard.wsl.pickDistro.title'),
+          description: i18next.t('wizard.wsl.pickDistro.description'),
           options: v2Distros.map((distro) => ({
             value: distro.name,
             label: distro.name,

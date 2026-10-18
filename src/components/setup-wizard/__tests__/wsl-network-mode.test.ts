@@ -97,11 +97,14 @@ describe('selectNetworkModeWarning() (T0383 / BUG-089)', () => {
     const keys = Object.keys(en.wizard.wsl.warning)
     expect(keys.sort()).toEqual([
       'connectFailedNat',
+      'lingerFailed',
       'networkMirroredNotApplied',
       'networkMirroredPendingRestart',
       'networkMirroredUnsupported',
       'networkNat',
       'networkUnverified',
+      'systemdDisabled',
+      'wsl1Only',
     ])
     for (const locale of [zhTW, zhCN]) {
       expect(Object.keys(locale.wizard.wsl.warning).sort()).toEqual(keys)

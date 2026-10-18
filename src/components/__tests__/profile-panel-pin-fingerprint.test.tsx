@@ -64,10 +64,10 @@ async function openEdit(profileId: string): Promise<HTMLElement> {
 }
 
 function fingerprintField(): HTMLInputElement {
-  return screen.getByPlaceholderText('Pinned fingerprint (read-only)') as HTMLInputElement
+  return screen.getByPlaceholderText(en.profiles.fingerprint.pinnedPlaceholder) as HTMLInputElement
 }
 
-const pinButton = () => screen.getByRole('button', { name: 'Pin expected fingerprint' })
+const pinButton = () => screen.getByRole('button', { name: en.profiles.fingerprint.pin })
 const saveButton = () => screen.getByRole('button', { name: en.common.save })
 
 beforeAll(async () => {

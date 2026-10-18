@@ -19,7 +19,7 @@ export function SshDetails({ profile }: { profile: ProfileEntry }) {
   // T0425 (BUG-098): SSH profiles always connect through the tunnel; a legacy
   // useSshTunnel=false (removed "direct" mode) is shown as such, not as direct.
   const tunnelLabel = `tunnel → localhost:${profile.tunnelLocalPort || 9876}`
-    + (profile.useSshTunnel === false ? ' (legacy direct setting ignored)' : '')
+    + (profile.useSshTunnel === false ? t('profiles.details.legacyDirectIgnored') : '')
   const host = profile.sshHost || profile.remoteHost || 'host'
   const target = (profile.sshUser ? `${profile.sshUser}@` : '') + host
     + (profile.sshPort ? `:${profile.sshPort}` : '')
@@ -27,28 +27,28 @@ export function SshDetails({ profile }: { profile: ProfileEntry }) {
   return (
     <dl className="profile-details" data-testid={isDarwin ? 'profile-details-ssh-darwin' : 'profile-details-ssh-linux'}>
       <div className="profile-details-row">
-        <dt>Host</dt>
+        <dt>{t('profiles.details.host')}</dt>
         <dd data-testid="ssh-target">
           {target}
           {hintKey && <span className="profile-details-hint" data-testid="ssh-config-hint"> ({t(hintKey)})</span>}
         </dd>
       </div>
       <div className="profile-details-row">
-        <dt>Service</dt>
+        <dt>{t('profiles.details.service')}</dt>
         <dd data-testid="ssh-service-badge">{serviceLabel}</dd>
       </div>
       <div className="profile-details-row">
-        <dt>Connection</dt>
+        <dt>{t('profiles.details.connection')}</dt>
         <dd>{tunnelLabel}</dd>
       </div>
       {profile.sshKeyPath && (
         <div className="profile-details-row">
-          <dt>Key</dt>
+          <dt>{t('profiles.details.key')}</dt>
           <dd>{profile.sshKeyPath}</dd>
         </div>
       )}
       <div className="profile-details-row">
-        <dt>Target</dt>
+        <dt>{t('profiles.details.target')}</dt>
         <dd>{profile.remoteProfileId || 'default'}</dd>
       </div>
     </dl>

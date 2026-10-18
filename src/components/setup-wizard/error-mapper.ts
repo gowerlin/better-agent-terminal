@@ -377,6 +377,29 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
   // T0337 (BUG-072, PLAN-032 Sprint 3): WSL systemd service start timeout.
   // Distinct from wsl-service-start-failed (generic) so the journalctl hint
   // only surfaces when timeout is the likely root cause.
+  // T0652 (BUG-156 / BUG-158): the Docker server port could not be used —
+  // no free port to pick, `docker run` could not publish the picked one, or
+  // an existing container publishes the port this BAT's own server listens on.
+  // Retry picks a new port for a container the wizard creates.
+  {
+    id: 'docker-port-in-use',
+    platforms: ['docker'],
+    stepIds: ['start-server'],
+    errorCodes: ['docker-port-in-use'],
+    messageKey: 'wizard.docker.error.portInUse',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  // T0652: an existing container that does not publish 9876/tcp on the host.
+  {
+    id: 'docker-port-unpublished',
+    platforms: ['docker'],
+    stepIds: ['start-server'],
+    errorCodes: ['docker-port-unpublished'],
+    messageKey: 'wizard.docker.error.portUnpublished',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
   {
     id: 'wsl-service-start-timeout',
     platforms: ['wsl'],

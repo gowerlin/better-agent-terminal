@@ -323,6 +323,37 @@
       "userFromConfig": "user from ~/.ssh/config",
       "portFromConfig": "port from ~/.ssh/config",
       "userAndPortFromConfig": "user and port from ~/.ssh/config"
+    },
+    "legacyTargetOsPrompt": "This profile has no targetOS — connecting in legacy mode (no path translation). Set targetOS to enable cross-OS path handling.",
+    "selectTargetOs": "Select targetOS…",
+    "connectionUrlPlaceholder": "Paste connection URL (wss://host:port?token=…&fp=…)",
+    "addMenuSuggested": "suggested",
+    "fingerprint": {
+      "expectedPlaceholder": "Expected fingerprint (leave blank for first-time TOFU)",
+      "expectedTitle": "Read-only. Click '{{fetch}}' to populate via TOFU, or use '{{pin}}' on an existing profile.",
+      "pinnedPlaceholder": "Pinned fingerprint (read-only)",
+      "pinnedTitle": "Read-only. Use '{{pin}}' below to refresh from the server.",
+      "pin": "Pin expected fingerprint",
+      "pinTitle": "Fetch current server fingerprint and pin it for future connections"
+    },
+    "details": {
+      "type": "Type",
+      "local": "Local",
+      "updated": "Updated",
+      "server": "Server",
+      "host": "Host",
+      "target": "Target",
+      "container": "Container",
+      "mounts": "Mounts",
+      "mountHost": "Host",
+      "mountContainer": "Container",
+      "distro": "Distro",
+      "service": "Service",
+      "connection": "Connection",
+      "key": "Key",
+      "notice": "Notice",
+      "legacyNotice": "No targetOS — legacy mode (no path translation).",
+      "legacyDirectIgnored": " (legacy direct setting ignored)"
     }
   },
   "workspace": {
@@ -857,6 +888,9 @@
           "readFailed": "Could not read {{file}}.",
           "cacheWriteFailed": "Could not write the server bundle cache ({{error}})."
         }
+      },
+      "warning": {
+        "systemdFallback": "systemd is unavailable; use the fallback command: {{command}}"
       }
     },
     "wsl": {
@@ -906,7 +940,14 @@
         "networkMirroredUnsupported": ".wslconfig sets networkingMode=mirrored, but this Windows version does not support Mirrored mode (requires Windows 11 22H2 or later), so WSL fell back to NAT. Setup continues in NAT mode; localhost still works through localhostForwarding.",
         "networkMirroredNotApplied": ".wslconfig sets networkingMode=mirrored, but WSL is running in NAT mode. Either the setting has not taken effect yet — run `wsl --shutdown` in PowerShell (this stops ALL running WSL distros) — or this Windows version does not support Mirrored mode (requires Windows 11 22H2 or later). Setup can continue in NAT mode.",
         "networkUnverified": "WSL reports networking mode \"{{mode}}\". BAT has only been verified with NAT and Mirrored, so the connection test may fail in this mode.",
-        "connectFailedNat": "WSL is in NAT mode and connecting to localhost failed. Check that localhostForwarding is not disabled in .wslconfig, switch WSL to Mirrored mode (then run `wsl --shutdown`), or connect with the distro's IP address instead."
+        "connectFailedNat": "WSL is in NAT mode and connecting to localhost failed. Check that localhostForwarding is not disabled in .wslconfig, switch WSL to Mirrored mode (then run `wsl --shutdown`), or connect with the distro's IP address instead.",
+        "wsl1Only": "BAT only supports WSL2. Run `wsl --set-version <distro> 2` before continuing.",
+        "systemdDisabled": "systemd is not enabled. BAT will fall back to a manual `wsl exec` start command.",
+        "lingerFailed": "Unable to enable linger automatically: {{error}}"
+      },
+      "pickDistro": {
+        "title": "Choose a WSL2 distro",
+        "description": "Select the distro where BAT should install the remote server bundle."
       }
     },
     "docker": {
@@ -930,12 +971,34 @@
       },
       "warning": {
         "containerPortExposed": "Container {{name}} publishes the BAT server port on all host interfaces ({{hostIps}}), so other machines on your network can reach it. It was created before BAT bound Docker ports to 127.0.0.1 only. To fix it, run this wizard again with \"Create new\" (the new container is published on 127.0.0.1 only), then remove the old container yourself with docker rm -f {{name}} once you no longer need its data. BAT will not change or delete it.",
-        "containerLegacyImage": "Container {{name}} runs a BAT server image built before the Docker networking fix, so the server cannot be reached through the published port. Rebuild the image (npm run build:docker-image) and run this wizard again with \"Create new\". BAT will not change or delete the old container."
+        "containerLegacyImage": "Container {{name}} runs a BAT server image built before the Docker networking fix, so the server cannot be reached through the published port. Rebuild the image (npm run build:docker-image) and run this wizard again with \"Create new\". BAT will not change or delete the old container.",
+        "existingNeedsBundle": "Existing container {{name}} must already contain /opt/bat-server.",
+        "nameTaken": "Docker container {{taken}} already exists and was left untouched; BAT will create {{name}} instead."
       },
       "error": {
         "daemonUnavailable": {
           "title": "Docker daemon not detected",
           "body": "Make sure Docker Desktop is installed and running. Expand the details to see the full error."
+        },
+        "portInUse": {
+          "title": "BAT server port is unavailable",
+          "body": "BAT could not publish the BAT server of this container on a free 127.0.0.1 port. For a container BAT is creating, BAT removes it and Retry picks another free port. For an existing container that publishes the port this BAT's own remote server listens on, change the remote server port in Settings, or choose \"Create new\"."
+        },
+        "portUnpublished": {
+          "title": "The container does not publish the BAT server port",
+          "body": "The existing container does not publish the BAT server port (9876/tcp) on this computer, so BAT cannot connect to it. Choose \"Create new\", or recreate the container with -p 127.0.0.1:<port>:9876 and retry."
+        }
+      },
+      "pickContainer": {
+        "title": "Choose Docker container mode",
+        "description": "Use an existing container or let BAT create and manage a dedicated one.",
+        "new": {
+          "label": "Create new",
+          "description": "BAT creates a new container with restart=unless-stopped."
+        },
+        "existing": {
+          "label": "Use existing",
+          "description": "BAT starts an existing container without deleting it on rollback."
         }
       }
     },
@@ -971,7 +1034,7 @@
         },
         "permissionDenied": {
           "title": "SSH authentication failed",
-          "body": "Check that your SSH key is set up correctly, or confirm the username and password."
+          "body": "BAT signs in with SSH keys only. Make sure your key is loaded in ssh-agent, or set as IdentityFile for this host in ~/.ssh/config, then check that `ssh <host>` in a terminal logs in without any prompt."
         },
         "hostEmpty": {
           "title": "SSH host is required",
@@ -981,6 +1044,10 @@
           "title": "The SSH server does not allow port forwarding",
           "body": "BAT reaches the BAT server through an SSH tunnel, but the target's sshd refused to forward it (AllowTcpForwarding). Ask the host's administrator to allow TCP forwarding for this account (AllowTcpForwarding local or yes in sshd_config, including any Match block), reload sshd, then retry."
         }
+      },
+      "pickHost": {
+        "title": "Select SSH host",
+        "description": "Pick an alias from ~/.ssh/config to connect to."
       }
     }
   },

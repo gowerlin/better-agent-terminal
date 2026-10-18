@@ -323,6 +323,37 @@
       "userFromConfig": "用户由 ~/.ssh/config 决定",
       "portFromConfig": "端口由 ~/.ssh/config 决定",
       "userAndPortFromConfig": "用户与端口由 ~/.ssh/config 决定"
+    },
+    "legacyTargetOsPrompt": "这个配置没有设置 targetOS，目前以旧版模式连接（不转换路径）。设置 targetOS 后，才会在不同操作系统之间转换路径。",
+    "selectTargetOs": "选择 targetOS…",
+    "connectionUrlPlaceholder": "粘贴连接网址（wss://host:port?token=…&fp=…）",
+    "addMenuSuggested": "推荐",
+    "fingerprint": {
+      "expectedPlaceholder": "预期的证书指纹（首次连接留空，连接时自动记下）",
+      "expectedTitle": "只读。点击“{{fetch}}”会在首次连接时记下指纹；已有的配置请在“编辑连接”里点击“{{pin}}”。",
+      "pinnedPlaceholder": "已固定的证书指纹（只读）",
+      "pinnedTitle": "只读。要向服务器重新获取，请点击下方的“{{pin}}”。",
+      "pin": "重新固定指纹",
+      "pinTitle": "从服务器获取当前的证书指纹并固定，之后每次连接都以它核对"
+    },
+    "details": {
+      "type": "类型",
+      "local": "本机",
+      "updated": "更新时间",
+      "server": "服务器",
+      "host": "主机",
+      "target": "远程配置",
+      "container": "容器",
+      "mounts": "挂载",
+      "mountHost": "本机",
+      "mountContainer": "容器",
+      "distro": "发行版",
+      "service": "服务",
+      "connection": "连接",
+      "key": "密钥",
+      "notice": "注意",
+      "legacyNotice": "没有设置 targetOS，以旧版模式连接（不转换路径）。",
+      "legacyDirectIgnored": "（旧版的直连设置已忽略）"
     }
   },
   "workspace": {
@@ -857,6 +888,9 @@
           "readFailed": "无法读取 {{file}}。",
           "cacheWriteFailed": "无法写入服务器套件缓存（{{error}}）。"
         }
+      },
+      "warning": {
+        "systemdFallback": "无法使用 systemd，请改用备用命令：{{command}}"
       }
     },
     "wsl": {
@@ -906,7 +940,14 @@
         "networkMirroredUnsupported": ".wslconfig 已设置 networkingMode=mirrored，但此 Windows 版本不支持 Mirrored 模式（需要 Windows 11 22H2 及以上），WSL 已回退到 NAT。设置将以 NAT 模式继续；localhost 仍可通过 localhostForwarding 连接。",
         "networkMirroredNotApplied": ".wslconfig 已设置 networkingMode=mirrored，但 WSL 以 NAT 模式运行。可能是设置尚未生效（请在 PowerShell 执行 `wsl --shutdown`，会关闭所有运行中的 WSL 发行版），也可能是此 Windows 版本不支持 Mirrored 模式（需要 Windows 11 22H2 及以上）。仍可用 NAT 模式继续设置。",
         "networkUnverified": "WSL 报告的网络模式为“{{mode}}”。BAT 仅在 NAT 与 Mirrored 模式下验证过，此模式下连接测试可能失败。",
-        "connectFailedNat": "WSL 为 NAT 模式，且连接 localhost 失败。请确认 .wslconfig 没有禁用 localhostForwarding、把 WSL 改为 Mirrored 模式（之后执行 `wsl --shutdown`），或改用发行版的 IP 地址连接。"
+        "connectFailedNat": "WSL 为 NAT 模式，且连接 localhost 失败。请确认 .wslconfig 没有禁用 localhostForwarding、把 WSL 改为 Mirrored 模式（之后执行 `wsl --shutdown`），或改用发行版的 IP 地址连接。",
+        "wsl1Only": "BAT 只支持 WSL2。请先运行 `wsl --set-version <发行版名称> 2` 再继续。",
+        "systemdDisabled": "发行版没有启用 systemd。BAT 会改用手动的 `wsl exec` 启动命令。",
+        "lingerFailed": "无法自动启用 linger：{{error}}"
+      },
+      "pickDistro": {
+        "title": "选择 WSL2 发行版",
+        "description": "选择要让 BAT 安装远程服务器包的发行版。"
       }
     },
     "docker": {
@@ -930,12 +971,34 @@
       },
       "warning": {
         "containerPortExposed": "容器 {{name}} 将 BAT 服务器端口发布在宿主机所有网络接口（{{hostIps}}），同一网络中的其他机器都能连入。此容器创建于 BAT 将 Docker 端口限定绑定 127.0.0.1 之前。修复方式：重新运行此向导并选择“新建”（新容器只发布在 127.0.0.1），确认不再需要旧容器的数据后，自行用 docker rm -f {{name}} 删除旧容器。BAT 不会修改或删除它。",
-        "containerLegacyImage": "容器 {{name}} 使用的 BAT 服务器镜像构建于 Docker 网络修复之前，服务器无法通过发布的端口连接。请重新构建镜像（npm run build:docker-image）并重新运行此向导选择“新建”。BAT 不会修改或删除旧容器。"
+        "containerLegacyImage": "容器 {{name}} 使用的 BAT 服务器镜像构建于 Docker 网络修复之前，服务器无法通过发布的端口连接。请重新构建镜像（npm run build:docker-image）并重新运行此向导选择“新建”。BAT 不会修改或删除旧容器。",
+        "existingNeedsBundle": "已有容器 {{name}} 里必须已经有 /opt/bat-server。",
+        "nameTaken": "Docker 容器 {{taken}} 已经存在，BAT 不会动它，改为创建 {{name}}。"
       },
       "error": {
         "daemonUnavailable": {
           "title": "未检测到 Docker daemon",
           "body": "请确认 Docker Desktop 已安装并启动。详细错误可展开查看。"
+        },
+        "portInUse": {
+          "title": "BAT 服务器端口无法使用",
+          "body": "BAT 无法把这个容器的 BAT 服务器公开在本机 127.0.0.1 一个空闲的端口上。如果是 BAT 正在创建的容器，BAT 会移除它，点击“重试”会另选一个空闲的端口。如果是沿用的已有容器，而它公开的端口正好是本机 BAT 自己的远程服务器在用的端口，请到设置中改掉 BAT 的服务器端口，或改选“创建新容器”。"
+        },
+        "portUnpublished": {
+          "title": "容器没有公开 BAT 服务器端口",
+          "body": "已有容器没有把 BAT 服务器端口（9876/tcp）公开到这台电脑上，BAT 连不到它。请改选“创建新容器”，或以 -p 127.0.0.1:<端口>:9876 重新创建容器后重试。"
+        }
+      },
+      "pickContainer": {
+        "title": "选择 Docker 容器模式",
+        "description": "沿用已有的容器，或让 BAT 创建并管理一个专用的容器。",
+        "new": {
+          "label": "创建新容器",
+          "description": "BAT 创建一个新容器，并设为 restart=unless-stopped。"
+        },
+        "existing": {
+          "label": "沿用已有容器",
+          "description": "BAT 启动已有的容器；回滚时不会删除它。"
         }
       }
     },
@@ -971,7 +1034,7 @@
         },
         "permissionDenied": {
           "title": "SSH 认证失败",
-          "body": "请检查 SSH key 是否正确设置，或确认账号密码。"
+          "body": "BAT 只能用 SSH 密钥登录。请确认密钥已加载到 ssh-agent，或已在 ~/.ssh/config 中为这台主机设置 IdentityFile；再到终端运行 `ssh <主机>`，确认无需回答任何提示即可登录。"
         },
         "hostEmpty": {
           "title": "SSH 主机名为必填",
@@ -981,6 +1044,10 @@
           "title": "SSH 服务器不允许 port forwarding",
           "body": "BAT 通过 SSH tunnel 连接 BAT 服务器，但目标主机的 sshd 拒绝转发（AllowTcpForwarding）。请主机管理员为这个账号开放 TCP forwarding（sshd_config 设置 AllowTcpForwarding local 或 yes，含 Match 块），重新加载 sshd 后重试。"
         }
+      },
+      "pickHost": {
+        "title": "选择 SSH 主机",
+        "description": "从 ~/.ssh/config 选一个要连接的别名。"
       }
     }
   },

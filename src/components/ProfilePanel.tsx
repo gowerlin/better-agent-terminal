@@ -528,11 +528,11 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                   <input
                     type="text"
                     className="profile-name-input"
-                    placeholder="Expected fingerprint (leave blank for first-time TOFU)"
+                    placeholder={t('profiles.fingerprint.expectedPlaceholder')}
                     value={remoteFingerprint}
                     onChange={e => setRemoteFingerprint(e.target.value)}
                     readOnly
-                    title="Read-only. Click 'Fetch profiles' to populate via TOFU, or use 'Pin expected fingerprint' on an existing profile."
+                    title={t('profiles.fingerprint.expectedTitle', { fetch: t('profiles.fetchProfiles'), pin: t('profiles.fingerprint.pin') })}
                     style={{ width: '100%', fontFamily: 'monospace', fontSize: 11, opacity: 0.8 }}
                   />
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -624,10 +624,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                   }}
                 >
                   <span style={{ flex: '1 1 auto' }}>
-                    ⚠ {t(
-                      'profiles.legacyTargetOsPrompt',
-                      'This profile has no targetOS — connecting in legacy mode (no path translation). Set targetOS to enable cross-OS path handling.',
-                    )}
+                    ⚠ {t('profiles.legacyTargetOsPrompt')}
                   </span>
                   <select
                     className="profile-name-input"
@@ -638,7 +635,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
                     }}
                     style={{ width: 160, fontSize: 12 }}
                   >
-                    <option value="" disabled>{t('profiles.selectTargetOs', 'Select targetOS…')}</option>
+                    <option value="" disabled>{t('profiles.selectTargetOs')}</option>
                     {REMOTE_TARGET_OS_OPTIONS.map(os => (
                       <option key={os} value={os}>{os}</option>
                     ))}
@@ -788,7 +785,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
         <ModalOverlay className="settings-overlay" style={{ zIndex: 1002 }}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
-              <h2>Add WSL Profile</h2>
+              <h2>{t('profiles.addWslProfile')}</h2>
               <button className="settings-close" onClick={wslWizard.close}>&times;</button>
             </div>
             <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -807,7 +804,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
         <ModalOverlay className="settings-overlay" style={{ zIndex: 1002 }}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
-              <h2>Add Docker Profile</h2>
+              <h2>{t('profiles.addDockerProfile')}</h2>
               <button className="settings-close" onClick={dockerWizard.close}>&times;</button>
             </div>
             <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -826,7 +823,7 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
         <ModalOverlay className="settings-overlay" style={{ zIndex: 1002 }}>
           <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ width: 'min(1040px, 90vw)', maxWidth: 'min(1040px, 90vw)' }}>
             <div className="settings-header">
-              <h2>Add SSH Profile</h2>
+              <h2>{t('profiles.addSshProfile')}</h2>
               <button className="settings-close" onClick={sshWizard.close}>&times;</button>
             </div>
             <div className="settings-body" style={{ padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>

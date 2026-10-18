@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
 import { isContainerCreatedByWizard, removeContainerIfCreatedByWizard } from './ownership'
 
@@ -36,11 +37,21 @@ export const pickContainerStep: WizardStep = {
           ctx.requestChoice
             ? await ctx.requestChoice({
                 stepId: 'pick-container',
-                title: 'Choose Docker container mode',
-                description: 'Use an existing container or let BAT create and manage a dedicated one.',
+                title: i18next.t('wizard.docker.pickContainer.title'),
+                description: i18next.t('wizard.docker.pickContainer.description'),
                 options: [
-                  { value: 'new', label: 'Create new', description: 'BAT creates a new container with restart=unless-stopped.' },
-                  { value: 'existing', label: 'Use existing', description: 'BAT starts an existing container without deleting it on rollback.' },
+                  {
+                    value: 'new',
+                    label: 'Create new',
+                    labelKey: 'wizard.docker.pickContainer.new.label',
+                    description: i18next.t('wizard.docker.pickContainer.new.description'),
+                  },
+                  {
+                    value: 'existing',
+                    label: 'Use existing',
+                    labelKey: 'wizard.docker.pickContainer.existing.label',
+                    description: i18next.t('wizard.docker.pickContainer.existing.description'),
+                  },
                 ],
               })
             : defaultMode
@@ -128,8 +139,8 @@ function resolveNewContainerName(
 
   const conflicting = preferred || (name !== defaultName ? defaultName : '')
   if (conflicting) {
-    const warning = `Docker container ${conflicting} already exists and was left untouched; BAT will create ${name} instead.`
-    ctx.logger.info(warning)
+    ctx.logger.info(`Docker container ${conflicting} already exists and was left untouched; BAT will create ${name} instead.`)
+    const warning = i18next.t('wizard.docker.warning.nameTaken', { taken: conflicting, name })
     if (!ctx.warnings.includes(warning)) ctx.warnings.push(warning)
   }
   return name

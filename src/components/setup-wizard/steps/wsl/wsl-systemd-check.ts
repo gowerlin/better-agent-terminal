@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
 
 export const wslSystemdCheckStep: WizardStep = {
@@ -18,7 +19,7 @@ export const wslSystemdCheckStep: WizardStep = {
     ctx.wslSystemdEnabled = enabled
 
     if (!enabled) {
-      const warning = 'systemd is not enabled. BAT will fall back to a manual `wsl exec` start command.'
+      const warning = i18next.t('wizard.wsl.warning.systemdDisabled')
       if (!ctx.warnings.includes(warning)) {
         ctx.warnings.push(warning)
       }

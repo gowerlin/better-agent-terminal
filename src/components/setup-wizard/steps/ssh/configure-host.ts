@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardChoiceOption, WizardContext, WizardStep } from '../../wizard-runner'
 
 const INSTALL_PATH_OPTIONS = [
@@ -197,8 +198,8 @@ export const configureSshHostStep: WizardStep = {
         }
         const choice = await ctx.requestChoice({
           stepId: 'configure-ssh-host',
-          title: 'Select SSH host',
-          description: 'Pick an alias from ~/.ssh/config to connect to.',
+          title: i18next.t('wizard.ssh.pickHost.title'),
+          description: i18next.t('wizard.ssh.pickHost.description'),
           options,
           allowSkip: false,
         })

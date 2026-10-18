@@ -8,6 +8,7 @@
  * deleting every profile it created across re-runs.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import '../../../i18n' // T0652: the Docker warnings resolve through i18next
 import {
   WizardRunner,
   WizardStepStatus,

@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
 import { DOCKER_OWNERSHIP_KEYS } from './ownership'
 
@@ -48,7 +49,7 @@ export const installDockerServerBundleStep: WizardStep = {
     if (!inspection.image) throw new Error(`Unable to inspect Docker container ${ctx.state.dockerContainer}.`)
 
     ctx.serverInstallPath = '/opt/bat-server'
-    const warning = `Existing container ${ctx.state.dockerContainer} must already contain /opt/bat-server.`
+    const warning = i18next.t('wizard.docker.warning.existingNeedsBundle', { name: ctx.state.dockerContainer })
     if (!ctx.warnings.includes(warning)) ctx.warnings.push(warning)
     ctx.state.bundleSource = 'image-baked'
   },

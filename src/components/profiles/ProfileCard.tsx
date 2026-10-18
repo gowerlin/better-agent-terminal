@@ -88,8 +88,14 @@ export function ProfileCard({
   expandedExtras,
   headerOverride,
 }: ProfileCardProps) {
+  const { t } = useTranslation()
   const variant = selectDetailsVariant(profile)
-  const badge = TYPE_BADGE_LABEL[variant] ?? 'Profile'
+  // T0652: WSL / Docker / SSH are product names; Local / Remote follow the UI language.
+  const badge = variant === 'local'
+    ? t('profiles.details.local')
+    : variant === 'remote-legacy'
+      ? t('profiles.remote')
+      : TYPE_BADGE_LABEL[variant] ?? 'Profile'
   // T0513 (BUG-123): red means a failed connection, never just "not open" — the caller
   // passes connectionStatus for remote cards (ProfilePanel → computeRemoteCardStatus).
   const status: ConnectionStatus = connectionStatus ?? (isRunning ? 'connected' : 'idle')
@@ -147,7 +153,7 @@ export function ProfileCard({
           <button
             type="button"
             className="profile-icon-btn"
-            title="Open"
+            title={t('profiles.switchProfile')}
             onClick={onSwitch}
             data-testid="profile-card-switch"
           >
@@ -158,7 +164,7 @@ export function ProfileCard({
             <button
               type="button"
               className="profile-icon-btn"
-              title="Edit"
+              title={t('profiles.rename')}
               onClick={onEdit}
               data-testid="profile-card-edit"
             >
@@ -169,7 +175,7 @@ export function ProfileCard({
             <button
               type="button"
               className="profile-icon-btn danger"
-              title="Delete"
+              title={t('profiles.deleteProfile')}
               onClick={onDelete}
               data-testid="profile-card-delete"
             >

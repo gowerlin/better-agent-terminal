@@ -71,7 +71,7 @@ export function EditRemoteProfileModal({
           <input
             type="text"
             className="profile-name-input"
-            placeholder={t('profiles.connectionUrlPlaceholder', 'Paste connection URL (wss://host:port?token=…&fp=…)')}
+            placeholder={t('profiles.connectionUrlPlaceholder')}
             onChange={(e) => {
               const parsed = parseConnectionUrl(e.target.value)
               if (!parsed) return
@@ -113,10 +113,10 @@ export function EditRemoteProfileModal({
           <input
             type="text"
             className="profile-name-input"
-            placeholder="Pinned fingerprint (read-only)"
+            placeholder={t('profiles.fingerprint.pinnedPlaceholder')}
             value={fingerprint}
             readOnly
-            title="Read-only. Use 'Pin expected fingerprint' below to refresh from the server."
+            title={t('profiles.fingerprint.pinnedTitle', { pin: t('profiles.fingerprint.pin') })}
             style={{ fontFamily: 'monospace', fontSize: 11 }}
           />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -131,9 +131,9 @@ export function EditRemoteProfileModal({
               className="profile-action-btn"
               onClick={onPin}
               disabled={pinning || !profile.remoteHost || !profile.remoteToken}
-              title="Fetch current server fingerprint and pin it for future connections"
+              title={t('profiles.fingerprint.pinTitle')}
             >
-              Pin expected fingerprint
+              {t('profiles.fingerprint.pin')}
             </button>
             {selectedRemoteProfileId && remoteProfiles.length === 0 && (
               <span style={{ fontSize: 11, color: '#8b949e' }}>

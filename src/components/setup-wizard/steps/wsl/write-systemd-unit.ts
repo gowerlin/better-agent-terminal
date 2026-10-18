@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import type { WizardContext, WizardStep } from '../../wizard-runner'
 import { readWslBundleInstall, resolveWslHome, WSL_SERVICE_START_AFTER_RESTORE_KEY } from './install-server-bundle'
 
@@ -194,7 +195,7 @@ export const writeSystemdUnitStep: WizardStep = {
       // structured error so ErrorMapper Stage 1 hits 'wsl-linger-failure' and
       // surfaces the fixed-and-retry / skip / cancel action set. Spec D106:
       // "try linger, fail with manual fix hint + optional fallback".
-      const warning = `Unable to enable linger automatically: ${lingerResult.error}`
+      const warning = i18next.t('wizard.wsl.warning.lingerFailed', { error: lingerResult.error })
       if (!ctx.warnings.includes(warning)) {
         ctx.warnings.push(warning)
       }

@@ -51,7 +51,7 @@ export function AddProfileMenu({ options, buttonLabel, buttonClassName }: Props)
         >
           <span className="thumbnail-add-menu-icon" style={o.iconColor ? { color: o.iconColor } : undefined}>{o.icon}</span>
           {o.label}
-          {o.suggested && <span className="thumbnail-add-menu-suggested">suggested</span>}
+          {o.suggested && <span className="thumbnail-add-menu-suggested">{t('profiles.addMenuSuggested')}</span>}
         </div>
       ))
     return { id, label: t(labelKey), items }
