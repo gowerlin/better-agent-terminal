@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0657
 title: "BUG-162：查明 yolo Worker 的 Bash 為何觸發 `PermissionRequest`、由誰放行；權限請求結束後清除 `blocked` / `permission`（評估 `PostToolBatch` / `PostToolUse` 成本後實作）"
 type: bugfix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-162
 priority: P2
 sizing: M
 created_at: "2026-10-18T19:30:08+0800"
+started_at: "2026-10-18T19:31:25+08:00"
+updated_at: "2026-10-18T19:36:31+08:00"
+tower_question: open
 depends_on: []
 related:
   - "BUG-162（使用者截圖；debug log 第 2634 行 `→ blocked reason=permission (hook permission-request tool=Bash)`，terminal `9e13a14065edf2130036ef0c4869d0b6` = T0656 Worker，claude session id `17d6ac32-f620-4f1c-ae43-148976d22a46`）"
@@ -60,3 +63,14 @@ memory_overrides:
 - 權限請求被放行（不經鍵盤）後，分頁離開 `blocked` / `permission`；其他 reason 不受影響
 - 回報區附：觸發來源與放行者查證、候選比較與選擇理由、測試清單、待跑的 e2e、commit
 - 只改 `affects_files`；未 push
+
+## 回報區
+
+### 待塔台決策
+
+#### Q-1：`PostToolBatch` 清除要不要依 `agent_id` 區分（需改 affects_files 外的 `electron/pty-manager.ts` 一行轉傳）？
+- 提問時間：2026-10-18T19:36:20+0800
+- 選項：[A] 准許改 `electron/pty-manager.ts`：`reportHookEvent` 多一個 `agentId?` 參數原樣轉給 `TerminalBlockedTracker.report`（只此一行簽章 + 一行轉傳）；`permission-request` 記下發出者的 `agent_id`（主執行緒 = 空），`post-tool-batch` 只清同一個 agent 的權限、所有 agent 都清完才離開 `blocked` / [B] 不改 pty-manager.ts、不分 agent：任何 `PostToolBatch` 都清 `permission`，回報區寫明風險 / [C] 其他：________
+- Worker 建議：[A]。claude 2.1.302 的 hook payload 共同欄位帶 `agent_id`（subagent 才有），`PostToolBatch` 在同一 agent 內本來就等整批工具（含平行的權限對話框）都結束才執行，所以同 agent 不會誤清；但背景 subagent 的權限對話框開著時，主執行緒（或另一個 subagent）的批次結束會把它誤清（⚠️ 消失、實際仍在等人）。[A] 消掉這個誤清，代價只是 pty-manager.ts 一行轉傳；[B] 範圍較小，但留下誤清風險。
+- 影響範圍：`electron/pty-manager.ts`（`reportHookEvent` 簽章與轉傳，僅此）、`electron/terminal-blocked-state.ts`（tracker / handler 多 `agentId`）、`scripts/bat-hook.mjs`（送 `agentId`）、對應測試。
+- 阻塞：否（先做 hook 表、bat-hook、狀態機與測試；收尾前依答覆定案）
