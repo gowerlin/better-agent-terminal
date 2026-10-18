@@ -23,27 +23,29 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 18:52 (UTC+8) — BUG-156 / 157 / 159 FIXED（T0649 / T0650 / T0651）；BUG-158 FIXING（T0652）
+> 最後同步：2026-10-18 19:12 (UTC+8) — BUG-158 FIXED（T0652）；BUG-160 FIXING（T0655）、BUG-161 OPEN（T0652 衍生）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
+- 🔴 Open: 2 | ⏳ Fixing: 1 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 46**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
+| BUG-161 | 設定精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested` 仍是英文（BUG-158 範圍外殘留） | 🟢 low | 2026-10-18 19:12 | [BUG-161](BUG-161-wizard-raw-error-messages-english.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（BAT 無法用密碼登入）（T0652） | 🟢 low | — | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
+| BUG-160 | SSH 設定的「重新釘選指紋」不經通道連本機埠，可能釘到本機其他 BAT 伺服器並送出權杖（T0655） | 🟡 medium | — | [BUG-160](BUG-160-ssh-profile-pin-fingerprint-probes-local-port.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（T0652 `15a792d4`） | 🟢 low | 2026-10-18 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
 | BUG-157 | 「編輯連線」釘選新指紋後按「儲存」寫回舊指紋；釘選失敗不提示（T0650 `5594ec57`） | 🟡 medium | 2026-10-18 | [BUG-157](BUG-157-pin-fingerprint-overwritten-on-save.md) |
