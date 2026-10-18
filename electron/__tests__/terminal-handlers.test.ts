@@ -125,10 +125,12 @@ describe('registerTerminalHandlers (T0431)', () => {
       const raw = setup()
       await raw.invoke('terminal:create-with-command', REMOTE, { id: 'w5', cwd: '/r', command: 'claude "/ct-exec T0553"' })
       expect(raw.emitted[0].payload).toEqual({ id: 'w5', cwd: '/r', command: 'claude "/ct-exec T0553"', workspaceId: undefined })
-      // the agent is display data only: nothing new reaches the PTY
+      // the `agent` field is display data only; BUG-155 / T0639: the PTY records the resolved
+      // agent as its preset (agent mode only — a raw command records none)
       expect(raw.created[0]).not.toHaveProperty('agent')
+      expect(raw.created[0]).not.toHaveProperty('agentPreset')
       expect(custom.created[0]).not.toHaveProperty('agent')
-      expect(custom.created[0]).not.toHaveProperty('agentPreset')
+      expect(custom.created[0]).toHaveProperty('agentPreset', 'not-in-registry')
     } finally {
       vi.useRealTimers()
     }

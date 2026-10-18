@@ -282,7 +282,7 @@ describe('source guards', () => {
     const handlers = fs.readFileSync(path.join(ROOT, 'electron', 'terminal-command-handlers.ts'), 'utf8')
     expect(handlers).toContain('const dispatchShell = resolveDispatchShell(opts.shell, deps.readPersistedSettingsSync(), deps, deps.getPtyManager())')
     expect(handlers).toContain('const shellFamily = detectShellFamily(dispatchShell.quoting)')
-    expect(handlers).toContain('await createWithCommand(_ctx, commandOptions, landing, isolation, dispatchShell)')
+    expect(handlers).toContain('await createWithCommand(_ctx, commandOptions, landing, isolation, dispatchShell, resolved.agentId)')
     expect(handlers).toContain('const shell = dispatchShell ?? resolveDispatchShell(')
     expect(handlers).toContain('shell: shell.spawn,')
     // the definition + its one caller, resolveDispatchShell

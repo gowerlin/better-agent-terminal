@@ -56,6 +56,11 @@ interface TerminalPtyManager {
     workorder?: string
     /** T0583: the worktree of a `--isolation worktree` Worker (`--close-worker --worktree`). */
     worktree?: CtWorktreeRecord
+    /**
+     * BUG-155 / T0639: the agent create-agent-command launched (`terminal:whoami` `agent`,
+     * `claudeCliUpdateGuardEnv`). Never from a create-with-command payload (raw command mode).
+     */
+    agentPreset?: string
   }): boolean
   write(id: string, data: string): void
   /** BUG-151 / T0598: input for `id` waits until `writeDispatchCommand` wrote the command. */
@@ -81,7 +86,8 @@ interface TerminalCommandOptions {
   workorder?: string
   /**
    * T0553: set by create-agent-command — the agent it launched and that agent's registry name,
-   * sent with `terminal:created-externally` for the tab title only (not recorded on the PTY).
+   * sent with `terminal:created-externally` for the tab title only. Not recorded on the PTY from
+   * here (a create-with-command caller may send it); BUG-155 / T0639 passes the preset separately.
    */
   agent?: string
   agentName?: string
@@ -516,8 +522,9 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
   /**
    * `isolation` comes from create-agent-command only (T0583: never from the create-with-command
    * payload, so a caller of that channel cannot name a worktree for BAT to record or clean).
+   * So does `agentPreset` (BUG-155 / T0639): raw command mode records no agent on the PTY.
    */
-  const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution, isolation?: { workorder: string }, dispatchShell?: DispatchShell) => {
+  const createWithCommand = async (_ctx: HandlerContext, opts: TerminalCommandOptions, resolved?: DispatchWorkspaceResolution, isolation?: { workorder: string }, dispatchShell?: DispatchShell, agentPreset?: string) => {
     const ptyManager = deps.getPtyManager()
     let reusedExisting = ptyManager ? ptyManager.isAlive(opts.id) : false
     const customEnv = deps.pickWhitelistedEnv(opts.customEnv)
@@ -644,6 +651,8 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       workspaceId: landing.workspaceId,
       ...(opts.workorder ? { workorder: opts.workorder } : {}),
       ...(worktree ? { worktree: worktree.record } : {}),
+      // BUG-155 / T0639: the preset a BAT tab of the same agent is created with
+      ...(agentPreset ? { agentPreset } : {}),
     })
     if (created && opts.command) {
       // BUG-151 / T0598: the new tab may have the keyboard focus already (a helper's does not
@@ -836,10 +845,11 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     }
     // T0583: an isolated dispatch never goes through the create-with-command channel (its payload
     // cannot carry the worktree, see createWithCommand). T0598: nor the resolved shell — through
-    // invokeHandler createWithCommand resolves it again from the same settings.
+    // invokeHandler createWithCommand resolves it again from the same settings. BUG-155 / T0639:
+    // nor the agent preset (neither host passes invokeHandler).
     const result = deps.invokeHandler && !isolation
       ? await deps.invokeHandler('terminal:create-with-command', [commandOptions], _ctx.windowId)
-      : await createWithCommand(_ctx, commandOptions, landing, isolation, dispatchShell)
+      : await createWithCommand(_ctx, commandOptions, landing, isolation, dispatchShell, resolved.agentId)
     if (result && typeof result === 'object' && (result as { ok?: unknown }).ok === true) {
       const report = result as TerminalCreatedReport
       // Through invokeHandler the second resolution saw the already-resolved id: keep the first.
