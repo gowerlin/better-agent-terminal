@@ -177,9 +177,16 @@
 
 ## 9. Skill 建議
 
+> **D162 更新（2026-10-18 13:08）**：使用者加入「有設計感」的考量 → 視覺方向改由 `frontend-design`（Anthropic 官方 plugin，T0631 安裝）主導、`theme-factory` 試主題，並先在 Design 畫布上定方向（T0632），選定後才實作（T0630）。
+
 | 階段 | Skill | 用途 | 誰跑 | 建議 |
 |---|---|---|---|---|
-| 設計語言 | `ct-fieldguide`（從程式碼產生 DESIGN.md） | 從 BAT UI 抽出網站設計語言 → `docs/design/site-design-language.md` | 實作 Worker（不需互動） | ✅ 推薦 |
+| 視覺方向 / 實作 | `frontend-design`（Anthropic 官方 plugin） | 大膽而明確的美學取向、字體搭配、配色、版面節奏，避開模板感 | T0632、T0630 | ✅ 核心 |
+| 主題試作 | `anthropic-skills:theme-factory` | 快速產生 3 組主題（保留品牌錨點） | T0632 | ✅ 推薦 |
+| 方向比較 | Artifact **Design System** + **Design 畫布** | BAT Design System；3 個方向 × 4 張 artboard 並排給使用者挑 | T0632 | ✅ 推薦 |
+| 設計語言 | `ct-fieldguide`（從程式碼產生 DESIGN.md） | 從 BAT UI 抽出網站設計語言 → `docs/design/site-design-language.md` | T0632（不需互動） | ✅ 推薦 |
+| 主視覺 / OG 卡片 | `anthropic-skills:canvas-design` | 靜態 hero 主視覺或 1200×630 分享卡片 | W4 | 選用 |
+| — | `anthropic-skills:brand-guidelines` | Anthropic 自家品牌規範 | — | ❌ 與 BAT 無關 |
 | 實作 | `vitepress-book` | VitePress 設定、nav / sidebar、zh-TW、部署慣例 | 實作 Worker | ✅ 推薦 |
 | 文案校稿 | `bmad-editorial-review-prose` | 故事與對照表的文字清晰度 | 實作 Worker | ✅ 推薦 |
 | 定位打磨 | `bmad-prfaq`（Working Backwards） | 先寫「上線新聞稿 + 訪客 FAQ」逼出定位與最難回答的問題 | 你 + 一個互動分頁（約 20–30 分鐘） | 選用（見 § 11 Q4） |
@@ -189,7 +196,9 @@
 
 | 工單 | 範圍 | 依賴 |
 |---|---|---|
-| W2a | 設計語言檔、元件（§ 7）、首頁（§ 4）；本機 build + 預覽截圖（桌面 / 手機 × 淺色 / 深色） | 本規格對齊 |
+| T0631 | 安裝 `frontend-design` plugin（工單授權，D162） | — |
+| W2a-0（T0632） | 設計語言檔、BAT Design System、Design 畫布 3 個方向（不改 `site/`） | T0631 |
+| W2a（T0630） | 依使用者選定方向實作元件（§ 7）、首頁（§ 4）；本機 build + 預覽截圖（桌面 / 手機 × 淺色 / 深色） | T0632 + 使用者選方向 |
 | W2b | `/control-tower`（§ 5）、`/features`、`/faq`、`/contribute`、頁尾、nav / sidebar | W2a 預覽通過（共用元件與 `config.mts`） |
 | W2c | `/remote/` 四頁改寫 | W2b |
 | W3 | 真實截圖 / 短片（隱私清單逐張檢查）、README 換新截圖 | W2a 設計語言 |

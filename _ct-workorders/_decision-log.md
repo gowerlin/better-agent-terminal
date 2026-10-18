@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D162 2026-10-18 — PLAN-049 網站 v2：加入 `frontend-design`、`theme-factory`，先以 Design System + Design 畫布定視覺方向再實作；`frontend-design` 由工單授權安裝
+
+- **背景**：T0630 13:05 派工後，使用者貼上另一段建議（做有設計感的產品介紹網站：核心用 `frontend-design`；先用 Design 畫布定方向再做成網頁；`theme-factory` 試主題；有品牌規範可先整理成 Design System；`brand-guidelines` 是 Anthropic 自家規範可略過；`canvas-design` 適合做 hero 主視覺 / 海報，不適合整站），指示「加入這些考量：幫我安裝 SKILL」，並自行停止 T0630（Worker 啟動約 47 秒、無產出），要求「加上上述 SKILL 後重新安排」。
+- **查證**（塔台，2026-10-18 13:07–13:08，唯讀）：`frontend-design` 為 Anthropic 官方 plugin（Claude Code 內建 marketplace `anthropic-plugin-directory`；repository `anthropics/claude-plugins-official` `plugins/frontend-design`，目錄審查 commit `ea10b213…`），本機未安裝（`claude plugin list` 只有 `codex`）；`anthropic-skills:theme-factory` 已可用；Artifact 有 Design 與 Design System 類型；使用者沒有既有的 Design System。CT 寫入規則 Q3：塔台模式沒有安裝例外，須另開工單、工單內明文授權（具體 skill / 版本 / 目標）由 Worker 執行。
+- **決定**（塔台依使用者指示安排）：
+  1. **T0631**：Worker 以 `claude plugin install` 安裝 `frontend-design`（user scope；授權範圍寫在工單；不寫 `~/.claude/skills/`、`~/.codex/skills/`，Codex 端不裝）。
+  2. **T0632**（新，W2a-0）：載入 `frontend-design` + `theme-factory`；`ct-fieldguide` 從 BAT UI 抽設計語言 → `docs/design/site-design-language.md`（repo 唯一來源、固定錨點）；建立 BAT **Design System** Artifact；**Design 畫布** 3 個視覺方向 × 4 張 artboard（Hero 桌面 / 故事一章 / 三欄對照 / Hero 手機）；回報連結與推薦，不改 `site/`。
+  3. **T0630** 改為實作工單：依使用者在畫布選定的方向（塔台派工前填入「選定的視覺方向」節）＋ `frontend-design` 實作；字型只用 Google Fonts、不加 npm 依賴。
+  4. 不用 `brand-guidelines`（Anthropic 品牌）；`canvas-design` 留給 W4 的 OG 卡片 / hero 主視覺（選用）。
+- **順序**：T0631 → T0632（新 session 才載入得到 plugin）→ 使用者選方向 → T0630 → 預覽 → 使用者授權 push。
+- **相關**：PLAN-049 / D161 / T0630 / T0631 / T0632
+
 ### D160 2026-10-18 — PLAN-049 技術與部署（塔台依 D159 授權決定）：VitePress 1.6.4 於 `site/`、Actions `pages.yml`、發版同步併入三文件 commit
 
 - **背景**：T0622 研究 DONE（推薦組合 + W1–W4 切分）；D159 授權塔台決定技術選型、素材、部署。

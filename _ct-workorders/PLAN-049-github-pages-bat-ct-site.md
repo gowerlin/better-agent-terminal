@@ -46,6 +46,7 @@ BAT（better-agent-terminal，本 fork `gowerlin/better-agent-terminal`）與 BM
 
 - **W1 DONE**（T0624 `e2006ab3`，2026-10-18）：塔台依 D160 授權 push（`24c4da3a`）並啟用 Pages；run `39098377237` 綠燈，`https://gowerlin.github.io/better-agent-terminal/` 四頁 200、首頁版號 `v0.7.0-pre.8`；README 加網站連結（`ebeb8016`，使用者指示）。
 - **網站 v2 方向（D161，2026-10-18 13:03）**：使用者預覽 W1 後認為介紹過於簡單、看不出 BAT × CT 整合優勢 → 規格 `_ct-workorders/_spec-site-v2-bat-ct-story.md`（故事主軸「AI 協作開發的 7 個卡關時刻 vs BAT + CT 解法」、三欄對照、`/control-tower` 深入頁）。W2 改切 W2a（T0630：設計語言 + 元件 + 首頁）→ W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c（遠端開發）；每次 push 前使用者預覽確認。
+- **加入設計 skill（D162，2026-10-18 13:08）**：使用者停止 T0630 並要求加入 `frontend-design` / `theme-factory` / Design 畫布定方向 → T0631 安裝 `frontend-design`（工單授權）→ T0632 設計語言 + BAT Design System + Design 畫布 3 個方向 → 使用者選方向 → T0630 改為實作工單。
 
 ## 排期
 
