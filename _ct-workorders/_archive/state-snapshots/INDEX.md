@@ -1,7 +1,7 @@
 # State Snapshot INDEX
 
 > Last archived: 2026-10-18 (Session 81 收工 — Session 79 快照 archived per PLAN-033)
-> Hot path retains: session 80 (本) + session 79 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Hot path retains: session 81 (本) + session 80 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
 > Total archived entries: 96 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 31 in Q4)
 
