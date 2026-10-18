@@ -334,7 +334,8 @@
       "pinnedPlaceholder": "已釘選的憑證指紋（唯讀）",
       "pinnedTitle": "唯讀。要向伺服器重新取得，請按下方的「{{pin}}」。",
       "pin": "重新釘選指紋",
-      "pinTitle": "向伺服器取得目前的憑證指紋並釘選，之後每次連線都以它核對"
+      "pinTitle": "向伺服器取得目前的憑證指紋並釘選，之後每次連線都以它核對",
+      "pinSshDisabled": "SSH 的設定經 SSH 通道連線，請重跑設定精靈更新指紋。"
     },
     "details": {
       "type": "類型",

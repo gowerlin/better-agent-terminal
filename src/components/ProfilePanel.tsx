@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { SetupWizardShell, useDockerWizardController, useSshWizardController, useWslWizardController } from './setup-wizard/SetupWizardShell'
 // PLAN-007 T0288 — RFC C-7 ProfileCard + per-env Details slot.
 import { ProfileCard, EditRemoteProfileModal, computeRemoteCardStatus, formatRemoteStatusTitle, needsRemoteProbe } from './profiles'
+import { cannotPinDirectly } from './profiles/EditRemoteProfileModal'
 import type { ProfileEntry, RemoteProbeResult, RemoteProfileConnectionSnapshot, TargetOS } from './profiles'
 import { AddProfileMenu, type ProfileTypeOption } from './profiles/AddProfileMenu'
 import { RemoteToolsEntry } from './profiles/RemoteToolsEntry'
@@ -356,7 +357,9 @@ export function ProfilePanel({ onClose, onSwitchNewWindow, onProfileRenamed }: P
 
   // T0650 (BUG-157): the pinned value also goes into the dialog's state, otherwise Save writes the
   // old fingerprint back. A failed pin is shown in the dialog and writes nothing.
+  // T0655 (BUG-160): never for ssh-* profiles — the direct connection would not go through the tunnel.
   const handlePinFingerprint = async (profile: ProfileEntry) => {
+    if (cannotPinDirectly(profile)) return
     if (!profile.remoteHost || !profile.remoteToken) return
     const stillEditing = () => editingRemoteIdRef.current === profile.id
     setEditPinning(true)

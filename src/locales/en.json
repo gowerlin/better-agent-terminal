@@ -334,7 +334,8 @@
       "pinnedPlaceholder": "Pinned fingerprint (read-only)",
       "pinnedTitle": "Read-only. Use '{{pin}}' below to refresh from the server.",
       "pin": "Pin expected fingerprint",
-      "pinTitle": "Fetch current server fingerprint and pin it for future connections"
+      "pinTitle": "Fetch current server fingerprint and pin it for future connections",
+      "pinSshDisabled": "SSH profiles connect through an SSH tunnel. Re-run the Setup Wizard to update the fingerprint."
     },
     "details": {
       "type": "Type",

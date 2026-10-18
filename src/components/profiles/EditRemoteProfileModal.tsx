@@ -4,6 +4,16 @@ import { useTranslation } from 'react-i18next'
 import type { ProfileEntry } from './types'
 import { ModalOverlay } from '../common/ModalOverlay'
 
+/**
+ * T0655 (BUG-160): ssh-* profiles are reached through an SSH tunnel; their remoteHost:remotePort is
+ * the server's own localhost. "Pin expected fingerprint" connects directly, so for them it would
+ * pin (and send the token to) whatever listens on that port on this machine. The setup wizard is
+ * the way to refresh their fingerprint.
+ */
+export function cannotPinDirectly(profile: ProfileEntry): boolean {
+  return profile.targetOS === 'ssh-linux' || profile.targetOS === 'ssh-darwin'
+}
+
 interface RemoteProfileOption {
   id: string
   name: string
@@ -60,6 +70,7 @@ export function EditRemoteProfileModal({
   onClose,
 }: EditRemoteProfileModalProps) {
   const { t } = useTranslation()
+  const pinUnavailable = cannotPinDirectly(profile)
   return (
     <ModalOverlay className="settings-overlay" style={{ zIndex: 1001 }} onEscape={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
@@ -130,8 +141,8 @@ export function EditRemoteProfileModal({
             <button
               className="profile-action-btn"
               onClick={onPin}
-              disabled={pinning || !profile.remoteHost || !profile.remoteToken}
-              title={t('profiles.fingerprint.pinTitle')}
+              disabled={pinUnavailable || pinning || !profile.remoteHost || !profile.remoteToken}
+              title={pinUnavailable ? t('profiles.fingerprint.pinSshDisabled') : t('profiles.fingerprint.pinTitle')}
             >
               {t('profiles.fingerprint.pin')}
             </button>
@@ -141,6 +152,9 @@ export function EditRemoteProfileModal({
               </span>
             )}
           </div>
+          {pinUnavailable && (
+            <span style={{ fontSize: 11, color: '#8b949e' }}>{t('profiles.fingerprint.pinSshDisabled')}</span>
+          )}
           {pinError && (
             <span role="alert" style={{ color: '#e5534b', fontSize: 12 }}>{pinError}</span>
           )}
