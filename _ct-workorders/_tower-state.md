@@ -4,7 +4,7 @@
 >
 > **下次起手**:Fast Path 載入；使用者已換 pre.8 → 可目視 BUG-154（`--ask` 答覆後縮圖無標示）；等 BMad-Guide 在 pre.8 上的 CT v5.7.0 實機驗收（claude + codex）→ BUG-154 CLOSED、PLAN-048 DONE；PLAN-047 M1b-2 待排期。
 >
-> **第七十九 session 進行中（2026-10-18 10:53 起）**：D157 由 BAT 塔台統一驗 CT v5.7.0 × pre.8 → T0614–T0618 全 DONE（claude 無 FAIL、codex 主流程 PASS、BUG-154 claude 目視 PASS / codex 未目視）→ 回函 `BMad-Guide/_ct-workorders/_reply-2026-10-18-ct-v570-runtime.md` 已交；等對方回覆後結 PLAN-048 / BUG-154。
+> **第七十九 session 進行中（2026-10-18 10:53 起）**：D157 由 BAT 塔台統一驗 CT v5.7.0 × pre.8 → T0614–T0618 全 DONE（claude 無 FAIL、codex 主流程 PASS、BUG-154 claude 目視 PASS / codex 未目視）→ 回函 `BMad-Guide/_ct-workorders/_reply-2026-10-18-ct-v570-runtime.md` 已交 → 對方結 CT-T019 CT 端（BMad-Guide D051）→ **PLAN-048 DONE**、**BUG-154 CLOSED**（使用者 [A]，codex 未目視）；F-1 / O-1 / O-2 列 CT v5.7.1 候選，動 BAT 介面才會委派。
 ---
 
 ## 🛏 本 Session 收工快照 (第七十八 session, 2026-10-18 09:35 - 10:50, 實際工作至 10:22 ~47m)
@@ -94,7 +94,7 @@
 
 ### 待辦（依優先序）
 
-1. 🟡 **PLAN-048**（IN_PROGRESS）：A / B / C DONE；CT v5.7.0 × pre.8 實機驗收由 BAT 統一執行（D157，T0614–T0618 全 DONE，回函已交）→ 等 BMad-Guide 回覆 → DONE
+1. ✅ **PLAN-048 DONE / BUG-154 CLOSED**（第七十九 session，D157）；待 BMad-Guide CT v5.7.1（F-1 多題 `--ask` 時序）是否需要 BAT 介面變更
 2. 🟡 **BUG-154**（FIXED，T0613 `7bfe225c`）→ **`v0.7.0-pre.8` 已發佈**（2026-10-18 10:20，run `39089400205` @ `b65f9544`；更版重點 + 三文件 `3c59528f`；版號已告知 BMad-Guide）→ 等 BMad-Guide 在 pre.8 上的 CT v5.7.0 實機驗收（claude + codex）結果 → BUG-154 CLOSED、PLAN-048 DONE
 3. 🟡 **PLAN-047 後續**：M1b-2 codex 分頁 `blocked` / 啟動信號（未排期）、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-154
 title: "結構化提問（`bat-notify --ask`）答覆後，仍在執行的 Worker 縮圖顯示 `✓` 並計入批次關閉"
-status: FIXED
+status: CLOSED
 fixed_at: "2026-10-18T09:57:03+0800"
 fixed_by: T0613
 fix_commit: "7bfe225c"
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（仍在執行的 Worker 被算進「關閉已回報的 Worker 分頁（N）」，有誤關風險；頁內確認框是唯一防線） |
 | 可重現 | 必現（T0612 Step 2） |
-| **狀態** | ✅ FIXED（T0613 `7bfe225c`：`--ask` 的通知帶選用欄位 `questionId`，renderer 不記回報並清除殘留；同根因的第二症狀 —— 訊息以 `提問` 結尾時答覆後殘留 `?` —— 一併修正；實機待下一個預覽版） |
+| **狀態** | 🚫 CLOSED（T0613 `7bfe225c` 修正；`v0.7.0-pre.8` 安裝版 T0614 claude 目視 PASS，T0615 codex 以狀態證據確認、未目視，使用者 2026-10-18 11:22 決定結案） |
 
 ## 現象（T0612，`v0.7.0-pre.7` 安裝版）
 
@@ -39,3 +39,9 @@ links:
 
 - `--ask` 的通知帶 `--source T####`，renderer 的 `markWorkerReported` 不分內容記下 `workerReport`；問題 pending 時主行程 attention（`?`）蓋過它，答覆後 attention 清除，殘留的 `workerReport` 就顯示成 `✓`。
 - 修正方向待 Worker 查證：`--ask` 送出的通知不記 `workerReport`（或記成提問、答覆時清除），判斷集中在 `workerAttention`（`src/lib/terminal-attention.ts`）/ `findReportingWorkers`。
+
+## 驗收（2026-10-18 11:22，第七十九 session）
+
+- claude（T0614，`v0.7.0-pre.8` 安裝版）：結構化提問答覆後、Worker 停頓 60 s 期間縮圖**無標示**（使用者目視 + 截圖）；送 `T0614 完成` 後 `✓`。PASS。
+- codex（T0615）：未目視；`bat_get_state` 答覆前 `blocked` / `tower` / `pendingQuestions: 1`，答覆後 `working` / `pendingQuestions: 0`。修正在 renderer 通知處理，兩種 agent 共用同一路徑。
+- 使用者選 [A] 結案（2026-10-18T11:22:45+0800）。D157 / CT v5.7.0 統一實機驗收回函同步。
