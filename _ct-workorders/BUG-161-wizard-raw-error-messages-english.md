@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-161
 title: "設定精靈 step 的原始錯誤訊息、復原警告與縮圖列「suggested」仍是英文（BUG-158 範圍外的殘留）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always（zh-TW 介面，遇到對應錯誤時）
 created_at: "2026-10-18T19:12:43+0800"
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響錯誤畫面的語言） |
 | 可重現 | 必現（zh-TW 介面遇到對應錯誤時） |
-| **狀態** | 📂 OPEN（未排程） |
+| **狀態** | ⏳ FIXING（T0660；使用者 2026-10-18 20:2x 決定放進 `0.7.1-pre.2`） |
 
 ## 現象（T0652 回報區）
 

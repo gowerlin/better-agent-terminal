@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 20:01 (UTC+8) — BUG-163 FIXED（T0658）；本批 BUG-156–160 / 162 / 163 全數 FIXED；BUG-161 OPEN
+> 最後同步：2026-10-18 20:24 (UTC+8) — BUG-161 FIXING（T0660，放進 0.7.1-pre.2）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 26 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 26 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
-| BUG-161 | 設定精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested` 仍是英文（BUG-158 範圍外殘留） | 🟢 low | 2026-10-18 19:12 | [BUG-161](BUG-161-wizard-raw-error-messages-english.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-161 | 設定精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested` 仍是英文（BUG-158 範圍外殘留）（T0660） | 🟢 low | — | [BUG-161](BUG-161-wizard-raw-error-messages-english.md) |
 
 ## ✅ 已修復
 
