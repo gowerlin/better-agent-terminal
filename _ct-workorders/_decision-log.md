@@ -1461,7 +1461,7 @@
   3. 發版同步：網站 include `README.md`（版本對照）/ `release-note.md`，既有「發佈後同步 repo 文件」三文件 commit push 後自動重建；下載按鈕於 build 時以 Releases API 取最新 `v*`（排除 `server-bundle-v*`）。`_local-rules.md` 發版流程加「確認 Pages workflow 綠燈、首頁版號 = 本版」（W4 時由塔台加）。
   4. 素材：手動執行、不進 CI 的 `e2e/site-media.spec.ts`（隔離實例、虛構示範專案）產生截圖與 WebM 短片，網站用 `<video autoplay muted loop>` 取代 GIF；上站前逐張過 T0622 Q3-3 隱私清單；既有 `assets/screenshot-*.png`（上游舊 UI、含上游作者路徑）網站不沿用。
   5. 維運：OG 卡片、sitemap、lychee 連結檢查；內部內容（T / D / BUG 編號密集的 `CHANGELOG.md`、`docs/agent-guide/`、`_ct-workorders/`）不上站，只改寫可公開段落。
-- **待使用者**：自訂網域、語言（繁中單語 / 加英文）、README 是否換新截圖、網站分析；W1 啟用 Pages（改 repo 設定）與 push 新 workflow 需使用者授權。
+- **使用者決定**（2026-10-18 12:29，全部依建議）：自訂網域先不用；繁中單語；W3 一併把 README 舊截圖換成新截圖；不加網站分析。**授權**：W1 由塔台在 Worker 完成後 push 並把本 repo Pages source 設為 GitHub Actions（`gh api -X POST repos/gowerlin/better-agent-terminal/pages -f build_type=workflow`，一律帶明確 repo），限 W1 這一次。
 - **相關**：PLAN-049 / T0622 / D159
 
 ### D159 2026-10-18 — PLAN-049 網站：專案站 `gowerlin.github.io/better-agent-terminal`；CT 只介紹概念與 BAT 整合點
