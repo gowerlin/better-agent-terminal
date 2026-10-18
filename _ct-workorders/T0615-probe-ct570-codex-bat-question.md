@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0615
 title: "探針：CT v5.7.0 × 0.7.0-pre.8 codex Worker 經 BAT 通道問塔台（主流程 + BUG-154 目視）"
 type: verification
-status: IN_PROGRESS
+status: DONE
 started_at: "2026-10-18T11:06:00+08:00"
-updated_at: "2026-10-18T11:06:00+08:00"
-tower_question: open
+updated_at: "2026-10-18T11:09:00+08:00"
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:02:10+0800"
+completed_at: "2026-10-18T11:09:00+08:00"
 depends_on: [T0614]
 related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 2 張（T0614–T0618）"
@@ -105,3 +105,38 @@ Worker 建議：[A] 另起 codex 項目，能清楚保留本次 codex 實機紀�
 ### 互動紀錄
 
 - [11:06] Landing check PASS：repo expected `better-agent-terminal` = actual `better-agent-terminal`（`REPO_ROOT=D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 工單在 repo 下；C-3 `docs/agent-guide/tower-questions.md` 存在；C-2 branch `main` 符合工單 `workdir: main repo`。BAT_WORKSPACE_ID=`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`。保留既存 `src/styles/settings.css` 修改。
+### 驗收摘要
+
+完成 T0615 codex Worker 的 BAT 問塔台實機流程。Q-1 由 BAT 通道送出並收到塔台選項 [A]；依答覆在 `docs/agent-guide/tower-questions.md` 新增獨立 codex 實機紀錄。題目先寫入工單並提交，產品文件與工單分開提交。沒有修改產品程式碼，也沒有執行 build / test（依工單要求）。
+
+### 變更檔案
+
+- `docs/agent-guide/tower-questions.md`：新增 T0615 codex 實機紀錄。
+- `_ct-workorders/T0615-probe-ct570-codex-bat-question.md`：記錄提問、答覆、驗收證據與完成狀態。
+
+### 驗收證據
+
+- PASS — Landing check：C-0 expected repo `better-agent-terminal` = actual repo basename `better-agent-terminal`；`REPO_ROOT=D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`。C-1 工單位於 repo 下；C-3 `docs/agent-guide/tower-questions.md` 存在；C-2 branch `main` 符合 `workdir: main repo`。BAT workspace：`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`。
+- PASS — 問題雙寫：Q-1 和 `tower_question: open` 先提交於工單 commit `4bdf08125d50c81811f88444cb6fa53bcbe54ff2`，之後 `--ask` 約於 2026-10-18 11:05:58 +08:00 成功送出（`expires` 時間回推；兩者先後符合規則）。
+- PASS — `--ask`：使用 `node` 與 `$BAT_HELPER_DIR\bat-notify.mjs`，參數為 `--ask --source T0615 --target "$BAT_TOWER_TERMINAL_ID" --submit --expires-min 30 "T0615 提問"`；JSON 從系統暫存檔 stdin 重導入，未放入 argv 或 repo。exit code `0`；question id `q-4b13b4f7-2cbec99d3b312d8d`；`--expires-min 30` 取工單 frontmatter `worker_question_timeout: 30`。
+- PASS — `--ask` JSON：`question` 以 `Q-1：` 開頭；2 個選項；`blocking: true`。
+- PASS — 等待答覆：MCP `bat_wait_question`，第 1 次呼叫即收到結果（timeout 45000 ms）；status `answered`、choice `1`、`waitedMs: 3307`。僅一次呼叫，故兩次呼叫間隔不適用；結果早於 timeout 回覆。工單沒有塔台寫入的 `塔台答覆 Q-1` 行。
+- PASS — 依工單停留約 60 秒：開始約 11:06:14、結束 11:07:14（+08:00），其後才進行文件變更。
+- PASS — 平台：`codex-cli 0.163.0`。BAT MCP `bat_whoami` 回報 `role=worker`、`workorder=T0615`、`yolo=true`；工具回應未提供 `agent` 欄位。
+- PASS — 關閉順序：產品 commit `5b58c7486c6a8b7796920c5eb8738f870b011893` → 完成回報 → 最終 metadata → 本工單 commit（hash 見下方）→ notify。移除 `tower_question` 時已取得 BAT 答覆並寫入 `A（塔台，BAT 通道，choice 1）` 互動紀錄。Notify 前 `git status --short` 僅剩既存 ` M src/styles/settings.css`。
+
+### 互動紀錄
+
+- [11:05] Q-1：codex 那一條要怎麼寫？ → A（塔台，BAT 通道，choice 1）：與 claude 那條並列，另起一條 codex 項目；各自記錄親眼看到的事實，較好對照 → Action：在驗證清單新增獨立 codex 項目。
+- [11:06–11:07] 依工單要求於答覆後停留 60 秒，再開始文件變更。
+
+### Commit 狀態
+
+- 產品文件：`5b58c7486c6a8b7796920c5eb8738f870b011893` — `docs: record T0615 codex tower question probe`
+- 工單：本次 closeout commit（包含最終狀態與報告）。
+- 未 push。
+
+### 偏差 / 後續
+
+無偏差，無阻塞；未修改 `src/styles/settings.css`。
+
