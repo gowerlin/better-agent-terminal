@@ -3,7 +3,10 @@ schema_version: 1
 schema_kind: bug
 id: BUG-154
 title: "結構化提問（`bat-notify --ask`）答覆後，仍在執行的 Worker 縮圖顯示 `✓` 並計入批次關閉"
-status: FIXING
+status: FIXED
+fixed_at: "2026-10-18T09:57:03+0800"
+fixed_by: T0613
+fix_commit: "7bfe225c"
 severity: medium
 reproducibility: always
 created_at: "2026-10-18T09:47:39+0800"
@@ -21,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（仍在執行的 Worker 被算進「關閉已回報的 Worker 分頁（N）」，有誤關風險；頁內確認框是唯一防線） |
 | 可重現 | 必現（T0612 Step 2） |
-| **狀態** | 🔧 FIXING（T0613，2026-10-18 09:49 使用者選 [A]） |
+| **狀態** | ✅ FIXED（T0613 `7bfe225c`：`--ask` 的通知帶選用欄位 `questionId`，renderer 不記回報並清除殘留；同根因的第二症狀 —— 訊息以 `提問` 結尾時答覆後殘留 `?` —— 一併修正；實機待下一個預覽版） |
 
 ## 現象（T0612，`v0.7.0-pre.7` 安裝版）
 
