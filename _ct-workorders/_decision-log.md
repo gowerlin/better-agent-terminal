@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D165 2026-10-18 — PLAN-049 網站 v2 加入 CT 進階能力與案例：首頁「越用越懂你的專案」一段、`/control-tower` 三節、新頁 `/cases`
+
+- **背景**：使用者 13:36 補充 4 份 CT 文件（自助擴充指南、DESIGN.md 視覺規範指南、FIELDGUIDE 教戰手冊指南、實戰補充 8 篇）可作為案例或功能特點 → T0633 研究 DONE（13:43，提案稿 `_ct-workorders/_spec-site-v2-ct-features-cases.md`，`714ba3b1`）：17 個功能點（13 ✅ / 3 ⚠️ / 1 ❌）、4 個去識別化情境案例、3 個 BAT 真實案例；「資深開發者除錯模式分析」整份不用（含真實客戶與系統細節）。
+- **決定**（使用者 2026-10-18 13:46 前，提案稿 § 6 七題全部採推薦）：① 首頁在「自動，但不失控」後加「越用越懂你的專案」（3 卡 + 成長管線）；② 開 `/cases`（W2d，排在 W2b 之後）；③ R1 寫「約 20 次、10 項功能」並標截至日期；④ 第三根支柱延伸為「看得見、留得住、還會長大」（只改說明）；⑤ 「塔台被慣壞」只放 `/control-tower` FAQ；⑥ R1 **不加**「CT 新版由 BAT 塔台實機驗收」（超出 D159 整合點範圍）；⑦ 首頁新段落併入 W2b，不改進行中的 T0630。
+- **規則**：網站不寫 CT 文件名、CT 版本號、塔台指令、skill 名稱、CT 資料路徑；提案稿的「出處」欄只供內部核對。
+- **落點**：主規格 `_spec-site-v2-bat-ct-story.md` § 3 / § 4.4a / § 5 第 11–12 點 / § 6 / § 8 / § 10 已併入；W2b / W2d 工單待 T0630 預覽通過後開立（屆時一併納入預覽意見）。
+- **相關**：PLAN-049 / D159 / D161 / D164 / T0633 / T0630
+
 ### D164 2026-10-18 — PLAN-049 網站 v2 視覺方向：A「進場雷達」為主 + C「一個早上」的故事時間軸；全站一套字體（A）
 
 - **背景**：T0632 DONE（13:30）：設計語言 `docs/design/site-design-language.md`（`647bfeca`）、Design System「Better Agent Terminal」（https://claude.ai/artifact/FgvvUnYMgJwsEkrS2ATCBj）、Design 畫布「BAT 網站視覺方向」（https://claude.ai/artifact/2LN8rmZ3VbGwZSLpN18mPv，三方向 × 4 artboard）；Worker 推薦 A + C 時間軸。塔台查證三方向所用 7 個 Google Fonts 字族 css2 皆回 200（含 Worker 未查證的 Chiron Hei HK、LXGW WenKai TC）。
