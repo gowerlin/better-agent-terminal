@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0645
 title: "探針：PLAN-050 / BUG-155 / CT-T021 實機驗收 —— claude Worker 的 session 名稱、`claudeSessionId` 與 `agent`（BAT 0.7.1-pre.1 × CT v5.9.0）"
 type: verification
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-050 實機驗收 + CT-T021 § 5 情境 2（BMad-Guide 請 BAT 代跑）
 priority: P2
 sizing: S
 created_at: "2026-10-18T17:57:55+0800"
+started_at: "2026-10-18T17:58:29+0800"
+updated_at: "2026-10-18T17:59:20+0800"
+completed_at: "2026-10-18T17:59:20+0800"
 depends_on: []
 related:
   - "PLAN-050（T0641 `--name`、T0642 `claudeSessionName` / `claudeSessionId`、T0643 `scope: towers`）；BUG-155（T0639 helper 派工補 `agentPreset`）；CT-T021（BMad-Guide 回覆稿 `_reply-2026-10-18-ct-v590-session-identity.md` § 5）"
@@ -66,4 +69,82 @@ BAT `0.7.1-pre.1`（PLAN-050）起，helper 派工的 claude Worker 啟動時帶
 
 ## 回報區
 
-（Worker 填寫）
+### 結果摘要
+
+- 狀態：DONE。Step 1 五項全部取得；驗收條件中 Worker 一側可觀察的項目全部符合（見 `### 驗收證據`）。
+- 未讀產品程式碼、未改其他檔案、未跑 build / test、未 push；commit 只含本檔。
+
+### 落點檢查（Landing Zone Check）
+
+- 結果：PASS
+- C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單位於 `REPO_ROOT/_ct-workorders/` 下 → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 下的本檔 → not applicable
+- C-2：工單無 `branch` 欄位；目前分支 `main`
+- `CT_HOME`：未設定（非 worktree 派工）
+- `BAT_WORKSPACE_ID`（僅記錄）：`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`
+
+### Step 1 — 環境紀錄
+
+1. 開工時間：`2026-10-18T17:58:29+0800`（`date "+%Y-%m-%dT%H:%M:%S%z"`）
+2. 環境變數（Git Bash `env` 可見，未出現 shell 可見性差異）：
+   - `BAT_SESSION` = `1`
+   - `BAT_TERMINAL_ID` = `ddedd519a5dda0196303cab576fc2618`
+   - `BAT_TOWER_TERMINAL_ID` = `d64be77a-fa33-4391-b92c-70069ddfd207`
+   - `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`
+   - `CT_MODE` = `yolo`（另有 `CT_INTERACTIVE` = `0`）
+   - `BAT_REMOTE_TOKEN`：已設定，以 `batcap.` 開頭（值不記錄）
+3. ct-exec skill 版本：`5.9.0`（`C:\Users\Gower\.claude\skills\ct-exec\SKILL.md` 第 5 行 `<!-- ct-exec-version: 5.9.0 -->`；檔內無 `control-tower-version` 註解，以 `ct-exec-version` 為準）
+4. `bat_whoami`（不帶參數）回傳，全部鍵值照抄：
+
+   ```json
+   {"terminalId":"ddedd519a5dda0196303cab576fc2618","workspaceId":"cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b","role":"worker","towerTerminalId":"d64be77a-fa33-4391-b92c-70069ddfd207","workorder":"T0645","yolo":true,"agent":"claude-cli","cwd":"D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal","claudeSessionName":"better-agent-terminal · Worker · T0645","claudeSessionId":"89d0ee8d-4038-4d8e-bc2b-2e7f697eb4a3"}
+   ```
+
+   回傳中沒有任何權杖類鍵值。
+5. `bat_get_state`（不帶參數）回傳：
+   - `state` = `working`
+   - `blockedDetection` = `hook`
+   - `agentStarted` = `true`
+   - `agentStartedAt` = `1792317502278`（`node` 換算 = `2026-10-18T09:58:22.278Z` = `17:58:22+0800`，早於開工時間 7 秒）
+   - `claudeSessionName` = `better-agent-terminal · Worker · T0645`
+   - `claudeSessionId` = `89d0ee8d-4038-4d8e-bc2b-2e7f697eb4a3`
+   - 其餘鍵（供參考）：`terminalId` = `ddedd519a5dda0196303cab576fc2618`、`lastOutputAt` = `1792317522095`、`idleMs` = `135`、`source` = `output`、`pendingQuestions` = `0`
+
+### 驗收證據
+
+| 驗收條件 | 觀察值 | 判定 |
+|---|---|---|
+| `bat_whoami.role` = `worker` | `worker` | PASS |
+| `bat_whoami.agent` 存在且為 claude preset | `claude-cli` | PASS |
+| `bat_whoami.claudeSessionName` = `better-agent-terminal · Worker · T0645` | 完全相符 | PASS |
+| `bat_whoami.claudeSessionId` 為 UUID | `89d0ee8d-4038-4d8e-bc2b-2e7f697eb4a3`（8-4-4-4-12 hex） | PASS |
+| `bat_get_state.blockedDetection` = `hook` | `hook` | PASS |
+| `bat_get_state.agentStarted` = `true` | `true` | PASS |
+| 時間戳來自系統指令、無權杖值、commit 只含本檔 | 見下 | PASS |
+
+- 旁證：`claudeSessionId` 與本 claude session 的 scratchpad 目錄名（`…\89d0ee8d-4038-4d8e-bc2b-2e7f697eb4a3\scratchpad`，由 Claude Code 依 session id 建立）一致，可佐證 hook 回報的 UUID 就是本分頁實際的 claude session。
+- `bat_whoami` 與 `bat_get_state` 的 `claudeSessionName` / `claudeSessionId` 互相一致。
+- 所有時間戳取自 `date "+%Y-%m-%dT%H:%M:%S%z"`；毫秒值以 `node -e 'new Date(ms).toISOString()'` 換算。
+
+### 變更檔案
+
+- `_ct-workorders/T0645-probe-plan050-claude-worker-identity.md`（只有本檔）
+
+### Commit 狀態
+
+- 無產品變更，無產品 commit。
+- 工單 commit：`git commit --only _ct-workorders/T0645-probe-plan050-claude-worker-identity.md`（hash 見 git log；工單內不回填自身 hash）。
+- `src/styles/settings.css` 的 M 為既有未提交變更，未觸碰、未納入 commit。
+
+### 偏差
+
+- 工單初始 `status` 為 `TODO`（ct-exec 預期 `PENDING`），照常改為 `IN_PROGRESS`。
+
+### 遭遇問題
+
+- 無。
+
+### 互動紀錄
+
+- 無（未向塔台提問）。
