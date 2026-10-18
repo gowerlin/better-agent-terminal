@@ -4,18 +4,21 @@ schema_kind: workorder
 id: T0617
 title: "探針：CT v5.7.0 BAT 題目逾時 `expired` → BLOCKED → Renew"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-048
 priority: P2
 sizing: S
 created_at: "2026-10-18T11:02:10+0800"
+started_at: "2026-10-18T11:12:00+08:00"
+updated_at: "2026-10-18T11:12:00+08:00"
 depends_on: [T0616]
 related:
   - "PLAN-048 / CT-T019：CT v5.7.0 × BAT 0.7.0-pre.8 統一實機驗收第 4 張（T0614–T0618）"
 affects_files:
   - _ct-workorders/T0617-probe-ct570-question-expired.md
 renew_count: 0
+tower_question: open
 workdir: main repo
 worker_question_timeout: 1
 interaction:
@@ -63,4 +66,11 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：探針 Q-1（逾時）
+- 提問時間：2026-10-18T11:12:00+08:00
+- 選項：[A] 收到 / [B] 沒收到 / [C] 其他：________
+- Worker 建議：[A]，因為本單為受測探針，任一答覆皆可，此題預期逾時
+- 影響範圍：Step 2 / Step 3（第一輪逾時收尾、第二輪 Renew）
+- 阻塞：是（Step 2 起要等答覆）
