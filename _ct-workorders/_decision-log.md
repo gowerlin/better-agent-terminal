@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D171 2026-10-18 — PLAN-047 結案（DONE）：M2 / M3 不在本單續做
+
+- **背景**：使用者第八十四 session 要求盤點 PLAN-047「缺什麼或可 done」。路線 [A]（D149）的 A1 / A2 / T / M1 / M1b / W1 與 CT-T014–T018、CT-T020 全部 DONE，且都已在安裝版驗過（最後一項 BUG-162 於 `0.7.1-pre.2` T0664）；PLAN-047 frontmatter 仍是 IN_PROGRESS，M2 / M3 依 D149「待 M1 使用後再議」從未決定。
+- **決定**（塔台依使用者「看缺甚麼或可 done」裁定）：PLAN-047 → DONE。M2（訊息 / artifact / 跨 workspace）的實際需求已由 PLAN-048、PLAN-050 以 helper + 唯讀 MCP 滿足，跨塔台傳訊留在 PLAN-051（IDEA，D169）；M3 控制類 tool 依 D155 / D156「BAT MCP 全唯讀」不做，控制動作維持 helper CLI。日後若有新需求另開 PLAN，不重開 PLAN-047。
+- **已知缺口**：T0620（`ElicitationResult` 清 `elicitation`）無安裝版實機驗收，遇到 MCP elicitation 時再驗。
+- **相關**：PLAN-047 / D149 / D150 / D152 / D155 / D156 / D158 / D169 / PLAN-048 / PLAN-050 / PLAN-051 / T0664
+
 ### D170 2026-10-18 — PLAN-049 網站：CT 演進史以「網站版摘要」加在 `/control-tower-tour` 下方（等 BMad-Guide T0175 完成再開單）
 
 - **背景**：使用者考慮把《Control Tower 演進史.html》（BMad-Control-Tower/docs，BMad-Guide T0175 正在補 v5.2.4–v5.9.0）放到網站「Control Tower 功能導覽」下方。演進史以版本表、CHANGELOG、`SKILL.md` / frontmatter、zip 大小圖為骨幹，原文上站會牴觸 D166（不寫命令名稱、skill 名稱、CT 版本號、檔案格式範本）。

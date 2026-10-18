@@ -3,10 +3,11 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-047
 title: BAT MCP Server 與 Worktree 合併（外部提案審議：可行性與現況對照）
-status: IN_PROGRESS
+status: DONE
+completed_at: "2026-10-18T22:26:14+0800"
 priority: medium
 created_at: "2026-10-17T18:35:37+0800"
-updated_at: "2026-10-17T19:07:31+0800"
+updated_at: "2026-10-18T22:26:14+0800"
 plan_type:
   - feature
   - architecture
@@ -31,7 +32,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-047 |
 | 優先級 | 🟡 Medium |
-| 狀態 | 🔄 IN_PROGRESS（D149 採路線 [A]；第一批 T0575 A1 / T0576 A2 / T0577 T） |
+| 狀態 | ✅ DONE（D171：A1 / A2 / T / M1 / M1b / W1 + CT-T014–T020 完成並經安裝版驗收；M2 / M3 不在本單續做） |
 | 來源 | 外部規格提案「BAT MCP Server 與 Worktree 合併規格提案」（2026-10-17，@Gower）；原檔路徑見 frontmatter `links.source` |
 | 提案前提 | 提案方未掌握完整 CT / BAT 實作細節；本單由塔台對照現況評估 |
 
@@ -230,6 +231,20 @@ links:
 - [ ] 小型無衝突合併是否允許塔台直接做
 - [ ] 提案 §16 Q3–Q8、Q12–Q14 待研究單結果後再逐項決議（Q9–Q11 已併入 §三之一建議）
 
+## 結案盤點（第八十四 session，D171）
+
+| 階段 | 內容 | 工單 | 安裝版驗收 |
+|---|---|---|---|
+| A1 / A2 | 本機 PTY 範圍權杖、跨 BAT 重開保留 | T0575 / T0576（+ T0578–T0580 Recovery hold） | `v0.7.0-pre.1` T0581 |
+| T | 產品測試不再讀真實工單檔 | T0577 | 不需（測試層） |
+| M1 | 五個唯讀 helper channel、`bat-mcp.mjs` shim、codex 注入 | T0582 / T0584 / T0586（BUG-148） | `v0.7.0-pre.2` / `pre.3`（claude / codex `bat_whoami`） |
+| M1b | blocked：claude hooks（T0590 / T0594 / T0597 / T0620）、codex OSC 7501（T0619 研究 → T0621 / T0623）、Worker 啟動確認（T0600） | 同左 | pre.6–pre.9；codex `osc` / `input` 於 pre.9 T0637 + CT-T020 實機；權限清除 BUG-162 於 `0.7.1-pre.2` T0664 |
+| W1 | `--isolation worktree`、`--close-worker --worktree`、`worktree:terminal-status`（含關閉後查詢 T0589） | T0583 / T0585 / T0589 | `v0.7.0-pre.2` T0587 / 合併工單 T0588 |
+| CT 端 | 範圍權杖、worktree / MCP、合併工單模板、worktree 狀態與 blocked、啟動確認、codex OSC | CT-T014–T018、CT-T020（皆 DONE） | BMad-Guide 端各自結案 |
+
+- **M2 / M3 不在本單續做**（D171）：訊息類需求已由 PLAN-048（Worker 問塔台，DONE）與 PLAN-050（跨 session 識別，DONE）以 helper + 唯讀 MCP 解決；D155 / D156 定 BAT MCP 全唯讀，控制類 tool（`bat_send_input` / `bat_dispatch` / `bat_close`）不做，控制動作維持 helper CLI；跨塔台傳訊另見 PLAN-051（IDEA）；artifact 交換無具體需求，不立案。
+- **已知缺口（不擋結案）**：T0620（claude `ElicitationResult` 清 `elicitation`）沒有安裝版實機驗收，只有單元 / e2e；MCP elicitation 實務上少見，遇到時再驗。§五待決議題已由 D149 / D150 / D152 處理，未另逐項勾選。
+
 ## 變更紀錄
 
 - 2026-10-17 18:35 — 建立；塔台對照現況完成初評（第七十二 session）
@@ -249,3 +264,4 @@ links:
 - 2026-10-18 00:08 — `v0.7.0-pre.2` 實機驗收（第七十四 session）：claude 分頁 MCP PASS；codex 分頁 MCP FAILED → BUG-148 / T0586 FIXED（`8c7bd4c4`，codex `env_vars` 轉送，實機待 0.7.0-pre.3）；隔離派工 T0587 PASS；模式 ② 合併工單 T0588。CT-T015 / CT-T016 runtime lane PASS（BMad-Guide T0158）→ 全部 lane 結案。**Q3 補充（對方觀察）**：以 `--worktree keep` 關閉的分頁，`bat_list_terminals` 仍列為 `exited`，但 `--worktree-status` 回 `NOT_FOUND`；Q3 若要做，可沿用 T0582 已結束 PTY 紀錄（`EXITED_PTY_RECORD_*`）當查詢範圍
 - 2026-10-18 11:54 — M1b-2：T0620 DONE（`f1b28724`，claude `ElicitationResult` / `elicitation_response` 清 `elicitation`；實機待下一個預覽版）；T0619 研究 DONE（codex `>= 0.163.0` 的 OSC 7501 狀態序列，0 次模型呼叫）→ D158 採用 → 派 T0621（`blockedDetection: osc`、`blockedReason: input`、codex `--wait-started`）；DONE 後開 CT-T020
 - 2026-10-18 12:18 — T0621 DONE（`15559f8b`）：codex `>= 0.163.0` 以 OSC 7501 回報 `blocked` / `input` / `source: osc` 與 `agentStarted`；`--wait-started` 對 codex 實測 `started:` exit 0 / `unconfirmed` exit 8；版本判定、`check_for_update_on_startup=false`、replay 補掃完成；unit 5294 / 303 files、typecheck 0 / 0、e2e t0621（真 codex TUI、0 次模型呼叫）/ t0592 / t0590 / t0600 PASS；順手修 T0620 遺留的 t0590 e2e 斷言。實機待下一個預覽版；CT-T020 待開
+- 2026-10-18 22:26 — 第八十四 session 盤點：計畫範圍全部完成並經安裝版驗收 → DONE（D171）；M2 / M3 不續做
