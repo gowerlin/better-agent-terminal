@@ -3624,3 +3624,27 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 已回報 CT（F-2，BMad-Guide D061 列 v5.8.1 候選）
 
 **候選晉升**：🌐 Global 候選（跨專案：codex Worker 時間戳可靠性）
+
+## L166
+
+**來源**：第八十一 session（2026-10-18），CT-T020 第 2 項（使用者手動觸發 codex 核准提示）
+
+**現象**：塔台給使用者的步驟寫 `codex -a untrusted`，codex `0.163.0` 回 `error: invalid value 'untrusted' for '--ask-for-approval'`（只剩 `on-request` / `never`）；改成 `codex -a on-request -s read-only` + 要求寫檔才觸發核准提示。另外 codex-cli 的自訂參數是 `--yolo`，BAT 派出的 codex Worker 回合中不會出現核准提示，「Worker 分頁觸發 `blocked` / `input`」在本機設定下做不到。
+
+**How to apply**：
+- 要使用者在終端執行的 CLI 指令，塔台先以 `<cli> --help` 或版本說明確認旗標值域再給；外部 CLI 的旗標隨版本變動，不能憑記憶
+- codex 的 `blocked` / `input` 實機驗收：用一般 shell 分頁跑 `codex -a on-request -s read-only` 並要求寫檔；塔台以 `bat_list_terminals scope=workspace` 觀察（非自己 Worker 的分頁不能 `bat_get_state`）
+
+**候選晉升**：🌐 Global 候選（codex 實機驗收方法）
+
+## L167
+
+**來源**：第八十一 session（2026-10-18），T0642 / T0644 並行（PLAN-050 B / D）
+
+**現象**：兩張工單 `affects_files` 的產品檔不重疊，但 T0641 留下的 source guard 測試（`electron/__tests__/claude-session-name-launch.test.ts`）逐字鎖住 `WorkspaceView` 的一行；T0644 改了那一行 → guard 失敗，而該測試檔在 T0642 的範圍、T0642 也正在改。T0644 以結構化提問問塔台，答覆「等 T0642 commit 該檔後只加一行斷言」；結果 T0642 先自行修好 tab 分支、T0644 再補 tower 分支，順利收斂。
+
+**How to apply**：
+- 並行工單做 overlap 檢查時，除了產品檔，也要看「會鎖住另一張工單產品檔的 source guard 測試」在誰的範圍；派工前在兩張單的 `memory_overrides` 寫明該測試檔歸誰、另一張需要改時怎麼等
+- 共用檔案的等待條件寫成可檢查的形式（`git log -1 -- <file>` 是對方 commit 且 `git diff --quiet -- <file>`），附輪詢間隔與上限
+
+**候選晉升**：📁 Project（並行派工的 overlap 檢查補充）
