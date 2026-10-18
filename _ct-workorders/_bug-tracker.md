@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 40
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 1
+  FIXING: 1
   FIXED: 19
   VERIFY: 0
   CLOSED: 19
@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 15:36 (UTC+8) — 新增 BUG-155（OPEN，T0637 發現）
+> 最後同步：2026-10-18 15:40 (UTC+8) — 新增 BUG-155，T0639 修正中
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 40**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 19 | 🧪 Verify: 0 | 🚫 Closed: 19 | ⛔ Won't Fix: 0 | **Total: 40**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU；新分頁正常，期間 GPU 崩潰 5 次（根因未定，待 Gary 區分測試） | 🟡 medium | 2026-10-15 13:13 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
-| BUG-155 | helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 `DISABLE_UPDATES` 防護 | 🟢 low | 2026-10-18 15:36 | [BUG-155](BUG-155-helper-dispatch-pty-missing-agent-preset.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-155 | helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 `DISABLE_UPDATES` 防護 | 🟢 low | 2026-10-18 15:36 | [BUG-155](BUG-155-helper-dispatch-pty-missing-agent-preset.md) |
 
 ## ✅ 已修復
 

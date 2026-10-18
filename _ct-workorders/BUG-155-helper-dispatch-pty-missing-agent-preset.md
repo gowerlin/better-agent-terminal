@@ -3,7 +3,8 @@ schema_version: 1
 schema_kind: bug
 id: BUG-155
 title: "helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 BUG-084 的 `DISABLE_UPDATES` 防護"
-status: OPEN
+status: FIXING
+fixing_by: T0639
 severity: low
 reproducibility: always
 created_at: "2026-10-18T15:36:22+0800"
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（`whoami.agent` 依契約是選填，CT 不依賴它；update guard 只差 `DISABLE_UPDATES`，背景自動更新仍由全域 `DISABLE_AUTOUPDATER` 擋住） |
 | 可重現 | 必現（所有經 `bat-terminal.mjs --skill … --workorder …` 派出的 Worker，claude 與 codex 皆是） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0639，2026-10-18 15:40 派工） |
 
 ## 現象（T0637，`v0.7.0-pre.9` 安裝版）
 
@@ -34,7 +35,7 @@ links:
 - 連帶影響：`PtyManager` 的 `claudeCliUpdateGuardEnv(agentPreset)`（T0525 / BUG-131、BUG-084 / T0372）只在 `agentPreset` 為 `claude-cli` / `claude-cli-worktree` 時注入 `claudeUpdateGuardEnv`（embedded runtime 時含 `DISABLE_UPDATES=1`）→ helper 派出的 claude Worker 沒有這個防護，Worker 內手動 `claude update` 可能改到 `app.asar.unpacked` 內的內嵌 binary。
 - 其他讀 `PtyManager.getAgentPreset` / `getTerminalInfo().agentPreset` 的地方（`whoami`、Terminal Server recovery 重建時的 env 等）同樣拿不到值；Worker 需逐一確認。
 
-## 修正方向（待開工單）
+## 修正方向（T0639）
 
 - helper 派工（本機與 headless 共用路徑）把 resolved agent 的 preset id 傳給 `ptyManager.create({ agentPreset })`；raw command 模式維持不傳。
 - 測試：helper 派工後 `whoami.agent` = preset；claude-cli Worker 的 PTY env 含 `claudeUpdateGuardEnv`（embedded）；codex Worker 不含；headless 同步。
