@@ -80,7 +80,11 @@ BAT `0.7.0-pre.9`（T0621）起，codex `>= 0.163.0` 的 Worker 會送 OSC 7501 
 
 ### C. blocked / input（使用者協助，選做）
 
-（手動 codex 分頁觸發核准提示 → 塔台 `bat_list_terminals scope=workspace` 的 `state` / `blockedReason` / `blockedDetection`）
+- **PASS（非 Worker 分頁觸發）**。Worker 分頁的 codex 帶 `--yolo`（codex-cli 自訂參數），核准被略過，因此改由使用者在同工作區的一般 PowerShell 分頁（標題「New Terminal」，`role: shell`）手動執行 `codex -a on-request -s read-only`（codex `0.163.0`；`-a untrusted` 在 0.163.0 已不存在，只接受 `on-request` / `never`），要求「在目前目錄建立檔案 approval-probe.txt」→ 出現「Would you like to run the following command?」核准提示（使用者截圖，約 15:53）。
+- 塔台 `bat_list_terminals scope=workspace`（提示顯示中）：`state: blocked`、`blockedReason: input`、`blockedDetection: osc`、`agentStarted: true`。手動分頁不是派工分頁，`osc` 來自 BAT 觀察到輸出中的 OSC 7501（觀察式，`none` → `osc`）。
+- 塔台依 CT v5.8.1 斷點 D：只以分頁標題告知使用者「『New Terminal』分頁的 codex 正在等你回應核准提示」，不代答、不送按鍵。
+- 使用者選拒絕 → 15:54:28 `bat_list_terminals`：同分頁 `state: working`、無 `blockedReason`、`blockedDetection: osc`（清除 PASS）；repo 內沒有 `approval-probe.txt`。
+- 範圍限制：tower 對非自己 Worker 的分頁只有 `list scope=workspace` 的 metadata（`authorizeHelperQueryTarget`），所以本項用 `bat_list_terminals`，不是 `bat_get_state`；欄位值域相同。
 
 ---
 
