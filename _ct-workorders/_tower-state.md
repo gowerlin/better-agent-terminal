@@ -98,7 +98,7 @@
 ### 待辦（依優先序）
 
 1. 🟡 **PLAN-048**（IN_PROGRESS，D155 / D156）：A / B / C 全 DONE；實機待 BMad-Guide CT v5.7.0 開單（claude + codex 兩條線）→ 收結果 → PLAN-048 DONE；CT v5.7.0 出版後補 README 版本對照表 CT 欄（目前寫「`>= v5.7.0`（準備中）」）
-2. 🟡 **BUG-154**（FIXED，T0613 `7bfe225c`，2026-10-18 09:57；unit 5233 / 301 files）：隨下一個預覽版發佈 → 安裝版照 T0612 Step 2 目視 → CLOSED
+2. 🟡 **BUG-154**（FIXED，T0613 `7bfe225c`，2026-10-18 09:57；unit 5233 / 301 files）：**使用者 2026-10-18 指示：等 BMad-Guide 塔台完成 CT v5.7.0 更版後再發 `v0.7.0-pre.8`**（main 未 push）→ 安裝版照 T0612 Step 2 目視 → CLOSED
 3. 🟡 **PLAN-047 後續**：M1b-2 codex 分頁 `blocked` / 啟動信號（未排期）、`ElicitationResult` 清 elicitation
 4. 🟡 **用量限制**首次真實撞限制看 `[usage-limit]`；**BUG-136** 等 Gary 日誌；`RECOVERY_PENDING` 實機未驗
 5. 🟢 前期驗收與小項：Gary BUG-127-135 / 116 / 118；BUG-130 / 105 / 107 / 108 / 097 / 111；T0550 真人 6 項；dmg / AppImage、NSIS 重裝；T0360
