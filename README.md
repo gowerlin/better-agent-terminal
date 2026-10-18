@@ -152,6 +152,8 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 
 ### 版本對照
 
+<!-- #region compatibility -->
+
 新功能需要兩邊版本都到位；任一邊較舊時，該功能不啟用，其餘流程照舊。
 
 | 功能 | BAT | CT |
@@ -166,6 +168,8 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | Worker 啟動確認（`--wait-started`、`agentStarted`，Claude CLI 分頁） | `>= 0.7.0-pre.6` | `>= v5.6.0`（舊 CT 不帶參數，照舊） |
 | Worker 問塔台（`--ask` / `--answer`、`bat_list_questions` / `bat_wait_question`、`blocked` / `tower`） | `>= 0.7.0-pre.7` | `>= v5.7.0`（舊 CT 照舊在工單裡往返） |
 | Worker 縮圖 ⚠️ / `?` / `✓` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`） | 不需要 |
+
+<!-- #endregion compatibility -->
 
 ---
 

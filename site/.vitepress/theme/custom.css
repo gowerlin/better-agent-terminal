@@ -1,0 +1,40 @@
+.download-links {
+  margin: 16px 0;
+}
+
+.download-links .download-version {
+  margin: 0 0 12px;
+}
+
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.download-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background-color: var(--vp-c-bg-soft);
+  text-decoration: none !important;
+  transition: border-color 0.25s;
+}
+
+.download-item:hover {
+  border-color: var(--vp-c-brand-1);
+}
+
+.download-label {
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+
+.download-note {
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+  word-break: break-all;
+}
