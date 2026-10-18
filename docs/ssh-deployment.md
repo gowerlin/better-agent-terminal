@@ -46,10 +46,10 @@ Open the sidebar **Profiles** panel, click **+ More ▾**, and pick
 
 | # | Step id | Label | What it does |
 |---|---------|-------|--------------|
-| 1 | `configure-ssh-host` | Configure SSH host | Pick an alias from `~/.ssh/config`, or **Enter host manually…** (`host`, `user@host`, `host:port`, `user@host:port`; IPv6 is rejected). This is the only input in the wizard. The install path is always `~/.local/bat-server`. |
+| 1 | `configure-ssh-host` | Choose SSH host | Pick an alias from `~/.ssh/config`, or **Enter host manually…** (`host`, `user@host`, `host:port`, `user@host:port`; IPv6 is rejected). This is the only input in the wizard. The install path is always `~/.local/bat-server`. |
 | 2 | `verify-ssh-auth` | Verify SSH authentication | Runs `echo BAT_AUTH_OK; uname -sm; echo HOME=$HOME` (15 s). Sets `targetOS` (`ssh-linux` / `ssh-darwin`), the server arch and `$HOME`. A new host key is accepted automatically (`accept-new`). |
 | 3 | `install-server-bundle` | Install BAT server bundle (SSH) | Resolves the bundle for the host's arch and pipes it through one ssh command into `tar xz` (no scp / rsync). Only the overall wizard progress is shown, no transfer speed. |
-| 4 | `start-server` | Start bat-server (SSH) | Writes the user service and starts it (see [systemd vs launchd](#systemd-vs-launchd)); the server listens on `localhost:9876` on the host only. Waits up to 20 s for the listener. |
+| 4 | `start-server` | Start BAT server | Writes the user service and starts it (see [systemd vs launchd](#systemd-vs-launchd)); the server listens on `localhost:9876` on the host only. Waits up to 20 s for the listener. |
 | 5 | `fetch-fingerprint` | Fetch TLS fingerprint | Opens a verify tunnel and records the certificate fingerprint from the TLS handshake. |
 | 6 | `connect-test` | Verify remote connection | Connects through the tunnel with the token and the recorded fingerprint. |
 | 7 | `write-profile` | Save remote profile | Creates the profile `SSH <host>`, or updates the existing one (see [Upgrade](#upgrade)). |

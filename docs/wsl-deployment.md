@@ -63,7 +63,7 @@ shows its progress; a failed step shows the reason with Retry / Skip / Cancel
 | 2 | `pick-wsl-distro` | Select WSL distro | Keeps WSL2 distros only. Picks automatically when exactly one exists; otherwise asks you to choose (defaulting to the WSL default distro when it is WSL2). This is the only choice in the wizard. |
 | 3 | `wsl-systemd-check` | Check systemd availability | `systemctl --user is-system-running`, or `systemd=true` in `/etc/wsl.conf`. Without systemd it only records a warning; the wizard then fails at step 8. |
 | 4 | `install-server-bundle` | Install BAT server bundle | Gets the server bundle for this BAT version and installs it into `~/.local/bat-server`. Also records the WSL networking mode (see below). |
-| 5 | `write-systemd-unit` | Write systemd user service | Picks a port, writes `~/.config/systemd/user/bat-server.service`, reloads the user daemon, starts the service, and enables linger (`loginctl enable-linger`, checked as `Linger=yes`). |
+| 5 | `write-systemd-unit` | Set up and start the server service | Picks a port, writes `~/.config/systemd/user/bat-server.service`, reloads the user daemon, starts the service, and enables linger (`loginctl enable-linger`, checked as `Linger=yes`). |
 | 6 | `fetch-fingerprint` | Fetch TLS fingerprint | Opens a TLS connection to `127.0.0.1:<port>` and records the certificate's SHA-256 fingerprint from the handshake (up to 5 tries, 1 s apart). There is no HTTP endpoint. |
 | 7 | `connect-test` | Verify remote connection | Connects with the token and the recorded fingerprint, as a saved profile would. |
 | 8 | `write-profile` | Save remote profile | Creates the profile `WSL <distro>`, or updates the existing one (see [Upgrade](#upgrade)). |

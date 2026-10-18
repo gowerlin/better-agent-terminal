@@ -113,7 +113,7 @@ Open the sidebar **Profiles** panel, click **+ More ▾**, and pick
 |---|---------|-------|--------------|
 | 1 | `detect-env` | Detect target environment | Finds the `docker` CLI and a running daemon. |
 | 2 | `pick-container` | Choose Docker container mode | **Create new** or **Use existing** (see [Modes](#modes)). |
-| 3 | `configure-mounts` | Configure bind mounts | Pick one host folder; it maps to `/workspace/<folder name>`. One folder only, container path fixed. |
+| 3 | `configure-mounts` | Choose workspace folder | Pick one host folder; it maps to `/workspace/<folder name>`. One folder only, container path fixed. |
 | 4 | `install-server-bundle` | Verify BAT server bundle | Copies nothing: the server comes from the image (`/opt/bat-server`). |
 | 5 | `start-server` | Start Docker container | Picks the host port, creates or starts the container, waits up to 45 s for `healthy`. |
 | 6 | `fetch-fingerprint` | Fetch TLS fingerprint | Records the certificate fingerprint from a TLS handshake on `127.0.0.1:<host-port>`. |
