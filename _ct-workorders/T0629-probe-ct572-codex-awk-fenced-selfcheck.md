@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0629
 title: "探針：CT v5.7.2 codex Worker —— 3-B awk 略過 fenced code block ＋ notify 前自檢（O-2）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: CT-v5.7.1/v5.7.2 驗收（BMad-Guide 請求）
 priority: P2
 sizing: S
 created_at: "2026-10-18T12:39:02+0800"
+started_at: "2026-10-18T13:27:00+0800"
+updated_at: "2026-10-18T13:27:00+0800"
 depends_on: [T0628]
 related:
   - "CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 實機驗收第 5 張（T0625–T0629）；對照 v5.7.0 的 T0615（O-2 格式偏差）"
@@ -74,4 +76,16 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：探針 Q-1（fenced code block 不算答覆）
+- 提問時間：2026-10-18T13:27:00+0800
+- **問題**：在範本 fenced code block 原樣保留的情況下，確認區段限定 awk 在收到塔台真正答覆前不把假答覆算入。
+- **選項**：
+  - [A] 收到
+  - [B] 沒收到
+  - [其他] 自由文字
+- **建議**：[A] 收到，作為探針流程的明確答覆訊號。
+- **理由**：這是工單指定的受測問題，須由塔台提供外部答覆來驗證 fenced block 過濾。
+- **影響**：答覆後才完成等待證據與自檢收尾。
+- **阻塞**：是
