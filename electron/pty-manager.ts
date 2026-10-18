@@ -1030,11 +1030,12 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   /**
    * A claude hook of running PTY `id` (`terminal:report-hook`); null = not running. T0642: + the
-   * session id of a `session-start` (validated by the handler).
+   * session id of a `session-start` (validated by the handler). T0657: + the hook's `agent_id` of a
+   * `permission-request` / `post-tool-batch` (validated by the handler).
    */
-  reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string): { result: HookReportResult; state: BlockedState | null } | null {
+  reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string): { result: HookReportResult; state: BlockedState | null } | null {
     if (!this.instances.has(id)) return null
-    return this.blockedTracker.report(id, event, toolName, sessionId)
+    return this.blockedTracker.report(id, event, toolName, sessionId, agentId)
   }
 
   /** What running PTY `id` is blocked on, or null (not blocked / not running). */

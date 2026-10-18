@@ -15,6 +15,7 @@
  *   - the hook command really runs in bash and PowerShell when present (quoting)
  *   - T0600: `SessionStart` (async, no matcher) → session-start; claude's own settings turning hooks
  *     off (`disableAllHooks` managed / user, `allowManagedHooksOnly` managed) → injected but `none`
+ *   - T0657: `PostToolBatch` (async, no matcher) → post-tool-batch; still no all-tool `PostToolUse`
  */
 import { spawnSync } from 'child_process'
 import * as fs from 'fs'
@@ -95,7 +96,7 @@ describe('claude hooks injection', () => {
     const content = fs.readFileSync(settingsFile(), 'utf8')
     const parsed = JSON.parse(content) as { hooks: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>> }
     expect(Object.keys(parsed)).toEqual(['hooks'])
-    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'ElicitationResult', 'UserPromptSubmit', 'Stop', 'SessionStart'])
+    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'ElicitationResult', 'PostToolBatch', 'UserPromptSubmit', 'Stop', 'SessionStart'])
     const cmd = (event: string) => `node '${fwd(hookScript())}' ${event}`
     expect(parsed.hooks).toEqual({
       PermissionRequest: [{ hooks: [{ type: 'command', command: cmd('permission-request'), timeout: 5 }] }],
@@ -109,6 +110,8 @@ describe('claude hooks injection', () => {
       PostToolUse: [{ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command: cmd('ask-user-question-done'), timeout: 5, async: true }] }],
       // T0620: the user answered the elicitation (every server, async)
       ElicitationResult: [{ hooks: [{ type: 'command', command: cmd('elicitation-done'), timeout: 5, async: true }] }],
+      // T0657: a permission prompt answered without the keyboard clears once the batch resolved (async, no matcher)
+      PostToolBatch: [{ hooks: [{ type: 'command', command: cmd('post-tool-batch'), timeout: 5, async: true }] }],
       UserPromptSubmit: [{ hooks: [{ type: 'command', command: cmd('user-prompt-submit'), timeout: 5, async: true }] }],
       Stop: [{ hooks: [{ type: 'command', command: cmd('stop'), timeout: 5, async: true }] }],
       // T0600: the launch confirmation, every source, never waited for
@@ -117,9 +120,11 @@ describe('claude hooks injection', () => {
     expect(content).not.toContain(TOKEN)
     expect(content).not.toMatch(/disableAllHooks|allowManagedHooksOnly|permissions|model|env|BAT_REMOTE|token/i)
     // no all-tool PostToolUse (a node start per tool call), no PermissionDenied (auto-mode classifier
-    // denials only, T0594), no idle / permission notifications
+    // denials only, T0594), no idle / permission notifications; T0657: PostToolBatch instead of an
+    // all-tool PostToolUse + PostToolUseFailure (once per batch, and a denied call has neither)
     expect(parsed.hooks.PostToolUse.every(e => e.matcher === 'AskUserQuestion')).toBe(true)
-    expect(content).not.toMatch(/PermissionDenied|PostToolUseFailure|PostToolBatch|idle_prompt|permission_prompt/)
+    expect(parsed.hooks.PostToolBatch.every(e => e.matcher === undefined && e.hooks.every(h => h.async === true))).toBe(true)
+    expect(content).not.toMatch(/PermissionDenied|PostToolUseFailure|idle_prompt|permission_prompt/)
     // T0620: no `elicitation_complete` (a URL elicitation the server confirmed: the dialog may still be open)
     expect(content).not.toMatch(/elicitation_complete/)
     // rewritten only when it changes
@@ -182,7 +187,7 @@ describe('claude hooks injection', () => {
     for (const name of ['bat-mcp.mjs', 'bat-hook.mjs']) fs.writeFileSync(path.join(quoted, name), '')
     expect(buildBatMcpLaunchArgs(host({ helperDir: () => quoted }), { agentId: 'claude-cli', shellFamily: 'posix' }))
       .toMatchObject({ injected: true, mcp: true, hooks: false, hooksReason: expect.stringContaining('bash and PowerShell') })
-    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'ask-user-question-done', 'elicitation-done', 'elicitation-done', 'user-prompt-submit', 'stop', 'session-start'])
+    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'ask-user-question-done', 'elicitation-done', 'elicitation-done', 'post-tool-batch', 'user-prompt-submit', 'stop', 'session-start'])
     // every hook BAT injects is an event bat-hook.mjs and terminal:report-hook accept
     expect(BAT_CLAUDE_HOOKS.every(h => (HOOK_REPORT_EVENTS as readonly string[]).includes(h.event))).toBe(true)
   })

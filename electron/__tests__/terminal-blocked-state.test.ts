@@ -23,6 +23,10 @@
  *     list / wait `agentStarted` true / false / null; `until: 'agent-started'`; the real hook process
  *   - T0600 option B: `[agent-command] launch-suspect` — a "command not found" right after the
  *     dispatch command is logged (label only), nothing else changes
+ *   - T0657 (BUG-162): `post-tool-batch` clears `permission` only, keyed by `agentId` (a batch
+ *     clears its own agent's prompt; more than PERMISSION_AGENTS_MAX agents → any batch); the
+ *     channel's agentId check; the real hook process (huge batch, never tool_calls) and a BAT
+ *     before T0657 (agentId ignored, the event INVALID_ARGS, exit 0)
  */
 import { spawn } from 'child_process'
 import * as fs from 'fs'
@@ -52,6 +56,7 @@ import {
   isStartReportEvent,
   LAUNCH_SUSPECT_WINDOW_MS,
   LaunchSuspectWatcher,
+  PERMISSION_AGENTS_MAX,
   registerReportHookHandler,
   REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS,
   TerminalBlockedTracker,
@@ -162,7 +167,7 @@ describe('TerminalBlockedTracker', () => {
       '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
       '[blocked] terminal=a → cleared (hook user-prompt-submit)',
     ])
-    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'elicitation-done', 'user-prompt-submit', 'stop', 'session-start'])
+    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'elicitation-done', 'post-tool-batch', 'user-prompt-submit', 'stop', 'session-start'])
   })
 
   it('T0620: elicitation-done clears an elicitation only; another reason (or none) is unchanged', () => {
@@ -199,6 +204,98 @@ describe('TerminalBlockedTracker', () => {
       '[blocked] terminal=a → blocked reason=elicitation (hook elicitation)',
       '[blocked] terminal=a → cleared (hook elicitation-done)',
     ])
+  })
+
+  it('T0657: post-tool-batch clears a permission prompt only; another reason (or none) is unchanged', () => {
+    const lines: string[] = []
+    let t = 1000
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) }, () => t)
+    expect(hookEventReason('post-tool-batch')).toBeNull()
+    // not blocked: every batch of a working claude lands here
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'unchanged', state: null })
+    expect(tracker.getDetection('a')).toBe('hook')
+    // the dangerous-rm safety check: prompt, auto-denied after 120 s, the batch resolves (no keyboard)
+    tracker.report('a', 'permission-request', 'Bash')
+    t = 121_000
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'cleared', state: null })
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'unchanged', state: null })
+    // a question / an elicitation dialog is not answered by a batch resolving
+    tracker.report('a', 'ask-user-question')
+    expect(tracker.report('a', 'post-tool-batch')).toMatchObject({ result: 'unchanged', state: { reason: 'question' } })
+    tracker.report('a', 'permission-request', 'AskUserQuestion') // T0597: still the question
+    expect(tracker.report('a', 'post-tool-batch')).toMatchObject({ result: 'unchanged', state: { reason: 'question' } })
+    tracker.report('a', 'elicitation')
+    expect(tracker.report('a', 'post-tool-batch')).toMatchObject({ result: 'unchanged', state: { reason: 'elicitation' } })
+    // and the other clearing events still leave a permission prompt alone
+    tracker.report('a', 'permission-request', 'Bash')
+    expect(tracker.report('a', 'ask-user-question-done')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(tracker.report('a', 'elicitation-done')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'cleared', state: null })
+    expect(lines).toEqual([
+      '[blocked] terminal=a → blocked reason=permission (hook permission-request tool=Bash)',
+      '[blocked] terminal=a → cleared (hook post-tool-batch)',
+      '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
+      '[blocked] terminal=a → blocked reason=elicitation (hook elicitation)',
+      '[blocked] terminal=a → blocked reason=permission (hook permission-request tool=Bash)',
+      '[blocked] terminal=a → cleared (hook post-tool-batch)',
+    ])
+  })
+
+  it('T0657: prompts are keyed by agent — a batch clears only its own agent’s; blocked ends when none is left', () => {
+    const lines: string[] = []
+    let t = 1000
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) }, () => t)
+    // a background subagent's prompt; the main thread keeps working
+    expect(tracker.report('a', 'permission-request', 'Bash', undefined, 'a1')).toMatchObject({ result: 'blocked', state: { reason: 'permission', since: 1000 } })
+    t = 2000
+    expect(tracker.report('a', 'post-tool-batch')).toMatchObject({ result: 'unchanged', state: { reason: 'permission', since: 1000 } })
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'a2')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    // the main thread's own prompt meanwhile: still blocked since the first one
+    expect(tracker.report('a', 'permission-request', 'Write')).toMatchObject({ result: 'unchanged', state: { reason: 'permission', since: 1000, toolName: 'Bash' } })
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'a1')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    // the subagent's batch is a no-op the second time; the main thread's clears
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'a1')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'cleared', state: null })
+    // leaving `permission` forgets the agents: a question in between, then a main-thread prompt
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'a1')
+    tracker.report('a', 'ask-user-question')
+    tracker.report('a', 'permission-request', 'Bash')
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'a1')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'cleared', state: null })
+    // and so does any other clearing (stop / user input / the PTY ending use clear())
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'a1')
+    tracker.report('a', 'stop')
+    tracker.report('a', 'permission-request', 'Bash')
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'cleared', state: null })
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'a1')
+    tracker.clearForUserInput('a')
+    tracker.report('a', 'permission-request', 'Bash')
+    expect(tracker.report('a', 'post-tool-batch')).toEqual({ result: 'cleared', state: null })
+    // agentId is only for these two events
+    tracker.report('a', 'ask-user-question', undefined, undefined, 'a1')
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'a1')).toMatchObject({ result: 'unchanged', state: { reason: 'question' } })
+    expect(lines).toContain('[blocked] terminal=a → blocked reason=permission (hook permission-request tool=Bash agent=a1)')
+    expect(lines).toContain('[blocked] terminal=a → cleared (hook post-tool-batch)')
+    expect(lines.filter(l => l.includes('agent=')).every(l => l.includes('reason=permission'))).toBe(true)
+  })
+
+  it(`T0657: more than ${PERMISSION_AGENTS_MAX} agents with a prompt → any batch clears (logged once)`, () => {
+    const lines: string[] = []
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) })
+    tracker.report('a', 'permission-request', 'Bash')
+    for (let i = 1; i < PERMISSION_AGENTS_MAX; i++) tracker.report('a', 'permission-request', 'Bash', undefined, `a${i}`)
+    // exactly the limit: still per agent
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'stranger')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(lines.some(l => l.includes('any post-tool-batch clears'))).toBe(false)
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'one-more')
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'and-another')
+    expect(lines.filter(l => l.includes('any post-tool-batch clears'))).toEqual([
+      `[blocked] terminal=a permission prompts of more than ${PERMISSION_AGENTS_MAX} agents → any post-tool-batch clears`,
+    ])
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'stranger')).toEqual({ result: 'cleared', state: null })
+    // the next prompt starts over per agent
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'a1')
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'stranger')).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
   })
 
   it('T0594: ask-user-question-done clears a question only; another reason (or none) is unchanged', () => {
@@ -461,6 +558,44 @@ describe('terminal:report-hook', () => {
     }
   })
 
+  it('T0657: post-tool-batch over the channel — clears the caller’s permission prompt (its own agent’s), leaves a question; agentId checked', () => {
+    scene()
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'permission-request', toolName: 'Bash' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'post-tool-batch' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'cleared', state: 'not-blocked' })
+    expect(logs).toContain('[blocked] terminal=wk → cleared (hook post-tool-batch)')
+    h.call('terminal:report-hook', h.asHelper('sh'), { event: 'ask-user-question' })
+    expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'post-tool-batch' }))
+      .toEqual({ ok: true, terminalId: 'sh', result: 'unchanged', state: 'blocked', blockedReason: 'question' })
+    // a subagent's prompt: the main thread's batch does not clear it, the subagent's does
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'permission-request', toolName: 'Bash', agentId: 'a1b2' }))
+      .toMatchObject({ ok: true, result: 'blocked', blockedReason: 'permission' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'post-tool-batch' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'unchanged', state: 'blocked', blockedReason: 'permission' })
+    expect(h.call('terminal:get-state', h.asHelper('tw'), { terminalId: 'wk' })).toMatchObject({ ok: true, state: 'blocked', blockedReason: 'permission', source: 'hook' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'post-tool-batch', agentId: 'a1b2' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'cleared', state: 'not-blocked' })
+    expect(logs).toContain('[blocked] terminal=wk → blocked reason=permission (hook permission-request tool=Bash agent=a1b2)')
+    expect(logs).toContain('[blocked] terminal=wk → cleared (hook post-tool-batch agent=a1b2)')
+    expect(h.mirrors.some(([, p]) => p.hook === 'post-tool-batch' && p.agent === 'a1b2' && p.result === 'cleared')).toBe(true)
+    // a malformed agent id is refused (it must not read as the main thread) on the two events that use it …
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'permission-request', toolName: 'Bash' })
+    for (const event of ['permission-request', 'post-tool-batch']) {
+      for (const agentId of ['a b', '', 'x'.repeat(129), 7, { id: 'a' }]) {
+        expect(h.call('terminal:report-hook', h.asHelper('wk'), { event, agentId }), `${event} ${JSON.stringify(agentId)}`).toMatchObject({ ok: false, code: 'INVALID_ARGS', message: 'agentId' })
+      }
+    }
+    expect(h.manager.getBlockedState('wk')).toMatchObject({ reason: 'permission' })
+    // … and ignored on every other event (null = absent)
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'post-tool-batch', agentId: null })).toMatchObject({ ok: true, result: 'cleared' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'ask-user-question', agentId: 'a b' })).toMatchObject({ ok: true, result: 'blocked', blockedReason: 'question' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'stop', agentId: 7 })).toMatchObject({ ok: true, result: 'cleared' })
+    // other names of the batch hook are not events
+    for (const event of ['post-tool-use', 'post-tool-use-failure', 'permission-denied', 'PostToolBatch']) {
+      expect(h.call('terminal:report-hook', h.asHelper('wk'), { event })).toMatchObject({ ok: false, code: 'INVALID_ARGS', message: 'event' })
+    }
+  })
+
   it('T0597: PermissionRequest of AskUserQuestion over the channel answers blockedReason question; the answer clears it', () => {
     scene()
     expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'ask-user-question' })).toMatchObject({ result: 'blocked', blockedReason: 'question' })
@@ -609,6 +744,11 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
   let oldBat = false
   /** T0642: answer like a T0600 BAT, which reads only `event` / `toolName` (the session id is dropped). */
   let t0600Bat = false
+  /**
+   * T0657: answer like a BAT before T0657 — `post-tool-batch` is not an event; an `agentId` field is
+   * ignored like any other unknown field (the handler then reads only event / toolName / sessionId).
+   */
+  let t0642Bat = false
   const T0590_EVENTS = ['permission-request', 'ask-user-question', 'elicitation', 'user-prompt-submit', 'stop']
 
   const hookEnv = (id: string): NodeJS.ProcessEnv => ({
@@ -648,6 +788,11 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
         received.push(args)
         const event = (args[0] as { event?: unknown } | undefined)?.event
         if (oldBat && !T0590_EVENTS.includes(String(event))) return { ok: false, code: 'INVALID_ARGS', message: 'event' }
+        if (t0642Bat) {
+          if (event === 'post-tool-batch') return { ok: false, code: 'INVALID_ARGS', message: 'event' }
+          const { agentId: _ignored, ...rest } = args[0] as Record<string, unknown>
+          return handler(ctx, rest)
+        }
         if (t0600Bat) {
           const { sessionId: _dropped, ...rest } = args[0] as Record<string, unknown>
           return handler(ctx, rest)
@@ -840,6 +985,86 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
       oldBat = false
     }
     expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'elicitation' })
+    await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+  })
+
+  it('T0657: PostToolBatch clears a permission prompt (no keyboard) — its own agent’s only; exit 0, stdout empty; tool_calls / tool_input never sent', async () => {
+    const lastHookLog = () => fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8').trim().split('\n')
+      .map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1)
+    // claude 2.1.302 field order: the common fields (agent_id among them) first, then the payload
+    const permission = (agent?: string) => JSON.stringify({
+      session_id: 's1', cwd: 'C:\\w', permission_mode: 'bypassPermissions', ...(agent ? { agent_id: agent, agent_type: 'general-purpose' } : {}),
+      hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command: 'rm -rf SECRET-PATH' }, permission_suggestions: [],
+    })
+    const batch = (agent?: string, responseBytes = 64) => JSON.stringify({
+      session_id: 's1', cwd: 'C:\\w', permission_mode: 'bypassPermissions', ...(agent ? { agent_id: agent, agent_type: 'general-purpose' } : {}),
+      hook_event_name: 'PostToolBatch',
+      tool_calls: [
+        { tool_name: 'Bash', tool_input: { command: 'rm -rf SECRET-PATH' }, tool_use_id: 'toolu_1', tool_response: 'Permission … denied by a built-in Claude Code safety check' },
+        { tool_name: 'Read', tool_input: { file_path: 'SECRET-FILE' }, tool_use_id: 'toolu_2', tool_response: `SECRET-${'x'.repeat(responseBytes)}` },
+      ],
+    })
+
+    // the main thread's prompt; a batch with a huge result (over the old 256 KiB stdin cap) still clears it
+    expect(await runHook('permission-request', permission(), hookEnv('hk-worker'))).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'permission', toolName: 'Bash' })
+    const run = await runHook('post-tool-batch', batch(undefined, 400 * 1024), hookEnv('hk-worker'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.ms).toBeLessThan(2_000)
+    expect(received.at(-1)).toEqual([{ event: 'post-tool-batch' }])
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+    expect(lastHookLog()).toMatchObject({ event: 'report-hook', hook: 'post-tool-batch', result: 'cleared', terminalId: 'hk-worker' })
+
+    // a subagent's prompt: the main thread's batch leaves it, the subagent's own clears it
+    await runHook('permission-request', permission('a4f1c2'), hookEnv('hk-worker'))
+    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash', agentId: 'a4f1c2' }])
+    await runHook('post-tool-batch', batch(), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'permission' })
+    expect(lastHookLog()).toMatchObject({ hook: 'post-tool-batch', result: 'unchanged' })
+    expect(await runHook('post-tool-batch', batch('a4f1c2'), hookEnv('hk-worker'))).toMatchObject({ code: 0, stdout: '' })
+    expect(received.at(-1)).toEqual([{ event: 'post-tool-batch', agentId: 'a4f1c2' }])
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+    expect(lastHookLog()).toMatchObject({ hook: 'post-tool-batch', agent: 'a4f1c2', result: 'cleared' })
+
+    // a question is not cleared by a batch
+    await runHook('ask-user-question', JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' }), hookEnv('hk-worker'))
+    await runHook('post-tool-batch', batch(), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'question' })
+    await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
+
+    // an input it cannot tell apart (another hook, garbage, a malformed agent_id) sends nothing
+    await runHook('permission-request', permission(), hookEnv('hk-worker'))
+    const before = received.length
+    for (const stdin of [JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Bash' }), 'not json', '', batch('a b')]) {
+      expect(await runHook('post-tool-batch', stdin, hookEnv('hk-worker')), stdin.slice(0, 40)).toMatchObject({ code: 0, stdout: '' })
+    }
+    expect(received.length).toBe(before)
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'permission' })
+    await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
+
+    expect(JSON.stringify(received)).not.toMatch(/SECRET|tool_calls|tool_input|tool_response|batcap/)
+    expect(fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')).not.toMatch(/SECRET|batcap\./)
+  })
+
+  it('T0657: a BAT before T0657 — the agentId field is ignored (the prompt is still recorded), post-tool-batch INVALID_ARGS → exit 0, state untouched', async () => {
+    t0642Bat = true
+    try {
+      const prompt = await runHook('permission-request', JSON.stringify({ agent_id: 'a9', hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: {} }), hookEnv('hk-worker'))
+      expect(prompt).toMatchObject({ code: 0, stdout: '' })
+      expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash', agentId: 'a9' }])
+      expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'permission', toolName: 'Bash' })
+      for (const agent of [undefined, 'a9']) {
+        const run = await runHook('post-tool-batch', JSON.stringify({ ...(agent ? { agent_id: agent } : {}), hook_event_name: 'PostToolBatch', tool_calls: [] }), hookEnv('hk-worker'))
+        expect(run).toMatchObject({ code: 0, stdout: '', stderr: '' })
+      }
+    } finally {
+      t0642Bat = false
+    }
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'permission' })
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
+      .toMatchObject({ hook: 'post-tool-batch', result: 'failed', code: 'INVALID_ARGS' })
     await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
     expect(manager.getBlockedState('hk-worker')).toBeNull()
   })

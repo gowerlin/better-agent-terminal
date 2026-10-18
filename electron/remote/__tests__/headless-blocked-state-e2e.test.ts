@@ -19,6 +19,9 @@
  *   - T0600 (D154): `SessionStart` (`session-start`) in a claude-cli Worker PTY → agentStarted true
  *     (a client wait until=agent-started returns), false before, null for a codex tab; restart →
  *     false again; the exited record keeps agentStartedAt
+ *   - T0657 (BUG-162): `permission-request` then `post-tool-batch` (PostToolBatch) leaves blocked with
+ *     no client input; a subagent's prompt (`agent_id`) stays through the main thread's batch and
+ *     leaves on its own
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -201,6 +204,53 @@ describe('blocked from claude hooks inside headless PTYs (T0590)', () => {
     expect(run.then).toEqual([expect.objectContaining({ code: 0, stdout: '' }), expect.objectContaining({ code: 0, stdout: '' })])
     expect((await state(worker)).state).not.toBe('blocked')
   }, 60_000)
+
+  it('T0657 (BUG-162): a permission prompt resolved without the keyboard (PostToolBatch) leaves blocked; a subagent’s prompt waits for its own batch', async () => {
+    const prompt = (agent?: string) => ({
+      ...(agent ? { agent_id: agent, agent_type: 'general-purpose' } : {}),
+      hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command: 'rm -rf SECRET' }, permission_suggestions: [],
+    })
+    const batch = (agent?: string) => ({
+      ...(agent ? { agent_id: agent, agent_type: 'general-purpose' } : {}),
+      hook_event_name: 'PostToolBatch',
+      tool_calls: [{ tool_name: 'Bash', tool_input: { command: 'rm -rf SECRET' }, tool_use_id: 'toolu_1', tool_response: 'denied' }],
+    })
+    // one typed command (the only client input): the prompt, then 3 s later its batch resolves
+    // (claude's own 120 s timeout of the dangerous-rm check, shortened)
+    const hook = hookIn(worker, 'permission-request', prompt(), [{ delayMs: 3_000, event: 'post-tool-batch', input: batch() }])
+    let last: Record<string, unknown> = await state(worker)
+    const deadline = Date.now() + 30_000
+    while (last.state !== 'blocked' && Date.now() < deadline) {
+      last = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: last.state, timeoutMs: 30_000 }) as Record<string, unknown>
+    }
+    expect(last).toMatchObject({ state: 'blocked', blockedReason: 'permission' })
+    const left = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: 'blocked', timeoutMs: 20_000 }) as Record<string, unknown>
+    expect(left).toMatchObject({ ok: true, changed: true, source: 'output' })
+    expect(left.state).not.toBe('blocked')
+    const run = await hook
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.then).toEqual([expect.objectContaining({ code: 0, stdout: '' })])
+
+    // a background subagent's prompt: the main thread's batch keeps it, the subagent's clears it
+    const sub = hookIn(worker, 'permission-request', prompt('a5e7'), [
+      { delayMs: 500, event: 'post-tool-batch', input: batch() },
+      { delayMs: 2_500, event: 'post-tool-batch', input: batch('a5e7') },
+    ])
+    last = await state(worker)
+    while (last.state !== 'blocked' && Date.now() < deadline + 30_000) {
+      last = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: last.state, timeoutMs: 30_000 }) as Record<string, unknown>
+    }
+    expect(last).toMatchObject({ state: 'blocked', blockedReason: 'permission' })
+    await sleep(1_500) // the main thread's batch has reported by now, the subagent's has not
+    expect(await state(worker)).toMatchObject({ state: 'blocked', blockedReason: 'permission', blockedSince: last.blockedSince })
+    const subLeft = await harness.invoke('terminal:wait', { terminalId: worker, until: 'state-change', fromState: 'blocked', timeoutMs: 20_000 }) as Record<string, unknown>
+    expect(subLeft).toMatchObject({ ok: true, changed: true })
+    expect(subLeft.state).not.toBe('blocked')
+    const subRun = await sub
+    expect(subRun).toMatchObject({ code: 0, stdout: '' })
+    expect(subRun.then).toEqual([expect.objectContaining({ code: 0, stdout: '' }), expect.objectContaining({ code: 0, stdout: '' })])
+    expect((await state(worker)).state).not.toBe('blocked')
+  }, 90_000)
 
   it('T0600: SessionStart inside the PTY → agentStarted; a client wait until=agent-started returns; codex null; restart → false; exited keeps it', async () => {
     const starter = termId('starter')

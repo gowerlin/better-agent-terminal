@@ -12,12 +12,22 @@
  *   PostToolUse, matcher AskUserQuestion (T0594) → cleared, only when blocked / question
  *   ElicitationResult; Notification,             → cleared, only when blocked / elicitation
  *     elicitation_response (async, T0620)
+ *   PostToolBatch (async, T0657)                 → cleared, only when blocked / permission and
+ *                                                  no other agent's prompt is still recorded
  *   UserPromptSubmit, Stop                       → cleared
  *   SessionStart (async, T0600)                  → `agentStarted` (blocked unchanged)
  *
  * Also cleared: the user's input into the tab (`PtyManager.noteUserInput`: a local window's /
  * headless client's `pty:write`, not `{ auto: true }`, not only terminal auto-replies), the PTY
  * ending (exit / kill, so `pty:restart` too), and the Terminal Server recovery.
+ *
+ * T0657 (BUG-162): a permission prompt answered without the keyboard (by mouse, or claude's own
+ * timeout — the dangerous-rm safety check auto-denies after 120 s even under
+ * `--dangerously-skip-permissions`) is cleared by `post-tool-batch`. `PostToolBatch` runs once all
+ * tool calls of one agent's batch resolved, so a parallel prompt of the same agent is never cleared
+ * early; prompts are keyed by the hook's `agent_id` (absent = the main thread), a batch clears only
+ * its own agent's, and `blocked` ends when none is left (more than `PERMISSION_AGENTS_MAX` agents →
+ * any batch clears).
  *
  * `blockedDetection` (`hook` / `none`) is per terminal id and outlives the PTY (restart, recovery,
  * an exited record): set by the launch decision (`buildBatMcpLaunchArgs`, `none` when no hooks)
@@ -72,6 +82,7 @@ export type HookReportEvent =
   | 'ask-user-question-done'
   | 'elicitation'
   | 'elicitation-done'
+  | 'post-tool-batch'
   | 'user-prompt-submit'
   | 'stop'
   | 'session-start'
@@ -82,6 +93,7 @@ export const HOOK_REPORT_EVENTS: readonly HookReportEvent[] = [
   'ask-user-question-done',
   'elicitation',
   'elicitation-done',
+  'post-tool-batch',
   'user-prompt-submit',
   'stop',
   'session-start',
@@ -103,6 +115,7 @@ export const HOOK_EVENT_REASON: Readonly<Record<BlockedReportEvent, HookBlockedR
   'ask-user-question-done': null,
   elicitation: 'elicitation',
   'elicitation-done': null,
+  'post-tool-batch': null,
   'user-prompt-submit': null,
   stop: null,
 }
@@ -122,11 +135,23 @@ export function hookEventReason(event: BlockedReportEvent, toolName?: string): H
  * T0594: a clearing event that clears only this reason (another reason → `unchanged`): the answered
  * AskUserQuestion must not clear a permission prompt shown meanwhile. Absent = clears any reason.
  * T0620: the closed MCP elicitation dialog likewise clears only `elicitation`.
+ * T0657: a resolved tool batch clears only `permission` (and only its own agent's prompts).
  */
 export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<BlockedReportEvent, HookBlockedReason>>> = {
   'ask-user-question-done': 'question',
   'elicitation-done': 'elicitation',
+  'post-tool-batch': 'permission',
 }
+
+/** T0657: the events that carry the hook's `agent_id` (any other event ignores it). */
+export const AGENT_ID_REPORT_EVENTS: readonly BlockedReportEvent[] = ['permission-request', 'post-tool-batch']
+/**
+ * T0657: agents whose permission prompt one tab remembers; one more → the tab falls back to
+ * "any `post-tool-batch` clears" (logged once) until it leaves `permission`.
+ */
+export const PERMISSION_AGENTS_MAX = 32
+/** T0657: the key of the main thread (a hook without `agent_id`). */
+const MAIN_AGENT = ''
 
 /** T0642: a claude session id as accepted from a `session-start` report (scripts/bat-hook.mjs checks the same). */
 export const CLAUDE_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -138,6 +163,8 @@ export function sessionIdForLog(sessionId: string): string {
 
 /** `toolName` as accepted from a hook (claude / MCP tool names: `Bash`, `mcp__bat__bat_wait`). */
 export const HOOK_TOOL_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/
+/** T0657: `agentId` as accepted from a hook (claude's subagent id); same rule as a tool name. */
+export const HOOK_AGENT_ID_PATTERN = HOOK_TOOL_NAME_PATTERN
 /** Terminal ids whose `blockedDetection` is remembered (oldest dropped first). */
 export const BLOCKED_DETECTION_MAX = 512
 /** An `unchanged` report is mirrored to bat-scripts.log at most this often per terminal. */
@@ -184,6 +211,11 @@ export class TerminalBlockedTracker {
   private readonly codexStates = new Map<string, CodexTerminalState>()
   /** T0642: running PTY id → the session id its last `session-start` sent. */
   private readonly sessionIds = new Map<string, string>()
+  /**
+   * T0657: PTY id in `permission` → the agents whose prompt is open (`MAIN_AGENT` = the main
+   * thread); `any` = more than `PERMISSION_AGENTS_MAX`, any `post-tool-batch` clears.
+   */
+  private readonly permissionAgents = new Map<string, Set<string> | 'any'>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
@@ -212,9 +244,10 @@ export class TerminalBlockedTracker {
 
   /**
    * Applies a hook report of PTY `id` (the caller checks it is running). T0642: `sessionId` (a
-   * `session-start` only, already validated) replaces the PTY's session id.
+   * `session-start` only, already validated) replaces the PTY's session id. T0657: `agentId` (a
+   * `permission-request` / `post-tool-batch` only, already validated; absent = the main thread).
    */
-  report(id: string, event: HookReportEvent, toolName?: string, sessionId?: string): { result: HookReportResult; state: BlockedState | null } {
+  report(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string): { result: HookReportResult; state: BlockedState | null } {
     this.setDetection(id, 'hook')
     if (isStartReportEvent(event)) {
       const state = this.get(id)
@@ -233,18 +266,44 @@ export class TerminalBlockedTracker {
       return { result, state }
     }
     const reason = hookEventReason(event, toolName)
+    const agent = agentId ?? MAIN_AGENT
+    const agentLog = agentId ? ` agent=${agentId}` : ''
     if (reason === null) {
       const only = HOOK_EVENT_CLEARS_ONLY[event]
       if (only && this.states.get(id)?.reason !== only) return { result: 'unchanged', state: this.get(id) }
-      return { result: this.clear(id, `hook ${event}`) ? 'cleared' : 'unchanged', state: null }
+      if (event === 'post-tool-batch') {
+        // T0657: another agent's prompt may still be open
+        const agents = this.permissionAgents.get(id)
+        if (agents instanceof Set && (!agents.delete(agent) || agents.size > 0)) return { result: 'unchanged', state: this.get(id) }
+      }
+      return { result: this.clear(id, `hook ${event}${agentLog}`) ? 'cleared' : 'unchanged', state: null }
     }
     const current = this.states.get(id)
-    if (current && current.reason === reason) return { result: 'unchanged', state: { ...current } }
+    if (current && current.reason === reason) {
+      if (reason === 'permission') this.addPermissionAgent(id, agent)
+      return { result: 'unchanged', state: { ...current } }
+    }
     const state: BlockedState = { reason, since: this.now(), event, ...(toolName ? { toolName } : {}) }
     this.states.set(id, state)
-    this.logger?.log(`[blocked] terminal=${id} → blocked reason=${reason} (hook ${event}${toolName ? ` tool=${toolName}` : ''})`)
+    if (reason === 'permission') this.permissionAgents.set(id, new Set([agent]))
+    else this.permissionAgents.delete(id)
+    this.logger?.log(`[blocked] terminal=${id} → blocked reason=${reason} (hook ${event}${toolName ? ` tool=${toolName}` : ''}${reason === 'permission' ? agentLog : ''})`)
     this.changed(id)
     return { result: 'blocked', state: { ...state } }
+  }
+
+  /** T0657: one more agent with an open permission prompt in PTY `id` (already `permission`). */
+  private addPermissionAgent(id: string, agent: string): void {
+    const agents = this.permissionAgents.get(id)
+    if (agents === 'any') return
+    if (!agents) {
+      this.permissionAgents.set(id, new Set([agent]))
+      return
+    }
+    agents.add(agent)
+    if (agents.size <= PERMISSION_AGENTS_MAX) return
+    this.permissionAgents.set(id, 'any')
+    this.logger?.log(`[blocked] terminal=${id} permission prompts of more than ${PERMISSION_AGENTS_MAX} agents → any post-tool-batch clears`)
   }
 
   /**
@@ -266,6 +325,7 @@ export class TerminalBlockedTracker {
     if (state !== 'blocked') return this.clear(id, `osc ${state}`) ? 'cleared' : 'unchanged'
     if (this.states.get(id)?.reason === 'input') return 'unchanged'
     this.states.set(id, { reason: 'input', since: this.now(), source: 'osc' })
+    this.permissionAgents.delete(id)
     this.logger?.log(`[blocked] terminal=${id} → blocked reason=input (osc)`)
     this.changed(id)
     return 'blocked'
@@ -282,6 +342,7 @@ export class TerminalBlockedTracker {
 
   /** Clears PTY `id`; true when it was blocked. */
   clear(id: string, cause: string): boolean {
+    this.permissionAgents.delete(id)
     if (!this.states.delete(id)) return false
     this.logger?.log(`[blocked] terminal=${id} → cleared (${cause})`)
     this.changed(id)
@@ -347,6 +408,7 @@ export class TerminalBlockedTracker {
 
   dispose(): void {
     this.states.clear()
+    this.permissionAgents.clear()
     this.started.clear()
     this.codexStates.clear()
     this.sessionIds.clear()
@@ -415,7 +477,7 @@ export class LaunchSuspectWatcher {
 /** What `terminal:report-hook` needs from PtyManager (the class satisfies it). */
 export interface ReportHookPtyManager {
   isAlive(id: string): boolean
-  reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string): { result: HookReportResult; state: BlockedState | null } | null
+  reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string): { result: HookReportResult; state: BlockedState | null } | null
 }
 
 export interface ReportHookDeps {
@@ -432,13 +494,17 @@ export const REPORT_HOOK_CHANNEL = 'terminal:report-hook'
 export type ReportHookFailure = { ok: false; code: 'INVALID_ARGS' | 'NOT_FOUND'; message?: string }
 
 /**
- * `terminal:report-hook` `{ event, toolName?, sessionId? }` — the target is always the caller's own terminal
+ * `terminal:report-hook` `{ event, toolName?, sessionId?, agentId? }` — the target is always the caller's own terminal
  * (`ctx.helper`, the capability the invoke came in with). Answers
  * `{ ok: true, terminalId, result, state, blockedReason? }` or `{ ok: false, INVALID_ARGS | NOT_FOUND }`
  * (T0600: `result: 'started'` for the first `session-start`).
  * T0642 (D167): `sessionId` of a `session-start` (`CLAUDE_SESSION_ID_PATTERN`) is recorded; on any
  * other event, or not a UUID, it is ignored — no error, `agentStarted` as without it. A BAT before
  * T0642 ignores the field the same way (the hook still exits 0).
+ * T0657: `agentId` (`HOOK_AGENT_ID_PATTERN`) of a `permission-request` / `post-tool-batch` keys the
+ * permission prompt by agent; not a string / not matching → INVALID_ARGS (a malformed id must not
+ * read as the main thread); on any other event it is ignored. A BAT before T0657 ignores the field
+ * (and answers `post-tool-batch` INVALID_ARGS; the hook still exits 0).
  * Every report is O(1); transitions are logged by the tracker, an `unchanged` report is mirrored to
  * bat-scripts.log at most once per `REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS` per terminal.
  */
@@ -446,7 +512,7 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
   const now = deps.now ?? (() => Date.now())
   const lastUnchangedMirror = new Map<string, number>()
 
-  const mirror = (terminalId: string, event: string, result: string, sessionId?: string): void => {
+  const mirror = (terminalId: string, event: string, result: string, sessionId?: string, agentId?: string): void => {
     if (!deps.mirrorToBatScripts) return
     if (result === 'unchanged') {
       const t = now()
@@ -461,6 +527,7 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
       hook: event,
       result,
       ...(sessionId ? { session: sessionIdForLog(sessionId) } : {}), // T0642: first 8 only
+      ...(agentId ? { agent: agentId } : {}), // T0657
     })
   }
 
@@ -488,10 +555,16 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
     const sessionId = event === 'session-start' && typeof opts.sessionId === 'string' && CLAUDE_SESSION_ID_PATTERN.test(opts.sessionId)
       ? opts.sessionId
       : undefined
+    // T0657: the subagent a permission prompt / a resolved batch belongs to
+    let agentId: string | undefined
+    if ((AGENT_ID_REPORT_EVENTS as readonly string[]).includes(event) && opts.agentId !== undefined && opts.agentId !== null) {
+      if (typeof opts.agentId !== 'string' || !HOOK_AGENT_ID_PATTERN.test(opts.agentId)) return fail(caller, event, 'INVALID_ARGS', 'agentId')
+      agentId = opts.agentId
+    }
     const pm = deps.getPtyManager()
-    const outcome = pm && pm.isAlive(caller) ? pm.reportHookEvent(caller, event as HookReportEvent, toolName, sessionId) : null
+    const outcome = pm && pm.isAlive(caller) ? pm.reportHookEvent(caller, event as HookReportEvent, toolName, sessionId, agentId) : null
     if (!outcome) return fail(caller, event, 'NOT_FOUND')
-    mirror(caller, event, outcome.result, sessionId)
+    mirror(caller, event, outcome.result, sessionId, agentId)
     return {
       ok: true,
       terminalId: caller,

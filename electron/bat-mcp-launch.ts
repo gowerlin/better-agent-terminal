@@ -154,6 +154,10 @@ export const BAT_CLAUDE_HOOKS: ReadonlyArray<{ hookEvent: string; matcher?: stri
   // `elicitation_response` follows it in every case, so either one alone still clears
   { hookEvent: 'ElicitationResult', event: 'elicitation-done', async: true },
   { hookEvent: 'Notification', matcher: 'elicitation_response', event: 'elicitation-done', async: true },
+  // T0657 (BUG-162): a permission prompt answered without the keyboard (mouse, or claude's own
+  // timeout that auto-denies the dangerous-rm safety check). Once per batch, after every tool call
+  // of that agent's batch resolved (a parallel prompt is never cleared early); no matcher (none applies)
+  { hookEvent: 'PostToolBatch', event: 'post-tool-batch', async: true },
   { hookEvent: 'UserPromptSubmit', event: 'user-prompt-submit', async: true },
   { hookEvent: 'Stop', event: 'stop', async: true },
   // T0600: the launch confirmation (`agentStarted`); any `source`, which is not sent. async: claude
