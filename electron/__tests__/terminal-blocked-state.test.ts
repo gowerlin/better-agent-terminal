@@ -162,7 +162,43 @@ describe('TerminalBlockedTracker', () => {
       '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
       '[blocked] terminal=a → cleared (hook user-prompt-submit)',
     ])
-    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop', 'session-start'])
+    expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'elicitation-done', 'user-prompt-submit', 'stop', 'session-start'])
+  })
+
+  it('T0620: elicitation-done clears an elicitation only; another reason (or none) is unchanged', () => {
+    const lines: string[] = []
+    let t = 1000
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) }, () => t)
+    expect(hookEventReason('elicitation-done')).toBeNull()
+    // not blocked: nothing to clear, but the tab is evidently reporting
+    expect(tracker.report('a', 'elicitation-done')).toEqual({ result: 'unchanged', state: null })
+    expect(tracker.getDetection('a')).toBe('hook')
+    tracker.report('a', 'elicitation')
+    expect(tracker.report('a', 'elicitation-done')).toEqual({ result: 'cleared', state: null })
+    expect(tracker.get('a')).toBeNull()
+    // ElicitationResult, then its `elicitation_response` notification: the second one is unchanged
+    expect(tracker.report('a', 'elicitation-done')).toEqual({ result: 'unchanged', state: null })
+    // a permission prompt or a question is not answered by the elicitation dialog closing
+    tracker.report('a', 'permission-request', 'Bash')
+    t = 2000
+    expect(tracker.report('a', 'elicitation-done')).toEqual({
+      result: 'unchanged',
+      state: { reason: 'permission', since: 1000, event: 'permission-request', toolName: 'Bash' },
+    })
+    tracker.report('a', 'ask-user-question')
+    expect(tracker.report('a', 'elicitation-done')).toMatchObject({ result: 'unchanged', state: { reason: 'question' } })
+    // and the answered question does not close an elicitation (T0594, the other direction)
+    tracker.report('a', 'elicitation')
+    expect(tracker.report('a', 'ask-user-question-done')).toMatchObject({ result: 'unchanged', state: { reason: 'elicitation' } })
+    expect(tracker.report('a', 'elicitation-done')).toEqual({ result: 'cleared', state: null })
+    expect(lines).toEqual([
+      '[blocked] terminal=a → blocked reason=elicitation (hook elicitation)',
+      '[blocked] terminal=a → cleared (hook elicitation-done)',
+      '[blocked] terminal=a → blocked reason=permission (hook permission-request tool=Bash)',
+      '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
+      '[blocked] terminal=a → blocked reason=elicitation (hook elicitation)',
+      '[blocked] terminal=a → cleared (hook elicitation-done)',
+    ])
   })
 
   it('T0594: ask-user-question-done clears a question only; another reason (or none) is unchanged', () => {
@@ -407,6 +443,22 @@ describe('terminal:report-hook', () => {
     expect(logs).toContain('[blocked] terminal=wk → cleared (hook ask-user-question-done)')
     // PermissionDenied is not reported (claude 2.1.300 fires it for auto-mode classifier denials only)
     expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-denied' })).toMatchObject({ ok: false, code: 'INVALID_ARGS' })
+  })
+
+  it('T0620: elicitation-done over the channel — clears the caller’s elicitation, leaves a permission prompt', () => {
+    scene()
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'elicitation' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'elicitation-done' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'cleared', state: 'not-blocked' })
+    h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-request', toolName: 'Bash' })
+    expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'elicitation-done' }))
+      .toEqual({ ok: true, terminalId: 'sh', result: 'unchanged', state: 'blocked', blockedReason: 'permission' })
+    expect(h.manager.getBlockedState('sh')).toMatchObject({ reason: 'permission', toolName: 'Bash' })
+    expect(logs).toContain('[blocked] terminal=wk → cleared (hook elicitation-done)')
+    // the result hook's other names are not events
+    for (const event of ['elicitation-result', 'elicitation-response', 'elicitation-complete']) {
+      expect(h.call('terminal:report-hook', h.asHelper('wk'), { event })).toMatchObject({ ok: false, code: 'INVALID_ARGS' })
+    }
   })
 
   it('T0597: PermissionRequest of AskUserQuestion over the channel answers blockedReason question; the answer clears it', () => {
@@ -724,6 +776,62 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
     expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
       .toMatchObject({ hook: 'ask-user-question-done', result: 'failed', code: 'INVALID_ARGS' })
+    await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+  })
+
+  it('T0620: ElicitationResult / Notification elicitation_response → cleared (no keyboard); content / action never sent', async () => {
+    const elicit = () => runHook('elicitation', JSON.stringify({ hook_event_name: 'Notification', notification_type: 'elicitation_dialog' }), hookEnv('hk-worker'))
+    await elicit()
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'elicitation' })
+    const input = {
+      session_id: 's1',
+      hook_event_name: 'ElicitationResult',
+      mcp_server_name: 'srv',
+      elicitation_id: 'el-1',
+      mode: 'form',
+      action: 'accept',
+      content: { password: 'SECRET-ELICITATION-CONTENT' },
+    }
+    const run = await runHook('elicitation-done', JSON.stringify(input), hookEnv('hk-worker'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+    expect(received.at(-1)).toEqual([{ event: 'elicitation-done' }])
+
+    // the request cancelled / timed out: no ElicitationResult, only the notification
+    await elicit()
+    const note = await runHook('elicitation-done', JSON.stringify({
+      hook_event_name: 'Notification',
+      notification_type: 'elicitation_response',
+      message: 'Elicitation response for server "SECRET-SERVER": cancel',
+    }), hookEnv('hk-worker'))
+    expect(note).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.getBlockedState('hk-worker')).toBeNull()
+    expect(received.at(-1)).toEqual([{ event: 'elicitation-done' }])
+    expect(JSON.stringify(received)).not.toMatch(/SECRET|content|accept|cancel/)
+
+    // another notification type wired to the same event (none is, but a shared settings file could) sends nothing
+    await elicit()
+    const before = received.length
+    for (const type of ['elicitation_complete', 'elicitation_dialog', 'idle_prompt']) {
+      expect(await runHook('elicitation-done', JSON.stringify({ hook_event_name: 'Notification', notification_type: type }), hookEnv('hk-worker')))
+        .toMatchObject({ code: 0, stdout: '' })
+    }
+    expect(received.length).toBe(before)
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'elicitation' })
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
+      .toMatchObject({ event: 'report-hook', hook: 'elicitation', terminalId: 'hk-worker' })
+    expect(log).not.toMatch(/SECRET/)
+
+    // a BAT that does not know the event (before T0620): INVALID_ARGS, exit 0, the state stays
+    oldBat = true
+    try {
+      expect(await runHook('elicitation-done', JSON.stringify(input), hookEnv('hk-worker'))).toMatchObject({ code: 0, stdout: '' })
+    } finally {
+      oldBat = false
+    }
+    expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'elicitation' })
     await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-worker'))
     expect(manager.getBlockedState('hk-worker')).toBeNull()
   })

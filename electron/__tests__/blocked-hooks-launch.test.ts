@@ -95,14 +95,20 @@ describe('claude hooks injection', () => {
     const content = fs.readFileSync(settingsFile(), 'utf8')
     const parsed = JSON.parse(content) as { hooks: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>> }
     expect(Object.keys(parsed)).toEqual(['hooks'])
-    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'])
+    expect(Object.keys(parsed.hooks)).toEqual(['PermissionRequest', 'PreToolUse', 'Notification', 'PostToolUse', 'ElicitationResult', 'UserPromptSubmit', 'Stop', 'SessionStart'])
     const cmd = (event: string) => `node '${fwd(hookScript())}' ${event}`
     expect(parsed.hooks).toEqual({
       PermissionRequest: [{ hooks: [{ type: 'command', command: cmd('permission-request'), timeout: 5 }] }],
       PreToolUse: [{ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command: cmd('ask-user-question'), timeout: 5 }] }],
-      Notification: [{ matcher: 'elicitation_dialog|elicitation_url_dialog', hooks: [{ type: 'command', command: cmd('elicitation'), timeout: 5 }] }],
+      Notification: [
+        { matcher: 'elicitation_dialog|elicitation_url_dialog', hooks: [{ type: 'command', command: cmd('elicitation'), timeout: 5 }] },
+        // T0620: sent after every elicitation answer, also a cancelled / timed-out request (async)
+        { matcher: 'elicitation_response', hooks: [{ type: 'command', command: cmd('elicitation-done'), timeout: 5, async: true }] },
+      ],
       // T0594: the answered question clears (async, AskUserQuestion only)
       PostToolUse: [{ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command: cmd('ask-user-question-done'), timeout: 5, async: true }] }],
+      // T0620: the user answered the elicitation (every server, async)
+      ElicitationResult: [{ hooks: [{ type: 'command', command: cmd('elicitation-done'), timeout: 5, async: true }] }],
       UserPromptSubmit: [{ hooks: [{ type: 'command', command: cmd('user-prompt-submit'), timeout: 5, async: true }] }],
       Stop: [{ hooks: [{ type: 'command', command: cmd('stop'), timeout: 5, async: true }] }],
       // T0600: the launch confirmation, every source, never waited for
@@ -114,6 +120,8 @@ describe('claude hooks injection', () => {
     // denials only, T0594), no idle / permission notifications
     expect(parsed.hooks.PostToolUse.every(e => e.matcher === 'AskUserQuestion')).toBe(true)
     expect(content).not.toMatch(/PermissionDenied|PostToolUseFailure|PostToolBatch|idle_prompt|permission_prompt/)
+    // T0620: no `elicitation_complete` (a URL elicitation the server confirmed: the dialog may still be open)
+    expect(content).not.toMatch(/elicitation_complete/)
     // rewritten only when it changes
     const mtime = fs.statSync(settingsFile()).mtimeMs
     buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli-worktree', shellFamily: 'posix' })
@@ -174,7 +182,7 @@ describe('claude hooks injection', () => {
     for (const name of ['bat-mcp.mjs', 'bat-hook.mjs']) fs.writeFileSync(path.join(quoted, name), '')
     expect(buildBatMcpLaunchArgs(host({ helperDir: () => quoted }), { agentId: 'claude-cli', shellFamily: 'posix' }))
       .toMatchObject({ injected: true, mcp: true, hooks: false, hooksReason: expect.stringContaining('bash and PowerShell') })
-    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'ask-user-question-done', 'user-prompt-submit', 'stop', 'session-start'])
+    expect(BAT_CLAUDE_HOOKS.map(h => h.event)).toEqual(['permission-request', 'ask-user-question', 'elicitation', 'ask-user-question-done', 'elicitation-done', 'elicitation-done', 'user-prompt-submit', 'stop', 'session-start'])
     // every hook BAT injects is an event bat-hook.mjs and terminal:report-hook accept
     expect(BAT_CLAUDE_HOOKS.every(h => (HOOK_REPORT_EVENTS as readonly string[]).includes(h.event))).toBe(true)
   })

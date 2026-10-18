@@ -14,7 +14,7 @@ describe('hookReport', () => {
     expect(hookReport('permission-request', { tool_name: 'bad name with spaces' })).toEqual({ event: 'permission-request' })
     expect(hookReport('user-prompt-submit', { hook_event_name: 'UserPromptSubmit', prompt: 'SECRET' })).toEqual({ event: 'user-prompt-submit' })
     expect(hookReport('stop', null)).toEqual({ event: 'stop' })
-    expect(HOOK_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop', 'session-start'])
+    expect(HOOK_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'elicitation-done', 'user-prompt-submit', 'stop', 'session-start'])
     // T0594: the answered question — never tool_response (the answers) / tool_input
     expect(hookReport('ask-user-question-done', { hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion', tool_input: { q: 1 }, tool_response: { answers: { a: 'SECRET' } } }))
       .toEqual({ event: 'ask-user-question-done' })
@@ -31,6 +31,27 @@ describe('hookReport', () => {
     expect(hookReport('ask-user-question-done', { hook_event_name: 'PostToolUse', tool_name: 'Bash' })).toBeNull()
     expect(hookReport('ask-user-question-done', { hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' })).toBeNull()
     expect(hookReport('permission-denied', { hook_event_name: 'PermissionDenied', tool_name: 'Bash' })).toBeNull()
+  })
+
+  it('T0620: ElicitationResult / Notification elicitation_response → elicitation-done; never content / action / message', () => {
+    expect(hookReport('elicitation-done', {
+      hook_event_name: 'ElicitationResult', mcp_server_name: 'srv', elicitation_id: 'e1', mode: 'form', action: 'accept', content: { pin: 'SECRET' },
+    })).toEqual({ event: 'elicitation-done' })
+    for (const action of ['decline', 'cancel']) {
+      expect(hookReport('elicitation-done', { hook_event_name: 'ElicitationResult', action })).toEqual({ event: 'elicitation-done' })
+    }
+    expect(hookReport('elicitation-done', { hook_event_name: 'Notification', notification_type: 'elicitation_response', message: 'SECRET' }))
+      .toEqual({ event: 'elicitation-done' })
+    expect(hookReport('elicitation-done', null)).toEqual({ event: 'elicitation-done' })
+    // another notification (the server's URL completion, the dialog itself, idle) / another hook: nothing
+    for (const type of ['elicitation_complete', 'elicitation_dialog', 'elicitation_url_dialog', 'idle_prompt']) {
+      expect(hookReport('elicitation-done', { hook_event_name: 'Notification', notification_type: type }), type).toBeNull()
+    }
+    expect(hookReport('elicitation-done', { hook_event_name: 'Elicitation' })).toBeNull()
+    expect(hookReport('elicitation-done', { hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion' })).toBeNull()
+    // and the dialog event is not fired by the result hook / the response notification
+    expect(hookReport('elicitation', { hook_event_name: 'ElicitationResult' })).toBeNull()
+    expect(hookReport('elicitation', { hook_event_name: 'Notification', notification_type: 'elicitation_response' })).toBeNull()
   })
 
   it('T0600: SessionStart → session-start, nothing of its input (source, model, transcript) is sent', () => {

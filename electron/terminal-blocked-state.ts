@@ -10,6 +10,8 @@
  *   PreToolUse, matcher AskUserQuestion          → blocked / question
  *   Notification, elicitation_dialog / _url_     → blocked / elicitation
  *   PostToolUse, matcher AskUserQuestion (T0594) → cleared, only when blocked / question
+ *   ElicitationResult; Notification,             → cleared, only when blocked / elicitation
+ *     elicitation_response (async, T0620)
  *   UserPromptSubmit, Stop                       → cleared
  *   SessionStart (async, T0600)                  → `agentStarted` (blocked unchanged)
  *
@@ -45,6 +47,7 @@ export type HookReportEvent =
   | 'ask-user-question'
   | 'ask-user-question-done'
   | 'elicitation'
+  | 'elicitation-done'
   | 'user-prompt-submit'
   | 'stop'
   | 'session-start'
@@ -54,6 +57,7 @@ export const HOOK_REPORT_EVENTS: readonly HookReportEvent[] = [
   'ask-user-question',
   'ask-user-question-done',
   'elicitation',
+  'elicitation-done',
   'user-prompt-submit',
   'stop',
   'session-start',
@@ -74,6 +78,7 @@ export const HOOK_EVENT_REASON: Readonly<Record<BlockedReportEvent, HookBlockedR
   'ask-user-question': 'question',
   'ask-user-question-done': null,
   elicitation: 'elicitation',
+  'elicitation-done': null,
   'user-prompt-submit': null,
   stop: null,
 }
@@ -92,9 +97,11 @@ export function hookEventReason(event: BlockedReportEvent, toolName?: string): H
 /**
  * T0594: a clearing event that clears only this reason (another reason → `unchanged`): the answered
  * AskUserQuestion must not clear a permission prompt shown meanwhile. Absent = clears any reason.
+ * T0620: the closed MCP elicitation dialog likewise clears only `elicitation`.
  */
 export const HOOK_EVENT_CLEARS_ONLY: Readonly<Partial<Record<BlockedReportEvent, HookBlockedReason>>> = {
   'ask-user-question-done': 'question',
+  'elicitation-done': 'elicitation',
 }
 
 /** `toolName` as accepted from a hook (claude / MCP tool names: `Bash`, `mcp__bat__bat_wait`). */

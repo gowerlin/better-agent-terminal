@@ -109,6 +109,11 @@ export const BAT_CLAUDE_HOOKS: ReadonlyArray<{ hookEvent: string; matcher?: stri
   { hookEvent: 'Notification', matcher: 'elicitation_dialog|elicitation_url_dialog', event: 'elicitation' },
   // T0594: the question answered (also by mouse, which is no input); only that tool starts node
   { hookEvent: 'PostToolUse', matcher: 'AskUserQuestion', event: 'ask-user-question-done', async: true },
+  // T0620: the elicitation dialog closed (also by mouse, or the request cancelled / timed out).
+  // ElicitationResult runs after the user's answer (not when the request was aborted);
+  // `elicitation_response` follows it in every case, so either one alone still clears
+  { hookEvent: 'ElicitationResult', event: 'elicitation-done', async: true },
+  { hookEvent: 'Notification', matcher: 'elicitation_response', event: 'elicitation-done', async: true },
   { hookEvent: 'UserPromptSubmit', event: 'user-prompt-submit', async: true },
   { hookEvent: 'Stop', event: 'stop', async: true },
   // T0600: the launch confirmation (`agentStarted`); any `source`, which is not sent. async: claude

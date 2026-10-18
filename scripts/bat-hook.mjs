@@ -7,6 +7,8 @@
 //   PreToolUse (matcher AskUserQuestion)       → bat-hook.mjs ask-user-question
 //   Notification (elicitation_dialog / _url_)  → bat-hook.mjs elicitation
 //   PostToolUse (matcher AskUserQuestion, async) → bat-hook.mjs ask-user-question-done (T0594)
+//   ElicitationResult (async, T0620)           → bat-hook.mjs elicitation-done
+//   Notification (elicitation_response, async) → bat-hook.mjs elicitation-done (T0620)
 //   UserPromptSubmit (async)                   → bat-hook.mjs user-prompt-submit
 //   Stop (async)                               → bat-hook.mjs stop
 //   SessionStart (async, T0600)                → bat-hook.mjs session-start (`agentStarted`;
@@ -20,7 +22,7 @@
 // 🔴 It must never change what claude does: exit 0 always, nothing on stdout (a PermissionRequest /
 // PreToolUse hook printing JSON would decide for the user), silent on any failure, done within
 // HOOK_DEADLINE_MS. It sends the event name and (permission prompts only) the tool name — never
-// tool_input / tool_response, a prompt, a message or a token. Outside BAT (no BAT_REMOTE_*) it exits at once.
+// tool_input / tool_response, an elicitation's content / action, a prompt, a message or a token. Outside BAT (no BAT_REMOTE_*) it exits at once.
 //
 // Zero external dependencies — Node.js 18+ built-in modules only.
 
@@ -39,31 +41,36 @@ export const STDIN_MAX_BYTES = 256 * 1024
 export const CONNECT_TIMEOUT_MS = 1000
 export const INVOKE_TIMEOUT_MS = 1000
 
-export const HOOK_EVENTS = ['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'user-prompt-submit', 'stop', 'session-start']
+export const HOOK_EVENTS = ['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'elicitation-done', 'user-prompt-submit', 'stop', 'session-start']
 const ELICITATION_TYPES = ['elicitation_dialog', 'elicitation_url_dialog']
-/** claude hook_event_name each event is wired to (a mismatch = not ours to report). */
+/** T0620: the Notification type `elicitation-done` is wired to. */
+const ELICITATION_DONE_TYPE = 'elicitation_response'
+/** claude hook_event_name(s) each event is wired to (a mismatch = not ours to report). */
 const HOOK_EVENT_NAMES = {
-  'permission-request': 'PermissionRequest',
-  'ask-user-question': 'PreToolUse',
-  'ask-user-question-done': 'PostToolUse',
-  elicitation: 'Notification',
-  'user-prompt-submit': 'UserPromptSubmit',
-  stop: 'Stop',
-  'session-start': 'SessionStart',
+  'permission-request': ['PermissionRequest'],
+  'ask-user-question': ['PreToolUse'],
+  'ask-user-question-done': ['PostToolUse'],
+  elicitation: ['Notification'],
+  'elicitation-done': ['ElicitationResult', 'Notification'],
+  'user-prompt-submit': ['UserPromptSubmit'],
+  stop: ['Stop'],
+  'session-start': ['SessionStart'],
 }
 const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/
 
 /**
  * What to report for `event` given claude's hook input (already parsed; null = none / unreadable):
  * `{ event, toolName? }`, or null = report nothing (unknown event, the input names another hook,
- * a Notification that is not an elicitation, a PreToolUse / PostToolUse of another tool).
+ * a Notification that is not an elicitation / an elicitation response, a PreToolUse / PostToolUse of
+ * another tool).
  */
 export function hookReport(event, input) {
   if (!HOOK_EVENTS.includes(event)) return null
   const fields = input && typeof input === 'object' && !Array.isArray(input) ? input : {}
   const name = typeof fields.hook_event_name === 'string' ? fields.hook_event_name : null
-  if (name && name !== HOOK_EVENT_NAMES[event]) return null
+  if (name && !HOOK_EVENT_NAMES[event].includes(name)) return null
   if (event === 'elicitation' && typeof fields.notification_type === 'string' && !ELICITATION_TYPES.includes(fields.notification_type)) return null
+  if (event === 'elicitation-done' && name !== 'ElicitationResult' && typeof fields.notification_type === 'string' && fields.notification_type !== ELICITATION_DONE_TYPE) return null
   if ((event === 'ask-user-question' || event === 'ask-user-question-done') && typeof fields.tool_name === 'string' && fields.tool_name !== 'AskUserQuestion') return null
   if (event === 'permission-request' && typeof fields.tool_name === 'string' && TOOL_NAME_PATTERN.test(fields.tool_name)) {
     return { event, toolName: fields.tool_name }
