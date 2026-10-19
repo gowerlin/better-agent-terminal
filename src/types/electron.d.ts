@@ -223,6 +223,8 @@ interface ElectronAPI {
   }
   system: {
     onResume: (callback: () => void) => () => void
+    /** T0669 / BUG-164: `system:gpu-process-gone` — the GPU process died; `crash` = this session's GPU crash count. */
+    onGpuProcessGone: (callback: (info: { crash: number }) => void) => () => void
   }
   debug: {
     log: (...args: unknown[]) => void

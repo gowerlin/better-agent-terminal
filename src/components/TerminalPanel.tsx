@@ -22,6 +22,14 @@ import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheck
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
+
+// T0669 / BUG-164: redraw of a visible terminal after a GPU process crash (see the effect).
+/** How often to check whether the layer canvases have their context back. */
+const GPU_REDRAW_POLL_MS = 250
+/** Redraw anyway after this long, even if a layer canvas still reports a lost context. */
+const GPU_REDRAW_MAX_WAIT_MS = 5_000
+/** Back-to-back crashes: at least this long between two redraws of one terminal. */
+const GPU_REDRAW_MIN_INTERVAL_MS = 1_000
 const osc52DebugNoticeLine = /^sent \d+ chars via OSC 52 .*paste fails$/u
 
 interface RemoteKeypressTrace {
@@ -825,6 +833,88 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       doResize()
     })
 
+    // T0669 / BUG-164: after a GPU process crash xterm's canvas layers and its glyph atlas come
+    // back blank, and nothing redraws a terminal that stays visible (the isActive effect only runs
+    // on activation). Redraw it once per crash, when its canvases are usable again: a layer
+    // canvas's `contextrestored`, or the first poll that finds no layer canvas with a lost context
+    // (the restore can happen before this message arrives), at most GPU_REDRAW_MAX_WAIT_MS later.
+    // A crash while the window is hidden waits for it to show. Hidden terminals do nothing: the
+    // isActive effect redraws them on activation. Crashes arriving while one waits share its redraw.
+    let gpuCrashSeen = 0
+    let gpuCrashPending = 0
+    let gpuRedrawLastAt = 0
+    let cancelGpuRedraw: (() => void) | null = null
+    const layerCanvases = () => Array.from(containerRef.current?.querySelectorAll<HTMLCanvasElement>('.xterm-screen canvas') ?? [])
+    const anyLayerContextLost = () => layerCanvases().some(canvas => {
+      try {
+        return (canvas.getContext('2d') as CanvasRenderingContext2D | null)?.isContextLost?.() === true
+      } catch {
+        return false
+      }
+    })
+    const redrawAfterGpuCrash = (trigger: string) => {
+      cancelGpuRedraw = null
+      const crash = gpuCrashPending
+      gpuCrashPending = 0
+      if (!isActiveRef.current) {
+        dlog(`[gpu] terminal redraw skipped (no longer active) terminal=${terminalId} crash=#${crash}`)
+        return
+      }
+      gpuRedrawLastAt = Date.now()
+      terminal.clearTextureAtlas()
+      terminal.refresh(0, terminal.rows - 1)
+      dlog(`[gpu] terminal redraw after GPU crash terminal=${terminalId} crash=#${crash} trigger=${trigger}`)
+    }
+    const scheduleGpuRedraw = () => {
+      if (document.visibilityState === 'hidden') {
+        const onVisible = () => {
+          if (document.visibilityState === 'hidden') return
+          document.removeEventListener('visibilitychange', onVisible)
+          scheduleGpuRedraw()
+        }
+        document.addEventListener('visibilitychange', onVisible)
+        cancelGpuRedraw = () => document.removeEventListener('visibilitychange', onVisible)
+        return
+      }
+      const startedAt = Date.now()
+      const canvases = layerCanvases()
+      let poll: ReturnType<typeof setInterval> | null = null
+      let delay: ReturnType<typeof setTimeout> | null = null
+      let raf = 0
+      const onRestored = () => ready('contextrestored')
+      const stopWaiting = () => {
+        if (poll) clearInterval(poll)
+        poll = null
+        canvases.forEach(canvas => canvas.removeEventListener('contextrestored', onRestored))
+      }
+      const ready = (trigger: string) => {
+        stopWaiting()
+        delay = setTimeout(() => {
+          delay = null
+          raf = requestAnimationFrame(() => redrawAfterGpuCrash(trigger))
+        }, Math.max(0, gpuRedrawLastAt + GPU_REDRAW_MIN_INTERVAL_MS - Date.now()))
+      }
+      canvases.forEach(canvas => canvas.addEventListener('contextrestored', onRestored))
+      poll = setInterval(() => {
+        if (Date.now() - startedAt >= GPU_REDRAW_MAX_WAIT_MS) ready('timeout')
+        else if (!anyLayerContextLost()) ready('settled')
+      }, GPU_REDRAW_POLL_MS)
+      cancelGpuRedraw = () => {
+        stopWaiting()
+        if (delay) clearTimeout(delay)
+        if (raf) cancelAnimationFrame(raf)
+      }
+    }
+    const unsubscribeGpuProcessGone = window.electronAPI.system.onGpuProcessGone(({ crash }) => {
+      if (crash <= gpuCrashSeen) return
+      gpuCrashSeen = crash
+      if (!isActiveRef.current) return
+      gpuCrashPending = crash
+      if (cancelGpuRedraw) return
+      dlog(`[gpu] terminal redraw scheduled terminal=${terminalId} crash=#${crash}`)
+      scheduleGpuRedraw()
+    })
+
     // Handle terminal exit
     const unsubscribeExit = window.electronAPI.pty.onExit((id, exitCode) => {
       if (id === terminalId) {
@@ -884,6 +974,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       unregisterReplay()
       unregisterNotice()
       unregisterSizeSync()
+      unsubscribeGpuProcessGone()
+      cancelGpuRedraw?.()
       replayer.dispose()
       unsubscribeOutput()
       unsubscribeExit()

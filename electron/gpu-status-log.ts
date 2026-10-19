@@ -13,6 +13,8 @@
  *   `child-process-gone`, following the unchanged `[CRASH]` line
  * - `feature status changed: <changes> | <key=value …>` — on `gpu-info-update`, only when the
  *   status differs from the last one logged
+ * - `skia graphite: …` — T0669: whether main.ts disabled Skia Graphite at startup, and why
+ *   (`decideSkiaGraphite`, the one thing in this file that decides a rendering switch)
  */
 
 /** main.ts: log the baseline anyway if no `gpu-info-update` arrives within this time. */
@@ -160,5 +162,38 @@ export function createGpuStatusLog(deps: GpuStatusLogDeps): GpuStatusLog {
       last = status
       return gpuCrashCount
     },
+  }
+}
+
+/**
+ * T0669 / BUG-164: Electron 41 (Chromium 146) crashes the GPU process on a CHECK in Skia Graphite's
+ * `GraphiteSharedContext` (`kOutOfOrderRecording`). Graphite is on by default only on Apple, so
+ * main.ts adds `--disable-skia-graphite` on darwin (Ganesh / ANGLE Metal instead). It is its own
+ * switch on purpose: a second `appendSwitch('disable-features', …)` would replace the existing
+ * `disable-features=ServiceWorker`. Setting this env to `1` keeps Graphite on (escape hatch).
+ */
+export const SKIA_GRAPHITE_ENV = 'BAT_SKIA_GRAPHITE'
+
+export interface SkiaGraphiteDecision {
+  /** true → main.ts appends `disable-skia-graphite` */
+  disable: boolean
+  reason: 'darwin-default' | 'env-override' | 'not-darwin'
+}
+
+export function decideSkiaGraphite(platform: string, env: Readonly<Record<string, string | undefined>>): SkiaGraphiteDecision {
+  if (platform !== 'darwin') return { disable: false, reason: 'not-darwin' }
+  if (env[SKIA_GRAPHITE_ENV]?.trim() === '1') return { disable: false, reason: 'env-override' }
+  return { disable: true, reason: 'darwin-default' }
+}
+
+/** The startup `[gpu]` line for the decision. */
+export function formatSkiaGraphiteDecision(decision: SkiaGraphiteDecision, platform: string): string {
+  switch (decision.reason) {
+    case 'darwin-default':
+      return `[gpu] skia graphite: disabled (darwin default, --disable-skia-graphite; ${SKIA_GRAPHITE_ENV}=1 keeps it on)`
+    case 'env-override':
+      return `[gpu] skia graphite: not disabled (${SKIA_GRAPHITE_ENV}=1)`
+    case 'not-darwin':
+      return `[gpu] skia graphite: not disabled (platform=${platform})`
   }
 }

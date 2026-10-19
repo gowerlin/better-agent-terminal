@@ -91,7 +91,7 @@ import {
 import { getConnectionInfo } from './remote/tunnel-manager'
 import { closeAllSshWizardTunnels, registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
-import { createGpuStatusLog, GPU_BASELINE_FALLBACK_MS, summarizeGpuInfo } from './gpu-status-log'
+import { createGpuStatusLog, decideSkiaGraphite, formatSkiaGraphiteDecision, GPU_BASELINE_FALLBACK_MS, summarizeGpuInfo } from './gpu-status-log'
 import { describeMigrationReport } from './userdata-migration'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
@@ -148,6 +148,13 @@ app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 // Disable Service Workers — we don't use them, and a corrupted SW database
 // causes Chromium to block the renderer for 4+ seconds on Windows during I/O recovery.
 app.commandLine.appendSwitch('disable-features', 'ServiceWorker')
+
+// T0669 / BUG-164: macOS — Skia Graphite's CHECK (kOutOfOrderRecording) kills the GPU process in
+// Electron 41; use Ganesh instead. Its own switch: a second `disable-features` would replace the
+// one above. `BAT_SKIA_GRAPHITE=1` keeps Graphite; Windows / Linux get no switch.
+const skiaGraphite = decideSkiaGraphite(process.platform, process.env)
+if (skiaGraphite.disable) app.commandLine.appendSwitch('disable-skia-graphite')
+logger.log(formatSkiaGraphiteDecision(skiaGraphite, process.platform))
 
 // App name, --runtime=N / BAT_RUNTIME=N and the userData directory are resolved in
 // app-paths-bootstrap (first import). Each runtime gets its own userData and single-instance lock.
@@ -1683,7 +1690,12 @@ app.whenReady().then(async () => {
 
   app.on('child-process-gone', (_event, details) => {
     logger.error(`[CRASH] child-process-gone type=${details.type} reason=${details.reason} exitCode=${details.exitCode}`)
-    gpuStatusLog.onChildProcessGone(details)
+    const gpuCrash = gpuStatusLog.onChildProcessGone(details)
+    // T0669 / BUG-164: every window (detached ones too) redraws its visible terminal once the
+    // GPU process is back — xterm's canvas layers and glyph atlas come back blank.
+    if (details.type === 'GPU') {
+      for (const win of getAllWindows()) win.webContents.send('system:gpu-process-gone', { crash: gpuCrash })
+    }
   })
 
   // Register voice handlers only after app is ready because it installs

@@ -942,6 +942,12 @@ const electronAPI = {
       ipcRenderer.on('system:resume', handler)
       return () => ipcRenderer.removeListener('system:resume', handler)
     },
+    // T0669 / BUG-164: the GPU process died (`crash` = session count) — visible terminals redraw
+    onGpuProcessGone: (callback: (info: { crash: number }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { crash: number }) => callback(info)
+      ipcRenderer.on('system:gpu-process-gone', handler)
+      return () => ipcRenderer.removeListener('system:gpu-process-gone', handler)
+    },
   },
   debug: {
     log: (...args: unknown[]) => ipcRenderer.send('debug:log', ...args),
