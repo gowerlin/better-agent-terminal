@@ -164,11 +164,11 @@ ct/T1025  領先 2  落後 3  未提交 0  → 先更新再合併</pre>
 ├─ src/
 │  ├─ cart.ts
 │  └─ discount.ts
-└─ work-orders/
+└─ _ct-workorders/
    ├─ T1024-discount-code.md
    ├─ T1025-rounding.md
    ├─ T1026-checkout-ui.md
-   └─ decision-log.md</pre>
+   └─ _decision-log.md</pre>
     </template>
 
     <template v-else-if="kind === 'align'">
@@ -184,7 +184,7 @@ ct/T1025  領先 2  落後 3  未提交 0  → 先更新再合併</pre>
     </template>
 
     <template v-else-if="kind === 'workorder'">
-      <pre class="si-screen is-wide" aria-hidden="true"><span class="si-title">work-orders/T1024-discount-code.md</span>
+      <pre class="si-screen is-wide" aria-hidden="true"><span class="si-title">_ct-workorders/T1024-discount-code.md</span>
 目標    折扣碼的資料模型與驗證
 範圍    src/discount.ts、src/cart.ts
 驗收    單元測試通過、建置 0 錯誤
