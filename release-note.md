@@ -2,6 +2,31 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.3（2026-10-19）
+
+版號 0.7.1-pre.3，接續 `v0.7.1-pre.2`。
+
+### 修正
+
+- **macOS 上長時間使用的分頁打字越來越卡**：Codex 這類全螢幕程式在 macOS / Linux 的輸出幾乎沒有換行。縮圖列的預覽文字因此一直累積，對話越長越大，使用者量到的單一分頁預覽有 70 萬到 100 萬字以上。每次更新縮圖都要重新排版整段文字，BAT 介面持續吃滿約一顆核心，打字明顯延遲。現在縮圖預覽有長度上限（約 2 KB），一般 shell 的縮圖照舊顯示最後 8 行。Windows 原本就不會累積，不受影響（BUG-136）
+- **macOS 上 GPU 程序偶爾在建立或切換分頁時崩潰**：Chromium 146（Electron 41）的 Skia Graphite 繪圖後端遇到繪圖指令順序錯亂時，會直接讓 GPU 程序崩潰，5 分鐘內崩 3 次還會退回軟體繪圖，直到重開 BAT。現在 macOS 版預設停用 Graphite，改用另一個繪圖後端。如果停用後畫面或效能變差，可以用環境變數 `BAT_SKIA_GRAPHITE=1` 啟動 BAT 恢復原狀（BUG-164）
+- **GPU 程序崩潰後終端畫面空白或殘影**：GPU 程序重新啟動後，當下看得到的終端會自動重畫，不必再切換分頁或手動重繪（BUG-164）
+
+### 更新
+
+- **專案網站**：各頁補上搜尋與分享用的說明文字，404 頁改為中文；故事插圖改用 Control Tower 實際的工單目錄名稱，SSH 頁補充範例主機名稱的說明。<https://gowerlin.github.io/better-agent-terminal/>
+
+### 已知事項
+
+- 這一版的兩項 macOS 修正以自動測試驗證，尚未在 macOS 實機確認：打字延遲是否消失、停用 Graphite 後是否不再出現 GPU 崩潰
+- 停用 Graphite 只在 macOS 生效。GPU 崩潰的根本修正需要升級 Electron 42 以上，已列入後續計畫
+- 遠端視窗需把遠端的 BAT 伺服器升級到本版（重跑設定精靈）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.2...v0.7.1-pre.3
+
 ## v0.7.1-pre.2（2026-10-18）
 
 版號 0.7.1-pre.2，接續 `v0.7.1-pre.1`。

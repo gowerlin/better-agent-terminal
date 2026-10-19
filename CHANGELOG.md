@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.3] — 2026-10-19
+
+### Fixed
+- **macOS 長時間使用的分頁打字延遲、Renderer 約一顆核心**：縮圖預覽 `scheduleBatchedPreviewUpdate` 只在遇到 `\n` 時截短。alt screen 程式（Codex）在 Linux / macOS PTY 的輸出幾乎沒有 `\n`，預覽字串因此無上限累積（使用者量到 71 萬到 105 萬字元），每 150 ms 就要 regex 清理加單行 layout 一次。改為輸入端只保留尾端 16 Ki、輸出端每行 256 字元 × 8 行（≤ 2055 字元），Claude `onStream` / `onMessage` 同一上限；純邏輯抽到 `src/lib/thumbnail-preview.ts`（BUG-136，T0666 / T0667）
+- **macOS GPU 程序在建立 / 切換分頁時 CHECK 崩潰**：Chromium 146 `graphite_shared_context.cc:291` 遇到 Skia Graphite `kOutOfOrderRecording` 會直接中止（Chromium 147 起才改為 context lost）。macOS 預設加 `--disable-skia-graphite`，env `BAT_SKIA_GRAPHITE=1` 可恢復（`decideSkiaGraphite`，`electron/gpu-status-log.ts`）；啟動記 `[gpu] skia graphite:` 一行（BUG-164，T0668 / T0669）
+- **GPU 程序崩潰後可見終端空白 / 殘影**：main 在 GPU `child-process-gone` 時廣播 `system:gpu-process-gone`；可見的終端在圖層 canvas `contextrestored`（或確認 context 已恢復）後 `clearTextureAtlas()` + `refresh()`，同一序號只重建一次、間隔 ≥ 1 s；isActive effect（Win11 修正）不變（BUG-164，T0669）
+
+### Changed
+- 專案網站：install / compatibility / releases 頁的 description、404 中文 description、更版紀錄頁標題；故事插圖改用實際工單目錄名 `_ct-workorders/`（D173）、SSH 頁說明範例主機名稱（T0665）
+- 新增 opt-in e2e：`e2e/v071-pre2-acceptance.spec.ts`、`e2e/v071-pre2-blocked-acceptance.spec.ts`（`BAT_E2E_V071PRE2=1`）（T0663 / T0664）
+
+### Known issues
+- 兩項 macOS 修正未經 macOS 實機驗證（打字延遲、停用 Graphite 後是否不再崩潰）
+- GPU 崩潰的根本修正需 Electron 42+（PLAN-053）
+- 遠端視窗需重跑設定精靈把遠端 server 升級到本版
+- Linux 版本未實機驗證
+
 ## [0.7.1-pre.2] — 2026-10-18
 
 ### Fixed
