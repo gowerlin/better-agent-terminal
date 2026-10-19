@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-19T12:41:35+0800"
+generated_at: "2026-10-19T12:51:12+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 49
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 22
+  FIXING: 0
+  FIXED: 23
   VERIFY: 0
   CLOSED: 26
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-19 12:41 (UTC+8) — BUG-164 OPEN → FIXING（T0669）；BUG-136 FIXED（T0667，Gary 量測確認假設 C）
+> 最後同步：2026-10-19 12:51 (UTC+8) — BUG-164 FIXING → FIXED（T0669 `32d62a45`）；BUG-136 FIXED（T0667）；皆待 Gary 以 v0.7.1-pre.3 確認
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 49**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 49**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`CrGpuMain`，累計 6 次；從 BUG-136 拆出；T0668 符號化 → T0669 修正中） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`CrGpuMain`，累計 6 次；從 BUG-136 拆出；T0668 符號化；T0669 `32d62a45` macOS 停用 Graphite + 崩潰後重建可見終端；待 Gary 確認） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU：縮圖預覽字串無上限累積（假設 C，T0666；T0667 `a9f0ad5a` 加上限）；待 Gary 以含此修正的版本確認；GPU 崩潰另案 | 🟡 medium | 2026-10-19 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |

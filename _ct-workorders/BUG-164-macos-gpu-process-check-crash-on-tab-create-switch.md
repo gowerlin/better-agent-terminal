@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-164
 title: "macOS：GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`EXC_BREAKPOINT` @ `CrGpuMain`，累計 6 次）"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T12:06:59+0800"
-updated_at: "2026-10-19T12:41:35+0800"
+updated_at: "2026-10-19T12:51:12+0800"
 impact:
   - gpu-process
   - xterm-canvas
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（Chromium 會自動重啟 GPU 程序；目前沒有證據顯示會造成打字延遲，延遲另見 BUG-136） |
 | 可重現 | 未確認 |
-| **狀態** | 🔧 FIXING（T0669：macOS 停用 Graphite + 崩潰後重建可見終端；Electron 42+ 升級另見 PLAN-053） |
+| **狀態** | ✅ FIXED（T0669 `32d62a45`：macOS 預設 `--disable-skia-graphite`（`BAT_SKIA_GRAPHITE=1` 可恢復）+ GPU 崩潰後重建可見終端；待 Gary 以 `v0.7.1-pre.3` 確認 `skia_graphite=` 不再是 `enabled_on`、期間無 GPU 崩潰。Electron 42+ 升級另見 PLAN-053） |
 | 回報者 | Gary（日誌與崩潰報告）；判讀 T0666 |
 
 ## 環境
