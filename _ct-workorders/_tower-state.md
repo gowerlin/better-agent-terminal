@@ -2,7 +2,7 @@
 
 > 最後更新:2026-10-19 13:07 (UTC+8) — **第八十五 session 收工**：BUG-136 根因確認（縮圖預覽無上限累積，T0666 / T0667）、BUG-164 macOS GPU CHECK 崩潰（T0668 / T0669）→ 發 `v0.7.1-pre.3`；PLAN-053 IDEA；D173。
 >
-> **第八十六 session（15:33 起）**：Gary 15:19 回報打字卡頓已解決 → BUG-136 CLOSED；15:40 BUG-164 graphite disabled 已生效（另兩項待回報）；15:40 Gary 希望 Codex CLI 捲動更順 → BUG-165 OPEN、T0670 研究（15:44 追加平台範圍）；15:50 Gary 截圖：完成的 Worker 分頁滑鼠回報變成 shell 文字 → BUG-166 OPEN、T0671 研究。
+> **第八十六 session（15:33 起）**：Gary 15:19 回報打字卡頓已解決 → BUG-136 CLOSED；15:40 BUG-164 graphite disabled 已生效（另兩項待回報）；15:40 Gary 希望 Codex CLI 捲動更順 → BUG-165 OPEN、T0670 研究（15:44 追加平台範圍）；15:50 Gary 截圖：完成的 Worker 分頁滑鼠回報變成 shell 文字 → BUG-166 OPEN、T0671 研究。T0670 DONE 16:04、T0671 DONE 16:34：BUG-165 = xterm 追蹤模式每事件只送 1 個滾輪回報（跨平台；待 Gary 試 `mouse_scroll_speed = 3`）；BUG-166 = codex 被訊號結束不還原追蹤（Unix PTY 跨平台；F1 + F2 待 Gary 回覆再決定，不回報上游）。
 >
 > **下次起手**:等 Gary 回報 BUG-164（`skia_graphite=`、有無 GPU 崩潰）→ CLOSED 或退回；BUG-156 / 159 仍待特定環境；PLAN-053 等排程。
 ---
@@ -93,7 +93,8 @@
 
 ### 待辦（依優先序）
 
-1. 🔴 **Gary 以 `v0.7.1-pre.3` 驗收**：
+1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。
+2. 🔴 **Gary 以 `v0.7.1-pre.3` 驗收**：
    - ~~BUG-136：打字延遲~~ → ✅ 2026-10-19 15:19 Gary 確認解決，CLOSED（第八十六 session）
    - BUG-164：日誌有 `[gpu] skia graphite: disabled`、`skia_graphite=` 不再是 `enabled_on`、期間有無 `child-process-gone type=GPU`
    - 另請 Gary 補 10-15 的 `.ips`（看 `x21` 是否都 = 5）
