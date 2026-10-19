@@ -7,14 +7,14 @@ status: OPEN
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-15T13:13:21+0800"
-updated_at: "2026-10-15T13:25:28+0800"
+updated_at: "2026-10-19T11:55:06+0800"
 impact:
   - terminal-rendering
   - xterm-canvas
   - macos
 links:
   discovered_in: "Gary 回報（2026-10-15，v0.6.1-pre.1）"
-  related: [T0533]
+  related: [T0533, T0666]
 ---
 
 # BUG-136 — macOS 舊分頁打字延遲、Renderer 約 100% CPU
@@ -108,6 +108,16 @@ links:
 5. 判讀：
    - 重現 → 純 BAT / Chromium 問題，與 Codex 無關
    - 開了很多終端都沒有崩潰 → 回到派工路徑（Codex 啟動、notify `--submit`）找差異
+
+## 第三輪（2026-10-19，T0666 研究）
+
+新資料：`debug-20261015-130846.log`、`debug-20261019-104323.log`、`BetterAgentTerminal Helper-2026-10-19-103931.ips`、Gary 的 `ps`（Renderer pid 60100：100.8 / 98.7 / 18.0 / 40.0 / 25.8%），以及 Gary 11:43 的觀察「Context used 大概在 20–30% 就會開始卡頓」。完整證據見 `T0666-research-bug136-macos-renderer-cpu-round3.md` 回報區。
+
+- 【日誌】`104323`（Gary 現在裝的是 `v0.7.0-pre.9` 以後的版本，agent 全是 Codex）：**沒有 GPU 崩潰**，全程硬體繪圖，但 Renderer 仍約 1 顆核心 ⇒ **假設 A 不是打字延遲的必要條件**。
+- 【日誌】`103931.ips` 的頂層偏移和 `114303.ips` 完全相同 ⇒ 同一個 GPU CHECK（累計 6 次）。觸發時機是建立或切換分頁時，候選是 isActive effect 的 `clearTextureAtlas`（推論）。**和打字延遲是兩件事**，另案追蹤。
+- 【原始碼 + 實測】**假設 C（新，權重最高）**：縮圖預覽 `scheduleBatchedPreviewUpdate`（`src/components/TerminalThumbnail.tsx`）只在遇到 `\n` 時才截短。Codex 用 alt screen，輸出時 Linux / macOS 的 PTY 幾乎不含 `\n`（WSL 實測 145 KB 輸出中 `\n` = 0），Windows ConPTY 則會插入 `\n`。所以 macOS 上預覽字串會無上限累積，每 150 ms 跑 11 次 regex，再對一個單行文字節點重新 layout。用 Electron 41.2.1 實測 layout：1 M 字元要 126 ms、4 M 字元要 512 ms。C 可以同時解釋四件事：卡頓隨對話長度出現、吃 CPU 的是 BAT Renderer 而不是 codex、新分頁正常、只發生在 macOS。
+- 待 Gary 確認（約 1 分鐘）：開始卡的時候，在 DevTools Console 執行 `[...document.querySelectorAll('.thumbnail-preview')].map(e => e.textContent.length)`。卡的那個分頁如果是幾十萬以上 → C 確認。
+- 修正草案（S）：預覽在合併前只保留尾端，每行限長，整體上限約 2 KiB；Claude `onStream` 那條也套同一個上限；加單元測試。不碰 `TerminalPanel.tsx`。
 
 ## 判讀（根因未定，兩個假設）
 
