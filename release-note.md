@@ -2,6 +2,28 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.4（2026-10-19）
+
+版號 0.7.1-pre.4，接續 `v0.7.1-pre.3`。
+
+### 修正
+
+- **程式異常結束後，滑鼠一動就在命令列冒出 `35;52;69M…` 這類亂碼**：Codex 這類全螢幕程式會開啟滑鼠追蹤。如果它不是正常離開，而是被系統結束或崩潰，就沒機會把滑鼠追蹤關掉。回到 shell 後，滑鼠的移動和滾輪會被當成文字插進命令列。現在 BAT 發現滑鼠回報被 shell 原樣印出來時，會自動關閉該分頁的滑鼠追蹤。最前面幾筆亂碼仍會留在命令列，按 Ctrl+U 清掉即可。macOS、Linux 與 WSL / SSH / Docker 分頁會發生，Windows 原生分頁不會（BUG-166）
+- **終端右鍵選單新增「重設滑鼠模式」與「離開替代畫面（alt screen）」**：滑鼠被程式追蹤時，用 Shift + 右鍵開選單即可手動重設。分頁停在全螢幕程式的畫面時，「離開替代畫面」可回到原本的終端畫面與捲動紀錄（BUG-166）
+
+### 已知事項
+
+- `v0.7.1-pre.3` 修正的 macOS 打字延遲（BUG-136），已有使用者在 macOS 實機確認解決
+- 滑鼠追蹤的自動重設以自動測試驗證，尚未在 macOS 實機確認
+- Codex 分頁內用觸控板快速捲動時跟不上手指，原因已查明，修正排在後續版本。想先改善，可以在 `~/.codex/config.toml` 的 `[tui]` 段加 `mouse_scroll_speed = 3`（BUG-165）
+- macOS 停用 Graphite（`v0.7.1-pre.3`）後是否不再出現 GPU 崩潰，仍待實機確認；根本修正需要升級 Electron 42 以上，已列入後續計畫
+- 遠端視窗需把遠端的 BAT 伺服器升級到本版（重跑設定精靈）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.3...v0.7.1-pre.4
+
 ## v0.7.1-pre.3（2026-10-19）
 
 版號 0.7.1-pre.3，接續 `v0.7.1-pre.2`。

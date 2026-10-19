@@ -4,6 +4,22 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.4] — 2026-10-19
+
+### Fixed
+- **TUI 被訊號結束 / 崩潰後滑鼠追蹤殘留，SGR 滑鼠回報被 shell 當文字插入命令列**（`35;52;69M…`）：codex 0.163 以 `/quit`、Ctrl+C / D / Z 離開會還原，但收到 SIGINT / SIGTERM / SIGHUP / SIGKILL 時不送 DECRST，xterm 停在 `mouseTrackingMode=any` + alt screen。新增 `MouseReportEchoDetector`（`src/lib/mouse-tracking-reset.ts`）：BAT 送出的 SGR 回報本體在 500 ms 內出現在 PTY 輸出（去掉 CSI / OSC 與控制字元後比對）即在**本機 xterm** 寫入 `?1000/1002/1003/1006/1015/1016l`（不寫 PTY）、清除選取保留，日誌 `[mouse-tracking] reset: reports echoed as text`。Unix PTY（macOS / Linux / WSL / SSH / Docker）會發生，Windows 原生 ConPTY 不會（BUG-166，T0671 / T0672）
+
+### Added
+- 終端右鍵選單（追蹤中 Shift + 右鍵）新增「重設滑鼠模式」（同上本機 DECRST，日誌 `reset: manual`）；alt buffer 時另有「離開替代畫面（alt screen）」（本機 `?1049l`）；三語系 `terminal.resetMouseMode` / `terminal.exitAltScreen`（BUG-166，T0672）
+- e2e `e2e/t0672-mouse-tracking-reset.spec.ts`；`e2e/t0571-shift-right-click-copy.spec.ts` 的選單清單斷言加入新選項（D174）
+
+### Known issues
+- 滑鼠追蹤自動重設未經 macOS 實機驗證；命中前的前幾筆殘骸仍會進命令列；1004 / 2004 殘留未處理
+- Codex 分頁觸控板快速捲動受 xterm 追蹤模式「每個 wheel 事件最多 1 個回報」限制（BUG-165，T0670；暫解 `~/.codex/config.toml` `[tui] mouse_scroll_speed = 3`）
+- macOS 停用 Graphite 後是否不再 GPU 崩潰待實機確認；根本修正需 Electron 42+（PLAN-053）
+- 遠端視窗需重跑設定精靈把遠端 server 升級到本版
+- Linux 版本未實機驗證
+
 ## [0.7.1-pre.3] — 2026-10-19
 
 ### Fixed
