@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-19T12:06:59+0800"
+generated_at: "2026-10-19T12:41:35+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 49
 breakdown:
-  OPEN: 1
-  FIXING: 0
+  OPEN: 0
+  FIXING: 1
   FIXED: 22
   VERIFY: 0
   CLOSED: 26
@@ -23,21 +23,21 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-19 12:06 (UTC+8) — BUG-164 OPEN（GPU 崩潰從 BUG-136 拆出）；BUG-136 OPEN → FIXED（T0667 `a9f0ad5a`，待 Gary 確認）
+> 最後同步：2026-10-19 12:41 (UTC+8) — BUG-164 OPEN → FIXING（T0669）；BUG-136 FIXED（T0667，Gary 量測確認假設 C）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 49**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 49**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`CrGpuMain`，累計 6 次；從 BUG-136 拆出） | 🟢 low | 2026-10-19 12:06 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`CrGpuMain`，累計 6 次；從 BUG-136 拆出；T0668 符號化 → T0669 修正中） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
 
 ## ✅ 已修復
 

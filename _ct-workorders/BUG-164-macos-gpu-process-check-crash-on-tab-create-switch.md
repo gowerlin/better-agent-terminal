@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: bug
 id: BUG-164
 title: "macOS：GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`EXC_BREAKPOINT` @ `CrGpuMain`，累計 6 次）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T12:06:59+0800"
-updated_at: "2026-10-19T12:21:56+0800"
+updated_at: "2026-10-19T12:41:35+0800"
 impact:
   - gpu-process
   - xterm-canvas
   - macos
 links:
   discovered_in: "BUG-136 調查（Gary 回報，2026-10-15 / 2026-10-19）；T0666 判讀"
-  related: [BUG-136, T0533, T0666, T0668]
+  related: [BUG-136, T0533, T0666, T0668, T0669, PLAN-053]
 ---
 
 # BUG-164 — macOS GPU 程序同一個 CHECK 崩潰
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（Chromium 會自動重啟 GPU 程序；目前沒有證據顯示會造成打字延遲，延遲另見 BUG-136） |
 | 可重現 | 未確認 |
-| **狀態** | 📂 OPEN（使用者 2026-10-19 同意從 BUG-136 拆出另案追蹤） |
+| **狀態** | 🔧 FIXING（T0669：macOS 停用 Graphite + 崩潰後重建可見終端；Electron 42+ 升級另見 PLAN-053） |
 | 回報者 | Gary（日誌與崩潰報告）；判讀 T0666 |
 
 ## 環境

@@ -7,7 +7,7 @@ status: FIXED
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-15T13:13:21+0800"
-updated_at: "2026-10-19T12:05:54+0800"
+updated_at: "2026-10-19T12:41:35+0800"
 impact:
   - terminal-rendering
   - xterm-canvas
@@ -118,6 +118,10 @@ links:
 - 【原始碼 + 實測】**假設 C（新，權重最高）**：縮圖預覽 `scheduleBatchedPreviewUpdate`（`src/components/TerminalThumbnail.tsx`）只在遇到 `\n` 時才截短。Codex 用 alt screen，輸出時 Linux / macOS 的 PTY 幾乎不含 `\n`（WSL 實測 145 KB 輸出中 `\n` = 0），Windows ConPTY 則會插入 `\n`。所以 macOS 上預覽字串會無上限累積，每 150 ms 跑 11 次 regex，再對一個單行文字節點重新 layout。用 Electron 41.2.1 實測 layout：1 M 字元要 126 ms、4 M 字元要 512 ms。C 可以同時解釋四件事：卡頓隨對話長度出現、吃 CPU 的是 BAT Renderer 而不是 codex、新分頁正常、只發生在 macOS。
 - 待 Gary 確認（約 1 分鐘）：開始卡的時候，在 DevTools Console 執行 `[...document.querySelectorAll('.thumbnail-preview')].map(e => e.textContent.length)`。卡的那個分頁如果是幾十萬以上 → C 確認。
 - 修正草案（S）：預覽在合併前只保留尾端，每行限長，整體上限約 2 KiB；Claude `onStream` 那條也套同一個上限；加單元測試。不碰 `TerminalPanel.tsx`。
+
+### Gary 確認（2026-10-19 12:4x，經使用者轉述）
+
+在卡頓時於 DevTools Console 執行 `[...document.querySelectorAll('.thumbnail-preview')].map(e => e.textContent.length)`，得到 `[714855, 1055128, 977397, 3358]`。三個分頁的預覽字串有 71 萬、105 萬、98 萬字元。依 T0666 實測，1 M 字元時每次 layout 約 126 ms ⇒ **假設 C 確認**。T0667（`a9f0ad5a`）把上限設在 2055 字元。剩下的是：用含 T0667 的版本（`v0.7.1-pre.3`）確認打字不再延遲。
 
 ## 判讀（根因未定，兩個假設）
 

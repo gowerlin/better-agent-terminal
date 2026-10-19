@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-18T22:44:48+0800"
+generated_at: "2026-10-19T12:41:35+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 23
+total: 24
 breakdown:
-  IDEA: 6
+  IDEA: 7
   PLANNED: 0
   IN_PROGRESS: 0
   DONE: 16
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-18 22:44 (UTC+8) — PLAN-049 DONE（D172）；PLAN-047 DONE（D171）
+> 最後同步：2026-10-19 12:41 (UTC+8) — PLAN-053 IDEA（Electron 42+ 升級，T0668）
 
 ## 統計
-- 💡 Ideas: 6 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 16 | 🚫 Dropped: 1
+- 💡 Ideas: 7 | 📋 Planned: 0 | 🔄 In Progress: 0 | ✅ Done: 16 | 🚫 Dropped: 1
 
 ## Active
 
@@ -37,6 +37,7 @@ breakdown:
 | PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
 | PLAN-051 | BAT 跨塔台傳訊通道：不同專案的塔台（含 codex 塔台）經 BAT 互相送訊息，不依賴 SendMessage | 🟢 low | 💡 IDEA | [PLAN-051](PLAN-051-cross-tower-messaging-channel.md) |
 | PLAN-052 | Docker 遠端路線可用性：發佈 `bat-server` 映像或裝進任意容器、「Use existing」可選容器、重跑精靈更新既有設定 | 🟢 low | 💡 IDEA | [PLAN-052](PLAN-052-docker-remote-usability.md) |
+| PLAN-053 | 升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟（BUG-164） | 🟢 low | 💡 IDEA | [PLAN-053](PLAN-053-electron-42-upgrade.md) |
 
 ## Completed
 
