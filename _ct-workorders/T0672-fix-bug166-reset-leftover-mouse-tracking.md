@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0672
 title: "修正：BUG-166 — 滑鼠回報被 shell 印成文字時自動關閉本機滑鼠追蹤（F1）+ 右鍵選單「重設滑鼠模式」（F2）"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-166
 priority: P2
 sizing: S
 created_at: "2026-10-19T17:35:11+0800"
+started_at: "2026-10-19T17:36:44+0800"
+updated_at: "2026-10-19T17:36:44+0800"
 depends_on: []
 related:
   - "BUG-166（OPEN；T0671 研究結論與 F1 / F2 提案）"
@@ -31,6 +33,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -96,3 +99,12 @@ codex 等 TUI 被訊號結束或崩潰時不還原滑鼠追蹤，xterm 停在追
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 待塔台決策
+
+#### Q-1：F2 新選項會讓 `e2e/t0571-shift-right-click-copy.spec.ts` 的選單清單斷言失敗，該檔不在 affects_files，要怎麼處理？
+- 提問時間：2026-10-19T17:40:14+0800
+- 選項：[A] 把 `e2e/t0571-shift-right-click-copy.spec.ts` 加進範圍，只改 6 處 `menuItems` 精確清單斷言，追蹤中 Shift + 右鍵的清單改為含「重設滑鼠模式」（alt screen 時另含「離開替代畫面」），複製 / 選取行為斷言不動 / [B] 不動 t0571：新選項不用 `.context-menu-item` class（另用 class + inline style 仿同樣式，因 `context-menu.css` 也不在範圍） / [C] 其他：________
+- Worker 建議：[A]。t0571 在追蹤中 + alt screen 以 Shift + 右鍵開選單，`.context-menu .context-menu-item` 的 `allInnerTexts()` 斷言精確等於 `['複製', '貼上']`（6 處）；F2 的選項正好出現在這個狀態。只改清單斷言不是行為退化，[B] 會讓同一選單有兩套樣式來源、之後容易走樣。
+- 影響範圍：`e2e/t0571-shift-right-click-copy.spec.ts`（新增範圍）、驗收第 5 項；`src/__tests__/terminal-context-menu.test.tsx` 同樣有精確清單斷言（已在範圍，會一併調整）
+- 阻塞：否（先做 F1 / F2 實作與單元測試；t0571 e2e 的調整與執行等答覆）
