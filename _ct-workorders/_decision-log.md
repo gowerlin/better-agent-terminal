@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D174 2026-10-19 — T0672 Q-1：F2 新選單項目允許更新 t0571 e2e 的選單清單斷言（塔台代決）
+
+- **背景**：T0672（BUG-166 F2）在終端右鍵選單加「重設滑鼠模式」，`e2e/t0571-shift-right-click-copy.spec.ts`（不在 affects_files）6 處斷言選單精確等於 `['複製', '貼上']`，新選項正好出現在追蹤中 Shift + 右鍵的狀態。
+- **決定**（17:40，塔台代決，BAT `--answer` 選 [A]）：把 t0571 e2e 加進 T0672 範圍，只改選單清單的精確斷言，複製 / 選取 / 不送回報等行為斷言不動；`terminal-context-menu.test.tsx` 同理。不採 [B]（另用 class 繞過斷言），避免同一選單兩套樣式來源。
+- **相關**：T0672 / BUG-166 / BUG-142 / T0571
+
 ### D173 2026-10-19 — 網站示意可用真實工單目錄名 `_ct-workorders/`（放寬 D159 / D165 的 grep 規則一項）
 
 - **背景**：網站故事插圖（`site/.vitepress/theme/components/StoryIllo.vue` 的 `files` / `workorder` 兩張）原本用虛構目錄 `work-orders/`；使用者第八十五 session 指出應為 `_ct-workorders`（`3262b416` 已改）。D159 / D165 與 T0630 / T0634 起的網站工單驗收寫「`site/` 內 grep `_ct-workorders` = 0」，若不記錄，之後的網站工單會把它改回去或判驗收失敗。

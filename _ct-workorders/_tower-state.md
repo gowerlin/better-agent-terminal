@@ -112,12 +112,12 @@
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 1 / Fixed 22 / Closed 27）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D173）｜ Learnings → [_learnings.md](_learnings.md)（最大 L170）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D174）｜ Learnings → [_learnings.md](_learnings.md)（最大 L170）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（100 entries）
 
 ### 編號起始
-- **T0673** / **BUG-167** / **PLAN-054** / **D174** / **EXP-[TOPIC]-001** / **L171** / **CT-T022**
+- **T0673** / **BUG-167** / **PLAN-054** / **D175** / **EXP-[TOPIC]-001** / **L171** / **CT-T022**
 
 ---
 
@@ -134,7 +134,7 @@
 | **工單最大編號** | **T0669** DONE（第八十五 session：T0666 / T0668 研究、T0667 / T0669 修正）；第八十四 session：T0663–T0665；更早見 `_archive/state-snapshots/` |
 | **BUG 最大編號** | **BUG-164**（第八十五 session 開立並 FIXED，待 Gary）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 1 / Fixed 22 / Closed 27；BUG-165 OPEN、BUG-166 FIXING（T0672，第八十六 session） |
 | **PLAN 最大編號** | **PLAN-053**（IDEA：Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
-| **決策最大編號** | **D173**（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
+| **決策最大編號** | **D174**（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v5.9.0**（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
 | **unit test 基線** | **5635 passed / 321 files / 3 skipped**（塔台複驗 @ `ee7d1047`，發 `v0.7.1-pre.3` 前，2026-10-19 第八十五 session；typecheck 0 / 0、vite build 成功） |
@@ -256,6 +256,11 @@
 - 本 session yolo 派發：45 張完成（另重派 2、ct-done 補救 1）
 - 斷點觸發：A×0, B×0, **C×17**（scope 內，05:55 起依使用者授權由塔台直接裁決）、使用者中斷×0
 - 使用者修正：1（Worker 啟動檢查 30 秒 → ≥ 3 分鐘）
+
+### 計數器（第八十六 session，進行中）
+
+- 派發：T0670 / T0671 / T0672（皆 `started:`，per-dispatch `--mode yolo --no-interactive`）；T0670 / T0671 並行；`worker_auto_close` 回收 2 次
+- [提問] 2026-10-19 17:40 T0672 Q-1（BAT `--answer` exit 0，選 [A]，D174）
 
 ### 歷史 Session（摘要）
 
