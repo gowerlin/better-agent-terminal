@@ -2,7 +2,7 @@
 
 > 最後更新:2026-10-19 18:09 (UTC+8) — **第八十六 session 收工**：BUG-136 CLOSED（Gary 確認）；BUG-165 Codex 捲動研究（T0670，OPEN 有空再排）；BUG-166 滑鼠回報殘留研究 + 修正（T0671 / T0672）→ 發 `v0.7.1-pre.4`；D174。
 >
-> **下次起手**:等 Gary 以 `v0.7.1-pre.4` 回報（A 滑鼠亂碼 → BUG-166；B `skia_graphite=` / GPU 崩潰 → BUG-164；C 選做 `mouse_scroll_speed = 3` → BUG-165）；BUG-156 / 159 仍待特定環境；PLAN-053 等排程。
+> **下次起手**:等 Gary 以 `v0.7.1-pre.4` 回報（A 滑鼠亂碼 → BUG-166；~~B → BUG-164~~ 18:12 已 CLOSED；C 選做 `mouse_scroll_speed = 3` → BUG-165）；BUG-156 / 159 仍待特定環境；PLAN-053 等排程。
 ---
 
 ## 🛏 本 Session 收工快照 (第八十六 session, 2026-10-19 15:33 - 18:09, ~2h36m)
@@ -24,7 +24,7 @@
 | 類別 | 數量 | 備註 |
 |---|---|---|
 | 派發工單 | **3**（T0670–T0672） | 全部 `started:`；T0670 / T0671 並行；結構化提問 1 次（T0672 Q-1）；`worker_auto_close` 回收 3 次 |
-| BUG | BUG-136 CLOSED；BUG-165 新開 OPEN；BUG-166 新開 → FIXED | 熱區 Open 1 / Fixing 0 / Fixed 23 / Closed 27 |
+| BUG | BUG-136 CLOSED；BUG-165 新開 OPEN；BUG-166 新開 → FIXED | 熱區 Open 1 / Fixing 0 / Fixed 22 / Closed 28 |
 | 決策 | D174（T0672 Q-1：t0571 e2e 選單斷言納入範圍） | 不回報 codex 上游（使用者決定） |
 | 發版 | 1（`v0.7.1-pre.4`） | exe 298 / zip 412 / AppImage 297 / dmg 309 MiB |
 | unit test | 5635 → **5661 passed / 322 files** | 塔台複驗 @ `72d77cf1` |
@@ -92,7 +92,7 @@
 
 1. 🔴 **Gary 以 `v0.7.1-pre.4` 驗收**（訊息已給使用者轉貼）：
    - A：BUG-166 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵出現兩個新選項 → CLOSED
-   - B：BUG-164 `skia_graphite=` 不是 `enabled_on`、無 `child-process-gone type=GPU` → CLOSED（另可補 10-15 `.ips`）
+   - ~~B：BUG-164~~ → ✅ 18:12 CLOSED（Gary：`skia_graphite=disabled_off`、13:28–18:10 0 次 GPU 崩潰；使用者同意結案）
    - C（選做）：BUG-165 `mouse_scroll_speed = 3` 是否變順、觸控板 / 滑鼠 → 確認後派 S 修正（`attachCustomWheelEventHandler`，依比例送回報；Gary「不急」）
 2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 3. 🟡 PLAN-053 Electron 42+ 升級（IDEA，Electron 41 已停更）；PLAN-052 Docker 可用性（IDEA）
@@ -106,7 +106,7 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，確認 Pages 綠燈、首頁版號、`link-check` summary，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 23 / Closed 27）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 22 / Closed 28）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D174）｜ Learnings → [_learnings.md](_learnings.md)（最大 L170）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（100 entries）
@@ -127,7 +127,7 @@
 | **前一 tag** | `v0.7.1-pre.3`（2026-10-19 13:00，`bf4bfe4f`） |
 | **目前主軸** | `v0.7.1-pre.4` 已發佈（第八十六 session），等 Gary 驗收 BUG-166 / BUG-164；BUG-165 有空再排；熱區無進行中 PLAN / 工單 |
 | **工單最大編號** | **T0672** FIXED（第八十六 session：T0670 / T0671 研究、T0672 修正）；第八十五 session：T0666–T0669；更早見 `_archive/state-snapshots/` |
-| **BUG 最大編號** | **BUG-166**（第八十六 session 開立並 FIXED，待 Gary）；BUG-165 OPEN（有空再排）；BUG-164 FIXED 待 Gary；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 23 / Closed 27；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
+| **BUG 最大編號** | **BUG-166**（第八十六 session 開立並 FIXED，待 Gary）；BUG-165 OPEN（有空再排）；BUG-164 CLOSED（收工後 Gary 確認）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 22 / Closed 28；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
 | **PLAN 最大編號** | **PLAN-053**（IDEA：Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D174**（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |

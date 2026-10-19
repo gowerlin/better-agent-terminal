@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-164
 title: "macOS：GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`EXC_BREAKPOINT` @ `CrGpuMain`，累計 6 次）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T12:06:59+0800"
-updated_at: "2026-10-19T18:11:58+0800"
+updated_at: "2026-10-19T18:12:30+0800"
 impact:
   - gpu-process
   - xterm-canvas
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（Chromium 會自動重啟 GPU 程序；目前沒有證據顯示會造成打字延遲，延遲另見 BUG-136） |
 | 可重現 | 未確認 |
-| **狀態** | ✅ FIXED（T0669 `32d62a45`：macOS 預設 `--disable-skia-graphite`（`BAT_SKIA_GRAPHITE=1` 可恢復）+ GPU 崩潰後重建可見終端；待 Gary 以 `v0.7.1-pre.3` 確認 `skia_graphite=` 不再是 `enabled_on`、期間無 GPU 崩潰。Electron 42+ 升級另見 PLAN-053） |
+| **狀態** | 🚫 CLOSED（2026-10-19 18:12 使用者同意結案：Gary 以 `v0.7.1-pre.3` 驗收三項皆 PASS，Graphite 關閉後約 4h40m 0 次 GPU 崩潰；若再崩潰另開 BUG，並作為提前做 PLAN-053 的依據）。原 FIXED（T0669 `32d62a45`：macOS 預設 `--disable-skia-graphite`（`BAT_SKIA_GRAPHITE=1` 可恢復）+ GPU 崩潰後重建可見終端；待 Gary 以 `v0.7.1-pre.3` 確認 `skia_graphite=` 不再是 `enabled_on`、期間無 GPU 崩潰。Electron 42+ 升級另見 PLAN-053） |
 | 回報者 | Gary（日誌與崩潰報告）；判讀 T0666 |
 
 ## 環境
@@ -93,3 +93,7 @@ Gary 對照（使用者轉達截圖，時間為台灣時間）：
 ## 附件
 
 Gary 的檔案放在使用者本機 `D:\Downloads\封存`，未入庫。日誌含客戶專案路徑，引用時請去識別化。
+
+## 結案（2026-10-19 18:12）
+
+- 使用者同意結案（Gary 保留意見：只有一次約 5 小時紀錄）。之後若再出現 `child-process-gone type=GPU`，另開新 BUG，並評估提前做 PLAN-053（Electron 42+）。
