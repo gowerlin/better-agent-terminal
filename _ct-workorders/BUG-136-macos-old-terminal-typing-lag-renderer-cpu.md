@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-136
 title: "macOS：使用已久的 Codex 塔台分頁打字嚴重延遲，BAT Renderer 持續約 1 顆核心；同一程序新開的分頁正常。期間 GPU 行程崩潰 5 次"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-15T13:13:21+0800"
-updated_at: "2026-10-19T12:41:35+0800"
+updated_at: "2026-10-19T15:33:28+0800"
 impact:
   - terminal-rendering
   - xterm-canvas
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（舊塔台分頁幾乎無法打字；繞行：新開分頁 + 新 Codex 工作階段） |
 | 可重現 | 未確認（無最小重現；根因未定，見「判讀」） |
-| **狀態** | ✅ FIXED（2026-10-19 T0667 `a9f0ad5a`：縮圖預覽上限，針對假設 C；待 Gary 以含此修正的版本確認打字延遲消失。確認失敗 → 退回 OPEN。GPU 崩潰（同一 CHECK 6 次）不在本修正範圍） |
+| **狀態** | 🚫 CLOSED（2026-10-19 15:19 Gary 以 `v0.7.1-pre.3` 回報打字卡頓已解決，使用者轉達後結案）。原 FIXED：2026-10-19 T0667 `a9f0ad5a`：縮圖預覽上限，針對假設 C；待 Gary 以含此修正的版本確認打字延遲消失。確認失敗 → 退回 OPEN。GPU 崩潰（同一 CHECK 6 次）不在本修正範圍） |
 | 回報者 | Gary（附量測與日誌） |
 
 ## 環境
@@ -153,6 +153,11 @@ links:
   - 方案一：CanvasAddon 監聽 `contextlost` / `contextrestored`，或在 GPU crash 時對所有 xterm `clearTextureAtlas()` + `refresh`
   - 方案二：改用 `@xterm/addon-webgl` 並在 `onContextLoss` 時 dispose 後 fallback
   - 需評估與既有 Win11 `clearTextureAtlas` 修正（`TerminalPanel.tsx` isActive effect）的互動，不得造成退化
+
+## 結案（2026-10-19）
+
+- 15:19 Gary 回報（使用者轉達）：以 `v0.7.1-pre.3` 使用，「卡頓的問題解掉了，目前很讚」。確認假設 C（縮圖預覽無上限累積）為根因，T0667 修正有效。
+- GPU 崩潰另案 BUG-164，仍待 Gary 回報 `skia_graphite=` 與有無 `child-process-gone type=GPU`。
 
 ## 附件
 

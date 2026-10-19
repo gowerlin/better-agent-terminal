@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-19T12:51:12+0800"
+generated_at: "2026-10-19T15:33:28+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 49
 breakdown:
   OPEN: 0
   FIXING: 0
-  FIXED: 23
+  FIXED: 22
   VERIFY: 0
-  CLOSED: 26
+  CLOSED: 27
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-19 12:51 (UTC+8) — BUG-164 FIXING → FIXED（T0669 `32d62a45`）；BUG-136 FIXED（T0667）；皆待 Gary 以 v0.7.1-pre.3 確認
+> 最後同步：2026-10-19 15:33 (UTC+8) — BUG-136 FIXED → CLOSED（Gary 以 v0.7.1-pre.3 確認打字卡頓解決）；BUG-164 FIXED 仍待 Gary
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 26 | ⛔ Won't Fix: 0 | **Total: 49**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 27 | ⛔ Won't Fix: 0 | **Total: 49**
 
 ## 🔴 Open / 處理中
 
@@ -43,7 +43,6 @@ breakdown:
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`CrGpuMain`，累計 6 次；從 BUG-136 拆出；T0668 符號化；T0669 `32d62a45` macOS 停用 Graphite + 崩潰後重建可見終端；待 Gary 確認） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
-| BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU：縮圖預覽字串無上限累積（假設 C，T0666；T0667 `a9f0ad5a` 加上限）；待 Gary 以含此修正的版本確認；GPU 崩潰另案 | 🟡 medium | 2026-10-19 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
@@ -76,6 +75,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU：縮圖預覽字串無上限累積（T0666 根因、T0667 `a9f0ad5a` 加上限；Gary 以 v0.7.1-pre.3 確認） | 🟡 medium | 2026-10-19 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 | BUG-163 | 設定精靈選項按鈕用 Tailwind class 但 App 沒載入 Tailwind，顯示成白底原生按鈕；步驟說明過時（T0658 `9d8e1985`；0.7.1-pre.2 T0663 實機） | 🟡 medium | 2026-10-18 | [BUG-163](BUG-163-wizard-choice-buttons-unstyled-and-stale-step-text.md) |
 | BUG-162 | claude Worker 的權限請求被放行 / 逾時拒絕後（未經鍵盤），仍維持 `blocked` / `permission` 直到 `Stop`（T0657 `ff14fa5d`；0.7.1-pre.2 T0664 實機） | 🟡 medium | 2026-10-18 | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
 | BUG-161 | 設定精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested` / 「Set as Supervisor」仍是英文（T0660 `a5caf04a`；0.7.1-pre.2 T0663 實機） | 🟢 low | 2026-10-18 | [BUG-161](BUG-161-wizard-raw-error-messages-english.md) |
