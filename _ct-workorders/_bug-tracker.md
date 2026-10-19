@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-19T15:52:11+0800"
+generated_at: "2026-10-19T17:35:11+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 51
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 1
+  FIXING: 1
   FIXED: 22
   VERIFY: 0
   CLOSED: 27
@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-19 15:52 (UTC+8) — BUG-166 新開（滑鼠回報殘留，T0671 研究）；BUG-165 OPEN（T0670）；BUG-136 CLOSED；BUG-164 FIXED 待 Gary
+> 最後同步：2026-10-19 17:35 (UTC+8) — BUG-166 OPEN → FIXING（T0672）；BUG-165 OPEN（有空再排）；BUG-164 FIXED 待 Gary
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 27 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 27 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-166 | Agent 結束後的分頁，滑鼠移動 / 滾輪被當成文字輸入 shell（SGR 滑鼠回報殘留；Gary，v0.7.1-pre.3；T0671 研究） | 🟡 medium | 2026-10-19 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（Gary，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-166 | Agent 結束後的分頁，滑鼠移動 / 滾輪被當成文字輸入 shell（codex 被訊號結束不還原追蹤；T0671 研究；T0672 F1 + F2 修正中） | 🟡 medium | 2026-10-19 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 
 ## ✅ 已修復
 
