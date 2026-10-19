@@ -14,7 +14,7 @@ impact:
   - macos
 links:
   discovered_in: "Gary 回報（2026-10-15，v0.6.1-pre.1）"
-  related: [T0533, T0666, T0667]
+  related: [T0533, T0666, T0667, BUG-164]
 ---
 
 # BUG-136 — macOS 舊分頁打字延遲、Renderer 約 100% CPU
