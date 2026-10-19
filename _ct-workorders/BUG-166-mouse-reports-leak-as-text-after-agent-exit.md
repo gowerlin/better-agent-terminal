@@ -7,7 +7,7 @@ status: OPEN
 severity: medium
 reproducibility: sometimes
 created_at: "2026-10-19T15:52:11+0800"
-updated_at: "2026-10-19T15:52:11+0800"
+updated_at: "2026-10-19T16:34:52+0800"
 impact:
   - terminal-input
   - mouse-tracking
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（垃圾字元進 shell 命令列；若接著按 Enter 會被當成命令執行） |
 | 可重現 | 有時（Gary：「有時會一直不斷產生」） |
-| **狀態** | 📂 OPEN（T0671 研究） |
+| **狀態** | 📂 OPEN（T0671 研究 DONE `58dc95d4`：codex 0.163 **只有被訊號結束**（SIGINT / TERM / HUP / KILL）時不還原滑鼠追蹤與 alt screen；BAT 不開也不保留追蹤；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸；建議 F1 + F2（S），待使用者決定） |
 | 回報者 | Gary（使用者轉達，附截圖） |
 
 ## 現象
@@ -44,3 +44,13 @@ links:
 
 1. 該分頁的 agent 是 codex 嗎？是 Worker 做完後 codex 自己結束，還是被中斷 / 關掉？
 2. 出現亂碼時，在該分頁執行 `printf '\e[?1000l\e[?1002l\e[?1003l\e[?1006l'` 後是否就停止？（確認是追蹤模式殘留）
+
+## T0671 研究結論（2026-10-19，DONE `58dc95d4`；細節見工單回報區）
+
+- 【實測】初判成立並補條件：codex-cli 0.163.0 以 `/quit`、Ctrl+C、Ctrl+D、Ctrl+Z 離開都會還原；**收到 SIGINT / SIGTERM / SIGHUP（原生或 node 包裝）或 SIGKILL 時不送任何還原**，xterm 停在 `mouseTrackingMode=any` + alt screen（1004 / 2004 也殘留）。zsh 5.9 實測產生與 Gary 截圖相同的字串。
+- 【原始碼】BAT 只讀 `mouseTrackingMode`，不寫任何滑鼠 DECSET / DECRST；`registerCsiHandler` 回 `false`、`SelectionDrag.resume()` 不送回報 ⇒ BAT 不是原因，但目前也沒有任何重設機制。
+- 【實測】Claude CLI 2.1.303：inline renderer 不開滑鼠追蹤；fullscreen 會開，但 `/exit`、Ctrl+C ×2、Ctrl+Z、SIGTERM、SIGHUP 都還原，只有 SIGKILL 殘留。
+- 平台：Unix PTY 跨平台（macOS / Linux / WSL / SSH / Docker；BAT 的 WSL 分頁實測重現）；Windows 原生 ConPTY（pwsh 內跑 codex.exe / claude.exe）不會出現殘骸（conhost 吃掉回報）。
+- 辨識特徵：被訊號結束的分頁回到 shell 後仍在 alt screen，往上捲看不到 codex 對話。
+- 修正提案：**F1**（S）偵測 SGR 回報被回顯成文字 → 只在本機 xterm 送 DECRST 關掉追蹤（不寫 PTY）、記日誌；**F2**（S）右鍵選單「重設滑鼠模式」。F1 需在 CLAUDE.md「終端分頁右鍵選單與滑鼠追蹤」節補一句例外。F4：向 codex 上游回報訊號不還原終端（使用者決定）。不推薦 OSC 7501 `clear` 或提示列觸發（殘留情況不會送 `clear`；BAT 無 OSC 133）。
+- 與 BUG-165：codex 對無按鍵移動回報不重繪（0 bytes），any-event 追蹤不是捲動不順的主因。
