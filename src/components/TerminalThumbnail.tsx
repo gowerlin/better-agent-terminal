@@ -13,6 +13,7 @@ import { useUsageLimitStatus } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_MAX_CONSECUTIVE_SENDS, type UsageLimitStatus } from '../lib/usage-limit'
 import { useTerminalAttention } from '../stores/terminal-attention-store'
 import { workerAttention, type WorkerAttention } from '../lib/terminal-attention'
+import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
 function clockTime(epoch: number | null): string {
@@ -80,46 +81,19 @@ function subscribeToPreview(id: string, fn: () => void): () => void {
   }
 }
 
-// Strip all ANSI escape sequences and problematic characters
-const stripAnsi = (str: string): string => {
-  return str
-    // CSI sequences: \x1b[ followed by params and command char
-    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
-    // OSC sequences: \x1b] ... (terminated by BEL \x07 or ST \x1b\\)
-    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
-    // Other escape sequences: \x1b followed by single char
-    .replace(/\x1b[()][AB012]/g, '')
-    .replace(/\x1b[=>]/g, '')
-    // DCS, PM, APC sequences
-    .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, '')
-    // Bell character
-    .replace(/\x07/g, '')
-    // Carriage return (often used for overwriting lines)
-    .replace(/\r/g, '')
-    // Any remaining single-char escapes
-    .replace(/\x1b./g, '')
-    // Private Use Area characters (Powerline, Nerd Fonts icons) - causes box characters
-    .replace(/[\uE000-\uF8FF]/g, '')
-    // Braille patterns (often used for terminal graphics)
-    .replace(/[\u2800-\u28FF]/g, '')
-    // Box drawing characters that may not render well at small sizes
-    .replace(/[\u2500-\u257F]/g, '')
-}
-
 // Batched preview update — accumulate and flush via setTimeout to avoid per-chunk processing
 const pendingPreviews = new Map<string, string>()
 let previewTimerId = 0
 
 function scheduleBatchedPreviewUpdate(id: string, data: string) {
   const prev = pendingPreviews.get(id) || previewCache.get(id) || ''
-  pendingPreviews.set(id, prev + data)
+  // T0667: kept to its tail — output without `\n` (codex alt screen on Linux / macOS) used to grow forever
+  pendingPreviews.set(id, appendPreviewInput(prev, data))
   if (!previewTimerId) {
     previewTimerId = window.setTimeout(() => {
       previewTimerId = 0
       for (const [tid, raw] of pendingPreviews) {
-        const cleaned = stripAnsi(raw)
-        const lines = cleaned.split('\n').slice(-8)
-        updatePreviewCache(tid, lines.join('\n'))
+        updatePreviewCache(tid, outputPreview(raw))
       }
       pendingPreviews.clear()
       // Evict oldest entries if cache is too large
@@ -146,8 +120,7 @@ const setupGlobalListener = () => {
   window.electronAPI.claude.onMessage((sessionId, message) => {
     const msg = message as { role?: string; content?: string }
     if (msg.role === 'assistant' && msg.content) {
-      const lines = msg.content.split('\n').slice(-8)
-      updatePreviewCache(sessionId, lines.join('\n'))
+      updatePreviewCache(sessionId, textPreview(msg.content))
     }
   })
 
@@ -156,9 +129,7 @@ const setupGlobalListener = () => {
     const stream = data as { text?: string }
     if (stream.text) {
       const prev = previewCache.get(sessionId) || ''
-      const combined = prev + stream.text
-      const lines = combined.split('\n').slice(-8)
-      updatePreviewCache(sessionId, lines.join('\n'))
+      updatePreviewCache(sessionId, textPreview(prev + stream.text))
     }
   })
 }
