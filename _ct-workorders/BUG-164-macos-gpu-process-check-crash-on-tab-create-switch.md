@@ -7,7 +7,7 @@ status: FIXED
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T12:06:59+0800"
-updated_at: "2026-10-19T15:40:31+0800"
+updated_at: "2026-10-19T18:11:58+0800"
 impact:
   - gpu-process
   - xterm-canvas
@@ -74,10 +74,21 @@ links:
 | 檢查點 | 結果 |
 |---|---|
 | 日誌有 `[gpu] skia graphite: disabled` | ✅ PASS（15:40 使用者轉達：`[2026-10-19T05:28:36.795Z] [LOG] [gpu] skia graphite: disabled (darwin default, --disable-skia-graphite; BAT_SKIA_GRAPHITE=1 keeps it on)`，即 13:28:36 +0800 啟動） |
-| `[gpu] feature status` 的 `skia_graphite=` 不再是 `enabled_on` | ⏳ 未回報 |
-| 使用期間無 `child-process-gone type=GPU` / `[gpu] crash #N` | ⏳ 未回報 |
+| `[gpu] feature status` 的 `skia_graphite=` 不再是 `enabled_on` | ✅ PASS（`debug-20261019-132836.log`：`skia_graphite=disabled_off`） |
+| 使用期間無 `child-process-gone type=GPU` / `[gpu] crash #N` | ✅ PASS（同一次執行 13:28–18:10，約 4h40m，0 次） |
 
-旗標已生效；兩項未回報前維持 FIXED。
+Gary 對照（使用者轉達截圖，時間為台灣時間）：
+
+| log 啟動 | `skia_graphite` | GPU 崩潰次數 |
+|---|---|---|
+| 10/14 11:35 | 無此行 | 3 |
+| 10/15 11:22 | 無此行 | 6 |
+| 10/15 13:08（跑到 10/19 10:42） | 無此行 | 1 |
+| 10/19 10:43 | `enabled_on` | 1 |
+| 10/19 12:16 | `enabled_on` | 4（12:00–13:24） |
+| **10/19 13:28（pre.3）** | **`disabled_off`** | **0** |
+
+崩潰原因皆 `reason=crashed exitCode=5`。另 10/14 17:04、17:04、10/15 09:48 三次無 feature status 行、0 次崩潰。Gary 的保留：關閉 Graphite 後只有一次約 5 小時的紀錄，尚不能斷定；10/14–10/15 的 log 無 feature status 行，無法比較。
 
 ## 附件
 
