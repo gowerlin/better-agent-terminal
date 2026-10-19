@@ -7,14 +7,14 @@ status: OPEN
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T12:06:59+0800"
-updated_at: "2026-10-19T12:06:59+0800"
+updated_at: "2026-10-19T12:21:56+0800"
 impact:
   - gpu-process
   - xterm-canvas
   - macos
 links:
   discovered_in: "BUG-136 調查（Gary 回報，2026-10-15 / 2026-10-19）；T0666 判讀"
-  related: [BUG-136, T0533, T0666]
+  related: [BUG-136, T0533, T0666, T0668]
 ---
 
 # BUG-164 — macOS GPU 程序同一個 CHECK 崩潰
@@ -44,6 +44,24 @@ links:
 
 - T0666：10-19 10:43 啟動的那次程序沒有 GPU 崩潰、全程硬體繪圖，Renderer 仍約 1 顆核心 ⇒ GPU 崩潰**不是**打字延遲的必要條件。延遲改由 BUG-136 假設 C（縮圖預覽無上限累積，T0667 修正）處理。
 - 是否會讓崩潰前就存在的分頁畫面劣化（BUG-136 原假設 A），尚未排除也未證實。
+
+## T0668 符號化結果（2026-10-19）
+
+完整證據見 `T0668-research-bug164-gpu-check-crash-symbolize.md` 回報區。
+
+- 【二進位】崩潰點是 Chromium 146 `gpu/command_buffer/service/graphite_shared_context.cc:291` 的 `CHECK(simulating_insert_failure || !is_unrecoverable_failure)`。呼叫路徑：`RasterDecoderImpl::DoEndRasterCHROMIUM` → `SharedContextState::FlushGraphiteRecorder` → `GraphiteSharedContext::insertRecording`。
+- 【報告】10-19 那次的暫存器 `x21 = 5`，對應 Skia Graphite 的 `kOutOfOrderRecording`。
+  - 意思是：前一次 `Recorder::snap()` 準備資源失敗，那份 recording 被丟掉，下一次插入時順序對不上。
+  - 真正的起因在崩潰之前，Chromium 自己也只能假設是 GPU OOM。
+  - 10-15 那 5 次只有 offset 可查，看不出是狀態 4 還是 5，要看那幾份 `.ips` 的 `x21`。
+- 【原始碼】Chromium 147（Electron **42** 起）把這個 CHECK 改成 context lost 後重啟 GPU 程序，不再崩潰，但觸發原因不變。這個修正沒有 backport 到 Electron 41，而 41.10.7 是最後一版。
+  - 已知 issue：crbug.com/458722690（Mac、canvas2d 用量大、高頻改尺寸、ImageBitmap 快取），關閉 Graphite 後問題消失或更難重現。
+- 【推論】BAT 每個終端有 4 層 GPU 2D canvas，切換或建立分頁時會重配 canvas、清 atlas、重建 ImageBitmap。這段 GPU 資源配置很集中，和崩潰時間吻合（10-19：切換分頁後 0.44 s），但**未證實**是起因。
+- 連續崩潰的後果：5 分鐘內崩 3 次，Chromium 會退回軟體繪圖，直到 BAT 重開。
+- 建議（使用者決定）：
+  - A：macOS 加 `disable-skia-graphite`，保留逃生口（S）。
+  - B：GPU 崩潰後讓可見的終端自己重建畫面（S）。
+  - C：升級 Electron 42+，另開 PLAN。
 
 ## 下一步（未派工）
 
