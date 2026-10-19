@@ -93,7 +93,7 @@
 
 ### 待辦（依優先序）
 
-1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。17:28 Gary：「有空再排，不急」；Claude CLI 捲動較順、Codex 較頓（符合 T0670）；codex 是自己跳回命令列（非正常退出，符合 T0671）→ 兩張降為「有空再排」。17:35 使用者：BUG-166 不需知道成因可修 → 派 T0672（F1 + F2）→ 17:50 DONE `64209d44`，BUG-166 FIXED（塔台複驗 5661 passed / 322 files、typecheck 0 / 0；未發版）。
+1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。17:28 Gary：「有空再排，不急」；Claude CLI 捲動較順、Codex 較頓（符合 T0670）；codex 是自己跳回命令列（非正常退出，符合 T0671）→ 兩張降為「有空再排」。17:35 使用者：BUG-166 不需知道成因可修 → 派 T0672（F1 + F2）→ 17:50 DONE `64209d44`，BUG-166 FIXED（塔台複驗 5661 passed / 322 files、typecheck 0 / 0）。17:53 使用者「發 0.7.1-pre.4」→ 18:03 `v0.7.1-pre.4` 發佈（run `39233550117`），更版重點 + 文件 `4ae0e89d`，Pages 綠、link-check 0 errors。
 2. 🔴 **Gary 以 `v0.7.1-pre.3` 驗收**：
    - ~~BUG-136：打字延遲~~ → ✅ 2026-10-19 15:19 Gary 確認解決，CLOSED（第八十六 session）
    - BUG-164：日誌有 `[gpu] skia graphite: disabled`、`skia_graphite=` 不再是 `enabled_on`、期間有無 `child-process-gone type=GPU`
@@ -127,9 +127,9 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.7.1-pre.3**（package.json + lock，2026-10-19 `bf4bfe4f`；`0.7.1` 線，D168，最多到 pre.9） |
-| **最新 release** | `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
-| **前一 tag** | `v0.7.1-pre.2`（2026-10-18 20:55，`9c5fe2b1`） |
+| **目前版號** | **0.7.1-pre.4**（package.json + lock，2026-10-19 `8883cebd`；`0.7.1` 線，D168，最多到 pre.9） |
+| **最新 release** | `v0.7.1-pre.4`（2026-10-19 18:03，run `39233550117`，target `8883cebd`：BUG-166 滑鼠追蹤殘留自動 / 手動重設；更版重點已寫；repo 文件 `4ae0e89d`；Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.1-pre.4`（7 assets）。前一版 `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
+| **前一 tag** | `v0.7.1-pre.3`（2026-10-19 13:00，`bf4bfe4f`） |
 | **目前主軸** | `v0.7.1-pre.3` 已發佈（第八十五 session），等 Gary 驗收 BUG-136 / BUG-164；熱區無進行中 PLAN / 工單 |
 | **工單最大編號** | **T0669** DONE（第八十五 session：T0666 / T0668 研究、T0667 / T0669 修正）；第八十四 session：T0663–T0665；更早見 `_archive/state-snapshots/` |
 | **BUG 最大編號** | **BUG-164**（第八十五 session 開立並 FIXED，待 Gary）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 23 / Closed 27；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
@@ -137,7 +137,7 @@
 | **決策最大編號** | **D174**（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v5.9.0**（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
-| **unit test 基線** | **5635 passed / 321 files / 3 skipped**（塔台複驗 @ `ee7d1047`，發 `v0.7.1-pre.3` 前，2026-10-19 第八十五 session；typecheck 0 / 0、vite build 成功） |
+| **unit test 基線** | **5661 passed / 322 files / 3 skipped**（塔台複驗 @ `72d77cf1`，發 `v0.7.1-pre.4` 前，2026-10-19 第八十六 session；typecheck 0 / 0、vite build 成功）。前次 5635 passed / 321 files（@ `ee7d1047`，發 `v0.7.1-pre.3` 前，2026-10-19 第八十五 session；typecheck 0 / 0、vite build 成功） |
 
 ---
 

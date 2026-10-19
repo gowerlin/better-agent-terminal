@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（垃圾字元進 shell 命令列；若接著按 Enter 會被當成命令執行） |
 | 可重現 | 有時（Gary：「有時會一直不斷產生」） |
-| **狀態** | ✅ FIXED（T0672 `64209d44`：F1 回報被回顯成文字時本機關閉追蹤 + F2 右鍵「重設滑鼠模式」/「離開替代畫面」；待 Gary 以含此修正的版本在 macOS 實機確認。尚未發版）。前情：T0671 研究 DONE `58dc95d4`：codex 0.163 **只有被訊號結束**（SIGINT / TERM / HUP / KILL）時不還原滑鼠追蹤與 alt screen；BAT 不開也不保留追蹤；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸；建議 F1 + F2（S），待使用者決定） |
+| **狀態** | ✅ FIXED（T0672 `64209d44`：F1 回報被回顯成文字時本機關閉追蹤 + F2 右鍵「重設滑鼠模式」/「離開替代畫面」；已隨 `v0.7.1-pre.4` 發佈（2026-10-19 18:03），待 Gary 在 macOS 實機確認）。前情：T0671 研究 DONE `58dc95d4`：codex 0.163 **只有被訊號結束**（SIGINT / TERM / HUP / KILL）時不還原滑鼠追蹤與 alt screen；BAT 不開也不保留追蹤；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸；建議 F1 + F2（S），待使用者決定） |
 | 回報者 | Gary（使用者轉達，附截圖） |
 
 ## 現象
