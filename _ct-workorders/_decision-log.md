@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D173 2026-10-19 — 網站示意可用真實工單目錄名 `_ct-workorders/`（放寬 D159 / D165 的 grep 規則一項）
+
+- **背景**：網站故事插圖（`site/.vitepress/theme/components/StoryIllo.vue` 的 `files` / `workorder` 兩張）原本用虛構目錄 `work-orders/`；使用者第八十五 session 指出應為 `_ct-workorders`（`3262b416` 已改）。D159 / D165 與 T0630 / T0634 起的網站工單驗收寫「`site/` 內 grep `_ct-workorders` = 0」，若不記錄，之後的網站工單會把它改回去或判驗收失敗。
+- **決定**（使用者 2026-10-19 指示）：網站示意插圖與說明可以出現工單目錄名 `_ct-workorders/`（含其下虛構工單檔名，例 `_ct-workorders/T1024-discount-code.md`、`_decision-log.md`）。之後網站工單的 grep 驗收**移除 `_ct-workorders` 這一項**；其餘限制照舊（不得出現內部編號 `T0\d{3}` / `D1\d{2}` / `BUG-` / `PLAN-`、`CLAUDE.md`、CT 文件名 / 版本號 / 星號指令 / skill 名稱 / CT 資料存放路徑 / 取得管道；示意仍只用 `demo-shop` 與 `T1024` 以後的虛構編號）。
+- **相關**：D159 / D165 / T0630 / T0634 / `3262b416`
+
 ### D172 2026-10-18 — PLAN-049 結案（DONE）：手動素材改為使用者拍好後另開工單
 
 - **背景**：使用者第八十四 session 問 PLAN-049 是否可 done。W1–W4、W2a–W2d、D170 演進史、T0665 皆完成上線（Pages run `39137082682`，link-check 0 errors），D159 / D160 待決事項已全數決定。
