@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-19T15:33:28+0800"
+generated_at: "2026-10-19T15:42:53+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 49
+total: 50
 breakdown:
-  OPEN: 0
+  OPEN: 1
   FIXING: 0
   FIXED: 22
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-19 15:33 (UTC+8) — BUG-136 FIXED → CLOSED（Gary 以 v0.7.1-pre.3 確認打字卡頓解決）；BUG-164 FIXED 仍待 Gary
+> 最後同步：2026-10-19 15:42 (UTC+8) — BUG-165 新開（Codex CLI 捲動順暢度，T0670 研究）；BUG-136 CLOSED；BUG-164 FIXED 待 Gary
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 27 | ⛔ Won't Fix: 0 | **Total: 49**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 27 | ⛔ Won't Fix: 0 | **Total: 50**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（Gary，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)
 
