@@ -9,6 +9,12 @@
 
 ## Prerequisites
 
+> **Placeholders.** `you@dev-server`, `192.0.2.10` and `jump-host` in this
+> guide are examples. Replace `you` with your login account on the host,
+> `dev-server` with its hostname, IP address or `~/.ssh/config` `Host` alias,
+> `192.0.2.10` with its real address, and drop the `ProxyJump` line if you
+> do not use a jump host.
+
 | Requirement | Notes |
 |-------------|-------|
 | `ssh` on the BAT machine | Found with `where ssh` / `which ssh` (`no-ssh` otherwise). Windows' built-in OpenSSH client is fine. There is no version check; `StrictHostKeyChecking=accept-new` needs OpenSSH 7.6 or newer. |

@@ -9,6 +9,17 @@ BAT 留在你的電腦，Agent 在另一台主機上執行，例如公司的開�
 
 ## 開始之前 {#before}
 
+::: tip 範例裡的 you@dev-server 要換成你自己的
+本頁的指令與設定檔都用虛構的範例值，照抄不會成功，請換成你自己的：
+
+- `you`：你在那台主機上的登入帳號。
+- `dev-server`：主機名稱或 IP 位址；已經寫進 `~/.ssh/config` 的話，也可以用那裡的 `Host` 別名。
+- `192.0.2.10`：主機實際的 IP 位址或網域名稱。
+- `jump-host`：跳板機的別名；沒有跳板機就把 `ProxyJump` 那一行拿掉。
+
+例如帳號是 `alice`、主機 IP 是 `192.0.2.10`，就執行 `ssh alice@192.0.2.10`。已經在 `~/.ssh/config` 寫好別名 `dev-server` 時，執行 `ssh dev-server` 即可，帳號會用設定檔裡的 `User`。
+:::
+
 - **主機的作業系統與架構**：Linux（x64 或 arm64）或 Apple Silicon 的 macOS。Intel Mac 不支援。
 - **用金鑰登入**：BAT 不會詢問密碼，只能用 SSH 金鑰或 ssh-agent。有密碼保護的金鑰，請先載入 ssh-agent。先在終端機執行一次 `ssh you@dev-server`，確認不用輸入密碼就能登入。
 - **你的電腦上有 `ssh` 指令**：Windows 10 以上內建的 OpenSSH 用戶端即可；macOS、Linux 都已內建。
@@ -91,7 +102,7 @@ Linux 主機上，精靈每次都會啟用 lingering；不需要時執行 `sudo 
 
 ### SSH 認證失敗 {#auth-failed}
 
-BAT 只能用金鑰登入。在終端機執行 `ssh -v you@dev-server` 看是哪一步失敗；還沒有金鑰時，自己產生一把並放到主機上：
+BAT 只能用金鑰登入。在終端機執行 `ssh -v you@dev-server`（`you` 換成你的帳號、`dev-server` 換成主機名稱或 IP，見[開始之前](#before)）看是哪一步失敗；還沒有金鑰時，自己產生一把並放到主機上：
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_bat
