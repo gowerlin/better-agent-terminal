@@ -7,7 +7,7 @@ status: FIXED
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T12:06:59+0800"
-updated_at: "2026-10-19T12:51:12+0800"
+updated_at: "2026-10-19T15:40:31+0800"
 impact:
   - gpu-process
   - xterm-canvas
@@ -68,6 +68,16 @@ links:
 1. 符號化：下載 Electron `41.2.1` darwin-arm64 dSYM，用 `atos` / `llvm-symbolizer` 還原上面三個偏移，找出是哪一個 CHECK。
 2. 依 CHECK 名稱評估與 `clearTextureAtlas` / CanvasAddon / 視窗 resize 的關聯；必要時請 Gary 跑 BUG-136 的「快速新增終端」重現步驟，並附 `[gpu]` 日誌（`0.6.1-pre.2` 起才有）。
 3. 修正方向（待第 1、2 點）：例如 GPU 崩潰後對所有 xterm 重建 texture atlas，或改用 WebGL addon 並處理 `onContextLoss`。不得讓 Win11 `clearTextureAtlas` 修正退化。
+
+## 實機驗收（Gary，`v0.7.1-pre.3`）
+
+| 檢查點 | 結果 |
+|---|---|
+| 日誌有 `[gpu] skia graphite: disabled` | ✅ PASS（15:40 使用者轉達：`[2026-10-19T05:28:36.795Z] [LOG] [gpu] skia graphite: disabled (darwin default, --disable-skia-graphite; BAT_SKIA_GRAPHITE=1 keeps it on)`，即 13:28:36 +0800 啟動） |
+| `[gpu] feature status` 的 `skia_graphite=` 不再是 `enabled_on` | ⏳ 未回報 |
+| 使用期間無 `child-process-gone type=GPU` / `[gpu] crash #N` | ⏳ 未回報 |
+
+旗標已生效；兩項未回報前維持 FIXED。
 
 ## 附件
 
