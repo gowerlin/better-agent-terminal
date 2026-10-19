@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: bug
 id: BUG-136
 title: "macOS：使用已久的 Codex 塔台分頁打字嚴重延遲，BAT Renderer 持續約 1 顆核心；同一程序新開的分頁正常。期間 GPU 行程崩潰 5 次"
-status: OPEN
+status: FIXED
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-15T13:13:21+0800"
-updated_at: "2026-10-19T11:55:06+0800"
+updated_at: "2026-10-19T12:05:54+0800"
 impact:
   - terminal-rendering
   - xterm-canvas
   - macos
 links:
   discovered_in: "Gary 回報（2026-10-15，v0.6.1-pre.1）"
-  related: [T0533, T0666]
+  related: [T0533, T0666, T0667]
 ---
 
 # BUG-136 — macOS 舊分頁打字延遲、Renderer 約 100% CPU
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（舊塔台分頁幾乎無法打字；繞行：新開分頁 + 新 Codex 工作階段） |
 | 可重現 | 未確認（無最小重現；根因未定，見「判讀」） |
-| **狀態** | 📂 OPEN（原區分測試無法執行，改用「快速新增終端」重現；T0533 補 GPU 狀態日誌） |
+| **狀態** | ✅ FIXED（2026-10-19 T0667 `a9f0ad5a`：縮圖預覽上限，針對假設 C；待 Gary 以含此修正的版本確認打字延遲消失。確認失敗 → 退回 OPEN。GPU 崩潰（同一 CHECK 6 次）不在本修正範圍） |
 | 回報者 | Gary（附量測與日誌） |
 
 ## 環境
