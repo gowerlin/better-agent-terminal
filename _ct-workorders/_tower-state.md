@@ -93,7 +93,7 @@
 
 ### 待辦（依優先序）
 
-1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。17:28 Gary：「有空再排，不急」；Claude CLI 捲動較順、Codex 較頓（符合 T0670）；codex 是自己跳回命令列（非正常退出，符合 T0671）→ 兩張降為「有空再排」。17:35 使用者：BUG-166 不需知道成因可修 → 派 T0672（F1 + F2）。
+1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。17:28 Gary：「有空再排，不急」；Claude CLI 捲動較順、Codex 較頓（符合 T0670）；codex 是自己跳回命令列（非正常退出，符合 T0671）→ 兩張降為「有空再排」。17:35 使用者：BUG-166 不需知道成因可修 → 派 T0672（F1 + F2）→ 17:50 DONE `64209d44`，BUG-166 FIXED（塔台複驗 5661 passed / 322 files、typecheck 0 / 0；未發版）。
 2. 🔴 **Gary 以 `v0.7.1-pre.3` 驗收**：
    - ~~BUG-136：打字延遲~~ → ✅ 2026-10-19 15:19 Gary 確認解決，CLOSED（第八十六 session）
    - BUG-164：日誌有 `[gpu] skia graphite: disabled`、`skia_graphite=` 不再是 `enabled_on`、期間有無 `child-process-gone type=GPU`
@@ -111,7 +111,7 @@
 **不要用 grep 字串存在性判斷安裝版是否換新** —— 用 diff / 雜湊比對。**每次發版** run 完成後同一步 `gh release edit --notes-file` 寫更版重點，`gh release view --json body` 確認後，再更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 commit + push，確認 Pages 綠燈、首頁版號、`link-check` summary，才回報已發佈。
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 1 / Fixed 22 / Closed 27）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 23 / Closed 27）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D174）｜ Learnings → [_learnings.md](_learnings.md)（最大 L170）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（100 entries）
@@ -132,7 +132,7 @@
 | **前一 tag** | `v0.7.1-pre.2`（2026-10-18 20:55，`9c5fe2b1`） |
 | **目前主軸** | `v0.7.1-pre.3` 已發佈（第八十五 session），等 Gary 驗收 BUG-136 / BUG-164；熱區無進行中 PLAN / 工單 |
 | **工單最大編號** | **T0669** DONE（第八十五 session：T0666 / T0668 研究、T0667 / T0669 修正）；第八十四 session：T0663–T0665；更早見 `_archive/state-snapshots/` |
-| **BUG 最大編號** | **BUG-164**（第八十五 session 開立並 FIXED，待 Gary）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 1 / Fixed 22 / Closed 27；BUG-165 OPEN、BUG-166 FIXING（T0672，第八十六 session） |
+| **BUG 最大編號** | **BUG-164**（第八十五 session 開立並 FIXED，待 Gary）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 23 / Closed 27；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
 | **PLAN 最大編號** | **PLAN-053**（IDEA：Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D174**（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
@@ -259,7 +259,7 @@
 
 ### 計數器（第八十六 session，進行中）
 
-- 派發：T0670 / T0671 / T0672（皆 `started:`，per-dispatch `--mode yolo --no-interactive`）；T0670 / T0671 並行；`worker_auto_close` 回收 2 次
+- 派發：T0670 / T0671 / T0672（皆 `started:`，per-dispatch `--mode yolo --no-interactive`）；T0670 / T0671 並行；`worker_auto_close` 回收 3 次
 - [提問] 2026-10-19 17:40 T0672 Q-1（BAT `--answer` exit 0，選 [A]，D174）
 
 ### 歷史 Session（摘要）

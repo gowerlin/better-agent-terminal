@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-19T17:35:11+0800"
+generated_at: "2026-10-19T17:52:56+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 51
 breakdown:
   OPEN: 1
-  FIXING: 1
-  FIXED: 22
+  FIXING: 0
+  FIXED: 23
   VERIFY: 0
   CLOSED: 27
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-19 17:35 (UTC+8) — BUG-166 OPEN → FIXING（T0672）；BUG-165 OPEN（有空再排）；BUG-164 FIXED 待 Gary
+> 最後同步：2026-10-19 17:52 (UTC+8) — BUG-166 FIXING → FIXED（T0672 `64209d44`，未發版）；BUG-165 OPEN（有空再排）；BUG-164 FIXED 待 Gary
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 27 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 27 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-166 | Agent 結束後的分頁，滑鼠移動 / 滾輪被當成文字輸入 shell（codex 被訊號結束不還原追蹤；T0671 研究；T0672 F1 + F2 修正中） | 🟡 medium | 2026-10-19 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-166 | Agent 被訊號結束後的分頁，滑鼠回報被當成文字輸入 shell（T0671 研究；T0672 `64209d44` 自動 / 手動重設滑鼠追蹤；待 Gary 確認、未發版） | 🟡 medium | 2026-10-19 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 | BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（`CrGpuMain`，累計 6 次；從 BUG-136 拆出；T0668 符號化；T0669 `32d62a45` macOS 停用 Graphite + 崩潰後重建可見終端；待 Gary 確認） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |

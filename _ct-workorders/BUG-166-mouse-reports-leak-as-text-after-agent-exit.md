@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-166
 title: "Agent 結束後的分頁，滑鼠移動 / 滾輪被當成文字輸入 shell（SGR 滑鼠回報殘留）"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: sometimes
 created_at: "2026-10-19T15:52:11+0800"
-updated_at: "2026-10-19T17:30:20+0800"
+updated_at: "2026-10-19T17:52:56+0800"
 impact:
   - terminal-input
   - mouse-tracking
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（垃圾字元進 shell 命令列；若接著按 Enter 會被當成命令執行） |
 | 可重現 | 有時（Gary：「有時會一直不斷產生」） |
-| **狀態** | 🔧 FIXING（T0672 F1 + F2，2026-10-19 17:35 使用者指示直接派工）。前情：T0671 研究 DONE `58dc95d4`：codex 0.163 **只有被訊號結束**（SIGINT / TERM / HUP / KILL）時不還原滑鼠追蹤與 alt screen；BAT 不開也不保留追蹤；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸；建議 F1 + F2（S），待使用者決定） |
+| **狀態** | ✅ FIXED（T0672 `64209d44`：F1 回報被回顯成文字時本機關閉追蹤 + F2 右鍵「重設滑鼠模式」/「離開替代畫面」；待 Gary 以含此修正的版本在 macOS 實機確認。尚未發版）。前情：T0671 研究 DONE `58dc95d4`：codex 0.163 **只有被訊號結束**（SIGINT / TERM / HUP / KILL）時不還原滑鼠追蹤與 alt screen；BAT 不開也不保留追蹤；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸；建議 F1 + F2（S），待使用者決定） |
 | 回報者 | Gary（使用者轉達，附截圖） |
 
 ## 現象
@@ -61,3 +61,9 @@ links:
 - 「我其實沒有動他耶，我就切過去那個 session，他就已經變成 terminal 命令列了，自己跳開的」→ codex 不是正常退出（正常退出會還原），符合 T0671「被訊號結束 / 崩潰」的條件；是誰結束 codex（記憶體壓力、崩潰、其他程序）未知。
 - 「有空再排吧，不急著修」「我覺得這小問題」→ 不急，排程時再派 F1 + F2。
 - 2026-10-19 17:35 使用者：F1 / F2 不需知道 codex 如何結束即可修 → 直接派 T0672。
+
+## 修正（T0672，2026-10-19 17:50 DONE；塔台複驗 2026-10-19 17:52）
+
+- 產品 commit `64209d44`：`src/lib/mouse-tracking-reset.ts`（`MouseReportEchoDetector`，500 ms 時間窗）、`TerminalPanel.tsx`（F1 自動重設 + F2 選單）、三語系、CLAUDE.md 例外一句、`docs/agent-guide/terminal-context-menu.md` 新節；e2e `t0672-mouse-tracking-reset.spec.ts`，t0571 只改選單清單斷言（D174）。
+- 塔台複驗：`npm run test:unit` 322 files / 5661 passed / 3 skipped；typecheck 0 / 0。Worker：vite build 成功、t0672 / t0568 / t0571 e2e PASS。
+- 限制：命中前的前幾筆殘骸仍進命令列（e2e 3 筆，Ctrl+U 清）；alt screen 不自動離開（右鍵可手動）；1004 / 2004 殘留未處理；macOS 未實機。
