@@ -420,6 +420,8 @@
     "hidePromptBox": "Hide prompt box",
     "showPromptBox": "Show prompt box",
     "redrawTerminal": "Redraw terminal",
+    "resetMouseMode": "Reset mouse mode",
+    "exitAltScreen": "Leave alternate screen",
     "restartTerminal": "Restart terminal",
     "ptyLimitNotice": "[BAT] Terminal not started: the remote server is already running its maximum of {{limit}} terminals. Close a terminal (or raise BAT_SERVER_MAX_PTYS on the server), then open a new one.",
     "restartFailedNotice": "[BAT] Terminal not restarted ({{reason}}). Close this tab and open a new one.",

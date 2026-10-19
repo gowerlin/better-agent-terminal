@@ -15,6 +15,11 @@
  * clears the selection for every tracking DECSET (no input involved); while a Shift + drag is going
  * on that also ends the drag. The selection comes back after the write, a drag in progress is
  * pressed again where it began. e2e: e2e/t0571-shift-right-click-copy.spec.ts (focus steps).
+ *
+ * BUG-166 / T0672: tracking a program left on (codex killed by a signal) makes the shell type every
+ * report into its command line. A report coming back as text turns tracking off in xterm only (F1);
+ * the menu shown while tracking offers "Reset mouse mode", with the alternate screen on also
+ * "Leave alternate screen" (F2). e2e: e2e/t0672-mouse-tracking-reset.spec.ts.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
@@ -57,6 +62,9 @@ const { deepStub, xterm } = vi.hoisted(() => {
       decsetHandlers: [] as Array<(params: Array<number | number[]>) => boolean>,
       onBufferChange: null as ((buffer: unknown) => void) | null,
       element: null as HTMLElement | null,
+      // BUG-166 / T0672: what the tab writes to its own xterm, and the alternate buffer object
+      writes: [] as string[],
+      alternate: {} as object,
     },
   }
 })
@@ -75,6 +83,7 @@ vi.mock('@xterm/xterm', () => ({
           if (prop === 'onSelectionChange') return (fn: () => void) => { xterm.onSelectionChange = fn; return { dispose() {} } }
           if (prop === 'cols') return 80
           if (prop === 'element') return xterm.element
+          if (prop === 'write') return (data: string) => { xterm.writes.push(data) }
           if (prop === 'parser') return {
             registerCsiHandler: (id: { prefix?: string; final: string }, fn: (params: Array<number | number[]>) => boolean) => {
               if (id.prefix === '?' && id.final === 'h') xterm.decsetHandlers.push(fn)
@@ -86,7 +95,7 @@ vi.mock('@xterm/xterm', () => ({
             return new Proxy({}, {
               get: (_t, p) => (p === 'onBufferChange'
                 ? (fn: (b: unknown) => void) => { xterm.onBufferChange = fn; return { dispose() {} } }
-                : buffer[p]),
+                : p === 'alternate' ? xterm.alternate : buffer[p]),
             })
           }
           if (prop === 'hasSelection') return () => xterm.selection !== ''
@@ -137,6 +146,8 @@ function permissiveApi(overrides: Record<string, Record<string, unknown>>): unkn
 }
 
 const debugLog = vi.fn()
+/** The `pty.onOutput` listener the tab registered (T0672). */
+let ptyOutput: ((id: string, data: string) => void) | null = null
 const ptyWrite = vi.fn(async (..._args: unknown[]) => undefined)
 
 /**
@@ -218,6 +229,8 @@ async function renderTerminal(id: string) {
 }
 
 const menuItems = () => Array.from(document.querySelectorAll('.context-menu .context-menu-item')).map(b => b.textContent)
+/** BUG-166 / T0672: the menu item while the program tracks the mouse (no i18n set up here: `t` gives the key). */
+const RESET = 'terminal.resetMouseMode'
 
 beforeAll(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
@@ -236,13 +249,20 @@ beforeEach(() => {
   xterm.decsetHandlers = []
   xterm.onBufferChange = null
   xterm.element = document.createElement('div')
+  xterm.writes = []
+  ptyOutput = null
   xterm.element.appendChild(document.createElement('div')).className = 'xterm-screen'
   clipboardWrites.mockClear()
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: clipboardWrites, readText: async () => '' } })
   debugLog.mockClear()
   ptyWrite.mockClear()
   ;(window as unknown as { electronAPI: unknown }).electronAPI = permissiveApi({
-    pty: { create: vi.fn(async () => ({ ok: true, created: true })), getBuffer: vi.fn(async () => null), write: ptyWrite },
+    pty: {
+      create: vi.fn(async () => ({ ok: true, created: true })),
+      getBuffer: vi.fn(async () => null),
+      write: ptyWrite,
+      onOutput: vi.fn((fn: (id: string, data: string) => void) => { ptyOutput = fn; return () => {} }),
+    },
     debug: { log: debugLog, isDebugMode: false },
   })
 })
@@ -296,7 +316,7 @@ describe('TerminalPanel right-click (T0568)', () => {
     xterm.selection = 'shift-dragged'
     const { rightClick } = await renderTerminal('t0568-shift')
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上', RESET]))
   })
 
   test('the mode is read at the click: turning tracking off later brings the menu back', async () => {
@@ -359,7 +379,7 @@ describe('TerminalPanel Escape with the right-click menu (T0569 / BUG-143)', () 
     const { rightClick } = await renderTerminal('t0569-shift')
     await waitFor(() => expect(xterm.keyHandler).not.toBeNull())
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['貼上', RESET]))
     expect(pressInTerminal({ key: 'Escape', keyCode: 27 }).result).toBe(false)
     await waitFor(() => expect(menuItems()).toEqual([]))
     expect(escWrites()).toEqual([])
@@ -653,7 +673,7 @@ describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144
     const { rightClick } = await renderTerminal('t0571-copy')
     selectInTerminal('shift-dragged')
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上', RESET]))
     clickCopy()
     expect(clipboardWrites).toHaveBeenCalledWith('shift-dragged')
     await waitFor(() => expect(menuItems()).toEqual([]))
@@ -670,7 +690,7 @@ describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144
     // the reports still went to the PTY unchanged
     expect(ptyWrite.mock.calls.map(c => c[1])).toEqual(['\x1b[<35;22;2M', '\x1b[<39;23;2M'])
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上', RESET]))
     clickCopy()
     expect(clipboardWrites).toHaveBeenCalledWith('alpha beta')
   })
@@ -683,7 +703,7 @@ describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144
     terminalInput('\x1b[<35;22;2M')
     expect(xterm.selects).toEqual([])
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['貼上', RESET]))
     act(() => { document.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
     await waitFor(() => expect(menuItems()).toEqual([]))
 
@@ -714,7 +734,7 @@ describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144
     const { rightClick } = await renderTerminal('t0571-snapshot')
     selectInTerminal('at the click')
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上', RESET]))
     // xterm drops the selection while the menu is open (a key, a buffer switch): Copy still has the text
     act(() => { xterm.selection = ''; xterm.onSelectionChange?.() })
     clickCopy()
@@ -722,7 +742,7 @@ describe('TerminalPanel Shift + right-click Copy while tracking (T0571 / BUG-144
     await waitFor(() => expect(menuItems()).toEqual([]))
 
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['貼上', RESET]))
   })
 
   test('tracking on without Shift: still no menu, even with a selection (T0568)', async () => {
@@ -759,7 +779,7 @@ describe('TerminalPanel: tracking set again on focus (T0573 / BUG-144)', () => {
     // nothing was written to the PTY for it
     expect(ptyWrite).not.toHaveBeenCalled()
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上', RESET]))
     expect(shownLog()).toEqual([
       '[terminal-context-menu] terminal=t0573-refocus shown: mouseTrackingMode=any shift=true hasSelection=true selectionText=10 chars keeper=restored (mouse tracking set again)',
     ])
@@ -840,7 +860,7 @@ describe('TerminalPanel: tracking set again on focus (T0573 / BUG-144)', () => {
     await afterWrite()
     expect(xterm.selects).toEqual([])
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['貼上', RESET]))
     expect(shownLog().at(-1)).toContain('hasSelection=false selectionText=0 chars keeper=')
   })
 
@@ -857,7 +877,7 @@ describe('TerminalPanel: tracking set again on focus (T0573 / BUG-144)', () => {
     terminalInput('[<35;22;2M')
     expect(xterm.selection).toBe('Claude Cod')
     rightClick({ shiftKey: true })
-    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上']))
+    await waitFor(() => expect(menuItems()).toEqual(['複製', '貼上', RESET]))
     clickCopy()
     expect(clipboardWrites).toHaveBeenCalledWith('Claude Cod')
   })
@@ -870,5 +890,126 @@ describe('TerminalPanel: tracking set again on focus (T0573 / BUG-144)', () => {
     await new Promise(r => setTimeout(r, 20))
     expect(menuItems()).toEqual([])
     expect(shownLog()).toEqual([])
+  })
+})
+
+describe('TerminalPanel: mouse tracking left on (BUG-166 / T0672)', () => {
+  const RESET_SEQUENCE = '\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?1016l'
+  const output = (id: string, data: string) => act(() => { ptyOutput!(id, data) })
+  const resets = () => xterm.writes.filter(w => w === RESET_SEQUENCE)
+  const mouseLogs = () => debugLog.mock.calls.map(c => String(c[0])).filter(l => l.startsWith('[mouse-tracking]'))
+  const clickAction = (action: string) => act(() => {
+    (document.querySelector(`.context-menu [data-menu-action="${action}"]`) as HTMLButtonElement).click()
+  })
+
+  test('F1: a report the shell types back as text turns tracking off in xterm only', async () => {
+    xterm.mouseTrackingMode = 'any'
+    await renderTerminal('t0672-echo')
+    await waitFor(() => expect(ptyOutput).not.toBeNull())
+    terminalInput('\x1b[<35;52;69M')
+    // the report still goes to the PTY unchanged
+    expect(ptyWrite).toHaveBeenCalledWith('t0672-echo', '\x1b[<35;52;69M')
+    output('t0672-echo', '\x0735;52;69M')
+    expect(resets()).toHaveLength(1)
+    expect(mouseLogs()).toEqual(['[mouse-tracking] reset: reports echoed as text terminal=t0672-echo mode=any'])
+    // the DECRSTs went to xterm, not to the PTY
+    expect(ptyWrite.mock.calls.some(c => String(c[1]).includes('\x1b[?100'))).toBe(false)
+    // the log says nothing about the output itself
+    expect(mouseLogs().join('')).not.toContain('35;52;69M')
+  })
+
+  test('F1: the echo split over output chunks (zsh redraw) still counts', async () => {
+    xterm.mouseTrackingMode = 'any'
+    await renderTerminal('t0672-chunks')
+    await waitFor(() => expect(ptyOutput).not.toBeNull())
+    terminalInput('\x1b[<35;52;69M')
+    output('t0672-chunks', '3\x08')
+    output('t0672-chunks', '35;52;')
+    expect(resets()).toHaveLength(0)
+    output('t0672-chunks', '69M')
+    expect(resets()).toHaveLength(1)
+  })
+
+  test('F1: an agent reading the reports (output without them) is left alone', async () => {
+    xterm.mouseTrackingMode = 'any'
+    await renderTerminal('t0672-agent')
+    await waitFor(() => expect(ptyOutput).not.toBeNull())
+    for (let i = 0; i < 20; i++) {
+      terminalInput(`\x1b[<35;${10 + i};5M`)
+      output('t0672-agent', `\x1b[5;1H\x1b[38;2;35;${10 + i};5m› thinking\x1b[0m\x1b[K`)
+    }
+    expect(resets()).toHaveLength(0)
+    expect(mouseLogs()).toEqual([])
+  })
+
+  test('F1: tracking off, the same text in the output does nothing', async () => {
+    await renderTerminal('t0672-off')
+    await waitFor(() => expect(ptyOutput).not.toBeNull())
+    terminalInput('\x1b[<35;52;69M')
+    output('t0672-off', '35;52;69M')
+    expect(resets()).toHaveLength(0)
+  })
+
+  test('F1: the echo arriving after the time window does nothing', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const now = vi.spyOn(performance, 'now').mockReturnValue(10_000)
+    try {
+      await renderTerminal('t0672-late')
+      await waitFor(() => expect(ptyOutput).not.toBeNull())
+      terminalInput('\x1b[<35;52;69M')
+      now.mockReturnValue(10_501)
+      output('t0672-late', '35;52;69M')
+      expect(resets()).toHaveLength(0)
+    } finally {
+      now.mockRestore()
+    }
+  })
+
+  test('F1: the kept Shift + drag selection is forgotten with the reset', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0672-keeper')
+    await waitFor(() => expect(ptyOutput).not.toBeNull())
+    selectInTerminal('picked text')
+    terminalInput('\x1b[<35;52;69M')
+    output('t0672-keeper', '35;52;69M')
+    expect(resets()).toHaveLength(1)
+    xterm.mouseTrackingMode = 'none'
+    rightClick()
+    await waitFor(() => expect(menuItems().length).toBeGreaterThan(0))
+    expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('keeper=forgotten (mouse tracking reset)'))
+  })
+
+  test('F2: Shift + right-click while tracking offers "Reset mouse mode"; it resets xterm only', async () => {
+    xterm.mouseTrackingMode = 'any'
+    const { rightClick } = await renderTerminal('t0672-manual')
+    rightClick({ shiftKey: true })
+    await waitFor(() => expect(menuItems()).toEqual(['貼上', RESET]))
+    clickAction('reset-mouse-mode')
+    await waitFor(() => expect(menuItems()).toEqual([]))
+    expect(resets()).toHaveLength(1)
+    expect(mouseLogs()).toEqual(['[mouse-tracking] reset: manual terminal=t0672-manual mode=any'])
+    expect(ptyWrite).not.toHaveBeenCalled()
+  })
+
+  test('F2: no mouse items in a plain shell', async () => {
+    const { rightClick } = await renderTerminal('t0672-plain')
+    rightClick()
+    await waitFor(() => expect(menuItems()).toEqual(['貼上']))
+    expect(document.querySelector('.context-menu [data-menu-action]')).toBeNull()
+    expect(document.querySelector('.context-menu .context-menu-divider')).toBeNull()
+  })
+
+  test('alternate screen on: "Leave alternate screen" writes DECRST 1049 to xterm only', async () => {
+    const { rightClick } = await renderTerminal('t0672-alt')
+    await waitFor(() => expect(xterm.onBufferChange).not.toBeNull())
+    act(() => { xterm.onBufferChange!(xterm.alternate) })
+    rightClick()
+    await waitFor(() => expect(menuItems()).toEqual(['貼上', 'terminal.exitAltScreen']))
+    clickAction('exit-alt-screen')
+    await waitFor(() => expect(menuItems()).toEqual([]))
+    expect(xterm.writes).toContain('\x1b[?1049l')
+    expect(resets()).toHaveLength(0)
+    expect(mouseLogs()).toEqual(['[mouse-tracking] alt screen left: manual terminal=t0672-alt'])
+    expect(ptyWrite).not.toHaveBeenCalled()
   })
 })

@@ -16,6 +16,7 @@ import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, ter
 import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
 import { attachmentDisplayNames } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
+import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -107,6 +108,10 @@ interface ContextMenu {
   y: number
   /** The selection at the right-click; Copy writes this, not what xterm holds by the time it is clicked (T0571). */
   selectionText: string
+  /** BUG-166 / T0672: the program tracks the mouse at the right-click → "Reset mouse mode". */
+  mouseTracking: boolean
+  /** The alternate screen is on at the right-click → "Leave alternate screen". */
+  altBuffer: boolean
 }
 
 let renderCount = 0
@@ -129,6 +134,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const [terminalReady, setTerminalReady] = useState(false)
   const isActiveRef = useRef(isActive)
   const doResizeRef = useRef<(() => void) | null>(null)
+  const resetMouseTrackingRef = useRef<((reason: string) => void) | null>(null)
+  const exitAltScreenRef = useRef<(() => void) | null>(null)
   const remoteKeypressTraceRef = useRef<RemoteKeypressTrace | null>(null)
   const { t } = useTranslation()
   const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
@@ -262,6 +269,19 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       // Restore focus after menu unmount so keyboard input keeps working.
       setTimeout(() => terminalRef.current?.focus(), 0)
     }
+  }
+
+  // BUG-166 / T0672: tracking (or the alternate screen) a program left on, turned off in xterm only.
+  const handleResetMouseMode = () => {
+    resetMouseTrackingRef.current?.('manual')
+    setContextMenu(null)
+    setTimeout(() => terminalRef.current?.focus(), 0)
+  }
+
+  const handleExitAltScreen = () => {
+    exitAltScreenRef.current?.()
+    setContextMenu(null)
+    setTimeout(() => terminalRef.current?.focus(), 0)
   }
 
   // Close context menu when clicking outside
@@ -522,6 +542,24 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     document.addEventListener('mouseup', endSelectionDrag, { capture: true })
     document.addEventListener('mousemove', dropStaleSelectionDrag, { capture: true, passive: true })
 
+    // BUG-166 / T0672: a program that tracked the mouse ended without turning tracking off (codex
+    // killed by a signal), so the shell types every report into its command line. Tracking is
+    // turned off in this xterm only (never written to the PTY); the alternate screen is left alone.
+    const echoDetector = new MouseReportEchoDetector()
+    const resetMouseTracking = (reason: string) => {
+      const mode = terminal.modes.mouseTrackingMode
+      terminal.write(MOUSE_TRACKING_RESET)
+      echoDetector.clear()
+      selectionDrag = null
+      selectionKeeper.forget('mouse tracking reset')
+      dlog(`[mouse-tracking] reset: ${reason} terminal=${terminalId} mode=${mode}`)
+    }
+    resetMouseTrackingRef.current = resetMouseTracking
+    exitAltScreenRef.current = () => {
+      terminal.write(ALT_SCREEN_EXIT)
+      dlog(`[mouse-tracking] alt screen left: manual terminal=${terminalId}`)
+    }
+
     // Track alt buffer state (BUG-008 infrastructure)
     const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
       const isAlt = activeBuffer === terminal.buffer.alternate
@@ -535,6 +573,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     // Handle terminal input
     terminal.onData((data) => {
       selectionKeeper.handleData(data)
+      echoDetector.noteInput(data, performance.now(), isMouseTrackingOn(terminal.modes.mouseTrackingMode))
       const trace = remoteKeypressTraceRef.current
       if (trace) {
         trace.dataEvents += 1
@@ -741,7 +780,9 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
-        selectionText
+        selectionText,
+        mouseTracking: isMouseTrackingOn(mouseTrackingMode),
+        altBuffer: altBufferRef.current,
       })
     })
 
@@ -781,6 +822,9 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       const filteredData = filterTerminalOutputNoise(data)
       if (filteredData) {
         terminal.write(filteredData)
+        if (echoDetector.noteOutput(filteredData, performance.now(), isMouseTrackingOn(terminal.modes.mouseTrackingMode))) {
+          resetMouseTracking('reports echoed as text')
+        }
         // Optional: register marker on prompt detection (decoration pipeline demo)
         // Only in normal buffer — alt buffer returns null gracefully
         if (!altBufferRef.current && decorationManager.count < PROMPT_MARKER_LIMIT) {
@@ -998,6 +1042,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       containerRef.current?.removeEventListener('wheel', forgetKeptSelection, { capture: true })
       containerRef.current?.removeEventListener('paste', handleNativePaste, { capture: true })
       doResizeRef.current = null
+      resetMouseTrackingRef.current = null
+      exitAltScreenRef.current = null
       terminal.dispose()
     }
   }, [terminalId])
@@ -1022,6 +1068,17 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
           <button onClick={handlePaste} className="context-menu-item">
             貼上
           </button>
+          {(contextMenu.mouseTracking || contextMenu.altBuffer) && <div className="context-menu-divider" />}
+          {contextMenu.mouseTracking && (
+            <button onClick={handleResetMouseMode} className="context-menu-item" data-menu-action="reset-mouse-mode">
+              {t('terminal.resetMouseMode')}
+            </button>
+          )}
+          {contextMenu.altBuffer && (
+            <button onClick={handleExitAltScreen} className="context-menu-item" data-menu-action="exit-alt-screen">
+              {t('terminal.exitAltScreen')}
+            </button>
+          )}
         </div>,
         document.body
       )}

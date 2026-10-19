@@ -121,7 +121,7 @@
 ## 終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142）
 
 - 分頁內程式開了滑鼠追蹤（`terminal.modes.mouseTrackingMode` 為 `x10` / `vt200` / `drag` / `any`）時不開 BAT 的 複製 / 貼上 選單；Shift + 右鍵一律開。判斷唯一實作 `shouldShowTerminalContextMenu`（`src/lib/terminal-context-menu.ts`）。
-- 🔴 不改 xterm 寫進 PTY 的滑鼠回報；只決定 BAT 選單要不要出現。Claude / Codex 面板、縮圖、檔案樹等其他右鍵選單不受影響。
+- 🔴 不改 xterm 寫進 PTY 的滑鼠回報；只決定 BAT 選單要不要出現。Claude / Codex 面板、縮圖、檔案樹等其他右鍵選單不受影響。例外（T0672 / BUG-166）：追蹤中 BAT 剛送出的回報被 shell 回顯成文字時，於本機 xterm `terminal.write` DECRST 關閉追蹤（🔴 不寫 PTY、不自動離開 alt screen）；追蹤中的選單另有「重設滑鼠模式」，alt screen 時有「離開替代畫面」。偵測唯一實作 `MouseReportEchoDetector`（`src/lib/mouse-tracking-reset.ts`），接在 TerminalPanel 的 `onData` / `writeOutput`。
 - 選單開著時的 Esc（T0569）：`shouldCloseTerminalContextMenuOnKey`（同檔，經 `attachCustomKeyEventHandler`）；選單沒開時 Esc 照常送進 PTY。
 - 追蹤中的 Shift + 拖曳選取（T0571 / T0573）：`MouseReportSelectionKeeper`（同檔）、TerminalPanel 的 `registerCsiHandler` 偵測重送的追蹤 DECSET、`SelectionDrag.resume()`。實機再失敗時先看 `[terminal-context-menu] … shown:` 診斷日誌。
 - 完整原因分析、實測、驗證清單：[docs/agent-guide/terminal-context-menu.md](docs/agent-guide/terminal-context-menu.md)

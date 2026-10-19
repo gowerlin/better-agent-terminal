@@ -82,6 +82,8 @@ const withoutFocusReports = (chunks: string[]): string[] => chunks.map(s => s.re
 
 const menu = (win: Page) => win.locator('.context-menu')
 const menuItems = (win: Page) => win.locator('.context-menu .context-menu-item').allInnerTexts()
+// BUG-166 / T0672: the menu shown while tracking (and on the alt screen) ends with these two items.
+const MOUSE_ITEMS = ['重設滑鼠模式', '離開替代畫面（alt screen）']
 
 test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse like the claude CLI', async () => {
   test.skip(process.platform === 'darwin', 'macOS xterm bypasses mouse tracking with Option, not Shift')
@@ -157,7 +159,7 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     await expect.poll(() => readInputLog(inputLog).slice(before1).join(''), { timeout: 10_000 }).toMatch(/\x1b\[<35;\d+;\d+M/)
     await rightClick(23, true)
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
-    expect(await menuItems(win)).toEqual(['複製', '貼上'])
+    expect(await menuItems(win)).toEqual(['複製', '貼上', ...MOUSE_ITEMS])
     await win.screenshot({ path: test.info().outputPath('shift-menu-copy.png') })
     await menu(win).getByText('複製').click()
     await expect(menu(win)).toHaveCount(0)
@@ -172,7 +174,7 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     await win.mouse.move(at(25).x, at(25).y, { steps: 2 })
     await rightClick(25, true)
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
-    expect(await menuItems(win)).toEqual(['複製', '貼上'])
+    expect(await menuItems(win)).toEqual(['複製', '貼上', ...MOUSE_ITEMS])
     await expect(textarea).toBeFocused()
     await win.keyboard.press('Escape')
     await expect(menu(win)).toHaveCount(0, { timeout: 5_000 })
@@ -186,7 +188,7 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     await win.mouse.move(at(27).x, at(27).y, { steps: 2 })
     await rightClick(27, true)
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
-    expect(await menuItems(win)).toEqual(['貼上'])
+    expect(await menuItems(win)).toEqual(['貼上', ...MOUSE_ITEMS])
     await win.keyboard.press('Escape')
     await expect(menu(win)).toHaveCount(0, { timeout: 5_000 })
 
@@ -200,7 +202,7 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     expect(plainDrag).toMatch(/\x1b\[<32;\d+;\d+M/)
     await rightClick(20, true)
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
-    expect(await menuItems(win)).toEqual(['貼上'])
+    expect(await menuItems(win)).toEqual(['貼上', ...MOUSE_ITEMS])
     await win.keyboard.press('Escape')
     await expect(menu(win)).toHaveCount(0, { timeout: 5_000 })
 
@@ -233,7 +235,7 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     await win.mouse.move(at(23).x, at(23).y, { steps: 3 })
     await rightClick(23, true)
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
-    expect(await menuItems(win)).toEqual(['複製', '貼上'])
+    expect(await menuItems(win)).toEqual(['複製', '貼上', ...MOUSE_ITEMS])
     await menu(win).getByText('複製').click()
     await expect(menu(win)).toHaveCount(0)
     await expect.poll(readClipboard, { timeout: 5_000 }).toBe('alpha beta')
@@ -252,7 +254,7 @@ test('Shift + drag, then Shift + right-click: Copy in a tab tracking the mouse l
     await win.mouse.up({ button: 'right' })
     await win.keyboard.up('Shift')
     await expect(menu(win)).toHaveCount(1, { timeout: 5_000 })
-    expect(await menuItems(win)).toEqual(['複製', '貼上'])
+    expect(await menuItems(win)).toEqual(['複製', '貼上', ...MOUSE_ITEMS])
     await menu(win).getByText('複製').click()
     await expect(menu(win)).toHaveCount(0)
     await expect.poll(readClipboard, { timeout: 5_000 }).toBe('beta gamma')
