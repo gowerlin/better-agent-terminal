@@ -93,7 +93,7 @@
 
 ### 待辦（依優先序）
 
-1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。
+1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。17:28 Gary：「有空再排，不急」；Claude CLI 捲動較順、Codex 較頓（符合 T0670）；codex 是自己跳回命令列（非正常退出，符合 T0671）→ 兩張降為「有空再排」。
 2. 🔴 **Gary 以 `v0.7.1-pre.3` 驗收**：
    - ~~BUG-136：打字延遲~~ → ✅ 2026-10-19 15:19 Gary 確認解決，CLOSED（第八十六 session）
    - BUG-164：日誌有 `[gpu] skia graphite: disabled`、`skia_graphite=` 不再是 `enabled_on`、期間有無 `child-process-gone type=GPU`

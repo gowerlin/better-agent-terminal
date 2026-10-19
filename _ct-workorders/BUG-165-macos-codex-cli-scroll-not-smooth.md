@@ -7,7 +7,7 @@ status: OPEN
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T15:42:53+0800"
-updated_at: "2026-10-19T16:04:39+0800"
+updated_at: "2026-10-19T17:30:20+0800"
 impact:
   - terminal-rendering
   - codex
@@ -52,3 +52,8 @@ links:
 - 建議修正（S，待 Gary 確認）：`TerminalPanel.tsx` `attachCustomWheelEventHandler`，僅 alt buffer + 滑鼠追蹤 + SGR 時依像素累積行數送多個回報（上限約 8），先只套 codex 分頁。不建議：調 `smoothScrollDuration` / `scrollSensitivity`、為此升 xterm 6.0。
 - 使用者端暫解：`~/.codex/config.toml` `[tui]` `mouse_scroll_speed = 3`（BAT 不得注入 `-c tui.*`）。
 - 副作用紀錄：T0670 在使用者 `~/.codex/sessions/2026/10/19/` 留下兩個測試 session 檔（15:48、15:54），未刪除。
+
+## Gary 回覆（2026-10-19 17:28，使用者轉達）
+
+- 「用 Claude CLI，滑鼠捲動比較滑順，但用 Codex 就會比較頓」→ 與 T0670 結論相符（問題只在 codex 自己接管滑鼠、每回報 1 行的路徑；Claude CLI 走不同路徑）。
+- 「有空再排吧，不急著修」→ 不急，排程時再派 S 修正。`mouse_scroll_speed = 3` 測試尚未回覆。

@@ -7,7 +7,7 @@ status: OPEN
 severity: medium
 reproducibility: sometimes
 created_at: "2026-10-19T15:52:11+0800"
-updated_at: "2026-10-19T16:34:52+0800"
+updated_at: "2026-10-19T17:30:20+0800"
 impact:
   - terminal-input
   - mouse-tracking
@@ -55,3 +55,8 @@ links:
 - 修正提案：**F1**（S）偵測 SGR 回報被回顯成文字 → 只在本機 xterm 送 DECRST 關掉追蹤（不寫 PTY）、記日誌；**F2**（S）右鍵選單「重設滑鼠模式」。F1 需在 CLAUDE.md「終端分頁右鍵選單與滑鼠追蹤」節補一句例外。F4：向 codex 上游回報訊號不還原終端（使用者決定）。不推薦 OSC 7501 `clear` 或提示列觸發（殘留情況不會送 `clear`；BAT 無 OSC 133）。
 - 與 BUG-165：codex 對無按鍵移動回報不重繪（0 bytes），any-event 追蹤不是捲動不順的主因。
 - 2026-10-19 17:30 使用者決策：修正先等 Gary 回覆（codex 怎麼結束、往上捲是否看得到對話）再決定；不向 codex 上游回報（F4）。
+
+## Gary 回覆（2026-10-19 17:28–17:29，使用者轉達）
+
+- 「我其實沒有動他耶，我就切過去那個 session，他就已經變成 terminal 命令列了，自己跳開的」→ codex 不是正常退出（正常退出會還原），符合 T0671「被訊號結束 / 崩潰」的條件；是誰結束 codex（記憶體壓力、崩潰、其他程序）未知。
+- 「有空再排吧，不急著修」「我覺得這小問題」→ 不急，排程時再派 F1 + F2。
